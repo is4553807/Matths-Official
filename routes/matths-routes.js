@@ -31,6 +31,26 @@ router.get(
 
 router.get('/main', authMiddleware.isLoggedIn, matthsController.main);
 
+router.get('/profile', authMiddleware.isLoggedIn, matthsController.profilePage);
+
+router.post(
+  '/profile/nickname',
+  authMiddleware.isLoggedIn,
+  matthsController.changeNickname
+);
+
+router.post(
+  '/profile/school',
+  authMiddleware.isLoggedIn,
+  matthsController.changeSchool
+);
+
+router.post(
+  '/profile/password',
+  authMiddleware.isLoggedIn,
+  matthsController.changePassword
+);
+
 router.get('/login', authMiddleware.isLoggedOut, matthsController.loginPage);
 
 router.post('/login', authMiddleware.isLoggedOut, matthsController.login);

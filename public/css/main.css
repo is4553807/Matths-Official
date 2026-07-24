@@ -340,6 +340,12 @@ button:focus-visible {
   border-radius: 11px;
   font-size: 13px;
   font-weight: 850;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+a.profile-avatar:hover {
+  box-shadow: 0 9px 18px rgba(49, 87, 246, 0.25);
+  transform: translateY(-2px);
 }
 
 .profile-copy {

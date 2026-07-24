@@ -1,0 +1,381 @@
+<%
+  const learner = profileUser;
+  const displayName = String(learner.name || "학생");
+  const currentSchool = learner.school || {};
+  const values =
+    typeof formValues !== "undefined" && formValues
+      ? formValues
+      : {};
+  const message =
+    typeof feedback !== "undefined"
+      ? feedback
+      : null;
+  const regionData =
+    typeof schoolRegions !== "undefined" && schoolRegions
+      ? schoolRegions
+      : {};
+  const regionNames = Object.keys(regionData);
+  const selectedRegion =
+    values.schoolRegion !== undefined
+      ? values.schoolRegion
+      : currentSchool.region || "";
+  const selectedSchoolCode =
+    values.schoolCode !== undefined
+      ? values.schoolCode
+      : currentSchool.code || "";
+  const nicknameValue =
+    values.nickname !== undefined
+      ? values.nickname
+      : displayName;
+  const gradeLabel =
+    Number(learner.schoolGrade) === 10
+      ? "고등학교 1학년"
+      : Number(learner.schoolGrade) === 11
+        ? "고등학교 2학년"
+        : Number(learner.schoolGrade) === 12
+          ? "고등학교 3학년"
+          : "학년 미설정";
+  const safeSchoolJson =
+    JSON.stringify(regionData)
+      .replace(/</g, "\\u003c")
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029");
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Matths 닉네임, 고등학교와 비밀번호를 관리하는 프로필 설정 페이지입니다."
+    />
+    <meta name="theme-color" content="#f5f7fc" />
+    <title>프로필 설정 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/profile.css" />
+    <script src="/js/auth.js" defer></script>
+    <script src="/js/profile.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#profile-main">프로필 설정으로 바로가기</a>
+
+    <div class="profile-page-shell">
+      <header class="profile-header">
+        <a class="brand" href="/main" aria-label="Matths 학습 홈">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <span>Matths</span>
+        </a>
+
+        <a class="back-link" href="/main">
+          <span aria-hidden="true">←</span>
+          학습 홈으로
+        </a>
+      </header>
+
+      <main class="profile-main" id="profile-main">
+        <section class="profile-hero" aria-labelledby="profile-title">
+          <div class="profile-hero-copy">
+            <p>MY PROFILE</p>
+            <h1 id="profile-title">프로필 설정</h1>
+            <span>
+              학습 화면에 표시되는 정보와 계정 보안을 관리할 수 있어요.
+            </span>
+          </div>
+
+          <div class="profile-summary">
+            <span class="profile-summary-avatar" aria-hidden="true">
+              <%= displayName.slice(0, 1) %>
+            </span>
+            <div>
+              <strong><%= displayName %>님</strong>
+              <small><%= learner.email %></small>
+              <p>
+                <%= currentSchool.name || "학교 미설정" %>
+                <i aria-hidden="true">·</i>
+                <%= gradeLabel %>
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <nav class="profile-section-nav" aria-label="프로필 설정 항목">
+          <a href="#nickname-settings">닉네임</a>
+          <a href="#school-settings">고등학교</a>
+          <a href="#password-settings">비밀번호</a>
+        </nav>
+
+        <div class="settings-grid">
+          <section
+            class="settings-card"
+            id="nickname-settings"
+            aria-labelledby="nickname-title"
+          >
+            <div class="settings-card-heading">
+              <span class="settings-icon blue" aria-hidden="true">Aa</span>
+              <div>
+                <p>DISPLAY NAME</p>
+                <h2 id="nickname-title">닉네임 변경</h2>
+              </div>
+            </div>
+
+            <p class="settings-description">
+              대시보드와 학습 화면에서 불러드릴 이름이에요.
+            </p>
+
+            <% if (message && message.section === "nickname") { %>
+              <div
+                class="settings-alert <%= message.type %>"
+                role="<%= message.type === 'error' ? 'alert' : 'status' %>"
+              >
+                <span aria-hidden="true">
+                  <%= message.type === "error" ? "!" : "✓" %>
+                </span>
+                <%= message.message %>
+              </div>
+            <% } %>
+
+            <form
+              class="settings-form"
+              action="/profile/nickname"
+              method="POST"
+              data-settings-form
+            >
+              <div class="form-field">
+                <label for="nickname">새 닉네임</label>
+                <input
+                  id="nickname"
+                  name="nickname"
+                  type="text"
+                  value="<%= nicknameValue %>"
+                  placeholder="새 닉네임을 입력하세요"
+                  autocomplete="nickname"
+                  minlength="2"
+                  maxlength="30"
+                  required
+                />
+                <small class="field-guide">
+                  2자 이상 30자 이하로 입력해주세요.
+                </small>
+              </div>
+
+              <button class="save-button" type="submit">
+                닉네임 저장
+                <span aria-hidden="true">→</span>
+              </button>
+            </form>
+          </section>
+
+          <section
+            class="settings-card"
+            id="school-settings"
+            aria-labelledby="school-title"
+          >
+            <div class="settings-card-heading">
+              <span class="settings-icon green" aria-hidden="true">校</span>
+              <div>
+                <p>SCHOOL</p>
+                <h2 id="school-title">고등학교 변경</h2>
+              </div>
+            </div>
+
+            <p class="settings-description">
+              현재 학교는
+              <strong><%= currentSchool.name || "미설정" %></strong>이에요.
+            </p>
+
+            <% if (message && message.section === "school") { %>
+              <div
+                class="settings-alert <%= message.type %>"
+                role="<%= message.type === 'error' ? 'alert' : 'status' %>"
+              >
+                <span aria-hidden="true">
+                  <%= message.type === "error" ? "!" : "✓" %>
+                </span>
+                <%= message.message %>
+              </div>
+            <% } %>
+
+            <form
+              class="settings-form"
+              action="/profile/school"
+              method="POST"
+              data-settings-form
+            >
+              <div class="school-fields">
+                <div class="form-field">
+                  <label for="schoolRegion">학교 소재 시·도</label>
+                  <select id="schoolRegion" name="schoolRegion" required>
+                    <option value="">시·도를 선택해 주세요</option>
+                    <% regionNames.forEach((regionName) => { %>
+                      <option
+                        value="<%= regionName %>"
+                        <%= selectedRegion === regionName ? "selected" : "" %>
+                      >
+                        <%= regionName %>
+                      </option>
+                    <% }) %>
+                  </select>
+                </div>
+
+                <div class="form-field">
+                  <label for="schoolSearch">학교 검색</label>
+                  <input
+                    id="schoolSearch"
+                    type="search"
+                    placeholder="학교명을 입력하세요"
+                    autocomplete="off"
+                    <%= selectedRegion ? "" : "disabled" %>
+                  />
+                </div>
+
+                <div class="form-field school-select-field">
+                  <label for="schoolCode">고등학교</label>
+                  <select
+                    id="schoolCode"
+                    name="schoolCode"
+                    data-selected-school="<%= selectedSchoolCode %>"
+                    required
+                    disabled
+                  >
+                    <option value="">시·도를 먼저 선택해 주세요</option>
+                  </select>
+                  <small
+                    class="field-guide school-result-count"
+                    id="schoolResultCount"
+                    aria-live="polite"
+                  ></small>
+                </div>
+              </div>
+
+              <button class="save-button" type="submit">
+                고등학교 저장
+                <span aria-hidden="true">→</span>
+              </button>
+            </form>
+          </section>
+
+          <section
+            class="settings-card password-card"
+            id="password-settings"
+            aria-labelledby="password-title"
+          >
+            <div class="settings-card-heading">
+              <span class="settings-icon violet" aria-hidden="true">●</span>
+              <div>
+                <p>SECURITY</p>
+                <h2 id="password-title">비밀번호 변경</h2>
+              </div>
+            </div>
+
+            <p class="settings-description">
+              현재 비밀번호를 확인한 뒤 새 비밀번호로 변경합니다.
+            </p>
+
+            <% if (message && message.section === "password") { %>
+              <div
+                class="settings-alert <%= message.type %>"
+                role="<%= message.type === 'error' ? 'alert' : 'status' %>"
+              >
+                <span aria-hidden="true">
+                  <%= message.type === "error" ? "!" : "✓" %>
+                </span>
+                <%= message.message %>
+              </div>
+            <% } %>
+
+            <form
+              class="settings-form"
+              action="/profile/password"
+              method="POST"
+              data-password-form
+              data-settings-form
+            >
+              <div class="password-fields">
+                <div class="form-field">
+                  <label for="currentPassword">현재 비밀번호</label>
+                  <div class="password-field">
+                    <input
+                      id="currentPassword"
+                      name="currentPassword"
+                      type="password"
+                      placeholder="현재 비밀번호"
+                      autocomplete="current-password"
+                      maxlength="72"
+                      required
+                    />
+                    <button
+                      type="button"
+                      data-password-toggle="currentPassword"
+                      aria-label="현재 비밀번호 표시"
+                      aria-pressed="false"
+                    >보기</button>
+                  </div>
+                </div>
+
+                <div class="form-field">
+                  <label for="newPassword">새 비밀번호</label>
+                  <div class="password-field">
+                    <input
+                      id="newPassword"
+                      name="newPassword"
+                      type="password"
+                      placeholder="8자 이상 입력"
+                      autocomplete="new-password"
+                      minlength="8"
+                      maxlength="72"
+                      required
+                    />
+                    <button
+                      type="button"
+                      data-password-toggle="newPassword"
+                      aria-label="새 비밀번호 표시"
+                      aria-pressed="false"
+                    >보기</button>
+                  </div>
+                </div>
+
+                <div class="form-field">
+                  <label for="newPasswordConfirm">비밀번호 확인</label>
+                  <div class="password-field">
+                    <input
+                      id="newPasswordConfirm"
+                      name="newPasswordConfirm"
+                      type="password"
+                      placeholder="새 비밀번호 재입력"
+                      autocomplete="new-password"
+                      minlength="8"
+                      maxlength="72"
+                      aria-describedby="new-password-match"
+                      required
+                    />
+                    <button
+                      type="button"
+                      data-password-toggle="newPasswordConfirm"
+                      aria-label="비밀번호 확인 값 표시"
+                      aria-pressed="false"
+                    >보기</button>
+                  </div>
+                  <small
+                    class="field-guide"
+                    id="new-password-match"
+                    aria-live="polite"
+                  >
+                    영문, 숫자, 특수문자를 함께 사용하면 더 안전해요.
+                  </small>
+                </div>
+              </div>
+
+              <button class="save-button password-save" type="submit">
+                비밀번호 변경
+                <span aria-hidden="true">→</span>
+              </button>
+            </form>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script id="school-data" type="application/json"><%- safeSchoolJson %></script>
+  </body>
+</html>

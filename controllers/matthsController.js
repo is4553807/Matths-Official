@@ -636,6 +636,334 @@ exports.logout = (req, res, next) => {
     });
 };
 
+function createNotFoundError(message) {
+    const error = new Error(message);
+    error.status = 404;
+    return error;
+}
+
+async function renderProfile(
+    req,
+    res,
+    {
+        status = 200,
+        feedback = null,
+        formValues = {},
+    } = {}
+) {
+    const profileUser = await User.findById(
+        req.session.user.id
+    ).lean();
+
+    if (!profileUser) {
+        throw createNotFoundError(
+            "사용자 정보를 찾을 수 없습니다."
+        );
+    }
+
+    return res.status(status).render("profile", {
+        profileUser,
+        schoolRegions: getSchoolSelectData(),
+        feedback,
+        formValues,
+    });
+}
+
+exports.profilePage = async (req, res, next) => {
+    try {
+        return await renderProfile(req, res);
+    } catch (error) {
+        return next(error);
+    }
+};
+
+exports.changeNickname = async (req, res, next) => {
+    try {
+        const nickname = String(
+            req.body.nickname || ""
+        ).trim();
+
+        if (!nickname) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "nickname",
+                    type: "error",
+                    message: "새 닉네임을 입력해주세요.",
+                },
+                formValues: { nickname },
+            });
+        }
+
+        if (
+            nickname.length < 2 ||
+            nickname.length > 30
+        ) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "nickname",
+                    type: "error",
+                    message:
+                        "닉네임은 2자 이상 30자 이하로 입력해주세요.",
+                },
+                formValues: { nickname },
+            });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.session.user.id,
+            { name: nickname },
+            {
+                new: true,
+                runValidators: true,
+            }
+        ).lean();
+
+        if (!user) {
+            throw createNotFoundError(
+                "사용자 정보를 찾을 수 없습니다."
+            );
+        }
+
+        req.session.user.name = user.name;
+        await saveSession(req);
+
+        return await renderProfile(req, res, {
+            feedback: {
+                section: "nickname",
+                type: "success",
+                message: "닉네임을 변경했습니다.",
+            },
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+exports.changeSchool = async (req, res, next) => {
+    try {
+        const schoolRegion = String(
+            req.body.schoolRegion || ""
+        ).trim();
+        const schoolCode = String(
+            req.body.schoolCode || ""
+        ).trim();
+        const formValues = {
+            schoolRegion,
+            schoolCode,
+        };
+
+        if (!schoolRegion || !schoolCode) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "school",
+                    type: "error",
+                    message:
+                        "변경할 지역과 고등학교를 선택해주세요.",
+                },
+                formValues,
+            });
+        }
+
+        const selectedSchool = findSchool(
+            schoolRegion,
+            schoolCode
+        );
+
+        if (!selectedSchool) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "school",
+                    type: "error",
+                    message:
+                        "학교 목록에서 올바른 고등학교를 선택해주세요.",
+                },
+                formValues,
+            });
+        }
+
+        const school = {
+            region: selectedSchool.region,
+            code: selectedSchool.code,
+            name: selectedSchool.name,
+            roadAddress:
+                selectedSchool.roadAddress || "",
+            establishment:
+                selectedSchool.establishment || "",
+            highSchoolType:
+                selectedSchool.highSchoolType || "",
+        };
+
+        const user = await User.findByIdAndUpdate(
+            req.session.user.id,
+            { school },
+            {
+                new: true,
+                runValidators: true,
+            }
+        ).lean();
+
+        if (!user) {
+            throw createNotFoundError(
+                "사용자 정보를 찾을 수 없습니다."
+            );
+        }
+
+        req.session.user.school = {
+            region: user.school.region,
+            code: user.school.code,
+            name: user.school.name,
+        };
+        await saveSession(req);
+
+        return await renderProfile(req, res, {
+            feedback: {
+                section: "school",
+                type: "success",
+                message: `${user.school.name}(으)로 변경했습니다.`,
+            },
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+exports.changePassword = async (req, res, next) => {
+    try {
+        const currentPassword = String(
+            req.body.currentPassword || ""
+        );
+        const newPassword = String(
+            req.body.newPassword || ""
+        );
+        const newPasswordConfirm = String(
+            req.body.newPasswordConfirm || ""
+        );
+
+        if (
+            !currentPassword ||
+            !newPassword ||
+            !newPasswordConfirm
+        ) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "password",
+                    type: "error",
+                    message:
+                        "현재 비밀번호와 새 비밀번호를 모두 입력해주세요.",
+                },
+            });
+        }
+
+        if (newPassword.length < 8) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "password",
+                    type: "error",
+                    message:
+                        "새 비밀번호는 8자 이상이어야 합니다.",
+                },
+            });
+        }
+
+        if (
+            Buffer.byteLength(
+                newPassword,
+                "utf8"
+            ) > 72
+        ) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "password",
+                    type: "error",
+                    message:
+                        "새 비밀번호가 너무 깁니다.",
+                },
+            });
+        }
+
+        if (newPassword !== newPasswordConfirm) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "password",
+                    type: "error",
+                    message:
+                        "새 비밀번호와 비밀번호 확인이 일치하지 않습니다.",
+                },
+            });
+        }
+
+        const user = await User.findById(
+            req.session.user.id
+        ).select("+passwordHash");
+
+        if (!user) {
+            throw createNotFoundError(
+                "사용자 정보를 찾을 수 없습니다."
+            );
+        }
+
+        const currentPasswordMatched =
+            await bcrypt.compare(
+                currentPassword,
+                user.passwordHash
+            );
+
+        if (!currentPasswordMatched) {
+            return await renderProfile(req, res, {
+                status: 401,
+                feedback: {
+                    section: "password",
+                    type: "error",
+                    message:
+                        "현재 비밀번호가 올바르지 않습니다.",
+                },
+            });
+        }
+
+        const sameAsCurrent =
+            await bcrypt.compare(
+                newPassword,
+                user.passwordHash
+            );
+
+        if (sameAsCurrent) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "password",
+                    type: "error",
+                    message:
+                        "새 비밀번호는 현재 비밀번호와 다르게 설정해주세요.",
+                },
+            });
+        }
+
+        user.passwordHash = await bcrypt.hash(
+            newPassword,
+            BCRYPT_ROUNDS
+        );
+        await user.save();
+
+        return await renderProfile(req, res, {
+            feedback: {
+                section: "password",
+                type: "success",
+                message: "비밀번호를 안전하게 변경했습니다.",
+            },
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
 exports.loggedCurriculumPage = async (req, res, next) => {
   try {
     const { learningData } = await getUserLearningData(

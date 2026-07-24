@@ -151,7 +151,12 @@
         </section>
 
         <div class="sidebar-profile">
-          <span class="profile-avatar" aria-hidden="true"><%= displayName.slice(0, 1) %></span>
+          <a
+            class="profile-avatar"
+            href="/profile"
+            aria-label="<%= displayName %>님의 프로필 설정으로 이동"
+            title="프로필 설정"
+          ><%= displayName.slice(0, 1) %></a>
 
           <div class="profile-copy">
             <strong><%= displayName %>님</strong>
