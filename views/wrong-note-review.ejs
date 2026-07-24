@@ -1,0 +1,448 @@
+<%
+  const learner =
+    typeof user !== "undefined" && user
+      ? user
+      : { name: "학생", schoolGrade: 10 };
+  const item =
+    typeof reviewItem !== "undefined" && reviewItem
+      ? reviewItem
+      : {};
+  const displayName = String(learner.name || "학생");
+  const gradeLabels = {
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+  };
+  const gradeLabel =
+    gradeLabels[Number(learner.schoolGrade)] || "고등학생";
+  const reviewConfig = {
+    attemptId: item.id,
+    courseId: item.courseId,
+    unitId: item.unitId,
+    conceptId: item.conceptId,
+    retryAvailable: Boolean(item.retryAvailable),
+    completed: item.reviewStatus === "completed",
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="틀린 문제와 같은 유형을 새로운 값으로 다시 풀고, 그래프 또는 단계 힌트로 해결하는 Matths 오답 복습 페이지입니다."
+    />
+    <meta name="theme-color" content="#f5f7fc" />
+    <title>시각 풀이로 복습 | Matths</title>
+
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/wrong-note-review.css" />
+
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
+          processEscapes: true,
+        },
+      };
+    </script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"
+      defer
+    ></script>
+    <script src="/js/main.js" defer></script>
+    <script src="/js/wrong-note-review.js" defer></script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#wrong-review-main">
+      본문으로 바로가기
+    </a>
+
+    <div class="dashboard-shell">
+      <div
+        class="sidebar-overlay"
+        id="sidebar-overlay"
+        hidden
+      ></div>
+
+      <aside
+        class="sidebar"
+        id="dashboard-sidebar"
+        aria-label="학습 메뉴"
+      >
+        <div class="sidebar-top">
+          <a
+            class="brand"
+            href="/main"
+            aria-label="Matths 학습 홈"
+          >
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span>Matths</span>
+          </a>
+          <button
+            class="sidebar-close"
+            id="sidebar-close"
+            type="button"
+            aria-label="메뉴 닫기"
+          >
+            ×
+          </button>
+        </div>
+
+        <nav class="side-nav" aria-label="대시보드 메뉴">
+          <p>LEARNING</p>
+          <a href="/main">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>학습 홈</span>
+          </a>
+          <a href="/my-learning">
+            <span class="nav-icon" aria-hidden="true">▦</span>
+            <span>내 학습</span>
+          </a>
+          <a href="/log-curriculum">
+            <span class="nav-icon" aria-hidden="true">◫</span>
+            <span>교육과정</span>
+          </a>
+          <a
+            class="active"
+            href="/wrong-notes"
+            aria-current="page"
+          >
+            <span class="nav-icon" aria-hidden="true">↻</span>
+            <span>오답 노트</span>
+          </a>
+          <a href="/main#learning-record">
+            <span class="nav-icon" aria-hidden="true">⌁</span>
+            <span>학습 기록</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <section
+          class="coach-mini"
+          data-mode="spicy"
+          aria-labelledby="coach-mini-title"
+        >
+          <div class="coach-heading">
+            <span aria-hidden="true">M</span>
+            <p>
+              <small>MATTHS COACH</small>
+              <strong id="coach-mini-title">매운맛 모드</strong>
+            </p>
+          </div>
+          <p id="coach-mini-message">
+            답부터 보지 말고, 어떤 정의를 써야 하는지 먼저 봐.
+          </p>
+          <div
+            class="coach-modes"
+            role="group"
+            aria-label="학습 코치 말투 선택"
+          >
+            <button type="button" data-mode="mild" aria-pressed="false">
+              순한맛
+            </button>
+            <button
+              class="active"
+              type="button"
+              data-mode="spicy"
+              aria-pressed="true"
+            >
+              매운맛
+            </button>
+            <button type="button" data-mode="silent" aria-pressed="false">
+              무음
+            </button>
+          </div>
+        </section>
+
+        <div class="sidebar-profile">
+          <span class="profile-avatar" aria-hidden="true">
+            <%= displayName.slice(0, 1) %>
+          </span>
+          <div class="profile-copy">
+            <strong><%= displayName %>님</strong>
+            <small><%= gradeLabel %></small>
+          </div>
+          <form action="/logout" method="POST">
+            <button type="submit" aria-label="로그아웃" title="로그아웃">
+              ↗
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <main
+        class="dashboard-main wrong-review-main"
+        id="wrong-review-main"
+      >
+        <header class="topbar review-topbar">
+          <div class="topbar-left">
+            <button
+              class="sidebar-open"
+              id="sidebar-open"
+              type="button"
+              aria-label="학습 메뉴 열기"
+              aria-controls="dashboard-sidebar"
+              aria-expanded="false"
+            >
+              <span></span><span></span><span></span>
+            </button>
+            <div>
+              <p>QUESTION-SPECIFIC REVIEW</p>
+              <h1>시각 풀이로 복습</h1>
+            </div>
+          </div>
+          <a class="review-back-link" href="/wrong-notes">
+            오답노트로 <span aria-hidden="true">→</span>
+          </a>
+        </header>
+
+        <section class="review-intro" aria-labelledby="review-intro-title">
+          <div>
+            <span class="review-kicker">SAME TYPE · NEW NUMBERS</span>
+            <h2 id="review-intro-title">
+              틀린 문제를 외우지 말고,<br />
+              <strong>같은 구조를 다시 읽습니다.</strong>
+            </h2>
+            <p>
+              새로운 숫자로 같은 유형을 한 문제 더 풉니다.
+              막히면 힌트를 여세요. 그래프로 볼 수 있는 문제는
+              시각화하고, 나머지는 현재 값에 맞춘 첫 계산 단계를
+              보여줍니다.
+            </p>
+          </div>
+          <ol class="review-rule">
+            <li>
+              <b>01</b>
+              <span>원래 오답 확인</span>
+            </li>
+            <li>
+              <b>02</b>
+              <span>같은 유형 재도전</span>
+            </li>
+            <li>
+              <b>03</b>
+              <span>정답이면 복습 완료</span>
+            </li>
+          </ol>
+        </section>
+
+        <div class="review-workspace">
+          <aside class="original-problem-card">
+            <header>
+              <div>
+                <span>ORIGINAL WRONG ANSWER</span>
+                <h2>내가 틀린 문제</h2>
+              </div>
+              <span class="review-status <%= item.reviewStatus %>">
+                <%= item.reviewLabel %>
+              </span>
+            </header>
+
+            <div class="original-problem-meta">
+              <span><%= item.courseTitle %></span>
+              <span><%= item.unitTitle %></span>
+              <span><%= item.conceptTitle %></span>
+            </div>
+
+            <div class="original-stem math-content">
+              <%= item.stem %>
+            </div>
+
+            <dl class="original-answer">
+              <div>
+                <dt>내가 제출한 답</dt>
+                <dd class="math-content"><%= item.submittedAnswer %></dd>
+              </div>
+              <div>
+                <dt>오답 분석</dt>
+                <dd><%= item.errorLabel %></dd>
+              </div>
+              <div>
+                <dt>저장일</dt>
+                <dd><%= item.submittedAtLabel %></dd>
+              </div>
+            </dl>
+
+            <a class="concept-link" href="<%= item.conceptHref %>">
+              개념 페이지 열기
+              <span aria-hidden="true">↗</span>
+            </a>
+          </aside>
+
+          <section
+            class="retry-card"
+            id="retry-card"
+            aria-labelledby="retry-title"
+          >
+            <header class="retry-header">
+              <div>
+                <span id="retry-type-label">SAME TYPE RETRY</span>
+                <h2 id="retry-title">같은 유형에 다시 도전하세요.</h2>
+              </div>
+              <span class="retry-badge" id="retry-state-badge">
+                1문제 정답 시 완료
+              </span>
+            </header>
+
+            <div
+              class="retry-loading"
+              id="retry-loading"
+              role="status"
+            >
+              <span aria-hidden="true"></span>
+              새로운 문제를 만들고 있습니다.
+            </div>
+
+            <div class="retry-problem" id="retry-problem" hidden>
+              <div
+                class="retry-prompt math-content"
+                id="retry-prompt"
+              ></div>
+
+              <form id="retry-answer-form" novalidate>
+                <fieldset
+                  class="answer-area"
+                  id="retry-answer-area"
+                >
+                  <legend class="sr-only">정답 입력</legend>
+                </fieldset>
+
+                <div class="retry-actions">
+                  <button
+                    class="hint-button"
+                    id="show-graph-hint"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="graph-hint-panel"
+                  >
+                    <span aria-hidden="true">⌁</span>
+                    힌트
+                  </button>
+                  <button
+                    class="submit-answer-button"
+                    id="submit-retry-answer"
+                    type="submit"
+                  >
+                    정답 확인
+                    <span aria-hidden="true">→</span>
+                  </button>
+                </div>
+              </form>
+
+              <section
+                class="graph-hint-panel"
+                id="graph-hint-panel"
+                aria-labelledby="graph-hint-title"
+                hidden
+              >
+                <header>
+                  <div>
+                    <span id="hint-panel-eyebrow">HINT</span>
+                    <h3 id="graph-hint-title">
+                      이 문제의 첫 단계를 확인해보세요.
+                    </h3>
+                  </div>
+                  <button
+                    id="close-graph-hint"
+                    type="button"
+                    aria-label="힌트 닫기"
+                  >
+                    ×
+                  </button>
+                </header>
+                <p class="math-content" id="graph-hint-text"></p>
+                <div
+                  class="function-graph-wrap"
+                  id="function-graph-wrap"
+                >
+                  <span
+                    class="hint-graph-zoom-status"
+                    aria-hidden="true"
+                  >
+                    휠 줌
+                    <output id="hint-graph-zoom-output">100%</output>
+                  </span>
+                  <svg
+                    id="function-hint-graph"
+                    viewBox="0 0 720 400"
+                    role="img"
+                    aria-labelledby="function-graph-title function-graph-description"
+                    preserveAspectRatio="xMidYMid meet"
+                  >
+                    <title id="function-graph-title">
+                      현재 문제에 주어진 함수의 그래프
+                    </title>
+                    <desc id="function-graph-description">
+                      극한을 판단할 수 있도록 접근점과 함수의 움직임을 표시한 좌표평면입니다.
+                    </desc>
+                  </svg>
+                </div>
+                <p class="no-graph-message" id="no-graph-message" hidden>
+                  이 유형은 그래프보다 정의와 계산 순서가 중요하므로
+                  현재 문제에 맞춘 단계 힌트를 제공합니다.
+                </p>
+              </section>
+
+              <div
+                class="retry-feedback"
+                id="retry-feedback"
+                role="status"
+                aria-live="polite"
+                hidden
+              ></div>
+
+              <div class="retry-next-actions">
+                <button
+                  class="another-problem-button"
+                  id="another-retry-problem"
+                  type="button"
+                  hidden
+                >
+                  같은 유형 다시 풀기
+                </button>
+                <a
+                  class="review-complete-link"
+                  id="review-complete-link"
+                  href="/wrong-notes?status=completed"
+                  hidden
+                >
+                  복습 완료 목록 보기
+                  <span aria-hidden="true">→</span>
+                </a>
+              </div>
+            </div>
+
+            <div
+              class="retry-error"
+              id="retry-error"
+              role="alert"
+              hidden
+            >
+              <strong>재도전 문제를 불러오지 못했습니다.</strong>
+              <p id="retry-error-message"></p>
+              <a href="<%= item.conceptHref %>">개념 페이지로 이동</a>
+            </div>
+          </section>
+        </div>
+
+        <p
+          class="sr-only"
+          id="dashboard-status"
+          aria-live="polite"
+        ></p>
+      </main>
+    </div>
+
+    <script id="wrong-note-review-config" type="application/json">
+      <%- JSON.stringify(reviewConfig).replace(/</g, "\\u003c") %>
+    </script>
+  </body>
+</html>

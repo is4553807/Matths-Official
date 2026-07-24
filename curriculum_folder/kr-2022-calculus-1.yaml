@@ -1,0 +1,382 @@
+schemaVersion: 1
+curriculum:
+  id: kr-2022
+  title: 2022 개정 교육과정
+  country: KR
+  source:
+    title: 교육부 고시 제2022-33호 [별책 8] 수학과 교육과정
+    type: official-curriculum
+    url: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&boardSeq=93458&lev=0
+grade:
+  id: high-school-elective
+  title: 고등학교 선택 과목
+  recommendedGrades:
+    - 11
+    - 12
+coursePlacementPolicy:
+  type: school-defined
+  description: >-
+    2022 개정 교육과정의 선택 과목은 특정 학년에 고정되지 않는다. recommendedGrades는 Matths의 기본 안내이며 실제 개설 학년과 학기는 학교 교육과정에
+    따라 달라질 수 있다.
+editorialPolicy:
+  achievementStandards: 교육부 고시의 성취기준을 원문 기준으로 구조화했다.
+  topics: topics는 성취기준을 Matths 학습 화면에 맞게 나눈 편집 단위다.
+  visualizationIdeas: visualizationIdeas는 공식 교육과정의 공학 도구 활용 취지를 반영한 Matths 편집 제안이다.
+courses:
+  - id: calculus-1
+    officialTitle: 미적분Ⅰ
+    category: general-elective
+    categoryTitle: 일반 선택
+    recommendedGrades:
+      - 11
+      - 12
+    prerequisites:
+      - common-math-1
+      - common-math-2
+    defaultSemester: school-defined
+    conceptCount: 20
+    units:
+      - id: limits-and-continuity
+        title: 함수의 극한과 연속
+        order: 1
+        concepts:
+          - id: calculus-1-01-01
+            order: 1
+            title: 함수의 극한
+            standardCode: 12미적Ⅰ-01-01
+            achievementStandard: 함수의 극한의 뜻을 알고, 이를 설명할 수 있다.
+            topics:
+              - 함수의 극한
+              - 핵심 의미와 원리
+            scopeNotes:
+              - 극한과 연속의 뜻과 성질은 그래프를 통해 직관적으로 이해한다.
+              - 복잡한 합성함수나 절댓값이 여러 개 포함된 함수는 다루지 않는다.
+            visualizationIdeas:
+              - 점이 좌우에서 한 점에 접근할 때 함수값과 극한값을 동시 표시
+              - 그래프의 끊김·점프·구멍을 움직이며 연속 조건을 비교
+              - 사잇값 정리를 움직이는 수평선과 교점으로 표현
+          - id: calculus-1-01-02
+            order: 2
+            title: 극한의 성질과 계산
+            standardCode: 12미적Ⅰ-01-02
+            achievementStandard: 함수의 극한에 대한 성질을 이해하고, 함수의 극한값을 구할 수 있다.
+            topics:
+              - 극한의 성질과 계산
+              - 핵심 의미와 원리
+              - 계산 방법과 절차
+            scopeNotes:
+              - 극한과 연속의 뜻과 성질은 그래프를 통해 직관적으로 이해한다.
+              - 복잡한 합성함수나 절댓값이 여러 개 포함된 함수는 다루지 않는다.
+            visualizationIdeas:
+              - 점이 좌우에서 한 점에 접근할 때 함수값과 극한값을 동시 표시
+              - 그래프의 끊김·점프·구멍을 움직이며 연속 조건을 비교
+              - 사잇값 정리를 움직이는 수평선과 교점으로 표현
+          - id: calculus-1-01-03
+            order: 3
+            title: 함수의 연속
+            standardCode: 12미적Ⅰ-01-03
+            achievementStandard: 함수의 연속을 극한으로 탐구하고 이해한다.
+            topics:
+              - 함수의 연속
+              - 핵심 의미와 원리
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 극한과 연속의 뜻과 성질은 그래프를 통해 직관적으로 이해한다.
+              - 복잡한 합성함수나 절댓값이 여러 개 포함된 함수는 다루지 않는다.
+            visualizationIdeas:
+              - 점이 좌우에서 한 점에 접근할 때 함수값과 극한값을 동시 표시
+              - 그래프의 끊김·점프·구멍을 움직이며 연속 조건을 비교
+              - 사잇값 정리를 움직이는 수평선과 교점으로 표현
+          - id: calculus-1-01-04
+            order: 4
+            title: 연속함수의 성질
+            standardCode: 12미적Ⅰ-01-04
+            achievementStandard: 연속함수의 성질을 이해하고, 이를 활용하여 문제를 해결할 수 있다.
+            topics:
+              - 연속함수의 성질
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+            scopeNotes:
+              - 극한과 연속의 뜻과 성질은 그래프를 통해 직관적으로 이해한다.
+              - 복잡한 합성함수나 절댓값이 여러 개 포함된 함수는 다루지 않는다.
+            visualizationIdeas:
+              - 점이 좌우에서 한 점에 접근할 때 함수값과 극한값을 동시 표시
+              - 그래프의 끊김·점프·구멍을 움직이며 연속 조건을 비교
+              - 사잇값 정리를 움직이는 수평선과 교점으로 표현
+      - id: differentiation
+        title: 미분
+        order: 2
+        concepts:
+          - id: calculus-1-02-01
+            order: 1
+            title: 미분계수
+            standardCode: 12미적Ⅰ-02-01
+            achievementStandard: 미분계수를 이해하고, 이를 구할 수 있다.
+            topics:
+              - 미분계수
+              - 핵심 의미와 원리
+              - 계산 방법과 절차
+            scopeNotes:
+              - 미분계수는 평균변화율의 극한과 접선의 기울기를 연결하여 다룬다.
+              - 속도와 가속도 문제는 직선 운동에 한하여 다룬다.
+              - 지나치게 복잡한 도함수 계산은 다루지 않는다.
+            visualizationIdeas:
+              - 두 점을 잇는 할선이 한 점의 접선으로 수렴하는 애니메이션
+              - 도함수 부호와 원함수의 증가·감소 구간을 색으로 연결
+              - 위치·속도·가속도 그래프를 같은 시간축에 동기화
+          - id: calculus-1-02-02
+            order: 2
+            title: 미분가능성과 연속성
+            standardCode: 12미적Ⅰ-02-02
+            achievementStandard: 함수의 미분가능성과 연속성의 관계를 설명하고, 이를 활용할 수 있다.
+            topics:
+              - 미분가능성과 연속성
+              - 핵심 의미와 원리
+              - 계산 방법과 절차
+              - 적용과 문제 해결
+            scopeNotes:
+              - 미분계수는 평균변화율의 극한과 접선의 기울기를 연결하여 다룬다.
+              - 속도와 가속도 문제는 직선 운동에 한하여 다룬다.
+              - 지나치게 복잡한 도함수 계산은 다루지 않는다.
+            visualizationIdeas:
+              - 두 점을 잇는 할선이 한 점의 접선으로 수렴하는 애니메이션
+              - 도함수 부호와 원함수의 증가·감소 구간을 색으로 연결
+              - 위치·속도·가속도 그래프를 같은 시간축에 동기화
+          - id: calculus-1-02-03
+            order: 3
+            title: 거듭제곱함수의 도함수
+            standardCode: 12미적Ⅰ-02-03
+            achievementStandard: 함수 xⁿ(n은 양의 정수)의 도함수를 구할 수 있다.
+            topics:
+              - 거듭제곱함수의 도함수
+              - 계산 방법과 절차
+            scopeNotes:
+              - 미분계수는 평균변화율의 극한과 접선의 기울기를 연결하여 다룬다.
+              - 속도와 가속도 문제는 직선 운동에 한하여 다룬다.
+              - 지나치게 복잡한 도함수 계산은 다루지 않는다.
+            visualizationIdeas:
+              - 두 점을 잇는 할선이 한 점의 접선으로 수렴하는 애니메이션
+              - 도함수 부호와 원함수의 증가·감소 구간을 색으로 연결
+              - 위치·속도·가속도 그래프를 같은 시간축에 동기화
+          - id: calculus-1-02-04
+            order: 4
+            title: 다항함수의 미분법
+            standardCode: 12미적Ⅰ-02-04
+            achievementStandard: 함수의 실수배, 합, 차, 곱의 미분법을 알고, 다항함수의 도함수를 구할 수 있다.
+            topics:
+              - 다항함수의 미분법
+              - 계산 방법과 절차
+            scopeNotes:
+              - 미분계수는 평균변화율의 극한과 접선의 기울기를 연결하여 다룬다.
+              - 속도와 가속도 문제는 직선 운동에 한하여 다룬다.
+              - 지나치게 복잡한 도함수 계산은 다루지 않는다.
+            visualizationIdeas:
+              - 두 점을 잇는 할선이 한 점의 접선으로 수렴하는 애니메이션
+              - 도함수 부호와 원함수의 증가·감소 구간을 색으로 연결
+              - 위치·속도·가속도 그래프를 같은 시간축에 동기화
+          - id: calculus-1-02-05
+            order: 5
+            title: 접선의 방정식
+            standardCode: 12미적Ⅰ-02-05
+            achievementStandard: 미분계수와 접선의 기울기의 관계를 이해하고, 접선의 방정식을 구할 수 있다.
+            topics:
+              - 접선의 방정식
+              - 핵심 의미와 원리
+              - 계산 방법과 절차
+              - 수학적 표현과 해석
+            scopeNotes:
+              - 미분계수는 평균변화율의 극한과 접선의 기울기를 연결하여 다룬다.
+              - 속도와 가속도 문제는 직선 운동에 한하여 다룬다.
+              - 지나치게 복잡한 도함수 계산은 다루지 않는다.
+            visualizationIdeas:
+              - 두 점을 잇는 할선이 한 점의 접선으로 수렴하는 애니메이션
+              - 도함수 부호와 원함수의 증가·감소 구간을 색으로 연결
+              - 위치·속도·가속도 그래프를 같은 시간축에 동기화
+          - id: calculus-1-02-06
+            order: 6
+            title: 평균값 정리
+            standardCode: 12미적Ⅰ-02-06
+            achievementStandard: 함수에 대한 평균값 정리를 설명하고, 이를 활용할 수 있다.
+            topics:
+              - 평균값 정리
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+            scopeNotes:
+              - 미분계수는 평균변화율의 극한과 접선의 기울기를 연결하여 다룬다.
+              - 속도와 가속도 문제는 직선 운동에 한하여 다룬다.
+              - 지나치게 복잡한 도함수 계산은 다루지 않는다.
+            visualizationIdeas:
+              - 두 점을 잇는 할선이 한 점의 접선으로 수렴하는 애니메이션
+              - 도함수 부호와 원함수의 증가·감소 구간을 색으로 연결
+              - 위치·속도·가속도 그래프를 같은 시간축에 동기화
+          - id: calculus-1-02-07
+            order: 7
+            title: 함수의 증가·감소와 극값
+            standardCode: 12미적Ⅰ-02-07
+            achievementStandard: 함수의 증가와 감소, 극대와 극소를 판정하고 설명할 수 있다.
+            topics:
+              - 함수의 증가·감소와 극값
+              - 핵심 의미와 원리
+            scopeNotes:
+              - 미분계수는 평균변화율의 극한과 접선의 기울기를 연결하여 다룬다.
+              - 속도와 가속도 문제는 직선 운동에 한하여 다룬다.
+              - 지나치게 복잡한 도함수 계산은 다루지 않는다.
+            visualizationIdeas:
+              - 두 점을 잇는 할선이 한 점의 접선으로 수렴하는 애니메이션
+              - 도함수 부호와 원함수의 증가·감소 구간을 색으로 연결
+              - 위치·속도·가속도 그래프를 같은 시간축에 동기화
+          - id: calculus-1-02-08
+            order: 8
+            title: 함수 그래프의 개형
+            standardCode: 12미적Ⅰ-02-08
+            achievementStandard: 함수의 그래프의 개형을 그릴 수 있다.
+            topics:
+              - 함수 그래프의 개형
+              - 수학적 표현과 해석
+            scopeNotes:
+              - 미분계수는 평균변화율의 극한과 접선의 기울기를 연결하여 다룬다.
+              - 속도와 가속도 문제는 직선 운동에 한하여 다룬다.
+              - 지나치게 복잡한 도함수 계산은 다루지 않는다.
+            visualizationIdeas:
+              - 두 점을 잇는 할선이 한 점의 접선으로 수렴하는 애니메이션
+              - 도함수 부호와 원함수의 증가·감소 구간을 색으로 연결
+              - 위치·속도·가속도 그래프를 같은 시간축에 동기화
+          - id: calculus-1-02-09
+            order: 9
+            title: 미분과 방정식·부등식
+            standardCode: 12미적Ⅰ-02-09
+            achievementStandard: 방정식과 부등식에 대한 문제를 해결할 수 있다.
+            topics:
+              - 미분과 방정식·부등식
+              - 수학적 표현과 해석
+              - 적용과 문제 해결
+            scopeNotes:
+              - 미분계수는 평균변화율의 극한과 접선의 기울기를 연결하여 다룬다.
+              - 속도와 가속도 문제는 직선 운동에 한하여 다룬다.
+              - 지나치게 복잡한 도함수 계산은 다루지 않는다.
+            visualizationIdeas:
+              - 두 점을 잇는 할선이 한 점의 접선으로 수렴하는 애니메이션
+              - 도함수 부호와 원함수의 증가·감소 구간을 색으로 연결
+              - 위치·속도·가속도 그래프를 같은 시간축에 동기화
+          - id: calculus-1-02-10
+            order: 10
+            title: 속도와 가속도
+            standardCode: 12미적Ⅰ-02-10
+            achievementStandard: 미분을 속도와 가속도에 대한 문제에 활용하고, 그 유용성을 인식할 수 있다.
+            topics:
+              - 속도와 가속도
+              - 계산 방법과 절차
+              - 적용과 문제 해결
+            scopeNotes:
+              - 미분계수는 평균변화율의 극한과 접선의 기울기를 연결하여 다룬다.
+              - 속도와 가속도 문제는 직선 운동에 한하여 다룬다.
+              - 지나치게 복잡한 도함수 계산은 다루지 않는다.
+            visualizationIdeas:
+              - 두 점을 잇는 할선이 한 점의 접선으로 수렴하는 애니메이션
+              - 도함수 부호와 원함수의 증가·감소 구간을 색으로 연결
+              - 위치·속도·가속도 그래프를 같은 시간축에 동기화
+      - id: integration
+        title: 적분
+        order: 3
+        concepts:
+          - id: calculus-1-03-01
+            order: 1
+            title: 부정적분
+            standardCode: 12미적Ⅰ-03-01
+            achievementStandard: 부정적분의 뜻을 알고, 이를 설명할 수 있다.
+            topics:
+              - 부정적분
+              - 핵심 의미와 원리
+              - 계산 방법과 절차
+            scopeNotes:
+              - 정적분은 넓이에서 출발하여 일반적인 연속함수의 경우로 확장한다.
+              - 위치·속도·거리 문제는 직선 운동에 한하여 다룬다.
+              - 정적분 활용에서 지나치게 복잡한 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 곡선 아래 직사각형 분할이 촘촘해지며 넓이가 정적분으로 수렴
+              - 미분과 적분을 변화율과 누적량의 반대 과정으로 왕복 표현
+              - 속도 그래프 아래 부호 있는 넓이가 변위로 누적되는 애니메이션
+          - id: calculus-1-03-02
+            order: 2
+            title: 다항함수의 부정적분
+            standardCode: 12미적Ⅰ-03-02
+            achievementStandard: 함수의 실수배, 합, 차의 부정적분을 알고, 다항함수의 부정적분을 구할 수 있다.
+            topics:
+              - 다항함수의 부정적분
+              - 계산 방법과 절차
+            scopeNotes:
+              - 정적분은 넓이에서 출발하여 일반적인 연속함수의 경우로 확장한다.
+              - 위치·속도·거리 문제는 직선 운동에 한하여 다룬다.
+              - 정적분 활용에서 지나치게 복잡한 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 곡선 아래 직사각형 분할이 촘촘해지며 넓이가 정적분으로 수렴
+              - 미분과 적분을 변화율과 누적량의 반대 과정으로 왕복 표현
+              - 속도 그래프 아래 부호 있는 넓이가 변위로 누적되는 애니메이션
+          - id: calculus-1-03-03
+            order: 3
+            title: 정적분의 개념과 성질
+            standardCode: 12미적Ⅰ-03-03
+            achievementStandard: 정적분의 개념을 탐구하고, 그 성질을 이해한다.
+            topics:
+              - 정적분의 개념과 성질
+              - 핵심 의미와 원리
+              - 계산 방법과 절차
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 정적분은 넓이에서 출발하여 일반적인 연속함수의 경우로 확장한다.
+              - 위치·속도·거리 문제는 직선 운동에 한하여 다룬다.
+              - 정적분 활용에서 지나치게 복잡한 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 곡선 아래 직사각형 분할이 촘촘해지며 넓이가 정적분으로 수렴
+              - 미분과 적분을 변화율과 누적량의 반대 과정으로 왕복 표현
+              - 속도 그래프 아래 부호 있는 넓이가 변위로 누적되는 애니메이션
+          - id: calculus-1-03-04
+            order: 4
+            title: 부정적분과 정적분의 관계
+            standardCode: 12미적Ⅰ-03-04
+            achievementStandard: 부정적분과 정적분의 관계를 이해하고, 다항함수의 정적분을 구할 수 있다.
+            topics:
+              - 부정적분과 정적분의 관계
+              - 핵심 의미와 원리
+              - 계산 방법과 절차
+            scopeNotes:
+              - 정적분은 넓이에서 출발하여 일반적인 연속함수의 경우로 확장한다.
+              - 위치·속도·거리 문제는 직선 운동에 한하여 다룬다.
+              - 정적분 활용에서 지나치게 복잡한 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 곡선 아래 직사각형 분할이 촘촘해지며 넓이가 정적분으로 수렴
+              - 미분과 적분을 변화율과 누적량의 반대 과정으로 왕복 표현
+              - 속도 그래프 아래 부호 있는 넓이가 변위로 누적되는 애니메이션
+          - id: calculus-1-03-05
+            order: 5
+            title: 정적분과 넓이
+            standardCode: 12미적Ⅰ-03-05
+            achievementStandard: 곡선으로 둘러싸인 도형의 넓이에 대한 문제를 해결할 수 있다.
+            topics:
+              - 정적분과 넓이
+              - 적용과 문제 해결
+            scopeNotes:
+              - 정적분은 넓이에서 출발하여 일반적인 연속함수의 경우로 확장한다.
+              - 위치·속도·거리 문제는 직선 운동에 한하여 다룬다.
+              - 정적분 활용에서 지나치게 복잡한 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 곡선 아래 직사각형 분할이 촘촘해지며 넓이가 정적분으로 수렴
+              - 미분과 적분을 변화율과 누적량의 반대 과정으로 왕복 표현
+              - 속도 그래프 아래 부호 있는 넓이가 변위로 누적되는 애니메이션
+          - id: calculus-1-03-06
+            order: 6
+            title: 적분과 속도·거리
+            standardCode: 12미적Ⅰ-03-06
+            achievementStandard: 적분을 속도와 거리에 대한 문제에 활용하고, 그 유용성을 인식할 수 있다.
+            topics:
+              - 적분과 속도·거리
+              - 계산 방법과 절차
+              - 적용과 문제 해결
+            scopeNotes:
+              - 정적분은 넓이에서 출발하여 일반적인 연속함수의 경우로 확장한다.
+              - 위치·속도·거리 문제는 직선 운동에 한하여 다룬다.
+              - 정적분 활용에서 지나치게 복잡한 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 곡선 아래 직사각형 분할이 촘촘해지며 넓이가 정적분으로 수렴
+              - 미분과 적분을 변화율과 누적량의 반대 과정으로 왕복 표현
+              - 속도 그래프 아래 부호 있는 넓이가 변위로 누적되는 애니메이션

@@ -1,0 +1,176 @@
+<%
+  const loggedIn = typeof user !== "undefined" && Boolean(user);
+  const primaryHref = loggedIn ? "/my-learning" : "/register";
+  const primaryLabel = loggedIn ? "학습 계속하기" : "무료로 시작하기";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Matths는 수학 공식을 움직이는 그림과 단계별 설명으로 이해하게 만드는 고등수학 학습 플랫폼입니다."
+    />
+    <meta name="theme-color" content="#f7f8fc" />
+    <title>Matths — 수학이 보이면, 풀이가 시작된다</title>
+    <link rel="stylesheet" href="/css/index.css" />
+    <script src="/js/index.js" defer></script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main-content">본문으로 바로가기</a>
+
+    <header class="site-header">
+      <nav class="navbar container" aria-label="주요 메뉴">
+        <a class="brand" href="/" aria-label="Matths 홈" aria-current="page">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <span>Matths</span>
+        </a>
+
+        <div class="nav-links">
+          <a href="/intro">서비스 소개</a>
+          <a href="/visual-learning">시각화 학습</a>
+          <a href="/learning-flow">학습 과정</a>
+          <a href="/curriculum">교육과정</a>
+          <a href="/faq">FAQ</a>
+        </div>
+
+        <div class="nav-actions">
+          <% if (loggedIn) { %>
+            <a class="login-link" href="/main">대시보드</a>
+          <% } else { %>
+            <a class="login-link" href="/login">로그인</a>
+          <% } %>
+          <a class="button button-primary button-small" href="<%= primaryHref %>">
+            <%= primaryLabel %>
+          </a>
+        </div>
+
+        <details class="mobile-menu">
+          <summary aria-label="메뉴 열기"><span></span><span></span><span></span></summary>
+          <div>
+            <a href="/intro">서비스 소개</a>
+            <a href="/visual-learning">시각화 학습</a>
+            <a href="/learning-flow">학습 과정</a>
+            <a href="/curriculum">교육과정</a>
+            <a href="/faq">FAQ</a>
+            <% if (!loggedIn) { %><a href="/login">로그인</a><% } %>
+          </div>
+        </details>
+      </nav>
+    </header>
+
+    <main id="main-content">
+      <section class="hero">
+        <div class="hero-grid-pattern" aria-hidden="true"></div>
+        <div class="hero-glow glow-one" aria-hidden="true"></div>
+        <div class="hero-glow glow-two" aria-hidden="true"></div>
+
+        <div class="container hero-layout">
+          <div class="hero-copy">
+            <p class="eyebrow"><span aria-hidden="true"></span>2022 개정 교육과정 · 고1 수학</p>
+
+            <h1>
+              수학이 보이면,<br />
+              <em>풀이가 시작된다.</em>
+            </h1>
+
+            <p class="hero-description">
+              외우던 공식을 움직이는 그림으로 이해하세요.<br />
+              틀린 문제는 막힌 장면부터 다시 보여드립니다.
+            </p>
+
+            <div class="hero-actions">
+              <a class="button button-primary button-large" href="<%= primaryHref %>">
+                <%= primaryLabel %> <span aria-hidden="true">→</span>
+              </a>
+              <a class="button button-secondary button-large" href="/intro">
+                Matths 알아보기
+              </a>
+            </div>
+
+            <ul class="core-points" aria-label="Matths 핵심 기능">
+              <li><span aria-hidden="true">01</span>개념을 움직임으로</li>
+              <li><span aria-hidden="true">02</span>교과서 순서 그대로</li>
+              <li><span aria-hidden="true">03</span>오답을 장면으로</li>
+            </ul>
+          </div>
+
+          <div class="hero-visual" aria-label="이차함수 그래프 시각화 학습 예시">
+            <div class="lesson-window" data-current-step="1">
+              <div class="window-header">
+                <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+                <div class="lesson-title">
+                  <small>공통수학1 · 이차함수</small>
+                  <strong id="lesson-step-title" aria-live="polite">먼저, 기본 그래프를 확인합니다.</strong>
+                </div>
+                <span class="step-label" id="lesson-step-label">STEP 1 / 4</span>
+              </div>
+
+              <div class="lesson-canvas">
+                <div class="formula-box">
+                  <span id="lesson-formula">y = x²</span>
+                  <small id="lesson-formula-hint">꼭짓점은 (0, 0)</small>
+                </div>
+
+                <div class="graph" aria-hidden="true">
+                  <i class="axis axis-x"></i>
+                  <i class="axis axis-y"></i>
+                  <span class="axis-name axis-name-x">x</span>
+                  <span class="axis-name axis-name-y">y</span>
+                  <i class="original-curve"></i>
+                  <i class="moved-curve"></i>
+                  <i class="vertex"></i>
+                  <i class="vertex-pulse"></i>
+                  <span class="move-arrow move-arrow-horizontal">→ 2</span>
+                  <span class="move-arrow move-arrow-vertical">↑ 1</span>
+                  <span class="point-label" id="lesson-point-label">(0, 0)</span>
+                </div>
+
+                <div class="coach-note" aria-live="polite">
+                  <span class="coach-avatar" aria-hidden="true">M</span>
+                  <p><strong id="lesson-coach-title">출발점을 먼저 기억해.</strong><br /><span id="lesson-coach-body">y = x²의 꼭짓점은 원점이야.</span></p>
+                </div>
+              </div>
+
+              <div class="window-footer">
+                <div class="progress-dots" role="group" aria-label="이차함수 시각화 단계 선택">
+                  <button class="step-button active" type="button" data-step="1" aria-label="Step 1 기본 그래프" aria-pressed="true"><span>1</span></button>
+                  <button class="step-button" type="button" data-step="2" aria-label="Step 2 오른쪽으로 2 이동" aria-pressed="false"><span>2</span></button>
+                  <button class="step-button" type="button" data-step="3" aria-label="Step 3 위로 1 이동" aria-pressed="false"><span>3</span></button>
+                  <button class="step-button" type="button" data-step="4" aria-label="Step 4 꼭짓점 확인" aria-pressed="false"><span>4</span></button>
+                </div>
+                <a href="/visual-learning">시각화 학습 살펴보기 <span aria-hidden="true">→</span></a>
+              </div>
+            </div>
+
+            <div class="floating-card floating-top" aria-hidden="true">
+              <span>✦</span>
+              <div><strong>Visual First</strong><small>그림부터 이해</small></div>
+            </div>
+            <div class="floating-card floating-bottom" aria-hidden="true">
+              <span>✓</span>
+              <div><strong>Step by Step</strong><small>한 단계씩 정확하게</small></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="container home-summary" aria-label="서비스 요약">
+          <div><strong>39개</strong><span>고1 핵심 개념부터</span></div>
+          <div><strong>Visual</strong><span>공식의 원리를 장면으로</span></div>
+          <div><strong>Practice</strong><span>개념에서 실제 문제까지</span></div>
+          <a href="/curriculum">교육과정 보기 <span aria-hidden="true">→</span></a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <span>© <%= new Date().getFullYear() %> Matths</span>
+        <p>설명은 친절하게. 동기부여는 확실하게.</p>
+        <div><a href="/terms">이용약관</a><a href="/privacy">개인정보처리방침</a></div>
+      </div>
+    </footer>
+  </body>
+</html>

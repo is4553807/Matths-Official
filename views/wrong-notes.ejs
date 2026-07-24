@@ -1,0 +1,568 @@
+<%
+  const learner =
+    typeof user !== "undefined" && user
+      ? user
+      : { name: "학생", schoolGrade: 10 };
+  const data =
+    typeof wrongNoteData !== "undefined" && wrongNoteData
+      ? wrongNoteData
+      : {
+          items: [],
+          filters: {
+            status: "all",
+            course: "",
+            errorType: "",
+            search: "",
+            sort: "priority",
+            page: 1,
+          },
+          options: { courses: [], errorTypes: [] },
+          stats: {
+            total: 0,
+            pending: 0,
+            scheduled: 0,
+            completed: 0,
+            due: 0,
+            filtered: 0,
+          },
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            hasPrevious: false,
+            hasNext: false,
+          },
+        };
+
+  const displayName = String(learner.name || "학생");
+  const gradeLabels = {
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+  };
+  const gradeLabel = gradeLabels[Number(learner.schoolGrade)] || "고등학생";
+  const items = Array.isArray(data.items) ? data.items : [];
+  const filters = data.filters || {};
+  const stats = data.stats || {};
+  const pagination = data.pagination || {};
+  const options = data.options || { courses: [], errorTypes: [] };
+
+  function createQuery(overrides = {}) {
+    const values = {
+      status: filters.status || "all",
+      course: filters.course || "",
+      errorType: filters.errorType || "",
+      search: filters.search || "",
+      sort: filters.sort || "priority",
+      page: filters.page || 1,
+      ...overrides,
+    };
+    const params = new URLSearchParams();
+
+    Object.entries(values).forEach(([key, value]) => {
+      if (
+        value !== "" &&
+        value !== null &&
+        value !== undefined &&
+        !(key === "status" && value === "all")
+      ) {
+        params.set(key, String(value));
+      }
+    });
+
+    const query = params.toString();
+    return query ? `?${query}` : "";
+  }
+
+  const firstPageNumber = Math.max(
+    1,
+    Number(pagination.currentPage || 1) - 2
+  );
+  const lastPageNumber = Math.min(
+    Number(pagination.totalPages || 1),
+    firstPageNumber + 4
+  );
+  const pageNumbers = Array.from(
+    { length: Math.max(0, lastPageNumber - firstPageNumber + 1) },
+    (_, index) => firstPageNumber + index
+  );
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="틀린 문제를 실수 유형과 복습 상태별로 확인하고 시각적 풀이로 다시 학습하는 Matths 오답노트입니다."
+    />
+    <meta name="theme-color" content="#f5f7fc" />
+    <title>오답노트 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/wrong-notes.css" />
+
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
+          processEscapes: true,
+        },
+      };
+    </script>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"
+      defer
+    ></script>
+
+    <script src="/js/main.js" defer></script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#wrong-notes-main">본문으로 바로가기</a>
+
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+
+      <aside
+        class="sidebar"
+        id="dashboard-sidebar"
+        aria-label="학습 메뉴"
+      >
+        <div class="sidebar-top">
+          <a class="brand" href="/main" aria-label="Matths 학습 홈">
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span>Matths</span>
+          </a>
+          <button
+            class="sidebar-close"
+            id="sidebar-close"
+            type="button"
+            aria-label="메뉴 닫기"
+          >
+            ×
+          </button>
+        </div>
+
+        <nav class="side-nav" aria-label="대시보드 메뉴">
+          <p>LEARNING</p>
+          <a href="/main">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>학습 홈</span>
+          </a>
+          <a href="/my-learning">
+            <span class="nav-icon" aria-hidden="true">▦</span>
+            <span>내 학습</span>
+          </a>
+          <a href="/log-curriculum">
+            <span class="nav-icon" aria-hidden="true">◫</span>
+            <span>교육과정</span>
+          </a>
+          <a class="active" href="/wrong-notes" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">↻</span>
+            <span>오답 노트</span>
+            <% if (Number(stats.due) > 0) { %>
+              <b><%= stats.due %></b>
+            <% } %>
+          </a>
+          <a href="/main#learning-record">
+            <span class="nav-icon" aria-hidden="true">⌁</span>
+            <span>학습 기록</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <section
+          class="coach-mini"
+          data-mode="spicy"
+          aria-labelledby="coach-mini-title"
+        >
+          <div class="coach-heading">
+            <span aria-hidden="true">M</span>
+            <p>
+              <small>MATTHS COACH</small>
+              <strong id="coach-mini-title">매운맛 모드</strong>
+            </p>
+          </div>
+          <p id="coach-mini-message">
+            틀린 건 괜찮아. 왜 틀렸는지도 모르고 넘기는 게 문제지.
+          </p>
+          <div
+            class="coach-modes"
+            role="group"
+            aria-label="학습 코치 말투 선택"
+          >
+            <button type="button" data-mode="mild" aria-pressed="false">
+              순한맛
+            </button>
+            <button
+              class="active"
+              type="button"
+              data-mode="spicy"
+              aria-pressed="true"
+            >
+              매운맛
+            </button>
+            <button type="button" data-mode="silent" aria-pressed="false">
+              무음
+            </button>
+          </div>
+        </section>
+
+        <div class="sidebar-profile">
+          <span class="profile-avatar" aria-hidden="true">
+            <%= displayName.slice(0, 1) %>
+          </span>
+          <div class="profile-copy">
+            <strong><%= displayName %>님</strong>
+            <small><%= gradeLabel %></small>
+          </div>
+          <form action="/logout" method="POST">
+            <button type="submit" aria-label="로그아웃" title="로그아웃">
+              ↗
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <main
+        class="dashboard-main wrong-notes-main"
+        id="wrong-notes-main"
+      >
+        <header class="topbar">
+          <div class="topbar-left">
+            <button
+              class="sidebar-open"
+              id="sidebar-open"
+              type="button"
+              aria-label="학습 메뉴 열기"
+              aria-controls="dashboard-sidebar"
+              aria-expanded="false"
+            >
+              <span></span><span></span><span></span>
+            </button>
+            <div>
+              <p>WRONG ANSWER REVIEW</p>
+              <h1><%= displayName %>님의 오답노트</h1>
+            </div>
+          </div>
+          <a class="dashboard-return" href="/main">
+            학습 홈으로 <span aria-hidden="true">→</span>
+          </a>
+        </header>
+
+        <section class="wrong-hero">
+          <div class="wrong-hero-copy">
+            <span>틀린 문제는 자동 저장됩니다.</span>
+            <h2>
+              답만 확인하지 말고,<br />
+              <strong>막힌 장면부터 다시 보세요.</strong>
+            </h2>
+            <p>
+              같은 문제를 여러 번 틀렸다면 최신 기록만 보여드립니다.
+              실수 유형을 확인하고 시각 풀이를 본 뒤 다시 도전하세요.
+            </p>
+          </div>
+
+          <div class="review-summary" aria-label="오답 복습 요약">
+            <div class="review-focus">
+              <span>지금 복습할 문제</span>
+              <strong><%= Number(stats.due) || 0 %></strong>
+              <small>복습 대기 및 예정일 도달</small>
+            </div>
+            <div class="review-breakdown">
+              <div>
+                <strong><%= Number(stats.pending) || 0 %></strong>
+                <span>복습 대기</span>
+              </div>
+              <div>
+                <strong><%= Number(stats.scheduled) || 0 %></strong>
+                <span>복습 예정</span>
+              </div>
+              <div>
+                <strong><%= Number(stats.completed) || 0 %></strong>
+                <span>복습 완료</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="review-tabs" aria-label="오답 상태별 보기">
+          <% [
+            ["all", "전체", stats.total],
+            ["pending", "복습 대기", stats.pending],
+            ["scheduled", "복습 예정", stats.scheduled],
+            ["completed", "복습 완료", stats.completed],
+          ].forEach(([status, label, count]) => { %>
+            <a
+              class="<%= filters.status === status ? "active" : "" %>"
+              href="/wrong-notes<%= createQuery({ status, page: 1 }) %>"
+              <% if (filters.status === status) { %>aria-current="page"<% } %>
+            >
+              <span><%= label %></span>
+              <b><%= Number(count) || 0 %></b>
+            </a>
+          <% }) %>
+        </section>
+
+        <section class="wrong-content">
+          <form class="review-filter" action="/wrong-notes" method="GET">
+            <input type="hidden" name="status" value="<%= filters.status %>" />
+
+            <label class="search-field">
+              <span>문제 검색</span>
+              <div>
+                <b aria-hidden="true">⌕</b>
+                <input
+                  type="search"
+                  name="search"
+                  value="<%= filters.search %>"
+                  placeholder="문제, 단원 또는 개념 검색"
+                />
+              </div>
+            </label>
+
+            <label>
+              <span>과목</span>
+              <select name="course">
+                <option value="">전체 과목</option>
+                <% (options.courses || []).forEach((course) => { %>
+                  <option
+                    value="<%= course.id %>"
+                    <%= filters.course === course.id ? "selected" : "" %>
+                  >
+                    <%= course.title %>
+                  </option>
+                <% }) %>
+              </select>
+            </label>
+
+            <label>
+              <span>틀린 이유</span>
+              <select name="errorType">
+                <option value="">전체 유형</option>
+                <% (options.errorTypes || []).forEach((errorType) => { %>
+                  <option
+                    value="<%= errorType.id %>"
+                    <%= filters.errorType === errorType.id ? "selected" : "" %>
+                  >
+                    <%= errorType.label %>
+                  </option>
+                <% }) %>
+              </select>
+            </label>
+
+            <label>
+              <span>정렬</span>
+              <select name="sort">
+                <option value="priority" <%= filters.sort === "priority" ? "selected" : "" %>>
+                  복습 우선순위
+                </option>
+                <option value="newest" <%= filters.sort === "newest" ? "selected" : "" %>>
+                  최근에 틀린 순
+                </option>
+                <option value="oldest" <%= filters.sort === "oldest" ? "selected" : "" %>>
+                  오래된 순
+                </option>
+                <option value="difficulty" <%= filters.sort === "difficulty" ? "selected" : "" %>>
+                  난이도 높은 순
+                </option>
+              </select>
+            </label>
+
+            <div class="filter-actions">
+              <button type="submit">필터 적용</button>
+              <a href="/wrong-notes">초기화</a>
+            </div>
+          </form>
+
+          <div class="result-heading">
+            <div>
+              <p>REVIEW QUEUE</p>
+              <h2>
+                조건에 맞는 오답
+                <strong><%= Number(stats.filtered) || 0 %></strong>개
+              </h2>
+            </div>
+            <p>
+              오답을 삭제하지 않고 해결 여부를 기록해 학습 변화를 확인합니다.
+            </p>
+          </div>
+
+          <% if (items.length) { %>
+            <div class="wrong-list-full">
+              <% items.forEach((item, index) => { %>
+                <article class="wrong-item <%= item.reviewStatus %>">
+                  <div class="wrong-number">
+                    <span><%= String((pagination.currentPage - 1) * 10 + index + 1).padStart(2, "0") %></span>
+                    <small>오답</small>
+                  </div>
+
+                  <div class="wrong-item-body">
+                    <header class="wrong-item-header">
+                      <div class="problem-origin">
+                        <span><%= item.sourceLabel %></span>
+                        <small><%= item.submittedAtLabel %> 저장</small>
+                      </div>
+                      <div class="review-state">
+                        <span class="<%= item.reviewStatus %>">
+                          <%= item.reviewLabel %>
+                        </span>
+                        <% if (item.scheduledAtLabel) { %>
+                          <small><%= item.scheduledAtLabel %></small>
+                        <% } %>
+                      </div>
+                    </header>
+
+                    <h3 class="wrong-math-content">
+                      <%= item.stem %>
+                    </h3>
+
+                    <div class="problem-meta">
+                      <span><%= item.courseTitle %></span>
+                      <span><%= item.unitTitle %></span>
+                      <span><%= item.conceptTitle %></span>
+                      <span class="difficulty">
+                        난이도
+                        <b>
+                          <% for (let level = 1; level <= 5; level += 1) { %>
+                            <i class="<%= level <= item.difficulty ? "filled" : "" %>"></i>
+                          <% } %>
+                        </b>
+                      </span>
+                    </div>
+
+                    <details class="attempt-details">
+                      <summary>
+                        <span>
+                          <b aria-hidden="true">!</b>
+                          <strong><%= item.errorLabel %></strong>
+                        </span>
+                        <small>내 답과 분석 보기 <i aria-hidden="true">+</i></small>
+                      </summary>
+                      <div>
+                        <p>
+                          <span>내가 제출한 답</span>
+                          <strong class="wrong-math-content">
+                            <%= item.submittedAnswer %>
+                          </strong>
+                        </p>
+                        <p>
+                          <span>받은 점수</span>
+                          <strong>
+                            <%= item.score %> / <%= item.maxScore %>점
+                          </strong>
+                        </p>
+                        <p>
+                          <span>연결 성취기준</span>
+                          <strong><%= item.standardCode || "미등록" %></strong>
+                        </p>
+                      </div>
+                    </details>
+
+                    <footer class="wrong-item-actions">
+                      <p>
+                        <span aria-hidden="true">◈</span>
+                        막힌 개념을 움직이는 설명으로 다시 확인합니다.
+                      </p>
+                      <div>
+                        <a class="secondary" href="<%= item.conceptHref %>">
+                          개념 다시 보기
+                        </a>
+                        <a
+                          class="primary"
+                          href="<%= item.retryAvailable
+                            ? item.reviewHref
+                            : item.conceptHref
+                          %>"
+                        >
+                          <%= !item.retryAvailable
+                            ? "개념부터 복습"
+                            : item.reviewStatus === "completed"
+                              ? "같은 유형 다시 풀기"
+                              : "비슷한 유형으로 복습"
+                          %>
+                          <span aria-hidden="true">→</span>
+                        </a>
+                      </div>
+                    </footer>
+                  </div>
+                </article>
+              <% }) %>
+            </div>
+
+            <% if (pagination.totalPages > 1) { %>
+              <nav class="pagination" aria-label="오답노트 페이지">
+                <a
+                  class="<%= pagination.hasPrevious ? "" : "disabled" %>"
+                  href="<%= pagination.hasPrevious
+                    ? `/wrong-notes${createQuery({ page: pagination.currentPage - 1 })}`
+                    : "#"
+                  %>"
+                  <% if (!pagination.hasPrevious) { %>aria-disabled="true"<% } %>
+                >
+                  이전
+                </a>
+
+                <div>
+                  <% pageNumbers.forEach((pageNumber) => { %>
+                    <a
+                      class="<%= pageNumber === pagination.currentPage ? "active" : "" %>"
+                      href="/wrong-notes<%= createQuery({ page: pageNumber }) %>"
+                      <% if (pageNumber === pagination.currentPage) { %>aria-current="page"<% } %>
+                    >
+                      <%= pageNumber %>
+                    </a>
+                  <% }) %>
+                </div>
+
+                <a
+                  class="<%= pagination.hasNext ? "" : "disabled" %>"
+                  href="<%= pagination.hasNext
+                    ? `/wrong-notes${createQuery({ page: pagination.currentPage + 1 })}`
+                    : "#"
+                  %>"
+                  <% if (!pagination.hasNext) { %>aria-disabled="true"<% } %>
+                >
+                  다음
+                </a>
+              </nav>
+            <% } %>
+          <% } else { %>
+            <div class="wrong-empty">
+              <span aria-hidden="true">✓</span>
+              <% if (Number(stats.total) === 0) { %>
+                <h3>아직 저장된 오답이 없습니다.</h3>
+                <p>
+                  문제를 풀다가 틀리면 자동으로 이곳에 저장됩니다.
+                </p>
+                <a href="/my-learning">학습 시작하기 →</a>
+              <% } else { %>
+                <h3>조건에 맞는 오답이 없습니다.</h3>
+                <p>필터를 초기화하거나 다른 조건을 선택해 보세요.</p>
+                <a href="/wrong-notes">필터 초기화 →</a>
+              <% } %>
+            </div>
+          <% } %>
+        </section>
+
+        <footer class="dashboard-footer">
+          <span>© <%= new Date().getFullYear() %> Matths</span>
+          <p>틀린 이유를 이해하면, 같은 실수는 반복하지 않습니다.</p>
+          <div>
+            <a href="/terms">이용약관</a>
+            <a href="/privacy">개인정보처리방침</a>
+          </div>
+        </footer>
+
+        <p
+          class="sr-only"
+          id="dashboard-status"
+          role="status"
+          aria-live="polite"
+        ></p>
+      </main>
+    </div>
+  </body>
+</html>

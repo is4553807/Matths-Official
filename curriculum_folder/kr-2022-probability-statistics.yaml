@@ -1,0 +1,313 @@
+schemaVersion: 1
+curriculum:
+  id: kr-2022
+  title: 2022 개정 교육과정
+  country: KR
+  source:
+    title: 교육부 고시 제2022-33호 [별책 8] 수학과 교육과정
+    type: official-curriculum
+    url: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&boardSeq=93458&lev=0
+grade:
+  id: high-school-elective
+  title: 고등학교 선택 과목
+  recommendedGrades:
+    - 11
+    - 12
+coursePlacementPolicy:
+  type: school-defined
+  description: >-
+    2022 개정 교육과정의 선택 과목은 특정 학년에 고정되지 않는다. recommendedGrades는 Matths의 기본 안내이며 실제 개설 학년과 학기는 학교 교육과정에
+    따라 달라질 수 있다.
+editorialPolicy:
+  achievementStandards: 교육부 고시의 성취기준을 원문 기준으로 구조화했다.
+  topics: topics는 성취기준을 Matths 학습 화면에 맞게 나눈 편집 단위다.
+  visualizationIdeas: visualizationIdeas는 공식 교육과정의 공학 도구 활용 취지를 반영한 Matths 편집 제안이다.
+courses:
+  - id: probability-statistics
+    officialTitle: 확률과 통계
+    category: general-elective
+    categoryTitle: 일반 선택
+    recommendedGrades:
+      - 11
+      - 12
+    prerequisites:
+      - common-math-1
+      - common-math-2
+    defaultSemester: school-defined
+    conceptCount: 16
+    units:
+      - id: counting
+        title: 경우의 수
+        order: 1
+        concepts:
+          - id: probability-statistics-01-01
+            order: 1
+            title: 중복순열과 같은 것이 있는 순열
+            standardCode: 12확통01-01
+            achievementStandard: 중복순열, 같은 것이 있는 순열을 이해하고, 그 순열의 수를 구하는 방법을 설명할 수 있다.
+            topics:
+              - 중복순열과 같은 것이 있는 순열
+              - 핵심 의미와 원리
+            scopeNotes:
+              - 공통수학1의 경우의 수와 연결되는 내용은 필요한 경우 간단히 다룬다.
+              - 항이 세 개 이상인 다항정리와 허수단위가 포함된 이항정리는 다루지 않는다.
+            visualizationIdeas:
+              - 선택 과정을 가지로 펼쳐 중복 허용 여부에 따른 경우의 수 비교
+              - 같은 대상의 자리 교환을 접어 중복 제거 과정을 표현
+              - 파스칼의 삼각형과 이항계수가 동시에 생성되는 애니메이션
+          - id: probability-statistics-01-02
+            order: 2
+            title: 중복조합
+            standardCode: 12확통01-02
+            achievementStandard: 중복조합을 이해하고, 중복조합의 수를 구하는 방법을 설명할 수 있다.
+            topics:
+              - 중복조합
+              - 핵심 의미와 원리
+            scopeNotes:
+              - 공통수학1의 경우의 수와 연결되는 내용은 필요한 경우 간단히 다룬다.
+              - 항이 세 개 이상인 다항정리와 허수단위가 포함된 이항정리는 다루지 않는다.
+            visualizationIdeas:
+              - 선택 과정을 가지로 펼쳐 중복 허용 여부에 따른 경우의 수 비교
+              - 같은 대상의 자리 교환을 접어 중복 제거 과정을 표현
+              - 파스칼의 삼각형과 이항계수가 동시에 생성되는 애니메이션
+          - id: probability-statistics-01-03
+            order: 3
+            title: 이항정리
+            standardCode: 12확통01-03
+            achievementStandard: 이항정리를 이해하고, 이를 활용하여 문제를 해결할 수 있다.
+            topics:
+              - 이항정리
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+            scopeNotes:
+              - 공통수학1의 경우의 수와 연결되는 내용은 필요한 경우 간단히 다룬다.
+              - 항이 세 개 이상인 다항정리와 허수단위가 포함된 이항정리는 다루지 않는다.
+            visualizationIdeas:
+              - 선택 과정을 가지로 펼쳐 중복 허용 여부에 따른 경우의 수 비교
+              - 같은 대상의 자리 교환을 접어 중복 제거 과정을 표현
+              - 파스칼의 삼각형과 이항계수가 동시에 생성되는 애니메이션
+      - id: probability
+        title: 확률
+        order: 2
+        concepts:
+          - id: probability-statistics-02-01
+            order: 1
+            title: 확률의 개념과 기본 성질
+            standardCode: 12확통02-01
+            achievementStandard: 확률의 개념을 이해하고 기본 성질을 설명할 수 있다.
+            topics:
+              - 확률의 개념과 기본 성질
+              - 핵심 의미와 원리
+            scopeNotes:
+              - 통계적 확률과 수학적 확률을 함께 사용하여 확률 개념을 도입한다.
+              - 조건부확률을 시간적 순서나 인과관계로 오해하지 않도록 한다.
+              - 세 사건 이상의 복잡한 배반·독립 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 반복 시행의 상대도수가 이론적 확률에 가까워지는 시뮬레이션
+              - 벤다이어그램의 겹침과 넓이로 덧셈정리·여사건 표현
+              - 표본공간이 조건에 따라 축소되는 장면으로 조건부확률 설명
+          - id: probability-statistics-02-02
+            order: 2
+            title: 확률의 덧셈정리
+            standardCode: 12확통02-02
+            achievementStandard: 확률의 덧셈정리를 이해하고, 이를 활용하여 문제를 해결할 수 있다.
+            topics:
+              - 확률의 덧셈정리
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+            scopeNotes:
+              - 통계적 확률과 수학적 확률을 함께 사용하여 확률 개념을 도입한다.
+              - 조건부확률을 시간적 순서나 인과관계로 오해하지 않도록 한다.
+              - 세 사건 이상의 복잡한 배반·독립 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 반복 시행의 상대도수가 이론적 확률에 가까워지는 시뮬레이션
+              - 벤다이어그램의 겹침과 넓이로 덧셈정리·여사건 표현
+              - 표본공간이 조건에 따라 축소되는 장면으로 조건부확률 설명
+          - id: probability-statistics-02-03
+            order: 3
+            title: 여사건의 확률
+            standardCode: 12확통02-03
+            achievementStandard: 여사건의 확률을 이해하고, 이를 활용하여 문제를 해결할 수 있다.
+            topics:
+              - 여사건의 확률
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+            scopeNotes:
+              - 통계적 확률과 수학적 확률을 함께 사용하여 확률 개념을 도입한다.
+              - 조건부확률을 시간적 순서나 인과관계로 오해하지 않도록 한다.
+              - 세 사건 이상의 복잡한 배반·독립 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 반복 시행의 상대도수가 이론적 확률에 가까워지는 시뮬레이션
+              - 벤다이어그램의 겹침과 넓이로 덧셈정리·여사건 표현
+              - 표본공간이 조건에 따라 축소되는 장면으로 조건부확률 설명
+          - id: probability-statistics-02-04
+            order: 4
+            title: 조건부확률
+            standardCode: 12확통02-04
+            achievementStandard: 조건부확률을 이해하고, 이를 실생활과 연결하여 문제를 해결할 수 있다.
+            topics:
+              - 조건부확률
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+            scopeNotes:
+              - 통계적 확률과 수학적 확률을 함께 사용하여 확률 개념을 도입한다.
+              - 조건부확률을 시간적 순서나 인과관계로 오해하지 않도록 한다.
+              - 세 사건 이상의 복잡한 배반·독립 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 반복 시행의 상대도수가 이론적 확률에 가까워지는 시뮬레이션
+              - 벤다이어그램의 겹침과 넓이로 덧셈정리·여사건 표현
+              - 표본공간이 조건에 따라 축소되는 장면으로 조건부확률 설명
+          - id: probability-statistics-02-05
+            order: 5
+            title: 사건의 독립과 종속
+            standardCode: 12확통02-05
+            achievementStandard: 사건의 독립과 종속을 이해하고, 이를 판단할 수 있다.
+            topics:
+              - 사건의 독립과 종속
+              - 핵심 의미와 원리
+            scopeNotes:
+              - 통계적 확률과 수학적 확률을 함께 사용하여 확률 개념을 도입한다.
+              - 조건부확률을 시간적 순서나 인과관계로 오해하지 않도록 한다.
+              - 세 사건 이상의 복잡한 배반·독립 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 반복 시행의 상대도수가 이론적 확률에 가까워지는 시뮬레이션
+              - 벤다이어그램의 겹침과 넓이로 덧셈정리·여사건 표현
+              - 표본공간이 조건에 따라 축소되는 장면으로 조건부확률 설명
+          - id: probability-statistics-02-06
+            order: 6
+            title: 확률의 곱셈정리
+            standardCode: 12확통02-06
+            achievementStandard: 확률의 곱셈정리를 이해하고, 이를 활용하여 문제를 해결할 수 있다.
+            topics:
+              - 확률의 곱셈정리
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+            scopeNotes:
+              - 통계적 확률과 수학적 확률을 함께 사용하여 확률 개념을 도입한다.
+              - 조건부확률을 시간적 순서나 인과관계로 오해하지 않도록 한다.
+              - 세 사건 이상의 복잡한 배반·독립 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 반복 시행의 상대도수가 이론적 확률에 가까워지는 시뮬레이션
+              - 벤다이어그램의 겹침과 넓이로 덧셈정리·여사건 표현
+              - 표본공간이 조건에 따라 축소되는 장면으로 조건부확률 설명
+      - id: statistics
+        title: 통계
+        order: 3
+        concepts:
+          - id: probability-statistics-03-01
+            order: 1
+            title: 확률변수와 확률분포
+            standardCode: 12확통03-01
+            achievementStandard: 확률변수와 확률분포의 뜻을 설명할 수 있다.
+            topics:
+              - 확률변수와 확률분포
+              - 핵심 의미와 원리
+            scopeNotes:
+              - 이항분포 평균과 분산 공식을 증명하는 문제는 다루지 않는다.
+              - 모평균 추정은 모집단이 정규분포인 경우, 모비율 추정은 표본 크기가 큰 경우를 다룬다.
+              - 복잡한 신뢰구간 계산보다 결과의 의미와 해석에 중점을 둔다.
+            visualizationIdeas:
+              - 확률질량이 막대 높이로 배치되고 기댓값이 무게중심으로 이동
+              - 이항분포의 시행 횟수가 커질수록 정규곡선에 가까워지는 애니메이션
+              - 여러 표본의 평균과 비율이 표집분포를 형성하는 시뮬레이션
+          - id: probability-statistics-03-02
+            order: 2
+            title: 이산확률변수의 기댓값과 표준편차
+            standardCode: 12확통03-02
+            achievementStandard: 이산확률변수의 기댓값(평균)과 표준편차를 구할 수 있다.
+            topics:
+              - 이산확률변수의 기댓값과 표준편차
+              - 계산 방법과 절차
+              - 수학적 표현과 해석
+            scopeNotes:
+              - 이항분포 평균과 분산 공식을 증명하는 문제는 다루지 않는다.
+              - 모평균 추정은 모집단이 정규분포인 경우, 모비율 추정은 표본 크기가 큰 경우를 다룬다.
+              - 복잡한 신뢰구간 계산보다 결과의 의미와 해석에 중점을 둔다.
+            visualizationIdeas:
+              - 확률질량이 막대 높이로 배치되고 기댓값이 무게중심으로 이동
+              - 이항분포의 시행 횟수가 커질수록 정규곡선에 가까워지는 애니메이션
+              - 여러 표본의 평균과 비율이 표집분포를 형성하는 시뮬레이션
+          - id: probability-statistics-03-03
+            order: 3
+            title: 이항분포
+            standardCode: 12확통03-03
+            achievementStandard: 이항분포의 뜻과 성질을 이해하고, 평균과 표준편차를 구할 수 있다.
+            topics:
+              - 이항분포
+              - 핵심 의미와 원리
+              - 계산 방법과 절차
+              - 수학적 표현과 해석
+            scopeNotes:
+              - 이항분포 평균과 분산 공식을 증명하는 문제는 다루지 않는다.
+              - 모평균 추정은 모집단이 정규분포인 경우, 모비율 추정은 표본 크기가 큰 경우를 다룬다.
+              - 복잡한 신뢰구간 계산보다 결과의 의미와 해석에 중점을 둔다.
+            visualizationIdeas:
+              - 확률질량이 막대 높이로 배치되고 기댓값이 무게중심으로 이동
+              - 이항분포의 시행 횟수가 커질수록 정규곡선에 가까워지는 애니메이션
+              - 여러 표본의 평균과 비율이 표집분포를 형성하는 시뮬레이션
+          - id: probability-statistics-03-04
+            order: 4
+            title: 정규분포와 이항분포의 관계
+            standardCode: 12확통03-04
+            achievementStandard: 정규분포의 뜻과 성질을 이해하고, 이항분포와의 관계를 설명할 수 있다.
+            topics:
+              - 정규분포와 이항분포의 관계
+              - 핵심 의미와 원리
+            scopeNotes:
+              - 이항분포 평균과 분산 공식을 증명하는 문제는 다루지 않는다.
+              - 모평균 추정은 모집단이 정규분포인 경우, 모비율 추정은 표본 크기가 큰 경우를 다룬다.
+              - 복잡한 신뢰구간 계산보다 결과의 의미와 해석에 중점을 둔다.
+            visualizationIdeas:
+              - 확률질량이 막대 높이로 배치되고 기댓값이 무게중심으로 이동
+              - 이항분포의 시행 횟수가 커질수록 정규곡선에 가까워지는 애니메이션
+              - 여러 표본의 평균과 비율이 표집분포를 형성하는 시뮬레이션
+          - id: probability-statistics-03-05
+            order: 5
+            title: 모집단과 표본추출
+            standardCode: 12확통03-05
+            achievementStandard: 모집단과 표본의 뜻을 알고, 표본추출의 방법을 설명할 수 있다.
+            topics:
+              - 모집단과 표본추출
+              - 핵심 의미와 원리
+              - 수학적 표현과 해석
+            scopeNotes:
+              - 이항분포 평균과 분산 공식을 증명하는 문제는 다루지 않는다.
+              - 모평균 추정은 모집단이 정규분포인 경우, 모비율 추정은 표본 크기가 큰 경우를 다룬다.
+              - 복잡한 신뢰구간 계산보다 결과의 의미와 해석에 중점을 둔다.
+            visualizationIdeas:
+              - 확률질량이 막대 높이로 배치되고 기댓값이 무게중심으로 이동
+              - 이항분포의 시행 횟수가 커질수록 정규곡선에 가까워지는 애니메이션
+              - 여러 표본의 평균과 비율이 표집분포를 형성하는 시뮬레이션
+          - id: probability-statistics-03-06
+            order: 6
+            title: 표본통계량과 모수의 관계
+            standardCode: 12확통03-06
+            achievementStandard: 표본평균과 모평균, 표본비율과 모비율의 관계를 이해하고 설명할 수 있다.
+            topics:
+              - 표본통계량과 모수의 관계
+              - 핵심 의미와 원리
+              - 수학적 표현과 해석
+            scopeNotes:
+              - 이항분포 평균과 분산 공식을 증명하는 문제는 다루지 않는다.
+              - 모평균 추정은 모집단이 정규분포인 경우, 모비율 추정은 표본 크기가 큰 경우를 다룬다.
+              - 복잡한 신뢰구간 계산보다 결과의 의미와 해석에 중점을 둔다.
+            visualizationIdeas:
+              - 확률질량이 막대 높이로 배치되고 기댓값이 무게중심으로 이동
+              - 이항분포의 시행 횟수가 커질수록 정규곡선에 가까워지는 애니메이션
+              - 여러 표본의 평균과 비율이 표집분포를 형성하는 시뮬레이션
+          - id: probability-statistics-03-07
+            order: 7
+            title: 모평균과 모비율의 추정
+            standardCode: 12확통03-07
+            achievementStandard: 공학 도구를 이용하여 모평균 및 모비율을 추정하고 그 결과를 해석할 수 있다.
+            topics:
+              - 모평균과 모비율의 추정
+              - 핵심 관계
+            scopeNotes:
+              - 이항분포 평균과 분산 공식을 증명하는 문제는 다루지 않는다.
+              - 모평균 추정은 모집단이 정규분포인 경우, 모비율 추정은 표본 크기가 큰 경우를 다룬다.
+              - 복잡한 신뢰구간 계산보다 결과의 의미와 해석에 중점을 둔다.
+            visualizationIdeas:
+              - 확률질량이 막대 높이로 배치되고 기댓값이 무게중심으로 이동
+              - 이항분포의 시행 횟수가 커질수록 정규곡선에 가까워지는 애니메이션
+              - 여러 표본의 평균과 비율이 표집분포를 형성하는 시뮬레이션

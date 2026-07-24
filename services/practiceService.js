@@ -1,0 +1,788 @@
+const { randomUUID } = require("crypto");
+const mongoose = require("mongoose");
+
+const {
+  ConceptProgress,
+  Problem,
+  ProblemAttempt,
+  LearningEvent,
+} = require("../models/matthsModel");
+
+const {
+  getProblemGenerator,
+} = require("./problemGenerators");
+const {
+  generateValidProblem,
+} = require("./problemGenerators/utils");
+const {
+  formatMathTextForCourse,
+} = require("./mathTextService");
+
+const QUESTION_EXPIRES_MS = 15 * 60 * 1000;
+const MAX_SESSION_QUESTIONS = 30;
+const REVIEW_VARIATION_ATTEMPTS = 16;
+
+function generateReviewVariation({
+  problemType,
+  courseId,
+  previousPrompt,
+}) {
+  const normalizedPrevious =
+    formatMathTextForCourse(
+      courseId,
+      previousPrompt
+    );
+  let generated = null;
+
+  for (
+    let attempt = 0;
+    attempt < REVIEW_VARIATION_ATTEMPTS;
+    attempt += 1
+  ) {
+    generated =
+      generateValidProblem(problemType);
+
+    if (
+      formatMathTextForCourse(
+        courseId,
+        generated.prompt
+      ) !== normalizedPrevious
+    ) {
+      return generated;
+    }
+  }
+
+  /*
+   * 정의 판별처럼 숫자가 없는 고정 문항은 같은 유형 자체가
+   * 하나의 문장일 수 있다. 이 경우에도 복습을 막지는 않는다.
+   */
+  return generated;
+}
+
+function masteryView(progress) {
+  const gate = progress.masteryGate || {};
+  const correctTypeIds = gate.correctTypeIds || [];
+  const required = gate.requiredDistinctTypes || 5;
+
+  return {
+    correctTypeIds,
+    required,
+    unlocked: correctTypeIds.length >= required,
+    userCompleted: Boolean(gate.userCompleted),
+  };
+}
+
+function reviewView(attempt) {
+  if (!attempt) return null;
+
+  const status =
+    attempt.review?.status || "pending";
+
+  return {
+    attemptId: String(attempt._id),
+    typeId:
+      attempt.problemSnapshot?.typeId || null,
+    status,
+    completed: status === "completed",
+    reviewedAt:
+      attempt.review?.reviewedAt || null,
+  };
+}
+
+async function requireReviewAttempt({
+  userId,
+  reviewAttemptId,
+  courseId,
+  unitId,
+  conceptId,
+}) {
+  if (
+    !reviewAttemptId ||
+    !mongoose.isValidObjectId(reviewAttemptId)
+  ) {
+    const error = new Error(
+      "복습할 오답 기록을 찾을 수 없습니다."
+    );
+
+    error.status = 404;
+    throw error;
+  }
+
+  const attempt = await ProblemAttempt.findOne({
+    _id: reviewAttemptId,
+    userId,
+    isCorrect: false,
+    courseId,
+    unitId,
+    conceptId,
+  });
+
+  if (!attempt) {
+    const error = new Error(
+      "복습할 오답 기록을 찾을 수 없습니다."
+    );
+
+    error.status = 404;
+    throw error;
+  }
+
+  return attempt;
+}
+
+async function getReviewContext({
+  userId,
+  reviewAttemptId,
+  courseId,
+  unitId,
+  conceptId,
+}) {
+  const attempt = await requireReviewAttempt({
+    userId,
+    reviewAttemptId,
+    courseId,
+    unitId,
+    conceptId,
+  });
+
+  return reviewView(attempt);
+}
+
+function requireGenerator({
+  courseId,
+  unitId,
+  conceptId,
+}) {
+  const generator = getProblemGenerator({
+    courseId,
+    unitId,
+    conceptId,
+  });
+
+  if (!generator) {
+    const error = new Error(
+      "이 개념의 문제 유형이 아직 등록되지 않았습니다."
+    );
+
+    error.status = 404;
+    throw error;
+  }
+
+  if (!generator.problemTypes?.length) {
+    const error = new Error(
+      "등록된 문제 유형이 없습니다."
+    );
+
+    error.status = 500;
+    throw error;
+  }
+
+  return generator;
+}
+
+async function findOrCreateProgress({
+  userId,
+  courseId,
+  unitId,
+  conceptId,
+  requiredDistinctTypes,
+}) {
+  let progress = await ConceptProgress.findOne({
+    userId,
+    curriculumId: "kr-2022",
+    courseId,
+    unitId,
+    conceptId,
+  });
+
+  if (!progress) {
+    progress = new ConceptProgress({
+      userId,
+      curriculumId: "kr-2022",
+      courseId,
+      unitId,
+      conceptId,
+      masteryGate: {
+        requiredDistinctTypes,
+        correctTypeIds: [],
+      },
+    });
+  } else {
+    progress.masteryGate.requiredDistinctTypes =
+      requiredDistinctTypes;
+  }
+
+  await progress.save();
+
+  return progress;
+}
+
+async function ensureProblemTemplate({
+  courseId,
+  unitId,
+  conceptId,
+  problemType,
+  generated,
+}) {
+  const externalId = [
+    "generated",
+    courseId,
+    conceptId,
+    problemType.id,
+  ].join(":");
+
+  return Problem.findOneAndUpdate(
+    { externalId },
+    {
+      $set: {
+        curriculumId: "kr-2022",
+        courseId,
+        unitId,
+        conceptIds: [conceptId],
+        primaryConceptId: conceptId,
+        source: {
+          type: "generated",
+        },
+        questionType:
+          generated.inputMode ===
+          "multiple-choice"
+            ? "multiple-choice"
+            : "short-answer",
+        stem: `${problemType.label} 숫자 변형 문제`,
+        correctAnswer: "__generated_on_request__",
+        difficulty: problemType.difficulty || 1,
+        estimatedTimeSeconds: 120,
+        score: 1,
+        tags: [
+          "generated",
+          conceptId,
+          problemType.id,
+        ],
+        isPublished: true,
+      },
+    },
+    {
+      upsert: true,
+      returnDocument: "after",
+      setDefaultsOnInsert: true,
+    }
+  );
+}
+
+function rememberQuestion(req, instanceId, question) {
+  req.session.practiceQuestions ||= {};
+  req.session.practiceQuestions[instanceId] = question;
+
+  const storedIds = Object.keys(
+    req.session.practiceQuestions
+  );
+
+  if (storedIds.length > MAX_SESSION_QUESTIONS) {
+    storedIds
+      .slice(
+        0,
+        storedIds.length - MAX_SESSION_QUESTIONS
+      )
+      .forEach((id) => {
+        delete req.session.practiceQuestions[id];
+      });
+  }
+}
+
+async function recordLearningEvent(event) {
+  try {
+    await LearningEvent.create({
+      clientEventId: randomUUID(),
+      occurredAt: new Date(),
+      ...event,
+    });
+  } catch (error) {
+    console.error(
+      "문제풀이 LearningEvent 저장 실패:",
+      error
+    );
+  }
+}
+
+async function createNextProblem({
+  req,
+  userId,
+  courseId,
+  unitId,
+  conceptId,
+  reviewAttemptId,
+}) {
+  const generator = requireGenerator({
+    courseId,
+    unitId,
+    conceptId,
+  });
+
+  const requiredDistinctTypes =
+    generator.requiredDistinctTypes || 5;
+
+  const reviewAttempt = reviewAttemptId
+    ? await requireReviewAttempt({
+        userId,
+        reviewAttemptId,
+        courseId,
+        unitId,
+        conceptId,
+      })
+    : null;
+
+  const progress = await findOrCreateProgress({
+    userId,
+    courseId,
+    unitId,
+    conceptId,
+    requiredDistinctTypes,
+  });
+
+  let problemType = null;
+
+  if (reviewAttempt) {
+    const reviewTypeId =
+      reviewAttempt.problemSnapshot?.typeId;
+
+    problemType = generator.problemTypes.find(
+      (candidate) =>
+        candidate.id === reviewTypeId
+    );
+
+    if (!problemType) {
+      const error = new Error(
+        "이 오답의 재도전 문제 유형이 아직 등록되지 않았습니다."
+      );
+
+      error.status = 409;
+      throw error;
+    }
+  } else {
+    const completedTypes = new Set(
+      progress.masteryGate?.correctTypeIds || []
+    );
+
+    const unseenTypes = generator.problemTypes.filter(
+      (candidate) =>
+        !completedTypes.has(candidate.id)
+    );
+
+    const candidates = unseenTypes.length
+      ? unseenTypes
+      : generator.problemTypes;
+
+    problemType =
+      candidates[
+        Math.floor(Math.random() * candidates.length)
+      ];
+  }
+
+  const generated = reviewAttempt
+    ? generateReviewVariation({
+        problemType,
+        courseId,
+        previousPrompt:
+          reviewAttempt.problemSnapshot?.stem ||
+          "",
+      })
+    : generateValidProblem(problemType);
+
+  const problemTemplate =
+    await ensureProblemTemplate({
+      courseId,
+      unitId,
+      conceptId,
+      problemType,
+      generated,
+    });
+
+  const instanceId = randomUUID();
+
+  rememberQuestion(req, instanceId, {
+    userId: String(userId),
+    problemId: String(problemTemplate._id),
+    courseId,
+    unitId,
+    conceptId,
+    typeId: problemType.id,
+    typeLabel: problemType.label,
+    difficulty: problemType.difficulty || 1,
+    prompt: generated.prompt,
+    inputMode: generated.inputMode,
+    choices: generated.choices || [],
+    answer: generated.answer,
+    solution: generated.solution,
+    hintText: generated.hintText || "",
+    visualization: generated.visualization || null,
+    reviewAttemptId: reviewAttempt
+      ? String(reviewAttempt._id)
+      : null,
+    createdAt: Date.now(),
+  });
+
+  await recordLearningEvent({
+    userId,
+    sessionId: req.sessionID,
+    eventType: "problem-opened",
+    curriculumId: "kr-2022",
+    courseId,
+    unitId,
+    conceptId,
+    problemId: problemTemplate._id,
+    metadata: {
+      instanceId,
+      problemTypeId: problemType.id,
+      reviewAttemptId: reviewAttempt
+        ? String(reviewAttempt._id)
+        : null,
+    },
+  });
+
+  if (reviewAttempt) {
+    await recordLearningEvent({
+      userId,
+      sessionId: req.sessionID,
+      eventType: "review-started",
+      curriculumId: "kr-2022",
+      courseId,
+      unitId,
+      conceptId,
+      problemId: problemTemplate._id,
+      attemptId: reviewAttempt._id,
+      metadata: {
+        instanceId,
+        problemTypeId: problemType.id,
+      },
+    });
+  }
+
+  return {
+    problem: {
+      instanceId,
+      typeId: problemType.id,
+      typeLabel: problemType.label,
+      prompt: generated.prompt,
+      inputMode: generated.inputMode,
+      choices: generated.choices || [],
+      hintText: generated.hintText || "",
+      visualization: generated.visualization || null,
+    },
+    mastery: masteryView(progress),
+    review: reviewView(reviewAttempt),
+  };
+}
+
+async function submitProblem({
+  req,
+  userId,
+  instanceId,
+  submittedAnswer,
+}) {
+  const stored =
+    req.session.practiceQuestions?.[instanceId];
+
+  if (!stored || stored.userId !== String(userId)) {
+    const error = new Error(
+      "문제가 만료되었거나 이미 제출되었습니다."
+    );
+
+    error.status = 400;
+    throw error;
+  }
+
+  delete req.session.practiceQuestions[instanceId];
+
+  if (
+    Date.now() - stored.createdAt >
+    QUESTION_EXPIRES_MS
+  ) {
+    const error = new Error(
+      "문제 풀이 시간이 만료되었습니다."
+    );
+
+    error.status = 400;
+    throw error;
+  }
+
+  if (
+    submittedAnswer === undefined ||
+    submittedAnswer === null ||
+    String(submittedAnswer).trim() === ""
+  ) {
+    const error = new Error("정답을 입력해주세요.");
+    error.status = 400;
+    throw error;
+  }
+
+  const generator = requireGenerator({
+    courseId: stored.courseId,
+    unitId: stored.unitId,
+    conceptId: stored.conceptId,
+  });
+
+  const correct = generator.isCorrectAnswer(
+    stored.answer,
+    submittedAnswer
+  );
+
+  const responseTimeMs = Math.max(
+    0,
+    Date.now() - stored.createdAt
+  );
+
+  const progress = await findOrCreateProgress({
+    userId,
+    courseId: stored.courseId,
+    unitId: stored.unitId,
+    conceptId: stored.conceptId,
+    requiredDistinctTypes:
+      generator.requiredDistinctTypes || 5,
+  });
+
+  progress.signals.totalAttempts += 1;
+  progress.signals.totalResponseTimeMs +=
+    responseTimeMs;
+
+  if (correct) {
+    progress.signals.correctAttempts += 1;
+
+    const correctTypes = new Set(
+      progress.masteryGate?.correctTypeIds || []
+    );
+
+    correctTypes.add(stored.typeId);
+
+    progress.masteryGate.correctTypeIds = [
+      ...correctTypes,
+    ];
+  }
+
+  progress.lastStudiedAt = new Date();
+  await progress.save();
+
+  const problemId = stored.problemId;
+
+  const attemptNumber =
+    (await ProblemAttempt.countDocuments({
+      userId,
+      problemId,
+    })) + 1;
+
+  const attempt = await ProblemAttempt.create({
+    userId,
+    problemId,
+    curriculumId: "kr-2022",
+    courseId: stored.courseId,
+    unitId: stored.unitId,
+    conceptId: stored.conceptId,
+    attemptNumber,
+    submittedAnswer,
+    problemSnapshot: {
+      typeId: stored.typeId,
+      stem: stored.prompt,
+      choices: stored.choices,
+      solution: stored.solution,
+      difficulty: stored.difficulty,
+    },
+    isCorrect: correct,
+    score: correct ? 1 : 0,
+    maxScore: 1,
+    responseTimeMs,
+    errorAnalysis: correct
+      ? undefined
+      : {
+          errorType: "unknown",
+          relatedConceptId: stored.conceptId,
+        },
+    review: {
+      status: correct
+        ? "not-required"
+        : "pending",
+    },
+    submittedAt: new Date(),
+  });
+
+  await recordLearningEvent({
+    userId,
+    sessionId: req.sessionID,
+    eventType: correct
+      ? "problem-correct"
+      : "problem-wrong",
+    curriculumId: "kr-2022",
+    courseId: stored.courseId,
+    unitId: stored.unitId,
+    conceptId: stored.conceptId,
+    problemId,
+    attemptId: attempt._id,
+    durationMs: responseTimeMs,
+    correct,
+    metadata: {
+      instanceId,
+      problemTypeId: stored.typeId,
+    },
+  });
+
+  let review = null;
+
+  if (stored.reviewAttemptId) {
+    const reviewFilter = {
+      _id: stored.reviewAttemptId,
+      userId,
+      isCorrect: false,
+      courseId: stored.courseId,
+      unitId: stored.unitId,
+      conceptId: stored.conceptId,
+    };
+
+    let originalAttempt = null;
+
+    if (correct) {
+      originalAttempt =
+        await ProblemAttempt.findOneAndUpdate(
+          reviewFilter,
+          {
+            $set: {
+              "review.status": "completed",
+              "review.reviewedAt": new Date(),
+              "review.correctedAfterReview": true,
+            },
+            $unset: {
+              "review.scheduledAt": 1,
+            },
+          },
+          {
+            returnDocument: "after",
+          }
+        );
+    } else {
+      originalAttempt =
+        await ProblemAttempt.findOneAndUpdate(
+          {
+            ...reviewFilter,
+            "review.status": {
+              $ne: "completed",
+            },
+          },
+          {
+            $set: {
+              "review.status": "pending",
+              "review.correctedAfterReview": false,
+            },
+            $unset: {
+              "review.scheduledAt": 1,
+              "review.reviewedAt": 1,
+            },
+          },
+          {
+            returnDocument: "after",
+          }
+        );
+
+      if (!originalAttempt) {
+        originalAttempt =
+          await ProblemAttempt.findOne(
+            reviewFilter
+          );
+      }
+    }
+
+    review = reviewView(originalAttempt);
+
+    if (correct && originalAttempt) {
+      await recordLearningEvent({
+        userId,
+        sessionId: req.sessionID,
+        eventType: "review-completed",
+        curriculumId: "kr-2022",
+        courseId: stored.courseId,
+        unitId: stored.unitId,
+        conceptId: stored.conceptId,
+        problemId,
+        attemptId: originalAttempt._id,
+        correct: true,
+        metadata: {
+          retryAttemptId: String(attempt._id),
+          problemTypeId: stored.typeId,
+        },
+      });
+    }
+  }
+
+  return {
+    correct,
+    solution: stored.solution,
+    mastery: masteryView(progress),
+    review,
+  };
+}
+
+async function changeCompletion({
+  userId,
+  courseId,
+  unitId,
+  conceptId,
+  completed,
+  sessionId,
+}) {
+  const generator = requireGenerator({
+    courseId,
+    unitId,
+    conceptId,
+  });
+
+  const progress = await findOrCreateProgress({
+    userId,
+    courseId,
+    unitId,
+    conceptId,
+    requiredDistinctTypes:
+      generator.requiredDistinctTypes || 5,
+  });
+
+  const gate = progress.masteryGate;
+  const required = gate.requiredDistinctTypes || 5;
+  const unlocked =
+    gate.correctTypeIds.length >= required;
+
+  if (completed && !unlocked) {
+    const error = new Error(
+      `서로 다른 유형 ${required}개를 먼저 맞혀야 합니다.`
+    );
+
+    error.status = 403;
+    throw error;
+  }
+
+  gate.userCompleted = Boolean(completed);
+  gate.completedAt = completed ? new Date() : null;
+  progress.lastStudiedAt = new Date();
+
+  await progress.save();
+
+  await recordLearningEvent({
+    userId,
+    sessionId:
+      sessionId || `server-${randomUUID()}`,
+    eventType: completed
+      ? "concept-completed"
+      : "concept-closed",
+    curriculumId: "kr-2022",
+    courseId,
+    unitId,
+    conceptId,
+    metadata: {
+      userCompleted: Boolean(completed),
+      correctTypeCount:
+        gate.correctTypeIds.length,
+    },
+  });
+
+  return masteryView(progress);
+}
+
+module.exports = {
+  createNextProblem,
+  submitProblem,
+  changeCompletion,
+  getReviewContext,
+};

@@ -1,0 +1,593 @@
+<%
+  const learner = user;
+  const data = dashboardData;
+
+  const displayName = String(learner.name || "학생");
+  const notifications = Array.isArray(data.notifications) ? data.notifications : [];
+  const weakConcepts = Array.isArray(data.weakConcepts) ? data.weakConcepts : [];
+  const recentWrongAnswers = Array.isArray(data.recentWrongAnswers) ? data.recentWrongAnswers : [];
+  const curriculumCourses = Array.isArray(data.curriculumCourses) ? data.curriculumCourses : [];
+  const activityDays = Array.isArray(data.weeklyActivity?.days) ? data.weeklyActivity.days : [];
+  const planTasks = Array.isArray(data.todayPlan?.tasks) ? data.todayPlan.tasks : [];
+  const current = data.currentLearning || null;
+
+  /*
+   * 대시보드에서는 전체 교육과정 카탈로그를 나열하지 않는다.
+   * 현재 학습 중인 과목과 실제 진도 기록이 있는 과목만 최대 3개 표시한다.
+   */
+  const currentCourse = current
+    ? curriculumCourses.find((course) => course.title === current.courseTitle)
+    : null;
+  const studiedCourses = curriculumCourses.filter(
+    (course) =>
+      Number(course.progress) > 0 ||
+      Number(course.completedConcepts) > 0
+  );
+  const personalCourseMap = new Map();
+
+  if (currentCourse) {
+    personalCourseMap.set(currentCourse.id, currentCourse);
+  }
+
+  studiedCourses.forEach((course) => {
+    personalCourseMap.set(course.id, course);
+  });
+
+  const personalCurriculumCourses = Array.from(personalCourseMap.values())
+    .sort((left, right) => {
+      if (currentCourse) {
+        if (left.id === currentCourse.id) return -1;
+        if (right.id === currentCourse.id) return 1;
+      }
+
+      return Number(right.progress) - Number(left.progress);
+    })
+    .slice(0, 3);
+
+  const gradeLabel = learner.schoolGrade === 10
+    ? "고등학교 1학년"
+    : learner.schoolGrade === 11
+      ? "고등학교 2학년"
+      : learner.schoolGrade === 12
+        ? "고등학교 3학년"
+        : "학년 미설정";
+
+  const chartMaximum = Math.max(1, Number(data.weeklyActivity?.maxMinutes) || 0);
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="오늘의 학습 계획, 진도, 오답과 학습 기록을 확인하는 Matths 대시보드입니다."
+    />
+    <meta name="theme-color" content="#f5f7fc" />
+    <title>학습 홈 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <script src="/js/main.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#dashboard-main">본문으로 바로가기</a>
+
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top">
+          <a class="brand" href="/" aria-label="Matths 학습 홈">
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span>Matths</span>
+          </a>
+
+          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">
+            ×
+          </button>
+        </div>
+
+        <nav class="side-nav" aria-label="대시보드 메뉴">
+          <p>LEARNING</p>
+
+          <a class="active" href="/main" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>학습 홈</span>
+          </a>
+
+          <a href="/my-learning">
+            <span class="nav-icon" aria-hidden="true">▦</span>
+            <span>내 학습</span>
+            <b><%= data.completedConcepts %></b>
+          </a>
+
+          <a href="/log-curriculum">
+            <span class="nav-icon" aria-hidden="true">◫</span>
+            <span>교육과정</span>
+          </a>
+
+          <a href="/wrong-notes">
+            <span class="nav-icon" aria-hidden="true">↻</span>
+            <span>오답 노트</span>
+            <% if (data.stats.pendingReviewCount > 0) { %>
+              <b><%= data.stats.pendingReviewCount %></b>
+            <% } %>
+          </a>
+
+          <a href="#learning-record">
+            <span class="nav-icon" aria-hidden="true">⌁</span>
+            <span>학습 기록</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <section
+          class="coach-mini"
+          data-mode="<%= data.coach.mode %>"
+          aria-labelledby="coach-mini-title"
+        >
+          <div class="coach-heading">
+            <span aria-hidden="true">M</span>
+            <p>
+              <small>MATTHS COACH</small>
+              <strong id="coach-mini-title"><%= data.coach.title %></strong>
+            </p>
+          </div>
+
+          <p id="coach-mini-message"><%= data.coach.message %></p>
+
+          <div class="coach-modes" role="group" aria-label="학습 코치 말투 선택">
+            <% [["mild", "순한맛"], ["spicy", "매운맛"], ["silent", "무음"]].forEach(([mode, label]) => { %>
+              <button
+                class="<%= data.coach.mode === mode ? 'active' : '' %>"
+                type="button"
+                data-mode="<%= mode %>"
+                aria-pressed="<%= data.coach.mode === mode %>"
+              >
+                <%= label %>
+              </button>
+            <% }) %>
+          </div>
+        </section>
+
+        <div class="sidebar-profile">
+          <span class="profile-avatar" aria-hidden="true"><%= displayName.slice(0, 1) %></span>
+
+          <div class="profile-copy">
+            <strong><%= displayName %>님</strong>
+            <small><%= gradeLabel %></small>
+          </div>
+
+          <form action="/logout" method="POST">
+            <button type="submit" aria-label="로그아웃" title="로그아웃">↗</button>
+          </form>
+        </div>
+      </aside>
+
+      <main class="dashboard-main" id="dashboard-main">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button
+              class="sidebar-open"
+              id="sidebar-open"
+              type="button"
+              aria-label="학습 메뉴 열기"
+              aria-controls="dashboard-sidebar"
+              aria-expanded="false"
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+
+            <div>
+              <p id="today-label">오늘의 학습</p>
+              <h1><%= displayName %>님, 반가워요.</h1>
+            </div>
+          </div>
+
+          <div class="topbar-actions">
+            <div class="streak-pill" title="연속 학습일">
+              <span aria-hidden="true">●</span>
+              <strong><%= learner.currentStreak %>일 연속</strong>
+            </div>
+
+            <div class="notification-wrap">
+              <button
+                class="notification-button"
+                id="notification-button"
+                type="button"
+                aria-label="알림 <%= notifications.length %>개 보기"
+                aria-expanded="false"
+                aria-controls="notification-panel"
+              >
+                <span aria-hidden="true">♢</span>
+                <% if (notifications.length > 0) { %>
+                  <i><%= notifications.length %></i>
+                <% } %>
+              </button>
+
+              <div class="notification-panel" id="notification-panel" hidden>
+                <div class="notification-panel-title">
+                  <strong>알림</strong>
+                  <button id="notification-close" type="button" aria-label="알림 닫기">×</button>
+                </div>
+
+                <% if (notifications.length) { %>
+                  <% notifications.forEach((notification) => { %>
+                    <a href="<%= notification.href %>">
+                      <b><%= notification.title %></b>
+                      <small><%= notification.description %></small>
+                    </a>
+                  <% }) %>
+                <% } else { %>
+                  <p class="panel-empty">새로운 알림이 없습니다.</p>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section class="welcome-row" aria-label="오늘의 학습 요약">
+          <article class="continue-card">
+            <% if (current) { %>
+              <div class="continue-copy">
+                <div class="course-meta">
+                  <span>이어서 학습</span>
+                  <small><%= current.courseTitle %> · <%= current.unitTitle %></small>
+                </div>
+
+                <h2><%= current.conceptTitle %></h2>
+                <p><%= current.stepTitle || "첫 단계부터 시작합니다." %></p>
+
+                <div
+                  class="course-progress"
+                  role="progressbar"
+                  aria-label="현재 개념 학습 진도"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  aria-valuenow="<%= current.progress %>"
+                >
+                  <div><span style="--progress:<%= current.progress %>%"></span></div>
+                  <strong><%= current.progress %>%</strong>
+                </div>
+
+                <div class="continue-actions">
+                  <a class="primary-action" href="<%= current.href %>">
+                    이어서 학습하기 <span aria-hidden="true">→</span>
+                  </a>
+
+                  <% if (current.estimatedMinutes) { %>
+                    <small>예상 <%= current.estimatedMinutes %>분</small>
+                  <% } %>
+                </div>
+              </div>
+
+              <div class="concept-visual" aria-label="현재 개념 시각화 미리보기">
+                <div class="visual-title">
+                  <span><%= current.preview?.title || "VISUAL CONCEPT" %></span>
+                  <small><%= current.stepLabel || "" %></small>
+                </div>
+
+                <% if (current.preview?.type === "area-model" && current.preview.blocks?.length) { %>
+                  <div class="area-model" aria-hidden="true">
+                    <% current.preview.blocks.forEach((block) => { %>
+                      <i class="<%= block.tone %>"><%= block.label %></i>
+                    <% }) %>
+                  </div>
+                <% } else { %>
+                  <div class="formula-preview" aria-hidden="true">
+                    <span>ƒ</span>
+                    <p><%= current.preview?.formula || current.conceptTitle %></p>
+                  </div>
+                <% } %>
+
+                <% if (current.preview?.formula) { %>
+                  <strong><%= current.preview.formula %></strong>
+                <% } %>
+              </div>
+            <% } else { %>
+              <div class="section-empty large">
+                <span aria-hidden="true">◫</span>
+                <strong>아직 시작한 학습이 없습니다.</strong>
+                <p>교육과정에서 첫 개념을 선택하면 여기에 이어서 학습할 내용이 표시됩니다.</p>
+                <a href="/log-curriculum">첫 개념 선택하기 →</a>
+              </div>
+            <% } %>
+          </article>
+
+          <article class="today-plan" aria-labelledby="today-plan-title">
+            <div class="card-heading">
+              <div>
+                <p>TODAY'S PLAN</p>
+                <h2 id="today-plan-title">오늘 할 학습</h2>
+              </div>
+
+              <div
+                class="plan-ring"
+                id="plan-ring"
+                style="--plan-progress:<%= data.todayPlan.progress * 3.6 %>deg"
+                role="progressbar"
+                aria-label="오늘의 학습 진행률"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="<%= data.todayPlan.progress %>"
+              >
+                <span id="plan-count"><%= data.todayPlan.completedCount %>/<%= data.todayPlan.totalCount %></span>
+              </div>
+            </div>
+
+            <div class="plan-list" id="plan-list">
+              <% planTasks.forEach((task) => { %>
+                <article
+                  class="plan-task <%= task.status === 'completed' ? 'done' : '' %>"
+                  data-task-id="<%= task.id %>"
+                >
+                  <button
+                    class="plan-toggle"
+                    type="button"
+                    aria-label="<%= task.title %> 완료 상태 변경"
+                    aria-pressed="<%= task.status === 'completed' %>"
+                  >
+                    <span class="task-check" aria-hidden="true"><%= task.status === "completed" ? "✓" : "" %></span>
+                  </button>
+
+                  <a class="plan-content" href="<%= task.href %>">
+                    <strong><%= task.title %></strong>
+                    <small>
+                      <%= task.description %>
+                      <% if (task.estimatedMinutes) { %>
+                        · <%= task.estimatedMinutes %>분
+                      <% } %>
+                    </small>
+                  </a>
+
+                  <span class="plan-status"><%= task.status === "completed" ? "완료" : "학습하기" %></span>
+                </article>
+              <% }) %>
+            </div>
+
+            <% if (!planTasks.length) { %>
+              <div class="section-empty compact">
+                <strong>오늘의 계획이 없습니다.</strong>
+                <p>학습을 시작하면 계획이 자동으로 생성됩니다.</p>
+              </div>
+            <% } %>
+
+            <p class="plan-message" id="plan-message"><%= data.todayPlan.message %></p>
+          </article>
+        </section>
+
+        <section class="stats-row" aria-label="학습 통계">
+          <article>
+            <span class="stat-icon blue" aria-hidden="true">◷</span>
+            <div>
+              <small>이번 주 학습</small>
+              <strong><%= data.stats.weeklyStudyMinutes %><i>분</i></strong>
+              <p><b><%= data.stats.weeklyStudyDetail %></b></p>
+            </div>
+          </article>
+
+          <article>
+            <span class="stat-icon green" aria-hidden="true">✓</span>
+            <div>
+              <small>이번 주 정답률</small>
+              <strong><%= data.stats.correctRate %><i>%</i></strong>
+              <p><b><%= data.stats.correctRateDetail %></b></p>
+            </div>
+          </article>
+
+          <article>
+            <span class="stat-icon violet" aria-hidden="true">✎</span>
+            <div>
+              <small>누적 풀이</small>
+              <strong><%= data.stats.totalSolvedProblems %><i>문제</i></strong>
+              <p><b>이번 주 <%= data.stats.weeklySolvedProblems %>문제</b></p>
+            </div>
+          </article>
+
+          <article>
+            <span class="stat-icon orange" aria-hidden="true">↻</span>
+            <div>
+              <small>복습 필요</small>
+              <strong><%= data.stats.pendingReviewCount %><i>문제</i></strong>
+              <p><b>미완료 오답 기준</b></p>
+            </div>
+          </article>
+        </section>
+
+        <section class="analysis-grid" id="learning-record">
+          <article class="activity-card">
+            <div class="card-heading">
+              <div>
+                <p>WEEKLY ACTIVITY</p>
+                <h2>이번 주 학습 기록</h2>
+              </div>
+
+              <span class="chart-legend"><b></b> 학습 시간</span>
+            </div>
+
+            <% if (activityDays.length) { %>
+              <div class="weekly-chart" aria-label="요일별 학습 시간">
+                <% activityDays.forEach((day) => {
+                  const rawHeight = Math.round((Number(day.minutes) || 0) / chartMaximum * 100);
+                  const barHeight = day.minutes > 0 ? Math.max(7, rawHeight) : 0;
+                %>
+                  <div class="chart-day <%= day.isToday ? 'today' : '' %>">
+                    <div class="bar-track">
+                      <i
+                        style="--height:<%= barHeight %>%"
+                        aria-label="<%= day.label %> <%= day.minutes %>분"
+                      >
+                        <span><%= day.minutes %>분</span>
+                      </i>
+                    </div>
+                    <small><%= day.label %></small>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="section-empty chart-empty">
+                <strong>아직 학습 기록이 없습니다.</strong>
+                <p>개념을 학습하면 요일별 학습 시간이 표시됩니다.</p>
+              </div>
+            <% } %>
+          </article>
+
+          <article class="weak-card">
+            <div class="card-heading">
+              <div>
+                <p>NEEDS REVIEW</p>
+                <h2>지금 복습할 개념</h2>
+              </div>
+              <a href="/my-learning">전체 보기</a>
+            </div>
+
+            <% if (weakConcepts.length) { %>
+              <div class="weak-list">
+                <% weakConcepts.forEach((concept) => { %>
+                  <a href="<%= concept.href %>">
+                    <span class="weak-rank <%= concept.urgency %>"><%= concept.rank %></span>
+                    <div>
+                      <strong><%= concept.title %></strong>
+                      <small>최근 정답률 <%= concept.accuracy %>% · <%= concept.unitTitle %></small>
+                      <i><b style="--level:<%= concept.accuracy %>%"></b></i>
+                    </div>
+                    <em><%= concept.statusText %></em>
+                  </a>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="section-empty list-empty">
+                <strong>분석할 풀이 데이터가 없습니다.</strong>
+                <p>문제를 풀면 복습이 필요한 개념을 찾아드립니다.</p>
+              </div>
+            <% } %>
+          </article>
+        </section>
+
+        <section class="bottom-grid">
+          <article class="curriculum-progress">
+            <div class="card-heading">
+              <div>
+                <p>MY COURSES</p>
+                <h2>내 학습 과목</h2>
+              </div>
+              <a href="/log-curriculum">
+                전체 교육과정 <span aria-hidden="true">→</span>
+              </a>
+            </div>
+
+            <% if (personalCurriculumCourses.length) { %>
+              <div class="semester-list">
+                <% personalCurriculumCourses.forEach((course) => { %>
+                  <div>
+                    <span class="semester-badge <%= course.progress === 0 ? 'muted' : '' %>">
+                      <%= String(course.id).startsWith("common-") ? "공통" : "선택" %>
+                    </span>
+                    <div>
+                      <strong><%= course.title %></strong>
+                      <small>
+                        <%= course.completedConcepts %> /
+                        <%= course.totalConcepts %>개념 완료
+                      </small>
+                      <i><b style="--progress:<%= course.progress %>%"></b></i>
+                    </div>
+                    <em><%= course.progress %>%</em>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="section-empty list-empty">
+                <strong>아직 학습 중인 과목이 없습니다.</strong>
+                <p>
+                  교육과정에서 지금 배울 과목과 첫 개념을 선택해 주세요.
+                </p>
+                <a href="/log-curriculum">학습할 과목 찾기 →</a>
+              </div>
+            <% } %>
+          </article>
+
+          <article class="wrong-card" id="wrong-notes">
+            <div class="card-heading">
+              <div>
+                <p>RECENT WRONG ANSWERS</p>
+                <h2>최근 오답</h2>
+              </div>
+              <span><%= recentWrongAnswers.length %>문제</span>
+            </div>
+
+            <% if (recentWrongAnswers.length) { %>
+              <div class="wrong-list">
+                <% recentWrongAnswers.forEach((answer) => { %>
+                  <a href="<%= answer.href %>">
+                    <span><%= answer.score %>점</span>
+                    <div>
+                      <strong><%= answer.stem %></strong>
+                      <small><%= answer.reason %></small>
+                    </div>
+                    <b>다시 보기 →</b>
+                  </a>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="section-empty list-empty">
+                <strong>저장된 오답이 없습니다.</strong>
+                <p>틀린 문제는 자동으로 이곳에 모입니다.</p>
+              </div>
+            <% } %>
+          </article>
+        </section>
+
+        <section class="quick-section" aria-labelledby="quick-title">
+          <div class="section-title">
+            <div>
+              <p>QUICK START</p>
+              <h2 id="quick-title">바로 시작하기</h2>
+            </div>
+          </div>
+
+          <div class="quick-grid">
+            <a href="/log-curriculum">
+              <span class="quick-icon" aria-hidden="true">▦</span>
+              <div>
+                <strong>교육과정에서 찾기</strong>
+                <small>단원과 개념을 직접 선택해요.</small>
+              </div>
+              <b>→</b>
+            </a>
+
+            <a href="/wrong-notes">
+              <span class="quick-icon" aria-hidden="true">↻</span>
+              <div>
+                <strong>오답부터 복습하기</strong>
+                <small>최근에 막힌 개념부터 다시 봐요.</small>
+              </div>
+              <b>→</b>
+            </a>
+
+            <a href="/my-learning">
+              <span class="quick-icon" aria-hidden="true">⌁</span>
+              <div>
+                <strong>내 진도 확인하기</strong>
+                <small>완료한 개념과 남은 개념을 확인해요.</small>
+              </div>
+              <b>→</b>
+            </a>
+          </div>
+        </section>
+
+        <footer class="dashboard-footer">
+          <span>© <%= new Date().getFullYear() %> Matths</span>
+          <p>설명은 친절하게. 학습은 단계적으로.</p>
+          <div>
+            <a href="/terms">이용약관</a>
+            <a href="/privacy">개인정보처리방침</a>
+          </div>
+        </footer>
+
+        <p class="sr-only" id="dashboard-status" role="status" aria-live="polite"></p>
+      </main>
+    </div>
+  </body>
+</html>

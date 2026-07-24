@@ -1,0 +1,914 @@
+<%
+  const gate = mastery || {};
+  const correctTypeIds = Array.isArray(gate.correctTypeIds)
+    ? gate.correctTypeIds
+    : [];
+
+  const requiredTypes =
+    lesson.practice?.requiredDistinctTypes || 5;
+
+  const gateUnlocked =
+    correctTypeIds.length >= requiredTypes;
+
+  const reviewMode =
+    typeof review !== "undefined" &&
+    review &&
+    review.attemptId
+      ? review
+      : null;
+
+  const experienceProfiles = {
+    "limit-intuition": {
+      symbol: "\\(\\lim\\)",
+      motionTitle: "극한이 만들어지는 장면을 봅니다.",
+      motionNote: "양쪽에서 같은 값으로 다가가는 과정을 보여줍니다.",
+      motionFormula: "\\[\\lim_{x\\to a}f(x)=L\\]",
+      initialCaption: "함수값이 어디로 가는지 관찰합니다.",
+      playgroundTitle: "직접 움직이며 극한을 확인합니다.",
+      playgroundNote: "함수값과 극한값을 분리해 관찰해보세요.",
+    },
+    "limit-calculation": {
+      symbol: "\\(\\frac{0}{0}\\)",
+      motionTitle: "막힌 식이 풀리는 순서를 봅니다.",
+      motionNote: "대입, 식 변형, 재대입을 한 장면씩 연결합니다.",
+      motionFormula:
+        "\\[\\frac{x^2-a^2}{x-a}\\;\\longrightarrow\\;x+a\\;\\longrightarrow\\;2a\\]",
+      initialCaption: "먼저 대입하여 식의 형태를 확인합니다.",
+      playgroundTitle: "식 변형을 한 단계씩 실행합니다.",
+      playgroundNote: "부정형은 정답이 아니라 변형이 필요하다는 신호입니다.",
+    },
+    "continuity-builder": {
+      symbol: "\\(f(a)\\)",
+      motionTitle: "끊어진 그래프가 이어지는 순간을 봅니다.",
+      motionNote: "함수값, 좌극한, 우극한의 세 조건을 겹칩니다.",
+      motionFormula:
+        "\\[\\lim_{x\\to a^-}f(x)=\\lim_{x\\to a^+}f(x)=f(a)\\]",
+      initialCaption: "연속을 결정하는 세 값을 하나씩 확인합니다.",
+      playgroundTitle: "세 값을 조절해 연속을 직접 만듭니다.",
+      playgroundNote: "양쪽 극한과 실제 함수값이 모두 같아야 합니다.",
+    },
+    "continuous-properties": {
+      symbol: "\\(\\exists c\\)",
+      motionTitle: "연속인 그래프가 중간값을 지나는 장면을 봅니다.",
+      motionNote: "끊기지 않은 그래프와 수평선의 교점을 관찰합니다.",
+      motionFormula:
+        "\\[f(a)<k<f(b)\\;\\Longrightarrow\\;\\exists c\\in(a,b):f(c)=k\\]",
+      initialCaption: "닫힌구간의 양 끝 함수값을 먼저 확인합니다.",
+      playgroundTitle: "중간 높이를 움직여 교점을 찾아봅니다.",
+      playgroundNote: "연속인 그래프는 사이의 높이를 건너뛸 수 없습니다.",
+    },
+  };
+
+  const isAlgebraExperience = String(
+    lesson.playgroundKey || ""
+  ).startsWith("algebra-");
+
+  const algebraSymbols = {
+    "algebra-01-01": "\\(\\sqrt[n]{a}\\)",
+    "algebra-01-02": "\\(a^{m/n}\\)",
+    "algebra-01-03": "\\(a^m a^n\\)",
+    "algebra-01-04": "\\(\\log_a b\\)",
+    "algebra-01-05": "\\(\\log N\\)",
+    "algebra-01-06": "\\(a^x\\)",
+    "algebra-01-07": "\\(y=a^x\\)",
+    "algebra-01-08": "\\(a^x=b\\)",
+    "algebra-02-01": "\\(\\theta\\)",
+    "algebra-02-02": "\\(\\sin x\\)",
+    "algebra-02-03": "\\(a^2\\)",
+    "algebra-03-01": "\\(a_n\\)",
+    "algebra-03-02": "\\(a_n\\)",
+    "algebra-03-03": "\\(a_1r^{n-1}\\)",
+    "algebra-03-04": "\\(\\sum\\)",
+    "algebra-03-05": "\\(\\sum a_k\\)",
+    "algebra-03-06": "\\(a_{n+1}\\)",
+    "algebra-03-07": "\\(P(n)\\)",
+  };
+
+  const algebraGraphProfiles = {
+    "algebra-01-04": {
+      key: "exp-log-inverse",
+      explanationTitle:
+        "로그가 지수함수의 역이라는 뜻을 그래프로 확인합니다.",
+      explanationNote:
+        "두 그래프는 직선 y=x에 대해 서로 거울처럼 대응합니다.",
+      playgroundTitle:
+        "밑을 바꾸며 지수와 로그의 역관계를 확인합니다.",
+      playgroundNote:
+        "대응하는 두 점의 좌표가 서로 뒤바뀌는지 살펴보세요.",
+      modes: [
+        { id: "growth", label: "밑 a > 1" },
+        { id: "decay", label: "0 < a < 1" },
+      ],
+      controls: [
+        {
+          id: "primary",
+          label: "밑의 크기",
+          min: 1.2,
+          max: 4,
+          step: 0.2,
+          value: 2,
+        },
+        {
+          id: "secondary",
+          label: "대칭 중심 이동 h",
+          min: -1.5,
+          max: 1.5,
+          step: 0.5,
+          value: 0,
+        },
+      ],
+    },
+    "algebra-01-06": {
+      key: "exp-log-inverse",
+      explanationTitle:
+        "지수함수와 로그함수의 입력·출력을 그래프로 연결합니다.",
+      explanationNote:
+        "지수함수의 (x,y)는 로그함수에서 (y,x)가 됩니다.",
+      playgroundTitle:
+        "지수함수와 로그함수를 동시에 움직여봅니다.",
+      playgroundNote:
+        "밑이 바뀌어도 역함수 관계와 점근선은 유지됩니다.",
+      modes: [
+        { id: "growth", label: "밑 a > 1" },
+        { id: "decay", label: "0 < a < 1" },
+      ],
+      controls: [
+        {
+          id: "primary",
+          label: "밑의 크기",
+          min: 1.2,
+          max: 4,
+          step: 0.2,
+          value: 2,
+        },
+        {
+          id: "secondary",
+          label: "대칭 중심 이동 h",
+          min: -1.5,
+          max: 1.5,
+          step: 0.5,
+          value: 0,
+        },
+      ],
+    },
+    "algebra-01-07": {
+      key: "exp-log-inverse",
+      explanationTitle:
+        "증가·감소, 점근선과 y=x 대칭을 한 좌표평면에서 봅니다.",
+      explanationNote:
+        "밑이 1보다 작은 경우 두 그래프가 모두 감소합니다.",
+      playgroundTitle:
+        "밑과 이동량에 따라 그래프가 어떻게 변하는지 봅니다.",
+      playgroundNote:
+        "그래프 모양은 바뀌어도 두 함수는 계속 서로 역함수입니다.",
+      modes: [
+        { id: "growth", label: "증가형 a > 1" },
+        { id: "decay", label: "감소형 0 < a < 1" },
+      ],
+      controls: [
+        {
+          id: "primary",
+          label: "밑의 크기",
+          min: 1.2,
+          max: 4,
+          step: 0.2,
+          value: 2,
+        },
+        {
+          id: "secondary",
+          label: "평행이동 h",
+          min: -1.5,
+          max: 1.5,
+          step: 0.5,
+          value: 0,
+        },
+      ],
+    },
+    "algebra-01-08": {
+      key: "exp-log-solver",
+      explanationTitle:
+        "방정식의 해를 두 그래프의 교점으로 읽습니다.",
+      explanationNote:
+        "부등식은 교점의 어느 쪽에서 그래프가 더 높은지 비교합니다.",
+      playgroundTitle:
+        "교점을 움직여 지수방정식과 부등식을 풉니다.",
+      playgroundNote:
+        "계산한 해와 그래프에서 읽은 경계값이 같은지 확인하세요.",
+      modes: [
+        { id: "equation", label: "방정식 aˣ=b" },
+        { id: "greater", label: "부등식 aˣ>b" },
+        { id: "less", label: "부등식 aˣ<b" },
+      ],
+      controls: [
+        {
+          id: "primary",
+          label: "밑 a",
+          min: 1.3,
+          max: 3,
+          step: 0.1,
+          value: 2,
+        },
+        {
+          id: "secondary",
+          label: "교점의 x값 k",
+          min: -2,
+          max: 3,
+          step: 0.5,
+          value: 2,
+        },
+      ],
+    },
+    "algebra-02-02": {
+      key: "trigonometric",
+      explanationTitle:
+        "단위원의 높이와 삼각함수 그래프를 같은 각에서 연결합니다.",
+      explanationNote:
+        "원이 한 바퀴 돌 때 같은 값이 반복되어 주기가 만들어집니다.",
+      playgroundTitle:
+        "각을 돌리며 단위원과 삼각함수 그래프를 함께 봅니다.",
+      playgroundNote:
+        "원 위 점의 좌표가 그래프의 현재 높이와 일치합니다.",
+      modes: [
+        { id: "sin", label: "sin θ" },
+        { id: "cos", label: "cos θ" },
+        { id: "tan", label: "tan θ" },
+      ],
+      controls: [
+        {
+          id: "primary",
+          label: "각도 θ",
+          min: 0,
+          max: 360,
+          step: 5,
+          value: 45,
+        },
+        {
+          id: "secondary",
+          label: "진폭 A",
+          min: 0.5,
+          max: 2.5,
+          step: 0.25,
+          value: 1,
+        },
+      ],
+    },
+    "algebra-03-01": {
+      key: "sequence",
+      explanationTitle:
+        "수열은 선이 아니라 자연수 위치에만 놓인 점들의 모임입니다.",
+      explanationNote:
+        "가로축은 항 번호 n, 세로축은 항의 값 aₙ입니다.",
+      playgroundTitle:
+        "일반항을 바꾸며 수열의 점 배열을 관찰합니다.",
+      playgroundNote:
+        "항과 항 사이를 채우지 않는 이산적인 그래프에 주목하세요.",
+      modes: [
+        { id: "linear", label: "일차형 aₙ=cn+1" },
+        { id: "quadratic", label: "제곱형 aₙ=cn²" },
+        { id: "alternating", label: "교대형 aₙ=c(−1)ⁿ" },
+      ],
+      controls: [
+        {
+          id: "primary",
+          label: "표시할 항의 개수 N",
+          min: 5,
+          max: 12,
+          step: 1,
+          value: 8,
+        },
+        {
+          id: "secondary",
+          label: "계수 c",
+          min: 1,
+          max: 4,
+          step: 0.5,
+          value: 2,
+        },
+      ],
+    },
+    "algebra-03-02": {
+      key: "arithmetic-sequence",
+      explanationTitle:
+        "등차수열의 점들은 일정한 기울기의 직선 위에 놓입니다.",
+      explanationNote:
+        "공차 d가 점에서 다음 점으로 이동하는 세로 변화량입니다.",
+      playgroundTitle:
+        "공차를 바꾸며 등차수열 점 그래프를 만듭니다.",
+      playgroundNote:
+        "공차의 부호와 크기가 점 배열의 방향과 기울기를 결정합니다.",
+      modes: [
+        { id: "increase", label: "증가하는 등차수열" },
+        { id: "decrease", label: "감소하는 등차수열" },
+        { id: "constant", label: "공차가 0인 수열" },
+      ],
+      controls: [
+        {
+          id: "primary",
+          label: "표시할 항의 개수 N",
+          min: 5,
+          max: 12,
+          step: 1,
+          value: 8,
+        },
+        {
+          id: "secondary",
+          label: "공차의 크기 |d|",
+          min: 0.5,
+          max: 4,
+          step: 0.5,
+          value: 2,
+        },
+      ],
+    },
+    "algebra-03-03": {
+      key: "geometric-sequence",
+      explanationTitle:
+        "등비수열은 같은 차가 아니라 같은 비율로 변화합니다.",
+      explanationNote:
+        "공비가 1보다 크면 뒤쪽 항의 증가 폭이 빠르게 커집니다.",
+      playgroundTitle:
+        "공비를 바꾸며 등비수열의 성장과 감소를 비교합니다.",
+      playgroundNote:
+        "같은 비율을 반복해서 곱할 때 점의 간격이 어떻게 달라지는지 보세요.",
+      modes: [
+        { id: "growth", label: "성장형 r > 1" },
+        { id: "decay", label: "감소형 0 < r < 1" },
+        { id: "alternating", label: "교대형 r < 0" },
+      ],
+      controls: [
+        {
+          id: "primary",
+          label: "표시할 항의 개수 N",
+          min: 5,
+          max: 10,
+          step: 1,
+          value: 7,
+        },
+        {
+          id: "secondary",
+          label: "공비의 크기",
+          min: 1.15,
+          max: 2,
+          step: 0.05,
+          value: 1.5,
+        },
+      ],
+    },
+    "algebra-03-06": {
+      key: "recursive-sequence",
+      explanationTitle:
+        "점화식은 앞 항에서 다음 항이 만들어지는 이동을 보여줍니다.",
+      explanationNote:
+        "각 점을 잇는 화살표가 같은 규칙의 반복을 나타냅니다.",
+      playgroundTitle:
+        "점화 규칙을 선택해 다음 항을 차례로 생성합니다.",
+      playgroundNote:
+        "같은 시작값에서도 규칙에 따라 전혀 다른 점 배열이 만들어집니다.",
+      modes: [
+        { id: "add", label: "aₙ₊₁=aₙ+c" },
+        { id: "multiply", label: "aₙ₊₁=c·aₙ" },
+        { id: "affine", label: "aₙ₊₁=aₙ+c·n" },
+      ],
+      controls: [
+        {
+          id: "primary",
+          label: "표시할 항의 개수 N",
+          min: 5,
+          max: 10,
+          step: 1,
+          value: 7,
+        },
+        {
+          id: "secondary",
+          label: "규칙의 수 c",
+          min: 1,
+          max: 3,
+          step: 0.5,
+          value: 1.5,
+        },
+      ],
+    },
+  };
+
+  const algebraGraphProfile =
+    algebraGraphProfiles[concept.id] || null;
+
+  const experienceProfile = isAlgebraExperience
+    ? {
+        symbol:
+          algebraSymbols[concept.id] ||
+          "\\(x\\)",
+        motionTitle:
+          algebraGraphProfile?.explanationTitle ||
+          `${concept.title}의 핵심 관계가 완성되는 장면을 봅니다.`,
+        motionNote:
+          algebraGraphProfile?.explanationNote ||
+          "정의, 성질, 계산이 연결되는 순서를 확인합니다.",
+        motionFormula:
+          lesson.dashboardPreview?.formula ||
+          concept.title,
+        initialCaption:
+          lesson.steps?.[0]?.description ||
+          "핵심 정의를 먼저 확인합니다.",
+        playgroundTitle:
+          algebraGraphProfile?.playgroundTitle ||
+          `${concept.title}: 값을 바꾸며 확인합니다.`,
+        playgroundNote:
+          algebraGraphProfile?.playgroundNote ||
+          "값을 조절하고 계산 단계를 한 장씩 확인해보세요.",
+      }
+    : experienceProfiles[lesson.playgroundKey] ||
+      experienceProfiles["limit-intuition"];
+
+  const clientConfig = JSON.stringify({
+    courseId: course.id,
+    unitId: unit.id,
+    conceptId: concept.id,
+    playgroundKey: lesson.playgroundKey,
+    conceptTitle: concept.title,
+    algebraGraphKey:
+      algebraGraphProfile?.key || null,
+    motionCaptions:
+      lesson.clientMotionCaptions ||
+      (lesson.steps || []).map(
+        (step) => step.description
+      ),
+    motionStageLabels:
+      lesson.clientMotionStageLabels ||
+      (lesson.steps || []).map(
+        (step) => step.title
+      ),
+    requiredDistinctTypes: requiredTypes,
+    initialMastery: {
+      correctTypeIds,
+      unlocked: gateUnlocked,
+      userCompleted: Boolean(gate.userCompleted),
+    },
+    review: reviewMode
+      ? {
+          attemptId: reviewMode.attemptId,
+          typeId: reviewMode.typeId,
+          status: reviewMode.status,
+          completed: Boolean(reviewMode.completed),
+        }
+      : null,
+  }).replace(/</g, "\\u003c");
+%>
+
+<div class="concept-experience">
+  <% if (reviewMode) { %>
+    <section
+      class="review-mode-banner <%= reviewMode.completed ? 'completed' : '' %>"
+      id="review-mode-banner"
+      aria-labelledby="review-mode-title"
+    >
+      <span class="review-mode-icon" aria-hidden="true">
+        <%= reviewMode.completed ? "✓" : "↻" %>
+      </span>
+
+      <div>
+        <p>WRONG NOTE REVIEW</p>
+        <strong id="review-mode-title">
+          <%= reviewMode.completed
+            ? "이미 복습을 완료한 오답입니다."
+            : "이 오답의 복습을 시작합니다."
+          %>
+        </strong>
+        <small id="review-mode-message">
+          <%= reviewMode.completed
+            ? "원한다면 같은 유형을 다시 풀어볼 수 있습니다."
+            : "시각 풀이를 확인하고 같은 유형 1문제를 맞히면 자동으로 복습 완료됩니다."
+          %>
+        </small>
+      </div>
+
+      <button
+        type="button"
+        data-jump-to="concept-practice"
+      >
+        <%= reviewMode.completed
+          ? "다시 풀어보기"
+          : "재도전 문제로 이동"
+        %>
+      </button>
+    </section>
+  <% } %>
+
+  <nav class="experience-nav" aria-label="개념 학습 단계">
+    <button type="button" data-jump-to="concept-explanation">
+      <b>01</b>
+      <span>개념 이해</span>
+    </button>
+
+    <button type="button" data-jump-to="concept-motion">
+      <b>02</b>
+      <span>모션그래픽</span>
+    </button>
+
+    <button type="button" data-jump-to="concept-playground">
+      <b>03</b>
+      <span>수학 놀이터</span>
+    </button>
+
+    <button type="button" data-jump-to="concept-practice">
+      <b>04</b>
+      <span>문제풀이</span>
+    </button>
+  </nav>
+
+  <section
+    class="experience-section explanation-section"
+    id="concept-explanation"
+  >
+    <div class="experience-heading">
+      <div>
+        <p>STEP 01 · CONCEPT</p>
+        <h3>먼저 개념을 이해합니다.</h3>
+      </div>
+      <span>공식보다 움직임을 먼저 봅니다.</span>
+    </div>
+
+    <div class="concept-intro-card">
+      <span aria-hidden="true"><%= experienceProfile.symbol %></span>
+
+      <div>
+        <p><%= lesson.summary %></p>
+        <strong><%= lesson.keyTakeaway %></strong>
+      </div>
+    </div>
+
+    <div class="concept-step-grid">
+      <% lesson.steps.forEach((step) => { %>
+        <article>
+          <span>STEP <%= String(step.order).padStart(2, "0") %></span>
+          <h4><%= step.title %></h4>
+          <p><%= step.description %></p>
+        </article>
+      <% }) %>
+    </div>
+  </section>
+
+  <section
+    class="experience-section motion-section"
+    id="concept-motion"
+  >
+    <div class="experience-heading">
+      <div>
+        <p>STEP 02 · MOTION GRAPHIC</p>
+        <h3><%= experienceProfile.motionTitle %></h3>
+      </div>
+      <span><%= experienceProfile.motionNote %></span>
+    </div>
+
+    <div class="motion-player">
+      <div
+        class="motion-stage <%= algebraGraphProfile ? 'algebra-motion-stage' : '' %>"
+      >
+        <% if (algebraGraphProfile) { %>
+          <svg
+            id="algebra-motion-graph"
+            class="algebra-graph-svg algebra-motion-graph"
+            viewBox="0 0 760 400"
+            role="img"
+            aria-label="<%= concept.title %>의 핵심 관계를 단계적으로 보여주는 그래프"
+          ></svg>
+        <% } else if (lesson.motion?.assetUrl) { %>
+          <video
+            id="concept-motion-video"
+            controls
+            playsinline
+            preload="metadata"
+            <% if (lesson.motion.posterUrl) { %>
+              poster="<%= lesson.motion.posterUrl %>"
+            <% } %>
+          >
+            <source
+              src="<%= lesson.motion.assetUrl %>"
+              type="video/mp4"
+            />
+          </video>
+        <% } else { %>
+          <canvas
+            id="limit-opening-canvas"
+            aria-label="<%= concept.title %> 개념 모션그래픽"
+          ></canvas>
+
+          <div
+            class="motion-final-formula"
+            id="motion-final-formula"
+            aria-hidden="true"
+          >
+            <%= experienceProfile.motionFormula %>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="motion-caption">
+        <div>
+          <small>NOW PLAYING</small>
+          <strong id="motion-caption-text">
+            <%= experienceProfile.initialCaption %>
+          </strong>
+        </div>
+
+        <% if (algebraGraphProfile) { %>
+          <button id="replay-algebra-motion" type="button">
+            처음부터 다시 보기
+          </button>
+        <% } else if (!lesson.motion?.assetUrl) { %>
+          <button id="replay-motion" type="button">
+            처음부터 다시 보기
+          </button>
+        <% } %>
+      </div>
+    </div>
+  </section>
+
+  <section
+    class="experience-section playground-section"
+    id="concept-playground"
+  >
+    <div class="experience-heading">
+      <div>
+        <p>STEP 03 · PLAYGROUND</p>
+        <h3><%= experienceProfile.playgroundTitle %></h3>
+      </div>
+      <span><%= experienceProfile.playgroundNote %></span>
+    </div>
+
+    <% if (lesson.playgroundKey === "limit-intuition") { %>
+    <div class="limit-lab">
+      <aside class="lab-controls">
+        <div>
+          <p>그래프 상황</p>
+
+          <div class="mode-buttons">
+            <button
+              type="button"
+              class="active"
+              data-limit-mode="hole"
+            >
+              구멍이 있는 함수
+            </button>
+
+            <button type="button" data-limit-mode="jump">
+              좌우가 다른 함수
+            </button>
+
+            <button type="button" data-limit-mode="infinity">
+              무한대로 가는 함수
+            </button>
+          </div>
+        </div>
+
+        <label>
+          <span>
+            접근하는 위치 a
+            <output id="limit-a-output">1</output>
+          </span>
+          <input
+            id="limit-a"
+            type="range"
+            min="-2"
+            max="2"
+            step="1"
+            value="1"
+          />
+        </label>
+
+        <label>
+          <span>
+            a에 가까워지는 정도
+            <output id="limit-distance-output">0.20</output>
+          </span>
+          <input
+            id="limit-distance"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value="40"
+          />
+        </label>
+
+        <label id="point-value-control">
+          <span>
+            실제 함수값 f(a)
+            <output id="point-value-output">-2</output>
+          </span>
+          <input
+            id="point-value"
+            type="range"
+            min="-4"
+            max="4"
+            step="1"
+            value="-2"
+          />
+        </label>
+
+        <button id="play-limit-approach" type="button">
+          양쪽에서 접근시키기
+        </button>
+
+        <div class="lab-tip">
+          <b>관찰 포인트</b>
+          <p>
+            f(a)를 바꿔도 주변의 함수값이 향하는 극한값은
+            바뀌지 않는지 확인해보세요.
+          </p>
+        </div>
+      </aside>
+
+      <div class="lab-visual">
+        <div class="lab-formula">
+          <span>현재 함수</span>
+          <strong id="limit-formula"></strong>
+        </div>
+
+        <div class="limit-graph-wrap">
+          <svg
+            id="limit-graph"
+            viewBox="0 0 720 430"
+            role="img"
+            aria-label="함수의 극한을 확인하는 좌표평면. 마우스 휠로 확대하거나 축소할 수 있습니다."
+          ></svg>
+          <span
+            class="graph-zoom-status"
+            aria-hidden="true"
+          >
+            휠 줌
+            <output id="limit-zoom-output">100%</output>
+          </span>
+        </div>
+
+        <div class="limit-readout">
+          <div>
+            <span>왼쪽 함수값</span>
+            <strong id="left-limit-value">-</strong>
+          </div>
+
+          <div>
+            <span>오른쪽 함수값</span>
+            <strong id="right-limit-value">-</strong>
+          </div>
+
+          <div class="limit-verdict">
+            <span>관찰 결과</span>
+            <strong id="limit-verdict">-</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% } else { %>
+      <%- include(
+        "concept-secondary-playground",
+        {
+          playgroundKey: lesson.playgroundKey,
+          concept,
+          lesson,
+          algebraGraphProfile
+        }
+      ) %>
+    <% } %>
+  </section>
+
+  <section
+    class="experience-section practice-section"
+    id="concept-practice"
+  >
+    <div class="experience-heading">
+      <div>
+        <p>
+          <%= reviewMode
+            ? "STEP 04 · REVIEW RETRY"
+            : "STEP 04 · PRACTICE"
+          %>
+        </p>
+        <h3>
+          <%= reviewMode
+            ? "틀렸던 유형을 다시 풀어봅니다."
+            : "서로 다른 유형으로 이해를 확인합니다."
+          %>
+        </h3>
+      </div>
+      <span>
+        <%= reviewMode
+          ? "한 문제를 정확히 맞히면 오답 복습이 완료됩니다."
+          : "같은 유형을 반복해서 맞혀도 한 개로 계산합니다."
+        %>
+      </span>
+    </div>
+
+    <div class="practice-layout">
+      <div class="practice-card">
+        <div class="problem-meta">
+          <span id="problem-type-label">문제를 준비하고 있습니다.</span>
+          <b id="problem-number"></b>
+        </div>
+
+        <h4 id="problem-prompt" class="problem-prompt">
+          잠시만 기다려주세요.
+        </h4>
+
+        <form id="problem-answer-form">
+          <div id="problem-answer-area"></div>
+
+          <button
+            class="submit-answer"
+            id="submit-answer"
+            type="submit"
+          >
+            정답 확인
+          </button>
+        </form>
+
+        <div
+          class="problem-feedback"
+          id="problem-feedback"
+          aria-live="polite"
+          hidden
+        ></div>
+
+        <button
+          class="next-problem"
+          id="next-problem"
+          type="button"
+          hidden
+        >
+          <%= reviewMode
+            ? "같은 유형 다시 풀기 →"
+            : "다음 유형 풀기 →"
+          %>
+        </button>
+
+        <a
+          class="review-return"
+          id="review-return"
+          href="/wrong-notes?status=completed"
+          <%= reviewMode?.completed ? "" : "hidden" %>
+        >
+          오답노트로 돌아가기 →
+        </a>
+      </div>
+
+      <aside class="mastery-card">
+        <p>CONCEPT MASTERY</p>
+        <h4>완료 조건</h4>
+
+        <strong>
+          서로 다른 유형
+          <em id="correct-type-count">
+            <%= correctTypeIds.length %>
+          </em>
+          / <%= requiredTypes %>
+        </strong>
+
+        <div
+          class="mastery-dots"
+          id="mastery-dots"
+          aria-label="유형별 정답 진행도"
+        >
+          <% for (let index = 0; index < requiredTypes; index += 1) { %>
+            <i class="<%= index < correctTypeIds.length ? 'done' : '' %>">
+              <%= index < correctTypeIds.length ? "✓" : index + 1 %>
+            </i>
+          <% } %>
+        </div>
+
+        <label
+          class="concept-complete-toggle <%= gateUnlocked ? 'unlocked' : 'locked' %>"
+          id="concept-complete-label"
+        >
+          <input
+            id="concept-complete-checkbox"
+            type="checkbox"
+            <%= gateUnlocked ? "" : "disabled" %>
+            <%= gate.userCompleted ? "checked" : "" %>
+          />
+
+          <span aria-hidden="true"></span>
+
+          <div>
+            <strong>이 개념 학습 완료</strong>
+            <small id="completion-message">
+              <%= gateUnlocked
+                ? "완료 표시를 선택하거나 취소할 수 있습니다."
+                : `${requiredTypes - correctTypeIds.length}개의 새로운 유형을 더 맞혀야 합니다.`
+              %>
+            </small>
+          </div>
+        </label>
+
+        <p class="mastery-notice">
+          문제를 풀어 잠금을 해제한 기록은 체크를 취소해도
+          사라지지 않습니다.
+        </p>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<script
+  id="concept-experience-config"
+  type="application/json"
+><%- clientConfig %></script>

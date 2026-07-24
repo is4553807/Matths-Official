@@ -1,0 +1,761 @@
+schemaVersion: 1
+
+curriculum:
+  id: kr-2022
+  title: 2022 개정 교육과정
+  country: KR
+  source:
+    title: 교육부 고시 제2022-33호 [별책 8] 수학과 교육과정
+    type: official-curriculum
+
+grade:
+  id: high-school-1
+  title: 고등학교 1학년
+
+semesterPolicy:
+  description: >-
+    교육과정 원문은 공통수학1과 공통수학2를 특정 학기로 강제하지 않는다.
+    이 파일의 defaultSemester는 일반적인 학교 운영을 고려한 플랫폼 기본 배치다.
+
+courses:
+  - id: common-math-1
+    officialTitle: 공통수학1
+    defaultSemester: 1
+    conceptCount: 19
+
+    units:
+      - id: polynomials
+        title: 다항식
+        order: 1
+
+        concepts:
+          - id: polynomial-arithmetic
+            order: 1
+            title: 다항식의 사칙연산
+            standardCode: 10공수1-01-01
+            achievementStandard: >-
+              다항식의 사칙연산의 원리를 설명하고, 그 계산을 할 수 있다.
+            topics:
+              - 다항식의 덧셈과 뺄셈
+              - 다항식의 곱셈
+              - 다항식의 나눗셈
+              - 몫과 나머지의 관계
+              - 조립제법
+            scopeNotes:
+              - 조립제법은 구체적인 예를 통해 간단히 다룬다.
+              - 중학교의 다항식을 단항식으로 나누는 연산과 연결한다.
+            visualizationIdeas:
+              - 대수 타일로 다항식의 덧셈과 곱셈 표현
+              - 넓이 모델로 다항식의 곱셈 표현
+              - 나눗셈 블록이 몫과 나머지로 분해되는 애니메이션
+
+          - id: identity-remainder-theorem
+            order: 2
+            title: 항등식과 나머지정리
+            standardCode: 10공수1-01-02
+            achievementStandard: >-
+              항등식의 성질과 나머지정리를 이해하고, 이를 활용하여 문제를 해결할 수 있다.
+            topics:
+              - 항등식의 뜻
+              - 방정식과 항등식의 차이
+              - 미정계수법
+              - 계수 비교법
+              - 수치 대입법
+              - 나머지정리
+              - 인수정리
+            scopeNotes:
+              - 항등식의 성질과 나머지정리를 활용하는 복잡한 문제는 다루지 않는다.
+              - 인수정리를 활용하는 복잡한 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 여러 x값에서도 양변이 항상 같게 유지되는 그래프
+              - P(x)를 x-a로 나눈 몫과 나머지의 블록 분해
+              - x=a에서 P(a)가 나머지가 되는 과정
+
+          - id: polynomial-factorization
+            order: 3
+            title: 다항식의 인수분해
+            standardCode: 10공수1-01-03
+            achievementStandard: 다항식의 인수분해를 할 수 있다.
+            topics:
+              - 공통인수 묶기
+              - 곱셈공식을 역으로 이용하기
+              - 항을 묶어 인수분해하기
+              - 치환을 이용한 인수분해
+              - 인수정리를 이용한 인수분해
+              - 조립제법을 이용한 인수분해
+            scopeNotes:
+              - 중학교에서 학습한 인수분해에서 확장한다.
+              - 복잡한 인수분해 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 하나의 넓이를 두 변의 곱으로 재구성
+              - 다항식 블록을 공통인수별로 묶기
+              - 근과 인수가 연결되는 그래프
+
+      - id: equations-and-inequalities
+        title: 방정식과 부등식
+        order: 2
+
+        concepts:
+          - id: complex-numbers
+            order: 1
+            title: 복소수의 뜻과 연산
+            standardCode: 10공수1-02-01
+            achievementStandard: >-
+              복소수의 뜻과 성질을 설명하고, 사칙연산을 수행할 수 있다.
+            topics:
+              - 허수단위 i
+              - 복소수 a+bi
+              - 실수부분과 허수부분
+              - 허수와 켤레복소수
+              - 복소수의 덧셈과 뺄셈
+              - 복소수의 곱셈
+              - 복소수의 나눗셈
+              - i의 거듭제곱
+            scopeNotes:
+              - 실수의 성질 및 사칙연산과 연결하여 이해한다.
+              - 나눗셈은 켤레복소수를 이용하여 계산한다.
+            visualizationIdeas:
+              - 실수선이 복소평면으로 확장되는 애니메이션
+              - i를 곱할 때 90도 회전하는 표현
+              - 켤레복소수가 실수축에 대칭되는 표현
+
+          - id: quadratic-discriminant
+            order: 2
+            title: 이차방정식의 실근·허근과 판별식
+            standardCode: 10공수1-02-02
+            achievementStandard: >-
+              이차방정식의 실근과 허근을 이해하고, 판별식을 이용하여 이차방정식의 근을 판별할 수 있다.
+            topics:
+              - 이차방정식의 근
+              - 실근과 허근
+              - 중근
+              - 판별식 D=b²-4ac
+              - 판별식과 근의 종류
+            scopeNotes:
+              - 이차방정식의 계수가 실수인 경우만 다룬다.
+              - 복소수 범위에서 이차방정식은 항상 근을 갖는다는 것을 이해한다.
+            visualizationIdeas:
+              - 판별식 변화에 따른 포물선과 x축의 교점 변화
+              - 두 실근이 중근을 거쳐 허근이 되는 연속 애니메이션
+
+          - id: quadratic-roots-and-coefficients
+            order: 3
+            title: 이차방정식의 근과 계수의 관계
+            standardCode: 10공수1-02-03
+            achievementStandard: 이차방정식의 근과 계수의 관계를 설명할 수 있다.
+            topics:
+              - 두 근의 합
+              - 두 근의 곱
+              - 근과 계수의 관계 유도
+              - 두 근으로 이차방정식 만들기
+            scopeNotes:
+              - 근과 계수의 관계를 활용하는 지나치게 복잡한 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 두 근이 이동할 때 계수가 변화하는 그래프
+              - (x-α)(x-β)가 전개되며 계수와 연결되는 애니메이션
+
+          - id: quadratic-equation-and-function
+            order: 4
+            title: 이차방정식과 이차함수의 관계
+            standardCode: 10공수1-02-04
+            achievementStandard: >-
+              이차방정식과 이차함수를 연결하여 그 관계를 설명할 수 있다.
+            topics:
+              - f(x)=0의 의미
+              - 이차방정식의 근과 x절편
+              - 실근의 개수와 교점 개수
+              - 중근과 접점
+              - 판별식의 그래프적 의미
+            visualizationIdeas:
+              - 식의 근이 그래프의 x절편으로 이동하는 변환
+              - 대수적 풀이와 그래프 풀이의 동시 표시
+
+          - id: parabola-and-line
+            order: 5
+            title: 이차함수 그래프와 직선의 위치 관계
+            standardCode: 10공수1-02-05
+            achievementStandard: >-
+              이차함수의 그래프와 직선의 위치 관계를 판단할 수 있다.
+            topics:
+              - 포물선과 직선의 교점
+              - 두 점에서 만나는 경우
+              - 접하는 경우
+              - 만나지 않는 경우
+              - 판별식을 이용한 위치 관계 판단
+            visualizationIdeas:
+              - 직선이 이동하며 교점이 2개·1개·0개로 변하는 애니메이션
+              - 교점 개수와 판별식 부호를 동시에 표시
+
+          - id: quadratic-max-min-restricted
+            order: 6
+            title: 제한된 범위에서 이차함수의 최대·최소
+            standardCode: 10공수1-02-06
+            achievementStandard: >-
+              이차함수의 최대, 최소를 탐구하고, 이를 실생활과 연결하여 유용성을 인식할 수 있다.
+            topics:
+              - 이차함수의 꼭짓점
+              - 제한된 구간
+              - 구간 안에 꼭짓점이 있는 경우
+              - 구간 밖에 꼭짓점이 있는 경우
+              - 양 끝점과 꼭짓점의 함숫값 비교
+              - 실생활 최적화 문제
+            scopeNotes:
+              - 이차함수의 최대와 최소는 제한된 범위에서만 다룬다.
+            visualizationIdeas:
+              - 그래프 위 제한 구간을 움직이며 최대·최소 후보 비교
+              - 꼭짓점과 구간 양 끝점에 값 표시
+
+          - id: cubic-and-quartic-equations
+            order: 7
+            title: 삼차방정식과 사차방정식
+            standardCode: 10공수1-02-07
+            achievementStandard: 간단한 삼차방정식과 사차방정식을 풀 수 있다.
+            topics:
+              - 삼차방정식
+              - 사차방정식
+              - 인수분해를 이용한 풀이
+              - 인수정리와 조립제법
+              - 간단한 치환
+            scopeNotes:
+              - 계수가 실수인 경우만 다룬다.
+              - 인수분해 공식, 인수정리, 조립제법으로 풀 수 있는 경우만 다룬다.
+            visualizationIdeas:
+              - 고차다항식이 일차·이차 인수로 분해되는 애니메이션
+              - 각 인수의 근이 그래프의 절편과 연결되는 표현
+
+          - id: simultaneous-quadratic-equations
+            order: 8
+            title: 연립이차방정식
+            standardCode: 10공수1-02-08
+            achievementStandard: 미지수가 2개인 연립이차방정식을 풀 수 있다.
+            topics:
+              - 일차식과 이차식의 연립
+              - 대입을 통한 일원화
+              - 두 이차식의 연립
+              - 인수분해를 이용한 풀이
+              - 그래프의 교점과 해
+            scopeNotes:
+              - 일차식과 이차식이 각각 한 개씩 주어진 경우를 다룬다.
+              - 두 이차식 중 한 이차식이 간단히 인수분해되는 경우를 다룬다.
+            visualizationIdeas:
+              - 두 그래프의 교점이 연립방정식의 해가 되는 표현
+              - 대입으로 두 변수 중 하나가 제거되는 과정
+
+          - id: simultaneous-linear-inequalities
+            order: 9
+            title: 연립일차부등식
+            standardCode: 10공수1-02-09
+            achievementStandard: 미지수가 1개인 연립일차부등식을 풀 수 있다.
+            topics:
+              - 일차부등식의 해
+              - 두 부등식의 공통 해
+              - 수직선 표현
+              - 해가 없는 경우
+              - 모든 실수가 해인 경우
+            visualizationIdeas:
+              - 두 수직선 범위가 겹치는 부분을 강조
+              - 부등식별 범위를 합성하여 공통 해 생성
+
+          - id: absolute-linear-inequalities
+            order: 10
+            title: 절댓값을 포함한 일차부등식
+            standardCode: 10공수1-02-10
+            achievementStandard: 절댓값을 포함한 일차부등식을 풀 수 있다.
+            topics:
+              - 절댓값의 거리 의미
+              - "|x|<a"
+              - "|x|>a"
+              - "|x-a|<b"
+              - 경우를 나누는 풀이
+              - 수직선에서 해석하기
+            visualizationIdeas:
+              - 기준점에서의 거리로 절댓값 범위 표현
+              - 수직선 위 두 경계가 벌어지고 좁아지는 애니메이션
+
+          - id: quadratic-inequalities
+            order: 11
+            title: 이차부등식과 연립이차부등식
+            standardCode: 10공수1-02-11
+            achievementStandard: >-
+              이차부등식과 이차함수를 연결하여 그 관계를 설명하고, 이차부등식과 연립이차부등식을 풀 수 있다.
+            topics:
+              - 이차식의 부호
+              - 이차함수 그래프와 이차부등식
+              - 두 실근을 갖는 경우
+              - 중근을 갖는 경우
+              - 실근이 없는 경우
+              - 연립이차부등식의 공통 해
+            visualizationIdeas:
+              - 그래프가 x축 위·아래인 구간을 색으로 구분
+              - 그래프의 부호 구간을 수직선 해로 변환
+
+      - id: counting
+        title: 경우의 수
+        order: 3
+
+        concepts:
+          - id: addition-and-multiplication-principles
+            order: 1
+            title: 합의 법칙과 곱의 법칙
+            standardCode: 10공수1-03-01
+            achievementStandard: >-
+              합의 법칙과 곱의 법칙을 이해하고, 적절한 전략을 사용하여 경우의 수와 관련된 문제를 해결할 수 있다.
+            topics:
+              - 직접 나열하기
+              - 표와 수형도
+              - 합의 법칙
+              - 곱의 법칙
+              - 두 법칙이 적용되는 상황의 차이
+            scopeNotes:
+              - 구체적인 예를 중심으로 간단히 다룬다.
+              - 지나치게 복잡한 경우의 수 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 선택 경로를 나무 모양으로 확장
+              - 서로 배타적인 경로는 더하고 연속 선택은 곱하는 표현
+
+          - id: permutations
+            order: 2
+            title: 순열
+            standardCode: 10공수1-03-02
+            achievementStandard: >-
+              순열의 개념을 이해하고, 순열의 수를 구하는 방법을 설명할 수 있다.
+            topics:
+              - 순서가 있는 배열
+              - 계승 n!
+              - 순열 nPr
+              - 직접 나열과 수형도
+              - 순열 공식의 원리
+            scopeNotes:
+              - 원순열과 중복순열은 핵심 범위에 포함하지 않는다.
+              - 지나치게 복잡한 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 빈 자리에 대상을 하나씩 배치하며 선택지 수 감소
+              - 수형도의 끝점 수와 순열 공식 연결
+
+          - id: combinations
+            order: 3
+            title: 조합
+            standardCode: 10공수1-03-03
+            achievementStandard: >-
+              조합의 개념을 이해하고, 조합의 수를 구하는 방법을 설명할 수 있다.
+            topics:
+              - 순서를 고려하지 않는 선택
+              - 조합 nCr
+              - 순열과 조합의 차이
+              - 조합 공식의 원리
+              - 직접 나열과 수형도
+            scopeNotes:
+              - 중복조합은 핵심 범위에 포함하지 않는다.
+              - 지나치게 복잡한 문제는 다루지 않는다.
+            visualizationIdeas:
+              - 같은 구성의 서로 다른 순서를 하나의 묶음으로 합치기
+              - 순열 결과를 r!개씩 묶어 조합으로 변환
+
+      - id: matrices
+        title: 행렬
+        order: 4
+
+        concepts:
+          - id: matrix-concept
+            order: 1
+            title: 행렬의 뜻과 표현
+            standardCode: 10공수1-04-01
+            achievementStandard: >-
+              행렬의 뜻을 알고, 실생활 상황을 행렬로 표현할 수 있다.
+            topics:
+              - 행렬의 뜻
+              - 행과 열
+              - 성분
+              - 행렬의 크기
+              - 두 행렬이 같은 조건
+              - 실생활 자료의 행렬 표현
+            visualizationIdeas:
+              - 표 형태의 자료가 행렬 기호로 변환되는 애니메이션
+              - 행·열·성분을 색으로 구분
+
+          - id: matrix-operations
+            order: 2
+            title: 행렬의 연산
+            standardCode: 10공수1-04-02
+            achievementStandard: >-
+              행렬의 연산을 수행하고, 관련된 문제를 해결할 수 있다.
+            topics:
+              - 행렬의 덧셈과 뺄셈
+              - 행렬의 실수배
+              - 행렬의 곱셈
+              - 행렬 곱셈이 가능한 조건
+              - 행렬을 이용한 문제 해결
+            scopeNotes:
+              - 곱셈은 행과 열의 수가 각각 2를 넘지 않는 범위에서 다룬다.
+              - 행렬 연산의 대수적 구조를 일반화한 법칙은 다루지 않는다.
+              - 역행렬은 공식 핵심 범위에 포함하지 않는다.
+            visualizationIdeas:
+              - 대응하는 성분끼리 더해지는 표현
+              - 행과 열이 만나 하나의 성분을 만드는 곱셈 애니메이션
+
+  - id: common-math-2
+    officialTitle: 공통수학2
+    defaultSemester: 2
+    conceptCount: 20
+
+    units:
+      - id: coordinate-geometry
+        title: 도형의 방정식
+        order: 1
+
+        concepts:
+          - id: distance-and-internal-division
+            order: 1
+            title: 두 점 사이의 거리와 선분의 내분
+            standardCode: 10공수2-01-01
+            achievementStandard: >-
+              선분의 내분을 이해하고, 내분점의 좌표를 계산할 수 있다.
+            topics:
+              - 수직선 위 두 점 사이의 거리
+              - 좌표평면 위 두 점 사이의 거리
+              - 수직선 위 내분점
+              - 좌표평면 위 내분점
+              - 중점
+              - 내분 공식의 원리
+            scopeNotes:
+              - 두 점 사이의 거리를 먼저 다룬 뒤 내분으로 확장한다.
+              - 외분점은 다루지 않는다.
+            visualizationIdeas:
+              - 선분을 주어진 비율로 나누는 점 이동
+              - 수직선의 내분이 좌표평면으로 확장되는 애니메이션
+
+          - id: parallel-and-perpendicular-lines
+            order: 2
+            title: 두 직선의 평행·수직 조건
+            standardCode: 10공수2-01-02
+            achievementStandard: >-
+              두 직선의 평행 조건과 수직 조건을 탐구하고 이해한다.
+            topics:
+              - 직선의 기울기
+              - 직선의 방정식
+              - 두 직선의 평행 조건
+              - 두 직선의 수직 조건
+            visualizationIdeas:
+              - 한 직선의 기울기가 변하며 평행·수직 상태 표시
+              - 직각 표시와 기울기 곱을 동시에 연결
+
+          - id: point-line-distance
+            order: 3
+            title: 점과 직선 사이의 거리
+            standardCode: 10공수2-01-03
+            achievementStandard: >-
+              점과 직선 사이의 거리를 구하고, 관련된 문제를 해결할 수 있다.
+            topics:
+              - 수선의 발
+              - 점과 직선 사이 거리의 의미
+              - 점과 직선 사이의 거리 공식
+              - 두 평행선 사이의 거리
+            visualizationIdeas:
+              - 점에서 직선으로 향하는 여러 선분 중 수선이 가장 짧음을 비교
+              - 직선 이동에 따른 거리 변화
+
+          - id: circle-equation
+            order: 4
+            title: 원의 방정식
+            standardCode: 10공수2-01-04
+            achievementStandard: 원의 방정식을 구하고, 그래프를 그릴 수 있다.
+            topics:
+              - 중심이 원점인 원
+              - 중심이 (a,b)인 원
+              - 반지름과 원의 방정식
+              - 원의 중심과 반지름 찾기
+              - 완전제곱식을 이용한 표준형 변환
+            visualizationIdeas:
+              - 중심에서 원 위 점까지의 거리가 일정한 자취
+              - 중심과 반지름 변화에 따른 방정식 갱신
+
+          - id: circle-line-position
+            order: 5
+            title: 원과 직선의 위치 관계
+            standardCode: 10공수2-01-05
+            achievementStandard: >-
+              좌표평면에서 원과 직선의 위치 관계를 판단하고, 이를 활용하여 문제를 해결할 수 있다.
+            topics:
+              - 두 점에서 만나는 경우
+              - 접하는 경우
+              - 만나지 않는 경우
+              - 중심과 직선 사이의 거리
+              - 반지름과 거리 비교
+            visualizationIdeas:
+              - 직선이 이동하며 할선·접선·외부 직선으로 변화
+              - 중심과 직선 사이 거리와 반지름을 막대로 비교
+
+          - id: geometric-translation
+            order: 6
+            title: 평행이동
+            standardCode: 10공수2-01-06
+            achievementStandard: >-
+              평행이동을 탐구하고, 실생활과 연결하여 문제를 해결할 수 있다.
+            topics:
+              - 점의 평행이동
+              - 도형의 평행이동
+              - 이동 전후 좌표
+              - 방정식으로 표현된 도형의 이동
+              - 실생활에서의 평행이동
+            scopeNotes:
+              - 좌표축 자체의 평행이동은 다루지 않는다.
+            visualizationIdeas:
+              - 도형의 모든 점이 같은 벡터만큼 이동
+              - 이동 전후 방정식과 좌표 변화 동시 표시
+
+          - id: geometric-reflection
+            order: 7
+            title: 대칭이동
+            standardCode: 10공수2-01-07
+            achievementStandard: >-
+              원점, x축, y축, 직선 y=x에 대한 대칭이동을 탐구하고, 실생활과 연결하여 문제를 해결할 수 있다.
+            topics:
+              - 원점 대칭
+              - x축 대칭
+              - y축 대칭
+              - 직선 y=x 대칭
+              - 점과 도형의 대칭이동
+            visualizationIdeas:
+              - 대칭축을 기준으로 도형을 접어 포개기
+              - 좌표의 부호 및 순서가 바뀌는 과정
+
+      - id: sets-and-propositions
+        title: 집합과 명제
+        order: 2
+
+        concepts:
+          - id: set-concept-and-representation
+            order: 1
+            title: 집합의 개념과 표현
+            standardCode: 10공수2-02-01
+            achievementStandard: 집합의 개념을 이해하고, 집합을 표현할 수 있다.
+            topics:
+              - 집합과 집합이 아닌 모임
+              - 원소와 공집합
+              - 유한집합과 무한집합
+              - 원소나열법
+              - 조건제시법
+              - 벤 다이어그램
+            scopeNotes:
+              - 집합의 개념은 이해하는 수준에서 간단히 평가한다.
+            visualizationIdeas:
+              - 여러 대상을 조건에 따라 집합 안팎으로 분류
+              - 원소나열법이 벤 다이어그램으로 변환되는 표현
+
+          - id: set-inclusion
+            order: 2
+            title: 집합의 포함관계
+            standardCode: 10공수2-02-02
+            achievementStandard: 두 집합 사이의 포함관계를 판단할 수 있다.
+            topics:
+              - 부분집합
+              - 진부분집합
+              - 두 집합이 같은 조건
+              - 집합의 포함관계
+            scopeNotes:
+              - 집합의 포함관계는 이해하는 수준에서 간단히 평가한다.
+            visualizationIdeas:
+              - 작은 집합이 큰 집합 안에 들어가는 애니메이션
+              - 원소 이동에 따른 포함관계 변화
+
+          - id: set-operations
+            order: 3
+            title: 집합의 연산과 벤 다이어그램
+            standardCode: 10공수2-02-03
+            achievementStandard: >-
+              집합의 연산을 수행하고, 벤 다이어그램을 이용하여 나타낼 수 있다.
+            topics:
+              - 합집합과 교집합
+              - 전체집합과 여집합
+              - 차집합과 서로소
+              - 교환법칙과 결합법칙
+              - 분배법칙
+              - 드모르간의 법칙
+            scopeNotes:
+              - 집합의 법칙은 벤 다이어그램으로 확인하는 정도로 간단히 다룬다.
+            visualizationIdeas:
+              - 연산 기호에 따라 벤 다이어그램 색칠 영역 변화
+              - 드모르간의 법칙 양변을 색칠 영역으로 비교
+
+          - id: proposition-and-condition
+            order: 4
+            title: 명제와 조건
+            standardCode: 10공수2-02-04
+            achievementStandard: >-
+              명제와 조건의 뜻을 알고, ‘모든’, ‘어떤’을 포함한 명제를 이해하고 설명할 수 있다.
+            topics:
+              - 명제와 조건
+              - 참과 거짓
+              - 진리집합
+              - 명제의 부정
+              - 모든을 포함한 명제
+              - 어떤을 포함한 명제
+              - 반례
+            scopeNotes:
+              - 수학적인 문장을 이해하는 수준에서 간단히 다룬다.
+              - 모든과 어떤을 포함한 명제는 구체적인 상황으로 도입한다.
+            visualizationIdeas:
+              - 모든 원소를 검사하는 과정과 하나의 반례 비교
+              - 조건과 진리집합의 대응
+
+          - id: converse-and-contrapositive
+            order: 5
+            title: 명제의 역과 대우
+            standardCode: 10공수2-02-05
+            achievementStandard: 명제의 역과 대우를 이해하고 설명할 수 있다.
+            topics:
+              - 가정과 결론
+              - 명제 p→q
+              - 명제의 역
+              - 명제의 대우
+              - 명제와 대우의 참·거짓 관계
+            scopeNotes:
+              - 명제의 이는 별도 성취기준이 아니므로 보조 개념으로만 사용할 수 있다.
+            visualizationIdeas:
+              - p와 q 카드의 순서 및 부정 상태 변환
+              - 원래 명제와 대우의 진리표 비교
+
+          - id: sufficient-and-necessary-conditions
+            order: 6
+            title: 충분조건과 필요조건
+            standardCode: 10공수2-02-06
+            achievementStandard: 충분조건과 필요조건을 이해하고 판단할 수 있다.
+            topics:
+              - 충분조건
+              - 필요조건
+              - 필요충분조건
+              - 진리집합의 포함관계
+            scopeNotes:
+              - 구체적인 예를 통해 이해한다.
+            visualizationIdeas:
+              - 두 진리집합의 포함관계로 충분·필요조건 표현
+              - 조건 변화에 따라 포함관계가 바뀌는 애니메이션
+
+          - id: proof-by-contrapositive-and-contradiction
+            order: 7
+            title: 대우를 이용한 증명과 귀류법
+            standardCode: 10공수2-02-07
+            achievementStandard: >-
+              대우를 이용한 증명법과 귀류법을 이해하고 관련된 명제를 증명할 수 있다.
+            topics:
+              - 증명의 의미
+              - 대우를 이용한 증명
+              - 귀류법
+              - 두 증명 방법의 차이
+            scopeNotes:
+              - 대우 증명과 귀류법은 간단한 명제만 다룬다.
+              - 직관적인 이해에서 시작하여 점진적으로 형식화한다.
+            visualizationIdeas:
+              - 논리의 진행 경로를 흐름도로 표현
+              - 가정의 부정이 모순에 도달하는 과정
+
+          - id: absolute-inequality
+            order: 8
+            title: 절대부등식
+            standardCode: 10공수2-02-08
+            achievementStandard: >-
+              절대부등식의 뜻을 알고, 간단한 절대부등식을 증명할 수 있다.
+            topics:
+              - 절대부등식의 뜻
+              - 실수의 제곱을 이용한 증명
+              - 등호 성립 조건
+              - 간단한 절대부등식
+            scopeNotes:
+              - 간단한 절대부등식의 증명만 다룬다.
+            visualizationIdeas:
+              - 넓이 비교로 부등식 표현
+              - 두 양의 차의 제곱이 0 이상인 과정
+
+      - id: functions-and-graphs
+        title: 함수와 그래프
+        order: 3
+
+        concepts:
+          - id: function-concept-and-graph
+            order: 1
+            title: 함수의 개념과 그래프
+            standardCode: 10공수2-03-01
+            achievementStandard: 함수의 개념을 설명하고, 그 그래프를 이해한다.
+            topics:
+              - 두 집합 사이의 대응
+              - 함수의 뜻
+              - 정의역·공역·치역
+              - 함수값과 그래프
+              - 일대일함수와 일대일대응
+              - 항등함수와 상수함수
+            scopeNotes:
+              - 중학교에서 학습한 함수 개념을 두 집합 사이의 대응 관계로 확장한다.
+            visualizationIdeas:
+              - 정의역 원소에서 공역 원소로 향하는 대응 화살표
+              - 대응 관계가 좌표평면의 점으로 변환되는 애니메이션
+
+          - id: composite-function
+            order: 2
+            title: 합성함수
+            standardCode: 10공수2-03-02
+            achievementStandard: 함수의 합성을 설명하고, 합성함수를 구할 수 있다.
+            topics:
+              - 함수 합성의 뜻
+              - 합성함수 f∘g
+              - 합성 순서
+              - 합성함수의 함수값
+              - 간단한 합성함수 구하기
+            visualizationIdeas:
+              - 입력값이 두 개의 함수 기계를 연속 통과
+              - 합성 순서를 바꿀 때 결과 비교
+
+          - id: inverse-function
+            order: 3
+            title: 역함수
+            standardCode: 10공수2-03-03
+            achievementStandard: 역함수의 개념을 설명하고, 역함수를 구할 수 있다.
+            topics:
+              - 역함수의 뜻
+              - 역함수가 존재할 조건
+              - 일대일대응과 역함수
+              - 정의역과 치역의 교환
+              - 역함수 구하기
+              - y=x에 대한 그래프 대칭
+            visualizationIdeas:
+              - 대응 화살표의 방향 반전
+              - 함수 그래프가 y=x를 기준으로 뒤집히는 애니메이션
+
+          - id: rational-function
+            order: 4
+            title: 유리함수의 그래프
+            standardCode: 10공수2-03-04
+            achievementStandard: >-
+              유리함수의 그래프를 그릴 수 있고, 그 그래프의 성질을 탐구할 수 있다.
+            topics:
+              - 유리식과 유리함수의 기본 의미
+              - 기본 유리함수
+              - 정의역과 치역
+              - 점근선
+              - 그래프의 평행이동
+              - 계수 변화와 그래프의 성질
+            scopeNotes:
+              - 유리식은 유리함수를 이해하는 데 필요한 정도만 간단히 다룬다.
+              - 유리함수는 기본적인 형태를 중심으로 간단한 문제만 다룬다.
+            visualizationIdeas:
+              - x값이 특정 값에 가까워질 때 그래프가 점근선에 접근
+              - 그래프 이동과 점근선 이동 동시 표시
+
+          - id: irrational-function
+            order: 5
+            title: 무리함수의 그래프
+            standardCode: 10공수2-03-05
+            achievementStandard: >-
+              무리함수의 그래프를 그릴 수 있고, 그 그래프의 성질을 탐구할 수 있다.
+            topics:
+              - 무리식과 무리함수의 기본 의미
+              - 기본 무리함수
+              - 정의역과 치역
+              - 그래프의 시작점
+              - 그래프의 평행이동
+              - 계수 변화와 그래프의 성질
+            scopeNotes:
+              - 무리식은 무리함수를 이해하는 데 필요한 정도만 간단히 다룬다.
+              - 무리함수는 기본적인 형태를 중심으로 간단한 문제만 다룬다.
+            visualizationIdeas:
+              - 정의역 경계에서 그래프가 시작되는 과정
+              - 식의 이동과 그래프 시작점의 이동 동시 표시

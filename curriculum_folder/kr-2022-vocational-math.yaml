@@ -1,0 +1,335 @@
+schemaVersion: 1
+curriculum:
+  id: kr-2022
+  title: 2022 개정 교육과정
+  country: KR
+  source:
+    title: 교육부 고시 제2022-33호 [별책 8] 수학과 교육과정
+    type: official-curriculum
+    url: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&boardSeq=93458&lev=0
+grade:
+  id: high-school-elective
+  title: 고등학교 선택 과목
+  recommendedGrades:
+    - 11
+    - 12
+coursePlacementPolicy:
+  type: school-defined
+  description: >-
+    2022 개정 교육과정의 선택 과목은 특정 학년에 고정되지 않는다. recommendedGrades는 Matths의 기본 안내이며 실제 개설 학년과 학기는 학교 교육과정에
+    따라 달라질 수 있다.
+editorialPolicy:
+  achievementStandards: 교육부 고시의 성취기준을 원문 기준으로 구조화했다.
+  topics: topics는 성취기준을 Matths 학습 화면에 맞게 나눈 편집 단위다.
+  visualizationIdeas: visualizationIdeas는 공식 교육과정의 공학 도구 활용 취지를 반영한 Matths 편집 제안이다.
+courses:
+  - id: vocational-math
+    officialTitle: 직무 수학
+    category: career-elective
+    categoryTitle: 진로 선택
+    recommendedGrades:
+      - 11
+      - 12
+    prerequisites: []
+    defaultSemester: school-defined
+    conceptCount: 18
+    units:
+      - id: numbers-and-operations
+        title: 수와 연산
+        order: 1
+        concepts:
+          - id: vocational-math-01-01
+            order: 1
+            title: 직무와 사칙연산
+            standardCode: 12직수01-01
+            achievementStandard: 직무 상황에서 수 개념과 사칙연산의 문제를 해결하고 그 유용성을 인식할 수 있다.
+            topics:
+              - 직무와 사칙연산
+              - 핵심 의미와 원리
+              - 계산 방법과 절차
+              - 적용과 문제 해결
+            scopeNotes:
+              - 직무 상황의 실제 문제 해결에 중점을 두고 필요한 경우 공학 도구를 사용한다.
+              - 국제단위계 외 단위와 국가 간 시차를 실제 자료와 연결할 수 있다.
+            visualizationIdeas:
+              - 예산·비용 항목이 사칙연산으로 합쳐지는 직무 영수증 시뮬레이션
+              - 올림·버림·반올림에 따른 견적 차이 비교
+              - 단위 블록의 크기가 환산 비율에 따라 바뀌는 애니메이션
+          - id: vocational-math-01-02
+            order: 2
+            title: 큰 수와 어림
+            standardCode: 12직수01-02
+            achievementStandard: 큰 수를 어림하여 문제를 해결하고, 어림값을 이용하여 수의 크기를 비교할 수 있다.
+            topics:
+              - 큰 수와 어림
+              - 적용과 문제 해결
+            scopeNotes:
+              - 직무 상황의 실제 문제 해결에 중점을 두고 필요한 경우 공학 도구를 사용한다.
+              - 국제단위계 외 단위와 국가 간 시차를 실제 자료와 연결할 수 있다.
+            visualizationIdeas:
+              - 예산·비용 항목이 사칙연산으로 합쳐지는 직무 영수증 시뮬레이션
+              - 올림·버림·반올림에 따른 견적 차이 비교
+              - 단위 블록의 크기가 환산 비율에 따라 바뀌는 애니메이션
+          - id: vocational-math-01-03
+            order: 3
+            title: 표준 단위와 단위 환산
+            standardCode: 12직수01-03
+            achievementStandard: 시간, 길이, 무게, 들이의 표준 단위를 알고, 단위를 환산할 수 있다.
+            topics:
+              - 표준 단위와 단위 환산
+              - 수학적 표현과 해석
+            scopeNotes:
+              - 직무 상황의 실제 문제 해결에 중점을 두고 필요한 경우 공학 도구를 사용한다.
+              - 국제단위계 외 단위와 국가 간 시차를 실제 자료와 연결할 수 있다.
+            visualizationIdeas:
+              - 예산·비용 항목이 사칙연산으로 합쳐지는 직무 영수증 시뮬레이션
+              - 올림·버림·반올림에 따른 견적 차이 비교
+              - 단위 블록의 크기가 환산 비율에 따라 바뀌는 애니메이션
+      - id: change-and-relationships
+        title: 변화와 관계
+        order: 2
+        concepts:
+          - id: vocational-math-02-01
+            order: 1
+            title: 비와 비례식
+            standardCode: 12직수02-01
+            achievementStandard: 비의 개념을 직무 상황에 연결하여 적용할 수 있다.
+            topics:
+              - 비와 비례식
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+            scopeNotes:
+              - 개념과 절차 자체보다 직무 상황에 적용하는 데 중점을 둔다.
+              - 요율·매출·판매량 자료를 근거로 합리적 의사 결정을 하게 한다.
+            visualizationIdeas:
+              - 단가·환율·할인율이 실제 금액에 적용되는 계산 흐름
+              - 요율표의 구간을 그래프와 연결해 대응 관계 표시
+              - 비용 조건을 일차부등식 영역으로 바꾸어 가능한 선택 비교
+          - id: vocational-math-02-02
+            order: 2
+            title: 비율과 백분율
+            standardCode: 12직수02-02
+            achievementStandard: 비율을 백분율로 표현할 수 있고 직무 상황에 연결하여 적용할 수 있다.
+            topics:
+              - 비율과 백분율
+              - 수학적 표현과 해석
+              - 적용과 문제 해결
+            scopeNotes:
+              - 개념과 절차 자체보다 직무 상황에 적용하는 데 중점을 둔다.
+              - 요율·매출·판매량 자료를 근거로 합리적 의사 결정을 하게 한다.
+            visualizationIdeas:
+              - 단가·환율·할인율이 실제 금액에 적용되는 계산 흐름
+              - 요율표의 구간을 그래프와 연결해 대응 관계 표시
+              - 비용 조건을 일차부등식 영역으로 바꾸어 가능한 선택 비교
+          - id: vocational-math-02-03
+            order: 3
+            title: 대응 관계와 요율표
+            standardCode: 12직수02-03
+            achievementStandard: 두 양 사이의 대응 관계를 나타낸 표에서 규칙을 찾아 설명할 수 있다.
+            topics:
+              - 대응 관계와 요율표
+              - 핵심 의미와 원리
+              - 수학적 표현과 해석
+            scopeNotes:
+              - 개념과 절차 자체보다 직무 상황에 적용하는 데 중점을 둔다.
+              - 요율·매출·판매량 자료를 근거로 합리적 의사 결정을 하게 한다.
+            visualizationIdeas:
+              - 단가·환율·할인율이 실제 금액에 적용되는 계산 흐름
+              - 요율표의 구간을 그래프와 연결해 대응 관계 표시
+              - 비용 조건을 일차부등식 영역으로 바꾸어 가능한 선택 비교
+          - id: vocational-math-02-04
+            order: 4
+            title: 변화 그래프
+            standardCode: 12직수02-04
+            achievementStandard: 증가와 감소, 주기적 변화 등의 관계를 나타내는 그래프를 설명할 수 있다.
+            topics:
+              - 변화 그래프
+              - 핵심 의미와 원리
+              - 수학적 표현과 해석
+            scopeNotes:
+              - 개념과 절차 자체보다 직무 상황에 적용하는 데 중점을 둔다.
+              - 요율·매출·판매량 자료를 근거로 합리적 의사 결정을 하게 한다.
+            visualizationIdeas:
+              - 단가·환율·할인율이 실제 금액에 적용되는 계산 흐름
+              - 요율표의 구간을 그래프와 연결해 대응 관계 표시
+              - 비용 조건을 일차부등식 영역으로 바꾸어 가능한 선택 비교
+          - id: vocational-math-02-05
+            order: 5
+            title: 직무와 일차방정식·부등식
+            standardCode: 12직수02-05
+            achievementStandard: 일차방정식 또는 일차부등식을 활용하여 직무 상황의 문제를 해결할 수 있다.
+            topics:
+              - 직무와 일차방정식·부등식
+              - 수학적 표현과 해석
+              - 적용과 문제 해결
+            scopeNotes:
+              - 개념과 절차 자체보다 직무 상황에 적용하는 데 중점을 둔다.
+              - 요율·매출·판매량 자료를 근거로 합리적 의사 결정을 하게 한다.
+            visualizationIdeas:
+              - 단가·환율·할인율이 실제 금액에 적용되는 계산 흐름
+              - 요율표의 구간을 그래프와 연결해 대응 관계 표시
+              - 비용 조건을 일차부등식 영역으로 바꾸어 가능한 선택 비교
+      - id: geometry-and-measurement
+        title: 도형과 측정
+        order: 3
+        concepts:
+          - id: vocational-math-03-01
+            order: 1
+            title: 겨냥도와 전개도
+            standardCode: 12직수03-01
+            achievementStandard: 입체도형의 겨냥도와 전개도를 그릴 수 있고, 이를 이용하여 입체도형의 모양을 만들 수 있다.
+            topics:
+              - 겨냥도와 전개도
+              - 핵심 관계
+            scopeNotes:
+              - 도형의 이동·합동·닮음은 제품 설계와 배치 등 직무 상황에 적용한다.
+              - 겉넓이와 부피는 포장·보관·운송 상황과 연결한다.
+            visualizationIdeas:
+              - 상자를 펼쳐 전개도로 만들고 다시 접는 3차원 애니메이션
+              - 물체를 회전하며 위·앞·옆 모습과 동기화
+              - 포장재 크기와 용량을 바꾸며 겉넓이·부피의 변화 비교
+          - id: vocational-math-03-02
+            order: 2
+            title: 여러 방향에서 본 모양
+            standardCode: 12직수03-02
+            achievementStandard: 입체도형을 위, 앞, 옆에서 본 모양으로 표현하고, 이러한 표현을 보고 입체도형의 모양을 판별할 수 있다.
+            topics:
+              - 여러 방향에서 본 모양
+              - 수학적 표현과 해석
+            scopeNotes:
+              - 도형의 이동·합동·닮음은 제품 설계와 배치 등 직무 상황에 적용한다.
+              - 겉넓이와 부피는 포장·보관·운송 상황과 연결한다.
+            visualizationIdeas:
+              - 상자를 펼쳐 전개도로 만들고 다시 접는 3차원 애니메이션
+              - 물체를 회전하며 위·앞·옆 모습과 동기화
+              - 포장재 크기와 용량을 바꾸며 겉넓이·부피의 변화 비교
+          - id: vocational-math-03-03
+            order: 3
+            title: 도형의 이동·합동·닮음
+            standardCode: 12직수03-03
+            achievementStandard: 도형의 이동, 합동과 닮음을 직무 상황에 연결하여 문제를 해결할 수 있다.
+            topics:
+              - 도형의 이동·합동·닮음
+              - 적용과 문제 해결
+            scopeNotes:
+              - 도형의 이동·합동·닮음은 제품 설계와 배치 등 직무 상황에 적용한다.
+              - 겉넓이와 부피는 포장·보관·운송 상황과 연결한다.
+            visualizationIdeas:
+              - 상자를 펼쳐 전개도로 만들고 다시 접는 3차원 애니메이션
+              - 물체를 회전하며 위·앞·옆 모습과 동기화
+              - 포장재 크기와 용량을 바꾸며 겉넓이·부피의 변화 비교
+          - id: vocational-math-03-04
+            order: 4
+            title: 평면도형의 둘레와 넓이
+            standardCode: 12직수03-04
+            achievementStandard: 직무 상황에서 나타나는 평면도형의 둘레와 넓이를 구할 수 있다.
+            topics:
+              - 평면도형의 둘레와 넓이
+              - 계산 방법과 절차
+              - 적용과 문제 해결
+            scopeNotes:
+              - 도형의 이동·합동·닮음은 제품 설계와 배치 등 직무 상황에 적용한다.
+              - 겉넓이와 부피는 포장·보관·운송 상황과 연결한다.
+            visualizationIdeas:
+              - 상자를 펼쳐 전개도로 만들고 다시 접는 3차원 애니메이션
+              - 물체를 회전하며 위·앞·옆 모습과 동기화
+              - 포장재 크기와 용량을 바꾸며 겉넓이·부피의 변화 비교
+          - id: vocational-math-03-05
+            order: 5
+            title: 입체도형의 겉넓이와 부피
+            standardCode: 12직수03-05
+            achievementStandard: 직무 상황에서 나타나는 입체도형의 겉넓이와 부피를 구할 수 있다.
+            topics:
+              - 입체도형의 겉넓이와 부피
+              - 계산 방법과 절차
+              - 적용과 문제 해결
+            scopeNotes:
+              - 도형의 이동·합동·닮음은 제품 설계와 배치 등 직무 상황에 적용한다.
+              - 겉넓이와 부피는 포장·보관·운송 상황과 연결한다.
+            visualizationIdeas:
+              - 상자를 펼쳐 전개도로 만들고 다시 접는 3차원 애니메이션
+              - 물체를 회전하며 위·앞·옆 모습과 동기화
+              - 포장재 크기와 용량을 바꾸며 겉넓이·부피의 변화 비교
+      - id: data-and-chance
+        title: 자료와 가능성
+        order: 4
+        concepts:
+          - id: vocational-math-04-01
+            order: 1
+            title: 직무 상황의 경우의 수
+            standardCode: 12직수04-01
+            achievementStandard: 직무 상황에서 경우의 수를 구할 수 있다.
+            topics:
+              - 직무 상황의 경우의 수
+              - 계산 방법과 절차
+              - 적용과 문제 해결
+            scopeNotes:
+              - 가능성은 실제 자료를 근거로 파악하고 해석하는 데 중점을 둔다.
+              - 그림그래프·선그래프·비율그래프·방사형그래프·산점도 등을 다양하게 활용한다.
+            visualizationIdeas:
+              - 상품 구성과 좌석 배치를 드래그하며 가능한 조합 수 계산
+              - 여러 표를 하나의 표와 그래프로 통합하는 변환
+              - 같은 데이터를 서로 다른 그래프로 표현해 해석 차이 비교
+          - id: vocational-math-04-02
+            order: 2
+            title: 가능성의 수치화
+            standardCode: 12직수04-02
+            achievementStandard: 어떤 현상이 나타날 가능성을 수치화하여 설명할 수 있다.
+            topics:
+              - 가능성의 수치화
+              - 핵심 의미와 원리
+            scopeNotes:
+              - 가능성은 실제 자료를 근거로 파악하고 해석하는 데 중점을 둔다.
+              - 그림그래프·선그래프·비율그래프·방사형그래프·산점도 등을 다양하게 활용한다.
+            visualizationIdeas:
+              - 상품 구성과 좌석 배치를 드래그하며 가능한 조합 수 계산
+              - 여러 표를 하나의 표와 그래프로 통합하는 변환
+              - 같은 데이터를 서로 다른 그래프로 표현해 해석 차이 비교
+          - id: vocational-math-04-03
+            order: 3
+            title: 표와 그래프의 정리
+            standardCode: 12직수04-03
+            achievementStandard: 직무 상황의 자료를 목적에 맞게 표와 그래프로 정리할 수 있다.
+            topics:
+              - 표와 그래프의 정리
+              - 수학적 표현과 해석
+              - 적용과 문제 해결
+            scopeNotes:
+              - 가능성은 실제 자료를 근거로 파악하고 해석하는 데 중점을 둔다.
+              - 그림그래프·선그래프·비율그래프·방사형그래프·산점도 등을 다양하게 활용한다.
+            visualizationIdeas:
+              - 상품 구성과 좌석 배치를 드래그하며 가능한 조합 수 계산
+              - 여러 표를 하나의 표와 그래프로 통합하는 변환
+              - 같은 데이터를 서로 다른 그래프로 표현해 해석 차이 비교
+          - id: vocational-math-04-04
+            order: 4
+            title: 표와 그래프의 해석
+            standardCode: 12직수04-04
+            achievementStandard: 직무 상황의 다양한 표와 그래프를 해석할 수 있다.
+            topics:
+              - 표와 그래프의 해석
+              - 수학적 표현과 해석
+              - 적용과 문제 해결
+            scopeNotes:
+              - 가능성은 실제 자료를 근거로 파악하고 해석하는 데 중점을 둔다.
+              - 그림그래프·선그래프·비율그래프·방사형그래프·산점도 등을 다양하게 활용한다.
+            visualizationIdeas:
+              - 상품 구성과 좌석 배치를 드래그하며 가능한 조합 수 계산
+              - 여러 표를 하나의 표와 그래프로 통합하는 변환
+              - 같은 데이터를 서로 다른 그래프로 표현해 해석 차이 비교
+          - id: vocational-math-04-05
+            order: 5
+            title: 자료 기반 의사 결정
+            standardCode: 12직수04-05
+            achievementStandard: 다양한 자료의 특성을 파악하여, 직무 목적에 적합한 표나 그래프로 나타내고 합리적인 의사 결정을 할 수 있다.
+            topics:
+              - 자료 기반 의사 결정
+              - 수학적 표현과 해석
+              - 적용과 문제 해결
+            scopeNotes:
+              - 가능성은 실제 자료를 근거로 파악하고 해석하는 데 중점을 둔다.
+              - 그림그래프·선그래프·비율그래프·방사형그래프·산점도 등을 다양하게 활용한다.
+            visualizationIdeas:
+              - 상품 구성과 좌석 배치를 드래그하며 가능한 조합 수 계산
+              - 여러 표를 하나의 표와 그래프로 통합하는 변환
+              - 같은 데이터를 서로 다른 그래프로 표현해 해석 차이 비교

@@ -1,0 +1,200 @@
+<%
+  const formError =
+    typeof error !== "undefined" ? error : null;
+
+  const input =
+    typeof oldInput !== "undefined" && oldInput
+      ? oldInput
+      : { email: "" };
+%>
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+
+    <meta
+      name="description"
+      content="Matths에 로그인하고 학습을 이어서 시작하세요."
+    />
+
+    <title>로그인 | Matths</title>
+
+    <link
+      rel="stylesheet"
+      href="/css/auth.css"
+    />
+
+    <script
+      src="/js/auth.js"
+      defer
+    ></script>
+  </head>
+
+  <body>
+    <a
+      class="skip-link"
+      href="#auth-form"
+    >
+      로그인 폼으로 이동
+    </a>
+
+    <header class="auth-header">
+      <a
+        class="auth-brand"
+        href="/"
+        aria-label="Matths 메인 페이지"
+      >
+        <span aria-hidden="true">M</span>
+        <strong>Matths</strong>
+      </a>
+
+      <nav aria-label="인증 페이지 메뉴">
+        <span>아직 계정이 없나요?</span>
+        <a href="/register">회원가입</a>
+      </nav>
+    </header>
+
+    <main class="auth-layout">
+      <section
+        class="auth-visual"
+        aria-labelledby="visual-title"
+      >
+        <div class="visual-copy">
+          <p>WELCOME BACK</p>
+
+          <h1 id="visual-title">
+            외운 공식 말고,<br />
+            <strong>이해한 장면</strong>부터<br />
+            이어서 시작하세요.
+          </h1>
+
+          <span>
+            지난 학습 위치와 오답 기록을 불러와
+            필요한 개념부터 다시 보여드립니다.
+          </span>
+        </div>
+
+        <div class="visual-points">
+          <span>
+            <b>01</b>
+            마지막 학습부터 이어서
+          </span>
+
+          <span>
+            <b>02</b>
+            오답은 막힌 Step부터
+          </span>
+
+          <span>
+            <b>03</b>
+            내 진도를 한눈에
+          </span>
+        </div>
+      </section>
+
+      <section
+        class="auth-panel"
+        id="auth-form"
+        aria-labelledby="login-title"
+      >
+        <div class="auth-panel-inner">
+          <div class="auth-heading">
+            <p>LOGIN</p>
+            <h2 id="login-title">다시 만나서 반가워요.</h2>
+
+            <span>
+              로그인하고 오늘의 학습을 이어가세요.
+            </span>
+          </div>
+
+          <% if (formError) { %>
+            <div
+              class="form-alert"
+              role="alert"
+            >
+              <span aria-hidden="true">!</span>
+              <p><%= formError %></p>
+            </div>
+          <% } %>
+
+          <form
+            class="auth-form"
+            action="/login"
+            method="POST"
+          >
+            <div class="form-field">
+              <label for="email">이메일</label>
+
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value="<%= input.email || '' %>"
+                placeholder="student@example.com"
+                autocomplete="email"
+                required
+              />
+            </div>
+
+            <div class="form-field">
+              <div class="field-label-row">
+                <label for="password">
+                  비밀번호
+                </label>
+
+                <a href="/forgot-password">
+                  비밀번호를 잊었나요?
+                </a>
+              </div>
+
+              <div class="password-field">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="비밀번호를 입력하세요"
+                  autocomplete="current-password"
+                  minlength="8"
+                  required
+                />
+
+                <button
+                  type="button"
+                  data-password-toggle="password"
+                  aria-label="비밀번호 표시"
+                  aria-pressed="false"
+                >
+                  보기
+                </button>
+              </div>
+            </div>
+            <button
+              class="submit-button"
+              type="submit"
+            >
+              로그인
+              <span aria-hidden="true">→</span>
+            </button>
+          </form>
+
+          <div class="auth-switch">
+            <span>Matths가 처음인가요?</span>
+            <a href="/register">
+              무료로 시작하기
+            </a>
+          </div>
+
+          <p class="auth-notice">
+            로그인하면 이용약관과 개인정보처리방침에
+            동의한 것으로 간주됩니다.
+          </p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

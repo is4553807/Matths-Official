@@ -1,0 +1,300 @@
+schemaVersion: 1
+curriculum:
+  id: kr-2022
+  title: 2022 개정 교육과정
+  country: KR
+  source:
+    title: 교육부 고시 제2022-33호 [별책 8] 수학과 교육과정
+    type: official-curriculum
+    url: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&boardSeq=93458&lev=0
+grade:
+  id: high-school-elective
+  title: 고등학교 선택 과목
+  recommendedGrades:
+    - 11
+    - 12
+coursePlacementPolicy:
+  type: school-defined
+  description: >-
+    2022 개정 교육과정의 선택 과목은 특정 학년에 고정되지 않는다. recommendedGrades는 Matths의 기본 안내이며 실제 개설 학년과 학기는 학교 교육과정에
+    따라 달라질 수 있다.
+editorialPolicy:
+  achievementStandards: 교육부 고시의 성취기준을 원문 기준으로 구조화했다.
+  topics: topics는 성취기준을 Matths 학습 화면에 맞게 나눈 편집 단위다.
+  visualizationIdeas: visualizationIdeas는 공식 교육과정의 공학 도구 활용 취지를 반영한 Matths 편집 제안이다.
+courses:
+  - id: math-and-culture
+    officialTitle: 수학과 문화
+    category: convergence-elective
+    categoryTitle: 융합 선택
+    recommendedGrades:
+      - 11
+      - 12
+    prerequisites: []
+    defaultSemester: school-defined
+    conceptCount: 16
+    units:
+      - id: art-and-mathematics
+        title: 예술과 수학
+        order: 1
+        concepts:
+          - id: math-and-culture-01-01
+            order: 1
+            title: 음악과 수학
+            standardCode: 12수문01-01
+            achievementStandard: 음악과 관련된 수학적 내용을 조사하고, 관련 활동을 수행할 수 있다.
+            topics:
+              - 음악과 수학
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 예술 속 수학의 아름다움과 유용성을 탐구하고 창작 활동으로 연결한다.
+              - 자료와 작품을 활용할 때 출처를 명확히 밝힌다.
+            visualizationIdeas:
+              - 현의 길이 비와 음정이 파형·주파수로 연결되는 애니메이션
+              - 원근법·황금비·쪽매맞춤을 작품 위 가이드로 중첩
+              - 문학·영상의 수학적 구조를 장면 지도와 패턴으로 표현
+          - id: math-and-culture-01-02
+            order: 2
+            title: 미술·사진과 수학
+            standardCode: 12수문01-02
+            achievementStandard: 미술과 관련된 수학적 내용을 조사하고, 관련 활동을 수행할 수 있다.
+            topics:
+              - 미술·사진과 수학
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 예술 속 수학의 아름다움과 유용성을 탐구하고 창작 활동으로 연결한다.
+              - 자료와 작품을 활용할 때 출처를 명확히 밝힌다.
+            visualizationIdeas:
+              - 현의 길이 비와 음정이 파형·주파수로 연결되는 애니메이션
+              - 원근법·황금비·쪽매맞춤을 작품 위 가이드로 중첩
+              - 문학·영상의 수학적 구조를 장면 지도와 패턴으로 표현
+          - id: math-and-culture-01-03
+            order: 3
+            title: 문학과 수학
+            standardCode: 12수문01-03
+            achievementStandard: 문학과 관련된 수학적 내용을 조사하고, 관련 활동을 수행할 수 있다.
+            topics:
+              - 문학과 수학
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 예술 속 수학의 아름다움과 유용성을 탐구하고 창작 활동으로 연결한다.
+              - 자료와 작품을 활용할 때 출처를 명확히 밝힌다.
+            visualizationIdeas:
+              - 현의 길이 비와 음정이 파형·주파수로 연결되는 애니메이션
+              - 원근법·황금비·쪽매맞춤을 작품 위 가이드로 중첩
+              - 문학·영상의 수학적 구조를 장면 지도와 패턴으로 표현
+          - id: math-and-culture-01-04
+            order: 4
+            title: 영화와 수학
+            standardCode: 12수문01-04
+            achievementStandard: 영화와 관련된 수학적 내용을 조사하고, 관련 활동을 수행할 수 있다.
+            topics:
+              - 영화와 수학
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 예술 속 수학의 아름다움과 유용성을 탐구하고 창작 활동으로 연결한다.
+              - 자료와 작품을 활용할 때 출처를 명확히 밝힌다.
+            visualizationIdeas:
+              - 현의 길이 비와 음정이 파형·주파수로 연결되는 애니메이션
+              - 원근법·황금비·쪽매맞춤을 작품 위 가이드로 중첩
+              - 문학·영상의 수학적 구조를 장면 지도와 패턴으로 표현
+      - id: leisure-and-mathematics
+        title: 여가와 수학
+        order: 2
+        concepts:
+          - id: math-and-culture-02-01
+            order: 1
+            title: 스포츠와 수학
+            standardCode: 12수문02-01
+            achievementStandard: 스포츠와 관련된 수학적 내용을 조사하여 그 유용성을 인식할 수 있다.
+            topics:
+              - 스포츠와 수학
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 여가와 기술 속 수학적 원리를 조사하고 합리적 의사 결정과 공정성을 함께 탐구한다.
+            visualizationIdeas:
+              - 스포츠 궤적·각도·점수 산출을 실제 장면 위에 시각화
+              - 게임 전략을 확률나무와 상태 전이로 표현
+              - 서로 다른 투표 방식에서 결과가 달라지는 시뮬레이션
+          - id: math-and-culture-02-02
+            order: 2
+            title: 게임과 수학
+            standardCode: 12수문02-02
+            achievementStandard: 게임과 관련된 수학적 내용을 조사하고 관련 활동을 수행할 수 있다.
+            topics:
+              - 게임과 수학
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 여가와 기술 속 수학적 원리를 조사하고 합리적 의사 결정과 공정성을 함께 탐구한다.
+            visualizationIdeas:
+              - 스포츠 궤적·각도·점수 산출을 실제 장면 위에 시각화
+              - 게임 전략을 확률나무와 상태 전이로 표현
+              - 서로 다른 투표 방식에서 결과가 달라지는 시뮬레이션
+          - id: math-and-culture-02-03
+            order: 3
+            title: 디지털 기술과 수학
+            standardCode: 12수문02-03
+            achievementStandard: 디지털 기술에 활용된 수학적 내용을 조사하여 설명할 수 있다.
+            topics:
+              - 디지털 기술과 수학
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 여가와 기술 속 수학적 원리를 조사하고 합리적 의사 결정과 공정성을 함께 탐구한다.
+            visualizationIdeas:
+              - 스포츠 궤적·각도·점수 산출을 실제 장면 위에 시각화
+              - 게임 전략을 확률나무와 상태 전이로 표현
+              - 서로 다른 투표 방식에서 결과가 달라지는 시뮬레이션
+          - id: math-and-culture-02-04
+            order: 4
+            title: 투표와 수학
+            standardCode: 12수문02-04
+            achievementStandard: 투표와 관련된 수학적 내용을 조사하고 이를 활용하여 합리적 의사 결정을 위한 방법을 제안할 수 있다.
+            topics:
+              - 투표와 수학
+              - 수학적 표현과 해석
+              - 적용과 문제 해결
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 여가와 기술 속 수학적 원리를 조사하고 합리적 의사 결정과 공정성을 함께 탐구한다.
+            visualizationIdeas:
+              - 스포츠 궤적·각도·점수 산출을 실제 장면 위에 시각화
+              - 게임 전략을 확률나무와 상태 전이로 표현
+              - 서로 다른 투표 방식에서 결과가 달라지는 시뮬레이션
+      - id: society-and-mathematics
+        title: 사회와 수학
+        order: 3
+        concepts:
+          - id: math-and-culture-03-01
+            order: 1
+            title: 민속·건축과 수학
+            standardCode: 12수문03-01
+            achievementStandard: 민속 수학과 건축 양식 속에 나타난 수학적 원리에 대해 탐구하고 문화 다양성을 이해한다.
+            topics:
+              - 민속·건축과 수학
+              - 핵심 의미와 원리
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 문화 다양성과 사회적 소수자를 배려하는 공동체 관점을 포함한다.
+              - 데이터 해석과 소비 의사 결정에서 다양한 가치와 관점을 비교한다.
+            visualizationIdeas:
+              - 문화권별 달력·건축 패턴의 수 체계와 대칭 비교
+              - 점자 배열을 이진 패턴과 진법으로 변환
+              - 대중매체 데이터가 워드클라우드와 빈도 그래프로 변하는 과정
+          - id: math-and-culture-03-02
+            order: 2
+            title: 점자와 진법
+            standardCode: 12수문03-02
+            achievementStandard: 점자표에 사용된 수학적 원리에 대해 탐구하고 이를 활용하여 산출물을 설계할 수 있다.
+            topics:
+              - 점자와 진법
+              - 수학적 표현과 해석
+              - 적용과 문제 해결
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 문화 다양성과 사회적 소수자를 배려하는 공동체 관점을 포함한다.
+              - 데이터 해석과 소비 의사 결정에서 다양한 가치와 관점을 비교한다.
+            visualizationIdeas:
+              - 문화권별 달력·건축 패턴의 수 체계와 대칭 비교
+              - 점자 배열을 이진 패턴과 진법으로 변환
+              - 대중매체 데이터가 워드클라우드와 빈도 그래프로 변하는 과정
+          - id: math-and-culture-03-03
+            order: 3
+            title: 대중매체 데이터
+            standardCode: 12수문03-03
+            achievementStandard: 대중매체로부터 얻은 데이터를 정리, 분석하여 그 의미와 가치를 해석할 수 있다.
+            topics:
+              - 대중매체 데이터
+              - 핵심 의미와 원리
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 문화 다양성과 사회적 소수자를 배려하는 공동체 관점을 포함한다.
+              - 데이터 해석과 소비 의사 결정에서 다양한 가치와 관점을 비교한다.
+            visualizationIdeas:
+              - 문화권별 달력·건축 패턴의 수 체계와 대칭 비교
+              - 점자 배열을 이진 패턴과 진법으로 변환
+              - 대중매체 데이터가 워드클라우드와 빈도 그래프로 변하는 과정
+          - id: math-and-culture-03-04
+            order: 4
+            title: 가치소비와 의사 결정
+            standardCode: 12수문03-04
+            achievementStandard: 가치소비를 위한 의사 결정 방법을 탐구하고 실천 방법을 제시할 수 있다.
+            topics:
+              - 가치소비와 의사 결정
+              - 적용과 문제 해결
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 문화 다양성과 사회적 소수자를 배려하는 공동체 관점을 포함한다.
+              - 데이터 해석과 소비 의사 결정에서 다양한 가치와 관점을 비교한다.
+            visualizationIdeas:
+              - 문화권별 달력·건축 패턴의 수 체계와 대칭 비교
+              - 점자 배열을 이진 패턴과 진법으로 변환
+              - 대중매체 데이터가 워드클라우드와 빈도 그래프로 변하는 과정
+      - id: environment-and-mathematics
+        title: 환경과 수학
+        order: 4
+        concepts:
+          - id: math-and-culture-04-01
+            order: 1
+            title: 식생활 문제의 수학적 분석
+            standardCode: 12수문04-01
+            achievementStandard: 식생활과 관련된 문제를 수학적으로 분석하고 이를 개선하기 위한 방법을 제안할 수 있다.
+            topics:
+              - 식생활 문제의 수학적 분석
+              - 적용과 문제 해결
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 환경 자료의 출처를 밝히고 공학 도구를 이용해 분석할 수 있다.
+              - 분석 결과를 토대로 개선 방안과 실천을 함께 제안한다.
+            visualizationIdeas:
+              - 식단 영양·식량 자료를 비율과 그래프로 재구성
+              - 탄소 배출과 기온 자료를 시간축·산점도·추세선으로 비교
+              - 서식지 감소와 생물 다양성 변화를 지도와 그래프로 연결
+          - id: math-and-culture-04-02
+            order: 2
+            title: 대기 오염의 수학적 분석
+            standardCode: 12수문04-02
+            achievementStandard: 대기 오염과 관련된 문제를 수학적으로 분석하고 이를 개선하기 위한 방법을 제안할 수 있다.
+            topics:
+              - 대기 오염의 수학적 분석
+              - 적용과 문제 해결
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 환경 자료의 출처를 밝히고 공학 도구를 이용해 분석할 수 있다.
+              - 분석 결과를 토대로 개선 방안과 실천을 함께 제안한다.
+            visualizationIdeas:
+              - 식단 영양·식량 자료를 비율과 그래프로 재구성
+              - 탄소 배출과 기온 자료를 시간축·산점도·추세선으로 비교
+              - 서식지 감소와 생물 다양성 변화를 지도와 그래프로 연결
+          - id: math-and-culture-04-03
+            order: 3
+            title: 사막화의 수학적 분석
+            standardCode: 12수문04-03
+            achievementStandard: 사막화 현상과 관련된 문제를 수학적으로 분석하고 이를 개선하기 위한 방법을 제안 할 수 있다.
+            topics:
+              - 사막화의 수학적 분석
+              - 적용과 문제 해결
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 환경 자료의 출처를 밝히고 공학 도구를 이용해 분석할 수 있다.
+              - 분석 결과를 토대로 개선 방안과 실천을 함께 제안한다.
+            visualizationIdeas:
+              - 식단 영양·식량 자료를 비율과 그래프로 재구성
+              - 탄소 배출과 기온 자료를 시간축·산점도·추세선으로 비교
+              - 서식지 감소와 생물 다양성 변화를 지도와 그래프로 연결
+          - id: math-and-culture-04-04
+            order: 4
+            title: 생물 다양성과 생명권
+            standardCode: 12수문04-04
+            achievementStandard: 생물 다양성과 생명권 관련 자료를 수학적으로 분석하고 이를 통해 생태 감수성을 함양할 수 있다.
+            topics:
+              - 생물 다양성과 생명권
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 환경 자료의 출처를 밝히고 공학 도구를 이용해 분석할 수 있다.
+              - 분석 결과를 토대로 개선 방안과 실천을 함께 제안한다.
+            visualizationIdeas:
+              - 식단 영양·식량 자료를 비율과 그래프로 재구성
+              - 탄소 배출과 기온 자료를 시간축·산점도·추세선으로 비교
+              - 서식지 감소와 생물 다양성 변화를 지도와 그래프로 연결

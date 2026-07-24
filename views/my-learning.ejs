@@ -1,0 +1,259 @@
+<%
+  const learner = user;
+  const data = learningData;
+  const displayName = String(learner.name || "학생");
+  const totalUnits = data.courses.reduce(
+    (sum, course) => sum + course.units.length,
+    0
+  );
+  const gradeLabel = learner.schoolGrade === 10
+    ? "고등학교 1학년"
+    : learner.schoolGrade === 11
+      ? "고등학교 2학년"
+      : learner.schoolGrade === 12
+        ? "고등학교 3학년"
+        : "학년 미설정";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="공통수학 전체 단원과 개념별 학습 진도를 확인하고 이어서 학습합니다."
+    />
+    <meta name="theme-color" content="#f5f7fc" />
+    <title>내 학습 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/my-learning.css" />
+    <script src="/js/main.js" defer></script>
+    <script src="/js/my-learning.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#my-learning-main">본문으로 바로가기</a>
+
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top">
+          <a class="brand" href="/" aria-label="Matths 학습 홈">
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span>Matths</span>
+          </a>
+          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
+        </div>
+
+        <nav class="side-nav" aria-label="대시보드 메뉴">
+          <p>LEARNING</p>
+          <a href="/main">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>학습 홈</span>
+          </a>
+          <a class="active" href="/my-learning" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">▦</span>
+            <span>내 학습</span>
+            <b><%= data.completedConcepts %></b>
+          </a>
+          <a href="/log-curriculum">
+            <span class="nav-icon" aria-hidden="true">◫</span>
+            <span>교육과정</span>
+          </a>
+          <a href="/wrong-notes">
+            <span class="nav-icon" aria-hidden="true">↻</span>
+            <span>오답 노트</span>
+          </a>
+          <a href="/main#learning-record">
+            <span class="nav-icon" aria-hidden="true">⌁</span>
+            <span>학습 기록</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="sidebar-profile">
+          <span class="profile-avatar" aria-hidden="true"><%= displayName.slice(0, 1) %></span>
+          <div class="profile-copy">
+            <strong><%= displayName %>님</strong>
+            <small><%= gradeLabel %></small>
+          </div>
+          <form action="/logout" method="POST">
+            <button type="submit" aria-label="로그아웃" title="로그아웃">↗</button>
+          </form>
+        </div>
+      </aside>
+
+      <main class="dashboard-main my-learning-main" id="my-learning-main">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button
+              class="sidebar-open"
+              id="sidebar-open"
+              type="button"
+              aria-label="학습 메뉴 열기"
+              aria-controls="dashboard-sidebar"
+              aria-expanded="false"
+            >
+              <span></span><span></span><span></span>
+            </button>
+            <div>
+              <p>내 학습 진도</p>
+              <h1>어디까지 이해했는지 확인하세요.</h1>
+            </div>
+          </div>
+          <a class="back-dashboard" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a>
+        </header>
+
+        <section class="learning-summary">
+          <div class="summary-copy">
+            <p>MY LEARNING</p>
+            <h2>공통수학 전체 진도</h2>
+            <span>체크한 학습 항목은 DB에 저장되며, 단원과 과목 진도에 바로 반영됩니다.</span>
+            <a href="<%= data.continueHref %>">이어서 학습하기 <b aria-hidden="true">→</b></a>
+          </div>
+
+          <div
+            class="overall-ring"
+            style="--overall:<%= data.overallProgress * 3.6 %>deg"
+            role="progressbar"
+            aria-label="전체 학습 진도"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="<%= data.overallProgress %>"
+          >
+            <div>
+              <strong><%= data.overallProgress %>%</strong>
+              <small>전체 완성도</small>
+            </div>
+          </div>
+
+          <div class="summary-numbers">
+            <div><strong><%= data.completedConcepts %></strong><span>완료 개념</span></div>
+            <div><strong><%= data.totalConcepts - data.completedConcepts %></strong><span>남은 개념</span></div>
+            <div><strong><%= totalUnits %></strong><span>전체 대단원</span></div>
+          </div>
+        </section>
+
+        <% if (data.courses.length) { %>
+          <section class="course-progress-section" aria-labelledby="course-progress-title">
+            <div class="learning-section-head">
+              <div>
+                <p>COURSE PROGRESS</p>
+                <h2 id="course-progress-title">과목별 학습 진도</h2>
+              </div>
+            </div>
+
+            <div class="course-switcher" role="tablist" aria-label="과목 선택">
+              <% data.courses.forEach((course, index) => { %>
+                <button
+                  id="course-tab-<%= course.id %>"
+                  class="course-tab <%= index === 0 ? 'active' : '' %>"
+                  type="button"
+                  role="tab"
+                  data-course="<%= course.id %>"
+                  aria-selected="<%= index === 0 %>"
+                  aria-controls="panel-<%= course.id %>"
+                  tabindex="<%= index === 0 ? 0 : -1 %>"
+                >
+                  <span><%= course.officialTitle %></span>
+                  <b><%= course.progress %>%</b>
+                </button>
+              <% }) %>
+            </div>
+
+            <div class="course-panels">
+              <% data.courses.forEach((course, courseIndex) => { %>
+                <section
+                  class="course-panel <%= courseIndex === 0 ? 'active' : '' %>"
+                  id="panel-<%= course.id %>"
+                  data-course-panel="<%= course.id %>"
+                  role="tabpanel"
+                  aria-labelledby="course-tab-<%= course.id %>"
+                >
+                  <header class="course-overview">
+                    <div>
+                      <span><%= String(courseIndex + 1).padStart(2, "0") %></span>
+                      <div>
+                        <small>COMMON MATHEMATICS · 기본 순서 <%= course.defaultSemester %></small>
+                        <h3><%= course.officialTitle %></h3>
+                      </div>
+                    </div>
+
+                    <div class="course-total">
+                      <p><strong><%= course.completedConcepts %></strong> / <%= course.totalConcepts %>개념 완료</p>
+                      <div><i style="--progress:<%= course.progress %>%"></i></div>
+                      <b><%= course.progress %>%</b>
+                    </div>
+                  </header>
+
+                  <div class="progress-unit-list">
+                    <% course.units.forEach((unit, unitIndex) => { %>
+                      <details class="progress-unit" data-unit-id="<%= unit.id %>" <%= unitIndex === 0 ? "open" : "" %>>
+                        <summary>
+                          <span class="unit-number"><%= String(unit.order).padStart(2, "0") %></span>
+                          <div class="unit-title">
+                            <strong><%= unit.title %></strong>
+                            <small><%= unit.completedConcepts %> / <%= unit.concepts.length %>개념 완료</small>
+                          </div>
+                          <div class="unit-bar">
+                            <i><b style="--progress:<%= unit.progress %>%"></b></i>
+                            <strong><%= unit.progress %>%</strong>
+                          </div>
+                          <span class="unit-toggle"><i><%= unitIndex === 0 ? "소단원 닫기" : "소단원 보기" %></i><b aria-hidden="true">+</b></span>
+                        </summary>
+
+                        <div class="unit-progress-body">
+                          <div class="unit-action">
+                            <p><strong><%= unit.title %></strong>에서 배우는 개념을 순서대로 확인하세요.</p>
+                            <a href="<%= unit.firstConceptHref %>">단원 학습하기 <span aria-hidden="true">→</span></a>
+                          </div>
+
+                          <div class="concept-progress-list">
+                            <% unit.concepts.forEach((concept, conceptIndex) => {
+                              const statusText = concept.progress >= 100
+                                ? "완료"
+                                : concept.progress > 0
+                                  ? "학습 중"
+                                  : "시작 전";
+                            %>
+                              <a class="concept-progress-row <%= concept.status %>" href="<%= concept.href %>">
+                                <span class="concept-state" aria-hidden="true"><%= concept.progress >= 100 ? "✓" : String(conceptIndex + 1).padStart(2, "0") %></span>
+                                <div class="concept-info">
+                                  <strong><%= concept.title %></strong>
+                                  <small><%= concept.standardCode %> · <%= concept.completedTopics %>/<%= concept.topics.length %> 주제 완료</small>
+                                </div>
+                                <div class="concept-bar">
+                                  <i><b style="--progress:<%= concept.progress %>%"></b></i>
+                                  <span><%= concept.progress %>%</span>
+                                </div>
+                                <em><%= statusText %></em>
+                                <b class="row-arrow" aria-hidden="true">→</b>
+                              </a>
+                            <% }) %>
+                          </div>
+                        </div>
+                      </details>
+                    <% }) %>
+                  </div>
+                </section>
+              <% }) %>
+            </div>
+          </section>
+        <% } else { %>
+          <section class="learning-empty">
+            <span aria-hidden="true">▦</span>
+            <h2>학습 데이터를 불러오지 못했습니다.</h2>
+            <p>교육과정 YAML과 MongoDB 연결 상태를 확인해주세요.</p>
+          </section>
+        <% } %>
+
+        <footer class="dashboard-footer">
+          <span>© <%= new Date().getFullYear() %> Matths</span>
+          <p>설명은 장면으로.</p>
+          <div><a href="/terms">이용약관</a><a href="/privacy">개인정보처리방침</a></div>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

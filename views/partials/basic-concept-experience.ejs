@@ -1,0 +1,249 @@
+<%
+  const completedTopicIndexes = new Set(
+    (concept.completedTopicIndexes || []).map(Number)
+  );
+
+  const registeredSteps = Array.isArray(lesson.steps)
+    ? lesson.steps
+    : [];
+
+  const visualizationIdeas = Array.isArray(
+    concept.visualizationIdeas
+  )
+    ? concept.visualizationIdeas
+    : [];
+
+  const visualSteps = registeredSteps.length
+    ? registeredSteps.map((step) => ({
+        title: step.title,
+        description: step.description || "",
+      }))
+    : visualizationIdeas.map((idea) => ({
+        title: idea,
+        description:
+          "그림과 수식을 연결해 핵심 원리를 확인합니다.",
+      }));
+%>
+
+<section
+  class="basic-concept-overview"
+  aria-labelledby="basic-concept-overview-title"
+>
+  <div class="lesson-section-heading">
+    <div>
+      <p>CORE CONCEPT</p>
+      <h3 id="basic-concept-overview-title">
+        개념의 기준부터 확인합니다.
+      </h3>
+    </div>
+
+    <span>수식과 판단 기준을 먼저 연결합니다.</span>
+  </div>
+
+  <div class="basic-concept-overview-card">
+    <p>
+      <%= lesson.summary ||
+        "이 개념의 핵심 설명을 준비하고 있습니다."
+      %>
+    </p>
+
+    <strong>
+      <%= lesson.keyTakeaway ||
+        "핵심 판단 기준을 확인해보세요."
+      %>
+    </strong>
+  </div>
+</section>
+
+<section
+  class="visual-sequence"
+  aria-labelledby="visual-sequence-title"
+>
+  <div class="lesson-section-heading">
+    <div>
+      <p>STEP 02 · VISUAL STEPS</p>
+      <h3 id="visual-sequence-title">
+        그림으로 이해하는 순서
+      </h3>
+    </div>
+
+    <span>
+      각 Step은 하나의 핵심 변화만 보여줍니다.
+    </span>
+  </div>
+
+  <% if (visualSteps.length) { %>
+    <div class="visual-step-grid">
+      <%
+        visualSteps.forEach(
+          (step, index) => {
+      %>
+        <article
+          class="visual-step-card <%= index === 0 ? 'active' : '' %>"
+          tabindex="0"
+        >
+          <div>
+            <span>
+              STEP <%= index + 1 %>
+            </span>
+
+            <b>
+              <%= String(index + 1).padStart(2, "0") %>
+            </b>
+          </div>
+
+          <div
+            class="step-scene"
+            aria-hidden="true"
+          >
+            <i></i>
+            <i></i>
+            <i></i>
+
+            <span>
+              <%= index === visualSteps.length - 1
+                ? "="
+                : "→"
+              %>
+            </span>
+          </div>
+
+          <h4>
+            <%= step.title %>
+          </h4>
+
+          <p>
+            <%= step.description %>
+          </p>
+        </article>
+      <%
+          }
+        );
+      %>
+    </div>
+
+    <div class="motion-placeholder">
+      <span aria-hidden="true">
+        ▶
+      </span>
+
+      <div>
+        <strong>
+          모션그래픽 학습 장면
+        </strong>
+
+        <p>
+          이 개념의 전용 애니메이션은 준비되는
+          순서대로 연결됩니다.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        id="preview-steps"
+      >
+        Step 순서 재생
+      </button>
+    </div>
+  <% } else { %>
+    <div class="visual-empty">
+      <span aria-hidden="true">
+        ◇
+      </span>
+
+      <div>
+        <strong>
+          아직 학습 Step이 등록되지 않았습니다.
+        </strong>
+
+        <p>
+          ConceptLesson의 steps에 내용을 추가하면
+          자동으로 표시됩니다.
+        </p>
+      </div>
+    </div>
+  <% } %>
+</section>
+
+<section
+  class="topic-practice"
+  aria-labelledby="topic-title"
+>
+  <div class="lesson-section-heading">
+    <div>
+      <p>STEP 03 · CHECK TOPICS</p>
+
+      <h3 id="topic-title">
+        이 개념에서 배우는 내용
+      </h3>
+    </div>
+
+    <span id="topic-count">
+      <%= concept.completedTopics %>
+      /
+      <%= concept.topics.length %>
+      완료
+    </span>
+  </div>
+
+  <% if (concept.topics.length) { %>
+    <div
+      class="topic-task-list"
+      aria-describedby="topic-feedback"
+    >
+      <%
+        concept.topics.forEach(
+          (topic, index) => {
+            const done =
+              completedTopicIndexes.has(index);
+      %>
+        <label
+          class="topic-task <%= done ? 'done' : '' %>"
+        >
+          <input
+            class="topic-checkbox"
+            type="checkbox"
+            data-topic-index="<%= index %>"
+            <%= done ? "checked" : "" %>
+          />
+
+          <span
+            class="topic-check"
+            aria-hidden="true"
+          >
+            <%= done ? "✓" : "" %>
+          </span>
+
+          <strong>
+            <%= topic %>
+          </strong>
+
+          <small>
+            <%= done
+              ? "학습 완료"
+              : "완료로 표시"
+            %>
+          </small>
+        </label>
+      <%
+          }
+        );
+      %>
+    </div>
+
+    <p
+      class="topic-feedback"
+      id="topic-feedback"
+      aria-live="polite"
+    >
+      변경한 학습 상태는 현재 계정에 저장됩니다.
+    </p>
+  <% } else { %>
+    <p
+      class="topic-feedback topic-empty"
+      id="topic-feedback"
+    >
+      이 개념에는 아직 확인할 학습 항목이 없습니다.
+    </p>
+  <% } %>
+</section>

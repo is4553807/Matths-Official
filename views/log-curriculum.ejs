@@ -1,0 +1,531 @@
+<%
+  const learner =
+    typeof user !== "undefined" && user
+      ? user
+      : { name: "학생", schoolGrade: 10 };
+  const data =
+    typeof learningData !== "undefined" && learningData
+      ? learningData
+      : {
+          curriculum: {},
+          grade: {},
+          categories: [],
+          courses: [],
+          catalogStats: {},
+          totalConcepts: 0,
+          completedConcepts: 0,
+          overallProgress: 0,
+        };
+
+  const displayName = String(learner.name || "학생");
+  const gradeLabels = {
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+  };
+  const gradeLabel = gradeLabels[Number(learner.schoolGrade)] || "고등학생";
+  const courseList = Array.isArray(data.courses) ? data.courses : [];
+  const categoryList =
+    Array.isArray(data.categories) && data.categories.length
+      ? data.categories
+      : courseList.length
+        ? [{
+            id: "all",
+            title: "고등학교 수학",
+            englishTitle: "HIGH SCHOOL MATHEMATICS",
+            description: "2022 개정 교육과정의 고등학교 수학 과목입니다.",
+            courses: courseList,
+          }]
+        : [];
+  const catalogStats = data.catalogStats || {};
+  const totalCatalogCourses =
+    Number(catalogStats.totalCourses) || courseList.length;
+  const totalCatalogUnits =
+    Number(catalogStats.totalUnits) ||
+    courseList.reduce(
+      (total, course) =>
+        total + (Array.isArray(course.units) ? course.units.length : 0),
+      0
+    );
+  const totalCatalogConcepts =
+    Number(catalogStats.totalConcepts) ||
+    courseList.reduce(
+      (total, course) => total + Number(course.totalConcepts || 0),
+      0
+    );
+  const nextConcept = data.continueConcept || null;
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="2022 개정 고등학교 수학의 공통 과목과 선택과목, 나의 학습 진도를 확인합니다."
+    />
+    <title>내 교육과정 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/log-curriculum.css" />
+    <script src="/js/main.js" defer></script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#logged-curriculum-main">
+      본문으로 바로가기
+    </a>
+
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+
+      <aside
+        class="sidebar"
+        id="dashboard-sidebar"
+        aria-label="학습 메뉴"
+      >
+        <div class="sidebar-top">
+          <a class="brand" href="/main" aria-label="Matths 학습 홈">
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span>Matths</span>
+          </a>
+          <button
+            class="sidebar-close"
+            id="sidebar-close"
+            type="button"
+            aria-label="메뉴 닫기"
+          >
+            ×
+          </button>
+        </div>
+
+        <nav class="side-nav" aria-label="대시보드 메뉴">
+          <p>LEARNING</p>
+          <a href="/main">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>학습 홈</span>
+          </a>
+          <a href="/my-learning">
+            <span class="nav-icon" aria-hidden="true">▦</span>
+            <span>내 학습</span>
+            <b><%= data.completedConcepts %></b>
+          </a>
+          <a class="active" href="/log-curriculum" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">◫</span>
+            <span>교육과정</span>
+          </a>
+          <a href="/wrong-notes">
+            <span class="nav-icon" aria-hidden="true">↻</span>
+            <span>오답 노트</span>
+          </a>
+          <a href="/main#learning-record">
+            <span class="nav-icon" aria-hidden="true">⌁</span>
+            <span>학습 기록</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <section
+          class="coach-mini"
+          data-mode="spicy"
+          aria-labelledby="coach-mini-title"
+        >
+          <div>
+            <span aria-hidden="true">M</span>
+            <p>
+              <small>MATTHS COACH</small>
+              <strong id="coach-mini-title">매운맛 모드</strong>
+            </p>
+          </div>
+          <p id="coach-mini-message">
+            선택과목까지 전부 할 필요는 없어. 네가 배우는 과목부터 제대로 끝내자.
+          </p>
+          <div
+            class="coach-modes"
+            role="group"
+            aria-label="학습 코치 말투 선택"
+          >
+            <button type="button" data-mode="mild" aria-pressed="false">
+              순한맛
+            </button>
+            <button
+              class="active"
+              type="button"
+              data-mode="spicy"
+              aria-pressed="true"
+            >
+              매운맛
+            </button>
+            <button type="button" data-mode="silent" aria-pressed="false">
+              무음
+            </button>
+          </div>
+        </section>
+
+        <div class="sidebar-profile">
+          <span class="profile-avatar" aria-hidden="true">
+            <%= displayName.slice(0, 1) %>
+          </span>
+          <div>
+            <strong><%= displayName %>님</strong>
+            <small><%= gradeLabel %></small>
+          </div>
+          <a href="/settings" aria-label="설정">···</a>
+        </div>
+      </aside>
+
+      <main
+        class="dashboard-main logged-curriculum-main"
+        id="logged-curriculum-main"
+      >
+        <header class="topbar">
+          <div class="topbar-left">
+            <button
+              class="sidebar-open"
+              id="sidebar-open"
+              type="button"
+              aria-label="학습 메뉴 열기"
+              aria-controls="dashboard-sidebar"
+              aria-expanded="false"
+            >
+              <span></span><span></span><span></span>
+            </button>
+            <div>
+              <p>2022 개정 교육과정 · <%= gradeLabel %></p>
+              <h1><%= displayName %>님의 수학 교육과정</h1>
+            </div>
+          </div>
+          <a class="dashboard-return" href="/main">
+            학습 홈으로 <span aria-hidden="true">→</span>
+          </a>
+        </header>
+
+        <section class="curriculum-welcome">
+          <div class="welcome-copy">
+            <span class="welcome-label">
+              <%= data.curriculum.title || "2022 개정 교육과정" %>
+              · 고등학교 수학 전 과정
+            </span>
+            <h2>
+              공통수학부터 선택과목까지,
+              <strong>내가 배울 과목을 골라</strong>
+              확인하세요.
+            </h2>
+            <p>
+              고1은 공통수학1·2를 공통으로 학습합니다. 이후 과목은
+              일반 선택, 진로 선택, 융합 선택으로 나뉘며 실제 개설
+              학년과 학기는 학교마다 다를 수 있습니다.
+            </p>
+
+            <% if (nextConcept) { %>
+              <a class="continue-button" href="<%= nextConcept.href %>">
+                <span>
+                  <small>추천 다음 학습</small>
+                  <strong><%= nextConcept.title %></strong>
+                </span>
+                <b aria-hidden="true">→</b>
+              </a>
+            <% } %>
+          </div>
+
+          <div class="welcome-progress">
+            <div
+              class="progress-ring"
+              style="--progress-angle: <%= data.overallProgress * 3.6 %>deg"
+              role="progressbar"
+              aria-label="현재 학습 범위 완성도"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="<%= data.overallProgress %>"
+            >
+              <div>
+                <strong><%= data.overallProgress %>%</strong>
+                <small>학습 범위 완성도</small>
+              </div>
+            </div>
+
+            <div class="progress-stats">
+              <div>
+                <strong><%= data.completedConcepts %></strong>
+                <span>완료 개념</span>
+              </div>
+              <div>
+                <strong>
+                  <%= Math.max(0, data.totalConcepts - data.completedConcepts) %>
+                </strong>
+                <span>남은 개념</span>
+              </div>
+              <div>
+                <strong><%= totalCatalogCourses %></strong>
+                <span>전체 제공 과목</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="curriculum-guide">
+          <div>
+            <p>CURRICULUM CATALOG</p>
+            <h2>과목 유형을 확인하고 학습할 과목을 찾으세요.</h2>
+          </div>
+          <div class="status-legend" aria-label="학습 상태 설명">
+            <span><i class="not-started"></i>시작 전</span>
+            <span><i class="in-progress"></i>학습 중</span>
+            <span><i class="completed"></i>완료</span>
+          </div>
+        </section>
+
+        <nav class="course-shortcuts" aria-label="과목 유형 바로가기">
+          <% categoryList.forEach((category) => { %>
+            <a href="#category-<%= category.id %>">
+              <span><%= category.englishTitle || "COURSE TYPE" %></span>
+              <strong><%= category.title %></strong>
+              <div>
+                <i><b style="--progress: 100%"></b></i>
+                <em><%= category.courses.length %>과목</em>
+              </div>
+            </a>
+          <% }) %>
+        </nav>
+
+        <% categoryList.forEach((category, categoryIndex) => { %>
+          <section
+            class="curriculum-guide"
+            id="category-<%= category.id %>"
+            aria-labelledby="category-title-<%= category.id %>"
+          >
+            <div>
+              <p><%= category.englishTitle || "COURSE" %></p>
+              <h2 id="category-title-<%= category.id %>">
+                <%= category.title %> · <%= category.courses.length %>과목
+              </h2>
+            </div>
+            <div class="status-legend">
+              <span><%= category.description %></span>
+            </div>
+          </section>
+
+          <nav
+            class="course-shortcuts"
+            aria-label="<%= category.title %> 과목 바로가기"
+          >
+            <% category.courses.forEach((course) => { %>
+              <a href="#<%= course.id %>">
+                <span><%= course.placementLabel %></span>
+                <strong><%= course.officialTitle %></strong>
+                <div>
+                  <i>
+                    <b style="--progress: <%= course.progress %>%"></b>
+                  </i>
+                  <em><%= course.progress %>%</em>
+                </div>
+              </a>
+            <% }) %>
+          </nav>
+
+          <section
+            class="curriculum-course-list"
+            aria-label="<%= category.title %> 교육과정"
+          >
+            <% category.courses.forEach((course, courseIndex) => { %>
+              <article class="curriculum-course" id="<%= course.id %>">
+                <header class="course-heading">
+                  <div class="course-heading-title">
+                    <span>
+                      <%= String(courseIndex + 1).padStart(2, "0") %>
+                    </span>
+                    <div>
+                      <small>
+                        <%= category.englishTitle || "MATHEMATICS" %>
+                        · <%= course.placementLabel %>
+                      </small>
+                      <h2><%= course.officialTitle %></h2>
+                      <p>
+                        <%= course.units.length %>개 대단원 ·
+                        <%= course.totalConcepts %>개 핵심 개념
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="course-heading-progress">
+                    <div>
+                      <span>
+                        <%= course.completedConcepts %> /
+                        <%= course.totalConcepts %> 개념 완료
+                      </span>
+                      <strong><%= course.progress %>%</strong>
+                    </div>
+                    <i>
+                      <b style="--progress: <%= course.progress %>%"></b>
+                    </i>
+                  </div>
+                </header>
+
+                <div class="curriculum-unit-list">
+                  <% course.units.forEach((unit, unitIndex) => {
+                    const shouldOpen =
+                      categoryIndex === 0 &&
+                      courseIndex === 0 &&
+                      unitIndex === 0;
+                  %>
+                    <details
+                      class="curriculum-unit"
+                      <%= shouldOpen ? "open" : "" %>
+                    >
+                      <summary>
+                        <span class="unit-number">
+                          <%= String(unit.order).padStart(2, "0") %>
+                        </span>
+                        <div class="unit-name">
+                          <strong><%= unit.title %></strong>
+                          <small>
+                            <%= unit.completedConcepts %> /
+                            <%= unit.concepts.length %> 개념 완료
+                          </small>
+                        </div>
+                        <div class="unit-progress">
+                          <i>
+                            <b style="--progress: <%= unit.progress %>%"></b>
+                          </i>
+                          <strong><%= unit.progress %>%</strong>
+                        </div>
+                        <span class="unit-open" aria-hidden="true">+</span>
+                      </summary>
+
+                      <div class="unit-content">
+                        <div class="unit-introduction">
+                          <div>
+                            <span>이 단원에서 배우는 내용</span>
+                            <p>
+                              <strong><%= unit.title %></strong>의 핵심 개념을
+                              성취기준 순서에 따라 학습합니다.
+                            </p>
+                          </div>
+                          <a href="<%= unit.firstConceptHref %>">
+                            단원 학습하기 <span aria-hidden="true">→</span>
+                          </a>
+                        </div>
+
+                        <div class="concept-cards">
+                          <% unit.concepts.forEach((concept, conceptIndex) => {
+                            const isCompleted = concept.progress >= 100;
+                            const isInProgress =
+                              concept.progress > 0 && concept.progress < 100;
+                            const statusClass = isCompleted
+                              ? "completed"
+                              : isInProgress
+                                ? "in-progress"
+                                : "not-started";
+                            const statusText = isCompleted
+                              ? "완료"
+                              : isInProgress
+                                ? "학습 중"
+                                : "시작 전";
+                            const buttonText = isCompleted
+                              ? "다시 보기"
+                              : isInProgress
+                                ? "이어서 학습"
+                                : "학습 시작";
+                          %>
+                            <article class="concept-card <%= statusClass %>">
+                              <div class="concept-status">
+                                <span>
+                                  <%= isCompleted
+                                    ? "✓"
+                                    : String(conceptIndex + 1).padStart(2, "0")
+                                  %>
+                                </span>
+                                <em><%= statusText %></em>
+                              </div>
+
+                              <div class="concept-copy">
+                                <div class="concept-title">
+                                  <div>
+                                    <small><%= concept.standardCode %></small>
+                                    <h3><%= concept.title %></h3>
+                                  </div>
+                                  <strong><%= concept.progress %>%</strong>
+                                </div>
+
+                                <p class="achievement">
+                                  <%= concept.achievementStandard %>
+                                </p>
+
+                                <% if (concept.topics.length) { %>
+                                  <div class="concept-topics">
+                                    <% concept.topics.slice(0, 3).forEach((topic) => { %>
+                                      <span><%= topic %></span>
+                                    <% }) %>
+                                    <% if (concept.topics.length > 3) { %>
+                                      <span>+<%= concept.topics.length - 3 %></span>
+                                    <% } %>
+                                  </div>
+                                <% } %>
+
+                                <% if (concept.visualizationIdeas.length) { %>
+                                  <div class="visualization-note">
+                                    <span aria-hidden="true">◈</span>
+                                    <p>
+                                      <small>시각화 학습</small>
+                                      <strong>
+                                        <%= concept.visualizationIdeas[0] %>
+                                      </strong>
+                                    </p>
+                                  </div>
+                                <% } %>
+
+                                <div class="concept-footer">
+                                  <div>
+                                    <i>
+                                      <b
+                                        style="--progress: <%= concept.progress %>%"
+                                      ></b>
+                                    </i>
+                                    <span>
+                                      <%= concept.completedTopics %> /
+                                      <%= concept.topics.length %> 주제 완료
+                                    </span>
+                                  </div>
+                                  <a href="<%= concept.href %>">
+                                    <%= buttonText %>
+                                    <span aria-hidden="true">→</span>
+                                  </a>
+                                </div>
+                              </div>
+                            </article>
+                          <% }) %>
+                        </div>
+                      </div>
+                    </details>
+                  <% }) %>
+                </div>
+              </article>
+            <% }) %>
+          </section>
+        <% }) %>
+
+        <% if (!courseList.length) { %>
+          <section class="curriculum-guide">
+            <div>
+              <p>NO CURRICULUM DATA</p>
+              <h2>교육과정 데이터를 불러오지 못했습니다.</h2>
+            </div>
+          </section>
+        <% } %>
+
+        <footer class="dashboard-footer">
+          <span>© <%= new Date().getFullYear() %> Matths</span>
+          <p>
+            전체 <%= totalCatalogCourses %>과목 ·
+            <%= totalCatalogUnits %>대단원 ·
+            <%= totalCatalogConcepts %>성취기준
+          </p>
+          <div>
+            <a href="/terms">이용약관</a>
+            <a href="/privacy">개인정보처리방침</a>
+          </div>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

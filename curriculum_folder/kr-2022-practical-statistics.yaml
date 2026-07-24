@@ -1,0 +1,254 @@
+schemaVersion: 1
+curriculum:
+  id: kr-2022
+  title: 2022 개정 교육과정
+  country: KR
+  source:
+    title: 교육부 고시 제2022-33호 [별책 8] 수학과 교육과정
+    type: official-curriculum
+    url: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&boardSeq=93458&lev=0
+grade:
+  id: high-school-elective
+  title: 고등학교 선택 과목
+  recommendedGrades:
+    - 11
+    - 12
+coursePlacementPolicy:
+  type: school-defined
+  description: >-
+    2022 개정 교육과정의 선택 과목은 특정 학년에 고정되지 않는다. recommendedGrades는 Matths의 기본 안내이며 실제 개설 학년과 학기는 학교 교육과정에
+    따라 달라질 수 있다.
+editorialPolicy:
+  achievementStandards: 교육부 고시의 성취기준을 원문 기준으로 구조화했다.
+  topics: topics는 성취기준을 Matths 학습 화면에 맞게 나눈 편집 단위다.
+  visualizationIdeas: visualizationIdeas는 공식 교육과정의 공학 도구 활용 취지를 반영한 Matths 편집 제안이다.
+courses:
+  - id: practical-statistics
+    officialTitle: 실용 통계
+    category: convergence-elective
+    categoryTitle: 융합 선택
+    recommendedGrades:
+      - 11
+      - 12
+    prerequisites:
+      - common-math-1
+      - common-math-2
+    defaultSemester: school-defined
+    conceptCount: 13
+    units:
+      - id: statistics-and-statistical-problems
+        title: 통계와 통계적 문제
+        order: 1
+        concepts:
+          - id: practical-statistics-01-01
+            order: 1
+            title: 통계의 유용성과 필요성
+            standardCode: 12실통01-01
+            achievementStandard: 통계와 통계적 방법의 유용성과 필요성을 인식할 수 있다.
+            topics:
+              - 통계의 유용성과 필요성
+              - 핵심 관계
+            scopeNotes:
+              - 불확실성과 변이성을 고려해 통계적으로 해결 가능한 문제를 구분한다.
+              - 전수조사와 표본조사, 대표적인 확률표출 방법을 사례 중심으로 다룬다.
+            visualizationIdeas:
+              - 같은 현상에서 반복 측정값이 흩어지는 변이성 시뮬레이션
+              - 모집단에서 서로 다른 방법으로 표본을 뽑아 편향 비교
+              - 문제 설정부터 결론까지 통계적 문제 해결 순환 과정 표현
+          - id: practical-statistics-01-02
+            order: 2
+            title: 통계적 문제 해결 과정
+            standardCode: 12실통01-02
+            achievementStandard: 통계적 문제해결 과정을 이해하고 각 단계의 역할을 설명할 수 있다.
+            topics:
+              - 통계적 문제 해결 과정
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+            scopeNotes:
+              - 불확실성과 변이성을 고려해 통계적으로 해결 가능한 문제를 구분한다.
+              - 전수조사와 표본조사, 대표적인 확률표출 방법을 사례 중심으로 다룬다.
+            visualizationIdeas:
+              - 같은 현상에서 반복 측정값이 흩어지는 변이성 시뮬레이션
+              - 모집단에서 서로 다른 방법으로 표본을 뽑아 편향 비교
+              - 문제 설정부터 결론까지 통계적 문제 해결 순환 과정 표현
+          - id: practical-statistics-01-03
+            order: 3
+            title: 모집단·표본과 표본추출
+            standardCode: 12실통01-03
+            achievementStandard: 모집단과 표본의 뜻을 알고, 표본추출의 방법을 이해하여 문제 상황에 맞는 방법을 선택할 수 있다.
+            topics:
+              - 모집단·표본과 표본추출
+              - 핵심 의미와 원리
+              - 수학적 표현과 해석
+              - 적용과 문제 해결
+            scopeNotes:
+              - 불확실성과 변이성을 고려해 통계적으로 해결 가능한 문제를 구분한다.
+              - 전수조사와 표본조사, 대표적인 확률표출 방법을 사례 중심으로 다룬다.
+            visualizationIdeas:
+              - 같은 현상에서 반복 측정값이 흩어지는 변이성 시뮬레이션
+              - 모집단에서 서로 다른 방법으로 표본을 뽑아 편향 비교
+              - 문제 설정부터 결론까지 통계적 문제 해결 순환 과정 표현
+      - id: data-collection-and-organization
+        title: 자료의 수집과 정리
+        order: 2
+        concepts:
+          - id: practical-statistics-02-01
+            order: 1
+            title: 자료의 종류와 척도
+            standardCode: 12실통02-01
+            achievementStandard: 자료의 종류를 알고 설명할 수 있다.
+            topics:
+              - 자료의 종류와 척도
+              - 핵심 의미와 원리
+            scopeNotes:
+              - 계산이나 그래프 작성 자체보다 결과 해석에 중점을 둔다.
+              - 자료 수집과 시각화 과정에서 오류와 편향을 비판적으로 검토한다.
+            visualizationIdeas:
+              - 범주형·수치형 자료와 네 가지 척도를 카드 분류 방식으로 비교
+              - 동일 자료를 여러 그래프로 바꾸며 적합성과 왜곡 가능성 비교
+              - 자료점 이동에 따라 평균·중앙값·표준편차가 변하는 인터랙션
+          - id: practical-statistics-02-02
+            order: 2
+            title: 자료 수집 방법
+            standardCode: 12실통02-02
+            achievementStandard: 자료의 수집 방법을 이해하고 문제 상황에 맞는 자료 수집 방법을 선택할 수 있다.
+            topics:
+              - 자료 수집 방법
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+            scopeNotes:
+              - 계산이나 그래프 작성 자체보다 결과 해석에 중점을 둔다.
+              - 자료 수집과 시각화 과정에서 오류와 편향을 비판적으로 검토한다.
+            visualizationIdeas:
+              - 범주형·수치형 자료와 네 가지 척도를 카드 분류 방식으로 비교
+              - 동일 자료를 여러 그래프로 바꾸며 적합성과 왜곡 가능성 비교
+              - 자료점 이동에 따라 평균·중앙값·표준편차가 변하는 인터랙션
+          - id: practical-statistics-02-03
+            order: 3
+            title: 자료와 그래프
+            standardCode: 12실통02-03
+            achievementStandard: 그래프의 종류를 알고 자료의 특성을 나타내는 적절한 그래프를 그릴 수 있다.
+            topics:
+              - 자료와 그래프
+              - 수학적 표현과 해석
+            scopeNotes:
+              - 계산이나 그래프 작성 자체보다 결과 해석에 중점을 둔다.
+              - 자료 수집과 시각화 과정에서 오류와 편향을 비판적으로 검토한다.
+            visualizationIdeas:
+              - 범주형·수치형 자료와 네 가지 척도를 카드 분류 방식으로 비교
+              - 동일 자료를 여러 그래프로 바꾸며 적합성과 왜곡 가능성 비교
+              - 자료점 이동에 따라 평균·중앙값·표준편차가 변하는 인터랙션
+          - id: practical-statistics-02-04
+            order: 4
+            title: 대푯값과 산포도
+            standardCode: 12실통02-04
+            achievementStandard: 대푯값과 산포도의 종류를 알고 자료의 특성을 나타내는 값으로 요약할 수 있다.
+            topics:
+              - 대푯값과 산포도
+              - 핵심 관계
+            scopeNotes:
+              - 계산이나 그래프 작성 자체보다 결과 해석에 중점을 둔다.
+              - 자료 수집과 시각화 과정에서 오류와 편향을 비판적으로 검토한다.
+            visualizationIdeas:
+              - 범주형·수치형 자료와 네 가지 척도를 카드 분류 방식으로 비교
+              - 동일 자료를 여러 그래프로 바꾸며 적합성과 왜곡 가능성 비교
+              - 자료점 이동에 따라 평균·중앙값·표준편차가 변하는 인터랙션
+      - id: data-analysis
+        title: 자료의 분석
+        order: 3
+        concepts:
+          - id: practical-statistics-03-01
+            order: 1
+            title: 정규분포와 t분포
+            standardCode: 12실통03-01
+            achievementStandard: 정규분포와 t 분포를 공학 도구를 이용하여 탐구할 수 있다.
+            topics:
+              - 정규분포와 t분포
+              - 계산 방법과 절차
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 이론 전개보다 공학 도구를 이용한 통계적 추론과 결과 해석에 중점을 둔다.
+              - 가설과 유의수준, p값의 의미를 실제 사례와 연결한다.
+            visualizationIdeas:
+              - 표본 크기에 따라 정규분포와 t분포 곡선이 가까워지는 애니메이션
+              - 표본을 반복 추출하며 신뢰구간이 모수를 포함하는 빈도 시뮬레이션
+              - 귀무가설 분포에서 관측값과 p값 영역을 색으로 표시
+          - id: practical-statistics-03-02
+            order: 2
+            title: 모평균 추정
+            standardCode: 12실통03-02
+            achievementStandard: 실생활에서 공학 도구를 이용하여 모평균을 추정할 수 있다.
+            topics:
+              - 모평균 추정
+              - 적용과 문제 해결
+            scopeNotes:
+              - 이론 전개보다 공학 도구를 이용한 통계적 추론과 결과 해석에 중점을 둔다.
+              - 가설과 유의수준, p값의 의미를 실제 사례와 연결한다.
+            visualizationIdeas:
+              - 표본 크기에 따라 정규분포와 t분포 곡선이 가까워지는 애니메이션
+              - 표본을 반복 추출하며 신뢰구간이 모수를 포함하는 빈도 시뮬레이션
+              - 귀무가설 분포에서 관측값과 p값 영역을 색으로 표시
+          - id: practical-statistics-03-03
+            order: 3
+            title: 모비율 추정
+            standardCode: 12실통03-03
+            achievementStandard: 실생활에서 공학 도구를 이용하여 모비율을 추정할 수 있다.
+            topics:
+              - 모비율 추정
+              - 적용과 문제 해결
+            scopeNotes:
+              - 이론 전개보다 공학 도구를 이용한 통계적 추론과 결과 해석에 중점을 둔다.
+              - 가설과 유의수준, p값의 의미를 실제 사례와 연결한다.
+            visualizationIdeas:
+              - 표본 크기에 따라 정규분포와 t분포 곡선이 가까워지는 애니메이션
+              - 표본을 반복 추출하며 신뢰구간이 모수를 포함하는 빈도 시뮬레이션
+              - 귀무가설 분포에서 관측값과 p값 영역을 색으로 표시
+          - id: practical-statistics-03-04
+            order: 4
+            title: 가설검정
+            standardCode: 12실통03-04
+            achievementStandard: 가설검정을 이해하고, 실생활에서 공학 도구를 이용하여 가설을 검정할 수 있다.
+            topics:
+              - 가설검정
+              - 핵심 의미와 원리
+              - 적용과 문제 해결
+            scopeNotes:
+              - 이론 전개보다 공학 도구를 이용한 통계적 추론과 결과 해석에 중점을 둔다.
+              - 가설과 유의수준, p값의 의미를 실제 사례와 연결한다.
+            visualizationIdeas:
+              - 표본 크기에 따라 정규분포와 t분포 곡선이 가까워지는 애니메이션
+              - 표본을 반복 추출하며 신뢰구간이 모수를 포함하는 빈도 시뮬레이션
+              - 귀무가설 분포에서 관측값과 p값 영역을 색으로 표시
+      - id: statistical-inquiry
+        title: 통계적 탐구
+        order: 4
+        concepts:
+          - id: practical-statistics-04-01
+            order: 1
+            title: 통계적 탐구와 의사 결정
+            standardCode: 12실통04-01
+            achievementStandard: 실생활에서 통계적 탐구 과정에 따라 문제를 해결하고 합리적인 의사 결정을 할 수 있다.
+            topics:
+              - 통계적 탐구와 의사 결정
+              - 적용과 문제 해결
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 표본 조사 설계, 자료 수집, 분석, 결론 도출의 전 과정에서 연구 윤리를 준수한다.
+              - 탐구 목적과 통계 방법의 적합성을 비판적으로 성찰한다.
+            visualizationIdeas:
+              - 탐구 질문→조사 설계→자료→분석→결론을 하나의 대시보드 흐름으로 표현
+              - 표본·그래프·분석 방법 선택이 결론에 미치는 영향을 비교
+          - id: practical-statistics-04-02
+            order: 2
+            title: 통계적 탐구의 성찰
+            standardCode: 12실통04-02
+            achievementStandard: 통계적 탐구 과정과 그 결과를 비판적으로 성찰할 수 있다.
+            topics:
+              - 통계적 탐구의 성찰
+              - 탐구 설계와 수행
+            scopeNotes:
+              - 표본 조사 설계, 자료 수집, 분석, 결론 도출의 전 과정에서 연구 윤리를 준수한다.
+              - 탐구 목적과 통계 방법의 적합성을 비판적으로 성찰한다.
+            visualizationIdeas:
+              - 탐구 질문→조사 설계→자료→분석→결론을 하나의 대시보드 흐름으로 표현
+              - 표본·그래프·분석 방법 선택이 결론에 미치는 영향을 비교
