@@ -63,6 +63,670 @@
     lesson.playgroundKey || ""
   ).startsWith("algebra-");
 
+  const isProbabilityExperience =
+    course.id === "probability-statistics" ||
+    String(lesson.playgroundKey || "").startsWith(
+      "probstat-"
+    );
+  const isAdvancedCalculusExperience =
+    course.id === "calculus-1" &&
+    (
+      unit.id === "differentiation" ||
+      unit.id === "integration"
+    );
+  const calculusPlaygroundProfiles = {
+    "calculus-1-02-01": {
+      mode: "derivative",
+      primary: {
+        label: "곡률 계수 a",
+        min: 0.5,
+        max: 3,
+        step: 0.5,
+        value: 1,
+      },
+      secondary: {
+        label: "접점 x",
+        min: -2.5,
+        max: 2.5,
+        step: 0.5,
+        value: 1,
+      },
+      actionLabel: "할선에서 접선까지",
+    },
+    "calculus-1-02-02": {
+      mode: "derivative",
+      primary: {
+        label: "왼쪽 기울기",
+        min: -3,
+        max: 3,
+        step: 0.5,
+        value: -1,
+      },
+      secondary: {
+        label: "오른쪽 기울기",
+        min: -3,
+        max: 3,
+        step: 0.5,
+        value: 1,
+      },
+      actionLabel: "좌우 기울기 비교",
+    },
+    "calculus-1-02-03": {
+      mode: "derivative",
+      primary: {
+        label: "계수 a",
+        min: 0.5,
+        max: 2,
+        step: 0.5,
+        value: 1,
+      },
+      secondary: {
+        label: "지수 n",
+        min: 2,
+        max: 6,
+        step: 1,
+        value: 4,
+      },
+      actionLabel: "도함수와 비교",
+    },
+    "calculus-1-02-04": {
+      mode: "derivative",
+      primary: {
+        label: "삼차항 계수 a",
+        min: -2,
+        max: 2,
+        step: 0.5,
+        value: 1,
+      },
+      secondary: {
+        label: "일차항 계수 b",
+        min: -4,
+        max: 4,
+        step: 0.5,
+        value: -2,
+      },
+      actionLabel: "항별 미분 보기",
+    },
+    "calculus-1-02-05": {
+      mode: "derivative",
+      primary: {
+        label: "곡률 계수 a",
+        min: 0.5,
+        max: 2.5,
+        step: 0.5,
+        value: 1,
+      },
+      secondary: {
+        label: "접점 x",
+        min: -2.5,
+        max: 2.5,
+        step: 0.5,
+        value: 1,
+      },
+      actionLabel: "접선 완성하기",
+    },
+    "calculus-1-02-06": {
+      mode: "derivative",
+      primary: {
+        label: "함수의 계수 a",
+        min: 0.5,
+        max: 2,
+        step: 0.5,
+        value: 1,
+      },
+      secondary: {
+        label: "구간의 오른쪽 끝 b",
+        min: 1,
+        max: 4,
+        step: 0.5,
+        value: 3,
+      },
+      actionLabel: "평행한 접선 찾기",
+    },
+    "calculus-1-02-07": {
+      mode: "derivative",
+      primary: {
+        label: "세로 배율 a",
+        min: 0.5,
+        max: 2,
+        step: 0.5,
+        value: 1,
+      },
+      secondary: {
+        label: "임계점 간격 r",
+        min: 0.8,
+        max: 2.4,
+        step: 0.2,
+        value: 1.4,
+      },
+      actionLabel: "부호 변화 확인",
+    },
+    "calculus-1-02-08": {
+      mode: "derivative",
+      primary: {
+        label: "최고차항 계수 a",
+        min: 0.3,
+        max: 1.2,
+        step: 0.1,
+        value: 0.6,
+      },
+      secondary: {
+        label: "기울임 계수 b",
+        min: -2,
+        max: 2,
+        step: 0.5,
+        value: 0.5,
+      },
+      actionLabel: "개형 완성하기",
+    },
+    "calculus-1-02-09": {
+      mode: "derivative",
+      primary: {
+        label: "함수의 세로 배율",
+        min: 0.5,
+        max: 1.5,
+        step: 0.25,
+        value: 1,
+      },
+      secondary: {
+        label: "수평선 높이 k",
+        min: -4,
+        max: 4,
+        step: 0.5,
+        value: 1,
+      },
+      actionLabel: "교점 개수 세기",
+    },
+    "calculus-1-02-10": {
+      mode: "derivative",
+      primary: {
+        label: "가속도 a",
+        min: -2,
+        max: 3,
+        step: 0.5,
+        value: 1,
+      },
+      secondary: {
+        label: "관찰 시각 t",
+        min: 0,
+        max: 5,
+        step: 0.5,
+        value: 2,
+      },
+      actionLabel: "위치·속도·가속도",
+    },
+    "calculus-1-03-01": {
+      mode: "integral",
+      primary: {
+        label: "피적분함수 기울기 a",
+        min: -2,
+        max: 2,
+        step: 0.5,
+        value: 1,
+      },
+      secondary: {
+        label: "적분상수 C",
+        min: -4,
+        max: 4,
+        step: 0.5,
+        value: 1,
+      },
+      actionLabel: "원시함수 가족 보기",
+    },
+    "calculus-1-03-02": {
+      mode: "integral",
+      primary: {
+        label: "이차항 계수 a",
+        min: 0.5,
+        max: 2,
+        step: 0.5,
+        value: 1,
+      },
+      secondary: {
+        label: "적분상수 C",
+        min: -3,
+        max: 3,
+        step: 0.5,
+        value: 0,
+      },
+      actionLabel: "항별 적분 보기",
+    },
+    "calculus-1-03-03": {
+      mode: "integral",
+      primary: {
+        label: "함수의 세로 배율 a",
+        min: 1,
+        max: 4,
+        step: 0.5,
+        value: 2,
+      },
+      secondary: {
+        label: "구간의 오른쪽 끝 b",
+        min: 1,
+        max: 5,
+        step: 0.5,
+        value: 4,
+      },
+      actionLabel: "분할을 더 촘촘하게",
+    },
+    "calculus-1-03-04": {
+      mode: "integral",
+      primary: {
+        label: "피적분함수 계수 a",
+        min: 0.5,
+        max: 2,
+        step: 0.5,
+        value: 1,
+      },
+      secondary: {
+        label: "구간의 오른쪽 끝 b",
+        min: 1,
+        max: 5,
+        step: 0.5,
+        value: 3,
+      },
+      actionLabel: "끝값 차 확인",
+    },
+    "calculus-1-03-05": {
+      mode: "integral",
+      primary: {
+        label: "교점의 x좌표 r",
+        min: 1,
+        max: 3,
+        step: 0.5,
+        value: 2,
+      },
+      secondary: {
+        label: "영역의 높이 h",
+        min: 1,
+        max: 4,
+        step: 0.5,
+        value: 2,
+      },
+      actionLabel: "위·아래 함수 비교",
+    },
+    "calculus-1-03-06": {
+      mode: "integral",
+      primary: {
+        label: "속도 변화율 a",
+        min: 0.5,
+        max: 2.5,
+        step: 0.5,
+        value: 1,
+      },
+      secondary: {
+        label: "방향 전환 시각",
+        min: 0.5,
+        max: 3,
+        step: 0.5,
+        value: 2,
+      },
+      actionLabel: "변위와 거리 비교",
+    },
+  };
+  const calculusPlaygroundProfile =
+    isAdvancedCalculusExperience
+      ? calculusPlaygroundProfiles[concept.id]
+      : null;
+
+  const probabilitySymbols = {
+    "probability-statistics-01-01": "\\(n^r\\)",
+    "probability-statistics-01-02": "\\({}_nH_r\\)",
+    "probability-statistics-01-03": "\\(\\binom nr\\)",
+    "probability-statistics-02-01": "\\(P(A)\\)",
+    "probability-statistics-02-02": "\\(A\\cup B\\)",
+    "probability-statistics-02-03": "\\(A^c\\)",
+    "probability-statistics-02-04": "\\(P(A\\mid B)\\)",
+    "probability-statistics-02-05": "\\(A\\perp B\\)",
+    "probability-statistics-02-06": "\\(P(A\\cap B)\\)",
+    "probability-statistics-03-01": "\\(P(X=x)\\)",
+    "probability-statistics-03-02": "\\(E(X)\\)",
+    "probability-statistics-03-03": "\\(B(n,p)\\)",
+    "probability-statistics-03-04": "\\(N(\\mu,\\sigma^2)\\)",
+    "probability-statistics-03-05": "\\(\\text{sample}\\)",
+    "probability-statistics-03-06": "\\(\\bar X\\)",
+    "probability-statistics-03-07": "\\(\\hat\\theta\\pm E\\)",
+  };
+
+  const probabilityVisualKeys = {
+    "probability-statistics-01-01": "counting",
+    "probability-statistics-01-02": "stars-bars",
+    "probability-statistics-01-03": "pascal",
+    "probability-statistics-02-01": "frequency",
+    "probability-statistics-02-02": "venn",
+    "probability-statistics-02-03": "complement",
+    "probability-statistics-02-04": "conditional",
+    "probability-statistics-02-05": "independence",
+    "probability-statistics-02-06": "tree",
+    "probability-statistics-03-01": "distribution",
+    "probability-statistics-03-02": "expectation",
+    "probability-statistics-03-03": "binomial",
+    "probability-statistics-03-04": "normal",
+    "probability-statistics-03-05": "sampling",
+    "probability-statistics-03-06": "sampling-distribution",
+    "probability-statistics-03-07": "confidence",
+  };
+
+  const probabilityPlaygroundProfiles = {
+    counting: {
+      modePrompt: "나열 방식",
+      primary: {
+        label: "선택지의 수 n",
+        min: 2,
+        max: 6,
+        step: 1,
+        value: 3,
+      },
+      secondary: {
+        label: "자리의 수 r",
+        min: 2,
+        max: 8,
+        step: 1,
+        value: 4,
+      },
+      actionLabel: "배열 예시 다시 만들기",
+    },
+    "stars-bars": {
+      modePrompt: "별과 막대의 역할",
+      primary: {
+        label: "종류의 수 n",
+        min: 2,
+        max: 6,
+        step: 1,
+        value: 3,
+      },
+      secondary: {
+        label: "고를 개수 r",
+        min: 1,
+        max: 12,
+        step: 1,
+        value: 5,
+      },
+      actionLabel: "배분 예시 다시 만들기",
+    },
+    pascal: {
+      modePrompt: "전개를 보는 관점",
+      primary: {
+        label: "이항식의 지수 n",
+        min: 2,
+        max: 10,
+        step: 1,
+        value: 6,
+      },
+      secondary: {
+        label: "b를 고르는 횟수 r",
+        min: 0,
+        max: 10,
+        step: 1,
+        value: 3,
+      },
+      actionLabel: "다른 항 강조하기",
+    },
+    frequency: {
+      modePrompt: "확률을 보는 관점",
+      primary: {
+        label: "시행 횟수 N",
+        min: 20,
+        max: 500,
+        step: 20,
+        value: 120,
+      },
+      secondary: {
+        label: "이론적 확률 p",
+        min: 1,
+        max: 9,
+        step: 1,
+        value: 5,
+        scale: 0.1,
+        digits: 2,
+      },
+      actionLabel: "시뮬레이션 다시 실행",
+    },
+    venn: {
+      modePrompt: "덧셈정리의 단계",
+      primary: {
+        label: "P(A)",
+        min: 2,
+        max: 8,
+        step: 1,
+        value: 6,
+        scale: 0.1,
+        digits: 2,
+      },
+      secondary: {
+        label: "P(B)",
+        min: 2,
+        max: 8,
+        step: 1,
+        value: 5,
+        scale: 0.1,
+        digits: 2,
+      },
+      actionLabel: "사건 배치 다시 보기",
+    },
+    complement: {
+      modePrompt: "여사건으로 바꾸는 단계",
+      primary: {
+        label: "독립 시행 횟수 n",
+        min: 1,
+        max: 10,
+        step: 1,
+        value: 4,
+      },
+      secondary: {
+        label: "한 번 성공할 확률 p",
+        min: 1,
+        max: 9,
+        step: 1,
+        value: 3,
+        scale: 0.1,
+        digits: 2,
+      },
+      actionLabel: "시행 결과 다시 만들기",
+    },
+    conditional: {
+      modePrompt: "조건부확률의 단계",
+      primary: {
+        label: "조건 A에 속한 사람 수",
+        min: 10,
+        max: 100,
+        step: 10,
+        value: 40,
+      },
+      secondary: {
+        label: "A 안에서 B의 비율",
+        min: 1,
+        max: 9,
+        step: 1,
+        value: 6,
+        scale: 0.1,
+        digits: 2,
+      },
+      actionLabel: "분할표 다시 구성하기",
+    },
+    independence: {
+      modePrompt: "독립성 판정 단계",
+      primary: {
+        label: "P(A)",
+        min: 1,
+        max: 9,
+        step: 1,
+        value: 4,
+        scale: 0.1,
+        digits: 2,
+      },
+      secondary: {
+        label: "P(B)",
+        min: 1,
+        max: 9,
+        step: 1,
+        value: 5,
+        scale: 0.1,
+        digits: 2,
+      },
+      actionLabel: "관측 교집합 바꾸기",
+    },
+    tree: {
+      modePrompt: "곱셈정리의 단계",
+      primary: {
+        label: "첫 가지 P(A)",
+        min: 1,
+        max: 9,
+        step: 1,
+        value: 4,
+        scale: 0.1,
+        digits: 2,
+      },
+      secondary: {
+        label: "둘째 가지 P(B|A)",
+        min: 1,
+        max: 9,
+        step: 1,
+        value: 7,
+        scale: 0.1,
+        digits: 2,
+      },
+      actionLabel: "경로 다시 강조하기",
+    },
+    distribution: {
+      modePrompt: "확률분포를 만드는 단계",
+      primary: {
+        label: "확률변수의 최댓값",
+        min: 2,
+        max: 8,
+        step: 1,
+        value: 4,
+      },
+      secondary: {
+        label: "분포의 오른쪽 쏠림",
+        min: 1,
+        max: 9,
+        step: 1,
+        value: 5,
+        scale: 0.1,
+        digits: 1,
+      },
+      actionLabel: "분포 다시 만들기",
+    },
+    expectation: {
+      modePrompt: "기댓값을 보는 관점",
+      primary: {
+        label: "큰 결과값 b",
+        min: 2,
+        max: 12,
+        step: 1,
+        value: 8,
+      },
+      secondary: {
+        label: "P(X=b)",
+        min: 1,
+        max: 9,
+        step: 1,
+        value: 4,
+        scale: 0.1,
+        digits: 2,
+      },
+      actionLabel: "확률 무게 다시 놓기",
+    },
+    binomial: {
+      modePrompt: "이항분포를 보는 관점",
+      primary: {
+        label: "독립시행 횟수 n",
+        min: 2,
+        max: 20,
+        step: 1,
+        value: 10,
+      },
+      secondary: {
+        label: "성공확률 p",
+        min: 1,
+        max: 9,
+        step: 1,
+        value: 5,
+        scale: 0.1,
+        digits: 2,
+      },
+      actionLabel: "시행 결과 다시 보기",
+    },
+    normal: {
+      modePrompt: "근사 과정을 보는 단계",
+      primary: {
+        label: "이항분포 시행 횟수 n",
+        min: 10,
+        max: 100,
+        step: 10,
+        value: 40,
+      },
+      secondary: {
+        label: "성공확률 p",
+        min: 1,
+        max: 9,
+        step: 1,
+        value: 5,
+        scale: 0.1,
+        digits: 2,
+      },
+      actionLabel: "막대와 곡선 다시 겹치기",
+    },
+    sampling: {
+      modePrompt: "표본추출의 단계",
+      primary: {
+        label: "표본의 크기 n",
+        min: 5,
+        max: 40,
+        step: 1,
+        value: 15,
+      },
+      secondary: {
+        label: "선택 편향의 정도",
+        min: 0,
+        max: 10,
+        step: 1,
+        value: 0,
+        scale: 0.1,
+        digits: 1,
+      },
+      actionLabel: "표본 다시 추출하기",
+    },
+    "sampling-distribution": {
+      modePrompt: "표본평균을 보는 단계",
+      primary: {
+        label: "표본의 크기 n",
+        min: 4,
+        max: 100,
+        step: 4,
+        value: 16,
+      },
+      secondary: {
+        label: "모표준편차 σ",
+        min: 2,
+        max: 20,
+        step: 1,
+        value: 8,
+      },
+      actionLabel: "표본평균 다시 추출하기",
+    },
+    confidence: {
+      modePrompt: "신뢰구간을 보는 단계",
+      primary: {
+        label: "표본의 크기 n",
+        min: 10,
+        max: 200,
+        step: 10,
+        value: 100,
+      },
+      secondary: {
+        label: "신뢰수준",
+        min: 0,
+        max: 2,
+        step: 1,
+        value: 1,
+        labels: ["90%", "95%", "99%"],
+      },
+      actionLabel: "새 표본으로 구간 만들기",
+    },
+  };
+
   const algebraSymbols = {
     "algebra-01-01": "\\(\\sqrt[n]{a}\\)",
     "algebra-01-02": "\\(a^{m/n}\\)",
@@ -392,8 +1056,61 @@
 
   const algebraGraphProfile =
     algebraGraphProfiles[concept.id] || null;
+  const probabilityVisualKey =
+    probabilityVisualKeys[concept.id] || null;
+  const probabilityPlaygroundProfile =
+    probabilityPlaygroundProfiles[
+      probabilityVisualKey
+    ] || null;
 
-  const experienceProfile = isAlgebraExperience
+  const experienceProfile = isProbabilityExperience
+    ? {
+        symbol:
+          probabilitySymbols[concept.id] ||
+          "\\(P(A)\\)",
+        motionTitle:
+          `${concept.title}의 핵심 구조가 만들어지는 장면을 봅니다.`,
+        motionNote:
+          "개수, 넓이, 분포가 공식으로 연결되는 순서를 확인합니다.",
+        motionFormula:
+          lesson.dashboardPreview?.formula ||
+          concept.title,
+        initialCaption:
+          lesson.steps?.[0]?.description ||
+          "표본공간과 값을 먼저 확인합니다.",
+        playgroundTitle:
+          `${concept.title}: 값을 바꾸며 직접 확인합니다.`,
+        playgroundNote:
+          probabilityPlaygroundProfile
+            ? `‘${probabilityPlaygroundProfile.primary.label}’, ‘${probabilityPlaygroundProfile.secondary.label}’ 두 값을 바꾸며 개념의 관계를 확인해보세요.`
+            : "두 값을 바꾸며 그림과 계산 결과가 함께 변하는지 보세요.",
+      }
+    : isAdvancedCalculusExperience
+    ? {
+        symbol:
+          unit.id === "differentiation"
+            ? "\\(f'(x)\\)"
+            : "\\(\\int f(x)dx\\)",
+        motionTitle:
+          `${concept.title}의 핵심 관계가 그래프에서 만들어지는 장면을 봅니다.`,
+        motionNote:
+          unit.id === "differentiation"
+            ? "원함수의 변화와 접선·도함수를 같은 x좌표에서 연결합니다."
+            : "함수값이 작은 넓이로 쌓여 누적량이 되는 과정을 연결합니다.",
+        motionFormula:
+          lesson.dashboardPreview?.formula ||
+          concept.title,
+        initialCaption:
+          lesson.steps?.[0]?.description ||
+          "주어진 함수와 조건을 먼저 확인합니다.",
+        playgroundTitle:
+          `${concept.title}: 값을 바꾸며 직접 확인합니다.`,
+        playgroundNote:
+          unit.id === "differentiation"
+            ? "함수의 계수와 관찰점을 움직여 기울기와 그래프가 함께 변하는지 보세요."
+            : "함수의 계수와 적분 구간을 움직여 넓이와 누적값이 함께 변하는지 보세요.",
+      }
+    : isAlgebraExperience
     ? {
         symbol:
           algebraSymbols[concept.id] ||
@@ -428,6 +1145,12 @@
     conceptTitle: concept.title,
     algebraGraphKey:
       algebraGraphProfile?.key || null,
+    probabilityVisualKey:
+      probabilityVisualKey,
+    probabilityProfile:
+      probabilityPlaygroundProfile,
+    calculusProfile:
+      calculusPlaygroundProfile,
     motionCaptions:
       lesson.clientMotionCaptions ||
       (lesson.steps || []).map(
@@ -562,9 +1285,25 @@
 
     <div class="motion-player">
       <div
-        class="motion-stage <%= algebraGraphProfile ? 'algebra-motion-stage' : '' %>"
+        class="motion-stage <%= algebraGraphProfile || isProbabilityExperience || isAdvancedCalculusExperience ? 'algebra-motion-stage' : '' %>"
       >
-        <% if (algebraGraphProfile) { %>
+        <% if (isAdvancedCalculusExperience) { %>
+          <svg
+            id="calculus-motion-visual"
+            class="algebra-graph-svg calculus-motion-visual"
+            viewBox="0 0 760 400"
+            role="img"
+            aria-label="<%= concept.title %>의 핵심 원리를 단계적으로 보여주는 시각화"
+          ></svg>
+        <% } else if (isProbabilityExperience) { %>
+          <svg
+            id="probability-motion-visual"
+            class="algebra-graph-svg probability-motion-visual"
+            viewBox="0 0 760 400"
+            role="img"
+            aria-label="<%= concept.title %>의 핵심 원리를 단계적으로 보여주는 시각화"
+          ></svg>
+        <% } else if (algebraGraphProfile) { %>
           <svg
             id="algebra-motion-graph"
             class="algebra-graph-svg algebra-motion-graph"
@@ -611,7 +1350,15 @@
           </strong>
         </div>
 
-        <% if (algebraGraphProfile) { %>
+        <% if (isAdvancedCalculusExperience) { %>
+          <button id="replay-calculus-motion" type="button">
+            처음부터 다시 보기
+          </button>
+        <% } else if (isProbabilityExperience) { %>
+          <button id="replay-probability-motion" type="button">
+            처음부터 다시 보기
+          </button>
+        <% } else if (algebraGraphProfile) { %>
           <button id="replay-algebra-motion" type="button">
             처음부터 다시 보기
           </button>
@@ -625,7 +1372,7 @@
   </section>
 
   <section
-    class="experience-section playground-section"
+    class="experience-section playground-section <%= isProbabilityExperience || isAdvancedCalculusExperience ? 'probability-playground-section' : '' %>"
     id="concept-playground"
   >
     <div class="experience-heading">
@@ -766,7 +1513,13 @@
           playgroundKey: lesson.playgroundKey,
           concept,
           lesson,
-          algebraGraphProfile
+          algebraGraphProfile,
+          isAdvancedCalculusExperience,
+          calculusPlaygroundProfile,
+          isProbabilityExperience,
+          probabilityVisualKey:
+            probabilityVisualKey,
+          probabilityPlaygroundProfile
         }
       ) %>
     <% } %>

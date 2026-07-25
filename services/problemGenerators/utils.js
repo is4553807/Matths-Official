@@ -98,6 +98,17 @@ function validateGeneratedProblem(
     );
   }
 
+  const dollarCount = (
+    problem.prompt.match(/\$/g) ||
+    []
+  ).length;
+
+  if (dollarCount % 2 !== 0) {
+    throw new InvalidGeneratedProblemError(
+      `${typeLabel}: 문제의 수식 구분자($)가 닫히지 않았습니다.`
+    );
+  }
+
   if (
     !["short-answer", "multiple-choice"].includes(
       problem.inputMode
@@ -158,7 +169,17 @@ function validateGeneratedProblem(
     const choiceKeys = problem.choices.map(
       (choice) => String(choice.key)
     );
+    const choiceTexts =
+      problem.choices.map(
+        (choice) =>
+          String(choice.text)
+            .replace(/\s+/g, "")
+            .trim()
+      );
     const uniqueChoiceKeys = new Set(choiceKeys);
+    const uniqueChoiceTexts = new Set(
+      choiceTexts
+    );
 
     if (
       uniqueChoiceKeys.size !==
@@ -176,6 +197,15 @@ function validateGeneratedProblem(
     ) {
       throw new InvalidGeneratedProblemError(
         `${typeLabel}: 정답과 일치하는 보기가 없습니다.`
+      );
+    }
+
+    if (
+      uniqueChoiceTexts.size !==
+      choiceTexts.length
+    ) {
+      throw new InvalidGeneratedProblemError(
+        `${typeLabel}: 같은 내용의 보기가 중복됩니다.`
       );
     }
   }

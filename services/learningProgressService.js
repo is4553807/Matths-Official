@@ -2,6 +2,7 @@ const { randomUUID } = require("crypto");
 const {
   ConceptProgress,
   LearningEvent,
+  AssessmentAttempt,
 } = require("../models/matthsModel");
 const {
   loadCurriculum,
@@ -9,6 +10,9 @@ const {
   buildLearningViewModel,
   findCurriculumConcept,
 } = require("./curriculumService");
+const {
+  applyAssessmentGatesToLearningData,
+} = require("./assessmentService");
 
 function progressDocumentsToInput(progressDocuments) {
   const concepts = {};
@@ -34,16 +38,34 @@ async function getUserLearningData(userId) {
   const curriculumData = loadCurriculum();
   const curriculumId = curriculumData.curriculum?.id || "kr-2022";
 
-  const progressDocuments = await ConceptProgress.find({
-    userId,
-    curriculumId,
-  }).lean();
+  const [
+    progressDocuments,
+    assessmentAttempts,
+  ] = await Promise.all([
+    ConceptProgress.find({
+      userId,
+      curriculumId,
+    }).lean(),
+    AssessmentAttempt.find({
+      userId,
+      status: "submitted",
+      passed: true,
+    })
+      .select(
+        "scopeType courseId unitId subunitId passed scorePercent"
+      )
+      .lean(),
+  ]);
 
   const learningProgress = progressDocumentsToInput(progressDocuments);
-  const learningData = buildLearningViewModel(
-    curriculumData,
-    learningProgress
-  );
+  const learningData =
+    applyAssessmentGatesToLearningData(
+      buildLearningViewModel(
+        curriculumData,
+        learningProgress
+      ),
+      assessmentAttempts
+    );
 
   return {
     curriculumData,

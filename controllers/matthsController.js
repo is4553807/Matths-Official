@@ -20,6 +20,19 @@ const {
 const {
   formatAlgebraLesson,
 } = require("../services/mathTextService");
+const {
+  getAcademicYear,
+  lifecycleSessionView,
+  recordStudyActivity,
+  synchronizeUserLifecycle,
+} = require("../services/userLifecycleService");
+const {
+  DIFFICULTY_LABELS,
+  createAssessmentAttempt,
+  getAssessmentAttempt,
+  getAssessmentCenterData,
+  submitAssessmentAttempt,
+} = require("../services/assessmentService");
 const bcrypt = require('bcrypt');
 const BCRYPT_ROUNDS = 12;
 
@@ -209,7 +222,12 @@ exports.unitLearning = async (
       req.query.reviewAttempt || ""
     ).trim();
 
-    const [lesson, conceptProgress, reviewContext] =
+    const [
+      lesson,
+      conceptProgress,
+      reviewContext,
+      assessmentData,
+    ] =
       await Promise.all([
         ConceptLesson.findOne({
           curriculumId: "kr-2022",
@@ -236,6 +254,10 @@ exports.unitLearning = async (
               conceptId,
             })
           : null,
+
+        getAssessmentCenterData(
+          req.session.user.id
+        ),
       ]);
 
     const mastery =
@@ -251,9 +273,28 @@ exports.unitLearning = async (
       };
 
     const renderedLesson =
-      unitView.course.id === "algebra"
-        ? formatAlgebraLesson(lesson)
-        : lesson;
+      formatAlgebraLesson(lesson);
+    const assessmentCourse =
+      assessmentData.courses.find(
+        (item) =>
+          item.id ===
+          unitView.course.id
+      );
+    const assessmentUnit =
+      assessmentCourse?.units.find(
+        (item) =>
+          item.id ===
+          unitView.unit.id
+      );
+    const subunitAssessment =
+      assessmentUnit?.subunits.find(
+        (item) =>
+          item.concepts.some(
+            (assessmentConcept) =>
+              assessmentConcept.id ===
+              conceptId
+          )
+      ) || null;
 
     return res.render("unit-learning", {
       learningData,
@@ -261,6 +302,7 @@ exports.unitLearning = async (
       lesson: renderedLesson,
       mastery,
       reviewContext,
+      subunitAssessment,
       user: req.session.user,
     });
   } catch (error) {
@@ -295,6 +337,7 @@ function createLoginSession(req, user) {
                 name: user.name,
                 email: user.email,
                 schoolGrade: user.schoolGrade,
+                ...lifecycleSessionView(user),
 
                 school: user.school
                     ? {
@@ -460,6 +503,8 @@ exports.register = async (req, res, next) => {
             email,
             passwordHash,
             schoolGrade,
+            lastGradePromotionYear:
+                getAcademicYear(),
 
             school: {
                 region: selectedSchool.region,
@@ -555,7 +600,7 @@ exports.login = async (req, res, next) => {
          * passwordHash가 Schema에서 select: false라면
          * 반드시 select("+passwordHash")를 사용해야 한다.
          */
-        const user = await User.findOne({ email })
+        let user = await User.findOne({ email })
             .select("+passwordHash")
             .lean();
 
@@ -586,6 +631,12 @@ exports.login = async (req, res, next) => {
             });
         }
 
+        user = (
+            await synchronizeUserLifecycle(
+                user._id
+            )
+        ).toObject();
+
         /*
          * 로그인 전에 사용자가 접근하려던 주소를 보관한다.
          * regenerate하면 기존 session 데이터가 사라지므로 먼저 꺼내야 한다.
@@ -603,6 +654,7 @@ exports.login = async (req, res, next) => {
             name: user.name,
             email: user.email,
             schoolGrade: user.schoolGrade,
+            ...lifecycleSessionView(user),
 
             school: user.school
                 ? {
@@ -979,6 +1031,124 @@ exports.loggedCurriculumPage = async (req, res, next) => {
   }
 };
 
+exports.assessmentCenterPage = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const assessmentData =
+      await getAssessmentCenterData(
+        req.session.user.id
+      );
+
+    return res.render(
+      "assessment-center",
+      {
+        user: req.session.user,
+        assessmentData,
+      }
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.startAssessment = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const attempt =
+      await createAssessmentAttempt({
+        userId:
+          req.session.user.id,
+        scopeType: String(
+          req.body?.scopeType || ""
+        ),
+        courseId: String(
+          req.body?.courseId || ""
+        ),
+        unitId:
+          String(
+            req.body?.unitId || ""
+          ) || null,
+        subunitId:
+          String(
+            req.body?.subunitId || ""
+          ) || null,
+      });
+
+    return res.redirect(
+      `/assessments/${attempt._id}`
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.assessmentAttemptPage = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const attempt =
+      await getAssessmentAttempt({
+        userId:
+          req.session.user.id,
+        attemptId:
+          req.params.attemptId,
+      });
+
+    return res.render(
+      "assessment-attempt",
+      {
+        user: req.session.user,
+        attempt,
+        difficultyLabels:
+          DIFFICULTY_LABELS,
+      }
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.submitAssessment = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const attempt =
+      await submitAssessmentAttempt({
+        userId:
+          req.session.user.id,
+        attemptId:
+          req.params.attemptId,
+        answers:
+          req.body?.answers || {},
+      });
+
+    const activityUser =
+      await recordStudyActivity(
+        req.session.user.id
+      );
+    Object.assign(
+      req.session.user,
+      lifecycleSessionView(activityUser)
+    );
+
+    return res.redirect(
+      `/assessments/${attempt._id}`
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.wrongNotesPage = async (req, res, next) => {
   try {
     const wrongNoteData = await getWrongNoteData(
@@ -1028,6 +1198,15 @@ exports.updateTopicCompletion = async (req, res, next) => {
       sessionId: req.sessionID,
     });
 
+    const activityUser =
+      await recordStudyActivity(
+        req.session.user.id
+      );
+    Object.assign(
+      req.session.user,
+      lifecycleSessionView(activityUser)
+    );
+
     return res.json({ progress });
   } catch (error) {
     if (error.status) {
@@ -1056,6 +1235,7 @@ exports.nextPracticeProblem = async (
         req.query.reviewAttempt,
     });
 
+    res.set("Cache-Control", "no-store");
     return res.json(result);
   } catch (error) {
     if (error.status) {
@@ -1080,6 +1260,15 @@ exports.submitPracticeProblem = async (
       instanceId: req.body.instanceId,
       submittedAnswer: req.body.answer,
     });
+
+    const activityUser =
+      await recordStudyActivity(
+        req.session.user.id
+      );
+    Object.assign(
+      req.session.user,
+      lifecycleSessionView(activityUser)
+    );
 
     return res.json(result);
   } catch (error) {
@@ -1114,6 +1303,15 @@ exports.changeConceptCompletion = async (
       completed: req.body.completed,
       sessionId: req.sessionID,
     });
+
+    const activityUser =
+      await recordStudyActivity(
+        req.session.user.id
+      );
+    Object.assign(
+      req.session.user,
+      lifecycleSessionView(activityUser)
+    );
 
     return res.json({ mastery });
   } catch (error) {

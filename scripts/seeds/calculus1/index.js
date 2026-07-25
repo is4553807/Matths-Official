@@ -10,10 +10,18 @@ const functionContinuity = require(
 const continuousFunctionProperties = require(
   "./continuousFunctionProperties"
 );
+const differentiationLessons = require(
+  "./differentiation"
+);
+const integrationLessons = require(
+  "./integration"
+);
 
 module.exports = [
   functionLimit,
   limitPropertiesAndCalculation,
   functionContinuity,
   continuousFunctionProperties,
+  ...differentiationLessons,
+  ...integrationLessons,
 ];

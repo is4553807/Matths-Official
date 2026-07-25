@@ -1,0 +1,303 @@
+<%
+  const submitted =
+    attempt.status === "submitted";
+  const difficultyClass = (value) =>
+    value === "advanced"
+      ? "advanced"
+      : value === "applied"
+        ? "applied"
+        : "mid-high";
+  const choiceMarkers = [
+    "①",
+    "②",
+    "③",
+    "④",
+    "⑤",
+    "⑥",
+    "⑦",
+    "⑧",
+    "⑨",
+    "⑩",
+  ];
+  const choiceMarker = (index) =>
+    choiceMarkers[index] || `${index + 1}번`;
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="<%= attempt.title %> 응시 화면"
+    />
+    <title><%= attempt.title %> | Matths</title>
+    <link
+      rel="stylesheet"
+      href="/css/main.css"
+    />
+    <link
+      rel="stylesheet"
+      href="/css/assessment.css"
+    />
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
+          processEscapes: true,
+        },
+        svg: {
+          fontCache: "global",
+        },
+      };
+    </script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"
+      defer
+    ></script>
+    <% if (!submitted) { %>
+      <script
+        src="/js/assessment.js"
+        defer
+      ></script>
+    <% } %>
+  </head>
+  <body class="assessment-page attempt-page">
+    <a
+      class="skip-link"
+      href="#attempt-main"
+    >
+      본문으로 바로가기
+    </a>
+
+    <header class="attempt-topbar">
+      <a
+        class="brand"
+        href="/assessments"
+      >
+        <span
+          class="brand-mark"
+          aria-hidden="true"
+        >M</span>
+        <span>평가 센터</span>
+      </a>
+      <a
+        class="attempt-exit"
+        href="/assessments"
+      >
+        평가 목록
+      </a>
+    </header>
+
+    <main
+      class="attempt-main"
+      id="attempt-main"
+    >
+      <header class="attempt-heading">
+        <div>
+          <p class="eyebrow">
+            <%= attempt.scopeType === "subunit"
+              ? "MIDTERM"
+              : attempt.scopeType === "unit"
+                ? "UNIT FINAL"
+                : "COURSE FINAL" %>
+          </p>
+          <h1><%= attempt.title %></h1>
+          <p><%= attempt.subtitle %></p>
+        </div>
+
+        <% if (submitted) { %>
+          <div
+            class="result-score <%= attempt.passed ? 'passed' : 'failed' %>"
+          >
+            <span>
+              <%= attempt.passed ? "PASS" : "RETRY" %>
+            </span>
+            <strong>
+              <%= attempt.scorePercent %>
+              <small>점</small>
+            </strong>
+            <p>
+              <%= attempt.passed
+                ? "80점 기준을 통과했습니다."
+                : "80점 이상이면 통과합니다." %>
+            </p>
+          </div>
+        <% } else { %>
+          <div class="attempt-progress-card">
+            <span>ANSWERED</span>
+            <strong>
+              <b id="answered-count">0</b>
+              / <%= attempt.questions.length %>
+            </strong>
+            <div aria-hidden="true">
+              <i id="answered-progress"></i>
+            </div>
+            <p>
+              정답 제출 후에는 답을 바꿀 수 없습니다.
+            </p>
+          </div>
+        <% } %>
+      </header>
+
+      <form
+        class="assessment-paper"
+        id="assessment-paper"
+        action="/assessments/<%= attempt._id %>/submit"
+        method="post"
+      >
+        <% attempt.questions.forEach((question, index) => {
+          const submittedChoiceIndex =
+            question.inputMode === "multiple-choice"
+              ? question.choices.findIndex(
+                  (choice) =>
+                    String(choice.key) ===
+                    String(question.submittedAnswer)
+                )
+              : -1;
+          const answerChoiceIndex =
+            question.inputMode === "multiple-choice"
+              ? question.choices.findIndex(
+                  (choice) =>
+                    String(choice.key) ===
+                    String(question.answer)
+                )
+              : -1;
+        %>
+          <article
+            class="assessment-question <%= submitted ? (question.isCorrect ? 'correct' : 'wrong') : '' %>"
+            data-question
+          >
+            <header>
+              <span class="question-number">
+                <%= String(index + 1).padStart(2, "0") %>
+              </span>
+              <span
+                class="difficulty-tag <%= difficultyClass(question.difficulty) %>"
+              >
+                <%= difficultyLabels[question.difficulty] %>
+              </span>
+              <span class="question-points">
+                <%= question.points %>점
+              </span>
+              <% if (submitted) { %>
+                <strong>
+                  <%= question.isCorrect ? "정답" : "오답" %>
+                </strong>
+              <% } %>
+            </header>
+
+            <div class="question-prompt">
+              <%= question.prompt %>
+            </div>
+
+            <% if (question.inputMode === "multiple-choice") { %>
+              <div class="question-choices">
+                <% question.choices.forEach((choice, choiceIndex) => { %>
+                  <label>
+                    <input
+                      type="radio"
+                      name="answers[<%= question.questionId %>]"
+                      value="<%= choice.key %>"
+                      <%= submitted && String(question.submittedAnswer) === String(choice.key) ? "checked" : "" %>
+                      <%= submitted ? "disabled" : "" %>
+                    />
+                    <span class="choice-key">
+                      <%= choiceMarker(choiceIndex) %>
+                    </span>
+                    <span><%= choice.text %></span>
+                  </label>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <label class="short-answer">
+                <span>답</span>
+                <input
+                  type="text"
+                  name="answers[<%= question.questionId %>]"
+                  value="<%= submitted ? question.submittedAnswer : '' %>"
+                  placeholder="<%= question.difficulty === 'advanced' ? '예: 12, 2' : '정답 입력' %>"
+                  autocomplete="off"
+                  <%= submitted ? "readonly" : "" %>
+                />
+              </label>
+            <% } %>
+
+            <% if (submitted) { %>
+              <div class="question-review">
+                <div>
+                  <span>제출한 답</span>
+                  <strong class="review-answer">
+                    <% if (submittedChoiceIndex >= 0) { %>
+                      <span class="choice-key">
+                        <%= choiceMarker(submittedChoiceIndex) %>
+                      </span>
+                      <span>
+                        <%= question.choices[submittedChoiceIndex].text %>
+                      </span>
+                    <% } else { %>
+                      <%= question.submittedAnswer || "미응답" %>
+                    <% } %>
+                  </strong>
+                </div>
+                <div>
+                  <span>정답</span>
+                  <strong class="review-answer">
+                    <% if (answerChoiceIndex >= 0) { %>
+                      <span class="choice-key">
+                        <%= choiceMarker(answerChoiceIndex) %>
+                      </span>
+                      <span>
+                        <%= question.choices[answerChoiceIndex].text %>
+                      </span>
+                    <% } else { %>
+                      <%= question.answer %>
+                    <% } %>
+                  </strong>
+                </div>
+                <p><%= question.solution %></p>
+              </div>
+            <% } %>
+          </article>
+        <% }) %>
+
+        <% if (!submitted) { %>
+          <footer class="paper-submit">
+            <div>
+              <span>PASS LINE</span>
+              <strong>
+                <%= attempt.passScore %>점 이상
+              </strong>
+              <p>
+                비어 있는 답은 오답으로 처리됩니다.
+              </p>
+            </div>
+            <button type="submit">
+              답안 제출 및 채점
+            </button>
+          </footer>
+        <% } else { %>
+          <footer class="paper-submit result-actions">
+            <div>
+              <span>RESULT</span>
+              <strong>
+                <%= attempt.earnedPoints %>
+                / <%= attempt.totalPoints %>점
+              </strong>
+              <p>
+                오답 해설을 확인한 뒤 새 회차에 응시할 수 있습니다.
+              </p>
+            </div>
+            <a href="/assessments">
+              평가 센터로 돌아가기
+            </a>
+          </footer>
+        <% } %>
+      </form>
+    </main>
+  </body>
+</html>

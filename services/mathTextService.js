@@ -43,7 +43,7 @@ const SUPERSCRIPT_CHARACTERS = {
 };
 
 const MATH_FRAGMENT_PATTERN =
-  /[A-Za-z0-9πθΣ√∛∞₀-₉₊₋₌₍₎ₙₖ⁰-⁹⁺⁻⁼⁽⁾ⁿᵏᵐᶠᵍˣ≤≥≠×÷·−±°]/;
+  /[A-Za-z0-9πθΣ∫√∛∞′″₀-₉₊₋₌₍₎ₙₖ⁰-⁹⁺⁻⁼⁽⁾ⁿᵏᵐᶠᵍˣ≤≥≠×÷·−±°]/;
 
 const DASHBOARD_FORMULA_OVERRIDES = {
   "밑>1 증가 · 0<밑<1 감소":
@@ -56,6 +56,23 @@ const DASHBOARD_FORMULA_OVERRIDES = {
   "a/sinA = 2R · a² = b²+c²−2bc·cosA":
     "\\(\\frac{a}{\\sin A}=2R,\\quad " +
     "a^2=b^2+c^2-2bc\\cos A\\)",
+  "f′(a) = lim h→0 [f(a+h)-f(a)]/h":
+    "\\(f'(a)=\\displaystyle\\lim_{h\\to0}" +
+    "\\frac{f(a+h)-f(a)}{h}\\)",
+  "f′(c) = [f(b)-f(a)]/(b-a)":
+    "\\(f'(c)=\\displaystyle\\frac{f(b)-f(a)}{b-a}\\)",
+  "∫xⁿdx = xⁿ⁺¹/(n+1)+C":
+    "\\(\\displaystyle\\int x^n\\,dx=" +
+    "\\frac{x^{n+1}}{n+1}+C\\quad(n\\ne-1)\\)",
+  "∫ₐᵇ f = ∫ₐᶜ f + ∫cᵇ f":
+    "\\(\\displaystyle\\int_a^b f(x)\\,dx=" +
+    "\\int_a^c f(x)\\,dx+\\int_c^b f(x)\\,dx\\)",
+  "∫ₐᵇ f(x)dx = F(b)-F(a)":
+    "\\(\\displaystyle\\int_a^b f(x)\\,dx=F(b)-F(a)\\)",
+  "lim x→a f(x) = f(a)":
+    "\\(\\displaystyle\\lim_{x\\to a}f(x)=f(a)\\)",
+  "lim x→a f(x) = L":
+    "\\(\\displaystyle\\lim_{x\\to a}f(x)=L\\)",
 };
 
 function scriptText(value, characterMap) {
@@ -145,7 +162,9 @@ function normalizeMathSource(value) {
   result = result
     .replace(/−/g, "-")
     .replace(/\+\s*-/g, "-")
-    .replace(/½/g, "\\frac{1}{2}");
+    .replace(/½/g, "\\frac{1}{2}")
+    .replace(/′/g, "'")
+    .replace(/″/g, "''");
 
   result = normalizeRootNotation(result);
   result = replaceScriptCharacters(
@@ -162,6 +181,7 @@ function normalizeMathSource(value) {
   result = result
     .replace(/\^\(([^()]*)\)/g, "^{$1}")
     .replace(/Σ/g, "\\sum ")
+    .replace(/∫/g, "\\int ")
     .replace(/π/g, "\\pi")
     .replace(/θ/g, "\\theta")
     .replace(/∞/g, "\\infty")
@@ -180,6 +200,7 @@ function normalizeMathSource(value) {
     .replace(/∧/g, "\\land ")
     .replace(/∀/g, "\\forall ")
     .replace(/\brad\b/g, "\\mathrm{rad}")
+    .replace(/\blim\b/g, "\\lim")
     .replace(
       /\b(log|sin|cos|tan)(?=[A-Z])/g,
       "\\$1 "
@@ -328,25 +349,38 @@ function formatAlgebraLesson(lesson) {
     dashboardPreview: lesson.dashboardPreview
       ? {
           ...lesson.dashboardPreview,
-          formula:
-            DASHBOARD_FORMULA_OVERRIDES[
-              lesson.dashboardPreview
-                .formula
-            ] ||
-            formatAlgebraMathText(
-              lesson.dashboardPreview
-                .formula
-            ),
+          formula: formatDashboardFormula(
+            lesson.dashboardPreview.formula
+          ),
         }
       : lesson.dashboardPreview,
   };
+}
+
+function formatDashboardFormula(value) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return "";
+  }
+
+  const source = String(value);
+
+  return (
+    DASHBOARD_FORMULA_OVERRIDES[source] ||
+    formatAlgebraMathText(source)
+  );
 }
 
 function formatMathTextForCourse(
   courseId,
   value
 ) {
-  return courseId === "algebra"
+  return [
+    "algebra",
+    "probability-statistics",
+  ].includes(courseId)
     ? formatAlgebraMathText(value)
     : String(value ?? "");
 }
@@ -354,5 +388,6 @@ function formatMathTextForCourse(
 module.exports = {
   formatAlgebraMathText,
   formatAlgebraLesson,
+  formatDashboardFormula,
   formatMathTextForCourse,
 };

@@ -94,7 +94,17 @@ const problemTypes = [
           `확인하세요.\n① ${inlineMath(`f(${a})`)}가 정의되는가\n` +
           `② 좌극한과 우극한이 같은가\n` +
           `③ 그 공통 극한값이 ${inlineMath(`f(${a})`)}와 같은가`,
-        visualization: null,
+        visualization: {
+          kind: "polynomial",
+          focusX: a,
+          coefficients: {
+            quadratic: 1,
+            linear: -2 * a,
+            constant: a ** 2,
+          },
+          note:
+            "그래프가 이어지고, 접근하는 높이와 실제 점의 높이가 같은지 확인하세요.",
+        },
       };
     },
   },
@@ -397,7 +407,15 @@ const problemTypes = [
           `${inlineMath(`x=${a}`)}를 분모에 넣으면 ${inlineMath(
           `(${a})-(${excludedPoint})=${a - excludedPoint}`
           )}입니다. 이 값이 0인지 판단하세요.`,
-        visualization: null,
+        visualization: {
+          kind: "rational-continuity",
+          focusX: a,
+          pole: excludedPoint,
+          numeratorConstant,
+          note: isContinuous
+            ? `표시한 x=${a}에서는 분모가 0이 아니므로 곡선이 이어집니다.`
+            : `x=${excludedPoint}에서는 분모가 0이 되어 그래프가 끊깁니다.`,
+        },
         validityChecks: [
           {
             name: "rational-domain-condition",
@@ -469,7 +487,19 @@ const problemTypes = [
           )}입니다.\n` +
           `보기의 양 끝점도 포함하여 이 값을 전혀 포함하지 않는 ` +
           `구간을 찾으세요.`,
-        visualization: null,
+        visualization: {
+          kind: "rational-continuity",
+          focusX: excludedPoint,
+          pole: excludedPoint,
+          numeratorMode: "constant",
+          numeratorValue: 1,
+          safeInterval: [
+            excludedPoint + 1,
+            excludedPoint + 3,
+          ],
+          note:
+            "점선으로 표시된 분모의 영점을 포함하지 않는 구간을 찾으세요.",
+        },
         validityChecks: [
           {
             name: "unique-safe-interval",
@@ -551,7 +581,18 @@ const problemTypes = [
           `왼쪽 끝 ${inlineMath(`x=${a}`)}에서는 우극한을, ` +
           `오른쪽 끝 ${inlineMath(`x=${b}`)}에서는 좌극한을 ` +
           `확인했으므로 두 끝점을 포함할 수 있는지 판단하세요.`,
-        visualization: null,
+        visualization: {
+          kind: "continuous-interval",
+          focusX: (a + b) / 2,
+          left: a,
+          right: b,
+          leftValue: 1,
+          midpoint: (a + b) / 2,
+          midpointValue: -1,
+          rightValue: 2,
+          note:
+            "구간 안의 곡선과 두 끝점이 모두 이어져 닫힌구간 전체가 연결됩니다.",
+        },
       };
     },
   },

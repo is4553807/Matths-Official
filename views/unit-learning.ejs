@@ -18,7 +18,9 @@
         ? "고등학교 2학년"
         : learner.schoolGrade === 12
           ? "고등학교 3학년"
-          : "학년 미설정";
+          : learner.schoolGrade === 13
+            ? "N수생"
+            : "학년 미설정";
 
   /*
    * Controller에서 lesson을 아직 보내지 않아도
@@ -73,6 +75,11 @@
     typeof reviewContext !== "undefined" &&
     reviewContext
       ? reviewContext
+      : null;
+
+  const subunitAssessmentData =
+    typeof subunitAssessment !== "undefined"
+      ? subunitAssessment
       : null;
 %>
 
@@ -156,9 +163,21 @@
       defer
     ></script>
 
+    <!-- 미적분Ⅰ의 접선·도함수·정적분 놀이터 -->
+    <script
+      src="/js/calculus1.js"
+      defer
+    ></script>
+
     <!-- 그래프가 필요한 대수 개념의 설명·놀이터 -->
     <script
       src="/js/algebra-graphs.js"
+      defer
+    ></script>
+
+    <!-- 확률과 통계의 모션그래픽·분포·표집 놀이터 -->
+    <script
+      src="/js/probability-statistics.js"
       defer
     ></script>
   </head>
@@ -254,6 +273,17 @@
             </span>
 
             <span>교육과정</span>
+          </a>
+
+          <a href="/assessments">
+            <span
+              class="nav-icon"
+              aria-hidden="true"
+            >
+              ✓
+            </span>
+
+            <span>평가 센터</span>
           </a>
 
           <a href="/wrong-notes">
@@ -613,6 +643,65 @@
                   %>
                 </ul>
               </aside>
+            <% } %>
+
+            <% if (
+              subunitAssessmentData &&
+              subunitAssessmentData.unlocked
+            ) { %>
+              <section
+                class="subunit-assessment-callout <%= subunitAssessmentData.passed ? 'passed' : '' %>"
+                aria-labelledby="subunit-assessment-title"
+              >
+                <div>
+                  <span>
+                    <%= subunitAssessmentData.passed
+                      ? "MIDTERM PASSED"
+                      : "MIDTERM UNLOCKED" %>
+                  </span>
+                  <h3 id="subunit-assessment-title">
+                    <%= subunitAssessmentData.title %>
+                    중간평가
+                  </h3>
+                  <p>
+                    <%= subunitAssessmentData.passed
+                      ? `80점 기준 통과 · 최고 ${subunitAssessmentData.bestScore}점`
+                      : "이 소단원의 개념을 모두 끝냈습니다. 개념평가보다 한 단계 높은 10문항으로 확인하세요." %>
+                  </p>
+                </div>
+
+                <form
+                  action="/assessments/start"
+                  method="post"
+                >
+                  <input
+                    type="hidden"
+                    name="scopeType"
+                    value="subunit"
+                  />
+                  <input
+                    type="hidden"
+                    name="courseId"
+                    value="<%= course.id %>"
+                  />
+                  <input
+                    type="hidden"
+                    name="unitId"
+                    value="<%= unit.id %>"
+                  />
+                  <input
+                    type="hidden"
+                    name="subunitId"
+                    value="<%= subunitAssessmentData.id %>"
+                  />
+                  <button type="submit">
+                    <%= subunitAssessmentData.passed
+                      ? "새 회차 응시"
+                      : "중간평가 시작" %>
+                    <span aria-hidden="true">→</span>
+                  </button>
+                </form>
+              </section>
             <% } %>
 
             <nav

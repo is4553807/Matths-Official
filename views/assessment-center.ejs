@@ -1,0 +1,319 @@
+<%
+  const learner = user || {};
+  const gradeLabels = {
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+    13: "N수생",
+  };
+  const gradeLabel =
+    gradeLabels[Number(learner.schoolGrade)] ||
+    "학년 미설정";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="완료한 개념만으로 중간평가, 대단원 기말평가, 과목 종합평가에 응시하는 Matths 평가 센터입니다."
+    />
+    <title>평가 센터 | Matths</title>
+    <link
+      rel="stylesheet"
+      href="/css/main.css"
+    />
+    <link
+      rel="stylesheet"
+      href="/css/assessment.css"
+    />
+  </head>
+  <body class="assessment-page">
+    <a
+      class="skip-link"
+      href="#assessment-main"
+    >
+      본문으로 바로가기
+    </a>
+
+    <header class="assessment-topbar">
+      <a
+        class="brand"
+        href="/main"
+        aria-label="Matths 학습 홈"
+      >
+        <span
+          class="brand-mark"
+          aria-hidden="true"
+        >M</span>
+        <span>Matths</span>
+      </a>
+
+      <nav aria-label="평가 센터 메뉴">
+        <a href="/main">학습 홈</a>
+        <a href="/my-learning">내 학습</a>
+        <a href="/log-curriculum">교육과정</a>
+        <a
+          class="active"
+          href="/assessments"
+          aria-current="page"
+        >평가 센터</a>
+      </nav>
+
+      <div class="assessment-user">
+        <strong><%= learner.name || "학생" %></strong>
+        <span><%= gradeLabel %></span>
+      </div>
+    </header>
+
+    <main
+      class="assessment-main"
+      id="assessment-main"
+    >
+      <section class="assessment-hero">
+        <div>
+          <p class="eyebrow">
+            ASSESSMENT CENTER
+          </p>
+          <h1>
+            배운 범위 안에서<br />
+            제대로 확인합니다.
+          </h1>
+          <p>
+            소단원 중간평가부터 과목 종합평가까지
+            모두 80점 이상이어야 통과합니다.
+            새 회차는 수치와 발문이 다시 생성됩니다.
+          </p>
+        </div>
+
+        <div class="pass-rule">
+          <span>PASS LINE</span>
+          <strong>
+            <%= assessmentData.passScore %>
+            <small>점</small>
+          </strong>
+          <p>
+            대단원과 과목은 평가를 통과해야
+            최종 완료로 기록됩니다.
+          </p>
+        </div>
+      </section>
+
+      <% assessmentData.courses.forEach((course, courseIndex) => { %>
+        <section
+          class="assessment-course"
+          aria-labelledby="course-<%= course.id %>"
+        >
+          <header class="course-heading">
+            <div>
+              <span>
+                COURSE
+                <%= String(courseIndex + 1).padStart(2, "0") %>
+              </span>
+              <h2 id="course-<%= course.id %>">
+                <%= course.title %>
+              </h2>
+            </div>
+
+            <div
+              class="course-pass-state <%= course.courseFinal.passed ? 'passed' : '' %>"
+            >
+              <span>과목 종합평가</span>
+              <strong>
+                <%= course.courseFinal.passed
+                  ? `통과 · 최고 ${course.courseFinal.bestScore}점`
+                  : "미완료" %>
+              </strong>
+            </div>
+          </header>
+
+          <div class="assessment-unit-list">
+            <% course.units.forEach((unit, unitIndex) => { %>
+              <article class="assessment-unit">
+                <header>
+                  <span>
+                    <%= ["Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ"][unitIndex] || unitIndex + 1 %>
+                  </span>
+                  <div>
+                    <h3><%= unit.title %></h3>
+                    <p>
+                      개념 완료
+                      <strong>
+                        <%= unit.conceptsCompleted ? "완료" : "진행 중" %>
+                      </strong>
+                      · 중간평가
+                      <strong>
+                        <%= unit.midtermsPassed ? "전체 통과" : "남음" %>
+                      </strong>
+                    </p>
+                  </div>
+                </header>
+
+                <div class="subassessment-grid">
+                  <% unit.subunits.forEach((subunit) => { %>
+                    <div
+                      class="subassessment-card <%= subunit.passed ? 'passed' : subunit.unlocked ? 'ready' : 'locked' %>"
+                    >
+                      <div class="assessment-state-icon" aria-hidden="true">
+                        <%= subunit.passed ? "✓" : subunit.unlocked ? "→" : "·" %>
+                      </div>
+
+                      <div>
+                        <span>소단원 중간평가 · 10문항</span>
+                        <h4><%= subunit.title %></h4>
+                        <p>
+                          <%= subunit.passed
+                            ? `통과 · 최고 ${subunit.bestScore}점 · ${subunit.attempts}회 응시`
+                            : subunit.unlocked
+                              ? "응시 가능 · 중상 난이도"
+                              : subunit.lockReason %>
+                        </p>
+                        <small>
+                          <%= subunit.concepts
+                            .map((concept) => concept.title)
+                            .join(" · ") %>
+                        </small>
+                      </div>
+
+                      <form
+                        action="/assessments/start"
+                        method="post"
+                      >
+                        <input
+                          type="hidden"
+                          name="scopeType"
+                          value="subunit"
+                        />
+                        <input
+                          type="hidden"
+                          name="courseId"
+                          value="<%= course.id %>"
+                        />
+                        <input
+                          type="hidden"
+                          name="unitId"
+                          value="<%= unit.id %>"
+                        />
+                        <input
+                          type="hidden"
+                          name="subunitId"
+                          value="<%= subunit.id %>"
+                        />
+                        <button
+                          type="submit"
+                          <%= subunit.unlocked ? "" : "disabled" %>
+                        >
+                          <%= subunit.passed ? "새 회차" : "응시하기" %>
+                        </button>
+                      </form>
+                    </div>
+                  <% }) %>
+                </div>
+
+                <div
+                  class="unit-final <%= unit.final.passed ? 'passed' : unit.final.unlocked ? 'ready' : 'locked' %>"
+                >
+                  <div>
+                    <span>대단원 기말평가 · 20문항</span>
+                    <h4>
+                      <%= unit.title %> 종합
+                    </h4>
+                    <p>
+                      중상 7문항 · 응용 8문항 · 심화 5문항
+                    </p>
+                  </div>
+
+                  <div class="unit-final-action">
+                    <strong>
+                      <%= unit.final.passed
+                        ? `통과 · 최고 ${unit.final.bestScore}점`
+                        : unit.final.unlocked
+                          ? "응시 가능"
+                          : unit.final.lockReason %>
+                    </strong>
+                    <form
+                      action="/assessments/start"
+                      method="post"
+                    >
+                      <input
+                        type="hidden"
+                        name="scopeType"
+                        value="unit"
+                      />
+                      <input
+                        type="hidden"
+                        name="courseId"
+                        value="<%= course.id %>"
+                      />
+                      <input
+                        type="hidden"
+                        name="unitId"
+                        value="<%= unit.id %>"
+                      />
+                      <button
+                        type="submit"
+                        <%= unit.final.unlocked ? "" : "disabled" %>
+                      >
+                        <%= unit.final.passed ? "새 회차" : "기말평가 시작" %>
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+
+          <div
+            class="course-final <%= course.courseFinal.passed ? 'passed' : course.courseFinal.unlocked ? 'ready' : 'locked' %>"
+          >
+            <div>
+              <span>COURSE FINAL · 40 QUESTIONS</span>
+              <h3>
+                <%= course.title %> 과목 종합평가
+              </h3>
+              <p>
+                과목 안에서 배운 개념과 응용·심화 문제를
+                전 범위로 확인합니다.
+              </p>
+            </div>
+
+            <div>
+              <strong>
+                <%= course.courseFinal.passed
+                  ? `통과 · 최고 ${course.courseFinal.bestScore}점`
+                  : course.courseFinal.unlocked
+                    ? "응시 가능"
+                    : course.courseFinal.lockReason %>
+              </strong>
+              <form
+                action="/assessments/start"
+                method="post"
+              >
+                <input
+                  type="hidden"
+                  name="scopeType"
+                  value="course"
+                />
+                <input
+                  type="hidden"
+                  name="courseId"
+                  value="<%= course.id %>"
+                />
+                <button
+                  type="submit"
+                  <%= course.courseFinal.unlocked ? "" : "disabled" %>
+                >
+                  <%= course.courseFinal.passed ? "새 회차" : "종합평가 시작" %>
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
+      <% }) %>
+    </main>
+  </body>
+</html>

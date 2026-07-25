@@ -34,7 +34,9 @@
         ? "고등학교 2학년"
         : Number(learner.schoolGrade) === 12
           ? "고등학교 3학년"
-          : "학년 미설정";
+          : Number(learner.schoolGrade) === 13
+            ? "N수생"
+            : "학년 미설정";
   const safeSchoolJson =
     JSON.stringify(regionData)
       .replace(/</g, "\\u003c")
@@ -62,7 +64,7 @@
 
     <div class="profile-page-shell">
       <header class="profile-header">
-        <a class="brand" href="/main" aria-label="Matths 학습 홈">
+        <a class="brand" href="/" aria-label="Matths 학습 홈">
           <span class="brand-mark" aria-hidden="true">M</span>
           <span>Matths</span>
         </a>

@@ -8,6 +8,12 @@ const functionContinuity = require(
 const continuousFunctionProperties = require(
   "./calculus1/continuousFunctionProperties"
 );
+const {
+  generatorMap:
+    advancedCalculusGeneratorMap,
+} = require(
+  "./calculus1/advancedCalculus"
+);
 const powersAndRoots = require(
   "./algebra/powersAndRoots"
 );
@@ -62,6 +68,11 @@ const recursiveSequences = require(
 const mathematicalInduction = require(
   "./algebra/mathematicalInduction"
 );
+const {
+  generatorMap: probabilityStatisticsGeneratorMap,
+} = require(
+  "./probabilityStatistics/generators"
+);
 
 const generatorRegistry = new Map([
   [
@@ -96,6 +107,7 @@ const generatorRegistry = new Map([
     ].join("/"),
     continuousFunctionProperties,
   ],
+  ...advancedCalculusGeneratorMap.entries(),
   [
     [
       "algebra",
@@ -240,6 +252,7 @@ const generatorRegistry = new Map([
     ].join("/"),
     mathematicalInduction,
   ],
+  ...probabilityStatisticsGeneratorMap.entries(),
 ]);
 
 function getProblemGenerator({

@@ -1,6 +1,35 @@
-exports.isLoggedIn = (req, res, next) => {
+const {
+    getKoreanDateKey,
+    lifecycleSessionView,
+    synchronizeUserLifecycle,
+} = require("../services/userLifecycleService");
+
+exports.isLoggedIn = async (req, res, next) => {
     if (req.session?.user) {
-        return next();
+        try {
+            const todayKey =
+                getKoreanDateKey();
+
+            if (
+                req.session.user
+                    .lifecycleDateKey !==
+                todayKey
+            ) {
+                const user =
+                    await synchronizeUserLifecycle(
+                        req.session.user.id
+                    );
+
+                Object.assign(
+                    req.session.user,
+                    lifecycleSessionView(user)
+                );
+            }
+
+            return next();
+        } catch (error) {
+            return next(error);
+        }
     }
 
     if (req.method === "GET" && req.session) {

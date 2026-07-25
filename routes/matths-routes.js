@@ -63,6 +63,30 @@ router.post('/logout', authMiddleware.isLoggedIn, matthsController.logout);
 
 router.get('/log-curriculum', authMiddleware.isLoggedIn, matthsController.loggedCurriculumPage);
 
+router.get(
+  "/assessments",
+  authMiddleware.isLoggedIn,
+  matthsController.assessmentCenterPage
+);
+
+router.post(
+  "/assessments/start",
+  authMiddleware.isLoggedIn,
+  matthsController.startAssessment
+);
+
+router.get(
+  "/assessments/:attemptId",
+  authMiddleware.isLoggedIn,
+  matthsController.assessmentAttemptPage
+);
+
+router.post(
+  "/assessments/:attemptId/submit",
+  authMiddleware.isLoggedIn,
+  matthsController.submitAssessment
+);
+
 router.get('/wrong-notes', authMiddleware.isLoggedIn, matthsController.wrongNotesPage);
 
 router.get(

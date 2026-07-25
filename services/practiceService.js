@@ -21,17 +21,29 @@ const {
 const QUESTION_EXPIRES_MS = 15 * 60 * 1000;
 const MAX_SESSION_QUESTIONS = 30;
 const REVIEW_VARIATION_ATTEMPTS = 16;
+const MAX_REVIEW_PROMPT_ENTRIES = 50;
 
 function generateReviewVariation({
   problemType,
   courseId,
-  previousPrompt,
+  previousProblem,
 }) {
+  const fingerprint = (problem) =>
+    JSON.stringify({
+      prompt: formatMathTextForCourse(
+        courseId,
+        problem?.prompt || ""
+      ),
+      choices: (problem?.choices || []).map(
+        (choice) =>
+          formatMathTextForCourse(
+            courseId,
+            choice?.text || ""
+          )
+      ),
+    });
   const normalizedPrevious =
-    formatMathTextForCourse(
-      courseId,
-      previousPrompt
-    );
+    fingerprint(previousProblem);
   let generated = null;
 
   for (
@@ -43,10 +55,8 @@ function generateReviewVariation({
       generateValidProblem(problemType);
 
     if (
-      formatMathTextForCourse(
-        courseId,
-        generated.prompt
-      ) !== normalizedPrevious
+      fingerprint(generated) !==
+      normalizedPrevious
     ) {
       return generated;
     }
@@ -57,6 +67,81 @@ function generateReviewVariation({
    * 하나의 문장일 수 있다. 이 경우에도 복습을 막지는 않는다.
    */
   return generated;
+}
+
+function reviewPromptKey(reviewAttemptId) {
+  return String(reviewAttemptId || "");
+}
+
+function getPreviousReviewProblem({
+  req,
+  reviewAttemptId,
+  fallbackProblem,
+}) {
+  const key = reviewPromptKey(reviewAttemptId);
+
+  return (
+    req.session.reviewPreviousProblems?.[key]
+      ?.problem ||
+    fallbackProblem ||
+    { prompt: "", choices: [] }
+  );
+}
+
+function rememberReviewProblem({
+  req,
+  reviewAttemptId,
+  problem,
+}) {
+  const key = reviewPromptKey(reviewAttemptId);
+  if (!key || !problem?.prompt) return;
+
+  req.session.reviewPreviousProblems ||= {};
+  req.session.reviewPreviousProblems[key] = {
+    problem: {
+      prompt: problem.prompt,
+      choices: problem.choices || [],
+    },
+    updatedAt: Date.now(),
+  };
+
+  const entries = Object.entries(
+    req.session.reviewPreviousProblems
+  );
+
+  if (entries.length <= MAX_REVIEW_PROMPT_ENTRIES) {
+    return;
+  }
+
+  entries
+    .sort(
+      ([, left], [, right]) =>
+        Number(left?.updatedAt || 0) -
+        Number(right?.updatedAt || 0)
+    )
+    .slice(
+      0,
+      entries.length - MAX_REVIEW_PROMPT_ENTRIES
+    )
+    .forEach(([staleKey]) => {
+      delete req.session.reviewPreviousProblems[
+        staleKey
+      ];
+    });
+}
+
+function clearReviewProblem({
+  req,
+  reviewAttemptId,
+}) {
+  const key = reviewPromptKey(reviewAttemptId);
+
+  if (
+    key &&
+    req.session.reviewPreviousProblems
+  ) {
+    delete req.session.reviewPreviousProblems[key];
+  }
 }
 
 function masteryView(progress) {
@@ -112,6 +197,7 @@ async function requireReviewAttempt({
     _id: reviewAttemptId,
     userId,
     isCorrect: false,
+    reviewSourceAttemptId: null,
     courseId,
     unitId,
     conceptId,
@@ -381,11 +467,28 @@ async function createNextProblem({
     ? generateReviewVariation({
         problemType,
         courseId,
-        previousPrompt:
-          reviewAttempt.problemSnapshot?.stem ||
-          "",
+        previousProblem: getPreviousReviewProblem({
+          req,
+          reviewAttemptId: reviewAttempt._id,
+          fallbackProblem: {
+            prompt:
+              reviewAttempt.problemSnapshot
+                ?.stem || "",
+            choices:
+              reviewAttempt.problemSnapshot
+                ?.choices || [],
+          },
+        }),
       })
     : generateValidProblem(problemType);
+
+  if (reviewAttempt) {
+    rememberReviewProblem({
+      req,
+      reviewAttemptId: reviewAttempt._id,
+      problem: generated,
+    });
+  }
 
   const problemTemplate =
     await ensureProblemTemplate({
@@ -571,6 +674,8 @@ async function submitProblem({
   const attempt = await ProblemAttempt.create({
     userId,
     problemId,
+    reviewSourceAttemptId:
+      stored.reviewAttemptId || null,
     curriculumId: "kr-2022",
     courseId: stored.courseId,
     unitId: stored.unitId,
@@ -595,7 +700,9 @@ async function submitProblem({
           relatedConceptId: stored.conceptId,
         },
     review: {
-      status: correct
+      status: stored.reviewAttemptId
+        ? "not-required"
+        : correct
         ? "not-required"
         : "pending",
     },
@@ -619,6 +726,8 @@ async function submitProblem({
     metadata: {
       instanceId,
       problemTypeId: stored.typeId,
+      reviewAttemptId:
+        stored.reviewAttemptId || null,
     },
   });
 
@@ -689,6 +798,12 @@ async function submitProblem({
     review = reviewView(originalAttempt);
 
     if (correct && originalAttempt) {
+      clearReviewProblem({
+        req,
+        reviewAttemptId:
+          stored.reviewAttemptId,
+      });
+
       await recordLearningEvent({
         userId,
         sessionId: req.sessionID,
@@ -785,4 +900,8 @@ module.exports = {
   submitProblem,
   changeCompletion,
   getReviewContext,
+  generateReviewVariation,
+  getPreviousReviewProblem,
+  rememberReviewProblem,
+  clearReviewProblem,
 };

@@ -4,6 +4,18 @@
   padding-top: 18px;
 }
 
+.concept-experience mjx-container {
+  max-width: 100%;
+}
+
+.concept-experience mjx-container[display="true"] {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.12em 0;
+  scrollbar-width: thin;
+}
+
 .review-mode-banner {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -179,8 +191,8 @@
   height: 74px;
   display: grid;
   place-items: center;
-  overflow: hidden;
-  padding: 8px;
+  overflow: visible;
+  padding: 8px 4px;
   color: #fff;
   background: var(--blue);
   border-radius: 21px;
@@ -196,7 +208,8 @@
 .concept-intro-card > span mjx-container {
   max-width: 100%;
   margin: 0 !important;
-  overflow: hidden;
+  overflow: visible;
+  font-size: 0.78em !important;
 }
 
 .concept-intro-card p {
@@ -204,6 +217,11 @@
   color: var(--muted);
   font-size: 11px;
   line-height: 1.8;
+}
+
+.concept-intro-card p mjx-container,
+.concept-step-grid p mjx-container {
+  font-size: 0.94em;
 }
 
 .concept-intro-card strong {
@@ -459,11 +477,46 @@
 
 .motion-stage canvas,
 .motion-stage video,
-.motion-stage .algebra-motion-graph {
+.motion-stage .algebra-motion-graph,
+.motion-stage .probability-motion-visual,
+.motion-stage .calculus-motion-visual {
   width: 100%;
   height: 430px;
   display: block;
   object-fit: contain;
+}
+
+.probability-visual-wrap {
+  min-height: 430px;
+}
+
+.probability-visual-wrap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 390px;
+}
+
+.probability-readout strong {
+  min-width: 0;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: clamp(11px, 1.15vw, 14px);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.probability-playground-section .experience-heading h3 {
+  max-width: 720px;
+  font-size: clamp(22px, 2vw, 29px);
+  line-height: 1.25;
+}
+
+.probability-playground-section .experience-heading > span {
+  max-width: 280px;
+  font-size: 11px;
+  line-height: 1.55;
 }
 
 .motion-final-formula {
@@ -526,6 +579,8 @@
 #advance-calculation,
 #advance-algebra,
 #animate-property,
+#rerun-probability-simulation,
+#rerun-calculus-lab,
 .submit-answer,
 .next-problem {
   min-height: 42px;
@@ -543,6 +598,58 @@
   display: grid;
   grid-template-columns: 255px minmax(0, 1fr);
   gap: 13px;
+}
+
+.probability-lab {
+  grid-template-columns: minmax(250px, 285px) minmax(0, 1fr);
+}
+
+.probability-lab .lab-controls {
+  gap: 19px;
+}
+
+.probability-lab .lab-controls p,
+.probability-lab .lab-controls label > span,
+.probability-lab .mode-buttons button {
+  font-size: 11px;
+}
+
+.probability-lab .lab-controls label > span b {
+  font: inherit;
+}
+
+.probability-lab .lab-controls output {
+  min-width: 52px;
+  font-family: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.probability-lab .lab-tip b {
+  font-size: 10px;
+}
+
+.probability-lab .lab-tip p {
+  font-size: 11px;
+}
+
+.probability-lab .lab-formula {
+  min-height: 74px;
+}
+
+.probability-lab .lab-formula strong {
+  flex: 1 1 auto;
+  max-width: calc(100% - 100px);
+  padding: 8px 0;
+  font-size: clamp(13px, 1.35vw, 18px);
+  text-align: right;
+}
+
+.probability-lab .lab-formula strong mjx-container {
+  max-width: 100% !important;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .lab-controls,
@@ -649,22 +756,32 @@
 }
 
 .lab-formula span {
+  flex: 0 0 auto;
   color: #949bad;
   font-size: 8px;
+  white-space: nowrap;
 }
 
 .lab-formula strong {
+  flex: 1 1 auto;
   min-width: 0;
-  overflow-x: auto;
-  font-size: 16px;
-  white-space: nowrap;
+  max-width: calc(100% - 90px);
+  overflow: hidden;
+  font-size: clamp(13px, 1.4vw, 16px);
+  line-height: 1.35;
+  text-align: right;
+  white-space: normal;
   scrollbar-width: thin;
 }
 
 .lab-formula strong mjx-container {
   display: inline-block !important;
-  max-width: none !important;
+  max-width: 100% !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  vertical-align: middle;
   white-space: nowrap;
+  scrollbar-width: thin;
 }
 
 .limit-graph-wrap {
@@ -672,6 +789,70 @@
   overflow: hidden;
   background: #fbfcff;
   overscroll-behavior: contain;
+}
+
+.calculus-graph-wrap {
+  isolation: isolate;
+}
+
+.calculus-graph-toolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 34px minmax(52px, auto) 34px 34px;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #dce2f0;
+  border-radius: 11px;
+  box-shadow: 0 8px 22px rgba(26, 36, 81, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.calculus-graph-toolbar button {
+  width: 34px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #596176;
+  background: #f4f6fb;
+  border: 0;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 850;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.calculus-graph-toolbar button:hover,
+.calculus-graph-toolbar button:focus-visible {
+  color: #fff;
+  background: var(--blue);
+  outline: 0;
+}
+
+.calculus-graph-toolbar output {
+  min-width: 52px;
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+#calculus-playground-visual {
+  touch-action: none;
+  cursor: zoom-in;
+  user-select: none;
+}
+
+#calculus-playground-visual:focus-visible {
+  outline: 3px solid rgba(49, 87, 246, 0.24);
+  outline-offset: -3px;
 }
 
 #limit-graph {
@@ -879,6 +1060,38 @@
   font-size: 10px;
 }
 
+.probability-readout {
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr)
+    minmax(0, 1.45fr);
+}
+
+.probability-readout > div {
+  min-width: 0;
+  min-height: 88px;
+  padding: 13px 10px;
+}
+
+.probability-readout span {
+  font-size: 9px;
+}
+
+.probability-readout strong {
+  min-width: 0;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.probability-readout .limit-verdict strong {
+  color: var(--blue);
+  font-size: 11px;
+}
+
 .practice-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 275px;
@@ -902,16 +1115,36 @@
 
 .problem-prompt {
   min-height: 80px;
+  min-width: 0;
   margin: 24px 0;
   font-size: clamp(17px, 2vw, 23px);
   line-height: 1.7;
+  overflow-wrap: anywhere;
   white-space: pre-line;
 }
 
 .problem-prompt mjx-container,
 .problem-feedback mjx-container,
 .choice-answer mjx-container {
-  font-size: 1em;
+  max-width: 100%;
+  font-size: clamp(0.78em, 1.45vw, 0.94em);
+  vertical-align: -0.08em;
+}
+
+.problem-prompt mjx-container:not([display="true"]),
+.problem-feedback mjx-container:not([display="true"]),
+.choice-answer mjx-container:not([display="true"]) {
+  display: inline-block !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  vertical-align: middle;
+  scrollbar-width: thin;
+}
+
+.problem-prompt mjx-container[display="true"] {
+  display: block !important;
+  margin: 0.5em 0 !important;
+  font-size: clamp(0.72em, 1.4vw, 0.9em);
 }
 
 #problem-answer-area {
@@ -932,12 +1165,17 @@
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 0 14px;
+  padding: 10px 14px;
   background: #fafbfe;
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 10px;
   cursor: pointer;
+}
+
+.choice-answer > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .choice-answer:has(input:checked) {
@@ -1128,7 +1366,9 @@
   #play-limit-approach,
   #advance-calculation,
   #advance-algebra,
-  #animate-property {
+  #animate-property,
+  #rerun-probability-simulation,
+  #rerun-calculus-lab {
     grid-column: 1 / -1;
   }
 
@@ -1166,8 +1406,48 @@
     grid-template-columns: 1fr;
   }
 
+  .concept-intro-card > span {
+    width: 64px;
+    height: 64px;
+  }
+
+  .concept-intro-card > span mjx-container {
+    font-size: 0.58em !important;
+  }
+
   .lab-controls {
     grid-template-columns: 1fr;
+  }
+
+  .lab-formula {
+    gap: 10px;
+    padding: 0 14px;
+  }
+
+  .lab-formula strong,
+  .probability-lab .lab-formula strong {
+    max-width: calc(100% - 72px);
+    font-size: 13px;
+  }
+
+  .calculus-graph-toolbar {
+    top: 8px;
+    right: 8px;
+    grid-template-columns: 32px 46px 32px 32px;
+  }
+
+  .calculus-graph-toolbar button {
+    width: 32px;
+    height: 30px;
+  }
+
+  .calculus-graph-toolbar output {
+    min-width: 46px;
+    font-size: 9px;
+  }
+
+  .problem-prompt {
+    font-size: 16px;
   }
 
   .limit-readout {

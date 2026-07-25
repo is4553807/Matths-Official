@@ -18,7 +18,7 @@ const {
 } = require("../services/curriculumService");
 
 const lessonDefinitions = require(
-  "./seeds/calculus1/limits-and-continuity"
+  "./seeds/calculus1"
 );
 
 function lessonKey(lesson) {
@@ -35,19 +35,17 @@ function getCurriculumConceptIds() {
   const course = curriculum.courses.find(
     (item) => item.id === "calculus-1"
   );
-  const unit = course?.units.find(
-    (item) =>
-      item.id === "limits-and-continuity"
-  );
 
-  if (!unit) {
+  if (!course) {
     throw new Error(
-      "교육과정 YAML에서 미적분Ⅰ 함수의 극한과 연속 단원을 찾을 수 없습니다."
+      "교육과정 YAML에서 미적분Ⅰ 과목을 찾을 수 없습니다."
     );
   }
 
   return new Set(
-    unit.concepts.map((concept) => concept.id)
+    course.units.flatMap((unit) =>
+      unit.concepts.map((concept) => concept.id)
+    )
   );
 }
 
@@ -122,7 +120,7 @@ function validateLessonDefinitions() {
   }
 }
 
-async function seedCalculus1LimitsAndContinuity() {
+async function seedCalculus1() {
   validateLessonDefinitions();
 
   await ConceptLesson.bulkWrite(
@@ -152,7 +150,6 @@ async function seedCalculus1LimitsAndContinuity() {
   const savedLessons = await ConceptLesson.find({
     curriculumId: "kr-2022",
     courseId: "calculus-1",
-    unitId: "limits-and-continuity",
     conceptId: {
       $in: lessonDefinitions.map(
         (lesson) => lesson.conceptId
@@ -173,10 +170,10 @@ async function run() {
 
   try {
     const savedLessons =
-      await seedCalculus1LimitsAndContinuity();
+      await seedCalculus1();
 
     console.log(
-      "미적분Ⅰ 함수의 극한과 연속 seed 완료:",
+      "미적분Ⅰ 전체 개념 seed 완료:",
       savedLessons
         .map((lesson) => lesson.conceptId)
         .join(", ")
@@ -201,5 +198,5 @@ if (require.main === module) {
 module.exports = {
   lessonDefinitions,
   validateLessonDefinitions,
-  seedCalculus1LimitsAndContinuity,
+  seedCalculus1,
 };

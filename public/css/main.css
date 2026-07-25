@@ -785,18 +785,38 @@ a.profile-avatar:hover {
 }
 
 .formula-preview p {
+  width: 100%;
   margin: 0;
   color: #4a588a;
   font-family: Georgia, serif;
-  font-size: 15px;
+  font-size: clamp(11px, 1.05vw, 15px);
   line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .concept-visual > strong {
+  width: 100%;
   color: var(--blue);
   font-family: Georgia, serif;
-  font-size: 14px;
+  font-size: clamp(10px, 0.95vw, 14px);
+  line-height: 1.5;
   text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.formula-preview mjx-container,
+.concept-visual > strong mjx-container {
+  max-width: 100%;
+  margin: 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 3px;
+}
+
+.formula-preview mjx-container svg,
+.concept-visual > strong mjx-container svg {
+  max-width: 100%;
+  height: auto;
 }
 
 /* Today plan */

@@ -12,7 +12,9 @@
       ? "고등학교 2학년"
       : learner.schoolGrade === 12
         ? "고등학교 3학년"
-        : "학년 미설정";
+        : learner.schoolGrade === 13
+          ? "N수생"
+          : "학년 미설정";
 %>
 <!doctype html>
 <html lang="ko">
@@ -59,6 +61,10 @@
           <a href="/log-curriculum">
             <span class="nav-icon" aria-hidden="true">◫</span>
             <span>교육과정</span>
+          </a>
+          <a href="/assessments">
+            <span class="nav-icon" aria-hidden="true">✓</span>
+            <span>평가 센터</span>
           </a>
           <a href="/wrong-notes">
             <span class="nav-icon" aria-hidden="true">↻</span>
@@ -187,6 +193,26 @@
                     </div>
                   </header>
 
+                  <% if (course.assessmentRequired) { %>
+                    <div class="assessment-gate-banner">
+                      <div>
+                        <span>COURSE FINAL REQUIRED</span>
+                        <strong>
+                          개념 학습은 끝났습니다. 과목 종합평가에서 80점 이상을 받으면 최종 완료됩니다.
+                        </strong>
+                      </div>
+                      <a href="/assessments">종합평가 확인 →</a>
+                    </div>
+                  <% } else if (course.assessmentPassed) { %>
+                    <div class="assessment-gate-banner passed">
+                      <div>
+                        <span>COURSE COMPLETE</span>
+                        <strong>과목 종합평가까지 통과했습니다.</strong>
+                      </div>
+                      <a href="/assessments">평가 기록 보기 →</a>
+                    </div>
+                  <% } %>
+
                   <div class="progress-unit-list">
                     <% course.units.forEach((unit, unitIndex) => { %>
                       <details class="progress-unit" data-unit-id="<%= unit.id %>" <%= unitIndex === 0 ? "open" : "" %>>
@@ -206,8 +232,21 @@
                         <div class="unit-progress-body">
                           <div class="unit-action">
                             <p><strong><%= unit.title %></strong>에서 배우는 개념을 순서대로 확인하세요.</p>
-                            <a href="<%= unit.firstConceptHref %>">단원 학습하기 <span aria-hidden="true">→</span></a>
+                            <a href="<%= unit.assessmentRequired ? '/assessments' : unit.firstConceptHref %>">
+                              <%= unit.assessmentRequired ? "기말평가 보기" : "단원 학습하기" %>
+                              <span aria-hidden="true">→</span>
+                            </a>
                           </div>
+
+                          <% if (unit.assessmentRequired) { %>
+                            <p class="unit-assessment-notice">
+                              개념은 모두 완료했지만 대단원 기말평가를 통과하기 전이라 진도는 95%로 유지됩니다.
+                            </p>
+                          <% } else if (unit.assessmentPassed) { %>
+                            <p class="unit-assessment-notice passed">
+                              기말평가 80점 기준을 통과해 대단원이 최종 완료되었습니다.
+                            </p>
+                          <% } %>
 
                           <div class="concept-progress-list">
                             <% unit.concepts.forEach((concept, conceptIndex) => {

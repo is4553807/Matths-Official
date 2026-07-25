@@ -230,6 +230,7 @@ function loadCurriculum() {
         { schoolGrade: 10, title: "고등학교 1학년", type: "common" },
         { schoolGrade: 11, title: "고등학교 2학년", type: "school-defined" },
         { schoolGrade: 12, title: "고등학교 3학년", type: "school-defined" },
+        { schoolGrade: 13, title: "N수생", type: "school-defined" },
       ],
     },
     coursePlacementPolicy: {

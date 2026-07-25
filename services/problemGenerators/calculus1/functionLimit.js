@@ -566,7 +566,15 @@ const problemTypes = [
           `현재 계산식은 ${inlineMath(
             `2\\times(${fLimit})-3\\times(${gLimit})`
           )}입니다. 각 곱셈을 먼저 계산한 뒤 빼세요.`,
-        visualization: null,
+        visualization: {
+          kind: "limit-law-combination",
+          focusX: 0,
+          fLimit,
+          gLimit,
+          resultLimit: answer,
+          note:
+            "두 함수가 각각 향하는 높이를 확인한 뒤 계수를 곱해 결합하세요.",
+        },
         validityChecks: [
           {
             name: "limit-law-answer",

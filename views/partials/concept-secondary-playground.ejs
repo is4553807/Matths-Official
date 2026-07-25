@@ -3,9 +3,321 @@
     typeof algebraGraphProfile !== "undefined"
       ? algebraGraphProfile
       : null;
+  const calculusExperience =
+    typeof isAdvancedCalculusExperience !==
+      "undefined" &&
+    isAdvancedCalculusExperience;
+  const calculusProfile =
+    typeof calculusPlaygroundProfile !==
+        "undefined" &&
+      calculusPlaygroundProfile
+      ? calculusPlaygroundProfile
+      : null;
+  const probabilityExperience =
+    typeof isProbabilityExperience !== "undefined" &&
+    isProbabilityExperience;
+  const probabilityKey =
+    typeof probabilityVisualKey !== "undefined"
+      ? probabilityVisualKey
+      : null;
+  const probabilityProfile =
+    typeof probabilityPlaygroundProfile !==
+      "undefined" &&
+    probabilityPlaygroundProfile
+      ? probabilityPlaygroundProfile
+      : {
+          modePrompt: "확인할 관점",
+          primary: {
+            label: "첫 번째 값",
+            min: 1,
+            max: 10,
+            step: 1,
+            value: 5,
+          },
+          secondary: {
+            label: "두 번째 값",
+            min: 1,
+            max: 10,
+            step: 1,
+            value: 5,
+          },
+          actionLabel: "다시 실행",
+        };
 %>
 
-<% if (playgroundKey === "limit-calculation") { %>
+<% if (calculusExperience && calculusProfile) { %>
+  <div
+    class="limit-lab concept-specific-lab probability-lab calculus-lab"
+    data-calculus-mode="<%= calculusProfile.mode %>"
+  >
+    <aside class="lab-controls">
+      <div>
+        <p>확인할 관점</p>
+        <div class="mode-buttons">
+          <%
+            const calculusBlocks =
+              lesson.dashboardPreview?.blocks || [];
+            calculusBlocks.forEach(
+              (block, index) => {
+          %>
+            <button
+              type="button"
+              class="<%= index === 0 ? 'active' : '' %>"
+              data-calculus-view="<%= index %>"
+            >
+              <%= block.label %>
+            </button>
+          <%
+              }
+            );
+          %>
+        </div>
+      </div>
+
+      <label>
+        <span>
+          <b><%= calculusProfile.primary.label %></b>
+          <output id="calculus-primary-output">
+            <%= calculusProfile.primary.value %>
+          </output>
+        </span>
+        <input
+          id="calculus-primary"
+          type="range"
+          min="<%= calculusProfile.primary.min %>"
+          max="<%= calculusProfile.primary.max %>"
+          step="<%= calculusProfile.primary.step %>"
+          value="<%= calculusProfile.primary.value %>"
+        />
+      </label>
+
+      <label>
+        <span>
+          <b><%= calculusProfile.secondary.label %></b>
+          <output id="calculus-secondary-output">
+            <%= calculusProfile.secondary.value %>
+          </output>
+        </span>
+        <input
+          id="calculus-secondary"
+          type="range"
+          min="<%= calculusProfile.secondary.min %>"
+          max="<%= calculusProfile.secondary.max %>"
+          step="<%= calculusProfile.secondary.step %>"
+          value="<%= calculusProfile.secondary.value %>"
+        />
+      </label>
+
+      <button id="rerun-calculus-lab" type="button">
+        <%= calculusProfile.actionLabel %>
+      </button>
+
+      <div class="lab-tip">
+        <b>관찰 포인트</b>
+        <p id="calculus-tip">
+          두 값을 바꾸면 그래프와 식의 같은 부분이 어떻게
+          변하는지 확인해보세요.
+        </p>
+      </div>
+    </aside>
+
+    <div class="lab-visual">
+      <div class="lab-formula">
+        <span>현재 관계</span>
+        <strong id="calculus-formula">
+          <%= lesson.dashboardPreview?.formula || concept.title %>
+        </strong>
+      </div>
+
+      <div
+        class="limit-graph-wrap probability-visual-wrap calculus-graph-wrap"
+      >
+        <div
+          class="calculus-graph-toolbar"
+          role="group"
+          aria-label="그래프 확대 및 축소"
+        >
+          <button
+            type="button"
+            data-calculus-zoom="out"
+            aria-label="그래프 축소"
+            title="그래프 축소"
+          >−</button>
+          <output
+            id="calculus-zoom-status"
+            aria-live="polite"
+          >100%</output>
+          <button
+            type="button"
+            data-calculus-zoom="in"
+            aria-label="그래프 확대"
+            title="그래프 확대"
+          >+</button>
+          <button
+            type="button"
+            data-calculus-zoom="reset"
+            aria-label="그래프 배율 초기화"
+            title="그래프 배율 초기화"
+          >↺</button>
+        </div>
+        <svg
+          id="calculus-playground-visual"
+          viewBox="0 0 720 430"
+          role="img"
+          tabindex="0"
+          aria-label="<%= concept.title %>의 값을 조작하는 좌표평면"
+        ></svg>
+      </div>
+
+      <div class="limit-readout probability-readout">
+        <div>
+          <span>현재 설정</span>
+          <strong id="calculus-state">-</strong>
+        </div>
+        <div>
+          <span>그래프에서 읽기</span>
+          <strong id="calculus-value">-</strong>
+        </div>
+        <div class="limit-verdict">
+          <span>관찰 결과</span>
+          <strong id="calculus-verdict">-</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+<% } else if (probabilityExperience) { %>
+  <div
+    class="limit-lab concept-specific-lab probability-lab"
+    data-probability-visual="<%= probabilityKey %>"
+  >
+    <aside class="lab-controls">
+      <div>
+        <p><%= probabilityProfile.modePrompt %></p>
+
+        <div class="mode-buttons">
+          <%
+            const probabilityBlocks =
+              lesson.dashboardPreview?.blocks || [];
+
+            probabilityBlocks.forEach(
+              (block, index) => {
+          %>
+            <button
+              type="button"
+              class="<%= index === 0 ? 'active' : '' %>"
+              data-probability-mode="<%= index %>"
+            >
+              <%= block.label %>
+            </button>
+          <%
+              }
+            );
+          %>
+        </div>
+      </div>
+
+      <label>
+        <span>
+          <b id="probability-primary-label">
+            <%= probabilityProfile.primary.label %>
+          </b>
+          <output id="probability-primary-output">
+            <%= probabilityProfile.primary.value %>
+          </output>
+        </span>
+        <input
+          id="probability-primary"
+          type="range"
+          min="<%= probabilityProfile.primary.min %>"
+          max="<%= probabilityProfile.primary.max %>"
+          step="<%= probabilityProfile.primary.step %>"
+          value="<%= probabilityProfile.primary.value %>"
+        />
+      </label>
+
+      <label>
+        <span>
+          <b id="probability-secondary-label">
+            <%= probabilityProfile.secondary.label %>
+          </b>
+          <output id="probability-secondary-output">
+            <%
+              const secondaryLabels =
+                probabilityProfile.secondary.labels;
+              const initialSecondaryLabel =
+                Array.isArray(secondaryLabels)
+                  ? secondaryLabels[
+                      probabilityProfile.secondary.value
+                    ]
+                  : probabilityProfile.secondary.scale
+                    ? (
+                        probabilityProfile.secondary.value *
+                        probabilityProfile.secondary.scale
+                      ).toFixed(
+                        probabilityProfile.secondary.digits ?? 2
+                      )
+                    : probabilityProfile.secondary.value;
+            %>
+            <%= initialSecondaryLabel %>
+          </output>
+        </span>
+        <input
+          id="probability-secondary"
+          type="range"
+          min="<%= probabilityProfile.secondary.min %>"
+          max="<%= probabilityProfile.secondary.max %>"
+          step="<%= probabilityProfile.secondary.step %>"
+          value="<%= probabilityProfile.secondary.value %>"
+        />
+      </label>
+
+      <button id="rerun-probability-simulation" type="button">
+        <%= probabilityProfile.actionLabel %>
+      </button>
+
+      <div class="lab-tip">
+        <b>관찰 포인트</b>
+        <p id="probability-tip">
+          값을 바꾸면 그림의 영역·막대·구간이 어떤 규칙으로
+          변하는지 확인해보세요.
+        </p>
+      </div>
+    </aside>
+
+    <div class="lab-visual">
+      <div class="lab-formula">
+        <span>현재 관계</span>
+        <strong id="probability-formula">
+          <%= lesson.dashboardPreview?.formula || concept.title %>
+        </strong>
+      </div>
+
+      <div class="limit-graph-wrap probability-visual-wrap">
+        <svg
+          id="probability-playground-visual"
+          viewBox="0 0 720 430"
+          role="img"
+          aria-label="<%= concept.title %>의 값을 조작하는 시각화"
+        ></svg>
+      </div>
+
+      <div class="limit-readout probability-readout">
+        <div>
+          <span>현재 설정</span>
+          <strong id="probability-state">-</strong>
+        </div>
+        <div>
+          <span>그림에서 읽기</span>
+          <strong id="probability-value">-</strong>
+        </div>
+        <div class="limit-verdict">
+          <span>관찰 결과</span>
+          <strong id="probability-verdict">-</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+<% } else if (playgroundKey === "limit-calculation") { %>
   <div class="limit-lab concept-specific-lab calculation-lab">
     <aside class="lab-controls">
       <div>

@@ -66,8 +66,17 @@ const userSchema = new Schema(
 
     schoolGrade: {
       type: Number,
-      enum: [10, 11, 12],
+      enum: [10, 11, 12, 13],
       default: 10,
+    },
+
+    /*
+     * 매년 3월 1일 학년 승급을 한 번만 적용하기 위한
+     * 마지막 처리 학년도입니다. 13은 N수생을 뜻합니다.
+     */
+    lastGradePromotionYear: {
+      type: Number,
+      default: null,
     },
 
     preferences: {
@@ -700,6 +709,17 @@ const problemAttemptSchema = new Schema(
       index: true,
     },
 
+    /*
+     * 오답 복습 중 생성된 풀이 기록은 원래 오답과 연결하되,
+     * 별도의 오답 노트 카드로 다시 생성하지 않는다.
+     */
+    reviewSourceAttemptId: {
+      type: Schema.Types.ObjectId,
+      ref: "ProblemAttempt",
+      default: null,
+      index: true,
+    },
+
     curriculumId: {
       type: String,
       required: true,
@@ -896,6 +916,7 @@ problemAttemptSchema.index(
 problemAttemptSchema.index({
   userId: 1,
   isCorrect: 1,
+  reviewSourceAttemptId: 1,
   submittedAt: -1,
 });
 
@@ -911,7 +932,265 @@ problemAttemptSchema.index({
 });
 
 /* --------------------------------------------------
- * 5. LearningEvent
+ * 5. AssessmentAttempt
+ * 소단원 중간평가 · 대단원 기말평가 · 과목 종합평가
+ * -------------------------------------------------- */
+
+const assessmentQuestionSchema =
+  new Schema(
+    {
+      questionId: {
+        type: String,
+        required: true,
+      },
+
+      typeId: {
+        type: String,
+        required: true,
+      },
+
+      sourceTypeIds: {
+        type: [String],
+        default: [],
+      },
+
+      difficulty: {
+        type: String,
+        enum: [
+          "mid-high",
+          "applied",
+          "advanced",
+        ],
+        required: true,
+      },
+
+      sourceCourseId: {
+        type: String,
+        required: true,
+      },
+
+      sourceUnitId: {
+        type: String,
+        required: true,
+      },
+
+      sourceSubunitId: {
+        type: String,
+        required: true,
+      },
+
+      referenceExamIds: {
+        type: [String],
+        default: [],
+      },
+
+      sourcePattern: {
+        type: String,
+        default: "",
+      },
+
+      referenceArchetypeId: {
+        type: String,
+        default: "",
+      },
+
+      estimatedMinutes: {
+        type: Number,
+        min: 0,
+        default: null,
+      },
+
+      reasoningSteps: {
+        type: [String],
+        default: [],
+      },
+
+      adaptationStage: {
+        type: String,
+        default: "",
+      },
+
+      prompt: {
+        type: String,
+        required: true,
+      },
+
+      inputMode: {
+        type: String,
+        enum: [
+          "multiple-choice",
+          "short-answer",
+        ],
+        required: true,
+      },
+
+      choices: {
+        type: [choiceSchema],
+        default: [],
+      },
+
+      answer: {
+        type: Schema.Types.Mixed,
+        required: true,
+      },
+
+      solution: {
+        type: String,
+        default: "",
+      },
+
+      points: {
+        type: Number,
+        min: 0,
+        required: true,
+      },
+
+      submittedAnswer: {
+        type: Schema.Types.Mixed,
+        default: null,
+      },
+
+      isCorrect: {
+        type: Boolean,
+        default: null,
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+const assessmentAttemptSchema =
+  new Schema(
+    {
+      userId: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+        index: true,
+      },
+
+      paperId: {
+        type: String,
+        required: true,
+        unique: true,
+      },
+
+      scopeType: {
+        type: String,
+        enum: [
+          "subunit",
+          "unit",
+          "course",
+        ],
+        required: true,
+      },
+
+      curriculumId: {
+        type: String,
+        default: "kr-2022",
+      },
+
+      courseId: {
+        type: String,
+        required: true,
+      },
+
+      unitId: {
+        type: String,
+        default: null,
+      },
+
+      subunitId: {
+        type: String,
+        default: null,
+      },
+
+      title: {
+        type: String,
+        required: true,
+      },
+
+      subtitle: {
+        type: String,
+        default: "",
+      },
+
+      passScore: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 80,
+      },
+
+      questions: {
+        type: [
+          assessmentQuestionSchema,
+        ],
+        default: [],
+      },
+
+      totalPoints: {
+        type: Number,
+        min: 0,
+        required: true,
+      },
+
+      earnedPoints: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      scorePercent: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 0,
+      },
+
+      passed: {
+        type: Boolean,
+        default: false,
+      },
+
+      status: {
+        type: String,
+        enum: [
+          "in-progress",
+          "submitted",
+        ],
+        default: "in-progress",
+      },
+
+      startedAt: {
+        type: Date,
+        default: Date.now,
+      },
+
+      submittedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    {
+      timestamps: true,
+      versionKey: false,
+    }
+  );
+
+assessmentAttemptSchema.index({
+  userId: 1,
+  scopeType: 1,
+  courseId: 1,
+  unitId: 1,
+  subunitId: 1,
+  passed: 1,
+  submittedAt: -1,
+});
+
+/* --------------------------------------------------
+ * 6. LearningEvent
  * ML 데이터셋으로 사용할 학습 행동 로그
  * -------------------------------------------------- */
 
@@ -1384,6 +1663,13 @@ const ProblemAttempt =
     problemAttemptSchema
   );
 
+const AssessmentAttempt =
+  mongoose.models.AssessmentAttempt ||
+  mongoose.model(
+    "AssessmentAttempt",
+    assessmentAttemptSchema
+  );
+
 const LearningEvent =
   mongoose.models.LearningEvent ||
   mongoose.model(
@@ -1410,6 +1696,7 @@ module.exports = {
     ConceptProgress,
     Problem,
     ProblemAttempt,
+    AssessmentAttempt,
     LearningEvent,
     ConceptLesson,
     DailyPlan,

@@ -5,12 +5,22 @@ const {
     DailyPlan,
     ProblemAttempt,
     LearningEvent,
+    AssessmentAttempt,
 } = require("../models/matthsModel");
 
 const {
     loadCurriculum,
     buildLearningViewModel,
 } = require("./curriculumService");
+const {
+    formatDashboardFormula,
+} = require("./mathTextService");
+const {
+    getEffectiveStreak,
+} = require("./userLifecycleService");
+const {
+    applyAssessmentGatesToLearningData,
+} = require("./assessmentService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -234,6 +244,7 @@ async function getDashboardData(userId) {
         totalSolvedProblems,
         pendingReviewCount,
         recentWrongAttempts,
+        assessmentAttempts,
     ] = await Promise.all([
         ConceptProgress.find({
             userId: user._id,
@@ -349,6 +360,16 @@ async function getDashboardData(userId) {
                 select: "stem score",
             })
             .lean(),
+
+        AssessmentAttempt.find({
+            userId: user._id,
+            status: "submitted",
+            passed: true,
+        })
+            .select(
+                "scopeType courseId unitId subunitId passed scorePercent"
+            )
+            .lean(),
     ]);
 
     const lessonMap = new Map(
@@ -366,9 +387,12 @@ async function getDashboardData(userId) {
         createProgressMap(progressDocuments);
 
     const learningData =
-        buildLearningViewModel(
-            curriculumData,
-            progressMap
+        applyAssessmentGatesToLearningData(
+            buildLearningViewModel(
+                curriculumData,
+                progressMap
+            ),
+            assessmentAttempts
         );
 
     const currentProgress =
@@ -452,8 +476,17 @@ async function getDashboardData(userId) {
                   : null,
 
               preview:
-                  currentLesson?.dashboardPreview ||
-                  null,
+                  currentLesson?.dashboardPreview
+                      ? {
+                            ...currentLesson.dashboardPreview,
+                            formula:
+                                formatDashboardFormula(
+                                    currentLesson
+                                        .dashboardPreview
+                                        .formula
+                                ),
+                        }
+                      : null,
           }
         : null;
 
@@ -679,7 +712,7 @@ async function getDashboardData(userId) {
             schoolGrade: user.schoolGrade,
             school: user.school,
             currentStreak:
-                user.currentStreak || 0,
+                getEffectiveStreak(user),
         },
 
         currentLearning,

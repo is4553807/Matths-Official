@@ -50,7 +50,9 @@
       ? "고등학교 2학년"
       : learner.schoolGrade === 12
         ? "고등학교 3학년"
-        : "학년 미설정";
+        : learner.schoolGrade === 13
+          ? "N수생"
+          : "학년 미설정";
 
   const chartMaximum = Math.max(1, Number(data.weeklyActivity?.maxMinutes) || 0);
 %>
@@ -66,6 +68,22 @@
     <meta name="theme-color" content="#f5f7fc" />
     <title>학습 홈 | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
+          processEscapes: true,
+        },
+        svg: {
+          fontCache: "global",
+        },
+      };
+    </script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"
+      defer
+    ></script>
     <script src="/js/main.js" defer></script>
   </head>
   <body>
@@ -103,6 +121,11 @@
           <a href="/log-curriculum">
             <span class="nav-icon" aria-hidden="true">◫</span>
             <span>교육과정</span>
+          </a>
+
+          <a href="/assessments">
+            <span class="nav-icon" aria-hidden="true">✓</span>
+            <span>평가 센터</span>
           </a>
 
           <a href="/wrong-notes">
@@ -281,15 +304,12 @@
                     <% }) %>
                   </div>
                 <% } else { %>
-                  <div class="formula-preview" aria-hidden="true">
+                  <div class="formula-preview">
                     <span>ƒ</span>
                     <p><%= current.preview?.formula || current.conceptTitle %></p>
                   </div>
                 <% } %>
 
-                <% if (current.preview?.formula) { %>
-                  <strong><%= current.preview.formula %></strong>
-                <% } %>
               </div>
             <% } else { %>
               <div class="section-empty large">

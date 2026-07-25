@@ -476,20 +476,29 @@
 
 .wrong-item-body > h3 {
   margin: 16px 0 0;
-  overflow-x: auto;
-  overflow-y: hidden;
+  min-width: 0;
   font-size: 15px;
   line-height: 1.68;
   letter-spacing: -0.25px;
-  scrollbar-width: thin;
+  overflow-wrap: anywhere;
 }
 
 .wrong-math-content mjx-container[display="true"] {
+  width: 100%;
   margin: 0.55em 0 !important;
 }
 
 .wrong-math-content mjx-container {
-  max-width: none !important;
+  max-width: 100% !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-size: clamp(0.8em, 1.2vw, 0.94em);
+  scrollbar-width: thin;
+}
+
+.wrong-math-content mjx-container:not([display="true"]) {
+  display: inline-block !important;
+  vertical-align: middle;
 }
 
 .problem-meta {

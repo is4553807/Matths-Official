@@ -347,6 +347,7 @@ async function getWrongNoteData(userId, query = {}) {
   const attempts = await ProblemAttempt.find({
     userId,
     isCorrect: false,
+    reviewSourceAttemptId: null,
   })
     .sort({ submittedAt: -1 })
     .limit(MAX_RECENT_ATTEMPTS)
@@ -451,6 +452,7 @@ async function getWrongNoteReviewData({
     _id: attemptId,
     userId,
     isCorrect: false,
+    reviewSourceAttemptId: null,
   })
     .populate({
       path: "problemId",

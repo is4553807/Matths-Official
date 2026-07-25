@@ -74,7 +74,15 @@ const problemTypes = [
           `추가 조건 없이 연속입니다.\n` +
           `보기 중 분모가 생기는 몫이나 역수에는 분모의 함수값이 ` +
           `0이 아니라는 조건이 빠졌는지 확인하세요.`,
-        visualization: null,
+        visualization: {
+          kind: "limit-law-combination",
+          focusX: a,
+          fLimit: 2,
+          gLimit: -1,
+          resultLimit: 1,
+          note:
+            "연속인 두 곡선은 같은 x에서 합·차·곱을 해도 끊기지 않습니다.",
+        },
       };
     },
   },
@@ -130,7 +138,17 @@ const problemTypes = [
             `g(${a})=${gValue}`
           )}이므로 이 값이 0인지 확인해 몫의 연속 성질을 ` +
           `적용할 수 있는지 판단하세요.`,
-        visualization: null,
+        visualization: {
+          kind: "rational-continuity",
+          focusX: a,
+          pole: denominatorIsZero
+            ? a
+            : a + (a < 3 ? 2 : -2),
+          numeratorConstant: fValue,
+          note: denominatorIsZero
+            ? "분모가 0인 표시점에서는 몫의 그래프가 정의되지 않습니다."
+            : "표시점에서 분모가 0이 아니므로 몫의 그래프가 이어집니다.",
+        },
       };
     },
   },
@@ -174,7 +192,19 @@ const problemTypes = [
           )}가 되고, 문제에 주어진 ${inlineMath(
             `f(${b})=${value}`
           )}를 이용할 수 있습니다.`,
-        visualization: null,
+        visualization: {
+          kind: "continuous-interval",
+          focusX: a,
+          left: a - 2,
+          right: a + 2,
+          leftValue: value - 2,
+          midpoint: a,
+          midpointValue: value,
+          rightValue: value + 2,
+          target: value,
+          note:
+            "안쪽 함수가 b로 다가가면 바깥 연속함수의 값은 f(b)로 이어집니다.",
+        },
       };
     },
   },
@@ -222,7 +252,18 @@ const problemTypes = [
           )}라는 닫힌구간”과 “그 구간에서 연속”입니다.\n` +
           `최대·최소 정리가 정확히 보장하는 것은 값의 위치나 ` +
           `근의 개수가 아니라 최댓값과 최솟값의 존재입니다.`,
-        visualization: null,
+        visualization: {
+          kind: "continuous-interval",
+          focusX: (a + b) / 2,
+          left: a,
+          right: b,
+          leftValue: 1,
+          midpoint: (a + b) / 2,
+          midpointValue: -2,
+          rightValue: 2,
+          note:
+            "닫힌구간의 연속인 곡선에는 가장 높은 점과 가장 낮은 점이 모두 존재합니다.",
+        },
       };
     },
   },
@@ -342,7 +383,18 @@ const problemTypes = [
           `${inlineMath(
             `${firstValue}<${target}<${secondValue}`
           )}가 성립하는지 그대로 비교하세요.`,
-        visualization: null,
+        visualization: {
+          kind: "continuous-interval",
+          focusX: (a + b) / 2,
+          left: a,
+          right: b,
+          leftValue: firstValue,
+          rightValue: secondValue,
+          target,
+          note: isBetween
+            ? "목표 높이가 두 끝값 사이에 있어 연속인 곡선과 만납니다."
+            : "목표 높이가 두 끝값 바깥에 있어 사잇값 정리만으로 교점을 보장할 수 없습니다.",
+        },
         validityChecks: [
           {
             name: "intermediate-target-condition",
@@ -414,7 +466,17 @@ const problemTypes = [
           )}입니다.\n` +
           `연속인 그래프가 음수 높이에서 양수 높이로 이동하면 ` +
           `중간 높이 0을 적어도 한 번 지나야 합니다.`,
-        visualization: null,
+        visualization: {
+          kind: "continuous-interval",
+          focusX: (a + b) / 2,
+          left: a,
+          right: b,
+          leftValue: firstValue,
+          rightValue: secondValue,
+          target: 0,
+          note:
+            "음수 높이에서 양수 높이로 이어지는 곡선은 x축을 적어도 한 번 지납니다.",
+        },
         validityChecks: [
           {
             name: "opposite-endpoint-signs",
@@ -489,7 +551,21 @@ const problemTypes = [
           )}, ${inlineMath(
           `f(${lower + 1})=${(lower + 1) ** 3}-${constant}>0`
           )}이므로 이 두 점을 양 끝으로 갖는 구간을 찾으세요.`,
-        visualization: null,
+        visualization: {
+          kind: "continuous-interval",
+          focusX: lower + 0.5,
+          left: lower,
+          right: lower + 1,
+          coefficients: [
+            -constant,
+            0,
+            0,
+            1,
+          ],
+          target: 0,
+          note:
+            "구간의 양 끝에서 함수값의 부호가 바뀌므로 그 사이에 x축과의 교점이 있습니다.",
+        },
         validityChecks: [
           {
             name: "root-bracketing-interval",
@@ -582,7 +658,22 @@ const problemTypes = [
           )}입니다.\n` +
           `두 값의 부호가 서로 다른 쪽 구간에서만 근의 존재가 ` +
           `보장됩니다.`,
-        visualization: null,
+        visualization: {
+          kind: "continuous-interval",
+          focusX: midpoint,
+          left: a,
+          right: b,
+          leftValue: firstValue,
+          midpoint,
+          midpointValue,
+          rightValue: lastValue,
+          target: 0,
+          selectedInterval: rootInLeftHalf
+            ? [a, midpoint]
+            : [midpoint, b],
+          note:
+            "세 점 중 함수값의 부호가 바뀌는 이웃한 두 점을 새 구간으로 선택하세요.",
+        },
         validityChecks: [
           {
             name: "single-bisection-sign-change",
@@ -605,18 +696,28 @@ const problemTypes = [
     difficulty: 2,
 
     generate() {
+      const jumpX = randomInteger(-4, 4);
+      const leftValue = -randomInteger(1, 5);
+      const rightValue = randomInteger(1, 5);
+      const intervalRadius = randomInteger(1, 4);
+      const leftEndpoint =
+        jumpX - intervalRadius;
+      const rightEndpoint =
+        jumpX + intervalRadius;
       const definition =
         "f(x)=\\begin{cases}" +
-        "-1,&x<0\\\\" +
-        "1,&x\\ge0" +
+        `${leftValue},&x<${jumpX}\\\\` +
+        `${rightValue},&x\\ge${jumpX}` +
         "\\end{cases}";
 
       return {
         prompt:
           `${displayMath(definition)}` +
-          `${inlineMath("f(-1)=-1<0<f(1)=1")}이지만 ` +
+          `${inlineMath(
+            `f(${leftEndpoint})=${leftValue}<0<f(${rightEndpoint})=${rightValue}`
+          )}이지만 ` +
           `${inlineMath("f(c)=0")}인 ${inlineMath(
-            "c\\in(-1,1)"
+            `c\\in(${leftEndpoint},${rightEndpoint})`
           )}는 없습니다. 사잇값 정리를 적용할 수 없는 이유를 고르세요.`,
         inputMode: "multiple-choice",
         choices: [
@@ -624,13 +725,15 @@ const problemTypes = [
             key: "not-continuous",
             text:
               `${inlineMath("f(x)")}가 ${inlineMath(
-                "[-1,1]"
+                `[${leftEndpoint},${rightEndpoint}]`
               )}에서 연속이 아니기 때문이다.`,
           },
           {
             key: "not-closed",
             text:
-              `${inlineMath("[-1,1]")}이 닫힌구간이 아니기 때문이다.`,
+              `${inlineMath(
+                `[${leftEndpoint},${rightEndpoint}]`
+              )}이 닫힌구간이 아니기 때문이다.`,
           },
           {
             key: "same-sign",
@@ -643,17 +746,17 @@ const problemTypes = [
         ],
         answer: "not-continuous",
         solution:
-          `함수는 ${inlineMath("x=0")}에서 -1에서 1로 뛰어 ` +
+          `함수는 ${inlineMath(`x=${jumpX}`)}에서 ${leftValue}에서 ${rightValue}로 뛰어 ` +
           "올라 불연속입니다. 연속이라는 핵심 가정이 없으므로 " +
           "중간 높이 0을 지나지 않아도 됩니다.",
         hintText:
-          "그래프가 -1의 높이에서 1의 높이로 이동할 때 " +
+          `그래프가 ${leftValue}의 높이에서 ${rightValue}의 높이로 이동할 때 ` +
           "중간을 지나지 않고 점프하는 지점을 찾으세요.",
         visualization: {
           kind: "one-sided-limits",
-          focusX: 0,
-          leftLimit: -1,
-          rightLimit: 1,
+          focusX: jumpX,
+          leftLimit: leftValue,
+          rightLimit: rightValue,
         },
       };
     },
