@@ -127,7 +127,7 @@
 
 .unit-hero-progress strong {
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 18px;
 }
 
@@ -222,7 +222,7 @@
   color: #8991a5;
   background: #f0f2f7;
   border-radius: 8px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 8px;
 }
 
@@ -267,7 +267,7 @@
 
 .concept-nav-item em {
   color: #9198aa;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 7px;
   font-style: normal;
 }
@@ -320,7 +320,7 @@
 
 .concept-completion > strong {
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 12px;
 }
 
@@ -467,7 +467,7 @@
 
 .visual-step-card > div:first-child b {
   color: #c0c6d4;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 13px;
 }
 
@@ -510,7 +510,7 @@
 .step-scene span {
   margin-left: 4px;
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 16px;
   font-weight: 800;
 }
@@ -690,7 +690,7 @@
   color: var(--orange);
   background: #ffedcf;
   border-radius: 7px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 10px;
   font-weight: 850;
 }

@@ -290,7 +290,7 @@ summary:focus-visible {
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid #dfe3ef;
   box-shadow: 0 18px 45px rgba(30, 42, 100, 0.1);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-weight: 800;
 }
 
@@ -489,7 +489,7 @@ summary:focus-visible {
 
 .popular-card > span {
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 11px;
 }
 
@@ -650,7 +650,7 @@ summary:focus-visible {
 
 .question-meta i {
   color: #9aa1b3;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 9px;
   font-style: normal;
 }
@@ -739,7 +739,7 @@ summary:focus-visible {
   color: var(--blue);
   background: var(--blue-soft);
   border-radius: 17px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 25px;
   font-weight: 800;
 }

@@ -378,7 +378,7 @@ summary:focus-visible {
 
 .core-points span {
   color: var(--primary);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 9px;
 }
 
@@ -476,7 +476,7 @@ summary:focus-visible {
 }
 
 .formula-box span {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 20px;
   font-style: italic;
   font-weight: 700;
@@ -525,7 +525,7 @@ summary:focus-visible {
   position: absolute;
   z-index: 3;
   color: #71788d;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 12px;
   font-style: italic;
 }

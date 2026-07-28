@@ -1,6 +1,25 @@
 <%
+  const learner =
+    typeof user !== "undefined" &&
+    user
+      ? user
+      : {};
+  const gradeLabels = {
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+    13: "N수생",
+  };
+  const gradeLabel =
+    gradeLabels[Number(learner.schoolGrade)] ||
+    "학년 미설정";
   const submitted =
     attempt.status === "submitted";
+  const disqualified =
+    attempt.status ===
+    "disqualified";
+  const terminal =
+    submitted || disqualified;
   const difficultyClass = (value) =>
     value === "advanced"
       ? "advanced"
@@ -20,7 +39,77 @@
     "⑩",
   ];
   const choiceMarker = (index) =>
-    choiceMarkers[index] || `${index + 1}번`;
+    choiceMarkers[index] ||
+    `${index + 1}번`;
+  const timeLimitMs =
+    Number(attempt.timeLimitMs) ||
+    (
+      attempt.scopeType ===
+      "subunit"
+        ? 10
+        : attempt.scopeType ===
+            "unit"
+          ? 30
+          : 60
+    ) * 60 * 1000;
+  const timeLimitMinutes =
+    Math.round(
+      timeLimitMs / 60000
+    );
+  const timeLimitLabel =
+    timeLimitMinutes >= 60
+      ? `${timeLimitMinutes / 60}시간`
+      : timeLimitMinutes >= 1
+        ? `${timeLimitMinutes}분`
+        : `${Math.max(1, Math.round(timeLimitMs / 1000))}초`;
+  const parsedDeadlineMs =
+    new Date(
+      attempt.deadlineAt
+    ).getTime();
+  const deadlineMs =
+    Number.isFinite(
+      parsedDeadlineMs
+    )
+      ? parsedDeadlineMs
+      : Date.now() +
+        timeLimitMs;
+  const remainingTimeMs =
+    disqualified
+      ? 0
+      : submitted
+        ? Math.max(
+            0,
+            timeLimitMs -
+              Number(
+                attempt.elapsedTimeMs
+              )
+          )
+        : Math.max(
+            0,
+            deadlineMs -
+              Date.now()
+          );
+  const formatCountdown = (value) => {
+    const remainingSeconds =
+      Math.max(
+        0,
+        Math.ceil(
+          (Number(value) || 0) /
+            1000
+        )
+      );
+    const minutes = Math.floor(
+      remainingSeconds / 60
+    );
+    const seconds =
+      remainingSeconds % 60;
+
+    return [minutes, seconds]
+      .map((part) =>
+        String(part).padStart(2, "0")
+      )
+      .join(":");
+  };
 %>
 <!doctype html>
 <html lang="ko">
@@ -59,12 +148,20 @@
       src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"
       defer
     ></script>
-    <% if (!submitted) { %>
+    <script src="/js/main.js" defer></script>
+    <% if (!terminal) { %>
+      <script
+        src="/js/math-keyboard.js"
+        defer
+      ></script>
       <script
         src="/js/assessment.js"
         defer
       ></script>
     <% } %>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
   </head>
   <body class="assessment-page attempt-page">
     <a
@@ -74,29 +171,112 @@
       본문으로 바로가기
     </a>
 
-    <header class="attempt-topbar">
-      <a
-        class="brand"
-        href="/assessments"
-      >
-        <span
-          class="brand-mark"
-          aria-hidden="true"
-        >M</span>
-        <span>평가 센터</span>
-      </a>
-      <a
-        class="attempt-exit"
-        href="/assessments"
-      >
-        평가 목록
-      </a>
-    </header>
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top">
+          <a class="brand" href="/main" aria-label="Matths 학습 홈">
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span>Matths</span>
+          </a>
+          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
+        </div>
+
+        <nav class="side-nav" aria-label="대시보드 메뉴">
+          <p>LEARNING</p>
+          <a href="/main">
+            <span class="nav-icon" aria-hidden="true">⌂</span>
+            <span>학습 홈</span>
+          </a>
+          <a href="/my-learning">
+            <span class="nav-icon" aria-hidden="true">▦</span>
+            <span>내 학습</span>
+          </a>
+          <a href="/log-curriculum">
+            <span class="nav-icon" aria-hidden="true">◫</span>
+            <span>교육과정</span>
+          </a>
+          <a class="active" href="/assessments" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">✓</span>
+            <span>평가 센터</span>
+          </a>
+          <a href="/wrong-notes">
+            <span class="nav-icon" aria-hidden="true">↻</span>
+            <span>오답 노트</span>
+          </a>
+          <a href="/war-of-masters">
+            <span class="nav-icon" aria-hidden="true">♜</span>
+            <span>실수들의 전쟁</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="sidebar-profile">
+          <span class="profile-avatar" aria-hidden="true"><%= String(learner.name || "학생").slice(0, 1) %></span>
+          <div class="profile-copy">
+            <strong><%= learner.name || "학생" %>님</strong>
+            <small><%= gradeLabel %></small>
+          </div>
+          <form action="/logout" method="POST">
+            <button type="submit" aria-label="로그아웃" title="로그아웃">↗</button>
+          </form>
+        </div>
+      </aside>
 
     <main
-      class="attempt-main"
+      class="dashboard-main attempt-main"
       id="attempt-main"
     >
+      <header class="topbar assessment-dashboard-topbar">
+        <div class="topbar-left">
+          <button
+            class="sidebar-open"
+            id="sidebar-open"
+            type="button"
+            aria-label="학습 메뉴 열기"
+            aria-controls="dashboard-sidebar"
+            aria-expanded="false"
+          >
+            <span></span><span></span><span></span>
+          </button>
+          <div>
+            <p>평가 센터</p>
+            <h1>
+              <%= disqualified
+                ? "시간 초과 실격"
+                : submitted
+                  ? "평가 결과"
+                  : "평가 응시 중" %>
+            </h1>
+          </div>
+        </div>
+        <a class="back-dashboard" href="/assessments">
+          평가 목록 <span aria-hidden="true">→</span>
+        </a>
+      </header>
+
+      <div
+        class="attempt-timer <%= terminal ? 'finished' : '' %> <%= disqualified ? 'disqualified' : '' %>"
+        aria-label="평가 남은 시간"
+      >
+        <span>
+          TIME LIMIT · <%= timeLimitLabel %>
+        </span>
+        <strong
+          id="assessment-timer"
+          data-remaining-ms="<%= remainingTimeMs %>"
+        ><%= formatCountdown(remainingTimeMs) %></strong>
+        <small id="assessment-save-state">
+          <%= disqualified
+            ? "제한 시간 초과 · 실격"
+            : submitted
+              ? "제출 완료 · 서버 시간 확정"
+              : "답안 자동 저장 · 0초에 자동 실격" %>
+        </small>
+      </div>
+
       <header class="attempt-heading">
         <div>
           <p class="eyebrow">
@@ -108,23 +288,37 @@
           </p>
           <h1><%= attempt.title %></h1>
           <p><%= attempt.subtitle %></p>
+          <p class="attempt-time-limit">
+            제한 시간 <strong><%= timeLimitLabel %></strong>
+            · 시간이 끝나면 자동으로 실격 처리됩니다.
+          </p>
         </div>
 
-        <% if (submitted) { %>
+        <% if (terminal) { %>
           <div
-            class="result-score <%= attempt.passed ? 'passed' : 'failed' %>"
+            class="result-score <%= disqualified ? 'disqualified' : attempt.passed ? 'passed' : 'failed' %>"
           >
             <span>
-              <%= attempt.passed ? "PASS" : "RETRY" %>
+              <%= disqualified
+                ? "TIME OUT"
+                : attempt.passed
+                  ? "PASS"
+                  : "RETRY" %>
             </span>
             <strong>
-              <%= attempt.scorePercent %>
-              <small>점</small>
+              <% if (disqualified) { %>
+                실격
+              <% } else { %>
+                <%= attempt.scorePercent %>
+                <small>점</small>
+              <% } %>
             </strong>
             <p>
-              <%= attempt.passed
-                ? "80점 기준을 통과했습니다."
-                : "80점 이상이면 통과합니다." %>
+              <%= disqualified
+                ? `${timeLimitLabel} 제한 시간을 초과했습니다.`
+                : attempt.passed
+                  ? "80점 기준을 통과했습니다."
+                  : "80점 이상이면 통과합니다." %>
             </p>
           </div>
         <% } else { %>
@@ -203,8 +397,8 @@
                       type="radio"
                       name="answers[<%= question.questionId %>]"
                       value="<%= choice.key %>"
-                      <%= submitted && String(question.submittedAnswer) === String(choice.key) ? "checked" : "" %>
-                      <%= submitted ? "disabled" : "" %>
+                      <%= String(question.submittedAnswer ?? "") === String(choice.key) ? "checked" : "" %>
+                      <%= terminal ? "disabled" : "" %>
                     />
                     <span class="choice-key">
                       <%= choiceMarker(choiceIndex) %>
@@ -219,10 +413,11 @@
                 <input
                   type="text"
                   name="answers[<%= question.questionId %>]"
-                  value="<%= submitted ? question.submittedAnswer : '' %>"
+                  value="<%= question.submittedAnswer ?? '' %>"
                   placeholder="<%= question.difficulty === 'advanced' ? '예: 12, 2' : '정답 입력' %>"
                   autocomplete="off"
-                  <%= submitted ? "readonly" : "" %>
+                  data-math-input
+                  <%= terminal ? "readonly" : "" %>
                 />
               </label>
             <% } %>
@@ -265,7 +460,7 @@
           </article>
         <% }) %>
 
-        <% if (!submitted) { %>
+        <% if (!terminal) { %>
           <footer class="paper-submit">
             <div>
               <span>PASS LINE</span>
@@ -283,13 +478,20 @@
         <% } else { %>
           <footer class="paper-submit result-actions">
             <div>
-              <span>RESULT</span>
+              <span>
+                <%= disqualified
+                  ? "DISQUALIFIED"
+                  : "RESULT" %>
+              </span>
               <strong>
-                <%= attempt.earnedPoints %>
-                / <%= attempt.totalPoints %>점
+                <%= disqualified
+                  ? "제한 시간 초과"
+                  : `${attempt.earnedPoints} / ${attempt.totalPoints}점` %>
               </strong>
               <p>
-                오답 해설을 확인한 뒤 새 회차에 응시할 수 있습니다.
+                <%= disqualified
+                  ? "이번 회차는 채점하지 않으며 새 회차에 다시 응시할 수 있습니다."
+                  : "오답 해설을 확인한 뒤 새 회차에 응시할 수 있습니다." %>
               </p>
             </div>
             <a href="/assessments">
@@ -299,5 +501,19 @@
         <% } %>
       </form>
     </main>
+    </div>
+    <% if (!terminal) { %>
+      <script
+        id="assessment-attempt-config"
+        type="application/json"
+      ><%- JSON.stringify({
+        attemptId: String(attempt._id),
+        timeLimitMs,
+        remainingTimeMs,
+        draftUrl: `/api/assessments/${attempt._id}/draft`,
+        expireUrl: `/api/assessments/${attempt._id}/expire`,
+        attemptUrl: `/assessments/${attempt._id}`,
+      }).replace(/</g, "\\u003c") %></script>
+    <% } %>
   </body>
 </html>

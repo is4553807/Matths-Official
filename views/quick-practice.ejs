@@ -1,0 +1,179 @@
+<%
+  const learner = user || {};
+  const gradeLabels = {
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+    13: "N수생",
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="2·3점 문제를 40초 안에 눈으로 푸는 Matths 짧은 연습입니다."
+    />
+    <title>40초 눈풀이 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/quick-practice.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
+        },
+        svg: { fontCache: "global" },
+      };
+    </script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"
+      defer
+    ></script>
+    <script src="/js/main.js" defer></script>
+    <script src="/js/quick-practice.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#quick-main">본문으로 바로가기</a>
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top">
+          <a class="brand" href="/main" aria-label="Matths 학습 홈">
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span>Matths</span>
+          </a>
+          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
+        </div>
+        <nav class="side-nav" aria-label="대시보드 메뉴">
+          <p>LEARNING</p>
+          <a href="/main"><span class="nav-icon" aria-hidden="true">⌂</span><span>학습 홈</span></a>
+          <a href="/my-learning"><span class="nav-icon" aria-hidden="true">▦</span><span>내 학습</span></a>
+          <a class="active" href="/quick-practice" aria-current="page"><span class="nav-icon" aria-hidden="true">⚡</span><span>40초 눈풀이</span></a>
+          <a href="/assessments"><span class="nav-icon" aria-hidden="true">✓</span><span>평가 센터</span></a>
+          <a href="/wrong-notes"><span class="nav-icon" aria-hidden="true">↻</span><span>오답 노트</span></a>
+          <a href="/war-of-masters"><span class="nav-icon" aria-hidden="true">♜</span><span>실수들의 전쟁</span></a>
+          <a href="/coach-suggestions"><span class="nav-icon" aria-hidden="true">✦</span><span>문구 제안소</span></a>
+        </nav>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile">
+          <span class="profile-avatar" aria-hidden="true"><%= String(learner.name || "학생").slice(0, 1) %></span>
+          <div class="profile-copy">
+            <strong><%= learner.name || "학생" %>님</strong>
+            <small><%= gradeLabels[Number(learner.schoolGrade)] || "학년 미설정" %></small>
+          </div>
+          <form action="/logout" method="POST">
+            <button type="submit" aria-label="로그아웃" title="로그아웃">↗</button>
+          </form>
+        </div>
+      </aside>
+
+      <main class="dashboard-main quick-main" id="quick-main">
+        <header class="topbar quick-topbar">
+          <div class="topbar-left">
+            <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false">
+              <span></span><span></span><span></span>
+            </button>
+            <div>
+              <p>짬짬이 훈련</p>
+              <h1>40초 눈풀이</h1>
+            </div>
+          </div>
+          <a class="quick-back" href="/main">학습 홈으로 →</a>
+        </header>
+
+        <section class="quick-hero">
+          <div>
+            <p class="quick-kicker">2·3점 기본기 속도 훈련</p>
+            <h2>식을 길게 쓰기 전에,<br />머릿속에서 먼저 끝내세요.</h2>
+            <p><%= catalog.scope %>의 출제 구조를 모았습니다. 문제당 제한 시간은 40초이며, 매번 새 숫자로 만든 문항만 자동 검산을 거쳐 출제합니다.</p>
+          </div>
+          <div class="quick-stats" aria-label="눈풀이 기록">
+            <article><span>푼 문제</span><strong id="quick-total"><%= stats.total %></strong><small>문제</small></article>
+            <article><span>정답률</span><strong id="quick-accuracy"><%= stats.accuracy %></strong><small>%</small></article>
+            <article><span>평균 시간</span><strong id="quick-average"><%= (stats.averageMs / 1000).toFixed(1) %></strong><small>초</small></article>
+          </div>
+        </section>
+
+        <section class="quick-workspace" data-quick-practice>
+          <div class="quick-control">
+            <p>난이도 선택</p>
+            <div class="quick-points" role="group" aria-label="배점 선택">
+              <button class="active" type="button" data-point-value="2" aria-pressed="true">2점</button>
+              <button type="button" data-point-value="3" aria-pressed="false">3점</button>
+              <button type="button" data-point-value="mixed" aria-pressed="false">섞어서</button>
+            </div>
+            <ul>
+              <li>풀이 과정 없이 답만 입력합니다.</li>
+              <li>시간이 끝나면 서버에서 자동 만료됩니다.</li>
+              <li>최근 핵심 유형과 세부 유형은 연속 출제를 피합니다.</li>
+            </ul>
+            <details class="quick-catalog">
+              <summary>
+                <span>기출 구조별 유형표</span>
+                <strong><%= catalog.typeCount %>개 유형 · <%= catalog.variantCount %>개 변형</strong>
+              </summary>
+              <div>
+                <% catalog.byPoint.forEach((group) => { %>
+                  <section>
+                    <h3><%= group.points %>점</h3>
+                    <% group.types.forEach((type) => { %>
+                      <article>
+                        <strong><%= type.label %></strong>
+                        <p><%= type.variants.join(" · ") %></p>
+                      </article>
+                    <% }) %>
+                  </section>
+                <% }) %>
+              </div>
+            </details>
+            <button class="quick-start" id="quick-start" type="button">문제 시작</button>
+          </div>
+
+          <div class="quick-problem" id="quick-problem" aria-live="polite">
+            <div class="quick-timer" id="quick-timer" aria-label="남은 시간">
+              <svg viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="timer-track" cx="60" cy="60" r="52"></circle>
+                <circle class="timer-progress" id="timer-progress" cx="60" cy="60" r="52"></circle>
+              </svg>
+              <span><strong id="timer-seconds">40</strong><small>초</small></span>
+            </div>
+            <div class="quick-empty" id="quick-empty">
+              <span aria-hidden="true">⚡</span>
+              <h3>난이도를 고르고 시작하세요.</h3>
+              <p>문제가 열리는 순간부터 40초가 흐릅니다.</p>
+            </div>
+            <div class="quick-question" id="quick-question" hidden>
+              <div class="question-meta">
+                <span id="quick-point-label">2점</span>
+                <strong id="quick-topic-label">기본 계산</strong>
+              </div>
+              <div class="quick-prompt" id="quick-prompt"></div>
+              <form id="quick-answer-form">
+                <label for="quick-answer">정답</label>
+                <div>
+                  <input id="quick-answer" name="answer" type="text" autocomplete="off" inputmode="text" placeholder="답만 입력하세요" />
+                  <button type="submit">정답 제출</button>
+                </div>
+              </form>
+            </div>
+            <div class="quick-result" id="quick-result" hidden>
+              <span id="quick-result-icon" aria-hidden="true">✓</span>
+              <h3 id="quick-result-title"></h3>
+              <p id="quick-result-copy"></p>
+              <div id="quick-solution"></div>
+              <button id="quick-next" type="button">다음 문제</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

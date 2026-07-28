@@ -59,7 +59,7 @@ const problemTypes = [
 
   {
     id: "log-one-zero",
-    label: "유형 6 · log_a 1, log_a a",
+    label: "유형 6 · 로그의 기본값",
     difficulty: 1,
 
     generate() { const a = randomInteger(2, 9), one = Math.random() < 0.5;
@@ -89,7 +89,7 @@ const problemTypes = [
 
   {
     id: "log-inverse",
-    label: "유형 9 · a^(log 값)",
+    label: "유형 9 · 로그와 지수의 역관계",
     difficulty: 3,
 
     generate() { const a = randomInteger(2, 3), k = randomInteger(1, 3);

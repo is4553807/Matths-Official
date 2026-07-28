@@ -17,6 +17,12 @@ const {
 const {
   formatMathTextForCourse,
 } = require("./mathTextService");
+const {
+  buildProblemTypeGuide,
+} = require("./conceptGuideService");
+const {
+  getCoachView,
+} = require("./coachMessageService");
 
 const QUESTION_EXPIRES_MS = 15 * 60 * 1000;
 const MAX_SESSION_QUESTIONS = 30;
@@ -169,9 +175,21 @@ function reviewView(attempt) {
       attempt.problemSnapshot?.typeId || null,
     status,
     completed: status === "completed",
+    scheduled:
+      status === "scheduled",
+    scheduledAt:
+      attempt.review?.scheduledAt ||
+      null,
     reviewedAt:
       attempt.review?.reviewedAt || null,
   };
+}
+
+function nextReviewDate() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  date.setHours(0, 0, 0, 0);
+  return date;
 }
 
 async function requireReviewAttempt({
@@ -263,6 +281,77 @@ function requireGenerator({
   }
 
   return generator;
+}
+
+function stableReviewIndex(
+  reviewAttempt,
+  length
+) {
+  if (length <= 1) return 0;
+
+  const source = String(
+    reviewAttempt?._id || ""
+  );
+  const hash = [...source].reduce(
+    (total, character) =>
+      (
+        total * 31 +
+        character.charCodeAt(0)
+      ) >>> 0,
+    0
+  );
+
+  return hash % length;
+}
+
+function fallbackReviewProblemType({
+  generator,
+  reviewAttempt,
+}) {
+  const targetDifficulty = Math.max(
+    1,
+    Number(
+      reviewAttempt
+        .problemSnapshot
+        ?.difficulty
+    ) || 1
+  );
+  const distances =
+    generator.problemTypes.map(
+      (problemType) => ({
+        problemType,
+        distance: Math.abs(
+          (
+            Number(
+              problemType.difficulty
+            ) || 1
+          ) - targetDifficulty
+        ),
+      })
+    );
+  const closestDistance =
+    Math.min(
+      ...distances.map(
+        (item) => item.distance
+      )
+    );
+  const candidates = distances
+    .filter(
+      (item) =>
+        item.distance ===
+        closestDistance
+    )
+    .map(
+      (item) =>
+        item.problemType
+    );
+
+  return candidates[
+    stableReviewIndex(
+      reviewAttempt,
+      candidates.length
+    )
+  ];
 }
 
 async function findOrCreateProgress({
@@ -436,12 +525,11 @@ async function createNextProblem({
     );
 
     if (!problemType) {
-      const error = new Error(
-        "이 오답의 재도전 문제 유형이 아직 등록되지 않았습니다."
-      );
-
-      error.status = 409;
-      throw error;
+      problemType =
+        fallbackReviewProblemType({
+          generator,
+          reviewAttempt,
+        });
     }
   } else {
     const completedTypes = new Set(
@@ -569,6 +657,28 @@ async function createNextProblem({
       choices: generated.choices || [],
       hintText: generated.hintText || "",
       visualization: generated.visualization || null,
+      conceptGuide:
+        buildProblemTypeGuide({
+          courseId,
+          problemType,
+          problem: generated,
+          order:
+            generator.problemTypes.findIndex(
+              (candidate) =>
+                candidate.id ===
+                problemType.id
+            ) + 1,
+        }),
+      coachPrompt:
+        getCoachView({
+          mode:
+            req.session?.user
+              ?.preferences
+              ?.coachMode,
+          situation:
+            "unanswered",
+          seed: instanceId,
+        }),
     },
     mastery: masteryView(progress),
     review: reviewView(reviewAttempt),
@@ -774,11 +884,12 @@ async function submitProblem({
           },
           {
             $set: {
-              "review.status": "pending",
+              "review.status": "scheduled",
+              "review.scheduledAt":
+                nextReviewDate(),
               "review.correctedAfterReview": false,
             },
             $unset: {
-              "review.scheduledAt": 1,
               "review.reviewedAt": 1,
             },
           },
@@ -828,6 +939,17 @@ async function submitProblem({
     solution: stored.solution,
     mastery: masteryView(progress),
     review,
+    coachFeedback:
+      getCoachView({
+        mode:
+          req.session?.user
+            ?.preferences
+            ?.coachMode,
+        situation: correct
+          ? "correct"
+          : "incorrect",
+        seed: instanceId,
+      }),
   };
 }
 

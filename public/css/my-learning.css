@@ -124,7 +124,7 @@
 
 .overall-ring strong {
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 28px;
 }
 
@@ -157,7 +157,7 @@
 }
 
 .summary-numbers strong {
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 23px;
 }
 
@@ -218,7 +218,7 @@
 
 .course-tab b {
   color: #9aa1b3;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 13px;
 }
 
@@ -274,7 +274,7 @@
   color: #fff;
   background: var(--blue);
   border-radius: 13px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 15px;
   box-shadow: 0 9px 18px rgba(49, 87, 246, 0.18);
 }
@@ -349,7 +349,7 @@
 
 .course-total > b {
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 12px;
 }
 
@@ -390,7 +390,7 @@
   color: var(--blue);
   background: var(--blue-soft);
   border-radius: 10px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 11px;
 }
 
@@ -422,7 +422,7 @@
 
 .unit-bar > strong {
   color: #687087;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 10px;
 }
 
@@ -538,7 +538,7 @@
   color: #8b93a7;
   background: #f0f2f7;
   border-radius: 9px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 9px;
 }
 
@@ -583,7 +583,7 @@
 
 .concept-bar span {
   color: #747c92;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 8px;
 }
 

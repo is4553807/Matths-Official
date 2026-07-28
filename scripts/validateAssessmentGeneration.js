@@ -443,6 +443,22 @@ function buildAllPapers() {
   return papers;
 }
 
+const expectedTimeLimits = {
+  subunit: 10 * 60 * 1000,
+  unit: 30 * 60 * 1000,
+  course: 60 * 60 * 1000,
+};
+
+for (const paper of buildAllPapers()) {
+  assert.equal(
+    paper.timeLimitMs,
+    expectedTimeLimits[
+      paper.scopeType
+    ],
+    `${paper.title}: 평가 범위별 제한 시간이 올바르지 않습니다.`
+  );
+}
+
 function typeIdsByDifficulty(
   paper,
   difficulty

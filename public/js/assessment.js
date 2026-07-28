@@ -18,6 +18,27 @@ document.addEventListener(
       document.querySelector(
         "#answered-progress"
       );
+    const configElement =
+      document.getElementById(
+        "assessment-attempt-config"
+      );
+    const timer =
+      document.getElementById(
+        "assessment-timer"
+      );
+    const saveState =
+      document.getElementById(
+        "assessment-save-state"
+      );
+    const config = configElement
+      ? JSON.parse(
+          configElement.textContent
+        )
+      : null;
+    const timerPanel =
+      timer?.closest(
+        ".attempt-timer"
+      );
 
     if (
       !form ||
@@ -27,6 +48,316 @@ document.addEventListener(
     ) {
       return;
     }
+
+    let localDeadline =
+      Date.now() +
+      Math.max(
+        0,
+        Number(
+          config?.remainingTimeMs
+        ) || 0
+      );
+    let saveTimer = null;
+    let timerFrame = null;
+    let submitting = false;
+    let expiring = false;
+
+    const remainingTime = () =>
+      Math.max(
+        0,
+        localDeadline -
+          Date.now()
+      );
+
+    const formatCountdown = (
+      value
+    ) => {
+      const remainingSeconds =
+        Math.max(
+          0,
+          Math.ceil(
+            value / 1000
+          )
+        );
+      const minutes = Math.floor(
+        remainingSeconds / 60
+      );
+      const seconds =
+        remainingSeconds % 60;
+
+      return [minutes, seconds]
+        .map((part) =>
+          String(part).padStart(
+            2,
+            "0"
+          )
+        )
+        .join(":");
+    };
+
+    const renderTimer = () => {
+      const remaining =
+        remainingTime();
+
+      if (timer) {
+        timer.textContent =
+          formatCountdown(
+            remaining
+          );
+      }
+
+      timerPanel?.classList.toggle(
+        "warning",
+        remaining > 0 &&
+          remaining <= 60000
+      );
+
+      if (remaining <= 0) {
+        expireForTimeout();
+        return;
+      }
+
+      timerFrame =
+        window.requestAnimationFrame(
+          renderTimer
+        );
+    };
+
+    const answersFromForm = () => {
+      const answers = {};
+      const formData =
+        new FormData(form);
+
+      for (const [
+        key,
+        value,
+      ] of formData.entries()) {
+        const match = key.match(
+          /^answers\[(.+)\]$/
+        );
+
+        if (match) {
+          answers[match[1]] =
+            value;
+        }
+      }
+
+      return answers;
+    };
+
+    function disablePaper() {
+      form
+        .querySelectorAll(
+          "input, button"
+        )
+        .forEach((control) => {
+          control.disabled = true;
+        });
+    }
+
+    async function expireForTimeout() {
+      if (
+        expiring ||
+        submitting ||
+        !config?.expireUrl
+      ) {
+        return;
+      }
+
+      expiring = true;
+      submitting = true;
+      window.clearTimeout(
+        saveTimer
+      );
+      window.cancelAnimationFrame(
+        timerFrame
+      );
+      disablePaper();
+      timerPanel?.classList.add(
+        "expired"
+      );
+
+      if (timer) {
+        timer.textContent = "00:00";
+      }
+      if (saveState) {
+        saveState.textContent =
+          "제한 시간 종료 · 실격 처리 중…";
+      }
+
+      try {
+        const response = await fetch(
+          config.expireUrl,
+          {
+            method: "POST",
+            credentials:
+              "same-origin",
+            cache: "no-store",
+            keepalive: true,
+            headers: {
+              Accept:
+                "application/json",
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              answers:
+                answersFromForm(),
+            }),
+          }
+        );
+        const result =
+          await response.json();
+
+        if (
+          response.status === 409 &&
+          Number(
+            result.remainingTimeMs
+          ) > 0
+        ) {
+          localDeadline =
+            Date.now() +
+            Number(
+              result.remainingTimeMs
+            );
+          expiring = false;
+          submitting = false;
+          form
+            .querySelectorAll(
+              "input, button"
+            )
+            .forEach((control) => {
+              control.disabled =
+                false;
+            });
+          timerPanel?.classList.remove(
+            "expired"
+          );
+          renderTimer();
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            result.message ||
+              "시간 만료 처리 실패"
+          );
+        }
+
+        window.location.replace(
+          result.redirectUrl ||
+            config.attemptUrl
+        );
+      } catch (error) {
+        expiring = false;
+        submitting = false;
+
+        if (saveState) {
+          saveState.textContent =
+            "시간 만료 처리 재시도 중…";
+        }
+
+        window.setTimeout(
+          expireForTimeout,
+          1000
+        );
+      }
+    }
+
+    async function saveDraft({
+      beacon = false,
+    } = {}) {
+      if (
+        !config?.draftUrl ||
+        submitting
+      ) {
+        return;
+      }
+
+      const payload = JSON.stringify({
+        answers:
+          answersFromForm(),
+      });
+
+      if (
+        beacon &&
+        navigator.sendBeacon
+      ) {
+        navigator.sendBeacon(
+          config.draftUrl,
+          new Blob([payload], {
+            type: "application/json",
+          })
+        );
+        return;
+      }
+
+      if (saveState) {
+        saveState.textContent =
+          "저장 중…";
+      }
+
+      try {
+        const response = await fetch(
+          config.draftUrl,
+          {
+            method: "POST",
+            credentials:
+              "same-origin",
+            cache: "no-store",
+            keepalive: true,
+            headers: {
+              Accept:
+                "application/json",
+              "Content-Type":
+                "application/json",
+            },
+            body: payload,
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "자동 저장 실패"
+          );
+        }
+
+        const result =
+          await response.json();
+
+        if (result.expired) {
+          submitting = true;
+          window.location.replace(
+            result.redirectUrl ||
+              config.attemptUrl
+          );
+          return false;
+        }
+
+        if (saveState) {
+          saveState.textContent =
+            "답안 자동 저장됨";
+        }
+        return true;
+      } catch (error) {
+        if (saveState) {
+          saveState.textContent =
+            "저장 실패 · 다시 입력하면 재시도";
+        }
+        return null;
+      }
+    }
+
+    const scheduleSave = () => {
+      window.clearTimeout(
+        saveTimer
+      );
+      saveTimer =
+        window.setTimeout(
+          () => saveDraft(),
+          450
+        );
+    };
 
     const questionAnswered = (
       question
@@ -64,11 +395,17 @@ document.addEventListener(
 
     form.addEventListener(
       "input",
-      updateProgress
+      () => {
+        updateProgress();
+        scheduleSave();
+      }
     );
     form.addEventListener(
       "change",
-      updateProgress
+      () => {
+        updateProgress();
+        scheduleSave();
+      }
     );
     form.addEventListener(
       "submit",
@@ -88,10 +425,87 @@ document.addEventListener(
           )
         ) {
           event.preventDefault();
+          return;
+        }
+
+        submitting = true;
+        window.clearTimeout(
+          saveTimer
+        );
+      }
+    );
+
+    document
+      .querySelectorAll(
+        "a[href='/assessments']"
+      )
+      .forEach((link) => {
+        link.addEventListener(
+          "click",
+          async (event) => {
+            if (
+              event.defaultPrevented ||
+              event.button !== 0 ||
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey
+            ) {
+              return;
+            }
+
+            event.preventDefault();
+            window.clearTimeout(
+              saveTimer
+            );
+            const saved =
+              await saveDraft();
+            if (saved === false) {
+              return;
+            }
+            submitting = true;
+            window.location.assign(
+              link.href
+            );
+          }
+        );
+      });
+
+    window.addEventListener(
+      "pagehide",
+      () => {
+        window.cancelAnimationFrame(
+          timerFrame
+        );
+        saveDraft({
+          beacon: true,
+        });
+      }
+    );
+
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        const screenshotShortcut =
+          event.key ===
+            "PrintScreen" ||
+          (
+            event.metaKey &&
+            event.shiftKey &&
+            ["3", "4", "5"].includes(
+              event.key
+            )
+          );
+
+        if (screenshotShortcut) {
+          window.alert(
+            "평가는 자신의 풀이로 먼저 해결해보세요. 운영체제 스크린샷은 웹페이지가 완전히 차단하거나 정확히 감지할 수 없습니다."
+          );
         }
       }
     );
 
     updateProgress();
+    renderTimer();
   }
 );

@@ -99,7 +99,7 @@ const problemTypes = [
 
   {
     id: "cos-from-sides",
-    label: "유형 10 · 세 변으로 cos 구하기",
+    label: "유형 10 · 세 변으로 코사인값 구하기",
     difficulty: 3,
 
     generate() { const T = [[4, 5, 6], [2, 3, 4], [3, 5, 7], [5, 6, 7]][randomInteger(0, 3)];

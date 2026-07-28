@@ -449,7 +449,7 @@ const families = [
         solution:
           `$f'(${contact})=0$이므로 접선은 $y=0$. ` +
           `$${contact}<x<${other}$에서 함수값은 음수이므로 ` +
-          `$S=-\\int_${contact}^{${other}}(x-${contact})^2(x-${other})dx=${area}$. ` +
+          `$S=-\\int_{${contact}}^{${other}}(x-${contact})^2(x-${other})dx=${area}$. ` +
           `따라서 답은 ${answer}이다.`,
         hintText:
           "접선이 x축임을 확인한 뒤 함수의 부호를 보고 절댓값 넓이를 적분하세요.",
@@ -626,7 +626,7 @@ const families = [
 
       return makeShortAnswer({
         prompt:
-          `상수 $a$에 대하여 $\\displaystyle\\int_${left}^{${right}}(${slope}x+a)\\,dx=0$이다. ` +
+          `상수 $a$에 대하여 $\\displaystyle\\int_{${left}}^{${right}}(${slope}x+a)\\,dx=0$이다. ` +
           `$${mode === 0 ? "a" : `(${slope}\\cdot${right}+a)-(${slope}\\cdot${left}+a)`}$의 값을 구하시오.`,
         answer,
         independentAnswer:

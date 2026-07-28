@@ -32,7 +32,7 @@ const problemTypes = [
 
   {
     id: "identity-cos",
-    label: "유형 3 · sin²+cos²=1 (cos 구하기)",
+    label: "유형 3 · 삼각함수의 기본 관계",
     difficulty: 2,
 
     generate() { const T = [[3, 4, 5], [5, 12, 13], [8, 15, 17]][randomInteger(0, 2)];
@@ -42,7 +42,7 @@ const problemTypes = [
 
   {
     id: "tan-from-triple",
-    label: "유형 4 · tanθ=sinθ/cosθ",
+    label: "유형 4 · 삼각함수 사이의 관계",
     difficulty: 2,
 
     generate() { const T = [[3, 4, 5], [5, 12, 13], [8, 15, 17]][randomInteger(0, 2)];

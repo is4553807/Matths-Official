@@ -129,7 +129,7 @@
 }
 
 .experience-nav b {
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 10px;
 }
 
@@ -196,7 +196,7 @@
   color: #fff;
   background: var(--blue);
   border-radius: 21px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 19px;
   font-weight: 800;
   line-height: 1;
@@ -231,6 +231,175 @@
   line-height: 1.65;
 }
 
+.concept-type-guide {
+  margin-top: 28px;
+  padding: clamp(22px, 4vw, 34px);
+  background: #fff;
+  border: 1px solid #dfe4f1;
+  border-radius: 24px;
+}
+
+.concept-type-guide > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.concept-type-guide > header p {
+  margin: 0 0 7px;
+  color: #3157f6;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.6px;
+}
+
+.concept-type-guide > header h3 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -1px;
+}
+
+.concept-type-guide > header > span {
+  color: #7b8499;
+  font-size: 11px;
+}
+
+.concept-type-guide-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.concept-type-guide details {
+  border: 1px solid #e1e5f0;
+  border-radius: 14px;
+  background: #fafbfe;
+}
+
+.concept-type-guide summary {
+  min-height: 60px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.concept-type-guide summary::-webkit-details-marker {
+  display: none;
+}
+
+.concept-type-guide summary b {
+  color: #3157f6;
+  font-size: 9px;
+}
+
+.concept-type-guide summary strong {
+  font-size: 12px;
+}
+
+.concept-type-guide summary span {
+  color: #3157f6;
+  font-size: 20px;
+  transition: transform 0.2s ease;
+}
+
+.concept-type-guide details[open] summary span {
+  transform: rotate(45deg);
+}
+
+.concept-type-guide details > div {
+  padding: 0 15px 16px;
+  border-top: 1px solid #e8ebf3;
+}
+
+.concept-type-guide .guide-label {
+  margin: 15px 0 7px;
+  color: #8b93a7;
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.concept-type-guide .guide-math,
+.concept-type-guide li {
+  color: #262d43;
+  font-size: 11px;
+  line-height: 1.75;
+}
+
+.concept-type-guide ol {
+  margin: 9px 0 0;
+  padding-left: 20px;
+}
+
+.guide-process {
+  display: grid;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.guide-process p {
+  display: grid;
+  grid-template-columns: 23px auto 1fr;
+  align-items: start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+  background: #f1f4ff;
+  border-radius: 9px;
+}
+
+.guide-process span {
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: #3157f6;
+  border-radius: 6px;
+  font-size: 8px;
+}
+
+.guide-process strong {
+  padding-top: 3px;
+  font-size: 9px;
+}
+
+.guide-process em {
+  padding-top: 2px;
+  color: #646e88;
+  font-size: 9px;
+  font-style: normal;
+  line-height: 1.65;
+}
+
+.midterm-pagination button {
+  width: 100%;
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 780px) {
+  .concept-type-guide-list {
+    grid-template-columns: 1fr;
+  }
+
+  .concept-type-guide > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .algebra-graph-wrap {
   position: relative;
   min-width: 0;
@@ -242,6 +411,7 @@
 .algebra-graph-svg {
   width: 100%;
   height: auto;
+  aspect-ratio: 760 / 400;
   display: block;
   background: #fbfcff;
 }
@@ -369,7 +539,7 @@
 
 .algebra-graph-axis-label {
   fill: #8b94a8;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-style: italic;
 }
 
@@ -712,7 +882,7 @@
 
 .lab-controls output {
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 12px;
 }
 
@@ -1050,7 +1220,7 @@
 }
 
 .limit-readout strong {
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 14px;
 }
 
@@ -1127,7 +1297,7 @@
 .problem-feedback mjx-container,
 .choice-answer mjx-container {
   max-width: 100%;
-  font-size: clamp(0.78em, 1.45vw, 0.94em);
+  font-size: clamp(0.76em, 1.25vw, 0.9em);
   vertical-align: -0.08em;
 }
 
@@ -1137,6 +1307,7 @@
   display: inline-block !important;
   overflow-x: auto;
   overflow-y: hidden;
+  margin: 0 0.1em !important;
   vertical-align: middle;
   scrollbar-width: thin;
 }
@@ -1252,7 +1423,7 @@
 
 .mastery-card em {
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 21px;
   font-style: normal;
 }
@@ -1271,7 +1442,7 @@
   color: #9aa1b3;
   background: #f0f2f7;
   border-radius: 10px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 10px;
   font-style: normal;
 }

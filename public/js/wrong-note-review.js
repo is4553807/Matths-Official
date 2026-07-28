@@ -57,6 +57,30 @@
   const noGraphMessage = document.getElementById(
     "no-graph-message"
   );
+  const coachHintMessage =
+    document.getElementById(
+      "review-coach-message"
+    );
+  const conceptGuide =
+    document.getElementById(
+      "review-concept-guide"
+    );
+  const guideOrder =
+    document.getElementById(
+      "review-guide-order"
+    );
+  const guideTitle =
+    document.getElementById(
+      "review-guide-title"
+    );
+  const guideHint =
+    document.getElementById(
+      "review-guide-hint"
+    );
+  const guideSolution =
+    document.getElementById(
+      "review-guide-solution"
+    );
   const feedback = document.getElementById(
     "retry-feedback"
   );
@@ -191,12 +215,51 @@
     if (graphWrap) graphWrap.hidden = false;
     if (noGraphMessage) noGraphMessage.hidden = true;
     if (hintEyebrow) {
-      hintEyebrow.textContent = "HINT";
+      hintEyebrow.textContent =
+        "문제 힌트";
     }
     if (hintTitle) {
       hintTitle.textContent =
         "이 문제의 첫 단계를 확인해보세요.";
     }
+    if (coachHintMessage) {
+      coachHintMessage.hidden = true;
+      coachHintMessage.textContent = "";
+    }
+    if (conceptGuide) {
+      conceptGuide.hidden = true;
+    }
+  }
+
+  function renderProblemGuide(problem) {
+    const guide =
+      problem?.conceptGuide;
+
+    if (!guide || !conceptGuide) {
+      return;
+    }
+
+    if (guideOrder) {
+      guideOrder.textContent =
+        `유형 ${guide.order || 1}`;
+    }
+    if (guideTitle) {
+      guideTitle.textContent =
+        String(guide.title || "")
+          .replace(
+            /^유형\s*\d+\s*·?\s*/,
+            ""
+          );
+    }
+    setMath(
+      guideHint,
+      guide.hint ||
+        problem.hintText
+    );
+    setMath(
+      guideSolution,
+      guide.solution
+    );
   }
 
   function createShortAnswerInput() {
@@ -210,12 +273,16 @@
     input.name = "answer";
     input.type = "text";
     input.inputMode = "text";
+    input.dataset.mathInput = "";
     input.autocomplete = "off";
     input.placeholder =
       "정수를 입력하거나 분수는 1/2처럼 입력하세요.";
     input.required = true;
 
     answerArea.append(label, input);
+    window.MatthsMathKeyboard?.attach(
+      input
+    );
   }
 
   function createChoiceInputs(choices) {
@@ -243,7 +310,8 @@
   function renderProblem(problem, review) {
     currentProblem = problem;
     typeLabel.textContent =
-      problem.typeLabel || "SAME TYPE RETRY";
+      problem.typeLabel ||
+      "같은 유형 다시 풀기";
     setMath(prompt, problem.prompt);
 
     if (window.MathJax?.typesetClear) {
@@ -263,6 +331,7 @@
 
     typesetMath(answerArea);
     resetHint();
+    renderProblemGuide(problem);
 
     feedback.hidden = true;
     feedback.className = "retry-feedback";
@@ -346,6 +415,13 @@
     }
 
     body.textContent = result.solution || "";
+    const coachMessage =
+      result.coachFeedback?.message;
+
+    if (coachMessage) {
+      strong.textContent +=
+        ` ${coachMessage}`;
+    }
     feedback.replaceChildren(strong, body);
     feedback.hidden = false;
     feedback.className = `retry-feedback ${
@@ -366,7 +442,10 @@
     if (!answer) {
       feedback.hidden = false;
       feedback.className = "retry-feedback wrong";
-      feedback.textContent = "정답을 먼저 입력해주세요.";
+      feedback.textContent =
+        currentProblem.coachPrompt
+          ?.message ||
+        "정답을 먼저 입력해주세요.";
       answerArea.querySelector("input")?.focus();
       return;
     }
@@ -1558,7 +1637,48 @@
       xMin = focusX - halfRange;
       xMax = focusX + halfRange;
 
-      const evaluate = coefficients?.length
+      const hasFunctionModel =
+        Boolean(coefficients?.length) ||
+        [
+          visualization.q,
+          visualization.l,
+          visualization.c,
+          visualization.scale,
+          visualization.constant,
+          visualization.vertexX,
+        ].some(
+          (value) =>
+            Number.isFinite(
+              Number(value)
+            )
+        );
+      const suppliedSlope =
+        finiteNumber(
+          visualization.slope,
+          0
+        );
+      const suppliedPointValue =
+        finiteNumber(
+          visualization.value,
+          finiteNumber(
+            visualization.fA,
+            finiteNumber(
+              visualization.y,
+              0
+            )
+          )
+        );
+      const evaluate = !hasFunctionModel &&
+        [
+          "calculus-tangent",
+          "calculus-definition",
+          "calculus-line",
+        ].includes(kind)
+        ? (x) =>
+            suppliedPointValue +
+            suppliedSlope *
+              (x - focusX)
+        : coefficients?.length
         ? (x) =>
             coefficients.reduce(
               (sum, coefficient, index) =>
@@ -1614,7 +1734,8 @@
           "calculus-line",
           "calculus-secant",
           "calculus-mvt",
-        ].includes(kind)
+        ].includes(kind) &&
+        hasFunctionModel
       ) {
         const pointY = evaluate(focusX);
         const tangentSlope = finiteNumber(
@@ -1675,6 +1796,14 @@
       }
 
       note =
+        !hasFunctionModel &&
+        [
+          "calculus-tangent",
+          "calculus-definition",
+          "calculus-line",
+        ].includes(kind)
+          ? "문제에서 정해진 한 점과 기울기만 표시했습니다. 원함수 전체 모양은 조건만으로 결정되지 않습니다."
+          :
         kind.includes("area") ||
         kind.includes("definite") ||
         kind.includes("integral") ||
@@ -2677,11 +2806,22 @@
       graphWrap.hidden = !drawn;
       noGraphMessage.hidden = drawn;
       hintEyebrow.textContent = drawn
-        ? "VISUAL HINT"
-        : "STEP HINT";
+        ? "그래프 힌트"
+        : "단계 힌트";
       hintTitle.textContent = drawn
         ? "현재 숫자로 그래프를 그려봤어요."
         : "현재 숫자를 식에 넣는 순서부터 볼게요.";
+      if (coachHintMessage) {
+        coachHintMessage.textContent =
+          currentProblem.coachPrompt
+            ?.message || "";
+        coachHintMessage.hidden =
+          !coachHintMessage.textContent;
+      }
+      if (conceptGuide) {
+        conceptGuide.hidden =
+          !currentProblem.conceptGuide;
+      }
       hintWasDrawn = true;
     }
 

@@ -45,7 +45,7 @@ const problemTypes = [
 
   {
     id: "sigma-linear",
-    label: "유형 5 · Σ(ak+b) 성질",
+    label: "유형 5 · 시그마의 선형성",
     difficulty: 2,
 
     generate() { const n = randomInteger(3, 8), a = randomInteger(2, 4), b = randomInteger(-3, 3); let s = 0; for (let k = 1; k <= n; k++) s += a * k + b;

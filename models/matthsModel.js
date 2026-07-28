@@ -29,6 +29,16 @@ const preferenceSchema = new Schema(
       type: Boolean,
       default: false,
     },
+
+    /*
+     * 랭킹전에서는 기본적으로 닉네임을 사용한다.
+     * 사용자가 명시적으로 선택한 경우에만 실명을 공개한다.
+     */
+    rankingDisplayMode: {
+      type: String,
+      enum: ["nickname", "realName"],
+      default: "nickname",
+    },
   },
   {
     _id: false,
@@ -42,6 +52,13 @@ const userSchema = new Schema(
       required: true,
       trim: true,
       maxlength: 30,
+    },
+
+    realName: {
+      type: String,
+      trim: true,
+      maxlength: 40,
+      default: "",
     },
 
     email: {
@@ -110,6 +127,27 @@ const userSchema = new Schema(
     lastLoginAt: {
       type: Date,
       default: null,
+    },
+
+    tokenVersion: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
+    termsAcceptedAt: {
+      type: Date,
+      default: null,
+    },
+
+    termsVersion: {
+      type: String,
+      default: "2026-07-28",
+    },
+
+    privacyVersion: {
+      type: String,
+      default: "2026-07-28",
     },
 
     isActive: {
@@ -979,6 +1017,16 @@ const assessmentQuestionSchema =
         required: true,
       },
 
+      sourceConceptId: {
+        type: String,
+        default: "",
+      },
+
+      retryTypeId: {
+        type: String,
+        default: "",
+      },
+
       referenceExamIds: {
         type: [String],
         default: [],
@@ -1159,6 +1207,8 @@ const assessmentAttemptSchema =
         enum: [
           "in-progress",
           "submitted",
+          "abandoned",
+          "disqualified",
         ],
         default: "in-progress",
       },
@@ -1169,6 +1219,32 @@ const assessmentAttemptSchema =
       },
 
       submittedAt: {
+        type: Date,
+        default: null,
+      },
+
+      elapsedTimeMs: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      timeLimitMs: {
+        type: Number,
+        min: 1000,
+        default: null,
+      },
+
+      disqualifiedReason: {
+        type: String,
+        enum: [
+          null,
+          "time-limit",
+        ],
+        default: null,
+      },
+
+      lastSavedAt: {
         type: Date,
         default: null,
       },
@@ -1638,6 +1714,423 @@ dailyPlanSchema.index(
 );
 
 /* --------------------------------------------------
+ * 8. PasswordResetCode
+ * 비밀번호 재설정용 일회성 이메일 인증코드
+ * -------------------------------------------------- */
+
+const passwordResetCodeSchema = new Schema(
+    {
+        userId: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+            index: true,
+        },
+
+        codeHash: {
+            type: String,
+            required: true,
+            select: false,
+        },
+
+        status: {
+            type: String,
+            enum: [
+                "pending",
+                "verified",
+                "used",
+                "locked",
+            ],
+            default: "pending",
+        },
+
+        failedAttempts: {
+            type: Number,
+            min: 0,
+            default: 0,
+        },
+
+        expiresAt: {
+            type: Date,
+            required: true,
+        },
+
+        verifiedAt: {
+            type: Date,
+            default: null,
+        },
+
+        usedAt: {
+            type: Date,
+            default: null,
+        },
+    },
+    {
+        timestamps: true,
+        versionKey: false,
+    }
+);
+
+passwordResetCodeSchema.index(
+    {
+        expiresAt: 1,
+    },
+    {
+        expireAfterSeconds: 0,
+    }
+);
+
+passwordResetCodeSchema.index({
+    userId: 1,
+    createdAt: -1,
+});
+
+/* --------------------------------------------------
+ * 9. QuickPracticeAttempt
+ * 40초 안에 푸는 2·3점 짧은 문제 기록
+ * -------------------------------------------------- */
+
+const quickPracticeAttemptSchema =
+    new Schema(
+        {
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+
+            instanceId: {
+                type: String,
+                required: true,
+                unique: true,
+            },
+
+            pointValue: {
+                type: Number,
+                enum: [2, 3],
+                required: true,
+            },
+
+            topicKey: {
+                type: String,
+                required: true,
+            },
+
+            topicLabel: {
+                type: String,
+                required: true,
+            },
+
+            variantKey: {
+                type: String,
+                default: "",
+            },
+
+            variantLabel: {
+                type: String,
+                default: "",
+            },
+
+            sourceScope: {
+                type: String,
+                default: "",
+            },
+
+            prompt: {
+                type: String,
+                required: true,
+            },
+
+            answer: {
+                type: Schema.Types.Mixed,
+                required: true,
+                select: false,
+            },
+
+            solution: {
+                type: String,
+                default: "",
+            },
+
+            status: {
+                type: String,
+                enum: [
+                    "active",
+                    "correct",
+                    "wrong",
+                    "expired",
+                ],
+                default: "active",
+            },
+
+            startedAt: {
+                type: Date,
+                default: Date.now,
+            },
+
+            deadlineAt: {
+                type: Date,
+                required: true,
+            },
+
+            submittedAnswer: {
+                type: Schema.Types.Mixed,
+                default: null,
+            },
+
+            responseTimeMs: {
+                type: Number,
+                min: 0,
+                default: null,
+            },
+
+            submittedAt: {
+                type: Date,
+                default: null,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+quickPracticeAttemptSchema.index({
+    userId: 1,
+    createdAt: -1,
+});
+
+/* --------------------------------------------------
+ * 10. CoachMessageSuggestion
+ * 학생이 제안하고 운영자가 승인하는 코치 문구
+ * -------------------------------------------------- */
+
+const coachMessageSuggestionSchema =
+    new Schema(
+        {
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+
+            authorName: {
+                type: String,
+                required: true,
+                maxlength: 30,
+            },
+
+            mode: {
+                type: String,
+                enum: [
+                    "mild",
+                    "spicy",
+                    "silent",
+                ],
+                required: true,
+            },
+
+            situation: {
+                type: String,
+                enum: [
+                    "correct",
+                    "incorrect",
+                    "unanswered",
+                ],
+                required: true,
+            },
+
+            message: {
+                type: String,
+                required: true,
+                minlength: 4,
+                maxlength: 120,
+            },
+
+            status: {
+                type: String,
+                enum: [
+                    "pending",
+                    "approved",
+                    "rejected",
+                ],
+                default: "pending",
+            },
+
+            moderatedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+
+            moderatedAt: {
+                type: Date,
+                default: null,
+            },
+
+            rejectionReason: {
+                type: String,
+                maxlength: 200,
+                default: "",
+            },
+
+            useCount: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+coachMessageSuggestionSchema.index({
+    status: 1,
+    mode: 1,
+    situation: 1,
+    createdAt: -1,
+});
+
+/* --------------------------------------------------
+ * 11. SupportInquiry
+ * 로그인 사용자의 문의와 관리자 답변 상태
+ * -------------------------------------------------- */
+
+const supportInquirySchema =
+    new Schema(
+        {
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+
+            authorNickname: {
+                type: String,
+                required: true,
+                maxlength: 30,
+            },
+
+            authorRealName: {
+                type: String,
+                maxlength: 40,
+                default: "",
+            },
+
+            /*
+             * 관리자가 나중에 회원의 현재 정보와 독립적으로
+             * 당시 가입 이메일을 확인하고 답변할 수 있도록
+             * 문의 접수 시점의 주소를 함께 보관합니다.
+             */
+            contactEmail: {
+                type: String,
+                required: true,
+                trim: true,
+                lowercase: true,
+            },
+
+            schoolName: {
+                type: String,
+                maxlength: 120,
+                default: "",
+            },
+
+            subject: {
+                type: String,
+                required: true,
+                minlength: 2,
+                maxlength: 120,
+            },
+
+            content: {
+                type: String,
+                required: true,
+                minlength: 10,
+                maxlength: 5000,
+            },
+
+            status: {
+                type: String,
+                enum: [
+                    "pending",
+                    "in_review",
+                    "replied",
+                    "closed",
+                ],
+                default: "pending",
+            },
+
+            emailNotification: {
+                status: {
+                    type: String,
+                    enum: [
+                        "pending",
+                        "sent",
+                        "preview",
+                        "failed",
+                    ],
+                    default: "pending",
+                },
+                attemptedAt: {
+                    type: Date,
+                    default: null,
+                },
+                providerMessageId: {
+                    type: String,
+                    maxlength: 200,
+                    default: "",
+                },
+                errorMessage: {
+                    type: String,
+                    maxlength: 300,
+                    default: "",
+                },
+            },
+
+            adminReply: {
+                message: {
+                    type: String,
+                    maxlength: 5000,
+                    default: "",
+                },
+                sentTo: {
+                    type: String,
+                    maxlength: 320,
+                    default: "",
+                },
+                repliedAt: {
+                    type: Date,
+                    default: null,
+                },
+                repliedBy: {
+                    type: Schema.Types.ObjectId,
+                    ref: "User",
+                    default: null,
+                },
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+supportInquirySchema.index({
+    userId: 1,
+    createdAt: -1,
+});
+
+supportInquirySchema.index({
+    status: 1,
+    createdAt: -1,
+});
+
+/* --------------------------------------------------
  * Model 생성
  * -------------------------------------------------- */
 
@@ -1691,6 +2184,34 @@ const DailyPlan =
         dailyPlanSchema
     );
 
+const PasswordResetCode =
+    mongoose.models.PasswordResetCode ||
+    mongoose.model(
+        "PasswordResetCode",
+        passwordResetCodeSchema
+    );
+
+const QuickPracticeAttempt =
+    mongoose.models.QuickPracticeAttempt ||
+    mongoose.model(
+        "QuickPracticeAttempt",
+        quickPracticeAttemptSchema
+    );
+
+const CoachMessageSuggestion =
+    mongoose.models.CoachMessageSuggestion ||
+    mongoose.model(
+        "CoachMessageSuggestion",
+        coachMessageSuggestionSchema
+    );
+
+const SupportInquiry =
+    mongoose.models.SupportInquiry ||
+    mongoose.model(
+        "SupportInquiry",
+        supportInquirySchema
+    );
+
 module.exports = {
     User,
     ConceptProgress,
@@ -1700,4 +2221,8 @@ module.exports = {
     LearningEvent,
     ConceptLesson,
     DailyPlan,
+    PasswordResetCode,
+    QuickPracticeAttempt,
+    CoachMessageSuggestion,
+    SupportInquiry,
 };

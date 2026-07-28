@@ -99,7 +99,7 @@ const problemTypes = [
 
   {
     id: "nth-term-value",
-    label: "유형 10 · 일반항 An+B 계산",
+    label: "유형 10 · 일반항의 값 계산",
     difficulty: 1,
 
     generate() { const A = nonZeroInteger(-5, 5), B = randomInteger(-5, 5), n = randomInteger(2, 9);

@@ -57,7 +57,11 @@
       defer
     ></script>
     <script src="/js/main.js" defer></script>
+    <script src="/js/math-keyboard.js" defer></script>
     <script src="/js/wrong-note-review.js" defer></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
   </head>
 
   <body>
@@ -122,9 +126,9 @@
             <span class="nav-icon" aria-hidden="true">↻</span>
             <span>오답 노트</span>
           </a>
-          <a href="/main#learning-record">
-            <span class="nav-icon" aria-hidden="true">⌁</span>
-            <span>학습 기록</span>
+          <a href="/war-of-masters">
+            <span class="nav-icon" aria-hidden="true">♜</span>
+            <span>실수들의 전쟁</span>
           </a>
         </nav>
 
@@ -132,38 +136,35 @@
 
         <section
           class="coach-mini"
-          data-mode="spicy"
+          data-mode="<%= coach.mode %>"
+          data-situation="<%= coach.situation %>"
           aria-labelledby="coach-mini-title"
         >
           <div class="coach-heading">
             <span aria-hidden="true">M</span>
             <p>
               <small>MATTHS COACH</small>
-              <strong id="coach-mini-title">매운맛 모드</strong>
+              <strong id="coach-mini-title"><%= coach.title %></strong>
             </p>
           </div>
           <p id="coach-mini-message">
-            답부터 보지 말고, 어떤 정의를 써야 하는지 먼저 봐.
+            <%= coach.message %>
           </p>
           <div
             class="coach-modes"
             role="group"
             aria-label="학습 코치 말투 선택"
           >
-            <button type="button" data-mode="mild" aria-pressed="false">
-              순한맛
-            </button>
-            <button
-              class="active"
-              type="button"
-              data-mode="spicy"
-              aria-pressed="true"
-            >
-              매운맛
-            </button>
-            <button type="button" data-mode="silent" aria-pressed="false">
-              무음
-            </button>
+            <% [["mild", "순한맛"], ["spicy", "매운맛"], ["silent", "무음"]].forEach(([mode, label]) => { %>
+              <button
+                class="<%= coach.mode === mode ? 'active' : '' %>"
+                type="button"
+                data-mode="<%= mode %>"
+                aria-pressed="<%= coach.mode === mode %>"
+              >
+                <%= label %>
+              </button>
+            <% }) %>
           </div>
         </section>
 
@@ -289,7 +290,7 @@
           >
             <header class="retry-header">
               <div>
-                <span id="retry-type-label">SAME TYPE RETRY</span>
+                <span id="retry-type-label">같은 유형 다시 풀기</span>
                 <h2 id="retry-title">같은 유형에 다시 도전하세요.</h2>
               </div>
               <span class="retry-badge" id="retry-state-badge">
@@ -350,7 +351,7 @@
               >
                 <header>
                   <div>
-                    <span id="hint-panel-eyebrow">HINT</span>
+                    <span id="hint-panel-eyebrow">문제 힌트</span>
                     <h3 id="graph-hint-title">
                       이 문제의 첫 단계를 확인해보세요.
                     </h3>
@@ -363,6 +364,11 @@
                     ×
                   </button>
                 </header>
+                <p
+                  class="review-coach-message"
+                  id="review-coach-message"
+                  hidden
+                ></p>
                 <p class="math-content" id="graph-hint-text"></p>
                 <div
                   class="function-graph-wrap"
@@ -394,6 +400,33 @@
                   이 유형은 그래프보다 정의와 계산 순서가 중요하므로
                   현재 문제에 맞춘 단계 힌트를 제공합니다.
                 </p>
+
+                <div
+                  class="review-concept-guide"
+                  id="review-concept-guide"
+                  hidden
+                >
+                  <h4>이 문제에 필요한 개념과 풀이</h4>
+                  <details>
+                    <summary>
+                      <b id="review-guide-order">현재 유형</b>
+                      <span id="review-guide-title"></span>
+                      <i aria-hidden="true">+</i>
+                    </summary>
+                    <div>
+                      <strong>이 문제의 첫 단서</strong>
+                      <p
+                        class="math-content"
+                        id="review-guide-hint"
+                      ></p>
+                      <strong>계산 순서와 검산</strong>
+                      <p
+                        class="math-content"
+                        id="review-guide-solution"
+                      ></p>
+                    </div>
+                  </details>
+                  </div>
               </section>
 
               <div

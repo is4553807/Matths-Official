@@ -94,6 +94,23 @@
   line-height: 1.8;
 }
 
+.wrong-hero-copy
+  .review-status-guide {
+  margin-top: 12px;
+  padding: 11px 14px;
+  color: #c8d0e8;
+  background:
+    rgba(255, 255, 255, 0.055);
+  border: 1px solid
+    rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.review-status-guide strong {
+  color: #fff;
+}
+
 .review-summary {
   display: grid;
   grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.1fr);
@@ -124,7 +141,7 @@
 .review-focus strong {
   margin-top: 8px;
   color: #fff;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 56px;
   line-height: 1;
 }
@@ -153,7 +170,7 @@
 }
 
 .review-breakdown strong {
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 22px;
 }
 
@@ -206,7 +223,7 @@
   color: var(--blue);
   background: var(--blue-soft);
   border-radius: 8px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 10px;
 }
 
@@ -344,7 +361,7 @@
 
 .result-heading h2 strong {
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
 }
 
 .result-heading > p {
@@ -403,7 +420,7 @@
   color: #fff;
   background: #303954;
   border-radius: 10px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 10px;
 }
 
@@ -576,7 +593,7 @@
   color: #d74e5c;
   background: #fff0f2;
   border-radius: 7px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 10px;
 }
 

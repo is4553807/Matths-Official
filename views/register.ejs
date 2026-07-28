@@ -9,6 +9,7 @@
     oldInput
       ? oldInput
       : {
+          realName: "",
           name: "",
           email: "",
           schoolGrade: 10,
@@ -66,6 +67,9 @@
       src="/js/auth.js"
       defer
     ></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
   </head>
 
   <body>
@@ -82,7 +86,7 @@
         href="/"
         aria-label="Matths 메인 페이지"
       >
-        <span aria-hidden="true">M</span>
+        <span class="brand-mark" aria-hidden="true">M</span>
         <strong>Matths</strong>
       </a>
 
@@ -211,10 +215,33 @@
             method="POST"
             data-register-form
           >
-            <!-- 이름 -->
+            <!-- 실명 -->
+            <div class="form-field">
+              <label for="realName">
+                실명
+              </label>
+
+              <input
+                id="realName"
+                name="realName"
+                type="text"
+                value="<%= input.realName || '' %>"
+                placeholder="본인의 실제 이름"
+                autocomplete="name"
+                minlength="2"
+                maxlength="40"
+                required
+              />
+
+              <small class="field-guide">
+                본인 확인과 공정한 랭킹 운영에 사용하며, 기본값으로 공개하지 않습니다.
+              </small>
+            </div>
+
+            <!-- 닉네임 -->
             <div class="form-field">
               <label for="name">
-                이름 또는 닉네임
+                닉네임
               </label>
 
               <input
@@ -222,12 +249,16 @@
                 name="name"
                 type="text"
                 value="<%= input.name || '' %>"
-                placeholder="어떻게 불러드릴까요?"
-                autocomplete="name"
+                placeholder="학습 화면에서 사용할 이름"
+                autocomplete="nickname"
                 minlength="2"
                 maxlength="30"
                 required
               />
+
+              <small class="field-guide">
+                랭킹전에서는 기본적으로 이 닉네임이 표시됩니다.
+              </small>
             </div>
 
             <!-- 이메일 -->

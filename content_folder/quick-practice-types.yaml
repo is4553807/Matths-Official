@@ -1,0 +1,162 @@
+meta:
+  title: "평가원 모의평가 첫 페이지 2·3점 유형"
+  scope: "2022~2026학년도 6월·9월 대학수학능력시험 모의평가 수학 공통과목 첫 페이지"
+  examsIncluded:
+    - "2022학년도 6월 모의평가"
+    - "2022학년도 9월 모의평가"
+    - "2023학년도 6월 모의평가"
+    - "2023학년도 9월 모의평가"
+    - "2024학년도 6월 모의평가"
+    - "2024학년도 9월 모의평가"
+    - "2025학년도 6월 모의평가"
+    - "2025학년도 9월 모의평가"
+    - "2026학년도 6월 모의평가"
+    - "2026학년도 9월 모의평가"
+  policy:
+    - "기출 문장을 복제하지 않고 출제 의도와 계산 구조만 참고한다."
+    - "문항마다 숫자를 새로 만들고 독립 검산을 통과한 경우에만 출제한다."
+    - "최근에 나온 핵심 유형과 세부 유형은 가능한 한 연속해서 내지 않는다."
+  sourceArchive: "https://www.ebsi.co.kr/ebs/xip/xipc/previousPaperList.ebs"
+
+types:
+  - key: "exponent-laws"
+    points: 2
+    label: "지수법칙"
+    generator: "exponent-laws"
+    observedIn:
+      - "2022학년도 6월 1번"
+      - "2022학년도 9월 1번"
+      - "2023학년도 6월 1번"
+      - "2023학년도 9월 1번"
+      - "2024학년도 6월 1번"
+      - "2024학년도 9월 1번"
+      - "2025학년도 6월 1번"
+      - "2025학년도 9월 1번"
+      - "2026학년도 6월 1번"
+      - "2026학년도 9월 1번"
+    variants:
+      - key: "same-base"
+        label: "같은 밑의 곱과 나눗셈"
+      - key: "rational-power"
+        label: "분수 지수"
+      - key: "radical-power"
+        label: "근호와 지수"
+
+  - key: "polynomial-derivative"
+    points: 2
+    label: "다항함수의 미분계수"
+    generator: "polynomial-derivative"
+    observedIn:
+      - "2022학년도 9월 2번"
+      - "2023학년도 6월 2번"
+      - "2023학년도 9월 2번"
+      - "2024학년도 6월 2번"
+      - "2024학년도 9월 2번"
+      - "2025학년도 6월 2번"
+      - "2025학년도 9월 2번"
+      - "2026학년도 6월 2번"
+      - "2026학년도 9월 2번"
+    variants:
+      - key: "direct-value"
+        label: "도함수에 값 대입"
+      - key: "definition-limit"
+        label: "미분계수 꼴의 극한"
+      - key: "missing-coefficient"
+        label: "빠진 항이 있는 다항함수"
+
+  - key: "antiderivative-value"
+    points: 2
+    label: "부정적분과 함숫값"
+    generator: "antiderivative-value"
+    observedIn:
+      - "2022학년도 6월 2번"
+    variants:
+      - key: "recover-constant"
+        label: "초깃값으로 적분상수 결정"
+      - key: "difference-without-constant"
+        label: "두 함숫값의 차"
+
+  - key: "trigonometric-ratio"
+    points: 3
+    label: "삼각함수의 값"
+    generator: "trigonometric-ratio"
+    observedIn:
+      - "2022학년도 6월 3번"
+      - "2023학년도 6월 3번"
+      - "2023학년도 9월 3번"
+      - "2024학년도 9월 3번"
+    variants:
+      - key: "quadrant-sum"
+        label: "사분면과 사인·코사인"
+      - key: "quadrant-tangent"
+        label: "사분면과 탄젠트"
+      - key: "shifted-angle"
+        label: "각의 이동"
+
+  - key: "geometric-sequence-relations"
+    points: 3
+    label: "등비수열의 항"
+    generator: "geometric-sequence-relations"
+    observedIn:
+      - "2022학년도 9월 3번"
+      - "2025학년도 9월 3번"
+    variants:
+      - key: "term-ratio"
+        label: "두 항의 비"
+      - key: "recover-term"
+        label: "첫째항과 한 항으로 다른 항 구하기"
+      - key: "product-relation"
+        label: "항의 곱과 비"
+
+  - key: "sigma-transform"
+    points: 3
+    label: "시그마의 성질"
+    generator: "sigma-transform"
+    observedIn:
+      - "2024학년도 6월 3번"
+      - "2025학년도 6월 3번"
+      - "2026학년도 6월 3번"
+      - "2026학년도 9월 3번"
+    variants:
+      - key: "linear-transform"
+        label: "합의 선형 변환"
+      - key: "extend-sum"
+        label: "합의 범위 확장"
+      - key: "recover-original-sum"
+        label: "변형된 합에서 원래 합 찾기"
+
+  - key: "one-sided-limit"
+    points: 3
+    label: "좌극한과 우극한"
+    generator: "one-sided-limit"
+    observedIn:
+      - "2022학년도 6월 4번"
+      - "2023학년도 6월 4번"
+      - "2024학년도 9월 4번"
+      - "2025학년도 6월 4번"
+      - "2025학년도 9월 4번"
+      - "2026학년도 9월 4번"
+    variants:
+      - key: "piecewise-sum"
+        label: "구간별 함수의 양쪽 극한"
+      - key: "two-boundaries"
+        label: "서로 다른 두 경계의 극한"
+      - key: "weighted-limits"
+        label: "좌·우극한의 일차결합"
+
+  - key: "piecewise-continuity"
+    points: 3
+    label: "함수의 연속"
+    generator: "piecewise-continuity"
+    observedIn:
+      - "2022학년도 9월 4번"
+      - "2023학년도 9월 4번"
+      - "2024학년도 6월 4번"
+      - "2026학년도 6월 4번"
+    variants:
+      - key: "additive-parameter"
+        label: "상수항의 미정계수"
+      - key: "slope-parameter"
+        label: "기울기의 미정계수"
+      - key: "shared-parameter"
+        label: "양쪽 식에 들어간 미정계수"

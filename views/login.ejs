@@ -1,6 +1,8 @@
 <%
   const formError =
     typeof error !== "undefined" ? error : null;
+  const formSuccess =
+    typeof success !== "undefined" ? success : null;
 
   const input =
     typeof oldInput !== "undefined" && oldInput
@@ -33,6 +35,9 @@
       src="/js/auth.js"
       defer
     ></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
   </head>
 
   <body>
@@ -49,7 +54,7 @@
         href="/"
         aria-label="Matths 메인 페이지"
       >
-        <span aria-hidden="true">M</span>
+        <span class="brand-mark" aria-hidden="true">M</span>
         <strong>Matths</strong>
       </a>
 
@@ -119,6 +124,16 @@
             >
               <span aria-hidden="true">!</span>
               <p><%= formError %></p>
+            </div>
+          <% } %>
+
+          <% if (formSuccess) { %>
+            <div
+              class="form-alert form-alert-success"
+              role="status"
+            >
+              <span aria-hidden="true">✓</span>
+              <p><%= formSuccess %></p>
             </div>
           <% } %>
 

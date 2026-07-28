@@ -1,6 +1,6 @@
 <%
   const loggedIn = typeof user !== "undefined" && Boolean(user);
-  const startHref = loggedIn ? "/my-learning" : "/signup";
+  const startHref = loggedIn ? "/my-learning" : "/register";
   const startLabel = loggedIn ? "학습 계속하기" : "무료로 시작하기";
 %>
 <!doctype html>
@@ -16,6 +16,9 @@
     <title>서비스 소개 | Matths</title>
     <link rel="stylesheet" href="/css/intro.css" />
     <script src="/js/intro.js" defer></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
   </head>
 
   <body>
@@ -264,11 +267,128 @@
         </div>
       </section>
 
+      <section class="arena-preview section-pad" id="war-of-masters">
+        <div class="arena-glow" aria-hidden="true"></div>
+        <div class="container arena-layout">
+          <div class="arena-copy">
+            <div class="section-index arena-index">
+              <span>05</span>
+              <p>RANK ARENA</p>
+            </div>
+            <p class="arena-kicker">MATTHS RANKING BATTLE</p>
+            <h2>실수들의 전쟁</h2>
+            <p class="arena-lead">
+              한 번의 점수로 줄 세우지 않습니다. 같은 범위를 배운 학생들이 매주 같은
+              시험으로 겨루고, <strong>현재 실력과 성장</strong>을 함께 반영해 랭크가 움직입니다.
+            </p>
+
+            <div class="arena-entry">
+              <p>참가 자격</p>
+              <ol>
+                <li><span>01</span>필수 개념 진도 100%</li>
+                <li><span>02</span>개념 확인 문제 정확도 80% 이상</li>
+                <li><span>03</span>배치고사와 시험 범위 선택</li>
+              </ol>
+            </div>
+
+            <div class="arena-identity-note">
+              <span aria-hidden="true">◉</span>
+              <p>
+                랭킹에는 <strong>닉네임으로 익명 참여</strong>하거나
+                <strong>실명 공개</strong>를 직접 선택할 수 있습니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="arena-board" aria-label="실수들의 전쟁 랭킹 화면 예시">
+            <div class="arena-board-top">
+              <div>
+                <span>WAR OF MASTERS</span>
+                <strong>SEASON 01</strong>
+              </div>
+            </div>
+
+            <div class="arena-rank-card">
+              <div class="tier-emblem" aria-hidden="true">
+                <span>G</span>
+              </div>
+              <div class="tier-copy">
+                <small>임시 랭크</small>
+                <strong>Gold 2</strong>
+                <p>정식 랭크까지 <b>2경기</b> 남음</p>
+              </div>
+              <div class="rank-change">
+                <span>전체</span>
+                <strong>100위</strong>
+                <em>↑ 18</em>
+              </div>
+            </div>
+
+            <div class="arena-metrics">
+              <article>
+                <span>시험 백분위</span>
+                <strong>72</strong>
+                <small>상대 성적 80%</small>
+              </article>
+              <article>
+                <span>성장 백분위</span>
+                <strong>85</strong>
+                <small>성장 지표 20%</small>
+              </article>
+              <article>
+                <span>새 랭킹 점수</span>
+                <strong>574</strong>
+                <small>이전 점수 500</small>
+              </article>
+            </div>
+
+            <div class="arena-ladder" aria-hidden="true">
+              <span>Bronze</span>
+              <span>Silver</span>
+              <span class="active">Gold</span>
+              <span>Platinum</span>
+              <span>Diamond</span>
+            </div>
+
+            <div class="arena-duel">
+              <div>
+                <small>RANK SWITCH</small>
+                <strong>가까운 순위의 상대에게 도전</strong>
+              </div>
+              <span>10문제 · 30분</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="container arena-rule-grid">
+          <article>
+            <span>01</span>
+            <h3>세 경기로 정해지는 첫 랭크</h3>
+            <p>배치고사 1회와 주간 모의고사 2회를 반영해 운보다 실제 실력에 가까운 첫 랭크를 만듭니다.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>매주 일요일, 같은 시험</h3>
+            <p>문제·선지 순서는 섞되 같은 출제 구조로 응시하고, 시험 종료 뒤 해설과 새 순위를 공개합니다.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>전체 순위와 성장 순위를 함께</h3>
+            <p>전체 실력뿐 아니라 이번 주 성장, 연속 참여, 고난도 문제 순위로 각자의 가까운 목표를 보여줍니다.</p>
+          </article>
+          <article>
+            <span>04</span>
+            <h3>범위가 같은 학생끼리 도전</h3>
+            <p>같은 학년·과목·진도 범위에서만 도전하며, 먼 순위 특별전은 한 문제가 아닌 2선승제로 결정합니다.</p>
+          </article>
+        </div>
+      </section>
+
       <section class="principles section-pad">
         <div class="container principles-layout">
           <div class="principles-heading">
             <div class="section-index">
-              <span>05</span>
+              <span>06</span>
               <p>OUR PRINCIPLES</p>
             </div>
             <p class="kicker">Matths가 지키는 설명 원칙</p>
@@ -344,7 +464,7 @@
 
           <div class="starting-copy">
             <div class="section-index">
-              <span>06</span>
+              <span>07</span>
               <p>WHERE WE START</p>
             </div>
             <p class="kicker">작게 시작해서 제대로 만들기</p>

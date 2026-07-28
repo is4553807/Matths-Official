@@ -21,6 +21,9 @@ const {
   formatAlgebraLesson,
 } = require("../services/mathTextService");
 const {
+  getConceptTypeGuides,
+} = require("../services/conceptGuideService");
+const {
   getAcademicYear,
   lifecycleSessionView,
   recordStudyActivity,
@@ -29,10 +32,38 @@ const {
 const {
   DIFFICULTY_LABELS,
   createAssessmentAttempt,
+  expireAssessmentAttempt,
   getAssessmentAttempt,
   getAssessmentCenterData,
+  saveAssessmentDraft,
   submitAssessmentAttempt,
 } = require("../services/assessmentService");
+const {
+  createQuickPracticeAttempt,
+  expireQuickPracticeAttempt,
+  getQuickPracticeCatalogSummary,
+  getQuickPracticeStats,
+  submitQuickPracticeAttempt,
+} = require("../services/quickPracticeService");
+const {
+  createSuggestion,
+  getSuggestionBoardData,
+  moderateSuggestion,
+} = require("../services/coachSuggestionService");
+const {
+  requestPasswordReset,
+  resetPassword,
+  verifyPasswordResetCode,
+} = require("../services/passwordResetService");
+const {
+  getRankingDisplayName,
+  normalizeRankingDisplayMode,
+  validateRealName,
+} = require("../services/userIdentityService");
+const {
+  createSupportInquiry,
+  getContactPageData,
+} = require("../services/supportInquiryService");
 const bcrypt = require('bcrypt');
 const BCRYPT_ROUNDS = 12;
 
@@ -45,7 +76,12 @@ exports.introPage = (req,res) => {
 }
 
 exports.loginPage = (req,res) => {
-    res.render('login');
+    res.render('login', {
+      success:
+        req.query.reset === "1"
+          ? "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요."
+          : null,
+    });
 }
 
 exports.registerPage = (
@@ -61,6 +97,7 @@ exports.registerPage = (
       schoolRegions,
       error: null,
       oldInput: {
+        realName: "",
         name: "",
         email: "",
         schoolGrade: 10,
@@ -84,6 +121,124 @@ exports.learningFlowPage = (req,res) => {
 exports.faqPage = (req,res) => {
     res.render('faq');
 }
+
+async function renderContactPage(
+  req,
+  res,
+  {
+    status = 200,
+    feedback = null,
+    oldInput = {},
+  } = {}
+) {
+  const contactData =
+    await getContactPageData(
+      req.session.user.id
+    );
+
+  return res
+    .status(status)
+    .render("contact", {
+      user: req.session.user,
+      contactData,
+      feedback,
+      oldInput: {
+        subject:
+          String(
+            oldInput.subject || ""
+          ),
+        content:
+          String(
+            oldInput.content || ""
+          ),
+      },
+    });
+}
+
+exports.contactPage = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const feedback =
+      req.session.contactFeedback ||
+      null;
+
+    if (
+      req.session.contactFeedback
+    ) {
+      delete req.session
+        .contactFeedback;
+      await saveSession(req);
+    }
+
+    return await renderContactPage(
+      req,
+      res,
+      {
+        feedback,
+      }
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.submitContactInquiry =
+  async (req, res, next) => {
+    try {
+      const result =
+        await createSupportInquiry({
+          userId:
+            req.session.user.id,
+          subject:
+            req.body.subject,
+          content:
+            req.body.content,
+        });
+
+      req.session.contactFeedback = {
+        type:
+          result.emailStatus ===
+          "failed"
+            ? "warning"
+            : "success",
+        message:
+          result.emailStatus ===
+          "failed"
+            ? "문의는 정상적으로 저장되었습니다. 관리자 이메일 알림 전송 상태를 확인하고 있습니다."
+            : "문의가 접수되었습니다. 답변은 회원가입한 이메일로 전달됩니다.",
+      };
+      await saveSession(req);
+
+      return res.redirect(
+        "/contact"
+      );
+    } catch (error) {
+      if (error.status) {
+        return await renderContactPage(
+          req,
+          res,
+          {
+            status: error.status,
+            feedback: {
+              type: "error",
+              message: error.message,
+            },
+            oldInput: {
+              subject:
+                req.body.subject,
+              content:
+                req.body.content,
+            },
+          }
+        );
+      }
+
+      return next(error);
+    }
+  };
 
 exports.curriculumPage = (req, res, next) => {
   try {
@@ -109,6 +264,76 @@ exports.main = async (req, res, next) => {
     } catch (error) {
         return next(error);
     }
+};
+
+exports.warOfMastersPage = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const user = await User.findById(
+      req.session.user.id
+    ).lean();
+
+    if (!user) {
+      throw createNotFoundError(
+        "사용자 정보를 찾을 수 없습니다."
+      );
+    }
+
+    const gradeLabels = {
+      10: "고등학교 1학년",
+      11: "고등학교 2학년",
+      12: "고등학교 3학년",
+      13: "N수생",
+    };
+
+    const tiers = [
+      ["B", "브론즈", "0–999"],
+      ["S", "실버", "1,000–1,249"],
+      ["G", "골드", "1,250–1,499"],
+      ["P", "플래티넘", "1,500–1,749"],
+      ["E", "에메랄드", "1,750–1,899"],
+      ["D", "다이아몬드", "1,900–2,049"],
+      ["M", "마스터", "2,050–2,199"],
+      ["GM", "그랜드마스터", "2,200–2,349"],
+      ["C", "챌린저", "2,350+"],
+    ];
+
+    res.set("Cache-Control", "no-store");
+
+    return res.render(
+      "war-of-masters",
+      {
+        user,
+        arenaUser: {
+          nickname:
+            String(user.name || "학생"),
+          displayName:
+            getRankingDisplayName(user),
+          schoolName:
+            String(
+              user.school?.name ||
+                "학교 미설정"
+            ),
+          gradeLabel:
+            gradeLabels[
+              Number(user.schoolGrade)
+            ] || "학년 미설정",
+          displayMode:
+            user.preferences
+              ?.rankingDisplayMode ===
+            "realName"
+              ? "실명"
+              : "닉네임",
+        },
+        tiers,
+      }
+    );
+  } catch (error) {
+    return next(error);
+  }
 };
 
 exports.togglePlanTask = async (
@@ -145,7 +370,8 @@ exports.changeCoachMode = async (
         const coach =
             await updateCoachMode(
                 req.session.user.id,
-                req.body.mode
+                req.body.mode,
+                req.body.situation
             );
 
         if (!coach) {
@@ -274,6 +500,12 @@ exports.unitLearning = async (
 
     const renderedLesson =
       formatAlgebraLesson(lesson);
+    const conceptTypeGuides =
+      getConceptTypeGuides({
+        courseId: unitView.course.id,
+        unitId: unitView.unit.id,
+        conceptId,
+      });
     const assessmentCourse =
       assessmentData.courses.find(
         (item) =>
@@ -303,6 +535,7 @@ exports.unitLearning = async (
       mastery,
       reviewContext,
       subunitAssessment,
+      conceptTypeGuides,
       user: req.session.user,
     });
   } catch (error) {
@@ -315,6 +548,7 @@ function renderRegisterError(res, status, error, oldInput = {}) {
         schoolRegions: getSchoolSelectData(),
         error,
         oldInput: {
+            realName: "",
             name: "",
             email: "",
             schoolGrade: 10,
@@ -335,9 +569,21 @@ function createLoginSession(req, user) {
             req.session.user = {
                 id: user._id.toString(),
                 name: user.name,
+                realName: user.realName || "",
                 email: user.email,
+                role: user.role || "student",
                 schoolGrade: user.schoolGrade,
                 ...lifecycleSessionView(user),
+                preferences: {
+                    coachMode:
+                        user.preferences
+                            ?.coachMode ||
+                        "spicy",
+                    rankingDisplayMode:
+                        user.preferences
+                            ?.rankingDisplayMode ||
+                        "nickname",
+                },
 
                 school: user.school
                     ? {
@@ -361,6 +607,10 @@ function createLoginSession(req, user) {
 
 exports.register = async (req, res, next) => {
     try {
+        const realNameValidation = validateRealName(
+            req.body.realName
+        );
+        const realName = realNameValidation.realName;
         const name = String(req.body.name || "").trim();
         const email = String(req.body.email || "")
             .trim()
@@ -379,6 +629,7 @@ exports.register = async (req, res, next) => {
 
         // 비밀번호는 oldInput에 절대 포함하지 않는다.
         const oldInput = {
+            realName,
             name,
             email,
             schoolGrade,
@@ -387,6 +638,7 @@ exports.register = async (req, res, next) => {
         };
 
         if (
+            !realName ||
             !name ||
             !email ||
             !schoolRegion ||
@@ -402,11 +654,20 @@ exports.register = async (req, res, next) => {
             );
         }
 
+        if (!realNameValidation.valid) {
+            return renderRegisterError(
+                res,
+                400,
+                realNameValidation.message,
+                oldInput
+            );
+        }
+
         if (name.length < 2 || name.length > 30) {
             return renderRegisterError(
                 res,
                 400,
-                "이름은 2자 이상 30자 이하로 입력해주세요.",
+                "닉네임은 2자 이상 30자 이하로 입력해주세요.",
                 oldInput
             );
         }
@@ -499,6 +760,7 @@ exports.register = async (req, res, next) => {
         );
 
         const user = await User.create({
+            realName,
             name,
             email,
             passwordHash,
@@ -516,6 +778,8 @@ exports.register = async (req, res, next) => {
             },
 
             termsAcceptedAt: new Date(),
+            termsVersion: "2026-07-28",
+            privacyVersion: "2026-07-28",
         });
 
         // 회원가입 완료 후 바로 로그인 처리
@@ -530,6 +794,9 @@ exports.register = async (req, res, next) => {
                 409,
                 "이미 가입된 이메일입니다.",
                 {
+                    realName: validateRealName(
+                        req.body.realName
+                    ).realName,
                     name: String(req.body.name || "").trim(),
                     email: String(req.body.email || "")
                         .trim()
@@ -652,9 +919,21 @@ exports.login = async (req, res, next) => {
         req.session.user = {
             id: user._id.toString(),
             name: user.name,
+            realName: user.realName || "",
             email: user.email,
+            role: user.role || "student",
             schoolGrade: user.schoolGrade,
             ...lifecycleSessionView(user),
+            preferences: {
+                coachMode:
+                    user.preferences
+                        ?.coachMode ||
+                    "spicy",
+                rankingDisplayMode:
+                    user.preferences
+                        ?.rankingDisplayMode ||
+                    "nickname",
+            },
 
             school: user.school
                 ? {
@@ -786,6 +1065,101 @@ exports.changeNickname = async (req, res, next) => {
                 section: "nickname",
                 type: "success",
                 message: "닉네임을 변경했습니다.",
+            },
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+exports.changeRankingIdentity = async (
+    req,
+    res,
+    next
+) => {
+    try {
+        const realNameValidation =
+            validateRealName(req.body.realName);
+        const rankingDisplayMode =
+            normalizeRankingDisplayMode(
+                req.body.rankingDisplayMode
+            );
+        const formValues = {
+            realName: realNameValidation.realName,
+            rankingDisplayMode:
+                rankingDisplayMode ||
+                String(
+                    req.body.rankingDisplayMode || ""
+                ),
+        };
+
+        if (!realNameValidation.valid) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "ranking-identity",
+                    type: "error",
+                    message:
+                        realNameValidation.message,
+                },
+                formValues,
+            });
+        }
+
+        if (!rankingDisplayMode) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "ranking-identity",
+                    type: "error",
+                    message:
+                        "랭킹에 표시할 이름 방식을 선택해주세요.",
+                },
+                formValues,
+            });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.session.user.id,
+            {
+                realName:
+                    realNameValidation.realName,
+                "preferences.rankingDisplayMode":
+                    rankingDisplayMode,
+            },
+            {
+                new: true,
+                runValidators: true,
+            }
+        ).lean();
+
+        if (!user) {
+            throw createNotFoundError(
+                "사용자 정보를 찾을 수 없습니다."
+            );
+        }
+
+        req.session.user.realName =
+            user.realName || "";
+        req.session.user.preferences = {
+            ...(req.session.user.preferences ||
+                {}),
+            rankingDisplayMode:
+                user.preferences
+                    ?.rankingDisplayMode ||
+                "nickname",
+        };
+        await saveSession(req);
+
+        return await renderProfile(req, res, {
+            feedback: {
+                section: "ranking-identity",
+                type: "success",
+                message:
+                    rankingDisplayMode ===
+                    "realName"
+                        ? "랭킹에서 실명을 표시하도록 저장했습니다."
+                        : "랭킹에서 닉네임을 표시하도록 저장했습니다.",
             },
         });
     } catch (error) {
@@ -1002,6 +1376,8 @@ exports.changePassword = async (req, res, next) => {
             newPassword,
             BCRYPT_ROUNDS
         );
+        user.tokenVersion =
+            (Number(user.tokenVersion) || 0) + 1;
         await user.save();
 
         return await renderProfile(req, res, {
@@ -1037,6 +1413,11 @@ exports.assessmentCenterPage = async (
   next
 ) => {
   try {
+    res.set(
+      "Cache-Control",
+      "no-store"
+    );
+
     const assessmentData =
       await getAssessmentCenterData(
         req.session.user.id
@@ -1094,6 +1475,11 @@ exports.assessmentAttemptPage = async (
   next
 ) => {
   try {
+    res.set(
+      "Cache-Control",
+      "no-store"
+    );
+
     const attempt =
       await getAssessmentAttempt({
         userId:
@@ -1145,6 +1531,75 @@ exports.submitAssessment = async (
       `/assessments/${attempt._id}`
     );
   } catch (error) {
+    return next(error);
+  }
+};
+
+exports.saveAssessmentDraft = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const result =
+      await saveAssessmentDraft({
+        userId:
+          req.session.user.id,
+        attemptId:
+          req.params.attemptId,
+        answers:
+          req.body?.answers || {},
+      });
+
+    return res.json(result);
+  } catch (error) {
+    if (error.status) {
+      return res
+        .status(error.status)
+        .json({
+          message: error.message,
+        });
+    }
+
+    return next(error);
+  }
+};
+
+exports.expireAssessment = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const attempt =
+      await expireAssessmentAttempt({
+        userId:
+          req.session.user.id,
+        attemptId:
+          req.params.attemptId,
+        answers:
+          req.body?.answers || {},
+      });
+
+    return res.json({
+      status: attempt.status,
+      expired:
+        attempt.status ===
+        "disqualified",
+      redirectUrl:
+        `/assessments/${attempt._id}`,
+    });
+  } catch (error) {
+    if (error.status) {
+      return res
+        .status(error.status)
+        .json({
+          message: error.message,
+          remainingTimeMs:
+            error.remainingTimeMs,
+        });
+    }
+
     return next(error);
   }
 };
@@ -1324,3 +1779,394 @@ exports.changeConceptCompletion = async (
     return next(error);
   }
 };
+
+exports.quickPracticePage = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    return res.render(
+      "quick-practice",
+      {
+        user: req.session.user,
+        catalog:
+          getQuickPracticeCatalogSummary(),
+        stats:
+          await getQuickPracticeStats(
+            req.session.user.id
+          ),
+      }
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.startQuickPractice = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const attempt =
+      await createQuickPracticeAttempt({
+        userId:
+          req.session.user.id,
+        pointValue:
+          req.body.pointValue,
+      });
+
+    res.set(
+      "Cache-Control",
+      "no-store"
+    );
+    return res.status(201).json({
+      timeLimitMs: 40000,
+      attempt,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.submitQuickPractice = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const result =
+      await submitQuickPracticeAttempt({
+        userId:
+          req.session.user.id,
+        instanceId:
+          req.params.instanceId,
+        submittedAnswer:
+          req.body.answer,
+      });
+    const activityUser =
+      await synchronizeUserLifecycle(
+        req.session.user.id
+      );
+
+    Object.assign(
+      req.session.user,
+      lifecycleSessionView(
+        activityUser
+      )
+    );
+
+    return res.json({
+      result,
+      stats:
+        await getQuickPracticeStats(
+          req.session.user.id
+        ),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.expireQuickPractice = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    return res.json({
+      result:
+        await expireQuickPracticeAttempt({
+          userId:
+            req.session.user.id,
+          instanceId:
+            req.params.instanceId,
+        }),
+      stats:
+        await getQuickPracticeStats(
+          req.session.user.id
+        ),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.coachSuggestionBoard =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "coach-suggestions",
+        {
+          user: req.session.user,
+          board:
+            await getSuggestionBoardData(
+              req.session.user
+            ),
+          submitted:
+            req.query.submitted ===
+            "1",
+          moderated:
+            req.query.moderated ===
+            "1",
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.submitCoachSuggestion =
+  async (req, res, next) => {
+    try {
+      await createSuggestion({
+        user: req.session.user,
+        mode: req.body.mode,
+        situation:
+          req.body.situation,
+        message: req.body.message,
+      });
+
+      return res.redirect(
+        "/coach-suggestions?submitted=1"
+      );
+    } catch (error) {
+      if (error.status) {
+        const board =
+          await getSuggestionBoardData(
+            req.session.user
+          );
+
+        return res
+          .status(error.status)
+          .render(
+            "coach-suggestions",
+            {
+              user:
+                req.session.user,
+              board,
+              submitted: false,
+              moderated: false,
+              error:
+                error.message,
+              oldInput: {
+                mode:
+                  req.body.mode,
+                situation:
+                  req.body
+                    .situation,
+                message:
+                  req.body.message,
+              },
+            }
+          );
+      }
+
+      return next(error);
+    }
+  };
+
+exports.moderateCoachSuggestion =
+  async (req, res, next) => {
+    try {
+      await moderateSuggestion({
+        adminUser:
+          req.session.user,
+        suggestionId:
+          req.params.suggestionId,
+        action: req.body.action,
+        rejectionReason:
+          req.body.rejectionReason,
+      });
+
+      return res.redirect(
+        "/coach-suggestions?moderated=1"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.forgotPasswordPage = (
+  req,
+  res
+) =>
+  res.render("password-reset", {
+    step: "request",
+    error: null,
+    email: "",
+    previewCode: null,
+  });
+
+exports.requestPasswordReset =
+  async (req, res, next) => {
+    const email = String(
+      req.body.email || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    try {
+      const result =
+        await requestPasswordReset(
+          email
+        );
+
+      return res.render(
+        "password-reset",
+        {
+          step: "verify",
+          error: null,
+          email,
+          previewCode:
+            result.previewCode,
+        }
+      );
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .render(
+            "password-reset",
+            {
+              step: "request",
+              error:
+                error.message,
+              email,
+              previewCode: null,
+            }
+          );
+      }
+
+      return next(error);
+    }
+  };
+
+exports.verifyPasswordReset =
+  async (req, res, next) => {
+    const email = String(
+      req.body.email || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    try {
+      const verification =
+        await verifyPasswordResetCode(
+          {
+            email,
+            code: req.body.code,
+          }
+        );
+
+      req.session.passwordReset = {
+        resetId:
+          verification.resetId,
+        userId:
+          verification.userId,
+        expiresAt:
+          verification.expiresAt,
+      };
+      await saveSession(req);
+
+      return res.render(
+        "password-reset",
+        {
+          step: "reset",
+          error: null,
+          email,
+          previewCode: null,
+        }
+      );
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .render(
+            "password-reset",
+            {
+              step: "verify",
+              error:
+                error.message,
+              email,
+              previewCode: null,
+            }
+          );
+      }
+
+      return next(error);
+    }
+  };
+
+exports.completePasswordReset =
+  async (req, res, next) => {
+    const authorization =
+      req.session.passwordReset;
+
+    try {
+      if (
+        !authorization ||
+        new Date(
+          authorization.expiresAt
+        ).getTime() <= Date.now()
+      ) {
+        const error = new Error(
+          "비밀번호 재설정 인증이 만료되었습니다."
+        );
+        error.status = 400;
+        throw error;
+      }
+
+      await resetPassword({
+        resetId:
+          authorization.resetId,
+        userId:
+          authorization.userId,
+        password:
+          req.body.password,
+        passwordConfirm:
+          req.body.passwordConfirm,
+      });
+
+      return req.session.destroy(
+        (sessionError) => {
+          if (sessionError) {
+            return next(
+              sessionError
+            );
+          }
+
+          res.clearCookie(
+            "connect.sid"
+          );
+          return res.redirect(
+            "/login?reset=1"
+          );
+        }
+      );
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .render(
+            "password-reset",
+            {
+              step: "reset",
+              error:
+                error.message,
+              email: "",
+              previewCode: null,
+            }
+          );
+      }
+
+      return next(error);
+    }
+  };
+
+exports.termsPage = (req, res) =>
+  res.render("terms");
+
+exports.privacyPage = (req, res) =>
+  res.render("privacy");

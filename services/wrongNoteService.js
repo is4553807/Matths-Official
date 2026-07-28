@@ -5,6 +5,9 @@ const { loadCurriculum } = require("./curriculumService");
 const {
   formatMathTextForCourse,
 } = require("./mathTextService");
+const {
+  getProblemGenerator,
+} = require("./problemGenerators");
 
 const PAGE_SIZE = 10;
 const MAX_RECENT_ATTEMPTS = 500;
@@ -157,6 +160,12 @@ function serializeAttempt(attempt, curriculumIndex) {
   const reviewStatus = normalizeReviewStatus(attempt.review?.status);
   const problem = attempt.problemId || {};
   const snapshot = attempt.problemSnapshot || {};
+  const retryGenerator =
+    getProblemGenerator({
+      courseId: attempt.courseId,
+      unitId: attempt.unitId,
+      conceptId: attempt.conceptId,
+    });
 
   return {
     id: String(attempt._id),
@@ -172,7 +181,10 @@ function serializeAttempt(attempt, curriculumIndex) {
       attempt.courseId,
       snapshot.solution || ""
     ),
-    retryAvailable: Boolean(snapshot.typeId),
+    retryAvailable: Boolean(
+      retryGenerator
+        ?.problemTypes?.length
+    ),
     sourceLabel: createSourceLabel(problem.source),
     courseId: attempt.courseId,
     unitId: attempt.unitId,
@@ -473,10 +485,12 @@ async function getWrongNoteReviewData({
   const curriculumIndex =
     createCurriculumIndex(curriculumData);
 
-  return serializeAttempt(
+  const serialized = serializeAttempt(
     attempt,
     curriculumIndex
   );
+
+  return serialized;
 }
 
 module.exports = {

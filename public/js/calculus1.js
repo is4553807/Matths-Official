@@ -2305,13 +2305,15 @@
         caption &&
         Array.isArray(config.motionCaptions)
       ) {
-        caption.textContent =
+        setMath(
+          caption,
           config.motionCaptions[
             Math.min(
               stage,
               config.motionCaptions.length - 1
             )
-          ] || result.verdict;
+          ] || result.verdict
+        );
       }
 
       stage += 1;

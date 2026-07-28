@@ -171,10 +171,17 @@
       try {
         const result = await requestJson("/api/preferences/coach-mode", {
           method: "PATCH",
-          body: JSON.stringify({ mode }),
+          body: JSON.stringify({
+            mode,
+            situation:
+              coach.dataset.situation ||
+              "unanswered",
+          }),
         });
 
         coach.dataset.mode = result.coach.mode;
+        coach.dataset.situation =
+          result.coach.situation;
 
         if (title) title.textContent = result.coach.title || "";
         if (message) message.textContent = result.coach.message || "";

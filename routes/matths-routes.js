@@ -14,6 +14,35 @@ router.get('/visual-learning', matthsController.visualLearningPage);
 router.get('/learning-flow', matthsController.learningFlowPage);
 router.get("/curriculum", matthsController.curriculumPage);
 router.get('/faq', matthsController.faqPage);
+router.get(
+  "/contact",
+  authMiddleware.isLoggedIn,
+  matthsController.contactPage
+);
+router.post(
+  "/contact",
+  authMiddleware.isLoggedIn,
+  matthsController.submitContactInquiry
+);
+router.get('/terms', matthsController.termsPage);
+router.get('/privacy', matthsController.privacyPage);
+
+router.get(
+  "/forgot-password",
+  matthsController.forgotPasswordPage
+);
+router.post(
+  "/forgot-password",
+  matthsController.requestPasswordReset
+);
+router.post(
+  "/forgot-password/verify",
+  matthsController.verifyPasswordReset
+);
+router.post(
+  "/forgot-password/reset",
+  matthsController.completePasswordReset
+);
 
 router.get("/my-learning", authMiddleware.isLoggedIn, matthsController.myLearning);
 
@@ -31,12 +60,24 @@ router.get(
 
 router.get('/main', authMiddleware.isLoggedIn, matthsController.main);
 
+router.get(
+  "/war-of-masters",
+  authMiddleware.isLoggedIn,
+  matthsController.warOfMastersPage
+);
+
 router.get('/profile', authMiddleware.isLoggedIn, matthsController.profilePage);
 
 router.post(
   '/profile/nickname',
   authMiddleware.isLoggedIn,
   matthsController.changeNickname
+);
+
+router.post(
+  "/profile/ranking-identity",
+  authMiddleware.isLoggedIn,
+  matthsController.changeRankingIdentity
 );
 
 router.post(
@@ -87,7 +128,56 @@ router.post(
   matthsController.submitAssessment
 );
 
+router.post(
+  "/api/assessments/:attemptId/draft",
+  authMiddleware.isLoggedIn,
+  matthsController.saveAssessmentDraft
+);
+
+router.post(
+  "/api/assessments/:attemptId/expire",
+  authMiddleware.isLoggedIn,
+  matthsController.expireAssessment
+);
+
 router.get('/wrong-notes', authMiddleware.isLoggedIn, matthsController.wrongNotesPage);
+
+router.get(
+  "/quick-practice",
+  authMiddleware.isLoggedIn,
+  matthsController.quickPracticePage
+);
+router.post(
+  "/api/quick-practice/start",
+  authMiddleware.isLoggedIn,
+  matthsController.startQuickPractice
+);
+router.post(
+  "/api/quick-practice/:instanceId/submit",
+  authMiddleware.isLoggedIn,
+  matthsController.submitQuickPractice
+);
+router.post(
+  "/api/quick-practice/:instanceId/expire",
+  authMiddleware.isLoggedIn,
+  matthsController.expireQuickPractice
+);
+
+router.get(
+  "/coach-suggestions",
+  authMiddleware.isLoggedIn,
+  matthsController.coachSuggestionBoard
+);
+router.post(
+  "/coach-suggestions",
+  authMiddleware.isLoggedIn,
+  matthsController.submitCoachSuggestion
+);
+router.post(
+  "/coach-suggestions/:suggestionId/moderate",
+  authMiddleware.isLoggedIn,
+  matthsController.moderateCoachSuggestion
+);
 
 router.get(
   "/wrong-notes/:attemptId/review",

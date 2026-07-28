@@ -85,6 +85,9 @@
       defer
     ></script>
     <script src="/js/main.js" defer></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
   </head>
   <body>
     <a class="skip-link" href="#dashboard-main">본문으로 바로가기</a>
@@ -123,6 +126,11 @@
             <span>교육과정</span>
           </a>
 
+          <a href="/quick-practice">
+            <span class="nav-icon" aria-hidden="true">⚡</span>
+            <span>40초 눈풀이</span>
+          </a>
+
           <a href="/assessments">
             <span class="nav-icon" aria-hidden="true">✓</span>
             <span>평가 센터</span>
@@ -136,9 +144,14 @@
             <% } %>
           </a>
 
-          <a href="#learning-record">
-            <span class="nav-icon" aria-hidden="true">⌁</span>
-            <span>학습 기록</span>
+          <a href="/war-of-masters">
+            <span class="nav-icon" aria-hidden="true">♜</span>
+            <span>실수들의 전쟁</span>
+          </a>
+
+          <a href="/coach-suggestions">
+            <span class="nav-icon" aria-hidden="true">✦</span>
+            <span>문구 제안소</span>
           </a>
         </nav>
 
@@ -147,6 +160,7 @@
         <section
           class="coach-mini"
           data-mode="<%= data.coach.mode %>"
+          data-situation="<%= data.coach.situation %>"
           aria-labelledby="coach-mini-title"
         >
           <div class="coach-heading">

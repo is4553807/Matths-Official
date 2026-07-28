@@ -1,0 +1,478 @@
+.quick-main {
+  min-width: 0;
+}
+
+.quick-topbar {
+  margin-bottom: 28px;
+}
+
+.quick-back {
+  color: #3157f6;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.quick-hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 45px;
+  margin-bottom: 24px;
+  padding: 42px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(103, 222, 255, .22), transparent 32%),
+    linear-gradient(135deg, #111426, #1d2754 62%, #3157f6);
+  border-radius: 28px;
+  box-shadow: 0 25px 60px rgba(27, 43, 107, .17);
+}
+
+.quick-kicker {
+  margin: 0 0 14px;
+  color: #aebcff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+}
+
+.quick-hero h2 {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 52px);
+  line-height: 1.18;
+  letter-spacing: -2.5px;
+}
+
+.quick-hero > div > p:last-child {
+  margin: 20px 0 0;
+  color: #bac1d9;
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.quick-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 112px);
+  gap: 10px;
+}
+
+.quick-stats article {
+  min-height: 118px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  padding: 20px;
+  background: rgba(255, 255, 255, .09);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 18px;
+  backdrop-filter: blur(15px);
+}
+
+.quick-stats span {
+  width: 100%;
+  margin-bottom: 9px;
+  color: #aeb6d1;
+  font-size: 9px;
+}
+
+.quick-stats strong {
+  font-size: 28px;
+  letter-spacing: -1px;
+}
+
+.quick-stats small {
+  align-self: flex-end;
+  margin: 0 0 5px 4px;
+  color: #aeb6d1;
+  font-size: 9px;
+}
+
+.quick-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, .72fr) minmax(440px, 1.28fr);
+  gap: 18px;
+  min-height: 600px;
+}
+
+.quick-control,
+.quick-problem {
+  background: #fff;
+  border: 1px solid #dfe4ef;
+  border-radius: 26px;
+}
+
+.quick-control {
+  padding: 32px;
+}
+
+.quick-control > p {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.quick-points {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.quick-points button {
+  height: 48px;
+  color: #687087;
+  background: #f3f5fa;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.quick-points button.active {
+  color: #3157f6;
+  background: #e9edff;
+  border-color: #9eaffc;
+}
+
+.quick-control ul {
+  margin: 28px 0;
+  padding: 22px 22px 22px 38px;
+  color: #737b91;
+  background: #f8f9fc;
+  border-radius: 15px;
+  font-size: 11px;
+  line-height: 2;
+}
+
+.quick-catalog {
+  margin: -10px 0 22px;
+  border: 1px solid #e0e5f0;
+  border-radius: 15px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.quick-catalog summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 17px;
+  color: #26304a;
+  cursor: pointer;
+  list-style: none;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.quick-catalog summary::-webkit-details-marker {
+  display: none;
+}
+
+.quick-catalog summary::after {
+  content: "＋";
+  margin-left: auto;
+  color: #3157f6;
+}
+
+.quick-catalog[open] summary::after {
+  content: "－";
+}
+
+.quick-catalog summary strong {
+  color: #3157f6;
+  white-space: nowrap;
+}
+
+.quick-catalog > div {
+  max-height: 285px;
+  padding: 2px 16px 16px;
+  border-top: 1px solid #edf0f6;
+  overflow-y: auto;
+}
+
+.quick-catalog section + section {
+  margin-top: 14px;
+}
+
+.quick-catalog h3 {
+  margin: 14px 0 8px;
+  color: #3157f6;
+  font-size: 10px;
+}
+
+.quick-catalog article {
+  padding: 9px 0;
+}
+
+.quick-catalog article + article {
+  border-top: 1px solid #f0f2f7;
+}
+
+.quick-catalog article strong {
+  color: #252c40;
+  font-size: 10px;
+}
+
+.quick-catalog article p {
+  margin: 4px 0 0;
+  color: #7d8499;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.quick-start,
+#quick-next {
+  width: 100%;
+  height: 54px;
+  color: #fff;
+  background: #3157f6;
+  border: 0;
+  border-radius: 14px;
+  font-weight: 850;
+  box-shadow: 0 14px 28px rgba(49, 87, 246, .2);
+}
+
+.quick-problem {
+  position: relative;
+  min-height: 600px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 64px 50px 45px;
+  background-image:
+    radial-gradient(#d9e0ff 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.quick-timer {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: 92px;
+  height: 92px;
+}
+
+.quick-timer svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.quick-timer circle {
+  fill: none;
+  stroke-width: 8;
+}
+
+.timer-track {
+  stroke: #e8ebf3;
+}
+
+.timer-progress {
+  stroke: #3157f6;
+  stroke-linecap: round;
+  transition: stroke .2s;
+}
+
+.quick-timer > span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.quick-timer strong {
+  font-size: 27px;
+  line-height: 1;
+}
+
+.quick-timer small {
+  margin-top: 3px;
+  color: #8b92a6;
+  font-size: 9px;
+}
+
+.quick-timer.warning {
+  animation: quick-timer-pulse .55s infinite alternate;
+}
+
+.quick-timer.warning .timer-progress {
+  stroke: #e95d70;
+}
+
+.quick-empty,
+.quick-result {
+  max-width: 520px;
+  text-align: center;
+}
+
+.quick-empty > span,
+.quick-result > span {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 22px;
+  color: #3157f6;
+  background: #e8edff;
+  border-radius: 22px;
+  font-size: 30px;
+}
+
+.quick-empty h3,
+.quick-result h3 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -1px;
+}
+
+.quick-empty p,
+.quick-result p {
+  margin: 12px 0 0;
+  color: #778096;
+  font-size: 12px;
+}
+
+.quick-question {
+  width: min(590px, 100%);
+}
+
+.question-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+
+.question-meta span {
+  padding: 7px 10px;
+  color: #3157f6;
+  background: #e8edff;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.question-meta strong {
+  color: #687087;
+  font-size: 11px;
+}
+
+.quick-prompt {
+  min-height: 170px;
+  display: grid;
+  place-items: center;
+  padding: 30px;
+  text-align: center;
+  background: rgba(255, 255, 255, .9);
+  border: 1px solid #e0e5f0;
+  border-radius: 20px;
+  font-size: clamp(20px, 2.4vw, 31px);
+  font-weight: 750;
+  line-height: 1.65;
+}
+
+.quick-question form {
+  margin-top: 24px;
+}
+
+.quick-question label {
+  display: block;
+  margin-bottom: 9px;
+  color: #697188;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.quick-question form > div {
+  display: grid;
+  grid-template-columns: 1fr 130px;
+  gap: 9px;
+}
+
+.quick-question input {
+  min-width: 0;
+  height: 56px;
+  padding: 0 18px;
+  color: #111426;
+  background: #fff;
+  border: 1px solid #cfd6e6;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.quick-question button {
+  color: #fff;
+  background: #111426;
+  border: 0;
+  border-radius: 14px;
+  font-weight: 850;
+}
+
+.quick-result {
+  width: min(560px, 100%);
+  padding: 32px;
+  background: rgba(255, 255, 255, .92);
+  border: 1px solid #dfe4ef;
+  border-radius: 22px;
+}
+
+.quick-result[data-state="wrong"] > span,
+.quick-result[data-state="expired"] > span {
+  color: #d84f62;
+  background: #fff0f2;
+}
+
+#quick-solution {
+  margin: 25px 0;
+  padding: 18px;
+  color: #495169;
+  background: #f5f7fb;
+  border-radius: 14px;
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+@keyframes quick-timer-pulse {
+  to { transform: scale(1.06); }
+}
+
+@media (max-width: 980px) {
+  .quick-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .quick-hero,
+  .quick-control,
+  .quick-problem {
+    padding: 26px 20px;
+    border-radius: 20px;
+  }
+
+  .quick-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .quick-stats article {
+    min-height: 95px;
+    padding: 14px;
+  }
+
+  .quick-problem {
+    min-height: 560px;
+    padding-top: 105px;
+  }
+
+  .quick-question form > div {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-question button {
+    height: 52px;
+  }
+}

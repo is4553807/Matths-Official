@@ -5,6 +5,9 @@ const session = require('express-session');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 dotenv.config({path: './config.env'});
+const {
+    getCoachView,
+} = require("./services/coachMessageService");
 
 server.use(express.static("public"));
 server.set('view engine', 'ejs');
@@ -19,11 +22,22 @@ server.use(session({
 }));
 server.use((req, res, next) => {
     res.locals.user = req.session?.user || null;
+    res.locals.coach = getCoachView({
+        mode:
+            req.session?.user?.preferences
+                ?.coachMode,
+        situation: "unanswered",
+        seed:
+            req.session?.user?.id ||
+            req.sessionID,
+    });
     next();
 });
 
 const maathsRoutes = require('./routes/matths-routes');
+const apiRoutes = require("./routes/api-routes");
 
+server.use("/api/v1", apiRoutes);
 server.use("/", maathsRoutes);
 
 server.use((error, req, res, next) => {
@@ -51,6 +65,11 @@ async function connectDB() {
     try {
         await mongoose.connect(process.env.DB);
         console.log("MongoDB Connected Successfully");
+
+        const {
+            refreshCommunityCoachMessages,
+        } = require("./services/coachSuggestionService");
+        await refreshCommunityCoachMessages();
     } catch (error) {
         console.error("MongoDB Connection Failed:", error);
         process.exit(1);
@@ -58,11 +77,15 @@ async function connectDB() {
 };
 
 function startServer() {
-    const port = 8000;
-    const hostname = "localhost"
+    const port =
+        Number(process.env.PORT) || 8000;
+    const hostname =
+        process.env.HOST || "0.0.0.0";
 
     server.listen(port, hostname, () => {
-        console.log(`Server running at port ${port}/`);
+        console.log(
+            `Server running at http://${hostname}:${port}/`
+        );
     })
 }
 

@@ -21,6 +21,10 @@ const {
 const {
     applyAssessmentGatesToLearningData,
 } = require("./assessmentService");
+const {
+    getCoachView,
+    MODES: COACH_MODES,
+} = require("./coachMessageService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -32,12 +36,6 @@ const ERROR_LABELS = {
     "concept-not-understood": "핵심 개념 이해가 부족함",
     "prerequisite-missing": "선행 개념 복습이 필요함",
     unknown: "풀이 과정을 다시 확인해야 함",
-};
-
-const COACH_TITLES = {
-    mild: "순한맛 모드",
-    spicy: "매운맛 모드",
-    silent: "무음 모드",
 };
 
 function getKoreanDateKey(date = new Date()) {
@@ -674,16 +672,21 @@ async function getDashboardData(userId) {
         user.preferences?.coachMode ||
         "spicy";
 
-    const coach = {
+    const coachSituation =
+        pendingReviewCount > 0
+            ? "incorrect"
+            : currentLearning
+                ? "unanswered"
+                : "correct";
+    const coach = getCoachView({
         mode: coachMode,
-        title:
-            COACH_TITLES[coachMode] ||
-            COACH_TITLES.spicy,
-        message:
-            dailyPlan?.coachMessages?.[
-                coachMode
-            ] || "",
-    };
+        situation: coachSituation,
+        seed: [
+            userId,
+            getKoreanDateKey(),
+            coachSituation,
+        ].join(":"),
+    });
 
     const notifications = [];
 
@@ -799,12 +802,11 @@ async function toggleDailyPlanTask(
 
 async function updateCoachMode(
     userId,
-    mode
+    mode,
+    situation = "unanswered"
 ) {
     if (
-        !["mild", "spicy", "silent"].includes(
-            mode
-        )
+        !COACH_MODES.includes(mode)
     ) {
         return null;
     }
@@ -826,18 +828,15 @@ async function updateCoachMode(
         return null;
     }
 
-    const plan = await DailyPlan.findOne({
-        userId,
-        dateKey: getKoreanDateKey(),
-    }).lean();
-
-    return {
+    return getCoachView({
         mode,
-        title: COACH_TITLES[mode],
-        message:
-            plan?.coachMessages?.[mode] ||
-            "",
-    };
+        situation,
+        seed: [
+            userId,
+            getKoreanDateKey(),
+            situation,
+        ].join(":"),
+    });
 }
 
 module.exports = {

@@ -1,0 +1,216 @@
+<%
+  const learner = user || {};
+  const formError =
+    typeof error !== "undefined" ? error : null;
+  const input =
+    typeof oldInput !== "undefined" && oldInput
+      ? oldInput
+      : {
+          mode: "spicy",
+          situation: "incorrect",
+          message: "",
+        };
+  const modeLabels = {
+    mild: "순한맛",
+    spicy: "매운맛",
+    silent: "무음",
+  };
+  const situationLabels = {
+    correct: "맞았을 때",
+    incorrect: "틀렸을 때",
+    unanswered: "못 풀었을 때",
+  };
+  const statusLabels = {
+    pending: "검수 대기",
+    approved: "사용 중",
+    rejected: "반려",
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="학생이 Matths 코치 문구를 제안하고 운영자가 검수하는 문구 제안소입니다." />
+    <title>문구 제안소 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/coach-suggestions.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script src="/js/main.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#suggestion-main">본문으로 바로가기</a>
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top">
+          <a class="brand" href="/main" aria-label="Matths 학습 홈">
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span>Matths</span>
+          </a>
+          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
+        </div>
+        <nav class="side-nav" aria-label="대시보드 메뉴">
+          <p>LEARNING</p>
+          <a href="/main"><span class="nav-icon" aria-hidden="true">⌂</span><span>학습 홈</span></a>
+          <a href="/my-learning"><span class="nav-icon" aria-hidden="true">▦</span><span>내 학습</span></a>
+          <a href="/quick-practice"><span class="nav-icon" aria-hidden="true">⚡</span><span>40초 눈풀이</span></a>
+          <a href="/assessments"><span class="nav-icon" aria-hidden="true">✓</span><span>평가 센터</span></a>
+          <a href="/wrong-notes"><span class="nav-icon" aria-hidden="true">↻</span><span>오답 노트</span></a>
+          <a href="/war-of-masters"><span class="nav-icon" aria-hidden="true">♜</span><span>실수들의 전쟁</span></a>
+          <a class="active" href="/coach-suggestions" aria-current="page"><span class="nav-icon" aria-hidden="true">✦</span><span>문구 제안소</span></a>
+        </nav>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile">
+          <span class="profile-avatar" aria-hidden="true"><%= String(learner.name || "학생").slice(0, 1) %></span>
+          <div class="profile-copy">
+            <strong><%= learner.name || "학생" %>님</strong>
+            <small><%= learner.email || "" %></small>
+          </div>
+          <form action="/logout" method="POST">
+            <button type="submit" aria-label="로그아웃" title="로그아웃">↗</button>
+          </form>
+        </div>
+      </aside>
+
+      <main class="dashboard-main suggestion-main" id="suggestion-main">
+        <header class="topbar suggestion-topbar">
+          <div class="topbar-left">
+            <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
+            <div><p>학생 참여</p><h1>문구 제안소</h1></div>
+          </div>
+          <a href="/main">학습 홈으로 →</a>
+        </header>
+
+        <section class="suggestion-hero">
+          <div>
+            <p>학생이 만드는 코치</p>
+            <h2>공부할 때 정신이 번쩍 드는<br />한마디를 제안해주세요.</h2>
+            <span>운영자 검수를 통과한 문구는 순한맛·매운맛·무음 모드의 실제 피드백에 추가됩니다.</span>
+          </div>
+          <aside>
+            <strong>제안 원칙</strong>
+            <ul>
+              <li>수학 학습을 다시 시작하게 만드는 문장</li>
+              <li>특정 학생의 외모·성별·학교·성적을 공격하지 않기</li>
+              <li>욕설, 혐오, 개인정보, 광고 링크는 승인하지 않기</li>
+            </ul>
+          </aside>
+        </section>
+
+        <% if (submitted) { %>
+          <div class="suggestion-alert success" role="status">문구를 저장했습니다. 운영자 검수 후 반영됩니다.</div>
+        <% } %>
+        <% if (moderated) { %>
+          <div class="suggestion-alert success" role="status">문구 검수 결과를 반영했습니다.</div>
+        <% } %>
+        <% if (formError) { %>
+          <div class="suggestion-alert error" role="alert"><%= formError %></div>
+        <% } %>
+
+        <section class="suggestion-grid">
+          <form class="suggestion-form" action="/coach-suggestions" method="POST">
+            <div class="suggestion-heading">
+              <p>새 문구 제안</p>
+              <h3>어떤 상황에서 보여줄까요?</h3>
+            </div>
+            <div class="suggestion-fields">
+              <label>
+                <span>코치 모드</span>
+                <select name="mode" required>
+                  <% Object.entries(modeLabels).forEach(([value, label]) => { %>
+                    <option value="<%= value %>" <%= input.mode === value ? "selected" : "" %>><%= label %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label>
+                <span>노출 상황</span>
+                <select name="situation" required>
+                  <% Object.entries(situationLabels).forEach(([value, label]) => { %>
+                    <option value="<%= value %>" <%= input.situation === value ? "selected" : "" %>><%= label %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label class="message-field">
+                <span>제안 문구 <small>4~120자</small></span>
+                <textarea name="message" minlength="4" maxlength="120" required placeholder="예: 지금 막힌 한 줄이 오늘 가장 중요한 공부다."><%= input.message || "" %></textarea>
+              </label>
+            </div>
+            <button type="submit">검수 요청하기 →</button>
+          </form>
+
+          <section class="my-suggestions">
+            <div class="suggestion-heading">
+              <p>내 제안</p>
+              <h3>검수 상태</h3>
+            </div>
+            <% if (!board.mine.length) { %>
+              <div class="suggestion-empty">아직 제안한 문구가 없습니다.</div>
+            <% } %>
+            <div class="suggestion-list">
+              <% board.mine.forEach((item) => { %>
+                <article>
+                  <div>
+                    <span><%= modeLabels[item.mode] %></span>
+                    <span><%= situationLabels[item.situation] %></span>
+                    <b class="status-<%= item.status %>"><%= statusLabels[item.status] %></b>
+                  </div>
+                  <p><%= item.message %></p>
+                  <% if (item.rejectionReason) { %><small>반려 사유: <%= item.rejectionReason %></small><% } %>
+                </article>
+              <% }) %>
+            </div>
+          </section>
+        </section>
+
+        <% if (board.isAdmin) { %>
+          <section class="moderation-section">
+            <div class="suggestion-heading">
+              <p>운영자 검수</p>
+              <h3>대기 중인 문구 <%= board.pending.length %>개</h3>
+            </div>
+            <% if (!board.pending.length) { %>
+              <div class="suggestion-empty">검수를 기다리는 문구가 없습니다.</div>
+            <% } %>
+            <div class="moderation-list">
+              <% board.pending.forEach((item) => { %>
+                <article>
+                  <div>
+                    <span><%= item.authorName %></span>
+                    <span><%= modeLabels[item.mode] %> · <%= situationLabels[item.situation] %></span>
+                  </div>
+                  <p><%= item.message %></p>
+                  <form action="/coach-suggestions/<%= item.id %>/moderate" method="POST">
+                    <input name="rejectionReason" maxlength="200" placeholder="반려할 때만 사유 입력" />
+                    <button name="action" value="reject" type="submit">반려</button>
+                    <button class="approve" name="action" value="approve" type="submit">승인</button>
+                  </form>
+                </article>
+              <% }) %>
+            </div>
+          </section>
+        <% } %>
+
+        <section class="approved-section">
+          <div class="suggestion-heading">
+            <p>현재 사용 중</p>
+            <h3>학생이 만든 코치 문구</h3>
+          </div>
+          <% if (!board.approved.length) { %>
+            <div class="suggestion-empty">아직 승인된 학생 문구가 없습니다. 첫 문구를 제안해보세요.</div>
+          <% } %>
+          <div class="approved-grid">
+            <% board.approved.forEach((item) => { %>
+              <article>
+                <div><span><%= modeLabels[item.mode] %></span><span><%= situationLabels[item.situation] %></span></div>
+                <blockquote>“<%= item.message %>”</blockquote>
+                <small><%= item.authorName %> 학생 제안</small>
+              </article>
+            <% }) %>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

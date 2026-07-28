@@ -267,7 +267,7 @@ select:focus-visible {
   place-items: center;
   color: #33467f;
   background: #bec9fb;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-style: normal;
 }
 
@@ -284,7 +284,7 @@ select:focus-visible {
 .formula-card > strong {
   display: block;
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   text-align: center;
 }
 
@@ -305,7 +305,7 @@ select:focus-visible {
 
 .visual-points b {
   color: #6883ff;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
 }
 
 .learning-preview {
@@ -342,7 +342,7 @@ select:focus-visible {
   place-items: center;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 10px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 13px;
 }
 
@@ -424,7 +424,7 @@ select:focus-visible {
   color: #fff;
   background: var(--red);
   border-radius: 8px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-weight: 900;
 }
 
@@ -432,6 +432,81 @@ select:focus-visible {
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.form-alert-success {
+  color: #167455;
+  background: #e7f7f1;
+  border-color: #a8dfcb;
+}
+
+.form-alert-success > span {
+  color: #fff;
+  background: #20a078;
+}
+
+.form-alert-preview {
+  color: #6f551b;
+  background: #fff8e6;
+  border-color: #ead38f;
+}
+
+.form-alert-preview > span {
+  color: #fff;
+  background: #c88a19;
+}
+
+.reset-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.reset-steps span {
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 9px;
+  padding: 18px;
+  color: #8f98b4;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 15px;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.reset-steps span.active {
+  color: #fff;
+  background: rgba(99, 126, 255, 0.18);
+  border-color: rgba(150, 169, 255, 0.35);
+}
+
+.reset-steps b {
+  color: #8da2ff;
+  font-size: 11px;
+}
+
+.verification-code {
+  text-align: center;
+  font-size: 25px !important;
+  font-weight: 900;
+  letter-spacing: 8px;
+}
+
+.reset-resend {
+  margin-top: 14px;
+  text-align: center;
+}
+
+.reset-resend button {
+  padding: 8px;
+  color: #65708b;
+  background: transparent;
+  border: 0;
+  font-size: 10px;
+  font-weight: 750;
 }
 
 .auth-form {

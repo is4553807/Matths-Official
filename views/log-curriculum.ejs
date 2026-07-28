@@ -69,6 +69,9 @@
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/log-curriculum.css" />
     <script src="/js/main.js" defer></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
   </head>
 
   <body>
@@ -122,9 +125,9 @@
             <span class="nav-icon" aria-hidden="true">↻</span>
             <span>오답 노트</span>
           </a>
-          <a href="/main#learning-record">
-            <span class="nav-icon" aria-hidden="true">⌁</span>
-            <span>학습 기록</span>
+          <a href="/war-of-masters">
+            <span class="nav-icon" aria-hidden="true">♜</span>
+            <span>실수들의 전쟁</span>
           </a>
         </nav>
 
@@ -132,38 +135,35 @@
 
         <section
           class="coach-mini"
-          data-mode="spicy"
+          data-mode="<%= coach.mode %>"
+          data-situation="<%= coach.situation %>"
           aria-labelledby="coach-mini-title"
         >
           <div>
             <span aria-hidden="true">M</span>
             <p>
               <small>MATTHS COACH</small>
-              <strong id="coach-mini-title">매운맛 모드</strong>
+              <strong id="coach-mini-title"><%= coach.title %></strong>
             </p>
           </div>
           <p id="coach-mini-message">
-            선택과목까지 전부 할 필요는 없어. 네가 배우는 과목부터 제대로 끝내자.
+            <%= coach.message %>
           </p>
           <div
             class="coach-modes"
             role="group"
             aria-label="학습 코치 말투 선택"
           >
-            <button type="button" data-mode="mild" aria-pressed="false">
-              순한맛
-            </button>
-            <button
-              class="active"
-              type="button"
-              data-mode="spicy"
-              aria-pressed="true"
-            >
-              매운맛
-            </button>
-            <button type="button" data-mode="silent" aria-pressed="false">
-              무음
-            </button>
+            <% [["mild", "순한맛"], ["spicy", "매운맛"], ["silent", "무음"]].forEach(([mode, label]) => { %>
+              <button
+                class="<%= coach.mode === mode ? 'active' : '' %>"
+                type="button"
+                data-mode="<%= mode %>"
+                aria-pressed="<%= coach.mode === mode %>"
+              >
+                <%= label %>
+              </button>
+            <% }) %>
           </div>
         </section>
 

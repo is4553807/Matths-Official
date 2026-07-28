@@ -6,6 +6,8 @@ const mongoose = require("mongoose");
 const {
   AssessmentAttempt,
   ConceptProgress,
+  Problem,
+  ProblemAttempt,
 } = require("../models/matthsModel");
 const {
   loadCurriculum,
@@ -33,8 +35,61 @@ const {
 } = require(
   "./assessmentReferences/mockExamCatalog"
 );
+const {
+  answersEquivalent,
+} = require("./mathAnswerService");
 
 const PASS_SCORE = 80;
+const TIME_LIMIT_MS = {
+  subunit: 10 * 60 * 1000,
+  unit: 30 * 60 * 1000,
+  course: 60 * 60 * 1000,
+};
+
+function assessmentTimeLimitMs(
+  scopeType
+) {
+  return (
+    TIME_LIMIT_MS[scopeType] ||
+    TIME_LIMIT_MS.subunit
+  );
+}
+
+function attemptTimeLimitMs(
+  attempt
+) {
+  return (
+    Number(
+      attempt.timeLimitMs
+    ) ||
+    assessmentTimeLimitMs(
+      attempt.scopeType
+    )
+  );
+}
+
+function attemptDeadlineMs(attempt) {
+  return (
+    new Date(
+      attempt.startedAt
+    ).getTime() +
+    attemptTimeLimitMs(attempt)
+  );
+}
+
+function assessmentIsOverdue(
+  attempt,
+  now = Date.now()
+) {
+  return (
+    attempt.status ===
+      "in-progress" &&
+    now >=
+      attemptDeadlineMs(
+        attempt
+      )
+  );
+}
 
 /*
  * 사용자가 제공한 문제은행의 sub 단위를 현재 교육과정의
@@ -434,6 +489,14 @@ function normalizeExamMath(value) {
         `\\(${normalizeExamTex(
           math
         )}\\)`
+    )
+    .replace(
+      /\\\)(?=[가-힣])/g,
+      "\\) "
+    )
+    .replace(
+      /([가-힣])(?=\\\()/g,
+      "$1 "
     );
 }
 
@@ -552,14 +615,28 @@ function generatorRecordsForTarget(
         )
         .flatMap((bankSubunit) =>
           bankSubunit.gens.map(
-            (generator) => ({
-              generator,
-              bankUnit,
-              bankSubunit,
-              sourceUnitId:
-                unitConfig?.unitId ||
-                "",
-            })
+            (generator) => {
+              const sourceSubunit =
+                unitConfig?.subunits.find(
+                  (item) =>
+                    item.id ===
+                    bankSubunit.id
+                );
+
+              return {
+                generator,
+                bankUnit,
+                bankSubunit,
+                sourceUnitId:
+                  unitConfig?.unitId ||
+                  "",
+                sourceConceptId:
+                  sourceSubunit
+                    ?.conceptIds?.[0] ||
+                  "",
+                practiceTypeId: "",
+              };
+            }
           )
         );
     }
@@ -637,6 +714,10 @@ function generatorRecordsForTarget(
                     bankSubunit,
                     sourceUnitId:
                       unitConfig.unitId,
+                    sourceConceptId:
+                      conceptId,
+                    practiceTypeId:
+                      problemType.id,
                   })
                 );
               }
@@ -726,6 +807,12 @@ function makeSingleQuestion({
       record.sourceUnitId,
     sourceSubunitId:
       record.bankSubunit.id,
+    sourceConceptId:
+      record.sourceConceptId ||
+      "",
+    retryTypeId:
+      record.practiceTypeId ||
+      "",
     prompt: normalizeExamMath(
       problem.prompt
     ),
@@ -1280,6 +1367,14 @@ function drawAdvancedTemplateQuestions({
         candidate.config.unitId,
       sourceSubunitId:
         "integrated",
+      sourceConceptId:
+        candidate.stage
+          .requiredConceptIds[
+          candidate.stage
+            .requiredConceptIds
+            .length - 1
+        ] || "",
+      retryTypeId: "",
       prompt: normalizeExamMath(
         problem.prompt
       ),
@@ -1521,6 +1616,10 @@ function buildAssessmentPaper({
     title,
     subtitle,
     passScore: PASS_SCORE,
+    timeLimitMs:
+      assessmentTimeLimitMs(
+        scopeType
+      ),
     questions,
     totalPoints: 100,
   };
@@ -1540,6 +1639,49 @@ function progressIsCompleted(progress) {
   );
 }
 
+function answerHasContent(value) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return false;
+  }
+
+  return String(value).trim() !== "";
+}
+
+function answeredQuestionCount(attempt) {
+  return (
+    attempt.questions || []
+  ).filter((question) =>
+    answerHasContent(
+      question.submittedAnswer
+    )
+  ).length;
+}
+
+function assessmentScopeFilter({
+  userId,
+  scopeType,
+  courseId,
+  unitId,
+  subunitId,
+}) {
+  return {
+    userId,
+    scopeType,
+    courseId,
+    unitId:
+      scopeType === "course"
+        ? null
+        : unitId,
+    subunitId:
+      scopeType === "subunit"
+        ? subunitId
+        : null,
+  };
+}
+
 function passedAttemptMap(attempts) {
   const map = new Map();
 
@@ -1552,7 +1694,28 @@ function passedAttemptMap(attempts) {
       bestScore: null,
       attempts: 0,
       latestAttemptId: null,
+      activeAttemptId: null,
+      hasEmptyAttempt: false,
     };
+
+    if (
+      attempt.status ===
+      "in-progress"
+    ) {
+      if (
+        answeredQuestionCount(
+          attempt
+        ) > 0
+      ) {
+        current.activeAttemptId ||=
+          String(attempt._id);
+      } else {
+        current.hasEmptyAttempt =
+          true;
+      }
+      map.set(key, current);
+      continue;
+    }
 
     current.attempts += 1;
     current.passed ||=
@@ -1585,6 +1748,8 @@ function assessmentState(
       bestScore: null,
       attempts: 0,
       latestAttemptId: null,
+      activeAttemptId: null,
+      hasEmptyAttempt: false,
     }
   );
 }
@@ -1592,6 +1757,10 @@ function assessmentState(
 async function getAssessmentCenterData(
   userId
 ) {
+  await expireOverdueAssessments(
+    userId
+  );
+
   const curriculumData =
     loadCurriculum();
   const [progressDocuments, attempts] =
@@ -1602,13 +1771,20 @@ async function getAssessmentCenterData(
       }).lean(),
       AssessmentAttempt.find({
         userId,
-        status: "submitted",
+        status: {
+          $in: [
+            "submitted",
+            "in-progress",
+            "disqualified",
+          ],
+        },
       })
         .sort({
+          updatedAt: -1,
           submittedAt: -1,
         })
         .select(
-          "scopeType courseId unitId subunitId passed scorePercent"
+          "scopeType courseId unitId subunitId status passed scorePercent questions.submittedAnswer"
         )
         .lean(),
     ]);
@@ -1814,6 +1990,32 @@ async function getAssessmentCenterData(
             (unit) =>
               unit.final.passed
           );
+        const courseFinal = {
+          unlocked:
+            unitFinalsPassed ||
+            state.passed,
+          lockReason:
+            unitFinalsPassed
+              ? null
+              : "모든 대단원 기말평가를 통과해야 합니다.",
+          ...state,
+        };
+        const unlockedAssessmentCount =
+          units.reduce(
+            (sum, unit) =>
+              sum +
+              unit.subunits.filter(
+                (subunit) =>
+                  subunit.unlocked
+              ).length +
+              Number(
+                unit.final.unlocked
+              ),
+            0
+          ) +
+          Number(
+            courseFinal.unlocked
+          );
 
         return {
           id:
@@ -1824,23 +2026,77 @@ async function getAssessmentCenterData(
             bankCourse?.label ||
             courseConfig.courseId,
           units,
-          courseFinal: {
-            unlocked:
-              unitFinalsPassed ||
-              state.passed,
-            lockReason:
-              unitFinalsPassed
-                ? null
-                : "모든 대단원 기말평가를 통과해야 합니다.",
-            ...state,
-          },
+          courseFinal,
+          available:
+            unlockedAssessmentCount >
+            0,
+          unlockedAssessmentCount,
+          lockReason:
+            unlockedAssessmentCount >
+            0
+              ? null
+              : "이 과목의 개념을 모두 학습하면 소단원 평가부터 차례로 열립니다.",
         };
       }
+    );
+
+  const visibleCourses =
+    courses.filter(
+      (course) =>
+        course.available
+    );
+  const totalAssessments =
+    courses.reduce(
+      (sum, course) =>
+        sum +
+        course.units.reduce(
+          (
+            unitSum,
+            unit
+          ) =>
+            unitSum +
+            unit.subunits.length +
+            1,
+          0
+        ) +
+        1,
+      0
+    );
+  const visibleAssessments =
+    courses.reduce(
+      (sum, course) =>
+        sum +
+        course.units.reduce(
+          (
+            unitSum,
+            unit
+          ) =>
+            unitSum +
+            unit.subunits.filter(
+              (subunit) =>
+                subunit.unlocked
+            ).length +
+            Number(
+              unit.final.unlocked
+            ),
+          0
+        ) +
+        Number(
+          course.courseFinal
+            .unlocked
+        ),
+      0
     );
 
   return {
     passScore: PASS_SCORE,
     courses,
+    visibleCourses,
+    lockedCount: Math.max(
+      0,
+      totalAssessments -
+        visibleAssessments
+    ),
   };
 }
 
@@ -1918,19 +2174,67 @@ async function createAssessmentAttempt({
     throw error;
   }
 
-  const recentAttempts =
-    await AssessmentAttempt.find({
+  const scopeFilter =
+    assessmentScopeFilter({
       userId,
       scopeType,
       courseId,
-      unitId:
-        scopeType === "course"
-          ? null
-          : unitId,
-      subunitId:
-        scopeType === "subunit"
-          ? subunitId
-          : null,
+      unitId,
+      subunitId,
+    });
+  const inProgressAttempts =
+    await AssessmentAttempt.find({
+      ...scopeFilter,
+      status: "in-progress",
+    }).sort({
+      updatedAt: -1,
+      createdAt: -1,
+    });
+  const resumableAttempt =
+    inProgressAttempts.find(
+      (attempt) =>
+        answeredQuestionCount(
+          attempt
+        ) > 0
+    );
+
+  if (resumableAttempt) {
+    await AssessmentAttempt.updateMany(
+      {
+        ...scopeFilter,
+        status: "in-progress",
+        _id: {
+          $ne:
+            resumableAttempt._id,
+        },
+      },
+      {
+        $set: {
+          status: "abandoned",
+        },
+      }
+    );
+
+    return resumableAttempt;
+  }
+
+  if (inProgressAttempts.length) {
+    await AssessmentAttempt.updateMany(
+      {
+        ...scopeFilter,
+        status: "in-progress",
+      },
+      {
+        $set: {
+          status: "abandoned",
+        },
+      }
+    );
+  }
+
+  const recentAttempts =
+    await AssessmentAttempt.find({
+      ...scopeFilter,
     })
       .sort({ createdAt: -1 })
       .limit(3)
@@ -1986,103 +2290,424 @@ async function createAssessmentAttempt({
   });
 }
 
-function numericValue(value) {
-  const normalized = String(value ?? "")
-    .trim()
-    .replace(/−/g, "-")
-    .replace(/,/g, "")
-    .replace(
-      /^\\\((.*)\\\)$/,
-      "$1"
-    );
-  const fraction =
-    normalized.match(
-      /^(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)$/
-    );
-
-  if (fraction) {
-    const denominator =
-      Number(fraction[2]);
-
-    if (denominator === 0) {
-      return null;
-    }
-
-    return (
-      Number(fraction[1]) /
-      denominator
-    );
-  }
-
-  const numeric = Number(normalized);
-  return Number.isFinite(numeric)
-    ? numeric
-    : null;
-}
-
-function normalizedAnswer(value) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/−/g, "-")
-    .replace(/[;，]/g, ",")
-    .replace(/\s+/g, "");
-}
-
 function isCorrectAssessmentAnswer(
   expected,
   submitted
 ) {
-  const expectedText =
-    normalizedAnswer(expected);
-  const submittedText =
-    normalizedAnswer(submitted);
+  return answersEquivalent(
+    expected,
+    submitted
+  );
+}
 
-  if (
-    expectedText.includes(",") ||
-    submittedText.includes(",")
-  ) {
-    const expectedParts =
-      expectedText.split(",");
-    const submittedParts =
-      submittedText.split(",");
-
-    return (
-      expectedParts.length ===
-        submittedParts.length &&
-      expectedParts.every(
-        (part, index) =>
-          isCorrectAssessmentAnswer(
-            part,
-            submittedParts[index]
-          )
+function applyAssessmentAnswers(
+  attempt,
+  answers = {}
+) {
+  for (const question of
+    attempt.questions) {
+    if (
+      Object.prototype.hasOwnProperty.call(
+        answers,
+        question.questionId
       )
-    );
+    ) {
+      question.submittedAnswer =
+        answers[question.questionId];
+    }
+  }
+}
+
+async function disqualifyAssessmentDocument(
+  attempt,
+  answers = {}
+) {
+  if (
+    attempt.status !==
+    "in-progress"
+  ) {
+    return attempt;
   }
 
-  const expectedNumber =
-    numericValue(expectedText);
-  const submittedNumber =
-    numericValue(submittedText);
+  applyAssessmentAnswers(
+    attempt,
+    answers
+  );
+
+  const timeLimitMs =
+    attemptTimeLimitMs(attempt);
+  const deadline = new Date(
+    attemptDeadlineMs(attempt)
+  );
+
+  attempt.timeLimitMs =
+    timeLimitMs;
+  attempt.earnedPoints = 0;
+  attempt.scorePercent = 0;
+  attempt.passed = false;
+  attempt.status =
+    "disqualified";
+  attempt.disqualifiedReason =
+    "time-limit";
+  attempt.submittedAt =
+    deadline;
+  attempt.elapsedTimeMs =
+    timeLimitMs;
+  attempt.lastSavedAt =
+    new Date();
+
+  await attempt.save();
+  return attempt;
+}
+
+async function expireOverdueAssessments(
+  userId
+) {
+  const attempts =
+    await AssessmentAttempt.find({
+      userId,
+      status: "in-progress",
+    });
+  const now = Date.now();
+
+  for (const attempt of
+    attempts) {
+    if (
+      assessmentIsOverdue(
+        attempt,
+        now
+      )
+    ) {
+      await disqualifyAssessmentDocument(
+        attempt
+      );
+    }
+  }
+}
+
+async function saveAssessmentDraft({
+  userId,
+  attemptId,
+  answers = {},
+}) {
+  if (
+    !mongoose.isValidObjectId(
+      attemptId
+    )
+  ) {
+    const error = new Error(
+      "평가 기록을 찾을 수 없습니다."
+    );
+    error.status = 404;
+    throw error;
+  }
+
+  const attempt =
+    await AssessmentAttempt.findOne({
+      _id: attemptId,
+      userId,
+    });
+
+  if (!attempt) {
+    const error = new Error(
+      "저장할 수 있는 진행 중 평가를 찾을 수 없습니다."
+    );
+    error.status = 404;
+    throw error;
+  }
 
   if (
-    expectedNumber !== null &&
-    submittedNumber !== null
+    attempt.status !==
+    "in-progress"
   ) {
-    return (
-      Math.abs(
-        expectedNumber -
-          submittedNumber
-      ) <=
+    return {
+      status: attempt.status,
+      expired:
+        attempt.status ===
+        "disqualified",
+      redirectUrl:
+        `/assessments/${attempt._id}`,
+    };
+  }
+
+  if (
+    assessmentIsOverdue(
+      attempt
+    )
+  ) {
+    await disqualifyAssessmentDocument(
+      attempt,
+      answers
+    );
+
+    return {
+      status:
+        attempt.status,
+      expired: true,
+      redirectUrl:
+        `/assessments/${attempt._id}`,
+      elapsedTimeMs:
+        attempt.elapsedTimeMs,
+    };
+  }
+
+  applyAssessmentAnswers(
+    attempt,
+    answers
+  );
+
+  const serverElapsed = Math.max(
+    0,
+    Date.now() -
+      new Date(
+        attempt.startedAt
+      ).getTime()
+  );
+
+  attempt.elapsedTimeMs = Math.max(
+    Number(
+      attempt.elapsedTimeMs
+    ) || 0,
+    Math.min(
+      serverElapsed,
+      attemptTimeLimitMs(
+        attempt
+      )
+    )
+  );
+  attempt.lastSavedAt = new Date();
+  await attempt.save();
+
+  return {
+    savedAt:
+      attempt.lastSavedAt,
+    elapsedTimeMs:
+      attempt.elapsedTimeMs,
+  };
+}
+
+async function expireAssessmentAttempt({
+  userId,
+  attemptId,
+  answers = {},
+}) {
+  if (
+    !mongoose.isValidObjectId(
+      attemptId
+    )
+  ) {
+    const error = new Error(
+      "평가 기록을 찾을 수 없습니다."
+    );
+    error.status = 404;
+    throw error;
+  }
+
+  const attempt =
+    await AssessmentAttempt.findOne({
+      _id: attemptId,
+      userId,
+    });
+
+  if (!attempt) {
+    const error = new Error(
+      "평가 기록을 찾을 수 없습니다."
+    );
+    error.status = 404;
+    throw error;
+  }
+
+  if (
+    attempt.status !==
+    "in-progress"
+  ) {
+    return attempt;
+  }
+
+  if (
+    !assessmentIsOverdue(
+      attempt
+    )
+  ) {
+    const error = new Error(
+      "아직 제한 시간이 남아 있습니다."
+    );
+    error.status = 409;
+    error.remainingTimeMs =
       Math.max(
-        1e-7,
-        Math.abs(expectedNumber) *
-          1e-7
-      )
-    );
+        0,
+        attemptDeadlineMs(
+          attempt
+        ) - Date.now()
+      );
+    throw error;
   }
 
-  return expectedText === submittedText;
+  return disqualifyAssessmentDocument(
+    attempt,
+    answers
+  );
+}
+
+async function recordAssessmentWrongAnswers(
+  attempt
+) {
+  const wrongQuestions =
+    attempt.questions.filter(
+      (question) =>
+        question.isCorrect === false
+    );
+
+  for (const question of
+    wrongQuestions) {
+    const conceptId =
+      question.sourceConceptId ||
+      `${attempt.courseId}-assessment`;
+    const unitId =
+      question.sourceUnitId ||
+      attempt.unitId ||
+      "assessment";
+    const problem =
+      await Problem.findOneAndUpdate(
+        {
+          externalId:
+            `assessment:${attempt.paperId}:${question.questionId}`,
+        },
+        {
+          $set: {
+            curriculumId:
+              attempt.curriculumId,
+            courseId:
+              attempt.courseId,
+            unitId,
+            conceptIds: [
+              conceptId,
+            ],
+            primaryConceptId:
+              conceptId,
+            source: {
+              type: "custom",
+            },
+            questionType:
+              question.inputMode ===
+              "multiple-choice"
+                ? "multiple-choice"
+                : "short-answer",
+            stem: question.prompt,
+            choices:
+              question.choices || [],
+            correctAnswer:
+              question.answer,
+            difficulty:
+              question.difficulty ===
+              "advanced"
+                ? 5
+                : question.difficulty ===
+                    "applied"
+                  ? 4
+                  : 3,
+            estimatedTimeSeconds:
+              Number(
+                question.estimatedMinutes
+              )
+                ? Number(
+                    question.estimatedMinutes
+                  ) * 60
+                : 180,
+            score:
+              Number(
+                question.points
+              ) || 0,
+            tags: [
+              "assessment",
+              attempt.scopeType,
+              question.difficulty,
+            ],
+            isPublished: true,
+          },
+        },
+        {
+          upsert: true,
+          returnDocument: "after",
+          setDefaultsOnInsert: true,
+        }
+      );
+    const attemptNumber =
+      (
+        await ProblemAttempt.countDocuments({
+          userId:
+            attempt.userId,
+          problemId: problem._id,
+        })
+      ) + 1;
+
+    await ProblemAttempt.create({
+      userId: attempt.userId,
+      problemId: problem._id,
+      curriculumId:
+        attempt.curriculumId,
+      courseId: attempt.courseId,
+      unitId,
+      conceptId,
+      attemptNumber,
+      submittedAnswer:
+        question.submittedAnswer ===
+          undefined ||
+        question.submittedAnswer ===
+          null ||
+        question.submittedAnswer ===
+          ""
+          ? "미응답"
+          : question.submittedAnswer,
+      problemSnapshot: {
+        typeId:
+          question.retryTypeId ||
+          null,
+        stem: question.prompt,
+        choices:
+          question.choices || [],
+        solution:
+          question.solution || "",
+        difficulty:
+          question.difficulty ===
+          "advanced"
+            ? 5
+            : question.difficulty ===
+                "applied"
+              ? 4
+              : 3,
+      },
+      isCorrect: false,
+      score: 0,
+      maxScore:
+        Number(
+          question.points
+        ) || 0,
+      responseTimeMs:
+        Math.round(
+          (
+            Number(
+              attempt.elapsedTimeMs
+            ) || 0
+          ) /
+            Math.max(
+              1,
+              attempt.questions.length
+            )
+        ),
+      errorAnalysis: {
+        errorType: "unknown",
+        relatedConceptId:
+          conceptId,
+      },
+      review: {
+        status: "pending",
+      },
+      submittedAt:
+        attempt.submittedAt ||
+        new Date(),
+    });
+  }
 }
 
 async function submitAssessmentAttempt({
@@ -2117,19 +2742,39 @@ async function submitAssessmentAttempt({
   }
 
   if (
-    attempt.status === "submitted"
+    attempt.status ===
+      "submitted" ||
+    attempt.status ===
+      "disqualified"
   ) {
     return attempt;
+  }
+
+  if (
+    assessmentIsOverdue(
+      attempt
+    )
+  ) {
+    return disqualifyAssessmentDocument(
+      attempt,
+      answers
+    );
   }
 
   let earnedPoints = 0;
 
   for (const question of
     attempt.questions) {
-    const submitted =
-      answers[
+    const hasSubmitted =
+      Object.prototype.hasOwnProperty.call(
+        answers,
         question.questionId
-      ];
+      );
+    const submitted = hasSubmitted
+      ? answers[
+          question.questionId
+        ]
+      : question.submittedAnswer;
     const correct =
       isCorrectAssessmentAnswer(
         question.answer,
@@ -2166,8 +2811,26 @@ async function submitAssessmentAttempt({
     attempt.passScore;
   attempt.status = "submitted";
   attempt.submittedAt = new Date();
+  attempt.elapsedTimeMs =
+    Math.min(
+      attemptTimeLimitMs(
+        attempt
+      ),
+      Math.max(
+        0,
+        attempt.submittedAt.getTime() -
+          new Date(
+            attempt.startedAt
+          ).getTime()
+      )
+    );
+  attempt.lastSavedAt =
+    attempt.submittedAt;
 
   await attempt.save();
+  await recordAssessmentWrongAnswers(
+    attempt
+  );
   return attempt;
 }
 
@@ -2187,11 +2850,11 @@ async function getAssessmentAttempt({
     throw error;
   }
 
-  const attempt =
+  let attempt =
     await AssessmentAttempt.findOne({
       _id: attemptId,
       userId,
-    }).lean();
+    });
 
   if (!attempt) {
     const error = new Error(
@@ -2200,6 +2863,29 @@ async function getAssessmentAttempt({
     error.status = 404;
     throw error;
   }
+
+  if (
+    assessmentIsOverdue(
+      attempt
+    )
+  ) {
+    attempt =
+      await disqualifyAssessmentDocument(
+        attempt
+      );
+  }
+
+  attempt = attempt.toObject();
+  attempt.timeLimitMs =
+    attemptTimeLimitMs(
+      attempt
+    );
+  attempt.deadlineAt =
+    new Date(
+      attemptDeadlineMs(
+        attempt
+      )
+    );
 
   attempt.questions = (
     attempt.questions || []
@@ -2327,7 +3013,9 @@ module.exports = {
   isCorrectAssessmentAnswer,
   getAssessmentCenterData,
   createAssessmentAttempt,
+  expireAssessmentAttempt,
   submitAssessmentAttempt,
+  saveAssessmentDraft,
   getAssessmentAttempt,
   applyAssessmentGatesToLearningData,
 };

@@ -12,39 +12,14 @@ function nonZeroInteger(min = -5, max = 5) {
   return value;
 }
 
-function parseNumber(value) {
-  const normalized = String(value ?? "")
-    .trim()
-    .replace(/\s+/g, "");
-
-  if (/^-?\d+\/-?\d+$/.test(normalized)) {
-    const [numerator, denominator] = normalized
-      .split("/")
-      .map(Number);
-
-    if (denominator === 0) {
-      return Number.NaN;
-    }
-
-    return numerator / denominator;
-  }
-
-  return Number(normalized);
-}
+const {
+  answersEquivalent,
+} = require("../mathAnswerService");
 
 function isCorrectAnswer(expected, submitted) {
-  if (typeof expected === "number") {
-    const submittedNumber = parseNumber(submitted);
-
-    return (
-      Number.isFinite(submittedNumber) &&
-      Math.abs(submittedNumber - expected) < 0.0001
-    );
-  }
-
-  return (
-    String(expected).trim().toLowerCase() ===
-    String(submitted ?? "").trim().toLowerCase()
+  return answersEquivalent(
+    expected,
+    submitted
   );
 }
 

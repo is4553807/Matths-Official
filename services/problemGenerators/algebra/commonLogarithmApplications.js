@@ -49,7 +49,7 @@ const problemTypes = [
 
   {
     id: "log-power-common",
-    label: "유형 5 · log 10^n 계산",
+    label: "유형 5 · 상용로그의 거듭제곱 계산",
     difficulty: 1,
 
     generate() { const a = randomInteger(1, 4), k = randomInteger(1, 4);

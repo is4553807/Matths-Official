@@ -2783,6 +2783,7 @@
     ].join("/");
 
     let currentProblem = null;
+    let answerSubmitted = false;
 
     function renderReview(review) {
       if (!isReviewMode || !review) return;
@@ -2811,7 +2812,9 @@
       if (reviewMessage) {
         reviewMessage.textContent = completed
           ? "같은 유형의 재도전 문제를 정확히 해결했습니다."
-          : "같은 유형을 다시 맞힐 때까지 복습 대기 상태가 유지됩니다.";
+          : review.scheduled
+            ? "이번 재도전에서 다시 틀려 내일 복습 예정으로 예약됐습니다."
+            : "새로 저장된 오답이라 지금 바로 복습할 수 있습니다.";
       }
 
       if (reviewReturn) {
@@ -2880,16 +2883,23 @@
       const input = document.createElement("input");
       input.className = "short-answer-input";
       input.name = "answer";
+      input.dataset.mathInput = "";
       input.placeholder =
         "정답을 입력하세요. 분수는 1/2처럼 입력할 수 있습니다.";
       input.autocomplete = "off";
       input.required = true;
 
       answerArea.appendChild(input);
+      window.MatthsMathKeyboard?.attach(
+        input
+      );
     }
 
     async function loadProblem() {
+      answerSubmitted = false;
       submitButton.disabled = true;
+      submitButton.textContent =
+        "정답 확인";
       nextButton.hidden = true;
       feedback.hidden = true;
 
@@ -2928,10 +2938,32 @@
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
 
-      if (!currentProblem) return;
+      if (
+        !currentProblem ||
+        answerSubmitted
+      ) {
+        return;
+      }
 
       const formData = new FormData(form);
       const answer = formData.get("answer");
+
+      if (
+        answer === null ||
+        String(answer).trim() === ""
+      ) {
+        feedback.hidden = false;
+        feedback.className =
+          "problem-feedback wrong";
+        feedback.textContent =
+          currentProblem.coachPrompt
+            ?.message ||
+          "정답을 먼저 입력해주세요.";
+        answerArea
+          .querySelector("input")
+          ?.focus();
+        return;
+      }
 
       submitButton.disabled = true;
 
@@ -2947,6 +2979,16 @@
           }
         );
 
+        answerSubmitted = true;
+        submitButton.disabled = true;
+        submitButton.textContent =
+          "채점 완료";
+        answerArea
+          .querySelectorAll("input")
+          .forEach((input) => {
+            input.disabled = true;
+          });
+
         feedback.hidden = false;
         feedback.className =
           `problem-feedback ${
@@ -2960,12 +3002,12 @@
         );
 
         const feedbackText = reviewCompleted
-          ? `정답입니다. 오답 복습이 완료되었습니다.\n${result.solution}`
+          ? `정답입니다. 오답 복습이 완료되었습니다.\n${result.coachFeedback?.message || ""}\n${result.solution}`
           : result.correct
-            ? `정답입니다.\n${result.solution}`
+            ? `정답입니다.\n${result.coachFeedback?.message || ""}\n${result.solution}`
             : isReviewMode
-              ? `아쉽습니다. 아직 복습 대기 상태입니다.\n${result.solution}`
-              : `아쉽습니다.\n${result.solution}`;
+              ? `아쉽습니다. 내일 복습 예정으로 예약했습니다.\n${result.coachFeedback?.message || ""}\n${result.solution}`
+              : `아쉽습니다.\n${result.coachFeedback?.message || ""}\n${result.solution}`;
 
         setMath(feedback, feedbackText);
         renderMastery(result.mastery);
@@ -2977,6 +3019,7 @@
           reviewReturn.hidden = false;
         }
       } catch (error) {
+        answerSubmitted = false;
         feedback.hidden = false;
         feedback.className =
           "problem-feedback wrong";

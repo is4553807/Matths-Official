@@ -81,6 +81,20 @@
     typeof subunitAssessment !== "undefined"
       ? subunitAssessment
       : null;
+  const conceptGuidesData =
+    typeof conceptTypeGuides !== "undefined" &&
+    Array.isArray(conceptTypeGuides)
+      ? conceptTypeGuides
+      : [];
+  const subunitConceptIds =
+    subunitAssessmentData?.concepts?.map(
+      (item) => item.id
+    ) || [];
+  const isLastSubunitConcept =
+    subunitConceptIds.length > 0 &&
+    subunitConceptIds[
+      subunitConceptIds.length - 1
+    ] === concept.id;
 %>
 
 <!doctype html>
@@ -162,6 +176,10 @@
       src="/js/concept-experience.js"
       defer
     ></script>
+    <script
+      src="/js/math-keyboard.js"
+      defer
+    ></script>
 
     <!-- 미적분Ⅰ의 접선·도함수·정적분 놀이터 -->
     <script
@@ -180,6 +198,9 @@
       src="/js/probability-statistics.js"
       defer
     ></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
   </head>
 
   <body>
@@ -297,15 +318,15 @@
             <span>오답 노트</span>
           </a>
 
-          <a href="/main#learning-record">
+          <a href="/war-of-masters">
             <span
               class="nav-icon"
               aria-hidden="true"
             >
-              ⌁
+              ♜
             </span>
 
-            <span>학습 기록</span>
+            <span>실수들의 전쟁</span>
           </a>
         </nav>
 
@@ -611,6 +632,62 @@
               ) %>
             <% } %>
 
+            <% if (conceptGuidesData.length) { %>
+              <section
+                class="concept-type-guide"
+                aria-labelledby="concept-type-guide-title"
+              >
+                <header>
+                  <div>
+                    <p>문제 유형 안내</p>
+                    <h3 id="concept-type-guide-title">
+                      유형별로 풀이 순서를 확인합니다.
+                    </h3>
+                  </div>
+                  <span>
+                    문제를 풀기 전에 필요한 유형만 펼쳐보세요.
+                  </span>
+                </header>
+
+                <div class="concept-type-guide-list">
+                  <% conceptGuidesData.forEach((guide) => { %>
+                    <details>
+                      <summary>
+                        <b>
+                          유형 <%= String(guide.order).padStart(2, "0") %>
+                        </b>
+                        <strong><%= guide.title.replace(/^유형\s*\d+\s*·?\s*/, "") %></strong>
+                        <span aria-hidden="true">+</span>
+                      </summary>
+                      <div>
+                        <p class="guide-label">예시 문제</p>
+                        <div class="guide-math"><%= guide.prompt %></div>
+                        <% if (guide.choices.length) { %>
+                          <ol>
+                            <% guide.choices.forEach((choice) => { %>
+                              <li><%= choice.text %></li>
+                            <% }) %>
+                          </ol>
+                        <% } %>
+                        <div class="guide-process">
+                          <p>
+                            <span>1</span>
+                            <strong>첫 단서</strong>
+                            <em><%= guide.hint %></em>
+                          </p>
+                          <p>
+                            <span>2</span>
+                            <strong>계산과 검산</strong>
+                            <em><%= guide.solution %></em>
+                          </p>
+                        </div>
+                      </div>
+                    </details>
+                  <% }) %>
+                </div>
+              </section>
+            <% } %>
+
             <% if (
               Array.isArray(concept.scopeNotes) &&
               concept.scopeNotes.length
@@ -726,18 +803,38 @@
               <% } %>
 
               <% if (nextItem) { %>
-                <a
-                  class="next"
-                  href="/learn/<%= course.id %>/<%= nextItem.unit.id %>/<%= nextItem.concept.id %>"
-                >
-                  <span>
-                    다음 개념 →
-                  </span>
+                <% if (
+                  subunitAssessmentData?.unlocked &&
+                  isLastSubunitConcept
+                ) { %>
+                  <form
+                    class="next midterm-pagination"
+                    action="/assessments/start"
+                    method="post"
+                  >
+                    <input type="hidden" name="scopeType" value="subunit" />
+                    <input type="hidden" name="courseId" value="<%= course.id %>" />
+                    <input type="hidden" name="unitId" value="<%= unit.id %>" />
+                    <input type="hidden" name="subunitId" value="<%= subunitAssessmentData.id %>" />
+                    <button type="submit">
+                      <span>소단원 완료 →</span>
+                      <strong>중간평가 보기</strong>
+                    </button>
+                  </form>
+                <% } else { %>
+                  <a
+                    class="next"
+                    href="/learn/<%= course.id %>/<%= nextItem.unit.id %>/<%= nextItem.concept.id %>"
+                  >
+                    <span>
+                      다음 개념 →
+                    </span>
 
-                  <strong>
-                    <%= nextItem.concept.title %>
-                  </strong>
-                </a>
+                    <strong>
+                      <%= nextItem.concept.title %>
+                    </strong>
+                  </a>
+                <% } %>
               <% } else { %>
                 <a
                   class="next complete-course"

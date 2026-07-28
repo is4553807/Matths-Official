@@ -200,6 +200,10 @@
   grid-column: 1 / -1;
 }
 
+.identity-card {
+  grid-column: 1 / -1;
+}
+
 .settings-card-heading {
   display: flex;
   align-items: center;
@@ -244,6 +248,11 @@
 .settings-icon.violet {
   color: var(--violet);
   background: var(--violet-soft);
+}
+
+.settings-icon.orange {
+  color: #d26c17;
+  background: #fff1e5;
 }
 
 .settings-description {
@@ -387,6 +396,108 @@
   text-overflow: ellipsis;
 }
 
+.identity-form-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.28fr);
+  align-items: start;
+  gap: 22px;
+}
+
+.identity-choices {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.identity-choices legend {
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.identity-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.identity-choice-grid > label {
+  position: relative;
+  min-width: 0;
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.identity-choice-grid input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.identity-choice-grid label > span {
+  width: 100%;
+  min-height: 74px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 14px 16px;
+  background: #fafbfe;
+  border: 1px solid #dfe3ed;
+  border-radius: 12px;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.identity-choice-grid label > span b {
+  font-size: 11px;
+}
+
+.identity-choice-grid label > span small {
+  overflow: hidden;
+  color: #9299ac;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.identity-choice-grid input:checked + span {
+  color: var(--blue);
+  background: var(--blue-soft);
+  border-color: #aebcfb;
+  box-shadow: 0 0 0 3px rgba(49, 87, 246, 0.08);
+}
+
+.identity-choice-grid input:focus-visible + span {
+  outline: 3px solid rgba(49, 87, 246, 0.23);
+  outline-offset: 2px;
+}
+
+.identity-preview {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 16px;
+  color: #727a90;
+  background: #f7f8fc;
+  border: 1px dashed #cfd5e4;
+  border-radius: 12px;
+  font-size: 10px;
+}
+
+.identity-preview strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
 .password-fields {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -476,6 +587,10 @@
   .password-fields {
     grid-template-columns: 1fr;
   }
+
+  .identity-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 620px) {
@@ -540,6 +655,10 @@
 
   .school-select-field {
     grid-column: auto;
+  }
+
+  .identity-choice-grid {
+    grid-template-columns: 1fr;
   }
 
   .password-save {

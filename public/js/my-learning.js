@@ -48,7 +48,20 @@
       });
     });
 
-    selectCourse(tabs[0].dataset.course);
+    const initialTab =
+      tabs.find(
+        (tab) =>
+          tab.getAttribute(
+            "aria-selected"
+          ) === "true" ||
+          tab.classList.contains(
+            "active"
+          )
+      ) || tabs[0];
+
+    selectCourse(
+      initialTab.dataset.course
+    );
   }
 
   function initUnits() {

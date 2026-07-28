@@ -1,0 +1,54 @@
+.brand-mark,
+body,
+button,
+input,
+select,
+textarea {
+  font-family:
+    "SUIT Variable",
+    "Pretendard Variable",
+    Pretendard,
+    "Avenir Next",
+    "Segoe UI",
+    "Noto Sans KR",
+    sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family:
+    "SUIT Variable",
+    "Pretendard Variable",
+    Pretendard,
+    "Avenir Next",
+    "Segoe UI",
+    "Noto Sans KR",
+    sans-serif;
+  font-optical-sizing: auto;
+  text-wrap: balance;
+}
+
+.brand-mark {
+  overflow: hidden !important;
+  padding: 0 !important;
+  color: transparent !important;
+  background-color: #0b0c14 !important;
+  background-image: url("/images/matths-mark.png") !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  box-shadow:
+    0 8px 18px
+      rgba(20, 38, 115, 0.2) !important;
+  font-size: 0 !important;
+  letter-spacing: 0 !important;
+  transform: none !important;
+}
+
+.auth-brand > .brand-mark {
+  flex: 0 0 auto;
+}

@@ -117,6 +117,9 @@
     ></script>
 
     <script src="/js/main.js" defer></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
   </head>
 
   <body>
@@ -170,9 +173,9 @@
               <b><%= stats.due %></b>
             <% } %>
           </a>
-          <a href="/main#learning-record">
-            <span class="nav-icon" aria-hidden="true">⌁</span>
-            <span>학습 기록</span>
+          <a href="/war-of-masters">
+            <span class="nav-icon" aria-hidden="true">♜</span>
+            <span>실수들의 전쟁</span>
           </a>
         </nav>
 
@@ -180,38 +183,35 @@
 
         <section
           class="coach-mini"
-          data-mode="spicy"
+          data-mode="<%= coach.mode %>"
+          data-situation="<%= coach.situation %>"
           aria-labelledby="coach-mini-title"
         >
           <div class="coach-heading">
             <span aria-hidden="true">M</span>
             <p>
               <small>MATTHS COACH</small>
-              <strong id="coach-mini-title">매운맛 모드</strong>
+              <strong id="coach-mini-title"><%= coach.title %></strong>
             </p>
           </div>
           <p id="coach-mini-message">
-            틀린 건 괜찮아. 왜 틀렸는지도 모르고 넘기는 게 문제지.
+            <%= coach.message %>
           </p>
           <div
             class="coach-modes"
             role="group"
             aria-label="학습 코치 말투 선택"
           >
-            <button type="button" data-mode="mild" aria-pressed="false">
-              순한맛
-            </button>
-            <button
-              class="active"
-              type="button"
-              data-mode="spicy"
-              aria-pressed="true"
-            >
-              매운맛
-            </button>
-            <button type="button" data-mode="silent" aria-pressed="false">
-              무음
-            </button>
+            <% [["mild", "순한맛"], ["spicy", "매운맛"], ["silent", "무음"]].forEach(([mode, label]) => { %>
+              <button
+                class="<%= coach.mode === mode ? 'active' : '' %>"
+                type="button"
+                data-mode="<%= mode %>"
+                aria-pressed="<%= coach.mode === mode %>"
+              >
+                <%= label %>
+              </button>
+            <% }) %>
           </div>
         </section>
 
@@ -267,6 +267,10 @@
             <p>
               같은 문제를 여러 번 틀렸다면 최신 기록만 보여드립니다.
               실수 유형을 확인하고 시각 풀이를 본 뒤 다시 도전하세요.
+            </p>
+            <p class="review-status-guide">
+              <strong>복습 대기</strong>는 지금 바로 다시 풀 수 있는 새 오답이고,
+              <strong>복습 예정</strong>은 재도전에서 다시 틀려 다음 날로 예약된 오답입니다.
             </p>
           </div>
 

@@ -27,6 +27,20 @@
     values.nickname !== undefined
       ? values.nickname
       : displayName;
+  const realNameValue =
+    values.realName !== undefined
+      ? values.realName
+      : String(learner.realName || "");
+  const rankingDisplayModeValue =
+    values.rankingDisplayMode !== undefined
+      ? values.rankingDisplayMode
+      : learner.preferences?.rankingDisplayMode ||
+        "nickname";
+  const rankingPreviewName =
+    rankingDisplayModeValue === "realName" &&
+    realNameValue
+      ? realNameValue
+      : displayName;
   const gradeLabel =
     Number(learner.schoolGrade) === 10
       ? "고등학교 1학년"
@@ -50,7 +64,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Matths 닉네임, 고등학교와 비밀번호를 관리하는 프로필 설정 페이지입니다."
+      content="Matths 닉네임, 랭킹 표시 이름, 고등학교와 비밀번호를 관리하는 프로필 설정 페이지입니다."
     />
     <meta name="theme-color" content="#f5f7fc" />
     <title>프로필 설정 | Matths</title>
@@ -58,6 +72,9 @@
     <link rel="stylesheet" href="/css/profile.css" />
     <script src="/js/auth.js" defer></script>
     <script src="/js/profile.js" defer></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
   </head>
   <body>
     <a class="skip-link" href="#profile-main">프로필 설정으로 바로가기</a>
@@ -104,6 +121,7 @@
         <nav class="profile-section-nav" aria-label="프로필 설정 항목">
           <a href="#nickname-settings">닉네임</a>
           <a href="#school-settings">고등학교</a>
+          <a href="#ranking-identity-settings">랭킹 표시</a>
           <a href="#password-settings">비밀번호</a>
         </nav>
 
@@ -252,6 +270,108 @@
 
               <button class="save-button" type="submit">
                 고등학교 저장
+                <span aria-hidden="true">→</span>
+              </button>
+            </form>
+          </section>
+
+          <section
+            class="settings-card identity-card"
+            id="ranking-identity-settings"
+            aria-labelledby="ranking-identity-title"
+          >
+            <div class="settings-card-heading">
+              <span class="settings-icon orange" aria-hidden="true">冠</span>
+              <div>
+                <p>RANKING IDENTITY</p>
+                <h2 id="ranking-identity-title">랭킹 표시 이름</h2>
+              </div>
+            </div>
+
+            <p class="settings-description">
+              <strong>실수들의 전쟁</strong>에서 닉네임으로 익명 참여할지,
+              실명을 공개할지 직접 선택합니다. 기본값은 닉네임입니다.
+            </p>
+
+            <% if (message && message.section === "ranking-identity") { %>
+              <div
+                class="settings-alert <%= message.type %>"
+                role="<%= message.type === 'error' ? 'alert' : 'status' %>"
+              >
+                <span aria-hidden="true">
+                  <%= message.type === "error" ? "!" : "✓" %>
+                </span>
+                <%= message.message %>
+              </div>
+            <% } %>
+
+            <form
+              class="settings-form identity-form"
+              action="/profile/ranking-identity"
+              method="POST"
+              data-settings-form
+              data-ranking-identity-form
+              data-nickname="<%= displayName %>"
+            >
+              <div class="identity-form-grid">
+                <div class="form-field">
+                  <label for="realName">실명</label>
+                  <input
+                    id="realName"
+                    name="realName"
+                    type="text"
+                    value="<%= realNameValue %>"
+                    placeholder="본인의 실제 이름"
+                    autocomplete="name"
+                    minlength="2"
+                    maxlength="40"
+                    required
+                  />
+                  <small class="field-guide">
+                    기존 회원은 여기에서 실명을 등록할 수 있습니다.
+                  </small>
+                </div>
+
+                <fieldset class="identity-choices">
+                  <legend>랭킹에 표시할 이름</legend>
+                  <div class="identity-choice-grid">
+                    <label>
+                      <input
+                        type="radio"
+                        name="rankingDisplayMode"
+                        value="nickname"
+                        <%= rankingDisplayModeValue === "nickname" ? "checked" : "" %>
+                        required
+                      />
+                      <span>
+                        <b>닉네임으로 참여</b>
+                        <small><%= displayName %> · 실명 비공개</small>
+                      </span>
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="rankingDisplayMode"
+                        value="realName"
+                        <%= rankingDisplayModeValue === "realName" ? "checked" : "" %>
+                        required
+                      />
+                      <span>
+                        <b>실명으로 참여</b>
+                        <small><%= realNameValue || "실명을 먼저 입력해주세요" %></small>
+                      </span>
+                    </label>
+                  </div>
+                </fieldset>
+              </div>
+
+              <div class="identity-preview" aria-live="polite">
+                <span>현재 랭킹 표시 예시</span>
+                <strong data-ranking-name-preview><%= rankingPreviewName %></strong>
+              </div>
+
+              <button class="save-button" type="submit">
+                랭킹 표시 설정 저장
                 <span aria-hidden="true">→</span>
               </button>
             </form>

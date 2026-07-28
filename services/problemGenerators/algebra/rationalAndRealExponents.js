@@ -60,7 +60,7 @@ const problemTypes = [
 
   {
     id: "eighth",
-    label: "유형 6 · a^(m/n) 계산",
+    label: "유형 6 · 유리수 지수 계산",
     difficulty: 2,
 
     generate() { const b = randomInteger(2, 3), n = randomInteger(2, 3), a = b ** n, m = randomInteger(2, 3);

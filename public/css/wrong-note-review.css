@@ -123,7 +123,7 @@
 
 .review-rule b {
   color: #7891ff;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 18px;
 }
 
@@ -569,6 +569,17 @@
   white-space: pre-line;
 }
 
+.review-coach-message {
+  margin: 15px 0 0;
+  padding: 11px 13px;
+  color: #3447a7;
+  background: #eef1ff;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.6;
+}
+
 .function-graph-wrap {
   position: relative;
   margin-top: 14px;
@@ -583,9 +594,84 @@
   display: block;
   width: 100%;
   height: auto;
-  min-height: 300px;
+  aspect-ratio: 720 / 400;
   cursor: ns-resize;
   user-select: none;
+}
+
+.review-concept-guide {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #dfe4f1;
+}
+
+.review-concept-guide h4 {
+  margin: 0 0 3px;
+  font-size: 13px;
+}
+
+.review-concept-guide details {
+  background: #fff;
+  border: 1px solid #e0e5f1;
+  border-radius: 10px;
+}
+
+.review-concept-guide summary {
+  min-height: 45px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.review-concept-guide summary::-webkit-details-marker {
+  display: none;
+}
+
+.review-concept-guide summary b {
+  color: #3157f6;
+  font-size: 8px;
+}
+
+.review-concept-guide summary span {
+  color: #30384e;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.review-concept-guide summary i {
+  color: #3157f6;
+  font-size: 16px;
+  font-style: normal;
+}
+
+.review-concept-guide details[open] summary i {
+  transform: rotate(45deg);
+}
+
+.review-concept-guide details > div {
+  padding: 12px;
+  border-top: 1px solid #e9ecf3;
+}
+
+.review-concept-guide details > div strong {
+  display: block;
+  margin: 11px 0 3px;
+  color: #3157f6;
+  font-size: 8px;
+}
+
+.review-concept-guide details > div p {
+  margin: 0;
+  color: #5f687e;
+  font-size: 9px;
+  line-height: 1.65;
 }
 
 .hint-graph-zoom-status {

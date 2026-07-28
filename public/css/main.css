@@ -271,15 +271,15 @@ button:focus-visible {
 
 .coach-heading strong {
   color: #fff;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .coach-mini > p {
-  min-height: 42px;
+  min-height: 48px;
   margin: 13px 0;
-  color: #b9bfd0;
-  font-size: 9px;
-  line-height: 1.55;
+  color: #d4d9e8;
+  font-size: 10px;
+  line-height: 1.65;
 }
 
 .coach-mini[data-mode="mild"] > p {
@@ -300,20 +300,26 @@ button:focus-visible {
 }
 
 .coach-modes button {
-  min-height: 27px;
-  padding: 0 4px;
-  color: #75809d;
+  min-height: 31px;
+  padding: 0 5px;
+  color: #bcc4da;
   background: transparent;
   border: 0;
   border-radius: 7px;
-  font-size: 7px;
-  font-weight: 750;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
   cursor: pointer;
 }
 
 .coach-modes button.active {
   color: #fff;
-  background: #303852;
+  background: #3b4566;
+}
+
+.coach-modes button:hover {
+  color: #fff;
+  background: #29314b;
 }
 
 .coach-modes button:disabled {
@@ -659,7 +665,7 @@ a.profile-avatar:hover {
 
 .course-progress strong {
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 14px;
 }
 
@@ -739,7 +745,7 @@ a.profile-avatar:hover {
   place-items: center;
   color: #34467f;
   background: #bdc9fb;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 13px;
   font-style: normal;
 }
@@ -780,7 +786,7 @@ a.profile-avatar:hover {
   color: #fff;
   background: var(--blue);
   border-radius: 12px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 20px;
 }
 
@@ -788,7 +794,7 @@ a.profile-avatar:hover {
   width: 100%;
   margin: 0;
   color: #4a588a;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: clamp(11px, 1.05vw, 15px);
   line-height: 1.55;
   overflow-wrap: anywhere;
@@ -797,7 +803,7 @@ a.profile-avatar:hover {
 .concept-visual > strong {
   width: 100%;
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: clamp(10px, 0.95vw, 14px);
   line-height: 1.5;
   text-align: center;
@@ -1122,7 +1128,7 @@ a.profile-avatar:hover {
 }
 
 .stats-row strong {
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 22px;
   line-height: 1;
 }
@@ -1293,7 +1299,7 @@ a.profile-avatar:hover {
   color: #768098;
   background: #eff1f6;
   border-radius: 9px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 9px;
 }
 
@@ -1379,7 +1385,7 @@ a.profile-avatar:hover {
   color: #fff;
   background: var(--blue);
   border-radius: 10px;
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 11px;
 }
 
@@ -1414,7 +1420,7 @@ a.profile-avatar:hover {
 .semester-list em {
   justify-self: end;
   color: var(--blue);
-  font-family: Georgia, serif;
+  font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
   font-size: 12px;
   font-style: normal;
   font-weight: 700;
@@ -1812,5 +1818,39 @@ a.profile-avatar:hover {
 
   .bar-track i {
     height: var(--height);
+  }
+}
+/* 짧은 답안에서 키보드로 입력하기 어려운 수학 기호를 지원합니다. */
+.math-keyboard {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(34px, 1fr));
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.math-keyboard button {
+  min-height: 34px;
+  padding: 0 4px;
+  color: #3d4b78;
+  background: #f1f4ff;
+  border: 1px solid #dbe2fa;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.math-keyboard button:hover,
+.math-keyboard button:focus-visible {
+  color: #fff;
+  background: #3157f6;
+  border-color: #3157f6;
+}
+
+@media (max-width: 620px) {
+  .math-keyboard {
+    grid-template-columns: repeat(5, minmax(42px, 1fr));
   }
 }
