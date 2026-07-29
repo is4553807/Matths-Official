@@ -8,49 +8,24 @@
     />
     <meta
       name="description"
-      content="같은 범위를 공부한 학생들이 실력과 성장으로 겨루는 Matths 랭킹전, 실수들의 전쟁입니다."
+      content="Matths 수학 랭킹전 War of GOAT"
     />
-    <meta
-      name="theme-color"
-      content="#0c1125"
-    />
-    <title>실수들의 전쟁 | Matths</title>
-    <link
-      rel="stylesheet"
-      href="/css/main.css"
-    />
-    <link
-      rel="stylesheet"
-      href="/css/war-of-masters.css"
-    />
-    <link
-      rel="stylesheet"
-      href="/css/brand.css"
-    />
+    <meta name="theme-color" content="#0c1125" />
+    <title>War of GOAT | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/war-of-masters.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
     <link
       rel="icon"
       type="image/png"
       sizes="32x32"
       href="/images/favicon-32.png"
     />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="64x64"
-      href="/images/favicon-64.png"
-    />
-    <script
-      src="/js/main.js"
-      defer
-    ></script>
+    <script src="/js/main.js" defer></script>
+    <script src="/js/war-of-masters.js" defer></script>
   </head>
   <body class="masters-page">
-    <a
-      class="skip-link"
-      href="#masters-main"
-    >
-      본문으로 바로가기
-    </a>
+    <a class="skip-link" href="#masters-main">본문으로 바로가기</a>
 
     <div class="dashboard-shell">
       <div
@@ -65,15 +40,8 @@
         aria-label="학습 메뉴"
       >
         <div class="sidebar-top">
-          <a
-            class="brand"
-            href="/main"
-            aria-label="Matths 학습 홈"
-          >
-            <span
-              class="brand-mark"
-              aria-hidden="true"
-            >M</span>
+          <a class="brand" href="/" aria-label="Matths 메인">
+            <span class="brand-mark" aria-hidden="true">M</span>
             <span>Matths</span>
           </a>
           <button
@@ -81,110 +49,31 @@
             id="sidebar-close"
             type="button"
             aria-label="메뉴 닫기"
-          >
-            ×
-          </button>
+          >×</button>
         </div>
 
-        <nav
-          class="side-nav"
-          aria-label="대시보드 메뉴"
-        >
-          <p>LEARNING</p>
-          <a href="/main">
-            <span
-              class="nav-icon"
-              aria-hidden="true"
-            >⌂</span>
-            <span>학습 홈</span>
-          </a>
-          <a href="/my-learning">
-            <span
-              class="nav-icon"
-              aria-hidden="true"
-            >▦</span>
-            <span>내 학습</span>
-          </a>
-          <a href="/log-curriculum">
-            <span
-              class="nav-icon"
-              aria-hidden="true"
-            >◫</span>
-            <span>교육과정</span>
-          </a>
-          <a href="/quick-practice">
-            <span
-              class="nav-icon"
-              aria-hidden="true"
-            >⚡</span>
-            <span>40초 눈풀이</span>
-          </a>
-          <a href="/assessments">
-            <span
-              class="nav-icon"
-              aria-hidden="true"
-            >✓</span>
-            <span>평가 센터</span>
-          </a>
-          <a href="/wrong-notes">
-            <span
-              class="nav-icon"
-              aria-hidden="true"
-            >↻</span>
-            <span>오답 노트</span>
-          </a>
-          <a
-            class="active"
-            href="/war-of-masters"
-            aria-current="page"
-          >
-            <span
-              class="nav-icon"
-              aria-hidden="true"
-            >♜</span>
-            <span>실수들의 전쟁</span>
-          </a>
-          <a href="/coach-suggestions">
-            <span
-              class="nav-icon"
-              aria-hidden="true"
-            >✦</span>
-            <span>문구 제안소</span>
-          </a>
-        </nav>
+        <%- include("partials/dashboard-navigation", {
+          activePage: "war-of-masters",
+        }) %>
 
         <div class="sidebar-spacer"></div>
-
         <div class="sidebar-profile">
           <a
             class="profile-avatar"
             href="/profile"
-            aria-label="<%= arenaUser.nickname %>님의 프로필 설정으로 이동"
-            title="프로필 설정"
+            aria-label="<%= arenaUser.nickname %>님의 프로필"
           ><%= arenaUser.nickname.slice(0, 1) %></a>
           <div class="profile-copy">
             <strong><%= arenaUser.nickname %>님</strong>
             <small><%= arenaUser.gradeLabel %></small>
           </div>
-          <form
-            action="/logout"
-            method="POST"
-          >
-            <button
-              type="submit"
-              aria-label="로그아웃"
-              title="로그아웃"
-            >
-              ↗
-            </button>
+          <form action="/logout" method="POST">
+            <button type="submit" aria-label="로그아웃">↗</button>
           </form>
         </div>
       </aside>
 
-      <main
-        class="dashboard-main masters-main"
-        id="masters-main"
-      >
+      <main class="dashboard-main masters-main" id="masters-main">
         <header class="topbar masters-topbar">
           <div class="topbar-left">
             <button
@@ -195,388 +84,129 @@
               aria-controls="dashboard-sidebar"
               aria-expanded="false"
             >
-              <span></span>
-              <span></span>
-              <span></span>
+              <span></span><span></span><span></span>
             </button>
             <div>
-              <p>MATTHS RANKING BATTLE</p>
-              <h1>실수들의 전쟁</h1>
+              <p>MATTHS RANKING ARENA</p>
+              <h1>War of GOAT</h1>
             </div>
           </div>
-          <a
-            class="back-dashboard"
-            href="/main"
-          >
-            학습 홈으로
-            <span aria-hidden="true">→</span>
+          <a class="back-dashboard learning-home-button" href="/main">
+            학습 홈으로 <span aria-hidden="true">→</span>
           </a>
         </header>
 
-        <section
-          class="masters-hero"
-          aria-labelledby="masters-title"
-        >
-          <div
-            class="masters-grid"
-            aria-hidden="true"
-          ></div>
-          <div
-            class="masters-orb"
-            aria-hidden="true"
-          ></div>
-
-          <div class="masters-hero-copy">
-            <div class="season-line">
-              <span>SEASON 01</span>
-              <i></i>
-              <strong>입단 배치 단계</strong>
-            </div>
-            <p class="masters-kicker">
-              WAR OF GOAT
-            </p>
-            <h2 id="masters-title">
-              잘하는 사람은<br />
-              <em>결과로 자신을 증명합니다.</em>
+        <section class="masters-command" aria-labelledby="masters-command-title">
+          <div class="command-copy">
+            <p>MY ARENA</p>
+            <h2 id="masters-command-title">
+              <%= arenaUser.displayName %>님의 전장
             </h2>
-            <p class="masters-lead">
-              같은 범위, 같은 제한 시간, 같은 출제 기준.
-              실력과 성장으로 겨루는 Matths의 수학 랭킹전입니다.
-              배치고사를 마치면 첫 티어와 전장 기록이 열립니다.
-            </p>
-            <div class="hero-principles">
-              <span>동일 시험</span>
-              <span>범위 기반 매칭</span>
-              <span>실력·성장 반영</span>
-            </div>
+            <span>
+              <%= arenaUser.schoolName %> · <%= arenaUser.gradeLabel %>
+            </span>
           </div>
 
-          <aside
-            class="challenger-card"
-            aria-label="내 전장 프로필"
-          >
-            <header>
-              <div>
-                <span>MY CHALLENGER CARD</span>
-                <strong>입단 전</strong>
-              </div>
-              <i aria-hidden="true">戰</i>
-            </header>
+          <div class="command-rank">
+            <small>현재 티어</small>
+            <% if (placement.status === "submitted" && placement.result) { %>
+              <strong><%= placement.result.initialTier %></strong>
+              <span>MMR <%= placement.result.initialRating %></span>
+            <% } else if (placement.status === "verification-required") { %>
+              <strong>추가 확인</strong>
+              <span>4문항을 마치면 초기 MMR이 확정됩니다.</span>
+            <% } else { %>
+              <strong>배치 전</strong>
+              <span>배치고사를 완료해주세요.</span>
+            <% } %>
+          </div>
+        </section>
 
-            <div class="challenger-identity">
-              <div
-                class="challenger-avatar"
-                aria-hidden="true"
-              >
-                <%= arenaUser.nickname.slice(0, 1) %>
-              </div>
-              <div>
-                <span>
-                  공개 이름 ·
-                  <%= arenaUser.displayMode %>
-                </span>
-                <strong><%= arenaUser.displayName %></strong>
-                <p>
-                  <%= arenaUser.schoolName %>
-                  ·
-                  <%= arenaUser.gradeLabel %>
-                </p>
-              </div>
+        <section class="masters-actions" aria-label="War of GOAT 메뉴">
+          <article class="masters-action-card placement-action-card">
+            <div>
+              <span aria-hidden="true">01</span>
+              <p>PLACEMENT</p>
+              <h2>입단 배치고사</h2>
+              <small>
+                <%= placement.status === "submitted"
+                  ? `${placement.result.correctCount} / 30문항 정답 · ${placement.result.initialTier}`
+                  : placement.status === "verification-required"
+                    ? `${placement.answeredCount} / 4문항 저장됨 · 준킬러 2 + 킬러 2`
+                  : placement.status === "in-progress"
+                    ? `${placement.answeredCount} / 30문항 저장됨`
+                    : "30문항 · 제한 시간 100분" %>
+              </small>
             </div>
+            <% if (placement.status === "not-started") { %>
+              <button type="button" data-placement-open>
+                <%= placement.ctaLabel %>
+                <span aria-hidden="true">→</span>
+              </button>
+            <% } else { %>
+              <a href="<%= placement.ctaHref %>">
+                <%= placement.ctaLabel %>
+                <span aria-hidden="true">→</span>
+              </a>
+            <% } %>
+          </article>
 
-            <dl class="challenger-stats">
-              <div>
-                <dt>현재 티어</dt>
-                <dd>배치 전</dd>
-              </div>
-              <div>
-                <dt>전국 순위</dt>
-                <dd>—</dd>
-              </div>
-              <div>
-                <dt>전장 기록</dt>
-                <dd>0전</dd>
-              </div>
-            </dl>
-
-            <a
-              class="identity-setting"
-              href="/profile#ranking-identity-settings"
-            >
-              공개 이름 설정
+          <article class="masters-action-card private-mock-action-card">
+            <div>
+              <span aria-hidden="true">02</span>
+              <p>WEEKLY MOCK</p>
+              <h2>Matths 사설 모의고사</h2>
+              <small>
+                <%= privateMockEligibility.allowed
+                  ? "매주 일요일 A·B·C형 · 최대 3회 · 대표 표준화 성적 선택"
+                  : privateMockEligibility.message %>
+              </small>
+            </div>
+            <a href="<%= privateMockEligibility.ctaHref %>">
+              <%= privateMockEligibility.ctaLabel %>
               <span aria-hidden="true">→</span>
             </a>
-          </aside>
-        </section>
+          </article>
 
-        <section
-          class="placement-section"
-          aria-labelledby="placement-title"
-        >
-          <div class="section-heading">
+          <article class="masters-action-card ranking-action-card">
             <div>
-              <p>ENTER THE ARENA</p>
-              <h2 id="placement-title">
-                전장 입단 절차
-              </h2>
+              <span aria-hidden="true">03</span>
+              <p>RANKING</p>
+              <h2>랭킹 보기</h2>
+              <small>내 순위와 전체·학교·지역 랭킹</small>
             </div>
-            <span>첫 응시는 입단 배치고사로 시작합니다.</span>
-          </div>
+            <a href="/war-of-masters/rankings">
+              랭킹 페이지 열기
+              <span aria-hidden="true">→</span>
+            </a>
+          </article>
 
-          <div class="placement-layout">
-            <ol class="placement-steps">
-              <li class="complete">
-                <span>01</span>
-                <div>
-                  <small>계정 확인</small>
-                  <strong>로그인 정보 연결</strong>
-                  <p>
-                    현재 Matths 계정의 닉네임과 학교를
-                    전장 프로필에 사용합니다.
-                  </p>
-                </div>
-                <b aria-label="완료">✓</b>
-              </li>
-              <li class="current">
-                <span>02</span>
-                <div>
-                  <small>첫 실력 측정</small>
-                  <strong>입단 배치고사</strong>
-                  <p>
-                    같은 기준의 배치고사로 시작 티어를
-                    결정합니다.
-                  </p>
-                </div>
-                <b>대기</b>
-              </li>
-              <li>
-                <span>03</span>
-                <div>
-                  <small>랭크 확정</small>
-                  <strong>첫 전장 입장</strong>
-                  <p>
-                    배치 결과가 저장되면 랭킹전과 시즌
-                    기록이 열립니다.
-                  </p>
-                </div>
-                <b>잠김</b>
-              </li>
-            </ol>
-
-            <article class="placement-cta">
-              <div
-                class="placement-emblem"
-                aria-hidden="true"
-              >
-                <span>戰</span>
-              </div>
-              <p>PLACEMENT EXAM</p>
-              <h3>당신의 첫 티어가<br />여기서 시작됩니다.</h3>
-              <span>
-                같은 범위와 동일한 제한 시간으로 첫
-                실력을 측정합니다.
-              </span>
-              <button
-                type="button"
-                disabled
-              >
-                입단 배치고사 시작
-              </button>
-            </article>
-          </div>
-        </section>
-
-        <section
-          class="tier-section"
-          aria-labelledby="tier-title"
-        >
-          <div class="section-heading">
+          <article class="masters-action-card identity-action-card">
             <div>
-              <p>RANK SYSTEM</p>
-              <h2 id="tier-title">
-                실력이 곧 이름이 됩니다.
-              </h2>
+              <span aria-hidden="true">04</span>
+              <p>IDENTITY</p>
+              <h2>공개 이름 설정</h2>
+              <small>현재 공개 방식 · <%= arenaUser.displayMode %></small>
             </div>
-            <span>
-              배치 이후 시즌 성적에 따라 이동
-            </span>
-          </div>
+            <a href="/profile#ranking-identity-settings">
+              설정하기
+              <span aria-hidden="true">→</span>
+            </a>
+          </article>
 
-          <div class="tier-track">
-            <% tiers.forEach((tier, index) => { %>
-              <article
-                class="tier-card tier-<%= index %>"
-              >
-                <div
-                  class="tier-shield"
-                  aria-hidden="true"
-                >
-                  <span><%= tier[0] %></span>
-                </div>
-                <small>
-                  TIER
-                  <%= String(index + 1).padStart(2, "0") %>
-                </small>
-                <strong><%= tier[1] %></strong>
-                <p><%= tier[2] %>점</p>
-              </article>
-            <% }) %>
-          </div>
-        </section>
-
-        <section
-          class="battle-preview"
-          aria-labelledby="battle-preview-title"
-        >
-          <div class="battle-copy">
-            <p>SEASON BATTLE</p>
-            <h2 id="battle-preview-title">
-              입단 뒤 열리는 전장
-            </h2>
-            <span>
-              랭크전 데이터가 생기기 전까지 순위와 전적은
-              임의의 숫자로 채우지 않습니다.
-            </span>
-          </div>
-
-          <div class="rank-preview-card">
-            <header>
-              <span>내 시즌 기록</span>
-              <strong>입단 전</strong>
-            </header>
-            <div class="rank-preview-score">
-              <div
-                class="locked-rank"
-                aria-hidden="true"
-              >
-                ?
-              </div>
-              <div>
-                <small>CURRENT RANK</small>
-                <strong>아직 랭크가 없습니다.</strong>
-                <p>
-                  배치고사를 완료하면 티어와 점수가
-                  표시됩니다.
-                </p>
-              </div>
-            </div>
-            <dl>
-              <div>
-                <dt>전체 순위</dt>
-                <dd>—</dd>
-              </div>
-              <div>
-                <dt>성장 순위</dt>
-                <dd>—</dd>
-              </div>
-              <div>
-                <dt>최근 전적</dt>
-                <dd>—</dd>
-              </div>
-            </dl>
-          </div>
-
-          <div class="battle-mode-grid">
-            <article>
-              <span aria-hidden="true">Ⅰ</span>
-              <div>
-                <small>WEEKLY RANK</small>
-                <strong>주간 랭크전</strong>
-                <p>
-                  같은 범위를 학습한 학생들이 같은 시험으로
-                  겨룹니다.
-                </p>
-              </div>
-              <b>입단 후 이용</b>
-            </article>
-            <article>
-              <span aria-hidden="true">Ⅱ</span>
-              <div>
-                <small>RIVAL DUEL</small>
-                <strong>라이벌 결투</strong>
-                <p>
-                  가까운 순위의 상대와 동일한 시험지로
-                  대결합니다.
-                </p>
-              </div>
-              <b>입단 후 이용</b>
-            </article>
-            <article>
-              <span aria-hidden="true">Ⅲ</span>
-              <div>
-                <small>GROWTH RANK</small>
-                <strong>성장 랭킹</strong>
-                <p>
-                  절대 점수뿐 아니라 지난 기록 대비 성장을
-                  함께 봅니다.
-                </p>
-              </div>
-              <b>입단 후 이용</b>
-            </article>
-          </div>
-        </section>
-
-        <section
-          class="battle-rules"
-          aria-labelledby="battle-rules-title"
-        >
-          <div class="section-heading">
+          <article class="masters-action-card objection-action-card">
             <div>
-              <p>BATTLE PRINCIPLES</p>
-              <h2 id="battle-rules-title">
-                경쟁을 공정하게 만드는 기준
-              </h2>
+              <span aria-hidden="true">05</span>
+              <p>QUESTION REVIEW</p>
+              <h2>문제 이의신청</h2>
+              <small>공개된 사설 모의고사 문항이나 정답이 잘못되었다고 판단되면 근거와 함께 알려주세요.</small>
             </div>
-          </div>
-          <div>
-            <article>
-              <span>01</span>
-              <h3>배운 범위 안에서 출제</h3>
-              <p>
-                아직 배우지 않은 개념을 알아야만 풀 수 있는
-                문제는 랭크전에 포함하지 않습니다.
-              </p>
-            </article>
-            <article>
-              <span>02</span>
-              <h3>같은 조건으로 응시</h3>
-              <p>
-                문제 구조와 제한 시간을 통일하고 정답과
-                풀이 기록을 함께 확인합니다.
-              </p>
-            </article>
-            <article>
-              <span>03</span>
-              <h3>실력과 성장을 함께 반영</h3>
-              <p>
-                한 번의 점수만으로 줄 세우지 않고 최근
-                성적과 성장 흐름을 함께 봅니다.
-              </p>
-            </article>
-            <article>
-              <span>04</span>
-              <h3>공개 이름은 직접 선택</h3>
-              <p>
-                프로필에서 닉네임 또는 실명 공개를 선택할
-                수 있으며 기본값은 닉네임입니다.
-              </p>
-            </article>
-          </div>
+            <a href="/war-of-masters/objections/new">
+              이의신청 작성
+              <span aria-hidden="true">→</span>
+            </a>
+          </article>
         </section>
-
-        <footer class="masters-footer">
-          <div>
-            <span aria-hidden="true">M</span>
-            <p>
-              <strong>실수들의 전쟁</strong>
-              <small>WAR OF MASTERS · MATTHS</small>
-            </p>
-          </div>
-          <a href="/main">
-            학습을 이어서 입단 준비하기
-            <span aria-hidden="true">→</span>
-          </a>
-        </footer>
 
         <p
           class="sr-only"
@@ -586,5 +216,40 @@
         ></p>
       </main>
     </div>
+
+    <dialog
+      class="placement-start-dialog"
+      id="placement-start-dialog"
+      aria-labelledby="placement-dialog-title"
+    >
+      <form method="dialog" class="placement-dialog-card">
+        <button
+          class="placement-dialog-close"
+          type="submit"
+          value="cancel"
+          aria-label="닫기"
+        >×</button>
+        <p>PLACEMENT EXAM</p>
+        <h2 id="placement-dialog-title">100분 배치고사를 시작합니다.</h2>
+        <ul>
+          <li>총 30문항이며 만점은 100점입니다.</li>
+          <li>시작한 순간부터 서버에서 100분을 계산합니다.</li>
+          <li>중간에 나가도 답안은 저장되지만 시간은 계속 흐릅니다.</li>
+          <li>미응답 문항은 오답으로 반영되어 초기 랭크에 영향을 줍니다.</li>
+        </ul>
+        <div>
+          <button type="submit" value="cancel">취소</button>
+          <button type="button" data-placement-confirm>
+            확인하고 바로 시작
+          </button>
+        </div>
+      </form>
+      <form
+        id="placement-start-form"
+        action="/war-of-masters/placement/start"
+        method="post"
+        hidden
+      ></form>
+    </dialog>
   </body>
 </html>

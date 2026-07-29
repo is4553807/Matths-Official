@@ -1,6 +1,6 @@
 const {
-  User,
-} = require("../models/matthsModel");
+  synchronizeAccountAccess,
+} = require("../services/accountAccessService");
 const {
   verifyAccessToken,
 } = require("../services/mobileAuthService");
@@ -33,13 +33,16 @@ async function requireApiAuth(
       });
     }
 
-    const user = await User.findById(
-      payload.sub
-    ).lean();
+    const access =
+      await synchronizeAccountAccess(
+        payload.sub
+      );
+    const user =
+      access?.user;
 
     if (
       !user ||
-      !user.isActive ||
+      !access.allowed ||
       Number(user.tokenVersion || 0) !==
         Number(payload.ver || 0)
     ) {

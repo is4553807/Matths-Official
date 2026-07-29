@@ -54,11 +54,35 @@ const userSchema = new Schema(
       maxlength: 30,
     },
 
+    /*
+     * 닉네임의 대소문자·공백 차이를 무시하고 중복을 막기 위한 값입니다.
+     * 기존 회원은 닉네임을 다음에 변경할 때 이 값이 채워집니다.
+     */
+    nameNormalized: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      maxlength: 30,
+      default: undefined,
+    },
+
     realName: {
       type: String,
       trim: true,
       maxlength: 40,
       default: "",
+    },
+
+    /*
+     * 게시판 익명 작성 시 계정마다 한 번만 발급되는 고정 번호입니다.
+     * 공개 화면에는 이 번호만 노출하고 운영 화면에서는 authorId로
+     * 실제 계정을 계속 확인할 수 있습니다.
+     */
+    communityAnonymousNumber: {
+      type: String,
+      trim: true,
+      match: /^\d{6}$/,
+      default: undefined,
     },
 
     email: {
@@ -77,7 +101,7 @@ const userSchema = new Schema(
 
     role: {
       type: String,
-      enum: ["student", "admin"],
+      enum: ["student", "teacher", "admin"],
       default: "student",
     },
 
@@ -154,6 +178,123 @@ const userSchema = new Schema(
       type: Boolean,
       default: true,
     },
+
+    /*
+     * isActive는 기존 코드와 모바일 API 호환을 위해 유지하고,
+     * 실제 운영 상태와 제재 정보는 아래 필드에서 구분합니다.
+     */
+    accountStatus: {
+      type: String,
+      enum: [
+        "active",
+        "inactive",
+        "suspended",
+        "withdrawn",
+      ],
+      default: "active",
+      index: true,
+    },
+
+    accountStatusReason: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: "",
+    },
+
+    suspendedUntil: {
+      type: Date,
+      default: null,
+    },
+
+    accountStatusChangedAt: {
+      type: Date,
+      default: null,
+    },
+
+    warningCount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
+    privateMockRestriction: {
+      active: {
+        type: Boolean,
+        default: false,
+      },
+      remainingExamCount: {
+        type: Number,
+        min: 0,
+        max: 3,
+        default: 0,
+      },
+      remainingWeekCount: {
+        type: Number,
+        min: 0,
+        max: 3,
+        default: 0,
+      },
+      imposedAt: {
+        type: Date,
+        default: null,
+      },
+      reason: {
+        type: String,
+        trim: true,
+        maxlength: 1000,
+        default: "",
+      },
+      imposedBy: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+      sourceIntegrityCaseId: {
+        type: Schema.Types.ObjectId,
+        ref: "PrivateMockIntegrityCase",
+        default: null,
+      },
+      servedExamIds: {
+        type: [Schema.Types.ObjectId],
+        ref: "PrivateMockExam",
+        default: [],
+      },
+      servedWeekKeys: {
+        type: [String],
+        default: [],
+      },
+      clearedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+
+    withdrawal: {
+      anonymizedAt: {
+        type: Date,
+        default: null,
+      },
+      initiatedBy: {
+        type: String,
+        enum: [
+          "self",
+          "admin",
+          null,
+        ],
+        default: null,
+      },
+      dataRetention: {
+        type: String,
+        enum: [
+          "anonymous",
+          "purged",
+          null,
+        ],
+        default: null,
+      },
+    },
+
     school: {
       region: {
         type: String,
@@ -196,6 +337,40 @@ userSchema.index(
   { email: 1 },
   { unique: true }
 );
+userSchema.index({
+  "school.code": 1,
+  schoolGrade: 1,
+  isActive: 1,
+});
+userSchema.index({
+  name: 1,
+});
+userSchema.index(
+  { nameNormalized: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      nameNormalized: {
+        $type: "string",
+      },
+    },
+  }
+);
+userSchema.index(
+  { communityAnonymousNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      communityAnonymousNumber: {
+        $type: "string",
+      },
+    },
+  }
+);
+userSchema.index({
+  accountStatus: 1,
+  suspendedUntil: 1,
+});
 
 /* --------------------------------------------------
  * 2. ConceptProgress
@@ -1002,6 +1177,74 @@ const assessmentQuestionSchema =
         required: true,
       },
 
+      placementCategory: {
+        type: String,
+        enum: [
+          "general",
+          "advanced",
+          "semi-killer",
+          "killer",
+        ],
+        default: "general",
+      },
+
+      selectionProbability: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
+      },
+
+      distributionSource: {
+        type: String,
+        default: "",
+      },
+
+      placementNumber: {
+        type: Number,
+        min: 1,
+        max: 30,
+        default: null,
+      },
+
+      fixedCourseId: {
+        type: String,
+        default: "",
+      },
+
+      selectedTypeKey: {
+        type: String,
+        default: "",
+      },
+
+      selectedTypeLabel: {
+        type: String,
+        default: "",
+      },
+
+      difficultyScore: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: null,
+      },
+
+      skillTags: {
+        type: [String],
+        default: [],
+      },
+
+      expectedTimeMs: {
+        type: Number,
+        min: 0,
+        default: null,
+      },
+
+      similarGroupId: {
+        type: String,
+        default: "",
+      },
+
       sourceCourseId: {
         type: String,
         required: true,
@@ -1098,9 +1341,511 @@ const assessmentQuestionSchema =
         default: null,
       },
 
+      selectedAnswer: {
+        type: Schema.Types.Mixed,
+        default: null,
+      },
+
       isCorrect: {
         type: Boolean,
         default: null,
+      },
+
+      responseTimeMs: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      answerChanges: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      enteredAt: {
+        type: Date,
+        default: null,
+      },
+
+      exitedAt: {
+        type: Date,
+        default: null,
+      },
+
+      answeredAt: {
+        type: Date,
+        default: null,
+      },
+
+      submittedAt: {
+        type: Date,
+        default: null,
+      },
+
+      visitCount: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      validation: {
+        passed: {
+          type: Boolean,
+          default: false,
+        },
+
+        solvable: {
+          type: Boolean,
+          default: false,
+        },
+
+        uniqueAnswer: {
+          type: Boolean,
+          default: false,
+        },
+
+        calculatorFree: {
+          type: Boolean,
+          default: false,
+        },
+
+        answerMatches: {
+          type: Boolean,
+          default: false,
+        },
+
+        generationAttempts: {
+          type: Number,
+          min: 0,
+          default: 0,
+        },
+
+        operationCount: {
+          type: Number,
+          min: 0,
+          default: null,
+        },
+
+        maxInteger: {
+          type: Number,
+          min: 0,
+          default: null,
+        },
+
+        checkedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+const placementScoreBreakdownSchema =
+  new Schema(
+    {
+      correct: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      total: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      rawAccuracy: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0,
+      },
+
+      adjustedAccuracy: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0,
+      },
+
+      question20: {
+        type: Boolean,
+        default: null,
+      },
+
+      question21: {
+        type: Boolean,
+        default: null,
+      },
+
+      question28: {
+        type: Boolean,
+        default: null,
+      },
+
+      question30: {
+        type: Boolean,
+        default: null,
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+const placementKeyQuestionSchema =
+  new Schema(
+    {
+      questionNumber: {
+        type: Number,
+        required: true,
+      },
+
+      answered: {
+        type: Boolean,
+        default: false,
+      },
+
+      correct: {
+        type: Boolean,
+        default: false,
+      },
+
+      category: {
+        type: String,
+        enum: [
+          "semi-killer",
+          "killer",
+        ],
+        default: "semi-killer",
+      },
+
+      difficultyScore: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: null,
+      },
+
+      skillTags: {
+        type: [String],
+        default: [],
+      },
+
+      responseTimeMs: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+const placementAbilityProfileSchema =
+  new Schema(
+    {
+      coreAbility: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0,
+      },
+
+      advancedAbilityBeforeVerification: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0,
+      },
+
+      advancedAbilityAfterVerification: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: null,
+      },
+
+      consistency: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0,
+      },
+
+      placementConfidence: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0,
+      },
+
+      basicStability: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0,
+      },
+
+      possibleMistakeCount: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      confirmedConceptGapCount: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+const placementVerificationSchema =
+  new Schema(
+    {
+      required: {
+        type: Boolean,
+        default: false,
+      },
+
+      flagScore: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      reasons: {
+        type: [String],
+        default: [],
+      },
+
+      correct: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      total: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      result: {
+        type: String,
+        enum: [
+          "not-required",
+          "pending",
+          "unconfirmed",
+          "confirmed",
+          "extended",
+        ],
+        default: "not-required",
+      },
+
+      questions: {
+        type: [
+          assessmentQuestionSchema,
+        ],
+        default: [],
+      },
+
+      timeLimitMs: {
+        type: Number,
+        min: 1000,
+        default:
+          40 * 60 * 1000,
+      },
+
+      startedAt: {
+        type: Date,
+        default: null,
+      },
+
+      submittedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+const placementResultSchema =
+  new Schema(
+    {
+      threePoint: {
+        type: placementScoreBreakdownSchema,
+        default: () => ({}),
+      },
+
+      fourPoint: {
+        type: placementScoreBreakdownSchema,
+        default: () => ({}),
+      },
+
+      semiKiller: {
+        type: placementScoreBreakdownSchema,
+        default: () => ({}),
+      },
+
+      killer: {
+        type: placementScoreBreakdownSchema,
+        default: () => ({}),
+      },
+
+      keyQuestions: {
+        type: [placementKeyQuestionSchema],
+        default: [],
+      },
+
+      question20Correct: {
+        type: Boolean,
+        default: null,
+      },
+
+      question21Correct: {
+        type: Boolean,
+        default: null,
+      },
+
+      question28Correct: {
+        type: Boolean,
+        default: null,
+      },
+
+      question30Correct: {
+        type: Boolean,
+        default: null,
+      },
+
+      answeredCount: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      unansweredCount: {
+        type: Number,
+        min: 0,
+        default: 30,
+      },
+
+      totalScore: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 0,
+      },
+
+      totalPercentile: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: null,
+      },
+
+      abilityProfile: {
+        type: placementAbilityProfileSchema,
+        default: () => ({}),
+      },
+
+      verification: {
+        type: placementVerificationSchema,
+        default: () => ({}),
+      },
+
+      placementScore: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
+      },
+
+      initialMmr: {
+        type: Number,
+        min: 0,
+        default: null,
+      },
+
+      tier: {
+        type: String,
+        default: "",
+      },
+
+      division: {
+        type: Number,
+        min: 1,
+        max: 4,
+        default: null,
+      },
+
+      rankingStatus: {
+        type: String,
+        enum: [
+          "provisional",
+          "confirmed",
+        ],
+        default: "provisional",
+      },
+
+      matchesUntilConfirmed: {
+        type: Number,
+        min: 0,
+        default: 2,
+      },
+
+      cohortSize: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      cohortAverage: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
+      },
+
+      cohortStandardDeviation: {
+        type: Number,
+        min: 0,
+        default: null,
+      },
+
+      standardizedScore: {
+        type: Number,
+        default: null,
+      },
+
+      percentile: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
+      },
+
+      initialRating: {
+        type: Number,
+        min: 0,
+        default: null,
+      },
+
+      initialTier: {
+        type: String,
+        default: "",
       },
     },
     {
@@ -1124,12 +1869,19 @@ const assessmentAttemptSchema =
         unique: true,
       },
 
+      generationVersion: {
+        type: String,
+        default: "",
+        index: true,
+      },
+
       scopeType: {
         type: String,
         enum: [
           "subunit",
           "unit",
           "course",
+          "placement",
         ],
         required: true,
       },
@@ -1246,6 +1998,27 @@ const assessmentAttemptSchema =
 
       lastSavedAt: {
         type: Date,
+        default: null,
+      },
+
+      activeQuestionId: {
+        type: String,
+        default: "",
+      },
+
+      currentQuestionIndex: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+
+      questionTimingLastSeenAt: {
+        type: Date,
+        default: null,
+      },
+
+      placementResult: {
+        type: placementResultSchema,
         default: null,
       },
     },
@@ -1733,6 +2506,12 @@ const passwordResetCodeSchema = new Schema(
             select: false,
         },
 
+        mode: {
+            type: String,
+            enum: ["code", "link"],
+            default: "code",
+        },
+
         status: {
             type: String,
             enum: [
@@ -2131,6 +2910,2381 @@ supportInquirySchema.index({
 });
 
 /* --------------------------------------------------
+ * 12. ArchiveItem
+ * 로그인 사용자에게 제공하는 운영자 업로드 자료
+ * -------------------------------------------------- */
+
+const archiveItemSchema =
+    new Schema(
+        {
+            folderId: {
+                type: Schema.Types.ObjectId,
+                ref: "ArchiveFolder",
+                default: null,
+                index: true,
+            },
+
+            title: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: 2,
+                maxlength: 120,
+            },
+
+            description: {
+                type: String,
+                trim: true,
+                maxlength: 1000,
+                default: "",
+            },
+
+            category: {
+                type: String,
+                enum: [
+                    "문제지",
+                    "해설",
+                    "개념 자료",
+                    "기타",
+                ],
+                default: "기타",
+            },
+
+            originalName: {
+                type: String,
+                required: true,
+                maxlength: 255,
+            },
+
+            storedName: {
+                type: String,
+                required: true,
+                unique: true,
+                maxlength: 255,
+            },
+
+            mimeType: {
+                type: String,
+                required: true,
+                maxlength: 160,
+            },
+
+            sizeBytes: {
+                type: Number,
+                min: 1,
+                required: true,
+            },
+
+            uploadedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+
+            downloadCount: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+
+            isPublished: {
+                type: Boolean,
+                default: true,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+archiveItemSchema.index({
+    isPublished: 1,
+    createdAt: -1,
+});
+
+/* --------------------------------------------------
+ * 13. Admin operations
+ * 공지, 개인 알림, 아카이브 폴더 및 관리자 작업 이력
+ * -------------------------------------------------- */
+
+const announcementSchema =
+    new Schema(
+        {
+            title: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: 2,
+                maxlength: 120,
+            },
+            content: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: 5,
+                maxlength: 5000,
+            },
+            boardCategory: {
+                type: String,
+                enum: [
+                    "notice",
+                    "rules",
+                    "policies",
+                    "manuals",
+                    "inquiry-rules",
+                ],
+                default: "notice",
+                index: true,
+            },
+            href: {
+                type: String,
+                trim: true,
+                maxlength: 500,
+                default: "/main",
+            },
+            isPublished: {
+                type: Boolean,
+                default: false,
+                index: true,
+            },
+            publishedAt: {
+                type: Date,
+                default: null,
+            },
+            deliveredAt: {
+                type: Date,
+                default: null,
+            },
+            dashboardEndsAt: {
+                type: Date,
+                default: null,
+                index: true,
+            },
+            createdBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+announcementSchema.index({
+    isPublished: 1,
+    publishedAt: -1,
+});
+announcementSchema.index({
+    boardCategory: 1,
+    isPublished: 1,
+    publishedAt: -1,
+});
+
+const userNotificationSchema =
+    new Schema(
+        {
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            title: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: 100,
+            },
+            message: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: 1000,
+            },
+            href: {
+                type: String,
+                default: "/main",
+                maxlength: 500,
+            },
+            kind: {
+                type: String,
+                enum: [
+                    "admin",
+                    "system",
+                    "warning",
+                    "account",
+                    "nickname",
+                    "announcement",
+                    "integrity",
+                ],
+                default: "admin",
+            },
+            announcementId: {
+                type: Schema.Types.ObjectId,
+                ref: "Announcement",
+                default: null,
+            },
+            readAt: {
+                type: Date,
+                default: null,
+            },
+            dashboardDismissedAt: {
+                type: Date,
+                default: null,
+            },
+            createdBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+userNotificationSchema.index({
+    userId: 1,
+    readAt: 1,
+    createdAt: -1,
+});
+userNotificationSchema.index(
+    {
+        userId: 1,
+        announcementId: 1,
+    },
+    {
+        unique: true,
+        partialFilterExpression: {
+            announcementId: {
+                $type: "objectId",
+            },
+        },
+    }
+);
+
+/* --------------------------------------------------
+ * 14. CommunityPost
+ * 통합 고등학교·학교별 커뮤니티 게시글
+ * -------------------------------------------------- */
+
+const communityPostSchema =
+    new Schema(
+        {
+            authorId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            boardType: {
+                type: String,
+                enum: [
+                    "math",
+                    "high-school",
+                    "school",
+                ],
+                required: true,
+                index: true,
+            },
+            schoolCode: {
+                type: String,
+                trim: true,
+                maxlength: 100,
+                default: "",
+                index: true,
+            },
+            schoolName: {
+                type: String,
+                trim: true,
+                maxlength: 120,
+                default: "",
+            },
+            authorRegion: {
+                type: String,
+                trim: true,
+                maxlength: 80,
+                default: "",
+            },
+            authorSchoolGrade: {
+                type: Number,
+                enum: [10, 11, 12, 13],
+                default: null,
+            },
+            authorName: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: 30,
+            },
+            isAnonymous: {
+                type: Boolean,
+                default: false,
+            },
+            anonymousNumber: {
+                type: String,
+                trim: true,
+                maxlength: 6,
+                default: "",
+            },
+            title: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: 2,
+                maxlength: 120,
+            },
+            content: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: 2,
+                maxlength: 10000,
+            },
+            status: {
+                type: String,
+                enum: [
+                    "published",
+                    "hidden",
+                    "deleted",
+                ],
+                default: "published",
+                index: true,
+            },
+            viewCount: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            upvoteCount: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            downvoteCount: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            voteScore: {
+                type: Number,
+                default: 0,
+            },
+            warningIssued: {
+                type: Boolean,
+                default: false,
+            },
+            moderationReason: {
+                type: String,
+                trim: true,
+                maxlength: 500,
+                default: "",
+            },
+            moderatedAt: {
+                type: Date,
+                default: null,
+            },
+            moderatedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+            editedAt: {
+                type: Date,
+                default: null,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+communityPostSchema.index({
+    boardType: 1,
+    schoolCode: 1,
+    status: 1,
+    createdAt: -1,
+});
+communityPostSchema.index({
+    title: "text",
+    content: "text",
+});
+
+/* --------------------------------------------------
+ * 15. CommunityComment
+ * 공개 게시글에 로그인 회원이 남기는 댓글
+ * -------------------------------------------------- */
+
+const communityCommentSchema =
+    new Schema(
+        {
+            postId: {
+                type: Schema.Types.ObjectId,
+                ref: "CommunityPost",
+                required: true,
+                index: true,
+            },
+            authorId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            authorName: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: 30,
+            },
+            isAnonymous: {
+                type: Boolean,
+                default: false,
+            },
+            anonymousNumber: {
+                type: String,
+                trim: true,
+                maxlength: 6,
+                default: "",
+            },
+            content: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: 1,
+                maxlength: 2000,
+            },
+            status: {
+                type: String,
+                enum: [
+                    "published",
+                    "hidden",
+                    "deleted",
+                ],
+                default: "published",
+                index: true,
+            },
+            warningIssued: {
+                type: Boolean,
+                default: false,
+            },
+            moderationReason: {
+                type: String,
+                trim: true,
+                maxlength: 500,
+                default: "",
+            },
+            moderatedAt: {
+                type: Date,
+                default: null,
+            },
+            moderatedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+            editedAt: {
+                type: Date,
+                default: null,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+communityCommentSchema.index({
+    postId: 1,
+    status: 1,
+    createdAt: 1,
+});
+
+/* --------------------------------------------------
+ * 16. CommunityVote
+ * 게시글 추천·비추천 기록. 한 회원은 한 게시글에 한 표만 갖습니다.
+ * -------------------------------------------------- */
+
+const communityVoteSchema =
+    new Schema(
+        {
+            postId: {
+                type: Schema.Types.ObjectId,
+                ref: "CommunityPost",
+                required: true,
+                index: true,
+            },
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            value: {
+                type: Number,
+                enum: [-1, 1],
+                required: true,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+communityVoteSchema.index(
+    {
+        postId: 1,
+        userId: 1,
+    },
+    {
+        unique: true,
+    }
+);
+
+const communityReportSchema =
+    new Schema(
+        {
+            postId: {
+                type: Schema.Types.ObjectId,
+                ref: "CommunityPost",
+                required: true,
+                index: true,
+            },
+            reporterUserId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            reportedUserId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            reason: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: 5,
+                maxlength: 1000,
+            },
+            status: {
+                type: String,
+                enum: ["pending", "reviewing", "resolved", "rejected"],
+                default: "pending",
+                index: true,
+            },
+            resolution: {
+                type: String,
+                trim: true,
+                maxlength: 1000,
+                default: "",
+            },
+            handledBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+            handledAt: {
+                type: Date,
+                default: null,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+communityReportSchema.index(
+    { postId: 1, reporterUserId: 1 },
+    { unique: true }
+);
+
+/* --------------------------------------------------
+ * 17. PrivateMockExam
+ * 매주 일요일 15시 공개되는 Matths 사설 모의고사 회차
+ * -------------------------------------------------- */
+
+const privateMockExamSchema =
+    new Schema(
+        {
+            weekKey: {
+                type: String,
+                required: true,
+                trim: true,
+                index: true,
+            },
+            attemptNumber: {
+                type: Number,
+                enum: [0, 1, 2, 3],
+                required: true,
+                index: true,
+            },
+            formCode: {
+                type: String,
+                enum: ["A", "B", "C", "TEST"],
+                required: true,
+            },
+            isTest: {
+                type: Boolean,
+                default: false,
+                index: true,
+            },
+            title: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: 2,
+                maxlength: 120,
+            },
+            releaseAt: {
+                type: Date,
+                required: true,
+                unique: true,
+                index: true,
+            },
+            closeAt: {
+                type: Date,
+                required: true,
+                index: true,
+            },
+            aggregationStartsAt: {
+                type: Date,
+                required: true,
+                index: true,
+            },
+            rankingPublishesAt: {
+                type: Date,
+                required: true,
+                index: true,
+            },
+            archiveAt: {
+                type: Date,
+                required: true,
+                index: true,
+            },
+            reviewPublishesAt: {
+                type: Date,
+                required: true,
+                index: true,
+            },
+            durationMinutes: {
+                type: Number,
+                min: 10,
+                max: 180,
+                default: 100,
+            },
+            questionCount: {
+                type: Number,
+                min: 0,
+                max: 60,
+                default: 0,
+            },
+            answerKey: {
+                type: [String],
+                default: [],
+                select: false,
+            },
+            points: {
+                type: [Number],
+                default: [],
+                select: false,
+            },
+            questionModes: {
+                type: [
+                    {
+                        type: String,
+                        enum: [
+                            "multiple-choice",
+                            "short-answer",
+                        ],
+                    },
+                ],
+                default: [],
+            },
+            explanations: {
+                type: [Schema.Types.Mixed],
+                default: [],
+                select: false,
+            },
+            archiveItemId: {
+                type: Schema.Types.ObjectId,
+                ref: "ArchiveItem",
+                required: true,
+                unique: true,
+            },
+            answerSheetArchiveItemId: {
+                type: Schema.Types.ObjectId,
+                ref: "ArchiveItem",
+                default: null,
+                index: true,
+            },
+            status: {
+                type: String,
+                enum: [
+                    "pending-review",
+                    "scheduled",
+                    "open",
+                    "locked",
+                    "aggregating",
+                    "ranked",
+                    "archived",
+                    "finalizing",
+                    "finalized",
+                    "cancelled",
+                ],
+                default: "scheduled",
+                index: true,
+            },
+            announcementId: {
+                type: Schema.Types.ObjectId,
+                ref: "Announcement",
+                default: null,
+            },
+            notificationSentAt: {
+                type: Date,
+                default: null,
+            },
+            rankingFinalizedAt: {
+                type: Date,
+                default: null,
+            },
+            aggregationStartedAt: {
+                type: Date,
+                default: null,
+            },
+            aggregationCompletedAt: {
+                type: Date,
+                default: null,
+            },
+            rankingSummary: {
+                participantCount: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                averageScore: {
+                    type: Number,
+                    min: 0,
+                    max: 100,
+                    default: 0,
+                },
+                medianScore: {
+                    type: Number,
+                    min: 0,
+                    max: 100,
+                    default: 0,
+                },
+                scoreStandardDeviation: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                averageElapsedMs: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                highestScore: {
+                    type: Number,
+                    min: 0,
+                    max: 100,
+                    default: 0,
+                },
+                lowestScore: {
+                    type: Number,
+                    min: 0,
+                    max: 100,
+                    default: 0,
+                },
+            },
+            archivedAt: {
+                type: Date,
+                default: null,
+            },
+            createdBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+privateMockExamSchema.index({
+    status: 1,
+    releaseAt: 1,
+    closeAt: 1,
+});
+privateMockExamSchema.index({
+    weekKey: 1,
+    attemptNumber: 1,
+});
+privateMockExamSchema.index({
+    status: 1,
+    aggregationStartsAt: 1,
+    rankingPublishesAt: 1,
+    archiveAt: 1,
+});
+
+const privateMockUploadReminderSchema =
+    new Schema(
+        {
+            releaseAt: {
+                type: Date,
+                required: true,
+                unique: true,
+                index: true,
+            },
+            status: {
+                type: String,
+                enum: [
+                    "pending",
+                    "sending",
+                    "sent",
+                    "failed",
+                ],
+                default: "pending",
+                index: true,
+            },
+            attempts: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            lastAttemptAt: {
+                type: Date,
+                default: null,
+            },
+            nextRetryAt: {
+                type: Date,
+                default: null,
+            },
+            sentAt: {
+                type: Date,
+                default: null,
+            },
+            deliveryMode: {
+                type: String,
+                enum: [
+                    "",
+                    "email",
+                    "preview",
+                ],
+                default: "",
+            },
+            lastError: {
+                type: String,
+                default: "",
+                maxlength: 500,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+const privateMockExamAttemptSchema =
+    new Schema(
+        {
+            examId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExam",
+                required: true,
+                index: true,
+            },
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            weekKey: {
+                type: String,
+                required: true,
+                trim: true,
+                index: true,
+            },
+            attemptNumber: {
+                type: Number,
+                enum: [0, 1, 2, 3],
+                required: true,
+            },
+            formCode: {
+                type: String,
+                enum: ["A", "B", "C", "TEST"],
+                required: true,
+            },
+            answers: {
+                type: [String],
+                default: [],
+            },
+            answeredCount: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            score: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            correctCount: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            correctByQuestion: {
+                type: [Boolean],
+                default: [],
+            },
+            scoreBreakdown: {
+                threePointCorrect: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                threePointTotal: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                fourPointCorrect: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                fourPointTotal: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                semiKillerCorrect: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                killerCorrect: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+            },
+            mmrResult: {
+                previousMmr: {
+                    type: Number,
+                    min: 0,
+                    default: null,
+                },
+                newMmr: {
+                    type: Number,
+                    min: 0,
+                    default: null,
+                },
+                deltaMmr: {
+                    type: Number,
+                    default: null,
+                },
+                totalPercentile: {
+                    type: Number,
+                    min: 0,
+                    max: 1,
+                    default: null,
+                },
+                advancedPercentile: {
+                    type: Number,
+                    min: 0,
+                    max: 1,
+                    default: null,
+                },
+                consistencyScore: {
+                    type: Number,
+                    min: 0,
+                    max: 1,
+                    default: null,
+                },
+                actualPerformance: {
+                    type: Number,
+                    min: 0,
+                    max: 1,
+                    default: null,
+                },
+                expectedPerformance: {
+                    type: Number,
+                    min: 0,
+                    max: 1,
+                    default: null,
+                },
+                kFactor: {
+                    type: Number,
+                    min: 0,
+                    default: null,
+                },
+                growthBonus: {
+                    type: Number,
+                    default: 0,
+                },
+                tier: {
+                    type: String,
+                    default: "",
+                },
+                rankPoint: {
+                    type: Number,
+                    min: 0,
+                    max: 99,
+                    default: null,
+                },
+            },
+            standardMetrics: {
+                totalPercentile: {
+                    type: Number,
+                    min: 0,
+                    max: 1,
+                    default: null,
+                },
+                advancedPercentile: {
+                    type: Number,
+                    min: 0,
+                    max: 1,
+                    default: null,
+                },
+                consistencyScore: {
+                    type: Number,
+                    min: 0,
+                    max: 1,
+                    default: null,
+                },
+                actualPerformance: {
+                    type: Number,
+                    min: 0,
+                    max: 1,
+                    default: null,
+                },
+                cohortSize: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                calculatedAt: {
+                    type: Date,
+                    default: null,
+                },
+            },
+            isRepresentative: {
+                type: Boolean,
+                default: false,
+            },
+            usedForWeeklyRanking: {
+                type: Boolean,
+                default: false,
+            },
+            usedForMmrStability: {
+                type: Boolean,
+                default: false,
+            },
+            usedForCalibration: {
+                type: Boolean,
+                default: true,
+            },
+            usedForIntegrityAnalysis: {
+                type: Boolean,
+                default: true,
+            },
+            integrityStatus: {
+                type: String,
+                enum: [
+                    "NOT_REVIEWED",
+                    "PENDING_INTEGRITY_REVIEW",
+                    "CLEAR",
+                    "INVALIDATED",
+                ],
+                default: "NOT_REVIEWED",
+                index: true,
+            },
+            integrityCaseId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockIntegrityCase",
+                default: null,
+                index: true,
+            },
+            integritySummary: {
+                riskScore: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                signalCodes: {
+                    type: [String],
+                    default: [],
+                },
+                analyzedAt: {
+                    type: Date,
+                    default: null,
+                },
+            },
+            elapsedMs: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            rank: {
+                type: Number,
+                min: 1,
+                default: null,
+            },
+            status: {
+                type: String,
+                enum: [
+                    "in_progress",
+                    "submitted",
+                    "expired",
+                ],
+                default: "in_progress",
+                index: true,
+            },
+            startedAt: {
+                type: Date,
+                required: true,
+                default: Date.now,
+            },
+            lastSavedAt: {
+                type: Date,
+                default: null,
+            },
+            submittedAt: {
+                type: Date,
+                default: null,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+privateMockExamAttemptSchema.index(
+    {
+        examId: 1,
+        userId: 1,
+    },
+    {
+        unique: true,
+    }
+);
+privateMockExamAttemptSchema.index({
+    examId: 1,
+    status: 1,
+    score: -1,
+    elapsedMs: 1,
+});
+privateMockExamAttemptSchema.index({
+    weekKey: 1,
+    userId: 1,
+    attemptNumber: 1,
+});
+
+const privateMockExamEventSchema =
+    new Schema(
+        {
+            examId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExam",
+                required: true,
+                index: true,
+            },
+            attemptId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExamAttempt",
+                required: true,
+                index: true,
+            },
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            eventType: {
+                type: String,
+                required: true,
+                maxlength: 60,
+                index: true,
+            },
+            questionNumber: {
+                type: Number,
+                min: 1,
+                max: 60,
+                default: null,
+            },
+            clientAt: {
+                type: Date,
+                default: null,
+            },
+            serverAt: {
+                type: Date,
+                required: true,
+                default: Date.now,
+            },
+            metadata: {
+                type: Schema.Types.Mixed,
+                default: {},
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+privateMockExamEventSchema.index({
+    attemptId: 1,
+    serverAt: 1,
+});
+
+const privateMockResourceSchema =
+    new Schema(
+        {
+            resourceType: {
+                type: String,
+                enum: ["formula-pdf"],
+                required: true,
+                index: true,
+            },
+            archiveItemId: {
+                type: Schema.Types.ObjectId,
+                ref: "ArchiveItem",
+                required: true,
+                unique: true,
+            },
+            versionLabel: {
+                type: String,
+                trim: true,
+                maxlength: 80,
+                default: "",
+            },
+            isActive: {
+                type: Boolean,
+                default: true,
+                index: true,
+            },
+            createdBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+privateMockResourceSchema.index({
+    resourceType: 1,
+    isActive: 1,
+    createdAt: -1,
+});
+
+const privateMockIntegrityCaseSchema =
+    new Schema(
+        {
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            examId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExam",
+                required: true,
+                index: true,
+            },
+            attemptId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExamAttempt",
+                required: true,
+                unique: true,
+            },
+            weekKey: {
+                type: String,
+                required: true,
+                trim: true,
+                index: true,
+            },
+            status: {
+                type: String,
+                enum: [
+                    "EVIDENCE_REQUIRED",
+                    "SUBMITTED",
+                    "UNDER_REVIEW",
+                    "CLEARED",
+                    "INSUFFICIENT_EVIDENCE",
+                    "CONFIRMED_CHEATING",
+                    "OVERDUE_PENALIZED",
+                ],
+                default: "EVIDENCE_REQUIRED",
+                index: true,
+            },
+            riskScore: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            suspicionSignals: {
+                type: [Schema.Types.Mixed],
+                default: [],
+            },
+            requestedQuestionNumbers: {
+                type: [Number],
+                default: [],
+            },
+            evidenceRequest: {
+                requestedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+                requestedBy: {
+                    type: Schema.Types.ObjectId,
+                    ref: "User",
+                    default: null,
+                },
+                deadlineAt: {
+                    type: Date,
+                    required: true,
+                },
+                instructions: {
+                    type: String,
+                    maxlength: 1000,
+                    default: "",
+                },
+            },
+            evidenceSubmissions: {
+                type: [
+                    {
+                        receiptId: {
+                            type: String,
+                            required: true,
+                        },
+                        files: {
+                            type: [
+                                {
+                                    archiveItemId: {
+                                        type: Schema.Types.ObjectId,
+                                        ref: "ArchiveItem",
+                                        required: true,
+                                    },
+                                    originalName: String,
+                                    mimeType: String,
+                                    sizeBytes: Number,
+                                    uploadedAt: Date,
+                                },
+                            ],
+                            default: [],
+                        },
+                        note: {
+                            type: String,
+                            maxlength: 2000,
+                            default: "",
+                        },
+                        submittedAt: {
+                            type: Date,
+                            required: true,
+                        },
+                    },
+                ],
+                default: [],
+            },
+            notificationId: {
+                type: Schema.Types.ObjectId,
+                ref: "UserNotification",
+                default: null,
+            },
+            decision: {
+                result: {
+                    type: String,
+                    default: "",
+                },
+                reason: {
+                    type: String,
+                    maxlength: 2000,
+                    default: "",
+                },
+                decidedAt: {
+                    type: Date,
+                    default: null,
+                },
+                decidedBy: {
+                    type: Schema.Types.ObjectId,
+                    ref: "User",
+                    default: null,
+                },
+            },
+            penaltyAppliedAt: {
+                type: Date,
+                default: null,
+            },
+            warningAppliedAt: {
+                type: Date,
+                default: null,
+            },
+            penaltyRevokedAt: {
+                type: Date,
+                default: null,
+            },
+            warningRevokedAt: {
+                type: Date,
+                default: null,
+            },
+            decisionNoticeSentAt: {
+                type: Date,
+                default: null,
+            },
+            decisionNoticeResult: {
+                type: String,
+                enum: ["", "no_penalty", "penalty"],
+                default: "",
+            },
+            reviewStatus: {
+                type: String,
+                enum: ["unreviewed", "reviewing", "completed"],
+                default: "unreviewed",
+                index: true,
+            },
+            penaltyDecision: {
+                type: String,
+                enum: ["pending", "no_penalty", "penalty"],
+                default: "pending",
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+privateMockIntegrityCaseSchema.index({
+    userId: 1,
+    status: 1,
+    createdAt: -1,
+});
+
+const privateMockAnswerCorrectionSchema =
+    new Schema(
+        {
+            examId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExam",
+                required: true,
+                index: true,
+            },
+            corrections: {
+                type: [
+                    {
+                        questionNumber: {
+                            type: Number,
+                            min: 1,
+                            max: 60,
+                            required: true,
+                        },
+                        questionContent: {
+                            type: String,
+                            required: true,
+                            maxlength: 3000,
+                        },
+                        oldAnswer: {
+                            type: String,
+                            required: true,
+                            maxlength: 80,
+                        },
+                        newAnswer: {
+                            type: String,
+                            required: true,
+                            maxlength: 80,
+                        },
+                    },
+                ],
+                required: true,
+            },
+            reason: {
+                type: String,
+                required: true,
+                maxlength: 2000,
+            },
+            createdBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+            },
+            sourceObjectionId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockObjection",
+                default: null,
+                index: true,
+            },
+            affectedAttemptCount: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            notificationStats: {
+                recipientCount: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                emailDeliveredCount: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                emailFailedCount: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+privateMockAnswerCorrectionSchema.index({
+    examId: 1,
+    createdAt: -1,
+});
+
+const privateMockObjectionSchema =
+    new Schema(
+        {
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            examId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExam",
+                required: true,
+                index: true,
+            },
+            archiveItemId: {
+                type: Schema.Types.ObjectId,
+                ref: "ArchiveItem",
+                required: true,
+            },
+            examTitle: {
+                type: String,
+                required: true,
+                maxlength: 160,
+            },
+            questionNumber: {
+                type: Number,
+                min: 1,
+                max: 60,
+                required: true,
+            },
+            issueDetail: {
+                type: String,
+                required: true,
+                minlength: 10,
+                maxlength: 5000,
+            },
+            status: {
+                type: String,
+                enum: [
+                    "pending",
+                    "reviewing",
+                    "accepted",
+                    "rejected",
+                ],
+                default: "pending",
+                index: true,
+            },
+            reviewReason: {
+                type: String,
+                maxlength: 2000,
+                default: "",
+            },
+            reviewedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+            reviewedAt: {
+                type: Date,
+                default: null,
+            },
+            correctionId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockAnswerCorrection",
+                default: null,
+            },
+            announcementId: {
+                type: Schema.Types.ObjectId,
+                ref: "Announcement",
+                default: null,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+privateMockObjectionSchema.index({
+    status: 1,
+    createdAt: 1,
+});
+
+const privateMockWeeklyAttemptSchema =
+    new Schema(
+        {
+            attemptId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExamAttempt",
+                required: true,
+            },
+            examId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExam",
+                required: true,
+            },
+            attemptNumber: {
+                type: Number,
+                enum: [1, 2, 3],
+                required: true,
+            },
+            formCode: {
+                type: String,
+                enum: ["A", "B", "C"],
+                required: true,
+            },
+            rawScore: {
+                type: Number,
+                min: 0,
+                max: 100,
+                required: true,
+            },
+            totalPercentile: {
+                type: Number,
+                min: 0,
+                max: 1,
+                required: true,
+            },
+            advancedPercentile: {
+                type: Number,
+                min: 0,
+                max: 1,
+                required: true,
+            },
+            consistencyScore: {
+                type: Number,
+                min: 0,
+                max: 1,
+                required: true,
+            },
+            actualPerformance: {
+                type: Number,
+                min: 0,
+                max: 1,
+                required: true,
+            },
+            submittedAt: {
+                type: Date,
+                required: true,
+            },
+        },
+        {
+            _id: false,
+        }
+    );
+
+const privateMockWeeklyResultSchema =
+    new Schema(
+        {
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            weekKey: {
+                type: String,
+                required: true,
+                trim: true,
+                index: true,
+            },
+            attempts: {
+                type: [privateMockWeeklyAttemptSchema],
+                default: [],
+            },
+            selectedAttemptId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExamAttempt",
+                default: null,
+            },
+            selectionState: {
+                type: String,
+                enum: [
+                    "pending",
+                    "deferred",
+                    "selected",
+                    "auto",
+                    "locked",
+                ],
+                default: "pending",
+            },
+            selectionReason: {
+                type: String,
+                enum: [
+                    "",
+                    "user-selected",
+                    "only-submission",
+                    "highest-standardized",
+                    "no-submission",
+                ],
+                default: "",
+            },
+            representativeAttemptId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExamAttempt",
+                default: null,
+            },
+            representativePerformance: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: null,
+            },
+            representativeRawScore: {
+                type: Number,
+                min: 0,
+                max: 100,
+                default: null,
+            },
+            representativeElapsedMs: {
+                type: Number,
+                min: 0,
+                default: null,
+            },
+            mmrPerformance: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: null,
+            },
+            attemptCount: {
+                type: Number,
+                min: 0,
+                max: 3,
+                default: 0,
+            },
+            rank: {
+                type: Number,
+                min: 1,
+                default: null,
+            },
+            status: {
+                type: String,
+                enum: [
+                    "open",
+                    "locked",
+                    "published",
+                ],
+                default: "open",
+                index: true,
+            },
+            lockedAt: {
+                type: Date,
+                default: null,
+            },
+            publishedAt: {
+                type: Date,
+                default: null,
+            },
+            mmrResult: {
+                previousMmr: {
+                    type: Number,
+                    min: 0,
+                    default: null,
+                },
+                newMmr: {
+                    type: Number,
+                    min: 0,
+                    default: null,
+                },
+                deltaMmr: {
+                    type: Number,
+                    default: null,
+                },
+                expectedPerformance: {
+                    type: Number,
+                    min: 0,
+                    max: 1,
+                    default: null,
+                },
+                kFactor: {
+                    type: Number,
+                    min: 0,
+                    default: null,
+                },
+                growthBonus: {
+                    type: Number,
+                    default: 0,
+                },
+                tier: {
+                    type: String,
+                    default: "",
+                },
+                rankPoint: {
+                    type: Number,
+                    min: 0,
+                    max: 99,
+                    default: null,
+                },
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+privateMockWeeklyResultSchema.index(
+    {
+        userId: 1,
+        weekKey: 1,
+    },
+    {
+        unique: true,
+    }
+);
+privateMockWeeklyResultSchema.index({
+    weekKey: 1,
+    status: 1,
+    representativePerformance: -1,
+});
+
+const rankingMmrHistorySchema =
+    new Schema(
+        {
+            examId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockExam",
+                default: null,
+            },
+            placementAttemptId: {
+                type: Schema.Types.ObjectId,
+                ref: "AssessmentAttempt",
+                default: null,
+            },
+            eventType: {
+                type: String,
+                enum: [
+                    "placement",
+                    "weekly-exam",
+                    "absence",
+                    "season-reset",
+                ],
+                required: true,
+            },
+            previousMmr: {
+                type: Number,
+                min: 0,
+                required: true,
+            },
+            newMmr: {
+                type: Number,
+                min: 0,
+                required: true,
+            },
+            deltaMmr: {
+                type: Number,
+                required: true,
+            },
+            rawScore: {
+                type: Number,
+                min: 0,
+                default: null,
+            },
+            totalPercentile: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: null,
+            },
+            advancedPercentile: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: null,
+            },
+            consistencyScore: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: null,
+            },
+            actualPerformance: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: null,
+            },
+            expectedPerformance: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: null,
+            },
+            kFactor: {
+                type: Number,
+                min: 0,
+                default: null,
+            },
+            growthBonus: {
+                type: Number,
+                default: 0,
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+        },
+        {
+            _id: false,
+        }
+    );
+
+const rankingProfileSchema =
+    new Schema(
+        {
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                unique: true,
+                index: true,
+            },
+            placementAttemptId: {
+                type: Schema.Types.ObjectId,
+                ref: "AssessmentAttempt",
+                default: null,
+            },
+            placementScore: {
+                type: Number,
+                min: 0,
+                max: 100,
+                default: 50,
+            },
+            placementExpectedPerformance: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: 0.5,
+            },
+            mmr: {
+                type: Number,
+                min: 0,
+                default: 1000,
+                index: true,
+            },
+            tier: {
+                type: String,
+                enum: [
+                    "BRONZE",
+                    "SILVER",
+                    "GOLD",
+                    "PLATINUM",
+                    "EMERALD",
+                    "DIAMOND",
+                    "MASTER",
+                    "GRANDMASTER",
+                    "CHALLENGER",
+                ],
+                default: "GOLD",
+                index: true,
+            },
+            rankPoint: {
+                type: Number,
+                min: 0,
+                max: 99,
+                default: 0,
+            },
+            overallRank: {
+                type: Number,
+                min: 1,
+                default: null,
+            },
+            percentile: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: 0.5,
+            },
+            status: {
+                type: String,
+                enum: [
+                    "PROVISIONAL",
+                    "CONFIRMED",
+                ],
+                default: "PROVISIONAL",
+            },
+            /*
+             * 탈퇴 후 익명 데이터셋으로만 보존되는 프로필은
+             * 실시간 랭킹과 결석 감점 계산에서 제외한다.
+             */
+            datasetOnly: {
+                type: Boolean,
+                default: false,
+                index: true,
+            },
+            weeklyExamsUntilConfirmed: {
+                type: Number,
+                min: 0,
+                default: 2,
+            },
+            seasonId: {
+                type: String,
+                default: "2026-season-1",
+            },
+            recentPerformances: {
+                type: [Number],
+                default: [],
+            },
+            lastAdvancedPerformance: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: 0,
+            },
+            lastRawScore: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            reachedCurrentMmrAt: {
+                type: Date,
+                default: Date.now,
+            },
+            demotionProtection: {
+                active: {
+                    type: Boolean,
+                    default: false,
+                },
+                consecutiveBelowThreshold: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                thresholdMmr: {
+                    type: Number,
+                    min: 0,
+                    default: null,
+                },
+            },
+            participation: {
+                weeklyExamCount: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                consecutiveAbsences: {
+                    type: Number,
+                    min: 0,
+                    default: 0,
+                },
+                lastExamAt: {
+                    type: Date,
+                    default: null,
+                },
+            },
+            mmrHistory: {
+                type: [rankingMmrHistorySchema],
+                default: [],
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+rankingProfileSchema.index({
+    mmr: -1,
+    reachedCurrentMmrAt: 1,
+});
+
+/* --------------------------------------------------
+ * 18. NicknameChangeRequest
+ * 관리자가 사유와 함께 발급하는 닉네임 변경 요청
+ * -------------------------------------------------- */
+
+const nicknameChangeRequestSchema =
+    new Schema(
+        {
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            requestedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+            },
+            reason: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: 500,
+            },
+            tokenHash: {
+                type: String,
+                required: true,
+                select: false,
+            },
+            status: {
+                type: String,
+                enum: [
+                    "pending",
+                    "completed",
+                    "cancelled",
+                    "expired",
+                ],
+                default: "pending",
+                index: true,
+            },
+            expiresAt: {
+                type: Date,
+                required: true,
+                index: true,
+            },
+            completedAt: {
+                type: Date,
+                default: null,
+            },
+            previousName: {
+                type: String,
+                required: true,
+                maxlength: 30,
+            },
+            nextName: {
+                type: String,
+                maxlength: 30,
+                default: "",
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+nicknameChangeRequestSchema.index({
+    userId: 1,
+    status: 1,
+    createdAt: -1,
+});
+
+const archiveFolderSchema =
+    new Schema(
+        {
+            parentFolderId: {
+                type: Schema.Types.ObjectId,
+                ref: "ArchiveFolder",
+                default: null,
+                index: true,
+            },
+            name: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: 2,
+                maxlength: 80,
+                unique: true,
+            },
+            description: {
+                type: String,
+                trim: true,
+                maxlength: 500,
+                default: "",
+            },
+            slug: {
+                type: String,
+                required: true,
+                unique: true,
+                maxlength: 120,
+            },
+            isPublished: {
+                type: Boolean,
+                default: true,
+            },
+            createdBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+archiveFolderSchema.index({
+    isPublished: 1,
+    parentFolderId: 1,
+    name: 1,
+});
+
+const adminActionLogSchema =
+    new Schema(
+        {
+            adminUserId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            targetUserId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+                index: true,
+            },
+            action: {
+                type: String,
+                required: true,
+                maxlength: 80,
+            },
+            detail: {
+                type: String,
+                maxlength: 1000,
+                default: "",
+            },
+            metadata: {
+                type: Schema.Types.Mixed,
+                default: {},
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+adminActionLogSchema.index({
+    createdAt: -1,
+});
+
+const adminTodoSchema =
+    new Schema(
+        {
+            category: {
+                type: String,
+                enum: ["inquiry", "community-report", "integrity", "other"],
+                required: true,
+                index: true,
+            },
+            title: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: 160,
+            },
+            description: {
+                type: String,
+                trim: true,
+                maxlength: 1000,
+                default: "",
+            },
+            href: {
+                type: String,
+                trim: true,
+                maxlength: 500,
+                default: "/admin/todos",
+            },
+            targetUserId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+                index: true,
+            },
+            actorUserId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+            sourceType: {
+                type: String,
+                trim: true,
+                maxlength: 80,
+                required: true,
+            },
+            sourceId: {
+                type: Schema.Types.ObjectId,
+                required: true,
+            },
+            status: {
+                type: String,
+                enum: ["pending", "completed"],
+                default: "pending",
+                index: true,
+            },
+            completedAt: {
+                type: Date,
+                default: null,
+            },
+            completedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+            metadata: {
+                type: Schema.Types.Mixed,
+                default: {},
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+adminTodoSchema.index(
+    { sourceType: 1, sourceId: 1 },
+    { unique: true }
+);
+adminTodoSchema.index({
+    status: 1,
+    category: 1,
+    createdAt: 1,
+});
+adminTodoSchema.index({
+    status: 1,
+    category: 1,
+    completedAt: -1,
+});
+
+/* --------------------------------------------------
  * Model 생성
  * -------------------------------------------------- */
 
@@ -2212,6 +5366,155 @@ const SupportInquiry =
         supportInquirySchema
     );
 
+const ArchiveItem =
+    mongoose.models.ArchiveItem ||
+    mongoose.model(
+        "ArchiveItem",
+        archiveItemSchema
+    );
+
+const Announcement =
+    mongoose.models.Announcement ||
+    mongoose.model(
+        "Announcement",
+        announcementSchema
+    );
+
+const UserNotification =
+    mongoose.models.UserNotification ||
+    mongoose.model(
+        "UserNotification",
+        userNotificationSchema
+    );
+
+const CommunityPost =
+    mongoose.models.CommunityPost ||
+    mongoose.model(
+        "CommunityPost",
+        communityPostSchema
+    );
+
+const CommunityComment =
+    mongoose.models.CommunityComment ||
+    mongoose.model(
+        "CommunityComment",
+        communityCommentSchema
+    );
+
+const CommunityVote =
+    mongoose.models.CommunityVote ||
+    mongoose.model(
+        "CommunityVote",
+        communityVoteSchema
+    );
+
+const CommunityReport =
+    mongoose.models.CommunityReport ||
+    mongoose.model(
+        "CommunityReport",
+        communityReportSchema
+    );
+
+const PrivateMockExam =
+    mongoose.models.PrivateMockExam ||
+    mongoose.model(
+        "PrivateMockExam",
+        privateMockExamSchema
+    );
+
+const PrivateMockUploadReminder =
+    mongoose.models
+        .PrivateMockUploadReminder ||
+    mongoose.model(
+        "PrivateMockUploadReminder",
+        privateMockUploadReminderSchema
+    );
+
+const PrivateMockExamAttempt =
+    mongoose.models.PrivateMockExamAttempt ||
+    mongoose.model(
+        "PrivateMockExamAttempt",
+        privateMockExamAttemptSchema
+    );
+
+const PrivateMockExamEvent =
+    mongoose.models.PrivateMockExamEvent ||
+    mongoose.model(
+        "PrivateMockExamEvent",
+        privateMockExamEventSchema
+    );
+
+const PrivateMockResource =
+    mongoose.models.PrivateMockResource ||
+    mongoose.model(
+        "PrivateMockResource",
+        privateMockResourceSchema
+    );
+
+const PrivateMockIntegrityCase =
+    mongoose.models.PrivateMockIntegrityCase ||
+    mongoose.model(
+        "PrivateMockIntegrityCase",
+        privateMockIntegrityCaseSchema
+    );
+
+const PrivateMockAnswerCorrection =
+    mongoose.models
+        .PrivateMockAnswerCorrection ||
+    mongoose.model(
+        "PrivateMockAnswerCorrection",
+        privateMockAnswerCorrectionSchema
+    );
+
+const PrivateMockObjection =
+    mongoose.models.PrivateMockObjection ||
+    mongoose.model(
+        "PrivateMockObjection",
+        privateMockObjectionSchema
+    );
+
+const PrivateMockWeeklyResult =
+    mongoose.models.PrivateMockWeeklyResult ||
+    mongoose.model(
+        "PrivateMockWeeklyResult",
+        privateMockWeeklyResultSchema
+    );
+
+const RankingProfile =
+    mongoose.models.RankingProfile ||
+    mongoose.model(
+        "RankingProfile",
+        rankingProfileSchema
+    );
+
+const NicknameChangeRequest =
+    mongoose.models.NicknameChangeRequest ||
+    mongoose.model(
+        "NicknameChangeRequest",
+        nicknameChangeRequestSchema
+    );
+
+const ArchiveFolder =
+    mongoose.models.ArchiveFolder ||
+    mongoose.model(
+        "ArchiveFolder",
+        archiveFolderSchema
+    );
+
+const AdminActionLog =
+    mongoose.models.AdminActionLog ||
+    mongoose.model(
+        "AdminActionLog",
+        adminActionLogSchema
+    );
+
+const AdminTodo =
+    mongoose.models.AdminTodo ||
+    mongoose.model(
+        "AdminTodo",
+        adminTodoSchema
+    );
+
 module.exports = {
     User,
     ConceptProgress,
@@ -2225,4 +5528,25 @@ module.exports = {
     QuickPracticeAttempt,
     CoachMessageSuggestion,
     SupportInquiry,
+    ArchiveItem,
+    Announcement,
+    UserNotification,
+    CommunityPost,
+    CommunityComment,
+    CommunityVote,
+    CommunityReport,
+    PrivateMockExam,
+    PrivateMockUploadReminder,
+    PrivateMockExamAttempt,
+    PrivateMockExamEvent,
+    PrivateMockResource,
+    PrivateMockIntegrityCase,
+    PrivateMockAnswerCorrection,
+    PrivateMockObjection,
+    PrivateMockWeeklyResult,
+    RankingProfile,
+    NicknameChangeRequest,
+    ArchiveFolder,
+    AdminActionLog,
+    AdminTodo,
 };

@@ -3,7 +3,10 @@
   const data = dashboardData;
 
   const displayName = String(learner.name || "학생");
+  const greetingName = String(learner.realName || learner.name || "학생");
   const notifications = Array.isArray(data.notifications) ? data.notifications : [];
+  const hasUrgentNotification = Boolean(data.hasUrgentNotification);
+  const activeDashboardNotices = Array.isArray(data.activeDashboardNotices) ? data.activeDashboardNotices : [];
   const weakConcepts = Array.isArray(data.weakConcepts) ? data.weakConcepts : [];
   const recentWrongAnswers = Array.isArray(data.recentWrongAnswers) ? data.recentWrongAnswers : [];
   const curriculumCourses = Array.isArray(data.curriculumCourses) ? data.curriculumCourses : [];
@@ -107,85 +110,11 @@
           </button>
         </div>
 
-        <nav class="side-nav" aria-label="대시보드 메뉴">
-          <p>LEARNING</p>
-
-          <a class="active" href="/main" aria-current="page">
-            <span class="nav-icon" aria-hidden="true">⌂</span>
-            <span>학습 홈</span>
-          </a>
-
-          <a href="/my-learning">
-            <span class="nav-icon" aria-hidden="true">▦</span>
-            <span>내 학습</span>
-            <b><%= data.completedConcepts %></b>
-          </a>
-
-          <a href="/log-curriculum">
-            <span class="nav-icon" aria-hidden="true">◫</span>
-            <span>교육과정</span>
-          </a>
-
-          <a href="/quick-practice">
-            <span class="nav-icon" aria-hidden="true">⚡</span>
-            <span>40초 눈풀이</span>
-          </a>
-
-          <a href="/assessments">
-            <span class="nav-icon" aria-hidden="true">✓</span>
-            <span>평가 센터</span>
-          </a>
-
-          <a href="/wrong-notes">
-            <span class="nav-icon" aria-hidden="true">↻</span>
-            <span>오답 노트</span>
-            <% if (data.stats.pendingReviewCount > 0) { %>
-              <b><%= data.stats.pendingReviewCount %></b>
-            <% } %>
-          </a>
-
-          <a href="/war-of-masters">
-            <span class="nav-icon" aria-hidden="true">♜</span>
-            <span>실수들의 전쟁</span>
-          </a>
-
-          <a href="/coach-suggestions">
-            <span class="nav-icon" aria-hidden="true">✦</span>
-            <span>문구 제안소</span>
-          </a>
-        </nav>
+        <%- include("partials/dashboard-navigation", {
+          activePage: "main",
+        }) %>
 
         <div class="sidebar-spacer"></div>
-
-        <section
-          class="coach-mini"
-          data-mode="<%= data.coach.mode %>"
-          data-situation="<%= data.coach.situation %>"
-          aria-labelledby="coach-mini-title"
-        >
-          <div class="coach-heading">
-            <span aria-hidden="true">M</span>
-            <p>
-              <small>MATTHS COACH</small>
-              <strong id="coach-mini-title"><%= data.coach.title %></strong>
-            </p>
-          </div>
-
-          <p id="coach-mini-message"><%= data.coach.message %></p>
-
-          <div class="coach-modes" role="group" aria-label="학습 코치 말투 선택">
-            <% [["mild", "순한맛"], ["spicy", "매운맛"], ["silent", "무음"]].forEach(([mode, label]) => { %>
-              <button
-                class="<%= data.coach.mode === mode ? 'active' : '' %>"
-                type="button"
-                data-mode="<%= mode %>"
-                aria-pressed="<%= data.coach.mode === mode %>"
-              >
-                <%= label %>
-              </button>
-            <% }) %>
-          </div>
-        </section>
 
         <div class="sidebar-profile">
           <a
@@ -224,7 +153,7 @@
 
             <div>
               <p id="today-label">오늘의 학습</p>
-              <h1><%= displayName %>님, 반가워요.</h1>
+              <h1><%= greetingName %>님, 반가워요.</h1>
             </div>
           </div>
 
@@ -236,7 +165,7 @@
 
             <div class="notification-wrap">
               <button
-                class="notification-button"
+                class="notification-button <%= hasUrgentNotification ? 'urgent shake' : '' %>"
                 id="notification-button"
                 type="button"
                 aria-label="알림 <%= notifications.length %>개 보기"
@@ -251,13 +180,13 @@
 
               <div class="notification-panel" id="notification-panel" hidden>
                 <div class="notification-panel-title">
-                  <strong>알림</strong>
+                  <strong><a href="/notifications">알림 우편함</a></strong>
                   <button id="notification-close" type="button" aria-label="알림 닫기">×</button>
                 </div>
 
                 <% if (notifications.length) { %>
                   <% notifications.forEach((notification) => { %>
-                    <a href="<%= notification.href %>">
+                    <a class="<%= notification.urgent ? 'urgent' : '' %>" href="<%= notification.href %>">
                       <b><%= notification.title %></b>
                       <small><%= notification.description %></small>
                     </a>
@@ -265,10 +194,34 @@
                 <% } else { %>
                   <p class="panel-empty">새로운 알림이 없습니다.</p>
                 <% } %>
+                <a class="notification-inbox-cta" href="/notifications">
+                  알림 우편함 전체 보기
+                  <span aria-hidden="true">→</span>
+                </a>
               </div>
             </div>
           </div>
         </header>
+
+        <% if (activeDashboardNotices.length) { %>
+          <section class="dashboard-announcements" aria-label="운영 공지">
+            <% activeDashboardNotices.forEach((notice) => { %>
+              <article class="<%= notice.kind === 'integrity' ? 'integrity' : '' %>" data-dashboard-notice="<%= notice.id %>">
+                <span aria-hidden="true">!</span>
+                <a href="<%= notice.href %>">
+                  <strong><%= notice.title %></strong>
+                  <p><%= notice.content %></p>
+                </a>
+                <button
+                  type="button"
+                  data-dismiss-dashboard-notice="<%= notice.dismissUrl %>"
+                  aria-label="<%= notice.title %> 알림 닫기"
+                  title="대시보드에서 닫기"
+                >×</button>
+              </article>
+            <% }) %>
+          </section>
+        <% } %>
 
         <section class="welcome-row" aria-label="오늘의 학습 요약">
           <article class="continue-card">

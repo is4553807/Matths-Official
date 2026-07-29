@@ -1,0 +1,110 @@
+<%
+  const currentAdminPage =
+    typeof activePage === "string"
+      ? activePage
+      : "";
+  const todoSummary =
+    typeof adminTodoSummary !== "undefined"
+      ? adminTodoSummary
+      : { pendingCount: 0, items: [] };
+  const adminNavigationItems = [
+    {
+      id: "dashboard",
+      href: "/admin",
+      label: "운영 현황",
+    },
+    {
+      id: "users",
+      href: "/admin/users",
+      label: "유저 관리",
+    },
+    {
+      id: "todos",
+      href: "/admin/todos",
+      label: "할 일",
+    },
+    {
+      id: "inquiries",
+      href: "/admin/inquiries",
+      label: "문의 관리",
+    },
+    {
+      id: "community",
+      href: "/admin/community",
+      label: "게시판 관리",
+    },
+    {
+      id: "coach-suggestions",
+      href: "/admin/coach-suggestions",
+      label: "문구 제안",
+    },
+    {
+      id: "archive",
+      href: "/archive/admin",
+      label: "아카이브",
+    },
+    {
+      id: "private-mock-exams",
+      href: "/admin/private-mock-exams",
+      label: "사설 모의고사",
+    },
+  ];
+%>
+<header class="admin-topbar">
+  <a class="admin-brand" href="/admin" aria-label="Matths 운영센터 홈">
+    <span class="brand-mark" aria-hidden="true">M</span>
+    <strong>
+      Matths
+      <small>운영센터</small>
+    </strong>
+  </a>
+  <nav aria-label="관리자 메뉴">
+    <% adminNavigationItems.forEach((item) => { %>
+      <a
+        class="<%= item.id === currentAdminPage ? 'active' : '' %>"
+        href="<%= item.href %>"
+        <%- item.id === currentAdminPage ? 'aria-current="page"' : "" %>
+      ><%= item.label %></a>
+    <% }) %>
+  </nav>
+  <div class="admin-account">
+    <div class="admin-account-user">
+      <span><%= user.name %> 관리자</span>
+      <form action="/logout" method="POST">
+        <button type="submit">로그아웃</button>
+      </form>
+    </div>
+  </div>
+</header>
+<div class="admin-alert-dock">
+  <div class="admin-alert-menu" data-admin-alert-menu>
+      <button
+        type="button"
+        class="<%= (todoSummary.pendingCount || 0) > 0 ? 'has-alerts' : '' %>"
+        aria-label="처리할 관리자 알림 <%= todoSummary.pendingCount || 0 %>개"
+        aria-expanded="false"
+        data-admin-alert-toggle
+      >
+        <span aria-hidden="true">관리 알림</span>
+        <% if ((todoSummary.pendingCount || 0) > 0) { %>
+          <b><%= Math.min(99, todoSummary.pendingCount) %></b>
+        <% } %>
+      </button>
+      <section data-admin-alert-panel hidden>
+        <header><strong>처리할 알림</strong><span><%= todoSummary.pendingCount || 0 %>건</span></header>
+        <div>
+          <% if (!(todoSummary.items || []).length) { %>
+            <p>새로 처리할 항목이 없습니다.</p>
+          <% } %>
+          <% (todoSummary.items || []).forEach((todo) => { %>
+            <a href="<%= todo.href %>">
+              <strong><%= todo.title %></strong>
+              <small><%= todo.actorUserId?.realName || todo.actorUserId?.name || "사용자" %></small>
+            </a>
+          <% }) %>
+        </div>
+        <a class="admin-alert-all" href="/admin/todos">할 일 목록 보기 →</a>
+      </section>
+  </div>
+</div>
+<script src="/js/admin-navigation.js" defer></script>

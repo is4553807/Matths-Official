@@ -15,6 +15,7 @@
     <meta name="theme-color" content="#f7f8fc" />
     <title>서비스 소개 | Matths</title>
     <link rel="stylesheet" href="/css/intro.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
     <script src="/js/intro.js" defer></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
@@ -24,33 +25,7 @@
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
 
-    <header class="site-header">
-      <nav class="navbar container" aria-label="주요 메뉴">
-        <a class="brand" href="/" aria-label="Matths 홈">
-          <span class="brand-mark" aria-hidden="true">M</span>
-          <span>Matths</span>
-        </a>
-
-        <div class="nav-links">
-          <a class="active" href="/intro" aria-current="page">서비스 소개</a>
-          <a href="/visual-learning">시각화 학습</a>
-          <a href="/learning-flow">학습 과정</a>
-          <a href="/curriculum">교육과정</a>
-          <a href="/faq">FAQ</a>
-        </div>
-
-        <div class="nav-actions">
-          <% if (loggedIn) { %>
-            <a class="login-link" href="/main">대시보드</a>
-          <% } else { %>
-            <a class="login-link" href="/login">로그인</a>
-          <% } %>
-          <a class="button button-primary button-small" href="<%= startHref %>">
-            <%= startLabel %>
-          </a>
-        </div>
-      </nav>
-    </header>
+    <%- include("partials/public-navigation", { activePage: "intro" }) %>
 
     <main id="main-content">
       <section class="intro-hero">
@@ -276,7 +251,7 @@
               <p>RANK ARENA</p>
             </div>
             <p class="arena-kicker">MATTHS RANKING BATTLE</p>
-            <h2>실수들의 전쟁</h2>
+            <h2>War of GOAT</h2>
             <p class="arena-lead">
               한 번의 점수로 줄 세우지 않습니다. 같은 범위를 배운 학생들이 매주 같은
               시험으로 겨루고, <strong>현재 실력과 성장</strong>을 함께 반영해 랭크가 움직입니다.
@@ -285,9 +260,9 @@
             <div class="arena-entry">
               <p>참가 자격</p>
               <ol>
-                <li><span>01</span>필수 개념 진도 100%</li>
-                <li><span>02</span>개념 확인 문제 정확도 80% 이상</li>
-                <li><span>03</span>배치고사와 시험 범위 선택</li>
+                <li><span>01</span>입단 배치고사 30문항 완료</li>
+                <li><span>02</span>필요한 경우 준킬러 2·킬러 2문항 추가 확인</li>
+                <li><span>03</span>초기 MMR과 랭크 확정 후 주간 시험 입장</li>
               </ol>
             </div>
 
@@ -300,10 +275,10 @@
             </div>
           </div>
 
-          <div class="arena-board" aria-label="실수들의 전쟁 랭킹 화면 예시">
+          <div class="arena-board" aria-label="War of GOAT 랭킹 화면 예시">
             <div class="arena-board-top">
               <div>
-                <span>WAR OF MASTERS</span>
+                <span>War of GOAT</span>
                 <strong>SEASON 01</strong>
               </div>
             </div>
@@ -363,23 +338,23 @@
         <div class="container arena-rule-grid">
           <article>
             <span>01</span>
-            <h3>세 경기로 정해지는 첫 랭크</h3>
-            <p>배치고사 1회와 주간 모의고사 2회를 반영해 운보다 실제 실력에 가까운 첫 랭크를 만듭니다.</p>
+            <h3>배치 결과를 한 번 더 검증</h3>
+            <p>특이한 정오답 패턴이 발견되면 준킬러 2문항과 킬러 2문항을 추가로 풀고, 그 결과까지 반영해 초기 MMR을 확정합니다.</p>
           </article>
           <article>
             <span>02</span>
-            <h3>매주 일요일, 같은 시험</h3>
-            <p>문제·선지 순서는 섞되 같은 출제 구조로 응시하고, 시험 종료 뒤 해설과 새 순위를 공개합니다.</p>
+            <h3>매주 일요일, 세 번의 도전</h3>
+            <p>오후 3시·6시·9시에 A·B·C형을 응시하고, 원하는 표준화 성적 하나를 주간 대표 기록으로 선택합니다.</p>
           </article>
           <article>
             <span>03</span>
-            <h3>전체 순위와 성장 순위를 함께</h3>
-            <p>전체 실력뿐 아니라 이번 주 성장, 연속 참여, 고난도 문제 순위로 각자의 가까운 목표를 보여줍니다.</p>
+            <h3>대표 성적과 안정성을 함께</h3>
+            <p>2회 응시는 최고 성적 95%와 다른 성적 5%, 3회 응시는 최고 90%와 중간 10%를 장기 MMR에 반영합니다.</p>
           </article>
           <article>
             <span>04</span>
-            <h3>범위가 같은 학생끼리 도전</h3>
-            <p>같은 학년·과목·진도 범위에서만 도전하며, 먼 순위 특별전은 한 문제가 아닌 2선승제로 결정합니다.</p>
+            <h3>참여 기록도 랭크의 일부</h3>
+            <p>세 시험을 모두 건너뛰면 첫 두 주는 MMR −5, 3주 연속부터는 −10을 반영해 지속적인 참여를 평가합니다.</p>
           </article>
         </div>
       </section>

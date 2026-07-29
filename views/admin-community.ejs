@@ -1,0 +1,198 @@
+<%
+  const statusLabels = { published: "공개", hidden: "숨김", deleted: "삭제" };
+  const roleLabels = { student: "학생", teacher: "교사", admin: "관리자" };
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(date));
+  const pageHref = (page) => {
+    const params = new URLSearchParams({ page });
+    if (communityData.filters.board) params.set("board", communityData.filters.board);
+    if (communityData.filters.status) params.set("status", communityData.filters.status);
+    if (communityData.filters.search) params.set("search", communityData.filters.search);
+    return `/admin/community?${params.toString()}`;
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>게시판 관리 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "community" }) %>
+    <main class="admin-main">
+      <header class="admin-heading">
+        <div><p>COMMUNITY CONTROL</p><h1>게시판 관리</h1><span>공개 글을 수정·숨김·삭제하고, 위반 글 작성자에게 경고를 부여합니다.</span></div>
+        <strong><%= communityData.stats.total %><small>개 글</small></strong>
+      </header>
+      <% if (feedback) { %><div class="admin-feedback" role="status"><%= feedback %></div><% } %>
+
+      <section class="admin-stat-grid">
+        <article><span>전체 글</span><strong><%= communityData.stats.total %></strong></article>
+        <article><span>공개</span><strong><%= communityData.stats.published %></strong></article>
+        <article><span>숨김</span><strong><%= communityData.stats.hidden %></strong></article>
+        <article><span>삭제</span><strong><%= communityData.stats.deleted %></strong></article>
+      </section>
+
+      <section class="admin-panel" id="reports">
+        <div class="admin-panel-heading">
+          <div><p>POST REPORTS</p><h2>게시글 신고 접수</h2></div>
+          <span><%= communityData.reports.length %>건 처리 필요</span>
+        </div>
+        <div class="admin-report-list">
+          <% if (!communityData.reports.length) { %><p class="admin-empty">처리할 게시글 신고가 없습니다.</p><% } %>
+          <% communityData.reports.forEach((report) => { %>
+            <article id="report-<%= report._id %>">
+              <header>
+                <div>
+                  <span class="status-pending"><%= report.status === "reviewing" ? "검토 중" : "접수" %></span>
+                  <strong><%= report.postId?.title || "삭제된 게시글" %></strong>
+                  <small><%= formatDate(report.createdAt) %></small>
+                </div>
+                <% if (report.postId?._id) { %><a href="/community/<%= report.postId._id %>" target="_blank" rel="noopener">원문 보기 →</a><% } %>
+              </header>
+              <dl>
+                <div><dt>신고자</dt><dd><%= report.reporterUserId?.realName || report.reporterUserId?.name || "탈퇴 사용자" %> (<%= report.reporterUserId?.email || "정보 없음" %>)</dd></div>
+                <div><dt>신고 대상</dt><dd><%= report.reportedUserId?.realName || report.reportedUserId?.name || "탈퇴 사용자" %> (<%= report.reportedUserId?.email || "정보 없음" %>)</dd></div>
+                <div><dt>신고 사유</dt><dd><%= report.reason %></dd></div>
+              </dl>
+              <form class="admin-form" action="/admin/community/reports/<%= report._id %>/review" method="POST">
+                <label><span>처리 상태</span><select name="status"><option value="reviewing" <%= report.status === "reviewing" ? "selected" : "" %>>검토 중</option><option value="resolved">처리 완료</option><option value="rejected">신고 반려</option></select></label>
+                <label><span>처리 내용</span><input name="resolution" maxlength="1000" placeholder="완료·반려 시 처리 내용을 적어주세요." /></label>
+                <button type="submit">신고 상태 저장</button>
+              </form>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+
+      <form class="admin-filter-bar" action="/admin/community" method="GET">
+        <label><span>게시판</span>
+          <select name="board">
+            <option value="">전체 게시판</option>
+            <% Object.entries(communityData.boardLabels).filter(([value]) => value !== "operations").forEach(([value, label]) => { %><option value="<%= value %>" <%= communityData.filters.board === value ? "selected" : "" %>><%= label %></option><% }) %>
+          </select>
+        </label>
+        <label><span>상태</span>
+          <select name="status">
+            <option value="">전체 상태</option>
+            <% Object.entries(statusLabels).forEach(([value, label]) => { %><option value="<%= value %>" <%= communityData.filters.status === value ? "selected" : "" %>><%= label %></option><% }) %>
+          </select>
+        </label>
+        <label class="wide"><span>제목·내용·작성자 검색</span><input type="search" name="search" value="<%= communityData.filters.search %>" /></label>
+        <button type="submit">검색</button>
+      </form>
+
+      <section class="admin-community-list">
+        <% if (!communityData.posts.length) { %><p class="admin-empty">조건에 맞는 게시글이 없습니다.</p><% } %>
+        <% communityData.posts.forEach((post) => { const author = post.authorId || {}; %>
+          <article class="admin-community-card status-card-<%= post.status %>">
+            <header>
+              <div>
+                <span class="status-<%= post.status === 'published' ? 'replied' : post.status === 'hidden' ? 'pending' : 'closed' %>"><%= statusLabels[post.status] %></span>
+                <% if (post.warningIssued) { %><span class="status-closed">경고 처리됨</span><% } %>
+                <h2><%= post.title %></h2>
+                <small><%= communityData.boardLabels[post.boardType] || "통합 고등학교 게시판" %><%= post.schoolName ? ` · ${post.schoolName}` : "" %> · <%= formatDate(post.createdAt) %> · 조회 <%= post.viewCount || 0 %></small>
+              </div>
+              <div class="admin-community-author">
+                <strong><%= author.name || post.authorName %></strong>
+                <span><%= roleLabels[author.role] || "사용자" %> · 경고 <%= author.warningCount || 0 %>회</span>
+                <% if (author._id) { %><a href="/admin/users/<%= author._id %>">사용자 상세 →</a><% } %>
+              </div>
+            </header>
+            <p class="admin-community-content"><%= post.content %></p>
+            <% if (post.moderationReason) { %><div class="admin-community-reason">최근 처리 사유: <%= post.moderationReason %></div><% } %>
+
+            <details class="admin-community-editor">
+              <summary>게시글 수정</summary>
+              <form class="admin-form" action="/admin/community/<%= post._id %>/edit" method="POST">
+                <label><span>제목</span><input name="title" minlength="2" maxlength="120" value="<%= post.title %>" required /></label>
+                <label><span>내용</span><textarea name="content" rows="7" minlength="2" maxlength="10000" required><%= post.content %></textarea></label>
+                <label><span>수정 사유</span><input name="reason" maxlength="500" required /></label>
+                <button type="submit">관리자 수정 저장</button>
+              </form>
+            </details>
+
+            <div class="admin-community-actions">
+              <form class="admin-form" action="/admin/community/<%= post._id %>/status" method="POST">
+                <input type="hidden" name="action" value="<%= post.status === 'published' ? 'hide' : 'restore' %>" />
+                <label><span><%= post.status === "published" ? "숨김 사유" : "복구 사유" %></span><input name="reason" maxlength="500" required /></label>
+                <button type="submit"><%= post.status === "published" ? "게시글 숨기기" : "게시글 다시 공개" %></button>
+              </form>
+              <form class="admin-form danger-form" action="/admin/community/<%= post._id %>/status" method="POST">
+                <input type="hidden" name="action" value="delete" />
+                <label><span>삭제 사유</span><input name="reason" maxlength="500" required /></label>
+                <button type="submit">DB에서 게시글 삭제</button>
+              </form>
+              <form class="admin-form warning-form" action="/admin/community/<%= post._id %>/warn" method="POST">
+                <h3>작성자 경고 +1</h3>
+                <p>글은 즉시 숨겨지고 작성자에게 경고가 부여됩니다. 세 번째 경고라면 계정도 즉시 정지됩니다.</p>
+                <label><span>경고 사유</span><input name="reason" maxlength="500" required /></label>
+                <button type="submit" <%= post.warningIssued || author.role === "admin" ? "disabled" : "" %>><%= post.warningIssued ? "이미 경고 처리됨" : "글 숨김 + 경고 부여" %></button>
+              </form>
+            </div>
+          </article>
+        <% }) %>
+      </section>
+
+      <section class="admin-panel" id="comments">
+        <div class="admin-panel-heading">
+          <div>
+            <p>COMMENT CONTROL</p>
+            <h2>최근 댓글 관리</h2>
+          </div>
+          <span>최근 100개</span>
+        </div>
+        <% if (!communityData.comments.length) { %>
+          <p class="admin-empty">등록된 댓글이 없습니다.</p>
+        <% } %>
+        <div class="admin-comment-moderation-list">
+          <% communityData.comments.forEach((comment) => { const author = comment.authorId || {}; const parentPost = comment.postId || {}; %>
+            <article>
+              <header>
+                <div>
+                  <span class="<%= comment.status === 'published' ? 'status-replied' : 'status-pending' %>"><%= statusLabels[comment.status] || comment.status %></span>
+                  <% if (comment.warningIssued) { %><span class="status-closed">경고 처리됨</span><% } %>
+                  <strong><%= author.name || comment.authorName %></strong>
+                  <small><%= formatDate(comment.createdAt) %> · <%= parentPost.title || "원문 삭제됨" %></small>
+                </div>
+                <% if (author._id) { %><a href="/admin/users/<%= author._id %>">작성자 관리 →</a><% } %>
+              </header>
+              <p><%= comment.content %></p>
+              <% if (comment.moderationReason) { %><small>최근 처리 사유: <%= comment.moderationReason %></small><% } %>
+              <div>
+                <form class="admin-form" action="/admin/community/comments/<%= comment._id %>/status" method="POST">
+                  <input type="hidden" name="action" value="<%= comment.status === 'published' ? 'hide' : 'restore' %>" />
+                  <label><span>처리 사유</span><input name="reason" maxlength="500" required /></label>
+                  <button type="submit"><%= comment.status === "published" ? "댓글 숨기기" : "댓글 복구" %></button>
+                </form>
+                <form class="admin-form warning-form" action="/admin/community/comments/<%= comment._id %>/warn" method="POST">
+                  <label><span>경고 사유</span><input name="reason" maxlength="500" required /></label>
+                  <button type="submit" <%= comment.warningIssued || author.role === "admin" ? "disabled" : "" %>><%= comment.warningIssued ? "경고 처리됨" : "숨김 + 경고" %></button>
+                </form>
+                <form class="admin-form danger-form" action="/admin/community/comments/<%= comment._id %>/status" method="POST">
+                  <input type="hidden" name="action" value="delete" />
+                  <label><span>삭제 사유</span><input name="reason" maxlength="500" required /></label>
+                  <button type="submit">DB에서 댓글 삭제</button>
+                </form>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+
+      <nav class="admin-pagination" aria-label="게시판 관리 페이지">
+        <a class="<%= communityData.pagination.hasPrevious ? '' : 'disabled' %>" href="<%= communityData.pagination.hasPrevious ? pageHref(communityData.pagination.page - 1) : '#' %>">← 이전</a>
+        <span><strong><%= communityData.pagination.page %></strong> / <%= communityData.pagination.totalPages %></span>
+        <a class="<%= communityData.pagination.hasNext ? '' : 'disabled' %>" href="<%= communityData.pagination.hasNext ? pageHref(communityData.pagination.page + 1) : '#' %>">다음 →</a>
+      </nav>
+    </main>
+  </body>
+</html>

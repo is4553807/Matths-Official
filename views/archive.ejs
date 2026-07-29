@@ -1,0 +1,286 @@
+<%
+  const gradeLabel = {
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+    13: "N수생",
+  }[Number(user.schoolGrade)] || "학년 미설정";
+  const formatBytes = (bytes) => {
+    const size = Number(bytes) || 0;
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 ** 2).toFixed(1)} MB`;
+  };
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(date));
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="Matths 학습 자료 아카이브"
+    />
+    <title><%= adminMode ? "아카이브 관리" : "아카이브" %> | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/archive.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/images/favicon-32.png"
+    />
+    <script src="/js/main.js" defer></script>
+  </head>
+  <body class="archive-page">
+    <a class="skip-link" href="#archive-main">
+      본문으로 바로가기
+    </a>
+
+    <div class="dashboard-shell">
+      <div
+        class="sidebar-overlay"
+        id="sidebar-overlay"
+        hidden
+      ></div>
+
+      <aside
+        class="sidebar"
+        id="dashboard-sidebar"
+        aria-label="학습 메뉴"
+      >
+        <div class="sidebar-top">
+          <a class="brand" href="/" aria-label="Matths 메인">
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span>Matths</span>
+          </a>
+          <button
+            class="sidebar-close"
+            id="sidebar-close"
+            type="button"
+            aria-label="메뉴 닫기"
+          >×</button>
+        </div>
+
+        <%- include("partials/dashboard-navigation", {
+          activePage: "archive",
+        }) %>
+
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile">
+          <a
+            class="profile-avatar"
+            href="/profile"
+            aria-label="<%= user.name %>님의 프로필"
+          ><%= String(user.name || "M").slice(0, 1) %></a>
+          <div class="profile-copy">
+            <strong><%= user.name %>님</strong>
+            <small><%= gradeLabel %></small>
+          </div>
+          <form action="/logout" method="POST">
+            <button type="submit" aria-label="로그아웃">↗</button>
+          </form>
+        </div>
+      </aside>
+
+      <main class="dashboard-main archive-main" id="archive-main">
+        <header class="topbar archive-topbar">
+          <div class="topbar-left">
+            <button
+              class="sidebar-open"
+              id="sidebar-open"
+              type="button"
+              aria-label="학습 메뉴 열기"
+              aria-controls="dashboard-sidebar"
+              aria-expanded="false"
+            >
+              <span></span><span></span><span></span>
+            </button>
+            <div>
+              <p>MATTHS ARCHIVE</p>
+              <h1><%= adminMode ? "아카이브 관리" : "아카이브" %></h1>
+            </div>
+          </div>
+          <div class="archive-admin-actions">
+            <a class="archive-admin-link secondary" href="/main">학습 홈으로</a>
+          <% if (archiveData.isAdmin) { %>
+              <% if (adminMode) { %><a class="archive-admin-link secondary" href="/admin">운영센터</a><% } %>
+              <a
+                class="archive-admin-link"
+                href="<%= adminMode ? '/archive' : '/archive/admin' %>"
+              >
+                <%= adminMode ? "사용자 화면" : "관리자 파일 추가" %>
+                <span aria-hidden="true">→</span>
+              </a>
+          <% } %>
+          </div>
+        </header>
+
+        <section class="archive-intro">
+          <div>
+            <p>CURATED MATERIALS</p>
+            <h2>필요한 학습 자료를 한곳에서 확인하세요.</h2>
+            <span>
+              로그인한 Matths 회원만 자료 목록을 확인하고 내려받을 수 있습니다.
+            </span>
+          </div>
+          <strong><%= archiveData.items.length %><small>개 자료</small></strong>
+        </section>
+
+        <% if (feedback) { %>
+          <div class="archive-feedback <%= feedback.type %>" role="status">
+            <%= feedback.message %>
+          </div>
+        <% } %>
+
+        <% if (adminMode) { %>
+          <section class="archive-upload archive-folder-create" aria-labelledby="archive-folder-title">
+            <div class="archive-section-heading">
+              <div><p>NEW FOLDER</p><h2 id="archive-folder-title">새 폴더 만들기</h2></div>
+              <span>모의고사 종류나 학년별로 자료를 분류하세요.</span>
+            </div>
+            <form action="/archive/admin/folders" method="POST">
+              <label><span>폴더 이름</span><input type="text" name="folderName" minlength="2" maxlength="80" value="<%= oldInput.folderName %>" required /></label>
+              <label><span>폴더 설명</span><input type="text" name="folderDescription" maxlength="500" value="<%= oldInput.folderDescription %>" /></label>
+              <button type="submit">폴더 추가</button>
+            </form>
+          </section>
+
+          <section class="archive-upload" aria-labelledby="archive-upload-title">
+            <div class="archive-section-heading">
+              <div>
+                <p>ADMIN UPLOAD</p>
+                <h2 id="archive-upload-title">여러 자료 한 번에 추가</h2>
+              </div>
+              <span>파일당 최대 30MB · 최대 20개</span>
+            </div>
+
+            <form
+              action="/archive/admin/upload"
+              method="POST"
+              enctype="multipart/form-data"
+            >
+              <label>
+                <span>분류</span>
+                <select name="category">
+                  <% archiveData.categories.forEach((category) => { %>
+                    <option
+                      value="<%= category %>"
+                      <%= oldInput.category === category ? "selected" : "" %>
+                    ><%= category %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label>
+                <span>저장할 폴더</span>
+                <select name="folderId">
+                  <option value="">루트 자료</option>
+                  <% archiveData.folders.forEach((folder) => { %>
+                    <option value="<%= folder.id %>" <%= oldInput.folderId === folder.id ? "selected" : "" %>><%= folder.name %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label class="archive-description-field">
+                <span>자료 설명</span>
+                <textarea
+                  name="description"
+                  maxlength="1000"
+                  rows="4"
+                ><%= oldInput.description %></textarea>
+              </label>
+              <label class="archive-file-field">
+                <span>파일 선택</span>
+                <input
+                  type="file"
+                  name="archiveFiles"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
+                  multiple
+                  required
+                />
+                <small>자료 제목은 각 파일명으로 자동 저장됩니다.</small>
+              </label>
+              <button type="submit">선택한 파일 모두 추가</button>
+            </form>
+          </section>
+        <% } %>
+
+        <% if (!archiveData.selectedFolder && archiveData.folders.length) { %>
+          <section class="archive-list-section" aria-labelledby="archive-folder-list-title">
+            <div class="archive-section-heading">
+              <div><p>FOLDERS</p><h2 id="archive-folder-list-title">자료 폴더</h2></div>
+            </div>
+            <div class="archive-folder-grid">
+              <% archiveData.folders.forEach((folder) => { %>
+                <a href="<%= adminMode ? '/archive/admin' : '/archive' %>?folder=<%= folder.id %>">
+                  <span aria-hidden="true">▰</span>
+                  <div><h3><%= folder.name %></h3><p><%= folder.description || "폴더 설명이 없습니다." %></p></div>
+                  <strong><%= folder.itemCount %><small>개</small></strong>
+                </a>
+              <% }) %>
+            </div>
+          </section>
+        <% } %>
+
+        <section class="archive-list-section" aria-labelledby="archive-list-title">
+          <div class="archive-section-heading">
+            <div>
+              <p>ALL FILES</p>
+              <h2 id="archive-list-title"><%= archiveData.selectedFolder ? archiveData.selectedFolder.name : "루트 자료" %></h2>
+            </div>
+            <% if (archiveData.selectedFolder) { %>
+              <a class="archive-folder-back" href="<%= adminMode ? '/archive/admin' : '/archive' %>">← 전체 폴더</a>
+            <% } %>
+          </div>
+
+          <% if (!archiveData.items.length) { %>
+            <div class="archive-empty">
+              <span aria-hidden="true">▣</span>
+              <h3>등록된 자료가 없습니다.</h3>
+              <p>관리자가 자료를 추가하면 이곳에 표시됩니다.</p>
+            </div>
+          <% } else { %>
+            <div class="archive-list">
+              <% archiveData.items.forEach((item) => { %>
+                <article>
+                  <div class="archive-file-icon" aria-hidden="true">
+                    <span><%= item.originalName.split(".").pop().slice(0, 4).toUpperCase() %></span>
+                  </div>
+                  <div class="archive-file-copy">
+                    <div>
+                      <span><%= item.category %></span>
+                      <% if (!item.isPublished) { %><b>비공개</b><% } %>
+                    </div>
+                    <h3><%= item.title %></h3>
+                    <% if (item.description) { %>
+                      <p><%= item.description %></p>
+                    <% } %>
+                    <small>
+                      <%= item.originalName %> ·
+                      <%= formatBytes(item.sizeBytes) %> ·
+                      <%= formatDate(item.createdAt) %>
+                    </small>
+                  </div>
+                  <a href="/archive/<%= item.id %>/download">
+                    내려받기
+                    <span aria-hidden="true">↓</span>
+                  </a>
+                </article>
+              <% }) %>
+            </div>
+          <% } %>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

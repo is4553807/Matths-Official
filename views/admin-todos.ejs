@@ -1,0 +1,90 @@
+<%
+  const formatDate = (value) => value
+    ? new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(value))
+    : "기록 없음";
+  const labels = {
+    inquiry: "문의",
+    "community-report": "게시글 신고",
+    integrity: "소명 자료 검토",
+    other: "기타",
+  };
+  const query = (overrides = {}) => {
+    const params = new URLSearchParams({
+      status: todoData.filter.status,
+      ...(todoData.filter.category ? { category: todoData.filter.category } : {}),
+      ...(todoData.filter.dateFrom ? { dateFrom: todoData.filter.dateFrom } : {}),
+      ...(todoData.filter.dateTo ? { dateTo: todoData.filter.dateTo } : {}),
+      ...(todoData.filter.nickname ? { nickname: todoData.filter.nickname } : {}),
+      ...overrides,
+    });
+    return `/admin/todos?${params.toString()}`;
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>관리자 할 일 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "todos" }) %>
+    <main class="admin-main">
+      <header class="admin-heading">
+        <div><p>ADMIN TODO</p><h1><%= todoData.filter.status === "completed" ? "처리 완료 이력" : "처리할 일" %></h1><span>처리 필요 항목은 오래된 순으로, 완료 이력은 최근 처리 순으로 표시합니다. 모든 완료 기록은 계속 보관됩니다.</span></div>
+        <strong><%= todoData.pagination.total %><small>건</small></strong>
+      </header>
+      <% if (feedback) { %><div class="admin-feedback"><%= feedback %></div><% } %>
+      <nav class="admin-todo-status-tabs" aria-label="할 일 처리 상태">
+        <a class="<%= todoData.filter.status === 'pending' ? 'active' : '' %>" href="<%= query({ status: 'pending', page: 1 }) %>">처리 필요</a>
+        <a class="<%= todoData.filter.status === 'completed' ? 'active' : '' %>" href="<%= query({ status: 'completed', page: 1 }) %>">처리 완료</a>
+      </nav>
+
+      <form class="admin-todo-filter" method="GET">
+        <input type="hidden" name="status" value="<%= todoData.filter.status %>" />
+        <label><span>종류</span><select name="category"><option value="">전체</option><% Object.entries(labels).forEach(([value, label]) => { %><option value="<%= value %>" <%= todoData.filter.category === value ? "selected" : "" %>><%= label %></option><% }) %></select></label>
+        <label><span>시작 날짜</span><input type="date" name="dateFrom" value="<%= todoData.filter.dateFrom %>" /></label>
+        <label><span>종료 날짜</span><input type="date" name="dateTo" value="<%= todoData.filter.dateTo %>" /></label>
+        <label class="wide"><span>유저 닉네임·실명</span><input type="search" name="nickname" value="<%= todoData.filter.nickname %>" placeholder="닉네임 또는 실명 검색" /></label>
+        <button type="submit">필터 적용</button>
+        <a href="/admin/todos?status=<%= todoData.filter.status %>">초기화</a>
+      </form>
+      <section class="admin-panel admin-todo-list">
+        <% if (!todoData.items.length) { %><p class="admin-empty">조건에 맞는 할 일이 없습니다.</p><% } %>
+        <% todoData.items.forEach((todo, index) => { %>
+          <article>
+            <b class="admin-todo-number"><%= (todoData.pagination.page - 1) * 20 + index + 1 %></b>
+            <div>
+              <span><%= labels[todo.category] || todo.category %> · <%= formatDate(todo.createdAt) %></span>
+              <h2><a href="<%= todo.href %>"><%= todo.title %></a></h2>
+              <p><%= todo.description %></p>
+              <small>요청자: <%= todo.actorUserId?.realName || todo.actorUserId?.name || "확인 필요" %> · 대상: <%= todo.targetUserId?.realName || todo.targetUserId?.name || "없음" %></small>
+            </div>
+            <% if (todo.status === "pending") { %>
+              <form action="/admin/todos/<%= todo._id %>/complete" method="POST"><button type="submit">✓ 완료</button></form>
+            <% } else { %>
+              <div class="admin-todo-review-actions">
+                <span class="admin-todo-completed">완료 · <%= formatDate(todo.completedAt) %></span>
+                <form action="/admin/todos/<%= todo._id %>/reopen" method="POST">
+                  <button class="admin-todo-reopen" type="submit">↺ 재검토</button>
+                </form>
+              </div>
+            <% } %>
+          </article>
+        <% }) %>
+      </section>
+      <nav class="admin-pagination">
+        <% if (todoData.pagination.hasPrevious) { %><a href="<%= query({ page: todoData.pagination.page - 1 }) %>">← 이전</a><% } %>
+        <span><%= todoData.pagination.page %> / <%= todoData.pagination.totalPages %></span>
+        <% if (todoData.pagination.hasNext) { %><a href="<%= query({ page: todoData.pagination.page + 1 }) %>">다음 →</a><% } %>
+      </nav>
+    </main>
+  </body>
+</html>

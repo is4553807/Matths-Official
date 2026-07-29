@@ -171,8 +171,14 @@ async function synchronizeUserLifecycle(
   const currentAcademicYear =
     getAcademicYear(now);
   const baseAcademicYear =
+    user.lastGradePromotionYear !==
+      null &&
+    user.lastGradePromotionYear !==
+      undefined &&
     Number.isInteger(
-      Number(user.lastGradePromotionYear)
+      Number(
+        user.lastGradePromotionYear
+      )
     )
       ? Number(user.lastGradePromotionYear)
       : getAcademicYear(

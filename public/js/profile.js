@@ -100,8 +100,6 @@
       return;
     }
 
-    const realName =
-      form.querySelector("#realName");
     const preview = form.querySelector(
       "[data-ranking-name-preview]"
     );
@@ -110,8 +108,10 @@
     );
     const nickname =
       form.dataset.nickname || "익명 학생";
+    const realName =
+      String(form.dataset.realName || "").trim();
 
-    if (!realName || !preview) {
+    if (!preview) {
       return;
     }
 
@@ -122,15 +122,11 @@
 
       preview.textContent =
         selected?.value === "realName"
-          ? realName.value.trim() ||
+          ? realName ||
             "실명을 입력해주세요"
           : nickname;
     }
 
-    realName.addEventListener(
-      "input",
-      updatePreview
-    );
     choices.forEach((choice) => {
       choice.addEventListener(
         "change",
@@ -140,10 +136,46 @@
     updatePreview();
   }
 
+  function initWithdrawalForm() {
+    const form = document.querySelector(
+      "[data-withdraw-form]"
+    );
+
+    if (!form) {
+      return;
+    }
+
+    form.addEventListener("submit", (event) => {
+      if (!form.checkValidity()) {
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "탈퇴하면 개인정보와 로그인 정보는 즉시 제거되며 계정을 복구할 수 없습니다. 계속할까요?"
+      );
+
+      if (!confirmed) {
+        event.preventDefault();
+        return;
+      }
+
+      const button = form.querySelector(
+        ".withdrawal-button"
+      );
+
+      if (button) {
+        button.disabled = true;
+        button.textContent =
+          "개인정보 제거 중...";
+      }
+    });
+  }
+
   function init() {
     initPasswordConfirmation();
     initRankingIdentityPreview();
     initSubmitStates();
+    initWithdrawalForm();
   }
 
   if (document.readyState === "loading") {

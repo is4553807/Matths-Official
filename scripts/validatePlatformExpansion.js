@@ -338,11 +338,11 @@ const introView =
     "utf8"
   );
 assert.ok(
-  introView.includes("실수들의 전쟁") &&
+  introView.includes("War of GOAT") &&
     introView.includes(
-      "WAR OF MASTERS"
+      "War of GOAT"
     ),
-  "서비스 소개에 실수들의 전쟁 안내가 없습니다."
+  "서비스 소개에 War of GOAT 안내가 없습니다."
 );
 
 const warOfMastersView =
@@ -356,15 +356,15 @@ const warOfMastersView =
   );
 assert.ok(
   warOfMastersView.includes(
-    "입단 배치고사 시작"
+    "placement.ctaLabel"
   ) &&
     warOfMastersView.includes(
-      "disabled"
+      "/war-of-masters/placement/start"
     ) &&
     warOfMastersView.includes(
       "arenaUser.schoolName"
     ),
-  "실수들의 전쟁 입단 화면 또는 로그인 사용자 정보 연결이 없습니다."
+  "War of GOAT 입단 화면 또는 로그인 사용자 정보 연결이 없습니다."
 );
 
 for (const file of [

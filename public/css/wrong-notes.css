@@ -246,7 +246,6 @@
   grid-template-columns:
     minmax(230px, 1.4fr)
     minmax(150px, 0.8fr)
-    minmax(170px, 0.9fr)
     minmax(150px, 0.8fr)
     auto;
   align-items: end;

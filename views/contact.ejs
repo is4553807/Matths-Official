@@ -43,6 +43,10 @@
     />
     <link
       rel="stylesheet"
+      href="/css/public-navigation.css"
+    />
+    <link
+      rel="stylesheet"
       href="/css/brand.css"
     />
     <link
@@ -70,62 +74,7 @@
       본문으로 바로가기
     </a>
 
-    <header class="site-header">
-      <nav
-        class="navbar container"
-        aria-label="주요 메뉴"
-      >
-        <a
-          class="brand"
-          href="/"
-          aria-label="Matths 홈"
-        >
-          <span
-            class="brand-mark"
-            aria-hidden="true"
-          >M</span>
-          <span>Matths</span>
-        </a>
-        <div class="nav-links">
-          <a href="/intro">서비스 소개</a>
-          <a href="/visual-learning">시각화 학습</a>
-          <a href="/learning-flow">학습 과정</a>
-          <a href="/curriculum">교육과정</a>
-          <a href="/faq">FAQ</a>
-          <a
-            class="active"
-            href="/contact"
-            aria-current="page"
-          >문의하기</a>
-        </div>
-        <div class="nav-actions">
-          <a
-            class="login-link"
-            href="/main"
-          >대시보드</a>
-          <a
-            class="button button-primary button-small"
-            href="/my-learning"
-          >학습 계속하기</a>
-        </div>
-        <details class="mobile-menu">
-          <summary aria-label="메뉴 열기">
-            <span></span>
-            <span></span>
-            <span></span>
-          </summary>
-          <div>
-            <a href="/intro">서비스 소개</a>
-            <a href="/visual-learning">시각화 학습</a>
-            <a href="/learning-flow">학습 과정</a>
-            <a href="/curriculum">교육과정</a>
-            <a href="/faq">FAQ</a>
-            <a href="/contact">문의하기</a>
-            <a href="/main">대시보드</a>
-          </div>
-        </details>
-      </nav>
-    </header>
+    <%- include("partials/public-navigation", { activePage: "" }) %>
 
     <main id="contact-main">
       <section class="inquiry-hero">

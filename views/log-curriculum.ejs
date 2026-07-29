@@ -88,7 +88,7 @@
         aria-label="학습 메뉴"
       >
         <div class="sidebar-top">
-          <a class="brand" href="/main" aria-label="Matths 학습 홈">
+          <a class="brand" href="/" aria-label="Matths 메인">
             <span class="brand-mark" aria-hidden="true">M</span>
             <span>Matths</span>
           </a>
@@ -102,80 +102,28 @@
           </button>
         </div>
 
-        <nav class="side-nav" aria-label="대시보드 메뉴">
-          <p>LEARNING</p>
-          <a href="/main">
-            <span class="nav-icon" aria-hidden="true">⌂</span>
-            <span>학습 홈</span>
-          </a>
-          <a href="/my-learning">
-            <span class="nav-icon" aria-hidden="true">▦</span>
-            <span>내 학습</span>
-            <b><%= data.completedConcepts %></b>
-          </a>
-          <a class="active" href="/log-curriculum" aria-current="page">
-            <span class="nav-icon" aria-hidden="true">◫</span>
-            <span>교육과정</span>
-          </a>
-          <a href="/assessments">
-            <span class="nav-icon" aria-hidden="true">✓</span>
-            <span>평가 센터</span>
-          </a>
-          <a href="/wrong-notes">
-            <span class="nav-icon" aria-hidden="true">↻</span>
-            <span>오답 노트</span>
-          </a>
-          <a href="/war-of-masters">
-            <span class="nav-icon" aria-hidden="true">♜</span>
-            <span>실수들의 전쟁</span>
-          </a>
-        </nav>
+        <%- include("partials/dashboard-navigation", {
+          activePage: "curriculum",
+        }) %>
 
         <div class="sidebar-spacer"></div>
 
-        <section
-          class="coach-mini"
-          data-mode="<%= coach.mode %>"
-          data-situation="<%= coach.situation %>"
-          aria-labelledby="coach-mini-title"
-        >
-          <div>
-            <span aria-hidden="true">M</span>
-            <p>
-              <small>MATTHS COACH</small>
-              <strong id="coach-mini-title"><%= coach.title %></strong>
-            </p>
-          </div>
-          <p id="coach-mini-message">
-            <%= coach.message %>
-          </p>
-          <div
-            class="coach-modes"
-            role="group"
-            aria-label="학습 코치 말투 선택"
-          >
-            <% [["mild", "순한맛"], ["spicy", "매운맛"], ["silent", "무음"]].forEach(([mode, label]) => { %>
-              <button
-                class="<%= coach.mode === mode ? 'active' : '' %>"
-                type="button"
-                data-mode="<%= mode %>"
-                aria-pressed="<%= coach.mode === mode %>"
-              >
-                <%= label %>
-              </button>
-            <% }) %>
-          </div>
-        </section>
-
         <div class="sidebar-profile">
-          <span class="profile-avatar" aria-hidden="true">
+          <a
+            class="profile-avatar"
+            href="/profile"
+            aria-label="<%= displayName %>님의 프로필 설정으로 이동"
+            title="프로필 설정"
+          >
             <%= displayName.slice(0, 1) %>
-          </span>
-          <div>
+          </a>
+          <div class="profile-copy">
             <strong><%= displayName %>님</strong>
             <small><%= gradeLabel %></small>
           </div>
-          <a href="/settings" aria-label="설정">···</a>
+          <form action="/logout" method="POST">
+            <button type="submit" aria-label="로그아웃" title="로그아웃">↗</button>
+          </form>
         </div>
       </aside>
 
@@ -200,7 +148,7 @@
               <h1><%= displayName %>님의 수학 교육과정</h1>
             </div>
           </div>
-          <a class="dashboard-return" href="/main">
+          <a class="dashboard-return learning-home-button" href="/main">
             학습 홈으로 <span aria-hidden="true">→</span>
           </a>
         </header>

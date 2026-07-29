@@ -1,0 +1,266 @@
+<%
+  const gradeLabel = {
+    10: "고1",
+    11: "고2",
+    12: "고3",
+    13: "N수생",
+  };
+  const formatTime = (milliseconds) => {
+    const totalSeconds = Math.floor((Number(milliseconds) || 0) / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}분 ${String(seconds).padStart(2, "0")}초`;
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="War of GOAT 전체, 학교, 지역 랭킹"
+    />
+    <title>랭킹 | War of GOAT | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/war-of-masters.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/images/favicon-32.png"
+    />
+    <script src="/js/main.js" defer></script>
+    <script src="/js/war-of-masters-rankings.js" defer></script>
+  </head>
+  <body class="masters-page rankings-page">
+    <a class="skip-link" href="#rankings-main">본문으로 바로가기</a>
+
+    <div class="dashboard-shell">
+      <div
+        class="sidebar-overlay"
+        id="sidebar-overlay"
+        hidden
+      ></div>
+      <aside
+        class="sidebar"
+        id="dashboard-sidebar"
+        aria-label="학습 메뉴"
+      >
+        <div class="sidebar-top">
+          <a class="brand" href="/" aria-label="Matths 메인">
+            <span class="brand-mark" aria-hidden="true">M</span>
+            <span>Matths</span>
+          </a>
+          <button
+            class="sidebar-close"
+            id="sidebar-close"
+            type="button"
+            aria-label="메뉴 닫기"
+          >×</button>
+        </div>
+        <%- include("partials/dashboard-navigation", {
+          activePage: "war-of-masters",
+        }) %>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile">
+          <a class="profile-avatar" href="/profile">
+            <%= String(user.name || "M").slice(0, 1) %>
+          </a>
+          <div class="profile-copy">
+            <strong><%= user.name %>님</strong>
+            <small><%= gradeLabel[Number(user.schoolGrade)] || "학년 미설정" %></small>
+          </div>
+          <form action="/logout" method="POST">
+            <button type="submit" aria-label="로그아웃">↗</button>
+          </form>
+        </div>
+      </aside>
+
+      <main class="dashboard-main rankings-main" id="rankings-main">
+        <header class="topbar masters-topbar">
+          <div class="topbar-left">
+            <button
+              class="sidebar-open"
+              id="sidebar-open"
+              type="button"
+              aria-label="학습 메뉴 열기"
+              aria-controls="dashboard-sidebar"
+              aria-expanded="false"
+            >
+              <span></span><span></span><span></span>
+            </button>
+            <div>
+              <p>War of GOAT</p>
+              <h1>랭킹</h1>
+            </div>
+          </div>
+          <div class="masters-topbar-actions">
+            <a class="back-dashboard secondary learning-home-button" href="/main">학습 홈으로</a>
+            <a class="back-dashboard" href="/war-of-masters">
+              전장으로 <span aria-hidden="true">→</span>
+            </a>
+          </div>
+        </header>
+
+        <% if (ranking.current) { %>
+          <section class="my-ranking" aria-labelledby="my-ranking-title">
+            <div class="my-ranking-identity">
+              <p>MY RANKING</p>
+              <h2 id="my-ranking-title"><%= ranking.current.displayName %></h2>
+              <span>
+                <%= ranking.current.schoolName %> ·
+                <%= gradeLabel[ranking.current.grade] || "학년 미설정" %>
+              </span>
+              <div>
+                <strong><%= ranking.current.tier %> <%= ranking.current.division %></strong>
+                <small>MMR <%= ranking.current.rating %> · RP <%= ranking.current.rankPoint %> · 배치 <%= ranking.current.totalScore %>점</small>
+              </div>
+            </div>
+            <dl class="my-ranking-grid">
+              <div>
+                <dt>전체 랭킹</dt>
+                <dd><%= ranking.current.overallRank %><small>위</small></dd>
+              </div>
+              <div>
+                <dt>학교 내 학생 랭킹</dt>
+                <dd><%= ranking.current.schoolStudentRank || "—" %><small><%= ranking.current.schoolStudentRank ? "위" : "" %></small></dd>
+              </div>
+              <div>
+                <dt>고등학교 랭킹</dt>
+                <dd><%= ranking.current.schoolRank || "—" %><small><%= ranking.current.schoolRank ? "위" : "" %></small></dd>
+              </div>
+              <div>
+                <dt>도시·지역 랭킹</dt>
+                <dd><%= ranking.current.cityRank || "—" %><small><%= ranking.current.cityRank ? "위" : "" %></small></dd>
+              </div>
+            </dl>
+          </section>
+        <% } else { %>
+          <section class="my-ranking ranking-locked">
+            <div>
+              <p>MY RANKING</p>
+              <h2>아직 배치 랭크가 없습니다.</h2>
+              <span>배치고사를 완료하면 내 순위가 이곳에 표시됩니다.</span>
+            </div>
+            <a href="/war-of-masters">배치고사 확인 →</a>
+          </section>
+        <% } %>
+
+        <section class="ranking-board" aria-labelledby="ranking-board-title">
+          <div class="ranking-board-heading">
+            <div>
+              <p>LEADERBOARD</p>
+              <h2 id="ranking-board-title">전체 랭킹</h2>
+            </div>
+            <span>배치고사 완료자 <%= ranking.cohortSize %>명</span>
+          </div>
+
+          <div class="ranking-tabs" role="tablist" aria-label="랭킹 종류">
+            <button type="button" role="tab" aria-selected="true" data-ranking-tab="overall">전체 랭킹</button>
+            <button type="button" role="tab" aria-selected="false" data-ranking-tab="same-school">학교 내 학생</button>
+            <button type="button" role="tab" aria-selected="false" data-ranking-tab="schools">고등학교</button>
+            <button type="button" role="tab" aria-selected="false" data-ranking-tab="cities">도시·지역</button>
+          </div>
+
+          <div class="ranking-panel" data-ranking-panel="overall">
+            <% if (!ranking.overall.length) { %>
+              <div class="ranking-empty">아직 집계할 배치 결과가 없습니다.</div>
+            <% } else { %>
+              <div class="ranking-table ranking-student-table">
+                <div class="ranking-row ranking-head">
+                  <span>순위</span><span>학생</span><span>학교·지역</span><span>티어</span><span>MMR</span><span>배치</span><span>시간</span>
+                </div>
+                <% ranking.overall.forEach((entry) => { %>
+                  <div class="ranking-row <%= entry.userId === String(user._id) ? 'is-me' : '' %>">
+                    <b><%= entry.rank %></b>
+                    <strong><%= entry.displayName %><%= entry.userId === String(user._id) ? " · 나" : "" %></strong>
+                    <span><%= entry.schoolName %><small><%= entry.region %></small></span>
+                    <span><%= entry.tier %> <%= entry.division %></span>
+                    <em><%= entry.rating %></em>
+                    <span><%= entry.totalScore %>점</span>
+                    <span><%= formatTime(entry.elapsedTimeMs) %></span>
+                  </div>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+
+          <div class="ranking-panel" data-ranking-panel="same-school" hidden>
+            <% if (!ranking.current) { %>
+              <div class="ranking-empty">배치고사를 완료하면 학교 내 랭킹을 확인할 수 있습니다.</div>
+            <% } else if (!ranking.sameSchool.length) { %>
+              <div class="ranking-empty">같은 학교의 배치 완료자가 없습니다.</div>
+            <% } else { %>
+              <div class="ranking-context"><strong><%= ranking.current.schoolName %></strong><span>같은 학교 배치 완료 학생 기준</span></div>
+              <div class="ranking-table ranking-school-student-table">
+                <div class="ranking-row ranking-head">
+                  <span>순위</span><span>학생</span><span>학년</span><span>티어</span><span>MMR</span><span>배치</span>
+                </div>
+                <% ranking.sameSchool.forEach((entry) => { %>
+                  <div class="ranking-row <%= entry.userId === String(user._id) ? 'is-me' : '' %>">
+                    <b><%= entry.rank %></b>
+                    <strong><%= entry.displayName %><%= entry.userId === String(user._id) ? " · 나" : "" %></strong>
+                    <span><%= gradeLabel[entry.grade] || "—" %></span>
+                    <span><%= entry.tier %> <%= entry.division %></span>
+                    <em><%= entry.rating %></em>
+                    <span><%= entry.totalScore %>점</span>
+                  </div>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+
+          <div class="ranking-panel" data-ranking-panel="schools" hidden>
+            <div class="ranking-context"><strong>고등학교 랭킹</strong><span>학교별 배치 완료자의 평균 MMR 기준</span></div>
+            <% if (!ranking.schools.length) { %>
+              <div class="ranking-empty">집계할 학교가 없습니다.</div>
+            <% } else { %>
+              <div class="ranking-table ranking-group-table">
+                <div class="ranking-row ranking-head">
+                  <span>순위</span><span>학교</span><span>지역</span><span>평균 MMR</span><span>응시자</span><span>최고 MMR</span>
+                </div>
+                <% ranking.schools.forEach((entry) => { %>
+                  <div class="ranking-row <%= ranking.current && entry.id === ranking.current.schoolCode ? 'is-me' : '' %>">
+                    <b><%= entry.rank %></b>
+                    <strong><%= entry.name %></strong>
+                    <span><%= entry.region %></span>
+                    <em><%= entry.rating %></em>
+                    <span><%= entry.participantCount %>명</span>
+                    <span><%= entry.bestRating %></span>
+                  </div>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+
+          <div class="ranking-panel" data-ranking-panel="cities" hidden>
+            <div class="ranking-context"><strong>도시·지역 랭킹</strong><span>지역별 배치 완료자의 평균 MMR 기준</span></div>
+            <% if (!ranking.cities.length) { %>
+              <div class="ranking-empty">집계할 지역이 없습니다.</div>
+            <% } else { %>
+              <div class="ranking-table ranking-city-table">
+                <div class="ranking-row ranking-head">
+                  <span>순위</span><span>도시·지역</span><span>평균 MMR</span><span>응시자</span><span>최고 MMR</span>
+                </div>
+                <% ranking.cities.forEach((entry) => { %>
+                  <div class="ranking-row <%= ranking.current && entry.id === ranking.current.region ? 'is-me' : '' %>">
+                    <b><%= entry.rank %></b>
+                    <strong><%= entry.name %></strong>
+                    <em><%= entry.rating %></em>
+                    <span><%= entry.participantCount %>명</span>
+                    <span><%= entry.bestRating %></span>
+                  </div>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

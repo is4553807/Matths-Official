@@ -1,0 +1,115 @@
+<%
+  const restriction = restrictionData.restriction;
+  const member = restrictionData.user;
+  const integrityCase = restrictionData.integrityCase;
+  const formatDate = (value) =>
+    value
+      ? new Intl.DateTimeFormat("ko-KR", {
+          timeZone: "Asia/Seoul",
+          dateStyle: "long",
+          timeStyle: "short",
+        }).format(new Date(value))
+      : "일정이 등록되면 안내됩니다.";
+  const questionLabel =
+    integrityCase?.requestedQuestionNumbers?.length
+      ? `${integrityCase.requestedQuestionNumbers.join(", ")}번`
+      : "전체 응시 기록";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>사설 모의고사 이용 상태 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/account-restriction.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script src="/js/main.js" defer></script>
+  </head>
+  <body>
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top">
+          <a class="brand" href="/" aria-label="Matths 메인"><span class="brand-mark" aria-hidden="true">M</span><span>Matths</span></a>
+          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
+        </div>
+        <%- include("partials/dashboard-navigation", { activePage: "war-of-masters" }) %>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile">
+          <a class="profile-avatar" href="/profile" aria-label="<%= member.name %>님의 프로필 설정으로 이동"><%= String(member.name || "M").slice(0, 1) %></a>
+          <div class="profile-copy"><strong><%= member.name %>님</strong><small><%= member.email %></small></div>
+          <form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form>
+        </div>
+      </aside>
+
+      <main class="dashboard-main restriction-main">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
+            <div><p>ACCOUNT ACCESS</p><h1>사설 모의고사 이용 상태</h1></div>
+          </div>
+          <a class="learning-home-button" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a>
+        </header>
+
+        <section class="restriction-hero <%= restriction.active ? 'is-restricted' : 'is-cleared' %>">
+          <div>
+            <p><%= restriction.active ? "PRIVATE MOCK RESTRICTION" : "ACCESS RESTORED" %></p>
+            <h2><%= restriction.active ? "현재 사설 모의고사 응시가 제한되어 있습니다." : "사설 모의고사 이용 제한이 해제되었습니다." %></h2>
+            <span><%= restriction.active ? "이 페이지는 본인만 열람할 수 있으며, 기록을 수정하거나 관리 조치를 변경할 수 없습니다." : "다시 War of GOAT과 사설 모의고사를 이용할 수 있습니다." %></span>
+          </div>
+          <strong><%= restriction.active ? `${restriction.remainingWeekCount}회` : "해제" %><small><%= restriction.active ? `${restriction.remainingWeekCount}주` : "현재 상태" %></small></strong>
+        </section>
+
+        <section class="restriction-grid">
+          <article class="restriction-card">
+            <header><p>MEMBER</p><h2>내 계정 정보</h2></header>
+            <dl>
+              <div><dt>실명</dt><dd><%= member.realName %></dd></div>
+              <div><dt>닉네임</dt><dd><%= member.name %></dd></div>
+              <div><dt>가입 이메일</dt><dd><%= member.email %></dd></div>
+              <div><dt>누적 경고</dt><dd><%= member.warningCount %>회</dd></div>
+            </dl>
+          </article>
+
+          <article class="restriction-card restriction-card-important">
+            <header><p>RESTRICTION</p><h2>제한 상세</h2></header>
+            <dl>
+              <div><dt>적용일</dt><dd><%= formatDate(restriction.imposedAt) %></dd></div>
+              <div><dt>검토 문항</dt><dd><%= questionLabel %></dd></div>
+              <div><dt>남은 제한</dt><dd><%= restriction.active ? `${restriction.remainingWeekCount}회(${restriction.remainingWeekCount}주)` : "없음" %></dd></div>
+              <div>
+                <dt>해제 시점</dt>
+                <dd>
+                  <% if (!restriction.active) { %>
+                    <%= formatDate(restriction.clearedAt) %>
+                  <% } else if (restriction.expectedReleaseAt) { %>
+                    <%= formatDate(restriction.expectedReleaseAt) %> 이후
+                  <% } else { %>
+                    향후 정규 사설 모의고사 <%= restriction.remainingWeekCount %>회(<%= restriction.remainingWeekCount %>주) 종료 후 자동 해제
+                  <% } %>
+                </dd>
+              </div>
+            </dl>
+          </article>
+        </section>
+
+        <section class="restriction-reason">
+          <div><p>DECISION</p><h2>적용 사유</h2></div>
+          <p><%= restriction.reason %></p>
+          <small>관련 기록은 운영 정책과 시험 응시 로그를 기준으로 검토되었습니다. 사실관계 확인이나 추가 설명이 필요하면 문의를 남겨주세요.</small>
+          <% if (restriction.active) { %>
+            <small>주간 A·B·C 시험은 합쳐서 한 회로 계산합니다. 따라서 3회 제한은 3주 동안 적용됩니다.</small>
+          <% } %>
+        </section>
+
+        <div class="restriction-actions">
+          <a href="/notifications">알림 우편함 보기</a>
+          <a href="/contact">운영팀에 문의하기</a>
+          <% if (!restriction.active) { %><a class="primary" href="/war-of-masters">War of GOAT 입장</a><% } %>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

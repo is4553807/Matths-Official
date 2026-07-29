@@ -1,0 +1,75 @@
+<%
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      dateStyle: "long",
+      timeStyle: "short",
+    }).format(new Date(date));
+  const kindLabels = {
+    admin: "운영자 알림",
+    system: "시스템 알림",
+    warning: "경고 안내",
+    account: "계정 상태 안내",
+    nickname: "닉네임 변경 요청",
+    announcement: "공지",
+    integrity: "시험 소명 요청",
+  };
+  const urgentKinds = new Set(["warning", "account", "nickname", "integrity"]);
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= notification.title %> | Matths 알림</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/notifications.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script src="/js/main.js" defer></script>
+  </head>
+  <body>
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top">
+          <a class="brand" href="/" aria-label="Matths 메인"><span class="brand-mark" aria-hidden="true">M</span><span>Matths</span></a>
+          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
+        </div>
+        <%- include("partials/dashboard-navigation", { activePage: "notifications" }) %>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile">
+          <a class="profile-avatar" href="/profile" aria-label="<%= user.name %>님의 프로필 설정으로 이동" title="프로필 설정"><%= String(user.name || "M").slice(0, 1) %></a>
+          <div class="profile-copy"><strong><%= user.name %>님</strong><small><%= user.email || "" %></small></div>
+          <form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form>
+        </div>
+      </aside>
+
+      <main class="dashboard-main notification-main">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
+            <div><p>NOTIFICATION DETAIL</p><h1>알림 상세</h1></div>
+          </div>
+          <a class="dashboard-return learning-home-button" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a>
+        </header>
+
+        <a class="notification-detail-back" href="/notifications">← 알림 우편함</a>
+        <article class="notification-detail-card <%= urgentKinds.has(notification.kind) ? 'urgent' : '' %>">
+          <header>
+            <span><%= kindLabels[notification.kind] || "알림" %></span>
+            <time><%= formatDate(notification.createdAt) %></time>
+          </header>
+          <h2><%= notification.title %></h2>
+          <div class="notification-detail-message"><%= notification.message %></div>
+          <footer>
+            <a href="/notifications">목록으로</a>
+            <% if (notification.targetHref !== "/notifications") { %>
+              <a class="primary" href="<%= notification.targetHref %>">관련 페이지 열기 →</a>
+            <% } %>
+          </footer>
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

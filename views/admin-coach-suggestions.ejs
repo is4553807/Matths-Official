@@ -1,0 +1,92 @@
+<%
+  const modeLabels = {
+    mild: "순한맛",
+    spicy: "매운맛",
+    silent: "무음",
+  };
+  const situationLabels = {
+    correct: "맞았을 때",
+    incorrect: "틀렸을 때",
+    unanswered: "못 풀었을 때",
+  };
+  const formatDate = (date) =>
+    date
+      ? new Intl.DateTimeFormat("ko-KR", {
+          timeZone: "Asia/Seoul",
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(new Date(date))
+      : "기록 없음";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>문구 제안 관리 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "coach-suggestions" }) %>
+    <main class="admin-main">
+      <header class="admin-heading">
+        <div>
+          <p>COACH MESSAGE REVIEW</p>
+          <h1>문구 제안 관리</h1>
+          <span>학생이 제안한 문구를 검수합니다. 승인한 문구는 DB에 승인 상태로 보존되고 실제 피드백 풀에 즉시 추가됩니다.</span>
+        </div>
+        <strong><%= suggestionData.stats.pending %><small>개 대기</small></strong>
+      </header>
+
+      <% if (feedback) { %><div class="admin-feedback" role="status"><%= feedback %></div><% } %>
+
+      <section class="admin-stat-grid">
+        <article><span>검수 대기</span><strong><%= suggestionData.stats.pending %></strong></article>
+        <article><span>승인·사용 중</span><strong><%= suggestionData.stats.approved %></strong></article>
+        <article><span>반려</span><strong><%= suggestionData.stats.rejected %></strong></article>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>PENDING</p><h2>검수 대기 문구</h2></div><span>오래된 제안부터 표시</span></div>
+        <% if (!suggestionData.pending.length) { %><p class="admin-empty">검수를 기다리는 문구가 없습니다.</p><% } %>
+        <div class="admin-suggestion-review-list">
+          <% suggestionData.pending.forEach((item) => { %>
+            <article id="suggestion-<%= item.id %>">
+              <header>
+                <div><span><%= modeLabels[item.mode] %></span><span><%= situationLabels[item.situation] %></span></div>
+                <small><%= item.authorName %> · <%= formatDate(item.createdAt) %></small>
+              </header>
+              <blockquote>“<%= item.message %>”</blockquote>
+              <form class="admin-form" action="/admin/coach-suggestions/<%= item.id %>/moderate" method="POST">
+                <input type="hidden" name="returnTo" value="admin" />
+                <label><span>반려 사유(반려할 때 필수)</span><input name="rejectionReason" maxlength="200" /></label>
+                <div><button class="danger-button" name="action" value="reject" type="submit">반려</button><button name="action" value="approve" type="submit">승인하고 실제 문구에 추가</button></div>
+              </form>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+
+      <div class="admin-detail-grid">
+        <section class="admin-panel">
+          <div class="admin-panel-heading"><div><p>APPROVED</p><h2>최근 승인 문구</h2></div></div>
+          <div class="admin-simple-message-list">
+            <% suggestionData.approved.forEach((item) => { %>
+              <article><span><%= modeLabels[item.mode] %> · <%= situationLabels[item.situation] %></span><strong><%= item.message %></strong><small><%= item.authorName %> · <%= formatDate(item.moderatedAt) %></small></article>
+            <% }) %>
+          </div>
+        </section>
+        <section class="admin-panel">
+          <div class="admin-panel-heading"><div><p>REJECTED</p><h2>최근 반려 문구</h2></div></div>
+          <div class="admin-simple-message-list">
+            <% suggestionData.rejected.forEach((item) => { %>
+              <article><span><%= modeLabels[item.mode] %> · <%= situationLabels[item.situation] %></span><strong><%= item.message %></strong><small>반려 사유: <%= item.rejectionReason || "사유 없음" %></small></article>
+            <% }) %>
+          </div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

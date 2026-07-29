@@ -1,0 +1,213 @@
+<%
+  const formatDateTime = (value) => {
+    const date = new Date(value);
+    return value && !Number.isNaN(date.getTime())
+      ? new Intl.DateTimeFormat("ko-KR", {
+          timeZone: "Asia/Seoul",
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(date)
+      : "이전 회차 데이터";
+  };
+  const statusLabel = {
+    "pending-review": "이전 형식 예약 대기",
+    scheduled: "공개 대기",
+    open: "응시 중",
+    locked: "응시 잠금",
+    aggregating: "랭킹 분석 중",
+    ranked: "랭킹 공개",
+    archived: "아카이브 공개",
+    finalizing: "이전 랭킹 집계 중",
+    finalized: "이전 집계 완료",
+    cancelled: "취소",
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>사설 모의고사 관리 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/archive.css" />
+    <link rel="stylesheet" href="/css/private-mock-exams.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script src="/js/admin-private-mock-exams.js" defer></script>
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "private-mock-exams" }) %>
+
+    <main class="admin-main">
+      <header class="admin-heading">
+        <div>
+          <p>WEEKLY MOCK EXAM</p>
+          <h1>사설 모의고사 관리</h1>
+          <span>매주 A·B·C형 문제지 PDF, 채점용 JSON, 확인용 답지 PDF를 등록합니다. TEST는 2026년 7월 29일 오후 7시 OMR 확인 전용이며 정식 랭킹에 반영되지 않습니다.</span>
+        </div>
+        <strong><%= examData.exams.length %><small>개 회차</small></strong>
+      </header>
+
+      <% if (feedback) { %>
+        <div class="archive-feedback <%= feedback.type %>" role="status"><%= feedback.message %></div>
+      <% } %>
+      <% if (error) { %>
+        <div class="archive-feedback error" role="alert"><%= error %></div>
+      <% } %>
+
+      <section class="admin-panel private-mock-admin-panel">
+        <div class="admin-panel-heading">
+          <div>
+            <p>NEW EXAM</p>
+            <h2>새 회차 일괄 등록</h2>
+          </div>
+          <span>답안지 JSON 즉시 검증 → 예약 확정</span>
+        </div>
+
+        <form class="admin-form private-mock-admin-form" action="/admin/private-mock-exams" method="POST" enctype="multipart/form-data" data-private-mock-batch-form>
+          <div class="private-mock-batch-list" data-private-mock-batch-list>
+            <fieldset class="private-mock-batch-row" data-private-mock-batch-row>
+              <legend>회차 <b data-private-mock-batch-number>1</b></legend>
+              <label>
+                <span>시험 이름</span>
+                <input name="titles" minlength="2" maxlength="120" placeholder="예: 2026년 8월 첫째주 Matths 사설 모의고사" required />
+              </label>
+              <div class="private-mock-fixed-schedule-row">
+                <label>
+                  <span>시험 날짜</span>
+                  <input type="date" name="examDates" value="<%= examData.defaultExamDate %>" data-private-mock-exam-date required />
+                  <small data-private-mock-date-guide>한국시간 기준 일요일만 등록할 수 있습니다.</small>
+                </label>
+                <label>
+                  <span>시험형</span>
+                  <select name="formCodes" data-private-mock-form-code required>
+                    <% examData.formSchedules.forEach((schedule) => { %>
+                      <option
+                        value="<%= schedule.formCode %>"
+                        data-fixed-date="<%= schedule.fixedDate || "" %>"
+                      ><%= schedule.isTest ? "TEST · OMR 확인용" : `${schedule.formCode}형 · ${schedule.attemptNumber}회차` %></option>
+                    <% }) %>
+                  </select>
+                </label>
+                <div class="private-mock-fixed-time" aria-live="polite">
+                  <span>고정 응시 시간</span>
+                  <strong data-private-mock-fixed-time><%= examData.formSchedules[0].label %></strong>
+                  <small>100분 · 한국시간 · 수정할 수 없음</small>
+                </div>
+              </div>
+              <label class="archive-admin-file-picker private-mock-file-picker">
+                <span>문제지 PDF</span>
+                <input type="file" name="examFiles" accept=".pdf,application/pdf" required />
+                <small>유저에게 공개되는 파일입니다.</small>
+              </label>
+              <label class="archive-admin-file-picker private-mock-file-picker">
+                <span>답안지 JSON</span>
+                <input type="file" name="answerKeyFiles" accept=".json,application/json" required />
+                <small>답안지는 JSON 파일로 올려주세요. 30문항·100점 구조를 즉시 검증하며 유저에게 공개하지 않습니다.</small>
+              </label>
+              <label class="archive-admin-file-picker private-mock-file-picker">
+                <span>확인용 답지 PDF <b>선택</b></span>
+                <input type="file" name="answerSheetFiles" accept=".pdf,application/pdf" />
+                <small>선택 사항입니다. 분석에는 사용하지 않으며 일요일 밤 11시에 문제지와 함께 아카이브에 공개됩니다.</small>
+              </label>
+              <button type="button" class="private-mock-remove-row" data-private-mock-remove hidden>이 회차 제거</button>
+            </fieldset>
+          </div>
+          <div class="private-mock-batch-actions">
+            <button type="button" class="admin-secondary-button" data-private-mock-add>회차 추가</button>
+            <button type="submit">일괄 업로드 및 예약</button>
+          </div>
+          <p class="private-mock-upload-status" data-private-mock-upload-status aria-live="polite" hidden></p>
+        </form>
+      </section>
+
+      <section class="admin-panel private-mock-admin-panel">
+        <div class="admin-panel-heading">
+          <div>
+            <p>LOBBY RESOURCE</p>
+            <h2>시험 전 공식 암기 PDF</h2>
+          </div>
+          <span>가장 최근에 등록한 활성 PDF 하나가 대기실에 표시됩니다.</span>
+        </div>
+        <form class="admin-form private-mock-resource-form" action="/admin/private-mock-exams/resources/formula" method="POST" enctype="multipart/form-data">
+          <label><span>버전 이름</span><input name="versionLabel" maxlength="80" placeholder="예: 2026년 8월 공식 정리" /></label>
+          <label class="archive-admin-file-picker"><span>공식 암기 PDF</span><input type="file" name="formulaFile" accept=".pdf,application/pdf" required /><small>새 파일을 등록하면 기존 자료는 자동으로 비활성화됩니다.</small></label>
+          <button type="submit">공식 자료 등록</button>
+        </form>
+        <% if (examData.formulaResources.length) { %>
+          <div class="private-mock-resource-list">
+            <% examData.formulaResources.forEach((resource) => { %>
+              <article>
+                <div><strong><%= resource.versionLabel || resource.originalName %></strong><span><%= resource.isActive ? "현재 대기실 사용 중" : "이전 버전" %></span></div>
+                <form action="/admin/private-mock-exams/resources/formula/<%= resource.id %>/delete" method="POST" onsubmit="return confirm('이 공식 자료 파일을 삭제할까요?');"><button type="submit">삭제</button></form>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+
+      <section class="admin-panel private-mock-admin-panel">
+        <div class="admin-panel-heading">
+          <div>
+            <p>EXAM SCHEDULE</p>
+            <h2>등록된 회차</h2>
+          </div>
+        </div>
+
+        <% if (!examData.exams.length) { %>
+          <p class="admin-empty">아직 등록된 사설 모의고사가 없습니다.</p>
+        <% } else { %>
+          <div class="private-mock-admin-list">
+            <% examData.exams.forEach((exam) => { %>
+              <article>
+                <div>
+                  <span class="private-mock-status <%= exam.status %>"><%= statusLabel[exam.status] || exam.status %></span>
+                  <h3><%= exam.title %></h3>
+                  <p><strong><%= exam.isTest ? "TEST · OMR 확인용" : `${exam.formCode || "?"}형 · ${exam.attemptNumber || "?"}회차` %></strong> · <%= exam.originalName %> · <%= exam.questionCount || "미확정" %>문항</p>
+                </div>
+                <dl>
+                  <div><dt>주차</dt><dd><%= exam.weekLabel || exam.weekKey || "이전 데이터" %></dd></div>
+                  <div><dt>공개</dt><dd><%= formatDateTime(exam.releaseAt) %></dd></div>
+                  <div><dt>응시 잠금</dt><dd><%= formatDateTime(exam.closeAt) %></dd></div>
+                  <div><dt>집계 시작</dt><dd><%= formatDateTime(exam.aggregationStartsAt) %></dd></div>
+                  <div><dt>랭킹 공개</dt><dd><%= formatDateTime(exam.rankingPublishesAt) %></dd></div>
+                  <div><dt>아카이브 공개</dt><dd><%= formatDateTime(exam.archiveAt) %></dd></div>
+                  <div><dt>회원 공지</dt><dd><%= exam.notificationSentAt ? formatDateTime(exam.notificationSentAt) : "대기" %></dd></div>
+                  <div><dt>문항</dt><dd><%= exam.questionCount %>문항 · 답지 JSON 검증 완료</dd></div>
+                  <div><dt>응시 데이터</dt><dd><%= exam.attemptCount %>명 · 소명 요청 <%= exam.integrityCaseCount %>건</dd></div>
+                  <div>
+                    <dt>문제지 PDF</dt>
+                    <dd><a href="<%= exam.problemFileHref %>" target="_blank" rel="noopener">새 탭에서 문제지 보기</a></dd>
+                  </div>
+                  <div>
+                    <dt>확인용 답지</dt>
+                    <dd>
+                      <% if (exam.answerSheetFileHref) { %>
+                        <a href="<%= exam.answerSheetFileHref %>" target="_blank" rel="noopener"><%= exam.answerSheetName || "새 탭에서 답지 보기" %></a>
+                      <% } else { %>
+                        이전 회차 데이터
+                      <% } %>
+                    </dd>
+                  </div>
+                </dl>
+                <a class="admin-secondary-button private-mock-detail-link" href="<%= exam.detailHref %>">응시자·채점·이벤트 보기 →</a>
+                <% if (exam.canDelete) { %>
+                  <form
+                    class="private-mock-delete-form"
+                    action="/admin/private-mock-exams/<%= exam.id %>/delete"
+                    method="POST"
+                    onsubmit="return confirm('이 예약 회차와 문제지 파일을 완전히 삭제할까요? 이 작업은 되돌릴 수 없습니다.');"
+                  >
+                    <p><%= exam.isTest ? "TEST 확인이 끝나면 문제지·JSON·답지 PDF와 응시 기록을 함께 삭제할 수 있습니다." : "문제지·JSON·확인용 답지 PDF를 잘못 올렸다면 공개 전에 회차 전체를 삭제하고 다시 등록하세요." %></p>
+                    <button type="submit"><%= exam.isTest ? "TEST 회차 삭제" : "예약 회차 삭제" %></button>
+                  </form>
+                <% } %>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+    </main>
+  </body>
+</html>

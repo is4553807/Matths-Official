@@ -1,0 +1,84 @@
+<%
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      dateStyle: "long",
+    }).format(new Date(date));
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>닉네임 변경 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/nickname-change.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script src="/js/main.js" defer></script>
+    <script src="/js/nickname-change.js" defer></script>
+  </head>
+  <body>
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top">
+          <a class="brand" href="/" aria-label="Matths 메인"><span class="brand-mark" aria-hidden="true">M</span><span>Matths</span></a>
+          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
+        </div>
+        <%- include("partials/dashboard-navigation", { activePage: "" }) %>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile">
+          <a class="profile-avatar" href="/profile" aria-label="<%= user.name %>님의 프로필 설정으로 이동" title="프로필 설정"><%= String(user.name || "M").slice(0, 1) %></a>
+          <div class="profile-copy"><strong><%= user.name %>님</strong><small><%= user.email %></small></div>
+          <form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form>
+        </div>
+      </aside>
+
+      <main class="dashboard-main nickname-change-main">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
+            <div><p>ACCOUNT SAFETY</p><h1>닉네임 변경</h1></div>
+          </div>
+          <a class="dashboard-return learning-home-button" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a>
+        </header>
+
+        <section class="nickname-request-card">
+          <div class="nickname-request-copy">
+            <p>운영자 변경 요청</p>
+            <h2>현재 계정의 닉네임을<br />새로 설정해주세요.</h2>
+            <dl>
+              <div><dt>현재 닉네임</dt><dd><%= pageData.currentName %></dd></div>
+              <div><dt>변경 요청 사유</dt><dd><%= pageData.request.reason %></dd></div>
+              <div><dt>링크 유효기간</dt><dd><%= formatDate(pageData.request.expiresAt) %>까지</dd></div>
+            </dl>
+          </div>
+
+          <form
+            class="nickname-change-form"
+            id="nickname-change-form"
+            action="/nickname-change"
+            method="POST"
+            data-check-url="/nickname-change/check"
+          >
+            <input type="hidden" name="requestId" value="<%= requestId %>" />
+            <input type="hidden" name="token" value="<%= token %>" />
+            <input type="hidden" name="proof" id="nickname-proof" value="" />
+            <label for="new-nickname">
+              <span>새 닉네임</span>
+              <div>
+                <input id="new-nickname" name="nickname" minlength="2" maxlength="30" value="<%= nickname %>" autocomplete="nickname" required />
+                <button id="nickname-check" type="button">중복 확인</button>
+              </div>
+              <small>2~30자 · 공백과 대소문자만 다른 닉네임도 중복으로 처리합니다.</small>
+            </label>
+            <p class="nickname-check-result" id="nickname-check-result" aria-live="polite">새 닉네임을 입력한 뒤 중복 확인을 완료해주세요.</p>
+            <% if (error) { %><div class="nickname-form-error" role="alert"><%= error %></div><% } %>
+            <button class="nickname-submit" id="nickname-submit" type="submit" disabled>닉네임 변경 완료</button>
+          </form>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

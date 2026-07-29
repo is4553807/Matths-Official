@@ -3,10 +3,87 @@ const {
     lifecycleSessionView,
     synchronizeUserLifecycle,
 } = require("../services/userLifecycleService");
+const {
+    synchronizeAccountAccess,
+} = require("../services/accountAccessService");
+
+function isAdminSessionUser(user) {
+    const adminEmail = String(
+        process.env.ADMIN_EMAIL ||
+            "admin@lsbproduction.com"
+    )
+        .trim()
+        .toLowerCase();
+
+    return (
+        user?.role === "admin" ||
+        String(user?.email || "")
+            .trim()
+            .toLowerCase() ===
+            adminEmail
+    );
+}
 
 exports.isLoggedIn = async (req, res, next) => {
     if (req.session?.user) {
         try {
+            const access =
+                await synchronizeAccountAccess(
+                    req.session.user.id
+                );
+            const account =
+                access?.user;
+
+            if (
+                !account ||
+                !access.allowed ||
+                (
+                    req.session.user
+                        .tokenVersion !==
+                        undefined &&
+                    Number(
+                        req.session.user
+                            .tokenVersion
+                    ) !==
+                        Number(
+                            account.tokenVersion
+                        )
+                )
+            ) {
+                const state =
+                    access?.status ||
+                    "inactive";
+                return req.session.destroy(
+                    () =>
+                        res.redirect(
+                            `/login?account=${encodeURIComponent(state)}`
+                        )
+                );
+            }
+
+            Object.assign(
+                req.session.user,
+                {
+                    name: account.name,
+                    realName:
+                        account.realName ||
+                        "",
+                    email: account.email,
+                    role:
+                        account.role ||
+                        "student",
+                    tokenVersion:
+                        Number(
+                            account.tokenVersion
+                        ) || 0,
+                    school:
+                        account.school,
+                    schoolGrade:
+                        account.schoolGrade,
+                    preferences:
+                        account.preferences,
+                }
+            );
             const todayKey =
                 getKoreanDateKey();
 
@@ -44,5 +121,30 @@ exports.isLoggedOut = (req, res, next) => {
         return next();
     }
 
-    return res.redirect("/main");
+    return res.redirect(
+        isAdminSessionUser(
+            req.session.user
+        )
+            ? "/admin"
+            : "/main"
+    );
+};
+
+exports.isAdmin = (
+    req,
+    res,
+    next
+) => {
+    const user =
+        req.session?.user;
+    const authorized =
+        isAdminSessionUser(user);
+
+    if (authorized) {
+        return next();
+    }
+
+    return res.status(403).send(
+        "운영자만 접근할 수 있습니다."
+    );
 };

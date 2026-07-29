@@ -46,25 +46,18 @@
       <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
       <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
         <div class="sidebar-top">
-          <a class="brand" href="/main" aria-label="Matths 학습 홈">
+          <a class="brand" href="/" aria-label="Matths 메인">
             <span class="brand-mark" aria-hidden="true">M</span>
             <span>Matths</span>
           </a>
           <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
         </div>
-        <nav class="side-nav" aria-label="대시보드 메뉴">
-          <p>LEARNING</p>
-          <a href="/main"><span class="nav-icon" aria-hidden="true">⌂</span><span>학습 홈</span></a>
-          <a href="/my-learning"><span class="nav-icon" aria-hidden="true">▦</span><span>내 학습</span></a>
-          <a class="active" href="/quick-practice" aria-current="page"><span class="nav-icon" aria-hidden="true">⚡</span><span>40초 눈풀이</span></a>
-          <a href="/assessments"><span class="nav-icon" aria-hidden="true">✓</span><span>평가 센터</span></a>
-          <a href="/wrong-notes"><span class="nav-icon" aria-hidden="true">↻</span><span>오답 노트</span></a>
-          <a href="/war-of-masters"><span class="nav-icon" aria-hidden="true">♜</span><span>실수들의 전쟁</span></a>
-          <a href="/coach-suggestions"><span class="nav-icon" aria-hidden="true">✦</span><span>문구 제안소</span></a>
-        </nav>
+        <%- include("partials/dashboard-navigation", {
+          activePage: "quick-practice",
+        }) %>
         <div class="sidebar-spacer"></div>
         <div class="sidebar-profile">
-          <span class="profile-avatar" aria-hidden="true"><%= String(learner.name || "학생").slice(0, 1) %></span>
+          <a class="profile-avatar" href="/profile" aria-label="<%= learner.name || "학생" %>님의 프로필 설정으로 이동" title="프로필 설정"><%= String(learner.name || "학생").slice(0, 1) %></a>
           <div class="profile-copy">
             <strong><%= learner.name || "학생" %>님</strong>
             <small><%= gradeLabels[Number(learner.schoolGrade)] || "학년 미설정" %></small>
@@ -86,7 +79,7 @@
               <h1>40초 눈풀이</h1>
             </div>
           </div>
-          <a class="quick-back" href="/main">학습 홈으로 →</a>
+          <a class="quick-back learning-home-button" href="/main">학습 홈으로 →</a>
         </header>
 
         <section class="quick-hero">

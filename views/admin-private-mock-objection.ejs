@@ -1,0 +1,90 @@
+<%
+  const formatDateTime = (value) =>
+    value
+      ? new Intl.DateTimeFormat("ko-KR", {
+          timeZone: "Asia/Seoul",
+          dateStyle: "long",
+          timeStyle: "short",
+        }).format(new Date(value))
+      : "기록 없음";
+  const applicant =
+    objection.userId?.realName ||
+    objection.userId?.name ||
+    "익명화 사용자";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>문제 이의신청 검토 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "todos" }) %>
+    <main class="admin-main">
+      <a class="admin-back" href="/admin/todos">← 처리할 일</a>
+      <header class="admin-heading">
+        <div>
+          <p>QUESTION OBJECTION</p>
+          <h1>사설 모의고사 문제 이의신청</h1>
+          <span>신청 내용과 현재 정답을 확인한 뒤 반려 또는 정정 반영을 결정합니다.</span>
+        </div>
+        <strong><%= objection.questionNumber %><small>번 문항</small></strong>
+      </header>
+
+      <section class="admin-panel objection-review-summary">
+        <dl>
+          <div><dt>접수 번호</dt><dd><%= objection.id %></dd></div>
+          <div><dt>신청자</dt><dd><%= applicant %></dd></div>
+          <div><dt>가입 이메일</dt><dd><%= objection.userId?.email || "익명화 계정" %></dd></div>
+          <div><dt>접수 날짜</dt><dd><%= formatDateTime(objection.createdAt) %></dd></div>
+          <div><dt>시험지</dt><dd><%= objection.examTitle %></dd></div>
+          <div><dt>현재 저장 정답</dt><dd><%= objection.currentAnswer || "확인 불가" %></dd></div>
+          <div class="wide"><dt>문제가 있다고 판단한 부분</dt><dd><%= objection.issueDetail %></dd></div>
+        </dl>
+      </section>
+
+      <% if (["accepted", "rejected"].includes(objection.status)) { %>
+        <div class="admin-feedback">
+          <span>✓</span>
+          이미 <%= objection.status === "accepted" ? "인용" : "반려" %> 처리된 이의신청입니다. 처리 사유: <%= objection.reviewReason %>
+        </div>
+      <% } else { %>
+        <section class="objection-review-actions">
+          <form class="admin-panel objection-reject-form" action="/admin/private-mock-objections/<%= objection.id %>/reject" method="POST">
+            <p>REJECT</p>
+            <h2>이의신청 반려</h2>
+            <span>반려 사유는 신청자의 이메일과 알림 우편함으로 전송됩니다.</span>
+            <label>
+              <b>반려 사유</b>
+              <textarea name="reason" rows="7" minlength="5" maxlength="2000" required></textarea>
+            </label>
+            <button type="submit">반려 결과 전송</button>
+          </form>
+
+          <form class="admin-panel objection-accept-form" action="/admin/private-mock-objections/<%= objection.id %>/accept" method="POST">
+            <p>ACCEPT & RECALCULATE</p>
+            <h2>이의신청 인용·정답 정정</h2>
+            <span>저장 즉시 전체 재채점, 표준화 성적·랭킹·MMR 재산출, 응시자 이메일, 다음 모의고사 전날까지 공지가 실행됩니다.</span>
+            <label>
+              <b>문제 내용</b>
+              <textarea name="questionContent" rows="5" maxlength="3000" placeholder="정정 안내에 들어갈 문항 내용을 적어주세요." required></textarea>
+            </label>
+            <label>
+              <b>새 정답</b>
+              <input name="newAnswer" type="text" maxlength="80" value="<%= objection.currentAnswer %>" required />
+            </label>
+            <label>
+              <b>인용·정정 사유</b>
+              <textarea name="reason" rows="7" minlength="5" maxlength="2000" required></textarea>
+            </label>
+            <button type="submit">인용하고 전체 재계산</button>
+          </form>
+        </section>
+      <% } %>
+    </main>
+  </body>
+</html>

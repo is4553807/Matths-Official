@@ -2,27 +2,6 @@
   padding-bottom: 24px;
 }
 
-.back-dashboard {
-  min-height: 39px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 15px;
-  color: #596177;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  font-size: 9px;
-  font-weight: 800;
-  transition: 0.18s ease;
-}
-
-.back-dashboard:hover {
-  color: var(--blue);
-  border-color: #bec9f9;
-  transform: translateX(2px);
-}
-
 .learning-summary,
 .course-progress-section,
 .learning-empty {

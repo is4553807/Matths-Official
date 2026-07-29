@@ -1,0 +1,334 @@
+<%
+  const member = detail.user;
+  const gradeLabels = {
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+    13: "N수생",
+  };
+  const formatDate = (date) =>
+    date
+      ? new Intl.DateTimeFormat("ko-KR", {
+          timeZone: "Asia/Seoul",
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(new Date(date))
+      : "기록 없음";
+  const inquiryStatusLabels = {
+    pending: "접수",
+    in_review: "확인 중",
+    replied: "답변 완료",
+    closed: "종료",
+  };
+  const actionLabels = {
+    "user.nickname": "닉네임 강제 수정",
+    "user.notification": "사이트 알림 발송",
+    "user.email": "개별 이메일 발송",
+    "user.password-reset": "비밀번호 재설정 발송",
+    "user.deactivate": "계정 비활성화",
+    "user.restore": "계정 복원",
+    "inquiry.reply": "문의 이메일 답변",
+    "inquiry.status": "문의 상태 변경",
+    "user.role": "사용자 역할 변경",
+    "user.account-status": "계정 상태 변경",
+    "user.account-withdrawal": "계정 탈퇴 처리",
+    "user.warning-count": "경고 횟수 수정",
+    "private-mock.integrity-review": "사설 모의고사 소명 검토",
+    "private-mock.integrity-penalty": "사설 모의고사 페널티 부여",
+    "community.report-reviewing": "게시글 신고 검토 시작",
+    "community.report-resolved": "게시글 신고 처리 완료",
+    "community.report-rejected": "게시글 신고 반려",
+    "community.post-warning": "게시글 경고",
+  };
+  const accountStatus =
+    member.accountStatus ||
+    (member.isActive ? "active" : "inactive");
+  const accountStatusLabels = {
+    active: "활성",
+    inactive: "비활성화",
+    suspended: "정지",
+    withdrawn: "탈퇴",
+  };
+  const roleLabels = {
+    student: "학생",
+    teacher: "교사",
+    admin: "관리자",
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= member.name %> 사용자 관리 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "users" }) %>
+    <main class="admin-main">
+      <a class="admin-back" href="/admin/users">← 유저 목록</a>
+      <header class="admin-heading user-detail-heading">
+        <div>
+          <p>USER PROFILE</p>
+          <h1><%= member.name %></h1>
+          <span><%= member.realName || "실명 미입력" %> · <%= member.email %></span>
+        </div>
+        <div class="admin-heading-actions">
+          <strong class="<%= accountStatus === 'active' ? 'is-active' : 'is-inactive' %>"><%= accountStatusLabels[accountStatus] %> 계정 · 경고 <%= member.warningCount || 0 %>회</strong>
+          <a href="/admin/users/<%= member._id %>/activity">전체 활동 기록 →</a>
+        </div>
+      </header>
+      <% if (feedback) { %><div class="admin-feedback" role="status"><%= feedback %></div><% } %>
+
+      <section class="admin-user-summary">
+        <article><span>학교</span><strong><%= member.school?.name || "미설정" %></strong><small><%= member.school?.region || "" %></small></article>
+        <article><span>학년</span><strong><%= gradeLabels[member.schoolGrade] || "미설정" %></strong></article>
+        <article><span>가입일</span><strong><%= formatDate(member.createdAt) %></strong></article>
+        <article><span>최근 로그인</span><strong><%= formatDate(member.lastLoginAt) %></strong></article>
+        <article><span>누적 학습</span><strong><%= Math.round((member.totalStudySeconds || 0) / 60) %>분</strong></article>
+        <article><span>연속 학습</span><strong><%= member.currentStreak || 0 %>일</strong></article>
+        <article><span>역할</span><strong><%= roleLabels[member.role] || member.role %></strong></article>
+        <article>
+          <span>계정 상태</span>
+          <strong><%= accountStatusLabels[accountStatus] %></strong>
+          <small>
+            <%= member.accountStatusReason || "처리 사유 없음" %>
+            <%= accountStatus === "suspended" ? ` · ${member.suspendedUntil ? `${formatDate(member.suspendedUntil)}까지` : "무기한"}` : "" %>
+            <%= accountStatus === "withdrawn" ? ` · ${member.withdrawal?.dataRetention === "anonymous" ? "익명 데이터 보존" : "활동 데이터 삭제"}` : "" %>
+          </small>
+        </article>
+        <article>
+          <span>사설 모의고사 권한</span>
+          <strong><%= member.privateMockRestriction?.active ? "응시 제한" : "응시 가능" %></strong>
+          <small><%= member.privateMockRestriction?.active ? `남은 제한 ${member.privateMockRestriction.remainingWeekCount || member.privateMockRestriction.remainingExamCount || 0}회(${member.privateMockRestriction.remainingWeekCount || member.privateMockRestriction.remainingExamCount || 0}주) · ${member.privateMockRestriction.reason || "사유 기록 없음"}` : "적용 중인 제한 없음" %></small>
+        </article>
+      </section>
+
+      <div class="admin-detail-grid">
+        <section class="admin-panel">
+          <div class="admin-panel-heading"><div><p>LEARNING</p><h2>학습 진행</h2></div></div>
+          <div class="admin-metric-row">
+            <div><span>시작 개념</span><strong><%= detail.learning.progressCount %></strong></div>
+            <div><span>완료 개념</span><strong><%= detail.learning.completedCount %></strong></div>
+            <div><span>문제 풀이</span><strong><%= detail.learning.totalAttempts %></strong></div>
+            <div><span>정답률</span><strong><%= detail.learning.correctRate %>%</strong></div>
+          </div>
+          <div class="admin-progress-list">
+            <% if (!detail.learning.progress.length) { %><p class="admin-empty">학습 기록이 없습니다.</p><% } %>
+            <% detail.learning.progress.forEach((progress) => { %>
+              <div>
+                <span><%= progress.courseId %> · <%= progress.unitId %></span>
+                <strong><%= progress.conceptId %></strong>
+                <div><i style="width:<%= progress.completionPercent %>%"></i></div>
+                <small><%= progress.completionPercent %>% · <%= progress.status %></small>
+              </div>
+            <% }) %>
+          </div>
+        </section>
+
+        <section class="admin-panel">
+          <div class="admin-panel-heading"><div><p>RANKING</p><h2>배치·랭킹</h2></div></div>
+          <% if (detail.ranking) { %>
+            <div class="admin-ranking-card">
+              <strong><%= detail.ranking.tier %> <%= detail.ranking.division %></strong>
+              <span>MMR <%= detail.ranking.rating %></span>
+              <dl>
+                <div><dt>전체</dt><dd><%= detail.ranking.overallRank %>위</dd></div>
+                <div><dt>학교 내</dt><dd><%= detail.ranking.schoolStudentRank || "—" %><%= detail.ranking.schoolStudentRank ? "위" : "" %></dd></div>
+                <div><dt>학교</dt><dd><%= detail.ranking.schoolRank || "—" %><%= detail.ranking.schoolRank ? "위" : "" %></dd></div>
+                <div><dt>지역</dt><dd><%= detail.ranking.cityRank || "—" %><%= detail.ranking.cityRank ? "위" : "" %></dd></div>
+              </dl>
+            </div>
+          <% } else { %><p class="admin-empty">완료한 배치고사가 없습니다.</p><% } %>
+          <div class="admin-assessment-list">
+            <% detail.assessments.forEach((attempt) => { %>
+              <a href="/admin/users/<%= member._id %>/assessments/<%= attempt._id %>"><strong><%= attempt.title %></strong><span><%= attempt.status %> · <%= attempt.scorePercent ?? "—" %>점</span><small><%= formatDate(attempt.submittedAt || attempt.createdAt) %></small><b>문항·답안 보기 →</b></a>
+            <% }) %>
+          </div>
+        </section>
+      </div>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>DIRECT ACTIONS</p><h2>사용자에게 보내기</h2></div></div>
+        <div class="admin-action-grid">
+          <form class="admin-form" action="/admin/users/<%= member._id %>/notification" method="POST">
+            <h3>사이트 알림</h3>
+            <label><span>제목</span><input name="title" minlength="2" maxlength="100" required /></label>
+            <label><span>내용</span><textarea name="message" rows="4" maxlength="1000" required></textarea></label>
+            <label><span>이동 주소</span><input name="href" value="/main" pattern="/.*" /></label>
+            <button type="submit">알림 보내기</button>
+          </form>
+          <form class="admin-form" action="/admin/users/<%= member._id %>/email" method="POST">
+            <h3>가입 이메일로 전송</h3>
+            <label><span>제목</span><input name="subject" minlength="2" maxlength="120" required /></label>
+            <label><span>내용</span><textarea name="message" rows="7" minlength="5" maxlength="5000" required></textarea></label>
+            <button type="submit">이메일 바로 전송</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>ACCOUNT CONTROL</p><h2>계정 관리</h2></div></div>
+        <div class="admin-action-grid">
+          <form class="admin-form" action="/admin/users/<%= member._id %>/password-reset" method="POST">
+            <h3>비밀번호 재설정</h3>
+            <p>비밀번호 원문은 확인하지 않습니다. 가입 이메일로 10분 동안 한 번만 사용할 수 있는 재설정 링크를 보냅니다.</p>
+            <button type="submit" <%= !member.isActive ? "disabled" : "" %>>재설정 이메일 보내기</button>
+          </form>
+          <% if (String(member._id) !== String(user.id)) { %>
+            <form class="admin-form" action="/admin/users/<%= member._id %>/role" method="POST">
+              <h3>역할 변경</h3>
+              <label><span>역할</span>
+                <select name="role">
+                  <% Object.entries(roleLabels).forEach(([value, label]) => { %>
+                    <option value="<%= value %>" <%= member.role === value ? "selected" : "" %>><%= label %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label><span>변경 사유</span><input name="reason" maxlength="300" required /></label>
+              <button type="submit">역할 변경</button>
+            </form>
+            <form class="admin-form" action="/admin/users/<%= member._id %>/warnings" method="POST">
+              <h3>경고 횟수 관리</h3>
+              <p>경고가 3회 이상이면 학생·교사 계정이 즉시 무기한 정지됩니다.</p>
+              <label><span>경고 횟수</span><input type="number" name="warningCount" min="0" max="999" value="<%= member.warningCount || 0 %>" required /></label>
+              <label><span>수정 사유</span><input name="reason" maxlength="500" required /></label>
+              <button type="submit">경고 횟수 저장</button>
+            </form>
+            <form class="admin-form danger-form" action="/admin/users/<%= member._id %>/account-status" method="POST">
+              <h3>계정 상태 변경</h3>
+              <p>
+                탈퇴를 선택하면 실명·이메일·닉네임·정확한 학교와 로그인
+                정보는 항상 제거됩니다. 아래 체크박스로 학습 데이터를
+                익명 보존할지 함께 삭제할지 선택할 수 있습니다.
+              </p>
+              <label><span>계정 상태</span>
+                <select
+                  name="status"
+                  data-account-status-select
+                  <%= accountStatus === "withdrawn" ? "disabled" : "" %>
+                >
+                  <% Object.entries(accountStatusLabels).forEach(([value, label]) => { %>
+                    <option value="<%= value %>" <%= accountStatus === value ? "selected" : "" %>><%= label %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label><span>정지 기간(일, 비우면 무기한)</span><input type="number" name="suspensionDays" min="1" max="3650" /></label>
+              <div
+                class="admin-retention-choice"
+                data-account-retention-choice
+                hidden
+              >
+                <label class="admin-checkbox">
+                  <input
+                    type="checkbox"
+                    name="retainAnonymousData"
+                    value="true"
+                    checked
+                  />
+                  <span>학습·평가 데이터를 익명으로 보존</span>
+                </label>
+                <p>
+                  체크하면 문제 풀이, 정오답, 소요 시간, 평가 결과와 MMR을
+                  익명 사용자 ID로 남깁니다. 체크를 해제하면 해당 활동
+                  데이터도 삭제합니다.
+                </p>
+              </div>
+              <label><span>처리 사유</span><input name="reason" maxlength="500" required /></label>
+              <button type="submit" <%= accountStatus === "withdrawn" ? "disabled" : "" %>>
+                <%= accountStatus === "withdrawn" ? "복구할 수 없는 탈퇴 계정" : "계정 상태 적용" %>
+              </button>
+            </form>
+            <form class="admin-form" action="/admin/users/<%= member._id %>/nickname" method="POST">
+              <h3>부적절한 닉네임 변경 요청</h3>
+              <p>관리자가 닉네임을 직접 덮어쓰지 않습니다. 가입 이메일과 알림 우편함으로 사유와 본인 확인 링크를 보내며, 사용자는 로그인 후 중복 확인을 거쳐 새 닉네임을 정합니다.</p>
+              <label><span>변경 요청 사유</span><textarea name="reason" rows="4" maxlength="500" required></textarea></label>
+              <button type="submit">변경 요청 링크 보내기</button>
+            </form>
+          <% } %>
+        </div>
+      </section>
+
+      <section class="admin-activity-grid" aria-label="사용자 관련 이력">
+        <article class="admin-panel">
+          <div class="admin-panel-heading">
+            <div><p>COMMUNITY</p><h2>게시판 활동</h2></div>
+            <a href="/admin/community?search=<%= encodeURIComponent(member.name) %>">게시판 관리 →</a>
+          </div>
+          <div class="admin-activity-list">
+            <% if (!detail.communityPosts.length) { %>
+              <p class="admin-empty">게시글 작성 이력이 없습니다.</p>
+            <% } %>
+            <% detail.communityPosts.forEach((post) => { %>
+              <div>
+                <span class="<%= post.status === 'published' ? 'status-replied' : post.status === 'hidden' ? 'status-pending' : 'status-closed' %>"><%= { published: "공개", hidden: "숨김", deleted: "삭제" }[post.status] %><%= post.warningIssued ? " · 경고" : "" %></span>
+                <strong><%= post.title %></strong>
+                <p><%= post.content.length > 120 ? `${post.content.slice(0, 120)}…` : post.content %></p>
+                <small><%= formatDate(post.createdAt) %></small>
+              </div>
+            <% }) %>
+          </div>
+        </article>
+
+        <article class="admin-panel">
+          <div class="admin-panel-heading">
+            <div><p>INQUIRIES</p><h2>문의 이력</h2></div>
+            <a href="/admin/inquiries">전체 문의 →</a>
+          </div>
+          <div class="admin-activity-list">
+            <% if (!detail.inquiries.length) { %>
+              <p class="admin-empty">문의 이력이 없습니다.</p>
+            <% } %>
+            <% detail.inquiries.forEach((inquiry) => { %>
+              <div>
+                <span class="status-<%= inquiry.status %>"><%= inquiryStatusLabels[inquiry.status] || inquiry.status %></span>
+                <strong><%= inquiry.subject %></strong>
+                <small><%= formatDate(inquiry.createdAt) %></small>
+              </div>
+            <% }) %>
+          </div>
+        </article>
+
+        <article class="admin-panel">
+          <div class="admin-panel-heading">
+            <div><p>NOTIFICATIONS</p><h2>개별 알림 이력</h2></div>
+          </div>
+          <div class="admin-activity-list">
+            <% if (!detail.notifications.length) { %>
+              <p class="admin-empty">보낸 사이트 알림이 없습니다.</p>
+            <% } %>
+            <% detail.notifications.forEach((notification) => { %>
+              <div>
+                <span class="<%= notification.readAt ? 'status-replied' : 'status-pending' %>"><%= notification.readAt ? "읽음" : "안 읽음" %></span>
+                <strong><%= notification.title %></strong>
+                <p><%= notification.message %></p>
+                <small><%= formatDate(notification.createdAt) %></small>
+              </div>
+            <% }) %>
+          </div>
+        </article>
+
+        <article class="admin-panel">
+          <div class="admin-panel-heading">
+            <div><p>AUDIT LOG</p><h2>관리 작업 이력</h2></div>
+          </div>
+          <div class="admin-activity-list">
+            <% if (!detail.actionLogs.length) { %>
+              <p class="admin-empty">관리 작업 이력이 없습니다.</p>
+            <% } %>
+            <% detail.actionLogs.forEach((log) => { %>
+              <div>
+                <span><%= actionLabels[log.action] || "관리 작업" %></span>
+                <strong><%= log.detail || "상세 기록 없음" %></strong>
+                <small><%= formatDate(log.createdAt) %></small>
+              </div>
+            <% }) %>
+          </div>
+        </article>
+      </section>
+    </main>
+    <script src="/js/admin-user-detail.js" defer></script>
+  </body>
+</html>

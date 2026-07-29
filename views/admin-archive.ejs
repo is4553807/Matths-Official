@@ -1,0 +1,187 @@
+<%
+  const formatBytes = (bytes) => {
+    const size = Number(bytes) || 0;
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 ** 2).toFixed(1)} MB`;
+  };
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      dateStyle: "medium",
+    }).format(new Date(date));
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>아카이브 관리 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/archive.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <script src="/js/admin-archive.js" defer></script>
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "archive" }) %>
+    <main class="admin-main">
+      <header class="admin-heading">
+        <div>
+          <p>ARCHIVE MANAGEMENT</p>
+          <h1>아카이브 관리</h1>
+          <span>폴더를 만들고 회원에게 공개할 학습 자료를 관리합니다.</span>
+        </div>
+        <strong><%= archiveData.items.length %><small>개 자료</small></strong>
+      </header>
+
+      <% if (feedback) { %>
+        <div class="archive-feedback <%= feedback.type %>" role="status"><%= feedback.message %></div>
+      <% } %>
+
+      <div class="admin-detail-grid">
+        <section class="admin-panel">
+          <div class="admin-panel-heading"><div><p>NEW FOLDER</p><h2>새 폴더 만들기</h2></div></div>
+          <form class="admin-form" action="/archive/admin/folders" method="POST">
+            <input type="hidden" name="parentFolderId" value="<%= archiveData.selectedFolder?.id || oldInput.parentFolderId %>" />
+            <% if (archiveData.selectedFolder) { %>
+              <p class="archive-folder-parent-guide">상위 폴더 · <strong><%= archiveData.selectedFolder.name %></strong></p>
+            <% } %>
+            <label><span>폴더 이름</span><input name="folderName" minlength="2" maxlength="80" value="<%= oldInput.folderName %>" required /></label>
+            <label><span>폴더 설명</span><textarea name="folderDescription" rows="4" maxlength="500"><%= oldInput.folderDescription %></textarea></label>
+            <button type="submit">폴더 추가</button>
+          </form>
+        </section>
+
+        <section class="admin-panel">
+          <div class="admin-panel-heading"><div><p>FILE UPLOAD</p><h2>여러 자료 한 번에 추가</h2></div><span>파일당 최대 30MB · 최대 20개</span></div>
+          <form class="admin-form" action="/archive/admin/upload" method="POST" enctype="multipart/form-data">
+            <label><span>분류</span>
+              <select name="category">
+                <% archiveData.categories.forEach((category) => { %>
+                  <option value="<%= category %>" <%= oldInput.category === category ? "selected" : "" %>><%= category %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label><span>저장할 폴더</span>
+              <select name="folderId">
+                <option value="">루트 자료</option>
+                <% archiveData.folderOptions.forEach((folder) => { %>
+                  <option value="<%= folder.id %>" <%= oldInput.folderId === folder.id ? "selected" : "" %>><%= "— ".repeat(folder.depth) %><%= folder.pathLabel %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label><span>자료 설명</span><textarea name="description" maxlength="1000" rows="4"><%= oldInput.description %></textarea></label>
+            <label class="archive-admin-file-picker">
+              <span>파일 선택</span>
+              <input type="file" name="archiveFiles" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp" multiple required />
+              <small>파일을 한 번에 최대 20개까지 선택할 수 있으며, 자료 제목은 파일명으로 자동 저장됩니다.</small>
+            </label>
+            <label class="archive-notify-choice">
+              <input type="checkbox" name="notifyUsers" <%= oldInput.notifyUsers ? "checked" : "" %> />
+              <span>
+                <b>회원에게 자료 업데이트 공지</b>
+                <small>선택한 경우에만 메인 공지와 알림 우편함에 안내합니다. 일반 업로드는 알림을 보내지 않습니다.</small>
+              </span>
+            </label>
+            <button type="submit">선택한 파일 모두 추가</button>
+          </form>
+        </section>
+      </div>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading">
+          <div><p>FOLDERS</p><h2>자료 폴더</h2></div>
+          <% if (archiveData.selectedFolder) { %>
+            <a href="<%= archiveData.selectedFolder.parentFolderId ? `/archive/admin?folder=${archiveData.selectedFolder.parentFolderId}` : "/archive/admin" %>">← 상위 폴더</a>
+          <% } %>
+        </div>
+        <% if (archiveData.breadcrumbs.length) { %>
+          <nav class="archive-breadcrumbs" aria-label="현재 폴더 경로">
+            <a href="/archive/admin">루트</a>
+            <% archiveData.breadcrumbs.forEach((folder) => { %>
+              <span>›</span><a href="/archive/admin?folder=<%= folder.id %>"><%= folder.name %></a>
+            <% }) %>
+          </nav>
+        <% } %>
+        <% if (archiveData.folders.length) { %>
+          <div class="archive-folder-grid">
+            <% archiveData.folders.forEach((folder) => { %>
+              <a href="/archive/admin?folder=<%= folder.id %>">
+                <span aria-hidden="true">▰</span>
+                <div><h3><%= folder.name %></h3><p><%= folder.description || "폴더 설명이 없습니다." %></p></div>
+                <strong><%= folder.itemCount %><small>개</small></strong>
+              </a>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <p class="admin-empty"><%= archiveData.selectedFolder ? "이 폴더 안에는 아직 하위 폴더가 없습니다." : "아직 만든 폴더가 없습니다." %></p>
+        <% } %>
+      </section>
+
+      <details class="admin-panel archive-root-disclosure <%= archiveData.selectedFolder ? "folder-open" : "" %>" <%= archiveData.selectedFolder ? "open" : "" %>>
+        <summary class="archive-root-summary">
+          <span><%= archiveData.selectedFolder ? archiveData.selectedFolder.name : "루트 자료" %></span>
+          <strong><%= archiveData.items.length %>개 자료</strong>
+          <small><%= archiveData.selectedFolder ? "" : "클릭해서 펼치기" %></small>
+        </summary>
+        <div class="archive-root-disclosure-content">
+        <div class="admin-panel-heading">
+          <div><p>FILES</p><h2><%= archiveData.selectedFolder ? archiveData.selectedFolder.name : "루트 자료" %></h2></div>
+          <div class="archive-file-heading-actions">
+            <% if (archiveData.items.length) { %>
+              <button type="button" data-archive-selection-toggle>선택</button>
+              <form id="archive-bulk-delete-form" action="/archive/admin/items/bulk-delete" method="POST" data-archive-bulk-form>
+                <input type="hidden" name="folderId" value="<%= archiveData.selectedFolder?.id || "" %>" />
+                <label class="archive-select-all" data-archive-bulk-control hidden>
+                  <input type="checkbox" data-archive-select-all />
+                  <span>전체 선택</span>
+                </label>
+                <label class="archive-bulk-destination" data-archive-bulk-control hidden>
+                  <span>이동할 폴더</span>
+                  <select name="destinationFolderId">
+                    <option value="">루트 자료</option>
+                    <% archiveData.folderOptions.forEach((folder) => { %>
+                      <option value="<%= folder.id %>"><%= "— ".repeat(folder.depth) %><%= folder.pathLabel %></option>
+                    <% }) %>
+                  </select>
+                </label>
+                <button type="submit" formaction="/archive/admin/items/bulk-move" data-archive-bulk-move hidden>선택 이동 <span data-archive-move-count>0</span></button>
+                <button type="submit" formaction="/archive/admin/items/bulk-delete" class="danger" data-archive-bulk-delete hidden>일괄 삭제 <span data-archive-selected-count>0</span></button>
+              </form>
+            <% } %>
+            <a href="/archive" target="_blank" rel="noopener">사용자 화면 확인 →</a>
+          </div>
+        </div>
+        <% if (!archiveData.items.length) { %>
+          <p class="admin-empty">이 위치에 등록된 자료가 없습니다.</p>
+        <% } else { %>
+          <div class="archive-list">
+            <% archiveData.items.forEach((item) => { %>
+              <article>
+                <label class="archive-file-select">
+                  <span class="archive-file-icon" aria-hidden="true"><span><%= item.originalName.split(".").pop().slice(0, 4).toUpperCase() %></span></span>
+                  <input type="checkbox" name="itemIds" value="<%= item.id %>" form="archive-bulk-delete-form" aria-label="<%= item.title %> 선택" />
+                </label>
+                <div class="archive-file-copy">
+                  <div><span><%= item.category %></span><% if (!item.isPublished) { %><b>비공개</b><% } %></div>
+                  <h3><%= item.title %></h3>
+                  <% if (item.description) { %><p><%= item.description %></p><% } %>
+                  <small><%= item.originalName %> · <%= formatBytes(item.sizeBytes) %> · <%= formatDate(item.createdAt) %></small>
+                </div>
+                <div class="archive-admin-item-actions">
+                  <a href="/archive/<%= item.id %>/download">내려받기 <span aria-hidden="true">↓</span></a>
+                  <form action="/archive/admin/items/<%= item.id %>/delete" method="POST" onsubmit="return window.confirm('이 자료와 저장 파일을 영구 삭제할까요? 삭제 후 복구할 수 없습니다.');">
+                    <input type="hidden" name="folderId" value="<%= archiveData.selectedFolder?.id || "" %>" />
+                    <button type="submit">삭제</button>
+                  </form>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+        </div>
+      </details>
+    </main>
+  </body>
+</html>

@@ -13,6 +13,13 @@
   const gradeLabel =
     gradeLabels[Number(learner.schoolGrade)] ||
     "학년 미설정";
+  const isPlacement =
+    attempt.scopeType === "placement";
+  const placementVerification =
+    Boolean(
+      attempt
+        .placementVerificationPending
+    );
   const submitted =
     attempt.status === "submitted";
   const disqualified =
@@ -20,12 +27,42 @@
     "disqualified";
   const terminal =
     submitted || disqualified;
+  const placementTotalCorrect =
+    isPlacement &&
+    attempt.placementResult
+      ? Number(
+          attempt.placementResult
+            .totalCorrect || 0
+        )
+      : 0;
+  const initialQuestionIndex =
+    Math.max(
+      0,
+      Math.min(
+        attempt.questions.length - 1,
+        Number(
+          attempt.currentQuestionIndex
+        ) || 0
+      )
+    );
+  const backUrl = isPlacement
+    ? "/war-of-masters"
+    : "/assessments";
+  const submitUrl = isPlacement
+    ? `/war-of-masters/placement/${attempt._id}/submit`
+    : `/assessments/${attempt._id}/submit`;
   const difficultyClass = (value) =>
     value === "advanced"
       ? "advanced"
       : value === "applied"
         ? "applied"
         : "mid-high";
+  const placementCategoryLabels = {
+    general: "기본",
+    advanced: "심화",
+    "semi-killer": "준킬러",
+    killer: "킬러",
+  };
   const choiceMarkers = [
     "①",
     "②",
@@ -57,7 +94,8 @@
       timeLimitMs / 60000
     );
   const timeLimitLabel =
-    timeLimitMinutes >= 60
+    timeLimitMinutes >= 60 &&
+    timeLimitMinutes % 60 === 0
       ? `${timeLimitMinutes / 60}시간`
       : timeLimitMinutes >= 1
         ? `${timeLimitMinutes}분`
@@ -163,7 +201,7 @@
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
     <link rel="stylesheet" href="/css/brand.css" />
   </head>
-  <body class="assessment-page attempt-page">
+  <body class="assessment-page attempt-page <%= isPlacement ? 'placement-attempt-page' : '' %>">
     <a
       class="skip-link"
       href="#attempt-main"
@@ -176,45 +214,21 @@
 
       <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
         <div class="sidebar-top">
-          <a class="brand" href="/main" aria-label="Matths 학습 홈">
+          <a class="brand" href="/" aria-label="Matths 메인">
             <span class="brand-mark" aria-hidden="true">M</span>
             <span>Matths</span>
           </a>
           <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
         </div>
 
-        <nav class="side-nav" aria-label="대시보드 메뉴">
-          <p>LEARNING</p>
-          <a href="/main">
-            <span class="nav-icon" aria-hidden="true">⌂</span>
-            <span>학습 홈</span>
-          </a>
-          <a href="/my-learning">
-            <span class="nav-icon" aria-hidden="true">▦</span>
-            <span>내 학습</span>
-          </a>
-          <a href="/log-curriculum">
-            <span class="nav-icon" aria-hidden="true">◫</span>
-            <span>교육과정</span>
-          </a>
-          <a class="active" href="/assessments" aria-current="page">
-            <span class="nav-icon" aria-hidden="true">✓</span>
-            <span>평가 센터</span>
-          </a>
-          <a href="/wrong-notes">
-            <span class="nav-icon" aria-hidden="true">↻</span>
-            <span>오답 노트</span>
-          </a>
-          <a href="/war-of-masters">
-            <span class="nav-icon" aria-hidden="true">♜</span>
-            <span>실수들의 전쟁</span>
-          </a>
-        </nav>
+        <%- include("partials/dashboard-navigation", {
+          activePage: isPlacement ? "war-of-masters" : "assessments",
+        }) %>
 
         <div class="sidebar-spacer"></div>
 
         <div class="sidebar-profile">
-          <span class="profile-avatar" aria-hidden="true"><%= String(learner.name || "학생").slice(0, 1) %></span>
+          <a class="profile-avatar" href="/profile" aria-label="<%= learner.name || "학생" %>님의 프로필 설정으로 이동" title="프로필 설정"><%= String(learner.name || "학생").slice(0, 1) %></a>
           <div class="profile-copy">
             <strong><%= learner.name || "학생" %>님</strong>
             <small><%= gradeLabel %></small>
@@ -242,25 +256,44 @@
             <span></span><span></span><span></span>
           </button>
           <div>
-            <p>평가 센터</p>
+            <p><%= isPlacement ? "War of GOAT" : "평가 센터" %></p>
             <h1>
               <%= disqualified
                 ? "시간 초과 실격"
                 : submitted
-                  ? "평가 결과"
-                  : "평가 응시 중" %>
+                  ? isPlacement
+                    ? "입단 배치 결과"
+                    : "평가 결과"
+                  : isPlacement
+                    ? "입단 배치고사 응시 중"
+                    : "평가 응시 중" %>
             </h1>
           </div>
         </div>
-        <a class="back-dashboard" href="/assessments">
-          평가 목록 <span aria-hidden="true">→</span>
-        </a>
+        <div class="assessment-topbar-actions">
+          <a class="back-dashboard secondary learning-home-button" href="/main">학습 홈으로</a>
+          <a class="back-dashboard" href="<%= backUrl %>">
+            <%= isPlacement ? "전장으로" : "평가 목록" %>
+            <span aria-hidden="true">→</span>
+          </a>
+        </div>
       </header>
 
       <div
-        class="attempt-timer <%= terminal ? 'finished' : '' %> <%= disqualified ? 'disqualified' : '' %>"
+        class="attempt-timer <%= terminal ? 'finished' : 'movable' %> <%= disqualified ? 'disqualified' : '' %>"
         aria-label="평가 남은 시간"
+        data-draggable-timer="<%= terminal ? 'false' : 'true' %>"
       >
+        <% if (!terminal) { %>
+          <button
+            class="timer-drag-handle"
+            type="button"
+            aria-label="타이머 위치 이동"
+            title="끌어서 타이머를 옮기세요. 두 번 누르면 원래 위치로 돌아갑니다."
+          >
+            <span aria-hidden="true">⠿</span>
+          </button>
+        <% } %>
         <span>
           TIME LIMIT · <%= timeLimitLabel %>
         </span>
@@ -280,7 +313,9 @@
       <header class="attempt-heading">
         <div>
           <p class="eyebrow">
-            <%= attempt.scopeType === "subunit"
+            <%= isPlacement
+              ? "PLACEMENT EXAM"
+              : attempt.scopeType === "subunit"
               ? "MIDTERM"
               : attempt.scopeType === "unit"
                 ? "UNIT FINAL"
@@ -301,13 +336,18 @@
             <span>
               <%= disqualified
                 ? "TIME OUT"
-                : attempt.passed
+                : isPlacement
+                  ? "PLACED"
+                  : attempt.passed
                   ? "PASS"
                   : "RETRY" %>
             </span>
             <strong>
               <% if (disqualified) { %>
                 실격
+              <% } else if (isPlacement) { %>
+                <%= placementTotalCorrect %>
+                <small>/ 30문항</small>
               <% } else { %>
                 <%= attempt.scorePercent %>
                 <small>점</small>
@@ -316,7 +356,9 @@
             <p>
               <%= disqualified
                 ? `${timeLimitLabel} 제한 시간을 초과했습니다.`
-                : attempt.passed
+                : isPlacement
+                  ? `${attempt.placementResult?.initialTier || "배치 산정 중"} · 초기 점수 ${attempt.placementResult?.initialRating ?? "-"}`
+                  : attempt.passed
                   ? "80점 기준을 통과했습니다."
                   : "80점 이상이면 통과합니다." %>
             </p>
@@ -338,12 +380,93 @@
         <% } %>
       </header>
 
+      <% if (isPlacement && submitted && attempt.placementResult) {
+        const placementResult = attempt.placementResult;
+      %>
+        <section
+          class="placement-result-summary"
+          aria-label="입단 배치고사 세부 결과"
+        >
+          <article>
+            <span>전체 정답</span>
+            <strong>
+              <%= placementTotalCorrect %>
+              <small>/ 30</small>
+            </strong>
+            <p>문항별 채점 결과와 해설은 공개하지 않습니다.</p>
+          </article>
+          <article>
+            <span>현재 위치</span>
+            <strong>
+              <% if ((placementResult.cohortSize || 0) < 5) { %>
+                표본 축적 중
+              <% } else { %>
+                상위
+                <%= placementResult.percentile == null
+                  ? "-"
+                  : Math.max(0, Math.round((100 - placementResult.percentile) * 10) / 10) %><small>%</small>
+              <% } %>
+            </strong>
+            <p>
+              <%= placementResult.cohortSize || 1 %>명 기준 · 배치 지수 평균
+              <%= placementResult.cohortAverage ?? placementResult.placementScore %>
+            </p>
+          </article>
+        </section>
+      <% } %>
+
+      <% if (!(isPlacement && terminal)) { %>
       <form
         class="assessment-paper"
         id="assessment-paper"
-        action="/assessments/<%= attempt._id %>/submit"
+        action="<%= submitUrl %>"
         method="post"
       >
+        <% if (isPlacement && !terminal) { %>
+          <input
+            type="hidden"
+            name="activeQuestionId"
+            id="active-question-id"
+            value="<%= attempt.questions[initialQuestionIndex]?.questionId || '' %>"
+          />
+          <input
+            type="hidden"
+            name="currentQuestionIndex"
+            id="current-question-index"
+            value="<%= initialQuestionIndex %>"
+          />
+          <section
+            class="placement-question-navigator"
+            data-placement-navigator
+            aria-label="배치고사 문항 이동"
+          >
+            <div>
+              <span>현재 문항</span>
+              <strong>
+                <b id="current-question-number"><%= initialQuestionIndex + 1 %></b>
+                / <%= attempt.questions.length %>
+              </strong>
+              <small>문항을 이동할 때까지의 시간이 서버에 누적됩니다.</small>
+            </div>
+            <div
+              class="placement-question-map"
+              aria-label="문항 바로가기"
+            >
+              <% attempt.questions.forEach((question, index) => { %>
+                <button
+                  type="button"
+                  data-question-jump="<%= index %>"
+                  class="<%= index === initialQuestionIndex ? 'current' : '' %> <%= question.submittedAnswer !== null && String(question.submittedAnswer).trim() ? 'answered' : '' %>"
+                  aria-label="<%= index + 1 %>번 문항"
+                  aria-current="<%= index === initialQuestionIndex ? 'step' : 'false' %>"
+                >
+                  <%= index + 1 %>
+                </button>
+              <% }) %>
+            </div>
+          </section>
+        <% } %>
+
         <% attempt.questions.forEach((question, index) => {
           const submittedChoiceIndex =
             question.inputMode === "multiple-choice"
@@ -365,18 +488,27 @@
           <article
             class="assessment-question <%= submitted ? (question.isCorrect ? 'correct' : 'wrong') : '' %>"
             data-question
+            data-question-index="<%= index %>"
+            data-question-id="<%= question.questionId %>"
+            <%= isPlacement && !terminal && index !== initialQuestionIndex ? "hidden" : "" %>
           >
             <header>
               <span class="question-number">
-                <%= String(index + 1).padStart(2, "0") %>
+                <%= isPlacement
+                  ? `${index + 1}.`
+                  : String(index + 1).padStart(2, "0") %>
               </span>
-              <span
-                class="difficulty-tag <%= difficultyClass(question.difficulty) %>"
-              >
-                <%= difficultyLabels[question.difficulty] %>
-              </span>
+              <% if (!isPlacement) { %>
+                <span
+                  class="difficulty-tag <%= difficultyClass(question.difficulty) %>"
+                >
+                  <%= difficultyLabels[question.difficulty] %>
+                </span>
+              <% } %>
               <span class="question-points">
-                <%= question.points %>점
+                <%= isPlacement
+                  ? `[${question.points}점]`
+                  : `${question.points}점` %>
               </span>
               <% if (submitted) { %>
                 <strong>
@@ -460,19 +592,55 @@
           </article>
         <% }) %>
 
+        <% if (isPlacement && !terminal) { %>
+          <nav
+            class="placement-question-controls"
+            aria-label="이전 또는 다음 문항"
+          >
+            <button
+              type="button"
+              data-question-previous
+              <%= initialQuestionIndex === 0 ? "disabled" : "" %>
+            >
+              <span aria-hidden="true">←</span>
+              이전 문항
+            </button>
+            <p>
+              한 화면에는 한 문항만 표시됩니다.
+              이동 전 답안과 풀이 시간이 자동 저장됩니다.
+            </p>
+            <button
+              type="button"
+              data-question-next
+              <%= initialQuestionIndex === attempt.questions.length - 1 ? "disabled" : "" %>
+            >
+              다음 문항
+              <span aria-hidden="true">→</span>
+            </button>
+          </nav>
+        <% } %>
+
         <% if (!terminal) { %>
           <footer class="paper-submit">
             <div>
-              <span>PASS LINE</span>
+              <span><%= placementVerification ? "VERIFICATION" : isPlacement ? "PLACEMENT SCORE" : "PASS LINE" %></span>
               <strong>
-                <%= attempt.passScore %>점 이상
+                <%= placementVerification
+                  ? "준킬러 2문항 · 킬러 2문항"
+                  : isPlacement
+                    ? "100점 만점"
+                    : `${attempt.passScore}점 이상` %>
               </strong>
               <p>
-                비어 있는 답은 오답으로 처리됩니다.
+                <%= placementVerification
+                  ? "네 문항의 결과를 기존 배치 결과와 합쳐 최종 초기 MMR을 계산합니다."
+                  : isPlacement
+                  ? "미응답 문항은 오답으로 반영되어 초기 랭크에 불이익이 생길 수 있습니다."
+                  : "비어 있는 답은 오답으로 처리됩니다." %>
               </p>
             </div>
             <button type="submit">
-              답안 제출 및 채점
+              <%= placementVerification ? "추가 확인 제출 및 랭크 산정" : "답안 제출 및 채점" %>
             </button>
           </footer>
         <% } else { %>
@@ -486,20 +654,48 @@
               <strong>
                 <%= disqualified
                   ? "제한 시간 초과"
-                  : `${attempt.earnedPoints} / ${attempt.totalPoints}점` %>
+                  : isPlacement
+                    ? `${attempt.earnedPoints} / 100점 · ${attempt.placementResult?.initialTier || "배치 산정 중"}`
+                    : `${attempt.earnedPoints} / ${attempt.totalPoints}점` %>
               </strong>
               <p>
                 <%= disqualified
-                  ? "이번 회차는 채점하지 않으며 새 회차에 다시 응시할 수 있습니다."
-                  : "오답 해설을 확인한 뒤 새 회차에 응시할 수 있습니다." %>
+                  ? isPlacement
+                    ? "이번 배치는 채점하지 않았습니다. 전장 페이지에서 새 배치고사를 시작할 수 있습니다."
+                    : "이번 회차는 채점하지 않으며 새 회차에 다시 응시할 수 있습니다."
+                  : isPlacement
+                    ? "배점별 정답 수와 핵심 문항 결과가 초기 랭크 산정 자료로 저장되었습니다."
+                    : "오답 해설을 확인한 뒤 새 회차에 응시할 수 있습니다." %>
               </p>
             </div>
-            <a href="/assessments">
-              평가 센터로 돌아가기
+            <a href="<%= backUrl %>">
+              <%= isPlacement ? "War of GOAT으로 돌아가기" : "평가 센터로 돌아가기" %>
             </a>
           </footer>
         <% } %>
       </form>
+      <% } else { %>
+        <section class="paper-submit result-actions placement-secure-actions">
+          <div>
+            <span>
+              <%= disqualified
+                ? "DISQUALIFIED"
+                : "CONFIDENTIAL RESULT" %>
+            </span>
+            <strong>
+              <%= disqualified
+                ? "제한 시간 초과"
+                : `${placementTotalCorrect}문항 정답 · ${attempt.placementResult?.initialTier || "배치 산정 중"}` %>
+            </strong>
+            <p>
+              <%= disqualified
+                ? "이번 배치는 채점하지 않았습니다."
+                : "배치고사 문항·제출 답·정답·해설은 비공개이며 집계 결과와 랭킹만 제공합니다." %>
+            </p>
+          </div>
+          <a href="<%= backUrl %>">War of GOAT으로 돌아가기</a>
+        </section>
+      <% } %>
     </main>
     </div>
     <% if (!terminal) { %>
@@ -510,9 +706,18 @@
         attemptId: String(attempt._id),
         timeLimitMs,
         remainingTimeMs,
-        draftUrl: `/api/assessments/${attempt._id}/draft`,
-        expireUrl: `/api/assessments/${attempt._id}/expire`,
-        attemptUrl: `/assessments/${attempt._id}`,
+        draftUrl: isPlacement
+          ? `/api/war-of-masters/placement/${attempt._id}/draft`
+          : `/api/assessments/${attempt._id}/draft`,
+        expireUrl: isPlacement
+          ? `/api/war-of-masters/placement/${attempt._id}/expire`
+          : `/api/assessments/${attempt._id}/expire`,
+        attemptUrl: isPlacement
+          ? `/war-of-masters/placement/${attempt._id}`
+          : `/assessments/${attempt._id}`,
+        backUrl,
+        placement: isPlacement,
+        initialQuestionIndex,
       }).replace(/</g, "\\u003c") %></script>
     <% } %>
   </body>

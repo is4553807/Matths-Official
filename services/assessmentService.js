@@ -1771,6 +1771,9 @@ async function getAssessmentCenterData(
       }).lean(),
       AssessmentAttempt.find({
         userId,
+        scopeType: {
+          $ne: "placement",
+        },
         status: {
           $in: [
             "submitted",
@@ -2366,6 +2369,9 @@ async function expireOverdueAssessments(
   const attempts =
     await AssessmentAttempt.find({
       userId,
+      scopeType: {
+        $ne: "placement",
+      },
       status: "in-progress",
     });
   const now = Date.now();
@@ -2406,6 +2412,9 @@ async function saveAssessmentDraft({
     await AssessmentAttempt.findOne({
       _id: attemptId,
       userId,
+      scopeType: {
+        $ne: "placement",
+      },
     });
 
   if (!attempt) {
@@ -2507,6 +2516,9 @@ async function expireAssessmentAttempt({
     await AssessmentAttempt.findOne({
       _id: attemptId,
       userId,
+      scopeType: {
+        $ne: "placement",
+      },
     });
 
   if (!attempt) {
@@ -2731,6 +2743,9 @@ async function submitAssessmentAttempt({
     await AssessmentAttempt.findOne({
       _id: attemptId,
       userId,
+      scopeType: {
+        $ne: "placement",
+      },
     });
 
   if (!attempt) {
@@ -2854,6 +2869,9 @@ async function getAssessmentAttempt({
     await AssessmentAttempt.findOne({
       _id: attemptId,
       userId,
+      scopeType: {
+        $ne: "placement",
+      },
     });
 
   if (!attempt) {

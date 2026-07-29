@@ -6,7 +6,7 @@ MongoDB 드라이버를 사용하지 않고 `https://<server>/api/v1`만 호출�
 ## 보안 원칙
 
 - 운영 서버는 반드시 HTTPS를 사용합니다.
-- `DB`, `SECRET`, `API_TOKEN_SECRET`, `EMAIL_API_KEY`를 앱에 넣지 않습니다.
+- `DB`, `SECRET`, `API_TOKEN_SECRET`, `GMAIL_APP_PASSWORD`를 앱에 넣지 않습니다.
 - 로그인 응답의 `accessToken`은 iOS Keychain에 저장합니다.
 - 인증 요청에는 `Authorization: Bearer <accessToken>`을 붙입니다.
 - 비밀번호가 바뀌면 기존 접근 토큰은 자동으로 무효화됩니다.
@@ -64,12 +64,14 @@ MongoDB 드라이버를 사용하지 않고 `https://<server>/api/v1`만 호출�
 3. `POST /api/v1/auth/password-reset/complete` — 검증 응답의 `resetId`,
    `userId`와 새 비밀번호를 전송
 
-운영 환경에서는 `EMAIL_API_KEY`와 인증된
-`admin@lsbproduction.com` 발신 도메인이 필요합니다.
+운영 환경에서는 서버에 `GMAIL_USER`와
+`GMAIL_APP_PASSWORD`를 설정해야 합니다. iPad 앱에는 두 값을
+포함하지 않습니다.
 
 ## 학습 데이터
 
 - `GET /api/v1/me`
+- `DELETE /api/v1/me`
 - `PATCH /api/v1/me/ranking-identity`
 - `GET /api/v1/curriculum`
 - `GET /api/v1/learning`
@@ -85,12 +87,28 @@ MongoDB 드라이버를 사용하지 않고 `https://<server>/api/v1`만 호출�
 
 ```json
 {
-  "realName": "이학생",
   "rankingDisplayMode": "nickname"
 }
 ```
 
 `rankingDisplayMode`는 `nickname` 또는 `realName`만 허용합니다.
+실명은 회원가입 때 등록한 값으로 고정되며 이 API에서 변경할 수
+없습니다.
+
+계정 탈퇴:
+
+```json
+{
+  "password": "현재 비밀번호",
+  "confirmation": "탈퇴",
+  "acknowledgeAnonymousRetention": true
+}
+```
+
+`DELETE /api/v1/me`는 실명·이메일·닉네임·정확한 학교와 로그인
+정보를 제거합니다. 문제 풀이, 평가 결과와 소요 시간 등 학습 기록은
+항상 익명 데이터로 보존하며, 탈퇴한 계정과 기존 토큰은 복구하거나
+다시 사용할 수 없습니다.
 
 ## 40초 눈풀이
 

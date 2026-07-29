@@ -1,0 +1,214 @@
+.restriction-main {
+  min-width: 0;
+  padding-bottom: 80px;
+}
+
+.restriction-main > section,
+.restriction-main > .restriction-actions {
+  width: min(1120px, calc(100% - 48px));
+  margin-inline: auto;
+}
+
+.restriction-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 28px;
+  margin-top: 32px;
+  padding: clamp(30px, 5vw, 54px);
+  color: #fff;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(255, 255, 255, 0.14), transparent 28%),
+    linear-gradient(135deg, #171d35, #2c3454);
+  border-radius: 26px;
+  box-shadow: 0 24px 60px rgba(17, 23, 43, 0.16);
+}
+
+.restriction-hero.is-restricted {
+  background:
+    radial-gradient(circle at 90% 10%, rgba(255, 255, 255, 0.15), transparent 28%),
+    linear-gradient(135deg, #381a27, #8d2941);
+}
+
+.restriction-hero p,
+.restriction-card header p,
+.restriction-reason > div p {
+  margin: 0 0 9px;
+  color: #9bb0ff;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+}
+
+.restriction-hero.is-restricted p {
+  color: #ffc1cc;
+}
+
+.restriction-hero h2 {
+  max-width: 720px;
+  margin: 0;
+  font-size: clamp(24px, 3vw, 40px);
+  line-height: 1.25;
+  letter-spacing: -1.2px;
+}
+
+.restriction-hero div > span {
+  display: block;
+  max-width: 700px;
+  margin-top: 14px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.restriction-hero > strong {
+  min-width: 135px;
+  display: grid;
+  gap: 5px;
+  color: #fff;
+  font-size: 38px;
+  text-align: right;
+}
+
+.restriction-hero > strong small {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 9px;
+}
+
+.restriction-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.restriction-card,
+.restriction-reason {
+  padding: 28px;
+  background: #fff;
+  border: 1px solid #e1e5ef;
+  border-radius: 20px;
+}
+
+.restriction-card-important {
+  border-top: 4px solid #dc4d60;
+}
+
+.restriction-card header h2,
+.restriction-reason h2 {
+  margin: 0;
+  color: #171b30;
+  font-size: 19px;
+}
+
+.restriction-card dl {
+  display: grid;
+  gap: 0;
+  margin: 20px 0 0;
+}
+
+.restriction-card dl > div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 14px;
+  padding: 13px 0;
+  border-top: 1px solid #edf0f5;
+}
+
+.restriction-card dt {
+  color: #7b8499;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.restriction-card dd {
+  margin: 0;
+  color: #242a40;
+  font-size: 11px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.restriction-reason {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 24px;
+  margin-top: 18px;
+}
+
+.restriction-reason > p {
+  margin: 0;
+  color: #2f354b;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.restriction-reason > small {
+  grid-column: 2;
+  color: #7b8499;
+  font-size: 9px;
+  line-height: 1.7;
+}
+
+.restriction-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.restriction-actions a {
+  padding: 12px 16px;
+  color: #48516a;
+  background: #fff;
+  border: 1px solid #dfe4ef;
+  border-radius: 11px;
+  font-size: 10px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.restriction-actions a.primary {
+  color: #fff;
+  background: #3157f6;
+  border-color: #3157f6;
+}
+
+@media (max-width: 760px) {
+  .restriction-main > section,
+  .restriction-main > .restriction-actions {
+    width: min(100% - 24px, 1120px);
+  }
+
+  .restriction-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .restriction-hero > strong {
+    text-align: left;
+  }
+
+  .restriction-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .restriction-reason {
+    grid-template-columns: 1fr;
+  }
+
+  .restriction-reason > small {
+    grid-column: auto;
+  }
+
+  .restriction-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .restriction-actions a {
+    text-align: center;
+  }
+}

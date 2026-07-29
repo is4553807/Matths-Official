@@ -15,6 +15,7 @@
     <meta name="theme-color" content="#f7f8fc" />
     <title>Matths — 수학이 보이면, 풀이가 시작된다</title>
     <link rel="stylesheet" href="/css/index.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
     <script src="/js/index.js" defer></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
@@ -24,45 +25,7 @@
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
 
-    <header class="site-header">
-      <nav class="navbar container" aria-label="주요 메뉴">
-        <a class="brand" href="/" aria-label="Matths 홈" aria-current="page">
-          <span class="brand-mark" aria-hidden="true">M</span>
-          <span>Matths</span>
-        </a>
-
-        <div class="nav-links">
-          <a href="/intro">서비스 소개</a>
-          <a href="/visual-learning">시각화 학습</a>
-          <a href="/learning-flow">학습 과정</a>
-          <a href="/curriculum">교육과정</a>
-          <a href="/faq">FAQ</a>
-        </div>
-
-        <div class="nav-actions">
-          <% if (loggedIn) { %>
-            <a class="login-link" href="/main">대시보드</a>
-          <% } else { %>
-            <a class="login-link" href="/login">로그인</a>
-          <% } %>
-          <a class="button button-primary button-small" href="<%= primaryHref %>">
-            <%= primaryLabel %>
-          </a>
-        </div>
-
-        <details class="mobile-menu">
-          <summary aria-label="메뉴 열기"><span></span><span></span><span></span></summary>
-          <div>
-            <a href="/intro">서비스 소개</a>
-            <a href="/visual-learning">시각화 학습</a>
-            <a href="/learning-flow">학습 과정</a>
-            <a href="/curriculum">교육과정</a>
-            <a href="/faq">FAQ</a>
-            <% if (!loggedIn) { %><a href="/login">로그인</a><% } %>
-          </div>
-        </details>
-      </nav>
-    </header>
+    <%- include("partials/public-navigation", { activePage: "home" }) %>
 
     <main id="main-content">
       <section class="hero">
@@ -164,6 +127,84 @@
           <div><strong>Visual</strong><span>공식의 원리를 장면으로</span></div>
           <div><strong>Practice</strong><span>개념에서 실제 문제까지</span></div>
           <a href="/curriculum">교육과정 보기 <span aria-hidden="true">→</span></a>
+        </div>
+      </section>
+
+      <section class="ranking-intro" id="ranking-system">
+        <div class="container">
+          <header class="ranking-intro-heading">
+            <div>
+              <p>War of GOAT · RANK SYSTEM</p>
+              <h2>War of GOAT,<br /><strong>티어보다 실력을 정확하게.</strong></h2>
+            </div>
+            <p>
+              한 번의 점수만 보지 않습니다. 전체 성적, 심화 문항 수행,
+              실수의 안정성을 함께 반영해 MMR을 계산하고 같은 티어 안에서는
+              0–99 RP로 다음 승급까지의 거리를 보여줍니다.
+            </p>
+          </header>
+
+          <div class="mmr-explainer">
+            <article>
+              <span>01</span>
+              <h3>총점 백분위 70%</h3>
+              <p>전체 응시자 중 현재 위치를 가장 큰 비중으로 반영합니다.</p>
+            </article>
+            <article>
+              <span>02</span>
+              <h3>심화 수행 20%</h3>
+              <p>4점·준킬러·킬러 문항에서 드러난 문제 해결력을 반영합니다.</p>
+            </article>
+            <article>
+              <span>03</span>
+              <h3>안정성 10%</h3>
+              <p>3점 문항의 불필요한 실수와 풀이 일관성을 반영합니다.</p>
+            </article>
+          </div>
+
+          <div class="tier-board" aria-label="MMR 티어표">
+            <% [
+              ["브론즈", "0–799", "bronze"],
+              ["실버", "800–924", "silver"],
+              ["골드", "925–1024", "gold"],
+              ["플래티넘", "1025–1119", "platinum"],
+              ["에메랄드", "1120–1209", "emerald"],
+              ["다이아몬드", "1210–1329", "diamond"],
+              ["마스터", "1330–1439", "master"],
+              ["그랜드마스터", "1440–1519", "grandmaster"],
+              ["챌린저", "1520+", "challenger"],
+            ].forEach(([tier, range, className], index) => { %>
+              <article class="<%= className %>">
+                <span><%= String(index + 1).padStart(2, "0") %></span>
+                <strong><%= tier %></strong>
+                <small>MMR <%= range %></small>
+              </article>
+            <% }) %>
+          </div>
+
+          <div class="mmr-rule">
+            <div>
+              <p>HOW MMR MOVES</p>
+              <h3>예상보다 잘하면 더 오르고,<br />성장하면 보너스를 받습니다.</h3>
+            </div>
+            <dl>
+              <div><dt>기본 변화</dt><dd>K × (실제 성과 − 예상 성과)</dd></div>
+              <div><dt>K 계수</dt><dd>초기 200 · 3–5회 140 · 안정화 후 100</dd></div>
+              <div><dt>복귀 계수</dt><dd>35일 이상 미응시 후 160</dd></div>
+              <div><dt>성장 보너스</dt><dd>향상 폭에 따라 +2 · +5 · +8 · +12</dd></div>
+            </dl>
+            <p>
+              배치 결과에 특이 패턴이 있으면 준킬러 2문항과 킬러 2문항으로
+              한 번 더 확인한 뒤 초기 MMR을 확정합니다. 이후 매주 일요일
+              A·B·C형을 최대 세 번 응시하고 대표 표준화 성적을 선택하며,
+              여러 번 응시한 기록은 최고 성적 중심의 안정성 보정으로 장기
+              MMR에 반영됩니다.
+            </p>
+            <a class="button button-primary button-large" href="<%= loggedIn ? '/war-of-masters' : '/register' %>">
+              <%= loggedIn ? "War of GOAT 입장" : "회원가입하고 준비하기" %>
+              <span aria-hidden="true">→</span>
+            </a>
+          </div>
         </div>
       </section>
     </main>

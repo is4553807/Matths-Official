@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>풀이과정 제출 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/private-mock-exams.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="private-mock-exam-body">
+    <main class="private-mock-exam-shell">
+      <header class="private-mock-exam-header">
+        <a class="brand" href="/" aria-label="Matths 메인">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <span>Matths</span>
+        </a>
+        <div>
+          <p>INTEGRITY REVIEW</p>
+          <h1>풀이과정 제출</h1>
+        </div>
+        <a class="learning-home-button" href="/notifications">알림 우편함으로 <span aria-hidden="true">→</span></a>
+      </header>
+
+      <section class="private-mock-integrity-card">
+        <div class="integrity-alert" role="alert">
+          <strong>중요 · 시험 기록 확인이 필요합니다.</strong>
+          <p>이 요청은 부정행위 확정 통보가 아닙니다. 지정 문항의 풀이과정을 제출하면 시험 로그와 함께 검토합니다.</p>
+        </div>
+
+        <% if (feedback) { %>
+          <div class="archive-feedback success"><%= feedback %></div>
+        <% } %>
+
+        <header>
+          <div>
+            <p><%= integrityCase.examId?.formCode || "" %>형 · <%= integrityCase.examId?.title || "사설 모의고사" %></p>
+            <h2><%= integrityCase.requestedQuestionNumbers.join(", ") %>번 풀이과정을 제출해주세요.</h2>
+          </div>
+          <span class="private-mock-status"><%= integrityCase.status %></span>
+        </header>
+
+        <dl class="private-mock-integrity-meta">
+          <div><dt>제출 기한</dt><dd><%= new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long", timeStyle: "short" }).format(new Date(integrityCase.evidenceRequest.deadlineAt)) %></dd></div>
+          <div><dt>요청 문항</dt><dd><%= integrityCase.requestedQuestionNumbers.map((number) => `${number}번`).join(", ") %></dd></div>
+          <div><dt>현재 상태</dt><dd><%= integrityCase.status === "SUBMITTED" ? "제출 완료 · 검토 대기" : "풀이과정 제출 필요" %></dd></div>
+        </dl>
+
+        <% if (integrityCase.evidenceSubmissions.length) { %>
+          <section class="private-mock-evidence-history">
+            <h3>제출 내역</h3>
+            <% integrityCase.evidenceSubmissions.forEach((submission) => { %>
+              <article>
+                <strong>접수번호 <%= submission.receiptId %></strong>
+                <span><%= submission.files.length %>개 파일 · <%= new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(submission.submittedAt)) %></span>
+              </article>
+            <% }) %>
+          </section>
+        <% } %>
+
+        <% if (integrityCase.canSubmit) { %>
+          <form class="private-mock-evidence-form" action="/integrity/cases/<%= integrityCase.id %>/evidence" method="POST" enctype="multipart/form-data">
+            <label>
+              <span>풀이과정 파일</span>
+              <input type="file" name="evidenceFiles" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" multiple required />
+              <small>사진 또는 PDF를 최대 10개, 파일당 15MB 이하로 올려주세요.</small>
+            </label>
+            <label>
+              <span>관리자에게 전할 내용</span>
+              <textarea name="note" rows="5" maxlength="2000" placeholder="풀이 방식이나 파일 순서를 적어주세요."></textarea>
+            </label>
+            <button type="submit">풀이과정 제출</button>
+          </form>
+        <% } else { %>
+          <p class="private-mock-evidence-closed">현재는 추가 파일을 제출할 수 없습니다. 검토 결과는 알림 우편함으로 안내합니다.</p>
+        <% } %>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,285 @@
+<%
+  const formatDateTime = (value) =>
+    value
+      ? new Intl.DateTimeFormat("ko-KR", {
+          timeZone: "Asia/Seoul",
+          dateStyle: "medium",
+          timeStyle: "medium",
+        }).format(new Date(value))
+      : "기록 없음";
+  const formatDuration = (value) => {
+    const seconds = Math.max(0, Math.floor((Number(value) || 0) / 1000));
+    return `${Math.floor(seconds / 60)}분 ${seconds % 60}초`;
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= detail.exam.title %> 응시 데이터 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/private-mock-exams.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <script src="/js/admin-private-mock-detail.js" defer></script>
+    <script>
+      window.MathJax = {
+        tex: { inlineMath: [["$", "$"], ["\\(", "\\)"]], displayMath: [["\\[", "\\]"]], processEscapes: true },
+        options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] },
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js" defer></script>
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "private-mock-exams" }) %>
+    <main class="admin-main">
+      <a class="admin-back" href="/admin/private-mock-exams">← 사설 모의고사 관리</a>
+      <header class="admin-heading">
+        <div>
+          <p>EXAM AUDIT</p>
+          <h1><%= detail.exam.title %></h1>
+          <span><%= detail.exam.formCode %>형 · <%= formatDateTime(detail.exam.releaseAt) %> · 답안, 채점 결과, 화면 이벤트와 소명 자료</span>
+        </div>
+        <strong><%= detail.attempts.length %><small>개 응시</small></strong>
+      </header>
+
+      <% if (feedback) { %>
+        <div class="admin-feedback admin-feedback--<%= feedback.type %>" role="<%= feedback.type === "error" ? "alert" : "status" %>">
+          <span aria-hidden="true"><%= feedback.type === "error" ? "!" : "✓" %></span>
+          <%= feedback.message %>
+        </div>
+      <% } %>
+
+      <details class="admin-panel private-mock-answer-correction">
+        <summary>
+          <div>
+            <span>ANSWER CORRECTION</span>
+            <strong>정답 일괄 정정·전체 재채점</strong>
+          </div>
+          <small>시험 종료 후 사용 · 랭킹과 MMR 자동 재산출</small>
+        </summary>
+        <div class="private-mock-correction-warning">
+          저장 즉시 모든 응시 답안을 다시 채점하고, 표준화 성적·주간 랭킹·시즌 MMR을 처음부터 다시 계산합니다. 응시자 전원에게 정정 이메일과 우편함 알림이 전송됩니다.
+        </div>
+        <form
+          action="/admin/private-mock-exams/<%= detail.exam.id %>/answer-corrections"
+          method="POST"
+          data-answer-correction-form
+        >
+          <div data-answer-correction-rows>
+            <fieldset data-answer-correction-row>
+              <legend>정정 문항 1</legend>
+              <label>
+                <span>문항 번호</span>
+                <input name="questionNumbers" type="number" min="1" max="<%= detail.exam.questionCount %>" required />
+              </label>
+              <label>
+                <span>새 정답</span>
+                <input name="newAnswers" type="text" maxlength="80" placeholder="객관식 1~5 / 주관식 정답" required />
+              </label>
+              <label class="wide">
+                <span>문제 내용</span>
+                <textarea name="questionContents" rows="3" maxlength="3000" placeholder="정정 안내 이메일에 들어갈 문항의 핵심 내용을 적어주세요." required></textarea>
+              </label>
+              <button type="button" data-remove-correction hidden>이 문항 제거</button>
+            </fieldset>
+          </div>
+          <button class="admin-secondary-button" type="button" data-add-correction>+ 정정 문항 추가</button>
+          <label class="private-mock-correction-reason">
+            <span>정정 사유</span>
+            <textarea name="reason" rows="5" minlength="5" maxlength="2000" placeholder="오류 발생 원인과 정정 사유를 구체적으로 적어주세요. 이 내용은 응시자 전원에게 전달됩니다." required></textarea>
+          </label>
+          <button class="admin-danger-button" type="submit">정답 정정·전체 재채점 실행</button>
+        </form>
+      </details>
+
+      <% if (!detail.attempts.length) { %>
+        <section class="admin-panel"><p class="admin-empty">아직 이 회차에 응시한 사용자가 없습니다.</p></section>
+      <% } %>
+
+      <div class="private-mock-admin-attempts">
+        <% detail.attempts.forEach((attempt) => { %>
+          <details id="attempt-<%= attempt.id %>" class="admin-panel private-mock-admin-attempt" <%= attempt.integrityCase ? "open" : "" %>>
+            <summary>
+              <div>
+                <strong><%= attempt.userId?.realName || attempt.userId?.name || "탈퇴 사용자" %></strong>
+                <span><%= attempt.userId?.name ? `닉네임 ${attempt.userId.name} · ` : "" %><%= attempt.userId?.email || "익명화 계정" %> · <%= attempt.status %></span>
+              </div>
+              <div>
+                <b><%= attempt.score %>점</b>
+                <span>표준화 <%= attempt.standardMetrics?.calculatedAt ? (Number(attempt.standardMetrics.actualPerformance || 0) * 100).toFixed(1) : "집계 전" %></span>
+              </div>
+            </summary>
+
+            <section class="private-mock-admin-metrics">
+              <div><small>정답</small><strong><%= attempt.correctCount %> / <%= detail.exam.questionCount %></strong></div>
+              <div><small>소요 시간</small><strong><%= formatDuration(attempt.elapsedMs) %></strong></div>
+              <div><small>답안 저장 이벤트</small><strong><%= attempt.events.length %>건</strong></div>
+              <div><small>무결성 상태</small><strong><%= attempt.integrityStatus %></strong></div>
+            </section>
+
+            <% if (attempt.integrityCase) { %>
+              <section class="integrity-alert private-mock-integrity-review" id="integrity-<%= attempt.integrityCase._id %>">
+                <header>
+                  <div>
+                    <span>INTEGRITY REVIEW</span>
+                    <strong>소명 자료 검토</strong>
+                  </div>
+                  <b><%= attempt.integrityCase.status %> · 위험 점수 <%= attempt.integrityCase.riskScore %></b>
+                </header>
+                <dl class="private-mock-integrity-fields">
+                  <div><dt>요청 문항</dt><dd><%= attempt.integrityCase.requestedQuestionNumbers.length ? `${attempt.integrityCase.requestedQuestionNumbers.join(", ")}번` : "지정 문항 없음" %></dd></div>
+                  <div><dt>유저 실명</dt><dd><%= attempt.userId?.realName || attempt.userId?.name || "익명화 사용자" %></dd></div>
+                  <div><dt>요청 날짜</dt><dd><%= formatDateTime(attempt.integrityCase.evidenceRequest?.requestedAt) %></dd></div>
+                  <div><dt>감지 신호</dt><dd><%= attempt.integrityCase.suspicionSignals.length ? attempt.integrityCase.suspicionSignals.map((signal) => signal.code).join(", ") : "관리자 수동 요청" %></dd></div>
+                </dl>
+
+                <% if (!attempt.integrityCase.evidenceSubmissions.length) { %>
+                  <p class="private-mock-evidence-empty">아직 유저가 소명 자료를 제출하지 않았습니다.</p>
+                <% } %>
+                <% attempt.integrityCase.evidenceSubmissions.forEach((submission) => { %>
+                  <article class="private-mock-admin-evidence">
+                    <dl>
+                      <div><dt>접수 번호</dt><dd><code><%= submission.receiptId %></code></dd></div>
+                      <div><dt>제출 날짜</dt><dd><%= formatDateTime(submission.submittedAt) %></dd></div>
+                      <div class="wide"><dt>유저가 업로드한 소명 자료</dt><dd class="private-mock-evidence-files">
+                        <% submission.files.forEach((file) => { %>
+                          <a
+                            class="private-mock-evidence-preview"
+                            href="/admin/integrity-cases/<%= attempt.integrityCase._id %>/evidence/<%= file.archiveItemId %>/preview"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >안전 열람 · <%= file.originalName %></a>
+                        <% }) %>
+                      </dd></div>
+                      <div class="wide"><dt>유저가 적은 메시지</dt><dd class="private-mock-evidence-message"><%= submission.note || "작성한 메시지가 없습니다." %></dd></div>
+                    </dl>
+                  </article>
+                <% }) %>
+
+                <form
+                  class="admin-form private-mock-integrity-decision"
+                  action="/admin/private-mock-exams/<%= detail.exam.id %>/integrity/<%= attempt.integrityCase._id %>/review"
+                  method="POST"
+                  data-integrity-review-form
+                >
+                  <label><span>소명자료 검토 상태</span>
+                    <select name="reviewStatus" required>
+                      <option value="unreviewed" <%= (attempt.integrityCase.reviewStatus || "unreviewed") === "unreviewed" ? "selected" : "" %>>미검토</option>
+                      <option value="reviewing" <%= attempt.integrityCase.reviewStatus === "reviewing" ? "selected" : "" %>>검토중</option>
+                      <option value="completed" <%= attempt.integrityCase.reviewStatus === "completed" ? "selected" : "" %>>검토완료</option>
+                    </select>
+                  </label>
+                  <label><span>페널티 부여 여부</span>
+                    <select name="penaltyDecision" required data-penalty-select>
+                      <option value="pending" <%= (attempt.integrityCase.penaltyDecision || "pending") === "pending" ? "selected" : "" %>>결정 전</option>
+                      <option value="no_penalty" <%= attempt.integrityCase.penaltyDecision === "no_penalty" ? "selected" : "" %>>부여안함</option>
+                      <option value="penalty" <%= attempt.integrityCase.penaltyDecision === "penalty" ? "selected" : "" %>>부여함</option>
+                    </select>
+                  </label>
+                  <label class="wide" data-penalty-reason>
+                    <span>판단·페널티 사유</span>
+                    <textarea name="reason" rows="3" maxlength="2000" placeholder="검토 판단 근거를 기록해주세요. 페널티 부여 시 5자 이상 필수입니다."><%= attempt.integrityCase.decision?.reason || "" %></textarea>
+                  </label>
+                  <p class="wide">페널티는 자동 부여되지 않습니다. 관리자가 “부여함”으로 저장할 때만 이후 3회차 응시 제한, 이메일, 우편함 및 대시보드 알림이 적용됩니다.</p>
+                  <button type="submit">검토 결과 저장</button>
+                </form>
+              </section>
+            <% } else if (attempt.status === "submitted") { %>
+              <form
+                class="private-mock-admin-integrity-request"
+                action="/admin/private-mock-exams/<%= detail.exam.id %>/attempts/<%= attempt.id %>/integrity-request"
+                method="POST"
+                onsubmit="return window.confirm('이 유저에게 우편함과 이메일로 풀이과정 제출을 요청할까요?');"
+              >
+                <div>
+                  <strong>관리자 수동 소명 자료 요청</strong>
+                  <span>자동 감지 여부와 관계없이 같은 소명 업로드 절차를 시작합니다.</span>
+                </div>
+                <label>
+                  <span>요청 문항</span>
+                  <input name="requestedQuestionNumbers" value="<%= attempt.incorrectQuestionNumbers.join(", ") %>" placeholder="예: 20, 21, 28, 30" required />
+                </label>
+                <label>
+                  <span>요청 안내</span>
+                  <textarea name="instructions" rows="3" maxlength="1000">지정 문항의 전체 풀이과정을 사진 또는 PDF로 제출해주세요.</textarea>
+                </label>
+                <button type="submit">소명 자료 요청</button>
+              </form>
+            <% } %>
+
+            <div class="private-mock-review-grid admin-review-grid">
+              <% attempt.review.forEach((question) => { %>
+                <article class="<%= question.isCorrect ? "correct" : "incorrect" %>">
+                  <header><strong><%= question.number %>번</strong><span><%= question.isCorrect ? "정답" : "오답" %> · <%= question.points %>점</span></header>
+                  <% if (question.mode === "multiple-choice") { %>
+                    <div class="private-mock-review-omr">
+                      <% [1, 2, 3, 4, 5].forEach((choice) => {
+                        const selected = String(question.submittedAnswer) === String(choice);
+                      %>
+                        <span class="<%= selected ? (question.isCorrect ? "selected correct" : "selected incorrect") : "" %>"><%= choice %></span>
+                      <% }) %>
+                    </div>
+                    <div class="private-mock-review-written">
+                      <span>정답 <strong><%= question.correctAnswer %></strong></span>
+                    </div>
+                  <% } else { %>
+                    <div class="private-mock-review-written">
+                      <span>제출 답 <strong><%= question.submittedAnswer || "미응답" %></strong></span>
+                      <span>정답 <strong><%= question.correctAnswer %></strong></span>
+                    </div>
+                  <% } %>
+                  <% if (!question.isCorrect) { %>
+                    <details class="private-mock-explanation" data-admin-math-details>
+                      <summary>유저에게 공개되는 해설 미리보기</summary>
+                      <% if (question.explanation) { %>
+                        <% if (question.explanation.intent) { %><p><strong>출제 의도</strong><span><%= question.explanation.intent %></span></p><% } %>
+                        <% if (question.explanation.concept) { %><p><strong>핵심 개념</strong><span><%= question.explanation.concept %></span></p><% } %>
+                        <% if (question.explanation.steps?.length) { %><ol><% question.explanation.steps.forEach((step) => { %><li><%= step %></li><% }) %></ol><% } %>
+                        <% if (question.explanation.summary) { %><p><strong>정리</strong><span><%= question.explanation.summary %></span></p><% } %>
+                        <% if (question.explanation.commonMistake) { %><p class="mistake"><strong>자주 하는 실수</strong><span><%= question.explanation.commonMistake %></span></p><% } %>
+                      <% } else { %>
+                        <p class="private-mock-explanation-missing">이 회차를 등록할 때 DB에 저장된 해설이 없습니다. 업로드한 답지 JSON의 <code>explanations</code> 항목을 확인해주세요.</p>
+                      <% } %>
+                    </details>
+                  <% } %>
+                </article>
+              <% }) %>
+            </div>
+
+            <details class="private-mock-event-log">
+              <summary>전체 이벤트 로그 <%= attempt.events.length %>건</summary>
+              <ol>
+                <% attempt.events.forEach((event) => { %>
+                  <li><time><%= formatDateTime(event.serverAt) %></time><strong><%= event.eventType %></strong><span><%= event.questionNumber ? `${event.questionNumber}번` : "" %> <%= JSON.stringify(event.metadata || {}) %></span></li>
+                <% }) %>
+              </ol>
+            </details>
+          </details>
+        <% }) %>
+      </div>
+    </main>
+    <script>
+      document.querySelectorAll("[data-admin-math-details]").forEach((details) => {
+        details.addEventListener("toggle", () => {
+          if (details.open && window.MathJax?.typesetPromise) {
+            window.MathJax.typesetPromise([details]).catch(() => {});
+          }
+        });
+      });
+      document.querySelectorAll("[data-integrity-review-form]").forEach((form) => {
+        const select = form.querySelector("[data-penalty-select]");
+        const reason = form.querySelector("[data-penalty-reason]");
+        const textarea = reason?.querySelector("textarea");
+        const sync = () => {
+          const applies = select?.value === "penalty";
+          reason?.classList.toggle("is-required", applies);
+          if (textarea) textarea.required = applies;
+        };
+        select?.addEventListener("change", sync);
+        sync();
+      });
+    </script>
+  </body>
+</html>

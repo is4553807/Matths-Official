@@ -42,6 +42,16 @@ const {
   normalizeRankingDisplayMode,
   validateRealName,
 } = require("../services/userIdentityService");
+const {
+  accountBlockedMessage,
+  synchronizeAccountAccess,
+} = require("../services/accountAccessService");
+const {
+  withdrawOwnAccount,
+} = require("../services/accountDeletionService");
+const {
+  nicknameKey,
+} = require("../services/nicknameService");
 
 const BCRYPT_ROUNDS = 12;
 
@@ -223,10 +233,32 @@ exports.register = async (
       });
     }
 
-    const existing =
-      await User.exists({
+    const [
+      existing,
+      existingNickname,
+    ] = await Promise.all([
+      User.exists({
         email,
-      });
+      }),
+      User.exists({
+        $or: [
+          {
+            nameNormalized:
+              nicknameKey(name),
+          },
+          {
+            name: {
+              $regex:
+                `^${name.replace(
+                  /[.*+?^${}()|[\]\\]/g,
+                  "\\$&"
+                )}$`,
+              $options: "i",
+            },
+          },
+        ],
+      }),
+    ]);
 
     if (existing) {
       return res.status(409).json({
@@ -236,10 +268,21 @@ exports.register = async (
       });
     }
 
+    if (existingNickname) {
+      return res.status(409).json({
+        code:
+          "NICKNAME_EXISTS",
+        message:
+          "이미 사용 중인 닉네임입니다.",
+      });
+    }
+
     const now = new Date();
     const user = await User.create({
       realName,
       name,
+      nameNormalized:
+        nicknameKey(name),
       email,
       passwordHash:
         await bcrypt.hash(
@@ -273,9 +316,16 @@ exports.register = async (
       error.code === 11000
     ) {
       return res.status(409).json({
-        code: "EMAIL_EXISTS",
+        code:
+          error.keyPattern
+            ?.nameNormalized
+            ? "NICKNAME_EXISTS"
+            : "EMAIL_EXISTS",
         message:
-          "이미 가입된 이메일입니다.",
+          error.keyPattern
+            ?.nameNormalized
+            ? "이미 사용 중인 닉네임입니다."
+            : "이미 가입된 이메일입니다.",
       });
     }
 
@@ -299,7 +349,6 @@ exports.login = async (
     );
     const user = await User.findOne({
       email,
-      isActive: true,
     }).select("+passwordHash");
 
     if (
@@ -316,9 +365,30 @@ exports.login = async (
       });
     }
 
+    const access =
+      await synchronizeAccountAccess(
+        user._id
+      );
+
+    if (
+      !access ||
+      !access.allowed
+    ) {
+      return res.status(403).json({
+        code:
+          "ACCOUNT_BLOCKED",
+        message:
+          accountBlockedMessage(
+            access?.status,
+            access?.user
+              ?.accountStatusReason
+          ),
+      });
+    }
+
     const synchronized =
       await synchronizeUserLifecycle(
-        user._id
+        access.user._id
       );
     synchronized.lastLoginAt =
       new Date();
@@ -337,29 +407,44 @@ exports.me = (req, res) =>
     user: serializeUser(req.apiUser),
   });
 
+exports.withdrawMe = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await withdrawOwnAccount({
+      userId: req.apiUser._id,
+      password:
+        req.body.password,
+      confirmation:
+        req.body.confirmation,
+      acknowledgeAnonymousRetention:
+        req.body
+          .acknowledgeAnonymousRetention,
+    });
+
+    return res.json({
+      withdrawn: true,
+      dataRetention: "anonymous",
+      message:
+        "개인정보는 제거되었고 학습 데이터는 익명으로 보존됩니다.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.updateRankingIdentity = async (
   req,
   res,
   next
 ) => {
   try {
-    const realNameValidation =
-      validateRealName(
-        req.body.realName ??
-          req.apiUser.realName
-      );
     const rankingDisplayMode =
       normalizeRankingDisplayMode(
         req.body.rankingDisplayMode
       );
-
-    if (!realNameValidation.valid) {
-      return res.status(400).json({
-        code: "INVALID_REAL_NAME",
-        message:
-          realNameValidation.message,
-      });
-    }
 
     if (!rankingDisplayMode) {
       return res.status(400).json({
@@ -370,12 +455,23 @@ exports.updateRankingIdentity = async (
       });
     }
 
+    if (
+      rankingDisplayMode === "realName" &&
+      !String(
+        req.apiUser.realName || ""
+      ).trim()
+    ) {
+      return res.status(400).json({
+        code: "REAL_NAME_NOT_REGISTERED",
+        message:
+          "회원가입 때 등록한 실명이 없어 실명으로 표시할 수 없습니다.",
+      });
+    }
+
     const user =
       await User.findByIdAndUpdate(
         req.apiUser._id,
         {
-          realName:
-            realNameValidation.realName,
           "preferences.rankingDisplayMode":
             rankingDisplayMode,
         },

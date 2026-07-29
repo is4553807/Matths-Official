@@ -150,64 +150,6 @@
     });
   }
 
-  function initCoachMode() {
-    const coach = document.querySelector(".coach-mini");
-    if (!coach) return;
-
-    const title = document.getElementById("coach-mini-title");
-    const message = document.getElementById("coach-mini-message");
-    const buttons = Array.from(coach.querySelectorAll(".coach-modes button[data-mode]"));
-
-    async function selectMode(selectedButton) {
-      const mode = selectedButton.dataset.mode;
-      if (!mode || selectedButton.disabled) return;
-
-      buttons.forEach((button) => {
-        button.disabled = true;
-      });
-
-      coach.classList.add("saving");
-
-      try {
-        const result = await requestJson("/api/preferences/coach-mode", {
-          method: "PATCH",
-          body: JSON.stringify({
-            mode,
-            situation:
-              coach.dataset.situation ||
-              "unanswered",
-          }),
-        });
-
-        coach.dataset.mode = result.coach.mode;
-        coach.dataset.situation =
-          result.coach.situation;
-
-        if (title) title.textContent = result.coach.title || "";
-        if (message) message.textContent = result.coach.message || "";
-
-        buttons.forEach((button) => {
-          const active = button.dataset.mode === result.coach.mode;
-          button.classList.toggle("active", active);
-          button.setAttribute("aria-pressed", String(active));
-        });
-
-        announce(`${result.coach.title}로 변경했습니다.`);
-      } catch (error) {
-        announce(error.message);
-      } finally {
-        coach.classList.remove("saving");
-        buttons.forEach((button) => {
-          button.disabled = false;
-        });
-      }
-    }
-
-    buttons.forEach((button) => {
-      button.addEventListener("click", () => selectMode(button));
-    });
-  }
-
   function initNotifications() {
     const button = document.getElementById("notification-button");
     const panel = document.getElementById("notification-panel");
@@ -242,6 +184,59 @@
     });
   }
 
+  function initAnnouncementDismiss() {
+    const container =
+      document.querySelector(
+        ".dashboard-announcements"
+      );
+
+    if (!container) return;
+
+    container.addEventListener(
+      "click",
+      async (event) => {
+        const button =
+          event.target.closest(
+            "[data-dismiss-dashboard-notice]"
+          );
+
+        if (!button) return;
+        const dismissUrl =
+          button.dataset
+            .dismissDashboardNotice;
+        const card =
+          button.closest(
+            "[data-dashboard-notice]"
+          );
+        button.disabled = true;
+
+        try {
+          await requestJson(
+            dismissUrl,
+            {
+              method: "POST",
+            }
+          );
+          card?.remove();
+          if (
+            !container.querySelector(
+              "[data-dashboard-notice]"
+            )
+          ) {
+            container.remove();
+          }
+          announce(
+            "대시보드에서 공지를 닫았습니다. 알림 우편함에는 그대로 보관됩니다."
+          );
+        } catch (error) {
+          button.disabled =
+            false;
+          announce(error.message);
+        }
+      }
+    );
+  }
+
   function initCharts() {
     const chart = document.querySelector(".weekly-chart");
     if (!chart) return;
@@ -267,8 +262,8 @@
     initSidebar();
     initDate();
     initPlan();
-    initCoachMode();
     initNotifications();
+    initAnnouncementDismiss();
     initCharts();
   }
 

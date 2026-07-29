@@ -1,0 +1,56 @@
+<%
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      dateStyle: "long",
+      timeStyle: "short",
+    }).format(new Date(date));
+  const relatedHref =
+    typeof announcement.href === "string" &&
+    /^\/(?!\/)/.test(announcement.href) &&
+    announcement.href !== "/community?board=operations" &&
+    announcement.href !== `/community/operations/${announcement._id}`
+      ? announcement.href
+      : "";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="<%= announcement.content.slice(0, 150) %>" />
+    <title><%= announcement.title %> | Matths 운영 게시판</title>
+    <link rel="stylesheet" href="/css/community.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  </head>
+  <body>
+    <%- include("partials/public-navigation", { activePage: "community" }) %>
+    <main class="community-post-main community-announcement-main">
+      <a class="community-back" href="/community?board=operations">← 운영 게시판</a>
+      <article class="community-post-detail community-announcement-detail">
+        <header>
+          <span><%= announcement.boardCategoryLabel %></span>
+          <b class="community-operation-badge">MATTHS OFFICIAL</b>
+          <h1><%= announcement.title %></h1>
+          <div>
+            <strong>Matths 운영팀</strong>
+            <small><%= formatDate(announcement.publishedAt || announcement.createdAt) %></small>
+          </div>
+        </header>
+        <div class="community-post-content"><%= announcement.content %></div>
+        <% if (relatedHref) { %>
+          <footer class="community-announcement-link">
+            <div><span>관련 페이지</span><strong>공지와 연결된 페이지에서 자세한 내용을 확인하세요.</strong></div>
+            <a href="<%= relatedHref %>">바로 가기 →</a>
+          </footer>
+        <% } %>
+      </article>
+      <div class="community-post-actions">
+        <a href="/community?board=operations">목록으로</a>
+      </div>
+    </main>
+    <footer class="community-footer"><span>© <%= new Date().getFullYear() %> Matths</span><div><a href="/terms">이용약관</a><a href="/privacy">개인정보처리방침</a></div></footer>
+  </body>
+</html>

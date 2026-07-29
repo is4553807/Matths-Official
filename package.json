@@ -1,4 +1,15 @@
 {
+  "scripts": {
+    "email:verify": "node scripts/verifyEmailConfig.js",
+    "admin:verify": "node scripts/validateCommunityAndAdmin.js",
+    "admin:verify-db": "node scripts/verifyAdminActivityData.js",
+    "account-deletion:verify": "node scripts/verifyAccountDeletionPolicy.js",
+    "placement:verify": "node scripts/verifyPlacementExamBank.js",
+    "ranking:verify": "node scripts/verifyRankingLogic.js",
+    "private-mock:verify": "node scripts/verifyPrivateMockWorkflow.js",
+    "private-mock:restriction-verify": "node scripts/verifyPrivateMockRestriction.js",
+    "private-mock:warnings-backfill": "node scripts/backfillPrivateMockWarnings.js"
+  },
   "dependencies": {
     "bcrypt": "^6.0.0",
     "dotenv": "^17.4.2",
@@ -8,6 +19,8 @@
     "fs": "^0.0.1-security",
     "js-yaml": "^5.2.1",
     "mongoose": "^9.7.4",
+    "multer": "^2.2.0",
+    "nodemailer": "^7.0.11",
     "nodemon": "^3.1.14"
   }
 }

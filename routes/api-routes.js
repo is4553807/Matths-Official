@@ -45,6 +45,10 @@ router.get(
   "/me",
   apiController.me
 );
+router.delete(
+  "/me",
+  apiController.withdrawMe
+);
 router.patch(
   "/me/ranking-identity",
   apiController.updateRankingIdentity

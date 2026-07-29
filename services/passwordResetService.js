@@ -6,6 +6,7 @@ const {
 } = require("../models/matthsModel");
 const {
   sendPasswordResetCode,
+  sendPasswordResetLink,
 } = require("./emailService");
 
 const CODE_TTL_MS =
@@ -125,6 +126,7 @@ async function requestPasswordReset(
   const reset =
     await PasswordResetCode.create({
       userId: user._id,
+      mode: "code",
       codeHash: hashCode(
         user._id,
         code
@@ -184,6 +186,7 @@ async function verifyPasswordResetCode({
   const reset =
     await PasswordResetCode.findOne({
       userId: user._id,
+      mode: "code",
       status: "pending",
     })
       .sort({
@@ -238,6 +241,185 @@ async function verifyPasswordResetCode({
     userId: String(user._id),
     email: normalizedEmail,
     expiresAt: reset.expiresAt,
+  };
+}
+
+async function requestPasswordResetLink({
+  email,
+  baseUrl,
+}) {
+  const normalizedEmail =
+    String(email || "")
+      .trim()
+      .toLowerCase();
+  const user =
+    await User.findOne({
+      email: normalizedEmail,
+      isActive: true,
+      accountStatus: {
+        $nin: [
+          "suspended",
+          "withdrawn",
+          "inactive",
+        ],
+      },
+    }).lean();
+
+  if (!user) {
+    const error = new Error(
+      "활성 사용자를 찾을 수 없습니다."
+    );
+    error.status = 404;
+    throw error;
+  }
+
+  await PasswordResetCode.updateMany(
+    {
+      userId: user._id,
+      status: {
+        $in: [
+          "pending",
+          "verified",
+        ],
+      },
+    },
+    {
+      $set: {
+        status: "locked",
+      },
+    }
+  );
+
+  const token =
+    crypto
+      .randomBytes(32)
+      .toString("hex");
+  const reset =
+    await PasswordResetCode.create({
+      userId: user._id,
+      mode: "link",
+      codeHash: hashCode(
+        user._id,
+        token
+      ),
+      expiresAt: new Date(
+        Date.now() + CODE_TTL_MS
+      ),
+    });
+  const normalizedBaseUrl =
+    String(baseUrl || "")
+      .trim()
+      .replace(/\/+$/, "");
+
+  if (
+    !/^https?:\/\/[^/]+/i.test(
+      normalizedBaseUrl
+    )
+  ) {
+    await PasswordResetCode.deleteOne({
+      _id: reset._id,
+    });
+    const error = new Error(
+      "비밀번호 재설정 주소 설정이 올바르지 않습니다."
+    );
+    error.status = 500;
+    throw error;
+  }
+
+  const resetUrl =
+    `${normalizedBaseUrl}/forgot-password/link` +
+    `?resetId=${encodeURIComponent(reset._id)}` +
+    `&token=${encodeURIComponent(token)}`;
+
+  try {
+    const delivery =
+      await sendPasswordResetLink({
+        to: normalizedEmail,
+        resetUrl,
+      });
+
+    return {
+      requested: true,
+      delivered:
+        delivery.delivered,
+    };
+  } catch (error) {
+    await PasswordResetCode.deleteOne({
+      _id: reset._id,
+    });
+    throw error;
+  }
+}
+
+async function verifyPasswordResetLink({
+  resetId,
+  token,
+}) {
+  if (
+    !/^[a-f\d]{24}$/i.test(
+      String(resetId || "")
+    ) ||
+    !/^[a-f\d]{64}$/i.test(
+      String(token || "")
+    )
+  ) {
+    const error = new Error(
+      "비밀번호 재설정 링크가 올바르지 않거나 만료되었습니다."
+    );
+    error.status = 400;
+    throw error;
+  }
+
+  const reset =
+    await PasswordResetCode.findOne({
+      _id: resetId,
+      mode: "link",
+      status: {
+        $in: [
+          "pending",
+          "verified",
+        ],
+      },
+      expiresAt: {
+        $gt: new Date(),
+      },
+    }).select("+codeHash");
+
+  if (
+    !reset ||
+    !safeEqual(
+      reset.codeHash,
+      hashCode(
+        reset.userId,
+        token
+      )
+    )
+  ) {
+    const error = new Error(
+      "비밀번호 재설정 링크가 올바르지 않거나 만료되었습니다."
+    );
+    error.status = 400;
+    throw error;
+  }
+
+  if (
+    reset.status !==
+    "verified"
+  ) {
+    reset.status = "verified";
+    reset.verifiedAt = new Date();
+    await reset.save();
+  }
+
+  return {
+    resetId: String(
+      reset._id
+    ),
+    userId: String(
+      reset.userId
+    ),
+    expiresAt:
+      reset.expiresAt,
   };
 }
 
@@ -332,6 +514,8 @@ async function resetPassword({
 module.exports = {
   CODE_TTL_MS,
   requestPasswordReset,
+  requestPasswordResetLink,
   resetPassword,
   verifyPasswordResetCode,
+  verifyPasswordResetLink,
 };

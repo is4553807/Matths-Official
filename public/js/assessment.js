@@ -39,6 +39,35 @@ document.addEventListener(
       timer?.closest(
         ".attempt-timer"
       );
+    const timerDragHandle =
+      timerPanel?.querySelector(
+        ".timer-drag-handle"
+      );
+    const currentQuestionNumber =
+      document.getElementById(
+        "current-question-number"
+      );
+    const activeQuestionInput =
+      document.getElementById(
+        "active-question-id"
+      );
+    const currentQuestionInput =
+      document.getElementById(
+        "current-question-index"
+      );
+    const previousButton =
+      document.querySelector(
+        "[data-question-previous]"
+      );
+    const nextButton =
+      document.querySelector(
+        "[data-question-next]"
+      );
+    const jumpButtons = [
+      ...document.querySelectorAll(
+        "[data-question-jump]"
+      ),
+    ];
 
     if (
       !form ||
@@ -61,6 +90,307 @@ document.addEventListener(
     let timerFrame = null;
     let submitting = false;
     let expiring = false;
+    let heartbeatTimer = null;
+    let saveQueue =
+      Promise.resolve();
+    let currentQuestionIndex =
+      Math.max(
+        0,
+        Math.min(
+          questions.length - 1,
+          Number(
+            config
+              ?.initialQuestionIndex
+          ) || 0
+        )
+      );
+
+    const timerPositionKey =
+      "matths-assessment-timer-position-v1";
+
+    const resetTimerPosition =
+      () => {
+        if (!timerPanel) {
+          return;
+        }
+
+        timerPanel.classList.remove(
+          "floating",
+          "dragging"
+        );
+        timerPanel.style.removeProperty(
+          "left"
+        );
+        timerPanel.style.removeProperty(
+          "top"
+        );
+
+        try {
+          window.localStorage.removeItem(
+            timerPositionKey
+          );
+        } catch (error) {
+          // 저장 공간을 사용할 수 없어도
+          // 타이머 이동 자체는 계속 동작한다.
+        }
+      };
+
+    const placeFloatingTimer = (
+      left,
+      top
+    ) => {
+      if (!timerPanel) {
+        return;
+      }
+
+      const width =
+        timerPanel.offsetWidth;
+      const height =
+        timerPanel.offsetHeight;
+      const margin = 10;
+      const boundedLeft =
+        Math.min(
+          Math.max(
+            margin,
+            left
+          ),
+          Math.max(
+            margin,
+            window.innerWidth -
+              width -
+              margin
+          )
+        );
+      const boundedTop =
+        Math.min(
+          Math.max(
+            margin,
+            top
+          ),
+          Math.max(
+            margin,
+            window.innerHeight -
+              height -
+              margin
+          )
+        );
+
+      timerPanel.classList.add(
+        "floating"
+      );
+      timerPanel.style.left =
+        `${boundedLeft}px`;
+      timerPanel.style.top =
+        `${boundedTop}px`;
+    };
+
+    const saveTimerPosition =
+      () => {
+        if (
+          !timerPanel?.classList.contains(
+            "floating"
+          )
+        ) {
+          return;
+        }
+
+        try {
+          window.localStorage.setItem(
+            timerPositionKey,
+            JSON.stringify({
+              left:
+                Number.parseFloat(
+                  timerPanel.style
+                    .left
+                ) || 0,
+              top:
+                Number.parseFloat(
+                  timerPanel.style.top
+                ) || 0,
+            })
+          );
+        } catch (error) {
+          // 위치 저장 실패는 응시 흐름을
+          // 막지 않는다.
+        }
+      };
+
+    if (
+      timerPanel?.dataset
+        .draggableTimer ===
+        "true" &&
+      timerDragHandle
+    ) {
+      try {
+        const savedPosition =
+          JSON.parse(
+            window.localStorage.getItem(
+              timerPositionKey
+            ) || "null"
+          );
+
+        if (
+          Number.isFinite(
+            savedPosition?.left
+          ) &&
+          Number.isFinite(
+            savedPosition?.top
+          )
+        ) {
+          placeFloatingTimer(
+            savedPosition.left,
+            savedPosition.top
+          );
+        }
+      } catch (error) {
+        resetTimerPosition();
+      }
+
+      let dragOffsetX = 0;
+      let dragOffsetY = 0;
+
+      timerDragHandle.addEventListener(
+        "pointerdown",
+        (event) => {
+          if (
+            event.button !== 0
+          ) {
+            return;
+          }
+
+          const rect =
+            timerPanel.getBoundingClientRect();
+          dragOffsetX =
+            event.clientX -
+            rect.left;
+          dragOffsetY =
+            event.clientY -
+            rect.top;
+          placeFloatingTimer(
+            rect.left,
+            rect.top
+          );
+          timerPanel.classList.add(
+            "dragging"
+          );
+          timerDragHandle.setPointerCapture(
+            event.pointerId
+          );
+          event.preventDefault();
+        }
+      );
+
+      timerDragHandle.addEventListener(
+        "pointermove",
+        (event) => {
+          if (
+            !timerPanel.classList.contains(
+              "dragging"
+            )
+          ) {
+            return;
+          }
+
+          placeFloatingTimer(
+            event.clientX -
+              dragOffsetX,
+            event.clientY -
+              dragOffsetY
+          );
+        }
+      );
+
+      const finishTimerDrag =
+        (event) => {
+          if (
+            !timerPanel.classList.contains(
+              "dragging"
+            )
+          ) {
+            return;
+          }
+
+          timerPanel.classList.remove(
+            "dragging"
+          );
+
+          if (
+            timerDragHandle.hasPointerCapture(
+              event.pointerId
+            )
+          ) {
+            timerDragHandle.releasePointerCapture(
+              event.pointerId
+            );
+          }
+          saveTimerPosition();
+        };
+
+      timerDragHandle.addEventListener(
+        "pointerup",
+        finishTimerDrag
+      );
+      timerDragHandle.addEventListener(
+        "pointercancel",
+        finishTimerDrag
+      );
+      timerDragHandle.addEventListener(
+        "dblclick",
+        resetTimerPosition
+      );
+      timerDragHandle.addEventListener(
+        "keydown",
+        (event) => {
+          const direction = {
+            ArrowLeft: [-1, 0],
+            ArrowRight: [1, 0],
+            ArrowUp: [0, -1],
+            ArrowDown: [0, 1],
+          }[event.key];
+
+          if (!direction) {
+            return;
+          }
+
+          const rect =
+            timerPanel.getBoundingClientRect();
+          const distance =
+            event.shiftKey
+              ? 32
+              : 12;
+          placeFloatingTimer(
+            rect.left +
+              direction[0] *
+                distance,
+            rect.top +
+              direction[1] *
+                distance
+          );
+          saveTimerPosition();
+          event.preventDefault();
+        }
+      );
+      window.addEventListener(
+        "resize",
+        () => {
+          if (
+            timerPanel.classList.contains(
+              "floating"
+            )
+          ) {
+            placeFloatingTimer(
+              Number.parseFloat(
+                timerPanel.style.left
+              ) || 0,
+              Number.parseFloat(
+                timerPanel.style.top
+              ) || 0
+            );
+            saveTimerPosition();
+          }
+        }
+      );
+    }
 
     const remainingTime = () =>
       Math.max(
@@ -145,6 +475,21 @@ document.addEventListener(
       return answers;
     };
 
+    const activeQuestionPayload =
+      () => {
+        const question =
+          questions[
+            currentQuestionIndex
+          ];
+
+        return {
+          activeQuestionId:
+            question?.dataset
+              .questionId || "",
+          currentQuestionIndex,
+        };
+      };
+
     function disablePaper() {
       form
         .querySelectorAll(
@@ -168,6 +513,9 @@ document.addEventListener(
       submitting = true;
       window.clearTimeout(
         saveTimer
+      );
+      window.clearInterval(
+        heartbeatTimer
       );
       window.cancelAnimationFrame(
         timerFrame
@@ -203,6 +551,7 @@ document.addEventListener(
             body: JSON.stringify({
               answers:
                 answersFromForm(),
+              ...activeQuestionPayload(),
             }),
           }
         );
@@ -264,8 +613,10 @@ document.addEventListener(
       }
     }
 
-    async function saveDraft({
+    async function performSaveDraft({
       beacon = false,
+      silent = false,
+      closeTiming = false,
     } = {}) {
       if (
         !config?.draftUrl ||
@@ -277,6 +628,9 @@ document.addEventListener(
       const payload = JSON.stringify({
         answers:
           answersFromForm(),
+        ...activeQuestionPayload(),
+        closeQuestionTiming:
+          closeTiming,
       });
 
       if (
@@ -292,7 +646,10 @@ document.addEventListener(
         return;
       }
 
-      if (saveState) {
+      if (
+        saveState &&
+        !silent
+      ) {
         saveState.textContent =
           "저장 중…";
       }
@@ -334,18 +691,45 @@ document.addEventListener(
           return false;
         }
 
-        if (saveState) {
+        if (
+          saveState &&
+          !silent
+        ) {
           saveState.textContent =
             "답안 자동 저장됨";
         }
         return true;
       } catch (error) {
-        if (saveState) {
+        if (
+          saveState &&
+          !silent
+        ) {
           saveState.textContent =
             "저장 실패 · 다시 입력하면 재시도";
         }
         return null;
       }
+    }
+
+    function saveDraft(
+      options = {}
+    ) {
+      if (options.beacon) {
+        return performSaveDraft(
+          options
+        );
+      }
+
+      const pending =
+        saveQueue.then(() =>
+          performSaveDraft(
+            options
+          )
+        );
+      saveQueue = pending.catch(
+        () => null
+      );
+      return pending;
     }
 
     const scheduleSave = () => {
@@ -377,6 +761,136 @@ document.addEventListener(
       );
     };
 
+    const renderCurrentQuestion =
+      () => {
+        questions.forEach(
+          (question, index) => {
+            if (
+              config?.placement
+            ) {
+              question.hidden =
+                index !==
+                currentQuestionIndex;
+            }
+          }
+        );
+
+        const activeQuestion =
+          questions[
+            currentQuestionIndex
+          ];
+
+        if (
+          activeQuestionInput
+        ) {
+          activeQuestionInput.value =
+            activeQuestion?.dataset
+              .questionId || "";
+        }
+        if (
+          currentQuestionInput
+        ) {
+          currentQuestionInput.value =
+            String(
+              currentQuestionIndex
+            );
+        }
+        if (
+          currentQuestionNumber
+        ) {
+          currentQuestionNumber.textContent =
+            String(
+              currentQuestionIndex +
+                1
+            );
+        }
+
+        previousButton?.toggleAttribute(
+          "disabled",
+          currentQuestionIndex === 0
+        );
+        nextButton?.toggleAttribute(
+          "disabled",
+          currentQuestionIndex ===
+            questions.length - 1
+        );
+
+        jumpButtons.forEach(
+          (button, index) => {
+            const current =
+              index ===
+              currentQuestionIndex;
+            button.classList.toggle(
+              "current",
+              current
+            );
+            button.classList.toggle(
+              "answered",
+              questionAnswered(
+                questions[index]
+              )
+            );
+            button.setAttribute(
+              "aria-current",
+              current
+                ? "step"
+                : "false"
+            );
+          }
+        );
+      };
+
+    const moveToQuestion =
+      (targetIndex) => {
+        if (
+          !config?.placement ||
+          submitting ||
+          expiring
+        ) {
+          return;
+        }
+
+        const nextIndex =
+          Math.max(
+            0,
+            Math.min(
+              questions.length - 1,
+              Number(targetIndex)
+            )
+          );
+
+        if (
+          nextIndex ===
+          currentQuestionIndex
+        ) {
+          return;
+        }
+
+        currentQuestionIndex =
+          nextIndex;
+        renderCurrentQuestion();
+        saveDraft({
+          silent: true,
+        });
+        questions[
+          currentQuestionIndex
+        ]
+          ?.querySelector(
+            "input:not([type='hidden'])"
+          )
+          ?.focus({
+            preventScroll: true,
+          });
+        document
+          .querySelector(
+            "[data-placement-navigator]"
+          )
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+      };
+
     const updateProgress = () => {
       const answered =
         questions.filter(
@@ -391,6 +905,7 @@ document.addEventListener(
         String(answered);
       progress.style.width =
         `${percent}%`;
+      renderCurrentQuestion();
     };
 
     form.addEventListener(
@@ -407,6 +922,36 @@ document.addEventListener(
         scheduleSave();
       }
     );
+
+    previousButton?.addEventListener(
+      "click",
+      () =>
+        moveToQuestion(
+          currentQuestionIndex - 1
+        )
+    );
+    nextButton?.addEventListener(
+      "click",
+      () =>
+        moveToQuestion(
+          currentQuestionIndex + 1
+        )
+    );
+    jumpButtons.forEach(
+      (button) => {
+        button.addEventListener(
+          "click",
+          () =>
+            moveToQuestion(
+              Number(
+                button.dataset
+                  .questionJump
+              )
+            )
+        );
+      }
+    );
+
     form.addEventListener(
       "submit",
       (event) => {
@@ -421,7 +966,9 @@ document.addEventListener(
         if (
           unanswered > 0 &&
           !window.confirm(
-            `아직 ${unanswered}문항에 답하지 않았습니다. 그대로 제출할까요?`
+            config?.placement
+              ? `아직 ${unanswered}문항에 답하지 않았습니다. 미응답은 오답으로 처리되어 초기 랭크에 불이익이 생길 수 있습니다. 그대로 제출할까요?`
+              : `아직 ${unanswered}문항에 답하지 않았습니다. 그대로 제출할까요?`
           )
         ) {
           event.preventDefault();
@@ -432,12 +979,17 @@ document.addEventListener(
         window.clearTimeout(
           saveTimer
         );
+        window.clearInterval(
+          heartbeatTimer
+        );
       }
     );
 
     document
       .querySelectorAll(
-        "a[href='/assessments']"
+        config?.backUrl
+          ? `a[href='${config.backUrl}']`
+          : "a[href='/assessments']"
       )
       .forEach((link) => {
         link.addEventListener(
@@ -458,8 +1010,13 @@ document.addEventListener(
             window.clearTimeout(
               saveTimer
             );
+            window.clearInterval(
+              heartbeatTimer
+            );
             const saved =
-              await saveDraft();
+              await saveDraft({
+                closeTiming: true,
+              });
             if (saved === false) {
               return;
             }
@@ -477,8 +1034,12 @@ document.addEventListener(
         window.cancelAnimationFrame(
           timerFrame
         );
+        window.clearInterval(
+          heartbeatTimer
+        );
         saveDraft({
           beacon: true,
+          closeTiming: true,
         });
       }
     );
@@ -506,6 +1067,19 @@ document.addEventListener(
     );
 
     updateProgress();
+    if (config?.placement) {
+      saveDraft({
+        silent: true,
+      });
+      heartbeatTimer =
+        window.setInterval(
+          () =>
+            saveDraft({
+              silent: true,
+            }),
+          5000
+        );
+    }
     renderTimer();
   }
 );

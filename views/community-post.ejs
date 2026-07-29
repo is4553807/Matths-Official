@@ -1,0 +1,140 @@
+<%
+  const loggedIn = typeof user !== "undefined" && Boolean(user);
+  const boardLabels = { "high-school": "통합 고등학교 게시판", school: post.schoolName ? `${post.schoolName} 게시판` : "학교 게시판" };
+  const boardLabel = boardLabels[post.boardType] || "통합 고등학교 게시판";
+  const formatDate = (date) => new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long", timeStyle: "short" }).format(new Date(date));
+  const backHref = post.boardType === "school" ? `/community?board=school&school=${encodeURIComponent(post.schoolCode)}` : "/community?board=high-school";
+  const gradeLabel = { 10: "1학년", 11: "2학년", 12: "3학년", 13: "N수생" }[Number(post.authorSchoolGrade)] || "";
+  const anonymousSchoolLabel = [post.authorRegion, post.schoolName, gradeLabel].filter(Boolean).join(" ") || "학교 정보 비공개";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= post.title %> | Matths 게시판</title>
+    <link rel="stylesheet" href="/css/community.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  </head>
+  <body>
+    <%- include("partials/public-navigation", { activePage: "community" }) %>
+    <main class="community-post-main">
+      <a class="community-back" href="<%= backHref %>">← <%= boardLabel %></a>
+      <% if (created) { %><div class="community-feedback">게시글을 등록했습니다.</div><% } %>
+      <% if (reported) { %><div class="community-feedback">신고가 접수되었습니다. 운영자가 확인하겠습니다.</div><% } %>
+      <article class="community-post-detail">
+        <header>
+          <span><%= boardLabel %></span>
+          <% if (post.isPopular) { %><b class="community-popular-badge">인기 글</b><% } %>
+          <h1><%= post.title %></h1>
+          <div>
+            <strong><%= post.authorName %></strong>
+            <% if (post.isAnonymous) { %><span class="community-anonymous-school"><%= anonymousSchoolLabel %></span><% } %>
+            <small><%= formatDate(post.createdAt) %> · 조회 <%= post.viewCount || 0 %></small>
+          </div>
+        </header>
+        <div class="community-post-content"><%= post.content %></div>
+        <section class="community-vote-box" id="post-votes" aria-label="게시글 평가">
+          <p>이 글이 도움이 되었나요?</p>
+          <% if (loggedIn) { %>
+            <div>
+              <form action="/community/<%= post._id %>/vote" method="POST">
+                <input type="hidden" name="value" value="1" />
+                <button class="<%= viewerVote === 1 ? "selected" : "" %>" type="submit" aria-pressed="<%= viewerVote === 1 %>">
+                  <span aria-hidden="true">↑</span> 추천 <strong><%= post.upvoteCount || 0 %></strong>
+                </button>
+              </form>
+              <form action="/community/<%= post._id %>/vote" method="POST">
+                <input type="hidden" name="value" value="-1" />
+                <button class="down <%= viewerVote === -1 ? "selected" : "" %>" type="submit" aria-pressed="<%= viewerVote === -1 %>">
+                  <span aria-hidden="true">↓</span> 비추천 <strong><%= post.downvoteCount || 0 %></strong>
+                </button>
+              </form>
+            </div>
+          <% } else { %>
+            <div class="community-vote-readonly">
+              <span>추천 <strong><%= post.upvoteCount || 0 %></strong></span>
+              <span>비추천 <strong><%= post.downvoteCount || 0 %></strong></span>
+              <a href="/login">로그인하고 평가하기</a>
+            </div>
+          <% } %>
+          <small>같은 버튼을 다시 누르면 선택이 취소됩니다.</small>
+        </section>
+        <% if (loggedIn && String(user.id) !== String(post.authorId)) { %>
+          <details class="community-report-box">
+            <summary><%= viewerReported ? "신고 접수 완료" : "게시글 신고" %></summary>
+            <% if (viewerReported) { %>
+              <p>이미 접수한 신고입니다. 운영자가 순서대로 확인합니다.</p>
+            <% } else { %>
+              <form action="/community/<%= post._id %>/report" method="POST">
+                <label for="report-reason">신고 사유</label>
+                <textarea id="report-reason" name="reason" minlength="5" maxlength="1000" required placeholder="문제가 되는 내용을 구체적으로 적어주세요."></textarea>
+                <button type="submit">신고 접수</button>
+              </form>
+            <% } %>
+          </details>
+        <% } %>
+      </article>
+      <section class="community-comments" id="comments">
+        <header>
+          <div>
+            <p>COMMENTS</p>
+            <h2>댓글 <%= comments.length %>개</h2>
+          </div>
+          <span>서로의 풀이와 생각을 존중해주세요.</span>
+        </header>
+
+        <% if (commentCreated) { %>
+          <div class="community-feedback" role="status">댓글을 등록했습니다.</div>
+        <% } %>
+        <% if (commentError) { %>
+          <div class="community-error" role="alert"><%= commentError %></div>
+        <% } %>
+
+        <% if (loggedIn) { %>
+          <form class="community-comment-form" action="/community/<%= post._id %>/comments" method="POST">
+            <label for="comment-content">댓글 내용</label>
+            <textarea id="comment-content" name="content" minlength="1" maxlength="2000" placeholder="수학적인 질문, 풀이 아이디어, 응원의 말을 남겨보세요." required><%= typeof commentDraft !== "undefined" ? commentDraft : "" %></textarea>
+            <div class="community-comment-options">
+              <label class="community-anonymous-choice compact">
+                <input
+                  type="checkbox"
+                  name="isAnonymous"
+                  <%= typeof commentAnonymousDraft !== "undefined" && commentAnonymousDraft ? "checked" : "" %>
+                />
+                <span>
+                  <b>익명으로 댓글 작성</b>
+                  <small>계정에 고정된 익명 번호가 표시됩니다.</small>
+                </span>
+              </label>
+              <div><small>최대 2,000자</small><button type="submit">댓글 등록</button></div>
+            </div>
+          </form>
+        <% } else { %>
+          <div class="community-comment-login">
+            <p>댓글을 작성하려면 로그인이 필요합니다.</p>
+            <a href="/login">로그인하고 댓글 쓰기 →</a>
+          </div>
+        <% } %>
+
+        <div class="community-comment-list">
+          <% if (!comments.length) { %>
+            <div class="community-comment-empty">첫 댓글을 남겨 대화를 시작해보세요.</div>
+          <% } %>
+          <% comments.forEach((comment) => { %>
+            <article>
+              <header>
+                <strong><%= comment.authorName %></strong>
+                <time><%= formatDate(comment.createdAt) %></time>
+              </header>
+              <p><%= comment.content %></p>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+      <div class="community-post-actions"><a href="<%= backHref %>">목록으로</a><a class="primary" href="/community/new?board=<%= post.boardType === "school" ? "school" : "high-school" %>">새 글 쓰기</a></div>
+    </main>
+  </body>
+</html>

@@ -7,6 +7,12 @@
   border-bottom: 1px solid var(--line);
 }
 
+.review-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .review-back-link {
   min-height: 40px;
   display: inline-flex;
@@ -20,6 +26,11 @@
   font-size: 12px;
   font-weight: 800;
   transition: 0.18s ease;
+}
+
+.review-back-link.secondary {
+  color: #334155;
+  background: #f7f8fc;
 }
 
 .review-back-link:hover {
@@ -842,7 +853,17 @@
     margin-left: 0;
   }
 
+  .review-topbar-actions {
+    gap: 5px;
+  }
+
   .review-back-link {
+    min-height: 36px;
+    padding-inline: 10px;
+    font-size: 10px;
+  }
+
+  .review-back-link span {
     display: none;
   }
 }

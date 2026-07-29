@@ -278,6 +278,26 @@ function wrapMathFragment(fragment) {
   );
 }
 
+function normalizeDollarMathDelimiters(
+  value
+) {
+  return String(value || "")
+    .replace(
+      /(?<!\\)\$\$([\s\S]*?)(?<!\\)\$\$/g,
+      (_, expression) =>
+        `\\[${normalizeMathSource(
+          expression
+        )}\\]`
+    )
+    .replace(
+      /(?<!\\)\$([^$\n]+?)(?<!\\)\$/g,
+      (_, expression) =>
+        `\\(${normalizeMathSource(
+          expression
+        )}\\)`
+    );
+}
+
 function formatAlgebraMathText(value) {
   if (
     value === null ||
@@ -286,9 +306,12 @@ function formatAlgebraMathText(value) {
     return "";
   }
 
-  const source = String(value)
-    .replace(/−/g, "-")
-    .replace(/\+\s*-/g, "-");
+  const source =
+    normalizeDollarMathDelimiters(
+      String(value)
+        .replace(/−/g, "-")
+        .replace(/\+\s*-/g, "-")
+    );
 
   if (
     source.includes("\\(") ||
@@ -305,6 +328,32 @@ function formatAlgebraMathText(value) {
         : wrapMathFragment(fragment)
     )
     .join("");
+}
+
+function formatAdminMath(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return "미응답";
+  }
+
+  if (typeof value === "object") {
+    try {
+      return formatAlgebraMathText(
+        JSON.stringify(value)
+      );
+    } catch (error) {
+      return formatAlgebraMathText(
+        String(value)
+      );
+    }
+  }
+
+  return formatAlgebraMathText(
+    String(value)
+  );
 }
 
 function formatAlgebraLesson(lesson) {
@@ -386,7 +435,9 @@ function formatMathTextForCourse(
 }
 
 module.exports = {
+  formatAdminMath,
   formatAlgebraMathText,
+  normalizeDollarMathDelimiters,
   formatAlgebraLesson,
   formatDashboardFormula,
   formatMathTextForCourse,

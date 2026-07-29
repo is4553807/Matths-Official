@@ -1,0 +1,120 @@
+<%
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(date));
+  const gradeLabels = {
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+    13: "N수생",
+  };
+  const kindLabels = {
+    admin: "운영자 알림",
+    system: "시스템 알림",
+    warning: "경고 안내",
+    account: "계정 상태 안내",
+    nickname: "닉네임 변경 요청",
+    announcement: "공지",
+    integrity: "시험 소명 요청",
+  };
+  const urgentKinds = new Set(["warning", "account", "nickname", "integrity"]);
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>알림 우편함 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/notifications.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script src="/js/main.js" defer></script>
+  </head>
+  <body>
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top">
+          <a class="brand" href="/" aria-label="Matths 메인"><span class="brand-mark" aria-hidden="true">M</span><span>Matths</span></a>
+          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
+        </div>
+        <%- include("partials/dashboard-navigation", { activePage: "notifications" }) %>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile">
+          <a class="profile-avatar" href="/profile" aria-label="<%= user.name %>님의 프로필 설정으로 이동" title="프로필 설정"><%= String(user.name || "M").slice(0, 1) %></a>
+          <div class="profile-copy">
+            <strong><%= user.name %>님</strong>
+            <small><%= gradeLabels[Number(user.schoolGrade)] || "학생" %></small>
+          </div>
+          <form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form>
+        </div>
+      </aside>
+
+      <main class="dashboard-main notification-main">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
+            <div><p>NOTIFICATION INBOX</p><h1>알림 우편함</h1></div>
+          </div>
+          <a class="dashboard-return learning-home-button" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a>
+        </header>
+
+        <section class="notification-hero">
+          <div>
+            <p>운영자가 보낸 알림은 읽어도 사라지지 않습니다.</p>
+            <h2>중요한 안내를<br /><strong>한곳에 보관합니다.</strong></h2>
+          </div>
+          <dl>
+            <div><dt>전체</dt><dd><%= inbox.stats.total %></dd></div>
+            <div><dt>안 읽음</dt><dd><%= inbox.stats.unread %></dd></div>
+            <div><dt>읽음</dt><dd><%= inbox.stats.read %></dd></div>
+          </dl>
+        </section>
+
+        <section class="notification-list-section">
+          <div class="notification-list-heading">
+            <div><p>INBOX</p><h2>받은 알림</h2></div>
+            <% if (inbox.stats.unread) { %>
+              <form action="/notifications/read-all" method="POST">
+                <button type="submit">모두 읽음 처리</button>
+              </form>
+            <% } %>
+          </div>
+
+          <% if (!inbox.notifications.length) { %>
+            <div class="notification-empty"><span aria-hidden="true">✉</span><h3>아직 받은 알림이 없습니다.</h3><p>운영자가 보낸 안내가 이곳에 보관됩니다.</p></div>
+          <% } else { %>
+            <div class="notification-inbox-list">
+              <% inbox.notifications.forEach((notification) => { %>
+                <a class="<%= notification.readAt ? 'read' : 'unread' %> <%= urgentKinds.has(notification.kind) ? 'urgent' : '' %>" href="<%= notification.openHref %>">
+                  <span class="mail-state" aria-hidden="true"><%= notification.readAt ? "○" : "●" %></span>
+                  <div>
+                    <small><%= kindLabels[notification.kind] || "알림" %> · <%= formatDate(notification.createdAt) %></small>
+                    <h3><%= notification.title %></h3>
+                    <p><%= notification.message %></p>
+                  </div>
+                  <b aria-hidden="true">→</b>
+                </a>
+              <% }) %>
+            </div>
+          <% } %>
+
+          <% if (inbox.pagination.totalPages > 1) { %>
+            <nav class="notification-pagination" aria-label="알림 페이지">
+              <a class="<%= inbox.pagination.hasPrevious ? '' : 'disabled' %>" href="<%= inbox.pagination.hasPrevious ? `/notifications?page=${inbox.pagination.page - 1}` : '#' %>">이전</a>
+              <span><%= inbox.pagination.page %> / <%= inbox.pagination.totalPages %></span>
+              <a class="<%= inbox.pagination.hasNext ? '' : 'disabled' %>" href="<%= inbox.pagination.hasNext ? `/notifications?page=${inbox.pagination.page + 1}` : '#' %>">다음</a>
+            </nav>
+          <% } %>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

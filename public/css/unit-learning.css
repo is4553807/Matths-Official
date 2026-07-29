@@ -6,6 +6,12 @@
   min-width: 0;
 }
 
+.learning-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .learning-breadcrumb {
   display: flex;
   align-items: center;
@@ -47,6 +53,11 @@
 .exit-learning:hover {
   color: var(--blue);
   border-color: #bdc8fa;
+}
+
+.learning-home-link {
+  color: #334155;
+  background: #f7f8fc;
 }
 
 .unit-hero,
@@ -849,6 +860,19 @@
 
   .exit-learning {
     padding-inline: 10px;
+  }
+
+  .learning-topbar-actions {
+    gap: 5px;
+  }
+
+  .learning-home-link {
+    font-size: 0;
+  }
+
+  .learning-home-link::after {
+    content: "학습 홈";
+    font-size: 8px;
   }
 
   .exit-learning span {

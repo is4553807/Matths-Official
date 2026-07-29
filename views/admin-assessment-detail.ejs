@@ -1,0 +1,114 @@
+<%
+  const member = detail.user;
+  const attempt = detail.attempt;
+  const scopeLabels = {
+    placement: "배치고사",
+    subunit: "중간 평가",
+    unit: "기말 평가",
+    course: "종합 평가",
+  };
+  const statusLabels = {
+    "in-progress": "응시 중",
+    submitted: "제출 완료",
+    abandoned: "중단",
+    disqualified: "실격",
+  };
+  const formatDate = (date) =>
+    date
+      ? new Intl.DateTimeFormat("ko-KR", {
+          timeZone: "Asia/Seoul",
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(new Date(date))
+      : "기록 없음";
+  const formatDuration = (ms) => {
+    const totalSeconds = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+    return `${Math.floor(totalSeconds / 60)}분 ${totalSeconds % 60}초`;
+  };
+  const answerText = (value, choices = []) => {
+    if (value === null || value === undefined || value === "") return "미응답";
+    const choice = choices.find((item) => String(item.key) === String(value));
+    if (choice) return `${choice.key}. ${choice.text}`;
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= member.name %> 시험 상세 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
+          processEscapes: true,
+        },
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js" defer></script>
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "users" }) %>
+    <main class="admin-main">
+      <a class="admin-back" href="/admin/users/<%= member._id %>">← <%= member.name %> 사용자 정보</a>
+      <header class="admin-heading">
+        <div>
+          <p><%= scopeLabels[attempt.scopeType] || "평가" %> · ADMIN ONLY</p>
+          <h1><%= attempt.title %></h1>
+          <span><%= member.name %> · <%= member.email %> · <%= formatDate(attempt.startedAt || attempt.createdAt) %></span>
+        </div>
+        <strong><%= attempt.scorePercent ?? 0 %><small>점</small></strong>
+      </header>
+
+      <% if (attempt.scopeType === "placement") { %>
+        <div class="admin-confidential-note">배치고사 문항·정답·풀이 기록은 관리자에게만 공개되는 기밀 정보입니다.</div>
+      <% } %>
+
+      <section class="admin-user-summary assessment-admin-summary">
+        <article><span>시험 종류</span><strong><%= scopeLabels[attempt.scopeType] || attempt.scopeType %></strong></article>
+        <article><span>상태</span><strong><%= statusLabels[attempt.status] || attempt.status %></strong></article>
+        <article><span>점수</span><strong><%= attempt.earnedPoints || 0 %> / <%= attempt.totalPoints || 0 %></strong></article>
+        <article><span>소요 시간</span><strong><%= formatDuration(attempt.elapsedTimeMs) %></strong></article>
+        <article><span>합격 여부</span><strong><%= attempt.passed ? "합격" : "미합격" %></strong></article>
+        <article><span>제출 시각</span><strong><%= formatDate(attempt.submittedAt) %></strong></article>
+      </section>
+
+      <section class="admin-assessment-questions">
+        <% (attempt.questions || []).forEach((question, index) => { %>
+          <article class="admin-assessment-question <%= question.isCorrect === true ? 'correct' : question.isCorrect === false ? 'wrong' : 'unanswered' %>">
+            <header>
+              <div><span><%= String(index + 1).padStart(2, "0") %></span><strong><%= question.isCorrect === true ? "정답" : question.isCorrect === false ? "오답" : "미채점" %></strong></div>
+              <small><%= question.points %>점 · <%= formatDuration(question.responseTimeMs) %></small>
+            </header>
+            <div class="admin-question-prompt math-content"><%= formatAdminMath(question.prompt) %></div>
+            <% if ((question.choices || []).length) { %>
+              <ol class="admin-question-choices">
+                <% question.choices.forEach((choice) => { %>
+                  <li class="<%= String(choice.key) === String(question.answer) ? 'answer' : '' %>"><b><%= choice.key %></b><span class="math-content"><%= formatAdminMath(choice.text) %></span></li>
+                <% }) %>
+              </ol>
+            <% } %>
+            <dl class="admin-answer-comparison">
+              <div><dt>사용자 답</dt><dd class="math-content"><%= formatAdminMath(answerText(question.submittedAnswer ?? question.selectedAnswer, question.choices || [])) %></dd></div>
+              <div><dt>정답</dt><dd class="math-content"><%= formatAdminMath(answerText(question.answer, question.choices || [])) %></dd></div>
+              <div><dt>문제 유형</dt><dd><%= question.selectedTypeLabel || question.typeId %></dd></div>
+              <div><dt>문항 체류</dt><dd><%= formatDuration(question.responseTimeMs) %> · 답 변경 <%= question.answerChanges || 0 %>회</dd></div>
+            </dl>
+            <% if (question.solution) { %>
+              <details class="admin-solution">
+                <summary>관리자용 풀이 보기</summary>
+                <div class="math-content"><%= formatAdminMath(question.solution) %></div>
+              </details>
+            <% } %>
+          </article>
+        <% }) %>
+      </section>
+    </main>
+  </body>
+</html>

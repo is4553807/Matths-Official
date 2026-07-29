@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Matths 주간 사설 모의고사 응시" />
+    <title><%= examData.exam.title %> | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/private-mock-exams.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["$", "$"], ["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
+          processEscapes: true,
+        },
+        options: {
+          skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+        },
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js" defer></script>
+    <script src="/js/private-mock-exam.js" defer></script>
+  </head>
+  <body class="private-mock-exam-body">
+    <main class="private-mock-exam-shell">
+      <header class="private-mock-exam-header">
+        <a class="brand" href="/" aria-label="Matths 메인">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <span>Matths</span>
+        </a>
+        <div>
+          <p>WEEKLY MOCK EXAM</p>
+          <h1><%= examData.exam.title %></h1>
+        </div>
+        <a class="learning-home-button" href="/private-mock-exams">모의고사 홈으로 <span aria-hidden="true">→</span></a>
+      </header>
+
+      <% if (examData.submitted) { %>
+        <section
+          class="private-mock-result-card <%= examData.pendingAggregation ? "pending" : "" %>"
+          <%- examData.pendingAggregation ? `data-private-mock-result-pending data-server-now="${examData.serverNow}" data-results-at="${examData.resultsAvailableAt}"` : "" %>
+        >
+          <p>SUBMITTED</p>
+          <h2><%= examData.exam.isTest ? "TEST 회차" : `${examData.exam.formCode}형` %> 답안 제출이 완료되었습니다.</h2>
+          <% if (examData.integrityReview) { %>
+            <div class="private-mock-integrity-notice" role="alert">
+              <strong>시험 기록 확인을 위해 풀이과정 제출이 필요합니다.</strong>
+              <span>현재는 부정행위로 확정된 상태가 아니며, 검토가 끝날 때까지 이 응시는 랭킹과 MMR에서 임시 제외됩니다.</span>
+              <a href="<%= examData.integrityReview.href %>">요청 문항 확인 및 제출 →</a>
+            </div>
+          <% } %>
+          <% if (examData.pendingAggregation) { %>
+            <span>시험이 끝난 뒤 전체 응시자의 성적을 함께 표준화해 공개합니다. 지금은 원점수와 정오표를 공개하지 않습니다.</span>
+            <div class="private-mock-aggregation-wait">
+              <small>표준화 성적 집계까지</small>
+              <strong data-private-mock-result-countdown>--:--</strong>
+              <p>마감 직후 자동으로 다시 확인합니다.</p>
+            </div>
+          <% } else { %>
+            <span><%= examData.exam.isTest ? "OMR 확인용 TEST 결과입니다. 이 점수는 주간 MMR이나 랭킹에 반영되지 않습니다." : "이 회차를 완료한 전체 응시자 기준으로 확정한 표준화 성적입니다." %></span>
+            <div>
+              <article><small>표준화 성적</small><strong><%= examData.result.standardizedPerformance %><i>/100</i></strong></article>
+              <article><small>총점 백분위</small><strong><%= examData.result.totalPercentile %><i>%</i></strong></article>
+              <article><small>소요 시간</small><strong><%= examData.result.elapsedLabel %></strong></article>
+            </div>
+          <% } %>
+          <% if (!examData.pendingAggregation && examData.selection && examData.selection.canChoose) { %>
+            <form
+              class="private-mock-selection-form"
+              data-private-mock-selection
+              data-week-key="<%= examData.selection.weekKey %>"
+            >
+              <h3>이번 주 랭킹에 사용할 시험을 선택하세요.</h3>
+              <p>3회차까지 응시한 뒤 다시 바꿀 수 있습니다.</p>
+              <div class="private-mock-selection-options">
+                <% examData.selection.attempts.forEach((attempt) => { %>
+                  <label>
+                    <input
+                      type="radio"
+                      name="representativeAttempt"
+                      value="<%= attempt.id %>"
+                      <%= examData.selection.selectedAttemptId === attempt.id ? "checked" : "" %>
+                    />
+                    <strong><%= attempt.formCode %>형</strong>
+                    <span>표준화 <%= attempt.standardizedPerformance %> · 백분위 <%= attempt.totalPercentile %>%</span>
+                  </label>
+                <% }) %>
+              </div>
+              <div class="private-mock-selection-actions">
+                <button type="submit">이 성적으로 선택</button>
+                <button type="button" class="secondary" data-private-mock-defer>다음 회차 후 선택</button>
+              </div>
+              <small data-private-mock-selection-status aria-live="polite"></small>
+            </form>
+          <% } else if (!examData.pendingAggregation && examData.selection && examData.selection.attemptCount === 1) { %>
+            <div class="private-mock-selection-guide">
+              <strong>이번 주 첫 응시 성적이 저장되었습니다.</strong>
+              <span>다른 회차를 한 번 더 완료하면 대표 성적을 직접 선택할 수 있습니다. 한 시험만 완료한 채 3회차가 끝나면 이 성적을 자동 반영합니다.</span>
+            </div>
+          <% } %>
+          <a href="/private-mock-exams"><%= examData.exam.isTest ? "모의고사 홈으로" : "주간 랭킹 확인" %> <span aria-hidden="true">→</span></a>
+        </section>
+        <% if (examData.reviewAvailable) { %>
+          <section class="private-mock-review">
+            <header>
+              <div><p>ANSWER REVIEW</p><h2>OMR 채점 결과</h2></div>
+              <strong><%= examData.result.correctCount %> / <%= examData.result.questionCount %><small>문항 정답</small></strong>
+            </header>
+            <p class="private-mock-review-guide">초록색은 정답, 빨간색은 오답입니다. 자세한 전체 해설은 아카이브의 정답과 해설 PDF도 함께 참고하세요.</p>
+            <div class="private-mock-review-grid">
+              <% examData.review.forEach((question) => { %>
+                <article class="<%= question.isCorrect ? "correct" : "incorrect" %>">
+                  <header>
+                    <strong><%= question.number %>번</strong>
+                    <span><%= question.isCorrect ? "정답" : "오답" %> · <%= question.points %>점</span>
+                  </header>
+                  <% if (question.mode === "multiple-choice") { %>
+                    <div class="private-mock-review-omr">
+                      <% [1, 2, 3, 4, 5].forEach((choice) => {
+                        const selected = String(question.submittedAnswer) === String(choice);
+                      %>
+                        <span class="<%= selected ? (question.isCorrect ? "selected correct" : "selected incorrect") : "" %>"><%= choice %></span>
+                      <% }) %>
+                    </div>
+                  <% } else { %>
+                    <div class="private-mock-review-written">
+                      <span>제출 답 <strong><%= question.submittedAnswer || "미응답" %></strong></span>
+                      <span>정답 <strong><%= question.correctAnswer %></strong></span>
+                    </div>
+                  <% } %>
+                  <% if (!question.isCorrect && question.explanation) { %>
+                    <details class="private-mock-explanation" open>
+                      <summary>이 문제 해설</summary>
+                      <% if (question.explanation.intent) { %><p><strong>출제 의도</strong><%= question.explanation.intent %></p><% } %>
+                      <% if (question.explanation.concept) { %><p><strong>핵심 개념</strong><%= question.explanation.concept %></p><% } %>
+                      <% if (question.explanation.steps?.length) { %>
+                        <ol><% question.explanation.steps.forEach((step) => { %><li><%= step %></li><% }) %></ol>
+                      <% } %>
+                      <% if (question.explanation.summary) { %><p><strong>정리</strong><%= question.explanation.summary %></p><% } %>
+                      <% if (question.explanation.commonMistake) { %><p class="mistake"><strong>자주 하는 실수</strong><%= question.explanation.commonMistake %></p><% } %>
+                    </details>
+                  <% } %>
+                </article>
+              <% }) %>
+            </div>
+          </section>
+        <% } else if (!examData.exam.isTest) { %>
+          <section class="private-mock-review-locked">
+            <strong>문항별 채점과 해설은 일요일 밤 11시에 공개됩니다.</strong>
+            <span>세 회차가 모두 끝난 뒤 OMR의 정오 표시와 틀린 문항 해설을 확인할 수 있습니다.</span>
+          </section>
+        <% } %>
+      <% } else if (examData.notStarted) { %>
+        <section
+          class="private-mock-result-card private-mock-start-card"
+          data-private-mock-exam
+          data-exam-id="<%= examData.exam.id %>"
+          data-server-now="<%= examData.serverNow %>"
+          data-not-started="true"
+          data-release-at="<%= examData.releaseAt %>"
+          data-lobby-tools="true"
+        >
+          <p>READY</p>
+          <h2><%= examData.canStart ? "시험 시작 준비가 끝났습니다." : "시험 시작까지 기다려주세요." %></h2>
+          <span><%= examData.canStart ? "시험 시작 버튼을 누르면 이 화면 안에 문제지 PDF가 표시되고 서버에서 100분 타이머가 시작됩니다." : "시험장은 10분 일찍 열렸습니다. 시작 시각이 되기 전에는 문제지 PDF를 열거나 저장할 수 없습니다." %></span>
+          <div class="private-mock-lobby-countdown">
+            <small>시험 시작까지</small>
+            <strong data-private-mock-lobby-countdown><%= examData.canStart ? "00:00" : "--:--" %></strong>
+          </div>
+          <section class="private-mock-lobby-tools" data-private-mock-lobby-tools>
+            <header><strong>시험 전 10분 준비</strong><span>시작 30초 전에는 자동으로 닫힙니다.</span></header>
+            <div>
+              <button type="button" data-private-mock-lobby-tool="quick">2·3점 눈풀이 연습</button>
+              <button type="button" data-private-mock-lobby-tool="formula" <%= examData.lobbyTools.formulaHref ? "" : "disabled" %>>공식 암기 자료</button>
+            </div>
+            <div class="private-mock-lobby-tool-panel" data-private-mock-lobby-tool-panel hidden>
+              <button type="button" data-private-mock-lobby-tool-close aria-label="준비 도구 닫기">×</button>
+              <iframe title="시험 전 준비 도구" data-private-mock-lobby-tool-frame></iframe>
+            </div>
+            <div class="private-mock-written-guide">
+              <strong>주관식 답안 입력 안내</strong>
+              <span>정수는 그대로 입력하고, 분수는 <b>1/2</b>, 제곱은 <b>x^2</b>, 제곱근은 <b>√2</b>처럼 입력하세요. 시험 화면의 가상 키패드도 사용할 수 있습니다.</span>
+            </div>
+          </section>
+          <div class="private-mock-start-rules">
+            <article><small>제한 시간</small><strong><%= examData.exam.durationMinutes %><i>분</i></strong></article>
+            <article><small>답안 방식</small><strong>OMR<i>+ 주관식</i></strong></article>
+            <article><small>자동 저장</small><strong>사용<i>중간 이탈 가능</i></strong></article>
+          </div>
+          <button
+            type="button"
+            class="<%= examData.canStart ? "" : "disabled" %>"
+            aria-disabled="<%= examData.canStart ? "false" : "true" %>"
+            <%- examData.canStart ? "" : 'tabindex="-1"' %>
+            data-private-mock-start
+            data-quick-href="<%= examData.lobbyTools.quickPracticeHref %>"
+            data-formula-href="<%= examData.lobbyTools.formulaHref || "" %>"
+          ><%= examData.canStart ? "시험 시작" : "시작 시각 대기 중" %> <span aria-hidden="true">→</span></button>
+        </section>
+      <% } else { %>
+        <section
+          class="private-mock-exam-workspace"
+          data-private-mock-exam
+          data-exam-id="<%= examData.exam.id %>"
+          data-server-now="<%= examData.serverNow %>"
+          data-deadline="<%= examData.deadline %>"
+        >
+          <div class="private-mock-paper-panel">
+            <div class="private-mock-paper-toolbar">
+              <div><strong>문제지</strong><span>시험 화면 안에서 확대·축소해 확인할 수 있습니다.</span></div>
+            </div>
+            <iframe src="<%= examData.exam.fileHref %>#toolbar=1&navpanes=0" title="<%= examData.exam.title %> 문제지"></iframe>
+          </div>
+
+          <aside class="private-mock-answer-panel">
+            <header>
+              <div>
+                <p>TIME LIMIT</p>
+                <strong data-private-mock-timer>--:--</strong>
+                <span><%= examData.exam.durationMinutes %>분 제한</span>
+              </div>
+              <div class="private-mock-save-state" data-private-mock-save-state>자동 저장 준비</div>
+            </header>
+            <div class="private-mock-answer-progress">
+              <span>답안 작성</span>
+              <strong><b data-private-mock-answered><%= examData.attempt.answeredCount %></b> / <%= examData.exam.questionCount %></strong>
+            </div>
+            <form data-private-mock-form>
+              <div class="private-mock-answer-grid">
+                <% examData.attempt.answers.forEach((answer, index) => {
+                  const mode = examData.exam.questionModes[index];
+                %>
+                  <section class="private-mock-answer-item <%= mode %>">
+                    <strong><%= index + 1 %></strong>
+                    <% if (mode === "multiple-choice") { %>
+                      <input
+                        type="hidden"
+                        value="<%= answer %>"
+                        data-private-mock-answer="<%= index %>"
+                      />
+                      <div class="private-mock-omr" role="radiogroup" aria-label="<%= index + 1 %>번 객관식 답">
+                        <% [1, 2, 3, 4, 5].forEach((choice) => { %>
+                          <button
+                            type="button"
+                            class="<%= String(answer) === String(choice) ? "selected" : "" %>"
+                            data-private-mock-choice="<%= choice %>"
+                            data-answer-index="<%= index %>"
+                            role="radio"
+                            aria-checked="<%= String(answer) === String(choice) ? "true" : "false" %>"
+                          ><%= choice %></button>
+                        <% }) %>
+                      </div>
+                    <% } else { %>
+                      <input
+                        type="text"
+                        inputmode="text"
+                        maxlength="80"
+                        value="<%= answer %>"
+                        aria-label="<%= index + 1 %>번 주관식 답"
+                        data-private-mock-answer="<%= index %>"
+                        autocomplete="off"
+                      />
+                      <div class="private-mock-keyboard" aria-label="<%= index + 1 %>번 수학 기호 키보드">
+                        <% ["√", "^", "/", "(", ")", "π", "±"].forEach((key) => { %>
+                          <button type="button" data-private-mock-key="<%= key %>" data-answer-index="<%= index %>"><%= key %></button>
+                        <% }) %>
+                        <button type="button" data-private-mock-key="backspace" data-answer-index="<%= index %>" aria-label="한 글자 지우기">⌫</button>
+                      </div>
+                    <% } %>
+                  </section>
+                <% }) %>
+              </div>
+              <p class="private-mock-submit-note">제출 후에는 답을 수정하거나 정답을 확인할 수 없습니다.</p>
+              <button type="submit" data-private-mock-submit>답안 최종 제출</button>
+              <div class="private-mock-submit-error" data-private-mock-error hidden></div>
+            </form>
+          </aside>
+        </section>
+      <% } %>
+    </main>
+  </body>
+</html>

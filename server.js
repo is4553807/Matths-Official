@@ -70,6 +70,11 @@ async function connectDB() {
             refreshCommunityCoachMessages,
         } = require("./services/coachSuggestionService");
         await refreshCommunityCoachMessages();
+
+        const {
+            startPrivateMockExamScheduler,
+        } = require("./services/privateMockExamService");
+        startPrivateMockExamScheduler();
     } catch (error) {
         console.error("MongoDB Connection Failed:", error);
         process.exit(1);

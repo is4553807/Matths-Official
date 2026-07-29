@@ -182,7 +182,7 @@
 
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 
@@ -197,11 +197,15 @@
 }
 
 .password-card {
-  grid-column: 1 / -1;
+  grid-column: auto;
 }
 
 .identity-card {
-  grid-column: 1 / -1;
+  grid-column: auto;
+}
+
+.coach-mode-card {
+  grid-column: auto;
 }
 
 .settings-card-heading {
@@ -255,8 +259,12 @@
   background: #fff1e5;
 }
 
+.settings-icon.red {
+  color: #b72f45;
+  background: #fff0f2;
+}
+
 .settings-description {
-  min-height: 39px;
   margin: 18px 0 0;
   color: #7b8396;
   font-size: 11px;
@@ -328,6 +336,11 @@
   font-weight: 800;
 }
 
+.field-label {
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .form-field input,
 .form-field select {
   width: 100%;
@@ -382,6 +395,43 @@
   color: var(--red);
 }
 
+.locked-profile-value {
+  min-height: 49px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 13px;
+  color: #4d566d;
+  background: #f3f5f9;
+  border: 1px solid #dfe3ed;
+  border-radius: 11px;
+}
+
+.locked-profile-value strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.locked-profile-value span {
+  flex: none;
+  padding: 6px 8px;
+  color: #7f879a;
+  background: #e6e9f0;
+  border-radius: 7px;
+  font-size: 8px;
+  font-weight: 850;
+}
+
+#nickname-settings .settings-form {
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(180px, 240px);
+  align-items: end;
+}
+
 .school-fields {
   display: grid;
   grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
@@ -420,6 +470,11 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.coach-mode-choice-grid {
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
 }
 
 .identity-choice-grid > label {
@@ -477,6 +532,15 @@
 .identity-choice-grid input:focus-visible + span {
   outline: 3px solid rgba(49, 87, 246, 0.23);
   outline-offset: 2px;
+}
+
+.identity-choice-grid input:disabled + span {
+  color: #8f96a8;
+  background: #f1f3f7;
+  border-color: #e1e4eb;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .identity-preview {
@@ -570,6 +634,104 @@
   min-width: 180px;
 }
 
+.withdrawal-card {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 246, 247, 0.96),
+      #fff
+    );
+  border-color: #efcbd1;
+  box-shadow:
+    0 18px 38px rgba(131, 35, 50, 0.07);
+}
+
+.withdrawal-retention-note {
+  display: grid;
+  gap: 7px;
+  margin-top: 20px;
+  padding: 15px 17px;
+  color: #76515a;
+  background: #fff8f9;
+  border: 1px solid #f1d7dc;
+  border-radius: 12px;
+}
+
+.withdrawal-retention-note strong {
+  color: #9c2e42;
+  font-size: 10px;
+}
+
+.withdrawal-retention-note span {
+  font-size: 9px;
+  line-height: 1.7;
+}
+
+.withdrawal-form {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.withdrawal-fields {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.withdrawal-consent {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 10px;
+  padding: 14px 15px;
+  color: #6f5960;
+  background: #fff;
+  border: 1px solid #edd8dc;
+  border-radius: 11px;
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1.65;
+  cursor: pointer;
+}
+
+.withdrawal-consent input {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: #b82d43;
+}
+
+.withdrawal-button {
+  min-height: 47px;
+  padding: 0 18px;
+  color: #fff;
+  background: #b82d43;
+  border: 0;
+  border-radius: 11px;
+  box-shadow:
+    0 10px 20px rgba(184, 45, 67, 0.18);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.withdrawal-button:hover {
+  background: #941f34;
+  transform: translateY(-2px);
+}
+
+.withdrawal-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  transform: none;
+}
+
 @media (max-width: 860px) {
   .profile-hero {
     grid-template-columns: 1fr;
@@ -589,6 +751,18 @@
   }
 
   .identity-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .coach-mode-choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #nickname-settings .settings-form {
+    grid-template-columns: 1fr;
+  }
+
+  .withdrawal-fields {
     grid-template-columns: 1fr;
   }
 }

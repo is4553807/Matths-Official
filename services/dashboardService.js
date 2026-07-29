@@ -6,6 +6,8 @@ const {
     ProblemAttempt,
     LearningEvent,
     AssessmentAttempt,
+    Announcement,
+    UserNotification,
 } = require("../models/matthsModel");
 
 const {
@@ -243,6 +245,10 @@ async function getDashboardData(userId) {
         pendingReviewCount,
         recentWrongAttempts,
         assessmentAttempts,
+        directNotifications,
+        dashboardUrgentNotifications,
+        announcements,
+        dismissedAnnouncements,
     ] = await Promise.all([
         ConceptProgress.find({
             userId: user._id,
@@ -366,6 +372,61 @@ async function getDashboardData(userId) {
         })
             .select(
                 "scopeType courseId unitId subunitId passed scorePercent"
+            )
+            .lean(),
+
+        UserNotification.find({
+            userId: user._id,
+            readAt: null,
+        })
+            .sort({ createdAt: -1 })
+            .limit(8)
+            .lean(),
+
+        UserNotification.find({
+            userId: user._id,
+            kind: {
+                $in: [
+                    "warning",
+                    "account",
+                    "nickname",
+                    "integrity",
+                ],
+            },
+            dashboardDismissedAt: null,
+        })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .lean(),
+
+        Announcement.find({
+            isPublished: true,
+            publishedAt: {
+                $ne: null,
+            },
+            $or: [
+                {
+                    dashboardEndsAt: null,
+                },
+                {
+                    dashboardEndsAt: {
+                        $gte: new Date(),
+                    },
+                },
+            ],
+        })
+            .sort({ publishedAt: -1 })
+            .limit(3)
+            .lean(),
+
+        UserNotification.find({
+            userId: user._id,
+            announcementId: {
+                $ne: null,
+            },
+        })
+            .select(
+                "announcementId dashboardDismissedAt"
             )
             .lean(),
     ]);
@@ -688,30 +749,39 @@ async function getDashboardData(userId) {
         ].join(":"),
     });
 
-    const notifications = [];
-
-    if (pendingReviewCount > 0) {
-        notifications.push({
-            title: `복습할 오답이 ${pendingReviewCount}개 있어요.`,
-            description:
-                "막힌 개념부터 다시 확인해 보세요.",
-            href: "/wrong-notes",
-        });
-    }
-
-    if (currentLearning) {
-        notifications.push({
-            title: "이어서 학습할 개념이 있어요.",
-            description:
-                currentLearning.conceptTitle,
-            href: currentLearning.href,
-        });
-    }
+    const notifications = [
+        ...directNotifications.map(
+            (notification) => ({
+                title: notification.title,
+                description:
+                    String(
+                        notification.message ||
+                            ""
+                    ).slice(0, 160),
+                href:
+                    `/notifications/${notification._id}`,
+                kind:
+                    notification.kind ||
+                    "admin",
+                urgent:
+                    [
+                        "warning",
+                        "account",
+                        "nickname",
+                        "integrity",
+                    ].includes(
+                        notification.kind
+                ),
+            })
+        ),
+    ];
 
     return {
         user: {
             id: String(user._id),
             name: user.name,
+            realName:
+                user.realName || "",
             schoolGrade: user.schoolGrade,
             school: user.school,
             currentStreak:
@@ -722,6 +792,78 @@ async function getDashboardData(userId) {
         todayPlan,
         coach,
         notifications,
+        activeDashboardNotices: [
+            ...dashboardUrgentNotifications.map(
+                (notification) => ({
+                    id: String(
+                        notification._id
+                    ),
+                    title:
+                        notification.title,
+                    content:
+                        notification.message,
+                    href:
+                        `/notifications/${notification._id}/open`,
+                    kind:
+                        notification.kind ||
+                        "admin",
+                    dismissUrl:
+                        `/notifications/${notification._id}/dashboard-dismiss`,
+                    publishedAt:
+                        notification.createdAt,
+                })
+            ),
+            ...announcements
+                .filter(
+                    (announcement) =>
+                        !new Set(
+                            dismissedAnnouncements.map(
+                                (notification) =>
+                                    notification.dashboardDismissedAt
+                                        ? String(notification.announcementId)
+                                        : ""
+                            )
+                        ).has(
+                            String(
+                                announcement._id
+                            )
+                        )
+                )
+                .map(
+                    (announcement) => ({
+                        id: String(
+                            announcement._id
+                        ),
+                        title:
+                            announcement.title,
+                        content:
+                            announcement.content,
+                        href:
+                            (() => {
+                                const inboxNotice =
+                                    dismissedAnnouncements.find(
+                                        (notification) =>
+                                            String(notification.announcementId) ===
+                                            String(announcement._id)
+                                    );
+                                return inboxNotice
+                                    ? `/notifications/${inboxNotice._id}/open`
+                                    : announcement.href || "/main";
+                            })(),
+                        kind:
+                            "announcement",
+                        dismissUrl:
+                            `/announcements/${announcement._id}/dismiss`,
+                        publishedAt:
+                            announcement.publishedAt,
+                    })
+                ),
+        ],
+        hasUrgentNotification:
+            notifications.some(
+                (notification) =>
+                    notification.urgent
+            ),
 
         stats: {
             weeklyStudyMinutes:

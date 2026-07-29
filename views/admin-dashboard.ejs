@@ -1,0 +1,123 @@
+<%
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(date));
+  const inquiryStatus = {
+    pending: "접수",
+    in_review: "확인 중",
+    replied: "답변 완료",
+    closed: "종료",
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>관리자 운영센터 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "dashboard" }) %>
+    <main class="admin-main">
+      <header class="admin-heading">
+        <div>
+          <p>OPERATIONS</p>
+          <h1>관리자 운영센터</h1>
+          <span>공지, 문의, 자료와 사용자 상태를 한곳에서 관리합니다.</span>
+        </div>
+      </header>
+
+      <% if (feedback) { %>
+        <div class="admin-feedback" role="status"><%= feedback %></div>
+      <% } %>
+
+      <section class="admin-stat-grid" aria-label="운영 요약">
+        <article><span>활성 학생</span><strong><%= adminData.stats.activeUsers %></strong></article>
+        <article><span>미처리 문의</span><strong><%= adminData.stats.pendingInquiries %></strong></article>
+        <article><span>공개 공지</span><strong><%= adminData.stats.publishedAnnouncements %></strong></article>
+        <article><span>아카이브</span><strong><%= adminData.stats.archiveItems %><small>개 · 폴더 <%= adminData.stats.archiveFolders %></small></strong></article>
+      </section>
+
+      <div class="admin-dashboard-grid">
+        <section class="admin-panel">
+          <div class="admin-panel-heading">
+            <div><p>ANNOUNCEMENT</p><h2>공지 발표</h2></div>
+          </div>
+          <form class="admin-form" action="/admin/announcements" method="POST">
+            <label>
+              <span>운영 게시판 분류</span>
+              <select name="boardCategory">
+                <option value="notice">일반 공지</option>
+                <option value="rules">규칙</option>
+                <option value="policies">방침</option>
+                <option value="manuals">설명서</option>
+                <option value="inquiry-rules">문의 규칙</option>
+              </select>
+            </label>
+            <label><span>제목</span><input name="title" minlength="2" maxlength="120" required /></label>
+            <label><span>내용</span><textarea name="content" rows="7" minlength="5" maxlength="5000" required></textarea></label>
+            <label>
+              <span>대시보드 노출 종료일 <small>선택하지 않으면 직접 내릴 때까지 표시</small></span>
+              <input type="date" name="dashboardEndDate" />
+            </label>
+            <label class="admin-checkbox"><input type="checkbox" name="publishNow" value="true" checked /><span>저장과 동시에 전체 사용자 우편함과 운영 게시판에 공개</span></label>
+            <button type="submit">공지 저장</button>
+          </form>
+        </section>
+
+        <section class="admin-panel">
+          <div class="admin-panel-heading">
+            <div><p>RECENT INQUIRIES</p><h2>최근 문의</h2></div>
+            <a href="/admin/inquiries">전체 보기 →</a>
+          </div>
+          <div class="admin-compact-list">
+            <% if (!adminData.inquiries.length) { %>
+              <p class="admin-empty">접수된 문의가 없습니다.</p>
+            <% } %>
+            <% adminData.inquiries.forEach((inquiry) => { %>
+              <a href="/admin/inquiries">
+                <span class="status-<%= inquiry.status %>"><%= inquiryStatus[inquiry.status] || inquiry.status %></span>
+                <strong><%= inquiry.subject %></strong>
+                <small><%= inquiry.authorNickname %> · <%= formatDate(inquiry.createdAt) %></small>
+              </a>
+            <% }) %>
+          </div>
+        </section>
+      </div>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading">
+          <div><p>ANNOUNCEMENT HISTORY</p><h2>공지·운영 게시판 이력</h2></div>
+        </div>
+        <div class="admin-announcement-list">
+          <% if (!adminData.announcements.length) { %>
+            <p class="admin-empty">등록된 공지가 없습니다.</p>
+          <% } %>
+          <% adminData.announcements.forEach((announcement) => { %>
+            <article>
+              <div>
+                <span class="<%= announcement.isPublished ? 'is-live' : '' %>"><%= announcement.isPublished ? "공개 중" : "비공개" %></span>
+                <span><%= ({ notice: "일반 공지", rules: "규칙", policies: "방침", manuals: "설명서", "inquiry-rules": "문의 규칙" })[announcement.boardCategory || "notice"] %></span>
+                <h3><%= announcement.title %></h3>
+                <p><%= announcement.content %></p>
+                <small><%= formatDate(announcement.createdAt) %></small>
+                <small>대시보드 노출: <%= announcement.dashboardEndsAt ? `${formatDate(announcement.dashboardEndsAt)}까지` : "직접 내릴 때까지" %></small>
+              </div>
+              <form action="/admin/announcements/<%= announcement._id %>/status" method="POST">
+                <input type="hidden" name="publish" value="<%= announcement.isPublished ? 'false' : 'true' %>" />
+                <button type="submit"><%= announcement.isPublished ? "공개 중지" : "지금 공개" %></button>
+              </form>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

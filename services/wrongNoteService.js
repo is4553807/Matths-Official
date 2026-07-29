@@ -8,19 +8,12 @@ const {
 const {
   getProblemGenerator,
 } = require("./problemGenerators");
+const {
+  syncQuickPracticeWrongNotes,
+} = require("./quickPracticeService");
 
 const PAGE_SIZE = 10;
 const MAX_RECENT_ATTEMPTS = 500;
-
-const ERROR_LABELS = {
-  "calculation-error": "계산 과정에서 실수",
-  "formula-confusion": "공식 적용이 헷갈림",
-  "missing-condition": "문제 조건을 놓침",
-  "sign-error": "부호 계산에서 실수",
-  "concept-not-understood": "핵심 개념 이해가 부족함",
-  "prerequisite-missing": "선행 개념 복습이 필요함",
-  unknown: "풀이 과정을 다시 확인해야 함",
-};
 
 const REVIEW_LABELS = {
   pending: "복습 대기",
@@ -160,12 +153,27 @@ function serializeAttempt(attempt, curriculumIndex) {
   const reviewStatus = normalizeReviewStatus(attempt.review?.status);
   const problem = attempt.problemId || {};
   const snapshot = attempt.problemSnapshot || {};
+  const isQuickPractice =
+    attempt.courseId ===
+      "quick-practice" ||
+    (
+      Array.isArray(
+        problem.tags
+      ) &&
+      problem.tags.includes(
+        "quick-practice"
+      )
+    );
   const retryGenerator =
-    getProblemGenerator({
-      courseId: attempt.courseId,
-      unitId: attempt.unitId,
-      conceptId: attempt.conceptId,
-    });
+    isQuickPractice
+      ? null
+      : getProblemGenerator({
+          courseId:
+            attempt.courseId,
+          unitId: attempt.unitId,
+          conceptId:
+            attempt.conceptId,
+        });
 
   return {
     id: String(attempt._id),
@@ -185,15 +193,30 @@ function serializeAttempt(attempt, curriculumIndex) {
       retryGenerator
         ?.problemTypes?.length
     ),
-    sourceLabel: createSourceLabel(problem.source),
+    isQuickPractice,
+    sourceLabel:
+      isQuickPractice
+        ? "40초 눈풀이"
+        : createSourceLabel(
+            problem.source
+          ),
     courseId: attempt.courseId,
     unitId: attempt.unitId,
     conceptId: attempt.conceptId,
-    courseTitle: metadata?.course.officialTitle || attempt.courseId,
+    courseTitle:
+      isQuickPractice
+        ? "40초 눈풀이"
+        : metadata?.course
+            .officialTitle ||
+          attempt.courseId,
     unitTitle:
-      exactMetadata?.unit.title ||
-      unitMetadata?.unit.title ||
-      attempt.unitId,
+      isQuickPractice
+        ? `${Number(attempt.maxScore) || Number(problem.score) || 2}점 문항`
+        : exactMetadata?.unit
+            .title ||
+          unitMetadata?.unit
+            .title ||
+          attempt.unitId,
     conceptTitle:
       exactMetadata?.concept.title ||
       attempt.conceptId,
@@ -218,10 +241,6 @@ function serializeAttempt(attempt, curriculumIndex) {
     ),
     score: Number(attempt.score) || 0,
     maxScore: Number(attempt.maxScore) || Number(problem.score) || 0,
-    errorType: attempt.errorAnalysis?.errorType || "unknown",
-    errorLabel:
-      ERROR_LABELS[attempt.errorAnalysis?.errorType] ||
-      ERROR_LABELS.unknown,
     reviewStatus,
     reviewLabel: REVIEW_LABELS[reviewStatus],
     scheduledAt: attempt.review?.scheduledAt || null,
@@ -236,9 +255,11 @@ function serializeAttempt(attempt, curriculumIndex) {
     reviewHref:
       `/wrong-notes/${encodeURIComponent(String(attempt._id))}/review`,
     conceptHref:
-      `/learn/${encodeURIComponent(attempt.courseId)}/` +
-      `${encodeURIComponent(attempt.unitId)}/` +
-      `${encodeURIComponent(attempt.conceptId)}`,
+      isQuickPractice
+        ? "/quick-practice"
+        : `/learn/${encodeURIComponent(attempt.courseId)}/` +
+          `${encodeURIComponent(attempt.unitId)}/` +
+          `${encodeURIComponent(attempt.conceptId)}`,
   };
 }
 
@@ -266,7 +287,6 @@ function normalizeFilters(query = {}) {
   return {
     status,
     course: String(query.course || "").trim(),
-    errorType: String(query.errorType || "").trim(),
     search: String(query.search || "").trim().slice(0, 80),
     sort,
     page: Math.max(1, Number.parseInt(query.page, 10) || 1),
@@ -285,13 +305,6 @@ function applyFilters(items, filters) {
     }
 
     if (filters.course && item.courseId !== filters.course) {
-      return false;
-    }
-
-    if (
-      filters.errorType &&
-      item.errorType !== filters.errorType
-    ) {
       return false;
     }
 
@@ -352,6 +365,9 @@ function sortItems(items, sort) {
 }
 
 async function getWrongNoteData(userId, query = {}) {
+  await syncQuickPracticeWrongNotes(
+    userId
+  );
   const curriculumData = loadCurriculum();
   const curriculumIndex = createCurriculumIndex(curriculumData);
   const filters = normalizeFilters(query);
@@ -365,7 +381,7 @@ async function getWrongNoteData(userId, query = {}) {
     .limit(MAX_RECENT_ATTEMPTS)
     .populate({
       path: "problemId",
-      select: "externalId stem source difficulty score",
+      select: "externalId stem source difficulty score tags",
     })
     .lean();
 
@@ -418,10 +434,6 @@ async function getWrongNoteData(userId, query = {}) {
     },
     options: {
       courses: courseOptions,
-      errorTypes: Object.entries(ERROR_LABELS).map(([id, label]) => ({
-        id,
-        label,
-      })),
     },
     stats: {
       total: allItems.length,
@@ -468,7 +480,7 @@ async function getWrongNoteReviewData({
   })
     .populate({
       path: "problemId",
-      select: "externalId stem source difficulty score",
+      select: "externalId stem source difficulty score tags",
     })
     .lean();
 

@@ -135,6 +135,12 @@ a {
   margin: 55px auto 100px;
 }
 
+.legal-layout,
+.legal-document,
+.legal-document > section {
+  min-width: 0;
+}
+
 .legal-layout > aside {
   position: sticky;
   top: 105px;
@@ -276,6 +282,7 @@ a {
 }
 
 .legal-table-wrap {
+  max-width: 100%;
   overflow-x: auto;
   border: 1px solid #dfe4ee;
   border-radius: 15px;

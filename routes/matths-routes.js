@@ -2,9 +2,13 @@ const express = require('express');
 const router = express.Router();
 const matthsController = require('../controllers/matthsController');
 const authMiddleware = require('../middleware/authMiddleware');
+const archiveUpload = require("../middleware/archiveUpload");
 const fs = require('fs');
 const yaml = require('js-yaml');
 const path = require('path');
+const {
+  getAdminTodoSummary,
+} = require("../services/adminTodoService");
 
 const curriculumPath = path.resolve(__dirname, "..", "kr-2022-g10-math-curri.yaml");
 
@@ -26,10 +30,476 @@ router.post(
 );
 router.get('/terms', matthsController.termsPage);
 router.get('/privacy', matthsController.privacyPage);
+router.get(
+  "/community",
+  matthsController.communityPage
+);
+router.get(
+  "/community/new",
+  authMiddleware.isLoggedIn,
+  matthsController.communityNewPage
+);
+router.post(
+  "/community",
+  authMiddleware.isLoggedIn,
+  matthsController.submitCommunityPost
+);
+router.get(
+  "/community/operations/:announcementId",
+  matthsController.communityAnnouncementPage
+);
+router.get(
+  "/community/:postId",
+  matthsController.communityPostPage
+);
+router.post(
+  "/community/:postId/comments",
+  authMiddleware.isLoggedIn,
+  matthsController.submitCommunityComment
+);
+router.post(
+  "/community/:postId/vote",
+  authMiddleware.isLoggedIn,
+  matthsController.submitCommunityVote
+);
+router.post(
+  "/community/:postId/report",
+  authMiddleware.isLoggedIn,
+  matthsController.submitCommunityReport
+);
+
+router.use(async (req, res, next) => {
+  res.locals.adminTodoSummary = {
+    pendingCount: 0,
+    items: [],
+  };
+  if (
+    req.session?.user?.role !==
+    "admin"
+  ) {
+    return next();
+  }
+  try {
+    res.locals.adminTodoSummary =
+      await getAdminTodoSummary();
+  } catch (error) {
+    console.error(
+      "관리자 할 일 요약 조회 실패:",
+      error
+    );
+  }
+  return next();
+});
+
+router.get(
+  "/archive",
+  authMiddleware.isLoggedIn,
+  matthsController.archivePage
+);
+router.get(
+  "/archive/admin",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.archiveAdminPage
+);
+router.post(
+  "/archive/admin/folders",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.createArchiveFolder
+);
+router.post(
+  "/archive/admin/upload",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  (req, res, next) => {
+    archiveUpload.array(
+      "archiveFiles",
+      20
+    )(
+      req,
+      res,
+      (error) => {
+        if (error) {
+          error.status =
+            error.status || 400;
+          return next(error);
+        }
+
+        return next();
+      }
+    );
+  },
+  matthsController.uploadArchiveItem
+);
+router.post(
+  "/archive/admin/items/bulk-delete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.deleteArchiveItems
+);
+router.post(
+  "/archive/admin/items/bulk-move",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.moveArchiveItems
+);
+router.post(
+  "/archive/admin/items/:itemId/delete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.deleteArchiveItem
+);
+router.get(
+  "/archive/:itemId/download",
+  authMiddleware.isLoggedIn,
+  matthsController.downloadArchiveItem
+);
+
+router.get(
+  "/admin",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminDashboardPage
+);
+router.post(
+  "/admin/announcements",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCreateAnnouncement
+);
+router.post(
+  "/admin/announcements/:announcementId/status",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminToggleAnnouncement
+);
+router.get(
+  "/admin/private-mock-exams",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminPrivateMockExamsPage
+);
+router.post(
+  "/admin/private-mock-exams",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  (req, res, next) => {
+    archiveUpload.fields([
+      {
+        name: "examFiles",
+        maxCount: 10,
+      },
+      {
+        name:
+          "answerKeyFiles",
+        maxCount: 10,
+      },
+      {
+        name:
+          "answerSheetFiles",
+        maxCount: 10,
+      },
+    ])(
+      req,
+      res,
+      (error) => {
+        if (error) {
+          error.status =
+            error.status || 400;
+          return next(error);
+        }
+
+        return next();
+      }
+    );
+  },
+  matthsController.adminCreatePrivateMockExam
+);
+router.post(
+  "/admin/private-mock-exams/:examId/delete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminDeletePrivateMockExam
+);
+router.get(
+  "/admin/private-mock-exams/:examId/files/:fileType",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminPrivateMockExamPdfFile
+);
+router.get(
+  "/admin/integrity-cases/:caseId/evidence/:archiveItemId/preview",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminPrivateMockIntegrityEvidenceFile
+);
+router.post(
+  "/admin/private-mock-exams/:examId/attempts/:attemptId/integrity-request",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRequestPrivateMockIntegrityEvidence
+);
+router.post(
+  "/admin/private-mock-exams/:examId/integrity/:caseId/review",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminReviewPrivateMockIntegrityCase
+);
+router.post(
+  "/admin/private-mock-exams/:examId/answer-corrections",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCorrectPrivateMockAnswers
+);
+router.get(
+  "/admin/private-mock-exams/:examId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminPrivateMockExamDetailPage
+);
+router.get(
+  "/admin/private-mock-objections/:objectionId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminPrivateMockObjectionPage
+);
+router.post(
+  "/admin/private-mock-objections/:objectionId/reject",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRejectPrivateMockObjection
+);
+router.post(
+  "/admin/private-mock-objections/:objectionId/accept",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminAcceptPrivateMockObjection
+);
+router.post(
+  "/admin/private-mock-exams/resources/formula",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  (req, res, next) => {
+    archiveUpload.single(
+      "formulaFile"
+    )(req, res, (error) => {
+      if (error) {
+        error.status =
+          error.status || 400;
+        return next(error);
+      }
+      return next();
+    });
+  },
+  matthsController.adminUploadPrivateMockFormula
+);
+router.post(
+  "/admin/private-mock-exams/resources/formula/:resourceId/delete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminDeletePrivateMockFormula
+);
+router.get(
+  "/admin/inquiries",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminInquiriesPage
+);
+router.get(
+  "/admin/todos",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminTodosPage
+);
+router.post(
+  "/admin/todos/:todoId/complete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCompleteTodo
+);
+router.post(
+  "/admin/todos/:todoId/reopen",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminReopenTodo
+);
+router.get(
+  "/admin/community",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCommunityPage
+);
+router.get(
+  "/admin/coach-suggestions",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCoachSuggestionsPage
+);
+router.post(
+  "/admin/coach-suggestions/:suggestionId/moderate",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.moderateCoachSuggestion
+);
+router.post(
+  "/admin/community/:postId/edit",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminEditCommunityPost
+);
+router.post(
+  "/admin/community/:postId/status",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminModerateCommunityPost
+);
+router.post(
+  "/admin/community/:postId/warn",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminWarnCommunityPost
+);
+router.post(
+  "/admin/community/reports/:reportId/review",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminReviewCommunityReport
+);
+router.post(
+  "/admin/community/comments/:commentId/status",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminModerateCommunityComment
+);
+router.post(
+  "/admin/community/comments/:commentId/warn",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminWarnCommunityComment
+);
+router.post(
+  "/admin/inquiries/:inquiryId/reply",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminReplyInquiry
+);
+router.post(
+  "/admin/inquiries/:inquiryId/status",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateInquiryStatus
+);
+router.get(
+  "/admin/users",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUsersPage
+);
+router.get(
+  "/admin/users/:userId/activity",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUserActivityPage
+);
+router.get(
+  "/admin/users/:userId/assessments/:attemptId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminAssessmentDetailPage
+);
+router.get(
+  "/admin/users/:userId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUserDetailPage
+);
+router.post(
+  "/admin/users/:userId/nickname",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateUserNickname
+);
+router.post(
+  "/admin/users/:userId/notification",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminSendUserNotification
+);
+router.post(
+  "/admin/users/:userId/email",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminSendUserEmail
+);
+router.post(
+  "/admin/users/:userId/password-reset",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminSendPasswordReset
+);
+router.post(
+  "/admin/users/:userId/account",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminSetUserActive
+);
+router.post(
+  "/admin/users/:userId/role",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateUserRole
+);
+router.post(
+  "/admin/users/:userId/account-status",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateUserAccountStatus
+);
+router.post(
+  "/admin/users/:userId/warnings",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateUserWarningCount
+);
+router.get(
+  "/notifications",
+  authMiddleware.isLoggedIn,
+  matthsController.notificationInboxPage
+);
+router.post(
+  "/notifications/read-all",
+  authMiddleware.isLoggedIn,
+  matthsController.markAllUserNotificationsRead
+);
+router.post(
+  "/announcements/:announcementId/dismiss",
+  authMiddleware.isLoggedIn,
+  matthsController.dismissDashboardAnnouncement
+);
+router.post(
+  "/notifications/:notificationId/dashboard-dismiss",
+  authMiddleware.isLoggedIn,
+  matthsController.dismissDashboardNotification
+);
+router.get(
+  "/notifications/:notificationId",
+  authMiddleware.isLoggedIn,
+  matthsController.notificationDetailPage
+);
+router.get(
+  "/notifications/:notificationId/open",
+  authMiddleware.isLoggedIn,
+  matthsController.openUserNotification
+);
 
 router.get(
   "/forgot-password",
   matthsController.forgotPasswordPage
+);
+router.get(
+  "/forgot-password/link",
+  matthsController.openPasswordResetLink
 );
 router.post(
   "/forgot-password",
@@ -66,12 +536,147 @@ router.get(
   matthsController.warOfMastersPage
 );
 
+router.get(
+  "/war-of-masters/rankings",
+  authMiddleware.isLoggedIn,
+  matthsController.warOfMastersRankingsPage
+);
+router.get(
+  "/war-of-masters/objections/new",
+  authMiddleware.isLoggedIn,
+  matthsController.privateMockObjectionPage
+);
+router.post(
+  "/war-of-masters/objections",
+  authMiddleware.isLoggedIn,
+  matthsController.submitPrivateMockObjection
+);
+
+router.post(
+  "/war-of-masters/placement/start",
+  authMiddleware.isLoggedIn,
+  matthsController.startPlacementExam
+);
+
+router.get(
+  "/war-of-masters/placement/:attemptId",
+  authMiddleware.isLoggedIn,
+  matthsController.placementExamPage
+);
+
+router.post(
+  "/war-of-masters/placement/:attemptId/submit",
+  authMiddleware.isLoggedIn,
+  matthsController.submitPlacementExam
+);
+
+router.post(
+  "/api/war-of-masters/placement/:attemptId/draft",
+  authMiddleware.isLoggedIn,
+  matthsController.savePlacementExamDraft
+);
+
+router.post(
+  "/api/war-of-masters/placement/:attemptId/expire",
+  authMiddleware.isLoggedIn,
+  matthsController.expirePlacementExam
+);
+
 router.get('/profile', authMiddleware.isLoggedIn, matthsController.profilePage);
+router.get(
+  "/account/private-mock-restriction",
+  authMiddleware.isLoggedIn,
+  matthsController.privateMockRestrictionPage
+);
+router.get(
+  "/private-mock-exams",
+  authMiddleware.isLoggedIn,
+  matthsController.privateMockExamsPage
+);
+router.get(
+  "/private-mock-exams/resources/formula/file",
+  authMiddleware.isLoggedIn,
+  matthsController.privateMockFormulaFile
+);
+router.get(
+  "/private-mock-exams/:examId",
+  authMiddleware.isLoggedIn,
+  matthsController.privateMockExamPage
+);
+router.get(
+  "/private-mock-exams/:examId/file",
+  authMiddleware.isLoggedIn,
+  matthsController.privateMockExamFile
+);
+router.post(
+  "/api/private-mock-exams/:examId/start",
+  authMiddleware.isLoggedIn,
+  matthsController.startPrivateMockExam
+);
+router.post(
+  "/api/private-mock-exams/:examId/draft",
+  authMiddleware.isLoggedIn,
+  matthsController.savePrivateMockExamDraft
+);
+router.post(
+  "/api/private-mock-exams/:examId/submit",
+  authMiddleware.isLoggedIn,
+  matthsController.submitPrivateMockExam
+);
+router.post(
+  "/api/private-mock-exams/weeks/:weekKey/selection",
+  authMiddleware.isLoggedIn,
+  matthsController.selectPrivateMockResult
+);
+router.get(
+  "/integrity/cases/:caseId",
+  authMiddleware.isLoggedIn,
+  matthsController.privateMockIntegrityCasePage
+);
+router.post(
+  "/integrity/cases/:caseId/evidence",
+  authMiddleware.isLoggedIn,
+  (req, res, next) => {
+    archiveUpload.array(
+      "evidenceFiles",
+      10
+    )(req, res, (error) => {
+      if (error) {
+        error.status =
+          error.status || 400;
+        return next(error);
+      }
+      return next();
+    });
+  },
+  matthsController.submitPrivateMockIntegrityEvidence
+);
+router.get(
+  "/nickname-change",
+  authMiddleware.isLoggedIn,
+  matthsController.nicknameChangePage
+);
+router.post(
+  "/nickname-change/check",
+  authMiddleware.isLoggedIn,
+  matthsController.checkNicknameChange
+);
+router.post(
+  "/nickname-change",
+  authMiddleware.isLoggedIn,
+  matthsController.completeNicknameChange
+);
 
 router.post(
   '/profile/nickname',
   authMiddleware.isLoggedIn,
   matthsController.changeNickname
+);
+
+router.post(
+  "/profile/coach-mode",
+  authMiddleware.isLoggedIn,
+  matthsController.changeProfileCoachMode
 );
 
 router.post(
@@ -90,6 +695,12 @@ router.post(
   '/profile/password',
   authMiddleware.isLoggedIn,
   matthsController.changePassword
+);
+
+router.post(
+  "/profile/withdraw",
+  authMiddleware.isLoggedIn,
+  matthsController.withdrawOwnAccount
 );
 
 router.get('/login', authMiddleware.isLoggedOut, matthsController.loginPage);

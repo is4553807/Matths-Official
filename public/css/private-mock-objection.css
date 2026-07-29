@@ -1,0 +1,157 @@
+.objection-main {
+  padding-bottom: 70px;
+}
+
+.objection-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 0.34fr);
+  gap: 28px;
+  align-items: center;
+  margin-top: 28px;
+  padding: clamp(30px, 5vw, 52px);
+  color: #fff;
+  background:
+    radial-gradient(circle at 88% 10%, rgba(211, 85, 103, 0.3), transparent 35%),
+    linear-gradient(145deg, #0c1228, #1b2348);
+  border: 1px solid #29345f;
+  border-radius: 26px;
+}
+
+.objection-hero p {
+  margin: 0 0 11px;
+  color: #f08ba0;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1.7px;
+}
+
+.objection-hero h2 {
+  max-width: 720px;
+  margin: 0;
+  font-size: clamp(29px, 4vw, 48px);
+  letter-spacing: -2px;
+}
+
+.objection-hero span {
+  display: block;
+  max-width: 760px;
+  margin-top: 15px;
+  color: #b8c1dd;
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.objection-hero > b {
+  padding: 21px;
+  color: #d8def2;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+.objection-feedback {
+  margin-top: 18px;
+  padding: 15px 17px;
+  color: #17684f;
+  background: #e8f8f1;
+  border: 1px solid #bfe6d6;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.objection-form-card {
+  margin-top: 20px;
+  padding: clamp(24px, 4vw, 38px);
+  background: #fff;
+  border: 1px solid #e0e5ef;
+  border-radius: 23px;
+  box-shadow: 0 17px 40px rgba(30, 43, 102, 0.06);
+}
+
+.objection-form-card form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.25fr);
+  gap: 18px;
+}
+
+.objection-form-card label {
+  display: grid;
+  gap: 8px;
+}
+
+.objection-form-card label.wide,
+.objection-form-note,
+.objection-form-card form > button {
+  grid-column: 1 / -1;
+}
+
+.objection-form-card label > span {
+  color: #606a80;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.objection-form-card input,
+.objection-form-card select,
+.objection-form-card textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 15px;
+  color: #11172c;
+  background: #f9faff;
+  border: 1px solid #dce2ef;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 11px;
+  resize: vertical;
+}
+
+.objection-form-note {
+  padding: 15px 17px;
+  color: #7b5360;
+  background: #fff4f6;
+  border: 1px solid #f3d7de;
+  border-radius: 12px;
+  font-size: 9px;
+  line-height: 1.7;
+}
+
+.objection-form-card form > button {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  color: #fff;
+  background: linear-gradient(135deg, #9e3450, #d35567);
+  border: 0;
+  border-radius: 13px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.objection-empty {
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.objection-empty strong {
+  font-size: 18px;
+}
+
+.objection-empty p {
+  color: #7e879c;
+  font-size: 10px;
+}
+
+@media (max-width: 800px) {
+  .objection-hero,
+  .objection-form-card form {
+    grid-template-columns: 1fr;
+  }
+}

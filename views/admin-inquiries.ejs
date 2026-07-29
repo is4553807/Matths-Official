@@ -1,0 +1,94 @@
+<%
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(date));
+  const statusLabels = {
+    pending: "접수",
+    in_review: "확인 중",
+    replied: "답변 완료",
+    closed: "종료",
+  };
+  const pageHref = (page) => {
+    const params = new URLSearchParams();
+    params.set(
+      "status",
+      inquiryData.status || "all"
+    );
+    params.set("page", page);
+    return `/admin/inquiries?${params.toString()}`;
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>문의 관리 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "inquiries" }) %>
+    <main class="admin-main">
+      <header class="admin-heading">
+        <div><p>SUPPORT</p><h1>문의 관리</h1><span>접수 내용과 이메일 발송 상태를 확인하고 사이트 안에서 바로 답변합니다.</span></div>
+        <strong><%= inquiryData.total %><small>건</small></strong>
+      </header>
+      <% if (feedback) { %><div class="admin-feedback" role="status"><%= feedback %></div><% } %>
+
+      <form class="admin-filter-bar" action="/admin/inquiries" method="GET">
+        <label><span>처리 상태</span>
+          <select name="status">
+            <option value="all" <%= !inquiryData.status ? "selected" : "" %>>전체 문의</option>
+            <% Object.entries(statusLabels).forEach(([value, label]) => { %>
+              <option value="<%= value %>" <%= inquiryData.status === value ? "selected" : "" %>><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
+        <button type="submit">필터 적용</button>
+      </form>
+
+      <section class="admin-inquiry-list">
+        <% if (!inquiryData.inquiries.length) { %><div class="admin-empty">조건에 맞는 문의가 없습니다.</div><% } %>
+        <% inquiryData.inquiries.forEach((inquiry) => { %>
+          <article class="admin-inquiry-card" id="inquiry-<%= inquiry._id %>">
+            <header>
+              <div>
+                <span class="status-<%= inquiry.status %>"><%= statusLabels[inquiry.status] || inquiry.status %></span>
+                <h2><%= inquiry.subject %></h2>
+                <p><%= inquiry.authorNickname %> · <%= inquiry.authorRealName || "실명 미입력" %> · <%= inquiry.schoolName || "학교 미설정" %></p>
+              </div>
+              <div><strong><%= inquiry.contactEmail %></strong><small><%= formatDate(inquiry.createdAt) %></small></div>
+            </header>
+            <div class="admin-inquiry-content"><%= inquiry.content %></div>
+            <div class="admin-inquiry-actions">
+              <form action="/admin/inquiries/<%= inquiry._id %>/status" method="POST">
+                <select name="status">
+                  <option value="pending">접수</option>
+                  <option value="in_review" <%= inquiry.status === "in_review" ? "selected" : "" %>>확인 중</option>
+                  <option value="replied" <%= inquiry.status === "replied" ? "selected" : "" %>>답변 완료</option>
+                  <option value="closed" <%= inquiry.status === "closed" ? "selected" : "" %>>종료</option>
+                </select>
+                <button type="submit">상태 저장</button>
+              </form>
+              <form action="/admin/inquiries/<%= inquiry._id %>/reply" method="POST">
+                <textarea name="message" rows="4" minlength="5" maxlength="5000" placeholder="가입 이메일로 보낼 답변을 작성하세요." required><%= inquiry.adminReply?.message || "" %></textarea>
+                <button type="submit">답변 이메일 전송</button>
+              </form>
+            </div>
+          </article>
+        <% }) %>
+      </section>
+
+      <nav class="admin-pagination" aria-label="문의 페이지">
+        <a class="<%= inquiryData.page <= 1 ? 'disabled' : '' %>" href="<%= pageHref(Math.max(1, inquiryData.page - 1)) %>">← 이전</a>
+        <span><strong><%= inquiryData.page %></strong> / <%= inquiryData.totalPages %></span>
+        <a class="<%= inquiryData.page >= inquiryData.totalPages ? 'disabled' : '' %>" href="<%= pageHref(Math.min(inquiryData.totalPages, inquiryData.page + 1)) %>">다음 →</a>
+      </nav>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,106 @@
+<%
+  const gradeLabels = {
+    10: "고1",
+    11: "고2",
+    12: "고3",
+    13: "N수생",
+  };
+  const formatDate = (date) =>
+    date
+      ? new Intl.DateTimeFormat("ko-KR", {
+          timeZone: "Asia/Seoul",
+          dateStyle: "medium",
+        }).format(new Date(date))
+      : "기록 없음";
+  const pageHref = (page) => {
+    const params = new URLSearchParams();
+    if (usersData.filters.query) params.set("query", usersData.filters.query);
+    if (usersData.filters.schoolCode) params.set("school", usersData.filters.schoolCode);
+    if (usersData.filters.grade) params.set("grade", usersData.filters.grade);
+    if (usersData.filters.state) params.set("state", usersData.filters.state);
+    if (usersData.filters.role) params.set("role", usersData.filters.role);
+    params.set("page", page);
+    return `/admin/users?${params.toString()}`;
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>유저 관리 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "users" }) %>
+    <main class="admin-main">
+      <header class="admin-heading">
+        <div><p>USER MANAGEMENT</p><h1>유저 관리</h1><span>검색과 필터로 사용자를 찾은 뒤 학습·랭킹·계정 정보를 확인합니다.</span></div>
+        <strong><%= usersData.total %><small>명</small></strong>
+      </header>
+
+      <form class="admin-filter-bar user-filter-bar" action="/admin/users" method="GET">
+        <label class="wide"><span>닉네임·실명·이메일 검색</span><input type="search" name="query" value="<%= usersData.filters.query %>" placeholder="검색어 입력" /></label>
+        <label><span>고등학교</span>
+          <select name="school">
+            <option value="">전체 학교</option>
+            <% usersData.schools.forEach((school) => { %>
+              <option value="<%= school.code %>" <%= usersData.filters.schoolCode === school.code ? "selected" : "" %>><%= school.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label><span>학년</span>
+          <select name="grade">
+            <option value="">전체 학년</option>
+            <% Object.entries(gradeLabels).forEach(([value, label]) => { %>
+              <option value="<%= value %>" <%= String(usersData.filters.grade) === value ? "selected" : "" %>><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label><span>계정 상태</span>
+          <select name="state">
+            <option value="">전체 상태</option>
+            <option value="active" <%= usersData.filters.state === "active" ? "selected" : "" %>>활성</option>
+            <option value="inactive" <%= usersData.filters.state === "inactive" ? "selected" : "" %>>비활성</option>
+            <option value="suspended" <%= usersData.filters.state === "suspended" ? "selected" : "" %>>정지</option>
+            <option value="withdrawn" <%= usersData.filters.state === "withdrawn" ? "selected" : "" %>>탈퇴</option>
+          </select>
+        </label>
+        <label><span>역할</span>
+          <select name="role">
+            <option value="">전체 역할</option>
+            <option value="student" <%= usersData.filters.role === "student" ? "selected" : "" %>>학생</option>
+            <option value="teacher" <%= usersData.filters.role === "teacher" ? "selected" : "" %>>교사</option>
+            <option value="admin" <%= usersData.filters.role === "admin" ? "selected" : "" %>>관리자</option>
+          </select>
+        </label>
+        <button type="submit">검색</button>
+      </form>
+
+      <section class="admin-user-table" aria-label="사용자 목록">
+        <div class="admin-user-row head"><span>사용자</span><span>학교</span><span>학년</span><span>역할</span><span>상태·경고</span><span>학습 시간</span><span>최근 로그인</span><span></span></div>
+        <% if (!usersData.users.length) { %><div class="admin-empty">조건에 맞는 사용자가 없습니다.</div><% } %>
+        <% usersData.users.forEach((member) => { %>
+          <a class="admin-user-row" href="/admin/users/<%= member._id %>">
+            <span><strong><%= member.name %></strong><small><%= member.email %></small></span>
+            <span><%= member.school?.name || "미설정" %><small><%= member.school?.region || "" %></small></span>
+            <span><%= gradeLabels[member.schoolGrade] || "—" %></span>
+            <span><%= { student: "학생", teacher: "교사", admin: "관리자" }[member.role] || member.role %></span>
+            <span class="<%= (member.accountStatus || (member.isActive ? 'active' : 'inactive')) === 'active' ? 'is-active' : 'is-inactive' %>"><%= { active: "활성", inactive: "비활성", suspended: "정지", withdrawn: "탈퇴" }[member.accountStatus || (member.isActive ? "active" : "inactive")] %><small>경고 <%= member.warningCount || 0 %>회</small></span>
+            <span><%= Math.round((member.totalStudySeconds || 0) / 60) %>분</span>
+            <span><%= formatDate(member.lastLoginAt) %></span>
+            <span>상세 →</span>
+          </a>
+        <% }) %>
+      </section>
+
+      <nav class="admin-pagination" aria-label="사용자 페이지">
+        <a class="<%= usersData.page <= 1 ? 'disabled' : '' %>" href="<%= pageHref(Math.max(1, usersData.page - 1)) %>">← 이전</a>
+        <span><strong><%= usersData.page %></strong> / <%= usersData.totalPages %> · 페이지당 <%= usersData.perPage %>명</span>
+        <a class="<%= usersData.page >= usersData.totalPages ? 'disabled' : '' %>" href="<%= pageHref(Math.min(usersData.totalPages, usersData.page + 1)) %>">다음 →</a>
+      </nav>
+    </main>
+  </body>
+</html>

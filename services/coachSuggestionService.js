@@ -1,6 +1,11 @@
 const {
   CoachMessageSuggestion,
+  UserNotification,
 } = require("../models/matthsModel");
+const {
+  completeAdminTodoBySource,
+  createAdminTodo,
+} = require("./adminTodoService");
 const {
   MODES,
   SITUATIONS,
@@ -110,6 +115,61 @@ async function getSuggestionBoardData(
   };
 }
 
+async function getAdminSuggestionData() {
+  const [pending, approved, rejected] =
+    await Promise.all([
+      CoachMessageSuggestion.find({
+        status: "pending",
+      })
+        .sort({ createdAt: 1 })
+        .limit(200)
+        .lean(),
+      CoachMessageSuggestion.find({
+        status: "approved",
+      })
+        .sort({
+          moderatedAt: -1,
+        })
+        .limit(100)
+        .lean(),
+      CoachMessageSuggestion.find({
+        status: "rejected",
+      })
+        .sort({
+          moderatedAt: -1,
+        })
+        .limit(50)
+        .lean(),
+    ]);
+
+  return {
+    pending:
+      pending.map(
+        serializeSuggestion
+      ),
+    approved:
+      approved.map(
+        serializeSuggestion
+      ),
+    rejected:
+      rejected.map(
+        serializeSuggestion
+      ),
+    stats: {
+      pending:
+        pending.length,
+      approved:
+        await CoachMessageSuggestion.countDocuments({
+          status: "approved",
+        }),
+      rejected:
+        await CoachMessageSuggestion.countDocuments({
+          status: "rejected",
+        }),
+    },
+  };
+}
+
 async function createSuggestion({
   user,
   mode,
@@ -191,6 +251,21 @@ async function createSuggestion({
       message: cleanMessage,
     });
 
+  await createAdminTodo({
+    category: "other",
+    title: "코치 문구 제안 검토",
+    description: cleanMessage,
+    href: `/admin/coach-suggestions#suggestion-${suggestion._id}`,
+    targetUserId:
+      suggestion.userId,
+    actorUserId:
+      suggestion.userId,
+    sourceType:
+      "CoachMessageSuggestion",
+    sourceId:
+      suggestion._id,
+  });
+
   return serializeSuggestion(
     suggestion
   );
@@ -223,6 +298,22 @@ async function moderateSuggestion({
     throw error;
   }
 
+  const cleanRejectionReason =
+    sanitizeMessage(
+      rejectionReason
+    ).slice(0, 200);
+
+  if (
+    rejected &&
+    !cleanRejectionReason
+  ) {
+    const error = new Error(
+      "반려 사유를 입력해주세요."
+    );
+    error.status = 400;
+    throw error;
+  }
+
   const suggestion =
     await CoachMessageSuggestion.findOneAndUpdate(
       {
@@ -240,9 +331,7 @@ async function moderateSuggestion({
             new Date(),
           rejectionReason: approved
             ? ""
-            : sanitizeMessage(
-                rejectionReason
-              ).slice(0, 200),
+            : cleanRejectionReason,
         },
       },
       {
@@ -258,6 +347,31 @@ async function moderateSuggestion({
     throw error;
   }
 
+  if (rejected) {
+    await UserNotification.create({
+      userId:
+        suggestion.userId,
+      title:
+        "제안한 문구가 반려되었습니다.",
+      message:
+        `제안 문구: ${suggestion.message}\n` +
+        `반려 사유: ${cleanRejectionReason}`,
+      href: "/coach-suggestions",
+      kind: "system",
+      createdBy:
+        adminUser.id,
+    });
+  }
+
+  await completeAdminTodoBySource({
+    sourceType:
+      "CoachMessageSuggestion",
+    sourceId:
+      suggestion._id,
+    adminUserId:
+      adminUser.id,
+  });
+
   await refreshCommunityCoachMessages();
 
   return serializeSuggestion(
@@ -269,6 +383,7 @@ module.exports = {
   ADMIN_EMAIL,
   createSuggestion,
   getSuggestionBoardData,
+  getAdminSuggestionData,
   isCoachAdmin,
   moderateSuggestion,
   refreshCommunityCoachMessages,

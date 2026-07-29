@@ -1,0 +1,148 @@
+<%
+  const formatBytes = (bytes) => {
+    const size = Number(bytes) || 0;
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 ** 2).toFixed(1)} MB`;
+  };
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(date));
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Matths 회원 전용 학습 자료 아카이브" />
+    <title>아카이브 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/archive.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  </head>
+  <body class="archive-page archive-public-page">
+    <a class="skip-link" href="#archive-main">본문으로 바로가기</a>
+    <%- include("partials/public-navigation", { activePage: "archive" }) %>
+
+    <main class="archive-public-main" id="archive-main">
+      <header class="archive-public-heading">
+        <div>
+          <p>MATTHS ARCHIVE</p>
+          <h1>아카이브</h1>
+          <span>Matths가 정리한 문제지와 해설, 개념 자료를 확인하세요.</span>
+        </div>
+        <% if (archiveData.isAdmin) { %>
+          <a class="archive-admin-link" href="/archive/admin">
+            관리자 파일 추가
+            <span aria-hidden="true">→</span>
+          </a>
+        <% } %>
+      </header>
+
+      <section class="archive-intro">
+        <div>
+          <p>CURATED MATERIALS</p>
+          <h2>필요한 학습 자료를 한곳에서 확인하세요.</h2>
+          <span>로그인한 Matths 회원만 자료를 확인하고 내려받을 수 있습니다.</span>
+        </div>
+        <strong><%= archiveData.items.length %><small>개 자료</small></strong>
+      </section>
+
+      <% if (feedback) { %>
+        <div class="archive-feedback <%= feedback.type %>" role="status">
+          <%= feedback.message %>
+        </div>
+      <% } %>
+
+      <% if (archiveData.folders.length) { %>
+        <section class="archive-list-section" aria-labelledby="archive-folder-list-title">
+          <div class="archive-section-heading">
+            <div>
+              <p>FOLDERS</p>
+              <h2 id="archive-folder-list-title"><%= archiveData.selectedFolder ? "하위 폴더" : "자료 폴더" %></h2>
+            </div>
+          </div>
+          <div class="archive-folder-grid">
+            <% archiveData.folders.forEach((folder) => { %>
+              <a href="/archive?folder=<%= folder.id %>">
+                <span aria-hidden="true">▰</span>
+                <div>
+                  <h3><%= folder.name %></h3>
+                  <p><%= folder.description || "폴더 설명이 없습니다." %></p>
+                </div>
+                <strong><%= folder.itemCount %><small>개</small></strong>
+              </a>
+            <% }) %>
+          </div>
+        </section>
+      <% } %>
+
+      <details class="archive-list-section archive-root-disclosure <%= archiveData.selectedFolder ? "folder-open" : "" %>" <%= archiveData.selectedFolder ? "open" : "" %>>
+        <summary class="archive-root-summary">
+          <span><%= archiveData.selectedFolder ? archiveData.selectedFolder.name : "루트 자료" %></span>
+          <strong><%= archiveData.items.length %>개 자료</strong>
+          <small><%= archiveData.selectedFolder ? "" : "클릭해서 펼치기" %></small>
+        </summary>
+        <div class="archive-root-disclosure-content">
+        <% if (archiveData.breadcrumbs.length) { %>
+          <nav class="archive-breadcrumbs" aria-label="현재 폴더 경로">
+            <a href="/archive">루트</a>
+            <% archiveData.breadcrumbs.forEach((folder) => { %>
+              <span>›</span><a href="/archive?folder=<%= folder.id %>"><%= folder.name %></a>
+            <% }) %>
+          </nav>
+        <% } %>
+        <div class="archive-section-heading">
+          <div>
+            <p>FILES</p>
+            <h2 id="archive-list-title">
+              <%= archiveData.selectedFolder ? archiveData.selectedFolder.name : "루트 자료" %>
+            </h2>
+          </div>
+          <% if (archiveData.selectedFolder) { %>
+            <a class="archive-folder-back" href="<%= archiveData.selectedFolder.parentFolderId ? `/archive?folder=${archiveData.selectedFolder.parentFolderId}` : "/archive" %>">← 상위 폴더</a>
+          <% } %>
+        </div>
+
+        <% if (!archiveData.items.length) { %>
+          <div class="archive-empty">
+            <span aria-hidden="true">▣</span>
+            <h3>등록된 자료가 없습니다.</h3>
+            <p>다른 폴더의 자료를 확인해주세요.</p>
+          </div>
+        <% } else { %>
+          <div class="archive-list">
+            <% archiveData.items.forEach((item) => { %>
+              <article>
+                <div class="archive-file-icon" aria-hidden="true">
+                  <span><%= item.originalName.split(".").pop().slice(0, 4).toUpperCase() %></span>
+                </div>
+                <div class="archive-file-copy">
+                  <div><span><%= item.category %></span></div>
+                  <h3><%= item.title %></h3>
+                  <% if (item.description) { %><p><%= item.description %></p><% } %>
+                  <small>
+                    <%= item.originalName %> ·
+                    <%= formatBytes(item.sizeBytes) %> ·
+                    <%= formatDate(item.createdAt) %>
+                  </small>
+                </div>
+                <a href="/archive/<%= item.id %>/download">
+                  내려받기
+                  <span aria-hidden="true">↓</span>
+                </a>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+        </div>
+      </details>
+    </main>
+  </body>
+</html>

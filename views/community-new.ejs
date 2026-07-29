@@ -1,0 +1,49 @@
+<%
+  const boardLabels = {
+    "high-school": "통합 고등학교 게시판",
+    school: "내 학교 게시판",
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>새 글 쓰기 | Matths</title>
+    <link rel="stylesheet" href="/css/community.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body>
+    <%- include("partials/public-navigation", { activePage: "community" }) %>
+    <main class="community-compose-main">
+      <a class="community-back" href="/community">← 게시판 목록</a>
+      <section class="community-compose">
+        <div class="community-compose-heading"><p>NEW POST</p><h1>새 글 쓰기</h1><span>학교별 게시판 글은 회원가입 때 등록한 학교 게시판에만 올라갑니다.</span></div>
+        <% if (error) { %><div class="community-error" role="alert"><%= error %></div><% } %>
+        <form action="/community" method="POST">
+          <label><span>게시판</span>
+            <select name="board">
+              <% Object.entries(boardLabels).forEach(([value, label]) => { %><option value="<%= value %>" <%= oldInput.board === value ? "selected" : "" %>><%= label %></option><% }) %>
+            </select>
+          </label>
+          <label><span>제목</span><input name="title" minlength="2" maxlength="120" value="<%= oldInput.title %>" required /></label>
+          <label><span>내용</span><textarea name="content" rows="14" minlength="2" maxlength="10000" required><%= oldInput.content %></textarea></label>
+          <label class="community-anonymous-choice">
+            <input
+              type="checkbox"
+              name="isAnonymous"
+              <%= oldInput.isAnonymous ? "checked" : "" %>
+            />
+            <span>
+              <b>익명으로 작성</b>
+              <small>같은 계정은 게시글과 댓글에서 항상 같은 익명 번호를 사용합니다.</small>
+            </span>
+          </label>
+          <p>타인을 모욕하거나 개인정보를 노출하는 글은 운영자 경고와 함께 게시판에서 내려갈 수 있습니다. 경고 3회 누적 시 계정이 정지됩니다.</p>
+          <button type="submit">게시글 등록 <span aria-hidden="true">→</span></button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

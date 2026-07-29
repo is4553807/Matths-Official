@@ -6,6 +6,8 @@ const {
   randomUUID,
 } = require("crypto");
 const {
+  Problem,
+  ProblemAttempt,
   QuickPracticeAttempt,
 } = require("../models/matthsModel");
 const {
@@ -23,6 +25,266 @@ const CATALOG_PATH = path.join(
   "content_folder",
   "quick-practice-types.yaml"
 );
+
+async function recordQuickPracticeWrongNote(
+  attempt
+) {
+  if (
+    !attempt ||
+    !["wrong", "expired"].includes(
+      String(attempt.status)
+    )
+  ) {
+    return null;
+  }
+
+  const courseId = "quick-practice";
+  const unitId =
+    `${Number(attempt.pointValue) || 2}-point`;
+  const conceptId =
+    String(
+      attempt.topicLabel ||
+        attempt.topicKey ||
+        "40초 눈풀이"
+    );
+  const externalId =
+    `quick-practice:${attempt.instanceId}`;
+  const problem =
+    await Problem.findOneAndUpdate(
+      { externalId },
+      {
+        $set: {
+          curriculumId:
+            "quick-practice",
+          courseId,
+          unitId,
+          conceptIds: [
+            String(
+              attempt.topicKey ||
+                conceptId
+            ),
+          ],
+          primaryConceptId:
+            String(
+              attempt.topicKey ||
+                conceptId
+            ),
+          source: {
+            type: "custom",
+            organization:
+              "Matths 40초 눈풀이",
+          },
+          questionType:
+            "short-answer",
+          stem: attempt.prompt,
+          correctAnswer:
+            attempt.answer,
+          solutionSteps:
+            attempt.solution
+              ? [
+                  {
+                    step: 1,
+                    title: "풀이",
+                    explanation:
+                      attempt.solution,
+                  },
+                ]
+              : [],
+          difficulty:
+            Number(
+              attempt.pointValue
+            ) === 3
+              ? 3
+              : 2,
+          estimatedTimeSeconds: 40,
+          score:
+            Number(
+              attempt.pointValue
+            ) || 2,
+          tags: [
+            "quick-practice",
+            String(
+              attempt.topicKey ||
+                ""
+            ),
+          ].filter(Boolean),
+          isPublished: true,
+        },
+      },
+      {
+        upsert: true,
+        returnDocument: "after",
+        setDefaultsOnInsert: true,
+      }
+    );
+  const submittedAnswer =
+    attempt.submittedAnswer ===
+      null ||
+    attempt.submittedAnswer ===
+      undefined ||
+    String(
+      attempt.submittedAnswer
+    ).trim() === ""
+      ? "미응답"
+      : attempt.submittedAnswer;
+
+  await ProblemAttempt.updateOne(
+    {
+      userId: attempt.userId,
+      problemId: problem._id,
+      attemptNumber: 1,
+    },
+    {
+      $setOnInsert: {
+        curriculumId:
+          "quick-practice",
+        courseId,
+        unitId,
+        conceptId,
+        submittedAnswer,
+        problemSnapshot: {
+          typeId:
+            attempt.variantLabel ||
+            attempt.variantKey ||
+            attempt.topicLabel,
+          stem: attempt.prompt,
+          choices: [],
+          solution:
+            attempt.solution || "",
+          difficulty:
+            Number(
+              attempt.pointValue
+            ) === 3
+              ? 3
+              : 2,
+        },
+        isCorrect: false,
+        score: 0,
+        maxScore:
+          Number(
+            attempt.pointValue
+          ) || 2,
+        responseTimeMs:
+          Number(
+            attempt.responseTimeMs
+          ) ||
+          QUICK_PRACTICE_LIMIT_MS,
+        errorAnalysis: {
+          errorType: "unknown",
+          relatedConceptId:
+            String(
+              attempt.topicKey ||
+                ""
+            ),
+        },
+        review: {
+          status: "pending",
+        },
+        submittedAt:
+          attempt.submittedAt ||
+          new Date(),
+      },
+    },
+    {
+      upsert: true,
+    }
+  );
+
+  return problem;
+}
+
+async function syncQuickPracticeWrongNotes(
+  userId
+) {
+  const attempts =
+    await QuickPracticeAttempt.find({
+      userId,
+      status: {
+        $in: [
+          "wrong",
+          "expired",
+        ],
+      },
+    })
+      .sort({
+        submittedAt: -1,
+      })
+      .limit(500)
+      .select("+answer");
+  const externalIds =
+    attempts.map(
+      (attempt) =>
+        `quick-practice:${attempt.instanceId}`
+    );
+  const existingProblems =
+    externalIds.length
+      ? await Problem.find({
+          externalId: {
+            $in: externalIds,
+          },
+        })
+          .select(
+            "externalId"
+          )
+          .lean()
+      : [];
+  const existingAttemptProblemIds =
+    existingProblems.length
+      ? await ProblemAttempt.find({
+          userId,
+          problemId: {
+            $in:
+              existingProblems.map(
+                (problem) =>
+                  problem._id
+              ),
+          },
+          attemptNumber: 1,
+        })
+          .select("problemId")
+          .lean()
+      : [];
+  const recordedProblemIds =
+    new Set(
+      existingAttemptProblemIds.map(
+        (attempt) =>
+          String(
+            attempt.problemId
+          )
+      )
+    );
+  const completedExternalIds =
+    new Set(
+      existingProblems
+        .filter(
+          (problem) =>
+            recordedProblemIds.has(
+              String(
+                problem._id
+              )
+            )
+        )
+        .map(
+          (problem) =>
+            problem.externalId
+        )
+    );
+  const missingAttempts =
+    attempts.filter(
+      (attempt) =>
+        !completedExternalIds.has(
+          `quick-practice:${attempt.instanceId}`
+        )
+    );
+
+  for (const attempt of missingAttempts) {
+    await recordQuickPracticeWrongNote(
+      attempt
+    );
+  }
+
+  return missingAttempts.length;
+}
 
 function pick(values) {
   if (!values.length) {
@@ -1396,20 +1658,26 @@ async function createQuickPracticeAttempt({
       : pick(allowedPoints);
   const now = new Date();
 
-  await QuickPracticeAttempt.updateMany(
+  const activeAttempts =
+    await QuickPracticeAttempt.find(
     {
       userId,
       status: "active",
-    },
-    {
-      $set: {
-        status: "expired",
-        submittedAt: now,
-        responseTimeMs:
-          QUICK_PRACTICE_LIMIT_MS,
-      },
     }
-  );
+  ).select("+answer");
+
+  for (const activeAttempt of activeAttempts) {
+    activeAttempt.status =
+      "expired";
+    activeAttempt.submittedAt =
+      now;
+    activeAttempt.responseTimeMs =
+      QUICK_PRACTICE_LIMIT_MS;
+    await activeAttempt.save();
+    await recordQuickPracticeWrongNote(
+      activeAttempt
+    );
+  }
 
   const recentHistory =
     await QuickPracticeAttempt.find({
@@ -1521,6 +1789,9 @@ async function submitQuickPracticeAttempt({
       QUICK_PRACTICE_LIMIT_MS;
     attempt.submittedAt = now;
     await attempt.save();
+    await recordQuickPracticeWrongNote(
+      attempt
+    );
 
     return {
       expired: true,
@@ -1546,6 +1817,11 @@ async function submitQuickPracticeAttempt({
     responseTimeMs;
   attempt.submittedAt = now;
   await attempt.save();
+  if (!correct) {
+    await recordQuickPracticeWrongNote(
+      attempt
+    );
+  }
   await recordStudyActivity(userId, now);
 
   return {
@@ -1590,6 +1866,9 @@ async function expireQuickPracticeAttempt({
   activeAttempt.responseTimeMs =
     QUICK_PRACTICE_LIMIT_MS;
   await activeAttempt.save();
+  await recordQuickPracticeWrongNote(
+    activeAttempt
+  );
 
   return {
     expired: true,
@@ -1677,6 +1956,8 @@ module.exports = {
   generateVerifiedProblem,
   getQuickPracticeCatalogSummary,
   getQuickPracticeStats,
+  recordQuickPracticeWrongNote,
+  syncQuickPracticeWrongNotes,
   submitQuickPracticeAttempt,
   templates,
 };

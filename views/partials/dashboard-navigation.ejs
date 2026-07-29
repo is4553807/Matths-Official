@@ -1,0 +1,119 @@
+<%
+  const currentDashboardPage =
+    typeof activePage === "string"
+      ? activePage
+      : "";
+  const navigationData =
+    typeof data !== "undefined" && data
+      ? data
+      : {};
+  const navigationStats =
+    navigationData.stats || {};
+  const wrongNoteStats =
+    typeof stats !== "undefined" && stats
+      ? stats
+      : {};
+  const completedConceptCount =
+    Number(navigationData.completedConcepts);
+  const pendingReviewCount =
+    Number(
+      wrongNoteStats.due ??
+        navigationStats.pendingReviewCount
+    );
+  const dashboardNavigationItems = [
+    {
+      id: "main",
+      href: "/main",
+      icon: "⌂",
+      label: "학습 홈",
+    },
+    {
+      id: "my-learning",
+      href: "/my-learning",
+      icon: "▦",
+      label: "내 학습",
+      badge:
+        Number.isFinite(completedConceptCount)
+          ? completedConceptCount
+          : null,
+    },
+    {
+      id: "curriculum",
+      href: "/log-curriculum",
+      icon: "◫",
+      label: "교육과정",
+    },
+    {
+      id: "quick-practice",
+      href: "/quick-practice",
+      icon: "⚡",
+      label: "40초 눈풀이",
+    },
+    {
+      id: "assessments",
+      href: "/assessments",
+      icon: "✓",
+      label: "평가 센터",
+    },
+    {
+      id: "wrong-notes",
+      href: "/wrong-notes",
+      icon: "↻",
+      label: "오답 노트",
+      badge:
+        Number.isFinite(pendingReviewCount) &&
+        pendingReviewCount > 0
+          ? pendingReviewCount
+          : null,
+    },
+    {
+      id: "war-of-masters",
+      href: "/war-of-masters",
+      icon: "♜",
+      label: "War of GOAT",
+    },
+    {
+      id: "coach-suggestions",
+      href: "/coach-suggestions",
+      icon: "✦",
+      label: "문구 제안소",
+    },
+  ];
+  const navigationUser =
+    typeof user !== "undefined"
+      ? user
+      : null;
+
+  if (
+    navigationUser?.role === "admin"
+  ) {
+    dashboardNavigationItems.push({
+      id: "admin",
+      href: "/admin",
+      icon: "⚙",
+      label: "관리자",
+    });
+  }
+%>
+
+<nav class="side-nav" aria-label="대시보드 메뉴">
+  <p>LEARNING</p>
+  <% dashboardNavigationItems.forEach((item) => { %>
+    <% const isActive = item.id === currentDashboardPage; %>
+    <a
+      class="<%= isActive ? 'active' : '' %>"
+      href="<%= item.href %>"
+      <%- isActive ? 'aria-current="page"' : "" %>
+    >
+      <span class="nav-icon" aria-hidden="true"><%= item.icon %></span>
+      <span><%= item.label %></span>
+      <% if (item.badge !== null && item.badge !== undefined) { %>
+        <b
+          <%- item.id === "my-learning"
+            ? 'id="completed-concept-badge"'
+            : "" %>
+        ><%= item.badge %></b>
+      <% } %>
+    </a>
+  <% }) %>
+</nav>

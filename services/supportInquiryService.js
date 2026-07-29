@@ -5,6 +5,9 @@ const {
 const {
   sendSupportInquiryNotification,
 } = require("./emailService");
+const {
+  createAdminTodo,
+} = require("./adminTodoService");
 
 const SUBJECT_MIN_LENGTH = 2;
 const SUBJECT_MAX_LENGTH = 120;
@@ -191,6 +194,17 @@ async function createSupportInquiry({
       subject: cleanSubject,
       content: cleanContent,
     });
+
+  await createAdminTodo({
+    category: "inquiry",
+    title: `문의 확인 · ${cleanSubject}`,
+    description: cleanContent,
+    href: `/admin/inquiries#inquiry-${inquiry._id}`,
+    targetUserId: user._id,
+    actorUserId: user._id,
+    sourceType: "SupportInquiry",
+    sourceId: inquiry._id,
+  });
 
   let notification = {
     status: "pending",

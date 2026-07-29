@@ -5,6 +5,36 @@ const {
 } = require("../models/matthsModel");
 const {getSchoolSelectData,findSchool,} = require('../services/schoolService');
 const {getDashboardData, toggleDailyPlanTask, updateCoachMode,} = require('../services/dashboardService');
+const {
+  createPrivateMockExamBatch,
+  createPrivateMockFormulaResource,
+  createPrivateMockObjection,
+  correctPrivateMockAnswers,
+  deletePrivateMockExam,
+  deletePrivateMockFormulaResource,
+  getAdminPrivateMockIntegrityEvidenceFile,
+  getAdminPrivateMockPdfFile,
+  getAdminPrivateMockExamData,
+  getAdminPrivateMockExamDetailData,
+  getAdminPrivateMockObjection,
+  getPrivateMockAttemptData,
+  getPrivateMockExamFile,
+  getPrivateMockExamPageData,
+  getPrivateMockEligibility,
+  getPrivateMockRestrictionData,
+  getPrivateMockObjectionFormData,
+  getPrivateMockFormulaFile,
+  getUserIntegrityCase,
+  requestPrivateMockIntegrityEvidenceByAdmin,
+  acceptPrivateMockObjection,
+  rejectPrivateMockObjection,
+  reviewPrivateMockIntegrityCase,
+  savePrivateMockDraft,
+  selectPrivateMockWeeklyAttempt,
+  startPrivateMockAttempt,
+  submitPrivateMockIntegrityEvidence,
+  submitPrivateMockAttempt,
+} = require("../services/privateMockExamService");
 const {loadCurriculum, buildLearningViewModel, findUnitView,} = require("../services/curriculumService");
 const {getUserLearningData, updateTopicCompletion,} = require('../services/learningProgressService');
 const {
@@ -19,6 +49,8 @@ const {
 } = require("../services/practiceService");
 const {
   formatAlgebraLesson,
+  formatAlgebraMathText,
+  formatAdminMath,
 } = require("../services/mathTextService");
 const {
   getConceptTypeGuides,
@@ -39,6 +71,14 @@ const {
   submitAssessmentAttempt,
 } = require("../services/assessmentService");
 const {
+  getPlacementDashboardData,
+  createPlacementAttempt,
+  getPlacementAttempt,
+  savePlacementDraft,
+  expirePlacementAttempt,
+  submitPlacementAttempt,
+} = require("../services/placementExamService");
+const {
   createQuickPracticeAttempt,
   expireQuickPracticeAttempt,
   getQuickPracticeCatalogSummary,
@@ -47,6 +87,7 @@ const {
 } = require("../services/quickPracticeService");
 const {
   createSuggestion,
+  getAdminSuggestionData,
   getSuggestionBoardData,
   moderateSuggestion,
 } = require("../services/coachSuggestionService");
@@ -54,6 +95,7 @@ const {
   requestPasswordReset,
   resetPassword,
   verifyPasswordResetCode,
+  verifyPasswordResetLink,
 } = require("../services/passwordResetService");
 const {
   getRankingDisplayName,
@@ -64,23 +106,123 @@ const {
   createSupportInquiry,
   getContactPageData,
 } = require("../services/supportInquiryService");
+const {
+  createArchiveFolder,
+  createArchiveItems,
+  deleteArchiveItem,
+  deleteArchiveItems,
+  discardArchiveUpload,
+  getArchiveData,
+  getArchiveDownload,
+  moveArchiveItems,
+} = require("../services/archiveService");
+const {
+  getRankingData,
+} = require("../services/rankingService");
+const {
+  createAnnouncement,
+  createDirectNotification,
+  getAdminAssessmentDetail,
+  getAdminDashboardData,
+  getAdminInquiryData,
+  getAdminUserActivityData,
+  getAdminUserDetail,
+  getAdminUsersData,
+  markNotificationRead,
+  replyToInquiry,
+  sendDirectUserEmail,
+  sendUserPasswordReset,
+  setUserActive,
+  toggleAnnouncement,
+  updateUserAccountStatus,
+  updateInquiryStatus,
+  updateUserNickname,
+  updateUserRole,
+  updateUserWarningCount,
+} = require("../services/adminService");
+const {
+  dismissDashboardAnnouncement,
+  dismissDashboardNotification,
+  getNotificationDetail,
+  getNotificationInbox,
+  markAllNotificationsRead,
+} = require("../services/notificationService");
+const {
+  accountBlockedMessage,
+  synchronizeAccountAccess,
+} = require("../services/accountAccessService");
+const {
+  withdrawOwnAccount,
+} = require("../services/accountDeletionService");
+const {
+  checkNicknameAvailability,
+  completeNicknameChange,
+  getNicknameChangePageData,
+  nicknameKey,
+  validateNickname,
+} = require("../services/nicknameService");
+const {
+  createCommunityComment,
+  createCommunityPost,
+  getAdminCommunityData,
+  getCommunityAnnouncement,
+  getCommunityBoardData,
+  getCommunityPost,
+  moderateCommunityComment,
+  moderateCommunityPost,
+  updateCommunityPostByAdmin,
+  warnCommunityComment,
+  warnCommunityPost,
+  voteCommunityPost,
+  reportCommunityPost,
+  reviewCommunityReport,
+} = require("../services/communityService");
+const {
+  completeAdminTodo,
+  getAdminTodoData,
+  reopenAdminTodo,
+} = require("../services/adminTodoService");
 const bcrypt = require('bcrypt');
 const BCRYPT_ROUNDS = 12;
 
 exports.mainPage = (req,res) => {
-    res.render('index');
+    res.render('index', {
+      user:
+        req.session?.user ||
+        null,
+    });
 }
 
 exports.introPage = (req,res) => {
-    res.render('intro');
+    res.render('intro', {
+      user:
+        req.session?.user ||
+        null,
+    });
 }
 
 exports.loginPage = (req,res) => {
+    const blockedStatus =
+      String(
+        req.query.account || ""
+      );
     res.render('login', {
       success:
         req.query.reset === "1"
           ? "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요."
+          : req.query.withdrawn ===
+              "1"
+            ? "계정 탈퇴가 완료되었습니다. 개인정보는 제거되었고 학습 데이터는 익명으로 보존됩니다."
           : null,
+      error:
+        blockedStatus
+          ? accountBlockedMessage(
+              blockedStatus
+            )
+          : null,
+      oldInput: {
+        email: "",
+      },
     });
 }
 
@@ -111,15 +253,27 @@ exports.registerPage = (
 };
 
 exports.visualLearningPage = (req,res) => {
-    res.render('visual-learning');
+    res.render('visual-learning', {
+      user:
+        req.session?.user ||
+        null,
+    });
 }
 
 exports.learningFlowPage = (req,res) => {
-    res.render('learning-flow');
+    res.render('learning-flow', {
+      user:
+        req.session?.user ||
+        null,
+    });
 }
 
 exports.faqPage = (req,res) => {
-    res.render('faq');
+    res.render('faq', {
+      user:
+        req.session?.user ||
+        null,
+    });
 }
 
 async function renderContactPage(
@@ -240,11 +394,1031 @@ exports.submitContactInquiry =
     }
   };
 
+async function renderArchive(
+  req,
+  res,
+  {
+    status = 200,
+    adminMode = false,
+    feedback = null,
+    oldInput = {},
+  } = {}
+) {
+  const archiveData =
+    await getArchiveData(
+      req.session.user,
+      {
+        includeUnpublished:
+          adminMode,
+        folderId:
+          req.query.folder,
+      }
+    );
+
+  return res
+    .status(status)
+    .render(
+      adminMode
+        ? "admin-archive"
+        : "archive-public",
+      {
+      user: req.session.user,
+      archiveData,
+      adminMode,
+      feedback,
+      oldInput: {
+        title:
+          String(
+            oldInput.title || ""
+          ),
+        description:
+          String(
+            oldInput.description ||
+              ""
+          ),
+        category:
+          String(
+            oldInput.category ||
+              "문제지"
+          ),
+        folderId:
+          String(
+            oldInput.folderId ||
+              req.query.folder ||
+              ""
+          ),
+        folderName:
+          String(
+            oldInput.folderName ||
+              ""
+          ),
+        folderDescription:
+          String(
+            oldInput.folderDescription ||
+              ""
+          ),
+        parentFolderId:
+          String(
+            oldInput.parentFolderId ||
+              req.query.folder ||
+              ""
+          ),
+        notifyUsers:
+          [
+            "true",
+            "1",
+            "on",
+          ].includes(
+            String(
+              oldInput.notifyUsers ||
+                ""
+            )
+          ),
+      },
+      }
+    );
+}
+
+exports.archivePage = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    return await renderArchive(
+      req,
+      res,
+      {
+          feedback:
+            Number(
+              req.query.uploaded
+            ) > 0
+            ? {
+                type: "success",
+                message:
+                  `아카이브에 자료 ${Number(req.query.uploaded)}개를 추가했습니다.`,
+              }
+            : null,
+      }
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.archiveAdminPage =
+  async (req, res, next) => {
+    try {
+      return await renderArchive(
+        req,
+        res,
+        {
+          adminMode: true,
+          feedback:
+            req.query.folderCreated ===
+            "1"
+              ? {
+                  type:
+                    "success",
+                  message:
+                    "아카이브 폴더를 추가했습니다.",
+                }
+              : Number(
+                  req.query.uploaded
+                ) > 0
+              ? {
+                  type:
+                    req.query.notifyFailed ===
+                    "1"
+                      ? "error"
+                      : "success",
+                  message:
+                    req.query.notifyFailed ===
+                    "1"
+                      ? `아카이브에 자료 ${Number(req.query.uploaded)}개는 추가했지만 회원 공지는 발송하지 못했습니다. 운영 현황에서 공지를 다시 등록해주세요.`
+                      : `아카이브에 자료 ${Number(req.query.uploaded)}개를 추가했습니다.${req.query.notified === "1" ? " 회원 공지도 함께 발송했습니다." : ""}`,
+                }
+              : req.query.deleted ===
+                "1"
+              ? {
+                  type:
+                    "success",
+                  message:
+                    "아카이브 자료와 저장 파일을 영구 삭제했습니다.",
+                }
+              : Number(
+                  req.query
+                    .bulkDeleted
+                ) > 0
+              ? {
+                  type:
+                    "success",
+                  message:
+                    `선택한 아카이브 자료 ${Number(req.query.bulkDeleted)}개와 저장 파일을 영구 삭제했습니다.`,
+                }
+              : Number(
+                  req.query
+                    .bulkMoved
+                ) > 0
+              ? {
+                  type:
+                    "success",
+                  message:
+                    `선택한 아카이브 자료 ${Number(req.query.bulkMoved)}개를 이동했습니다.`,
+                }
+              : null,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.uploadArchiveItem =
+  async (req, res, next) => {
+    try {
+      const items =
+        await createArchiveItems({
+          user:
+            req.session.user,
+          files:
+            req.files,
+          description:
+            req.body.description,
+          category:
+            req.body.category,
+          folderId:
+            req.body.folderId,
+        });
+      const shouldNotify =
+        [
+          "true",
+          "1",
+          "on",
+        ].includes(
+          String(
+            req.body
+              .notifyUsers ||
+              ""
+          )
+        );
+
+      let notificationFailed =
+        false;
+
+      if (shouldNotify) {
+        try {
+          await createAnnouncement({
+            adminUserId:
+              req.session.user.id,
+            title:
+              "아카이브 자료 업데이트",
+            content:
+              `아카이브에 새 자료 ${items.length}개가 등록되었습니다. 지금 확인해보세요.`,
+            publishNow: true,
+            href: "/archive",
+          });
+        } catch (error) {
+          notificationFailed =
+            true;
+          console.error(
+            "아카이브 업데이트 공지 발송 실패:",
+            error
+          );
+        }
+      }
+
+      return res.redirect(
+        `/archive/admin?uploaded=${items.length}${shouldNotify && !notificationFailed ? "&notified=1" : ""}${notificationFailed ? "&notifyFailed=1" : ""}`
+      );
+    } catch (error) {
+      await Promise.all(
+        (req.files || []).map(
+          (file) =>
+            discardArchiveUpload(
+              file
+            )
+        )
+      );
+
+      if (error.status) {
+        return await renderArchive(
+          req,
+          res,
+          {
+            status: error.status,
+            adminMode: true,
+            feedback: {
+              type: "error",
+              message:
+                error.message,
+            },
+            oldInput:
+              req.body,
+          }
+        );
+      }
+
+      return next(error);
+    }
+  };
+
+exports.deleteArchiveItem =
+  async (req, res, next) => {
+    try {
+      await deleteArchiveItem({
+        itemId:
+          req.params.itemId,
+        user:
+          req.session.user,
+      });
+
+      return res.redirect(
+        `/archive/admin?deleted=1${req.body.folderId ? `&folder=${encodeURIComponent(req.body.folderId)}` : ""}`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.deleteArchiveItems =
+  async (req, res, next) => {
+    try {
+      const result =
+        await deleteArchiveItems({
+          itemIds:
+            req.body.itemIds,
+          user:
+            req.session.user,
+        });
+
+      return res.redirect(
+        `/archive/admin?bulkDeleted=${result.deletedCount}${req.body.folderId ? `&folder=${encodeURIComponent(req.body.folderId)}` : ""}`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.moveArchiveItems =
+  async (req, res, next) => {
+    try {
+      const result =
+        await moveArchiveItems({
+          itemIds:
+            req.body.itemIds,
+          destinationFolderId:
+            req.body
+              .destinationFolderId,
+          user:
+            req.session.user,
+        });
+
+      return res.redirect(
+        `/archive/admin?bulkMoved=${result.movedCount}${req.body.folderId ? `&folder=${encodeURIComponent(req.body.folderId)}` : ""}`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.createArchiveFolder =
+  async (req, res, next) => {
+    try {
+      await createArchiveFolder({
+        user:
+          req.session.user,
+        name:
+          req.body.folderName,
+        description:
+          req.body
+            .folderDescription,
+        parentFolderId:
+          req.body
+            .parentFolderId,
+      });
+
+      return res.redirect(
+        `/archive/admin?folderCreated=1${req.body.parentFolderId ? `&folder=${encodeURIComponent(req.body.parentFolderId)}` : ""}`
+      );
+    } catch (error) {
+      if (error.status) {
+        return await renderArchive(
+          req,
+          res,
+          {
+            status: error.status,
+            adminMode: true,
+            feedback: {
+              type: "error",
+              message:
+                error.message,
+            },
+            oldInput:
+              req.body,
+          }
+        );
+      }
+
+      return next(error);
+    }
+  };
+
+exports.downloadArchiveItem =
+  async (req, res, next) => {
+    try {
+      const file =
+        await getArchiveDownload({
+          itemId:
+            req.params.itemId,
+          user:
+            req.session.user,
+        });
+
+      return res.download(
+        file.path,
+        file.name,
+        {
+          headers: {
+            "Content-Type":
+              file.mimeType,
+          },
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+function adminFeedbackFromQuery(
+  query
+) {
+  const messages = {
+    announcement:
+      "공지를 저장했습니다.",
+    announcementStatus:
+      "공지 공개 상태를 변경했습니다.",
+    inquiryReply:
+      "문의 답변을 가입 이메일로 전송했습니다.",
+    inquiryStatus:
+      "문의 상태를 변경했습니다.",
+    nickname:
+      "사용자에게 닉네임 변경 사유와 본인 확인 링크를 보냈습니다.",
+    notification:
+      "사용자에게 사이트 알림을 보냈습니다.",
+    email:
+      "사용자 이메일로 메시지를 전송했습니다.",
+    passwordReset:
+      "비밀번호 재설정 이메일 발송을 요청했습니다.",
+    account:
+      "사용자 계정 상태를 변경했습니다.",
+    accountStatus:
+      "사용자 계정 상태를 변경했습니다.",
+    role:
+      "사용자 역할을 변경했습니다.",
+    warningCount:
+      "사용자 경고 횟수를 변경했습니다.",
+    communityEdit:
+      "게시글을 수정했습니다.",
+    communityModeration:
+      "게시글 공개 상태를 변경했습니다.",
+    communityWarning:
+      "게시글을 숨기고 작성자에게 경고를 부여했습니다.",
+    communitySuspended:
+      "게시글을 숨기고 작성자에게 세 번째 경고를 부여해 계정을 정지했습니다.",
+    communityCommentModeration:
+      "댓글 공개 상태를 변경했습니다.",
+    communityCommentWarning:
+      "댓글을 숨기고 작성자에게 경고를 부여했습니다.",
+    communityCommentSuspended:
+      "댓글을 숨기고 작성자에게 세 번째 경고를 부여해 계정을 정지했습니다.",
+    communityReport:
+      "게시글 신고 처리 상태를 저장했습니다.",
+  };
+
+  return messages[
+    String(query.done || "")
+  ] || null;
+}
+
+exports.adminDashboardPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "admin-dashboard",
+        {
+          user:
+            req.session.user,
+          adminData:
+            await getAdminDashboardData(),
+          feedback:
+            adminFeedbackFromQuery(
+              req.query
+            ),
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminCreateAnnouncement =
+  async (req, res, next) => {
+    try {
+      await createAnnouncement({
+        adminUserId:
+          req.session.user.id,
+        title: req.body.title,
+        content:
+          req.body.content,
+        publishNow:
+          req.body.publishNow,
+        dashboardEndDate:
+          req.body.dashboardEndDate,
+        boardCategory:
+          req.body.boardCategory,
+      });
+
+      return res.redirect(
+        "/admin?done=announcement"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminToggleAnnouncement =
+  async (req, res, next) => {
+    try {
+      await toggleAnnouncement({
+        adminUserId:
+          req.session.user.id,
+        announcementId:
+          req.params
+            .announcementId,
+        publish:
+          req.body.publish,
+      });
+
+      return res.redirect(
+        "/admin?done=announcementStatus"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminInquiriesPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "admin-inquiries",
+        {
+          user:
+            req.session.user,
+          inquiryData:
+            await getAdminInquiryData({
+              status:
+                req.query.status,
+              page: req.query.page,
+            }),
+          feedback:
+            adminFeedbackFromQuery(
+              req.query
+            ),
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminCoachSuggestionsPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "admin-coach-suggestions",
+        {
+          user:
+            req.session.user,
+          suggestionData:
+            await getAdminSuggestionData(),
+          feedback:
+            req.query.moderated ===
+            "1"
+              ? "문구 검수 결과를 저장하고 실제 코치 문구 풀에 반영했습니다."
+              : null,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminReplyInquiry =
+  async (req, res, next) => {
+    try {
+      await replyToInquiry({
+        adminUserId:
+          req.session.user.id,
+        inquiryId:
+          req.params.inquiryId,
+        message:
+          req.body.message,
+      });
+
+      return res.redirect(
+        "/admin/inquiries?done=inquiryReply"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminUpdateInquiryStatus =
+  async (req, res, next) => {
+    try {
+      await updateInquiryStatus({
+        adminUserId:
+          req.session.user.id,
+        inquiryId:
+          req.params.inquiryId,
+        status:
+          req.body.status,
+      });
+
+      return res.redirect(
+        "/admin/inquiries?done=inquiryStatus"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminUsersPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "admin-users",
+        {
+          user:
+            req.session.user,
+          usersData:
+            await getAdminUsersData({
+              query:
+                req.query.query,
+              schoolCode:
+                req.query.school,
+              grade:
+                req.query.grade,
+              state:
+                req.query.state,
+              role:
+                req.query.role,
+              page:
+                req.query.page,
+              sort:
+                req.query.sort,
+            }),
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminUserDetailPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "admin-user-detail",
+        {
+          user:
+            req.session.user,
+          detail:
+            await getAdminUserDetail(
+              req.params.userId
+            ),
+          feedback:
+            adminFeedbackFromQuery(
+              req.query
+            ),
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminAssessmentDetailPage =
+  async (req, res, next) => {
+    try {
+      res.set(
+        "Cache-Control",
+        "no-store"
+      );
+
+      return res.render(
+        "admin-assessment-detail",
+        {
+          user:
+            req.session.user,
+          detail:
+            await getAdminAssessmentDetail({
+              userId:
+                req.params.userId,
+              attemptId:
+                req.params
+                  .attemptId,
+            }),
+          formatAdminMath,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminUserActivityPage =
+  async (req, res, next) => {
+    try {
+      res.set(
+        "Cache-Control",
+        "no-store"
+      );
+
+      return res.render(
+        "admin-user-activity",
+        {
+          user:
+            req.session.user,
+          activity:
+            await getAdminUserActivityData({
+              userId:
+                req.params.userId,
+              kind:
+                req.query.kind,
+              page:
+                req.query.page,
+              sort:
+                req.query.sort,
+            }),
+          formatAdminMath,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminUpdateUserNickname =
+  async (req, res, next) => {
+    try {
+      await updateUserNickname({
+        adminUserId:
+          req.session.user.id,
+        userId:
+          req.params.userId,
+        reason:
+          req.body.reason,
+        baseUrl:
+          process.env.APP_BASE_URL ||
+          `${req.protocol}://${req.get("host")}`,
+      });
+
+      return res.redirect(
+        `/admin/users/${req.params.userId}?done=nickname`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminSendUserNotification =
+  async (req, res, next) => {
+    try {
+      await createDirectNotification({
+        adminUserId:
+          req.session.user.id,
+        userId:
+          req.params.userId,
+        title: req.body.title,
+        message:
+          req.body.message,
+        href: req.body.href,
+      });
+
+      return res.redirect(
+        `/admin/users/${req.params.userId}?done=notification`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminSendUserEmail =
+  async (req, res, next) => {
+    try {
+      await sendDirectUserEmail({
+        adminUserId:
+          req.session.user.id,
+        userId:
+          req.params.userId,
+        subject:
+          req.body.subject,
+        message:
+          req.body.message,
+      });
+
+      return res.redirect(
+        `/admin/users/${req.params.userId}?done=email`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminSendPasswordReset =
+  async (req, res, next) => {
+    try {
+      await sendUserPasswordReset({
+        adminUserId:
+          req.session.user.id,
+        userId:
+          req.params.userId,
+        baseUrl:
+          process.env.APP_BASE_URL ||
+          `${req.protocol}://${req.get("host")}`,
+      });
+
+      return res.redirect(
+        `/admin/users/${req.params.userId}?done=passwordReset`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminSetUserActive =
+  async (req, res, next) => {
+    try {
+      await setUserActive({
+        adminUserId:
+          req.session.user.id,
+        userId:
+          req.params.userId,
+        active:
+          req.body.active ===
+          "true",
+        reason:
+          req.body.reason,
+      });
+
+      return res.redirect(
+        `/admin/users/${req.params.userId}?done=account`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminUpdateUserRole =
+  async (req, res, next) => {
+    try {
+      await updateUserRole({
+        adminUserId:
+          req.session.user.id,
+        userId:
+          req.params.userId,
+        role: req.body.role,
+        reason:
+          req.body.reason,
+      });
+
+      return res.redirect(
+        `/admin/users/${req.params.userId}?done=role`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminUpdateUserAccountStatus =
+  async (req, res, next) => {
+    try {
+      await updateUserAccountStatus({
+        adminUserId:
+          req.session.user.id,
+        userId:
+          req.params.userId,
+        status:
+          req.body.status,
+        reason:
+          req.body.reason,
+        suspensionDays:
+          req.body
+            .suspensionDays,
+        retainAnonymousData:
+          req.body
+            .retainAnonymousData,
+      });
+
+      return res.redirect(
+        `/admin/users/${req.params.userId}?done=accountStatus`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminUpdateUserWarningCount =
+  async (req, res, next) => {
+    try {
+      await updateUserWarningCount({
+        adminUserId:
+          req.session.user.id,
+        userId:
+          req.params.userId,
+        warningCount:
+          req.body.warningCount,
+        reason:
+          req.body.reason,
+      });
+
+      return res.redirect(
+        `/admin/users/${req.params.userId}?done=warningCount`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.openUserNotification =
+  async (req, res, next) => {
+    try {
+      const href =
+        await markNotificationRead({
+          userId:
+            req.session.user.id,
+          notificationId:
+            req.params
+              .notificationId,
+        });
+
+      return res.redirect(href);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.notificationInboxPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "notifications",
+        {
+          user:
+            req.session.user,
+          inbox:
+            await getNotificationInbox({
+              userId:
+                req.session.user.id,
+              page: req.query.page,
+            }),
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.notificationDetailPage =
+  async (req, res, next) => {
+    try {
+      res.set(
+        "Cache-Control",
+        "no-store"
+      );
+
+      return res.render(
+        "notification-detail",
+        {
+          user:
+            req.session.user,
+          notification:
+            await getNotificationDetail({
+              userId:
+                req.session.user.id,
+              notificationId:
+                req.params
+                  .notificationId,
+            }),
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.markAllUserNotificationsRead =
+  async (req, res, next) => {
+    try {
+      await markAllNotificationsRead(
+        req.session.user.id
+      );
+
+      return res.redirect(
+        "/notifications"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.dismissDashboardAnnouncement =
+  async (req, res, next) => {
+    try {
+      return res.json(
+        await dismissDashboardAnnouncement({
+          userId:
+            req.session.user.id,
+          announcementId:
+            req.params
+              .announcementId,
+        })
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.dismissDashboardNotification =
+  async (req, res, next) => {
+    try {
+      return res.json(
+        await dismissDashboardNotification({
+          userId:
+            req.session.user.id,
+          notificationId:
+            req.params
+              .notificationId,
+        })
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
 exports.curriculumPage = (req, res, next) => {
   try {
     const curriculumData = loadCurriculum();
 
-    res.render('curriculum', {curriculumData});
+    res.render('curriculum', {
+      curriculumData,
+      user:
+        req.session?.user ||
+        null,
+    });
   } catch (error) {
     next(error);
   }
@@ -266,19 +1440,757 @@ exports.main = async (req, res, next) => {
     }
 };
 
+exports.privateMockExamsPage = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const examData =
+      await getPrivateMockExamPageData(
+        req.session.user.id
+      );
+    if (
+      examData.eligibility
+        ?.status ===
+      "integrity-restriction"
+    ) {
+      return res.redirect(
+        "/account/private-mock-restriction"
+      );
+    }
+    res.set(
+      "Cache-Control",
+      "private, no-store"
+    );
+    return res.render(
+      "private-mock-exams",
+      {
+        user:
+          req.session.user,
+        examData,
+      }
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.privateMockRestrictionPage =
+  async (req, res, next) => {
+    try {
+      const restrictionData =
+        await getPrivateMockRestrictionData(
+          req.session.user.id
+        );
+      res.set(
+        "Cache-Control",
+        "private, no-store"
+      );
+      return res.render(
+        "private-mock-restriction",
+        {
+          user:
+            restrictionData.user,
+          restrictionData,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.privateMockExamPage =
+  async (req, res, next) => {
+    try {
+      const examData =
+        await getPrivateMockAttemptData({
+          userId:
+            req.session.user.id,
+          examId:
+            req.params.examId,
+        });
+
+      res.set(
+        "Cache-Control",
+        "private, no-store"
+      );
+      return res.render(
+        "private-mock-exam",
+        {
+          user:
+            req.session.user,
+          examData,
+        }
+      );
+    } catch (error) {
+      if (error.eligibility) {
+        return res.redirect(
+          "/private-mock-exams"
+        );
+      }
+      return next(error);
+    }
+  };
+
+exports.privateMockExamFile =
+  async (req, res, next) => {
+    try {
+      const file =
+        await getPrivateMockExamFile({
+          userId:
+            req.session.user.id,
+          examId:
+            req.params.examId,
+        });
+
+      return res.sendFile(
+        file.path,
+        {
+          headers: {
+            "Content-Type":
+              file.mimeType,
+            "Content-Disposition":
+              `inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+            "Cache-Control":
+              "private, no-store",
+          },
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.startPrivateMockExam =
+  async (req, res, next) => {
+    try {
+      return res.json(
+        await startPrivateMockAttempt({
+          userId:
+            req.session.user.id,
+          examId:
+            req.params.examId,
+        })
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.privateMockFormulaFile =
+  async (req, res, next) => {
+    try {
+      const file =
+        await getPrivateMockFormulaFile({
+          userId:
+            req.session.user.id,
+        });
+
+      return res.sendFile(
+        file.path,
+        {
+          headers: {
+            "Content-Type":
+              file.mimeType,
+            "Content-Disposition":
+              `inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+            "Cache-Control":
+              "private, no-store",
+          },
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.savePrivateMockExamDraft =
+  async (req, res, next) => {
+    try {
+      return res.json(
+        await savePrivateMockDraft({
+          userId:
+            req.session.user.id,
+          examId:
+            req.params.examId,
+          answers:
+            req.body.answers,
+          telemetryEvents:
+            req.body
+              .telemetryEvents,
+        })
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.submitPrivateMockExam =
+  async (req, res, next) => {
+    try {
+      return res.json({
+        submitted: true,
+        result:
+          await submitPrivateMockAttempt({
+            userId:
+              req.session.user.id,
+            examId:
+              req.params.examId,
+            answers:
+              req.body.answers,
+            telemetryEvents:
+              req.body
+                .telemetryEvents,
+          }),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.privateMockIntegrityCasePage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "private-mock-integrity-case",
+        {
+          user:
+            req.session.user,
+          integrityCase:
+            await getUserIntegrityCase({
+              userId:
+                req.session.user.id,
+              caseId:
+                req.params.caseId,
+            }),
+          feedback:
+            req.query
+              .submitted === "1"
+              ? "풀이과정이 정상적으로 제출되었습니다. 검토 결과는 알림 우편함으로 안내합니다."
+              : null,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.submitPrivateMockIntegrityEvidence =
+  async (req, res, next) => {
+    try {
+      await submitPrivateMockIntegrityEvidence({
+        userId:
+          req.session.user.id,
+        caseId:
+          req.params.caseId,
+        files: req.files,
+        note:
+          req.body.note,
+      });
+
+      return res.redirect(
+        `/integrity/cases/${req.params.caseId}?submitted=1`
+      );
+    } catch (error) {
+      await Promise.all(
+        (req.files || []).map(
+          (file) =>
+            discardArchiveUpload(
+              file
+            )
+        )
+      );
+      return next(error);
+    }
+  };
+
+exports.selectPrivateMockResult =
+  async (req, res, next) => {
+    try {
+      return res.json({
+        selected: true,
+        result:
+          await selectPrivateMockWeeklyAttempt({
+            userId:
+              req.session.user.id,
+            weekKey:
+              req.params.weekKey,
+            attemptId:
+              req.body.attemptId,
+            defer:
+              req.body.defer ===
+                true ||
+              req.body.defer ===
+                "true",
+          }),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminPrivateMockExamsPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "admin-private-mock-exams",
+        {
+          user:
+            req.session.user,
+          examData:
+            await getAdminPrivateMockExamData(),
+          feedback:
+            Number(
+              req.query.created
+            ) > 0
+              ? {
+                  type:
+                    "success",
+                  message:
+                    `${Number(req.query.created)}개 회차를 등록하고 공개 예약을 확정했습니다.`,
+                }
+              : req.query
+                    .deleted ===
+                  "1"
+                ? {
+                    type:
+                      "success",
+                    message:
+                      "예약된 사설 모의고사를 삭제했습니다.",
+                  }
+              : req.query
+                    .formulaUploaded ===
+                  "1"
+                ? {
+                    type:
+                      "success",
+                    message:
+                      "대기실 공식 암기 PDF를 등록했습니다.",
+                  }
+              : req.query
+                    .formulaDeleted ===
+                  "1"
+                ? {
+                    type:
+                      "success",
+                    message:
+                      "공식 암기 PDF를 삭제했습니다.",
+                  }
+              : null,
+          error: null,
+          oldInput: {},
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminPrivateMockExamDetailPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "admin-private-mock-exam-detail",
+        {
+          user:
+            req.session.user,
+          detail:
+            await getAdminPrivateMockExamDetailData({
+              examId:
+                req.params.examId,
+            }),
+          feedback:
+            req.query
+              .integrityRequested ===
+            "1"
+              ? {
+                  type:
+                    "success",
+                  message:
+                    "소명 자료 요청을 우편함과 이메일로 전송했습니다.",
+                }
+              : req.query
+                    .integrityError
+                ? {
+                    type:
+                      "error",
+                    message:
+                      String(
+                        req.query
+                          .integrityError
+                      ),
+                  }
+                : req.query
+                      .integrityReviewed ===
+                    "1"
+                  ? {
+                      type:
+                        "success",
+                      message:
+                        "소명 검토 상태와 페널티 결정을 저장했습니다.",
+                    }
+                  : req.query
+                        .answerCorrected !==
+                      undefined
+                    ? {
+                        type:
+                          "success",
+                        message:
+                          `정답을 정정하고 ${Number(req.query.answerCorrected) || 0}개 응시 기록의 성적·랭킹·MMR을 다시 계산했습니다.`,
+                      }
+                : null,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminPrivateMockExamPdfFile =
+  async (req, res, next) => {
+    try {
+      const file =
+        await getAdminPrivateMockPdfFile({
+          examId:
+            req.params.examId,
+          fileType:
+            req.params.fileType,
+        });
+
+      return res.sendFile(
+        file.path,
+        {
+          headers: {
+            "Content-Type":
+              file.mimeType,
+            "Content-Disposition":
+              `inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+            "Cache-Control":
+              "private, no-store",
+          },
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminPrivateMockIntegrityEvidenceFile =
+  async (req, res, next) => {
+    try {
+      const file =
+        await getAdminPrivateMockIntegrityEvidenceFile({
+          caseId:
+            req.params.caseId,
+          archiveItemId:
+            req.params.archiveItemId,
+        });
+
+      return res.sendFile(
+        file.path,
+        {
+          headers: {
+            "Content-Type":
+              file.mimeType,
+            "Content-Disposition":
+              `inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+            "Cache-Control":
+              "private, no-store",
+            "Content-Security-Policy":
+              "sandbox; default-src 'none'",
+            "X-Content-Type-Options":
+              "nosniff",
+            "Cross-Origin-Resource-Policy":
+              "same-origin",
+            "Referrer-Policy":
+              "no-referrer",
+          },
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminRequestPrivateMockIntegrityEvidence =
+  async (req, res, next) => {
+    try {
+      await requestPrivateMockIntegrityEvidenceByAdmin({
+        adminUserId:
+          req.session.user.id,
+        examId:
+          req.params.examId,
+        attemptId:
+          req.params.attemptId,
+        requestedQuestionNumbers:
+          req.body
+            .requestedQuestionNumbers,
+        instructions:
+          req.body.instructions,
+      });
+
+      return res.redirect(
+        `/admin/private-mock-exams/${req.params.examId}?integrityRequested=1#attempt-${req.params.attemptId}`
+      );
+    } catch (error) {
+      if (error.status) {
+        return res.redirect(
+          `/admin/private-mock-exams/${req.params.examId}?integrityError=${encodeURIComponent(error.message)}#attempt-${req.params.attemptId}`
+        );
+      }
+      return next(error);
+    }
+  };
+
+exports.adminReviewPrivateMockIntegrityCase =
+  async (req, res, next) => {
+    try {
+      await reviewPrivateMockIntegrityCase({
+        adminUserId:
+          req.session.user.id,
+        examId:
+          req.params.examId,
+        caseId:
+          req.params.caseId,
+        reviewStatus:
+          req.body.reviewStatus,
+        penaltyDecision:
+          req.body.penaltyDecision,
+        reason:
+          req.body.reason,
+      });
+      return res.redirect(
+        `/admin/private-mock-exams/${req.params.examId}?integrityReviewed=1#integrity-${req.params.caseId}`
+      );
+    } catch (error) {
+      if (error.status) {
+        return res.redirect(
+          `/admin/private-mock-exams/${req.params.examId}?integrityError=${encodeURIComponent(error.message)}#integrity-${req.params.caseId}`
+        );
+      }
+      return next(error);
+    }
+  };
+
+exports.adminCorrectPrivateMockAnswers =
+  async (req, res, next) => {
+    try {
+      const asArray = (
+        value
+      ) =>
+        Array.isArray(value)
+          ? value
+          : value ===
+                undefined ||
+              value === null
+            ? []
+            : [value];
+      const numbers =
+        asArray(
+          req.body
+            .questionNumbers
+        );
+      const contents =
+        asArray(
+          req.body
+            .questionContents
+        );
+      const answers =
+        asArray(
+          req.body
+            .newAnswers
+        );
+      const result =
+        await correctPrivateMockAnswers({
+          adminUserId:
+            req.session.user.id,
+          examId:
+            req.params.examId,
+          corrections:
+            numbers.map(
+              (
+                questionNumber,
+                index
+              ) => ({
+                questionNumber,
+                questionContent:
+                  contents[
+                    index
+                  ],
+                newAnswer:
+                  answers[index],
+              })
+            ),
+          reason:
+            req.body.reason,
+        });
+      return res.redirect(
+        `/admin/private-mock-exams/${req.params.examId}?answerCorrected=${result.affectedAttemptCount}`
+      );
+    } catch (error) {
+      if (error.status) {
+        return res.redirect(
+          `/admin/private-mock-exams/${req.params.examId}?integrityError=${encodeURIComponent(error.message)}`
+        );
+      }
+      return next(error);
+    }
+  };
+
+exports.adminCreatePrivateMockExam =
+  async (req, res, next) => {
+    try {
+      const files =
+        req.files || {};
+      const created =
+        await createPrivateMockExamBatch({
+        user:
+          req.session.user,
+        questionFiles:
+          files.examFiles,
+        answerKeyFiles:
+          files.answerKeyFiles,
+        answerSheetFiles:
+          files.answerSheetFiles,
+        titles:
+          req.body.titles,
+        examDates:
+          req.body.examDates,
+        formCodes:
+          req.body.formCodes,
+      });
+
+      return res.redirect(
+        `/admin/private-mock-exams?created=${created.length}`
+      );
+    } catch (error) {
+      await Promise.all(
+        Object.values(
+          req.files || {}
+        )
+          .flat()
+          .map((file) =>
+            discardArchiveUpload(
+              file
+            )
+          )
+      );
+
+      if (error.status) {
+        return res
+          .status(error.status)
+          .render(
+            "admin-private-mock-exams",
+            {
+              user:
+                req.session.user,
+              examData:
+                await getAdminPrivateMockExamData(),
+              feedback: null,
+              error:
+                error.message,
+              oldInput:
+                req.body,
+            }
+          );
+      }
+
+      return next(error);
+    }
+  };
+
+exports.adminDeletePrivateMockExam =
+  async (req, res, next) => {
+    try {
+      await deletePrivateMockExam({
+        user:
+          req.session.user,
+        examId:
+          req.params.examId,
+      });
+
+      return res.redirect(
+        "/admin/private-mock-exams?deleted=1"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminUploadPrivateMockFormula =
+  async (req, res, next) => {
+    try {
+      await createPrivateMockFormulaResource({
+        user:
+          req.session.user,
+        file: req.file,
+        versionLabel:
+          req.body
+            .versionLabel,
+      });
+      return res.redirect(
+        "/admin/private-mock-exams?formulaUploaded=1"
+      );
+    } catch (error) {
+      await discardArchiveUpload(
+        req.file
+      );
+      return next(error);
+    }
+  };
+
+exports.adminDeletePrivateMockFormula =
+  async (req, res, next) => {
+    try {
+      await deletePrivateMockFormulaResource({
+        user:
+          req.session.user,
+        resourceId:
+          req.params.resourceId,
+      });
+      return res.redirect(
+        "/admin/private-mock-exams?formulaDeleted=1"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
 exports.warOfMastersPage = async (
   req,
   res,
   next
 ) => {
   try {
-    const user = await User.findById(
-      req.session.user.id
-    ).lean();
+    const [
+      user,
+      placement,
+    ] = await Promise.all([
+      User.findById(
+        req.session.user.id
+      ).lean(),
+      getPlacementDashboardData(
+        req.session.user.id
+      ),
+    ]);
+    const privateMockEligibility =
+      await getPrivateMockEligibility(
+        req.session.user.id
+      );
 
     if (!user) {
       throw createNotFoundError(
         "사용자 정보를 찾을 수 없습니다."
+      );
+    }
+
+    if (
+      privateMockEligibility.status ===
+      "integrity-restriction"
+    ) {
+      return res.redirect(
+        "/account/private-mock-restriction"
       );
     }
 
@@ -288,18 +2200,6 @@ exports.warOfMastersPage = async (
       12: "고등학교 3학년",
       13: "N수생",
     };
-
-    const tiers = [
-      ["B", "브론즈", "0–999"],
-      ["S", "실버", "1,000–1,249"],
-      ["G", "골드", "1,250–1,499"],
-      ["P", "플래티넘", "1,500–1,749"],
-      ["E", "에메랄드", "1,750–1,899"],
-      ["D", "다이아몬드", "1,900–2,049"],
-      ["M", "마스터", "2,050–2,199"],
-      ["GM", "그랜드마스터", "2,200–2,349"],
-      ["C", "챌린저", "2,350+"],
-    ];
 
     res.set("Cache-Control", "no-store");
 
@@ -328,13 +2228,351 @@ exports.warOfMastersPage = async (
               ? "실명"
               : "닉네임",
         },
-        tiers,
+        placement,
+        privateMockEligibility,
       }
     );
   } catch (error) {
     return next(error);
   }
 };
+
+exports.privateMockObjectionPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "private-mock-objection",
+        {
+          user:
+            req.session.user,
+          formData:
+            await getPrivateMockObjectionFormData({
+              userId:
+                req.session.user.id,
+            }),
+          feedback:
+            req.query.submitted ===
+            "1"
+              ? {
+                  type:
+                    "success",
+                  message:
+                    "문제 이의신청이 접수되었습니다. 운영팀 검토 결과는 이메일과 알림 우편함으로 안내드립니다.",
+                }
+              : null,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.submitPrivateMockObjection =
+  async (req, res, next) => {
+    try {
+      await createPrivateMockObjection({
+        userId:
+          req.session.user.id,
+        examId:
+          req.body.examId,
+        questionNumber:
+          req.body
+            .questionNumber,
+        issueDetail:
+          req.body
+            .issueDetail,
+      });
+      return res.redirect(
+        "/war-of-masters/objections/new?submitted=1"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminPrivateMockObjectionPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "admin-private-mock-objection",
+        {
+          user:
+            req.session.user,
+          objection:
+            await getAdminPrivateMockObjection({
+              objectionId:
+                req.params
+                  .objectionId,
+            }),
+          feedback: null,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminRejectPrivateMockObjection =
+  async (req, res, next) => {
+    try {
+      await rejectPrivateMockObjection({
+        adminUserId:
+          req.session.user.id,
+        objectionId:
+          req.params
+            .objectionId,
+        reason:
+          req.body.reason,
+      });
+      return res.redirect(
+        "/admin/todos?done=1"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminAcceptPrivateMockObjection =
+  async (req, res, next) => {
+    try {
+      await acceptPrivateMockObjection({
+        adminUserId:
+          req.session.user.id,
+        objectionId:
+          req.params
+            .objectionId,
+        newAnswer:
+          req.body.newAnswer,
+        questionContent:
+          req.body
+            .questionContent,
+        reason:
+          req.body.reason,
+      });
+      return res.redirect(
+        "/admin/todos?done=1"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.warOfMastersRankingsPage =
+  async (req, res, next) => {
+    try {
+      const [user, ranking] =
+        await Promise.all([
+          User.findById(
+            req.session.user.id
+          ).lean(),
+          getRankingData(
+            req.session.user.id
+          ),
+        ]);
+
+      if (!user) {
+        throw createNotFoundError(
+          "사용자 정보를 찾을 수 없습니다."
+        );
+      }
+
+      res.set(
+        "Cache-Control",
+        "no-store"
+      );
+
+      return res.render(
+        "war-of-masters-rankings",
+        {
+          user,
+          ranking,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.startPlacementExam = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const attempt =
+      await createPlacementAttempt({
+        userId:
+          req.session.user.id,
+      });
+
+    return res.redirect(
+      `/war-of-masters/placement/${attempt._id}`
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.placementExamPage = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    res.set(
+      "Cache-Control",
+      "no-store"
+    );
+
+    const attempt =
+      await getPlacementAttempt({
+        userId:
+          req.session.user.id,
+        attemptId:
+          req.params.attemptId,
+      });
+
+    return res.render(
+      "assessment-attempt",
+      {
+        user: req.session.user,
+        attempt,
+        difficultyLabels:
+          DIFFICULTY_LABELS,
+      }
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.submitPlacementExam =
+  async (req, res, next) => {
+    try {
+      const attempt =
+        await submitPlacementAttempt({
+          userId:
+            req.session.user.id,
+          attemptId:
+            req.params.attemptId,
+          answers:
+            req.body?.answers || {},
+          activeQuestionId:
+            req.body
+              ?.activeQuestionId ||
+            "",
+          currentQuestionIndex:
+            Number(
+              req.body
+                ?.currentQuestionIndex
+            ) || 0,
+        });
+
+      const activityUser =
+        await recordStudyActivity(
+          req.session.user.id
+        );
+      Object.assign(
+        req.session.user,
+        lifecycleSessionView(
+          activityUser
+        )
+      );
+
+      return res.redirect(
+        `/war-of-masters/placement/${attempt._id}`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.savePlacementExamDraft =
+  async (req, res, next) => {
+    try {
+      const result =
+        await savePlacementDraft({
+          userId:
+            req.session.user.id,
+          attemptId:
+            req.params.attemptId,
+          answers:
+            req.body?.answers || {},
+          activeQuestionId:
+            req.body
+              ?.activeQuestionId ||
+            "",
+          currentQuestionIndex:
+            Number(
+              req.body
+                ?.currentQuestionIndex
+            ) || 0,
+          closeQuestionTiming:
+            req.body
+              ?.closeQuestionTiming ===
+            true,
+        });
+
+      return res.json(result);
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .json({
+            message:
+              error.message,
+          });
+      }
+
+      return next(error);
+    }
+  };
+
+exports.expirePlacementExam =
+  async (req, res, next) => {
+    try {
+      const attempt =
+        await expirePlacementAttempt({
+          userId:
+            req.session.user.id,
+          attemptId:
+            req.params.attemptId,
+          answers:
+            req.body?.answers || {},
+          activeQuestionId:
+            req.body
+              ?.activeQuestionId ||
+            "",
+          currentQuestionIndex:
+            Number(
+              req.body
+                ?.currentQuestionIndex
+            ) || 0,
+        });
+
+      return res.json({
+        status: attempt.status,
+        expired:
+          attempt.status ===
+          "disqualified",
+        redirectUrl:
+          `/war-of-masters/placement/${attempt._id}`,
+      });
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .json({
+            message:
+              error.message,
+            remainingTimeMs:
+              error.remainingTimeMs,
+          });
+      }
+
+      return next(error);
+    }
+  };
 
 exports.togglePlanTask = async (
     req,
@@ -394,6 +2632,46 @@ exports.changeCoachMode = async (
 
             return res.json({ coach });
         });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+exports.changeProfileCoachMode = async (
+    req,
+    res,
+    next
+) => {
+    try {
+        const coach =
+            await updateCoachMode(
+                req.session.user.id,
+                req.body.mode,
+                "unanswered"
+            );
+
+        if (!coach) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "coach-mode",
+                    type: "error",
+                    message:
+                        "올바른 학습 모드를 선택해주세요.",
+                },
+            });
+        }
+
+        req.session.user.preferences = {
+            ...(req.session.user.preferences ||
+                {}),
+            coachMode: coach.mode,
+        };
+        await saveSession(req);
+
+        return res.redirect(
+            "/profile?coachModeUpdated=1#coach-mode-settings"
+        );
     } catch (error) {
         return next(error);
     }
@@ -572,6 +2850,8 @@ function createLoginSession(req, user) {
                 realName: user.realName || "",
                 email: user.email,
                 role: user.role || "student",
+                tokenVersion:
+                    Number(user.tokenVersion) || 0,
                 schoolGrade: user.schoolGrade,
                 ...lifecycleSessionView(user),
                 preferences: {
@@ -743,13 +3023,47 @@ exports.register = async (req, res, next) => {
             );
         }
 
-        const existingUser = await User.exists({ email });
+        const [existingUser, existingNickname] =
+          await Promise.all([
+            User.exists({
+              email,
+            }),
+            User.exists({
+              $or: [
+                {
+                  nameNormalized:
+                    nicknameKey(
+                      name
+                    ),
+                },
+                {
+                  name: {
+                    $regex:
+                      `^${name.replace(
+                        /[.*+?^${}()|[\]\\]/g,
+                        "\\$&"
+                      )}$`,
+                    $options: "i",
+                  },
+                },
+              ],
+            }),
+          ]);
 
         if (existingUser) {
             return renderRegisterError(
                 res,
                 409,
                 "이미 가입된 이메일입니다.",
+                oldInput
+            );
+        }
+
+        if (existingNickname) {
+            return renderRegisterError(
+                res,
+                409,
+                "이미 사용 중인 닉네임입니다.",
                 oldInput
             );
         }
@@ -762,11 +3076,14 @@ exports.register = async (req, res, next) => {
         const user = await User.create({
             realName,
             name,
+            nameNormalized:
+              nicknameKey(name),
             email,
             passwordHash,
             schoolGrade,
             lastGradePromotionYear:
                 getAcademicYear(),
+            lastLoginAt: new Date(),
 
             school: {
                 region: selectedSchool.region,
@@ -808,6 +3125,53 @@ exports.register = async (req, res, next) => {
                     schoolCode: String(req.body.schoolCode || "").trim(),
                 }
             );
+        }
+
+        if (
+          error.code === 11000 &&
+          error.keyPattern
+            ?.nameNormalized
+        ) {
+          return renderRegisterError(
+            res,
+            409,
+            "이미 사용 중인 닉네임입니다.",
+            {
+              realName:
+                validateRealName(
+                  req.body.realName
+                ).realName,
+              name:
+                String(
+                  req.body.name ||
+                    ""
+                ).trim(),
+              email:
+                String(
+                  req.body.email ||
+                    ""
+                )
+                  .trim()
+                  .toLowerCase(),
+              schoolGrade:
+                Number(
+                  req.body
+                    .schoolGrade
+                ) || 10,
+              schoolRegion:
+                String(
+                  req.body
+                    .schoolRegion ||
+                    ""
+                ).trim(),
+              schoolCode:
+                String(
+                  req.body
+                    .schoolCode ||
+                    ""
+                ).trim(),
+            }
+          );
         }
 
         return next(error);
@@ -898,11 +3262,40 @@ exports.login = async (req, res, next) => {
             });
         }
 
-        user = (
-            await synchronizeUserLifecycle(
+        const access =
+            await synchronizeAccountAccess(
                 user._id
-            )
-        ).toObject();
+            );
+
+        if (
+            !access ||
+            !access.allowed
+        ) {
+            return res.status(403).render(
+                "login",
+                {
+                    error:
+                        accountBlockedMessage(
+                            access?.status,
+                            access?.user
+                                ?.accountStatusReason
+                        ),
+                    oldInput: {
+                        email,
+                    },
+                }
+            );
+        }
+
+        const synchronizedUser =
+            await synchronizeUserLifecycle(
+                access.user._id
+            );
+        synchronizedUser.lastLoginAt =
+            new Date();
+        await synchronizedUser.save();
+        user =
+            synchronizedUser.toObject();
 
         /*
          * 로그인 전에 사용자가 접근하려던 주소를 보관한다.
@@ -922,6 +3315,8 @@ exports.login = async (req, res, next) => {
             realName: user.realName || "",
             email: user.email,
             role: user.role || "student",
+            tokenVersion:
+                Number(user.tokenVersion) || 0,
             schoolGrade: user.schoolGrade,
             ...lifecycleSessionView(user),
             preferences: {
@@ -945,6 +3340,23 @@ exports.login = async (req, res, next) => {
         };
 
         await saveSession(req);
+
+        const adminEmail =
+            String(
+                process.env.ADMIN_EMAIL ||
+                    "admin@lsbproduction.com"
+            )
+                .trim()
+                .toLowerCase();
+        if (
+            user.role === "admin" ||
+            String(user.email || "")
+                .trim()
+                .toLowerCase() ===
+                adminEmail
+        ) {
+            return res.redirect("/admin");
+        }
 
         if (isSafeReturnPath(returnTo)) {
             return res.redirect(returnTo);
@@ -1002,41 +3414,179 @@ async function renderProfile(
 
 exports.profilePage = async (req, res, next) => {
     try {
-        return await renderProfile(req, res);
+        let feedback = null;
+
+        if (
+          req.query
+            .nicknameUpdated ===
+          "1"
+        ) {
+          feedback = {
+            section: "nickname",
+            type: "success",
+            message:
+              "닉네임을 변경했습니다.",
+          };
+        } else if (
+          req.query
+            .coachModeUpdated ===
+          "1"
+        ) {
+          feedback = {
+            section: "coach-mode",
+            type: "success",
+            message:
+              "학습 모드를 변경했습니다.",
+          };
+        } else if (
+          req.query
+            .nicknameChanged ===
+          "1"
+        ) {
+          feedback = {
+            section: "nickname",
+            type: "success",
+            message:
+              "닉네임 변경 요청을 완료했습니다.",
+          };
+        }
+
+        return await renderProfile(
+          req,
+          res,
+          {
+            feedback,
+          }
+        );
     } catch (error) {
+        return next(error);
+    }
+};
+
+exports.withdrawOwnAccount = async (
+    req,
+    res,
+    next
+) => {
+    try {
+        await withdrawOwnAccount({
+            userId:
+                req.session.user.id,
+            password:
+                req.body.currentPassword,
+            confirmation:
+                req.body.confirmation,
+            acknowledgeAnonymousRetention:
+                req.body
+                    .acknowledgeAnonymousRetention,
+        });
+
+        return req.session.destroy(
+            (error) => {
+                if (error) {
+                    return next(error);
+                }
+
+                res.clearCookie(
+                    "connect.sid"
+                );
+                return res.redirect(
+                    "/login?withdrawn=1"
+                );
+            }
+        );
+    } catch (error) {
+        if (
+            Number(error.status) >=
+                400 &&
+            Number(error.status) <
+                500
+        ) {
+            try {
+                return await renderProfile(
+                    req,
+                    res,
+                    {
+                        status:
+                            error.status,
+                        feedback: {
+                            section:
+                                "withdrawal",
+                            type: "error",
+                            message:
+                                error.message,
+                        },
+                    }
+                );
+            } catch (
+                renderError
+            ) {
+                return next(
+                    renderError
+                );
+            }
+        }
+
         return next(error);
     }
 };
 
 exports.changeNickname = async (req, res, next) => {
     try {
-        const nickname = String(
-            req.body.nickname || ""
-        ).trim();
+        const validation =
+          validateNickname(
+            req.body.nickname
+          );
+        const nickname =
+          validation.nickname;
 
-        if (!nickname) {
-            return await renderProfile(req, res, {
-                status: 400,
-                feedback: {
-                    section: "nickname",
-                    type: "error",
-                    message: "새 닉네임을 입력해주세요.",
-                },
-                formValues: { nickname },
-            });
-        }
-
-        if (
-            nickname.length < 2 ||
-            nickname.length > 30
-        ) {
+        if (!validation.valid) {
             return await renderProfile(req, res, {
                 status: 400,
                 feedback: {
                     section: "nickname",
                     type: "error",
                     message:
-                        "닉네임은 2자 이상 30자 이하로 입력해주세요.",
+                      validation.message,
+                },
+                formValues: { nickname },
+            });
+        }
+
+        const duplicate =
+          await User.exists({
+            _id: {
+              $ne:
+                req.session.user.id,
+            },
+            $or: [
+              {
+                nameNormalized:
+                  nicknameKey(
+                    nickname
+                  ),
+              },
+              {
+                name: {
+                  $regex:
+                    `^${nickname.replace(
+                      /[.*+?^${}()|[\]\\]/g,
+                      "\\$&"
+                    )}$`,
+                  $options: "i",
+                },
+              },
+            ],
+          });
+
+        if (duplicate) {
+            return await renderProfile(req, res, {
+                status: 409,
+                feedback: {
+                    section: "nickname",
+                    type: "error",
+                    message:
+                        "이미 사용 중인 닉네임입니다.",
                 },
                 formValues: { nickname },
             });
@@ -1044,7 +3594,13 @@ exports.changeNickname = async (req, res, next) => {
 
         const user = await User.findByIdAndUpdate(
             req.session.user.id,
-            { name: nickname },
+            {
+              name: nickname,
+              nameNormalized:
+                nicknameKey(
+                  nickname
+                ),
+            },
             {
                 new: true,
                 runValidators: true,
@@ -1060,17 +3616,155 @@ exports.changeNickname = async (req, res, next) => {
         req.session.user.name = user.name;
         await saveSession(req);
 
-        return await renderProfile(req, res, {
-            feedback: {
-                section: "nickname",
-                type: "success",
-                message: "닉네임을 변경했습니다.",
-            },
-        });
+        return res.redirect(
+          "/profile?nicknameUpdated=1#nickname-settings"
+        );
     } catch (error) {
         return next(error);
     }
 };
+
+async function renderNicknameChangePage(
+  req,
+  res,
+  {
+    status = 200,
+    error = null,
+    success = null,
+    nickname = "",
+  } = {}
+) {
+  const requestId =
+    String(
+      req.query.requestId ||
+        req.body.requestId ||
+        ""
+    );
+  const token =
+    String(
+      req.query.token ||
+        req.body.token ||
+        ""
+    );
+  const pageData =
+    await getNicknameChangePageData({
+      userId:
+        req.session.user.id,
+      requestId,
+      token,
+    });
+
+  return res
+    .status(status)
+    .render(
+      "nickname-change",
+      {
+        user:
+          req.session.user,
+        pageData,
+        requestId,
+        token,
+        error,
+        success,
+        nickname,
+      }
+    );
+}
+
+exports.nicknameChangePage =
+  async (req, res, next) => {
+    try {
+      return await renderNicknameChangePage(
+        req,
+        res
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.checkNicknameChange =
+  async (req, res, next) => {
+    try {
+      return res.json(
+        await checkNicknameAvailability({
+          userId:
+            req.session.user.id,
+          requestId:
+            req.body.requestId,
+          token:
+            req.body.token,
+          nickname:
+            req.body.nickname,
+        })
+      );
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .json({
+            available: false,
+            message:
+              error.message,
+            proof: "",
+          });
+      }
+
+      return next(error);
+    }
+  };
+
+exports.completeNicknameChange =
+  async (req, res, next) => {
+    try {
+      const user =
+        await completeNicknameChange({
+          userId:
+            req.session.user.id,
+          requestId:
+            req.body.requestId,
+          token:
+            req.body.token,
+          nickname:
+            req.body.nickname,
+          proof:
+            req.body.proof,
+        });
+
+      req.session.user.name =
+        user.name;
+      await saveSession(req);
+
+      return res.redirect(
+        "/profile?nicknameChanged=1"
+      );
+    } catch (error) {
+      if (error.status) {
+        try {
+          return await renderNicknameChangePage(
+            req,
+            res,
+            {
+              status:
+                error.status,
+              error:
+                error.message,
+              nickname:
+                req.body.nickname,
+            }
+          );
+        } catch (
+          renderError
+        ) {
+          return next(
+            renderError
+          );
+        }
+      }
+
+      return next(error);
+    }
+  };
 
 exports.changeRankingIdentity = async (
     req,
@@ -1078,33 +3772,17 @@ exports.changeRankingIdentity = async (
     next
 ) => {
     try {
-        const realNameValidation =
-            validateRealName(req.body.realName);
         const rankingDisplayMode =
             normalizeRankingDisplayMode(
                 req.body.rankingDisplayMode
             );
         const formValues = {
-            realName: realNameValidation.realName,
             rankingDisplayMode:
                 rankingDisplayMode ||
                 String(
                     req.body.rankingDisplayMode || ""
                 ),
         };
-
-        if (!realNameValidation.valid) {
-            return await renderProfile(req, res, {
-                status: 400,
-                feedback: {
-                    section: "ranking-identity",
-                    type: "error",
-                    message:
-                        realNameValidation.message,
-                },
-                formValues,
-            });
-        }
 
         if (!rankingDisplayMode) {
             return await renderProfile(req, res, {
@@ -1119,11 +3797,37 @@ exports.changeRankingIdentity = async (
             });
         }
 
+        const existingUser = await User.findById(
+            req.session.user.id
+        )
+            .select("realName")
+            .lean();
+
+        if (!existingUser) {
+            throw createNotFoundError(
+                "사용자 정보를 찾을 수 없습니다."
+            );
+        }
+
+        if (
+            rankingDisplayMode === "realName" &&
+            !String(existingUser.realName || "").trim()
+        ) {
+            return await renderProfile(req, res, {
+                status: 400,
+                feedback: {
+                    section: "ranking-identity",
+                    type: "error",
+                    message:
+                        "회원가입 때 등록한 실명이 없어 실명으로 표시할 수 없습니다.",
+                },
+                formValues,
+            });
+        }
+
         const user = await User.findByIdAndUpdate(
             req.session.user.id,
             {
-                realName:
-                    realNameValidation.realName,
                 "preferences.rankingDisplayMode":
                     rankingDisplayMode,
             },
@@ -1981,7 +4685,10 @@ exports.moderateCoachSuggestion =
       });
 
       return res.redirect(
-        "/coach-suggestions?moderated=1"
+        req.body.returnTo ===
+          "admin"
+          ? "/admin/coach-suggestions?moderated=1"
+          : "/coach-suggestions?moderated=1"
       );
     } catch (error) {
       return next(error);
@@ -1998,6 +4705,61 @@ exports.forgotPasswordPage = (
     email: "",
     previewCode: null,
   });
+
+exports.openPasswordResetLink =
+  async (req, res, next) => {
+    try {
+      const verification =
+        await verifyPasswordResetLink({
+          resetId:
+            req.query.resetId,
+          token: req.query.token,
+        });
+
+      req.session.passwordReset = {
+        resetId:
+          verification.resetId,
+        userId:
+          verification.userId,
+        expiresAt:
+          verification.expiresAt,
+      };
+      await saveSession(req);
+      res.set({
+        "Cache-Control":
+          "no-store",
+        "Referrer-Policy":
+          "no-referrer",
+      });
+
+      return res.render(
+        "password-reset",
+        {
+          step: "reset",
+          error: null,
+          email: "",
+          previewCode: null,
+        }
+      );
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .render(
+            "password-reset",
+            {
+              step: "request",
+              error:
+                error.message,
+              email: "",
+              previewCode: null,
+            }
+          );
+      }
+
+      return next(error);
+    }
+  };
 
 exports.requestPasswordReset =
   async (req, res, next) => {
@@ -2166,7 +4928,547 @@ exports.completePasswordReset =
   };
 
 exports.termsPage = (req, res) =>
-  res.render("terms");
+  res.render("terms", {
+    user:
+      req.session?.user ||
+      null,
+  });
 
 exports.privacyPage = (req, res) =>
-  res.render("privacy");
+  res.render("privacy", {
+    user:
+      req.session?.user ||
+      null,
+  });
+
+exports.communityPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "community",
+        {
+          boardData:
+            await getCommunityBoardData({
+              viewer:
+                req.session?.user ||
+                null,
+              board:
+                req.query.board,
+              schoolCode:
+                req.query.school,
+              search:
+                req.query.search,
+              page:
+                req.query.page,
+              sort:
+                req.query.sort,
+              category:
+                req.query.category,
+            }),
+          user:
+            req.session?.user ||
+            null,
+          feedback:
+            req.query.created ===
+            "1"
+              ? "게시글을 등록했습니다."
+              : null,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.communityAnnouncementPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "community-announcement",
+        {
+          user:
+            req.session?.user ||
+            null,
+          announcement:
+            await getCommunityAnnouncement(
+              req.params
+                .announcementId
+            ),
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.communityNewPage =
+  (req, res) =>
+    res.render(
+      "community-new",
+      {
+        user:
+          req.session.user,
+        error: null,
+        oldInput: {
+          board:
+            req.query.board ||
+            "high-school",
+          title: "",
+          content: "",
+          isAnonymous:
+            false,
+        },
+      }
+    );
+
+exports.submitCommunityPost =
+  async (req, res, next) => {
+    try {
+      const post =
+        await createCommunityPost({
+          userId:
+            req.session.user.id,
+          board:
+            req.body.board,
+          title:
+            req.body.title,
+          content:
+            req.body.content,
+          isAnonymous:
+            req.body
+              .isAnonymous,
+        });
+
+      return res.redirect(
+        `/community/${post._id}?created=1`
+      );
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .render(
+            "community-new",
+            {
+              user:
+                req.session.user,
+              error:
+                error.message,
+              oldInput: {
+                board:
+                  req.body.board,
+                title:
+                  req.body.title,
+                content:
+                  req.body.content,
+                isAnonymous:
+                  req.body
+                    .isAnonymous ===
+                  "on",
+              },
+            }
+          );
+      }
+
+      return next(error);
+    }
+  };
+
+exports.communityPostPage =
+  async (req, res, next) => {
+    try {
+      const detail =
+        await getCommunityPost(
+          req.params.postId,
+          req.session?.user?.id ||
+            null
+        );
+
+      return res.render(
+        "community-post",
+        {
+          post: detail.post,
+          comments:
+            detail.comments,
+          viewerVote:
+            detail.viewerVote,
+          viewerReported:
+            detail.viewerReported,
+          user:
+            req.session?.user ||
+            null,
+          created:
+            req.query.created ===
+            "1",
+          commentCreated:
+            req.query.comment ===
+            "created",
+          reported:
+            req.query.reported ===
+            "1",
+          commentError:
+            null,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.submitCommunityComment =
+  async (req, res, next) => {
+    try {
+      await createCommunityComment({
+        userId:
+          req.session.user.id,
+        postId:
+          req.params.postId,
+        content:
+          req.body.content,
+        isAnonymous:
+          req.body
+            .isAnonymous,
+      });
+
+      return res.redirect(
+        `/community/${req.params.postId}?comment=created#comments`
+      );
+    } catch (error) {
+      if (error.status) {
+        try {
+          const detail =
+            await getCommunityPost(
+              req.params.postId,
+              req.session.user.id
+            );
+
+          return res
+            .status(error.status)
+            .render(
+              "community-post",
+              {
+                post:
+                  detail.post,
+                comments:
+                  detail.comments,
+                viewerVote:
+                  detail.viewerVote,
+                viewerReported:
+                  detail.viewerReported,
+                user:
+                  req.session.user,
+                created: false,
+                commentCreated:
+                  false,
+                commentError:
+                  error.message,
+                reported: false,
+                commentDraft:
+                  req.body.content,
+                commentAnonymousDraft:
+                  req.body
+                    .isAnonymous ===
+                  "on",
+              }
+            );
+        } catch (
+          renderError
+        ) {
+          return next(
+            renderError
+          );
+        }
+      }
+
+      return next(error);
+    }
+  };
+
+exports.submitCommunityVote =
+  async (req, res, next) => {
+    try {
+      const result =
+        await voteCommunityPost({
+          userId:
+            req.session.user.id,
+          postId:
+            req.params.postId,
+          value:
+            req.body.value,
+        });
+
+      if (
+        req.accepts([
+          "json",
+          "html",
+        ]) === "json"
+      ) {
+        return res.json(result);
+      }
+
+      return res.redirect(
+        `/community/${req.params.postId}#post-votes`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.submitCommunityReport =
+  async (req, res, next) => {
+    try {
+      await reportCommunityPost({
+        userId:
+          req.session.user.id,
+        postId:
+          req.params.postId,
+        reason:
+          req.body.reason,
+      });
+      return res.redirect(
+        `/community/${req.params.postId}?reported=1`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminCommunityPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "admin-community",
+        {
+          user:
+            req.session.user,
+          communityData:
+            await getAdminCommunityData({
+              board:
+                req.query.board,
+              status:
+                req.query.status,
+              search:
+                req.query.search,
+              page:
+                req.query.page,
+            }),
+          feedback:
+            adminFeedbackFromQuery(
+              req.query
+            ),
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminReviewCommunityReport =
+  async (req, res, next) => {
+    try {
+      await reviewCommunityReport({
+        adminUserId:
+          req.session.user.id,
+        reportId:
+          req.params.reportId,
+        status:
+          req.body.status,
+        resolution:
+          req.body.resolution,
+      });
+      return res.redirect(
+        "/admin/community?done=communityReport"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminTodosPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "admin-todos",
+        {
+          user:
+            req.session.user,
+          todoData:
+            await getAdminTodoData({
+              category:
+                req.query.category,
+              status:
+                req.query.status,
+              page:
+                req.query.page,
+              dateFrom:
+                req.query.dateFrom,
+              dateTo:
+                req.query.dateTo,
+              nickname:
+                req.query.nickname,
+            }),
+          feedback:
+            req.query.reopened ===
+            "1"
+              ? "선택한 할 일을 재검토 대상으로 되돌렸습니다."
+              : req.query.done ===
+                  "1"
+              ? "선택한 할 일을 완료 처리했습니다."
+              : null,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminCompleteTodo =
+  async (req, res, next) => {
+    try {
+      await completeAdminTodo({
+        todoId:
+          req.params.todoId,
+        adminUserId:
+          req.session.user.id,
+      });
+      return res.redirect(
+        "/admin/todos?done=1"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminReopenTodo =
+  async (req, res, next) => {
+    try {
+      await reopenAdminTodo({
+        todoId:
+          req.params.todoId,
+        adminUserId:
+          req.session.user.id,
+      });
+      return res.redirect(
+        "/admin/todos?status=pending&reopened=1"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminEditCommunityPost =
+  async (req, res, next) => {
+    try {
+      await updateCommunityPostByAdmin({
+        adminUserId:
+          req.session.user.id,
+        postId:
+          req.params.postId,
+        title:
+          req.body.title,
+        content:
+          req.body.content,
+        reason:
+          req.body.reason,
+      });
+
+      return res.redirect(
+        "/admin/community?done=communityEdit"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminModerateCommunityPost =
+  async (req, res, next) => {
+    try {
+      await moderateCommunityPost({
+        adminUserId:
+          req.session.user.id,
+        postId:
+          req.params.postId,
+        action:
+          req.body.action,
+        reason:
+          req.body.reason,
+      });
+
+      return res.redirect(
+        "/admin/community?done=communityModeration"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminWarnCommunityPost =
+  async (req, res, next) => {
+    try {
+      const result =
+        await warnCommunityPost({
+          adminUserId:
+            req.session.user.id,
+          postId:
+            req.params.postId,
+          reason:
+            req.body.reason,
+        });
+
+      return res.redirect(
+        `/admin/community?done=${
+          result.autoSuspended
+            ? "communitySuspended"
+            : "communityWarning"
+        }`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminModerateCommunityComment =
+  async (req, res, next) => {
+    try {
+      await moderateCommunityComment({
+        adminUserId:
+          req.session.user.id,
+        commentId:
+          req.params.commentId,
+        action:
+          req.body.action,
+        reason:
+          req.body.reason,
+      });
+
+      return res.redirect(
+        "/admin/community?done=communityCommentModeration#comments"
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminWarnCommunityComment =
+  async (req, res, next) => {
+    try {
+      const result =
+        await warnCommunityComment({
+          adminUserId:
+            req.session.user.id,
+          commentId:
+            req.params.commentId,
+          reason:
+            req.body.reason,
+        });
+
+      return res.redirect(
+        `/admin/community?done=${
+          result.autoSuspended
+            ? "communityCommentSuspended"
+            : "communityCommentWarning"
+        }#comments`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
