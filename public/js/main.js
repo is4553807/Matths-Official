@@ -88,68 +88,6 @@
     label.textContent = `${date} · 오늘의 학습`;
   }
 
-  function initPlan() {
-    const planList = document.getElementById("plan-list");
-    const ring = document.getElementById("plan-ring");
-    const count = document.getElementById("plan-count");
-    const message = document.getElementById("plan-message");
-
-    if (!planList || !ring || !count || !message) return;
-
-    function renderPlan(plan) {
-      const taskMap = new Map(plan.tasks.map((task) => [String(task.id), task]));
-      const taskRows = Array.from(planList.querySelectorAll(".plan-task[data-task-id]"));
-
-      taskRows.forEach((row) => {
-        const task = taskMap.get(String(row.dataset.taskId));
-        if (!task) return;
-
-        const completed = task.status === "completed";
-        const toggle = row.querySelector(".plan-toggle");
-        const check = row.querySelector(".task-check");
-        const status = row.querySelector(".plan-status");
-
-        row.classList.toggle("done", completed);
-        toggle?.setAttribute("aria-pressed", String(completed));
-
-        if (check) check.textContent = completed ? "✓" : "";
-        if (status) status.textContent = completed ? "완료" : "학습하기";
-      });
-
-      const progress = Number(plan.progress) || 0;
-      ring.style.setProperty("--plan-progress", `${progress * 3.6}deg`);
-      ring.setAttribute("aria-valuenow", String(progress));
-      count.textContent = `${plan.completedCount}/${plan.totalCount}`;
-      message.textContent = plan.message || "";
-    }
-
-    planList.addEventListener("click", async (event) => {
-      const toggle = event.target.closest(".plan-toggle");
-      if (!toggle) return;
-
-      const row = toggle.closest(".plan-task[data-task-id]");
-      if (!row || toggle.disabled) return;
-
-      toggle.disabled = true;
-      row.classList.add("saving");
-
-      try {
-        const result = await requestJson(
-          `/api/dashboard/plan/${encodeURIComponent(row.dataset.taskId)}/toggle`,
-          { method: "POST" }
-        );
-
-        renderPlan(result.plan);
-        announce("학습 계획 상태를 저장했습니다.");
-      } catch (error) {
-        announce(error.message);
-      } finally {
-        toggle.disabled = false;
-        row.classList.remove("saving");
-      }
-    });
-  }
-
   function initNotifications() {
     const button = document.getElementById("notification-button");
     const panel = document.getElementById("notification-panel");
@@ -261,7 +199,6 @@
   function init() {
     initSidebar();
     initDate();
-    initPlan();
     initNotifications();
     initAnnouncementDismiss();
     initCharts();

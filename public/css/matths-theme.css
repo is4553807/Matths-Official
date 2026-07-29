@@ -1,0 +1,1003 @@
+/*
+ * Matths unified interface theme
+ * Reference: dark navy navigation, luminous violet-to-cyan accents,
+ * bright blue-gray canvas, and compact white learning cards.
+ */
+
+:root {
+  --matths-navy: #090c1b;
+  --matths-navy-soft: #12162b;
+  --matths-ink: #111426;
+  --matths-muted: #747d93;
+  --matths-canvas: #f3f6ff;
+  --matths-surface: rgba(255, 255, 255, 0.96);
+  --matths-line: #e3e8f4;
+  --matths-magenta: #d842ee;
+  --matths-violet: #7654f7;
+  --matths-blue: #3157f6;
+  --matths-cyan: #19c7e9;
+  --matths-gradient: linear-gradient(
+    100deg,
+    var(--matths-magenta) 0%,
+    var(--matths-violet) 48%,
+    var(--matths-cyan) 100%
+  );
+  --matths-gradient-deep: linear-gradient(
+    135deg,
+    #d63ce9 0%,
+    #6c4df4 52%,
+    #12bce3 100%
+  );
+  --matths-dark-gradient:
+    radial-gradient(circle at 92% 15%, rgba(24, 199, 233, 0.19), transparent 31%),
+    radial-gradient(circle at 27% 12%, rgba(216, 66, 238, 0.2), transparent 36%),
+    linear-gradient(135deg, #171129 0%, #12172d 49%, #08121e 100%);
+  --matths-radius: 18px;
+  --matths-radius-lg: 24px;
+  --matths-shadow: 0 18px 46px rgba(54, 55, 132, 0.09);
+  --matths-shadow-hover: 0 22px 54px rgba(83, 57, 188, 0.15);
+  --blue: var(--matths-blue);
+  --blue-dark: #6044dc;
+  --blue-soft: #eeeaff;
+  --paper: var(--matths-canvas);
+  --line: var(--matths-line);
+  --ink: var(--matths-ink);
+  --muted: var(--matths-muted);
+  --shadow: var(--matths-shadow);
+  --admin-blue: var(--matths-violet);
+  --admin-bg: var(--matths-canvas);
+  --admin-line: var(--matths-line);
+}
+
+html {
+  accent-color: var(--matths-violet);
+}
+
+body {
+  color: var(--matths-ink);
+  background:
+    radial-gradient(circle at 80% 0%, rgba(49, 87, 246, 0.07), transparent 28rem),
+    radial-gradient(circle at 24% 18%, rgba(216, 66, 238, 0.045), transparent 25rem),
+    var(--matths-canvas);
+  font-family:
+    "SUIT Variable",
+    "Pretendard Variable",
+    Pretendard,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Noto Sans KR",
+    sans-serif;
+}
+
+::selection {
+  color: #fff;
+  background: rgba(118, 84, 247, 0.8);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 3px solid rgba(118, 84, 247, 0.24);
+  outline-offset: 3px;
+}
+
+button,
+.button,
+[class*="button"],
+[class*="-action"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+select,
+textarea {
+  border-color: var(--matths-line);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(118, 84, 247, 0.6);
+  box-shadow: 0 0 0 4px rgba(118, 84, 247, 0.09);
+}
+
+/* Shared brand */
+
+.brand-mark,
+.auth-brand > span,
+.admin-brand > span {
+  background-color: var(--matths-navy) !important;
+  box-shadow:
+    0 10px 24px rgba(2, 4, 17, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Dashboard shell and navigation */
+
+.dashboard-shell {
+  background:
+    radial-gradient(circle at 77% 0%, rgba(49, 87, 246, 0.07), transparent 31rem),
+    radial-gradient(circle at 24% 20%, rgba(216, 66, 238, 0.04), transparent 27rem),
+    var(--matths-canvas);
+}
+
+.sidebar {
+  color: #fff;
+  background:
+    radial-gradient(circle at 20% 5%, rgba(118, 84, 247, 0.12), transparent 13rem),
+    linear-gradient(180deg, #090c1a 0%, #101326 57%, #090c1a 100%);
+  border-right-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 14px 0 40px rgba(10, 13, 31, 0.08);
+}
+
+.sidebar .brand {
+  color: #fff;
+}
+
+.sidebar .brand-mark {
+  box-shadow:
+    0 9px 22px rgba(118, 84, 247, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+.sidebar-close {
+  color: #c9cde0;
+}
+
+.side-nav {
+  gap: 6px;
+}
+
+.side-nav > p {
+  color: #747d98;
+}
+
+.side-nav a {
+  color: #aeb5ca;
+  border: 1px solid transparent;
+}
+
+.side-nav a:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.side-nav a.active {
+  color: #fff;
+  background: var(--matths-gradient);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 12px 28px rgba(111, 67, 239, 0.24),
+    0 0 22px rgba(25, 199, 233, 0.08);
+}
+
+.nav-icon {
+  color: #8f98b4;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.side-nav a:hover .nav-icon,
+.side-nav a.active .nav-icon {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+.side-nav a > b {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sidebar-profile {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.profile-avatar {
+  background: var(--matths-gradient-deep);
+  box-shadow: 0 9px 22px rgba(112, 70, 239, 0.25);
+}
+
+.profile-copy strong {
+  color: #fff;
+}
+
+.profile-copy small {
+  color: #818aa4;
+}
+
+.sidebar-profile button {
+  color: #8f97b0;
+}
+
+.sidebar-profile button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-main {
+  background: transparent;
+}
+
+.topbar {
+  border-bottom-color: rgba(214, 220, 235, 0.86);
+}
+
+.topbar-left h1 {
+  font-weight: 850;
+}
+
+.topbar-actions > a,
+.topbar-actions > button,
+.streak-pill,
+a.learning-home-button,
+.back-dashboard {
+  background: rgba(255, 255, 255, 0.91) !important;
+  border-color: var(--matths-line) !important;
+  box-shadow: 0 8px 22px rgba(45, 48, 109, 0.06) !important;
+  backdrop-filter: blur(12px);
+}
+
+a.learning-home-button,
+.back-dashboard.secondary {
+  color: var(--matths-violet) !important;
+}
+
+/* Dashboard cards */
+
+.continue-card,
+.today-plan,
+.stats-row article,
+.activity-card,
+.weak-card,
+.curriculum-progress,
+.wrong-card,
+.quick-grid > a {
+  border-color: rgba(225, 231, 243, 0.92);
+  box-shadow: var(--matths-shadow);
+}
+
+.today-plan,
+.stats-row article,
+.activity-card,
+.weak-card,
+.curriculum-progress,
+.wrong-card {
+  background: var(--matths-surface);
+}
+
+.continue-card {
+  position: relative;
+  color: #fff;
+  background: var(--matths-dark-gradient);
+  border-color: rgba(137, 116, 222, 0.17);
+  box-shadow:
+    0 22px 48px rgba(15, 17, 47, 0.16),
+    0 0 34px rgba(118, 84, 247, 0.08);
+}
+
+.continue-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -8% -62% 54%;
+  height: 95%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(25, 199, 233, 0.13), transparent 65%);
+}
+
+.continue-copy,
+.concept-visual {
+  position: relative;
+  z-index: 1;
+}
+
+.continue-copy h2 {
+  color: #fff;
+}
+
+.continue-copy > p,
+.continue-actions small,
+.visual-title,
+.course-meta small {
+  color: #aeb7cf;
+}
+
+.course-meta span {
+  color: #fff;
+  background: var(--matths-gradient);
+  box-shadow: 0 8px 20px rgba(118, 84, 247, 0.2);
+}
+
+.course-progress > div {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.course-progress > div span,
+.bar-track i,
+.weak-list i b,
+.semester-list i b {
+  background: var(--matths-gradient);
+}
+
+.course-progress strong,
+.card-heading p,
+.section-title p,
+.card-heading > a,
+.wrong-list > a > b,
+.semester-list em,
+.chart-day.today small {
+  color: var(--matths-violet);
+}
+
+.primary-action,
+.auth-form button[type="submit"],
+.settings-form button[type="submit"] {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+  border-color: transparent;
+  box-shadow: 0 13px 28px rgba(111, 70, 239, 0.25);
+}
+
+.primary-action:hover,
+.auth-form button[type="submit"]:hover,
+.settings-form button[type="submit"]:hover {
+  background: var(--matths-gradient-deep);
+  box-shadow: 0 17px 34px rgba(111, 70, 239, 0.31);
+  filter: saturate(1.08) brightness(1.03);
+}
+
+.concept-visual {
+  background:
+    radial-gradient(circle at 64% 25%, rgba(25, 199, 233, 0.12), transparent 17rem),
+    radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+  background-size: auto, 18px 18px;
+  border-left-color: rgba(255, 255, 255, 0.09);
+}
+
+.visual-title span {
+  color: #bba9ff;
+}
+
+.formula-preview {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.13);
+  box-shadow: 0 18px 38px rgba(2, 4, 18, 0.19);
+  backdrop-filter: blur(10px);
+}
+
+.formula-preview span {
+  background: var(--matths-gradient-deep);
+}
+
+.formula-preview p,
+.concept-visual > strong {
+  color: #d9def4;
+}
+
+.plan-ring {
+  background: conic-gradient(
+    var(--matths-violet) var(--plan-progress),
+    #e9edf7 0
+  );
+}
+
+.plan-ring span {
+  color: var(--matths-violet);
+}
+
+.stats-row article,
+.activity-card,
+.weak-card,
+.curriculum-progress,
+.wrong-card,
+.today-plan {
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.stats-row article:hover,
+.activity-card:hover,
+.weak-card:hover,
+.curriculum-progress:hover,
+.wrong-card:hover,
+.today-plan:hover {
+  border-color: rgba(126, 96, 237, 0.16);
+  box-shadow: var(--matths-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.stat-icon.blue,
+.stat-icon.violet {
+  color: var(--matths-violet);
+  background: linear-gradient(135deg, #f2e9ff, #e5edff);
+}
+
+.weekly-chart .bar-track i {
+  box-shadow: 0 8px 18px rgba(107, 77, 244, 0.15);
+}
+
+.chart-legend b,
+.semester-badge:not(.muted) {
+  background: var(--matths-gradient-deep);
+}
+
+.weak-rank.urgent,
+.wrong-list > a > span {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+}
+
+.weak-list em {
+  color: var(--matths-violet);
+  background: #f0edff;
+}
+
+.quick-grid > a {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 15px 32px rgba(104, 69, 232, 0.19);
+}
+
+.quick-grid > a:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow: 0 20px 38px rgba(104, 69, 232, 0.27);
+}
+
+.quick-grid .quick-icon {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.quick-grid small {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.quick-grid > a > b {
+  color: #fff;
+}
+
+/* Learning, assessment, review, and concept surfaces */
+
+:is(
+    .assessment-hero,
+    .quick-hero,
+    .wrong-hero,
+    .unit-hero,
+    .learning-summary
+  ) {
+  color: #fff;
+  background: var(--matths-dark-gradient);
+  border-color: rgba(137, 116, 222, 0.17);
+  box-shadow:
+    0 22px 48px rgba(15, 17, 47, 0.15),
+    0 0 32px rgba(118, 84, 247, 0.07);
+}
+
+:is(
+    .assessment-hero,
+    .quick-hero,
+    .wrong-hero,
+    .unit-hero,
+    .learning-summary
+  )
+  :is(h1, h2, h3, strong) {
+  color: #fff;
+}
+
+:is(
+    .assessment-hero,
+    .quick-hero,
+    .wrong-hero,
+    .unit-hero,
+    .learning-summary
+  )
+  :is(p, small, span:not(.button):not(.status-pill)) {
+  color: #b3bbd0;
+}
+
+:is(
+    .assessment-course,
+    .assessment-paper,
+    .assessment-question,
+    .attempt-progress-card,
+    .placement-question-navigator,
+    .subassessment-card,
+    .course-final,
+    .unit-final,
+    .course-panel,
+    .progress-unit,
+    .assessment-gate-banner,
+    .quick-catalog,
+    .quick-control,
+    .quick-workspace,
+    .quick-question,
+    .quick-result,
+    .review-summary,
+    .review-filter,
+    .review-status-guide,
+    .wrong-item,
+    .wrong-empty,
+    .concept-rail,
+    .lesson-panel,
+    .step-scene,
+    .topic-practice,
+    .scope-note,
+    .concept-completion,
+    .subunit-assessment-callout
+  ) {
+  background: var(--matths-surface);
+  border-color: var(--matths-line);
+  border-radius: var(--matths-radius);
+  box-shadow: var(--matths-shadow);
+}
+
+:is(
+    .course-tab.active,
+    .review-tabs a.active,
+    .quick-start,
+    .paper-submit button,
+    .unit-action,
+    .lesson-pagination a.primary
+  ) {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+  border-color: transparent;
+  box-shadow: 0 12px 27px rgba(111, 70, 239, 0.2);
+}
+
+:is(
+    .concept-bar span,
+    .unit-bar span,
+    .timer-progress,
+    .attempt-progress-card i,
+    .unit-hero-progress i
+  ) {
+  background: var(--matths-gradient);
+}
+
+.eyebrow,
+.quick-kicker,
+.wrong-hero-copy > p,
+.lesson-section-heading > p,
+.learning-section-head > p {
+  color: #9c84ff;
+}
+
+/* Public navigation and public pages */
+
+.site-header {
+  background: rgba(248, 250, 255, 0.88);
+  border-bottom-color: rgba(218, 224, 239, 0.88);
+  box-shadow: 0 10px 34px rgba(55, 56, 123, 0.045);
+}
+
+.site-header .nav-links a:hover,
+.site-header .nav-links a.active,
+.site-header .login-link:hover {
+  color: var(--matths-violet);
+}
+
+.site-header .nav-links a.active::after {
+  height: 3px;
+  background: var(--matths-gradient);
+}
+
+.site-header .button-primary {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+  border-color: transparent;
+  box-shadow: 0 12px 28px rgba(111, 70, 239, 0.22);
+}
+
+.site-header .mobile-menu > div {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: var(--matths-line);
+  box-shadow: var(--matths-shadow);
+}
+
+.site-header .mobile-menu > div a.active {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+}
+
+.hero-grid-pattern,
+.grid-pattern,
+[class*="grid-pattern"] {
+  opacity: 0.52;
+}
+
+.hero h1 em,
+.hero h1 strong,
+.hero-inner h1 em,
+.section-heading > p,
+.section-index p,
+.community-hero > p,
+.archive-heading > p {
+  color: var(--matths-violet);
+}
+
+.button-primary,
+a.button-primary,
+button.button-primary {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+  border-color: transparent;
+  box-shadow: 0 13px 28px rgba(111, 70, 239, 0.22);
+}
+
+.button-primary:hover,
+a.button-primary:hover,
+button.button-primary:hover {
+  background: var(--matths-gradient-deep);
+  box-shadow: 0 17px 34px rgba(111, 70, 239, 0.29);
+  filter: saturate(1.06) brightness(1.03);
+}
+
+.button-secondary,
+a.button-secondary,
+button.button-secondary {
+  color: var(--matths-violet);
+  background: #fff;
+  border-color: #ded9f5;
+}
+
+/* Common content surfaces, scoped to known page shells. */
+
+.archive-page :is(
+    .archive-card,
+    .archive-folder,
+    .archive-panel,
+    .archive-empty
+  ),
+.community-page :is(
+    .community-panel,
+    .community-post,
+    .community-card,
+    .community-empty
+  ),
+.faq-page :is(.faq-card, .faq-list, .faq-contact),
+.contact-page :is(.contact-card, .contact-form),
+.curriculum-page :is(.curriculum-card, .subject-card),
+.war-of-masters-page :is(
+    .masters-card,
+    .ranking-card,
+    .placement-card
+  ) {
+  background: var(--matths-surface);
+  border-color: var(--matths-line);
+  border-radius: var(--matths-radius);
+  box-shadow: var(--matths-shadow);
+}
+
+/* Authentication */
+
+.auth-header,
+.profile-header {
+  background: rgba(250, 251, 255, 0.9);
+  border-bottom-color: var(--matths-line);
+  box-shadow: 0 10px 34px rgba(55, 56, 123, 0.04);
+}
+
+.auth-visual {
+  background: var(--matths-dark-gradient);
+}
+
+.auth-visual::before {
+  opacity: 0.1;
+}
+
+.auth-visual::after {
+  border-color: rgba(216, 66, 238, 0.11);
+}
+
+.visual-copy > p,
+.auth-heading > p,
+.visual-copy h1 strong,
+.auth-switch a,
+.form-link,
+.password-reset-link {
+  color: #a994ff;
+}
+
+.learning-preview article.active {
+  background: var(--matths-gradient-deep);
+  border-color: transparent;
+  box-shadow: 0 14px 34px rgba(111, 70, 239, 0.28);
+}
+
+.auth-panel {
+  background:
+    radial-gradient(circle at 94% 3%, rgba(49, 87, 246, 0.08), transparent 28%),
+    radial-gradient(circle at 8% 94%, rgba(216, 66, 238, 0.05), transparent 26%),
+    var(--matths-canvas);
+}
+
+.auth-panel-inner {
+  border-color: var(--matths-line);
+  box-shadow: var(--matths-shadow);
+}
+
+/* Profile */
+
+.profile-page-shell {
+  background:
+    radial-gradient(circle at 86% 0%, rgba(49, 87, 246, 0.08), transparent 28rem),
+    radial-gradient(circle at 15% 40%, rgba(216, 66, 238, 0.04), transparent 24rem),
+    var(--matths-canvas);
+}
+
+.profile-hero {
+  background: var(--matths-dark-gradient);
+  border: 1px solid rgba(138, 116, 223, 0.18);
+  box-shadow:
+    0 24px 58px rgba(15, 17, 47, 0.18),
+    0 0 36px rgba(118, 84, 247, 0.07);
+}
+
+.profile-hero-copy > p {
+  color: #b4a2ff;
+}
+
+.profile-summary {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+.profile-summary-avatar {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+}
+
+.profile-section-nav a:hover,
+.profile-section-nav a.active {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+}
+
+.settings-card {
+  border-color: var(--matths-line);
+  border-radius: var(--matths-radius);
+  box-shadow: var(--matths-shadow);
+}
+
+.settings-card-heading p {
+  color: var(--matths-violet);
+}
+
+/* Admin */
+
+.admin-page {
+  background:
+    radial-gradient(circle at 87% 0%, rgba(49, 87, 246, 0.075), transparent 29rem),
+    radial-gradient(circle at 14% 30%, rgba(216, 66, 238, 0.04), transparent 26rem),
+    var(--matths-canvas);
+}
+
+.admin-topbar {
+  color: #fff;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(118, 84, 247, 0.17), transparent 18rem),
+    rgba(9, 12, 27, 0.97);
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 14px 35px rgba(8, 11, 28, 0.16);
+}
+
+.admin-brand {
+  color: #fff;
+}
+
+.admin-brand strong small {
+  color: #9099b3;
+}
+
+.admin-topbar nav a,
+.admin-account-user a,
+.admin-account-user button {
+  color: #aeb5ca;
+}
+
+.admin-topbar nav a:hover,
+.admin-account-user a:hover,
+.admin-account-user button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.admin-topbar nav a.active {
+  color: #fff;
+  background: var(--matths-gradient);
+  box-shadow: 0 9px 22px rgba(111, 70, 239, 0.24);
+}
+
+.admin-account-user > span {
+  color: #fff;
+}
+
+.admin-alert-menu > button:not(.has-alerts) {
+  color: #fff;
+  background: rgba(18, 22, 43, 0.96);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-alert-menu > button.has-alerts {
+  background: var(--matths-gradient-deep);
+  border-color: transparent;
+}
+
+.admin-heading > p,
+.admin-panel-heading p,
+.admin-kicker {
+  color: var(--matths-violet);
+}
+
+.admin-panel,
+.admin-stat,
+.admin-stat-card,
+.admin-user-card,
+.admin-inquiry-card,
+.admin-community-card,
+.admin-ranking-card {
+  background: var(--matths-surface);
+  border-color: var(--matths-line);
+  border-radius: var(--matths-radius);
+  box-shadow: var(--matths-shadow);
+}
+
+.admin-page :is(
+    button[type="submit"],
+    .admin-primary-action,
+    .admin-button-primary
+  ):not(.danger):not(.secondary) {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+  border-color: transparent;
+  box-shadow: 0 11px 24px rgba(111, 70, 239, 0.2);
+}
+
+.admin-page :is(
+    button[type="submit"],
+    .admin-primary-action,
+    .admin-button-primary
+  ):not(.danger):not(.secondary):hover {
+  filter: saturate(1.07) brightness(1.03);
+}
+
+.admin-page .admin-account-user button[type="submit"] {
+  color: #aeb5ca;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.admin-page .admin-account-user button[type="submit"]:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+  filter: none;
+}
+
+.admin-page :is(
+    .danger-form,
+    .private-mock-delete-form
+  )
+  button[type="submit"],
+.admin-page :is(
+    button.danger,
+    .danger-button,
+    .admin-danger-button
+  ) {
+  color: #fff;
+  background: linear-gradient(135deg, #ed5a70, #ca304b);
+  border-color: transparent;
+  box-shadow: 0 10px 23px rgba(202, 48, 75, 0.18);
+}
+
+.admin-page .warning-form button[type="submit"] {
+  color: #fff;
+  background: linear-gradient(135deg, #f2a34c, #df6f32);
+  border-color: transparent;
+  box-shadow: 0 10px 23px rgba(223, 111, 50, 0.17);
+}
+
+/* Full-screen mock exam */
+
+.private-mock-exam-body {
+  background:
+    radial-gradient(circle at 88% 0%, rgba(49, 87, 246, 0.07), transparent 30rem),
+    var(--matths-canvas);
+}
+
+.private-mock-exam-header,
+.private-mock-result-card,
+.private-mock-omr,
+.private-mock-integrity-card,
+.private-mock-question-panel,
+.private-mock-pdf-panel {
+  border-color: var(--matths-line);
+  box-shadow: var(--matths-shadow);
+}
+
+.private-mock-exam-header {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(14px);
+}
+
+.private-mock-status,
+.private-mock-exam-body .status-pill {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+}
+
+/* Responsive */
+
+@media (max-width: 1120px) {
+  .admin-topbar {
+    background: rgba(9, 12, 27, 0.98);
+  }
+
+  .admin-topbar nav {
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  }
+}
+
+@media (max-width: 920px) {
+  .sidebar {
+    box-shadow: 20px 0 55px rgba(4, 6, 18, 0.3);
+  }
+
+  .site-header .mobile-menu > div {
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-main {
+    padding-inline: 18px;
+  }
+
+  .welcome-row {
+    margin-top: 18px;
+  }
+
+  .continue-card {
+    min-height: 0;
+  }
+
+  .continue-copy {
+    padding: 28px 22px;
+  }
+
+  .stats-row article,
+  .activity-card,
+  .weak-card,
+  .curriculum-progress,
+  .wrong-card,
+  .today-plan {
+    border-radius: 16px;
+  }
+
+  .quick-grid > a {
+    min-height: 76px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-row article,
+  .activity-card,
+  .weak-card,
+  .curriculum-progress,
+  .wrong-card,
+  .today-plan,
+  .quick-grid > a {
+    transition: none;
+  }
+}
