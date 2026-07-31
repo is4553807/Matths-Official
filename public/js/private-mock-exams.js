@@ -74,7 +74,7 @@
           status.textContent =
             defer
               ? "3회차 종료 전까지 선택을 미뤘습니다."
-              : "주간 랭킹 대표 성적을 저장했습니다.";
+              : "최종 종합 랭킹 대표 성적을 저장했습니다.";
           if (defer) {
             selectionForm
               .querySelectorAll(

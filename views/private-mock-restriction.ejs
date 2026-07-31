@@ -20,7 +20,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>사설 모의고사 이용 상태 | Matths</title>
+    <title>Matths 주간 공식 모의고사 이용 상태 | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/account-restriction.css" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -48,7 +48,7 @@
         <header class="topbar">
           <div class="topbar-left">
             <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
-            <div><p>ACCOUNT ACCESS</p><h1>사설 모의고사 이용 상태</h1></div>
+            <div><p>이용 권한</p><h1>Matths 주간 공식 모의고사 이용 상태</h1></div>
           </div>
           <a class="learning-home-button" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a>
         </header>
@@ -56,15 +56,15 @@
         <section class="restriction-hero <%= restriction.active ? 'is-restricted' : 'is-cleared' %>">
           <div>
             <p><%= restriction.active ? "PRIVATE MOCK RESTRICTION" : "ACCESS RESTORED" %></p>
-            <h2><%= restriction.active ? "현재 사설 모의고사 응시가 제한되어 있습니다." : "사설 모의고사 이용 제한이 해제되었습니다." %></h2>
-            <span><%= restriction.active ? "이 페이지는 본인만 열람할 수 있으며, 기록을 수정하거나 관리 조치를 변경할 수 없습니다." : "다시 War of GOAT과 사설 모의고사를 이용할 수 있습니다." %></span>
+            <h2><%= restriction.active ? "현재 Matths 주간 공식 모의고사 응시가 제한되어 있습니다." : "Matths 주간 공식 모의고사 이용 제한이 해제되었습니다." %></h2>
+            <span><%= restriction.active ? "이 페이지는 본인만 열람할 수 있으며, 기록을 수정하거나 관리 조치를 변경할 수 없습니다." : "다시 War of GOAT과 Matths 주간 공식 모의고사를 이용할 수 있습니다." %></span>
           </div>
           <strong><%= restriction.active ? `${restriction.remainingWeekCount}회` : "해제" %><small><%= restriction.active ? `${restriction.remainingWeekCount}주` : "현재 상태" %></small></strong>
         </section>
 
         <section class="restriction-grid">
           <article class="restriction-card">
-            <header><p>MEMBER</p><h2>내 계정 정보</h2></header>
+            <header><p>사용자</p><h2>내 계정 정보</h2></header>
             <dl>
               <div><dt>실명</dt><dd><%= member.realName %></dd></div>
               <div><dt>닉네임</dt><dd><%= member.name %></dd></div>
@@ -74,7 +74,7 @@
           </article>
 
           <article class="restriction-card restriction-card-important">
-            <header><p>RESTRICTION</p><h2>제한 상세</h2></header>
+            <header><p>이용 제한</p><h2>제한 상세</h2></header>
             <dl>
               <div><dt>적용일</dt><dd><%= formatDate(restriction.imposedAt) %></dd></div>
               <div><dt>검토 문항</dt><dd><%= questionLabel %></dd></div>
@@ -87,7 +87,7 @@
                   <% } else if (restriction.expectedReleaseAt) { %>
                     <%= formatDate(restriction.expectedReleaseAt) %> 이후
                   <% } else { %>
-                    향후 정규 사설 모의고사 <%= restriction.remainingWeekCount %>회(<%= restriction.remainingWeekCount %>주) 종료 후 자동 해제
+                    향후 Matths 주간 공식 모의고사 <%= restriction.remainingWeekCount %>회(<%= restriction.remainingWeekCount %>주) 종료 후 자동 해제
                   <% } %>
                 </dd>
               </div>
@@ -96,7 +96,7 @@
         </section>
 
         <section class="restriction-reason">
-          <div><p>DECISION</p><h2>적용 사유</h2></div>
+          <div><p>처리 결과</p><h2>적용 사유</h2></div>
           <p><%= restriction.reason %></p>
           <small>관련 기록은 운영 정책과 시험 응시 로그를 기준으로 검토되었습니다. 사실관계 확인이나 추가 설명이 필요하면 문의를 남겨주세요.</small>
           <% if (restriction.active) { %>

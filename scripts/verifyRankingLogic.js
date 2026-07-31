@@ -5,6 +5,7 @@ const {
   _testing: {
     ranked,
     aggregateRankings,
+    buildTierRankingPool,
   },
 } = require(
   "../services/rankingService"
@@ -126,6 +127,87 @@ assert.equal(
 assert.equal(
   cities[0].participantCount,
   2
+);
+
+const tierPool =
+  buildTierRankingPool(
+    [
+      {
+        ...students[0],
+        arenaRank: "골드",
+        arenaPosition: 2,
+        arenaGp: 1000,
+      },
+      {
+        ...students[1],
+        arenaRank: "골드",
+        arenaPosition: 1,
+        arenaGp: 1100,
+      },
+      {
+        ...students[2],
+        arenaRank: "실버",
+        arenaPosition: 1,
+        arenaGp: 900,
+      },
+    ],
+    "u1",
+    {
+      key: "SUB",
+      label:
+        "Sub Division",
+      dataState:
+        "seed-preview",
+    }
+  );
+
+assert.equal(
+  tierPool.current.tier,
+  "골드"
+);
+assert.equal(
+  tierPool.current.tierRank,
+  2,
+  "랭킹은 전체 순위가 아니라 같은 티어 안에서 계산되어야 합니다."
+);
+assert.equal(
+  tierPool.defaultTierKey,
+  "gold"
+);
+
+const gpOrderedTierPool =
+  buildTierRankingPool(
+    [
+      {
+        ...students[0],
+        arenaRank: "골드",
+        arenaPosition: 2,
+        arenaGp: 1000,
+        rating: 1500,
+      },
+      {
+        ...students[1],
+        arenaRank: "골드",
+        arenaPosition: 1,
+        arenaGp: 1100,
+        rating: 900,
+      },
+    ],
+    "u2",
+    {
+      key: "SUB",
+      label:
+        "Sub Division",
+      dataState:
+        "seed-preview",
+    }
+  );
+
+assert.equal(
+  gpOrderedTierPool.current
+    .tierRank,
+  1,
+  "GOAT Arena 티어 랭킹은 내부 MMR이 아니라 GP 내림차순이어야 합니다."
 );
 assert.equal(
   isArchiveAdmin({

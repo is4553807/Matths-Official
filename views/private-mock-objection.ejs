@@ -21,6 +21,8 @@
     <link rel="stylesheet" href="/css/war-of-masters.css" />
     <link rel="stylesheet" href="/css/private-mock-objection.css" />
     <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
     <script src="/js/main.js" defer></script>
   </head>
   <body class="masters-page objection-page">
@@ -45,16 +47,16 @@
         <header class="topbar">
           <div class="topbar-left">
             <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기"><span></span><span></span><span></span></button>
-            <div><p>QUESTION REVIEW</p><h1>문제 이의신청</h1></div>
+            <div><p>문제 검토</p><h1>문제 이의신청</h1></div>
           </div>
           <a class="back-dashboard learning-home-button" href="/war-of-masters">War of GOAT로 <span>→</span></a>
         </header>
 
         <section class="objection-hero">
           <div>
-            <p>FAIR EXAM REVIEW</p>
+            <p>공정한 시험 검토</p>
             <h2>문제나 정답이 잘못되었다고 판단되면 알려주세요.</h2>
-            <span>공개된 Matths 사설 모의고사만 선택할 수 있습니다. 문제의 어느 부분이 성립하지 않는지, 정답이 달라야 하는 근거가 무엇인지 구체적으로 적어주세요.</span>
+            <span>공개된 Matths 주간 공식 모의고사만 선택할 수 있습니다. 문제의 어느 부분이 성립하지 않는지, 정답이 달라야 하는 근거가 무엇인지 구체적으로 적어주세요.</span>
           </div>
           <b>접수 후 운영팀이 문제지·답지·채점 데이터를 함께 검토하고 이메일과 알림 우편함으로 결과를 안내합니다.</b>
         </section>
@@ -67,7 +69,7 @@
           <% if (!formData.exams.length) { %>
             <div class="objection-empty">
               <strong>이의신청할 수 있는 공개 시험지가 없습니다.</strong>
-              <p>사설 모의고사가 종료되고 아카이브에 공개된 뒤 다시 확인해주세요.</p>
+              <p>Matths 주간 공식 모의고사가 종료되고 아카이브에 공개된 뒤 다시 확인해주세요.</p>
             </div>
           <% } else { %>
             <form action="/war-of-masters/objections" method="POST">
@@ -89,7 +91,7 @@
                 <textarea name="issueDetail" rows="10" minlength="10" maxlength="5000" placeholder="문제의 조건, 계산 과정, 기존 정답과 달라야 한다고 판단한 근거를 구체적으로 적어주세요." required></textarea>
               </label>
               <div class="objection-form-note">
-                허위·반복 신청은 처리하지 않을 수 있습니다. 정답 정정이 필요한 것으로 확인되면 전체 응시 기록을 재채점하고 랭킹과 MMR을 다시 계산합니다.
+                허위·반복 신청은 처리하지 않을 수 있습니다. 정답 정정이 필요한 것으로 확인되면 전체 응시 기록을 재채점하고 랭킹과 GP를 다시 계산합니다.
               </div>
               <button type="submit">이의신청 제출 <span>→</span></button>
             </form>

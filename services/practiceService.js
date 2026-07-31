@@ -937,6 +937,8 @@ async function submitProblem({
   return {
     correct,
     solution: stored.solution,
+    activityDurationMs:
+      responseTimeMs,
     mastery: masteryView(progress),
     review,
     coachFeedback:

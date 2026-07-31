@@ -8,7 +8,7 @@
     />
     <meta
       name="description"
-      content="Matths 수학 랭킹전 War of GOAT"
+      content="Matths 최종 종합 랭킹 War of GOAT"
     />
     <meta name="theme-color" content="#0c1125" />
     <title>War of GOAT | Matths</title>
@@ -87,7 +87,7 @@
               <span></span><span></span><span></span>
             </button>
             <div>
-              <p>MATTHS RANKING ARENA</p>
+              <p>Matths 랭킹 Arena</p>
               <h1>War of GOAT</h1>
             </div>
           </div>
@@ -96,38 +96,32 @@
           </a>
         </header>
 
-        <section class="masters-command" aria-labelledby="masters-command-title">
-          <div class="command-copy">
-            <p>MY ARENA</p>
-            <h2 id="masters-command-title">
-              <%= arenaUser.displayName %>님의 전장
-            </h2>
-            <span>
-              <%= arenaUser.schoolName %> · <%= arenaUser.gradeLabel %>
-            </span>
-          </div>
-
-          <div class="command-rank">
-            <small>현재 티어</small>
-            <% if (placement.status === "submitted" && placement.result) { %>
-              <strong><%= placement.result.initialTier %></strong>
-              <span>MMR <%= placement.result.initialRating %></span>
-            <% } else if (placement.status === "verification-required") { %>
-              <strong>추가 확인</strong>
-              <span>4문항을 마치면 초기 MMR이 확정됩니다.</span>
-            <% } else { %>
-              <strong>배치 전</strong>
-              <span>배치고사를 완료해주세요.</span>
-            <% } %>
-          </div>
-        </section>
-
         <section class="masters-actions" aria-label="War of GOAT 메뉴">
+          <article class="masters-action-card goat-arena-action-card">
+            <div>
+              <p>일반 쟁탈전</p>
+              <h2>GOAT Arena</h2>
+              <small>
+                확정 GP로 시드를 받고, 1대1 승부에서 상대의 GP와 그 티어·순위를 차지하세요.
+              </small>
+            </div>
+            <a class="goat-arena-entry" href="/goat-arena">
+              <span class="goat-arena-entry-copy">
+                <strong>GOAT Arena 입장</strong>
+                <small>Arena 입장</small>
+              </span>
+              <span class="goat-arena-entry-mark" aria-hidden="true">
+                <i></i>
+                <b>→</b>
+              </span>
+            </a>
+          </article>
+
           <article class="masters-action-card placement-action-card">
             <div>
               <span aria-hidden="true">01</span>
-              <p>PLACEMENT</p>
-              <h2>입단 배치고사</h2>
+              <p>배치고사</p>
+              <h2>배치고사</h2>
               <small>
                 <%= placement.status === "submitted"
                   ? `${placement.result.correctCount} / 30문항 정답 · ${placement.result.initialTier}`
@@ -154,26 +148,38 @@
           <article class="masters-action-card private-mock-action-card">
             <div>
               <span aria-hidden="true">02</span>
-              <p>WEEKLY MOCK</p>
-              <h2>Matths 사설 모의고사</h2>
+              <p>매주 일요일 3회 제공</p>
+              <h2>Matths 주간 공식 모의고사</h2>
               <small>
                 <%= privateMockEligibility.allowed
                   ? "매주 일요일 A·B·C형 · 최대 3회 · 대표 표준화 성적 선택"
                   : privateMockEligibility.message %>
               </small>
             </div>
-            <a href="<%= privateMockEligibility.ctaHref %>">
-              <%= privateMockEligibility.ctaLabel %>
-              <span aria-hidden="true">→</span>
-            </a>
+            <% if (["placement-required", "verification-required", "ranking-pending"].includes(privateMockEligibility.status)) { %>
+              <button
+                type="button"
+                class="private-mock-disabled-action"
+                disabled
+                aria-disabled="true"
+              >
+                Matths 주간 공식 모의고사 응시 잠김
+                <span aria-hidden="true">×</span>
+              </button>
+            <% } else { %>
+              <a href="<%= privateMockEligibility.ctaHref %>">
+                <%= privateMockEligibility.ctaLabel %>
+                <span aria-hidden="true">→</span>
+              </a>
+            <% } %>
           </article>
 
           <article class="masters-action-card ranking-action-card">
             <div>
               <span aria-hidden="true">03</span>
-              <p>RANKING</p>
+              <p>랭킹</p>
               <h2>랭킹 보기</h2>
-              <small>내 순위와 전체·학교·지역 랭킹</small>
+              <small>Sub Division·Main Division과 내 티어 안에서의 순위</small>
             </div>
             <a href="/war-of-masters/rankings">
               랭킹 페이지 열기
@@ -184,7 +190,7 @@
           <article class="masters-action-card identity-action-card">
             <div>
               <span aria-hidden="true">04</span>
-              <p>IDENTITY</p>
+              <p>공개 이름</p>
               <h2>공개 이름 설정</h2>
               <small>현재 공개 방식 · <%= arenaUser.displayMode %></small>
             </div>
@@ -197,9 +203,9 @@
           <article class="masters-action-card objection-action-card">
             <div>
               <span aria-hidden="true">05</span>
-              <p>QUESTION REVIEW</p>
+              <p>문제 검토</p>
               <h2>문제 이의신청</h2>
-              <small>공개된 사설 모의고사 문항이나 정답이 잘못되었다고 판단되면 근거와 함께 알려주세요.</small>
+              <small>공개된 Matths 주간 공식 모의고사 문항이나 정답이 잘못되었다고 판단되면 근거와 함께 알려주세요.</small>
             </div>
             <a href="/war-of-masters/objections/new">
               이의신청 작성
@@ -229,7 +235,7 @@
           value="cancel"
           aria-label="닫기"
         >×</button>
-        <p>PLACEMENT EXAM</p>
+        <p>배치고사</p>
         <h2 id="placement-dialog-title">100분 배치고사를 시작합니다.</h2>
         <ul>
           <li>총 30문항이며 만점은 100점입니다.</li>

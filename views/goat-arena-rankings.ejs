@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="GOAT Arena 스타일의 Sub Division·Main Division 티어 랭킹"
+    />
+    <meta name="theme-color" content="#070913" />
+    <title>랭킹 | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <link rel="stylesheet" href="/css/tier-rankings.css" />
+    <link
+      rel="icon"
+      type="image/jpeg"
+      href="/images/goat-arena/goat-arena-logo.jpg"
+    />
+    <script src="/js/goat-arena.js" defer></script>
+    <script src="/js/tier-rankings.js" defer></script>
+  </head>
+  <body class="goat-arena-page arena-inner-page">
+    <a class="arena-skip-link" href="#arena-rankings-main">본문으로 바로가기</a>
+
+    <%- include("partials/goat-arena-navigation", {
+      activeArenaPage,
+      arenaUser,
+    }) %>
+
+    <main class="arena-page-main" id="arena-rankings-main">
+      <header class="arena-page-heading">
+        <div>
+          <p>실시간 티어 랭킹</p>
+          <h1>Sub Division·Main Division 랭킹</h1>
+        </div>
+        <p>
+          각 Division을 GP 내림차순으로 정렬하고, 랭킹은 현재 티어 안에서의 순위로 표시합니다.
+          내 티어는 전체 목록을 스크롤하고 다른 티어는 상위 20명만 확인할 수 있습니다.
+        </p>
+      </header>
+
+      <%- include("partials/tier-ranking-pools", {
+        ranking,
+        user,
+        rankingTheme: "ranking-theme-arena",
+      }) %>
+    </main>
+  </body>
+</html>

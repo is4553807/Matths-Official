@@ -30,6 +30,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>관리자 할 일 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -62,7 +63,7 @@
           <article>
             <b class="admin-todo-number"><%= (todoData.pagination.page - 1) * 20 + index + 1 %></b>
             <div>
-              <span><%= labels[todo.category] || todo.category %> · <%= formatDate(todo.createdAt) %></span>
+              <span><%= labels[todo.category] || "기타" %> · <%= formatDate(todo.createdAt) %></span>
               <h2><a href="<%= todo.href %>"><%= todo.title %></a></h2>
               <p><%= todo.description %></p>
               <small>요청자: <%= todo.actorUserId?.realName || todo.actorUserId?.name || "확인 필요" %> · 대상: <%= todo.targetUserId?.realName || todo.targetUserId?.name || "없음" %></small>

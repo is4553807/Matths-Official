@@ -18,12 +18,8 @@
 
 .masters-command {
   min-height: 250px;
-  display: grid;
-  grid-template-columns:
-    minmax(0, 1fr)
-    minmax(220px, 0.34fr);
+  display: flex;
   align-items: center;
-  gap: 35px;
   margin-top: 28px;
   padding: clamp(36px, 5vw, 62px);
   color: #fff;
@@ -41,6 +37,10 @@
   border: 1px solid #24325e;
   border-radius: 28px;
   box-shadow: 0 24px 60px rgba(22, 34, 88, 0.16);
+}
+
+.masters-command .command-copy {
+  max-width: 720px;
 }
 
 .command-copy p,
@@ -69,28 +69,39 @@
 
 .command-rank {
   min-height: 136px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
   padding: 25px;
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(166, 181, 255, 0.19);
   border-radius: 20px;
 }
 
-.command-rank small {
+.command-rank .rank-crest {
+  margin-block: -27px;
+}
+
+.command-rank-copy {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+}
+
+.command-rank-copy small {
   color: #8f9bc0;
   font-size: 8px;
 }
 
-.command-rank strong {
+.command-rank-copy strong {
   margin-top: 7px;
   color: #f2d58c;
   font-size: 26px;
   letter-spacing: -1px;
 }
 
-.command-rank span {
+.command-rank-copy > span {
   margin-top: 6px;
   color: #aeb7d6;
   font-size: 9px;
@@ -163,6 +174,312 @@
   cursor: pointer;
 }
 
+.goat-arena-action-card {
+  position: relative;
+  grid-column: 1 / -1;
+  min-height: 290px;
+  overflow: hidden;
+  color: #fff;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(7, 9, 19, 0.96) 0%,
+      rgba(7, 9, 19, 0.78) 44%,
+      rgba(7, 9, 19, 0.2) 100%
+    ),
+    url("/images/goat-arena/arena-hero.jpg")
+      69% center / cover no-repeat;
+  border-color: rgba(112, 107, 240, 0.42);
+  box-shadow:
+    0 22px 58px rgba(34, 29, 98, 0.2);
+  transition:
+    border-color 320ms ease,
+    box-shadow 420ms ease;
+}
+
+.goat-arena-action-card h2 {
+  color: #fff;
+  font-size: clamp(31px, 4vw, 49px);
+}
+
+.goat-arena-action-card small {
+  max-width: 480px;
+  color: #b3bddc;
+  line-height: 1.7;
+}
+
+.goat-arena-action-card
+  > div
+  > span {
+  color: #d9dcff;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(216, 66, 238, 0.24),
+      rgba(25, 199, 233, 0.19)
+    );
+  border: 1px solid
+    rgba(147, 135, 255, 0.3);
+}
+
+.goat-arena-action-card > a {
+  position: relative;
+  isolation: isolate;
+  width: min(330px, 100%);
+  min-height: 62px;
+  overflow: hidden;
+  padding: 0 11px 0 18px;
+  background:
+    linear-gradient(
+      100deg,
+      #b72fd0,
+      #6847e8 50%,
+      #148ead
+    );
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 14px 32px
+    rgba(94, 62, 216, 0.25);
+  transition:
+    transform 320ms
+      cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 240ms ease,
+    box-shadow 320ms ease,
+    filter 320ms ease;
+}
+
+.goat-arena-action-card
+  > a::before {
+  position: absolute;
+  z-index: -1;
+  top: -90%;
+  bottom: -90%;
+  left: -45%;
+  width: 28%;
+  content: "";
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.26),
+      rgba(137, 245, 255, 0.74),
+      rgba(255, 255, 255, 0.22),
+      transparent
+    );
+  filter: blur(1px);
+  pointer-events: none;
+  transform:
+    skewX(-18deg)
+    translateX(-180%);
+}
+
+.goat-arena-action-card
+  > a::after {
+  position: absolute;
+  z-index: -1;
+  inset: 1px;
+  content: "";
+  background:
+    radial-gradient(
+      circle at 88% 50%,
+      rgba(80, 235, 255, 0.22),
+      transparent 22%
+    );
+  border: 1px solid
+    rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+.goat-arena-entry-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.goat-arena-entry-copy strong {
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: -0.15px;
+}
+
+.goat-arena-action-card
+  .goat-arena-entry-copy
+  small {
+  margin: 0;
+  color: rgba(226, 233, 255, 0.62);
+  font-size: 6px;
+  font-weight: 850;
+  letter-spacing: 1.45px;
+  line-height: 1;
+  transition:
+    color 240ms ease,
+    letter-spacing 320ms ease;
+}
+
+.goat-arena-entry-mark {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  color: #fff;
+  background:
+    rgba(8, 12, 38, 0.36);
+  border: 1px solid
+    rgba(214, 241, 255, 0.36);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 14px
+      rgba(81, 224, 255, 0.08),
+    0 0 0 0
+      rgba(83, 225, 255, 0);
+  transition:
+    transform 420ms
+      cubic-bezier(0.22, 1, 0.36, 1),
+    background 260ms ease,
+    border-color 260ms ease,
+    box-shadow 320ms ease;
+}
+
+.goat-arena-entry-mark i {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid
+    transparent;
+  border-top-color:
+    rgba(218, 94, 255, 0.9);
+  border-right-color:
+    rgba(73, 226, 255, 0.9);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.goat-arena-entry-mark b {
+  font-size: 15px;
+  font-weight: 700;
+  transition:
+    transform 320ms
+      cubic-bezier(0.22, 1, 0.36, 1),
+    text-shadow 260ms ease;
+}
+
+.goat-arena-action-card:has(
+    > a:is(:hover, :focus-visible)
+  ) {
+  border-color:
+    rgba(112, 224, 255, 0.72);
+  box-shadow:
+    0 26px 68px
+      rgba(34, 29, 98, 0.28),
+    0 0 38px
+      rgba(75, 208, 255, 0.12);
+}
+
+.goat-arena-action-card
+  > a:is(:hover, :focus-visible) {
+  border-color:
+    rgba(213, 244, 255, 0.66);
+  box-shadow:
+    0 20px 44px
+      rgba(94, 62, 216, 0.38),
+    0 0 30px
+      rgba(55, 218, 255, 0.22),
+    inset 0 0 20px
+      rgba(255, 255, 255, 0.06);
+  filter: saturate(1.18)
+    brightness(1.08);
+  transform:
+    translateY(-3px)
+    scale(1.012);
+}
+
+.goat-arena-action-card
+  > a:is(:hover, :focus-visible)::before {
+  animation:
+    goatArenaEntryScan
+    1.15s
+    cubic-bezier(0.22, 1, 0.36, 1)
+    infinite;
+}
+
+.goat-arena-action-card
+  > a:is(:hover, :focus-visible)::after {
+  opacity: 1;
+}
+
+.goat-arena-action-card
+  > a:is(:hover, :focus-visible)
+  .goat-arena-entry-copy
+  small {
+  color: #dffbff;
+  letter-spacing: 1.85px;
+}
+
+.goat-arena-action-card
+  > a:is(:hover, :focus-visible)
+  .goat-arena-entry-mark {
+  background:
+    rgba(8, 18, 49, 0.72);
+  border-color:
+    rgba(223, 249, 255, 0.78);
+  box-shadow:
+    inset 0 0 18px
+      rgba(81, 224, 255, 0.18),
+    0 0 0 6px
+      rgba(83, 225, 255, 0.08),
+    0 0 28px
+      rgba(83, 225, 255, 0.45);
+  transform:
+    rotate(-7deg)
+    scale(1.07);
+}
+
+.goat-arena-action-card
+  > a:is(:hover, :focus-visible)
+  .goat-arena-entry-mark
+  i {
+  opacity: 1;
+  animation:
+    goatArenaPortalRing
+    1.1s linear infinite;
+}
+
+.goat-arena-action-card
+  > a:is(:hover, :focus-visible)
+  .goat-arena-entry-mark
+  b {
+  text-shadow:
+    0 0 12px
+      rgba(191, 247, 255, 0.92);
+  transform: translateX(3px);
+}
+
+@keyframes goatArenaEntryScan {
+  0% {
+    transform:
+      skewX(-18deg)
+      translateX(-180%);
+  }
+
+  58%,
+  100% {
+    transform:
+      skewX(-18deg)
+      translateX(720%);
+  }
+}
+
+@keyframes goatArenaPortalRing {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
 .placement-action-card {
   color: #fff;
   background:
@@ -228,6 +545,14 @@
       #ef9c32
     );
   border-color: transparent;
+}
+
+.masters-action-card
+  > button.private-mock-disabled-action {
+  color: #8c92a2;
+  background: #eef0f4;
+  border-color: #dde1e9;
+  cursor: not-allowed;
 }
 
 .objection-action-card
@@ -344,6 +669,60 @@
 }
 
 /* Ranking page */
+.matths-ranking-intro {
+  display: grid;
+  grid-template-columns:
+    minmax(260px, 0.8fr)
+    minmax(0, 1.2fr);
+  align-items: end;
+  gap: 45px;
+  margin: 28px 0 16px;
+  padding: clamp(28px, 4vw, 45px);
+  color: #fff;
+  background:
+    radial-gradient(
+      circle at 86% 10%,
+      rgba(88, 99, 255, 0.29),
+      transparent 34%
+    ),
+    linear-gradient(
+      145deg,
+      #0b1024,
+      #18234d
+    );
+  border: 1px solid #263460;
+  border-radius: 26px;
+  box-shadow:
+    0 24px 60px
+    rgba(22, 34, 88, 0.14);
+}
+
+.matths-ranking-intro
+  > div
+  > p {
+  margin: 0 0 9px;
+  color: #8fa2ff;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1.7px;
+}
+
+.matths-ranking-intro h2 {
+  margin: 0;
+  font-size:
+    clamp(27px, 3.5vw, 43px);
+  line-height: 1.15;
+  letter-spacing: -1.8px;
+}
+
+.matths-ranking-intro
+  > p {
+  margin: 0;
+  color: #aab4d2;
+  font-size: 10px;
+  line-height: 1.8;
+}
+
 .my-ranking {
   display: grid;
   grid-template-columns:
@@ -389,18 +768,29 @@
   font-size: 10px;
 }
 
-.my-ranking-identity > div {
-  display: grid;
-  gap: 5px;
+.my-ranking-tier {
+  display: flex;
+  align-items: center;
+  gap: 20px;
   margin-top: 28px;
 }
 
-.my-ranking-identity > div strong {
+.my-ranking-tier .rank-crest {
+  margin-block: -36px;
+}
+
+.my-ranking-tier > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.my-ranking-tier strong {
   color: #f1d282;
   font-size: 20px;
 }
 
-.my-ranking-identity > div small {
+.my-ranking-tier small {
   color: #9ba7ca;
   font-size: 8px;
 }
@@ -653,6 +1043,11 @@
   .my-ranking {
     grid-template-columns: 1fr;
   }
+
+  .matths-ranking-intro {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
 }
 
 @media (max-width: 700px) {
@@ -662,6 +1057,12 @@
 
   .command-rank {
     min-height: 100px;
+    grid-template-columns: 66px minmax(0, 1fr);
+  }
+
+  .command-rank .rank-crest {
+    --rank-crest-width: 64px;
+    margin-block: -20px;
   }
 
   .masters-action-card {
@@ -686,11 +1087,40 @@
     grid-template-columns: 1fr;
   }
 
+  .my-ranking-tier .rank-crest {
+    --rank-crest-width: 78px;
+    margin-block: -25px;
+  }
+
   .placement-dialog-card {
     padding: 28px 20px 20px;
   }
 
   .placement-dialog-card > div {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goat-arena-action-card,
+  .goat-arena-action-card > a,
+  .goat-arena-entry-mark,
+  .goat-arena-entry-mark b,
+  .goat-arena-entry-copy small {
+    transition: none;
+  }
+
+  .goat-arena-action-card
+    > a:is(:hover, :focus-visible) {
+    transform: none;
+  }
+
+  .goat-arena-action-card
+    > a:is(:hover, :focus-visible)::before,
+  .goat-arena-action-card
+    > a:is(:hover, :focus-visible)
+    .goat-arena-entry-mark
+    i {
+    animation: none;
   }
 }

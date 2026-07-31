@@ -29,6 +29,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>유저 관리 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -87,7 +88,7 @@
             <span><strong><%= member.name %></strong><small><%= member.email %></small></span>
             <span><%= member.school?.name || "미설정" %><small><%= member.school?.region || "" %></small></span>
             <span><%= gradeLabels[member.schoolGrade] || "—" %></span>
-            <span><%= { student: "학생", teacher: "교사", admin: "관리자" }[member.role] || member.role %></span>
+            <span><%= { student: "학생", teacher: "교사", admin: "관리자" }[member.role] || "역할 확인 필요" %></span>
             <span class="<%= (member.accountStatus || (member.isActive ? 'active' : 'inactive')) === 'active' ? 'is-active' : 'is-inactive' %>"><%= { active: "활성", inactive: "비활성", suspended: "정지", withdrawn: "탈퇴" }[member.accountStatus || (member.isActive ? "active" : "inactive")] %><small>경고 <%= member.warningCount || 0 %>회</small></span>
             <span><%= Math.round((member.totalStudySeconds || 0) / 60) %>분</span>
             <span><%= formatDate(member.lastLoginAt) %></span>

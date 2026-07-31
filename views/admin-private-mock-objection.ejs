@@ -18,6 +18,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>문제 이의신청 검토 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -28,8 +29,8 @@
       <a class="admin-back" href="/admin/todos">← 처리할 일</a>
       <header class="admin-heading">
         <div>
-          <p>QUESTION OBJECTION</p>
-          <h1>사설 모의고사 문제 이의신청</h1>
+          <p>문제 이의신청</p>
+          <h1>Matths 주간 공식 모의고사 문제 이의신청</h1>
           <span>신청 내용과 현재 정답을 확인한 뒤 반려 또는 정정 반영을 결정합니다.</span>
         </div>
         <strong><%= objection.questionNumber %><small>번 문항</small></strong>
@@ -55,7 +56,7 @@
       <% } else { %>
         <section class="objection-review-actions">
           <form class="admin-panel objection-reject-form" action="/admin/private-mock-objections/<%= objection.id %>/reject" method="POST">
-            <p>REJECT</p>
+            <p>반려</p>
             <h2>이의신청 반려</h2>
             <span>반려 사유는 신청자의 이메일과 알림 우편함으로 전송됩니다.</span>
             <label>
@@ -68,7 +69,7 @@
           <form class="admin-panel objection-accept-form" action="/admin/private-mock-objections/<%= objection.id %>/accept" method="POST">
             <p>ACCEPT & RECALCULATE</p>
             <h2>이의신청 인용·정답 정정</h2>
-            <span>저장 즉시 전체 재채점, 표준화 성적·랭킹·MMR 재산출, 응시자 이메일, 다음 모의고사 전날까지 공지가 실행됩니다.</span>
+            <span>저장 즉시 전체 재채점, 표준화 성적·랭킹·GP 재산출, 응시자 이메일, 다음 Matths 주간 공식 모의고사 전날까지 공지가 실행됩니다.</span>
             <label>
               <b>문제 내용</b>
               <textarea name="questionContent" rows="5" maxlength="3000" placeholder="정정 안내에 들어갈 문항 내용을 적어주세요." required></textarea>

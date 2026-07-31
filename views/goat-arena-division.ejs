@@ -1,0 +1,139 @@
+<%
+  const hasDivisionAccess =
+    division === "SUB"
+      ? arenaAccess.canUseSub
+      : arenaAccess.canUseMain;
+  const currentPool =
+    division === "SUB"
+      ? ranking.pools.sub
+      : ranking.pools.main;
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="<%= divisionLabel %> GOAT Arena 기능 허브"
+    />
+    <meta name="theme-color" content="#070913" />
+    <title><%= divisionLabel %> | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <link
+      rel="icon"
+      type="image/jpeg"
+      href="/images/goat-arena/goat-arena-logo.jpg"
+    />
+    <script src="/js/goat-arena.js" defer></script>
+  </head>
+  <body class="goat-arena-page arena-inner-page">
+    <a class="arena-skip-link" href="#arena-division-main">본문으로 바로가기</a>
+
+    <%- include("partials/goat-arena-navigation", {
+      activeArenaPage,
+      arenaUser,
+    }) %>
+
+    <main class="arena-page-main" id="arena-division-main">
+      <header class="arena-page-heading">
+        <div>
+          <p><%= divisionLabel %> 기능</p>
+          <h1><%= divisionLabel %></h1>
+        </div>
+        <p>
+          <%= division === "SUB"
+            ? "정기권 학습 가능 일수·페이백 점수와 일반 쟁탈전을 관리하는 Sub Division 전장입니다."
+            : "Sub Division에서 달성한 Main Division 상태와 이용 주기·만료 경계를 확인하는 전장입니다. 내부 경기 규칙은 아직 확정 전입니다." %>
+        </p>
+      </header>
+
+      <section class="arena-division-status">
+        <article>
+          <small>이용 권한</small>
+          <strong>
+            <%= hasDivisionAccess
+              ? (arenaAccess.isAdminPreview ? "관리자 미리보기" : "사용 가능")
+              : "권한 없음" %>
+          </strong>
+          <span>
+            <%= hasDivisionAccess
+              ? "서버에서 이 Division의 기능 사용 권한을 확인했습니다."
+              : "페이지는 열람할 수 있지만 기능 버튼은 권한이 생길 때까지 표시되지 않습니다." %>
+          </span>
+        </article>
+        <article>
+          <small>내 티어 랭킹</small>
+          <strong>
+            <%= currentPool.current
+              ? `${currentPool.current.tier} ${currentPool.current.tierRank}위`
+              : "—" %>
+          </strong>
+          <span>표시 순위는 현재 티어 안에서의 랭킹입니다.</span>
+        </article>
+        <article>
+          <small>정기권 학습 가능 일수</small>
+          <strong>
+            <%= arenaAccess.learningRights.availableDays ?? "—" %>
+          </strong>
+          <span>현재 학습권 패키지에서 사용할 수 있는 남은 일수입니다.</span>
+        </article>
+      </section>
+
+      <% if (hasDivisionAccess) { %>
+        <section class="arena-feature-section" aria-labelledby="division-feature-title">
+          <header>
+            <div>
+              <small>Division 기능</small>
+              <h2 id="division-feature-title"><%= divisionKoreanLabel %> 기능</h2>
+            </div>
+            <p>
+              확정된 운영 규칙에 따라 사용할 수 있는 기능만 표시합니다. Main Division 내부 비용·상점·보호 기능은 정책이 확정된 뒤 추가됩니다.
+            </p>
+          </header>
+
+          <div class="arena-feature-grid">
+            <% features.forEach((feature, index) => { %>
+              <button
+                type="button"
+                data-arena-feature="<%= feature.key %>"
+                data-feature-name="<%= feature.name %>"
+              >
+                <span><%= String(index + 1).padStart(2, "0") %></span>
+                <strong><%= feature.name %></strong>
+                <em><%= feature.description %></em>
+                <i aria-hidden="true">→</i>
+              </button>
+            <% }) %>
+          </div>
+
+          <p
+            class="arena-feature-status"
+            role="status"
+            aria-live="polite"
+            data-arena-feature-status
+          ></p>
+        </section>
+      <% } else { %>
+        <section class="arena-access-gate">
+          <img
+            src="/images/goat-arena/goat-arena-logo.jpg"
+            alt=""
+          />
+          <div>
+            <small><%= divisionLabel %> 이용 권한 필요</small>
+            <h2><%= divisionLabel %> 기능은 현재 사용할 수 없습니다.</h2>
+            <p>
+              Division 권한이 없는 사용자는 페이지와 설명을 볼 수 있지만
+              쟁탈전·경기·학습권 패키지 기능 버튼은 표시되지 않습니다.
+            </p>
+          </div>
+          <a href="/goat-arena/profile">Arena 프로필 확인</a>
+        </section>
+      <% } %>
+    </main>
+  </body>
+</html>

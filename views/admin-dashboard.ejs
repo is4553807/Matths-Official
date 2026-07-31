@@ -11,6 +11,27 @@
     replied: "답변 완료",
     closed: "종료",
   };
+  const kstDateParts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(new Date())
+      .map((part) => [part.type, part.value])
+  );
+  const kstToday = [
+    kstDateParts.year,
+    kstDateParts.month,
+    kstDateParts.day,
+  ].join("-");
+  const announcementInput =
+    typeof oldInput === "object" && oldInput
+      ? oldInput
+      : {};
+  const hasAnnouncementInput =
+    Object.keys(announcementInput).length > 0;
 %>
 <!doctype html>
 <html lang="ko">
@@ -37,6 +58,12 @@
       <% if (feedback) { %>
         <div class="admin-feedback" role="status"><%= feedback %></div>
       <% } %>
+      <% if (error) { %>
+        <div class="admin-feedback admin-feedback--error" role="alert">
+          <span aria-hidden="true">!</span>
+          <%= error %>
+        </div>
+      <% } %>
 
       <section class="admin-stat-grid" aria-label="운영 요약">
         <article><span>활성 학생</span><strong><%= adminData.stats.activeUsers %></strong></article>
@@ -54,20 +81,25 @@
             <label>
               <span>운영 게시판 분류</span>
               <select name="boardCategory">
-                <option value="notice">일반 공지</option>
-                <option value="rules">규칙</option>
-                <option value="policies">방침</option>
-                <option value="manuals">설명서</option>
-                <option value="inquiry-rules">문의 규칙</option>
+                <option value="notice" <%= announcementInput.boardCategory === "notice" ? "selected" : "" %>>일반 공지</option>
+                <option value="rules" <%= announcementInput.boardCategory === "rules" ? "selected" : "" %>>규칙</option>
+                <option value="policies" <%= announcementInput.boardCategory === "policies" ? "selected" : "" %>>방침</option>
+                <option value="manuals" <%= announcementInput.boardCategory === "manuals" ? "selected" : "" %>>설명서</option>
+                <option value="inquiry-rules" <%= announcementInput.boardCategory === "inquiry-rules" ? "selected" : "" %>>문의 규칙</option>
               </select>
             </label>
-            <label><span>제목</span><input name="title" minlength="2" maxlength="120" required /></label>
-            <label><span>내용</span><textarea name="content" rows="7" minlength="5" maxlength="5000" required></textarea></label>
+            <label><span>제목</span><input name="title" minlength="2" maxlength="120" value="<%= announcementInput.title || "" %>" required /></label>
+            <label><span>내용</span><textarea name="content" rows="7" minlength="5" maxlength="5000" required><%= announcementInput.content || "" %></textarea></label>
             <label>
-              <span>대시보드 노출 종료일 <small>선택하지 않으면 직접 내릴 때까지 표시</small></span>
-              <input type="date" name="dashboardEndDate" />
+              <span>대시보드 노출 종료일 <small>선택한 날짜의 자정 직전까지 표시 · 비워두면 직접 내릴 때까지 · KST 기준</small></span>
+              <input
+                type="date"
+                name="dashboardEndDate"
+                min="<%= kstToday %>"
+                value="<%= announcementInput.dashboardEndDate || "" %>"
+              />
             </label>
-            <label class="admin-checkbox"><input type="checkbox" name="publishNow" value="true" checked /><span>저장과 동시에 전체 사용자 우편함과 운영 게시판에 공개</span></label>
+            <label class="admin-checkbox"><input type="checkbox" name="publishNow" value="true" <%= !hasAnnouncementInput || announcementInput.publishNow === "true" || announcementInput.publishNow === "on" ? "checked" : "" %> /><span>저장과 동시에 전체 사용자 우편함과 운영 게시판에 공개</span></label>
             <button type="submit">공지 저장</button>
           </form>
         </section>
@@ -83,7 +115,7 @@
             <% } %>
             <% adminData.inquiries.forEach((inquiry) => { %>
               <a href="/admin/inquiries">
-                <span class="status-<%= inquiry.status %>"><%= inquiryStatus[inquiry.status] || inquiry.status %></span>
+                <span class="status-<%= inquiry.status %>"><%= inquiryStatus[inquiry.status] || "상태 확인 필요" %></span>
                 <strong><%= inquiry.subject %></strong>
                 <small><%= inquiry.authorNickname %> · <%= formatDate(inquiry.createdAt) %></small>
               </a>

@@ -80,6 +80,11 @@ exports.isLoggedIn = async (req, res, next) => {
                         account.school,
                     schoolGrade:
                         account.schoolGrade,
+                    educationStatus:
+                        account.educationStatus ||
+                        (Number(account.schoolGrade) === 13
+                            ? "graduated"
+                            : "enrolled"),
                     preferences:
                         account.preferences,
                 }

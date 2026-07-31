@@ -6,11 +6,12 @@ MongoDB 드라이버를 사용하지 않고 `https://<server>/api/v1`만 호출�
 ## 보안 원칙
 
 - 운영 서버는 반드시 HTTPS를 사용합니다.
-- `DB`, `SECRET`, `API_TOKEN_SECRET`, `GMAIL_APP_PASSWORD`를 앱에 넣지 않습니다.
+- `DB`, `SECRET`, `IDENTITY_MATCH_SECRET`, `API_TOKEN_SECRET`, `GMAIL_APP_PASSWORD`를 앱에 넣지 않습니다.
 - 로그인 응답의 `accessToken`은 iOS Keychain에 저장합니다.
 - 인증 요청에는 `Authorization: Bearer <accessToken>`을 붙입니다.
 - 비밀번호가 바뀌면 기존 접근 토큰은 자동으로 무효화됩니다.
 - API 응답에는 MongoDB 접속정보와 비밀번호 해시가 포함되지 않습니다.
+- 운영 서버의 `IDENTITY_MATCH_SECRET`은 동일인 탐지 해시를 안정적으로 비교할 수 있도록 배포 후 임의로 변경하지 않습니다.
 
 ## 인증
 
@@ -23,6 +24,7 @@ MongoDB 드라이버를 사용하지 않고 `https://<server>/api/v1`만 호출�
   "realName": "이학생",
   "name": "수학하는학생",
   "email": "student@example.com",
+  "birthDate": "2009-03-14",
   "password": "Password123",
   "schoolGrade": 10,
   "schoolRegion": "서울특별시",
@@ -34,6 +36,11 @@ MongoDB 드라이버를 사용하지 않고 `https://<server>/api/v1`만 호출�
 학교 목록은 `GET /api/v1/schools`에서 가져옵니다.
 `realName`은 실명, `name`은 학습 화면과 익명 랭킹에서 사용하는
 닉네임입니다. 랭킹 표시 기본값은 `nickname`입니다.
+`birthDate`는 `YYYY-MM-DD` 형식이며 본인확인에 사용합니다. 재학생은
+실명·생년월일·고등학교 코드가 모두 같은 활성 계정이 있을 때만 관리자
+중복 검토 알림과 비교 계정 표시가 생성됩니다. `schoolGrade`가
+`13`(N수생)이면 `schoolRegion`과 `schoolCode`를 생략할 수 있으며,
+학교가 없는 계정은 이 자동 3요소 비교에서 제외됩니다.
 
 ### 로그인
 
@@ -41,10 +48,13 @@ MongoDB 드라이버를 사용하지 않고 `https://<server>/api/v1`만 호출�
 
 ```json
 {
-  "email": "student@example.com",
+  "identifier": "student@example.com 또는 수학하는학생",
   "password": "Password123"
 }
 ```
+
+`identifier`에는 이메일 또는 닉네임을 넣을 수 있습니다. 이전 앱과의
+호환을 위해 `email` 필드도 당분간 허용합니다.
 
 응답:
 

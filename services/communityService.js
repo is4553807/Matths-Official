@@ -1,10 +1,13 @@
 const mongoose = require("mongoose");
 const crypto = require("crypto");
+const fs = require("fs");
 const {
   AdminActionLog,
   Announcement,
+  CommunityBoardNotice,
   CommunityComment,
   CommunityPost,
+  CommunityPostingQuota,
   CommunityReport,
   CommunityVote,
   User,
@@ -19,9 +22,17 @@ const {
 } = require("./adminTodoService");
 const communityEmailCopy =
   require("../content/email/community");
+const {
+  COMMUNITY_ATTACHMENT_LIMIT,
+  discardCommunityUploads,
+  isCommunityImage,
+  safeCommunityAttachmentPath,
+  serializeCommunityUpload,
+} = require("./communityAttachmentService");
 
 const COMMUNITY_PAGE_SIZE = 20;
 const ADMIN_COMMUNITY_PAGE_SIZE = 25;
+const COMMUNITY_DAILY_POST_LIMIT = 5;
 const POPULAR_POST_WINDOW_MS =
   72 * 60 * 60 * 1000;
 const POPULAR_POST_UPVOTES =
@@ -30,6 +41,7 @@ const BOARD_LABELS = {
   "high-school":
     "통합 고등학교 게시판",
   school: "학교 게시판",
+  retaker: "N수생 게시판",
   operations: "운영 게시판",
 };
 const OPERATIONS_CATEGORY_LABELS = {
@@ -40,6 +52,97 @@ const OPERATIONS_CATEGORY_LABELS = {
   "inquiry-rules":
     "문의 규칙",
 };
+const COMMUNITY_BOARD_RULES = {
+  "high-school": {
+    eyebrow: "COMMUNITY RULES",
+    title:
+      "통합 고등학교 게시판 운영 규칙",
+    introduction:
+      "학교와 지역을 넘어 고등학생이 수학, 학습, 학교생활에 관한 정보를 안전하게 나누는 공간입니다.",
+    sections: [
+      {
+        title: "서로를 존중해주세요",
+        content:
+          "욕설, 비하, 괴롭힘, 차별, 도배, 허위 사실 유포 및 분쟁을 유도하는 글은 신고 검토 후 숨김·삭제되거나 경고가 부여될 수 있습니다.",
+      },
+      {
+        title: "개인정보와 저작권을 지켜주세요",
+        content:
+          "본인이나 타인의 연락처, 계정, 얼굴, 학교 식별 정보 등 민감한 개인정보를 올리지 마세요. 첨부하는 자료는 직접 만들었거나 공유할 권한이 있는 자료여야 합니다.",
+      },
+      {
+        title: "게시글은 하루 최대 5개입니다",
+        content:
+          "모든 게시판을 합산하여 한국 시간 기준 하루에 게시글을 최대 5개까지 작성할 수 있습니다. 댓글 작성 횟수는 이 한도에 포함되지 않습니다.",
+      },
+      {
+        title: "사진·파일 첨부 기준",
+        content:
+          "게시글 하나에 사진 또는 파일을 최대 5개, 파일당 10MB까지 첨부할 수 있습니다. 경고 횟수가 0회인 계정만 첨부할 수 있으며, 관리자가 경고를 0회로 조정하면 즉시 다시 이용할 수 있습니다.",
+      },
+    ],
+  },
+  school: {
+    eyebrow: "SCHOOL BOARD RULES",
+    title:
+      "학교 게시판 운영 규칙",
+    introduction:
+      "같은 학교 구성원이 학습과 학교생활 정보를 나누는 공간입니다. 친밀한 공간일수록 서로를 특정할 수 있는 표현에 더 주의해주세요.",
+    sections: [
+      {
+        title: "학교 구성원을 보호해주세요",
+        content:
+          "학생, 교직원 또는 특정 학급을 알아볼 수 있는 실명·사진·연락처·소문을 게시하지 마세요. 비방이나 따돌림을 유도하는 글은 신고 검토 후 제재될 수 있습니다.",
+      },
+      {
+        title: "정확하고 필요한 정보를 나눠주세요",
+        content:
+          "시험, 수행평가, 학교 일정 등은 확인된 정보만 공유하고 시험 보안이나 부정행위에 해당하는 자료는 게시하지 마세요.",
+      },
+      {
+        title: "게시글은 하루 최대 5개입니다",
+        content:
+          "통합 고등학교 게시판을 포함한 전체 게시판에서 한국 시간 기준 하루에 게시글을 최대 5개까지 작성할 수 있습니다.",
+      },
+      {
+        title: "사진·파일 첨부 기준",
+        content:
+          "게시글 하나에 사진 또는 파일을 최대 5개, 파일당 10MB까지 첨부할 수 있습니다. 경고 횟수가 0회인 계정만 첨부할 수 있으며, 관리자가 경고를 0회로 조정하면 즉시 다시 이용할 수 있습니다.",
+      },
+    ],
+  },
+  retaker: {
+    eyebrow: "RETAKER BOARD RULES",
+    title:
+      "N수생 게시판 운영 규칙",
+    introduction:
+      "현재 N수생으로 등록된 이용자가 입시 준비와 학습 정보를 안전하게 나누는 전용 공간입니다.",
+    sections: [
+      {
+        title: "서로의 상황을 존중해주세요",
+        content:
+          "재도전 횟수, 성적, 출신 학교나 개인 사정을 이용해 타인을 비하하거나 특정할 수 있는 내용을 올리지 마세요.",
+      },
+      {
+        title: "확인된 입시 정보만 공유해주세요",
+        content:
+          "원서, 시험, 학원 및 대학 관련 정보는 출처와 기준 시점을 확인하고 허위 정보나 광고성 게시물을 올리지 마세요.",
+      },
+      {
+        title: "게시글은 하루 최대 5개입니다",
+        content:
+          "다른 게시판의 작성 횟수를 포함해 한국 시간 기준 하루 최대 5개까지 작성할 수 있습니다.",
+      },
+      {
+        title: "사진·파일 첨부 기준",
+        content:
+          "게시글 하나에 사진 또는 파일을 최대 5개, 파일당 10MB까지 첨부할 수 있습니다. 경고 횟수가 0회인 계정만 첨부할 수 있습니다.",
+      },
+    ],
+  },
+};
+const communityPostingLocks =
+  new Map();
 
 function statusError(
   status,
@@ -49,6 +152,476 @@ function statusError(
     new Error(message);
   error.status = status;
   return error;
+}
+
+function getKoreanDayRange(
+  value = new Date()
+) {
+  const koreaOffsetMs =
+    9 * 60 * 60 * 1000;
+  const koreaTime = new Date(
+    value.getTime() +
+      koreaOffsetMs
+  );
+  const start = new Date(
+    Date.UTC(
+      koreaTime.getUTCFullYear(),
+      koreaTime.getUTCMonth(),
+      koreaTime.getUTCDate()
+    ) - koreaOffsetMs
+  );
+  const year = String(
+    koreaTime.getUTCFullYear()
+  );
+  const month = String(
+    koreaTime.getUTCMonth() + 1
+  ).padStart(2, "0");
+  const day = String(
+    koreaTime.getUTCDate()
+  ).padStart(2, "0");
+
+  return {
+    start,
+    end: new Date(
+      start.getTime() +
+        24 * 60 * 60 * 1000
+    ),
+    dayKey:
+      `${year}-${month}-${day}`,
+  };
+}
+
+async function withCommunityPostingLock(
+  userId,
+  callback
+) {
+  const key = String(userId);
+  const previous =
+    communityPostingLocks.get(
+      key
+    ) || Promise.resolve();
+  let release;
+  const gate = new Promise(
+    (resolve) => {
+      release = resolve;
+    }
+  );
+  const tail = previous
+    .catch(() => {})
+    .then(() => gate);
+  communityPostingLocks.set(
+    key,
+    tail
+  );
+
+  await previous.catch(() => {});
+  try {
+    return await callback();
+  } finally {
+    release();
+    if (
+      communityPostingLocks.get(
+        key
+      ) === tail
+    ) {
+      communityPostingLocks.delete(
+        key
+      );
+    }
+  }
+}
+
+function communityDailyLimitError() {
+  return statusError(
+    429,
+    `게시글은 모든 게시판을 합쳐 하루에 최대 ${COMMUNITY_DAILY_POST_LIMIT}개까지 작성할 수 있습니다. 한국 시간 자정 이후 다시 작성해주세요.`
+  );
+}
+
+async function reserveCommunityPostSlot(
+  userId
+) {
+  const {
+    start,
+    end,
+    dayKey,
+  } = getKoreanDayRange();
+  const expiresAt = new Date(
+    end.getTime() +
+      2 * 24 * 60 * 60 * 1000
+  );
+
+  for (
+    let attempt = 0;
+    attempt < 6;
+    attempt += 1
+  ) {
+    const quota =
+      await CommunityPostingQuota.findOneAndUpdate(
+        {
+          userId,
+          dayKey,
+          count: {
+            $lt:
+              COMMUNITY_DAILY_POST_LIMIT,
+          },
+        },
+        {
+          $inc: {
+            count: 1,
+          },
+          $set: {
+            expiresAt,
+          },
+        },
+        {
+          new: true,
+          runValidators: true,
+        }
+      ).lean();
+
+    if (quota) {
+      return { dayKey };
+    }
+
+    const existingPostCount =
+      await CommunityPost.countDocuments(
+        {
+          authorId: userId,
+          createdAt: {
+            $gte: start,
+            $lt: end,
+          },
+        }
+      );
+    if (
+      existingPostCount >=
+      COMMUNITY_DAILY_POST_LIMIT
+    ) {
+      throw communityDailyLimitError();
+    }
+
+    try {
+      await CommunityPostingQuota.create({
+        userId,
+        dayKey,
+        count:
+          existingPostCount +
+          1,
+        expiresAt,
+      });
+      return { dayKey };
+    } catch (error) {
+      if (error.code !== 11000) {
+        throw error;
+      }
+    }
+  }
+
+  throw communityDailyLimitError();
+}
+
+async function releaseCommunityPostSlot({
+  userId,
+  dayKey,
+}) {
+  await CommunityPostingQuota.updateOne(
+    {
+      userId,
+      dayKey,
+      count: {
+        $gt: 0,
+      },
+    },
+    {
+      $inc: {
+        count: -1,
+      },
+    }
+  );
+}
+
+function getCommunityBoardRules({
+  board,
+  schoolCode = "",
+  schoolName = "",
+} = {}) {
+  const normalizedBoard =
+    String(board || "");
+  if (
+    !Object.prototype
+      .hasOwnProperty.call(
+        COMMUNITY_BOARD_RULES,
+        normalizedBoard
+      )
+  ) {
+    throw statusError(
+      404,
+      "해당 게시판 운영 규칙을 찾을 수 없습니다."
+    );
+  }
+
+  const template =
+    COMMUNITY_BOARD_RULES[
+      normalizedBoard
+    ];
+  const cleanSchoolCode =
+    cleanSingleLine(
+      schoolCode,
+      100
+    );
+  const cleanSchoolName =
+    cleanSingleLine(
+      schoolName,
+      120
+    );
+
+  return {
+    ...template,
+    board:
+      normalizedBoard,
+    boardLabel:
+      normalizedBoard ===
+        "school" &&
+      cleanSchoolName
+        ? `${cleanSchoolName} 게시판`
+        : BOARD_LABELS[
+            normalizedBoard
+          ],
+    schoolCode:
+      normalizedBoard ===
+      "school"
+        ? cleanSchoolCode
+        : "",
+    schoolName:
+      normalizedBoard ===
+      "school"
+        ? cleanSchoolName
+        : "",
+    updatedAt: new Date(
+      "2026-08-01T00:00:00+09:00"
+    ),
+  };
+}
+
+function createCommunityRulesNotice({
+  board,
+  selectedSchool,
+}) {
+  const rules =
+    getCommunityBoardRules({
+      board,
+      schoolCode:
+        selectedSchool?.code ||
+        "",
+      schoolName:
+        selectedSchool?.name ||
+        "",
+    });
+  const query = new URLSearchParams();
+  if (rules.schoolCode) {
+    query.set(
+      "school",
+      rules.schoolCode
+    );
+  }
+
+  return {
+    _id:
+      `rules-${rules.board}`,
+    title:
+      `[공지] ${rules.title}`,
+    content:
+      `${rules.introduction} 게시글 작성과 첨부파일 이용 전에 운영 규칙을 확인해주세요.`,
+    authorName:
+      "Matths 운영팀",
+    isPinned: true,
+    isBoardRulesNotice:
+      true,
+    rulesHref:
+      `/community/rules/${rules.board}${
+        query.toString()
+          ? `?${query.toString()}`
+          : ""
+      }`,
+    createdAt:
+      rules.updatedAt,
+    publishedAt:
+      rules.updatedAt,
+    viewCount: 0,
+    upvoteCount: 0,
+    downvoteCount: 0,
+  };
+}
+
+let defaultCommunityNoticesPromise;
+
+function rulesNoticeContent(
+  rules
+) {
+  return [
+    rules.introduction,
+    ...rules.sections.map(
+      (section) =>
+        `${section.title}\n${section.content}`
+    ),
+  ].join("\n\n");
+}
+
+async function ensureDefaultCommunityNotices() {
+  if (
+    defaultCommunityNoticesPromise
+  ) {
+    return defaultCommunityNoticesPromise;
+  }
+
+  defaultCommunityNoticesPromise =
+    Promise.all(
+      [
+        "high-school",
+        "school",
+        "retaker",
+      ].map((boardType) => {
+        const rules =
+          getCommunityBoardRules({
+            board: boardType,
+          });
+        return CommunityBoardNotice.updateOne(
+          {
+            systemKey:
+              `default-rules-${boardType}`,
+          },
+          {
+            $setOnInsert: {
+              boardType,
+              schoolCode: "",
+              schoolName: "",
+              title:
+                `[필독] ${rules.title}`,
+              content:
+                rulesNoticeContent(
+                  rules
+                ),
+              status:
+                "published",
+              isPinned: true,
+              pinnedAt:
+                rules.updatedAt,
+              systemKey:
+                `default-rules-${boardType}`,
+            },
+          },
+          {
+            upsert: true,
+          }
+        );
+      })
+    ).catch((error) => {
+      defaultCommunityNoticesPromise =
+        null;
+      throw error;
+    });
+
+  return defaultCommunityNoticesPromise;
+}
+
+function serializeCommunityNotice(
+  notice
+) {
+  return {
+    ...notice,
+    authorName:
+      "Matths 운영팀",
+    isCommunityNotice: true,
+    noticeHref:
+      `/community/notices/${notice._id}`,
+    viewCount: 0,
+    upvoteCount: 0,
+    downvoteCount: 0,
+  };
+}
+
+async function getCommunityViewer(
+  userId
+) {
+  if (
+    !userId ||
+    !mongoose.isValidObjectId(
+      userId
+    )
+  ) {
+    return null;
+  }
+
+  return User.findOne({
+    _id: userId,
+    isActive: true,
+    accountStatus: {
+      $in: [
+        "active",
+        null,
+      ],
+    },
+  })
+    .select("school role schoolGrade educationStatus")
+    .lean();
+}
+
+function assertCommunityBoardAccess(
+  resource,
+  viewer
+) {
+  if (
+    resource?.boardType ===
+    "retaker"
+  ) {
+    if (
+      viewer?.role !== "admin" &&
+      Number(viewer?.schoolGrade) !== 13
+    ) {
+      throw statusError(
+        403,
+        "N수생 게시판은 현재 N수생으로 등록된 회원만 열람할 수 있습니다."
+      );
+    }
+    return;
+  }
+
+  if (
+    resource?.boardType !==
+    "school"
+  ) {
+    return;
+  }
+
+  if (viewer?.role === "admin") {
+    return;
+  }
+
+  if (Number(viewer?.schoolGrade) === 13) {
+    throw statusError(
+      403,
+      "N수생 계정은 학교별 게시판 대신 N수생 게시판을 이용합니다."
+    );
+  }
+
+  if (
+    !viewer?.school?.code ||
+    (
+      resource.schoolCode &&
+      String(
+        viewer.school.code
+      ) !==
+        String(
+          resource.schoolCode
+        )
+    )
+  ) {
+    throw statusError(
+      403,
+      "이 학교 게시판은 해당 고등학교 소속 학생만 열람할 수 있습니다."
+    );
+  }
 }
 
 function cleanSingleLine(
@@ -272,78 +845,9 @@ function createSearchFilter(
   };
 }
 
-async function getSchoolBoardOptions(
-  viewer
-) {
-  const aggregated =
-    await CommunityPost.aggregate([
-      {
-        $match: {
-          boardType: "school",
-          status: "published",
-          schoolCode: {
-            $ne: "",
-          },
-        },
-      },
-      {
-        $group: {
-          _id: "$schoolCode",
-          name: {
-            $first:
-              "$schoolName",
-          },
-          postCount: {
-            $sum: 1,
-          },
-        },
-      },
-      {
-        $sort: {
-          name: 1,
-        },
-      },
-    ]);
-  const options =
-    aggregated.map(
-      (school) => ({
-        code: school._id,
-        name:
-          school.name ||
-          school._id,
-        postCount:
-          school.postCount,
-      })
-    );
-  const ownSchool =
-    viewer?.school?.code
-      ? {
-          code:
-            viewer.school.code,
-          name:
-            viewer.school.name,
-          postCount: 0,
-        }
-      : null;
-
-  if (
-    ownSchool &&
-    !options.some(
-      (school) =>
-        school.code ===
-        ownSchool.code
-    )
-  ) {
-    options.unshift(ownSchool);
-  }
-
-  return options;
-}
-
 async function getCommunityBoardData({
   viewer,
   board,
-  schoolCode,
   search,
   page,
   sort,
@@ -478,36 +982,50 @@ async function getCommunityBoardData({
       },
     };
   }
-  const schoolOptions =
-    await getSchoolBoardOptions(
-      viewer
-    );
+  await ensureDefaultCommunityNotices();
+  const authorizedViewer =
+    ["school", "retaker"].includes(
+      normalizedBoard
+    )
+      ? await getCommunityViewer(
+          viewer?.id ||
+            viewer?._id ||
+            null
+        )
+      : viewer;
+  assertCommunityBoardAccess(
+    { boardType: normalizedBoard },
+    authorizedViewer
+  );
+  const viewerSchool =
+    authorizedViewer?.school?.code
+      ? {
+          code:
+            cleanSingleLine(
+              authorizedViewer.school.code,
+              100
+            ),
+          name:
+            cleanSingleLine(
+              authorizedViewer.school.name,
+              120
+            ),
+        }
+      : null;
   const normalizedSchoolCode =
     normalizedBoard === "school"
-      ? cleanSingleLine(
-          schoolCode ||
-            viewer?.school?.code ||
-            "",
-          100
-        )
+      ? viewerSchool?.code ||
+        ""
       : "";
   const selectedSchool =
-    schoolOptions.find(
-      (school) =>
-        school.code ===
-        normalizedSchoolCode
-    ) ||
-    (
-      normalizedSchoolCode
-        ? {
-            code:
-              normalizedSchoolCode,
-            name:
-              "선택한 학교",
-            postCount: 0,
-          }
-        : null
-    );
+    normalizedBoard ===
+      "school" &&
+    viewerSchool
+      ? {
+          ...viewerSchool,
+          postCount: 0,
+        }
+      : null;
   const searchData =
     createSearchFilter(search);
   const normalizedSort =
@@ -550,7 +1068,9 @@ async function getCommunityBoardData({
             normalizedBoard
           ],
         selectedSchool: null,
-        schoolOptions,
+        schoolOptions: [],
+        schoolAccessRestricted:
+          true,
         posts: [],
         popularPosts: [],
         search:
@@ -607,6 +1127,7 @@ async function getCommunityBoardData({
   const [
     posts,
     popularPosts,
+    notices,
   ] = await Promise.all([
     CommunityPost.find(
       listFilter
@@ -615,11 +1136,15 @@ async function getCommunityBoardData({
         normalizedSort ===
           "popular"
           ? {
+              isPinned: -1,
+              pinnedAt: -1,
               upvoteCount: -1,
               voteScore: -1,
               createdAt: -1,
             }
           : {
+              isPinned: -1,
+              pinnedAt: -1,
               createdAt: -1,
             }
       )
@@ -641,6 +1166,33 @@ async function getCommunityBoardData({
       })
       .limit(5)
       .lean(),
+    currentPage === 1
+      ? CommunityBoardNotice.find({
+          boardType:
+            normalizedBoard,
+          status: "published",
+          ...(normalizedBoard ===
+          "school"
+            ? {
+                $or: [
+                  {
+                    schoolCode: "",
+                  },
+                  {
+                    schoolCode:
+                      normalizedSchoolCode,
+                  },
+                ],
+              }
+            : {}),
+        })
+          .sort({
+            isPinned: -1,
+            pinnedAt: -1,
+            createdAt: -1,
+          })
+          .lean()
+      : [],
   ]);
   const markPopular =
     (post) => ({
@@ -653,6 +1205,45 @@ async function getCommunityBoardData({
         ).getTime() >=
           popularSince.getTime(),
     });
+  const listedPosts = [
+    ...notices.map(
+      serializeCommunityNotice
+    ),
+    ...posts.map(markPopular),
+  ].sort((left, right) => {
+    if (
+      Boolean(left.isPinned) !==
+      Boolean(right.isPinned)
+    ) {
+      return left.isPinned ? -1 : 1;
+    }
+    if (
+      normalizedSort ===
+        "popular" &&
+      !left.isPinned
+    ) {
+      const voteDifference =
+        Number(
+          right.upvoteCount || 0
+        ) -
+        Number(
+          left.upvoteCount || 0
+        );
+      if (voteDifference) {
+        return voteDifference;
+      }
+    }
+    return (
+      new Date(
+        right.pinnedAt ||
+          right.createdAt
+      ).getTime() -
+      new Date(
+        left.pinnedAt ||
+          left.createdAt
+      ).getTime()
+    );
+  });
 
   return {
     board:
@@ -666,11 +1257,10 @@ async function getCommunityBoardData({
             normalizedBoard
           ],
     selectedSchool,
-    schoolOptions,
-    posts:
-      posts.map(
-        markPopular
-      ),
+    schoolOptions: [],
+    schoolAccessRestricted:
+      false,
+    posts: listedPosts,
     popularPosts:
       popularPosts.map(
         markPopular
@@ -732,12 +1322,440 @@ async function getCommunityAnnouncement(
   };
 }
 
+async function getCommunityNotice({
+  noticeId,
+  viewerId = null,
+}) {
+  if (
+    !mongoose.isValidObjectId(
+      noticeId
+    )
+  ) {
+    throw statusError(
+      404,
+      "게시판 공지를 찾을 수 없습니다."
+    );
+  }
+
+  const [notice, viewer] =
+    await Promise.all([
+      CommunityBoardNotice.findOne({
+        _id: noticeId,
+        status: "published",
+      }).lean(),
+      getCommunityViewer(
+        viewerId
+      ),
+    ]);
+
+  if (!notice) {
+    throw statusError(
+      404,
+      "게시판 공지를 찾을 수 없습니다."
+    );
+  }
+
+  assertCommunityBoardAccess(
+    notice,
+    viewer
+  );
+  return serializeCommunityNotice(
+    notice
+  );
+}
+
+function cleanCommunityNoticeInput({
+  board,
+  schoolCode,
+  schoolName,
+  title,
+  content,
+}) {
+  const boardType =
+    String(board || "");
+  if (
+    ![
+      "high-school",
+      "school",
+      "retaker",
+    ].includes(boardType)
+  ) {
+    throw statusError(
+      400,
+      "공지 대상 게시판을 선택해주세요."
+    );
+  }
+
+  const cleanTitle =
+    cleanSingleLine(title, 120);
+  const cleanContent =
+    cleanMultiline(
+      content,
+      10000
+    );
+  const cleanSchoolCode =
+    boardType === "school"
+      ? cleanSingleLine(
+          schoolCode,
+          100
+        )
+      : "";
+  const cleanSchoolName =
+    boardType === "school"
+      ? cleanSingleLine(
+          schoolName,
+          120
+        )
+      : "";
+
+  if (
+    cleanTitle.length < 2 ||
+    cleanContent.length < 2
+  ) {
+    throw statusError(
+      400,
+      "공지 제목과 내용을 2자 이상 입력해주세요."
+    );
+  }
+  if (
+    Boolean(cleanSchoolCode) !==
+    Boolean(cleanSchoolName)
+  ) {
+    throw statusError(
+      400,
+      "특정 학교 공지라면 학교 코드와 학교 이름을 모두 입력해주세요. 학교 게시판 전체 공지라면 둘 다 비워주세요."
+    );
+  }
+
+  return {
+    boardType,
+    schoolCode:
+      cleanSchoolCode,
+    schoolName:
+      cleanSchoolName,
+    title: cleanTitle,
+    content: cleanContent,
+  };
+}
+
+async function createCommunityNotice({
+  adminUserId,
+  board,
+  schoolCode,
+  schoolName,
+  title,
+  content,
+}) {
+  const input =
+    cleanCommunityNoticeInput({
+      board,
+      schoolCode,
+      schoolName,
+      title,
+      content,
+    });
+  const notice =
+    await CommunityBoardNotice.create({
+      ...input,
+      status: "published",
+      isPinned: true,
+      pinnedAt: new Date(),
+      createdBy:
+        adminUserId,
+      updatedBy:
+        adminUserId,
+    });
+
+  await AdminActionLog.create({
+    adminUserId,
+    action:
+      "community.notice-create",
+    detail: notice.title,
+    metadata: {
+      noticeId:
+        String(notice._id),
+      boardType:
+        notice.boardType,
+      schoolCode:
+        notice.schoolCode,
+    },
+  });
+  return notice;
+}
+
+async function updateCommunityNotice({
+  adminUserId,
+  noticeId,
+  board,
+  schoolCode,
+  schoolName,
+  title,
+  content,
+}) {
+  if (
+    !mongoose.isValidObjectId(
+      noticeId
+    )
+  ) {
+    throw statusError(
+      404,
+      "수정할 게시판 공지를 찾을 수 없습니다."
+    );
+  }
+  const input =
+    cleanCommunityNoticeInput({
+      board,
+      schoolCode,
+      schoolName,
+      title,
+      content,
+    });
+  const notice =
+    await CommunityBoardNotice.findById(
+      noticeId
+    );
+  if (!notice) {
+    throw statusError(
+      404,
+      "수정할 게시판 공지를 찾을 수 없습니다."
+    );
+  }
+
+  Object.assign(notice, input, {
+    updatedBy: adminUserId,
+  });
+  await notice.save();
+  await AdminActionLog.create({
+    adminUserId,
+    action:
+      "community.notice-update",
+    detail: notice.title,
+    metadata: {
+      noticeId:
+        String(notice._id),
+    },
+  });
+  return notice;
+}
+
+async function setCommunityNoticePinned({
+  adminUserId,
+  noticeId,
+  pinned,
+}) {
+  const notice =
+    mongoose.isValidObjectId(
+      noticeId
+    )
+      ? await CommunityBoardNotice.findById(
+          noticeId
+        )
+      : null;
+  if (!notice) {
+    throw statusError(
+      404,
+      "고정할 게시판 공지를 찾을 수 없습니다."
+    );
+  }
+
+  notice.isPinned =
+    pinned === true;
+  notice.pinnedAt =
+    notice.isPinned
+      ? new Date()
+      : null;
+  notice.updatedBy =
+    adminUserId;
+  await notice.save();
+  await AdminActionLog.create({
+    adminUserId,
+    action: notice.isPinned
+      ? "community.notice-pin"
+      : "community.notice-unpin",
+    detail: notice.title,
+    metadata: {
+      noticeId:
+        String(notice._id),
+    },
+  });
+  return notice;
+}
+
+async function moderateCommunityNotice({
+  adminUserId,
+  noticeId,
+  action,
+}) {
+  const normalizedAction =
+    String(action || "");
+  if (
+    ![
+      "hide",
+      "restore",
+      "delete",
+    ].includes(normalizedAction)
+  ) {
+    throw statusError(
+      400,
+      "공지 처리 방식을 확인해주세요."
+    );
+  }
+  const notice =
+    mongoose.isValidObjectId(
+      noticeId
+    )
+      ? await CommunityBoardNotice.findById(
+          noticeId
+        )
+      : null;
+  if (!notice) {
+    throw statusError(
+      404,
+      "처리할 게시판 공지를 찾을 수 없습니다."
+    );
+  }
+
+  if (
+    normalizedAction ===
+    "delete"
+  ) {
+    if (notice.systemKey) {
+      notice.status = "deleted";
+      notice.isPinned = false;
+      notice.pinnedAt = null;
+      notice.updatedBy =
+        adminUserId;
+      await notice.save();
+    } else {
+      await notice.deleteOne();
+    }
+  } else {
+    notice.status =
+      normalizedAction ===
+      "restore"
+        ? "published"
+        : "hidden";
+    if (
+      normalizedAction === "hide"
+    ) {
+      notice.isPinned = false;
+      notice.pinnedAt = null;
+    }
+    notice.updatedBy =
+      adminUserId;
+    await notice.save();
+  }
+
+  await AdminActionLog.create({
+    adminUserId,
+    action:
+      `community.notice-${normalizedAction}`,
+    detail: notice.title,
+    metadata: {
+      noticeId:
+        String(notice._id),
+    },
+  });
+  return notice;
+}
+
+async function getCommunityPostingAccess(
+  userId
+) {
+  if (
+    !mongoose.isValidObjectId(
+      userId
+    )
+  ) {
+    throw statusError(
+      403,
+      "활성 계정만 게시글을 작성할 수 있습니다."
+    );
+  }
+
+  const user =
+    await User.findOne({
+      _id: userId,
+      isActive: true,
+      accountStatus: {
+        $in: [
+          "active",
+          null,
+        ],
+      },
+    })
+      .select(
+        "warningCount"
+      )
+      .lean();
+
+  if (!user) {
+    throw statusError(
+      403,
+      "활성 계정만 게시글을 작성할 수 있습니다."
+    );
+  }
+
+  const {
+    start,
+    end,
+    dayKey,
+  } =
+    getKoreanDayRange();
+  const [
+    persistedPostCount,
+    quota,
+  ] = await Promise.all([
+    CommunityPost.countDocuments({
+      authorId: userId,
+      createdAt: {
+        $gte: start,
+        $lt: end,
+      },
+    }),
+    CommunityPostingQuota.findOne({
+      userId,
+      dayKey,
+    })
+      .select("count")
+      .lean(),
+  ]);
+  const postsCreatedToday =
+    Math.max(
+      persistedPostCount,
+      Number(quota?.count) || 0
+    );
+  const warningCount =
+    Math.max(
+      0,
+      Number(
+        user.warningCount
+      ) || 0
+    );
+
+  return {
+    warningCount,
+    canUploadFiles:
+      warningCount === 0,
+    dailyLimit:
+      COMMUNITY_DAILY_POST_LIMIT,
+    postsCreatedToday,
+    remainingPosts:
+      Math.max(
+        0,
+        COMMUNITY_DAILY_POST_LIMIT -
+          postsCreatedToday
+      ),
+  };
+}
+
 async function createCommunityPost({
   userId,
   board,
   title,
   content,
   isAnonymous,
+  files = [],
 }) {
   const normalizedBoard =
     normalizeBoard(board);
@@ -771,6 +1789,25 @@ async function createCommunityPost({
     );
   }
 
+  const uploads = Array.isArray(
+    files
+  )
+    ? files
+    : [];
+  if (
+    uploads.length >
+    COMMUNITY_ATTACHMENT_LIMIT
+  ) {
+    throw statusError(
+      400,
+      `사진과 파일은 게시글 하나에 최대 ${COMMUNITY_ATTACHMENT_LIMIT}개까지 첨부할 수 있습니다.`
+    );
+  }
+  const attachments =
+    uploads.map(
+      serializeCommunityUpload
+    );
+
   const user =
     await User.findOne({
       _id: userId,
@@ -791,13 +1828,30 @@ async function createCommunityPost({
   }
 
   if (
-    normalizedBoard ===
-      "school" &&
-    !user.school?.code
+    attachments.length > 0 &&
+    Number(
+      user.warningCount || 0
+    ) > 0
+  ) {
+    throw statusError(
+      403,
+      "경고 횟수가 1회 이상인 계정은 게시판에 파일이나 사진을 올릴 수 없습니다. 관리자가 경고를 0회로 조정하면 다시 이용할 수 있습니다."
+    );
+  }
+
+  assertCommunityBoardAccess(
+    { boardType: normalizedBoard },
+    user
+  );
+
+  if (
+    normalizedBoard === "school" &&
+    (!user.school?.code ||
+      Number(user.schoolGrade) === 13)
   ) {
     throw statusError(
       400,
-      "학교 게시판을 이용하려면 프로필에서 학교를 설정해주세요."
+      "학교 게시판은 재학 중인 소속 고등학교가 있는 회원만 이용할 수 있습니다."
     );
   }
 
@@ -812,34 +1866,54 @@ async function createCommunityPost({
         )
       : "";
 
-  return CommunityPost.create({
-    authorId: user._id,
-    authorName: anonymous
-      ? `익명(${anonymousNumber})`
-      : user.name,
-    isAnonymous:
-      anonymous,
-    anonymousNumber,
-    boardType:
-      normalizedBoard,
-    schoolCode:
-      normalizedBoard ===
-      "school"
-        ? user.school.code
-        : "",
-    schoolName:
-      user.school?.name || "",
-    authorRegion:
-      user.school?.region ||
-      "",
-    authorSchoolGrade:
-      Number(
-        user.schoolGrade
-      ) || null,
-    title: cleanTitle,
-    content:
-      cleanContent,
-  });
+  return withCommunityPostingLock(
+    user._id,
+    async () => {
+      const reservation =
+        await reserveCommunityPostSlot(
+          user._id
+        );
+      try {
+        return await CommunityPost.create({
+          authorId: user._id,
+          authorName: anonymous
+            ? `익명(${anonymousNumber})`
+            : user.name,
+          isAnonymous:
+            anonymous,
+          anonymousNumber,
+          boardType:
+            normalizedBoard,
+          schoolCode:
+            normalizedBoard ===
+            "school"
+              ? user.school.code
+              : "",
+          schoolName:
+            user.school?.name ||
+            "",
+          authorRegion:
+            user.school?.region ||
+            "",
+          authorSchoolGrade:
+            Number(
+              user.schoolGrade
+            ) || null,
+          title: cleanTitle,
+          content:
+            cleanContent,
+          attachments,
+        });
+      } catch (error) {
+        await releaseCommunityPostSlot({
+          userId: user._id,
+          dayKey:
+            reservation.dayKey,
+        }).catch(() => {});
+        throw error;
+      }
+    }
+  );
 }
 
 async function getCommunityPost(
@@ -857,22 +1931,17 @@ async function getCommunityPost(
     );
   }
 
-  const post =
-    await CommunityPost.findOneAndUpdate(
-      {
+  const [post, viewer] =
+    await Promise.all([
+      CommunityPost.findOne({
         _id: postId,
         status:
           "published",
-      },
-      {
-        $inc: {
-          viewCount: 1,
-        },
-      },
-      {
-        returnDocument: "after",
-      }
-    ).lean();
+      }).lean(),
+      getCommunityViewer(
+        viewerId
+      ),
+    ]);
 
   if (!post) {
     throw statusError(
@@ -880,6 +1949,23 @@ async function getCommunityPost(
       "게시글을 찾을 수 없습니다."
     );
   }
+  assertCommunityBoardAccess(
+    post,
+    viewer
+  );
+  await CommunityPost.updateOne(
+    {
+      _id: post._id,
+    },
+    {
+      $inc: {
+        viewCount: 1,
+      },
+    }
+  );
+  post.viewCount =
+    Number(post.viewCount || 0) +
+    1;
 
   const [
     comments,
@@ -934,6 +2020,85 @@ async function getCommunityPost(
   };
 }
 
+async function getCommunityAttachment({
+  postId,
+  attachmentId,
+  viewerId = null,
+}) {
+  if (
+    !mongoose.isValidObjectId(
+      postId
+    ) ||
+    !mongoose.isValidObjectId(
+      attachmentId
+    )
+  ) {
+    throw statusError(
+      404,
+      "첨부파일을 찾을 수 없습니다."
+    );
+  }
+
+  const [post, viewer] =
+    await Promise.all([
+      CommunityPost.findOne({
+        _id: postId,
+        status: "published",
+      })
+        .select(
+          "attachments boardType schoolCode"
+        )
+        .lean(),
+      getCommunityViewer(
+        viewerId
+      ),
+    ]);
+  if (post) {
+    assertCommunityBoardAccess(
+      post,
+      viewer
+    );
+  }
+  const attachment =
+    post?.attachments?.find(
+      (item) =>
+        String(item._id) ===
+        String(attachmentId)
+    );
+  const filePath =
+    safeCommunityAttachmentPath(
+      attachment?.storedName
+    );
+
+  if (!attachment || !filePath) {
+    throw statusError(
+      404,
+      "첨부파일을 찾을 수 없습니다."
+    );
+  }
+
+  try {
+    await fs.promises.access(
+      filePath,
+      fs.constants.R_OK
+    );
+  } catch (error) {
+    throw statusError(
+      404,
+      "첨부파일을 찾을 수 없습니다."
+    );
+  }
+
+  return {
+    ...attachment,
+    filePath,
+    isImage:
+      isCommunityImage(
+        attachment
+      ),
+  };
+}
+
 async function reportCommunityPost({
   userId,
   postId,
@@ -957,7 +2122,9 @@ async function reportCommunityPost({
       User.findOne({
         _id: userId,
         isActive: true,
-      }).lean(),
+      })
+        .select("school role")
+        .lean(),
     ]);
   if (!post) {
     throw statusError(
@@ -971,6 +2138,10 @@ async function reportCommunityPost({
       "로그인한 활성 계정만 신고할 수 있습니다."
     );
   }
+  assertCommunityBoardAccess(
+    post,
+    reporter
+  );
   if (
     String(post.authorId) ===
     String(userId)
@@ -1043,17 +2214,17 @@ async function voteCommunityPost({
     );
   }
 
-  const [
-    post,
-    user,
-  ] = await Promise.all([
+  const [post, user] =
+    await Promise.all([
     CommunityPost.findOne({
       _id: postId,
       status: "published",
     })
-      .select("_id")
+      .select(
+        "_id boardType schoolCode"
+      )
       .lean(),
-    User.exists({
+    User.findOne({
       _id: userId,
       isActive: true,
       accountStatus: {
@@ -1062,7 +2233,9 @@ async function voteCommunityPost({
           null,
         ],
       },
-    }),
+    })
+      .select("school role")
+      .lean(),
   ]);
 
   if (!post) {
@@ -1078,6 +2251,10 @@ async function voteCommunityPost({
       "활성 계정만 추천할 수 있습니다."
     );
   }
+  assertCommunityBoardAccess(
+    post,
+    user
+  );
 
   const current =
     await CommunityVote.findOne({
@@ -1225,6 +2402,10 @@ async function createCommunityComment({
       "활성 계정만 댓글을 작성할 수 있습니다."
     );
   }
+  assertCommunityBoardAccess(
+    post,
+    user
+  );
 
   const anonymous =
     wantsAnonymousIdentity(
@@ -1256,6 +2437,7 @@ async function getAdminCommunityData({
   search,
   page,
 }) {
+  await ensureDefaultCommunityNotices();
   const allowedStatuses =
     new Set([
       "published",
@@ -1333,6 +2515,8 @@ async function getAdminCommunityData({
       filter
     )
       .sort({
+        isPinned: -1,
+        pinnedAt: -1,
         createdAt: -1,
       })
       .skip(
@@ -1370,6 +2554,15 @@ async function getAdminCommunityData({
           "title status",
       })
       .lean();
+  const notices =
+    await CommunityBoardNotice.find({})
+      .sort({
+        status: 1,
+        isPinned: -1,
+        pinnedAt: -1,
+        createdAt: -1,
+      })
+      .lean();
   const reports =
     await CommunityReport.find({
       status: {
@@ -1377,7 +2570,14 @@ async function getAdminCommunityData({
       },
     })
       .sort({ createdAt: 1 })
-      .populate("postId", "title status")
+      .populate({
+        path: "postId",
+        populate: {
+          path: "authorId",
+          select:
+            "name email warningCount accountStatus isActive role school",
+        },
+      })
       .populate(
         "reporterUserId",
         "name realName email"
@@ -1397,6 +2597,7 @@ async function getAdminCommunityData({
 
   return {
     posts,
+    notices,
     comments,
     reports,
     boardLabels:
@@ -1617,6 +2818,73 @@ async function updateCommunityPostByAdmin({
   });
 }
 
+async function setCommunityPostPinned({
+  adminUserId,
+  postId,
+  pinned,
+}) {
+  if (
+    !mongoose.isValidObjectId(
+      postId
+    )
+  ) {
+    throw statusError(
+      404,
+      "고정할 게시글을 찾을 수 없습니다."
+    );
+  }
+
+  const post =
+    await CommunityPost.findById(
+      postId
+    );
+
+  if (!post) {
+    throw statusError(
+      404,
+      "고정할 게시글을 찾을 수 없습니다."
+    );
+  }
+
+  const shouldPin =
+    pinned === true;
+  post.isPinned = shouldPin;
+  post.pinnedAt =
+    shouldPin
+      ? new Date()
+      : null;
+  post.pinnedBy =
+    shouldPin
+      ? adminUserId
+      : null;
+  await post.save();
+
+  await logCommunityAdminAction({
+    adminUserId,
+    targetUserId:
+      post.authorId,
+    action:
+      shouldPin
+        ? "community.post-pin"
+        : "community.post-unpin",
+    detail:
+      shouldPin
+        ? "게시글 상단 고정"
+        : "게시글 상단 고정 해제",
+    post,
+    metadata: {
+      isPinned:
+        shouldPin,
+    },
+  });
+
+  return {
+    id: String(post._id),
+    isPinned:
+      shouldPin,
+  };
+}
+
 async function moderateCommunityPost({
   adminUserId,
   postId,
@@ -1676,6 +2944,9 @@ async function moderateCommunityPost({
     await CommunityPost.deleteOne({
       _id: post._id,
     });
+    await discardCommunityUploads(
+      post.attachments
+    );
     await UserNotification.create({
       userId:
         post.authorId,
@@ -1713,6 +2984,14 @@ async function moderateCommunityPost({
     restore: "published",
   }[normalizedAction];
   post.status = nextStatus;
+  if (
+    normalizedAction ===
+    "hide"
+  ) {
+    post.isPinned = false;
+    post.pinnedAt = null;
+    post.pinnedBy = null;
+  }
   post.moderationReason =
     cleanReason;
   post.moderatedAt =
@@ -1818,6 +3097,9 @@ async function warnCommunityPost({
         $set: {
           warningIssued: true,
           status: "hidden",
+          isPinned: false,
+          pinnedAt: null,
+          pinnedBy: null,
           moderationReason:
             cleanReason,
           moderatedAt:
@@ -2168,23 +3450,36 @@ async function warnCommunityComment({
 module.exports = {
   ADMIN_COMMUNITY_PAGE_SIZE,
   BOARD_LABELS,
+  COMMUNITY_DAILY_POST_LIMIT,
   COMMUNITY_PAGE_SIZE,
   OPERATIONS_CATEGORY_LABELS,
   POPULAR_POST_UPVOTES,
   POPULAR_POST_WINDOW_MS,
   createCommunityComment,
+  createCommunityNotice,
   createCommunityPost,
   reportCommunityPost,
   getAdminCommunityData,
   getCommunityAnnouncement,
+  getCommunityAttachment,
   getCommunityBoardData,
+  getCommunityBoardRules,
+  getCommunityNotice,
   getCommunityPost,
+  getCommunityPostingAccess,
   moderateCommunityComment,
+  moderateCommunityNotice,
   moderateCommunityPost,
   reviewCommunityReport,
   normalizeBoard,
+  setCommunityPostPinned,
+  setCommunityNoticePinned,
+  updateCommunityNotice,
   updateCommunityPostByAdmin,
   voteCommunityPost,
   warnCommunityComment,
   warnCommunityPost,
+  _testing: {
+    assertCommunityBoardAccess,
+  },
 };

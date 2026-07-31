@@ -3,6 +3,14 @@ const router = express.Router();
 const matthsController = require('../controllers/matthsController');
 const authMiddleware = require('../middleware/authMiddleware');
 const archiveUpload = require("../middleware/archiveUpload");
+const {
+  communityUpload,
+  loadCommunityUploadAccess,
+} = require("../middleware/communityUpload");
+const {
+  COMMUNITY_ATTACHMENT_LIMIT,
+  discardCommunityUploads,
+} = require("../services/communityAttachmentService");
 const fs = require('fs');
 const yaml = require('js-yaml');
 const path = require('path');
@@ -11,6 +19,31 @@ const {
 } = require("../services/adminTodoService");
 
 const curriculumPath = path.resolve(__dirname, "..", "kr-2022-g10-math-curri.yaml");
+
+function handleCommunityUpload(
+  req,
+  res,
+  next
+) {
+  communityUpload.array(
+    "communityFiles",
+    COMMUNITY_ATTACHMENT_LIMIT
+  )(
+    req,
+    res,
+    async (error) => {
+      if (error) {
+        await discardCommunityUploads(
+          req.files || []
+        );
+        req.files = [];
+        req.communityUploadError =
+          error;
+      }
+      return next();
+    }
+  );
+}
 
 router.get('/', matthsController.mainPage);
 router.get('/intro', matthsController.introPage);
@@ -42,11 +75,25 @@ router.get(
 router.post(
   "/community",
   authMiddleware.isLoggedIn,
+  loadCommunityUploadAccess,
+  handleCommunityUpload,
   matthsController.submitCommunityPost
 );
 router.get(
   "/community/operations/:announcementId",
   matthsController.communityAnnouncementPage
+);
+router.get(
+  "/community/notices/:noticeId",
+  matthsController.communityNoticePage
+);
+router.get(
+  "/community/rules/:boardType",
+  matthsController.communityRulesPage
+);
+router.get(
+  "/community/:postId/attachments/:attachmentId",
+  matthsController.communityAttachmentFile
 );
 router.get(
   "/community/:postId",
@@ -107,6 +154,24 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.createArchiveFolder
+);
+router.post(
+  "/archive/admin/folders/:folderId/update",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.updateArchiveFolder
+);
+router.post(
+  "/archive/admin/folders/:folderId/pin",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.setArchiveFolderPinned
+);
+router.post(
+  "/archive/admin/folders/:folderId/delete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.deleteArchiveFolder
 );
 router.post(
   "/archive/admin/upload",
@@ -330,6 +395,30 @@ router.get(
   authMiddleware.isAdmin,
   matthsController.adminCommunityPage
 );
+router.post(
+  "/admin/community/notices",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCreateCommunityNotice
+);
+router.post(
+  "/admin/community/notices/:noticeId/update",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateCommunityNotice
+);
+router.post(
+  "/admin/community/notices/:noticeId/pin",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminSetCommunityNoticePinned
+);
+router.post(
+  "/admin/community/notices/:noticeId/status",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminModerateCommunityNotice
+);
 router.get(
   "/admin/coach-suggestions",
   authMiddleware.isLoggedIn,
@@ -341,6 +430,12 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.moderateCoachSuggestion
+);
+router.post(
+  "/admin/community/:postId/pin",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminSetCommunityPostPinned
 );
 router.post(
   "/admin/community/:postId/edit",

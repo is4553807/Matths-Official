@@ -1,7 +1,9 @@
 <%
   const boardLabels = {
     "high-school": "통합 고등학교 게시판",
-    school: "내 학교 게시판",
+    ...(Number(user?.schoolGrade) === 13
+      ? { retaker: "N수생 게시판" }
+      : { school: "내 학교 게시판" }),
   };
 %>
 <!doctype html>
@@ -13,15 +15,21 @@
     <link rel="stylesheet" href="/css/community.css" />
     <link rel="stylesheet" href="/css/public-navigation.css" />
     <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
   </head>
   <body>
     <%- include("partials/public-navigation", { activePage: "community" }) %>
     <main class="community-compose-main">
       <a class="community-back" href="/community">← 게시판 목록</a>
       <section class="community-compose">
-        <div class="community-compose-heading"><p>NEW POST</p><h1>새 글 쓰기</h1><span>학교별 게시판 글은 회원가입 때 등록한 학교 게시판에만 올라갑니다.</span></div>
+        <div class="community-compose-heading"><p>NEW POST</p><h1>새 글 쓰기</h1><span><%= Number(user?.schoolGrade) === 13 ? "N수생 게시판은 현재 N수생 계정만 이용할 수 있습니다." : "학교별 게시판 글은 회원가입 때 등록한 학교 게시판에만 올라갑니다." %></span></div>
         <% if (error) { %><div class="community-error" role="alert"><%= error %></div><% } %>
-        <form action="/community" method="POST">
+        <div class="community-posting-quota <%= postingAccess.remainingPosts === 0 ? 'is-exhausted' : '' %>">
+          <span>오늘 작성 가능</span>
+          <strong><%= postingAccess.remainingPosts %> / <%= postingAccess.dailyLimit %></strong>
+          <small>모든 게시판 합산 · 한국 시간 자정에 초기화</small>
+        </div>
+        <form action="/community" method="POST" enctype="multipart/form-data">
           <label><span>게시판</span>
             <select name="board">
               <% Object.entries(boardLabels).forEach(([value, label]) => { %><option value="<%= value %>" <%= oldInput.board === value ? "selected" : "" %>><%= label %></option><% }) %>
@@ -29,6 +37,30 @@
           </label>
           <label><span>제목</span><input name="title" minlength="2" maxlength="120" value="<%= oldInput.title %>" required /></label>
           <label><span>내용</span><textarea name="content" rows="14" minlength="2" maxlength="10000" required><%= oldInput.content %></textarea></label>
+          <div class="community-attachment-field <%= postingAccess.canUploadFiles ? '' : 'is-restricted' %>">
+            <div>
+              <span>사진·파일 첨부</span>
+              <small>최대 5개 · 파일당 10MB</small>
+            </div>
+            <% if (postingAccess.canUploadFiles) { %>
+              <label for="community-files" class="community-file-picker">
+                <strong>파일 선택</strong>
+                <span id="community-file-summary">선택된 파일 없음</span>
+              </label>
+              <input
+                id="community-files"
+                class="community-file-input"
+                type="file"
+                name="communityFiles"
+                multiple
+                accept=".pdf,.doc,.docx,.hwp,.hwpx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp,.heic"
+              />
+              <p>PDF, 문서, 스프레드시트, 프레젠테이션, ZIP, 이미지 파일을 첨부할 수 있습니다.</p>
+            <% } else { %>
+              <strong>현재 첨부파일 업로드가 제한되어 있습니다.</strong>
+              <p>경고 횟수가 <%= postingAccess.warningCount %>회인 계정입니다. 글과 댓글은 작성할 수 있지만 사진과 파일은 올릴 수 없습니다.</p>
+            <% } %>
+          </div>
           <label class="community-anonymous-choice">
             <input
               type="checkbox"
@@ -40,10 +72,21 @@
               <small>같은 계정은 게시글과 댓글에서 항상 같은 익명 번호를 사용합니다.</small>
             </span>
           </label>
-          <p>타인을 모욕하거나 개인정보를 노출하는 글은 운영자 경고와 함께 게시판에서 내려갈 수 있습니다. 경고 3회 누적 시 계정이 정지됩니다.</p>
-          <button type="submit">게시글 등록 <span aria-hidden="true">→</span></button>
+          <p>게시글은 하루 최대 5개까지 작성할 수 있습니다. 타인을 모욕하거나 개인정보를 노출하는 글은 운영자 경고와 함께 게시판에서 내려갈 수 있으며, 경고 3회 누적 시 계정이 정지됩니다.</p>
+          <button type="submit" <%= postingAccess.remainingPosts === 0 ? "disabled" : "" %>><%= postingAccess.remainingPosts === 0 ? "오늘의 작성 한도를 모두 사용했습니다" : "게시글 등록" %> <span aria-hidden="true">→</span></button>
         </form>
       </section>
     </main>
+    <script>
+      (() => {
+        const input = document.getElementById("community-files");
+        const summary = document.getElementById("community-file-summary");
+        if (!input || !summary) return;
+        input.addEventListener("change", () => {
+          const count = input.files ? input.files.length : 0;
+          summary.textContent = count ? `${count}개 파일 선택됨` : "선택된 파일 없음";
+        });
+      })();
+    </script>
   </body>
 </html>

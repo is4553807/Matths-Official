@@ -1,0 +1,195 @@
+<%
+  const rankingPools = [
+    ranking.pools.sub,
+    ranking.pools.main,
+  ];
+  const rankingUserId =
+    String(user._id || "");
+%>
+<section
+  class="tier-ranking-hub <%= rankingTheme %>"
+  data-tier-ranking-root
+  aria-label="Sub Division 및 Main Division 랭킹"
+>
+  <div
+    class="ranking-pool-tabs"
+    role="tablist"
+    aria-label="랭킹 풀 선택"
+  >
+    <% rankingPools.forEach((pool, index) => { %>
+      <button
+        type="button"
+        role="tab"
+        aria-selected="<%= index === 0 ? 'true' : 'false' %>"
+        aria-controls="ranking-pool-<%= pool.key.toLowerCase() %>"
+        data-pool-tab="<%= pool.key %>"
+      >
+        <span><%= pool.label %></span>
+        <small><%= pool.cohortSize %>명</small>
+      </button>
+    <% }) %>
+  </div>
+
+  <% rankingPools.forEach((pool, poolIndex) => { %>
+    <section
+      class="ranking-pool-panel"
+      id="ranking-pool-<%= pool.key.toLowerCase() %>"
+      role="tabpanel"
+      data-pool-panel="<%= pool.key %>"
+      <%= poolIndex === 0 ? "" : "hidden" %>
+    >
+      <% if (pool.current) { %>
+        <article class="tier-my-ranking" aria-label="나의 티어 내 랭킹">
+          <div class="tier-my-ranking-identity">
+            <%- include("rank-crest", {
+              tier: pool.current.tier,
+              size: "lg",
+            }) %>
+            <div>
+              <small>내 티어 랭킹</small>
+              <h2><%= pool.current.displayName %></h2>
+              <p>
+                <%= pool.current.schoolName %> ·
+                <%= pool.current.tier %>
+              </p>
+            </div>
+          </div>
+          <dl>
+            <div>
+              <dt><%= pool.current.tier %> 내 랭킹</dt>
+              <dd><%= pool.current.tierRank %><small>위</small></dd>
+            </div>
+            <div>
+              <dt>GP</dt>
+              <dd><%= pool.current.gp %><small>GP</small></dd>
+            </div>
+            <div>
+              <dt>랭킹 풀</dt>
+              <dd class="ranking-pool-name"><%= pool.label %></dd>
+            </div>
+          </dl>
+        </article>
+      <% } else { %>
+        <article class="tier-my-ranking tier-ranking-unassigned">
+          <div>
+            <small>내 티어 랭킹</small>
+            <h2>
+              <%= pool.key === "MAIN"
+                ? "아직 Main Division 소속이 아닙니다."
+                : "아직 표시할 티어 랭킹이 없습니다." %>
+            </h2>
+            <p>
+              <%= pool.key === "MAIN"
+                ? "Sub Division과 Main Division은 모두 열람할 수 있으며, Main Division 전환 데이터가 연결되면 내 랭킹이 이곳에 표시됩니다."
+                : "배치고사 뒤 Arena 순위가 확정되면 내 티어 안의 순위가 표시됩니다." %>
+            </p>
+          </div>
+        </article>
+      <% } %>
+
+      <section class="tier-ranking-board">
+        <header>
+          <div>
+            <small>티어별 랭킹</small>
+            <h3>
+              <%= pool.current
+                ? `${pool.current.tier} 랭킹`
+                : `${pool.label} 티어별 랭킹` %>
+            </h3>
+            <p>랭킹 숫자는 선택한 티어 안에서의 순위입니다.</p>
+            <% if (pool.dataState === "arena-standing") { %>
+              <p>현재 Sub Division 목록은 확정된 GP와 티어 내 순위를 사용합니다.</p>
+            <% } %>
+          </div>
+
+          <% if (pool.tierBoards.length) { %>
+            <label>
+              <span>티어 선택</span>
+              <select data-tier-select="<%= pool.key %>">
+                <% pool.tierBoards.forEach((board) => { %>
+                  <option
+                    value="<%= board.tierKey %>"
+                    <%= board.tierKey === pool.defaultTierKey ? "selected" : "" %>
+                  >
+                    <%= board.tier %>
+                    · <%= board.containsCurrentUser ? "내 티어 전체" : "상위 20명" %>
+                  </option>
+                <% }) %>
+              </select>
+            </label>
+          <% } %>
+        </header>
+
+        <% if (!pool.tierBoards.length) { %>
+          <div class="tier-ranking-empty">
+            <strong><%= pool.label %> 데이터 연결 대기</strong>
+            <span>
+              Arena 티어·티어 내 순위·GP가 확정되면 랭킹이 표시됩니다.
+            </span>
+          </div>
+        <% } else { %>
+          <% pool.tierBoards.forEach((board) => { %>
+            <div
+              class="tier-board-panel"
+              data-tier-panel="<%= pool.key %>:<%= board.tierKey %>"
+              <%= board.tierKey === pool.defaultTierKey ? "" : "hidden" %>
+            >
+              <div class="tier-ranking-context">
+                <span>
+                  <strong><%= board.tier %></strong>
+                  <%= board.memberCount %>명
+                </span>
+                <small>
+                  <%= board.isTopTwentyOnly
+                    ? "다른 티어는 상위 20명만 표시"
+                    : "내 티어는 전체 순위를 스크롤해 확인" %>
+                </small>
+              </div>
+
+              <div
+                class="tier-ranking-scroll"
+                data-ranking-scroll
+                tabindex="0"
+                aria-label="<%= board.tier %> 랭킹 스크롤 목록"
+              >
+                <div class="tier-ranking-table">
+                  <div class="tier-ranking-row tier-ranking-head">
+                    <span>랭킹</span>
+                    <span>티어</span>
+                    <span>플레이어</span>
+                    <span>학교</span>
+                    <span>GP</span>
+                  </div>
+                  <% board.entries.forEach((entry) => { %>
+                    <div
+                      class="tier-ranking-row <%= entry.userId === rankingUserId ? 'is-me' : '' %>"
+                      <%= entry.userId === rankingUserId ? "data-current-ranker" : "" %>
+                    >
+                      <b><%= entry.tierRank %></b>
+                      <span class="tier-ranking-crest-cell">
+                        <%- include("rank-crest", {
+                          tier: entry.tier,
+                          size: "sm",
+                        }) %>
+                        <small><%= entry.tier %></small>
+                      </span>
+                      <strong>
+                        <%= entry.displayName %>
+                        <%= entry.userId === rankingUserId ? " · 나" : "" %>
+                      </strong>
+                      <span>
+                        <%= entry.schoolName %>
+                        <small><%= entry.region %></small>
+                      </span>
+                      <em><%= entry.gp %></em>
+                    </div>
+                  <% }) %>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        <% } %>
+      </section>
+    </section>
+  <% }) %>
+</section>

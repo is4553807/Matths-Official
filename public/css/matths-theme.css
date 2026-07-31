@@ -8,7 +8,9 @@
   --matths-navy: #090c1b;
   --matths-navy-soft: #12162b;
   --matths-ink: #111426;
-  --matths-muted: #747d93;
+  --matths-muted: #596277;
+  --matths-subtle: #687187;
+  --matths-violet-text: #6240cf;
   --matths-canvas: #f3f6ff;
   --matths-surface: rgba(255, 255, 255, 0.96);
   --matths-line: #e3e8f4;
@@ -24,9 +26,9 @@
   );
   --matths-gradient-deep: linear-gradient(
     135deg,
-    #d63ce9 0%,
-    #6c4df4 52%,
-    #12bce3 100%
+    #af27c6 0%,
+    #5d3fd2 52%,
+    #087c9f 100%
   );
   --matths-dark-gradient:
     radial-gradient(circle at 92% 15%, rgba(24, 199, 233, 0.19), transparent 31%),
@@ -47,6 +49,10 @@
   --admin-blue: var(--matths-violet);
   --admin-bg: var(--matths-canvas);
   --admin-line: var(--matths-line);
+  --admin-muted: var(--matths-muted);
+  --assessment-muted: var(--matths-muted);
+  --community-muted: var(--matths-muted);
+  --legal-muted: var(--matths-muted);
 }
 
 html {
@@ -95,7 +101,21 @@ button,
 input,
 select,
 textarea {
+  color: var(--matths-ink);
   border-color: var(--matths-line);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #70798d;
+  opacity: 1;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled,
+button:disabled {
+  opacity: 0.72;
 }
 
 input:focus,
@@ -153,11 +173,11 @@ textarea:focus {
 }
 
 .side-nav > p {
-  color: #747d98;
+  color: #9ea7c0;
 }
 
 .side-nav a {
-  color: #aeb5ca;
+  color: #c6ccdc;
   border: 1px solid transparent;
 }
 
@@ -169,7 +189,7 @@ textarea:focus {
 
 .side-nav a.active {
   color: #fff;
-  background: var(--matths-gradient);
+  background: var(--matths-gradient-deep);
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow:
     0 12px 28px rgba(111, 67, 239, 0.24),
@@ -177,7 +197,7 @@ textarea:focus {
 }
 
 .nav-icon {
-  color: #8f98b4;
+  color: #b7bfd4;
   background: rgba(255, 255, 255, 0.055);
   border: 1px solid rgba(255, 255, 255, 0.055);
 }
@@ -209,11 +229,11 @@ textarea:focus {
 }
 
 .profile-copy small {
-  color: #818aa4;
+  color: #aeb7cf;
 }
 
 .sidebar-profile button {
-  color: #8f97b0;
+  color: #b8c0d5;
 }
 
 .sidebar-profile button:hover {
@@ -246,7 +266,7 @@ a.learning-home-button,
 
 a.learning-home-button,
 .back-dashboard.secondary {
-  color: var(--matths-violet) !important;
+  color: var(--matths-violet-text) !important;
 }
 
 /* Dashboard cards */
@@ -310,7 +330,7 @@ a.learning-home-button,
 
 .course-meta span {
   color: #fff;
-  background: var(--matths-gradient);
+  background: var(--matths-gradient-deep);
   box-shadow: 0 8px 20px rgba(118, 84, 247, 0.2);
 }
 
@@ -325,14 +345,17 @@ a.learning-home-button,
   background: var(--matths-gradient);
 }
 
-.course-progress strong,
 .card-heading p,
 .section-title p,
 .card-heading > a,
 .wrong-list > a > b,
 .semester-list em,
 .chart-day.today small {
-  color: var(--matths-violet);
+  color: var(--matths-violet-text);
+}
+
+.course-progress strong {
+  color: #c9beff;
 }
 
 .primary-action,
@@ -389,7 +412,7 @@ a.learning-home-button,
 }
 
 .plan-ring span {
-  color: var(--matths-violet);
+  color: var(--matths-violet-text);
 }
 
 .stats-row article,
@@ -417,7 +440,7 @@ a.learning-home-button,
 
 .stat-icon.blue,
 .stat-icon.violet {
-  color: var(--matths-violet);
+  color: var(--matths-violet-text);
   background: linear-gradient(135deg, #f2e9ff, #e5edff);
 }
 
@@ -437,7 +460,7 @@ a.learning-home-button,
 }
 
 .weak-list em {
-  color: var(--matths-violet);
+  color: var(--matths-violet-text);
   background: #f0edff;
 }
 
@@ -459,7 +482,8 @@ a.learning-home-button,
 }
 
 .quick-grid small {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 2px rgba(5, 8, 25, 0.35);
 }
 
 .quick-grid > a > b {
@@ -542,11 +566,9 @@ a.learning-home-button,
 }
 
 :is(
-    .course-tab.active,
     .review-tabs a.active,
     .quick-start,
     .paper-submit button,
-    .unit-action,
     .lesson-pagination a.primary
   ) {
   color: #fff;
@@ -556,8 +578,9 @@ a.learning-home-button,
 }
 
 :is(
-    .concept-bar span,
-    .unit-bar span,
+    .course-total i,
+    .concept-bar b,
+    .unit-bar b,
     .timer-progress,
     .attempt-progress-card i,
     .unit-hero-progress i
@@ -570,8 +593,159 @@ a.learning-home-button,
 .wrong-hero-copy > p,
 .lesson-section-heading > p,
 .learning-section-head > p {
-  color: #9c84ff;
+  color: var(--matths-violet-text);
 }
+
+/* My Learning keeps selection states separate from progress fills. */
+.my-learning-main .course-tab.active {
+  color: var(--matths-violet-text);
+  background: #fff;
+  border: 1px solid #ded9f5;
+  box-shadow: 0 8px 20px rgba(73, 57, 150, 0.09);
+}
+
+.my-learning-main .course-tab.active b {
+  color: var(--matths-violet-text);
+}
+
+.my-learning-main .unit-action {
+  color: var(--matths-ink);
+  background: #f4f1ff;
+  border-color: #ded9f5;
+  box-shadow: none;
+}
+
+.my-learning-main .unit-action p,
+.my-learning-main .unit-action p strong {
+  color: #3f475c;
+}
+
+.my-learning-main .unit-action a {
+  color: #fff;
+  background: var(--matths-gradient-deep);
+  box-shadow: 0 9px 20px rgba(93, 63, 210, 0.2);
+}
+
+.my-learning-main .overall-ring {
+  background: conic-gradient(
+    #9b79ff var(--overall),
+    rgba(255, 255, 255, 0.16) 0
+  );
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.my-learning-main .overall-ring::before {
+  background: rgba(9, 12, 27, 0.9);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 12px 28px rgba(4, 6, 19, 0.24);
+}
+
+.my-learning-main .overall-ring strong {
+  color: #fff;
+}
+
+.my-learning-main .overall-ring small {
+  color: #c8cfe2;
+}
+
+.my-learning-main .summary-numbers {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+.my-learning-main .summary-numbers > div {
+  border-right-color: rgba(255, 255, 255, 0.14);
+}
+
+.my-learning-main .summary-numbers strong {
+  color: #fff;
+}
+
+.my-learning-main .summary-numbers span {
+  color: #c3cadc;
+}
+
+.my-learning-main .concept-bar span {
+  color: var(--matths-muted);
+  background: transparent;
+}
+
+/* Public curriculum hero remains a dark information surface. */
+.curriculum-hero .hero-copy > p:not(.eyebrow) {
+  color: #c4cbdd;
+}
+
+.curriculum-hero .hero-tags span {
+  color: #e0e4f1;
+}
+
+.curriculum-hero .scope-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.curriculum-hero .scope-title small,
+.curriculum-hero .scope-numbers span,
+.curriculum-hero .scope-card > p {
+  color: #bcc5db;
+}
+
+.curriculum-hero .scope-note {
+  color: #d1d7e7;
+  background: rgba(4, 7, 20, 0.34);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.curriculum-hero .scope-note b {
+  color: #d8deff;
+  border-color: #7282bd;
+}
+
+/* Shared tier artwork, mapped from Bronze through Challenger. */
+.rank-crest {
+  --rank-crest-width: 82px;
+  --rank-crest-image: url("/images/ranks/bronze.png");
+  width: var(--rank-crest-width);
+  height: calc(var(--rank-crest-width) * 1.75);
+  display: inline-block;
+  flex: 0 0 auto;
+  overflow: hidden;
+  filter: drop-shadow(0 13px 18px rgba(4, 7, 23, 0.32));
+}
+
+.rank-crest__art {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background-image: var(--rank-crest-image);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
+.rank-crest--sm {
+  --rank-crest-width: 54px;
+}
+
+.rank-crest--md {
+  --rank-crest-width: 78px;
+}
+
+.rank-crest--lg {
+  --rank-crest-width: 104px;
+}
+
+.rank-crest--bronze { --rank-crest-image: url("/images/ranks/bronze.png"); }
+.rank-crest--silver { --rank-crest-image: url("/images/ranks/silver.png"); }
+.rank-crest--gold { --rank-crest-image: url("/images/ranks/gold.png"); }
+.rank-crest--platinum { --rank-crest-image: url("/images/ranks/platinum.png"); }
+.rank-crest--emerald { --rank-crest-image: url("/images/ranks/emerald.png"); }
+.rank-crest--diamond { --rank-crest-image: url("/images/ranks/diamond.png"); }
+.rank-crest--master { --rank-crest-image: url("/images/ranks/master.png"); }
+.rank-crest--grandmaster { --rank-crest-image: url("/images/ranks/grandmaster.png"); }
+.rank-crest--challenger { --rank-crest-image: url("/images/ranks/challenger.png"); }
 
 /* Public navigation and public pages */
 
@@ -584,7 +758,7 @@ a.learning-home-button,
 .site-header .nav-links a:hover,
 .site-header .nav-links a.active,
 .site-header .login-link:hover {
-  color: var(--matths-violet);
+  color: var(--matths-violet-text);
 }
 
 .site-header .nav-links a.active::after {
@@ -623,7 +797,7 @@ a.learning-home-button,
 .section-index p,
 .community-hero > p,
 .archive-heading > p {
-  color: var(--matths-violet);
+  color: var(--matths-violet-text);
 }
 
 .button-primary,
@@ -646,7 +820,7 @@ button.button-primary:hover {
 .button-secondary,
 a.button-secondary,
 button.button-secondary {
-  color: var(--matths-violet);
+  color: var(--matths-violet-text);
   background: #fff;
   border-color: #ded9f5;
 }
@@ -701,12 +875,15 @@ button.button-secondary {
 }
 
 .visual-copy > p,
+.visual-copy h1 strong {
+  color: #c9beff;
+}
+
 .auth-heading > p,
-.visual-copy h1 strong,
 .auth-switch a,
 .form-link,
 .password-reset-link {
-  color: #a994ff;
+  color: var(--matths-violet-text);
 }
 
 .learning-preview article.active {
@@ -771,7 +948,7 @@ button.button-secondary {
 }
 
 .settings-card-heading p {
-  color: var(--matths-violet);
+  color: var(--matths-violet-text);
 }
 
 /* Admin */
@@ -797,7 +974,7 @@ button.button-secondary {
 }
 
 .admin-brand strong small {
-  color: #9099b3;
+  color: #b3bbcf;
 }
 
 .admin-topbar nav a,
@@ -837,7 +1014,115 @@ button.button-secondary {
 .admin-heading > p,
 .admin-panel-heading p,
 .admin-kicker {
-  color: var(--matths-violet);
+  color: var(--matths-violet-text);
+}
+
+/* Contrast guardrails for compact copy on light surfaces. */
+.panel-empty,
+.section-empty,
+.admin-empty,
+.notification-empty p,
+.wrong-empty p,
+.quick-empty p,
+.private-mock-empty,
+.ranking-empty,
+.suggestion-empty,
+.archive-empty,
+.community-comment-empty {
+  color: var(--matths-muted);
+}
+
+.admin-page :is(
+    .admin-heading span,
+    .admin-stat-grid span,
+    .admin-stat-grid small,
+    .admin-form > p,
+    .admin-form label > span,
+    .admin-filter-bar label > span,
+    .admin-compact-list small,
+    .admin-announcement-list p,
+    .admin-announcement-list small,
+    .admin-user-row.head,
+    .admin-user-row small,
+    .admin-user-summary small,
+    .admin-activity-list p,
+    .admin-activity-list small,
+    .admin-progress-list span,
+    .admin-progress-list small,
+    .admin-assessment-list span,
+    .admin-assessment-list small,
+    .admin-pagination span
+  ) {
+  color: var(--admin-muted);
+}
+
+/* Dashboard and learning pages use many 7–9px metadata labels. */
+.dashboard-main :is(
+    .plan-content small,
+    .plan-message,
+    .stats-row small,
+    .stats-row p,
+    .learning-kpi-grid dt,
+    .learning-kpi-grid small,
+    .chart-legend,
+    .chart-day small,
+    .weak-list small,
+    .semester-list small,
+    .wrong-list small,
+    .dashboard-footer,
+    .summary-numbers span,
+    .learning-section-head > span,
+    .course-tab b,
+    .course-overview small,
+    .course-total p,
+    .unit-title small,
+    .unit-toggle,
+    .concept-info small,
+    .concept-progress-row em,
+    .review-filter label > span,
+    .result-heading > p,
+    .problem-origin small,
+    .review-state small,
+    .attempt-details summary small,
+    .attempt-details > div span,
+    .original-answer dt,
+    .quick-timer small
+  ) {
+  color: var(--matths-muted);
+}
+
+.archive-page :is(
+    .archive-breadcrumbs,
+    .archive-section-heading > span,
+    .archive-file-copy p,
+    .archive-file-copy small,
+    .archive-empty
+  ),
+.profile-page-shell :is(
+    .settings-card-heading p,
+    .field-guide,
+    .identity-choice-grid label > span small
+  ),
+.notification-detail-card > header time {
+  color: var(--matths-muted);
+}
+
+:is(
+    .continue-card,
+    .assessment-hero,
+    .quick-hero,
+    .wrong-hero,
+    .unit-hero,
+    .learning-summary,
+    .auth-visual,
+    .profile-hero,
+    .community-hero,
+    .private-mock-hero,
+    .curriculum-hero,
+    .flow-hero
+  )
+  .eyebrow {
+  color: #d0c7ff;
 }
 
 .admin-panel,

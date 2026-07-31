@@ -52,6 +52,11 @@ const {
 const {
   nicknameKey,
 } = require("../services/nicknameService");
+const {
+  alertPotentialDuplicateIdentity,
+  buildIdentityMatchHash,
+  normalizeBirthDate,
+} = require("../services/identityRiskService");
 
 const BCRYPT_ROUNDS = 12;
 
@@ -63,10 +68,15 @@ function serializeUser(user) {
     email: user.email,
     role: user.role || "student",
     schoolGrade: user.schoolGrade,
+    educationStatus:
+      user.educationStatus ||
+      (Number(user.schoolGrade) === 13
+        ? "graduated"
+        : "enrolled"),
     schoolGradeLabel: getGradeLabel(
       user.schoolGrade
     ),
-    school: user.school
+    school: user.school?.code
       ? {
           region: user.school.region,
           code: user.school.code,
@@ -130,6 +140,9 @@ exports.register = async (
     const password = String(
       req.body.password || ""
     );
+    const birthDateInput = String(
+      req.body.birthDate || ""
+    ).trim();
     const schoolGrade = Number(
       req.body.schoolGrade
     );
@@ -147,8 +160,9 @@ exports.register = async (
       !name ||
       !email ||
       !password ||
-      !schoolRegion ||
-      !schoolCode
+      !birthDateInput ||
+      (schoolGrade !== 13 &&
+        (!schoolRegion || !schoolCode))
     ) {
       return res.status(400).json({
         code: "INVALID_INPUT",
@@ -201,14 +215,14 @@ exports.register = async (
     }
 
     if (
-      ![10, 11, 12].includes(
+      ![10, 11, 12, 13].includes(
         schoolGrade
       )
     ) {
       return res.status(400).json({
         code: "INVALID_GRADE",
         message:
-          "현재 고등학교 학년을 선택해주세요.",
+          "현재 학년 또는 N수생을 선택해주세요.",
       });
     }
 
@@ -220,12 +234,27 @@ exports.register = async (
       });
     }
 
-    const school = findSchool(
-      schoolRegion,
-      schoolCode
-    );
+    let birthDate;
+    try {
+      birthDate = normalizeBirthDate(
+        birthDateInput
+      ).birthDate;
+    } catch (error) {
+      return res.status(400).json({
+        code: "INVALID_BIRTH_DATE",
+        message: error.message,
+      });
+    }
 
-    if (!school) {
+    const school =
+      schoolGrade === 13
+        ? null
+        : findSchool(
+            schoolRegion,
+            schoolCode
+          );
+
+    if (schoolGrade !== 13 && !school) {
       return res.status(400).json({
         code: "INVALID_SCHOOL",
         message:
@@ -289,23 +318,54 @@ exports.register = async (
           password,
           BCRYPT_ROUNDS
         ),
+      birthDate,
+      ...(school
+        ? {
+            identityMatchHash:
+              buildIdentityMatchHash({
+                realName,
+                birthDate,
+                schoolCode:
+                  school.code,
+              }),
+            identityMatchVersion:
+              "name-birthdate-school-v1",
+          }
+        : {}),
       schoolGrade,
+      educationStatus:
+        schoolGrade === 13
+          ? "graduated"
+          : "enrolled",
       lastGradePromotionYear:
         getAcademicYear(now),
-      school: {
-        region: school.region,
-        code: school.code,
-        name: school.name,
-        roadAddress:
-          school.roadAddress || "",
-        establishment:
-          school.establishment || "",
-        highSchoolType:
-          school.highSchoolType || "",
-      },
+      ...(school
+        ? {
+            school: {
+              region: school.region,
+              code: school.code,
+              name: school.name,
+              roadAddress:
+                school.roadAddress || "",
+              establishment:
+                school.establishment || "",
+              highSchoolType:
+                school.highSchoolType || "",
+            },
+          }
+        : {}),
       termsAcceptedAt: now,
-      termsVersion: "2026-07-28",
-      privacyVersion: "2026-07-28",
+      termsVersion: "2026-08-01",
+      privacyVersion: "2026-08-01",
+    });
+
+    await alertPotentialDuplicateIdentity(
+      user
+    ).catch((error) => {
+      console.error(
+        "동일인 중복 계정 관리자 알림 생성 실패:",
+        error
+      );
     });
 
     return res
@@ -339,17 +399,44 @@ exports.login = async (
   next
 ) => {
   try {
-    const email = String(
-      req.body.email || ""
-    )
-      .trim()
-      .toLowerCase();
+    const identifier = String(
+      req.body.identifier ||
+        req.body.email ||
+        ""
+    ).trim();
+    const email = identifier.toLowerCase();
     const password = String(
       req.body.password || ""
     );
-    const user = await User.findOne({
-      email,
-    }).select("+passwordHash");
+    const escapedIdentifier =
+      identifier.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+    let user = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      identifier
+    )
+      ? await User.findOne({ email }).select(
+          "+passwordHash"
+        )
+      : null;
+    if (!user) {
+      user = await User.findOne({
+        $or: [
+          {
+            nameNormalized:
+              nicknameKey(identifier),
+          },
+          {
+            name: {
+              $regex:
+                `^${escapedIdentifier}$`,
+              $options: "i",
+            },
+          },
+        ],
+      }).select("+passwordHash");
+    }
 
     if (
       !user ||
@@ -361,7 +448,7 @@ exports.login = async (
       return res.status(401).json({
         code: "INVALID_CREDENTIALS",
         message:
-          "이메일 또는 비밀번호가 올바르지 않습니다.",
+          "이메일·닉네임 또는 비밀번호가 올바르지 않습니다.",
       });
     }
 

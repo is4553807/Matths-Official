@@ -243,7 +243,7 @@ select:focus-visible {
   display: flex;
   justify-content: space-between;
   color: #8b93a8;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 850;
   letter-spacing: 1px;
 }
@@ -353,7 +353,7 @@ select:focus-visible {
 
 .learning-preview small {
   color: #707a99;
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -598,9 +598,9 @@ select:focus-visible {
 
 .field-guide {
   min-height: 16px;
-  color: #969daf;
-  font-size: 9px;
-  line-height: 1.5;
+  color: #70788c;
+  font-size: 11px;
+  line-height: 1.6;
 }
 
 .field-guide.valid {
@@ -712,7 +712,7 @@ select:focus-visible {
   padding-top: 18px;
   color: #a0a6b6;
   border-top: 1px solid #edf0f5;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.65;
   text-align: center;
 }
@@ -769,6 +769,22 @@ select:focus-visible {
   background: #f7f9ff;
   border: 1px solid #e1e6f5;
   border-radius: 14px;
+}
+
+.school-selector legend {
+  padding-inline: 6px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.form-field input[type="date"] {
+  min-width: 0;
+  color-scheme: light;
+}
+
+.form-field input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.7;
 }
 
 .form-field input:disabled,

@@ -187,7 +187,7 @@ async function ensureAdminTodosFromSources() {
         ];
       return createAdminTodo({
         category: "integrity",
-        title: "사설 모의고사 소명 자료 검토",
+        title: "Matths 주간 공식 모의고사 소명 자료 검토",
         description: `요청 문항 ${integrityCase.requestedQuestionNumbers.join(
           ", "
         )}번 · 접수번호 ${latest?.receiptId || "확인 필요"}`,
@@ -218,7 +218,7 @@ async function ensureAdminTodosFromSources() {
       createAdminTodo({
         category: "other",
         title:
-          `사설 모의고사 ${objection.questionNumber}번 이의신청`,
+          `Matths 주간 공식 모의고사 ${objection.questionNumber}번 이의신청`,
         description:
           `${objection.examTitle} · ${objection.issueDetail}`,
         href:

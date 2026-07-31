@@ -1,3 +1,14 @@
+<%
+  const integrityStatusLabels = {
+    EVIDENCE_REQUIRED: "풀이과정 제출 필요",
+    SUBMITTED: "제출 완료 · 검토 대기",
+    UNDER_REVIEW: "검토 중",
+    CLEARED: "검토 통과",
+    INSUFFICIENT_EVIDENCE: "자료 보완 필요",
+    CONFIRMED_CHEATING: "부정행위 확인",
+    OVERDUE_PENALIZED: "기한 초과 조치",
+  };
+%>
 <!doctype html>
 <html lang="ko">
   <head>
@@ -8,6 +19,8 @@
     <link rel="stylesheet" href="/css/private-mock-exams.css" />
     <link rel="stylesheet" href="/css/brand.css" />
     <link rel="stylesheet" href="/css/matths-theme.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
   </head>
   <body class="private-mock-exam-body">
     <main class="private-mock-exam-shell">
@@ -17,7 +30,7 @@
           <span>Matths</span>
         </a>
         <div>
-          <p>INTEGRITY REVIEW</p>
+          <p>공정성 검토</p>
           <h1>풀이과정 제출</h1>
         </div>
         <a class="learning-home-button" href="/notifications">알림 우편함으로 <span aria-hidden="true">→</span></a>
@@ -35,16 +48,16 @@
 
         <header>
           <div>
-            <p><%= integrityCase.examId?.formCode || "" %>형 · <%= integrityCase.examId?.title || "사설 모의고사" %></p>
+            <p><%= integrityCase.examId?.formCode || "" %>형 · <%= integrityCase.examId?.title || "Matths 주간 공식 모의고사" %></p>
             <h2><%= integrityCase.requestedQuestionNumbers.join(", ") %>번 풀이과정을 제출해주세요.</h2>
           </div>
-          <span class="private-mock-status"><%= integrityCase.status %></span>
+          <span class="private-mock-status"><%= integrityStatusLabels[integrityCase.status] || "검토 상태 확인 중" %></span>
         </header>
 
         <dl class="private-mock-integrity-meta">
           <div><dt>제출 기한</dt><dd><%= new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long", timeStyle: "short" }).format(new Date(integrityCase.evidenceRequest.deadlineAt)) %></dd></div>
           <div><dt>요청 문항</dt><dd><%= integrityCase.requestedQuestionNumbers.map((number) => `${number}번`).join(", ") %></dd></div>
-          <div><dt>현재 상태</dt><dd><%= integrityCase.status === "SUBMITTED" ? "제출 완료 · 검토 대기" : "풀이과정 제출 필요" %></dd></div>
+          <div><dt>현재 상태</dt><dd><%= integrityStatusLabels[integrityCase.status] || "검토 상태 확인 중" %></dd></div>
         </dl>
 
         <% if (integrityCase.evidenceSubmissions.length) { %>

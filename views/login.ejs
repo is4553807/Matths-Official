@@ -7,7 +7,7 @@
   const input =
     typeof oldInput !== "undefined" && oldInput
       ? oldInput
-      : { email: "" };
+      : { identifier: "" };
 %>
 
 <!doctype html>
@@ -144,15 +144,15 @@
             method="POST"
           >
             <div class="form-field">
-              <label for="email">이메일</label>
+              <label for="identifier">이메일 또는 닉네임</label>
 
               <input
-                id="email"
-                name="email"
-                type="email"
-                value="<%= input.email || '' %>"
-                placeholder="student@example.com"
-                autocomplete="email"
+                id="identifier"
+                name="identifier"
+                type="text"
+                value="<%= input.identifier || input.email || '' %>"
+                placeholder="이메일 또는 닉네임"
+                autocomplete="username"
                 required
               />
             </div>

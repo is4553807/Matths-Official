@@ -38,6 +38,40 @@
     hidden: "숨김",
     deleted: "삭제",
   };
+  const scopeLabels = {
+    placement: "배치고사",
+    subunit: "중간 평가",
+    unit: "기말 평가",
+    course: "종합 평가",
+  };
+  const boardLabels = {
+    integrated: "통합 게시판",
+    school: "학교 게시판",
+    repeater: "N수생 게시판",
+  };
+  const actionLabels = {
+    "announcement.create": "공지 등록",
+    "announcement.publish": "공지 공개",
+    "announcement.unpublish": "공지 공개 중지",
+    "user.nickname-request": "닉네임 변경 요청",
+    "user.notification": "사이트 알림 발송",
+    "user.email": "개별 이메일 발송",
+    "user.password-reset": "비밀번호 재설정 발송",
+    "user.deactivate": "계정 비활성화",
+    "user.restore": "계정 복원",
+    "user.role": "사용자 역할 변경",
+    "user.account-status": "계정 상태 변경",
+    "user.account-withdrawal": "계정 탈퇴 처리",
+    "user.warning-count": "경고 횟수 수정",
+    "inquiry.reply": "문의 이메일 답변",
+    "inquiry.status": "문의 상태 변경",
+    "private-mock.integrity-review": "Matths 주간 공식 모의고사 소명 검토",
+    "private-mock.integrity-penalty": "Matths 주간 공식 모의고사 페널티 부여",
+    "community.report-reviewing": "게시글 신고 검토 시작",
+    "community.report-resolved": "게시글 신고 처리 완료",
+    "community.report-rejected": "게시글 신고 반려",
+    "community.post-warning": "게시글 경고",
+  };
   const formatDate = (value) =>
     value
       ? new Intl.DateTimeFormat("ko-KR", {
@@ -85,6 +119,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title><%= member.name %> 전체 활동 기록 | Matths Admin</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -132,7 +167,7 @@
           <% if (activity.kind === "learning") { %>
             <article class="admin-activity-record">
               <div class="admin-activity-record-heading">
-                <span><%= eventLabels[item.eventType] || item.eventType %></span>
+                <span><%= eventLabels[item.eventType] || "학습 활동" %></span>
                 <time><%= formatDate(item.occurredAt || item.createdAt) %></time>
               </div>
               <strong><%= [item.courseId, item.unitId, item.conceptId].filter(Boolean).join(" · ") || "공통 활동" %></strong>
@@ -172,10 +207,10 @@
           <% if (activity.kind === "quick") { %>
             <article class="admin-activity-record">
               <div class="admin-activity-record-heading">
-                <span class="<%= item.status === 'correct' ? 'status-replied' : 'status-pending' %>"><%= statusLabels[item.status] || item.status %></span>
+                <span class="<%= item.status === 'correct' ? 'status-replied' : 'status-pending' %>"><%= statusLabels[item.status] || "상태 확인 필요" %></span>
                 <time><%= formatDate(item.submittedAt || item.startedAt || item.createdAt) %></time>
               </div>
-              <strong><%= item.pointValue %>점 · <%= item.topicLabel %> · <%= item.variantLabel || item.variantKey %></strong>
+              <strong><%= item.pointValue %>점 · <%= item.topicLabel %> · <%= item.variantLabel || "문제 변형" %></strong>
               <div class="admin-activity-question math-content"><%= formatAdminMath(item.prompt) %></div>
               <dl>
                 <div><dt>사용자 답안</dt><dd class="math-content"><%= formatAdminMath(item.submittedAnswer) %></dd></div>
@@ -190,12 +225,12 @@
           <% if (activity.kind === "assessments") { %>
             <article class="admin-activity-record">
               <div class="admin-activity-record-heading">
-                <span class="<%= item.status === 'submitted' ? 'status-replied' : 'status-pending' %>"><%= statusLabels[item.status] || item.status %></span>
+                <span class="<%= item.status === 'submitted' ? 'status-replied' : 'status-pending' %>"><%= statusLabels[item.status] || "상태 확인 필요" %></span>
                 <time><%= formatDate(item.submittedAt || item.createdAt) %></time>
               </div>
               <strong><%= item.title %></strong>
               <dl>
-                <div><dt>평가 범위</dt><dd><%= item.scopeType %> · <%= [item.courseId, item.unitId, item.subunitId].filter(Boolean).join(" / ") %></dd></div>
+                <div><dt>평가 범위</dt><dd><%= scopeLabels[item.scopeType] || "평가" %> · <%= [item.courseId, item.unitId, item.subunitId].filter(Boolean).join(" / ") %></dd></div>
                 <div><dt>점수</dt><dd><%= item.scorePercent ?? "—" %>점</dd></div>
                 <div><dt>통과 여부</dt><dd><%= item.passed === null || item.passed === undefined ? "—" : item.passed ? "통과" : "미통과" %></dd></div>
                 <div><dt>응시 시간</dt><dd><%= formatDuration(item.elapsedTimeMs) %></dd></div>
@@ -207,13 +242,13 @@
           <% if (activity.kind === "community") { %>
             <article class="admin-activity-record">
               <div class="admin-activity-record-heading">
-                <span class="<%= item.status === 'published' ? 'status-replied' : 'status-pending' %>"><%= statusLabels[item.status] || item.status %><%= item.warningIssued ? " · 경고 부여" : "" %></span>
+                <span class="<%= item.status === 'published' ? 'status-replied' : 'status-pending' %>"><%= statusLabels[item.status] || "상태 확인 필요" %><%= item.warningIssued ? " · 경고 부여" : "" %></span>
                 <time><%= formatDate(item.createdAt) %></time>
               </div>
               <strong><%= item.title %></strong>
               <p class="admin-activity-content"><%= item.content %></p>
               <dl>
-                <div><dt>게시판</dt><dd><%= item.boardType %><%= item.schoolName ? ` · ${item.schoolName}` : "" %></dd></div>
+                <div><dt>게시판</dt><dd><%= boardLabels[item.boardType] || "게시판" %><%= item.schoolName ? ` · ${item.schoolName}` : "" %></dd></div>
                 <div><dt>조회수</dt><dd><%= item.viewCount || 0 %></dd></div>
                 <div><dt>수정일</dt><dd><%= formatDate(item.editedAt) %></dd></div>
                 <div><dt>관리 사유</dt><dd><%= item.moderationReason || "없음" %></dd></div>
@@ -224,7 +259,7 @@
           <% if (activity.kind === "moderation") { %>
             <article class="admin-activity-record">
               <div class="admin-activity-record-heading">
-                <span><%= item.action %></span>
+                <span><%= actionLabels[item.action] || "관리 작업" %></span>
                 <time><%= formatDate(item.createdAt) %></time>
               </div>
               <strong><%= item.detail || "상세 사유 없음" %></strong>

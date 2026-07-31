@@ -120,7 +120,7 @@ async function main() {
       }
     );
   for (const copy of [
-    "사설 모의고사 이용 상태",
+    "Matths 주간 공식 모의고사 이용 상태",
     "내 계정 정보",
     "누적 경고",
     "적용 사유",
@@ -135,7 +135,7 @@ async function main() {
       restrictionData
         .restriction.active
         ? "수정하거나 관리 조치를 변경할 수 없습니다."
-        : "사설 모의고사 이용 제한이 해제되었습니다."
+        : "Matths 주간 공식 모의고사 이용 제한이 해제되었습니다."
     ),
     "현재 제한 상태에 맞는 상세 안내가 없습니다."
   );

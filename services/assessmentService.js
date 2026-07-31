@@ -2329,6 +2329,8 @@ async function disqualifyAssessmentDocument(
     attempt.status !==
     "in-progress"
   ) {
+    attempt.$locals.wasAlreadyFinalized =
+      true;
     return attempt;
   }
 
@@ -2555,10 +2557,14 @@ async function expireAssessmentAttempt({
     throw error;
   }
 
-  return disqualifyAssessmentDocument(
-    attempt,
-    answers
-  );
+  const disqualified =
+    await disqualifyAssessmentDocument(
+      attempt,
+      answers
+    );
+  disqualified.$locals.wasAlreadyFinalized =
+    false;
+  return disqualified;
 }
 
 async function recordAssessmentWrongAnswers(

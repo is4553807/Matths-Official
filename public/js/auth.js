@@ -176,6 +176,16 @@ function initSchoolSelector() {
       "schoolResultCount"
     );
 
+  const gradeSelect =
+    document.getElementById(
+      "schoolGrade"
+    );
+
+  const schoolFieldset =
+    document.querySelector(
+      "[data-school-selector]"
+    );
+
   if (
     !dataElement ||
     !regionSelect ||
@@ -209,6 +219,12 @@ function initSchoolSelector() {
     schoolSelect.dataset
       .selectedSchool || "";
 
+  function isRetaker() {
+    return Number(
+      gradeSelect?.value
+    ) === 13;
+  }
+
   function getCurrentSchools() {
     return (
       schoolsByRegion[
@@ -236,6 +252,18 @@ function initSchoolSelector() {
   }
 
   function renderSchools() {
+    if (isRetaker()) {
+      schoolSelect.innerHTML = "";
+      schoolSelect.add(
+        new Option(
+          "N수생은 학교 입력을 생략할 수 있습니다.",
+          ""
+        )
+      );
+      schoolSelect.disabled = true;
+      return;
+    }
+
     const schools =
       getCurrentSchools();
 
@@ -321,6 +349,31 @@ function initSchoolSelector() {
     }
   }
 
+  function applyGradeMode() {
+    const retaker = isRetaker();
+
+    if (schoolFieldset) {
+      schoolFieldset.hidden = retaker;
+    }
+
+    regionSelect.required = !retaker;
+    schoolSelect.required = !retaker;
+    regionSelect.disabled = retaker;
+
+    if (retaker) {
+      schoolSearch.disabled = true;
+      schoolSelect.disabled = true;
+      if (resultCount) {
+        resultCount.textContent = "";
+      }
+      return;
+    }
+
+    schoolSearch.disabled =
+      !regionSelect.value;
+    renderSchools();
+  }
+
   regionSelect.addEventListener(
     "change",
     handleRegionChange
@@ -342,8 +395,18 @@ function initSchoolSelector() {
     }
   );
 
-  if (regionSelect.value) {
-    schoolSearch.disabled = false;
-    renderSchools();
+  if (gradeSelect) {
+    gradeSelect.addEventListener(
+      "change",
+      applyGradeMode
+    );
   }
+
+  if (
+    regionSelect.value &&
+    !isRetaker()
+  ) {
+    schoolSearch.disabled = false;
+  }
+  applyGradeMode();
 }

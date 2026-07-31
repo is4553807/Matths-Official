@@ -1792,6 +1792,11 @@ async function submitQuickPracticeAttempt({
     await recordQuickPracticeWrongNote(
       attempt
     );
+    await recordStudyActivity(
+      userId,
+      now,
+      QUICK_PRACTICE_LIMIT_MS
+    );
 
     return {
       expired: true,
@@ -1822,7 +1827,11 @@ async function submitQuickPracticeAttempt({
       attempt
     );
   }
-  await recordStudyActivity(userId, now);
+  await recordStudyActivity(
+    userId,
+    now,
+    responseTimeMs
+  );
 
   return {
     expired: false,
@@ -1868,6 +1877,11 @@ async function expireQuickPracticeAttempt({
   await activeAttempt.save();
   await recordQuickPracticeWrongNote(
     activeAttempt
+  );
+  await recordStudyActivity(
+    userId,
+    now,
+    QUICK_PRACTICE_LIMIT_MS
   );
 
   return {

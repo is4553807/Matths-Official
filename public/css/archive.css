@@ -331,6 +331,134 @@
   text-decoration: none;
 }
 
+.archive-folder-management {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(250px, 0.72fr);
+  gap: 12px;
+  margin: 0 0 22px;
+}
+
+.archive-folder-edit-form,
+.archive-folder-delete-form {
+  padding: 19px;
+  border-radius: 14px;
+}
+
+.archive-folder-edit-form {
+  background: #f8f9fd;
+  border: 1px solid #e1e6f1;
+}
+
+.archive-folder-management-heading {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.archive-folder-management-heading p,
+.archive-folder-delete-form p {
+  margin: 0 0 5px;
+  color: #3157f6;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+}
+
+.archive-folder-management-heading h3,
+.archive-folder-delete-form h3 {
+  margin: 0;
+  color: #1c2339;
+  font-size: 15px;
+}
+
+.archive-folder-management-heading > span,
+.archive-folder-delete-form div > span {
+  color: #7b8498;
+  font-size: 8px;
+  line-height: 1.6;
+}
+
+.archive-folder-delete-form {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  background: #fff6f7;
+  border: 1px solid #f1d3d8;
+}
+
+.archive-folder-delete-form p {
+  color: #b63c50;
+}
+
+.archive-folder-delete-form button {
+  min-height: 43px;
+  color: #fff;
+  background: #bd3d51;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.archive-folder-pin-form {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 18px 19px;
+  background: #eef2ff;
+  border: 1px solid #d2dcff;
+  border-radius: 14px;
+}
+
+.archive-folder-pin-form div {
+  display: grid;
+  gap: 5px;
+}
+
+.archive-folder-pin-form p,
+.archive-folder-pin-form h3 {
+  margin: 0;
+}
+
+.archive-folder-pin-form p {
+  color: #3157f6;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+}
+
+.archive-folder-pin-form h3 {
+  color: #1c2339;
+  font-size: 15px;
+}
+
+.archive-folder-pin-form span {
+  color: #6f7890;
+  font-size: 8px;
+  line-height: 1.6;
+}
+
+.archive-folder-pin-form button {
+  min-width: 105px;
+  min-height: 43px;
+  flex: 0 0 auto;
+  color: #fff;
+  background: #3157f6;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
 .archive-file-heading-actions {
   display: flex;
   align-items: center;
@@ -545,6 +673,19 @@
   transform: translateY(-1px);
 }
 
+.archive-folder-grid > a.is-pinned {
+  background:
+    linear-gradient(
+      135deg,
+      #f7f8ff,
+      #edf2ff
+    );
+  border-color: #aebcff;
+  box-shadow:
+    0 10px 28px
+    rgba(49, 87, 246, 0.1);
+}
+
 .archive-folder-grid
   > a
   > span {
@@ -563,11 +704,29 @@
   font-size: 13px;
 }
 
+.archive-folder-pin-badge {
+  display: inline-flex;
+  margin-bottom: 7px;
+  padding: 4px 7px;
+  color: #3157f6;
+  background: #dfe6ff;
+  border-radius: 6px;
+  font-size: 7px;
+  font-weight: 900;
+}
+
 .archive-folder-grid p {
   margin: 0;
   color: #798196;
   font-size: 8px;
   line-height: 1.55;
+}
+
+.archive-folder-grid div > small {
+  display: block;
+  margin-top: 7px;
+  color: #3157f6;
+  font-weight: 800;
 }
 
 .archive-folder-grid strong {
@@ -757,6 +916,16 @@
 
   .archive-upload form {
     grid-template-columns: 1fr;
+  }
+
+  .archive-folder-management {
+    grid-template-columns: 1fr;
+  }
+
+  .archive-folder-pin-form {
+    grid-column: 1;
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .archive-description-field,

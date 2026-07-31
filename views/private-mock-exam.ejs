@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Matths 주간 사설 모의고사 응시" />
+    <meta name="description" content="Matths 주간 공식 모의고사 응시" />
     <title><%= examData.exam.title %> | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/private-mock-exams.css" />
@@ -33,10 +33,10 @@
           <span>Matths</span>
         </a>
         <div>
-          <p>WEEKLY MOCK EXAM</p>
+          <p>Matths 주간 공식 모의고사</p>
           <h1><%= examData.exam.title %></h1>
         </div>
-        <a class="learning-home-button" href="/private-mock-exams">모의고사 홈으로 <span aria-hidden="true">→</span></a>
+        <a class="learning-home-button" href="/private-mock-exams">Matths 주간 공식 모의고사 목록으로 <span aria-hidden="true">→</span></a>
       </header>
 
       <% if (examData.submitted) { %>
@@ -44,12 +44,12 @@
           class="private-mock-result-card <%= examData.pendingAggregation ? "pending" : "" %>"
           <%- examData.pendingAggregation ? `data-private-mock-result-pending data-server-now="${examData.serverNow}" data-results-at="${examData.resultsAvailableAt}"` : "" %>
         >
-          <p>SUBMITTED</p>
+          <p>제출 완료</p>
           <h2><%= examData.exam.isTest ? "TEST 회차" : `${examData.exam.formCode}형` %> 답안 제출이 완료되었습니다.</h2>
           <% if (examData.integrityReview) { %>
             <div class="private-mock-integrity-notice" role="alert">
               <strong>시험 기록 확인을 위해 풀이과정 제출이 필요합니다.</strong>
-              <span>현재는 부정행위로 확정된 상태가 아니며, 검토가 끝날 때까지 이 응시는 랭킹과 MMR에서 임시 제외됩니다.</span>
+              <span>현재는 부정행위로 확정된 상태가 아니며, 검토가 끝날 때까지 이 응시는 랭킹과 GP에서 임시 제외됩니다.</span>
               <a href="<%= examData.integrityReview.href %>">요청 문항 확인 및 제출 →</a>
             </div>
           <% } %>
@@ -61,7 +61,7 @@
               <p>마감 직후 자동으로 다시 확인합니다.</p>
             </div>
           <% } else { %>
-            <span><%= examData.exam.isTest ? "OMR 확인용 TEST 결과입니다. 이 점수는 주간 MMR이나 랭킹에 반영되지 않습니다." : "이 회차를 완료한 전체 응시자 기준으로 확정한 표준화 성적입니다." %></span>
+            <span><%= examData.exam.isTest ? "OMR 확인용 TEST 결과입니다. 이 점수는 주간 GP나 랭킹에 반영되지 않습니다." : "이 회차를 완료한 전체 응시자 기준으로 확정한 표준화 성적입니다." %></span>
             <div>
               <article><small>표준화 성적</small><strong><%= examData.result.standardizedPerformance %><i>/100</i></strong></article>
               <article><small>총점 백분위</small><strong><%= examData.result.totalPercentile %><i>%</i></strong></article>
@@ -102,12 +102,12 @@
               <span>다른 회차를 한 번 더 완료하면 대표 성적을 직접 선택할 수 있습니다. 한 시험만 완료한 채 3회차가 끝나면 이 성적을 자동 반영합니다.</span>
             </div>
           <% } %>
-          <a href="/private-mock-exams"><%= examData.exam.isTest ? "모의고사 홈으로" : "주간 랭킹 확인" %> <span aria-hidden="true">→</span></a>
+          <a href="/private-mock-exams"><%= examData.exam.isTest ? "Matths 주간 공식 모의고사 목록으로" : "최종 종합 랭킹 확인" %> <span aria-hidden="true">→</span></a>
         </section>
         <% if (examData.reviewAvailable) { %>
           <section class="private-mock-review">
             <header>
-              <div><p>ANSWER REVIEW</p><h2>OMR 채점 결과</h2></div>
+              <div><p>답안 확인</p><h2>OMR 채점 결과</h2></div>
               <strong><%= examData.result.correctCount %> / <%= examData.result.questionCount %><small>문항 정답</small></strong>
             </header>
             <p class="private-mock-review-guide">초록색은 정답, 빨간색은 오답입니다. 자세한 전체 해설은 아카이브의 정답과 해설 PDF도 함께 참고하세요.</p>
@@ -164,7 +164,7 @@
           data-release-at="<%= examData.releaseAt %>"
           data-lobby-tools="true"
         >
-          <p>READY</p>
+          <p>응시 준비</p>
           <h2><%= examData.canStart ? "시험 시작 준비가 끝났습니다." : "시험 시작까지 기다려주세요." %></h2>
           <span><%= examData.canStart ? "시험 시작 버튼을 누르면 이 화면 안에 문제지 PDF가 표시되고 서버에서 100분 타이머가 시작됩니다." : "시험장은 10분 일찍 열렸습니다. 시작 시각이 되기 전에는 문제지 PDF를 열거나 저장할 수 없습니다." %></span>
           <div class="private-mock-lobby-countdown">
@@ -219,7 +219,7 @@
           <aside class="private-mock-answer-panel">
             <header>
               <div>
-                <p>TIME LIMIT</p>
+                <p>제한 시간</p>
                 <strong data-private-mock-timer>--:--</strong>
                 <span><%= examData.exam.durationMinutes %>분 제한</span>
               </div>

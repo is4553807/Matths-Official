@@ -20,8 +20,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="예약된 한국시간에 공개되는 Matths 사설 모의고사와 주간 랭킹" />
-    <title>사설 모의고사 | Matths</title>
+    <meta name="description" content="매주 일요일 3회 공개되는 Matths 주간 공식 모의고사와 최종 종합 랭킹" />
+    <title>Matths 주간 공식 모의고사 | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/private-mock-exams.css" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -64,8 +64,8 @@
               <span></span><span></span><span></span>
             </button>
             <div>
-              <p>WEEKLY MOCK EXAM</p>
-              <h1>사설 모의고사</h1>
+              <p>매주 일요일 3회 제공</p>
+              <h1>Matths 주간 공식 모의고사</h1>
             </div>
           </div>
           <a class="learning-home-button" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a>
@@ -73,7 +73,7 @@
 
         <% if (!examData.eligibility.allowed) { %>
           <section class="private-mock-eligibility-card">
-            <p>ENTRY REQUIREMENT</p>
+            <p>응시 조건</p>
             <h2><%= examData.eligibility.title %></h2>
             <span><%= examData.eligibility.message %></span>
             <a href="<%= examData.eligibility.ctaHref %>"><%= examData.eligibility.ctaLabel %> <b aria-hidden="true">→</b></a>
@@ -85,7 +85,7 @@
           data-release-at="<%= examData.nextReleaseAt %>"
         >
           <div>
-            <p>MATTHS WEEKLY</p>
+            <p>Matths 매주 일요일</p>
             <h2>한 번의 실수 대신,<br />세 번의 도전으로 증명하세요.</h2>
             <span>가장 먼저 응시할 수 있는 시험 하나만 안내합니다. 공개 10분 전부터 시험장에 입장하고, 시작 시각에 문제지를 열 수 있습니다.</span>
           </div>
@@ -99,14 +99,14 @@
         <div class="private-mock-grid">
           <section class="private-mock-card current">
             <header>
-              <div><p>THIS WEEK</p><h2>이번 주 모의고사</h2></div>
+              <div><p>이번 주</p><h2>이번 주 모의고사</h2></div>
               <span><%= examData.durationMinutes %>분</span>
             </header>
             <% if (examData.currentExam) { %>
               <h3><%= examData.currentExam.title %></h3>
               <p class="private-mock-current-meta"><%= examData.currentExam.isTest ? "TEST · OMR 확인용" : `${examData.currentExam.formCode}형` %> · <%= examData.currentExam.questionCount %>문항 · <%= examData.durationMinutes %>분 · <%= formatRelease(examData.currentExam.releaseAt) %> 시작</p>
               <% if (examData.currentExam.isTest) { %>
-                <p class="private-mock-test-notice">이 회차의 점수는 주간 MMR·랭킹·공지·자동 아카이브에 반영되지 않습니다.</p>
+                <p class="private-mock-test-notice">이 회차의 점수는 주간 GP·랭킹·공지·자동 아카이브에 반영되지 않습니다.</p>
               <% } %>
               <% if (examData.currentExam.attemptStatus === "expired") { %>
                 <span class="private-mock-start-link disabled" aria-disabled="true">응시 시간 종료</span>
@@ -143,7 +143,7 @@
                 data-private-mock-selection
                 data-week-key="<%= examData.selection.weekKey %>"
               >
-                <h3>주간 랭킹 대표 성적 선택</h3>
+                <h3>최종 종합 랭킹 대표 성적 선택</h3>
                 <div class="private-mock-selection-options">
                   <% examData.selection.attempts.forEach((attempt) => { %>
                     <label>
@@ -180,7 +180,7 @@
 
           <section class="private-mock-card rules">
             <header>
-              <div><p>RANKING RULE</p><h2>주간 랭킹 기준</h2></div>
+              <div><p>랭킹 반영 기준</p><h2>최종 종합 랭킹 기준</h2></div>
             </header>
             <ol>
               <% examData.rankingRules.forEach((rule, index) => { %>
@@ -193,10 +193,10 @@
         <section class="private-mock-card weekly-ranking">
           <header>
             <div>
-              <p>WEEKLY RANKING</p>
+              <p>최종 종합 랭킹</p>
               <h2><%= examData.rankingTitle %></h2>
             </div>
-            <span><%= examData.rankingFinalized ? "최종 랭킹" : examData.rankingPending ? "랭킹 집계 중" : "랭킹 공개 대기" %> · 대표 표준화 성적</span>
+            <span><%= examData.rankingFinalized ? "최종 종합 랭킹 확정" : examData.rankingPending ? "최종 종합 랭킹 집계 중" : "최종 종합 랭킹 공개 대기" %> · 대표 표준화 성적</span>
           </header>
           <% if (examData.rankingSummary) { %>
             <dl class="private-mock-ranking-summary">
@@ -211,8 +211,8 @@
                 <h3>평균과 성적 데이터를 분석하고 있습니다.</h3>
                 <p><%= formatRelease(examData.rankingPending.publishesAt) %>에 이번 주 랭킹이 공개됩니다.</p>
               <% } else { %>
-                <h3>아직 공개된 주간 랭킹이 없습니다.</h3>
-                <p>시험 종료 후 11분이 지나면 최종 랭킹이 표시됩니다.</p>
+                <h3>아직 공개된 최종 종합 랭킹이 없습니다.</h3>
+                <p>시험 종료 후 집계가 끝나면 최종 종합 랭킹이 표시됩니다.</p>
               <% } %>
             </div>
           <% } else { %>

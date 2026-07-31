@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="Matths GOAT Arena — GP와 티어, 티어 내 랭킹을 두고 겨루는 일반 쟁탈전"
+    />
+    <meta name="theme-color" content="#070913" />
+    <title>GOAT Arena | Matths</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <link
+      rel="icon"
+      type="image/jpeg"
+      href="/images/goat-arena/goat-arena-logo.jpg"
+    />
+    <script src="/js/goat-arena.js" defer></script>
+  </head>
+  <body class="goat-arena-page">
+    <a class="arena-skip-link" href="#arena-main">본문으로 바로가기</a>
+
+    <%- include("partials/goat-arena-navigation", {
+      activeArenaPage,
+      arenaUser,
+    }) %>
+
+    <nav
+      class="arena-page-rail"
+      aria-label="GOAT Arena 설명 구간"
+      data-arena-page-rail
+    >
+      <span class="arena-page-rail-cursor" aria-hidden="true"></span>
+      <a class="active" href="#arena-start" data-arena-rail-link data-label="시작"><span>시작</span></a>
+      <a href="#ranking-system" data-arena-rail-link data-label="이용 흐름"><span>이용 흐름</span></a>
+      <a href="#arena-values" data-arena-rail-link data-label="랭킹 기준"><span>랭킹 기준</span></a>
+      <a href="#arena-tiers" data-arena-rail-link data-label="티어"><span>티어</span></a>
+      <a href="#arena-weekly-loop" data-arena-rail-link data-label="일요일 공개"><span>일요일 공개</span></a>
+      <a href="#arena-match-rules" data-arena-rail-link data-label="순위전"><span>순위전</span></a>
+      <a href="#arena-payback" data-arena-rail-link data-label="페이백"><span>페이백</span></a>
+      <a href="#arena-divisions" data-arena-rail-link data-label="Division"><span>Division</span></a>
+    </nav>
+
+    <main id="arena-main">
+      <section
+        class="arena-hero arena-snap-section is-video-pending"
+        id="arena-start"
+        aria-labelledby="arena-title"
+      >
+        <div class="arena-hero-art" aria-hidden="true"></div>
+        <video
+          class="arena-hero-video"
+          autoplay
+          playsinline
+          preload="auto"
+          poster="/images/goat-arena/arena-hero.jpg"
+          aria-hidden="true"
+        >
+          <source src="/videos/goatArena.mp4" type="video/mp4" />
+        </video>
+        <button
+          class="arena-sound-toggle"
+          type="button"
+          aria-label="GOAT Arena 영상 소리 끄기"
+          aria-pressed="true"
+          data-arena-sound-toggle
+        >
+          <span class="arena-sound-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+          <strong data-arena-sound-label>소리 끄기</strong>
+        </button>
+        <div class="arena-grid" aria-hidden="true"></div>
+        <div class="arena-orbit arena-orbit-one" aria-hidden="true"></div>
+        <div class="arena-orbit arena-orbit-two" aria-hidden="true"></div>
+        <div class="arena-starfield" aria-hidden="true">
+          <% for (let starIndex = 0; starIndex < 18; starIndex += 1) { %>
+            <i></i>
+          <% } %>
+        </div>
+
+        <div class="arena-hero-content">
+          <div class="arena-hero-copy">
+            <p class="arena-kicker">
+              일반 쟁탈전
+            </p>
+            <h1 id="arena-title">
+              차지하라.<br />
+              <em>지켜내라.</em>
+            </h1>
+            <p class="arena-lead">
+              GP는 GOAT Point입니다. 티어·티어 내 순위와 함께 하나의 경쟁 상태를 이룹니다.
+              <br />
+              도전자가 이기면 두 사용자의 세 값이 통째로 교환됩니다.
+            </p>
+
+            <div class="arena-hero-actions">
+              <a class="arena-primary-action" href="#ranking-system">
+                <span>랭킹 시스템 알아보기</span>
+                <i aria-hidden="true">↘</i>
+              </a>
+              <a class="arena-secondary-action" href="/main">
+                Matths 대시보드로 돌아가기
+              </a>
+            </div>
+
+            <dl class="arena-rule-strip">
+              <div>
+                <dt>공개 점수</dt>
+                <dd>GP</dd>
+              </div>
+              <div>
+                <dt>랭킹</dt>
+                <dd>티어 내 순위</dd>
+              </div>
+              <div>
+                <dt>경기 방식</dt>
+                <dd>1대1</dd>
+              </div>
+            </dl>
+          </div>
+
+          <aside
+            class="arena-seed-card"
+            aria-labelledby="seed-card-title"
+          >
+            <div class="arena-card-scanline"></div>
+            <header>
+              <span>내 랭킹 프로필</span>
+              <i><%= seedState.ready ? "확정" : "준비 중" %></i>
+            </header>
+
+            <div class="arena-seed-identity">
+              <% if (seedState.ready) { %>
+                <%- include("partials/rank-crest", {
+                  tier: seedState.tier,
+                  size: "lg",
+                }) %>
+              <% } else { %>
+                <span class="arena-seed-pending" aria-hidden="true">?</span>
+              <% } %>
+
+              <div>
+                <small id="seed-card-title"><%= seedState.label %></small>
+                <% if (seedState.ready) { %>
+                  <strong>
+                    <%= seedState.tier %>
+                    <%= seedState.division %>
+                  </strong>
+                  <span>
+                    GP <%= seedState.gp %>
+                    <% if (seedState.tierRank) { %>
+                      · 티어 내 <%= seedState.tierRank %>위
+                    <% } %>
+                  </span>
+                <% } else { %>
+                  <strong>시드 대기</strong>
+                  <span><%= seedState.detail %></span>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="arena-player-line">
+              <span>
+                <small>공격자</small>
+                <strong><%= arenaUser.displayName %></strong>
+              </span>
+              <span>
+                <small>현재 Division</small>
+                <strong>
+                  <%= arenaAccess.activeDivision
+                    ? (arenaAccess.activeDivision === "SUB"
+                      ? "Sub Division"
+                      : "Main Division")
+                    : "미배정" %>
+                </strong>
+              </span>
+            </div>
+
+            <p><%= seedState.detail %></p>
+
+            <% if (!seedState.ready) { %>
+              <a href="/war-of-masters">
+                Matths에서 배치 상태 확인
+                <span aria-hidden="true">→</span>
+              </a>
+            <% } %>
+          </aside>
+        </div>
+
+        <div class="arena-scroll-cue" aria-hidden="true">
+          <span></span>
+          아래에서 이용 방법 확인
+        </div>
+      </section>
+
+      <section
+        class="arena-onboarding-section arena-snap-section"
+        id="ranking-system"
+        aria-labelledby="arena-onboarding-title"
+      >
+        <div class="arena-system-inner">
+          <header class="arena-section-heading">
+            <div>
+              <p>GOAT Arena 이용 흐름</p>
+              <h2 id="arena-onboarding-title">
+                결제부터 Sub Division 경쟁,<br />
+                Main Division과 재구매까지.
+              </h2>
+            </div>
+            <p>
+              GOAT Arena는 정기권 학습 가능 일수와 페이백 점수를 바탕으로 경쟁하고, Matths 주간 공식 모의고사로 내부 실력 지표를 갱신하며,
+              페이백과 Main Division 진입에 도전하는 유료 수학 랭킹 시스템입니다.
+              내부 실력 지표와 1대1 Arena 경쟁 상태는 서로 분리해 관리합니다.
+            </p>
+          </header>
+
+          <ol class="arena-stage-grid">
+            <li>
+              <b>01</b>
+              <small>학습권 패키지</small>
+              <strong>새 학습권 패키지 이용 시작</strong>
+              <p>정상 결제 시 정기권 학습 가능 일수 29일과 페이백 점수 29점으로 새 주기를 시작합니다. 이전 주기 잔액은 이월하지 않습니다.</p>
+            </li>
+            <li>
+              <b>02</b>
+              <small>배치고사</small>
+              <strong>배치고사 완료</strong>
+              <p>배치고사로 내부 실력 지표와 Sub Division의 첫 배치를 확정합니다. 시험 점수를 GP로 그대로 표시하지 않습니다.</p>
+            </li>
+            <li>
+              <b>03</b>
+              <small>Sub Division</small>
+              <strong>페이백 경쟁</strong>
+              <p>유료 일반 쟁탈전, 연속 학습, 페이백 점수와 공정성 조건을 채우며 Sub Division에서 경쟁합니다.</p>
+            </li>
+            <li>
+              <b>04</b>
+              <small>페이백</small>
+              <strong>페이백·Main Division 진입</strong>
+              <p>심사 조건을 충족하면 송금 완료 전에도 페이백 자격이 확정되고 Main Division에 진입할 수 있습니다.</p>
+            </li>
+            <li>
+              <b>05</b>
+              <small>이용 종료</small>
+              <strong>정기권 학습 가능 일수 0일 즉시 강등</strong>
+              <p>Main Division 사용자는 즉시 Sub Division으로 강등되고 Arena·Matths 주간 공식 모의고사·최종 종합 랭킹 참여가 잠깁니다. Main Division 달성 기록은 보존됩니다.</p>
+            </li>
+            <li>
+              <b>06</b>
+              <small>재구매</small>
+              <strong>Sub에서 새 주기 시작</strong>
+              <p>Main Division 이용 종료 후 72시간 내 재구매하면 시험 없이 변환된 Sub Division 티어에서, 이후에는 랭크 탈환 배치고사를 거쳐 다시 시작합니다.</p>
+            </li>
+          </ol>
+
+          <div class="arena-guide-note">
+            <span>정기권 학습 가능 일수가 0일인 사용자는 방어 후보로 남지 않으며, 결제 화면과 마지막 기록·과거 전적만 확인할 수 있습니다.</span>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="arena-system-section arena-snap-section"
+        id="arena-values"
+        aria-labelledby="ranking-system-title"
+      >
+        <div class="arena-system-inner">
+          <header class="arena-section-heading">
+            <div>
+              <p>경쟁 상태와 내부 실력 지표의 분리</p>
+              <h2 id="ranking-system-title">
+                GP가 바뀌면 티어와 순위도<br />
+                함께 움직입니다.
+              </h2>
+            </div>
+            <p>
+              공개 Arena 상태는 티어·티어 내 순위·GP 세 값입니다.
+              화면의 “순위”는 전체 통합 순위가 아니라 현재 티어 안에서 몇 위인지를 뜻합니다.
+            </p>
+          </header>
+
+          <div class="arena-definition-grid">
+            <article>
+              <span>01</span>
+              <p>GOAT Point · GP</p>
+              <h3>Arena 상태의 공개 점수</h3>
+              <small>
+                GP는 GOAT Point의 약자입니다. 일반 쟁탈전에서 공격자가 이기면 상대가 보유하던 GP를 받고, 방어자는 공격자의 이전 GP를 받습니다.
+              </small>
+            </article>
+            <article>
+              <span>02</span>
+              <p>티어</p>
+              <h3>브론즈부터 챌린저까지의 경쟁 등급</h3>
+              <small>
+                공격자 승리 시 티어 자체가 GP·티어 내 순위와 함께 통째로 교환됩니다.
+              </small>
+            </article>
+            <article>
+              <span>03</span>
+              <p>티어 내 순위</p>
+              <h3>현재 티어 안에서의 순위</h3>
+              <small>
+                같은 Division·같은 티어의 목록에서 몇 위인지 표시합니다. 내 티어는 전체 명단을, 다른 티어는 상위 20명까지 확인할 수 있습니다.
+              </small>
+            </article>
+            <article>
+              <span>04</span>
+              <p>내부 실력 지표</p>
+              <h3>배치고사와 Matths 주간 공식 모의고사에서만 바뀌는 별도 실력값</h3>
+              <small>
+                내부 실력 지표는 배치고사와 Matths 주간 공식 모의고사에서만 변경됩니다. 1대1 상대·난이도·승패·정산·정기권 학습 가능 일수 계산에는 사용하지 않습니다.
+              </small>
+            </article>
+          </div>
+
+          <div class="arena-system-summary">
+            <span><b>Matths 주간 공식 모의고사</b>내부 실력 지표와 주간 시험 랭킹 반영값을 갱신합니다. GP를 직접 증감시키지 않습니다.</span>
+            <span><b>최종 종합 랭킹</b>내부 실력 지표와 Division 성과를 반영해 매번 다시 계산하며, Arena 경쟁 상태를 바꾸지 않습니다.</span>
+            <span><b>일반 쟁탈전</b>공격자 승리 시 티어·티어 내 순위·GP를 한 묶음으로 교환합니다.</span>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="arena-tier-guide-section arena-snap-section"
+        id="arena-tiers"
+        aria-labelledby="arena-tier-guide-title"
+      >
+        <div class="arena-system-inner">
+          <header class="arena-section-heading">
+            <div>
+              <p>아홉 개 티어 · 하나의 기준</p>
+              <h2 id="arena-tier-guide-title">
+                GOAT Point가 오르면<br />
+                티어의 상징도 달라집니다.
+              </h2>
+            </div>
+            <p>
+              브론즈부터 다이아몬드까지는 아래 GP 구간으로 티어를 정합니다.
+              마스터·그랜드마스터·챌린저는 해당 GP 구간에 들어간 뒤
+              활성 랭커 중 상위 비율 조건까지 함께 충족해야 합니다.
+            </p>
+          </header>
+
+          <div class="arena-tier-guide-grid" aria-label="GOAT Arena 티어 로고">
+            <% arenaTierGuide.forEach((tier, index) => { %>
+              <article class="<%= tier.topPercentLabel ? "requires-percentile" : "" %>">
+                <small>티어 <%= String(tier.order || index + 1).padStart(2, "0") %></small>
+                <%- include("partials/rank-crest", {
+                  tier: tier.name,
+                  size: "md",
+                }) %>
+                <strong><%= tier.name %></strong>
+                <span><%= tier.english %></span>
+                <div class="arena-tier-requirements">
+                  <b><%= tier.gpRange %></b>
+                  <% if (tier.topPercentLabel) { %>
+                    <i>그리고</i>
+                    <b class="population"><%= tier.topPercentLabel %></b>
+                  <% } %>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+
+          <div class="arena-tier-population-rule">
+            <header>
+              <small>상위 티어 인원 기준</small>
+              <h3>마스터부터는 GP와 모집단 순위를 함께 봅니다.</h3>
+              <p>표시된 GP 구간만 넘는다고 상위 티어가 자동 확정되는 것은 아닙니다. 아래 인원 기준은 활성 랭커 모집단에 적용됩니다.</p>
+            </header>
+            <div>
+              <article>
+                <b>100명 미만</b>
+                <strong>최고 마스터</strong>
+                <span>GP 기준을 충족해도 그랜드마스터와 챌린저는 배정하지 않습니다.</span>
+              </article>
+              <article>
+                <b>100–299명</b>
+                <strong>상위 1명 · 상위 3명</strong>
+                <span>챌린저는 상위 1명, 그랜드마스터는 상위 3명까지만 가능하며 마스터는 상위 5% 조건을 적용합니다.</span>
+              </article>
+              <article>
+                <b>300명 이상</b>
+                <strong>0.5% · 1.5% · 5%</strong>
+                <span>챌린저 상위 0.5%, 그랜드마스터 상위 1.5%, 마스터 상위 5% 이내여야 합니다.</span>
+              </article>
+            </div>
+          </div>
+
+          <div class="arena-system-summary">
+            <span><b>브론즈–다이아몬드</b>표시된 공식 GP 구간으로 결정됩니다.</span>
+            <span><b>마스터 이상</b>GP 구간과 활성 랭커 상위 조건을 모두 충족해야 합니다.</span>
+            <span><b>순위 표기</b>각 Division을 GP로 정렬하고 현재 티어 안의 등수를 표시합니다.</span>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="arena-flow-section arena-snap-section"
+        id="arena-weekly-loop"
+        aria-labelledby="arena-flow-title"
+      >
+        <div class="arena-system-inner">
+          <header class="arena-section-heading">
+            <div>
+              <p>일요일 순위 고정 · 월요일 공개</p>
+              <h2 id="arena-flow-title">
+                일반 쟁탈전 비활성화 시간<br />
+              </h2>
+            </div>
+            <p>
+              일요일 15:00부터 월요일 00:00까지 Sub & Main Division의 일반 쟁탈전과 공개 최종 종합 랭킹을 동결합니다.
+              정상 이용자의 Matths 주간 공식 모의고사 결과만 임시 계산 영역에서 처리하며 정기권 학습 가능 일수를 모두 사용한 사용자는 제외합니다.
+            </p>
+          </header>
+
+          <ol class="arena-flow-timeline">
+            <li>
+              <b>01</b>
+              <span>
+                <small>15:00 순위 고정</small>
+                <strong>Arena 순위 변경 잠금</strong>
+                <em>일반 쟁탈전과 공개 최종 종합 랭킹을 15:00 상태로 고정합니다.</em>
+              </span>
+            </li>
+            <li>
+              <b>02</b>
+              <span>
+                <small>참가 자격 확인</small>
+                <strong>정상 이용자만 응시</strong>
+                <em>정기권 학습 가능 일수 1일 이상·배치고사 완료 사용자만 Matths 주간 공식 모의고사에 참여합니다.</em>
+              </span>
+            </li>
+            <li>
+              <b>03</b>
+              <span>
+                <small>임시 계산</small>
+                <strong>내부 실력 지표 계산</strong>
+                <em>Matths 주간 공식 모의고사 결과로 새 내부 실력 지표를 계산하되 공개 값은 아직 바꾸지 않습니다.</em>
+              </span>
+            </li>
+            <li>
+              <b>04</b>
+              <span>
+                <small>최종 종합 랭킹 계산</small>
+                <strong>주간 시험 반영값·최종 종합 랭킹 계산</strong>
+                <em>정상 응시는 주간 시험 랭킹 반영값 30, 미응시는 0으로 적용하고 최종 종합 랭킹 산정값을 다시 계산합니다.</em>
+              </span>
+            </li>
+            <li>
+              <b>05</b>
+              <span>
+                <small>월요일 00:00</small>
+                <strong>일괄 공개·잠금 해제</strong>
+                <em>새 내부 실력 지표·주간 시험 랭킹 반영값·최종 종합 랭킹을 한 번에 공개하고 Arena를 다시 활성화합니다.</em>
+              </span>
+            </li>
+          </ol>
+
+          <div class="arena-guide-note">
+            <strong>최종 종합 랭킹의 주간 시험 반영값은 누적되지 않습니다</strong>
+            <span>내부 실력 지표·Division 성과·주간 시험 랭킹 반영값의 최신 확정값을 사용해 매번 다시 계산합니다.</span>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="arena-match-section arena-snap-section"
+        id="arena-match-rules"
+        aria-labelledby="arena-match-title"
+      >
+        <div class="arena-system-inner">
+          <header class="arena-section-heading">
+            <div>
+              <p>일반 쟁탈전 규칙</p>
+              <h2 id="arena-match-title">
+                같은 문제 유형으로<br />
+                공정하게 정산하는 1대1.
+              </h2>
+            </div>
+            <p>
+              공격자와 방어자는 경기 시작 시 고정된 문제 유형으로 대결합니다.
+              문제는 티어에 따라 자동으로 난이도가 조절되며, 공격자와 방어자가 푸는 문제 난이도는 동일합니다.
+              서버가 최종 답과 유효 풀이시간을 판정합니다. 문제는 준킬러 문항으로 출제됩니다.
+            </p>
+          </header>
+
+          <div class="arena-match-layout">
+            <article>
+              <small>공격자 승리</small>
+              <h3>공격자가 명확히 이기면</h3>
+              <p>두 사용자의 티어·티어 내 순위·GP를 한 묶음으로 통째로 교환합니다. 내부 실력 지표에는 변동이 발생하지 않습니다.</p>
+            </article>
+            <article>
+              <small>방어 성공</small>
+              <h3>방어자가 이기거나 동점이면</h3>
+              <p>방어자가 이기거나 최종 완전 동점이면 티어·티어 내 순위·GP를 모두 그대로 유지합니다. 문제 오류·서버 장애는 방어 성공으로 강제하지 않고 보류 또는 무효 처리합니다.</p>
+            </article>
+          </div>
+
+          <div class="arena-rule-chip-grid" aria-label="일반 쟁탈전 참여 제한">
+            <span><b>참가 자격</b>정기권 학습 가능 일수 1일 이상·배치고사 완료</span>
+            <span><b>상대 범위</b>같은 활성 Division 안에서만 매칭</span>
+            <span><b>동시 진행</b>사용자당 미정산 공식 경기 최대 1개</span>
+            <span><b>일요일 잠금</b>15:00부터 월요일 00:00까지 순위 변경 중단</span>
+            <span><b>보류 경기</b>보류 상태에서는 순위와 정기권 학습 가능 일수 변동을 확정하지 않음</span>
+            <span><b>부정행위</b>부정행위가 발각되면 유저는 그 즉시 계정이 정지당하고 페이백은 자동으로 취소 처리됩니다.</span>
+          </div>
+
+          <div class="arena-guide-note">
+            <strong>GP·티어·순위가 함께 바뀝니다</strong>
+            <span>예를 들어 1,180 GP 에메랄드 8위 공격자가 1,260 GP 다이아몬드 15위 방어자에게 이기면, 공격자는 다이아몬드 15위·1,260 GP로 승급되고, 방어자는 에메랄드 8위·1,180 GP로 강등됩니다. 두 사용자의 내부 실력 지표는 그대로입니다.</span>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="arena-payback-section arena-snap-section"
+        id="arena-payback"
+        aria-labelledby="arena-payback-title"
+      >
+        <div class="arena-system-inner">
+          <header class="arena-section-heading">
+            <div>
+              <p>29일 이용 주기 · 매일 페이백 판정</p>
+              <h2 id="arena-payback-title">
+                하나의 이용 주기 안에서<br />
+                정기권 학습 가능 일수와 페이백 점수를 관리합니다.
+              </h2>
+            </div>
+            <p>
+              학습권 패키지를 정상 결제하면 정기권 학습 가능 일수 29일과 페이백 점수 29점으로 시작합니다.
+              매일의 시간 차감은 정기권 학습 가능 일수만 줄이고, 경기 정산은 두 값을 정책상 같은 방향으로 반영합니다.
+            </p>
+          </header>
+
+          <div class="arena-payback-grid">
+            <article>
+              <small>결제 시각 기준</small>
+              <h3>20:00을 기준으로 첫날이 달라집니다</h3>
+              <p>20:00 이전 결제는 당일을 1일차로 계산해 활성화할 때 1일을 사용합니다. 20:00 이후 결제는 당일 차감 없이 다음 00:00부터 1일차가 시작됩니다.</p>
+            </article>
+            <article>
+              <small>매일 차감</small>
+              <h3>날짜가 바뀔 때마다 정기권 학습 가능 일수 감소</h3>
+              <p>첫날 이후 한국 시간으로 날짜가 바뀔 때마다 정기권 학습 가능 일수만 1일 줄어듭니다. Sub Division의 페이백 점수는 매일 차감되지 않습니다. Main Division의 세부 차감 규칙은 확정된 운영 규칙에 따릅니다.</p>
+            </article>
+            <article>
+              <small>유료 일반 쟁탈전</small>
+              <h3>일반 쟁탈전 1일 · 복수전 2일</h3>
+              <p>정상 경기 정산은 정기권 학습 가능 일수와 페이백 점수에 같은 방향으로 반영됩니다. 예를 들어 방어자가 이기면 공격자 -1, 방어자 +1입니다.</p>
+            </article>
+          </div>
+
+          <div class="arena-payback-conditions">
+            <div>
+              <small>모든 조건 충족 필요</small>
+              <h3>페이백 판정 조건</h3>
+            </div>
+            <ul>
+              <li><b>30일+</b><span>현재 학습권 패키지 이용 주기의 연속 학습일이 30일 이상</span></li>
+              <li><b>30점+</b><span>페이백 점수 30점 이상</span></li>
+              <li><b>2회+</b><span>유료 일반 쟁탈전을 정상 완료한 횟수 2회 이상</span></li>
+              <li><b>검토 통과</b><span>공정성 검토 결과가 정상이고 심사 보류 사유가 없음</span></li>
+            </ul>
+          </div>
+
+          <p class="arena-policy-note">
+            페이백 점수 29 이하는 0%, 30–34는 50%, 35–39는 80%, 40 이상은 100%입니다.
+            사용자마다 결제 시점이 다르므로 심사 작업은 매일 실행하며, 각 이용 주기를 결제 당시 확정된 규칙으로 정확히 한 번만 평가합니다.
+          </p>
+        </div>
+      </section>
+
+      <section
+        class="arena-division-overview arena-snap-section"
+        id="arena-divisions"
+        aria-labelledby="division-overview-title"
+      >
+        <div class="arena-system-inner">
+          <header class="arena-section-heading">
+            <div>
+              <p>두 개의 경쟁 Division</p>
+              <h2 id="division-overview-title">
+                Sub Division 에서 페이백을 달성하고,<br />
+                Main Division 으로 승급합니다.
+              </h2>
+            </div>
+            <p>
+              두 Division은 참가자 목록·랭킹·적용 규칙을 분리합니다. 서로 다른 Division은 공식 경기에서 만나지 않으며,
+              경기 기능은 유저가 현재 속한 경쟁 Division에서만 사용할 수 있습니다.
+            </p>
+          </header>
+
+          <div class="arena-division-cards">
+            <article>
+              <small>Sub Division</small>
+              <h3>페이백 조건을 만드는 전장</h3>
+              <p>
+                새 학습권 패키지의 정기권 학습 가능 일수 29일·페이백 점수 29점으로 시작합니다. 일반 쟁탈전 1일, 복수전 2일을 적용하며,
+                연속 학습·유료 일반 쟁탈전·페이백 점수·공정성 조건을 충족하면 페이백과 Main Division 진입 자격을 얻습니다.
+              </p>
+              <ul>
+                <li>정기권 학습 가능 일수 29일 · 페이백 점수 29점</li>
+                <li>유료 일반 쟁탈전 정상 완료 최소 2회</li>
+                <li>정기권 학습 가능 일수 0일이면 경기·Matths 주간 공식 모의고사 즉시 잠금</li>
+              </ul>
+              <a href="/goat-arena/sub">
+                Sub Division 열기
+                <span aria-hidden="true">→</span>
+              </a>
+            </article>
+            <article>
+              <small>Main Division</small>
+              <h3>Sub Division 성취로 진입하는 상위 Division</h3>
+              <p>
+                Sub Division에서 페이백 자격을 달성하면 Main Division에 진입합니다. 정기권 학습 가능 일수가 0일이 되면 즉시 Sub Division으로 강등되고 경쟁이 잠기지만,
+                마지막 Main Division 상태·백분위·달성 배지는 보존됩니다. Main Division 내부 경기 비용과 상점 규칙은 아직 확정되지 않았습니다.
+              </p>
+              <ul>
+                <li>만료 즉시 Sub Division 강등·경쟁 잠금</li>
+                <li>72시간 내 재구매: 시험 없이 Sub Division 변환</li>
+                <li>72시간 이후: 랭크 탈환 배치고사 완료 후 활성화</li>
+              </ul>
+              <a href="/goat-arena/main">
+                Main Division 열기
+                <span aria-hidden="true">→</span>
+              </a>
+            </article>
+          </div>
+
+          <div class="arena-system-summary arena-division-summary">
+            <span><b>Main Division 이용 종료</b>Main Division 경쟁 상태는 별도 기록으로 보존하고 현재 경쟁 Division은 Sub Division으로 바뀝니다.</span>
+            <span><b>랭킹 분리</b>Sub Division과 Main Division은 각각 따로 정렬됩니다.</span>
+            <span><b>재구매</b>새 주기는 정기권 학습 가능 일수 29일·페이백 점수 29점에서 시작하며 이전 페이백 점수는 이월하지 않습니다.</span>
+          </div>
+
+          <div class="arena-final-actions">
+            <a href="/goat-arena/rankings">Sub Division·Main Division 랭킹 보기</a>
+            <a href="/main">Matths 대시보드로 돌아가기</a>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

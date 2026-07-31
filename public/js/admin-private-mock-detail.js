@@ -86,7 +86,7 @@
     (event) => {
       const confirmed =
         window.confirm(
-          "정답을 저장하면 전체 응시 기록과 시즌 MMR을 다시 계산하고 모든 응시자에게 안내합니다. 실행할까요?"
+          "정답을 저장하면 전체 응시 기록, 내부 실력 지표와 최종 종합 랭킹을 다시 계산하고 모든 응시자에게 안내합니다. 실행할까요?"
         );
       if (!confirmed) {
         event.preventDefault();

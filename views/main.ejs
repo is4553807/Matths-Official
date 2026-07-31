@@ -9,17 +9,15 @@
   const activeDashboardNotices = Array.isArray(data.activeDashboardNotices) ? data.activeDashboardNotices : [];
   const activityDays = Array.isArray(data.weeklyActivity?.days) ? data.weeklyActivity.days : [];
   const weeklyStudyMinutes = Number(data.stats?.weeklyStudyMinutes) || 0;
-  const todayStudyMinutes = Number(
-    activityDays.find((day) => day.isToday)?.minutes
-  ) || 0;
-  const activeStudyDays = activityDays.filter(
-    (day) => Number(day.minutes) > 0
-  ).length;
-  const averageStudyMinutes = activeStudyDays
-    ? Math.round(weeklyStudyMinutes / activeStudyDays)
-    : 0;
+  const todayStudyMinutes = Number(data.stats?.todayStudyMinutes) || 0;
+  const activeStudyDays = Number(data.stats?.activeStudyDays) || 0;
+  const averageStudyMinutes = Number(data.stats?.averageStudyMinutes) || 0;
   const weeklySolvedProblems = Number(data.stats?.weeklySolvedProblems) || 0;
   const weeklyCorrectRate = Number(data.stats?.correctRate) || 0;
+  const currentKoreanYear = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+  }).format(new Date());
 
   const formatStudyTime = (minutes) => {
     const safeMinutes = Math.max(0, Math.round(Number(minutes) || 0));
@@ -239,7 +237,7 @@
                 <dt>최근 7일 풀이</dt>
                 <dd>
                   <strong><%= weeklySolvedProblems %><span>문제</span></strong>
-                  <small>개념·복습 문제</small>
+                  <small>개념·복습·평가 포함</small>
                 </dd>
               </div>
               <div>
@@ -280,7 +278,7 @@
         </section>
 
         <footer class="dashboard-footer">
-          <span>© <%= new Date().getFullYear() %> Matths</span>
+          <span>© <%= currentKoreanYear %> Matths</span>
           <p>설명은 친절하게. 학습은 단계적으로.</p>
           <div>
             <a href="/terms">이용약관</a>

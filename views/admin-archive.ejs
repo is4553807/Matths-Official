@@ -17,6 +17,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>아카이브 관리 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
     <link rel="stylesheet" href="/css/archive.css" />
@@ -104,12 +105,49 @@
             <% }) %>
           </nav>
         <% } %>
+        <% if (archiveData.selectedFolder) { %>
+          <div class="archive-folder-management" id="folder-management">
+            <form class="admin-form archive-folder-edit-form" action="/archive/admin/folders/<%= archiveData.selectedFolder.id %>/update" method="POST">
+              <div class="archive-folder-management-heading">
+                <div><p>EDIT FOLDER</p><h3>현재 폴더 수정</h3></div>
+                <span>이름과 설명은 사용자 아카이브에도 바로 반영됩니다.</span>
+              </div>
+              <label><span>폴더 이름</span><input name="editFolderName" minlength="2" maxlength="80" value="<%= oldInput.editFolderName %>" required /></label>
+              <label><span>폴더 설명</span><textarea name="editFolderDescription" rows="3" maxlength="500"><%= oldInput.editFolderDescription %></textarea></label>
+              <button type="submit">변경 내용 저장</button>
+            </form>
+
+            <form class="archive-folder-delete-form" action="/archive/admin/folders/<%= archiveData.selectedFolder.id %>/delete" method="POST" onsubmit="return window.confirm('이 빈 폴더를 삭제할까요? 폴더 안에 자료나 하위 폴더가 있으면 삭제되지 않습니다.');">
+              <div>
+                <p>DELETE FOLDER</p>
+                <h3>빈 폴더 삭제</h3>
+                <span>자료와 하위 폴더가 하나도 없을 때만 삭제할 수 있습니다. 내용이 있다면 먼저 이동하거나 정리해주세요.</span>
+              </div>
+              <button type="submit">폴더 삭제</button>
+            </form>
+
+            <form class="archive-folder-pin-form" action="/archive/admin/folders/<%= archiveData.selectedFolder.id %>/pin" method="POST">
+              <input type="hidden" name="pinned" value="<%= archiveData.selectedFolder.isPinned ? "false" : "true" %>" />
+              <div>
+                <p>PIN FOLDER</p>
+                <h3><%= archiveData.selectedFolder.isPinned ? "상단에 고정된 폴더" : "폴더 상단 고정" %></h3>
+                <span><%= archiveData.selectedFolder.isPinned ? "현재 위치의 폴더 목록 상단에 표시됩니다." : "이 폴더를 같은 위치의 다른 폴더보다 먼저 표시합니다." %></span>
+              </div>
+              <button type="submit"><%= archiveData.selectedFolder.isPinned ? "고정 해제" : "상단에 고정" %></button>
+            </form>
+          </div>
+        <% } %>
         <% if (archiveData.folders.length) { %>
           <div class="archive-folder-grid">
             <% archiveData.folders.forEach((folder) => { %>
-              <a href="/archive/admin?folder=<%= folder.id %>">
+              <a class="<%= folder.isPinned ? "is-pinned" : "" %>" href="/archive/admin?folder=<%= folder.id %>">
                 <span aria-hidden="true">▰</span>
-                <div><h3><%= folder.name %></h3><p><%= folder.description || "폴더 설명이 없습니다." %></p></div>
+                <div>
+                  <% if (folder.isPinned) { %><b class="archive-folder-pin-badge">고정</b><% } %>
+                  <h3><%= folder.name %></h3>
+                  <p><%= folder.description || "폴더 설명이 없습니다." %></p>
+                  <small>열어서 수정·삭제</small>
+                </div>
                 <strong><%= folder.itemCount %><small>개</small></strong>
               </a>
             <% }) %>

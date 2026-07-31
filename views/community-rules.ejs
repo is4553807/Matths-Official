@@ -1,0 +1,59 @@
+<%
+  const boardQuery = new URLSearchParams({ board: rules.board });
+  if (rules.schoolCode) boardQuery.set("school", rules.schoolCode);
+  const boardHref = `/community?${boardQuery.toString()}`;
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(new Date(date));
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="<%= rules.title %>" />
+    <title><%= rules.title %> | Matths</title>
+    <link rel="stylesheet" href="/css/community.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  </head>
+  <body>
+    <%- include("partials/public-navigation", { activePage: "community" }) %>
+    <main class="community-detail-main community-rules-main">
+      <a class="community-back" href="<%= boardHref %>">← <%= rules.boardLabel %></a>
+      <article class="community-rules-detail">
+        <header>
+          <div class="community-rules-kicker"><span>필독</span><p><%= rules.eyebrow %></p></div>
+          <h1><%= rules.title %></h1>
+          <p><%= rules.introduction %></p>
+          <dl>
+            <div><dt>적용 게시판</dt><dd><%= rules.boardLabel %></dd></div>
+            <div><dt>최근 업데이트</dt><dd><%= formatDate(rules.updatedAt) %></dd></div>
+          </dl>
+        </header>
+
+        <section class="community-rules-grid">
+          <% rules.sections.forEach((section, index) => { %>
+            <article>
+              <span><%= String(index + 1).padStart(2, "0") %></span>
+              <h2><%= section.title %></h2>
+              <p><%= section.content %></p>
+            </article>
+          <% }) %>
+        </section>
+
+        <footer>
+          <strong>신고와 제재는 관리자가 내용을 확인한 뒤 처리합니다.</strong>
+          <p>경고가 부여된 계정도 게시글과 댓글은 작성할 수 있지만 사진·파일 첨부는 제한됩니다. 경고 횟수가 0회가 되면 첨부 권한이 자동으로 복구됩니다.</p>
+          <a href="<%= boardHref %>">게시판으로 돌아가기 <span aria-hidden="true">→</span></a>
+        </footer>
+      </article>
+    </main>
+    <footer class="community-footer"><span>© <%= new Date().getFullYear() %> Matths</span><div><a href="/terms">이용약관</a><a href="/privacy">개인정보처리방침</a></div></footer>
+  </body>
+</html>

@@ -125,7 +125,7 @@ const PRIVATE_MOCK_FORM_SCHEDULES =
     },
   });
 const PRIVATE_MOCK_FOLDER_NAME =
-  "2026 Matths 사설 모의고사 아카이브";
+  "2026 Matths 주간 공식 모의고사 아카이브";
 const PRIVATE_MOCK_FOLDER_SLUG =
   "2026-matths-private-mock-exam-archive";
 const RANKABLE_INTEGRITY_STATES =
@@ -607,7 +607,7 @@ function parseSeoulReleaseAt(value) {
   ) {
     throw statusError(
       400,
-      "사설 모의고사는 한국시간 기준 일요일 오후 3시·6시·9시에만 공개할 수 있습니다."
+      "Matths 주간 공식 모의고사는 한국시간 기준 일요일 오후 3시·6시·9시에만 공개할 수 있습니다."
     );
   }
 
@@ -636,7 +636,7 @@ function parsePrivateMockExamDate(
   if (!match) {
     throw statusError(
       400,
-      "사설 모의고사를 공개할 날짜를 선택해주세요."
+      "Matths 주간 공식 모의고사를 공개할 날짜를 선택해주세요."
     );
   }
 
@@ -695,7 +695,7 @@ function parsePrivateMockExamDate(
       400,
       formSchedule.isTest
         ? "TEST 회차 공개 날짜가 올바르지 않습니다."
-        : "사설 모의고사 날짜는 일요일만 선택할 수 있습니다."
+        : "Matths 주간 공식 모의고사 날짜는 일요일만 선택할 수 있습니다."
     );
   }
 
@@ -891,7 +891,7 @@ function buildPrivateMockSchedule(
       400,
       isTest
         ? "TEST 회차 공개 시각은 2026년 7월 29일 오후 7시여야 합니다."
-        : "사설 모의고사 공개 시각은 일요일 오후 3시·6시·9시 중 하나여야 합니다."
+        : "Matths 주간 공식 모의고사 공개 시각은 일요일 오후 3시·6시·9시 중 하나여야 합니다."
     );
   }
 
@@ -1056,7 +1056,7 @@ function getKoreanWeekTitle(
   ][sundayOrder] ||
     `${sundayOrder}번째`;
 
-  return `${year}년 ${month}월 ${orderLabel}주 Matths 사설 모의고사`;
+  return `${year}년 ${month}월 ${orderLabel}주 Matths 주간 공식 모의고사`;
 }
 
 function formatElapsed(
@@ -1204,7 +1204,7 @@ async function createPrivateMockExam({
   if (!isArchiveAdmin(user)) {
     throw statusError(
       403,
-      "운영자만 사설 모의고사를 등록할 수 있습니다."
+      "운영자만 Matths 주간 공식 모의고사를 등록할 수 있습니다."
     );
   }
 
@@ -1219,7 +1219,7 @@ async function createPrivateMockExam({
   ) {
     throw statusError(
       400,
-      "사설 모의고사 문제지는 PDF 파일로 올려주세요."
+      "Matths 주간 공식 모의고사 문제지는 PDF 파일로 올려주세요."
     );
   }
 
@@ -1308,7 +1308,7 @@ async function createPrivateMockExam({
   if (duplicate) {
     throw statusError(
       409,
-      "선택한 주의 같은 회차에는 이미 등록된 사설 모의고사가 있습니다."
+      "선택한 주의 같은 회차에는 이미 등록된 Matths 주간 공식 모의고사가 있습니다."
     );
   }
 
@@ -1596,7 +1596,7 @@ async function deletePrivateMockExam({
   if (!isArchiveAdmin(user)) {
     throw statusError(
       403,
-      "운영자만 사설 모의고사를 삭제할 수 있습니다."
+      "운영자만 Matths 주간 공식 모의고사를 삭제할 수 있습니다."
     );
   }
 
@@ -1607,7 +1607,7 @@ async function deletePrivateMockExam({
   ) {
     throw statusError(
       404,
-      "삭제할 사설 모의고사 회차를 찾을 수 없습니다."
+      "삭제할 Matths 주간 공식 모의고사 회차를 찾을 수 없습니다."
     );
   }
 
@@ -1749,7 +1749,7 @@ async function ensurePrivateMockFolder(
         name:
           PRIVATE_MOCK_FOLDER_NAME,
         description:
-          "주간 랭킹이 확정된 Matths 사설 모의고사 문제지",
+          "최종 종합 랭킹이 확정된 Matths 주간 공식 모의고사 문제지",
         slug:
           PRIVATE_MOCK_FOLDER_SLUG,
         isPublished: true,
@@ -1805,7 +1805,7 @@ async function sendReleaseNotice(
         title:
           `${claimed.title} 공개`,
         content:
-          `${claimed.title}이 공개되었습니다. 지금 풀고 랭크를 올려보세요.`,
+          `${claimed.title}이 공개되었습니다. 응시하고 최종 종합 랭킹에 반영할 성적을 만들어보세요.`,
         publishNow: true,
         href:
           "/private-mock-exams",
@@ -3750,7 +3750,7 @@ function startPrivateMockExamScheduler({
   processPrivateMockSchedule()
     .catch((error) => {
       console.error(
-        "사설 모의고사 스케줄 초기화 실패:",
+        "Matths 주간 공식 모의고사 스케줄 초기화 실패:",
         error
       );
     });
@@ -3759,7 +3759,7 @@ function startPrivateMockExamScheduler({
       processPrivateMockSchedule()
         .catch((error) => {
           console.error(
-            "사설 모의고사 스케줄 처리 실패:",
+            "Matths 주간 공식 모의고사 스케줄 처리 실패:",
             error
           );
         });
@@ -3859,7 +3859,7 @@ async function getPrivateMockEligibility(
       message:
         "운영자는 배치고사 여부와 관계없이 업로드한 회차와 OMR을 확인할 수 있습니다.",
       ctaLabel:
-        "사설 모의고사 입장",
+        "Matths 주간 공식 모의고사 입장",
       ctaHref:
         "/private-mock-exams",
     };
@@ -3880,9 +3880,9 @@ async function getPrivateMockEligibility(
         status:
           "integrity-restriction",
         title:
-          "사설 모의고사 응시가 제한되어 있습니다.",
+          "Matths 주간 공식 모의고사 응시가 제한되어 있습니다.",
         message:
-          `관리자 검토 결과 이후 남은 ${restriction.remainingWeekCount}회(${restriction.remainingWeekCount}주) 동안 사설 모의고사에 응시할 수 없습니다. A·B·C 시험은 한 주로 계산합니다.`,
+          `관리자 검토 결과 이후 남은 ${restriction.remainingWeekCount}회(${restriction.remainingWeekCount}주) 동안 Matths 주간 공식 모의고사에 응시할 수 없습니다. A·B·C 시험은 한 주로 계산합니다.`,
         ctaLabel:
           "제한 내용 확인",
         ctaHref:
@@ -3913,7 +3913,7 @@ async function getPrivateMockEligibility(
       title:
         "입단 배치고사를 먼저 완료해주세요.",
       message:
-        "사설 모의고사는 배치고사로 초기 실력을 확인한 회원만 응시할 수 있습니다.",
+        "Matths 주간 공식 모의고사는 배치고사로 초기 실력을 확인한 회원만 응시할 수 있습니다.",
       ctaLabel:
         "배치고사 보러 가기",
       ctaHref:
@@ -3933,7 +3933,7 @@ async function getPrivateMockEligibility(
       title:
         "추가 실력 확인 4문항을 완료해주세요.",
       message:
-        "배치 결과에 추가 확인이 필요합니다. 준킬러 2문항과 킬러 2문항을 마치고 초기 MMR과 랭크가 확정되면 입장할 수 있습니다.",
+        "배치 결과에 추가 확인이 필요합니다. 준킬러 2문항과 킬러 2문항을 마치고 초기 GP와 티어가 확정되면 입장할 수 있습니다.",
       ctaLabel:
         "추가 문제 풀기",
       ctaHref:
@@ -3951,9 +3951,9 @@ async function getPrivateMockEligibility(
       allowed: false,
       status: "ranking-pending",
       title:
-        "초기 MMR을 확정하고 있습니다.",
+        "초기 GP를 확정하고 있습니다.",
       message:
-        "배치 결과와 추가 확인 기록을 바탕으로 초기 랭크가 생성되면 사설 모의고사에 입장할 수 있습니다.",
+        "배치 결과와 추가 확인 기록을 바탕으로 초기 티어와 GP가 생성되면 Matths 주간 공식 모의고사에 입장할 수 있습니다.",
       ctaLabel:
         "War of GOAT으로",
       ctaHref:
@@ -3965,11 +3965,11 @@ async function getPrivateMockEligibility(
     allowed: true,
     status: "ready",
     title:
-      "사설 모의고사 응시 가능",
+      "Matths 주간 공식 모의고사 응시 가능",
     message:
-      "배치고사와 초기 MMR 확정이 완료되었습니다.",
+      "배치고사와 초기 GP 확정이 완료되었습니다.",
     ctaLabel:
-      "사설 모의고사 입장",
+      "Matths 주간 공식 모의고사 입장",
     ctaHref:
       "/private-mock-exams",
   };
@@ -4676,9 +4676,9 @@ async function getPrivateMockExamPageData(
         : null,
     weeklyRanking,
     rankingRules: [
-      "A·B·C형 가운데 학생이 선택한 표준화 성적을 주간 랭킹에 반영합니다.",
+      "A·B·C형 가운데 학생이 선택한 표준화 성적을 최종 종합 랭킹에 반영합니다.",
       "선택을 미루고 3회차 종료까지 확정하지 않으면 완료한 시험 중 최고 표준화 성적을 자동 선택합니다.",
-      "장기 MMR은 최고 성적 중심에 약한 안정성 보정을 적용합니다. 세 시험 모두 미응시하면 연속 1·2주는 MMR이 -5, 3주째부터 MMR이 -10 적용됩니다.",
+      "장기 GP는 최고 성적 중심에 약한 안정성 보정을 적용합니다. 세 시험 모두 미응시하면 연속 1·2주는 GP가 -5, 3주째부터 GP가 -10 적용됩니다.",
     ],
   };
 }
@@ -4699,7 +4699,7 @@ async function getPrivateMockAttemptData({
   ) {
     throw statusError(
       404,
-      "사설 모의고사 회차를 찾을 수 없습니다."
+      "Matths 주간 공식 모의고사 회차를 찾을 수 없습니다."
     );
   }
 
@@ -5245,7 +5245,7 @@ async function getAdminPrivateMockPdfFile({
   ) {
     throw statusError(
       404,
-      "사설 모의고사 PDF를 찾을 수 없습니다."
+      "Matths 주간 공식 모의고사 PDF를 찾을 수 없습니다."
     );
   }
 
@@ -5257,7 +5257,7 @@ async function getAdminPrivateMockPdfFile({
   ) {
     throw statusError(
       404,
-      "사설 모의고사 PDF 종류를 찾을 수 없습니다."
+      "Matths 주간 공식 모의고사 PDF 종류를 찾을 수 없습니다."
     );
   }
 
@@ -5295,7 +5295,7 @@ async function getAdminPrivateMockPdfFile({
   if (!item) {
     throw statusError(
       404,
-      "사설 모의고사 PDF를 찾을 수 없습니다."
+      "Matths 주간 공식 모의고사 PDF를 찾을 수 없습니다."
     );
   }
 
@@ -5310,7 +5310,7 @@ async function getAdminPrivateMockPdfFile({
   if (!fs.existsSync(filePath)) {
     throw statusError(
       404,
-      "사설 모의고사 PDF 파일을 찾을 수 없습니다."
+      "Matths 주간 공식 모의고사 PDF 파일을 찾을 수 없습니다."
     );
   }
 
@@ -6622,7 +6622,7 @@ async function createPrivateMockFormulaResource({
             file.originalname
           ),
         description:
-          "사설 모의고사 입장 대기실 공식 암기 자료",
+          "Matths 주간 공식 모의고사 입장 대기실 공식 암기 자료",
         category:
           "개념 자료",
         folderId: null,
@@ -6979,7 +6979,7 @@ async function submitPrivateMockIntegrityEvidence({
     await createAdminTodo({
       category: "integrity",
       title:
-        "사설 모의고사 소명 자료 검토",
+        "Matths 주간 공식 모의고사 소명 자료 검토",
       description:
         `요청 문항 ${integrityCase.requestedQuestionNumbers.join(", ")}번 · 접수번호 ${receiptId}`,
       href:
@@ -8043,7 +8043,7 @@ async function correctPrivateMockAnswers({
   if (!exam) {
     throw statusError(
       404,
-      "정정할 사설 모의고사를 찾을 수 없습니다."
+      "정정할 Matths 주간 공식 모의고사를 찾을 수 없습니다."
     );
   }
   if (
@@ -8185,9 +8185,9 @@ async function correctPrivateMockAnswers({
     await UserNotification.create({
       userId: user._id,
       title:
-        "사설 모의고사 정답 정정 및 재채점 안내",
+        "Matths 주간 공식 모의고사 정답 정정 및 재채점 안내",
       message:
-        `${exam.title}의 ${finalized.map((item) => `${item.questionNumber}번`).join(", ")} 정답이 정정되어 성적·랭킹·MMR을 다시 계산했습니다.`,
+        `${exam.title}의 ${finalized.map((item) => `${item.questionNumber}번`).join(", ")} 정답이 정정되어 성적·랭킹·GP를 다시 계산했습니다.`,
       href:
         `/private-mock-exams/${exam._id}`,
       kind: "system",
@@ -8407,7 +8407,7 @@ async function createPrivateMockObjection({
   await createAdminTodo({
     category: "other",
     title:
-      `사설 모의고사 ${number}번 이의신청`,
+      `Matths 주간 공식 모의고사 ${number}번 이의신청`,
     description:
       `${objection.examTitle} · ${cleanDetail}`,
     href:
@@ -8716,9 +8716,9 @@ async function acceptPrivateMockObjection({
     await createAnnouncement({
       adminUserId,
       title:
-        "사설 모의고사 정답 정정 안내",
+        "Matths 주간 공식 모의고사 정답 정정 안내",
       content:
-        `${objection.examTitle} ${objection.questionNumber}번 문항의 정답을 정정했습니다. 해당 시험의 성적·랭킹·MMR을 다시 계산했으니 결과를 확인해주세요.`,
+        `${objection.examTitle} ${objection.questionNumber}번 문항의 정답을 정정했습니다. 해당 시험의 성적·랭킹·GP를 다시 계산했으니 결과를 확인해주세요.`,
       publishNow: true,
       href:
         "/private-mock-exams",
@@ -8763,7 +8763,7 @@ async function getAdminPrivateMockExamDetailData({
   ) {
     throw statusError(
       404,
-      "사설 모의고사 회차를 찾을 수 없습니다."
+      "Matths 주간 공식 모의고사 회차를 찾을 수 없습니다."
     );
   }
 
@@ -8779,7 +8779,7 @@ async function getAdminPrivateMockExamDetailData({
   if (!exam) {
     throw statusError(
       404,
-      "사설 모의고사 회차를 찾을 수 없습니다."
+      "Matths 주간 공식 모의고사 회차를 찾을 수 없습니다."
     );
   }
 

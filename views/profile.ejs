@@ -56,6 +56,11 @@
           : Number(learner.schoolGrade) === 13
             ? "N수생"
             : "학년 미설정";
+  const educationStatusLabel =
+    learner.educationStatus === "graduated" ||
+    Number(learner.schoolGrade) === 13
+      ? "졸업"
+      : "재학";
   const safeSchoolJson =
     JSON.stringify(regionData)
       .replace(/</g, "\\u003c")
@@ -119,6 +124,8 @@
                 <%= currentSchool.name || "학교 미설정" %>
                 <i aria-hidden="true">·</i>
                 <%= gradeLabel %>
+                <i aria-hidden="true">·</i>
+                <%= educationStatusLabel %>
               </p>
             </div>
           </div>
@@ -590,7 +597,7 @@
               <strong>익명으로 남는 학습 정보</strong>
               <span>
                 개념 진도 · 문제 및 시험 답안 · 정오답 · 풀이 시간 · 힌트 사용 ·
-                MMR 변동 기록
+                GP 변동 기록
               </span>
             </div>
 

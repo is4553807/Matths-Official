@@ -1,0 +1,75 @@
+<%
+  const arenaNavigationItems = [
+    {
+      key: "home",
+      label: "홈",
+      ariaLabel: "GOAT Arena 홈",
+      href: "/goat-arena",
+    },
+    {
+      key: "rankings",
+      label: "티어 순위",
+      ariaLabel: "GOAT Arena 티어 순위",
+      href: "/goat-arena/rankings",
+    },
+    {
+      key: "sub",
+      label: "페이백 도전",
+      ariaLabel: "Sub Division 페이백 도전",
+      href: "/goat-arena/sub",
+    },
+    {
+      key: "main",
+      label: "상위 전장",
+      ariaLabel: "Main Division 상위 전장",
+      href: "/goat-arena/main",
+    },
+  ];
+%>
+<header class="arena-hud">
+  <a
+    class="arena-brand"
+    href="/goat-arena"
+    aria-label="GOAT Arena 홈"
+  >
+    <img
+      class="arena-brand-logo"
+      src="/images/goat-arena/goat-arena-logo.jpg"
+      alt=""
+    />
+    <span>
+      <strong>GOAT ARENA</strong>
+      <small>POWERED BY MATTHS</small>
+    </span>
+  </a>
+
+  <nav
+    class="arena-main-navigation"
+    aria-label="GOAT Arena 메뉴"
+  >
+    <% arenaNavigationItems.forEach((item) => { %>
+      <a
+        class="<%= activeArenaPage === item.key ? 'active' : '' %>"
+        href="<%= item.href %>"
+        aria-label="<%= item.ariaLabel %>"
+        <%= activeArenaPage === item.key ? 'aria-current="page"' : '' %>
+      ><%= item.label %></a>
+    <% }) %>
+  </nav>
+
+  <div class="arena-account">
+    <a
+      class="arena-dashboard-link"
+      href="/main"
+    >Matths 대시보드</a>
+    <a
+      class="arena-player <%= activeArenaPage === 'profile' ? 'active' : '' %>"
+      href="/goat-arena/profile"
+      aria-label="<%= arenaUser.nickname %>님의 GOAT Arena 프로필"
+      <%= activeArenaPage === "profile" ? 'aria-current="page"' : '' %>
+    >
+      <span aria-hidden="true"><%= arenaUser.nickname.slice(0, 1) %></span>
+      <strong><%= arenaUser.nickname %></strong>
+    </a>
+  </div>
+</header>

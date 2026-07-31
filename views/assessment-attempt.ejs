@@ -262,10 +262,10 @@
                 ? "시간 초과 실격"
                 : submitted
                   ? isPlacement
-                    ? "입단 배치 결과"
+                    ? "배치고사 결과"
                     : "평가 결과"
                   : isPlacement
-                    ? "입단 배치고사 응시 중"
+                    ? "배치고사 응시 중"
                     : "평가 응시 중" %>
             </h1>
           </div>
@@ -314,12 +314,12 @@
         <div>
           <p class="eyebrow">
             <%= isPlacement
-              ? "PLACEMENT EXAM"
+              ? "배치고사"
               : attempt.scopeType === "subunit"
-              ? "MIDTERM"
+              ? "소단원 평가"
               : attempt.scopeType === "unit"
-                ? "UNIT FINAL"
-                : "COURSE FINAL" %>
+                ? "대단원 평가"
+                : "과목 평가" %>
           </p>
           <h1><%= attempt.title %></h1>
           <p><%= attempt.subtitle %></p>
@@ -335,12 +335,12 @@
           >
             <span>
               <%= disqualified
-                ? "TIME OUT"
+                ? "시간 초과"
                 : isPlacement
-                  ? "PLACED"
+                  ? "배치 완료"
                   : attempt.passed
-                  ? "PASS"
-                  : "RETRY" %>
+                  ? "통과"
+                  : "재응시" %>
             </span>
             <strong>
               <% if (disqualified) { %>
@@ -357,7 +357,7 @@
               <%= disqualified
                 ? `${timeLimitLabel} 제한 시간을 초과했습니다.`
                 : isPlacement
-                  ? `${attempt.placementResult?.initialTier || "배치 산정 중"} · 초기 점수 ${attempt.placementResult?.initialRating ?? "-"}`
+                  ? `${attempt.placementResult?.initialTier || "배치 산정 중"} · 초기 내부 실력 지표 ${attempt.placementResult?.initialRating ?? "-"}`
                   : attempt.passed
                   ? "80점 기준을 통과했습니다."
                   : "80점 이상이면 통과합니다." %>
@@ -365,7 +365,7 @@
           </div>
         <% } else { %>
           <div class="attempt-progress-card">
-            <span>ANSWERED</span>
+            <span>답변 완료</span>
             <strong>
               <b id="answered-count">0</b>
               / <%= attempt.questions.length %>
@@ -385,7 +385,7 @@
       %>
         <section
           class="placement-result-summary"
-          aria-label="입단 배치고사 세부 결과"
+          aria-label="배치고사 세부 결과"
         >
           <article>
             <span>전체 정답</span>
@@ -623,7 +623,7 @@
         <% if (!terminal) { %>
           <footer class="paper-submit">
             <div>
-              <span><%= placementVerification ? "VERIFICATION" : isPlacement ? "PLACEMENT SCORE" : "PASS LINE" %></span>
+              <span><%= placementVerification ? "추가 확인" : isPlacement ? "배치 결과" : "통과 기준" %></span>
               <strong>
                 <%= placementVerification
                   ? "준킬러 2문항 · 킬러 2문항"
@@ -633,14 +633,14 @@
               </strong>
               <p>
                 <%= placementVerification
-                  ? "네 문항의 결과를 기존 배치 결과와 합쳐 최종 초기 MMR을 계산합니다."
+                  ? "네 문항의 결과를 기존 배치 결과와 합쳐 최종 초기 내부 실력 지표를 계산합니다."
                   : isPlacement
                   ? "미응답 문항은 오답으로 반영되어 초기 랭크에 불이익이 생길 수 있습니다."
                   : "비어 있는 답은 오답으로 처리됩니다." %>
               </p>
             </div>
             <button type="submit">
-              <%= placementVerification ? "추가 확인 제출 및 랭크 산정" : "답안 제출 및 채점" %>
+              <%= placementVerification ? "추가 확인 제출 및 티어 산정" : "답안 제출 및 채점" %>
             </button>
           </footer>
         <% } else { %>
@@ -648,8 +648,8 @@
             <div>
               <span>
                 <%= disqualified
-                  ? "DISQUALIFIED"
-                  : "RESULT" %>
+                  ? "실격"
+                  : "결과" %>
               </span>
               <strong>
                 <%= disqualified
@@ -679,8 +679,8 @@
           <div>
             <span>
               <%= disqualified
-                ? "DISQUALIFIED"
-                : "CONFIDENTIAL RESULT" %>
+                ? "실격"
+                : "비공개 배치 결과" %>
             </span>
             <strong>
               <%= disqualified

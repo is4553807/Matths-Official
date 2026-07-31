@@ -33,8 +33,8 @@
     "user.account-status": "계정 상태 변경",
     "user.account-withdrawal": "계정 탈퇴 처리",
     "user.warning-count": "경고 횟수 수정",
-    "private-mock.integrity-review": "사설 모의고사 소명 검토",
-    "private-mock.integrity-penalty": "사설 모의고사 페널티 부여",
+    "private-mock.integrity-review": "Matths 주간 공식 모의고사 소명 검토",
+    "private-mock.integrity-penalty": "Matths 주간 공식 모의고사 페널티 부여",
     "community.report-reviewing": "게시글 신고 검토 시작",
     "community.report-resolved": "게시글 신고 처리 완료",
     "community.report-rejected": "게시글 신고 반려",
@@ -54,6 +54,17 @@
     teacher: "교사",
     admin: "관리자",
   };
+  const learningStatusLabels = {
+    "not-started": "시작 전",
+    "in-progress": "학습 중",
+    completed: "완료",
+  };
+  const assessmentStatusLabels = {
+    "in-progress": "응시 중",
+    submitted: "제출 완료",
+    abandoned: "중단",
+    disqualified: "실격",
+  };
 %>
 <!doctype html>
 <html lang="ko">
@@ -61,6 +72,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title><%= member.name %> 사용자 관리 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -84,12 +96,13 @@
 
       <section class="admin-user-summary">
         <article><span>학교</span><strong><%= member.school?.name || "미설정" %></strong><small><%= member.school?.region || "" %></small></article>
-        <article><span>학년</span><strong><%= gradeLabels[member.schoolGrade] || "미설정" %></strong></article>
+        <article><span>학년·상태</span><strong><%= gradeLabels[member.schoolGrade] || "미설정" %></strong><small><%= member.educationStatus === "graduated" || Number(member.schoolGrade) === 13 ? "졸업" : "재학" %></small></article>
+        <article><span>본인확인</span><strong><%= member.identityVerificationStatus === "review-required" ? "중복 검토 필요" : (member.identityVerificationStatus === "verified" ? "확인 완료" : "미확인") %></strong><small><%= member.identityDuplicateAlertedAt ? "동일 실명·생년월일·고등학교 계정이 감지되었습니다." : "중복 감지 알림 없음" %></small></article>
         <article><span>가입일</span><strong><%= formatDate(member.createdAt) %></strong></article>
         <article><span>최근 로그인</span><strong><%= formatDate(member.lastLoginAt) %></strong></article>
         <article><span>누적 학습</span><strong><%= Math.round((member.totalStudySeconds || 0) / 60) %>분</strong></article>
         <article><span>연속 학습</span><strong><%= member.currentStreak || 0 %>일</strong></article>
-        <article><span>역할</span><strong><%= roleLabels[member.role] || member.role %></strong></article>
+        <article><span>역할</span><strong><%= roleLabels[member.role] || "역할 확인 필요" %></strong></article>
         <article>
           <span>계정 상태</span>
           <strong><%= accountStatusLabels[accountStatus] %></strong>
@@ -100,11 +113,23 @@
           </small>
         </article>
         <article>
-          <span>사설 모의고사 권한</span>
+          <span>Matths 주간 공식 모의고사 권한</span>
           <strong><%= member.privateMockRestriction?.active ? "응시 제한" : "응시 가능" %></strong>
           <small><%= member.privateMockRestriction?.active ? `남은 제한 ${member.privateMockRestriction.remainingWeekCount || member.privateMockRestriction.remainingExamCount || 0}회(${member.privateMockRestriction.remainingWeekCount || member.privateMockRestriction.remainingExamCount || 0}주) · ${member.privateMockRestriction.reason || "사유 기록 없음"}` : "적용 중인 제한 없음" %></small>
         </article>
       </section>
+
+      <% if (detail.identityMatches?.length) { %>
+        <section class="admin-panel">
+          <div class="admin-panel-heading"><div><p>IDENTITY REVIEW</p><h2>동일 실명·생년월일·고등학교 계정</h2></div></div>
+          <p>생년월일 원본은 이 화면에 표시하지 않습니다. 아래 계정은 실명·생년월일·고등학교가 모두 일치하므로 페이백 또는 계좌 연결 전에 운영자가 확인해야 합니다.</p>
+          <div class="admin-assessment-list">
+            <% detail.identityMatches.forEach((match) => { %>
+              <a href="/admin/users/<%= match._id %>"><strong><%= match.name %> · <%= match.realName || "실명 미입력" %></strong><span><%= match.email %></span><small><%= gradeLabels[match.schoolGrade] || "학년 미설정" %> · <%= accountStatusLabels[match.accountStatus || "active"] || "상태 확인 필요" %></small><b>계정 확인 →</b></a>
+            <% }) %>
+          </div>
+        </section>
+      <% } %>
 
       <div class="admin-detail-grid">
         <section class="admin-panel">
@@ -122,7 +147,7 @@
                 <span><%= progress.courseId %> · <%= progress.unitId %></span>
                 <strong><%= progress.conceptId %></strong>
                 <div><i style="width:<%= progress.completionPercent %>%"></i></div>
-                <small><%= progress.completionPercent %>% · <%= progress.status %></small>
+                <small><%= progress.completionPercent %>% · <%= learningStatusLabels[progress.status] || "상태 확인 필요" %></small>
               </div>
             <% }) %>
           </div>
@@ -132,8 +157,9 @@
           <div class="admin-panel-heading"><div><p>RANKING</p><h2>배치·랭킹</h2></div></div>
           <% if (detail.ranking) { %>
             <div class="admin-ranking-card">
-              <strong><%= detail.ranking.tier %> <%= detail.ranking.division %></strong>
-              <span>MMR <%= detail.ranking.rating %></span>
+              <strong>내부 실력 지표 · <%= detail.ranking.tier %></strong>
+              <span>내부 실력 지표 <%= detail.ranking.rating %></span>
+              <span><%= detail.ranking.gp !== null && detail.ranking.gp !== undefined ? `GOAT Arena · ${detail.ranking.arenaRank} ${detail.ranking.arenaDivision === "MAIN" ? "Main Division" : "Sub Division"} · ${detail.ranking.arenaPosition}위 · ${detail.ranking.gp} GP` : "GOAT Arena · GP 미확정" %></span>
               <dl>
                 <div><dt>전체</dt><dd><%= detail.ranking.overallRank %>위</dd></div>
                 <div><dt>학교 내</dt><dd><%= detail.ranking.schoolStudentRank || "—" %><%= detail.ranking.schoolStudentRank ? "위" : "" %></dd></div>
@@ -144,7 +170,7 @@
           <% } else { %><p class="admin-empty">완료한 배치고사가 없습니다.</p><% } %>
           <div class="admin-assessment-list">
             <% detail.assessments.forEach((attempt) => { %>
-              <a href="/admin/users/<%= member._id %>/assessments/<%= attempt._id %>"><strong><%= attempt.title %></strong><span><%= attempt.status %> · <%= attempt.scorePercent ?? "—" %>점</span><small><%= formatDate(attempt.submittedAt || attempt.createdAt) %></small><b>문항·답안 보기 →</b></a>
+              <a href="/admin/users/<%= member._id %>/assessments/<%= attempt._id %>"><strong><%= attempt.title %></strong><span><%= assessmentStatusLabels[attempt.status] || "상태 확인 필요" %> · <%= attempt.scorePercent ?? "—" %>점</span><small><%= formatDate(attempt.submittedAt || attempt.createdAt) %></small><b>문항·답안 보기 →</b></a>
             <% }) %>
           </div>
         </section>
@@ -192,7 +218,7 @@
             </form>
             <form class="admin-form" action="/admin/users/<%= member._id %>/warnings" method="POST">
               <h3>경고 횟수 관리</h3>
-              <p>경고가 3회 이상이면 학생·교사 계정이 즉시 무기한 정지됩니다.</p>
+              <p>경고가 3회 이상이면 학생·교사 계정이 즉시 무기한 정지됩니다. 경고 누적으로 정지된 계정은 2회 이하로 조정하면 다시 활성화되며, 0회가 되면 게시판 사진·파일 첨부 권한도 즉시 복구됩니다.</p>
               <label><span>경고 횟수</span><input type="number" name="warningCount" min="0" max="999" value="<%= member.warningCount || 0 %>" required /></label>
               <label><span>수정 사유</span><input name="reason" maxlength="500" required /></label>
               <button type="submit">경고 횟수 저장</button>
@@ -231,7 +257,7 @@
                   <span>학습·평가 데이터를 익명으로 보존</span>
                 </label>
                 <p>
-                  체크하면 문제 풀이, 정오답, 소요 시간, 평가 결과와 MMR을
+                  체크하면 문제 풀이, 정오답, 소요 시간, 평가 결과와 GP를
                   익명 사용자 ID로 남깁니다. 체크를 해제하면 해당 활동
                   데이터도 삭제합니다.
                 </p>
@@ -283,7 +309,7 @@
             <% } %>
             <% detail.inquiries.forEach((inquiry) => { %>
               <div>
-                <span class="status-<%= inquiry.status %>"><%= inquiryStatusLabels[inquiry.status] || inquiry.status %></span>
+                <span class="status-<%= inquiry.status %>"><%= inquiryStatusLabels[inquiry.status] || "상태 확인 필요" %></span>
                 <strong><%= inquiry.subject %></strong>
                 <small><%= formatDate(inquiry.createdAt) %></small>
               </div>

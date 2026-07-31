@@ -51,7 +51,10 @@
           <h2>필요한 학습 자료를 한곳에서 확인하세요.</h2>
           <span>로그인한 Matths 회원만 자료를 확인하고 내려받을 수 있습니다.</span>
         </div>
-        <strong><%= archiveData.items.length %><small>개 자료</small></strong>
+        <strong>
+          <%= archiveData.selectedFolder ? archiveData.selectedFolder.itemCount : archiveData.folders.length %>
+          <small><%= archiveData.selectedFolder ? "개 자료" : "개 폴더" %></small>
+        </strong>
       </section>
 
       <% if (feedback) { %>
@@ -67,12 +70,18 @@
               <p>FOLDERS</p>
               <h2 id="archive-folder-list-title"><%= archiveData.selectedFolder ? "하위 폴더" : "자료 폴더" %></h2>
             </div>
+            <% if (archiveData.selectedFolder) { %>
+              <a class="archive-folder-back" href="<%= archiveData.selectedFolder.parentFolderId ? `/archive?folder=${archiveData.selectedFolder.parentFolderId}` : "/archive" %>">
+                <%= archiveData.selectedFolder.parentFolderId ? "← 상위 폴더" : "← 전체 자료 폴더" %>
+              </a>
+            <% } %>
           </div>
           <div class="archive-folder-grid">
             <% archiveData.folders.forEach((folder) => { %>
-              <a href="/archive?folder=<%= folder.id %>">
+              <a class="<%= folder.isPinned ? "is-pinned" : "" %>" href="/archive?folder=<%= folder.id %>">
                 <span aria-hidden="true">▰</span>
                 <div>
+                  <% if (folder.isPinned) { %><b class="archive-folder-pin-badge">고정</b><% } %>
                   <h3><%= folder.name %></h3>
                   <p><%= folder.description || "폴더 설명이 없습니다." %></p>
                 </div>
@@ -81,18 +90,32 @@
             <% }) %>
           </div>
         </section>
+      <% } else if (!archiveData.selectedFolder) { %>
+        <section class="archive-list-section" aria-labelledby="archive-folder-list-title">
+          <div class="archive-section-heading">
+            <div>
+              <p>FOLDERS</p>
+              <h2 id="archive-folder-list-title">자료 폴더</h2>
+            </div>
+          </div>
+          <div class="archive-empty">
+            <span aria-hidden="true">▣</span>
+            <h3>등록된 자료 폴더가 없습니다.</h3>
+            <p>새로운 학습 자료가 등록되면 이곳에서 확인할 수 있습니다.</p>
+          </div>
+        </section>
       <% } %>
 
-      <details class="archive-list-section archive-root-disclosure <%= archiveData.selectedFolder ? "folder-open" : "" %>" <%= archiveData.selectedFolder ? "open" : "" %>>
+      <% if (archiveData.selectedFolder && (archiveData.items.length || !archiveData.folders.length)) { %>
+      <details class="archive-list-section archive-root-disclosure folder-open" open>
         <summary class="archive-root-summary">
-          <span><%= archiveData.selectedFolder ? archiveData.selectedFolder.name : "루트 자료" %></span>
+          <span><%= archiveData.selectedFolder.name %></span>
           <strong><%= archiveData.items.length %>개 자료</strong>
-          <small><%= archiveData.selectedFolder ? "" : "클릭해서 펼치기" %></small>
         </summary>
         <div class="archive-root-disclosure-content">
         <% if (archiveData.breadcrumbs.length) { %>
           <nav class="archive-breadcrumbs" aria-label="현재 폴더 경로">
-            <a href="/archive">루트</a>
+            <a href="/archive">자료 폴더</a>
             <% archiveData.breadcrumbs.forEach((folder) => { %>
               <span>›</span><a href="/archive?folder=<%= folder.id %>"><%= folder.name %></a>
             <% }) %>
@@ -101,12 +124,12 @@
         <div class="archive-section-heading">
           <div>
             <p>FILES</p>
-            <h2 id="archive-list-title">
-              <%= archiveData.selectedFolder ? archiveData.selectedFolder.name : "루트 자료" %>
-            </h2>
+            <h2 id="archive-list-title"><%= archiveData.selectedFolder.name %></h2>
           </div>
-          <% if (archiveData.selectedFolder) { %>
-            <a class="archive-folder-back" href="<%= archiveData.selectedFolder.parentFolderId ? `/archive?folder=${archiveData.selectedFolder.parentFolderId}` : "/archive" %>">← 상위 폴더</a>
+          <% if (!archiveData.folders.length) { %>
+            <a class="archive-folder-back" href="<%= archiveData.selectedFolder.parentFolderId ? `/archive?folder=${archiveData.selectedFolder.parentFolderId}` : "/archive" %>">
+              <%= archiveData.selectedFolder.parentFolderId ? "← 상위 폴더" : "← 전체 자료 폴더" %>
+            </a>
           <% } %>
         </div>
 
@@ -143,6 +166,7 @@
         <% } %>
         </div>
       </details>
+      <% } %>
     </main>
   </body>
 </html>

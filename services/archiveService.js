@@ -191,6 +191,10 @@ function serializeArchiveFolder(
     slug: folder.slug,
     isPublished:
       folder.isPublished !== false,
+    isPinned:
+      folder.isPinned === true,
+    pinnedAt:
+      folder.pinnedAt || null,
     itemCount,
     createdAt: folder.createdAt,
   };
@@ -213,7 +217,11 @@ async function getArchiveData(
     await ArchiveFolder.find(
       visibleFilter
     )
-      .sort({ name: 1 })
+      .sort({
+        isPinned: -1,
+        pinnedAt: -1,
+        name: 1,
+      })
       .lean();
   const requestedFolderId =
     String(folderId || "");
@@ -284,7 +292,7 @@ async function getArchiveData(
       },
     ]),
   ]);
-  const countByFolder =
+  const directItemCountByFolder =
     new Map(
       folderCounts.map(
         (entry) => [
@@ -300,6 +308,54 @@ async function getArchiveData(
         folder,
       ])
     );
+  const totalItemCountByFolder =
+    new Map(
+      folders.map((folder) => [
+        String(folder._id),
+        0,
+      ])
+    );
+
+  folders.forEach((folder) => {
+    const directItemCount =
+      directItemCountByFolder.get(
+        String(folder._id)
+      ) || 0;
+
+    if (!directItemCount) {
+      return;
+    }
+
+    const visited = new Set();
+    let current = folder;
+
+    while (current) {
+      const currentId =
+        String(current._id);
+
+      if (visited.has(currentId)) {
+        break;
+      }
+
+      visited.add(currentId);
+      totalItemCountByFolder.set(
+        currentId,
+        (
+          totalItemCountByFolder.get(
+            currentId
+          ) || 0
+        ) + directItemCount
+      );
+      current =
+        current.parentFolderId
+          ? folderById.get(
+              String(
+                current.parentFolderId
+              )
+            )
+          : null;
+    }
+  });
   const folderPath = (
     folder
   ) => {
@@ -358,7 +414,7 @@ async function getArchiveData(
         (folder) =>
         serializeArchiveFolder(
           folder,
-          countByFolder.get(
+          totalItemCountByFolder.get(
             String(folder._id)
           ) || 0
         )
@@ -370,7 +426,7 @@ async function getArchiveData(
         return {
           ...serializeArchiveFolder(
             folder,
-            countByFolder.get(
+            totalItemCountByFolder.get(
               String(folder._id)
             ) || 0
           ),
@@ -432,7 +488,7 @@ async function getArchiveData(
       selectedFolder
         ? serializeArchiveFolder(
             selectedFolder,
-            countByFolder.get(
+            totalItemCountByFolder.get(
               String(
                 selectedFolder._id
               )
@@ -755,6 +811,242 @@ async function createArchiveFolder({
   );
 }
 
+async function updateArchiveFolder({
+  user,
+  folderId,
+  name,
+  description,
+}) {
+  if (!isArchiveAdmin(user)) {
+    throw httpError(
+      403,
+      "운영자만 아카이브 폴더를 수정할 수 있습니다."
+    );
+  }
+
+  if (
+    !mongoose.isValidObjectId(
+      folderId
+    )
+  ) {
+    throw httpError(
+      404,
+      "수정할 폴더를 찾을 수 없습니다."
+    );
+  }
+
+  const folder =
+    await ArchiveFolder.findById(
+      folderId
+    );
+
+  if (!folder) {
+    throw httpError(
+      404,
+      "수정할 폴더를 찾을 수 없습니다."
+    );
+  }
+
+  const cleanName =
+    cleanText(name);
+  const cleanDescription =
+    cleanText(description);
+
+  if (
+    cleanName.length < 2 ||
+    cleanName.length > 80
+  ) {
+    throw httpError(
+      400,
+      "폴더 이름은 2자 이상 80자 이하로 입력해주세요."
+    );
+  }
+
+  if (
+    cleanDescription.length >
+    500
+  ) {
+    throw httpError(
+      400,
+      "폴더 설명은 500자 이하로 입력해주세요."
+    );
+  }
+
+  const duplicate =
+    await ArchiveFolder.exists({
+      _id: {
+        $ne: folder._id,
+      },
+      name: cleanName,
+    });
+
+  if (duplicate) {
+    throw httpError(
+      409,
+      "같은 이름의 폴더가 이미 있습니다."
+    );
+  }
+
+  const slugBase =
+    cleanName
+      .toLowerCase()
+      .replace(
+        /[^a-z0-9가-힣]+/g,
+        "-"
+      )
+      .replace(/^-|-$/g, "")
+      .slice(0, 70) ||
+    "folder";
+
+  folder.name = cleanName;
+  folder.description =
+    cleanDescription;
+  folder.slug =
+    `${slugBase}-${Date.now().toString(36)}`;
+
+  try {
+    await folder.save();
+  } catch (error) {
+    if (error?.code === 11000) {
+      throw httpError(
+        409,
+        "같은 이름의 폴더가 이미 있습니다."
+      );
+    }
+    throw error;
+  }
+
+  return serializeArchiveFolder(
+    folder
+  );
+}
+
+async function setArchiveFolderPinned({
+  user,
+  folderId,
+  pinned,
+}) {
+  if (!isArchiveAdmin(user)) {
+    throw httpError(
+      403,
+      "운영자만 아카이브 폴더를 고정할 수 있습니다."
+    );
+  }
+
+  if (
+    !mongoose.isValidObjectId(
+      folderId
+    )
+  ) {
+    throw httpError(
+      404,
+      "고정할 폴더를 찾을 수 없습니다."
+    );
+  }
+
+  const folder =
+    await ArchiveFolder.findById(
+      folderId
+    );
+
+  if (!folder) {
+    throw httpError(
+      404,
+      "고정할 폴더를 찾을 수 없습니다."
+    );
+  }
+
+  const shouldPin =
+    pinned === true;
+  folder.isPinned = shouldPin;
+  folder.pinnedAt =
+    shouldPin
+      ? new Date()
+      : null;
+  folder.pinnedBy =
+    shouldPin
+      ? user.id
+      : null;
+  await folder.save();
+
+  return serializeArchiveFolder(
+    folder
+  );
+}
+
+async function deleteArchiveFolder({
+  user,
+  folderId,
+}) {
+  if (!isArchiveAdmin(user)) {
+    throw httpError(
+      403,
+      "운영자만 아카이브 폴더를 삭제할 수 있습니다."
+    );
+  }
+
+  if (
+    !mongoose.isValidObjectId(
+      folderId
+    )
+  ) {
+    throw httpError(
+      404,
+      "삭제할 폴더를 찾을 수 없습니다."
+    );
+  }
+
+  const folder =
+    await ArchiveFolder.findById(
+      folderId
+    ).lean();
+
+  if (!folder) {
+    throw httpError(
+      404,
+      "삭제할 폴더를 찾을 수 없습니다."
+    );
+  }
+
+  const [
+    itemCount,
+    childFolderCount,
+  ] = await Promise.all([
+    ArchiveItem.countDocuments({
+      folderId: folder._id,
+    }),
+    ArchiveFolder.countDocuments({
+      parentFolderId:
+        folder._id,
+    }),
+  ]);
+
+  if (
+    itemCount > 0 ||
+    childFolderCount > 0
+  ) {
+    throw httpError(
+      409,
+      "자료나 하위 폴더가 남아 있는 폴더는 삭제할 수 없습니다. 먼저 안의 자료를 이동·삭제하고 하위 폴더를 정리해주세요."
+    );
+  }
+
+  await ArchiveFolder.deleteOne({
+    _id: folder._id,
+  });
+
+  return {
+    id: String(folder._id),
+    name: folder.name,
+    parentFolderId:
+      folder.parentFolderId
+        ? String(
+            folder.parentFolderId
+          )
+        : null,
+  };
+}
+
 async function discardArchiveUpload(
   file
 ) {
@@ -880,7 +1172,7 @@ async function deleteArchiveItem({
   if (linkedExam) {
     throw httpError(
       409,
-      "현재 공개 대기 또는 응시 중인 사설 모의고사 문제지는 마감 전까지 삭제할 수 없습니다."
+      "현재 공개 대기 또는 응시 중인 Matths 주간 공식 모의고사 문제지는 마감 전까지 삭제할 수 없습니다."
     );
   }
 
@@ -994,7 +1286,7 @@ async function deleteArchiveItems({
   if (linkedExam) {
     throw httpError(
       409,
-      "선택한 자료에 공개 대기 또는 응시 중인 사설 모의고사 파일이 포함되어 있습니다."
+      "선택한 자료에 공개 대기 또는 응시 중인 Matths 주간 공식 모의고사 파일이 포함되어 있습니다."
     );
   }
 
@@ -1142,6 +1434,9 @@ module.exports = {
   ARCHIVE_CATEGORIES,
   isArchiveAdmin,
   createArchiveFolder,
+  updateArchiveFolder,
+  setArchiveFolderPinned,
+  deleteArchiveFolder,
   deleteArchiveItem,
   deleteArchiveItems,
   moveArchiveItems,

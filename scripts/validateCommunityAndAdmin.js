@@ -66,6 +66,7 @@ assert.deepEqual(
     "student",
     "teacher",
     "admin",
+    "test",
   ]
 );
 
@@ -274,9 +275,10 @@ assert.deepEqual(
   [
     "high-school",
     "school",
+    "retaker",
     "operations",
   ].sort(),
-  "게시판은 통합 고등학교·학교별·운영 게시판을 제공해야 합니다."
+  "게시판은 통합 고등학교·학교별·N수생·운영 게시판을 제공해야 합니다."
 );
 assert.equal(
   COMMUNITY_PAGE_SIZE,
@@ -369,8 +371,6 @@ for (const copy of [
 }
 
 for (const file of [
-  "views/index.ejs",
-  "views/intro.ejs",
   "views/war-of-masters.ejs",
   "views/war-of-masters-rankings.ejs",
   "views/partials/dashboard-navigation.ejs",
@@ -412,7 +412,7 @@ for (const copy of [
     privateMockAdminView.includes(
       copy
     ),
-    `사설 모의고사 등록 화면에 ${copy}가 없습니다.`
+    `Matths 주간 공식 모의고사 등록 화면에 ${copy}가 없습니다.`
   );
 }
 
@@ -539,7 +539,7 @@ assert.equal(
       "2026-07-12T06:00:00.000Z"
     )
   ),
-  "2026년 7월 둘째주 Matths 사설 모의고사"
+  "2026년 7월 둘째주 Matths 주간 공식 모의고사"
 );
 
 const privateMockService =
@@ -568,7 +568,7 @@ assert.deepEqual(
     "CLEAR",
     "INVALIDATED",
   ],
-  "사설 모의고사 응시 무결성 상태가 예상과 다릅니다."
+  "Matths 주간 공식 모의고사 응시 무결성 상태가 예상과 다릅니다."
 );
 const moderationNoticeService =
   read(
@@ -592,7 +592,7 @@ for (const copy of [
   );
 }
 for (const copy of [
-  "지금 풀고 랭크를 올려보세요.",
+  "응시하고 최종 종합 랭킹에 반영할 성적을 만들어보세요.",
   "PRIVATE_MOCK_FOLDER_NAME",
   "status: \"ranked\"",
   "aggregationStartsAt",
@@ -605,7 +605,7 @@ for (const copy of [
     privateMockService.includes(
       copy
     ),
-    `사설 모의고사 자동 처리에 ${copy}가 없습니다.`
+    `Matths 주간 공식 모의고사 자동 처리에 ${copy}가 없습니다.`
   );
 }
 
@@ -645,21 +645,6 @@ assert.ok(
   "긴급 알림의 빨간색·흔들림 스타일이 없습니다."
 );
 
-const indexView = read(
-  "views/index.ejs"
-);
-for (const copy of [
-  "총점 백분위 70%",
-  "심화 수행 20%",
-  "안정성 10%",
-  "1520+",
-]) {
-  assert.ok(
-    indexView.includes(copy),
-    `메인 MMR 설명에 ${copy}가 없습니다.`
-  );
-}
-
 for (const file of [
   "views/community.ejs",
   "views/community-new.ejs",
@@ -686,5 +671,5 @@ for (const file of [
 }
 
 console.log(
-  "게시판 투표·인기글·삭제 알림, 사설 모의고사 자동 공개·랭킹·아카이브, 관리자 자료 관리와 알림 정책 검증 완료"
+  "게시판 투표·인기글·삭제 알림, Matths 주간 공식 모의고사 자동 공개·최종 종합 랭킹·아카이브, 관리자 자료 관리와 알림 정책 검증 완료"
 );

@@ -6,9 +6,13 @@
     "account-deletion:verify": "node scripts/verifyAccountDeletionPolicy.js",
     "placement:verify": "node scripts/verifyPlacementExamBank.js",
     "ranking:verify": "node scripts/verifyRankingLogic.js",
+    "data-analysis:seed": "node scripts/seedDataAnalysisCatalog.js",
+    "arena-foundation:verify": "node scripts/verifyArenaFoundation.js",
+    "ui:verify": "node scripts/verifyUiStyles.js",
     "private-mock:verify": "node scripts/verifyPrivateMockWorkflow.js",
     "private-mock:restriction-verify": "node scripts/verifyPrivateMockRestriction.js",
-    "private-mock:warnings-backfill": "node scripts/backfillPrivateMockWarnings.js"
+    "private-mock:warnings-backfill": "node scripts/backfillPrivateMockWarnings.js",
+    "identity-match:backfill": "node scripts/backfillIdentityMatchV1.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

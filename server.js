@@ -35,9 +35,11 @@ server.use((req, res, next) => {
 });
 
 const maathsRoutes = require('./routes/matths-routes');
+const goatArenaRoutes = require("./routes/goat-arena-routes");
 const apiRoutes = require("./routes/api-routes");
 
 server.use("/api/v1", apiRoutes);
+server.use("/", goatArenaRoutes);
 server.use("/", maathsRoutes);
 
 server.use((error, req, res, next) => {

@@ -97,6 +97,105 @@ function safeInternalHref(value) {
     : "/main";
 }
 
+function getKstDateKey(
+  date = new Date()
+) {
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone: "Asia/Seoul",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }
+    ).formatToParts(date);
+  const values =
+    Object.fromEntries(
+      parts.map((part) => [
+        part.type,
+        part.value,
+      ])
+    );
+
+  return [
+    values.year,
+    values.month,
+    values.day,
+  ].join("-");
+}
+
+function parseDashboardEndDate(
+  value,
+  now = new Date()
+) {
+  const dateKey =
+    String(value || "").trim();
+
+  if (!dateKey) {
+    return null;
+  }
+
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})$/.exec(
+      dateKey
+    );
+
+  if (!match) {
+    throw statusError(
+      400,
+      "공지 노출 종료 날짜를 확인해주세요."
+    );
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const calendarCheck =
+    new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day
+      )
+    );
+
+  if (
+    calendarCheck.getUTCFullYear() !==
+      year ||
+    calendarCheck.getUTCMonth() !==
+      month - 1 ||
+    calendarCheck.getUTCDate() !== day
+  ) {
+    throw statusError(
+      400,
+      "존재하지 않는 날짜입니다. 공지 노출 종료 날짜를 다시 선택해주세요."
+    );
+  }
+
+  if (
+    dateKey < getKstDateKey(now)
+  ) {
+    throw statusError(
+      400,
+      "공지 노출 종료일은 한국시간 기준 오늘 또는 이후 날짜만 선택할 수 있습니다."
+    );
+  }
+
+  // 선택한 날짜의 23:59:59.999(KST)까지 대시보드에 노출합니다.
+  return new Date(
+    Date.UTC(
+      year,
+      month - 1,
+      day,
+      14,
+      59,
+      59,
+      999
+    )
+  );
+}
+
 async function logAdminAction({
   adminUserId,
   targetUserId = null,
@@ -302,28 +401,11 @@ async function createAnnouncement({
     )
       ? String(boardCategory)
       : "notice";
-  let dashboardEndsAt =
-    null;
-  const endDate =
-    String(
-      dashboardEndDate || ""
-    ).trim();
-  if (endDate) {
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(
-        endDate
-      )
-    ) {
-      throw statusError(
-        400,
-        "공지 노출 종료 날짜를 확인해주세요."
-      );
-    }
-    dashboardEndsAt =
-      new Date(
-        `${endDate}T23:59:59.999+09:00`
-      );
-  }
+  const dashboardEndsAt =
+    parseDashboardEndDate(
+      dashboardEndDate,
+      now
+    );
   const announcementId =
     new mongoose.Types.ObjectId();
   const announcement =
@@ -836,7 +918,11 @@ async function getAdminUserDetail(
   const user =
     await User.findById(
       userId
-    ).lean();
+    )
+      .select(
+        "+identityMatchHash +identityMatchVersion"
+      )
+      .lean();
 
   if (!user) {
     throw statusError(
@@ -844,6 +930,34 @@ async function getAdminUserDetail(
       "사용자를 찾을 수 없습니다."
     );
   }
+
+  const identityMatchHash =
+    user.identityMatchHash;
+  const identityMatchVersion =
+    user.identityMatchVersion;
+  delete user.identityMatchHash;
+  delete user.identityMatchVersion;
+  const identitySchoolCode = String(
+    user.school?.code || ""
+  ).trim();
+  const identityMatches =
+    identityMatchHash &&
+    identitySchoolCode
+      ? await User.find({
+          _id: { $ne: user._id },
+          identityMatchHash,
+          identityMatchVersion,
+          "school.code":
+            identitySchoolCode,
+          accountStatus: {
+            $ne: "withdrawn",
+          },
+        })
+          .select(
+            "name realName email accountStatus school schoolGrade educationStatus"
+          )
+          .lean()
+      : [];
 
   const [
     progress,
@@ -902,7 +1016,7 @@ async function getAdminUserDetail(
       userId,
     })
       .select(
-        "title scopeType status scorePercent elapsedTimeMs submittedAt createdAt placementResult.placementScore placementResult.initialMmr placementResult.tier placementResult.division"
+        "title scopeType status scorePercent elapsedTimeMs submittedAt createdAt placementResult.placementScore placementResult.initialMmr placementResult.tier"
       )
       .sort({
         createdAt: -1,
@@ -984,6 +1098,7 @@ async function getAdminUserDetail(
       ranking.current,
     actionLogs,
     communityPosts,
+    identityMatches,
   };
 }
 
@@ -1701,6 +1816,21 @@ async function updateUserWarningCount({
     Number(user.warningCount) ||
     0;
   user.warningCount = count;
+  const wasWarningSuspension =
+    user.accountStatus ===
+      "suspended" &&
+    [
+      "경고 3회 누적",
+      "게시판 경고 3회 누적",
+    ].includes(
+      String(
+        user.accountStatusReason ||
+          ""
+      )
+    );
+  const autoReactivated =
+    count < 3 &&
+    wasWarningSuspension;
 
   if (
     count >= 3 &&
@@ -1719,6 +1849,19 @@ async function updateUserWarningCount({
       (Number(
         user.tokenVersion
       ) || 0) + 1;
+  } else if (autoReactivated) {
+    user.accountStatus =
+      "active";
+    user.accountStatusReason =
+      "";
+    user.accountStatusChangedAt =
+      new Date();
+    user.suspendedUntil = null;
+    user.isActive = true;
+    user.tokenVersion =
+      (Number(
+        user.tokenVersion
+      ) || 0) + 1;
   }
 
   await user.save();
@@ -1733,6 +1876,7 @@ async function updateUserWarningCount({
       nextCount: count,
       autoSuspended:
         count >= 3,
+      autoReactivated,
     },
   });
 

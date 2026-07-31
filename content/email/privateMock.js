@@ -8,13 +8,13 @@ function uploadReminder({
     missingFormLabels.join(", ");
   return {
     subject:
-      "[Matths] 이번 주 사설 모의고사를 업로드해주세요.",
+      "[Matths] 이번 주 공식 모의고사를 업로드해주세요.",
     heading:
-      "이번 주 사설 모의고사를 업로드해주세요.",
+      "이번 주 Matths 주간 공식 모의고사를 업로드해주세요.",
     kicker:
       "MATTHS OPERATIONS",
     text: [
-      "이번 주 Matths 사설 모의고사가 아직 등록되지 않았습니다.",
+      "이번 주 Matths 주간 공식 모의고사가 아직 등록되지 않았습니다.",
       "",
       `기준 주차: ${weekKey}`,
       `누락 회차: ${missing}`,
@@ -43,7 +43,7 @@ function evidenceRequest({
     inboxMessage:
       `${questionNumbers.join(", ")}번 문항의 풀이과정을 ${deadlineLabel}까지 제출해주세요. 검토 전에는 부정행위로 확정되지 않습니다.`,
     emailMessage: [
-      "사설 모의고사 응시 기록 중 추가 확인이 필요한 항목이 있어 풀이과정 제출을 요청드립니다.",
+      "Matths 주간 공식 모의고사 응시 기록 중 추가 확인이 필요한 항목이 있어 풀이과정 제출을 요청드립니다.",
       "본 요청은 부정행위를 확정하거나 페널티를 부여했다는 의미가 아니며, 공정한 검토를 위해 필요한 확인 절차입니다.",
       "",
       "[제출 요청 정보]",
@@ -63,13 +63,13 @@ function integrityPenalty({
   remainingWeekCount = 3,
 }) {
   const duration =
-    `이 안내 이후 진행되는 정규 사설 모의고사 ${remainingWeekCount}회(${remainingWeekCount}주)가 모두 종료될 때까지`;
+    `이 안내 이후 진행되는 Matths 주간 공식 모의고사 ${remainingWeekCount}회(${remainingWeekCount}주)가 모두 종료될 때까지`;
   return {
     title:
-      "사설 모의고사 이용 제한 안내",
+      "Matths 주간 공식 모의고사 이용 제한 안내",
     inboxMessage: [
       "제출한 소명 자료 검토가 완료되었습니다.",
-      `검토 결과 사설 모의고사 응시가 제한되었습니다.`,
+      `검토 결과 Matths 주간 공식 모의고사 응시가 제한되었습니다.`,
       `제한 기간: ${duration}`,
       `현재 남은 제한: ${remainingWeekCount}회(${remainingWeekCount}주)`,
       `적용 사유: ${reason}`,
@@ -78,7 +78,7 @@ function integrityPenalty({
     ].join("\n"),
     emailMessage: [
       "제출해주신 소명 자료와 해당 회차의 응시 기록을 종합하여 검토했습니다.",
-      "검토 결과, 사설 모의고사 운영 기준에 따라 이용 제한 조치가 적용되었음을 안내드립니다.",
+      "검토 결과, Matths 주간 공식 모의고사 운영 기준에 따라 이용 제한 조치가 적용되었음을 안내드립니다.",
       "",
       "[적용 조치]",
       `제한 기간: ${duration}`,
@@ -98,14 +98,14 @@ function integrityPenalty({
 function integrityCleared({ reason }) {
   return {
     title:
-      "사설 모의고사 소명 검토 결과 안내",
+      "Matths 주간 공식 모의고사 소명 검토 결과 안내",
     inboxMessage: [
       "제출한 소명 자료 검토가 완료되었습니다.",
       "검토 결과 페널티를 부여하지 않기로 결정했습니다.",
       reason
         ? `검토 결과: ${reason}`
         : "제출 자료와 응시 기록을 종합해 정상 응시로 처리했습니다.",
-      "해당 응시 기록은 주간 랭킹과 MMR 산정 대상에 정상 반영됩니다.",
+      "해당 응시 기록은 내부 실력 지표와 최종 종합 랭킹 산정 대상에 정상 반영됩니다.",
     ].join("\n"),
     emailMessage: [
       "제출해주신 소명 자료와 해당 회차의 응시 기록을 종합하여 검토했습니다.",
@@ -115,7 +115,7 @@ function integrityCleared({ reason }) {
       reason ||
         "제출 자료와 응시 기록을 종합해 정상 응시로 처리했습니다.",
       "",
-      "해당 응시 기록은 주간 랭킹과 MMR 산정 대상에 정상 반영됩니다.",
+      "해당 응시 기록은 내부 실력 지표와 최종 종합 랭킹 산정 대상에 정상 반영됩니다.",
       "검토 절차에 성실히 협조해주셔서 감사합니다.",
     ].join("\n"),
   };
@@ -142,7 +142,7 @@ function answerCorrection({
     message: [
       "안녕하세요. Matths 운영팀입니다.",
       "",
-      "사설 모의고사 검수 과정에서 정답 정보에 오류가 확인되어 아래와 같이 정정했습니다.",
+      "Matths 주간 공식 모의고사 검수 과정에서 정답 정보에 오류가 확인되어 아래와 같이 정정했습니다.",
       "응시에 혼선을 드린 점 진심으로 사과드립니다.",
       "",
       "[정정 내용]",
@@ -150,8 +150,8 @@ function answerCorrection({
       "[정정 사유]",
       reason,
       "",
-      "정정된 답안을 기준으로 해당 시험의 모든 응시 기록을 다시 채점했으며, 표준화 성적·전체 랭킹·MMR도 다시 산출했습니다.",
-      "변경된 결과는 사설 모의고사 결과 및 War of GOAT 랭킹 페이지에서 확인할 수 있습니다.",
+      "정정된 답안을 기준으로 해당 시험의 모든 응시 기록을 다시 채점했으며, 표준화 성적·전체 랭킹·GP도 다시 산출했습니다.",
+      "변경된 결과는 Matths 주간 공식 모의고사 결과 및 War of GOAT 랭킹 페이지에서 확인할 수 있습니다.",
       "",
       "같은 문제가 반복되지 않도록 출제·검수 절차를 보완하겠습니다.",
       "불편을 드려 다시 한번 죄송합니다.",
@@ -170,9 +170,9 @@ function objectionReceived({
 }) {
   return {
     subject:
-      "[Matths] 사설 모의고사 문제 이의신청 접수",
+      "[Matths] 주간 공식 모의고사 문제 이의신청 접수",
     text: [
-      "새 사설 모의고사 문제 이의신청이 접수되었습니다.",
+      "새 Matths 주간 공식 모의고사 문제 이의신청이 접수되었습니다.",
       "",
       `접수 번호: ${objectionId}`,
       `신청자: ${user.realName || user.name}`,
@@ -195,7 +195,7 @@ function objectionRejected({
 }) {
   return {
     title:
-      "사설 모의고사 문제 이의신청 검토 결과",
+      "Matths 주간 공식 모의고사 문제 이의신청 검토 결과",
     message: [
       `시험지: ${examTitle}`,
       `문항: ${questionNumber}번`,
@@ -213,13 +213,13 @@ function objectionAccepted({
 }) {
   return {
     title:
-      "사설 모의고사 문제 이의신청 반영 안내",
+      "Matths 주간 공식 모의고사 문제 이의신청 반영 안내",
     message: [
       `시험지: ${examTitle}`,
       `문항: ${questionNumber}번`,
       "검토 결과 이의신청을 받아들여 정답을 정정했습니다.",
       `반영 사유: ${reason}`,
-      "전체 응시 기록을 재채점하고 랭킹과 MMR을 다시 산출했습니다.",
+      "전체 응시 기록을 재채점하고 랭킹과 GP를 다시 산출했습니다.",
       "정확한 검토에 도움을 주셔서 감사합니다.",
     ].join("\n"),
   };

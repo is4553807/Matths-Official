@@ -1,0 +1,48 @@
+<%
+  const formatDate = (date) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      dateStyle: "long",
+      timeStyle: "short",
+    }).format(new Date(date));
+  const boardLabel = notice.boardType === "school"
+    ? `${notice.schoolName || user?.school?.name || "소속 학교"} 게시판`
+    : (notice.boardType === "retaker" ? "N수생 게시판" : "통합 고등학교 게시판");
+  const backHref = notice.boardType === "school"
+    ? "/community?board=school"
+    : (notice.boardType === "retaker" ? "/community?board=retaker" : "/community?board=high-school");
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="<%= notice.content.slice(0, 150) %>" />
+    <title><%= notice.title %> | Matths 게시판 공지</title>
+    <link rel="stylesheet" href="/css/community.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  </head>
+  <body>
+    <%- include("partials/public-navigation", { activePage: "community" }) %>
+    <main class="community-post-main community-announcement-main">
+      <a class="community-back" href="<%= backHref %>">← <%= boardLabel %></a>
+      <article class="community-post-detail community-announcement-detail">
+        <header>
+          <span><%= boardLabel %></span>
+          <b class="community-operation-badge">MATTHS NOTICE</b>
+          <% if (notice.isPinned) { %><b class="community-pin-badge">상단 고정</b><% } %>
+          <h1><%= notice.title %></h1>
+          <div>
+            <strong>Matths 운영팀</strong>
+            <small><%= formatDate(notice.updatedAt || notice.createdAt) %></small>
+          </div>
+        </header>
+        <div class="community-post-content"><%= notice.content %></div>
+      </article>
+      <div class="community-post-actions"><a href="<%= backHref %>">목록으로</a></div>
+    </main>
+    <footer class="community-footer"><span>© <%= new Date().getFullYear() %> Matths</span><div><a href="/terms">이용약관</a><a href="/privacy">개인정보처리방침</a></div></footer>
+  </body>
+</html>

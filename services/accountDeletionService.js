@@ -86,6 +86,10 @@ function buildAnonymousAccountUpdate({
         establishment: "",
         highSchoolType: "",
       },
+      educationStatus:
+        "graduated",
+      identityVerificationStatus:
+        "unverified",
       "withdrawal.anonymizedAt": now,
       "withdrawal.initiatedBy":
         initiatedBy,
@@ -97,6 +101,10 @@ function buildAnonymousAccountUpdate({
     $unset: {
       nameNormalized: 1,
       communityAnonymousNumber: 1,
+      birthDate: 1,
+      identityMatchHash: 1,
+      identityMatchVersion: 1,
+      identityDuplicateAlertedAt: 1,
     },
   };
 }

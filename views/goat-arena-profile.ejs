@@ -1,0 +1,179 @@
+<%
+  const activePool =
+    arenaAccess.activeDivision === "MAIN"
+      ? ranking.pools.main
+      : arenaAccess.activeDivision === "SUB"
+        ? ranking.pools.sub
+        : null;
+  const profileRanking =
+    arenaAccess.standing
+      ? {
+          tier: arenaAccess.standing.arenaRank,
+          division: arenaAccess.standing.division,
+          tierRank: arenaAccess.standing.arenaPosition,
+          gp: arenaAccess.standing.gp,
+        }
+      : activePool?.current || null;
+  const hasSeedGp =
+    seedState.gp !== null &&
+    seedState.gp !== undefined;
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="GOAT Arena Division, 티어 랭킹, GP 및 정기권 학습 가능 일수 프로필"
+    />
+    <meta name="theme-color" content="#070913" />
+    <title>내 프로필 | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <link
+      rel="icon"
+      type="image/jpeg"
+      href="/images/goat-arena/goat-arena-logo.jpg"
+    />
+    <script src="/js/goat-arena.js" defer></script>
+  </head>
+  <body class="goat-arena-page arena-inner-page">
+    <a class="arena-skip-link" href="#arena-profile-main">본문으로 바로가기</a>
+
+    <%- include("partials/goat-arena-navigation", {
+      activeArenaPage,
+      arenaUser,
+    }) %>
+
+    <main class="arena-page-main" id="arena-profile-main">
+      <header class="arena-page-heading">
+        <div>
+          <p>내 Arena 프로필</p>
+          <h1>GOAT Arena 프로필</h1>
+        </div>
+        <p>
+          Matths 학습 프로필과 분리된 Arena 전용 상태입니다.
+          현재 Division, 티어 내 순위, GP, 정기권 학습 가능 일수와 재구매 상태를 한곳에서 확인합니다.
+        </p>
+      </header>
+
+      <section class="arena-profile-hero">
+        <div class="arena-profile-identity">
+          <% if (profileRanking) { %>
+            <%- include("partials/rank-crest", {
+              tier: profileRanking.tier,
+              size: "lg",
+            }) %>
+          <% } else { %>
+            <span class="arena-seed-pending" aria-hidden="true">?</span>
+          <% } %>
+          <div>
+            <small>Arena 사용자</small>
+            <h2><%= arenaUser.displayName %></h2>
+            <p><%= arenaUser.schoolName %> · <%= arenaUser.gradeLabel %></p>
+          </div>
+        </div>
+
+        <dl>
+          <div>
+            <dt>현재 Division</dt>
+            <dd>
+              <%= arenaAccess.activeDivision
+                ? (arenaAccess.activeDivision === "SUB"
+                  ? "Sub Division"
+                  : "Main Division")
+                : "미배정" %>
+            </dd>
+          </div>
+          <div>
+            <dt>현재 티어</dt>
+            <dd>
+              <%= profileRanking
+                ? `${profileRanking.tier} ${profileRanking.division === "MAIN" ? "Main Division" : "Sub Division"}`
+                : "—" %>
+            </dd>
+          </div>
+          <div>
+            <dt>티어 내 랭킹</dt>
+            <dd>
+              <%= profileRanking?.tierRank ?? "—" %>
+              <small><%= profileRanking?.tierRank ? "위" : "" %></small>
+            </dd>
+          </div>
+          <div>
+            <dt>GP</dt>
+            <dd>
+              <%= profileRanking?.gp ?? seedState.gp ?? "—" %>
+              <small><%= profileRanking || hasSeedGp ? "GP" : "" %></small>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="arena-rights-section">
+        <header>
+          <div>
+            <small>학습권 패키지 현황</small>
+            <h2>정기권 학습 가능 일수</h2>
+          </div>
+          <p>
+            모든 Division은 현재 학습권 패키지의 정기권 학습 가능 일수·정산 대기 일수·페이백 점수를 최신 확정값으로 사용합니다.
+          </p>
+        </header>
+
+        <div class="arena-rights-grid">
+          <% if (arenaAccess.activeDivision === "SUB") { %>
+            <article>
+              <small>Sub Division 학습 가능 일수</small>
+              <strong><%= arenaAccess.learningRights.availableDays ?? "—" %></strong>
+              <span>현재 정기권 학습 가능 일수</span>
+            </article>
+            <article>
+              <small>정산 대기 일수</small>
+              <strong><%= arenaAccess.learningRights.lockedDays ?? "—" %></strong>
+              <span>진행 중 경기를 위해 정산 대기 중인 일수</span>
+            </article>
+            <article>
+              <small>페이백 점수</small>
+              <strong><%= arenaAccess.learningRights.paybackScoreDays ?? "—" %></strong>
+              <span>현재 학습권 패키지 이용 주기의 페이백 점수</span>
+            </article>
+            <article>
+              <small>페이백·Main Division까지</small>
+              <strong><%= arenaAccess.learningRights.neededForRefund ?? "—" %></strong>
+              <span>최소 페이백 점수 30점까지 더 필요한 점수</span>
+            </article>
+          <% } else if (arenaAccess.activeDivision === "MAIN") { %>
+            <article>
+              <small>Main Division 학습 가능 일수</small>
+              <strong><%= arenaAccess.learningRights.availableDays ?? "—" %></strong>
+              <span>현재 정기권 학습 가능 일수</span>
+            </article>
+            <article>
+              <small>정산 대기 일수</small>
+              <strong><%= arenaAccess.learningRights.lockedDays ?? "—" %></strong>
+              <span>진행 중 경기를 위해 정산 대기 중인 일수</span>
+            </article>
+            <article>
+              <small>이용 상태</small>
+              <strong>Main Division</strong>
+              <span>정기권 학습 가능 일수가 0일이 되면 Sub Division 강등·이용 잠금으로 전환됩니다.</span>
+            </article>
+          <% } else { %>
+            <article class="arena-rights-pending">
+              <small>학습권 패키지 이용 정보</small>
+              <strong>데이터 연결 대기</strong>
+              <span>
+                학습권 패키지 이용 정보와 Arena 순위가 확정되면 정기권 학습 가능 일수,
+                정산 대기 일수, 페이백 점수와 Arena 상태가 이곳에 표시됩니다.
+              </span>
+            </article>
+          <% } %>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

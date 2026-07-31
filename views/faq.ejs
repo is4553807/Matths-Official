@@ -8,7 +8,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Matths의 시각화 학습, 학습 과정, 교육과정과 이용 방법에 관한 자주 묻는 질문입니다." />
+    <meta name="description" content="Matths의 시각화 학습, 교육과정, War of GOAT와 GOAT Arena 이용 방법에 관한 자주 묻는 질문입니다." />
     <meta name="theme-color" content="#f7f8fc" />
     <title>자주 묻는 질문 | Matths</title>
     <link rel="stylesheet" href="/css/faq.css" />
@@ -29,13 +29,13 @@
         <span class="hero-symbol symbol-one" aria-hidden="true">?</span>
         <span class="hero-symbol symbol-two" aria-hidden="true">π</span>
         <div class="container hero-inner">
-          <p class="eyebrow"><span></span>FREQUENTLY ASKED QUESTIONS</p>
+          <p class="eyebrow"><span></span>자주 묻는 질문</p>
           <h1>궁금한 건 빠르게,<br /><em>수학은 깊게.</em></h1>
           <p>Matths의 학습 방식과 현재 제공 범위를 확인하세요.</p>
           <form class="faq-search" id="faq-search-form" role="search">
             <label class="sr-only" for="faq-search-input">FAQ 검색</label>
             <span class="search-icon" aria-hidden="true"></span>
-            <input id="faq-search-input" type="search" autocomplete="off" placeholder="예: 시각화 학습, 오답, 교육과정" aria-controls="faq-items" />
+            <input id="faq-search-input" type="search" autocomplete="off" placeholder="예: 시각화 학습, GP, Sub Division, 페이백" aria-controls="faq-items" />
             <button class="search-clear" id="faq-search-clear" type="button" hidden>지우기</button>
           </form>
           <p class="search-hint">현재 시작 범위 · 2022 개정 교육과정 고1 공통수학</p>
@@ -44,11 +44,12 @@
 
       <section class="popular-section" aria-labelledby="popular-title">
         <div class="container">
-          <div class="popular-heading"><p>QUICK ANSWERS</p><h2 id="popular-title">가장 많이 궁금해하는 내용</h2></div>
+          <div class="popular-heading"><p>빠른 답변</p><h2 id="popular-title">가장 많이 궁금해하는 내용</h2></div>
           <div class="popular-grid">
             <a class="popular-card" href="#faq-visual-learning"><span>01</span><div><small>시각화 학습</small><strong>그냥 애니메이션을 보는 건가요?</strong></div><b aria-hidden="true">→</b></a>
             <a class="popular-card" href="#faq-wrong-answer"><span>02</span><div><small>오답 학습</small><strong>틀린 문제는 어떻게 다시 설명하나요?</strong></div><b aria-hidden="true">→</b></a>
             <a class="popular-card" href="#faq-curriculum-scope"><span>03</span><div><small>교육과정</small><strong>현재 어떤 범위를 공부할 수 있나요?</strong></div><b aria-hidden="true">→</b></a>
+            <a class="popular-card" href="#faq-goat-arena"><span>04</span><div><small>GOAT Arena</small><strong>GP, 티어와 랭킹은 어떻게 연결되나요?</strong></div><b aria-hidden="true">→</b></a>
           </div>
         </div>
       </section>
@@ -56,20 +57,22 @@
       <section class="faq-section" id="faq-list" aria-labelledby="faq-title">
         <div class="container faq-layout">
           <aside class="category-panel" aria-label="FAQ 카테고리">
-            <p>QUESTION TYPE</p>
+            <p>질문 유형</p>
             <div class="category-buttons" role="group" aria-label="질문 유형 선택">
-              <button class="category-button active" type="button" data-category="all" aria-pressed="true"><span>전체</span><b>13</b></button>
+              <button class="category-button active" type="button" data-category="all" aria-pressed="true"><span>전체</span><b>28</b></button>
               <button class="category-button" type="button" data-category="service" aria-pressed="false"><span>서비스</span><b>3</b></button>
               <button class="category-button" type="button" data-category="learning" aria-pressed="false"><span>학습</span><b>4</b></button>
               <button class="category-button" type="button" data-category="curriculum" aria-pressed="false"><span>교육과정</span><b>3</b></button>
-              <button class="category-button" type="button" data-category="usage" aria-pressed="false"><span>이용</span><b>3</b></button>
+              <button class="category-button" type="button" data-category="usage" aria-pressed="false"><span>이용</span><b>5</b></button>
+              <button class="category-button" type="button" data-category="community" aria-pressed="false"><span>게시판</span><b>3</b></button>
+              <button class="category-button" type="button" data-category="arena" aria-pressed="false"><span>GOAT Arena</span><b>10</b></button>
             </div>
           </aside>
 
           <div class="faq-content">
             <div class="faq-heading">
-              <div><p class="section-kicker">ALL QUESTIONS</p><h2 id="faq-title">자주 묻는 질문</h2></div>
-              <p id="faq-result-count" aria-live="polite">13개의 질문</p>
+              <div><p class="section-kicker">전체 질문</p><h2 id="faq-title">자주 묻는 질문</h2></div>
+              <p id="faq-result-count" aria-live="polite">28개의 질문</p>
             </div>
 
             <div class="faq-items" id="faq-items">
@@ -130,12 +133,102 @@
 
               <details class="faq-item" data-category="usage" data-search="무료 가격 유료 요금 결제">
                 <summary><span class="question-meta"><b>이용</b><i>12</i></span><strong>무료로 사용할 수 있나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
-                <div class="faq-answer"><p>현재 회원가입 후 이용할 수 있는 학습 기능에는 별도 결제가 없습니다. 실제로 결제가 필요한 기능은 서비스 안에서 가격과 이용 조건을 확인한 뒤 선택할 수 있도록 구분합니다.</p></div>
+                <div class="faq-answer"><p>일반 Matths 학습 기능과 베타 혜택은 시기에 따라 무료로 제공될 수 있습니다. 다만 GOAT Arena의 공식 경쟁에는 무료 모드나 무료 방어자 풀이 없으며, 실제 결제 가격·학습권·페이백 조건은 결제 전에 확인할 수 있습니다.</p></div>
               </details>
 
               <details class="faq-item" data-category="usage" data-search="모바일 태블릿 스마트폰 컴퓨터 브라우저 지원">
                 <summary><span class="question-meta"><b>이용</b><i>13</i></span><strong>스마트폰이나 태블릿에서도 볼 수 있나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
                 <div class="faq-answer"><p>웹 브라우저에서 화면 크기에 맞게 배치가 바뀝니다. 다만 수식과 그래프를 함께 비교하는 장면은 넓은 화면에서 더 편하게 볼 수 있어, 긴 개념 학습에는 태블릿이나 컴퓨터 사용을 권장합니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="GOAT Arena 아레나 무엇 War of GOAT 경쟁 랭킹">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>14</i></span><strong>GOAT Arena는 무엇을 하는 곳인가요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>배치고사와 Matths 주간 공식 모의고사에서 확인한 실력을 바탕으로 같은 조건의 사용자끼리 Arena 순위를 두고 경쟁하는 공간입니다. 로그인과 배치고사를 마친 뒤 참여할 수 있으며, 현재 학습권 패키지 이용 상태에 따라 Sub Division 또는 Main Division 권한이 적용됩니다.</p></div>
+              </details>
+
+              <details class="faq-item" id="faq-goat-arena" data-category="arena" data-search="GOAT Point GP MMR 티어 랭킹 순위 Arena 차이 점수">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>15</i></span><strong>GP, 티어와 랭킹은 어떻게 연결되나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p><strong>GP</strong>는 GOAT Point의 약자입니다. 공개 Arena 상태는 티어·티어 내 순위·GP 세 값으로 구성되며, 화면의 “랭킹”은 전체 통합 순위가 아니라 현재 티어 안에서 몇 위인지를 뜻합니다. 공격자가 이기면 세 값이 통째로 교환됩니다. <strong>내부 실력 지표</strong>는 배치고사와 Matths 주간 공식 모의고사에서만 변경되며 1대1에는 사용하지 않습니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="랭킹 순위 전체 다른 티어 상위 20명 Sub Division Main Division">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>16</i></span><strong>랭킹은 전체 사용자 중 순위인가요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>아닙니다. 기본 랭킹은 <strong>각 티어 안에서의 순위</strong>입니다. 자신의 티어에서는 내 위치를 중심으로 위아래 사용자를 확인할 수 있고, 다른 티어는 티어별 상위 20명까지만 공개합니다. 현재 참여 Division과 관계없이 Sub Division·Main Division 랭킹은 모두 조회할 수 있습니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="배치고사 Matths 주간 공식 모의고사 버튼 잠김 비활성 응시 조건 추가 확인">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>17</i></span><strong>Matths 주간 공식 모의고사 버튼이 잠겨 있는 이유는 무엇인가요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>Matths 주간 공식 모의고사는 배치고사 결과가 있어야 응시할 수 있습니다. 결과 검증을 위한 추가 확인 단계나 랭킹 반영 절차가 남은 경우에도 일시적으로 잠길 수 있습니다. War of GOAT 화면의 상태 안내에서 먼저 완료해야 할 단계를 확인해 주세요.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="Sub Division Main Division 차이 권한 버튼 페이백 상위 전장">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>18</i></span><strong>Sub Division과 Main Division은 어떻게 다른가요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>Sub Division은 새 학습권 패키지의 정기권 학습 가능 일수·페이백 점수로 경쟁하며 페이백과 Main Division 진입을 목표로 하는 단계입니다. Main Division은 Sub Division에서 자격을 달성한 사용자의 상위 경쟁 단계입니다. Main Division 내부 경기 비용·상점·보호 기능 규칙은 아직 확정되지 않았습니다. 한 시점에는 하나의 경쟁 Division만 활성화됩니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="일반 쟁탈전 GP 점수 변동 Arena 순위 시험">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>19</i></span><strong>일반 쟁탈전에서 이기면 GP도 오르나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>공격자가 이기면 공격자와 방어자의 <strong>티어·티어 내 순위·GP가 한 묶음으로 교환</strong>됩니다. 공격자는 방어자의 이전 세 값을 받고, 방어자는 공격자의 이전 세 값을 받습니다. 방어자가 이기거나 최종 완전 동점이면 세 값은 그대로 유지되며 내부 실력 지표는 사용하거나 변경하지 않습니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="29일 정기권 학습 가능 일수 차감 보호 환불 학습일">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>20</i></span><strong>Arena에서 지면 정기권 학습 가능 일수도 줄어드나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>학습권 패키지를 정상 결제하면 정기권 학습 가능 일수 29일과 페이백 점수 29점으로 시작합니다. 매일의 시간 차감은 정기권 학습 가능 일수만 줄이지만, 정상 경기 정산은 두 값에 같은 방향으로 반영합니다. Sub Division 일반 쟁탈전은 1일, 복수전은 2일을 적용하므로 경기에서 지면 정기권 학습 가능 일수도 정책에 따라 줄어들 수 있습니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="페이백 환불 조건 30일 연속 학습 도전 2회 Sub Division">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>21</i></span><strong>Sub Division 페이백은 언제 받을 수 있나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>현재 학습권 패키지 이용 주기에서 연속 학습 30일 이상, 페이백 점수 30점 이상, <strong>유료 일반 쟁탈전</strong> 정상 완료 2회 이상, 공정성 검토 통과를 모두 충족해야 합니다. 복수전은 최소 일반 쟁탈전 2회에 포함하지 않습니다. 점수 29 이하는 0%, 30~34는 50%, 35~39는 80%, 40 이상은 100% 구간입니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="랭킹 공개 실명 닉네임 학교 개인정보 티어 GP 순위">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>22</i></span><strong>랭킹에는 어떤 프로필 정보가 공개되나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>표시 이름은 기본적으로 닉네임이며, 이용자가 명시적으로 실명 공개를 선택한 경우에만 실명을 사용합니다. 랭킹에는 서비스 설계상 필요한 학교, GP, 티어, 티어 내 순위와 Division이 표시될 수 있습니다. 이메일, 답안, 결제정보, 학습권 장부와 무결성 판정 자료는 공개하지 않습니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="community" data-search="게시판 글 하루 최대 5개 첨부파일 사진 업로드 용량 종류">
+                <summary><span class="question-meta"><b>게시판</b><i>23</i></span><strong>게시글과 첨부파일은 얼마나 올릴 수 있나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>게시글은 통합 고등학교·학교별·N수생 게시판을 합쳐 한국 시간 기준 하루 최대 5개까지 작성할 수 있습니다. 게시글 하나에는 사진 또는 허용된 문서·스프레드시트·프레젠테이션·PDF·ZIP 파일을 최대 5개, 파일당 10MB까지 첨부할 수 있습니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="community" data-search="게시판 경고 파일 사진 첨부 업로드 제한 권한 복구 0회">
+                <summary><span class="question-meta"><b>게시판</b><i>24</i></span><strong>게시판에 사진이나 파일을 첨부할 수 없는 이유는 무엇인가요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>경고 횟수가 1회 이상인 계정은 게시글과 댓글은 계속 작성할 수 있지만 사진·파일 첨부는 제한됩니다. 관리자가 신고와 제재 기록을 검토해 경고 횟수를 0회로 조정하면 첨부 권한이 즉시 자동 복구됩니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="usage" data-search="로그인 이메일 닉네임 유저네임 아이디">
+                <summary><span class="question-meta"><b>이용</b><i>25</i></span><strong>닉네임으로도 로그인할 수 있나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>네. 로그인 화면에서 가입 이메일 또는 닉네임 중 하나와 비밀번호를 입력할 수 있습니다. 비밀번호 재설정과 운영 알림은 계속 가입 이메일을 기준으로 진행됩니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="usage" data-search="회원가입 생년월일 본인확인 중복 계정 N수생 학교 졸업">
+                <summary><span class="question-meta"><b>이용</b><i>26</i></span><strong>생년월일은 왜 필요하고 N수생도 학교를 입력해야 하나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>생년월일은 향후 페이백 계좌의 동일인 확인에 사용하며 랭킹이나 게시판에 공개하지 않습니다. 자동 중복 검토 알림은 <strong>실명·생년월일·고등학교가 모두 일치</strong>할 때만 생성합니다. N수생은 학교 입력을 생략할 수 있어 이 자동 학교 비교에서는 제외되고, 고3 회원은 다음 학사연도에 N수생·졸업 상태로 전환되면서 기존 학교 정보가 보존됩니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="community" data-search="N수생 게시판 권한 자동 학교 게시판 열람">
+                <summary><span class="question-meta"><b>게시판</b><i>27</i></span><strong>N수생이 되면 어떤 게시판을 사용하나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>N수생 계정에는 학교별 게시판 대신 N수생 전용 게시판이 자동으로 표시됩니다. N수생 게시판은 현재 학년이 N수생인 회원만 열람하고 작성할 수 있으며 통합 고등학교 게시판은 함께 볼 수 있습니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="가격 변경 페이백 구간 변경 기존 이용자 재구매 공지 적용 규칙">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>28</i></span><strong>가격이나 페이백 구간이 바뀌면 진행 중인 주기도 바뀌나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>아닙니다. 이미 시작된 주기에는 시작할 때 확정된 규칙을 적용합니다. 다음 달 조건이 바뀌면 새 학습권 패키지 이용 주기부터 적용하며, 페이백을 받지 못하고 재구매하는 이용자에게는 결제 전에 가격과 페이백 구간 변경 내용을 별도로 안내합니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="20시 20:00 결제 첫날 차감 자정 학습권">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>29</i></span><strong>20시 전후에 결제하면 첫날 차감이 어떻게 달라지나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>서버가 확인한 KST 결제 승인 시각을 기준으로 합니다. 20:00 이전 결제는 당일이 1일차여서 활성화할 때 1일을 사용하고, 20:00:00부터는 당일 차감 없이 다음 00:00부터 1일차가 시작됩니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="Main Division 이용 종료 Sub Division 강등 72시간 재구매 랭크 탈환 배치고사">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>30</i></span><strong>Main Division에서 정기권 학습 가능 일수를 모두 사용하면 어떻게 되나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>정기권 학습 가능 일수가 0일이 되면 즉시 Sub Division으로 강등되고 Arena·Matths 주간 공식 모의고사·최종 종합 랭킹 참여가 잠깁니다. Main Division 달성 기록은 보존됩니다. 72시간 내 재구매하면 시험 없이 직전 Main Division 성과를 반영한 Sub Division 티어에서 시작하고, 이후에는 랭크 탈환 배치고사를 완료해야 합니다.</p></div>
+              </details>
+
+              <details class="faq-item" data-category="arena" data-search="일요일 15시 월요일 자정 잠금 최종 종합 랭킹 내부 실력 지표 주간 시험 반영값">
+                <summary><span class="question-meta"><b>GOAT Arena</b><i>31</i></span><strong>일요일에는 왜 Arena 순위가 잠기나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>일요일 15:00부터 월요일 00:00까지 Arena 순위 변경과 공개 최종 종합 랭킹을 고정하기 때문입니다. 이 시간에 정상 이용자의 Matths 주간 공식 모의고사 결과를 바탕으로 내부 실력 지표·주간 시험 랭킹 반영값·최종 종합 랭킹을 임시 계산한 뒤, 월요일 00:00에 한 번에 공개하면서 Arena를 다시 엽니다.</p></div>
               </details>
             </div>
 

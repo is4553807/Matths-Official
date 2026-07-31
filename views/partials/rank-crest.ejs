@@ -1,0 +1,42 @@
+<%
+  const rankCrestRawTier = String(
+    typeof tier !== "undefined" && tier
+      ? tier
+      : "브론즈"
+  ).trim().toLowerCase();
+  const rankCrestOptions = [
+    ["grandmaster", ["grandmaster", "그랜드마스터"]],
+    ["challenger", ["challenger", "챌린저", "goat", "고트"]],
+    ["platinum", ["platinum", "플래티넘"]],
+    ["diamond", ["diamond", "다이아몬드"]],
+    ["emerald", ["emerald", "에메랄드"]],
+    ["bronze", ["bronze", "브론즈"]],
+    ["silver", ["silver", "실버"]],
+    ["master", ["master", "마스터"]],
+    ["gold", ["gold", "골드"]],
+  ];
+  const rankCrestMatch =
+    rankCrestOptions.find(([, aliases]) =>
+      aliases.some((alias) =>
+        rankCrestRawTier.includes(alias)
+      )
+    ) || rankCrestOptions[5];
+  const rankCrestCode = rankCrestMatch[0];
+  const rankCrestSize =
+    ["sm", "md", "lg"].includes(
+      String(
+        typeof size !== "undefined"
+          ? size
+          : "md"
+      )
+    )
+      ? String(size)
+      : "md";
+%>
+<span
+  class="rank-crest rank-crest--<%= rankCrestCode %> rank-crest--<%= rankCrestSize %>"
+  data-rank-tier="<%= rankCrestCode %>"
+  aria-hidden="true"
+>
+  <span class="rank-crest__art"></span>
+</span>

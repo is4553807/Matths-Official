@@ -111,6 +111,34 @@ function getGradeLabel(schoolGrade) {
   }[Number(schoolGrade)] || "학년 미설정";
 }
 
+function promotedEducationState({
+  schoolGrade,
+  baseAcademicYear,
+  currentAcademicYear,
+}) {
+  const promotions = Math.max(
+    0,
+    Number(currentAcademicYear) -
+      Number(baseAcademicYear)
+  );
+  const nextGrade = Math.min(
+    13,
+    Math.max(
+      10,
+      Number(schoolGrade) || 10
+    ) + promotions
+  );
+
+  return {
+    schoolGrade: nextGrade,
+    educationStatus:
+      nextGrade === 13
+        ? "graduated"
+        : "enrolled",
+    promotions,
+  };
+}
+
 function getEffectiveStreak(
   user,
   now = new Date()
@@ -143,6 +171,11 @@ function lifecycleSessionView(
   return {
     schoolGrade:
       Number(user.schoolGrade) || 10,
+    educationStatus:
+      user.educationStatus ||
+      (Number(user.schoolGrade) === 13
+        ? "graduated"
+        : "enrolled"),
     currentStreak:
       getEffectiveStreak(user, now),
     longestStreak:
@@ -184,21 +217,17 @@ async function synchronizeUserLifecycle(
       : getAcademicYear(
           user.createdAt || now
         );
-  const promotions = Math.max(
-    0,
-    currentAcademicYear -
-      baseAcademicYear
-  );
-
-  if (promotions > 0) {
-    user.schoolGrade = Math.min(
-      13,
-      Math.max(
-        10,
-        Number(user.schoolGrade) || 10
-      ) + promotions
-    );
-  }
+  const educationState =
+    promotedEducationState({
+      schoolGrade:
+        user.schoolGrade,
+      baseAcademicYear,
+      currentAcademicYear,
+    });
+  user.schoolGrade =
+    educationState.schoolGrade;
+  user.educationStatus =
+    educationState.educationStatus;
 
   user.lastGradePromotionYear =
     currentAcademicYear;
@@ -216,8 +245,14 @@ async function synchronizeUserLifecycle(
 
 async function recordStudyActivity(
   userId,
-  now = new Date()
+  now = new Date(),
+  durationMs = 0
 ) {
+  const studySeconds = Math.max(
+    0,
+    Number(durationMs) || 0
+  ) / 1000;
+
   for (
     let attempt = 0;
     attempt < MAX_UPDATE_RETRIES;
@@ -259,6 +294,27 @@ async function recordStudyActivity(
     const previousLastStudyDate =
       user.lastStudyDate || null;
 
+    const update = {
+      $set: {
+        currentStreak:
+          nextStreak,
+        longestStreak: Math.max(
+          Number(
+            user.longestStreak
+          ) || 0,
+          nextStreak
+        ),
+        lastStudyDate: now,
+      },
+    };
+
+    if (studySeconds > 0) {
+      update.$inc = {
+        totalStudySeconds:
+          studySeconds,
+      };
+    }
+
     const updated =
       await User.findOneAndUpdate(
         {
@@ -266,19 +322,7 @@ async function recordStudyActivity(
           lastStudyDate:
             previousLastStudyDate,
         },
-        {
-          $set: {
-            currentStreak:
-              nextStreak,
-            longestStreak: Math.max(
-              Number(
-                user.longestStreak
-              ) || 0,
-              nextStreak
-            ),
-            lastStudyDate: now,
-          },
-        },
+        update,
         {
           returnDocument: "after",
           runValidators: true,
@@ -308,4 +352,7 @@ module.exports = {
   lifecycleSessionView,
   synchronizeUserLifecycle,
   recordStudyActivity,
+  _testing: {
+    promotedEducationState,
+  },
 };

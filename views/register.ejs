@@ -10,6 +10,7 @@
       ? oldInput
       : {
           realName: "",
+          birthDate: "",
           name: "",
           email: "",
           schoolGrade: 10,
@@ -100,7 +101,7 @@
     <main class="auth-layout">
       <!-- 왼쪽 서비스 소개 영역 -->
       <section
-        class="auth-visual register-visual"
+        class="auth-visual"
         aria-labelledby="visual-title"
       >
         <div class="visual-copy">
@@ -179,8 +180,8 @@
           </span>
 
           <span>
-            <b>FREE</b>
-            무료로 시작
+            <b>START</b>
+            가입하고 시작
           </span>
         </div>
       </section>
@@ -234,9 +235,23 @@
                 required
               />
 
-              <small class="field-guide">
-                본인 확인과 공정한 랭킹 운영에 사용하며, 기본값으로 공개하지 않습니다.
-              </small>
+            </div>
+
+            <!-- 생년월일 -->
+            <div class="form-field">
+              <label for="birthDate">
+                생년월일
+              </label>
+
+              <input
+                id="birthDate"
+                name="birthDate"
+                type="date"
+                value="<%= input.birthDate || '' %>"
+                autocomplete="bday"
+                min="1900-01-01"
+                required
+              />
             </div>
 
             <!-- 닉네임 -->
@@ -257,9 +272,6 @@
                 required
               />
 
-              <small class="field-guide">
-                랭킹전에서는 기본적으로 이 닉네임이 표시됩니다.
-              </small>
             </div>
 
             <!-- 이메일 -->
@@ -316,11 +328,24 @@
                 >
                   고등학교 3학년
                 </option>
+
+                <option
+                  value="13"
+                  <%= Number(input.schoolGrade) === 13
+                    ? "selected"
+                    : "" %>
+                >
+                  N수생
+                </option>
               </select>
             </div>
 
             <!-- 학교 선택 -->
-            <fieldset class="school-selector">
+            <fieldset
+              class="school-selector"
+              data-school-selector
+              <%= Number(input.schoolGrade) === 13 ? "hidden" : "" %>
+            >
               <legend>재학 중인 고등학교</legend>
 
               <!-- 시·도 -->
@@ -504,7 +529,7 @@
               class="submit-button"
               type="submit"
             >
-              무료로 시작하기
+              가입하고 시작하기
               <span aria-hidden="true">→</span>
             </button>
           </form>

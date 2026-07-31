@@ -600,7 +600,6 @@ async function disqualify(
     placementScore: 0,
     initialMmr: null,
     tier: "",
-    division: null,
     rankingStatus:
       "provisional",
     matchesUntilConfirmed: 2,
@@ -1367,10 +1366,6 @@ async function getPlacementDashboardData(
             ?.tierLabel ||
           standing.initialTier,
         tier: standing.tier,
-        division:
-          rankingProfile
-            ?.division ??
-          standing.division,
         rankPoint:
           rankingProfile
             ?.rankPoint ??
@@ -2140,7 +2135,6 @@ async function submitPlacementAttempt({
       profile.placementScore,
     initialMmr: null,
     tier: "",
-    division: null,
     rankingStatus:
       "provisional",
     matchesUntilConfirmed: 2,
@@ -2319,8 +2313,6 @@ function normalizeAttempt(
       initialMmr:
         result.initialMmr,
       tier: result.tier,
-      division:
-        result.division,
       rankingStatus:
         result.rankingStatus,
       cohortSize:

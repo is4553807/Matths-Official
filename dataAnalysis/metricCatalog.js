@@ -1,0 +1,252 @@
+/*
+ * GOAT Arena 첫 운영월에 반드시 실측할 지표와 현재 시뮬레이션 가정입니다.
+ * initialAssumption은 정책 확정값이 아니며, 첫 달 관측값으로 교체할 대상입니다.
+ */
+const FIRST_MONTH_METRICS = Object.freeze([
+  {
+    key: "access.zero_balance_rate",
+    label: "정기권 학습 가능 일수 0일 도달 비율",
+    unit: "percent",
+    category: "access-cycle",
+  },
+  {
+    key: "access.average_depletion_day",
+    label: "정기권 학습 가능 일수 평균 소진 일차",
+    unit: "day",
+    category: "access-cycle",
+  },
+  {
+    key: "access.first_use_before_20_share",
+    label: "첫 이용 20시 이전 비율",
+    unit: "percent",
+    category: "access-cycle",
+  },
+  {
+    key: "access.first_use_after_20_share",
+    label: "첫 이용 20시 이후 비율",
+    unit: "percent",
+    category: "access-cycle",
+  },
+  {
+    key: "access.first_use_before_20_conversion_rate",
+    label: "20시 이전 첫 이용자의 결제·활성 전환율",
+    unit: "percent",
+    category: "conversion",
+  },
+  {
+    key: "access.first_use_after_20_conversion_rate",
+    label: "20시 이후 첫 이용자의 결제·활성 전환율",
+    unit: "percent",
+    category: "conversion",
+  },
+  {
+    key: "access.first_day_deduction_support_rate",
+    label: "첫날 차감 관련 문의율",
+    unit: "percent",
+    category: "support",
+  },
+  {
+    key: "conversion.payment_view_to_purchase",
+    label: "결제 화면 진입 대비 결제 전환율",
+    unit: "percent",
+    category: "conversion",
+  },
+  {
+    key: "renewal.within_24h_rate",
+    label: "만료 후 24시간 내 재구매율",
+    unit: "percent",
+    category: "renewal",
+  },
+  {
+    key: "renewal.within_72h_rate",
+    label: "만료 후 72시간 내 재구매율",
+    unit: "percent",
+    category: "renewal",
+  },
+  {
+    key: "renewal.late_rate",
+    label: "72시간 이후 재구매율",
+    unit: "percent",
+    category: "renewal",
+  },
+  {
+    key: "renewal.assessment_completion_rate",
+    label: "랭크 탈환 배치고사 완료율",
+    unit: "percent",
+    category: "renewal",
+  },
+  {
+    key: "renewal.assessment_dropoff_rate",
+    label: "랭크 탈환 배치고사 이탈률",
+    unit: "percent",
+    category: "renewal",
+  },
+  {
+    key: "renewal.late_success_rate",
+    label: "72시간 이후 재구매 복귀 성공률",
+    unit: "percent",
+    category: "renewal",
+  },
+  {
+    key: "main.expiry_to_sub_rate",
+    label: "Main Division 만료 후 Sub Division 강등 비율",
+    unit: "percent",
+    category: "division",
+  },
+  {
+    key: "main.expiry_to_sub_tier_distribution",
+    label: "Main Division 만료 후 Sub Division 배치 티어 분포",
+    unit: "count",
+    category: "division",
+    dimensions: ["tier"],
+  },
+  {
+    key: "payback.recipient_rate",
+    label: "페이백 수령자 비율",
+    unit: "percent",
+    category: "payback",
+  },
+  {
+    key: "payback.payout_rate",
+    label: "결제액 대비 실제 페이백 지급률",
+    unit: "percent",
+    category: "payback",
+  },
+  {
+    key: "payback.band_distribution",
+    label: "페이백 구간별 인원 분포",
+    unit: "count",
+    category: "payback",
+    dimensions: ["ratePercent"],
+  },
+  {
+    key: "payback.average_paid_attacks",
+    label: "페이백 심사 이용자의 평균 유료 일반 쟁탈전 수",
+    unit: "count",
+    category: "payback",
+  },
+  {
+    key: "payback.failure_reason_distribution",
+    label: "페이백 미달 사유 분포",
+    unit: "count",
+    category: "payback",
+    dimensions: ["reasonCode"],
+  },
+  {
+    key: "weekly_mock.restriction_to_renewal_rate",
+    label: "Matths 주간 공식 모의고사 제한 노출 후 재구매율",
+    unit: "percent",
+    category: "conversion",
+  },
+  {
+    key: "match.active_defenders_by_tier",
+    label: "티어별 활성 방어자 수",
+    unit: "count",
+    category: "match-liquidity",
+    dimensions: ["division", "tier", "rankBucket"],
+  },
+  {
+    key: "match.request_success_rate",
+    label: "도전 신청 대비 매칭 성공률",
+    unit: "percent",
+    category: "match-liquidity",
+    dimensions: ["division", "tier", "rankBucket"],
+  },
+  {
+    key: "match.request_failure_reason_distribution",
+    label: "매칭 실패 사유 분포",
+    unit: "count",
+    category: "match-liquidity",
+    dimensions: [
+      "division",
+      "tier",
+      "rankBucket",
+      "reasonCode",
+    ],
+  },
+]);
+
+const FIRST_MONTH_ASSUMPTIONS = Object.freeze([
+  {
+    key: "simulation.challenger_win_rate",
+    label: "공격자 승률 가정",
+    value: 40,
+    unit: "percent",
+    minimumSampleSize: 100,
+  },
+  {
+    key: "simulation.bronze_self_return_rate",
+    label: "브론즈 이용자의 자체 재구매율 가정",
+    value: 20,
+    unit: "percent",
+    minimumSampleSize: 100,
+  },
+  {
+    key: "simulation.segment_light_share",
+    label: "저활동 이용자 비중 가정",
+    value: 50,
+    unit: "percent",
+    minimumSampleSize: 100,
+  },
+  {
+    key: "simulation.segment_regular_share",
+    label: "중활동 이용자 비중 가정",
+    value: 35,
+    unit: "percent",
+    minimumSampleSize: 100,
+  },
+  {
+    key: "simulation.segment_heavy_share",
+    label: "고활동 이용자 비중 가정",
+    value: 15,
+    unit: "percent",
+    minimumSampleSize: 100,
+  },
+  {
+    key: "simulation.segment_light_average_attacks",
+    label: "저활동 이용자 평균 도전 수 가정",
+    value: 2.5,
+    unit: "count",
+    minimumSampleSize: 100,
+  },
+  {
+    key: "simulation.segment_regular_average_attacks",
+    label: "중활동 이용자 평균 도전 수 가정",
+    value: 7,
+    unit: "count",
+    minimumSampleSize: 100,
+  },
+  {
+    key: "simulation.segment_heavy_average_attacks",
+    label: "고활동 이용자 평균 도전 수 가정",
+    value: 14,
+    unit: "count",
+    minimumSampleSize: 100,
+  },
+  {
+    key: "simulation.segment_light_streak_probability",
+    label: "저활동 이용자 30일 연속학습 확률 가정",
+    value: 65,
+    unit: "percent",
+    minimumSampleSize: 100,
+  },
+  {
+    key: "simulation.segment_regular_streak_probability",
+    label: "중활동 이용자 30일 연속학습 확률 가정",
+    value: 75,
+    unit: "percent",
+    minimumSampleSize: 100,
+  },
+  {
+    key: "simulation.segment_heavy_streak_probability",
+    label: "고활동 이용자 30일 연속학습 확률 가정",
+    value: 85,
+    unit: "percent",
+    minimumSampleSize: 100,
+  },
+]);
+
+module.exports = {
+  FIRST_MONTH_ASSUMPTIONS,
+  FIRST_MONTH_METRICS,
+};

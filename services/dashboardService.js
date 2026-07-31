@@ -4,8 +4,9 @@ const {
     ConceptLesson,
     DailyPlan,
     ProblemAttempt,
-    LearningEvent,
     AssessmentAttempt,
+    QuickPracticeAttempt,
+    PrivateMockExamAttempt,
     Announcement,
     UserNotification,
 } = require("../models/matthsModel");
@@ -18,6 +19,8 @@ const {
     formatDashboardFormula,
 } = require("./mathTextService");
 const {
+    TIME_ZONE,
+    getKoreanDateKey,
     getEffectiveStreak,
 } = require("./userLifecycleService");
 const {
@@ -40,27 +43,6 @@ const ERROR_LABELS = {
     unknown: "풀이 과정을 다시 확인해야 함",
 };
 
-function getKoreanDateKey(date = new Date()) {
-    const formatter = new Intl.DateTimeFormat(
-        "en-US",
-        {
-            timeZone: "Asia/Seoul",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-        }
-    );
-
-    const parts = Object.fromEntries(
-        formatter
-            .formatToParts(date)
-            .filter((part) => part.type !== "literal")
-            .map((part) => [part.type, part.value])
-    );
-
-    return `${parts.year}-${parts.month}-${parts.day}`;
-}
-
 function createDateSeries(length = 14) {
     return Array.from(
         { length },
@@ -76,6 +58,353 @@ function createDateSeries(length = 14) {
             };
         }
     );
+}
+
+function koreanDateKeyToUtc(dateKey) {
+    return new Date(
+        `${dateKey}T00:00:00+09:00`
+    );
+}
+
+function dateToKoreanKeyExpression(field) {
+    return {
+        $dateToString: {
+            date: field,
+            format: "%Y-%m-%d",
+            timezone: TIME_ZONE,
+        },
+    };
+}
+
+function countGradedQuestionsExpression(
+    field = "$questions"
+) {
+    return {
+        $size: {
+            $filter: {
+                input: {
+                    $ifNull: [field, []],
+                },
+                as: "question",
+                cond: {
+                    $in: [
+                        "$$question.isCorrect",
+                        [true, false],
+                    ],
+                },
+            },
+        },
+    };
+}
+
+function countCorrectQuestionsExpression(
+    field = "$questions"
+) {
+    return {
+        $size: {
+            $filter: {
+                input: {
+                    $ifNull: [field, []],
+                },
+                as: "question",
+                cond: {
+                    $eq: [
+                        "$$question.isCorrect",
+                        true,
+                    ],
+                },
+            },
+        },
+    };
+}
+
+function countBooleanAnswersExpression(
+    field = "$correctByQuestion"
+) {
+    return {
+        $size: {
+            $filter: {
+                input: {
+                    $ifNull: [field, []],
+                },
+                as: "answer",
+                cond: {
+                    $in: [
+                        "$$answer",
+                        [true, false],
+                    ],
+                },
+            },
+        },
+    };
+}
+
+function countCorrectBooleanAnswersExpression(
+    field = "$correctByQuestion"
+) {
+    return {
+        $size: {
+            $filter: {
+                input: {
+                    $ifNull: [field, []],
+                },
+                as: "answer",
+                cond: {
+                    $eq: [
+                        "$$answer",
+                        true,
+                    ],
+                },
+            },
+        },
+    };
+}
+
+function mergeActivityRows(rowGroups) {
+    const merged = new Map();
+
+    for (const rows of rowGroups) {
+        for (const row of rows) {
+            const dateKey = String(row._id || "");
+
+            if (!dateKey) continue;
+
+            const current = merged.get(dateKey) || {
+                durationMs: 0,
+                attempts: 0,
+                correct: 0,
+            };
+
+            current.durationMs += Math.max(
+                0,
+                Number(row.durationMs) || 0
+            );
+            current.attempts += Math.max(
+                0,
+                Number(row.attempts) || 0
+            );
+            current.correct += Math.max(
+                0,
+                Number(row.correct) || 0
+            );
+
+            merged.set(dateKey, current);
+        }
+    }
+
+    return merged;
+}
+
+async function getLearningActivityRows({
+    userId,
+    start,
+    end,
+}) {
+    const dateRange = {
+        $gte: start,
+        $lt: end,
+    };
+
+    const [
+        practiceRows,
+        quickPracticeRows,
+        assessmentRows,
+        privateMockRows,
+    ] = await Promise.all([
+        /*
+         * ProblemAttempt에는 평가·40초 눈풀이의 오답노트 복제본도
+         * 들어간다. 해당 원본 컬렉션에서 별도로 집계하므로 여기서는
+         * 일반 개념·오답 복습 풀이만 남겨 중복과 정답률 왜곡을 막는다.
+         */
+        ProblemAttempt.aggregate([
+            {
+                $match: {
+                    userId,
+                    submittedAt: dateRange,
+                },
+            },
+            {
+                $lookup: {
+                    from: "problems",
+                    localField: "problemId",
+                    foreignField: "_id",
+                    as: "problem",
+                },
+            },
+            {
+                $match: {
+                    "problem.tags": {
+                        $nin: [
+                            "assessment",
+                            "quick-practice",
+                        ],
+                    },
+                },
+            },
+            {
+                $group: {
+                    _id:
+                        dateToKoreanKeyExpression(
+                            "$submittedAt"
+                        ),
+                    durationMs: {
+                        $sum: {
+                            $ifNull: [
+                                "$responseTimeMs",
+                                0,
+                            ],
+                        },
+                    },
+                    attempts: {
+                        $sum: 1,
+                    },
+                    correct: {
+                        $sum: {
+                            $cond: [
+                                "$isCorrect",
+                                1,
+                                0,
+                            ],
+                        },
+                    },
+                },
+            },
+        ]),
+
+        QuickPracticeAttempt.aggregate([
+            {
+                $match: {
+                    userId,
+                    submittedAt: dateRange,
+                    status: {
+                        $in: [
+                            "correct",
+                            "wrong",
+                            "expired",
+                        ],
+                    },
+                },
+            },
+            {
+                $group: {
+                    _id:
+                        dateToKoreanKeyExpression(
+                            "$submittedAt"
+                        ),
+                    durationMs: {
+                        $sum: {
+                            $ifNull: [
+                                "$responseTimeMs",
+                                0,
+                            ],
+                        },
+                    },
+                    attempts: {
+                        $sum: 1,
+                    },
+                    correct: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $eq: [
+                                        "$status",
+                                        "correct",
+                                    ],
+                                },
+                                1,
+                                0,
+                            ],
+                        },
+                    },
+                },
+            },
+        ]),
+
+        AssessmentAttempt.aggregate([
+            {
+                $match: {
+                    userId,
+                    submittedAt: dateRange,
+                    status: {
+                        $in: [
+                            "submitted",
+                            "disqualified",
+                        ],
+                    },
+                },
+            },
+            {
+                $group: {
+                    _id:
+                        dateToKoreanKeyExpression(
+                            "$submittedAt"
+                        ),
+                    durationMs: {
+                        $sum: {
+                            $ifNull: [
+                                "$elapsedTimeMs",
+                                0,
+                            ],
+                        },
+                    },
+                    attempts: {
+                        $sum:
+                            countGradedQuestionsExpression(),
+                    },
+                    correct: {
+                        $sum:
+                            countCorrectQuestionsExpression(),
+                    },
+                },
+            },
+        ]),
+
+        PrivateMockExamAttempt.aggregate([
+            {
+                $match: {
+                    userId,
+                    submittedAt: dateRange,
+                    status: {
+                        $in: [
+                            "submitted",
+                            "expired",
+                        ],
+                    },
+                },
+            },
+            {
+                $group: {
+                    _id:
+                        dateToKoreanKeyExpression(
+                            "$submittedAt"
+                        ),
+                    durationMs: {
+                        $sum: {
+                            $ifNull: [
+                                "$elapsedMs",
+                                0,
+                            ],
+                        },
+                    },
+                    attempts: {
+                        $sum:
+                            countBooleanAnswersExpression(),
+                    },
+                    correct: {
+                        $sum:
+                            countCorrectBooleanAnswersExpression(),
+                    },
+                },
+            },
+        ]),
+    ]);
+
+    return mergeActivityRows([
+        practiceRows,
+        quickPracticeRows,
+        assessmentRows,
+        privateMockRows,
+    ]);
 }
 
 function createCurriculumIndex(curriculumData) {
@@ -222,13 +551,10 @@ async function getDashboardData(userId) {
     const dateSeries = createDateSeries(14);
     const currentWeekSeries = dateSeries.slice(7);
 
-    const aggregateStart = new Date(
-        `${dateSeries[0].dateKey}T00:00:00+09:00`
-    );
-
-    const currentWeekStart = new Date(
-        `${currentWeekSeries[0].dateKey}T00:00:00+09:00`
-    );
+    const aggregateStart =
+        koreanDateKeyToUtc(
+            dateSeries[0].dateKey
+        );
 
     const todayKey =
         currentWeekSeries[
@@ -239,9 +565,7 @@ async function getDashboardData(userId) {
         progressDocuments,
         lessons,
         dailyPlan,
-        attemptStats,
-        activityRows,
-        totalSolvedProblems,
+        activityByDate,
         pendingReviewCount,
         recentWrongAttempts,
         assessmentAttempts,
@@ -271,78 +595,13 @@ async function getDashboardData(userId) {
             dateKey: todayKey,
         }).lean(),
 
-        ProblemAttempt.aggregate([
-            {
-                $match: {
-                    userId: user._id,
-                    submittedAt: {
-                        $gte: aggregateStart,
-                    },
-                },
-            },
-            {
-                $group: {
-                    _id: {
-                        $cond: [
-                            {
-                                $gte: [
-                                    "$submittedAt",
-                                    currentWeekStart,
-                                ],
-                            },
-                            "current",
-                            "previous",
-                        ],
-                    },
-
-                    attempts: {
-                        $sum: 1,
-                    },
-
-                    correct: {
-                        $sum: {
-                            $cond: [
-                                "$isCorrect",
-                                1,
-                                0,
-                            ],
-                        },
-                    },
-                },
-            },
-        ]),
-
-        LearningEvent.aggregate([
-            {
-                $match: {
-                    userId: user._id,
-                    occurredAt: {
-                        $gte: aggregateStart,
-                    },
-                    durationMs: {
-                        $ne: null,
-                    },
-                },
-            },
-            {
-                $group: {
-                    _id: {
-                        $dateToString: {
-                            date: "$occurredAt",
-                            format: "%Y-%m-%d",
-                            timezone: "Asia/Seoul",
-                        },
-                    },
-
-                    durationMs: {
-                        $sum: "$durationMs",
-                    },
-                },
-            },
-        ]),
-
-        ProblemAttempt.countDocuments({
+        getLearningActivityRows({
             userId: user._id,
+            start: aggregateStart,
+            end: new Date(
+                koreanDateKeyToUtc(todayKey)
+                    .getTime() + DAY_MS
+            ),
         }),
 
         ProblemAttempt.countDocuments({
@@ -550,15 +809,19 @@ async function getDashboardData(userId) {
         : null;
 
     const activityMap = new Map(
-        activityRows.map((row) => [
-            row._id,
-            Math.round(row.durationMs / 60000),
-        ])
+        [...activityByDate.entries()].map(
+            ([dateKey, activity]) => [
+                dateKey,
+                Math.round(
+                    activity.durationMs / 60000
+                ),
+            ]
+        )
     );
 
     const weekdayFormatter =
         new Intl.DateTimeFormat("ko-KR", {
-            timeZone: "Asia/Seoul",
+            timeZone: TIME_ZONE,
             weekday: "short",
         });
 
@@ -602,27 +865,57 @@ async function getDashboardData(userId) {
         )
     );
 
+    const summarizeAttempts = (series) =>
+        series.reduce(
+            (summary, { dateKey }) => {
+                const activity =
+                    activityByDate.get(dateKey);
+
+                if (!activity) {
+                    return summary;
+                }
+
+                summary.attempts +=
+                    activity.attempts;
+                summary.correct +=
+                    activity.correct;
+                return summary;
+            },
+            {
+                attempts: 0,
+                correct: 0,
+            }
+        );
+
     const currentAttemptStats =
-        attemptStats.find(
-            (stat) => stat._id === "current"
-        ) || {
-            attempts: 0,
-            correct: 0,
-        };
+        summarizeAttempts(
+            currentWeekSeries
+        );
 
     const previousAttemptStats =
-        attemptStats.find(
-            (stat) => stat._id === "previous"
-        ) || {
-            attempts: 0,
-            correct: 0,
-        };
+        summarizeAttempts(
+            dateSeries.slice(0, 7)
+        );
 
     const currentCorrectRate =
         getAttemptRate(currentAttemptStats);
 
     const previousCorrectRate =
         getAttemptRate(previousAttemptStats);
+
+    const todayStudyMinutes =
+        activityMap.get(todayKey) || 0;
+    const activeStudyDays =
+        weeklyActivityDays.filter(
+            (day) => day.minutes > 0
+        ).length;
+    const averageStudyMinutes =
+        activeStudyDays
+            ? Math.round(
+                  currentWeekMinutes /
+                      activeStudyDays
+              )
+            : 0;
 
     const weakConcepts = progressDocuments
         .filter(
@@ -880,13 +1173,17 @@ async function getDashboardData(userId) {
             correctRateDetail: signedText(
                 currentCorrectRate -
                     previousCorrectRate,
-                "%"
+                "%p"
             ),
-
-            totalSolvedProblems,
 
             weeklySolvedProblems:
                 currentAttemptStats.attempts,
+
+            todayStudyMinutes,
+
+            activeStudyDays,
+
+            averageStudyMinutes,
 
             pendingReviewCount,
         },

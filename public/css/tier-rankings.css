@@ -1,0 +1,532 @@
+.tier-ranking-hub {
+  --tier-surface: #fff;
+  --tier-surface-soft: #f7f8fc;
+  --tier-line: #e1e5ef;
+  --tier-text: #171c2f;
+  --tier-muted: #778096;
+  --tier-accent: #3157f6;
+  --tier-accent-soft: #eef1ff;
+  --tier-shadow:
+    0 18px 45px
+    rgba(29, 42, 103, 0.07);
+}
+
+.tier-ranking-hub.ranking-theme-arena {
+  --tier-surface:
+    rgba(12, 17, 39, 0.92);
+  --tier-surface-soft:
+    rgba(17, 24, 53, 0.86);
+  --tier-line:
+    rgba(139, 158, 239, 0.17);
+  --tier-text: #f3f5ff;
+  --tier-muted: #8995b8;
+  --tier-accent: #7c6cff;
+  --tier-accent-soft:
+    rgba(118, 84, 247, 0.13);
+  --tier-shadow:
+    0 28px 80px
+    rgba(2, 4, 15, 0.36);
+}
+
+.ranking-pool-tabs {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 7px;
+  background:
+    var(--tier-surface-soft);
+  border: 1px solid
+    var(--tier-line);
+  border-radius: 17px;
+}
+
+.ranking-pool-tabs button {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  color: var(--tier-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ranking-pool-tabs button span {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.ranking-pool-tabs button small {
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.ranking-pool-tabs
+  button[aria-selected="true"] {
+  color: #fff;
+  background:
+    linear-gradient(
+      115deg,
+      #683fe0,
+      #3157f6 58%,
+      #1597b8
+    );
+  border-color:
+    rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 12px 27px
+    rgba(68, 65, 199, 0.22);
+}
+
+.ranking-pool-panel[hidden],
+.tier-board-panel[hidden] {
+  display: none;
+}
+
+.tier-my-ranking {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 32px;
+  margin-top: 14px;
+  padding: 25px 28px;
+  color: var(--tier-text);
+  background:
+    radial-gradient(
+      circle at 90% 4%,
+      rgba(101, 91, 255, 0.14),
+      transparent 34%
+    ),
+    var(--tier-surface);
+  border: 1px solid
+    var(--tier-line);
+  border-radius: 21px;
+  box-shadow:
+    var(--tier-shadow);
+}
+
+.tier-my-ranking-identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.tier-my-ranking
+  .rank-crest {
+  --rank-crest-width: 74px;
+  height:
+    calc(
+      var(--rank-crest-width) *
+        1.75
+    );
+  margin-block: -22px;
+}
+
+.tier-my-ranking-identity
+  > div {
+  min-width: 0;
+}
+
+.tier-my-ranking small,
+.tier-ranking-board
+  header
+  > div
+  > small {
+  color: var(--tier-accent);
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 1.5px;
+}
+
+.tier-my-ranking h2 {
+  margin: 6px 0 0;
+  color: var(--tier-text);
+  font-size: 24px;
+  letter-spacing: -1px;
+}
+
+.tier-my-ranking p {
+  margin: 7px 0 0;
+  color: var(--tier-muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.tier-my-ranking dl {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(105px, 1fr));
+  gap: 7px;
+  margin: 0;
+}
+
+.tier-my-ranking dl > div {
+  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 13px;
+  background:
+    var(--tier-surface-soft);
+  border: 1px solid
+    var(--tier-line);
+  border-radius: 13px;
+}
+
+.tier-my-ranking dt {
+  color: var(--tier-muted);
+  font-size: 7px;
+}
+
+.tier-my-ranking dd {
+  margin: 7px 0 0;
+  color: var(--tier-text);
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.tier-my-ranking dd small {
+  margin-left: 3px;
+  color: var(--tier-muted);
+  font-size: 7px;
+  letter-spacing: 0;
+}
+
+.tier-my-ranking
+  dd.ranking-pool-name {
+  font-size: 11px;
+}
+
+.tier-ranking-unassigned {
+  grid-template-columns: 1fr;
+  min-height: 150px;
+}
+
+.tier-ranking-board {
+  margin-top: 14px;
+  padding: 24px;
+  background:
+    var(--tier-surface);
+  border: 1px solid
+    var(--tier-line);
+  border-radius: 21px;
+  box-shadow:
+    var(--tier-shadow);
+}
+
+.tier-ranking-board > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 25px;
+  margin-bottom: 18px;
+}
+
+.tier-ranking-board h3 {
+  margin: 6px 0 0;
+  color: var(--tier-text);
+  font-size: 24px;
+  letter-spacing: -1px;
+}
+
+.tier-ranking-board
+  header
+  > div
+  > p {
+  margin: 7px 0 0;
+  color: var(--tier-muted);
+  font-size: 8px;
+}
+
+.tier-ranking-board
+  header
+  > label {
+  display: grid;
+  gap: 6px;
+  color: var(--tier-muted);
+  font-size: 7px;
+  font-weight: 850;
+}
+
+.tier-ranking-board select {
+  min-width: 210px;
+  min-height: 42px;
+  padding: 0 36px 0 12px;
+  color: var(--tier-text);
+  background:
+    var(--tier-surface-soft);
+  border: 1px solid
+    var(--tier-line);
+  border-radius: 11px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.tier-ranking-context {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 8px;
+  padding: 0 13px;
+  color: var(--tier-muted);
+  background:
+    var(--tier-surface-soft);
+  border: 1px solid
+    var(--tier-line);
+  border-radius: 11px;
+  font-size: 8px;
+}
+
+.tier-ranking-context strong {
+  margin-right: 5px;
+  color: var(--tier-text);
+}
+
+.tier-ranking-scroll {
+  max-height: 410px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border-radius: 13px;
+}
+
+.tier-ranking-scroll:focus-visible {
+  outline: 3px solid
+    color-mix(
+      in srgb,
+      var(--tier-accent) 28%,
+      transparent
+    );
+  outline-offset: 2px;
+}
+
+.tier-ranking-table {
+  min-width: 730px;
+  display: grid;
+  gap: 6px;
+}
+
+.tier-ranking-row {
+  min-height: 72px;
+  display: grid;
+  grid-template-columns:
+    55px 150px 1.1fr
+    1.15fr 76px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  color: var(--tier-muted);
+  background:
+    var(--tier-surface-soft);
+  border: 1px solid
+    var(--tier-line);
+  border-radius: 12px;
+  font-size: 9px;
+}
+
+.tier-ranking-row.is-me {
+  color: var(--tier-text);
+  background:
+    var(--tier-accent-soft);
+  border-color:
+    color-mix(
+      in srgb,
+      var(--tier-accent) 42%,
+      var(--tier-line)
+    );
+  box-shadow:
+    inset 3px 0
+    var(--tier-accent);
+}
+
+.tier-ranking-row > b {
+  color: var(--tier-text);
+  font-size: 17px;
+}
+
+.tier-ranking-row > strong {
+  overflow: hidden;
+  color: var(--tier-text);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tier-ranking-row > em {
+  color: var(--tier-accent);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.tier-ranking-row
+  > span
+  > small {
+  display: block;
+  margin-top: 4px;
+  color: var(--tier-muted);
+  font-size: 7px;
+}
+
+.tier-ranking-crest-cell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.tier-ranking-crest-cell
+  .rank-crest {
+  --rank-crest-width: 36px;
+  height: 58px;
+}
+
+.tier-ranking-crest-cell
+  > small {
+  margin: 0 !important;
+  color: var(--tier-text) !important;
+  font-size: 8px !important;
+}
+
+.tier-ranking-head {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  min-height: 37px;
+  color: var(--tier-muted);
+  background:
+    var(--tier-surface);
+  border-color: transparent;
+  border-bottom-color:
+    var(--tier-line);
+  border-radius: 0;
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.tier-ranking-empty {
+  min-height: 260px;
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  color: var(--tier-muted);
+  background:
+    var(--tier-surface-soft);
+  border: 1px dashed
+    var(--tier-line);
+  border-radius: 14px;
+  text-align: center;
+}
+
+.tier-ranking-empty strong {
+  color: var(--tier-text);
+  font-size: 13px;
+}
+
+.tier-ranking-empty span {
+  font-size: 9px;
+}
+
+@media (max-width: 920px) {
+  .tier-my-ranking {
+    grid-template-columns: 1fr;
+  }
+
+  .tier-my-ranking dl {
+    grid-template-columns:
+      repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 650px) {
+  .ranking-pool-tabs
+    button {
+    min-height: 52px;
+    padding: 0 12px;
+  }
+
+  .ranking-pool-tabs
+    button
+    span {
+    font-size: 9px;
+  }
+
+  .tier-my-ranking,
+  .tier-ranking-board {
+    padding: 18px;
+  }
+
+  .tier-my-ranking-identity {
+    align-items: flex-start;
+  }
+
+  .tier-my-ranking
+    .rank-crest {
+    --rank-crest-width: 62px;
+  }
+
+  .tier-my-ranking dl {
+    grid-template-columns: 1fr;
+  }
+
+  .tier-my-ranking dl > div {
+    min-height: 65px;
+  }
+
+  .tier-ranking-board
+    > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tier-ranking-board select {
+    width: 100%;
+  }
+
+  .tier-ranking-context {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    padding-block: 10px;
+  }
+}
+
+/* Ranking values must remain readable inside the fixed-height scroll panel. */
+.ranking-theme-arena {
+  --tier-muted: #aeb9d8;
+}
+
+.ranking-pool-tabs button small,
+.tier-my-ranking small,
+.tier-ranking-board header > div > small,
+.tier-my-ranking dt,
+.tier-my-ranking dd small,
+.tier-ranking-board header > div > p,
+.tier-ranking-board header > label,
+.tier-ranking-context,
+.tier-ranking-row > span > small,
+.tier-ranking-crest-cell > small,
+.tier-ranking-head {
+  font-size: 10px !important;
+  line-height: 1.45;
+}
+
+.tier-my-ranking p,
+.tier-ranking-board select,
+.tier-ranking-row,
+.tier-ranking-empty span {
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.tier-ranking-row > strong {
+  font-size: 12px;
+}

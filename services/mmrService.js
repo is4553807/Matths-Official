@@ -348,21 +348,6 @@ function calculateRankPoint({
   );
 }
 
-function divisionFromRankPoint(
-  rankPoint
-) {
-  return Math.max(
-    1,
-    4 -
-      Math.floor(
-        clamp(
-          Number(rankPoint) /
-            100
-        ) * 4
-      )
-  );
-}
-
 function calculateActualPerformance({
   totalPercentile,
   advancedPercentile,
@@ -743,10 +728,6 @@ function initialStanding({
     tierCode: tier.name,
     tier: tier.label,
     rankPoint,
-    division:
-      divisionFromRankPoint(
-        rankPoint
-      ),
     rankingStatus:
       "provisional",
     matchesUntilConfirmed: 2,
@@ -1698,10 +1679,6 @@ function rankingProfileView(
       Number(
         profile.rankPoint
       ) || 0,
-    division:
-      divisionFromRankPoint(
-        profile.rankPoint
-      ),
     status:
       profile.status,
     weeklyExamsUntilConfirmed:
@@ -1728,7 +1705,6 @@ module.exports = {
   calculateMmrChange,
   calculateRankPoint,
   determineKFactor,
-  divisionFromRankPoint,
   ensureRankingProfile,
   evaluateDemotion,
   findBaseTier,

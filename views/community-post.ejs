@@ -1,11 +1,21 @@
 <%
   const loggedIn = typeof user !== "undefined" && Boolean(user);
-  const boardLabels = { "high-school": "통합 고등학교 게시판", school: post.schoolName ? `${post.schoolName} 게시판` : "학교 게시판" };
+  const boardLabels = { "high-school": "통합 고등학교 게시판", school: post.schoolName ? `${post.schoolName} 게시판` : "학교 게시판", retaker: "N수생 게시판" };
   const boardLabel = boardLabels[post.boardType] || "통합 고등학교 게시판";
   const formatDate = (date) => new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long", timeStyle: "short" }).format(new Date(date));
-  const backHref = post.boardType === "school" ? `/community?board=school&school=${encodeURIComponent(post.schoolCode)}` : "/community?board=high-school";
+  const backHref = post.boardType === "school" ? "/community?board=school" : (post.boardType === "retaker" ? "/community?board=retaker" : "/community?board=high-school");
   const gradeLabel = { 10: "1학년", 11: "2학년", 12: "3학년", 13: "N수생" }[Number(post.authorSchoolGrade)] || "";
-  const anonymousSchoolLabel = [post.authorRegion, post.schoolName, gradeLabel].filter(Boolean).join(" ") || "학교 정보 비공개";
+  const anonymousSchoolLabel = Number(post.authorSchoolGrade) === 13 ? "N수생" : [post.authorRegion, "OO고등학교", gradeLabel].filter(Boolean).join(" ");
+  const attachments = Array.isArray(post.attachments) ? post.attachments : [];
+  const imageExtensions = new Set(["png", "jpg", "jpeg", "webp", "heic"]);
+  const attachmentHref = (attachment, download = false) => `/community/${post._id}/attachments/${attachment._id}${download ? "?download=1" : ""}`;
+  const isImage = (attachment) => imageExtensions.has(String(attachment.originalName || "").split(".").pop().toLowerCase()) && String(attachment.mimeType || "").startsWith("image/");
+  const formatBytes = (bytes) => {
+    const size = Number(bytes) || 0;
+    if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)}MB`;
+    if (size >= 1024) return `${Math.ceil(size / 1024)}KB`;
+    return `${size}B`;
+  };
 %>
 <!doctype html>
 <html lang="ko">
@@ -36,6 +46,34 @@
           </div>
         </header>
         <div class="community-post-content"><%= post.content %></div>
+        <% if (attachments.length) { %>
+          <section class="community-post-attachments" aria-labelledby="community-attachments-title">
+            <header>
+              <div><p>ATTACHMENTS</p><h2 id="community-attachments-title">첨부파일 <%= attachments.length %>개</h2></div>
+              <span>사진을 누르면 원본으로 확인할 수 있습니다.</span>
+            </header>
+            <% const images = attachments.filter(isImage); %>
+            <% if (images.length) { %>
+              <div class="community-image-grid">
+                <% images.forEach((attachment) => { %>
+                  <a href="<%= attachmentHref(attachment) %>" target="_blank" rel="noopener">
+                    <img src="<%= attachmentHref(attachment) %>" alt="<%= attachment.originalName %>" loading="lazy" />
+                    <span><%= attachment.originalName %></span>
+                  </a>
+                <% }) %>
+              </div>
+            <% } %>
+            <div class="community-file-list">
+              <% attachments.forEach((attachment) => { %>
+                <a href="<%= attachmentHref(attachment, true) %>">
+                  <span aria-hidden="true"><%= isImage(attachment) ? "IMG" : "FILE" %></span>
+                  <div><strong><%= attachment.originalName %></strong><small><%= formatBytes(attachment.sizeBytes) %></small></div>
+                  <b>다운로드 ↓</b>
+                </a>
+              <% }) %>
+            </div>
+          </section>
+        <% } %>
         <section class="community-vote-box" id="post-votes" aria-label="게시글 평가">
           <p>이 글이 도움이 되었나요?</p>
           <% if (loggedIn) { %>

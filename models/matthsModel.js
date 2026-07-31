@@ -74,6 +74,48 @@ const userSchema = new Schema(
     },
 
     /*
+     * 생년월일 원본은 향후 페이백 계좌 명의 확인에만 사용합니다.
+     * 일반 사용자 조회에서 실수로 노출되지 않도록 기본 select 대상에서
+     * 제외하고, 중복 계정 탐지는 아래 단방향 해시로 수행합니다.
+     */
+    birthDate: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+
+    identityMatchHash: {
+      type: String,
+      trim: true,
+      maxlength: 128,
+      default: undefined,
+      select: false,
+    },
+
+    identityMatchVersion: {
+      type: String,
+      enum: ["name-birthdate-school-v1"],
+      default: undefined,
+      select: false,
+    },
+
+    identityVerificationStatus: {
+      type: String,
+      enum: [
+        "unverified",
+        "review-required",
+        "verified",
+      ],
+      default: "unverified",
+      index: true,
+    },
+
+    identityDuplicateAlertedAt: {
+      type: Date,
+      default: null,
+    },
+
+    /*
      * 게시판 익명 작성 시 계정마다 한 번만 발급되는 고정 번호입니다.
      * 공개 화면에는 이 번호만 노출하고 운영 화면에서는 authorId로
      * 실제 계정을 계속 확인할 수 있습니다.
@@ -101,7 +143,12 @@ const userSchema = new Schema(
 
     role: {
       type: String,
-      enum: ["student", "teacher", "admin"],
+      enum: [
+        "student",
+        "teacher",
+        "admin",
+        "test",
+      ],
       default: "student",
     },
 
@@ -118,6 +165,17 @@ const userSchema = new Schema(
     lastGradePromotionYear: {
       type: Number,
       default: null,
+    },
+
+    /*
+     * 재학/졸업 상태는 학교 정보와 별도로 유지합니다. 고3이 다음
+     * 학사연도에 N수생으로 전환되어도 졸업 학교 정보는 보존됩니다.
+     */
+    educationStatus: {
+      type: String,
+      enum: ["enrolled", "graduated"],
+      default: "enrolled",
+      index: true,
     },
 
     preferences: {
@@ -166,12 +224,12 @@ const userSchema = new Schema(
 
     termsVersion: {
       type: String,
-      default: "2026-07-28",
+      default: "2026-08-01",
     },
 
     privacyVersion: {
       type: String,
-      default: "2026-07-28",
+      default: "2026-08-01",
     },
 
     isActive: {
@@ -298,17 +356,17 @@ const userSchema = new Schema(
     school: {
       region: {
         type: String,
-        required: true,
+        default: "",
       },
 
       code: {
         type: String,
-        required: true,
+        default: "",
       },
 
       name: {
         type: String,
-        required: true,
+        default: "",
       },
 
       roadAddress: {
@@ -370,6 +428,12 @@ userSchema.index(
 userSchema.index({
   accountStatus: 1,
   suspendedUntil: 1,
+});
+userSchema.index({
+  identityMatchHash: 1,
+  identityMatchVersion: 1,
+  "school.code": 1,
+  accountStatus: 1,
 });
 
 /* --------------------------------------------------
@@ -1784,13 +1848,6 @@ const placementResultSchema =
         default: "",
       },
 
-      division: {
-        type: Number,
-        min: 1,
-        max: 4,
-        default: null,
-      },
-
       rankingStatus: {
         type: String,
         enum: [
@@ -3173,6 +3230,39 @@ userNotificationSchema.index(
  * 통합 고등학교·학교별 커뮤니티 게시글
  * -------------------------------------------------- */
 
+const communityAttachmentSchema =
+    new Schema(
+        {
+            originalName: {
+                type: String,
+                required: true,
+                maxlength: 255,
+            },
+            storedName: {
+                type: String,
+                required: true,
+                maxlength: 255,
+            },
+            mimeType: {
+                type: String,
+                required: true,
+                maxlength: 160,
+            },
+            sizeBytes: {
+                type: Number,
+                min: 1,
+                required: true,
+            },
+            uploadedAt: {
+                type: Date,
+                default: Date.now,
+            },
+        },
+        {
+            versionKey: false,
+        }
+    );
+
 const communityPostSchema =
     new Schema(
         {
@@ -3188,6 +3278,7 @@ const communityPostSchema =
                     "math",
                     "high-school",
                     "school",
+                    "retaker",
                 ],
                 required: true,
                 index: true,
@@ -3246,6 +3337,19 @@ const communityPostSchema =
                 minlength: 2,
                 maxlength: 10000,
             },
+            attachments: {
+                type: [
+                    communityAttachmentSchema,
+                ],
+                default: [],
+                validate: {
+                    validator: (value) =>
+                        Array.isArray(value) &&
+                        value.length <= 5,
+                    message:
+                        "게시글 첨부파일은 최대 5개까지 저장할 수 있습니다.",
+                },
+            },
             status: {
                 type: String,
                 enum: [
@@ -3255,6 +3359,20 @@ const communityPostSchema =
                 ],
                 default: "published",
                 index: true,
+            },
+            isPinned: {
+                type: Boolean,
+                default: false,
+                index: true,
+            },
+            pinnedAt: {
+                type: Date,
+                default: null,
+            },
+            pinnedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
             },
             viewCount: {
                 type: Number,
@@ -3309,12 +3427,167 @@ communityPostSchema.index({
     boardType: 1,
     schoolCode: 1,
     status: 1,
+    isPinned: -1,
+    pinnedAt: -1,
     createdAt: -1,
 });
 communityPostSchema.index({
     title: "text",
     content: "text",
 });
+
+const communityPostingQuotaSchema =
+    new Schema(
+        {
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            dayKey: {
+                type: String,
+                required: true,
+                match: /^\d{4}-\d{2}-\d{2}$/,
+            },
+            count: {
+                type: Number,
+                min: 0,
+                max: 5,
+                required: true,
+                default: 0,
+            },
+            expiresAt: {
+                type: Date,
+                required: true,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+communityPostingQuotaSchema.index(
+    {
+        userId: 1,
+        dayKey: 1,
+    },
+    {
+        unique: true,
+    }
+);
+communityPostingQuotaSchema.index(
+    {
+        expiresAt: 1,
+    },
+    {
+        expireAfterSeconds: 0,
+    }
+);
+
+const communityBoardNoticeSchema =
+    new Schema(
+        {
+            boardType: {
+                type: String,
+                enum: [
+                    "high-school",
+                    "school",
+                    "retaker",
+                ],
+                required: true,
+                index: true,
+            },
+            schoolCode: {
+                type: String,
+                trim: true,
+                maxlength: 100,
+                default: "",
+                index: true,
+            },
+            schoolName: {
+                type: String,
+                trim: true,
+                maxlength: 120,
+                default: "",
+            },
+            title: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: 2,
+                maxlength: 120,
+            },
+            content: {
+                type: String,
+                required: true,
+                trim: true,
+                minlength: 2,
+                maxlength: 10000,
+            },
+            status: {
+                type: String,
+                enum: [
+                    "published",
+                    "hidden",
+                    "deleted",
+                ],
+                default: "published",
+                index: true,
+            },
+            isPinned: {
+                type: Boolean,
+                default: true,
+                index: true,
+            },
+            pinnedAt: {
+                type: Date,
+                default: Date.now,
+            },
+            systemKey: {
+                type: String,
+                trim: true,
+                maxlength: 100,
+            },
+            createdBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+            updatedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+communityBoardNoticeSchema.index({
+    boardType: 1,
+    schoolCode: 1,
+    status: 1,
+    isPinned: -1,
+    pinnedAt: -1,
+    createdAt: -1,
+});
+communityBoardNoticeSchema.index(
+    {
+        systemKey: 1,
+    },
+    {
+        unique: true,
+        partialFilterExpression: {
+            systemKey: {
+                $type: "string",
+            },
+        },
+    }
+);
 
 /* --------------------------------------------------
  * 15. CommunityComment
@@ -3510,7 +3783,7 @@ communityReportSchema.index(
 
 /* --------------------------------------------------
  * 17. PrivateMockExam
- * 매주 일요일 15시 공개되는 Matths 사설 모의고사 회차
+ * 매주 일요일 3회 공개되는 Matths 주간 공식 모의고사 회차
  * -------------------------------------------------- */
 
 const privateMockExamSchema =
@@ -5137,6 +5410,20 @@ const archiveFolderSchema =
                 type: Boolean,
                 default: true,
             },
+            isPinned: {
+                type: Boolean,
+                default: false,
+                index: true,
+            },
+            pinnedAt: {
+                type: Date,
+                default: null,
+            },
+            pinnedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
             createdBy: {
                 type: Schema.Types.ObjectId,
                 ref: "User",
@@ -5152,6 +5439,8 @@ const archiveFolderSchema =
 archiveFolderSchema.index({
     isPublished: 1,
     parentFolderId: 1,
+    isPinned: -1,
+    pinnedAt: -1,
     name: 1,
 });
 
@@ -5394,6 +5683,20 @@ const CommunityPost =
         communityPostSchema
     );
 
+const CommunityPostingQuota =
+    mongoose.models.CommunityPostingQuota ||
+    mongoose.model(
+        "CommunityPostingQuota",
+        communityPostingQuotaSchema
+    );
+
+const CommunityBoardNotice =
+    mongoose.models.CommunityBoardNotice ||
+    mongoose.model(
+        "CommunityBoardNotice",
+        communityBoardNoticeSchema
+    );
+
 const CommunityComment =
     mongoose.models.CommunityComment ||
     mongoose.model(
@@ -5532,6 +5835,8 @@ module.exports = {
     Announcement,
     UserNotification,
     CommunityPost,
+    CommunityPostingQuota,
+    CommunityBoardNotice,
     CommunityComment,
     CommunityVote,
     CommunityReport,
