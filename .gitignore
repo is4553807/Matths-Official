@@ -3,5 +3,6 @@ node_modules/
 node_modules.root-owned-backup/
 storage/archive/
 storage/community/
+storage/arena-evidence/
 __pycache__/
 *.pyc

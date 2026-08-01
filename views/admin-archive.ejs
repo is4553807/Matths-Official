@@ -50,6 +50,7 @@
             <% } %>
             <label><span>폴더 이름</span><input name="folderName" minlength="2" maxlength="80" value="<%= oldInput.folderName %>" required /></label>
             <label><span>폴더 설명</span><textarea name="folderDescription" rows="4" maxlength="500"><%= oldInput.folderDescription %></textarea></label>
+            <label><span>접근 권한</span><select name="folderAccessLevel"><option value="AUTHENTICATED" <%= oldInput.folderAccessLevel === "AUTHENTICATED" ? "selected" : "" %>>로그인한 모든 회원</option><option value="PAID_PACKAGE" <%= oldInput.folderAccessLevel === "PAID_PACKAGE" ? "selected" : "" %>>활성 학습권 패키지 회원만</option></select></label>
             <button type="submit">폴더 추가</button>
           </form>
         </section>
@@ -114,6 +115,7 @@
               </div>
               <label><span>폴더 이름</span><input name="editFolderName" minlength="2" maxlength="80" value="<%= oldInput.editFolderName %>" required /></label>
               <label><span>폴더 설명</span><textarea name="editFolderDescription" rows="3" maxlength="500"><%= oldInput.editFolderDescription %></textarea></label>
+              <label><span>접근 권한</span><select name="editFolderAccessLevel"><option value="AUTHENTICATED" <%= oldInput.editFolderAccessLevel === "AUTHENTICATED" ? "selected" : "" %>>로그인한 모든 회원</option><option value="PAID_PACKAGE" <%= oldInput.editFolderAccessLevel === "PAID_PACKAGE" ? "selected" : "" %>>활성 학습권 패키지 회원만</option></select></label>
               <button type="submit">변경 내용 저장</button>
             </form>
 

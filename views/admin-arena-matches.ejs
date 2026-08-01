@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="GOAT Arena 경기 풀이 증거 관리" />
+    <title>Arena 경기 관리 | Matths</title>
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "arena-matches" }) %>
+    <main class="admin-main">
+      <header class="admin-heading">
+        <div>
+          <p>GOAT ARENA</p>
+          <h1>Arena 경기 증거</h1>
+          <span>모든 1대1 경기의 풀이 사진과 자동 감지된 이상 징후를 한곳에서 확인합니다.</span>
+        </div>
+      </header>
+
+      <section class="admin-stat-grid" aria-label="Arena 증거 요약">
+        <article><span>전체 제출</span><strong><%= evidenceEntries.length %></strong></article>
+        <article><span>이상 징후</span><strong><%= evidenceEntries.filter((entry) => entry.status === "ANOMALY_FLAGGED").length %></strong></article>
+        <article><span>정상 제출</span><strong><%= evidenceEntries.filter((entry) => entry.status === "ON_TIME").length %></strong></article>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>EVIDENCE</p><h2>최근 풀이 증거</h2></div></div>
+        <% if (!evidenceEntries.length) { %>
+          <p class="admin-empty">아직 제출된 Arena 풀이 증거가 없습니다.</p>
+        <% } %>
+        <div class="arena-admin-evidence-grid">
+          <% evidenceEntries.forEach((entry) => { %>
+            <article id="evidence-<%= entry.id %>" class="arena-admin-evidence <%= entry.status === "ANOMALY_FLAGGED" ? "is-flagged" : "" %>">
+              <header>
+                <div>
+                  <small><%= entry.match?.tierPairLabel || "티어 조합 확인 필요" %></small>
+                  <h3><%= entry.user?.realName || entry.user?.name || "사용자" %></h3>
+                  <span><%= entry.user?.email || "" %></span>
+                </div>
+                <b><%= entry.status === "ANOMALY_FLAGGED" ? "이상 징후" : "정상 제출" %></b>
+              </header>
+              <% if (entry.anomalyFlags?.length) { %>
+                <p class="arena-admin-flags"><%= entry.anomalyFlags.join(" · ") %></p>
+              <% } %>
+              <p class="arena-admin-attempt-summary">
+                <span><%= entry.attempt?.role === "CHALLENGER" ? "공격자" : "방어자" %></span>
+                <span><%= entry.attempt?.correctCount ?? "-" %> / 5문항</span>
+                <span><%= entry.attempt?.score ?? "-" %>점</span>
+                <span><%= entry.attempt?.activeSolveTimeMs != null ? `${(Number(entry.attempt.activeSolveTimeMs) / 1000).toFixed(1)}초` : "풀이시간 확인 중" %></span>
+              </p>
+              <div class="arena-admin-evidence-files">
+                <% entry.files.forEach((file, index) => { %>
+                  <a href="/admin/arena-matches/evidence/<%= entry.id %>/<%= encodeURIComponent(file.storedName) %>" target="_blank" rel="noopener">
+                    <span>풀이 <%= index + 1 %></span>
+                    <small><%= file.originalName %></small>
+                  </a>
+                <% }) %>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

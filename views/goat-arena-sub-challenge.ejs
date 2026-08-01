@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="GOAT Arena Sub Division 일반 쟁탈전 신청"
+    />
+    <meta name="theme-color" content="#070913" />
+    <title>일반 쟁탈전 신청 | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <link
+      rel="icon"
+      type="image/jpeg"
+      href="/images/goat-arena/goat-arena-logo.jpg"
+    />
+  </head>
+  <body class="goat-arena-page arena-inner-page">
+    <a class="arena-skip-link" href="#sub-challenge-main">본문으로 바로가기</a>
+
+    <%- include("partials/goat-arena-navigation", {
+      activeArenaPage,
+      arenaUser,
+    }) %>
+
+    <main class="arena-page-main" id="sub-challenge-main">
+      <a class="arena-challenge-back" href="/goat-arena/sub">← Sub Division으로 돌아가기</a>
+
+      <header class="arena-page-heading arena-challenge-heading">
+        <div>
+          <p>SUB DIVISION · 1대1</p>
+          <h1>일반 쟁탈전 신청</h1>
+        </div>
+        <p>
+          목표 티어만 선택하면 서버가 같은 Sub Division의 적격 상위 티어 사용자 한 명을 무작위로 선정해 자동 매치합니다. 특정 사용자는 직접 선택할 수 없습니다.
+        </p>
+      </header>
+
+      <section class="arena-division-status arena-challenge-status">
+        <article>
+          <small>내 Arena 상태</small>
+          <strong>
+            <%= challengeData.currentStanding
+              ? `${challengeData.currentStanding.arenaRank} ${challengeData.currentStanding.arenaPosition}위`
+              : "—" %>
+          </strong>
+          <span>
+            <%= challengeData.currentStanding
+              ? `${challengeData.currentStanding.arenaGp.toLocaleString("ko-KR")} GP · 티어 안에서의 순위`
+              : "현재 시즌의 활성 순위를 확인해주세요." %>
+          </span>
+        </article>
+        <article>
+          <small>일반 쟁탈전 적용 일수</small>
+          <strong><%= challengeData.stakeDays %>일</strong>
+          <span>현재 학습권 패키지를 결제할 때 확정된 운영 조건을 사용합니다.</span>
+        </article>
+        <article>
+          <small>참가 가능 범위</small>
+          <strong>Sub Division</strong>
+          <span>자신의 바로 위 티어에게만 신청하며 브론즈·챌린저에는 경계 예외가 있습니다. 서버 무작위 선정에는 내부 실력 지표와 최종 종합 랭킹을 사용하지 않습니다.</span>
+        </article>
+      </section>
+
+      <% if (matchCreated) { %>
+        <p class="arena-challenge-notice success" role="status">
+          일반 쟁탈전이 생성되었습니다. 양쪽 참가자와 공격자의 적용 일수를 안전하게 잠갔습니다.
+        </p>
+      <% } %>
+
+      <% if (matchError) { %>
+        <p class="arena-challenge-notice error" role="alert"><%= matchError %></p>
+      <% } %>
+
+      <% if (challengeData.activeMatch) { %>
+        <section class="arena-active-match-card" aria-labelledby="active-match-title">
+          <div>
+            <small>정산되지 않은 공식 경기</small>
+            <h2 id="active-match-title"><%= challengeData.activeMatch.statusLabel %></h2>
+            <p>
+              <%= challengeData.activeMatch.role %>로 <strong><%= challengeData.activeMatch.opponentName %></strong>님과 연결되어 있습니다. 이 경기가 끝나기 전에는 새 일반 쟁탈전을 신청할 수 없습니다.
+            </p>
+          </div>
+          <dl>
+            <div><dt>내 역할</dt><dd><%= challengeData.activeMatch.role %></dd></div>
+            <div><dt>상대</dt><dd><%= challengeData.activeMatch.opponentName %></dd></div>
+            <div><dt>정산 대기</dt><dd><%= challengeData.activeMatch.stakeDays %>일</dd></div>
+          </dl>
+          <a class="arena-active-match-link" href="<%= challengeData.activeMatch.href %>">
+            경기 화면으로 이동 <span aria-hidden="true">→</span>
+          </a>
+        </section>
+      <% } else if (!challengeData.canRequest) { %>
+        <section class="arena-access-gate arena-challenge-gate">
+          <img src="/images/goat-arena/goat-arena-logo.jpg" alt="" />
+          <div>
+            <small>일반 쟁탈전 신청 불가</small>
+            <h2>현재는 새 경기를 만들 수 없습니다.</h2>
+            <p><%= challengeData.unavailableMessage %></p>
+          </div>
+          <a href="/goat-arena/profile">Arena 프로필 확인</a>
+        </section>
+      <% } else { %>
+        <section class="arena-candidate-section" aria-labelledby="candidate-title">
+          <header>
+            <div>
+              <small>서버 자동 매치</small>
+              <h2 id="candidate-title">도전할 티어를 선택하세요.</h2>
+            </div>
+            <p>
+              서버가 활성 이용권·시즌 배치·방어 자격·미정산 경기 여부를 검사한 뒤 선택한 티어 안에서 상대 한 명을 무작위로 배정합니다. 배정된 상위 티어 사용자는 자동 참가합니다.
+            </p>
+          </header>
+
+          <% if (challengeData.hasEligibleOpponent) { %>
+            <div class="arena-candidate-list">
+              <% challengeData.targetTiers.forEach((target) => { %>
+                <article>
+                  <div class="arena-candidate-crest">
+                    <%- include("partials/rank-crest", {
+                      tier: target.tier,
+                      size: "sm",
+                    }) %>
+                  </div>
+                  <div class="arena-candidate-identity">
+                    <small>목표 티어</small>
+                    <strong><%= target.label %></strong>
+                    <span>현재 적격 후보 <%= target.candidateCount %>명</span>
+                  </div>
+                  <form action="/goat-arena/sub/challenges" method="post">
+                    <input type="hidden" name="requestId" value="<%= requestId %>" />
+                    <input type="hidden" name="targetTier" value="<%= target.tier %>" />
+                    <button type="submit" <%= target.candidateCount > 0 ? "" : "disabled" %>>
+                      자동 매치 신청
+                      <span aria-hidden="true">→</span>
+                    </button>
+                  </form>
+                </article>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="arena-candidate-empty">
+              <strong>지금 자동 매치할 수 있는 상대가 없습니다.</strong>
+              <p>적격 상대가 없으므로 정기권 학습 가능 일수는 잠기거나 차감되지 않았습니다. 잠시 후 다시 확인해주세요.</p>
+            </div>
+          <% } %>
+        </section>
+      <% } %>
+    </main>
+  </body>
+</html>

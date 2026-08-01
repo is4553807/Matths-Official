@@ -30,14 +30,18 @@ finalRankingActive
 = currentSeasonPlacementCompleted
 AND accountStatus = ACTIVE
 AND accessState = PAID_ACTIVE
-AND availableLearningDays > 0
+AND (
+  Sub: availableLearningDays > 0
+  OR Main: availableLearningDays + reservedLearningDays + lockedLearningDays > 0
+)
 AND integrityStatus = CLEAR
 ```
 
-학습권이 0이면 즉시 비활성화한다.
+Division별 활성 학습일수 조건을 충족하지 못하면 비활성화한다.
 
 ```text
-availableLearningDays = 0
+Sub: availableLearningDays = 0
+OR Main: availableLearningDays + reservedLearningDays + lockedLearningDays = 0
 → finalRankingStatus = INACTIVE_ACCESS_EXPIRED
 ```
 
@@ -83,6 +87,9 @@ Bonus는 매주 덮어쓰기 값이다.
 # 5. 일요일 잠금
 
 ```text
+일요일 14:30
+→ Sub·Main Division 신규 Arena 경기·수락·준비·시작 차단
+
 일요일 15:00
 → Arena 잠금
 → 공개 Final Ranking 동결
@@ -103,6 +110,16 @@ Bonus는 매주 덮어쓰기 값이다.
 ```
 
 만료 사용자는 staging 대상에서 제외한다.
+
+## 5.1 Matths 대시보드 랭킹 화면
+
+Matths 대시보드의 랭킹 화면은 사용자가 Division을 선택하는 화면이 아니다. 현재 활성 사용자 전체의 `최종 종합 랭킹`과 학교·N수생 집계만 제공한다.
+
+- 학교 랭킹은 현재 `재학` 상태인 해당 학교 학생들의 최종 종합 랭킹 순위 평균이 낮은 순서로 정렬한다.
+- 학교 상세에서는 그 학교 학생들의 최종 종합 랭킹 순위를 공개한다.
+- 졸업생과 N수생은 학교 평균에서 제외한다.
+- N수생에게는 학교 랭킹 대신 N수생끼리의 최종 종합 랭킹을 제공한다.
+- GOAT Arena 내부 랭킹 화면은 사용자의 실제 소속 Division을 기본 탭으로 열고 Sub Division·Main Division 순위를 각각 표시한다. Division은 사용자가 선택하여 소속을 바꾸는 값이 아니다.
 
 ---
 

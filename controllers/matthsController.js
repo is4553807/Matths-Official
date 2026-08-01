@@ -123,10 +123,18 @@ const {
   getRankingData,
 } = require("../services/rankingService");
 const {
+  getPaidPackageAccess,
+} = require("../services/paidFeatureAccessService");
+const {
+  getAdminArenaEvidenceData,
+  getAdminEvidenceFile,
+} = require("../services/arenaMatchEvidenceService");
+const {
   createAnnouncement,
   createDirectNotification,
   getAdminAssessmentDetail,
   getAdminDashboardData,
+  getAdminRevenueMetrics,
   getAdminInquiryData,
   getAdminUserActivityData,
   getAdminUserDetail,
@@ -197,6 +205,15 @@ const {
   getAdminTodoData,
   reopenAdminTodo,
 } = require("../services/adminTodoService");
+const {
+  activateArenaPolicyVersion,
+  activateMainDivisionPolicyVersion,
+  createArenaPolicyVersion,
+  createMainDivisionPolicyVersion,
+  getArenaPolicyAdminData,
+  retireArenaPolicyVersion,
+  retireMainDivisionPolicyVersion,
+} = require("../services/arenaPolicyService");
 const {
   alertPotentialDuplicateIdentity,
   buildIdentityMatchHash,
@@ -478,6 +495,8 @@ async function renderArchive(
             oldInput.folderDescription ||
               ""
           ),
+        folderAccessLevel:
+          String(oldInput.folderAccessLevel || "AUTHENTICATED"),
         editFolderName:
           String(
             oldInput
@@ -495,6 +514,12 @@ async function renderArchive(
                 .selectedFolder
                 ?.description ??
               ""
+          ),
+        editFolderAccessLevel:
+          String(
+            oldInput.editFolderAccessLevel ??
+              archiveData.selectedFolder?.accessLevel ??
+              "AUTHENTICATED"
           ),
         parentFolderId:
           String(
@@ -811,6 +836,8 @@ exports.createArchiveFolder =
         parentFolderId:
           req.body
             .parentFolderId,
+        accessLevel:
+          req.body.folderAccessLevel,
       });
 
       return res.redirect(
@@ -851,9 +878,11 @@ exports.updateArchiveFolder =
           name:
             req.body
               .editFolderName,
-          description:
-            req.body
-              .editFolderDescription,
+        description:
+          req.body
+            .editFolderDescription,
+        accessLevel:
+          req.body.editFolderAccessLevel,
         });
 
       return res.redirect(
@@ -1061,6 +1090,243 @@ exports.adminDashboardPage =
         }
       );
     } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminRevenueMetrics = async (_req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json({
+      ok: true,
+      revenue: await getAdminRevenueMetrics(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminArenaMatchesPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.render("admin-arena-matches", {
+      user: req.session.user,
+      evidenceEntries: await getAdminArenaEvidenceData(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminArenaEvidenceFile = async (req, res, next) => {
+  try {
+    const file = await getAdminEvidenceFile({
+      evidenceId: req.params.evidenceId,
+      storedName: req.params.storedName,
+    });
+    res.set("Cache-Control", "private, no-store");
+    res.set("X-Content-Type-Options", "nosniff");
+    res.type(file.mimeType);
+    return res.sendFile(file.absolutePath);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+function arenaPolicyFeedbackFromQuery(query = {}) {
+  if (String(query.created || "") === "1") {
+    return "새 Arena 정책을 작성 중 상태로 저장했습니다.";
+  }
+  if (String(query.activated || "") === "1") {
+    return "Arena 정책을 적용 일정에 등록했습니다.";
+  }
+  if (String(query.retired || "") === "1") {
+    return "작성 중이거나 적용 예정이던 Arena 정책을 종료했습니다.";
+  }
+  if (String(query.mainCreated || "") === "1") {
+    return "새 Main Division 정책을 작성 중 상태로 저장했습니다.";
+  }
+  if (String(query.mainActivated || "") === "1") {
+    return "Main Division 정책을 적용 일정에 등록했습니다.";
+  }
+  if (String(query.mainRetired || "") === "1") {
+    return "Main Division 정책을 종료했습니다.";
+  }
+  return null;
+}
+
+async function renderArenaPolicyAdminPage(
+  req,
+  res,
+  {
+    status = 200,
+    error = null,
+    oldInput = null,
+  } = {}
+) {
+  return res.status(status).render("admin-arena-policies", {
+    user: req.session.user,
+    policyData: await getArenaPolicyAdminData(),
+    feedback: arenaPolicyFeedbackFromQuery(req.query),
+    error,
+    oldInput,
+  });
+}
+
+exports.adminArenaPoliciesPage =
+  async (req, res, next) => {
+    try {
+      return await renderArenaPolicyAdminPage(req, res);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminCreateArenaPolicy =
+  async (req, res, next) => {
+    try {
+      await createArenaPolicyVersion({
+        adminUserId: req.session.user.id,
+        input: req.body,
+      });
+      return res.redirect("/admin/arena-policies?created=1");
+    } catch (error) {
+      if ([400, 409].includes(Number(error.status))) {
+        try {
+          return await renderArenaPolicyAdminPage(req, res, {
+            status: Number(error.status),
+            error: error.message,
+            oldInput: req.body,
+          });
+        } catch (renderError) {
+          return next(renderError);
+        }
+      }
+      return next(error);
+    }
+  };
+
+exports.adminCreateMainArenaPolicy =
+  async (req, res, next) => {
+    try {
+      await createMainDivisionPolicyVersion({
+        adminUserId: req.session.user.id,
+        input: req.body,
+      });
+      return res.redirect(
+        "/admin/arena-policies?mainCreated=1#main-policy"
+      );
+    } catch (error) {
+      if ([400, 409].includes(Number(error.status))) {
+        try {
+          return await renderArenaPolicyAdminPage(req, res, {
+            status: Number(error.status),
+            error: error.message,
+            oldInput: {
+              policyDivision: "MAIN",
+              ...req.body,
+            },
+          });
+        } catch (renderError) {
+          return next(renderError);
+        }
+      }
+      return next(error);
+    }
+  };
+
+exports.adminActivateArenaPolicy =
+  async (req, res, next) => {
+    try {
+      await activateArenaPolicyVersion({
+        adminUserId: req.session.user.id,
+        policyId: req.params.policyId,
+      });
+      return res.redirect("/admin/arena-policies?activated=1");
+    } catch (error) {
+      if ([400, 404, 409].includes(Number(error.status))) {
+        try {
+          return await renderArenaPolicyAdminPage(req, res, {
+            status: Number(error.status),
+            error: error.message,
+          });
+        } catch (renderError) {
+          return next(renderError);
+        }
+      }
+      return next(error);
+    }
+  };
+
+exports.adminActivateMainArenaPolicy =
+  async (req, res, next) => {
+    try {
+      await activateMainDivisionPolicyVersion({
+        adminUserId: req.session.user.id,
+        policyId: req.params.policyId,
+      });
+      return res.redirect(
+        "/admin/arena-policies?mainActivated=1#main-policy"
+      );
+    } catch (error) {
+      if ([400, 404, 409].includes(Number(error.status))) {
+        try {
+          return await renderArenaPolicyAdminPage(req, res, {
+            status: Number(error.status),
+            error: error.message,
+          });
+        } catch (renderError) {
+          return next(renderError);
+        }
+      }
+      return next(error);
+    }
+  };
+
+exports.adminRetireArenaPolicy =
+  async (req, res, next) => {
+    try {
+      await retireArenaPolicyVersion({
+        adminUserId: req.session.user.id,
+        policyId: req.params.policyId,
+      });
+      return res.redirect("/admin/arena-policies?retired=1");
+    } catch (error) {
+      if ([400, 404, 409].includes(Number(error.status))) {
+        try {
+          return await renderArenaPolicyAdminPage(req, res, {
+            status: Number(error.status),
+            error: error.message,
+          });
+        } catch (renderError) {
+          return next(renderError);
+        }
+      }
+      return next(error);
+    }
+  };
+
+exports.adminRetireMainArenaPolicy =
+  async (req, res, next) => {
+    try {
+      await retireMainDivisionPolicyVersion({
+        adminUserId: req.session.user.id,
+        policyId: req.params.policyId,
+      });
+      return res.redirect(
+        "/admin/arena-policies?mainRetired=1#main-policy"
+      );
+    } catch (error) {
+      if ([400, 404, 409].includes(Number(error.status))) {
+        try {
+          return await renderArenaPolicyAdminPage(req, res, {
+            status: Number(error.status),
+            error: error.message,
+          });
+        } catch (renderError) {
+          return next(renderError);
+        }
+      }
       return next(error);
     }
   };
@@ -2408,11 +2674,15 @@ exports.warOfMastersPage = async (
     const [
       user,
       placement,
+      paidPackageAccess,
     ] = await Promise.all([
       User.findById(
         req.session.user.id
       ).lean(),
       getPlacementDashboardData(
+        req.session.user.id
+      ),
+      getPaidPackageAccess(
         req.session.user.id
       ),
     ]);
@@ -2471,6 +2741,7 @@ exports.warOfMastersPage = async (
               : "닉네임",
         },
         placement,
+        paidPackageAccess,
         privateMockEligibility,
       }
     );

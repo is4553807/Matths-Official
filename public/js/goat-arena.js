@@ -384,10 +384,6 @@ arenaFeatureButtons.forEach(
           button.dataset
             .featureName ||
           "선택한 기능";
-        const featureKey =
-          button.dataset
-            .arenaFeature;
-
         arenaFeatureButtons.forEach(
           (item) =>
             item.setAttribute(
@@ -400,7 +396,7 @@ arenaFeatureButtons.forEach(
 
         if (arenaFeatureStatus) {
           arenaFeatureStatus.textContent =
-            `${featureName} 선택 · 다음 개발 단계에서 ${featureKey} route를 연결합니다.`;
+            `${featureName} 기능은 현재 규칙과 화면 골격만 준비되어 있으며, 세부 정책값이 확정된 뒤 실제 동작이 연결됩니다.`;
         }
       }
     );

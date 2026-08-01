@@ -17,6 +17,9 @@ const path = require('path');
 const {
   getAdminTodoSummary,
 } = require("../services/adminTodoService");
+const {
+  assertPaidPackageAccess,
+} = require("../services/paidFeatureAccessService");
 
 const curriculumPath = path.resolve(__dirname, "..", "kr-2022-g10-math-curri.yaml");
 
@@ -43,6 +46,15 @@ function handleCommunityUpload(
       return next();
     }
   );
+}
+
+async function requirePaidPlacementAccess(req, _res, next) {
+  try {
+    await assertPaidPackageAccess(req.session?.user?.id);
+    return next();
+  } catch (error) {
+    return next(error);
+  }
 }
 
 router.get('/', matthsController.mainPage);
@@ -226,6 +238,84 @@ router.get(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminDashboardPage
+);
+router.get(
+  "/api/admin/revenue",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRevenueMetrics
+);
+router.get(
+  "/admin/arena-policies",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminArenaPoliciesPage
+);
+router.get(
+  "/admin/arena-matches",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminArenaMatchesPage
+);
+router.get(
+  "/admin/arena-matches/evidence/:evidenceId/:storedName",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminArenaEvidenceFile
+);
+router.post(
+  "/admin/arena-policies",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCreateArenaPolicy
+);
+router.post(
+  "/admin/arena-policies/sub",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCreateArenaPolicy
+);
+router.post(
+  "/admin/arena-policies/main",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCreateMainArenaPolicy
+);
+router.post(
+  "/admin/arena-policies/:policyId/activate",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminActivateArenaPolicy
+);
+router.post(
+  "/admin/arena-policies/sub/:policyId/activate",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminActivateArenaPolicy
+);
+router.post(
+  "/admin/arena-policies/main/:policyId/activate",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminActivateMainArenaPolicy
+);
+router.post(
+  "/admin/arena-policies/:policyId/retire",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRetireArenaPolicy
+);
+router.post(
+  "/admin/arena-policies/sub/:policyId/retire",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRetireArenaPolicy
+);
+router.post(
+  "/admin/arena-policies/main/:policyId/retire",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRetireMainArenaPolicy
 );
 router.post(
   "/admin/announcements",
@@ -650,30 +740,35 @@ router.post(
 router.post(
   "/war-of-masters/placement/start",
   authMiddleware.isLoggedIn,
+  requirePaidPlacementAccess,
   matthsController.startPlacementExam
 );
 
 router.get(
   "/war-of-masters/placement/:attemptId",
   authMiddleware.isLoggedIn,
+  requirePaidPlacementAccess,
   matthsController.placementExamPage
 );
 
 router.post(
   "/war-of-masters/placement/:attemptId/submit",
   authMiddleware.isLoggedIn,
+  requirePaidPlacementAccess,
   matthsController.submitPlacementExam
 );
 
 router.post(
   "/api/war-of-masters/placement/:attemptId/draft",
   authMiddleware.isLoggedIn,
+  requirePaidPlacementAccess,
   matthsController.savePlacementExamDraft
 );
 
 router.post(
   "/api/war-of-masters/placement/:attemptId/expire",
   authMiddleware.isLoggedIn,
+  requirePaidPlacementAccess,
   matthsController.expirePlacementExam
 );
 

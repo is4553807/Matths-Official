@@ -12,9 +12,9 @@
 |---|---|---|
 | 계정 | User, 생년월일, 실명·생년월일·고등학교 조합의 동일인 탐지 해시, 학년·재학/졸업 상태 | 로그인·본인확인·권한의 원본 |
 | 결제 | 주문, 결제, 환불, 페이백 지급 | 금전 감사와 법정 보존 |
-| 학습권 | AccessCycle, ArenaLearningDayLedger | 잔액과 모든 증감의 재구성 |
-| Arena | ArenaStanding, ArenaAccessState, 대결 결과·이의·무결성 | GP·티어·티어 내 순위와 권한의 원본 |
-| 정책 | SubscriptionPolicyVersion, FinalRankingPolicyVersion, AccessCycle.policySnapshot | 정책 변경의 비소급 적용 |
+| 학습권 | AccessCycle의 사용 가능·초대 예약·경기 중 잠금 잔액과 출처 bucket, ArenaLearningDayLedger | 잔액·출처·모든 증감의 재구성 |
+| Arena | ArenaStanding, ArenaAccessState, ArenaMatch, MainInvitationRequest, ArenaProblemPack, ArenaMatchAttempt, 문항별·전체 풀이시간, 답안 변경·heartbeat·focus 이벤트, 풀이 증거 메타데이터·해시, 대결 결과·이의·무결성 | GP·티어·티어 내 순위·초대 예약·공식 경기 복구와 이의 처리의 원본 |
+| 정책 | SubscriptionPolicyVersion, MainDivisionPolicyVersion, FinalRankingPolicyVersion, AccessCycle.policySnapshot | 정책 변경의 비소급 적용 |
 | 평가 | 답안, 제출 시각, 공식 채점 결과, MMR | 공식 결과와 이의 처리 |
 | 운영 | 경고, 관리자 작업, 중복 계정 Todo | 운영 책임 추적 |
 | 분석 | 월별 Observation과 표본 수 | 첫 달 정책 보정 근거 |
@@ -28,6 +28,8 @@
 | Division·티어별 상위 20명 | 5~15초 | 공식 GP 정산·주간 재시드 완료 후 |
 | 내 티어 주변 순위 창 | 5~15초 | 해당 티어 GP 정산 후 |
 | GOAT Arena 프로필 합성 카드 | 10~30초 | AccessCycle·ArenaStanding 변경 후 |
+| 경기 대기 화면의 상대 제출 여부·표시 상태 | 1~3초 또는 무캐시 | ArenaMatchAttempt 제출 후 |
+| Main 목표 티어별 후보 수·가용 여부 | 1~3초 | 순위·잔액·참가자 잠금·초대 상태 변경 후 |
 | 활성 Arena 정책 읽기 | 30초 | 정책 활성화·폐기 직후 |
 | 관리자 월별 분석 차트 | 1~5분 | 새 Observation 반영 후 |
 | 공개 게시판 목록·공지 | 10~30초 | 글 작성·수정·고정·제재 후 |
@@ -45,6 +47,14 @@
 분석 컬렉션에 매 페이지 조회나 매초 잔액 스냅샷을 복제하지 않는다. 결제·학습권·대결 원장에서 월별 분자·분모·표본 수를 집계하고 `dataAnalysis`에는 결과와 정책 버전만 기록한다. 원본 이벤트는 각 업무 컬렉션에 한 번만 저장한다.
 
 매치 로직 구현 시 GP 변경 전후의 전체 사용자 배열을 저장하지 않고, 참가자 두 명의 이전/이후 `arenaRank`, `arenaPosition`, `arenaGp`, 티어와 정산 사유만 불변 원장으로 남긴다. 랭킹 전체 화면은 ArenaStanding에서 다시 계산하거나 캐시한다.
+
+경기 답안은 빠른 복구를 위한 `ArenaMatchAttempt.answers` 최종 snapshot과 이의·유효 풀이시간 검증을 위한 `ArenaMatchAttemptEvent` 변경 batch를 나눠 저장한다. 브라우저가 계산한 남은 시간·정답 수·활동 시간은 DB 원본으로 사용하지 않으며, 제한 시간은 서버 `startedAt/deadlineAt`, 활동은 서버 수신 시각이 있는 이벤트에서 복구한다. 경기 이벤트의 보존 기간은 분쟁·운영 규정이 확정되기 전까지 임의 TTL을 적용하지 않는다.
+
+풀이 증거 원본 파일은 DB 문서에 넣지 않고 보호된 파일 저장소에 보관한다. DB에는 저장 파일명·MIME·크기·SHA-256·제출 마감·제출 시각·이상 징후만 남겨 운영자 열람과 중복 파일 탐지에 사용한다.
+
+Main 무작위 상대 선정은 결과만 캐시에 두지 않는다. `MainInvitationRequest`에 대상 티어, 적용 정책, 선정 후보, 후보 풀 해시·감사 스냅샷과 난수 seed를 보호 필드로 남긴다. 일반 사용자 응답에는 전체 후보 식별자와 seed를 포함하지 않으며, 화면용 후보 수·가용 여부만 짧게 캐시한다.
+
+아카이브 폴더의 접근 권한은 DB 권위값으로 저장하고 하위 폴더가 상위 폴더보다 넓은 권한을 얻지 않게 상속 판정한다. `2026 Matths 사설 모의고사` 폴더는 기존 DB 문서에 권한값이 없어도 활성 학습권 패키지 사용자 전용으로 취급한다.
 
 ## 6. 운영 배포 주의
 

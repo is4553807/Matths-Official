@@ -85,6 +85,121 @@ const UPPER_TIER_POPULATION_RULES = [
   },
 ];
 
+const ARENA_TIER_INDEX = new Map(
+  ARENA_TIER_CONFIG.map((tier, index) => [
+    tier.code,
+    index,
+  ])
+);
+
+function arenaTierByCode(code) {
+  return (
+    ARENA_TIER_CONFIG.find(
+      (tier) => tier.code === code
+    ) || ARENA_TIER_CONFIG[0]
+  );
+}
+
+function baseArenaTierForGp(gp) {
+  const value = Math.max(
+    0,
+    Number(gp) || 0
+  );
+  return (
+    ARENA_TIER_CONFIG.find(
+      (tier) =>
+        value >= tier.minGp &&
+        value <= tier.maxGp
+    ) ||
+    ARENA_TIER_CONFIG[
+      ARENA_TIER_CONFIG.length - 1
+    ]
+  );
+}
+
+/*
+ * 상위 티어는 GP 구간을 먼저 만족한 사용자에게만 허용하고, 활성 모집단
+ * 규모에 따른 인원·백분위 상한으로 한 번 더 제한합니다. Skill MMR 설정은
+ * 가져오지 않으며 ArenaStanding 재배치에서만 사용합니다.
+ */
+function resolveArenaTier({
+  gp,
+  topPercentile = 1,
+  activeRankerCount = 0,
+}) {
+  let tier = baseArenaTierForGp(gp);
+  const count = Math.max(
+    0,
+    Number(activeRankerCount) || 0
+  );
+  const percentile = Math.max(
+    0,
+    Math.min(1, Number(topPercentile) || 0)
+  );
+
+  if (count < 100) {
+    if (
+      ARENA_TIER_INDEX.get(tier.code) >
+      ARENA_TIER_INDEX.get("MASTER")
+    ) {
+      tier = arenaTierByCode("MASTER");
+    }
+    return tier;
+  }
+
+  if (count < 300) {
+    const challengerLimit = 1 / count;
+    const grandmasterLimit = 3 / count;
+    if (
+      tier.code === "CHALLENGER" &&
+      percentile > challengerLimit
+    ) {
+      tier = arenaTierByCode(
+        percentile <= grandmasterLimit
+          ? "GRANDMASTER"
+          : "MASTER"
+      );
+    }
+    if (
+      tier.code === "GRANDMASTER" &&
+      percentile > grandmasterLimit
+    ) {
+      tier = arenaTierByCode("MASTER");
+    }
+    if (
+      tier.code === "MASTER" &&
+      percentile > 0.05
+    ) {
+      tier = arenaTierByCode("DIAMOND");
+    }
+    return tier;
+  }
+
+  if (
+    tier.code === "CHALLENGER" &&
+    percentile > 0.005
+  ) {
+    tier = arenaTierByCode(
+      percentile <= 0.015
+        ? "GRANDMASTER"
+        : "MASTER"
+    );
+  }
+  if (
+    tier.code === "GRANDMASTER" &&
+    percentile > 0.015
+  ) {
+    tier = arenaTierByCode("MASTER");
+  }
+  if (
+    tier.code === "MASTER" &&
+    percentile > 0.05
+  ) {
+    tier = arenaTierByCode("DIAMOND");
+  }
+  return tier;
+}
+
 function arenaTierGuide() {
   return ARENA_TIER_CONFIG.map(
     (tier, index) => ({
@@ -107,5 +222,8 @@ function arenaTierGuide() {
 module.exports = {
   ARENA_TIER_CONFIG,
   UPPER_TIER_POPULATION_RULES,
+  arenaTierByCode,
   arenaTierGuide,
+  baseArenaTierForGp,
+  resolveArenaTier,
 };

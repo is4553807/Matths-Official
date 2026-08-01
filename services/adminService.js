@@ -15,6 +15,9 @@ const {
 } = require("../models/matthsModel");
 const mongoose = require("mongoose");
 const {
+  ArenaPackagePayment,
+} = require("../models/goatArenaModel");
+const {
   sendAdminUserEmail,
   sendSupportReply,
 } = require("./emailService");
@@ -222,6 +225,7 @@ async function getAdminDashboardData() {
     archiveFolders,
     inquiries,
     announcements,
+    revenue,
   ] = await Promise.all([
     User.countDocuments({
       isActive: true,
@@ -248,6 +252,7 @@ async function getAdminDashboardData() {
       .sort({ createdAt: -1 })
       .limit(8)
       .lean(),
+    getAdminRevenueMetrics(),
   ]);
 
   return {
@@ -260,6 +265,69 @@ async function getAdminDashboardData() {
     },
     inquiries,
     announcements,
+    revenue,
+  };
+}
+
+function startOfKstDay(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const values = Object.fromEntries(
+    parts.filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)])
+  );
+  return new Date(Date.UTC(values.year, values.month - 1, values.day, -9));
+}
+
+async function getAdminRevenueMetrics(now = new Date()) {
+  const today = startOfKstDay(now);
+  const rows = await ArenaPackagePayment.aggregate([
+    {
+      $group: {
+        _id: null,
+        grossApproved: { $sum: "$approvedAmount" },
+        refunded: {
+          $sum: { $cond: [{ $eq: ["$status", "REFUNDED"] }, "$approvedAmount", 0] },
+        },
+        cancelled: {
+          $sum: { $cond: [{ $eq: ["$status", "CANCELLED"] }, "$approvedAmount", 0] },
+        },
+        todayNet: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $gte: ["$approvedAt", today] },
+                  { $in: ["$status", ["APPROVED", "APPLIED"]] },
+                ],
+              },
+              "$approvedAmount",
+              0,
+            ],
+          },
+        },
+        successfulPayments: {
+          $sum: { $cond: [{ $in: ["$status", ["APPROVED", "APPLIED"]] }, 1, 0] },
+        },
+      },
+    },
+  ]);
+  const value = rows[0] || {};
+  const grossApproved = Number(value.grossApproved || 0);
+  const refunded = Number(value.refunded || 0);
+  const cancelled = Number(value.cancelled || 0);
+  return {
+    currency: "KRW",
+    grossApproved,
+    refunded,
+    cancelled,
+    netRevenue: grossApproved - refunded - cancelled,
+    todayRevenue: Number(value.todayNet || 0),
+    successfulPayments: Number(value.successfulPayments || 0),
+    updatedAt: new Date(),
   };
 }
 
@@ -2095,6 +2163,7 @@ module.exports = {
   createAnnouncement,
   createDirectNotification,
   getAdminDashboardData,
+  getAdminRevenueMetrics,
   getAdminInquiryData,
   getAdminAssessmentDetail,
   getAdminUserActivityData,

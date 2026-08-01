@@ -72,6 +72,41 @@
         <article><span>아카이브</span><strong><%= adminData.stats.archiveItems %><small>개 · 폴더 <%= adminData.stats.archiveFolders %></small></strong></article>
       </section>
 
+      <section class="admin-panel admin-revenue-panel" data-admin-revenue>
+        <div class="admin-panel-heading">
+          <div><p>LIVE REVENUE</p><h2>현재 매출 지표</h2></div>
+          <span>15초마다 자동 갱신 · 결제 승인·취소·환불 원장 기준 · 비용 제외 전</span>
+        </div>
+        <div class="admin-stat-grid">
+          <article><span>현재 순매출</span><strong data-revenue="netRevenue"><%= Number(adminData.revenue.netRevenue || 0).toLocaleString("ko-KR") %><small>원</small></strong></article>
+          <article><span>오늘 승인 매출</span><strong data-revenue="todayRevenue"><%= Number(adminData.revenue.todayRevenue || 0).toLocaleString("ko-KR") %><small>원</small></strong></article>
+          <article><span>누적 승인액</span><strong data-revenue="grossApproved"><%= Number(adminData.revenue.grossApproved || 0).toLocaleString("ko-KR") %><small>원</small></strong></article>
+          <article><span>환불·취소</span><strong data-revenue="deductions"><%= Number((adminData.revenue.refunded || 0) + (adminData.revenue.cancelled || 0)).toLocaleString("ko-KR") %><small>원</small></strong></article>
+        </div>
+        <small data-revenue-updated>마지막 갱신 <%= new Date(adminData.revenue.updatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) %></small>
+      </section>
+      <script>
+        (() => {
+          const root = document.querySelector("[data-admin-revenue]");
+          if (!root) return;
+          const format = (value) => `${Number(value || 0).toLocaleString("ko-KR")}<small>원</small>`;
+          const refresh = async () => {
+            const response = await fetch("/api/admin/revenue", { headers: { Accept: "application/json" } });
+            if (!response.ok) return;
+            const { revenue } = await response.json();
+            ["netRevenue", "todayRevenue", "grossApproved"].forEach((key) => {
+              const node = root.querySelector(`[data-revenue="${key}"]`);
+              if (node) node.innerHTML = format(revenue[key]);
+            });
+            const deductions = root.querySelector('[data-revenue="deductions"]');
+            if (deductions) deductions.innerHTML = format(Number(revenue.refunded || 0) + Number(revenue.cancelled || 0));
+            const updated = root.querySelector("[data-revenue-updated]");
+            if (updated) updated.textContent = `마지막 갱신 ${new Date(revenue.updatedAt).toLocaleString("ko-KR")}`;
+          };
+          window.setInterval(() => refresh().catch(() => {}), 15000);
+        })();
+      </script>
+
       <div class="admin-dashboard-grid">
         <section class="admin-panel">
           <div class="admin-panel-heading">

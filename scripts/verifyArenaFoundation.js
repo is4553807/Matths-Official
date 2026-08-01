@@ -8,6 +8,8 @@ const {
   AccessCycle,
   ArenaAccessState,
   ArenaMatch,
+  MainDivisionPolicyVersion,
+  MainInvitationRequest,
   SubscriptionPolicyVersion,
   ArenaStanding,
   LiveFinalRankingProfile,
@@ -44,6 +46,7 @@ const {
 } = require("../services/accessCycleService");
 const {
   officialArenaEligibility,
+  mainStakeEligibility,
   packagePurchaseEligibility,
 } = require("../services/arenaEligibilityService");
 const {
@@ -197,6 +200,59 @@ const policy = new SubscriptionPolicyVersion({
 await assert.doesNotReject(
   () => policy.validate()
 );
+const mainPolicy = new MainDivisionPolicyVersion({
+  code: "MAIN-DRAFT-TEST",
+  status: "DRAFT",
+  effectiveFrom: new Date(
+    "2026-08-01T00:00:00+09:00"
+  ),
+});
+await assert.doesNotReject(
+  () => mainPolicy.validate()
+);
+assert.equal(mainPolicy.mainEntryBonusDays, 2);
+assert.equal(mainPolicy.mainCarryoverBaseDays, 29);
+assert.deepEqual(
+  mainPolicy.stakeDaysByTierGap.map((band) => [
+    band.tierGap,
+    band.stakeDays,
+  ]),
+  [
+    [1, 1],
+    [2, 2],
+    [3, 3],
+  ]
+);
+const incompleteActiveMainPolicy =
+  new MainDivisionPolicyVersion({
+    code: "MAIN-ACTIVE-INCOMPLETE",
+    status: "ACTIVE",
+    effectiveFrom: new Date(
+      "2026-08-01T00:00:00+09:00"
+    ),
+    maximumTargetTierGap: 3,
+    stakeDaysByTierGap: [],
+  });
+await assert.rejects(
+  () => incompleteActiveMainPolicy.validate(),
+  /티어별 배팅표/
+);
+const completeActiveMainPolicy =
+  new MainDivisionPolicyVersion({
+    code: "MAIN-ACTIVE-COMPLETE",
+    status: "ACTIVE",
+    effectiveFrom: new Date(
+      "2026-08-01T00:00:00+09:00"
+    ),
+    maximumTargetTierGap: 2,
+    stakeDaysByTierGap: [
+      { tierGap: 1, stakeDays: 1 },
+      { tierGap: 2, stakeDays: 2 },
+    ],
+  });
+await assert.doesNotReject(
+  () => completeActiveMainPolicy.validate()
+);
 const snapshot = policySnapshot(policy);
 assert.equal(snapshot.initialLearningDays, 29);
 assert.equal(snapshot.initialPaybackScoreDays, 29);
@@ -287,6 +343,7 @@ assert.equal(
   cycleDraft.availableLearningDays,
   29
 );
+assert.equal(cycleDraft.reservedLearningDays, 0);
 
 const standing = new ArenaStanding({
   userId,
@@ -299,6 +356,22 @@ const standing = new ArenaStanding({
 await assert.doesNotReject(
   () => standing.validate()
 );
+const invitation = new MainInvitationRequest({
+  requestId:
+    "main-invitation-foundation-test",
+  initiatorUserId: userId,
+  initiatorStandingId: standing._id,
+  initiatorArenaTier: "마스터",
+  targetTier: "다이아몬드",
+  stakeDays: 2,
+  policyVersionId: mainPolicy._id,
+  policyVersionCode: mainPolicy.code,
+  reservedLearningDays: 2,
+});
+await assert.doesNotReject(
+  () => invitation.validate()
+);
+assert.equal(invitation.requestExpiresAt, null);
 
 const accessState = new ArenaAccessState({
   userId,
@@ -325,10 +398,20 @@ assert.equal(
 assert.equal(
   packagePurchaseEligibility({
     availableLearningDays: 0,
+    reservedLearningDays: 0,
     lockedLearningDays: 0,
     hasPendingSettlement: false,
   }).eligible,
   true
+);
+assert.equal(
+  packagePurchaseEligibility({
+    availableLearningDays: 0,
+    reservedLearningDays: 1,
+    lockedLearningDays: 0,
+    hasPendingSettlement: false,
+  }).eligible,
+  false
 );
 assert.equal(
   officialArenaEligibility({
@@ -339,6 +422,21 @@ assert.equal(
     sundayDivisionLock: false,
   }).eligible,
   true
+);
+assert.equal(
+  mainStakeEligibility({
+    availableLearningDays: 3,
+    stakeDays: 2,
+  }).eligible,
+  true
+);
+assert.equal(
+  mainStakeEligibility({
+    availableLearningDays: 2,
+    stakeDays: 2,
+  }).eligible,
+  false,
+  "Main은 배팅 뒤 최소 1일을 남길 수 있어야 합니다."
 );
 assert.equal(
   buildArenaAccess(
@@ -380,6 +478,28 @@ assert.equal(
   true
 );
 assert.equal(
+  buildArenaAccess(
+    {
+      accountStatus: "active",
+      role: "student",
+    },
+    {
+      accessState: {
+        state: "PAID_ACTIVE",
+        currentCompetitiveDivision: "MAIN",
+        currentSeasonPlacementCompleted: true,
+      },
+      accessCycle: {
+        availableLearningDays: 0,
+        reservedLearningDays: 1,
+        lockedLearningDays: 0,
+      },
+    }
+  ).canUseMain,
+  true,
+  "Main 초대 예약이 남은 사용자는 초대 관리 화면에 접근할 수 있어야 합니다."
+);
+assert.equal(
   buildSeedState(
     {
       status: "submitted",
@@ -415,6 +535,8 @@ assert.equal(
 assert.ok(ArenaMatch.modelName);
 assert.ok(LiveFinalRankingProfile.modelName);
 assert.ok(MainToSubConversionPolicy.modelName);
+assert.ok(MainDivisionPolicyVersion.modelName);
+assert.ok(MainInvitationRequest.modelName);
 assert.ok(RenewalRankAssessment.modelName);
 
 assert.ok(

@@ -123,7 +123,9 @@
               <p>배치고사</p>
               <h2>배치고사</h2>
               <small>
-                <%= placement.status === "submitted"
+                <%= !paidPackageAccess.active
+                  ? "활성 학습권 패키지 회원만 배치고사를 응시할 수 있습니다."
+                  : placement.status === "submitted"
                   ? `${placement.result.correctCount} / 30문항 정답 · ${placement.result.initialTier}`
                   : placement.status === "verification-required"
                     ? `${placement.answeredCount} / 4문항 저장됨 · 준킬러 2 + 킬러 2`
@@ -132,7 +134,9 @@
                     : "30문항 · 제한 시간 100분" %>
               </small>
             </div>
-            <% if (placement.status === "not-started") { %>
+            <% if (!paidPackageAccess.active) { %>
+              <button type="button" class="private-mock-disabled-action" disabled aria-disabled="true">배치고사 잠김 <span aria-hidden="true">×</span></button>
+            <% } else if (placement.status === "not-started") { %>
               <button type="button" data-placement-open>
                 <%= placement.ctaLabel %>
                 <span aria-hidden="true">→</span>
@@ -156,7 +160,7 @@
                   : privateMockEligibility.message %>
               </small>
             </div>
-            <% if (["placement-required", "verification-required", "ranking-pending"].includes(privateMockEligibility.status)) { %>
+            <% if (["payment-required", "access-expired", "placement-required", "verification-required", "ranking-pending"].includes(privateMockEligibility.status)) { %>
               <button
                 type="button"
                 class="private-mock-disabled-action"
@@ -179,7 +183,7 @@
               <span aria-hidden="true">03</span>
               <p>랭킹</p>
               <h2>랭킹 보기</h2>
-              <small>Sub Division·Main Division과 내 티어 안에서의 순위</small>
+              <small>최종 종합 랭킹과 고등학교·N수생 랭킹</small>
             </div>
             <a href="/war-of-masters/rankings">
               랭킹 페이지 열기

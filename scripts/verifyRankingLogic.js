@@ -5,6 +5,7 @@ const {
   _testing: {
     ranked,
     aggregateRankings,
+    buildSchoolAndRetakerRankings,
     buildTierRankingPool,
   },
 } = require(
@@ -209,6 +210,59 @@ assert.equal(
   1,
   "GOAT Arena 티어 랭킹은 내부 MMR이 아니라 GP 내림차순이어야 합니다."
 );
+
+const finalRankingGroups =
+  buildSchoolAndRetakerRankings([
+    {
+      userId: "student-1",
+      displayName: "재학생1",
+      schoolCode: "school-a",
+      schoolName: "A고",
+      region: "서울",
+      grade: 11,
+      educationStatus: "enrolled",
+      finalRank: 10,
+    },
+    {
+      userId: "student-2",
+      displayName: "재학생2",
+      schoolCode: "school-a",
+      schoolName: "A고",
+      region: "서울",
+      grade: 12,
+      educationStatus: "enrolled",
+      finalRank: 30,
+    },
+    {
+      userId: "graduate",
+      displayName: "졸업생",
+      schoolCode: "school-a",
+      schoolName: "A고",
+      region: "서울",
+      grade: 12,
+      educationStatus: "graduated",
+      finalRank: 1,
+    },
+    {
+      userId: "retaker",
+      displayName: "N수생",
+      schoolCode: "school-a",
+      schoolName: "A고",
+      region: "서울",
+      grade: 13,
+      educationStatus: "graduated",
+      finalRank: 7,
+    },
+  ]);
+assert.equal(finalRankingGroups.schools[0].averageFinalRank, 20);
+assert.deepEqual(
+  finalRankingGroups.schools[0].students.map((entry) => entry.userId),
+  ["student-1", "student-2"]
+);
+assert.deepEqual(
+  finalRankingGroups.retakers.map((entry) => entry.userId),
+  ["retaker"]
+);
 assert.equal(
   isArchiveAdmin({
     role: "admin",
@@ -270,5 +324,5 @@ assert.ok(
 );
 
 console.log(
-  "MMR·티어·동점 기준·전체·학교·도시 랭킹 검증 완료"
+  "MMR·티어·동점 기준·최종 종합·재학생 학교 평균·N수생 랭킹 검증 완료"
 );

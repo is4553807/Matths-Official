@@ -21,6 +21,9 @@ const {
   rankingProfileView,
   upsertInitialRankingProfile,
 } = require("./mmrService");
+const {
+  syncInitialArenaPlacement,
+} = require("./arenaStandingService");
 
 const KEY_QUESTION_NUMBERS = [
   20,
@@ -1323,6 +1326,12 @@ async function getPlacementDashboardData(
       };
     }
 
+    /* 기존 완료자도 대시보드 재방문 시 Sub Division 배치를 멱등 복구한다. */
+    await syncInitialArenaPlacement({
+      userId,
+      attemptId: submitted._id,
+    });
+
     const standing =
       await currentStanding(
         submitted
@@ -1616,6 +1625,11 @@ async function finalizePlacementVerificationAttempt({
     attempt,
     standing,
   });
+  await syncInitialArenaPlacement({
+    userId: attempt.userId,
+    attemptId: attempt._id,
+    now,
+  });
   return attempt;
 }
 
@@ -1886,6 +1900,15 @@ async function submitPlacementAttempt({
       "disqualified",
     ].includes(attempt.status)
   ) {
+    if (
+      attempt.status === "submitted" &&
+      !isVerificationPending(attempt)
+    ) {
+      await syncInitialArenaPlacement({
+        userId: attempt.userId,
+        attemptId: attempt._id,
+      });
+    }
     return attempt;
   }
 
@@ -2175,6 +2198,10 @@ async function submitPlacementAttempt({
   await upsertInitialRankingProfile({
     attempt,
     standing,
+  });
+  await syncInitialArenaPlacement({
+    userId: attempt.userId,
+    attemptId: attempt._id,
   });
 
   return attempt;

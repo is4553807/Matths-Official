@@ -77,6 +77,21 @@ async function connectDB() {
             startPrivateMockExamScheduler,
         } = require("./services/privateMockExamService");
         startPrivateMockExamScheduler();
+
+        const {
+            startAccessCycleScheduler,
+        } = require("./services/accessCycleService");
+        startAccessCycleScheduler();
+
+        const {
+            startDailyAccessCycleScheduler,
+        } = require("./services/accessCycleDailyService");
+        startDailyAccessCycleScheduler();
+
+        const {
+            startArenaMatchAttemptScheduler,
+        } = require("./services/arenaMatchAttemptService");
+        startArenaMatchAttemptScheduler();
     } catch (error) {
         console.error("MongoDB Connection Failed:", error);
         process.exit(1);

@@ -148,19 +148,29 @@
             </article>
           <% } else if (arenaAccess.activeDivision === "MAIN") { %>
             <article>
-              <small>Main Division 학습 가능 일수</small>
+              <small>Main Division 사용 가능 일수</small>
               <strong><%= arenaAccess.learningRights.availableDays ?? "—" %></strong>
-              <span>현재 정기권 학습 가능 일수</span>
+              <span>지금 이용하거나 새 경기에 걸 수 있는 일수</span>
             </article>
             <article>
-              <small>정산 대기 일수</small>
+              <small>초대 예약 일수</small>
+              <strong><%= arenaAccess.learningRights.reservedDays ?? "—" %></strong>
+              <span>아직 수락되지 않은 하위 티어 초대에 예약된 일수</span>
+            </article>
+            <article>
+              <small>경기 중 잠금 일수</small>
               <strong><%= arenaAccess.learningRights.lockedDays ?? "—" %></strong>
-              <span>진행 중 경기를 위해 정산 대기 중인 일수</span>
+              <span>성립된 경기의 정산이 끝날 때까지 잠긴 일수</span>
+            </article>
+            <article>
+              <small>Main Division 총 학습일수</small>
+              <strong><%= arenaAccess.learningRights.totalMainDays ?? "—" %></strong>
+              <span>사용 가능·예약·경기 중 잠금 일수의 합계</span>
             </article>
             <article>
               <small>이용 상태</small>
               <strong>Main Division</strong>
-              <span>정기권 학습 가능 일수가 0일이 되면 Sub Division 강등·이용 잠금으로 전환됩니다.</span>
+              <span>사용 가능·예약·잠금 일수가 모두 0이고 미정산 경기가 없으면 Sub Division 강등·이용 잠금으로 전환됩니다.</span>
             </article>
           <% } else { %>
             <article class="arena-rights-pending">

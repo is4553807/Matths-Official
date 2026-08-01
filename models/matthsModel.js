@@ -5410,6 +5410,12 @@ const archiveFolderSchema =
                 type: Boolean,
                 default: true,
             },
+            accessLevel: {
+                type: String,
+                enum: ["AUTHENTICATED", "PAID_PACKAGE"],
+                default: "AUTHENTICATED",
+                index: true,
+            },
             isPinned: {
                 type: Boolean,
                 default: false,

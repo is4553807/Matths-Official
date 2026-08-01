@@ -530,3 +530,70 @@
 .tier-ranking-row > strong {
   font-size: 12px;
 }
+.matths-final-ranking-hub {
+  display: grid;
+  gap: 24px;
+}
+
+.matths-ranking-table-scroll {
+  max-height: 620px;
+  overflow: auto;
+  border: 1px solid #e1e6f4;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.school-final-ranking-list {
+  display: grid;
+  gap: 12px;
+}
+
+.school-final-ranking-card {
+  border: 1px solid #dfe5f3;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.school-final-ranking-card summary {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 20px;
+  cursor: pointer;
+}
+
+.school-final-ranking-card summary div,
+.school-final-ranking-card summary strong,
+.school-final-ranking-card summary small {
+  display: block;
+}
+
+.school-final-ranking-card summary > b,
+.school-final-ranking-card summary > em {
+  color: #5368e8;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.school-student-ranking-list {
+  padding: 0 20px 20px;
+}
+
+.school-student-ranking-list p {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 14px;
+  margin: 0;
+  padding: 12px 0;
+  border-top: 1px solid #eef1f8;
+}
+
+@media (max-width: 700px) {
+  .school-final-ranking-card summary {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .school-final-ranking-card summary > em {
+    grid-column: 2;
+  }
+}

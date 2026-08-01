@@ -18,7 +18,7 @@
 > + Arena GP
 > ```
 >
-> 모든 일반 1대1 및 Revenge 경기는 MMR을 상대 선정, 승패 판정, 스왑 또는 정산에 사용하지 않는다.
+> 모든 일반 1대1 및 복수전은 MMR을 상대 선정, 승패 판정, 스왑 또는 정산에 사용하지 않는다.
 > 도전자가 이겼을 때만 두 사용자의 Arena 랭크·순위·GP를 통째로 교환하며,
 > 방어자가 이기면 Arena 상태는 교환하지 않는다.
 >
@@ -36,13 +36,22 @@
 ### 학습권 소진
 
 ```text
+Sub Division:
 availableLearningDays = 0
 → ACCESS_EXPIRED_LOCKED
+
+Main Division:
+availableLearningDays = 0
+AND reservedLearningDays = 0
+AND lockedLearningDays = 0
+AND noPendingSettlement
+→ MAIN_DEMOTED_TO_SUB
+→ SUB_ACCESS_EXPIRED_LOCKED
 ```
 
 잠기는 기능:
 
-- GOAT Arena 공격·방어·Revenge
+- GOAT Arena 공격·방어·복수전
 - 주간 공식 모의고사
 - Weekly Mock Bonus
 - 공식 Skill MMR 갱신
@@ -59,7 +68,9 @@ availableLearningDays > 0
 → 새 패키지 즉시 구매 불가
 
 availableLearningDays = 0
+AND reservedLearningDays = 0
 AND lockedLearningDays = 0
+AND noPendingSettlement
 → 새 패키지 구매 가능
 ```
 
@@ -92,7 +103,7 @@ AND lockedLearningDays = 0
 
 ### Main 사용자의 만료·Sub 강등·재구독
 
-Main 사용자의 학습권이 끝나면 Main에서 Sub로 강등되며, GOAT Arena 이용은 잠긴다. 직전 Main 상태는 재구독 배치 계산을 위해 보존한다.
+Main 사용자의 사용 가능·초대 예약·경기 중 잠금 학습일수가 모두 0이고 미정산 경기가 없으면 Main에서 Sub로 강등되며, GOAT Arena 이용은 잠긴다. 직전 Main 상태는 재구독 배치 계산을 위해 보존한다.
 
 ```text
 학습권 만료
@@ -125,6 +136,9 @@ Main 사용자의 학습권이 끝나면 Main에서 Sub로 강등되며, GOAT Ar
 ### 일요일 공개 경계
 
 ```text
+일요일 14:30
+→ Sub·Main 신규 경기 신청·초대 수락·복수전 신청·준비·시작 차단
+
 일요일 15:00
 → GOAT Arena와 공개 Final Ranking 동결
 
@@ -848,6 +862,21 @@ advancedFinal = 0.35 × 기존 advanced
 - 답이 하나도 없고 문제은행 버전이 오래된 시도는 현재 버전으로 새로 구성한다.
 - 하나라도 답한 시도는 버전이 달라도 사용자 작업을 보존하고 재개한다.
 
+### 7.8 최초 Sub Division 배치 연결
+
+검증 문항까지 끝난 최초 배치고사는 한 번만 Sub Division 시작 상태를 만든다.
+
+- 배치 결과의 초기 rating을 `INITIAL-PLACEMENT-BASELINE-V1` 기준 최초 GP로 복사한다.
+- 이 복사는 최초 생성 시에만 수행하며, 이후 GP의 권위 원본은 `ArenaStanding`이다.
+- 이후 배치·주간 공식 모의고사에서 변경되는 Skill MMR이 Arena GP를 다시 덮어쓰지 않는다.
+- `arenaPosition`은 전체 순위가 아니라 같은 티어 안의 순위다.
+- GP 내림차순, 같은 GP 도달 시각 오름차순으로 정렬한다.
+- 결제 전 완료자는 `PAYMENT_REQUIRED`와 잠긴 순위를 보존한다.
+- 결제 후 미완료자는 `SEASON_PLACEMENT_REQUIRED`를 유지한다.
+- 활성 학습권과 완료된 배치고사가 모두 있을 때만 `PAID_ACTIVE`와 공식 순위·방어·주간 공식 모의고사·최종 종합 랭킹 권한을 활성화한다.
+- 과거 완료자는 배치고사 대시보드를 다시 열면 같은 배치 기록으로 멱등 복구한다.
+- 이전 연도 배치 기록은 현재 시즌 권한을 다시 열지 않으며, 만료·재구독 상태는 최초 배치 복구가 덮어쓰지 않는다.
+
 ---
 
 ## 8. 주간 모의고사 MMR — GOAT Arena 1대1과 분리
@@ -1098,9 +1127,9 @@ delta = round(clamp(K × (actual - expected) + growthBonus, -limit, +limit))
 - 현재 사용자의 전체·학교 개인 위치
 - 현재 학교·도시 위치
 
-### 9.3 레거시 rating과 명칭 분리
+### 9.3 MMR 표시값과 Arena 상태 분리
 
-600–2600 구간을 사용하던 `tierForRating` 호환 로직이 남아 있다. 현행 주간 모의고사 화면의 MMR 표시 티어는 MMR 티어 설정을 사용한다. 신규 기능은 이 값을 GOAT Arena 랭크·순위·GP와 혼합하면 안 된다.
+주간 모의고사 화면의 MMR 표시 티어는 MMR 티어 설정을 사용한다. 이 값은 GOAT Arena 랭크·순위·GP와 분리하며 서로 덮어쓰거나 같은 필드 의미로 사용하지 않는다.
 
 ---
 
@@ -1123,7 +1152,7 @@ Final Rating
 Final Ranking은 평상시 Sub·Main Arena 정산 직후 실시간으로 재계산한다.
 Division 기본점수와 성장·위치점수는 누적하지 않고 매번 공식으로 덮어쓴다.
 
-매주 일요일 15:00부터 월요일 00:00까지 Sub와 Main 공식 경기를 잠그며,
+매주 일요일 14:30부터 Sub·Main의 새 공식 경기 신청·수락·준비·시작을 모두 차단한다. 15:00부터 월요일 00:00까지 두 Division의 모든 공식 경기 쓰기를 잠그며,
 이 시간에는 Division 입력을 고정한 뒤 MMR과 공식 Final Ranking을 계산한다.
 
 매년 12월 31일에는 Final Ranking 시즌을 종료·보관하고,
@@ -1147,7 +1176,7 @@ GOAT Arena Sub·Main 공식 경쟁을 잠근다.
 → Sub·Main 잠금 해제
 ```
 
-새 매치 시작 cutoff는 최대 경기시간과 정산 유예시간을 고려해 15:00보다 앞에 둔다.
+새 매치 신청·수락·준비·시작 cutoff는 일요일 14:30으로 고정한다.
 
 15:00까지 정산되지 않은 공식 경기는 `HELD`로 보내고
 Sunday Division 스냅샷에 반영하지 않는다.
@@ -2083,15 +2112,48 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 `models/goatArenaModel.js`에 다음 권위 모델의 skeleton을 둔다.
 
 - `SubscriptionPolicyVersion`, `FinalRankingPolicyVersion`
+- `MainDivisionPolicyVersion`, `MainInvitationRequest`, `MainInvitationOffer`
+- `ArenaOpponentSelectionAudit`, `ArenaRevengeRight`
 - `AccessCycle`, `ArenaAccessState`, `ArenaLearningDayLedger`
 - `ArenaStanding`, `ArenaSnapshot`
 - `ArenaMatch`, `ArenaMatchParticipantLock`, `ArenaStandingChangeLedger`
+- `ArenaProblemPack`, `ArenaMatchAttempt`, `ArenaMatchAttemptEvent`
 - `MainToSubConversionPolicy`, `MainToSubConversionResult`
 - `RenewalRankAssessment`
 - `LiveFinalRankingProfile`
 - `ArenaPaybackReview`, `ArenaOutboxEvent`
 
-현재 단계에서는 스키마·멱등 키·상태 경계만 고정하며 실제 결제, 1대1 채점·정산, Main 내부 경기 규칙과 페이백 송금은 연결하지 않는다.
+정책·이용 주기·일일 차감·최초 Sub Division 배치는 실제 트랜잭션에 연결했다. Sub 자동 상대 선정, Main 정책 버전, 초대 제안·예약 잔액, 복수전 권리와 경기별 경제·결과 사본 골격도 추가했다. 결제사 외부 승인 API, 1대1 최종 정산, Main 실제 경기 생성·초대·복수전과 페이백 송금은 아직 연결하지 않는다.
+
+### 16.9 Sub Division 일반 쟁탈전 생성
+
+- 같은 활성 Sub Division의 적격 사용자만 방어 후보가 된다.
+- 브론즈는 브론즈·실버, 챌린저는 챌린저, 나머지는 자신의 바로 위 티어만 방어 후보가 된다.
+- 후보 조회와 경기 생성은 내부 실력 지표와 최종 종합 랭킹을 사용하지 않는다.
+- 공격자는 상대 개인이 아니라 허용된 목표 티어만 선택한다.
+- 서버가 해당 티어의 적격 방어자 한 명을 무작위로 정하고 현재 상태를 트랜잭션 안에서 다시 검증한다.
+- 공격자 이용 주기의 정책 사본에 고정된 적용 일수를 정산 대기로 옮긴다.
+- 양쪽 참가자 잠금으로 사용자당 미정산 공식 경기 하나만 허용한다.
+- 경기, 두 참가자 잠금, 학습일 원장과 이벤트를 한 트랜잭션으로 생성한다.
+- 요청 재전송은 같은 경기로 복구하며 중복 잠금하지 않는다.
+- 티어 조합당 30개 문제 묶음 슬롯 중 하나를 고르고, 경기 신청 순간 주관식 준킬러 5문항을 자동 생성·검산·봉인한다.
+- 실제 유형 생성기가 모두 연결되지 않았거나 자동 검산이 실패하면 경기·문제·잠금·학습일 원장을 만들지 않는다.
+- 같은 트랜잭션에서 양측 `READY` 응시까지 만들어 생성 직후 응시 준비 상태가 된다.
+- 경기 요청 뒤 24시간 안에 시작해야 하며, 일요일을 통과하면 시작 마감은 일요일 14:30으로 단축한다.
+
+### 16.10 일반 쟁탈전 문제 준비·응시
+
+- 운영자 수동 검수 대신 JS 생성기와 자동 검산을 통과한 주관식 준킬러 5문항·100점·10분 팩만 봉인한다.
+- 봉인 팩 전체 콘텐츠 해시가 일치해야 실제 경기에 배정한다.
+- 양측에는 난이도와 내용이 완전히 같은 문제를 제공하고 난이도 목표는 상위 티어인 방어자 쪽에 더 가깝게 둔다.
+- 각 참가자는 서로 다른 시각에 시작할 수 있으며 자신의 서버 시작 시각부터 같은 제한 시간이 흐른다.
+- 한 화면에는 현재 문제 하나만 표시하며 다음 문제로 이동하면 이전 문제와 답을 다시 보거나 수정할 수 없다.
+- 문항별 풀이시간과 전체 풀이시간, 답안 변경 snapshot, heartbeat·focus 이벤트를 서버 수신 시각과 함께 보존한다.
+- 5번 문제 완료 또는 제한 시간 종료 뒤 문제를 닫고 60초 풀이 증거 제출 단계로 전환한다.
+- 분수·소수·동치식은 수학적으로 같은 값이면 정답으로 인정한다.
+- 모든 풀이 증거를 운영자가 열람할 수 있고 이상 징후는 관리자 알림으로 만든다.
+- 상대가 배정되기 전에는 개인 후보를 공개하지 않는다. 매치가 성립한 뒤에는 서비스 닉네임만 표시하고 실명·학교·지역·연락처는 보내지 않는다.
+- 아직 서버 채점·승패·무결성 결론·GP·티어·티어 내 순위·학습일 정산은 수행하지 않는다.
 
 ---
 
@@ -2289,9 +2351,20 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 |---|---|---|
 | GET | `/goat-arena` | Arena 시작·정책 설명 |
 | GET | `/goat-arena/rankings` | Sub·Main ArenaStanding 랭킹 |
-| GET | `/goat-arena/sub` | Sub Division 기능 skeleton |
-| GET | `/goat-arena/main` | Main Division 확정 상태·기능 skeleton |
+| GET | `/goat-arena/sub` | Sub Division 기능 허브 |
+| GET | `/goat-arena/main` | Main Division 정책 상태·기능 허브 |
+| GET | `/goat-arena/:division/features/:featureKey` | Division 기능별 권한 보호 안내 페이지 |
 | GET | `/goat-arena/profile` | Arena 상태·학습권 프로필 |
+| GET | `/goat-arena/sub/challenge` | Sub Division 목표 티어 선택·현재 경기 |
+| POST | `/goat-arena/sub/challenges` | 서버 무작위 상대 선정·일반 쟁탈전 생성·참가자/학습일 잠금 |
+| GET | `/goat-arena/matches/:matchId` | 참가자 전용 경기 준비·응시 화면 |
+| POST | `/goat-arena/matches/:matchId/prepare` | 봉인 문제 팩·양쪽 응시 준비 |
+| POST | `/goat-arena/matches/:matchId/start` | 개인 서버 타이머 시작 |
+| POST | `/api/goat-arena/matches/:matchId/answers` | 답안 변경 자동 저장 |
+| POST | `/api/goat-arena/matches/:matchId/advance` | 현재 문항 확정·다음 문항 이동 |
+| POST | `/api/goat-arena/matches/:matchId/activity` | heartbeat·focus 활동 기록 |
+| POST | `/api/goat-arena/matches/:matchId/submit` | 개인 최종 답안 제출 |
+| POST | `/goat-arena/matches/:matchId/evidence` | 60초 풀이 증거 제출 |
 
 ---
 

@@ -25,6 +25,10 @@ const {
   UserNotification,
 } = require("../models/matthsModel");
 const {
+  AccessCycle,
+  ArenaAccessState,
+} = require("../models/goatArenaModel");
+const {
   ARCHIVE_STORAGE_DIR,
   createArchiveItem,
   deleteArchiveItem,
@@ -2051,11 +2055,15 @@ async function refreshExamStandardMetrics(
     return [];
   }
 
-  const attempts =
+  const submittedAttempts =
     await PrivateMockExamAttempt.find({
       examId: exam._id,
       status: "submitted",
     }).lean();
+  const attempts =
+    await withoutExpiredArenaAttempts(
+      submittedAttempts
+    );
   const calibrationAttempts =
     attempts.filter(
       (attempt) =>
@@ -2553,6 +2561,62 @@ async function lockPrivateMockExam(
   }
 }
 
+async function withoutExpiredArenaAttempts(
+  attempts
+) {
+  const source = Array.isArray(attempts)
+    ? attempts
+    : [];
+  const userIds = [
+    ...new Set(
+      source
+        .map((attempt) =>
+          String(attempt?.userId || "")
+        )
+        .filter((userId) =>
+          mongoose.isValidObjectId(userId)
+        )
+    ),
+  ];
+  if (!userIds.length) return source;
+
+  const objectIds = userIds.map(
+    (userId) =>
+      new mongoose.Types.ObjectId(userId)
+  );
+  const [expiredStates, depletedCycles] =
+    await Promise.all([
+      ArenaAccessState.find({
+        userId: { $in: objectIds },
+        state:
+          "SUB_ACCESS_EXPIRED_LOCKED",
+      })
+        .select("userId")
+        .lean(),
+      AccessCycle.find({
+        userId: { $in: objectIds },
+        availableLearningDays: 0,
+        status: { $in: ["ACTIVE", "EXPIRED"] },
+      })
+        .select("userId")
+        .lean(),
+    ]);
+  const excludedUserIds = new Set([
+    ...expiredStates.map((state) =>
+      String(state.userId)
+    ),
+    ...depletedCycles.map((cycle) =>
+      String(cycle.userId)
+    ),
+  ]);
+  return source.filter(
+    (attempt) =>
+      !excludedUserIds.has(
+        String(attempt.userId)
+      )
+  );
+}
+
 async function lockPrivateMockWeekSelections(
   weekKey,
   now = new Date()
@@ -2577,7 +2641,7 @@ async function lockPrivateMockWeekSelections(
     );
   }
 
-  const attempts =
+  const submittedAttempts =
     await PrivateMockExamAttempt.find({
       weekKey,
       status: "submitted",
@@ -2588,6 +2652,10 @@ async function lockPrivateMockWeekSelections(
         attemptNumber: 1,
       })
       .lean();
+  const attempts =
+    await withoutExpiredArenaAttempts(
+      submittedAttempts
+    );
   const byUser =
     new Map();
 
@@ -2952,7 +3020,7 @@ async function analyzePrivateMockExam(
   exam,
   now
 ) {
-  const submitted =
+  const submittedCandidates =
     await PrivateMockExamAttempt.find({
       examId: exam._id,
       status: "submitted",
@@ -2964,6 +3032,10 @@ async function analyzePrivateMockExam(
         submittedAt: 1,
       })
       .lean();
+  const submitted =
+    await withoutExpiredArenaAttempts(
+      submittedCandidates
+    );
 
   if (submitted.length) {
     await PrivateMockExamAttempt.bulkWrite(
@@ -3889,6 +3961,64 @@ async function getPrivateMockEligibility(
           "/account/private-mock-restriction",
       };
     }
+  }
+
+  const arenaAccessState =
+    await ArenaAccessState.findOne({
+      userId,
+    })
+      .select("state accessCycleId currentCompetitiveDivision")
+      .lean();
+  const linkedAccessCycle =
+    arenaAccessState?.accessCycleId
+      ? await AccessCycle.findById(
+          arenaAccessState.accessCycleId
+        )
+          .select(
+            "division availableLearningDays reservedLearningDays lockedLearningDays status"
+          )
+          .lean()
+      : null;
+  const linkedLearningDays =
+    arenaAccessState?.currentCompetitiveDivision === "MAIN"
+      ? Number(linkedAccessCycle?.availableLearningDays || 0) +
+        Number(linkedAccessCycle?.reservedLearningDays || 0) +
+        Number(linkedAccessCycle?.lockedLearningDays || 0)
+      : Number(linkedAccessCycle?.availableLearningDays || 0);
+  if (
+    arenaAccessState?.state ===
+      "SUB_ACCESS_EXPIRED_LOCKED" ||
+    (linkedAccessCycle &&
+      linkedLearningDays <= 0)
+  ) {
+    return {
+      allowed: false,
+      status: "access-expired",
+      title:
+        "정기권 학습 가능 일수를 모두 사용했습니다.",
+      message:
+        "학습권 패키지를 다시 구매해야 Matths 주간 공식 모의고사와 GOAT Arena를 이용할 수 있습니다.",
+      ctaLabel:
+        "학습권 패키지 확인",
+      ctaHref: "/goat-arena/profile",
+      availableLearningDays:
+        linkedLearningDays,
+    };
+  }
+  if (
+    !linkedAccessCycle ||
+    linkedAccessCycle.status !== "ACTIVE"
+  ) {
+    return {
+      allowed: false,
+      status: "payment-required",
+      title: "활성 학습권 패키지가 필요합니다.",
+      message:
+        "Matths 주간 공식 모의고사와 GOAT Arena 공식 기능은 학습권 패키지를 이용 중인 회원만 사용할 수 있습니다.",
+      ctaLabel: "학습권 패키지 확인",
+      ctaHref: "/goat-arena/profile",
+      availableLearningDays: 0,
+    };
   }
 
   const placement =

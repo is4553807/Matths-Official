@@ -5,6 +5,12 @@
   ];
   const rankingUserId =
     String(user._id || "");
+  const activeDivisionKey =
+    typeof arenaAccess !== "undefined" && ["SUB", "MAIN"].includes(arenaAccess?.activeDivision)
+      ? arenaAccess.activeDivision
+      : (["SUB", "MAIN"].includes(ranking.current?.arenaDivision)
+          ? ranking.current.arenaDivision
+          : "SUB");
 %>
 <section
   class="tier-ranking-hub <%= rankingTheme %>"
@@ -20,7 +26,7 @@
       <button
         type="button"
         role="tab"
-        aria-selected="<%= index === 0 ? 'true' : 'false' %>"
+        aria-selected="<%= pool.key === activeDivisionKey ? 'true' : 'false' %>"
         aria-controls="ranking-pool-<%= pool.key.toLowerCase() %>"
         data-pool-tab="<%= pool.key %>"
       >
@@ -36,7 +42,7 @@
       id="ranking-pool-<%= pool.key.toLowerCase() %>"
       role="tabpanel"
       data-pool-panel="<%= pool.key %>"
-      <%= poolIndex === 0 ? "" : "hidden" %>
+      <%= pool.key === activeDivisionKey ? "" : "hidden" %>
     >
       <% if (pool.current) { %>
         <article class="tier-my-ranking" aria-label="나의 티어 내 랭킹">

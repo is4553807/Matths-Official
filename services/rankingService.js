@@ -5,6 +5,7 @@ const {
 } = require("../models/matthsModel");
 const {
   ArenaStanding,
+  LiveFinalRankingProfile,
 } = require("../models/goatArenaModel");
 const {
   _testing: {
@@ -430,6 +431,62 @@ function aggregateRankings(
     }));
 }
 
+function buildSchoolAndRetakerRankings(finalEntries = []) {
+  const schools = new Map();
+  const retakers = [];
+  for (const entry of finalEntries) {
+    if (Number(entry.grade) === 13) {
+      retakers.push(entry);
+      continue;
+    }
+    if (entry.educationStatus !== "enrolled") continue;
+    if (!entry.schoolCode || !entry.schoolName) continue;
+    const group = schools.get(entry.schoolCode) || {
+      id: entry.schoolCode,
+      name: entry.schoolName,
+      region: entry.region,
+      students: [],
+    };
+    group.students.push(entry);
+    schools.set(entry.schoolCode, group);
+  }
+  const schoolRankings = [...schools.values()]
+    .map((group) => {
+      const students = [...group.students].sort(
+        (left, right) => left.finalRank - right.finalRank
+      );
+      return {
+        ...group,
+        students,
+        participantCount: students.length,
+        averageFinalRank:
+          Math.round(
+            (students.reduce((sum, student) => sum + student.finalRank, 0) /
+              students.length) *
+              10
+          ) / 10,
+        bestFinalRank: students[0]?.finalRank || null,
+      };
+    })
+    .sort((left, right) => {
+      if (left.averageFinalRank !== right.averageFinalRank) {
+        return left.averageFinalRank - right.averageFinalRank;
+      }
+      if (right.participantCount !== left.participantCount) {
+        return right.participantCount - left.participantCount;
+      }
+      return left.bestFinalRank - right.bestFinalRank;
+    })
+    .map((group, index) => ({ ...group, rank: index + 1 }));
+
+  return {
+    schools: schoolRankings,
+    retakers: [...retakers]
+      .sort((left, right) => left.finalRank - right.finalRank)
+      .map((entry, index) => ({ ...entry, retakerRank: index + 1 })),
+  };
+}
+
 async function latestPlacementAttempts() {
   const attempts =
     await AssessmentAttempt.find({
@@ -485,8 +542,14 @@ function findRank(
 async function getRankingData(
   currentUserId
 ) {
-  const attempts =
-    await latestPlacementAttempts();
+  const [attempts, liveFinalProfiles] = await Promise.all([
+    latestPlacementAttempts(),
+    LiveFinalRankingProfile.find({
+      status: { $in: ["ACTIVE", "SUNDAY_DISPLAY_FROZEN"] },
+    })
+      .sort({ finalRank: 1 })
+      .lean(),
+  ]);
   const users =
     await User.find({
       _id: {
@@ -539,6 +602,41 @@ async function getRankingData(
       user,
     ])
   );
+  const finalUserIds = liveFinalProfiles.map((profile) => profile.userId);
+  const finalUsers = await User.find({
+    _id: { $in: finalUserIds },
+    isActive: true,
+  })
+    .select(
+      "name realName preferences.rankingDisplayMode school schoolGrade educationStatus"
+    )
+    .lean();
+  const finalUserById = new Map(
+    finalUsers.map((user) => [String(user._id), user])
+  );
+  const finalOverall = liveFinalProfiles
+    .map((profile) => {
+      const user = finalUserById.get(String(profile.userId));
+      if (!user) return null;
+      return {
+        userId: String(user._id),
+        displayName: getRankingDisplayName(user),
+        schoolCode: String(user.school?.code || ""),
+        schoolName: String(user.school?.name || ""),
+        region: String(user.school?.region || ""),
+        grade: numberValue(user.schoolGrade),
+        educationStatus: String(
+          user.educationStatus || "enrolled"
+        ),
+        finalRating: numberValue(profile.finalRating),
+        finalRank: numberValue(profile.finalRank),
+        division: profile.currentCompetitiveDivision,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.finalRank - right.finalRank);
+  const schoolAndRetakerRankings =
+    buildSchoolAndRetakerRankings(finalOverall);
   const eligibleAttempts =
     attempts.filter((attempt) =>
       userById.has(
@@ -928,6 +1026,13 @@ async function getRankingData(
       schools.slice(0, 100),
     cities:
       cities.slice(0, 100),
+    finalOverall,
+    schoolRankings: schoolAndRetakerRankings.schools,
+    retakerRankings: schoolAndRetakerRankings.retakers,
+    currentFinal:
+      finalOverall.find(
+        (entry) => entry.userId === String(currentUserId)
+      ) || null,
     pools: {
       sub: subPool,
       main: mainPool,
@@ -940,6 +1045,7 @@ module.exports = {
   _testing: {
     ranked,
     aggregateRankings,
+    buildSchoolAndRetakerRankings,
     buildTierRankingPool,
   },
 };

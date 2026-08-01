@@ -3,6 +3,7 @@ const ACTIVE_ACCESS_STATE =
 
 function packagePurchaseEligibility({
   availableLearningDays,
+  reservedLearningDays = 0,
   lockedLearningDays,
   hasPendingSettlement,
 }) {
@@ -12,6 +13,9 @@ function packagePurchaseEligibility({
   }
   if (Number(lockedLearningDays) !== 0) {
     reasons.push("LOCKED_BALANCE_REMAINS");
+  }
+  if (Number(reservedLearningDays) !== 0) {
+    reasons.push("RESERVED_BALANCE_REMAINS");
   }
   if (hasPendingSettlement === true) {
     reasons.push("PENDING_SETTLEMENT");
@@ -53,6 +57,34 @@ function officialArenaEligibility({
   };
 }
 
+function mainStakeEligibility({
+  availableLearningDays,
+  stakeDays,
+}) {
+  const reasons = [];
+  const normalizedStake = Number(stakeDays);
+  const normalizedAvailable = Number(
+    availableLearningDays
+  );
+  if (
+    !Number.isInteger(normalizedStake) ||
+    normalizedStake <= 0
+  ) {
+    reasons.push("MAIN_STAKE_POLICY_INCOMPLETE");
+  } else if (
+    !Number.isFinite(normalizedAvailable) ||
+    normalizedAvailable <= normalizedStake
+  ) {
+    reasons.push(
+      "MAIN_STAKE_BALANCE_BUFFER_REQUIRED"
+    );
+  }
+  return {
+    eligible: reasons.length === 0,
+    reasons,
+  };
+}
+
 function weeklyMockEligibility(input) {
   const arena = officialArenaEligibility({
     ...input,
@@ -69,6 +101,7 @@ function weeklyMockEligibility(input) {
 
 module.exports = {
   ACTIVE_ACCESS_STATE,
+  mainStakeEligibility,
   officialArenaEligibility,
   packagePurchaseEligibility,
   weeklyMockEligibility,
