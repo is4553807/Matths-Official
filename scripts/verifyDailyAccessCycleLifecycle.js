@@ -251,7 +251,7 @@ async function run() {
     arenaTuple: {
       arenaRank: "마스터",
       arenaPosition: 4,
-      arenaGp: 1800,
+      arenaGp: 88,
     },
     participantCount: 100,
     percentile: 0.97,
@@ -297,7 +297,7 @@ async function run() {
   }
   assert.ok(
     privateMockSource.includes(
-      'status: "access-expired"'
+      'status: "payment-required"'
     ),
     "학습권 만료자의 Matths 주간 공식 모의고사 차단이 없습니다."
   );

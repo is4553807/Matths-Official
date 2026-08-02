@@ -8,56 +8,42 @@
     typeof adminTodoSummary !== "undefined"
       ? adminTodoSummary
       : { pendingCount: 0, items: [] };
-  const adminNavigationItems = [
+  const adminNavigationGroups = [
     {
-      id: "dashboard",
-      href: "/admin",
-      label: "운영 현황",
+      id: "members",
+      label: "회원·고객",
+      items: [
+        { id: "users", href: "/admin/users", label: "유저 관리" },
+        { id: "todos", href: "/admin/todos", label: "할 일" },
+        { id: "inquiries", href: "/admin/inquiries", label: "문의 관리" },
+      ],
     },
     {
-      id: "users",
-      href: "/admin/users",
-      label: "유저 관리",
+      id: "content",
+      label: "콘텐츠",
+      items: [
+        { id: "community", href: "/admin/community", label: "게시판 관리" },
+        { id: "coach-suggestions", href: "/admin/coach-suggestions", label: "문구 제안" },
+        { id: "archive", href: "/archive/admin", label: "아카이브" },
+        { id: "private-mock-exams", href: "/admin/private-mock-exams", label: "주간 공식 모의고사" },
+        { id: "problem-banks", href: "/admin/problem-banks", label: "문제은행 코드" },
+      ],
     },
     {
-      id: "todos",
-      href: "/admin/todos",
-      label: "할 일",
+      id: "arena",
+      label: "GOAT Arena",
+      items: [
+        { id: "arena-policies", href: "/admin/arena-policies", label: "정책·상품" },
+        { id: "arena-matches", href: "/admin/arena-matches", label: "경기 관리" },
+        { id: "arena-audit", href: "/admin/arena-audit", label: "정산·저장 감사" },
+      ],
     },
     {
-      id: "inquiries",
-      href: "/admin/inquiries",
-      label: "문의 관리",
-    },
-    {
-      id: "community",
-      href: "/admin/community",
-      label: "게시판 관리",
-    },
-    {
-      id: "coach-suggestions",
-      href: "/admin/coach-suggestions",
-      label: "문구 제안",
-    },
-    {
-      id: "archive",
-      href: "/archive/admin",
-      label: "아카이브",
-    },
-    {
-      id: "private-mock-exams",
-      href: "/admin/private-mock-exams",
-      label: "Matths 주간 공식 모의고사",
-    },
-    {
-      id: "arena-policies",
-      href: "/admin/arena-policies",
-      label: "Arena 정책",
-    },
-    {
-      id: "arena-matches",
-      href: "/admin/arena-matches",
-      label: "Arena 경기",
+      id: "analytics",
+      label: "데이터",
+      items: [
+        { id: "data-analysis", href: "/admin/data-analysis", label: "운영 지표" },
+      ],
     },
   ];
 %>
@@ -69,13 +55,35 @@
       <small>운영센터</small>
     </strong>
   </a>
-  <nav aria-label="관리자 메뉴">
-    <% adminNavigationItems.forEach((item) => { %>
-      <a
-        class="<%= item.id === currentAdminPage ? 'active' : '' %>"
-        href="<%= item.href %>"
-        <%- item.id === currentAdminPage ? 'aria-current="page"' : "" %>
-      ><%= item.label %></a>
+  <nav class="admin-main-nav" aria-label="관리자 메뉴">
+    <a
+      class="admin-nav-home <%= currentAdminPage === 'dashboard' ? 'active' : '' %>"
+      href="/admin"
+      <%- currentAdminPage === "dashboard" ? 'aria-current="page"' : "" %>
+    >운영 현황</a>
+    <% adminNavigationGroups.forEach((group) => {
+      const groupActive = group.items.some((item) => item.id === currentAdminPage);
+    %>
+      <div class="admin-nav-group <%= groupActive ? 'active' : '' %>" data-admin-nav-group>
+        <button
+          type="button"
+          aria-expanded="false"
+          aria-haspopup="true"
+          data-admin-nav-toggle
+        >
+          <%= group.label %>
+          <span aria-hidden="true">⌄</span>
+        </button>
+        <div class="admin-nav-menu" data-admin-nav-menu>
+          <% group.items.forEach((item) => { %>
+            <a
+              class="<%= item.id === currentAdminPage ? 'active' : '' %>"
+              href="<%= item.href %>"
+              <%- item.id === currentAdminPage ? 'aria-current="page"' : "" %>
+            ><%= item.label %></a>
+          <% }) %>
+        </div>
+      </div>
     <% }) %>
   </nav>
   <div class="admin-account">
@@ -119,3 +127,4 @@
   </div>
 </div>
 <script src="/js/admin-navigation.js" defer></script>
+<script src="/js/session-usage.js" defer></script>

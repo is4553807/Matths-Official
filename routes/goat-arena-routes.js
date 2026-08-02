@@ -90,10 +90,76 @@ router.post(
   goatArenaController.submitArenaMatchEvidence
 );
 
+router.post(
+  "/goat-arena/revenge-rights/:rightId/claim",
+  authMiddleware.isLoggedIn,
+  goatArenaController.claimSubRevenge
+);
+
+router.post(
+  "/goat-arena/revenge-rights/:rightId/forfeit",
+  authMiddleware.isLoggedIn,
+  goatArenaController.forfeitSubRevenge
+);
+
 router.get(
   "/goat-arena/main",
   authMiddleware.isLoggedIn,
   goatArenaController.mainDivisionPage
+);
+
+router.get(
+  "/goat-arena/main/battle",
+  authMiddleware.isLoggedIn,
+  goatArenaController.mainBattlePage
+);
+
+router.post(
+  "/goat-arena/main/challenges",
+  authMiddleware.isLoggedIn,
+  goatArenaController.createMainUpwardChallenge
+);
+
+router.post(
+  "/goat-arena/main/invitations",
+  authMiddleware.isLoggedIn,
+  goatArenaController.createMainLowerInvitation
+);
+
+router.post(
+  "/goat-arena/main/invitation-offers/:offerId/respond",
+  authMiddleware.isLoggedIn,
+  goatArenaController.respondMainInvitation
+);
+
+router.post(
+  "/goat-arena/main/invitations/:invitationId/cancel",
+  authMiddleware.isLoggedIn,
+  goatArenaController.cancelMainInvitation
+);
+
+router.get(
+  "/goat-arena/main/shop",
+  authMiddleware.isLoggedIn,
+  goatArenaController.mainShopPage
+);
+
+router.post(
+  "/goat-arena/main/shop/purchases",
+  authMiddleware.isLoggedIn,
+  goatArenaController.purchaseMainShopItem
+);
+
+router.get(
+  "/goat-arena/rules/sub",
+  authMiddleware.isLoggedIn,
+  goatArenaController.subRulesPage
+);
+
+router.get(
+  "/goat-arena/rules/main",
+  authMiddleware.isLoggedIn,
+  goatArenaController.mainRulesPage
 );
 
 router.get(

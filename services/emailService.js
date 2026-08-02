@@ -168,6 +168,7 @@ async function sendEmail({
   text,
   html,
   replyTo,
+  headers,
 }) {
   const { user, appPassword } =
     getGmailCredentials();
@@ -221,6 +222,7 @@ async function sendEmail({
           subject,
           text,
           html,
+          headers,
         });
     const accepted =
       Array.isArray(
@@ -395,6 +397,7 @@ async function sendAdminUserEmail({
   to,
   subject,
   message,
+  idempotencyKey = "",
 }) {
   const normalizedSubject =
     normalizeAdminEmailSubject(
@@ -416,6 +419,13 @@ async function sendAdminUserEmail({
         body:
           cleanMessage,
       }),
+    headers:
+      idempotencyKey
+        ? {
+            "X-Matths-Idempotency-Key":
+              String(idempotencyKey),
+          }
+        : undefined,
   });
 }
 

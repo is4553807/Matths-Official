@@ -113,8 +113,11 @@ assert.ok(
 );
 
 const auditedViews = [
+  "error.ejs",
   "register.ejs",
   "intro.ejs",
+  "admin-arena-audit.ejs",
+  "admin-data-analysis.ejs",
   "goat-arena.ejs",
   "goat-arena-division.ejs",
   "goat-arena-profile.ejs",
@@ -147,7 +150,7 @@ for (const relative of auditedViews) {
         !/^[a-z][a-z0-9_-]*$/i.test(
           className
         ) ||
-        className.endsWith("--") ||
+        className.endsWith("-") ||
         structuralClasses.has(className)
       ) {
         continue;

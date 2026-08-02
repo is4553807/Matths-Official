@@ -2,7 +2,12 @@ const express = require('express');
 const router = express.Router();
 const matthsController = require('../controllers/matthsController');
 const authMiddleware = require('../middleware/authMiddleware');
-const archiveUpload = require("../middleware/archiveUpload");
+const {
+  adminArchiveUpload,
+  adminFormulaUpload,
+  adminWeeklyMockUpload,
+  userIntegrityEvidenceUpload,
+} = require("../middleware/archiveUpload");
 const {
   communityUpload,
   loadCommunityUploadAccess,
@@ -59,6 +64,7 @@ async function requirePaidPlacementAccess(req, _res, next) {
 
 router.get('/', matthsController.mainPage);
 router.get('/intro', matthsController.introPage);
+router.get('/pricing', matthsController.pricingPage);
 router.get('/visual-learning', matthsController.visualLearningPage);
 router.get('/learning-flow', matthsController.learningFlowPage);
 router.get("/curriculum", matthsController.curriculumPage);
@@ -190,7 +196,7 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   (req, res, next) => {
-    archiveUpload.array(
+    adminArchiveUpload.array(
       "archiveFiles",
       20
     )(
@@ -227,6 +233,18 @@ router.post(
   authMiddleware.isAdmin,
   matthsController.deleteArchiveItem
 );
+router.post(
+  "/archive/admin/trash/:itemId/restore",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.restoreArchiveItem
+);
+router.post(
+  "/archive/admin/trash/:itemId/purge",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.purgeArchiveItem
+);
 router.get(
   "/archive/:itemId/download",
   authMiddleware.isLoggedIn,
@@ -252,6 +270,12 @@ router.get(
   matthsController.adminArenaPoliciesPage
 );
 router.get(
+  "/admin/problem-banks",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminProblemBanksPage
+);
+router.get(
   "/admin/arena-matches",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
@@ -262,6 +286,54 @@ router.get(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminArenaEvidenceFile
+);
+router.post(
+  "/admin/arena-integrity/:caseId/review",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminReviewArenaIntegrityCase
+);
+router.get(
+  "/admin/arena-audit",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminArenaAuditPage
+);
+router.get(
+  "/api/admin/arena-audit",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminArenaAuditData
+);
+router.post(
+  "/admin/arena-audit/ranking/rebuild",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRebuildFinalRanking
+);
+router.post(
+  "/admin/arena-audit/maintenance",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRunRankingMaintenance
+);
+router.get(
+  "/admin/arena-audit/ranking.csv",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminExportFinalRanking
+);
+router.get(
+  "/admin/data-analysis",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminDataAnalysisPage
+);
+router.post(
+  "/admin/data-analysis/rebuild",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRebuildDataAnalysis
 );
 router.post(
   "/admin/arena-policies",
@@ -280,6 +352,24 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminCreateMainArenaPolicy
+);
+router.post(
+  "/admin/arena-policies/mock-exam-only/price",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateMockExamPackagePrice
+);
+router.post(
+  "/admin/arena-policies/learning-package/price",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateLearningPackagePrice
+);
+router.post(
+  "/admin/arena-policies/main-shop",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateMainShopPolicy
 );
 router.post(
   "/admin/arena-policies/:policyId/activate",
@@ -340,7 +430,7 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   (req, res, next) => {
-    archiveUpload.fields([
+    adminWeeklyMockUpload.fields([
       {
         name: "examFiles",
         maxCount: 10,
@@ -436,7 +526,7 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   (req, res, next) => {
-    archiveUpload.single(
+    adminFormulaUpload.single(
       "formulaFile"
     )(req, res, (error) => {
       if (error) {
@@ -642,10 +732,22 @@ router.post(
   matthsController.adminUpdateUserAccountStatus
 );
 router.post(
+  "/admin/users/:userId/delete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminDeleteUserAccount
+);
+router.post(
   "/admin/users/:userId/warnings",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminUpdateUserWarningCount
+);
+router.post(
+  "/admin/users/:userId/package-access",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateUserPackageAccess
 );
 router.get(
   "/notifications",
@@ -774,6 +876,31 @@ router.post(
 
 router.get('/profile', authMiddleware.isLoggedIn, matthsController.profilePage);
 router.get(
+  "/pricing/mock-exam-only/self",
+  authMiddleware.isLoggedIn,
+  matthsController.mockExamSelfPaymentEntry
+);
+router.get(
+  "/pricing/mock-exam-only/parent-request",
+  authMiddleware.isLoggedIn,
+  matthsController.mockExamParentPaymentEntry
+);
+router.get(
+  "/pricing/learning-package/self",
+  authMiddleware.isLoggedIn,
+  matthsController.learningPackageSelfPaymentEntry
+);
+router.get(
+  "/pricing/learning-package/parent-request",
+  authMiddleware.isLoggedIn,
+  matthsController.learningPackageParentPaymentEntry
+);
+router.post(
+  "/api/session/heartbeat",
+  authMiddleware.isLoggedIn,
+  matthsController.connectionHeartbeat
+);
+router.get(
   "/account/private-mock-restriction",
   authMiddleware.isLoggedIn,
   matthsController.privateMockRestrictionPage
@@ -827,7 +954,7 @@ router.post(
   "/integrity/cases/:caseId/evidence",
   authMiddleware.isLoggedIn,
   (req, res, next) => {
-    archiveUpload.array(
+    userIntegrityEvidenceUpload.array(
       "evidenceFiles",
       10
     )(req, res, (error) => {

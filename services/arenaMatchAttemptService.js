@@ -9,6 +9,7 @@ const {
   ArenaMatch,
   ArenaMatchAttempt,
   ArenaMatchAttemptEvent,
+  ArenaRevengeRight,
   ArenaOutboxEvent,
   ArenaProblemPack,
 } = require("../models/goatArenaModel");
@@ -28,6 +29,12 @@ const {
   holdExpiredMatchStarts,
   holdSundayCutoffMatches,
 } = require("./arenaMatchEvidenceService");
+const {
+  settleExpiredSubRevengeMatches,
+} = require("./arenaMatchSettlementService");
+const {
+  settleExpiredMainRevengeMatches,
+} = require("./mainArenaRevengeService");
 
 const MAX_CHANGE_EVENTS_PER_REQUEST = 200;
 const MAX_SIGNAL_EVENTS_PER_REQUEST = 200;
@@ -45,6 +52,7 @@ const MATCH_STATUS_LABELS = {
   INVALID: "경기 무효 검토",
   SETTLED: "경기 정산 완료",
   CANCELLED: "경기 취소",
+  INSURED_CANCELLED: "방어 일정 보호로 종료",
 };
 
 function statusError(status, message, code = "") {
@@ -462,10 +470,16 @@ async function startArenaMatchAttempt({
       attempt.status = "IN_PROGRESS";
       attempt.startIdempotencyKey = startKey;
       attempt.startedAt = solveStartedAt;
-      attempt.deadlineAt = new Date(
+      const regularAttemptDeadline = new Date(
         solveStartedAt.getTime() +
           Number(match.timeLimitMs)
       );
+      const completionDeadline = match.completionDeadlineAt
+        ? new Date(match.completionDeadlineAt)
+        : null;
+      attempt.deadlineAt = completionDeadline && completionDeadline < regularAttemptDeadline
+        ? completionDeadline
+        : regularAttemptDeadline;
       attempt.lastHeartbeatAt = now;
       attempt.focusState = "FOCUSED";
       attempt.currentQuestionIndex = 0;
@@ -1223,7 +1237,7 @@ async function getArenaMatchPageData({
   const opponent = await User.findById(
     opponentUserId
   )
-    .select("username")
+    .select("username name")
     .lean();
   const pack = match.problemPackId
     ? await loadPackWithQuestions(
@@ -1243,6 +1257,12 @@ async function getArenaMatchPageData({
   const roleResultKey = role === "CHALLENGER" ? "challenger" : "defender";
   const opponentResultKey = role === "CHALLENGER" ? "defender" : "challenger";
   const resultSnapshot = match.resultSnapshot || null;
+  const revengeRight = match.status === "SETTLED" && match.matchType === "NORMAL"
+    ? await ArenaRevengeRight.findOne({
+        sourceMatchId: match._id,
+        eligibleUserId: userId,
+      }).lean()
+    : null;
   return {
     id: String(match._id),
     matchStatus: match.status,
@@ -1255,11 +1275,25 @@ async function getArenaMatchPageData({
         ? "공격자"
         : "방어자",
     opponentName:
-      String(opponent?.username || "상대 사용자"),
+      String(opponent?.username || opponent?.name || "상대 사용자"),
+    matchType: match.matchType,
+    matchTitle: match.matchType === "REVENGE" ? "복수전" : "일반 쟁탈전",
     divisionLabel:
       match.division === "MAIN"
         ? "Main Division"
         : "Sub Division",
+    division: match.division,
+    canUseDefenseScheduleProtection:
+      match.division === "MAIN" &&
+      match.matchType === "NORMAL" &&
+      match.matchOrigin === "MAIN_UPWARD_AUTO_MATCH" &&
+      role === "DEFENDER" &&
+      match.status === "READY" &&
+      attempt?.status === "READY" &&
+      !attempt?.startedAt &&
+      new Date(now).getTime() -
+        new Date(match.readyAt || match.createdAt).getTime() <=
+        3 * 60 * 60 * 1000,
     problemPack: pack
       ? {
           version: pack.version,
@@ -1339,6 +1373,18 @@ async function getArenaMatchPageData({
             resultSnapshot.settlementSummary?.challengerStakeOutcome || "",
         }
       : null,
+    revengeRight: revengeRight
+      ? {
+          id: String(revengeRight._id),
+          status: revengeRight.status,
+          canClaim: revengeRight.status === "AVAILABLE",
+          revengeMatchId: revengeRight.revengeMatchId
+            ? String(revengeRight.revengeMatchId)
+            : null,
+          stakeDays: Number(revengeRight.revengeStakeDays),
+          feeDays: Number(revengeRight.feeDays),
+        }
+      : null,
   };
 }
 
@@ -1405,6 +1451,8 @@ function startArenaMatchAttemptScheduler() {
           holdExpiredEvidence(),
           holdExpiredMatchStarts(),
           holdSundayCutoffMatches(),
+          settleExpiredSubRevengeMatches(),
+          settleExpiredMainRevengeMatches(),
         ]);
       } finally {
         attemptScheduleRunning = false;

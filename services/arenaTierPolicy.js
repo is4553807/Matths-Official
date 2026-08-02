@@ -1,65 +1,92 @@
 /*
- * GOAT Arena의 공개 GP 구간입니다. 내부 실력 지표의 계산 설정을 import하지
- * 않도록 별도 파일에 둡니다. 숫자 구간은 기존 화면에서 합의된 GP 표시
- * 구간을 유지하지만, 이 값은 MMR 임계값이나 MMR 변경 경로가 아닙니다.
+ * GOAT Arena의 공개 GP는 모든 티어에서 0~99입니다. `legacyMinGp`와
+ * `legacyMaxGp`는 과거 누적 GP를 일회성으로 변환할 때만 사용하며 신규
+ * 순위·화면·정산에서는 티어와 티어 내부 GP를 하나의 tuple로 취급합니다.
  */
 const ARENA_TIER_CONFIG = [
   {
     code: "BRONZE",
     label: "브론즈",
     minGp: 0,
-    maxGp: 799,
+    maxGp: 99,
+    legacyMinGp: 0,
+    legacyMaxGp: 799,
+    estimatedPercentLabel: "상위 80~100%",
   },
   {
     code: "SILVER",
     label: "실버",
-    minGp: 800,
-    maxGp: 924,
+    minGp: 0,
+    maxGp: 99,
+    legacyMinGp: 800,
+    legacyMaxGp: 924,
+    estimatedPercentLabel: "상위 60~80%",
   },
   {
     code: "GOLD",
     label: "골드",
-    minGp: 925,
-    maxGp: 1024,
+    minGp: 0,
+    maxGp: 99,
+    legacyMinGp: 925,
+    legacyMaxGp: 1024,
+    estimatedPercentLabel: "상위 42~60%",
   },
   {
     code: "PLATINUM",
     label: "플래티넘",
-    minGp: 1025,
-    maxGp: 1119,
+    minGp: 0,
+    maxGp: 99,
+    legacyMinGp: 1025,
+    legacyMaxGp: 1119,
+    estimatedPercentLabel: "상위 27~42%",
   },
   {
     code: "EMERALD",
     label: "에메랄드",
-    minGp: 1120,
-    maxGp: 1209,
+    minGp: 0,
+    maxGp: 99,
+    legacyMinGp: 1120,
+    legacyMaxGp: 1209,
+    estimatedPercentLabel: "상위 17~27%",
   },
   {
     code: "DIAMOND",
     label: "다이아몬드",
-    minGp: 1210,
-    maxGp: 1329,
+    minGp: 0,
+    maxGp: 99,
+    legacyMinGp: 1210,
+    legacyMaxGp: 1329,
+    estimatedPercentLabel: "상위 9~17%",
   },
   {
     code: "MASTER",
     label: "마스터",
-    minGp: 1330,
-    maxGp: 1439,
+    minGp: 0,
+    maxGp: 99,
+    legacyMinGp: 1330,
+    legacyMaxGp: 1439,
     maxTopPercentile: 0.05,
+    estimatedPercentLabel: "상위 4~9%",
   },
   {
     code: "GRANDMASTER",
     label: "그랜드마스터",
-    minGp: 1440,
-    maxGp: 1519,
+    minGp: 0,
+    maxGp: 99,
+    legacyMinGp: 1440,
+    legacyMaxGp: 1519,
     maxTopPercentile: 0.015,
+    estimatedPercentLabel: "상위 1~4%",
   },
   {
     code: "CHALLENGER",
     label: "챌린저",
-    minGp: 1520,
-    maxGp: Infinity,
+    minGp: 0,
+    maxGp: 99,
+    legacyMinGp: 1520,
+    legacyMaxGp: Infinity,
     maxTopPercentile: 0.005,
+    estimatedPercentLabel: "상위 1%",
   },
 ];
 
@@ -100,6 +127,21 @@ function arenaTierByCode(code) {
   );
 }
 
+function arenaTierByValue(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  return (
+    ARENA_TIER_CONFIG.find(
+      (tier) =>
+        tier.code === normalized ||
+        tier.label === String(value || "").trim()
+    ) || ARENA_TIER_CONFIG[0]
+  );
+}
+
+function arenaTierIndex(value) {
+  return ARENA_TIER_INDEX.get(arenaTierByValue(value).code) || 0;
+}
+
 function baseArenaTierForGp(gp) {
   const value = Math.max(
     0,
@@ -108,13 +150,36 @@ function baseArenaTierForGp(gp) {
   return (
     ARENA_TIER_CONFIG.find(
       (tier) =>
-        value >= tier.minGp &&
-        value <= tier.maxGp
+        value >= tier.legacyMinGp &&
+        value <= tier.legacyMaxGp
     ) ||
     ARENA_TIER_CONFIG[
       ARENA_TIER_CONFIG.length - 1
     ]
   );
+}
+
+function localGpFromLegacyGp(gp, tierValue = null) {
+  const value = Math.max(0, Number(gp) || 0);
+  const tier = tierValue
+    ? arenaTierByValue(tierValue)
+    : baseArenaTierForGp(value);
+  if (!Number.isFinite(tier.legacyMaxGp)) {
+    return Math.max(0, Math.min(99, Math.round(value - tier.legacyMinGp)));
+  }
+  const width = Math.max(1, tier.legacyMaxGp - tier.legacyMinGp);
+  return Math.max(
+    0,
+    Math.min(99, Math.round(((value - tier.legacyMinGp) / width) * 99))
+  );
+}
+
+function arenaTupleFromLegacyGp(gp) {
+  const tier = baseArenaTierForGp(gp);
+  return {
+    arenaRank: tier.label,
+    arenaGp: localGpFromLegacyGp(gp, tier.code),
+  };
 }
 
 /*
@@ -123,11 +188,14 @@ function baseArenaTierForGp(gp) {
  * 가져오지 않으며 ArenaStanding 재배치에서만 사용합니다.
  */
 function resolveArenaTier({
+  rank = null,
   gp,
   topPercentile = 1,
   activeRankerCount = 0,
 }) {
-  let tier = baseArenaTierForGp(gp);
+  let tier = rank
+    ? arenaTierByValue(rank)
+    : baseArenaTierForGp(gp);
   const count = Math.max(
     0,
     Number(activeRankerCount) || 0
@@ -215,6 +283,7 @@ function arenaTierGuide() {
         )
           ? `상위 ${tier.maxTopPercentile * 100}% 이내`
           : "",
+      estimatedPercentLabel: tier.estimatedPercentLabel,
     })
   );
 }
@@ -223,7 +292,11 @@ module.exports = {
   ARENA_TIER_CONFIG,
   UPPER_TIER_POPULATION_RULES,
   arenaTierByCode,
+  arenaTierByValue,
+  arenaTierIndex,
   arenaTierGuide,
+  arenaTupleFromLegacyGp,
   baseArenaTierForGp,
+  localGpFromLegacyGp,
   resolveArenaTier,
 };

@@ -4,6 +4,24 @@
  */
 const FIRST_MONTH_METRICS = Object.freeze([
   {
+    key: "payment.successful_count",
+    label: "학습권 패키지 승인 결제 건수",
+    unit: "count",
+    category: "payment",
+  },
+  {
+    key: "payment.net_approved_amount",
+    label: "학습권 패키지 유효 승인 금액",
+    unit: "won",
+    category: "payment",
+  },
+  {
+    key: "payment.refund_cancel_rate",
+    label: "학습권 패키지 환불·취소 비율",
+    unit: "percent",
+    category: "payment",
+  },
+  {
     key: "access.zero_balance_rate",
     label: "정기권 학습 가능 일수 0일 도달 비율",
     unit: "percent",
@@ -122,7 +140,7 @@ const FIRST_MONTH_METRICS = Object.freeze([
   },
   {
     key: "main.stake_days_distribution",
-    label: "Main 경기 배팅 학습일수 분포",
+    label: "Main 경기 예치 학습일수 분포",
     unit: "count",
     category: "main-economy",
     dimensions: ["matchType", "tierGap", "stakeDays"],

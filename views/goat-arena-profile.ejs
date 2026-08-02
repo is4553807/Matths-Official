@@ -17,6 +17,10 @@
   const hasSeedGp =
     seedState.gp !== null &&
     seedState.gp !== undefined;
+  const connectedHours = Math.max(0, Number(user.totalConnectedSeconds) || 0) / 3600;
+  const connectedHoursLabel = connectedHours < 0.1
+    ? "0시간"
+    : `${connectedHours.toFixed(connectedHours >= 100 ? 0 : 1)}시간`;
 %>
 <!doctype html>
 <html lang="ko">
@@ -90,10 +94,11 @@
           </div>
           <div>
             <dt>현재 티어</dt>
-            <dd>
-              <%= profileRanking
-                ? `${profileRanking.tier} ${profileRanking.division === "MAIN" ? "Main Division" : "Sub Division"}`
-                : "—" %>
+            <dd class="arena-profile-tier-value">
+              <% if (profileRanking) { %>
+                <span><%= profileRanking.tier %></span>
+                <small><%= profileRanking.division === "MAIN" ? "Main Division" : "Sub Division" %></small>
+              <% } else { %>—<% } %>
             </dd>
           </div>
           <div>
@@ -110,6 +115,10 @@
               <small><%= profileRanking || hasSeedGp ? "GP" : "" %></small>
             </dd>
           </div>
+          <div>
+            <dt>누적 접속시간</dt>
+            <dd><%= connectedHoursLabel %></dd>
+          </div>
         </dl>
       </section>
 
@@ -120,7 +129,8 @@
             <h2>정기권 학습 가능 일수</h2>
           </div>
           <p>
-            모든 Division은 현재 학습권 패키지의 정기권 학습 가능 일수·정산 대기 일수·페이백 점수를 최신 확정값으로 사용합니다.
+            정기권 학습 가능 일수는 서비스 이용과 경기에 쓰는 권리이고, 페이백 점수는 페이백 구간을 판정하는 별도 값입니다.
+            Sub Division 페이백은 점수 조건과 함께 29일 학습을 하루도 빠짐없이 완료해야 합니다.
           </p>
         </header>
 
@@ -132,9 +142,9 @@
               <span>현재 정기권 학습 가능 일수</span>
             </article>
             <article>
-              <small>정산 대기 일수</small>
+              <small>경기 예치 학습일수</small>
               <strong><%= arenaAccess.learningRights.lockedDays ?? "—" %></strong>
-              <span>진행 중 경기를 위해 정산 대기 중인 일수</span>
+              <span>진행 중 경기의 정산까지 예치된 일수</span>
             </article>
             <article>
               <small>페이백 점수</small>
@@ -142,15 +152,27 @@
               <span>현재 학습권 패키지 이용 주기의 페이백 점수</span>
             </article>
             <article>
-              <small>페이백·Main Division까지</small>
+              <small>페이백 점수까지</small>
               <strong><%= arenaAccess.learningRights.neededForRefund ?? "—" %></strong>
-              <span>최소 페이백 점수 30점까지 더 필요한 점수</span>
+              <span>최소 페이백 점수 <%= arenaAccess.learningRights.minimumPaybackScore ?? 30 %>점까지 더 필요한 점수</span>
+            </article>
+            <article>
+              <small>29일 전일 학습</small>
+              <strong class="arena-rights-streak">
+                <%= arenaAccess.learningRights.studyStreakDays ?? 0 %>
+                <span>/ <%= arenaAccess.learningRights.minimumStudyStreakDays ?? 29 %>일</span>
+              </strong>
+              <span>
+                <%= arenaAccess.learningRights.fullAttendanceQualified
+                  ? "전일 학습 조건을 달성했습니다."
+                  : `이번 이용 주기에서 매일 학습해야 하며, 현재 연속 기록에 ${arenaAccess.learningRights.studyDaysNeeded ?? 29}일이 더 필요합니다.` %>
+              </span>
             </article>
           <% } else if (arenaAccess.activeDivision === "MAIN") { %>
             <article>
               <small>Main Division 사용 가능 일수</small>
               <strong><%= arenaAccess.learningRights.availableDays ?? "—" %></strong>
-              <span>지금 이용하거나 새 경기에 걸 수 있는 일수</span>
+              <span>지금 이용하거나 새 경기에 예치할 수 있는 일수</span>
             </article>
             <article>
               <small>초대 예약 일수</small>
@@ -158,19 +180,19 @@
               <span>아직 수락되지 않은 하위 티어 초대에 예약된 일수</span>
             </article>
             <article>
-              <small>경기 중 잠금 일수</small>
+              <small>경기 예치 학습일수</small>
               <strong><%= arenaAccess.learningRights.lockedDays ?? "—" %></strong>
-              <span>성립된 경기의 정산이 끝날 때까지 잠긴 일수</span>
+              <span>성립된 경기의 정산이 끝날 때까지 예치된 일수</span>
             </article>
             <article>
               <small>Main Division 총 학습일수</small>
               <strong><%= arenaAccess.learningRights.totalMainDays ?? "—" %></strong>
-              <span>사용 가능·예약·경기 중 잠금 일수의 합계</span>
+              <span>사용 가능·예약·경기 예치 학습일수의 합계</span>
             </article>
             <article>
               <small>이용 상태</small>
               <strong>Main Division</strong>
-              <span>사용 가능·예약·잠금 일수가 모두 0이고 미정산 경기가 없으면 Sub Division 강등·이용 잠금으로 전환됩니다.</span>
+              <span>사용 가능·예약·경기 예치 학습일수가 모두 0이고 미정산 경기가 없으면 Sub Division 강등·이용 잠금으로 전환됩니다.</span>
             </article>
           <% } else { %>
             <article class="arena-rights-pending">
@@ -178,7 +200,7 @@
               <strong>데이터 연결 대기</strong>
               <span>
                 학습권 패키지 이용 정보와 Arena 순위가 확정되면 정기권 학습 가능 일수,
-                정산 대기 일수, 페이백 점수와 Arena 상태가 이곳에 표시됩니다.
+                경기 예치 학습일수, 페이백 점수와 Arena 상태가 이곳에 표시됩니다.
               </span>
             </article>
           <% } %>

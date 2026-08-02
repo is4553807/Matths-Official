@@ -13,6 +13,24 @@ const {
   kstDateKey,
   kstMidnight,
 } = require("./accessCycleService");
+const {
+  ARENA_TIER_CONFIG,
+} = require("./arenaTierPolicy");
+const {
+  createMainToSubConversionResult,
+} = require("./mainToSubConversionService");
+const {
+  processDuePaybackReviewHolds,
+} = require("./arenaPaybackReviewService");
+const {
+  consumeAvailableDay,
+} = require("./mainLearningDayService");
+const {
+  dormancyConsumptionThroughDate,
+  inactivityDayCount,
+  initializeMainInactivityWindows,
+  processMainDormancyTransitions,
+} = require("./arenaDormancyService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_SCHEDULER_INTERVAL_MS =
@@ -362,15 +380,19 @@ async function createExpirationSnapshot({
     return { snapshot: existing, standing };
   }
 
-  const [participantCount, finalProfile] =
+  const [divisionStandings, finalProfile] =
     await Promise.all([
-      ArenaStanding.countDocuments({
+      ArenaStanding.find({
         division: sourceDivision,
         seasonKey: standing.seasonKey,
-        status: {
-          $in: ["ACTIVE", "LOCKED"],
-        },
-      }).session(session),
+        $or: [
+          { status: "ACTIVE" },
+          { _id: standing._id },
+        ],
+      })
+        .select("_id arenaRank arenaGp reachedCurrentGpAt createdAt")
+        .session(session)
+        .lean(),
       LiveFinalRankingProfile.findOne({
         userId: cycle.userId,
       })
@@ -378,9 +400,35 @@ async function createExpirationSnapshot({
         .session(session)
         .lean(),
     ]);
+  const tierOrder = new Map();
+  ARENA_TIER_CONFIG.forEach((tier, index) => {
+    tierOrder.set(tier.code, index);
+    tierOrder.set(tier.label, index);
+  });
+  const orderedDivisionStandings = [...divisionStandings].sort(
+    (left, right) => {
+      const tierDifference =
+        Number(tierOrder.get(right.arenaRank) ?? -1) -
+        Number(tierOrder.get(left.arenaRank) ?? -1);
+      if (tierDifference !== 0) return tierDifference;
+      const gpDifference = Number(right.arenaGp) - Number(left.arenaGp);
+      if (gpDifference !== 0) return gpDifference;
+      const reachedDifference =
+        new Date(left.reachedCurrentGpAt || left.createdAt || 0).getTime() -
+        new Date(right.reachedCurrentGpAt || right.createdAt || 0).getTime();
+      if (reachedDifference !== 0) return reachedDifference;
+      return String(left._id).localeCompare(String(right._id));
+    }
+  );
+  const overallPosition = Math.max(
+    1,
+    orderedDivisionStandings.findIndex(
+      (candidate) => String(candidate._id) === String(standing._id)
+    ) + 1
+  );
   const safeParticipantCount = Math.max(
-    Number(participantCount) || 0,
-    Number(standing.arenaPosition) || 1
+    orderedDivisionStandings.length,
+    overallPosition
   );
   const [snapshot] = await ArenaSnapshot.create(
     [
@@ -397,10 +445,13 @@ async function createExpirationSnapshot({
         },
         participantCount:
           safeParticipantCount,
+        overallPosition,
+        positionReachedAt:
+          standing.reachedCurrentGpAt || standing.createdAt || expiredAt,
         percentile:
           percentileFromPosition({
             position:
-              standing.arenaPosition,
+              overallPosition,
             participantCount:
               safeParticipantCount,
           }),
@@ -589,6 +640,16 @@ async function applyExpirationTransition({
   const { accessUpdate } = expirationState;
   const { renewalGraceDeadline } =
     expirationState;
+  const conversionResult = expirationState.wasMain
+    ? await createMainToSubConversionResult({
+        snapshot,
+        renewalGraceDeadline,
+        session,
+      })
+    : null;
+  if (conversionResult) {
+    accessUpdate.referenceSubPlacementId = conversionResult._id;
+  }
   await ArenaAccessState.updateOne(
     { userId: cycle.userId },
     {
@@ -626,6 +687,19 @@ async function applyExpirationTransition({
   if (wasMain) {
     await upsertOutboxEvent({
       session,
+      eventType: "MainToSubConverted",
+      cycle,
+      payload: {
+        conversionResultId: conversionResult._id,
+        referenceSubRank: conversionResult.referenceSubRank,
+        referenceSubGp: conversionResult.referenceSubGp,
+        referenceSubOverallPosition:
+          conversionResult.referenceSubOverallPosition,
+        policyVersion: conversionResult.policyVersion,
+      },
+    });
+    await upsertOutboxEvent({
+      session,
       eventType: "MainDemotedToSub",
       cycle,
       payload: {
@@ -633,6 +707,8 @@ async function applyExpirationTransition({
         renewalGraceDeadline,
         lastMainSnapshotId:
           snapshot._id,
+        referenceSubPlacementId:
+          conversionResult._id,
       },
     });
   }
@@ -652,6 +728,7 @@ async function applyExpirationTransition({
     replayed: false,
     wasMain,
     snapshot,
+    conversionResult,
     renewalGraceDeadline,
   };
 }
@@ -702,6 +779,16 @@ async function consumeDueDailyLearningDays({
         };
         return;
       }
+      if (cycle.dailyConsumptionPausedAt) {
+        result = {
+          cycle,
+          consumedDates: [],
+          replayed: true,
+          expired: false,
+          reason: "MAIN_DORMANCY_FROZEN",
+        };
+        return;
+      }
       if (!cycle.firstDayConsumedAt) {
         result = {
           cycle,
@@ -713,8 +800,33 @@ async function consumeDueDailyLearningDays({
         return;
       }
 
-      const throughDateKst =
+      let throughDateKst =
         kstDateKey(processedAt);
+      if (cycle.division === "MAIN") {
+        const dormancyState = await ArenaAccessState.findOne({
+          userId: cycle.userId,
+          currentCompetitiveDivision: "MAIN",
+          state: "PAID_ACTIVE",
+          mainInactivityStartedAt: { $ne: null },
+          mainInactivityStartAvailableDays: { $gte: 20 },
+          mainDormancyRecoveryMode: null,
+        })
+          .session(session)
+          .lean();
+        const dormancyThroughDate = dormancyConsumptionThroughDate(
+          dormancyState?.mainInactivityStartedAt,
+          {
+            allowFinalDay:
+              inactivityDayCount({
+                startedAt: dormancyState?.mainInactivityStartedAt,
+                now: processedAt,
+              }) >= 21,
+          }
+        );
+        if (dormancyThroughDate && dormancyThroughDate < throughDateKst) {
+          throughDateKst = dormancyThroughDate;
+        }
+      }
       const plan = buildDailyConsumptionPlan({
         cycle,
         throughDateKst,
@@ -751,16 +863,27 @@ async function consumeDueDailyLearningDays({
 
       const expectedLastDate =
         cycle.lastConsumptionDateKst || null;
+      let mainBucketState = null;
+      if (cycle.division === "MAIN") {
+        mainBucketState = {
+          learningDayBuckets: cycle.learningDayBuckets,
+        };
+        for (const _date of plan.consumptionDates) {
+          mainBucketState = consumeAvailableDay(mainBucketState);
+        }
+      }
       const update = {
-        $inc: {
-          availableLearningDays:
-            -plan.consumptionDates.length,
-        },
         $set: {
+          availableLearningDays:
+            plan.availableAfter,
           lastConsumptionDateKst:
             plan.lastConsumptionDateKst,
         },
       };
+      if (mainBucketState) {
+        update.$set.learningDayBuckets =
+          mainBucketState.buckets;
+      }
       if (plan.depletedAt) {
         update.$set.depletedAt =
           plan.depletedAt;
@@ -807,6 +930,9 @@ async function consumeDueDailyLearningDays({
           plan.depletedAt ||
           cycle.depletedAt ||
           null,
+        learningDayBuckets:
+          mainBucketState?.buckets ||
+          cycle.learningDayBuckets,
       };
       let expiration = {
         expired: false,
@@ -928,6 +1054,7 @@ async function processDueDailyConsumptions({
   );
   const dueCycles = await AccessCycle.find({
     status: "ACTIVE",
+    dailyConsumptionPausedAt: null,
     firstDayConsumedAt: { $ne: null },
     availableLearningDays: { $gt: 0 },
     $or: [
@@ -1030,8 +1157,33 @@ async function runDailyAccessCycleSchedule() {
   if (dailyScheduleRunning) return;
   dailyScheduleRunning = true;
   try {
+    await initializeMainInactivityWindows();
     await processDueDailyConsumptions();
+    await processMainDormancyTransitions();
+    const {
+      cancelZeroAvailableMainInvitations,
+      refreshMainInvitationOffers,
+      synchronizeMainInvitationPauseState,
+    } = require("./mainArenaMatchService");
+    await synchronizeMainInvitationPauseState();
+    await cancelZeroAvailableMainInvitations();
+    await refreshMainInvitationOffers();
+    const {
+      expireMainShopEffects,
+      processPendingMatchAnalyses,
+    } = require("./arenaShopPolicyService");
+    await expireMainShopEffects();
+    await processPendingMatchAnalyses();
+    const {
+      openAnnualArenaSeason,
+    } = require("./arenaSeasonService");
+    await openAnnualArenaSeason();
     await processDepletedAccessCycles();
+    await processDuePaybackReviewHolds();
+    const {
+      recalculateFinalRanking,
+    } = require("./finalRankingService");
+    await recalculateFinalRanking();
   } finally {
     dailyScheduleRunning = false;
   }

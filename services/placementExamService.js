@@ -4,6 +4,9 @@ const {
   AssessmentAttempt,
 } = require("../models/matthsModel");
 const {
+  ArenaAccessState,
+} = require("../models/goatArenaModel");
+const {
   normalizeExamMath,
 } = require("./assessmentService");
 const {
@@ -22,6 +25,7 @@ const {
   upsertInitialRankingProfile,
 } = require("./mmrService");
 const {
+  kstSeasonKey,
   syncInitialArenaPlacement,
 } = require("./arenaStandingService");
 
@@ -33,6 +37,46 @@ const KEY_QUESTION_NUMBERS = [
 ];
 const QUESTION_TIMING_GAP_LIMIT_MS =
   15 * 1000;
+
+async function placementAttemptContext(userId, now = new Date()) {
+  const accessState = await ArenaAccessState.findOne({ userId }).lean();
+  if (accessState?.state === "PAID_PENDING_RENEWAL_ASSESSMENT") {
+    return {
+      purpose: "RENEWAL_RANK_ASSESSMENT",
+      contextKey: `RENEWAL_RANK_ASSESSMENT:${accessState.accessCycleId}`,
+      startLabel: "랭크 복귀전 시작",
+    };
+  }
+  if (accessState?.state === "SEASON_PLACEMENT_REQUIRED") {
+    return {
+      purpose: "SEASON",
+      contextKey: `SEASON:${kstSeasonKey(now)}:${accessState.currentCompetitiveDivision || "SUB"}`,
+      startLabel: "시즌 배치고사 시작",
+    };
+  }
+  return {
+    purpose: "INITIAL",
+    contextKey: "INITIAL",
+    startLabel: "입단 배치고사 시작",
+  };
+}
+
+function placementContextFilter(context) {
+  if (context.purpose !== "INITIAL") {
+    return { placementContextKey: context.contextKey };
+  }
+  return {
+    $or: [
+      { placementContextKey: "INITIAL" },
+      { placementContextKey: null },
+      { placementContextKey: { $exists: false } },
+    ],
+  };
+}
+
+function shouldUpdateSkillMmr(attempt) {
+  return !attempt?.placementPurpose || attempt.placementPurpose === "INITIAL";
+}
 
 async function refreshStaleEmptyAttempt(
   attempt
@@ -1248,11 +1292,14 @@ async function getPlacementDashboardData(
   await expireOverdueForUser(
     userId
   );
+  const attemptContext = await placementAttemptContext(userId);
+  const contextFilter = placementContextFilter(attemptContext);
   const staleActive =
     await AssessmentAttempt.findOne({
       userId,
       scopeType: "placement",
       status: "in-progress",
+      ...contextFilter,
       generationVersion: {
         $ne:
           PLACEMENT_BANK_VERSION,
@@ -1271,6 +1318,7 @@ async function getPlacementDashboardData(
     await AssessmentAttempt.find({
       userId,
       scopeType: "placement",
+      ...contextFilter,
     })
       .sort({
         createdAt: -1,
@@ -1410,7 +1458,7 @@ async function getPlacementDashboardData(
     status: "not-started",
     attemptId: null,
     ctaLabel:
-      "입단 배치고사 시작",
+      attemptContext.startLabel,
     ctaHref: null,
     answeredCount: 0,
     result: null,
@@ -1424,11 +1472,15 @@ async function createPlacementAttempt({
     userId
   );
 
+  const attemptContext = await placementAttemptContext(userId);
+  const contextFilter = placementContextFilter(attemptContext);
+
   const submitted =
     await AssessmentAttempt.findOne({
       userId,
       scopeType: "placement",
       status: "submitted",
+      ...contextFilter,
     }).sort({
       submittedAt: -1,
     });
@@ -1442,6 +1494,7 @@ async function createPlacementAttempt({
       userId,
       scopeType: "placement",
       status: "in-progress",
+      ...contextFilter,
     }).sort({
       createdAt: -1,
     });
@@ -1467,6 +1520,8 @@ async function createPlacementAttempt({
 
   return AssessmentAttempt.create({
     userId,
+    placementPurpose: attemptContext.purpose,
+    placementContextKey: attemptContext.contextKey,
     ...paper,
     startedAt,
     activeQuestionId:
@@ -1621,10 +1676,12 @@ async function finalizePlacementVerificationAttempt({
     standing
   );
   await attempt.save();
-  await upsertInitialRankingProfile({
-    attempt,
-    standing,
-  });
+  if (shouldUpdateSkillMmr(attempt)) {
+    await upsertInitialRankingProfile({
+      attempt,
+      standing,
+    });
+  }
   await syncInitialArenaPlacement({
     userId: attempt.userId,
     attemptId: attempt._id,
@@ -2195,10 +2252,12 @@ async function submitPlacementAttempt({
     standing
   );
   await attempt.save();
-  await upsertInitialRankingProfile({
-    attempt,
-    standing,
-  });
+  if (shouldUpdateSkillMmr(attempt)) {
+    await upsertInitialRankingProfile({
+      attempt,
+      standing,
+    });
+  }
   await syncInitialArenaPlacement({
     userId: attempt.userId,
     attemptId: attempt._id,
@@ -2215,8 +2274,13 @@ function normalizeAttempt(
     view.scopeType ===
     "placement"
   ) {
-    view.title =
-      "War of GOAT 입단 배치고사";
+    view.title = view.placementPurpose === "SEASON"
+      ? "GOAT Arena 시즌 배치고사"
+      : view.placementPurpose === "RENEWAL_RANK_ASSESSMENT"
+        ? "GOAT Arena 랭크 복귀전"
+        : view.placementPurpose === "DORMANCY_RETURN"
+          ? "GOAT Arena 휴면 복귀 배치고사"
+        : "War of GOAT 입단 배치고사";
   }
   const verificationPending =
     isVerificationPending(
@@ -2231,8 +2295,13 @@ function normalizeAttempt(
       true;
     view.status =
       "in-progress";
-    view.title =
-      "입단 배치 추가 실력 확인";
+    view.title = view.placementPurpose === "SEASON"
+      ? "시즌 배치 추가 실력 확인"
+      : view.placementPurpose === "RENEWAL_RANK_ASSESSMENT"
+        ? "랭크 복귀 추가 실력 확인"
+        : view.placementPurpose === "DORMANCY_RETURN"
+          ? "휴면 복귀 추가 실력 확인"
+        : "입단 배치 추가 실력 확인";
     view.subtitle =
       "준킬러 2문항 · 킬러 2문항";
     view.questions =

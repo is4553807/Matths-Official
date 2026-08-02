@@ -7,7 +7,9 @@ const {
 const {
   AccessCycle,
   ArenaAccessState,
+  ArenaRevengeRight,
   ArenaStanding,
+  MainShopEffect,
 } = require("../models/goatArenaModel");
 const {
   getPlacementDashboardData,
@@ -38,12 +40,35 @@ const {
   submitArenaMatchEvidence,
 } = require("../services/arenaMatchEvidenceService");
 const {
-  settleSubNormalMatch,
+  settleArenaMatch,
 } = require("../services/arenaMatchSettlementService");
 const {
+  createSubRevengeMatch,
+  forfeitSubRevengeRight,
+} = require("../services/arenaRevengeService");
+const {
+  getActiveArenaPolicy,
   getActiveMainDivisionPolicy,
   mainPolicySnapshot,
 } = require("../services/arenaPolicyService");
+const {
+  getArenaRulebook,
+} = require("../services/arenaRulebookViewService");
+const {
+  cancelMainInvitation,
+  createMainLowerInvitation,
+  createMainUpwardChallenge,
+  getMainArenaActionData,
+  respondToMainInvitation,
+} = require("../services/mainArenaMatchService");
+const {
+  createMainRevengeMatch,
+  forfeitMainRevengeRight,
+} = require("../services/mainArenaRevengeService");
+const {
+  getMainShopPageData,
+  purchaseMainShopItem,
+} = require("../services/arenaShopPolicyService");
 
 const GRADE_LABELS = {
   10: "고등학교 1학년",
@@ -169,6 +194,15 @@ function buildArenaAccess(
     Number(
       accessCycle?.lockedLearningDays || 0
     );
+  const minimumPaybackScore = Number(
+    accessCycle?.policySnapshot?.payback?.minimumScoreDays ?? 30
+  );
+  const minimumStudyStreakDays = Number(
+    accessCycle?.policySnapshot?.payback?.minimumStreakDays ??
+      accessCycle?.policySnapshot?.initialLearningDays ??
+      29
+  );
+  const studyStreakDays = Number(accessCycle?.streakDays || 0);
   const hasUsableCycleBalance =
     activeDivision === "MAIN"
       ? mainTotalDays > 0
@@ -236,13 +270,7 @@ function buildArenaAccess(
         accessCycle
           ? Math.max(
               0,
-              Number(
-                accessCycle
-                  .policySnapshot
-                  ?.payback
-                  ?.minimumScoreDays ||
-                  30
-              ) -
+              minimumPaybackScore -
                 Number(
                   accessCycle
                     .paybackScoreDays ||
@@ -250,6 +278,20 @@ function buildArenaAccess(
                 )
             )
           : null,
+      minimumPaybackScore:
+        accessCycle ? minimumPaybackScore : null,
+      studyStreakDays:
+        accessCycle ? studyStreakDays : null,
+      minimumStudyStreakDays:
+        accessCycle ? minimumStudyStreakDays : null,
+      studyDaysNeeded:
+        accessCycle
+          ? Math.max(0, minimumStudyStreakDays - studyStreakDays)
+          : null,
+      fullAttendanceQualified:
+        accessCycle
+          ? studyStreakDays >= minimumStudyStreakDays
+          : false,
     },
     standing: standing
       ? {
@@ -325,30 +367,40 @@ const DIVISION_FEATURES = {
       name: "상위 티어 쟁탈전",
       description:
         "목표 상위 티어를 고르면 서버가 적격 상대를 무작위로 정합니다.",
+      href: "/goat-arena/main/battle",
     },
     {
       key: "mainLowerTierInvitation",
       name: "하위 티어 초대전",
       description:
-        "목표 하위 티어에 내 Arena 상태와 학습일수를 건 초대를 만듭니다.",
+        "목표 하위 티어에 내 Arena 상태를 걸고 학습일수를 예치하는 초대를 만듭니다.",
+      href: "/goat-arena/main/battle#main-invitation-create",
     },
     {
       key: "mainInvitationManagement",
       name: "초대 관리",
       description:
         "수락 전 예약 학습일수와 받은 초대·보낸 초대 상태를 확인합니다.",
+      href: "/goat-arena/main/battle#main-invitations",
     },
     {
       key: "mainRevengeMatch",
       name: "복수전",
       description:
-        "원경기 배팅의 두 배와 신청 수수료가 적용되는 복수전 상태를 확인합니다.",
+        "원경기 예치의 두 배와 신청 수수료가 적용되는 복수전 상태를 확인합니다.",
     },
     {
       key: "mainLearningDayLedger",
       name: "학습일수 장부",
       description:
-        "사용 가능·초대 예약·경기 중 잠금 일수와 이전 기록을 확인합니다.",
+        "사용 가능·초대 예약·경기 예치 학습일수와 이전 기록을 확인합니다.",
+    },
+    {
+      key: "mainShop",
+      name: "Main Division 상점",
+      description:
+        "경기로 확보한 사용 가능 학습일수로 분석·일정·프로필 편의 기능을 이용합니다.",
+      href: "/goat-arena/main/shop",
     },
     {
       key: "mainActiveMatch",
@@ -360,7 +412,7 @@ const DIVISION_FEATURES = {
       key: "mainMatchReview",
       name: "경기 기록",
       description:
-        "확정된 상대·배팅 일수·Arena 상태와 학습일수 변동을 확인합니다.",
+        "확정된 상대·예치 일수·Arena 상태와 학습일수 변동을 확인합니다.",
     },
     {
       key:
@@ -373,7 +425,7 @@ const DIVISION_FEATURES = {
       key: "mainExpiryGuide",
       name: "이용 종료·재구매 안내",
       description:
-        "Sub Division 강등, 72시간 변환과 랭크 탈환 배치고사 조건을 확인합니다.",
+        "Sub Division 강등, 72시간 변환과 랭크 복귀전 조건을 확인합니다.",
     },
   ],
 };
@@ -387,6 +439,7 @@ async function getArenaContext(
     ranking,
     accessState,
     activeMainPolicy,
+    activeCosmetics,
   ] = await Promise.all([
     User.findById(
       userId
@@ -401,6 +454,12 @@ async function getArenaContext(
       userId,
     }).lean(),
     getActiveMainDivisionPolicy(),
+    MainShopEffect.find({
+      userId,
+      itemCode: { $in: ["MAIN_PROFILE_BORDER", "STYLE_ENTRANCE"] },
+      status: "ACTIVE",
+      endsAt: { $gt: new Date() },
+    }).lean(),
   ]);
 
   if (!user) {
@@ -453,6 +512,12 @@ async function getArenaContext(
           )
         ] ||
         "학년 미설정",
+      hasMainProfileBorder: activeCosmetics.some(
+        (effect) => effect.itemCode === "MAIN_PROFILE_BORDER"
+      ),
+      hasStyleEntrance: activeCosmetics.some(
+        (effect) => effect.itemCode === "STYLE_ENTRANCE"
+      ),
     },
     seedState:
       buildSeedState(
@@ -566,6 +631,184 @@ exports.subDivisionPage =
 
 exports.mainDivisionPage =
   divisionPage("MAIN");
+
+async function renderMainBattlePage(
+  req,
+  res,
+  { status = 200, actionError = "", actionMessage = "" } = {}
+) {
+  const [context, battleData] = await Promise.all([
+    getArenaContext(req.session.user.id),
+    getMainArenaActionData({ userId: req.session.user.id }),
+  ]);
+  res.set("Cache-Control", "no-store");
+  return res.status(status).render("goat-arena-main-battle", {
+    ...context,
+    activeArenaPage: "main",
+    battleData,
+    actionError,
+    actionMessage,
+    requestId: randomUUID(),
+  });
+}
+
+exports.mainBattlePage = async (req, res, next) => {
+  try {
+    return await renderMainBattlePage(req, res, {
+      actionMessage: req.query.done === "1" ? "요청을 처리했습니다." : "",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+async function mainBattleAction(req, res, next, action) {
+  try {
+    const result = await action();
+    if (result?.match?._id || result?.matchId) {
+      return res.redirect(
+        `/goat-arena/matches/${result.match?._id || result.matchId}`
+      );
+    }
+    return res.redirect("/goat-arena/main/battle?done=1");
+  } catch (error) {
+    if ([400, 403, 404, 409, 410, 423].includes(Number(error.status))) {
+      try {
+        return await renderMainBattlePage(req, res, {
+          status: Number(error.status),
+          actionError: error.message,
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+}
+
+exports.createMainUpwardChallenge = (req, res, next) =>
+  mainBattleAction(req, res, next, () =>
+    createMainUpwardChallenge({
+      userId: req.session.user.id,
+      targetTier: req.body.targetTier,
+      stakeDays: req.body.stakeDays,
+      requestId: req.body.requestId,
+    })
+  );
+
+exports.createMainLowerInvitation = (req, res, next) =>
+  mainBattleAction(req, res, next, () =>
+    createMainLowerInvitation({
+      userId: req.session.user.id,
+      targetTier: req.body.targetTier,
+      stakeDays: req.body.stakeDays,
+      requestId: req.body.requestId,
+    })
+  );
+
+exports.respondMainInvitation = (req, res, next) =>
+  mainBattleAction(req, res, next, () =>
+    respondToMainInvitation({
+      offerId: req.params.offerId,
+      userId: req.session.user.id,
+      response: req.body.response,
+    })
+  );
+
+exports.cancelMainInvitation = (req, res, next) =>
+  mainBattleAction(req, res, next, () =>
+    cancelMainInvitation({
+      invitationId: req.params.invitationId,
+      userId: req.session.user.id,
+      cancellationType: "MANUAL",
+    })
+  );
+
+async function renderMainShopPage(
+  req,
+  res,
+  { status = 200, shopError = "", shopMessage = "" } = {}
+) {
+  const [context, shopData] = await Promise.all([
+    getArenaContext(req.session.user.id),
+    getMainShopPageData({ userId: req.session.user.id }),
+  ]);
+  res.set("Cache-Control", "no-store");
+  return res.status(status).render("goat-arena-main-shop", {
+    ...context,
+    activeArenaPage: "shop",
+    shopData,
+    shopError,
+    shopMessage,
+    requestId: randomUUID(),
+  });
+}
+
+exports.mainShopPage = async (req, res, next) => {
+  try {
+    return await renderMainShopPage(req, res, {
+      shopMessage: req.query.done === "1" ? "상점 아이템을 적용했습니다." : "",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.purchaseMainShopItem = async (req, res, next) => {
+  try {
+    const result = await purchaseMainShopItem({
+      userId: req.session.user.id,
+      itemCode: req.body.itemCode,
+      requestId: req.body.requestId,
+      relatedMatchId: req.body.relatedMatchId || null,
+      relatedInvitationId: req.body.relatedInvitationId || null,
+    });
+    if (result?.matchId) {
+      return res.redirect(`/goat-arena/matches/${result.matchId}?protected=1`);
+    }
+    return res.redirect("/goat-arena/main/shop?done=1");
+  } catch (error) {
+    if ([400, 403, 404, 409, 410, 423].includes(Number(error.status))) {
+      try {
+        return await renderMainShopPage(req, res, {
+          status: Number(error.status),
+          shopError: error.message,
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+};
+
+function rulesPage(division) {
+  return async (req, res, next) => {
+    try {
+      const [context, paybackPolicy, mainPolicy] = await Promise.all([
+        getArenaContext(req.session.user.id),
+        division === "SUB" ? getActiveArenaPolicy() : null,
+        division === "MAIN"
+          ? getActiveMainDivisionPolicy(new Date(), { bypassCache: true })
+          : null,
+      ]);
+      res.set("Cache-Control", "no-store");
+      return res.render("goat-arena-rules", {
+        ...context,
+        activeArenaPage: "rules",
+        rulebook: getArenaRulebook(division, {
+          paybackPolicy,
+          mainPolicy,
+        }),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  };
+}
+
+exports.subRulesPage = rulesPage("SUB");
+exports.mainRulesPage = rulesPage("MAIN");
 
 exports.divisionFeaturePage = async (
   req,
@@ -732,7 +975,8 @@ async function renderArenaMatchPage(
     "goat-arena-match",
     {
       ...context,
-      activeArenaPage: "sub",
+      activeArenaPage:
+        matchData.division === "MAIN" ? "main" : "sub",
       matchData,
       matchError,
       matchPrepared:
@@ -742,6 +986,7 @@ async function renderArenaMatchPage(
       evidenceSubmitted:
         req.query.evidence === "1",
       startRequestId: randomUUID(),
+      revengeRequestId: randomUUID(),
     }
   );
 }
@@ -888,7 +1133,7 @@ exports.submitArenaMatchEvidence = async (
     });
     let settlement = null;
     if (evidenceResult.matchStatus === "SUBMITTED") {
-      settlement = await settleSubNormalMatch({
+      settlement = await settleArenaMatch({
         matchId: req.params.matchId,
       });
     }
@@ -902,6 +1147,48 @@ exports.submitArenaMatchEvidence = async (
     );
   } catch (error) {
     return renderArenaMatchActionError(req, res, next, error);
+  }
+};
+
+exports.claimSubRevenge = async (req, res, next) => {
+  try {
+    const right = await ArenaRevengeRight.findById(
+      req.params.rightId
+    )
+      .select("division")
+      .lean();
+    const creator = right?.division === "MAIN"
+      ? createMainRevengeMatch
+      : createSubRevengeMatch;
+    const result = await creator({
+      revengeRightId: req.params.rightId,
+      userId: req.session.user.id,
+      requestId: req.body.requestId,
+    });
+    return res.redirect(`/goat-arena/matches/${result.matchId}`);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.forfeitSubRevenge = async (req, res, next) => {
+  try {
+    const right = await ArenaRevengeRight.findById(
+      req.params.rightId
+    )
+      .select("division")
+      .lean();
+    const forfeit = right?.division === "MAIN"
+      ? forfeitMainRevengeRight
+      : forfeitSubRevengeRight;
+    const result = await forfeit({
+      revengeRightId: req.params.rightId,
+      userId: req.session.user.id,
+      requestId: req.body.requestId,
+    });
+    return res.redirect(`/goat-arena/matches/${result.sourceMatchId}?revengeForfeited=1`);
+  } catch (error) {
+    return next(error);
   }
 };
 

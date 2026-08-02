@@ -7,9 +7,10 @@ const {
 } = require("../models/goatArenaModel");
 const {
   generateValidatedAdvancedQuestion,
-} = require("./placementAdvancedTypes");
+} = require("./arenaOneOnOneProblemTypes");
 const {
   ARENA_ONE_ON_ONE_TIME_LIMIT_MS,
+  getMainTierPair,
   getSubTierPair,
 } = require("./arenaOneOnOneProblemBank");
 
@@ -444,6 +445,8 @@ function buildGeneratedArenaProblemPackDraft({
   matchKey,
   generatedAt = new Date(),
   scoringVersion = "ARENA-SCORING-V1",
+  division = "SUB",
+  matchType = "NORMAL",
 } = {}) {
   const generatedDate = new Date(generatedAt);
   if (Number.isNaN(generatedDate.getTime())) {
@@ -455,7 +458,10 @@ function buildGeneratedArenaProblemPackDraft({
   }
   const pairKey = String(generation?.pairKey || "").toUpperCase();
   const [challengerTier, defenderTier] = pairKey.split("_");
-  const pair = getSubTierPair(challengerTier, defenderTier);
+  const normalizedDivision = String(division || "SUB").toUpperCase();
+  const pair = normalizedDivision === "MAIN"
+    ? getMainTierPair(challengerTier, defenderTier)
+    : getSubTierPair(challengerTier, defenderTier);
   if (!pair || !matchKey) {
     throw statusError(
       400,
@@ -473,11 +479,11 @@ function buildGeneratedArenaProblemPackDraft({
     .slice(0, 20)
     .toUpperCase();
   const draft = {
-    version: `SUB-AUTO-${pair.key}-${versionHash}`,
+    version: `${normalizedDivision}-AUTO-${pair.key}-${versionHash}`,
     displayName: `${pair.label} 자동 생성 경기 문제`,
     status: "DRAFT",
-    division: "SUB",
-    matchType: "NORMAL",
+    division: normalizedDivision,
+    matchType: String(matchType || "NORMAL").toUpperCase(),
     tierPairKey: pair.key,
     tierPairLabel: pair.label,
     generationMode: "AUTO_ON_CHALLENGE",

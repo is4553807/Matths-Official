@@ -77,7 +77,9 @@ async function run() {
     connectTimeoutMS: 10000,
   });
 
-  const now = new Date();
+  // 실제 실행 요일에 따라 일요일 정산 잠금으로 보류되지 않도록
+  // 월요일 KST의 고정 시각에서 트랜잭션 정산을 검증한다.
+  const now = new Date("2026-08-03T10:00:00.000+09:00");
   const suffix = randomUUID().replace(/-/g, "").toUpperCase();
   const challengerUserId = new mongoose.Types.ObjectId();
   const defenderUserId = new mongoose.Types.ObjectId();
@@ -136,7 +138,7 @@ async function run() {
               seasonKey: "E2E",
               arenaRank: "실버",
               arenaPosition: 7,
-              arenaGp: 1200,
+              arenaGp: 40,
               status: "ACTIVE",
             },
             {
@@ -146,7 +148,7 @@ async function run() {
               seasonKey: "E2E",
               arenaRank: "골드",
               arenaPosition: 2,
-              arenaGp: 1500,
+              arenaGp: 90,
               status: "ACTIVE",
             },
           ],
@@ -213,7 +215,7 @@ async function run() {
                 tupleBefore: {
                   arenaRank: "실버",
                   arenaPosition: 7,
-                  arenaGp: 1200,
+                  arenaGp: 40,
                 },
                 stakeDays: 1,
                 submittedAt: now,
@@ -225,7 +227,7 @@ async function run() {
                 tupleBefore: {
                   arenaRank: "골드",
                   arenaPosition: 2,
-                  arenaGp: 1500,
+                  arenaGp: 90,
                 },
                 stakeDays: 0,
                 submittedAt: now,
@@ -345,7 +347,11 @@ async function run() {
     }
 
     const settlement = await settleSubNormalMatch({ matchId, now });
-    assert.equal(settlement.settled, true);
+    assert.equal(
+      settlement.settled,
+      true,
+      JSON.stringify(settlement)
+    );
     assert.equal(settlement.winnerRole, "CHALLENGER");
     const [match, challengerStanding, defenderStanding, challengerCycle] =
       await Promise.all([
@@ -356,10 +362,10 @@ async function run() {
       ]);
     assert.equal(match.status, "SETTLED");
     assert.equal(challengerStanding.arenaRank, "골드");
-    assert.equal(challengerStanding.arenaGp, 1500);
+    assert.equal(challengerStanding.arenaGp, 90);
     assert.equal(challengerStanding.arenaPosition, 2);
     assert.equal(defenderStanding.arenaRank, "실버");
-    assert.equal(defenderStanding.arenaGp, 1200);
+    assert.equal(defenderStanding.arenaGp, 40);
     assert.equal(challengerCycle.availableLearningDays, 9);
     assert.equal(challengerCycle.paybackScoreDays, 9);
     assert.equal(challengerCycle.lockedLearningDays, 0);

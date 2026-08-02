@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#f3f6ff" />
+    <title><%= statusCode %> · <%= title %> | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/error.css" />
+    <script src="/js/error-page.js" defer></script>
+  </head>
+  <body class="matths-error-page">
+    <%- include("partials/public-navigation", { activePage, user }) %>
+
+    <main class="matths-error-main">
+      <section class="matths-error-card" aria-labelledby="error-title">
+        <div class="matths-error-visual" aria-hidden="true">
+          <span></span>
+          <strong><%= statusCode %></strong>
+          <i></i>
+        </div>
+
+        <div class="matths-error-copy">
+          <p><%= eyebrow %></p>
+          <h1 id="error-title"><%= title %></h1>
+          <span><%= message %></span>
+
+          <div class="matths-error-actions">
+            <a class="matths-error-primary" href="<%= primaryAction.href %>"><%= primaryAction.label %></a>
+            <button type="button" data-error-back data-fallback-href="<%= primaryAction.href %>">이전 페이지</button>
+            <a class="matths-error-secondary" href="<%= secondaryAction.href %>"><%= secondaryAction.label %></a>
+          </div>
+
+          <div class="matths-error-help">
+            <span aria-hidden="true">?</span>
+            <p>
+              계정 권한이나 이용 상태가 예상과 다르다면
+              <a href="/contact">문의하기</a>에서 확인을 요청할 수 있습니다.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

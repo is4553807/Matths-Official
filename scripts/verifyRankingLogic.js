@@ -1,6 +1,8 @@
 const assert = require(
   "node:assert/strict"
 );
+const fs = require("node:fs");
+const path = require("node:path");
 const {
   _testing: {
     ranked,
@@ -137,19 +139,19 @@ const tierPool =
         ...students[0],
         arenaRank: "골드",
         arenaPosition: 2,
-        arenaGp: 1000,
+        arenaGp: 40,
       },
       {
         ...students[1],
         arenaRank: "골드",
         arenaPosition: 1,
-        arenaGp: 1100,
+        arenaGp: 80,
       },
       {
         ...students[2],
         arenaRank: "실버",
         arenaPosition: 1,
-        arenaGp: 900,
+        arenaGp: 20,
       },
     ],
     "u1",
@@ -183,14 +185,14 @@ const gpOrderedTierPool =
         ...students[0],
         arenaRank: "골드",
         arenaPosition: 2,
-        arenaGp: 1000,
+        arenaGp: 40,
         rating: 1500,
       },
       {
         ...students[1],
         arenaRank: "골드",
         arenaPosition: 1,
-        arenaGp: 1100,
+        arenaGp: 80,
         rating: 900,
       },
     ],
@@ -323,6 +325,73 @@ assert.ok(
   "배치 확정 전 주간 변화량은 100을 넘을 수 없습니다."
 );
 
+const rankingScrollScript =
+  fs.readFileSync(
+    path.join(
+      __dirname,
+      "../public/js/tier-rankings.js"
+    ),
+    "utf8"
+  );
+const goatArenaRankingView =
+  fs.readFileSync(
+    path.join(
+      __dirname,
+      "../views/goat-arena-rankings.ejs"
+    ),
+    "utf8"
+  );
+const matthsRankingView =
+  fs.readFileSync(
+    path.join(
+      __dirname,
+      "../views/war-of-masters-rankings.ejs"
+    ),
+    "utf8"
+  );
+
+assert.ok(
+  rankingScrollScript.includes(
+    '"[data-current-ranker]"'
+  ) &&
+    rankingScrollScript.includes(
+      "currentCenter -"
+    ),
+  "랭킹 스크롤은 현재 사용자 행을 목록 중앙에 배치해야 합니다."
+);
+assert.ok(
+  goatArenaRankingView.includes(
+    "data-ranking-scroll"
+  ) &&
+    goatArenaRankingView.includes(
+      "data-current-ranker"
+    ),
+  "GOAT Arena 최종 종합 랭킹에 현재 사용자 중심 스크롤 표식이 필요합니다."
+);
+assert.ok(
+  matthsRankingView.includes(
+    "data-ranking-scroll"
+  ) &&
+    matthsRankingView.includes(
+      "data-current-ranker"
+    ),
+  "Matths 최종 종합 랭킹에 현재 사용자 중심 스크롤 표식이 필요합니다."
+);
+assert.equal(
+  goatArenaRankingView.includes(
+    "finalOverall.slice(0, 100)"
+  ),
+  false,
+  "GOAT Arena 최종 종합 랭킹은 현재 사용자가 100위 밖일 때도 표시해야 합니다."
+);
+assert.equal(
+  matthsRankingView.includes(
+    "finalOverall.slice(0, 100)"
+  ),
+  false,
+  "Matths 최종 종합 랭킹은 현재 사용자가 100위 밖일 때도 표시해야 합니다."
+);
+
 console.log(
-  "MMR·티어·동점 기준·최종 종합·재학생 학교 평균·N수생 랭킹 검증 완료"
+  "MMR·티어·동점 기준·최종 종합·재학생 학교 평균·N수생 랭킹·내 순위 중심 스크롤 검증 완료"
 );

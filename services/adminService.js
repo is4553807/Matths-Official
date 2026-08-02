@@ -40,6 +40,12 @@ const {
 const {
   completeAdminTodoBySource,
 } = require("./adminTodoService");
+const {
+  getAdminPackageAccessSummary,
+} = require("./adminPackageAccessService");
+const {
+  getUserArenaBadges,
+} = require("./arenaBadgeService");
 const accountEmailCopy =
   require("../content/email/account");
 
@@ -1008,7 +1014,9 @@ async function getAdminUserDetail(
   const identitySchoolCode = String(
     user.school?.code || ""
   ).trim();
+  const isAdminProfile = user.role === "admin";
   const identityMatches =
+    !isAdminProfile &&
     identityMatchHash &&
     identitySchoolCode
       ? await User.find({
@@ -1038,8 +1046,12 @@ async function getAdminUserDetail(
     ranking,
     actionLogs,
     communityPosts,
+    packageAccess,
+    arenaBadges,
   ] = await Promise.all([
-    ConceptProgress.find({
+    isAdminProfile
+      ? Promise.resolve([])
+      : ConceptProgress.find({
       userId,
     })
       .sort({
@@ -1047,14 +1059,20 @@ async function getAdminUserDetail(
       })
       .limit(30)
       .lean(),
-    ConceptProgress.countDocuments({
+    isAdminProfile
+      ? Promise.resolve(0)
+      : ConceptProgress.countDocuments({
       userId,
     }),
-    ConceptProgress.countDocuments({
+    isAdminProfile
+      ? Promise.resolve(0)
+      : ConceptProgress.countDocuments({
       userId,
       status: "completed",
     }),
-    ProblemAttempt.aggregate([
+    isAdminProfile
+      ? Promise.resolve([])
+      : ProblemAttempt.aggregate([
       {
         $match: {
           userId: user._id,
@@ -1080,7 +1098,9 @@ async function getAdminUserDetail(
         },
       },
     ]),
-    AssessmentAttempt.find({
+    isAdminProfile
+      ? Promise.resolve([])
+      : AssessmentAttempt.find({
       userId,
     })
       .select(
@@ -1091,7 +1111,9 @@ async function getAdminUserDetail(
       })
       .limit(100)
       .lean(),
-    SupportInquiry.find({
+    isAdminProfile
+      ? Promise.resolve([])
+      : SupportInquiry.find({
       userId,
     })
       .sort({
@@ -1099,7 +1121,9 @@ async function getAdminUserDetail(
       })
       .limit(8)
       .lean(),
-    UserNotification.find({
+    isAdminProfile
+      ? Promise.resolve([])
+      : UserNotification.find({
       userId,
     })
       .sort({
@@ -1107,7 +1131,9 @@ async function getAdminUserDetail(
       })
       .limit(8)
       .lean(),
-    getRankingData(userId),
+    isAdminProfile
+      ? Promise.resolve({ current: null })
+      : getRankingData(userId),
     AdminActionLog.find({
       targetUserId:
         user._id,
@@ -1117,7 +1143,9 @@ async function getAdminUserDetail(
       })
       .limit(50)
       .lean(),
-    CommunityPost.find({
+    isAdminProfile
+      ? Promise.resolve([])
+      : CommunityPost.find({
       authorId:
         user._id,
     })
@@ -1126,6 +1154,12 @@ async function getAdminUserDetail(
       })
       .limit(20)
       .lean(),
+    isAdminProfile
+      ? Promise.resolve(null)
+      : getAdminPackageAccessSummary(userId),
+    isAdminProfile
+      ? Promise.resolve([])
+      : getUserArenaBadges(userId),
   ]);
   const stats =
     problemStats[0] || {
@@ -1167,6 +1201,8 @@ async function getAdminUserDetail(
     actionLogs,
     communityPosts,
     identityMatches,
+    packageAccess,
+    arenaBadges,
   };
 }
 
@@ -1751,7 +1787,10 @@ async function updateUserAccountStatus({
 
     await logAdminAction({
       adminUserId,
-      targetUserId: user._id,
+      targetUserId:
+        withdrawal.dataRetention === "purged"
+          ? null
+          : user._id,
       action:
         "user.account-withdrawal",
       detail:

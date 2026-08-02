@@ -331,6 +331,171 @@
     var(--tier-line);
   border-radius: 12px;
   font-size: 9px;
+  content-visibility: auto;
+  contain-intrinsic-size: 72px;
+}
+
+.tier-ranking-row[hidden],
+.arena-final-ranking-row[hidden] {
+  display: none;
+}
+
+.tier-ranking-row.is-ranking-target,
+.arena-final-ranking-row.is-ranking-target {
+  animation: ranking-target-pulse 1.4s ease;
+}
+
+.ranking-delta {
+  display: block;
+  margin-top: 3px;
+  color: var(--tier-muted);
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.ranking-delta.is-up { color: #2ccf9a; }
+.ranking-delta.is-down { color: #ff6b82; }
+
+.ranking-freshness {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 12px 0;
+  color: var(--tier-muted, #778096);
+  font-size: 9px;
+}
+
+.ranking-freshness b {
+  padding: 5px 8px;
+  color: #8a5700;
+  background: #fff2c7;
+  border-radius: 999px;
+}
+
+.ranking-freshness button,
+.ranking-list-tools button,
+.ranking-sticky-me {
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ranking-freshness button {
+  padding: 7px 10px;
+  color: var(--tier-text, #171c2f);
+  background: var(--tier-surface-soft, #f7f8fc);
+  border: 1px solid var(--tier-line, #e1e5ef);
+  border-radius: 9px;
+}
+
+.ranking-list-tools {
+  display: grid;
+  grid-template-columns: minmax(170px, 1.35fr) minmax(130px, .75fr) minmax(120px, .7fr) auto auto;
+  gap: 8px;
+  align-items: end;
+  margin: 10px 0 8px;
+  padding: 12px;
+  color: var(--tier-text, #171c2f);
+  background: var(--tier-surface, #fff);
+  border: 1px solid var(--tier-line, #e1e5ef);
+  border-radius: 14px;
+}
+
+.ranking-list-tools label {
+  display: grid;
+  gap: 5px;
+  color: var(--tier-muted, #778096);
+  font-size: 7px;
+  font-weight: 850;
+}
+
+.ranking-list-tools input,
+.ranking-list-tools select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  color: var(--tier-text, #171c2f);
+  background: var(--tier-surface-soft, #f7f8fc);
+  border: 1px solid var(--tier-line, #e1e5ef);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 9px;
+}
+
+.ranking-list-tools button {
+  min-height: 38px;
+  padding: 0 13px;
+  color: #fff;
+  background: linear-gradient(115deg, #683fe0, #3157f6 58%, #1597b8);
+  border-radius: 9px;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.ranking-list-tools button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.ranking-list-tools output {
+  grid-column: 1 / -1;
+  min-height: 12px;
+  color: var(--tier-muted, #778096);
+  font-size: 8px;
+}
+
+.ranking-my-position {
+  opacity: .72;
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.ranking-my-position.is-away {
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(49, 87, 246, .24);
+}
+
+.ranking-sticky-me {
+  position: sticky;
+  top: 8px;
+  z-index: 4;
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding: 10px 13px;
+  color: var(--tier-text, #171c2f);
+  text-align: left;
+  background: color-mix(in srgb, var(--tier-surface, #fff) 92%, #6b59ff 8%);
+  border: 1px solid color-mix(in srgb, var(--tier-accent, #3157f6) 35%, var(--tier-line, #e1e5ef));
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(20, 29, 70, .13);
+}
+
+.ranking-sticky-me span,
+.ranking-sticky-me em {
+  color: var(--tier-muted, #778096);
+  font-size: 8px;
+  font-style: normal;
+}
+
+.ranking-sticky-me strong { font-size: 10px; }
+
+@keyframes ranking-target-pulse {
+  0%, 100% { box-shadow: none; }
+  35% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier-accent, #3157f6) 45%, transparent); }
+}
+
+@media (max-width: 900px) {
+  .ranking-list-tools {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ranking-list-tools label:first-child,
+  .ranking-list-tools output { grid-column: 1 / -1; }
 }
 
 .tier-ranking-row.is-me {
@@ -541,6 +706,16 @@
   border: 1px solid #e1e6f4;
   border-radius: 20px;
   background: #fff;
+}
+
+[data-ranking-scroll]:focus-visible {
+  outline: 3px solid
+    color-mix(
+      in srgb,
+      var(--tier-accent, #5368e8) 30%,
+      transparent
+    );
+  outline-offset: 3px;
 }
 
 .school-final-ranking-list {

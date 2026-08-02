@@ -46,6 +46,14 @@ const DEFAULT_PAYBACK_BANDS = [
   },
 ];
 
+const DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT = 29000;
+const DEFAULT_LEARNING_PACKAGE_DAYS = 29;
+const DEFAULT_LEARNING_POLICY_CODE = "ARENA-LEARNING-29D-20260802";
+const FULL_ATTENDANCE_POLICY_CODE =
+  "ARENA-LEARNING-29D-FULL-ATTENDANCE-20260803";
+const DEFAULT_LEARNING_POLICY_EFFECTIVE_FROM =
+  new Date("2026-08-02T00:00:00+09:00");
+
 const DEFAULT_MAIN_STAKE_BANDS = [
   { tierGap: 1, stakeDays: 1 },
   { tierGap: 2, stakeDays: 2 },
@@ -263,6 +271,25 @@ function normalizePolicyDraftInput(input = {}) {
   }
 
   const paybackBands = normalizePaybackBands(input);
+  const initialLearningDays = integerValue(input.initialLearningDays, {
+    label: "정기권 학습 가능 일수 초깃값",
+    minimum: 1,
+    fallback: DEFAULT_LEARNING_PACKAGE_DAYS,
+  });
+  const minimumStreakDays = integerValue(
+    input.minimumStreakDays ?? input.payback?.minimumStreakDays,
+    {
+      label: "페이백 최소 연속 학습일",
+      minimum: 1,
+      fallback: initialLearningDays,
+    }
+  );
+  if (minimumStreakDays !== initialLearningDays) {
+    throw statusError(
+      400,
+      "페이백 연속 학습일은 정기권 전체 학습일과 같아야 합니다. 29일 학습 패키지는 29일 모두 학습해야 합니다."
+    );
+  }
   const minimumScoreDays = integerValue(
     input.minimumScoreDays ?? input.payback?.minimumScoreDays,
     {
@@ -292,11 +319,7 @@ function normalizePolicyDraftInput(input = {}) {
       label: "학습권 패키지 가격",
       minimum: 0,
     }),
-    initialLearningDays: integerValue(input.initialLearningDays, {
-      label: "정기권 학습 가능 일수 초깃값",
-      minimum: 1,
-      fallback: 29,
-    }),
+    initialLearningDays,
     initialPaybackScoreDays: integerValue(input.initialPaybackScoreDays, {
       label: "페이백 점수 초깃값",
       minimum: 0,
@@ -317,7 +340,7 @@ function normalizePolicyDraftInput(input = {}) {
       true
     ),
     lateRenewalTierPenalty: integerValue(input.lateRenewalTierPenalty, {
-      label: "랭크 탈환 배치고사 티어 하향 단계",
+      label: "랭크 복귀전 티어 하향 단계",
       minimum: 1,
       fallback: 1,
     }),
@@ -326,11 +349,7 @@ function normalizePolicyDraftInput(input = {}) {
       revenge: 2,
     },
     payback: {
-      minimumStreakDays: integerValue(input.minimumStreakDays, {
-        label: "페이백 최소 연속 학습일",
-        minimum: 0,
-        fallback: 30,
-      }),
+      minimumStreakDays,
       minimumPaidNormalAttacks: integerValue(input.minimumPaidNormalAttacks, {
         label: "페이백 최소 유료 일반 쟁탈전 횟수",
         minimum: 0,
@@ -359,7 +378,7 @@ function normalizeMainStakeBands(input = {}) {
   ) {
     throw statusError(
       400,
-      "Main Division 티어 차이와 최소 배팅 일수 입력 개수를 확인해주세요."
+      "Main Division 티어 차이와 최소 예치 일수 입력 개수를 확인해주세요."
     );
   }
   const normalized = source
@@ -369,7 +388,7 @@ function normalizeMainStakeBands(input = {}) {
         minimum: 1,
       }),
       stakeDays: integerValue(band.stakeDays, {
-        label: "Main Division 최소 배팅 일수",
+        label: "Main Division 최소 예치 일수",
         minimum: 1,
       }),
     }))
@@ -415,7 +434,7 @@ function normalizeMainPolicyDraftInput(input = {}) {
   ) {
     throw statusError(
       400,
-      "Main Division 최소 배팅표는 1부터 최대 티어 차이까지 빠짐없이 입력해야 합니다."
+      "Main Division 최소 예치 기준표는 1부터 최대 티어 차이까지 빠짐없이 입력해야 합니다."
     );
   }
   const batchInput = String(
@@ -485,7 +504,7 @@ function normalizeMainPolicyDraftInput(input = {}) {
     revengeStakeMultiplier: integerValue(
       input.revengeStakeMultiplier,
       {
-        label: "Main Division 복수전 배팅 배수",
+        label: "Main Division 복수전 예치 배수",
         minimum: 1,
         fallback: 2,
       }
@@ -519,6 +538,61 @@ function buildMainPolicyCode(effectiveFrom) {
   return `MAIN-${timestamp}-${randomUUID()
     .slice(0, 8)
     .toUpperCase()}`;
+}
+
+function defaultLearningPackagePolicyDefinition({
+  effectiveFrom = DEFAULT_LEARNING_POLICY_EFFECTIVE_FROM,
+  priceAmount = DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT,
+  changeSummary = "29일 학습 패키지 기본 정책",
+} = {}) {
+  return {
+    displayName: "29일 학습 패키지",
+    effectiveFrom: new Date(effectiveFrom),
+    currency: "KRW",
+    timezone: "Asia/Seoul",
+    priceAmount: Number(priceAmount),
+    initialLearningDays: DEFAULT_LEARNING_PACKAGE_DAYS,
+    initialPaybackScoreDays: 29,
+    paymentDayCutoffKst: "20:00",
+    renewalGraceHours: 72,
+    packagePurchaseRequiresZeroBalance: true,
+    packagePurchaseRequiresZeroLockedBalance: true,
+    lateRenewalTierPenalty: 1,
+    matchStakeDays: {
+      normal: 1,
+      revenge: 2,
+    },
+    payback: {
+      minimumStreakDays: DEFAULT_LEARNING_PACKAGE_DAYS,
+      minimumPaidNormalAttacks: 2,
+      minimumScoreDays: 30,
+      bands: DEFAULT_PAYBACK_BANDS.map((band) => ({ ...band })),
+    },
+    changeSummary: cleanSingleLine(changeSummary, 1000),
+  };
+}
+
+function learningPackagePolicyView(policy) {
+  const source = policy
+    ? typeof policy.toObject === "function"
+      ? policy.toObject()
+      : policy
+    : {
+        ...defaultLearningPackagePolicyDefinition(),
+        code: DEFAULT_LEARNING_POLICY_CODE,
+        status: "ACTIVE",
+        createdAt: DEFAULT_LEARNING_POLICY_EFFECTIVE_FROM,
+        updatedAt: DEFAULT_LEARNING_POLICY_EFFECTIVE_FROM,
+        activatedAt: DEFAULT_LEARNING_POLICY_EFFECTIVE_FROM,
+      };
+  return {
+    ...source,
+    _id: source._id || null,
+    isFallback: !policy,
+    priceAmount: Number(source.priceAmount),
+    initialLearningDays: Number(source.initialLearningDays),
+    initialPaybackScoreDays: Number(source.initialPaybackScoreDays),
+  };
 }
 
 function policySnapshot(policy) {
@@ -635,7 +709,7 @@ function minimumMainStakeDaysForTierGap(policy, tierGap) {
   if (!band) {
     throw statusError(
       409,
-      "Main Division 티어 차이별 최소 배팅 정책이 활성화되지 않았습니다."
+      "Main Division 티어 차이별 최소 예치 정책이 활성화되지 않았습니다."
     );
   }
   return Number(band.stakeDays);
@@ -732,12 +806,14 @@ async function getActiveArenaPolicy(
 }
 
 async function getActiveMainDivisionPolicy(
-  now = new Date()
+  now = new Date(),
+  { bypassCache = false } = {}
 ) {
   const cached = policyCache.get(
     ACTIVE_MAIN_POLICY_CACHE_KEY
   );
   if (
+    !bypassCache &&
     cached &&
     new Date(cached.effectiveFrom) <= now &&
     (!cached.effectiveUntil ||
@@ -755,7 +831,7 @@ async function getActiveMainDivisionPolicy(
   })
     .sort({ effectiveFrom: -1 })
     .lean();
-  if (policy) {
+  if (policy && !bypassCache) {
     policyCache.set(
       ACTIVE_MAIN_POLICY_CACHE_KEY,
       policy,
@@ -790,12 +866,268 @@ async function getArenaPolicyAdminData(
       policies,
       activePolicy,
     },
+    learningPackage: {
+      policies,
+      activePolicy:
+        learningPackagePolicyView(activePolicy),
+    },
     main: {
       policies: mainPolicies,
       activePolicy: activeMainPolicy,
     },
     now,
   };
+}
+
+async function ensureDefaultLearningPackagePolicy(
+  now = new Date()
+) {
+  const current = await SubscriptionPolicyVersion.findOne({
+    status: "ACTIVE",
+    effectiveFrom: { $lte: now },
+    $or: [
+      { effectiveUntil: null },
+      { effectiveUntil: { $gt: now } },
+    ],
+  })
+    .sort({ effectiveFrom: -1 })
+    .lean();
+  if (current) return learningPackagePolicyView(current);
+
+  const existing = await SubscriptionPolicyVersion.findOne({
+    code: DEFAULT_LEARNING_POLICY_CODE,
+  }).lean();
+  if (existing) return learningPackagePolicyView(existing);
+
+  const effectiveFrom = new Date(
+    Math.min(
+      new Date(now).getTime(),
+      DEFAULT_LEARNING_POLICY_EFFECTIVE_FROM.getTime()
+    )
+  );
+  const nextPolicy = await SubscriptionPolicyVersion.findOne({
+    status: "ACTIVE",
+    effectiveFrom: { $gt: effectiveFrom },
+  })
+    .sort({ effectiveFrom: 1 })
+    .lean();
+  try {
+    const created = await SubscriptionPolicyVersion.create({
+      ...defaultLearningPackagePolicyDefinition({ effectiveFrom }),
+      code: DEFAULT_LEARNING_POLICY_CODE,
+      status: "ACTIVE",
+      effectiveUntil: nextPolicy?.effectiveFrom || null,
+      activatedAt: new Date(now),
+    });
+    invalidateArenaPolicyCache();
+    return learningPackagePolicyView(created);
+  } catch (error) {
+    if (error?.code !== 11000) throw error;
+    return learningPackagePolicyView(
+      await SubscriptionPolicyVersion.findOne({
+        code: DEFAULT_LEARNING_POLICY_CODE,
+      }).lean()
+    );
+  }
+}
+
+async function ensureFullAttendanceLearningPackagePolicy(now = new Date()) {
+  const effectiveFrom = new Date(now);
+  const current = await SubscriptionPolicyVersion.findOne({
+    status: "ACTIVE",
+    effectiveFrom: { $lte: effectiveFrom },
+    $or: [
+      { effectiveUntil: null },
+      { effectiveUntil: { $gt: effectiveFrom } },
+    ],
+  })
+    .sort({ effectiveFrom: -1 })
+    .lean();
+
+  if (!current) {
+    return ensureDefaultLearningPackagePolicy(effectiveFrom);
+  }
+  if (
+    Number(current.initialLearningDays) === DEFAULT_LEARNING_PACKAGE_DAYS &&
+    Number(current.payback?.minimumStreakDays) === DEFAULT_LEARNING_PACKAGE_DAYS
+  ) {
+    return learningPackagePolicyView(current);
+  }
+
+  const migrationPolicyCode =
+    `${FULL_ATTENDANCE_POLICY_CODE}-${String(current._id).slice(-8).toUpperCase()}`;
+
+  const session = await mongoose.startSession();
+  let created = null;
+  try {
+    await session.withTransaction(async () => {
+      // MongoDB 드라이버는 같은 트랜잭션 세션에서 병렬 작업을 지원하지
+      // 않는다. Atlas가 두 명령을 서로 다른 트랜잭션 시작으로 오인하지
+      // 않도록 정책 조회를 반드시 순차 실행한다.
+      const transactionCurrent =
+        await SubscriptionPolicyVersion.findOne({
+          status: "ACTIVE",
+          effectiveFrom: { $lte: effectiveFrom },
+          $or: [
+            { effectiveUntil: null },
+            { effectiveUntil: { $gt: effectiveFrom } },
+          ],
+        })
+          .sort({ effectiveFrom: -1 })
+          .session(session)
+          .lean();
+      const nextPolicy =
+        await SubscriptionPolicyVersion.findOne({
+          status: "ACTIVE",
+          effectiveFrom: { $gt: effectiveFrom },
+        })
+          .sort({ effectiveFrom: 1 })
+          .session(session)
+          .lean();
+      if (!transactionCurrent) {
+        throw statusError(409, "현재 적용 중인 학습권 정책을 찾을 수 없습니다.");
+      }
+      if (
+        Number(transactionCurrent.initialLearningDays) ===
+          DEFAULT_LEARNING_PACKAGE_DAYS &&
+        Number(transactionCurrent.payback?.minimumStreakDays) ===
+          DEFAULT_LEARNING_PACKAGE_DAYS
+      ) {
+        created = transactionCurrent;
+        return;
+      }
+      const base = policySnapshot(transactionCurrent);
+      await SubscriptionPolicyVersion.updateOne(
+        { _id: transactionCurrent._id, status: "ACTIVE" },
+        { $set: { effectiveUntil: effectiveFrom } },
+        { session }
+      );
+      created = new SubscriptionPolicyVersion({
+        ...base,
+        code: migrationPolicyCode,
+        status: "ACTIVE",
+        effectiveFrom,
+        effectiveUntil: nextPolicy?.effectiveFrom || null,
+        initialLearningDays: DEFAULT_LEARNING_PACKAGE_DAYS,
+        payback: {
+          ...(base.payback || {}),
+          minimumStreakDays: DEFAULT_LEARNING_PACKAGE_DAYS,
+        },
+        changeSummary:
+          "페이백 자격에 29일 전일 연속 학습 조건 적용",
+        activatedAt: effectiveFrom,
+        activatedBy: null,
+      });
+      await created.save({ session });
+    });
+    invalidateArenaPolicyCache();
+    return learningPackagePolicyView(created);
+  } catch (error) {
+    if (error?.code !== 11000) throw error;
+    return learningPackagePolicyView(
+      await SubscriptionPolicyVersion.findOne({
+        code: migrationPolicyCode,
+      }).lean()
+    );
+  } finally {
+    await session.endSession();
+  }
+}
+
+async function updateLearningPackagePrice({
+  adminUserId,
+  priceAmount,
+  changeSummary = "",
+  now = new Date(),
+}) {
+  const price = integerValue(priceAmount, {
+    label: "29일 학습 패키지 가격",
+    minimum: 0,
+    maximum: 1000000,
+  });
+  if (!mongoose.isValidObjectId(adminUserId)) {
+    throw statusError(400, "관리자 정보를 확인해주세요.");
+  }
+
+  const effectiveFrom = new Date(now);
+  const session = await mongoose.startSession();
+  let created = null;
+  try {
+    await session.withTransaction(async () => {
+      const activePolicies = await SubscriptionPolicyVersion.find({
+        status: "ACTIVE",
+      })
+        .sort({ effectiveFrom: 1 })
+        .session(session)
+        .lean();
+      const current = [...activePolicies]
+        .reverse()
+        .find(
+          (policy) =>
+            new Date(policy.effectiveFrom) <= effectiveFrom &&
+            (!policy.effectiveUntil ||
+              new Date(policy.effectiveUntil) > effectiveFrom)
+        );
+      const base = current
+        ? policySnapshot(current)
+        : defaultLearningPackagePolicyDefinition({ effectiveFrom });
+      const candidateId = new mongoose.Types.ObjectId();
+      const plan = planPolicyActivation({
+        candidate: {
+          _id: candidateId,
+          effectiveFrom,
+        },
+        activePolicies,
+      });
+      if (plan.closePrevious) {
+        await SubscriptionPolicyVersion.updateOne(
+          {
+            _id: plan.previousPolicyId,
+            status: "ACTIVE",
+          },
+          { $set: { effectiveUntil: effectiveFrom } },
+          { session }
+        );
+      }
+      created = new SubscriptionPolicyVersion({
+        ...base,
+        _id: candidateId,
+        code: buildPolicyCode(effectiveFrom),
+        displayName: "29일 학습 패키지",
+        status: "ACTIVE",
+        effectiveFrom,
+        effectiveUntil: plan.candidateEffectiveUntil,
+        priceAmount: price,
+        initialLearningDays: DEFAULT_LEARNING_PACKAGE_DAYS,
+        changeSummary:
+          cleanSingleLine(changeSummary, 1000) ||
+          `29일 학습 패키지 가격을 ${price.toLocaleString("ko-KR")}원으로 변경`,
+        createdBy: adminUserId,
+        activatedBy: adminUserId,
+        activatedAt: effectiveFrom,
+      });
+      await created.save({ session });
+      await AdminActionLog.create(
+        [
+          {
+            adminUserId,
+            action: "arena.learning-package-price-update",
+            detail: created.changeSummary,
+            metadata: {
+              policyId: String(created._id),
+              priceAmount: price,
+              initialLearningDays: DEFAULT_LEARNING_PACKAGE_DAYS,
+            },
+          },
+        ],
+        { session, ordered: true }
+      );
+    });
+  } finally {
+    await session.endSession();
+  }
+  invalidateArenaPolicyCache();
+  return created;
 }
 
 async function createArenaPolicyVersion({
@@ -1212,16 +1544,22 @@ function invalidateMainDivisionPolicyCache() {
 }
 
 module.exports = {
+  DEFAULT_LEARNING_PACKAGE_DAYS,
+  DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT,
   activateMainDivisionPolicyVersion,
   activateArenaPolicyVersion,
   createMainDivisionPolicyVersion,
   createArenaPolicyVersion,
+  defaultLearningPackagePolicyDefinition,
+  ensureDefaultLearningPackagePolicy,
+  ensureFullAttendanceLearningPackagePolicy,
   getActiveArenaPolicy,
   getActiveMainDivisionPolicy,
   getArenaPolicyAdminData,
   hasMaterialRenewalChange,
   invalidateArenaPolicyCache,
   invalidateMainDivisionPolicyCache,
+  learningPackagePolicyView,
   mainPolicySnapshot,
   minimumMainStakeDaysForTierGap,
   normalizeMainPolicyDraftInput,
@@ -1231,5 +1569,6 @@ module.exports = {
   policySnapshot,
   retireMainDivisionPolicyVersion,
   retireArenaPolicyVersion,
+  updateLearningPackagePrice,
   validatePaybackBands,
 };

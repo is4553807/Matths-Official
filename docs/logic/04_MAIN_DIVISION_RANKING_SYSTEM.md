@@ -11,14 +11,14 @@
 # 1. 목적과 Division 분리
 
 Main Division은 Sub Division에서 페이백 및 Main 진입 조건을 달성한 사용자가
-남은 학습일수를 걸고 경쟁하는 상위 Arena다.
+남은 학습일수를 예치하고 경쟁하는 상위 Arena다.
 
 Sub와 Main은 다음 항목을 분리한다.
 
 - 참가자 풀
 - Arena 랭크·정확한 순위·GP
 - 경기 상대 선정
-- 학습일수 배팅 정책
+- 학습일수 예치 정책
 - 경기 정책 버전
 - 페이백 평가 여부
 
@@ -30,7 +30,7 @@ Sub Division
 = 페이백 및 Main 진입 자격 경쟁
 
 Main Division
-= 페이백 없이 학습일수를 걸고 경쟁하는 상위 Arena
+= 페이백 없이 학습일수를 예치하고 경쟁하는 상위 Arena
 ```
 
 Main에서는 다음 값을 사용하지 않는다.
@@ -102,7 +102,7 @@ sourceSubCycleId + MAIN_ENTRY_BONUS
 
 # 3. Main 학습일수 구성과 사용 순서
 
-Main의 실제 이용 및 배팅 자산은 Main 학습일수다.
+Main의 실제 이용 및 예치 자산은 Main 학습일수다.
 
 출처는 원장에서 분리해 기록한다.
 
@@ -123,7 +123,7 @@ MAIN_MATCH_TRANSFER
 Main 잔여 학습일수
 = 사용 가능한 학습일수
 + 예약 중 학습일수
-+ 경기 중 잠금 학습일수
++ 경기 예치 학습일수
 ```
 
 일일 학습일수 소비 순서:
@@ -147,18 +147,18 @@ Main 사용자는 잔여 학습일수가 있는 동안 매주 공식 모의고�
 
 # 4. Main 학습일수 상태
 
-Main 경기의 중복 배팅과 미성립 경기의 반환을 구분하기 위해
+Main 경기의 중복 예치와 미성립 경기의 반환을 구분하기 위해
 학습일수를 세 상태로 관리한다.
 
 ```text
 availableLearningDays
-= 자유롭게 이용·배팅할 수 있는 학습일수
+= 자유롭게 이용·예치할 수 있는 학습일수
 
 reservedLearningDays
 = 아직 상대가 수락하지 않은 Main 초대에 예약된 학습일수
 
 lockedLearningDays
-= 매치가 성립되어 경기 정산까지 잠긴 학습일수
+= 매치가 성립되어 경기 정산까지 예치된 학습일수
 ```
 
 총 Main 학습일수:
@@ -182,12 +182,12 @@ spendableLearningDays
 ```text
 총 보유 학습일수 = 8일
 예약 중 학습일수 = 2일
-경기 중 잠금 학습일수 = 1일
+경기 예치 학습일수 = 1일
 
 화면상 사용 가능 학습일수 = 5일
 ```
 
-예약과 잠금은 학습일수 소비가 아니다.
+예약과 경기 예치는 학습일수 소비가 아니다.
 정상 취소·무효 처리 시 정해진 조건에 따라 사용 가능 학습일수로 반환한다.
 
 ---
@@ -230,7 +230,7 @@ Arena 정산상 도전자 역할을 구분한다.
 
 ---
 
-# 6. Main 배팅 정책
+# 6. Main 예치 정책
 
 Main 사용자는 특정 사용자를 직접 선택하지 않고 목표 티어를 선택한다.
 서버가 선택된 티어의 적격 후보 중 상대를 무작위로 결정한다.
@@ -241,14 +241,14 @@ stakeDays
   단, 티어 차이별 최소값 이상
 ```
 
-| 티어 차이 | 최소 배팅 학습일수 |
+| 티어 차이 | 최소 예치 학습일수 |
 |---:|---:|
 | 1단계 | 1일 |
 | 2단계 | 2일 |
 | 3단계 | 3일 |
 | 4단계 이상 | 신청 불가 |
 
-최대 티어 차이는 3단계다. 사용자는 최소값 이상을 배팅할 수 있지만, 신청자와 상대 모두 배팅 뒤 사용할 학습일수가 최소 1일 남아야 한다.
+최대 티어 차이는 3단계다. 사용자는 최소값 이상을 예치할 수 있지만, 신청자와 상대 모두 예치 뒤 사용할 학습일수가 최소 1일 남아야 한다.
 
 공격 또는 초대 생성자의 기본 자격:
 
@@ -262,7 +262,7 @@ availableLearningDays > stakeDays
 candidate.availableLearningDays > stakeDays
 ```
 
-배팅 학습일수와 잔여 학습일수가 정확히 같은 사용자는
+예치 학습일수와 잔여 학습일수가 정확히 같은 사용자는
 신규 경기의 공격자·초대자·상대 후보가 될 수 없다.
 
 목적:
@@ -272,7 +272,7 @@ candidate.availableLearningDays > stakeDays
 - 운영자의 신규 학습일수 임의 발행 방지
 - 학습일수 몰아주기와 특정 상대 지정 어뷰징 완화
 
-학습일수가 0이거나 필요한 배팅량 이하인 사용자의 부족분을
+학습일수가 0이거나 필요한 예치 일수 이하인 사용자의 부족분을
 운영자가 새 학습일수로 보충하지 않는다.
 조건을 충족하지 못하면 매치를 성립시키지 않는다.
 
@@ -349,7 +349,7 @@ attacker.availableLearningDays > stakeDays
 defender.availableLearningDays > stakeDays
 ```
 
-매치가 성립하면 양측이 같은 `stakeDays`를 잠근다.
+매치가 성립하면 양측이 같은 `stakeDays`를 예치한다.
 
 ```text
 attacker.availableLearningDays -= stakeDays
@@ -362,10 +362,10 @@ defender.lockedLearningDays += stakeDays
 ## 8.1 공격자가 승리
 
 ```text
-공격자의 잠금 stakeDays
+공격자가 예치한 stakeDays
 → 공격자에게 반환
 
-방어자의 잠금 stakeDays
+방어자가 예치한 stakeDays
 → 공격자에게 이전
 
 Arena 상태
@@ -382,10 +382,10 @@ Arena 상태
 ## 8.2 방어자가 승리
 
 ```text
-방어자의 잠금 stakeDays
+방어자가 예치한 stakeDays
 → 방어자에게 반환
 
-공격자의 잠금 stakeDays
+공격자가 예치한 stakeDays
 → 방어자에게 이전
 
 Arena 상태
@@ -403,7 +403,7 @@ Arena 상태
 
 # 9. 상위 티어의 하위 티어 초대전
 
-상위 티어 사용자는 자신의 랭크와 학습일수를 걸고
+상위 티어 사용자는 자신의 랭크를 걸고 학습일수를 예치해
 하위 티어 사용자에게 경기 기회를 요청할 수 있다.
 
 상위 사용자는 특정 하위 사용자를 고르지 않고 목표 하위 티어만 선택한다.
@@ -468,10 +468,10 @@ AND candidate meets Main opponent eligibility
 ## 9.5 상위 사용자가 승리
 
 ```text
-상위 사용자의 잠금 stakeDays
+상위 사용자가 예치한 stakeDays
 → 상위 사용자에게 반환
 
-하위 사용자의 잠금 stakeDays
+하위 사용자가 예치한 stakeDays
 → 상위 사용자에게 이전
 
 Arena 상태
@@ -488,10 +488,10 @@ Arena 상태
 ## 9.6 하위 사용자가 승리
 
 ```text
-하위 사용자의 잠금 stakeDays
+하위 사용자가 예치한 stakeDays
 → 하위 사용자에게 반환
 
-상위 사용자의 잠금 stakeDays
+상위 사용자가 예치한 stakeDays
 → 하위 사용자에게 이전
 
 Arena 상태
@@ -508,7 +508,7 @@ Arena 상태
 
 상위 사용자는 초대전을 만들 때 다음 두 가지를 함께 위험에 둔다.
 
-- 배팅한 학습일수
+- 예치한 학습일수
 - 자신의 상위 Arena 상태
 
 ---
@@ -651,7 +651,7 @@ reservedLearningDays = 0
 반환된 1일도 이후 날짜 경계에서 정상적으로 매일 차감된다.
 예약을 이용해 학습일수의 시간 차감을 영구 회피할 수 없다.
 
-예약 학습일수가 1일이면 반환되는 학습일수는 없고 1일 전체를 수수료로 소각한다. 사용 가능·예약·잠금 학습일수가 모두 0이고 미정산 경기가 없으면 즉시 Sub Division으로 강등한다. Arena를 다시 이용하려면 학습권 패키지를 추가 구매하고 Sub Division부터 다시 시작한다.
+예약 학습일수가 1일이면 반환되는 학습일수는 없고 1일 전체를 수수료로 소각한다. 사용 가능·예약·경기 예치 학습일수가 모두 0이고 미정산 경기가 없으면 즉시 Sub Division으로 강등한다. Arena를 다시 이용하려면 학습권 패키지를 추가 구매하고 Sub Division부터 다시 시작한다.
 
 매치가 이미 성립해 `lockedLearningDays`로 전환된 학습일수는
 자동 취소하지 않는다.
@@ -692,7 +692,7 @@ maximumNetLearningDaysGainPerCycle = none
 unresolvedOfficialMatchCount <= 1
 ```
 
-초대 예약도 중복 배팅을 막기 위해
+초대 예약도 중복 예치를 막기 위해
 정책상 허용된 예약 수와 예약 총액을 서버에서 검증한다.
 일일 횟수 무제한은 동일 학습일수의 중복 예약을 허용한다는 뜻이 아니다.
 
@@ -711,7 +711,7 @@ repeatOpponentExclusionDays = 7
 - 신청 뒤 24시간 안에 양측 모두 문제 풀이를 완료해야 하며 일요일 14:30을 넘길 수 없다.
 - 문제 형식·승패 우선순위·완전 동점 방어자 승리·증거 제출·무결성 규칙은 Sub Division과 같다.
 
-원경기의 양측 잠금 배팅 일수를 `S`라고 하면 Main 복수전 신청자가 잠그는 일수는 다음과 같다.
+원경기에서 양측이 예치한 학습일수를 `S`라고 하면 Main 복수전 신청자가 예치하는 일수는 다음과 같다.
 
 ```text
 revengeStakeDays = 2 × S
@@ -720,7 +720,7 @@ baseFeeDays = 1
 
 정상 완료와 No-show 정산은 다음 표를 그대로 적용한다. 여기서 공격자는 직전 경기의 패자이자 복수전 신청자인 하위 티어 사용자이고, 방어자는 직전 경기에서 승리한 상위 티어 사용자다.
 
-| 결과 | Arena 상태 | 신청자가 잠근 `2 × S`일 처리 |
+| 결과 | Arena 상태 | 신청자가 예치한 `2 × S`일 처리 |
 |---|---|---|
 | 공격자 정상 승리 | 공격자·방어자 Arena 상태 전체 교환 | 전부 소각 |
 | 방어자 정상 승리 | Arena 상태 유지 | `2 × S - 1`일을 방어자에게 이전하고 1일 소각 |
@@ -728,7 +728,7 @@ baseFeeDays = 1
 | 공격자만 24시간 안에 미완료 | Arena 상태 유지 | `2 × S - 1`일을 방어자에게 이전하고 1일 소각 |
 | 양측 모두 24시간 안에 미완료 | Arena 상태 유지 | 전부 소각 |
 
-모든 거래에서 반환·이전·소각 합계는 신청자가 실제로 잠근 `revengeStakeDays`와 정확히 같아야 한다. 한쪽만 No-show인 경우 정상 참여한 쪽을 원장에 남기며, 양측 No-show는 서버가 문제와 경기 시간을 제공했지만 양측이 이용하지 않은 것으로 기록한다.
+모든 거래에서 반환·이전·소각 합계는 신청자가 실제로 예치한 `revengeStakeDays`와 정확히 같아야 한다. 한쪽만 No-show인 경우 정상 참여한 쪽을 원장에 남기며, 양측 No-show는 서버가 문제와 경기 시간을 제공했지만 양측이 이용하지 않은 것으로 기록한다.
 
 ---
 
@@ -771,122 +771,212 @@ baseFeeDays = 1
 
 # 15. 학습일수 만료와 Sub 강등
 
-Main 사용자는 시간 차감과 경기 결과로 Main 학습일수가 줄어든다.
-
-최종 만료 조건:
+Main 사용자는 시간 차감과 경기 결과로 학습일수가 줄어든다.
 
 ```text
 availableLearningDays = 0
 AND reservedLearningDays = 0
 AND lockedLearningDays = 0
 AND noPendingSettlement
-
 → MAIN_DEMOTED_TO_SUB
 → SUB_ACCESS_EXPIRED_LOCKED
 ```
 
-`availableLearningDays = 0`이더라도 미성립 예약이 남아 있으면
-먼저 `11. 일일 차감과 예약 자동 취소`에 따라 예약을 해제한다.
+진행 중 경기와 예약은 먼저 정산한다. 만료 전 다음 값을 서버 권위 스냅샷으로 저장한다.
 
-진행 중 경기의 `lockedLearningDays`가 남아 있으면
-경기 정산을 우선하고 정산 완료 뒤 만료 여부를 판정한다.
+```text
+mainTierSnapshot
+mainGpSnapshot
+mainPositionSnapshot
+mainParticipantCountSnapshot
+mainPositionReachedAt
+mainExpiredAt
+```
 
-보존:
+mainPositionSnapshot은 티어 안의 표시 순위가 아니라 만료 순간 활성 Main 전체에서의 정확한 순위다. 강등 뒤 현재 Main 순위가 바뀌어도 이 스냅샷을 다시 계산하지 않는다.
 
-- 마지막 Main 랭크
-- 마지막 Main 정확한 순위
-- Main GP
-- Main 백분위
-- Main 참가자 수
-- Main 성취 이력
-- Main 경기·학습일수 원장
+강등 처리 순서:
 
-강등 결과:
+```text
+1. Main 상태·전체 순위·참가자 수 스냅샷 저장
+2. Main-to-Sub 기준 티어·GP·전체 순위 계산 및 저장
+3. currentCompetitiveDivision = SUB
+4. accessState = SUB_ACCESS_EXPIRED_LOCKED
+5. Arena·주간 모의고사·활성 Final Ranking 잠금
+6. 72시간 재구독 유예 시작
+7. Main 성취 이력·시즌 배지·경기 원장 보존
+```
 
-- 현재 경쟁 Division을 Sub로 변경
-- GOAT Arena와 주간 모의고사 이용 잠금
-- Main 달성 이력 배지는 유지
+## 15.1 Main 백분위
 
-제거:
+```text
+mainParticipantCount = 1
+→ mainPercentile = 1.000
 
-- 활성 Main 방어 후보 자격
-- 활성 Main 초대 생성 자격
-- 활성 Final Ranking 자격
-- 주간 모의고사 자격
+그 외
+mainPercentile
+= 1 - (mainPosition - 1) / (mainParticipantCount - 1)
+```
+
+Main 1위는 1.000, 최하위는 0.000이다.
+
+## 15.2 Sub 환산 백분위
+
+```text
+referenceSubPercentile
+= 0.58 + 0.42 × mainPercentile
+```
+
+따라서 정상 스냅샷을 가진 72시간 이내 재구독자는 최소 Platinum에서 시작하고 Main 상위권은 Challenger까지 배치될 수 있다. Skill MMR, Final Rating, 주간 공식 모의고사 점수, 페이백 점수·비율·금액은 이 계산에 사용하지 않는다.
+
+| Sub 티어 | 환산 백분위 구간 |
+|---|---:|
+| Bronze | 0.00 이상 0.20 미만 |
+| Silver | 0.20 이상 0.40 미만 |
+| Gold | 0.40 이상 0.58 미만 |
+| Platinum | 0.58 이상 0.73 미만 |
+| Emerald | 0.73 이상 0.83 미만 |
+| Diamond | 0.83 이상 0.91 미만 |
+| Master | 0.91 이상 0.96 미만 |
+| Grandmaster | 0.96 이상 0.99 미만 |
+| Challenger | 0.99 이상 1.00 이하 |
+
+## 15.3 환산 GP와 정확한 Sub 전체 순위
+
+각 환산 티어의 기준 GP는 0~99 GP로 계산한다.
+
+```text
+referenceSubGp
+= floor(
+    100 ×
+    (referenceSubPercentile - tierLowerBound)
+    / (tierUpperBound - tierLowerBound)
+  )
+
+referenceSubGp = clamp(referenceSubGp, 0, 99)
+referenceSubPercentile = 1.000이면 referenceSubGp = 99
+```
+
+```text
+targetSubPosition
+= 1 + floor(
+    (1 - referenceSubPercentile)
+    × currentSubParticipantCount
+  )
+
+targetSubPosition
+= clamp(targetSubPosition, 1, currentSubParticipantCount + 1)
+```
+
+targetSubPosition은 Sub 전체 정확한 순위다. 사용자를 이 위치에 삽입하고 기존 사용자들은 아래로 이동시킨다.
+
+대표값:
+
+| Main 내 위치 | Main 백분위 | Sub 환산 백분위 | Sub 티어 | GP |
+|---|---:|---:|---|---:|
+| 최하위 | 0.00 | 0.580 | Platinum | 0 |
+| 하위 25% 지점 | 0.25 | 0.685 | Platinum | 70 |
+| 중간 | 0.50 | 0.790 | Emerald | 60 |
+| 상위 25% | 0.75 | 0.895 | Diamond | 81 |
+| 상위 10% | 0.90 | 0.958 | Master | 96 |
+| 상위 5% | 0.95 | 0.979 | Grandmaster | 63 |
+| 상위 2% | 0.98 | 0.992 | Challenger | 20 |
+| 1위 | 1.00 | 1.000 | Challenger | 99 |
+
+## 15.4 동시 재진입 순서
+
+같은 처리 묶음에서 여러 사용자가 재진입하면 다음 순서를 사용한다.
+
+```text
+1. referenceSubPercentile 높은 순
+2. mainGpSnapshot 높은 순
+3. mainPositionSnapshot 숫자가 작은 순
+4. mainPositionReachedAt 빠른 순
+5. 재결제 승인 시각 빠른 순
+6. userId 오름차순
+```
+
+## 15.5 서버 검증과 버전
+
+```text
+mainParticipantCountSnapshot >= 1
+1 <= mainPositionSnapshot <= mainParticipantCountSnapshot
+0.000 <= mainPercentile <= 1.000
+0.580 <= referenceSubPercentile <= 1.000
+0 <= referenceSubGp <= 99
+policyVersion = MAIN_TO_SUB_CONVERSION_V1
+```
+
+클라이언트의 티어·GP·백분위·순위 입력을 신뢰하지 않는다. 만료 뒤 정책이 바뀌어도 기존 스냅샷은 당시 버전으로 고정하며, 서버 계산 오류 정정은 관리자 조정 원장을 남긴다.
 
 ---
 
 # 16. 72시간 이내 재구독
 
 ```text
-expiredAt + 72 hours 이내 결제
-→ Main-to-Sub Rank Convert
-→ 시험 없음
-→ 새 Sub 결제주기
-→ 새 페이백 경쟁
+renewedAt <= expiredAt + 72 hours
+→ 새 29일 Sub 결제주기
+→ 별도 랭크 복귀전 없음
+→ referenceSubTier·referenceSubGp·targetSubPosition 그대로 적용
+→ 새 Sub 페이백 경쟁 시작
 ```
 
-학습일수가 끝난 시점에 이미 Main에서 Sub로 강등되므로,
-재결제 후에도 Main에서 바로 재개하지 않는다.
+정상 Main 만료, integrityStatus = CLEAR, 유효 스냅샷을 모두 만족할 때 최저 Platinum 0 GP를 보장한다. 부정행위 제재나 Main 랭크 무효 처리가 있으면 보장하지 않는다.
 
-```text
-mainAchievementStatus = ACHIEVED
-currentCompetitiveDivision = SUB
-```
+사용자에게 결제 전 예상 Sub 티어·GP, 72시간 종료 시각과 지연 시 최고 상한을 표시한다.
 
 ---
 
 # 17. 72시간 초과 재구독
 
-공식 시험명:
+공식 시험명은 재구독 랭크 결정전, 앱 표기는 랭크 복귀전이다.
+
+먼저 72시간 이내였을 때 받을 기준값을 보존한다.
 
 ```text
-재구독 랭크 결정전
+referenceSubTier
+referenceSubGp
+referenceSubOverallPosition
+referenceSubPercentile
 ```
 
-앱 표기:
+지연 재구독 최고 상한은 기준보다 정확히 한 티어 낮고 GP는 같은 값이다.
+
+| 정상 변환 기준 | 지연 재구독 최고 상한 |
+|---|---|
+| Challenger 20 GP | Grandmaster 20 GP |
+| Grandmaster 63 GP | Master 63 GP |
+| Master 96 GP | Diamond 96 GP |
+| Diamond 81 GP | Emerald 81 GP |
+| Emerald 60 GP | Platinum 60 GP |
+| Platinum 70 GP | Gold 70 GP |
+| Platinum 0 GP | Gold 0 GP |
 
 ```text
-랭크 복귀전
+actualLatePlacement
+= Arena 서열상 더 낮은 값(
+    assessmentPlacement,
+    lateRenewalMaximumPlacement
+  )
 ```
 
-이 시험은 늦은 재구독자의 Sub 랭크를 결정한다.
-
-최고점을 받아도 다음 기준보다 높게 배치하지 않는다.
-
-```text
-referenceSubPlacement
-= MainToSubConvert(previousMainSnapshot)
-
-maximumLatePlacement
-= oneFullSubTierBelow(referenceSubPlacement)
-```
-
-Final Ranking 성장 기준은 실제 페널티 배치가 아니라
-`referenceSubPlacement` 백분위를 사용한다.
+복귀전 결과가 낮으면 Bronze·Silver까지 배치될 수 있다. Final Ranking 성장 기준은 실제 지연 배치가 아니라 보존된 referenceSubPercentile을 사용한다.
 
 ---
 
 # 18. 새 Sub 결제주기
 
-Main 만료 후 재구독하면 Main에서 직접 새 주기를 시작하지 않는다.
-새 Sub 결제주기를 생성한다.
+Main 만료 후 재구독해도 Main에서 바로 재개하지 않는다.
 
 ```text
 availableLearningDays = 29
 paybackScoreDays = 29
 paidNormalAttacksCompleted = 0
 streakDays = 0
+currentCompetitiveDivision = SUB
 ```
 
-새 Sub 주기에서 페이백 및 Main 진입 조건을 다시 달성하면:
-
-```text
-Sub 페이백 심사 완료
-→ mainCarryoverLearningDays = finalSubPaybackScoreDays - 29
-→ Main 진입 보너스 +2
-→ Main 재진입
-```
+새 Sub 결제주기에서 페이백과 Main 진입 조건을 다시 달성하면 finalSubPaybackScoreDays - 29 이월분과 Main 진입 보너스 2일을 적용해 Main으로 재진입한다.
 
 ---
 
@@ -894,10 +984,56 @@ Sub 페이백 심사 완료
 
 연도가 바뀌어도 Main 성취·소속 이력은 유지한다.
 
-다만 Arena 랭크·순위·GP와 Final Rank는 초기화하고
-Main 내부 `시즌 배치고사`를 완료해야 새 시즌에 집계한다.
+다만 Arena 랭크·순위·GP와 Final Rank는 초기화하고 Main 내부 시즌 배치고사를 완료해야 새 시즌에 집계한다.
 
-`시즌 배치고사`와 `재구독 랭크 결정전`은 다른 시험이다.
+Main 시즌 보상은 시즌별 성취 배지로 지급한다. 배지는 시즌이 끝나거나 사용자가 Sub로 이동해도 보존하며 경기 자산이나 학습일수를 만들지 않는다.
+
+시즌 배치 결과가 같으면 다음 순서로 정확한 순위를 정한다.
+
+```text
+1. 배치 점수 높은 순
+2. 전체 풀이시간 짧은 순
+3. 배치에서 계산한 Skill MMR 높은 순
+4. 배치고사 startedAt 빠른 순
+5. userId 오름차순
+```
+
+startedAt은 제출 속도가 아니라 배치고사를 실제 시작한 날짜와 시각이다. 시즌 배치고사와 재구독 랭크 결정전은 다른 시험이다.
+
+## 19.1 Main Division 휴면
+
+휴면은 Main Division에만 적용하며 Sub Division에는 별도 휴면 상태를 두지 않는다.
+
+휴면 미활동을 초기화하는 공식 활동은 다음 두 가지뿐이다.
+
+```text
+1. 공식 1대1 경기 완료
+2. Matths 주간 공식 모의고사 제출 완료
+```
+
+로그인·페이지 열람·개념 학습·평가센터 이용·경기를 완료하지 않은 단순 신청이나 시작은 휴면 미활동을 초기화하지 않는다.
+
+Main 사용자가 미활동 구간을 시작할 때 사용 가능한 정기권 학습 가능 일수가 20일 이상이면 휴면 판정 대상으로 고정한다. 현재 잔액을 매일 다시 검사하지 않고 미활동 시작 시점의 잔액을 스냅샷으로 남긴다. 그렇지 않으면 첫날 차감 뒤 20일 미만이 되어 휴면 판정을 영구히 피하는 오류가 생긴다.
+
+```text
+미활동 1~19일차
+→ 기존 KST 일일 차감으로 하루 1일씩 차감
+
+20일차에 공식 활동 완료
+→ 휴면 전환 없음
+→ 직전 19일의 차감은 유지
+→ 미활동 시작 시각과 잔액 스냅샷 초기화
+
+20일차 종료까지 공식 활동 없음
+→ 20일차 일일 차감 완료
+→ 다음 날 00:00 KST에 휴면 전환
+```
+
+미활동 시작 당시 21일 이상이었다면 총 20일을 차감한 뒤 남은 학습일수를 동결한다. 휴면 중에는 추가 일일 차감을 하지 않고 Main 소속·성취 배지·과거 스냅샷을 보존하되 신규 경기와 활성 Arena·Final Ranking 집계에서는 제외한다. 복귀하면 추가 20일을 다시 차감하거나 배치고사를 요구하지 않고 Main Division에서 동결된 잔여 일수로 계속한다.
+
+휴면 상태에서 다시 로그인하면 복귀로 처리해 동결 잔액과 Main 소속을 복원한다. 이 로그인은 공식 활동 완료로 기록하지 않으며, 복귀 다음 KST 날짜 경계부터 새 미활동 구간을 시작한다. 활성 상태에서 이루어지는 일반 로그인과 페이지 열람은 기존 미활동 구간을 초기화하지 않는다.
+
+미활동 시작 당시 정확히 20일이었다면 20일을 모두 차감해 잔액을 0일로 만들고 Main Division에서 Sub Division으로 강등한다. 휴면 이력은 기록하지만 Main 휴면 복귀 체제를 적용하지 않는다. 다시 이용하려면 일반 Sub Division 사용자와 동일하게 새 학습권 패키지를 활성화하고 배치고사를 완료한다.
 
 ---
 
@@ -926,7 +1062,20 @@ RESOLVED
 ```
 
 `HELD` 상태에서는 Arena 상태와 학습일수를 확정하지 않는다.
-모든 예약·잠금·이전·소각·반환은 학습일수 원장에 기록한다.
+모든 예약·예치·이전·소각·반환은 학습일수 원장에 기록한다.
+
+## 20.1 Main Division 상점 연계
+
+Main 전용 상점의 아이템·가격·구매 제한·복구 정책은 [`12_SHOP.md`](./12_SHOP.md)를 따른다.
+
+- `MAIN`이면서 `PAID_ACTIVE`인 사용자만 이용한다.
+- 상점 구매에는 `availableLearningDays`만 사용하며 예약·경기 예치 학습일수는 사용할 수 없다.
+- 구매 뒤 최소 1일을 남겨야 한다.
+- 방어 휴식권은 상대 선정 전 일반 의무 방어 후보 조회에서만 제외 신호로 사용한다.
+- 초대 매칭 가속권은 서버 무작위 후보 선정, 최근 상대 제외와 목표 티어별 예약 상한을 우회하지 않는다.
+- 방어 일정 보호권은 일반 상향 공격의 의무 방어자만 문제 팩 열람 전에 사용할 수 있다. 사용하면 `INSURED_CANCELLED`로 종료하며 승패·Arena 상태 교환·복수전 권리를 만들지 않는다.
+- 보호권 사용 트랜잭션은 양측 기존 예치분 반환, 방어자 가격 2일 차감, 공격자 1일 보상, 시스템 1일 소각과 참가자 잠금 해제를 한 번에 확정한다.
+- `INSURED_CANCELLED` 경기는 Main 경기 승패, 시즌 정산 공격 수와 Final Ranking 경기 실적으로 집계하지 않지만 최근 7일 동일 상대 제외와 어뷰징 탐지에는 포함한다.
 
 ---
 
@@ -1010,7 +1159,7 @@ burnedLearningDays
 
 ## 21.3 `ArenaLearningDayLedger`의 Main 이벤트
 
-Main 전용 잔액 원장을 별도 컬렉션으로 중복 저장하지 않는다. 공통 `ArenaLearningDayLedger`에 Main 출처·예약·잠금 이벤트를 기록한다.
+Main 전용 잔액 원장을 별도 컬렉션으로 중복 저장하지 않는다. 공통 `ArenaLearningDayLedger`에 Main 출처·예약·예치 이벤트를 기록한다.
 
 ```text
 ledgerId
@@ -1029,11 +1178,12 @@ createdAt
 
 ---
 
-# 22. 추후 운영 정책에서 확정할 항목
+# 22. 확정 구현 기준
 
-다음 수치는 아직 별도 정책 버전에서 확정해야 한다.
-
-- Main 배치고사 동점 처리
-- Main-to-Sub 정확한 변환표
-- Main 시즌 보상
-- Main 휴면 복귀 처리
+- Main 시즌 배치 동점은 점수 → 전체 풀이시간 → Skill MMR → 배치 시작 시각 → userId 순으로 정한다.
+- Main-to-Sub 변환은 15장의 MAIN_TO_SUB_CONVERSION_V1 공식을 사용한다.
+- Main 시즌 보상은 시즌별 성취 배지다.
+- 휴면은 Main Division에서만 적용하며 공식 1대1 경기와 Matths 주간 공식 모의고사 모두를 20일 연속 완료하지 않았을 때 판정한다.
+- 미활동 시작 당시 21일 이상이면 20일 차감 후 잔여 일수를 동결하고, 복귀 시 Main Division에서 그대로 이어서 사용한다.
+- 미활동 시작 당시 정확히 20일이면 전부 차감하고 Sub Division으로 강등하며 Main 휴면 복귀 체제를 적용하지 않는다.
+- 상점 운영값은 [12_SHOP.md](./12_SHOP.md)의 확정 정책을 사용한다.

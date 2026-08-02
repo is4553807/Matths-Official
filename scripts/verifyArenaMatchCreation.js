@@ -160,12 +160,12 @@ async function run() {
     arenaTupleFromStanding({
       arenaRank: "에메랄드",
       arenaPosition: 8,
-      arenaGp: 1180,
+      arenaGp: 40,
     }),
     {
       arenaRank: "에메랄드",
       arenaPosition: 8,
-      arenaGp: 1180,
+      arenaGp: 40,
     }
   );
 
@@ -189,14 +189,14 @@ async function run() {
           userId: eligibleUserId,
           arenaRank: "다이아몬드",
           arenaPosition: 2,
-          arenaGp: 1300,
+          arenaGp: 80,
         },
         {
           _id: busyStandingId,
           userId: busyUserId,
           arenaRank: "에메랄드",
           arenaPosition: 1,
-          arenaGp: 1200,
+          arenaGp: 50,
         },
       ],
       accessStates: [
@@ -270,7 +270,7 @@ async function run() {
       tupleBefore: {
         arenaRank: "에메랄드",
         arenaPosition: 8,
-        arenaGp: 1180,
+        arenaGp: 40,
       },
       stakeDays: 1,
     },
@@ -281,7 +281,7 @@ async function run() {
       tupleBefore: {
         arenaRank: "다이아몬드",
         arenaPosition: 15,
-        arenaGp: 1260,
+        arenaGp: 70,
       },
       stakeDays: 0,
     },

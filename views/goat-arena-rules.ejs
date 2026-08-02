@@ -1,0 +1,212 @@
+<%
+  const formatWon = (value) =>
+    `${new Intl.NumberFormat("ko-KR").format(Number(value) || 0)}원`;
+  const formatKstDate = (value) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(new Date(value));
+  const formatKstDateTime = (value) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date(value));
+  const paybackBandLabel = (band) =>
+    band.maxScoreDays === null
+      ? `${band.minScoreDays}점 이상`
+      : `${band.minScoreDays}~${band.maxScoreDays}점`;
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="GOAT Arena <%= rulebook.division === 'SUB' ? 'Sub Division' : 'Main Division' %> 공식 경기 규정" />
+    <meta name="theme-color" content="#070913" />
+    <title><%= rulebook.title %> | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <link rel="icon" type="image/jpeg" href="/images/goat-arena/goat-arena-logo.jpg" />
+    <script src="/js/goat-arena.js" defer></script>
+  </head>
+  <body class="goat-arena-page arena-inner-page arena-rulebook-page">
+    <a class="arena-skip-link" href="#arena-rulebook-main">본문으로 바로가기</a>
+    <%- include("partials/goat-arena-navigation", { activeArenaPage, arenaUser }) %>
+
+    <main class="arena-page-main arena-rulebook-main" id="arena-rulebook-main">
+      <header class="arena-rulebook-hero">
+        <div>
+          <p><%= rulebook.eyebrow %></p>
+          <h1><%= rulebook.title %></h1>
+          <span><%= rulebook.intro %></span>
+        </div>
+        <nav class="arena-rulebook-switcher" aria-label="Division 규정 전환">
+          <a class="<%= rulebook.division === 'SUB' ? 'active' : '' %>" href="/goat-arena/rules/sub">Sub Division 규정</a>
+          <a class="<%= rulebook.division === 'MAIN' ? 'active' : '' %>" href="/goat-arena/rules/main">Main Division 규정</a>
+        </nav>
+      </header>
+
+      <section class="arena-rulebook-summary" aria-labelledby="rule-summary-title">
+        <div><small>경기 공통 요약</small><h2 id="rule-summary-title">먼저 알아둘 6가지</h2></div>
+        <ol>
+          <% rulebook.summary.forEach((item) => { %><li><%= item %></li><% }) %>
+        </ol>
+      </section>
+
+      <% if (rulebook.division === "MAIN") { %>
+        <% if (rulebook.mainPolicy) { const policy = rulebook.mainPolicy; %>
+          <section class="arena-main-policy" aria-labelledby="main-policy-title">
+            <header>
+              <div>
+                <small>현재 활성 운영 기준</small>
+                <h2 id="main-policy-title">Main 경기 예치 기준</h2>
+                <p>관리자가 활성화한 정책의 실제 값을 읽어 신규 상향 쟁탈전에 적용합니다.</p>
+              </div>
+              <strong><%= policy.displayName %></strong>
+            </header>
+            <dl>
+              <div>
+                <dt>최대 티어 차이</dt>
+                <dd><%= policy.maximumTargetTierGap %>단계</dd>
+              </div>
+              <div>
+                <dt>상대 재매칭 제외</dt>
+                <dd><%= policy.repeatOpponentExclusionDays %>일</dd>
+              </div>
+              <div>
+                <dt>복수전 예치 배수</dt>
+                <dd>원경기의 <%= policy.revengeStakeMultiplier %>배</dd>
+              </div>
+              <div>
+                <dt>복수전 수수료</dt>
+                <dd><%= policy.revengeFeeDays %>일</dd>
+              </div>
+            </dl>
+            <div class="arena-main-policy-bands" aria-label="티어 차이별 최소 예치 일수">
+              <% policy.stakeDaysByTierGap.forEach((band) => { %>
+                <article>
+                  <small><%= band.tierGap %>단계 차이</small>
+                  <strong>최소 <%= band.stakeDays %>일 예치</strong>
+                </article>
+              <% }) %>
+            </div>
+            <p class="arena-main-policy-condition">
+              <%= policy.requiresOpponentDaysGreaterThanStake
+                ? "양측 모두 예치 후 사용할 정기권 학습 가능 일수가 최소 1일 남아야 경기가 성립합니다."
+                : "현재 운영 기준에서는 상대의 경기 후 잔여 학습일 조건을 적용하지 않습니다." %>
+            </p>
+            <footer>
+              적용일
+              <time datetime="<%= new Date(policy.effectiveFrom).toISOString() %>"><%= formatKstDateTime(policy.effectiveFrom) %></time>
+              (KST)
+              <% if (policy.effectiveUntil) { %>
+                · 종료 예정
+                <time datetime="<%= new Date(policy.effectiveUntil).toISOString() %>"><%= formatKstDateTime(policy.effectiveUntil) %></time>
+                (KST)
+              <% } %>
+            </footer>
+          </section>
+        <% } else { %>
+          <section class="arena-main-policy-empty" role="status">
+            <small>운영 기준 확인 필요</small>
+            <h2>Main Division 신규 경기가 잠시 중단되었습니다.</h2>
+            <p>현재 적용 중인 Main Division 운영 정책이 없습니다. 정책이 활성화되면 최대 티어 차이와 최소 예치 일수가 이 화면에 자동 표시됩니다.</p>
+          </section>
+        <% } %>
+      <% } %>
+
+      <% if (rulebook.paybackPolicy) { const policy = rulebook.paybackPolicy; %>
+        <section class="arena-payback-policy" aria-labelledby="payback-policy-title">
+          <header>
+            <div>
+              <small>현재 활성 정책</small>
+              <h2 id="payback-policy-title">페이백 기준</h2>
+              <p>결제 시점에 적용된 정책 버전으로 자격과 최종 금액을 판정합니다.</p>
+            </div>
+            <strong><%= policy.displayName %></strong>
+          </header>
+          <dl>
+            <div><dt>패키지 가격</dt><dd><%= formatWon(policy.priceAmount) %></dd></div>
+            <div><dt>정기권 학습 가능 일수</dt><dd><%= policy.initialLearningDays %>일</dd></div>
+            <div><dt>전일 학습</dt><dd><%= policy.minimumStreakDays %>일 모두</dd></div>
+            <div><dt>유료 일반 쟁탈전</dt><dd><%= policy.minimumPaidNormalAttacks %>회 이상</dd></div>
+            <div><dt>최소 페이백 점수</dt><dd><%= policy.minimumScoreDays %>점</dd></div>
+          </dl>
+          <div class="arena-payback-table-wrap">
+            <table>
+              <thead><tr><th scope="col">페이백 점수</th><th scope="col">페이백 비율</th><th scope="col">예상 페이백 금액</th></tr></thead>
+              <tbody>
+                <% policy.bands.forEach((band) => { %>
+                  <tr><th scope="row"><%= paybackBandLabel(band) %></th><td><%= band.ratePercent %>%</td><td><%= formatWon(band.expectedPaybackAmount) %></td></tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <footer>최근 수정일 <time datetime="<%= new Date(policy.lastModifiedAt).toISOString() %>"><%= formatKstDate(policy.lastModifiedAt) %></time> (KST)</footer>
+        </section>
+      <% } %>
+
+      <% if (rulebook.division === "MAIN") { %>
+        <section class="arena-dormancy-overview" aria-labelledby="arena-dormancy-title">
+          <header>
+            <div>
+              <small>MAIN DIVISION DORMANCY</small>
+              <h2 id="arena-dormancy-title">휴면 판단 한눈에 보기</h2>
+            </div>
+            <p>로그인 횟수가 아니라 공식 경기와 주간 공식 모의고사 완료 기록으로 판단합니다.</p>
+          </header>
+          <ol class="arena-dormancy-timeline">
+            <li><span>활동일</span><strong>미활동 기록 초기화</strong><small>공식 1대1 경기 완료 또는 주간 공식 모의고사 제출</small></li>
+            <li><span>1~19일</span><strong>하루 1일씩 차감</strong><small>중간에 공식 활동을 완료하면 휴면으로 넘어가지 않습니다.</small></li>
+            <li><span>20일째</span><strong>마지막 활동 확인</strong><small>활동하면 직전 19일 차감만 유지하고 미활동 기록을 초기화합니다.</small></li>
+            <li><span>다음 날 00:00</span><strong>Main 휴면 전환</strong><small>20일째까지 활동이 없을 때만 KST 기준으로 전환합니다.</small></li>
+          </ol>
+          <div class="arena-dormancy-outcomes">
+            <article>
+              <small>미활동 시작 당시 21일 이상</small>
+              <strong>20일 차감 · 잔여 일수 동결</strong>
+              <p>복귀하면 별도 배치고사 없이 Main Division에서 남은 일수를 이어서 사용합니다.</p>
+            </article>
+            <article>
+              <small>미활동 시작 당시 정확히 20일</small>
+              <strong>전액 차감 · Sub Division 강등</strong>
+              <p>Main 휴면 복귀 절차를 사용하지 않고 새 패키지와 일반 Sub 배치 절차를 따릅니다.</p>
+            </article>
+          </div>
+          <footer>Sub Division에는 별도의 휴면 상태를 적용하지 않습니다.</footer>
+        </section>
+      <% } %>
+
+      <div class="arena-rulebook-layout">
+        <aside>
+          <strong><%= rulebook.division === "SUB" ? "Sub Division" : "Main Division" %></strong>
+          <nav aria-label="규정 목차">
+            <% rulebook.rules.forEach((rule) => { %><a href="#rule-<%= rule.number %>">규정 <%= rule.number %> · <%= rule.title %></a><% }) %>
+          </nav>
+        </aside>
+
+        <div class="arena-rulebook-list">
+          <% rulebook.rules.forEach((rule, ruleIndex) => { %>
+            <section class="arena-rule-group" id="rule-<%= rule.number %>">
+              <header><span>규정 <%= rule.number %></span><h2><%= rule.title %></h2></header>
+              <div>
+                <% rule.sections.forEach((section, sectionIndex) => { %>
+                  <details <%= ruleIndex === 0 && sectionIndex === 0 ? "open" : "" %>>
+                    <summary><span>제<%= sectionIndex + 1 %>절</span><strong><%= section.title %></strong><i aria-hidden="true"></i></summary>
+                    <ul><% section.body.forEach((line) => { %><li><%= line %></li><% }) %></ul>
+                  </details>
+                <% }) %>
+              </div>
+            </section>
+          <% }) %>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

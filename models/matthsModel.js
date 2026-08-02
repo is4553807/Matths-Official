@@ -189,6 +189,22 @@ const userSchema = new Schema(
       default: 0,
     },
 
+    /*
+     * 사이트 접속 시간은 요청 로그를 계속 쌓지 않고 사용자별 누적값만
+     * 저장합니다. 브라우저 heartbeat 간격을 서버에서 검증해 여러 탭이나
+     * 장시간 미접속 구간이 접속 시간으로 과다 계산되지 않게 합니다.
+     */
+    totalConnectedSeconds: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
+    lastConnectedAt: {
+      type: Date,
+      default: null,
+    },
+
     currentStreak: {
       type: Number,
       min: 0,
@@ -1943,6 +1959,27 @@ const assessmentAttemptSchema =
         required: true,
       },
 
+      placementPurpose: {
+        type: String,
+        enum: [
+          null,
+          "INITIAL",
+          "SEASON",
+          "RENEWAL_RANK_ASSESSMENT",
+          "DORMANCY_RETURN",
+        ],
+        default: null,
+        index: true,
+      },
+
+      placementContextKey: {
+        type: String,
+        trim: true,
+        maxlength: 160,
+        default: null,
+        index: true,
+      },
+
       curriculumId: {
         type: String,
         default: "kr-2022",
@@ -3049,6 +3086,93 @@ const archiveItemSchema =
                 type: Boolean,
                 default: true,
             },
+            storageProvider: {
+                type: String,
+                enum: ["LOCAL", "CLOUDINARY"],
+                default: "LOCAL",
+            },
+            storagePurpose: {
+                type: String,
+                enum: [
+                    "GENERIC",
+                    "ADMIN_ARCHIVE",
+                    "ADMIN_WEEKLY_MOCK",
+                    "USER_PRIVATE_MOCK_INTEGRITY",
+                ],
+                default: "GENERIC",
+            },
+            cloudPublicId: {
+                type: String,
+                maxlength: 500,
+                default: "",
+            },
+            cloudResourceType: {
+                type: String,
+                enum: ["image", "video", "raw", ""],
+                default: "",
+            },
+            cloudDeliveryType: {
+                type: String,
+                enum: ["authenticated", "private", "upload", ""],
+                default: "",
+            },
+            cloudVersion: {
+                type: Number,
+                default: null,
+            },
+            cloudFormat: {
+                type: String,
+                maxlength: 40,
+                default: "",
+            },
+            backupProvider: {
+                type: String,
+                enum: ["NONE", "R2"],
+                default: "NONE",
+            },
+            backupObjectKey: {
+                type: String,
+                maxlength: 700,
+                default: "",
+            },
+            backupSha256: {
+                type: String,
+                match: /^$|^[a-f0-9]{64}$/,
+                default: "",
+            },
+            backupStatus: {
+                type: String,
+                enum: ["NOT_CONFIGURED", "PENDING", "BACKED_UP", "FAILED"],
+                default: "PENDING",
+            },
+            backedUpAt: {
+                type: Date,
+                default: null,
+            },
+            backupError: {
+                type: String,
+                maxlength: 500,
+                default: "",
+            },
+            deletedAt: {
+                type: Date,
+                default: null,
+                index: true,
+            },
+            purgeAfter: {
+                type: Date,
+                default: null,
+                index: true,
+            },
+            deletedBy: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+            publishedBeforeDelete: {
+                type: Boolean,
+                default: null,
+            },
         },
         {
             timestamps: true,
@@ -3059,6 +3183,10 @@ const archiveItemSchema =
 archiveItemSchema.index({
     isPublished: 1,
     createdAt: -1,
+});
+archiveItemSchema.index({
+    deletedAt: 1,
+    purgeAfter: 1,
 });
 
 /* --------------------------------------------------
@@ -3167,6 +3295,27 @@ const userNotificationSchema =
                 default: "/main",
                 maxlength: 500,
             },
+            /*
+             * 자동 알림 작업이 재실행되어도 같은 우편을 두 번 만들지 않기
+             * 위한 서버 멱등 키입니다. 운영자가 직접 보내는 알림에는 값을
+             * 넣지 않아 기존 동작을 그대로 유지합니다.
+             */
+            dedupeKey: {
+                type: String,
+                trim: true,
+                maxlength: 240,
+                default: undefined,
+            },
+            sourceType: {
+                type: String,
+                trim: true,
+                maxlength: 80,
+                default: "",
+            },
+            sourceId: {
+                type: Schema.Types.ObjectId,
+                default: null,
+            },
             kind: {
                 type: String,
                 enum: [
@@ -3224,6 +3373,17 @@ userNotificationSchema.index(
         },
     }
 );
+userNotificationSchema.index(
+    { dedupeKey: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            dedupeKey: {
+                $type: "string",
+            },
+        },
+    }
+);
 
 /* --------------------------------------------------
  * 14. CommunityPost
@@ -3256,6 +3416,40 @@ const communityAttachmentSchema =
             uploadedAt: {
                 type: Date,
                 default: Date.now,
+            },
+            storageProvider: {
+                type: String,
+                enum: ["LOCAL", "CLOUDINARY"],
+                default: "LOCAL",
+            },
+            storagePurpose: {
+                type: String,
+                enum: ["GENERIC", "USER_COMMUNITY"],
+                default: "GENERIC",
+            },
+            cloudPublicId: {
+                type: String,
+                maxlength: 500,
+                default: "",
+            },
+            cloudResourceType: {
+                type: String,
+                enum: ["image", "video", "raw", ""],
+                default: "",
+            },
+            cloudDeliveryType: {
+                type: String,
+                enum: ["authenticated", "private", "upload", ""],
+                default: "",
+            },
+            cloudVersion: {
+                type: Number,
+                default: null,
+            },
+            cloudFormat: {
+                type: String,
+                maxlength: 40,
+                default: "",
             },
         },
         {
@@ -5071,6 +5265,7 @@ const rankingMmrHistorySchema =
                 type: String,
                 enum: [
                     "placement",
+                    "placement-calibration",
                     "weekly-exam",
                     "absence",
                     "season-reset",

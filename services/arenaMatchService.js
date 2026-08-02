@@ -87,6 +87,8 @@ const ELIGIBILITY_MESSAGES = {
     "일반 쟁탈전에 사용할 정기권 학습 가능 일수가 부족합니다.",
   OFFICIAL_MATCH_ALREADY_PENDING:
     "이미 정산되지 않은 공식 경기가 있습니다.",
+  INTEGRITY_REVIEW_REQUIRED:
+    "계정·경기 무결성 검토가 끝날 때까지 신규 경기 참가가 보류됩니다.",
 };
 
 function statusError(status, message, code = "") {
@@ -346,6 +348,12 @@ async function loadMatchActorContext({
     division
   ) {
     reasons.push("DIVISION_NOT_ACTIVE");
+  }
+  if (
+    accessState?.integrityStatus &&
+    accessState.integrityStatus !== "CLEAR"
+  ) {
+    reasons.push("INTEGRITY_REVIEW_REQUIRED");
   }
   if (
     !accessCycle ||
@@ -630,6 +638,7 @@ async function listSubDefenseCandidates({
       state: "PAID_ACTIVE",
       currentSeasonPlacementCompleted: true,
       defensePoolEligible: true,
+      integrityStatus: { $in: ["CLEAR", null] },
     })
       .select(
         "userId accessCycleId standingId"
@@ -646,18 +655,22 @@ async function listSubDefenseCandidates({
     (state) => state.userId
   );
   const [
+    challenger,
     users,
     cycles,
     standings,
     locks,
     unsettledMatches,
   ] = await Promise.all([
+    User.findById(challengerUserId)
+      .select("+identityMatchHash")
+      .lean(),
     User.find({
       _id: { $in: userIds },
       accountStatus: "active",
       isActive: { $ne: false },
     })
-      .select("_id")
+      .select("_id +identityMatchHash")
       .lean(),
     AccessCycle.find({
       _id: {
@@ -727,7 +740,12 @@ async function listSubDefenseCandidates({
   return buildEligibleDefenseCandidates({
     standings,
     accessStates,
-    users,
+    users: users.filter(
+      (user) =>
+        !challenger?.identityMatchHash ||
+        !user.identityMatchHash ||
+        user.identityMatchHash !== challenger.identityMatchHash
+    ),
     cycles,
     busyUserIds,
     challengerArenaRank,
@@ -1326,7 +1344,7 @@ async function runCreateNormalMatchTransaction({
         if (!cycleUpdate.modifiedCount) {
           throw statusError(
             409,
-            "일반 쟁탈전에 사용할 정기권 학습 가능 일수를 잠그지 못했습니다.",
+            "일반 쟁탈전에 사용할 정기권 학습 가능 일수를 예치하지 못했습니다.",
             "MATCH_STAKE_LOCK_FAILED"
           );
         }
@@ -1564,15 +1582,16 @@ module.exports = {
   arenaTupleFromStanding,
   allowedSubTargetTiers,
   buildEligibleDefenseCandidates,
+  assertMatchContext,
   createSubNormalChallenge,
   defenseCandidateAlias,
   findActiveMatchForUser,
   getSubChallengeData,
   isSundayDivisionLocked,
   isSundayMatchRequestLocked,
+  loadMatchActorContext,
   kstClockParts,
   listSubDefenseCandidates,
-  loadMatchActorContext,
   matchKeyForRequest,
   normalStakeDaysFromCycle,
   normalizeRequestId,

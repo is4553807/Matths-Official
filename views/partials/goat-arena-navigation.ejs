@@ -24,6 +24,18 @@
       ariaLabel: "Main Division 상위 전장",
       href: "/goat-arena/main",
     },
+    {
+      key: "shop",
+      label: "상점",
+      ariaLabel: "GOAT Arena Main Division 상점",
+      href: "/goat-arena/main/shop",
+    },
+    {
+      key: "rules",
+      label: "경기 규정",
+      ariaLabel: "GOAT Arena 경기 규정",
+      href: "/goat-arena/rules/sub",
+    },
   ];
 %>
 <header class="arena-hud">
@@ -63,13 +75,17 @@
       href="/main"
     >Matths 대시보드</a>
     <a
-      class="arena-player <%= activeArenaPage === 'profile' ? 'active' : '' %>"
+      class="arena-player <%= activeArenaPage === 'profile' ? 'active' : '' %> <%= arenaUser.hasMainProfileBorder ? 'has-main-shop-border' : '' %>"
       href="/goat-arena/profile"
       aria-label="<%= arenaUser.nickname %>님의 GOAT Arena 프로필"
       <%= activeArenaPage === "profile" ? 'aria-current="page"' : '' %>
     >
       <span aria-hidden="true"><%= arenaUser.nickname.slice(0, 1) %></span>
-      <strong><%= arenaUser.nickname %></strong>
+      <strong>
+        <%= arenaUser.nickname %>
+        <% if (arenaUser.hasStyleEntrance) { %><small>ARENA CONTENDER</small><% } %>
+      </strong>
     </a>
   </div>
 </header>
+<script src="/js/session-usage.js" defer></script>

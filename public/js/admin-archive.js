@@ -158,7 +158,7 @@
         event.submitter ===
           bulkButton &&
         !window.confirm(
-          "선택한 자료와 저장 파일을 DB에서 영구 삭제할까요? 삭제 후 복구할 수 없습니다."
+          "선택한 자료를 휴지통으로 이동할까요? 30일 동안 복구할 수 있습니다."
         )
       ) {
         event.preventDefault();

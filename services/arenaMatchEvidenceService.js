@@ -20,6 +20,17 @@ const {
 const {
   isSundayDivisionLocked,
 } = require("./arenaMatchService");
+const {
+  destroyStoredAsset,
+  signedCloudinaryUrl,
+  STORAGE_PURPOSES,
+  storageFields,
+  storeUploadedFile,
+} = require("./fileStorageService");
+
+const ARENA_EVIDENCE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+const ARENA_EVIDENCE_PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
+let arenaEvidenceRetentionTimer = null;
 
 function statusError(status, message, code = "") {
   const error = new Error(message);
@@ -30,9 +41,13 @@ function statusError(status, message, code = "") {
 
 async function discardArenaEvidenceFiles(files = []) {
   await Promise.all(
-    files.map((file) =>
-      fs.promises.unlink(file.path).catch(() => {})
-    )
+    files.map(async (file) => {
+      if (file?.storageAsset?.storageProvider === "CLOUDINARY") {
+        await destroyStoredAsset(file.storageAsset).catch(() => {});
+        return;
+      }
+      if (file?.path) await fs.promises.unlink(file.path).catch(() => {});
+    })
   );
 }
 
@@ -79,6 +94,17 @@ async function buildEvidenceFiles(files = []) {
       "ARENA_EVIDENCE_FILE_COUNT"
     );
   }
+  const totalSizeBytes = files.reduce(
+    (sum, file) => sum + Math.max(0, Number(file?.size) || 0),
+    0
+  );
+  if (totalSizeBytes > 30 * 1024 * 1024) {
+    throw statusError(
+      400,
+      "풀이 증거는 경기당 총 30MB 이하로 제출해주세요.",
+      "ARENA_EVIDENCE_TOTAL_SIZE"
+    );
+  }
   const result = [];
   const safeMimeByExtension = {
     ".jpg": "image/jpeg",
@@ -96,12 +122,18 @@ async function buildEvidenceFiles(files = []) {
         "INVALID_ARENA_EVIDENCE_SIGNATURE"
       );
     }
+    const sha256 = await sha256File(file.path);
+    const asset = await storeUploadedFile(file, {
+      folder: "matths/arena-evidence",
+      purpose: STORAGE_PURPOSES.USER_ARENA_EVIDENCE,
+    });
     result.push({
       originalName: String(file.originalname || "풀이 증거").slice(0, 255),
-      storedName: path.basename(file.filename),
+      storedName: asset?.storedName || path.basename(file.filename),
       mimeType: safeMimeByExtension[extension] || "application/octet-stream",
       sizeBytes: Number(file.size || 0),
-      sha256: await sha256File(file.path),
+      sha256,
+      ...storageFields(asset),
     });
   }
   return result;
@@ -221,6 +253,13 @@ async function submitArenaMatchEvidence({
       if (attempt.status !== "EVIDENCE_REQUIRED") {
         throw statusError(409, "현재 단계에서는 풀이 증거를 제출할 수 없습니다.", "ARENA_EVIDENCE_NOT_REQUIRED");
       }
+      if (
+        match.matchType === "REVENGE" &&
+        match.completionDeadlineAt &&
+        new Date(match.completionDeadlineAt) < now
+      ) {
+        throw statusError(410, "복수전의 24시간 완료 기한이 끝났습니다.", "REVENGE_COMPLETION_DEADLINE_EXPIRED");
+      }
       if (!attempt.evidenceDeadlineAt || new Date(attempt.evidenceDeadlineAt) < now) {
         throw statusError(410, "풀이 증거 제출 제한시간 1분이 끝났습니다.", "ARENA_EVIDENCE_DEADLINE_EXPIRED");
       }
@@ -239,6 +278,7 @@ async function submitArenaMatchEvidence({
             files: evidenceFiles,
             deadlineAt: attempt.evidenceDeadlineAt,
             submittedAt: now,
+            retentionUntil: new Date(now.getTime() + ARENA_EVIDENCE_RETENTION_MS),
             status: flags.length ? "ANOMALY_FLAGGED" : "ON_TIME",
             anomalyFlags: flags,
           },
@@ -402,6 +442,7 @@ async function holdExpiredEvidence({ now = new Date(), limit = 100 } = {}) {
 
 async function holdExpiredMatchStarts({ now = new Date(), limit = 100 } = {}) {
   const matches = await ArenaMatch.find({
+    matchType: { $ne: "REVENGE" },
     status: { $in: ["MATCHED", "READY", "IN_PROGRESS"] },
     startDeadlineAt: { $lt: now },
   })
@@ -554,14 +595,102 @@ async function getAdminEvidenceFile({ evidenceId, storedName }) {
     throw statusError(404, "풀이 증거를 찾을 수 없습니다.");
   }
   const evidence = await ArenaMatchEvidence.findById(evidenceId).lean();
+  if (evidence?.contentPurgedAt) {
+    throw statusError(410, "보존 기간이 끝나 풀이 증거 원본이 삭제되었습니다.");
+  }
   const file = evidence?.files?.find(
     (entry) => entry.storedName === path.basename(String(storedName || ""))
   );
   if (!file) throw statusError(404, "풀이 증거 파일을 찾을 수 없습니다.");
   return {
     ...file,
-    absolutePath: path.join(ARENA_EVIDENCE_STORAGE_DIR, file.storedName),
+    absolutePath:
+      file.storageProvider === "CLOUDINARY"
+        ? null
+        : path.join(ARENA_EVIDENCE_STORAGE_DIR, file.storedName),
+    cloudUrl: signedCloudinaryUrl(file, {
+      download: false,
+      originalName: file.originalName,
+    }),
   };
+}
+
+async function purgeExpiredArenaEvidence({ now = new Date(), limit = 100 } = {}) {
+  const candidates = await ArenaMatchEvidence.find({
+    retentionUntil: { $lte: now },
+    contentPurgedAt: null,
+    retentionHoldReason: "",
+    status: { $in: ["ON_TIME", "REVIEWED"] },
+  })
+    .sort({ retentionUntil: 1 })
+    .limit(Math.max(1, Math.min(1000, Number(limit) || 100)))
+    .lean();
+
+  if (!candidates.length) return { scanned: 0, purged: 0, held: 0 };
+
+  const matches = await ArenaMatch.find({
+    _id: { $in: candidates.map((entry) => entry.matchId) },
+  })
+    .select("status integrityStatus")
+    .lean();
+  const matchById = new Map(matches.map((match) => [String(match._id), match]));
+  let purged = 0;
+  let held = 0;
+
+  for (const evidence of candidates) {
+    const match = matchById.get(String(evidence.matchId));
+    if (
+      !match ||
+      !["SETTLED", "CANCELLED", "INVALID", "INSURED_CANCELLED"].includes(match.status) ||
+      match.integrityStatus !== "CLEAR"
+    ) {
+      held += 1;
+      continue;
+    }
+
+    await Promise.all(
+      (evidence.files || []).map((file) =>
+        destroyStoredAsset({
+          ...file,
+          path: path.join(ARENA_EVIDENCE_STORAGE_DIR, path.basename(file.storedName || "")),
+        }).catch(() => {})
+      )
+    );
+    const update = await ArenaMatchEvidence.updateOne(
+      {
+        _id: evidence._id,
+        contentPurgedAt: null,
+        retentionHoldReason: "",
+      },
+      {
+        $set: {
+          contentPurgedAt: now,
+          "files.$[].storageProvider": "PURGED",
+          "files.$[].cloudPublicId": "",
+          "files.$[].cloudResourceType": "",
+          "files.$[].cloudDeliveryType": "",
+          "files.$[].cloudVersion": null,
+          "files.$[].cloudFormat": "",
+        },
+      }
+    );
+    if (update.modifiedCount > 0) purged += 1;
+  }
+
+  return { scanned: candidates.length, purged, held };
+}
+
+function startArenaEvidenceRetentionScheduler() {
+  if (process.env.DISABLE_SCHEDULERS === "1" || arenaEvidenceRetentionTimer) return null;
+  const run = () =>
+    purgeExpiredArenaEvidence().catch((error) => {
+      console.error("Arena evidence retention cleanup failed:", error.message);
+    });
+  const initialTimer = setTimeout(run, 60 * 1000);
+  initialTimer.unref?.();
+  arenaEvidenceRetentionTimer = setInterval(run, ARENA_EVIDENCE_PURGE_INTERVAL_MS);
+  arenaEvidenceRetentionTimer.unref?.();
+  return arenaEvidenceRetentionTimer;
 }
 
 module.exports = {
@@ -573,5 +702,7 @@ module.exports = {
   holdExpiredEvidence,
   holdExpiredMatchStarts,
   holdSundayCutoffMatches,
+  purgeExpiredArenaEvidence,
+  startArenaEvidenceRetentionScheduler,
   submitArenaMatchEvidence,
 };

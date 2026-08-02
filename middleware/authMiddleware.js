@@ -149,7 +149,10 @@ exports.isAdmin = (
         return next();
     }
 
-    return res.status(403).send(
+    const error = new Error(
         "운영자만 접근할 수 있습니다."
     );
+    error.status = 403;
+    error.code = "ADMIN_ACCESS_REQUIRED";
+    return next(error);
 };

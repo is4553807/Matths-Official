@@ -99,6 +99,31 @@ const dataAnalysisSchema = new Schema(
       maxlength: 160,
       default: "operator",
     },
+    aggregationRunId: {
+      type: String,
+      trim: true,
+      maxlength: 160,
+      default: "",
+      index: true,
+    },
+    calculationVersion: {
+      type: String,
+      trim: true,
+      maxlength: 80,
+      default: "",
+    },
+    periodStartedAt: {
+      type: Date,
+      default: null,
+    },
+    periodEndedAt: {
+      type: Date,
+      default: null,
+    },
+    periodClosed: {
+      type: Boolean,
+      default: false,
+    },
     measuredAt: {
       type: Date,
       default: null,
@@ -132,6 +157,12 @@ dataAnalysisSchema.index({
   category: 1,
   metricKey: 1,
 });
+dataAnalysisSchema.index({
+  kind: 1,
+  source: 1,
+  periodKey: 1,
+  aggregationRunId: 1,
+});
 
 const DataAnalysis =
   mongoose.models.DataAnalysis ||
@@ -143,4 +174,3 @@ const DataAnalysis =
 module.exports = {
   DataAnalysis,
 };
-

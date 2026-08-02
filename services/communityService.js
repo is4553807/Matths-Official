@@ -24,6 +24,9 @@ const communityEmailCopy =
   require("../content/email/community");
 const {
   COMMUNITY_ATTACHMENT_LIMIT,
+  COMMUNITY_ATTACHMENT_TOTAL_MAX_BYTES,
+  COMMUNITY_IMAGE_MAX_BYTES,
+  communityAttachmentCloudUrl,
   discardCommunityUploads,
   isCommunityImage,
   safeCommunityAttachmentPath,
@@ -1803,10 +1806,25 @@ async function createCommunityPost({
       `사진과 파일은 게시글 하나에 최대 ${COMMUNITY_ATTACHMENT_LIMIT}개까지 첨부할 수 있습니다.`
     );
   }
-  const attachments =
-    uploads.map(
-      serializeCommunityUpload
-    );
+  const uploadTotalBytes = uploads.reduce(
+    (sum, file) => sum + Math.max(0, Number(file?.size) || 0),
+    0
+  );
+  if (uploadTotalBytes > COMMUNITY_ATTACHMENT_TOTAL_MAX_BYTES) {
+    throw statusError(400, "게시글 첨부파일은 전체 합계 50MB 이하로 올려주세요.");
+  }
+  if (
+    uploads.some(
+      (file) =>
+        String(file?.mimetype || "").startsWith("image/") &&
+        Number(file?.size || 0) > COMMUNITY_IMAGE_MAX_BYTES
+    )
+  ) {
+    throw statusError(400, "게시판 이미지는 파일당 10MB 이하로 올려주세요.");
+  }
+  const attachments = await Promise.all(
+    uploads.map((file) => serializeCommunityUpload(file))
+  );
 
   const user =
     await User.findOne({
@@ -2065,33 +2083,34 @@ async function getCommunityAttachment({
         String(item._id) ===
         String(attachmentId)
     );
-  const filePath =
-    safeCommunityAttachmentPath(
-      attachment?.storedName
-    );
+  const cloudUrl = attachment
+    ? communityAttachmentCloudUrl(attachment, {
+        download: !isCommunityImage(attachment),
+      })
+    : null;
+  const filePath = attachment?.storageProvider === "CLOUDINARY"
+    ? null
+    : safeCommunityAttachmentPath(attachment?.storedName);
 
-  if (!attachment || !filePath) {
+  if (!attachment || (!filePath && !cloudUrl)) {
     throw statusError(
       404,
       "첨부파일을 찾을 수 없습니다."
     );
   }
 
-  try {
-    await fs.promises.access(
-      filePath,
-      fs.constants.R_OK
-    );
-  } catch (error) {
-    throw statusError(
-      404,
-      "첨부파일을 찾을 수 없습니다."
-    );
+  if (filePath) {
+    try {
+      await fs.promises.access(filePath, fs.constants.R_OK);
+    } catch (error) {
+      throw statusError(404, "첨부파일을 찾을 수 없습니다.");
+    }
   }
 
   return {
     ...attachment,
     filePath,
+    cloudUrl,
     isImage:
       isCommunityImage(
         attachment

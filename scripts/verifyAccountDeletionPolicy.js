@@ -237,12 +237,28 @@ const adminView = read(
 );
 assert.ok(
   adminView.includes(
-    'name="retainAnonymousData"'
+    'name="dataRetention"'
   ) &&
     adminView.includes(
-      "학습·평가 데이터를 익명으로 보존"
+      'value="anonymous"'
+    ) &&
+    adminView.includes(
+      'value="purged"'
+    ) &&
+    adminView.includes(
+      "계정 삭제"
     ),
   "관리자 탈퇴 화면에 데이터 보존 선택지가 없습니다."
+);
+
+assert.ok(
+  routes.includes(
+    '"/admin/users/:userId/delete"'
+  ) &&
+    routes.includes(
+      "adminDeleteUserAccount"
+    ),
+  "관리자 계정 삭제 경로가 연결되지 않았습니다."
 );
 
 const mmrService = read(

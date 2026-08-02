@@ -6,6 +6,9 @@ const {
   FIRST_MONTH_METRICS,
 } = require("../dataAnalysis/metricCatalog");
 
+const AUTOMATIC_MONTHLY_SOURCE =
+  "monthly-authoritative-ledger-v1";
+
 function stableDimensions(dimensions = {}) {
   const normalized = Object.fromEntries(
     Object.entries(dimensions)
@@ -44,6 +47,8 @@ async function seedFirstMonthCatalog() {
             unit: metric.unit,
             dimensionNames:
               metric.dimensions || [],
+            minimumSampleSize:
+              metric.minimumSampleSize || 100,
             source:
               "docs/logic/03_SUB_DIVISION_RANKING_SYSTEM_PAYBACK.md",
           },
@@ -143,6 +148,9 @@ async function recordObservation({
         category,
         unit,
         numericValue:
+          value !== null &&
+          value !== undefined &&
+          value !== "" &&
           Number.isFinite(Number(value))
             ? Number(value)
             : null,
@@ -164,9 +172,89 @@ async function recordObservation({
   );
 }
 
+async function upsertMonthlyObservations({
+  observations,
+  periodKey,
+  aggregationRunId,
+  calculationVersion,
+  periodStartedAt,
+  periodEndedAt,
+  periodClosed,
+  measuredAt = new Date(),
+}) {
+  const operations = (observations || []).map((observation) => {
+    const dimensionData = stableDimensions(observation.dimensions);
+    const policyVersionCode = String(
+      observation.policyVersionCode || ""
+    );
+    return {
+      updateOne: {
+        filter: {
+          kind: "OBSERVATION",
+          metricKey: observation.metricKey,
+          periodKey,
+          dimensionKey: dimensionData.dimensionKey,
+          policyVersionCode,
+        },
+        update: {
+          $set: {
+            label: observation.label,
+            category: observation.category,
+            unit: observation.unit,
+            numericValue:
+              observation.numericValue !== null &&
+              observation.numericValue !== undefined &&
+              observation.numericValue !== "" &&
+              Number.isFinite(Number(observation.numericValue))
+                ? Number(observation.numericValue)
+                : null,
+            numerator:
+              observation.numerator === null ||
+              observation.numerator === undefined
+                ? null
+                : Number(observation.numerator),
+            denominator:
+              observation.denominator === null ||
+              observation.denominator === undefined
+                ? null
+                : Number(observation.denominator),
+            sampleSize: Math.max(
+              0,
+              Number(observation.sampleSize || 0)
+            ),
+            dimensions: dimensionData.dimensions,
+            dimensionNames: observation.dimensionNames || [],
+            source: AUTOMATIC_MONTHLY_SOURCE,
+            note: String(observation.note || ""),
+            measuredAt,
+            aggregationRunId,
+            calculationVersion,
+            periodStartedAt,
+            periodEndedAt,
+            periodClosed: Boolean(periodClosed),
+          },
+          $setOnInsert: {
+            kind: "OBSERVATION",
+            metricKey: observation.metricKey,
+            periodKey,
+            dimensionKey: dimensionData.dimensionKey,
+            policyVersionCode,
+          },
+        },
+        upsert: true,
+      },
+    };
+  });
+  if (!operations.length) {
+    return { upsertedCount: 0, modifiedCount: 0, matchedCount: 0 };
+  }
+  return DataAnalysis.bulkWrite(operations, { ordered: false });
+}
+
 module.exports = {
+  AUTOMATIC_MONTHLY_SOURCE,
   recordObservation,
   seedFirstMonthCatalog,
   stableDimensions,
+  upsertMonthlyObservations,
 };
-

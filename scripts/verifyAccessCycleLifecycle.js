@@ -17,6 +17,9 @@ const {
     kstDateKey,
   },
 } = require("../services/accessCycleService");
+const {
+  calculatePaybackDecision,
+} = require("../services/arenaPaybackReviewService");
 
 async function run() {
   const root = path.resolve(__dirname, "..");
@@ -40,7 +43,7 @@ async function run() {
     lateRenewalTierPenalty: 1,
     matchStakeDays: { normal: 1, revenge: 2 },
     payback: {
-      minimumStreakDays: 30,
+      minimumStreakDays: 29,
       minimumPaidNormalAttacks: 2,
       minimumScoreDays: 30,
       bands: [
@@ -57,6 +60,27 @@ async function run() {
       ],
     },
   };
+
+  const paybackCandidate = {
+    policySnapshot: policy,
+    pricePaid: 29000,
+    paidNormalAttacksCompleted: 2,
+    paybackScoreDays: 30,
+    streakDays: 28,
+  };
+  assert.equal(
+    calculatePaybackDecision(paybackCandidate).qualified,
+    false,
+    "29일 중 하루라도 학습 기록이 빠지면 페이백 자격을 얻을 수 없습니다."
+  );
+  assert.equal(
+    calculatePaybackDecision({
+      ...paybackCandidate,
+      streakDays: 29,
+    }).qualified,
+    true,
+    "29일 전일 학습과 나머지 조건을 충족하면 페이백 자격을 얻어야 합니다."
+  );
 
   const beforeCutoff = new Date(
     "2026-08-01T19:59:59+09:00"
@@ -269,18 +293,32 @@ async function run() {
     path.join(root, "server.js"),
     "utf8"
   );
+  const renewalServiceSource = fs.readFileSync(
+    path.join(root, "services/arenaRenewalService.js"),
+    "utf8"
+  );
   for (const requiredSource of [
     "session.withTransaction",
     "PAYMENT_IDEMPOTENCY_CONFLICT",
     "packagePurchaseEligibility",
     "FIRST_DAY_CONSUMPTION",
     "processDueFirstDayConsumptions",
-    "MAIN_RENEWAL_WORKFLOW_REQUIRED",
+    "preparePaidMainRenewalInTransaction",
     "lastMainSnapshotId",
   ]) {
     assert.ok(
       serviceSource.includes(requiredSource),
       `${requiredSource} 구현이 없습니다.`
+    );
+  }
+  for (const requiredSource of [
+    "MAIN_RENEWAL_WITHIN_72_HOURS",
+    "MAIN_RENEWAL_AFTER_72_HOURS",
+    "RenewalRankAssessmentRequired",
+  ]) {
+    assert.ok(
+      renewalServiceSource.includes(requiredSource),
+      `${requiredSource} 갱신 분기 구현이 없습니다.`
     );
   }
   assert.ok(

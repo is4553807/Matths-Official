@@ -57,6 +57,9 @@ const {
   buildIdentityMatchHash,
   normalizeBirthDate,
 } = require("../services/identityRiskService");
+const {
+  synchronizeDormantArenaReturn,
+} = require("../services/arenaDormancyService");
 
 const BCRYPT_ROUNDS = 12;
 
@@ -477,8 +480,14 @@ exports.login = async (
       await synchronizeUserLifecycle(
         access.user._id
       );
+    const loginAt = new Date();
+    await synchronizeDormantArenaReturn({
+      userId: synchronized._id,
+      lastLoginAt: synchronized.lastLoginAt,
+      now: loginAt,
+    });
     synchronized.lastLoginAt =
-      new Date();
+      loginAt;
     await synchronized.save();
 
     return res.json(

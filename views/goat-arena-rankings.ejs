@@ -1,3 +1,9 @@
+<%
+  const rankingUpdatedAt = ranking.latestCalculatedAt ? new Date(ranking.latestCalculatedAt) : null;
+  const rankingUpdatedLabel = rankingUpdatedAt
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(rankingUpdatedAt)
+    : "갱신 대기";
+%>
 <!doctype html>
 <html lang="ko">
   <head>
@@ -41,6 +47,33 @@
           내 티어는 전체 목록을 스크롤하고 다른 티어는 상위 20명만 확인할 수 있습니다.
         </p>
       </header>
+
+      <section class="arena-final-ranking-panel" aria-labelledby="arena-final-ranking-title">
+        <header>
+          <div>
+            <small>모든 Division 통합</small>
+            <h2 id="arena-final-ranking-title">최종 종합 랭킹</h2>
+          </div>
+          <p>Matths의 최종 종합 랭킹과 같은 공식 데이터입니다. 내부 실력 지표, 현재 Division 성과와 이번 주 공식 모의고사 보너스를 정책 공식으로 다시 계산합니다.</p>
+        </header>
+        <div class="ranking-freshness" data-ranking-freshness data-updated-at="<%= rankingUpdatedAt ? rankingUpdatedAt.toISOString() : '' %>">
+          <span>최근 공식 갱신 <strong><%= rankingUpdatedLabel %> KST</strong></span>
+          <button type="button" data-ranking-retry>새로고침</button>
+        </div>
+        <% if (ranking.currentFinal) { %>
+          <article class="arena-final-my-rank <%= ranking.currentFinal.hasMainProfileBorder ? 'has-main-shop-border' : '' %>">
+            <div><small>나의 최종 종합 랭킹</small><strong><%= ranking.currentFinal.displayName %></strong><span><%= ranking.currentFinal.division %> Division</span></div>
+            <dl><div><dt>전체 순위</dt><dd><%= ranking.currentFinal.finalRank %><small>위</small></dd></div><div><dt>최종 종합 점수</dt><dd><%= ranking.currentFinal.finalRating %></dd></div></dl>
+          </article>
+        <% } %>
+        <div class="arena-final-ranking-scroll" data-ranking-scroll data-ranking-kind="final" data-current-school="<%= ranking.currentFinal?.schoolName || '' %>" tabindex="0" aria-label="최종 종합 랭킹 목록">
+          <div class="arena-final-ranking-row arena-final-ranking-head"><span>순위</span><span>Division</span><span>플레이어</span><span>소속</span><span>최종 종합 점수</span></div>
+          <% ranking.finalOverall.forEach((entry) => { const isCurrentRanker = entry.userId === String(user._id); %>
+            <div class="arena-final-ranking-row <%= isCurrentRanker ? 'is-me' : '' %> <%= entry.hasMainProfileBorder ? 'has-main-shop-border' : '' %>" data-ranking-row data-rank="<%= entry.finalRank %>" data-name="<%= entry.displayName %>" data-division="<%= entry.division %>" data-school="<%= entry.schoolName || 'N수생' %>" data-rank-delta="<%= entry.rankDelta || 0 %>" <%= isCurrentRanker ? 'data-current-ranker aria-current="true"' : '' %>><b><%= entry.finalRank %></b><span><%= entry.division %> Division</span><strong><%= entry.displayName %><%= isCurrentRanker ? ' · 나' : '' %></strong><span><%= entry.schoolName || 'N수생' %></span><em><%= entry.finalRating %><small class="ranking-delta <%= entry.rankDelta > 0 ? 'is-up' : entry.rankDelta < 0 ? 'is-down' : '' %>"><%= entry.rankDelta > 0 ? `▲${entry.rankDelta}` : entry.rankDelta < 0 ? `▼${Math.abs(entry.rankDelta)}` : '—' %></small></em></div>
+          <% }) %>
+          <% if (!ranking.finalOverall.length) { %><p class="arena-final-ranking-empty">활성 최종 종합 랭킹을 계산하고 있습니다.</p><% } %>
+        </div>
+      </section>
 
       <%- include("partials/tier-ranking-pools", {
         ranking,

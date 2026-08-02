@@ -761,8 +761,10 @@ async function upsertInitialRankingProfile({
     ) === String(attempt._id) &&
     existing.mmrHistory.some(
       (history) =>
-        history.eventType ===
-          "placement" &&
+        [
+          "placement",
+          "placement-calibration",
+        ].includes(history.eventType) &&
         String(
           history
             .placementAttemptId ||
@@ -790,6 +792,73 @@ async function upsertInitialRankingProfile({
       attempt.scorePercent
     ) ||
     0;
+
+  /*
+   * 모의고사 전용 패키지로 공식 모의고사를 4회 이상 치른 사용자는 이미
+   * 충분한 실력 시계열을 가지고 있습니다. 이후 학습권 패키지를 구매해
+   * 배치고사를 볼 때 기존 MMR을 초기화하지 않고, 기존 공식 모의고사
+   * 표본 수와 배치 결과를 각각 한 표본으로 보아 가중 평균으로 보정합니다.
+   */
+  const weeklyExamCount = Number(
+    profile.participation?.weeklyExamCount || 0
+  );
+  if (existing && weeklyExamCount >= 4) {
+    const placementMmr = Number(standing.initialMmr) || 1000;
+    const calibratedMmr = Math.max(
+      0,
+      Math.round(
+        (previousMmr * weeklyExamCount + placementMmr) /
+          (weeklyExamCount + 1)
+      )
+    );
+    const calibratedTier = findBaseTier(calibratedMmr);
+    profile.placementAttemptId = attempt._id;
+    profile.placementScore = placementScore;
+    profile.placementExpectedPerformance = clamp(
+      placementScore / 100
+    );
+    profile.mmr = calibratedMmr;
+    profile.tier = calibratedTier.name;
+    profile.rankPoint = calculateRankPoint({
+      mmr: calibratedMmr,
+      tier: calibratedTier,
+    });
+    profile.status = "CONFIRMED";
+    profile.weeklyExamsUntilConfirmed = 0;
+    profile.reachedCurrentMmrAt =
+      calibratedMmr === previousMmr
+        ? profile.reachedCurrentMmrAt
+        : new Date();
+    profile.mmrHistory.push({
+      placementAttemptId: attempt._id,
+      eventType: "placement-calibration",
+      previousMmr,
+      newMmr: calibratedMmr,
+      deltaMmr: calibratedMmr - previousMmr,
+      rawScore: attempt.scorePercent,
+      totalPercentile:
+        Number(attempt.placementResult?.totalPercentile) || null,
+      advancedPercentile:
+        Number(
+          attempt.placementResult?.abilityProfile
+            ?.advancedAbilityAfterVerification ??
+            attempt.placementResult?.abilityProfile
+              ?.advancedAbilityBeforeVerification
+        ) || null,
+      consistencyScore:
+        Number(
+          attempt.placementResult?.abilityProfile?.consistency
+        ) || null,
+      actualPerformance: profile.placementExpectedPerformance,
+      expectedPerformance: profile.placementExpectedPerformance,
+      kFactor: 0,
+      growthBonus: 0,
+      createdAt: new Date(),
+    });
+    profile.mmrHistory = profile.mmrHistory.slice(-100);
+    await profile.save();
+    return profile;
+  }
 
   profile.placementAttemptId =
     attempt._id;

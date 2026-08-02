@@ -56,7 +56,7 @@
         </section>
 
         <section class="admin-panel">
-          <div class="admin-panel-heading"><div><p>FILE UPLOAD</p><h2>여러 자료 한 번에 추가</h2></div><span>파일당 최대 30MB · 최대 20개</span></div>
+          <div class="admin-panel-heading"><div><p>FILE UPLOAD</p><h2>여러 자료 한 번에 추가</h2></div><span>파일당 최대 500MB · 최대 20개</span></div>
           <form class="admin-form" action="/archive/admin/upload" method="POST" enctype="multipart/form-data">
             <label><span>분류</span>
               <select name="category">
@@ -76,7 +76,7 @@
             <label><span>자료 설명</span><textarea name="description" maxlength="1000" rows="4"><%= oldInput.description %></textarea></label>
             <label class="archive-admin-file-picker">
               <span>파일 선택</span>
-              <input type="file" name="archiveFiles" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp" multiple required />
+              <input type="file" name="archiveFiles" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.json,.png,.jpg,.jpeg,.webp,.heic" multiple required />
               <small>파일을 한 번에 최대 20개까지 선택할 수 있으며, 자료 제목은 파일명으로 자동 저장됩니다.</small>
             </label>
             <label class="archive-notify-choice">
@@ -207,11 +207,11 @@
                   <div><span><%= item.category %></span><% if (!item.isPublished) { %><b>비공개</b><% } %></div>
                   <h3><%= item.title %></h3>
                   <% if (item.description) { %><p><%= item.description %></p><% } %>
-                  <small><%= item.originalName %> · <%= formatBytes(item.sizeBytes) %> · <%= formatDate(item.createdAt) %></small>
+                  <small><%= item.originalName %> · <%= formatBytes(item.sizeBytes) %> · <%= formatDate(item.createdAt) %> · <%= item.storageProvider === "LOCAL" ? `서버 저장 · R2 ${item.backupStatus === "BACKED_UP" ? "백업 완료" : item.backupStatus === "FAILED" ? "백업 실패" : "백업 대기"}` : "Cloudinary 비공개" %></small>
                 </div>
                 <div class="archive-admin-item-actions">
                   <a href="/archive/<%= item.id %>/download">내려받기 <span aria-hidden="true">↓</span></a>
-                  <form action="/archive/admin/items/<%= item.id %>/delete" method="POST" onsubmit="return window.confirm('이 자료와 저장 파일을 영구 삭제할까요? 삭제 후 복구할 수 없습니다.');">
+                  <form action="/archive/admin/items/<%= item.id %>/delete" method="POST" onsubmit="return window.confirm('이 자료를 휴지통으로 이동할까요? 30일 동안 복구할 수 있습니다.');">
                     <input type="hidden" name="folderId" value="<%= archiveData.selectedFolder?.id || "" %>" />
                     <button type="submit">삭제</button>
                   </form>
@@ -222,6 +222,33 @@
         <% } %>
         </div>
       </details>
+
+      <section class="admin-panel" id="archive-trash">
+        <div class="admin-panel-heading">
+          <div><p>TRASH</p><h2>파일 휴지통</h2></div>
+          <span>30일 뒤 원본 자동 삭제 · <%= archiveData.trashItems.length %>개</span>
+        </div>
+        <% if (!archiveData.trashItems.length) { %>
+          <p class="admin-empty">휴지통에 보관 중인 자료가 없습니다.</p>
+        <% } else { %>
+          <div class="archive-list archive-trash-list">
+            <% archiveData.trashItems.forEach((item) => { %>
+              <article>
+                <span class="archive-file-icon" aria-hidden="true"><span><%= item.originalName.split(".").pop().slice(0, 4).toUpperCase() %></span></span>
+                <div class="archive-file-copy">
+                  <div><span><%= item.category %></span><b>휴지통</b></div>
+                  <h3><%= item.title %></h3>
+                  <small>삭제 <%= formatDate(item.deletedAt) %> · 자동 삭제 <%= formatDate(item.purgeAfter) %></small>
+                </div>
+                <div class="archive-admin-item-actions">
+                  <form action="/archive/admin/trash/<%= item.id %>/restore" method="POST"><button type="submit">복구</button></form>
+                  <form action="/archive/admin/trash/<%= item.id %>/purge" method="POST" onsubmit="return window.confirm('이 파일 원본을 지금 영구 삭제할까요? 복구할 수 없습니다.');"><button type="submit">영구 삭제</button></form>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
     </main>
   </body>
 </html>

@@ -80,6 +80,8 @@ Bonus는 매주 덮어쓰기 값이다.
 - Sub 재진입
 - 시즌 배치 완료
 
+Main 상점 구매·아이템 효과·소각 자체는 Final Rating을 변경하지 않는다. `INSURED_CANCELLED` 경기는 승패와 Arena 상태 교환이 없으므로 시즌 정산 공격 수와 Final Ranking 경기 실적에서 제외한다.
+
 만료 상태에서는 실시간 재계산을 중지한다.
 
 ---
@@ -205,9 +207,10 @@ seasonSubStartPercentile
 | 최초 배치고사 | 최초 MMR과 시작 기준 |
 | 시즌 배치고사 | 새 시즌 시작 기준 |
 | 재구독 랭크 결정전 | 늦은 갱신자의 Sub 실제 배치 |
-| 휴면 복귀 평가전 | 장기 휴면 복귀 |
 
 `재구독 랭크 결정전`은 Skill MMR을 Soft Reset하지 않는다.
+
+Main 휴면 사용자는 활성 Final Ranking에서 제외한다. 미활동 시작 당시 21일 이상을 보유한 사용자는 복귀할 때 별도 배치고사 없이 기존 Main Division과 동결된 학습일수로 돌아오며 Final Ranking을 다시 계산한다. 정확히 20일을 모두 차감해 Sub Division으로 강등된 사용자는 일반 Sub 배치 절차를 완료한 뒤 Final Ranking에 다시 포함한다. Sub Division 자체에는 휴면 상태가 없다.
 
 ---
 

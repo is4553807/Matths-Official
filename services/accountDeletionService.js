@@ -2,10 +2,13 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const {
   AdminActionLog,
+  ArchiveItem,
   AssessmentAttempt,
   CoachMessageSuggestion,
   CommunityComment,
   CommunityPost,
+  CommunityPostingQuota,
+  CommunityReport,
   CommunityVote,
   ConceptProgress,
   DailyPlan,
@@ -13,6 +16,9 @@ const {
   NicknameChangeRequest,
   PasswordResetCode,
   PrivateMockExamAttempt,
+  PrivateMockExamEvent,
+  PrivateMockIntegrityCase,
+  PrivateMockObjection,
   PrivateMockWeeklyResult,
   ProblemAttempt,
   QuickPracticeAttempt,
@@ -20,7 +26,54 @@ const {
   SupportInquiry,
   User,
   UserNotification,
+  AdminTodo,
 } = require("../models/matthsModel");
+const {
+  AccessCycle,
+  AccessCycleExpiryReminder,
+  ArenaAccessState,
+  ArenaIntegrityLinkSignal,
+  ArenaIntegrityRiskCase,
+  ArenaIntegrityRiskProfile,
+  ArenaAchievementBadge,
+  ArenaLearningDayLedger,
+  ArenaMatch,
+  ArenaMatchAttempt,
+  ArenaMatchAttemptEvent,
+  ArenaMatchEvidence,
+  ArenaMatchParticipantLock,
+  ArenaOutboxEvent,
+  ArenaOpponentSelectionAudit,
+  ArenaPackagePayment,
+  ArenaPaybackReview,
+  ArenaProblemPack,
+  ArenaRevengeRight,
+  ArenaSnapshot,
+  ArenaStanding,
+  ArenaStandingChangeLedger,
+  LiveFinalRankingProfile,
+  MainInvitationOffer,
+  MainInvitationRequest,
+  MainShopEffect,
+  MainShopPurchase,
+  MainToSubConversionResult,
+  MockExamSubscription,
+  RenewalRankAssessment,
+} = require("../models/goatArenaModel");
+const {
+  ARCHIVE_STORAGE_DIR,
+} = require("./archiveService");
+const {
+  discardCommunityUploads,
+} = require("./communityAttachmentService");
+const {
+  destroyStoredAsset,
+} = require("./fileStorageService");
+const {
+  ARENA_EVIDENCE_STORAGE_DIR,
+} = require("../middleware/arenaEvidenceUpload");
+const fs = require("node:fs");
+const path = require("node:path");
 
 function statusError(status, message) {
   const error = new Error(message);
@@ -119,6 +172,9 @@ async function removePrivateAccountData(
     UserNotification.deleteMany({
       userId,
     }),
+    AccessCycleExpiryReminder.deleteMany({
+      userId,
+    }),
     NicknameChangeRequest.deleteMany({
       $or: [
         { userId },
@@ -131,6 +187,11 @@ async function removePrivateAccountData(
      */
     SupportInquiry.deleteMany({
       userId,
+    }),
+    PrivateMockIntegrityCase.deleteMany({ userId }),
+    PrivateMockObjection.deleteMany({ userId }),
+    CommunityReport.deleteMany({
+      $or: [{ reporterUserId: userId }, { reportedUserId: userId }],
     }),
     /*
      * 작업의 종류와 시각은 감사용으로 남기되, 자유 입력 사유나 부가정보에
@@ -150,6 +211,40 @@ async function removePrivateAccountData(
         },
       }
     ),
+  ]);
+}
+
+async function removeUserUploadedFiles(userId) {
+  const [posts, evidence, archiveItems] = await Promise.all([
+    CommunityPost.find({ authorId: userId }).select("attachments").lean(),
+    ArenaMatchEvidence.find({ userId }).select("files").lean(),
+    ArchiveItem.find({ uploadedBy: userId })
+      .select("storedName storageProvider cloudPublicId cloudResourceType cloudDeliveryType")
+      .lean(),
+  ]);
+  await discardCommunityUploads(posts.flatMap((post) => post.attachments || []));
+  await Promise.all(
+    evidence.flatMap((entry) => entry.files || []).map(async (file) => {
+      const storedName = path.basename(String(file?.storedName || ""));
+      if (!storedName) return;
+      const absolutePath = path.resolve(ARENA_EVIDENCE_STORAGE_DIR, storedName);
+      if (path.dirname(absolutePath) !== ARENA_EVIDENCE_STORAGE_DIR) return;
+      await destroyStoredAsset({ ...file, path: absolutePath }).catch(() => {});
+    })
+  );
+  await Promise.all(
+    archiveItems.map(async (item) => {
+      const storedName = path.basename(String(item?.storedName || ""));
+      if (!storedName) return;
+      const absolutePath = path.resolve(ARCHIVE_STORAGE_DIR, storedName);
+      if (path.dirname(absolutePath) !== ARCHIVE_STORAGE_DIR) return;
+      await destroyStoredAsset({ ...item, path: absolutePath }).catch(() => {});
+    })
+  );
+  await Promise.all([
+    CommunityPost.updateMany({ authorId: userId }, { $set: { attachments: [] } }),
+    ArenaMatchEvidence.deleteMany({ userId }),
+    ArchiveItem.deleteMany({ uploadedBy: userId }),
   ]);
 }
 
@@ -208,13 +303,10 @@ async function anonymizePublicActivity(
 async function purgeUserOwnedData(
   userId
 ) {
-  const ownedPostIds =
-    await CommunityPost.distinct(
-      "_id",
-      {
-        authorId: userId,
-      }
-    );
+  const [ownedPosts, ownedPostIds] = await Promise.all([
+    CommunityPost.find({ authorId: userId }).select("attachments").lean(),
+    CommunityPost.distinct("_id", { authorId: userId }),
+  ]);
   const postCascadeFilter =
     ownedPostIds.length
       ? {
@@ -246,6 +338,9 @@ async function purgeUserOwnedData(
     PrivateMockExamAttempt.deleteMany({
       userId,
     }),
+    PrivateMockExamEvent.deleteMany({ userId }),
+    PrivateMockIntegrityCase.deleteMany({ userId }),
+    PrivateMockObjection.deleteMany({ userId }),
     PrivateMockWeeklyResult.deleteMany({
       userId,
     }),
@@ -280,9 +375,171 @@ async function purgeUserOwnedData(
           }
         : {
             userId,
+        }
+    ),
+    CommunityPostingQuota.deleteMany({ userId }),
+    CommunityReport.deleteMany(
+      postCascadeFilter
+        ? {
+            $or: [
+              { reporterUserId: userId },
+              { reportedUserId: userId },
+              postCascadeFilter,
+            ],
+          }
+        : {
+            $or: [
+              { reporterUserId: userId },
+              { reportedUserId: userId },
+            ],
           }
     ),
+    AdminTodo.deleteMany({
+      $or: [{ targetUserId: userId }, { actorUserId: userId }],
+    }),
   ]);
+
+  await discardCommunityUploads(
+    ownedPosts.flatMap((post) => post.attachments || [])
+  );
+
+  await purgeArenaUserData(userId);
+}
+
+async function purgeArenaUserData(userId) {
+  const [matches, cycles, invitations, shopPurchases] = await Promise.all([
+    ArenaMatch.find({
+      $or: [
+        { requestInitiatorUserId: userId },
+        { "challenger.userId": userId },
+        { "defender.userId": userId },
+      ],
+    }).select("_id problemPackId").lean(),
+    AccessCycle.find({ userId }).select("_id").lean(),
+    MainInvitationRequest.find({
+      $or: [
+        { initiatorUserId: userId },
+        { selectedCandidateId: userId },
+        { acceptedCandidateId: userId },
+        { candidatePoolSnapshot: userId },
+      ],
+    }).select("_id").lean(),
+    MainShopPurchase.find({ userId }).select("_id").lean(),
+  ]);
+  const matchIds = matches.map((entry) => entry._id);
+  const problemPackIds = matches.map((entry) => entry.problemPackId).filter(Boolean);
+  const cycleIds = cycles.map((entry) => entry._id);
+  const invitationIds = invitations.map((entry) => entry._id);
+  const shopPurchaseIds = shopPurchases.map((entry) => entry._id);
+  const aggregateIds = [...matchIds, ...cycleIds, ...invitationIds, ...shopPurchaseIds];
+  const attempts = await ArenaMatchAttempt.find({
+    $or: [{ userId }, ...(matchIds.length ? [{ matchId: { $in: matchIds } }] : [])],
+  }).select("_id").lean();
+  const attemptIds = attempts.map((entry) => entry._id);
+  const evidence = await ArenaMatchEvidence.find({
+    $or: [{ userId }, ...(matchIds.length ? [{ matchId: { $in: matchIds } }] : [])],
+  }).select("_id files").lean();
+  const evidenceIds = evidence.map((entry) => entry._id);
+  const outboxAggregateIds = [
+    ...aggregateIds,
+    ...attemptIds,
+    ...evidenceIds,
+  ];
+
+  await Promise.all([
+    ArenaPackagePayment.deleteMany({ userId }),
+    MockExamSubscription.deleteMany({ userId }),
+    AccessCycle.deleteMany({ userId }),
+    ArenaAccessState.deleteMany({ userId }),
+    ArenaIntegrityLinkSignal.deleteMany({ userId }),
+    ArenaIntegrityRiskProfile.deleteMany({ userId }),
+    ArenaIntegrityRiskProfile.updateMany(
+      { linkedUserIds: userId },
+      { $pull: { linkedUserIds: userId } }
+    ),
+    ArenaIntegrityRiskCase.deleteMany({ userId }),
+    ArenaIntegrityRiskCase.updateMany(
+      { linkedUserIds: userId },
+      { $pull: { linkedUserIds: userId } }
+    ),
+    ArenaAchievementBadge.deleteMany({ userId }),
+    ArenaStanding.deleteMany({ userId }),
+    ArenaLearningDayLedger.deleteMany({
+      $or: [{ userId }, ...(cycleIds.length ? [{ accessCycleId: { $in: cycleIds } }] : [])],
+    }),
+    ArenaMatchAttempt.deleteMany({
+      $or: [{ userId }, ...(matchIds.length ? [{ matchId: { $in: matchIds } }] : [])],
+    }),
+    ArenaMatchAttemptEvent.deleteMany({
+      $or: [{ userId }, ...(attemptIds.length ? [{ attemptId: { $in: attemptIds } }] : [])],
+    }),
+    ArenaMatchEvidence.deleteMany({
+      $or: [{ userId }, ...(matchIds.length ? [{ matchId: { $in: matchIds } }] : [])],
+    }),
+    ArenaMatchParticipantLock.deleteMany({
+      $or: [{ userId }, ...(matchIds.length ? [{ matchId: { $in: matchIds } }] : [])],
+    }),
+    ArenaStandingChangeLedger.deleteMany({
+      $or: [{ userId }, ...(matchIds.length ? [{ matchId: { $in: matchIds } }] : [])],
+    }),
+    ArenaRevengeRight.deleteMany({
+      $or: [
+        { eligibleUserId: userId },
+        { opponentUserId: userId },
+        ...(matchIds.length
+          ? [{ sourceMatchId: { $in: matchIds } }, { revengeMatchId: { $in: matchIds } }]
+          : []),
+      ],
+    }),
+    ArenaMatch.deleteMany({ _id: { $in: matchIds } }),
+    ArenaProblemPack.deleteMany({ _id: { $in: problemPackIds } }),
+    ArenaPaybackReview.deleteMany({
+      $or: [{ userId }, ...(cycleIds.length ? [{ cycleId: { $in: cycleIds } }] : [])],
+    }),
+    ArenaSnapshot.deleteMany({ userId }),
+    MainToSubConversionResult.deleteMany({ userId }),
+    RenewalRankAssessment.deleteMany({
+      $or: [{ userId }, ...(cycleIds.length ? [{ cycleId: { $in: cycleIds } }] : [])],
+    }),
+    LiveFinalRankingProfile.deleteMany({ userId }),
+    MainShopEffect.deleteMany({
+      $or: [
+        { userId },
+        ...(matchIds.length ? [{ relatedMatchId: { $in: matchIds } }] : []),
+        ...(shopPurchaseIds.length ? [{ purchaseId: { $in: shopPurchaseIds } }] : []),
+      ],
+    }),
+    MainShopPurchase.deleteMany({ userId }),
+    MainInvitationOffer.deleteMany({
+      $or: [
+        { candidateUserId: userId },
+        ...(invitationIds.length ? [{ invitationRequestId: { $in: invitationIds } }] : []),
+      ],
+    }),
+    MainInvitationRequest.deleteMany({ _id: { $in: invitationIds } }),
+    ArenaOpponentSelectionAudit.deleteMany({
+      $or: [
+        { requesterUserId: userId },
+        { candidateUserIds: userId },
+        { selectedUserIds: userId },
+      ],
+    }),
+    ArenaOutboxEvent.deleteMany(
+      outboxAggregateIds.length
+        ? { aggregateId: { $in: outboxAggregateIds } }
+        : { _id: null }
+    ),
+  ]);
+
+  await Promise.all(
+    evidence.flatMap((entry) => entry.files || []).map(async (file) => {
+      const storedName = path.basename(String(file?.storedName || ""));
+      if (!storedName) return;
+      const absolutePath = path.resolve(ARENA_EVIDENCE_STORAGE_DIR, storedName);
+      if (path.dirname(absolutePath) !== ARENA_EVIDENCE_STORAGE_DIR) return;
+      await destroyStoredAsset({ ...file, path: absolutePath }).catch(() => {});
+    })
+  );
 }
 
 async function withdrawUserAccount({
@@ -325,6 +582,7 @@ async function withdrawUserAccount({
   await removePrivateAccountData(
     user._id
   );
+  await removeUserUploadedFiles(user._id);
 
   if (keepAnonymousData) {
     await anonymizePublicActivity(
@@ -334,6 +592,11 @@ async function withdrawUserAccount({
     await purgeUserOwnedData(
       user._id
     );
+    await User.deleteOne({ _id: user._id });
+    return {
+      user: { _id: user._id },
+      dataRetention: "purged",
+    };
   }
 
   const update =
@@ -436,7 +699,9 @@ module.exports = {
   buildAnonymousAccountUpdate,
   normalizeRetentionChoice,
   purgeUserOwnedData,
+  purgeArenaUserData,
   removePrivateAccountData,
+  removeUserUploadedFiles,
   withdrawOwnAccount,
   withdrawUserAccount,
 };

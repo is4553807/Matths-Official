@@ -1,6 +1,16 @@
 const fs = require("fs");
 const path = require("path");
 const mongoose = require("mongoose");
+const {
+  destroyStoredAsset,
+  signedCloudinaryUrl,
+  STORAGE_PURPOSES,
+  storageFields,
+  storeUploadedFile,
+} = require("./fileStorageService");
+const {
+  deleteR2BackupObject,
+} = require("./localStorageBackupService");
 
 const {
   ArchiveFolder,
@@ -37,6 +47,9 @@ const ADMIN_EMAIL = String(
   .toLowerCase();
 const PRIVATE_MOCK_ARCHIVE_FOLDER_NAME =
   "2026 Matths 사설 모의고사";
+const ARCHIVE_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const ARCHIVE_TRASH_PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
+let archiveTrashPurgeTimer = null;
 
 function isArchiveAdmin(user) {
   return (
@@ -171,9 +184,15 @@ function serializeArchiveItem(item) {
       repairedOriginalName,
     mimeType: item.mimeType,
     sizeBytes: item.sizeBytes,
+    storageProvider: item.storageProvider || "LOCAL",
+    storagePurpose: item.storagePurpose || "GENERIC",
+    backupStatus: item.backupStatus || "PENDING",
+    backedUpAt: item.backedUpAt || null,
     downloadCount:
       item.downloadCount || 0,
     createdAt: item.createdAt,
+    deletedAt: item.deletedAt || null,
+    purgeAfter: item.purgeAfter || null,
     isPublished:
       item.isPublished !== false,
   };
@@ -338,6 +357,7 @@ async function getArchiveData(
 
   const itemFilter = {
     ...visibleFilter,
+    deletedAt: null,
     folderId: selectedFolder
       ? selectedFolder._id
       : null,
@@ -358,12 +378,14 @@ async function getArchiveData(
                 folderId: {
                   $ne: null,
                 },
+                deletedAt: null,
               }
             : {
                 folderId: {
                   $ne: null,
                 },
                 isPublished: true,
+                deletedAt: null,
               },
       },
       {
@@ -383,6 +405,12 @@ async function getArchiveData(
         ]
       )
     );
+  const trashItems = admin
+    ? await ArchiveItem.find({ deletedAt: { $ne: null } })
+        .sort({ purgeAfter: 1, deletedAt: -1 })
+        .limit(500)
+        .lean()
+    : [];
   const folderById =
     new Map(
       folders.map((folder) => [
@@ -581,6 +609,7 @@ async function getArchiveData(
       items.map(
         serializeArchiveItem
       ),
+    trashItems: trashItems.map(serializeArchiveItem),
   };
 }
 
@@ -592,6 +621,7 @@ async function createArchiveItem({
   category,
   folderId,
   isPublished = true,
+  storagePurpose = STORAGE_PURPOSES.ADMIN_ARCHIVE,
 }) {
   if (!isArchiveAdmin(user)) {
     throw httpError(
@@ -673,6 +703,11 @@ async function createArchiveItem({
   }
 
   try {
+    const asset = await storeUploadedFile(file, {
+      folder: "matths/archive",
+      localDirectory: ARCHIVE_STORAGE_DIR,
+      purpose: storagePurpose,
+    });
     const item =
       await ArchiveItem.create({
         folderId:
@@ -687,22 +722,22 @@ async function createArchiveItem({
             file.originalname
           ),
         storedName:
-          file.filename,
+          asset?.storedName || file.filename,
         mimeType:
           file.mimetype,
         sizeBytes: file.size,
         uploadedBy: user.id,
         isPublished:
           isPublished !== false,
+        backupStatus: "PENDING",
+        ...storageFields(asset),
       });
 
     return serializeArchiveItem(
       item
     );
   } catch (error) {
-    await fs.promises
-      .unlink(file.path)
-      .catch(() => {});
+    await discardArchiveUpload(file);
     throw error;
   }
 }
@@ -1146,11 +1181,12 @@ async function deleteArchiveFolder({
 async function discardArchiveUpload(
   file
 ) {
-  if (!file?.path) return;
-
-  await fs.promises
-    .unlink(file.path)
-    .catch(() => {});
+  if (!file) return;
+  if (file.storageAsset?.storageProvider === "CLOUDINARY") {
+    await destroyStoredAsset(file.storageAsset).catch(() => {});
+    return;
+  }
+  if (file.path) await fs.promises.unlink(file.path).catch(() => {});
 }
 
 async function getArchiveDownload({
@@ -1158,12 +1194,11 @@ async function getArchiveDownload({
   user,
 }) {
   const item =
-    await ArchiveItem.findById(
-      itemId
-    ).lean();
+    await ArchiveItem.findOne({ _id: itemId, deletedAt: null }).lean();
 
   if (
     !item ||
+    item.deletedAt ||
     (
       item.isPublished ===
         false &&
@@ -1196,15 +1231,15 @@ async function getArchiveDownload({
     }
   }
 
-  const filePath =
-    path.join(
-      ARCHIVE_STORAGE_DIR,
-      item.storedName
-    );
+  const cloudUrl = signedCloudinaryUrl(item, {
+    download: true,
+    originalName: item.originalName,
+  });
+  const filePath = item.storageProvider === "CLOUDINARY"
+    ? null
+    : path.join(ARCHIVE_STORAGE_DIR, item.storedName);
 
-  if (
-    !fs.existsSync(filePath)
-  ) {
+  if (!cloudUrl && (!filePath || !fs.existsSync(filePath))) {
     throw httpError(
       404,
       "자료 파일을 찾을 수 없습니다."
@@ -1222,6 +1257,7 @@ async function getArchiveDownload({
 
   return {
     path: filePath,
+    cloudUrl,
     name:
       repairUploadFilename(
         item.originalName
@@ -1292,29 +1328,22 @@ async function deleteArchiveItem({
     );
   }
 
-  const filePath =
-    path.join(
-      ARCHIVE_STORAGE_DIR,
-      path.basename(
-        item.storedName
-      )
-    );
-
-  await fs.promises
-    .unlink(filePath)
-    .catch((error) => {
-      if (
-        error.code !== "ENOENT"
-      ) {
-        throw error;
-      }
-    });
-  await ArchiveItem.deleteOne({
-    _id: item._id,
-  });
+  const now = new Date();
+  await ArchiveItem.updateOne(
+    { _id: item._id, deletedAt: null },
+    {
+      $set: {
+        deletedAt: now,
+        purgeAfter: new Date(now.getTime() + ARCHIVE_TRASH_RETENTION_MS),
+        deletedBy: user.id || user._id,
+        publishedBeforeDelete: item.isPublished !== false,
+        isPublished: false,
+      },
+    }
+  );
 
   return serializeArchiveItem(
-    item
+    { ...item, deletedAt: now, purgeAfter: new Date(now.getTime() + ARCHIVE_TRASH_RETENTION_MS) }
   );
 }
 
@@ -1364,6 +1393,7 @@ async function deleteArchiveItems({
       _id: {
         $in: ids,
       },
+      deletedAt: null,
     }).lean();
 
   if (
@@ -1406,37 +1436,126 @@ async function deleteArchiveItems({
     );
   }
 
+  const now = new Date();
+  const purgeAfter = new Date(now.getTime() + ARCHIVE_TRASH_RETENTION_MS);
   await Promise.all(
     items.map((item) =>
-      fs.promises
-        .unlink(
-          path.join(
-            ARCHIVE_STORAGE_DIR,
-            path.basename(
-              item.storedName
-            )
-          )
-        )
-        .catch((error) => {
-          if (
-            error.code !==
-            "ENOENT"
-          ) {
-            throw error;
-          }
-        })
+      ArchiveItem.updateOne(
+        { _id: item._id, deletedAt: null },
+        {
+          $set: {
+            deletedAt: now,
+            purgeAfter,
+            deletedBy: user.id || user._id,
+            publishedBeforeDelete: item.isPublished !== false,
+            isPublished: false,
+          },
+        }
+      )
     )
   );
-  await ArchiveItem.deleteMany({
-    _id: {
-      $in: ids,
-    },
-  });
 
   return {
     deletedCount:
       items.length,
   };
+}
+
+async function restoreArchiveItem({ itemId, user }) {
+  if (!isArchiveAdmin(user)) {
+    throw httpError(403, "운영자만 휴지통 자료를 복구할 수 있습니다.");
+  }
+  if (!mongoose.isValidObjectId(itemId)) {
+    throw httpError(404, "복구할 자료를 찾을 수 없습니다.");
+  }
+  const item = await ArchiveItem.findOne({ _id: itemId, deletedAt: { $ne: null } }).lean();
+  if (!item) throw httpError(404, "복구할 자료를 찾을 수 없습니다.");
+  const filePath = path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName));
+  if (item.storageProvider === "LOCAL" && !fs.existsSync(filePath)) {
+    throw httpError(409, "로컬 원본이 없어 자료를 복구할 수 없습니다. R2 백업을 확인해주세요.");
+  }
+  await ArchiveItem.updateOne(
+    { _id: item._id, deletedAt: { $ne: null } },
+    {
+      $set: {
+        deletedAt: null,
+        purgeAfter: null,
+        deletedBy: null,
+        isPublished: item.publishedBeforeDelete !== false,
+        publishedBeforeDelete: null,
+      },
+    }
+  );
+  return serializeArchiveItem({ ...item, deletedAt: null, purgeAfter: null });
+}
+
+async function purgeArchiveItem({ itemId, user }) {
+  if (!isArchiveAdmin(user)) {
+    throw httpError(403, "운영자만 휴지통 자료를 영구 삭제할 수 있습니다.");
+  }
+  if (!mongoose.isValidObjectId(itemId)) {
+    throw httpError(404, "영구 삭제할 자료를 찾을 수 없습니다.");
+  }
+  const item = await ArchiveItem.findOne({ _id: itemId, deletedAt: { $ne: null } }).lean();
+  if (!item) throw httpError(404, "영구 삭제할 자료를 찾을 수 없습니다.");
+  await deleteR2BackupObject(item);
+  await destroyStoredAsset({
+    ...item,
+    path: path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName)),
+  });
+  await ArchiveItem.deleteOne({ _id: item._id, deletedAt: { $ne: null } });
+  return serializeArchiveItem(item);
+}
+
+async function purgeExpiredArchiveTrash({ now = new Date(), limit = 100 } = {}) {
+  const items = await ArchiveItem.find({
+    deletedAt: { $ne: null },
+    purgeAfter: { $lte: now },
+  })
+    .sort({ purgeAfter: 1 })
+    .limit(Math.max(1, Math.min(1000, Number(limit) || 100)))
+    .lean();
+  let purged = 0;
+  for (const item of items) {
+    try {
+      await deleteR2BackupObject(item);
+    } catch (error) {
+      await ArchiveItem.updateOne(
+        { _id: item._id },
+        {
+          $set: {
+            backupStatus: "FAILED",
+            backupError: String(error?.message || "R2 백업 삭제 실패").slice(0, 500),
+          },
+        }
+      );
+      continue;
+    }
+    await destroyStoredAsset({
+      ...item,
+      path: path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName)),
+    }).catch(() => {});
+    const result = await ArchiveItem.deleteOne({
+      _id: item._id,
+      deletedAt: { $ne: null },
+      purgeAfter: { $lte: now },
+    });
+    purged += Number(result.deletedCount || 0);
+  }
+  return { scanned: items.length, purged };
+}
+
+function startArchiveTrashPurgeScheduler() {
+  if (process.env.DISABLE_SCHEDULERS === "1" || archiveTrashPurgeTimer) return null;
+  const run = () =>
+    purgeExpiredArchiveTrash().catch((error) => {
+      console.error("Archive trash purge failed:", error.message);
+    });
+  const initialTimer = setTimeout(run, 2 * 60 * 1000);
+  initialTimer.unref?.();
+  archiveTrashPurgeTimer = setInterval(run, ARCHIVE_TRASH_PURGE_INTERVAL_MS);
+  archiveTrashPurgeTimer.unref?.();
+  return archiveTrashPurgeTimer;
 }
 
 async function moveArchiveItems({
@@ -1511,6 +1630,7 @@ async function moveArchiveItems({
         _id: {
           $in: ids,
         },
+        deletedAt: null,
       }
     );
 
@@ -1529,6 +1649,7 @@ async function moveArchiveItems({
         _id: {
           $in: ids,
         },
+        deletedAt: null,
       },
       {
         $set: {
@@ -1555,6 +1676,10 @@ module.exports = {
   deleteArchiveFolder,
   deleteArchiveItem,
   deleteArchiveItems,
+  restoreArchiveItem,
+  purgeArchiveItem,
+  purgeExpiredArchiveTrash,
+  startArchiveTrashPurgeScheduler,
   moveArchiveItems,
   getArchiveData,
   createArchiveItem,

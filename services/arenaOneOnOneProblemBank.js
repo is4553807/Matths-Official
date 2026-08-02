@@ -1,13 +1,15 @@
 const { createHash } = require("node:crypto");
+const {
+  ARENA_ONE_ON_ONE_PROBLEM_TYPES,
+  generateValidatedArenaOneOnOneQuestion,
+} = require("./arenaOneOnOneProblemTypes");
 
 /*
- * Sub Division 1대1 전용 문제 은행 골격.
+ * Sub·Main Division 1대1 전용 문제 은행.
  *
- * 한 문제 묶음은 서로 다른 준킬러 유형 5개로 구성하고, 각 유형 생성기는
- * 숫자 seed를 받아 매 경기 새로운 문항을 만들어야 한다. 실제 유형과 생성기는
- * 운영자가 유형표를 확정한 뒤 questionSlots에 연결한다. generator는
- * typeId/courseId/prompt/answer/solution/difficultyScore/expectedTimeMs와
- * 자동 검산 결과(validation)를 반환해야 한다.
+ * 현재는 배치고사 심화 유형을 복사한 arenaOneOnOneProblemTypes.js를 사용한다.
+ * 배치고사 파일을 직접 import하지 않으므로 이후 Arena 유형만 독립 교체할 수 있다.
+ * 한 문제 묶음은 서로 다른 주관식 준킬러 유형 5개로 구성한다.
  */
 const ARENA_ONE_ON_ONE_QUESTION_COUNT = 5;
 const ARENA_ONE_ON_ONE_PACKS_PER_PAIR = 30;
@@ -17,6 +19,37 @@ const ARENA_ONE_ON_ONE_EVIDENCE_LIMIT_MS =
   60 * 1000;
 const ARENA_ONE_ON_ONE_START_LIMIT_MS =
   24 * 60 * 60 * 1000;
+
+const ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS = Object.entries(
+  ARENA_ONE_ON_ONE_PROBLEM_TYPES
+)
+  .filter(([, definition]) => definition.category === "semi-killer")
+  .map(([typeId]) => typeId);
+
+if (ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS.length < ARENA_ONE_ON_ONE_QUESTION_COUNT) {
+  throw new Error(
+    "GOAT Arena 1대1 경기에 필요한 서로 다른 준킬러 유형 5개가 준비되지 않았습니다."
+  );
+}
+
+function configuredQuestionSlots(packIndex) {
+  return Array.from(
+    { length: ARENA_ONE_ON_ONE_QUESTION_COUNT },
+    (_unused, questionIndex) => {
+      const typeKey =
+        ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS[
+          (packIndex * ARENA_ONE_ON_ONE_QUESTION_COUNT + questionIndex) %
+            ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS.length
+        ];
+      return {
+        order: questionIndex + 1,
+        typeKey,
+        generator: () =>
+          generateValidatedArenaOneOnOneQuestion({ typeId: typeKey }),
+      };
+    }
+  );
+}
 
 const SUB_TIER_PAIR_CONFIG = [
   ["BRONZE", "BRONZE", "브론즈-브론즈"],
@@ -40,20 +73,70 @@ const SUB_TIER_PAIR_CONFIG = [
     (_, index) => ({
       slot: index + 1,
       code: `${challengerTier}_${defenderTier}_${String(index + 1).padStart(2, "0")}`,
-      questionSlots: Array.from(
-        { length: ARENA_ONE_ON_ONE_QUESTION_COUNT },
-        (_unused, questionIndex) => ({
-          order: questionIndex + 1,
-          typeKey: null,
-          generator: null,
-        })
-      ),
+      questionSlots: configuredQuestionSlots(index),
     })
   ),
 }));
 
+const MAIN_TIER_CODES = [
+  "BRONZE",
+  "SILVER",
+  "GOLD",
+  "PLATINUM",
+  "EMERALD",
+  "DIAMOND",
+  "MASTER",
+  "GRANDMASTER",
+  "CHALLENGER",
+];
+const MAIN_TIER_LABELS = {
+  BRONZE: "브론즈",
+  SILVER: "실버",
+  GOLD: "골드",
+  PLATINUM: "플래티넘",
+  EMERALD: "에메랄드",
+  DIAMOND: "다이아몬드",
+  MASTER: "마스터",
+  GRANDMASTER: "그랜드마스터",
+  CHALLENGER: "챌린저",
+};
+
+/*
+ * Main Division은 최대 3티어 차이까지 열 수 있다. 현재는 Sub와 같은
+ * Arena 전용 준킬러 유형 복사본을 사용하고, 이후 티어별 유형표가 확정되면
+ * 이 파일의 슬롯 배정만 교체한다.
+ */
+const MAIN_TIER_PAIR_CONFIG = MAIN_TIER_CODES.flatMap(
+  (lowerTier, lowerIndex) =>
+    [1, 2, 3]
+      .map((gap) => {
+        const upperTier = MAIN_TIER_CODES[lowerIndex + gap];
+        if (!upperTier) return null;
+        return {
+          key: `${lowerTier}_${upperTier}`,
+          label: `${MAIN_TIER_LABELS[lowerTier]}-${MAIN_TIER_LABELS[upperTier]}`,
+          challengerTier: lowerTier,
+          defenderTier: upperTier,
+          tierGap: gap,
+          difficultyAnchor: "DEFENDER_LEANING",
+          packSlots: Array.from(
+            { length: ARENA_ONE_ON_ONE_PACKS_PER_PAIR },
+            (_unused, index) => ({
+              slot: index + 1,
+              code: `MAIN_${lowerTier}_${upperTier}_${String(index + 1).padStart(2, "0")}`,
+              questionSlots: configuredQuestionSlots(index),
+            })
+          ),
+        };
+      })
+      .filter(Boolean)
+);
+
 const PAIR_BY_KEY = new Map(
   SUB_TIER_PAIR_CONFIG.map((pair) => [pair.key, pair])
+);
+const MAIN_PAIR_BY_KEY = new Map(
+  MAIN_TIER_PAIR_CONFIG.map((pair) => [pair.key, pair])
 );
 
 function tierCode(value) {
@@ -172,17 +255,61 @@ function generateSubOneOnOneQuestions({
   };
 }
 
+function getMainTierPair(lowerTier, upperTier) {
+  return (
+    MAIN_PAIR_BY_KEY.get(`${tierCode(lowerTier)}_${tierCode(upperTier)}`) ||
+    null
+  );
+}
+
+function generateMainOneOnOneQuestions({
+  lowerTier,
+  upperTier,
+  matchKey,
+}) {
+  const pair = getMainTierPair(lowerTier, upperTier);
+  if (!pair) {
+    const error = new Error(
+      "Main Division 경기는 최대 3단계 차이의 상위·하위 티어 사이에서만 만들 수 있습니다."
+    );
+    error.status = 409;
+    error.code = "MAIN_TIER_PAIR_NOT_ALLOWED";
+    throw error;
+  }
+  const slotIndex = deterministicPackSlot({ pairKey: pair.key, matchKey });
+  const packSlot = pair.packSlots[slotIndex];
+  assertConfiguredPackSlot(packSlot);
+  return {
+    pairKey: pair.key,
+    pairLabel: pair.label,
+    packSlot: packSlot.slot,
+    difficultyAnchor: pair.difficultyAnchor,
+    questions: packSlot.questionSlots.map((slot) =>
+      slot.generator({
+        seed: `${matchKey}:${pair.key}:${packSlot.slot}:${slot.order}`,
+        challengerTier: pair.challengerTier,
+        defenderTier: pair.defenderTier,
+        difficultyAnchor: pair.difficultyAnchor,
+      })
+    ),
+  };
+}
+
 module.exports = {
   ARENA_ONE_ON_ONE_EVIDENCE_LIMIT_MS,
   ARENA_ONE_ON_ONE_PACKS_PER_PAIR,
   ARENA_ONE_ON_ONE_QUESTION_COUNT,
   ARENA_ONE_ON_ONE_START_LIMIT_MS,
   ARENA_ONE_ON_ONE_TIME_LIMIT_MS,
+  ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS,
   SUB_TIER_PAIR_CONFIG,
+  MAIN_TIER_PAIR_CONFIG,
   assertConfiguredPackSlot,
   configuredPackSlotForMatch,
   deterministicPackSlot,
   generateSubOneOnOneQuestions,
+  generateMainOneOnOneQuestions,
+  getMainTierPair,
   getSubTierPair,
   isAllowedSubTierChallenge,
   subTierPairKey,

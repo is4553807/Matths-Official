@@ -1,0 +1,131 @@
+<%
+  const itemCopy = {
+    MATCH_ANALYSIS: {
+      eyebrow: "경기 복습",
+      description: "정산이 끝난 내 경기의 문항·시간·취약 개념을 분석하고 맞춤 복습 문제를 준비합니다.",
+      targetLabel: "분석할 경기 ID",
+    },
+    DEFENSE_REST: {
+      eyebrow: "일정 관리",
+      description: "24시간 동안 서버가 정하는 일반 상향 공격의 의무 방어 후보에서 제외됩니다.",
+    },
+    DEFENSE_SCHEDULE_PROTECTION: {
+      eyebrow: "경기 화면에서 사용",
+      description: "의무 방어 경기 배정 후 3시간 안에 양측이 문제를 열지 않았다면 경기 화면에서 바로 사용할 수 있습니다.",
+    },
+    INVITATION_ACCELERATION: {
+      eyebrow: "초대 우선 처리",
+      description: "대기 중인 하위 티어 초대 요청 한 건을 48시간 동안 매칭 대기열 앞쪽에서 처리합니다.",
+    },
+    MAIN_PROFILE_BORDER: {
+      eyebrow: "시즌 장식",
+      description: "Main Division 프로필과 랭킹·경기 결과에 시즌 전용 테두리를 적용합니다.",
+    },
+    STYLE_ENTRANCE: {
+      eyebrow: "시즌 장식",
+      description: "구매형 스타일 칭호와 경기 입장 연출을 현재 시즌 종료까지 적용합니다.",
+    },
+  };
+  const dateTime = (value) => value
+    ? new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(value))
+    : "계속 유지";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Main Division 학습일수 상점" />
+    <meta name="theme-color" content="#070913" />
+    <title>Main Division 상점 | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <link rel="icon" type="image/jpeg" href="/images/goat-arena/goat-arena-logo.jpg" />
+  </head>
+  <body class="goat-arena-page arena-inner-page arena-shop-page">
+    <a class="arena-skip-link" href="#main-shop-main">본문으로 바로가기</a>
+    <%- include("partials/goat-arena-navigation", { activeArenaPage, arenaUser }) %>
+
+    <main class="arena-page-main" id="main-shop-main">
+      <a class="arena-challenge-back" href="/goat-arena/main">← Main Division으로 돌아가기</a>
+      <header class="arena-page-heading arena-shop-heading">
+        <div>
+          <p>MAIN DIVISION SHOP</p>
+          <h1>경기로 얻은 시간을<br />다음 성장에 사용하세요.</h1>
+        </div>
+        <p>승패나 GP를 사는 상점이 아닙니다. 분석·일정·장식 기능만 제공하며, 초대 예약과 경기 예치 학습일수는 사용할 수 없습니다.</p>
+      </header>
+
+      <section class="arena-shop-wallet" aria-label="상점 잔액">
+        <div>
+          <small>현재 사용 가능</small>
+          <strong><%= shopData.availableLearningDays %><span>일</span></strong>
+        </div>
+        <p>모든 구매는 사용 가능 학습일수에서 즉시 정산됩니다. 구매 뒤 최소 1일은 반드시 남아야 합니다.</p>
+        <span>정책 <%= shopData.policyVersionCode %></span>
+      </section>
+
+      <% if (shopMessage) { %><p class="arena-challenge-notice success" role="status"><%= shopMessage %></p><% } %>
+      <% if (shopError) { %><p class="arena-challenge-notice error" role="alert"><%= shopError %></p><% } %>
+      <% if (shopData.sundayLocked) { %><p class="arena-challenge-notice error">일요일 15:00부터 월요일 00:00까지 상점 구매가 잠깁니다.</p><% } %>
+
+      <section class="arena-shop-grid" aria-label="판매 아이템">
+        <% shopData.items.forEach((item, index) => { const copy = itemCopy[item.itemCode] || {}; %>
+          <article class="arena-shop-card <%= item.releasePhase === 2 ? 'phase-two' : '' %>">
+            <header>
+              <span><%= String(index + 1).padStart(2, "0") %></span>
+              <small><%= copy.eyebrow || "Main Division 기능" %></small>
+            </header>
+            <h2><%= item.displayName %></h2>
+            <p><%= copy.description || "Main Division 전용 편의 기능입니다." %></p>
+            <div class="arena-shop-price"><strong><%= item.priceDays %></strong><span>학습일</span></div>
+
+            <% if (item.itemCode === "DEFENSE_SCHEDULE_PROTECTION") { %>
+              <a href="/goat-arena/main/battle">적용 가능한 경기 확인 <span aria-hidden="true">→</span></a>
+            <% } else { %>
+              <form action="/goat-arena/main/shop/purchases" method="post">
+                <input type="hidden" name="requestId" value="<%= requestId %>:<%= item.itemCode %>" />
+                <input type="hidden" name="itemCode" value="<%= item.itemCode %>" />
+                <% if (item.itemCode === "MATCH_ANALYSIS") { %>
+                  <label><span><%= copy.targetLabel %></span><input name="relatedMatchId" required placeholder="정산 완료 경기 ID" /></label>
+                <% } %>
+                <% if (item.itemCode === "INVITATION_ACCELERATION") { %>
+                  <label>
+                    <span>가속할 초대 요청</span>
+                    <select name="relatedInvitationId" required>
+                      <option value="">선택해주세요</option>
+                      <% shopData.invitations.forEach((invitation) => { %>
+                        <option value="<%= invitation._id %>"><%= invitation.targetTier %> 초대 · <%= invitation.stakeDays %>일 예치</option>
+                      <% }) %>
+                    </select>
+                  </label>
+                <% } %>
+                <button type="submit" <%= shopData.sundayLocked ? "disabled" : "" %>>사용하기</button>
+              </form>
+            <% } %>
+          </article>
+        <% }) %>
+      </section>
+
+      <% if (shopData.effects.length) { %>
+        <section class="arena-shop-history">
+          <header><small>ACTIVE EFFECTS</small><h2>적용 중인 기능</h2></header>
+          <div>
+            <% shopData.effects.forEach((effect) => { %>
+              <article>
+                <strong><%= itemCopy[effect.itemCode]?.eyebrow || effect.itemCode %></strong>
+                <span><%= effect.status === "PENDING" ? "분석 생성 중" : effect.status === "APPLIED" ? "적용 완료" : `${dateTime(effect.endsAt)}까지` %></span>
+              </article>
+            <% }) %>
+          </div>
+        </section>
+      <% } %>
+    </main>
+  </body>
+</html>

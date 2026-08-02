@@ -3,6 +3,8 @@ const fs = require("fs");
 const path = require("path");
 const {
   buildSubNormalSettlementPlan,
+  settleArenaMatch,
+  settleSubRevengeMatch,
   tieBreakStep,
   tuplesEqual,
 } = require("../services/arenaMatchSettlementService");
@@ -15,17 +17,17 @@ function run() {
   const bronze = {
     arenaRank: "브론즈",
     arenaPosition: 8,
-    arenaGp: 920,
+    arenaGp: 20,
   };
   const silver = {
     arenaRank: "실버",
     arenaPosition: 3,
-    arenaGp: 1210,
+    arenaGp: 60,
   };
   const gold = {
     arenaRank: "골드",
     arenaPosition: 2,
-    arenaGp: 1510,
+    arenaGp: 90,
   };
 
   const bronzeWin = buildSubNormalSettlementPlan({
@@ -133,13 +135,16 @@ function run() {
     "utf8"
   );
   assert.ok(
-    controller.includes("settleSubNormalMatch") &&
-      view.includes("arena-match-result-card"),
-    "두 번째 증거 제출 뒤 자동 정산과 결과 화면 연결이 필요합니다."
+    controller.includes("settleArenaMatch") &&
+      view.includes("arena-match-result-card") &&
+      view.includes("복수하기"),
+    "두 번째 증거 제출 뒤 경기 유형별 자동 정산과 복수전 화면 연결이 필요합니다."
   );
+  assert.equal(typeof settleArenaMatch, "function");
+  assert.equal(typeof settleSubRevengeMatch, "function");
 
   console.log(
-    "Sub 일반 쟁탈전 순위·GP·티어 스왑, 학습일수 정산, 증거 제출 후 자동 연결 검증 완료"
+    "Sub 일반 쟁탈전·복수전 순위·GP·티어 스왑, 학습일수 정산, 증거 제출 후 자동 연결 검증 완료"
   );
 }
 

@@ -62,6 +62,9 @@ const {
   synchronizeUserLifecycle,
 } = require("../services/userLifecycleService");
 const {
+  synchronizeDormantArenaReturn,
+} = require("../services/arenaDormancyService");
+const {
   DIFFICULTY_LABELS,
   createAssessmentAttempt,
   expireAssessmentAttempt,
@@ -116,6 +119,8 @@ const {
   getArchiveData,
   getArchiveDownload,
   moveArchiveItems,
+  purgeArchiveItem,
+  restoreArchiveItem,
   setArchiveFolderPinned,
   updateArchiveFolder,
 } = require("../services/archiveService");
@@ -125,6 +130,9 @@ const {
 const {
   getPaidPackageAccess,
 } = require("../services/paidFeatureAccessService");
+const {
+  updateAdminPackageAccess,
+} = require("../services/adminPackageAccessService");
 const {
   getAdminArenaEvidenceData,
   getAdminEvidenceFile,
@@ -210,15 +218,51 @@ const {
   activateMainDivisionPolicyVersion,
   createArenaPolicyVersion,
   createMainDivisionPolicyVersion,
+  getActiveArenaPolicy,
   getArenaPolicyAdminData,
   retireArenaPolicyVersion,
   retireMainDivisionPolicyVersion,
+  updateLearningPackagePrice,
 } = require("../services/arenaPolicyService");
 const {
   alertPotentialDuplicateIdentity,
   buildIdentityMatchHash,
   normalizeBirthDate,
 } = require("../services/identityRiskService");
+const {
+  getActiveMockExamPackagePolicy,
+  getMockExamPackageAdminData,
+  updateMockExamPackagePrice,
+} = require("../services/mockExamPackageService");
+const {
+  recordConnectionHeartbeat,
+} = require("../services/connectionUsageService");
+const {
+  getAdminArenaIntegrityData,
+  recordConnectionIntegritySignals,
+  reviewArenaIntegrityCase,
+} = require("../services/arenaIntegrityRiskService");
+const {
+  getMainShopPolicyAdminData,
+  updateMainShopPolicy,
+} = require("../services/arenaShopPolicyService");
+const {
+  getAdminProblemBankCatalog,
+} = require("../services/problemBankCatalogService");
+const {
+  getArenaReconciliationAudit,
+} = require("../services/arenaReconciliationService");
+const {
+  exportFinalRankingCsv,
+  getRankingOperationsDashboard,
+  rebuildFinalRankingByAdmin,
+  runRankingMaintenanceTask,
+} = require("../services/rankingOperationsService");
+const {
+  getDataAnalysisDashboard,
+  getKstMonthKey,
+  runMonthlyDataAnalysisAggregation,
+} = require("../services/dataAnalysisAggregationService");
 const bcrypt = require('bcrypt');
 const BCRYPT_ROUNDS = 12;
 
@@ -237,6 +281,72 @@ exports.introPage = (req,res) => {
         null,
     });
 }
+
+exports.pricingPage = async (req, res, next) => {
+  try {
+    const [mockExamPolicy, learningPackagePolicy] = await Promise.all([
+      getActiveMockExamPackagePolicy(),
+      getActiveArenaPolicy(),
+    ]);
+    return res.render("pricing", {
+      user: req.session?.user || null,
+      activePage: "pricing",
+      mockExamPolicy,
+      learningPackagePolicy,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+function paymentRoutePlaceholder(mode) {
+  return (req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    const error = new Error(
+      mode === "PARENT_REQUEST"
+        ? "부모님 결제 요청 라우트가 준비되었습니다. 결제 요청 화면은 다음 구현 단계에서 연결합니다."
+        : "본인 결제 라우트가 준비되었습니다. 결제 화면은 다음 구현 단계에서 연결합니다."
+    );
+    error.status = 501;
+    error.code = "PAYMENT_FLOW_NOT_IMPLEMENTED";
+    return next(error);
+  };
+}
+
+exports.mockExamSelfPaymentEntry =
+  paymentRoutePlaceholder("SELF");
+exports.mockExamParentPaymentEntry =
+  paymentRoutePlaceholder("PARENT_REQUEST");
+exports.learningPackageSelfPaymentEntry =
+  paymentRoutePlaceholder("SELF");
+exports.learningPackageParentPaymentEntry =
+  paymentRoutePlaceholder("PARENT_REQUEST");
+
+exports.connectionHeartbeat = async (req, res, next) => {
+  try {
+    const [usage] = await Promise.all([
+      recordConnectionHeartbeat({
+        userId: req.session.user.id,
+      }),
+      recordConnectionIntegritySignals({
+        userId: req.session.user.id,
+        deviceToken: req.body?.deviceToken,
+        ip: req.ip,
+        userAgent: req.get("user-agent"),
+        acceptLanguage: req.get("accept-language"),
+      }).catch((error) => {
+        console.error("접속 무결성 연관 신호 기록 실패:", error);
+        return null;
+      }),
+    ]);
+    return res.json({
+      ok: true,
+      ...usage,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
 
 exports.loginPage = (req,res) => {
     const blockedStatus =
@@ -644,7 +754,7 @@ exports.archiveAdminPage =
                   type:
                     "success",
                   message:
-                    "아카이브 자료와 저장 파일을 영구 삭제했습니다.",
+                    "아카이브 자료를 휴지통으로 이동했습니다. 30일 동안 복구할 수 있습니다.",
                 }
               : Number(
                   req.query
@@ -654,7 +764,7 @@ exports.archiveAdminPage =
                   type:
                     "success",
                   message:
-                    `선택한 아카이브 자료 ${Number(req.query.bulkDeleted)}개와 저장 파일을 영구 삭제했습니다.`,
+                    `선택한 아카이브 자료 ${Number(req.query.bulkDeleted)}개를 휴지통으로 이동했습니다.`,
                 }
               : Number(
                   req.query
@@ -665,6 +775,16 @@ exports.archiveAdminPage =
                     "success",
                   message:
                     `선택한 아카이브 자료 ${Number(req.query.bulkMoved)}개를 이동했습니다.`,
+                }
+              : req.query.restored === "1"
+              ? {
+                  type: "success",
+                  message: "휴지통 자료를 원래 위치로 복구했습니다.",
+                }
+              : req.query.purged === "1"
+              ? {
+                  type: "success",
+                  message: "휴지통 자료와 저장 원본을 영구 삭제했습니다.",
                 }
               : null,
         }
@@ -799,6 +919,30 @@ exports.deleteArchiveItems =
       return next(error);
     }
   };
+
+exports.restoreArchiveItem = async (req, res, next) => {
+  try {
+    await restoreArchiveItem({
+      itemId: req.params.itemId,
+      user: req.session.user,
+    });
+    return res.redirect("/archive/admin?restored=1#archive-trash");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.purgeArchiveItem = async (req, res, next) => {
+  try {
+    await purgeArchiveItem({
+      itemId: req.params.itemId,
+      user: req.session.user,
+    });
+    return res.redirect("/archive/admin?purged=1#archive-trash");
+  } catch (error) {
+    return next(error);
+  }
+};
 
 exports.moveArchiveItems =
   async (req, res, next) => {
@@ -991,6 +1135,11 @@ exports.downloadArchiveItem =
             req.session.user,
         });
 
+      if (file.cloudUrl) {
+        res.set("Cache-Control", "private, no-store");
+        return res.redirect(302, file.cloudUrl);
+      }
+
       return res.download(
         file.path,
         file.name,
@@ -1034,6 +1183,8 @@ function adminFeedbackFromQuery(
       "사용자 역할을 변경했습니다.",
     warningCount:
       "사용자 경고 횟수를 변경했습니다.",
+    packageAccess:
+      "사용자의 패키지 권한을 변경했습니다.",
     communityEdit:
       "게시글을 수정했습니다.",
     communityModeration:
@@ -1109,10 +1260,29 @@ exports.adminRevenueMetrics = async (_req, res, next) => {
 exports.adminArenaMatchesPage = async (req, res, next) => {
   try {
     res.set("Cache-Control", "no-store");
+    const [evidenceEntries, integrityReview] = await Promise.all([
+      getAdminArenaEvidenceData(),
+      getAdminArenaIntegrityData(),
+    ]);
     return res.render("admin-arena-matches", {
       user: req.session.user,
-      evidenceEntries: await getAdminArenaEvidenceData(),
+      evidenceEntries,
+      integrityReview,
     });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminReviewArenaIntegrityCase = async (req, res, next) => {
+  try {
+    await reviewArenaIntegrityCase({
+      caseId: req.params.caseId,
+      adminUserId: req.session.user.id,
+      decision: String(req.body.decision || "").trim().toUpperCase(),
+      note: req.body.note,
+    });
+    return res.redirect("/admin/arena-matches#integrity-review");
   } catch (error) {
     return next(error);
   }
@@ -1127,13 +1297,126 @@ exports.adminArenaEvidenceFile = async (req, res, next) => {
     res.set("Cache-Control", "private, no-store");
     res.set("X-Content-Type-Options", "nosniff");
     res.type(file.mimeType);
+    if (file.cloudUrl) {
+      return res.redirect(302, file.cloudUrl);
+    }
     return res.sendFile(file.absolutePath);
   } catch (error) {
     return next(error);
   }
 };
 
+exports.adminArenaAuditPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    const [audit, rankingOperations] = await Promise.all([
+      getArenaReconciliationAudit(),
+      getRankingOperationsDashboard({ preview: req.query.preview === "1" }),
+    ]);
+    return res.render("admin-arena-audit", {
+      user: req.session.user,
+      audit,
+      rankingOperations,
+      operationFeedback:
+        req.query.rebuilt === "1"
+          ? "최종 종합 랭킹을 다시 계산하고 작업 이력을 남겼습니다."
+          : req.query.task
+            ? `${String(req.query.task)} 운영 작업을 실행했습니다.`
+            : null,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminRebuildFinalRanking = async (req, res, next) => {
+  try {
+    await rebuildFinalRankingByAdmin({ adminUserId: req.session.user.id });
+    return res.redirect("/admin/arena-audit?rebuilt=1#ranking-operations");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminRunRankingMaintenance = async (req, res, next) => {
+  try {
+    const task = String(req.body.task || "").trim().toUpperCase();
+    await runRankingMaintenanceTask({
+      adminUserId: req.session.user.id,
+      task,
+    });
+    return res.redirect(
+      `/admin/arena-audit?task=${encodeURIComponent(task)}#operations-status`
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminExportFinalRanking = async (req, res, next) => {
+  try {
+    const csv = await exportFinalRankingCsv({ adminUserId: req.session.user.id });
+    res.set("Cache-Control", "private, no-store");
+    res.set("Content-Type", "text/csv; charset=utf-8");
+    res.set(
+      "Content-Disposition",
+      `attachment; filename="matths-final-ranking-${new Date().toISOString().slice(0, 10)}.csv"`
+    );
+    return res.send(csv);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminArenaAuditData = async (_req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json({
+      ok: true,
+      audit: await getArenaReconciliationAudit(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminDataAnalysisPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.render("admin-data-analysis", {
+      user: req.session.user,
+      analysis: await getDataAnalysisDashboard({
+        periodKey: req.query.period || getKstMonthKey(),
+      }),
+      feedback:
+        String(req.query.rebuilt || "") === "1"
+          ? "선택한 월의 운영 지표를 권위 원장에서 다시 집계했습니다."
+          : null,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminRebuildDataAnalysis = async (req, res, next) => {
+  try {
+    const periodKey = String(req.body.periodKey || getKstMonthKey());
+    await runMonthlyDataAnalysisAggregation({ periodKey });
+    return res.redirect(
+      `/admin/data-analysis?period=${encodeURIComponent(periodKey)}&rebuilt=1`
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
 function arenaPolicyFeedbackFromQuery(query = {}) {
+  if (String(query.learningPriceUpdated || "") === "1") {
+    return "29일 학습 패키지의 새 가격 정책을 적용했습니다.";
+  }
+  if (String(query.mockPriceUpdated || "") === "1") {
+    return "모의고사 전용 패키지의 새 월 가격 정책을 적용했습니다.";
+  }
   if (String(query.created || "") === "1") {
     return "새 Arena 정책을 작성 중 상태로 저장했습니다.";
   }
@@ -1152,6 +1435,9 @@ function arenaPolicyFeedbackFromQuery(query = {}) {
   if (String(query.mainRetired || "") === "1") {
     return "Main Division 정책을 종료했습니다.";
   }
+  if (String(query.mainShopUpdated || "") === "1") {
+    return "Main Division 상점의 새 가격·판매 정책을 실제 운영 정책으로 적용했습니다.";
+  }
   return null;
 }
 
@@ -1166,7 +1452,11 @@ async function renderArenaPolicyAdminPage(
 ) {
   return res.status(status).render("admin-arena-policies", {
     user: req.session.user,
-    policyData: await getArenaPolicyAdminData(),
+    policyData: {
+      ...(await getArenaPolicyAdminData()),
+      mockExamOnly: await getMockExamPackageAdminData(),
+      mainShop: await getMainShopPolicyAdminData(),
+    },
     feedback: arenaPolicyFeedbackFromQuery(req.query),
     error,
     oldInput,
@@ -1181,6 +1471,113 @@ exports.adminArenaPoliciesPage =
       return next(error);
     }
   };
+
+exports.adminUpdateMockExamPackagePrice = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await updateMockExamPackagePrice({
+      adminUserId: req.session.user.id,
+      monthlyPriceAmount: req.body.monthlyPriceAmount,
+      changeSummary: req.body.changeSummary,
+    });
+    return res.redirect(
+      "/admin/arena-policies?mockPriceUpdated=1#mock-exam-package"
+    );
+  } catch (error) {
+    if ([400, 409].includes(Number(error.status))) {
+      try {
+        return await renderArenaPolicyAdminPage(req, res, {
+          status: Number(error.status),
+          error: error.message,
+          oldInput: {
+            policyDivision: "MOCK_EXAM_ONLY",
+            ...req.body,
+          },
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateLearningPackagePrice = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await updateLearningPackagePrice({
+      adminUserId: req.session.user.id,
+      priceAmount: req.body.priceAmount,
+      changeSummary: req.body.changeSummary,
+    });
+    return res.redirect(
+      "/admin/arena-policies?learningPriceUpdated=1#learning-package"
+    );
+  } catch (error) {
+    if ([400, 409].includes(Number(error.status))) {
+      try {
+        return await renderArenaPolicyAdminPage(req, res, {
+          status: Number(error.status),
+          error: error.message,
+          oldInput: {
+            policyDivision: "LEARNING_PACKAGE",
+            ...req.body,
+          },
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateMainShopPolicy = async (req, res, next) => {
+  try {
+    const enabledItems = Array.isArray(req.body.enabledItems)
+      ? req.body.enabledItems
+      : req.body.enabledItems
+        ? [req.body.enabledItems]
+        : [];
+    const itemPrices = Object.fromEntries(
+      Object.entries(req.body)
+        .filter(([key]) => key.startsWith("price_"))
+        .map(([key, value]) => [key.slice("price_".length), value])
+    );
+    await updateMainShopPolicy({
+      adminUserId: req.session.user.id,
+      itemPrices,
+      enabledItems,
+      changeSummary: req.body.changeSummary,
+    });
+    return res.redirect("/admin/arena-policies?mainShopUpdated=1#main-shop-policy");
+  } catch (error) {
+    if ([400, 409].includes(Number(error.status))) {
+      try {
+        return await renderArenaPolicyAdminPage(req, res, {
+          status: Number(error.status),
+          error: error.message,
+          oldInput: { policyDivision: "MAIN_SHOP", ...req.body },
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+};
+
+exports.adminProblemBanksPage = (req, res) =>
+  res.render("admin-problem-banks", {
+    user: req.session.user,
+    catalog: getAdminProblemBankCatalog(),
+  });
 
 exports.adminCreateArenaPolicy =
   async (req, res, next) => {
@@ -1514,6 +1911,10 @@ exports.adminUsersPage =
               sort:
                 req.query.sort,
             }),
+          feedback:
+            req.query.deleted === "1"
+              ? "계정과 연결된 모든 학습·시험·Arena·게시판 데이터를 삭제했습니다."
+              : null,
         }
       );
     } catch (error) {
@@ -1765,6 +2166,29 @@ exports.adminUpdateUserAccountStatus =
     }
   };
 
+exports.adminDeleteUserAccount = async (req, res, next) => {
+  try {
+    if (String(req.body.confirmation || "").trim() !== "계정삭제") {
+      const error = new Error("확인란에 ‘계정삭제’를 정확히 입력해주세요.");
+      error.status = 400;
+      throw error;
+    }
+    await updateUserAccountStatus({
+      adminUserId: req.session.user.id,
+      userId: req.params.userId,
+      status: "withdrawn",
+      reason: req.body.reason,
+      retainAnonymousData: req.body.dataRetention,
+    });
+    const purged = String(req.body.dataRetention) === "purged";
+    return purged
+      ? res.redirect("/admin/users?deleted=1")
+      : res.redirect(`/admin/users/${req.params.userId}?done=accountStatus`);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.adminUpdateUserWarningCount =
   async (req, res, next) => {
     try {
@@ -1781,6 +2205,23 @@ exports.adminUpdateUserWarningCount =
 
       return res.redirect(
         `/admin/users/${req.params.userId}?done=warningCount`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.adminUpdateUserPackageAccess =
+  async (req, res, next) => {
+    try {
+      await updateAdminPackageAccess({
+        adminUserId: req.session.user.id,
+        userId: req.params.userId,
+        packageType: req.body.packageType,
+        reason: req.body.reason,
+      });
+      return res.redirect(
+        `/admin/users/${req.params.userId}?done=packageAccess`
       );
     } catch (error) {
       return next(error);
@@ -2037,6 +2478,12 @@ exports.privateMockExamFile =
           examId:
             req.params.examId,
         });
+
+      if (file.cloudUrl) {
+        res.set("Cache-Control", "private, no-store");
+        res.set("Referrer-Policy", "no-referrer");
+        return res.redirect(302, file.cloudUrl);
+      }
 
       return res.sendFile(
         file.path,
@@ -2366,6 +2813,12 @@ exports.adminPrivateMockExamPdfFile =
             req.params.fileType,
         });
 
+      if (file.cloudUrl) {
+        res.set("Cache-Control", "private, no-store");
+        res.set("Referrer-Policy", "no-referrer");
+        return res.redirect(302, file.cloudUrl);
+      }
+
       return res.sendFile(
         file.path,
         {
@@ -2394,6 +2847,12 @@ exports.adminPrivateMockIntegrityEvidenceFile =
           archiveItemId:
             req.params.archiveItemId,
         });
+
+      if (file.cloudUrl) {
+        res.set("Cache-Control", "private, no-store");
+        res.set("Referrer-Policy", "no-referrer");
+        return res.redirect(302, file.cloudUrl);
+      }
 
       return res.sendFile(
         file.path,
@@ -3911,8 +4370,14 @@ exports.login = async (req, res, next) => {
             await synchronizeUserLifecycle(
                 access.user._id
             );
+        const loginAt = new Date();
+        await synchronizeDormantArenaReturn({
+            userId: synchronizedUser._id,
+            lastLoginAt: synchronizedUser.lastLoginAt,
+            now: loginAt,
+        });
         synchronizedUser.lastLoginAt =
-            new Date();
+            loginAt;
         await synchronizedUser.save();
         user =
             synchronizedUser.toObject();
@@ -5898,6 +6363,11 @@ exports.communityAttachmentFile =
         "X-Content-Type-Options",
         "nosniff"
       );
+
+      if (attachment.cloudUrl) {
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.redirect(302, attachment.cloudUrl);
+      }
 
       if (shouldDownload) {
         return res.download(

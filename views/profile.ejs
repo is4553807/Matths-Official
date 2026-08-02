@@ -66,6 +66,10 @@
       .replace(/</g, "\\u003c")
       .replace(/\u2028/g, "\\u2028")
       .replace(/\u2029/g, "\\u2029");
+  const connectedHours = Math.max(0, Number(learner.totalConnectedSeconds) || 0) / 3600;
+  const connectedHoursLabel = connectedHours < 0.1
+    ? "0시간"
+    : `${connectedHours.toFixed(connectedHours >= 100 ? 0 : 1)}시간`;
 %>
 <!doctype html>
 <html lang="ko">
@@ -127,6 +131,7 @@
                 <i aria-hidden="true">·</i>
                 <%= educationStatusLabel %>
               </p>
+              <p>누적 접속 <strong><%= connectedHoursLabel %></strong></p>
             </div>
           </div>
         </section>

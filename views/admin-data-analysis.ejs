@@ -1,0 +1,150 @@
+<%
+  const formatKst = (value) => value
+    ? new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(value))
+    : "아직 집계되지 않음";
+  const number = (value) => Number(value || 0).toLocaleString("ko-KR");
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Matths 첫 운영월 월별 관측 지표" />
+    <title>운영 지표 | Matths</title>
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "data-analysis" }) %>
+
+    <main class="admin-main">
+      <header class="admin-heading data-analysis-heading">
+        <div>
+          <p>MONTHLY OBSERVATIONS</p>
+          <h1>운영 지표</h1>
+          <span>결제·학습권·경기·페이백 원장에서 월별 분자, 분모와 표본 수를 다시 계산합니다.</span>
+        </div>
+        <div class="data-analysis-controls">
+          <form action="/admin/data-analysis" method="GET">
+            <label for="analysis-period">조회 월</label>
+            <select id="analysis-period" name="period" onchange="this.form.submit()">
+              <% analysis.periodOptions.forEach((period) => { %>
+                <option value="<%= period.key %>" <%= period.key === analysis.period.periodKey ? "selected" : "" %>><%= period.label %></option>
+              <% }) %>
+            </select>
+          </form>
+          <form action="/admin/data-analysis/rebuild" method="POST">
+            <input type="hidden" name="periodKey" value="<%= analysis.period.periodKey %>" />
+            <button type="submit">원장에서 다시 집계</button>
+          </form>
+        </div>
+      </header>
+
+      <% if (feedback) { %>
+        <div class="admin-feedback" role="status"><%= feedback %></div>
+      <% } %>
+
+      <section class="data-analysis-status <%= analysis.periodClosed ? 'is-closed' : 'is-live' %>">
+        <div>
+          <small><%= analysis.periodClosed ? "집계 종료 월" : "수집 중인 월" %></small>
+          <strong><%= analysis.period.label %></strong>
+        </div>
+        <p>
+          <%= analysis.periodClosed
+            ? "월 경계는 한국시간 기준으로 닫혔습니다. 늦게 확정되는 재구매·지급 상태는 재집계 시 반영됩니다."
+            : "15분마다 자동 갱신됩니다. 아직 관측 시간이 지나지 않은 이용자는 전환율 분모에서 제외됩니다." %>
+        </p>
+        <time><%= formatKst(analysis.generatedAt) %> KST</time>
+      </section>
+
+      <section class="admin-stat-grid data-analysis-summary" aria-label="운영 지표 집계 요약">
+        <article><span>전체 지표</span><strong><%= number(analysis.summary.catalogMetricCount) %></strong><small>첫 달 확인 목록</small></article>
+        <article><span>자동 집계 연결</span><strong><%= number(analysis.summary.observedMetricCount) %></strong><small>권위 원장에서 계산</small></article>
+        <article><span>원본 연결 대기</span><strong><%= number(analysis.summary.waitingMetricCount) %></strong><small>값을 0으로 추정하지 않음</small></article>
+        <article><span>판단 가능</span><strong><%= number(analysis.summary.reliableMetricCount) %></strong><small>최소 표본 수 충족</small></article>
+      </section>
+
+      <section class="admin-panel data-analysis-guide">
+        <div class="admin-panel-heading">
+          <div><p>READING GUIDE</p><h2>지표 읽는 법</h2></div>
+        </div>
+        <div>
+          <article><strong>분자</strong><p>조건을 실제로 충족한 결제·이용 주기·경기 또는 심사 건수입니다.</p></article>
+          <article><strong>분모</strong><p>아직 관측 시간이 지나지 않은 사용자를 제외한 비교 대상입니다.</p></article>
+          <article><strong>표본 수</strong><p>100건 미만은 확정 정책값으로 사용하지 않고 계속 수집합니다.</p></article>
+          <article><strong>원본 연결 대기</strong><p>현재 DB에서 정확히 복원할 수 없는 값이며 임의의 0으로 표시하지 않습니다.</p></article>
+        </div>
+      </section>
+
+      <section class="admin-panel data-analysis-assumptions">
+        <div class="admin-panel-heading">
+          <div><p>ASSUMPTION CHECK</p><h2>출시 전 가정과 실제값</h2></div>
+          <span>표본 100건부터 정책 검토</span>
+        </div>
+        <div class="data-analysis-assumption-grid">
+          <% analysis.assumptions.forEach((item) => { %>
+            <article class="<%= item.ready ? 'is-ready' : '' %>">
+              <strong><%= item.label %></strong>
+              <dl>
+                <div><dt>출시 전 가정</dt><dd><%= item.assumptionLabel %></dd></div>
+                <div><dt>실제 관측</dt><dd><%= item.actualLabel %></dd></div>
+              </dl>
+              <small>표본 <%= number(item.sampleSize) %> / <%= number(item.minimumSampleSize) %>건</small>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+
+      <section class="data-analysis-category-list" aria-label="분류별 운영 지표">
+        <% analysis.categories.forEach((category, categoryIndex) => { %>
+          <details class="admin-panel data-analysis-category" <%= categoryIndex < 2 ? "open" : "" %>>
+            <summary>
+              <span><small>MONTHLY METRICS</small><strong><%= category.label %></strong></span>
+              <b><%= category.metrics.length %>개</b>
+            </summary>
+            <div class="data-analysis-metric-list">
+              <% category.metrics.forEach((metric) => { %>
+                <article class="data-analysis-metric is-<%= metric.status %>">
+                  <header>
+                    <div>
+                      <h3><%= metric.label %></h3>
+                      <small>최소 판단 표본 <%= number(metric.minimumSampleSize) %>건</small>
+                    </div>
+                    <span><%= metric.statusLabel %></span>
+                  </header>
+                  <% if (!metric.observations.length) { %>
+                    <p class="data-analysis-waiting">정확한 분자·분모를 만들 원본 이벤트가 아직 연결되지 않았습니다.</p>
+                  <% } else { %>
+                    <div class="data-analysis-observation-list">
+                      <% metric.observations.forEach((row) => { %>
+                        <div>
+                          <span><%= row.dimensionsLabel || "전체" %></span>
+                          <strong><%= row.valueLabel %></strong>
+                          <small>
+                            표본 <%= number(row.sampleSize) %>건
+                            <% if (row.numerator !== null && row.denominator !== null) { %>
+                              · 분자 <%= number(row.numerator) %> / 분모 <%= number(row.denominator) %>
+                            <% } %>
+                          </small>
+                          <% if (row.note) { %><p><%= row.note %></p><% } %>
+                        </div>
+                      <% }) %>
+                    </div>
+                  <% } %>
+                </article>
+              <% }) %>
+            </div>
+          </details>
+        <% }) %>
+      </section>
+    </main>
+  </body>
+</html>

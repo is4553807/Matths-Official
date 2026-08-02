@@ -481,7 +481,7 @@ for (const copy of [
 
 assert.ok(
   routes.includes(
-    "archiveUpload.array("
+    "adminArchiveUpload.array("
   ) &&
     routes.includes(
       '"archiveFiles"'

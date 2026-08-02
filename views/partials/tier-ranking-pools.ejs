@@ -45,7 +45,7 @@
       <%= pool.key === activeDivisionKey ? "" : "hidden" %>
     >
       <% if (pool.current) { %>
-        <article class="tier-my-ranking" aria-label="나의 티어 내 랭킹">
+        <article class="tier-my-ranking <%= pool.current.hasMainProfileBorder ? 'has-main-shop-border' : '' %>" aria-label="나의 티어 내 랭킹">
           <div class="tier-my-ranking-identity">
             <%- include("rank-crest", {
               tier: pool.current.tier,
@@ -155,6 +155,7 @@
               <div
                 class="tier-ranking-scroll"
                 data-ranking-scroll
+                data-ranking-kind="tier"
                 tabindex="0"
                 aria-label="<%= board.tier %> 랭킹 스크롤 목록"
               >
@@ -168,8 +169,14 @@
                   </div>
                   <% board.entries.forEach((entry) => { %>
                     <div
-                      class="tier-ranking-row <%= entry.userId === rankingUserId ? 'is-me' : '' %>"
-                      <%= entry.userId === rankingUserId ? "data-current-ranker" : "" %>
+                      class="tier-ranking-row <%= entry.userId === rankingUserId ? 'is-me' : '' %> <%= entry.hasMainProfileBorder ? 'has-main-shop-border' : '' %>"
+                      data-ranking-row
+                      data-rank="<%= entry.tierRank %>"
+                      data-name="<%= entry.displayName %>"
+                      data-division="<%= entry.division %>"
+                      data-school="<%= entry.schoolName %>"
+                      data-rank-delta="<%= entry.rankDelta || 0 %>"
+                      <%= entry.userId === rankingUserId ? 'data-current-ranker aria-current="true"' : "" %>
                     >
                       <b><%= entry.tierRank %></b>
                       <span class="tier-ranking-crest-cell">
@@ -187,7 +194,7 @@
                         <%= entry.schoolName %>
                         <small><%= entry.region %></small>
                       </span>
-                      <em><%= entry.gp %></em>
+                      <em><%= entry.gp %><small class="ranking-delta <%= entry.rankDelta > 0 ? 'is-up' : entry.rankDelta < 0 ? 'is-down' : '' %>"><%= entry.rankDelta > 0 ? `▲${entry.rankDelta}` : entry.rankDelta < 0 ? `▼${Math.abs(entry.rankDelta)}` : '—' %></small></em>
                     </div>
                   <% }) %>
                 </div>

@@ -5,7 +5,9 @@ const {
 } = require("../models/matthsModel");
 const {
   ArenaStanding,
+  ArenaStandingChangeLedger,
   LiveFinalRankingProfile,
+  MainShopEffect,
 } = require("../models/goatArenaModel");
 const {
   _testing: {
@@ -550,13 +552,35 @@ async function getRankingData(
       .sort({ finalRank: 1 })
       .lean(),
   ]);
+  const arenaStandings = await ArenaStanding.find({
+    status: "ACTIVE",
+  })
+    .sort({ updatedAt: -1 })
+    .lean();
+  const standingChanges = await ArenaStandingChangeLedger.find({
+    userId: { $in: arenaStandings.map((standing) => standing.userId) },
+  })
+    .sort({ occurredAt: -1, _id: -1 })
+    .limit(5000)
+    .lean();
+  const latestStandingChangeByUser = new Map();
+  for (const change of standingChanges) {
+    const userId = String(change.userId);
+    if (!latestStandingChangeByUser.has(userId)) {
+      latestStandingChangeByUser.set(userId, change);
+    }
+  }
+  const rankingUserIds = [
+    ...new Set([
+      ...attempts.map((attempt) => String(attempt.userId)),
+      ...arenaStandings.map((standing) => String(standing.userId)),
+      ...liveFinalProfiles.map((profile) => String(profile.userId)),
+    ]),
+  ];
   const users =
     await User.find({
       _id: {
-        $in: attempts.map(
-          (attempt) =>
-            attempt.userId
-        ),
+        $in: rankingUserIds,
       },
       isActive: true,
     })
@@ -564,6 +588,17 @@ async function getRankingData(
         "name realName preferences.rankingDisplayMode school schoolGrade"
       )
       .lean();
+  const activeMainProfileBorders = await MainShopEffect.find({
+    userId: { $in: rankingUserIds },
+    itemCode: "MAIN_PROFILE_BORDER",
+    status: "ACTIVE",
+    endsAt: { $gt: new Date() },
+  })
+    .select("userId")
+    .lean();
+  const mainProfileBorderUserIds = new Set(
+    activeMainProfileBorders.map((effect) => String(effect.userId))
+  );
   const profiles =
     await RankingProfile.find({
       userId: {
@@ -573,18 +608,6 @@ async function getRankingData(
         ),
       },
     }).lean();
-  const arenaStandings =
-    await ArenaStanding.find({
-      userId: {
-        $in: attempts.map(
-          (attempt) =>
-            attempt.userId
-        ),
-      },
-      status: "ACTIVE",
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
   const profileByUserId =
     new Map(
       profiles.map(
@@ -606,6 +629,7 @@ async function getRankingData(
   const finalUsers = await User.find({
     _id: { $in: finalUserIds },
     isActive: true,
+    accountStatus: "active",
   })
     .select(
       "name realName preferences.rankingDisplayMode school schoolGrade educationStatus"
@@ -628,9 +652,28 @@ async function getRankingData(
         educationStatus: String(
           user.educationStatus || "enrolled"
         ),
-        finalRating: numberValue(profile.finalRating),
-        finalRank: numberValue(profile.finalRank),
+        finalRating: numberValue(
+          profile.status === "SUNDAY_DISPLAY_FROZEN"
+            ? profile.publishedFinalRating ?? profile.finalRating
+            : profile.finalRating
+        ),
+        finalRank: numberValue(
+          profile.status === "SUNDAY_DISPLAY_FROZEN"
+            ? profile.publishedFinalRank ?? profile.finalRank
+            : profile.finalRank
+        ),
+        previousFinalRank: numberValue(profile.previousPublishedFinalRank, 0) || null,
+        rankDelta: profile.previousPublishedFinalRank
+          ? Number(profile.previousPublishedFinalRank) -
+            numberValue(
+              profile.status === "SUNDAY_DISPLAY_FROZEN"
+                ? profile.publishedFinalRank ?? profile.finalRank
+                : profile.finalRank
+            )
+          : 0,
+        lastPublishedAt: profile.lastPublishedAt || profile.updatedAt || null,
         division: profile.currentCompetitiveDivision,
+        hasMainProfileBorder: mainProfileBorderUserIds.has(String(user._id)),
       };
     })
     .filter(Boolean)
@@ -715,6 +758,7 @@ async function getRankingData(
           userId: String(
             user._id
           ),
+          hasMainProfileBorder: mainProfileBorderUserIds.has(String(user._id)),
           displayName:
             getRankingDisplayName(
               user
@@ -920,6 +964,15 @@ async function getRankingData(
         reachedCurrentMmrAt:
           standing.reachedCurrentGpAt ||
           standing.updatedAt,
+        rankDelta: (() => {
+          const change = latestStandingChangeByUser.get(String(standing.userId));
+          if (!change || change.tupleAfter?.arenaRank !== standing.arenaRank) return 0;
+          return Number(change.tupleBefore?.arenaPosition || 0) -
+            Number(change.tupleAfter?.arenaPosition || 0);
+        })(),
+        lastRankChangedAt:
+          latestStandingChangeByUser.get(String(standing.userId))?.occurredAt ||
+          standing.updatedAt,
       };
     })
     .filter(Boolean);
@@ -1027,6 +1080,18 @@ async function getRankingData(
     cities:
       cities.slice(0, 100),
     finalOverall,
+    latestPublishedAt:
+      finalOverall.reduce((latest, entry) => {
+        const time = new Date(entry.lastPublishedAt || 0).getTime();
+        return time > new Date(latest || 0).getTime() ? entry.lastPublishedAt : latest;
+      }, null),
+    latestCalculatedAt:
+      liveFinalProfiles.reduce((latest, profile) => {
+        const value = profile.updatedAt || profile.lastPublishedAt || null;
+        return new Date(value || 0).getTime() > new Date(latest || 0).getTime()
+          ? value
+          : latest;
+      }, null),
     schoolRankings: schoolAndRetakerRankings.schools,
     retakerRankings: schoolAndRetakerRankings.retakers,
     currentFinal:

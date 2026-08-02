@@ -24,6 +24,9 @@ const {
   activateStandingForPaidPlacement,
   kstSeasonKey,
 } = require("./arenaStandingService");
+const {
+  preparePaidMainRenewalInTransaction,
+} = require("./arenaRenewalService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const KST_TIME_ZONE = "Asia/Seoul";
@@ -154,13 +157,17 @@ function computeAccessCycleWindow({
     (isNextDay ? 1 : 0);
   const firstConsumptionDateKey =
     dateKeyFromUtcDay(firstDayNumber);
+  const evaluationDayCount = Math.max(
+    Number(snapshot.initialLearningDays) || 0,
+    Number(snapshot.payback?.minimumStreakDays) || 0
+  );
   const expiresDateKey = dateKeyFromUtcDay(
     firstDayNumber +
       Number(snapshot.initialLearningDays)
   );
   const evaluationDateKey =
     dateKeyFromUtcDay(
-      firstDayNumber + 30
+      firstDayNumber + evaluationDayCount
     );
 
   return {
@@ -651,10 +658,32 @@ async function applyApprovedPackagePayment(
 ) {
   const approval =
     normalizePaymentApproval(input);
+  const paymentInstrumentFingerprint = cleanSingleLine(
+    input?.paymentInstrumentFingerprint,
+    500
+  );
+  const recordPaymentLinkSignal = async () => {
+    if (!paymentInstrumentFingerprint) return;
+    try {
+      const { recordTrustedIntegritySignal } = require("./arenaIntegrityRiskService");
+      await recordTrustedIntegritySignal({
+        userId: approval.userId,
+        signalType: "PAYMENT_INSTRUMENT",
+        rawValue: paymentInstrumentFingerprint,
+        sourceType: "VERIFIED_PAYMENT_APPROVAL",
+        now: approval.approvedAt,
+      });
+    } catch (error) {
+      console.error("결제수단 무결성 연관 신호 기록 실패:", error);
+    }
+  };
   const replay = await findAppliedPayment(
     approval
   );
-  if (replay) return replay;
+  if (replay) {
+    await recordPaymentLinkSignal();
+    return replay;
+  }
 
   const session =
     await mongoose.startSession();
@@ -743,7 +772,7 @@ async function applyApprovedPackagePayment(
           }),
         ]);
 
-        if (
+        const isMainRenewal = Boolean(
           accessState
             ?.currentCompetitiveDivision ===
             "MAIN" ||
@@ -753,13 +782,7 @@ async function applyApprovedPackagePayment(
               ?.mainAchievementStatus ===
               "ACHIEVED" &&
             accessState?.lastMainSnapshotId)
-        ) {
-          throw statusError(
-            409,
-            "Main Division 재결제는 갱신 판정 절차에서 처리해야 합니다.",
-            "MAIN_RENEWAL_WORKFLOW_REQUIRED"
-          );
-        }
+        );
 
         const eligibility =
           packagePurchaseEligibility({
@@ -778,7 +801,7 @@ async function applyApprovedPackagePayment(
         if (!eligibility.eligible) {
           throw statusError(
             409,
-            "남은 정기권 학습 가능 일수, 초대 예약 일수, 잠긴 학습일 또는 미정산 대전을 먼저 정리해주세요.",
+            "남은 정기권 학습 가능 일수, 초대 예약 일수, 경기 예치 학습일 또는 미정산 대전을 먼저 정리해주세요.",
             eligibility.reasons.join(",")
           );
         }
@@ -845,7 +868,21 @@ async function applyApprovedPackagePayment(
           { session }
         );
 
+        let renewalResult = null;
+        if (isMainRenewal) {
+          renewalResult =
+            await preparePaidMainRenewalInTransaction({
+              userId: approval.userId,
+              cycleId,
+              accessState,
+              approvedAt: approval.approvedAt,
+              session,
+            });
+        }
+
         const placementStanding =
+          renewalResult?.standing ||
+          (!previousCycle &&
           accessState
             ?.currentSeasonPlacementCompleted &&
           accessState?.standingId
@@ -863,12 +900,38 @@ async function applyApprovedPackagePayment(
                 .select("_id")
                 .session(session)
                 .lean()
-            : null;
-        const placementCompleted = Boolean(
-          placementStanding
-        );
+            : null);
+        const placementCompleted = renewalResult
+          ? Boolean(renewalResult.placementCompleted)
+          : Boolean(placementStanding);
 
-        await ArenaAccessState.updateOne(
+        if (!renewalResult && !placementCompleted && previousCycle) {
+          await ArenaStanding.updateMany(
+            {
+              userId: approval.userId,
+              division: "SUB",
+              seasonKey: kstSeasonKey(
+                approval.approvedAt
+              ),
+              status: { $ne: "ARCHIVED" },
+            },
+            {
+              $set: {
+                status: "LOCKED",
+                sourcePlacementAttemptId: null,
+                seedPlacementScore: null,
+                seedPlacementElapsedTimeMs: null,
+                seedPlacementMmr: null,
+                seedPlacementStartedAt: null,
+                seededAt: null,
+              },
+            },
+            { session }
+          );
+        }
+
+        if (!renewalResult) {
+          await ArenaAccessState.updateOne(
           { userId: approval.userId },
           {
             $set: {
@@ -881,7 +944,10 @@ async function applyApprovedPackagePayment(
               currentSeasonPlacementCompleted:
                 placementCompleted,
               defensePoolEligible:
-                placementCompleted,
+                placementCompleted &&
+                !["REVIEW_REQUIRED", "RESTRICTED"].includes(
+                  accessState?.integrityStatus
+                ),
               weeklyMockEligible:
                 placementCompleted,
               finalRankingActive:
@@ -898,9 +964,10 @@ async function applyApprovedPackagePayment(
             },
           },
           { upsert: true, session }
-        );
+          );
+        }
 
-        if (placementCompleted) {
+        if (placementCompleted && !renewalResult) {
           await activateStandingForPaidPlacement({
             userId: approval.userId,
             standingId:
@@ -979,6 +1046,7 @@ async function applyApprovedPackagePayment(
           approval
         );
       if (duplicateReplay) {
+        await recordPaymentLinkSignal();
         return duplicateReplay;
       }
     }
@@ -987,6 +1055,11 @@ async function applyApprovedPackagePayment(
     await session.endSession();
   }
 
+  if (result?.cycle || result?.payment) {
+    await recordPaymentLinkSignal();
+    const { recalculateFinalRanking } = require("./finalRankingService");
+    await recalculateFinalRanking({ now: approval.approvedAt });
+  }
   return result;
 }
 

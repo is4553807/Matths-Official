@@ -1,5 +1,12 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  destroyStoredAsset,
+  signedCloudinaryUrl,
+  STORAGE_PURPOSES,
+  storageFields,
+  storeUploadedFile,
+} = require("./fileStorageService");
 
 const COMMUNITY_STORAGE_DIR =
   path.resolve(
@@ -15,7 +22,11 @@ const COMMUNITY_STORAGE_DIR =
 const COMMUNITY_ATTACHMENT_LIMIT =
   5;
 const COMMUNITY_ATTACHMENT_MAX_BYTES =
+  25 * 1024 * 1024;
+const COMMUNITY_IMAGE_MAX_BYTES =
   10 * 1024 * 1024;
+const COMMUNITY_ATTACHMENT_TOTAL_MAX_BYTES =
+  50 * 1024 * 1024;
 const COMMUNITY_ATTACHMENT_EXTENSIONS =
   new Set([
     ".pdf",
@@ -151,7 +162,7 @@ function isCommunityImage(
   );
 }
 
-function serializeCommunityUpload(
+async function serializeCommunityUpload(
   file
 ) {
   const extension =
@@ -160,15 +171,17 @@ function serializeCommunityUpload(
         file?.originalname || ""
       )
     ).toLowerCase();
+  const asset = await storeUploadedFile(file, {
+    folder: "matths/community",
+    purpose: STORAGE_PURPOSES.USER_COMMUNITY,
+  });
   return {
     originalName:
       repairCommunityFilename(
         file?.originalname
       ).slice(0, 255),
     storedName:
-      String(
-        file?.filename || ""
-      ),
+      String(asset?.storedName || file?.filename || ""),
     mimeType:
       COMMUNITY_SAFE_MIME_TYPES[
         extension
@@ -180,6 +193,7 @@ function serializeCommunityUpload(
         Number(file?.size) || 1
       ),
     uploadedAt: new Date(),
+    ...storageFields(asset),
   };
 }
 
@@ -197,21 +211,34 @@ async function discardCommunityUploads(
           file?.storedName
         );
 
-      if (!filePath) return;
-
-      await fs.promises
-        .unlink(filePath)
-        .catch(() => {});
+      if (
+        file?.storageAsset?.storageProvider === "CLOUDINARY" ||
+        file?.storageProvider === "CLOUDINARY"
+      ) {
+        await destroyStoredAsset(file.storageAsset || file).catch(() => {});
+        return;
+      }
+      if (filePath) await fs.promises.unlink(filePath).catch(() => {});
     })
   );
+}
+
+function communityAttachmentCloudUrl(attachment, { download = false } = {}) {
+  return signedCloudinaryUrl(attachment, {
+    download,
+    originalName: attachment?.originalName,
+  });
 }
 
 module.exports = {
   COMMUNITY_ATTACHMENT_EXTENSIONS,
   COMMUNITY_ATTACHMENT_LIMIT,
   COMMUNITY_ATTACHMENT_MAX_BYTES,
+  COMMUNITY_ATTACHMENT_TOTAL_MAX_BYTES,
+  COMMUNITY_IMAGE_MAX_BYTES,
   COMMUNITY_STORAGE_DIR,
   discardCommunityUploads,
+  communityAttachmentCloudUrl,
   isCommunityImage,
   safeCommunityAttachmentPath,
   serializeCommunityUpload,

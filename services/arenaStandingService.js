@@ -11,6 +11,9 @@ const {
   ArenaStanding,
 } = require("../models/goatArenaModel");
 const {
+  arenaTierByValue,
+  arenaTierIndex,
+  arenaTupleFromLegacyGp,
   resolveArenaTier,
 } = require("./arenaTierPolicy");
 
@@ -46,7 +49,7 @@ function kstSeasonKey(value = new Date()) {
   }).format(date);
 }
 
-function initialArenaGpFromPlacement(attempt) {
+function initialArenaLegacyGpFromPlacement(attempt) {
   const placementResult =
     attempt?.placementResult || {};
   const candidate =
@@ -63,16 +66,85 @@ function initialArenaGpFromPlacement(attempt) {
   return Math.round(value);
 }
 
+function initialArenaTupleFromPlacement(attempt) {
+  return arenaTupleFromLegacyGp(
+    initialArenaLegacyGpFromPlacement(attempt)
+  );
+}
+
+function initialArenaGpFromPlacement(attempt) {
+  return initialArenaTupleFromPlacement(attempt).arenaGp;
+}
+
 function standingId(standing) {
   return String(standing?._id || "");
 }
 
+function isInitialPlacementStanding(standing) {
+  if (!standing?.sourcePlacementAttemptId || !standing?.seededAt) {
+    return false;
+  }
+  return (
+    new Date(standing.reachedCurrentGpAt || 0).getTime() ===
+    new Date(standing.seededAt).getTime()
+  );
+}
+
 function compareStandingForLayout(left, right) {
+  const tierDifference =
+    arenaTierIndex(right.arenaRank) -
+    arenaTierIndex(left.arenaRank);
+  if (tierDifference !== 0) return tierDifference;
   const gpDifference =
     Number(right.arenaGp) -
     Number(left.arenaGp);
   if (gpDifference !== 0) {
     return gpDifference;
+  }
+  if (
+    isInitialPlacementStanding(left) &&
+    isInitialPlacementStanding(right)
+  ) {
+    const leftScore = left.seedPlacementScore === null ||
+      left.seedPlacementScore === undefined
+      ? -Infinity
+      : Number(left.seedPlacementScore);
+    const rightScore = right.seedPlacementScore === null ||
+      right.seedPlacementScore === undefined
+      ? -Infinity
+      : Number(right.seedPlacementScore);
+    if (leftScore !== rightScore) return rightScore - leftScore;
+    const leftElapsed = left.seedPlacementElapsedTimeMs !== null &&
+      left.seedPlacementElapsedTimeMs !== undefined &&
+      Number.isFinite(Number(left.seedPlacementElapsedTimeMs))
+      ? Number(left.seedPlacementElapsedTimeMs)
+      : Infinity;
+    const rightElapsed = right.seedPlacementElapsedTimeMs !== null &&
+      right.seedPlacementElapsedTimeMs !== undefined &&
+      Number.isFinite(Number(right.seedPlacementElapsedTimeMs))
+      ? Number(right.seedPlacementElapsedTimeMs)
+      : Infinity;
+    if (leftElapsed !== rightElapsed) {
+      return leftElapsed - rightElapsed;
+    }
+    const leftMmr = left.seedPlacementMmr === null ||
+      left.seedPlacementMmr === undefined
+      ? -Infinity
+      : Number(left.seedPlacementMmr);
+    const rightMmr = right.seedPlacementMmr === null ||
+      right.seedPlacementMmr === undefined
+      ? -Infinity
+      : Number(right.seedPlacementMmr);
+    if (leftMmr !== rightMmr) return rightMmr - leftMmr;
+    const leftStartedAt = left.seedPlacementStartedAt
+      ? new Date(left.seedPlacementStartedAt).getTime()
+      : Infinity;
+    const rightStartedAt = right.seedPlacementStartedAt
+      ? new Date(right.seedPlacementStartedAt).getTime()
+      : Infinity;
+    if (leftStartedAt !== rightStartedAt) {
+      return leftStartedAt - rightStartedAt;
+    }
   }
   const leftReachedAt = new Date(
     left.reachedCurrentGpAt ||
@@ -93,26 +165,32 @@ function compareStandingForLayout(left, right) {
 }
 
 /*
- * 공개 순위는 GP 내림차순으로 정렬하되, arenaPosition은 전체 순위가 아니라
- * 같은 티어 안의 순위입니다. 동점이면 해당 GP에 먼저 도달한 사용자가 앞섭니다.
+ * 공개 순위는 티어 → 티어 내부 GP 내림차순으로 정렬하되, arenaPosition은
+ * 전체 순위가 아니라 같은 티어 안의 순위입니다. 동점이면 배치 동점 원본과
+ * 해당 GP 도달 시각을 차례로 사용합니다.
  */
 function computeArenaCohortLayout(standings = []) {
-  const sorted = [...standings].sort(
+  const canonicalOrder = [...standings].sort(
     compareStandingForLayout
   );
-  const activeRankerCount = sorted.length;
-  const tierPositions = new Map();
-
-  return sorted.map((standing, index) => {
+  const activeRankerCount = canonicalOrder.length;
+  const resolved = canonicalOrder.map((standing, index) => {
     const tier = resolveArenaTier({
+      rank: standing.arenaRank,
       gp: standing.arenaGp,
       topPercentile:
         activeRankerCount > 0
-          ? (index + 1) /
-            activeRankerCount
+          ? (index + 1) / activeRankerCount
           : 1,
       activeRankerCount,
     });
+    return { ...standing, arenaRank: tier.label };
+  });
+  const sorted = resolved.sort(compareStandingForLayout);
+  const tierPositions = new Map();
+
+  return sorted.map((standing) => {
+    const tier = arenaTierByValue(standing.arenaRank);
     const position =
       (tierPositions.get(tier.code) || 0) + 1;
     tierPositions.set(tier.code, position);
@@ -177,7 +255,7 @@ async function rebalanceArenaCohortInTransaction({
       standing,
     ])
   );
-  const operations = layout
+  const changedEntries = layout
     .filter((entry) => {
       const current = currentById.get(
         standingId(entry)
@@ -188,8 +266,50 @@ async function rebalanceArenaCohortInTransaction({
         Number(current?.arenaPosition) !==
           entry.arenaPosition
       );
-    })
-    .map((entry) => ({
+    });
+
+  if (changedEntries.length) {
+    /*
+     * `(division, seasonKey, arenaRank, arenaPosition)`은 고유 인덱스다.
+     * 순위를 바로 맞바꾸면 첫 번째 갱신이 아직 이동하지 않은 사용자의
+     * 위치와 충돌할 수 있으므로, 현재 티어별 임시 위치로 모두 피신시킨 뒤
+     * 최종 티어·순위를 적용한다.
+     */
+    const highestPositionByCurrentTier = new Map();
+    standings.forEach((standing) => {
+      const key = String(standing.arenaRank || "");
+      highestPositionByCurrentTier.set(
+        key,
+        Math.max(
+          highestPositionByCurrentTier.get(key) || 0,
+          Number(standing.arenaPosition) || 0
+        )
+      );
+    });
+    const temporaryOffsetByTier = new Map();
+    const temporaryOperations = changedEntries.map((entry) => {
+      const current = currentById.get(standingId(entry));
+      const key = String(current?.arenaRank || "");
+      const offset = (temporaryOffsetByTier.get(key) || 0) + 1;
+      temporaryOffsetByTier.set(key, offset);
+      return {
+        updateOne: {
+          filter: { _id: entry._id },
+          update: {
+            $set: {
+              arenaPosition:
+                (highestPositionByCurrentTier.get(key) || 0) + offset,
+            },
+          },
+        },
+      };
+    });
+    await ArenaStanding.bulkWrite(
+      temporaryOperations,
+      { session, ordered: true }
+    );
+
+    const finalOperations = changedEntries.map((entry) => ({
       updateOne: {
         filter: { _id: entry._id },
         update: {
@@ -201,11 +321,9 @@ async function rebalanceArenaCohortInTransaction({
         },
       },
     }));
-
-  if (operations.length) {
     await ArenaStanding.bulkWrite(
-      operations,
-      { session }
+      finalOperations,
+      { session, ordered: true }
     );
   }
   return layout;
@@ -341,7 +459,7 @@ async function runInitialPlacementTransaction({
         ) {
           throw statusError(
             403,
-            "활성 상태인 계정만 Sub Division에 배치될 수 있습니다.",
+            "활성 상태인 계정만 현재 시즌 Division에 배치될 수 있습니다.",
             "ACCOUNT_NOT_ACTIVE"
           );
         }
@@ -367,35 +485,54 @@ async function runInitialPlacementTransaction({
           };
           return;
         }
-        const arenaGp =
-          initialArenaGpFromPlacement(
-            attempt
-          );
+        const initialArenaTuple =
+          initialArenaTupleFromPlacement(attempt);
+        const arenaGp = initialArenaTuple.arenaGp;
         const seedPlacementScore = Number(
           attempt.placementResult
             ?.placementScore
         );
-        const [cycle, accessState] =
-          await Promise.all([
-            AccessCycle.findOne({
-              userId,
-              status: "ACTIVE",
-              availableLearningDays: {
-                $gt: 0,
-              },
-            })
-              .session(session)
-              .lean(),
-            ArenaAccessState.findOne({
-              userId,
-            })
-              .session(session)
-              .lean(),
-          ]);
+        const seedPlacementElapsedTimeMs = Number(
+          attempt.elapsedTimeMs
+        );
+        const seedPlacementMmr = Number(
+          attempt.placementResult?.initialMmr ??
+            attempt.placementResult?.initialRating
+        );
+        const seedPlacementStartedAt = attempt.startedAt
+          ? new Date(attempt.startedAt)
+          : new Date(attempt.createdAt || seededAt);
+        const accessState = await ArenaAccessState.findOne({ userId })
+          .session(session)
+          .lean();
+        const placementDivision =
+          accessState?.state === "SEASON_PLACEMENT_REQUIRED" &&
+          accessState?.currentCompetitiveDivision === "MAIN"
+            ? "MAIN"
+            : "SUB";
+        const cycleCandidate = await AccessCycle.findOne({
+          userId,
+          division: placementDivision,
+          status: "ACTIVE",
+        })
+          .session(session)
+          .lean();
+        const cycleTotal = cycleCandidate
+          ? Number(cycleCandidate.availableLearningDays || 0) +
+            Number(cycleCandidate.reservedLearningDays || 0) +
+            Number(cycleCandidate.lockedLearningDays || 0)
+          : 0;
+        const cycle =
+          cycleCandidate &&
+          (placementDivision === "MAIN"
+            ? cycleTotal > 0
+            : Number(cycleCandidate.availableLearningDays || 0) > 0)
+            ? cycleCandidate
+            : null;
         let standing =
           await ArenaStanding.findOne({
             userId,
-            division: "SUB",
+            division: placementDivision,
             seasonKey,
           })
             .session(session)
@@ -419,7 +556,7 @@ async function runInitialPlacementTransaction({
         ) {
           throw statusError(
             409,
-            "이번 시즌의 최초 배치고사가 이미 Sub Division에 반영되었습니다.",
+            `이번 시즌의 배치고사가 이미 ${placementDivision === "MAIN" ? "Main Division" : "Sub Division"}에 반영되었습니다.`,
             "INITIAL_PLACEMENT_ALREADY_SEEDED"
           );
         }
@@ -483,7 +620,7 @@ async function runInitialPlacementTransaction({
               expectedAccessState &&
             accessState
               ?.currentCompetitiveDivision ===
-              "SUB" &&
+              placementDivision &&
             String(
               accessState?.standingId || ""
             ) === String(standing._id) &&
@@ -522,7 +659,7 @@ async function runInitialPlacementTransaction({
             accessState: {
               state: expectedAccessState,
               currentCompetitiveDivision:
-                "SUB",
+                placementDivision,
               currentSeasonPlacementCompleted:
                 true,
               defensePoolEligible:
@@ -540,6 +677,7 @@ async function runInitialPlacementTransaction({
         }
         const placeholderTier =
           resolveArenaTier({
+            rank: initialArenaTuple.arenaRank,
             gp: arenaGp,
             topPercentile: 1,
             activeRankerCount: 0,
@@ -549,7 +687,7 @@ async function runInitialPlacementTransaction({
             [
               {
                 userId,
-                division: "SUB",
+                division: placementDivision,
                 seasonKey,
                 sourcePlacementAttemptId:
                   attempt._id,
@@ -561,6 +699,15 @@ async function runInitialPlacementTransaction({
                   )
                     ? seedPlacementScore
                     : null,
+                seedPlacementElapsedTimeMs:
+                  Number.isFinite(seedPlacementElapsedTimeMs)
+                    ? seedPlacementElapsedTimeMs
+                    : null,
+                seedPlacementMmr:
+                  Number.isFinite(seedPlacementMmr)
+                    ? seedPlacementMmr
+                    : null,
+                seedPlacementStartedAt,
                 seededAt,
                 arenaRank:
                   placeholderTier.label,
@@ -588,6 +735,17 @@ async function runInitialPlacementTransaction({
               )
                 ? seedPlacementScore
                 : null,
+            seedPlacementElapsedTimeMs:
+              Number.isFinite(seedPlacementElapsedTimeMs)
+                ? seedPlacementElapsedTimeMs
+                : null,
+            seedPlacementMmr:
+              Number.isFinite(seedPlacementMmr)
+                ? seedPlacementMmr
+                : null,
+            seedPlacementStartedAt:
+              standing.seedPlacementStartedAt ||
+              seedPlacementStartedAt,
             seededAt:
               standing.seededAt || seededAt,
             status: paidActive
@@ -631,7 +789,7 @@ async function runInitialPlacementTransaction({
               {
                 session,
                 seasonKey,
-                division: "SUB",
+                division: placementDivision,
                 now,
               }
             );
@@ -651,7 +809,7 @@ async function runInitialPlacementTransaction({
           {
             $set: {
               currentCompetitiveDivision:
-                "SUB",
+                placementDivision,
               accessCycleId:
                 cycle?._id ||
                 accessState?.accessCycleId ||
@@ -662,6 +820,8 @@ async function runInitialPlacementTransaction({
                 true,
               expiredAt: null,
               renewalGraceDeadline: null,
+              dormancyReturnRequiredAt: null,
+              dormancySourceLastLoginAt: null,
               defensePoolEligible:
                 paidActive,
               weeklyMockEligible:
@@ -669,8 +829,14 @@ async function runInitialPlacementTransaction({
               finalRankingActive:
                 paidActive,
               reasonCode: paidActive
-                ? "INITIAL_PLACEMENT_PAID_ACTIVE"
-                : "INITIAL_PLACEMENT_PAYMENT_REQUIRED",
+                ? attempt.placementPurpose === "DORMANCY_RETURN"
+                  ? "DORMANCY_RETURN_PLACEMENT_ACTIVE"
+                  : placementDivision === "MAIN"
+                  ? "ANNUAL_MAIN_SEASON_PLACEMENT_ACTIVE"
+                  : "INITIAL_PLACEMENT_PAID_ACTIVE"
+                : attempt.placementPurpose === "DORMANCY_RETURN"
+                  ? "DORMANCY_RETURN_PAYMENT_REQUIRED"
+                  : "INITIAL_PLACEMENT_PAYMENT_REQUIRED",
             },
             $setOnInsert: {
               mainAchievementStatus:
@@ -700,7 +866,7 @@ async function runInitialPlacementTransaction({
                 standingId: standing._id,
                 accessCycleId:
                   cycle?._id || null,
-                division: "SUB",
+                division: placementDivision,
                 seasonKey,
                 arenaGp,
                 seedPolicyVersion:
@@ -717,7 +883,7 @@ async function runInitialPlacementTransaction({
           accessState: {
             state,
             currentCompetitiveDivision:
-              "SUB",
+              placementDivision,
             currentSeasonPlacementCompleted:
               true,
             defensePoolEligible:
@@ -757,6 +923,50 @@ async function syncInitialArenaPlacement({
       "INVALID_PLACEMENT_REFERENCE"
     );
   }
+
+  const pendingRenewal = await ArenaAccessState.exists({
+    userId,
+    state: "PAID_PENDING_RENEWAL_ASSESSMENT",
+  });
+  if (pendingRenewal) {
+    const {
+      completeRenewalRankAssessmentInTransaction,
+    } = require("./arenaRenewalService");
+    const session = await mongoose.startSession();
+    let renewalResult = null;
+    try {
+      await session.withTransaction(async () => {
+        renewalResult =
+          await completeRenewalRankAssessmentInTransaction({
+            userId,
+            attemptId,
+            session,
+            now,
+          });
+      });
+    } finally {
+      await session.endSession();
+    }
+    if (renewalResult) {
+      const { recalculateFinalRanking } = require("./finalRankingService");
+      await recalculateFinalRanking({ now });
+      return {
+        standing: renewalResult.placed,
+        accessState: {
+          state: "PAID_ACTIVE",
+          currentCompetitiveDivision: "SUB",
+          currentSeasonPlacementCompleted: true,
+          defensePoolEligible: true,
+          weeklyMockEligible: true,
+          finalRankingActive: true,
+        },
+        paidActive: true,
+        seasonKey: kstSeasonKey(now),
+        renewalAssessmentCompleted: true,
+      };
+    }
+  }
+
   let lastError = null;
   for (
     let attempt = 1;
@@ -764,11 +974,14 @@ async function syncInitialArenaPlacement({
     attempt += 1
   ) {
     try {
-      return await runInitialPlacementTransaction({
+      const placed = await runInitialPlacementTransaction({
         userId,
         attemptId,
         now,
       });
+      const { recalculateFinalRanking } = require("./finalRankingService");
+      await recalculateFinalRanking({ now });
+      return placed;
     } catch (error) {
       lastError = error;
       if (
@@ -790,6 +1003,8 @@ module.exports = {
   compareStandingForLayout,
   computeArenaCohortLayout,
   initialArenaGpFromPlacement,
+  initialArenaLegacyGpFromPlacement,
+  initialArenaTupleFromPlacement,
   kstSeasonKey,
   rebalanceArenaCohortInTransaction,
   syncInitialArenaPlacement,

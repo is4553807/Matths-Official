@@ -45,6 +45,12 @@ const {
   computeAccessCycleWindow,
 } = require("../services/accessCycleService");
 const {
+  ARENA_ONE_ON_ONE_QUESTION_COUNT,
+  ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS,
+  SUB_TIER_PAIR_CONFIG,
+  generateSubOneOnOneQuestions,
+} = require("../services/arenaOneOnOneProblemBank");
+const {
   officialArenaEligibility,
   mainStakeEligibility,
   packagePurchaseEligibility,
@@ -235,7 +241,7 @@ const incompleteActiveMainPolicy =
   });
 await assert.rejects(
   () => incompleteActiveMainPolicy.validate(),
-  /티어별 배팅표/
+  /티어별 예치 기준표/
 );
 const completeActiveMainPolicy =
   new MainDivisionPolicyVersion({
@@ -351,7 +357,7 @@ const standing = new ArenaStanding({
   seasonKey: "2026-W31",
   arenaRank: "브론즈",
   arenaPosition: 1,
-  arenaGp: 800,
+  arenaGp: 0,
 });
 await assert.doesNotReject(
   () => standing.validate()
@@ -436,7 +442,7 @@ assert.equal(
     stakeDays: 2,
   }).eligible,
   false,
-  "Main은 배팅 뒤 최소 1일을 남길 수 있어야 합니다."
+  "Main은 예치 뒤 최소 1일을 남길 수 있어야 합니다."
 );
 assert.equal(
   buildArenaAccess(
@@ -530,6 +536,35 @@ assert.equal(
     }
   ).code,
   "READY"
+);
+
+assert.equal(
+  SUB_TIER_PAIR_CONFIG.length,
+  10,
+  "Sub Division 티어 조합 10개가 모두 준비되어야 합니다."
+);
+assert.ok(
+  ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS.length >=
+    ARENA_ONE_ON_ONE_QUESTION_COUNT,
+  "Arena 전용 준킬러 문제 유형이 5개 이상이어야 합니다."
+);
+const generatedArenaPack = generateSubOneOnOneQuestions({
+  challengerTier: "BRONZE",
+  defenderTier: "SILVER",
+  matchKey: "arena-foundation-problem-copy-check",
+});
+assert.equal(
+  generatedArenaPack.questions.length,
+  ARENA_ONE_ON_ONE_QUESTION_COUNT
+);
+assert.equal(
+  new Set(
+    generatedArenaPack.questions.map(
+      (question) => question.typeId
+    )
+  ).size,
+  ARENA_ONE_ON_ONE_QUESTION_COUNT,
+  "한 경기의 5문제는 서로 다른 Arena 전용 유형이어야 합니다."
 );
 
 assert.ok(ArenaMatch.modelName);

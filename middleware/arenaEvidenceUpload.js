@@ -32,7 +32,7 @@ const arenaEvidenceUpload = multer({
   storage,
   limits: {
     files: 5,
-    fileSize: 15 * 1024 * 1024,
+    fileSize: 10 * 1024 * 1024,
   },
   fileFilter(_req, file, callback) {
     const extension = path.extname(file.originalname).toLowerCase();

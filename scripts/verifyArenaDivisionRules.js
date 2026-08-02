@@ -150,7 +150,7 @@ async function run() {
       originalStakeDays: 1,
       revengeStakeMultiplier: 2,
       revengeStakeDays: 2,
-      feeDays: 0,
+      feeDays: 1,
       recipientNoShowReturnDays: 1,
       recipientNoShowBurnDays: 1,
     }
@@ -232,6 +232,23 @@ async function run() {
       returnToAttackerDays: 0,
       transferToDefenderDays: 1,
       burnDays: 1,
+    }
+  );
+  assert.deepEqual(
+    resolveRevengeSettlement({
+      division: "SUB",
+      outcome: "BOTH_NO_SHOW",
+      revengeStakeDays: 2,
+      feeDays: 1,
+    }),
+    {
+      division: "SUB",
+      outcome: "BOTH_NO_SHOW",
+      revengeStakeDays: 2,
+      tupleAction: "KEEP",
+      returnToAttackerDays: 0,
+      transferToDefenderDays: 0,
+      burnDays: 2,
     }
   );
   assert.deepEqual(
@@ -334,7 +351,7 @@ async function run() {
   );
 
   console.log(
-    "Sub·Main 배팅·복수전·초대 취소·일요일 마감·승패 우선순위 기반 검증 완료"
+    "Sub·Main 예치·복수전·초대 취소·일요일 마감·승패 우선순위 기반 검증 완료"
   );
 }
 

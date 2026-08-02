@@ -23,9 +23,10 @@ PAID_ACTIVE_MAIN
 
 # 2. 핵심 불변식
 
-- Sub 학습권이 0이면 Arena·주간 모의고사·활성 Final Ranking 불가. Main은 사용 가능·예약·잠금 잔액과 미정산 경기가 모두 정리된 뒤 만료한다.
-- 패키지는 사용 가능·예약·잠금 잔액이 모두 0이고 미정산 경기가 없을 때만 구매 가능.
+- Sub 학습권이 0이면 Arena·주간 모의고사·활성 Final Ranking 불가. Main은 사용 가능·예약·경기 예치 잔액과 미정산 경기가 모두 정리된 뒤 만료한다.
+- 패키지는 사용 가능·예약·경기 예치 잔액이 모두 0이고 미정산 경기가 없을 때만 구매 가능.
 - 1대1은 Skill MMR을 변경하지 않음.
+- 모든 Arena 티어의 공개 GP는 `0~99`이며 서열 비교는 `티어 → 티어 내부 GP → 티어 내 순위 동점 기준` 순서로 수행함.
 - 도전자 승리 시 Arena tuple 전체 교환.
 - 방어자 승리 시 Arena tuple 무변경.
 - Main 사용자는 학습권 만료 즉시 Sub로 강등되고 새 결제주기를 Sub에서 시작.
@@ -34,6 +35,8 @@ PAID_ACTIVE_MAIN
 - 늦은 재구독 배치는 정상 변환 기준보다 낮아야 함.
 - 20:00 이후 결제일은 차감하지 않음.
 - Final Ranking 계산은 점수를 누적하지 않고 덮어쓰기.
+- Main 상점은 사용 가능 학습일수만 사용하고 구매 뒤 최소 1일을 남김.
+- 상점 구매·효과·원장과 방어 일정 보호권 경기 종료는 멱등·원자적으로 처리함.
 
 ---
 
@@ -69,6 +72,9 @@ revengeStakeDays = 2
 - 적용 일정에 등록했거나 종료된 정책의 가격·학습일·페이백 조건은 직접 수정할 수 없다. 변경하려면 새 정책 버전을 만든다.
 - 페이백 구간은 0점부터 빈틈이나 중복 없이 이어지고 마지막 구간에는 상한이 없어야 한다.
 - `AccessCycle.policySnapshot`에는 구매 승인 시점에 선택된 정책 전체를 복사하여 이후 정책 변경을 소급하지 않는다.
+- 활성 정책이 하나도 없는 초기 환경에서는 29일·29점·29,000원 및 기본 페이백 구간을 가진 2026-08-02 KST 기준 정책을 멱등 생성한다.
+- 가격 전용 관리자 작업도 기존 문서를 직접 수정하지 않고 현재 정책의 페이백 조건을 복제한 새 활성 버전을 만든다.
+- 사용자 노출 용어는 `예치`와 `경기 예치 학습일수`로 고정한다. 데이터 호환을 위해 내부 필드 `stakeDays`, `lockedLearningDays`는 유지하며 화면과 오류 문구에서 내부 명칭을 직접 노출하지 않는다.
 
 ## 3.2 `FinalRankingPolicyVersion`
 
@@ -115,7 +121,34 @@ revengeFeeDays = 1
 maximumUnresolvedOfficialMatches = 1
 ```
 
-`DRAFT`는 관리자 작성 중 상태일 뿐 정책 미확정을 뜻하지 않는다. 활성 정책의 배팅표는 1부터 최대 티어 차이까지 빈 구간 없이 있어야 한다. 활성화·종료된 정책의 보너스·배팅·초대·복수전 조건은 직접 수정하지 않고 새 정책 버전을 만든다. 실제 경기·초대·원장은 생성 시점의 활성 Main 정책 식별자·코드와 경제 조건 사본을 함께 고정한다.
+`DRAFT`는 관리자 작성 중 상태일 뿐 정책 미확정을 뜻하지 않는다. 활성 정책의 예치 기준표는 1부터 최대 티어 차이까지 빈 구간 없이 있어야 한다. 활성화·종료된 정책의 보너스·예치·초대·복수전 조건은 직접 수정하지 않고 새 정책 버전을 만든다. 실제 경기·초대·원장은 생성 시점의 활성 Main 정책 식별자·코드와 경제 조건 사본을 함께 고정한다.
+
+## 3.4 `MainShopPolicyVersion`
+
+```text
+code
+status = DRAFT | ACTIVE | RETIRED
+effectiveFrom
+effectiveUntil
+timezone = Asia/Seoul
+
+minimumRemainingLearningDays = 1
+catalog[
+  itemId
+  displayName
+  priceDays
+  releasePhase
+  effectType
+  effectDurationSeconds
+  cooldownDays
+]
+
+defenseScheduleProtectionUseWindowSeconds = 10800
+defenseScheduleProtectionCompensationDays = 1
+defenseScheduleProtectionBurnDays = 1
+```
+
+활성화 시 각 아이템의 가격·효과 기간·제한을 단일 값으로 검증한다. 구매에는 정책 식별자와 아이템 조건 사본을 고정하여 이후 가격 변경을 소급하지 않는다. 우선순위·실패 복구·공통 쿨다운·시즌 이월은 `12_SHOP.md`의 확정값을 사용한다.
 
 ---
 
@@ -224,6 +257,7 @@ state =
   | SUB_ACCESS_EXPIRED_LOCKED
   | PAID_PENDING_RENEWAL_ASSESSMENT
   | SEASON_PLACEMENT_REQUIRED
+  | MAIN_DORMANT
   | PAYMENT_REQUIRED
 
 currentCompetitiveDivision
@@ -232,6 +266,12 @@ currentSeasonPlacementCompleted
 
 expiredAt
 renewalGraceDeadline
+lastMainQualifyingActivityAt
+mainInactivityStartedAt
+mainInactivityStartAvailableDays
+mainDormantAt
+mainDormancyFrozenLearningDays
+mainDormancyRecoveryMode = RESUME_MAIN | SUB_STANDARD_FLOW
 lastMainSnapshotId
 referenceSubPlacementId
 ```
@@ -250,6 +290,20 @@ active AccessCycle + placement complete
 ```
 
 최초 배치 반영은 `AssessmentAttempt` ID를 멱등 키로 사용한다. 활성 Sub 모집단 재정렬은 `(seasonKey, division)`별 revision 문서를 트랜잭션 안에서 먼저 갱신한 뒤 GP·도달 시각 순으로 수행한다.
+
+휴면은 `currentCompetitiveDivision = MAIN`인 사용자에게만 적용한다. Sub Division은 29일 학습권 패키지와 페이백 주기의 기존 만료 규칙만 사용하고 별도 휴면 상태를 만들지 않는다.
+
+권위 있는 휴면 초기화 활동은 정산 가능한 공식 1대1 경기 완료와 Matths 주간 공식 모의고사 제출 완료뿐이다. 각 완료 경계에서 `lastMainQualifyingActivityAt`을 서버 시각으로 갱신한다. 로그인, 페이지 열람, 개념 학습, 평가센터 이용, 경기 신청·시작만으로는 이 값을 바꾸지 않는다.
+
+첫 미활동 KST 날짜 경계에서 `mainInactivityStartedAt`과 `mainInactivityStartAvailableDays`를 한 번 저장한다. 시작 잔액이 20일 이상인 경우에만 해당 연속 구간을 휴면 판정 대상으로 고정한다. 20일차에 공식 활동이 완료되면 미활동 필드를 초기화하며 직전 19일 동안의 정상 일일 차감은 되돌리지 않는다. 20일차 종료까지 활동이 없으면 20일차 차감까지 완료한 뒤 다음 날 00:00 KST에 전환한다.
+
+시작 잔액이 21일 이상이면 `state = MAIN_DORMANT`, `mainDormancyRecoveryMode = RESUME_MAIN`으로 기록하고 남은 일수를 `mainDormancyFrozenLearningDays`에 동결한다. 휴면 동안 일일 차감·신규 경기·방어 후보·활성 Final Ranking 집계를 중단한다. 복귀 시 추가 차감이나 배치고사 없이 동결 잔액을 복원하고 Main Division에서 재개한다.
+
+휴면 사용자의 인증 성공은 복귀 경계로만 사용한다. 동결 잔액을 복원하고 다음 KST 날짜부터 새 미활동 구간을 만들되 `lastMainQualifyingActivityAt`은 변경하지 않는다. 따라서 일반 로그인 자체가 공식 활동으로 기록되거나 활성 사용자의 미활동 구간을 초기화하지 않는다.
+
+시작 잔액이 정확히 20일이면 일일 차감으로 잔액을 0으로 만든 뒤 `currentCompetitiveDivision = SUB`, `mainDormancyRecoveryMode = SUB_STANDARD_FLOW`로 기록한다. 휴면 이력은 남기지만 Main 휴면 복귀 경로는 열지 않는다. 이후 일반 Sub Division의 새 패키지 활성화와 배치고사 경로만 사용한다.
+
+휴면 전환·복귀는 `(userId, mainInactivityStartedAt, transitionType)` 멱등 키로 한 번만 기록한다. 일일 차감, 잔여 일수 동결, Arena·Final Ranking 비활성화는 같은 트랜잭션 또는 재처리 가능한 outbox 단계로 묶는다.
 
 ---
 
@@ -273,6 +327,8 @@ AND noPendingSettlement:
 ```
 
 마지막 Arena·Final Ranking 값을 snapshot으로 보존한다.
+
+Main 만료 스냅샷은 티어 내 표시 순위와 별도로 활성 Main 전체 정확한 순위, 참가자 수, 해당 위치 도달 시각을 저장한다. 같은 만료 트랜잭션에서 `MAIN_TO_SUB_CONVERSION_V1` 결과를 만들고 `ArenaAccessState.referenceSubPlacementId`에 연결한다.
 
 ---
 
@@ -298,12 +354,30 @@ sourceMainSnapshotId
 policyVersion
 referenceSubRank
 referenceSubPositionBand
+mainPercentile
 referenceSubGp
 referenceSubPercentile
+referenceSubOverallPosition
+subParticipantCountAtConversion
+renewalGraceDeadline
+snapshotValid
+integrityStatus
 createdAt
 ```
 
 72시간 내 결제자는 이 결과를 실제 Sub Seed로 사용한다.
+
+환산 공식과 티어 구간은 `04_MAIN_DIVISION_RANKING_SYSTEM.md` 15장을 권위 원본으로 사용한다. `sourceMainSnapshotId`는 고유하며 동일 스냅샷을 재처리해도 결과를 한 번만 만든다.
+
+## 8.3 배치 동점 원본
+
+`ArenaStanding`은 최초·시즌 배치의 `seedPlacementScore`, `seedPlacementElapsedTimeMs`, `seedPlacementMmr`, `seedPlacementStartedAt`을 함께 저장한다. GP가 같을 때 배치 점수가 높은 순을 먼저 적용하고, 배치 점수도 같으면 전체 풀이시간이 짧은 순, MMR이 높은 순, 실제 시작 시각이 빠른 순으로 정렬한다.
+
+`ArenaStanding`과 `arenaTupleSchema`에는 `gpScaleVersion = TIER_LOCAL_0_99_V1`을 둔다. 과거 누적 GP 문서는 `scripts/migrateArenaGpToTierLocal.js`가 기존 티어를 보존하면서 티어 내부 0~99 GP로 변환한다. 기본 실행은 읽기 전용 dry-run이며 실제 반영은 명시적인 `--apply`와 MongoDB 트랜잭션으로 수행한다.
+
+## 8.4 Main 시즌 배지
+
+`ArenaAchievementBadge`는 `userId + badgeCode + seasonKey` 고유 키를 사용한다. Main 시즌 보상은 학습일수나 경기 결과를 만들지 않는 배지로 지급하고 Main 만료·Sub 복귀 뒤에도 유지한다.
 
 ---
 
@@ -384,6 +458,19 @@ seasonSubStartPercentile
 
 # 11. 주간 모의고사 권한
 
+주간 공식 모의고사는 두 상품 경로를 분리한다.
+
+```text
+학습권 패키지
+→ 배치고사 완료 + PAID_ACTIVE + 유효 학습일수 필요
+→ 주간 공식 모의고사 + GOAT Arena 허용
+
+모의고사 전용 패키지
+→ 활성 MockExamSubscription 필요
+→ 주간 공식 모의고사만 허용
+→ 배치고사 + GOAT Arena 차단
+```
+
 ```text
 weeklyMockEligible
 = state = PAID_ACTIVE
@@ -425,7 +512,7 @@ weeklyMockBonus = 0
 - 참가자에는 경기 생성 시점의 `standingId`, `accessCycleId`, Arena tuple과 적용 일수를 저장한다.
 - 경기 정책 코드는 공격자의 이용 주기 정책 사본과 연결한다.
 - 도전자·방어자의 티어는 허용된 정확한 조합인지 서버에서 재검증한다. 브론즈는 브론즈·실버, 챌린저는 챌린저, 나머지는 바로 위 티어만 허용한다.
-- 실제 문제 유형 생성기가 연결되지 않았거나 자동 검산이 실패하면 문제·경기·잠금·원장을 전부 만들지 않는다.
+- 현재 1대1 문제는 배치고사 심화 준킬러 유형을 `arenaOneOnOneProblemTypes.js`에 독립 복사한 원본으로 생성한다. 배치고사 파일을 직접 참조하지 않으며 이후 Arena 유형만 교체한다. 유형 누락이나 자동 검산 실패 시 문제·경기·학습일수 예치·원장을 전부 만들지 않는다.
 - 같은 경기 문제는 양측에 공통 배정하며 제한 시간은 정확히 10분이다.
 - 경기 생성 서비스는 내부 실력 지표와 최종 종합 랭킹 모델을 읽거나 쓰지 않는다.
 
@@ -470,7 +557,7 @@ ArenaMatchAttempt(IN_PROGRESS → EVIDENCE_REQUIRED)
 - 만료 응시 스케줄러는 `deadlineAt <= now`인 진행 중 응시를 마지막 저장 답안으로 닫고 60초 증거 제출 단계로 전환한다.
 - 모든 풀이 증거는 운영자만 열람할 수 있는 보호 저장소에 두고 동일 파일·비정상 속도·반복 화면 이탈은 관리자 알림으로 만든다.
 - 공식 경기 성립 뒤 시작 기한은 24시간이다. 일요일을 통과하면 Sub와 Main 모두 일요일 14:30으로 단축한다. 아직 성립되지 않은 Main 하위 티어 초대 예약에는 고정 24시간 만료를 두지 않는다. 미시작은 `noShowRole`과 관리자 알림을 남긴다.
-- 일반 경기와 복수전 No-show는 역할을 별도로 기록한다. 복수전 결과는 `ATTACKER_WIN`, `DEFENDER_WIN`, `DEFENDER_NO_SHOW`, `ATTACKER_NO_SHOW`, `BOTH_NO_SHOW`를 구분하고, Division 정책 사본의 반환·이전·소각표로 계산한다. 반환·이전·소각 합계가 잠긴 배팅액과 다르면 거래를 적용하지 않고 `HELD`로 둔다.
+- 일반 경기와 복수전 No-show는 역할을 별도로 기록한다. 복수전 결과는 `ATTACKER_WIN`, `DEFENDER_WIN`, `DEFENDER_NO_SHOW`, `ATTACKER_NO_SHOW`, `BOTH_NO_SHOW`를 구분하고, Division 정책 사본의 반환·이전·소각표로 계산한다. 반환·이전·소각 합계가 예치 학습일수와 다르면 거래를 적용하지 않고 `HELD`로 둔다.
 - 일요일 15:00~월요일 00:00에는 응시 쓰기와 만료 자동 제출도 멈춘다. 15:00 미정산 경기의 `HELD` 전환은 정산 단계의 일요일 잠금 트랜잭션에서 완성한다.
 - 이 쓰기 경로는 `ArenaStanding`, `AccessCycle`, GP·티어·티어 내 순위와 학습일 원장을 변경하지 않는다.
 
@@ -483,7 +570,7 @@ ArenaMatchAttempt(IN_PROGRESS → EVIDENCE_REQUIRED)
 + 점수 → 정답 수 → 정답 문항 풀이시간 → 전체 풀이시간 비교
 + 완전 동점이면 방어자 승리
 + 도전자 승리 시 GP·티어·티어 내 순위 tuple 전체 교환
-+ 도전자 잠금 1일 반환·소각 또는 방어자 이전
++ 도전자가 예치한 1일 반환·소각 또는 방어자 이전
 + 양측 ArenaStandingChangeLedger
 + 양측 필요분 ArenaLearningDayLedger
 + 참가자 잠금 해제
@@ -491,7 +578,108 @@ ArenaMatchAttempt(IN_PROGRESS → EVIDENCE_REQUIRED)
 = one transaction
 ```
 
-증거 이상 징후, 생성 시점 Arena 상태와 현재 상태 불일치, 학습일수 원본 불일치, 일요일 15시 정산 잠금은 `HELD`로 보내고 순위·GP·티어·학습일수는 변경하지 않는다. 정산 결과로 사용 가능·예약·잠금 학습일수가 모두 0이 되면 트랜잭션 완료 뒤 기존 이용 만료 전환기를 호출한다.
+증거 이상 징후, 생성 시점 Arena 상태와 현재 상태 불일치, 학습일수 원본 불일치, 일요일 15시 정산 잠금은 `HELD`로 보내고 순위·GP·티어·학습일수는 변경하지 않는다. 정산 결과로 사용 가능·예약·경기 예치 학습일수가 모두 0이 되면 트랜잭션 완료 뒤 기존 이용 만료 전환기를 호출한다.
+
+## 11.4 Sub 복수전 생성·정산 트랜잭션
+
+```text
+원경기 SETTLED
+→ 패자 ArenaRevengeRight(AVAILABLE, 1회)
+→ 복수하기: 패자를 도전자, 직전 승자를 방어자로 자동 고정
+→ 도전자 availableLearningDays -2 / lockedLearningDays +2
+→ 같은 5문항·10분 문제 팩과 양측 READY
+→ completionDeadlineAt = min(신청+24시간, 일요일 14:30)
+```
+
+정상 승패와 한쪽 미완료는 Sub 문서의 2일 정산표로 처리한다. 결과 화면의 `경기 종료`를 누르면 권리를 `FORFEITED`로 만들고 다시 생성하지 않는다. 양측 모두 미완료하면 Arena 상태를 유지하고 도전자가 예치한 2일을 전부 소각한다.
+
+## 11.5 모의고사 전용 패키지와 MMR 보정
+
+- `MockExamPackagePolicyVersion`은 월 가격과 30일 이용 기간을 버전으로 저장한다.
+- `MockExamSubscription`은 학습권 패키지와 분리된 이용권 원본이다.
+- 전용 패키지 사용자의 주간 공식 모의고사 결과는 `RankingProfile.mmr`과 이력에 계속 저장한다.
+- 주간 공식 모의고사 응시가 4회 이상인 사용자가 나중에 학습권 패키지의 배치고사를 완료하면 기존 MMR을 초기화하지 않는다.
+- 보정값은 `기존 MMR × 기존 주간 응시 수 + 배치 MMR`을 `기존 주간 응시 수 + 1`로 나눈 서버 계산값이며, `placement-calibration` 이력으로 남긴다.
+
+## 11.6 접속시간 집계
+
+- 로그인 상태의 활성 브라우저 탭이 60초 주기로 heartbeat를 보낸다.
+- 서버는 직전 heartbeat와의 간격이 90초 이하인 구간만 `User.totalConnectedSeconds`에 누적한다.
+- 비활성 탭, 긴 네트워크 단절과 서버가 받지 못한 구간을 접속시간으로 추정하지 않는다.
+- 화면에는 누적 초를 시간 단위로 변환해 표시하되 DB 권위값은 정수 초다.
+
+## 11.7 규정 페이지의 활성 페이백 정책 투영
+
+- Sub Division 규정 요청은 `getActiveArenaPolicy()`를 통해 현재 시점의 활성 `SubscriptionPolicyVersion`을 조회한다.
+- 뷰 모델은 패키지 가격, 정기권 학습 가능 일수, 자격 기준, 점수 구간, 비율과 `가격 × 비율`의 예상 페이백 금액만 사용자 화면에 노출한다.
+- 활성 정책은 정기권 학습 가능 일수와 페이백 점수를 별도 장부로 유지하고, 29일 이용 주기의 29일 전일 학습을 페이백 학습 조건으로 투영한다.
+- 최근 수정일은 초기 기준일 2026-08-02 KST보다 이르지 않으며 `createdAt`, `updatedAt`, `activatedAt`, `effectiveFrom` 중 가장 최근 시각을 KST 날짜로 표시한다.
+- 관리자 정책 변경 뒤 활성 정책 캐시를 무효화하므로 다음 규정 요청은 새 표를 사용한다. 개별 구매자의 실제 판정은 계속 `AccessCycle.policySnapshot`을 사용한다.
+
+## 11.8 관리자 계정 삭제
+
+```text
+익명 보존
+→ 로그인·실명·생년월일·이메일·정확한 학교 제거
+→ 업로드 원본 파일 제거
+→ 학습·시험·MMR·Arena 통계는 익명 사용자 ID로 보존
+
+모든 데이터 삭제
+→ User + 학습 + 시험 + MMR + Arena + 게시판 + 첨부파일 삭제
+→ 식별 불가능한 관리자 감사 행위 종류만 보존
+```
+
+## 11.9 Main Division 상점
+
+권위 모델:
+
+```text
+MainShopPurchase
+= purchaseId + userId + itemId + policyVersionId
++ priceDays + beforeAvailableDays + afterAvailableDays
++ status(PENDING | APPLIED | REVERSED | CANCELLED)
++ relatedMatchId? + relatedInvitationId?
++ idempotencyKey + purchasedAt + reversedAt?
+
+MainShopEffect
+= effectId + purchaseId + userId + effectType
++ status(ACTIVE | APPLIED | EXPIRED | CANCELLED)
++ startsAt + endsAt? + cooldownEndsAt?
++ relatedMatchId? + relatedInvitationId?
+```
+
+일반 구매:
+
+```text
+Main·PAID_ACTIVE·무결성 자격 재검증
++ availableLearningDays > priceDays 검증
++ availableLearningDays 차감
++ SHOP_ITEM_PURCHASE_BURN 원장
++ MainShopPurchase(APPLIED)
++ MainShopEffect 생성 또는 즉시 적용
++ outbox
+= one transaction
+```
+
+방어 일정 보호권:
+
+```text
+의무 방어 일반 경기·배정 후 3시간·양측 미열람 재검증
++ 양측 기존 경기 예치분 반환
++ 방어자 availableLearningDays -2
++ 공격자 availableLearningDays +1
++ 시스템 1일 소각 원장
++ ArenaMatch(INSURED_CANCELLED)
++ 양측 참가자 잠금 해제
++ 7일 쿨다운 효과
++ outbox
+= one transaction
+```
+
+- 내부 호환 필드 `stakeDays`, `lockedLearningDays`와 기존 원장 이벤트 코드는 유지한다. 사용자 문구와 설명에서는 `예치`, `경기 예치 학습일수`를 사용한다.
+- `purchaseId` 또는 클라이언트 요청 식별자를 고유 멱등 키로 사용하여 재시도 중복 차감을 막는다.
+- 방어 휴식권과 초대 가속권은 DB 효과가 권위 원본이다. 후보 수·우선순위의 짧은 캐시는 효과 변경 즉시 무효화한다.
+- 분석 결과 본문이 크면 보호 파일 저장소에 두고 DB에는 생성 상태·버전·해시·위치만 저장한다.
 
 ---
 
@@ -541,6 +729,10 @@ AND evaluatedAt = null
 
 새 결제주기가 시작돼도 이전 주기 심사는 독립적으로 처리한다.
 
+평가 시점에 `HELD` 또는 미정산 공식 경기가 있으면 `ArenaPaybackReview.status = HELD`로 저장하고 결과를 확정하지 않는다. 사이트 우편함과 가입 이메일을 멱등 발송하고 경기 정산 뒤 같은 `cycleId + evaluationVersion`으로 재심사한다.
+
+관리자 패키지 변경은 UI 플래그만 바꾸지 않는다. `무료`는 활성 이용권을 종료하고, `모의고사 전용 패키지`는 `MockExamSubscription`, `29일 학습권 패키지`는 실제 `AccessCycle`과 초기 원장을 생성한다. 관리자 무상 지급은 매출 결제로 기록하지 않고 `AdminActionLog`와 관리자 조정 원장에 남기며, 미정산 경기·예약·경기 예치분이 있으면 변경을 거절한다.
+
 ---
 
 # 14. 보안·어뷰징 방지
@@ -582,9 +774,16 @@ MainInvitationPaused
 MainInvitationResumed
 MainInvitationCancelled
 ArenaRevengeRightCreated
-ArenaRevengeRightForfeited
+ArenaRevengeForfeited
 ArenaRevengeMatchCreated
 ArenaRevengeNoShowSettled
+ArenaMainDormancyActivated
+ArenaMainDormancyResumed
+MainShopItemPurchased
+MainShopItemReversed
+MainShopEffectApplied
+MainShopEffectExpired
+ArenaMatchInsuredCancelled
 ```
 
 ---
@@ -602,3 +801,6 @@ ArenaRevengeNoShowSettled
 - 첫날 차감 CS
 - 만료로 인한 방어 풀 감소
 - 랭크별 매칭 실패율
+- Main 상점 아이템별 구매율·소각 학습일수·복구율
+- 방어 일정 보호권 보상 이전량·사용률·반복 사용 시도율
+- 방어 휴식권과 초대 가속권 사용 전후 매칭 소요시간

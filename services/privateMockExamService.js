@@ -66,6 +66,16 @@ const {
   createAdminTodo,
 } = require("./adminTodoService");
 const {
+  getWeeklyMockExamAccess,
+} = require("./paidFeatureAccessService");
+const {
+  destroyStoredAsset,
+  signedCloudinaryUrl,
+  STORAGE_PURPOSES,
+  storageFields,
+  storeUploadedFile,
+} = require("./fileStorageService");
+const {
   answerCorrection:
     answerCorrectionEmail,
   evidenceRequest:
@@ -1341,6 +1351,7 @@ async function createPrivateMockExam({
         category: "문제지",
         folderId: null,
         isPublished: false,
+        storagePurpose: STORAGE_PURPOSES.ADMIN_WEEKLY_MOCK,
       });
     if (answerSheetFile) {
       answerSheetItem =
@@ -1356,6 +1367,7 @@ async function createPrivateMockExam({
           category: "해설",
           folderId: null,
           isPublished: false,
+          storagePurpose: STORAGE_PURPOSES.ADMIN_WEEKLY_MOCK,
         });
     }
 
@@ -1561,28 +1573,22 @@ async function createPrivateMockExamBatch({
           },
         }),
         archiveItem?.storedName
-          ? fs.promises
-              .unlink(
-                path.join(
-                  ARCHIVE_STORAGE_DIR,
-                  path.basename(
-                    archiveItem.storedName
-                  )
-                )
-              )
-              .catch(() => {})
+          ? destroyStoredAsset({
+              ...archiveItem,
+              path: path.join(
+                ARCHIVE_STORAGE_DIR,
+                path.basename(archiveItem.storedName)
+              ),
+            }).catch(() => {})
           : Promise.resolve(),
         answerSheetItem?.storedName
-          ? fs.promises
-              .unlink(
-                path.join(
-                  ARCHIVE_STORAGE_DIR,
-                  path.basename(
-                    answerSheetItem.storedName
-                  )
-                )
-              )
-              .catch(() => {})
+          ? destroyStoredAsset({
+              ...answerSheetItem,
+              path: path.join(
+                ARCHIVE_STORAGE_DIR,
+                path.basename(answerSheetItem.storedName)
+              ),
+            }).catch(() => {})
           : Promise.resolve(),
       ]);
     }
@@ -1695,27 +1701,11 @@ async function deletePrivateMockExam({
       : Promise.resolve(),
   ]);
 
-  if (questionPath) {
-    await fs.promises
-      .unlink(questionPath)
-      .catch((error) => {
-        if (
-          error.code !== "ENOENT"
-        ) {
-          throw error;
-        }
-      });
+  if (archiveItem) {
+    await destroyStoredAsset({ ...archiveItem, path: questionPath });
   }
-  if (answerSheetPath) {
-    await fs.promises
-      .unlink(answerSheetPath)
-      .catch((error) => {
-        if (
-          error.code !== "ENOENT"
-        ) {
-          throw error;
-        }
-      });
+  if (answerSheetItem) {
+    await destroyStoredAsset({ ...answerSheetItem, path: answerSheetPath });
   }
 
   return {
@@ -3763,6 +3753,13 @@ async function processPrivateMockSchedule(
           },
         }
       );
+      const {
+        syncPublishedWeeklyMockBonuses,
+      } = require("./finalRankingService");
+      await syncPublishedWeeklyMockBonuses({
+        weekKeys: publishedWeekKeys,
+        now,
+      });
     }
 
     const archiveDue =
@@ -3963,61 +3960,31 @@ async function getPrivateMockEligibility(
     }
   }
 
-  const arenaAccessState =
-    await ArenaAccessState.findOne({
-      userId,
-    })
-      .select("state accessCycleId currentCompetitiveDivision")
-      .lean();
-  const linkedAccessCycle =
-    arenaAccessState?.accessCycleId
-      ? await AccessCycle.findById(
-          arenaAccessState.accessCycleId
-        )
-          .select(
-            "division availableLearningDays reservedLearningDays lockedLearningDays status"
-          )
-          .lean()
-      : null;
-  const linkedLearningDays =
-    arenaAccessState?.currentCompetitiveDivision === "MAIN"
-      ? Number(linkedAccessCycle?.availableLearningDays || 0) +
-        Number(linkedAccessCycle?.reservedLearningDays || 0) +
-        Number(linkedAccessCycle?.lockedLearningDays || 0)
-      : Number(linkedAccessCycle?.availableLearningDays || 0);
-  if (
-    arenaAccessState?.state ===
-      "SUB_ACCESS_EXPIRED_LOCKED" ||
-    (linkedAccessCycle &&
-      linkedLearningDays <= 0)
-  ) {
-    return {
-      allowed: false,
-      status: "access-expired",
-      title:
-        "정기권 학습 가능 일수를 모두 사용했습니다.",
-      message:
-        "학습권 패키지를 다시 구매해야 Matths 주간 공식 모의고사와 GOAT Arena를 이용할 수 있습니다.",
-      ctaLabel:
-        "학습권 패키지 확인",
-      ctaHref: "/goat-arena/profile",
-      availableLearningDays:
-        linkedLearningDays,
-    };
-  }
-  if (
-    !linkedAccessCycle ||
-    linkedAccessCycle.status !== "ACTIVE"
-  ) {
+  const packageAccess =
+    await getWeeklyMockExamAccess(userId);
+  if (!packageAccess.active) {
     return {
       allowed: false,
       status: "payment-required",
-      title: "활성 학습권 패키지가 필요합니다.",
+      title: "이용 중인 패키지가 필요합니다.",
       message:
-        "Matths 주간 공식 모의고사와 GOAT Arena 공식 기능은 학습권 패키지를 이용 중인 회원만 사용할 수 있습니다.",
-      ctaLabel: "학습권 패키지 확인",
-      ctaHref: "/goat-arena/profile",
+        "Matths 주간 공식 모의고사는 모의고사 전용 패키지 또는 학습권 패키지를 이용 중인 회원만 응시할 수 있습니다.",
+      ctaLabel: "패키지 확인",
+      ctaHref: "/pricing",
       availableLearningDays: 0,
+    };
+  }
+
+  if (packageAccess.packageType === "MOCK_EXAM_ONLY") {
+    return {
+      allowed: true,
+      status: "mock-exam-only-ready",
+      title: "Matths 주간 공식 모의고사 응시 가능",
+      message:
+        "모의고사 전용 패키지에서는 배치고사와 GOAT Arena를 이용할 수 없지만, 공식 모의고사 결과로 내부 실력 지표를 계속 계산해 저장합니다.",
+      ctaLabel: "Matths 주간 공식 모의고사 입장",
+      ctaHref: "/private-mock-exams",
+      packageType: "MOCK_EXAM_ONLY",
     };
   }
 
@@ -5338,15 +5305,15 @@ async function getPrivateMockExamFile({
     );
   }
 
-  const filePath =
-    path.join(
-      ARCHIVE_STORAGE_DIR,
-      path.basename(
-        item.storedName
-      )
-    );
+  const cloudUrl = signedCloudinaryUrl(item, {
+    download: false,
+    originalName: item.originalName,
+  });
+  const filePath = item.storageProvider === "CLOUDINARY"
+    ? null
+    : path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName));
 
-  if (!fs.existsSync(filePath)) {
+  if (!cloudUrl && (!filePath || !fs.existsSync(filePath))) {
     throw statusError(
       404,
       "문제지 파일을 찾을 수 없습니다."
@@ -5355,6 +5322,7 @@ async function getPrivateMockExamFile({
 
   return {
     path: filePath,
+    cloudUrl,
     name:
       repairUploadFilename(
         item.originalName
@@ -5429,15 +5397,15 @@ async function getAdminPrivateMockPdfFile({
     );
   }
 
-  const filePath =
-    path.join(
-      ARCHIVE_STORAGE_DIR,
-      path.basename(
-        item.storedName
-      )
-    );
+  const cloudUrl = signedCloudinaryUrl(item, {
+    download: false,
+    originalName: item.originalName,
+  });
+  const filePath = item.storageProvider === "CLOUDINARY"
+    ? null
+    : path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName));
 
-  if (!fs.existsSync(filePath)) {
+  if (!cloudUrl && (!filePath || !fs.existsSync(filePath))) {
     throw statusError(
       404,
       "Matths 주간 공식 모의고사 PDF 파일을 찾을 수 없습니다."
@@ -5446,6 +5414,7 @@ async function getAdminPrivateMockPdfFile({
 
   return {
     path: filePath,
+    cloudUrl,
     name:
       repairUploadFilename(
         item.originalName
@@ -6682,6 +6651,14 @@ async function submitPrivateMockAttempt({
     attempt,
     now,
   });
+  if (!exam.isTest) {
+    const { recordMainQualifyingActivity } = require("./arenaDormancyService");
+    await recordMainQualifyingActivity({
+      userId,
+      activityAt: now,
+      sourceType: `WEEKLY_OFFICIAL_MOCK:${exam._id}`,
+    });
+  }
 
   return {
     elapsedMs:
@@ -6757,6 +6734,7 @@ async function createPrivateMockFormulaResource({
           "개념 자료",
         folderId: null,
         isPublished: false,
+        storagePurpose: STORAGE_PURPOSES.ADMIN_WEEKLY_MOCK,
       });
     await PrivateMockResource.updateMany(
       {
@@ -7002,14 +6980,14 @@ async function submitPrivateMockIntegrityEvidence({
         Number(
           file.size
         ) >
-          15 *
+          10 *
             1024 *
             1024
     )
   ) {
     throw statusError(
       400,
-      "풀이과정은 JPG, PNG, WEBP, HEIC 또는 PDF로, 파일당 15MB 이하로 올려주세요."
+      "풀이과정은 JPG, PNG, WEBP, HEIC 또는 PDF로, 파일당 10MB 이하로 올려주세요."
     );
   }
 
@@ -7039,6 +7017,10 @@ async function submitPrivateMockIntegrityEvidence({
 
   try {
     for (const file of uploadFiles) {
+      const asset = await storeUploadedFile(file, {
+        folder: "matths/private-mock-integrity",
+        purpose: STORAGE_PURPOSES.USER_PRIVATE_MOCK_INTEGRITY,
+      });
       const item =
         await ArchiveItem.create({
           folderId: null,
@@ -7054,10 +7036,7 @@ async function submitPrivateMockIntegrityEvidence({
               file.originalname
             ),
           storedName:
-            path.basename(
-              file.filename ||
-                file.path
-            ),
+            asset?.storedName || path.basename(file.filename || file.path),
           mimeType:
             detectedTypes[
               uploadFiles.indexOf(
@@ -7069,6 +7048,8 @@ async function submitPrivateMockIntegrityEvidence({
           uploadedBy:
             userId,
           isPublished: false,
+          backupStatus: "NOT_CONFIGURED",
+          ...storageFields(asset),
         });
       createdItems.push(
         item
@@ -7712,24 +7693,23 @@ async function getAdminPrivateMockIntegrityEvidenceFile({
     );
   }
 
-  const filePath =
-    path.join(
-      ARCHIVE_STORAGE_DIR,
-      path.basename(
-        item.storedName
-      )
-    );
+  const cloudUrl = signedCloudinaryUrl(item, {
+    download: false,
+    originalName: item.originalName,
+  });
+  const filePath = item.storageProvider === "CLOUDINARY"
+    ? null
+    : path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName));
 
-  if (!fs.existsSync(filePath)) {
+  if (!cloudUrl && (!filePath || !fs.existsSync(filePath))) {
     throw statusError(
       404,
       "소명 자료 파일을 찾을 수 없습니다."
     );
   }
-  const detectedMimeType =
-    await detectIntegrityEvidenceMimeType(
-      filePath
-    );
+  const detectedMimeType = filePath
+    ? await detectIntegrityEvidenceMimeType(filePath)
+    : item.mimeType;
 
   if (
     !detectedMimeType ||
@@ -7744,6 +7724,7 @@ async function getAdminPrivateMockIntegrityEvidenceFile({
 
   return {
     path: filePath,
+    cloudUrl,
     name:
       repairUploadFilename(
         item.originalName
@@ -7948,8 +7929,9 @@ async function resetAndRecalculatePrivateMockMmr(
         weekKey
     );
 
+  const newlyPublishedWeeks = [];
   for (const weekKey of
-    orderedWeeks) {
+        orderedWeeks) {
     const weekExamCount =
       await PrivateMockExam.countDocuments({
         weekKey,
@@ -7996,7 +7978,18 @@ async function resetAndRecalculatePrivateMockMmr(
           },
         }
       );
+      newlyPublishedWeeks.push(weekKey);
     }
+  }
+
+  if (newlyPublishedWeeks.length) {
+    const {
+      syncPublishedWeeklyMockBonuses,
+    } = require("./finalRankingService");
+    await syncPublishedWeeklyMockBonuses({
+      weekKeys: newlyPublishedWeeks,
+      now,
+    });
   }
 
   await refreshOverallRanks();

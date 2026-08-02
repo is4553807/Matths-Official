@@ -26,7 +26,9 @@
     return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
   };
   const numberValue = (name, fallback) => {
-    const value = oldInput?.policyDivision === "MAIN" ? undefined : oldInput?.[name];
+    const value = ["MAIN", "MOCK_EXAM_ONLY", "LEARNING_PACKAGE"].includes(oldInput?.policyDivision)
+      ? undefined
+      : oldInput?.[name];
     return value === undefined || value === "" ? fallback : value;
   };
   const mainValue = (name, fallback) => {
@@ -35,6 +37,7 @@
   };
   const checkedValue = (name, fallback = true) => {
     if (!oldInput) return fallback;
+    if (["MAIN", "MOCK_EXAM_ONLY", "LEARNING_PACKAGE"].includes(oldInput.policyDivision)) return fallback;
     const value = oldInput[name];
     const values = Array.isArray(value) ? value : [value];
     return values.some((entry) => ["true", "1", "on"].includes(String(entry).toLowerCase()));
@@ -80,6 +83,7 @@
   const policyTitle = (policy) =>
     policy.displayName || `${formatDateTime(policy.effectiveFrom)} 적용 정책`;
   const formatWon = (value) => `${new Intl.NumberFormat("ko-KR").format(Number(value) || 0)}원`;
+  const learningPackage = policyData.learningPackage.activePolicy;
 %>
 <!doctype html>
 <html lang="ko">
@@ -101,17 +105,111 @@
           <h1>Arena 정책 관리</h1>
           <span>Sub Division·학습권 패키지 정책과 Main Division 경기 정책을 서로 다른 버전으로 관리합니다.</span>
         </div>
-        <strong><%= policyData.policies.length + policyData.main.policies.length %><small>개 정책</small></strong>
+        <strong><%= policyData.policies.length + policyData.main.policies.length + policyData.mockExamOnly.policies.length %><small>개 정책</small></strong>
       </header>
 
       <% if (feedback) { %><div class="admin-feedback" role="status"><%= feedback %></div><% } %>
       <% if (error) { %><div class="admin-feedback admin-feedback--error" role="alert"><span aria-hidden="true">!</span><%= error %></div><% } %>
 
       <section class="admin-stat-grid" aria-label="현재 적용 정책">
-        <article><span>현재 Sub Division 정책</span><strong><%= policyData.activePolicy ? policyTitle(policyData.activePolicy) : "적용 정책 없음" %></strong></article>
-        <article><span>학습권 패키지 가격</span><strong><%= policyData.activePolicy ? formatWon(policyData.activePolicy.priceAmount) : "—" %></strong></article>
-        <article><span>정기권 학습 가능 일수</span><strong><%= policyData.activePolicy?.initialLearningDays ?? "—" %><small><%= policyData.activePolicy ? "일" : "" %></small></strong></article>
-        <article><span>페이백 점수</span><strong><%= policyData.activePolicy?.initialPaybackScoreDays ?? "—" %><small><%= policyData.activePolicy ? "점" : "" %></small></strong></article>
+        <article><span>현재 Sub Division 정책</span><strong><%= policyTitle(learningPackage) %></strong></article>
+        <article><span>학습권 패키지 가격</span><strong><%= formatWon(learningPackage.priceAmount) %></strong></article>
+        <article><span>정기권 학습 가능 일수</span><strong><%= learningPackage.initialLearningDays %><small>일</small></strong></article>
+        <article><span>페이백 점수</span><strong><%= learningPackage.initialPaybackScoreDays %><small>점</small></strong></article>
+      </section>
+
+      <section class="admin-panel admin-policy-create" id="learning-package">
+        <div class="admin-panel-heading">
+          <div><p>29일 학습 패키지</p><h2>학습·모의고사·Arena 패키지 가격 관리</h2></div>
+          <span>29일 동안 전체 학습 기능과 배치고사, 주간 공식 모의고사, GOAT Arena를 이용하는 상품입니다.</span>
+        </div>
+        <div class="admin-policy-summary-grid">
+          <span>현재 가격 <b><%= formatWon(learningPackage.priceAmount) %></b></span>
+          <span>정기권 학습 가능 일수 <b><%= learningPackage.initialLearningDays %>일</b></span>
+          <span>페이백 점수 초깃값 <b><%= learningPackage.initialPaybackScoreDays %>점</b></span>
+          <span>배치고사·GOAT Arena <b>허용</b></span>
+          <span>페이백 최소 점수 <b><%= learningPackage.payback?.minimumScoreDays ?? 30 %>점</b></span>
+          <span>전일 학습 조건 <b>29일 모두</b></span>
+        </div>
+        <form class="admin-form" action="/admin/arena-policies/learning-package/price" method="POST">
+          <div class="admin-policy-field-grid">
+            <label>
+              <span>새 패키지 가격 <small>원</small></span>
+              <input type="number" name="priceAmount" min="0" max="1000000" step="1" value="<%= oldInput?.policyDivision === 'LEARNING_PACKAGE' ? oldInput.priceAmount : learningPackage.priceAmount %>" required />
+            </label>
+            <label class="wide">
+              <span>변경 사유·운영 메모</span>
+              <input name="changeSummary" maxlength="1000" value="<%= oldInput?.policyDivision === 'LEARNING_PACKAGE' ? oldInput.changeSummary || '' : '' %>" placeholder="예: 첫 달 프로모션 종료 후 29일 정상가 적용" />
+            </label>
+          </div>
+          <button type="submit">새 가격 정책 적용</button>
+        </form>
+        <br />
+      </section>
+
+      <section class="admin-panel admin-policy-create" id="mock-exam-package">
+        <div class="admin-panel-heading">
+          <div><p>모의고사 전용 패키지</p><h2>월 이용 가격 관리</h2></div>
+          <span>주간 공식 모의고사만 허용하고 배치고사와 GOAT Arena는 제한하는 별도 상품입니다.</span>
+        </div>
+        <div class="admin-policy-summary-grid">
+          <span>현재 월 가격 <b><%= formatWon(policyData.mockExamOnly.activePolicy.monthlyPriceAmount) %></b></span>
+          <span>이용 기간 <b><%= policyData.mockExamOnly.activePolicy.billingPeriodDays %>일</b></span>
+          <span>주간 공식 모의고사 <b>허용</b></span>
+          <span>배치고사·GOAT Arena <b>제한</b></span>
+          <span>기존 기록 반영 기준 <b><%= policyData.mockExamOnly.activePolicy.placementCalibrationMinimumWeeklyExams %>회 이상</b></span>
+        </div>
+        <form class="admin-form" action="/admin/arena-policies/mock-exam-only/price" method="POST">
+          <div class="admin-policy-field-grid">
+            <label>
+              <span>새 월 가격 <small>원</small></span>
+              <input type="number" name="monthlyPriceAmount" min="0" max="1000000" step="1" value="<%= oldInput?.policyDivision === 'MOCK_EXAM_ONLY' ? oldInput.monthlyPriceAmount : policyData.mockExamOnly.activePolicy.monthlyPriceAmount %>" required />
+            </label>
+            <label class="wide">
+              <span>변경 사유·운영 메모</span>
+              <input name="changeSummary" maxlength="1000" value="<%= oldInput?.policyDivision === 'MOCK_EXAM_ONLY' ? oldInput.changeSummary || '' : '' %>" placeholder="예: 첫 달 프로모션 종료 후 정상가 적용" />
+            </label>
+          </div>
+          <button type="submit">새 가격 정책 적용</button>
+        </form>
+        <br />
+        <% if (policyData.mockExamOnly.policies.length) { %>
+          <div class="admin-policy-list">
+            <% policyData.mockExamOnly.policies.forEach((policy) => { %>
+              <article class="admin-policy-card <%= policy.status === 'ACTIVE' ? 'is-current' : '' %>">
+                <header>
+                  <div><span><%= policy.status === "ACTIVE" ? "적용 중" : "종료" %></span><h3><%= policy.displayName %></h3><small><%= formatDateTime(policy.effectiveFrom) %>부터</small></div>
+                  <strong><%= formatWon(policy.monthlyPriceAmount) %></strong>
+                </header>
+                <% if (policy.changeSummary) { %><p><%= policy.changeSummary %></p><% } %>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+
+      <section class="admin-panel admin-policy-create" id="main-shop-policy">
+        <div class="admin-panel-heading">
+          <div><p>Main Division 상점</p><h2>판매 가격·아이템 상태 관리</h2></div>
+          <span>저장하면 새 정책 버전을 만들고, GOAT Arena 상점의 실제 구매·학습일수 정산 코드가 새 가격을 즉시 조회합니다.</span>
+        </div>
+        <form class="admin-form" action="/admin/arena-policies/main-shop" method="POST">
+          <div class="admin-policy-field-grid">
+            <% policyData.mainShop.activePolicy.items.forEach((item) => { %>
+              <label>
+                <span><%= item.displayName %> <small>학습일</small></span>
+                <input type="number" name="price_<%= item.itemCode %>" min="1" max="365" step="1" value="<%= oldInput?.policyDivision === 'MAIN_SHOP' ? oldInput[`price_${item.itemCode}`] : item.priceDays %>" required />
+                <span><input type="checkbox" name="enabledItems" value="<%= item.itemCode %>" <%= item.enabled ? "checked" : "" %> /> 현재 판매</span>
+              </label>
+            <% }) %>
+            <label class="wide">
+              <span>변경 사유·운영 메모</span>
+              <input name="changeSummary" maxlength="1000" value="<%= oldInput?.policyDivision === 'MAIN_SHOP' ? oldInput.changeSummary || '' : '' %>" placeholder="예: 2차 편의 기능 판매 시작" />
+            </label>
+          </div>
+          <button type="submit">새 상점 정책 적용</button>
+        </form>
+        <br />
       </section>
 
       <section class="admin-panel admin-policy-create" id="sub-policy">
@@ -123,12 +221,12 @@
           <div class="admin-policy-field-grid">
             <label class="wide"><span>정책 이름</span><input name="displayName" minlength="2" maxlength="120" value="<%= oldInput?.displayName || "" %>" placeholder="예: 첫 달 무료 운영 정책" required /></label>
             <label><span>적용 시작 시각 <small>한국시간</small></span><input type="datetime-local" name="effectiveFrom" value="<%= oldInput?.effectiveFrom || formatLocalInput() %>" required /></label>
-            <label><span>학습권 패키지 가격 <small>원</small></span><input type="number" name="priceAmount" min="0" step="1" value="<%= numberValue("priceAmount", 0) %>" required /></label>
-            <label><span>정기권 학습 가능 일수 초깃값</span><input type="number" name="initialLearningDays" min="1" step="1" value="<%= numberValue("initialLearningDays", 29) %>" required /></label>
+            <label><span>학습권 패키지 가격 <small>원</small></span><input type="number" name="priceAmount" min="0" step="1" value="<%= numberValue("priceAmount", 29000) %>" required /></label>
+            <label><span>정기권 학습 가능 일수 초깃값 <small>고정</small></span><input type="number" name="initialLearningDays" value="29" readonly required /></label>
             <label><span>페이백 점수 초깃값</span><input type="number" name="initialPaybackScoreDays" min="0" step="1" value="<%= numberValue("initialPaybackScoreDays", 29) %>" required /></label>
             <label><span>첫날 차감 기준 시각</span><input type="time" name="paymentDayCutoffKst" value="<%= oldInput?.paymentDayCutoffKst || "20:00" %>" required /></label>
             <label><span>재구매 유예 시간</span><input type="number" name="renewalGraceHours" min="0" step="1" value="<%= numberValue("renewalGraceHours", 72) %>" required /></label>
-            <label><span>랭크 탈환 배치고사 티어 하향 단계</span><input type="number" name="lateRenewalTierPenalty" min="1" step="1" value="<%= numberValue("lateRenewalTierPenalty", 1) %>" required /></label>
+            <label><span>랭크 복귀전 티어 하향 단계</span><input type="number" name="lateRenewalTierPenalty" min="1" step="1" value="<%= numberValue("lateRenewalTierPenalty", 1) %>" required /></label>
             <label><span>일반 쟁탈전 적용 일수 <small>고정</small></span><input type="number" name="normalStakeDays" value="1" readonly required /></label>
             <label><span>복수전 적용 일수 <small>고정</small></span><input type="number" name="revengeStakeDays" value="2" readonly required /></label>
           </div>
@@ -136,7 +234,7 @@
           <fieldset class="admin-policy-fieldset">
             <legend>페이백 자격</legend>
             <div class="admin-policy-field-grid">
-              <label><span>최소 연속 학습일</span><input type="number" name="minimumStreakDays" min="0" step="1" value="<%= numberValue("minimumStreakDays", 30) %>" required /></label>
+              <label><span>최소 연속 학습일 <small>29일 전일 학습</small></span><input type="number" name="minimumStreakDays" value="29" readonly required /></label>
               <label><span>최소 유료 일반 쟁탈전</span><input type="number" name="minimumPaidNormalAttacks" min="0" step="1" value="<%= numberValue("minimumPaidNormalAttacks", 2) %>" required /></label>
               <label><span>최소 페이백 점수</span><input type="number" name="minimumScoreDays" min="0" step="1" value="<%= numberValue("minimumScoreDays", 30) %>" required /></label>
             </div>
@@ -159,7 +257,7 @@
 
           <div class="admin-policy-checks">
             <label class="admin-checkbox"><input type="hidden" name="packagePurchaseRequiresZeroBalance" value="false" /><input type="checkbox" name="packagePurchaseRequiresZeroBalance" value="true" <%= checkedValue("packagePurchaseRequiresZeroBalance") ? "checked" : "" %> /><span>정기권 학습 가능 일수가 0일일 때만 새 패키지 구매 허용</span></label>
-            <label class="admin-checkbox"><input type="hidden" name="packagePurchaseRequiresZeroLockedBalance" value="false" /><input type="checkbox" name="packagePurchaseRequiresZeroLockedBalance" value="true" <%= checkedValue("packagePurchaseRequiresZeroLockedBalance") ? "checked" : "" %> /><span>정산 대기 일수가 0일일 때만 새 패키지 구매 허용</span></label>
+            <label class="admin-checkbox"><input type="hidden" name="packagePurchaseRequiresZeroLockedBalance" value="false" /><input type="checkbox" name="packagePurchaseRequiresZeroLockedBalance" value="true" <%= checkedValue("packagePurchaseRequiresZeroLockedBalance") ? "checked" : "" %> /><span>경기 예치 학습일수가 0일일 때만 새 패키지 구매 허용</span></label>
           </div>
           <label><span>변경 사유·운영 메모</span><textarea name="changeSummary" rows="4" maxlength="1000" placeholder="이전 정책에서 바뀐 가격과 페이백 조건을 적어주세요."><%= oldInput?.changeSummary || "" %></textarea></label>
           <button type="submit">작성 중 정책으로 저장</button>
@@ -181,7 +279,7 @@
                 <span>페이백 점수 <b><%= policy.initialPaybackScoreDays %>점</b></span>
                 <span>일반 쟁탈전 <b><%= policy.matchStakeDays?.normal ?? 1 %>일</b></span>
                 <span>복수전 <b><%= policy.matchStakeDays?.revenge ?? 2 %>일</b></span>
-                <span>연속 학습 <b><%= policy.payback?.minimumStreakDays ?? 30 %>일 이상</b></span>
+                <span>전일 학습 <b><%= policy.payback?.minimumStreakDays ?? 29 %>일 모두</b></span>
                 <span>유료 일반 쟁탈전 <b><%= policy.payback?.minimumPaidNormalAttacks ?? 2 %>회 이상</b></span>
               </div>
               <div class="admin-policy-bands">
@@ -204,45 +302,45 @@
       <section class="admin-stat-grid" id="main-policy" aria-label="현재 Main Division 정책">
         <article><span>현재 Main Division 정책</span><strong><%= policyData.main.activePolicy ? policyTitle(policyData.main.activePolicy) : "적용 정책 없음" %></strong></article>
         <article><span>최대 티어 차이</span><strong><%= policyData.main.activePolicy?.maximumTargetTierGap ?? "—" %><small><%= policyData.main.activePolicy ? "단계" : "" %></small></strong></article>
-        <article><span>복수전 배팅 배수</span><strong><%= policyData.main.activePolicy?.revengeStakeMultiplier ?? "—" %><small><%= policyData.main.activePolicy ? "배" : "" %></small></strong></article>
+        <article><span>복수전 예치 배수</span><strong><%= policyData.main.activePolicy?.revengeStakeMultiplier ?? "—" %><small><%= policyData.main.activePolicy ? "배" : "" %></small></strong></article>
         <article><span>복수전 수수료</span><strong><%= policyData.main.activePolicy?.revengeFeeDays ?? "—" %><small><%= policyData.main.activePolicy ? "일" : "" %></small></strong></article>
       </section>
 
       <section class="admin-panel admin-policy-create">
         <div class="admin-panel-heading">
           <div><p>Main Division</p><h2>Main 경기 정책 만들기</h2></div>
-          <span>목표 티어 차이별 최소 배팅과 초대·복수전 조건은 활성 Main 정책을 런타임에서 직접 조회합니다.</span>
+          <span>목표 티어 차이별 최소 예치 일수와 초대·복수전 조건은 활성 Main Division 정책을 실제 경기 코드에서 직접 조회합니다.</span>
         </div>
         <form class="admin-form" action="/admin/arena-policies/main" method="POST">
           <input type="hidden" name="policyDivision" value="MAIN" />
           <div class="admin-policy-field-grid">
             <label class="wide"><span>정책 이름</span><input name="displayName" minlength="2" maxlength="120" value="<%= oldInput?.policyDivision === "MAIN" ? oldInput.displayName || "" : "" %>" placeholder="예: Main Division 정식 운영 정책" required /></label>
             <label><span>적용 시작 시각 <small>한국시간</small></span><input type="datetime-local" name="effectiveFrom" value="<%= oldInput?.policyDivision === "MAIN" ? oldInput.effectiveFrom || formatLocalInput() : formatLocalInput() %>" required /></label>
-            <label><span>Main 진입 보너스</span><input type="number" name="mainEntryBonusDays" min="0" step="1" value="<%= mainValue("mainEntryBonusDays", 2) %>" required /></label>
-            <label><span>Sub 이월 차감 기준</span><input type="number" name="mainCarryoverBaseDays" min="0" step="1" value="<%= mainValue("mainCarryoverBaseDays", 29) %>" required /></label>
+            <label><span>Main Division 진입 보너스</span><input type="number" name="mainEntryBonusDays" min="0" step="1" value="<%= mainValue("mainEntryBonusDays", 2) %>" required /></label>
+            <label><span>Sub Division 이월 차감 기준</span><input type="number" name="mainCarryoverBaseDays" min="0" step="1" value="<%= mainValue("mainCarryoverBaseDays", 29) %>" required /></label>
             <label><span>최대 티어 차이</span><input type="number" name="maximumTargetTierGap" min="1" step="1" value="<%= mainValue("maximumTargetTierGap", 3) %>" required /></label>
             <label><span>초대 자동 취소 수수료</span><input type="number" name="invitationCancellationFeeDays" min="0" step="1" value="<%= mainValue("invitationCancellationFeeDays", 1) %>" required /></label>
             <label><span>최근 상대 제외 기간</span><input type="number" name="repeatOpponentExclusionDays" min="0" step="1" value="<%= mainValue("repeatOpponentExclusionDays", 7) %>" required /></label>
             <label><span>목표 티어별 활성 예약 상한</span><input type="number" name="maximumActiveInvitationReservationsPerTargetTier" min="1" max="1" step="1" value="1" readonly required /></label>
             <label><span>초대 동시 발송 인원 <small>비우면 전체 적격 후보</small></span><input type="number" name="invitationOfferBatchSize" min="1" step="1" value="<%= mainValue("invitationOfferBatchSize", "") %>" /></label>
-            <label><span>복수전 배팅 배수</span><input type="number" name="revengeStakeMultiplier" min="1" step="1" value="<%= mainValue("revengeStakeMultiplier", 2) %>" required /></label>
+            <label><span>복수전 예치 배수</span><input type="number" name="revengeStakeMultiplier" min="1" step="1" value="<%= mainValue("revengeStakeMultiplier", 2) %>" required /></label>
             <label><span>복수전 기본 수수료</span><input type="number" name="revengeFeeDays" min="0" step="1" value="<%= mainValue("revengeFeeDays", 1) %>" required /></label>
           </div>
           <fieldset class="admin-policy-fieldset">
-            <legend>티어 차이별 최소 배팅</legend>
+            <legend>티어 차이별 최소 예치 일수</legend>
             <p>현재 확정값은 1단계 1일, 2단계 2일, 3단계 3일이며 최대 3단계입니다.</p>
             <div class="admin-policy-band-list">
               <% [1, 2, 3].forEach((gap) => { %>
                 <div>
                   <strong><%= gap %>단계 차이</strong>
                   <input type="hidden" name="mainTierGaps" value="<%= gap %>" />
-                  <label><span>최소 배팅 일수</span><input type="number" name="mainMinimumStakeDays" min="1" step="1" value="<%= Array.isArray(oldInput?.mainMinimumStakeDays) && oldInput?.policyDivision === "MAIN" ? oldInput.mainMinimumStakeDays[gap - 1] : gap %>" required /></label>
+                  <label><span>최소 예치 일수</span><input type="number" name="mainMinimumStakeDays" min="1" step="1" value="<%= Array.isArray(oldInput?.mainMinimumStakeDays) && oldInput?.policyDivision === "MAIN" ? oldInput.mainMinimumStakeDays[gap - 1] : gap %>" required /></label>
                 </div>
               <% }) %>
             </div>
           </fieldset>
           <label><span>변경 사유·운영 메모</span><textarea name="changeSummary" rows="4" maxlength="1000"><%= oldInput?.policyDivision === "MAIN" ? oldInput.changeSummary || "" : "" %></textarea></label>
-          <button type="submit">Main 정책을 작성 중으로 저장</button>
+          <button type="submit">Main Division 정책을 작성 중으로 저장</button>
         </form>
       </section>
 

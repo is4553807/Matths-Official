@@ -207,7 +207,7 @@ const subscriptionPolicyVersionSchema = new Schema(
       minimumStreakDays: {
         type: Number,
         min: 0,
-        default: 30,
+        default: 29,
       },
       minimumPaidNormalAttacks: {
         type: Number,
@@ -485,6 +485,155 @@ arenaPackagePaymentSchema.index(
   { unique: true }
 );
 
+/*
+ * Matths 주간 공식 모의고사만 이용하는 월 구독 상품입니다. Arena 학습권
+ * 패키지와 권한·결제 이력을 섞지 않아 배치고사와 Arena 접근이 잘못
+ * 열리지 않도록 별도 정책과 이용권으로 관리합니다.
+ */
+const mockExamPackagePolicyVersionSchema = new Schema(
+  {
+    code: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      uppercase: true,
+      maxlength: 80,
+    },
+    displayName: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+      default: "모의고사 전용 패키지",
+    },
+    status: {
+      type: String,
+      enum: ["DRAFT", "ACTIVE", "RETIRED"],
+      default: "DRAFT",
+      index: true,
+    },
+    effectiveFrom: {
+      type: Date,
+      required: true,
+      index: true,
+    },
+    effectiveUntil: {
+      type: Date,
+      default: null,
+    },
+    currency: {
+      type: String,
+      default: "KRW",
+      uppercase: true,
+      maxlength: 3,
+    },
+    monthlyPriceAmount: {
+      type: Number,
+      min: 0,
+      required: true,
+      default: 5000,
+    },
+    billingPeriodDays: {
+      type: Number,
+      min: 1,
+      default: 30,
+    },
+    weeklyMockExamAllowed: {
+      type: Boolean,
+      default: true,
+      immutable: true,
+    },
+    placementExamAllowed: {
+      type: Boolean,
+      default: false,
+      immutable: true,
+    },
+    goatArenaAllowed: {
+      type: Boolean,
+      default: false,
+      immutable: true,
+    },
+    placementCalibrationMinimumWeeklyExams: {
+      type: Number,
+      min: 1,
+      default: 4,
+    },
+    changeSummary: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: "",
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    activatedAt: { type: Date, default: null },
+    activatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    retiredAt: { type: Date, default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+mockExamPackagePolicyVersionSchema.index({
+  status: 1,
+  effectiveFrom: -1,
+});
+
+const mockExamSubscriptionSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    policyVersionId: {
+      type: Schema.Types.ObjectId,
+      ref: "MockExamPackagePolicyVersion",
+      required: true,
+    },
+    policySnapshot: {
+      code: { type: String, required: true },
+      monthlyPriceAmount: { type: Number, min: 0, required: true },
+      currency: { type: String, default: "KRW" },
+      billingPeriodDays: { type: Number, min: 1, default: 30 },
+      placementCalibrationMinimumWeeklyExams: {
+        type: Number,
+        min: 1,
+        default: 4,
+      },
+    },
+    status: {
+      type: String,
+      enum: ["PENDING", "ACTIVE", "EXPIRED", "CANCELLED", "REFUNDED"],
+      default: "PENDING",
+      index: true,
+    },
+    purchaseMode: {
+      type: String,
+      enum: ["SELF", "PARENT_REQUEST", "ADMIN_GRANT"],
+      required: true,
+    },
+    startsAt: { type: Date, required: true, index: true },
+    endsAt: { type: Date, required: true, index: true },
+    activatedAt: { type: Date, default: null },
+    cancelledAt: { type: Date, default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+mockExamSubscriptionSchema.index(
+  { userId: 1, status: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: "ACTIVE" },
+  }
+);
+
 const accessCycleSchema = new Schema(
   {
     userId: {
@@ -616,6 +765,11 @@ const accessCycleSchema = new Schema(
       default: null,
       index: true,
     },
+    dailyConsumptionPausedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
     depletedAt: {
       type: Date,
       default: null,
@@ -631,6 +785,12 @@ const accessCycleSchema = new Schema(
       min: 0,
       default: 0,
     },
+    lastStreakDateKst: {
+      type: String,
+      match: /^\d{4}-\d{2}-\d{2}$/,
+      default: null,
+      index: true,
+    },
     cashbackQualified: {
       type: Boolean,
       default: false,
@@ -645,6 +805,16 @@ const accessCycleSchema = new Schema(
       type: Number,
       min: 0,
       default: 0,
+    },
+    paybackPayoutStatus: {
+      type: String,
+      enum: ["NOT_APPLICABLE", "PENDING", "COMPLETED", "CANCELLED"],
+      default: "NOT_APPLICABLE",
+      index: true,
+    },
+    paybackPayoutCompletedAt: {
+      type: Date,
+      default: null,
     },
     paybackDisqualifiers: {
       type: [String],
@@ -738,6 +908,141 @@ accessCycleSchema.index(
   }
 );
 
+/*
+ * 학습권 이용 종료 예정 알림의 채널별 발송 상태입니다. 이용 주기와
+ * 72·24·6시간 구간 조합을 유일하게 만들어 스케줄러 재시작과 동시
+ * 실행에서도 사이트 우편함·이메일이 중복 생성되지 않게 합니다.
+ */
+const accessCycleExpiryReminderSchema = new Schema(
+  {
+    accessCycleId: {
+      type: Schema.Types.ObjectId,
+      ref: "AccessCycle",
+      required: true,
+      index: true,
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    thresholdHours: {
+      type: Number,
+      enum: [72, 24, 6],
+      required: true,
+    },
+    expiryAtSnapshot: {
+      type: Date,
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: [
+        "PENDING",
+        "SENDING",
+        "PARTIAL",
+        "SENT",
+        "SKIPPED",
+        "CANCELLED",
+      ],
+      default: "PENDING",
+      index: true,
+    },
+    skipReason: {
+      type: String,
+      trim: true,
+      maxlength: 160,
+      default: "",
+    },
+    siteStatus: {
+      type: String,
+      enum: ["PENDING", "SENT", "SKIPPED", "FAILED"],
+      default: "PENDING",
+    },
+    siteNotificationId: {
+      type: Schema.Types.ObjectId,
+      ref: "UserNotification",
+      default: null,
+    },
+    siteDeliveredAt: {
+      type: Date,
+      default: null,
+    },
+    emailStatus: {
+      type: String,
+      enum: [
+        "PENDING",
+        "SENT",
+        "PREVIEW",
+        "SKIPPED",
+        "FAILED",
+      ],
+      default: "PENDING",
+    },
+    emailAttempts: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    emailLastAttemptAt: {
+      type: Date,
+      default: null,
+    },
+    emailNextRetryAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    emailDeliveredAt: {
+      type: Date,
+      default: null,
+    },
+    emailProviderMessageId: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+      default: "",
+    },
+    emailLastError: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: "",
+    },
+    deliveryAttempts: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    leaseToken: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: "",
+    },
+    leaseExpiresAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    deliveredAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { timestamps: true, versionKey: false }
+);
+accessCycleExpiryReminderSchema.index(
+  { accessCycleId: 1, thresholdHours: 1 },
+  { unique: true }
+);
+accessCycleExpiryReminderSchema.index({
+  status: 1,
+  emailNextRetryAt: 1,
+  leaseExpiresAt: 1,
+});
+
 const arenaStandingSchema = new Schema(
   {
     userId: {
@@ -775,6 +1080,20 @@ const arenaStandingSchema = new Schema(
       max: 100,
       default: null,
     },
+    seedPlacementElapsedTimeMs: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    seedPlacementMmr: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    seedPlacementStartedAt: {
+      type: Date,
+      default: null,
+    },
     seededAt: {
       type: Date,
       default: null,
@@ -795,7 +1114,13 @@ const arenaStandingSchema = new Schema(
     arenaGp: {
       type: Number,
       min: 0,
+      max: 99,
       required: true,
+    },
+    gpScaleVersion: {
+      type: String,
+      default: "TIER_LOCAL_0_99_V1",
+      immutable: true,
     },
     status: {
       type: String,
@@ -900,6 +1225,7 @@ const arenaAccessStateSchema = new Schema(
         "PAID_PENDING_RENEWAL_ASSESSMENT",
         "SEASON_PLACEMENT_REQUIRED",
         "PAYMENT_REQUIRED",
+        "MAIN_DORMANT",
       ],
       default: "SEASON_PLACEMENT_REQUIRED",
       index: true,
@@ -920,6 +1246,44 @@ const arenaAccessStateSchema = new Schema(
     },
     renewalGraceDeadline: {
       type: Date,
+      default: null,
+    },
+    dormancyReturnRequiredAt: {
+      type: Date,
+      default: null,
+    },
+    dormancySourceLastLoginAt: {
+      type: Date,
+      default: null,
+    },
+    lastMainQualifyingActivityAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    mainInactivityStartedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    mainInactivityStartAvailableDays: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    mainDormancyStartedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    mainDormancyFrozenLearningDays: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    mainDormancyRecoveryMode: {
+      type: String,
+      enum: ["RESUME_MAIN", "SUB_STANDARD_FLOW", null],
       default: null,
     },
     lastMainSnapshotId: {
@@ -944,6 +1308,17 @@ const arenaAccessStateSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    integrityStatus: {
+      type: String,
+      enum: ["CLEAR", "REVIEW_REQUIRED", "RESTRICTED"],
+      default: "CLEAR",
+      index: true,
+    },
+    integrityCaseId: {
+      type: Schema.Types.ObjectId,
+      ref: "ArenaIntegrityRiskCase",
+      default: null,
+    },
     reasonCode: {
       type: String,
       trim: true,
@@ -954,6 +1329,195 @@ const arenaAccessStateSchema = new Schema(
   {
     timestamps: true,
     versionKey: false,
+  }
+);
+
+const arenaIntegrityLinkSignalSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    signalType: {
+      type: String,
+      enum: [
+        "DEVICE_TOKEN",
+        "BROWSER_SIGNATURE",
+        "NETWORK_ADDRESS",
+        "NETWORK_BUCKET",
+        "PAYMENT_INSTRUMENT",
+        "PAYBACK_ACCOUNT",
+      ],
+      required: true,
+      index: true,
+    },
+    signalHash: {
+      type: String,
+      required: true,
+      match: /^[a-f0-9]{64}$/,
+      select: false,
+    },
+    sourceType: {
+      type: String,
+      trim: true,
+      maxlength: 80,
+      default: "",
+    },
+    firstSeenAt: {
+      type: Date,
+      required: true,
+    },
+    lastSeenAt: {
+      type: Date,
+      required: true,
+      index: true,
+    },
+    occurrences: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    expiresAt: {
+      type: Date,
+      required: true,
+      index: { expires: 0 },
+    },
+  },
+  { timestamps: true, versionKey: false }
+);
+arenaIntegrityLinkSignalSchema.index(
+  { userId: 1, signalType: 1, signalHash: 1 },
+  { unique: true }
+);
+arenaIntegrityLinkSignalSchema.index({
+  signalType: 1,
+  signalHash: 1,
+  expiresAt: 1,
+});
+
+const arenaIntegrityRiskReasonSchema = new Schema(
+  {
+    code: { type: String, required: true, maxlength: 80 },
+    label: { type: String, required: true, maxlength: 160 },
+    description: { type: String, default: "", maxlength: 500 },
+    points: { type: Number, min: 0, required: true },
+    count: { type: Number, min: 0, default: 0 },
+    relatedUserIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
+      default: [],
+    },
+    relatedMatchIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "ArenaMatch" }],
+      default: [],
+    },
+  },
+  { _id: false }
+);
+
+const arenaIntegrityRiskProfileSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true,
+    },
+    status: {
+      type: String,
+      enum: ["CLEAR", "REVIEW_REQUIRED", "RESTRICTED"],
+      default: "CLEAR",
+      index: true,
+    },
+    riskScore: { type: Number, min: 0, max: 100, default: 0 },
+    riskLevel: {
+      type: String,
+      enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+      default: "LOW",
+    },
+    signalCodes: { type: [String], default: [] },
+    linkedUserIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
+      default: [],
+    },
+    relatedMatchIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "ArenaMatch" }],
+      default: [],
+    },
+    windowStartedAt: { type: Date, default: null },
+    windowEndedAt: { type: Date, default: null },
+    evaluatedAt: { type: Date, default: null, index: true },
+    policyVersion: {
+      type: String,
+      default: "ARENA-INTEGRITY-RISK-V1",
+    },
+    evidenceHash: { type: String, default: "", maxlength: 64 },
+    lastReviewedEvidenceHash: { type: String, default: "", maxlength: 64 },
+    currentCaseId: {
+      type: Schema.Types.ObjectId,
+      ref: "ArenaIntegrityRiskCase",
+      default: null,
+    },
+    reviewedAt: { type: Date, default: null },
+    reviewedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+const arenaIntegrityRiskCaseSchema = new Schema(
+  {
+    activeCaseKey: {
+      type: String,
+      trim: true,
+      maxlength: 160,
+      default: undefined,
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    status: {
+      type: String,
+      enum: ["OPEN", "CLEARED", "CONFIRMED"],
+      default: "OPEN",
+      index: true,
+    },
+    riskScore: { type: Number, min: 0, max: 100, required: true },
+    riskLevel: {
+      type: String,
+      enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+      required: true,
+    },
+    reasons: { type: [arenaIntegrityRiskReasonSchema], default: [] },
+    linkedUserIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
+      default: [],
+    },
+    relatedMatchIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "ArenaMatch" }],
+      default: [],
+    },
+    windowStartedAt: { type: Date, default: null },
+    windowEndedAt: { type: Date, default: null },
+    policyVersion: {
+      type: String,
+      default: "ARENA-INTEGRITY-RISK-V1",
+    },
+    evidenceHash: { type: String, required: true, maxlength: 64 },
+    reviewedAt: { type: Date, default: null },
+    reviewedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    decisionNote: { type: String, trim: true, maxlength: 1000, default: "" },
+  },
+  { timestamps: true, versionKey: false }
+);
+arenaIntegrityRiskCaseSchema.index(
+  { activeCaseKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { activeCaseKey: { $type: "string" } },
   }
 );
 
@@ -998,6 +1562,14 @@ const arenaLearningDayLedgerSchema = new Schema(
         "REVENGE_STAKE_RELEASED",
         "REVENGE_FEE_BURN",
         "REVENGE_NO_SHOW_PARTIAL_REFUND",
+        "SHOP_ITEM_PURCHASE_BURN",
+        "SHOP_ITEM_PURCHASE_REVERSAL",
+        "SHOP_ITEM_EFFECT_APPLIED",
+        "SHOP_ITEM_EFFECT_EXPIRED",
+        "SHOP_ITEM_EFFECT_CANCELLED",
+        "DEFENSE_SCHEDULE_PROTECTION_COMPENSATION_TRANSFER",
+        "DEFENSE_SCHEDULE_PROTECTION_BURN",
+        "DEFENSE_SCHEDULE_PROTECTION_DEPOSIT_RELEASE",
         "BONUS_GRANTED",
         "ADMIN_ADJUSTMENT",
       ],
@@ -1274,7 +1846,7 @@ mainDivisionPolicyVersionSchema.path(
 ).validate(function validateUniqueMainTierGaps(bands) {
   const gaps = (bands || []).map((band) => Number(band.tierGap));
   return gaps.length === new Set(gaps).size;
-}, "Main Division 티어 차이별 배팅표에 같은 티어 차이를 중복할 수 없습니다.");
+}, "Main Division 티어 차이별 예치 기준표에 같은 티어 차이를 중복할 수 없습니다.");
 
 mainDivisionPolicyVersionSchema.path(
   "status"
@@ -1294,7 +1866,7 @@ mainDivisionPolicyVersionSchema.path(
       (gap, index) => gap === index + 1
     )
   );
-}, "Main Division 활성 정책에는 티어별 배팅표와 최대 공격 티어 차이가 필요합니다.");
+}, "Main Division 활성 정책에는 티어별 예치 기준표와 최대 공격 티어 차이가 필요합니다.");
 
 mainDivisionPolicyVersionSchema.path(
   "effectiveUntil"
@@ -1513,6 +2085,15 @@ const mainInvitationRequestSchema = new Schema(
       default: null,
     },
     matchedAt: {
+      type: Date,
+      default: null,
+    },
+    acceleratedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    accelerationEndsAt: {
       type: Date,
       default: null,
     },
@@ -1895,7 +2476,13 @@ const arenaTupleSchema = new Schema(
     arenaGp: {
       type: Number,
       min: 0,
+      max: 99,
       required: true,
+    },
+    gpScaleVersion: {
+      type: String,
+      default: "TIER_LOCAL_0_99_V1",
+      immutable: true,
     },
   },
   { _id: false }
@@ -1932,6 +2519,15 @@ const arenaSnapshotSchema = new Schema(
       type: Number,
       min: 0,
       required: true,
+    },
+    overallPosition: {
+      type: Number,
+      min: 1,
+      default: null,
+    },
+    positionReachedAt: {
+      type: Date,
+      default: null,
     },
     percentile: {
       type: Number,
@@ -2041,6 +2637,22 @@ const mainToSubConversionResultSchema =
         type: String,
         required: true,
       },
+      mainPercentile: {
+        type: Number,
+        min: 0,
+        max: 1,
+        required: true,
+      },
+      referenceSubOverallPosition: {
+        type: Number,
+        min: 1,
+        required: true,
+      },
+      subParticipantCountAtConversion: {
+        type: Number,
+        min: 0,
+        required: true,
+      },
       referenceSubGp: {
         type: Number,
         min: 0,
@@ -2051,6 +2663,19 @@ const mainToSubConversionResultSchema =
         min: 0,
         max: 1,
         required: true,
+      },
+      renewalGraceDeadline: {
+        type: Date,
+        required: true,
+      },
+      snapshotValid: {
+        type: Boolean,
+        default: true,
+      },
+      integrityStatus: {
+        type: String,
+        enum: ["CLEAR", "HELD", "INVALID"],
+        default: "CLEAR",
       },
     },
     { timestamps: true, versionKey: false }
@@ -2155,6 +2780,14 @@ const liveFinalRankingProfileSchema = new Schema(
       type: Number,
       default: 0,
     },
+    stagedWeeklyMockBonus: {
+      type: Number,
+      default: null,
+    },
+    publishedWeeklyMockBonus: {
+      type: Number,
+      default: 0,
+    },
     seasonSubStartPercentile: Number,
     seasonSubCurrentPercentile: Number,
     seasonSubEndPercentile: Number,
@@ -2162,6 +2795,19 @@ const liveFinalRankingProfileSchema = new Schema(
     seasonMainCurrentPercentile: Number,
     referenceSubPercentile: Number,
     actualRenewalSubPercentile: Number,
+    frozenSubGrowth: {
+      type: Number,
+      default: 0,
+    },
+    seasonSettledNormalAttackCount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    temporaryAdjustment: {
+      type: Number,
+      default: 0,
+    },
     finalRating: {
       type: Number,
       required: true,
@@ -2171,12 +2817,44 @@ const liveFinalRankingProfileSchema = new Schema(
       min: 1,
       required: true,
     },
+    stagedFinalRating: {
+      type: Number,
+      default: null,
+    },
+    stagedFinalRank: {
+      type: Number,
+      min: 1,
+      default: null,
+    },
+    publishedFinalRating: {
+      type: Number,
+      default: null,
+    },
+    publishedFinalRank: {
+      type: Number,
+      min: 1,
+      default: null,
+    },
+    previousPublishedFinalRating: {
+      type: Number,
+      default: null,
+    },
+    previousPublishedFinalRank: {
+      type: Number,
+      min: 1,
+      default: null,
+    },
+    lastPublishedAt: {
+      type: Date,
+      default: null,
+    },
     status: {
       type: String,
       enum: [
         "ACTIVE",
         "INACTIVE_ACCESS_EXPIRED",
         "INACTIVE_PLACEMENT_REQUIRED",
+        "INACTIVE_DORMANT",
         "PENDING_RENEWAL_RANK_ASSESSMENT",
         "SUNDAY_DISPLAY_FROZEN",
       ],
@@ -2195,6 +2873,95 @@ liveFinalRankingProfileSchema.index(
   { seasonId: 1, userId: 1 },
   { unique: true }
 );
+
+const mainShopPolicyItemSchema = new Schema(
+  {
+    itemCode: { type: String, required: true, trim: true, uppercase: true },
+    displayName: { type: String, required: true, trim: true, maxlength: 120 },
+    priceDays: { type: Number, min: 1, required: true },
+    enabled: { type: Boolean, default: true },
+    releasePhase: { type: Number, min: 1, max: 2, default: 1 },
+  },
+  { _id: false }
+);
+
+const mainShopPolicyVersionSchema = new Schema(
+  {
+    code: { type: String, required: true, unique: true, trim: true, maxlength: 80 },
+    displayName: { type: String, required: true, trim: true, maxlength: 120 },
+    status: {
+      type: String,
+      enum: ["DRAFT", "ACTIVE", "RETIRED"],
+      default: "DRAFT",
+      index: true,
+    },
+    effectiveFrom: { type: Date, required: true, index: true },
+    effectiveUntil: { type: Date, default: null, index: true },
+    timezone: { type: String, default: "Asia/Seoul" },
+    items: { type: [mainShopPolicyItemSchema], default: [] },
+    defenseConvenienceCooldownDays: { type: Number, min: 1, default: 7 },
+    cosmeticRolloverWindowDays: { type: Number, min: 0, default: 10 },
+    analysisTimeoutMs: { type: Number, min: 1000, default: 5 * 60 * 1000 },
+    analysisMaximumRetries: { type: Number, min: 0, default: 2 },
+    changeSummary: { type: String, trim: true, maxlength: 1000, default: "" },
+  },
+  { timestamps: true, versionKey: false }
+);
+mainShopPolicyVersionSchema.index({ status: 1, effectiveFrom: -1 });
+mainShopPolicyVersionSchema.path("items").validate(function validateUniqueShopItems(items) {
+  const codes = (items || []).map((item) => String(item.itemCode || "").toUpperCase());
+  return codes.length > 0 && codes.length === new Set(codes).size;
+}, "Main Division 상점 정책에는 중복되지 않은 아이템이 하나 이상 필요합니다.");
+
+const mainShopPurchaseSchema = new Schema(
+  {
+    purchaseKey: { type: String, required: true, unique: true, trim: true, maxlength: 180 },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    accessCycleId: { type: Schema.Types.ObjectId, ref: "AccessCycle", required: true, index: true },
+    itemCode: { type: String, required: true, trim: true, uppercase: true, index: true },
+    itemDisplayName: { type: String, required: true, trim: true, maxlength: 120 },
+    policyVersionId: { type: Schema.Types.ObjectId, ref: "MainShopPolicyVersion", required: true },
+    policyVersionCode: { type: String, required: true, trim: true, maxlength: 80 },
+    priceDays: { type: Number, min: 1, required: true },
+    beforeAvailableDays: { type: Number, min: 0, required: true },
+    afterAvailableDays: { type: Number, min: 0, required: true },
+    relatedMatchId: { type: Schema.Types.ObjectId, ref: "ArenaMatch", default: null, index: true },
+    relatedInvitationId: { type: Schema.Types.ObjectId, ref: "MainInvitationRequest", default: null },
+    status: {
+      type: String,
+      enum: ["PENDING", "COMPLETED", "REVERSED", "FAILED"],
+      default: "PENDING",
+      index: true,
+    },
+    purchasedAt: { type: Date, required: true, default: Date.now },
+    reversedAt: { type: Date, default: null },
+    reversalReason: { type: String, trim: true, maxlength: 500, default: "" },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+const mainShopEffectSchema = new Schema(
+  {
+    purchaseId: { type: Schema.Types.ObjectId, ref: "MainShopPurchase", required: true, unique: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    itemCode: { type: String, required: true, trim: true, uppercase: true, index: true },
+    status: {
+      type: String,
+      enum: ["PENDING", "ACTIVE", "APPLIED", "EXPIRED", "CANCELLED", "FAILED"],
+      default: "PENDING",
+      index: true,
+    },
+    startsAt: { type: Date, required: true, default: Date.now },
+    endsAt: { type: Date, default: null, index: true },
+    relatedMatchId: { type: Schema.Types.ObjectId, ref: "ArenaMatch", default: null, index: true },
+    relatedInvitationId: { type: Schema.Types.ObjectId, ref: "MainInvitationRequest", default: null, index: true },
+    metadata: { type: Schema.Types.Mixed, default: {} },
+    appliedAt: { type: Date, default: null },
+    expiredAt: { type: Date, default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+mainShopEffectSchema.index({ userId: 1, itemCode: 1, status: 1 });
 
 const arenaMatchParticipantSchema = new Schema(
   {
@@ -3125,6 +3892,7 @@ const arenaMatchSchema = new Schema(
         "INVALID",
         "SETTLED",
         "CANCELLED",
+        "INSURED_CANCELLED",
       ],
       default: "REQUESTED",
       index: true,
@@ -3263,6 +4031,29 @@ const arenaMatchEvidenceFileSchema = new Schema(
       required: true,
       match: /^[a-f0-9]{64}$/,
     },
+    storageProvider: {
+      type: String,
+      enum: ["LOCAL", "CLOUDINARY", "PURGED"],
+      default: "LOCAL",
+    },
+    storagePurpose: {
+      type: String,
+      enum: ["GENERIC", "USER_ARENA_EVIDENCE"],
+      default: "GENERIC",
+    },
+    cloudPublicId: { type: String, maxlength: 500, default: "" },
+    cloudResourceType: {
+      type: String,
+      enum: ["image", "video", "raw", ""],
+      default: "",
+    },
+    cloudDeliveryType: {
+      type: String,
+      enum: ["authenticated", "private", "upload", ""],
+      default: "",
+    },
+    cloudVersion: { type: Number, default: null },
+    cloudFormat: { type: String, maxlength: 40, default: "" },
   },
   { _id: false }
 );
@@ -3306,9 +4097,23 @@ const arenaMatchEvidenceSchema = new Schema(
     anomalyFlags: { type: [String], default: [] },
     reviewedAt: { type: Date, default: null },
     reviewedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    retentionUntil: {
+      type: Date,
+      required: true,
+      default: () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      index: true,
+    },
+    retentionHoldReason: { type: String, trim: true, maxlength: 200, default: "" },
+    contentPurgedAt: { type: Date, default: null, index: true },
   },
   { timestamps: true, versionKey: false }
 );
+
+arenaMatchEvidenceSchema.index({
+  retentionUntil: 1,
+  contentPurgedAt: 1,
+  status: 1,
+});
 
 const arenaStandingChangeLedgerSchema =
   new Schema(
@@ -3394,6 +4199,66 @@ arenaPaybackReviewSchema.index(
   { unique: true }
 );
 
+const arenaAchievementBadgeSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    badgeCode: {
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
+      maxlength: 100,
+    },
+    displayName: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120,
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: "",
+    },
+    seasonKey: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 80,
+    },
+    sourceType: {
+      type: String,
+      enum: ["MAIN_SEASON_REWARD", "MAIN_ACHIEVEMENT", "ADMIN_GRANT"],
+      required: true,
+    },
+    awardedAt: {
+      type: Date,
+      default: Date.now,
+      immutable: true,
+    },
+    revokedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    metadata: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+  },
+  { timestamps: true, versionKey: false }
+);
+arenaAchievementBadgeSchema.index(
+  { userId: 1, badgeCode: 1, seasonKey: 1 },
+  { unique: true }
+);
+
 const arenaOutboxEventSchema = new Schema(
   {
     eventType: {
@@ -3435,6 +4300,25 @@ const arenaOutboxEventSchema = new Schema(
         "ArenaRevengeForfeited",
         "ArenaRevengeMatchCreated",
         "ArenaRevengeNoShowSettled",
+        "ArenaPaybackQualified",
+        "ArenaPaybackNotQualified",
+        "ArenaPaybackPayoutCompleted",
+        "MainEntryActivated",
+        "FinalRankingRecalculated",
+        "FinalRankingFrozen",
+        "FinalRankingPublished",
+        "ArenaSeasonArchived",
+        "ArenaSeasonOpened",
+        "ArenaDormancyReturnRequired",
+        "MainQualifyingActivityRecorded",
+        "MainDormancyStarted",
+        "MainDormancyResumed",
+        "MainDormancyDemotedToSub",
+        "ArenaMatchInsuredCancelled",
+        "MainShopItemPurchased",
+        "MainShopItemReversed",
+        "MainShopEffectApplied",
+        "MainShopEffectExpired",
       ],
       required: true,
       index: true,
@@ -3478,9 +4362,27 @@ const ArenaPackagePayment =
     "ArenaPackagePayment",
     arenaPackagePaymentSchema
   );
+const MockExamPackagePolicyVersion =
+  mongoose.models.MockExamPackagePolicyVersion ||
+  mongoose.model(
+    "MockExamPackagePolicyVersion",
+    mockExamPackagePolicyVersionSchema
+  );
+const MockExamSubscription =
+  mongoose.models.MockExamSubscription ||
+  mongoose.model(
+    "MockExamSubscription",
+    mockExamSubscriptionSchema
+  );
 const AccessCycle =
   mongoose.models.AccessCycle ||
   mongoose.model("AccessCycle", accessCycleSchema);
+const AccessCycleExpiryReminder =
+  mongoose.models.AccessCycleExpiryReminder ||
+  mongoose.model(
+    "AccessCycleExpiryReminder",
+    accessCycleExpiryReminderSchema
+  );
 const ArenaStanding =
   mongoose.models.ArenaStanding ||
   mongoose.model(
@@ -3498,6 +4400,24 @@ const ArenaAccessState =
   mongoose.model(
     "ArenaAccessState",
     arenaAccessStateSchema
+  );
+const ArenaIntegrityLinkSignal =
+  mongoose.models.ArenaIntegrityLinkSignal ||
+  mongoose.model(
+    "ArenaIntegrityLinkSignal",
+    arenaIntegrityLinkSignalSchema
+  );
+const ArenaIntegrityRiskProfile =
+  mongoose.models.ArenaIntegrityRiskProfile ||
+  mongoose.model(
+    "ArenaIntegrityRiskProfile",
+    arenaIntegrityRiskProfileSchema
+  );
+const ArenaIntegrityRiskCase =
+  mongoose.models.ArenaIntegrityRiskCase ||
+  mongoose.model(
+    "ArenaIntegrityRiskCase",
+    arenaIntegrityRiskCaseSchema
   );
 const ArenaLearningDayLedger =
   mongoose.models.ArenaLearningDayLedger ||
@@ -3571,6 +4491,24 @@ const LiveFinalRankingProfile =
     "LiveFinalRankingProfile",
     liveFinalRankingProfileSchema
   );
+const MainShopPolicyVersion =
+  mongoose.models.MainShopPolicyVersion ||
+  mongoose.model(
+    "MainShopPolicyVersion",
+    mainShopPolicyVersionSchema
+  );
+const MainShopPurchase =
+  mongoose.models.MainShopPurchase ||
+  mongoose.model(
+    "MainShopPurchase",
+    mainShopPurchaseSchema
+  );
+const MainShopEffect =
+  mongoose.models.MainShopEffect ||
+  mongoose.model(
+    "MainShopEffect",
+    mainShopEffectSchema
+  );
 const ArenaMatch =
   mongoose.models.ArenaMatch ||
   mongoose.model(
@@ -3619,6 +4557,12 @@ const ArenaPaybackReview =
     "ArenaPaybackReview",
     arenaPaybackReviewSchema
   );
+const ArenaAchievementBadge =
+  mongoose.models.ArenaAchievementBadge ||
+  mongoose.model(
+    "ArenaAchievementBadge",
+    arenaAchievementBadgeSchema
+  );
 const ArenaOutboxEvent =
   mongoose.models.ArenaOutboxEvent ||
   mongoose.model(
@@ -3628,8 +4572,12 @@ const ArenaOutboxEvent =
 
 module.exports = {
   AccessCycle,
+  AccessCycleExpiryReminder,
   ArenaCohortRevision,
   ArenaAccessState,
+  ArenaIntegrityLinkSignal,
+  ArenaIntegrityRiskProfile,
+  ArenaIntegrityRiskCase,
   ArenaLearningDayLedger,
   ArenaMatch,
   ArenaMatchAttempt,
@@ -3640,6 +4588,7 @@ module.exports = {
   ArenaOpponentSelectionAudit,
   ArenaPackagePayment,
   ArenaPaybackReview,
+  ArenaAchievementBadge,
   ArenaProblemPack,
   ArenaRevengeRight,
   SubscriptionPolicyVersion,
@@ -3651,7 +4600,12 @@ module.exports = {
   MainDivisionPolicyVersion,
   MainInvitationOffer,
   MainInvitationRequest,
+  MainShopEffect,
+  MainShopPolicyVersion,
+  MainShopPurchase,
   MainToSubConversionPolicy,
   MainToSubConversionResult,
+  MockExamPackagePolicyVersion,
+  MockExamSubscription,
   RenewalRankAssessment,
 };

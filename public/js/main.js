@@ -196,12 +196,51 @@
     observer.observe(chart);
   }
 
+  function initAccessRenewalDialog() {
+    const dialog = document.querySelector("[data-access-renewal-dialog]");
+    if (!dialog) return;
+    if (typeof dialog.showModal === "function" && !dialog.open) {
+      dialog.showModal();
+    } else if (!dialog.open) {
+      dialog.setAttribute("open", "");
+    }
+
+    const countdown = dialog.querySelector("[data-renewal-countdown]");
+    const deadlineValue = dialog.dataset.graceDeadline;
+    if (!countdown || !deadlineValue) return;
+    const deadline = new Date(deadlineValue).getTime();
+
+    function renderCountdown() {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) {
+        countdown.textContent = "종료됨 · 재구매 후 랭크 복귀전 필요";
+        return false;
+      }
+      const totalMinutes = Math.ceil(remainingMs / 60000);
+      const days = Math.floor(totalMinutes / 1440);
+      const hours = Math.floor((totalMinutes % 1440) / 60);
+      const minutes = totalMinutes % 60;
+      countdown.textContent = [
+        days ? `${days}일` : "",
+        `${hours}시간`,
+        `${minutes}분`,
+      ].filter(Boolean).join(" ");
+      return true;
+    }
+
+    if (!renderCountdown()) return;
+    const timer = window.setInterval(() => {
+      if (!renderCountdown()) window.clearInterval(timer);
+    }, 30000);
+  }
+
   function init() {
     initSidebar();
     initDate();
     initNotifications();
     initAnnouncementDismiss();
     initCharts();
+    initAccessRenewalDialog();
   }
 
   if (document.readyState === "loading") {

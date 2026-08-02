@@ -1,6 +1,6 @@
 # Matths 현행 시스템
 
-> 기준 스냅샷: 2026-07-30  ·  범위: 기존 구현 설명
+> 기준 스냅샷: 2026-08-03  ·  범위: 현행 구현 설명
 >
 > 이 문서는 현행 서비스의 인증, 학습, 평가, MMR, 운영 기능을 설명한다. GOAT Arena의 Division 정책은 정의하지 않으며, Division 관련 규칙은 문서 인덱스에서 해당 문서를 따른다.
 
@@ -74,7 +74,7 @@ AND noPendingSettlement
 → 새 패키지 구매 가능
 ```
 
-진행 중 경기·정산 잠금이 남아 있으면 정산 완료 뒤 구매할 수 있다.
+진행 중 경기의 예치분과 미정산 상태가 남아 있으면 정산 완료 뒤 구매할 수 있다.
 
 ### 결제 시각과 첫날 처리
 
@@ -103,7 +103,9 @@ AND noPendingSettlement
 
 ### Main 사용자의 만료·Sub 강등·재구독
 
-Main 사용자의 사용 가능·초대 예약·경기 중 잠금 학습일수가 모두 0이고 미정산 경기가 없으면 Main에서 Sub로 강등되며, GOAT Arena 이용은 잠긴다. 직전 Main 상태는 재구독 배치 계산을 위해 보존한다.
+Main 사용자의 사용 가능·초대 예약·경기 예치 학습일수가 모두 0이고 미정산 경기가 없으면 Main에서 Sub로 강등되며, GOAT Arena 이용은 잠긴다. 직전 Main 상태는 재구독 배치 계산을 위해 보존한다.
+
+만료 순간 Main 전체 정확한 순위 `p`, 활성 참가자 수 `N`을 저장하고 `mainPercentile = 1 - (p - 1) / (N - 1)`로 계산한다. 참가자가 한 명이면 1.0이다. Sub 기준은 `0.58 + 0.42 × mainPercentile`이며, 티어 구간·0~99 GP·정확한 Sub 전체 순위 공식은 `04_MAIN_DIVISION_RANKING_SYSTEM.md` 15장을 따른다.
 
 ```text
 학습권 만료
@@ -127,11 +129,19 @@ Main 사용자의 사용 가능·초대 예약·경기 중 잠금 학습일수�
 
 ### 주간 모의고사
 
-정상 이용자만 주간 공식 모의고사를 볼 수 있다.
+활성 학습권 패키지 사용자 또는 활성 모의고사 전용 패키지 사용자만 주간 공식 모의고사를 볼 수 있다. 모의고사 전용 패키지는 배치고사와 GOAT Arena를 열지 않는다.
 
 - 정상 응시: Weekly Mock Bonus +30
 - 미응시: Bonus 0
 - 학습권 만료 사용자: 시험 응시 불가, Bonus 0
+
+### Main Division 상점 정책 오버레이
+
+Main 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다. 상점은 `MAIN`이면서 `PAID_ACTIVE`인 사용자만 이용하고 `availableLearningDays`만 사용한다. 예약·경기 예치 학습일수는 구매에 사용할 수 없으며 구매 뒤 최소 1일을 남긴다.
+
+`방어 일정 보호권`은 문제 팩 열람 전 의무 방어 경기를 `INSURED_CANCELLED`로 끝내는 예외다. 승패·Arena 상태 교환·복수전 권리는 만들지 않고, 양측 기존 예치분 반환과 공격자 1일 보상·시스템 1일 소각을 한 트랜잭션에서 처리한다.
+
+상점의 확정값은 가속 요청 우선 처리, 스타일 효과의 시즌 종료 만료, 분석 5분·최대 2회 재시도 뒤 자동 반환, 방어 편의 기능 공통 7일 쿨다운이다. 시즌 종료 10일 이내 구매한 시즌 장식은 다음 시즌까지 한 번 이월한다. `INSURED_CANCELLED`는 공식 실적에서 제외하지만 최근 상대 제외와 어뷰징 탐지에는 포함한다.
 
 ### 일요일 공개 경계
 
@@ -197,7 +207,7 @@ Main 사용자의 사용 가능·초대 예약·경기 중 잠금 학습일수�
 | `middleware/*` | 웹/API 인증, 관리자 권한, 세션 재검증, 업로드 제한 |
 | `services/*` | 학습·시험·MMR·랭킹·관리자·커뮤니티 등 실제 업무 규칙 |
 | `models/matthsModel.js` | 기존 학습·운영 MongoDB 모델과 스키마 검증 |
-| `models/goatArenaModel.js` | Arena 정책·이용주기·상태·매치·정산·Final Ranking skeleton |
+| `models/goatArenaModel.js` | Arena 정책·이용주기·상태·매치·정산·Final Ranking 권위 모델 |
 | `public/js/*` | 사용자 상호작용, 로컬 타이머, 자동 저장, 그래프·시각화 |
 | `scripts/*` | 데이터 시드, 문제 생성 검증, 정책 회귀 검증, 경고 백필 |
 
@@ -226,6 +236,69 @@ Main 사용자의 사용 가능·초대 예약·경기 중 잠금 학습일수�
 | `ARCHIVE_STORAGE_DIR` | 자료실 실제 저장 경로 |
 | `FONTCONFIG_FILE` | 소셜 카드 생성 보조 폰트 설정 |
 | `MATTHS_PREVIEW_PORT` | 소셜 카드 미리보기 서버, 기본 4173 |
+
+---
+
+## 0.2 2026-08-02 상품·접속시간·규정·계정 삭제 오버레이
+
+### 모의고사 전용 패키지
+
+- 초기 월 가격은 5,000원이며 관리자 화면에서 새 가격 정책 버전을 즉시 적용할 수 있다.
+- Matths 주간 공식 모의고사만 허용한다.
+- 배치고사, GOAT Arena 입장 권한과 공식 랭크전은 허용하지 않는다.
+- 주간 공식 모의고사 결과로 MMR을 계산해 DB에 저장한다.
+- 주간 공식 모의고사 4회 이상 기록 뒤 학습권 패키지로 변경해 배치고사를 완료하면 기존 MMR과 배치 결과를 가중 보정하고 `placement-calibration` 이력을 남긴다.
+- `/pricing`에는 무료, 모의고사 전용 패키지, 학습권 패키지를 3열로 비교 표시한다. 무료 사용자는 시각화 개념 학습과 평가센터 유형별 문제 풀이만 이용하고 배치고사·주간 공식 모의고사·GOAT Arena·최종 종합 랭킹은 이용하지 못한다.
+- 비로그인 상태의 모든 상품 CTA는 회원가입으로 연결하고, 로그인 상태의 두 유료 상품은 `본인 결제`, `부모님에게 결제 요청하기` 진입 버튼을 각각 표시한다. 후속 결제 화면과 PG 승인은 아직 구현하지 않는다.
+
+### 29일 학습 패키지
+
+- 초기 가격은 29,000원이고 정기권 학습 가능 일수와 페이백 점수 초깃값은 각각 29일·29점이다.
+- 두 값은 독립된 장부다. KST 일일 이용 차감은 정기권 학습 가능 일수에만 적용하며 페이백 점수를 그 값에서 계산하거나 자동 동기화하지 않는다.
+- Sub Division 페이백의 학습 조건은 해당 29일 이용 주기 전일 학습이다. 하루라도 학습 기록이 빠지면 그 주기의 전일 학습 조건을 충족하지 못한다.
+- 서버 시작 시 활성 `SubscriptionPolicyVersion`이 없으면 2026년 8월 2일(KST)을 기준일로 하는 기본 정책을 한 번만 생성한다.
+- 관리자는 Arena 정책 화면에서 가격만 즉시 새 정책 버전으로 적용하거나, 가격·페이백 자격·점수 구간을 포함한 전체 Sub Division 정책을 작성 중 상태로 만든 뒤 활성화할 수 있다.
+- Sub Division 공식 규정 페이지는 현재 활성 정책의 가격, 자격, 점수별 페이백 비율과 예상 금액을 DB에서 읽어 표로 표시한다.
+- 규정 표의 최근 수정일은 정책 생성·활성화·수정·적용 시각 가운데 가장 최근 값을 한국시간 기준으로 표시하며 초기 기준일은 2026년 8월 2일이다.
+
+### 누적 접속시간
+
+- 로그인 상태의 보이는 탭만 60초 heartbeat를 전송한다.
+- 서버가 90초 이내 연속 수신한 구간만 누적한다.
+- 프로필, GOAT Arena 프로필과 관리자 사용자 상세에 시간 단위로 표시한다.
+
+### 관리자 계정 상세
+
+- 대상 계정의 역할이 관리자이면 가입일, 최근 로그인, 누적 접속, 역할, 계정 상태만 요약한다.
+- 학습 진행, 배치·랭킹, 게시판 활동, 문의, 개별 알림과 사용자 대상 Direct Actions는 조회·표시하지 않는다.
+- 계정 보안과 운영 감사에 필요한 계정 관리와 관리 작업 이력은 유지한다.
+
+### GOAT Arena 설명 구조
+
+- 메인 화면은 GOAT Arena의 목적, 5문항·10분 1대1, 두 Division의 차이만 짧게 설명한다.
+- Sub Division과 Main Division은 별도의 공식 규정 페이지를 사용한다.
+- 각 규정 페이지는 규정 번호, 절, 접을 수 있는 세부 조항과 고정 목차를 제공한다.
+- 사용자에게 학습일수를 경기에 맡기는 행위는 `예치`, 경기 성립 뒤 분리된 잔액은 `경기 예치 학습일수`로 설명한다. 반환·이전·소각과 함께 사용하며 사행성으로 오해할 수 있는 표현은 노출하지 않는다.
+
+### 문제은행 운영 안내
+
+- 서버에서 실행되는 JavaScript를 웹 관리자 화면에서 직접 저장·실행하는 기능은 제공하지 않는다.
+- 관리자 화면은 배치고사, Arena 1대1, 학습 문제, 평가 템플릿과 주간 공식 모의고사별 실제 파일 위치와 수정 방식을 표시한다.
+- 현재 Arena 1대1은 `arenaOneOnOneProblemTypes.js`에 복사된 배치고사 심화 준킬러 유형을 독립 원본으로 사용한다. 배치고사 유형 파일을 런타임에 직접 참조하지 않으므로 이후 Arena 전용 유형만 교체할 수 있다.
+- 운영자가 업로드하는 주간 공식 모의고사 자료는 기존 관리자 업로드 화면에서 관리하며, 생성기 코드 변경은 자동 검산과 회귀 검증을 거쳐 배포한다.
+
+### 관리자 계정 삭제
+
+- 익명 보존은 개인정보·로그인 정보·원본 업로드 파일을 제거하고 통계용 학습·시험·MMR·Arena 기록을 익명 ID로 보존한다.
+- 모든 데이터 삭제는 사용자 계정과 연결된 학습·시험·랭킹·Arena·게시판 문서 및 원본 파일을 삭제한다.
+- 관리자 화면에서 두 방식을 라디오 선택하고 `계정삭제` 확인 문구를 입력해야 실행된다.
+
+### Sub Division 복수전
+
+- 일반 쟁탈전 정산 시 패자에게 원경기당 한 번의 복수전 권리를 만든다.
+- `복수하기`는 2일을 예치하고 직전 상대를 자동 참가시키며, `경기 종료`는 권리를 영구 포기한다.
+- 정상 승패와 한쪽 24시간 미완료는 Sub 정산표를 적용한다.
+- 양측 모두 24시간 안에 완료하지 않으면 Arena 상태는 유지하고 도전자가 복수전에 예치한 2일을 전부 소각한다.
 
 ---
 
@@ -866,16 +939,17 @@ advancedFinal = 0.35 × 기존 advanced
 
 검증 문항까지 끝난 최초 배치고사는 한 번만 Sub Division 시작 상태를 만든다.
 
-- 배치 결과의 초기 rating을 `INITIAL-PLACEMENT-BASELINE-V1` 기준 최초 GP로 복사한다.
+- 배치 결과의 초기 rating은 `INITIAL-PLACEMENT-BASELINE-V1` 기준으로 최초 Arena 티어와 해당 티어 내부 `0~99 GP`로 변환한다.
 - 이 복사는 최초 생성 시에만 수행하며, 이후 GP의 권위 원본은 `ArenaStanding`이다.
 - 이후 배치·주간 공식 모의고사에서 변경되는 Skill MMR이 Arena GP를 다시 덮어쓰지 않는다.
 - `arenaPosition`은 전체 순위가 아니라 같은 티어 안의 순위다.
-- GP 내림차순, 같은 GP 도달 시각 오름차순으로 정렬한다.
+- Arena 티어 서열을 먼저 비교한 뒤 같은 티어에서는 GP 내림차순으로 정렬한다. 같은 배치 결과의 동점은 배치 점수 높은 순 → 전체 풀이시간 짧은 순 → 배치 MMR 높은 순 → 배치고사 실제 시작 시각 빠른 순으로 정하고, 그래도 같으면 안정적인 사용자 ID 순서를 사용한다.
 - 결제 전 완료자는 `PAYMENT_REQUIRED`와 잠긴 순위를 보존한다.
 - 결제 후 미완료자는 `SEASON_PLACEMENT_REQUIRED`를 유지한다.
 - 활성 학습권과 완료된 배치고사가 모두 있을 때만 `PAID_ACTIVE`와 공식 순위·방어·주간 공식 모의고사·최종 종합 랭킹 권한을 활성화한다.
 - 과거 완료자는 배치고사 대시보드를 다시 열면 같은 배치 기록으로 멱등 복구한다.
 - 이전 연도 배치 기록은 현재 시즌 권한을 다시 열지 않으며, 만료·재구독 상태는 최초 배치 복구가 덮어쓰지 않는다.
+- Sub 학습권 만료 뒤 패키지를 재결제하면 기존 배치 결과를 재사용하지 않고 배치고사를 다시 완료해야 한다.
 
 ---
 
@@ -944,7 +1018,7 @@ MMR rankPoint != Arena GP
 ```
 
 - MMR `rankPoint`는 1대1에서 교환하지 않는다.
-- Arena GP는 별도 `SubArenaProfile`에 저장한다.
+- Arena GP는 Skill MMR과 분리된 `ArenaStanding`에 저장한다.
 - 도전자 승리 시 교환하는 GP는 Arena GP이며, 이 장의 MMR `rankPoint`가 아니다.
 
 티어 범위 안의 상대 위치:
@@ -1157,6 +1231,12 @@ Division 기본점수와 성장·위치점수는 누적하지 않고 매번 공�
 
 매년 12월 31일에는 Final Ranking 시즌을 종료·보관하고,
 1월 1일 새 시즌의 Division 성장 기준점을 생성한다.
+
+휴면은 Main Division에만 적용한다. Main 사용자가 공식 1대1 경기를 완료하거나 Matths 주간 공식 모의고사를 제출하지 않은 상태가 20일 연속 이어지면, 20일째 KST 일일 차감까지 마친 다음 날 00:00에 휴면으로 전환한다. 로그인·페이지 열람·개념 학습·평가센터 이용은 이 미활동 기록을 초기화하지 않는다.
+
+미활동 시작 당시 사용 가능한 정기권 학습 가능 일수가 21일 이상이면 총 20일을 차감한 뒤 남은 일수를 동결한다. 휴면 중에는 Main 소속과 성취 기록을 보존하지만 신규 경기와 활성 Arena·Final Ranking 집계에서는 제외한다. 복귀하면 추가 차감이나 배치고사 없이 Main Division에서 동결된 잔여 일수로 계속한다.
+
+미활동 시작 당시 사용 가능한 정기권 학습 가능 일수가 정확히 20일이면 20일을 모두 차감하고 Main Division에서 Sub Division으로 강등한다. 휴면 이력은 남기되 Main 휴면 복귀 절차를 적용하지 않으며, 이후 일반 Sub Division 절차에 따라 새 학습권 패키지와 배치고사를 완료해야 한다. Sub Division은 학습권 패키지와 페이백 주기가 종료될 때 일수가 초기화되므로 별도 휴면 상태를 만들지 않는다.
 
 정확한 공식과 데이터 모델은
 [`08_FINAL_RANKING_SYSTEM.md`](./08_FINAL_RANKING_SYSTEM.md)를 따른다.
@@ -1377,10 +1457,10 @@ actual = 0.70 × 총점 백분위
 ### 11.2 증빙 제출
 
 - 파일 1–10개
-- 파일당 최대 15MB
+- 파일당 최대 10MB
 - 허용: PDF, JPEG, PNG, WEBP, HEIC
 - 확장자뿐 아니라 magic bytes도 확인
-- 일반 자료실 공개물이 아니라 비공개 `ArchiveItem`
+- 일반 자료실 공개물이 아니라 Cloudinary 비공개 `ArchiveItem`
 - 제출 완료 영수증·관리자 할 일 생성
 
 제출 기한:
@@ -2107,9 +2187,9 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 - 가용성 HMAC 증명
 - 대기·완료·취소·만료 상태
 
-### 16.8 GOAT Arena foundation
+### 16.8 GOAT Arena 권위 모델
 
-`models/goatArenaModel.js`에 다음 권위 모델의 skeleton을 둔다.
+`models/goatArenaModel.js`에 다음 권위 모델을 둔다.
 
 - `SubscriptionPolicyVersion`, `FinalRankingPolicyVersion`
 - `MainDivisionPolicyVersion`, `MainInvitationRequest`, `MainInvitationOffer`
@@ -2123,7 +2203,9 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 - `LiveFinalRankingProfile`
 - `ArenaPaybackReview`, `ArenaOutboxEvent`
 
-정책·이용 주기·일일 차감·최초 Sub Division 배치는 실제 트랜잭션에 연결했다. Sub 자동 상대 선정, Main 정책 버전, 초대 제안·예약 잔액, 복수전 권리와 경기별 경제·결과 사본 골격도 추가했다. 결제사 외부 승인 API, 1대1 최종 정산, Main 실제 경기 생성·초대·복수전과 페이백 송금은 아직 연결하지 않는다.
+정책·이용 주기·일일 차감·Sub Division 배치·자동 상대 선정·일반 쟁탈전·복수전·페이백·Main 진입을 실제 트랜잭션에 연결했다. Main Division의 상향 공격·하위 티어 초대·복수전·No-show 정산과 Main 상점 정책·구매·효과도 생성 당시 정책 사본을 기준으로 동작한다. 남은 외부 범위는 결제사 승인 화면·부모님 결제 요청 전달과 실제 페이백 본인확인·송금 사업자 연동이다.
+
+`ArenaStanding`과 모든 Arena tuple의 공개 GP는 티어별 `0~99`이며 `gpScaleVersion = TIER_LOCAL_0_99_V1`을 저장한다. 과거 누적 GP는 `scripts/migrateArenaGpToTierLocal.js`로 티어를 유지한 채 티어 내부 GP로 일회성 변환한다. 마이그레이션은 기본 dry-run이고 `--apply`를 명시한 경우에만 DB를 변경한다.
 
 ### 16.9 Sub Division 일반 쟁탈전 생성
 
@@ -2132,12 +2214,12 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 - 후보 조회와 경기 생성은 내부 실력 지표와 최종 종합 랭킹을 사용하지 않는다.
 - 공격자는 상대 개인이 아니라 허용된 목표 티어만 선택한다.
 - 서버가 해당 티어의 적격 방어자 한 명을 무작위로 정하고 현재 상태를 트랜잭션 안에서 다시 검증한다.
-- 공격자 이용 주기의 정책 사본에 고정된 적용 일수를 정산 대기로 옮긴다.
+- 공격자 이용 주기의 정책 사본에 고정된 적용 일수를 경기 예치로 옮긴다.
 - 양쪽 참가자 잠금으로 사용자당 미정산 공식 경기 하나만 허용한다.
-- 경기, 두 참가자 잠금, 학습일 원장과 이벤트를 한 트랜잭션으로 생성한다.
-- 요청 재전송은 같은 경기로 복구하며 중복 잠금하지 않는다.
+- 경기, 두 참가자 잠금, 학습일수 예치 원장과 이벤트를 한 트랜잭션으로 생성한다.
+- 요청 재전송은 같은 경기로 복구하며 학습일수를 중복 예치하지 않는다.
 - 티어 조합당 30개 문제 묶음 슬롯 중 하나를 고르고, 경기 신청 순간 주관식 준킬러 5문항을 자동 생성·검산·봉인한다.
-- 실제 유형 생성기가 모두 연결되지 않았거나 자동 검산이 실패하면 경기·문제·잠금·학습일 원장을 만들지 않는다.
+- 현재는 배치고사 심화 준킬러 유형을 Arena 전용 파일에 독립 복사해 모든 티어 조합의 임시 문제 슬롯에 연결한다. 자동 검산이 실패하면 경기·문제·학습일수 예치·원장을 만들지 않는다.
 - 같은 트랜잭션에서 양측 `READY` 응시까지 만들어 생성 직후 응시 준비 상태가 된다.
 - 경기 요청 뒤 24시간 안에 시작해야 하며, 일요일을 통과하면 시작 마감은 일요일 14:30으로 단축한다.
 
@@ -2153,7 +2235,7 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 - 분수·소수·동치식은 수학적으로 같은 값이면 정답으로 인정한다.
 - 모든 풀이 증거를 운영자가 열람할 수 있고 이상 징후는 관리자 알림으로 만든다.
 - 상대가 배정되기 전에는 개인 후보를 공개하지 않는다. 매치가 성립한 뒤에는 서비스 닉네임만 표시하고 실명·학교·지역·연락처는 보내지 않는다.
-- 아직 서버 채점·승패·무결성 결론·GP·티어·티어 내 순위·학습일 정산은 수행하지 않는다.
+- Sub 일반 쟁탈전과 복수전은 서버 채점·무결성 확인 뒤 승패·GP·티어·티어 내 순위·학습일수를 자동 정산한다. Main 경기 정산은 Main 실행 로직 단계에서 연결한다.
 
 ---
 
@@ -2175,6 +2257,7 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | POST | `/contact` | 로그인 사용자 문의 제출 |
 | GET | `/terms` | 이용약관 |
 | GET | `/privacy` | 개인정보처리방침 |
+| GET | `/pricing` | 모의고사 전용·학습권 패키지 비교 |
 | GET | `/community` | 게시판 목록 |
 | GET | `/community/new` | 새 글 화면 |
 | POST | `/community` | 글 생성 |
@@ -2205,6 +2288,9 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | POST | `/admin/announcements` | 공지 생성 |
 | POST | `/admin/announcements/:announcementId/status` | 게시/해제 |
 | GET | `/admin/private-mock-exams` | 시험 목록 |
+| GET | `/admin/problem-banks` | 시험·문제 유형별 코드 파일 안내 |
+| POST | `/admin/arena-policies/mock-exam-only/price` | 모의고사 전용 패키지 가격 정책 변경 |
+| POST | `/admin/arena-policies/learning-package/price` | 29일 학습 패키지 가격을 새 활성 정책 버전으로 변경 |
 | POST | `/admin/private-mock-exams` | 시험·파일 생성 |
 | POST | `/admin/private-mock-exams/:examId/delete` | 시험 삭제 |
 | GET | `/admin/private-mock-exams/:examId/files/:fileType` | 관리자 시험 파일 |
@@ -2249,6 +2335,7 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | POST | `/admin/users/:userId/account` | 레거시 활성/비활성 |
 | POST | `/admin/users/:userId/role` | 역할 변경 |
 | POST | `/admin/users/:userId/account-status` | 상태·정지 변경 |
+| POST | `/admin/users/:userId/delete` | 익명 보존 또는 전체 삭제 방식의 계정 삭제 |
 | POST | `/admin/users/:userId/warnings` | 경고 변경 |
 
 ### 17.5 알림·비밀번호 재설정
@@ -2290,6 +2377,11 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | Method | Path | 기능 |
 |---|---|---|
 | GET | `/profile` | 프로필 |
+| GET | `/pricing/mock-exam-only/self` | 본인 결제 진입 라우트(후속 화면 미구현) |
+| GET | `/pricing/mock-exam-only/parent-request` | 부모님 결제 요청 진입 라우트(후속 화면 미구현) |
+| GET | `/pricing/learning-package/self` | 학습권 패키지 본인 결제 진입 라우트(후속 화면 미구현) |
+| GET | `/pricing/learning-package/parent-request` | 학습권 패키지 부모님 결제 요청 진입 라우트(후속 화면 미구현) |
+| POST | `/api/session/heartbeat` | 활성 탭 접속시간 누적 |
 | GET | `/account/private-mock-restriction` | 응시 제한 상세 |
 | GET | `/private-mock-exams` | 시험 목록·로비 |
 | GET | `/private-mock-exams/resources/formula/file` | 공식 자료 파일 |
@@ -2353,10 +2445,14 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | GET | `/goat-arena/rankings` | Sub·Main ArenaStanding 랭킹 |
 | GET | `/goat-arena/sub` | Sub Division 기능 허브 |
 | GET | `/goat-arena/main` | Main Division 정책 상태·기능 허브 |
+| GET | `/goat-arena/main/shop` | Main Division 전용 상점·사용 가능 학습일수·효과 조회 |
+| POST | `/goat-arena/main/shop/purchases` | 상점 아이템 구매·원장 차감·효과 생성 |
+| GET | `/goat-arena/rules/sub` | Sub Division 공식 규정 |
+| GET | `/goat-arena/rules/main` | Main Division 공식 규정 |
 | GET | `/goat-arena/:division/features/:featureKey` | Division 기능별 권한 보호 안내 페이지 |
 | GET | `/goat-arena/profile` | Arena 상태·학습권 프로필 |
 | GET | `/goat-arena/sub/challenge` | Sub Division 목표 티어 선택·현재 경기 |
-| POST | `/goat-arena/sub/challenges` | 서버 무작위 상대 선정·일반 쟁탈전 생성·참가자/학습일 잠금 |
+| POST | `/goat-arena/sub/challenges` | 서버 무작위 상대 선정·일반 쟁탈전 생성·참가자 잠금·학습일수 예치 |
 | GET | `/goat-arena/matches/:matchId` | 참가자 전용 경기 준비·응시 화면 |
 | POST | `/goat-arena/matches/:matchId/prepare` | 봉인 문제 팩·양쪽 응시 준비 |
 | POST | `/goat-arena/matches/:matchId/start` | 개인 서버 타이머 시작 |
@@ -2365,6 +2461,8 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | POST | `/api/goat-arena/matches/:matchId/activity` | heartbeat·focus 활동 기록 |
 | POST | `/api/goat-arena/matches/:matchId/submit` | 개인 최종 답안 제출 |
 | POST | `/goat-arena/matches/:matchId/evidence` | 60초 풀이 증거 제출 |
+| POST | `/goat-arena/revenge-rights/:rightId/claim` | Sub 복수전 선택·2일 예치·상대 자동 참가 |
+| POST | `/goat-arena/revenge-rights/:rightId/forfeit` | Sub 복수전 권리 포기 |
 
 ---
 
@@ -2485,7 +2583,7 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 
 | 파일 | 로직 |
 |---|---|
-| `admin-navigation.js` | 관리자 네비게이션 |
+| `admin-navigation.js` | 기능군별 관리자 드롭다운 내비게이션의 클릭·키보드·바깥 클릭 처리 |
 | `admin-archive.js` | 동적 파일 행·일괄 선택·폴더 이동 |
 | `admin-private-mock-exams.js` | 시험 생성 폼·정답 행·파일 매칭 |
 | `admin-private-mock-detail.js` | 정답 정정 행·무결성 검토 |
@@ -2501,22 +2599,48 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 |---|---|
 | `accountAccessService.js` | 계정 접근 가능 여부, 기간 정지 자동 해제 |
 | `accountDeletionService.js` | 익명 보존 탈퇴, 관리자 영구 삭제 |
+| `accessCycleService.js` | 학습권 패키지 승인, 이용 주기, 20시 첫날 차감, 구매 자격 |
+| `accessCycleDailyService.js` | KST 일일 차감, 만료 잠금, Main 강등 스냅샷 |
+| `adminPackageAccessService.js` | 관리자 무상 패키지 권한 변경과 감사 원장 |
 | `adminService.js` | 관리자 대시보드, 사용자·문의·공지·모더레이션 변경 |
 | `adminTodoService.js` | 여러 운영 원천을 통합 할 일로 동기화 |
 | `archiveService.js` | 폴더·자료 업로드·이동·삭제·다운로드 |
+| `arenaBadgeService.js` | Main 시즌·성취 휘장 멱등 지급과 조회 |
+| `arenaDivisionRuleService.js` | Sub·Main 예치·복수전·초대 취소 정산표 순수 계산 |
+| `arenaEligibilityService.js` | 패키지 구매·공식 경기·주간 모의고사 자격 판정 |
+| `arenaMatchService.js` | Sub 일반 쟁탈전 자격·상대 선정·예치·경기 생성 |
+| `arenaMatchAttemptService.js` | 개인 타이머, 답안·활동 이벤트, 제출·자동 마감 |
+| `arenaMatchEvidenceService.js` | 60초 풀이 증거와 이상 징후 기록 |
+| `arenaMatchScoringService.js` | 봉인 답안 채점과 승패 우선순위 계산 |
+| `arenaMatchSettlementService.js` | Sub 일반 쟁탈전·복수전 Arena tuple과 학습일수 정산 |
+| `arenaOneOnOneProblemTypes.js` | 배치고사 심화 준킬러 유형을 독립 복사한 현재 Arena 1대1 전용 생성·검산 원본 |
+| `arenaOneOnOneProblemBank.js` | Sub·Main 티어 조합별 30개 문제 묶음과 서로 다른 5유형 슬롯 배정 |
+| `arenaPaybackReviewService.js` | 미정산 경기의 페이백 심사 보류·이메일·우편함 통지 기반 |
+| `arenaPolicyService.js` | 학습권·Sub·Main 정책 버전, 활성 정책 캐시와 관리자 변경 |
+| `arenaProblemPackService.js` | 경기 문제 자동 생성·검산·봉인 해시 |
+| `arenaRevengeService.js` | Sub 복수전 권리 사용·포기·경기 생성 |
+| `arenaRulebookViewService.js` | Division별 사용자 규정과 활성 페이백 표 뷰 모델 |
+| `arenaShopPolicyService.js` | Main 상점 구매·효과·반환·일요일 제한과 학습일수 원장 처리 |
 | `assessmentService.js` | 정규 평가 게이트, 생성, 저장, 채점, 오답 이관 |
 | `coachMessageService.js` | 코치 문구 로드·상황별 선택·승인 캐시 |
 | `coachSuggestionService.js` | 제안 제한·목록·관리자 검토 |
 | `communityService.js` | 글·댓글·추천·신고·인기·모더레이션 |
+| `communityAttachmentService.js` | 게시판 첨부 권한·제한과 보호 파일 처리 |
 | `conceptGuideService.js` | 개념 안내·학습 콘텐츠 구성 |
 | `curriculumService.js` | YAML 카탈로그 로드·정규화·검색 |
 | `dashboardService.js` | 사용자 대시보드 집계·일일 계획 |
+| `dataAnalysisService.js` | 첫 달 운영 지표 카탈로그·관측값 집계 |
 | `emailService.js` | Gmail/프리뷰, 브랜드 메일 |
 | `examBankSource.js` | 공식 시험 분포·문제 원천 메타데이터 |
 | `learningProgressService.js` | 30/60/10 진행률, 과정·단원 집계 |
+| `identityRiskService.js` | 실명·생년월일·고등학교 조합 해시와 중복 계정 검토 알림 |
+| `mainToSubConversionService.js` | Main 만료 백분위의 Sub 티어·0~99 GP·전체 순위 환산 |
 | `mathAnswerService.js` | 수식 정규화·파싱·동치 판정 |
 | `mathTextService.js` | 수학 문장·표현 안전 정리 |
 | `mmrService.js` | 초기/주간 MMR, 티어, 강등, 결석, 재계산 |
+| `mockExamPackageService.js` | 모의고사 전용 가격 정책·이용권과 관리자 가격 변경 |
+| `arenaTierPolicy.js` | 티어별 0~99 GP, 티어 서열, 과거 누적 GP 일회성 변환 |
+| `arenaStandingService.js` | 최초 Arena tuple 생성, 티어별 순위 재정렬, 고유 위치 충돌 방지 |
 | `mobileAuthService.js` | HMAC API 토큰 발급·검증 |
 | `moderationNoticeService.js` | 경고·정지 알림과 이메일 |
 | `nicknameService.js` | 정규화·가용성·보안 변경 증명 |
@@ -2525,12 +2649,16 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | `placementAdvancedTypes.js` | 준킬러·킬러 유형 생성·검증 |
 | `placementExamBank.js` | 30문항 배치 청사진·생성 |
 | `placementExamService.js` | 배치 시도·텔레메트리·채점·검증 시험·프로필 |
+| `paidFeatureAccessService.js` | 무료·모의고사 전용·학습권 패키지 기능 권한 분기 |
+| `problemBankCatalogService.js` | 관리자용 문제은행 파일·역할 안내 카탈로그 |
 | `practiceService.js` | 개념 문제 선택·검증·제출·복습 |
 | `privateMockExamService.js` | 사설 시험 전체 상태기계·채점·무결성·스케줄러 |
 | `quickPracticeService.js` | 24개 퀵 유형, 40초 발급·채점·통계 |
 | `rankingService.js` | 개인·학교·도시 랭킹과 동점 처리 |
 | `schoolService.js` | 학교 YAML 검색·코드 검증 |
 | `supportInquiryService.js` | 문의 제한·저장·관리자 연결 |
+| `connectionUsageService.js` | 활성 탭 heartbeat와 누적 접속시간 집계 |
+| `ttlCacheService.js` | 활성 정책 등 복구 가능한 파생 조회의 TTL 캐시 |
 | `userIdentityService.js` | 세션/표시 신원 스냅샷 |
 | `userLifecycleService.js` | 학년 진급·스트릭 기록 |
 | `wrongNoteService.js` | 오답 목록·필터·정렬·복습 상태 |

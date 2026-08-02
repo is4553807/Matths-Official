@@ -50,7 +50,7 @@ function assertMainStakeSelection({
     );
   const selectedStakeDays = positiveInteger(
     stakeDays,
-    "배팅 학습일수"
+    "예치 학습일수"
   );
   const availableDays = Math.max(
     0,
@@ -58,13 +58,13 @@ function assertMainStakeSelection({
   );
   if (selectedStakeDays < minimumStakeDays) {
     throw ruleError(
-      `해당 티어 차이의 최소 배팅 학습일수는 ${minimumStakeDays}일입니다.`,
+      `해당 티어 차이의 최소 예치 학습일수는 ${minimumStakeDays}일입니다.`,
       "MAIN_STAKE_BELOW_MINIMUM"
     );
   }
   if (availableDays <= selectedStakeDays) {
     throw ruleError(
-      "Main Division 경기를 만들려면 배팅 후에도 사용 가능한 학습일수가 남아야 합니다.",
+      "Main Division 경기를 만들려면 예치 후에도 사용 가능한 학습일수가 남아야 합니다.",
       "MAIN_STAKE_REQUIRES_REMAINING_DAY"
     );
   }
@@ -91,7 +91,7 @@ function buildRevengeEconomySnapshot({
       revengeStakeMultiplier: 2,
       revengeStakeDays:
         SUB_REVENGE_STAKE_DAYS,
-      feeDays: 0,
+      feeDays: 1,
       recipientNoShowReturnDays:
         SUB_REVENGE_NO_SHOW_RETURN_DAYS,
       recipientNoShowBurnDays:
@@ -106,7 +106,7 @@ function buildRevengeEconomySnapshot({
   }
   const originalStake = positiveInteger(
     originalStakeDays,
-    "원경기 배팅 학습일수"
+    "원경기 예치 학습일수"
   );
   const multiplier = Math.max(
     1,
@@ -152,14 +152,14 @@ function resolveRevengeSettlement({
   }
   const stakeDays = positiveInteger(
     revengeStakeDays,
-    "복수전 잠금 학습일수"
+    "복수전 예치 학습일수"
   );
   let settlement;
 
   if (normalizedDivision === "SUB") {
     if (stakeDays !== SUB_REVENGE_STAKE_DAYS) {
       throw ruleError(
-        "Sub Division 복수전 잠금 학습일수는 2일입니다.",
+        "Sub Division 복수전 예치 학습일수는 2일입니다.",
         "INVALID_SUB_REVENGE_STAKE"
       );
     }
@@ -188,14 +188,14 @@ function resolveRevengeSettlement({
         transferToDefenderDays: 1,
         burnDays: 1,
       },
+      [REVENGE_OUTCOMES.BOTH_NO_SHOW]: {
+        tupleAction: "KEEP",
+        returnToAttackerDays: 0,
+        transferToDefenderDays: 0,
+        burnDays: 2,
+      },
     };
     settlement = subTable[normalizedOutcome];
-    if (!settlement) {
-      throw ruleError(
-        "Sub Division 양측 No-show 정산 정책은 별도 확정이 필요합니다.",
-        "SUB_BOTH_NO_SHOW_POLICY_REQUIRED"
-      );
-    }
   } else if (normalizedDivision === "MAIN") {
     const burnedFeeDays = Math.min(
       stakeDays,
@@ -248,7 +248,7 @@ function resolveRevengeSettlement({
     settlement.burnDays;
   if (accountedDays !== stakeDays) {
     throw ruleError(
-      "복수전 반환·이전·소각 합계가 잠금 학습일수와 일치하지 않습니다.",
+      "복수전 반환·이전·소각 합계가 예치 학습일수와 일치하지 않습니다.",
       "REVENGE_SETTLEMENT_NOT_BALANCED"
     );
   }

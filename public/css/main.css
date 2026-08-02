@@ -2089,6 +2089,281 @@ a.learning-home-button:focus-visible {
   border-color: #3157f6;
 }
 
+.usage-plan-section {
+  margin-bottom: 22px;
+}
+
+.access-renewal-dialog {
+  width: min(620px, calc(100vw - 32px));
+  padding: 0;
+  overflow: hidden;
+  color: #f8faff;
+  background: #11152c;
+  border: 1px solid rgba(127, 148, 255, 0.42);
+  border-radius: 26px;
+  box-shadow: 0 32px 90px rgba(9, 13, 43, 0.48);
+}
+
+.access-renewal-dialog::backdrop {
+  background: rgba(8, 12, 31, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.access-renewal-dialog__glow {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  top: -150px;
+  right: -80px;
+  background: radial-gradient(circle, rgba(50, 201, 255, 0.42), transparent 70%);
+  pointer-events: none;
+}
+
+.access-renewal-dialog__body {
+  position: relative;
+  padding: 34px;
+}
+
+.access-renewal-dialog__body > p {
+  margin: 0 0 10px;
+  color: #8eeaff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.access-renewal-dialog__body h2 {
+  margin: 0;
+  font-size: clamp(24px, 4vw, 34px);
+  line-height: 1.24;
+}
+
+.access-renewal-dialog__body > span,
+.access-renewal-dialog__body > small {
+  display: block;
+  margin-top: 14px;
+  color: #bec8eb;
+  line-height: 1.7;
+}
+
+.access-renewal-preview {
+  display: grid;
+  gap: 10px;
+  margin: 24px 0 0;
+}
+
+.access-renewal-preview > div {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) 1.2fr;
+  gap: 14px;
+  padding: 14px 16px;
+  background: rgba(4, 8, 27, 0.42);
+  border: 1px solid rgba(179, 194, 255, 0.13);
+  border-radius: 14px;
+}
+
+.access-renewal-preview dt {
+  color: #8996c6;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.access-renewal-preview dd {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.access-renewal-dialog__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.access-renewal-dialog__actions a,
+.access-renewal-dialog__actions button {
+  flex: 1;
+  padding: 14px 16px;
+  border-radius: 13px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+  text-decoration: none;
+}
+
+.access-renewal-dialog__actions a {
+  color: #fff;
+  background: linear-gradient(120deg, #a72dde, #207ed7);
+}
+
+.access-renewal-dialog__actions button {
+  color: #cbd3ef;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .access-renewal-dialog__body {
+    padding: 26px 20px;
+  }
+
+  .access-renewal-preview > div {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .access-renewal-dialog__actions {
+    flex-direction: column;
+  }
+}
+
+.usage-plan-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(210px, 0.8fr) minmax(360px, 1.5fr) auto;
+  align-items: center;
+  gap: 28px;
+  padding: 26px 30px;
+  color: #f8faff;
+  background:
+    radial-gradient(circle at 88% 18%, rgba(74, 207, 255, 0.28), transparent 32%),
+    linear-gradient(125deg, #111632 0%, #24246c 55%, #3157f6 100%);
+  border: 1px solid rgba(128, 151, 255, 0.35);
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(36, 52, 132, 0.16);
+}
+
+.usage-plan-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 45%, rgba(255, 255, 255, 0.08));
+}
+
+.usage-plan-copy,
+.usage-plan-metrics,
+.usage-plan-card > a {
+  position: relative;
+  z-index: 1;
+}
+
+.usage-plan-copy p {
+  margin: 0 0 7px;
+  color: #8fe7ff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.usage-plan-copy h2 {
+  margin: 0;
+  font-size: clamp(20px, 2vw, 28px);
+}
+
+.usage-plan-copy span {
+  display: block;
+  margin-top: 8px;
+  color: #c7d0f6;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.usage-plan-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.usage-plan-metrics > div {
+  min-height: 78px;
+  padding: 14px 16px;
+  background: rgba(6, 10, 31, 0.34);
+  border: 1px solid rgba(185, 199, 255, 0.16);
+  border-radius: 15px;
+}
+
+.usage-plan-metrics dt {
+  color: #aeb9e4;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.usage-plan-metrics dd {
+  margin: 7px 0 0;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.usage-plan-metrics dd strong {
+  margin-right: 4px;
+  font-size: 26px;
+}
+
+.usage-plan-metrics dd small,
+.usage-plan-metrics p {
+  color: #aeb9e4;
+  font-size: 10px;
+}
+
+.usage-plan-metrics p {
+  margin: 4px 0 0;
+}
+
+.usage-plan-metrics .usage-plan-date {
+  line-height: 1.45;
+}
+
+.usage-plan-card > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.11);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 13px;
+  font-size: 12px;
+  font-weight: 850;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.usage-plan-card--free {
+  background:
+    radial-gradient(circle at 88% 18%, rgba(167, 89, 255, 0.24), transparent 32%),
+    linear-gradient(125deg, #17182d 0%, #31235d 58%, #7251d7 100%);
+}
+
+@media (max-width: 980px) {
+  .usage-plan-card {
+    grid-template-columns: 1fr;
+  }
+
+  .usage-plan-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .usage-plan-card > a {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 620px) {
+  .usage-plan-card {
+    padding: 22px 18px;
+  }
+
+  .usage-plan-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 620px) {
   .math-keyboard {
     grid-template-columns: repeat(5, minmax(42px, 1fr));

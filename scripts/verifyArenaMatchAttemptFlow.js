@@ -180,7 +180,7 @@ async function run() {
       tupleBefore: {
         arenaRank: "에메랄드",
         arenaPosition: 2,
-        arenaGp: 1180,
+        arenaGp: 40,
       },
       stakeDays: 1,
     },
@@ -191,7 +191,7 @@ async function run() {
       tupleBefore: {
         arenaRank: "다이아몬드",
         arenaPosition: 11,
-        arenaGp: 1260,
+        arenaGp: 70,
       },
       stakeDays: 0,
     },

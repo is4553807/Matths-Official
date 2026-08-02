@@ -47,7 +47,7 @@
         <p>
           <%= division === "SUB"
             ? "정기권 학습 가능 일수·페이백 점수와 일반 쟁탈전을 관리하는 Sub Division 전장입니다."
-            : "Sub Division 성취로 진입해 학습일수를 걸고 상향 쟁탈전·하위 티어 초대전·복수전을 관리하는 상위 전장입니다." %>
+            : "Sub Division 성취로 진입해 학습일수를 예치하고 상향 쟁탈전·하위 티어 초대전·복수전을 관리하는 상위 전장입니다." %>
         </p>
       </header>
 
@@ -79,7 +79,7 @@
           <strong>
             <%= arenaAccess.learningRights.availableDays ?? "—" %>
           </strong>
-          <span><%= division === "MAIN" ? `총 ${arenaAccess.learningRights.totalMainDays ?? "—"}일 중 예약·잠금을 제외하고 지금 사용할 수 있는 일수입니다.` : "현재 학습권 패키지에서 사용할 수 있는 남은 일수입니다." %></span>
+          <span><%= division === "MAIN" ? `총 ${arenaAccess.learningRights.totalMainDays ?? "—"}일 중 예약·경기 예치를 제외하고 지금 사용할 수 있는 일수입니다.` : "현재 학습권 패키지에서 사용할 수 있는 남은 일수입니다." %></span>
         </article>
       </section>
 
@@ -92,7 +92,7 @@
             </div>
             <p>
               <%= division === "MAIN" && activeMainPolicy
-                ? `현재 정책은 최대 ${activeMainPolicy.maximumTargetTierGap}단계 티어 차이까지 허용하며, 차이별 최소 배팅 일수와 초대·복수전 조건을 경기 생성 시점에 고정합니다.`
+                ? `현재 정책은 최대 ${activeMainPolicy.maximumTargetTierGap}단계 티어 차이까지 허용하며, 차이별 최소 예치 일수와 초대·복수전 조건을 경기 생성 시점에 고정합니다.`
                 : division === "SUB"
                   ? "목표 티어만 선택하면 서버가 적격 상대를 무작위로 정하며, 일반 쟁탈전은 1일을 적용합니다."
                   : "활성 Main Division 정책이 적용되면 실제 경기 기능이 열립니다." %>

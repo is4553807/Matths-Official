@@ -30,7 +30,7 @@ async function run() {
     lateRenewalTierPenalty: "1",
     normalStakeDays: "1",
     revengeStakeDays: "2",
-    minimumStreakDays: "30",
+    minimumStreakDays: "29",
     minimumPaidNormalAttacks: "2",
     minimumScoreDays: "30",
     bandMinScores: ["0", "30", "35", "40"],
@@ -248,7 +248,8 @@ async function run() {
     assert.ok(controllerSource.includes(handler), `${handler} 처리기가 없습니다.`);
   }
   assert.ok(
-    navigationSource.includes('label: "Arena 정책"'),
+    navigationSource.includes('label: "GOAT Arena"') &&
+      navigationSource.includes('label: "정책·상품"'),
     "관리자 메뉴에 Arena 정책 화면이 없습니다."
   );
 

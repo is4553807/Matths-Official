@@ -1,0 +1,122 @@
+<%
+  const formatWon = (value) =>
+    new Intl.NumberFormat("ko-KR").format(Number(value) || 0);
+  const mockPrice = mockExamPolicy?.monthlyPriceAmount ?? 5000;
+  const learningPrice = learningPackagePolicy?.priceAmount ?? 29000;
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Matths 학습권 패키지와 모의고사 전용 패키지를 비교하고 결제 방식을 선택합니다." />
+    <meta name="theme-color" content="#f5f7fc" />
+    <title>이용권 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/pricing.css" />
+  </head>
+  <body class="pricing-page">
+    <%- include("partials/public-navigation", { activePage: "pricing", user }) %>
+
+    <main class="pricing-main">
+      <header class="pricing-hero">
+        <p>MATTHS MEMBERSHIP</p>
+        <h1>나에게 맞는 방식으로<br />수학을 시작하세요.</h1>
+        <span>개념 학습은 무료로 시작하고, 필요한 시점에 모의고사 또는 GOAT Arena까지 확장할 수 있습니다.</span>
+      </header>
+
+      <section class="pricing-grid" aria-label="Matths 이용권 비교">
+        <article class="pricing-card pricing-card--free">
+          <div class="pricing-card-heading">
+            <span>부담 없이 시작</span>
+            <h2>무료</h2>
+            <p>수학 개념을 이해하고 유형별 문제로 바로 확인하는 Matths의 기본 학습 과정입니다.</p>
+          </div>
+          <div class="pricing-price"><strong>0</strong><span>원</span></div>
+          <p class="pricing-feature-title">포함 기능</p>
+          <ul>
+            <li>시각화 개념 학습</li>
+            <li>평가센터 유형별 문제 풀이</li>
+            <li>기본 학습 진도 저장</li>
+            <li class="is-disabled">Matths 주간 공식 모의고사 응시 불가</li>
+            <li class="is-disabled">배치고사·GOAT Arena 이용 불가</li>
+            <li class="is-disabled">최종 종합 랭킹 참여 불가</li>
+          </ul>
+          <div class="pricing-actions">
+            <a class="pricing-secondary pricing-secondary--strong" href="<%= user ? '/my-learning' : '/register' %>"><%= user ? "무료 학습 계속하기" : "지금 바로 시작하기" %></a>
+          </div>
+          <small class="pricing-note">결제 정보 없이 시작할 수 있으며, 유료 패키지는 나중에 선택할 수 있습니다.</small>
+        </article>
+
+        <article class="pricing-card pricing-card--mock">
+          <div class="pricing-card-heading">
+            <span>모의고사 집중</span>
+            <h2>모의고사 전용 패키지</h2>
+            <p>Matths 주간 공식 모의고사만 꾸준히 응시하려는 사용자를 위한 월 이용권입니다.</p>
+          </div>
+          <div class="pricing-price"><strong><%= formatWon(mockPrice) %></strong><span>원 / 30일</span></div>
+          <p class="pricing-feature-title">무료 기능에 추가</p>
+          <ul>
+            <li>Matths 주간 공식 모의고사 응시</li>
+            <li>응시 결과로 내부 실력 지표 계산·저장</li>
+            <li>시각화 개념·유형별 문제 이용</li>
+            <li class="is-disabled">배치고사 응시 불가</li>
+            <li class="is-disabled">GOAT Arena 및 랭크전 이용 불가</li>
+            <li class="is-disabled">최종 종합 랭킹 참여 불가</li>
+          </ul>
+          <div class="pricing-actions">
+            <% if (user) { %>
+              <a class="pricing-primary" href="/pricing/mock-exam-only/self">본인 결제</a>
+              <a class="pricing-secondary" href="/pricing/mock-exam-only/parent-request">부모님께 결제 요청하기</a>
+            <% } else { %>
+              <a class="pricing-primary" href="/register">지금 바로 시작하기</a>
+            <% } %>
+          </div>
+          <small class="pricing-note">주간 공식 모의고사를 4회 이상 응시한 뒤 학습권 패키지로 변경하면, 배치고사 결과와 기존 기록을 함께 사용해 내부 실력 지표를 갱신합니다.</small>
+        </article>
+
+        <article class="pricing-card pricing-card--learning">
+          <div class="pricing-badge">추천</div>
+          <div class="pricing-card-heading">
+            <span>학습 + 경쟁</span>
+            <h2>학습권 패키지</h2>
+            <p>개념 학습부터 주간 공식 모의고사, 배치고사와 GOAT Arena까지 연결되는 패키지입니다.</p>
+          </div>
+          <div class="pricing-price">
+            <strong><%= formatWon(learningPrice) %></strong><span>원 / 29일</span>
+          </div>
+          <p class="pricing-feature-title">Matths 전체 기능</p>
+          <ul>
+            <li>시각화 개념·유형별 문제·오답노트</li>
+            <li>Matths 주간 공식 모의고사 응시</li>
+            <li>배치고사와 내부 실력 지표 확정</li>
+            <li>GOAT Arena Sub Division 입장</li>
+            <li>최종 종합 랭킹 참여</li>
+            <li>학습일수·페이백 시스템 적용</li>
+          </ul>
+          <div class="pricing-actions">
+            <% if (user) { %>
+              <a class="pricing-primary" href="/pricing/learning-package/self">본인 결제</a>
+              <a class="pricing-secondary" href="/pricing/learning-package/parent-request">부모님께 결제 요청하기</a>
+            <% } else { %>
+              <a class="pricing-primary" href="/register">지금 바로 시작하기</a>
+            <% } %>
+          </div>
+          <small class="pricing-note">배치고사를 완료하면 Sub Division에 반영되며, 학습 결과와 Arena 성과가 하나의 흐름으로 연결됩니다.</small>
+        </article>
+      </section>
+
+      <section class="pricing-guide" aria-labelledby="pricing-guide-title">
+        <div><p>한눈에 비교</p><h2 id="pricing-guide-title">어떤 패키지가 맞을까요?</h2></div>
+        <div class="pricing-guide-grid">
+          <article><b>개념과 유형 연습이 필요하다면</b><span>무료로 시작하세요.</span></article>
+          <article><b>매주 실전 점검이 필요하다면</b><span>모의고사 전용 패키지를 선택하세요.</span></article>
+          <article><b>학습·모의고사·경쟁을 연결하려면</b><span>29일 학습권 패키지를 선택하세요.</span></article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

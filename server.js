@@ -8,6 +8,10 @@ dotenv.config({path: './config.env'});
 const {
     getCoachView,
 } = require("./services/coachMessageService");
+const {
+    errorHandler,
+    notFoundHandler,
+} = require("./middleware/errorMiddleware");
 
 server.use(express.static("public"));
 server.set('view engine', 'ejs');
@@ -41,32 +45,25 @@ const apiRoutes = require("./routes/api-routes");
 server.use("/api/v1", apiRoutes);
 server.use("/", goatArenaRoutes);
 server.use("/", maathsRoutes);
-
-server.use((error, req, res, next) => {
-    console.error(error);
-
-    const status = Number(error.status) || 500;
-
-    if (req.originalUrl.startsWith("/api/")) {
-        return res.status(status).json({
-            message:
-                status >= 500
-                    ? "서버에서 요청을 처리하지 못했습니다."
-                    : error.message,
-        });
-    }
-
-    return res.status(status).send(
-        status >= 500
-            ? "서버 오류가 발생했습니다."
-            : error.message
-    );
-});
+server.use(notFoundHandler);
+server.use(errorHandler);
 
 async function connectDB() {
     try {
         await mongoose.connect(process.env.DB);
         console.log("MongoDB Connected Successfully");
+
+        const {
+            ensureDefaultMockExamPackagePolicy,
+        } = require("./services/mockExamPackageService");
+        await ensureDefaultMockExamPackagePolicy();
+
+        const {
+            ensureDefaultLearningPackagePolicy,
+            ensureFullAttendanceLearningPackagePolicy,
+        } = require("./services/arenaPolicyService");
+        await ensureDefaultLearningPackagePolicy();
+        await ensureFullAttendanceLearningPackagePolicy();
 
         const {
             refreshCommunityCoachMessages,
@@ -89,9 +86,39 @@ async function connectDB() {
         startDailyAccessCycleScheduler();
 
         const {
+            startAccessCycleExpiryReminderScheduler,
+        } = require("./services/accessCycleExpiryReminderService");
+        startAccessCycleExpiryReminderScheduler();
+
+        const {
             startArenaMatchAttemptScheduler,
         } = require("./services/arenaMatchAttemptService");
         startArenaMatchAttemptScheduler();
+
+        const {
+            startArenaEvidenceRetentionScheduler,
+        } = require("./services/arenaMatchEvidenceService");
+        startArenaEvidenceRetentionScheduler();
+
+        const {
+            startLocalStorageBackupScheduler,
+        } = require("./services/localStorageBackupService");
+        startLocalStorageBackupScheduler();
+
+        const {
+            startArchiveTrashPurgeScheduler,
+        } = require("./services/archiveService");
+        startArchiveTrashPurgeScheduler();
+
+        const {
+            startDataAnalysisScheduler,
+        } = require("./services/dataAnalysisAggregationService");
+        startDataAnalysisScheduler();
+
+        const {
+            startArenaIntegrityRiskScheduler,
+        } = require("./services/arenaIntegrityRiskService");
+        startArenaIntegrityRiskScheduler();
     } catch (error) {
         console.error("MongoDB Connection Failed:", error);
         process.exit(1);

@@ -3,6 +3,9 @@ const {
   AccessCycle,
   ArenaAccessState,
 } = require("../models/goatArenaModel");
+const {
+  getMockExamPackageAccess,
+} = require("./mockExamPackageService");
 
 async function getPaidPackageAccess(userId) {
   if (!mongoose.isValidObjectId(userId)) {
@@ -53,7 +56,43 @@ async function assertPaidPackageAccess(userId) {
   return access;
 }
 
+async function getWeeklyMockExamAccess(userId) {
+  const [learningPackage, mockExamOnlyPackage] = await Promise.all([
+    getPaidPackageAccess(userId),
+    getMockExamPackageAccess(userId),
+  ]);
+  if (learningPackage.active) {
+    return {
+      active: true,
+      packageType: "LEARNING_PACKAGE",
+      learningPackage,
+      mockExamOnlyPackage,
+      placementRequired: true,
+      arenaAllowed: true,
+    };
+  }
+  if (mockExamOnlyPackage.active) {
+    return {
+      active: true,
+      packageType: "MOCK_EXAM_ONLY",
+      learningPackage,
+      mockExamOnlyPackage,
+      placementRequired: false,
+      arenaAllowed: false,
+    };
+  }
+  return {
+    active: false,
+    packageType: null,
+    learningPackage,
+    mockExamOnlyPackage,
+    placementRequired: false,
+    arenaAllowed: false,
+  };
+}
+
 module.exports = {
   assertPaidPackageAccess,
   getPaidPackageAccess,
+  getWeeklyMockExamAccess,
 };

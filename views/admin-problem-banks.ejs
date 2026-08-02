@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>문제은행 코드 안내 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "problem-banks" }) %>
+    <main class="admin-main">
+      <header class="admin-heading">
+        <div>
+          <p>PROBLEM BANK MAP</p>
+          <h1>문제은행 코드 안내</h1>
+          <span>시험과 문제 유형별로 실제 서버가 읽는 파일을 한눈에 확인합니다.</span>
+        </div>
+        <strong><%= catalog.items.length %><small>개 분류</small></strong>
+      </header>
+
+      <section class="admin-panel">
+        <div class="admin-feedback admin-feedback--error" role="note">
+          <span aria-hidden="true">!</span>
+          <div><strong>웹 화면에서 JavaScript 직접 편집은 제공하지 않습니다.</strong><br /><%= catalog.safetyReason %> 유형 추가는 아래 파일을 수정한 뒤 자동 검산과 테스트를 통과시켜 배포합니다.</div>
+        </div>
+        <div class="admin-policy-list">
+          <% catalog.items.forEach((item, index) => { %>
+            <article class="admin-policy-card">
+              <header>
+                <div>
+                  <span><%= String(index + 1).padStart(2, "0") %> · <%= item.status %></span>
+                  <h3><%= item.name %></h3>
+                  <small><%= item.purpose %></small>
+                </div>
+              </header>
+              <div class="admin-policy-summary-grid">
+                <% if (item.sourceType === "ADMIN_UPLOAD") { %>
+                  <span>자료 방식 <b>관리자 PDF·정답·배점 업로드</b></span>
+                  <span>유형 파일 <b>별도 JavaScript 없음</b></span>
+                <% } else { %>
+                  <span>서버 파일 <b><code><%= item.file %></code></b></span>
+                <% } %>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

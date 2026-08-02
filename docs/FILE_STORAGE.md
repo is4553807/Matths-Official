@@ -1,27 +1,24 @@
-# Matths 업로드 파일 저장소
+# Matths 파일 저장소 설정
 
-현재 아카이브, 사설 모의고사 PDF, 소명 자료는 MongoDB GridFS가 아니라
-서버의 로컬 디스크에 저장됩니다.
+파일 저장의 권위 문서는 [`docs/logic/13_STORAGE.md`](logic/13_STORAGE.md)다. 운영자 아카이브·주간 공식 모의고사는 서버 영구 디스크를 사용하고, 게시판 첨부·GOAT Arena 풀이 증거·사용자 소명자료는 Cloudinary 비공개 저장소를 사용한다.
 
-- 기본 경로: `storage/archive`
-- 실제 파일: 위 디렉터리
-- MongoDB: 파일명, 원본명, MIME 형식, 크기, 폴더 등의 메타데이터
+## 운영 환경
 
-## 배포 환경 설정
+Cloudinary 대시보드의 API Environment variable 값을 서버 환경 변수에 등록한다.
 
-일반 VM처럼 디스크가 영구 보존되는 서버에서는 기본 경로를 사용할 수
-있습니다. Docker, Render, Railway, Heroku, 서버리스처럼 재배포 시 로컬
-파일시스템이 초기화될 수 있는 환경에서는 영구 볼륨을 마운트하고
-다음 환경변수를 그 절대 경로로 지정해야 합니다.
-
-```env
-ARCHIVE_STORAGE_DIR=/var/lib/matths/archive
+```text
+FILE_STORAGE_PROVIDER=cloudinary
+CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
 ```
 
-해당 디렉터리는 Node.js 프로세스가 읽고 쓸 수 있어야 합니다.
+`CLOUDINARY_URL` 대신 `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` 세 값을 각각 등록해도 된다. API Secret은 브라우저 코드나 저장소에 넣지 않는다.
 
-여러 서버 인스턴스를 동시에 실행하면 각 인스턴스의 로컬 파일은 서로
-공유되지 않습니다. 수평 확장이 필요할 때는 S3, Cloudflare R2, Google
-Cloud Storage 같은 공용 객체 저장소용 저장 어댑터로 이전해야 합니다.
-데이터베이스 백업만으로는 업로드 파일이 복구되지 않으므로
-`ARCHIVE_STORAGE_DIR`도 별도로 백업해야 합니다.
+업로드 자산은 `authenticated` 전달 방식으로 저장한다. 사용자가 다운로드하거나 운영자가 풀이 증거를 열 때 기존 Matths 권한 검사를 먼저 통과하고 서버가 서명된 주소를 발급한다.
+
+## 로컬 개발
+
+사용자 파일은 Cloudinary 환경 변수가 없으면 업로드를 거절한다. 운영자 파일은 `storage/archive/`에 저장하며 운영 환경에서는 `LOCAL_STORAGE_PERSISTENT=1`과 영구 디스크가 필요하다. 사용자 파일을 운영 서버 디스크에 자동 대체 저장하지 않는다.
+
+## 무료 사용 범위
+
+Cloudinary 무료 플랜은 카드 등록 없이 사용할 수 있고 월 25크레딧 범위에서 저장공간, 전송량과 변환을 함께 사용한다. 파일이 많아지면 Cloudinary 대시보드의 Storage와 Bandwidth 사용량을 운영 지표에서 함께 확인한다.

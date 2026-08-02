@@ -1,47 +1,16 @@
 (function () {
   "use strict";
 
-  function initAccountRetentionChoice() {
-    const statusSelect =
-      document.querySelector(
-        "[data-account-status-select]"
-      );
-    const retentionChoice =
-      document.querySelector(
-        "[data-account-retention-choice]"
-      );
-
-    if (
-      !statusSelect ||
-      !retentionChoice
-    ) {
-      return;
-    }
-
-    const checkbox =
-      retentionChoice.querySelector(
-        'input[name="retainAnonymousData"]'
-      );
-
-    function syncRetentionChoice() {
-      const withdrawing =
-        statusSelect.value ===
-        "withdrawn";
-
-      retentionChoice.hidden =
-        !withdrawing;
-
-      if (checkbox) {
-        checkbox.disabled =
-          !withdrawing;
-      }
-    }
-
-    statusSelect.addEventListener(
-      "change",
-      syncRetentionChoice
-    );
-    syncRetentionChoice();
+  function initAccountDeletionGuard() {
+    const form = document.querySelector("[data-admin-delete-form]");
+    if (!form) return;
+    form.addEventListener("submit", (event) => {
+      const mode = form.querySelector('input[name="dataRetention"]:checked')?.value;
+      const message = mode === "purged"
+        ? "이 계정의 모든 학습·시험·Arena·게시판 데이터를 영구 삭제합니다. 계속할까요?"
+        : "개인정보를 제거하고 활동 데이터는 익명으로 보존합니다. 계속할까요?";
+      if (!window.confirm(message)) event.preventDefault();
+    });
   }
 
   if (
@@ -49,10 +18,10 @@
   ) {
     document.addEventListener(
       "DOMContentLoaded",
-      initAccountRetentionChoice,
+      initAccountDeletionGuard,
       { once: true }
     );
   } else {
-    initAccountRetentionChoice();
+    initAccountDeletionGuard();
   }
 })();

@@ -3,6 +3,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const mongoose = require("mongoose");
 const {
+  AssessmentAttempt,
+} = require("../models/matthsModel");
+const {
   ArenaAccessState,
   ArenaCohortRevision,
   ArenaOutboxEvent,
@@ -14,21 +17,26 @@ const {
   compareStandingForLayout,
   computeArenaCohortLayout,
   initialArenaGpFromPlacement,
+  initialArenaTupleFromPlacement,
   kstSeasonKey,
 } = require("../services/arenaStandingService");
 const {
+  arenaTierGuide,
+  arenaTupleFromLegacyGp,
+  localGpFromLegacyGp,
   resolveArenaTier,
 } = require("../services/arenaTierPolicy");
 
 function syntheticStandings(
   count,
-  arenaGp = 2000
+  arenaGp = 99
 ) {
   return Array.from(
     { length: count },
     (_, index) => ({
       _id: new mongoose.Types.ObjectId(),
       userId: new mongoose.Types.ObjectId(),
+      arenaRank: "챌린저",
       arenaGp,
       reachedCurrentGpAt: new Date(
         Date.UTC(2026, 7, 1, 0, 0, index)
@@ -40,6 +48,19 @@ function syntheticStandings(
 async function run() {
   const root = path.resolve(__dirname, "..");
 
+  assert.ok(
+    arenaTierGuide().every(
+      (tier) => tier.gpRange === "0–99 GP"
+    ),
+    "모든 공개 Arena 티어는 0~99 GP를 사용해야 합니다."
+  );
+  assert.deepEqual(
+    arenaTupleFromLegacyGp(1520),
+    { arenaRank: "챌린저", arenaGp: 0 }
+  );
+  assert.equal(localGpFromLegacyGp(1519, "GRANDMASTER"), 99);
+  assert.equal(localGpFromLegacyGp(800, "SILVER"), 0);
+
   assert.equal(
     initialArenaGpFromPlacement({
       placementResult: {
@@ -47,7 +68,7 @@ async function run() {
         initialMmr: 999,
       },
     }),
-    1234
+    20
   );
   assert.equal(
     initialArenaGpFromPlacement({
@@ -55,7 +76,13 @@ async function run() {
         initialMmr: 1001.6,
       },
     }),
-    1002
+    77
+  );
+  assert.deepEqual(
+    initialArenaTupleFromPlacement({
+      placementResult: { initialRating: 1234.49 },
+    }),
+    { arenaRank: "다이아몬드", arenaGp: 20 }
   );
   assert.throws(
     () =>
@@ -88,14 +115,16 @@ async function run() {
 
   const earlier = {
     _id: new mongoose.Types.ObjectId(),
-    arenaGp: 1200,
+    arenaRank: "에메랄드",
+    arenaGp: 88,
     reachedCurrentGpAt: new Date(
       "2026-08-01T00:00:00.000Z"
     ),
   };
   const later = {
     _id: new mongoose.Types.ObjectId(),
-    arenaGp: 1200,
+    arenaRank: "에메랄드",
+    arenaGp: 88,
     reachedCurrentGpAt: new Date(
       "2026-08-02T00:00:00.000Z"
     ),
@@ -104,6 +133,64 @@ async function run() {
     compareStandingForLayout(
       earlier,
       later
+    ) < 0
+  );
+
+  const placementTieBase = {
+    arenaRank: "에메랄드",
+    arenaGp: 88,
+    sourcePlacementAttemptId:
+      new mongoose.Types.ObjectId(),
+    seededAt: new Date(
+      "2026-08-02T00:00:00.000Z"
+    ),
+    reachedCurrentGpAt: new Date(
+      "2026-08-02T00:00:00.000Z"
+    ),
+  };
+  const higherPlacementScore = {
+    ...placementTieBase,
+    _id: new mongoose.Types.ObjectId(),
+    seedPlacementScore: 90,
+    seedPlacementElapsedTimeMs: 600000,
+    seedPlacementMmr: 1000,
+    seedPlacementStartedAt: new Date(
+      "2026-08-02T02:00:00.000Z"
+    ),
+  };
+  const fasterLowerScore = {
+    ...placementTieBase,
+    _id: new mongoose.Types.ObjectId(),
+    sourcePlacementAttemptId:
+      new mongoose.Types.ObjectId(),
+    seedPlacementScore: 89,
+    seedPlacementElapsedTimeMs: 300000,
+    seedPlacementMmr: 1100,
+    seedPlacementStartedAt: new Date(
+      "2026-08-02T01:00:00.000Z"
+    ),
+  };
+  assert.ok(
+    compareStandingForLayout(
+      higherPlacementScore,
+      fasterLowerScore
+    ) < 0
+  );
+  assert.ok(
+    compareStandingForLayout(
+      { ...higherPlacementScore, seedPlacementScore: 89 },
+      fasterLowerScore
+    ) > 0
+  );
+  assert.ok(
+    compareStandingForLayout(
+      {
+        ...higherPlacementScore,
+        seedPlacementScore: 89,
+        seedPlacementElapsedTimeMs: 300000,
+        seedPlacementMmr: 1200,
+      },
+      fasterLowerScore
     ) < 0
   );
 
@@ -123,7 +210,8 @@ async function run() {
         _id: new mongoose.Types.ObjectId(),
         userId:
           new mongoose.Types.ObjectId(),
-        arenaGp: 900,
+        arenaRank: "실버",
+        arenaGp: 70,
         reachedCurrentGpAt: new Date(
           "2026-08-03T00:00:00.000Z"
         ),
@@ -188,7 +276,8 @@ async function run() {
 
   assert.equal(
     resolveArenaTier({
-      gp: 2000,
+      rank: "챌린저",
+      gp: 99,
       activeRankerCount: 300,
       topPercentile: 0.006,
     }).label,
@@ -196,7 +285,8 @@ async function run() {
   );
   assert.equal(
     resolveArenaTier({
-      gp: 2000,
+      rank: "챌린저",
+      gp: 99,
       activeRankerCount: 300,
       topPercentile: 0.051,
     }).label,
@@ -217,7 +307,7 @@ async function run() {
     seededAt: new Date(),
     arenaRank: "다이아몬드",
     arenaPosition: 1,
-    arenaGp: 1250,
+    arenaGp: 34,
     status: "LOCKED",
   });
   await assert.doesNotReject(() =>
@@ -250,6 +340,18 @@ async function run() {
       aggregateId: standingDocument._id,
       idempotencyKey:
         `${attemptId}:ArenaPlacementCompleted`,
+    }).validate()
+  );
+  await assert.doesNotReject(() =>
+    new AssessmentAttempt({
+      userId,
+      paperId: `season-placement-${attemptId}`,
+      scopeType: "placement",
+      placementPurpose: "SEASON",
+      placementContextKey: "SEASON:2027:MAIN",
+      courseId: "placement",
+      title: "시즌 배치고사",
+      totalPoints: 100,
     }).validate()
   );
 
@@ -302,6 +404,16 @@ async function run() {
         /syncInitialArenaPlacement\(/g
       ) || []
     ).length >= 3
+  );
+  assert.ok(
+    placementSource.includes('purpose: "SEASON"') &&
+      placementSource.includes('purpose: "RENEWAL_RANK_ASSESSMENT"') &&
+      placementSource.includes("placementContextKey") &&
+      placementSource.includes("shouldUpdateSkillMmr")
+  );
+  assert.ok(
+    standingSource.includes('placementDivision === "MAIN"') &&
+      standingSource.includes("ANNUAL_MAIN_SEASON_PLACEMENT")
   );
   assert.ok(
     accessCycleSource.includes(
