@@ -1,0 +1,216 @@
+<%
+  const formatBytes = (value) => {
+    const bytes = Number(value);
+    if (!Number.isFinite(bytes) || bytes <= 0) return "확인 불가";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let size = bytes;
+    let index = 0;
+    while (size >= 1024 && index < units.length - 1) {
+      size /= 1024;
+      index += 1;
+    }
+    return `${size.toFixed(index > 1 ? 1 : 0)} ${units[index]}`;
+  };
+  const capacity = guide.environment.localCapacity || {};
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>관리자 운영 매뉴얼 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  </head>
+  <body class="admin-page admin-guide-page">
+    <%- include("partials/admin-navigation", { activePage: "operations-guide" }) %>
+
+    <main class="admin-guide-shell">
+      <header class="admin-guide-hero">
+        <div>
+          <p>MATTHS OPERATIONS HANDBOOK</p>
+          <h1>관리자가 알아야 할<br />플랫폼 운영의 모든 것</h1>
+          <span>권한, 파일 저장, 삭제 기한, 자동 작업, 장애 대응, MongoDB 컬렉션과 전체 스키마를 현재 코드 기준으로 정리했습니다.</span>
+        </div>
+        <dl>
+          <div><dt>DB 모델</dt><dd><%= guide.database.modelCount %></dd></div>
+          <div><dt>스키마 필드</dt><dd><%= guide.database.fieldCount %></dd></div>
+          <div><dt>업무 분류</dt><dd><%= guide.database.categoryCount %></dd></div>
+        </dl>
+      </header>
+
+      <nav class="admin-guide-jump" aria-label="운영 매뉴얼 바로가기">
+        <a href="#daily-check">매일 확인</a>
+        <a href="#permissions">권한</a>
+        <a href="#workflows">표준 절차</a>
+        <a href="#storage">파일 저장</a>
+        <a href="#retention">삭제 기한</a>
+        <a href="#schedulers">자동 작업</a>
+        <a href="#incidents">장애 대응</a>
+        <a href="#database">DB 스키마</a>
+      </nav>
+
+      <section class="admin-guide-section" id="daily-check">
+        <header><span>01</span><div><p>DAILY CONTROL</p><h2>운영 시작 전 확인</h2></div></header>
+        <div class="admin-guide-status-grid">
+          <article class="<%= guide.environment.cloudinaryConfigured ? 'ok' : 'warn' %>">
+            <small>사용자 파일</small><strong>Cloudinary <%= guide.environment.cloudinaryConfigured ? "연결됨" : "미연결" %></strong>
+            <p>게시판 첨부, Arena 풀이 증거, 모의고사 소명자료가 비공개 자산으로 저장됩니다.</p>
+          </article>
+          <article class="<%= guide.environment.persistentLocalReady ? 'ok' : 'warn' %>">
+            <small>운영자 원본</small><strong>영구 디스크 <%= guide.environment.persistentLocalReady ? "준비됨" : "확인 필요" %></strong>
+            <p>아카이브와 주간 공식 모의고사 원본은 public 밖의 영구 디스크에 저장됩니다.</p>
+          </article>
+          <article class="<%= guide.environment.r2BackupConfigured ? 'ok' : 'warn' %>">
+            <small>재해 복구</small><strong>R2 <%= guide.environment.r2BackupConfigured ? "연결됨" : "미연결" %></strong>
+            <p>운영자 원본의 SHA-256 증분 백업 상태입니다. R2는 실시간 다운로드 원본이 아니라 복구용입니다.</p>
+          </article>
+          <article class="<%= capacity.level === 'BLOCKED' || capacity.level === 'WARNING' ? 'warn' : 'ok' %>">
+            <small>로컬 디스크</small><strong><%= capacity.usedPercent === null ? "사용량 확인 필요" : `${capacity.usedPercent}% 사용` %></strong>
+            <p><%= formatBytes(capacity.usedBytes) %> / <%= formatBytes(capacity.totalBytes) %> · 70% 주의, 85% 경고, 95% 신규 업로드 차단</p>
+          </article>
+        </div>
+        <div class="admin-guide-checklist">
+          <h3>권장 점검 순서</h3>
+          <ol>
+            <li><strong>관리 알림</strong><span>신고, 신원 중복, 풀이 증거 이상 징후, 미처리 문의를 확인합니다.</span></li>
+            <li><strong>경기·정산 감사</strong><span>미정산 경기, 학습일수 불일치, 랭킹 재계산 대기 작업을 확인합니다.</span></li>
+            <li><strong>주간 모의고사</strong><span>문제지·JSON·답지의 회차와 공개 시간을 다시 대조합니다. CUSTOM은 정식 랭킹에서 제외됩니다.</span></li>
+            <li><strong>STORAGE</strong><span>디스크 사용량, R2 실패 항목, Cloudinary 사용량과 삭제 대기 파일을 확인합니다.</span></li>
+            <li><strong>운영 지표</strong><span>매출, 결제 전환, 이용 주기, 페이백과 이상 징후 표본을 확인합니다.</span></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="admin-guide-section" id="permissions">
+        <header><span>02</span><div><p>ACCESS CONTROL</p><h2>계정과 상품 권한</h2></div></header>
+        <div class="admin-guide-table-wrap">
+          <table><thead><tr><th>대상</th><th>사용 가능</th><th>제한·운영 기준</th></tr></thead>
+            <tbody><% guide.permissionMatrix.forEach((row) => { %><tr><% row.forEach((cell) => { %><td><%= cell %></td><% }) %></tr><% }) %></tbody>
+          </table>
+        </div>
+        <div class="admin-guide-note critical">
+          <strong>관리자 슈퍼계정</strong>
+          <p>관리자는 유료 페이지와 Sub/Main 안내를 무제한·만료 없음으로 확인합니다. 그러나 실제 공식 랭킹의 GP·티어·학습일수는 화면 테스트를 이유로 직접 수정하지 않습니다. 사용자 데이터 변경은 유저 관리·정산 감사처럼 감사 로그가 남는 기능으로 처리합니다.</p>
+        </div>
+      </section>
+
+      <section class="admin-guide-section" id="workflows">
+        <header><span>03</span><div><p>STANDARD OPERATING PROCEDURES</p><h2>기능별 관리자 표준 절차</h2></div></header>
+        <p class="admin-guide-lead">화면에서 버튼을 누르는 것보다 중요한 것은 변경 전 조건 확인, 실제 데이터 반영, 감사 이력 확인입니다. 아래 순서를 업무별 체크리스트로 사용하세요.</p>
+        <div class="admin-guide-workflow-grid">
+          <% guide.operatingWorkflows.forEach((workflow, index) => { %>
+            <article>
+              <header><span><%= String(index + 1).padStart(2, "0") %></span><div><small><%= workflow.cadence %></small><h3><%= workflow.title %></h3></div></header>
+              <p><%= workflow.objective %></p>
+              <ol><% workflow.steps.forEach((step) => { %><li><%= step %></li><% }) %></ol>
+              <dl><div><dt>중단 조건</dt><dd><%= workflow.hardStops %></dd></div><div><dt>확인할 기록</dt><dd><%= workflow.audit %></dd></div></dl>
+            </article>
+          <% }) %>
+        </div>
+        <h3 class="admin-guide-subtitle">운영 환경 변수 지도</h3>
+        <div class="admin-guide-table-wrap wide"><table><thead><tr><th>영역</th><th>환경 변수</th><th>책임</th><th>운영 확인</th></tr></thead><tbody><% guide.environmentConfiguration.forEach((row) => { %><tr><% row.forEach((cell, index) => { %><td><% if (index === 1) { %><code><%= cell %></code><% } else { %><%= cell %><% } %></td><% }) %></tr><% }) %></tbody></table></div>
+        <div class="admin-guide-note critical"><strong>비밀값 표시 원칙</strong><p>이 매뉴얼은 환경 변수의 이름과 연결 여부만 보여줍니다. DB 비밀번호, Cloudinary API Secret, R2 Secret Access Key, 세션 secret, SMTP 비밀번호의 실제 값은 화면·로그·Git·고객지원 메모에 남기지 않습니다.</p></div>
+      </section>
+
+      <section class="admin-guide-section" id="storage">
+        <header><span>04</span><div><p>STORAGE MAP</p><h2>누가 올린 파일이 어디로 가는가</h2></div></header>
+        <p class="admin-guide-lead">파일 원본은 MongoDB에 넣지 않습니다. MongoDB에는 공급자, 목적, 파일명, MIME, 크기, SHA-256, 보존 기한, Cloudinary 식별자 또는 R2 백업 상태만 저장합니다.</p>
+        <div class="admin-guide-table-wrap wide">
+          <table>
+            <thead><tr><th>소유</th><th>파일</th><th>저장 목적</th><th>권위 원본</th><th>백업</th><th>보존</th><th>열람</th></tr></thead>
+            <tbody>
+              <% guide.storageMatrix.forEach((item) => { %>
+                <tr><td><%= item.owner %></td><td><strong><%= item.fileType %></strong></td><td><code><%= item.purpose %></code></td><td><%= item.primary %></td><td><%= item.backup %></td><td><%= item.retention %></td><td><%= item.access %></td></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <div class="admin-guide-flow">
+          <article><span>사용자</span><strong>임시 디스크</strong><p><%= guide.environment.userCloudTempDirectory %></p></article>
+          <b>→</b><article><span>검증</span><strong>확장자·MIME·magic bytes</strong><p>성공하면 임시 파일 즉시 삭제</p></article>
+          <b>→</b><article><span>권위 원본</span><strong>Cloudinary authenticated</strong><p>5분 서명 URL로만 열람</p></article>
+        </div>
+        <div class="admin-guide-flow">
+          <article><span>운영자</span><strong>서버 영구 디스크</strong><p>storage/archive · public 외부</p></article>
+          <b>→</b><article><span>업로드 후</span><strong>약 10초 내 백업 시도</strong><p>실패해도 로컬 서비스는 유지</p></article>
+          <b>→</b><article><span>재해 복구</span><strong>Cloudflare R2</strong><p>매일 03:30 KST 재점검</p></article>
+        </div>
+      </section>
+
+      <section class="admin-guide-section" id="retention">
+        <header><span>05</span><div><p>RETENTION & DELETION</p><h2>보존 기간과 삭제 조건</h2></div></header>
+        <div class="admin-guide-table-wrap">
+          <table><thead><tr><th>데이터·원본</th><th>기본 보존</th><th>예외·삭제 조건</th></tr></thead>
+            <tbody><% guide.retentionPolicies.forEach((row) => { %><tr><% row.forEach((cell) => { %><td><%= cell %></td><% }) %></tr><% }) %></tbody>
+          </table>
+        </div>
+        <div class="admin-guide-note">
+          <strong>삭제 전 반드시 확인</strong>
+          <p>공개 대기·응시 중 모의고사 연결, 미정산 경기, 무결성 검토, R2 백업 객체를 먼저 확인합니다. 계정의 “익명 통계 보존”은 파일 원본을 보존한다는 뜻이 아닙니다. 식별 가능한 사용자 원본은 제거하고 점수·시간 같은 비식별 통계만 남깁니다.</p>
+        </div>
+      </section>
+
+      <section class="admin-guide-section" id="schedulers">
+        <header><span>06</span><div><p>AUTOMATION</p><h2>서버가 자동으로 하는 일</h2></div></header>
+        <div class="admin-guide-scheduler-grid">
+          <% guide.schedulers.forEach((row) => { %>
+            <article><small><%= row[1] %></small><strong><%= row[0] %></strong><p><%= row[2] %></p></article>
+          <% }) %>
+        </div>
+        <div class="admin-guide-note critical"><strong>다중 서버 주의</strong><p>자동 작업은 중복 실행 방지·멱등 키·스케줄러 임대를 사용해야 합니다. 배포 후 스케줄러를 임의로 여러 번 시작하거나, 실패한 작업을 DB 원본 수정으로 덮어쓰지 않습니다.</p></div>
+      </section>
+
+      <section class="admin-guide-section" id="incidents">
+        <header><span>07</span><div><p>INCIDENT PLAYBOOK</p><h2>문제가 생겼을 때의 순서</h2></div></header>
+        <div class="admin-guide-incident-grid">
+          <% guide.incidentPlaybook.forEach((incident) => { %>
+            <article><h3><%= incident.title %></h3><ol><% incident.checks.forEach((check) => { %><li><%= check %></li><% }) %></ol></article>
+          <% }) %>
+        </div>
+      </section>
+
+      <section class="admin-guide-section" id="database">
+        <header><span>08</span><div><p>DATABASE CATALOG</p><h2>MongoDB 전체 컬렉션과 스키마</h2></div></header>
+        <p class="admin-guide-lead"><%= guide.database.note %> 현재 연결 상태는 <strong><%= guide.database.connectionState %></strong>, 데이터베이스는 <strong><%= guide.database.databaseName %></strong>입니다.</p>
+        <div class="admin-guide-schema-nav">
+          <% guide.schemaCategories.forEach((category) => { %><a href="#schema-<%= category.id %>"><%= category.label %> <b><%= category.models.length %></b></a><% }) %>
+        </div>
+
+        <% guide.schemaCategories.forEach((category) => { %>
+          <section class="admin-guide-schema-category" id="schema-<%= category.id %>">
+            <header><div><h3><%= category.label %></h3><p><%= category.description %></p></div><strong><%= category.models.length %>개 모델</strong></header>
+            <% category.models.forEach((model) => { %>
+              <details class="admin-guide-model">
+                <summary>
+                  <span><b><%= model.modelName %></b><small>컬렉션 · <%= model.collectionName %></small></span>
+                  <em><%= model.fieldCount %>개 필드 · <%= model.indexes.length %>개 인덱스<%= model.timestamps ? " · createdAt/updatedAt" : "" %></em>
+                </summary>
+                <div>
+                  <h4>필드 정의</h4>
+                  <div class="admin-guide-table-wrap schema">
+                    <table><thead><tr><th>필드 경로</th><th>타입</th><th>제약·참조</th><th>기본값</th></tr></thead>
+                      <tbody><% model.fields.forEach((field) => { %><tr><td><code><%= field.field %></code></td><td><%= field.type %></td><td><%= field.rules %></td><td><%= field.defaultValue %></td></tr><% }) %></tbody>
+                    </table>
+                  </div>
+                  <h4>인덱스·TTL</h4>
+                  <% if (model.indexes.length) { %>
+                    <div class="admin-guide-table-wrap schema"><table><thead><tr><th>키</th><th>고유</th><th>TTL</th><th>조건</th></tr></thead><tbody><% model.indexes.forEach((index) => { %><tr><td><code><%= index.keys %></code></td><td><%= index.unique ? "예" : "아니오" %></td><td><%= index.ttl %></td><td><%= index.partial %></td></tr><% }) %></tbody></table></div>
+                  <% } else { %><p class="admin-guide-empty">별도로 선언된 복합·TTL 인덱스가 없습니다.</p><% } %>
+                </div>
+              </details>
+            <% }) %>
+          </section>
+        <% }) %>
+      </section>
+
+      <footer class="admin-guide-footer">
+        <strong>이 문서는 현재 실행 코드에서 생성됩니다.</strong>
+        <span>스키마 목록 생성 시각 · <%= new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long", timeStyle: "medium" }).format(new Date(guide.generatedAt)) %></span>
+      </footer>
+    </main>
+  </body>
+</html>

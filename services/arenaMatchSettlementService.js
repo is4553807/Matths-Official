@@ -99,14 +99,16 @@ function buildSubNormalSettlementPlan({
     isBronzeTuple(challengerBefore) &&
     Number(bronzeRefundDays ?? 1) === 1;
   const challengerDelta = {
-    availableLearningDays: shouldRefundBronze ? 1 : 0,
-    paybackScoreDays: shouldRefundBronze ? 0 : -1,
-    lockedLearningDays: -1,
+    availableLearningDays: 0,
+    paybackScoreDays: shouldRefundBronze ? 1 : 0,
+    lockedPaybackScoreDays: -1,
+    lockedLearningDays: 0,
     paidNormalAttacksCompleted: 1,
   };
   const defenderDelta = {
-    availableLearningDays: winner === "DEFENDER" ? 1 : 0,
+    availableLearningDays: 0,
     paybackScoreDays: winner === "DEFENDER" ? 1 : 0,
+    lockedPaybackScoreDays: 0,
     lockedLearningDays: 0,
   };
   return {
@@ -125,10 +127,10 @@ function buildSubNormalSettlementPlan({
       : winner === "DEFENDER"
         ? "TRANSFERRED_TO_DEFENDER"
         : "BURNED",
-    transferredLearningDays: winner === "DEFENDER" ? 1 : 0,
-    burnedLearningDays:
+    transferredPaybackScore: winner === "DEFENDER" ? 1 : 0,
+    burnedPaybackScore:
       winner === "CHALLENGER" && !shouldRefundBronze ? 1 : 0,
-    returnedLearningDays: shouldRefundBronze ? 1 : 0,
+    returnedPaybackScore: shouldRefundBronze ? 1 : 0,
   };
 }
 
@@ -156,6 +158,9 @@ function cycleAfter(cycle, delta) {
     paybackScoreDays:
       numeric(cycle.paybackScoreDays) +
       numeric(delta.paybackScoreDays),
+    lockedPaybackScoreDays:
+      numeric(cycle.lockedPaybackScoreDays) +
+      numeric(delta.lockedPaybackScoreDays),
     lockedLearningDays:
       numeric(cycle.lockedLearningDays) +
       numeric(delta.lockedLearningDays),
@@ -168,6 +173,7 @@ function cycleUpdateForDelta(delta) {
   for (const field of [
     "availableLearningDays",
     "paybackScoreDays",
+    "lockedPaybackScoreDays",
     "lockedLearningDays",
     "paidNormalAttacksCompleted",
   ]) {
@@ -234,9 +240,10 @@ async function updateCycle({
     {
       _id: cycle._id,
       userId,
-      status: "ACTIVE",
+      status: cycle.status,
       availableLearningDays: numeric(cycle.availableLearningDays),
       paybackScoreDays: numeric(cycle.paybackScoreDays),
+      lockedPaybackScoreDays: numeric(cycle.lockedPaybackScoreDays),
       lockedLearningDays: numeric(cycle.lockedLearningDays),
       reservedLearningDays: numeric(cycle.reservedLearningDays),
     },
@@ -270,6 +277,7 @@ function learningLedgerEntry({
     eventType,
     availableLearningDaysDelta: numeric(delta.availableLearningDays),
     paybackScoreDaysDelta: numeric(delta.paybackScoreDays),
+    lockedPaybackScoreDaysDelta: numeric(delta.lockedPaybackScoreDays),
     lockedLearningDaysDelta: numeric(delta.lockedLearningDays),
     reservedLearningDaysDelta: 0,
     balanceAfter,
@@ -503,8 +511,9 @@ async function settleSubRevengeOutcome({
         !challengerStanding || !defenderStanding || !challengerCycle || !defenderCycle ||
         !tuplesEqual(challengerStanding, challengerBefore) ||
         !tuplesEqual(defenderStanding, defenderBefore) ||
-        challengerCycle.status !== "ACTIVE" || defenderCycle.status !== "ACTIVE" ||
-        numeric(challengerCycle.lockedLearningDays) < stakeDays
+        challengerCycle.status !== "ACTIVE" ||
+        defenderCycle.status !== "ACTIVE" ||
+        numeric(challengerCycle.lockedPaybackScoreDays) < stakeDays
       ) {
         result = await putSettlementHold({
           match,
@@ -528,13 +537,15 @@ async function settleSubRevengeOutcome({
         });
       }
       const challengerDelta = {
-        availableLearningDays: settlement.returnToAttackerDays,
-        paybackScoreDays: 0,
-        lockedLearningDays: -stakeDays,
+        availableLearningDays: 0,
+        paybackScoreDays: settlement.returnToAttackerDays,
+        lockedPaybackScoreDays: -stakeDays,
+        lockedLearningDays: 0,
       };
       const defenderDelta = {
-        availableLearningDays: settlement.transferToDefenderDays,
-        paybackScoreDays: 0,
+        availableLearningDays: 0,
+        paybackScoreDays: settlement.transferToDefenderDays,
+        lockedPaybackScoreDays: 0,
         lockedLearningDays: 0,
       };
       const challengerBalanceAfter = await updateCycle({ cycle: challengerCycle, delta: challengerDelta, userId: match.challenger.userId, session });
@@ -554,14 +565,15 @@ async function settleSubRevengeOutcome({
           idempotencyKey: `${match._id}:${SUB_REVENGE_SETTLEMENT_VERSION}:CHALLENGER:DAYS`,
           eventType: settlement.returnToAttackerDays > 0 ? "REVENGE_NO_SHOW_PARTIAL_REFUND" : "REVENGE_FEE_BURN",
           availableLearningDaysDelta: challengerDelta.availableLearningDays,
-          paybackScoreDaysDelta: 0,
+          paybackScoreDaysDelta: challengerDelta.paybackScoreDays,
+          lockedPaybackScoreDaysDelta: challengerDelta.lockedPaybackScoreDays,
           lockedLearningDaysDelta: challengerDelta.lockedLearningDays,
           reservedLearningDaysDelta: 0,
           balanceAfter: challengerBalanceAfter,
           sourceType: "ArenaMatch",
           sourceId: match._id,
           occurredAt: processedAt,
-          metadata: { outcome: resolvedOutcome, burnedLearningDays: settlement.burnDays },
+          metadata: { outcome: resolvedOutcome, burnedPaybackScore: settlement.burnDays },
         },
       ];
       if (settlement.transferToDefenderDays > 0) {
@@ -571,14 +583,15 @@ async function settleSubRevengeOutcome({
           idempotencyKey: `${match._id}:${SUB_REVENGE_SETTLEMENT_VERSION}:DEFENDER:DAYS`,
           eventType: "MATCH_SETTLEMENT_TRANSFER",
           availableLearningDaysDelta: defenderDelta.availableLearningDays,
-          paybackScoreDaysDelta: 0,
+          paybackScoreDaysDelta: defenderDelta.paybackScoreDays,
+          lockedPaybackScoreDaysDelta: 0,
           lockedLearningDaysDelta: 0,
           reservedLearningDaysDelta: 0,
           balanceAfter: defenderBalanceAfter,
           sourceType: "ArenaMatch",
           sourceId: match._id,
           occurredAt: processedAt,
-          metadata: { outcome: resolvedOutcome, burnedLearningDays: settlement.burnDays },
+          metadata: { outcome: resolvedOutcome, burnedPaybackScore: settlement.burnDays },
         });
       }
       await ArenaLearningDayLedger.create(ledgerEntries, { session, ordered: true });
@@ -587,9 +600,9 @@ async function settleSubRevengeOutcome({
         version: SUB_REVENGE_SETTLEMENT_VERSION,
         outcome: resolvedOutcome,
         tupleAction: settlement.tupleAction,
-        returnedLearningDays: settlement.returnToAttackerDays,
-        transferredLearningDays: settlement.transferToDefenderDays,
-        burnedLearningDays: settlement.burnDays,
+        returnedPaybackScore: settlement.returnToAttackerDays,
+        transferredPaybackScore: settlement.transferToDefenderDays,
+        burnedPaybackScore: settlement.burnDays,
         challengerBalanceAfter,
         defenderBalanceAfter,
       };
@@ -896,15 +909,14 @@ async function settleSubNormalMatch({
         !tuplesEqual(defenderStanding, plan.defenderTupleBefore) ||
         challengerCycle.status !== "ACTIVE" ||
         defenderCycle.status !== "ACTIVE" ||
-        numeric(challengerCycle.lockedLearningDays) < 1 ||
-        numeric(challengerCycle.paybackScoreDays) < 1;
+        numeric(challengerCycle.lockedPaybackScoreDays) < 1;
       if (invalidSource) {
         result = await putSettlementHold({
           match,
           session,
           reasonCode: "SETTLEMENT_SOURCE_CHANGED",
           description:
-            "경기 생성 시 고정한 순위 또는 학습일수 원본이 변경되어 자동 정산을 보류했습니다.",
+            "경기 생성 시 고정한 순위 또는 페이백 점수 원본이 변경되어 자동 정산을 보류했습니다.",
           now: processedAt,
         });
         return;
@@ -1028,7 +1040,7 @@ async function settleSubNormalMatch({
           now: processedAt,
         }),
       ];
-      if (plan.transferredLearningDays > 0) {
+      if (plan.transferredPaybackScore > 0) {
         learningEntries.push(
           learningLedgerEntry({
             match,
@@ -1078,9 +1090,9 @@ async function settleSubNormalMatch({
         version: SUB_NORMAL_SETTLEMENT_VERSION,
         tupleAction: plan.tupleAction,
         challengerStakeOutcome: plan.challengerStakeOutcome,
-        transferredLearningDays: plan.transferredLearningDays,
-        burnedLearningDays: plan.burnedLearningDays,
-        returnedLearningDays: plan.returnedLearningDays,
+        transferredPaybackScore: plan.transferredPaybackScore,
+        burnedPaybackScore: plan.burnedPaybackScore,
+        returnedPaybackScore: plan.returnedPaybackScore,
         challengerBalanceAfter,
         defenderBalanceAfter,
         revengeRightId: String(revengeRight._id),
@@ -1139,11 +1151,13 @@ async function settleSubNormalMatch({
       );
       depletedCycleIds = [
         challengerBalanceAfter.availableLearningDays === 0 &&
+        challengerBalanceAfter.lockedPaybackScoreDays === 0 &&
         challengerBalanceAfter.lockedLearningDays === 0 &&
         challengerBalanceAfter.reservedLearningDays === 0
           ? challengerCycle._id
           : null,
         defenderBalanceAfter.availableLearningDays === 0 &&
+        defenderBalanceAfter.lockedPaybackScoreDays === 0 &&
         defenderBalanceAfter.lockedLearningDays === 0 &&
         defenderBalanceAfter.reservedLearningDays === 0
           ? defenderCycle._id

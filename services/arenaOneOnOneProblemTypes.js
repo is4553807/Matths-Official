@@ -2470,6 +2470,7 @@ const PLACEMENT_ADVANCED_TYPES = {
     label:
       "절댓값 그래프의 교점과 구간별 넓이",
     category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
     courseId: "calculus-1",
     referenceFamily:
       "function-condition-graph",
@@ -2492,6 +2493,7 @@ const PLACEMENT_ADVANCED_TYPES = {
     label:
       "도함수 복원과 접선 사이의 넓이",
     category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
     courseId: "calculus-1",
     referenceFamily:
       "integral-defined-area",
@@ -2512,6 +2514,7 @@ const PLACEMENT_ADVANCED_TYPES = {
     label:
       "극대·극소점과 현 사이의 넓이",
     category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
     courseId: "calculus-1",
     referenceFamily:
       "function-condition-graph",
@@ -2534,6 +2537,7 @@ const PLACEMENT_ADVANCED_TYPES = {
     label:
       "속도의 부호 변화와 이동 거리",
     category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
     courseId: "calculus-1",
     referenceFamily:
       "derivative-limit-motion",
@@ -2556,6 +2560,7 @@ const PLACEMENT_ADVANCED_TYPES = {
     label:
       "적분함수와 미분가능 조건",
     category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
     courseId: "calculus-1",
     referenceFamily:
       "integral-defined-area",
@@ -2578,6 +2583,7 @@ const PLACEMENT_ADVANCED_TYPES = {
     label:
       "같은 것이 있는 배열의 복합 조건",
     category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
     courseId:
       "probability-statistics",
     referenceFamily:
@@ -2624,6 +2630,7 @@ const PLACEMENT_ADVANCED_TYPES = {
     label:
       "확률분포의 상수와 분산 연결",
     category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
     courseId:
       "probability-statistics",
     referenceFamily:

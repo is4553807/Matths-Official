@@ -7,6 +7,8 @@ const {
   SubscriptionPolicyVersion,
 } = require("../models/goatArenaModel");
 const {
+  DEFAULT_DAILY_MATCH_LIMITS_BY_TIER,
+  POLICY_CHANGE_NOTICE_DAYS,
   hasMaterialRenewalChange,
   mainPolicySnapshot,
   minimumMainStakeDaysForTierGap,
@@ -14,6 +16,7 @@ const {
   normalizePolicyDraftInput,
   planPolicyActivation,
   policySnapshot,
+  scheduledPolicyEffectiveFrom,
   validatePaybackBands,
 } = require("../services/arenaPolicyService");
 
@@ -49,6 +52,37 @@ async function run() {
   assert.equal(normalized.matchStakeDays.revenge, 2);
   assert.equal(normalized.payback.bands[3].maxScoreDays, null);
   assert.equal(normalized.packagePurchaseRequiresZeroBalance, true);
+  assert.deepEqual(
+    normalized.dailyMatchLimitsByTier,
+    DEFAULT_DAILY_MATCH_LIMITS_BY_TIER
+  );
+  const customDailyLimits = normalizePolicyDraftInput({
+    ...normalized,
+    dailyMatchLimitsByTier: undefined,
+    displayName: "티어별 일일 경기 상한 검증",
+    effectiveFrom: "2026-08-02T00:00",
+    ...Object.fromEntries(
+      DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.flatMap(({ tier }, index) => [
+        [`subAttackLimit_${tier}`, String(index + 1)],
+        [`subDefenseLimit_${tier}`, String(9 - index)],
+      ])
+    ),
+  }).dailyMatchLimitsByTier;
+  assert.equal(customDailyLimits[0].attackLimit, 1);
+  assert.equal(customDailyLimits[0].defenseLimit, 9);
+  assert.equal(customDailyLimits[8].attackLimit, 9);
+  assert.equal(customDailyLimits[8].defenseLimit, 1);
+
+  const policySavedAt = new Date("2026-08-04T12:00:00+09:00");
+  const earliestEffectiveAt = scheduledPolicyEffectiveFrom(
+    "2026-08-05T00:00",
+    policySavedAt
+  );
+  assert.equal(POLICY_CHANGE_NOTICE_DAYS, 30);
+  assert.equal(
+    earliestEffectiveAt.toISOString(),
+    new Date(policySavedAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  );
   assert.deepEqual(
     normalizePolicyDraftInput({
       ...normalized,
@@ -227,6 +261,14 @@ async function run() {
     path.join(root, "views/partials/admin-navigation.ejs"),
     "utf8"
   );
+  const policyViewSource = fs.readFileSync(
+    path.join(root, "views/admin-arena-policies.ejs"),
+    "utf8"
+  );
+  const ruleViewSource = fs.readFileSync(
+    path.join(root, "views/goat-arena-rules.ejs"),
+    "utf8"
+  );
   for (const route of [
     '"/admin/arena-policies"',
     '"/admin/arena-policies/sub"',
@@ -252,6 +294,12 @@ async function run() {
       navigationSource.includes('label: "정책·상품"'),
     "관리자 메뉴에 Arena 정책 화면이 없습니다."
   );
+  for (const tier of DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.map((row) => row.tier)) {
+    assert.ok(policyViewSource.includes(`subAttackLimit_<%= tier %>`));
+  }
+  assert.ok(ruleViewSource.includes("티어별 일일 일반 쟁탈전 상한"));
+  assert.ok(ruleViewSource.includes("rulebook.upcomingPolicy"));
+  assert.ok(controllerSource.includes("queuePolicyChangeNotificationsImmediately"));
 
   console.log(
     "Sub·Main Arena 정책 작성·구간 검증·예약 활성화·런타임 스냅샷 검증 완료"

@@ -239,7 +239,11 @@
             <dl class="usage-plan-metrics">
               <div>
                 <dt>남은 학습일수</dt>
-                <dd><strong><%= Number(activePlan.remainingLearningDays) || 0 %></strong><small>일</small></dd>
+                <% if (activePlan.unlimited) { %>
+                  <dd><strong>무제한</strong><small>만료 없음</small></dd>
+                <% } else { %>
+                  <dd><strong><%= Number(activePlan.remainingLearningDays) || 0 %></strong><small>일</small></dd>
+                <% } %>
               </div>
               <% if (activePlan.code === "LEARNING_PACKAGE" && Number(activePlan.reservedLearningDays || 0) + Number(activePlan.lockedLearningDays || 0) > 0) { %>
                 <div>
@@ -351,6 +355,7 @@
           <div>
             <a href="/terms">이용약관</a>
             <a href="/privacy">개인정보처리방침</a>
+            <%- include("partials/social-footer-links") %>
           </div>
         </footer>
 

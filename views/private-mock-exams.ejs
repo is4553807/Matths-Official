@@ -104,9 +104,9 @@
             </header>
             <% if (examData.currentExam) { %>
               <h3><%= examData.currentExam.title %></h3>
-              <p class="private-mock-current-meta"><%= examData.currentExam.isTest ? "TEST · OMR 확인용" : `${examData.currentExam.formCode}형` %> · <%= examData.currentExam.questionCount %>문항 · <%= examData.durationMinutes %>분 · <%= formatRelease(examData.currentExam.releaseAt) %> 시작</p>
+              <p class="private-mock-current-meta"><%= examData.currentExam.isTest ? "CUSTOM · 운영 확인용" : `${examData.currentExam.formCode}형` %> · <%= examData.currentExam.questionCount %>문항 · <%= examData.durationMinutes %>분 · <%= formatRelease(examData.currentExam.releaseAt) %> 시작</p>
               <% if (examData.currentExam.isTest) { %>
-                <p class="private-mock-test-notice">이 회차의 점수는 주간 GP·랭킹·공지·자동 아카이브에 반영되지 않습니다.</p>
+                <p class="private-mock-test-notice">CUSTOM 회차의 점수는 주간 GP·랭킹·공지·자동 아카이브에 반영되지 않습니다.</p>
               <% } %>
               <% if (examData.currentExam.attemptStatus === "expired") { %>
                 <span class="private-mock-start-link disabled" aria-disabled="true">응시 시간 종료</span>

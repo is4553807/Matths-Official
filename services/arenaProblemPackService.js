@@ -13,6 +13,15 @@ const {
   getMainTierPair,
   getSubTierPair,
 } = require("./arenaOneOnOneProblemBank");
+const {
+  ARENA_LEGACY_CONTENT_VERSION,
+  ARENA_QUESTION_DESIGN_POLICY_VERSION,
+  TIER_SPECS,
+  assertActivePackDesign,
+  packCurveForPair,
+  plannedPackSlots,
+  resolveArenaDifficultyTier,
+} = require("./arenaOneOnOneDifficultyPolicy");
 
 const ARENA_PROBLEM_COUNT = 5;
 const ARENA_TOTAL_POINTS = 100;
@@ -87,6 +96,22 @@ function packHashPayload(pack) {
     tierPairLabel: source.tierPairLabel,
     generationMode: source.generationMode,
     generatedForMatchKey: source.generatedForMatchKey,
+    designPolicyVersion: source.designPolicyVersion,
+    contentSourceVersion: source.contentSourceVersion,
+    problemDataVersionId: source.problemDataVersionId
+      ? String(source.problemDataVersionId)
+      : null,
+    tierCatalogVersionId: source.tierCatalogVersionId
+      ? String(source.tierCatalogVersionId)
+      : null,
+    designCompliance: source.designCompliance,
+    difficultyAnchor: source.difficultyAnchor,
+    difficultyTier: source.difficultyTier,
+    targetDefenderAccuracyMin: source.targetDefenderAccuracyMin,
+    targetDefenderAccuracyMax: source.targetDefenderAccuracyMax,
+    targetChallengerAccuracyMin: source.targetChallengerAccuracyMin,
+    targetChallengerAccuracyMax: source.targetChallengerAccuracyMax,
+    packCurve: source.packCurve,
     curriculumVersion:
       source.curriculumVersion,
     curriculumCoverage:
@@ -110,6 +135,14 @@ function packHashPayload(pack) {
           question.difficultyScore,
         expectedTimeMs:
           question.expectedTimeMs,
+        designPolicyVersion: question.designPolicyVersion,
+        designSlot: question.designSlot,
+        plannedCourseId: question.plannedCourseId,
+        difficultyPosition: question.difficultyPosition,
+        combinedConceptCount: question.combinedConceptCount,
+        conditionTransformSteps: question.conditionTransformSteps,
+        graphItem: question.graphItem,
+        calculationLoad: question.calculationLoad,
         prompt: question.prompt,
         inputMode: question.inputMode,
         choices: question.choices,
@@ -130,6 +163,12 @@ function packHashPayload(pack) {
           answerMatches:
             question.validation
               ?.answerMatches,
+          semiKillerCertified: question.validation?.semiKillerCertified,
+          curriculumCompliant: question.validation?.curriculumCompliant,
+          conditionsConsistent: question.validation?.conditionsConsistent,
+          tierBurdenMatches: question.validation?.tierBurdenMatches,
+          twoMinuteSolvable: question.validation?.twoMinuteSolvable,
+          originalityChecked: question.validation?.originalityChecked,
         },
       })
     ),
@@ -166,6 +205,20 @@ function validateArenaProblemPackDefinition(pack) {
       sum + Number(question.points || 0),
     0
   );
+  const activeDesign = pack?.designCompliance === "ACTIVE";
+  let activeDesignValid = true;
+  if (activeDesign) {
+    try {
+      activeDesignValid =
+        questions.every(
+          (question) =>
+            question.designPolicyVersion === pack.designPolicyVersion &&
+            Number.isInteger(Number(question.designSlot))
+        ) && assertActivePackDesign(pack);
+    } catch (_error) {
+      activeDesignValid = false;
+    }
+  }
   const valid =
     Number(pack?.questionCount) ===
       ARENA_PROBLEM_COUNT &&
@@ -185,6 +238,13 @@ function validateArenaProblemPackDefinition(pack) {
     Boolean(pack?.tierPairKey) &&
     Boolean(pack?.tierPairLabel) &&
     Boolean(pack?.scoringVersion) &&
+    Boolean(pack?.designPolicyVersion) &&
+    Boolean(pack?.contentSourceVersion) &&
+    pack?.difficultyAnchor === "DEFENDER" &&
+    Boolean(TIER_SPECS[pack?.difficultyTier]) &&
+    Array.isArray(pack?.packCurve) &&
+    pack.packCurve.length === ARENA_PROBLEM_COUNT &&
+    activeDesignValid &&
     questions.every(
       (question) =>
         question.category ===
@@ -277,6 +337,12 @@ function buildArenaProblemPackDraft({
   }
 
   const excludedTypeIds = [];
+  const difficultyTier = resolveArenaDifficultyTier(
+    challengerTier,
+    defenderTier
+  );
+  const difficultySpec = TIER_SPECS[difficultyTier];
+  const designSlots = plannedPackSlots(challengerTier, defenderTier);
   const questions = Array.from(
     { length: ARENA_PROBLEM_COUNT },
     (_, index) => {
@@ -304,6 +370,7 @@ function buildArenaProblemPackDraft({
       );
       const { definition, problem } =
         generated;
+      const design = designSlots[index];
       return {
         questionKey: `Q${index + 1}`,
         typeId: generated.typeId,
@@ -318,6 +385,14 @@ function buildArenaProblemPackDraft({
           definition.difficultyScore,
         expectedTimeMs:
           definition.expectedTimeMs,
+        designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
+        designSlot: design.order,
+        plannedCourseId: design.courseId,
+        difficultyPosition: design.difficultyPosition,
+        combinedConceptCount: 0,
+        conditionTransformSteps: 0,
+        graphItem: false,
+        calculationLoad: "",
         prompt: problem.prompt,
         inputMode: problem.inputMode,
         choices: (problem.choices || []).map(
@@ -346,6 +421,12 @@ function buildArenaProblemPackDraft({
           answerMatches:
             generated.validation
               .answerMatches,
+          semiKillerCertified: false,
+          curriculumCompliant: false,
+          conditionsConsistent: false,
+          tierBurdenMatches: false,
+          twoMinuteSolvable: false,
+          originalityChecked: false,
           checkedAt:
             generated.validation
               .checkedAt || new Date(),
@@ -366,6 +447,16 @@ function buildArenaProblemPackDraft({
     tierPairLabel: tierPairLabel || tierPair.label,
     generationMode,
     generatedForMatchKey,
+    designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
+    contentSourceVersion: ARENA_LEGACY_CONTENT_VERSION,
+    designCompliance: "PENDING_FINAL_GENERATORS",
+    difficultyAnchor: "DEFENDER",
+    difficultyTier,
+    targetDefenderAccuracyMin: difficultySpec.defenderAccuracy[0],
+    targetDefenderAccuracyMax: difficultySpec.defenderAccuracy[1],
+    targetChallengerAccuracyMin: difficultySpec.challengerAccuracy[0],
+    targetChallengerAccuracyMax: difficultySpec.challengerAccuracy[1],
+    packCurve: packCurveForPair(challengerTier, defenderTier),
     curriculumVersion: "KR-2022",
     curriculumCoverage: [
       ...new Set(
@@ -421,6 +512,24 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
         definition.expectedTimeMs ??
         problem.expectedTimeMs
     ),
+    designPolicyVersion: String(
+      question?.design?.policyVersion || ""
+    ).toUpperCase(),
+    designSlot: Number(question?.design?.order || index + 1),
+    plannedCourseId: String(question?.design?.courseId || ""),
+    difficultyPosition: String(
+      question?.design?.difficultyPosition || ""
+    ).toUpperCase(),
+    combinedConceptCount: Number(
+      question?.design?.combinedConceptCount || 0
+    ),
+    conditionTransformSteps: Number(
+      question?.design?.conditionTransformSteps || 0
+    ),
+    graphItem: question?.design?.graphItem === true,
+    calculationLoad: String(
+      question?.design?.calculationLoad || ""
+    ).toUpperCase(),
     prompt: String(problem.prompt || ""),
     inputMode: "short-answer",
     choices: [],
@@ -433,6 +542,12 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
       uniqueAnswer: validation.uniqueAnswer === true,
       calculatorFree: validation.calculatorFree === true,
       answerMatches: validation.answerMatches === true,
+      semiKillerCertified: validation.semiKillerCertified === true,
+      curriculumCompliant: validation.curriculumCompliant === true,
+      conditionsConsistent: validation.conditionsConsistent === true,
+      tierBurdenMatches: validation.tierBurdenMatches === true,
+      twoMinuteSolvable: validation.twoMinuteSolvable === true,
+      originalityChecked: validation.originalityChecked === true,
       checkedAt: validation.checkedAt
         ? new Date(validation.checkedAt)
         : checkedAt,
@@ -473,6 +588,11 @@ function buildGeneratedArenaProblemPackDraft({
     (question, index) =>
       normalizeGeneratedArenaQuestion(question, index, generatedDate)
   );
+  const difficultyTier = String(
+    generation?.difficultyTier ||
+      resolveArenaDifficultyTier(challengerTier, defenderTier)
+  ).toUpperCase();
+  const difficultySpec = TIER_SPECS[difficultyTier];
   const versionHash = createHash("sha256")
     .update(String(matchKey), "utf8")
     .digest("hex")
@@ -488,6 +608,22 @@ function buildGeneratedArenaProblemPackDraft({
     tierPairLabel: pair.label,
     generationMode: "AUTO_ON_CHALLENGE",
     generatedForMatchKey: String(matchKey),
+    designPolicyVersion:
+      generation.designPolicyVersion || ARENA_QUESTION_DESIGN_POLICY_VERSION,
+    contentSourceVersion:
+      generation.contentSourceVersion || ARENA_LEGACY_CONTENT_VERSION,
+    problemDataVersionId: generation.problemDataVersionId || null,
+    tierCatalogVersionId: generation.tierCatalogVersionId || null,
+    designCompliance:
+      generation.designCompliance || "PENDING_FINAL_GENERATORS",
+    difficultyAnchor: "DEFENDER",
+    difficultyTier,
+    targetDefenderAccuracyMin: difficultySpec.defenderAccuracy[0],
+    targetDefenderAccuracyMax: difficultySpec.defenderAccuracy[1],
+    targetChallengerAccuracyMin: difficultySpec.challengerAccuracy[0],
+    targetChallengerAccuracyMax: difficultySpec.challengerAccuracy[1],
+    packCurve:
+      generation.packCurve || packCurveForPair(challengerTier, defenderTier),
     curriculumVersion: "KR-2022",
     curriculumCoverage: [
       ...new Set(questions.map((question) => question.courseId).filter(Boolean)),

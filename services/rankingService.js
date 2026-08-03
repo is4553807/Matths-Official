@@ -585,7 +585,7 @@ async function getRankingData(
       isActive: true,
     })
       .select(
-        "name realName preferences.rankingDisplayMode school schoolGrade"
+        "name realName preferences.rankingDisplayMode school schoolGrade educationStatus accountStatus"
       )
       .lean();
   const activeMainProfileBorders = await MainShopEffect.find({
@@ -935,13 +935,29 @@ async function getRankingData(
     ...latestStandingByUserDivision.values(),
   ]
     .map((standing) => {
+      const user = userById.get(
+        String(standing.userId)
+      );
+      if (!user || user.accountStatus !== "active") return null;
       const base =
         baseEntryByUserId.get(
           String(standing.userId)
         );
-      if (!base) return null;
+      const rankingIdentity = base || {
+        userId: String(user._id),
+        hasMainProfileBorder: mainProfileBorderUserIds.has(String(user._id)),
+        displayName: getRankingDisplayName(user),
+        schoolCode: String(user.school?.code || ""),
+        schoolName:
+          Number(user.schoolGrade) === 13
+            ? "N수생"
+            : String(user.school?.name || "학교 미설정"),
+        region: String(user.school?.region || "지역 미설정"),
+        grade: numberValue(user.schoolGrade),
+        educationStatus: String(user.educationStatus || "enrolled"),
+      };
       return {
-        ...base,
+        ...rankingIdentity,
         division:
           standing.division,
         tier: standing.arenaRank,
@@ -1019,12 +1035,14 @@ async function getRankingData(
       (entry) =>
         entry.userId ===
         String(currentUserId)
-    ) || null;
+      ) || null;
+  const currentRankingEntry =
+    currentEntry || currentArenaEntry;
 
   return {
-    current: currentEntry
+    current: currentRankingEntry
       ? {
-          ...currentEntry,
+          ...currentRankingEntry,
           ...(currentArenaEntry
             ? {
                 gp:
@@ -1051,7 +1069,7 @@ async function getRankingData(
             )?.tierRank ||
             null,
           overallRank:
-            currentEntry.rank,
+            currentEntry?.rank || null,
           schoolStudentRank:
             findRank(
               sameSchool,

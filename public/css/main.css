@@ -160,7 +160,7 @@ button:focus-visible {
 .side-nav > p {
   margin: 0 11px 12px;
   color: #a0a6b7;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 1.4px;
 }
@@ -215,7 +215,7 @@ button:focus-visible {
   color: #858da3;
   background: #f0f2f7;
   border-radius: 7px;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .sidebar-spacer {
@@ -267,7 +267,7 @@ a.profile-avatar:hover {
 
 .profile-copy small {
   color: #9299ab;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .sidebar-profile form {
@@ -498,7 +498,7 @@ a.learning-home-button:focus-visible {
   background: var(--red);
   border: 2px solid var(--paper);
   border-radius: 999px;
-  font-size: 7px;
+  font-size: 9px;
   font-style: normal;
   font-weight: 850;
 }
@@ -567,7 +567,7 @@ a.learning-home-button:focus-visible {
 
 .notification-panel > a small {
   color: #8a92a6;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.5;
 }
 
@@ -725,14 +725,14 @@ a.learning-home-button:focus-visible {
   color: var(--blue);
   background: var(--blue-soft);
   border-radius: 7px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
 }
 
 .course-meta small {
   overflow: hidden;
   color: #858da2;
-  font-size: 8px;
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -810,7 +810,7 @@ a.learning-home-button:focus-visible {
 
 .continue-actions small {
   color: #969caf;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .concept-visual {
@@ -832,7 +832,7 @@ a.learning-home-button:focus-visible {
   justify-content: space-between;
   gap: 20px;
   color: #77809a;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 0.8px;
 }
@@ -954,7 +954,7 @@ a.learning-home-button:focus-visible {
 .section-title p {
   margin: 0 0 7px;
   color: var(--blue);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 1.25px;
 }
@@ -968,7 +968,7 @@ a.learning-home-button:focus-visible {
 
 .card-heading > a {
   color: var(--blue);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -977,7 +977,7 @@ a.learning-home-button:focus-visible {
   color: #777f93;
   background: #f0f2f7;
   border-radius: 8px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -1086,14 +1086,14 @@ a.learning-home-button:focus-visible {
 .plan-content small {
   overflow: hidden;
   color: #9198aa;
-  font-size: 8px;
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .plan-status {
   color: var(--blue);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -1104,7 +1104,7 @@ a.learning-home-button:focus-visible {
 .plan-message {
   margin: 16px 0 0;
   color: #7c8499;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.6;
 }
 
@@ -1142,7 +1142,7 @@ a.learning-home-button:focus-visible {
 
 .section-empty p {
   margin: 0;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.6;
 }
 
@@ -1235,7 +1235,7 @@ a.learning-home-button:focus-visible {
 
 .stats-row small {
   color: #8b92a6;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .stats-row strong {
@@ -1248,7 +1248,7 @@ a.learning-home-button:focus-visible {
   margin-left: 3px;
   color: #7f879b;
   font-family: inherit;
-  font-size: 8px;
+  font-size: 9px;
   font-style: normal;
 }
 
@@ -1256,7 +1256,7 @@ a.learning-home-button:focus-visible {
   margin: 0;
   overflow: hidden;
   color: #999fb0;
-  font-size: 7px;
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1320,7 +1320,7 @@ a.learning-home-button:focus-visible {
 .learning-kpi-grid dt {
   overflow: hidden;
   color: #8a92a7;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1344,7 +1344,7 @@ a.learning-home-button:focus-visible {
 .learning-kpi-grid dd > strong span {
   margin-left: 3px;
   color: #7f879b;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0;
 }
@@ -1353,7 +1353,7 @@ a.learning-home-button:focus-visible {
   min-width: 0;
   overflow: hidden;
   color: #a0a6b7;
-  font-size: 7px;
+  font-size: 9px;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1390,7 +1390,7 @@ a.learning-home-button:focus-visible {
   align-items: center;
   gap: 6px;
   color: #8c93a6;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .chart-legend b {
@@ -1449,7 +1449,7 @@ a.learning-home-button:focus-visible {
   color: #fff;
   background: #212944;
   border-radius: 5px;
-  font-size: 6px;
+  font-size: 9px;
   font-style: normal;
   opacity: 0;
   pointer-events: none;
@@ -1465,7 +1465,7 @@ a.learning-home-button:focus-visible {
 
 .chart-day small {
   color: #8c94a7;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .chart-day.today small {
@@ -1535,7 +1535,7 @@ a.learning-home-button:focus-visible {
 .weak-list small {
   overflow: hidden;
   color: #9097a9;
-  font-size: 7px;
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1562,7 +1562,7 @@ a.learning-home-button:focus-visible {
   color: #7d8498;
   background: #f0f2f7;
   border-radius: 7px;
-  font-size: 7px;
+  font-size: 9px;
   font-style: normal;
   font-weight: 750;
 }
@@ -1617,7 +1617,7 @@ a.learning-home-button:focus-visible {
 
 .semester-list small {
   color: #9097a9;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .semester-list i b {
@@ -1670,7 +1670,7 @@ a.learning-home-button:focus-visible {
   color: var(--red);
   background: #fff0f2;
   border-radius: 9px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -1691,14 +1691,14 @@ a.learning-home-button:focus-visible {
 .wrong-list small {
   overflow: hidden;
   color: #9299aa;
-  font-size: 7px;
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .wrong-list > a > b {
   color: var(--blue);
-  font-size: 7px;
+  font-size: 9px;
 }
 
 /* Quick start */
@@ -1760,7 +1760,7 @@ a.learning-home-button:focus-visible {
 .quick-grid small {
   overflow: hidden;
   color: #9198aa;
-  font-size: 7px;
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1780,7 +1780,7 @@ a.learning-home-button:focus-visible {
   margin-top: 26px;
   color: #989eae;
   border-top: 1px solid var(--line);
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .dashboard-home .dashboard-footer {

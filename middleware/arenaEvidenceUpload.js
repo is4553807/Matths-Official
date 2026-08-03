@@ -1,14 +1,11 @@
-const fs = require("node:fs");
 const path = require("node:path");
-const { randomUUID } = require("node:crypto");
 const multer = require("multer");
+const {
+  USER_CLOUD_UPLOAD_TEMP_DIR,
+  userCloudUploadStorage,
+} = require("./userCloudUploadStorage");
 
-const ARENA_EVIDENCE_STORAGE_DIR = path.resolve(
-  process.env.ARENA_EVIDENCE_STORAGE_DIR ||
-    path.join(__dirname, "..", "storage", "arena-evidence")
-);
-
-fs.mkdirSync(ARENA_EVIDENCE_STORAGE_DIR, { recursive: true });
+const ARENA_EVIDENCE_STORAGE_DIR = USER_CLOUD_UPLOAD_TEMP_DIR;
 
 const ALLOWED_EXTENSIONS = new Set([
   ".jpg",
@@ -18,18 +15,8 @@ const ALLOWED_EXTENSIONS = new Set([
   ".heic",
 ]);
 
-const storage = multer.diskStorage({
-  destination(_req, _file, callback) {
-    callback(null, ARENA_EVIDENCE_STORAGE_DIR);
-  },
-  filename(_req, file, callback) {
-    const extension = path.extname(file.originalname).toLowerCase();
-    callback(null, `${Date.now()}-${randomUUID()}${extension}`);
-  },
-});
-
 const arenaEvidenceUpload = multer({
-  storage,
+  storage: userCloudUploadStorage,
   limits: {
     files: 5,
     fileSize: 10 * 1024 * 1024,

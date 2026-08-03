@@ -25,6 +25,9 @@ const {
   ARENA_ONE_ON_ONE_TIME_LIMIT_MS,
 } = require("./arenaOneOnOneProblemBank");
 const {
+  assertNaturalNumberMaxThreeDigits,
+} = require("./arenaOneOnOneDifficultyPolicy");
+const {
   holdExpiredEvidence,
   holdExpiredMatchStarts,
   holdSundayCutoffMatches,
@@ -35,6 +38,7 @@ const {
 const {
   settleExpiredMainRevengeMatches,
 } = require("./mainArenaRevengeService");
+const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const MAX_CHANGE_EVENTS_PER_REQUEST = 200;
 const MAX_SIGNAL_EVENTS_PER_REQUEST = 200;
@@ -83,10 +87,17 @@ function normalizeOperationId(value, label) {
 }
 
 function cleanAnswer(value) {
-  return String(value ?? "")
+  const answer = String(value ?? "")
     .replace(/[\r\n\t]+/g, " ")
-    .trim()
-    .slice(0, 200);
+    .trim();
+  if (answer && !/^[0-9]{1,3}$/.test(answer)) {
+    throw statusError(
+      400,
+      "답은 3자리 이하 자연수로 입력해주세요.",
+      "INVALID_ARENA_ANSWER_FORMAT"
+    );
+  }
+  return answer;
 }
 
 function safeClientDate(value) {
@@ -797,11 +808,15 @@ async function advanceArenaMatchQuestion({
           "ARENA_CURRENT_QUESTION_NOT_FOUND"
         );
       }
+      const finalAnswer = cleanAnswer(value);
+      if (finalAnswer) {
+        assertNaturalNumberMaxThreeDigits(finalAnswer);
+      }
       const change = normalizeAnswerChanges(
         [
           {
             questionKey: question.questionKey,
-            value,
+            value: finalAnswer,
             clientAt: now,
           },
         ],
@@ -1446,14 +1461,17 @@ function startArenaMatchAttemptScheduler() {
       if (attemptScheduleRunning) return;
       attemptScheduleRunning = true;
       try {
-        await Promise.all([
-          submitExpiredArenaAttempts(),
-          holdExpiredEvidence(),
-          holdExpiredMatchStarts(),
-          holdSundayCutoffMatches(),
-          settleExpiredSubRevengeMatches(),
-          settleExpiredMainRevengeMatches(),
-        ]);
+        await withSchedulerLease(
+          { name: "ARENA_MATCH_TIMERS", leaseMs: 2 * 60 * 1000 },
+          () => Promise.all([
+            submitExpiredArenaAttempts(),
+            holdExpiredEvidence(),
+            holdExpiredMatchStarts(),
+            holdSundayCutoffMatches(),
+            settleExpiredSubRevengeMatches(),
+            settleExpiredMainRevengeMatches(),
+          ])
+        );
       } finally {
         attemptScheduleRunning = false;
       }

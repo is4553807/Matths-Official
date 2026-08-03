@@ -59,6 +59,59 @@
         </ol>
       </section>
 
+      <% if (rulebook.problemDesign) { const design = rulebook.problemDesign; %>
+        <section class="arena-question-standard" aria-labelledby="arena-question-standard-title">
+          <header>
+            <div>
+              <small>SUB · MAIN 공통 출제 기준</small>
+              <h2 id="arena-question-standard-title">1대1 준킬러 문제는 이렇게 정합니다.</h2>
+            </div>
+            <span>준킬러 출제 기준 · 2판</span>
+          </header>
+
+          <article class="arena-question-standard-block">
+            <div class="arena-question-standard-number">01</div>
+            <div>
+              <small>난이도 기준</small>
+              <h3>항상 방어자 티어를 기준으로 출제합니다.</h3>
+              <ul><% design.principles.forEach((line) => { %><li><%= line %></li><% }) %></ul>
+              <div class="arena-question-table-wrap">
+                <table>
+                  <thead><tr><th scope="col">기본 매치업</th><th scope="col">방어자 앵커</th><th scope="col">난이도</th></tr></thead>
+                  <tbody><% design.matchupRows.forEach((row) => { %><tr><th scope="row"><%= row.matchup %></th><td><%= row.anchor %></td><td><strong><%= row.difficultyTier %></strong></td></tr><% }) %></tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+
+          <article class="arena-question-standard-block">
+            <div class="arena-question-standard-number">02</div>
+            <div>
+              <small>목표 정답률</small>
+              <h3>방어자에게는 변별력 있게, 도전자에게는 승리 가능성이 남게 설계합니다.</h3>
+              <ul><% design.accuracyPrinciples.forEach((line) => { %><li><%= line %></li><% }) %></ul>
+              <div class="arena-question-table-wrap">
+                <table>
+                  <thead><tr><th scope="col">난이도</th><th scope="col">앵커 티어</th><th scope="col">방어자 목표</th><th scope="col">도전자 예상</th></tr></thead>
+                  <tbody><% design.accuracyRows.forEach((row) => { %><tr><th scope="row"><%= row.difficultyTier %></th><td><%= row.anchor %></td><td><%= row.defenderAccuracy %></td><td><%= row.challengerAccuracy %></td></tr><% }) %></tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+
+          <article class="arena-question-standard-block">
+            <div class="arena-question-standard-number">03</div>
+            <div>
+              <small>준킬러 정의와 경기 규격</small>
+              <h3>워밍업 없이 5문항 모두 준킬러로 구성합니다.</h3>
+              <blockquote><%= design.semiKillerDefinition %></blockquote>
+              <p><%= design.excludedQuestion %></p>
+              <dl><% design.matchSpec.forEach(([label, value]) => { %><div><dt><%= label %></dt><dd><%= value %></dd></div><% }) %></dl>
+            </div>
+          </article>
+        </section>
+      <% } %>
+
       <% if (rulebook.division === "MAIN") { %>
         <% if (rulebook.mainPolicy) { const policy = rulebook.mainPolicy; %>
           <section class="arena-main-policy" aria-labelledby="main-policy-title">
@@ -148,7 +201,52 @@
               </tbody>
             </table>
           </div>
+          <div class="arena-payback-table-wrap" aria-labelledby="sub-daily-limit-title">
+            <h3 id="sub-daily-limit-title">티어별 일일 일반 쟁탈전 상한</h3>
+            <table>
+              <thead><tr><th scope="col">티어</th><th scope="col">공격</th><th scope="col">방어</th></tr></thead>
+              <tbody>
+                <% policy.dailyMatchLimitsByTier.forEach((row) => { %>
+                  <tr><th scope="row"><%= row.tierLabel || row.tier %></th><td><%= row.attackLimit %>회</td><td><%= row.defenseLimit %>회</td></tr>
+                <% }) %>
+              </tbody>
+            </table>
+            <p>KST 날짜 기준으로 성립한 일반 쟁탈전만 집계하며 복수전은 제외합니다. 경기 뒤 티어가 바뀌면 새 티어 한도가 즉시 적용되고, 도전자로 승리하면 그날 남은 일반 공격·방어가 잠깁니다.</p>
+            <p>페이백 점수가 0점이어도 패키지 이용 기간에는 방어할 수 있습니다. 정기권 학습 가능 일수가 0일이 되면 공격과 방어가 모두 잠깁니다.</p>
+          </div>
           <footer>최근 수정일 <time datetime="<%= new Date(policy.lastModifiedAt).toISOString() %>"><%= formatKstDate(policy.lastModifiedAt) %></time> (KST)</footer>
+        </section>
+      <% } %>
+
+      <% if (rulebook.upcomingPolicy) { const upcoming = rulebook.upcomingPolicy; %>
+        <section class="arena-upcoming-policy" aria-labelledby="arena-upcoming-policy-title">
+          <header>
+            <div>
+              <small>30일 사전 고지</small>
+              <h2 id="arena-upcoming-policy-title">변경 예정 운영 기준</h2>
+            </div>
+            <strong><time datetime="<%= new Date(upcoming.effectiveFrom).toISOString() %>"><%= formatKstDateTime(upcoming.effectiveFrom) %></time> KST 적용</strong>
+          </header>
+          <p>적용 전까지는 위의 현재 기준을 사용하며, 적용 시점부터 신규 경기와 이용 판정에 아래 기준을 사용합니다.</p>
+          <% if (rulebook.division === "SUB") { %>
+            <div class="arena-payback-table-wrap">
+              <table>
+                <thead><tr><th scope="col">티어</th><th scope="col">일일 공격</th><th scope="col">일일 방어</th></tr></thead>
+                <tbody>
+                  <% upcoming.dailyMatchLimitsByTier.forEach((row) => { %>
+                    <tr><th scope="row"><%= row.tierLabel || row.tier %></th><td><%= row.attackLimit %>회</td><td><%= row.defenseLimit %>회</td></tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } else { %>
+            <dl>
+              <div><dt>최대 티어 차이</dt><dd><%= upcoming.maximumTargetTierGap %>단계</dd></div>
+              <div><dt>최근 상대 제외</dt><dd><%= upcoming.repeatOpponentExclusionDays %>일</dd></div>
+              <div><dt>복수전 배수</dt><dd><%= upcoming.revengeStakeMultiplier %>배</dd></div>
+              <div><dt>복수전 수수료</dt><dd><%= upcoming.revengeFeeDays %>일</dd></div>
+            </dl>
+          <% } %>
         </section>
       <% } %>
 
@@ -165,18 +263,18 @@
             <li><span>활동일</span><strong>미활동 기록 초기화</strong><small>공식 1대1 경기 완료 또는 주간 공식 모의고사 제출</small></li>
             <li><span>1~19일</span><strong>하루 1일씩 차감</strong><small>중간에 공식 활동을 완료하면 휴면으로 넘어가지 않습니다.</small></li>
             <li><span>20일째</span><strong>마지막 활동 확인</strong><small>활동하면 직전 19일 차감만 유지하고 미활동 기록을 초기화합니다.</small></li>
-            <li><span>다음 날 00:00</span><strong>Main 휴면 전환</strong><small>20일째까지 활동이 없을 때만 KST 기준으로 전환합니다.</small></li>
+            <li><span>다음 날 00:00</span><strong>Sub Division 강등</strong><small>20일째까지 활동이 없을 때 KST 기준으로 휴면 강등합니다.</small></li>
           </ol>
           <div class="arena-dormancy-outcomes">
             <article>
-              <small>미활동 시작 당시 21일 이상</small>
-              <strong>20일 차감 · 잔여 일수 동결</strong>
-              <p>복귀하면 별도 배치고사 없이 Main Division에서 남은 일수를 이어서 사용합니다.</p>
+              <small>20일 차감 뒤 잔여 일수 있음</small>
+              <strong>Sub 강등 · Main 재진입용 별도 보관</strong>
+              <p>Sub 학습일수와 페이백 점수에는 넣지 않으며, 일반 Sub 과정을 거쳐 Main에 다시 진입할 때만 복원합니다.</p>
             </article>
             <article>
-              <small>미활동 시작 당시 정확히 20일</small>
-              <strong>전액 차감 · Sub Division 강등</strong>
-              <p>Main 휴면 복귀 절차를 사용하지 않고 새 패키지와 일반 Sub 배치 절차를 따릅니다.</p>
+              <small>20일 차감 뒤 잔여 일수 없음</small>
+              <strong>Sub Division 강등 · 복원 없음</strong>
+              <p>새 패키지와 배치고사를 포함한 일반 Sub Division 절차를 그대로 따릅니다.</p>
             </article>
           </div>
           <footer>Sub Division에는 별도의 휴면 상태를 적용하지 않습니다.</footer>

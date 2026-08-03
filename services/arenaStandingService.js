@@ -829,14 +829,10 @@ async function runInitialPlacementTransaction({
               finalRankingActive:
                 paidActive,
               reasonCode: paidActive
-                ? attempt.placementPurpose === "DORMANCY_RETURN"
-                  ? "DORMANCY_RETURN_PLACEMENT_ACTIVE"
-                  : placementDivision === "MAIN"
+                ? placementDivision === "MAIN"
                   ? "ANNUAL_MAIN_SEASON_PLACEMENT_ACTIVE"
                   : "INITIAL_PLACEMENT_PAID_ACTIVE"
-                : attempt.placementPurpose === "DORMANCY_RETURN"
-                  ? "DORMANCY_RETURN_PAYMENT_REQUIRED"
-                  : "INITIAL_PLACEMENT_PAYMENT_REQUIRED",
+                : "INITIAL_PLACEMENT_PAYMENT_REQUIRED",
             },
             $setOnInsert: {
               mainAchievementStatus:

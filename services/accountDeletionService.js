@@ -58,8 +58,10 @@ const {
   MainShopPurchase,
   MainToSubConversionResult,
   MockExamSubscription,
+  PolicyChangeDelivery,
   RenewalRankAssessment,
 } = require("../models/goatArenaModel");
+const { OperationalMetricEvent } = require("../models/operationModel");
 const {
   ARCHIVE_STORAGE_DIR,
 } = require("./archiveService");
@@ -175,6 +177,9 @@ async function removePrivateAccountData(
     AccessCycleExpiryReminder.deleteMany({
       userId,
     }),
+    PolicyChangeDelivery.deleteMany({
+      userId,
+    }),
     NicknameChangeRequest.deleteMany({
       $or: [
         { userId },
@@ -252,6 +257,10 @@ async function anonymizePublicActivity(
   userId
 ) {
   await Promise.all([
+    OperationalMetricEvent.updateMany(
+      { userId },
+      { $set: { userId: null, metadata: { anonymized: true } } }
+    ),
     RankingProfile.updateMany(
       { userId },
       {
@@ -397,6 +406,7 @@ async function purgeUserOwnedData(
     AdminTodo.deleteMany({
       $or: [{ targetUserId: userId }, { actorUserId: userId }],
     }),
+    OperationalMetricEvent.deleteMany({ userId }),
   ]);
 
   await discardCommunityUploads(

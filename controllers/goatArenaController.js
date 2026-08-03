@@ -7,8 +7,12 @@ const {
 const {
   AccessCycle,
   ArenaAccessState,
+  ArenaLearningDayLedger,
+  ArenaMatch,
+  ArenaPaybackReview,
   ArenaRevengeRight,
   ArenaStanding,
+  ArenaStandingChangeLedger,
   MainShopEffect,
 } = require("../models/goatArenaModel");
 const {
@@ -19,7 +23,13 @@ const {
 } = require("../services/rankingService");
 const {
   arenaTierGuide,
+  arenaUpperTierPopulationGuide,
 } = require("../services/arenaTierPolicy");
+const {
+  ARENA_ONE_ON_ONE_QUESTION_COUNT,
+  ARENA_ONE_ON_ONE_TIME_LIMIT_MS,
+  ARENA_ONE_ON_ONE_EVIDENCE_LIMIT_MS,
+} = require("../services/arenaOneOnOneProblemBank");
 const {
   getRankingDisplayName,
 } = require("../services/userIdentityService");
@@ -49,7 +59,10 @@ const {
 const {
   getActiveArenaPolicy,
   getActiveMainDivisionPolicy,
+  getUpcomingArenaPolicy,
+  getUpcomingMainDivisionPolicy,
   mainPolicySnapshot,
+  policySnapshot,
 } = require("../services/arenaPolicyService");
 const {
   getArenaRulebook,
@@ -66,9 +79,13 @@ const {
   forfeitMainRevengeRight,
 } = require("../services/mainArenaRevengeService");
 const {
+  getMainShopAnalysisResult,
   getMainShopPageData,
   purchaseMainShopItem,
 } = require("../services/arenaShopPolicyService");
+const {
+  recordOperationalMetricEvent,
+} = require("../services/operationalMetricEventService");
 
 const GRADE_LABELS = {
   10: "고등학교 1학년",
@@ -79,6 +96,17 @@ const GRADE_LABELS = {
 
 const ARENA_TIER_GUIDE =
   arenaTierGuide();
+const ARENA_UPPER_TIER_GUIDE =
+  arenaUpperTierPopulationGuide();
+const ARENA_MATCH_RULES = Object.freeze({
+  questionCount: ARENA_ONE_ON_ONE_QUESTION_COUNT,
+  timeLimitMinutes: Math.round(
+    ARENA_ONE_ON_ONE_TIME_LIMIT_MS / 60000
+  ),
+  evidenceSeconds: Math.round(
+    ARENA_ONE_ON_ONE_EVIDENCE_LIMIT_MS / 1000
+  ),
+});
 
 function buildSeedState(
   placement,
@@ -226,6 +254,10 @@ function buildArenaAccess(
     isAdminPreview;
 
   return {
+    accessCycleId:
+      isAdminPreview || !accessCycle?._id
+        ? null
+        : accessCycle._id,
     activeDivision,
     isAdminPreview,
     canUseSub,
@@ -249,23 +281,35 @@ function buildArenaAccess(
       null,
     learningRights: {
       availableDays:
-        accessCycle
-          ?.availableLearningDays ??
-        null,
+        isAdminPreview
+          ? "무제한"
+          : accessCycle?.availableLearningDays ?? null,
       paybackScoreDays:
-        accessCycle
-          ?.paybackScoreDays ??
-        null,
+        isAdminPreview
+          ? "무제한"
+          : accessCycle?.paybackScoreDays ?? null,
+      lockedPaybackScoreDays:
+        isAdminPreview
+          ? 0
+          : accessCycle?.lockedPaybackScoreDays ?? 0,
       lockedDays:
-        accessCycle
-          ?.lockedLearningDays ??
-        null,
+        isAdminPreview
+          ? 0
+          : accessCycle?.lockedLearningDays ?? null,
       reservedDays:
-        accessCycle
-          ?.reservedLearningDays ??
-        null,
+        isAdminPreview
+          ? 0
+          : accessCycle?.reservedLearningDays ?? null,
       totalMainDays:
-        accessCycle ? mainTotalDays : null,
+        isAdminPreview
+          ? "무제한"
+          : accessCycle ? mainTotalDays : null,
+      unlimited:
+        isAdminPreview,
+      expiresAt:
+        isAdminPreview
+          ? null
+          : accessCycle?.expiresAt || null,
       neededForRefund:
         accessCycle
           ? Math.max(
@@ -292,6 +336,13 @@ function buildArenaAccess(
         accessCycle
           ? studyStreakDays >= minimumStudyStreakDays
           : false,
+      reservedForMainReentryDays:
+        isAdminPreview
+          ? 0
+          : accessState?.mainDormancyRecoveryMode ===
+              "RESTORE_ON_MAIN_REENTRY"
+            ? Number(accessState.mainDormancyFrozenLearningDays || 0)
+            : 0,
     },
     standing: standing
       ? {
@@ -317,6 +368,7 @@ const DIVISION_FEATURES = {
         "같은 Sub Division의 방어자에게 일반 쟁탈전을 신청합니다.",
       href:
         "/goat-arena/sub/challenge",
+      group: "BATTLE",
     },
     {
       key:
@@ -324,6 +376,7 @@ const DIVISION_FEATURES = {
       name: "방어 요청",
       description:
         "배정된 도전과 응답 기한을 확인합니다.",
+      group: "BATTLE",
     },
     {
       key:
@@ -331,6 +384,7 @@ const DIVISION_FEATURES = {
       name: "진행 중 경기",
       description:
         "준비·진행·제출 상태의 경기를 이어서 확인합니다.",
+      group: "BATTLE",
     },
     {
       key:
@@ -339,6 +393,7 @@ const DIVISION_FEATURES = {
         "복수전",
       description:
         "정산으로 획득한 복수전 권리를 사용합니다.",
+      group: "BATTLE",
     },
     {
       key:
@@ -346,6 +401,7 @@ const DIVISION_FEATURES = {
       name: "순위 변동 기록",
       description:
         "정산된 티어·티어 내 순위·GP 변동 이력을 확인합니다.",
+      group: "RECORD",
     },
     {
       key:
@@ -353,6 +409,7 @@ const DIVISION_FEATURES = {
       name: "페이백 진행",
       description:
         "연속 학습·유료 일반 쟁탈전·페이백 점수·공정성 검토 상태를 확인합니다.",
+      group: "PROGRESS",
     },
   ],
   MAIN: [
@@ -361,6 +418,7 @@ const DIVISION_FEATURES = {
       name: "Main Division 상태",
       description:
         "현재 Main Division Arena 상태와 정기권 학습 가능 일수를 확인합니다.",
+      group: "OPERATIONS",
     },
     {
       key: "mainUpwardChallenge",
@@ -368,6 +426,7 @@ const DIVISION_FEATURES = {
       description:
         "목표 상위 티어를 고르면 서버가 적격 상대를 무작위로 정합니다.",
       href: "/goat-arena/main/battle",
+      group: "BATTLE",
     },
     {
       key: "mainLowerTierInvitation",
@@ -375,6 +434,7 @@ const DIVISION_FEATURES = {
       description:
         "목표 하위 티어에 내 Arena 상태를 걸고 학습일수를 예치하는 초대를 만듭니다.",
       href: "/goat-arena/main/battle#main-invitation-create",
+      group: "BATTLE",
     },
     {
       key: "mainInvitationManagement",
@@ -382,18 +442,21 @@ const DIVISION_FEATURES = {
       description:
         "수락 전 예약 학습일수와 받은 초대·보낸 초대 상태를 확인합니다.",
       href: "/goat-arena/main/battle#main-invitations",
+      group: "OPERATIONS",
     },
     {
       key: "mainRevengeMatch",
       name: "복수전",
       description:
         "원경기 예치의 두 배와 신청 수수료가 적용되는 복수전 상태를 확인합니다.",
+      group: "BATTLE",
     },
     {
       key: "mainLearningDayLedger",
       name: "학습일수 장부",
       description:
         "사용 가능·초대 예약·경기 예치 학습일수와 이전 기록을 확인합니다.",
+      group: "OPERATIONS",
     },
     {
       key: "mainShop",
@@ -401,18 +464,21 @@ const DIVISION_FEATURES = {
       description:
         "경기로 확보한 사용 가능 학습일수로 분석·일정·프로필 편의 기능을 이용합니다.",
       href: "/goat-arena/main/shop",
+      group: "SUPPORT",
     },
     {
       key: "mainActiveMatch",
       name: "진행 중 경기",
       description:
         "준비·진행·증거 제출 상태의 경기를 이어서 확인합니다.",
+      group: "BATTLE",
     },
     {
       key: "mainMatchReview",
       name: "경기 기록",
       description:
         "확정된 상대·예치 일수·Arena 상태와 학습일수 변동을 확인합니다.",
+      group: "RECORD",
     },
     {
       key:
@@ -420,15 +486,31 @@ const DIVISION_FEATURES = {
       name: "순위 변동 기록",
       description:
         "정산된 티어·티어 내 순위·GP 변동 이력을 확인합니다.",
+      group: "RECORD",
     },
     {
       key: "mainExpiryGuide",
       name: "이용 종료·재구매 안내",
       description:
         "Sub Division 강등, 72시간 변환과 랭크 복귀전 조건을 확인합니다.",
+      group: "SUPPORT",
     },
   ],
 };
+
+const DIVISION_FEATURE_GROUPS = Object.freeze({
+  SUB: [
+    { key: "BATTLE", eyebrow: "BATTLE CONTROL", title: "경기 지휘", description: "신청부터 진행 중 경기와 복수전까지 한곳에서 관리합니다." },
+    { key: "RECORD", eyebrow: "RANK RECORD", title: "순위 기록", description: "정산이 끝난 Arena 상태 변동과 내 위치를 확인합니다." },
+    { key: "PROGRESS", eyebrow: "PAYBACK TRACK", title: "페이백 진행", description: "29일 학습과 페이백 점수 조건을 분리해 확인합니다." },
+  ],
+  MAIN: [
+    { key: "BATTLE", eyebrow: "BATTLE CONTROL", title: "경기 지휘", description: "상향 쟁탈전·하위 티어 초대전·복수전·진행 경기를 관리합니다." },
+    { key: "OPERATIONS", eyebrow: "ARENA OPERATIONS", title: "운영 현황", description: "현재 상태와 초대 예약, 학습일수 장부를 확인합니다." },
+    { key: "RECORD", eyebrow: "MATCH INTELLIGENCE", title: "경기·순위 기록", description: "정산 결과와 Arena 상태 변동을 다시 확인합니다." },
+    { key: "SUPPORT", eyebrow: "TACTICAL SUPPORT", title: "상점·이용 안내", description: "경기 분석과 일정 보호, 이용 종료 절차를 확인합니다." },
+  ],
+});
 
 async function getArenaContext(
   userId
@@ -439,6 +521,7 @@ async function getArenaContext(
     ranking,
     accessState,
     activeMainPolicy,
+    activeArenaPolicy,
     activeCosmetics,
   ] = await Promise.all([
     User.findById(
@@ -454,6 +537,7 @@ async function getArenaContext(
       userId,
     }).lean(),
     getActiveMainDivisionPolicy(),
+    getActiveArenaPolicy(),
     MainShopEffect.find({
       userId,
       itemCode: { $in: ["MAIN_PROFILE_BORDER", "STYLE_ENTRANCE"] },
@@ -535,6 +619,8 @@ async function getArenaContext(
       ),
     activeMainPolicy:
       mainPolicySnapshot(activeMainPolicy),
+    activeArenaPolicy:
+      policySnapshot(activeArenaPolicy),
   };
 }
 
@@ -579,6 +665,10 @@ exports.startPage =
         "home",
       arenaTierGuide:
         ARENA_TIER_GUIDE,
+      arenaUpperTierGuide:
+        ARENA_UPPER_TIER_GUIDE,
+      arenaMatchRules:
+        ARENA_MATCH_RULES,
     }
   );
 
@@ -597,6 +687,19 @@ function divisionPage(
   const isSub =
     division === "SUB";
 
+  const features = DIVISION_FEATURES[
+    division
+  ].map((feature) => ({
+    ...feature,
+    href:
+      feature.href ||
+      `/goat-arena/${division.toLowerCase()}/features/${feature.key}`,
+  }));
+  const featureGroups = DIVISION_FEATURE_GROUPS[division].map((group) => ({
+    ...group,
+    features: features.filter((feature) => feature.group === group.key),
+  }));
+
   return renderArenaPage(
     "goat-arena-division",
     {
@@ -613,15 +716,8 @@ function divisionPage(
         isSub
           ? "Sub Division 전장"
           : "Main Division 전장",
-      features:
-        DIVISION_FEATURES[
-          division
-        ].map((feature) => ({
-          ...feature,
-          href:
-            feature.href ||
-            `/goat-arena/${division.toLowerCase()}/features/${feature.key}`,
-        })),
+      features,
+      featureGroups,
     }
   );
 }
@@ -662,9 +758,40 @@ exports.mainBattlePage = async (req, res, next) => {
   }
 };
 
-async function mainBattleAction(req, res, next, action) {
+function rankingBucket(position) {
+  const value = Number(position || 0);
+  if (!Number.isFinite(value) || value <= 0) return "UNKNOWN";
+  if (value <= 20) return "1~20위";
+  if (value <= 50) return "21~50위";
+  return "51위 이하";
+}
+
+async function recordMatchRequest({ req, division, result, error = null }) {
+  const match = result?.match || null;
+  const before = match?.challenger?.tupleBefore || {};
+  await recordOperationalMetricEvent({
+    eventKey: `match-request:${division}:${req.session.user.id}:${String(req.body.requestId || "missing")}`,
+    eventType: "MATCH_REQUEST",
+    userId: req.session.user.id,
+    result: error ? "FAILED" : "SUCCEEDED",
+    division,
+    sourceTier: before.arenaRank || "",
+    targetTier: req.body.targetTier || match?.targetTier || "",
+    rankBucket: rankingBucket(before.arenaPosition),
+    reasonCode: error?.code || "",
+    metadata: {
+      matchId: String(match?._id || result?.matchId || ""),
+      requestKind: "UPWARD_CHALLENGE",
+    },
+  });
+}
+
+async function mainBattleAction(req, res, next, action, { trackUpwardRequest = false } = {}) {
   try {
     const result = await action();
+    if (trackUpwardRequest) {
+      await recordMatchRequest({ req, division: "MAIN", result });
+    }
     if (result?.match?._id || result?.matchId) {
       return res.redirect(
         `/goat-arena/matches/${result.match?._id || result.matchId}`
@@ -672,6 +799,9 @@ async function mainBattleAction(req, res, next, action) {
     }
     return res.redirect("/goat-arena/main/battle?done=1");
   } catch (error) {
+    if (trackUpwardRequest) {
+      await recordMatchRequest({ req, division: "MAIN", error });
+    }
     if ([400, 403, 404, 409, 410, 423].includes(Number(error.status))) {
       try {
         return await renderMainBattlePage(req, res, {
@@ -693,7 +823,8 @@ exports.createMainUpwardChallenge = (req, res, next) =>
       targetTier: req.body.targetTier,
       stakeDays: req.body.stakeDays,
       requestId: req.body.requestId,
-    })
+    }),
+    { trackUpwardRequest: true }
   );
 
 exports.createMainLowerInvitation = (req, res, next) =>
@@ -756,6 +887,13 @@ exports.mainShopPage = async (req, res, next) => {
 
 exports.purchaseMainShopItem = async (req, res, next) => {
   try {
+    if (req.body.purchaseConfirmed !== "1") {
+      const confirmationError = new Error(
+        "가격·효과·사용 기간·반환 조건을 확인한 뒤 구매 동의에 체크해주세요."
+      );
+      confirmationError.status = 400;
+      throw confirmationError;
+    }
     const result = await purchaseMainShopItem({
       userId: req.session.user.id,
       itemCode: req.body.itemCode,
@@ -782,15 +920,37 @@ exports.purchaseMainShopItem = async (req, res, next) => {
   }
 };
 
+exports.mainShopAnalysisResultPage = async (req, res, next) => {
+  try {
+    const [context, analysis] = await Promise.all([
+      getArenaContext(req.session.user.id),
+      getMainShopAnalysisResult({
+        userId: req.session.user.id,
+        effectId: req.params.effectId,
+      }),
+    ]);
+    res.set("Cache-Control", "no-store");
+    return res.render("goat-arena-main-shop-analysis", {
+      ...context,
+      activeArenaPage: "shop",
+      analysis,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 function rulesPage(division) {
   return async (req, res, next) => {
     try {
-      const [context, paybackPolicy, mainPolicy] = await Promise.all([
+      const [context, paybackPolicy, mainPolicy, upcomingPaybackPolicy, upcomingMainPolicy] = await Promise.all([
         getArenaContext(req.session.user.id),
         division === "SUB" ? getActiveArenaPolicy() : null,
         division === "MAIN"
           ? getActiveMainDivisionPolicy(new Date(), { bypassCache: true })
           : null,
+        division === "SUB" ? getUpcomingArenaPolicy() : null,
+        division === "MAIN" ? getUpcomingMainDivisionPolicy() : null,
       ]);
       res.set("Cache-Control", "no-store");
       return res.render("goat-arena-rules", {
@@ -799,6 +959,8 @@ function rulesPage(division) {
         rulebook: getArenaRulebook(division, {
           paybackPolicy,
           mainPolicy,
+          upcomingPaybackPolicy,
+          upcomingMainPolicy,
         }),
       });
     } catch (error) {
@@ -809,6 +971,224 @@ function rulesPage(division) {
 
 exports.subRulesPage = rulesPage("SUB");
 exports.mainRulesPage = rulesPage("MAIN");
+
+const FEATURE_MATCH_ACTIVE_STATUSES = [
+  "REQUESTED",
+  "MATCHED",
+  "READY",
+  "IN_PROGRESS",
+  "SUBMITTED",
+  "RESOLVED",
+  "HELD",
+];
+
+function featureMatchFilter(userId, division, role = "ANY", statuses = FEATURE_MATCH_ACTIVE_STATUSES) {
+  const participant =
+    role === "DEFENDER"
+      ? { "defender.userId": userId }
+      : role === "CHALLENGER"
+        ? { "challenger.userId": userId }
+        : {
+            $or: [
+              { "challenger.userId": userId },
+              { "defender.userId": userId },
+            ],
+          };
+  return { division, status: { $in: statuses }, ...participant };
+}
+
+function matchFeatureItem(match, userId) {
+  const isChallenger = String(match.challenger?.userId) === String(userId);
+  const role = isChallenger ? "도전자" : "방어자";
+  const stake = Number(match.economySnapshot?.challengerStakeDays || 0);
+  return {
+    title: `${match.matchType === "REVENGE" ? "복수전" : "일반 쟁탈전"} · ${role}`,
+    status: match.status,
+    description: `${match.tierPairLabel} · ${match.division === "SUB" ? `페이백 점수 ${stake || (match.matchType === "REVENGE" ? 2 : 1)}점` : `예치 학습일수 ${stake}일`}`,
+    occurredAt: match.updatedAt || match.requestedAt || match.createdAt,
+    href: FEATURE_MATCH_ACTIVE_STATUSES.includes(match.status)
+      ? `/goat-arena/matches/${match._id}`
+      : null,
+    hrefLabel: "경기 확인",
+  };
+}
+
+function ledgerChangeText(entry) {
+  const parts = [
+    [entry.availableLearningDaysDelta, "사용 가능 일"],
+    [entry.paybackScoreDaysDelta, "페이백 점수"],
+    [entry.lockedPaybackScoreDaysDelta, "예치 페이백 점수"],
+    [entry.lockedLearningDaysDelta, "예치 학습일"],
+    [entry.reservedLearningDaysDelta, "예약 학습일"],
+  ]
+    .filter(([value]) => Number(value || 0) !== 0)
+    .map(([value, label]) => `${label} ${Number(value) > 0 ? "+" : ""}${Number(value)}`);
+  return parts.join(" · ") || "잔액 변동 없음";
+}
+
+async function getDivisionFeatureData({ userId, division, featureKey, context }) {
+  const base = {
+    eyebrow: "LIVE DATA",
+    title: "현재 데이터",
+    description: "권위 DB에서 불러온 최신 상태입니다.",
+    cards: [],
+    items: [],
+    emptyMessage: "현재 표시할 기록이 없습니다.",
+    action: null,
+  };
+  if (featureKey === "subDefenseInbox") {
+    const matches = await ArenaMatch.find(
+      featureMatchFilter(userId, "SUB", "DEFENDER")
+    ).sort({ updatedAt: -1 }).limit(30).lean();
+    return {
+      ...base,
+      title: "배정된 방어 요청",
+      description: "서버가 자동 배정한 진행·대기 경기만 표시합니다.",
+      cards: [{ label: "진행·대기", value: `${matches.length}건` }],
+      items: matches.map((match) => matchFeatureItem(match, userId)),
+      emptyMessage: "현재 응답하거나 이어서 진행할 방어 요청이 없습니다.",
+    };
+  }
+  if (["subActiveMatch", "mainActiveMatch"].includes(featureKey)) {
+    const matches = await ArenaMatch.find(
+      featureMatchFilter(userId, division)
+    ).sort({ updatedAt: -1 }).limit(30).lean();
+    return {
+      ...base,
+      title: "진행 중 경기",
+      cards: [{ label: "진행·대기", value: `${matches.length}건` }],
+      items: matches.map((match) => matchFeatureItem(match, userId)),
+      emptyMessage: "현재 이어서 진행할 경기가 없습니다.",
+      action: {
+        href: division === "SUB" ? "/goat-arena/sub/challenge" : "/goat-arena/main/battle",
+        label: "전장으로 이동",
+      },
+    };
+  }
+  if (["subRevengeMatch", "mainRevengeMatch"].includes(featureKey)) {
+    const rights = await ArenaRevengeRight.find({
+      eligibleUserId: userId,
+      division,
+      status: { $in: ["AVAILABLE", "CLAIMED"] },
+    }).sort({ updatedAt: -1 }).limit(30).lean();
+    return {
+      ...base,
+      title: "복수전 권리",
+      cards: [
+        { label: "신청 가능", value: `${rights.filter((right) => right.status === "AVAILABLE").length}건` },
+        { label: "진행 중", value: `${rights.filter((right) => right.status === "CLAIMED").length}건` },
+      ],
+      items: rights.map((right) => ({
+        title: right.status === "AVAILABLE" ? "복수전 신청 가능" : "복수전 진행 중",
+        status: right.status,
+        description: `${division === "SUB" ? "예치 페이백 점수" : "예치 학습일수"} ${right.revengeStakeDays}${division === "SUB" ? "점" : "일"} · 수수료 ${right.feeDays}${division === "SUB" ? "점" : "일"}`,
+        occurredAt: right.updatedAt || right.createdAt,
+        href: division === "SUB" ? "/goat-arena/sub/challenge" : "/goat-arena/main/battle",
+        hrefLabel: "복수전 확인",
+      })),
+      emptyMessage: "현재 사용할 수 있는 복수전 권리가 없습니다.",
+    };
+  }
+  if (["subRankHistory", "mainRankHistory"].includes(featureKey)) {
+    const changes = await ArenaStandingChangeLedger.find({ userId })
+      .sort({ occurredAt: -1 }).limit(50).lean();
+    return {
+      ...base,
+      title: "순위 변동 기록",
+      cards: [{ label: "최근 기록", value: `${changes.length}건` }],
+      items: changes.map((change) => ({
+        title: change.changeType === "TUPLE_SWAP" ? "Arena 상태 교환" : "Arena 상태 유지",
+        status: change.changeType,
+        description: `${change.tupleBefore.arenaRank} ${change.tupleBefore.arenaPosition}위 · ${change.tupleBefore.arenaGp} GP → ${change.tupleAfter.arenaRank} ${change.tupleAfter.arenaPosition}위 · ${change.tupleAfter.arenaGp} GP`,
+        occurredAt: change.occurredAt,
+      })),
+      emptyMessage: "아직 정산된 순위 변동 기록이 없습니다.",
+      action: { href: "/goat-arena/rankings", label: "현재 순위 보기" },
+    };
+  }
+  if (featureKey === "subPaybackProgress") {
+    const cycleId = context.arenaAccess?.accessCycleId;
+    const review = cycleId
+      ? await ArenaPaybackReview.findOne({ cycleId }).sort({ createdAt: -1 }).lean()
+      : null;
+    const rights = context.arenaAccess.learningRights;
+    return {
+      ...base,
+      title: "페이백 진행",
+      description: "정기권 학습 가능 일수와 페이백 점수는 서로 다른 값입니다.",
+      cards: [
+        { label: "연속 학습", value: `${rights.studyStreakDays || 0} / ${rights.minimumStudyStreakDays || 29}일` },
+        { label: "페이백 점수", value: `${rights.paybackScoreDays ?? 0}점` },
+        { label: "남은 이용일", value: `${rights.availableDays ?? 0}일` },
+        { label: "최근 심사", value: review?.status || "심사 전" },
+      ],
+      emptyMessage: "29일 이용 주기 종료 뒤 페이백 심사 결과가 표시됩니다.",
+      action: { href: "/goat-arena/rules/sub", label: "페이백 규정 확인" },
+    };
+  }
+  if (featureKey === "mainLearningDayLedger") {
+    const entries = await ArenaLearningDayLedger.find({ userId })
+      .sort({ occurredAt: -1 }).limit(50).lean();
+    const rights = context.arenaAccess.learningRights;
+    return {
+      ...base,
+      title: "학습일수 장부",
+      cards: [
+        { label: "사용 가능", value: `${rights.availableDays ?? 0}일` },
+        { label: "초대 예약", value: `${rights.reservedDays ?? 0}일` },
+        { label: "경기 예치", value: `${rights.lockedDays ?? 0}일` },
+      ],
+      items: entries.map((entry) => ({
+        title: entry.eventType,
+        status: entry.sourceBucket || "UNSPECIFIED",
+        description: ledgerChangeText(entry),
+        occurredAt: entry.occurredAt,
+      })),
+      emptyMessage: "아직 학습일수 변동 기록이 없습니다.",
+    };
+  }
+  if (featureKey === "mainMatchReview") {
+    const matches = await ArenaMatch.find(
+      featureMatchFilter(userId, "MAIN", "ANY", ["SETTLED", "CANCELLED", "INVALID", "INSURED_CANCELLED"])
+    ).sort({ settledAt: -1, updatedAt: -1 }).limit(50).lean();
+    return {
+      ...base,
+      title: "확정 경기 기록",
+      cards: [{ label: "최근 기록", value: `${matches.length}건` }],
+      items: matches.map((match) => matchFeatureItem(match, userId)),
+      emptyMessage: "아직 확정된 Main Division 경기 기록이 없습니다.",
+    };
+  }
+  if (featureKey === "mainArenaStatus") {
+    const rights = context.arenaAccess.learningRights;
+    return {
+      ...base,
+      title: "Main Division 운영 상태",
+      cards: [
+        { label: "사용 가능", value: rights.unlimited ? "무제한" : `${rights.availableDays ?? 0}일` },
+        { label: "초대 예약", value: `${rights.reservedDays ?? 0}일` },
+        { label: "경기 예치", value: `${rights.lockedDays ?? 0}일` },
+        { label: "Arena 상태", value: context.arenaAccess.standing ? `${context.arenaAccess.standing.tier} ${context.arenaAccess.standing.arenaPosition}위` : "미확정" },
+      ],
+      action: { href: "/goat-arena/main/battle", label: "Main 전장 열기" },
+    };
+  }
+  if (featureKey === "mainExpiryGuide") {
+    const rights = context.arenaAccess.learningRights;
+    return {
+      ...base,
+      title: "이용 종료·재구매 안내",
+      cards: [
+        { label: "현재 사용 가능", value: `${rights.availableDays ?? 0}일` },
+        { label: "전체 Main 권리", value: rights.unlimited ? "무제한" : `${rights.totalMainDays ?? 0}일` },
+        { label: "종료 예정", value: rights.expiresAt ? new Date(rights.expiresAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" }) : "미정" },
+      ],
+      emptyMessage: "종료 시점의 Main 순위를 기준으로 Sub 복귀 상태가 계산됩니다.",
+      action: { href: "/goat-arena/rules/main#main-expiry", label: "종료 규정 확인" },
+    };
+  }
+  return base;
+}
 
 exports.divisionFeaturePage = async (
   req,
@@ -839,6 +1219,14 @@ exports.divisionFeaturePage = async (
       division === "SUB"
         ? context.arenaAccess.canUseSub
         : context.arenaAccess.canUseMain;
+    const featureData = hasDivisionAccess
+      ? await getDivisionFeatureData({
+          userId: req.session.user.id,
+          division,
+          featureKey: feature.key,
+          context,
+        })
+      : null;
     res.set("Cache-Control", "no-store");
     return res.render("goat-arena-feature", {
       ...context,
@@ -851,6 +1239,7 @@ exports.divisionFeaturePage = async (
           : "Main Division",
       feature,
       hasDivisionAccess,
+      featureData,
     });
   } catch (error) {
     return next(error);
@@ -918,17 +1307,19 @@ exports.createSubChallenge = async (
   next
 ) => {
   try {
-    await createSubNormalChallenge({
+    const result = await createSubNormalChallenge({
       challengerUserId:
         req.session.user.id,
       targetTier:
         req.body.targetTier,
       requestId: req.body.requestId,
     });
+    await recordMatchRequest({ req, division: "SUB", result });
     return res.redirect(
       "/goat-arena/sub/challenge?created=1"
     );
   } catch (error) {
+    await recordMatchRequest({ req, division: "SUB", error });
     if (
       [400, 403, 404, 409].includes(
         Number(error.status)

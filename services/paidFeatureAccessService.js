@@ -6,10 +6,17 @@ const {
 const {
   getMockExamPackageAccess,
 } = require("./mockExamPackageService");
+const {
+  isSuperAdminUserId,
+  superAdminPackageAccess,
+} = require("./superAdminAccessService");
 
 async function getPaidPackageAccess(userId) {
   if (!mongoose.isValidObjectId(userId)) {
     return { active: false, reason: "INVALID_USER" };
+  }
+  if (await isSuperAdminUserId(userId)) {
+    return superAdminPackageAccess();
   }
   const state = await ArenaAccessState.findOne({ userId })
     .select("state accessCycleId currentCompetitiveDivision")
@@ -17,16 +24,7 @@ async function getPaidPackageAccess(userId) {
   if (!state?.accessCycleId) {
     return { active: false, reason: "PAYMENT_REQUIRED", state: state?.state || null };
   }
-  const balanceFilter =
-    state.currentCompetitiveDivision === "MAIN"
-      ? {
-          $or: [
-            { availableLearningDays: { $gt: 0 } },
-            { reservedLearningDays: { $gt: 0 } },
-            { lockedLearningDays: { $gt: 0 } },
-          ],
-        }
-      : { availableLearningDays: { $gt: 0 } };
+  const balanceFilter = { availableLearningDays: { $gt: 0 } };
   const cycle = await AccessCycle.findOne({
     _id: state.accessCycleId,
     userId,
@@ -64,11 +62,13 @@ async function getWeeklyMockExamAccess(userId) {
   if (learningPackage.active) {
     return {
       active: true,
-      packageType: "LEARNING_PACKAGE",
+      packageType: learningPackage.unlimited ? "SUPER_ADMIN" : "LEARNING_PACKAGE",
       learningPackage,
       mockExamOnlyPackage,
       placementRequired: true,
       arenaAllowed: true,
+      unlimited: learningPackage.unlimited === true,
+      noExpiry: learningPackage.noExpiry === true,
     };
   }
   if (mockExamOnlyPackage.active) {

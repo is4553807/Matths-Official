@@ -28,7 +28,7 @@
 .learning-section-head p {
   margin: 0 0 9px;
   color: var(--blue);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.4px;
 }
@@ -109,7 +109,7 @@
 
 .overall-ring small {
   color: #8f96aa;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 750;
 }
 
@@ -142,7 +142,7 @@
 
 .summary-numbers span {
   color: #8b92a6;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .course-progress-section {
@@ -164,7 +164,7 @@
 .learning-section-head > span {
   max-width: 420px;
   color: #8b92a6;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.6;
   text-align: right;
 }
@@ -260,7 +260,7 @@
 
 .course-overview small {
   color: #8b93a8;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 750;
   letter-spacing: 0.5px;
 }
@@ -283,7 +283,7 @@
   grid-column: 1 / -1;
   margin: 0;
   color: #8a91a5;
-  font-size: 8px;
+  font-size: 9px;
   text-align: right;
 }
 
@@ -385,7 +385,7 @@
 
 .unit-title small {
   color: #9299aa;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .unit-bar {
@@ -412,7 +412,7 @@
   justify-content: flex-end;
   gap: 10px;
   color: #8991a5;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .unit-toggle i {
@@ -455,7 +455,7 @@
 .unit-action p {
   margin: 0;
   color: #737b92;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .unit-action p strong {
@@ -472,7 +472,7 @@
   color: #fff;
   background: var(--blue);
   border-radius: 9px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -546,7 +546,7 @@
 
 .concept-info small {
   color: #959bad;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .concept-bar {
@@ -563,13 +563,13 @@
 .concept-bar span {
   color: #747c92;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .concept-progress-row em {
   justify-self: end;
   color: #949bad;
-  font-size: 7px;
+  font-size: 9px;
   font-style: normal;
   font-weight: 750;
 }
@@ -786,7 +786,7 @@
 }
 
 .assessment-gate-banner span {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.2px;
 }

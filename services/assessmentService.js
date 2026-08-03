@@ -38,6 +38,11 @@ const {
 const {
   answersEquivalent,
 } = require("./mathAnswerService");
+const {
+  assessmentProblemEngineKey,
+  isProblemTypeEnabled,
+  problemTypeSelectionWeight,
+} = require("./problemTypeCatalogService");
 
 const PASS_SCORE = 80;
 const TIME_LIMIT_MS = {
@@ -425,6 +430,22 @@ function shuffle(values) {
   }
 
   return result;
+}
+
+function weightedAssessmentOrder(values, engineKeyForValue) {
+  return values
+    .map((value) => {
+      const weight = problemTypeSelectionWeight(
+        "ASSESSMENT_CENTER",
+        assessmentProblemEngineKey(engineKeyForValue(value))
+      );
+      return {
+        value,
+        priority: Math.pow(Math.random(), 1 / Math.max(1, weight)),
+      };
+    })
+    .sort((left, right) => right.priority - left.priority)
+    .map((item) => item.value);
 }
 
 const CHOICE_MARKERS = [
@@ -862,7 +883,10 @@ function chooseRecord({
     return null;
   }
 
-  return shuffle(candidates).sort(
+  return weightedAssessmentOrder(
+    candidates,
+    (record) => `bank:${record.generator.id}`
+  ).sort(
     (left, right) => {
       const leftId =
         `bank:${left.generator.id}`;
@@ -1111,13 +1135,14 @@ function drawAppliedQuestions({
   ) {
     guard += 1;
 
-    const candidate = shuffle(
+    const candidate = weightedAssessmentOrder(
       candidates.filter(
         (item) =>
           !usedRecordIds.has(
             `bank:${item.record.generator.id}`
           )
-      )
+      ),
+      (item) => `bank:${item.record.generator.id}`
     ).sort((left, right) => {
       const leftAvoided =
         avoidedTypeIds.has(
@@ -1284,6 +1309,11 @@ function drawAdvancedTemplateQuestions({
             (conceptId) =>
               learned.has(conceptId)
           )
+    ).filter((candidate) =>
+      isProblemTypeEnabled(
+        "ASSESSMENT_CENTER",
+        assessmentProblemEngineKey(candidate.typeId)
+      )
     );
   const questions = [];
   const usedTypeIds = new Set();
@@ -1296,13 +1326,14 @@ function drawAdvancedTemplateQuestions({
   ) {
     guard += 1;
 
-    const candidate = shuffle(
+    const candidate = weightedAssessmentOrder(
       candidates.filter(
         (item) =>
           !usedTypeIds.has(
             item.typeId
           )
-      )
+      ),
+      (item) => item.typeId
     ).sort((left, right) => {
       const leftAvoided =
         avoidedTypeIds.has(
@@ -1490,6 +1521,11 @@ function buildAssessmentPaper({
     generatorRecordsForTarget(
       target,
       scopeType
+    ).filter((record) =>
+      isProblemTypeEnabled(
+        "ASSESSMENT_CENTER",
+        assessmentProblemEngineKey(`bank:${record.generator.id}`)
+      )
     );
 
   if (!records.length) {

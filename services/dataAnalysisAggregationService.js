@@ -9,8 +9,10 @@ const {
   ArenaAccessState,
   ArenaLearningDayLedger,
   ArenaMatch,
+  ArenaMatchAttempt,
   ArenaPackagePayment,
   ArenaPaybackReview,
+  ArenaProblemPack,
   ArenaRevengeRight,
   ArenaSnapshot,
   ArenaStanding,
@@ -19,11 +21,15 @@ const {
   MainToSubConversionResult,
   RenewalRankAssessment,
 } = require("../models/goatArenaModel");
+const { AdminTodo, SupportInquiry } = require("../models/matthsModel");
+const { OperationalMetricEvent } = require("../models/operationModel");
+const { scoreArenaAttempt } = require("./arenaMatchScoringService");
 const {
   AUTOMATIC_MONTHLY_SOURCE,
   seedFirstMonthCatalog,
   upsertMonthlyObservations,
 } = require("./dataAnalysisService");
+const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const CALCULATION_VERSION = "MONTHLY_LEDGER_V1";
 const SCHEDULER_INTERVAL_MS = 15 * 60 * 1000;
@@ -87,6 +93,7 @@ const CATEGORY_LABELS = {
   operations: "운영",
   payback: "페이백",
   "match-liquidity": "경기 상대 풀",
+  "question-calibration": "경기 문제 난이도 보정",
   simulation: "출시 전 가정 비교",
 };
 const METRIC_BY_KEY = new Map([
@@ -252,6 +259,190 @@ function releaseReasonLabel(invitation) {
   return "기타 사유";
 }
 
+function kstHour(value) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      hour: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(new Date(value))
+      .map((part) => [part.type, part.value])
+  );
+  return Number(parts.hour || 0);
+}
+
+function exactScoreTie(left, right) {
+  return ["score", "correctCount", "correctAnswerSolveTimeMs", "totalSolveTimeMs"]
+    .every((key) => {
+      const a = left?.[key];
+      const b = right?.[key];
+      if (a === null || a === undefined || b === null || b === undefined) {
+        return a === b;
+      }
+      return Number(a) === Number(b);
+    });
+}
+
+function questionCalibrationObservations({ matchesConcluded, matchAttempts, problemPacks }) {
+  const rows = [];
+  const matchById = new Map(
+    matchesConcluded.map((match) => [identifier(match._id), match])
+  );
+  const packById = new Map(
+    problemPacks.map((pack) => [identifier(pack._id), pack])
+  );
+  const evaluated = matchAttempts.flatMap((attempt) => {
+    const match = matchById.get(identifier(attempt.matchId));
+    const pack = packById.get(identifier(attempt.problemPackId));
+    if (!match || !pack || !Array.isArray(pack.questions) || pack.questions.length !== 5) {
+      return [];
+    }
+    const score = scoreArenaAttempt({ attempt, problemPack: pack });
+    return [{
+      attempt,
+      match,
+      pack,
+      score,
+      division: match.division,
+      difficultyTier: pack.difficultyTier,
+      defenderTier: normalizeTier(match.defender?.tupleBefore?.arenaRank) || "UNKNOWN",
+      policyVersion: pack.designPolicyVersion || match.policyVersionCode || "UNKNOWN",
+    }];
+  });
+
+  const questionRows = evaluated.flatMap((item) =>
+    item.score.questionResults.map((result) => {
+      const question = item.pack.questions.find(
+        (candidate) => String(candidate.questionKey) === String(result.questionKey)
+      );
+      return {
+        ...item,
+        typeId: String(question?.typeId || "UNKNOWN"),
+        correct: Boolean(result.correct),
+      };
+    })
+  );
+  const questionGroups = groupBy(questionRows, (item) => JSON.stringify({
+    division: item.division,
+    difficultyTier: item.difficultyTier,
+    defenderTier: item.defenderTier,
+    typeId: item.typeId,
+    policyVersion: item.policyVersion,
+  }));
+  if (!questionGroups.size) {
+    for (const metricKey of [
+      "match.question_type_sample_count",
+      "match.defender_question_accuracy",
+      "match.challenger_question_accuracy",
+    ]) {
+      rows.push(observation(metricKey, {
+        numericValue: metricKey.endsWith("sample_count") ? 0 : null,
+        sampleSize: 0,
+        note: "정산과 풀이 증거 제출이 끝난 1대1 경기 표본 없음",
+      }));
+    }
+  } else {
+    for (const [key, items] of questionGroups) {
+      const dimensions = JSON.parse(key);
+      const defender = items.filter((item) => item.attempt.role === "DEFENDER");
+      const challenger = items.filter((item) => item.attempt.role === "CHALLENGER");
+      const defenderCorrect = defender.filter((item) => item.correct).length;
+      const challengerCorrect = challenger.filter((item) => item.correct).length;
+      rows.push(
+        observation("match.question_type_sample_count", {
+          numericValue: items.length,
+          numerator: items.length,
+          sampleSize: items.length,
+          dimensions,
+        }),
+        observation("match.defender_question_accuracy", {
+          numericValue: percent(defenderCorrect, defender.length),
+          numerator: defenderCorrect,
+          denominator: defender.length,
+          sampleSize: defender.length,
+          dimensions,
+        }),
+        observation("match.challenger_question_accuracy", {
+          numericValue: percent(challengerCorrect, challenger.length),
+          numerator: challengerCorrect,
+          denominator: challenger.length,
+          sampleSize: challenger.length,
+          dimensions,
+        })
+      );
+    }
+  }
+
+  const difficultyGroups = groupBy(evaluated, (item) => JSON.stringify({
+    division: item.division,
+    difficultyTier: item.difficultyTier,
+    defenderTier: item.defenderTier,
+    policyVersion: item.policyVersion,
+  }));
+  if (!difficultyGroups.size) {
+    rows.push(
+      observation("match.defender_challenger_accuracy_gap", { numericValue: null, sampleSize: 0, note: "정산 경기 표본 없음" }),
+      observation("match.perfect_score_rate", { numericValue: null, sampleSize: 0, note: "정산 경기 표본 없음" }),
+      observation("match.zero_score_rate", { numericValue: null, sampleSize: 0, note: "정산 경기 표본 없음" }),
+      observation("match.complete_tie_rate", { numericValue: null, sampleSize: 0, note: "양측 제출 완료 경기 표본 없음" })
+    );
+    return rows;
+  }
+
+  for (const [key, items] of difficultyGroups) {
+    const fullDimensions = JSON.parse(key);
+    const tierDimensions = {
+      division: fullDimensions.division,
+      difficultyTier: fullDimensions.difficultyTier,
+      policyVersion: fullDimensions.policyVersion,
+    };
+    const defenderItems = items.filter((item) => item.attempt.role === "DEFENDER");
+    const challengerItems = items.filter((item) => item.attempt.role === "CHALLENGER");
+    const defenderCorrect = defenderItems.reduce((sum, item) => sum + item.score.correctCount, 0);
+    const challengerCorrect = challengerItems.reduce((sum, item) => sum + item.score.correctCount, 0);
+    const defenderAccuracy = percent(defenderCorrect, defenderItems.length * 5);
+    const challengerAccuracy = percent(challengerCorrect, challengerItems.length * 5);
+    const completeAttempts = items.filter((item) => Number.isFinite(Number(item.score.score)));
+    const perfect = completeAttempts.filter((item) => Number(item.score.correctCount) === 5).length;
+    const zero = completeAttempts.filter((item) => Number(item.score.correctCount) === 0).length;
+    const matchScores = groupBy(items, (item) => identifier(item.match._id));
+    const comparableMatches = [...matchScores.values()].filter((scores) => scores.length === 2);
+    const ties = comparableMatches.filter((scores) => exactScoreTie(scores[0].score, scores[1].score)).length;
+    rows.push(
+      observation("match.defender_challenger_accuracy_gap", {
+        numericValue: defenderAccuracy === null || challengerAccuracy === null
+          ? null
+          : defenderAccuracy - challengerAccuracy,
+        sampleSize: Math.min(defenderItems.length, challengerItems.length),
+        dimensions: fullDimensions,
+      }),
+      observation("match.perfect_score_rate", {
+        numericValue: percent(perfect, completeAttempts.length),
+        numerator: perfect,
+        denominator: completeAttempts.length,
+        sampleSize: completeAttempts.length,
+        dimensions: tierDimensions,
+      }),
+      observation("match.zero_score_rate", {
+        numericValue: percent(zero, completeAttempts.length),
+        numerator: zero,
+        denominator: completeAttempts.length,
+        sampleSize: completeAttempts.length,
+        dimensions: tierDimensions,
+      }),
+      observation("match.complete_tie_rate", {
+        numericValue: percent(ties, comparableMatches.length),
+        numerator: ties,
+        denominator: comparableMatches.length,
+        sampleSize: comparableMatches.length,
+        dimensions: tierDimensions,
+      })
+    );
+  }
+  return rows;
+}
+
 function calculateMonthlyObservations({
   now,
   period,
@@ -270,6 +461,12 @@ function calculateMonthlyObservations({
   invitationOffers = [],
   revengeRights = [],
   mainEntryLedgers = [],
+  mainTransferLedgers = [],
+  supportInquiries = [],
+  operationalEvents = [],
+  sundayCutoffTodos = [],
+  matchAttempts = [],
+  problemPacks = [],
   activeDefenders = [],
   includeCurrentSnapshot = true,
 }) {
@@ -360,6 +557,73 @@ function calculateMonthlyObservations({
     })
   );
 
+  const pricingViews = operationalEvents.filter(
+    (event) => event.eventType === "PRICING_VIEW" && event.result === "VIEWED"
+  );
+  const paidUserIds = new Set(validPayments.map((payment) => identifier(payment.userId)));
+  const firstPricingViewByUser = new Map();
+  for (const view of pricingViews) {
+    const userId = identifier(view.userId);
+    if (!userId) continue;
+    const current = firstPricingViewByUser.get(userId);
+    if (!current || new Date(view.occurredAt) < new Date(current.occurredAt)) {
+      firstPricingViewByUser.set(userId, view);
+    }
+  }
+  const before20Views = [...firstPricingViewByUser.values()].filter(
+    (view) => kstHour(view.occurredAt) < 20
+  );
+  const after20Views = [...firstPricingViewByUser.values()].filter(
+    (view) => kstHour(view.occurredAt) >= 20
+  );
+  const convertedBefore20 = before20Views.filter((view) =>
+    paidUserIds.has(identifier(view.userId))
+  );
+  const convertedAfter20 = after20Views.filter((view) =>
+    paidUserIds.has(identifier(view.userId))
+  );
+  const pricingViewNote = "로그인 사용자의 해당 월 첫 가격 안내 화면 방문과 승인 결제를 연결";
+  rows.push(
+    observation("access.first_use_before_20_conversion_rate", {
+      numericValue: percent(convertedBefore20.length, before20Views.length),
+      numerator: convertedBefore20.length,
+      denominator: before20Views.length,
+      sampleSize: before20Views.length,
+      note: pricingViewNote,
+    }),
+    observation("access.first_use_after_20_conversion_rate", {
+      numericValue: percent(convertedAfter20.length, after20Views.length),
+      numerator: convertedAfter20.length,
+      denominator: after20Views.length,
+      sampleSize: after20Views.length,
+      note: pricingViewNote,
+    }),
+    observation("conversion.payment_view_to_purchase", {
+      numericValue: percent(
+        [...firstPricingViewByUser.keys()].filter((userId) => paidUserIds.has(userId)).length,
+        firstPricingViewByUser.size
+      ),
+      numerator: [...firstPricingViewByUser.keys()].filter((userId) => paidUserIds.has(userId)).length,
+      denominator: firstPricingViewByUser.size,
+      sampleSize: firstPricingViewByUser.size,
+      note: "로그인 상태 가격 안내 화면 최초 방문 사용자 중 같은 달 승인 결제가 확인된 비율",
+    })
+  );
+
+  const firstDayInquiryPattern = /(첫날|첫 날|20시|오후 8시).*(차감|학습일|이용일)|(?:차감|학습일|이용일).*(?:첫날|첫 날|20시|오후 8시)/i;
+  const firstDayInquiries = supportInquiries.filter((inquiry) =>
+    firstDayInquiryPattern.test(`${inquiry.subject || ""} ${inquiry.content || ""}`)
+  );
+  rows.push(
+    observation("access.first_day_deduction_support_rate", {
+      numericValue: percent(firstDayInquiries.length, paidCycles.length),
+      numerator: firstDayInquiries.length,
+      denominator: paidCycles.length,
+      sampleSize: paidCycles.length,
+      note: "문의 제목·본문의 첫날/20시/학습일 차감 표현을 자동 분류",
+    })
+  );
+
   const renewalsByUser = groupBy(renewalCycles, (cycle) => identifier(cycle.userId));
   const renewalOutcomes = depletedCycles.map((cycle) => {
     const depletedAt = new Date(cycle.depletedAt).getTime();
@@ -425,6 +689,9 @@ function calculateMonthlyObservations({
   const completedAssessments = renewalAssessments.filter(
     (assessment) => assessment.status === "COMPLETED"
   );
+  const droppedAssessments = renewalAssessments.filter(
+    (assessment) => assessment.status !== "COMPLETED"
+  );
   rows.push(
     observation("renewal.assessment_completion_rate", {
       numericValue: percent(completedAssessments.length, renewalAssessments.length),
@@ -432,6 +699,13 @@ function calculateMonthlyObservations({
       denominator: renewalAssessments.length,
       sampleSize: renewalAssessments.length,
       note: "해당 월에 생성된 랭크 탈환 배치고사 기준",
+    }),
+    observation("renewal.assessment_dropoff_rate", {
+      numericValue: percent(droppedAssessments.length, renewalAssessments.length),
+      numerator: droppedAssessments.length,
+      denominator: renewalAssessments.length,
+      sampleSize: renewalAssessments.length,
+      note: "해당 월에 생성됐으나 완료되지 않은 랭크 탈환 배치고사 기준",
     }),
     observation("renewal.late_success_rate", {
       numericValue: percent(completedAssessments.length, renewalAssessments.length),
@@ -560,6 +834,143 @@ function calculateMonthlyObservations({
           ...matchPolicy,
         })
       );
+    }
+  }
+
+  const trackedMatchIds = new Set(
+    operationalEvents
+      .filter((event) => event.eventType === "MATCH_REQUEST" && event.result === "SUCCEEDED")
+      .map((event) => String(event.metadata?.matchId || ""))
+      .filter(Boolean)
+  );
+  const matchRequestEvents = [
+    ...operationalEvents.filter((event) => event.eventType === "MATCH_REQUEST"),
+    ...matchesCreated
+      .filter((match) => !trackedMatchIds.has(identifier(match._id)))
+      .map((match) => ({
+        result: "SUCCEEDED",
+        division: match.division,
+        sourceTier: normalizeTier(match.challenger?.tupleBefore?.arenaRank),
+        targetTier: normalizeTier(match.targetTier || match.defender?.tupleBefore?.arenaRank),
+        rankBucket: rankBucket(match.challenger?.tupleBefore?.arenaPosition),
+        reasonCode: "",
+        metadata: { matchId: identifier(match._id), source: "MATCH_LEDGER" },
+      })),
+  ];
+  const requestGroups = groupBy(matchRequestEvents, (event) => JSON.stringify({
+    division: event.division || "UNKNOWN",
+    tier: normalizeTier(event.sourceTier) || "UNKNOWN",
+    rankBucket: event.rankBucket || "UNKNOWN",
+  }));
+  if (!requestGroups.size) {
+    rows.push(
+      observation("match.request_success_rate", {
+        numericValue: null,
+        sampleSize: 0,
+        note: "도전 신청 이벤트 표본 없음",
+      }),
+      observation("match.request_failure_reason_distribution", {
+        numericValue: 0,
+        sampleSize: 0,
+        note: "매칭 실패 이벤트 표본 없음",
+      })
+    );
+  } else {
+    for (const [key, items] of requestGroups) {
+      const succeeded = items.filter((event) => event.result === "SUCCEEDED");
+      const dimensions = JSON.parse(key);
+      rows.push(
+        observation("match.request_success_rate", {
+          numericValue: percent(succeeded.length, items.length),
+          numerator: succeeded.length,
+          denominator: items.length,
+          sampleSize: items.length,
+          dimensions,
+        })
+      );
+      const failures = items.filter((event) => event.result === "FAILED");
+      const failureGroups = groupBy(failures, (event) => event.reasonCode || "UNKNOWN");
+      if (!failureGroups.size) {
+        rows.push(observation("match.request_failure_reason_distribution", {
+          numericValue: 0,
+          sampleSize: failures.length,
+          dimensions: { ...dimensions, reasonCode: "없음" },
+        }));
+      } else {
+        for (const [reasonCode, failed] of failureGroups) {
+          rows.push(observation("match.request_failure_reason_distribution", {
+            numericValue: failed.length,
+            numerator: failed.length,
+            sampleSize: failures.length,
+            dimensions: { ...dimensions, reasonCode },
+          }));
+        }
+      }
+    }
+  }
+
+  const mainUpwardGroups = groupBy(
+    matchRequestEvents.filter((event) => event.division === "MAIN"),
+    (event) => JSON.stringify({
+      sourceTier: normalizeTier(event.sourceTier) || "UNKNOWN",
+      targetTier: normalizeTier(event.targetTier) || "UNKNOWN",
+      tierGap: tierGap(event.sourceTier, event.targetTier),
+    })
+  );
+  if (!mainUpwardGroups.size) {
+    rows.push(observation("main.upward_match_request_success_rate", {
+      numericValue: null,
+      sampleSize: 0,
+      note: "Main Division 상향 도전 신청 이벤트 표본 없음",
+    }));
+  } else {
+    for (const [key, items] of mainUpwardGroups) {
+      const succeeded = items.filter((event) => event.result === "SUCCEEDED");
+      rows.push(observation("main.upward_match_request_success_rate", {
+        numericValue: percent(succeeded.length, items.length),
+        numerator: succeeded.length,
+        denominator: items.length,
+        sampleSize: items.length,
+        dimensions: JSON.parse(key),
+      }));
+    }
+  }
+
+  const allMatchesById = new Map(
+    [...matchesCreated, ...matchesConcluded].map((match) => [identifier(match._id), match])
+  );
+  const netTransferByUser = new Map();
+  for (const ledger of mainTransferLedgers) {
+    const match = allMatchesById.get(identifier(ledger.sourceId));
+    const userId = identifier(ledger.userId);
+    if (!match || match.division !== "MAIN" || !userId) continue;
+    const role = identifier(match.challenger?.userId) === userId ? "challenger" : "defender";
+    const tier = normalizeTier(match[role]?.tupleBefore?.arenaRank) || "UNKNOWN";
+    const matchType = match.matchType || "NORMAL";
+    const key = JSON.stringify({ userId, tier, matchType });
+    const current = netTransferByUser.get(key) || { userId, tier, matchType, days: 0 };
+    current.days += numeric(ledger.availableLearningDaysDelta);
+    netTransferByUser.set(key, current);
+  }
+  const netTransferGroups = groupBy([...netTransferByUser.values()], (item) =>
+    JSON.stringify({ tier: item.tier, matchType: item.matchType })
+  );
+  if (!netTransferGroups.size) {
+    rows.push(observation("main.learning_day_net_transfer_distribution", {
+      numericValue: null,
+      sampleSize: 0,
+      note: "Main 경기 정산 이전 원장 표본 없음",
+    }));
+  } else {
+    for (const [key, items] of netTransferGroups) {
+      rows.push(observation("main.learning_day_net_transfer_distribution", {
+        numericValue: average(items.map((item) => item.days)),
+        numerator: items.reduce((sum, item) => sum + item.days, 0),
+        denominator: items.length,
+        sampleSize: items.length,
+        dimensions: JSON.parse(key),
+        note: "사용자별 Main 경기 정산 학습일수 순이전 평균",
+      }));
     }
   }
 
@@ -693,6 +1104,16 @@ function calculateMonthlyObservations({
       denominator: concludedMainMatches.length,
       sampleSize: concludedMainMatches.length,
       ...policyContext(concludedMainMatches),
+    }),
+    observation("main.sunday_cutoff_hold_count", {
+      numericValue: sundayCutoffTodos.filter((todo) =>
+        allMatchesById.get(identifier(todo.sourceId))?.division === "MAIN"
+      ).length,
+      numerator: sundayCutoffTodos.filter((todo) =>
+        allMatchesById.get(identifier(todo.sourceId))?.division === "MAIN"
+      ).length,
+      sampleSize: sundayCutoffTodos.length,
+      note: "일요일 15시 미정산 보류 운영 작업 원장 기준",
     })
   );
 
@@ -792,6 +1213,38 @@ function calculateMonthlyObservations({
     }
   }
 
+  const firstWeeklyMockDenialByUser = new Map();
+  for (const event of operationalEvents.filter(
+    (item) => item.eventType === "WEEKLY_MOCK_ACCESS_DENIED"
+  )) {
+    const userId = identifier(event.userId);
+    if (!userId) continue;
+    const current = firstWeeklyMockDenialByUser.get(userId);
+    if (!current || new Date(event.occurredAt) < new Date(current.occurredAt)) {
+      firstWeeklyMockDenialByUser.set(userId, event);
+    }
+  }
+  const weeklyMockDenials = [...firstWeeklyMockDenialByUser.values()];
+  const renewedAfterWeeklyMockDenial = weeklyMockDenials.filter((event) =>
+    paidCycles.some((cycle) =>
+      identifier(cycle.userId) === identifier(event.userId) &&
+      new Date(cycle.paidAt) > new Date(event.occurredAt)
+    )
+  );
+  rows.push(observation("weekly_mock.restriction_to_renewal_rate", {
+    numericValue: percent(renewedAfterWeeklyMockDenial.length, weeklyMockDenials.length),
+    numerator: renewedAfterWeeklyMockDenial.length,
+    denominator: weeklyMockDenials.length,
+    sampleSize: weeklyMockDenials.length,
+    note: "주간 공식 모의고사 결제 필요 안내를 본 사용자 중 같은 달 학습권을 활성화한 비율",
+  }));
+
+  rows.push(...questionCalibrationObservations({
+    matchesConcluded,
+    matchAttempts,
+    problemPacks,
+  }));
+
   const settledMatches = matchesConcluded.filter((match) => match.status === "SETTLED");
   const challengerWins = settledMatches.filter((match) => match.winnerRole === "CHALLENGER");
   rows.push(
@@ -869,10 +1322,15 @@ async function loadMonthlySourceData({ period, now }) {
     invitations,
     revengeRights,
     mainEntryLedgers,
+    mainTransferLedgers,
+    supportInquiries,
+    operationalEvents,
+    sundayCutoffTodos,
+    matchAttempts,
     activeAccessStates,
   ] = await Promise.all([
     ArenaPackagePayment.find({ approvedAt: range })
-      .select("status approvedAmount policyVersionCode approvedAt")
+      .select("userId status approvedAmount policyVersionCode approvedAt")
       .lean(),
     AccessCycle.find({ paidAt: range })
       .select("userId division policyVersionCode paidAt startsAt depletedAt firstDayMode")
@@ -893,7 +1351,7 @@ async function loadMonthlySourceData({ period, now }) {
       .select("cycleId status evaluatedInputs result evaluatedAt")
       .lean(),
     ArenaMatch.find({ createdAt: range })
-      .select("division matchType policyVersionCode challenger defender economySnapshot createdAt")
+      .select("division matchType targetTier policyVersionCode challenger defender economySnapshot createdAt")
       .lean(),
     ArenaMatch.find({
       $or: [
@@ -901,7 +1359,7 @@ async function loadMonthlySourceData({ period, now }) {
         { status: { $in: ["HELD", "INVALID"] }, updatedAt: range },
       ],
     })
-      .select("division matchType status winnerRole policyVersionCode challenger defender integrityStatus resultSnapshot settledAt updatedAt")
+      .select("division matchType status winnerRole policyVersionCode challenger defender integrityStatus resultSnapshot problemPackId settledAt updatedAt")
       .lean(),
     MainInvitationRequest.find({ createdAt: range })
       .select("initiatorArenaTier targetTier status policyVersionCode cancelReason createdAt")
@@ -914,6 +1372,27 @@ async function loadMonthlySourceData({ period, now }) {
       eventType: { $in: ["MAIN_CARRYOVER_GRANTED", "MAIN_ENTRY_BONUS_GRANTED"] },
     })
       .select("accessCycleId availableLearningDaysDelta occurredAt")
+      .lean(),
+    ArenaLearningDayLedger.find({
+      occurredAt: range,
+      eventType: "MATCH_SETTLEMENT_TRANSFER",
+    })
+      .select("userId sourceId availableLearningDaysDelta occurredAt")
+      .lean(),
+    SupportInquiry.find({ createdAt: range })
+      .select("subject content createdAt")
+      .lean(),
+    OperationalMetricEvent.find({ occurredAt: range })
+      .select("eventType userId result division sourceTier targetTier rankBucket reasonCode metadata occurredAt")
+      .lean(),
+    AdminTodo.find({ sourceType: "ArenaSundayCutoff", createdAt: range })
+      .select("sourceId createdAt")
+      .lean(),
+    ArenaMatchAttempt.find({
+      status: "SUBMITTED",
+      evidenceSubmittedAt: range,
+    })
+      .select("matchId userId role problemPackId answers questionTimings activeSolveTimeMs score correctCount evidenceSubmittedAt")
       .lean(),
     ArenaAccessState.find({ defensePoolEligible: true })
       .select("userId currentCompetitiveDivision standingId")
@@ -928,6 +1407,9 @@ async function loadMonthlySourceData({ period, now }) {
   const invitationIds = invitations.map((invitation) => invitation._id);
   const paybackCycleIds = paybackReviews.map((review) => review.cycleId);
   const standingIds = activeAccessStates.map((state) => state.standingId).filter(Boolean);
+  const problemPackIds = [...new Set(
+    matchAttempts.map((attempt) => identifier(attempt.problemPackId)).filter(Boolean)
+  )];
   const conversionSnapshotIds = conversions
     .map((conversion) => conversion.sourceMainSnapshotId)
     .filter(Boolean);
@@ -937,6 +1419,7 @@ async function loadMonthlySourceData({ period, now }) {
     paybackCycles,
     standings,
     conversionSnapshots,
+    problemPacks,
   ] = await Promise.all([
     depletedUserIds.length
       ? AccessCycle.find({
@@ -964,6 +1447,11 @@ async function loadMonthlySourceData({ period, now }) {
     conversionSnapshotIds.length
       ? ArenaSnapshot.find({ _id: { $in: conversionSnapshotIds } })
           .select("accessCycleId")
+          .lean()
+      : [],
+    problemPackIds.length
+      ? ArenaProblemPack.find({ _id: { $in: problemPackIds } })
+          .select("+questions difficultyTier designPolicyVersion")
           .lean()
       : [],
   ]);
@@ -1002,6 +1490,12 @@ async function loadMonthlySourceData({ period, now }) {
     invitationOffers,
     revengeRights,
     mainEntryLedgers,
+    mainTransferLedgers,
+    supportInquiries,
+    operationalEvents,
+    sundayCutoffTodos,
+    matchAttempts,
+    problemPacks,
     activeDefenders,
   };
 }
@@ -1085,6 +1579,7 @@ function formatMetricValue(value, unit) {
   }
   const number = Number(value);
   if (unit === "percent") return `${number.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`;
+  if (unit === "percent-point") return `${number.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%p`;
   if (unit === "day") return `${number.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}일`;
   if (unit === "minute") return `${number.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}분`;
   if (unit === "won") return `${Math.round(number).toLocaleString("ko-KR")}원`;
@@ -1177,7 +1672,7 @@ async function getDataAnalysisDashboard({
           : sampleSize > 0
             ? "표본 수집 중"
             : "표본 없음"
-        : "원본 연결 대기",
+        : "집계 미실행",
       minimumSampleSize: numeric(definition.minimumSampleSize || 100),
       observations: rows.map(viewObservation),
     });
@@ -1259,11 +1754,15 @@ async function runScheduledDataAnalysisAggregation({ includePrevious = false } =
 
 function startDataAnalysisScheduler() {
   if (schedulerTimer) return schedulerTimer;
-  runScheduledDataAnalysisAggregation({ includePrevious: true }).catch((error) => {
+  const run = (includePrevious = false) => withSchedulerLease(
+    { name: "DATA_ANALYSIS_MONTHLY", leaseMs: 10 * 60 * 1000 },
+    () => runScheduledDataAnalysisAggregation({ includePrevious })
+  );
+  run(true).catch((error) => {
     console.error("dataAnalysis 초기 월별 집계 실패:", error);
   });
   schedulerTimer = setInterval(() => {
-    runScheduledDataAnalysisAggregation().catch((error) => {
+    run().catch((error) => {
       console.error("dataAnalysis 월별 자동 집계 실패:", error);
     });
   }, SCHEDULER_INTERVAL_MS);

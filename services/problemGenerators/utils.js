@@ -30,6 +30,45 @@ class InvalidGeneratedProblemError extends Error {
   }
 }
 
+const CALCULATOR_REQUIRED_PATTERN =
+  /(?:계산기\s*(?:사용|필요|권장)|calculator\s*(?:required|recommended))/i;
+
+function validateCalculatorFreeProblem(problem, problemType) {
+  const typeLabel = problemType?.id || "unknown-type";
+  const calculatorFree =
+    problem?.validation?.calculatorFree ??
+    problem?.calculatorFree ??
+    problemType?.calculatorFree;
+
+  if (calculatorFree === false) {
+    throw new InvalidGeneratedProblemError(
+      `${typeLabel}: 계산기 없이 풀 수 있는 문제로 검증되지 않았습니다.`
+    );
+  }
+
+  const readableText = `${problem?.prompt || ""} ${problem?.solution || ""}`;
+  if (CALCULATOR_REQUIRED_PATTERN.test(readableText)) {
+    throw new InvalidGeneratedProblemError(
+      `${typeLabel}: 계산기 사용이 필요한 문구가 포함되어 있습니다.`
+    );
+  }
+
+  const answer = String(problem?.answer ?? "").trim();
+  if (!answer || answer.length > 120 || /NaN|undefined|null/i.test(answer)) {
+    throw new InvalidGeneratedProblemError(
+      `${typeLabel}: 계산기 없이 검산할 수 있는 정답 범위를 벗어났습니다.`
+    );
+  }
+
+  if (problem?.calculatorValidation?.passed === false) {
+    throw new InvalidGeneratedProblemError(
+      `${typeLabel}: 유형별 계산 복잡도 검증에 실패했습니다.`
+    );
+  }
+
+  return true;
+}
+
 function hasOnlyFiniteNumbers(value) {
   if (typeof value === "number") {
     return Number.isFinite(value);
@@ -121,6 +160,8 @@ function validateGeneratedProblem(
       `${typeLabel}: 풀이가 비어 있습니다.`
     );
   }
+
+  validateCalculatorFreeProblem(problem, problemType);
 
   if (
     typeof problem.hintText !== "string" ||
@@ -277,6 +318,7 @@ module.exports = {
   randomInteger,
   nonZeroInteger,
   isCorrectAnswer,
+  validateCalculatorFreeProblem,
   validateGeneratedProblem,
   generateValidProblem,
 };

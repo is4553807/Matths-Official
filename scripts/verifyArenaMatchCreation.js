@@ -18,6 +18,9 @@ const {
   matchKeyForRequest,
   normalStakeDaysFromCycle,
   normalizeRequestId,
+  sameTestAccountCohort,
+  subDailyEligibilityReasons,
+  subDailyLimitState,
   subMatchStartDeadline,
 } = require("../services/arenaMatchService");
 const {
@@ -27,6 +30,11 @@ const {
 
 async function run() {
   const root = path.resolve(__dirname, "..");
+
+  assert.equal(sameTestAccountCohort({}, {}), true);
+  assert.equal(sameTestAccountCohort({ isTestAccount: true }, { isTestAccount: true }), true);
+  assert.equal(sameTestAccountCohort({ isTestAccount: true }, { isTestAccount: false }), false);
+  assert.equal(sameTestAccountCohort({ isTestAccount: false }, { isTestAccount: true }), false);
 
   assert.equal(
     isSundayDivisionLocked(
@@ -155,6 +163,34 @@ async function run() {
   assert.equal(
     normalStakeDaysFromCycle({}),
     1
+  );
+  const bronzeDaily = subDailyLimitState({
+    cycle: {},
+    standing: { arenaRank: "브론즈" },
+    usage: { attackCount: 3, defenseCount: 0, challengerWin: false },
+  });
+  assert.deepEqual(
+    {
+      attackLimit: bronzeDaily.attackLimit,
+      defenseLimit: bronzeDaily.defenseLimit,
+      attackRemaining: bronzeDaily.attackRemaining,
+      defenseRemaining: bronzeDaily.defenseRemaining,
+    },
+    { attackLimit: 4, defenseLimit: 1, attackRemaining: 1, defenseRemaining: 1 }
+  );
+  assert.deepEqual(
+    subDailyEligibilityReasons({
+      daily: { ...bronzeDaily, attackCount: 4 },
+      role: "CHALLENGER",
+    }),
+    ["SUB_DAILY_ATTACK_LIMIT_REACHED"]
+  );
+  assert.deepEqual(
+    subDailyEligibilityReasons({
+      daily: { ...bronzeDaily, challengerWin: true },
+      role: "DEFENDER",
+    }),
+    ["SUB_DAILY_LOCK_AFTER_CHALLENGER_WIN"]
   );
   assert.deepEqual(
     arenaTupleFromStanding({
@@ -313,12 +349,15 @@ async function run() {
         `${matchId}:NORMAL_STAKE_LOCKED`,
       eventType:
         "MATCH_STAKE_LOCKED",
-      availableLearningDaysDelta: -1,
-      lockedLearningDaysDelta: 1,
+      availableLearningDaysDelta: 0,
+      paybackScoreDaysDelta: -1,
+      lockedPaybackScoreDaysDelta: 1,
+      lockedLearningDaysDelta: 0,
       balanceAfter: {
-        availableLearningDays: 9,
-        paybackScoreDays: 29,
-        lockedLearningDays: 1,
+        availableLearningDays: 10,
+        paybackScoreDays: 28,
+        lockedPaybackScoreDays: 1,
+        lockedLearningDays: 0,
       },
       sourceType: "ArenaMatch",
       sourceId: matchId,

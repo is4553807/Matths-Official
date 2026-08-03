@@ -8,6 +8,9 @@ const {
 const {
   ARENA_ONE_ON_ONE_PROBLEM_TYPES,
 } = require("./arenaOneOnOneProblemTypes");
+const {
+  TIER_TYPE_CATALOG,
+} = require("./arenaOneOnOneDifficultyPolicy");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 
@@ -48,10 +51,22 @@ function getAdminProblemBankCatalog() {
         status: "코드 수정 필요",
       },
       {
+        name: "GOAT Arena 1대1 난이도·유형 설계표",
+        file: relativeFile("services/arenaOneOnOneDifficultyPolicy.js"),
+        purpose: `방어자 기준 T1~T9·목표 정답률·팩 곡선·최종 유형 ID ${Object.values(TIER_TYPE_CATALOG).reduce((sum, entries) => sum + entries.length, 0)}개`,
+        status: "정책 골격 연결 완료",
+      },
+      {
+        name: "GOAT Arena T1~T9 DB 카탈로그",
+        file: relativeFile("services/arenaTierQuestionCatalogService.js"),
+        purpose: "승인 생성기 검산, 참고 문항 270개 버전, 관리자 유형 추가와 신규 경기 무중단 반영",
+        status: "관리자 화면에서 안전한 유형 추가 가능",
+      },
+      {
         name: "GOAT Arena 1대1 문제 유형",
         file: relativeFile("services/arenaOneOnOneProblemTypes.js"),
-        purpose: `배치고사와 분리된 Arena 전용 준킬러 유형 ${Object.values(ARENA_ONE_ON_ONE_PROBLEM_TYPES).filter((definition) => definition.category === "semi-killer").length}개와 자동 검산`,
-        status: "Arena 전용 독립 파일",
+        purpose: `배치고사와 분리된 Arena 전용 준킬러 ${Object.values(ARENA_ONE_ON_ONE_PROBLEM_TYPES).filter((definition) => definition.category === "semi-killer").length}개 중 3자리 이하 자연수 답 조건을 충족하는 ${Object.values(ARENA_ONE_ON_ONE_PROBLEM_TYPES).filter((definition) => definition.arenaNaturalAnswerEligible === true).length}개 생성 유형과 자동 검산`,
+        status: "수학 생성 로직 배포용 · 유형 배정은 관리자 DB 버전으로 변경 가능",
       },
       {
         name: "GOAT Arena 1대1 티어 조합",

@@ -10,11 +10,12 @@ const {
   LiveFinalRankingProfile,
 } = require("../models/goatArenaModel");
 const { kstDateKey, kstMidnight } = require("./accessCycleService");
-const { addMatchTransfer } = require("./mainLearningDayService");
+const { addMatchTransfer, normalizeBuckets } = require("./mainLearningDayService");
 
 const MAIN_DORMANCY_DAYS = 20;
 const DORMANCY_REASON_CODE = "MAIN_DORMANT_20_DAYS_INACTIVE";
 const SUB_DEMOTION_REASON_CODE = "MAIN_DORMANCY_BALANCE_DEPLETED";
+const DORMANCY_RESERVE_REASON_CODE = "MAIN_DORMANCY_RESERVED_FOR_REENTRY";
 
 function dateKeyToDayNumber(dateKey) {
   const [year, month, day] = String(dateKey || "").split("-").map(Number);
@@ -43,6 +44,20 @@ function dormancyConsumptionThroughDate(startedAt, { allowFinalDay = false } = {
 function nextKstMidnight(value) {
   const dateKey = kstDateKey(value);
   return new Date(kstMidnight(dateKey).getTime() + 86_400_000);
+}
+
+function isolateDormancyReserve(cycle) {
+  const availableLearningDays = Math.max(0, Number(cycle?.availableLearningDays || 0));
+  const lockedLearningDays = Math.max(0, Number(cycle?.lockedLearningDays || 0));
+  const reservedLearningDays = Math.max(0, Number(cycle?.reservedLearningDays || 0));
+  return {
+    availableLearningDays,
+    hasUnsettledLearningDays: lockedLearningDays > 0 || reservedLearningDays > 0,
+    buckets: normalizeBuckets(cycle).map((bucket) => ({
+      ...bucket,
+      availableDays: 0,
+    })),
+  };
 }
 
 async function initializeMainInactivityWindows({ now = new Date(), limit = 1000 } = {}) {
@@ -146,42 +161,16 @@ async function recordMainQualifyingActivity({ userId, activityAt = new Date(), s
         : null;
       if (!cycle) return;
 
-      if (state.state === "MAIN_DORMANT" && state.mainDormancyRecoveryMode === "RESUME_MAIN") {
-        await AccessCycle.updateOne(
-          { _id: cycle._id },
-          { $set: { dailyConsumptionPausedAt: null } },
-          { session }
-        );
-        await ArenaStanding.updateOne(
-          { _id: state.standingId },
-          { $set: { status: "ACTIVE" } },
-          { session }
-        );
-        await UserNotification.create(
-          [
-            {
-              userId,
-              title: "Main Division 활동 재개",
-              message: `동결된 정기권 학습 가능 일수 ${Number(
-                state.mainDormancyFrozenLearningDays || cycle.availableLearningDays
-              )}일로 Main Division 이용을 계속합니다.`,
-              href: "/goat-arena",
-              kind: "account",
-            },
-          ],
-          { session }
-        );
-      } else if (state.state !== "PAID_ACTIVE") {
+      if (state.state !== "PAID_ACTIVE") {
         result = { recorded: false, reason: "MAIN_NOT_ACTIVE" };
         return;
-      } else {
-        cycle = await refundTwentiethDayConsumption({
-          state,
-          cycle,
-          activityAt: currentTime,
-          session,
-        });
       }
+      cycle = await refundTwentiethDayConsumption({
+        state,
+        cycle,
+        activityAt: currentTime,
+        session,
+      });
 
       await ArenaAccessState.updateOne(
         { _id: state._id },
@@ -215,7 +204,7 @@ async function recordMainQualifyingActivity({ userId, activityAt = new Date(), s
         },
         { upsert: true, session }
       );
-      result = { recorded: true, resumed: state.state === "MAIN_DORMANT" };
+      result = { recorded: true, resumed: false };
     });
   } finally {
     await session.endSession();
@@ -249,121 +238,159 @@ async function recordSettledMainMatchActivities({ matchId, settledAt = new Date(
 
 async function transitionDormantState({ state, cycle, now, session }) {
   const startBalance = Number(state.mainInactivityStartAvailableDays || 0);
-  if (startBalance === MAIN_DORMANCY_DAYS && Number(cycle.availableLearningDays) === 0) {
-    await ArenaAccessState.updateOne(
+  if (startBalance < MAIN_DORMANCY_DAYS && state.state !== "MAIN_DORMANT") {
+    return "NOT_READY";
+  }
+  const reserve = isolateDormancyReserve(cycle);
+  if (reserve.hasUnsettledLearningDays) return "PENDING_SETTLEMENT";
+
+  const reserveDays = reserve.availableLearningDays;
+  const recoveryMode = reserveDays > 0
+    ? "RESTORE_ON_MAIN_REENTRY"
+    : "SUB_STANDARD_FLOW";
+  const transitionKey = new Date(
+    state.mainInactivityStartedAt || state.mainDormancyStartedAt || state.updatedAt || now
+  ).toISOString();
+
+  await Promise.all([
+    AccessCycle.updateOne(
+      { _id: cycle._id },
+      {
+        $set: {
+          status: "EXPIRED",
+          availableLearningDays: 0,
+          learningDayBuckets: reserve.buckets,
+          dailyConsumptionPausedAt: now,
+          depletedAt: now,
+        },
+      },
+      { session }
+    ),
+    ArenaAccessState.updateOne(
       { _id: state._id },
       {
         $set: {
           currentCompetitiveDivision: "SUB",
           state: "SUB_ACCESS_EXPIRED_LOCKED",
-          mainDormancyStartedAt: now,
-          mainDormancyFrozenLearningDays: 0,
-          mainDormancyRecoveryMode: "SUB_STANDARD_FLOW",
+          currentSeasonPlacementCompleted: false,
+          mainDormancyStartedAt: state.mainDormancyStartedAt || now,
+          mainDormancyFrozenLearningDays: reserveDays,
+          mainDormancyRecoveryMode: recoveryMode,
           finalRankingActive: false,
           defensePoolEligible: false,
           weeklyMockEligible: false,
-          reasonCode: SUB_DEMOTION_REASON_CODE,
+          reasonCode: reserveDays > 0
+            ? DORMANCY_RESERVE_REASON_CODE
+            : SUB_DEMOTION_REASON_CODE,
         },
       },
       { session }
-    );
-    await ArenaOutboxEvent.updateOne(
-      { idempotencyKey: `main-dormancy-demotion:${state.userId}:${state.mainInactivityStartedAt.toISOString()}` },
-      {
-        $setOnInsert: {
-          eventType: "MainDormancyDemotedToSub",
-          aggregateType: "ArenaAccessState",
-          aggregateId: state._id,
-          idempotencyKey: `main-dormancy-demotion:${state.userId}:${state.mainInactivityStartedAt.toISOString()}`,
-          payload: { userId: String(state.userId), deductedDays: MAIN_DORMANCY_DAYS },
-        },
-      },
-      { upsert: true, session }
-    );
-    return "DEMOTED_TO_SUB";
-  }
-  if (startBalance >= MAIN_DORMANCY_DAYS + 1 && Number(cycle.availableLearningDays) > 0) {
-    await Promise.all([
-      AccessCycle.updateOne(
-        { _id: cycle._id, status: "ACTIVE" },
-        { $set: { dailyConsumptionPausedAt: now } },
-        { session }
-      ),
-      ArenaAccessState.updateOne(
-        { _id: state._id, state: "PAID_ACTIVE" },
+    ),
+    ArenaStanding.updateOne(
+      { _id: state.standingId },
+      { $set: { status: "LOCKED" } },
+      { session }
+    ),
+    LiveFinalRankingProfile.updateMany(
+      { userId: state.userId },
+      { $set: { status: "INACTIVE_DORMANT", stagedFinalRating: null, stagedFinalRank: null } },
+      { session }
+    ),
+    UserNotification.create(
+      [
         {
-          $set: {
-            state: "MAIN_DORMANT",
-            mainDormancyStartedAt: now,
-            mainDormancyFrozenLearningDays: Number(cycle.availableLearningDays),
-            mainDormancyRecoveryMode: "RESUME_MAIN",
-            finalRankingActive: false,
-            defensePoolEligible: false,
-            weeklyMockEligible: false,
-            reasonCode: DORMANCY_REASON_CODE,
-          },
+          userId: state.userId,
+          title: "Main Division 휴면 강등",
+          message: reserveDays > 0
+            ? `20일 연속 공식 활동이 없어 Sub Division으로 강등되었습니다. 남아 있던 학습일수 ${reserveDays}일은 Sub Division에서 사용할 수 없으며, 일반 Sub 과정을 완료해 Main Division에 다시 진입할 때 복원됩니다.`
+            : "20일 연속 공식 활동이 없어 학습일수를 모두 차감하고 Sub Division으로 강등되었습니다. 다시 이용하려면 일반 Sub Division 절차를 진행해야 합니다.",
+          href: "/goat-arena/profile",
+          kind: "account",
         },
-        { session }
-      ),
-      ArenaStanding.updateOne(
-        { _id: state.standingId },
-        { $set: { status: "LOCKED" } },
-        { session }
-      ),
-      LiveFinalRankingProfile.updateMany(
-        { userId: state.userId },
-        { $set: { status: "INACTIVE_DORMANT", stagedFinalRating: null, stagedFinalRank: null } },
-        { session }
-      ),
-      UserNotification.create(
-        [
-          {
-            userId: state.userId,
-            title: "Main Division 휴면 전환",
-            message: `공식 경기와 Matths 주간 공식 모의고사를 20일 연속 완료하지 않아 남은 학습일수 ${Number(
-              cycle.availableLearningDays
-            )}일을 동결했습니다. 공식 활동을 완료하면 Main Division에서 그대로 재개합니다.`,
-            href: "/goat-arena",
-            kind: "account",
-          },
-        ],
-        { session }
-      ),
-    ]);
-    await ArenaOutboxEvent.updateOne(
-      { idempotencyKey: `main-dormancy:${state.userId}:${state.mainInactivityStartedAt.toISOString()}` },
+      ],
+      { session }
+    ),
+  ]);
+
+  if (reserveDays > 0) {
+    await ArenaLearningDayLedger.updateOne(
+      { idempotencyKey: `${cycle._id}:MAIN_DORMANCY_RESERVE_HELD` },
       {
         $setOnInsert: {
-          eventType: "MainDormancyStarted",
-          aggregateType: "ArenaAccessState",
-          aggregateId: state._id,
-          idempotencyKey: `main-dormancy:${state.userId}:${state.mainInactivityStartedAt.toISOString()}`,
-          payload: { userId: String(state.userId), frozenLearningDays: Number(cycle.availableLearningDays) },
+          userId: state.userId,
+          accessCycleId: cycle._id,
+          idempotencyKey: `${cycle._id}:MAIN_DORMANCY_RESERVE_HELD`,
+          eventType: "MAIN_DORMANCY_RESERVE_HELD",
+          availableLearningDaysDelta: -reserveDays,
+          sourceBucket: "MAIN_DORMANCY_RESTORE",
+          balanceAfter: {
+            availableLearningDays: 0,
+            paybackScoreDays: Number(cycle.paybackScoreDays || 0),
+            lockedLearningDays: 0,
+            reservedLearningDays: 0,
+          },
+          sourceType: "ArenaAccessState",
+          sourceId: state._id,
+          occurredAt: now,
+          metadata: { reserveDays, transitionKey },
         },
       },
       { upsert: true, session }
     );
-    return "DORMANT";
   }
-  return "NOT_READY";
+  await ArenaOutboxEvent.updateOne(
+    { idempotencyKey: `main-dormancy-demotion:${state.userId}:${transitionKey}` },
+    {
+      $setOnInsert: {
+        eventType: "MainDormancyDemotedToSub",
+        aggregateType: "ArenaAccessState",
+        aggregateId: state._id,
+        idempotencyKey: `main-dormancy-demotion:${state.userId}:${transitionKey}`,
+        payload: {
+          userId: String(state.userId),
+          deductedDays: MAIN_DORMANCY_DAYS,
+          reservedForMainReentryDays: reserveDays,
+          recoveryMode,
+        },
+      },
+    },
+    { upsert: true, session }
+  );
+  return reserveDays > 0 ? "DEMOTED_WITH_RESERVE" : "DEMOTED_TO_SUB";
 }
 
 async function processMainDormancyTransitions({ now = new Date(), limit = 1000 } = {}) {
   const currentTime = new Date(now);
   const states = await ArenaAccessState.find({
-    mainInactivityStartedAt: { $ne: null },
-    mainInactivityStartAvailableDays: { $gte: MAIN_DORMANCY_DAYS },
-    mainDormancyRecoveryMode: null,
     $or: [
-      { currentCompetitiveDivision: "MAIN", state: "PAID_ACTIVE" },
-      { currentCompetitiveDivision: "SUB", state: "SUB_ACCESS_EXPIRED_LOCKED" },
+      {
+        mainInactivityStartedAt: { $ne: null },
+        mainInactivityStartAvailableDays: { $gte: MAIN_DORMANCY_DAYS },
+        mainDormancyRecoveryMode: null,
+        currentCompetitiveDivision: "MAIN",
+        state: "PAID_ACTIVE",
+      },
+      {
+        mainInactivityStartedAt: { $ne: null },
+        mainInactivityStartAvailableDays: MAIN_DORMANCY_DAYS,
+        mainDormancyRecoveryMode: null,
+        currentCompetitiveDivision: "SUB",
+        state: "SUB_ACCESS_EXPIRED_LOCKED",
+      },
+      {
+        currentCompetitiveDivision: "MAIN",
+        state: "MAIN_DORMANT",
+        mainDormancyRecoveryMode: "RESUME_MAIN",
+      },
     ],
   })
     .limit(Math.max(1, Math.min(5000, Number(limit) || 1000)))
     .lean();
-  const summary = { scanned: states.length, dormant: 0, demoted: 0, pending: 0 };
+  const summary = { scanned: states.length, reserved: 0, demoted: 0, pending: 0 };
   for (const state of states) {
+    const legacyDormant = state.state === "MAIN_DORMANT";
     if (
+      !legacyDormant &&
       inactivityDayCount({ startedAt: state.mainInactivityStartedAt, now: currentTime }) <
       MAIN_DORMANCY_DAYS + 1
     ) {
@@ -377,14 +404,18 @@ async function processMainDormancyTransitions({ now = new Date(), limit = 1000 }
         const cycle = freshState?.accessCycleId
           ? await AccessCycle.findById(freshState.accessCycleId).session(session).lean()
           : null;
-        if (!freshState || !cycle || freshState.mainDormancyRecoveryMode) return;
+        if (!freshState || !cycle) return;
+        if (
+          freshState.mainDormancyRecoveryMode &&
+          freshState.mainDormancyRecoveryMode !== "RESUME_MAIN"
+        ) return;
         const outcome = await transitionDormantState({
           state: freshState,
           cycle,
           now: currentTime,
           session,
         });
-        if (outcome === "DORMANT") summary.dormant += 1;
+        if (outcome === "DEMOTED_WITH_RESERVE") summary.reserved += 1;
         else if (outcome === "DEMOTED_TO_SUB") summary.demoted += 1;
         else summary.pending += 1;
       });
@@ -392,7 +423,7 @@ async function processMainDormancyTransitions({ now = new Date(), limit = 1000 }
       await session.endSession();
     }
   }
-  if (summary.dormant || summary.demoted) {
+  if (summary.reserved || summary.demoted) {
     const { recalculateFinalRanking } = require("./finalRankingService");
     await recalculateFinalRanking({ now: currentTime });
   }
@@ -405,98 +436,60 @@ async function synchronizeDormantArenaReturn({ userId, now = new Date() }) {
   }
   const currentTime = new Date(now);
   const session = await mongoose.startSession();
-  let result = { required: false, reason: "NOT_MAIN_DORMANT" };
+  let result = { required: false, resumed: false, reason: "NOT_DORMANCY_REENTRY" };
+  let migratedLegacyDormancy = false;
   try {
     await session.withTransaction(async () => {
       const state = await ArenaAccessState.findOne({
         userId,
-        currentCompetitiveDivision: "MAIN",
-        state: "MAIN_DORMANT",
-        mainDormancyRecoveryMode: "RESUME_MAIN",
       })
         .session(session)
         .lean();
       if (!state) return;
-      const cycle = await AccessCycle.findOne({
-        _id: state.accessCycleId,
-        status: "ACTIVE",
-        availableLearningDays: { $gt: 0 },
-      })
-        .session(session)
-        .lean();
-      if (!cycle) {
-        result = { required: false, reason: "DORMANT_CYCLE_NOT_AVAILABLE" };
+      if (
+        state.currentCompetitiveDivision === "MAIN" &&
+        state.state === "MAIN_DORMANT" &&
+        state.mainDormancyRecoveryMode === "RESUME_MAIN"
+      ) {
+        const cycle = await AccessCycle.findById(state.accessCycleId).session(session).lean();
+        if (!cycle) {
+          result = { required: false, resumed: false, reason: "DORMANT_CYCLE_NOT_AVAILABLE" };
+          return;
+        }
+        const outcome = await transitionDormantState({
+          state,
+          cycle,
+          now: currentTime,
+          session,
+        });
+        migratedLegacyDormancy = outcome === "DEMOTED_WITH_RESERVE" || outcome === "DEMOTED_TO_SUB";
+        result = {
+          required: outcome === "DEMOTED_WITH_RESERVE",
+          resumed: false,
+          reason: outcome === "DEMOTED_WITH_RESERVE"
+            ? "MAIN_REENTRY_REQUIRED"
+            : "SUB_STANDARD_FLOW_REQUIRED",
+          reservedLearningDays: outcome === "DEMOTED_WITH_RESERVE"
+            ? Number(cycle.availableLearningDays || 0)
+            : 0,
+        };
         return;
       }
-      const idempotencyKey = `main-dormancy-resume:${userId}:${new Date(
-        state.mainDormancyStartedAt || state.updatedAt
-      ).toISOString()}`;
-      await Promise.all([
-        AccessCycle.updateOne(
-          { _id: cycle._id },
-          { $set: { dailyConsumptionPausedAt: null } },
-          { session }
-        ),
-        ArenaAccessState.updateOne(
-          { _id: state._id, state: "MAIN_DORMANT" },
-          {
-            $set: {
-              state: "PAID_ACTIVE",
-              mainInactivityStartedAt: nextKstMidnight(currentTime),
-              mainInactivityStartAvailableDays: Number(cycle.availableLearningDays),
-              mainDormancyStartedAt: null,
-              mainDormancyFrozenLearningDays: null,
-              mainDormancyRecoveryMode: null,
-              defensePoolEligible: true,
-              weeklyMockEligible: true,
-              finalRankingActive: true,
-              reasonCode: "",
-            },
-          },
-          { session }
-        ),
-        ArenaStanding.updateOne(
-          { _id: state.standingId },
-          { $set: { status: "ACTIVE" } },
-          { session }
-        ),
-        UserNotification.create(
-          [
-            {
-              userId,
-              title: "Main Division 활동 재개",
-              message: `동결된 정기권 학습 가능 일수 ${Number(
-                cycle.availableLearningDays
-              )}일로 Main Division 이용을 계속합니다. 로그인만으로 공식 활동 기록이 초기화되지는 않습니다.`,
-              href: "/goat-arena",
-              kind: "account",
-            },
-          ],
-          { session }
-        ),
-        ArenaOutboxEvent.updateOne(
-          { idempotencyKey },
-          {
-            $setOnInsert: {
-              eventType: "MainDormancyResumed",
-              aggregateType: "ArenaAccessState",
-              aggregateId: state._id,
-              idempotencyKey,
-              payload: {
-                userId: String(userId),
-                restoredLearningDays: Number(cycle.availableLearningDays),
-              },
-            },
-          },
-          { upsert: true, session }
-        ),
-      ]);
-      result = { required: true, resumed: true, restoredLearningDays: cycle.availableLearningDays };
+      if (state.mainDormancyRecoveryMode === "RESTORE_ON_MAIN_REENTRY") {
+        result = {
+          required: true,
+          resumed: false,
+          reason: "MAIN_REENTRY_REQUIRED",
+          reservedLearningDays: Number(state.mainDormancyFrozenLearningDays || 0),
+        };
+      } else if (state.mainDormancyRecoveryMode === "SUB_STANDARD_FLOW") {
+        result = { required: false, resumed: false, reason: "SUB_STANDARD_FLOW_REQUIRED" };
+      }
     });
   } finally {
     await session.endSession();
   }
-  if (result.resumed) {
+  if (migratedLegacyDormancy) {
     const { recalculateFinalRanking } = require("./finalRankingService");
     await recalculateFinalRanking({ now: currentTime });
   }
@@ -504,11 +497,13 @@ async function synchronizeDormantArenaReturn({ userId, now = new Date() }) {
 }
 
 module.exports = {
+  DORMANCY_RESERVE_REASON_CODE,
   DORMANCY_REASON_CODE,
   MAIN_DORMANCY_DAYS,
   SUB_DEMOTION_REASON_CODE,
   dormancyConsumptionThroughDate,
   inactivityDayCount,
+  isolateDormancyReserve,
   initializeMainInactivityWindows,
   processMainDormancyTransitions,
   recordMainQualifyingActivity,

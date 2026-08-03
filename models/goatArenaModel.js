@@ -24,6 +24,22 @@ const paybackBandSchema = new Schema(
   { _id: false }
 );
 
+const arenaTierDailyLimitSchema = new Schema(
+  {
+    tier: {
+      type: String,
+      enum: [
+        "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD",
+        "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER",
+      ],
+      required: true,
+    },
+    attackLimit: { type: Number, min: 0, max: 20, required: true },
+    defenseLimit: { type: Number, min: 0, max: 20, required: true },
+  },
+  { _id: false }
+);
+
 const mainLearningDayBucketSchema = new Schema(
   {
     sourceType: {
@@ -31,7 +47,9 @@ const mainLearningDayBucketSchema = new Schema(
       enum: [
         "SUB_CARRYOVER",
         "MAIN_ENTRY_BONUS",
+        "MAIN_DORMANCY_RESTORE",
         "MAIN_MATCH_TRANSFER",
+        "ADMIN_GRANT",
       ],
       required: true,
     },
@@ -203,6 +221,10 @@ const subscriptionPolicyVersionSchema = new Schema(
         default: 2,
       },
     },
+    dailyMatchLimitsByTier: {
+      type: [arenaTierDailyLimitSchema],
+      default: () => [],
+    },
     payback: {
       minimumStreakDays: {
         type: Number,
@@ -315,6 +337,7 @@ const immutablePolicyDefinitionPaths = [
   "packagePurchaseRequiresZeroLockedBalance",
   "lateRenewalTierPenalty",
   "matchStakeDays",
+  "dailyMatchLimitsByTier",
   "payback",
   "changeSummary",
 ];
@@ -504,7 +527,7 @@ const mockExamPackagePolicyVersionSchema = new Schema(
       type: String,
       trim: true,
       maxlength: 120,
-      default: "모의고사 전용 패키지",
+      default: "Matths 주간 공식 모의고사 이용권",
     },
     status: {
       type: String,
@@ -721,6 +744,11 @@ const accessCycleSchema = new Schema(
       type: Number,
       min: 0,
       default: 29,
+    },
+    lockedPaybackScoreDays: {
+      type: Number,
+      min: 0,
+      default: 0,
     },
     lockedLearningDays: {
       type: Number,
@@ -1043,6 +1071,144 @@ accessCycleExpiryReminderSchema.index({
   leaseExpiresAt: 1,
 });
 
+/*
+ * 운영 정책 변경 공지의 사용자별 전달 원장입니다. 정책 한 건과 사용자
+ * 한 명의 조합을 유일하게 만들어 사이트 우편함과 이메일을 각각 정확히
+ * 한 번 전달하고, SMTP 장애가 나도 별도 재시도할 수 있게 합니다.
+ */
+const policyChangeDeliverySchema = new Schema(
+  {
+    policyType: {
+      type: String,
+      enum: [
+        "SUB_DIVISION",
+        "MAIN_DIVISION",
+        "LEARNING_PACKAGE",
+        "MOCK_EXAM_PACKAGE",
+        "MAIN_SHOP",
+      ],
+      required: true,
+      index: true,
+    },
+    policyId: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      index: true,
+    },
+    policyCode: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+      default: "",
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    effectiveFrom: {
+      type: Date,
+      required: true,
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100,
+    },
+    message: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 1000,
+    },
+    href: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: "/goat-arena/rules/sub",
+    },
+    siteStatus: {
+      type: String,
+      enum: ["PENDING", "SENT", "FAILED"],
+      default: "PENDING",
+      index: true,
+    },
+    siteNotificationId: {
+      type: Schema.Types.ObjectId,
+      ref: "UserNotification",
+      default: null,
+    },
+    siteDeliveredAt: {
+      type: Date,
+      default: null,
+    },
+    emailStatus: {
+      type: String,
+      enum: ["PENDING", "SENDING", "SENT", "PREVIEW", "SKIPPED", "FAILED"],
+      default: "PENDING",
+      index: true,
+    },
+    emailAttempts: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    emailLastAttemptAt: {
+      type: Date,
+      default: null,
+    },
+    emailNextRetryAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    emailDeliveredAt: {
+      type: Date,
+      default: null,
+    },
+    emailProviderMessageId: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+      default: "",
+    },
+    emailLastError: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: "",
+    },
+    leaseToken: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: "",
+    },
+    leaseExpiresAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    deliveredAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { timestamps: true, versionKey: false }
+);
+policyChangeDeliverySchema.index(
+  { policyType: 1, policyId: 1, userId: 1 },
+  { unique: true }
+);
+policyChangeDeliverySchema.index({
+  emailStatus: 1,
+  emailNextRetryAt: 1,
+  leaseExpiresAt: 1,
+  createdAt: 1,
+});
+
 const arenaStandingSchema = new Schema(
   {
     userId: {
@@ -1283,7 +1449,12 @@ const arenaAccessStateSchema = new Schema(
     },
     mainDormancyRecoveryMode: {
       type: String,
-      enum: ["RESUME_MAIN", "SUB_STANDARD_FLOW", null],
+      enum: [
+        "RESUME_MAIN",
+        "RESTORE_ON_MAIN_REENTRY",
+        "SUB_STANDARD_FLOW",
+        null,
+      ],
       default: null,
     },
     lastMainSnapshotId: {
@@ -1554,6 +1725,8 @@ const arenaLearningDayLedgerSchema = new Schema(
         "MATCH_SETTLEMENT_BURN",
         "MAIN_CARRYOVER_GRANTED",
         "MAIN_ENTRY_BONUS_GRANTED",
+        "MAIN_DORMANCY_RESERVE_HELD",
+        "MAIN_DORMANCY_RESERVE_RESTORED",
         "MAIN_INVITATION_RESERVE",
         "MAIN_INVITATION_RELEASE",
         "MAIN_INVITATION_TO_MATCH_LOCK",
@@ -1584,6 +1757,10 @@ const arenaLearningDayLedgerSchema = new Schema(
       type: Number,
       default: 0,
     },
+    lockedPaybackScoreDaysDelta: {
+      type: Number,
+      default: 0,
+    },
     lockedLearningDaysDelta: {
       type: Number,
       default: 0,
@@ -1599,7 +1776,9 @@ const arenaLearningDayLedgerSchema = new Schema(
         "PACKAGE_BASE",
         "SUB_CARRYOVER",
         "MAIN_ENTRY_BONUS",
+        "MAIN_DORMANCY_RESTORE",
         "MAIN_MATCH_TRANSFER",
+        "ADMIN_GRANT",
       ],
       default: "UNSPECIFIED",
     },
@@ -1613,6 +1792,11 @@ const arenaLearningDayLedgerSchema = new Schema(
         type: Number,
         min: 0,
         required: true,
+      },
+      lockedPaybackScoreDays: {
+        type: Number,
+        min: 0,
+        default: 0,
       },
       lockedLearningDays: {
         type: Number,
@@ -1739,6 +1923,10 @@ const mainDivisionPolicyVersionSchema = new Schema(
     unlimitedDailyDefenses: {
       type: Boolean,
       default: true,
+    },
+    dailyMatchLimitsByTier: {
+      type: [arenaTierDailyLimitSchema],
+      default: () => [],
     },
     maximumNetGainPerCycle: {
       type: Number,
@@ -1893,6 +2081,7 @@ const immutableMainPolicyDefinitionPaths = [
   "maximumTargetTierGap",
   "unlimitedDailyAttacks",
   "unlimitedDailyDefenses",
+  "dailyMatchLimitsByTier",
   "maximumNetGainPerCycle",
   "invitationRequestExpiresAt",
   "invitationOfferBatchSize",
@@ -2962,6 +3151,16 @@ const mainShopEffectSchema = new Schema(
   { timestamps: true, versionKey: false }
 );
 mainShopEffectSchema.index({ userId: 1, itemCode: 1, status: 1 });
+mainShopEffectSchema.index(
+  { relatedMatchId: 1, itemCode: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      itemCode: "DEFENSE_SCHEDULE_PROTECTION",
+      relatedMatchId: { $type: "objectId" },
+    },
+  }
+);
 
 const arenaMatchParticipantSchema = new Schema(
   {
@@ -3060,6 +3259,49 @@ const arenaProblemQuestionSchema = new Schema(
       min: 0,
       required: true,
     },
+    designPolicyVersion: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      maxlength: 120,
+      default: "",
+    },
+    designSlot: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: null,
+    },
+    plannedCourseId: {
+      type: String,
+      trim: true,
+      maxlength: 80,
+      default: "",
+    },
+    difficultyPosition: {
+      type: String,
+      enum: ["", "LOW", "MID", "MID_HIGH", "HIGH"],
+      default: "",
+    },
+    combinedConceptCount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    conditionTransformSteps: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    graphItem: {
+      type: Boolean,
+      default: false,
+    },
+    calculationLoad: {
+      type: String,
+      enum: ["", "LOW"],
+      default: "",
+    },
     prompt: {
       type: String,
       required: true,
@@ -3110,6 +3352,30 @@ const arenaProblemQuestionSchema = new Schema(
         type: Boolean,
         required: true,
       },
+      semiKillerCertified: {
+        type: Boolean,
+        default: false,
+      },
+      curriculumCompliant: {
+        type: Boolean,
+        default: false,
+      },
+      conditionsConsistent: {
+        type: Boolean,
+        default: false,
+      },
+      tierBurdenMatches: {
+        type: Boolean,
+        default: false,
+      },
+      twoMinuteSolvable: {
+        type: Boolean,
+        default: false,
+      },
+      originalityChecked: {
+        type: Boolean,
+        default: false,
+      },
       checkedAt: {
         type: Date,
         required: true,
@@ -3117,6 +3383,604 @@ const arenaProblemQuestionSchema = new Schema(
     },
   },
   { _id: false }
+);
+
+const ARENA_PROBLEM_DIFFICULTY_TIERS = [
+  "T1",
+  "T2",
+  "T3",
+  "T4",
+  "T5",
+  "T6",
+  "T7",
+  "T8",
+  "T9",
+];
+
+const arenaProblemTierConfigurationSchema = new Schema(
+  {
+    difficultyTier: {
+      type: String,
+      enum: ARENA_PROBLEM_DIFFICULTY_TIERS,
+      required: true,
+    },
+    typeIds: {
+      type: [String],
+      required: true,
+      validate: {
+        validator: (values) =>
+          Array.isArray(values) &&
+          values.length >= 5 &&
+          values.length === new Set(values).size,
+        message:
+          "각 난이도에는 서로 다른 1대1 문제 유형을 5개 이상 지정해야 합니다.",
+      },
+    },
+  },
+  { _id: false }
+);
+
+const arenaProblemDataValidationFailureSchema = new Schema(
+  {
+    typeId: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+      default: "",
+    },
+    sample: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    message: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: "",
+    },
+  },
+  { _id: false }
+);
+
+const arenaProblemTypeSettingSchema = new Schema(
+  {
+    typeId: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120,
+    },
+    enabled: {
+      type: Boolean,
+      default: true,
+    },
+    selectionWeight: {
+      type: Number,
+      min: 1,
+      max: 10,
+      default: 1,
+    },
+    answerMin: {
+      type: Number,
+      min: 1,
+      max: 999,
+      default: 1,
+    },
+    answerMax: {
+      type: Number,
+      min: 1,
+      max: 999,
+      default: 999,
+    },
+    difficultyNote: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+      default: "",
+    },
+  },
+  { _id: false }
+);
+
+/*
+ * 관리자가 선택하는 Arena 문제 데이터는 실행 코드가 아니라 버전 문서입니다.
+ * 실제 문제 생성·검산 코드는 서버에 남고, ACTIVE 버전은 신규 경기만 참조합니다.
+ */
+const arenaProblemDataVersionSchema = new Schema(
+  {
+    code: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      uppercase: true,
+      match: /^[A-Z0-9][A-Z0-9._-]{2,79}$/,
+      maxlength: 80,
+    },
+    displayName: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 160,
+    },
+    status: {
+      type: String,
+      enum: ["DRAFT", "ACTIVE", "RETIRED"],
+      default: "DRAFT",
+    },
+    engineVersion: {
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
+      maxlength: 120,
+      default: "ARENA-GENERATOR-JS-V1",
+    },
+    tierConfigurations: {
+      type: [arenaProblemTierConfigurationSchema],
+      required: true,
+      validate: {
+        validator: (values) => {
+          if (!Array.isArray(values) || values.length !== 9) return false;
+          const tiers = values.map((value) => value.difficultyTier);
+          return (
+            new Set(tiers).size === 9 &&
+            ARENA_PROBLEM_DIFFICULTY_TIERS.every((tier) =>
+              tiers.includes(tier)
+            )
+          );
+        },
+        message: "T1부터 T9까지 문제 유형 설정이 모두 필요합니다.",
+      },
+    },
+    typeSettings: {
+      type: [arenaProblemTypeSettingSchema],
+      required: true,
+      default: [],
+      validate: {
+        validator: (values) =>
+          Array.isArray(values) &&
+          values.length >= 5 &&
+          values.length === new Set(values.map((value) => value.typeId)).size &&
+          values.every(
+            (value) =>
+              Number(value.answerMin) <= Number(value.answerMax) &&
+              Number(value.selectionWeight) >= 1
+          ),
+        message: "문제 유형별 사용 여부·가중치·정답 범위를 확인해주세요.",
+      },
+    },
+    changeSummary: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 1000,
+    },
+    contentHash: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      match: /^[a-f0-9]{64}$/,
+      required: true,
+    },
+    validationReport: {
+      passed: {
+        type: Boolean,
+        default: false,
+      },
+      sampledTypeCount: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+      sampleCount: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+      failures: {
+        type: [arenaProblemDataValidationFailureSchema],
+        default: [],
+      },
+      validatedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    basedOnVersionId: {
+      type: Schema.Types.ObjectId,
+      ref: "ArenaProblemDataVersion",
+      default: null,
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    activatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    activatedAt: {
+      type: Date,
+      default: null,
+    },
+    retiredAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+const arenaTierCatalogEngineBindingSchema = new Schema(
+  {
+    category: {
+      type: String,
+      enum: ["ASSESSMENT_CENTER"],
+      default: "ASSESSMENT_CENTER",
+      required: true,
+    },
+    engineKey: { type: String, required: true, trim: true, maxlength: 500 },
+    sourceHash: {
+      type: String,
+      required: true,
+      lowercase: true,
+      match: /^[a-f0-9]{64}$/,
+    },
+    weight: { type: Number, min: 1, max: 100, default: 1 },
+  },
+  { _id: false }
+);
+
+const arenaTierCatalogTypeSchema = new Schema(
+  {
+    typeId: { type: String, required: true, trim: true, maxlength: 120 },
+    label: { type: String, required: true, trim: true, maxlength: 240 },
+    curriculumUnit: {
+      type: String,
+      enum: ["algebra", "calculus-1", "probability-statistics"],
+      required: true,
+    },
+    referenceCount: { type: Number, min: 1, required: true },
+    generatorBindings: {
+      type: [arenaTierCatalogEngineBindingSchema],
+      required: true,
+      validate: {
+        validator: (values) =>
+          Array.isArray(values) &&
+          values.length > 0 &&
+          values.length === new Set(values.map((value) => value.engineKey)).size,
+        message: "Arena 참고 유형마다 중복 없는 검산 생성기 연결이 필요합니다.",
+      },
+    },
+  },
+  { _id: false }
+);
+
+const arenaTierCatalogTypeWeightSchema = new Schema(
+  {
+    typeId: { type: String, required: true, trim: true, maxlength: 120 },
+    weight: { type: Number, min: 1, max: 30, required: true },
+    referenceQuestionIds: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
+const arenaTierCatalogConfigurationSchema = new Schema(
+  {
+    difficultyTier: {
+      type: String,
+      enum: ARENA_PROBLEM_DIFFICULTY_TIERS,
+      required: true,
+    },
+    questionCount: { type: Number, enum: [30], required: true },
+    typeWeights: {
+      type: [arenaTierCatalogTypeWeightSchema],
+      required: true,
+      validate: {
+        validator: (values) =>
+          Array.isArray(values) &&
+          values.length >= 5 &&
+          values.length === new Set(values.map((value) => value.typeId)).size &&
+          values.reduce((sum, value) => sum + Number(value.weight || 0), 0) === 30 &&
+          values.every(
+            (value) =>
+              Array.isArray(value.referenceQuestionIds) &&
+              value.referenceQuestionIds.length === Number(value.weight || 0)
+          ),
+        message: "각 T등급에는 합계 30개인 중복 없는 참고 유형과 문항 ID가 필요합니다.",
+      },
+    },
+  },
+  { _id: false }
+);
+
+const arenaTierReferenceQuestionSchema = new Schema(
+  {
+    questionId: { type: String, required: true, trim: true, maxlength: 40 },
+    difficultyTier: {
+      type: String,
+      enum: ARENA_PROBLEM_DIFFICULTY_TIERS,
+      required: true,
+    },
+    sequence: { type: Number, min: 1, max: 30, required: true },
+    typeId: { type: String, required: true, trim: true, maxlength: 120 },
+    problemText: { type: String, required: true, maxlength: 20000 },
+    originalImage: { type: String, trim: true, maxlength: 1000, default: "" },
+    imageNote: { type: String, trim: true, maxlength: 1000, default: "" },
+    solutionProcess: {
+      type: [{ step: Number, explanation: { type: String, maxlength: 3000 } }],
+      required: true,
+      validate: {
+        validator: (values) =>
+          Array.isArray(values) &&
+          values.length > 0 &&
+          values.every(
+            (value) =>
+              Number(value.step) >= 1 &&
+              String(value.explanation || "").trim().length > 0
+          ),
+        message: "참고 문항의 풀이과정을 확인해주세요.",
+      },
+    },
+    finalCheck: { type: String, trim: true, maxlength: 3000, default: "" },
+    answer: { type: String, required: true, trim: true, maxlength: 1000 },
+    normalizedAnswer: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 1000,
+    },
+    answerFormat: {
+      type: String,
+      enum: ["MULTIPLE_CHOICE", "NATURAL_NUMBER"],
+      required: true,
+    },
+    answerStructureValidated: { type: Boolean, required: true, default: false },
+    source: {
+      exam: { type: String, trim: true, maxlength: 500, default: "" },
+      kind: { type: String, trim: true, maxlength: 100, default: "" },
+      questionNumber: { type: Number, min: 0, default: 0 },
+      pdfPage: { type: Number, min: 0, default: 0 },
+    },
+    liveQuestionEligible: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
+
+const arenaTierQuestionCatalogVersionSchema = new Schema(
+  {
+    code: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      uppercase: true,
+      match: /^[A-Z0-9][A-Z0-9._-]{2,79}$/,
+      maxlength: 80,
+    },
+    displayName: { type: String, required: true, trim: true, maxlength: 240 },
+    schemaVersion: { type: String, required: true, trim: true, maxlength: 40 },
+    status: {
+      type: String,
+      enum: ["DRAFT", "ACTIVE", "RETIRED"],
+      default: "DRAFT",
+      index: true,
+    },
+    sourceFileName: { type: String, required: true, trim: true, maxlength: 300 },
+    sourceHash: {
+      type: String,
+      required: true,
+      lowercase: true,
+      match: /^[a-f0-9]{64}$/,
+      unique: true,
+    },
+    contentHash: {
+      type: String,
+      required: true,
+      lowercase: true,
+      match: /^[a-f0-9]{64}$/,
+    },
+    typeDefinitions: {
+      type: [arenaTierCatalogTypeSchema],
+      required: true,
+      validate: {
+        validator: (values) =>
+          Array.isArray(values) &&
+          values.length > 0 &&
+          values.length === new Set(values.map((value) => value.typeId)).size,
+        message: "Arena 유형 정의의 식별자는 중복될 수 없습니다.",
+      },
+    },
+    tierConfigurations: {
+      type: [arenaTierCatalogConfigurationSchema],
+      required: true,
+      validate: {
+        validator: (values) =>
+          Array.isArray(values) &&
+          values.length === 9 &&
+          ARENA_PROBLEM_DIFFICULTY_TIERS.every((tier) =>
+            values.some((value) => value.difficultyTier === tier)
+          ),
+        message: "T1부터 T9까지 카탈로그 구성이 모두 필요합니다.",
+      },
+    },
+    referenceQuestions: {
+      type: [arenaTierReferenceQuestionSchema],
+      required: true,
+      validate: {
+        validator: (values) =>
+          Array.isArray(values) &&
+          values.length === 270 &&
+          values.length === new Set(values.map((value) => value.questionId)).size,
+        message: "T1~T9 참고 문항 270개와 고유 식별자가 필요합니다.",
+      },
+    },
+    validationReport: {
+      passed: { type: Boolean, default: false },
+      typeCount: { type: Number, min: 0, default: 0 },
+      referenceQuestionCount: { type: Number, min: 0, default: 0 },
+      answeredReferenceQuestionCount: { type: Number, min: 0, default: 0 },
+      solutionProcessReferenceCount: { type: Number, min: 0, default: 0 },
+      multipleChoiceReferenceCount: { type: Number, min: 0, default: 0 },
+      naturalNumberReferenceCount: { type: Number, min: 0, default: 0 },
+      liveEligibleReferenceCount: { type: Number, min: 0, default: 0 },
+      mappedEngineCount: { type: Number, min: 0, default: 0 },
+      generatedSampleCount: { type: Number, min: 0, default: 0 },
+      failures: { type: [String], default: [] },
+      validatedAt: { type: Date, default: null },
+    },
+    activatedAt: { type: Date, default: null },
+    retiredAt: { type: Date, default: null },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    activatedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+arenaTierQuestionCatalogVersionSchema.index(
+  { status: 1 },
+  {
+    unique: true,
+    name: "active_arena_tier_question_catalog_unique",
+    partialFilterExpression: { status: "ACTIVE" },
+  }
+);
+
+const immutableArenaTierCatalogPaths = [
+  "code",
+  "displayName",
+  "schemaVersion",
+  "sourceFileName",
+  "sourceHash",
+  "contentHash",
+  "typeDefinitions",
+  "tierConfigurations",
+  "referenceQuestions",
+  "validationReport",
+  "createdBy",
+  "activatedBy",
+  "activatedAt",
+];
+
+arenaTierQuestionCatalogVersionSchema.pre(
+  "save",
+  async function preventPublishedArenaTierCatalogMutation() {
+    if (this.isNew) return;
+    const current = await this.constructor.findById(this._id).select("status").lean();
+    if (!current) return;
+    if (
+      ["ACTIVE", "RETIRED"].includes(current.status) &&
+      immutableArenaTierCatalogPaths.some((path) => this.isModified(path))
+    ) {
+      throw new Error(
+        "적용하거나 종료한 Arena 티어 문제 카탈로그는 수정할 수 없습니다. 새 버전을 가져와주세요."
+      );
+    }
+    if (current.status === "RETIRED" && this.isModified("status")) {
+      throw new Error("종료한 Arena 티어 문제 카탈로그는 다시 적용할 수 없습니다.");
+    }
+  }
+);
+
+arenaTierQuestionCatalogVersionSchema.pre(
+  ["findOneAndUpdate", "updateOne"],
+  async function preventPublishedArenaTierCatalogQueryMutation() {
+    const current = await this.model
+      .findOne(this.getQuery())
+      .select("status")
+      .session(this.getOptions().session || null)
+      .lean();
+    if (!current) return;
+    const changedPaths = updatedPolicyPaths(this.getUpdate() || {});
+    const changesDefinition = immutableArenaTierCatalogPaths.some((protectedPath) =>
+      [...changedPaths].some(
+        (changedPath) =>
+          changedPath === protectedPath ||
+          changedPath.startsWith(`${protectedPath}.`)
+      )
+    );
+    if (changesDefinition && ["ACTIVE", "RETIRED"].includes(current.status)) {
+      throw new Error(
+        "적용하거나 종료한 Arena 티어 문제 카탈로그는 수정할 수 없습니다. 새 버전을 가져와주세요."
+      );
+    }
+    const nextStatus = this.getUpdate()?.status || this.getUpdate()?.$set?.status;
+    if (current.status === "RETIRED" && nextStatus) {
+      throw new Error("종료한 Arena 티어 문제 카탈로그는 다시 적용할 수 없습니다.");
+    }
+  }
+);
+
+arenaProblemDataVersionSchema.index(
+  { status: 1 },
+  {
+    unique: true,
+    name: "active_problem_data_unique",
+    partialFilterExpression: { status: "ACTIVE" },
+  }
+);
+
+const immutableArenaProblemDataPaths = [
+  "code",
+  "displayName",
+  "engineVersion",
+  "tierConfigurations",
+  "typeSettings",
+  "changeSummary",
+  "contentHash",
+  "validationReport",
+  "basedOnVersionId",
+  "createdBy",
+];
+
+arenaProblemDataVersionSchema.pre("save", async function preventPublishedProblemDataMutation() {
+  if (this.isNew) return;
+  const current = await this.constructor.findById(this._id).select("status").lean();
+  if (!current) return;
+  if (
+    ["ACTIVE", "RETIRED"].includes(current.status) &&
+    immutableArenaProblemDataPaths.some((path) => this.isModified(path))
+  ) {
+    throw new Error(
+      "적용하거나 종료한 문제 데이터는 수정할 수 없습니다. 새 초안 버전을 만들어주세요."
+    );
+  }
+  if (current.status === "RETIRED" && this.isModified("status")) {
+    throw new Error("종료한 문제 데이터 버전은 다시 적용할 수 없습니다.");
+  }
+});
+
+arenaProblemDataVersionSchema.pre(
+  ["findOneAndUpdate", "updateOne"],
+  async function preventPublishedProblemDataQueryMutation() {
+    const current = await this.model
+      .findOne(this.getQuery())
+      .select("status")
+      .session(this.getOptions().session || null)
+      .lean();
+    if (!current) return;
+    const changedPaths = updatedPolicyPaths(this.getUpdate() || {});
+    const changesDefinition = immutableArenaProblemDataPaths.some((protectedPath) =>
+      [...changedPaths].some(
+        (changedPath) =>
+          changedPath === protectedPath ||
+          changedPath.startsWith(`${protectedPath}.`)
+      )
+    );
+    if (changesDefinition && ["ACTIVE", "RETIRED"].includes(current.status)) {
+      throw new Error(
+        "적용하거나 종료한 문제 데이터는 수정할 수 없습니다. 새 초안 버전을 만들어주세요."
+      );
+    }
+    const nextStatus = this.getUpdate()?.status || this.getUpdate()?.$set?.status;
+    if (current.status === "RETIRED" && nextStatus) {
+      throw new Error("종료한 문제 데이터 버전은 다시 적용할 수 없습니다.");
+    }
+  }
 );
 
 /*
@@ -3184,6 +4048,85 @@ const arenaProblemPackSchema = new Schema(
       maxlength: 200,
       default: "",
       index: true,
+    },
+    designPolicyVersion: {
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
+      maxlength: 120,
+    },
+    contentSourceVersion: {
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
+      maxlength: 120,
+    },
+    problemDataVersionId: {
+      type: Schema.Types.ObjectId,
+      ref: "ArenaProblemDataVersion",
+      default: null,
+      index: true,
+    },
+    tierCatalogVersionId: {
+      type: Schema.Types.ObjectId,
+      ref: "ArenaTierQuestionCatalogVersion",
+      default: null,
+      index: true,
+    },
+    designCompliance: {
+      type: String,
+      enum: ["PENDING_FINAL_GENERATORS", "ACTIVE"],
+      required: true,
+      index: true,
+    },
+    difficultyAnchor: {
+      type: String,
+      enum: ["DEFENDER"],
+      required: true,
+    },
+    difficultyTier: {
+      type: String,
+      enum: ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9"],
+      required: true,
+      index: true,
+    },
+    targetDefenderAccuracyMin: {
+      type: Number,
+      min: 0,
+      max: 1,
+      required: true,
+    },
+    targetDefenderAccuracyMax: {
+      type: Number,
+      min: 0,
+      max: 1,
+      required: true,
+    },
+    targetChallengerAccuracyMin: {
+      type: Number,
+      min: 0,
+      max: 1,
+      required: true,
+    },
+    targetChallengerAccuracyMax: {
+      type: Number,
+      min: 0,
+      max: 1,
+      required: true,
+    },
+    packCurve: {
+      type: [String],
+      validate: {
+        validator: (values) =>
+          Array.isArray(values) &&
+          values.length === 5 &&
+          values.every((value) =>
+            ["LOW", "MID", "MID_HIGH", "HIGH"].includes(value)
+          ),
+        message: "경기 문제 팩의 티어 내 난이도 곡선을 확인해주세요.",
+      },
     },
     curriculumVersion: {
       type: String,
@@ -3332,6 +4275,18 @@ const immutableArenaProblemPackPaths = [
   "tierPairLabel",
   "generationMode",
   "generatedForMatchKey",
+  "designPolicyVersion",
+  "contentSourceVersion",
+  "problemDataVersionId",
+  "tierCatalogVersionId",
+  "designCompliance",
+  "difficultyAnchor",
+  "difficultyTier",
+  "targetDefenderAccuracyMin",
+  "targetDefenderAccuracyMax",
+  "targetChallengerAccuracyMin",
+  "targetChallengerAccuracyMax",
+  "packCurve",
   "curriculumVersion",
   "curriculumCoverage",
   "questionCount",
@@ -4319,6 +5274,7 @@ const arenaOutboxEventSchema = new Schema(
         "MainShopItemReversed",
         "MainShopEffectApplied",
         "MainShopEffectExpired",
+        "PolicyChangeScheduled",
       ],
       required: true,
       index: true,
@@ -4346,9 +5302,36 @@ const arenaOutboxEventSchema = new Schema(
       default: null,
       index: true,
     },
+    publishAttempts: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    processingToken: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: "",
+    },
+    processingLeaseExpiresAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    lastPublishError: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: "",
+    },
   },
   { timestamps: true, versionKey: false }
 );
+arenaOutboxEventSchema.index({
+  publishedAt: 1,
+  processingLeaseExpiresAt: 1,
+  createdAt: 1,
+});
 
 const SubscriptionPolicyVersion =
   mongoose.models.SubscriptionPolicyVersion ||
@@ -4382,6 +5365,12 @@ const AccessCycleExpiryReminder =
   mongoose.model(
     "AccessCycleExpiryReminder",
     accessCycleExpiryReminderSchema
+  );
+const PolicyChangeDelivery =
+  mongoose.models.PolicyChangeDelivery ||
+  mongoose.model(
+    "PolicyChangeDelivery",
+    policyChangeDeliverySchema
   );
 const ArenaStanding =
   mongoose.models.ArenaStanding ||
@@ -4521,6 +5510,18 @@ const ArenaProblemPack =
     "ArenaProblemPack",
     arenaProblemPackSchema
   );
+const ArenaProblemDataVersion =
+  mongoose.models.ArenaProblemDataVersion ||
+  mongoose.model(
+    "ArenaProblemDataVersion",
+    arenaProblemDataVersionSchema
+  );
+const ArenaTierQuestionCatalogVersion =
+  mongoose.models.ArenaTierQuestionCatalogVersion ||
+  mongoose.model(
+    "ArenaTierQuestionCatalogVersion",
+    arenaTierQuestionCatalogVersionSchema
+  );
 const ArenaMatchAttempt =
   mongoose.models.ArenaMatchAttempt ||
   mongoose.model(
@@ -4573,6 +5574,7 @@ const ArenaOutboxEvent =
 module.exports = {
   AccessCycle,
   AccessCycleExpiryReminder,
+  PolicyChangeDelivery,
   ArenaCohortRevision,
   ArenaAccessState,
   ArenaIntegrityLinkSignal,
@@ -4590,6 +5592,8 @@ module.exports = {
   ArenaPaybackReview,
   ArenaAchievementBadge,
   ArenaProblemPack,
+  ArenaProblemDataVersion,
+  ArenaTierQuestionCatalogVersion,
   ArenaRevengeRight,
   SubscriptionPolicyVersion,
   ArenaSnapshot,

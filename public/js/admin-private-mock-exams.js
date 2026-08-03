@@ -15,14 +15,12 @@
     document.querySelector(
       "[data-private-mock-upload-status]"
     );
-  const TEST_DATE =
-    "2026-07-29";
   const scheduleLabels = {
     A: "오후 3:00 ~ 오후 4:40",
     B: "오후 6:00 ~ 오후 7:40",
     C: "오후 9:00 ~ 오후 10:40",
-    TEST:
-      "오후 7:00 ~ 오후 8:40",
+    CUSTOM:
+      "운영자 지정 시간 · 100분",
   };
   const formCodes = [
     "A",
@@ -80,53 +78,57 @@
       row.querySelector(
         "[data-private-mock-date-guide]"
       );
+    const officialDateLabel =
+      row.querySelector(
+        "[data-private-mock-official-date]"
+      );
+    const customTimeLabel =
+      row.querySelector(
+        "[data-private-mock-custom-time]"
+      );
+    const customReleaseInput =
+      row.querySelector(
+        "[data-private-mock-custom-release]"
+      );
+    const timeTitle =
+      row.querySelector(
+        "[data-private-mock-time-title]"
+      );
+    const timeNote =
+      row.querySelector(
+        "[data-private-mock-time-note]"
+      );
+    const isCustom =
+      formCode === "CUSTOM";
 
-    if (
-      dateInput &&
-      formCode === "TEST"
-    ) {
-      if (
-        dateInput.value !==
-        TEST_DATE
-      ) {
-        row.dataset.officialDate =
-          dateInput.value;
-      }
-      dateInput.value =
-        TEST_DATE;
-      dateInput.readOnly =
-        true;
-      dateInput.min =
-        TEST_DATE;
-      dateInput.max =
-        TEST_DATE;
-      if (dateGuide) {
-        dateGuide.textContent =
-          "TEST는 2026년 7월 29일로 고정됩니다.";
-      }
-    } else if (dateInput) {
-      dateInput.readOnly =
-        false;
-      dateInput.removeAttribute(
-        "min"
-      );
-      dateInput.removeAttribute(
-        "max"
-      );
-      if (
-        dateInput.value ===
-          TEST_DATE &&
-        row.dataset.officialDate
-      ) {
-        dateInput.value =
-          row.dataset.officialDate;
-      }
+    if (dateInput) {
       row.dataset.officialDate =
         dateInput.value;
-      if (dateGuide) {
-        dateGuide.textContent =
-          "한국시간 기준 일요일만 등록할 수 있습니다.";
-      }
+      dateInput.required = !isCustom;
+    }
+    if (officialDateLabel) {
+      officialDateLabel.hidden = isCustom;
+    }
+    if (customTimeLabel) {
+      customTimeLabel.hidden = !isCustom;
+    }
+    if (customReleaseInput) {
+      customReleaseInput.disabled = false;
+      customReleaseInput.required = isCustom;
+    }
+    if (dateGuide) {
+      dateGuide.textContent =
+        "한국시간 기준 일요일만 등록할 수 있습니다.";
+    }
+    if (timeTitle) {
+      timeTitle.textContent = isCustom
+        ? "CUSTOM 응시 시간"
+        : "고정 응시 시간";
+    }
+    if (timeNote) {
+      timeNote.textContent = isCustom
+        ? "100분 · 한국시간 · 날짜와 시작 시각 직접 지정"
+        : "100분 · 한국시간 · 수정할 수 없음";
     }
 
     if (target) {

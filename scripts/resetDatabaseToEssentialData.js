@@ -65,6 +65,7 @@ const knownResettableCollections =
         "privatemockuploadreminders",
         "privatemockweeklyresults",
         "problemattempts",
+        "policychangedeliveries",
         "quickpracticeattempts",
         "rankingprofiles",
         "supportinquiries",

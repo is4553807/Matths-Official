@@ -27,6 +27,7 @@ const {
 const {
   preparePaidMainRenewalInTransaction,
 } = require("./arenaRenewalService");
+const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const KST_TIME_ZONE = "Asia/Seoul";
@@ -267,6 +268,7 @@ function buildAccessCycleDraft({
       Number(
         snapshot.initialPaybackScoreDays
       ),
+    lockedPaybackScoreDays: 0,
     lockedLearningDays: 0,
     reservedLearningDays: 0,
     learningDayBuckets: [],
@@ -462,12 +464,14 @@ function buildApprovedCycleState({
         initialAvailable,
       paybackScoreDaysDelta:
         initialPayback,
+      lockedPaybackScoreDaysDelta: 0,
       lockedLearningDaysDelta: 0,
       balanceAfter: {
         availableLearningDays:
           initialAvailable,
         paybackScoreDays:
           initialPayback,
+        lockedPaybackScoreDays: 0,
         lockedLearningDays: 0,
       },
       sourceType: "PACKAGE_PAYMENT",
@@ -490,12 +494,14 @@ function buildApprovedCycleState({
         "FIRST_DAY_CONSUMPTION",
       availableLearningDaysDelta: -1,
       paybackScoreDaysDelta: 0,
+      lockedPaybackScoreDaysDelta: 0,
       lockedLearningDaysDelta: 0,
       balanceAfter: {
         availableLearningDays:
           availableAfter,
         paybackScoreDays:
           initialPayback,
+        lockedPaybackScoreDays: 0,
         lockedLearningDays: 0,
       },
       sourceType: "PACKAGE_PAYMENT",
@@ -795,6 +801,9 @@ async function applyApprovedPackagePayment(
             lockedLearningDays:
               activeCycle
                 ?.lockedLearningDays || 0,
+            lockedPaybackScoreDays:
+              activeCycle
+                ?.lockedPaybackScoreDays || 0,
             hasPendingSettlement:
               pendingSettlement,
           });
@@ -812,6 +821,7 @@ async function applyApprovedPackagePayment(
               _id: activeCycle._id,
               status: "ACTIVE",
               availableLearningDays: 0,
+              lockedPaybackScoreDays: { $in: [0, null] },
               lockedLearningDays: 0,
             },
             {
@@ -1191,12 +1201,15 @@ async function consumeFirstLearningDay({
               availableLearningDaysDelta:
                 -1,
               paybackScoreDaysDelta: 0,
+              lockedPaybackScoreDaysDelta: 0,
               lockedLearningDaysDelta: 0,
               balanceAfter: {
                 availableLearningDays:
                   availableBefore - 1,
                 paybackScoreDays:
                   cycle.paybackScoreDays,
+                lockedPaybackScoreDays:
+                  cycle.lockedPaybackScoreDays || 0,
                 lockedLearningDays:
                   cycle.lockedLearningDays,
               },
@@ -1347,7 +1360,11 @@ function startAccessCycleScheduler({
   if (accessCycleScheduleTimer) {
     return accessCycleScheduleTimer;
   }
-  runAccessCycleSchedule().catch((error) => {
+  const run = () => withSchedulerLease(
+    { name: "ACCESS_CYCLE_FIRST_DAY", leaseMs: 5 * 60 * 1000 },
+    runAccessCycleSchedule
+  );
+  run().catch((error) => {
     console.error(
       "학습권 패키지 이용 주기 스케줄 초기화 실패:",
       error
@@ -1355,7 +1372,7 @@ function startAccessCycleScheduler({
   });
   accessCycleScheduleTimer = setInterval(
     () => {
-      runAccessCycleSchedule().catch(
+      run().catch(
         (error) => {
           console.error(
             "학습권 패키지 이용 주기 스케줄 처리 실패:",

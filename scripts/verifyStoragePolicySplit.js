@@ -9,12 +9,20 @@ delete process.env.CLOUDINARY_URL;
 delete process.env.CLOUDINARY_CLOUD_NAME;
 delete process.env.CLOUDINARY_API_KEY;
 delete process.env.CLOUDINARY_API_SECRET;
+const userCloudTempDirectory = fs.mkdtempSync(
+  path.join(os.tmpdir(), "matths-user-cloud-temp-")
+);
+process.env.USER_CLOUD_UPLOAD_TEMP_DIR = userCloudTempDirectory;
 
 const {
   STORAGE_PURPOSES,
   storagePolicyFor,
   storeUploadedFile,
 } = require("../services/fileStorageService");
+const {
+  purgeStaleUserCloudUploadTemps,
+  USER_CLOUD_UPLOAD_TEMP_RETENTION_MS,
+} = require("../middleware/userCloudUploadStorage");
 
 async function run() {
   assert.equal(storagePolicyFor(STORAGE_PURPOSES.ADMIN_ARCHIVE).provider, "local");
@@ -59,11 +67,25 @@ async function run() {
     (error) => error?.code === "CLOUDINARY_NOT_CONFIGURED"
   );
 
+  const staleTempPath = path.join(userCloudTempDirectory, "stale-upload.tmp");
+  await fs.promises.writeFile(staleTempPath, "stale");
+  const staleAt = new Date(
+    Date.now() - USER_CLOUD_UPLOAD_TEMP_RETENTION_MS - 60_000
+  );
+  await fs.promises.utimes(staleTempPath, staleAt, staleAt);
+  const purgeResult = await purgeStaleUserCloudUploadTemps();
+  assert.equal(purgeResult.deleted, 1);
+  assert.equal(fs.existsSync(staleTempPath), false);
+
   const sourceChecks = [
     ["services/archiveService.js", "STORAGE_PURPOSES.ADMIN_ARCHIVE"],
     ["services/privateMockExamService.js", "STORAGE_PURPOSES.ADMIN_WEEKLY_MOCK"],
     ["services/communityAttachmentService.js", "STORAGE_PURPOSES.USER_COMMUNITY"],
     ["services/arenaMatchEvidenceService.js", "STORAGE_PURPOSES.USER_ARENA_EVIDENCE"],
+    ["middleware/communityUpload.js", "userCloudUploadStorage"],
+    ["middleware/arenaEvidenceUpload.js", "userCloudUploadStorage"],
+    ["middleware/archiveUpload.js", "userCloudUploadStorage"],
+    ["services/archiveService.js", "scheduleLocalStorageR2BackupSoon"],
   ];
   for (const [file, text] of sourceChecks) {
     assert.ok(fs.readFileSync(path.resolve(__dirname, "..", file), "utf8").includes(text), `${file} 저장 목적 누락`);
@@ -93,7 +115,14 @@ async function run() {
   console.log("운영자 LOCAL·사용자 Cloudinary 분리 저장 정책 검증 완료");
 }
 
-run().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+run()
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await fs.promises.rm(userCloudTempDirectory, {
+      recursive: true,
+      force: true,
+    });
+  });

@@ -6,6 +6,8 @@ const {
   backupObjectKey,
   isR2BackupConfigured,
   millisecondsUntilNextKstBackup,
+  restoreArchiveItemFromR2,
+  verifyR2RestoreDrill,
 } = require("../services/localStorageBackupService");
 
 assert.equal(
@@ -22,12 +24,14 @@ const afterBackup = new Date("2026-08-03T18:31:00.000Z");
 assert.equal(millisecondsUntilNextKstBackup(beforeBackup), 60 * 1000);
 assert.equal(millisecondsUntilNextKstBackup(afterBackup), 23 * 60 * 60 * 1000 + 59 * 60 * 1000);
 assert.equal(typeof isR2BackupConfigured(), "boolean");
+assert.equal(typeof restoreArchiveItemFromR2, "function");
+assert.equal(typeof verifyR2RestoreDrill, "function");
 
 const modelSource = fs.readFileSync(
   path.resolve(__dirname, "..", "models", "matthsModel.js"),
   "utf8"
 );
-for (const field of ["backupObjectKey", "backupSha256", "backupStatus", "backedUpAt"]) {
+for (const field of ["backupObjectKey", "backupSha256", "backupStatus", "backedUpAt", "lastRestoredAt"]) {
   assert.ok(modelSource.includes(field), `${field} 백업 메타데이터가 없습니다.`);
 }
 

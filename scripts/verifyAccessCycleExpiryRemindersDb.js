@@ -16,6 +16,10 @@ const {
 const {
   processDueAccessCycleExpiryReminders,
 } = require("../services/accessCycleExpiryReminderService");
+const {
+  acquireSchedulerLease,
+  releaseSchedulerLease,
+} = require("../services/schedulerLeaseService");
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -43,8 +47,17 @@ async function main() {
       { userId: { $in: [userId, retryUserId] } },
     ],
   };
+  let schedulerLease = null;
 
   try {
+    for (let attempt = 0; attempt < 20 && !schedulerLease; attempt += 1) {
+      schedulerLease = await acquireSchedulerLease({
+        name: "ACCESS_CYCLE_EXPIRY_REMINDERS",
+        leaseMs: 5 * 60 * 1000,
+      });
+      if (!schedulerLease) await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    assert.ok(schedulerLease, "실행 중인 만료 알림 스케줄러 임대를 테스트가 인계받지 못했습니다.");
     await User.collection.insertMany([
       {
         _id: userId,
@@ -176,6 +189,10 @@ async function main() {
 
     console.log("Atlas 학습권 만료 예정 알림 중복 방지·긴급 구간·이메일 재시도 검증 완료");
   } finally {
+    await releaseSchedulerLease({
+      lease: schedulerLease,
+      result: { verification: true },
+    }).catch(() => {});
     await Promise.all([
       AccessCycleExpiryReminder.deleteMany(cleanupFilter),
       UserNotification.deleteMany({

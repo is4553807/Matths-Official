@@ -264,6 +264,24 @@ router.get(
   matthsController.adminRevenueMetrics
 );
 router.get(
+  "/admin/operations-guide",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminOperationsGuidePage
+);
+router.get(
+  "/admin/test-control",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminTestControlPage
+);
+router.post(
+  "/admin/test-control/clock",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminSetTestClock
+);
+router.get(
   "/admin/arena-policies",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
@@ -274,6 +292,42 @@ router.get(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminProblemBanksPage
+);
+router.post(
+  "/admin/problem-banks/types/sync",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminSyncProblemTypes
+);
+router.post(
+  "/admin/problem-banks/types/:versionId/revise",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminReviseProblemType
+);
+router.post(
+  "/admin/problem-banks/arena/types",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCreateArenaTierCatalogType
+);
+router.post(
+  "/admin/problem-banks/arena/data",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCreateArenaProblemData
+);
+router.post(
+  "/admin/problem-banks/arena/data/:versionId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateArenaProblemData
+);
+router.post(
+  "/admin/problem-banks/arena/data/:versionId/activate",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminActivateArenaProblemData
 );
 router.get(
   "/admin/arena-matches",

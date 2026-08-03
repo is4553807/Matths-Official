@@ -288,6 +288,44 @@ function arenaTierGuide() {
   );
 }
 
+function percentLabel(value) {
+  const percent = Number(value) * 100;
+  return Number.isInteger(percent) ? String(percent) : String(Number(percent.toFixed(2)));
+}
+
+function arenaUpperTierPopulationGuide() {
+  return UPPER_TIER_POPULATION_RULES.map((rule) => {
+    const maximum = Number.isFinite(rule.maximumPopulation)
+      ? Number(rule.maximumPopulation)
+      : null;
+    const populationLabel = maximum === null
+      ? `활성 ${rule.minimumPopulation}명 이상`
+      : Number(rule.minimumPopulation) === 0
+        ? `활성 ${maximum}명 이하`
+        : `활성 ${rule.minimumPopulation}~${maximum}명`;
+    if (rule.highestAllowedTier) {
+      const tier = arenaTierByValue(rule.highestAllowedTier);
+      return {
+        populationLabel,
+        headline: `최고 ${tier.label}`,
+        description: `${ARENA_TIER_CONFIG.slice(arenaTierIndex(tier.code) + 1).map((item) => item.label).join("와 ")}는 아직 열리지 않습니다.`,
+      };
+    }
+    if (Number.isInteger(rule.challengerMaximumCount)) {
+      return {
+        populationLabel,
+        headline: `챌린저 ${rule.challengerMaximumCount}명`,
+        description: `그랜드마스터는 최대 ${rule.grandmasterMaximumCount}명, 마스터는 상위 ${percentLabel(rule.masterMaximumPercentile)}% 이내입니다.`,
+      };
+    }
+    return {
+      populationLabel,
+      headline: "상위 비율 적용",
+      description: `챌린저 ${percentLabel(rule.challengerMaximumPercentile)}%, 그랜드마스터 ${percentLabel(rule.grandmasterMaximumPercentile)}%, 마스터 ${percentLabel(rule.masterMaximumPercentile)}% 이내입니다.`,
+    };
+  });
+}
+
 module.exports = {
   ARENA_TIER_CONFIG,
   UPPER_TIER_POPULATION_RULES,
@@ -295,6 +333,7 @@ module.exports = {
   arenaTierByValue,
   arenaTierIndex,
   arenaTierGuide,
+  arenaUpperTierPopulationGuide,
   arenaTupleFromLegacyGp,
   baseArenaTierForGp,
   localGpFromLegacyGp,

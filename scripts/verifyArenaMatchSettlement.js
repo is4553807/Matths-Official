@@ -41,12 +41,13 @@ function run() {
   assert.deepEqual(bronzeWin.challengerTupleAfter, silver);
   assert.deepEqual(bronzeWin.defenderTupleAfter, bronze);
   assert.deepEqual(bronzeWin.challengerDelta, {
-    availableLearningDays: 1,
-    paybackScoreDays: 0,
-    lockedLearningDays: -1,
+    availableLearningDays: 0,
+    paybackScoreDays: 1,
+    lockedPaybackScoreDays: -1,
+    lockedLearningDays: 0,
     paidNormalAttacksCompleted: 1,
   });
-  assert.equal(bronzeWin.returnedLearningDays, 1);
+  assert.equal(bronzeWin.returnedPaybackScore, 1);
 
   const silverWin = buildSubNormalSettlementPlan({
     winnerRole: "CHALLENGER",
@@ -56,8 +57,9 @@ function run() {
     bronzeRefundDays: 0,
   });
   assert.deepEqual(silverWin.challengerTupleAfter, gold);
-  assert.equal(silverWin.challengerDelta.paybackScoreDays, -1);
-  assert.equal(silverWin.burnedLearningDays, 1);
+  assert.equal(silverWin.challengerDelta.paybackScoreDays, 0);
+  assert.equal(silverWin.challengerDelta.lockedPaybackScoreDays, -1);
+  assert.equal(silverWin.burnedPaybackScore, 1);
 
   const defenderWin = buildSubNormalSettlementPlan({
     winnerRole: "DEFENDER",
@@ -68,10 +70,11 @@ function run() {
   assert.equal(defenderWin.tupleAction, "KEEP");
   assert.deepEqual(defenderWin.challengerTupleAfter, silver);
   assert.deepEqual(defenderWin.defenderTupleAfter, gold);
-  assert.equal(defenderWin.challengerDelta.paybackScoreDays, -1);
-  assert.equal(defenderWin.defenderDelta.availableLearningDays, 1);
+  assert.equal(defenderWin.challengerDelta.paybackScoreDays, 0);
+  assert.equal(defenderWin.challengerDelta.lockedPaybackScoreDays, -1);
+  assert.equal(defenderWin.defenderDelta.availableLearningDays, 0);
   assert.equal(defenderWin.defenderDelta.paybackScoreDays, 1);
-  assert.equal(defenderWin.transferredLearningDays, 1);
+  assert.equal(defenderWin.transferredPaybackScore, 1);
   assert.equal(tuplesEqual(silver, defenderWin.challengerTupleAfter), true);
 
   assert.equal(
@@ -144,7 +147,7 @@ function run() {
   assert.equal(typeof settleSubRevengeMatch, "function");
 
   console.log(
-    "Sub 일반 쟁탈전·복수전 순위·GP·티어 스왑, 학습일수 정산, 증거 제출 후 자동 연결 검증 완료"
+    "Sub 일반 쟁탈전·복수전 순위·GP·티어 스왑, 페이백 점수 정산, 증거 제출 후 자동 연결 검증 완료"
   );
 }
 

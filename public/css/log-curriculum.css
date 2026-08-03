@@ -380,7 +380,7 @@
 
 .course-heading-title small {
     color: var(--blue);
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 850;
     letter-spacing: 0.8px;
 }
@@ -517,7 +517,7 @@
 
 .unit-introduction > div > span {
     color: var(--blue);
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 850;
 }
 
@@ -589,7 +589,7 @@
 
 .concept-status em {
     color: #939aad;
-    font-size: 8px;
+    font-size: 9px;
     font-style: normal;
     font-weight: 800;
 }
@@ -628,7 +628,7 @@
 
 .concept-title small {
     color: var(--blue);
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 800;
 }
 
@@ -662,7 +662,7 @@
     color: #687086;
     background: #f0f2f7;
     border-radius: 999px;
-    font-size: 8px;
+    font-size: 9px;
 }
 
 .visualization-note {
@@ -695,7 +695,7 @@
 
 .visualization-note small {
     color: #8190d3;
-    font-size: 7px;
+    font-size: 9px;
     font-weight: 800;
 }
 
@@ -723,7 +723,7 @@
 
 .concept-footer > div span {
     color: #8d94a7;
-    font-size: 8px;
+    font-size: 9px;
 }
 
 .concept-footer > a {

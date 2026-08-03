@@ -17,7 +17,7 @@
   align-items: center;
   gap: 9px;
   color: #99a0b2;
-  font-size: 8px;
+  font-size: 9px;
   white-space: nowrap;
 }
 
@@ -41,7 +41,7 @@
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 10px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -94,7 +94,7 @@
 .learning-goal p {
   margin: 0 0 8px;
   color: var(--blue);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.2px;
 }
@@ -132,7 +132,7 @@
 
 .unit-hero-progress span {
   color: #747c91;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 750;
 }
 
@@ -168,7 +168,7 @@
   display: block;
   margin-top: 9px;
   color: #969daf;
-  font-size: 7px;
+  font-size: 9px;
   text-align: right;
 }
 
@@ -234,7 +234,7 @@
   background: #f0f2f7;
   border-radius: 8px;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .concept-nav-item.completed > span {
@@ -255,7 +255,7 @@
 
 .concept-nav-item strong {
   overflow: hidden;
-  font-size: 8px;
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -279,7 +279,7 @@
 .concept-nav-item em {
   color: #9198aa;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 7px;
+  font-size: 9px;
   font-style: normal;
 }
 
@@ -292,7 +292,7 @@
   color: var(--blue);
   background: #fafbfe;
   border-top: 1px solid var(--line);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -326,7 +326,7 @@
 
 .concept-completion > span {
   color: #8d94a7;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .concept-completion > strong {
@@ -401,7 +401,7 @@
 
 .lesson-section-heading > span {
   color: #9299ab;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .basic-concept-overview-card {
@@ -471,7 +471,7 @@
 
 .visual-step-card > div:first-child span {
   color: var(--blue);
-  font-size: 6px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -536,7 +536,7 @@
 .visual-step-card p {
   margin: 7px 0 0;
   color: #8a92a6;
-  font-size: 7px;
+  font-size: 9px;
   line-height: 1.6;
 }
 
@@ -574,7 +574,7 @@
 .motion-placeholder p {
   margin: 5px 0 0;
   color: #949caf;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .motion-placeholder button {
@@ -584,7 +584,7 @@
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 9px;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -650,12 +650,12 @@
 }
 
 .topic-task strong {
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .topic-task small {
   color: #969daf;
-  font-size: 6px;
+  font-size: 9px;
 }
 
 .topic-task.done {
@@ -677,7 +677,7 @@
   min-height: 20px;
   margin: 11px 2px 0;
   color: #8b92a6;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .scope-note {
@@ -717,7 +717,7 @@
   margin: 12px 0 0;
   padding-left: 18px;
   color: #7f776e;
-  font-size: 7px;
+  font-size: 9px;
   line-height: 1.6;
 }
 
@@ -756,7 +756,7 @@
 
 .lesson-pagination a span {
   color: #8e95a8;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .lesson-pagination a strong {
@@ -872,7 +872,7 @@
 
   .learning-home-link::after {
     content: "학습 홈";
-    font-size: 8px;
+    font-size: 9px;
   }
 
   .exit-learning span {
@@ -1068,7 +1068,7 @@
 .visual-empty p {
   margin: 5px 0 0;
   color: #9299ab;
-  font-size: 7px;
+  font-size: 9px;
   line-height: 1.6;
 }
 
@@ -1123,7 +1123,7 @@
   > div
   > span {
   color: #b9c6ff;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.3px;
 }

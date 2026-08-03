@@ -27,9 +27,13 @@ const {
   storageFields,
   storeUploadedFile,
 } = require("./fileStorageService");
+const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const ARENA_EVIDENCE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 const ARENA_EVIDENCE_PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const FAST_COMPLETION_REVIEW_THRESHOLD_MS = 5 * 60 * 1000;
+const RAPID_CORRECT_ANSWER_THRESHOLD_MS = 60 * 1000;
+const RAPID_CORRECT_ANSWER_REVIEW_COUNT = 3;
 let arenaEvidenceRetentionTimer = null;
 
 function statusError(status, message, code = "") {
@@ -139,11 +143,29 @@ async function buildEvidenceFiles(files = []) {
   return result;
 }
 
-async function detectEvidenceAnomalies({ attempt, files, session }) {
+function timingAnomalyFlags({ attempt, scoring } = {}) {
   const flags = [];
-  if (Number(attempt.activeSolveTimeMs || 0) < 60 * 1000) {
-    flags.push("EXTREMELY_FAST_COMPLETION");
+  const activeSolveTimeMs = Number(attempt?.activeSolveTimeMs || 0);
+  if (
+    activeSolveTimeMs > 0 &&
+    activeSolveTimeMs < FAST_COMPLETION_REVIEW_THRESHOLD_MS
+  ) {
+    flags.push("FAST_COMPLETION_UNDER_FIVE_MINUTES");
   }
+  const rapidCorrectCount = (scoring?.questionResults || []).filter(
+    (result) =>
+      result?.correct === true &&
+      Number.isFinite(Number(result?.responseTimeMs)) &&
+      Number(result.responseTimeMs) <= RAPID_CORRECT_ANSWER_THRESHOLD_MS
+  ).length;
+  if (rapidCorrectCount >= RAPID_CORRECT_ANSWER_REVIEW_COUNT) {
+    flags.push("MULTIPLE_RAPID_CORRECT_ANSWERS");
+  }
+  return flags;
+}
+
+async function detectEvidenceAnomalies({ attempt, scoring, files, session }) {
+  const flags = timingAnomalyFlags({ attempt, scoring });
   if (files.some((file) => Number(file.sizeBytes) < 5 * 1024)) {
     flags.push("VERY_SMALL_EVIDENCE_FILE");
   }
@@ -264,8 +286,26 @@ async function submitArenaMatchEvidence({
         throw statusError(410, "풀이 증거 제출 제한시간 1분이 끝났습니다.", "ARENA_EVIDENCE_DEADLINE_EXPIRED");
       }
 
+      const problemPack = await ArenaProblemPack.findById(
+        attempt.problemPackId
+      )
+        .select("+questions")
+        .session(session)
+        .lean();
+      if (!problemPack) {
+        throw statusError(
+          409,
+          "경기에 고정된 문제 팩을 찾을 수 없습니다.",
+          "ARENA_EVIDENCE_PROBLEM_PACK_NOT_FOUND"
+        );
+      }
+      const scoring = scoreArenaAttempt({
+        attempt,
+        problemPack,
+      });
       const flags = await detectEvidenceAnomalies({
         attempt,
+        scoring,
         files: evidenceFiles,
         session,
       });
@@ -285,23 +325,6 @@ async function submitArenaMatchEvidence({
         ],
         { session, ordered: true }
       );
-      const problemPack = await ArenaProblemPack.findById(
-        attempt.problemPackId
-      )
-        .select("+questions")
-        .session(session)
-        .lean();
-      if (!problemPack) {
-        throw statusError(
-          409,
-          "경기에 고정된 문제 팩을 찾을 수 없습니다.",
-          "ARENA_EVIDENCE_PROBLEM_PACK_NOT_FOUND"
-        );
-      }
-      const scoring = scoreArenaAttempt({
-        attempt,
-        problemPack,
-      });
       attempt.status = "SUBMITTED";
       attempt.evidenceSubmittedAt = now;
       attempt.score = scoring.score;
@@ -683,7 +706,10 @@ async function purgeExpiredArenaEvidence({ now = new Date(), limit = 100 } = {})
 function startArenaEvidenceRetentionScheduler() {
   if (process.env.DISABLE_SCHEDULERS === "1" || arenaEvidenceRetentionTimer) return null;
   const run = () =>
-    purgeExpiredArenaEvidence().catch((error) => {
+    withSchedulerLease(
+      { name: "ARENA_EVIDENCE_RETENTION", leaseMs: 30 * 60 * 1000 },
+      () => purgeExpiredArenaEvidence()
+    ).catch((error) => {
       console.error("Arena evidence retention cleanup failed:", error.message);
     });
   const initialTimer = setTimeout(run, 60 * 1000);
@@ -694,6 +720,9 @@ function startArenaEvidenceRetentionScheduler() {
 }
 
 module.exports = {
+  FAST_COMPLETION_REVIEW_THRESHOLD_MS,
+  RAPID_CORRECT_ANSWER_REVIEW_COUNT,
+  RAPID_CORRECT_ANSWER_THRESHOLD_MS,
   buildEvidenceFiles,
   detectEvidenceAnomalies,
   discardArenaEvidenceFiles,
@@ -705,4 +734,5 @@ module.exports = {
   purgeExpiredArenaEvidence,
   startArenaEvidenceRetentionScheduler,
   submitArenaMatchEvidence,
+  timingAnomalyFlags,
 };

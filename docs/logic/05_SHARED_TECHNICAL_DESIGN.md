@@ -257,7 +257,6 @@ state =
   | SUB_ACCESS_EXPIRED_LOCKED
   | PAID_PENDING_RENEWAL_ASSESSMENT
   | SEASON_PLACEMENT_REQUIRED
-  | MAIN_DORMANT
   | PAYMENT_REQUIRED
 
 currentCompetitiveDivision
@@ -271,7 +270,7 @@ mainInactivityStartedAt
 mainInactivityStartAvailableDays
 mainDormantAt
 mainDormancyFrozenLearningDays
-mainDormancyRecoveryMode = RESUME_MAIN | SUB_STANDARD_FLOW
+mainDormancyRecoveryMode = RESTORE_ON_MAIN_REENTRY | SUB_STANDARD_FLOW
 lastMainSnapshotId
 referenceSubPlacementId
 ```
@@ -297,13 +296,13 @@ active AccessCycle + placement complete
 
 첫 미활동 KST 날짜 경계에서 `mainInactivityStartedAt`과 `mainInactivityStartAvailableDays`를 한 번 저장한다. 시작 잔액이 20일 이상인 경우에만 해당 연속 구간을 휴면 판정 대상으로 고정한다. 20일차에 공식 활동이 완료되면 미활동 필드를 초기화하며 직전 19일 동안의 정상 일일 차감은 되돌리지 않는다. 20일차 종료까지 활동이 없으면 20일차 차감까지 완료한 뒤 다음 날 00:00 KST에 전환한다.
 
-시작 잔액이 21일 이상이면 `state = MAIN_DORMANT`, `mainDormancyRecoveryMode = RESUME_MAIN`으로 기록하고 남은 일수를 `mainDormancyFrozenLearningDays`에 동결한다. 휴면 동안 일일 차감·신규 경기·방어 후보·활성 Final Ranking 집계를 중단한다. 복귀 시 추가 차감이나 배치고사 없이 동결 잔액을 복원하고 Main Division에서 재개한다.
+20일차 종료까지 활동이 없으면 잔여 일수와 관계없이 `currentCompetitiveDivision = SUB`, `state = SUB_ACCESS_EXPIRED_LOCKED`로 강등한다. 잔여 일수가 있으면 기존 Main 이용 주기에서 가용 잔액을 0으로 분리하고 `mainDormancyFrozenLearningDays`와 `mainDormancyRecoveryMode = RESTORE_ON_MAIN_REENTRY`에 보관한다. 해당 일수는 Sub 이용 주기·페이백 점수·연속 학습 판정에서 조회하지 않는다.
 
-휴면 사용자의 인증 성공은 복귀 경계로만 사용한다. 동결 잔액을 복원하고 다음 KST 날짜부터 새 미활동 구간을 만들되 `lastMainQualifyingActivityAt`은 변경하지 않는다. 따라서 일반 로그인 자체가 공식 활동으로 기록되거나 활성 사용자의 미활동 구간을 초기화하지 않는다.
+인증 성공은 복귀 경계가 아니다. 사용자는 일반 Sub 패키지·배치·페이백 경로를 완료해야 한다. 페이백 승인과 Main 진입을 묶은 트랜잭션에서만 `MAIN_DORMANCY_RESERVE_RESTORED` 원장을 기록하고 `MAIN_DORMANCY_RESTORE` 버킷으로 새 Main 이용 주기에 추가한 뒤 휴면 보관 필드를 비운다.
 
-시작 잔액이 정확히 20일이면 일일 차감으로 잔액을 0으로 만든 뒤 `currentCompetitiveDivision = SUB`, `mainDormancyRecoveryMode = SUB_STANDARD_FLOW`로 기록한다. 휴면 이력은 남기지만 Main 휴면 복귀 경로는 열지 않는다. 이후 일반 Sub Division의 새 패키지 활성화와 배치고사 경로만 사용한다.
+20일 차감 뒤 잔액이 0이면 `mainDormancyRecoveryMode = SUB_STANDARD_FLOW`로 기록하고 복원 없이 일반 Sub 경로만 사용한다. 과거 `RESUME_MAIN` 레코드는 로그인 또는 스케줄러가 자동 복귀시키지 않고 새 정책의 Sub 강등·재진입 보관 형태로 멱등 변환한다.
 
-휴면 전환·복귀는 `(userId, mainInactivityStartedAt, transitionType)` 멱등 키로 한 번만 기록한다. 일일 차감, 잔여 일수 동결, Arena·Final Ranking 비활성화는 같은 트랜잭션 또는 재처리 가능한 outbox 단계로 묶는다.
+휴면 전환과 Main 재진입 복원은 각각 이용 주기 기반 멱등 키로 한 번만 기록한다. 일일 차감, 기존 Main 가용 잔액 분리, 순위 비활성화와 outbox는 같은 트랜잭션에 묶고, Main 재진입 주기의 잔액·버킷·원장·접근 상태 복원도 하나의 트랜잭션으로 처리한다.
 
 ---
 
@@ -465,7 +464,7 @@ seasonSubStartPercentile
 → 배치고사 완료 + PAID_ACTIVE + 유효 학습일수 필요
 → 주간 공식 모의고사 + GOAT Arena 허용
 
-모의고사 전용 패키지
+Matths 주간 공식 모의고사 이용권
 → 활성 MockExamSubscription 필요
 → 주간 공식 모의고사만 허용
 → 배치고사 + GOAT Arena 차단
@@ -492,6 +491,7 @@ weeklyMockBonus = 0
 
 ```text
 티어 조합·30개 슬롯 중 1개 결정
++ ACTIVE ArenaProblemDataVersion의 T1~T9 유형 구성 조회
 + 주관식 준킬러 5문항 자동 생성·자동 검산
 + ArenaProblemPack(SEALED, AUTO_ON_CHALLENGE)
 + ArenaMatch(READY)
@@ -512,8 +512,9 @@ weeklyMockBonus = 0
 - 참가자에는 경기 생성 시점의 `standingId`, `accessCycleId`, Arena tuple과 적용 일수를 저장한다.
 - 경기 정책 코드는 공격자의 이용 주기 정책 사본과 연결한다.
 - 도전자·방어자의 티어는 허용된 정확한 조합인지 서버에서 재검증한다. 브론즈는 브론즈·실버, 챌린저는 챌린저, 나머지는 바로 위 티어만 허용한다.
-- 현재 1대1 문제는 배치고사 심화 준킬러 유형을 `arenaOneOnOneProblemTypes.js`에 독립 복사한 원본으로 생성한다. 배치고사 파일을 직접 참조하지 않으며 이후 Arena 유형만 교체한다. 유형 누락이나 자동 검산 실패 시 문제·경기·학습일수 예치·원장을 전부 만들지 않는다.
+- `arenaOneOnOneDifficultyPolicy.js`가 Sub·Main 공통 방어자 앵커 T1~T9, 목표 정답률, 5슬롯 곡선, 단원 2·2·1, 유형 ID 75개, 1~999 자연수 답과 실측 보정 임계값을 관리한다. `arenaOneOnOneProblemTypes.js`는 숫자·조건을 생성하는 독립 콘텐츠 원본이다. 관리자는 실행 코드를 입력하지 않고 `ArenaProblemDataVersion` DRAFT에서 유형별 사용 여부·배정 가중치·정답 최솟값/최댓값을 조정하고 T1~T9별 등록 생성 유형을 최소 5개씩 선택한다. 가중치는 30개 팩별 결정적 유형 순서에 반영되고, 정답 범위 밖의 생성 결과는 서버가 버린 뒤 재생성한다. 적용 시 유형별 5회 검산에 성공한 버전만 ACTIVE가 되고, 신규 경기 생성 서비스는 ACTIVE 문서를 조회한다. 현재 콘텐츠는 배치고사 심화 준킬러를 독립 복사한 임시 버전이며 `PENDING_FINAL_GENERATORS`로 저장한다. 최종 티어별 생성기가 연결되면 `ACTIVE`로 전환하고 단원 배분·2분 예상 시간·자연수 답 검증을 강제한다. 유형 누락이나 자동 검산 실패 시 문제·경기·학습일수 예치·원장을 전부 만들지 않는다.
 - 같은 경기 문제는 양측에 공통 배정하며 제한 시간은 정확히 10분이다.
+- 문제 팩에는 `problemDataVersionId`, `designPolicyVersion`, `contentSourceVersion`, `designCompliance`, `difficultyAnchor=DEFENDER`, `difficultyTier`, 양측 목표 정답률 범위와 `packCurve`를 봉인 해시에 포함한다. 각 문항에는 계획 단원·슬롯·티어 내 위치를 함께 저장한다. 관리자가 다음 ACTIVE 문제 데이터를 적용해도 SEALED 팩은 생성 당시 버전과 문항을 유지한다.
 - 경기 생성 서비스는 내부 실력 지표와 최종 종합 랭킹 모델을 읽거나 쓰지 않는다.
 
 ## 11.2 문제 팩·응시 트랜잭션
@@ -554,6 +555,8 @@ ArenaMatchAttempt(IN_PROGRESS → EVIDENCE_REQUIRED)
 - 문제 팩은 운영자 수동 검수 없이 JS 생성기와 자동 검산기가 정답 일치·유일답·계산기 불필요·풀이 가능을 모두 확인하고 콘텐츠 해시를 봉인한다.
 - 현행은 동일 팩 `COMMON` variant만 사용하며 두 사용자에게 서로 다른 문제를 배정하지 않는다.
 - `ArenaMatchAttemptEvent`는 답안 변경과 heartbeat·focus의 서버 수신 시각을 보존하는 감사 원본이다. 최종 답안 snapshot은 빠른 화면 복구용 현재 상태다.
+
+모든 주기 자동 작업은 프로세스 메모리 플래그만으로 중복을 막지 않는다. 실행 직전 `schedulerLeases` 컬렉션의 작업별 MongoDB 분산 임대를 원자적으로 선점하고, 실행 중에는 만료 시각을 갱신한다. 다른 서버는 활성 임대가 있는 작업을 건너뛰고, 완료·실패 또는 임대 만료 뒤 다음 서버가 이어받는다. 경기 타이머, 학습권 차감·만료 알림, 주간 공식 모의고사 상태 전환, 휴면·시즌, 데이터 분석, 무결성 점검, outbox, 증거·아카이브 보존 삭제, R2 백업과 사용자 임시 파일 정리에 동일하게 적용한다.
 - 만료 응시 스케줄러는 `deadlineAt <= now`인 진행 중 응시를 마지막 저장 답안으로 닫고 60초 증거 제출 단계로 전환한다.
 - 모든 풀이 증거는 운영자만 열람할 수 있는 보호 저장소에 두고 동일 파일·비정상 속도·반복 화면 이탈은 관리자 알림으로 만든다.
 - 공식 경기 성립 뒤 시작 기한은 24시간이다. 일요일을 통과하면 Sub와 Main 모두 일요일 14:30으로 단축한다. 아직 성립되지 않은 Main 하위 티어 초대 예약에는 고정 24시간 만료를 두지 않는다. 미시작은 `noShowRole`과 관리자 알림을 남긴다.
@@ -593,11 +596,11 @@ ArenaMatchAttempt(IN_PROGRESS → EVIDENCE_REQUIRED)
 
 정상 승패와 한쪽 미완료는 Sub 문서의 2일 정산표로 처리한다. 결과 화면의 `경기 종료`를 누르면 권리를 `FORFEITED`로 만들고 다시 생성하지 않는다. 양측 모두 미완료하면 Arena 상태를 유지하고 도전자가 예치한 2일을 전부 소각한다.
 
-## 11.5 모의고사 전용 패키지와 MMR 보정
+## 11.5 Matths 주간 공식 모의고사 이용권과 MMR 보정
 
 - `MockExamPackagePolicyVersion`은 월 가격과 30일 이용 기간을 버전으로 저장한다.
 - `MockExamSubscription`은 학습권 패키지와 분리된 이용권 원본이다.
-- 전용 패키지 사용자의 주간 공식 모의고사 결과는 `RankingProfile.mmr`과 이력에 계속 저장한다.
+- Matths 주간 공식 모의고사 이용권 사용자의 주간 공식 모의고사 결과는 `RankingProfile.mmr`과 이력에 계속 저장한다.
 - 주간 공식 모의고사 응시가 4회 이상인 사용자가 나중에 학습권 패키지의 배치고사를 완료하면 기존 MMR을 초기화하지 않는다.
 - 보정값은 `기존 MMR × 기존 주간 응시 수 + 배치 MMR`을 `기존 주간 응시 수 + 1`로 나눈 서버 계산값이며, `placement-calibration` 이력으로 남긴다.
 
@@ -731,7 +734,7 @@ AND evaluatedAt = null
 
 평가 시점에 `HELD` 또는 미정산 공식 경기가 있으면 `ArenaPaybackReview.status = HELD`로 저장하고 결과를 확정하지 않는다. 사이트 우편함과 가입 이메일을 멱등 발송하고 경기 정산 뒤 같은 `cycleId + evaluationVersion`으로 재심사한다.
 
-관리자 패키지 변경은 UI 플래그만 바꾸지 않는다. `무료`는 활성 이용권을 종료하고, `모의고사 전용 패키지`는 `MockExamSubscription`, `29일 학습권 패키지`는 실제 `AccessCycle`과 초기 원장을 생성한다. 관리자 무상 지급은 매출 결제로 기록하지 않고 `AdminActionLog`와 관리자 조정 원장에 남기며, 미정산 경기·예약·경기 예치분이 있으면 변경을 거절한다.
+관리자 패키지 변경은 UI 플래그만 바꾸지 않는다. `무료`는 활성 이용권을 종료하고, `Matths 주간 공식 모의고사 이용권`은 `MockExamSubscription`, `29일 학습권 패키지`는 실제 `AccessCycle`과 초기 원장을 생성한다. 관리자 무상 지급은 매출 결제로 기록하지 않고 `AdminActionLog`와 관리자 조정 원장에 남기며, 미정산 경기·예약·경기 예치분이 있으면 변경을 거절한다.
 
 ---
 

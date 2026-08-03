@@ -283,7 +283,7 @@ a {
 
 .school-board-membership span {
   color: #91a6ff;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -388,7 +388,7 @@ a {
 
 .community-post-list aside small {
   color: #8a91a5;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .community-empty {
@@ -453,7 +453,7 @@ a {
   color: #fff;
   background: #11172d;
   border-radius: 8px;
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 0.7px;
 }
 
@@ -479,7 +479,7 @@ a {
 
 .community-announcement-link span {
   color: var(--community-blue);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
 }
 
@@ -601,7 +601,7 @@ a {
 
 .community-anonymous-choice small {
   color: var(--community-muted);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 500;
   line-height: 1.5;
 }
@@ -675,7 +675,7 @@ a {
   color: #3157f6;
   background: #eef2ff;
   border-radius: 7px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -791,7 +791,7 @@ a {
 
 .community-comment-form small {
   color: var(--community-muted);
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .community-comment-form button {
@@ -851,7 +851,7 @@ a {
 
 .community-comment-list article time {
   color: #9299ab;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .community-comment-list article p {
@@ -896,7 +896,7 @@ a {
 
 .community-sort-tabs small {
   opacity: 0.76;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .community-operations-categories {
@@ -948,7 +948,7 @@ a {
 
 .community-popular-strip > header span {
   color: #ff8194;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.4px;
 }
@@ -982,7 +982,7 @@ a {
 .community-popular-strip a span {
   flex: 0 0 auto;
   color: #ff9cab;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .community-popular-badge {
@@ -992,7 +992,7 @@ a {
   color: #b8243f;
   background: #fff0f2;
   border-radius: 6px;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   vertical-align: middle;
 }
@@ -1004,7 +1004,7 @@ a {
   color: #3157f6;
   background: #e9edff;
   border-radius: 6px;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   vertical-align: middle;
 }
@@ -1074,7 +1074,7 @@ a {
 
 .community-vote-box > small {
   color: #9299aa;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .community-vote-readonly {
@@ -1088,7 +1088,7 @@ a {
   background: #fff;
   border: 1px solid #e0e4ed;
   border-radius: 9px;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .community-vote-readonly a {
@@ -1278,7 +1278,7 @@ a {
 .community-posting-quota small {
   justify-self: end;
   color: #6e7790;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .community-posting-quota.is-exhausted {
@@ -1315,7 +1315,7 @@ a {
 .community-attachment-field small,
 .community-attachment-field p {
   color: #7b8397;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .community-attachment-field p {
@@ -1346,7 +1346,7 @@ a {
 .community-file-picker span {
   overflow: hidden;
   color: #7a8398 !important;
-  font-size: 8px !important;
+  font-size: 9px !important;
   font-weight: 600 !important;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1399,7 +1399,7 @@ a {
   p {
   margin: 0 0 6px;
   color: #3157f6;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.3px;
 }
@@ -1415,7 +1415,7 @@ a {
   > header
   > span {
   color: #7b8397;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .community-image-grid {
@@ -1456,7 +1456,7 @@ a {
   color: #fff;
   background: rgba(17, 21, 40, 0.78);
   border-radius: 8px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 750;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1487,7 +1487,7 @@ a {
   color: #3157f6;
   background: #e9edff;
   border-radius: 7px;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
 }
 
@@ -1507,7 +1507,7 @@ a {
 .community-file-list a small,
 .community-file-list a b {
   color: #7d8599;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .community-file-list a b {
@@ -1555,7 +1555,7 @@ a {
   color: #152052;
   background: #fff;
   border-radius: 7px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
 }
 
@@ -1604,7 +1604,7 @@ a {
 
 .community-rules-detail dt {
   color: #8fa1de;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 850;
 }
 

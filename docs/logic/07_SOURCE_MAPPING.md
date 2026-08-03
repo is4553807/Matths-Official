@@ -53,7 +53,7 @@ Main 사용자:
 | 재구독 랭크 결정전 | 72시간 초과 갱신자의 Sub 재진입 |
 | 랭크 복귀전 | 위 시험의 앱 축약명 |
 
-Main 휴면 복귀에는 별도 배치고사를 사용하지 않는다. 잔여 학습일수가 남은 사용자는 Main Division에서 그대로 재개하고, 정확히 20일을 모두 차감해 Sub로 강등된 사용자는 일반 Sub Division 배치고사를 사용한다.
+Main 휴면 강등에는 별도 휴면 복귀 시험을 만들지 않는다. 모든 강등 사용자는 일반 Sub Division 배치고사와 페이백 경로를 사용한다. 20일 차감 뒤 남은 학습일수는 Sub에 반영하지 않고, 일반 경로로 Main Division에 다시 진입할 때만 새 Main 이용 주기에 복원한다.
 
 ## 결제일 규칙
 
@@ -106,6 +106,7 @@ Main 휴면 복귀에는 별도 배치고사를 사용하지 않는다. 잔여 �
 | 일반 쟁탈전 보호 경로 | `routes/goat-arena-routes.js` |
 | 일반 쟁탈전 생성 회귀 검증 | `scripts/verifyArenaMatchCreation.js` |
 | 경기 신청 시 문제 팩 생성·자동 봉인 해시·검산 | `services/arenaProblemPackService.js`, `services/arenaMatchService.js` |
+| Sub·Main 공통 방어자 앵커 T1~T9·목표 정답률·유형 카탈로그·팩 곡선·실측 보정 | `services/arenaOneOnOneDifficultyPolicy.js` |
 | Sub·Main 1대1 독립 준킬러 생성기와 티어 조합별 30묶음·5유형 배정 | `services/arenaOneOnOneProblemTypes.js`, `services/arenaOneOnOneProblemBank.js` |
 | 봉인 팩 배정·개인 타이머·답안/활동 저장·자동 제출 | `services/arenaMatchAttemptService.js` |
 | 60초 풀이 증거·이상 징후·24시간 미시작 처리 | `services/arenaMatchEvidenceService.js`, `middleware/arenaEvidenceUpload.js` |
@@ -126,16 +127,22 @@ Main 휴면 복귀에는 별도 배치고사를 사용하지 않는다. 잔여 �
 | 매치·스냅샷·변환·Final Ranking·이벤트 골격 | `models/goatArenaModel.js` |
 | N수생 학사연도 전환 | `services/userLifecycleService.js` |
 | N수생 게시판 권한 | `services/communityService.js` |
-| 모의고사 전용 패키지 정책·이용권 | `models/goatArenaModel.js`, `services/mockExamPackageService.js` |
-| 학습권/모의고사 전용 주간 시험 권한 분기 | `services/paidFeatureAccessService.js`, `services/privateMockExamService.js` |
-| 무료·모의고사 전용·29일 학습권 가격 비교와 로그인 상태별 결제 진입 | `views/pricing.ejs`, `public/css/pricing.css`, `routes/matths-routes.js` |
+| Matths 주간 공식 모의고사 이용권 정책 | `models/goatArenaModel.js`, `services/mockExamPackageService.js` |
+| 29일 학습권/Matths 주간 공식 모의고사 이용권 권한 분기 | `services/paidFeatureAccessService.js`, `services/privateMockExamService.js` |
+| 무료·Matths 주간 공식 모의고사 이용권·29일 학습권 가격 비교와 로그인 상태별 결제 진입 | `views/pricing.ejs`, `public/css/pricing.css`, `routes/matths-routes.js` |
 | 29일·29,000원 학습 패키지 기본값·관리자 가격 버전 변경 | `services/arenaPolicyService.js`, `views/admin-arena-policies.ejs`, `routes/matths-routes.js` |
 | 주간 4회 이상 기록과 배치고사 MMR 보정 | `services/mmrService.js` |
 | 접속시간 heartbeat·누적 시간 | `services/connectionUsageService.js`, `public/js/session-usage.js` |
+| 다중 서버 로그인 공유·TTL 만료 세션 | `models/sessionModel.js`, `services/mongoSessionStore.js`, `server.js` |
+| 연간 시즌 catch-up·다중 서버 단일 실행 lease | `models/operationModel.js`, `services/arenaSeasonService.js` |
 | Division별 공식 규정·활성 페이백 정책 표·KST 수정일 | `services/arenaRulebookViewService.js`, `controllers/goatArenaController.js`, `views/goat-arena-rules.ejs` |
-| 관리자 문제은행 파일 안내 | `services/problemBankCatalogService.js`, `views/admin-problem-banks.ejs` |
-| Arena 1대1 독립 문제 유형·티어 조합별 30묶음 | `services/arenaOneOnOneProblemTypes.js`, `services/arenaOneOnOneProblemBank.js`, `services/arenaProblemPackService.js` |
+| 관리자 문제은행 코드 지도·T1~T9 문제 데이터 버전 편집 | `services/problemBankCatalogService.js`, `services/arenaProblemDataService.js`, `views/admin-problem-banks.ejs`, `public/js/admin-problem-data.js` |
+| Arena 1대1 독립 문제 유형·T1~T9 설계 정책·활성 DB 구성·티어 조합별 30묶음 | `services/arenaOneOnOneProblemTypes.js`, `services/arenaOneOnOneDifficultyPolicy.js`, `services/arenaProblemDataService.js`, `services/arenaOneOnOneProblemBank.js`, `services/arenaProblemPackService.js` |
 | 관리자 기능군 드롭다운 내비게이션 | `views/partials/admin-navigation.ejs`, `public/css/admin.css`, `public/js/admin-navigation.js` |
+| 관리자 표준 절차·보존 기간·자동 작업·환경 변수·전체 DB 스키마 매뉴얼 | `services/adminOperationsGuideService.js`, `views/admin-operations-guide.ejs`, `routes/matths-routes.js` |
+| 관리자 무제한·무기한 상품 접근 | `services/superAdminAccessService.js`, `services/paidFeatureAccessService.js`, `services/dashboardService.js`, `controllers/goatArenaController.js` |
+| 사용자 Cloudinary 공용 임시 저장·24시간 정리 | `middleware/userCloudUploadStorage.js`, `middleware/communityUpload.js`, `middleware/arenaEvidenceUpload.js`, `middleware/archiveUpload.js`, `server.js` |
+| 운영자 파일 업로드 직후·일일 R2 증분 백업 | `services/archiveService.js`, `services/localStorageBackupService.js` |
 | Arena Main 상점 탭·화면·구매 라우트 | `views/partials/goat-arena-navigation.ejs`, `views/goat-arena-main-shop.ejs`, `controllers/goatArenaController.js`, `routes/goat-arena-routes.js` |
 | Sub 29일 전일 학습·페이백 독립 판정 | `services/userLifecycleService.js`, `services/accessCycleService.js`, `services/arenaPaybackReviewService.js`, `views/goat-arena-profile.ejs` |
 | 계정 익명 보존·전체 데이터 삭제 | `services/accountDeletionService.js`, `views/admin-user-detail.ejs` |

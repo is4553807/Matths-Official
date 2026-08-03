@@ -45,7 +45,7 @@ const UNRESOLVED_MATCH_STATUSES = [
 function packageLabel(packageType) {
   return {
     FREE: "무료",
-    MOCK_EXAM_ONLY: "모의고사 전용 패키지",
+    MOCK_EXAM_ONLY: "Matths 주간 공식 모의고사 이용권",
     LEARNING_PACKAGE: "29일 학습권 패키지",
   }[packageType] || packageType;
 }
@@ -65,6 +65,7 @@ async function getAdminPackageAccessSummary(userId, now = new Date()) {
       $or: [
         { availableLearningDays: { $gt: 0 } },
         { reservedLearningDays: { $gt: 0 } },
+        { lockedPaybackScoreDays: { $gt: 0 } },
         { lockedLearningDays: { $gt: 0 } },
       ],
     })
@@ -95,7 +96,8 @@ async function getAdminPackageAccessSummary(userId, now = new Date()) {
 async function assertPackageChangeSafe({ userId, cycle, session }) {
   if (
     cycle &&
-    (Number(cycle.lockedLearningDays || 0) > 0 ||
+    (Number(cycle.lockedPaybackScoreDays || 0) > 0 ||
+      Number(cycle.lockedLearningDays || 0) > 0 ||
       Number(cycle.reservedLearningDays || 0) > 0)
   ) {
     throw statusError(
@@ -137,6 +139,7 @@ async function revokeCurrentLearningPackage({
         status: "CANCELLED",
         availableLearningDays: 0,
         paybackScoreDays: 0,
+        lockedPaybackScoreDays: 0,
         lockedLearningDays: 0,
         reservedLearningDays: 0,
         expiresAt: now,
@@ -154,11 +157,13 @@ async function revokeCurrentLearningPackage({
           eventType: "ADMIN_ADJUSTMENT",
           availableLearningDaysDelta: -available,
           paybackScoreDaysDelta: -payback,
+          lockedPaybackScoreDaysDelta: 0,
           lockedLearningDaysDelta: 0,
           reservedLearningDaysDelta: 0,
           balanceAfter: {
             availableLearningDays: 0,
             paybackScoreDays: 0,
+            lockedPaybackScoreDays: 0,
             lockedLearningDays: 0,
             reservedLearningDays: 0,
           },
@@ -168,7 +173,7 @@ async function revokeCurrentLearningPackage({
           metadata: { reason, action: "REVOKE" },
         },
       ],
-      { session }
+      { session, ordered: true }
     );
   }
 }
@@ -225,7 +230,7 @@ async function updateAdminPackageAccess({
         await MockExamSubscription.updateOne(
           { _id: activeMock._id, status: "ACTIVE" },
           { $set: { status: "CANCELLED", cancelledAt: processedAt } },
-          { session }
+          { session, ordered: true }
         );
       }
       await ArenaStanding.updateMany(
@@ -279,7 +284,7 @@ async function updateAdminPackageAccess({
               activatedAt: processedAt,
             },
           ],
-          { session }
+          { session, ordered: true }
         );
       }
 
@@ -308,8 +313,14 @@ async function updateAdminPackageAccess({
           sourceId: adminUserId,
           metadata: { ...entry.metadata, reason: cleanReason, action: "GRANT" },
         }));
-        [entitlement] = await AccessCycle.create([approved.cycle], { session });
-        await ArenaLearningDayLedger.create(approved.ledgerEntries, { session });
+        [entitlement] = await AccessCycle.create([approved.cycle], {
+          session,
+          ordered: true,
+        });
+        await ArenaLearningDayLedger.create(approved.ledgerEntries, {
+          session,
+          ordered: true,
+        });
         await ArenaStanding.updateMany(
           {
             userId,
@@ -328,7 +339,7 @@ async function updateAdminPackageAccess({
               seededAt: null,
             },
           },
-          { session }
+        { session, ordered: true }
         );
         await ArenaAccessState.updateOne(
           { userId },
@@ -363,7 +374,7 @@ async function updateAdminPackageAccess({
             },
           },
         ],
-        { session }
+        { session, ordered: true }
       );
       result = { packageType: normalizedType, entitlement };
     });

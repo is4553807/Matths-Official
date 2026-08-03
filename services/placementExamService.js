@@ -2278,8 +2278,6 @@ function normalizeAttempt(
       ? "GOAT Arena 시즌 배치고사"
       : view.placementPurpose === "RENEWAL_RANK_ASSESSMENT"
         ? "GOAT Arena 랭크 복귀전"
-        : view.placementPurpose === "DORMANCY_RETURN"
-          ? "GOAT Arena 휴면 복귀 배치고사"
         : "War of GOAT 입단 배치고사";
   }
   const verificationPending =
@@ -2299,8 +2297,6 @@ function normalizeAttempt(
       ? "시즌 배치 추가 실력 확인"
       : view.placementPurpose === "RENEWAL_RANK_ASSESSMENT"
         ? "랭크 복귀 추가 실력 확인"
-        : view.placementPurpose === "DORMANCY_RETURN"
-          ? "휴면 복귀 추가 실력 확인"
         : "입단 배치 추가 실력 확인";
     view.subtitle =
       "준킬러 2문항 · 킬러 2문항";

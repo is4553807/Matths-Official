@@ -17,7 +17,7 @@ const {
   loadMatchActorContext,
 } = require("./arenaMatchService");
 const {
-  generateSubOneOnOneQuestions,
+  generateSubOneOnOneQuestionsFromActiveData,
   getSubTierPair,
 } = require("./arenaOneOnOneProblemBank");
 const {
@@ -96,7 +96,8 @@ async function createSubRevengeMatch({
           division: "SUB",
           now,
           session,
-          requiredAvailableDays: 1,
+          requiredAvailableDays: 0,
+          requireDefensePool: true,
         }),
         ArenaMatch.findById(right.sourceMatchId).session(session).lean(),
       ]);
@@ -127,7 +128,7 @@ async function createSubRevengeMatch({
         result = { matchId: String(existing._id), replayed: true };
         return;
       }
-      const generation = generateSubOneOnOneQuestions({
+      const generation = await generateSubOneOnOneQuestionsFromActiveData({
         challengerTier: attacker.standing.arenaRank,
         defenderTier: defender.standing.arenaRank,
         matchKey,
@@ -224,14 +225,15 @@ async function createSubRevengeMatch({
           _id: attacker.accessCycle._id,
           userId: attacker.user._id,
           status: "ACTIVE",
-          availableLearningDays: { $gte: stakeDays },
+          paybackScoreDays: { $gte: stakeDays },
+          lockedPaybackScoreDays: { $in: [0, null] },
           lockedLearningDays: 0,
         },
-        { $inc: { availableLearningDays: -stakeDays, lockedLearningDays: stakeDays } },
+        { $inc: { paybackScoreDays: -stakeDays, lockedPaybackScoreDays: stakeDays } },
         { session, ordered: true }
       );
       if (!cycleWrite.modifiedCount) {
-        throw statusError(409, "복수전에 필요한 2일을 예치하지 못했습니다.");
+        throw statusError(409, "복수전에 필요한 페이백 점수 2점을 예치하지 못했습니다.");
       }
       await ArenaLearningDayLedger.create(
         [
@@ -240,14 +242,16 @@ async function createSubRevengeMatch({
             accessCycleId: attacker.accessCycle._id,
             idempotencyKey: `${matchId}:REVENGE_STAKE_LOCKED`,
             eventType: "REVENGE_STAKE_LOCKED",
-            availableLearningDaysDelta: -stakeDays,
-            paybackScoreDaysDelta: 0,
-            lockedLearningDaysDelta: stakeDays,
+            availableLearningDaysDelta: 0,
+            paybackScoreDaysDelta: -stakeDays,
+            lockedPaybackScoreDaysDelta: stakeDays,
+            lockedLearningDaysDelta: 0,
             reservedLearningDaysDelta: 0,
             balanceAfter: {
-              availableLearningDays: Number(attacker.accessCycle.availableLearningDays) - stakeDays,
-              paybackScoreDays: Number(attacker.accessCycle.paybackScoreDays),
-              lockedLearningDays: Number(attacker.accessCycle.lockedLearningDays) + stakeDays,
+              availableLearningDays: Number(attacker.accessCycle.availableLearningDays),
+              paybackScoreDays: Number(attacker.accessCycle.paybackScoreDays) - stakeDays,
+              lockedPaybackScoreDays: Number(attacker.accessCycle.lockedPaybackScoreDays || 0) + stakeDays,
+              lockedLearningDays: Number(attacker.accessCycle.lockedLearningDays),
               reservedLearningDays: Number(attacker.accessCycle.reservedLearningDays || 0),
             },
             sourceType: "ArenaMatch",

@@ -23,6 +23,11 @@ const {
 const {
   getCoachView,
 } = require("./coachMessageService");
+const {
+  conceptProblemEngineKey,
+  isProblemTypeEnabled,
+  problemTypeSelectionWeight,
+} = require("./problemTypeCatalogService");
 
 const QUESTION_EXPIRES_MS = 15 * 60 * 1000;
 const MAX_SESSION_QUESTIONS = 30;
@@ -304,6 +309,50 @@ function stableReviewIndex(
   return hash % length;
 }
 
+function enabledConceptProblemTypes({ generator, courseId, unitId, conceptId }) {
+  const enabled = (generator.problemTypes || []).filter((problemType) =>
+    isProblemTypeEnabled(
+      "CONCEPT_PRACTICE",
+      conceptProblemEngineKey({
+        courseId,
+        unitId,
+        conceptId,
+        typeId: problemType.id,
+      })
+    )
+  );
+  if (!enabled.length) {
+    const error = new Error(
+      "자동 검산을 통과해 사용 중인 문제 유형이 없습니다. 관리자에게 문의해주세요."
+    );
+    error.status = 503;
+    throw error;
+  }
+  return enabled;
+}
+
+function weightedProblemType({ problemTypes, courseId, unitId, conceptId }) {
+  const weighted = problemTypes.map((problemType) => ({
+    problemType,
+    weight: problemTypeSelectionWeight(
+      "CONCEPT_PRACTICE",
+      conceptProblemEngineKey({
+        courseId,
+        unitId,
+        conceptId,
+        typeId: problemType.id,
+      })
+    ),
+  }));
+  const total = weighted.reduce((sum, item) => sum + item.weight, 0);
+  let cursor = Math.random() * total;
+  for (const item of weighted) {
+    cursor -= item.weight;
+    if (cursor <= 0) return item.problemType;
+  }
+  return weighted.at(-1).problemType;
+}
+
 function fallbackReviewProblemType({
   generator,
   reviewAttempt,
@@ -491,6 +540,12 @@ async function createNextProblem({
     unitId,
     conceptId,
   });
+  const enabledTypes = enabledConceptProblemTypes({
+    generator,
+    courseId,
+    unitId,
+    conceptId,
+  });
 
   const requiredDistinctTypes =
     generator.requiredDistinctTypes || 5;
@@ -519,7 +574,7 @@ async function createNextProblem({
     const reviewTypeId =
       reviewAttempt.problemSnapshot?.typeId;
 
-    problemType = generator.problemTypes.find(
+    problemType = enabledTypes.find(
       (candidate) =>
         candidate.id === reviewTypeId
     );
@@ -527,7 +582,10 @@ async function createNextProblem({
     if (!problemType) {
       problemType =
         fallbackReviewProblemType({
-          generator,
+          generator: {
+            ...generator,
+            problemTypes: enabledTypes,
+          },
           reviewAttempt,
         });
     }
@@ -536,19 +594,21 @@ async function createNextProblem({
       progress.masteryGate?.correctTypeIds || []
     );
 
-    const unseenTypes = generator.problemTypes.filter(
+    const unseenTypes = enabledTypes.filter(
       (candidate) =>
         !completedTypes.has(candidate.id)
     );
 
     const candidates = unseenTypes.length
       ? unseenTypes
-      : generator.problemTypes;
+      : enabledTypes;
 
-    problemType =
-      candidates[
-        Math.floor(Math.random() * candidates.length)
-      ];
+    problemType = weightedProblemType({
+      problemTypes: candidates,
+      courseId,
+      unitId,
+      conceptId,
+    });
   }
 
   const generated = reviewAttempt

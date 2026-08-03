@@ -4,6 +4,9 @@ const {
   randomUUID,
 } = require("crypto");
 const multer = require("multer");
+const {
+  userCloudUploadStorage,
+} = require("./userCloudUploadStorage");
 
 const {
   ARCHIVE_STORAGE_DIR,
@@ -52,7 +55,7 @@ const USER_INTEGRITY_EVIDENCE_EXTENSIONS = new Set([
   ".heic",
 ]);
 
-const storage =
+const adminStorage =
   multer.diskStorage({
     destination(
       req,
@@ -80,7 +83,7 @@ const storage =
     },
   });
 
-function createArchiveUpload({ extensions, files, fileSize, errorMessage }) {
+function createArchiveUpload({ extensions, files, fileSize, errorMessage, storage = adminStorage }) {
   return multer({
     storage,
     limits: {
@@ -126,6 +129,7 @@ const userIntegrityEvidenceUpload = createArchiveUpload({
   files: 10,
   fileSize: 10 * 1024 * 1024,
   errorMessage: "소명 자료는 PDF, JPG, PNG, WEBP 또는 HEIC 파일로 올려주세요.",
+  storage: userCloudUploadStorage,
 });
 
 module.exports = {

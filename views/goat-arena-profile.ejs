@@ -135,12 +135,30 @@
         </header>
 
         <div class="arena-rights-grid">
-          <% if (arenaAccess.activeDivision === "SUB") { %>
+          <% if (arenaAccess.learningRights.unlimited) { %>
+            <article>
+              <small>관리자 학습권</small>
+              <strong>무제한</strong>
+              <span>만료일과 일일 차감 없이 Sub Division·Main Division 기능을 확인할 수 있습니다.</span>
+            </article>
+            <article>
+              <small>이용 기한</small>
+              <strong>만료 없음</strong>
+              <span>관리자 역할이 유지되는 동안 슈퍼계정 권한이 적용됩니다.</span>
+            </article>
+          <% } else if (arenaAccess.activeDivision === "SUB") { %>
             <article>
               <small>Sub Division 학습 가능 일수</small>
               <strong><%= arenaAccess.learningRights.availableDays ?? "—" %></strong>
               <span>현재 정기권 학습 가능 일수</span>
             </article>
+            <% if (arenaAccess.learningRights.reservedForMainReentryDays > 0) { %>
+              <article class="arena-rights-reserved-reentry">
+                <small>Main 재진입 시 복원 일수</small>
+                <strong><%= arenaAccess.learningRights.reservedForMainReentryDays %></strong>
+                <span>휴면 강등 당시 별도로 보관한 일수입니다. Sub 학습일수·페이백 점수에는 포함되지 않고 정상적으로 Main Division에 다시 진입할 때만 추가됩니다.</span>
+              </article>
+            <% } %>
             <article>
               <small>경기 예치 학습일수</small>
               <strong><%= arenaAccess.learningRights.lockedDays ?? "—" %></strong>
@@ -197,10 +215,10 @@
           <% } else { %>
             <article class="arena-rights-pending">
               <small>학습권 패키지 이용 정보</small>
-              <strong>데이터 연결 대기</strong>
+              <strong>이용 중인 학습권 패키지 없음</strong>
               <span>
-                학습권 패키지 이용 정보와 Arena 순위가 확정되면 정기권 학습 가능 일수,
-                경기 예치 학습일수, 페이백 점수와 Arena 상태가 이곳에 표시됩니다.
+                현재 활성 이용 주기가 없습니다. 학습권 패키지를 시작하면 정기권 학습 가능 일수,
+                경기 예치 학습일수와 페이백 점수를 확인할 수 있습니다.
               </span>
             </article>
           <% } %>

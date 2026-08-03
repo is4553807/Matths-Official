@@ -23,7 +23,7 @@
 .private-mock-card header p {
   margin: 0 0 8px;
   color: #8fa7ff;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.7px;
 }
@@ -146,7 +146,7 @@
   background: #fff7df;
   border: 1px solid #f2dfa1;
   border-radius: 10px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 750;
   line-height: 1.55;
 }
@@ -187,7 +187,7 @@
 .private-mock-eligibility-card p {
   margin: 0;
   color: #3157f6;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.6px;
 }
@@ -248,7 +248,7 @@
 .private-mock-week-slots span,
 .private-mock-week-slots small {
   color: #7b8499;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -368,7 +368,7 @@
   display: block;
   margin-top: 9px;
   color: #586680;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-selection-guide {
@@ -450,7 +450,7 @@
 .private-mock-ranking-summary dt {
   margin-bottom: 5px;
   color: #858da0;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -494,7 +494,7 @@
 
 .private-mock-ranking-list li > small {
   color: #7c8599;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-admin-panel {
@@ -568,7 +568,7 @@
 .private-mock-fixed-time span,
 .private-mock-fixed-time small {
   color: #7c86a2;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -641,7 +641,7 @@
 
 .private-mock-admin-form small {
   color: #7d879e;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.55;
 }
 
@@ -679,7 +679,7 @@
   color: #3157f6;
   background: #e9edff;
   border-radius: 8px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -727,7 +727,7 @@
 .private-mock-admin-list dt {
   margin-bottom: 5px;
   color: #8891a6;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -752,7 +752,7 @@
 
 .private-mock-delete-form p {
   color: #a34856;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-delete-form button {
@@ -808,7 +808,7 @@
 .private-mock-exam-header > div p {
   margin: 0 0 4px;
   color: #3157f6;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -860,7 +860,7 @@
 
 .private-mock-paper-toolbar span {
   color: #7e879a;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-paper-toolbar a {
@@ -899,7 +899,7 @@
 .private-mock-answer-panel header p {
   margin: 0 0 4px;
   color: #8ea6ff;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -913,7 +913,7 @@
 .private-mock-answer-panel header span,
 .private-mock-save-state {
   color: #aeb8d5;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-save-state {
@@ -986,7 +986,7 @@
 
 .private-mock-answer-item > strong {
   color: #68738d;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
   text-align: center;
 }
@@ -1045,13 +1045,13 @@
 .private-mock-keyboard button {
   min-height: 25px;
   border-radius: 6px;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-submit-note {
   margin: 14px 0 9px;
   color: #8991a4;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.5;
 }
 
@@ -1081,7 +1081,7 @@
   color: #a72e43;
   background: #fff0f2;
   border-radius: 8px;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.5;
 }
 
@@ -1118,7 +1118,7 @@
 
 .private-mock-lobby-countdown small {
   color: #9eacd4;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-lobby-countdown strong {
@@ -1129,7 +1129,7 @@
 .private-mock-result-card > p {
   margin: 0 0 10px;
   color: #3157f6;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.8px;
 }
@@ -1184,7 +1184,7 @@
 
 .private-mock-result-card article small {
   color: #7b8498;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-result-card article strong {
@@ -1257,7 +1257,7 @@
 .private-mock-lobby-tools > header span,
 .private-mock-written-guide span {
   color: #788196;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.6;
 }
 
@@ -1364,7 +1364,7 @@
 
 .private-mock-aggregation-wait small {
   color: #aeb9d8;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-aggregation-wait strong {
@@ -1374,7 +1374,7 @@
 .private-mock-aggregation-wait p {
   margin: 0;
   color: #aeb9d8;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-review,
@@ -1397,7 +1397,7 @@
 .private-mock-review > header p {
   margin: 0 0 6px;
   color: #3157f6;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -1414,7 +1414,7 @@
 .private-mock-review > header small {
   display: block;
   color: #838b9e;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-review-guide {
@@ -1448,7 +1448,7 @@
 
 .private-mock-review-grid > article > header span {
   color: #667086;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-review-omr {
@@ -1601,7 +1601,7 @@
 .private-mock-integrity-card > header p {
   margin: 0 0 7px;
   color: #3157f6;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -1625,7 +1625,7 @@
 
 .private-mock-integrity-meta dt {
   color: #838b9d;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-integrity-meta dd {
@@ -1709,7 +1709,7 @@
 .private-mock-evidence-history span,
 .private-mock-evidence-closed {
   color: #7b8497;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-evidence-form button {
@@ -1789,7 +1789,7 @@
 
 .private-mock-resource-list span {
   color: #7f8799;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-resource-list button {
@@ -1799,7 +1799,7 @@
   border: 1px solid #f0cbd1;
   border-radius: 8px;
   font: inherit;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -1845,7 +1845,7 @@
 
 .private-mock-admin-attempt > summary span {
   color: #7b8497;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-admin-attempt > summary b {
@@ -1871,7 +1871,7 @@
 
 .private-mock-admin-metrics small {
   color: #7b8497;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .private-mock-admin-metrics strong {
@@ -1905,7 +1905,7 @@
 .private-mock-integrity-review > header span,
 .private-mock-integrity-review dt {
   color: #7a6270;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 0.4px;
 }
@@ -2031,7 +2031,7 @@
   label
   span {
   color: #7d6d50;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.5;
 }
 
@@ -2091,7 +2091,7 @@
     150px 180px 1fr;
   gap: 8px;
   color: #677086;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .admin-review-grid {

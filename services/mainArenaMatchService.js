@@ -29,10 +29,11 @@ const {
   isSundayMatchRequestLocked,
   loadMatchActorContext,
   normalizeRequestId,
+  sameTestAccountCohort,
   UNSETTLED_MATCH_STATUSES,
 } = require("./arenaMatchService");
 const {
-  generateMainOneOnOneQuestions,
+  generateMainOneOnOneQuestionsFromActiveData,
   getMainTierPair,
   tierCode,
 } = require("./arenaOneOnOneProblemBank");
@@ -191,14 +192,14 @@ async function listEligibleMainCandidates({
     );
   if (!userIds.length) return [];
   const [requester, users, accessStates, cycles, locks] = await Promise.all([
-    User.findById(requesterUserId).select("+identityMatchHash").lean(),
+    User.findById(requesterUserId).select("+identityMatchHash isTestAccount").lean(),
     User.find({
       _id: { $in: userIds },
       accountStatus: "active",
       isActive: true,
       "privateMockRestriction.active": { $ne: true },
     })
-      .select("_id +identityMatchHash")
+      .select("_id +identityMatchHash isTestAccount")
       .lean(),
     ArenaAccessState.find({
       userId: { $in: userIds },
@@ -222,9 +223,12 @@ async function listEligibleMainCandidates({
     users
       .filter(
         (user) =>
-          !requester?.identityMatchHash ||
-          !user.identityMatchHash ||
-          user.identityMatchHash !== requester.identityMatchHash
+          sameTestAccountCohort(user, requester) &&
+          (
+            !requester?.identityMatchHash ||
+            !user.identityMatchHash ||
+            user.identityMatchHash !== requester.identityMatchHash
+          )
       )
       .map((user) => String(user._id))
   );
@@ -327,8 +331,8 @@ async function createLearningLedger({
   );
 }
 
-function generatedMainPack({ lowerTier, upperTier, matchKey, matchType, now }) {
-  const generation = generateMainOneOnOneQuestions({
+async function generatedMainPack({ lowerTier, upperTier, matchKey, matchType, now }) {
+  const generation = await generateMainOneOnOneQuestionsFromActiveData({
     lowerTier,
     upperTier,
     matchKey,
@@ -367,7 +371,7 @@ async function createMainMatchArtifacts({
   if (!pair) {
     throw statusError(409, "Main Division 티어 조합을 확인해주세요.", "MAIN_TIER_PAIR_NOT_ALLOWED");
   }
-  const sealedPack = generatedMainPack({
+  const sealedPack = await generatedMainPack({
     lowerTier: lowerContext.standing.arenaRank,
     upperTier: upperContext.standing.arenaRank,
     matchKey,

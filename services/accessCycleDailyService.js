@@ -31,6 +31,7 @@ const {
   initializeMainInactivityWindows,
   processMainDormancyTransitions,
 } = require("./arenaDormancyService");
+const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_SCHEDULER_INTERVAL_MS =
@@ -160,6 +161,7 @@ function buildDailyLedgerEntries({
         "DAILY_ACCESS_CONSUMPTION",
       availableLearningDaysDelta: -1,
       paybackScoreDaysDelta: 0,
+      lockedPaybackScoreDaysDelta: 0,
       lockedLearningDaysDelta: 0,
       reservedLearningDaysDelta: 0,
       balanceAfter: {
@@ -167,6 +169,8 @@ function buildDailyLedgerEntries({
           plan.availableBefore - index - 1,
         paybackScoreDays:
           cycle.paybackScoreDays,
+        lockedPaybackScoreDays:
+          cycle.lockedPaybackScoreDays || 0,
         lockedLearningDays:
           cycle.lockedLearningDays,
         reservedLearningDays:
@@ -559,6 +563,22 @@ async function applyExpirationTransition({
       reason: "LOCKED_BALANCE_REMAINS",
     };
   }
+  if (
+    cycle.division === "SUB" &&
+    Number(cycle.lockedPaybackScoreDays || 0) !== 0
+  ) {
+    await disableDepletedAccess({
+      cycle,
+      accessState: await ArenaAccessState.findOne({ userId: cycle.userId })
+        .session(session)
+        .lean(),
+      session,
+    });
+    return {
+      expired: false,
+      reason: "LOCKED_PAYBACK_SCORE_REMAINS",
+    };
+  }
   const accessState =
     await ArenaAccessState.findOne({
       userId: cycle.userId,
@@ -575,6 +595,12 @@ async function applyExpirationTransition({
     return {
       expired: false,
       reason: "BALANCE_OR_LOCK_REMAINS",
+    };
+  }
+  if (Number(cycle.lockedPaybackScoreDays || 0) !== 0) {
+    return {
+      expired: false,
+      reason: "LOCKED_PAYBACK_SCORE_REMAINS",
     };
   }
   const pendingSettlement =
@@ -610,6 +636,7 @@ async function applyExpirationTransition({
       status: "ACTIVE",
       availableLearningDays: 0,
       reservedLearningDays: { $in: [0, null] },
+      lockedPaybackScoreDays: { $in: [0, null] },
       lockedLearningDays: 0,
     },
     {
@@ -1118,6 +1145,7 @@ async function processDepletedAccessCycles({
     status: "ACTIVE",
     availableLearningDays: 0,
     reservedLearningDays: { $in: [0, null] },
+    lockedPaybackScoreDays: { $in: [0, null] },
     lockedLearningDays: 0,
   })
     .sort({ depletedAt: 1, _id: 1 })
@@ -1195,7 +1223,11 @@ function startDailyAccessCycleScheduler({
   if (dailyScheduleTimer) {
     return dailyScheduleTimer;
   }
-  runDailyAccessCycleSchedule().catch(
+  const run = () => withSchedulerLease(
+    { name: "ACCESS_CYCLE_DAILY", leaseMs: 15 * 60 * 1000 },
+    runDailyAccessCycleSchedule
+  );
+  run().catch(
     (error) => {
       console.error(
         "정기권 학습 가능 일수 일일 차감 스케줄 초기화 실패:",
@@ -1205,7 +1237,7 @@ function startDailyAccessCycleScheduler({
   );
   dailyScheduleTimer = setInterval(
     () => {
-      runDailyAccessCycleSchedule().catch(
+      run().catch(
         (error) => {
           console.error(
             "정기권 학습 가능 일수 일일 차감 스케줄 처리 실패:",

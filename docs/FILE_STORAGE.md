@@ -19,6 +19,25 @@ CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
 
 사용자 파일은 Cloudinary 환경 변수가 없으면 업로드를 거절한다. 운영자 파일은 `storage/archive/`에 저장하며 운영 환경에서는 `LOCAL_STORAGE_PERSISTENT=1`과 영구 디스크가 필요하다. 사용자 파일을 운영 서버 디스크에 자동 대체 저장하지 않는다.
 
+## 운영자 파일 R2 백업
+
+운영자 아카이브와 Matths 주간 공식 모의고사 원본은 서버 영구 디스크에 저장하고, 업로드 약 10초 뒤 Cloudflare R2의 비공개 버킷으로 증분 백업을 시도한다. 누락·실패분은 매일 03:30 KST에 다시 점검한다. Cloudflare 가입 후 대시보드의 **Storage & databases → R2**에서 비공개 버킷 `matths-admin-backup`을 만들고, 버킷 범위를 제한한 `Object Read & Write` API 토큰을 발급한다.
+
+`config.env`의 다음 빈칸에 발급값을 넣는다.
+
+```text
+LOCAL_STORAGE_PERSISTENT=1
+ARCHIVE_STORAGE_DIR=./storage/archive
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET=matths-admin-backup
+```
+
+연결 확인은 `npm run storage-r2:verify`, 수동 백업은 `npm run storage:backup`으로 실행한다. 기본 연결 검사는 버킷 조회만 실행하며 토큰이 읽기 전용이라는 뜻이 아니다. 실제 업로드·삭제 권한은 `R2_VERIFY_WRITE=1 npm run storage-r2:verify`로 확인한다. 실제 운영 환경에서는 `ARCHIVE_STORAGE_DIR`을 배포 플랫폼의 영구 디스크 마운트 경로로 바꾼다. R2는 백업이므로 서버의 임시 파일시스템을 영구 저장소로 사용하면 안 된다.
+
+게시판 첨부, Arena 풀이 증거, 사용자 모의고사 소명자료는 `storage/tmp/user-cloud/`에서 검증한 뒤 Cloudinary로 이동한다. 성공한 요청의 임시 파일은 즉시 지우고, 비정상 종료로 남은 파일은 24시간 후 자동 정리한다. 사용자 원본을 이 임시 경로나 운영자 영구 디스크에 대체 보관하지 않는다.
+
 ## 무료 사용 범위
 
 Cloudinary 무료 플랜은 카드 등록 없이 사용할 수 있고 월 25크레딧 범위에서 저장공간, 전송량과 변환을 함께 사용한다. 파일이 많아지면 Cloudinary 대시보드의 Storage와 Bandwidth 사용량을 운영 지표에서 함께 확인한다.

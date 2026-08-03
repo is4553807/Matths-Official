@@ -1,7 +1,14 @@
 const {
+  DEFAULT_DAILY_MATCH_LIMITS_BY_TIER,
   defaultLearningPackagePolicyDefinition,
   mainPolicySnapshot,
 } = require("./arenaPolicyService");
+const {
+  ARENA_QUESTION_DESIGN_POLICY_VERSION,
+  PACK_RULES,
+  TIER_LABELS,
+  TIER_SPECS,
+} = require("./arenaOneOnOneDifficultyPolicy");
 
 const PAYBACK_RULEBOOK_BASELINE_AT =
   new Date("2026-08-02T00:00:00+09:00");
@@ -43,9 +50,8 @@ const RULEBOOKS = {
       },
       {
         number: 3,
-        title: "문제·시간·증거",
+        title: "응시 진행과 증거",
         sections: [
-          { title: "문제 구성", body: ["두 사용자에게 완전히 같은 유형의 주관식 준킬러 5문항을 제공합니다.", "문제 난이도는 하위 티어보다 방어자의 상위 티어에 조금 더 가깝게 구성합니다.", "분수·소수·동치식은 같은 답으로 인정합니다."] },
           { title: "응시 방식", body: ["총 제한시간은 10분이며 문항별 풀이시간과 전체 풀이시간을 서버 시각으로 저장합니다.", "다음 문항으로 이동하면 이전 문제를 다시 보거나 답을 고칠 수 없습니다."] },
           { title: "풀이 증거", body: ["5번 문항 완료 또는 시간 종료 뒤 문제 화면을 닫고 60초 동안 사진 1~5장을 받습니다.", "상대에게는 증거를 공개하지 않으며 운영자는 관리자 화면에서 열람합니다."] },
         ],
@@ -61,20 +67,21 @@ const RULEBOOKS = {
       },
       {
         number: 5,
-        title: "일반 쟁탈전 학습일수",
+        title: "일반 쟁탈전 페이백 점수",
         sections: [
-          { title: "경기 생성", body: ["도전자는 정기권 학습 가능 일수 1일을 예치합니다.", "방어자는 경기 생성 시 학습일수를 예치하지 않습니다."] },
-          { title: "도전자 승리", body: ["실버 이상에서 시작한 도전자가 예치한 1일은 소각되고 페이백 점수도 1점 차감됩니다.", "브론즈에서 시작한 도전자가 이기면 예치한 1일을 반환해 학습일수와 페이백 점수의 순변화가 없습니다."] },
-          { title: "방어자 승리", body: ["방어자의 현재 랭크를 유지하고 도전자가 예치한 학습 가능 일수 1일을 가져옵니다."] },
+          { title: "경기 생성", body: ["도전자는 페이백 점수 1점을 예치합니다.", "방어자는 경기 생성 시 어떤 점수도 예치하지 않으며, Sub 경기로 정기권 학습 가능 일수는 바뀌지 않습니다."] },
+          { title: "도전자 승리", body: ["실버 이상에서 시작한 도전자가 예치한 1점은 소각됩니다.", "브론즈에서 시작한 도전자가 이기면 예치한 1점을 반환해 페이백 점수의 순변화가 없습니다."] },
+          { title: "방어자 승리", body: ["방어자의 현재 Arena 상태를 유지하고 도전자가 예치한 페이백 점수 1점을 가져옵니다."] },
+          { title: "0점과 패키지 만료", body: ["페이백 점수가 0점이면 일반 공격과 복수전 신청만 중단되며, 활성 29일 패키지의 남은 기능과 방어 자격은 유지됩니다.", "정기권 학습 가능 일수가 0일이 되어 29일 패키지가 끝나면 GOAT Arena 전체가 잠기고 방어 후보에서도 제외됩니다."] },
         ],
       },
       {
         number: 6,
         title: "복수전",
         sections: [
-          { title: "신청", body: ["가장 최근 원경기의 패자에게 결과 화면에서 한 번만 복수전 선택권을 줍니다.", "복수하기를 누르면 2일을 예치하고 상대는 선택권 없이 자동 참가합니다.", "경기 종료를 누르면 해당 원경기의 복수전 권리는 즉시 사라집니다."] },
-          { title: "정상 완료", body: ["도전자가 이기면 Arena 상태를 다시 교환하고 예치한 2일을 소각합니다.", "방어자가 이기면 Arena 상태를 유지하고 1일은 방어자에게 이전, 1일은 수수료로 소각합니다."] },
-          { title: "24시간 미완료", body: ["방어자만 미완료면 Arena 상태를 교환하고 도전자에게 1일을 반환하며 1일을 소각합니다.", "도전자만 미완료면 Arena 상태를 유지하고 방어자에게 1일을 이전하며 1일을 소각합니다.", "양측 모두 미완료면 Arena 상태를 유지하고 예치한 2일을 전부 소각합니다.", "복수전은 양측 모두 신청 뒤 24시간 안에 완료해야 합니다."] },
+          { title: "신청", body: ["가장 최근 원경기의 패자에게 결과 화면에서 한 번만 복수전 선택권을 줍니다.", "복수하기를 누르면 페이백 점수 2점을 예치하고 상대는 선택권 없이 자동 참가합니다.", "경기 종료를 누르면 해당 원경기의 복수전 권리는 즉시 사라집니다."] },
+          { title: "정상 완료", body: ["도전자가 이기면 Arena 상태를 다시 교환하고 예치한 2점을 소각합니다.", "방어자가 이기면 Arena 상태를 유지하고 1점은 방어자에게 이전, 1점은 수수료로 소각합니다."] },
+          { title: "24시간 미완료", body: ["방어자만 미완료면 Arena 상태를 교환하고 도전자에게 1점을 반환하며 1점을 소각합니다.", "도전자만 미완료면 Arena 상태를 유지하고 방어자에게 1점을 이전하며 1점을 소각합니다.", "양측 모두 미완료면 Arena 상태를 유지하고 예치한 2점을 전부 소각합니다.", "복수전은 양측 모두 신청 뒤 24시간 안에 완료해야 합니다."] },
         ],
       },
       {
@@ -122,9 +129,8 @@ const RULEBOOKS = {
       },
       {
         number: 4,
-        title: "공통 문제와 승패",
+        title: "승패와 Arena 상태",
         sections: [
-          { title: "응시", body: ["같은 주관식 준킬러 5문항을 10분 동안 풀고, 이전 문항으로 돌아갈 수 없습니다.", "문제가 닫히면 60초 안에 풀이 증거 사진 1~5장을 제출합니다."] },
           { title: "판정", body: ["점수 → 정답 수 → 정답 문항 풀이시간 → 전체 풀이시간 순으로 정합니다.", "완전히 동점이면 방어자가 승리합니다."] },
           { title: "Arena 상태", body: ["Arena 도전자가 이기면 티어·티어 내 순위·GP를 모두 교환합니다.", "방어자가 이기면 세 값 모두 유지합니다.", "1대1 경기로 내부 실력 지표는 바뀌지 않습니다."] },
         ],
@@ -169,13 +175,75 @@ const RULEBOOKS = {
         sections: [
           { title: "적용 대상", body: ["휴면 제도는 Main Division에만 적용합니다. Sub Division은 29일 학습권 패키지와 페이백 주기 안에서 운영되므로 별도 휴면 상태를 만들지 않습니다.", "Main Division에서 미활동 구간이 시작될 때 사용 가능한 정기권 학습 가능 일수가 20일 이상인 사용자만 휴면 판정 대상입니다."] },
           { title: "활동과 20일 판정", body: ["공식 1대1 경기를 완료하거나 Matths 주간 공식 모의고사를 제출하면 휴면 미활동 기록을 초기화합니다.", "로그인이나 페이지 열람만으로는 초기화되지 않습니다.", "20일 연속으로 두 활동이 모두 없으면 20일째 KST 일일 차감까지 마친 뒤 다음 날 00:00에 휴면 상태로 전환합니다."] },
-          { title: "21일 이상 보유한 경우", body: ["미활동 시작 당시 21일 이상이었다면 총 20일을 정상 차감하고 남은 학습일수는 휴면 기간 동안 동결합니다.", "휴면 중에는 신규 경기와 순위 집계를 중단하며, 복귀하면 추가 차감이나 배치고사 없이 Main Division에서 동결된 잔여 일수로 계속합니다."] },
-          { title: "정확히 20일 보유한 경우", body: ["20일을 모두 차감해 잔여 일수가 0일이 되면 Main Division에서 Sub Division으로 강등하고 휴면 이력을 기록합니다.", "이 경우 Main 휴면 복귀 절차는 적용하지 않으며, 다시 이용하려면 일반 Sub Division 절차에 따라 새 학습권 패키지를 활성화하고 배치고사를 완료해야 합니다."] },
+          { title: "휴면 강등과 잔여 일수 보관", body: ["20일째까지 공식 활동이 없으면 보유 일수와 관계없이 Sub Division으로 강등합니다.", "20일 차감 뒤 남은 학습일수는 별도 보관하며 Sub Division 학습일수나 페이백 점수에는 절대 포함하지 않습니다."] },
+          { title: "Main Division 재진입", body: ["강등된 사용자는 새 학습권 패키지, 배치고사, 29일 학습과 페이백 달성 등 일반 Sub Division 과정을 그대로 완료해야 합니다.", "그 과정을 통해 Main Division에 다시 진입하는 순간에만 보관한 학습일수를 새 Main 학습일수에 추가합니다. 남은 일수가 0일이었다면 추가 복원 없이 일반 Sub 절차만 적용합니다."] },
         ],
       },
     ],
   },
 };
+
+const MATCHUP_ROWS = Object.freeze([
+  ["브론즈 → 브론즈", "BRONZE", "T1"],
+  ["브론즈 → 실버", "SILVER", "T2"],
+  ["실버 → 골드", "GOLD", "T3"],
+  ["골드 → 플래티넘", "PLATINUM", "T4"],
+  ["플래티넘 → 에메랄드", "EMERALD", "T5"],
+  ["에메랄드 → 다이아몬드", "DIAMOND", "T6"],
+  ["다이아몬드 → 마스터", "MASTER", "T7"],
+  ["마스터 → 그랜드마스터", "GRANDMASTER", "T8"],
+  ["그랜드마스터 → 챌린저", "CHALLENGER", "T9"],
+  ["챌린저 → 챌린저", "CHALLENGER", "T9"],
+]);
+
+function percentRange(values) {
+  return `${Math.round(Number(values[0]) * 100)}~${Math.round(
+    Number(values[1]) * 100
+  )}%`;
+}
+
+function commonProblemDesignView() {
+  return {
+    policyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
+    principles: [
+      "Sub Division과 Main Division 모두 문제 난이도를 도전자가 아니라 방어자 티어에 맞춥니다.",
+      "Main Division에서 티어 차이가 2~3단계여도 방어자 티어가 같은 경기는 같은 T등급을 사용합니다.",
+      "챌린저가 방어자인 경기는 T9를 사용하며, 챌린저끼리 대결할 때만 팩 안의 난이도 곡선을 상단으로 조정합니다.",
+    ],
+    matchupRows: MATCHUP_ROWS.map(([matchup, anchor, difficultyTier]) => ({
+      matchup,
+      anchor: TIER_LABELS[anchor],
+      difficultyTier,
+    })),
+    accuracyRows: Object.entries(TIER_SPECS).map(
+      ([difficultyTier, spec]) => ({
+        difficultyTier,
+        anchor: TIER_LABELS[spec.anchor],
+        defenderAccuracy: percentRange(spec.defenderAccuracy),
+        challengerAccuracy:
+          difficultyTier === "T1"
+            ? `동티어 ${percentRange(spec.challengerAccuracy)}`
+            : percentRange(spec.challengerAccuracy),
+      })
+    ),
+    accuracyPrinciples: [
+      "방어자 목표 정답률은 대체로 45~60% 구간에 맞춥니다.",
+      "다른 티어끼리 대결할 때 도전자의 예상 정답률은 방어자보다 약 12~18%p 낮게 설계합니다.",
+      "등급이 T1에서 T9로 올라갈수록 절대 난이도도 올라갑니다.",
+    ],
+    matchSpec: [
+      ["문항 수", `준킬러 ${PACK_RULES.items}문항`],
+      ["총점", `${PACK_RULES.totalScore}점 (문항당 ${PACK_RULES.perItemPoints}점)`],
+      ["제한 시간", `${PACK_RULES.timeLimitMinutes}분`],
+      ["문제 동일성", "두 사용자에게 완전히 같은 문제"],
+      ["정답 형식", "3자리 이하 자연수 주관식"],
+    ],
+    semiKillerDefinition:
+      "개념 2개 이상을 결합하고, 조건을 최소 한 단계 변형해야 식이 나오는 문항입니다.",
+    excludedQuestion:
+      "개념 하나를 직접 대입해 끝나는 기본 문항은 T1에도 넣지 않으며, 5문항 전부 준킬러로 구성합니다.",
+  };
+}
 
 function paybackPolicyView(policy) {
   const source = policy || {
@@ -204,6 +272,14 @@ function paybackPolicyView(policy) {
     initialLearningDays: Number(source.initialLearningDays) || 29,
     initialPaybackScoreDays:
       Number(source.initialPaybackScoreDays) || 29,
+    dailyMatchLimitsByTier: (source.dailyMatchLimitsByTier?.length
+      ? source.dailyMatchLimitsByTier
+      : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER).map((row) => ({
+        tier: row.tier,
+        tierLabel: TIER_LABELS[row.tier] || row.tier,
+        attackLimit: Number(row.attackLimit),
+        defenseLimit: Number(row.defenseLimit),
+      })),
     minimumStreakDays:
       Number(source.payback?.minimumStreakDays) || 0,
     minimumPaidNormalAttacks:
@@ -223,6 +299,7 @@ function paybackPolicyView(policy) {
       ),
     })),
     lastModifiedAt,
+    effectiveFrom: source.effectiveFrom || null,
     isFallback: !policy,
   };
 }
@@ -324,7 +401,12 @@ function rulebookRules(division, mainPolicy) {
 
 function getArenaRulebook(
   division,
-  { paybackPolicy = null, mainPolicy = null } = {}
+  {
+    paybackPolicy = null,
+    mainPolicy = null,
+    upcomingPaybackPolicy = null,
+    upcomingMainPolicy = null,
+  } = {}
 ) {
   const normalizedDivision = String(
     division || ""
@@ -347,12 +429,20 @@ function getArenaRulebook(
         ? paybackPolicyView(paybackPolicy)
         : null,
     mainPolicy: activeMainPolicy,
+    upcomingPolicy:
+      normalizedDivision === "SUB" && upcomingPaybackPolicy
+        ? paybackPolicyView(upcomingPaybackPolicy)
+        : normalizedDivision === "MAIN" && upcomingMainPolicy
+          ? mainPolicyView(upcomingMainPolicy)
+          : null,
+    problemDesign: commonProblemDesignView(),
   };
 }
 
 module.exports = {
   PAYBACK_RULEBOOK_BASELINE_AT,
   getArenaRulebook,
+  commonProblemDesignView,
   mainPolicyView,
   paybackPolicyView,
 };

@@ -3,10 +3,17 @@ const {
   MockExamPackagePolicyVersion,
   MockExamSubscription,
 } = require("../models/goatArenaModel");
+const {
+  minimumPolicyEffectiveFrom,
+} = require("./arenaPolicyService");
+const {
+  recordPolicyChangeScheduled,
+} = require("./policyChangeOutboxService");
 
 const DEFAULT_MONTHLY_PRICE_AMOUNT = 5000;
 const DEFAULT_POLICY_CODE = "MOCK-ONLY-2026-INITIAL";
 const DEFAULT_CALIBRATION_WEEKLY_EXAMS = 4;
+const MOCK_EXAM_PRODUCT_NAME = "Matths 주간 공식 모의고사 이용권";
 
 function statusError(status, message, code = "") {
   const error = new Error(message);
@@ -20,7 +27,7 @@ function policyView(policy) {
     return {
       _id: null,
       code: DEFAULT_POLICY_CODE,
-      displayName: "모의고사 전용 패키지",
+      displayName: MOCK_EXAM_PRODUCT_NAME,
       status: "ACTIVE",
       currency: "KRW",
       monthlyPriceAmount: DEFAULT_MONTHLY_PRICE_AMOUNT,
@@ -34,6 +41,7 @@ function policyView(policy) {
   }
   return {
     ...policy,
+    displayName: MOCK_EXAM_PRODUCT_NAME,
     _id: policy._id || null,
     monthlyPriceAmount: Number(policy.monthlyPriceAmount),
     billingPeriodDays: Number(policy.billingPeriodDays || 30),
@@ -66,14 +74,14 @@ async function ensureDefaultMockExamPackagePolicy() {
   try {
     const created = await MockExamPackagePolicyVersion.create({
       code: DEFAULT_POLICY_CODE,
-      displayName: "모의고사 전용 패키지",
+      displayName: MOCK_EXAM_PRODUCT_NAME,
       status: "ACTIVE",
       effectiveFrom: new Date("2026-08-01T00:00:00+09:00"),
       monthlyPriceAmount: DEFAULT_MONTHLY_PRICE_AMOUNT,
       billingPeriodDays: 30,
       placementCalibrationMinimumWeeklyExams:
         DEFAULT_CALIBRATION_WEEKLY_EXAMS,
-      changeSummary: "월 5,000원 모의고사 전용 상품 최초 정책",
+      changeSummary: "월 5,000원 Matths 주간 공식 모의고사 이용권 최초 정책",
       activatedAt: new Date(),
     });
     return policyView(created.toObject());
@@ -108,14 +116,14 @@ async function updateMockExamPackagePrice({
   if (!Number.isInteger(price) || price < 0 || price > 1000000) {
     throw statusError(
       400,
-      "모의고사 전용 패키지의 월 가격을 원 단위 정수로 입력해주세요.",
+      `${MOCK_EXAM_PRODUCT_NAME}의 월 가격을 원 단위 정수로 입력해주세요.`,
       "INVALID_MOCK_PACKAGE_PRICE"
     );
   }
   if (!mongoose.isValidObjectId(adminUserId)) {
     throw statusError(400, "관리자 정보를 확인해주세요.");
   }
-  const effectiveFrom = new Date(now);
+  const effectiveFrom = minimumPolicyEffectiveFrom(now);
   const code = `MOCK-ONLY-${effectiveFrom
     .toISOString()
     .replace(/[-:.TZ]/g, "")}`;
@@ -123,31 +131,36 @@ async function updateMockExamPackagePrice({
   let created = null;
   try {
     await session.withTransaction(async () => {
-      await MockExamPackagePolicyVersion.updateMany(
-        {
-          status: "ACTIVE",
-          effectiveFrom: { $lte: effectiveFrom },
-          $or: [
-            { effectiveUntil: null },
-            { effectiveUntil: { $gt: effectiveFrom } },
-          ],
-        },
-        {
-          $set: {
-            status: "RETIRED",
-            effectiveUntil: effectiveFrom,
-            retiredAt: effectiveFrom,
-          },
-        },
-        { session }
-      );
+      const existingAtStart = await MockExamPackagePolicyVersion.findOne({
+        status: "ACTIVE",
+        effectiveFrom,
+      }).session(session).lean();
+      if (existingAtStart) {
+        throw statusError(409, "같은 적용 시각에 이미 모의고사 이용권 정책이 있습니다.");
+      }
+      const previous = await MockExamPackagePolicyVersion.findOne({
+        status: "ACTIVE",
+        effectiveFrom: { $lt: effectiveFrom },
+      }).sort({ effectiveFrom: -1 }).session(session).lean();
+      const next = await MockExamPackagePolicyVersion.findOne({
+        status: "ACTIVE",
+        effectiveFrom: { $gt: effectiveFrom },
+      }).sort({ effectiveFrom: 1 }).session(session).lean();
+      if (previous && (!previous.effectiveUntil || new Date(previous.effectiveUntil) > effectiveFrom)) {
+        await MockExamPackagePolicyVersion.updateOne(
+          { _id: previous._id, status: "ACTIVE" },
+          { $set: { effectiveUntil: effectiveFrom } },
+          { session }
+        );
+      }
       [created] = await MockExamPackagePolicyVersion.create(
         [
           {
             code,
-            displayName: "모의고사 전용 패키지",
+            displayName: MOCK_EXAM_PRODUCT_NAME,
             status: "ACTIVE",
             effectiveFrom,
+            effectiveUntil: next?.effectiveFrom || null,
             monthlyPriceAmount: price,
             billingPeriodDays: 30,
             placementCalibrationMinimumWeeklyExams:
@@ -155,11 +168,16 @@ async function updateMockExamPackagePrice({
             changeSummary: String(changeSummary || "").trim().slice(0, 1000),
             createdBy: adminUserId,
             activatedBy: adminUserId,
-            activatedAt: effectiveFrom,
+            activatedAt: new Date(now),
           },
         ],
         { session, ordered: true }
       );
+      await recordPolicyChangeScheduled({
+        policyType: "MOCK_EXAM_PACKAGE",
+        policy: created,
+        session,
+      });
     });
   } finally {
     await session.endSession();
@@ -190,6 +208,7 @@ async function getMockExamPackageAccess(userId, now = new Date()) {
 module.exports = {
   DEFAULT_CALIBRATION_WEEKLY_EXAMS,
   DEFAULT_MONTHLY_PRICE_AMOUNT,
+  MOCK_EXAM_PRODUCT_NAME,
   ensureDefaultMockExamPackagePolicy,
   getActiveMockExamPackagePolicy,
   getMockExamPackageAccess,

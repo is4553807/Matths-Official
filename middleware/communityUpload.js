@@ -1,8 +1,4 @@
-const fs = require("fs");
 const path = require("path");
-const {
-  randomUUID,
-} = require("crypto");
 const multer = require("multer");
 
 const {
@@ -12,17 +8,13 @@ const {
   COMMUNITY_ATTACHMENT_EXTENSIONS,
   COMMUNITY_ATTACHMENT_LIMIT,
   COMMUNITY_ATTACHMENT_MAX_BYTES,
-  COMMUNITY_STORAGE_DIR,
 } = require(
   "../services/communityAttachmentService"
 );
+const {
+  userCloudUploadStorage,
+} = require("./userCloudUploadStorage");
 
-fs.mkdirSync(
-  COMMUNITY_STORAGE_DIR,
-  {
-    recursive: true,
-  }
-);
 
 async function loadCommunityUploadAccess(
   req,
@@ -63,36 +55,8 @@ async function loadCommunityUploadAccess(
   }
 }
 
-const storage =
-  multer.diskStorage({
-    destination(
-      req,
-      file,
-      callback
-    ) {
-      callback(
-        null,
-        COMMUNITY_STORAGE_DIR
-      );
-    },
-    filename(
-      req,
-      file,
-      callback
-    ) {
-      const extension =
-        path.extname(
-          file.originalname
-        ).toLowerCase();
-      callback(
-        null,
-        `${Date.now()}-${randomUUID()}${extension}`
-      );
-    },
-  });
-
 const communityUpload = multer({
-  storage,
+  storage: userCloudUploadStorage,
   limits: {
     files:
       COMMUNITY_ATTACHMENT_LIMIT,

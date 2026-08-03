@@ -69,6 +69,9 @@ const {
   getWeeklyMockExamAccess,
 } = require("./paidFeatureAccessService");
 const {
+  recordOperationalMetricEvent,
+} = require("./operationalMetricEventService");
+const {
   destroyStoredAsset,
   signedCloudinaryUrl,
   STORAGE_PURPOSES,
@@ -110,8 +113,6 @@ const DEFAULT_DURATION_MINUTES =
   100;
 const PRIVATE_MOCK_LOBBY_MS =
   10 * MINUTE_MS;
-const PRIVATE_MOCK_TEST_DATE =
-  "2026-07-29";
 const PRIVATE_MOCK_FORM_SCHEDULES =
   Object.freeze({
     A: {
@@ -129,13 +130,12 @@ const PRIVATE_MOCK_FORM_SCHEDULES =
       releaseHour: 21,
       label: "오후 9:00 ~ 오후 10:40",
     },
-    TEST: {
+    CUSTOM: {
       attemptNumber: 0,
-      releaseHour: 19,
-      label: "오후 7:00 ~ 오후 8:40",
-      fixedDate:
-        PRIVATE_MOCK_TEST_DATE,
+      releaseHour: null,
+      label: "운영자가 날짜·시간 직접 지정",
       isTest: true,
+      isCustom: true,
     },
   });
 const PRIVATE_MOCK_FOLDER_NAME =
@@ -630,7 +630,8 @@ function parseSeoulReleaseAt(value) {
 
 function parsePrivateMockExamDate(
   value,
-  formCodeInput
+  formCodeInput,
+  customReleaseAtInput = ""
 ) {
   const match =
     /^(\d{4})-(\d{2})-(\d{2})$/.exec(
@@ -647,28 +648,72 @@ function parsePrivateMockExamDate(
       formCode
     ];
 
+  if (!formSchedule) {
+    throw statusError(
+      400,
+      "시험형은 A, B, C 또는 CUSTOM 중에서 선택해주세요."
+    );
+  }
+
+  if (formSchedule.isCustom) {
+    const customMatch =
+      /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})$/.exec(
+        String(customReleaseAtInput || "")
+      );
+    if (!customMatch) {
+      throw statusError(
+        400,
+        "CUSTOM 회차의 한국 날짜와 공개 시간을 직접 지정해주세요."
+      );
+    }
+    const [
+      ,
+      customYear,
+      customMonth,
+      customDay,
+      customHour,
+      customMinute,
+    ] = customMatch.map(Number);
+    const customReleaseAt = new Date(
+      Date.UTC(
+        customYear,
+        customMonth - 1,
+        customDay,
+        customHour - 9,
+        customMinute,
+        0,
+        0
+      )
+    );
+    const customSeoulClock = new Date(
+      customReleaseAt.getTime() + SEOUL_OFFSET_MS
+    );
+    if (
+      customSeoulClock.getUTCFullYear() !== customYear ||
+      customSeoulClock.getUTCMonth() + 1 !== customMonth ||
+      customSeoulClock.getUTCDate() !== customDay ||
+      customSeoulClock.getUTCHours() !== customHour ||
+      customSeoulClock.getUTCMinutes() !== customMinute
+    ) {
+      throw statusError(
+        400,
+        "CUSTOM 회차의 유효한 한국 날짜와 시간을 입력해주세요."
+      );
+    }
+    return {
+      releaseAt: customReleaseAt,
+      formCode: "CUSTOM",
+      attemptNumber: 0,
+      scheduleLabel: "운영자 지정 시간",
+      isTest: true,
+      isCustom: true,
+    };
+  }
+
   if (!match) {
     throw statusError(
       400,
       "Matths 주간 공식 모의고사를 공개할 날짜를 선택해주세요."
-    );
-  }
-
-  if (!formSchedule) {
-    throw statusError(
-      400,
-      "시험형은 A, B, C, TEST 중에서 선택해주세요."
-    );
-  }
-
-  if (
-    formSchedule.isTest &&
-    String(value) !==
-      formSchedule.fixedDate
-  ) {
-    throw statusError(
-      400,
-      `TEST 회차는 ${formSchedule.fixedDate} 오후 7시에만 공개할 수 있습니다.`
     );
   }
 
@@ -700,16 +745,11 @@ function parsePrivateMockExamDate(
       month ||
     seoulClock.getUTCDate() !==
       day ||
-    (
-      !formSchedule.isTest &&
-      seoulClock.getUTCDay() !== 0
-    )
+    seoulClock.getUTCDay() !== 0
   ) {
     throw statusError(
       400,
-      formSchedule.isTest
-        ? "TEST 회차 공개 날짜가 올바르지 않습니다."
-        : "Matths 주간 공식 모의고사 날짜는 일요일만 선택할 수 있습니다."
+      "Matths 주간 공식 모의고사 날짜는 일요일만 선택할 수 있습니다."
     );
   }
 
@@ -723,6 +763,10 @@ function parsePrivateMockExamDate(
     isTest:
       Boolean(
         formSchedule.isTest
+      ),
+    isCustom:
+      Boolean(
+        formSchedule.isCustom
       ),
   };
 }
@@ -886,25 +930,16 @@ function buildPrivateMockSchedule(
     ) &&
     seoulClock.getUTCMinutes() ===
       0;
-  const testSchedule =
-    isTest &&
-    privateMockWeekKey(
-      releaseAt
-    ) ===
-      PRIVATE_MOCK_TEST_DATE &&
-    seoulClock.getUTCHours() ===
-      19 &&
-    seoulClock.getUTCMinutes() ===
-      0;
+  const customSchedule = isTest;
 
   if (
     !officialSchedule &&
-    !testSchedule
+    !customSchedule
   ) {
     throw statusError(
       400,
       isTest
-        ? "TEST 회차 공개 시각은 2026년 7월 29일 오후 7시여야 합니다."
+        ? "CUSTOM 회차 공개 시각을 확인해주세요."
         : "Matths 주간 공식 모의고사 공개 시각은 일요일 오후 3시·6시·9시 중 하나여야 합니다."
     );
   }
@@ -1213,6 +1248,7 @@ async function createPrivateMockExam({
   answerSheetFile,
   title,
   examDate,
+  customReleaseAt,
   formCode: formCodeInput,
 }) {
   if (!isArchiveAdmin(user)) {
@@ -1267,7 +1303,8 @@ async function createPrivateMockExam({
   const parsedDate =
     parsePrivateMockExamDate(
       examDate,
-      formCodeInput
+      formCodeInput,
+      customReleaseAt
     );
   const duration =
     DEFAULT_DURATION_MINUTES;
@@ -1462,6 +1499,7 @@ async function createPrivateMockExamBatch({
   answerSheetFiles,
   titles,
   examDates,
+  customReleaseAts,
   formCodes,
 }) {
   const problems =
@@ -1488,6 +1526,10 @@ async function createPrivateMockExamBatch({
     normalizeBatchValue(
       formCodes
     );
+  const normalizedCustomReleaseAts =
+    normalizeBatchValue(
+      customReleaseAts
+    );
 
   if (
     !problems.length ||
@@ -1512,6 +1554,8 @@ async function createPrivateMockExamBatch({
     normalizedExamDates.length !==
       problems.length ||
     normalizedFormCodes.length !==
+      problems.length ||
+    normalizedCustomReleaseAts.length !==
       problems.length
   ) {
     throw statusError(
@@ -1543,6 +1587,8 @@ async function createPrivateMockExamBatch({
             normalizedTitles[index],
           examDate:
             normalizedExamDates[index],
+          customReleaseAt:
+            normalizedCustomReleaseAts[index],
           formCode:
             normalizedFormCodes[index],
         })
@@ -1645,7 +1691,7 @@ async function deletePrivateMockExam({
   if (!exam) {
     throw statusError(
       409,
-      "아직 공개되지 않은 예약 회차만 삭제할 수 있습니다. TEST 회차는 언제든 삭제할 수 있습니다."
+      "아직 공개되지 않은 예약 회차만 삭제할 수 있습니다. CUSTOM 회차는 언제든 삭제할 수 있습니다."
     );
   }
 
@@ -3816,7 +3862,11 @@ function startPrivateMockExamScheduler({
     return scheduleTimer;
   }
 
-  processPrivateMockSchedule()
+  const run = () => require("./schedulerLeaseService").withSchedulerLease(
+    { name: "PRIVATE_MOCK_EXAM_STATE", leaseMs: 10 * 60 * 1000 },
+    () => processPrivateMockSchedule()
+  );
+  run()
     .catch((error) => {
       console.error(
         "Matths 주간 공식 모의고사 스케줄 초기화 실패:",
@@ -3825,7 +3875,7 @@ function startPrivateMockExamScheduler({
     });
   scheduleTimer =
     setInterval(() => {
-      processPrivateMockSchedule()
+      run()
         .catch((error) => {
           console.error(
             "Matths 주간 공식 모의고사 스케줄 처리 실패:",
@@ -3963,12 +4013,24 @@ async function getPrivateMockEligibility(
   const packageAccess =
     await getWeeklyMockExamAccess(userId);
   if (!packageAccess.active) {
+    const deniedAt = new Date();
+    const kstDayNumber = Math.floor(
+      (deniedAt.getTime() + SEOUL_OFFSET_MS) / DAY_MS
+    );
+    await recordOperationalMetricEvent({
+      eventKey: `weekly-mock-access-denied:${userId}:${kstDayNumber}`,
+      eventType: "WEEKLY_MOCK_ACCESS_DENIED",
+      userId,
+      result: "DENIED",
+      reasonCode: "PAYMENT_REQUIRED",
+      occurredAt: deniedAt,
+    });
     return {
       allowed: false,
       status: "payment-required",
       title: "이용 중인 패키지가 필요합니다.",
       message:
-        "Matths 주간 공식 모의고사는 모의고사 전용 패키지 또는 학습권 패키지를 이용 중인 회원만 응시할 수 있습니다.",
+        "Matths 주간 공식 모의고사는 Matths 주간 공식 모의고사 이용권 또는 29일 학습권 패키지를 이용 중인 회원만 응시할 수 있습니다.",
       ctaLabel: "패키지 확인",
       ctaHref: "/pricing",
       availableLearningDays: 0,
@@ -3981,7 +4043,7 @@ async function getPrivateMockEligibility(
       status: "mock-exam-only-ready",
       title: "Matths 주간 공식 모의고사 응시 가능",
       message:
-        "모의고사 전용 패키지에서는 배치고사와 GOAT Arena를 이용할 수 없지만, 공식 모의고사 결과로 내부 실력 지표를 계속 계산해 저장합니다.",
+        "Matths 주간 공식 모의고사 이용권에서는 배치고사와 GOAT Arena를 이용할 수 없지만, 공식 모의고사 결과로 내부 실력 지표를 계속 계산해 저장합니다.",
       ctaLabel: "Matths 주간 공식 모의고사 입장",
       ctaHref: "/private-mock-exams",
       packageType: "MOCK_EXAM_ONLY",
@@ -9196,6 +9258,10 @@ async function getAdminPrivateMockExamData(
           isTest:
             Boolean(
               schedule.isTest
+            ),
+          isCustom:
+            Boolean(
+              schedule.isCustom
             ),
         })
       ),

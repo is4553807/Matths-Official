@@ -1,6 +1,15 @@
 document.addEventListener(
   "DOMContentLoaded",
   () => {
+    function escapeMarkup(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
     function centerCurrentRank(
       container
     ) {
@@ -86,7 +95,7 @@ document.addEventListener(
       toolbar.innerHTML = `
         <label><span>순위·이름 찾기</span><input type="search" inputmode="search" placeholder="예: 25 또는 닉네임" data-ranking-query /></label>
         <label><span>Division</span><select data-ranking-division><option value="">전체</option><option value="SUB">Sub Division</option><option value="MAIN">Main Division</option></select></label>
-        ${scroll.dataset.currentSchool ? `<label><span>소속</span><select data-ranking-school><option value="">전체</option><option value="${scroll.dataset.currentSchool.replace(/"/g, "&quot;")}">내 학교</option></select></label>` : ""}
+        ${scroll.dataset.currentSchool ? `<label><span>소속</span><select data-ranking-school><option value="">전체</option><option value="${escapeMarkup(scroll.dataset.currentSchool)}">내 학교</option></select></label>` : ""}
         <button type="button" data-ranking-find>찾기</button>
         <button type="button" class="ranking-my-position" data-ranking-my-position ${current ? "" : "disabled"}>내 순위로 이동</button>
         <output data-ranking-tool-status aria-live="polite"></output>
@@ -100,7 +109,7 @@ document.addEventListener(
         const mini = document.createElement("button");
         mini.type = "button";
         mini.className = "ranking-sticky-me";
-        mini.innerHTML = `<span>내 현재 위치</span><strong>${rank}위 · ${name}</strong><em>${delta > 0 ? `▲${delta}` : delta < 0 ? `▼${Math.abs(delta)}` : "변동 없음"}</em>`;
+        mini.innerHTML = `<span>내 현재 위치</span><strong>${escapeMarkup(rank)}위 · ${escapeMarkup(name)}</strong><em>${delta > 0 ? `▲${delta}` : delta < 0 ? `▼${Math.abs(delta)}` : "변동 없음"}</em>`;
         mini.addEventListener("click", () => scrollRowToCenter(scroll, current));
         toolbar.after(mini);
       }

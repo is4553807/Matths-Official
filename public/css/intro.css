@@ -667,7 +667,7 @@ a:focus-visible {
 
 .demo-label {
   color: var(--blue);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 1px;
 }
@@ -1088,7 +1088,7 @@ a:focus-visible {
   color: #8fa2fa;
   background: #20294f;
   border-radius: 7px;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .arena-identity-note {
@@ -1142,7 +1142,7 @@ a:focus-visible {
 
 .arena-overview-statement small {
   color: #8295ef;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -1186,7 +1186,7 @@ a:focus-visible {
 
 .arena-overview-points span {
   color: #8498f8;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
 }
 
@@ -1198,7 +1198,7 @@ a:focus-visible {
 .arena-overview-points p {
   margin: 7px 0 0;
   color: #8f99b9;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.55;
 }
 
@@ -1218,7 +1218,7 @@ a:focus-visible {
 
 .arena-board-top span,
 .arena-board-top strong {
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 1.2px;
 }
 
@@ -1236,7 +1236,7 @@ a:focus-visible {
   background: rgba(255, 196, 82, 0.1);
   border: 1px solid rgba(255, 196, 82, 0.15);
   border-radius: 999px;
-  font-size: 8px;
+  font-size: 9px;
   font-style: normal;
   font-weight: 800;
 }
@@ -1267,7 +1267,7 @@ a:focus-visible {
 .tier-copy small,
 .rank-change span {
   color: #9ba7ce;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .tier-copy strong {
@@ -1324,7 +1324,7 @@ a:focus-visible {
 .arena-metrics span,
 .arena-metrics small {
   color: #929dbe;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .arena-metrics strong {
@@ -1347,7 +1347,7 @@ a:focus-visible {
   color: #717d9f;
   border-radius: 8px;
   text-align: center;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -1375,7 +1375,7 @@ a:focus-visible {
 
 .arena-duel small {
   color: #9caaff;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -1386,7 +1386,7 @@ a:focus-visible {
 
 .arena-duel > span {
   color: #bac3e1;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .arena-rule-grid {
@@ -1441,7 +1441,7 @@ a:focus-visible {
 .takeover-heading > p {
   margin: 0 0 14px;
   color: #90a1ff;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -1478,7 +1478,7 @@ a:focus-visible {
 
 .takeover-stakes small {
   color: #8095f2;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -1525,12 +1525,12 @@ a:focus-visible {
 
 .takeover-flow li > b {
   color: #7e91e9;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .takeover-flow span {
   color: #919cbb;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.55;
 }
 
@@ -1554,7 +1554,7 @@ a:focus-visible {
   background: rgba(118, 136, 224, 0.08);
   border: 1px solid rgba(150, 166, 241, 0.12);
   border-radius: 999px;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .rank-cycle-summary {
@@ -1574,7 +1574,7 @@ a:focus-visible {
 
 .rank-cycle-summary small {
   color: #8ea1f8;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -1588,7 +1588,7 @@ a:focus-visible {
 .rank-cycle-summary p {
   margin: 7px 0 0;
   color: #939ebd;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.6;
 }
 
@@ -1611,7 +1611,7 @@ a:focus-visible {
 
 .payback-preview small {
   color: #9caaff;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -1653,7 +1653,7 @@ a:focus-visible {
 .arena-tier-section > div:first-child > p {
   margin: 0 0 14px;
   color: #90a1ff;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -1699,7 +1699,7 @@ a:focus-visible {
 .payback-result small,
 .rank-pool-detail > article small {
   color: #8095f2;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -1722,7 +1722,7 @@ a:focus-visible {
 .payback-conditions > b {
   align-self: center;
   color: #7588e6;
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 1px;
 }
 
@@ -1760,12 +1760,12 @@ a:focus-visible {
 
 .weekly-rank-flow li > b {
   color: #7e91e9;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .weekly-rank-flow span {
   color: #919cbb;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.6;
 }
 
@@ -1867,7 +1867,7 @@ a:focus-visible {
 .arena-tier-grid article > span {
   justify-self: start;
   color: #74809d;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
 }
 
@@ -1884,7 +1884,7 @@ a:focus-visible {
 
 .arena-tier-grid small {
   color: #8f99b5;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 @media (max-width: 1050px) {
@@ -2039,7 +2039,7 @@ a:focus-visible {
 
 .tone-title small {
   color: #bfc9ff;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 1px;
 }
@@ -2132,7 +2132,7 @@ a:focus-visible {
   background: rgba(255, 255, 255, 0.13);
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 8px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 1px;
 }
@@ -2845,7 +2845,7 @@ a:focus-visible {
 .shape-top small,
 .shape-side small {
   color: #697087;
-  font-size: 8px;
+  font-size: 9px;
   white-space: nowrap;
 }
 
@@ -2974,7 +2974,7 @@ a:focus-visible {
 
 .intro-step-button.active::before {
   content: "STEP ";
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .intro-step-button:focus-visible {

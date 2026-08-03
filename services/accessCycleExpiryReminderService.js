@@ -10,6 +10,7 @@ const {
 const {
   sendAdminUserEmail,
 } = require("./emailService");
+const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const HOUR_MS = 60 * 60 * 1000;
 const REMINDER_THRESHOLD_HOURS = Object.freeze([72, 24, 6]);
@@ -530,11 +531,15 @@ function startAccessCycleExpiryReminderScheduler({
   intervalMs = DEFAULT_SCHEDULER_INTERVAL_MS,
 } = {}) {
   if (reminderScheduleTimer) return reminderScheduleTimer;
-  runAccessCycleExpiryReminderSchedule().catch((error) => {
+  const run = () => withSchedulerLease(
+    { name: "ACCESS_CYCLE_EXPIRY_REMINDERS", leaseMs: 5 * 60 * 1000 },
+    runAccessCycleExpiryReminderSchedule
+  );
+  run().catch((error) => {
     console.error("학습권 이용 종료 예정 알림 초기 실행 실패:", error);
   });
   reminderScheduleTimer = setInterval(() => {
-    runAccessCycleExpiryReminderSchedule().catch((error) => {
+    run().catch((error) => {
       console.error("학습권 이용 종료 예정 알림 스케줄 실패:", error);
     });
   }, Math.max(Number(intervalMs) || 0, 1000));

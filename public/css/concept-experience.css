@@ -52,7 +52,7 @@
 
 .review-mode-banner p {
   margin: 0 0 4px;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.2px;
 }
@@ -69,7 +69,7 @@
 .review-mode-banner small {
   margin-top: 4px;
   color: #8e7a52;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.55;
 }
 
@@ -84,7 +84,7 @@
   background: #bd7915;
   border: 0;
   border-radius: 10px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
   cursor: pointer;
   white-space: nowrap;
@@ -157,7 +157,7 @@
 .experience-heading p {
   margin: 0 0 8px;
   color: var(--blue);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.3px;
 }
@@ -320,7 +320,7 @@
 .concept-type-guide .guide-label {
   margin: 15px 0 7px;
   color: #8b93a7;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -361,7 +361,7 @@
   color: #fff;
   background: #3157f6;
   border-radius: 6px;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .guide-process strong {
@@ -605,7 +605,7 @@
 
 .concept-step-grid span {
   color: var(--blue);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -735,7 +735,7 @@
   display: block;
   margin-bottom: 5px;
   color: var(--blue);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.2px;
 }
@@ -839,7 +839,7 @@
 .lab-controls p {
   margin: 0 0 10px;
   color: #747d92;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -855,7 +855,7 @@
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 9px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 750;
   text-align: left;
   cursor: pointer;
@@ -876,7 +876,7 @@
   display: flex;
   justify-content: space-between;
   color: #596176;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 750;
 }
 
@@ -899,7 +899,7 @@
 
 .lab-tip b {
   color: var(--blue);
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .lab-tip p {
@@ -928,7 +928,7 @@
 .lab-formula span {
   flex: 0 0 auto;
   color: #949bad;
-  font-size: 8px;
+  font-size: 9px;
   white-space: nowrap;
 }
 
@@ -1110,7 +1110,7 @@
 
 .transformation-card small {
   color: var(--blue);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1px;
   line-height: 1.55;
@@ -1137,7 +1137,7 @@
 
 .transformation-card p {
   margin: 0;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.55;
   text-align: center;
 }
@@ -1182,7 +1182,7 @@
   border: 1px solid #dfe4f1;
   border-radius: 999px;
   box-shadow: 0 5px 13px rgba(29, 42, 103, 0.08);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 750;
   pointer-events: none;
 }
@@ -1216,7 +1216,7 @@
 
 .limit-readout span {
   color: #969daf;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .limit-readout strong {
@@ -1279,7 +1279,7 @@
   display: flex;
   justify-content: space-between;
   color: var(--blue);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -1407,7 +1407,7 @@
 .mastery-card > p {
   margin: 0;
   color: var(--blue);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.2px;
 }
@@ -1508,14 +1508,14 @@
 .concept-complete-toggle small {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 7px;
+  font-size: 9px;
   line-height: 1.5;
 }
 
 .mastery-notice {
   margin: 12px 0 0;
   color: #9299aa;
-  font-size: 7px;
+  font-size: 9px;
   line-height: 1.6;
 }
 

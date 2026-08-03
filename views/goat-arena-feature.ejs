@@ -31,8 +31,8 @@
         </article>
         <article>
           <small>현재 Arena 상태</small>
-          <strong><%= standing ? `${standing.tier} ${standing.arenaPosition}위` : "—" %></strong>
-          <span><%= standing ? `${standing.gp} GOAT Point` : "현재 Division 순위가 아직 없습니다." %></span>
+          <strong><%= arenaAccess.standing ? `${arenaAccess.standing.tier} ${arenaAccess.standing.arenaPosition}위` : "—" %></strong>
+          <span><%= arenaAccess.standing ? `${arenaAccess.standing.gp} GOAT Point` : "현재 Division 순위가 아직 없습니다." %></span>
         </article>
         <article>
           <small>사용 가능 학습일수</small>
@@ -42,19 +42,57 @@
       </section>
 
       <% if (hasDivisionAccess) { %>
-        <section class="arena-feature-section" aria-labelledby="feature-ready-title">
+        <section class="arena-feature-section arena-live-feature" aria-labelledby="feature-live-title">
           <header>
             <div>
-              <small>기능 준비</small>
-              <h2 id="feature-ready-title">이 기능을 사용할 준비가 되어 있습니다.</h2>
+              <small><%= featureData?.eyebrow || "LIVE DATA" %></small>
+              <h2 id="feature-live-title"><%= featureData?.title || feature.name %></h2>
             </div>
-            <p>소속 Division, 이용 권한, 남은 학습일수와 현재 운영 규칙을 확인한 뒤 이 화면에서 기능을 시작합니다.</p>
+            <p><%= featureData?.description || "권위 DB에서 불러온 최신 상태입니다." %></p>
           </header>
-          <div class="arena-feature-grid">
-            <button type="button" disabled><span>01</span><strong>현재 상태 확인</strong><em>진행 중 경기와 사용 가능한 권한을 불러옵니다.</em><i aria-hidden="true">✓</i></button>
-            <button type="button" disabled><span>02</span><strong>정책 조건 확인</strong><em>경기 생성 시점의 Division 정책과 학습일수 조건을 고정합니다.</em><i aria-hidden="true">✓</i></button>
-            <button type="button" disabled><span>03</span><strong>기능 준비 중</strong><em><%= feature.name %>의 실행 기능은 다음 업데이트에서 열립니다.</em><i aria-hidden="true">→</i></button>
-          </div>
+
+          <% if (featureData?.cards?.length) { %>
+            <div class="arena-live-metrics" aria-label="현재 상태 요약">
+              <% featureData.cards.forEach((card) => { %>
+                <article>
+                  <small><%= card.label %></small>
+                  <strong><%= card.value %></strong>
+                </article>
+              <% }) %>
+            </div>
+          <% } %>
+
+          <% if (featureData?.items?.length) { %>
+            <div class="arena-live-list">
+              <% featureData.items.forEach((item) => { %>
+                <article class="arena-live-item">
+                  <div class="arena-live-item-copy">
+                    <span><%= item.status || "기록" %></span>
+                    <strong><%= item.title %></strong>
+                    <p><%= item.description %></p>
+                  </div>
+                  <div class="arena-live-item-meta">
+                    <% if (item.occurredAt) { %>
+                      <time datetime="<%= new Date(item.occurredAt).toISOString() %>"><%= new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(item.occurredAt)) %></time>
+                    <% } %>
+                    <% if (item.href) { %>
+                      <a href="<%= item.href %>"><%= item.hrefLabel || "확인" %></a>
+                    <% } %>
+                  </div>
+                </article>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="arena-live-empty">
+              <span aria-hidden="true">◇</span>
+              <strong><%= featureData?.emptyMessage || "현재 표시할 기록이 없습니다." %></strong>
+              <p>새 기록이 생성되면 이 화면에 자동으로 반영됩니다.</p>
+            </div>
+          <% } %>
+
+          <% if (featureData?.action) { %>
+            <p class="arena-live-action"><a href="<%= featureData.action.href %>"><%= featureData.action.label %> <span aria-hidden="true">→</span></a></p>
+          <% } %>
         </section>
       <% } else { %>
         <section class="arena-access-gate">

@@ -180,7 +180,7 @@
 .retry-header > div > span,
 .graph-hint-panel > header span {
   color: var(--blue);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.3px;
 }
@@ -228,7 +228,7 @@
   color: #71798e;
   background: #f4f6fb;
   border-radius: 7px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 750;
 }
 
@@ -646,7 +646,7 @@
 
 .review-concept-guide summary b {
   color: #3157f6;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .review-concept-guide summary span {
@@ -675,7 +675,7 @@
   display: block;
   margin: 11px 0 3px;
   color: #3157f6;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .review-concept-guide details > div p {
@@ -699,7 +699,7 @@
   border: 1px solid #dfe4f1;
   border-radius: 999px;
   box-shadow: 0 5px 13px rgba(29, 42, 103, 0.08);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 750;
   pointer-events: none;
 }

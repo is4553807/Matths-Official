@@ -56,7 +56,7 @@
       <a class="arena-challenge-back" href="/goat-arena/main">← Main Division으로 돌아가기</a>
       <header class="arena-page-heading arena-shop-heading">
         <div>
-          <p>MAIN DIVISION SHOP</p>
+          <p>Main Division 상점</p>
           <h1>경기로 얻은 시간을<br />다음 성장에 사용하세요.</h1>
         </div>
         <p>승패나 GP를 사는 상점이 아닙니다. 분석·일정·장식 기능만 제공하며, 초대 예약과 경기 예치 학습일수는 사용할 수 없습니다.</p>
@@ -68,7 +68,7 @@
           <strong><%= shopData.availableLearningDays %><span>일</span></strong>
         </div>
         <p>모든 구매는 사용 가능 학습일수에서 즉시 정산됩니다. 구매 뒤 최소 1일은 반드시 남아야 합니다.</p>
-        <span>정책 <%= shopData.policyVersionCode %></span>
+        <span><%= shopData.policyDisplayName || "Main Division 상점 운영 정책" %><% if (shopData.policyEffectiveFrom) { %> · <%= dateTime(shopData.policyEffectiveFrom) %> 적용<% } %></span>
       </section>
 
       <% if (shopMessage) { %><p class="arena-challenge-notice success" role="status"><%= shopMessage %></p><% } %>
@@ -106,6 +106,8 @@
                     </select>
                   </label>
                 <% } %>
+                <p class="arena-shop-terms">가격 <b><%= item.priceDays %>일</b> · <%= item.itemCode === "MATCH_ANALYSIS" ? "생성 실패 시 자동 반환" : "정상 적용 뒤 단순 변심 반환 불가" %> · 사용 기간은 위 기능 설명을 따릅니다.</p>
+                <label class="arena-shop-confirm"><input type="checkbox" name="purchaseConfirmed" value="1" required /><span>가격·효과·사용 기간·반환 조건을 확인했습니다.</span></label>
                 <button type="submit" <%= shopData.sundayLocked ? "disabled" : "" %>>사용하기</button>
               </form>
             <% } %>
@@ -115,12 +117,13 @@
 
       <% if (shopData.effects.length) { %>
         <section class="arena-shop-history">
-          <header><small>ACTIVE EFFECTS</small><h2>적용 중인 기능</h2></header>
+          <header><small>사용 중</small><h2>적용 중인 기능</h2></header>
           <div>
             <% shopData.effects.forEach((effect) => { %>
               <article>
-                <strong><%= itemCopy[effect.itemCode]?.eyebrow || effect.itemCode %></strong>
+                <strong><%= itemCopy[effect.itemCode]?.eyebrow || "Main Division 기능" %></strong>
                 <span><%= effect.status === "PENDING" ? "분석 생성 중" : effect.status === "APPLIED" ? "적용 완료" : `${dateTime(effect.endsAt)}까지` %></span>
+                <% if (effect.itemCode === "MATCH_ANALYSIS" && effect.status === "APPLIED") { %><a href="/goat-arena/main/shop/analyses/<%= effect._id %>">상세 분석 보기 →</a><% } %>
               </article>
             <% }) %>
           </div>

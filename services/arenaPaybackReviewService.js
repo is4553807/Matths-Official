@@ -183,7 +183,14 @@ async function holdPaybackReviewForPendingMatch({
   return { held: true, review };
 }
 
-function mainCycleDraft({ cycle, mainDays, carryoverDays, bonusDays, now }) {
+function mainCycleDraft({
+  cycle,
+  mainDays,
+  carryoverDays,
+  bonusDays,
+  dormancyRestoreDays = 0,
+  now,
+}) {
   const startsAt = new Date(now);
   const nominalExpiresAt = new Date(
     startsAt.getTime() + Math.max(1, mainDays) * DAY_MS
@@ -217,6 +224,12 @@ function mainCycleDraft({ cycle, mainDays, carryoverDays, bonusDays, now }) {
       {
         sourceType: "MAIN_ENTRY_BONUS",
         availableDays: bonusDays,
+        reservedDays: 0,
+        lockedDays: 0,
+      },
+      {
+        sourceType: "MAIN_DORMANCY_RESTORE",
+        availableDays: dormancyRestoreDays,
         reservedDays: 0,
         lockedDays: 0,
       },
@@ -336,6 +349,11 @@ async function finalizePaybackReview({
         result = { review: existing, cycle, replayed: true };
         return;
       }
+      const existingAccessState = await ArenaAccessState.findOne({
+        userId: cycle.userId,
+      })
+        .session(session)
+        .lean();
 
       const unresolvedMatches = await unresolvedMatchesForCycle(cycle, session);
       if (unresolvedMatches.length) {
@@ -370,7 +388,15 @@ async function finalizePaybackReview({
           0,
           decision.inputs.paybackScoreDays - carryoverBaseDays
         );
-        const mainDays = carryoverDays + bonusDays;
+        const dormancyRestoreDays =
+          existingAccessState?.mainDormancyRecoveryMode ===
+            "RESTORE_ON_MAIN_REENTRY"
+            ? Math.max(
+                0,
+                numeric(existingAccessState.mainDormancyFrozenLearningDays)
+              )
+            : 0;
+        const mainDays = carryoverDays + bonusDays + dormancyRestoreDays;
         const mainCycleId = new mongoose.Types.ObjectId();
 
         mainStanding = await createOrActivateMainStanding({
@@ -403,6 +429,7 @@ async function finalizePaybackReview({
                 mainDays,
                 carryoverDays,
                 bonusDays,
+                dormancyRestoreDays,
                 now: reviewedAt,
               }),
             },
@@ -438,6 +465,25 @@ async function finalizePaybackReview({
             availableLearningDaysDelta: bonusDays,
             sourceBucket: "MAIN_ENTRY_BONUS",
             balanceAfter: {
+              availableLearningDays: carryoverDays + bonusDays,
+              paybackScoreDays: 0,
+              lockedLearningDays: 0,
+              reservedLearningDays: 0,
+            },
+            sourceType: "SUB_PAYBACK_REVIEW",
+            sourceId: reviewId,
+            occurredAt: reviewedAt,
+          });
+        }
+        if (dormancyRestoreDays > 0) {
+          ledgers.push({
+            userId: cycle.userId,
+            accessCycleId: mainCycleId,
+            idempotencyKey: `${cycle._id}:MAIN_DORMANCY_RESERVE_RESTORED`,
+            eventType: "MAIN_DORMANCY_RESERVE_RESTORED",
+            availableLearningDaysDelta: dormancyRestoreDays,
+            sourceBucket: "MAIN_DORMANCY_RESTORE",
+            balanceAfter: {
               availableLearningDays: mainDays,
               paybackScoreDays: 0,
               lockedLearningDays: 0,
@@ -446,6 +492,10 @@ async function finalizePaybackReview({
             sourceType: "SUB_PAYBACK_REVIEW",
             sourceId: reviewId,
             occurredAt: reviewedAt,
+            metadata: {
+              priorAccessStateId: existingAccessState?._id,
+              restoredAfterMainReentry: true,
+            },
           });
         }
         if (ledgers.length) {
@@ -461,6 +511,12 @@ async function finalizePaybackReview({
               state: "PAID_ACTIVE",
               mainAchievementStatus: "ACHIEVED",
               currentSeasonPlacementCompleted: true,
+              lastMainQualifyingActivityAt: null,
+              mainInactivityStartedAt: null,
+              mainInactivityStartAvailableDays: null,
+              mainDormancyStartedAt: null,
+              mainDormancyFrozenLearningDays: null,
+              mainDormancyRecoveryMode: null,
               defensePoolEligible: true,
               weeklyMockEligible: true,
               finalRankingActive: true,
@@ -511,6 +567,7 @@ async function finalizePaybackReview({
               payload: {
                 sourceSubCycleId: cycle._id,
                 mainStartingLearningDays: mainDays,
+                dormancyRestoredLearningDays: dormancyRestoreDays,
               },
             },
           ],

@@ -45,7 +45,7 @@
           <%- examData.pendingAggregation ? `data-private-mock-result-pending data-server-now="${examData.serverNow}" data-results-at="${examData.resultsAvailableAt}"` : "" %>
         >
           <p>제출 완료</p>
-          <h2><%= examData.exam.isTest ? "TEST 회차" : `${examData.exam.formCode}형` %> 답안 제출이 완료되었습니다.</h2>
+          <h2><%= examData.exam.isTest ? "CUSTOM 회차" : `${examData.exam.formCode}형` %> 답안 제출이 완료되었습니다.</h2>
           <% if (examData.integrityReview) { %>
             <div class="private-mock-integrity-notice" role="alert">
               <strong>시험 기록 확인을 위해 풀이과정 제출이 필요합니다.</strong>
@@ -61,7 +61,7 @@
               <p>마감 직후 자동으로 다시 확인합니다.</p>
             </div>
           <% } else { %>
-            <span><%= examData.exam.isTest ? "OMR 확인용 TEST 결과입니다. 이 점수는 주간 GP나 랭킹에 반영되지 않습니다." : "이 회차를 완료한 전체 응시자 기준으로 확정한 표준화 성적입니다." %></span>
+            <span><%= examData.exam.isTest ? "운영 확인용 CUSTOM 결과입니다. 이 점수는 주간 GP나 랭킹에 반영되지 않습니다." : "이 회차를 완료한 전체 응시자 기준으로 확정한 표준화 성적입니다." %></span>
             <div>
               <article><small>표준화 성적</small><strong><%= examData.result.standardizedPerformance %><i>/100</i></strong></article>
               <article><small>총점 백분위</small><strong><%= examData.result.totalPercentile %><i>%</i></strong></article>

@@ -126,7 +126,7 @@
   color: #168361;
   background: #e5f7f0;
   border-radius: 999px;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .contact-identity > div {
@@ -178,7 +178,7 @@
 
 .contact-identity dt {
   color: #8d94a7;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .contact-identity dd {
@@ -364,7 +364,7 @@
 
 .inquiry-form label small {
   color: #999fb0;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 650;
 }
 
@@ -422,7 +422,7 @@
   max-width: 410px;
   margin: 0;
   color: #8a91a4;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.65;
 }
 
@@ -494,7 +494,7 @@
   color: #3157f6;
   background: #e8edff;
   border-radius: 10px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
 }
 
@@ -510,7 +510,7 @@
 .support-process li p {
   margin: 0;
   color: #858c9f;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.55;
 }
 
@@ -546,7 +546,7 @@
 
 .recent-inquiries li small {
   color: #9aa0b0;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .recent-inquiries li > span {
@@ -554,7 +554,7 @@
   color: #3157f6;
   background: #e9edff;
   border-radius: 999px;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -634,7 +634,7 @@
 .faq-return p {
   margin: 0;
   color: #8994b5;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.5;
 }
 

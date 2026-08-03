@@ -262,6 +262,55 @@ const FIRST_MONTH_METRICS = Object.freeze([
       "reasonCode",
     ],
   },
+  {
+    key: "match.question_type_sample_count",
+    label: "T등급·유형별 1대1 경기 표본 수",
+    unit: "count",
+    category: "question-calibration",
+    dimensions: ["division", "difficultyTier", "defenderTier", "typeId", "policyVersion"],
+  },
+  {
+    key: "match.defender_question_accuracy",
+    label: "T등급·유형별 방어자 문항 정답률",
+    unit: "percent",
+    category: "question-calibration",
+    dimensions: ["division", "difficultyTier", "defenderTier", "typeId", "policyVersion"],
+  },
+  {
+    key: "match.challenger_question_accuracy",
+    label: "T등급·유형별 도전자 문항 정답률",
+    unit: "percent",
+    category: "question-calibration",
+    dimensions: ["division", "difficultyTier", "defenderTier", "typeId", "policyVersion"],
+  },
+  {
+    key: "match.defender_challenger_accuracy_gap",
+    label: "T등급별 방어자·도전자 정답률 차이",
+    unit: "percent-point",
+    category: "question-calibration",
+    dimensions: ["division", "difficultyTier", "defenderTier", "policyVersion"],
+  },
+  {
+    key: "match.perfect_score_rate",
+    label: "T등급별 100점 경기 비율",
+    unit: "percent",
+    category: "question-calibration",
+    dimensions: ["division", "difficultyTier", "policyVersion"],
+  },
+  {
+    key: "match.zero_score_rate",
+    label: "T등급별 무득점 경기 비율",
+    unit: "percent",
+    category: "question-calibration",
+    dimensions: ["division", "difficultyTier", "policyVersion"],
+  },
+  {
+    key: "match.complete_tie_rate",
+    label: "T등급별 완전 동점 경기 비율",
+    unit: "percent",
+    category: "question-calibration",
+    dimensions: ["division", "difficultyTier", "policyVersion"],
+  },
 ]);
 
 const FIRST_MONTH_ASSUMPTIONS = Object.freeze([

@@ -193,7 +193,8 @@ const fixedForm =
 const testForm =
   parsePrivateMockExamDate(
     "2026-07-29",
-    "TEST"
+    "CUSTOM",
+    "2026-07-29T19:00"
   );
 const testSchedule =
   buildPrivateMockSchedule(
@@ -226,6 +227,10 @@ assert.equal(
 );
 assert.equal(
   testForm.isTest,
+  true
+);
+assert.equal(
+  testForm.isCustom,
   true
 );
 assert.equal(

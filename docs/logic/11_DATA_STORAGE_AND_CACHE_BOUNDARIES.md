@@ -10,12 +10,12 @@
 
 | 영역 | 데이터 | 이유 |
 |---|---|---|
-| 계정 | User, 생년월일, 실명·생년월일·고등학교 조합의 동일인 탐지 해시, 학년·재학/졸업 상태 | 로그인·본인확인·권한의 원본 |
+| 계정 | User, 생년월일, 실명·생년월일·고등학교 조합의 동일인 탐지 해시, 학년·재학/졸업 상태, TTL 기반 WebSession | 로그인·본인확인·권한과 다중 서버 세션의 원본 |
 | 접속 사용량 | User.totalConnectedSeconds, User.lastConnectedAt | 로그인 활성 탭에서 서버가 실제 수신한 접속 구간의 누적 원본 |
 | 결제 | 주문, 결제, 환불, 페이백 지급 | 금전 감사와 법정 보존 |
-| 모의고사 전용 상품 | MockExamPackagePolicyVersion, MockExamSubscription | 학습권 패키지와 배치고사·Arena 권한이 섞이지 않는 가격·이용권 원본 |
+| Matths 주간 공식 모의고사 이용권 | MockExamPackagePolicyVersion, MockExamSubscription | 29일 학습권 패키지와 배치고사·Arena 권한이 섞이지 않는 가격·이용권 원본 |
 | 학습권·페이백 | AccessCycle의 사용 가능·초대 예약·경기 예치 잔액, 별도 페이백 점수, 29일 전일 학습 기록과 출처 bucket, ArenaLearningDayLedger | 학습 가능 일수와 페이백 점수를 섞지 않고 잔액·자격·모든 증감을 재구성 |
-| Arena | ArenaStanding, ArenaAccessState, ArenaMatch, MainInvitationRequest, ArenaProblemPack, ArenaMatchAttempt, 문항별·전체 풀이시간, 답안 변경·heartbeat·focus 이벤트, 풀이 증거 메타데이터·해시, 대결 결과·이의·무결성 | GP·티어·티어 내 순위·초대 예약·공식 경기 복구와 이의 처리의 원본 |
+| Arena | ArenaStanding, ArenaAccessState, ArenaMatch, MainInvitationRequest, ArenaProblemDataVersion, ArenaProblemPack, ArenaMatchAttempt, 문항별·전체 풀이시간, 답안 변경·heartbeat·focus 이벤트, 풀이 증거 메타데이터·해시, 대결 결과·이의·무결성 | GP·티어·티어 내 순위·초대 예약·활성 문제 구성·공식 경기 복구와 이의 처리의 원본 |
 | Main 상점 | MainShopPolicyVersion, MainShopPurchase, MainShopEffect, 상점 원장 거래, 보험 취소 경기 연결 | 가격 비소급·중복 차감 방지·효과·쿨다운·반환 감사의 원본 |
 | 정책 | SubscriptionPolicyVersion, MainDivisionPolicyVersion, FinalRankingPolicyVersion, AccessCycle.policySnapshot | 정책 변경의 비소급 적용 |
 | 평가 | 답안, 제출 시각, 공식 채점 결과, MMR | 공식 결과와 이의 처리 |
@@ -37,6 +37,7 @@ Arena GP는 티어마다 0~99로 저장하고 `gpScaleVersion`을 함께 보존�
 | Main 목표 티어별 후보 수·가용 여부 | 1~3초 | 순위·잔액·참가자 잠금·초대 상태 변경 후 |
 | Main 방어 후보·초대 대기열 파생 결과 | 1~3초 | 방어 휴식권·초대 가속권 효과 생성·만료·취소 후 |
 | 활성 Arena 정책 읽기 | 30초 | 정책 활성화·폐기 직후 |
+| 활성 Arena 문제 데이터 버전 | 15초 | 새 버전 적용 직후 Change Stream으로 즉시 무효화, Change Stream 미지원 시 TTL 만료 |
 | 관리자 월별 분석 차트 | 1~5분 | 새 Observation 반영 후 |
 | 공개 게시판 목록·공지 | 10~30초 | 글 작성·수정·고정·제재 후 |
 
@@ -62,11 +63,13 @@ Main 무작위 상대 선정은 결과만 캐시에 두지 않는다. `MainInvit
 
 Main 상점 구매와 효과를 프로세스 메모리에만 두지 않는다. 가격 정책 사본, 차감 전후 잔액, 소각·보상·반환 원장, 활성 효과와 쿨다운은 MongoDB 권위값으로 저장한다. 방어 휴식 후보 제외와 초대 가속 우선순위 결과는 짧게 캐시할 수 있지만, 캐시가 없어져도 `MainShopEffect`에서 정확히 복구해야 한다. 경기 분석 결과 본문은 보호 파일 저장소를 사용할 수 있으며 DB에는 생성 상태·생성기 버전·해시·파일 위치를 남긴다.
 
+Arena 문제 구성은 `ArenaProblemDataVersion`을 권위 원본으로 저장한다. 관리자는 서버에 등록된 검산 생성 유형만 사용 여부·배정 가중치·정답 범위와 T1~T9 선택으로 관리할 수 있고, ACTIVE 버전은 수정하지 않는다. 신규 `ArenaProblemPack`은 활성 문제 데이터 문서 ID와 코드를 해시에 포함해 봉인하므로 캐시가 비워지거나 관리자가 다음 버전을 적용해도 기존 경기 문제를 재구성하지 않는다. 수학 생성 함수와 검산 로직 자체는 배포 파일이며 DB 입력을 JavaScript로 평가하지 않는다.
+
 아카이브 폴더의 접근 권한은 DB 권위값으로 저장하고 하위 폴더가 상위 폴더보다 넓은 권한을 얻지 않게 상속 판정한다. `2026 Matths 사설 모의고사` 폴더는 기존 DB 문서에 권한값이 없어도 활성 학습권 패키지 사용자 전용으로 취급한다.
 
 ## 6. 운영 배포 주의
 
-현재 웹 세션은 Express 기본 메모리 저장소를 사용한다. 단일 개발 서버에서는 동작하지만 다중 인스턴스 운영에는 적합하지 않다. 배포 전 공유 세션 저장소를 연결하되, 세션에는 생년월일과 동일인 탐지 해시를 넣지 않는다.
+웹 세션은 MongoDB `webSessions` 컬렉션에 공유 저장하며 `expiresAt` TTL 인덱스로 자동 만료한다. 기본 유효기간은 7일이고 `SESSION_TTL_SECONDS`로 변경할 수 있다. 다중 서버가 같은 MongoDB를 사용하면 로그인 세션을 공유하며, 세션에는 생년월일과 동일인 탐지 해시를 넣지 않는다.
 
 접속시간은 heartbeat 원본 이벤트를 매분 별도 컬렉션에 무한 저장하지 않는다. 마지막 수신 시각과 누적 초만 `User`에 집계하며, 90초보다 긴 공백은 접속한 것으로 추정하지 않는다.
 

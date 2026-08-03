@@ -16,6 +16,13 @@ const {
 const {
   recordStudyActivity,
 } = require("./userLifecycleService");
+const {
+  isProblemTypeEnabled,
+  problemTypeSelectionWeight,
+} = require("./problemTypeControlCache");
+const {
+  validateCalculatorFreeProblem,
+} = require("./problemGenerators/utils");
 
 const QUICK_PRACTICE_LIMIT_MS = 40 * 1000;
 const MAX_GENERATION_ATTEMPTS = 40;
@@ -294,6 +301,24 @@ function pick(values) {
   }
 
   return values[randomInt(values.length)];
+}
+
+function quickPracticeEngineKey(templateKey, variantKey) {
+  return `quick-practice:${templateKey}:${variantKey}`;
+}
+
+function weightedQuickPracticePick(values, weightForValue) {
+  const weighted = values.map((value) => ({
+    value,
+    weight: Math.max(1, Number(weightForValue(value)) || 1),
+  }));
+  const total = weighted.reduce((sum, item) => sum + item.weight, 0);
+  let cursor = Math.random() * total;
+  for (const item of weighted) {
+    cursor -= item.weight;
+    if (cursor <= 0) return item.value;
+  }
+  return weighted.at(-1)?.value;
 }
 
 function nonZero(min, max) {
@@ -1489,17 +1514,27 @@ const templates = catalog.types.map(
     generate({
       excludedVariantKeys = [],
     } = {}) {
-      const available =
-        this.variants.filter(
-          (variant) =>
-            !excludedVariantKeys.includes(
-              variant.key
-            )
-        );
-      const variant = pick(
-        available.length
-          ? available
-          : this.variants
+      const enabledVariants = this.variants.filter((variant) =>
+        isProblemTypeEnabled(
+          "ASSESSMENT_CENTER",
+          quickPracticeEngineKey(this.key, variant.key)
+        )
+      );
+      const unrepeatedVariants = enabledVariants.filter(
+        (variant) => !excludedVariantKeys.includes(variant.key)
+      );
+      const available = unrepeatedVariants.length
+        ? unrepeatedVariants
+        : enabledVariants;
+      if (!enabledVariants.length) {
+        throw new Error(`${this.label}: 사용 중인 세부 출제 유형이 없습니다.`);
+      }
+      const variant = weightedQuickPracticePick(
+        available,
+        (item) => problemTypeSelectionWeight(
+          "ASSESSMENT_CENTER",
+          quickPracticeEngineKey(this.key, item.key)
+        )
       );
       const generator =
         generationByVariant[
@@ -1556,6 +1591,15 @@ function generateVerifiedProblem(
         undefined &&
       template.verify(generated)
     ) {
+      validateCalculatorFreeProblem(
+        {
+          ...generated,
+          inputMode: "short-answer",
+          choices: [],
+          calculatorFree: true,
+        },
+        { id: quickPracticeEngineKey(template.key, generated.variantKey) }
+      );
       return generated;
     }
   }
@@ -1583,10 +1627,66 @@ function chooseTemplate(
       !recentKeys.has(template.key)
   );
 
-  return pick(
-    available.length
-      ? available
-      : eligible
+  return weightedQuickPracticePick(
+    available.length ? available : eligible,
+    (template) => template.variants
+      .filter((variant) => isProblemTypeEnabled(
+        "ASSESSMENT_CENTER",
+        quickPracticeEngineKey(template.key, variant.key)
+      ))
+      .reduce(
+        (sum, variant) => sum + problemTypeSelectionWeight(
+          "ASSESSMENT_CENTER",
+          quickPracticeEngineKey(template.key, variant.key)
+        ),
+        0
+      )
+  );
+}
+
+function listQuickPracticeProblemTypes() {
+  return templates.flatMap((template) =>
+    template.variants.map((variant) => {
+      const engineKey = quickPracticeEngineKey(template.key, variant.key);
+      const generator = generationByVariant[`${template.generator}:${variant.key}`];
+      return {
+        id: engineKey,
+        label: `${template.label} · ${variant.label}`,
+        points: template.points,
+        templateKey: template.key,
+        variantKey: variant.key,
+        sourceParts: [
+          `// ${engineKey}`,
+          generator?.toString() || "",
+          expectedAnswer.toString(),
+        ],
+        generate() {
+          const generated = generator();
+          const answerMatches = template.verify(generated);
+          return {
+            ...generated,
+            inputMode: "short-answer",
+            choices: [],
+            hintText: "식을 간단히 정리한 뒤 원래 조건에 대입해 확인하세요.",
+            calculatorFree: true,
+            validityChecks: [
+              {
+                name: "independent-answer-check",
+                passed: answerMatches,
+                message: "독립 정답 계산 결과가 일치해야 합니다.",
+              },
+            ],
+            validation: {
+              calculatorFree: true,
+              answerMatches,
+            },
+          };
+        },
+        validate(problem) {
+          return template.verify(problem);
+        },
+      };
+    })
   );
 }
 
@@ -1695,8 +1795,19 @@ async function createQuickPracticeAttempt({
   const eligible = templates.filter(
     (item) =>
       item.points ===
-      normalizedPoints
+        normalizedPoints &&
+      item.variants.some((variant) =>
+        isProblemTypeEnabled(
+          "ASSESSMENT_CENTER",
+          quickPracticeEngineKey(item.key, variant.key)
+        )
+      )
   );
+  if (!eligible.length) {
+    const error = new Error("자동 검산을 통과해 사용 중인 40초 눈풀이 유형이 없습니다.");
+    error.status = 503;
+    throw error;
+  }
   const template = chooseTemplate(
     eligible,
     recentHistory
@@ -1974,4 +2085,6 @@ module.exports = {
   syncQuickPracticeWrongNotes,
   submitQuickPracticeAttempt,
   templates,
+  listQuickPracticeProblemTypes,
+  quickPracticeEngineKey,
 };

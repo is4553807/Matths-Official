@@ -44,7 +44,7 @@
         <div>
           <p>매주 일요일 3회 제공</p>
           <h1>Matths 주간 공식 모의고사 관리</h1>
-          <span>매주 A·B·C형 문제지 PDF, 채점용 JSON, 확인용 답지 PDF를 등록합니다. TEST는 2026년 7월 29일 오후 7시 OMR 확인 전용이며 정식 랭킹에 반영되지 않습니다.</span>
+          <span>매주 A·B·C형 문제지 PDF, 채점용 JSON, 확인용 답지 PDF를 등록합니다. CUSTOM은 운영자가 날짜와 시간을 직접 정하는 점검용 회차이며 정식 랭킹에 반영되지 않습니다.</span>
         </div>
         <strong><%= examData.exams.length %><small>개 회차</small></strong>
       </header>
@@ -74,7 +74,7 @@
                 <input name="titles" minlength="2" maxlength="120" placeholder="예: 2026년 8월 첫째 주 Matths 주간 공식 모의고사" required />
               </label>
               <div class="private-mock-fixed-schedule-row">
-                <label>
+                <label data-private-mock-official-date>
                   <span>시험 날짜</span>
                   <input type="date" name="examDates" value="<%= examData.defaultExamDate %>" data-private-mock-exam-date required />
                   <small data-private-mock-date-guide>한국시간 기준 일요일만 등록할 수 있습니다.</small>
@@ -86,14 +86,20 @@
                       <option
                         value="<%= schedule.formCode %>"
                         data-fixed-date="<%= schedule.fixedDate || "" %>"
-                      ><%= schedule.isTest ? "TEST · OMR 확인용" : `${schedule.formCode}형 · ${schedule.attemptNumber}회차` %></option>
+                        data-is-custom="<%= schedule.isCustom ? "1" : "0" %>"
+                      ><%= schedule.isCustom ? "CUSTOM · 운영 시간 직접 지정" : `${schedule.formCode}형 · ${schedule.attemptNumber}회차` %></option>
                     <% }) %>
                   </select>
                 </label>
+                <label data-private-mock-custom-time hidden>
+                  <span>CUSTOM 공개 시각</span>
+                  <input type="datetime-local" name="customReleaseAts" data-private-mock-custom-release disabled />
+                  <small>한국시간(KST) 기준입니다. 요일과 시각 제한 없이 운영자가 직접 지정합니다.</small>
+                </label>
                 <div class="private-mock-fixed-time" aria-live="polite">
-                  <span>고정 응시 시간</span>
+                  <span data-private-mock-time-title>고정 응시 시간</span>
                   <strong data-private-mock-fixed-time><%= examData.formSchedules[0].label %></strong>
-                  <small>100분 · 한국시간 · 수정할 수 없음</small>
+                  <small data-private-mock-time-note>100분 · 한국시간 · 수정할 수 없음</small>
                 </div>
               </div>
               <label class="archive-admin-file-picker private-mock-file-picker">
@@ -164,7 +170,7 @@
                 <div>
                   <span class="private-mock-status <%= exam.status %>"><%= statusLabel[exam.status] || "상태 확인 필요" %></span>
                   <h3><%= exam.title %></h3>
-                  <p><strong><%= exam.isTest ? "TEST · OMR 확인용" : `${exam.formCode || "?"}형 · ${exam.attemptNumber || "?"}회차` %></strong> · <%= exam.originalName %> · <%= exam.questionCount || "미확정" %>문항</p>
+                  <p><strong><%= exam.isTest ? "CUSTOM · 운영 확인용" : `${exam.formCode || "?"}형 · ${exam.attemptNumber || "?"}회차` %></strong> · <%= exam.originalName %> · <%= exam.questionCount || "미확정" %>문항</p>
                 </div>
                 <dl>
                   <div><dt>주차</dt><dd><%= exam.weekLabel || "이전 데이터" %></dd></div>
@@ -199,8 +205,8 @@
                     method="POST"
                     onsubmit="return confirm('이 예약 회차와 문제지 파일을 완전히 삭제할까요? 이 작업은 되돌릴 수 없습니다.');"
                   >
-                    <p><%= exam.isTest ? "TEST 확인이 끝나면 문제지·JSON·답지 PDF와 응시 기록을 함께 삭제할 수 있습니다." : "문제지·JSON·확인용 답지 PDF를 잘못 올렸다면 공개 전에 회차 전체를 삭제하고 다시 등록하세요." %></p>
-                    <button type="submit"><%= exam.isTest ? "TEST 회차 삭제" : "예약 회차 삭제" %></button>
+                    <p><%= exam.isTest ? "CUSTOM 확인이 끝나면 문제지·JSON·답지 PDF와 응시 기록을 함께 삭제할 수 있습니다." : "문제지·JSON·확인용 답지 PDF를 잘못 올렸다면 공개 전에 회차 전체를 삭제하고 다시 등록하세요." %></p>
+                    <button type="submit"><%= exam.isTest ? "CUSTOM 회차 삭제" : "예약 회차 삭제" %></button>
                   </form>
                 <% } %>
               </article>

@@ -176,7 +176,10 @@ const accountService = read(
 for (const expected of [
   "PasswordResetCode.deleteMany",
   "SupportInquiry.deleteMany",
+  "PolicyChangeDelivery.deleteMany",
   "AdminActionLog.updateMany",
+  "OperationalMetricEvent.updateMany",
+  "OperationalMetricEvent.deleteMany",
   "ConceptProgress.deleteMany",
   "ProblemAttempt.deleteMany",
   "AssessmentAttempt.deleteMany",

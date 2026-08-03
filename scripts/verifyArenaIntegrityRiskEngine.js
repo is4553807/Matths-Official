@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const {
+  RAPID_SUBMISSION_THRESHOLD_MS,
   REVIEW_THRESHOLD,
   calculateArenaIntegrityRisk,
   hashIntegritySignal,
@@ -9,6 +10,10 @@ const {
   normalizeIp,
   stableEvidenceHash,
 } = require("../services/arenaIntegrityRiskService");
+const {
+  FAST_COMPLETION_REVIEW_THRESHOLD_MS,
+  timingAnomalyFlags,
+} = require("../services/arenaMatchEvidenceService");
 
 const now = new Date("2026-08-02T12:00:00.000+09:00");
 const userId = "64b000000000000000000001";
@@ -68,6 +73,35 @@ const volumeRisk = calculateArenaIntegrityRisk({
 });
 assert.ok(volumeRisk.signalCodes.includes("EXTREME_DAILY_MATCH_VOLUME"));
 assert.ok(volumeRisk.riskScore >= REVIEW_THRESHOLD);
+
+assert.equal(RAPID_SUBMISSION_THRESHOLD_MS, 5 * 60 * 1000);
+assert.equal(FAST_COMPLETION_REVIEW_THRESHOLD_MS, 5 * 60 * 1000);
+assert.deepEqual(
+  timingAnomalyFlags({
+    attempt: { activeSolveTimeMs: 4 * 60 * 1000 },
+    scoring: {
+      questionResults: [
+        { correct: true, responseTimeMs: 45_000 },
+        { correct: true, responseTimeMs: 59_000 },
+        { correct: true, responseTimeMs: 60_000 },
+        { correct: true, responseTimeMs: 61_000 },
+      ],
+    },
+  }),
+  ["FAST_COMPLETION_UNDER_FIVE_MINUTES", "MULTIPLE_RAPID_CORRECT_ANSWERS"]
+);
+assert.deepEqual(
+  timingAnomalyFlags({
+    attempt: { activeSolveTimeMs: 5 * 60 * 1000 },
+    scoring: {
+      questionResults: [
+        { correct: true, responseTimeMs: 45_000 },
+        { correct: true, responseTimeMs: 59_000 },
+      ],
+    },
+  }),
+  []
+);
 
 assert.equal(stableEvidenceHash(sharedDevice), stableEvidenceHash(sharedDevice));
 assert.notEqual(stableEvidenceHash(sharedDevice), stableEvidenceHash(networkOnly));

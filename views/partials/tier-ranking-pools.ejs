@@ -44,7 +44,15 @@
       data-pool-panel="<%= pool.key %>"
       <%= pool.key === activeDivisionKey ? "" : "hidden" %>
     >
-      <% if (pool.current) { %>
+      <% if (pool.key !== activeDivisionKey) { %>
+        <article class="tier-ranking-viewing-notice" aria-label="다른 Division 순위 열람 안내">
+          <div>
+            <small><%= pool.label %> 순위 열람</small>
+            <strong><%= pool.label %> 전체 순위를 보고 있습니다.</strong>
+            <p>현재 소속은 <%= activeDivisionKey === "MAIN" ? "Main Division" : "Sub Division" %>이며, 다른 Division에서는 개인 순위 카드 없이 해당 Division의 실제 순위만 표시됩니다.</p>
+          </div>
+        </article>
+      <% } else if (pool.current) { %>
         <article class="tier-my-ranking <%= pool.current.hasMainProfileBorder ? 'has-main-shop-border' : '' %>" aria-label="나의 티어 내 랭킹">
           <div class="tier-my-ranking-identity">
             <%- include("rank-crest", {
@@ -86,7 +94,7 @@
             </h2>
             <p>
               <%= pool.key === "MAIN"
-                ? "Sub Division과 Main Division은 모두 열람할 수 있으며, Main Division 전환 데이터가 연결되면 내 랭킹이 이곳에 표시됩니다."
+                ? "Sub Division과 Main Division 순위는 모두 열람할 수 있습니다."
                 : "배치고사 뒤 Arena 순위가 확정되면 내 티어 안의 순위가 표시됩니다." %>
             </p>
           </div>
@@ -104,7 +112,7 @@
             </h3>
             <p>랭킹 숫자는 선택한 티어 안에서의 순위입니다.</p>
             <% if (pool.dataState === "arena-standing") { %>
-              <p>현재 Sub Division 목록은 확정된 GP와 티어 내 순위를 사용합니다.</p>
+              <p>현재 <%= pool.label %> 목록은 확정된 GP와 티어 내 순위를 사용합니다.</p>
             <% } %>
           </div>
 
@@ -126,14 +134,7 @@
           <% } %>
         </header>
 
-        <% if (!pool.tierBoards.length) { %>
-          <div class="tier-ranking-empty">
-            <strong><%= pool.label %> 데이터 연결 대기</strong>
-            <span>
-              Arena 티어·티어 내 순위·GP가 확정되면 랭킹이 표시됩니다.
-            </span>
-          </div>
-        <% } else { %>
+        <% if (pool.tierBoards.length) { %>
           <% pool.tierBoards.forEach((board) => { %>
             <div
               class="tier-board-panel"

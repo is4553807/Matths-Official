@@ -49,7 +49,7 @@
 .ranking-board-heading p {
   margin: 0 0 9px;
   color: #8fa2ff;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.7px;
 }
@@ -91,7 +91,7 @@
 
 .command-rank-copy small {
   color: #8f9bc0;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .command-rank-copy strong {
@@ -311,7 +311,7 @@
   small {
   margin: 0;
   color: rgba(226, 233, 255, 0.62);
-  font-size: 6px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 1.45px;
   line-height: 1;
@@ -702,7 +702,7 @@
   > p {
   margin: 0 0 9px;
   color: #8fa2ff;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.7px;
 }
@@ -792,7 +792,7 @@
 
 .my-ranking-tier small {
   color: #9ba7ca;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .my-ranking-grid {
@@ -816,7 +816,7 @@
 
 .my-ranking-grid dt {
   color: #929fc5;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .my-ranking-grid dd {
@@ -1009,7 +1009,7 @@
   display: block;
   margin-top: 4px;
   color: #9aa2b5;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .ranking-head {
@@ -1017,7 +1017,7 @@
   color: #9aa2b5;
   background: transparent;
   border-color: transparent;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 850;
 }
 

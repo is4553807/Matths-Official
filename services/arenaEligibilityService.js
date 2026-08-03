@@ -4,6 +4,7 @@ const ACTIVE_ACCESS_STATE =
 function packagePurchaseEligibility({
   availableLearningDays,
   reservedLearningDays = 0,
+  lockedPaybackScoreDays = 0,
   lockedLearningDays,
   hasPendingSettlement,
 }) {
@@ -13,6 +14,9 @@ function packagePurchaseEligibility({
   }
   if (Number(lockedLearningDays) !== 0) {
     reasons.push("LOCKED_BALANCE_REMAINS");
+  }
+  if (Number(lockedPaybackScoreDays) !== 0) {
+    reasons.push("LOCKED_PAYBACK_SCORE_REMAINS");
   }
   if (Number(reservedLearningDays) !== 0) {
     reasons.push("RESERVED_BALANCE_REMAINS");

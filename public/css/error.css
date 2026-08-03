@@ -1,8 +1,12 @@
+.matths-error-page,
+html:has(.matths-error-page) {
+  overflow-x: clip;
+}
+
 .matths-error-page {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  overflow-x: hidden;
   background:
     radial-gradient(circle at 12% 23%, rgba(216, 66, 238, 0.1), transparent 25rem),
     radial-gradient(circle at 86% 8%, rgba(25, 199, 233, 0.12), transparent 27rem),
@@ -17,6 +21,7 @@
   place-items: center;
   margin: 0 auto;
   padding: 68px 0 90px;
+  overflow: clip;
 }
 
 .matths-error-main::before,

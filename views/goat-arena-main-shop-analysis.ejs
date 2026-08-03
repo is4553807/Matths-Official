@@ -1,0 +1,91 @@
+<%
+  const formatDuration = (milliseconds) => {
+    const seconds = Math.max(0, Math.round(Number(milliseconds || 0) / 1000));
+    return `${Math.floor(seconds / 60)}분 ${String(seconds % 60).padStart(2, "0")}초`;
+  };
+  const formatDateTime = (value) => value
+    ? new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(value))
+    : "생성 중";
+  const isReady = analysis.status === "APPLIED" && analysis.analysisState === "READY";
+  const courseLabels = {
+    algebra: "대수",
+    "calculus-1": "미적분Ⅰ",
+    "probability-statistics": "확률과 통계",
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="GOAT Arena 경기 상세 분석 결과" />
+    <meta name="theme-color" content="#070913" />
+    <title>경기 상세 분석 | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <link rel="icon" type="image/jpeg" href="/images/goat-arena/goat-arena-logo.jpg" />
+  </head>
+  <body class="goat-arena-page arena-inner-page arena-shop-page">
+    <a class="arena-skip-link" href="#analysis-main">본문으로 바로가기</a>
+    <%- include("partials/goat-arena-navigation", { activeArenaPage, arenaUser }) %>
+    <main class="arena-page-main arena-analysis-main" id="analysis-main">
+      <a class="arena-challenge-back" href="/goat-arena/main/shop">← Main Division 상점으로 돌아가기</a>
+      <header class="arena-page-heading arena-analysis-heading">
+        <div><p>경기 복습</p><h1>경기 상세 분석</h1></div>
+        <p>경기 분석권을 사용한 본인에게만 봉인된 문제·정답·풀이과정을 공개합니다. 상대의 답안과 풀이 증거는 공개하지 않습니다.</p>
+      </header>
+      <% if (!isReady) { %>
+        <section class="arena-feature-lock"><span aria-hidden="true">◇</span><h2>분석 결과를 만들고 있습니다.</h2><p>최대 5분 동안 두 번 재시도하며, 끝내 만들지 못하면 사용한 학습일수 1일을 자동 반환합니다.</p></section>
+      <% } else { %>
+        <section class="arena-analysis-summary" aria-label="경기 분석 요약">
+          <article><small>경기 결과</small><strong><%= analysis.result === "WIN" ? "승리" : "패배" %></strong></article>
+          <article><small>점수</small><strong><%= analysis.score %><span>점</span></strong></article>
+          <article><small>정답 문항</small><strong><%= analysis.correctCount %><span>/ 5</span></strong></article>
+          <article><small>전체 풀이시간</small><strong><%= formatDuration(analysis.totalSolveTimeMs) %></strong></article>
+        </section>
+        <section class="arena-analysis-grid">
+          <article><small>다시 볼 문항</small><h2><%= analysis.incorrectQuestionKeys.length ? analysis.incorrectQuestionKeys.join(" · ") : "전 문항 정답" %></h2><p>아래 문항별 복습에서 실제 출제 문제와 정답, 풀이과정을 다시 확인할 수 있습니다.</p></article>
+          <article><small>취약 개념</small><h2><%= analysis.weakSkills.length ? analysis.weakSkills.join(" · ") : "뚜렷한 취약 개념 없음" %></h2><p>추천 복습 문제 <%= analysis.reviewProblemCount %>개를 기준으로 학습 순서를 구성하세요.</p></article>
+        </section>
+        <section class="arena-analysis-solutions" aria-labelledby="analysis-solution-title">
+          <header>
+            <div><small>SEALED MATCH REVIEW</small><h2 id="analysis-solution-title">문항별 풀이과정</h2></div>
+            <p>이번 경기에 실제로 봉인된 문제 팩을 기준으로 표시합니다. T1~T9 유형표에 연결된 문항은 같은 유형의 풀이 로드맵도 함께 제공합니다.</p>
+          </header>
+          <div class="arena-analysis-question-list">
+            <% (analysis.questionReviews || []).forEach((question) => { %>
+              <details class="arena-analysis-question <%= question.correct ? 'is-correct' : 'is-incorrect' %>" <%= question.correct ? '' : 'open' %>>
+                <summary>
+                  <span class="arena-analysis-question-number"><%= String(question.number).padStart(2, '0') %></span>
+                  <span><small><%= courseLabels[question.courseId] || question.courseId || '공통' %> · <%= question.typeId %></small><strong><%= question.correct ? '정답' : '복습 필요' %></strong></span>
+                  <span><small>내 답 <b><%= question.submittedAnswer || '미응답' %></b></small><small>정답 <b><%= question.correctAnswer %></b></small></span>
+                  <i aria-hidden="true">+</i>
+                </summary>
+                <div class="arena-analysis-question-body">
+                  <article class="arena-analysis-problem-copy"><small>출제 문제</small><p><%= question.prompt %></p></article>
+                  <dl class="arena-analysis-answer-strip">
+                    <div><dt>내 답안</dt><dd><%= question.submittedAnswer || '미응답' %></dd></div>
+                    <div><dt>정답</dt><dd><%= question.correctAnswer %></dd></div>
+                    <div><dt>풀이시간</dt><dd><%= question.responseTimeMs == null ? '기록 없음' : formatDuration(question.responseTimeMs) %></dd></div>
+                    <div><dt>획득 점수</dt><dd><%= question.pointsAwarded %>점</dd></div>
+                  </dl>
+                  <article class="arena-analysis-exact-solution"><small>이번 문항 계산</small><h3>정답까지의 풀이</h3><p><%= question.solution || '이 문항의 상세 계산 풀이를 확인할 수 없습니다.' %></p></article>
+                  <% if (question.referenceSolutionProcess?.length) { %>
+                    <article class="arena-analysis-reference-solution"><small>T1~T9 유형 풀이 기준</small><h3>유형 풀이 로드맵</h3><ol><% question.referenceSolutionProcess.forEach((step) => { %><li><b><%= step.step %></b><span><%= step.explanation %></span></li><% }) %></ol><% if (question.referenceFinalCheck) { %><p><strong>마지막 점검</strong><%= question.referenceFinalCheck %></p><% } %></article>
+                  <% } %>
+                </div>
+              </details>
+            <% }) %>
+          </div>
+        </section>
+        <section class="arena-analysis-checklist"><header><small>추천 복습 순서</small><h2>다음 학습에서 확인하세요.</h2></header><ol><% (analysis.checklist.length ? analysis.checklist : ["정답 문항의 풀이시간을 다시 확인하기"]).forEach((item) => { %><li><%= item %></li><% }) %></ol><p>분석 생성: <%= formatDateTime(analysis.generatedAt) %></p></section>
+      <% } %>
+    </main>
+  </body>
+</html>

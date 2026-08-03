@@ -149,7 +149,7 @@
 .review-focus small {
   margin-top: 9px;
   color: #79849f;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .review-breakdown {
@@ -264,7 +264,7 @@
 
 .review-filter label > span {
   color: #838b9f;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -347,7 +347,7 @@
 .result-heading > div > p {
   margin: 0 0 7px;
   color: var(--blue);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.3px;
 }
@@ -425,7 +425,7 @@
 
 .wrong-number small {
   margin-top: 7px;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -454,7 +454,7 @@
 
 .problem-origin small {
   color: #969daf;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .review-state {
@@ -466,7 +466,7 @@
 .review-state > span {
   padding: 6px 9px;
   border-radius: 8px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -487,7 +487,7 @@
 
 .review-state small {
   color: #969daf;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .wrong-item-body > h3 {
@@ -531,7 +531,7 @@
   color: #687086;
   background: #eff2f7;
   border-radius: 999px;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .problem-meta .difficulty {
@@ -605,7 +605,7 @@
   align-items: center;
   gap: 8px;
   color: #8e95a8;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .attempt-details summary i {
@@ -638,7 +638,7 @@
 
 .attempt-details > div span {
   color: #969daf;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .attempt-details > div strong {
@@ -665,7 +665,7 @@
   gap: 8px;
   margin: 0;
   color: #778096;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .wrong-item-actions > p span {

@@ -16,6 +16,7 @@ const {
   UserNotification,
 } = require("../models/matthsModel");
 const { createAdminTodo } = require("./adminTodoService");
+const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const POLICY_VERSION = "ARENA-INTEGRITY-RISK-V1";
 const REVIEW_THRESHOLD = 40;
@@ -42,6 +43,7 @@ const MATCH_STATUSES_FOR_RISK = [
 ];
 const SESSION_SIGNAL_WRITE_THROTTLE_MS = 10 * 60 * 1000;
 const MAX_SIGNAL_WRITE_CACHE_ENTRIES = 10000;
+const RAPID_SUBMISSION_THRESHOLD_MS = 5 * 60 * 1000;
 
 let schedulerTimer = null;
 let schedulerRunning = false;
@@ -261,7 +263,10 @@ function calculateArenaIntegrityRisk({
     ) {
       stats.zeroScoreLosses += 1;
     }
-    if (Number(ownAttempt?.activeSolveTimeMs) > 0 && Number(ownAttempt.activeSolveTimeMs) < 60000) {
+    if (
+      Number(ownAttempt?.activeSolveTimeMs) > 0 &&
+      Number(ownAttempt.activeSolveTimeMs) < RAPID_SUBMISSION_THRESHOLD_MS
+    ) {
       stats.rapidSubmissions += 1;
     }
     const ownAnswers = normalizedAnswerSignature(ownAttempt);
@@ -336,7 +341,7 @@ function calculateArenaIntegrityRisk({
       addReason({ code: "IDENTICAL_WRONG_ANSWERS", label: "반복되는 동일 오답 패턴", description: "두 계정의 낮은 정답률과 동일 답안 패턴이 반복되었습니다.", points: 15, count: stats.identicalWrongPatterns, opponentId: stats.opponentId, matchIds: stats.matchIds });
     }
     if (stats.rapidSubmissions >= 2) {
-      addReason({ code: "REPEATED_RAPID_SUBMISSION", label: "반복되는 비정상 빠른 제출", description: `60초 미만 제출이 ${stats.rapidSubmissions}회 확인되었습니다.`, points: 15, count: stats.rapidSubmissions, opponentId: stats.opponentId, matchIds: stats.matchIds });
+      addReason({ code: "REPEATED_RAPID_SUBMISSION", label: "반복되는 빠른 제출", description: `5분 미만 제출이 ${stats.rapidSubmissions}회 확인되어 관리자 검토가 필요합니다.`, points: 15, count: stats.rapidSubmissions, opponentId: stats.opponentId, matchIds: stats.matchIds });
     }
   }
 
@@ -691,7 +696,10 @@ function startArenaIntegrityRiskScheduler({ intervalMs = 15 * 60 * 1000 } = {}) 
     if (schedulerRunning) return;
     schedulerRunning = true;
     try {
-      await runArenaIntegrityRiskSchedule();
+      await withSchedulerLease(
+        { name: "ARENA_INTEGRITY_RISK", leaseMs: 10 * 60 * 1000 },
+        () => runArenaIntegrityRiskSchedule()
+      );
     } catch (error) {
       console.error("GOAT Arena 무결성 위험 점검 실패:", error);
     } finally {
@@ -707,6 +715,7 @@ function startArenaIntegrityRiskScheduler({ intervalMs = 15 * 60 * 1000 } = {}) 
 module.exports = {
   CRITICAL_THRESHOLD,
   POLICY_VERSION,
+  RAPID_SUBMISSION_THRESHOLD_MS,
   REVIEW_THRESHOLD,
   calculateArenaIntegrityRisk,
   evaluateArenaIntegrityRiskForUser,

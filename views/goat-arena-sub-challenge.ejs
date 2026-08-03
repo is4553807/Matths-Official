@@ -19,7 +19,7 @@
       href="/images/goat-arena/goat-arena-logo.jpg"
     />
   </head>
-  <body class="goat-arena-page arena-inner-page">
+  <body class="goat-arena-page arena-inner-page arena-battle-page arena-battle-page--sub">
     <a class="arena-skip-link" href="#sub-challenge-main">본문으로 바로가기</a>
 
     <%- include("partials/goat-arena-navigation", {
@@ -27,20 +27,18 @@
       arenaUser,
     }) %>
 
-    <main class="arena-page-main" id="sub-challenge-main">
+    <main class="arena-page-main arena-battle-main" id="sub-challenge-main">
       <a class="arena-challenge-back" href="/goat-arena/sub">← Sub Division으로 돌아가기</a>
 
-      <header class="arena-page-heading arena-challenge-heading">
+      <header class="arena-page-heading arena-challenge-heading arena-command-hero arena-command-hero--sub">
         <div>
           <p>SUB DIVISION · 1대1</p>
-          <h1>일반 쟁탈전 신청</h1>
+          <h1>순위를 <span>탈취할</span> 시간</h1>
         </div>
-        <p>
-          목표 티어만 선택하면 서버가 같은 Sub Division의 적격 상위 티어 사용자 한 명을 무작위로 선정해 자동 매치합니다. 특정 사용자는 직접 선택할 수 없습니다.
-        </p>
+        <div class="arena-command-hero-copy"><p>목표 티어만 선택하면 서버가 같은 Sub Division의 적격 상위 티어 사용자 한 명을 무작위로 선정해 자동 매치합니다. 특정 사용자는 직접 선택할 수 없습니다.</p><div class="arena-command-tags"><span><i></i>자동 매칭 온라인</span><span>상위 1티어 도전</span><span>동일 5문항 · 10분</span></div></div>
       </header>
 
-      <section class="arena-division-status arena-challenge-status">
+      <section class="arena-division-status arena-challenge-status arena-command-status">
         <article>
           <small>내 Arena 상태</small>
           <strong>
@@ -55,9 +53,9 @@
           </span>
         </article>
         <article>
-          <small>일반 쟁탈전 적용 일수</small>
-          <strong><%= challengeData.stakeDays %>일</strong>
-          <span>현재 학습권 패키지를 결제할 때 확정된 운영 조건을 사용합니다.</span>
+          <small>일반 쟁탈전 예치</small>
+          <strong>페이백 점수 <%= challengeData.stakeDays %>점</strong>
+          <span>정기권 학습 가능 일수와 별도로 관리하며, 경기 신청 시 서버가 예치합니다.</span>
         </article>
         <article>
           <small>참가 가능 범위</small>
@@ -68,7 +66,7 @@
 
       <% if (matchCreated) { %>
         <p class="arena-challenge-notice success" role="status">
-          일반 쟁탈전이 생성되었습니다. 양쪽 참가자와 공격자의 적용 일수를 안전하게 잠갔습니다.
+          일반 쟁탈전이 생성되었습니다. 양쪽 참가자를 확정하고 도전자의 페이백 점수를 안전하게 예치했습니다.
         </p>
       <% } %>
 
@@ -88,7 +86,7 @@
           <dl>
             <div><dt>내 역할</dt><dd><%= challengeData.activeMatch.role %></dd></div>
             <div><dt>상대</dt><dd><%= challengeData.activeMatch.opponentName %></dd></div>
-            <div><dt>경기 예치</dt><dd><%= challengeData.activeMatch.stakeDays %>일</dd></div>
+            <div><dt>경기 예치</dt><dd>페이백 점수 <%= challengeData.activeMatch.stakeDays %>점</dd></div>
           </dl>
           <a class="arena-active-match-link" href="<%= challengeData.activeMatch.href %>">
             경기 화면으로 이동 <span aria-hidden="true">→</span>
@@ -101,11 +99,29 @@
             <small>일반 쟁탈전 신청 불가</small>
             <h2>현재는 새 경기를 만들 수 없습니다.</h2>
             <p><%= challengeData.unavailableMessage %></p>
+            <p>오늘 공격 <%= challengeData.dailyUsage.attackCount %>/<%= challengeData.dailyUsage.attackLimit %>회 · 오늘 방어 <%= challengeData.dailyUsage.defenseCount %>/<%= challengeData.dailyUsage.defenseLimit %>회</p>
           </div>
           <a href="/goat-arena/profile">Arena 프로필 확인</a>
         </section>
       <% } else { %>
-        <section class="arena-candidate-section" aria-labelledby="candidate-title">
+        <section class="arena-division-status arena-challenge-status arena-command-status" aria-label="오늘의 일반 쟁탈전 이용 현황">
+          <article>
+            <small>오늘 공격</small>
+            <strong><%= challengeData.dailyUsage.attackCount %> / <%= challengeData.dailyUsage.attackLimit %>회</strong>
+            <span>현재 티어 기준 · 남은 공격 <%= challengeData.dailyUsage.attackRemaining %>회</span>
+          </article>
+          <article>
+            <small>오늘 방어</small>
+            <strong><%= challengeData.dailyUsage.defenseCount %> / <%= challengeData.dailyUsage.defenseLimit %>회</strong>
+            <span>현재 티어 기준 · 남은 방어 <%= challengeData.dailyUsage.defenseRemaining %>회</span>
+          </article>
+          <article>
+            <small>당일 승리 잠금</small>
+            <strong><%= challengeData.dailyUsage.challengerWin ? "적용 중" : "없음" %></strong>
+            <span>도전자로 승리하면 그날 남은 일반 공격·방어가 잠깁니다.</span>
+          </article>
+        </section>
+        <section class="arena-candidate-section arena-battle-console" aria-labelledby="candidate-title">
           <header>
             <div>
               <small>서버 자동 매치</small>
@@ -145,7 +161,7 @@
           <% } else { %>
             <div class="arena-candidate-empty">
               <strong>지금 자동 매치할 수 있는 상대가 없습니다.</strong>
-              <p>적격 상대가 없으므로 정기권 학습 가능 일수는 잠기거나 차감되지 않았습니다. 잠시 후 다시 확인해주세요.</p>
+              <p>적격 상대가 없으므로 정기권 학습 가능 일수는 예치되거나 차감되지 않았습니다. 잠시 후 다시 확인해주세요.</p>
             </div>
           <% } %>
         </section>

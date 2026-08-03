@@ -134,6 +134,13 @@ const {
   updateAdminPackageAccess,
 } = require("../services/adminPackageAccessService");
 const {
+  getAdminOperationsGuideData,
+} = require("../services/adminOperationsGuideService");
+const {
+  getAdminTestControlData,
+  setTestClock,
+} = require("../services/adminTestControlService");
+const {
   getAdminArenaEvidenceData,
   getAdminEvidenceFile,
 } = require("../services/arenaMatchEvidenceService");
@@ -235,6 +242,21 @@ const {
   updateMockExamPackagePrice,
 } = require("../services/mockExamPackageService");
 const {
+  queuePolicyChangeNotifications,
+} = require("../services/policyChangeNotificationService");
+
+async function queuePolicyChangeNotificationsImmediately(args) {
+  try {
+    return await queuePolicyChangeNotifications(args);
+  } catch (error) {
+    // 정책과 함께 기록한 outbox가 같은 요청을 다시 전달한다. 이메일
+    // 공급자나 일시적인 DB fan-out 장애가 정책 저장 자체를 되돌리거나
+    // 관리자에게 중복 저장을 유도하지 않게 한다.
+    console.error("정책 변경 즉시 공지 생성 지연:", error);
+    return { queued: 0, siteDelivered: 0, deferredToOutbox: true };
+  }
+}
+const {
   recordConnectionHeartbeat,
 } = require("../services/connectionUsageService");
 const {
@@ -250,6 +272,21 @@ const {
   getAdminProblemBankCatalog,
 } = require("../services/problemBankCatalogService");
 const {
+  activateArenaProblemDataVersion,
+  createArenaProblemDataDraft,
+  getAdminArenaProblemData,
+  updateArenaProblemDataDraft,
+} = require("../services/arenaProblemDataService");
+const {
+  getAdminProblemTypeCatalog,
+  reviseProblemTypeVersion,
+  syncProblemTypeRegistry,
+} = require("../services/problemTypeCatalogService");
+const {
+  createArenaTierCatalogType,
+  getAdminArenaTierCatalog,
+} = require("../services/arenaTierQuestionCatalogService");
+const {
   getArenaReconciliationAudit,
 } = require("../services/arenaReconciliationService");
 const {
@@ -263,6 +300,9 @@ const {
   getKstMonthKey,
   runMonthlyDataAnalysisAggregation,
 } = require("../services/dataAnalysisAggregationService");
+const {
+  recordOperationalMetricEvent,
+} = require("../services/operationalMetricEventService");
 const bcrypt = require('bcrypt');
 const BCRYPT_ROUNDS = 12;
 
@@ -284,6 +324,15 @@ exports.introPage = (req,res) => {
 
 exports.pricingPage = async (req, res, next) => {
   try {
+    const viewedAt = new Date();
+    await recordOperationalMetricEvent({
+      eventKey: `pricing-view:${req.sessionID || "anonymous"}:${viewedAt.toISOString().slice(0, 13)}`,
+      eventType: "PRICING_VIEW",
+      userId: req.session?.user?.id || null,
+      result: "VIEWED",
+      occurredAt: viewedAt,
+      metadata: { path: "/pricing" },
+    });
     const [mockExamPolicy, learningPackagePolicy] = await Promise.all([
       getActiveMockExamPackagePolicy(),
       getActiveArenaPolicy(),
@@ -299,9 +348,17 @@ exports.pricingPage = async (req, res, next) => {
   }
 };
 
-function paymentRoutePlaceholder(mode) {
-  return (req, res, next) => {
+function paymentRoutePlaceholder(mode, productCode) {
+  return async (req, res, next) => {
     res.set("Cache-Control", "no-store");
+    await recordOperationalMetricEvent({
+      eventKey: `payment-intent:${req.sessionID || "anonymous"}:${productCode}:${mode}:${Date.now()}`,
+      eventType: "PAYMENT_INTENT",
+      userId: req.session?.user?.id || null,
+      result: "STARTED",
+      reasonCode: "PG_CONNECTION_DEFERRED",
+      metadata: { mode, productCode },
+    });
     const error = new Error(
       mode === "PARENT_REQUEST"
         ? "부모님 결제 요청 라우트가 준비되었습니다. 결제 요청 화면은 다음 구현 단계에서 연결합니다."
@@ -314,13 +371,13 @@ function paymentRoutePlaceholder(mode) {
 }
 
 exports.mockExamSelfPaymentEntry =
-  paymentRoutePlaceholder("SELF");
+  paymentRoutePlaceholder("SELF", "MOCK_EXAM_ONLY");
 exports.mockExamParentPaymentEntry =
-  paymentRoutePlaceholder("PARENT_REQUEST");
+  paymentRoutePlaceholder("PARENT_REQUEST", "MOCK_EXAM_ONLY");
 exports.learningPackageSelfPaymentEntry =
-  paymentRoutePlaceholder("SELF");
+  paymentRoutePlaceholder("SELF", "LEARNING_PACKAGE_29");
 exports.learningPackageParentPaymentEntry =
-  paymentRoutePlaceholder("PARENT_REQUEST");
+  paymentRoutePlaceholder("PARENT_REQUEST", "LEARNING_PACKAGE_29");
 
 exports.connectionHeartbeat = async (req, res, next) => {
   try {
@@ -1257,6 +1314,42 @@ exports.adminRevenueMetrics = async (_req, res, next) => {
   }
 };
 
+exports.adminOperationsGuidePage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.render("admin-operations-guide", {
+      user: req.session.user,
+      guide: getAdminOperationsGuideData(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminTestControlPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.render("admin-test-control", {
+      user: req.session.user,
+      testData: await getAdminTestControlData(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminSetTestClock = async (req, res, next) => {
+  try {
+    await setTestClock({
+      adminUserId: req.session.user.id,
+      offsetDays: req.body.offsetDays,
+    });
+    return res.redirect("/admin/test-control");
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.adminArenaMatchesPage = async (req, res, next) => {
   try {
     res.set("Cache-Control", "no-store");
@@ -1412,16 +1505,19 @@ exports.adminRebuildDataAnalysis = async (req, res, next) => {
 
 function arenaPolicyFeedbackFromQuery(query = {}) {
   if (String(query.learningPriceUpdated || "") === "1") {
-    return "29일 학습 패키지의 새 가격 정책을 적용했습니다.";
+    return "29일 학습 패키지의 새 가격 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 공지를 만들었습니다.";
   }
   if (String(query.mockPriceUpdated || "") === "1") {
-    return "모의고사 전용 패키지의 새 월 가격 정책을 적용했습니다.";
+    return "Matths 주간 공식 모의고사 이용권의 새 월 가격 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 공지를 만들었습니다.";
   }
   if (String(query.created || "") === "1") {
     return "새 Arena 정책을 작성 중 상태로 저장했습니다.";
   }
+  if (String(query.createdScheduled || "") === "1") {
+    return "새 Sub Division 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 이메일·우편함 공지를 만들었습니다.";
+  }
   if (String(query.activated || "") === "1") {
-    return "Arena 정책을 적용 일정에 등록했습니다.";
+    return "Arena 정책을 최소 30일 뒤 적용 일정에 등록하고 전체 사용자 공지를 만들었습니다.";
   }
   if (String(query.retired || "") === "1") {
     return "작성 중이거나 적용 예정이던 Arena 정책을 종료했습니다.";
@@ -1429,14 +1525,17 @@ function arenaPolicyFeedbackFromQuery(query = {}) {
   if (String(query.mainCreated || "") === "1") {
     return "새 Main Division 정책을 작성 중 상태로 저장했습니다.";
   }
+  if (String(query.mainCreatedScheduled || "") === "1") {
+    return "새 Main Division 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 이메일·우편함 공지를 만들었습니다.";
+  }
   if (String(query.mainActivated || "") === "1") {
-    return "Main Division 정책을 적용 일정에 등록했습니다.";
+    return "Main Division 정책을 최소 30일 뒤 적용 일정에 등록하고 전체 사용자 공지를 만들었습니다.";
   }
   if (String(query.mainRetired || "") === "1") {
     return "Main Division 정책을 종료했습니다.";
   }
   if (String(query.mainShopUpdated || "") === "1") {
-    return "Main Division 상점의 새 가격·판매 정책을 실제 운영 정책으로 적용했습니다.";
+    return "Main Division 상점의 새 가격·판매 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 공지를 만들었습니다.";
   }
   return null;
 }
@@ -1478,10 +1577,14 @@ exports.adminUpdateMockExamPackagePrice = async (
   next
 ) => {
   try {
-    await updateMockExamPackagePrice({
+    const policy = await updateMockExamPackagePrice({
       adminUserId: req.session.user.id,
       monthlyPriceAmount: req.body.monthlyPriceAmount,
       changeSummary: req.body.changeSummary,
+    });
+    await queuePolicyChangeNotificationsImmediately({
+      policyType: "MOCK_EXAM_PACKAGE",
+      policy,
     });
     return res.redirect(
       "/admin/arena-policies?mockPriceUpdated=1#mock-exam-package"
@@ -1511,10 +1614,14 @@ exports.adminUpdateLearningPackagePrice = async (
   next
 ) => {
   try {
-    await updateLearningPackagePrice({
+    const policy = await updateLearningPackagePrice({
       adminUserId: req.session.user.id,
       priceAmount: req.body.priceAmount,
       changeSummary: req.body.changeSummary,
+    });
+    await queuePolicyChangeNotificationsImmediately({
+      policyType: "LEARNING_PACKAGE",
+      policy,
     });
     return res.redirect(
       "/admin/arena-policies?learningPriceUpdated=1#learning-package"
@@ -1550,11 +1657,15 @@ exports.adminUpdateMainShopPolicy = async (req, res, next) => {
         .filter(([key]) => key.startsWith("price_"))
         .map(([key, value]) => [key.slice("price_".length), value])
     );
-    await updateMainShopPolicy({
+    const policy = await updateMainShopPolicy({
       adminUserId: req.session.user.id,
       itemPrices,
       enabledItems,
       changeSummary: req.body.changeSummary,
+    });
+    await queuePolicyChangeNotificationsImmediately({
+      policyType: "MAIN_SHOP",
+      policy,
     });
     return res.redirect("/admin/arena-policies?mainShopUpdated=1#main-shop-policy");
   } catch (error) {
@@ -1573,20 +1684,228 @@ exports.adminUpdateMainShopPolicy = async (req, res, next) => {
   }
 };
 
-exports.adminProblemBanksPage = (req, res) =>
-  res.render("admin-problem-banks", {
+async function renderAdminProblemBanksPage(
+  req,
+  res,
+  { status = 200, error = "", oldInput = null } = {}
+) {
+  const [problemData, typeCatalog, tierCatalog] = await Promise.all([
+    getAdminArenaProblemData({
+      editVersionId: req.query.edit || req.params.versionId || "",
+    }),
+    getAdminProblemTypeCatalog({
+      category: req.query.category || "CONCEPT_PRACTICE",
+      query: req.query.q || "",
+      inspectVersionId: req.query.inspect || "",
+    }),
+    getAdminArenaTierCatalog(),
+  ]);
+  if (oldInput) {
+    problemData.form = {
+      code: String(oldInput.code || ""),
+      displayName: String(oldInput.displayName || ""),
+      changeSummary: String(oldInput.changeSummary || ""),
+      tierConfigurations: problemData.difficultyTiers.map((difficultyTier) => {
+        const raw = oldInput[`types_${difficultyTier}`];
+        return {
+          difficultyTier,
+          typeIds: Array.isArray(raw) ? raw.map(String) : raw ? [String(raw)] : [],
+        };
+      }),
+      typeSettings: problemData.availableTypes.map((type) => ({
+        typeId: type.typeId,
+        enabled: String(oldInput[`enabled__${type.typeId}`] || "") === "1",
+        selectionWeight: Number(oldInput[`weight__${type.typeId}`] || 1),
+        answerMin: Number(oldInput[`answerMin__${type.typeId}`] || 1),
+        answerMax: Number(oldInput[`answerMax__${type.typeId}`] || 999),
+        difficultyNote: String(oldInput[`difficultyNote__${type.typeId}`] || ""),
+      })),
+    };
+  }
+  return res.status(status).render("admin-problem-banks", {
     user: req.session.user,
     catalog: getAdminProblemBankCatalog(),
+    problemData,
+    typeCatalog,
+    tierCatalog,
+    error,
+    query: req.query || {},
   });
+}
+
+exports.adminProblemBanksPage = async (req, res, next) => {
+  try {
+    return await renderAdminProblemBanksPage(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminSyncProblemTypes = async (req, res, next) => {
+  try {
+    const result = await syncProblemTypeRegistry({
+      adminUserId: req.session.user.id,
+      activateSourceChanges: true,
+    });
+    const category = encodeURIComponent(
+      req.body.category || "CONCEPT_PRACTICE"
+    );
+    return res.redirect(
+      `/admin/problem-banks?category=${category}&typeSync=1&inserted=${result.inserted.length}&updated=${result.updated.length}#problem-type-catalog`
+    );
+  } catch (error) {
+    if ([400, 409, 422].includes(Number(error.status))) {
+      try {
+        req.query.category = req.body.category || "CONCEPT_PRACTICE";
+        return await renderAdminProblemBanksPage(req, res, {
+          status: Number(error.status),
+          error: error.message,
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+};
+
+exports.adminReviseProblemType = async (req, res, next) => {
+  try {
+    const created = await reviseProblemTypeVersion({
+      adminUserId: req.session.user.id,
+      versionId: req.params.versionId,
+      input: req.body,
+    });
+    const category = encodeURIComponent(created.category);
+    return res.redirect(
+      `/admin/problem-banks?category=${category}&inspect=${created._id}&typeRevised=1#problem-type-catalog`
+    );
+  } catch (error) {
+    if ([400, 404, 409, 422].includes(Number(error.status))) {
+      try {
+        req.query.category = req.body.category || "CONCEPT_PRACTICE";
+        req.query.inspect = req.params.versionId;
+        return await renderAdminProblemBanksPage(req, res, {
+          status: Number(error.status),
+          error: error.message,
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+};
+
+exports.adminCreateArenaTierCatalogType = async (req, res, next) => {
+  try {
+    const created = await createArenaTierCatalogType({
+      adminUserId: req.session.user.id,
+      input: req.body,
+    });
+    return res.redirect(
+      "/admin/problem-banks?arenaTypeCreated=1#arena-tier-type-create"
+    );
+  } catch (error) {
+    if ([400, 404, 409, 422].includes(Number(error.status))) {
+      try {
+        return await renderAdminProblemBanksPage(req, res, {
+          status: Number(error.status),
+          error: error.message,
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+};
+
+exports.adminCreateArenaProblemData = async (req, res, next) => {
+  try {
+    const draft = await createArenaProblemDataDraft({
+      adminUserId: req.session.user.id,
+      input: req.body,
+    });
+    return res.redirect(`/admin/problem-banks?created=1&edit=${draft._id}#arena-problem-data`);
+  } catch (error) {
+    if ([400, 409, 422].includes(Number(error.status))) {
+      try {
+        return await renderAdminProblemBanksPage(req, res, {
+          status: Number(error.status),
+          error: error.message,
+          oldInput: req.body,
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateArenaProblemData = async (req, res, next) => {
+  try {
+    await updateArenaProblemDataDraft({
+      adminUserId: req.session.user.id,
+      versionId: req.params.versionId,
+      input: req.body,
+    });
+    return res.redirect(`/admin/problem-banks?updated=1&edit=${req.params.versionId}#arena-problem-data`);
+  } catch (error) {
+    if ([400, 404, 409, 422].includes(Number(error.status))) {
+      try {
+        return await renderAdminProblemBanksPage(req, res, {
+          status: Number(error.status),
+          error: error.message,
+          oldInput: req.body,
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+};
+
+exports.adminActivateArenaProblemData = async (req, res, next) => {
+  try {
+    await activateArenaProblemDataVersion({
+      adminUserId: req.session.user.id,
+      versionId: req.params.versionId,
+    });
+    return res.redirect("/admin/problem-banks?activated=1#arena-problem-data");
+  } catch (error) {
+    if ([400, 404, 409, 422].includes(Number(error.status))) {
+      try {
+        return await renderAdminProblemBanksPage(req, res, {
+          status: Number(error.status),
+          error: error.message,
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+};
 
 exports.adminCreateArenaPolicy =
   async (req, res, next) => {
     try {
-      await createArenaPolicyVersion({
+      const draft = await createArenaPolicyVersion({
         adminUserId: req.session.user.id,
         input: req.body,
       });
-      return res.redirect("/admin/arena-policies?created=1");
+      const policy = await activateArenaPolicyVersion({
+        adminUserId: req.session.user.id,
+        policyId: draft._id,
+      });
+      await queuePolicyChangeNotificationsImmediately({
+        policyType: "SUB_DIVISION",
+        policy,
+      });
+      return res.redirect("/admin/arena-policies?createdScheduled=1");
     } catch (error) {
       if ([400, 409].includes(Number(error.status))) {
         try {
@@ -1606,12 +1925,20 @@ exports.adminCreateArenaPolicy =
 exports.adminCreateMainArenaPolicy =
   async (req, res, next) => {
     try {
-      await createMainDivisionPolicyVersion({
+      const draft = await createMainDivisionPolicyVersion({
         adminUserId: req.session.user.id,
         input: req.body,
       });
+      const policy = await activateMainDivisionPolicyVersion({
+        adminUserId: req.session.user.id,
+        policyId: draft._id,
+      });
+      await queuePolicyChangeNotificationsImmediately({
+        policyType: "MAIN_DIVISION",
+        policy,
+      });
       return res.redirect(
-        "/admin/arena-policies?mainCreated=1#main-policy"
+        "/admin/arena-policies?mainCreatedScheduled=1#main-policy"
       );
     } catch (error) {
       if ([400, 409].includes(Number(error.status))) {
@@ -1635,9 +1962,13 @@ exports.adminCreateMainArenaPolicy =
 exports.adminActivateArenaPolicy =
   async (req, res, next) => {
     try {
-      await activateArenaPolicyVersion({
+      const policy = await activateArenaPolicyVersion({
         adminUserId: req.session.user.id,
         policyId: req.params.policyId,
+      });
+      await queuePolicyChangeNotificationsImmediately({
+        policyType: "SUB_DIVISION",
+        policy,
       });
       return res.redirect("/admin/arena-policies?activated=1");
     } catch (error) {
@@ -1658,9 +1989,13 @@ exports.adminActivateArenaPolicy =
 exports.adminActivateMainArenaPolicy =
   async (req, res, next) => {
     try {
-      await activateMainDivisionPolicyVersion({
+      const policy = await activateMainDivisionPolicyVersion({
         adminUserId: req.session.user.id,
         policyId: req.params.policyId,
+      });
+      await queuePolicyChangeNotificationsImmediately({
+        policyType: "MAIN_DIVISION",
+        policy,
       });
       return res.redirect(
         "/admin/arena-policies?mainActivated=1#main-policy"
@@ -3024,6 +3359,8 @@ exports.adminCreatePrivateMockExam =
           req.body.titles,
         examDates:
           req.body.examDates,
+        customReleaseAts:
+          req.body.customReleaseAts,
         formCodes:
           req.body.formCodes,
       });

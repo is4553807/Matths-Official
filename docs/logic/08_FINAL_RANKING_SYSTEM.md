@@ -210,7 +210,7 @@ seasonSubStartPercentile
 
 `재구독 랭크 결정전`은 Skill MMR을 Soft Reset하지 않는다.
 
-Main 휴면 사용자는 활성 Final Ranking에서 제외한다. 미활동 시작 당시 21일 이상을 보유한 사용자는 복귀할 때 별도 배치고사 없이 기존 Main Division과 동결된 학습일수로 돌아오며 Final Ranking을 다시 계산한다. 정확히 20일을 모두 차감해 Sub Division으로 강등된 사용자는 일반 Sub 배치 절차를 완료한 뒤 Final Ranking에 다시 포함한다. Sub Division 자체에는 휴면 상태가 없다.
+Main 휴면 강등 사용자는 즉시 활성 Final Ranking에서 제외한다. 모든 강등 사용자는 일반 Sub 배치·학습·페이백 절차를 완료해야 Final Ranking에 다시 포함된다. 20일 차감 뒤 남은 학습일수는 Sub 순위·학습일수·페이백에 반영하지 않고, Main Division 재진입이 확정되는 순간에만 새 Main 이용 주기로 복원한다. Sub Division 자체에는 휴면 상태가 없다.
 
 ---
 

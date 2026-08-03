@@ -25,7 +25,7 @@ const {
   loadMatchActorContext,
 } = require("./arenaMatchService");
 const {
-  generateMainOneOnOneQuestions,
+  generateMainOneOnOneQuestionsFromActiveData,
   getMainTierPair,
 } = require("./arenaOneOnOneProblemBank");
 const {
@@ -168,7 +168,7 @@ async function createMainRevengeMatch({
     now,
   });
   const previewKey = revengeMatchKey(rightPreview);
-  const previewGeneration = generateMainOneOnOneQuestions({
+  const previewGeneration = await generateMainOneOnOneQuestionsFromActiveData({
     lowerTier: previewAttacker.standing?.arenaRank,
     upperTier: previewDefender.standing?.arenaRank,
     matchKey: previewKey,
@@ -229,7 +229,7 @@ async function createMainRevengeMatch({
       const participantIds = [attacker.user._id, defender.user._id];
       const lock = await ArenaMatchParticipantLock.findOne({ userId: { $in: participantIds } }).session(session).lean();
       if (lock) throw statusError(409, "참가자 중 진행 중인 공식 경기가 있습니다.");
-      const generation = generateMainOneOnOneQuestions({
+      const generation = await generateMainOneOnOneQuestionsFromActiveData({
         lowerTier: attacker.standing.arenaRank,
         upperTier: defender.standing.arenaRank,
         matchKey,

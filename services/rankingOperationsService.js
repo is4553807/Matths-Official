@@ -22,8 +22,10 @@ function csvCell(value) {
 
 async function getDormancyCandidates(now = new Date()) {
   const states = await ArenaAccessState.find({
-    currentCompetitiveDivision: "MAIN",
-    state: { $in: ["PAID_ACTIVE", "MAIN_DORMANT"] },
+    $or: [
+      { currentCompetitiveDivision: "MAIN", state: { $in: ["PAID_ACTIVE", "MAIN_DORMANT"] } },
+      { mainDormancyRecoveryMode: "RESTORE_ON_MAIN_REENTRY" },
+    ],
   })
     .sort({ mainInactivityStartedAt: 1 })
     .limit(300)
@@ -51,12 +53,14 @@ async function getDormancyCandidates(now = new Date()) {
         state: state.state,
         inactiveDays,
         remainingDays: Number(cycle?.availableLearningDays || 0),
+        reservedForMainReentryDays: Number(state.mainDormancyFrozenLearningDays || 0),
+        recoveryMode: state.mainDormancyRecoveryMode,
         startBalance: Number(state.mainInactivityStartAvailableDays || 0),
         startedAt: state.mainInactivityStartedAt,
         frozenAt: cycle?.dailyConsumptionPausedAt || null,
       };
     })
-    .filter((item) => item.state === "MAIN_DORMANT" || item.inactiveDays >= 14)
+    .filter((item) => item.recoveryMode === "RESTORE_ON_MAIN_REENTRY" || item.state === "MAIN_DORMANT" || item.inactiveDays >= 14)
     .sort((left, right) => right.inactiveDays - left.inactiveDays);
 }
 
@@ -176,7 +180,7 @@ async function getRankingOperationsDashboard({ preview = false, now = new Date()
   const operations = {
     storage,
     emailConfigured: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
-    sharedSessionConfigured: Boolean(process.env.SESSION_STORE_URL || process.env.REDIS_URL),
+    sharedSessionConfigured: true,
     schedulerEnabled: process.env.DISABLE_SCHEDULERS !== "1",
   };
   return { health, history, dormancyCandidates, recalculationPreview, operations };
@@ -237,6 +241,15 @@ async function runRankingMaintenanceTask({ adminUserId, task, now = new Date() }
   } else if (code === "STORAGE_BACKUP") {
     const { runLocalStorageR2Backup } = require("./localStorageBackupService");
     result = await runLocalStorageR2Backup();
+  } else if (code === "STORAGE_RESTORE_DRILL") {
+    const {
+      restoreMissingLocalFilesFromR2,
+      verifyR2RestoreDrill,
+    } = require("./localStorageBackupService");
+    result = {
+      verification: await verifyR2RestoreDrill(),
+      missingLocalRecovery: await restoreMissingLocalFilesFromR2(),
+    };
   } else {
     const error = new Error("지원하지 않는 운영 작업입니다.");
     error.status = 400;

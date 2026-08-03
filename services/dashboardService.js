@@ -1110,6 +1110,20 @@ async function getDashboardData(userId) {
     ];
 
     const activePlan = (() => {
+        if (user?.role === "admin") {
+            return {
+                code: "SUPER_ADMIN",
+                name: "관리자 무제한 플랜",
+                division: "Sub Division · Main Division",
+                remainingLearningDays: null,
+                availableLearningDays: null,
+                reservedLearningDays: 0,
+                lockedLearningDays: 0,
+                expiresAt: null,
+                unlimited: true,
+                statusLabel: "무제한 · 만료 없음",
+            };
+        }
         if (activeAccessCycle) {
             const availableDays = Math.max(
                 0,
@@ -1142,7 +1156,7 @@ async function getDashboardData(userId) {
         if (activeMockExamSubscription) {
             return {
                 code: "MOCK_EXAM_ONLY",
-                name: "모의고사 전용 패키지",
+                name: "Matths 주간 공식 모의고사 이용권",
                 division: null,
                 remainingLearningDays: 0,
                 availableLearningDays: 0,

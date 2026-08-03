@@ -10,6 +10,7 @@ const {
 } = require("./fileStorageService");
 const {
   deleteR2BackupObject,
+  scheduleLocalStorageR2BackupSoon,
 } = require("./localStorageBackupService");
 
 const {
@@ -21,6 +22,7 @@ const {
   AccessCycle,
   ArenaAccessState,
 } = require("../models/goatArenaModel");
+const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const ARCHIVE_STORAGE_DIR =
   path.resolve(
@@ -238,21 +240,11 @@ async function hasPaidArchiveAccess(user) {
     .select("state accessCycleId currentCompetitiveDivision")
     .lean();
   if (!state?.accessCycleId) return false;
-  const balanceFilter =
-    state.currentCompetitiveDivision === "MAIN"
-      ? {
-          $or: [
-            { availableLearningDays: { $gt: 0 } },
-            { reservedLearningDays: { $gt: 0 } },
-            { lockedLearningDays: { $gt: 0 } },
-          ],
-        }
-      : { availableLearningDays: { $gt: 0 } };
   const cycle = await AccessCycle.findOne({
     _id: state.accessCycleId,
     userId,
     status: "ACTIVE",
-    ...balanceFilter,
+    availableLearningDays: { $gt: 0 },
   })
     .select("_id")
     .lean();
@@ -732,6 +724,8 @@ async function createArchiveItem({
         backupStatus: "PENDING",
         ...storageFields(asset),
       });
+
+    scheduleLocalStorageR2BackupSoon();
 
     return serializeArchiveItem(
       item
@@ -1548,7 +1542,10 @@ async function purgeExpiredArchiveTrash({ now = new Date(), limit = 100 } = {}) 
 function startArchiveTrashPurgeScheduler() {
   if (process.env.DISABLE_SCHEDULERS === "1" || archiveTrashPurgeTimer) return null;
   const run = () =>
-    purgeExpiredArchiveTrash().catch((error) => {
+    withSchedulerLease(
+      { name: "ARCHIVE_TRASH_RETENTION", leaseMs: 30 * 60 * 1000 },
+      () => purgeExpiredArchiveTrash()
+    ).catch((error) => {
       console.error("Archive trash purge failed:", error.message);
     });
   const initialTimer = setTimeout(run, 2 * 60 * 1000);

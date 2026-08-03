@@ -5,6 +5,8 @@ const {
   ArenaMatchParticipantLock,
   ArenaOutboxEvent,
   ArenaStandingChangeLedger,
+  MainShopEffect,
+  MainShopPurchase,
   MainInvitationOffer,
   MainInvitationRequest,
 } = require("../models/goatArenaModel");
@@ -34,12 +36,14 @@ const TERMINAL_MATCH_STATUSES = new Set([
 const BALANCE_KEYS = [
   "availableLearningDays",
   "paybackScoreDays",
+  "lockedPaybackScoreDays",
   "lockedLearningDays",
   "reservedLearningDays",
 ];
 const DEFAULT_SCAN_LIMIT = 5000;
 const DEFAULT_ISSUE_LIMIT = 300;
 const OUTBOX_PENDING_GRACE_MS = 5 * 60 * 1000;
+const SHOP_PENDING_GRACE_MS = 15 * 60 * 1000;
 
 function identifier(value) {
   if (value === null || value === undefined) return "";
@@ -68,6 +72,7 @@ function balanceDescription(balance) {
   return [
     `사용 가능 ${normalized.availableLearningDays}일`,
     `페이백 점수 ${normalized.paybackScoreDays}점`,
+    `경기 예치 페이백 점수 ${normalized.lockedPaybackScoreDays}점`,
     `경기 예치 ${normalized.lockedLearningDays}일`,
     `초대 예약 ${normalized.reservedLearningDays}일`,
   ].join(" · ");
@@ -502,6 +507,164 @@ function auditOutbox({ pendingCount, oldestPendingEvent, now, collector }) {
   });
 }
 
+function auditShopTransactions({ purchases, effects, ledgers, now, collector }) {
+  const effectsByPurchase = new Map();
+  const purchaseById = new Map(
+    purchases.map((purchase) => [identifier(purchase._id), purchase])
+  );
+  const ledgersByPurchase = new Map();
+  const activeProtectionByMatch = new Map();
+  const purchaseKeyCount = new Map();
+
+  for (const effect of effects) {
+    const purchaseId = identifier(effect.purchaseId);
+    if (!effectsByPurchase.has(purchaseId)) effectsByPurchase.set(purchaseId, []);
+    effectsByPurchase.get(purchaseId).push(effect);
+    const purchase = purchaseById.get(purchaseId);
+    if (!purchase) {
+      collector.add({
+        severity: "critical",
+        category: "SHOP",
+        title: "구매 기록 없는 상점 효과",
+        detail: "효과가 참조하는 구매 기록을 찾을 수 없습니다.",
+        entityType: "MainShopEffect",
+        entityId: identifier(effect._id),
+        observedAt: effect.updatedAt || effect.createdAt,
+      });
+      continue;
+    }
+    if (
+      identifier(effect.userId) !== identifier(purchase.userId) ||
+      String(effect.itemCode) !== String(purchase.itemCode)
+    ) {
+      collector.add({
+        severity: "critical",
+        category: "SHOP",
+        title: "상점 구매와 효과 소유자 불일치",
+        detail: "구매자 또는 상품 코드가 효과 기록과 일치하지 않습니다.",
+        entityType: "MainShopEffect",
+        entityId: identifier(effect._id),
+        observedAt: effect.updatedAt || effect.createdAt,
+      });
+    }
+    if (
+      effect.itemCode === "DEFENSE_SCHEDULE_PROTECTION" &&
+      ["ACTIVE", "APPLIED"].includes(effect.status) &&
+      effect.relatedMatchId
+    ) {
+      const matchId = identifier(effect.relatedMatchId);
+      const rows = activeProtectionByMatch.get(matchId) || [];
+      rows.push(effect);
+      activeProtectionByMatch.set(matchId, rows);
+    }
+  }
+  for (const ledger of ledgers) {
+    const purchaseId = identifier(ledger.sourceId);
+    if (!ledgersByPurchase.has(purchaseId)) ledgersByPurchase.set(purchaseId, []);
+    ledgersByPurchase.get(purchaseId).push(ledger);
+  }
+  for (const purchase of purchases) {
+    const purchaseId = identifier(purchase._id);
+    const purchaseEffects = effectsByPurchase.get(purchaseId) || [];
+    const purchaseLedgers = ledgersByPurchase.get(purchaseId) || [];
+    const key = String(purchase.purchaseKey || "");
+    purchaseKeyCount.set(key, numeric(purchaseKeyCount.get(key)) + 1);
+    if (purchaseEffects.length !== 1) {
+      collector.add({
+        severity: "critical",
+        category: "SHOP",
+        title: "상점 구매와 효과 기록 수 불일치",
+        detail: `구매 한 건에는 효과 한 건이 필요하지만 현재 ${purchaseEffects.length}건입니다.`,
+        entityType: "MainShopPurchase",
+        entityId: purchaseId,
+        observedAt: purchase.updatedAt || purchase.purchasedAt,
+      });
+    }
+    if (
+      purchase.status === "PENDING" &&
+      new Date(now).getTime() - new Date(purchase.purchasedAt || purchase.createdAt).getTime() >=
+        SHOP_PENDING_GRACE_MS
+    ) {
+      collector.add({
+        severity: "critical",
+        category: "SHOP",
+        title: "상점 구매가 처리 대기 상태에 멈춤",
+        detail: "트랜잭션 완료 또는 자동 롤백되지 않은 구매입니다.",
+        entityType: "MainShopPurchase",
+        entityId: purchaseId,
+        observedAt: purchase.updatedAt || purchase.purchasedAt,
+      });
+    }
+    if (purchase.status === "COMPLETED") {
+      const expectedBurn = purchase.itemCode === "DEFENSE_SCHEDULE_PROTECTION"
+        ? "DEFENSE_SCHEDULE_PROTECTION_BURN"
+        : "SHOP_ITEM_PURCHASE_BURN";
+      if (!purchaseLedgers.some((ledger) => ledger.eventType === expectedBurn)) {
+        collector.add({
+          severity: "critical",
+          category: "SHOP",
+          title: "상점 구매 차감 원장 누락",
+          detail: "구매 완료 상태이지만 해당 학습일수 차감 원장을 찾을 수 없습니다.",
+          entityType: "MainShopPurchase",
+          entityId: purchaseId,
+          observedAt: purchase.updatedAt || purchase.purchasedAt,
+        });
+      }
+      if (purchaseEffects.some((effect) => effect.status === "FAILED")) {
+        collector.add({
+          severity: "critical",
+          category: "SHOP",
+          title: "결제 완료 뒤 상점 효과 실패",
+          detail: "구매 차감은 완료됐지만 효과 적용이 실패했습니다. 자동 환불 또는 운영자 검토가 필요합니다.",
+          entityType: "MainShopPurchase",
+          entityId: purchaseId,
+          observedAt: purchase.updatedAt || purchase.purchasedAt,
+        });
+      }
+    }
+    if (
+      purchase.status === "REVERSED" &&
+      !purchaseLedgers.some((ledger) => ledger.eventType === "SHOP_ITEM_PURCHASE_REVERSAL")
+    ) {
+      collector.add({
+        severity: "critical",
+        category: "SHOP",
+        title: "상점 환불 원장 누락",
+        detail: "구매는 반환 처리됐지만 학습일수 반환 원장이 없습니다.",
+        entityType: "MainShopPurchase",
+        entityId: purchaseId,
+        observedAt: purchase.reversedAt || purchase.updatedAt,
+      });
+    }
+  }
+  for (const [purchaseKey, count] of purchaseKeyCount) {
+    if (purchaseKey && count > 1) {
+      collector.add({
+        severity: "critical",
+        category: "SHOP",
+        title: "동일 요청의 상점 구매 중복",
+        detail: `같은 구매 요청 키로 ${count}건이 저장되었습니다.`,
+        entityType: "MainShopPurchase",
+        entityId: purchaseKey,
+        observedAt: now,
+      });
+    }
+  }
+  for (const [matchId, protectionEffects] of activeProtectionByMatch) {
+    if (protectionEffects.length > 1) {
+      collector.add({
+        severity: "critical",
+        category: "SHOP",
+        title: "한 경기에 방어 일정 보호권이 중복 적용됨",
+        detail: `같은 경기에 활성 보호 효과가 ${protectionEffects.length}건 있습니다.`,
+        entityType: "ArenaMatch",
+        entityId: matchId,
+        observedAt: protectionEffects[0].updatedAt || protectionEffects[0].createdAt,
+      });
+    }
+  }
+}
+
 function issueCategoryLabel(category) {
   return {
     BALANCE: "학습일수",
@@ -509,6 +672,7 @@ function issueCategoryLabel(category) {
     STANDING: "Arena 상태",
     INVITATION: "초대",
     OUTBOX: "처리 대기 이벤트",
+    SHOP: "Main 상점",
     SCOPE: "검사 범위",
   }[category] || "기타";
 }
@@ -534,6 +698,8 @@ async function getArenaReconciliationAudit({
     totalCycleCount,
     totalMatchCount,
     totalInvitationCount,
+    totalShopPurchaseCount,
+    totalShopEffectCount,
   ] = await Promise.all([
     AccessCycle.find({ status: "ACTIVE" })
       .sort({ updatedAt: -1, _id: -1 })
@@ -570,6 +736,8 @@ async function getArenaReconciliationAudit({
     AccessCycle.countDocuments(),
     ArenaMatch.countDocuments(),
     MainInvitationRequest.countDocuments(),
+    MainShopPurchase.countDocuments(),
+    MainShopEffect.countDocuments(),
   ]);
 
   const uniqueById = (documents) => [
@@ -584,9 +752,14 @@ async function getArenaReconciliationAudit({
   const cycleIds = cycles.map((cycle) => cycle._id);
   const matchIds = matches.map((match) => match._id);
   const invitationIds = invitations.map((invitation) => invitation._id);
+  const shopPurchases = await MainShopPurchase.find({})
+    .sort({ purchasedAt: -1, _id: -1 })
+    .limit(scanLimit)
+    .lean();
+  const shopPurchaseIds = shopPurchases.map((purchase) => purchase._id);
   const userIds = [...new Set(cycles.map((cycle) => identifier(cycle.userId)))];
 
-  const [ledgerSummaries, standingChanges, offers, participantLocks, users] =
+  const [ledgerSummaries, standingChanges, offers, participantLocks, users, shopEffects, shopLedgers] =
     await Promise.all([
       cycleIds.length
         ? ArenaLearningDayLedger.aggregate([
@@ -598,6 +771,7 @@ async function getArenaReconciliationAudit({
                 entryCount: { $sum: 1 },
                 availableLearningDays: { $sum: "$availableLearningDaysDelta" },
                 paybackScoreDays: { $sum: "$paybackScoreDaysDelta" },
+                lockedPaybackScoreDays: { $sum: "$lockedPaybackScoreDaysDelta" },
                 lockedLearningDays: { $sum: "$lockedLearningDaysDelta" },
                 reservedLearningDays: { $sum: "$reservedLearningDaysDelta" },
                 ownerIds: { $addToSet: "$userId" },
@@ -622,6 +796,16 @@ async function getArenaReconciliationAudit({
         ? User.find({ _id: { $in: userIds } })
             .select("name realName email")
             .lean()
+        : [],
+      MainShopEffect.find({})
+        .sort({ updatedAt: -1, _id: -1 })
+        .limit(scanLimit)
+        .lean(),
+      shopPurchaseIds.length
+        ? ArenaLearningDayLedger.find({
+            sourceType: "MainShopPurchase",
+            sourceId: { $in: shopPurchaseIds },
+          }).lean()
         : [],
     ]);
 
@@ -649,12 +833,23 @@ async function getArenaReconciliationAudit({
     now,
     collector,
   });
+  auditShopTransactions({
+    purchases: shopPurchases,
+    effects: shopEffects,
+    ledgers: shopLedgers,
+    now,
+    collector,
+  });
 
   const scopeTruncated =
     totalCycleCount > cycles.length ||
     totalMatchCount > matches.length ||
     totalInvitationCount > invitations.length;
-  if (scopeTruncated) {
+  const shopScopeTruncated =
+    totalShopPurchaseCount > shopPurchases.length ||
+    totalShopEffectCount > shopEffects.length;
+  const anyScopeTruncated = scopeTruncated || shopScopeTruncated;
+  if (anyScopeTruncated) {
     collector.add({
       severity: "warning",
       category: "SCOPE",
@@ -689,15 +884,19 @@ async function getArenaReconciliationAudit({
       checkedMatches: matches.length,
       checkedInvitations: invitations.length,
       checkedLocks: participantLocks.length,
+      checkedShopPurchases: shopPurchases.length,
+      checkedShopEffects: shopEffects.length,
       byCategory: collector.totals.byCategory,
     },
     scope: {
       scanLimit,
       issueLimit,
-      truncated: scopeTruncated,
+      truncated: anyScopeTruncated,
       totalCycleCount,
       totalMatchCount,
       totalInvitationCount,
+      totalShopPurchaseCount,
+      totalShopEffectCount,
     },
     issues: displayedIssues,
   };
@@ -714,6 +913,7 @@ module.exports = {
   auditInvitations,
   auditMatchTuples,
   auditOutbox,
+  auditShopTransactions,
   balanceDescription,
   balanceTuple,
   balancesEqual,

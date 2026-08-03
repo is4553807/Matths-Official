@@ -7,6 +7,7 @@ const {
   MAIN_DORMANCY_DAYS,
   dormancyConsumptionThroughDate,
   inactivityDayCount,
+  isolateDormancyReserve,
 } = require("../services/arenaDormancyService");
 
 const root = path.resolve(__dirname, "..");
@@ -60,27 +61,38 @@ const cycle = new AccessCycle({
   paybackScoreDays: 0,
   firstDayMode: "SAME_DAY",
   firstDayConsumedAt: inactivityStartedAt,
-  dailyConsumptionPausedAt: new Date("2026-08-23T00:00:00+09:00"),
+  learningDayBuckets: [
+    {
+      sourceType: "MAIN_ENTRY_BONUS",
+      availableDays: 9,
+      reservedDays: 0,
+      lockedDays: 0,
+    },
+  ],
 });
 const state = new ArenaAccessState({
   userId,
   accessCycleId: cycleId,
-  currentCompetitiveDivision: "MAIN",
-  state: "MAIN_DORMANT",
-  currentSeasonPlacementCompleted: true,
+  currentCompetitiveDivision: "SUB",
+  state: "SUB_ACCESS_EXPIRED_LOCKED",
+  currentSeasonPlacementCompleted: false,
   mainInactivityStartedAt: inactivityStartedAt,
   mainInactivityStartAvailableDays: 29,
   mainDormancyStartedAt: new Date("2026-08-23T00:00:00+09:00"),
   mainDormancyFrozenLearningDays: 9,
-  mainDormancyRecoveryMode: "RESUME_MAIN",
+  mainDormancyRecoveryMode: "RESTORE_ON_MAIN_REENTRY",
   finalRankingActive: false,
 });
+const reserve = isolateDormancyReserve(cycle.toObject());
+assert.equal(reserve.availableLearningDays, 9);
+assert.equal(reserve.hasUnsettledLearningDays, false);
+assert.equal(reserve.buckets.reduce((sum, bucket) => sum + bucket.availableDays, 0), 0);
 
 Promise.all([
   cycle.validate(),
   state.validate(),
   new ArenaOutboxEvent({
-    eventType: "MainDormancyStarted",
+    eventType: "MainDormancyDemotedToSub",
     aggregateType: "ArenaAccessState",
     aggregateId: state._id,
     idempotencyKey: `main-dormancy:${userId}:test`,
@@ -107,9 +119,16 @@ Promise.all([
       path.join(root, "services/privateMockExamService.js"),
       "utf8"
     );
-    assert.ok(dormancySource.includes('currentCompetitiveDivision: "MAIN"'));
-    assert.ok(dormancySource.includes('state: "MAIN_DORMANT"'));
-    assert.ok(dormancySource.includes('mainDormancyRecoveryMode: "SUB_STANDARD_FLOW"'));
+    const paybackSource = fs.readFileSync(
+      path.join(root, "services/arenaPaybackReviewService.js"),
+      "utf8"
+    );
+    assert.ok(dormancySource.includes('currentCompetitiveDivision: "SUB"'));
+    assert.ok(dormancySource.includes('mainDormancyRecoveryMode: recoveryMode'));
+    assert.ok(dormancySource.includes('"RESTORE_ON_MAIN_REENTRY"'));
+    assert.ok(dormancySource.includes('"SUB_STANDARD_FLOW"'));
+    assert.ok(paybackSource.includes('eventType: "MAIN_DORMANCY_RESERVE_RESTORED"'));
+    assert.ok(paybackSource.includes('sourceType: "MAIN_DORMANCY_RESTORE"'));
     assert.ok(dailySource.includes("initializeMainInactivityWindows"));
     assert.ok(dailySource.includes("processMainDormancyTransitions"));
     assert.ok(mainSettlement.includes("recordSettledMainMatchActivities"));
@@ -118,7 +137,7 @@ Promise.all([
     assert.ok(!dormancySource.includes("LONG_DORMANCY_DAYS"));
     assert.ok(!dormancySource.includes("dormancySourceLastLoginAt:"));
     console.log(
-      "Main Division 전용 20일 공식 경기·주간 공식 모의고사 미활동 휴면 경로 검증 완료"
+      "Main Division 20일 미활동 Sub 강등·잔여 일수 분리·Main 재진입 복원 경로 검증 완료"
     );
   })
   .catch((error) => {

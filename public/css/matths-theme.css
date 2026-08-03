@@ -536,7 +536,6 @@ a.learning-home-button,
     .attempt-progress-card,
     .placement-question-navigator,
     .subassessment-card,
-    .course-final,
     .unit-final,
     .course-panel,
     .progress-unit,
@@ -1285,4 +1284,9 @@ button.button-secondary {
   .quick-grid > a {
     transition: none;
   }
+}
+
+/* Keep supporting copy legible even when a browser applies the default <small> shrink. */
+body small {
+  font-size: max(9px, 0.75em);
 }

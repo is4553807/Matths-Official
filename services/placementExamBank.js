@@ -10,6 +10,12 @@ const {
   generateValidatedAdvancedQuestion,
   auditAdvancedTypeBank,
 } = require("./placementAdvancedTypes");
+const {
+  isProblemTypeEnabled,
+} = require("./problemTypeControlCache");
+const {
+  validateCalculatorFreeProblem,
+} = require("./problemGenerators/utils");
 
 const PLACEMENT_TIME_LIMIT_MS =
   100 * 60 * 1000;
@@ -1871,6 +1877,15 @@ function validateGeneratedProblem(
     return false;
   }
 
+  try {
+    validateCalculatorFreeProblem(
+      problem,
+      { id: "placement-exam" }
+    );
+  } catch (_error) {
+    return false;
+  }
+
   if (
     problem.inputMode ===
     "multiple-choice"
@@ -2415,6 +2430,20 @@ function generatePlacementQuestion(
 }
 
 function buildPlacementPaper() {
+  const disabledBlueprint = PLACEMENT_QUESTION_BLUEPRINTS.find(
+    (blueprint) =>
+      !isProblemTypeEnabled(
+        "PLACEMENT_EXAM",
+        `question:${blueprint.number}`
+      )
+  );
+  if (disabledBlueprint) {
+    const error = new Error(
+      `배치고사 ${disabledBlueprint.number}번 문제 유형이 관리자 검산 대기 상태입니다.`
+    );
+    error.status = 503;
+    throw error;
+  }
   const seenPrompts = new Set();
   const seenAdvancedTypeIds =
     new Set();
@@ -2560,6 +2589,7 @@ module.exports = {
   PLACEMENT_ADVANCED_TYPES,
   PLACEMENT_QUESTION_BLUEPRINTS,
   candidateTypesForBlueprint,
+  generatePlacementQuestion,
   validateGeneratedProblem,
   buildPlacementPaper,
   buildPlacementVerificationQuestions,

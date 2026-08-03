@@ -151,6 +151,12 @@ router.post(
 );
 
 router.get(
+  "/goat-arena/main/shop/analyses/:effectId",
+  authMiddleware.isLoggedIn,
+  goatArenaController.mainShopAnalysisResultPage
+);
+
+router.get(
   "/goat-arena/rules/sub",
   authMiddleware.isLoggedIn,
   goatArenaController.subRulesPage

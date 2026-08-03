@@ -6,6 +6,7 @@ const {
   auditInvitations,
   auditMatchTuples,
   auditOutbox,
+  auditShopTransactions,
   createIssueCollector,
 } = require("../services/arenaReconciliationService");
 
@@ -197,6 +198,69 @@ auditOutbox({
 });
 assert.equal(outboxCollector.totals.warning, 1);
 
+const healthyShopCollector = createIssueCollector();
+auditShopTransactions({
+  purchases: [{
+    _id: "purchase-1",
+    purchaseKey: "user-1:MATCH_ANALYSIS:request-1",
+    userId: "user-1",
+    itemCode: "MATCH_ANALYSIS",
+    status: "COMPLETED",
+    priceDays: 1,
+    purchasedAt: new Date("2026-08-02T00:00:00Z"),
+  }],
+  effects: [{
+    _id: "effect-1",
+    purchaseId: "purchase-1",
+    userId: "user-1",
+    itemCode: "MATCH_ANALYSIS",
+    status: "APPLIED",
+  }],
+  ledgers: [{
+    sourceId: "purchase-1",
+    eventType: "SHOP_ITEM_PURCHASE_BURN",
+  }],
+  now: new Date("2026-08-02T01:00:00Z"),
+  collector: healthyShopCollector,
+});
+assert.equal(healthyShopCollector.totals.critical, 0);
+
+const failedShopCollector = createIssueCollector();
+auditShopTransactions({
+  purchases: [
+    {
+      _id: "purchase-2",
+      purchaseKey: "user-1:DEFENSE_SCHEDULE_PROTECTION:request-2",
+      userId: "user-1",
+      itemCode: "DEFENSE_SCHEDULE_PROTECTION",
+      status: "COMPLETED",
+      relatedMatchId: "match-protected",
+      purchasedAt: new Date("2026-08-02T00:00:00Z"),
+    },
+    {
+      _id: "purchase-3",
+      purchaseKey: "user-1:DEFENSE_SCHEDULE_PROTECTION:request-3",
+      userId: "user-1",
+      itemCode: "DEFENSE_SCHEDULE_PROTECTION",
+      status: "COMPLETED",
+      relatedMatchId: "match-protected",
+      purchasedAt: new Date("2026-08-02T00:00:01Z"),
+    },
+  ],
+  effects: [
+    { _id: "effect-2", purchaseId: "purchase-2", userId: "user-1", itemCode: "DEFENSE_SCHEDULE_PROTECTION", status: "APPLIED", relatedMatchId: "match-protected" },
+    { _id: "effect-3", purchaseId: "purchase-3", userId: "user-1", itemCode: "DEFENSE_SCHEDULE_PROTECTION", status: "APPLIED", relatedMatchId: "match-protected" },
+    { _id: "effect-orphan", purchaseId: "missing", userId: "user-1", itemCode: "DEFENSE_SCHEDULE_PROTECTION", status: "APPLIED", relatedMatchId: "match-protected" },
+  ],
+  ledgers: [
+    { sourceId: "purchase-2", eventType: "DEFENSE_SCHEDULE_PROTECTION_BURN" },
+    { sourceId: "purchase-3", eventType: "DEFENSE_SCHEDULE_PROTECTION_BURN" },
+  ],
+  now: new Date("2026-08-02T01:00:00Z"),
+  collector: failedShopCollector,
+});
+assert.ok(failedShopCollector.totals.critical >= 2);
+
 const routes = text("routes/matths-routes.js");
 const controller = text("controllers/matthsController.js");
 const navigation = text("views/partials/admin-navigation.ejs");
@@ -204,9 +268,9 @@ const view = text("views/admin-arena-audit.ejs");
 assert.ok(routes.includes('"/admin/arena-audit"'));
 assert.ok(routes.includes('"/api/admin/arena-audit"'));
 assert.ok(controller.includes("getArenaReconciliationAudit"));
-assert.ok(navigation.includes("Arena 감사"));
+assert.ok(navigation.includes("정산·저장 감사"));
 assert.ok(view.includes("자동 수정하지 않음"));
 
 console.log(
-  "Arena 원장·상태 교환·초대 단일 수락·처리 대기 이벤트 감사 검증 완료"
+  "Arena 원장·상태 교환·초대 단일 수락·상점 부분 실패·처리 대기 이벤트 감사 검증 완료"
 );

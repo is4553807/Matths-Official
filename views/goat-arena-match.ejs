@@ -98,6 +98,7 @@
             <input type="hidden" name="requestId" value="<%= startRequestId %>:protection" />
             <input type="hidden" name="itemCode" value="DEFENSE_SCHEDULE_PROTECTION" />
             <input type="hidden" name="relatedMatchId" value="<%= matchData.id %>" />
+            <label class="arena-shop-confirm"><input type="checkbox" name="purchaseConfirmed" value="1" required /><span>2일 정산·경기 종료·반환 조건을 확인했습니다.</span></label>
             <button type="submit">방어 일정 보호권 사용</button>
           </form>
         </section>
@@ -176,7 +177,7 @@
           <div>
             <small>문제 팩 배정 전</small>
             <h2>경기 조건을 먼저 고정합니다.</h2>
-            <p>신청 순간 티어 조합별 JS 생성기와 자동 검산을 통과한 주관식 준킬러 5문항만 배정합니다. 유형 생성기가 연결되지 않았거나 10분 제한·채점 기준을 충족하지 못한 문제는 실제 경기에 사용되지 않습니다.</p>
+            <p>신청 순간 방어자 티어 기준 T1~T9 정책과 자동 검산을 통과한 주관식 준킬러 5문항만 배정합니다. 답은 1~999 자연수이며, 유형 생성기가 연결되지 않았거나 10분 제한·채점 기준을 충족하지 못한 문제는 실제 경기에 사용되지 않습니다.</p>
           </div>
           <form action="/goat-arena/matches/<%= matchData.id %>/prepare" method="post">
             <button type="submit">경기 문제 준비 <span aria-hidden="true">→</span></button>
@@ -244,13 +245,16 @@
                   <span>답</span>
                   <input
                     type="text"
-                    maxlength="200"
+                    inputmode="numeric"
+                    pattern="[1-9][0-9]{0,2}"
+                    maxlength="3"
                     value="<%= question.savedAnswer %>"
                     data-arena-answer="<%= question.questionKey %>"
                     autocomplete="off"
                     aria-label="<%= question.number %>번 주관식 답"
                   />
                 </label>
+                <small class="arena-match-answer-guide">정답은 1부터 999까지의 자연수로 입력합니다.</small>
               </article>
             <% }) %>
           </div>

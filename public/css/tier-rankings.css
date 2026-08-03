@@ -61,7 +61,7 @@
 }
 
 .ranking-pool-tabs button small {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -139,7 +139,7 @@
   > div
   > small {
   color: var(--tier-accent);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 950;
   letter-spacing: 1.5px;
 }
@@ -181,7 +181,7 @@
 
 .tier-my-ranking dt {
   color: var(--tier-muted);
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .tier-my-ranking dd {
@@ -194,7 +194,7 @@
 .tier-my-ranking dd small {
   margin-left: 3px;
   color: var(--tier-muted);
-  font-size: 7px;
+  font-size: 9px;
   letter-spacing: 0;
 }
 
@@ -241,7 +241,7 @@
   > p {
   margin: 7px 0 0;
   color: var(--tier-muted);
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .tier-ranking-board
@@ -250,7 +250,7 @@
   display: grid;
   gap: 6px;
   color: var(--tier-muted);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -283,7 +283,7 @@
   border: 1px solid
     var(--tier-line);
   border-radius: 11px;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .tier-ranking-context strong {
@@ -349,7 +349,7 @@
   display: block;
   margin-top: 3px;
   color: var(--tier-muted);
-  font-size: 7px;
+  font-size: 9px;
   font-style: normal;
   font-weight: 900;
 }
@@ -407,7 +407,7 @@
   display: grid;
   gap: 5px;
   color: var(--tier-muted, #778096);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -424,13 +424,45 @@
   font-size: 9px;
 }
 
+.goat-arena-page .ranking-list-tools {
+  color: #f3f5ff;
+  background:
+    linear-gradient(145deg, rgba(19, 25, 55, 0.94), rgba(9, 13, 32, 0.96));
+  border-color: rgba(139, 158, 239, 0.18);
+  box-shadow: 0 18px 45px rgba(2, 4, 15, 0.25);
+}
+
+.goat-arena-page .ranking-list-tools label,
+.goat-arena-page .ranking-list-tools output {
+  color: #8995b8;
+}
+
+.goat-arena-page .ranking-list-tools input,
+.goat-arena-page .ranking-list-tools select {
+  color-scheme: dark;
+  color: #f3f5ff;
+  background: rgba(8, 12, 31, 0.9);
+  border-color: rgba(139, 158, 239, 0.22);
+  outline: none;
+}
+
+.goat-arena-page .ranking-list-tools input::placeholder {
+  color: rgba(137, 149, 184, 0.72);
+}
+
+.goat-arena-page .ranking-list-tools input:focus,
+.goat-arena-page .ranking-list-tools select:focus {
+  border-color: rgba(72, 211, 255, 0.66);
+  box-shadow: 0 0 0 3px rgba(72, 211, 255, 0.1);
+}
+
 .ranking-list-tools button {
   min-height: 38px;
   padding: 0 13px;
   color: #fff;
   background: linear-gradient(115deg, #683fe0, #3157f6 58%, #1597b8);
   border-radius: 9px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
 }
 
@@ -443,7 +475,7 @@
   grid-column: 1 / -1;
   min-height: 12px;
   color: var(--tier-muted, #778096);
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .ranking-my-position {
@@ -479,7 +511,7 @@
 .ranking-sticky-me span,
 .ranking-sticky-me em {
   color: var(--tier-muted, #778096);
-  font-size: 8px;
+  font-size: 9px;
   font-style: normal;
 }
 
@@ -539,7 +571,7 @@
   display: block;
   margin-top: 4px;
   color: var(--tier-muted);
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .tier-ranking-crest-cell {
@@ -558,7 +590,7 @@
   > small {
   margin: 0 !important;
   color: var(--tier-text) !important;
-  font-size: 8px !important;
+  font-size: 9px !important;
 }
 
 .tier-ranking-head {
@@ -573,7 +605,7 @@
   border-bottom-color:
     var(--tier-line);
   border-radius: 0;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
 }
 
@@ -771,4 +803,38 @@
   .school-final-ranking-card summary > em {
     grid-column: 2;
   }
+}
+.tier-ranking-viewing-notice {
+  display: flex;
+  align-items: center;
+  min-height: 112px;
+  margin-bottom: 20px;
+  padding: 24px 28px;
+  color: #dce7ff;
+  background:
+    linear-gradient(135deg, rgba(90, 65, 215, 0.16), rgba(16, 180, 210, 0.08)),
+    rgba(11, 17, 43, 0.8);
+  border: 1px solid rgba(123, 142, 219, 0.22);
+  border-radius: 22px;
+}
+
+.tier-ranking-viewing-notice small {
+  display: block;
+  margin-bottom: 7px;
+  color: #8aa4ff;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.tier-ranking-viewing-notice strong {
+  display: block;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+}
+
+.tier-ranking-viewing-notice p {
+  margin: 8px 0 0;
+  color: #8793b7;
+  font-size: 0.78rem;
+  line-height: 1.65;
 }

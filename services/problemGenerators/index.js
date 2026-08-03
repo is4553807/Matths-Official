@@ -265,6 +265,27 @@ function getProblemGenerator({
   ) || null;
 }
 
+function listProblemGeneratorRegistrations() {
+  return [...generatorRegistry.entries()].map(
+    ([registryKey, generator]) => {
+      const [courseId, unitId, conceptId] =
+        registryKey.split("/");
+      const cachedModule = Object.values(require.cache).find(
+        (entry) => entry?.exports === generator
+      );
+      return {
+        registryKey,
+        courseId,
+        unitId,
+        conceptId,
+        generator,
+        sourceFile: cachedModule?.filename || "",
+      };
+    }
+  );
+}
+
 module.exports = {
   getProblemGenerator,
+  listProblemGeneratorRegistrations,
 };

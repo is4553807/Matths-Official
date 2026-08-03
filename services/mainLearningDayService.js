@@ -1,7 +1,9 @@
 const SOURCE_ORDER = [
   "SUB_CARRYOVER",
   "MAIN_ENTRY_BONUS",
+  "MAIN_DORMANCY_RESTORE",
   "MAIN_MATCH_TRANSFER",
+  "ADMIN_GRANT",
 ];
 
 function numberValue(value) {

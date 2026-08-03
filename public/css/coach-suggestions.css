@@ -204,13 +204,13 @@
   color: #58617a;
   background: #eef1f7;
   border-radius: 7px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
 }
 
 .suggestion-list b {
   margin-left: auto;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .status-approved {

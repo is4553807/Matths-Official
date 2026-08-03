@@ -152,6 +152,27 @@ const userSchema = new Schema(
       default: "student",
     },
 
+    isTestAccount: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    testBatchKey: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+      default: "",
+      index: true,
+    },
+
+    operatorRemark: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: "",
+    },
+
     schoolGrade: {
       type: Number,
       enum: [10, 11, 12, 13],
@@ -1966,6 +1987,7 @@ const assessmentAttemptSchema =
           "INITIAL",
           "SEASON",
           "RENEWAL_RANK_ASSESSMENT",
+          // 이전 정책 데이터 읽기 전용. 신규 휴면 복귀 시험은 생성하지 않는다.
           "DORMANCY_RETURN",
         ],
         default: null,
@@ -3149,6 +3171,10 @@ const archiveItemSchema =
                 type: Date,
                 default: null,
             },
+            lastRestoredAt: {
+                type: Date,
+                default: null,
+            },
             backupError: {
                 type: String,
                 maxlength: 500,
@@ -3997,7 +4023,8 @@ const privateMockExamSchema =
             },
             formCode: {
                 type: String,
-                enum: ["A", "B", "C", "TEST"],
+                // TEST는 기존 DB 회차 조회 호환용이며 신규 등록은 CUSTOM만 사용합니다.
+                enum: ["A", "B", "C", "CUSTOM", "TEST"],
                 required: true,
             },
             isTest: {
@@ -4291,7 +4318,8 @@ const privateMockExamAttemptSchema =
             },
             formCode: {
                 type: String,
-                enum: ["A", "B", "C", "TEST"],
+                // TEST는 기존 DB 응시 기록 조회 호환용이며 신규 회차는 CUSTOM만 사용합니다.
+                enum: ["A", "B", "C", "CUSTOM", "TEST"],
                 required: true,
             },
             answers: {

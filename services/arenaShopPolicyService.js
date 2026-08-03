@@ -10,6 +10,7 @@ const {
   ArenaMatchParticipantLock,
   ArenaOutboxEvent,
   ArenaProblemPack,
+  ArenaTierQuestionCatalogVersion,
   MainInvitationRequest,
   MainShopEffect,
   MainShopPolicyVersion,
@@ -21,6 +22,12 @@ const {
   settleLocked,
 } = require("./mainLearningDayService");
 const { scoreArenaAttempt } = require("./arenaMatchScoringService");
+const {
+  minimumPolicyEffectiveFrom,
+} = require("./arenaPolicyService");
+const {
+  recordPolicyChangeScheduled,
+} = require("./policyChangeOutboxService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -29,6 +36,65 @@ const DEFENSE_CONVENIENCE_COOLDOWN_DAYS = 7;
 const SEASON_ROLLOVER_WINDOW_DAYS = 10;
 const MATCH_ANALYSIS_TIMEOUT_MS = 5 * 60 * 1000;
 const MATCH_ANALYSIS_MAX_RETRIES = 2;
+
+function buildMatchAnalysisQuestionReviews({
+  problemPack,
+  attempt,
+  score,
+  referenceQuestions = [],
+} = {}) {
+  const answerByKey = new Map(
+    (attempt?.answers || []).map((answer) => [
+      String(answer.questionKey),
+      String(answer.value ?? ""),
+    ])
+  );
+  const resultByKey = new Map(
+    (score?.questionResults || []).map((result) => [
+      String(result.questionKey),
+      result,
+    ])
+  );
+  const referenceByType = new Map();
+  for (const reference of [...referenceQuestions].sort(
+    (left, right) => Number(left.sequence || 0) - Number(right.sequence || 0)
+  )) {
+    if (
+      String(reference.difficultyTier || "") ===
+        String(problemPack?.difficultyTier || "") &&
+      !referenceByType.has(String(reference.typeId || ""))
+    ) {
+      referenceByType.set(String(reference.typeId || ""), reference);
+    }
+  }
+  return (problemPack?.questions || []).map((question, index) => {
+    const key = String(question.questionKey || `Q${index + 1}`);
+    const result = resultByKey.get(key) || {};
+    const reference = referenceByType.get(String(question.typeId || ""));
+    return {
+      number: index + 1,
+      questionKey: key,
+      courseId: String(question.courseId || ""),
+      typeId: String(question.typeId || ""),
+      skillTags: (question.skillTags || []).map(String),
+      prompt: String(question.prompt || ""),
+      submittedAnswer: answerByKey.get(key) || "",
+      correctAnswer: String(question.answer ?? ""),
+      correct: result.correct === true,
+      pointsAwarded: Number(result.pointsAwarded || 0),
+      responseTimeMs:
+        result.responseTimeMs === null || result.responseTimeMs === undefined
+          ? null
+          : Number(result.responseTimeMs),
+      solution: String(question.solution || ""),
+      referenceSolutionProcess: (reference?.solutionProcess || []).map((step) => ({
+        step: Number(step.step),
+        explanation: String(step.explanation || ""),
+      })),
+      referenceFinalCheck: String(reference?.finalCheck || ""),
+    };
+  });
+}
 
 const MAIN_SHOP_ITEMS = Object.freeze({
   MATCH_ANALYSIS: {
@@ -575,6 +641,12 @@ async function purchaseMainShopItem({
       await ArenaOutboxEvent.create(outboxEvents, { session, ordered: true });
       result = { purchase: purchase.toObject(), effectId, replayed: false };
     });
+  } catch (error) {
+    if (error?.code === 11000) {
+      const existing = await MainShopPurchase.findOne({ purchaseKey }).lean();
+      if (existing) return { purchase: existing, replayed: true };
+    }
+    throw error;
   } finally {
     await session.endSession();
   }
@@ -765,6 +837,17 @@ async function useDefenseScheduleProtection({
       );
       result = { purchase: purchase.toObject(), matchId: match._id, replayed: false };
     });
+  } catch (error) {
+    if (error?.code === 11000) {
+      const existing = await MainShopPurchase.findOne({ purchaseKey }).lean();
+      if (existing) return { purchase: existing, matchId: existing.relatedMatchId, replayed: true };
+      throw statusError(
+        409,
+        "이미 방어 일정 보호권이 적용된 경기입니다.",
+        "DEFENSE_PROTECTION_ALREADY_APPLIED"
+      );
+    }
+    throw error;
   } finally {
     await session.endSession();
   }
@@ -991,7 +1074,92 @@ async function getMainShopPageData({ userId, now = new Date() }) {
     purchases,
     invitations,
     policyVersionCode: policy.code,
+    policyDisplayName: policy.displayName || "Main Division 상점 운영 정책",
+    policyEffectiveFrom: policy.effectiveFrom || null,
     sundayLocked: isSundayShopLocked(now),
+  };
+}
+
+async function getMainShopAnalysisResult({ userId, effectId }) {
+  if (!mongoose.isValidObjectId(effectId)) {
+    throw statusError(404, "경기 분석 결과를 찾을 수 없습니다.", "MAIN_SHOP_ANALYSIS_NOT_FOUND");
+  }
+  const effect = await MainShopEffect.findOne({
+    _id: effectId,
+    userId,
+    itemCode: "MATCH_ANALYSIS",
+  }).lean();
+  if (!effect) {
+    throw statusError(404, "경기 분석 결과를 찾을 수 없습니다.", "MAIN_SHOP_ANALYSIS_NOT_FOUND");
+  }
+  const purchase = await MainShopPurchase.findOne({
+    _id: effect.purchaseId,
+    userId,
+  }).lean();
+  const isReady =
+    effect.status === "APPLIED" && effect.metadata?.analysisState === "READY";
+  let questionReviews = [];
+  if (isReady && effect.relatedMatchId) {
+    const match = await ArenaMatch.findOne({
+      _id: effect.relatedMatchId,
+      status: "SETTLED",
+      $or: [{ "challenger.userId": userId }, { "defender.userId": userId }],
+    })
+      .select("problemPackId")
+      .lean();
+    if (!match?.problemPackId) {
+      throw statusError(
+        409,
+        "분석권에 연결된 경기 문제를 확인할 수 없습니다.",
+        "MAIN_SHOP_ANALYSIS_MATCH_DATA_MISSING"
+      );
+    }
+    const [attempt, problemPack] = await Promise.all([
+      ArenaMatchAttempt.findOne({ matchId: match._id, userId }).lean(),
+      ArenaProblemPack.findById(match.problemPackId).select("+questions").lean(),
+    ]);
+    if (!attempt || !problemPack) {
+      throw statusError(
+        409,
+        "분석권에 연결된 답안 또는 문제 팩을 확인할 수 없습니다.",
+        "MAIN_SHOP_ANALYSIS_ATTEMPT_DATA_MISSING"
+      );
+    }
+    const tierCatalog = problemPack.tierCatalogVersionId
+      ? await ArenaTierQuestionCatalogVersion.findById(
+          problemPack.tierCatalogVersionId
+        )
+          .select("referenceQuestions")
+          .lean()
+      : null;
+    const score = scoreArenaAttempt({ attempt, problemPack });
+    questionReviews = buildMatchAnalysisQuestionReviews({
+      problemPack,
+      attempt,
+      score,
+      referenceQuestions: tierCatalog?.referenceQuestions || [],
+    });
+  }
+  return {
+    id: String(effect._id),
+    status: effect.status,
+    analysisState: effect.metadata?.analysisState || "QUEUED",
+    relatedMatchId: effect.relatedMatchId ? String(effect.relatedMatchId) : null,
+    result: effect.metadata?.result || null,
+    score: Number.isFinite(Number(effect.metadata?.score)) ? Number(effect.metadata.score) : null,
+    correctCount: Number.isFinite(Number(effect.metadata?.correctCount))
+      ? Number(effect.metadata.correctCount)
+      : null,
+    totalSolveTimeMs: Number.isFinite(Number(effect.metadata?.totalSolveTimeMs))
+      ? Number(effect.metadata.totalSolveTimeMs)
+      : null,
+    incorrectQuestionKeys: effect.metadata?.incorrectQuestionKeys || [],
+    weakSkills: effect.metadata?.weakSkills || [],
+    reviewProblemCount: Number(effect.metadata?.reviewProblemCount || 0),
+    checklist: effect.metadata?.checklist || [],
+    questionReviews,
+    generatedAt: effect.metadata?.generatedAt || effect.appliedAt || null,
+    purchasedAt: purchase?.purchasedAt || effect.startsAt || null,
   };
 }
 
@@ -1026,24 +1194,39 @@ async function updateMainShopPolicy({ adminUserId, itemPrices = {}, enabledItems
   }
   const session = await mongoose.startSession();
   let created;
+  const effectiveFrom = minimumPolicyEffectiveFrom(now);
   try {
     await session.withTransaction(async () => {
-      await MainShopPolicyVersion.updateMany(
-        {
-          status: "ACTIVE",
-          effectiveFrom: { $lte: now },
-          $or: [{ effectiveUntil: null }, { effectiveUntil: { $gt: now } }],
-        },
-        { $set: { status: "RETIRED", effectiveUntil: now } },
-        { session }
-      );
+      const existingAtStart = await MainShopPolicyVersion.findOne({
+        status: "ACTIVE",
+        effectiveFrom,
+      }).session(session).lean();
+      if (existingAtStart) {
+        throw statusError(409, "같은 적용 시각에 이미 Main Division 상점 정책이 있습니다.");
+      }
+      const previous = await MainShopPolicyVersion.findOne({
+        status: "ACTIVE",
+        effectiveFrom: { $lt: effectiveFrom },
+      }).sort({ effectiveFrom: -1 }).session(session).lean();
+      const next = await MainShopPolicyVersion.findOne({
+        status: "ACTIVE",
+        effectiveFrom: { $gt: effectiveFrom },
+      }).sort({ effectiveFrom: 1 }).session(session).lean();
+      if (previous && (!previous.effectiveUntil || new Date(previous.effectiveUntil) > effectiveFrom)) {
+        await MainShopPolicyVersion.updateOne(
+          { _id: previous._id, status: "ACTIVE" },
+          { $set: { effectiveUntil: effectiveFrom } },
+          { session }
+        );
+      }
       const [document] = await MainShopPolicyVersion.create(
         [
           {
-            code: `MAIN-SHOP-${new Date(now).toISOString().replace(/\D/g, "").slice(0, 14)}`,
+            code: `MAIN-SHOP-${effectiveFrom.toISOString().replace(/\D/g, "").slice(0, 14)}`,
             displayName: "Main Division 상점 운영 정책",
             status: "ACTIVE",
-            effectiveFrom: now,
+            effectiveFrom,
+            effectiveUntil: next?.effectiveFrom || null,
             items,
             defenseConvenienceCooldownDays: current.defenseConvenienceCooldownDays,
             cosmeticRolloverWindowDays: current.cosmeticRolloverWindowDays,
@@ -1065,6 +1248,11 @@ async function updateMainShopPolicy({ adminUserId, itemPrices = {}, enabledItems
         ],
         { session, ordered: true }
       );
+      await recordPolicyChangeScheduled({
+        policyType: "MAIN_SHOP",
+        policy: document,
+        session,
+      });
       created = document.toObject();
     });
   } finally {
@@ -1081,10 +1269,12 @@ module.exports = {
   MATCH_ANALYSIS_TIMEOUT_MS,
   SEASON_ROLLOVER_WINDOW_DAYS,
   compareAcceleratedInvitationRequests,
+  buildMatchAnalysisQuestionReviews,
   cosmeticEffectEndsAt,
   ensureDefaultMainShopPolicy,
   expireMainShopEffects,
   getActiveMainShopPolicy,
+  getMainShopAnalysisResult,
   getMainShopPageData,
   getMainShopPolicyAdminData,
   insuredCancelledStatisticsPolicy,

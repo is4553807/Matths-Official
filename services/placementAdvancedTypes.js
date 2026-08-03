@@ -1,3 +1,8 @@
+const {
+  isProblemTypeEnabled,
+  problemTypeSelectionWeight,
+} = require("./problemTypeControlCache");
+
 const ADVANCED_REFERENCE_FAMILIES = {
   "function-condition-graph": {
     label: "함수 조건과 그래프 추론",
@@ -2199,9 +2204,9 @@ function generateDistanceInverse() {
 
   return {
     problem: shortAnswer(
-      `점 P의 속도가 $v(t)=(t-${setting.a})(t-b)$이고 ${setting.a}<b\\le ${setting.candidateMax}$인 자연수이다. $t=0$부터 $t=${setting.end}$까지 움직인 거리를 $D$라 할 때 $6D=${scaledDistance}$이다. 가능한 모든 $b$의 합을 구하시오.`,
+      `점 P의 속도가 $v(t)=(t-${setting.a})(t-b)$이고 $${setting.a}<b\\le ${setting.candidateMax}$인 자연수이다. $t=0$부터 $t=${setting.end}$까지 움직인 거리를 $D$라 할 때 $6D=${scaledDistance}$이다. 가능한 모든 $b$의 합을 구하시오.`,
       answer,
-      `미지수 $b$에서 속도의 부호가 바뀌므로 $0,${setting.a},b,${setting.end}$로 구간을 나눕니다. 각 구간의 변위의 절댓값을 더해 거리식을 만들고 자연수 범위를 검산하면 가능한 $b$는 ${candidates.join(", ")}이며 합은 ${answer}입니다.`
+      `미지수 $b$에서 속도의 부호가 바뀌므로 $0,${setting.a},b,${setting.end}$로 구간을 나눕니다. 각 구간의 변위의 절댓값을 더해 거리식을 만들고 자연수 범위를 검산하면 가능한 $b$는 ${candidates.join(", ")}이며 합은 $${answer}$입니다.`
     ),
     parameters: {
       ...setting,
@@ -3019,7 +3024,11 @@ function generateValidatedAdvancedQuestion({
         definition.courseId ===
           courseId
       ) &&
-      !excluded.has(key)
+      !excluded.has(key) &&
+      isProblemTypeEnabled(
+        "PLACEMENT_EXAM",
+        `advanced:${key}`
+      )
   );
 
   if (!eligible.length) {
@@ -3035,15 +3044,23 @@ function generateValidatedAdvancedQuestion({
   ) {
     const positiveWeights =
       eligible.map(
-        ([typeId]) =>
-          Math.max(
+        ([typeId]) => {
+          const configuredWeight = problemTypeSelectionWeight(
+            "PLACEMENT_EXAM",
+            `advanced:${typeId}`
+          );
+          const blueprintWeight = typeWeights
+            ? Math.max(
             0,
             Number(
               typeWeights?.[
                 typeId
               ]
             ) || 0
-          )
+              )
+            : 1;
+          return blueprintWeight * configuredWeight;
+        }
       );
     const hasPreferredWeights =
       positiveWeights.some(

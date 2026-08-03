@@ -23,6 +23,8 @@ Matths는 운영자 원본과 사용자 업로드를 서로 다른 저장소에 
 
 운영자 파일은 `FILE_STORAGE_PROVIDER` 값과 무관하게 로컬 영구 디스크를 사용한다. 사용자 파일은 Cloudinary가 설정되지 않았거나 업로드에 실패하면 로컬에 대체 저장하지 않고 오류를 반환한다.
 
+사용자 업로드는 검증과 Cloudinary 전송을 위해 `storage/tmp/user-cloud/`에만 잠시 머문다. 성공 시 즉시 삭제하고, 프로세스 비정상 종료로 남은 임시 파일은 24시간 후 정리한다. 이 경로는 권위 원본이나 복구 사본이 아니다.
+
 ## 3. 운영자 로컬 저장소
 
 기본 경로는 `storage/archive/`이며 `ARCHIVE_STORAGE_DIR`로 변경할 수 있다. 이 폴더는 `public/` 아래에 두지 않으며 정적 URL로 공개하지 않는다.
@@ -111,16 +113,36 @@ Cloudinary URL을 DB에 영구 저장하지 않는다. 접근 요청마다 Matth
 
 일반 아카이브 삭제는 파일과 DB 행을 즉시 지우지 않고 30일 휴지통으로 이동한다. 운영자는 휴지통에서 원래 폴더로 복구하거나 즉시 영구 삭제할 수 있다. 30일이 지나면 스케줄러가 로컬·Cloudinary 원본, R2 백업 객체와 DB 행을 영구 삭제한다. R2 백업이 존재하지만 R2 연결이 끊긴 경우에는 백업 사본이 남지 않도록 영구 삭제를 보류한다. 공개 대기 또는 응시 중인 주간 공식 모의고사 연결 파일은 휴지통으로 이동할 수 없다.
 
+관리자는 Arena 감사 화면에서 R2 복원 점검을 실행할 수 있다. 서버는 백업 객체를 임시 경로로 내려받아 `backupSha256`과 다시 계산한 SHA-256을 비교하고 임시 파일을 즉시 지운다. 같은 작업에서 로컬 영구 볼륨에 원본이 없는 `BACKED_UP` 자료만 R2에서 내려받아 임시 파일 검증 뒤 원래 저장명으로 원자적으로 복구한다. 기존 로컬 원본은 덮어쓰지 않는다.
+
 ## 8. R2 증분 백업
 
-운영자 로컬 파일은 Cloudflare R2의 비공개 버킷으로 매일 03:30 KST에 증분 백업한다. 실서비스 다운로드는 계속 로컬 원본을 사용하며 R2는 장애 복구용이다.
+운영자 로컬 파일은 등록 약 10초 뒤 Cloudflare R2 비공개 버킷으로 증분 백업을 시도하고, 누락·실패분을 포함한 전체 증분 백업을 매일 03:30 KST에 다시 실행한다. 실서비스 다운로드는 계속 로컬 원본을 사용하며 R2는 장애 복구용이다.
+
+### 8.1 최초 연결
+
+1. `https://dash.cloudflare.com`에서 Cloudflare 계정을 만든다.
+2. 대시보드의 **Storage & databases → R2 → Overview**에서 R2를 활성화한다.
+3. 외부 공개를 끈 비공개 버킷 `matths-admin-backup`을 만든다.
+4. **Manage R2 API Tokens**에서 `Object Read & Write` 권한을 선택하고 해당 버킷만 허용하는 API 토큰을 만든다.
+5. 발급 화면의 Account ID, Access Key ID, Secret Access Key를 `config.env`에 입력한다. Secret Access Key는 발급 직후에만 표시되므로 안전한 비밀 관리 저장소에도 별도로 보관한다.
+
+`config.env`에는 다음 항목이 미리 준비되어 있다.
 
 ```text
-R2_ACCOUNT_ID=...
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
 R2_BUCKET=matths-admin-backup
 ```
+
+값을 입력한 뒤 버킷 접근을 확인한다. 기본 명령은 안전하게 버킷 조회만 실행하며, 이 결과가 토큰 권한이 읽기 전용이라는 뜻은 아니다.
+
+```bash
+npm run storage-r2:verify
+```
+
+업로드와 즉시 삭제까지 점검하려면 일회성으로 `R2_VERIFY_WRITE=1`을 지정해 같은 명령을 실행한다. 점검용 객체는 성공 후 바로 삭제된다.
 
 백업 객체 키 형식:
 
@@ -183,6 +205,7 @@ npm run storage:backup
 
 - `config.env` 또는 배포 서비스 secret에 Cloudinary 값을 등록했는가
 - `storage/archive/`가 영구 디스크에 연결됐는가
+- `storage/tmp/user-cloud/`가 외부 공개 경로가 아니며 24시간 정리 작업이 실행되는가
 - `LOCAL_STORAGE_PERSISTENT=1`을 실제 영구 디스크 확인 후 설정했는가
 - R2 비공개 버킷과 API 토큰을 등록했는가
 - `npm run file-storage:verify-cloud`가 통과하는가

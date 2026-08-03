@@ -20,7 +20,7 @@
 .archive-public-heading p {
   margin: 0 0 8px;
   color: #3157f6;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.7px;
 }
@@ -114,7 +114,7 @@
 
 .archive-root-summary > small {
   color: #7d879b;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 750;
 }
 
@@ -158,7 +158,7 @@
 .archive-intro p,
 .archive-section-heading p {
   margin: 0 0 8px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.7px;
 }
@@ -253,7 +253,7 @@
 .archive-admin-file-picker small,
 .archive-notify-choice small {
   color: #7b849a;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.55;
 }
 
@@ -361,7 +361,7 @@
 .archive-folder-delete-form p {
   margin: 0 0 5px;
   color: #3157f6;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.4px;
 }
@@ -376,7 +376,7 @@
 .archive-folder-management-heading > span,
 .archive-folder-delete-form div > span {
   color: #7b8498;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.6;
 }
 
@@ -429,7 +429,7 @@
 
 .archive-folder-pin-form p {
   color: #3157f6;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: 1.4px;
 }
@@ -441,7 +441,7 @@
 
 .archive-folder-pin-form span {
   color: #6f7890;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.6;
 }
 
@@ -711,14 +711,14 @@
   color: #3157f6;
   background: #dfe6ff;
   border-radius: 6px;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 900;
 }
 
 .archive-folder-grid p {
   margin: 0;
   color: #798196;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1.55;
 }
 
@@ -736,7 +736,7 @@
 
 .archive-folder-grid small {
   margin-left: 2px;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .archive-folder-back {
@@ -769,7 +769,7 @@
 }
 
 .archive-file-icon span {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 950;
 }
 
@@ -785,7 +785,7 @@
 .archive-file-copy > div span,
 .archive-file-copy > div b {
   color: #3157f6;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 850;
 }
 
@@ -810,7 +810,7 @@
   display: block;
   overflow: hidden;
   color: #9aa2b4;
-  font-size: 8px;
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -872,7 +872,7 @@
   background: #f7f8fc;
   border: 1px solid #dfe4ef;
   border-radius: 9px;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .archive-select-all input {
@@ -887,7 +887,7 @@
   border: 1px solid #dce1ec;
   border-radius: 7px;
   font: inherit;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 @media (max-width: 760px) {

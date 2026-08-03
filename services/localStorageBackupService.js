@@ -3,12 +3,16 @@ const path = require("node:path");
 const { createHash } = require("node:crypto");
 const {
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } = require("@aws-sdk/client-s3");
+const { pipeline } = require("node:stream/promises");
+const { randomUUID } = require("node:crypto");
 
 const { ArchiveItem } = require("../models/matthsModel");
+const { withSchedulerLease } = require("./schedulerLeaseService");
 const ARCHIVE_STORAGE_DIR = path.resolve(
   process.env.ARCHIVE_STORAGE_DIR || path.join(__dirname, "..", "storage", "archive")
 );
@@ -17,6 +21,7 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAILY_BACKUP_HOUR_KST = 3;
 const DAILY_BACKUP_MINUTE_KST = 30;
 let localStorageBackupTimer = null;
+let localStorageBackupSoonTimer = null;
 
 function isR2BackupConfigured() {
   return Boolean(
@@ -177,6 +182,122 @@ async function deleteR2BackupObject(item) {
   return { deleted: true };
 }
 
+async function downloadAndVerifyR2Backup({ item, destinationPath }) {
+  if (item?.backupProvider !== "R2" || !item?.backupObjectKey || !item?.backupSha256) {
+    const error = new Error("검증 가능한 R2 백업 메타데이터가 없습니다.");
+    error.code = "R2_BACKUP_METADATA_REQUIRED";
+    throw error;
+  }
+  if (!isR2BackupConfigured()) {
+    const error = new Error("R2 복원에는 R2 연결 정보가 필요합니다.");
+    error.code = "R2_RESTORE_CONFIGURATION_REQUIRED";
+    throw error;
+  }
+  const targetPath = path.resolve(destinationPath);
+  const temporaryPath = `${targetPath}.restore-${randomUUID()}.tmp`;
+  await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
+  const client = r2Client();
+  try {
+    const object = await client.send(
+      new GetObjectCommand({ Bucket: process.env.R2_BUCKET, Key: item.backupObjectKey })
+    );
+    if (!object.Body) throw new Error("R2 백업 본문을 읽을 수 없습니다.");
+    await pipeline(object.Body, fs.createWriteStream(temporaryPath, { flags: "wx" }));
+    const restoredSha256 = await sha256File(temporaryPath);
+    if (restoredSha256 !== item.backupSha256) {
+      const error = new Error("R2 복원 파일의 SHA-256이 백업 원장과 일치하지 않습니다.");
+      error.code = "R2_RESTORE_HASH_MISMATCH";
+      throw error;
+    }
+    await fs.promises.rename(temporaryPath, targetPath);
+    return { restored: true, sha256: restoredSha256, destinationPath: targetPath };
+  } finally {
+    await fs.promises.unlink(temporaryPath).catch(() => {});
+    client.destroy();
+  }
+}
+
+async function restoreArchiveItemFromR2({ itemId, overwrite = false }) {
+  const item = await ArchiveItem.findOne({
+    _id: itemId,
+    storageProvider: "LOCAL",
+    backupProvider: "R2",
+    backupStatus: "BACKED_UP",
+  }).lean();
+  if (!item) throw new Error("복원 가능한 운영자 파일 백업을 찾을 수 없습니다.");
+  const destinationPath = path.resolve(ARCHIVE_STORAGE_DIR, path.basename(item.storedName || ""));
+  if (path.dirname(destinationPath) !== ARCHIVE_STORAGE_DIR) {
+    throw new Error("복원 대상 경로가 운영자 파일 저장소 밖입니다.");
+  }
+  if (fs.existsSync(destinationPath) && !overwrite) {
+    return { restored: false, reason: "LOCAL_ORIGINAL_EXISTS", itemId: String(item._id) };
+  }
+  const result = await downloadAndVerifyR2Backup({ item, destinationPath });
+  await ArchiveItem.updateOne(
+    { _id: item._id },
+    { $set: { backupError: "", lastRestoredAt: new Date() } }
+  );
+  return { ...result, itemId: String(item._id) };
+}
+
+async function verifyR2RestoreDrill({ itemId = null } = {}) {
+  const query = {
+    storageProvider: "LOCAL",
+    backupProvider: "R2",
+    backupStatus: "BACKED_UP",
+    backupSha256: { $ne: "" },
+  };
+  if (itemId) query._id = itemId;
+  const item = await ArchiveItem.findOne(query).sort({ backedUpAt: -1 }).lean();
+  if (!item) return { checked: false, reason: "NO_BACKED_UP_FILE" };
+  const verificationDir = path.resolve(
+    process.env.USER_CLOUD_UPLOAD_TEMP_DIR || path.join(__dirname, "..", "storage", "tmp"),
+    "r2-restore-check"
+  );
+  const destinationPath = path.join(verificationDir, `${item._id}-${randomUUID()}.verify`);
+  try {
+    const result = await downloadAndVerifyR2Backup({ item, destinationPath });
+    return { checked: true, itemId: String(item._id), sha256: result.sha256 };
+  } finally {
+    await fs.promises.unlink(destinationPath).catch(() => {});
+  }
+}
+
+async function restoreMissingLocalFilesFromR2({ limit = 50 } = {}) {
+  const items = await ArchiveItem.find({
+    storageProvider: "LOCAL",
+    backupProvider: "R2",
+    backupStatus: "BACKED_UP",
+    deletedAt: null,
+  })
+    .sort({ createdAt: 1 })
+    .limit(Math.max(1, Math.min(500, Number(limit) || 50)))
+    .lean();
+  const summary = { scanned: items.length, restored: 0, existing: 0, failed: 0 };
+  for (const item of items) {
+    const destinationPath = path.resolve(ARCHIVE_STORAGE_DIR, path.basename(item.storedName || ""));
+    if (path.dirname(destinationPath) !== ARCHIVE_STORAGE_DIR) {
+      summary.failed += 1;
+      continue;
+    }
+    if (fs.existsSync(destinationPath)) {
+      summary.existing += 1;
+      continue;
+    }
+    try {
+      await restoreArchiveItemFromR2({ itemId: item._id });
+      summary.restored += 1;
+    } catch (error) {
+      summary.failed += 1;
+      await ArchiveItem.updateOne(
+        { _id: item._id },
+        { $set: { backupError: String(error?.message || "R2 복원 실패").slice(0, 500) } }
+      );
+    }
+  }
+  return summary;
+}
+
 function millisecondsUntilNextKstBackup(now = new Date()) {
   const shifted = new Date(now.getTime() + KST_OFFSET_MS);
   let nextUtcMs = Date.UTC(
@@ -195,7 +316,10 @@ function startLocalStorageBackupScheduler() {
   const scheduleNext = () => {
     localStorageBackupTimer = setTimeout(async () => {
       try {
-        await runLocalStorageR2Backup();
+        await withSchedulerLease(
+          { name: "LOCAL_STORAGE_R2_BACKUP", leaseMs: 60 * 60 * 1000 },
+          () => runLocalStorageR2Backup()
+        );
       } catch (error) {
         console.error("Local storage R2 backup failed:", error.message);
       } finally {
@@ -209,11 +333,40 @@ function startLocalStorageBackupScheduler() {
   return localStorageBackupTimer;
 }
 
+function scheduleLocalStorageR2BackupSoon({ delayMs = 10_000 } = {}) {
+  if (
+    process.env.DISABLE_SCHEDULERS === "1" ||
+    !isR2BackupConfigured() ||
+    localStorageBackupSoonTimer
+  ) {
+    return localStorageBackupSoonTimer;
+  }
+  localStorageBackupSoonTimer = setTimeout(async () => {
+    try {
+      await withSchedulerLease(
+        { name: "LOCAL_STORAGE_R2_BACKUP", leaseMs: 60 * 60 * 1000 },
+        () => runLocalStorageR2Backup()
+      );
+    } catch (error) {
+      console.error("Immediate local storage R2 backup failed:", error.message);
+    } finally {
+      localStorageBackupSoonTimer = null;
+    }
+  }, Math.max(1_000, Number(delayMs) || 10_000));
+  localStorageBackupSoonTimer.unref?.();
+  return localStorageBackupSoonTimer;
+}
+
 module.exports = {
   backupObjectKey,
   deleteR2BackupObject,
+  downloadAndVerifyR2Backup,
   isR2BackupConfigured,
   millisecondsUntilNextKstBackup,
   runLocalStorageR2Backup,
+  restoreArchiveItemFromR2,
+  restoreMissingLocalFilesFromR2,
+  scheduleLocalStorageR2BackupSoon,
   startLocalStorageBackupScheduler,
+  verifyR2RestoreDrill,
 };

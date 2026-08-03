@@ -22,12 +22,16 @@ const {
   officialArenaEligibility,
 } = require("./arenaEligibilityService");
 const {
+  dailyMatchLimitForTier,
+  getActiveArenaPolicy,
+} = require("./arenaPolicyService");
+const {
   kstSeasonKey,
 } = require("./arenaStandingService");
 const {
   ARENA_ONE_ON_ONE_START_LIMIT_MS,
   SUB_TIER_PAIR_CONFIG,
-  generateSubOneOnOneQuestions,
+  generateSubOneOnOneQuestionsFromActiveData,
   getSubTierPair,
   tierCode,
 } = require("./arenaOneOnOneProblemBank");
@@ -84,18 +88,39 @@ const ELIGIBILITY_MESSAGES = {
   DEFENSE_POOL_NOT_ELIGIBLE:
     "현재 방어 후보로 참가할 수 없는 상태입니다.",
   MATCH_STAKE_UNAVAILABLE:
-    "일반 쟁탈전에 사용할 정기권 학습 가능 일수가 부족합니다.",
+    "일반 쟁탈전에 예치할 페이백 점수가 부족합니다. 남은 이용 기간에는 학습·모의고사를 계속 이용하고 방어전에 참가할 수 있습니다.",
   OFFICIAL_MATCH_ALREADY_PENDING:
     "이미 정산되지 않은 공식 경기가 있습니다.",
   INTEGRITY_REVIEW_REQUIRED:
     "계정·경기 무결성 검토가 끝날 때까지 신규 경기 참가가 보류됩니다.",
+  SUB_DAILY_ATTACK_LIMIT_REACHED:
+    "현재 티어의 오늘 일반 공격 횟수를 모두 사용했습니다.",
+  SUB_DAILY_DEFENSE_LIMIT_REACHED:
+    "현재 티어의 오늘 일반 방어 횟수를 모두 사용했습니다.",
+  SUB_DAILY_LOCK_AFTER_CHALLENGER_WIN:
+    "오늘 일반 쟁탈전에서 도전자로 승리해 남은 일반 공격·방어가 잠겼습니다.",
 };
+
+const DAILY_COUNTED_MATCH_STATUSES = [
+  "REQUESTED",
+  "MATCHED",
+  "READY",
+  "IN_PROGRESS",
+  "SUBMITTED",
+  "RESOLVED",
+  "HELD",
+  "SETTLED",
+];
 
 function statusError(status, message, code = "") {
   const error = new Error(message);
   error.status = status;
   error.code = code;
   return error;
+}
+
+function sameTestAccountCohort(left, right) {
+  return Boolean(left?.isTestAccount) === Boolean(right?.isTestAccount);
 }
 
 function eligibilityMessage(reasons = []) {
@@ -145,6 +170,109 @@ function kstClockParts(value = new Date()) {
           : Number(part.value),
       ])
   );
+}
+
+function kstDayWindow(value = new Date()) {
+  const parts = kstClockParts(value);
+  const start = new Date(
+    Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      -9,
+      0,
+      0,
+      0
+    )
+  );
+  return {
+    start,
+    end: new Date(start.getTime() + 24 * 60 * 60 * 1000),
+  };
+}
+
+function emptySubDailyUsage() {
+  return {
+    attackCount: 0,
+    defenseCount: 0,
+    challengerWin: false,
+  };
+}
+
+async function loadSubDailyUsage({
+  userIds = [],
+  now = new Date(),
+  session = null,
+}) {
+  const normalizedIds = [...new Set(userIds.map(String))]
+    .filter((userId) => mongoose.isValidObjectId(userId));
+  const usageByUser = new Map(
+    normalizedIds.map((userId) => [userId, emptySubDailyUsage()])
+  );
+  if (!normalizedIds.length) return usageByUser;
+  const { start, end } = kstDayWindow(now);
+  const matches = await queryWithSession(
+    ArenaMatch.find({
+      division: "SUB",
+      matchType: "NORMAL",
+      requestedAt: { $gte: start, $lt: end },
+      status: { $in: DAILY_COUNTED_MATCH_STATUSES },
+      $or: [
+        { "challenger.userId": { $in: normalizedIds } },
+        { "defender.userId": { $in: normalizedIds } },
+      ],
+    }).select("challenger.userId defender.userId status winnerRole"),
+    session
+  ).lean();
+  for (const match of matches) {
+    const challengerId = String(match.challenger?.userId || "");
+    const defenderId = String(match.defender?.userId || "");
+    if (usageByUser.has(challengerId)) {
+      const usage = usageByUser.get(challengerId);
+      usage.attackCount += 1;
+      if (match.status === "SETTLED" && match.winnerRole === "CHALLENGER") {
+        usage.challengerWin = true;
+      }
+    }
+    if (usageByUser.has(defenderId)) {
+      usageByUser.get(defenderId).defenseCount += 1;
+    }
+  }
+  return usageByUser;
+}
+
+function subDailyLimitState({ policy = null, cycle, standing, usage }) {
+  const limits = dailyMatchLimitForTier(
+    policy || cycle?.policySnapshot,
+    tierCode(standing?.arenaRank)
+  );
+  const normalizedUsage = usage || emptySubDailyUsage();
+  return {
+    ...normalizedUsage,
+    attackLimit: Number(limits.attackLimit),
+    defenseLimit: Number(limits.defenseLimit),
+    attackRemaining: Math.max(
+      0,
+      Number(limits.attackLimit) - normalizedUsage.attackCount
+    ),
+    defenseRemaining: Math.max(
+      0,
+      Number(limits.defenseLimit) - normalizedUsage.defenseCount
+    ),
+  };
+}
+
+function subDailyEligibilityReasons({ daily, role }) {
+  if (daily.challengerWin) {
+    return ["SUB_DAILY_LOCK_AFTER_CHALLENGER_WIN"];
+  }
+  if (role === "DEFENDER" && daily.defenseCount >= daily.defenseLimit) {
+    return ["SUB_DAILY_DEFENSE_LIMIT_REACHED"];
+  }
+  if (role === "CHALLENGER" && daily.attackCount >= daily.attackLimit) {
+    return ["SUB_DAILY_ATTACK_LIMIT_REACHED"];
+  }
+  return [];
 }
 
 function isSundayDivisionLocked(
@@ -385,8 +513,9 @@ async function loadMatchActorContext({
     );
   }
   if (
+    !requireDefensePool &&
     Number(
-      accessCycle?.availableLearningDays ||
+      accessCycle?.paybackScoreDays ||
         0
     ) < Number(requiredAvailableDays)
   ) {
@@ -396,6 +525,7 @@ async function loadMatchActorContext({
     Number(
       accessCycle?.lockedLearningDays || 0
     ) > 0
+    || Number(accessCycle?.lockedPaybackScoreDays || 0) > 0
   ) {
     reasons.push(
       "OFFICIAL_MATCH_ALREADY_PENDING"
@@ -495,6 +625,8 @@ function buildEligibleDefenseCandidates({
   cycles = [],
   busyUserIds = [],
   challengerArenaRank = "",
+  dailyUsageByUser = new Map(),
+  dailyPolicy = null,
   limit = DEFAULT_CANDIDATE_LIMIT,
 }) {
   const safeLimit = Math.max(
@@ -554,6 +686,15 @@ function buildEligibleDefenseCandidates({
       if (challengerArenaRank && !tierPair) {
         return null;
       }
+      const daily = subDailyLimitState({
+        policy: dailyPolicy,
+        cycle,
+        standing,
+        usage: dailyUsageByUser.get(String(standing.userId)),
+      });
+      if (subDailyEligibilityReasons({ daily, role: "DEFENDER" }).length) {
+        return null;
+      }
       return {
         userId: String(standing.userId),
         standingId: String(
@@ -574,6 +715,7 @@ function buildEligibleDefenseCandidates({
         ),
         tierPairKey: tierPair?.key || "",
         tierPairLabel: tierPair?.label || "",
+        dailyDefenseRemaining: daily.defenseRemaining,
       };
     })
     .filter(Boolean);
@@ -663,14 +805,14 @@ async function listSubDefenseCandidates({
     unsettledMatches,
   ] = await Promise.all([
     User.findById(challengerUserId)
-      .select("+identityMatchHash")
+      .select("+identityMatchHash isTestAccount")
       .lean(),
     User.find({
       _id: { $in: userIds },
       accountStatus: "active",
       isActive: { $ne: false },
     })
-      .select("_id +identityMatchHash")
+      .select("_id +identityMatchHash isTestAccount")
       .lean(),
     AccessCycle.find({
       _id: {
@@ -680,10 +822,9 @@ async function listSubDefenseCandidates({
       },
       status: "ACTIVE",
       division: "SUB",
-      availableLearningDays: {
-        $gt: 0,
-      },
+      availableLearningDays: { $gt: 0 },
       lockedLearningDays: 0,
+      lockedPaybackScoreDays: { $in: [0, null] },
     }).lean(),
     ArenaStanding.find({
       _id: {
@@ -737,18 +878,28 @@ async function listSubDefenseCandidates({
       unsettledMatches
     ).map(String),
   ];
+  const dailyUsageByUser = await loadSubDailyUsage({
+    userIds,
+    now,
+  });
+  const dailyPolicy = await getActiveArenaPolicy(now);
   return buildEligibleDefenseCandidates({
     standings,
     accessStates,
     users: users.filter(
       (user) =>
-        !challenger?.identityMatchHash ||
-        !user.identityMatchHash ||
-        user.identityMatchHash !== challenger.identityMatchHash
+        sameTestAccountCohort(user, challenger) &&
+        (
+          !challenger?.identityMatchHash ||
+          !user.identityMatchHash ||
+          user.identityMatchHash !== challenger.identityMatchHash
+        )
     ),
     cycles,
     busyUserIds,
     challengerArenaRank,
+    dailyUsageByUser,
+    dailyPolicy,
     limit,
   });
 }
@@ -764,6 +915,23 @@ async function prepareSubAutoSelection({
     now,
     requiredAvailableDays: 1,
   });
+  const challengerDailyUsage = await loadSubDailyUsage({
+    userIds: [challengerUserId],
+    now,
+  });
+  const dailyPolicy = await getActiveArenaPolicy(now);
+  const challengerDaily = subDailyLimitState({
+    policy: dailyPolicy,
+    cycle: actor.accessCycle,
+    standing: actor.standing,
+    usage: challengerDailyUsage.get(String(challengerUserId)),
+  });
+  actor.reasons.push(
+    ...subDailyEligibilityReasons({
+      daily: challengerDaily,
+      role: "CHALLENGER",
+    })
+  );
   assertMatchContext(actor);
   const pair = getSubTierPair(
     actor.standing.arenaRank,
@@ -845,10 +1013,27 @@ async function getSubChallengeData({
       userId,
     });
   const reasons = [...actor.reasons];
+  const usageByUser = await loadSubDailyUsage({
+    userIds: [userId],
+    now,
+  });
+  const dailyPolicy = await getActiveArenaPolicy(now);
+  const dailyUsage = subDailyLimitState({
+    policy: dailyPolicy,
+    cycle: actor.accessCycle,
+    standing: actor.standing,
+    usage: usageByUser.get(String(userId)),
+  });
+  reasons.push(
+    ...subDailyEligibilityReasons({
+      daily: dailyUsage,
+      role: "CHALLENGER",
+    })
+  );
   if (
     Number(
       actor.accessCycle
-        ?.availableLearningDays || 0
+        ?.paybackScoreDays || 0
     ) < stakeDays
   ) {
     reasons.push("MATCH_STAKE_UNAVAILABLE");
@@ -907,6 +1092,7 @@ async function getSubChallengeData({
         }
       : null,
     activeMatch,
+    dailyUsage,
     targetTiers,
     hasEligibleOpponent: targetTiers.some(
       (target) => target.candidateCount > 0
@@ -978,6 +1164,7 @@ async function runCreateNormalMatchTransaction({
   matchKey,
   now,
 }) {
+  const dailyPolicy = await getActiveArenaPolicy(now);
   const session = await mongoose.startSession();
   let result = null;
   try {
@@ -1038,9 +1225,38 @@ async function runCreateNormalMatchTransaction({
               targetStanding.userId,
             now,
             session,
-            requiredAvailableDays: 1,
+            requiredAvailableDays: 0,
             requireDefensePool: true,
           });
+        const dailyUsageByUser = await loadSubDailyUsage({
+          userIds: [challenger.user._id, defender.user._id],
+          now,
+          session,
+        });
+        const challengerDaily = subDailyLimitState({
+          policy: dailyPolicy,
+          cycle: challenger.accessCycle,
+          standing: challenger.standing,
+          usage: dailyUsageByUser.get(String(challenger.user._id)),
+        });
+        const defenderDaily = subDailyLimitState({
+          policy: dailyPolicy,
+          cycle: defender.accessCycle,
+          standing: defender.standing,
+          usage: dailyUsageByUser.get(String(defender.user._id)),
+        });
+        challenger.reasons.push(
+          ...subDailyEligibilityReasons({
+            daily: challengerDaily,
+            role: "CHALLENGER",
+          })
+        );
+        defender.reasons.push(
+          ...subDailyEligibilityReasons({
+            daily: defenderDaily,
+            role: "DEFENDER",
+          })
+        );
         const stakeDays =
           normalStakeDaysFromCycle(
             challenger.accessCycle
@@ -1048,7 +1264,7 @@ async function runCreateNormalMatchTransaction({
         if (
           Number(
             challenger.accessCycle
-              ?.availableLearningDays || 0
+              ?.paybackScoreDays || 0
           ) < stakeDays
         ) {
           challenger.reasons.push(
@@ -1129,7 +1345,7 @@ async function runCreateNormalMatchTransaction({
         const selectionAuditId =
           new mongoose.Types.ObjectId();
         const generatedProblemSet =
-          generateSubOneOnOneQuestions({
+          await generateSubOneOnOneQuestionsFromActiveData({
             challengerTier:
               challenger.standing.arenaRank,
             defenderTier:
@@ -1326,16 +1542,17 @@ async function runCreateNormalMatchTransaction({
               userId:
                 challenger.user._id,
               status: "ACTIVE",
-              availableLearningDays: {
+              paybackScoreDays: {
                 $gte: stakeDays,
               },
+              lockedPaybackScoreDays: { $in: [0, null] },
               lockedLearningDays: 0,
             },
             {
               $inc: {
-                availableLearningDays:
+                paybackScoreDays:
                   -stakeDays,
-                lockedLearningDays:
+                lockedPaybackScoreDays:
                   stakeDays,
               },
             },
@@ -1344,7 +1561,7 @@ async function runCreateNormalMatchTransaction({
         if (!cycleUpdate.modifiedCount) {
           throw statusError(
             409,
-            "일반 쟁탈전에 사용할 정기권 학습 가능 일수를 예치하지 못했습니다.",
+            "일반 쟁탈전에 사용할 페이백 점수를 예치하지 못했습니다.",
             "MATCH_STAKE_LOCK_FAILED"
           );
         }
@@ -1362,22 +1579,25 @@ async function runCreateNormalMatchTransaction({
               eventType:
                 "MATCH_STAKE_LOCKED",
               availableLearningDaysDelta:
-                -stakeDays,
-              paybackScoreDaysDelta: 0,
-              lockedLearningDaysDelta:
+                0,
+              paybackScoreDaysDelta: -stakeDays,
+              lockedPaybackScoreDaysDelta:
                 stakeDays,
+              lockedLearningDaysDelta: 0,
               balanceAfter: {
                 availableLearningDays:
                   Number(
                     cycle.availableLearningDays
-                  ) - stakeDays,
+                  ),
                 paybackScoreDays: Number(
-                  cycle.paybackScoreDays
-                ),
+                    cycle.paybackScoreDays
+                ) - stakeDays,
+                lockedPaybackScoreDays:
+                  Number(cycle.lockedPaybackScoreDays || 0) + stakeDays,
                 lockedLearningDays:
                   Number(
                     cycle.lockedLearningDays
-                  ) + stakeDays,
+                  ),
               },
               sourceType: "ArenaMatch",
               sourceId: matchId,
@@ -1589,6 +1809,8 @@ module.exports = {
   getSubChallengeData,
   isSundayDivisionLocked,
   isSundayMatchRequestLocked,
+  kstDayWindow,
+  loadSubDailyUsage,
   loadMatchActorContext,
   kstClockParts,
   listSubDefenseCandidates,
@@ -1598,5 +1820,8 @@ module.exports = {
   nextSundayMatchCutoff,
   prepareSubAutoSelection,
   selectRandomSubDefenseCandidate,
+  sameTestAccountCohort,
+  subDailyEligibilityReasons,
+  subDailyLimitState,
   subMatchStartDeadline,
 };

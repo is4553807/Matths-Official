@@ -16,6 +16,13 @@ const {
   ArenaStandingChangeLedger,
 } = require("../models/goatArenaModel");
 const { sealArenaProblemPackDraft } = require("../services/arenaProblemPackService");
+const {
+  ARENA_LEGACY_CONTENT_VERSION,
+  ARENA_QUESTION_DESIGN_POLICY_VERSION,
+  TIER_SPECS,
+  packCurveForPair,
+  resolveArenaDifficultyTier,
+} = require("../services/arenaOneOnOneDifficultyPolicy");
 const { settleMainNormalMatch } = require("../services/mainArenaSettlementService");
 const { settleMainRevengeNoShow } = require("../services/mainArenaRevengeService");
 const { moveAvailable } = require("../services/mainLearningDayService");
@@ -99,6 +106,8 @@ async function run() {
     revengeMatchId: new mongoose.Types.ObjectId(),
   };
   try {
+    const difficultyTier = resolveArenaDifficultyTier("SILVER", "GOLD");
+    const difficultySpec = TIER_SPECS[difficultyTier];
     const packQuestions = questions(now);
     const sealed = sealArenaProblemPackDraft(
       {
@@ -112,6 +121,16 @@ async function run() {
         tierPairLabel: "실버-골드",
         generationMode: "AUTO_ON_CHALLENGE",
         generatedForMatchKey: `E2E:MAIN:NORMAL:${suffix}`,
+        designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
+        contentSourceVersion: ARENA_LEGACY_CONTENT_VERSION,
+        designCompliance: "PENDING_FINAL_GENERATORS",
+        difficultyAnchor: "DEFENDER",
+        difficultyTier,
+        targetDefenderAccuracyMin: difficultySpec.defenderAccuracy[0],
+        targetDefenderAccuracyMax: difficultySpec.defenderAccuracy[1],
+        targetChallengerAccuracyMin: difficultySpec.challengerAccuracy[0],
+        targetChallengerAccuracyMax: difficultySpec.challengerAccuracy[1],
+        packCurve: packCurveForPair("SILVER", "GOLD"),
         curriculumVersion: "E2E-V1",
         curriculumCoverage: ["algebra"],
         questionCount: 5,

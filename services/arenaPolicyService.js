@@ -12,6 +12,9 @@ const {
 const {
   TtlCache,
 } = require("./ttlCacheService");
+const {
+  recordPolicyChangeScheduled,
+} = require("./policyChangeOutboxService");
 
 const policyCache = new TtlCache({
   maxEntries: 5,
@@ -22,6 +25,9 @@ const ACTIVE_MAIN_POLICY_CACHE_KEY =
   "arena-policy:main:active";
 const ACTIVE_POLICY_TTL_MS =
   30 * 1000;
+const POLICY_CHANGE_NOTICE_DAYS = 30;
+const POLICY_CHANGE_NOTICE_MS =
+  POLICY_CHANGE_NOTICE_DAYS * 24 * 60 * 60 * 1000;
 
 const DEFAULT_PAYBACK_BANDS = [
   {
@@ -59,6 +65,53 @@ const DEFAULT_MAIN_STAKE_BANDS = [
   { tierGap: 2, stakeDays: 2 },
   { tierGap: 3, stakeDays: 3 },
 ];
+
+const DEFAULT_DAILY_MATCH_LIMITS_BY_TIER = Object.freeze([
+  { tier: "BRONZE", attackLimit: 4, defenseLimit: 1 },
+  { tier: "SILVER", attackLimit: 4, defenseLimit: 1 },
+  { tier: "GOLD", attackLimit: 3, defenseLimit: 2 },
+  { tier: "PLATINUM", attackLimit: 3, defenseLimit: 2 },
+  { tier: "EMERALD", attackLimit: 2, defenseLimit: 3 },
+  { tier: "DIAMOND", attackLimit: 2, defenseLimit: 3 },
+  { tier: "MASTER", attackLimit: 1, defenseLimit: 4 },
+  { tier: "GRANDMASTER", attackLimit: 1, defenseLimit: 4 },
+  { tier: "CHALLENGER", attackLimit: 1, defenseLimit: 4 },
+]);
+
+function normalizeDailyMatchLimits(input = {}, prefix = "sub") {
+  const supplied = DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.some(({ tier }) =>
+    input[`${prefix}AttackLimit_${tier}`] !== undefined ||
+    input[`${prefix}DefenseLimit_${tier}`] !== undefined
+  );
+  const source = Array.isArray(input.dailyMatchLimitsByTier)
+    ? input.dailyMatchLimitsByTier
+    : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.map((row) => ({
+        tier: row.tier,
+        attackLimit: supplied
+          ? input[`${prefix}AttackLimit_${row.tier}`]
+          : row.attackLimit,
+        defenseLimit: supplied
+          ? input[`${prefix}DefenseLimit_${row.tier}`]
+          : row.defenseLimit,
+      }));
+  if (source.length !== DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.length) {
+    throw statusError(400, "티어별 일일 공격·방어 상한을 모두 입력해주세요.");
+  }
+  const byTier = new Map(source.map((row) => [String(row.tier).toUpperCase(), row]));
+  return DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.map(({ tier }) => {
+    const row = byTier.get(tier);
+    if (!row) throw statusError(400, `${tier} 일일 경기 상한이 없습니다.`);
+    return {
+      tier,
+      attackLimit: integerValue(row.attackLimit, {
+        label: `${tier} 일일 공격 상한`, minimum: 0, maximum: 20,
+      }),
+      defenseLimit: integerValue(row.defenseLimit, {
+        label: `${tier} 일일 방어 상한`, minimum: 0, maximum: 20,
+      }),
+    };
+  });
+}
 
 function statusError(status, message) {
   const error = new Error(message);
@@ -159,6 +212,20 @@ function parseKstDateTime(value) {
     }
   }
   return date;
+}
+
+function minimumPolicyEffectiveFrom(now = new Date()) {
+  const current = new Date(now);
+  if (Number.isNaN(current.getTime())) {
+    throw statusError(400, "정책 저장 시각을 확인해주세요.");
+  }
+  return new Date(current.getTime() + POLICY_CHANGE_NOTICE_MS);
+}
+
+function scheduledPolicyEffectiveFrom(requestedAt, now = new Date()) {
+  const requested = parseKstDateTime(requestedAt);
+  const minimum = minimumPolicyEffectiveFrom(now);
+  return requested < minimum ? minimum : requested;
 }
 
 function arrayValue(value) {
@@ -348,6 +415,7 @@ function normalizePolicyDraftInput(input = {}) {
       normal: 1,
       revenge: 2,
     },
+    dailyMatchLimitsByTier: normalizeDailyMatchLimits(input, "sub"),
     payback: {
       minimumStreakDays,
       minimumPaidNormalAttacks: integerValue(input.minimumPaidNormalAttacks, {
@@ -462,6 +530,7 @@ function normalizeMainPolicyDraftInput(input = {}) {
     maximumTargetTierGap,
     unlimitedDailyAttacks: true,
     unlimitedDailyDefenses: true,
+    dailyMatchLimitsByTier: normalizeDailyMatchLimits(input, "main"),
     maximumNetGainPerCycle: null,
     invitationRequestExpiresAt: null,
     invitationOfferBatchSize:
@@ -562,6 +631,7 @@ function defaultLearningPackagePolicyDefinition({
       normal: 1,
       revenge: 2,
     },
+    dailyMatchLimitsByTier: DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.map((row) => ({ ...row })),
     payback: {
       minimumStreakDays: DEFAULT_LEARNING_PACKAGE_DAYS,
       minimumPaidNormalAttacks: 2,
@@ -592,6 +662,13 @@ function learningPackagePolicyView(policy) {
     priceAmount: Number(source.priceAmount),
     initialLearningDays: Number(source.initialLearningDays),
     initialPaybackScoreDays: Number(source.initialPaybackScoreDays),
+    dailyMatchLimitsByTier: (source.dailyMatchLimitsByTier?.length
+      ? source.dailyMatchLimitsByTier
+      : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER).map((row) => ({
+        tier: row.tier,
+        attackLimit: Number(row.attackLimit),
+        defenseLimit: Number(row.defenseLimit),
+      })),
   };
 }
 
@@ -630,6 +707,11 @@ function policySnapshot(policy) {
         }
       )
     ),
+    dailyMatchLimitsByTier: JSON.parse(JSON.stringify(
+      source.dailyMatchLimitsByTier?.length
+        ? source.dailyMatchLimitsByTier
+        : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER
+    )),
     payback: JSON.parse(
       JSON.stringify(source.payback || {})
     ),
@@ -657,6 +739,13 @@ function mainPolicySnapshot(policy) {
       JSON.stringify(source.stakeDaysByTierGap || [])
     ),
     maximumTargetTierGap: Number(source.maximumTargetTierGap),
+    unlimitedDailyAttacks: source.unlimitedDailyAttacks !== false,
+    unlimitedDailyDefenses: source.unlimitedDailyDefenses !== false,
+    dailyMatchLimitsByTier: JSON.parse(JSON.stringify(
+      source.dailyMatchLimitsByTier?.length
+        ? source.dailyMatchLimitsByTier
+        : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER
+    )),
     invitationOfferBatchSize:
       source.invitationOfferBatchSize ?? null,
     invitationCancellationFeeDays: Number(
@@ -713,6 +802,24 @@ function minimumMainStakeDaysForTierGap(policy, tierGap) {
     );
   }
   return Number(band.stakeDays);
+}
+
+function dailyMatchLimitForTier(policy, tier) {
+  const normalizedTier = String(tier || "").trim().toUpperCase();
+  const source = policy?.dailyMatchLimitsByTier?.length
+    ? policy.dailyMatchLimitsByTier
+    : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER;
+  const row = source.find(
+    (entry) => String(entry.tier || "").toUpperCase() === normalizedTier
+  );
+  if (!row) {
+    throw statusError(409, "현재 티어의 일일 경기 상한 정책을 찾을 수 없습니다.");
+  }
+  return {
+    tier: normalizedTier,
+    attackLimit: Number(row.attackLimit),
+    defenseLimit: Number(row.defenseLimit),
+  };
 }
 
 function planPolicyActivation({
@@ -805,6 +912,15 @@ async function getActiveArenaPolicy(
   return policy;
 }
 
+async function getUpcomingArenaPolicy(now = new Date()) {
+  return SubscriptionPolicyVersion.findOne({
+    status: "ACTIVE",
+    effectiveFrom: { $gt: now },
+  })
+    .sort({ effectiveFrom: 1, createdAt: 1 })
+    .lean();
+}
+
 async function getActiveMainDivisionPolicy(
   now = new Date(),
   { bypassCache = false } = {}
@@ -841,23 +957,36 @@ async function getActiveMainDivisionPolicy(
   return policy;
 }
 
+async function getUpcomingMainDivisionPolicy(now = new Date()) {
+  return MainDivisionPolicyVersion.findOne({
+    status: "ACTIVE",
+    effectiveFrom: { $gt: now },
+  })
+    .sort({ effectiveFrom: 1, createdAt: 1 })
+    .lean();
+}
+
 async function getArenaPolicyAdminData(
   now = new Date()
 ) {
   const [
     policies,
     activePolicy,
+    upcomingPolicy,
     mainPolicies,
     activeMainPolicy,
+    upcomingMainPolicy,
   ] = await Promise.all([
     SubscriptionPolicyVersion.find()
       .sort({ effectiveFrom: -1, createdAt: -1 })
       .lean(),
     getActiveArenaPolicy(now),
+    getUpcomingArenaPolicy(now),
     MainDivisionPolicyVersion.find()
       .sort({ effectiveFrom: -1, createdAt: -1 })
       .lean(),
     getActiveMainDivisionPolicy(now),
+    getUpcomingMainDivisionPolicy(now),
   ]);
   return {
     policies,
@@ -865,6 +994,7 @@ async function getArenaPolicyAdminData(
     sub: {
       policies,
       activePolicy,
+      upcomingPolicy,
     },
     learningPackage: {
       policies,
@@ -874,6 +1004,7 @@ async function getArenaPolicyAdminData(
     main: {
       policies: mainPolicies,
       activePolicy: activeMainPolicy,
+      upcomingPolicy: upcomingMainPolicy,
     },
     now,
   };
@@ -1015,7 +1146,7 @@ async function ensureFullAttendanceLearningPackagePolicy(now = new Date()) {
         },
         changeSummary:
           "페이백 자격에 29일 전일 연속 학습 조건 적용",
-        activatedAt: effectiveFrom,
+        activatedAt: now,
         activatedBy: null,
       });
       await created.save({ session });
@@ -1049,7 +1180,7 @@ async function updateLearningPackagePrice({
     throw statusError(400, "관리자 정보를 확인해주세요.");
   }
 
-  const effectiveFrom = new Date(now);
+  const effectiveFrom = minimumPolicyEffectiveFrom(now);
   const session = await mongoose.startSession();
   let created = null;
   try {
@@ -1104,9 +1235,14 @@ async function updateLearningPackagePrice({
           `29일 학습 패키지 가격을 ${price.toLocaleString("ko-KR")}원으로 변경`,
         createdBy: adminUserId,
         activatedBy: adminUserId,
-        activatedAt: effectiveFrom,
+        activatedAt: now,
       });
       await created.save({ session });
+      await recordPolicyChangeScheduled({
+        policyType: "LEARNING_PACKAGE",
+        policy: created,
+        session,
+      });
       await AdminActionLog.create(
         [
           {
@@ -1198,6 +1334,15 @@ async function activateArenaPolicyVersion({
         throw statusError(409, "작성 중인 정책만 활성화할 수 있습니다.");
       }
 
+      candidate.effectiveFrom = scheduledPolicyEffectiveFrom(
+        candidate.effectiveFrom,
+        now
+      );
+      // 보호 훅은 ACTIVE 정책 정의의 변경을 막는다. 적용 시각 보정은
+      // 아직 DRAFT인 동안 먼저 저장하고, 이후 상태 전환 저장에서는
+      // 정의 필드가 변경되지 않도록 분리한다.
+      await candidate.save({ session });
+
       const activePolicies = await SubscriptionPolicyVersion.find({
         status: "ACTIVE",
       })
@@ -1222,6 +1367,11 @@ async function activateArenaPolicyVersion({
       candidate.activatedAt = now;
       candidate.activatedBy = adminUserId;
       await candidate.save({ session });
+      await recordPolicyChangeScheduled({
+        policyType: "SUB_DIVISION",
+        policy: candidate,
+        session,
+      });
 
       await AdminActionLog.create(
         [
@@ -1272,7 +1422,11 @@ async function activateMainDivisionPolicyVersion({
           "작성 중인 Main Division 정책만 활성화할 수 있습니다."
         );
       }
-      await candidate.validate();
+      candidate.effectiveFrom = scheduledPolicyEffectiveFrom(
+        candidate.effectiveFrom,
+        now
+      );
+      await candidate.save({ session });
       const activePolicies =
         await MainDivisionPolicyVersion.find({
           status: "ACTIVE",
@@ -1304,6 +1458,11 @@ async function activateMainDivisionPolicyVersion({
       candidate.activatedAt = now;
       candidate.activatedBy = adminUserId;
       await candidate.save({ session });
+      await recordPolicyChangeScheduled({
+        policyType: "MAIN_DIVISION",
+        policy: candidate,
+        session,
+      });
       await AdminActionLog.create(
         [
           {
@@ -1544,17 +1703,22 @@ function invalidateMainDivisionPolicyCache() {
 }
 
 module.exports = {
+  DEFAULT_DAILY_MATCH_LIMITS_BY_TIER,
   DEFAULT_LEARNING_PACKAGE_DAYS,
   DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT,
+  POLICY_CHANGE_NOTICE_DAYS,
   activateMainDivisionPolicyVersion,
   activateArenaPolicyVersion,
   createMainDivisionPolicyVersion,
   createArenaPolicyVersion,
+  dailyMatchLimitForTier,
   defaultLearningPackagePolicyDefinition,
   ensureDefaultLearningPackagePolicy,
   ensureFullAttendanceLearningPackagePolicy,
   getActiveArenaPolicy,
   getActiveMainDivisionPolicy,
+  getUpcomingArenaPolicy,
+  getUpcomingMainDivisionPolicy,
   getArenaPolicyAdminData,
   hasMaterialRenewalChange,
   invalidateArenaPolicyCache,
@@ -1562,6 +1726,7 @@ module.exports = {
   learningPackagePolicyView,
   mainPolicySnapshot,
   minimumMainStakeDaysForTierGap,
+  minimumPolicyEffectiveFrom,
   normalizeMainPolicyDraftInput,
   normalizePolicyDraftInput,
   parseKstDateTime,
@@ -1570,5 +1735,6 @@ module.exports = {
   retireMainDivisionPolicyVersion,
   retireArenaPolicyVersion,
   updateLearningPackagePrice,
+  scheduledPolicyEffectiveFrom,
   validatePaybackBands,
 };

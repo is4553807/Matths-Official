@@ -25,9 +25,9 @@ const rows = calculateMonthlyObservations({
   now,
   period,
   payments: [
-    { status: "APPLIED", approvedAmount: 29000, policyVersionCode: "P1" },
-    { status: "REFUNDED", approvedAmount: 29000, policyVersionCode: "P1" },
-    { status: "APPROVED", approvedAmount: 5000, policyVersionCode: "P1" },
+    { userId: "user-1", status: "APPLIED", approvedAmount: 29000, policyVersionCode: "P1" },
+    { userId: "user-3", status: "REFUNDED", approvedAmount: 29000, policyVersionCode: "P1" },
+    { userId: "user-2", status: "APPROVED", approvedAmount: 5000, policyVersionCode: "P1" },
   ],
   paidCycles: [
     {
@@ -36,6 +36,7 @@ const rows = calculateMonthlyObservations({
       division: "SUB",
       policyVersionCode: "P1",
       startsAt: "2026-08-01T00:00:00+09:00",
+      paidAt: "2026-08-01T00:00:00+09:00",
       depletedAt: "2026-08-05T00:00:00+09:00",
       firstDayMode: "SAME_DAY",
     },
@@ -45,6 +46,7 @@ const rows = calculateMonthlyObservations({
       division: "SUB",
       policyVersionCode: "P1",
       startsAt: "2026-08-01T00:00:00+09:00",
+      paidAt: "2026-08-01T00:00:00+09:00",
       depletedAt: null,
       firstDayMode: "NEXT_DAY",
     },
@@ -71,7 +73,7 @@ const rows = calculateMonthlyObservations({
     { _id: "renew-1", userId: "user-1", paidAt: "2026-08-02T12:00:00+09:00" },
     { _id: "renew-2", userId: "user-2", paidAt: "2026-08-05T08:00:00+09:00" },
   ],
-  renewalAssessments: [{ status: "COMPLETED" }],
+  renewalAssessments: [{ status: "COMPLETED" }, { status: "REQUIRED" }],
   conversions: [
     {
       userId: "user-2",
@@ -98,6 +100,7 @@ const rows = calculateMonthlyObservations({
   ],
   matchesConcluded: [
     {
+      _id: "match-sub",
       status: "SETTLED",
       division: "SUB",
       winnerRole: "CHALLENGER",
@@ -105,6 +108,7 @@ const rows = calculateMonthlyObservations({
       resultSnapshot: { settlementSummary: { returnedLearningDays: 1 } },
     },
     {
+      _id: "match-main",
       status: "SETTLED",
       division: "MAIN",
       winnerRole: "DEFENDER",
@@ -112,6 +116,31 @@ const rows = calculateMonthlyObservations({
       resultSnapshot: { settlementSummary: { returnedLearningDays: 0 } },
     },
   ],
+  matchesCreated: [
+    {
+      _id: "match-main",
+      status: "SETTLED",
+      division: "MAIN",
+      matchType: "NORMAL",
+      targetTier: "PLATINUM",
+      challenger: { userId: "user-1", tupleBefore: { arenaRank: "GOLD", arenaPosition: 12 } },
+      defender: { userId: "user-2", tupleBefore: { arenaRank: "PLATINUM", arenaPosition: 9 } },
+    },
+  ],
+  mainTransferLedgers: [
+    { userId: "user-1", sourceId: "match-main", availableLearningDaysDelta: -2 },
+    { userId: "user-2", sourceId: "match-main", availableLearningDaysDelta: 1 },
+  ],
+  supportInquiries: [
+    { subject: "첫날 학습일 차감 문의", content: "20시 이후 결제했습니다." },
+  ],
+  operationalEvents: [
+    { eventType: "PRICING_VIEW", result: "VIEWED", userId: "user-1", occurredAt: "2026-08-01T10:00:00+09:00" },
+    { eventType: "PRICING_VIEW", result: "VIEWED", userId: "user-4", occurredAt: "2026-08-01T21:00:00+09:00" },
+    { eventType: "MATCH_REQUEST", result: "FAILED", division: "SUB", sourceTier: "SILVER", targetTier: "GOLD", rankBucket: "21~50위", reasonCode: "NO_CANDIDATE" },
+    { eventType: "WEEKLY_MOCK_ACCESS_DENIED", result: "DENIED", userId: "user-1", occurredAt: "2026-07-31T22:00:00+09:00" },
+  ],
+  sundayCutoffTodos: [{ sourceId: "match-main" }],
   includeCurrentSnapshot: true,
 });
 
@@ -121,9 +150,8 @@ const catalogMetricKeys = new Set(FIRST_MONTH_METRICS.map((metric) => metric.key
 const connectedMetricKeys = new Set(
   rows.map((item) => item.metricKey).filter((metricKey) => catalogMetricKeys.has(metricKey))
 );
-assert.equal(FIRST_MONTH_METRICS.length, 40);
-assert.equal(connectedMetricKeys.size, 29);
-assert.equal(FIRST_MONTH_METRICS.length - connectedMetricKeys.size, 11);
+assert.equal(FIRST_MONTH_METRICS.length, 47);
+assert.equal(connectedMetricKeys.size, FIRST_MONTH_METRICS.length);
 assert.equal(row("payment.successful_count").numericValue, 2);
 assert.equal(row("payment.net_approved_amount").numericValue, 34000);
 assert.equal(Math.round(row("payment.refund_cancel_rate").numericValue * 10) / 10, 33.3);
@@ -137,7 +165,11 @@ assert.equal(row("payback.recipient_rate").numericValue, 100);
 assert.equal(row("payback.payout_rate").numericValue, 50);
 assert.equal(row("simulation.challenger_win_rate").numericValue, 50);
 assert.equal(row("simulation.bronze_self_return_rate").numericValue, 100);
-assert.equal(row("renewal.assessment_dropoff_rate"), undefined);
+assert.equal(row("renewal.assessment_dropoff_rate").numericValue, 50);
+assert.equal(row("access.first_day_deduction_support_rate").numericValue, 50);
+assert.equal(row("conversion.payment_view_to_purchase").numericValue, 50);
+assert.equal(row("main.sunday_cutoff_hold_count").numericValue, 1);
+assert.equal(row("match.request_success_rate", (item) => item.dimensions.division === "SUB").numericValue, 0);
 assert.equal(row("main.revenge_usage_rate").numericValue, null);
 
 const routes = source("routes/matths-routes.js");
@@ -150,7 +182,7 @@ assert.ok(routes.includes('"/admin/data-analysis/rebuild"'));
 assert.ok(controller.includes("runMonthlyDataAnalysisAggregation"));
 assert.ok(navigation.includes("운영 지표"));
 assert.ok(server.includes("startDataAnalysisScheduler"));
-assert.ok(view.includes("원본 연결 대기"));
+assert.ok(view.includes("집계 미실행"));
 assert.ok(view.includes("분자"));
 assert.ok(view.includes("분모"));
 

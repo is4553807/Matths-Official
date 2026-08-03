@@ -1,4 +1,5 @@
 const assert = require("assert");
+const fs = require("fs");
 const path = require("path");
 const ejs = require("ejs");
 const {
@@ -45,6 +46,13 @@ function mockResponse() {
 }
 
 const signedInUser = { id: "user-1", name: "테스트 사용자" };
+const errorCss = fs.readFileSync(
+  path.join(__dirname, "..", "public", "css", "error.css"),
+  "utf8"
+);
+
+assert.match(errorCss, /html:has\(\.matths-error-page\)[\s\S]*overflow-x:\s*clip/);
+assert.match(errorCss, /\.matths-error-main[\s\S]*overflow:\s*clip/);
 
 {
   const req = mockRequest({ user: signedInUser });
