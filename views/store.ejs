@@ -1,0 +1,98 @@
+<%
+  const displayName = String(user.name || "회원");
+  const formatPrice = (value) => Number(value) === 0
+    ? "무료"
+    : `${new Intl.NumberFormat("ko-KR").format(Number(value) || 0)}원`;
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Matths가 직접 만든 수학 교재와 묶음 상품을 살펴보는 상점입니다." />
+    <title>상점 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/store.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <script src="/js/main.js" defer></script>
+  </head>
+  <body class="store-page">
+    <a class="skip-link" href="#store-main">본문으로 바로가기</a>
+    <div class="dashboard-shell store-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top">
+          <a class="brand" href="/main" aria-label="Matths 학습 홈"><span class="brand-mark" aria-hidden="true">M</span><span>Matths</span></a>
+          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
+        </div>
+        <%- include("partials/dashboard-navigation", { activePage: "store" }) %>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile">
+          <a class="profile-avatar" href="/profile" aria-label="프로필 설정"><%= displayName.slice(0, 1) %></a>
+          <div class="profile-copy"><strong><%= displayName %>님</strong><small>Matths 회원</small></div>
+          <form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form>
+        </div>
+      </aside>
+
+      <main class="dashboard-main store-main" id="store-main">
+        <header class="store-mobile-header">
+          <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
+          <strong>MATTHS STORE</strong>
+          <a href="/main">학습 홈</a>
+        </header>
+        <%- include("partials/store-top-navigation", { activeStoreCategory: storeData.category, storeSearchQuery: storeData.query, storeCategories: storeData.categories }) %>
+
+        <section class="store-hero" aria-labelledby="store-title">
+          <div>
+            <p>SIMULATE · ANALYZE · FINISH</p>
+            <h1 id="store-title">실전은 짧게 시작하고,<br />파이널은 남김없이 끝낸다.</h1>
+            <span>Matths가 직접 설계한 온라인 수학 교재와 묶음 상품을 만나보세요.</span>
+          </div>
+          <aside aria-label="판매 방식 안내"><b>MATTHS<br />ORIGINALS</b><small>교재 · 문제지 · 상세 해설</small></aside>
+        </section>
+
+        <section class="store-catalog" aria-labelledby="catalog-title">
+          <header class="store-catalog-heading">
+            <div><p>ONLINE TEXTBOOKS</p><h2 id="catalog-title">전체 교재</h2></div>
+            <span><%= storeData.products.length %>개 상품</span>
+          </header>
+
+          <form class="store-filter" action="/store" method="GET" role="search">
+            <% if (storeData.category) { %><input type="hidden" name="category" value="<%= storeData.category %>" /><% } %>
+            <label><span class="sr-only">교재 검색</span><input type="search" name="q" value="<%= storeData.query %>" placeholder="교재명·과목·설명을 검색하세요" maxlength="80" /></label>
+            <label><span class="sr-only">정렬 순서</span><select name="sort" aria-label="상품 정렬">
+              <option value="popular" <%= storeData.sort === "popular" ? "selected" : "" %>>인기순</option>
+              <option value="price_asc" <%= storeData.sort === "price_asc" ? "selected" : "" %>>낮은 가격순</option>
+              <option value="price_desc" <%= storeData.sort === "price_desc" ? "selected" : "" %>>높은 가격순</option>
+              <option value="newest" <%= storeData.sort === "newest" ? "selected" : "" %>>최신 등록순</option>
+            </select></label>
+            <button type="submit">찾기</button>
+            <% if (storeData.query || storeData.sort !== "popular") { %><a href="<%= storeData.category ? `/store?category=${encodeURIComponent(storeData.category)}` : '/store' %>">초기화</a><% } %>
+          </form>
+
+          <% if (!storeData.products.length) { %>
+            <div class="store-empty"><span aria-hidden="true">◇</span><h3><%= storeData.query ? "검색 결과가 없습니다." : "상품을 준비하고 있습니다." %></h3><p><%= storeData.query ? "다른 교재명이나 과목으로 다시 검색해주세요." : "운영자가 상품을 공개하면 이곳에 바로 표시됩니다." %></p></div>
+          <% } else { %>
+            <div class="store-product-grid">
+              <% storeData.products.forEach((product, index) => { %>
+                <a class="store-product-card <%= index % 3 === 2 ? 'store-product-card--featured' : '' %>" href="/store/products/<%= product.slug %>">
+                  <div class="store-product-cover">
+                    <% if (product.thumbnail) { %><img src="/store/media/<%= product.id %>/<%= product.thumbnail.id %>" alt="<%= product.name %> 썸네일" loading="lazy" /><% } else { %><span>MATTHS</span><% } %>
+                  </div>
+                  <div class="store-product-copy">
+                    <p><%= product.badge || product.category %></p>
+                    <h3><%= product.name %></h3>
+                    <span><%= product.subtitle || product.summary || "상품 상세 페이지에서 구성과 설명을 확인하세요." %></span>
+                    <% if (product.bundleItems.length) { %><small><%= product.bundleItems.length %>개 자료 묶음</small><% } %>
+                    <div><em>상세 보기</em><strong><%= formatPrice(product.price) %><i aria-hidden="true">›</i></strong></div>
+                  </div>
+                </a>
+              <% }) %>
+            </div>
+          <% } %>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

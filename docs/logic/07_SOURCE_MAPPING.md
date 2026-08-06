@@ -141,7 +141,9 @@ Ranked 사용자:
 | 관리자 표준 절차·보존 기간·자동 작업·환경 변수·전체 DB 스키마 매뉴얼 | `services/adminOperationsGuideService.js`, `views/admin-operations-guide.ejs`, `routes/matths-routes.js` |
 | 관리자 무제한·무기한 상품 접근 | `services/superAdminAccessService.js`, `services/paidFeatureAccessService.js`, `services/dashboardService.js`, `controllers/goatArenaController.js` |
 | 사용자 Cloudinary 공용 임시 저장·24시간 정리 | `middleware/userCloudUploadStorage.js`, `middleware/communityUpload.js`, `middleware/arenaEvidenceUpload.js`, `middleware/archiveUpload.js`, `server.js` |
-| 운영자 파일 업로드 직후·일일 R2 증분 백업 | `services/archiveService.js`, `services/localStorageBackupService.js` |
+| 운영자·상점 R2 원본 업로드·서명 URL·기존 로컬 파일 이전 | `services/r2ObjectStorageService.js`, `services/archiveService.js`, `services/storeService.js`, `scripts/migrateLocalFilesToR2.js` |
+| 아카이브·주간 모의고사·상점 PDF 개인 식별 발급·페이지별 코드·PDF 서명/스크린샷 OCR 유출 역추적 | `models/documentSecurityModel.js`, `services/pdfWatermarkService.js`, `middleware/pdfForensicsUpload.js`, `views/admin-pdf-forensics.ejs` |
+| 전체 신규 매치메이킹 일시정지·재개·원자적 생성 차단 | `models/operationModel.js`의 `PlatformControl`, `services/arenaMatchmakingControlService.js`, `views/admin-arena-policies.ejs` |
 | Arena Ranked 상점 탭·화면·구매 라우트 | `views/partials/goat-arena-navigation.ejs`, `views/goat-arena-main-shop.ejs`, `controllers/goatArenaController.js`, `routes/goat-arena-routes.js` |
 | Unranked 29일 전일 학습·페이백 독립 판정 | `services/userLifecycleService.js`, `services/accessCycleService.js`, `services/arenaPaybackReviewService.js`, `views/goat-arena-profile.ejs` |
 | 계정 익명 보존·전체 데이터 삭제 | `services/accountDeletionService.js`, `views/admin-user-detail.ejs` |

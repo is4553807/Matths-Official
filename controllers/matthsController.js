@@ -276,6 +276,15 @@ const {
   updateMainShopPolicy,
 } = require("../services/arenaShopPolicyService");
 const {
+  getMatchmakingControl,
+  setMatchmakingPaused,
+} = require("../services/arenaMatchmakingControlService");
+const {
+  analyzeForensicUpload,
+  isPdfDownload,
+  issuePersonalizedPdf,
+} = require("../services/pdfWatermarkService");
+const {
   getAdminProblemBankCatalog,
 } = require("../services/problemBankCatalogService");
 const {
@@ -1181,6 +1190,27 @@ exports.downloadArchiveItem =
             req.session.user,
         });
 
+      if (isPdfDownload({ mimeType: file.mimeType, name: file.name })) {
+        const issued = await issuePersonalizedPdf({
+          userId: req.session.user.id,
+          examId: file.examId,
+          sourceType: "ARCHIVE",
+          sourceId: file.sourceId,
+          originalName: file.name,
+          storageRecord: file.sourceRecord,
+          localPath: file.path,
+        });
+        const cleanup = () => issued.cleanup().catch(() => {});
+        res.once("finish", cleanup);
+        res.once("close", cleanup);
+        res.set("Cache-Control", "private, no-store");
+        return res.download(issued.filePath, issued.downloadName, (error) => {
+          cleanup();
+          if (error && !res.headersSent) return next(error);
+          return undefined;
+        });
+      }
+
       if (file.cloudUrl) {
         res.set("Cache-Control", "private, no-store");
         return res.redirect(302, file.cloudUrl);
@@ -1569,6 +1599,12 @@ exports.adminRebuildDataAnalysis = async (req, res, next) => {
 };
 
 function arenaPolicyFeedbackFromQuery(query = {}) {
+  if (String(query.matchmakingPaused || "") === "1") {
+    return "신규 GOAT Arena 매치메이킹을 일시정지했습니다. 이미 진행 중인 경기는 계속 완료할 수 있습니다.";
+  }
+  if (String(query.matchmakingResumed || "") === "1") {
+    return "신규 GOAT Arena 매치메이킹을 다시 시작했습니다.";
+  }
   if (String(query.learningPriceUpdated || "") === "1") {
     return "29일 학습 패키지의 새 가격 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 공지를 만들었습니다.";
   }
@@ -1620,6 +1656,7 @@ async function renderArenaPolicyAdminPage(
       ...(await getArenaPolicyAdminData()),
       mockExamOnly: await getMockExamPackageAdminData(),
       mainShop: await getMainShopPolicyAdminData(),
+      matchmakingControl: await getMatchmakingControl(),
     },
     feedback: arenaPolicyFeedbackFromQuery(req.query),
     error,
@@ -1635,6 +1672,81 @@ exports.adminArenaPoliciesPage =
       return next(error);
     }
   };
+
+exports.adminSetArenaMatchmaking = async (req, res, next) => {
+  try {
+    const action = String(req.body.action || "").trim().toUpperCase();
+    if (!["PAUSE", "RESUME"].includes(action)) {
+      const error = new Error("매치메이킹 제어 명령을 확인해주세요.");
+      error.status = 400;
+      throw error;
+    }
+    await setMatchmakingPaused({
+      adminUserId: req.session.user.id,
+      paused: action === "PAUSE",
+      reason: req.body.reason,
+    });
+    return res.redirect(
+      `/admin/arena-policies?${action === "PAUSE" ? "matchmakingPaused" : "matchmakingResumed"}=1#matchmaking-control`
+    );
+  } catch (error) {
+    if ([400, 403].includes(Number(error.status))) {
+      return renderArenaPolicyAdminPage(req, res, {
+        status: Number(error.status),
+        error: error.message,
+      });
+    }
+    return next(error);
+  }
+};
+
+exports.adminPdfForensicsPage = async (req, res, next) => {
+  try {
+    return res.render("admin-pdf-forensics", {
+      user: req.session.user,
+      analysis: null,
+      error: null,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminAnalyzeForensicPdf = async (req, res, next) => {
+  const uploadedPath = req.file?.path || "";
+  try {
+    if (!uploadedPath) {
+      const error = new Error("분석할 PDF 또는 스크린샷 파일을 선택해주세요.");
+      error.status = 400;
+      throw error;
+    }
+    const analysis = await analyzeForensicUpload(uploadedPath);
+    return res.render("admin-pdf-forensics", {
+      user: req.session.user,
+      analysis,
+      error: analysis.matches.length
+        ? null
+        : analysis.validPayloads.length
+          ? "PDF 안의 MATTHS 서명은 유효하지만 현재 DB의 사용자 발급 원장과 연결되지 않습니다. 계정 전체 삭제 또는 원장 보존 상태를 확인해주세요."
+          : analysis.inputType === "IMAGE"
+            ? "스크린샷에서 발급 추적 코드를 식별하지 못했습니다. 원본 해상도·자르기·덧칠·압축 상태를 확인하고, 가능하면 워터마크가 여러 번 보이는 넓은 영역을 다시 올려주세요."
+            : "MATTHS 발급 기록을 찾지 못했습니다. 메타데이터 제거·전체 이미지화·과도한 편집 여부를 확인해주세요.",
+    });
+  } catch (error) {
+    if ([400, 413, 422, 503].includes(Number(error.status))) {
+      return res.status(Number(error.status)).render("admin-pdf-forensics", {
+        user: req.session.user,
+        analysis: null,
+        error: error.message,
+      });
+    }
+    return next(error);
+  } finally {
+    if (uploadedPath) {
+      await require("node:fs").promises.unlink(uploadedPath).catch(() => {});
+    }
+  }
+};
 
 exports.adminUpdateMockExamPackagePrice = async (
   req,
@@ -2878,6 +2990,33 @@ exports.privateMockExamFile =
           examId:
             req.params.examId,
         });
+
+      if (isPdfDownload({ mimeType: file.mimeType, name: file.name })) {
+        const issued = await issuePersonalizedPdf({
+          userId: req.session.user.id,
+          examId: file.examId,
+          sourceType: "WEEKLY_MOCK",
+          sourceId: file.sourceId,
+          originalName: file.name,
+          storageRecord: file.sourceRecord,
+          localPath: file.path,
+        });
+        const cleanup = () => issued.cleanup().catch(() => {});
+        res.once("finish", cleanup);
+        res.once("close", cleanup);
+        return res.sendFile(issued.filePath, {
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(issued.downloadName)}`,
+            "Cache-Control": "private, no-store",
+            "X-Matths-Trace": issued.traceCode,
+          },
+        }, (error) => {
+          cleanup();
+          if (error && !res.headersSent) return next(error);
+          return undefined;
+        });
+      }
 
       if (file.cloudUrl) {
         res.set("Cache-Control", "private, no-store");

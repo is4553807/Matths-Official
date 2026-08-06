@@ -3,7 +3,7 @@ const path = require("path");
 const mongoose = require("mongoose");
 const {
   destroyStoredAsset,
-  signedCloudinaryUrl,
+  signedStoredAssetUrl,
   STORAGE_PURPOSES,
   storageFields,
   storeUploadedFile,
@@ -721,11 +721,11 @@ async function createArchiveItem({
         uploadedBy: user.id,
         isPublished:
           isPublished !== false,
-        backupStatus: "PENDING",
+        backupStatus: asset?.storageProvider === "R2" ? "NOT_CONFIGURED" : "PENDING",
         ...storageFields(asset),
       });
 
-    scheduleLocalStorageR2BackupSoon();
+    if (asset?.storageProvider === "LOCAL") scheduleLocalStorageR2BackupSoon();
 
     return serializeArchiveItem(
       item
@@ -1176,7 +1176,7 @@ async function discardArchiveUpload(
   file
 ) {
   if (!file) return;
-  if (file.storageAsset?.storageProvider === "CLOUDINARY") {
+  if (["CLOUDINARY", "R2"].includes(file.storageAsset?.storageProvider)) {
     await destroyStoredAsset(file.storageAsset).catch(() => {});
     return;
   }
@@ -1225,11 +1225,11 @@ async function getArchiveDownload({
     }
   }
 
-  const cloudUrl = signedCloudinaryUrl(item, {
+  const cloudUrl = await signedStoredAssetUrl(item, {
     download: true,
     originalName: item.originalName,
   });
-  const filePath = item.storageProvider === "CLOUDINARY"
+  const filePath = ["CLOUDINARY", "R2"].includes(item.storageProvider)
     ? null
     : path.join(ARCHIVE_STORAGE_DIR, item.storedName);
 
@@ -1257,6 +1257,9 @@ async function getArchiveDownload({
         item.originalName
       ),
     mimeType: item.mimeType,
+    sourceRecord: item,
+    sourceId: String(item._id),
+    examId: String(item._id),
   };
 }
 

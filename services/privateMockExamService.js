@@ -73,7 +73,7 @@ const {
 } = require("./operationalMetricEventService");
 const {
   destroyStoredAsset,
-  signedCloudinaryUrl,
+  signedStoredAssetUrl,
   STORAGE_PURPOSES,
   storageFields,
   storeUploadedFile,
@@ -5367,11 +5367,11 @@ async function getPrivateMockExamFile({
     );
   }
 
-  const cloudUrl = signedCloudinaryUrl(item, {
+  const cloudUrl = await signedStoredAssetUrl(item, {
     download: false,
     originalName: item.originalName,
   });
-  const filePath = item.storageProvider === "CLOUDINARY"
+  const filePath = ["CLOUDINARY", "R2"].includes(item.storageProvider)
     ? null
     : path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName));
 
@@ -5391,6 +5391,9 @@ async function getPrivateMockExamFile({
       ),
     mimeType:
       item.mimeType,
+    sourceRecord: item,
+    sourceId: String(item._id),
+    examId: String(exam._id),
   };
 }
 
@@ -5459,11 +5462,11 @@ async function getAdminPrivateMockPdfFile({
     );
   }
 
-  const cloudUrl = signedCloudinaryUrl(item, {
+  const cloudUrl = await signedStoredAssetUrl(item, {
     download: false,
     originalName: item.originalName,
   });
-  const filePath = item.storageProvider === "CLOUDINARY"
+  const filePath = ["CLOUDINARY", "R2"].includes(item.storageProvider)
     ? null
     : path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName));
 
@@ -7746,11 +7749,11 @@ async function getAdminPrivateMockIntegrityEvidenceFile({
     );
   }
 
-  const cloudUrl = signedCloudinaryUrl(item, {
+  const cloudUrl = await signedStoredAssetUrl(item, {
     download: false,
     originalName: item.originalName,
   });
-  const filePath = item.storageProvider === "CLOUDINARY"
+  const filePath = ["CLOUDINARY", "R2"].includes(item.storageProvider)
     ? null
     : path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName));
 

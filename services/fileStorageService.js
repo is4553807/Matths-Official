@@ -1,6 +1,13 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { v2: cloudinary } = require("cloudinary");
+const {
+  createR2ObjectKey,
+  deleteR2Object,
+  isR2Configured,
+  signedR2Url,
+  uploadLocalFileToR2,
+} = require("./r2ObjectStorageService");
 
 const STORAGE_PURPOSES = Object.freeze({
   GENERIC: "GENERIC",
@@ -13,12 +20,12 @@ const STORAGE_PURPOSES = Object.freeze({
 
 const STORAGE_POLICIES = Object.freeze({
   [STORAGE_PURPOSES.ADMIN_ARCHIVE]: {
-    provider: "local",
-    requiresPersistentDisk: true,
+    provider: "r2",
+    requiresR2: true,
   },
   [STORAGE_PURPOSES.ADMIN_WEEKLY_MOCK]: {
-    provider: "local",
-    requiresPersistentDisk: true,
+    provider: "r2",
+    requiresR2: true,
   },
   [STORAGE_PURPOSES.USER_COMMUNITY]: {
     provider: "cloudinary",
@@ -67,7 +74,7 @@ function requestedProvider(purpose = STORAGE_PURPOSES.GENERIC) {
   const policy = storagePolicyFor(purpose);
   if (policy.provider) return policy.provider;
   const requested = String(process.env.FILE_STORAGE_PROVIDER || "").trim().toLowerCase();
-  if (requested === "local" || requested === "cloudinary") return requested;
+  if (["local", "cloudinary", "r2"].includes(requested)) return requested;
   return isCloudinaryConfigured() ? "cloudinary" : "local";
 }
 
@@ -120,6 +127,9 @@ function storageFields(asset = {}) {
     cloudDeliveryType: asset.cloudDeliveryType || "",
     cloudVersion: asset.cloudVersion ?? null,
     cloudFormat: asset.cloudFormat || "",
+    r2ObjectKey: asset.r2ObjectKey || "",
+    r2Sha256: asset.r2Sha256 || "",
+    r2ETag: asset.r2ETag || "",
   };
 }
 
@@ -173,6 +183,37 @@ async function storeUploadedFile(
       storedName: String(file.filename || path.basename(file.path || "")),
     };
     return file.storageAsset;
+  }
+  if (provider === "r2") {
+    if (!isR2Configured()) {
+      const error = new Error("R2 저장소 연결 정보가 없습니다.");
+      error.status = 503;
+      error.code = "R2_STORAGE_NOT_CONFIGURED";
+      throw error;
+    }
+    const objectKey = createR2ObjectKey({
+      namespace: folder,
+      ownerId: policy.purpose,
+      kind: resourceTypeFor(file),
+      originalName: file.originalname,
+    });
+    const stored = await uploadLocalFileToR2({
+      filePath: file.path,
+      objectKey,
+      contentType: file.mimetype || "application/octet-stream",
+      metadata: { storagepurpose: String(policy.purpose).toLowerCase() },
+    });
+    const asset = {
+      storageProvider: "R2",
+      storagePurpose: policy.purpose,
+      storedName: String(file.filename || path.basename(file.path || objectKey)),
+      r2ObjectKey: stored.r2ObjectKey,
+      r2Sha256: stored.r2Sha256,
+      r2ETag: stored.r2ETag,
+    };
+    file.storageAsset = asset;
+    await fs.promises.unlink(file.path).catch(() => {});
+    return asset;
   }
   if (!configureCloudinary()) {
     const error = new Error("Cloudinary 연결 정보가 없습니다.");
@@ -244,6 +285,11 @@ function signedCloudinaryUrl(record, { download = false, originalName = "file" }
 }
 
 async function destroyStoredAsset(record = {}) {
+  const source = record.storageAsset || record;
+  if (source?.storageProvider === "R2" && source?.r2ObjectKey) {
+    await deleteR2Object(source.r2ObjectKey);
+    return;
+  }
   const asset = cloudAssetFromRecord(record.storageAsset || record);
   if (asset && configureCloudinary()) {
     await cloudinary.uploader.destroy(asset.cloudPublicId, {
@@ -255,6 +301,11 @@ async function destroyStoredAsset(record = {}) {
   }
   const localPath = record.path || record.filePath;
   if (localPath) await fs.promises.unlink(localPath).catch(() => {});
+}
+
+async function signedStoredAssetUrl(record, options = {}) {
+  if (record?.storageProvider === "R2") return signedR2Url(record, options);
+  return signedCloudinaryUrl(record, options);
 }
 
 function getFileStorageStatus() {
@@ -273,25 +324,27 @@ function getFileStorageStatus() {
             configured:
               purposeProvider === "cloudinary"
                 ? isCloudinaryConfigured()
-                : persistentLocalReady,
+                : purposeProvider === "r2"
+                  ? isR2Configured()
+                  : persistentLocalReady,
           },
         ];
       })
   );
-  const r2BackupConfigured = Boolean(
-    process.env.R2_ACCOUNT_ID &&
-      process.env.R2_ACCESS_KEY_ID &&
-      process.env.R2_SECRET_ACCESS_KEY &&
-      process.env.R2_BUCKET
-  );
+  const r2BackupConfigured = isR2Configured();
   const defaultLocalDirectory = path.resolve(
     process.env.ARCHIVE_STORAGE_DIR || path.join(__dirname, "..", "storage", "archive")
   );
   return {
     provider,
-    configured: provider === "local" || isCloudinaryConfigured(),
-    privateDelivery: provider === "cloudinary",
-    productionSafe: isCloudinaryConfigured() && persistentLocalReady,
+    configured:
+      provider === "local"
+        ? persistentLocalReady
+        : provider === "r2"
+          ? isR2Configured()
+          : isCloudinaryConfigured(),
+    privateDelivery: provider === "cloudinary" || provider === "r2",
+    productionSafe: isCloudinaryConfigured() && isR2Configured(),
     mode: "split",
     persistentLocalReady,
     r2BackupConfigured,
@@ -307,6 +360,7 @@ module.exports = {
   getLocalStorageCapacity,
   isCloudinaryConfigured,
   signedCloudinaryUrl,
+  signedStoredAssetUrl,
   STORAGE_POLICIES,
   STORAGE_PURPOSES,
   storagePolicyFor,

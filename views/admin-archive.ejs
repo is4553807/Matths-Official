@@ -207,7 +207,7 @@
                   <div><span><%= item.category %></span><% if (!item.isPublished) { %><b>비공개</b><% } %></div>
                   <h3><%= item.title %></h3>
                   <% if (item.description) { %><p><%= item.description %></p><% } %>
-                  <small><%= item.originalName %> · <%= formatBytes(item.sizeBytes) %> · <%= formatDate(item.createdAt) %> · <%= item.storageProvider === "LOCAL" ? `서버 저장 · R2 ${item.backupStatus === "BACKED_UP" ? "백업 완료" : item.backupStatus === "FAILED" ? "백업 실패" : "백업 대기"}` : "Cloudinary 비공개" %></small>
+                  <small><%= item.originalName %> · <%= formatBytes(item.sizeBytes) %> · <%= formatDate(item.createdAt) %> · <%= item.storageProvider === "R2" ? "R2 비공개 원본" : item.storageProvider === "CLOUDINARY" ? "Cloudinary 비공개" : `기존 서버 저장 · R2 ${item.backupStatus === "BACKED_UP" ? "이전 가능" : item.backupStatus === "FAILED" ? "백업 실패" : "이전 대기"}` %></small>
                 </div>
                 <div class="archive-admin-item-actions">
                   <a href="/archive/<%= item.id %>/download">내려받기 <span aria-hidden="true">↓</span></a>

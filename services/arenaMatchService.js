@@ -45,6 +45,9 @@ const {
 const {
   reactivateAutomaticDefenseAfterAttack,
 } = require("./arenaAutomaticDefenseService");
+const {
+  assertMatchmakingOpen,
+} = require("./arenaMatchmakingControlService");
 
 const KST_TIME_ZONE = "Asia/Seoul";
 const NORMAL_MATCH_PROBLEM_PACK_PENDING =
@@ -1326,6 +1329,8 @@ async function runCreateNormalMatchTransaction({
           return;
         }
 
+        await assertMatchmakingOpen({ session, claim: true, now });
+
         const targetStanding =
           await queryWithSession(
             ArenaStanding.findOne({
@@ -1875,6 +1880,8 @@ async function createSubNormalChallenge({
     challengerUserId,
   });
   if (replay) return replay;
+
+  await assertMatchmakingOpen();
 
   let selection = await prepareSubAutoSelection({
     challengerUserId,

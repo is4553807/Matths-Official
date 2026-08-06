@@ -180,6 +180,7 @@ for (const expected of [
   "AdminActionLog.updateMany",
   "OperationalMetricEvent.updateMany",
   "OperationalMetricEvent.deleteMany",
+  "PdfWatermarkIssuance.deleteMany",
   "ConceptProgress.deleteMany",
   "ProblemAttempt.deleteMany",
   "AssessmentAttempt.deleteMany",

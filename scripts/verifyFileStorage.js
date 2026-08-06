@@ -35,14 +35,17 @@ storeUploadedFile({
       cloudDeliveryType: "",
       cloudVersion: null,
       cloudFormat: "",
+      r2ObjectKey: "",
+      r2Sha256: "",
+      r2ETag: "",
     });
     assert.equal(
       storagePolicyFor(STORAGE_PURPOSES.ADMIN_ARCHIVE).provider,
-      "local"
+      "r2"
     );
     assert.equal(
       storagePolicyFor(STORAGE_PURPOSES.ADMIN_WEEKLY_MOCK).provider,
-      "local"
+      "r2"
     );
     assert.equal(
       storagePolicyFor(STORAGE_PURPOSES.USER_ARENA_EVIDENCE).provider,

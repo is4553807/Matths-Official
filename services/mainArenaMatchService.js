@@ -66,6 +66,10 @@ const {
 const {
   reactivateAutomaticDefenseAfterAttack,
 } = require("./arenaAutomaticDefenseService");
+const {
+  assertMatchmakingOpen,
+  isMatchmakingPaused,
+} = require("./arenaMatchmakingControlService");
 
 const RECENT_OPPONENT_MS = 7 * 24 * 60 * 60 * 1000;
 const MAIN_DEFENSE_LOAD_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -532,6 +536,7 @@ async function createMainMatchArtifacts({
     session,
     ordered: true,
   });
+  await assertMatchmakingOpen({ session, claim: true, now });
   await ArenaMatch.create([matchDraft], { session, ordered: true });
   const answers = sealedPack.questions.map((question) => ({
     questionKey: question.questionKey,
@@ -616,6 +621,7 @@ async function createMainUpwardChallenge({
   if (isSundayMatchRequestLocked(now, "MAIN")) {
     throw statusError(409, "일요일 14시 이후에는 신규 Ranked 경기를 만들 수 없습니다.", "SUNDAY_DIVISION_LOCK");
   }
+  await assertMatchmakingOpen();
   const [actor, policy] = await Promise.all([
     loadMatchActorContext({ userId, division: "MAIN", now }),
     getActiveMainDivisionPolicy(now),
@@ -767,6 +773,7 @@ async function createMainLowerInvitation({
   if (isSundayMatchRequestLocked(now, "MAIN")) {
     throw statusError(409, "일요일 14시 이후에는 Ranked 초대 예약을 만들 수 없습니다.", "SUNDAY_DIVISION_LOCK");
   }
+  await assertMatchmakingOpen();
   const [actor, policy] = await Promise.all([
     loadMatchActorContext({ userId, division: "MAIN", now }),
     getActiveMainDivisionPolicy(now),
@@ -824,6 +831,7 @@ async function createMainLowerInvitation({
         invitation = existing;
         return;
       }
+      await assertMatchmakingOpen({ session, claim: true, now });
       const current = await loadMatchActorContext({
         userId,
         division: "MAIN",
@@ -951,6 +959,7 @@ async function respondToMainInvitation({
   if (!["ACCEPT", "DECLINE"].includes(normalizedResponse)) {
     throw statusError(400, "초대 응답을 확인해주세요.", "INVALID_INVITATION_RESPONSE");
   }
+  if (normalizedResponse === "ACCEPT") await assertMatchmakingOpen();
   if (isSundayMatchRequestLocked(now, "MAIN")) {
     throw statusError(409, "일요일 14시 이후에는 초대를 수락하거나 거절할 수 없습니다.", "SUNDAY_DIVISION_LOCK");
   }
@@ -1253,6 +1262,7 @@ async function cancelZeroAvailableMainInvitations({ now = new Date() } = {}) {
 }
 
 async function refreshMainInvitationOffers({ invitationId = null, now = new Date() } = {}) {
+  if (await isMatchmakingPaused()) return [];
   if (isSundayMatchRequestLocked(now, "MAIN")) return [];
   const filter = {
     status: { $in: ["SEARCHING", "OFFERED"] },
@@ -1324,6 +1334,7 @@ async function refreshMainInvitationOffers({ invitationId = null, now = new Date
           status: { $in: ["SEARCHING", "OFFERED"] },
         }).session(session);
         if (!current) return;
+        await assertMatchmakingOpen({ session, claim: true, now });
         const activeOffer = await MainInvitationOffer.exists({
           invitationRequestId: current._id,
           status: "OFFERED",

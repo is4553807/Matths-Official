@@ -16,6 +16,30 @@ const schedulerLeaseSchema = new Schema(
 const SchedulerLease =
   mongoose.models.SchedulerLease || mongoose.model("SchedulerLease", schedulerLeaseSchema);
 
+const platformControlSchema = new Schema(
+  {
+    key: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      maxlength: 80,
+    },
+    isPaused: { type: Boolean, required: true, default: false, index: true },
+    reason: { type: String, trim: true, maxlength: 500, default: "" },
+    pausedAt: { type: Date, default: null },
+    resumedAt: { type: Date, default: null },
+    changedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    admissionSequence: { type: Number, min: 0, default: 0 },
+    lastAdmissionAt: { type: Date, default: null },
+  },
+  { collection: "platformControls", timestamps: true, versionKey: false }
+);
+
+const PlatformControl =
+  mongoose.models.PlatformControl ||
+  mongoose.model("PlatformControl", platformControlSchema);
+
 const operationalMetricEventSchema = new Schema(
   {
     eventKey: {
@@ -65,4 +89,4 @@ const OperationalMetricEvent =
   mongoose.models.OperationalMetricEvent ||
   mongoose.model("OperationalMetricEvent", operationalMetricEventSchema);
 
-module.exports = { OperationalMetricEvent, SchedulerLease };
+module.exports = { OperationalMetricEvent, PlatformControl, SchedulerLease };

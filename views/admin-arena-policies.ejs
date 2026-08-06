@@ -120,6 +120,7 @@
     policyData.main.policies.length +
     policyData.mockExamOnly.policies.length +
     (policyData.mainShop?.policies?.length || 0);
+  const matchmaking = policyData.matchmakingControl || { isPaused: false };
 %>
 <!doctype html>
 <html lang="ko">
@@ -146,6 +147,36 @@
 
       <% if (feedback) { %><div class="admin-feedback" role="status"><%= feedback %></div><% } %>
       <% if (error) { %><div class="admin-feedback admin-feedback--error" role="alert"><span aria-hidden="true">!</span><%= error %></div><% } %>
+
+      <section class="admin-panel admin-matchmaking-control <%= matchmaking.isPaused ? 'is-paused' : 'is-running' %>" id="matchmaking-control">
+        <div class="admin-panel-heading">
+          <div>
+            <p>GLOBAL MATCHMAKING CONTROL</p>
+            <h2>전체 매치메이킹 <%= matchmaking.isPaused ? "일시정지 중" : "운영 중" %></h2>
+          </div>
+          <span><%= matchmaking.isPaused ? "신규 경기·복수전·Ranked 초대 생성과 초대 수락이 정지되어 있습니다. 진행 중인 경기는 계속 완료할 수 있습니다." : "Unranked·Ranked의 신규 경기와 초대가 정상적으로 생성됩니다." %></span>
+        </div>
+        <div class="admin-matchmaking-state">
+          <strong><span aria-hidden="true"></span><%= matchmaking.isPaused ? "PAUSED" : "ACTIVE" %></strong>
+          <p>
+            <% if (matchmaking.isPaused) { %>
+              정지 시각 <b><%= formatDateTime(matchmaking.pausedAt) %></b><% if (matchmaking.reason) { %> · 사유 <b><%= matchmaking.reason %></b><% } %>
+            <% } else { %>
+              최근 재개 <b><%= matchmaking.resumedAt ? formatDateTime(matchmaking.resumedAt) : "초기 운영 상태" %></b>
+            <% } %>
+          </p>
+        </div>
+        <form class="admin-matchmaking-form" action="/admin/arena-policies/matchmaking" method="POST" onsubmit="return confirm('<%= matchmaking.isPaused ? '신규 매치메이킹을 다시 시작할까요?' : '신규 매치메이킹을 일시정지할까요? 진행 중 경기는 계속됩니다.' %>');">
+          <% if (!matchmaking.isPaused) { %>
+            <label><span>운영 메모 <small>사용자에게도 정지 사유로 표시됩니다.</small></span><input name="reason" maxlength="500" placeholder="예: 서버 점검 및 문제 데이터 교체" /></label>
+            <input type="hidden" name="action" value="PAUSE" />
+            <button class="danger" type="submit">모든 신규 매치메이킹 일시정지</button>
+          <% } else { %>
+            <input type="hidden" name="action" value="RESUME" />
+            <button type="submit">모든 신규 매치메이킹 재개</button>
+          <% } %>
+        </form>
+      </section>
       <div class="admin-feedback" role="note">모든 정책 변경은 등록 시점으로부터 최소 30일 뒤 적용됩니다. 적용 예약 직후 전체 활성 사용자에게 이메일과 사이트 우편함 공지가 생성됩니다.</div>
 
       <nav class="admin-policy-jump" aria-label="Arena 정책 영역 바로가기">
@@ -199,7 +230,7 @@
 
       <section class="admin-panel admin-policy-create" id="mock-exam-package">
         <div class="admin-panel-heading">
-          <div><p>Matths 주간 공식 모의고사 이용권</p><h2>월 이용 가격 관리</h2></div>
+          <div><p>Matths 주간 공식 모의고사 이용권</p><h2>모의고사 패키지 월 이용 가격 관리</h2></div>
           <span>주간 공식 모의고사만 허용하고 배치고사와 GOAT Arena는 제한하는 별도 상품입니다.</span>
         </div>
         <div class="admin-policy-summary-grid">

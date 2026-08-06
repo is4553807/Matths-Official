@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const matthsController = require('../controllers/matthsController');
+const storeController = require('../controllers/storeController');
 const checkoutController = require('../controllers/checkoutController');
 const authMiddleware = require('../middleware/authMiddleware');
 const {
@@ -9,6 +10,12 @@ const {
   adminWeeklyMockUpload,
   userIntegrityEvidenceUpload,
 } = require("../middleware/archiveUpload");
+const {
+  handleStoreUpload,
+} = require("../middleware/storeUpload");
+const {
+  pdfForensicsUpload,
+} = require("../middleware/pdfForensicsUpload");
 const {
   communityUpload,
   loadCommunityUploadAccess,
@@ -252,6 +259,78 @@ router.get(
   matthsController.downloadArchiveItem
 );
 
+// Matths 교재 상점은 GOAT Arena 상점과 별개의 현금 상품 카탈로그입니다.
+router.get(
+  "/store",
+  authMiddleware.isLoggedIn,
+  storeController.storePage
+);
+router.get(
+  "/store/products/:slug",
+  authMiddleware.isLoggedIn,
+  storeController.storeProductPage
+);
+router.get(
+  "/store/products/:slug/download/:assetId",
+  authMiddleware.isLoggedIn,
+  storeController.downloadFreeStoreProduct
+);
+router.get(
+  "/store/media/:productId/:assetId",
+  authMiddleware.isLoggedIn,
+  storeController.storeMedia
+);
+router.get(
+  "/admin/store",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  storeController.adminStorePage
+);
+router.post(
+  "/admin/store/products",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  handleStoreUpload,
+  storeController.createStoreProduct
+);
+router.post(
+  "/admin/store/products/:productId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  handleStoreUpload,
+  storeController.updateStoreProduct
+);
+router.post(
+  "/admin/store/products/:productId/delete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  storeController.deleteStoreProduct
+);
+router.post(
+  "/admin/store/categories",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  storeController.createStoreCategory
+);
+router.post(
+  "/admin/store/categories/reorder",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  storeController.reorderStoreCategories
+);
+router.post(
+  "/admin/store/categories/:categoryId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  storeController.updateStoreCategory
+);
+router.post(
+  "/admin/store/categories/:categoryId/delete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  storeController.deleteStoreCategory
+);
+
 router.get(
   "/admin",
   authMiddleware.isLoggedIn,
@@ -283,6 +362,19 @@ router.get(
   matthsController.adminOperationsGuidePage
 );
 router.get(
+  "/admin/pdf-forensics",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminPdfForensicsPage
+);
+router.post(
+  "/admin/pdf-forensics/analyze",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  pdfForensicsUpload.single("forensicFile"),
+  matthsController.adminAnalyzeForensicPdf
+);
+router.get(
   "/admin/test-control",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
@@ -299,6 +391,12 @@ router.get(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminArenaPoliciesPage
+);
+router.post(
+  "/admin/arena-policies/matchmaking",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminSetArenaMatchmaking
 );
 router.get(
   "/admin/problem-banks",

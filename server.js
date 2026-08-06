@@ -79,6 +79,11 @@ async function connectDB() {
         console.log("MongoDB Connected Successfully");
 
         const {
+            ensureMatchmakingControl,
+        } = require("./services/arenaMatchmakingControlService");
+        await ensureMatchmakingControl();
+
+        const {
             ensureDefaultMockExamPackagePolicy,
         } = require("./services/mockExamPackageService");
         await ensureDefaultMockExamPackagePolicy();
@@ -160,6 +165,14 @@ async function connectDB() {
             startUserCloudUploadTempCleanupScheduler,
         } = require("./middleware/userCloudUploadStorage");
         startUserCloudUploadTempCleanupScheduler();
+
+        const {
+            cleanupStalePdfTemporaryFiles,
+        } = require("./services/pdfWatermarkService");
+        const pdfTempCleanup = await cleanupStalePdfTemporaryFiles();
+        if (pdfTempCleanup.removedCount) {
+            console.log(`Removed ${pdfTempCleanup.removedCount} stale PDF temporary files.`);
+        }
 
         const {
             startLocalStorageBackupScheduler,

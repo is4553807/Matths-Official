@@ -3230,7 +3230,7 @@ const archiveItemSchema =
             },
             storageProvider: {
                 type: String,
-                enum: ["LOCAL", "CLOUDINARY"],
+                enum: ["LOCAL", "CLOUDINARY", "R2"],
                 default: "LOCAL",
             },
             storagePurpose: {
@@ -3265,6 +3265,21 @@ const archiveItemSchema =
             cloudFormat: {
                 type: String,
                 maxlength: 40,
+                default: "",
+            },
+            r2ObjectKey: {
+                type: String,
+                maxlength: 900,
+                default: "",
+            },
+            r2Sha256: {
+                type: String,
+                match: /^$|^[a-f0-9]{64}$/,
+                default: "",
+            },
+            r2ETag: {
+                type: String,
+                maxlength: 200,
                 default: "",
             },
             backupProvider: {

@@ -215,13 +215,13 @@
       <section class="admin-panel operations-status" id="operations-status">
         <div class="admin-panel-heading"><div><p>OPERATIONS</p><h2>외부 연결·재처리</h2></div><span>기존 로직 수동 재실행</span></div>
         <div class="operations-status-grid">
-          <article><small>파일 저장소</small><strong>로컬 + Cloudinary 분리 저장</strong><span><%= rankingOperations.operations.storage.productionSafe ? "운영 준비 완료" : "영구 디스크 설정 필요" %> · 디스크 <%= rankingOperations.operations.storage.localCapacity.usedPercent == null ? "확인 불가" : `${rankingOperations.operations.storage.localCapacity.usedPercent}%` %> · R2 백업 <%= rankingOperations.operations.storage.r2BackupConfigured ? "연결됨" : "미연결" %></span></article>
+          <article><small>파일 저장소</small><strong>R2 + Cloudinary 비공개 저장</strong><span><%= rankingOperations.operations.storage.productionSafe ? "운영 준비 완료" : "원격 저장소 설정 필요" %> · 임시 디스크 <%= rankingOperations.operations.storage.localCapacity.usedPercent == null ? "확인 불가" : `${rankingOperations.operations.storage.localCapacity.usedPercent}%` %> · R2 <%= rankingOperations.operations.storage.r2BackupConfigured ? "연결됨" : "미연결" %></span></article>
           <article><small>이메일</small><strong><%= rankingOperations.operations.emailConfigured ? "연결됨" : "설정 필요" %></strong><span>SMTP 환경 변수</span></article>
           <article><small>공유 세션</small><strong><%= rankingOperations.operations.sharedSessionConfigured ? "연결됨" : "미연결" %></strong><span>다중 서버 배포 전 필요</span></article>
           <article><small>스케줄러</small><strong><%= rankingOperations.operations.schedulerEnabled ? "실행 허용" : "중지됨" %></strong><span>시즌·차감·알림 작업</span></article>
         </div>
         <div class="maintenance-actions">
-          <% [["SETTLEMENT_RETRY", "대기 경기 정산 재처리"], ["ACCESS_CYCLE_RETRY", "일일 차감·만료 재처리"], ["NOTIFICATION_RETRY", "종료 예정 알림 재처리"], ["SEASON_RETRY", "시즌 작업 재처리"], ["STORAGE_BACKUP", "운영자 파일 R2 백업"], ["STORAGE_RESTORE_DRILL", "R2 복원 점검·누락 복구"]].forEach(([task, label]) => { %>
+          <% [["SETTLEMENT_RETRY", "대기 경기 정산 재처리"], ["ACCESS_CYCLE_RETRY", "일일 차감·만료 재처리"], ["NOTIFICATION_RETRY", "종료 예정 알림 재처리"], ["SEASON_RETRY", "시즌 작업 재처리"], ["STORAGE_BACKUP", "기존 로컬 파일 R2 이전 점검"], ["STORAGE_RESTORE_DRILL", "R2 원본 무결성 점검"]].forEach(([task, label]) => { %>
             <form action="/admin/arena-audit/maintenance" method="POST"><input type="hidden" name="task" value="<%= task %>" /><button type="submit"><%= label %></button></form>
           <% }) %>
         </div>

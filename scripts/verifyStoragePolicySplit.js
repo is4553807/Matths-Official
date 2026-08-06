@@ -9,6 +9,10 @@ delete process.env.CLOUDINARY_URL;
 delete process.env.CLOUDINARY_CLOUD_NAME;
 delete process.env.CLOUDINARY_API_KEY;
 delete process.env.CLOUDINARY_API_SECRET;
+delete process.env.R2_ACCOUNT_ID;
+delete process.env.R2_ACCESS_KEY_ID;
+delete process.env.R2_SECRET_ACCESS_KEY;
+delete process.env.R2_BUCKET;
 const userCloudTempDirectory = fs.mkdtempSync(
   path.join(os.tmpdir(), "matths-user-cloud-temp-")
 );
@@ -25,33 +29,25 @@ const {
 } = require("../middleware/userCloudUploadStorage");
 
 async function run() {
-  assert.equal(storagePolicyFor(STORAGE_PURPOSES.ADMIN_ARCHIVE).provider, "local");
-  assert.equal(storagePolicyFor(STORAGE_PURPOSES.ADMIN_WEEKLY_MOCK).provider, "local");
+  assert.equal(storagePolicyFor(STORAGE_PURPOSES.ADMIN_ARCHIVE).provider, "r2");
+  assert.equal(storagePolicyFor(STORAGE_PURPOSES.ADMIN_WEEKLY_MOCK).provider, "r2");
   assert.equal(storagePolicyFor(STORAGE_PURPOSES.USER_COMMUNITY).provider, "cloudinary");
   assert.equal(storagePolicyFor(STORAGE_PURPOSES.USER_ARENA_EVIDENCE).provider, "cloudinary");
 
-  const localDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), "matths-admin-storage-"));
-  const filePath = path.join(localDirectory, "archive.pdf");
-  await fs.promises.writeFile(filePath, Buffer.from("admin archive"));
-  try {
-    const asset = await storeUploadedFile(
+  await assert.rejects(
+    () => storeUploadedFile(
       {
-        path: filePath,
+        path: path.join(os.tmpdir(), "missing-admin-archive.pdf"),
         filename: "archive.pdf",
         originalname: "archive.pdf",
         mimetype: "application/pdf",
       },
       {
-        localDirectory,
         purpose: STORAGE_PURPOSES.ADMIN_ARCHIVE,
       }
-    );
-    assert.equal(asset.storageProvider, "LOCAL");
-    assert.equal(asset.storagePurpose, "ADMIN_ARCHIVE");
-    assert.equal(fs.existsSync(filePath), true, "운영자 로컬 원본은 업로드 뒤 유지되어야 합니다.");
-  } finally {
-    await fs.promises.rm(localDirectory, { recursive: true, force: true });
-  }
+    ),
+    (error) => error?.code === "R2_STORAGE_NOT_CONFIGURED"
+  );
 
   await assert.rejects(
     () =>
@@ -85,7 +81,7 @@ async function run() {
     ["middleware/communityUpload.js", "userCloudUploadStorage"],
     ["middleware/arenaEvidenceUpload.js", "userCloudUploadStorage"],
     ["middleware/archiveUpload.js", "userCloudUploadStorage"],
-    ["services/archiveService.js", "scheduleLocalStorageR2BackupSoon"],
+    ["services/archiveService.js", "signedStoredAssetUrl"],
   ];
   for (const [file, text] of sourceChecks) {
     assert.ok(fs.readFileSync(path.resolve(__dirname, "..", file), "utf8").includes(text), `${file} 저장 목적 누락`);
@@ -112,7 +108,7 @@ async function run() {
     assert.ok(evidenceSource.includes(feature), `풀이 증거 보존 기능 누락: ${feature}`);
   }
 
-  console.log("운영자 LOCAL·사용자 Cloudinary 분리 저장 정책 검증 완료");
+  console.log("운영자 R2·사용자 Cloudinary 분리 저장 정책 검증 완료");
 }
 
 run()

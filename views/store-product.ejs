@@ -1,0 +1,85 @@
+<%
+  const displayName = String(user.name || "회원");
+  const formatPrice = (value) => Number(value) === 0
+    ? "무료"
+    : `${new Intl.NumberFormat("ko-KR").format(Number(value) || 0)}원`;
+  const assetById = new Map(product.assets.map((asset) => [asset.id, asset]));
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= product.name %> | Matths 상점</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/store.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <script src="/js/main.js" defer></script>
+  </head>
+  <body class="store-page store-detail-page">
+    <div class="dashboard-shell store-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top"><a class="brand" href="/main"><span class="brand-mark" aria-hidden="true">M</span><span>Matths</span></a><button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button></div>
+        <%- include("partials/dashboard-navigation", { activePage: "store" }) %>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile"><a class="profile-avatar" href="/profile"><%= displayName.slice(0, 1) %></a><div class="profile-copy"><strong><%= displayName %>님</strong><small>Matths 회원</small></div><form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form></div>
+      </aside>
+
+      <main class="dashboard-main store-main" id="store-main">
+        <header class="store-mobile-header"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기"><span></span><span></span><span></span></button><a href="/store">← 전체 교재</a><a href="/main">학습 홈</a></header>
+        <%- include("partials/store-top-navigation", { activeStoreCategory: product.category, storeSearchQuery: "", storeCategories: categories }) %>
+        <section class="store-product-hero">
+          <div class="store-detail-cover"><% if (product.thumbnail) { %><img src="/store/media/<%= product.id %>/<%= product.thumbnail.id %>" alt="<%= product.name %> 썸네일" /><% } else { %><span>MATTHS</span><% } %></div>
+          <div class="store-detail-summary">
+            <p><%= product.badge || product.category %></p>
+            <h1><%= product.name %></h1>
+            <h2><%= product.subtitle %></h2>
+            <span><%= product.summary %></span>
+            <% if (product.originalPrice > product.price) { %><del><%= formatPrice(product.originalPrice) %></del><% } %>
+            <strong><%= formatPrice(product.price) %></strong>
+            <% if (product.price === 0) { %>
+              <% if (product.freeDownloadFiles.length) { %><a class="store-free-download-primary" href="#free-downloads">무료로 바로 다운로드</a><% } else { %><button type="button" disabled>무료 자료 준비 중</button><% } %>
+              <small>무료 자료는 별도의 결제 과정 없이 바로 받을 수 있습니다.</small>
+            <% } else { %>
+              <button type="button" disabled aria-describedby="purchase-preparing">결제 기능 준비 중</button>
+              <small id="purchase-preparing">PG 연결 뒤 같은 상품 정보로 결제 버튼이 활성화됩니다.</small>
+            <% } %>
+          </div>
+        </section>
+
+        <% if (product.price === 0) { %>
+          <section class="store-free-downloads" id="free-downloads" aria-labelledby="free-download-title">
+            <header><p>FREE DOWNLOAD</p><h2 id="free-download-title">무료 자료 다운로드</h2><span>결제 없이 파일을 바로 내려받을 수 있습니다.</span></header>
+            <% if (product.freeDownloadFiles.length) { %><div>
+              <% product.freeDownloadFiles.forEach((file, index) => { %>
+                <a href="/store/products/<%= product.slug %>/download/<%= file.id %>"><b><%= String(index + 1).padStart(2, "0") %></b><span><strong><%= file.originalName %></strong><small><%= (file.sizeBytes / 1024 / 1024).toFixed(1) %> MB</small></span><em>다운로드 ↓</em></a>
+              <% }) %>
+            </div><% } else { %><p class="store-detail-empty">운영자가 다운로드 파일을 준비하고 있습니다.</p><% } %>
+          </section>
+        <% } %>
+
+        <% if (product.bundleItems.length) { %>
+          <section class="store-bundle-section"><header><p>PACKAGE CONTENTS</p><h2>묶음 상품 구성</h2></header><div>
+            <% product.bundleItems.forEach((item, index) => { %><article><b><%= String(index + 1).padStart(2, "0") %></b><div><h3><%= item.name %></h3><p><%= item.description %></p></div></article><% }) %>
+          </div></section>
+        <% } %>
+
+        <section class="store-long-detail" aria-labelledby="product-detail-title">
+          <header><p>PRODUCT DETAIL</p><h2 id="product-detail-title">상품 상세 설명</h2><span>스크롤해 교재의 구성과 특징을 확인하세요.</span></header>
+          <div class="store-detail-content">
+            <% if (!product.detailBlocks.length) { %><p class="store-detail-empty">운영자가 상세 설명을 준비하고 있습니다.</p><% } %>
+            <% product.detailBlocks.forEach((block) => { %>
+              <% if (block.type === "TEXT") { %>
+                <p class="detail-text detail-text--<%= block.fontSize %>" style="color:<%= block.color %>;text-align:<%= block.align %>;font-weight:<%= block.bold ? 800 : 400 %>;text-decoration:<%= block.underline ? 'underline' : 'none' %>"><%= block.text %></p>
+              <% } else if (block.type === "IMAGE" && assetById.has(block.assetId)) { const image = assetById.get(block.assetId); %>
+                <figure><img src="/store/media/<%= product.id %>/<%= image.id %>" alt="<%= image.altText || product.name + ' 상세 이미지' %>" loading="lazy" /><% if (block.caption) { %><figcaption><%= block.caption %></figcaption><% } %></figure>
+              <% } %>
+            <% }) %>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

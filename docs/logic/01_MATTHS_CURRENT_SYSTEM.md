@@ -233,7 +233,7 @@ Ranked 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다.
 | `GMAIL_APP_PASSWORD` | Gmail 앱 비밀번호 |
 | `EMAIL_FROM_ADDRESS` | 선택적 발신 주소 |
 | `EMAIL_FROM_NAME` | 선택적 발신 이름 |
-| `ARCHIVE_STORAGE_DIR` | 자료실 실제 저장 경로 |
+| `ARCHIVE_STORAGE_DIR` | R2 전송 전 아카이브 임시 업로드 경로와 기존 로컬 파일 이전 경로 |
 | `FONTCONFIG_FILE` | 소셜 카드 생성 보조 폰트 설정 |
 | `MATTHS_PREVIEW_PORT` | 소셜 카드 미리보기 서버, 기본 4173 |
 

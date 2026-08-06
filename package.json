@@ -25,6 +25,7 @@
     "access-cycle-daily:verify": "node scripts/verifyDailyAccessCycleLifecycle.js",
     "arena-placement:verify": "node scripts/verifyInitialArenaPlacement.js",
     "arena-match:verify": "node scripts/verifyArenaMatchCreation.js",
+    "arena-matchmaking-control:verify": "node scripts/verifyArenaMatchmakingControl.js",
     "arena-match-attempt:verify": "node scripts/verifyArenaMatchAttemptFlow.js",
     "arena-question-design:verify": "node scripts/verifyArenaQuestionDesignV2.js",
     "arena-problem-data:verify": "node scripts/verifyArenaProblemData.js",
@@ -79,14 +80,19 @@
     "file-storage:verify-cloud": "node scripts/verifyCloudinaryStorage.js",
     "storage:backup": "node scripts/runLocalStorageBackup.js",
     "storage-r2:verify": "node scripts/verifyR2Storage.js",
+    "storage-r2:migrate": "node scripts/migrateLocalFilesToR2.js",
     "storage-policy:verify": "node scripts/verifyStoragePolicySplit.js",
     "storage-backup:verify": "node scripts/verifyLocalStorageBackup.js",
     "storage-lifecycle:verify-db": "node scripts/verifyStorageLifecycleDb.js",
+    "pdf-watermark:verify": "node scripts/verifyPdfWatermarkLocal.js",
+    "pdf-watermark:verify-db": "node scripts/verifyPdfWatermark.js",
     "ranking-operations:verify-db": "node scripts/verifyRankingOperationsDb.js",
     "accounts:configure-requested": "node scripts/configureRequestedAccounts.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",
+    "@aws-sdk/s3-request-presigner": "^3.1105.0",
+    "@tesseract.js-data/eng": "^1.0.0",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.10.0",
     "dotenv": "^17.4.2",
@@ -98,6 +104,10 @@
     "mongoose": "^9.7.4",
     "multer": "^2.2.0",
     "nodemailer": "^7.0.11",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.2.108",
+    "sharp": "^0.35.3",
+    "tesseract.js": "^7.0.0"
   }
 }

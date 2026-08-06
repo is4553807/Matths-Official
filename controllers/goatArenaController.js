@@ -1546,7 +1546,7 @@ exports.createSubChallenge = async (
   } catch (error) {
     await recordMatchRequest({ req, division: "SUB", error });
     if (
-      [400, 403, 404, 409].includes(
+      [400, 403, 404, 409, 423].includes(
         Number(error.status)
       )
     ) {

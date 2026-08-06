@@ -29,6 +29,7 @@ const {
   revengeCompletionDeadline,
 } = require("./arenaDivisionRuleService");
 const { kstSeasonKey } = require("./arenaStandingService");
+const { assertMatchmakingOpen } = require("./arenaMatchmakingControlService");
 
 function statusError(status, message, code = "") {
   const error = new Error(message);
@@ -64,6 +65,7 @@ async function createSubRevengeMatch({
   if (isSundayMatchRequestLocked(now, "SUB")) {
     throw statusError(423, "일요일 14시부터 새 복수전을 신청할 수 없습니다.", "SUNDAY_REVENGE_LOCK");
   }
+  await assertMatchmakingOpen();
   const session = await mongoose.startSession();
   let result = null;
   try {
@@ -198,6 +200,7 @@ async function createSubRevengeMatch({
         [{ ...sealed, _id: problemPackId }],
         { session, ordered: true }
       );
+      await assertMatchmakingOpen({ session, claim: true, now });
       await ArenaMatch.create(
         [matchDraft],
         { session, ordered: true }

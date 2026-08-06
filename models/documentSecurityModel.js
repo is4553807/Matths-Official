@@ -1,0 +1,40 @@
+const mongoose = require("mongoose");
+
+const pdfWatermarkIssuanceSchema = new mongoose.Schema(
+  {
+    issuanceId: { type: String, required: true, unique: true, index: true, maxlength: 80 },
+    documentIssueId: { type: String, required: true, unique: true, index: true, maxlength: 100 },
+    traceCode: { type: String, required: true, unique: true, index: true, maxlength: 80 },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    examId: { type: String, required: true, index: true, maxlength: 180 },
+    sourceType: {
+      type: String,
+      enum: ["ARCHIVE", "WEEKLY_MOCK", "STORE"],
+      required: true,
+      index: true,
+    },
+    sourceId: { type: String, required: true, index: true, maxlength: 180 },
+    assetId: { type: String, default: "", maxlength: 180 },
+    originalName: { type: String, required: true, maxlength: 300 },
+    downloadedAt: { type: Date, required: true, index: true },
+    pageCount: { type: Number, min: 0, default: 0 },
+    forensicPayloadHash: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
+    status: {
+      type: String,
+      enum: ["GENERATING", "READY", "FAILED"],
+      default: "GENERATING",
+      index: true,
+    },
+    failureCode: { type: String, default: "", maxlength: 120 },
+  },
+  { collection: "pdfWatermarkIssuances", timestamps: true, versionKey: false }
+);
+
+pdfWatermarkIssuanceSchema.index({ userId: 1, downloadedAt: -1 });
+pdfWatermarkIssuanceSchema.index({ sourceType: 1, sourceId: 1, downloadedAt: -1 });
+
+const PdfWatermarkIssuance =
+  mongoose.models.PdfWatermarkIssuance ||
+  mongoose.model("PdfWatermarkIssuance", pdfWatermarkIssuanceSchema);
+
+module.exports = { PdfWatermarkIssuance };

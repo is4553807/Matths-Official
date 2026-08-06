@@ -62,6 +62,7 @@ const {
   RenewalRankAssessment,
 } = require("../models/goatArenaModel");
 const { OperationalMetricEvent } = require("../models/operationModel");
+const { PdfWatermarkIssuance } = require("../models/documentSecurityModel");
 const {
   ParentAlertDelivery,
   ParentAccount,
@@ -280,7 +281,7 @@ async function removeUserUploadedFiles(userId) {
     CommunityPost.find({ authorId: userId }).select("attachments").lean(),
     ArenaMatchEvidence.find({ userId }).select("files").lean(),
     ArchiveItem.find({ uploadedBy: userId })
-      .select("storedName storageProvider cloudPublicId cloudResourceType cloudDeliveryType")
+      .select("storedName storageProvider cloudPublicId cloudResourceType cloudDeliveryType r2ObjectKey r2Sha256 r2ETag")
       .lean(),
   ]);
   await discardCommunityUploads(posts.flatMap((post) => post.attachments || []));
@@ -473,6 +474,7 @@ async function purgeUserOwnedData(
       $or: [{ targetUserId: userId }, { actorUserId: userId }],
     }),
     OperationalMetricEvent.deleteMany({ userId }),
+    PdfWatermarkIssuance.deleteMany({ userId }),
   ]);
 
   await discardCommunityUploads(

@@ -1,0 +1,19 @@
+<%
+  const selectedCategory = typeof activeStoreCategory === "string" ? activeStoreCategory : "";
+  const navCategories = Array.isArray(storeCategories) ? storeCategories : [];
+%>
+<nav class="store-top-navigation" aria-label="상점 교재 분류">
+  <div class="store-top-navigation__links">
+    <a class="<%= selectedCategory === '' ? 'is-active' : '' %>" href="/store">전체 교재</a>
+    <% navCategories.forEach((category) => { %>
+      <a class="<%= selectedCategory === category.name ? 'is-active' : '' %>" href="/store?category=<%= encodeURIComponent(category.name) %>"><%= category.name %></a>
+    <% }) %>
+  </div>
+  <form class="store-top-navigation__search" action="/store" method="GET" role="search">
+    <% if (selectedCategory) { %><input type="hidden" name="category" value="<%= selectedCategory %>" /><% } %>
+    <label>
+      <span class="sr-only">교재 검색</span>
+      <input type="search" name="q" value="<%= typeof storeSearchQuery === 'string' ? storeSearchQuery : '' %>" placeholder="교재명을 검색하세요" maxlength="80" />
+    </label>
+  </form>
+</nav>

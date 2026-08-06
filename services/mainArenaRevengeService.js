@@ -50,6 +50,7 @@ const { normalizeDecisionId } = require("./arenaRevengeService");
 const {
   createRankUpPresentationsForSettlement,
 } = require("./arenaRankUpPresentationService");
+const { assertMatchmakingOpen } = require("./arenaMatchmakingControlService");
 
 const MAIN_REVENGE_SETTLEMENT_VERSION = "MAIN-REVENGE-SETTLEMENT-V2";
 
@@ -162,6 +163,7 @@ async function createMainRevengeMatch({
   if (isSundayMatchRequestLocked(now, "MAIN")) {
     throw statusError(423, "일요일 14시부터 새 Ranked 복수전을 신청할 수 없습니다.", "SUNDAY_REVENGE_LOCK");
   }
+  await assertMatchmakingOpen();
   const rightPreview = await ArenaRevengeRight.findById(revengeRightId).lean();
   if (!rightPreview || rightPreview.division !== "MAIN") {
     throw statusError(404, "사용 가능한 Ranked 복수전 권리를 찾지 못했습니다.");
@@ -321,6 +323,7 @@ async function createMainRevengeMatch({
         integrityStatus: "PENDING",
       };
       await ArenaProblemPack.create([{ ...sealed, _id: problemPackId }], { session, ordered: true });
+      await assertMatchmakingOpen({ session, claim: true, now });
       await ArenaMatch.create([matchDraft], { session, ordered: true });
       const answers = sealed.questions.map((question) => ({
         questionKey: question.questionKey,

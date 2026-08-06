@@ -6356,3 +6356,259 @@
     display: none;
   }
 }
+
+.admin-matchmaking-control {
+  margin-bottom: 22px;
+  border: 1px solid #cfd8ef;
+  overflow: hidden;
+}
+
+.admin-matchmaking-control.is-paused {
+  border-color: #f3b9b9;
+  background: linear-gradient(135deg, #fff 0%, #fff7f7 100%);
+}
+
+.admin-matchmaking-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 22px 0;
+  padding: 17px 20px;
+  color: #59627a;
+  background: #f6f8fd;
+  border-radius: 14px;
+}
+
+.admin-matchmaking-state strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #153b77;
+  font-size: 18px;
+  letter-spacing: .08em;
+}
+
+.admin-matchmaking-state strong span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #27b878;
+  box-shadow: 0 0 0 5px rgba(39, 184, 120, .12);
+}
+
+.admin-matchmaking-control.is-paused .admin-matchmaking-state strong {
+  color: #b12f3d;
+}
+
+.admin-matchmaking-control.is-paused .admin-matchmaking-state strong span {
+  background: #e34d5d;
+  box-shadow: 0 0 0 5px rgba(227, 77, 93, .12);
+}
+
+.admin-matchmaking-state p {
+  margin: 0;
+  text-align: right;
+}
+
+.admin-matchmaking-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.admin-matchmaking-form label,
+.forensic-upload-form label {
+  display: grid;
+  gap: 8px;
+  color: #28334e;
+  font-weight: 800;
+}
+
+.admin-matchmaking-form label span small,
+.forensic-upload-form label span small {
+  margin-left: 7px;
+  color: #8a93a9;
+  font-weight: 600;
+}
+
+.admin-matchmaking-form input,
+.forensic-upload-form input {
+  min-height: 48px;
+  padding: 0 15px;
+  color: #17223d;
+  background: #fff;
+  border: 1px solid #d8deed;
+  border-radius: 12px;
+}
+
+.admin-matchmaking-form button,
+.forensic-upload-form button {
+  min-height: 48px;
+  padding: 0 22px;
+  color: #fff;
+  background: linear-gradient(135deg, #7d32df, #168bc5);
+  border: 0;
+  border-radius: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-matchmaking-form button.danger {
+  background: linear-gradient(135deg, #d83454, #9a2541);
+}
+
+.admin-pdf-forensics {
+  max-width: 1480px;
+}
+
+.forensic-upload-panel {
+  margin-bottom: 22px;
+  background: linear-gradient(135deg, #fff 0%, #f7f9ff 100%);
+}
+
+.forensic-upload-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.forensic-upload-form input[type="file"] {
+  padding: 10px 12px;
+}
+
+.forensic-summary {
+  margin: 22px 0;
+}
+
+.forensic-result-list {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.forensic-result-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.forensic-result-card > header span {
+  color: #785bdc;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.forensic-result-card > header h2 {
+  margin: 6px 0 0;
+}
+
+.forensic-result-card > header > b {
+  padding: 9px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.forensic-result-card > header > b.verified {
+  color: #0f7547;
+  background: #e2f8ec;
+}
+
+.forensic-result-card > header > b.trace-only {
+  color: #8a5d08;
+  background: #fff3d8;
+}
+
+.forensic-result-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.forensic-result-card dl div {
+  min-width: 0;
+  padding: 14px 16px;
+  background: #f6f8fc;
+  border-radius: 12px;
+}
+
+.forensic-result-card dl div.wide {
+  grid-column: 1 / -1;
+}
+
+.forensic-result-card dt {
+  margin-bottom: 6px;
+  color: #7b849a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.forensic-result-card dd {
+  margin: 0;
+  color: #1c2742;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.forensic-guide > div:nth-of-type(2) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.forensic-guide article {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  background: #f6f8fc;
+  border-radius: 14px;
+}
+
+.forensic-guide article b {
+  color: #7a5be0;
+  font-size: 12px;
+}
+
+.forensic-guide article span,
+.forensic-guide > p {
+  color: #69738a;
+  line-height: 1.65;
+}
+
+.forensic-guide > p {
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  background: #fff8e6;
+  border-radius: 12px;
+}
+
+@media (max-width: 800px) {
+  .admin-matchmaking-state,
+  .forensic-result-card > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-matchmaking-state p {
+    text-align: left;
+  }
+
+  .admin-matchmaking-form,
+  .forensic-upload-form,
+  .forensic-guide > div:nth-of-type(2),
+  .forensic-result-card dl {
+    grid-template-columns: 1fr;
+  }
+
+  .forensic-result-card dl div.wide {
+    grid-column: auto;
+  }
+}
