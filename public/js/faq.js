@@ -11,10 +11,11 @@
     const items = Array.from(document.querySelectorAll(".faq-item"));
     const categoryButtons = Array.from(document.querySelectorAll(".category-button"));
     const quickLinks = Array.from(document.querySelectorAll('.popular-card[href^="#faq-"]'));
+    const requestedCode = new URLSearchParams(window.location.search).get("code");
     let activeCategory = "all";
 
     function normalized(value) {
-      return value.trim().toLocaleLowerCase("ko-KR").replace(/\s+/g, " ");
+      return String(value || "").trim().toLocaleLowerCase("ko-KR").replace(/\s+/g, " ");
     }
 
     function updateCategory(category) {
@@ -60,6 +61,14 @@
     resetButton.addEventListener("click", resetAll);
 
     categoryButtons.forEach((button) => {
+      const badge = button.querySelector("b");
+      if (badge) {
+        badge.textContent = String(
+          button.dataset.category === "all"
+            ? items.length
+            : items.filter((item) => item.dataset.category === button.dataset.category).length
+        );
+      }
       button.addEventListener("click", () => {
         updateCategory(button.dataset.category);
         filterItems();
@@ -88,7 +97,24 @@
       });
     });
 
+    if (requestedCode) {
+      input.value = requestedCode;
+      updateCategory("error");
+    }
     filterItems();
+
+    if (requestedCode) {
+      const target = document.getElementById(`faq-error-${requestedCode}`);
+      if (target) {
+        target.open = true;
+        window.requestAnimationFrame(() =>
+          target.scrollIntoView({
+            behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+            block: "center",
+          })
+        );
+      }
+    }
   }
 
   if (document.readyState === "loading") {

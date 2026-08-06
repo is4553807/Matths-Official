@@ -1,10 +1,19 @@
 <%
   const boardLabels = {
     "high-school": "통합 고등학교 게시판",
-    ...(Number(user?.schoolGrade) === 13
-      ? { retaker: "N수생 게시판" }
-      : { school: "내 학교 게시판" }),
+    ...({
+      13: { retaker: "N수생 게시판" },
+      14: { university: `${user?.university?.name || "내 대학교"} 게시판` },
+      15: { worker: "직장인 게시판" },
+    }[Number(user?.schoolGrade)] || { school: "내 고등학교 게시판" }),
   };
+  const privateGuide = Number(user?.schoolGrade) === 13
+    ? "N수생 게시판은 현재 N수생 계정만 이용할 수 있습니다."
+    : Number(user?.schoolGrade) === 14
+      ? "대학교별 게시판 글은 회원가입 때 등록한 같은 대학교 게시판에만 올라갑니다."
+      : Number(user?.schoolGrade) === 15
+        ? "직장인 게시판은 직장인 계정만 이용할 수 있습니다."
+        : "학교별 게시판 글은 회원가입 때 등록한 같은 고등학교 게시판에만 올라갑니다.";
 %>
 <!doctype html>
 <html lang="ko">
@@ -22,7 +31,7 @@
     <main class="community-compose-main">
       <a class="community-back" href="/community">← 게시판 목록</a>
       <section class="community-compose">
-        <div class="community-compose-heading"><p>NEW POST</p><h1>새 글 쓰기</h1><span><%= Number(user?.schoolGrade) === 13 ? "N수생 게시판은 현재 N수생 계정만 이용할 수 있습니다." : "학교별 게시판 글은 회원가입 때 등록한 학교 게시판에만 올라갑니다." %></span></div>
+        <div class="community-compose-heading"><p>NEW POST</p><h1>새 글 쓰기</h1><span><%= privateGuide %></span></div>
         <% if (error) { %><div class="community-error" role="alert"><%= error %></div><% } %>
         <div class="community-posting-quota <%= postingAccess.remainingPosts === 0 ? 'is-exhausted' : '' %>">
           <span>오늘 작성 가능</span>

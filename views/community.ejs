@@ -1,7 +1,13 @@
 <%
   const loggedIn = typeof user !== "undefined" && Boolean(user);
-  const isRetaker = loggedIn && Number(user.schoolGrade) === 13;
-  const privateBoard = isRetaker ? "retaker" : "school";
+  const viewerGrade = loggedIn ? Number(user.schoolGrade) : null;
+  const privateBoard = ({ 13: "retaker", 14: "university", 15: "worker" })[viewerGrade] || "school";
+  const privateBoardCopy = {
+    school: { label: "학교별 게시판", small: loggedIn ? "우리 학교 이야기" : "로그인 후 사용하세요" },
+    retaker: { label: "N수생 게시판", small: "N수생끼리 함께" },
+    university: { label: "대학교별 게시판", small: "우리 대학교 이야기" },
+    worker: { label: "직장인 게시판", small: "직장인끼리 함께" },
+  }[privateBoard];
   const formatDate = (date) =>
     new Intl.DateTimeFormat("ko-KR", {
       timeZone: "Asia/Seoul",
@@ -29,15 +35,20 @@
     11: "2학년",
     12: "3학년",
     13: "N수생",
+    14: "대학생",
+    15: "직장인",
   }[Number(grade)] || "");
-  const anonymousSchoolLabel = (post) =>
-    Number(post.authorSchoolGrade) === 13
-      ? "N수생"
-      : [
+  const anonymousSchoolLabel = (post) => {
+    const grade = Number(post.authorSchoolGrade);
+    if (grade === 13) return "N수생";
+    if (grade === 14) return "OO대학교 대학생";
+    if (grade === 15) return "직장인";
+    return [
           post.authorRegion,
           "OO고등학교",
-          gradeLabel(post.authorSchoolGrade),
+          gradeLabel(grade),
         ].filter(Boolean).join(" ");
+  };
   const postHref = (post) =>
     post.isCommunityNotice
       ? post.noticeHref
@@ -52,7 +63,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="수학과 학교생활 이야기를 나누는 Matths 고등학생 게시판" />
+    <meta name="description" content="고등학생·N수생·대학생·직장인이 소속별로 학습 이야기를 나누는 Matths 커뮤니티" />
     <title><%= boardData.boardLabel %> | Matths</title>
     <link rel="stylesheet" href="/css/community.css" />
     <link rel="stylesheet" href="/css/public-navigation.css" />
@@ -64,8 +75,8 @@
 
     <main class="community-main">
       <section class="community-hero">
-        <div><p><%= boardData.board === "operations" ? "MATTHS OPERATIONS" : "MATTHS COMMUNITY" %></p><h1><%= boardData.board === "operations" ? "Matths 이용을 위한" : (boardData.board === "retaker" ? "다시 도전하는 수험생을 위한" : "고등학생을 위한") %><br /><strong><%= boardData.board === "operations" ? "운영 안내" : "학교 커뮤니티" %></strong></h1><span><%= boardData.board === "operations" ? "Matths의 공지, 규칙, 방침과 이용 설명을 확인합니다." : (boardData.board === "school" ? "가입 정보에 등록된 같은 고등학교 소속 학생만 열람하고 작성할 수 있습니다." : (boardData.board === "retaker" ? "현재 N수생으로 등록된 회원만 열람하고 작성할 수 있습니다." : "글은 누구나 읽을 수 있고, 작성은 로그인한 회원만 가능합니다.")) %></span></div>
-        <% if (boardData.board !== "operations" && (boardData.board !== "school" || boardData.selectedSchool)) { %>
+        <div><p><%= boardData.board === "operations" ? "MATTHS OPERATIONS" : "MATTHS COMMUNITY" %></p><h1><%= boardData.board === "operations" ? "Matths 이용을 위한" : boardData.board === "retaker" ? "다시 도전하는 수험생을 위한" : boardData.board === "university" ? "같은 대학교 학생을 위한" : boardData.board === "worker" ? "배움이 계속되는 직장인을 위한" : "고등학생을 위한" %><br /><strong><%= boardData.board === "operations" ? "운영 안내" : "학습 커뮤니티" %></strong></h1><span><%= boardData.board === "operations" ? "Matths의 공지, 규칙, 방침과 이용 설명을 확인합니다." : boardData.board === "school" ? "가입 정보에 등록된 같은 고등학교 소속 학생만 열람하고 작성할 수 있습니다." : boardData.board === "retaker" ? "현재 N수생으로 등록된 회원만 열람하고 작성할 수 있습니다." : boardData.board === "university" ? "가입 정보에 등록된 같은 대학교 소속 대학생만 열람하고 작성할 수 있습니다." : boardData.board === "worker" ? "직장인으로 등록된 회원만 열람하고 작성할 수 있습니다." : "글은 누구나 읽을 수 있고, 작성은 로그인한 회원만 가능합니다." %></span></div>
+        <% if (boardData.board !== "operations" && (boardData.board !== "school" || boardData.selectedSchool) && (boardData.board !== "university" || boardData.selectedUniversity)) { %>
           <a href="/community/new?board=<%= boardData.board %>">새 글 쓰기 <span aria-hidden="true">→</span></a>
         <% } %>
       </section>
@@ -74,7 +85,7 @@
 
       <nav class="community-board-tabs" aria-label="게시판 선택">
         <a class="<%= boardData.board === 'high-school' ? 'active' : '' %>" href="<%= boardHref('high-school') %>"><span>01</span><strong>통합 고등학교</strong><small>학교를 넘어 함께</small></a>
-        <a class="<%= boardData.board === privateBoard ? 'active' : '' %>" href="<%= boardHref(privateBoard) %>"><span>02</span><strong><%= isRetaker ? "N수생 게시판" : "학교별 게시판" %></strong><small><%= isRetaker ? "N수생끼리 함께" : (loggedIn ? "우리 학교 이야기" : "로그인 후 사용하세요") %></small></a>
+        <a class="<%= boardData.board === privateBoard ? 'active' : '' %>" href="<%= boardHref(privateBoard) %>"><span>02</span><strong><%= privateBoardCopy.label %></strong><small><%= privateBoardCopy.small %></small></a>
         <a class="<%= boardData.board === 'operations' ? 'active' : '' %>" href="<%= boardHref('operations') %>"><span>03</span><strong>운영 게시판</strong><small>공지·규칙·방침·설명서</small></a>
       </nav>
 
@@ -134,12 +145,22 @@
             <div><span>RETAKER BOARD</span><strong>N수생 전용 게시판</strong></div>
             <p>이 게시판은 현재 학년 정보가 <b>N수생</b>인 회원만 열람하고 작성할 수 있습니다.</p>
           </section>
+        <% } else if (boardData.board === "university" && boardData.selectedUniversity) { %>
+          <section class="school-board-membership" aria-label="현재 대학교 게시판">
+            <div><span>MY UNIVERSITY BOARD</span><strong><%= boardData.selectedUniversity.name %></strong></div>
+            <p>이 게시판은 <b><%= boardData.selectedUniversity.name %></b> 소속 대학생만 열람하고 작성할 수 있습니다. 다른 대학교 게시판은 열람할 수 없습니다.</p>
+          </section>
+        <% } else if (boardData.board === "worker") { %>
+          <section class="school-board-membership" aria-label="현재 직장인 게시판">
+            <div><span>WORKER BOARD</span><strong>직장인 전용 게시판</strong></div>
+            <p>이 게시판은 현재 학습자 구분이 <b>직장인</b>인 회원만 열람하고 작성할 수 있습니다.</p>
+          </section>
         <% } %>
 
         <% if (!boardData.posts.length) { %>
           <div class="community-empty">
             <span aria-hidden="true">☷</span>
-            <h3><%= boardData.board === "operations" ? "아직 공개된 운영 공지가 없습니다." : (boardData.board === "school" && !loggedIn ? "로그인 후 사용하세요." : (boardData.board === "school" && !boardData.selectedSchool ? "소속 고등학교 정보가 필요합니다." : "아직 게시글이 없습니다.")) %></h3>
+            <h3><%= boardData.board === "operations" ? "아직 공개된 운영 공지가 없습니다." : boardData.board === "school" && !loggedIn ? "로그인 후 사용하세요." : boardData.board === "school" && !boardData.selectedSchool ? "소속 고등학교 정보가 필요합니다." : boardData.board === "university" && !boardData.selectedUniversity ? "소속 대학교 정보가 필요합니다." : "아직 게시글이 없습니다." %></h3>
             <p><%= boardData.board === "operations" ? "새 공지가 발표되면 이곳에 계속 누적됩니다." : "첫 글을 작성해 게시판을 시작해보세요." %></p>
           </div>
         <% } else { %>

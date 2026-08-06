@@ -36,8 +36,8 @@ async function main() {
         }
       );
       assert.equal(rulebook.mainPolicy, null);
-      assert.ok(html.includes("Main Division 신규 경기가 잠시 중단되었습니다."));
-      assert.ok(html.includes("현재 적용 중인 Main Division 운영 정책이 없습니다."));
+      assert.ok(html.includes("Ranked 신규 경기가 잠시 중단되었습니다."));
+      assert.ok(html.includes("현재 적용 중인 Ranked 운영 정책이 없습니다."));
       console.log(
         JSON.stringify({
           ok: true,
@@ -76,12 +76,11 @@ async function main() {
         arenaUser: { nickname: "Atlas 검증" },
       }
     );
-    assert.ok(html.includes("Main 경기 예치 기준"));
-    assert.ok(html.includes(`최대 티어 차이는 ${snapshot.maximumTargetTierGap}단계`));
-    for (const band of snapshot.stakeDaysByTierGap) {
-      assert.ok(html.includes(`${Number(band.tierGap)}단계 차이`));
-      assert.ok(html.includes(`최소 ${Number(band.stakeDays)}일 예치`));
-    }
+    assert.ok(html.includes("Ranked 경기 예치 기준"));
+    assert.ok(html.includes("상향 쟁탈전 최대 티어 차이"));
+    assert.ok(html.includes("1~5일 예치"));
+    assert.ok(html.includes("2~5일 예치"));
+    assert.ok(html.includes("3~5일 예치"));
     assert.ok(!html.includes(String(snapshot.code)));
     console.log(
       JSON.stringify({

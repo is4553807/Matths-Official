@@ -1,0 +1,62 @@
+<%
+  const settings = childLink.notificationSettings || {};
+  const lowLearning = settings.lowLearning || {};
+  const inactivity = settings.inactivity || {};
+  const stats = dashboard.stats || {};
+  const formatDate = (value) => value
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
+    : "기록 없음";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>학습 알림 설정 | Matths 학부모</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/parent.css" />
+  </head>
+  <body class="parent-page">
+    <%- include("partials/parent-navigation", { activeParentPage: "notifications" }) %>
+    <main class="parent-main">
+      <% if (saved) { %><div class="parent-form-message is-success">자녀별 학습 알림 설정을 저장했습니다.</div><% } %>
+      <header class="parent-page-heading">
+        <p>학습 알림</p>
+        <h1><%= child.realName || child.name %> 학생의<br />학습 흐름을 놓치지 마세요.</h1>
+        <span>알림은 자녀마다 따로 설정하며 매일 KST 21시 이후에 점검합니다. 같은 사유의 이메일을 반복해서 보내지 않도록 학습 저조는 3일, 장기 미접속은 7일의 재알림 간격을 적용합니다.</span>
+      </header>
+
+      <section class="parent-alert-status-grid" aria-label="현재 학습 상태">
+        <article><small>최근 로그인</small><strong><%= formatDate(child.lastLoginAt) %></strong></article>
+        <article><small>최근 학습</small><strong><%= formatDate(child.lastStudyDate) %></strong></article>
+        <article><small>이번 주 학습</small><strong><%= Number(stats.weeklyStudyMinutes) || 0 %>분</strong></article>
+        <article><small>활동일</small><strong><%= Number(stats.activeStudyDays) || 0 %>일</strong></article>
+      </section>
+
+      <form class="parent-alert-settings" method="post">
+        <section class="parent-alert-card">
+          <header><div><small>LOW LEARNING</small><h2>학습 저조 알림</h2></div><label class="parent-toggle"><input type="checkbox" name="lowLearningEnabled" value="1" <%= lowLearning.enabled ? "checked" : "" %> /><span>사용</span></label></header>
+          <p>하루 학습 시간이 설정값보다 적은 날이 연속으로 이어지면 알려드립니다. 기본 추천값은 하루 20분 미만이 3일 연속인 경우입니다.</p>
+          <div class="parent-alert-fields">
+            <label><span>하루 최소 학습 시간</span><select name="minimumMinutesPerDay"><% [10,20,30,45,60].forEach((value) => { %><option value="<%= value %>" <%= Number(lowLearning.minimumMinutesPerDay || 20) === value ? "selected" : "" %>><%= value %>분</option><% }) %></select></label>
+            <label><span>연속 저조 일수</span><select name="lowLearningConsecutiveDays"><% [2,3,5,7].forEach((value) => { %><option value="<%= value %>" <%= Number(lowLearning.consecutiveDays || 3) === value ? "selected" : "" %>><%= value %>일 연속</option><% }) %></select></label>
+          </div>
+        </section>
+
+        <section class="parent-alert-card">
+          <header><div><small>INACTIVITY</small><h2>장기 미접속 알림</h2></div><label class="parent-toggle"><input type="checkbox" name="inactivityEnabled" value="1" <%= inactivity.enabled ? "checked" : "" %> /><span>사용</span></label></header>
+          <p>학생 계정이 설정한 기간 동안 로그인하지 않으면 알려드립니다. 시험 기간이나 개인 일정에 맞춰 3일부터 30일까지 선택할 수 있습니다.</p>
+          <div class="parent-alert-fields one-column">
+            <label><span>미접속 기준</span><select name="inactivityDays"><% [3,5,7,14,30].forEach((value) => { %><option value="<%= value %>" <%= Number(inactivity.days || 7) === value ? "selected" : "" %>><%= value %>일 이상</option><% }) %></select></label>
+          </div>
+        </section>
+
+        <section class="parent-alert-delivery">
+          <label><input type="checkbox" name="emailEnabled" value="1" <%= settings.emailEnabled !== false ? "checked" : "" %> /><span><strong>이메일로 알림 받기</strong><small><%= parent.email %> 주소로 발송합니다.</small></span></label>
+          <button type="submit">알림 설정 저장</button>
+        </section>
+      </form>
+    </main>
+  </body>
+</html>

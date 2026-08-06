@@ -61,6 +61,18 @@ const COURSE_ORDER = new Map(
   ].map((courseId, index) => [courseId, index + 1])
 );
 
+const AVAILABLE_COURSE_IDS = new Set([
+  "common-math-1",
+  "common-math-2",
+  "algebra",
+  "probability-statistics",
+  "calculus-1",
+]);
+
+function isCourseAvailable(courseId) {
+  return AVAILABLE_COURSE_IDS.has(String(courseId || ""));
+}
+
 function readCurriculumDocuments() {
   if (!fs.existsSync(CURRICULUM_DIRECTORY)) {
     throw new Error(
@@ -161,6 +173,7 @@ function normalizeCourse(course, document, fileName) {
     ),
     units,
     sourceFile: fileName,
+    developmentLocked: !isCourseAvailable(course.id),
   };
 }
 
@@ -377,7 +390,9 @@ function buildLearningViewModel(curriculumData, learningProgress = {}) {
    * 개인 진도 계산 범위에 포함합니다.
    */
   const scopedCourses = courses.filter(
-    (course) => course.category === "common" || course.hasActivity
+    (course) =>
+      !course.developmentLocked &&
+      (course.category === "common" || course.hasActivity)
   );
   const scopedConcepts = scopedCourses
     .flatMap((course) => course.units)
@@ -392,15 +407,23 @@ function buildLearningViewModel(curriculumData, learningProgress = {}) {
   ).length;
 
   const firstCurrentConcept =
-    allConcepts.find(
-      (concept) => concept.progress > 0 && concept.progress < 100
-    ) ||
     courses
-      .filter((course) => course.category === "common")
+      .filter((course) => !course.developmentLocked)
+      .flatMap((course) => course.units)
+      .flatMap((unit) => unit.concepts)
+      .find(
+      (concept) => concept.progress > 0 && concept.progress < 100
+      ) ||
+    courses
+      .filter((course) => course.category === "common" && !course.developmentLocked)
       .flatMap((course) => course.units)
       .flatMap((unit) => unit.concepts)
       .find((concept) => concept.progress < 100) ||
-    allConcepts.find((concept) => concept.progress < 100);
+    courses
+      .filter((course) => !course.developmentLocked)
+      .flatMap((course) => course.units)
+      .flatMap((unit) => unit.concepts)
+      .find((concept) => concept.progress < 100);
 
   return {
     curriculum: curriculumData.curriculum || {},
@@ -473,4 +496,5 @@ module.exports = {
   buildLearningViewModel,
   findCurriculumConcept,
   findUnitView,
+  isCourseAvailable,
 };

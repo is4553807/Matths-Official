@@ -134,6 +134,7 @@
     initPasswordToggles();
     initPasswordConfirmation();
     initSchoolSelector();
+    initUniversitySelector();
     initSubmitState();
   }
 
@@ -219,10 +220,10 @@ function initSchoolSelector() {
     schoolSelect.dataset
       .selectedSchool || "";
 
-  function isRetaker() {
-    return Number(
-      gradeSelect?.value
-    ) === 13;
+  function usesHighSchool() {
+    return [10, 11, 12].includes(
+      Number(gradeSelect?.value)
+    );
   }
 
   function getCurrentSchools() {
@@ -252,11 +253,11 @@ function initSchoolSelector() {
   }
 
   function renderSchools() {
-    if (isRetaker()) {
+    if (!usesHighSchool()) {
       schoolSelect.innerHTML = "";
       schoolSelect.add(
         new Option(
-          "N수생은 학교 입력을 생략할 수 있습니다.",
+          "현재 학습자 구분은 고등학교 입력을 사용하지 않습니다.",
           ""
         )
       );
@@ -350,17 +351,17 @@ function initSchoolSelector() {
   }
 
   function applyGradeMode() {
-    const retaker = isRetaker();
+    const highSchoolActive = usesHighSchool();
 
     if (schoolFieldset) {
-      schoolFieldset.hidden = retaker;
+      schoolFieldset.hidden = !highSchoolActive;
     }
 
-    regionSelect.required = !retaker;
-    schoolSelect.required = !retaker;
-    regionSelect.disabled = retaker;
+    regionSelect.required = highSchoolActive;
+    schoolSelect.required = highSchoolActive;
+    regionSelect.disabled = !highSchoolActive;
 
-    if (retaker) {
+    if (!highSchoolActive) {
       schoolSearch.disabled = true;
       schoolSelect.disabled = true;
       if (resultCount) {
@@ -404,9 +405,83 @@ function initSchoolSelector() {
 
   if (
     regionSelect.value &&
-    !isRetaker()
+    usesHighSchool()
   ) {
     schoolSearch.disabled = false;
   }
   applyGradeMode();
+}
+
+function initUniversitySelector() {
+  const dataElement = document.getElementById("university-data");
+  const gradeSelect = document.getElementById("schoolGrade");
+  const fieldset = document.querySelector("[data-university-selector]");
+  const searchInput = document.getElementById("universitySearch");
+  const universitySelect = document.getElementById("universityCode");
+  const resultCount = document.getElementById("universityResultCount");
+  if (!dataElement || !gradeSelect || !fieldset || !searchInput || !universitySelect) return;
+
+  let universities = [];
+  try {
+    universities = JSON.parse(dataElement.textContent);
+  } catch (_error) {
+    universitySelect.innerHTML = '<option value="">대학교 데이터를 불러오지 못했습니다.</option>';
+    return;
+  }
+  let selectedCode = universitySelect.dataset.selectedUniversity || "";
+  const normalize = (value) => String(value || "")
+    .trim()
+    .toLocaleLowerCase("ko-KR")
+    .replace(/\s+/g, "");
+  const isUniversity = () => Number(gradeSelect.value) === 14;
+
+  function render() {
+    const query = normalize(searchInput.value);
+    const rows = universities.filter((university) =>
+      !query || normalize(
+        `${university.name} ${university.campus} ${university.region}`
+      ).includes(query)
+    );
+    universitySelect.innerHTML = "";
+    universitySelect.add(new Option(
+      rows.length ? "대학교를 선택해 주세요" : "검색 결과가 없습니다.",
+      ""
+    ));
+    rows.forEach((university) => {
+      const suffix = [university.campus, university.region]
+        .filter(Boolean)
+        .join(" · ");
+      const option = new Option(
+        `${university.name}${suffix ? ` · ${suffix}` : ""}`,
+        university.code
+      );
+      option.selected = String(university.code) === String(selectedCode);
+      universitySelect.add(option);
+    });
+    universitySelect.disabled = !isUniversity() || rows.length === 0;
+    if (resultCount) {
+      resultCount.textContent = isUniversity()
+        ? `${rows.length}개 공시대상 대학·캠퍼스`
+        : "";
+    }
+  }
+
+  function applyMode() {
+    const active = isUniversity();
+    fieldset.hidden = !active;
+    searchInput.disabled = !active;
+    universitySelect.required = active;
+    universitySelect.disabled = !active;
+    if (active) render();
+  }
+  searchInput.addEventListener("input", () => {
+    selectedCode = "";
+    render();
+  });
+  universitySelect.addEventListener("change", () => {
+    selectedCode = universitySelect.value;
+  });
+  gradeSelect.addEventListener("change", applyMode);
+  render();
+  applyMode();
 }

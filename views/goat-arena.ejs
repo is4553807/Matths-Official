@@ -8,12 +8,14 @@
     <meta name="theme-color" content="#070913" />
     <title>GOAT Arena | Matths</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
+    <%- include("partials/rank-motion-head") %>
     <link rel="icon" type="image/jpeg" href="/images/goat-arena/goat-arena-logo.jpg" />
     <script src="/js/goat-arena.js" defer></script>
   </head>
   <body class="goat-arena-page">
     <a class="arena-skip-link" href="#arena-main">본문으로 바로가기</a>
     <%- include("partials/goat-arena-navigation", { activeArenaPage, arenaUser }) %>
+    <% if (pendingRevengeRight) { %><%- include("partials/arena-revenge-overlay", { revengeRight: pendingRevengeRight, revengeRequestId: pendingRevengeRequestId }) %><% } %>
 
     <nav class="arena-page-rail" aria-label="GOAT Arena 소개 구간" data-arena-page-rail>
       <span class="arena-page-rail-cursor" aria-hidden="true"></span>
@@ -49,7 +51,7 @@
             </div>
             <dl class="arena-rule-strip">
               <div><dt>문제</dt><dd><%= arenaMatchRules.questionCount %>문항</dd></div>
-              <div><dt>제한시간</dt><dd><%= arenaMatchRules.timeLimitMinutes %>분</dd></div>
+              <div><dt>제한시간</dt><dd>문항당 <%= arenaMatchRules.timeLimitMinutes %>분</dd></div>
               <div><dt>경기 방식</dt><dd>1대1</dd></div>
             </dl>
           </div>
@@ -69,7 +71,7 @@
             </div>
             <div class="arena-player-line">
               <span><small>Arena 사용자</small><strong><%= arenaUser.displayName %></strong></span>
-              <span><small>현재 Division</small><strong><%= arenaAccess.activeDivision ? (arenaAccess.activeDivision === "SUB" ? "Sub Division" : "Main Division") : "미배정" %></strong></span>
+              <span><small>현재 Division</small><strong><%= arenaAccess.activeDivision ? (arenaAccess.activeDivision === "SUB" ? "Unranked" : "Ranked") : "미배정" %></strong></span>
             </div>
             <p><%= seedState.detail %></p>
             <% if (!seedState.ready) { %><a href="/war-of-masters">Matths에서 배치 상태 확인 <span aria-hidden="true">→</span></a><% } %>
@@ -82,12 +84,12 @@
         <div class="arena-system-inner">
           <header class="arena-section-heading">
             <div><p>GOAT Arena란?</p><h2 id="arena-onboarding-title">공부한 결과가<br />경쟁으로 이어집니다.</h2></div>
-            <p>학습권 패키지 사용자는 배치고사로 Sub Division에 들어가고, 같은 문제를 푼 1대1 결과로 Arena 상태를 지키거나 교환합니다. 내부 실력 지표는 배치고사와 주간 공식 모의고사에서만 갱신되며 1대1 결과와 분리됩니다.</p>
+            <p>학습권 패키지 사용자는 배치고사로 Unranked에 들어가고, 같은 문제를 푼 1대1 결과로 Arena 상태를 지키거나 교환합니다. 내부 실력 지표는 배치고사와 주간 공식 모의고사에서만 갱신되며 1대1 결과와 분리됩니다.</p>
           </header>
           <ol class="arena-stage-grid arena-stage-grid--compact">
-            <li><b>01</b><small>시작</small><strong>배치고사와 Sub Division</strong><p>배치고사로 내부 실력 지표와 첫 Arena 상태를 확정하고 Sub Division 경쟁을 시작합니다.</p></li>
-            <li><b>02</b><small>대결</small><strong><%= arenaMatchRules.questionCount %>문항 · <%= arenaMatchRules.timeLimitMinutes %>분 · 1대1</strong><p>두 사용자가 같은 문제를 풀고, 도전자가 이기면 티어·티어 내 순위·GP를 함께 교환합니다.</p></li>
-            <li><b>03</b><small>성취</small><strong>페이백과 Main Division</strong><p>Sub Division의 페이백 조건을 달성하면 학습일수를 직접 운용하는 Main Division으로 올라갑니다.</p></li>
+            <li><b>01</b><small>시작</small><strong>배치고사와 Unranked</strong><p>배치고사로 내부 실력 지표와 첫 Arena 상태를 확정하고 Unranked 경쟁을 시작합니다.</p></li>
+            <li><b>02</b><small>대결</small><strong><%= arenaMatchRules.questionCount %>문항 · 문항당 <%= arenaMatchRules.timeLimitMinutes %>분 · 1대1</strong><p>두 사용자가 같은 문제를 풀고, 도전자가 이기면 티어·티어 내 순위·GP를 함께 교환합니다.</p></li>
+            <li><b>03</b><small>성취</small><strong>페이백과 Ranked</strong><p>Unranked의 페이백 조건을 달성하면 학습일수를 직접 운용하는 Ranked로 올라갑니다.</p></li>
           </ol>
           <div class="arena-definition-grid" aria-label="GOAT Arena 핵심 용어">
             <article><span>GP</span><p>GOAT POINT</p><h3>티어 내부 점수</h3><small>경기에서 Arena 상태가 교환되면 티어와 GP도 함께 움직입니다.</small></article>
@@ -96,8 +98,8 @@
             <article><span>Final</span><p>FINAL RANKING</p><h3>최종 종합 랭킹</h3><small>Arena 성과와 주간 공식 모의고사 결과를 정해진 시각에 합산해 Matths 대시보드에서 공개합니다.</small></article>
           </div>
           <div class="arena-final-actions">
-            <a href="/goat-arena/rules/sub">Sub Division 규정 보기</a>
-            <a href="/goat-arena/rules/main">Main Division 규정 보기</a>
+            <a href="/goat-arena/rules/sub">Unranked 규정 보기</a>
+            <a href="/goat-arena/rules/main">Ranked 규정 보기</a>
           </div>
         </div>
       </section>
@@ -105,7 +107,7 @@
       <section class="arena-tier-guide-section arena-snap-section" id="arena-tiers" aria-labelledby="arena-tier-guide-title">
         <div class="arena-system-inner">
           <header class="arena-section-heading">
-            <div><p>아홉 개 티어</p><h2 id="arena-tier-guide-title">내가 서 있는 구간을<br />백분율로 확인하세요.</h2></div>
+            <div><p>아홉 개 티어</p><h2 id="arena-tier-guide-title">내가 서 있는 구간을<br />랭크로 확인하세요.</h2></div>
             <p>각 카드에는 활성 참가자 가운데 대략 어느 상위 구간에 해당하는지를 표시합니다. 마스터 이상은 실제 활성 인원 제한도 함께 적용됩니다.</p>
           </header>
           <div class="arena-tier-guide-grid" aria-label="GOAT Arena 티어 안내">
@@ -138,11 +140,11 @@
         <div class="arena-system-inner">
           <header class="arena-section-heading">
             <div><p>규정은 Division별로</p><h2 id="division-overview-title">핵심은 짧게,<br />세부 규정은 정확하게.</h2></div>
-            <p>Sub Division과 Main Division은 같은 문제·증거·승패 기준을 사용하지만 도전 대상, 학습일수 예치, 복수전 정산과 이용 종료 규칙이 다릅니다.</p>
+            <p>Unranked와 Ranked는 같은 문제·증거·승패 기준을 사용하지만 도전 대상, 예치 장부(Unranked 페이백 점수·Ranked 학습일수), 복수전 정산과 이용 종료 규칙이 다릅니다.</p>
           </header>
           <div class="arena-division-cards">
-            <article><small>Sub Division</small><h3>페이백을 향한 첫 전장</h3><p>배치고사 이후 시작하며, 바로 위 티어를 선택하면 서버가 적격 상대를 자동으로 정합니다.</p><ul><li>일반 쟁탈전 <%= activeArenaPolicy?.matchStakeDays?.normal ?? '운영 기준 확인 필요' %>일 예치</li><li>복수전 <%= activeArenaPolicy?.matchStakeDays?.revenge ?? '운영 기준 확인 필요' %>일 예치</li><li>페이백 점수와 연속 학습 조건 적용</li></ul><a href="/goat-arena/rules/sub">Sub Division 공식 규정 <span aria-hidden="true">→</span></a></article>
-            <article><small>Main Division</small><h3>학습일수를 운용하는 상위 전장</h3><p>Sub Division 성과로 승급한 사용자가 학습일수를 직접 운용하는 경쟁 공간입니다.</p><ul><li><%= arenaMainPolicy ? `최대 ${arenaMainPolicy.maximumTargetTierGap}단계 상향 도전` : "활성 운영 기준 확인 필요" %></li><li>하위 티어 대상 무작위 초대전</li><li>경기별 예치·이전·소각 원장 적용</li></ul><a href="/goat-arena/rules/main">Main Division 공식 규정 <span aria-hidden="true">→</span></a></article>
+            <article><small>Unranked</small><h3>페이백을 향한 첫 전장</h3><p>배치고사 이후 시작하며, 서버가 같은 티어의 더 높은 순위를 먼저 찾고 없으면 바로 위 티어에서 적격 상대를 자동으로 정합니다.</p><ul><li>일반 쟁탈전 페이백 점수 <%= activeArenaPolicy?.matchStakeDays?.normal ?? '운영 기준 확인 필요' %>점 예치</li><li>복수전 페이백 점수 <%= activeArenaPolicy?.matchStakeDays?.revenge ?? '운영 기준 확인 필요' %>점 예치</li><li>페이백 점수와 29일 전일 학습 조건 적용</li></ul><a href="/goat-arena/rules/sub">Unranked 공식 규정 <span aria-hidden="true">→</span></a></article>
+            <article><small>Ranked</small><h3>학습일수를 운용하는 상위 전장</h3><p>Unranked 성과로 승급한 사용자가 학습일수를 직접 운용하는 경쟁 공간입니다.</p><ul><li><%= arenaMainPolicy ? `최대 ${arenaMainPolicy.maximumTargetTierGap}단계 상향 도전` : "활성 운영 기준 확인 필요" %></li><li>하위 티어 대상 무작위 초대전</li><li>경기별 예치·이전·소각 원장 적용</li></ul><a href="/goat-arena/rules/main">Ranked 공식 규정 <span aria-hidden="true">→</span></a></article>
           </div>
           <div class="arena-rule-chip-grid" aria-label="GOAT Arena 공통 경기 규칙">
             <span><b>같은 문제 조건</b>양쪽 사용자는 같은 난이도와 같은 <%= arenaMatchRules.questionCount %>문항을 풉니다.</span>

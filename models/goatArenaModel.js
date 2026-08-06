@@ -47,7 +47,6 @@ const mainLearningDayBucketSchema = new Schema(
       enum: [
         "SUB_CARRYOVER",
         "MAIN_ENTRY_BONUS",
-        "MAIN_DORMANCY_RESTORE",
         "MAIN_MATCH_TRANSFER",
         "ADMIN_GRANT",
       ],
@@ -230,11 +229,6 @@ const subscriptionPolicyVersionSchema = new Schema(
         type: Number,
         min: 0,
         default: 29,
-      },
-      minimumPaidNormalAttacks: {
-        type: Number,
-        min: 0,
-        default: 2,
       },
       minimumScoreDays: {
         type: Number,
@@ -793,11 +787,6 @@ const accessCycleSchema = new Schema(
       default: null,
       index: true,
     },
-    dailyConsumptionPausedAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
     depletedAt: {
       type: Date,
       default: null,
@@ -807,6 +796,7 @@ const accessCycleSchema = new Schema(
       type: Number,
       min: 0,
       default: 0,
+      // 운영 분석 지표다. 페이백 자격 판정에는 사용하지 않는다.
     },
     streakDays: {
       type: Number,
@@ -876,6 +866,11 @@ const accessCycleSchema = new Schema(
         default: null,
       },
     },
+    integrityReviewCompensationMs: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
   },
   {
     timestamps: true,
@@ -899,7 +894,7 @@ accessCycleSchema.path(
     (bucket) => bucket.sourceType
   );
   return sources.length === new Set(sources).size;
-}, "Main Division 학습일수 출처를 중복 저장할 수 없습니다.");
+}, "Ranked 학습일수 출처를 중복 저장할 수 없습니다.");
 accessCycleSchema.index({
   policyVersionCode: 1,
   startsAt: 1,
@@ -1229,6 +1224,14 @@ const arenaStandingSchema = new Schema(
       trim: true,
       maxlength: 80,
     },
+    /* Unranked와 Ranked 모두 하나의 통합 Arena 경쟁 풀(ALL)을 사용한다. */
+    competitivePool: {
+      type: String,
+      enum: ["ALL", "HIGH_SCHOOL", "RETAKER", "UNIVERSITY", "WORKER"],
+      default: "ALL",
+      required: true,
+      index: true,
+    },
     sourcePlacementAttemptId: {
       type: Schema.Types.ObjectId,
       ref: "AssessmentAttempt",
@@ -1309,6 +1312,7 @@ arenaStandingSchema.index(
   { userId: 1, division: 1, seasonKey: 1 },
   { unique: true }
 );
+arenaStandingSchema.index({ status: 1, updatedAt: -1 });
 
 const arenaCohortRevisionSchema = new Schema(
   {
@@ -1356,7 +1360,12 @@ arenaStandingSchema.index(
     arenaRank: 1,
     arenaPosition: 1,
   },
-  { unique: true }
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: "ACTIVE",
+    },
+  }
 );
 
 const arenaAccessStateSchema = new Schema(
@@ -1371,6 +1380,13 @@ const arenaAccessStateSchema = new Schema(
       type: String,
       enum: ["SUB", "MAIN", null],
       default: null,
+    },
+    /* 현재 활성 Ranked standing의 통합 경쟁 풀(ALL) 빠른 조회용 사본이다. */
+    mainCompetitivePool: {
+      type: String,
+      enum: ["ALL", "HIGH_SCHOOL", "RETAKER", "UNIVERSITY", "WORKER", null],
+      default: null,
+      index: true,
     },
     accessCycleId: {
       type: Schema.Types.ObjectId,
@@ -1391,7 +1407,6 @@ const arenaAccessStateSchema = new Schema(
         "PAID_PENDING_RENEWAL_ASSESSMENT",
         "SEASON_PLACEMENT_REQUIRED",
         "PAYMENT_REQUIRED",
-        "MAIN_DORMANT",
       ],
       default: "SEASON_PLACEMENT_REQUIRED",
       index: true,
@@ -1414,49 +1429,6 @@ const arenaAccessStateSchema = new Schema(
       type: Date,
       default: null,
     },
-    dormancyReturnRequiredAt: {
-      type: Date,
-      default: null,
-    },
-    dormancySourceLastLoginAt: {
-      type: Date,
-      default: null,
-    },
-    lastMainQualifyingActivityAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    mainInactivityStartedAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    mainInactivityStartAvailableDays: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
-    mainDormancyStartedAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    mainDormancyFrozenLearningDays: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
-    mainDormancyRecoveryMode: {
-      type: String,
-      enum: [
-        "RESUME_MAIN",
-        "RESTORE_ON_MAIN_REENTRY",
-        "SUB_STANDARD_FLOW",
-        null,
-      ],
-      default: null,
-    },
     lastMainSnapshotId: {
       type: Schema.Types.ObjectId,
       ref: "ArenaSnapshot",
@@ -1470,6 +1442,16 @@ const arenaAccessStateSchema = new Schema(
     defensePoolEligible: {
       type: Boolean,
       default: false,
+    },
+    automaticDefenseNoShowCount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    automaticDefenseSuspendedAt: {
+      type: Date,
+      default: null,
+      index: true,
     },
     weeklyMockEligible: {
       type: Boolean,
@@ -1488,6 +1470,25 @@ const arenaAccessStateSchema = new Schema(
     integrityCaseId: {
       type: Schema.Types.ObjectId,
       ref: "ArenaIntegrityRiskCase",
+      default: null,
+    },
+    matchmakingRestrictedUntil: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    integrityPenaltyStartedAt: {
+      type: Date,
+      default: null,
+    },
+    integrityPenaltyReason: {
+      type: String,
+      trim: true,
+      maxlength: 160,
+      default: "",
+    },
+    paybackDisqualifiedAt: {
+      type: Date,
       default: null,
     },
     reasonCode: {
@@ -1723,10 +1724,9 @@ const arenaLearningDayLedgerSchema = new Schema(
         "MATCH_STAKE_RELEASED",
         "MATCH_SETTLEMENT_TRANSFER",
         "MATCH_SETTLEMENT_BURN",
+        "INTEGRITY_PENALTY_BURN",
         "MAIN_CARRYOVER_GRANTED",
         "MAIN_ENTRY_BONUS_GRANTED",
-        "MAIN_DORMANCY_RESERVE_HELD",
-        "MAIN_DORMANCY_RESERVE_RESTORED",
         "MAIN_INVITATION_RESERVE",
         "MAIN_INVITATION_RELEASE",
         "MAIN_INVITATION_TO_MATCH_LOCK",
@@ -1776,7 +1776,6 @@ const arenaLearningDayLedgerSchema = new Schema(
         "PACKAGE_BASE",
         "SUB_CARRYOVER",
         "MAIN_ENTRY_BONUS",
-        "MAIN_DORMANCY_RESTORE",
         "MAIN_MATCH_TRANSFER",
         "ADMIN_GRANT",
       ],
@@ -1916,27 +1915,6 @@ const mainDivisionPolicyVersionSchema = new Schema(
       min: 1,
       default: 3,
     },
-    unlimitedDailyAttacks: {
-      type: Boolean,
-      default: true,
-    },
-    unlimitedDailyDefenses: {
-      type: Boolean,
-      default: true,
-    },
-    dailyMatchLimitsByTier: {
-      type: [arenaTierDailyLimitSchema],
-      default: () => [],
-    },
-    maximumNetGainPerCycle: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
-    invitationRequestExpiresAt: {
-      type: Date,
-      default: null,
-    },
     invitationOfferBatchSize: {
       type: Number,
       min: 1,
@@ -1967,14 +1945,6 @@ const mainDivisionPolicyVersionSchema = new Schema(
       max: 1,
       default: 1,
     },
-    requiresServerRandomOpponent: {
-      type: Boolean,
-      default: true,
-    },
-    requiresOpponentDaysGreaterThanStake: {
-      type: Boolean,
-      default: true,
-    },
     revengeStakeMultiplier: {
       type: Number,
       min: 1,
@@ -1984,17 +1954,6 @@ const mainDivisionPolicyVersionSchema = new Schema(
       type: Number,
       min: 0,
       default: 1,
-    },
-    maximumUnresolvedOfficialMatches: {
-      type: Number,
-      min: 1,
-      default: 1,
-    },
-    scoringPolicyVersion: {
-      type: String,
-      trim: true,
-      maxlength: 80,
-      default: "SUB-STANDARD-V1",
     },
     changeSummary: {
       type: String,
@@ -2034,7 +1993,7 @@ mainDivisionPolicyVersionSchema.path(
 ).validate(function validateUniqueMainTierGaps(bands) {
   const gaps = (bands || []).map((band) => Number(band.tierGap));
   return gaps.length === new Set(gaps).size;
-}, "Main Division 티어 차이별 예치 기준표에 같은 티어 차이를 중복할 수 없습니다.");
+}, "Ranked 티어 차이별 예치 기준표에 같은 티어 차이를 중복할 수 없습니다.");
 
 mainDivisionPolicyVersionSchema.path(
   "status"
@@ -2054,7 +2013,7 @@ mainDivisionPolicyVersionSchema.path(
       (gap, index) => gap === index + 1
     )
   );
-}, "Main Division 활성 정책에는 티어별 예치 기준표와 최대 공격 티어 차이가 필요합니다.");
+}, "Ranked 활성 정책에는 티어별 예치 기준표와 최대 공격 티어 차이가 필요합니다.");
 
 mainDivisionPolicyVersionSchema.path(
   "effectiveUntil"
@@ -2064,7 +2023,7 @@ mainDivisionPolicyVersionSchema.path(
     !this.effectiveFrom ||
     new Date(value) > new Date(this.effectiveFrom)
   );
-}, "Main Division 정책 종료 시각은 적용 시작 시각보다 뒤여야 합니다.");
+}, "Ranked 정책 종료 시각은 적용 시작 시각보다 뒤여야 합니다.");
 
 mainDivisionPolicyVersionSchema.index({
   status: 1,
@@ -2079,23 +2038,14 @@ const immutableMainPolicyDefinitionPaths = [
   "mainCarryoverBaseDays",
   "stakeDaysByTierGap",
   "maximumTargetTierGap",
-  "unlimitedDailyAttacks",
-  "unlimitedDailyDefenses",
-  "dailyMatchLimitsByTier",
-  "maximumNetGainPerCycle",
-  "invitationRequestExpiresAt",
   "invitationOfferBatchSize",
   "invitationCancellationFeeDays",
   "manualInvitationCancellationAllowed",
   "manualInvitationCancellationFeeDays",
   "repeatOpponentExclusionDays",
   "maximumActiveInvitationReservationsPerTargetTier",
-  "requiresServerRandomOpponent",
-  "requiresOpponentDaysGreaterThanStake",
   "revengeStakeMultiplier",
   "revengeFeeDays",
-  "maximumUnresolvedOfficialMatches",
-  "scoringPolicyVersion",
   "changeSummary",
 ];
 
@@ -2114,7 +2064,7 @@ mainDivisionPolicyVersionSchema.pre(
       )
     ) {
       throw new Error(
-        "활성화했거나 종료된 Main Division 정책은 수정할 수 없습니다. 새 버전을 만들어주세요."
+        "활성화했거나 종료된 Ranked 정책은 수정할 수 없습니다. 새 버전을 만들어주세요."
       );
     }
   }
@@ -2150,7 +2100,7 @@ mainDivisionPolicyVersionSchema.pre(
       )
     ) {
       throw new Error(
-        "활성화했거나 종료된 Main Division 정책은 수정할 수 없습니다. 새 버전을 만들어주세요."
+        "활성화했거나 종료된 Ranked 정책은 수정할 수 없습니다. 새 버전을 만들어주세요."
       );
     }
   }
@@ -2180,6 +2130,14 @@ const mainInvitationRequestSchema = new Schema(
       required: true,
       trim: true,
       maxlength: 40,
+    },
+    /* 초대 예약은 소속과 무관한 통합 Ranked 경쟁 풀에서 처리한다. */
+    competitivePool: {
+      type: String,
+      enum: ["ALL", "HIGH_SCHOOL", "RETAKER", "UNIVERSITY", "WORKER"],
+      required: true,
+      default: "ALL",
+      index: true,
     },
     targetTier: {
       type: String,
@@ -2366,7 +2324,7 @@ mainInvitationRequestSchema.path(
   "requestExpiresAt"
 ).validate(
   (value) => value === null || value === undefined,
-  "Main Division 하위 티어 초대 예약에는 고정 만료시각을 둘 수 없습니다."
+  "Ranked 하위 티어 초대 예약에는 고정 만료시각을 둘 수 없습니다."
 );
 
 const arenaOpponentSelectionAuditSchema = new Schema(
@@ -2595,6 +2553,11 @@ arenaRevengeRightSchema.index(
     },
   }
 );
+arenaRevengeRightSchema.index({
+  eligibleUserId: 1,
+  status: 1,
+  createdAt: -1,
+});
 
 /*
  * 아래 모델은 1대1 정산을 바로 구현하기 위한 코드가 아니라, 문서의
@@ -3043,7 +3006,6 @@ const liveFinalRankingProfileSchema = new Schema(
         "ACTIVE",
         "INACTIVE_ACCESS_EXPIRED",
         "INACTIVE_PLACEMENT_REQUIRED",
-        "INACTIVE_DORMANT",
         "PENDING_RENEWAL_RANK_ASSESSMENT",
         "SUNDAY_DISPLAY_FROZEN",
       ],
@@ -3062,6 +3024,7 @@ liveFinalRankingProfileSchema.index(
   { seasonId: 1, userId: 1 },
   { unique: true }
 );
+liveFinalRankingProfileSchema.index({ status: 1, finalRank: 1 });
 
 const mainShopPolicyItemSchema = new Schema(
   {
@@ -3100,7 +3063,7 @@ mainShopPolicyVersionSchema.index({ status: 1, effectiveFrom: -1 });
 mainShopPolicyVersionSchema.path("items").validate(function validateUniqueShopItems(items) {
   const codes = (items || []).map((item) => String(item.itemCode || "").toUpperCase());
   return codes.length > 0 && codes.length === new Set(codes).size;
-}, "Main Division 상점 정책에는 중복되지 않은 아이템이 하나 이상 필요합니다.");
+}, "Ranked 상점 정책에는 중복되지 않은 아이템이 하나 이상 필요합니다.");
 
 const mainShopPurchaseSchema = new Schema(
   {
@@ -3984,7 +3947,7 @@ arenaProblemDataVersionSchema.pre(
 );
 
 /*
- * Sub Division 문제는 신청 순간 JS 생성기 검산을 통과해야 합니다.
+ * Unranked 문제는 신청 순간 JS 생성기 검산을 통과해야 합니다.
  * 자동 검산 결과와 콘텐츠 해시가 SEALED로 고정된 팩만 경기에 배정합니다.
  */
 const arenaProblemPackSchema = new Schema(
@@ -4705,12 +4668,25 @@ arenaMatchAttemptEventSchema.index(
 const arenaMatchEconomySnapshotSchema = new Schema(
   {
     originalStakeDays: { type: Number, min: 0, default: 0 },
+    normalStakeMode: {
+      type: String,
+      enum: [
+        "INITIATOR_ONLY",
+        "BILATERAL_ACCEPTED_INVITATION",
+        "LEGACY_BILATERAL",
+        "",
+      ],
+      default: "",
+    },
     challengerStakeDays: { type: Number, min: 0, default: 0 },
     defenderStakeDays: { type: Number, min: 0, default: 0 },
     revengeStakeMultiplier: { type: Number, min: 1, default: 1 },
     feeDays: { type: Number, min: 0, default: 0 },
     recipientNoShowReturnDays: { type: Number, min: 0, default: 0 },
     recipientNoShowBurnDays: { type: Number, min: 0, default: 0 },
+    challengerWinRefundDays: { type: Number, min: 0, default: null },
+    // 과거 경기 스냅샷 호환용. 신규 Unranked 일반 쟁탈전은
+    // challengerWinRefundDays를 사용한다.
     bronzeChallengerWinRefundDays: { type: Number, min: 0, default: 0 },
   },
   { _id: false }
@@ -4760,6 +4736,14 @@ const arenaMatchSchema = new Schema(
     },
     seasonKey: {
       type: String,
+      required: true,
+      index: true,
+    },
+    /* 모든 Arena 경기는 통합 경쟁 풀(ALL)을 기준으로 기록한다. */
+    competitivePool: {
+      type: String,
+      enum: ["ALL", "HIGH_SCHOOL", "RETAKER", "UNIVERSITY", "WORKER"],
+      default: "ALL",
       required: true,
       index: true,
     },
@@ -4930,6 +4914,34 @@ const arenaMatchSchema = new Schema(
       enum: ["PENDING", "CLEAR", "SUSPICIOUS", "CONFIRMED", "INVALID"],
       default: "PENDING",
     },
+    integrityScreenedRole: {
+      type: String,
+      enum: ["CHALLENGER", "DEFENDER", null],
+      default: null,
+    },
+    integrityReviewStartedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    integrityReviewDeadlineAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    integrityReviewCompletedAt: {
+      type: Date,
+      default: null,
+    },
+    integrityPauseCompensationMs: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    integrityPauseCompensatedAt: {
+      type: Date,
+      default: null,
+    },
     settlementIdempotencyKey: {
       type: String,
       default: undefined,
@@ -4938,6 +4950,11 @@ const arenaMatchSchema = new Schema(
       type: String,
       enum: ["CHALLENGER", "DEFENDER", "BOTH", null],
       default: null,
+    },
+    automaticDefenseNoShowRecordedAt: {
+      type: Date,
+      default: null,
+      index: true,
     },
   },
   { timestamps: true, versionKey: false }
@@ -5036,13 +5053,21 @@ const arenaMatchEvidenceSchema = new Schema(
     files: {
       type: [arenaMatchEvidenceFileSchema],
       validate: {
+        // 필수 풀이 증거가 기한 안에 도착하지 않은 경우에도 운영자는 같은
+        // 보존 문서에 추가 소명 요청을 남길 수 있어야 한다. 실제 최초 제출은
+        // 서비스 계층에서 반드시 1~5장을 검증한다.
         validator: (files) =>
-          Array.isArray(files) && files.length >= 1 && files.length <= 5,
-        message: "풀이 증거는 1장 이상 5장 이하로 제출해야 합니다.",
+          Array.isArray(files) && files.length <= 5,
+        message: "풀이 증거는 5장 이하로 제출해야 합니다.",
       },
+      default: [],
     },
-    deadlineAt: { type: Date, required: true },
-    submittedAt: { type: Date, required: true, index: true },
+    // false인 문서는 최초 풀이 증거가 누락된 참가자에게만 만드는
+    // '추가 소명 전용' 보존 문서다. 경기 정산에서는 이를 최초 증거로
+    // 간주하지 않는다.
+    originalEvidenceSubmitted: { type: Boolean, default: true, index: true },
+    deadlineAt: { type: Date, default: null },
+    submittedAt: { type: Date, default: null, index: true },
     status: {
       type: String,
       enum: ["ON_TIME", "ANOMALY_FLAGGED", "REVIEWED"],
@@ -5050,6 +5075,30 @@ const arenaMatchEvidenceSchema = new Schema(
       index: true,
     },
     anomalyFlags: { type: [String], default: [] },
+    screenedAsWinner: { type: Boolean, default: false },
+    supplementalRequest: {
+      status: {
+        type: String,
+        enum: ["NONE", "REQUESTED", "SUBMITTED", "EXPIRED"],
+        default: "NONE",
+        index: true,
+      },
+      requestedAt: { type: Date, default: null },
+      deadlineAt: { type: Date, default: null, index: true },
+      requestedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+      requestMessage: { type: String, trim: true, maxlength: 500, default: "" },
+      submittedAt: { type: Date, default: null },
+      submittedLate: { type: Boolean, default: false },
+      lateByMs: { type: Number, min: 0, default: 0 },
+      files: {
+        type: [arenaMatchEvidenceFileSchema],
+        validate: {
+          validator: (files) => !files || files.length <= 5,
+          message: "추가 소명 자료는 5장 이하로 제출해야 합니다.",
+        },
+        default: [],
+      },
+    },
     reviewedAt: { type: Date, default: null },
     reviewedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     retentionUntil: {
@@ -5110,6 +5159,80 @@ const arenaStandingChangeLedgerSchema =
     },
     { timestamps: true, versionKey: false }
   );
+arenaStandingChangeLedgerSchema.index({
+  userId: 1,
+  occurredAt: -1,
+  _id: -1,
+});
+
+/*
+ * 티어 승급 연출은 현재 티어를 보고 추측해서 재생하지 않습니다.
+ * 실제 경기 정산 트랜잭션이 승급을 확정할 때만 이 1회성 표시 이벤트를
+ * 만들고, 브라우저가 연출을 열면 DISPLAYED로 확인 처리합니다.
+ */
+const arenaRankUpPresentationSchema =
+  new Schema(
+    {
+      presentationId: {
+        type: String,
+        required: true,
+        unique: true,
+        trim: true,
+        maxlength: 240,
+      },
+      matchId: {
+        type: Schema.Types.ObjectId,
+        ref: "ArenaMatch",
+        required: true,
+        index: true,
+      },
+      userId: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+        index: true,
+      },
+      fromTier: {
+        type: String,
+        enum: [
+          "bronze", "silver", "gold", "platinum", "emerald",
+          "diamond", "master", "grandmaster", "challenger",
+        ],
+        required: true,
+      },
+      toTier: {
+        type: String,
+        enum: [
+          "bronze", "silver", "gold", "platinum", "emerald",
+          "diamond", "master", "grandmaster", "challenger",
+        ],
+        required: true,
+      },
+      status: {
+        type: String,
+        enum: ["PENDING", "DISPLAYED"],
+        default: "PENDING",
+        required: true,
+        index: true,
+      },
+      occurredAt: {
+        type: Date,
+        required: true,
+        default: Date.now,
+        immutable: true,
+      },
+      displayedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    { timestamps: true, versionKey: false }
+  );
+
+arenaRankUpPresentationSchema.index(
+  { matchId: 1, userId: 1 },
+  { unique: true }
+);
 
 const arenaPaybackReviewSchema = new Schema(
   {
@@ -5239,7 +5362,9 @@ const arenaOutboxEventSchema = new Schema(
         "ArenaMatchSubmitted",
         "ArenaEvidenceSubmitted",
         "ArenaEvidenceAnomalyDetected",
+        "ArenaMatchIntegrityReviewStarted",
         "ArenaMatchNoShowDetected",
+        "ArenaAutomaticDefenseSuspended",
         "ArenaMatchSettled",
         "ArenaOpponentSelected",
         "MainInvitationCreated",
@@ -5552,6 +5677,12 @@ const ArenaStandingChangeLedger =
     "ArenaStandingChangeLedger",
     arenaStandingChangeLedgerSchema
   );
+const ArenaRankUpPresentation =
+  mongoose.models.ArenaRankUpPresentation ||
+  mongoose.model(
+    "ArenaRankUpPresentation",
+    arenaRankUpPresentationSchema
+  );
 const ArenaPaybackReview =
   mongoose.models.ArenaPaybackReview ||
   mongoose.model(
@@ -5599,6 +5730,7 @@ module.exports = {
   ArenaSnapshot,
   ArenaStanding,
   ArenaStandingChangeLedger,
+  ArenaRankUpPresentation,
   FinalRankingPolicyVersion,
   LiveFinalRankingProfile,
   MainDivisionPolicyVersion,

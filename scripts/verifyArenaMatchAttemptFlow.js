@@ -26,6 +26,7 @@ const {
   normalizeSignals,
   participantRole,
   publicQuestionsForAttempt,
+  questionDeadlineAt,
   submitExpiredArenaAttempts,
 } = require("../services/arenaMatchAttemptService");
 const {
@@ -129,6 +130,39 @@ async function run() {
   assert.equal(
     formatTimeLimit(sealed.timeLimitMs),
     "10분"
+  );
+  const questionStartedAt =
+    new Date(
+      "2026-08-01T02:00:00+09:00"
+    );
+  assert.equal(
+    questionDeadlineAt({
+      startedAt:
+        questionStartedAt,
+      match: {
+        completionDeadlineAt:
+          null,
+      },
+    }).getTime() -
+      questionStartedAt.getTime(),
+    10 * 60 * 1000,
+    "1대1 경기는 전체가 아니라 문항마다 10분이어야 합니다."
+  );
+  assert.equal(
+    questionDeadlineAt({
+      startedAt:
+        questionStartedAt,
+      match: {
+        completionDeadlineAt:
+          new Date(
+            questionStartedAt.getTime() +
+              3 * 60 * 1000
+          ),
+      },
+    }).getTime() -
+      questionStartedAt.getTime(),
+    3 * 60 * 1000,
+    "일요일·복수전 완료 마감은 현재 문항 제한보다 우선해야 합니다."
   );
   assert.equal(
     chooseSealedProblemPack(
@@ -527,7 +561,11 @@ async function run() {
   );
   assert.ok(
     clientSource.includes("/advance") &&
-      clientSource.includes("TIME_LIMIT")
+      clientSource.includes("TIME_LIMIT") &&
+      clientSource.includes("visibilitychange") &&
+      clientSource.includes('enqueueFocusSignal("FOCUS_LOST")') &&
+      clientSource.includes('"pagehide"') &&
+      clientSource.includes("lastFocusSignalAt")
   );
 
   console.log(

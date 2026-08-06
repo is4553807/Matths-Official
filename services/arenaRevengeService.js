@@ -62,7 +62,7 @@ async function createSubRevengeMatch({
   }
   const decisionId = normalizeDecisionId(requestId);
   if (isSundayMatchRequestLocked(now, "SUB")) {
-    throw statusError(423, "일요일 14시 30분부터 새 복수전을 신청할 수 없습니다.", "SUNDAY_REVENGE_LOCK");
+    throw statusError(423, "일요일 14시부터 새 복수전을 신청할 수 없습니다.", "SUNDAY_REVENGE_LOCK");
   }
   const session = await mongoose.startSession();
   let result = null;
@@ -70,7 +70,7 @@ async function createSubRevengeMatch({
     await session.withTransaction(async () => {
       const right = await ArenaRevengeRight.findById(revengeRightId).session(session);
       if (!right || right.division !== "SUB") {
-        throw statusError(404, "사용할 수 있는 Sub Division 복수전 권리를 찾지 못했습니다.");
+        throw statusError(404, "사용할 수 있는 Unranked 복수전 권리를 찾지 못했습니다.");
       }
       if (String(right.eligibleUserId) !== String(userId)) {
         throw statusError(403, "이 복수전 권리를 사용할 수 없습니다.");
@@ -111,7 +111,7 @@ async function createSubRevengeMatch({
         defender.standing.arenaRank
       );
       if (!pair) {
-        throw statusError(409, "현재 두 사용자의 티어로 Sub Division 복수전을 만들 수 없습니다.", "REVENGE_TIER_PAIR_CHANGED");
+        throw statusError(409, "현재 두 사용자의 티어로 Unranked 복수전을 만들 수 없습니다.", "REVENGE_TIER_PAIR_CHANGED");
       }
       const participantIds = [attacker.user._id, defender.user._id];
       const lock = await ArenaMatchParticipantLock.findOne({

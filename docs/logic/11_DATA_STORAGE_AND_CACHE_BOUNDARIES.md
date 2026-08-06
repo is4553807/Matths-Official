@@ -15,8 +15,8 @@
 | 결제 | 주문, 결제, 환불, 페이백 지급 | 금전 감사와 법정 보존 |
 | Matths 주간 공식 모의고사 이용권 | MockExamPackagePolicyVersion, MockExamSubscription | 29일 학습권 패키지와 배치고사·Arena 권한이 섞이지 않는 가격·이용권 원본 |
 | 학습권·페이백 | AccessCycle의 사용 가능·초대 예약·경기 예치 잔액, 별도 페이백 점수, 29일 전일 학습 기록과 출처 bucket, ArenaLearningDayLedger | 학습 가능 일수와 페이백 점수를 섞지 않고 잔액·자격·모든 증감을 재구성 |
-| Arena | ArenaStanding, ArenaAccessState, ArenaMatch, MainInvitationRequest, ArenaProblemDataVersion, ArenaProblemPack, ArenaMatchAttempt, 문항별·전체 풀이시간, 답안 변경·heartbeat·focus 이벤트, 풀이 증거 메타데이터·해시, 대결 결과·이의·무결성 | GP·티어·티어 내 순위·초대 예약·활성 문제 구성·공식 경기 복구와 이의 처리의 원본 |
-| Main 상점 | MainShopPolicyVersion, MainShopPurchase, MainShopEffect, 상점 원장 거래, 보험 취소 경기 연결 | 가격 비소급·중복 차감 방지·효과·쿨다운·반환 감사의 원본 |
+| Arena | ArenaStanding, ArenaAccessState(자동 방어 미응시 누적·후보 제외 상태 포함), ArenaMatch(경기별 자동 방어 미응시 반영 멱등 표식 포함), MainInvitationRequest, ArenaProblemDataVersion, ArenaProblemPack, ArenaMatchAttempt, 문항별·전체 풀이시간, 답안 변경·heartbeat·focus 이벤트, 풀이 증거 메타데이터·해시, 대결 결과·이의·무결성 | GP·티어·티어 내 순위·초대 예약·자동 방어 자격·활성 문제 구성·공식 경기 복구와 이의 처리의 원본 |
+| Ranked 상점 | MainShopPolicyVersion, MainShopPurchase, MainShopEffect, 상점 원장 거래, 보험 취소 경기 연결 | 가격 비소급·중복 차감 방지·효과·쿨다운·반환 감사의 원본 |
 | 정책 | SubscriptionPolicyVersion, MainDivisionPolicyVersion, FinalRankingPolicyVersion, AccessCycle.policySnapshot | 정책 변경의 비소급 적용 |
 | 평가 | 답안, 제출 시각, 공식 채점 결과, MMR | 공식 결과와 이의 처리 |
 | 운영 | 경고, 관리자 작업, 중복 계정 Todo | 운영 책임 추적 |
@@ -34,8 +34,8 @@ Arena GP는 티어마다 0~99로 저장하고 `gpScaleVersion`을 함께 보존�
 | 내 티어 주변 순위 창 | 5~15초 | 해당 티어 GP 정산 후 |
 | GOAT Arena 프로필 합성 카드 | 10~30초 | AccessCycle·ArenaStanding 변경 후 |
 | 경기 대기 화면의 상대 제출 여부·표시 상태 | 1~3초 또는 무캐시 | ArenaMatchAttempt 제출 후 |
-| Main 목표 티어별 후보 수·가용 여부 | 1~3초 | 순위·잔액·참가자 잠금·초대 상태 변경 후 |
-| Main 방어 후보·초대 대기열 파생 결과 | 1~3초 | 방어 휴식권·초대 가속권 효과 생성·만료·취소 후 |
+| Ranked 목표 티어별 후보 수·가용 여부 | 1~3초 | 순위·잔액·참가자 잠금·초대 상태 변경 후 |
+| Ranked 방어 후보·초대 대기열 파생 결과 | 1~3초 | 방어 휴식권·초대 가속권 효과 생성·만료·취소 후 |
 | 활성 Arena 정책 읽기 | 30초 | 정책 활성화·폐기 직후 |
 | 활성 Arena 문제 데이터 버전 | 15초 | 새 버전 적용 직후 Change Stream으로 즉시 무효화, Change Stream 미지원 시 TTL 만료 |
 | 관리자 월별 분석 차트 | 1~5분 | 새 Observation 반영 후 |
@@ -59,9 +59,9 @@ Arena GP는 티어마다 0~99로 저장하고 `gpScaleVersion`을 함께 보존�
 
 풀이 증거 원본 파일은 DB 문서에 넣지 않고 보호된 파일 저장소에 보관한다. DB에는 저장 파일명·MIME·크기·SHA-256·제출 마감·제출 시각·이상 징후만 남겨 운영자 열람과 중복 파일 탐지에 사용한다.
 
-Main 무작위 상대 선정은 결과만 캐시에 두지 않는다. `MainInvitationRequest`에 대상 티어, 적용 정책, 선정 후보, 후보 풀 해시·감사 스냅샷과 난수 seed를 보호 필드로 남긴다. 일반 사용자 응답에는 전체 후보 식별자와 seed를 포함하지 않으며, 화면용 후보 수·가용 여부만 짧게 캐시한다.
+Ranked 무작위 상대 선정은 결과만 캐시에 두지 않는다. `MainInvitationRequest`에 대상 티어, 적용 정책, 선정 후보, 후보 풀 해시·감사 스냅샷과 난수 seed를 보호 필드로 남긴다. 일반 사용자 응답에는 전체 후보 식별자와 seed를 포함하지 않으며, 화면용 후보 수·가용 여부만 짧게 캐시한다.
 
-Main 상점 구매와 효과를 프로세스 메모리에만 두지 않는다. 가격 정책 사본, 차감 전후 잔액, 소각·보상·반환 원장, 활성 효과와 쿨다운은 MongoDB 권위값으로 저장한다. 방어 휴식 후보 제외와 초대 가속 우선순위 결과는 짧게 캐시할 수 있지만, 캐시가 없어져도 `MainShopEffect`에서 정확히 복구해야 한다. 경기 분석 결과 본문은 보호 파일 저장소를 사용할 수 있으며 DB에는 생성 상태·생성기 버전·해시·파일 위치를 남긴다.
+Ranked 상점 구매와 효과를 프로세스 메모리에만 두지 않는다. 가격 정책 사본, 차감 전후 잔액, 소각·보상·반환 원장, 활성 효과와 쿨다운은 MongoDB 권위값으로 저장한다. 방어 휴식 후보 제외와 초대 가속 우선순위 결과는 짧게 캐시할 수 있지만, 캐시가 없어져도 `MainShopEffect`에서 정확히 복구해야 한다. 경기 분석 결과 본문은 보호 파일 저장소를 사용할 수 있으며 DB에는 생성 상태·생성기 버전·해시·파일 위치를 남긴다.
 
 Arena 문제 구성은 `ArenaProblemDataVersion`을 권위 원본으로 저장한다. 관리자는 서버에 등록된 검산 생성 유형만 사용 여부·배정 가중치·정답 범위와 T1~T9 선택으로 관리할 수 있고, ACTIVE 버전은 수정하지 않는다. 신규 `ArenaProblemPack`은 활성 문제 데이터 문서 ID와 코드를 해시에 포함해 봉인하므로 캐시가 비워지거나 관리자가 다음 버전을 적용해도 기존 경기 문제를 재구성하지 않는다. 수학 생성 함수와 검산 로직 자체는 배포 파일이며 DB 입력을 JavaScript로 평가하지 않는다.
 

@@ -771,6 +771,14 @@ select:focus-visible {
   border-radius: 14px;
 }
 
+.school-selector[hidden] {
+  display: none !important;
+}
+
+.university-selector {
+  border-color: rgba(83, 101, 246, 0.2);
+}
+
 .school-selector legend {
   padding-inline: 6px;
   color: var(--ink);

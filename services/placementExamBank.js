@@ -20,7 +20,7 @@ const {
 const PLACEMENT_TIME_LIMIT_MS =
   100 * 60 * 1000;
 const PLACEMENT_BANK_VERSION =
-  "2026-07-28-number-distribution-v3";
+  "2026-08-04-semantic-unique-thirty-types-v6";
 const PLACEMENT_TOTAL_POINTS = 100;
 const PROBABILITY_TOTAL = 100;
 const ADVANCED_CATEGORY_BY_NUMBER =
@@ -1562,6 +1562,38 @@ function weightedPick(records) {
   ];
 }
 
+function weightedCandidateOrder(
+  candidates
+) {
+  return candidates
+    .map((candidate) => ({
+      candidate,
+      /*
+       * 가중치가 큰 유형이 앞에 올 확률을 유지하면서도, 한 시험지 안에서는
+       * 같은 유형을 두 번 배정하지 않기 위한 weighted-without-replacement 키다.
+       */
+      order:
+        -Math.log(
+          Math.max(
+            Number.EPSILON,
+            Math.random()
+          )
+        ) /
+        Math.max(
+          Number.EPSILON,
+          Number(candidate.weight) || 0
+        ),
+    }))
+    .sort(
+      (left, right) =>
+        left.order - right.order
+    )
+    .map(
+      ({ candidate }) =>
+        candidate
+    );
+}
+
 function typeDefinition(
   typeKey,
   target = false
@@ -1575,25 +1607,325 @@ function typeDefinition(
       ];
 }
 
+function placementTypeIdentity(
+  blueprint,
+  candidate
+) {
+  if (candidate.semanticFamilyId) {
+    return candidate.semanticFamilyId;
+  }
+
+  const definition =
+    typeDefinition(
+      candidate.typeKey,
+      candidate.target
+    );
+
+  if (!definition) {
+    throw new Error(
+      `${blueprint.number}번 배치고사 유형 정의를 찾을 수 없습니다: ${candidate.typeKey}`
+    );
+  }
+
+  return `${definition.courseId}:${definition.label}`;
+}
+
+/*
+ * 표시 이름이 달라도 같은 실제 생성기를 공유하면 같은 문제 유형이다.
+ * 먼저 선언된 구체 유형을 대표 의미군으로 삼아, 예를 들어
+ * sequence-general-term에서 alg-arith-term이 선택되더라도
+ * arithmetic-sequence와 중복 배정되지 않게 한다.
+ */
+const SEMANTIC_FAMILY_BY_GENERATOR_ID =
+  new Map();
+
+for (const [typeKey, definition] of
+  Object.entries(
+    HISTORICAL_TYPE_CATALOG
+  )) {
+  for (const generatorId of
+    definition.generatorIds || []) {
+    if (
+      !SEMANTIC_FAMILY_BY_GENERATOR_ID.has(
+        generatorId
+      )
+    ) {
+      SEMANTIC_FAMILY_BY_GENERATOR_ID.set(
+        generatorId,
+        typeKey
+      );
+    }
+  }
+}
+
+const CUSTOM_SEMANTIC_FAMILY_BY_TYPE_KEY =
+  Object.freeze({
+    "duplicate-even-arrangement":
+      "direct-counting",
+    "sample-proportion-standard-deviation":
+      "normal-sampling",
+    "exponential-absolute-graph":
+      "exponent-log-graph",
+    "trigonometric-extrema":
+      "trigonometric-graph",
+    "polynomial-limit-existence":
+      "limit-calculation",
+    "absolute-definite-integral":
+      "integral-calculation",
+    "identical-card-arrangement":
+      "constrained-counting",
+    "recover-function-value":
+      "derivative-calculation",
+    "alternating-sequence-sum":
+      "sequence-sigma",
+    "translated-absolute-continuity":
+      "continuity-parameter",
+    "card-parity-probability":
+      "sample-space-probability",
+    "repeated-conditional-probability":
+      "repeated-process-probability",
+    "cubic-local-extrema":
+      "extrema-parameter",
+    "piecewise-exponential-log-intersection":
+      "exponent-log-graph",
+  });
+
+const ADVANCED_TYPE_BY_ID = new Map(
+  Object.entries(
+    PLACEMENT_ADVANCED_TYPES
+  )
+);
+
+function semanticFamilyId({
+  typeKey,
+  generatorId,
+  definition,
+  advanced = false,
+}) {
+  if (advanced) {
+    const advancedDefinition =
+      ADVANCED_TYPE_BY_ID.get(
+        typeKey
+      );
+    return `advanced:${
+      advancedDefinition
+        ?.similarGroupId || typeKey
+    }`;
+  }
+
+  const familyKey =
+    CUSTOM_SEMANTIC_FAMILY_BY_TYPE_KEY[
+      typeKey
+    ] ||
+    SEMANTIC_FAMILY_BY_GENERATOR_ID.get(
+      generatorId
+    ) ||
+    typeKey;
+  return `${definition.courseId}:${familyKey}`;
+}
+
+function expandCandidateGenerators(
+  candidates
+) {
+  return candidates.flatMap(
+    (candidate) => {
+      if (candidate.advanced) {
+        const definition =
+          ADVANCED_TYPE_BY_ID.get(
+            candidate.typeKey
+          );
+        if (!definition) {
+          return [];
+        }
+        return [
+          {
+            ...candidate,
+            generatorId:
+              candidate.typeKey,
+            semanticFamilyId:
+              semanticFamilyId({
+                typeKey:
+                  candidate.typeKey,
+                generatorId:
+                  candidate.typeKey,
+                definition,
+                advanced: true,
+              }),
+          },
+        ];
+      }
+
+      const definition =
+        typeDefinition(
+          candidate.typeKey,
+          candidate.target
+        );
+      if (!definition) {
+        return [];
+      }
+
+      const generatorIds =
+        typeof definition.customGenerator ===
+        "function"
+          ? [
+              definition.key ||
+                candidate.typeKey,
+            ]
+          : (
+              definition.generatorIds ||
+              []
+            ).filter((generatorId) =>
+              BANK_GENERATOR_BY_ID.has(
+                generatorId
+              )
+            );
+      if (!generatorIds.length) {
+        return [];
+      }
+      const weight =
+        Number(candidate.weight) /
+        generatorIds.length;
+
+      return generatorIds.map(
+        (generatorId) => ({
+          ...candidate,
+          weight,
+          generatorId,
+          semanticFamilyId:
+            semanticFamilyId({
+              typeKey:
+                candidate.typeKey,
+              generatorId,
+              definition,
+            }),
+        })
+      );
+    }
+  );
+}
+
+function planUniquePlacementTypes() {
+  const records =
+    PLACEMENT_QUESTION_BLUEPRINTS.map(
+      (blueprint) => ({
+        blueprint,
+        candidates:
+          candidateTypesForBlueprint(
+            blueprint
+          ).map(
+            (candidate) => ({
+              ...candidate,
+              identity:
+                placementTypeIdentity(
+                  blueprint,
+                  candidate
+                ),
+            })
+          ),
+      })
+    );
+  const selectedByNumber =
+    new Map();
+  const usedIdentities =
+    new Set();
+
+  function assign(remaining) {
+    if (!remaining.length) {
+      return true;
+    }
+
+    /*
+     * 남은 선택지가 가장 적은 번호부터 배정해야 후반 번호가 막히지 않는다.
+     * 단순 1번부터 재추첨하면 확률적으로 마지막 번호의 후보가 모두 소진될
+     * 수 있어 시험지 생성이 간헐적으로 실패한다.
+     */
+    const ordered = remaining
+      .map((record) => ({
+        record,
+        available:
+          record.candidates.filter(
+            (candidate) =>
+              !usedIdentities.has(
+                candidate.identity
+              )
+          ),
+      }))
+      .sort(
+        (left, right) =>
+          left.available.length -
+            right.available.length ||
+          left.record.blueprint.number -
+            right.record.blueprint.number
+      );
+    const current = ordered[0];
+
+    if (!current.available.length) {
+      return false;
+    }
+
+    const nextRemaining =
+      remaining.filter(
+        (record) =>
+          record !== current.record
+      );
+
+    for (const candidate of
+      weightedCandidateOrder(
+        current.available
+      )) {
+      selectedByNumber.set(
+        current.record.blueprint.number,
+        candidate
+      );
+      usedIdentities.add(
+        candidate.identity
+      );
+
+      if (assign(nextRemaining)) {
+        return true;
+      }
+
+      selectedByNumber.delete(
+        current.record.blueprint.number
+      );
+      usedIdentities.delete(
+        candidate.identity
+      );
+    }
+
+    return false;
+  }
+
+  if (!assign(records)) {
+    throw new Error(
+      "배치고사 30문항에 서로 다른 유형을 배정하지 못했습니다. 문제 유형 구성을 확인해주세요."
+    );
+  }
+
+  return selectedByNumber;
+}
+
 function candidateTypesForBlueprint(
   blueprint
 ) {
   if (
     blueprint.advancedTypeWeights
   ) {
-    return Object.entries(
-      blueprint.advancedTypeWeights
-    ).map(
-      ([typeKey, weight]) => ({
-        typeKey,
-        weight:
-          Number(weight),
-        target: true,
-        advanced: true,
-        probabilitySources: [
-          "번호별 고난도 유형표",
-        ],
-      })
+    return expandCandidateGenerators(
+      Object.entries(
+        blueprint.advancedTypeWeights
+      ).map(
+        ([typeKey, weight]) => ({
+          typeKey,
+          weight:
+            Number(weight),
+          target: true,
+          advanced: true,
+          probabilitySources: [
+            "번호별 고난도 유형표",
+          ],
+        })
+      )
     );
   }
 
@@ -1763,11 +2095,13 @@ function candidateTypesForBlueprint(
     });
   }
 
-  return [
-    ...candidatesByLabel.values(),
-  ].filter(
-    (candidate) =>
-      candidate.weight > 0
+  return expandCandidateGenerators(
+    [
+      ...candidatesByLabel.values(),
+    ].filter(
+      (candidate) =>
+        candidate.weight > 0
+    )
   );
 }
 
@@ -1793,7 +2127,8 @@ function sourceForRecord(
 
 function generateFromDefinition(
   definition,
-  courseId
+  courseId,
+  forcedGeneratorId = ""
 ) {
   if (
     typeof definition
@@ -1836,7 +2171,12 @@ function generateFromDefinition(
     .filter(
       (record) =>
         record?.courseId ===
-        courseId
+          courseId &&
+        (
+          !forcedGeneratorId ||
+          record.generator.id ===
+            forcedGeneratorId
+        )
     );
 
   if (!records.length) {
@@ -2042,7 +2382,8 @@ function advancedReasoningSteps(
 function generateAdvancedPlacementQuestion(
   blueprint,
   seenPrompts,
-  seenTypeIds
+  seenTypeIds,
+  seenSemanticTypeIds = new Set()
 ) {
   for (
     let attempt = 0;
@@ -2069,10 +2410,18 @@ function generateAdvancedPlacementQuestion(
       typeId,
       validation,
     } = generated;
+    const semanticTypeId =
+      `advanced:${
+        definition.similarGroupId ||
+        typeId
+      }`;
 
     if (
       seenPrompts.has(
         problem.prompt
+      ) ||
+      seenSemanticTypeIds.has(
+        semanticTypeId
       )
     ) {
       continue;
@@ -2082,6 +2431,9 @@ function generateAdvancedPlacementQuestion(
       problem.prompt
     );
     seenTypeIds.add(typeId);
+    seenSemanticTypeIds.add(
+      semanticTypeId
+    );
 
     return {
       questionId: randomUUID(),
@@ -2125,6 +2477,7 @@ function generateAdvancedPlacementQuestion(
         definition.expectedTimeMs,
       similarGroupId:
         definition.similarGroupId,
+      semanticTypeId,
       ...advancedSource(
         typeId,
         blueprint.fixedCourseId ||
@@ -2200,12 +2553,17 @@ function generateAdvancedPlacementQuestion(
 
 function buildPlacementVerificationQuestions({
   excludedTypeIds = [],
+  excludedSemanticTypeIds = [],
 } = {}) {
   const seenPrompts =
     new Set();
   const seenTypeIds =
     new Set(
       excludedTypeIds
+    );
+  const seenSemanticTypeIds =
+    new Set(
+      excludedSemanticTypeIds
     );
   const categories = [
     "semi-killer",
@@ -2238,7 +2596,8 @@ function buildPlacementVerificationQuestions({
             points: 1,
           },
           seenPrompts,
-          seenTypeIds
+          seenTypeIds,
+          seenSemanticTypeIds
         );
 
       question.placementNumber =
@@ -2252,7 +2611,8 @@ function buildPlacementVerificationQuestions({
 function generatePlacementQuestion(
   blueprint,
   seenPrompts,
-  seenTypeIds = new Set()
+  seenTypeIds = new Set(),
+  plannedCandidate = null
 ) {
   if (
     [
@@ -2263,16 +2623,25 @@ function generatePlacementQuestion(
     )
   ) {
     return generateAdvancedPlacementQuestion(
-      blueprint,
+      plannedCandidate
+        ? {
+            ...blueprint,
+            advancedTypeWeights: {
+              [plannedCandidate.typeKey]:
+                1,
+            },
+          }
+        : blueprint,
       seenPrompts,
       seenTypeIds
     );
   }
 
-  const candidates =
-    candidateTypesForBlueprint(
-      blueprint
-    );
+  const candidates = plannedCandidate
+    ? [plannedCandidate]
+    : candidateTypesForBlueprint(
+        blueprint
+      );
   const candidateWeightTotal =
     candidates.reduce(
       (sum, candidate) =>
@@ -2296,7 +2665,8 @@ function generatePlacementQuestion(
     const generated =
       generateFromDefinition(
         definition,
-        blueprint.fixedCourseId
+        blueprint.fixedCourseId,
+        selected.generatorId
       );
     const problem =
       generated?.problem;
@@ -2355,6 +2725,7 @@ function generatePlacementQuestion(
           blueprint.number
         ),
       similarGroupId:
+        selected.semanticFamilyId ||
         selected.typeKey,
       ...generated.source,
       retryTypeId:
@@ -2421,6 +2792,12 @@ function generatePlacementQuestion(
         selected.typeKey,
       selectedTypeLabel:
         definition.label,
+      semanticTypeId:
+        selected.semanticFamilyId ||
+        placementTypeIdentity(
+          blueprint,
+          selected
+        ),
     };
   }
 
@@ -2445,15 +2822,20 @@ function buildPlacementPaper() {
     throw error;
   }
   const seenPrompts = new Set();
-  const seenAdvancedTypeIds =
+  const seenTypeIds =
     new Set();
+  const plannedTypes =
+    planUniquePlacementTypes();
   const questions =
     PLACEMENT_QUESTION_BLUEPRINTS.map(
       (blueprint) =>
         generatePlacementQuestion(
           blueprint,
           seenPrompts,
-          seenAdvancedTypeIds
+          seenTypeIds,
+          plannedTypes.get(
+            blueprint.number
+          )
         )
     );
   const totalPoints =
@@ -2466,10 +2848,17 @@ function buildPlacementPaper() {
   if (
     questions.length !== 30 ||
     totalPoints !==
-      PLACEMENT_TOTAL_POINTS
+      PLACEMENT_TOTAL_POINTS ||
+    new Set(
+      questions.map(
+        (question) =>
+          question.semanticTypeId ||
+          question.similarGroupId
+      )
+    ).size !== 30
   ) {
     throw new Error(
-      "배치고사 문항 수 또는 총점 검산에 실패했습니다."
+      "배치고사 문항 수·총점·유형 고유성 검산에 실패했습니다."
     );
   }
 
@@ -2589,6 +2978,8 @@ module.exports = {
   PLACEMENT_ADVANCED_TYPES,
   PLACEMENT_QUESTION_BLUEPRINTS,
   candidateTypesForBlueprint,
+  planUniquePlacementTypes,
+  placementTypeIdentity,
   generatePlacementQuestion,
   validateGeneratedProblem,
   buildPlacementPaper,

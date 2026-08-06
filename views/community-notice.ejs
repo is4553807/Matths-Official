@@ -6,11 +6,13 @@
       timeStyle: "short",
     }).format(new Date(date));
   const boardLabel = notice.boardType === "school"
-    ? `${notice.schoolName || user?.school?.name || "소속 학교"} 게시판`
-    : (notice.boardType === "retaker" ? "N수생 게시판" : "통합 고등학교 게시판");
-  const backHref = notice.boardType === "school"
-    ? "/community?board=school"
-    : (notice.boardType === "retaker" ? "/community?board=retaker" : "/community?board=high-school");
+    ? `${notice.schoolName || user?.school?.name || "소속 고등학교"} 게시판`
+    : notice.boardType === "university"
+      ? `${notice.universityName || user?.university?.name || "소속 대학교"} 게시판`
+      : ({ retaker: "N수생 게시판", worker: "직장인 게시판" }[notice.boardType] || "통합 고등학교 게시판");
+  const backHref = ["school", "retaker", "university", "worker"].includes(notice.boardType)
+    ? `/community?board=${notice.boardType}`
+    : "/community?board=high-school";
 %>
 <!doctype html>
 <html lang="ko">

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const matthsController = require('../controllers/matthsController');
+const checkoutController = require('../controllers/checkoutController');
 const authMiddleware = require('../middleware/authMiddleware');
 const {
   adminArchiveUpload,
@@ -264,6 +265,18 @@ router.get(
   matthsController.adminRevenueMetrics
 );
 router.get(
+  "/admin/paybacks",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminPaybacksPage
+);
+router.post(
+  "/admin/paybacks/:cycleId/complete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCompletePayback
+);
+router.get(
   "/admin/operations-guide",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
@@ -340,6 +353,18 @@ router.get(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminArenaEvidenceFile
+);
+router.post(
+  "/admin/arena-matches/:matchId/review",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminReviewHeldArenaMatch
+);
+router.post(
+  "/admin/arena-matches/:matchId/supplemental-evidence/:role/request",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRequestArenaSupplementalEvidence
 );
 router.post(
   "/admin/arena-integrity/:caseId/review",
@@ -930,24 +955,24 @@ router.post(
 
 router.get('/profile', authMiddleware.isLoggedIn, matthsController.profilePage);
 router.get(
-  "/pricing/mock-exam-only/self",
+  "/pricing/:product/self",
   authMiddleware.isLoggedIn,
-  matthsController.mockExamSelfPaymentEntry
+  checkoutController.selfCheckoutPage
+);
+router.post(
+  "/pricing/:product/self",
+  authMiddleware.isLoggedIn,
+  checkoutController.prepareSelfCheckout
 );
 router.get(
-  "/pricing/mock-exam-only/parent-request",
+  "/pricing/:product/parent-request",
   authMiddleware.isLoggedIn,
-  matthsController.mockExamParentPaymentEntry
+  checkoutController.parentRequestPage
 );
-router.get(
-  "/pricing/learning-package/self",
+router.post(
+  "/pricing/:product/parent-request",
   authMiddleware.isLoggedIn,
-  matthsController.learningPackageSelfPaymentEntry
-);
-router.get(
-  "/pricing/learning-package/parent-request",
-  authMiddleware.isLoggedIn,
-  matthsController.learningPackageParentPaymentEntry
+  checkoutController.sendParentRequest
 );
 router.post(
   "/api/session/heartbeat",
@@ -1048,12 +1073,6 @@ router.post(
   "/profile/coach-mode",
   authMiddleware.isLoggedIn,
   matthsController.changeProfileCoachMode
-);
-
-router.post(
-  "/profile/ranking-identity",
-  authMiddleware.isLoggedIn,
-  matthsController.changeRankingIdentity
 );
 
 router.post(

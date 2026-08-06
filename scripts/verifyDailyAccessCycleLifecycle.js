@@ -209,7 +209,7 @@ async function run() {
         },
         expiredAt,
       }),
-    /강등 스냅샷/
+    /만료 스냅샷/
   );
   assert.equal(
     percentileFromPosition({
@@ -295,6 +295,19 @@ async function run() {
       `${requiredSource} 일일 만료 구현이 없습니다.`
     );
   }
+  const depletedAccessUpdate =
+    serviceSource.match(
+      /async function disableDepletedAccess[\s\S]*?const standingId/
+    )?.[0] || "";
+  assert.equal(
+    (
+      depletedAccessUpdate.match(
+        /accessCycleId\s*:/g
+      ) || []
+    ).length,
+    1,
+    "만료 접근 상태 upsert에서 accessCycleId를 $set과 $setOnInsert에 중복 지정하면 MongoDB가 충돌합니다."
+  );
   assert.ok(
     privateMockSource.includes(
       'status: "payment-required"'
@@ -318,7 +331,7 @@ async function run() {
   );
 
   console.log(
-    "KST 일일 차감·누락 날짜 복구·Sub 만료 잠금·Main 강등과 72시간 유예 검증 완료"
+    "KST 일일 차감·누락 날짜 복구·Unranked 잠금·Ranked 만료와 72시간 재구독 경로 검증 완료"
   );
 }
 

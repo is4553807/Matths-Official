@@ -14,11 +14,12 @@
     />
     <meta
       name="description"
-      content="GOAT Arena 스타일의 Sub Division·Main Division 티어 랭킹"
+      content="GOAT Arena 스타일의 Unranked·Ranked 티어 랭킹"
     />
     <meta name="theme-color" content="#070913" />
     <title>랭킹 | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
+    <%- include("partials/rank-motion-head") %>
     <link rel="stylesheet" href="/css/tier-rankings.css" />
     <link
       rel="icon"
@@ -40,11 +41,11 @@
       <header class="arena-page-heading">
         <div>
           <p>실시간 티어 랭킹</p>
-          <h1>Sub Division·Main Division 랭킹</h1>
+          <h1>Unranked·Ranked 랭킹</h1>
         </div>
         <p>
-          각 Division을 GP 내림차순으로 정렬하고, 랭킹은 현재 티어 안에서의 순위로 표시합니다.
-          내 티어는 전체 목록을 스크롤하고 다른 티어는 상위 20명만 확인할 수 있습니다.
+          Unranked와 Ranked 모두 소속과 무관한 통합 티어 순위에서 GP와 티어 내 순위를 표시합니다.
+          최종 종합 랭킹도 모든 이용자를 통합해 유지합니다.
         </p>
       </header>
 
@@ -62,14 +63,14 @@
         </div>
         <% if (ranking.currentFinal) { %>
           <article class="arena-final-my-rank <%= ranking.currentFinal.hasMainProfileBorder ? 'has-main-shop-border' : '' %>">
-            <div><small>나의 최종 종합 랭킹</small><strong><%= ranking.currentFinal.displayName %></strong><span><%= ranking.currentFinal.division %> Division</span></div>
+            <div><small>나의 최종 종합 랭킹</small><strong><%= ranking.currentFinal.displayName %></strong><span><%= ranking.currentFinal.division === "MAIN" ? "Ranked" : "Unranked" %></span></div>
             <dl><div><dt>전체 순위</dt><dd><%= ranking.currentFinal.finalRank %><small>위</small></dd></div><div><dt>최종 종합 점수</dt><dd><%= ranking.currentFinal.finalRating %></dd></div></dl>
           </article>
         <% } %>
         <div class="arena-final-ranking-scroll" data-ranking-scroll data-ranking-kind="final" data-current-school="<%= ranking.currentFinal?.schoolName || '' %>" tabindex="0" aria-label="최종 종합 랭킹 목록">
           <div class="arena-final-ranking-row arena-final-ranking-head"><span>순위</span><span>Division</span><span>플레이어</span><span>소속</span><span>최종 종합 점수</span></div>
           <% ranking.finalOverall.forEach((entry) => { const isCurrentRanker = entry.userId === String(user._id); %>
-            <div class="arena-final-ranking-row <%= isCurrentRanker ? 'is-me' : '' %> <%= entry.hasMainProfileBorder ? 'has-main-shop-border' : '' %>" data-ranking-row data-rank="<%= entry.finalRank %>" data-name="<%= entry.displayName %>" data-division="<%= entry.division %>" data-school="<%= entry.schoolName || 'N수생' %>" data-rank-delta="<%= entry.rankDelta || 0 %>" <%= isCurrentRanker ? 'data-current-ranker aria-current="true"' : '' %>><b><%= entry.finalRank %></b><span><%= entry.division %> Division</span><strong><%= entry.displayName %><%= isCurrentRanker ? ' · 나' : '' %></strong><span><%= entry.schoolName || 'N수생' %></span><em><%= entry.finalRating %><small class="ranking-delta <%= entry.rankDelta > 0 ? 'is-up' : entry.rankDelta < 0 ? 'is-down' : '' %>"><%= entry.rankDelta > 0 ? `▲${entry.rankDelta}` : entry.rankDelta < 0 ? `▼${Math.abs(entry.rankDelta)}` : '—' %></small></em></div>
+            <div class="arena-final-ranking-row <%= isCurrentRanker ? 'is-me' : '' %> <%= entry.hasMainProfileBorder ? 'has-main-shop-border' : '' %>" data-ranking-row data-rank="<%= entry.finalRank %>" data-name="<%= entry.displayName %>" data-division="<%= entry.division %>" data-school="<%= entry.affiliationName || '소속 미설정' %>" data-rank-delta="<%= entry.rankDelta || 0 %>" <%= isCurrentRanker ? 'data-current-ranker aria-current="true"' : '' %>><b><%= entry.finalRank %></b><span><%= entry.division === "MAIN" ? "Ranked" : "Unranked" %></span><strong><%= entry.displayName %><%= isCurrentRanker ? ' · 나' : '' %></strong><span><%= entry.affiliationName || '소속 미설정' %></span><em><%= entry.finalRating %><small class="ranking-delta <%= entry.rankDelta > 0 ? 'is-up' : entry.rankDelta < 0 ? 'is-down' : '' %>"><%= entry.rankDelta > 0 ? `▲${entry.rankDelta}` : entry.rankDelta < 0 ? `▼${Math.abs(entry.rankDelta)}` : '—' %></small></em></div>
           <% }) %>
         </div>
       </section>

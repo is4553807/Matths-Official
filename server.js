@@ -15,6 +15,9 @@ const {
     errorHandler,
     notFoundHandler,
 } = require("./middleware/errorMiddleware");
+const {
+    arenaPublicText,
+} = require("./services/arenaPublicTerminologyService");
 
 server.use(express.static("public"));
 server.set('view engine', 'ejs');
@@ -45,6 +48,7 @@ server.use(session({
 }));
 server.use((req, res, next) => {
     res.locals.user = req.session?.user || null;
+    res.locals.arenaPublicText = arenaPublicText;
     res.locals.coach = getCoachView({
         mode:
             req.session?.user?.preferences
@@ -60,8 +64,10 @@ server.use((req, res, next) => {
 const maathsRoutes = require('./routes/matths-routes');
 const goatArenaRoutes = require("./routes/goat-arena-routes");
 const apiRoutes = require("./routes/api-routes");
+const parentRoutes = require("./routes/parent-routes");
 
 server.use("/api/v1", apiRoutes);
+server.use("/", parentRoutes);
 server.use("/", goatArenaRoutes);
 server.use("/", maathsRoutes);
 server.use(notFoundHandler);
@@ -178,7 +184,16 @@ async function connectDB() {
         const {
             startArenaOutboxScheduler,
         } = require("./services/arenaOutboxService");
+        const {
+            registerArenaNotificationOutboxHandlers,
+        } = require("./services/arenaNotificationService");
+        registerArenaNotificationOutboxHandlers();
         startArenaOutboxScheduler();
+
+        const {
+            startParentAlertScheduler,
+        } = require("./services/parentAlertService");
+        startParentAlertScheduler();
     } catch (error) {
         console.error("MongoDB Connection Failed:", error);
         process.exit(1);

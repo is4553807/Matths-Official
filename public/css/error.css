@@ -172,6 +172,30 @@ html:has(.matths-error-page) {
   word-break: keep-all;
 }
 
+.matths-error-code {
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 17px;
+  padding: 8px 11px;
+  color: #4c5570;
+  background: #f1f3fa;
+  border: 1px solid #e0e4f0;
+  border-radius: 10px;
+}
+
+.matths-error-code small {
+  color: #7d859a;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.matths-error-code code {
+  color: #6248d3;
+  font: 850 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 .matths-error-actions {
   display: flex;
   flex-wrap: wrap;

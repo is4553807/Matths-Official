@@ -22,7 +22,6 @@ async function main() {
   assert.ok(["HEALTHY", "REVIEW"].includes(dashboard.health.status));
   assert.ok(Number.isInteger(dashboard.health.activeProfileCount));
   assert.ok(Array.isArray(dashboard.history));
-  assert.ok(Array.isArray(dashboard.dormancyCandidates));
   assert.equal(typeof dashboard.operations.storage.provider, "string");
   assert.ok(Number.isInteger(preview.totalRows));
   assert.ok(Number.isInteger(preview.changedCount));
@@ -32,7 +31,6 @@ async function main() {
       activeProfiles: dashboard.health.activeProfileCount,
       alerts: dashboard.health.alerts.length,
       previewChanges: preview.changedCount,
-      dormancyCandidates: dashboard.dormancyCandidates.length,
     })
   );
 }

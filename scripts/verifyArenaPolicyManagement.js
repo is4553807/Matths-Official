@@ -34,7 +34,6 @@ async function run() {
     normalStakeDays: "1",
     revengeStakeDays: "2",
     minimumStreakDays: "29",
-    minimumPaidNormalAttacks: "2",
     minimumScoreDays: "30",
     bandMinScores: ["0", "30", "35", "40"],
     bandMaxScores: ["29", "34", "39", ""],
@@ -50,6 +49,7 @@ async function run() {
   );
   assert.equal(normalized.matchStakeDays.normal, 1);
   assert.equal(normalized.matchStakeDays.revenge, 2);
+  assert.equal("minimumPaidNormalAttacks" in normalized.payback, false);
   assert.equal(normalized.payback.bands[3].maxScoreDays, null);
   assert.equal(normalized.packagePurchaseRequiresZeroBalance, true);
   assert.deepEqual(
@@ -63,14 +63,13 @@ async function run() {
     effectiveFrom: "2026-08-02T00:00",
     ...Object.fromEntries(
       DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.flatMap(({ tier }, index) => [
-        [`subAttackLimit_${tier}`, String(index + 1)],
         [`subDefenseLimit_${tier}`, String(9 - index)],
       ])
     ),
   }).dailyMatchLimitsByTier;
-  assert.equal(customDailyLimits[0].attackLimit, 1);
+  assert.equal(customDailyLimits[0].attackLimit, 3);
   assert.equal(customDailyLimits[0].defenseLimit, 9);
-  assert.equal(customDailyLimits[8].attackLimit, 9);
+  assert.equal(customDailyLimits[8].attackLimit, 3);
   assert.equal(customDailyLimits[8].defenseLimit, 1);
 
   const policySavedAt = new Date("2026-08-04T12:00:00+09:00");
@@ -86,7 +85,7 @@ async function run() {
   assert.deepEqual(
     normalizePolicyDraftInput({
       ...normalized,
-      displayName: "Sub 고정 경기 일수 검증",
+      displayName: "Unranked 고정 경기 일수 검증",
       effectiveFrom: "2026-08-02T00:00",
       normalStakeDays: "9",
       revengeStakeDays: "9",
@@ -95,7 +94,7 @@ async function run() {
   );
 
   const normalizedMain = normalizeMainPolicyDraftInput({
-    displayName: "Main Division 정식 운영 정책",
+    displayName: "Ranked 정식 운영 정책",
     effectiveFrom: "2026-08-03T00:00",
     maximumTargetTierGap: "3",
     mainTierGaps: ["1", "2", "3"],
@@ -185,6 +184,7 @@ async function run() {
   assert.equal(snapshot.priceAmount, 0);
   assert.equal(snapshot.payback.bands[1].ratePercent, 50);
   assert.equal(snapshot.matchStakeDays.normal, 1);
+  assert.equal("minimumPaidNormalAttacks" in snapshot.payback, false);
   assert.equal(
     hasMaterialRenewalChange(snapshot, policy),
     true
@@ -295,14 +295,15 @@ async function run() {
     "관리자 메뉴에 Arena 정책 화면이 없습니다."
   );
   for (const tier of DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.map((row) => row.tier)) {
-    assert.ok(policyViewSource.includes(`subAttackLimit_<%= tier %>`));
+    assert.ok(policyViewSource.includes(`subDefenseLimit_<%= tier %>`));
   }
+  assert.equal(policyViewSource.includes("subAttackLimit_<%= tier %>"), false);
   assert.ok(ruleViewSource.includes("티어별 일일 일반 쟁탈전 상한"));
   assert.ok(ruleViewSource.includes("rulebook.upcomingPolicy"));
   assert.ok(controllerSource.includes("queuePolicyChangeNotificationsImmediately"));
 
   console.log(
-    "Sub·Main Arena 정책 작성·구간 검증·예약 활성화·런타임 스냅샷 검증 완료"
+    "Unranked·Ranked Arena 정책 작성·구간 검증·예약 활성화·런타임 스냅샷 검증 완료"
   );
 }
 

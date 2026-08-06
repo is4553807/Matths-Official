@@ -87,7 +87,7 @@ async function main() {
 
     const sent = [];
     const emailResult = await processDuePolicyChangeDeliveries({
-      now,
+      now: new Date("2100-01-02T00:00:00.000Z"),
       limit: 10,
       filter: { policyId: directPolicyId },
       sendEmailFn: async (message) => {
@@ -106,7 +106,7 @@ async function main() {
       idempotencyKey: outboxKey,
       payload: {
         policyType: "MAIN_DIVISION",
-        policy: policy(outboxPolicyId, "Main 정책 사전 고지 검증"),
+        policy: policy(outboxPolicyId, "Ranked 정책 사전 고지 검증"),
         recipientUserIds: userIds,
         scheduleEmailDelivery: false,
       },

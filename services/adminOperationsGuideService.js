@@ -5,6 +5,8 @@ require("../models/goatArenaModel");
 require("../models/operationModel");
 require("../models/sessionModel");
 require("../models/problemTypeModel");
+require("../models/parentModel");
+require("../models/paybackModel");
 
 const {
   getFileStorageStatus,
@@ -19,7 +21,7 @@ const CATEGORY_DEFINITIONS = [
     id: "accounts",
     label: "계정·인증·알림",
     description: "회원 식별, 로그인, 계정 상태, 알림과 문의 처리 데이터",
-    pattern: /User|Password|Session|Identity|Notification|Nickname|Inquiry/i,
+    pattern: /User|Password|Session|Identity|Notification|Nickname|Inquiry|Parent/i,
   },
   {
     id: "learning",
@@ -43,7 +45,7 @@ const CATEGORY_DEFINITIONS = [
     id: "subscriptions",
     label: "상품·결제·학습일수",
     description: "가격 정책, 결제 승인, 이용 주기, 페이백과 학습일수 원장",
-    pattern: /Subscription|AccessCycle|PackagePayment|MockExamSubscription|Payback|LearningDay|Shop|PolicyChange/i,
+    pattern: /Subscription|AccessCycle|PackagePayment|MockExamSubscription|Payback|LearningDay|Shop|PolicyChange|Checkout/i,
   },
   {
     id: "arena",
@@ -219,6 +221,9 @@ const RETENTION_POLICIES = [
   ["게시판 첨부", "게시글 수명과 동일", "게시글 완전 삭제 또는 계정 전체 삭제 시 제거"],
   ["운영자 원본", "기한 없음", "운영자 삭제 전까지 영구 디스크와 R2 백업 유지"],
   ["로그인 세션", "기본 7일", "SESSION_TTL_SECONDS 설정과 MongoDB TTL 인덱스 사용"],
+  ["학부모 가입 초대", "72시간", "사용·재요청·만료 시 상태를 변경하며 토큰 원문은 저장하지 않음"],
+  ["PG 연결 전 결제 대기", "30분", "결제 승인이나 이용권 지급 없이 CheckoutIntent에 준비 상태만 기록"],
+  ["페이백 계좌", "재등록 또는 탈퇴 시까지", "AES-256-GCM 암호문으로 저장하고 사용자 화면에는 끝 4자리만 표시"],
   ["위험 연결 신호", "30~730일", "종류별 TTL: 네트워크 30일, 브라우저 90일, 기기 180일, 결제·계좌 730일"],
   ["감사·정산 원장", "원칙적으로 기한 없음", "원본 거래를 수정하지 않고 보정 이벤트를 추가"],
 ];
@@ -227,7 +232,7 @@ const SCHEDULERS = [
   ["다중 서버 공용 임대", "모든 자동 작업 실행 직전", "MongoDB schedulerLeases에서 작업별 임대를 선점하고 실행 중 갱신합니다. 다른 서버는 같은 작업을 건너뛰며 실패·완료 뒤 다음 서버가 이어받습니다."],
   ["주간 모의고사 상태 전환", "30초", "예약→응시→잠금→집계→랭킹·아카이브 상태를 KST 기준으로 전환"],
   ["학습권 이용 주기", "30초", "결제 이용 주기·갱신·정산 대기 상태 처리"],
-  ["일일 학습일수·휴면", "30초", "KST 날짜 차감, Main 휴면 Sub 강등, 잔여 일수 분리 보관과 Main 재진입 복원 처리"],
+  ["일일 학습일수·만료", "30초", "KST 기준 학습일수 차감과 잔액 소진 이용 만료 처리"],
   ["학습권 만료 알림", "1분", "72·24·6시간 임계 알림 중복 방지"],
   ["정책 변경 공지", "저장 직후 + 15초 재시도", "정책별·사용자별 전달 원장으로 이메일과 사이트 우편함을 중복 없이 발송"],
   ["Arena 처리 대기 이벤트", "5초", "정책 공지를 포함한 트랜잭션 후속 작업을 outbox에서 장애 복구·재실행"],
@@ -245,7 +250,8 @@ const PERMISSION_MATRIX = [
   ["무료 회원", "개념 학습·평가센터·오답노트", "주간 모의고사·배치고사·GOAT Arena 차단"],
   ["모의고사 이용권", "주간 공식 모의고사", "배치고사·GOAT Arena 차단, 내부 실력 지표는 누적"],
   ["29일 학습권 패키지", "배치고사·주간 모의고사·GOAT Arena", "Division·학습일수·무결성 상태에 따라 실행 버튼 제어"],
-  ["관리자", "모든 운영 화면·유료 콘텐츠·Sub/Main 안내", "무제한·만료 없음. 공식 랭킹 데이터 변경은 별도 운영 작업만 사용"],
+  ["학부모 계정", "연결 자녀의 학습 현황·오답률·공식 랭킹·패키지 구매 준비", "학생용 학습·게시판·Arena 실행 권한 없음"],
+  ["관리자", "모든 운영 화면·유료 콘텐츠·Unranked/Ranked 안내", "무제한·만료 없음. 공식 랭킹 데이터 변경은 별도 운영 작업만 사용"],
 ];
 
 const INCIDENT_PLAYBOOK = [
@@ -387,10 +393,11 @@ const OPERATING_WORKFLOWS = [
     cadence: "새 시즌·가격·규칙 변경 시",
     objective: "진행 중 이용자에게 과거 정책을 소급하지 않고 새 버전을 정해진 시각부터 적용합니다.",
     steps: [
-      "Sub Division, Main Division, 학습권 상품, 상점 정책을 서로 다른 정책 영역에서 수정합니다.",
+      "Unranked, Ranked, 학습권 상품, 상점 정책을 서로 다른 정책 영역에서 수정합니다.",
       "현재 ACTIVE 정책을 직접 덮어쓰지 않고 새 버전에 변경 요약·KST 적용 시각을 기록합니다. 저장 시점보다 최소 30일 뒤만 선택할 수 있습니다.",
       "배팅 표기 대신 예치 학습일, 페이백 점수와 정기권 학습 가능 일수를 구분해 입력합니다.",
-      "Sub Division은 브론즈부터 챌린저까지 티어별 일일 일반 공격·방어 상한을 모두 확인합니다. 복수전은 이 상한 집계에서 제외됩니다.",
+      "Unranked 일반 공격은 전 티어 일일 3회 고정이며 방어 상한은 티어별로 확인합니다. 자동 매칭은 같은 대상 티어에서 당일 방어 횟수가 가장 적은 후보군을 우선 구성한 뒤 무작위 선정하며, 복수전은 이 상한 집계에서 제외됩니다.",
+      "Ranked 상향 쟁탈전은 티어 차이 1·2·3단계에 최소 1·2·3일, 공통 최대 5일을 적용합니다. 강제 방어는 최근 24시간 방어 횟수가 가장 적은 후보군에서 무작위 선정하고 경기 종료 뒤 6시간, 진행 중 경기 또는 초대 예약이 있는 사용자는 제외합니다. 6시간 유예는 자동 방어에만 적용하며 적격 사용자는 자발적인 하위 티어 초대전 알림을 계속 받을 수 있습니다.",
       "저장 버튼 한 번으로 적용 예약과 전체 사용자 이메일·우편함 사전 공지가 생성되는지 확인합니다. 전송 실패는 처리 대기 이벤트와 전달 원장에서 자동 재시도됩니다.",
       "적용 예정 시각 전에는 현재 정책, 이후에는 새 정책이 규정 표와 경기 엔진에서 동시에 조회되는지 확인합니다.",
       "적용 뒤 새 이용 주기와 진행 중 이용 주기의 policySnapshot이 의도대로 분리되는지 확인합니다. 단, 일일 경기 상한은 적용 중인 운영 정책을 즉시 공통 사용합니다.",
@@ -417,11 +424,11 @@ const OPERATING_WORKFLOWS = [
     cadence: "일요일 스냅샷·연간 시즌 전환 후",
     objective: "티어 안 순위, Division 랭킹, 최종 종합 랭킹과 학교 평균 랭킹을 같은 원천으로 계산합니다.",
     steps: [
-      "Sub·Main 신규 경기가 일요일 14:30에 막히고 15:00에 진행 중 공식 경기가 없는지 확인합니다.",
+      "Unranked·Ranked 신규 경기가 일요일 14:00에 막히고 15:00에 진행 중 공식 경기가 없는지 확인합니다.",
       "ArenaStanding의 티어·GP·티어 내 순위가 중복 없이 연속인지 정산 감사에서 확인합니다.",
       "Matths 대시보드와 GOAT Arena의 최종 종합 랭킹이 같은 LiveFinalRankingProfile 원천을 사용하는지 확인합니다.",
       "학교 랭킹은 재학생의 최종 종합 랭킹 순위 평균으로 계산하고 N수생은 별도 개인 랭킹으로 표시합니다.",
-      "연간 시즌 전환 뒤 Main 시즌 배지, 내부 실력 지표 소프트 리셋, 새 배치고사 필요 상태를 점검합니다.",
+      "연간 시즌 전환 뒤 Ranked 시즌 배지, 내부 실력 지표 소프트 리셋, 새 배치고사 필요 상태를 점검합니다.",
     ],
     hardStops: "표시 순서를 맞추기 위해 GP만 바꾸지 않습니다. 순위 변동은 승인된 경기 정산 또는 감사 가능한 운영 작업으로 처리합니다.",
     audit: "ArenaStanding, ArenaStandingChangeLedger, ArenaSnapshot, LiveFinalRankingProfile, ArenaAchievementBadge",

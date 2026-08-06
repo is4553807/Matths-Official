@@ -5,6 +5,7 @@ const path = require("path");
 const {
   ArenaOpponentSelectionAudit,
   ArenaRevengeRight,
+  ArenaStanding,
   MainDivisionPolicyVersion,
   MainInvitationOffer,
   MainInvitationRequest,
@@ -14,6 +15,7 @@ const {
 } = require("../services/arenaMatchScoringService");
 const {
   assertMainStakeSelection,
+  assertMainUpwardStakeSelection,
   buildRevengeEconomySnapshot,
   calculateInvitationCancellation,
   invitationMatchingPaused,
@@ -23,12 +25,65 @@ const {
   resolveInvitationOfferCount,
   resolveRevengeSettlement,
 } = require("../services/arenaDivisionRuleService");
+const {
+  _testing: { leastDefendedCandidatePool },
+} = require("../services/mainArenaMatchService");
+const {
+  mainCompetitivePoolLabel,
+  resolveMainCompetitivePool,
+} = require("../services/mainCompetitivePoolService");
+const {
+  MAIN_NORMAL_STAKE_MODES,
+  mainNormalMatchStakes,
+  mainNormalStakeSnapshot,
+} = require("../services/mainNormalMatchEconomyService");
 
 async function run() {
   const root = path.resolve(__dirname, "..");
+  assert.equal(resolveMainCompetitivePool({ schoolGrade: 10 }), "ALL");
+  assert.equal(resolveMainCompetitivePool({ schoolGrade: 13 }), "ALL");
+  assert.equal(resolveMainCompetitivePool({ schoolGrade: 14 }), "ALL");
+  assert.equal(resolveMainCompetitivePool({ schoolGrade: 15 }), "ALL");
+  assert.equal(mainCompetitivePoolLabel(), "통합 Ranked");
+  assert.deepEqual(
+    mainNormalStakeSnapshot({
+      matchOrigin: "MAIN_UPWARD_AUTO_MATCH",
+      stakeDays: 2,
+    }),
+    {
+      normalStakeMode: MAIN_NORMAL_STAKE_MODES.INITIATOR_ONLY,
+      challengerStakeDays: 2,
+      defenderStakeDays: 0,
+    }
+  );
+  assert.deepEqual(
+    mainNormalStakeSnapshot({
+      matchOrigin: "MAIN_LOWER_INVITATION",
+      stakeDays: 2,
+    }),
+    {
+      normalStakeMode:
+        MAIN_NORMAL_STAKE_MODES.BILATERAL_ACCEPTED_INVITATION,
+      challengerStakeDays: 2,
+      defenderStakeDays: 2,
+    }
+  );
+  assert.deepEqual(
+    mainNormalMatchStakes({
+      matchOrigin: "MAIN_UPWARD_AUTO_MATCH",
+      economySnapshot: { originalStakeDays: 2, defenderStakeDays: 2 },
+    }),
+    {
+      normalStakeMode: MAIN_NORMAL_STAKE_MODES.LEGACY_BILATERAL,
+      challengerStakeDays: 2,
+      defenderStakeDays: 2,
+      isInitiatorOnly: false,
+      isBilateral: true,
+    }
+  );
   const mainPolicy = new MainDivisionPolicyVersion({
     code: "MAIN-RULE-FOUNDATION-V1",
-    displayName: "Main Division 기반 정책",
+    displayName: "Ranked 기반 정책",
     status: "ACTIVE",
     effectiveFrom: new Date("2026-08-01T00:00:00+09:00"),
     stakeDaysByTierGap: [
@@ -69,6 +124,7 @@ async function run() {
     initiatorUserId: requesterUserId,
     initiatorStandingId: new mongoose.Types.ObjectId(),
     initiatorArenaTier: "CHALLENGER",
+    competitivePool: "ALL",
     targetTier: "BRONZE",
     stakeDays: 3,
     policyVersionId: mainPolicy._id,
@@ -79,6 +135,20 @@ async function run() {
   assert.equal(
     invitationRequest.activeReservationKey,
     `${requesterUserId}:BRONZE`
+  );
+  assert.equal(invitationRequest.competitivePool, "ALL");
+  assert.ok(
+    ArenaStanding.schema.indexes().some(
+      ([fields, options]) =>
+        fields.division === 1 &&
+        fields.seasonKey === 1 &&
+        fields.competitivePool === undefined &&
+        fields.arenaRank === 1 &&
+        fields.arenaPosition === 1 &&
+        options.unique === true &&
+        options.partialFilterExpression?.status === "ACTIVE"
+    ),
+    "Ranked 티어 순위는 통합 Ranked 안에서 고유해야 합니다."
   );
   const revengeRight = new ArenaRevengeRight({
     sourceMatchId: new mongoose.Types.ObjectId(),
@@ -99,7 +169,7 @@ async function run() {
         options.unique === true &&
         options.partialFilterExpression?.status === "ACCEPTED"
     ),
-    "Main 초대는 한 요청에서 첫 수락자 한 명만 확정하도록 고유 인덱스가 필요합니다."
+    "Ranked 초대는 한 요청에서 첫 수락자 한 명만 확정하도록 고유 인덱스가 필요합니다."
   );
   assert.ok(
     MainInvitationRequest.schema.indexes().some(
@@ -107,7 +177,7 @@ async function run() {
         fields.activeReservationKey === 1 &&
         options.unique === true
     ),
-    "Main 초대는 생성자·목표 티어별 활성 예약 하나를 DB에서도 보장해야 합니다."
+    "Ranked 초대는 생성자·목표 티어별 활성 예약 하나를 DB에서도 보장해야 합니다."
   );
 
   assert.deepEqual(
@@ -138,6 +208,53 @@ async function run() {
         availableLearningDays: 3,
       }),
     /남아야/
+  );
+  assert.deepEqual(
+    assertMainUpwardStakeSelection({
+      tierGap: 1,
+      stakeDays: 5,
+      availableLearningDays: 8,
+    }),
+    {
+      tierGap: 1,
+      minimumStakeDays: 1,
+      maximumStakeDays: 5,
+      stakeDays: 5,
+    }
+  );
+  assert.throws(
+    () =>
+      assertMainUpwardStakeSelection({
+        tierGap: 2,
+        stakeDays: 1,
+        availableLearningDays: 8,
+      }),
+    /최소 예치/
+  );
+  assert.throws(
+    () =>
+      assertMainUpwardStakeSelection({
+        tierGap: 1,
+        stakeDays: 6,
+        availableLearningDays: 8,
+      }),
+    /최대 예치/
+  );
+  const leastDefended = leastDefendedCandidatePool(
+    [
+      { userId: "user-a" },
+      { userId: "user-b" },
+      { userId: "user-c" },
+    ],
+    new Map([
+      ["user-a", 2],
+      ["user-b", 1],
+      ["user-c", 1],
+    ])
+  );
+  assert.deepEqual(
+    leastDefended.map((candidate) => candidate.userId),
+    ["user-b", "user-c"]
   );
 
   assert.deepEqual(
@@ -220,6 +337,39 @@ async function run() {
   );
   assert.deepEqual(
     resolveRevengeSettlement({
+      division: "MAIN",
+      outcome: "ATTACKER_WIN",
+      revengeStakeDays: 6,
+      feeDays: 1,
+    }),
+    {
+      division: "MAIN",
+      outcome: "ATTACKER_WIN",
+      revengeStakeDays: 6,
+      tupleAction: "SWAP",
+      returnToAttackerDays: 5,
+      transferToDefenderDays: 0,
+      burnDays: 1,
+    }
+  );
+  assert.deepEqual(
+    resolveRevengeSettlement({
+      division: "SUB",
+      outcome: "ATTACKER_WIN",
+      revengeStakeDays: 2,
+    }),
+    {
+      division: "SUB",
+      outcome: "ATTACKER_WIN",
+      revengeStakeDays: 2,
+      tupleAction: "SWAP",
+      returnToAttackerDays: 1,
+      transferToDefenderDays: 0,
+      burnDays: 1,
+    }
+  );
+  assert.deepEqual(
+    resolveRevengeSettlement({
       division: "SUB",
       outcome: "DEFENDER_WIN",
       revengeStakeDays: 2,
@@ -285,23 +435,23 @@ async function run() {
     12
   );
 
-  const sunday1429 = new Date("2026-08-02T14:29:00+09:00");
-  const sunday1430 = new Date("2026-08-02T14:30:00+09:00");
-  assert.equal(invitationMatchingPaused(sunday1429), false);
-  assert.equal(invitationMatchingPaused(sunday1430), true);
+  const sunday1359 = new Date("2026-08-02T13:59:00+09:00");
+  const sunday1400 = new Date("2026-08-02T14:00:00+09:00");
+  assert.equal(invitationMatchingPaused(sunday1359), false);
+  assert.equal(invitationMatchingPaused(sunday1400), true);
   assert.equal(
     officialMatchStartDeadline({
       now: new Date("2026-08-01T20:00:00+09:00"),
       division: "MAIN",
     }).toISOString(),
-    sunday1430.toISOString()
+    sunday1400.toISOString()
   );
   assert.equal(
     revengeCompletionDeadline({
       now: new Date("2026-08-01T20:00:00+09:00"),
       division: "MAIN",
     }).toISOString(),
-    sunday1430.toISOString()
+    sunday1400.toISOString()
   );
 
   const base = {
@@ -327,6 +477,14 @@ async function run() {
     path.join(root, "views/goat-arena-feature.ejs"),
     "utf8"
   );
+  const mainMatchSource = fs.readFileSync(
+    path.join(root, "services/mainArenaMatchService.js"),
+    "utf8"
+  );
+  const arenaNotificationSource = fs.readFileSync(
+    path.join(root, "services/arenaNotificationService.js"),
+    "utf8"
+  );
   assert.ok(
     routeSource.includes(
       '"/goat-arena/:division/features/:featureKey"'
@@ -334,6 +492,18 @@ async function run() {
       controllerSource.includes("divisionFeaturePage") &&
       featureViewSource.includes("hasDivisionAccess"),
     "Division 기능별 로그인 보호 페이지 골격이 필요합니다."
+  );
+  assert.ok(
+    mainMatchSource.includes("(!mandatoryDefense || !defenseHistory.cooldownUserIds.has(id))"),
+    "경기 종료 뒤 6시간 유예는 강제 자동 방어에만 적용해야 합니다."
+  );
+  assert.ok(
+    mainMatchSource.match(/eventType: "MainInvitationOffered"/g)?.length >= 2 &&
+      arenaNotificationSource.includes(
+        'registerArenaOutboxHandler("MainInvitationOffered"'
+      ) &&
+      arenaNotificationSource.includes("수락하거나 불이익 없이 거절"),
+    "초기·재탐색 Ranked 초대 모두 GOAT Arena 수락·거절 알림으로 연결되어야 합니다."
   );
   assert.equal(
     compareArenaAttemptScores(
@@ -351,7 +521,7 @@ async function run() {
   );
 
   console.log(
-    "Sub·Main 예치·복수전·초대 취소·일요일 마감·승패 우선순위 기반 검증 완료"
+    "Unranked·Ranked 예치·복수전·초대 취소·일요일 마감·승패 우선순위 기반 검증 완료"
   );
 }
 

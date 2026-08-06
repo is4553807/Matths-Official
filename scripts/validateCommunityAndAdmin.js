@@ -27,6 +27,8 @@ const {
 const {
   BOARD_LABELS,
   COMMUNITY_PAGE_SIZE,
+  privateBoardForViewer,
+  _testing: communityTesting,
 } = require("../services/communityService");
 const {
   TODO_PAGE_SIZE,
@@ -68,6 +70,40 @@ assert.deepEqual(
     "admin",
     "test",
   ]
+);
+assert.equal(privateBoardForViewer({ schoolGrade: 10 }), "school");
+assert.equal(privateBoardForViewer({ schoolGrade: 13 }), "retaker");
+assert.equal(privateBoardForViewer({ schoolGrade: 14 }), "university");
+assert.equal(privateBoardForViewer({ schoolGrade: 15 }), "worker");
+assert.doesNotThrow(() =>
+  communityTesting.assertCommunityBoardAccess(
+    { boardType: "university", universityCode: "U-001" },
+    { schoolGrade: 14, university: { code: "U-001" } }
+  )
+);
+assert.throws(
+  () =>
+    communityTesting.assertCommunityBoardAccess(
+      { boardType: "university", universityCode: "U-001" },
+      { schoolGrade: 14, university: { code: "U-002" } }
+    ),
+  (error) => error?.status === 403,
+  "대학교별 게시판이 다른 대학교 소속 회원의 접근을 차단하지 않습니다."
+);
+assert.doesNotThrow(() =>
+  communityTesting.assertCommunityBoardAccess(
+    { boardType: "worker" },
+    { schoolGrade: 15 }
+  )
+);
+assert.throws(
+  () =>
+    communityTesting.assertCommunityBoardAccess(
+      { boardType: "worker" },
+      { schoolGrade: 14, university: { code: "U-001" } }
+    ),
+  (error) => error?.status === 403,
+  "직장인 게시판이 대학생 계정의 접근을 차단하지 않습니다."
 );
 
 for (const field of [
@@ -276,9 +312,11 @@ assert.deepEqual(
     "high-school",
     "school",
     "retaker",
+    "university",
+    "worker",
     "operations",
   ].sort(),
-  "게시판은 통합 고등학교·학교별·N수생·운영 게시판을 제공해야 합니다."
+  "게시판은 통합 고등학교·학교별·N수생·대학교별·직장인·운영 게시판을 제공해야 합니다."
 );
 assert.equal(
   COMMUNITY_PAGE_SIZE,
@@ -373,7 +411,6 @@ for (const copy of [
 for (const file of [
   "views/war-of-masters.ejs",
   "views/war-of-masters-rankings.ejs",
-  "views/partials/dashboard-navigation.ejs",
 ]) {
   const source = read(file);
   assert.ok(
@@ -389,6 +426,15 @@ for (const file of [
     `${file}에 이전 랭킹전 이름이 남아 있습니다.`
   );
 }
+const dashboardNavigation = read(
+  "views/partials/dashboard-navigation.ejs"
+);
+assert.ok(
+  dashboardNavigation.includes(
+    'label: "GOAT Arena"'
+  ),
+  "대시보드 navbar의 랭킹전 이름이 GOAT Arena로 통일되지 않았습니다."
+);
 assert.ok(
   communityService.includes(
     "warningCount >= 3"

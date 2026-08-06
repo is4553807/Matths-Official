@@ -19,6 +19,9 @@ const {
   getPlacementDashboardData,
 } = require("../services/placementExamService");
 const {
+  errorFaqHref,
+} = require("../services/errorHelpService");
+const {
   getRankingData,
 } = require("../services/rankingService");
 const {
@@ -47,8 +50,14 @@ const {
   submitArenaMatchAttempt,
 } = require("../services/arenaMatchAttemptService");
 const {
+  getArenaSupplementalEvidenceRequest,
   submitArenaMatchEvidence,
+  submitArenaSupplementalEvidence,
 } = require("../services/arenaMatchEvidenceService");
+const {
+  acknowledgeRankUpPresentation,
+  getPendingRankUpPresentation,
+} = require("../services/arenaRankUpPresentationService");
 const {
   settleArenaMatch,
 } = require("../services/arenaMatchSettlementService");
@@ -86,12 +95,22 @@ const {
 const {
   recordOperationalMetricEvent,
 } = require("../services/operationalMetricEventService");
+const {
+  getPaybackAccountSummary,
+  saveConfirmedPaybackAccount,
+  validatePaybackAccountInput,
+} = require("../services/paybackAccountService");
+const {
+  getArenaNotificationSummary,
+} = require("../services/arenaNotificationService");
 
 const GRADE_LABELS = {
   10: "고등학교 1학년",
   11: "고등학교 2학년",
   12: "고등학교 3학년",
   13: "N수생",
+  14: "대학생",
+  15: "직장인",
 };
 
 const ARENA_TIER_GUIDE =
@@ -127,8 +146,8 @@ function buildSeedState(
         currentRanking.arenaRank,
       division:
         currentRanking.arenaDivision === "MAIN"
-          ? "Main Division"
-          : "Sub Division",
+          ? "Ranked"
+          : "Unranked",
       gp: confirmedGp,
       tierRank:
         currentRanking
@@ -147,7 +166,7 @@ function buildSeedState(
       code: "PROFILE_PENDING",
       label: "Arena 프로필 생성 대기",
       detail:
-        "배치고사 결과는 내부 실력 지표와 첫 Sub Division 배치에 반영됩니다. 시험 점수를 Arena GP로 직접 표시하지 않습니다.",
+        "배치고사 결과는 내부 실력 지표와 첫 Unranked 배치에 반영됩니다. 시험 점수를 Arena GP로 직접 표시하지 않습니다.",
       ready: false,
     };
   }
@@ -160,7 +179,7 @@ function buildSeedState(
       code: "VERIFY",
       label: "추가 확인 진행 중",
       detail:
-        "4문항 확인을 마치면 최초 내부 실력 지표와 Sub Division 배치가 확정됩니다.",
+        "4문항 확인을 마치면 최초 내부 실력 지표와 Unranked 배치가 확정됩니다.",
       ready: false,
     };
   }
@@ -181,7 +200,7 @@ function buildSeedState(
     code: "PLACEMENT",
     label: "배치고사 필요",
     detail:
-      "배치고사를 완료해야 최초 내부 실력 지표와 Sub Division 배치 절차를 시작할 수 있습니다.",
+      "배치고사를 완료해야 최초 내부 실력 지표와 Unranked 배치 절차를 시작할 수 있습니다.",
     ready: false,
   };
 }
@@ -231,6 +250,26 @@ function buildArenaAccess(
       29
   );
   const studyStreakDays = Number(accessCycle?.streakDays || 0);
+  const paybackDisqualified = Boolean(
+    activeDivision === "SUB" &&
+      (
+        accessState?.paybackDisqualifiedAt ||
+        (accessCycle?.paybackDisqualifiers || []).includes(
+          "INTEGRITY_VIOLATION_CONFIRMED"
+        )
+      )
+  );
+  // 29일 연속 기록만 과거 값으로 남아 있는 경우 '달성'으로 잘못
+  // 보이지 않도록 실제 이용 주기가 끝났거나 평가된 뒤에만 완료로 표시한다.
+  const fullAttendanceQualified = Boolean(
+    accessCycle &&
+      !paybackDisqualified &&
+      studyStreakDays >= minimumStudyStreakDays &&
+      (
+        accessCycle.evaluatedAt ||
+        (accessCycle.endsAt && new Date(accessCycle.endsAt).getTime() <= Date.now())
+      )
+  );
   const hasUsableCycleBalance =
     activeDivision === "MAIN"
       ? mainTotalDays > 0
@@ -279,6 +318,21 @@ function buildArenaAccess(
     renewalGraceDeadline:
       accessState?.renewalGraceDeadline ||
       null,
+    automaticDefense: {
+      eligible:
+        isAdminPreview ||
+        accessState?.defensePoolEligible === true,
+      noShowCount: isAdminPreview
+        ? 0
+        : Number(accessState?.automaticDefenseNoShowCount || 0),
+      suspendedAt:
+        isAdminPreview
+          ? null
+          : accessState?.automaticDefenseSuspendedAt || null,
+      suspended:
+        !isAdminPreview &&
+        accessState?.reasonCode === "AUTO_DEFENSE_NO_SHOW_LIMIT",
+    },
     learningRights: {
       availableDays:
         isAdminPreview
@@ -287,7 +341,9 @@ function buildArenaAccess(
       paybackScoreDays:
         isAdminPreview
           ? "무제한"
-          : accessCycle?.paybackScoreDays ?? null,
+          : paybackDisqualified
+            ? "자격 박탈"
+            : accessCycle?.paybackScoreDays ?? null,
       lockedPaybackScoreDays:
         isAdminPreview
           ? 0
@@ -311,7 +367,9 @@ function buildArenaAccess(
           ? null
           : accessCycle?.expiresAt || null,
       neededForRefund:
-        accessCycle
+        paybackDisqualified
+          ? "자격 박탈"
+          : accessCycle
           ? Math.max(
               0,
               minimumPaybackScore -
@@ -332,17 +390,8 @@ function buildArenaAccess(
         accessCycle
           ? Math.max(0, minimumStudyStreakDays - studyStreakDays)
           : null,
-      fullAttendanceQualified:
-        accessCycle
-          ? studyStreakDays >= minimumStudyStreakDays
-          : false,
-      reservedForMainReentryDays:
-        isAdminPreview
-          ? 0
-          : accessState?.mainDormancyRecoveryMode ===
-              "RESTORE_ON_MAIN_REENTRY"
-            ? Number(accessState.mainDormancyFrozenLearningDays || 0)
-            : 0,
+      paybackDisqualified,
+      fullAttendanceQualified,
     },
     standing: standing
       ? {
@@ -365,17 +414,9 @@ const DIVISION_FEATURES = {
         "subChallengeRequest",
       name: "일반 쟁탈전 신청",
       description:
-        "같은 Sub Division의 방어자에게 일반 쟁탈전을 신청합니다.",
+        "같은 Unranked의 방어자에게 일반 쟁탈전을 신청합니다.",
       href:
         "/goat-arena/sub/challenge",
-      group: "BATTLE",
-    },
-    {
-      key:
-        "subDefenseInbox",
-      name: "방어 요청",
-      description:
-        "배정된 도전과 응답 기한을 확인합니다.",
       group: "BATTLE",
     },
     {
@@ -408,16 +449,16 @@ const DIVISION_FEATURES = {
         "subPaybackProgress",
       name: "페이백 진행",
       description:
-        "연속 학습·유료 일반 쟁탈전·페이백 점수·공정성 검토 상태를 확인합니다.",
+        "29일 전일 학습·페이백 점수·공정성 검토 상태를 확인합니다.",
       group: "PROGRESS",
     },
   ],
   MAIN: [
     {
       key: "mainArenaStatus",
-      name: "Main Division 상태",
+      name: "Ranked 상태",
       description:
-        "현재 Main Division Arena 상태와 정기권 학습 가능 일수를 확인합니다.",
+        "현재 Ranked Arena 상태와 정기권 학습 가능 일수를 확인합니다.",
       group: "OPERATIONS",
     },
     {
@@ -460,7 +501,7 @@ const DIVISION_FEATURES = {
     },
     {
       key: "mainShop",
-      name: "Main Division 상점",
+      name: "Ranked 상점",
       description:
         "경기로 확보한 사용 가능 학습일수로 분석·일정·프로필 편의 기능을 이용합니다.",
       href: "/goat-arena/main/shop",
@@ -492,7 +533,7 @@ const DIVISION_FEATURES = {
       key: "mainExpiryGuide",
       name: "이용 종료·재구매 안내",
       description:
-        "Sub Division 강등, 72시간 변환과 랭크 복귀전 조건을 확인합니다.",
+        "Unranked 강등, 72시간 변환과 랭크 복귀전 조건을 확인합니다.",
       group: "SUPPORT",
     },
   ],
@@ -512,17 +553,71 @@ const DIVISION_FEATURE_GROUPS = Object.freeze({
   ],
 });
 
+function arenaUserView(user, activeCosmetics = []) {
+  return {
+    nickname: String(user?.name || "학생"),
+    displayName: getRankingDisplayName(user),
+    schoolName: String(
+      Number(user?.schoolGrade) === 14
+        ? user?.university?.name || "대학교 미설정"
+        : Number(user?.schoolGrade) === 15
+          ? "직장인"
+          : Number(user?.schoolGrade) === 13
+            ? "N수생"
+            : user?.school?.name || "학교 미설정"
+    ),
+    gradeLabel: GRADE_LABELS[Number(user?.schoolGrade)] || "학년 미설정",
+    hasMainProfileBorder: activeCosmetics.some(
+      (effect) => effect.itemCode === "MAIN_PROFILE_BORDER"
+    ),
+    hasStyleEntrance: activeCosmetics.some(
+      (effect) => effect.itemCode === "STYLE_ENTRANCE"
+    ),
+  };
+}
+
+async function getArenaNavigationContext(userId) {
+  const now = new Date();
+  const [user, activeCosmetics, rankUpPresentation, arenaNotifications] =
+    await Promise.all([
+      User.findById(userId).lean(),
+      MainShopEffect.find({
+        userId,
+        itemCode: { $in: ["MAIN_PROFILE_BORDER", "STYLE_ENTRANCE"] },
+        status: "ACTIVE",
+        endsAt: { $gt: now },
+      }).lean(),
+      getPendingRankUpPresentation({ userId }),
+      getArenaNotificationSummary({ userId }),
+    ]);
+  if (!user) {
+    const error = new Error("사용자 정보를 찾을 수 없습니다.");
+    error.status = 404;
+    throw error;
+  }
+  return {
+    user,
+    arenaUser: arenaUserView(user, activeCosmetics),
+    rankUpPresentation,
+    arenaNotifications,
+  };
+}
+
 async function getArenaContext(
-  userId
+  userId,
+  { includeFullRanking = false } = {}
 ) {
   const [
     user,
     placement,
-    ranking,
+    fullRanking,
     accessState,
     activeMainPolicy,
     activeArenaPolicy,
     activeCosmetics,
+    rankUpPresentation,
+    arenaNotifications,
+    pendingRevengeRight,
   ] = await Promise.all([
     User.findById(
       userId
@@ -530,9 +625,9 @@ async function getArenaContext(
     getPlacementDashboardData(
       userId
     ),
-    getRankingData(
-      userId
-    ),
+    includeFullRanking
+      ? getRankingData(userId)
+      : Promise.resolve(null),
     ArenaAccessState.findOne({
       userId,
     }).lean(),
@@ -544,6 +639,12 @@ async function getArenaContext(
       status: "ACTIVE",
       endsAt: { $gt: new Date() },
     }).lean(),
+    getPendingRankUpPresentation({ userId }),
+    getArenaNotificationSummary({ userId }),
+    ArenaRevengeRight.findOne({
+      eligibleUserId: userId,
+      status: "AVAILABLE",
+    }).sort({ createdAt: -1 }).lean(),
   ]);
 
   if (!user) {
@@ -555,8 +656,6 @@ async function getArenaContext(
     throw error;
   }
 
-  const currentRanking =
-    ranking.current || null;
   const [accessCycle, standing] =
     await Promise.all([
       accessState?.accessCycleId
@@ -571,38 +670,41 @@ async function getArenaContext(
         : null,
     ]);
 
+  const lightweightCurrent = standing
+    ? {
+        userId: String(userId),
+        gp: Number(standing.arenaGp || 0),
+        arenaDivision: standing.division,
+        arenaRank: standing.arenaRank,
+        arenaPosition: Number(standing.arenaPosition || 0),
+        tierRank: Number(standing.arenaPosition || 0) || null,
+      }
+    : null;
+  const lightweightPoolEntry = standing
+    ? {
+        userId: String(userId),
+        tier: standing.arenaRank,
+        tierRank: Number(standing.arenaPosition || 0) || null,
+        gp: Number(standing.arenaGp || 0),
+      }
+    : null;
+  const ranking = fullRanking || {
+    current: lightweightCurrent,
+    pools: {
+      sub: {
+        current: standing?.division === "SUB" ? lightweightPoolEntry : null,
+      },
+      main: {
+        current: standing?.division === "MAIN" ? lightweightPoolEntry : null,
+      },
+    },
+  };
+  const currentRanking = ranking.current || lightweightCurrent;
+
   return {
     user,
     ranking,
-    arenaUser: {
-      nickname:
-        String(
-          user.name ||
-            "학생"
-        ),
-      displayName:
-        getRankingDisplayName(
-          user
-        ),
-      schoolName:
-        String(
-          user.school?.name ||
-            "학교 미설정"
-        ),
-      gradeLabel:
-        GRADE_LABELS[
-          Number(
-            user.schoolGrade
-          )
-        ] ||
-        "학년 미설정",
-      hasMainProfileBorder: activeCosmetics.some(
-        (effect) => effect.itemCode === "MAIN_PROFILE_BORDER"
-      ),
-      hasStyleEntrance: activeCosmetics.some(
-        (effect) => effect.itemCode === "STYLE_ENTRANCE"
-      ),
-    },
+    arenaUser: arenaUserView(user, activeCosmetics),
     seedState:
       buildSeedState(
         placement,
@@ -621,12 +723,24 @@ async function getArenaContext(
       mainPolicySnapshot(activeMainPolicy),
     activeArenaPolicy:
       policySnapshot(activeArenaPolicy),
+    rankUpPresentation,
+    arenaNotifications,
+    pendingRevengeRight: pendingRevengeRight
+      ? {
+          id: String(pendingRevengeRight._id),
+          division: pendingRevengeRight.division,
+          stakeDays: Number(pendingRevengeRight.revengeStakeDays || 0),
+          feeDays: Number(pendingRevengeRight.feeDays || 0),
+        }
+      : null,
+    pendingRevengeRequestId: randomUUID(),
   };
 }
 
 function renderArenaPage(
   view,
-  extra = {}
+  extra = {},
+  { includeFullRanking = false } = {}
 ) {
   return async (
     req,
@@ -636,7 +750,8 @@ function renderArenaPage(
     try {
       const context =
         await getArenaContext(
-          req.session.user.id
+          req.session.user.id,
+          { includeFullRanking }
         );
 
       res.set(
@@ -678,7 +793,8 @@ exports.rankingsPage =
     {
       activeArenaPage:
         "rankings",
-    }
+    },
+    { includeFullRanking: true }
   );
 
 function divisionPage(
@@ -710,12 +826,12 @@ function divisionPage(
       division,
       divisionLabel:
         isSub
-          ? "Sub Division"
-          : "Main Division",
+          ? "Unranked"
+          : "Ranked",
       divisionKoreanLabel:
         isSub
-          ? "Sub Division 전장"
-          : "Main Division 전장",
+          ? "Unranked 전장"
+          : "Ranked 전장",
       features,
       featureGroups,
     }
@@ -745,6 +861,18 @@ async function renderMainBattlePage(
     actionError,
     actionMessage,
     requestId: randomUUID(),
+    formatMatchmakingRestriction: (value) => {
+      if (!value) return "제한 해제 시각을 확인 중입니다.";
+      return new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(new Date(value));
+    },
   });
 }
 
@@ -881,6 +1009,24 @@ exports.mainShopPage = async (req, res, next) => {
       shopMessage: req.query.done === "1" ? "상점 아이템을 적용했습니다." : "",
     });
   } catch (error) {
+    if ([403, 423].includes(Number(error.status))) {
+      try {
+        const context = await getArenaContext(req.session.user.id);
+        return res.status(Number(error.status)).render("goat-arena-error", {
+          ...context,
+          activeArenaPage: "shop",
+          errorStatus: Number(error.status),
+          errorTitle: "상점을 이용할 수 없습니다",
+          errorMessage: error.message,
+          errorCode: error.code || `HTTP_${Number(error.status)}`,
+          errorFaqHref: errorFaqHref(Number(error.status)),
+          returnHref: "/goat-arena",
+          returnLabel: "GOAT Arena 홈으로",
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
     return next(error);
   }
 };
@@ -1030,25 +1176,12 @@ async function getDivisionFeatureData({ userId, division, featureKey, context })
   const base = {
     eyebrow: "LIVE DATA",
     title: "현재 데이터",
-    description: "권위 DB에서 불러온 최신 상태입니다.",
+    description: "",
     cards: [],
     items: [],
     emptyMessage: "현재 표시할 기록이 없습니다.",
     action: null,
   };
-  if (featureKey === "subDefenseInbox") {
-    const matches = await ArenaMatch.find(
-      featureMatchFilter(userId, "SUB", "DEFENDER")
-    ).sort({ updatedAt: -1 }).limit(30).lean();
-    return {
-      ...base,
-      title: "배정된 방어 요청",
-      description: "서버가 자동 배정한 진행·대기 경기만 표시합니다.",
-      cards: [{ label: "진행·대기", value: `${matches.length}건` }],
-      items: matches.map((match) => matchFeatureItem(match, userId)),
-      emptyMessage: "현재 응답하거나 이어서 진행할 방어 요청이 없습니다.",
-    };
-  }
   if (["subActiveMatch", "mainActiveMatch"].includes(featureKey)) {
     const matches = await ArenaMatch.find(
       featureMatchFilter(userId, division)
@@ -1156,21 +1289,21 @@ async function getDivisionFeatureData({ userId, division, featureKey, context })
       title: "확정 경기 기록",
       cards: [{ label: "최근 기록", value: `${matches.length}건` }],
       items: matches.map((match) => matchFeatureItem(match, userId)),
-      emptyMessage: "아직 확정된 Main Division 경기 기록이 없습니다.",
+      emptyMessage: "아직 확정된 Ranked 경기 기록이 없습니다.",
     };
   }
   if (featureKey === "mainArenaStatus") {
     const rights = context.arenaAccess.learningRights;
     return {
       ...base,
-      title: "Main Division 운영 상태",
+      title: "Ranked 운영 상태",
       cards: [
         { label: "사용 가능", value: rights.unlimited ? "무제한" : `${rights.availableDays ?? 0}일` },
         { label: "초대 예약", value: `${rights.reservedDays ?? 0}일` },
         { label: "경기 예치", value: `${rights.lockedDays ?? 0}일` },
         { label: "Arena 상태", value: context.arenaAccess.standing ? `${context.arenaAccess.standing.tier} ${context.arenaAccess.standing.arenaPosition}위` : "미확정" },
       ],
-      action: { href: "/goat-arena/main/battle", label: "Main 전장 열기" },
+      action: { href: "/goat-arena/main/battle", label: "Ranked 전장 열기" },
     };
   }
   if (featureKey === "mainExpiryGuide") {
@@ -1180,10 +1313,10 @@ async function getDivisionFeatureData({ userId, division, featureKey, context })
       title: "이용 종료·재구매 안내",
       cards: [
         { label: "현재 사용 가능", value: `${rights.availableDays ?? 0}일` },
-        { label: "전체 Main 권리", value: rights.unlimited ? "무제한" : `${rights.totalMainDays ?? 0}일` },
+        { label: "전체 Ranked 권리", value: rights.unlimited ? "무제한" : `${rights.totalMainDays ?? 0}일` },
         { label: "종료 예정", value: rights.expiresAt ? new Date(rights.expiresAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" }) : "미정" },
       ],
-      emptyMessage: "종료 시점의 Main 순위를 기준으로 Sub 복귀 상태가 계산됩니다.",
+      emptyMessage: "종료 시점의 Ranked 순위를 기준으로 Unranked 복귀 상태가 계산됩니다.",
       action: { href: "/goat-arena/rules/main#main-expiry", label: "종료 규정 확인" },
     };
   }
@@ -1235,8 +1368,8 @@ exports.divisionFeaturePage = async (
       division,
       divisionLabel:
         division === "SUB"
-          ? "Sub Division"
-          : "Main Division",
+          ? "Unranked"
+          : "Ranked",
       feature,
       hasDivisionAccess,
       featureData,
@@ -1246,14 +1379,98 @@ exports.divisionFeaturePage = async (
   }
 };
 
-exports.profilePage =
-  renderArenaPage(
-    "goat-arena-profile",
-    {
-      activeArenaPage:
-        "profile",
+exports.profilePage = async (req, res, next) => {
+  try {
+    const [context, paybackAccount, payoutEligible] = await Promise.all([
+      getArenaContext(req.session.user.id),
+      getPaybackAccountSummary(req.session.user.id),
+      AccessCycle.exists({
+        userId: req.session.user.id,
+        paybackPayoutStatus: "PENDING",
+        paybackAmount: { $gt: 0 },
+      }),
+    ]);
+    res.set("Cache-Control", "no-store");
+    return res.render("goat-arena-profile", {
+      ...context,
+      activeArenaPage: "profile",
+      paybackAccount,
+      payoutEligible: Boolean(payoutEligible),
+      accountUpdated: req.query.accountUpdated === "1",
+      accountError: "",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.reviewPaybackAccount = async (req, res, next) => {
+  try {
+    const [context, account] = await Promise.all([
+      getArenaContext(req.session.user.id),
+      Promise.resolve(validatePaybackAccountInput(req.body)),
+    ]);
+    res.set("Cache-Control", "no-store");
+    return res.render("goat-arena-payback-account-confirm", {
+      ...context,
+      activeArenaPage: "profile",
+      account,
+      error: "",
+    });
+  } catch (error) {
+    if (Number(error.status) === 400) {
+      try {
+        const [context, paybackAccount, payoutEligible] = await Promise.all([
+          getArenaContext(req.session.user.id),
+          getPaybackAccountSummary(req.session.user.id),
+          AccessCycle.exists({
+            userId: req.session.user.id,
+            paybackPayoutStatus: "PENDING",
+            paybackAmount: { $gt: 0 },
+          }),
+        ]);
+        return res.status(400).render("goat-arena-profile", {
+          ...context,
+          activeArenaPage: "profile",
+          paybackAccount,
+          payoutEligible: Boolean(payoutEligible),
+          accountUpdated: false,
+          accountError: error.message,
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
     }
-  );
+    return next(error);
+  }
+};
+
+exports.confirmPaybackAccount = async (req, res, next) => {
+  try {
+    if (req.body.accountConfirmed !== "1") {
+      const error = new Error("계좌번호와 예금주를 확인했다는 항목에 체크해주세요.");
+      error.status = 400;
+      throw error;
+    }
+    await saveConfirmedPaybackAccount(req.session.user.id, req.body);
+    return res.redirect("/goat-arena/profile?accountUpdated=1#payback-account");
+  } catch (error) {
+    if (Number(error.status) === 400) {
+      try {
+        const context = await getArenaContext(req.session.user.id);
+        return res.status(400).render("goat-arena-payback-account-confirm", {
+          ...context,
+          activeArenaPage: "profile",
+          account: validatePaybackAccountInput(req.body),
+          error: error.message,
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+};
 
 async function renderSubChallengePage(
   req,
@@ -1263,14 +1480,13 @@ async function renderSubChallengePage(
     matchError = "",
   } = {}
 ) {
-  const context = await getArenaContext(
-    req.session.user.id
-  );
-  const challengeData =
-    await getSubChallengeData({
+  const [context, challengeData] = await Promise.all([
+    getArenaNavigationContext(req.session.user.id),
+    getSubChallengeData({
       userId:
         req.session.user.id,
-    });
+    }),
+  ]);
   res.set("Cache-Control", "no-store");
   return res.status(status).render(
     "goat-arena-sub-challenge",
@@ -1282,6 +1498,17 @@ async function renderSubChallengePage(
       matchCreated:
         req.query.created === "1",
       matchError,
+      formatMatchmakingRestriction: (until) => until
+        ? new Intl.DateTimeFormat("ko-KR", {
+            timeZone: "Asia/Seoul",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hourCycle: "h23",
+          }).format(new Date(until))
+        : "제한 해제 시각 확인 중",
     }
   );
 }
@@ -1310,8 +1537,6 @@ exports.createSubChallenge = async (
     const result = await createSubNormalChallenge({
       challengerUserId:
         req.session.user.id,
-      targetTier:
-        req.body.targetTier,
       requestId: req.body.requestId,
     });
     await recordMatchRequest({ req, division: "SUB", result });
@@ -1374,6 +1599,17 @@ async function renderArenaMatchPage(
         req.query.prepared === "1",
       matchStarted:
         req.query.started === "1",
+      questionIntroduced: Math.max(
+        0,
+        Number.parseInt(
+          req.query.question,
+          10
+        ) ||
+          Number(
+            matchData.autoAdvancedQuestionNumber
+          ) ||
+          0
+      ),
       evidenceSubmitted:
         req.query.evidence === "1",
       startRequestId: randomUUID(),
@@ -1404,7 +1640,7 @@ async function renderArenaMatchActionError(
   error
 ) {
   if (
-    [400, 403, 404, 409, 410, 423].includes(
+    [400, 403, 404, 409, 410, 413, 423].includes(
       Number(error.status)
     )
   ) {
@@ -1423,6 +1659,29 @@ async function renderArenaMatchActionError(
   }
   return next(error);
 }
+
+exports.arenaMatchUploadError = (
+  error,
+  req,
+  res,
+  next
+) => {
+  if (
+    String(error?.code || "").startsWith(
+      "LIMIT_"
+    )
+  ) {
+    error.status = 413;
+    error.message =
+      "풀이 사진은 최대 5장, 한 장당 10MB, 경기당 총 30MB까지 제출할 수 있습니다.";
+  }
+  return renderArenaMatchActionError(
+    req,
+    res,
+    next,
+    error
+  );
+};
 
 exports.prepareArenaMatch = async (
   req,
@@ -1504,6 +1763,11 @@ exports.advanceArenaMatchQuestion = async (
       userId: req.session.user.id,
       requestId: req.body.requestId,
       value: req.body.value,
+      submissionMode:
+        req.body.submissionMode ===
+        "TIME_LIMIT"
+          ? "TIME_LIMIT"
+          : "MANUAL",
     });
     return res.json({ ok: true, ...result });
   } catch (error) {
@@ -1521,6 +1785,8 @@ exports.submitArenaMatchEvidence = async (
       matchId: req.params.matchId,
       userId: req.session.user.id,
       files: req.files,
+      receivedAt:
+        req.arenaEvidenceReceivedAt,
     });
     let settlement = null;
     if (evidenceResult.matchStatus === "SUBMITTED") {
@@ -1538,6 +1804,90 @@ exports.submitArenaMatchEvidence = async (
     );
   } catch (error) {
     return renderArenaMatchActionError(req, res, next, error);
+  }
+};
+
+async function renderArenaSupplementalEvidencePage(
+  req,
+  res,
+  { status = 200, uploadError = "" } = {}
+) {
+  const [context, requestData] = await Promise.all([
+    getArenaContext(req.session.user.id),
+    getArenaSupplementalEvidenceRequest({
+      matchId: req.params.matchId,
+      userId: req.session.user.id,
+    }),
+  ]);
+  res.set("Cache-Control", "no-store");
+  return res.status(status).render("goat-arena-supplemental-evidence", {
+    ...context,
+    activeArenaPage: requestData.division === "MAIN" ? "main" : "sub",
+    requestData,
+    uploadError,
+    submitted: req.query.submitted === "1",
+  });
+}
+
+exports.arenaSupplementalEvidencePage = async (req, res, next) => {
+  try {
+    return await renderArenaSupplementalEvidencePage(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.submitArenaSupplementalEvidence = async (req, res, next) => {
+  try {
+    await submitArenaSupplementalEvidence({
+      matchId: req.params.matchId,
+      userId: req.session.user.id,
+      files: req.files,
+      receivedAt: req.arenaEvidenceReceivedAt,
+    });
+    return res.redirect(
+      `/goat-arena/matches/${req.params.matchId}/supplemental-evidence?submitted=1`
+    );
+  } catch (error) {
+    if ([400, 404, 409, 410, 413].includes(Number(error.status))) {
+      try {
+        return await renderArenaSupplementalEvidencePage(req, res, {
+          status: Number(error.status),
+          uploadError: error.message,
+        });
+      } catch (_renderError) {
+        return next(error);
+      }
+    }
+    return next(error);
+  }
+};
+
+exports.arenaSupplementalEvidenceUploadError = (error, req, res, next) => {
+  if (String(error?.code || "").startsWith("LIMIT_")) {
+    error.status = 413;
+    error.message = "추가 소명 사진은 최대 5장, 한 장당 10MB까지 제출할 수 있습니다.";
+  }
+  return renderArenaSupplementalEvidencePage(req, res, {
+    status: Number(error.status) || 400,
+    uploadError: error.message,
+  }).catch(next);
+};
+
+exports.acknowledgeRankUpPresentation = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const result = await acknowledgeRankUpPresentation({
+      presentationId: req.params.presentationId,
+      userId: req.session.user.id,
+    });
+    res.set("Cache-Control", "no-store");
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    return next(error);
   }
 };
 

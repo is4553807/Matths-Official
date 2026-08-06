@@ -84,11 +84,11 @@ const CATEGORY_LABELS = {
   support: "고객 지원",
   renewal: "재구매",
   division: "Division 이동",
-  "main-division": "Main Division 체류",
-  "main-match-liquidity": "Main Division 경기 성립",
-  "main-economy": "Main Division 학습일수",
-  "main-invitation": "Main Division 초대",
-  "main-revenge": "Main Division 복수전",
+  "main-division": "Ranked 체류",
+  "main-match-liquidity": "Ranked 경기 성립",
+  "main-economy": "Ranked 학습일수",
+  "main-invitation": "Ranked 초대",
+  "main-revenge": "Ranked 복수전",
   integrity: "경기 무결성",
   operations: "운영",
   payback: "페이백",
@@ -754,7 +754,7 @@ function calculateMonthlyObservations({
       observation("main.expiry_to_sub_tier_distribution", {
         numericValue: 0,
         sampleSize: 0,
-        note: "해당 월 Main Division 전환 표본 없음",
+        note: "해당 월 Ranked 전환 표본 없음",
       })
     );
   } else {
@@ -765,7 +765,7 @@ function calculateMonthlyObservations({
           numerator: items.length,
           sampleSize: conversions.length,
           dimensions: { tier },
-          note: "Main Division 만료 시 저장된 Sub Division 변환 기준",
+          note: "Ranked 만료 시 저장된 Unranked 변환 기준",
         })
       );
     }
@@ -790,7 +790,7 @@ function calculateMonthlyObservations({
       observation("main.entry_learning_days_distribution", {
         numericValue: 0,
         sampleSize: 0,
-        note: "해당 월 Main Division 진입 표본 없음",
+        note: "해당 월 Ranked 진입 표본 없음",
       })
     );
   } else {
@@ -820,7 +820,7 @@ function calculateMonthlyObservations({
       observation("main.stake_days_distribution", {
         numericValue: 0,
         sampleSize: 0,
-        note: "해당 월 Main Division 경기 생성 표본 없음",
+        note: "해당 월 Ranked 경기 생성 표본 없음",
       })
     );
   } else {
@@ -921,7 +921,7 @@ function calculateMonthlyObservations({
     rows.push(observation("main.upward_match_request_success_rate", {
       numericValue: null,
       sampleSize: 0,
-      note: "Main Division 상향 도전 신청 이벤트 표본 없음",
+      note: "Ranked 상향 도전 신청 이벤트 표본 없음",
     }));
   } else {
     for (const [key, items] of mainUpwardGroups) {
@@ -959,7 +959,7 @@ function calculateMonthlyObservations({
     rows.push(observation("main.learning_day_net_transfer_distribution", {
       numericValue: null,
       sampleSize: 0,
-      note: "Main 경기 정산 이전 원장 표본 없음",
+      note: "Ranked 경기 정산 이전 원장 표본 없음",
     }));
   } else {
     for (const [key, items] of netTransferGroups) {
@@ -969,7 +969,7 @@ function calculateMonthlyObservations({
         denominator: items.length,
         sampleSize: items.length,
         dimensions: JSON.parse(key),
-        note: "사용자별 Main 경기 정산 학습일수 순이전 평균",
+        note: "사용자별 Ranked 경기 정산 학습일수 순이전 평균",
       }));
     }
   }
@@ -986,7 +986,7 @@ function calculateMonthlyObservations({
       observation("main.invitation_acceptance_rate", {
         numericValue: null,
         sampleSize: 0,
-        note: "해당 월 Main Division 초대 표본 없음",
+        note: "해당 월 Ranked 초대 표본 없음",
       })
     );
   } else {
@@ -1257,19 +1257,19 @@ function calculateMonthlyObservations({
       note: "출시 전 승률 가정과 비교하는 실제 정산 경기값",
     })
   );
-  const bronzeChallengerWins = challengerWins.filter(
-    (match) => normalizeTier(match.challenger?.tupleBefore?.arenaRank) === "BRONZE"
+  const unrankedChallengerWins = challengerWins.filter(
+    (match) => String(match.division || "").toUpperCase() === "SUB"
   );
-  const bronzeReturns = bronzeChallengerWins.filter(
-    (match) => numeric(match.resultSnapshot?.settlementSummary?.returnedLearningDays) > 0
+  const unrankedChallengerReturns = unrankedChallengerWins.filter(
+    (match) => numeric(match.resultSnapshot?.settlementSummary?.returnedPaybackScore) > 0
   );
   rows.push(
-    observation("simulation.bronze_self_return_rate", {
-      numericValue: percent(bronzeReturns.length, bronzeChallengerWins.length),
-      numerator: bronzeReturns.length,
-      denominator: bronzeChallengerWins.length,
-      sampleSize: bronzeChallengerWins.length,
-      note: "브론즈 도전자 승리 경기 중 예치 학습일수 반환 비율",
+    observation("simulation.unranked_challenger_refund_rate", {
+      numericValue: percent(unrankedChallengerReturns.length, unrankedChallengerWins.length),
+      numerator: unrankedChallengerReturns.length,
+      denominator: unrankedChallengerWins.length,
+      sampleSize: unrankedChallengerWins.length,
+      note: "Unranked 도전자 승리 경기 중 예치 페이백 점수 반환 비율",
     })
   );
 
@@ -1553,7 +1553,7 @@ async function runMonthlyDataAnalysisAggregation({
 
 function dimensionValueLabel(key, value) {
   if (key === "division") {
-    return value === "MAIN" ? "Main Division" : value === "SUB" ? "Sub Division" : value;
+    return value === "MAIN" ? "Ranked" : value === "SUB" ? "Unranked" : value;
   }
   if (["tier", "sourceTier", "targetTier"].includes(key)) {
     return TIER_LABELS[normalizeTier(value)] || value;
@@ -1565,7 +1565,6 @@ function dimensionValueLabel(key, value) {
   if (key === "reasonCode") {
     return {
       MINIMUM_STREAK_NOT_MET: "연속 학습일수 미달",
-      MINIMUM_PAID_ATTACKS_NOT_MET: "유료 일반 쟁탈전 횟수 미달",
       MINIMUM_PAYBACK_SCORE_NOT_MET: "페이백 점수 미달",
       INTEGRITY_NOT_CLEAR: "경기 무결성 확인 필요",
     }[value] || (String(value || "").includes("_") ? "기타 사유" : value);

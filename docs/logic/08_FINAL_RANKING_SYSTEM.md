@@ -31,8 +31,8 @@ finalRankingActive
 AND accountStatus = ACTIVE
 AND accessState = PAID_ACTIVE
 AND (
-  Sub: availableLearningDays > 0
-  OR Main: availableLearningDays + reservedLearningDays + lockedLearningDays > 0
+  Unranked: availableLearningDays > 0
+  OR Ranked: availableLearningDays + reservedLearningDays + lockedLearningDays > 0
 )
 AND integrityStatus = CLEAR
 ```
@@ -40,8 +40,8 @@ AND integrityStatus = CLEAR
 Division별 활성 학습일수 조건을 충족하지 못하면 비활성화한다.
 
 ```text
-Sub: availableLearningDays = 0
-OR Main: availableLearningDays + reservedLearningDays + lockedLearningDays = 0
+Unranked: availableLearningDays = 0
+OR Ranked: availableLearningDays + reservedLearningDays + lockedLearningDays = 0
 → finalRankingStatus = INACTIVE_ACCESS_EXPIRED
 ```
 
@@ -73,14 +73,14 @@ Bonus는 매주 덮어쓰기 값이다.
 정상 이용 상태에서는 다음 이벤트 뒤 실시간 재계산한다.
 
 - Arena tuple 정상 정산
-- Main 상태 정상 정산
+- Ranked 상태 정상 정산
 - Skill MMR 갱신
 - Weekly Mock Bonus 갱신
-- Main 진입
-- Sub 재진입
+- Ranked 진입
+- Unranked 재진입
 - 시즌 배치 완료
 
-Main 상점 구매·아이템 효과·소각 자체는 Final Rating을 변경하지 않는다. `INSURED_CANCELLED` 경기는 승패와 Arena 상태 교환이 없으므로 시즌 정산 공격 수와 Final Ranking 경기 실적에서 제외한다.
+Ranked 상점 구매·아이템 효과·소각 자체는 Final Rating을 변경하지 않는다. `INSURED_CANCELLED` 경기는 승패와 Arena 상태 교환이 없으므로 시즌 정산 공격 수와 Final Ranking 경기 실적에서 제외한다.
 
 만료 상태에서는 실시간 재계산을 중지한다.
 
@@ -89,8 +89,8 @@ Main 상점 구매·아이템 효과·소각 자체는 Final Rating을 변경하
 # 5. 일요일 잠금
 
 ```text
-일요일 14:30
-→ Sub·Main Division 신규 Arena 경기·수락·준비·시작 차단
+일요일 14:00
+→ Unranked·Ranked 신규 Arena 경기·수락·준비·시작 차단
 
 일요일 15:00
 → Arena 잠금
@@ -121,7 +121,7 @@ Matths 대시보드의 랭킹 화면은 사용자가 Division을 선택하는 �
 - 학교 상세에서는 그 학교 학생들의 최종 종합 랭킹 순위를 공개한다.
 - 졸업생과 N수생은 학교 평균에서 제외한다.
 - N수생에게는 학교 랭킹 대신 N수생끼리의 최종 종합 랭킹을 제공한다.
-- GOAT Arena 내부 랭킹 화면은 사용자의 실제 소속 Division을 기본 탭으로 열고 Sub Division·Main Division 순위를 각각 표시한다. Division은 사용자가 선택하여 소속을 바꾸는 값이 아니다.
+- GOAT Arena 내부 랭킹 화면은 사용자의 실제 소속 Division을 기본 탭으로 열고 Unranked·Ranked 순위를 각각 표시한다. Division은 사용자가 선택하여 소속을 바꾸는 값이 아니다.
 
 ---
 
@@ -148,34 +148,34 @@ Arena와 Final Ranking을 새 시즌에 활성화한다.
 
 ---
 
-# 7. Main 만료 사용자의 Sub 강등과 재구독
+# 7. Ranked 이용 만료와 재구독
 
 학습권이 끝나는 순간:
 
 ```text
 currentCompetitiveDivision = MAIN
-→ currentCompetitiveDivision = SUB
+→ Ranked 이용 만료
 → finalRankingStatus = INACTIVE_ACCESS_EXPIRED
 ```
 
 사용자 안내 문구:
 
 ```text
-학습권이 끝나 Main에서 Sub로 강등되었습니다.
+Ranked 이용이 만료되었습니다.
 GOAT Arena와 주간 모의고사를 다시 이용하려면 재구독해 주세요.
 ```
 
-Main 달성 이력은 프로필 배지와 과거 시즌 기록으로 보존한다.
+Ranked 달성 이력은 프로필 배지와 과거 시즌 기록으로 보존한다.
 
 ## 7.1 72시간 이내
 
 ```text
-Main-to-Sub conversion
-→ Sub Arena Seed
+Ranked-to-Unranked conversion
+→ Unranked Arena Seed
 → Final Ranking 재활성화
 ```
 
-새 Final Rating은 현재 Skill MMR과 변환된 Sub 성과를 사용한다.
+새 Final Rating은 현재 Skill MMR과 변환된 Unranked 성과를 사용한다.
 
 ## 7.2 72시간 초과
 
@@ -183,7 +183,7 @@ Main-to-Sub conversion
 
 ```text
 referenceSubPlacement
-= Main-to-Sub conversion result
+= Ranked-to-Unranked conversion result
 
 actualSubPlacement
 = 시험 결과와 늦은 갱신 상한을 적용한 위치
@@ -206,15 +206,13 @@ seasonSubStartPercentile
 |---|---|
 | 최초 배치고사 | 최초 MMR과 시작 기준 |
 | 시즌 배치고사 | 새 시즌 시작 기준 |
-| 재구독 랭크 결정전 | 늦은 갱신자의 Sub 실제 배치 |
+| 재구독 랭크 결정전 | 늦은 갱신자의 Unranked 실제 배치 |
 
 `재구독 랭크 결정전`은 Skill MMR을 Soft Reset하지 않는다.
 
-Main 휴면 강등 사용자는 즉시 활성 Final Ranking에서 제외한다. 모든 강등 사용자는 일반 Sub 배치·학습·페이백 절차를 완료해야 Final Ranking에 다시 포함된다. 20일 차감 뒤 남은 학습일수는 Sub 순위·학습일수·페이백에 반영하지 않고, Main Division 재진입이 확정되는 순간에만 새 Main 이용 주기로 복원한다. Sub Division 자체에는 휴면 상태가 없다.
-
 ---
 
-# 9. Sub 사용자 공식
+# 9. Unranked 사용자 공식
 
 ```text
 subGrowth
@@ -240,9 +238,9 @@ Final Rating
 
 ---
 
-# 10. Main 사용자 공식
+# 10. Ranked 사용자 공식
 
-시즌 중 Sub에서 Main으로 진입한 사용자:
+시즌 중 Unranked에서 Ranked로 진입한 사용자:
 
 ```text
 Final Rating
@@ -256,8 +254,8 @@ Final Rating
 + temporaryAdjustment
 ```
 
-새 결제주기에서 Sub로 재진입하면
-현재 경쟁 Division에 맞는 Sub 공식을 적용한다.
+새 결제주기에서 Unranked로 재진입하면
+현재 경쟁 Division에 맞는 Unranked 공식을 적용한다.
 
 ---
 
@@ -324,11 +322,11 @@ Final Ranking 참여가 일시 중지되었습니다.
 GOAT Arena와 주간 모의고사를 다시 이용할 수 있습니다.
 ```
 
-Main 72시간 내:
+Ranked 72시간 내:
 
 ```text
 지금 재구독하면 시험 없이
-Main 성과를 반영한 Sub 랭크에서 시작합니다.
+Ranked 성과를 반영한 Unranked 랭크에서 시작합니다.
 ```
 
 72시간 이후:
@@ -337,7 +335,7 @@ Main 성과를 반영한 Sub 랭크에서 시작합니다.
 랭크 복귀전이 필요합니다.
 
 최고점을 받아도 정상 갱신 기준보다
-낮은 Sub 랭크에서 시작합니다.
+낮은 Unranked 랭크에서 시작합니다.
 ```
 
 ---

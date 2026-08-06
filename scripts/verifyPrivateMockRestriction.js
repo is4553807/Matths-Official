@@ -35,20 +35,19 @@ async function main() {
   );
   const user =
     await User.findOne({
-      name:
-        "REMOVED_FROM_HISTORY",
+      name: process.env
+        .PRIVATE_MOCK_VERIFY_USERNAME ||
+        "launchwarning",
     })
       .select(
         "_id name warningCount privateMockRestriction"
       )
       .lean();
 
-  if (!user) {
-    console.log(
-      "REMOVED_FROM_HISTORY 계정이 없어 실제 제재 화면 검증을 건너뜁니다."
-    );
-    return;
-  }
+  assert.ok(
+    user,
+    "주간 공식 모의고사 제한 검증용 계정을 찾을 수 없습니다. PRIVATE_MOCK_VERIFY_USERNAME을 지정하거나 목적형 출시 검증 계정을 먼저 생성하세요."
+  );
 
   const restrictionData =
     await getPrivateMockRestrictionData(

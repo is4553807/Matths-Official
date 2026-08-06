@@ -16,6 +16,9 @@ const {
   arenaTupleFromLegacyGp,
   resolveArenaTier,
 } = require("./arenaTierPolicy");
+const {
+  resolveMainCompetitivePool,
+} = require("./mainCompetitivePoolService");
 
 const KST_TIME_ZONE = "Asia/Seoul";
 const INITIAL_ARENA_SEED_POLICY_VERSION =
@@ -204,6 +207,31 @@ function computeArenaCohortLayout(standings = []) {
   });
 }
 
+function temporaryPositionBaseByTier(
+  standings = [],
+  layout = []
+) {
+  const maximumByTier = new Map();
+  for (const standing of [
+    ...standings,
+    ...layout,
+  ]) {
+    const key = String(
+      standing?.arenaRank || ""
+    );
+    maximumByTier.set(
+      key,
+      Math.max(
+        maximumByTier.get(key) || 0,
+        Number(
+          standing?.arenaPosition
+        ) || 0
+      )
+    );
+  }
+  return maximumByTier;
+}
+
 async function lockArenaCohort({
   session,
   seasonKey,
@@ -222,7 +250,7 @@ async function lockArenaCohort({
     },
     {
       upsert: true,
-      new: true,
+      returnDocument: "after",
       session,
     }
   ).lean();
@@ -232,14 +260,18 @@ async function rebalanceArenaCohortInTransaction({
   session,
   seasonKey,
   division = "SUB",
+  competitivePool = "ALL",
   now = new Date(),
+  lockHeld = false,
 }) {
-  await lockArenaCohort({
-    session,
-    seasonKey,
-    division,
-    now,
-  });
+  if (!lockHeld) {
+    await lockArenaCohort({
+      session,
+      seasonKey,
+      division,
+      now,
+    });
+  }
   const standings = await ArenaStanding.find({
     seasonKey,
     division,
@@ -275,17 +307,16 @@ async function rebalanceArenaCohortInTransaction({
      * 위치와 충돌할 수 있으므로, 현재 티어별 임시 위치로 모두 피신시킨 뒤
      * 최종 티어·순위를 적용한다.
      */
-    const highestPositionByCurrentTier = new Map();
-    standings.forEach((standing) => {
-      const key = String(standing.arenaRank || "");
-      highestPositionByCurrentTier.set(
-        key,
-        Math.max(
-          highestPositionByCurrentTier.get(key) || 0,
-          Number(standing.arenaPosition) || 0
-        )
+    /*
+     * 재배치 과정에서 다른 티어의 사용자가 유입되면 최종 티어 인원이 현재
+     * 인원보다 많아질 수 있다. 임시 위치가 그 최종 순위와 겹치지 않도록
+     * 현재 최대값과 최종 최대값 중 더 큰 값 뒤로 이동시킨다.
+     */
+    const highestPositionByCurrentTier =
+      temporaryPositionBaseByTier(
+        standings,
+        layout
       );
-    });
     const temporaryOffsetByTier = new Map();
     const temporaryOperations = changedEntries.map((entry) => {
       const current = currentById.get(standingId(entry));
@@ -343,7 +374,7 @@ async function activateStandingForPaidPlacement({
   ) {
     throw statusError(
       400,
-      "활성화할 Sub Division 순위를 확인해주세요.",
+      "활성화할 Unranked 순위를 확인해주세요.",
       "INVALID_ARENA_STANDING_ID"
     );
   }
@@ -358,16 +389,35 @@ async function activateStandingForPaidPlacement({
   if (!standing) {
     throw statusError(
       409,
-      "결제에 연결할 Sub Division 순위를 찾을 수 없습니다.",
+      "결제에 연결할 Unranked 순위를 찾을 수 없습니다.",
       "ARENA_STANDING_NOT_FOUND"
     );
   }
   if (standing.status !== "ACTIVE") {
+    await lockArenaCohort({
+      session,
+      seasonKey: standing.seasonKey,
+      division: "SUB",
+      now,
+    });
+    const lastActiveStanding =
+      await ArenaStanding.findOne({
+        division: "SUB",
+        seasonKey: standing.seasonKey,
+        arenaRank: standing.arenaRank,
+        status: "ACTIVE",
+      })
+        .sort({ arenaPosition: -1 })
+        .select("arenaPosition")
+        .session(session)
+        .lean();
     await ArenaStanding.updateOne(
       { _id: standing._id },
       {
         $set: {
           status: "ACTIVE",
+          arenaPosition:
+            Number(lastActiveStanding?.arenaPosition || 0) + 1,
           reachedCurrentGpAt:
             standing.reachedCurrentGpAt ||
             now,
@@ -378,11 +428,13 @@ async function activateStandingForPaidPlacement({
   }
   const layout =
     await rebalanceArenaCohortInTransaction({
-      session,
-      seasonKey: standing.seasonKey,
-      division: "SUB",
-      now,
-    });
+    session,
+    seasonKey: standing.seasonKey,
+    division: "SUB",
+    now,
+    lockHeld:
+      standing.status !== "ACTIVE",
+  });
   return (
     layout.find(
       (entry) =>
@@ -443,7 +495,7 @@ async function runInitialPlacementTransaction({
         }
 
         const user = await User.findById(userId)
-          .select("accountStatus isActive")
+          .select("accountStatus isActive schoolGrade")
           .session(session)
           .lean();
         if (!user) {
@@ -510,6 +562,10 @@ async function runInitialPlacementTransaction({
           accessState?.currentCompetitiveDivision === "MAIN"
             ? "MAIN"
             : "SUB";
+        const competitivePool =
+          placementDivision === "MAIN"
+            ? resolveMainCompetitivePool(user)
+            : "ALL";
         const cycleCandidate = await AccessCycle.findOne({
           userId,
           division: placementDivision,
@@ -556,13 +612,13 @@ async function runInitialPlacementTransaction({
         ) {
           throw statusError(
             409,
-            `이번 시즌의 배치고사가 이미 ${placementDivision === "MAIN" ? "Main Division" : "Sub Division"}에 반영되었습니다.`,
+            `이번 시즌의 배치고사가 이미 ${placementDivision === "MAIN" ? "Ranked" : "Unranked"}에 반영되었습니다.`,
             "INITIAL_PLACEMENT_ALREADY_SEEDED"
           );
         }
 
         /*
-         * 최초 배치 연결은 만료·Main 재구독 상태를 되돌리는 복구 수단이
+         * 최초 배치 연결은 만료·Ranked 재구독 상태를 되돌리는 복구 수단이
          * 아니다. 한 번 만들어진 순위가 수명주기 전환에 들어간 뒤에는
          * 재구독·변환 서비스만 접근 상태를 변경할 수 있다.
          */
@@ -621,6 +677,8 @@ async function runInitialPlacementTransaction({
             accessState
               ?.currentCompetitiveDivision ===
               placementDivision &&
+            (placementDivision !== "MAIN" ||
+              standing?.competitivePool === competitivePool) &&
             String(
               accessState?.standingId || ""
             ) === String(standing._id) &&
@@ -682,6 +740,29 @@ async function runInitialPlacementTransaction({
             topPercentile: 1,
             activeRankerCount: 0,
           });
+        /*
+         * 티어 내부 순위는 고유 인덱스로 보호된다. 기존 인원이 있는 티어에
+         * 새 사용자를 곧바로 1위로 삽입하면 재정렬 전에 중복 키가 발생하므로,
+         * 코호트 잠금을 먼저 잡고 현재 마지막 순위 다음의 임시 위치에 넣는다.
+         */
+        await lockArenaCohort({
+          session,
+          seasonKey,
+          division: placementDivision,
+          now,
+        });
+        const lastTierStanding =
+          await ArenaStanding.findOne({
+            division: placementDivision,
+            seasonKey,
+            arenaRank: placeholderTier.label,
+          })
+            .sort({ arenaPosition: -1 })
+            .select("arenaPosition")
+            .session(session)
+            .lean();
+        const temporaryArenaPosition =
+          Number(lastTierStanding?.arenaPosition || 0) + 1;
         if (!standing) {
           [standing] = await ArenaStanding.create(
             [
@@ -689,6 +770,7 @@ async function runInitialPlacementTransaction({
                 userId,
                 division: placementDivision,
                 seasonKey,
+                competitivePool,
                 sourcePlacementAttemptId:
                   attempt._id,
                 seedPolicyVersion:
@@ -711,7 +793,8 @@ async function runInitialPlacementTransaction({
                 seededAt,
                 arenaRank:
                   placeholderTier.label,
-                arenaPosition: 1,
+                arenaPosition:
+                  temporaryArenaPosition,
                 arenaGp,
                 status: paidActive
                   ? "ACTIVE"
@@ -724,6 +807,7 @@ async function runInitialPlacementTransaction({
           standing = standing.toObject();
         } else {
           const update = {
+            competitivePool,
             sourcePlacementAttemptId:
               attempt._id,
             seedPolicyVersion:
@@ -758,7 +842,8 @@ async function runInitialPlacementTransaction({
             update.arenaGp = arenaGp;
             update.arenaRank =
               placeholderTier.label;
-            update.arenaPosition = 1;
+            update.arenaPosition =
+              temporaryArenaPosition;
             update.reachedCurrentGpAt =
               seededAt;
           }
@@ -790,7 +875,9 @@ async function runInitialPlacementTransaction({
                 session,
                 seasonKey,
                 division: placementDivision,
+                competitivePool,
                 now,
+                lockHeld: true,
               }
             );
           placedStanding =
@@ -810,6 +897,10 @@ async function runInitialPlacementTransaction({
             $set: {
               currentCompetitiveDivision:
                 placementDivision,
+              mainCompetitivePool:
+                placementDivision === "MAIN"
+                  ? competitivePool
+                  : null,
               accessCycleId:
                 cycle?._id ||
                 accessState?.accessCycleId ||
@@ -820,8 +911,6 @@ async function runInitialPlacementTransaction({
                 true,
               expiredAt: null,
               renewalGraceDeadline: null,
-              dormancyReturnRequiredAt: null,
-              dormancySourceLastLoginAt: null,
               defensePoolEligible:
                 paidActive,
               weeklyMockEligible:
@@ -863,6 +952,7 @@ async function runInitialPlacementTransaction({
                 accessCycleId:
                   cycle?._id || null,
                 division: placementDivision,
+                competitivePool,
                 seasonKey,
                 arenaGp,
                 seedPolicyVersion:
@@ -880,6 +970,10 @@ async function runInitialPlacementTransaction({
             state,
             currentCompetitiveDivision:
               placementDivision,
+            mainCompetitivePool:
+              placementDivision === "MAIN"
+                ? competitivePool
+                : null,
             currentSeasonPlacementCompleted:
               true,
             defensePoolEligible:
@@ -918,6 +1012,45 @@ async function syncInitialArenaPlacement({
       "배치고사 사용자와 기록을 확인해주세요.",
       "INVALID_PLACEMENT_REFERENCE"
     );
+  }
+
+  /*
+   * 이미 같은 배치고사로 현재 순위와 접근 상태가 연결된 사용자는 대시보드
+   * 재방문 때마다 전체 최종 종합 랭킹을 다시 계산하지 않는다. 복구가 필요한
+   * 불완전 데이터만 아래 트랜잭션 경로로 보낸다.
+   */
+  const existingStanding =
+    await ArenaStanding.findOne({
+      userId,
+      sourcePlacementAttemptId:
+        attemptId,
+      status: {
+        $in: ["ACTIVE", "LOCKED"],
+      },
+    }).lean();
+  if (existingStanding) {
+    const existingAccessState =
+      await ArenaAccessState.findOne({
+        userId,
+        standingId:
+          existingStanding._id,
+        currentSeasonPlacementCompleted:
+          true,
+      }).lean();
+    if (existingAccessState) {
+      return {
+        standing:
+          existingStanding,
+        accessState:
+          existingAccessState,
+        paidActive:
+          existingAccessState.state ===
+          "PAID_ACTIVE",
+        seasonKey:
+          existingStanding.seasonKey,
+        replayed: true,
+      };
+    }
   }
 
   const pendingRenewal = await ArenaAccessState.exists({
@@ -1002,6 +1135,8 @@ module.exports = {
   initialArenaLegacyGpFromPlacement,
   initialArenaTupleFromPlacement,
   kstSeasonKey,
+  lockArenaCohort,
   rebalanceArenaCohortInTransaction,
   syncInitialArenaPlacement,
+  temporaryPositionBaseByTier,
 };

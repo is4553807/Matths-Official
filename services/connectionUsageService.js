@@ -41,7 +41,7 @@ async function recordConnectionHeartbeat({ userId, now = new Date() }) {
         ? { $inc: { totalConnectedSeconds: recordedSeconds } }
         : {}),
     },
-    { new: true }
+    { returnDocument: "after" }
   )
     .select("totalConnectedSeconds")
     .lean();

@@ -1,7 +1,7 @@
 /*
  * GOAT Arena 1대1 준킬러 설계 정책 v2.
  *
- * 이 파일은 Sub·Main Division이 함께 사용하는 문제 설계의 단일 원본이다.
+ * 이 파일은 Unranked·Ranked가 함께 사용하는 문제 설계의 단일 원본이다.
  * 실제 문항 생성기는 arenaOneOnOneProblemTypes.js에 독립적으로 두며,
  * 운영자가 최종 문항 유형을 제공하면 아래 typeId와 연결한다.
  */

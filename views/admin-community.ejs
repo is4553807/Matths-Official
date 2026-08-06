@@ -50,10 +50,14 @@
         <details class="admin-community-editor admin-notice-create" open>
           <summary>새 게시판 공지 추가</summary>
           <form class="admin-form" action="/admin/community/notices" method="POST">
-            <label><span>대상 게시판</span><select name="board" required><option value="high-school">통합 고등학교 게시판</option><option value="school">학교 게시판</option><option value="retaker">N수생 게시판</option></select></label>
+            <label><span>대상 게시판</span><select name="board" required><option value="high-school">통합 고등학교 게시판</option><option value="school">학교 게시판</option><option value="retaker">N수생 게시판</option><option value="university">대학교 게시판</option><option value="worker">직장인 게시판</option></select></label>
             <div class="admin-notice-school-fields">
               <label><span>특정 학교 코드</span><input name="schoolCode" maxlength="100" placeholder="비우면 모든 학교 게시판" /></label>
               <label><span>특정 학교 이름</span><input name="schoolName" maxlength="120" placeholder="예: 경기외국어고등학교" /></label>
+            </div>
+            <div class="admin-notice-school-fields">
+              <label><span>특정 대학교 코드</span><input name="universityCode" maxlength="100" placeholder="비우면 모든 대학교 게시판" /></label>
+              <label><span>특정 대학교 이름</span><input name="universityName" maxlength="160" placeholder="예: 서울대학교" /></label>
             </div>
             <label><span>공지 제목</span><input name="title" minlength="2" maxlength="120" required /></label>
             <label><span>공지 내용</span><textarea name="content" rows="8" minlength="2" maxlength="10000" required></textarea></label>
@@ -71,7 +75,7 @@
                   <% if (notice.isPinned) { %><span class="status-pinned">상단 고정</span><% } %>
                   <% if (notice.systemKey) { %><span>기본 운영 공지</span><% } %>
                   <h3><%= notice.title %></h3>
-                  <small><%= notice.boardType === "school" ? (notice.schoolName ? `${notice.schoolName} 전용` : "모든 학교 게시판") : (notice.boardType === "retaker" ? "N수생 게시판" : "통합 고등학교 게시판") %> · <%= formatDate(notice.updatedAt || notice.createdAt) %></small>
+                  <small><%= notice.boardType === "school" ? (notice.schoolName ? `${notice.schoolName} 전용` : "모든 학교 게시판") : notice.boardType === "university" ? (notice.universityName ? `${notice.universityName} 전용` : "모든 대학교 게시판") : (communityData.boardLabels[notice.boardType] || "통합 고등학교 게시판") %> · <%= formatDate(notice.updatedAt || notice.createdAt) %></small>
                 </div>
                 <% if (notice.status === "published") { %><a href="/community/notices/<%= notice._id %>" target="_blank" rel="noopener">공개 화면 →</a><% } %>
               </header>
@@ -93,10 +97,14 @@
               <details class="admin-community-editor">
                 <summary>공지 수정</summary>
                 <form class="admin-form" action="/admin/community/notices/<%= notice._id %>/update" method="POST">
-                  <label><span>대상 게시판</span><select name="board" required><option value="high-school" <%= notice.boardType === "high-school" ? "selected" : "" %>>통합 고등학교 게시판</option><option value="school" <%= notice.boardType === "school" ? "selected" : "" %>>학교 게시판</option><option value="retaker" <%= notice.boardType === "retaker" ? "selected" : "" %>>N수생 게시판</option></select></label>
+                  <label><span>대상 게시판</span><select name="board" required><option value="high-school" <%= notice.boardType === "high-school" ? "selected" : "" %>>통합 고등학교 게시판</option><option value="school" <%= notice.boardType === "school" ? "selected" : "" %>>학교 게시판</option><option value="retaker" <%= notice.boardType === "retaker" ? "selected" : "" %>>N수생 게시판</option><option value="university" <%= notice.boardType === "university" ? "selected" : "" %>>대학교 게시판</option><option value="worker" <%= notice.boardType === "worker" ? "selected" : "" %>>직장인 게시판</option></select></label>
                   <div class="admin-notice-school-fields">
                     <label><span>특정 학교 코드</span><input name="schoolCode" maxlength="100" value="<%= notice.schoolCode %>" /></label>
                     <label><span>특정 학교 이름</span><input name="schoolName" maxlength="120" value="<%= notice.schoolName %>" /></label>
+                  </div>
+                  <div class="admin-notice-school-fields">
+                    <label><span>특정 대학교 코드</span><input name="universityCode" maxlength="100" value="<%= notice.universityCode || '' %>" /></label>
+                    <label><span>특정 대학교 이름</span><input name="universityName" maxlength="160" value="<%= notice.universityName || '' %>" /></label>
                   </div>
                   <label><span>공지 제목</span><input name="title" minlength="2" maxlength="120" value="<%= notice.title %>" required /></label>
                   <label><span>공지 내용</span><textarea name="content" rows="8" minlength="2" maxlength="10000" required><%= notice.content %></textarea></label>

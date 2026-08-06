@@ -1,4 +1,7 @@
 <%
+  const publicArenaText = typeof arenaPublicText === "function"
+    ? arenaPublicText
+    : (value) => String(value ?? "").replace(/Sub\s+Division/g, "Unranked").replace(/Main\s+Division/g, "Ranked");
   const itemCopy = {
     MATCH_ANALYSIS: {
       eyebrow: "경기 복습",
@@ -19,7 +22,7 @@
     },
     MAIN_PROFILE_BORDER: {
       eyebrow: "시즌 장식",
-      description: "Main Division 프로필과 랭킹·경기 결과에 시즌 전용 테두리를 적용합니다.",
+      description: "Ranked 프로필과 랭킹·경기 결과에 시즌 전용 테두리를 적용합니다.",
     },
     STYLE_ENTRANCE: {
       eyebrow: "시즌 장식",
@@ -42,10 +45,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Main Division 학습일수 상점" />
+    <meta name="description" content="Ranked 학습일수 상점" />
     <meta name="theme-color" content="#070913" />
-    <title>Main Division 상점 | GOAT Arena</title>
+    <title>Ranked 상점 | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
+    <%- include("partials/rank-motion-head") %>
     <link rel="icon" type="image/jpeg" href="/images/goat-arena/goat-arena-logo.jpg" />
   </head>
   <body class="goat-arena-page arena-inner-page arena-shop-page">
@@ -53,10 +57,10 @@
     <%- include("partials/goat-arena-navigation", { activeArenaPage, arenaUser }) %>
 
     <main class="arena-page-main" id="main-shop-main">
-      <a class="arena-challenge-back" href="/goat-arena/main">← Main Division으로 돌아가기</a>
+      <a class="arena-challenge-back" href="/goat-arena/main">← Ranked로 돌아가기</a>
       <header class="arena-page-heading arena-shop-heading">
         <div>
-          <p>Main Division 상점</p>
+          <p>Ranked 상점</p>
           <h1>경기로 얻은 시간을<br />다음 성장에 사용하세요.</h1>
         </div>
         <p>승패나 GP를 사는 상점이 아닙니다. 분석·일정·장식 기능만 제공하며, 초대 예약과 경기 예치 학습일수는 사용할 수 없습니다.</p>
@@ -68,7 +72,7 @@
           <strong><%= shopData.availableLearningDays %><span>일</span></strong>
         </div>
         <p>모든 구매는 사용 가능 학습일수에서 즉시 정산됩니다. 구매 뒤 최소 1일은 반드시 남아야 합니다.</p>
-        <span><%= shopData.policyDisplayName || "Main Division 상점 운영 정책" %><% if (shopData.policyEffectiveFrom) { %> · <%= dateTime(shopData.policyEffectiveFrom) %> 적용<% } %></span>
+        <span><%= publicArenaText(shopData.policyDisplayName || "Ranked 상점 운영 정책") %><% if (shopData.policyEffectiveFrom) { %> · <%= dateTime(shopData.policyEffectiveFrom) %> 적용<% } %></span>
       </section>
 
       <% if (shopMessage) { %><p class="arena-challenge-notice success" role="status"><%= shopMessage %></p><% } %>
@@ -80,10 +84,10 @@
           <article class="arena-shop-card <%= item.releasePhase === 2 ? 'phase-two' : '' %>">
             <header>
               <span><%= String(index + 1).padStart(2, "0") %></span>
-              <small><%= copy.eyebrow || "Main Division 기능" %></small>
+              <small><%= copy.eyebrow || "Ranked 기능" %></small>
             </header>
             <h2><%= item.displayName %></h2>
-            <p><%= copy.description || "Main Division 전용 편의 기능입니다." %></p>
+            <p><%= copy.description || "Ranked 전용 편의 기능입니다." %></p>
             <div class="arena-shop-price"><strong><%= item.priceDays %></strong><span>학습일</span></div>
 
             <% if (item.itemCode === "DEFENSE_SCHEDULE_PROTECTION") { %>
@@ -121,7 +125,7 @@
           <div>
             <% shopData.effects.forEach((effect) => { %>
               <article>
-                <strong><%= itemCopy[effect.itemCode]?.eyebrow || "Main Division 기능" %></strong>
+                <strong><%= itemCopy[effect.itemCode]?.eyebrow || "Ranked 기능" %></strong>
                 <span><%= effect.status === "PENDING" ? "분석 생성 중" : effect.status === "APPLIED" ? "적용 완료" : `${dateTime(effect.endsAt)}까지` %></span>
                 <% if (effect.itemCode === "MATCH_ANALYSIS" && effect.status === "APPLIED") { %><a href="/goat-arena/main/shop/analyses/<%= effect._id %>">상세 분석 보기 →</a><% } %>
               </article>

@@ -11,6 +11,7 @@ const SUB_NORMAL_STAKE_DAYS = 1;
 const SUB_REVENGE_STAKE_DAYS = 2;
 const SUB_REVENGE_NO_SHOW_RETURN_DAYS = 1;
 const SUB_REVENGE_NO_SHOW_BURN_DAYS = 1;
+const MAIN_UPWARD_MAX_STAKE_DAYS = 5;
 const REVENGE_OUTCOMES = Object.freeze({
   ATTACKER_WIN: "ATTACKER_WIN",
   DEFENDER_WIN: "DEFENDER_WIN",
@@ -64,13 +65,53 @@ function assertMainStakeSelection({
   }
   if (availableDays <= selectedStakeDays) {
     throw ruleError(
-      "Main Division 경기를 만들려면 예치 후에도 사용 가능한 학습일수가 남아야 합니다.",
+      "Ranked 경기를 만들려면 예치 후에도 사용 가능한 학습일수가 남아야 합니다.",
       "MAIN_STAKE_REQUIRES_REMAINING_DAY"
     );
   }
   return {
     tierGap: Number(tierGap),
     minimumStakeDays,
+    stakeDays: selectedStakeDays,
+  };
+}
+
+function assertMainUpwardStakeSelection({
+  tierGap,
+  stakeDays,
+  availableLearningDays,
+}) {
+  const normalizedTierGap = Number(tierGap);
+  if (!Number.isInteger(normalizedTierGap) || normalizedTierGap < 1 || normalizedTierGap > 3) {
+    throw ruleError(
+      "Ranked 상향 쟁탈전은 현재 티어보다 1~3단계 위 티어만 선택할 수 있습니다.",
+      "MAIN_UPWARD_TIER_GAP_NOT_ALLOWED"
+    );
+  }
+  const selectedStakeDays = positiveInteger(stakeDays, "예치 학습일수");
+  const availableDays = Math.max(0, Number(availableLearningDays) || 0);
+  if (selectedStakeDays < normalizedTierGap) {
+    throw ruleError(
+      `해당 티어 차이의 최소 예치 학습일수는 ${normalizedTierGap}일입니다.`,
+      "MAIN_STAKE_BELOW_MINIMUM"
+    );
+  }
+  if (selectedStakeDays > MAIN_UPWARD_MAX_STAKE_DAYS) {
+    throw ruleError(
+      `Ranked 상향 쟁탈전의 최대 예치 학습일수는 ${MAIN_UPWARD_MAX_STAKE_DAYS}일입니다.`,
+      "MAIN_UPWARD_STAKE_ABOVE_MAXIMUM"
+    );
+  }
+  if (availableDays <= selectedStakeDays) {
+    throw ruleError(
+      "Ranked 경기를 만들려면 예치 후에도 사용 가능한 학습일수가 남아야 합니다.",
+      "MAIN_STAKE_REQUIRES_REMAINING_DAY"
+    );
+  }
+  return {
+    tierGap: normalizedTierGap,
+    minimumStakeDays: normalizedTierGap,
+    maximumStakeDays: MAIN_UPWARD_MAX_STAKE_DAYS,
     stakeDays: selectedStakeDays,
   };
 }
@@ -159,16 +200,16 @@ function resolveRevengeSettlement({
   if (normalizedDivision === "SUB") {
     if (stakeDays !== SUB_REVENGE_STAKE_DAYS) {
       throw ruleError(
-        "Sub Division 복수전 예치 학습일수는 2일입니다.",
+        "Unranked 복수전 예치 페이백 점수는 2점입니다.",
         "INVALID_SUB_REVENGE_STAKE"
       );
     }
     const subTable = {
       [REVENGE_OUTCOMES.ATTACKER_WIN]: {
         tupleAction: "SWAP",
-        returnToAttackerDays: 0,
+        returnToAttackerDays: 1,
         transferToDefenderDays: 0,
-        burnDays: 2,
+        burnDays: 1,
       },
       [REVENGE_OUTCOMES.DEFENDER_WIN]: {
         tupleAction: "KEEP",
@@ -205,9 +246,9 @@ function resolveRevengeSettlement({
     const mainTable = {
       [REVENGE_OUTCOMES.ATTACKER_WIN]: {
         tupleAction: "SWAP",
-        returnToAttackerDays: 0,
+        returnToAttackerDays: netDays,
         transferToDefenderDays: 0,
-        burnDays: stakeDays,
+        burnDays: burnedFeeDays,
       },
       [REVENGE_OUTCOMES.DEFENDER_WIN]: {
         tupleAction: "KEEP",
@@ -392,8 +433,10 @@ module.exports = {
   SUB_REVENGE_NO_SHOW_BURN_DAYS,
   SUB_REVENGE_NO_SHOW_RETURN_DAYS,
   SUB_REVENGE_STAKE_DAYS,
+  MAIN_UPWARD_MAX_STAKE_DAYS,
   REVENGE_OUTCOMES,
   assertMainStakeSelection,
+  assertMainUpwardStakeSelection,
   buildRevengeEconomySnapshot,
   calculateInvitationCancellation,
   invitationMatchingPaused,

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>학부모 회원가입 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/parent.css" />
+  </head>
+  <body class="parent-auth-page">
+    <main class="parent-auth-shell">
+      <a class="parent-auth-brand" href="/parent" aria-label="학부모 대시보드"><span class="brand-mark">M</span><strong>Matths</strong></a>
+      <section class="parent-auth-card">
+        <p>MATTHS PARENT</p>
+        <h1>학부모 계정을 만들어주세요.</h1>
+        <span>자녀 계정은 초대 링크로 안전하게 고정됩니다. 가입 후에는 자녀 학습 현황과 패키지 구매 화면을 확인할 수 있습니다.</span>
+        <% if (error) { %><div class="parent-form-message is-error" role="alert"><%= error %></div><% } %>
+        <form method="post" action="/parent/invite/<%= token %>" class="parent-auth-form">
+          <label><span>연결할 자녀 아이디</span><input type="text" value="<%= invite.childUserId.name %>" readonly aria-readonly="true" /><small>초대를 보낸 학생 계정으로 고정되며 수정할 수 없습니다.</small></label>
+          <label><span>학부모 아이디</span><input name="username" value="<%= oldInput.username %>" minlength="2" maxlength="30" autocomplete="username" required /></label>
+          <label><span>비밀번호</span><input type="password" name="password" minlength="8" autocomplete="new-password" required /><small>영문과 숫자를 포함해 8자 이상</small></label>
+          <label><span>비밀번호 확인</span><input type="password" name="passwordConfirm" minlength="8" autocomplete="new-password" required /></label>
+          <button type="submit">가입하고 자녀 현황 보기</button>
+        </form>
+        <small class="parent-auth-meta">초대 이메일 <b><%= invite.parentEmail %></b> · 요청 상품 <b><%= invite.productCode === 'LEARNING_PACKAGE_29' ? '29일 학습권 패키지' : 'Matths 주간 공식 모의고사 이용권' %></b></small>
+      </section>
+    </main>
+  </body>
+</html>

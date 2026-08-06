@@ -150,7 +150,7 @@ assert.throws(
 const subRulebook = getArenaRulebook("SUB");
 const mainRulebook = getArenaRulebook("MAIN");
 assert.deepEqual(subRulebook.problemDesign, mainRulebook.problemDesign);
-assert.equal(subRulebook.problemDesign.matchupRows.length, 10);
+assert.equal(subRulebook.problemDesign.matchupRows.length, 17);
 assert.equal(subRulebook.problemDesign.accuracyRows.length, 9);
 assert.ok(
   !JSON.stringify(subRulebook.rules).includes("분수·소수·동치식") &&

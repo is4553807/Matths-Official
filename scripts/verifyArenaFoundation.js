@@ -180,7 +180,7 @@ assert.throws(
         school: { code: "S1" },
       }
     ),
-  /N수생 계정/
+  /재학 중인 고등학교/
 );
 assert.deepEqual(
   promotedEducationState({
@@ -442,7 +442,7 @@ assert.equal(
     stakeDays: 2,
   }).eligible,
   false,
-  "Main은 예치 뒤 최소 1일을 남길 수 있어야 합니다."
+  "Ranked는 예치 뒤 최소 1일을 남길 수 있어야 합니다."
 );
 assert.equal(
   buildArenaAccess(
@@ -503,7 +503,7 @@ assert.equal(
     }
   ).canUseMain,
   true,
-  "Main 초대 예약이 남은 사용자는 초대 관리 화면에 접근할 수 있어야 합니다."
+  "Ranked 초대 예약이 남은 사용자는 초대 관리 화면에 접근할 수 있어야 합니다."
 );
 assert.equal(
   buildSeedState(
@@ -540,8 +540,8 @@ assert.equal(
 
 assert.equal(
   SUB_TIER_PAIR_CONFIG.length,
-  10,
-  "Sub Division 티어 조합 10개가 모두 준비되어야 합니다."
+  17,
+  "Unranked 동일 티어 상위 순위·바로 위 티어 조합 17개가 모두 준비되어야 합니다."
 );
 assert.ok(
   ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS.length >=

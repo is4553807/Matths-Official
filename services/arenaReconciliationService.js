@@ -203,7 +203,7 @@ function auditCycleBalances({ cycles, ledgerSummaries, userById, collector }) {
         collector.add({
           severity: "critical",
           category: "BALANCE",
-          title: "Main 학습일수 출처 합계 불일치",
+          title: "Ranked 학습일수 출처 합계 불일치",
           detail: `${label} 사용자의 출처별 학습일수 합계가 이용 주기 잔액과 다릅니다.`,
           entityType: "AccessCycle",
           entityId: cycleId,
@@ -462,8 +462,8 @@ function auditInvitations({
         collector.add({
           severity: "critical",
           category: "INVITATION",
-          title: "활성 Main 이용 주기 없는 초대 예약",
-          detail: "초대자에게 활성 Main Division 이용 주기가 없습니다.",
+          title: "활성 Ranked 이용 주기 없는 초대 예약",
+          detail: "초대자에게 활성 Ranked 이용 주기가 없습니다.",
           entityType: "MainInvitationRequest",
           entityId: invitationId,
           observedAt: invitation.updatedAt,
@@ -672,7 +672,7 @@ function issueCategoryLabel(category) {
     STANDING: "Arena 상태",
     INVITATION: "초대",
     OUTBOX: "처리 대기 이벤트",
-    SHOP: "Main 상점",
+    SHOP: "Ranked 상점",
     SCOPE: "검사 범위",
   }[category] || "기타";
 }

@@ -243,6 +243,7 @@ async function updateAdminPackageAccess({
         {
           $set: {
             currentCompetitiveDivision: "SUB",
+            mainCompetitivePool: null,
             accessCycleId: null,
             state: "PAYMENT_REQUIRED",
             currentSeasonPlacementCompleted: false,
@@ -346,6 +347,7 @@ async function updateAdminPackageAccess({
           {
             $set: {
               currentCompetitiveDivision: "SUB",
+              mainCompetitivePool: null,
               accessCycleId: cycleId,
               state: "SEASON_PLACEMENT_REQUIRED",
               currentSeasonPlacementCompleted: false,

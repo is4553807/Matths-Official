@@ -115,7 +115,7 @@ async function run() {
     const sealedPack = sealArenaProblemPackDraft(
       {
         version: `E2E.SUB.REVENGE.${suffix}`,
-        displayName: "Sub 복수전 실연결 E2E",
+        displayName: "Unranked 복수전 실연결 E2E",
         status: "DRAFT",
         division: "SUB",
         matchType: "REVENGE",
@@ -199,7 +199,8 @@ async function run() {
               userId: challengerUserId,
               availableLearningDays: 8,
               paybackScoreDays: 10,
-              lockedLearningDays: 2,
+              lockedPaybackScoreDays: 2,
+              lockedLearningDays: 0,
             },
             {
               ...cycleBase,
@@ -408,9 +409,12 @@ async function run() {
     assert.equal(defenderStanding.arenaRank, "실버");
     assert.equal(defenderStanding.arenaGp, 40);
     assert.equal(challengerCycle.availableLearningDays, 8);
+    assert.equal(challengerCycle.paybackScoreDays, 11);
+    assert.equal(challengerCycle.lockedPaybackScoreDays, 0);
     assert.equal(challengerCycle.lockedLearningDays, 0);
     assert.equal(right.status, "CONSUMED");
-    assert.equal(match.resultSnapshot.settlementSummary.burnedLearningDays, 2);
+    assert.equal(match.resultSnapshot.settlementSummary.returnedPaybackScore, 1);
+    assert.equal(match.resultSnapshot.settlementSummary.burnedPaybackScore, 1);
     assert.equal(
       await ArenaStandingChangeLedger.countDocuments({ matchId }),
       2
@@ -425,7 +429,8 @@ async function run() {
         database: mongoose.connection.name,
         matchType: "REVENGE",
         tupleSwapped: true,
-        burnedLearningDays: 2,
+        returnedPaybackScore: 1,
+        burnedPaybackScore: 1,
       })
     );
   } finally {

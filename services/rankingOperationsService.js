@@ -1,7 +1,5 @@
 const { AdminActionLog, User } = require("../models/matthsModel");
 const {
-  AccessCycle,
-  ArenaAccessState,
   ArenaMatch,
   ArenaOutboxEvent,
   ArenaStandingChangeLedger,
@@ -9,59 +7,10 @@ const {
 } = require("../models/goatArenaModel");
 const { calculateFinalRankingRows, recalculateFinalRanking } = require("./finalRankingService");
 const { getFileStorageStatus } = require("./fileStorageService");
-const {
-  inactivityDayCount,
-  initializeMainInactivityWindows,
-  processMainDormancyTransitions,
-} = require("./arenaDormancyService");
 
 function csvCell(value) {
   const text = String(value ?? "");
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-async function getDormancyCandidates(now = new Date()) {
-  const states = await ArenaAccessState.find({
-    $or: [
-      { currentCompetitiveDivision: "MAIN", state: { $in: ["PAID_ACTIVE", "MAIN_DORMANT"] } },
-      { mainDormancyRecoveryMode: "RESTORE_ON_MAIN_REENTRY" },
-    ],
-  })
-    .sort({ mainInactivityStartedAt: 1 })
-    .limit(300)
-    .lean();
-  const [users, cycles] = await Promise.all([
-    User.find({ _id: { $in: states.map((state) => state.userId) } })
-      .select("name realName email")
-      .lean(),
-    AccessCycle.find({ _id: { $in: states.map((state) => state.accessCycleId).filter(Boolean) } })
-      .select("availableLearningDays dailyConsumptionPausedAt status")
-      .lean(),
-  ]);
-  const userById = new Map(users.map((user) => [String(user._id), user]));
-  const cycleById = new Map(cycles.map((cycle) => [String(cycle._id), cycle]));
-  return states
-    .map((state) => {
-      const cycle = cycleById.get(String(state.accessCycleId));
-      const inactiveDays = inactivityDayCount({
-        startedAt: state.mainInactivityStartedAt,
-        now,
-      });
-      return {
-        id: String(state._id),
-        user: userById.get(String(state.userId)) || null,
-        state: state.state,
-        inactiveDays,
-        remainingDays: Number(cycle?.availableLearningDays || 0),
-        reservedForMainReentryDays: Number(state.mainDormancyFrozenLearningDays || 0),
-        recoveryMode: state.mainDormancyRecoveryMode,
-        startBalance: Number(state.mainInactivityStartAvailableDays || 0),
-        startedAt: state.mainInactivityStartedAt,
-        frozenAt: cycle?.dailyConsumptionPausedAt || null,
-      };
-    })
-    .filter((item) => item.recoveryMode === "RESTORE_ON_MAIN_REENTRY" || item.state === "MAIN_DORMANT" || item.inactiveDays >= 14)
-    .sort((left, right) => right.inactiveDays - left.inactiveDays);
 }
 
 async function getRankingHealth({ now = new Date() } = {}) {
@@ -170,10 +119,9 @@ async function previewFinalRankingRecalculation({ now = new Date() } = {}) {
 }
 
 async function getRankingOperationsDashboard({ preview = false, now = new Date() } = {}) {
-  const [health, history, dormancyCandidates, recalculationPreview] = await Promise.all([
+  const [health, history, recalculationPreview] = await Promise.all([
     getRankingHealth({ now }),
     getRecentRankingHistory(),
-    getDormancyCandidates(now),
     preview ? previewFinalRankingRecalculation({ now }) : null,
   ]);
   const storage = getFileStorageStatus();
@@ -183,7 +131,7 @@ async function getRankingOperationsDashboard({ preview = false, now = new Date()
     sharedSessionConfigured: true,
     schedulerEnabled: process.env.DISABLE_SCHEDULERS !== "1",
   };
-  return { health, history, dormancyCandidates, recalculationPreview, operations };
+  return { health, history, recalculationPreview, operations };
 }
 
 async function rebuildFinalRankingByAdmin({ adminUserId, now = new Date() }) {
@@ -200,12 +148,7 @@ async function rebuildFinalRankingByAdmin({ adminUserId, now = new Date() }) {
 async function runRankingMaintenanceTask({ adminUserId, task, now = new Date() }) {
   const code = String(task || "").trim().toUpperCase();
   let result;
-  if (code === "DORMANCY_SCAN") {
-    result = {
-      initialized: await initializeMainInactivityWindows({ now }),
-      transitioned: await processMainDormancyTransitions({ now }),
-    };
-  } else if (code === "ACCESS_CYCLE_RETRY") {
+  if (code === "ACCESS_CYCLE_RETRY") {
     const {
       processDepletedAccessCycles,
       processDueDailyConsumptions,

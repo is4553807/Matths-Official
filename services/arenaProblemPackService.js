@@ -302,7 +302,7 @@ function buildArenaProblemPackDraft({
   ) {
     throw statusError(
       400,
-      "Sub Division 1대1 경기 제한 시간은 10분입니다.",
+      "Unranked 1대1 경기 제한 시간은 10분입니다.",
       "INVALID_ARENA_TIME_LIMIT"
     );
   }
@@ -315,7 +315,7 @@ function buildArenaProblemPackDraft({
   if (!tierPair) {
     throw statusError(
       400,
-      "Sub Division 문제 팩의 티어 조합을 확인해주세요.",
+      "Unranked 문제 팩의 티어 조합을 확인해주세요.",
       "INVALID_ARENA_TIER_PAIR"
     );
   }

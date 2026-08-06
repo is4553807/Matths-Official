@@ -1,0 +1,44 @@
+<%
+  const motionAssetBase =
+    typeof rankMotionAssetBase === "string" && rankMotionAssetBase
+      ? rankMotionAssetBase
+      : "/media/rank-motion";
+  const motionMode =
+    typeof rankMotionMode === "string" && rankMotionMode
+      ? rankMotionMode
+      : "modal";
+  const motionBackdrop =
+    typeof rankMotionBackdrop === "boolean"
+      ? rankMotionBackdrop
+      : true;
+  const motionControls =
+    typeof rankMotionControls === "boolean"
+      ? rankMotionControls
+      : true;
+%>
+
+<dialog
+  class="rank-motion-dialog"
+  aria-label="랭크 승급 연출"
+  data-rank-motion-dialog
+>
+  <button
+    class="rank-motion-dialog__close"
+    type="button"
+    aria-label="승급 연출 닫기"
+    data-rank-motion-close
+  >×</button>
+
+  <matths-rank-motion
+    mode="<%= motionMode %>"
+    asset-base="<%= motionAssetBase %>"
+    backdrop="<%= motionBackdrop %>"
+    controls="<%= motionControls %>"
+    preload="none"
+    muted
+  >
+    <span class="rank-motion-fallback">
+      승급 연출을 표시하려면 JavaScript를 켜주세요.
+    </span>
+  </matths-rank-motion>
+</dialog>

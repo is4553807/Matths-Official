@@ -23,7 +23,7 @@ const {
 } = require("./arenaTierQuestionCatalogService");
 
 /*
- * Sub·Main Division 1대1 전용 문제 은행.
+ * Unranked·Ranked 1대1 전용 문제 은행.
  *
  * 현재는 배치고사 심화 유형을 복사한 arenaOneOnOneProblemTypes.js를 사용한다.
  * 배치고사 파일을 직접 import하지 않으므로 이후 Arena 유형만 독립 교체할 수 있다.
@@ -144,18 +144,44 @@ function generateQuestionsFromPackSlot({
   });
 }
 
-const SUB_TIER_PAIR_CONFIG = [
-  ["BRONZE", "BRONZE", "브론즈-브론즈"],
-  ["BRONZE", "SILVER", "브론즈-실버"],
-  ["SILVER", "GOLD", "실버-골드"],
-  ["GOLD", "PLATINUM", "골드-플래티넘"],
-  ["PLATINUM", "EMERALD", "플래티넘-에메랄드"],
-  ["EMERALD", "DIAMOND", "에메랄드-다이아몬드"],
-  ["DIAMOND", "MASTER", "다이아몬드-마스터"],
-  ["MASTER", "GRANDMASTER", "마스터-그랜드마스터"],
-  ["GRANDMASTER", "CHALLENGER", "그랜드마스터-챌린저"],
-  ["CHALLENGER", "CHALLENGER", "챌린저-챌린저"],
-].map(([challengerTier, defenderTier, label]) => {
+const ARENA_TIER_CODES = [
+  "BRONZE",
+  "SILVER",
+  "GOLD",
+  "PLATINUM",
+  "EMERALD",
+  "DIAMOND",
+  "MASTER",
+  "GRANDMASTER",
+  "CHALLENGER",
+];
+const ARENA_TIER_LABELS = {
+  BRONZE: "브론즈",
+  SILVER: "실버",
+  GOLD: "골드",
+  PLATINUM: "플래티넘",
+  EMERALD: "에메랄드",
+  DIAMOND: "다이아몬드",
+  MASTER: "마스터",
+  GRANDMASTER: "그랜드마스터",
+  CHALLENGER: "챌린저",
+};
+
+/*
+ * Unranked는 먼저 같은 티어의 더 높은 순위를 찾고, 후보가 없을 때만
+ * 정확히 한 티어 위로 올라간다. 두 경로 모두 같은 문제 생성기를 쓰므로
+ * 실제로 성립 가능한 17개 조합을 문제 은행에도 빠짐없이 등록한다.
+ */
+const SUB_TIER_PAIR_CONFIG = ARENA_TIER_CODES.flatMap(
+  (challengerTier, challengerIndex) =>
+    [challengerTier, ARENA_TIER_CODES[challengerIndex + 1]]
+      .filter(Boolean)
+      .map((defenderTier) => [
+        challengerTier,
+        defenderTier,
+        `${ARENA_TIER_LABELS[challengerTier]}-${ARENA_TIER_LABELS[defenderTier]}`,
+      ])
+).map(([challengerTier, defenderTier, label]) => {
   const difficultyTier = resolveArenaDifficultyTier(
     challengerTier,
     defenderTier
@@ -187,31 +213,11 @@ const SUB_TIER_PAIR_CONFIG = [
   };
 });
 
-const MAIN_TIER_CODES = [
-  "BRONZE",
-  "SILVER",
-  "GOLD",
-  "PLATINUM",
-  "EMERALD",
-  "DIAMOND",
-  "MASTER",
-  "GRANDMASTER",
-  "CHALLENGER",
-];
-const MAIN_TIER_LABELS = {
-  BRONZE: "브론즈",
-  SILVER: "실버",
-  GOLD: "골드",
-  PLATINUM: "플래티넘",
-  EMERALD: "에메랄드",
-  DIAMOND: "다이아몬드",
-  MASTER: "마스터",
-  GRANDMASTER: "그랜드마스터",
-  CHALLENGER: "챌린저",
-};
+const MAIN_TIER_CODES = ARENA_TIER_CODES;
+const MAIN_TIER_LABELS = ARENA_TIER_LABELS;
 
 /*
- * Main Division은 최대 3티어 차이까지 열 수 있다. 현재는 Sub와 같은
+ * Ranked는 최대 3티어 차이까지 열 수 있다. 현재는 Unranked와 같은
  * Arena 전용 준킬러 유형 복사본을 사용하고, 이후 티어별 유형표가 확정되면
  * 이 파일의 슬롯 배정만 교체한다.
  */
@@ -336,7 +342,7 @@ function configuredPackSlotForMatch({
   const pair = getSubTierPair(challengerTier, defenderTier);
   if (!pair) {
     const error = new Error(
-      "Sub Division에서는 바로 위 티어에게만 일반 쟁탈전을 신청할 수 있습니다."
+      "Unranked 일반 쟁탈전은 같은 티어 또는 바로 위 티어 조합에서만 만들 수 있습니다."
     );
     error.status = 409;
     error.code = "SUB_TIER_PAIR_NOT_ALLOWED";
@@ -411,7 +417,7 @@ async function generateSubOneOnOneQuestionsFromActiveData(input) {
     const pair = getSubTierPair(input.challengerTier, input.defenderTier);
     if (!pair) {
       const error = new Error(
-        "Sub Division에서는 바로 위 티어에게만 일반 쟁탈전을 신청할 수 있습니다."
+        "Unranked 일반 쟁탈전은 같은 티어 또는 바로 위 티어 조합에서만 만들 수 있습니다."
       );
       error.status = 409;
       error.code = "SUB_TIER_PAIR_NOT_ALLOWED";
@@ -460,7 +466,7 @@ function generateMainOneOnOneQuestions({
   const pair = getMainTierPair(lowerTier, upperTier);
   if (!pair) {
     const error = new Error(
-      "Main Division 경기는 최대 3단계 차이의 상위·하위 티어 사이에서만 만들 수 있습니다."
+      "Ranked 경기는 최대 3단계 차이의 상위·하위 티어 사이에서만 만들 수 있습니다."
     );
     error.status = 409;
     error.code = "MAIN_TIER_PAIR_NOT_ALLOWED";
@@ -515,7 +521,7 @@ async function generateMainOneOnOneQuestionsFromActiveData(input) {
     const pair = getMainTierPair(input.lowerTier, input.upperTier);
     if (!pair) {
       const error = new Error(
-        "Main Division 경기는 최대 3단계 차이의 상위·하위 티어 사이에서만 만들 수 있습니다."
+        "Ranked 경기는 최대 3단계 차이의 상위·하위 티어 사이에서만 만들 수 있습니다."
       );
       error.status = 409;
       error.code = "MAIN_TIER_PAIR_NOT_ALLOWED";

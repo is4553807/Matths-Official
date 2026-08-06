@@ -67,7 +67,7 @@ function buildReminderCopy({ cycle, thresholdHours }) {
   const reserved = Math.max(Number(cycle?.reservedLearningDays) || 0, 0);
   const deposited = Math.max(Number(cycle?.lockedLearningDays) || 0, 0);
   const divisionLabel =
-    cycle?.division === "MAIN" ? "Main Division" : "Sub Division";
+    cycle?.division === "MAIN" ? "Ranked" : "Unranked";
   const expiryLabel = formatKst(cycle?.expiresAt);
   const title = `학습권 이용 종료 예정까지 ${thresholdHours}시간`;
   const message = [

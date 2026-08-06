@@ -54,12 +54,12 @@ function run() {
     challengerTuple: silver,
     defenderTuple: gold,
     stakeDays: 1,
-    bronzeRefundDays: 0,
   });
   assert.deepEqual(silverWin.challengerTupleAfter, gold);
-  assert.equal(silverWin.challengerDelta.paybackScoreDays, 0);
   assert.equal(silverWin.challengerDelta.lockedPaybackScoreDays, -1);
-  assert.equal(silverWin.burnedPaybackScore, 1);
+  assert.equal(silverWin.challengerDelta.paybackScoreDays, 1);
+  assert.equal(silverWin.burnedPaybackScore, 0);
+  assert.equal(silverWin.returnedPaybackScore, 1);
 
   const defenderWin = buildSubNormalSettlementPlan({
     winnerRole: "DEFENDER",
@@ -147,7 +147,7 @@ function run() {
   assert.equal(typeof settleSubRevengeMatch, "function");
 
   console.log(
-    "Sub 일반 쟁탈전·복수전 순위·GP·티어 스왑, 페이백 점수 정산, 증거 제출 후 자동 연결 검증 완료"
+    "Unranked 일반 쟁탈전·복수전 순위·GP·티어 스왑, 페이백 점수 정산, 증거 제출 후 자동 연결 검증 완료"
   );
 }
 

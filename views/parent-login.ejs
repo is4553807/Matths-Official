@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>학부모 로그인 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/parent.css" />
+  </head>
+  <body class="parent-auth-page">
+    <main class="parent-auth-shell">
+      <a class="parent-auth-brand" href="/parent" aria-label="학부모 대시보드"><span class="brand-mark">M</span><strong>Matths</strong></a>
+      <section class="parent-auth-card parent-login-card">
+        <p>MATTHS PARENT</p><h1>학부모 로그인</h1><span>자녀의 학습 현황과 패키지 이용 상태를 한 화면에서 확인하세요.</span>
+        <% if (error) { %><div class="parent-form-message is-error" role="alert"><%= error %></div><% } %>
+        <form method="post" action="/parent/login" class="parent-auth-form">
+          <input type="hidden" name="next" value="<%= next %>" />
+          <label><span>학부모 아이디 또는 이메일</span><input name="identifier" value="<%= oldInput.identifier %>" autocomplete="username" required /></label>
+          <label><span>비밀번호</span><input type="password" name="password" autocomplete="current-password" required /></label>
+          <button type="submit">로그인</button>
+        </form>
+        <small class="parent-auth-meta">학부모 계정은 자녀가 보낸 결제 요청 이메일의 링크에서 만들 수 있습니다.</small>
+      </section>
+    </main>
+  </body>
+</html>

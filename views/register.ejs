@@ -15,7 +15,8 @@
           email: "",
           schoolGrade: 10,
           schoolRegion: "",
-          schoolCode: ""
+          schoolCode: "",
+          universityCode: ""
         };
 
   const regionData =
@@ -35,6 +36,14 @@
       .replace(/</g, "\\u003c")
       .replace(/\u2028/g, "\\u2028")
       .replace(/\u2029/g, "\\u2029");
+  const universityData =
+    typeof universities !== "undefined" && Array.isArray(universities)
+      ? universities
+      : [];
+  const safeUniversityJson = JSON.stringify(universityData)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 %>
 
 <!doctype html>
@@ -337,6 +346,8 @@
                 >
                   N수생
                 </option>
+                <option value="14" <%= Number(input.schoolGrade) === 14 ? "selected" : "" %>>대학생</option>
+                <option value="15" <%= Number(input.schoolGrade) === 15 ? "selected" : "" %>>직장인</option>
               </select>
             </div>
 
@@ -344,7 +355,7 @@
             <fieldset
               class="school-selector"
               data-school-selector
-              <%= Number(input.schoolGrade) === 13 ? "hidden" : "" %>
+              <%= ![10, 11, 12].includes(Number(input.schoolGrade)) ? "hidden" : "" %>
             >
               <legend>재학 중인 고등학교</legend>
 
@@ -422,6 +433,26 @@
                   id="schoolResultCount"
                   aria-live="polite"
                 ></small>
+              </div>
+            </fieldset>
+
+            <fieldset
+              class="school-selector university-selector"
+              data-university-selector
+              <%= Number(input.schoolGrade) !== 14 ? "hidden" : "" %>
+            >
+              <legend>재학 중인 대학교</legend>
+              <div class="form-field">
+                <label for="universitySearch">대학교 검색</label>
+                <input id="universitySearch" type="search" placeholder="대학교명을 입력하세요" autocomplete="off" />
+                <small class="field-guide">대학알리미 2026년 공시대상대학 목록을 사용합니다.</small>
+              </div>
+              <div class="form-field">
+                <label for="universityCode">대학교</label>
+                <select id="universityCode" name="universityCode" data-selected-university="<%= input.universityCode || '' %>">
+                  <option value="">대학교를 선택해 주세요</option>
+                </select>
+                <small class="field-guide" id="universityResultCount" aria-live="polite"></small>
               </div>
             </fieldset>
 
@@ -550,5 +581,6 @@
       id="school-data"
       type="application/json"
     ><%- safeSchoolJson %></script>
+    <script id="university-data" type="application/json"><%- safeUniversityJson %></script>
   </body>
 </html>

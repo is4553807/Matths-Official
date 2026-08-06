@@ -156,7 +156,7 @@ async function openAnnualArenaSeason({ now = new Date() } = {}) {
             userId,
             seasonKey: previousSeason,
             badgeCode: `MAIN-${previousSeason}-FINAL-${profile?.finalRank || "PARTICIPANT"}`,
-            displayName: `${previousSeason} Main Division 시즌 배지`,
+            displayName: `${previousSeason} Ranked 시즌 배지`,
             description: `시즌 최종 종합 랭킹 ${profile?.finalRank || "참가"} 기록`,
             metadata: {
               finalRank: profile?.finalRank || null,

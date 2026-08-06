@@ -24,16 +24,17 @@ const EMAIL_RETRY_BASE_MS = 15 * 60 * 1000;
 const MAX_EMAIL_ATTEMPTS = 5;
 const SCHEDULER_INTERVAL_MS = 15 * 1000;
 const TERMINAL_EMAIL_STATUSES = new Set(["SENT", "PREVIEW", "SKIPPED"]);
+const MANUAL_EMAIL_HOLD_UNTIL = new Date("2100-01-01T00:00:00.000Z");
 
 let schedulerTimer = null;
 let schedulerRunning = false;
 
 const POLICY_LABELS = Object.freeze({
-  SUB_DIVISION: "Sub Division",
-  MAIN_DIVISION: "Main Division",
+  SUB_DIVISION: "Unranked",
+  MAIN_DIVISION: "Ranked",
   LEARNING_PACKAGE: "29일 학습권 패키지",
   MOCK_EXAM_PACKAGE: "Matths 주간 공식 모의고사 이용권",
-  MAIN_SHOP: "Main Division 상점",
+  MAIN_SHOP: "Ranked 상점",
 });
 
 const POLICY_HREFS = Object.freeze({
@@ -155,6 +156,9 @@ async function queuePolicyChangeNotifications({
               href: copy.href,
               siteStatus: "PENDING",
               emailStatus: "PENDING",
+              emailNextRetryAt: scheduleEmailDelivery
+                ? null
+                : MANUAL_EMAIL_HOLD_UNTIL,
             },
           },
           upsert: true,

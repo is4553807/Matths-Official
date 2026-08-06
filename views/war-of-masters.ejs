@@ -136,6 +136,10 @@
             </div>
             <% if (!paidPackageAccess.active) { %>
               <button type="button" class="private-mock-disabled-action" disabled aria-disabled="true">배치고사 잠김 <span aria-hidden="true">×</span></button>
+            <% } else if (placement.status === "submitted") { %>
+              <button type="button" class="private-mock-disabled-action placement-complete-action" disabled aria-disabled="true">배치고사 완료 <span aria-hidden="true">✓</span></button>
+            <% } else if (placement.status === "attempt-used") { %>
+              <button type="button" class="private-mock-disabled-action placement-complete-action" disabled aria-disabled="true">배치고사 응시 종료 <span aria-hidden="true">×</span></button>
             <% } else if (placement.status === "not-started") { %>
               <button type="button" data-placement-open>
                 <%= placement.ctaLabel %>
@@ -194,12 +198,12 @@
           <article class="masters-action-card identity-action-card">
             <div>
               <span aria-hidden="true">04</span>
-              <p>공개 이름</p>
-              <h2>공개 이름 설정</h2>
-              <small>현재 공개 방식 · <%= arenaUser.displayMode %></small>
+              <p>프로필</p>
+              <h2>닉네임 관리</h2>
+              <small>모든 공개 랭킹과 GOAT Arena에는 닉네임만 표시됩니다.</small>
             </div>
-            <a href="/profile#ranking-identity-settings">
-              설정하기
+            <a href="/profile#nickname-settings">
+              닉네임 확인하기
               <span aria-hidden="true">→</span>
             </a>
           </article>

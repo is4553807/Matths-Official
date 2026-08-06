@@ -19,6 +19,7 @@ const {
   initialArenaGpFromPlacement,
   initialArenaTupleFromPlacement,
   kstSeasonKey,
+  temporaryPositionBaseByTier,
 } = require("../services/arenaStandingService");
 const {
   arenaTierGuide,
@@ -231,6 +232,35 @@ async function run() {
       ["에메랄드", 2],
       ["실버", 1],
     ]
+  );
+
+  const temporaryBases =
+    temporaryPositionBaseByTier(
+      [
+        {
+          arenaRank: "다이아몬드",
+          arenaPosition: 8,
+        },
+        {
+          arenaRank: "마스터",
+          arenaPosition: 6,
+        },
+      ],
+      [
+        {
+          arenaRank: "다이아몬드",
+          arenaPosition: 14,
+        },
+        {
+          arenaRank: "마스터",
+          arenaPosition: 2,
+        },
+      ]
+    );
+  assert.equal(
+    temporaryBases.get("다이아몬드"),
+    14,
+    "티어 이동 재정렬의 임시 순위는 최종 최대 순위 뒤에서 시작해야 합니다."
   );
 
   const smallLayout =

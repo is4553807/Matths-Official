@@ -66,32 +66,31 @@ const DEFAULT_MAIN_STAKE_BANDS = [
   { tierGap: 3, stakeDays: 3 },
 ];
 
+const UNRANKED_DAILY_ATTACK_LIMIT = 3;
+
 const DEFAULT_DAILY_MATCH_LIMITS_BY_TIER = Object.freeze([
-  { tier: "BRONZE", attackLimit: 4, defenseLimit: 1 },
-  { tier: "SILVER", attackLimit: 4, defenseLimit: 1 },
-  { tier: "GOLD", attackLimit: 3, defenseLimit: 2 },
-  { tier: "PLATINUM", attackLimit: 3, defenseLimit: 2 },
-  { tier: "EMERALD", attackLimit: 2, defenseLimit: 3 },
-  { tier: "DIAMOND", attackLimit: 2, defenseLimit: 3 },
-  { tier: "MASTER", attackLimit: 1, defenseLimit: 4 },
-  { tier: "GRANDMASTER", attackLimit: 1, defenseLimit: 4 },
-  { tier: "CHALLENGER", attackLimit: 1, defenseLimit: 4 },
+  { tier: "BRONZE", attackLimit: UNRANKED_DAILY_ATTACK_LIMIT, defenseLimit: 1 },
+  { tier: "SILVER", attackLimit: UNRANKED_DAILY_ATTACK_LIMIT, defenseLimit: 1 },
+  { tier: "GOLD", attackLimit: UNRANKED_DAILY_ATTACK_LIMIT, defenseLimit: 2 },
+  { tier: "PLATINUM", attackLimit: UNRANKED_DAILY_ATTACK_LIMIT, defenseLimit: 2 },
+  { tier: "EMERALD", attackLimit: UNRANKED_DAILY_ATTACK_LIMIT, defenseLimit: 3 },
+  { tier: "DIAMOND", attackLimit: UNRANKED_DAILY_ATTACK_LIMIT, defenseLimit: 3 },
+  { tier: "MASTER", attackLimit: UNRANKED_DAILY_ATTACK_LIMIT, defenseLimit: 4 },
+  { tier: "GRANDMASTER", attackLimit: UNRANKED_DAILY_ATTACK_LIMIT, defenseLimit: 4 },
+  { tier: "CHALLENGER", attackLimit: UNRANKED_DAILY_ATTACK_LIMIT, defenseLimit: 4 },
 ]);
 
-function normalizeDailyMatchLimits(input = {}, prefix = "sub") {
+function normalizeDailyMatchLimits(input = {}) {
   const supplied = DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.some(({ tier }) =>
-    input[`${prefix}AttackLimit_${tier}`] !== undefined ||
-    input[`${prefix}DefenseLimit_${tier}`] !== undefined
+    input[`subDefenseLimit_${tier}`] !== undefined
   );
   const source = Array.isArray(input.dailyMatchLimitsByTier)
     ? input.dailyMatchLimitsByTier
     : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.map((row) => ({
         tier: row.tier,
-        attackLimit: supplied
-          ? input[`${prefix}AttackLimit_${row.tier}`]
-          : row.attackLimit,
+        attackLimit: UNRANKED_DAILY_ATTACK_LIMIT,
         defenseLimit: supplied
-          ? input[`${prefix}DefenseLimit_${row.tier}`]
+          ? input[`subDefenseLimit_${row.tier}`]
           : row.defenseLimit,
       }));
   if (source.length !== DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.length) {
@@ -103,9 +102,7 @@ function normalizeDailyMatchLimits(input = {}, prefix = "sub") {
     if (!row) throw statusError(400, `${tier} 일일 경기 상한이 없습니다.`);
     return {
       tier,
-      attackLimit: integerValue(row.attackLimit, {
-        label: `${tier} 일일 공격 상한`, minimum: 0, maximum: 20,
-      }),
+      attackLimit: UNRANKED_DAILY_ATTACK_LIMIT,
       defenseLimit: integerValue(row.defenseLimit, {
         label: `${tier} 일일 방어 상한`, minimum: 0, maximum: 20,
       }),
@@ -415,14 +412,9 @@ function normalizePolicyDraftInput(input = {}) {
       normal: 1,
       revenge: 2,
     },
-    dailyMatchLimitsByTier: normalizeDailyMatchLimits(input, "sub"),
+    dailyMatchLimitsByTier: normalizeDailyMatchLimits(input),
     payback: {
       minimumStreakDays,
-      minimumPaidNormalAttacks: integerValue(input.minimumPaidNormalAttacks, {
-        label: "페이백 최소 유료 일반 쟁탈전 횟수",
-        minimum: 0,
-        fallback: 2,
-      }),
       minimumScoreDays,
       bands: paybackBands,
     },
@@ -446,17 +438,17 @@ function normalizeMainStakeBands(input = {}) {
   ) {
     throw statusError(
       400,
-      "Main Division 티어 차이와 최소 예치 일수 입력 개수를 확인해주세요."
+      "Ranked 티어 차이와 최소 예치 일수 입력 개수를 확인해주세요."
     );
   }
   const normalized = source
     .map((band) => ({
       tierGap: integerValue(band.tierGap, {
-        label: "Main Division 티어 차이",
+        label: "Ranked 티어 차이",
         minimum: 1,
       }),
       stakeDays: integerValue(band.stakeDays, {
-        label: "Main Division 최소 예치 일수",
+        label: "Ranked 최소 예치 일수",
         minimum: 1,
       }),
     }))
@@ -467,7 +459,7 @@ function normalizeMainStakeBands(input = {}) {
   ) {
     throw statusError(
       400,
-      "Main Division 티어 차이를 중복 입력할 수 없습니다."
+      "Ranked 티어 차이를 중복 입력할 수 없습니다."
     );
   }
   return normalized;
@@ -478,14 +470,14 @@ function normalizeMainPolicyDraftInput(input = {}) {
   if (displayName.length < 2) {
     throw statusError(
       400,
-      "Main Division 정책 이름을 2자 이상 입력해주세요."
+      "Ranked 정책 이름을 2자 이상 입력해주세요."
     );
   }
   const stakeDaysByTierGap = normalizeMainStakeBands(input);
   const maximumTargetTierGap = integerValue(
     input.maximumTargetTierGap,
     {
-      label: "Main Division 최대 티어 차이",
+      label: "Ranked 최대 티어 차이",
       minimum: 1,
       fallback: 3,
     }
@@ -502,7 +494,7 @@ function normalizeMainPolicyDraftInput(input = {}) {
   ) {
     throw statusError(
       400,
-      "Main Division 최소 예치 기준표는 1부터 최대 티어 차이까지 빠짐없이 입력해야 합니다."
+      "Ranked 최소 예치 기준표는 1부터 최대 티어 차이까지 빠짐없이 입력해야 합니다."
     );
   }
   const batchInput = String(
@@ -514,25 +506,20 @@ function normalizeMainPolicyDraftInput(input = {}) {
     effectiveUntil: null,
     timezone: "Asia/Seoul",
     mainEntryBonusDays: integerValue(input.mainEntryBonusDays, {
-      label: "Main Division 진입 보너스",
+      label: "Ranked 진입 보너스",
       minimum: 0,
       fallback: 2,
     }),
     mainCarryoverBaseDays: integerValue(
       input.mainCarryoverBaseDays,
       {
-        label: "Main Division 이월 차감 기준",
+        label: "Ranked 이월 차감 기준",
         minimum: 0,
         fallback: 29,
       }
     ),
     stakeDaysByTierGap,
     maximumTargetTierGap,
-    unlimitedDailyAttacks: true,
-    unlimitedDailyDefenses: true,
-    dailyMatchLimitsByTier: normalizeDailyMatchLimits(input, "main"),
-    maximumNetGainPerCycle: null,
-    invitationRequestExpiresAt: null,
     invitationOfferBatchSize:
       batchInput === ""
         ? null
@@ -568,23 +555,19 @@ function normalizeMainPolicyDraftInput(input = {}) {
           fallback: 1,
         }
       ),
-    requiresServerRandomOpponent: true,
-    requiresOpponentDaysGreaterThanStake: true,
     revengeStakeMultiplier: integerValue(
       input.revengeStakeMultiplier,
       {
-        label: "Main Division 복수전 예치 배수",
+        label: "Ranked 복수전 예치 배수",
         minimum: 1,
         fallback: 2,
       }
     ),
     revengeFeeDays: integerValue(input.revengeFeeDays, {
-      label: "Main Division 복수전 수수료",
+      label: "Ranked 복수전 수수료",
       minimum: 0,
       fallback: 1,
     }),
-    maximumUnresolvedOfficialMatches: 1,
-    scoringPolicyVersion: "SUB-STANDARD-V1",
     changeSummary: cleanSingleLine(input.changeSummary, 1000),
   };
 }
@@ -634,7 +617,6 @@ function defaultLearningPackagePolicyDefinition({
     dailyMatchLimitsByTier: DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.map((row) => ({ ...row })),
     payback: {
       minimumStreakDays: DEFAULT_LEARNING_PACKAGE_DAYS,
-      minimumPaidNormalAttacks: 2,
       minimumScoreDays: 30,
       bands: DEFAULT_PAYBACK_BANDS.map((band) => ({ ...band })),
     },
@@ -662,11 +644,12 @@ function learningPackagePolicyView(policy) {
     priceAmount: Number(source.priceAmount),
     initialLearningDays: Number(source.initialLearningDays),
     initialPaybackScoreDays: Number(source.initialPaybackScoreDays),
+    payback: JSON.parse(JSON.stringify(source.payback || {})),
     dailyMatchLimitsByTier: (source.dailyMatchLimitsByTier?.length
       ? source.dailyMatchLimitsByTier
       : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER).map((row) => ({
         tier: row.tier,
-        attackLimit: Number(row.attackLimit),
+        attackLimit: UNRANKED_DAILY_ATTACK_LIMIT,
         defenseLimit: Number(row.defenseLimit),
       })),
   };
@@ -707,14 +690,13 @@ function policySnapshot(policy) {
         }
       )
     ),
-    dailyMatchLimitsByTier: JSON.parse(JSON.stringify(
-      source.dailyMatchLimitsByTier?.length
-        ? source.dailyMatchLimitsByTier
-        : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER
-    )),
-    payback: JSON.parse(
-      JSON.stringify(source.payback || {})
-    ),
+    dailyMatchLimitsByTier: (source.dailyMatchLimitsByTier?.length
+      ? source.dailyMatchLimitsByTier
+      : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER).map((row) => ({
+        ...JSON.parse(JSON.stringify(row)),
+        attackLimit: UNRANKED_DAILY_ATTACK_LIMIT,
+      })),
+    payback: JSON.parse(JSON.stringify(source.payback || {})),
     effectiveFrom:
       source.effectiveFrom,
     effectiveUntil:
@@ -739,13 +721,6 @@ function mainPolicySnapshot(policy) {
       JSON.stringify(source.stakeDaysByTierGap || [])
     ),
     maximumTargetTierGap: Number(source.maximumTargetTierGap),
-    unlimitedDailyAttacks: source.unlimitedDailyAttacks !== false,
-    unlimitedDailyDefenses: source.unlimitedDailyDefenses !== false,
-    dailyMatchLimitsByTier: JSON.parse(JSON.stringify(
-      source.dailyMatchLimitsByTier?.length
-        ? source.dailyMatchLimitsByTier
-        : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER
-    )),
     invitationOfferBatchSize:
       source.invitationOfferBatchSize ?? null,
     invitationCancellationFeeDays: Number(
@@ -762,19 +737,10 @@ function mainPolicySnapshot(policy) {
     maximumActiveInvitationReservationsPerTargetTier: Number(
       source.maximumActiveInvitationReservationsPerTargetTier ?? 1
     ),
-    requiresServerRandomOpponent:
-      source.requiresServerRandomOpponent !== false,
-    requiresOpponentDaysGreaterThanStake:
-      source.requiresOpponentDaysGreaterThanStake !== false,
     revengeStakeMultiplier: Number(
       source.revengeStakeMultiplier ?? 2
     ),
     revengeFeeDays: Number(source.revengeFeeDays ?? 1),
-    maximumUnresolvedOfficialMatches: Number(
-      source.maximumUnresolvedOfficialMatches ?? 1
-    ),
-    scoringPolicyVersion:
-      source.scoringPolicyVersion || "SUB-STANDARD-V1",
     effectiveFrom: source.effectiveFrom,
     effectiveUntil: source.effectiveUntil || null,
   };
@@ -782,14 +748,14 @@ function mainPolicySnapshot(policy) {
 
 function minimumMainStakeDaysForTierGap(policy, tierGap) {
   const gap = integerValue(tierGap, {
-    label: "Main Division 티어 차이",
+    label: "Ranked 티어 차이",
     minimum: 1,
   });
   const snapshot = mainPolicySnapshot(policy);
   if (!snapshot || gap > snapshot.maximumTargetTierGap) {
     throw statusError(
       409,
-      "Main Division에서는 정책상 허용된 최대 티어 차이까지만 신청할 수 있습니다."
+      "Ranked에서는 정책상 허용된 최대 티어 차이까지만 신청할 수 있습니다."
     );
   }
   const band = snapshot.stakeDaysByTierGap.find(
@@ -798,7 +764,7 @@ function minimumMainStakeDaysForTierGap(policy, tierGap) {
   if (!band) {
     throw statusError(
       409,
-      "Main Division 티어 차이별 최소 예치 정책이 활성화되지 않았습니다."
+      "Ranked 티어 차이별 최소 예치 정책이 활성화되지 않았습니다."
     );
   }
   return Number(band.stakeDays);
@@ -817,7 +783,10 @@ function dailyMatchLimitForTier(policy, tier) {
   }
   return {
     tier: normalizedTier,
-    attackLimit: Number(row.attackLimit),
+    // 이 함수는 Unranked 일반 쟁탈전의 일일 상한 판정에 사용한다.
+    // 과거 정책 스냅샷에 티어별 1~4회가 남아 있어도 현재 확정 규칙인
+    // 전 티어 3회를 동일하게 적용한다.
+    attackLimit: UNRANKED_DAILY_ATTACK_LIMIT,
     defenseLimit: Number(row.defenseLimit),
   };
 }
@@ -1413,13 +1382,13 @@ async function activateMainDivisionPolicyVersion({
       if (!candidate) {
         throw statusError(
           404,
-          "활성화할 Main Division 정책을 찾을 수 없습니다."
+          "활성화할 Ranked 정책을 찾을 수 없습니다."
         );
       }
       if (candidate.status !== "DRAFT") {
         throw statusError(
           409,
-          "작성 중인 Main Division 정책만 활성화할 수 있습니다."
+          "작성 중인 Ranked 정책만 활성화할 수 있습니다."
         );
       }
       candidate.effectiveFrom = scheduledPolicyEffectiveFrom(
@@ -1588,7 +1557,7 @@ async function retireMainDivisionPolicyVersion({
       if (!policy) {
         throw statusError(
           404,
-          "종료할 Main Division 정책을 찾을 수 없습니다."
+          "종료할 Ranked 정책을 찾을 수 없습니다."
         );
       }
       const startsAt = new Date(policy.effectiveFrom);
@@ -1606,13 +1575,13 @@ async function retireMainDivisionPolicyVersion({
       if (isCurrent) {
         throw statusError(
           409,
-          "현재 적용 중인 Main Division 정책은 후속 정책을 먼저 활성화해야 합니다."
+          "현재 적용 중인 Ranked 정책은 후속 정책을 먼저 활성화해야 합니다."
         );
       }
       if (isHistorical || policy.status === "RETIRED") {
         throw statusError(
           409,
-          "이미 종료되었거나 적용 이력이 있는 Main Division 정책은 변경할 수 없습니다."
+          "이미 종료되었거나 적용 이력이 있는 Ranked 정책은 변경할 수 없습니다."
         );
       }
       if (policy.status === "ACTIVE" && startsAt > now) {
@@ -1704,6 +1673,7 @@ function invalidateMainDivisionPolicyCache() {
 
 module.exports = {
   DEFAULT_DAILY_MATCH_LIMITS_BY_TIER,
+  UNRANKED_DAILY_ATTACK_LIMIT,
   DEFAULT_LEARNING_PACKAGE_DAYS,
   DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT,
   POLICY_CHANGE_NOTICE_DAYS,

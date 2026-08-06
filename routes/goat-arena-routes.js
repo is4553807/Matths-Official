@@ -86,8 +86,55 @@ router.post(
 router.post(
   "/goat-arena/matches/:matchId/evidence",
   authMiddleware.isLoggedIn,
+  (req, _res, next) => {
+    req.arenaEvidenceReceivedAt =
+      new Date();
+    next();
+  },
   arenaEvidenceUpload.array("evidenceFiles", 5),
+  (
+    error,
+    req,
+    res,
+    next
+  ) =>
+    goatArenaController.arenaMatchUploadError(
+      error,
+      req,
+      res,
+      next
+    ),
   goatArenaController.submitArenaMatchEvidence
+);
+
+router.get(
+  "/goat-arena/matches/:matchId/supplemental-evidence",
+  authMiddleware.isLoggedIn,
+  goatArenaController.arenaSupplementalEvidencePage
+);
+
+router.post(
+  "/goat-arena/matches/:matchId/supplemental-evidence",
+  authMiddleware.isLoggedIn,
+  (req, _res, next) => {
+    req.arenaEvidenceReceivedAt = new Date();
+    next();
+  },
+  arenaEvidenceUpload.array("evidenceFiles", 5),
+  (error, req, res, next) =>
+    goatArenaController.arenaSupplementalEvidenceUploadError(
+      error,
+      req,
+      res,
+      next
+    ),
+  goatArenaController.submitArenaSupplementalEvidence
+);
+
+router.post(
+  "/api/goat-arena/rank-up-presentations/:presentationId/ack",
+  authMiddleware.isLoggedIn,
+  goatArenaController.acknowledgeRankUpPresentation
 );
 
 router.post(
@@ -178,6 +225,18 @@ router.get(
   "/goat-arena/profile",
   authMiddleware.isLoggedIn,
   goatArenaController.profilePage
+);
+
+router.post(
+  "/goat-arena/profile/payback-account/review",
+  authMiddleware.isLoggedIn,
+  goatArenaController.reviewPaybackAccount
+);
+
+router.post(
+  "/goat-arena/profile/payback-account/confirm",
+  authMiddleware.isLoggedIn,
+  goatArenaController.confirmPaybackAccount
 );
 
 module.exports = router;

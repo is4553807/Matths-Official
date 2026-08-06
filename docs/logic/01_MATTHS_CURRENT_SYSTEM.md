@@ -23,7 +23,7 @@
 > 방어자가 이기면 Arena 상태는 교환하지 않는다.
 >
 > MMR은 배치고사와 매주 일요일 공식 모의고사 정산에서만 변경된다.
-> 일요일 공식 모의고사로 갱신된 MMR은 Sub·Main Division 성과와 함께
+> 일요일 공식 모의고사로 갱신된 MMR은 Unranked·Ranked 성과와 함께
 > [`08_FINAL_RANKING_SYSTEM.md`](./08_FINAL_RANKING_SYSTEM.md)의 Final Rating 계산에 사용한다.
 > MMR은 Arena GP를 직접 증감시키지 않는다.
 
@@ -36,11 +36,11 @@
 ### 학습권 소진
 
 ```text
-Sub Division:
+Unranked:
 availableLearningDays = 0
 → ACCESS_EXPIRED_LOCKED
 
-Main Division:
+Ranked:
 availableLearningDays = 0
 AND reservedLearningDays = 0
 AND lockedLearningDays = 0
@@ -101,25 +101,25 @@ AND noPendingSettlement
 → 오늘은 차감되지 않음 · 00:00부터 1일차
 ```
 
-### Main 사용자의 만료·Sub 강등·재구독
+### Ranked 사용자의 이용 만료·재구독
 
-Main 사용자의 사용 가능·초대 예약·경기 예치 학습일수가 모두 0이고 미정산 경기가 없으면 Main에서 Sub로 강등되며, GOAT Arena 이용은 잠긴다. 직전 Main 상태는 재구독 배치 계산을 위해 보존한다.
+Ranked 사용자의 사용 가능·초대 예약·경기 예치 학습일수가 모두 0이고 미정산 경기가 없으면 Ranked 이용이 만료되고 GOAT Arena가 잠긴다. 이후 처리는 `04_MAIN_DIVISION_RANKING_SYSTEM.md`의 Ranked 만료·재구독 규정을 따르며, 직전 Ranked 상태는 재구독 배치 계산을 위해 보존한다.
 
-만료 순간 Main 전체 정확한 순위 `p`, 활성 참가자 수 `N`을 저장하고 `mainPercentile = 1 - (p - 1) / (N - 1)`로 계산한다. 참가자가 한 명이면 1.0이다. Sub 기준은 `0.58 + 0.42 × mainPercentile`이며, 티어 구간·0~99 GP·정확한 Sub 전체 순위 공식은 `04_MAIN_DIVISION_RANKING_SYSTEM.md` 15장을 따른다.
+만료 순간 Ranked 전체 정확한 순위 `p`, 활성 참가자 수 `N`을 저장하고 `mainPercentile = 1 - (p - 1) / (N - 1)`로 계산한다. 참가자가 한 명이면 1.0이다. Unranked 기준은 `0.58 + 0.42 × mainPercentile`이며, 티어 구간·0~99 GP·정확한 Unranked 전체 순위 공식은 `04_MAIN_DIVISION_RANKING_SYSTEM.md` 15장을 따른다.
 
 ```text
 학습권 만료
-→ Main에서 Sub로 강등
+→ Ranked 이용 만료
 → GOAT Arena 이용 잠금
 
 만료 후 72시간 이내 결제
 → 배치 시험 없음
-→ Main-to-Sub Rank Convert
-→ 강등된 Sub 랭크에서 새 페이백 경쟁 시작
+→ Ranked-to-Unranked Rank Convert
+→ 강등된 Unranked 랭크에서 새 페이백 경쟁 시작
 
 만료 후 72시간 초과 결제
 → 재구독 랭크 결정전
-→ Sub 랭크 결정
+→ Unranked 랭크 결정
 → 정상 갱신 변환 랭크보다 반드시 낮게 배치
 ```
 
@@ -135,9 +135,9 @@ Main 사용자의 사용 가능·초대 예약·경기 예치 학습일수가 �
 - 미응시: Bonus 0
 - 학습권 만료 사용자: 시험 응시 불가, Bonus 0
 
-### Main Division 상점 정책 오버레이
+### Ranked 상점 정책 오버레이
 
-Main 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다. 상점은 `MAIN`이면서 `PAID_ACTIVE`인 사용자만 이용하고 `availableLearningDays`만 사용한다. 예약·경기 예치 학습일수는 구매에 사용할 수 없으며 구매 뒤 최소 1일을 남긴다.
+Ranked 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다. 상점은 `MAIN`이면서 `PAID_ACTIVE`인 사용자만 이용하고 `availableLearningDays`만 사용한다. 예약·경기 예치 학습일수는 구매에 사용할 수 없으며 구매 뒤 최소 1일을 남긴다.
 
 `방어 일정 보호권`은 문제 팩 열람 전 의무 방어 경기를 `INSURED_CANCELLED`로 끝내는 예외다. 승패·Arena 상태 교환·복수전 권리는 만들지 않고, 양측 기존 예치분 반환과 공격자 1일 보상·시스템 1일 소각을 한 트랜잭션에서 처리한다.
 
@@ -146,8 +146,8 @@ Main 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다. �
 ### 일요일 공개 경계
 
 ```text
-일요일 14:30
-→ Sub·Main 신규 경기 신청·초대 수락·복수전 신청·준비·시작 차단
+일요일 14:00
+→ Unranked·Ranked 신규 경기 신청·초대 수락·복수전 신청·준비·시작 차단
 
 일요일 15:00
 → GOAT Arena와 공개 Final Ranking 동결
@@ -255,10 +255,10 @@ Main 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다. �
 
 - 초기 가격은 29,000원이고 정기권 학습 가능 일수와 페이백 점수 초깃값은 각각 29일·29점이다.
 - 두 값은 독립된 장부다. KST 일일 이용 차감은 정기권 학습 가능 일수에만 적용하며 페이백 점수를 그 값에서 계산하거나 자동 동기화하지 않는다.
-- Sub Division 페이백의 학습 조건은 해당 29일 이용 주기 전일 학습이다. 하루라도 학습 기록이 빠지면 그 주기의 전일 학습 조건을 충족하지 못한다.
+- Unranked 페이백의 학습 조건은 해당 29일 이용 주기 전일 학습이다. 하루라도 학습 기록이 빠지면 그 주기의 전일 학습 조건을 충족하지 못한다.
 - 서버 시작 시 활성 `SubscriptionPolicyVersion`이 없으면 2026년 8월 2일(KST)을 기준일로 하는 기본 정책을 한 번만 생성한다.
-- 관리자는 Arena 정책 화면에서 가격만 즉시 새 정책 버전으로 적용하거나, 가격·페이백 자격·점수 구간을 포함한 전체 Sub Division 정책을 작성 중 상태로 만든 뒤 활성화할 수 있다.
-- Sub Division 공식 규정 페이지는 현재 활성 정책의 가격, 자격, 점수별 페이백 비율과 예상 금액을 DB에서 읽어 표로 표시한다.
+- 관리자는 Arena 정책 화면에서 가격만 즉시 새 정책 버전으로 적용하거나, 가격·페이백 자격·점수 구간을 포함한 전체 Unranked 정책을 작성 중 상태로 만든 뒤 활성화할 수 있다.
+- Unranked 공식 규정 페이지는 현재 활성 정책의 가격, 자격, 점수별 페이백 비율과 예상 금액을 DB에서 읽어 표로 표시한다.
 - 규정 표의 최근 수정일은 정책 생성·활성화·수정·적용 시각 가운데 가장 최근 값을 한국시간 기준으로 표시하며 초기 기준일은 2026년 8월 2일이다.
 
 ### 누적 접속시간
@@ -276,7 +276,7 @@ Main 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다. �
 ### GOAT Arena 설명 구조
 
 - 메인 화면은 GOAT Arena의 목적, 5문항·10분 1대1, 두 Division의 차이만 짧게 설명한다.
-- Sub Division과 Main Division은 별도의 공식 규정 페이지를 사용한다.
+- Unranked와 Ranked는 별도의 공식 규정 페이지를 사용한다.
 - 각 규정 페이지는 규정 번호, 절, 접을 수 있는 세부 조항과 고정 목차를 제공한다.
 - 사용자에게 학습일수를 경기에 맡기는 행위는 `예치`, 경기 성립 뒤 분리된 잔액은 `경기 예치 학습일수`로 설명한다. 반환·이전·소각과 함께 사용하며 사행성으로 오해할 수 있는 표현은 노출하지 않는다.
 
@@ -295,11 +295,11 @@ Main 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다. �
 - 모든 데이터 삭제는 사용자 계정과 연결된 학습·시험·랭킹·Arena·게시판 문서 및 원본 파일을 삭제한다.
 - 관리자 화면에서 두 방식을 라디오 선택하고 `계정삭제` 확인 문구를 입력해야 실행된다.
 
-### Sub Division 복수전
+### Unranked 복수전
 
 - 일반 쟁탈전 정산 시 패자에게 원경기당 한 번의 복수전 권리를 만든다.
 - `복수하기`는 2일을 예치하고 직전 상대를 자동 참가시키며, `경기 종료`는 권리를 영구 포기한다.
-- 정상 승패와 한쪽 24시간 미완료는 Sub 정산표를 적용한다.
+- 정상 승패와 한쪽 24시간 미완료는 Unranked 정산표를 적용한다.
 - 양측 모두 24시간 안에 완료하지 않으면 Arena 상태는 유지하고 도전자가 복수전에 예치한 2일을 전부 소각한다.
 
 ---
@@ -930,6 +930,8 @@ advancedFinal = 0.35 × 기존 advanced
 - 검증에서 2문항 이상 정답이면 `confirmed`.
 - 2문항 미만이어도 `unconfirmed`로 표시할 뿐 랭킹 프로필 생성은 완료한다.
 
+이 확인 단계는 배치 위치를 보정하기 위한 절차다. 배치고사는 서버 기준 문항별 풀이시간·답안 변경·진행 흐름과 위 4문항 확인 시험까지만 사용하며, Arena 1대1 경기의 60초 필수 풀이 증거 업로드·운영자 추가 소명·경고·매치메이킹 제재를 적용하지 않는다. 배치 결과 자체는 상대 자산을 이전하거나 공식 1대1 승패를 확정하지 않으므로 별도 경쟁 부정행위 사건으로 만들지 않고, 초기 위치의 신뢰도는 확인 시험과 이후 공식 성적으로 보정한다.
+
 ### 7.7 시도 재개와 버전 처리
 
 - 가장 최근 제출된 배치고사를 공식 결과로 사용한다.
@@ -937,9 +939,9 @@ advancedFinal = 0.35 × 기존 advanced
 - 답이 하나도 없고 문제은행 버전이 오래된 시도는 현재 버전으로 새로 구성한다.
 - 하나라도 답한 시도는 버전이 달라도 사용자 작업을 보존하고 재개한다.
 
-### 7.8 최초 Sub Division 배치 연결
+### 7.8 최초 Unranked 배치 연결
 
-검증 문항까지 끝난 최초 배치고사는 한 번만 Sub Division 시작 상태를 만든다.
+검증 문항까지 끝난 최초 배치고사는 한 번만 Unranked 시작 상태를 만든다.
 
 - 배치 결과의 초기 rating은 `INITIAL-PLACEMENT-BASELINE-V1` 기준으로 최초 Arena 티어와 해당 티어 내부 `0~99 GP`로 변환한다.
 - 이 복사는 최초 생성 시에만 수행하며, 이후 GP의 권위 원본은 `ArenaStanding`이다.
@@ -951,7 +953,7 @@ advancedFinal = 0.35 × 기존 advanced
 - 활성 학습권과 완료된 배치고사가 모두 있을 때만 `PAID_ACTIVE`와 공식 순위·방어·주간 공식 모의고사·최종 종합 랭킹 권한을 활성화한다.
 - 과거 완료자는 배치고사 대시보드를 다시 열면 같은 배치 기록으로 멱등 복구한다.
 - 이전 연도 배치 기록은 현재 시즌 권한을 다시 열지 않으며, 만료·재구독 상태는 최초 배치 복구가 덮어쓰지 않는다.
-- Sub 학습권 만료 뒤 패키지를 재결제하면 기존 배치 결과를 재사용하지 않고 배치고사를 다시 완료해야 한다.
+- Unranked 학습권 만료 뒤 패키지를 재결제하면 기존 배치 결과를 재사용하지 않고 배치고사를 다시 완료해야 한다.
 
 ---
 
@@ -1145,7 +1147,7 @@ delta = round(clamp(K × (actual - expected) + growthBonus, -limit, +limit))
 주간 전체 갱신은 MMR을 변경할 수 있는 공식 경로다.
 
 주간 MMR 정산 뒤 별도의 `WeeklyFinalRankingCalculation` 작업이
-갱신된 MMR과 Sub·Main Division 스냅샷을 사용해 Final Rating을 계산한다.
+갱신된 MMR과 Unranked·Ranked 스냅샷을 사용해 Final Rating을 계산한다.
 
 ```text
 일요일 모의고사 정산
@@ -1219,26 +1221,20 @@ delta = round(clamp(K × (actual - expected) + growthBonus, -limit, +limit))
 Final Rating
 = 갱신된 Skill MMR
 + Division 기본점수
-+ Sub·Main 성장점수
-+ Sub·Main 위치점수
++ Unranked·Ranked 성장점수
++ Unranked·Ranked 위치점수
 ```
 
 가장 최근 필수 일요일 공식 모의고사를 완료한 사용자만 활성 Final Ranking에 포함한다.
 
-Final Ranking은 평상시 Sub·Main Arena 정산 직후 실시간으로 재계산한다.
+Final Ranking은 평상시 Unranked·Ranked Arena 정산 직후 실시간으로 재계산한다.
 Division 기본점수와 성장·위치점수는 누적하지 않고 매번 공식으로 덮어쓴다.
 
-매주 일요일 14:30부터 Sub·Main의 새 공식 경기 신청·수락·준비·시작을 모두 차단한다. 15:00부터 월요일 00:00까지 두 Division의 모든 공식 경기 쓰기를 잠그며,
+매주 일요일 14:00부터 Unranked·Ranked의 새 공식 경기 신청·수락·준비·시작을 모두 차단한다. 15:00부터 월요일 00:00까지 두 Division의 모든 공식 경기 쓰기를 잠그며,
 이 시간에는 Division 입력을 고정한 뒤 MMR과 공식 Final Ranking을 계산한다.
 
 매년 12월 31일에는 Final Ranking 시즌을 종료·보관하고,
 1월 1일 새 시즌의 Division 성장 기준점을 생성한다.
-
-휴면은 Main Division에만 적용한다. Main 사용자가 공식 1대1 경기를 완료하거나 Matths 주간 공식 모의고사를 제출하지 않은 상태가 20일 연속 이어지면, 20일째 KST 일일 차감까지 마친 다음 날 00:00에 Sub Division으로 강등한다. 로그인·페이지 열람·개념 학습·평가센터 이용은 이 미활동 기록을 초기화하지 않는다.
-
-20일 차감 뒤 남은 정기권 학습 가능 일수는 휴면 강등 예치분으로 별도 보관한다. 이 일수는 Sub Division 이용 주기, 페이백 점수, 29일 연속 학습 판정에 포함하지 않는다. 사용자는 새 학습권 패키지와 배치고사, 29일 학습과 페이백 달성 등 일반 Sub Division 과정을 완료해야 하며, 그 결과 Main Division에 다시 진입하는 순간에만 보관 일수를 새 Main 이용 주기에 추가한다.
-
-20일 차감 뒤 남은 일수가 0이면 복원할 일수 없이 일반 Sub Division 절차만 적용한다. Sub Division은 학습권 패키지와 페이백 주기가 종료될 때 일수가 초기화되므로 별도 휴면 상태를 만들지 않는다.
 
 정확한 공식과 데이터 모델은
 [`08_FINAL_RANKING_SYSTEM.md`](./08_FINAL_RANKING_SYSTEM.md)를 따른다.
@@ -1248,17 +1244,17 @@ Division 기본점수와 성장·위치점수는 누적하지 않고 매번 공�
 ### 10.1 GOAT Arena 일요일 잠금 경계
 
 기존 사설 모의고사의 일요일 시험 시간대와 겹치는 동안
-GOAT Arena Sub·Main 공식 경쟁을 잠근다.
+GOAT Arena Unranked·Ranked 공식 경쟁을 잠근다.
 
 ```text
 일요일 15:00 KST
-→ Sub·Main 잠금
+→ Unranked·Ranked 잠금
 
 월요일 00:00 KST
-→ Sub·Main 잠금 해제
+→ Unranked·Ranked 잠금 해제
 ```
 
-새 매치 신청·수락·준비·시작 cutoff는 일요일 14:30으로 고정한다.
+새 매치 신청·수락·준비·시작 cutoff는 일요일 14:00으로 고정한다.
 
 15:00까지 정산되지 않은 공식 경기는 `HELD`로 보내고
 Sunday Division 스냅샷에 반영하지 않는다.
@@ -2205,17 +2201,18 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 - `LiveFinalRankingProfile`
 - `ArenaPaybackReview`, `ArenaOutboxEvent`
 
-정책·이용 주기·일일 차감·Sub Division 배치·자동 상대 선정·일반 쟁탈전·복수전·페이백·Main 진입을 실제 트랜잭션에 연결했다. Main Division의 상향 공격·하위 티어 초대·복수전·No-show 정산과 Main 상점 정책·구매·효과도 생성 당시 정책 사본을 기준으로 동작한다. 남은 외부 범위는 결제사 승인 화면·부모님 결제 요청 전달과 실제 페이백 본인확인·송금 사업자 연동이다.
+정책·이용 주기·일일 차감·Unranked 배치·자동 상대 선정·일반 쟁탈전·복수전·페이백·Ranked 진입을 실제 트랜잭션에 연결했다. Ranked의 상향 공격·하위 티어 초대·복수전·No-show 정산과 Ranked 상점 정책·구매·효과도 생성 당시 정책 사본을 기준으로 동작한다. 남은 외부 범위는 결제사 승인 화면·부모님 결제 요청 전달과 실제 페이백 본인확인·송금 사업자 연동이다.
 
 `ArenaStanding`과 모든 Arena tuple의 공개 GP는 티어별 `0~99`이며 `gpScaleVersion = TIER_LOCAL_0_99_V1`을 저장한다. 과거 누적 GP는 `scripts/migrateArenaGpToTierLocal.js`로 티어를 유지한 채 티어 내부 GP로 일회성 변환한다. 마이그레이션은 기본 dry-run이고 `--apply`를 명시한 경우에만 DB를 변경한다.
 
-### 16.9 Sub Division 일반 쟁탈전 생성
+### 16.9 Unranked 일반 쟁탈전 생성
 
-- 같은 활성 Sub Division의 적격 사용자만 방어 후보가 된다.
-- 브론즈는 브론즈·실버, 챌린저는 챌린저, 나머지는 자신의 바로 위 티어만 방어 후보가 된다.
+- 같은 활성 Unranked의 적격 사용자만 방어 후보가 된다.
+- Unranked 전 티어에서 같은 티어의 더 높은 순위 후보를 먼저 찾고, 후보가 없을 때만 정확히 바로 위 티어로 한 단계 확장한다. 챌린저는 같은 챌린저의 더 높은 순위만 대상이 된다.
+- 자동 배정 방어전을 5회 시작하지 않으면 자동 방어 후보에서 제외하되 학습일수 차감은 계속한다. 참가 가능한 공격을 한 번 정상적으로 생성하면 누적을 0으로 초기화하고 자동 방어 후보 자격을 복구한다.
 - 후보 조회와 경기 생성은 내부 실력 지표와 최종 종합 랭킹을 사용하지 않는다.
-- 공격자는 상대 개인이 아니라 허용된 목표 티어만 선택한다.
-- 서버가 해당 티어의 적격 방어자 한 명을 무작위로 정하고 현재 상태를 트랜잭션 안에서 다시 검증한다.
+- 공격자는 상대 개인이나 목표 티어를 고르지 않는다.
+- 서버가 같은 티어 상위 순위 후보를 우선하고 없으면 바로 위 티어 후보를 사용해 한 명을 무작위로 정한 뒤 현재 상태를 트랜잭션 안에서 다시 검증한다.
 - 공격자 이용 주기의 정책 사본에 고정된 적용 일수를 경기 예치로 옮긴다.
 - 양쪽 참가자 잠금으로 사용자당 미정산 공식 경기 하나만 허용한다.
 - 경기, 두 참가자 잠금, 학습일수 예치 원장과 이벤트를 한 트랜잭션으로 생성한다.
@@ -2223,13 +2220,13 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 - 티어 조합당 30개 문제 묶음 슬롯 중 하나를 고르고, 경기 신청 순간 주관식 준킬러 5문항을 자동 생성·검산·봉인한다.
 - 현재는 배치고사 심화 준킬러 유형을 Arena 전용 파일에 독립 복사해 모든 티어 조합의 임시 문제 슬롯에 연결한다. 방어자 티어로 T1~T9를 확정하고 정책·콘텐츠 버전·목표 정답률·5슬롯 곡선을 문제 팩에 저장하며, 임시 콘텐츠는 `PENDING_FINAL_GENERATORS`로 구분한다. 자동 검산이나 1~999 자연수 답 선별이 실패하면 경기·문제·학습일수 예치·원장을 만들지 않는다.
 - 같은 트랜잭션에서 양측 `READY` 응시까지 만들어 생성 직후 응시 준비 상태가 된다.
-- 경기 요청 뒤 24시간 안에 시작해야 하며, 일요일을 통과하면 시작 마감은 일요일 14:30으로 단축한다.
+- 경기 요청 뒤 24시간 안에 시작해야 하며, 일요일을 통과하면 시작 마감은 일요일 14:00으로 단축한다.
 
 ### 16.10 일반 쟁탈전 문제 준비·응시
 
 - 운영자 수동 검수 대신 JS 생성기와 자동 검산을 통과한 주관식 준킬러 5문항·100점·10분 팩만 봉인한다.
 - 봉인 팩 전체 콘텐츠 해시가 일치해야 실제 경기에 배정한다.
-- 양측에는 난이도와 내용이 완전히 같은 문제를 제공하고 Sub·Main 모두 방어자 티어의 T1~T9 등급을 사용한다.
+- 양측에는 난이도와 내용이 완전히 같은 문제를 제공하고 Unranked·Ranked 모두 방어자 티어의 T1~T9 등급을 사용한다.
 - 각 참가자는 서로 다른 시각에 시작할 수 있으며 자신의 서버 시작 시각부터 같은 제한 시간이 흐른다.
 - 한 화면에는 현재 문제 하나만 표시하며 다음 문제로 이동하면 이전 문제와 답을 다시 보거나 수정할 수 없다.
 - 문항별 풀이시간과 전체 풀이시간, 답안 변경 snapshot, heartbeat·focus 이벤트를 서버 수신 시각과 함께 보존한다.
@@ -2237,7 +2234,7 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 - 답은 1~999 자연수만 허용한다. 빈 답은 미응답이며 분수·소수·동치식은 Arena 1대1 입력 형식에 포함하지 않는다.
 - 모든 풀이 증거를 운영자가 열람할 수 있고 이상 징후는 관리자 알림으로 만든다.
 - 상대가 배정되기 전에는 개인 후보를 공개하지 않는다. 매치가 성립한 뒤에는 서비스 닉네임만 표시하고 실명·학교·지역·연락처는 보내지 않는다.
-- Sub 일반 쟁탈전과 복수전은 서버 채점·무결성 확인 뒤 승패·GP·티어·티어 내 순위·학습일수를 자동 정산한다. Main 경기 정산은 Main 실행 로직 단계에서 연결한다.
+- Unranked 일반 쟁탈전과 복수전은 서버 채점·무결성 확인 뒤 승패·GP·티어·티어 내 순위와 페이백 점수를 자동 정산한다. Ranked 경기 정산은 학습일수 장부로 별도로 처리한다.
 
 ---
 
@@ -2448,17 +2445,17 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | Method | Path | 기능 |
 |---|---|---|
 | GET | `/goat-arena` | Arena 시작·정책 설명 |
-| GET | `/goat-arena/rankings` | Sub·Main ArenaStanding 랭킹 |
-| GET | `/goat-arena/sub` | Sub Division 기능 허브 |
-| GET | `/goat-arena/main` | Main Division 정책 상태·기능 허브 |
-| GET | `/goat-arena/main/shop` | Main Division 전용 상점·사용 가능 학습일수·효과 조회 |
+| GET | `/goat-arena/rankings` | Unranked·Ranked ArenaStanding 랭킹 |
+| GET | `/goat-arena/sub` | Unranked 기능 허브 |
+| GET | `/goat-arena/main` | Ranked 정책 상태·기능 허브 |
+| GET | `/goat-arena/main/shop` | Ranked 전용 상점·사용 가능 학습일수·효과 조회 |
 | POST | `/goat-arena/main/shop/purchases` | 상점 아이템 구매·원장 차감·효과 생성 |
-| GET | `/goat-arena/rules/sub` | Sub Division 공식 규정 |
-| GET | `/goat-arena/rules/main` | Main Division 공식 규정 |
+| GET | `/goat-arena/rules/sub` | Unranked 공식 규정 |
+| GET | `/goat-arena/rules/main` | Ranked 공식 규정 |
 | GET | `/goat-arena/:division/features/:featureKey` | Division 기능별 권한 보호 안내 페이지 |
 | GET | `/goat-arena/profile` | Arena 상태·학습권 프로필 |
-| GET | `/goat-arena/sub/challenge` | Sub Division 목표 티어 선택·현재 경기 |
-| POST | `/goat-arena/sub/challenges` | 서버 무작위 상대 선정·일반 쟁탈전 생성·참가자 잠금·학습일수 예치 |
+| GET | `/goat-arena/sub/challenge` | Unranked 동일 티어 상위 순위 우선·바로 위 티어 폴백 자동 매칭·현재 경기 |
+| POST | `/goat-arena/sub/challenges` | 서버 공정 무작위 상대 선정·일반 쟁탈전 생성·참가자 잠금·페이백 점수 예치 |
 | GET | `/goat-arena/matches/:matchId` | 참가자 전용 경기 준비·응시 화면 |
 | POST | `/goat-arena/matches/:matchId/prepare` | 봉인 문제 팩·양쪽 응시 준비 |
 | POST | `/goat-arena/matches/:matchId/start` | 개인 서버 타이머 시작 |
@@ -2467,8 +2464,8 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | POST | `/api/goat-arena/matches/:matchId/activity` | heartbeat·focus 활동 기록 |
 | POST | `/api/goat-arena/matches/:matchId/submit` | 개인 최종 답안 제출 |
 | POST | `/goat-arena/matches/:matchId/evidence` | 60초 풀이 증거 제출 |
-| POST | `/goat-arena/revenge-rights/:rightId/claim` | Sub 복수전 선택·2일 예치·상대 자동 참가 |
-| POST | `/goat-arena/revenge-rights/:rightId/forfeit` | Sub 복수전 권리 포기 |
+| POST | `/goat-arena/revenge-rights/:rightId/claim` | Unranked 복수전 선택·2일 예치·상대 자동 참가 |
+| POST | `/goat-arena/revenge-rights/:rightId/forfeit` | Unranked 복수전 권리 포기 |
 
 ---
 
@@ -2606,28 +2603,28 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | `accountAccessService.js` | 계정 접근 가능 여부, 기간 정지 자동 해제 |
 | `accountDeletionService.js` | 익명 보존 탈퇴, 관리자 영구 삭제 |
 | `accessCycleService.js` | 학습권 패키지 승인, 이용 주기, 20시 첫날 차감, 구매 자격 |
-| `accessCycleDailyService.js` | KST 일일 차감, 만료 잠금, Main 강등 스냅샷 |
+| `accessCycleDailyService.js` | KST 일일 차감, 만료 잠금, Ranked 만료 스냅샷 |
 | `adminPackageAccessService.js` | 관리자 무상 패키지 권한 변경과 감사 원장 |
 | `adminOperationsGuideService.js` | 관리자 운영 절차·저장 정책·스케줄러·환경 변수와 실행 중 Mongoose 전체 스키마 카탈로그 |
 | `adminService.js` | 관리자 대시보드, 사용자·문의·공지·모더레이션 변경 |
 | `adminTodoService.js` | 여러 운영 원천을 통합 할 일로 동기화 |
 | `archiveService.js` | 폴더·자료 업로드·이동·삭제·다운로드 |
-| `arenaBadgeService.js` | Main 시즌·성취 휘장 멱등 지급과 조회 |
-| `arenaDivisionRuleService.js` | Sub·Main 예치·복수전·초대 취소 정산표 순수 계산 |
+| `arenaBadgeService.js` | Ranked 시즌·성취 휘장 멱등 지급과 조회 |
+| `arenaDivisionRuleService.js` | Unranked·Ranked 예치·복수전·초대 취소 정산표 순수 계산 |
 | `arenaEligibilityService.js` | 패키지 구매·공식 경기·주간 모의고사 자격 판정 |
-| `arenaMatchService.js` | Sub 일반 쟁탈전 자격·상대 선정·예치·경기 생성 |
+| `arenaMatchService.js` | Unranked 일반 쟁탈전 자격·상대 선정·예치·경기 생성 |
 | `arenaMatchAttemptService.js` | 개인 타이머, 답안·활동 이벤트, 제출·자동 마감 |
 | `arenaMatchEvidenceService.js` | 60초 풀이 증거와 이상 징후 기록 |
 | `arenaMatchScoringService.js` | 봉인 답안 채점과 승패 우선순위 계산 |
-| `arenaMatchSettlementService.js` | Sub 일반 쟁탈전·복수전 Arena tuple과 학습일수 정산 |
+| `arenaMatchSettlementService.js` | Unranked 일반 쟁탈전·복수전 Arena tuple과 페이백 점수 정산 |
 | `arenaOneOnOneProblemTypes.js` | 배치고사 심화 준킬러 유형을 독립 복사한 현재 Arena 1대1 전용 생성·검산 원본 |
-| `arenaOneOnOneProblemBank.js` | Sub·Main 티어 조합별 30개 문제 묶음과 서로 다른 5유형 슬롯 배정 |
+| `arenaOneOnOneProblemBank.js` | Unranked·Ranked 티어 조합별 30개 문제 묶음과 서로 다른 5유형 슬롯 배정 |
 | `arenaPaybackReviewService.js` | 미정산 경기의 페이백 심사 보류·이메일·우편함 통지 기반 |
-| `arenaPolicyService.js` | 학습권·Sub·Main 정책 버전, 활성 정책 캐시와 관리자 변경 |
+| `arenaPolicyService.js` | 학습권·Unranked·Ranked 정책 버전, 활성 정책 캐시와 관리자 변경 |
 | `arenaProblemPackService.js` | 경기 문제 자동 생성·검산·봉인 해시 |
-| `arenaRevengeService.js` | Sub 복수전 권리 사용·포기·경기 생성 |
+| `arenaRevengeService.js` | Unranked 복수전 권리 사용·포기·경기 생성 |
 | `arenaRulebookViewService.js` | Division별 사용자 규정과 활성 페이백 표 뷰 모델 |
-| `arenaShopPolicyService.js` | Main 상점 구매·효과·반환·일요일 제한과 학습일수 원장 처리 |
+| `arenaShopPolicyService.js` | Ranked 상점 구매·효과·반환·일요일 제한과 학습일수 원장 처리 |
 | `assessmentService.js` | 정규 평가 게이트, 생성, 저장, 채점, 오답 이관 |
 | `coachMessageService.js` | 코치 문구 로드·상황별 선택·승인 캐시 |
 | `coachSuggestionService.js` | 제안 제한·목록·관리자 검토 |
@@ -2641,7 +2638,7 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | `examBankSource.js` | 공식 시험 분포·문제 원천 메타데이터 |
 | `learningProgressService.js` | 30/60/10 진행률, 과정·단원 집계 |
 | `identityRiskService.js` | 실명·생년월일·고등학교 조합 해시와 중복 계정 검토 알림 |
-| `mainToSubConversionService.js` | Main 만료 백분위의 Sub 티어·0~99 GP·전체 순위 환산 |
+| `mainToSubConversionService.js` | Ranked 만료 백분위의 Unranked 티어·0~99 GP·전체 순위 환산 |
 | `mathAnswerService.js` | 수식 정규화·파싱·동치 판정 |
 | `mathTextService.js` | 수학 문장·표현 안전 정리 |
 | `mmrService.js` | 초기/주간 MMR, 티어, 강등, 결석, 재계산 |

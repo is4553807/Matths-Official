@@ -1,7 +1,6 @@
 const SOURCE_ORDER = [
   "SUB_CARRYOVER",
   "MAIN_ENTRY_BONUS",
-  "MAIN_DORMANCY_RESTORE",
   "MAIN_MATCH_TRANSFER",
   "ADMIN_GRANT",
 ];
@@ -77,7 +76,7 @@ function totals(buckets) {
 function assertDays(days) {
   const parsed = Number(days);
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
-    const error = new Error("Main Division 학습일수는 0 이상의 정수여야 합니다.");
+    const error = new Error("Ranked 학습일수는 0 이상의 정수여야 합니다.");
     error.status = 409;
     error.code = "INVALID_MAIN_LEARNING_DAYS";
     throw error;
@@ -88,7 +87,7 @@ function assertDays(days) {
 function moveAvailable(cycle, days, destination) {
   const amount = assertDays(days);
   if (!["reservedDays", "lockedDays"].includes(destination)) {
-    throw new Error("Main Division 학습일수 이동 대상을 확인해주세요.");
+    throw new Error("Ranked 학습일수 이동 대상을 확인해주세요.");
   }
   const buckets = normalizeBuckets(cycle);
   let remaining = amount;
@@ -100,7 +99,7 @@ function moveAvailable(cycle, days, destination) {
     if (remaining === 0) break;
   }
   if (remaining > 0) {
-    const error = new Error("사용 가능한 Main Division 학습일수가 부족합니다.");
+    const error = new Error("사용 가능한 Ranked 학습일수가 부족합니다.");
     error.status = 409;
     error.code = "MAIN_AVAILABLE_DAYS_INSUFFICIENT";
     throw error;
@@ -120,7 +119,7 @@ function moveReservedToLocked(cycle, days) {
     if (remaining === 0) break;
   }
   if (remaining > 0) {
-    const error = new Error("예약된 Main Division 학습일수가 부족합니다.");
+    const error = new Error("예약된 Ranked 학습일수가 부족합니다.");
     error.status = 409;
     error.code = "MAIN_RESERVED_DAYS_INSUFFICIENT";
     throw error;
@@ -190,6 +189,31 @@ function addMatchTransfer(cycleOrState, days) {
   return { buckets, ...totals(buckets) };
 }
 
+/**
+ * Removes currently usable Ranked learning days without touching a pending
+ * reservation or a match deposit.  Integrity penalties are applied only after
+ * the relevant match has been settled, so this keeps the ledger and bucket
+ * totals in one deterministic state.
+ */
+function burnAvailable(cycleOrState, days) {
+  const amount = assertDays(days);
+  const buckets = normalizeBuckets(cycleOrState);
+  let remaining = amount;
+  for (const bucket of buckets) {
+    const burned = Math.min(bucket.availableDays, remaining);
+    bucket.availableDays -= burned;
+    remaining -= burned;
+    if (remaining === 0) break;
+  }
+  if (remaining > 0) {
+    const error = new Error("소각할 사용 가능 Ranked 학습일수가 부족합니다.");
+    error.status = 409;
+    error.code = "MAIN_AVAILABLE_DAYS_BURN_INSUFFICIENT";
+    throw error;
+  }
+  return { buckets, ...totals(buckets) };
+}
+
 function consumeAvailableDay(cycle) {
   const moved = moveAvailable(cycle, 1, "lockedDays");
   return settleLocked(
@@ -201,6 +225,7 @@ function consumeAvailableDay(cycle) {
 module.exports = {
   SOURCE_ORDER,
   addMatchTransfer,
+  burnAvailable,
   consumeAvailableDay,
   moveAvailable,
   moveReservedToLocked,

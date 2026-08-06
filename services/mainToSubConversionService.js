@@ -40,7 +40,7 @@ function mainPercentileFromSnapshot({
     position > participantCount
   ) {
     const error = new Error(
-      "Main Division 만료 순위와 참가자 수를 확인해주세요."
+      "Ranked 만료 순위와 참가자 수를 확인해주세요."
     );
     error.status = 409;
     error.code = "INVALID_MAIN_DEMOTION_SNAPSHOT";
@@ -62,7 +62,7 @@ function resolveSubPercentileBand(percentile) {
         : value < candidate.upper)
   );
   if (!band) {
-    throw new Error("Sub Division 환산 티어 구간을 찾을 수 없습니다.");
+    throw new Error("Unranked 환산 티어 구간을 찾을 수 없습니다.");
   }
   return band;
 }
@@ -119,7 +119,7 @@ async function createMainToSubConversionResult({
 }) {
   if (!snapshot?._id || snapshot.division !== "MAIN") {
     const error = new Error(
-      "Main Division 만료 스냅샷을 확인해주세요."
+      "Ranked 만료 스냅샷을 확인해주세요."
     );
     error.status = 409;
     error.code = "MAIN_DEMOTION_SNAPSHOT_REQUIRED";

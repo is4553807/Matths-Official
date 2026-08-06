@@ -1114,7 +1114,7 @@ async function getDashboardData(userId) {
             return {
                 code: "SUPER_ADMIN",
                 name: "관리자 무제한 플랜",
-                division: "Sub Division · Main Division",
+                division: "Unranked · Ranked",
                 remainingLearningDays: null,
                 availableLearningDays: null,
                 reservedLearningDays: 0,
@@ -1142,8 +1142,8 @@ async function getDashboardData(userId) {
                 name: "29일 학습권 패키지",
                 division:
                     arenaAccessState?.currentCompetitiveDivision === "MAIN"
-                        ? "Main Division"
-                        : "Sub Division",
+                        ? "Ranked"
+                        : "Unranked",
                 remainingLearningDays:
                     availableDays + reservedDays + lockedDays,
                 availableLearningDays: availableDays,
@@ -1420,7 +1420,7 @@ async function updateCoachMode(
                 },
             },
             {
-                new: true,
+                returnDocument: "after",
             }
         ).lean();
 

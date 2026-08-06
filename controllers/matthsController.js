@@ -4,6 +4,7 @@ const {
   ConceptLesson,
 } = require("../models/matthsModel");
 const {getSchoolSelectData,findSchool,} = require('../services/schoolService');
+const { getUniversitySelectData, findUniversity } = require('../services/universityService');
 const {getDashboardData, toggleDailyPlanTask, updateCoachMode,} = require('../services/dashboardService');
 const {
   createPrivateMockExamBatch,
@@ -35,7 +36,7 @@ const {
   submitPrivateMockIntegrityEvidence,
   submitPrivateMockAttempt,
 } = require("../services/privateMockExamService");
-const {loadCurriculum, buildLearningViewModel, findUnitView,} = require("../services/curriculumService");
+const {loadCurriculum, buildLearningViewModel, findUnitView, isCourseAvailable,} = require("../services/curriculumService");
 const {getUserLearningData, updateTopicCompletion,} = require('../services/learningProgressService');
 const {
   getWrongNoteData,
@@ -61,9 +62,6 @@ const {
   recordStudyActivity,
   synchronizeUserLifecycle,
 } = require("../services/userLifecycleService");
-const {
-  synchronizeDormantArenaReturn,
-} = require("../services/arenaDormancyService");
 const {
   DIFFICULTY_LABELS,
   createAssessmentAttempt,
@@ -102,7 +100,6 @@ const {
 } = require("../services/passwordResetService");
 const {
   getRankingDisplayName,
-  normalizeRankingDisplayMode,
   validateRealName,
 } = require("../services/userIdentityService");
 const {
@@ -128,6 +125,9 @@ const {
   getRankingData,
 } = require("../services/rankingService");
 const {
+  ERROR_HELP_ITEMS,
+} = require("../services/errorHelpService");
+const {
   getPaidPackageAccess,
 } = require("../services/paidFeatureAccessService");
 const {
@@ -140,6 +140,10 @@ const {
   getAdminTestControlData,
   setTestClock,
 } = require("../services/adminTestControlService");
+const {
+  completePaybackPayout,
+  getAdminPaybackDashboard,
+} = require("../services/paybackAccountService");
 const {
   getAdminArenaEvidenceData,
   getAdminEvidenceFile,
@@ -202,6 +206,7 @@ const {
   moderateCommunityComment,
   moderateCommunityNotice,
   moderateCommunityPost,
+  privateBoardForViewer,
   setCommunityPostPinned,
   setCommunityNoticePinned,
   updateCommunityNotice,
@@ -262,7 +267,9 @@ const {
 const {
   getAdminArenaIntegrityData,
   recordConnectionIntegritySignals,
+  requestArenaSupplementalEvidence,
   reviewArenaIntegrityCase,
+  reviewHeldArenaMatch,
 } = require("../services/arenaIntegrityRiskService");
 const {
   getMainShopPolicyAdminData,
@@ -324,11 +331,20 @@ exports.introPage = (req,res) => {
 
 exports.pricingPage = async (req, res, next) => {
   try {
+    let pricingUser = req.session?.user || null;
+    if (pricingUser?.id) {
+      const accountAccess = await synchronizeAccountAccess(pricingUser.id);
+      if (!accountAccess?.allowed || !accountAccess?.user) {
+        delete req.session.user;
+        pricingUser = null;
+        res.locals.user = null;
+      }
+    }
     const viewedAt = new Date();
     await recordOperationalMetricEvent({
       eventKey: `pricing-view:${req.sessionID || "anonymous"}:${viewedAt.toISOString().slice(0, 13)}`,
       eventType: "PRICING_VIEW",
-      userId: req.session?.user?.id || null,
+      userId: pricingUser?.id || null,
       result: "VIEWED",
       occurredAt: viewedAt,
       metadata: { path: "/pricing" },
@@ -338,7 +354,7 @@ exports.pricingPage = async (req, res, next) => {
       getActiveArenaPolicy(),
     ]);
     return res.render("pricing", {
-      user: req.session?.user || null,
+      user: pricingUser,
       activePage: "pricing",
       mockExamPolicy,
       learningPackagePolicy,
@@ -347,37 +363,6 @@ exports.pricingPage = async (req, res, next) => {
     return next(error);
   }
 };
-
-function paymentRoutePlaceholder(mode, productCode) {
-  return async (req, res, next) => {
-    res.set("Cache-Control", "no-store");
-    await recordOperationalMetricEvent({
-      eventKey: `payment-intent:${req.sessionID || "anonymous"}:${productCode}:${mode}:${Date.now()}`,
-      eventType: "PAYMENT_INTENT",
-      userId: req.session?.user?.id || null,
-      result: "STARTED",
-      reasonCode: "PG_CONNECTION_DEFERRED",
-      metadata: { mode, productCode },
-    });
-    const error = new Error(
-      mode === "PARENT_REQUEST"
-        ? "부모님 결제 요청 라우트가 준비되었습니다. 결제 요청 화면은 다음 구현 단계에서 연결합니다."
-        : "본인 결제 라우트가 준비되었습니다. 결제 화면은 다음 구현 단계에서 연결합니다."
-    );
-    error.status = 501;
-    error.code = "PAYMENT_FLOW_NOT_IMPLEMENTED";
-    return next(error);
-  };
-}
-
-exports.mockExamSelfPaymentEntry =
-  paymentRoutePlaceholder("SELF", "MOCK_EXAM_ONLY");
-exports.mockExamParentPaymentEntry =
-  paymentRoutePlaceholder("PARENT_REQUEST", "MOCK_EXAM_ONLY");
-exports.learningPackageSelfPaymentEntry =
-  paymentRoutePlaceholder("SELF", "LEARNING_PACKAGE_29");
-exports.learningPackageParentPaymentEntry =
-  paymentRoutePlaceholder("PARENT_REQUEST", "LEARNING_PACKAGE_29");
 
 exports.connectionHeartbeat = async (req, res, next) => {
   try {
@@ -441,6 +426,7 @@ exports.registerPage = (
 
     return res.render("register", {
       schoolRegions,
+      universities: getUniversitySelectData(),
       error: null,
       oldInput: {
         realName: "",
@@ -450,6 +436,7 @@ exports.registerPage = (
         schoolGrade: 10,
         schoolRegion: "",
         schoolCode: "",
+        universityCode: "",
       },
     });
   } catch (error) {
@@ -478,6 +465,8 @@ exports.faqPage = (req,res) => {
       user:
         req.session?.user ||
         null,
+      errorHelpItems:
+        ERROR_HELP_ITEMS,
     });
 }
 
@@ -1314,6 +1303,42 @@ exports.adminRevenueMetrics = async (_req, res, next) => {
   }
 };
 
+exports.adminPaybacksPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.render("admin-paybacks", {
+      user: req.session.user,
+      paybacks: await getAdminPaybackDashboard({
+        page: req.query.page,
+        periodKey: req.query.period,
+      }),
+      feedback:
+        req.query.completed === "1"
+          ? "페이백 지급 완료를 기록했습니다."
+          : "",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminCompletePayback = async (req, res, next) => {
+  try {
+    await completePaybackPayout({
+      cycleId: req.params.cycleId,
+      adminUserId: req.session.user.id,
+      operatorNote: req.body.operatorNote,
+    });
+    const period = encodeURIComponent(String(req.body.period || ""));
+    const page = Math.max(1, Number.parseInt(req.body.page, 10) || 1);
+    return res.redirect(
+      `/admin/paybacks?period=${period}&page=${page}&completed=1`
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.adminOperationsGuidePage = async (req, res, next) => {
   try {
     res.set("Cache-Control", "no-store");
@@ -1353,6 +1378,9 @@ exports.adminSetTestClock = async (req, res, next) => {
 exports.adminArenaMatchesPage = async (req, res, next) => {
   try {
     res.set("Cache-Control", "no-store");
+    const reviewStatus = req.query.reviewStatus === "completed"
+      ? "completed"
+      : "pending";
     const [evidenceEntries, integrityReview] = await Promise.all([
       getAdminArenaEvidenceData(),
       getAdminArenaIntegrityData(),
@@ -1361,6 +1389,14 @@ exports.adminArenaMatchesPage = async (req, res, next) => {
       user: req.session.user,
       evidenceEntries,
       integrityReview,
+      reviewStatus,
+      adminNotice: ({
+        supplementalRequested: "추가 소명자료 요청을 성공적으로 전송했습니다.\n요청 시각부터 24시간 타이머가 시작되었습니다.",
+        reviewCompleted: "경기 검토 결과를 저장했습니다.\n알림 발송·매치메이킹 상태·이용 기간 보상 처리가 완료되었습니다.",
+        accountReviewCompleted: "계정 무결성 검토 결과를 저장했습니다. 관련 알림과 이용 상태를 갱신했습니다.",
+        noteSaved: "운영 검토 메모를 저장했습니다.",
+      })[String(req.query.notice || "")] || "",
+      formatAdminMath,
     });
   } catch (error) {
     return next(error);
@@ -1375,7 +1411,36 @@ exports.adminReviewArenaIntegrityCase = async (req, res, next) => {
       decision: String(req.body.decision || "").trim().toUpperCase(),
       note: req.body.note,
     });
-    return res.redirect("/admin/arena-matches#integrity-review");
+    return res.redirect(303, "/admin/arena-matches?reviewStatus=completed&notice=accountReviewCompleted#integrity-review");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminReviewHeldArenaMatch = async (req, res, next) => {
+  try {
+    await reviewHeldArenaMatch({
+      matchId: req.params.matchId,
+      adminUserId: req.session.user.id,
+      decision: String(req.body.decision || "").trim().toUpperCase(),
+      note: req.body.note,
+    });
+    const isNote = String(req.body.decision || "").trim().toUpperCase() === "NOTE";
+    return res.redirect(303, `/admin/arena-matches?reviewStatus=${isNote ? "pending" : "completed"}&notice=${isNote ? "noteSaved" : "reviewCompleted"}#integrity-review`);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminRequestArenaSupplementalEvidence = async (req, res, next) => {
+  try {
+    await requestArenaSupplementalEvidence({
+      matchId: req.params.matchId,
+      role: req.params.role,
+      adminUserId: req.session.user.id,
+      requestMessage: req.body.requestMessage,
+    });
+    return res.redirect(303, `/admin/arena-matches?reviewStatus=pending&notice=supplementalRequested#match-${req.params.matchId}`);
   } catch (error) {
     return next(error);
   }
@@ -1514,7 +1579,7 @@ function arenaPolicyFeedbackFromQuery(query = {}) {
     return "새 Arena 정책을 작성 중 상태로 저장했습니다.";
   }
   if (String(query.createdScheduled || "") === "1") {
-    return "새 Sub Division 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 이메일·우편함 공지를 만들었습니다.";
+    return "새 Unranked 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 이메일·우편함 공지를 만들었습니다.";
   }
   if (String(query.activated || "") === "1") {
     return "Arena 정책을 최소 30일 뒤 적용 일정에 등록하고 전체 사용자 공지를 만들었습니다.";
@@ -1523,19 +1588,19 @@ function arenaPolicyFeedbackFromQuery(query = {}) {
     return "작성 중이거나 적용 예정이던 Arena 정책을 종료했습니다.";
   }
   if (String(query.mainCreated || "") === "1") {
-    return "새 Main Division 정책을 작성 중 상태로 저장했습니다.";
+    return "새 Ranked 정책을 작성 중 상태로 저장했습니다.";
   }
   if (String(query.mainCreatedScheduled || "") === "1") {
-    return "새 Main Division 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 이메일·우편함 공지를 만들었습니다.";
+    return "새 Ranked 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 이메일·우편함 공지를 만들었습니다.";
   }
   if (String(query.mainActivated || "") === "1") {
-    return "Main Division 정책을 최소 30일 뒤 적용 일정에 등록하고 전체 사용자 공지를 만들었습니다.";
+    return "Ranked 정책을 최소 30일 뒤 적용 일정에 등록하고 전체 사용자 공지를 만들었습니다.";
   }
   if (String(query.mainRetired || "") === "1") {
-    return "Main Division 정책을 종료했습니다.";
+    return "Ranked 정책을 종료했습니다.";
   }
   if (String(query.mainShopUpdated || "") === "1") {
-    return "Main Division 상점의 새 가격·판매 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 공지를 만들었습니다.";
+    return "Ranked 상점의 새 가격·판매 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 공지를 만들었습니다.";
   }
   return null;
 }
@@ -3507,6 +3572,8 @@ exports.warOfMastersPage = async (
       11: "고등학교 2학년",
       12: "고등학교 3학년",
       13: "N수생",
+      14: "대학생",
+      15: "직장인",
     };
 
     res.set("Cache-Control", "no-store");
@@ -3522,19 +3589,19 @@ exports.warOfMastersPage = async (
             getRankingDisplayName(user),
           schoolName:
             String(
-              user.school?.name ||
-                "학교 미설정"
+              Number(user.schoolGrade) === 14
+                ? user.university?.name || "대학교 미설정"
+                : Number(user.schoolGrade) === 15
+                  ? "직장인"
+                  : Number(user.schoolGrade) === 13
+                    ? "N수생"
+                    : user.school?.name || "학교 미설정"
             ),
           gradeLabel:
             gradeLabels[
               Number(user.schoolGrade)
             ] || "학년 미설정",
-          displayMode:
-            user.preferences
-              ?.rankingDisplayMode ===
-            "realName"
-              ? "실명"
-              : "닉네임",
+          displayMode: "닉네임",
         },
         placement,
         paidPackageAccess,
@@ -4010,6 +4077,12 @@ exports.unitLearning = async (
   next
 ) => {
   try {
+    if (!isCourseAvailable(req.params.courseId)) {
+      const error = new Error("현재 개발 중인 과목입니다. 제공 과목이 준비되면 안내하겠습니다.");
+      error.status = 423;
+      error.code = "COURSE_IN_DEVELOPMENT";
+      return next(error);
+    }
     const { learningData } =
       await getUserLearningData(
         req.session.user.id
@@ -4136,6 +4209,7 @@ exports.unitLearning = async (
 function renderRegisterError(res, status, error, oldInput = {}) {
     return res.status(status).render("register", {
         schoolRegions: getSchoolSelectData(),
+        universities: getUniversitySelectData(),
         error,
         oldInput: {
             realName: "",
@@ -4145,6 +4219,7 @@ function renderRegisterError(res, status, error, oldInput = {}) {
             schoolGrade: 10,
             schoolRegion: "",
             schoolCode: "",
+            universityCode: "",
             ...oldInput,
         },
     });
@@ -4168,7 +4243,7 @@ function createLoginSession(req, user) {
                 schoolGrade: user.schoolGrade,
                 educationStatus:
                     user.educationStatus ||
-                    (Number(user.schoolGrade) === 13
+                    ([13, 15].includes(Number(user.schoolGrade))
                         ? "graduated"
                         : "enrolled"),
                 ...lifecycleSessionView(user),
@@ -4177,10 +4252,7 @@ function createLoginSession(req, user) {
                         user.preferences
                             ?.coachMode ||
                         "spicy",
-                    rankingDisplayMode:
-                        user.preferences
-                            ?.rankingDisplayMode ||
-                        "nickname",
+                    rankingDisplayMode: "nickname",
                 },
 
                 school: user.school?.code
@@ -4188,6 +4260,14 @@ function createLoginSession(req, user) {
                           region: user.school.region,
                           code: user.school.code,
                           name: user.school.name,
+                      }
+                    : null,
+                university: user.university?.code
+                    ? {
+                          code: user.university.code,
+                          name: user.university.name,
+                          campus: user.university.campus,
+                          region: user.university.region,
                       }
                     : null,
             };
@@ -4220,6 +4300,7 @@ exports.register = async (req, res, next) => {
         const schoolGrade = Number(req.body.schoolGrade);
         const schoolRegion = String(req.body.schoolRegion || "").trim();
         const schoolCode = String(req.body.schoolCode || "").trim();
+        const universityCode = String(req.body.universityCode || "").trim();
 
         const password = String(req.body.password || "");
         const passwordConfirm = String(req.body.passwordConfirm || "");
@@ -4237,6 +4318,7 @@ exports.register = async (req, res, next) => {
             schoolGrade,
             schoolRegion,
             schoolCode,
+            universityCode,
         };
 
         if (
@@ -4244,8 +4326,9 @@ exports.register = async (req, res, next) => {
             !birthDateInput ||
             !name ||
             !email ||
-            (schoolGrade !== 13 &&
+            ([10, 11, 12].includes(schoolGrade) &&
                 (!schoolRegion || !schoolCode)) ||
+            (schoolGrade === 14 && !universityCode) ||
             !password ||
             !passwordConfirm
         ) {
@@ -4286,11 +4369,11 @@ exports.register = async (req, res, next) => {
             );
         }
 
-        if (![10, 11, 12, 13].includes(schoolGrade)) {
+        if (![10, 11, 12, 13, 14, 15].includes(schoolGrade)) {
             return renderRegisterError(
                 res,
                 400,
-                "올바른 학년을 선택해주세요.",
+                "올바른 학습자 구분을 선택해주세요.",
                 oldInput
             );
         }
@@ -4350,18 +4433,31 @@ exports.register = async (req, res, next) => {
          * YAML 데이터에서 학교 코드가 실제로 존재하는지 확인한다.
          */
         const selectedSchool =
-            schoolGrade === 13
-                ? null
-                : findSchool(
+            [10, 11, 12].includes(schoolGrade)
+                ? findSchool(
                       schoolRegion,
                       schoolCode
-                  );
+                  )
+                : null;
 
-        if (schoolGrade !== 13 && !selectedSchool) {
+        const selectedUniversity =
+            schoolGrade === 14
+                ? findUniversity(universityCode)
+                : null;
+
+        if ([10, 11, 12].includes(schoolGrade) && !selectedSchool) {
             return renderRegisterError(
                 res,
                 400,
                 "올바른 고등학교를 선택해주세요.",
+                oldInput
+            );
+        }
+        if (schoolGrade === 14 && !selectedUniversity) {
+            return renderRegisterError(
+                res,
+                400,
+                "목록에서 재학 중인 대학교를 선택해주세요.",
                 oldInput
             );
         }
@@ -4438,8 +4534,16 @@ exports.register = async (req, res, next) => {
                   }
                 : {}),
             schoolGrade,
-            educationStatus:
+            learnerType:
                 schoolGrade === 13
+                    ? "RETAKER"
+                    : schoolGrade === 14
+                      ? "UNIVERSITY"
+                      : schoolGrade === 15
+                        ? "WORKER"
+                        : "HIGH_SCHOOL",
+            educationStatus:
+                [13, 15].includes(schoolGrade)
                     ? "graduated"
                     : "enrolled",
             lastGradePromotionYear:
@@ -4460,6 +4564,9 @@ exports.register = async (req, res, next) => {
                               selectedSchool.highSchoolType || "",
                       },
                   }
+                : {}),
+            ...(selectedUniversity
+                ? { university: selectedUniversity }
                 : {}),
 
             termsAcceptedAt: new Date(),
@@ -4503,6 +4610,7 @@ exports.register = async (req, res, next) => {
                         req.body.schoolRegion || ""
                     ).trim(),
                     schoolCode: String(req.body.schoolCode || "").trim(),
+                    universityCode: String(req.body.universityCode || "").trim(),
                 }
             );
         }
@@ -4592,6 +4700,35 @@ function isSafeReturnPath(returnTo) {
         typeof returnTo === "string" &&
         returnTo.startsWith("/") &&
         !returnTo.startsWith("//")
+    );
+}
+
+function isSafeStudentReturnPath(returnTo) {
+    if (!isSafeReturnPath(returnTo)) {
+        return false;
+    }
+
+    const pathname = String(returnTo).split(/[?#]/, 1)[0];
+    const blockedPrefixes = [
+        "/admin",
+        "/parent",
+        "/api",
+    ];
+    const blockedExactPaths = new Set([
+        "/login",
+        "/register",
+        "/logout",
+        "/forgot-password",
+        "/reset-password",
+    ]);
+
+    return (
+        !blockedExactPaths.has(pathname) &&
+        !blockedPrefixes.some(
+            (prefix) =>
+                pathname === prefix ||
+                pathname.startsWith(`${prefix}/`)
+        )
     );
 }
 
@@ -4708,11 +4845,6 @@ exports.login = async (req, res, next) => {
                 access.user._id
             );
         const loginAt = new Date();
-        await synchronizeDormantArenaReturn({
-            userId: synchronizedUser._id,
-            lastLoginAt: synchronizedUser.lastLoginAt,
-            now: loginAt,
-        });
         synchronizedUser.lastLoginAt =
             loginAt;
         await synchronizedUser.save();
@@ -4742,7 +4874,7 @@ exports.login = async (req, res, next) => {
             schoolGrade: user.schoolGrade,
             educationStatus:
                 user.educationStatus ||
-                (Number(user.schoolGrade) === 13
+                ([13, 15].includes(Number(user.schoolGrade))
                     ? "graduated"
                     : "enrolled"),
             ...lifecycleSessionView(user),
@@ -4751,10 +4883,7 @@ exports.login = async (req, res, next) => {
                     user.preferences
                         ?.coachMode ||
                     "spicy",
-                rankingDisplayMode:
-                    user.preferences
-                        ?.rankingDisplayMode ||
-                    "nickname",
+                rankingDisplayMode: "nickname",
             },
 
             school: user.school?.code
@@ -4762,6 +4891,14 @@ exports.login = async (req, res, next) => {
                       region: user.school.region,
                       code: user.school.code,
                       name: user.school.name,
+                  }
+                : null,
+            university: user.university?.code
+                ? {
+                      code: user.university.code,
+                      name: user.university.name,
+                      campus: user.university.campus,
+                      region: user.university.region,
                   }
                 : null,
         };
@@ -4785,7 +4922,7 @@ exports.login = async (req, res, next) => {
             return res.redirect("/admin");
         }
 
-        if (isSafeReturnPath(returnTo)) {
+        if (isSafeStudentReturnPath(returnTo)) {
             return res.redirect(returnTo);
         }
 
@@ -5029,7 +5166,7 @@ exports.changeNickname = async (req, res, next) => {
                 ),
             },
             {
-                new: true,
+                returnDocument: "after",
                 runValidators: true,
             }
         ).lean();
@@ -5193,111 +5330,6 @@ exports.completeNicknameChange =
     }
   };
 
-exports.changeRankingIdentity = async (
-    req,
-    res,
-    next
-) => {
-    try {
-        const rankingDisplayMode =
-            normalizeRankingDisplayMode(
-                req.body.rankingDisplayMode
-            );
-        const formValues = {
-            rankingDisplayMode:
-                rankingDisplayMode ||
-                String(
-                    req.body.rankingDisplayMode || ""
-                ),
-        };
-
-        if (!rankingDisplayMode) {
-            return await renderProfile(req, res, {
-                status: 400,
-                feedback: {
-                    section: "ranking-identity",
-                    type: "error",
-                    message:
-                        "랭킹에 표시할 이름 방식을 선택해주세요.",
-                },
-                formValues,
-            });
-        }
-
-        const existingUser = await User.findById(
-            req.session.user.id
-        )
-            .select("realName")
-            .lean();
-
-        if (!existingUser) {
-            throw createNotFoundError(
-                "사용자 정보를 찾을 수 없습니다."
-            );
-        }
-
-        if (
-            rankingDisplayMode === "realName" &&
-            !String(existingUser.realName || "").trim()
-        ) {
-            return await renderProfile(req, res, {
-                status: 400,
-                feedback: {
-                    section: "ranking-identity",
-                    type: "error",
-                    message:
-                        "회원가입 때 등록한 실명이 없어 실명으로 표시할 수 없습니다.",
-                },
-                formValues,
-            });
-        }
-
-        const user = await User.findByIdAndUpdate(
-            req.session.user.id,
-            {
-                "preferences.rankingDisplayMode":
-                    rankingDisplayMode,
-            },
-            {
-                new: true,
-                runValidators: true,
-            }
-        ).lean();
-
-        if (!user) {
-            throw createNotFoundError(
-                "사용자 정보를 찾을 수 없습니다."
-            );
-        }
-
-        req.session.user.realName =
-            user.realName || "";
-        req.session.user.preferences = {
-            ...(req.session.user.preferences ||
-                {}),
-            rankingDisplayMode:
-                user.preferences
-                    ?.rankingDisplayMode ||
-                "nickname",
-        };
-        await saveSession(req);
-
-        return await renderProfile(req, res, {
-            feedback: {
-                section: "ranking-identity",
-                type: "success",
-                message:
-                    rankingDisplayMode ===
-                    "realName"
-                        ? "랭킹에서 실명을 표시하도록 저장했습니다."
-                        : "랭킹에서 닉네임을 표시하도록 저장했습니다.",
-            },
-        });
-    } catch (error) {
-        return next(error);
-    }
-};
-
 exports.changeSchool = async (req, res, next) => {
     try {
         const schoolRegion = String(
@@ -5358,7 +5390,7 @@ exports.changeSchool = async (req, res, next) => {
             req.session.user.id,
             { school },
             {
-                new: true,
+                returnDocument: "after",
                 runValidators: true,
             }
         ).lean();
@@ -6409,11 +6441,8 @@ exports.communityPage =
                 null,
               board:
                 req.query.board ||
-                (Number(
-                  req.session?.user
-                    ?.schoolGrade
-                ) === 13
-                  ? "retaker"
+                (req.session?.user
+                  ? privateBoardForViewer(req.session.user)
                   : "high-school"),
               search:
                 req.query.search,
@@ -6487,45 +6516,44 @@ exports.communityNoticePage =
 exports.communityRulesPage =
   async (req, res, next) => {
     try {
-      const viewerSchool =
-        req.session?.user
-          ?.school;
+      const viewer = req.session?.user || null;
+      const requestedBoard = String(req.params.boardType || "");
       if (
-        req.params.boardType ===
-          "school" &&
-        !viewerSchool?.code
+        ["school", "retaker", "university", "worker"].includes(requestedBoard) &&
+        viewer?.role !== "admin" &&
+        privateBoardForViewer(viewer) !== requestedBoard
       ) {
-        const error = new Error(
-          "학교 게시판 운영 규칙은 해당 고등학교 소속 학생만 열람할 수 있습니다."
-        );
+        const error = new Error("현재 학습자 구분에 해당하는 전용 게시판 규칙만 확인할 수 있습니다.");
         error.status = 403;
         throw error;
       }
       if (
-        req.params.boardType ===
-          "retaker" &&
-        Number(
-          req.session?.user
-            ?.schoolGrade
-        ) !== 13 &&
-        req.session?.user?.role !==
-          "admin"
+        requestedBoard === "school" &&
+        viewer?.role !== "admin" &&
+        !viewer?.school?.code
       ) {
-        const error = new Error(
-          "N수생 게시판 운영 규칙은 현재 N수생으로 등록된 회원만 열람할 수 있습니다."
-        );
+        const error = new Error("학교 게시판 운영 규칙은 해당 고등학교 소속 학생만 열람할 수 있습니다.");
         error.status = 403;
         throw error;
       }
+      if (
+        requestedBoard === "university" &&
+        viewer?.role !== "admin" &&
+        !viewer?.university?.code
+      ) {
+        const error = new Error("대학교 게시판 운영 규칙은 해당 대학교 소속 대학생만 열람할 수 있습니다.");
+        error.status = 403;
+        throw error;
+      }
+      const viewerSchool = viewer?.school;
+      const viewerUniversity = viewer?.university;
       const schoolCode =
-        req.params.boardType ===
-        "school"
-          ? viewerSchool.code
+        requestedBoard === "school"
+          ? viewerSchool?.code || ""
           : "";
       const schoolName =
-        req.params.boardType ===
-        "school"
-          ? viewerSchool.name
+        requestedBoard === "school"
+          ? viewerSchool?.name || ""
           : "";
 
       return res.render(
@@ -6537,10 +6565,13 @@ exports.communityRulesPage =
           rules:
             getCommunityBoardRules({
               board:
-                req.params
-                  .boardType,
+                requestedBoard,
               schoolCode,
               schoolName,
+              universityCode:
+                requestedBoard === "university" ? viewerUniversity?.code || "" : "",
+              universityName:
+                requestedBoard === "university" ? viewerUniversity?.name || "" : "",
             }),
         }
       );
@@ -6565,12 +6596,7 @@ exports.communityNewPage =
           oldInput: {
             board:
               req.query.board ||
-              (Number(
-                req.session.user
-                  .schoolGrade
-              ) === 13
-                ? "retaker"
-                : "high-school"),
+              privateBoardForViewer(req.session.user),
             title: "",
             content: "",
             isAnonymous:
@@ -6969,6 +6995,10 @@ exports.adminCreateCommunityNotice =
           req.body.schoolCode,
         schoolName:
           req.body.schoolName,
+        universityCode:
+          req.body.universityCode,
+        universityName:
+          req.body.universityName,
         title:
           req.body.title,
         content:
@@ -6998,6 +7028,10 @@ exports.adminUpdateCommunityNotice =
           req.body.schoolCode,
         schoolName:
           req.body.schoolName,
+        universityCode:
+          req.body.universityCode,
+        universityName:
+          req.body.universityName,
         title:
           req.body.title,
         content:

@@ -20,6 +20,9 @@ const {
   rebalanceArenaCohortInTransaction,
 } = require("./arenaStandingService");
 const {
+  resolveMainCompetitivePool,
+} = require("./mainCompetitivePoolService");
+const {
   deliverModerationNotice,
 } = require("./moderationNoticeService");
 
@@ -77,20 +80,19 @@ function calculatePaybackDecision(cycle, { integrityClear = true } = {}) {
         29
     )
   );
-  const minimumPaidNormalAttacks = Math.max(
-    0,
-    numeric(paybackPolicy.minimumPaidNormalAttacks ?? 2)
-  );
   const minimumScoreDays = Math.max(
     0,
     numeric(paybackPolicy.minimumScoreDays ?? 30)
   );
-  const disqualifiers = [];
+  const disqualifiers = [...new Set(
+    (Array.isArray(cycle?.paybackDisqualifiers)
+      ? cycle.paybackDisqualifiers
+      : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+  )];
   if (streakDays < minimumStreakDays) {
     disqualifiers.push("MINIMUM_STREAK_NOT_MET");
-  }
-  if (paidNormalAttacksCompleted < minimumPaidNormalAttacks) {
-    disqualifiers.push("MINIMUM_PAID_ATTACKS_NOT_MET");
   }
   if (paybackScoreDays < minimumScoreDays) {
     disqualifiers.push("MINIMUM_PAYBACK_SCORE_NOT_MET");
@@ -120,7 +122,6 @@ function calculatePaybackDecision(cycle, { integrityClear = true } = {}) {
       paybackScoreDays,
       integrityStatus: integrityClear ? "CLEAR" : "HELD",
       minimumStreakDays,
-      minimumPaidNormalAttacks,
       minimumScoreDays,
     },
   };
@@ -177,7 +178,7 @@ async function holdPaybackReviewForPendingMatch({
     now,
     title: "페이백 심사가 잠시 보류되었습니다",
     message:
-      "아직 정산이 끝나지 않은 GOAT Arena 경기가 있어 페이백 심사를 보류했습니다. 경기 정산 또는 운영자 검토가 끝나면 같은 결제주기 기준으로 심사를 다시 진행합니다.",
+      "아직 정산이 끝나지 않은 GOAT Arena 경기가 있어 페이백 심사를 보류했습니다. 이 상태에서는 조건 미달로 확정하지 않습니다. 경기 정산 또는 운영자 검토가 끝나면 같은 결제주기 기준으로 심사를 다시 진행하며, 운영 검토에서 이상 없음으로 판정되면 실제 매치메이킹 일시정지 시간만큼 이용 주기와 심사 시각을 연장합니다.",
     emailSubject: "[Matths] 페이백 심사 보류 안내",
   });
   return { held: true, review };
@@ -188,7 +189,6 @@ function mainCycleDraft({
   mainDays,
   carryoverDays,
   bonusDays,
-  dormancyRestoreDays = 0,
   now,
 }) {
   const startsAt = new Date(now);
@@ -227,12 +227,6 @@ function mainCycleDraft({
         reservedDays: 0,
         lockedDays: 0,
       },
-      {
-        sourceType: "MAIN_DORMANCY_RESTORE",
-        availableDays: dormancyRestoreDays,
-        reservedDays: 0,
-        lockedDays: 0,
-      },
     ].filter((bucket) => bucket.availableDays > 0),
     sourceSubCycleId: cycle._id,
     mainEntryBonusGrantedAt: startsAt,
@@ -258,22 +252,35 @@ async function createOrActivateMainStanding({
   now,
 }) {
   const seasonKey = kstSeasonKey(now);
-  const subStanding = await ArenaStanding.findOne({
-    userId: cycle.userId,
-    division: "SUB",
-    seasonKey,
-    status: { $ne: "ARCHIVED" },
-  })
-    .session(session)
-    .lean();
+  const [subStanding, user] = await Promise.all([
+    ArenaStanding.findOne({
+      userId: cycle.userId,
+      division: "SUB",
+      seasonKey,
+      status: { $ne: "ARCHIVED" },
+    })
+      .session(session)
+      .lean(),
+    User.findById(cycle.userId)
+      .select("schoolGrade")
+      .session(session)
+      .lean(),
+  ]);
   if (!subStanding) {
     const error = new Error(
-      "Main Division으로 승급할 Sub Division 순위를 찾을 수 없습니다."
+      "Ranked로 승급할 Unranked 순위를 찾을 수 없습니다."
     );
     error.status = 409;
     error.code = "SUB_STANDING_REQUIRED_FOR_MAIN_ENTRY";
     throw error;
   }
+  if (!user) {
+    const error = new Error("Ranked 진입 사용자를 찾을 수 없습니다.");
+    error.status = 404;
+    error.code = "MAIN_ENTRY_USER_NOT_FOUND";
+    throw error;
+  }
+  const competitivePool = resolveMainCompetitivePool(user);
 
   await ArenaStanding.updateOne(
     { _id: subStanding._id },
@@ -283,6 +290,7 @@ async function createOrActivateMainStanding({
   const lastMain = await ArenaStanding.findOne({
     division: "MAIN",
     seasonKey,
+    competitivePool,
     arenaRank: subStanding.arenaRank,
   })
     .sort({ arenaPosition: -1 })
@@ -299,6 +307,7 @@ async function createOrActivateMainStanding({
       $set: {
         arenaRank: subStanding.arenaRank,
         arenaGp: subStanding.arenaGp,
+        competitivePool,
         status: "ACTIVE",
         reachedCurrentGpAt: now,
       },
@@ -317,6 +326,7 @@ async function createOrActivateMainStanding({
     session,
     seasonKey,
     division: "MAIN",
+    competitivePool,
     now,
   });
   return mainStanding;
@@ -349,12 +359,6 @@ async function finalizePaybackReview({
         result = { review: existing, cycle, replayed: true };
         return;
       }
-      const existingAccessState = await ArenaAccessState.findOne({
-        userId: cycle.userId,
-      })
-        .session(session)
-        .lean();
-
       const unresolvedMatches = await unresolvedMatchesForCycle(cycle, session);
       if (unresolvedMatches.length) {
         result = { held: true, cycle };
@@ -365,7 +369,7 @@ async function finalizePaybackReview({
           { "challenger.accessCycleId": cycle._id },
           { "defender.accessCycleId": cycle._id },
         ],
-        integrityStatus: { $in: ["SUSPICIOUS", "INVALID"] },
+        integrityStatus: { $in: ["SUSPICIOUS", "CONFIRMED", "INVALID"] },
       }).session(session);
       const decision = calculatePaybackDecision(cycle, {
         integrityClear: !integrityIssue,
@@ -388,15 +392,7 @@ async function finalizePaybackReview({
           0,
           decision.inputs.paybackScoreDays - carryoverBaseDays
         );
-        const dormancyRestoreDays =
-          existingAccessState?.mainDormancyRecoveryMode ===
-            "RESTORE_ON_MAIN_REENTRY"
-            ? Math.max(
-                0,
-                numeric(existingAccessState.mainDormancyFrozenLearningDays)
-              )
-            : 0;
-        const mainDays = carryoverDays + bonusDays + dormancyRestoreDays;
+        const mainDays = carryoverDays + bonusDays;
         const mainCycleId = new mongoose.Types.ObjectId();
 
         mainStanding = await createOrActivateMainStanding({
@@ -429,7 +425,6 @@ async function finalizePaybackReview({
                 mainDays,
                 carryoverDays,
                 bonusDays,
-                dormancyRestoreDays,
                 now: reviewedAt,
               }),
             },
@@ -475,29 +470,6 @@ async function finalizePaybackReview({
             occurredAt: reviewedAt,
           });
         }
-        if (dormancyRestoreDays > 0) {
-          ledgers.push({
-            userId: cycle.userId,
-            accessCycleId: mainCycleId,
-            idempotencyKey: `${cycle._id}:MAIN_DORMANCY_RESERVE_RESTORED`,
-            eventType: "MAIN_DORMANCY_RESERVE_RESTORED",
-            availableLearningDaysDelta: dormancyRestoreDays,
-            sourceBucket: "MAIN_DORMANCY_RESTORE",
-            balanceAfter: {
-              availableLearningDays: mainDays,
-              paybackScoreDays: 0,
-              lockedLearningDays: 0,
-              reservedLearningDays: 0,
-            },
-            sourceType: "SUB_PAYBACK_REVIEW",
-            sourceId: reviewId,
-            occurredAt: reviewedAt,
-            metadata: {
-              priorAccessStateId: existingAccessState?._id,
-              restoredAfterMainReentry: true,
-            },
-          });
-        }
         if (ledgers.length) {
           await ArenaLearningDayLedger.create(ledgers, { session });
         }
@@ -506,17 +478,12 @@ async function finalizePaybackReview({
           {
             $set: {
               currentCompetitiveDivision: "MAIN",
+              mainCompetitivePool: mainStanding.competitivePool,
               accessCycleId: mainCycleId,
               standingId: mainStanding._id,
               state: "PAID_ACTIVE",
               mainAchievementStatus: "ACHIEVED",
               currentSeasonPlacementCompleted: true,
-              lastMainQualifyingActivityAt: null,
-              mainInactivityStartedAt: null,
-              mainInactivityStartAvailableDays: null,
-              mainDormancyStartedAt: null,
-              mainDormancyFrozenLearningDays: null,
-              mainDormancyRecoveryMode: null,
               defensePoolEligible: true,
               weeklyMockEligible: true,
               finalRankingActive: true,
@@ -537,8 +504,8 @@ async function finalizePaybackReview({
             $setOnInsert: {
               userId: cycle.userId,
               badgeCode: "MAIN_ACHIEVED",
-              displayName: "Main Division 진입",
-              description: "Sub Division 페이백 조건을 달성해 Main Division에 진입했습니다.",
+              displayName: "Ranked 진입",
+              description: "Unranked 페이백 조건을 달성해 Ranked에 진입했습니다.",
               seasonKey: kstSeasonKey(reviewedAt),
               sourceType: "MAIN_ACHIEVEMENT",
               awardedAt: reviewedAt,
@@ -567,7 +534,6 @@ async function finalizePaybackReview({
               payload: {
                 sourceSubCycleId: cycle._id,
                 mainStartingLearningDays: mainDays,
-                dormancyRestoredLearningDays: dormancyRestoreDays,
               },
             },
           ],
@@ -732,10 +698,10 @@ async function processDuePaybackReviewHolds({
             ? "페이백 조건을 달성했습니다"
             : "이번 결제주기 페이백 심사가 완료되었습니다",
           message: qualified
-            ? `페이백 ${item.decision.paybackRate}%가 확정되었고 Main Division이 활성화되었습니다. 실제 송금은 지급 대기 상태에서 운영자가 처리합니다.`
+            ? `페이백 ${item.decision.paybackRate}%가 확정되었고 Ranked가 활성화되었습니다. 실제 송금은 지급 대기 상태에서 운영자가 처리합니다.`
             : "이번 결제주기에는 페이백 조건을 모두 충족하지 못했습니다. 다음 결제주기에는 새 정책 기준으로 다시 도전할 수 있습니다.",
           emailSubject: qualified
-            ? "[Matths] 페이백 확정 및 Main Division 진입 안내"
+            ? "[Matths] 페이백 확정 및 Ranked 진입 안내"
             : "[Matths] 페이백 심사 결과 안내",
         });
       }

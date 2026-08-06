@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ko">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>패키지 구매 | Matths 학부모</title><link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" /><link rel="stylesheet" href="/css/brand.css" /><link rel="stylesheet" href="/css/parent.css" /></head>
+  <body class="parent-page">
+    <%- include('partials/parent-navigation', { activeParentPage: 'pricing' }) %>
+    <main class="parent-main">
+      <header class="parent-page-heading"><p>패키지 구매하기</p><h1><%= child.realName || child.name %> 학생에게 필요한<br />이용권을 선택해주세요.</h1><span>표시 금액과 이용 기간을 확인한 뒤 결제 준비 화면으로 이동합니다.</span></header>
+      <section class="parent-product-grid">
+        <% products.forEach((product) => { %><article>
+          <small><%= product.periodLabel %> 이용</small><h2><%= product.name %></h2><p><%= product.description %></p><strong><%= new Intl.NumberFormat('ko-KR').format(product.amount) %><em>원</em></strong>
+          <a href="/parent/checkout/<%= product.code %>">결제하기</a>
+        </article><% }) %>
+      </section>
+      <p class="parent-pg-note">현재는 결제 화면과 주문 준비 단계까지만 제공됩니다. PG 연결 전에는 실제 결제·이용권 지급이 발생하지 않습니다.</p>
+    </main>
+  </body>
+</html>

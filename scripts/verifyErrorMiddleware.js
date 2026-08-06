@@ -70,6 +70,8 @@ assert.match(errorCss, /\.matths-error-main[\s\S]*overflow:\s*clip/);
   assert.equal(res.model.statusCode, 403);
   assert.equal(res.model.primaryAction.href, "/main");
   assert.equal(res.model.secondaryAction.href, "/faq");
+  assert.equal(res.model.errorCode, "ADMIN_ACCESS_REQUIRED");
+  assert.equal(res.model.errorFaqHref, "/faq?code=403#faq-error-403");
   assert.equal(res.headers["Cache-Control"], "no-store");
 }
 
@@ -146,6 +148,7 @@ assert.match(errorCss, /\.matths-error-main[\s\S]*overflow:\s*clip/);
   assert.equal(res.statusCode, 403);
   assert.equal(res.view, null);
   assert.deepEqual(res.jsonBody, {
+    code: "HTTP_403",
     message: "이 API를 이용할 권한이 없습니다.",
   });
 }

@@ -4,6 +4,8 @@
     11: "고2",
     12: "고3",
     13: "N수생",
+    14: "대학생",
+    15: "직장인",
   };
   const formatDate = (date) =>
     date
@@ -87,7 +89,7 @@
         <% usersData.users.forEach((member) => { %>
           <a class="admin-user-row" href="/admin/users/<%= member._id %>">
             <span><strong><%= member.name %></strong><small><%= member.email %></small></span>
-            <span><%= member.school?.name || "미설정" %><small><%= member.school?.region || "" %></small></span>
+            <span><%= Number(member.schoolGrade) === 14 ? (member.university?.name || "대학교 미설정") : Number(member.schoolGrade) === 15 ? "직장인" : Number(member.schoolGrade) === 13 ? "N수생" : (member.school?.name || "미설정") %><small><%= Number(member.schoolGrade) === 14 ? (member.university?.region || "") : (member.school?.region || "") %></small></span>
             <span><%= gradeLabels[member.schoolGrade] || "—" %></span>
             <span><%= { student: "학생", teacher: "교사", admin: "관리자" }[member.role] || "역할 확인 필요" %></span>
             <span class="<%= (member.accountStatus || (member.isActive ? 'active' : 'inactive')) === 'active' ? 'is-active' : 'is-inactive' %>"><%= { active: "활성", inactive: "비활성", suspended: "정지", withdrawn: "탈퇴" }[member.accountStatus || (member.isActive ? "active" : "inactive")] %><small>경고 <%= member.warningCount || 0 %>회</small></span>

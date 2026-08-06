@@ -44,7 +44,6 @@ async function run() {
     matchStakeDays: { normal: 1, revenge: 2 },
     payback: {
       minimumStreakDays: 29,
-      minimumPaidNormalAttacks: 2,
       minimumScoreDays: 30,
       bands: [
         {
@@ -76,10 +75,11 @@ async function run() {
   assert.equal(
     calculatePaybackDecision({
       ...paybackCandidate,
+      paidNormalAttacksCompleted: 0,
       streakDays: 29,
     }).qualified,
     true,
-    "29일 전일 학습과 나머지 조건을 충족하면 페이백 자격을 얻어야 합니다."
+    "일반 쟁탈전 참여가 없어도 29일 전일 학습과 나머지 조건을 충족하면 페이백 자격을 얻어야 합니다."
   );
 
   const beforeCutoff = new Date(

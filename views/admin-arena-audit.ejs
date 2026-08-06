@@ -19,7 +19,7 @@
     STANDING: "Arena 상태",
     INVITATION: "초대",
     OUTBOX: "처리 대기 이벤트",
-    SHOP: "Main 상점",
+    SHOP: "Ranked 상점",
     SCOPE: "검사 범위",
   };
   const formatKst = (value) => value
@@ -77,7 +77,7 @@
         <div>
           <p>ARENA RECONCILIATION</p>
           <h1>Arena 감사</h1>
-          <span>학습일수 원장, 경기 결과, Arena 상태 교환, 초대 수락과 Main 상점 구매·효과를 읽기 전용으로 대사합니다.</span>
+          <span>학습일수 원장, 경기 결과, Arena 상태 교환, 초대 수락과 Ranked 상점 구매·효과를 읽기 전용으로 대사합니다.</span>
         </div>
         <div class="arena-audit-refresh">
           <small data-audit-poll-status>30초마다 변경 여부 확인</small>
@@ -123,10 +123,10 @@
           <span><%= audit.scope.truncated ? "최근 데이터 중심" : "전체 범위" %></span>
         </div>
         <div class="arena-audit-scope-grid">
-          <article><small>Main 초대</small><strong><%= audit.summary.checkedInvitations %>건</strong></article>
+          <article><small>Ranked 초대</small><strong><%= audit.summary.checkedInvitations %>건</strong></article>
           <article><small>경기 참가 잠금</small><strong><%= audit.summary.checkedLocks %>건</strong></article>
           <article><small>처리 대기 이벤트</small><strong><%= audit.summary.pendingOutboxCount %>건</strong></article>
-          <article><small>Main 상점 구매·효과</small><strong><%= audit.summary.checkedShopPurchases %> / <%= audit.summary.checkedShopEffects %>건</strong></article>
+          <article><small>Ranked 상점 구매·효과</small><strong><%= audit.summary.checkedShopPurchases %> / <%= audit.summary.checkedShopEffects %>건</strong></article>
           <article><small>표시 중인 이상 항목</small><strong><%= audit.summary.displayedIssueCount %> / <%= audit.summary.issueCount %>건</strong></article>
         </div>
         <% if (Object.keys(audit.summary.byCategory || {}).length) { %>
@@ -205,15 +205,6 @@
         </section>
       <% } %>
 
-      <section class="admin-panel" id="dormancy-monitor">
-        <div class="admin-panel-heading"><div><p>DORMANCY MONITOR</p><h2>Main Division 휴면 후보</h2></div><span>14일 이상 미활동 또는 현재 휴면</span></div>
-        <% if (!rankingOperations.dormancyCandidates.length) { %><div class="arena-audit-empty"><strong>현재 확인할 휴면 후보가 없습니다.</strong></div><% } else { %>
-          <div class="ranking-history-table"><div class="ranking-history-row is-head"><span>사용자</span><span>상태</span><span>미활동</span><span>잔여 일수</span></div>
-            <% rankingOperations.dormancyCandidates.forEach((candidate) => { %><div class="ranking-history-row"><strong><%= candidate.user?.realName || candidate.user?.name || "사용자" %><small><%= candidate.user?.email || "" %></small></strong><span><%= candidate.recoveryMode === "RESTORE_ON_MAIN_REENTRY" ? "Sub 강등·보관" : candidate.state === "MAIN_DORMANT" ? "이전 정책 전환 대기" : "활성" %></span><span><%= candidate.inactiveDays %>일</span><span><%= candidate.recoveryMode === "RESTORE_ON_MAIN_REENTRY" ? `${candidate.reservedForMainReentryDays}일 보관` : `${candidate.remainingDays}일` %></span></div><% }) %>
-          </div>
-        <% } %>
-      </section>
-
       <section class="admin-panel">
         <div class="admin-panel-heading"><div><p>RANKING HISTORY</p><h2>최근 순위 변경 원장</h2></div><span>경기별 이전·이후 값</span></div>
         <div class="ranking-history-table"><div class="ranking-history-row is-head"><span>사용자</span><span>변경 전</span><span>변경 후</span><span>발생 시각</span></div>
@@ -230,7 +221,7 @@
           <article><small>스케줄러</small><strong><%= rankingOperations.operations.schedulerEnabled ? "실행 허용" : "중지됨" %></strong><span>시즌·차감·알림 작업</span></article>
         </div>
         <div class="maintenance-actions">
-          <% [["DORMANCY_SCAN", "휴면 판정 다시 검사"], ["SETTLEMENT_RETRY", "대기 경기 정산 재처리"], ["ACCESS_CYCLE_RETRY", "일일 차감·만료 재처리"], ["NOTIFICATION_RETRY", "종료 예정 알림 재처리"], ["SEASON_RETRY", "시즌 작업 재처리"], ["STORAGE_BACKUP", "운영자 파일 R2 백업"], ["STORAGE_RESTORE_DRILL", "R2 복원 점검·누락 복구"]].forEach(([task, label]) => { %>
+          <% [["SETTLEMENT_RETRY", "대기 경기 정산 재처리"], ["ACCESS_CYCLE_RETRY", "일일 차감·만료 재처리"], ["NOTIFICATION_RETRY", "종료 예정 알림 재처리"], ["SEASON_RETRY", "시즌 작업 재처리"], ["STORAGE_BACKUP", "운영자 파일 R2 백업"], ["STORAGE_RESTORE_DRILL", "R2 복원 점검·누락 복구"]].forEach(([task, label]) => { %>
             <form action="/admin/arena-audit/maintenance" method="POST"><input type="hidden" name="task" value="<%= task %>" /><button type="submit"><%= label %></button></form>
           <% }) %>
         </div>

@@ -29,13 +29,14 @@
     <meta name="theme-color" content="#070913" />
     <title>경기 상세 분석 | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
+    <%- include("partials/rank-motion-head") %>
     <link rel="icon" type="image/jpeg" href="/images/goat-arena/goat-arena-logo.jpg" />
   </head>
   <body class="goat-arena-page arena-inner-page arena-shop-page">
     <a class="arena-skip-link" href="#analysis-main">본문으로 바로가기</a>
     <%- include("partials/goat-arena-navigation", { activeArenaPage, arenaUser }) %>
     <main class="arena-page-main arena-analysis-main" id="analysis-main">
-      <a class="arena-challenge-back" href="/goat-arena/main/shop">← Main Division 상점으로 돌아가기</a>
+      <a class="arena-challenge-back" href="/goat-arena/main/shop">← Ranked 상점으로 돌아가기</a>
       <header class="arena-page-heading arena-analysis-heading">
         <div><p>경기 복습</p><h1>경기 상세 분석</h1></div>
         <p>경기 분석권을 사용한 본인에게만 봉인된 문제·정답·풀이과정을 공개합니다. 상대의 답안과 풀이 증거는 공개하지 않습니다.</p>

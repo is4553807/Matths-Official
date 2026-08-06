@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 dotenv.config({ path: "./config.env" });
 
 const {
+  AssessmentAttempt,
   RankingProfile,
   User,
   UserNotification,
@@ -35,6 +36,7 @@ const { kstSeasonKey } = require("../services/arenaStandingService");
 const TEST_BATCH_KEY = "GOAT-ARENA-E2E-200-20260803";
 const TEST_PASSWORD = "REMOVED_FROM_HISTORY";
 const TEST_COUNT_PER_DIVISION = 100;
+const TEST_MATCH_ACTOR_USERNAME = "REMOVED_FROM_HISTORY";
 const OUTPUT_PATH = path.resolve(
   __dirname,
   "..",
@@ -42,17 +44,6 @@ const OUTPUT_PATH = path.resolve(
   "019fb1e7-d977-7813-80d6-e222909a9a87",
   "arena-test-users-200.json"
 );
-const TIER_KEYS = [
-  "BRONZE",
-  "SILVER",
-  "GOLD",
-  "PLATINUM",
-  "EMERALD",
-  "DIAMOND",
-  "MASTER",
-  "GRANDMASTER",
-  "CHALLENGER",
-];
 const TIER_LABELS = {
   BRONZE: "브론즈",
   SILVER: "실버",
@@ -64,6 +55,18 @@ const TIER_LABELS = {
   GRANDMASTER: "그랜드마스터",
   CHALLENGER: "챌린저",
 };
+const TEST_DATASET_VERSION = "GOAT-ARENA-PLACEMENT-REALISTIC-V2";
+const TIER_DISTRIBUTION = [
+  { key: "BRONZE", count: 20, scoreMin: 28, scoreMax: 43, mmrMin: 620, mmrMax: 790 },
+  { key: "SILVER", count: 18, scoreMin: 44, scoreMax: 53, mmrMin: 805, mmrMax: 915 },
+  { key: "GOLD", count: 15, scoreMin: 54, scoreMax: 62, mmrMin: 930, mmrMax: 1015 },
+  { key: "PLATINUM", count: 13, scoreMin: 63, scoreMax: 70, mmrMin: 1030, mmrMax: 1110 },
+  { key: "EMERALD", count: 10, scoreMin: 71, scoreMax: 77, mmrMin: 1125, mmrMax: 1200 },
+  { key: "DIAMOND", count: 8, scoreMin: 78, scoreMax: 84, mmrMin: 1215, mmrMax: 1320 },
+  { key: "MASTER", count: 6, scoreMin: 85, scoreMax: 89, mmrMin: 1335, mmrMax: 1435 },
+  { key: "GRANDMASTER", count: 5, scoreMin: 90, scoreMax: 94, mmrMin: 1445, mmrMax: 1510 },
+  { key: "CHALLENGER", count: 5, scoreMin: 95, scoreMax: 99, mmrMin: 1530, mmrMax: 1600 },
+];
 const SCHOOLS = Array.from({ length: 10 }, (_, index) => ({
   code: `TEST-HS-${String(index + 1).padStart(2, "0")}`,
   name: `테스트고등학교 ${index + 1}`,
@@ -89,6 +92,34 @@ function koreanNumber(value) {
 
 function plusDays(value, days) {
   return new Date(new Date(value).getTime() + days * 86_400_000);
+}
+
+function interpolate(minimum, maximum, offset, count) {
+  if (count <= 1) return Math.round((minimum + maximum) / 2);
+  return Math.round(minimum + ((maximum - minimum) * offset) / (count - 1));
+}
+
+function placementProfileForIndex(localIndex) {
+  let cursor = 0;
+  for (const tier of TIER_DISTRIBUTION) {
+    const nextCursor = cursor + tier.count;
+    if (localIndex < nextCursor) {
+      const offset = localIndex - cursor;
+      const percentile = (localIndex + 0.5) / TEST_COUNT_PER_DIVISION;
+      return {
+        tierKey: tier.key,
+        tierLabel: TIER_LABELS[tier.key],
+        tierOffset: offset,
+        tierCount: tier.count,
+        placementScore: interpolate(tier.scoreMin, tier.scoreMax, offset, tier.count),
+        placementMmr: interpolate(tier.mmrMin, tier.mmrMax, offset, tier.count),
+        placementPercentile: percentile,
+        arenaGp: interpolate(0, 99, offset, tier.count),
+      };
+    }
+    cursor = nextCursor;
+  }
+  throw new Error(`테스트 티어 분포 범위를 벗어났습니다: ${localIndex}`);
 }
 
 async function assertNoRealAccountCollision() {
@@ -137,6 +168,7 @@ async function cleanupTaggedTestAccounts() {
   const matchIds = matches.map((match) => match._id);
 
   await Promise.all([
+    AssessmentAttempt.deleteMany({ userId: { $in: userIds }, scopeType: "placement" }),
     RankingProfile.deleteMany({ userId: { $in: userIds } }),
     UserNotification.deleteMany({ userId: { $in: userIds } }),
     AccessCycle.deleteMany({ userId: { $in: userIds } }),
@@ -155,6 +187,18 @@ async function cleanupTaggedTestAccounts() {
   ].filter(Boolean));
   await User.deleteMany({ _id: { $in: userIds } });
   return { removedUsers: userIds.length, removedMatches: matchIds.length };
+}
+
+async function setTestMatchActorAccess(enabled) {
+  return User.updateOne(
+    {
+      nameNormalized: TEST_MATCH_ACTOR_USERNAME,
+      role: { $ne: "admin" },
+      isActive: { $ne: false },
+      accountStatus: { $ne: "withdrawn" },
+    },
+    { $set: { arenaTestMatchEnabled: enabled === true } }
+  );
 }
 
 async function nextTierPositions(seasonKey) {
@@ -186,6 +230,7 @@ async function main() {
     await assertNoRealAccountCollision();
     const cleanup = await cleanupTaggedTestAccounts();
     if (process.argv.includes("--cleanup-only")) {
+      await setTestMatchActorAccess(false);
       console.log(JSON.stringify({
         ok: true,
         cleanupOnly: true,
@@ -201,7 +246,6 @@ async function main() {
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 12);
     const seasonKey = kstSeasonKey(now);
     const positionBase = await nextTierPositions(seasonKey);
-    const tierCounters = new Map();
     const users = [];
     const manifest = [];
 
@@ -209,13 +253,16 @@ async function main() {
       const number = index + 1;
       const division = index < TEST_COUNT_PER_DIVISION ? "SUB" : "MAIN";
       const localIndex = index % TEST_COUNT_PER_DIVISION;
-      const tierKey = TIER_KEYS[localIndex % TIER_KEYS.length];
-      const tierLabel = TIER_LABELS[tierKey];
+      const placementProfile = placementProfileForIndex(localIndex);
+      const tierKey = placementProfile.tierKey;
+      const tierLabel = placementProfile.tierLabel;
       const tierCounterKey = `${division}:${tierLabel}`;
-      const inTierSequence = Number(tierCounters.get(tierCounterKey) || 0) + 1;
-      tierCounters.set(tierCounterKey, inTierSequence);
-      const arenaPosition = Number(positionBase.get(tierCounterKey) || 0) + inTierSequence;
-      const arenaGp = Math.max(0, 99 - (inTierSequence - 1) * 8);
+      const arenaPosition = Number(positionBase.get(tierCounterKey) || 0) +
+        (placementProfile.tierCount - placementProfile.tierOffset);
+      const arenaGp = placementProfile.arenaGp;
+      const finalRankOffset =
+        (TEST_COUNT_PER_DIVISION - localIndex - 1) * 2 +
+        (division === "MAIN" ? 1 : 2);
       const school = SCHOOLS[localIndex % SCHOOLS.length];
       const username = `test${number}`;
       const email = `${username}@test.com`;
@@ -228,10 +275,14 @@ async function main() {
         realName,
         email,
         passwordHash,
-        role: "test",
+        /*
+         * 실제 학생과 같은 인증·권한 경로를 타게 하되, 운영 데이터와의
+         * 격리는 isTestAccount/testBatchKey로 유지한다.
+         */
+        role: "student",
         isTestAccount: true,
         testBatchKey: TEST_BATCH_KEY,
-        operatorRemark: "test · GOAT Arena Sub/Main 전체 기능 검증용",
+        operatorRemark: "test · GOAT Arena Unranked/Ranked 전체 기능 검증용",
         schoolGrade: [10, 11, 12][localIndex % 3],
         educationStatus: "enrolled",
         school: {
@@ -262,6 +313,10 @@ async function main() {
         tierCode: tierKey,
         tierRank: arenaPosition,
         gp: arenaGp,
+        placementScore: placementProfile.placementScore,
+        initialMmr: placementProfile.placementMmr,
+        placementPercentile: placementProfile.placementPercentile,
+        finalRankOffset,
         package: "29일 학습권 패키지",
         learningDays: division === "MAIN" ? 30 : 29,
         paybackScore: division === "SUB" ? 29 : 0,
@@ -287,6 +342,7 @@ async function main() {
     const accessStates = [];
     const rankingProfiles = [];
     const finalProfiles = [];
+    const placementAttempts = [];
     const currentMaximumFinalRank = Number(
       (await LiveFinalRankingProfile.findOne({
         status: { $in: ["ACTIVE", "SUNDAY_DISPLAY_FROZEN"] },
@@ -300,7 +356,100 @@ async function main() {
       const user = userById.get(row.userId);
       const cycleId = new mongoose.Types.ObjectId();
       const standingId = new mongoose.Types.ObjectId();
+      const placementAttemptId = new mongoose.Types.ObjectId();
       const learningDays = row.learningDays;
+      const placementSubmittedAt = new Date(
+        now.getTime() - (3 + (row.number % 21)) * 86_400_000 - row.number * 60_000
+      );
+      const placementElapsedTimeMs = 1_080_000 + (row.number % 19) * 42_000;
+      const placementStartedAt = new Date(
+        placementSubmittedAt.getTime() - placementElapsedTimeMs
+      );
+      placementAttempts.push({
+        _id: placementAttemptId,
+        userId: user._id,
+        paperId: `test-placement-${TEST_BATCH_KEY}-${row.number}`,
+        generationVersion: TEST_DATASET_VERSION,
+        scopeType: "placement",
+        placementPurpose: "INITIAL",
+        placementContextKey: "INITIAL",
+        curriculumId: "kr-2022",
+        courseId: "integrated-placement",
+        title: "War of GOAT 입단 배치고사",
+        subtitle: "GOAT Arena 실전 검증용 테스트 응시 기록",
+        passScore: 0,
+        questions: [],
+        totalPoints: 100,
+        earnedPoints: row.placementScore,
+        scorePercent: row.placementScore,
+        passed: true,
+        status: "submitted",
+        startedAt: placementStartedAt,
+        submittedAt: placementSubmittedAt,
+        elapsedTimeMs: placementElapsedTimeMs,
+        timeLimitMs: 3_600_000,
+        lastSavedAt: placementSubmittedAt,
+        placementResult: {
+          threePoint: {
+            correct: Math.min(20, Math.max(0, Math.round(row.placementScore / 5))),
+            total: 20,
+            rawAccuracy: Math.min(1, row.placementScore / 100),
+            adjustedAccuracy: Math.min(1, row.placementScore / 100),
+          },
+          fourPoint: {
+            correct: Math.min(10, Math.max(0, Math.round(row.placementScore / 10))),
+            total: 10,
+            rawAccuracy: Math.min(1, row.placementScore / 100),
+            adjustedAccuracy: Math.min(1, row.placementScore / 100),
+          },
+          semiKiller: {
+            correct: Math.min(5, Math.max(0, Math.round((row.placementScore - 45) / 11))),
+            total: 5,
+            rawAccuracy: Math.min(1, Math.max(0, (row.placementScore - 35) / 65)),
+            adjustedAccuracy: Math.min(1, Math.max(0, (row.placementScore - 35) / 65)),
+          },
+          killer: {
+            correct: Math.min(2, Math.max(0, Math.round((row.placementScore - 75) / 12))),
+            total: 2,
+            rawAccuracy: Math.min(1, Math.max(0, (row.placementScore - 70) / 30)),
+            adjustedAccuracy: Math.min(1, Math.max(0, (row.placementScore - 70) / 30)),
+          },
+          answeredCount: 30,
+          unansweredCount: 0,
+          totalScore: row.placementScore,
+          totalPercentile: row.placementPercentile,
+          abilityProfile: {
+            coreAbility: Math.min(1, row.placementScore / 100),
+            advancedAbilityBeforeVerification: Math.min(1, row.placementScore / 100),
+            advancedAbilityAfterVerification: Math.min(1, row.placementScore / 100),
+            consistency: 0.72 + (row.number % 20) / 100,
+            placementConfidence: 0.9,
+            basicStability: Math.min(1, 0.55 + row.placementScore / 220),
+            possibleMistakeCount: row.number % 3,
+            confirmedConceptGapCount: Math.max(0, Math.round((70 - row.placementScore) / 12)),
+          },
+          verification: {
+            required: false,
+            flagScore: 0,
+            reasons: [],
+            correct: 0,
+            total: 0,
+            result: "not-required",
+          },
+          placementScore: row.placementScore,
+          initialMmr: row.initialMmr,
+          tier: row.tier,
+          rankingStatus: "confirmed",
+          matchesUntilConfirmed: 0,
+          cohortSize: 200,
+          cohortAverage: 66,
+          cohortStandardDeviation: 19,
+          standardizedScore: Math.round(((row.placementScore - 66) / 19) * 1000) / 1000,
+          percentile: Math.round(row.placementPercentile * 1000) / 10,
+          initialRating: row.initialMmr,
+          initialTier: row.tier,
+        },
+      });
       cycles.push({
         _id: cycleId,
         userId: user._id,
@@ -365,11 +514,12 @@ async function main() {
         userId: user._id,
         division: row.division,
         seasonKey,
+        sourcePlacementAttemptId: placementAttemptId,
         seedPolicyVersion: TEST_BATCH_KEY,
-        seedPlacementScore: 50 + (row.number % 50),
-        seedPlacementElapsedTimeMs: 300_000 + row.number * 1_000,
-        seedPlacementMmr: 900 + row.number * 5,
-        seedPlacementStartedAt: plusDays(now, -1),
+        seedPlacementScore: row.placementScore,
+        seedPlacementElapsedTimeMs: placementElapsedTimeMs,
+        seedPlacementMmr: row.initialMmr,
+        seedPlacementStartedAt: placementStartedAt,
         seededAt: now,
         arenaRank: row.tier,
         arenaPosition: row.tierRank,
@@ -385,7 +535,6 @@ async function main() {
         state: "PAID_ACTIVE",
         mainAchievementStatus: row.division === "MAIN" ? "ACHIEVED" : "NOT_ACHIEVED",
         currentSeasonPlacementCompleted: true,
-        lastMainQualifyingActivityAt: row.division === "MAIN" ? now : null,
         defensePoolEligible: true,
         weeklyMockEligible: true,
         finalRankingActive: true,
@@ -394,13 +543,13 @@ async function main() {
       });
       rankingProfiles.push({
         userId: user._id,
-        placementScore: 50 + (row.number % 50),
-        placementExpectedPerformance: 0.5 + (row.number % 40) / 100,
-        mmr: 900 + row.number * 5,
+        placementScore: row.placementScore,
+        placementExpectedPerformance: Math.min(0.99, row.placementScore / 100),
+        mmr: row.initialMmr,
         tier: row.tierCode,
         rankPoint: row.gp,
-        overallRank: row.number,
-        percentile: row.number / 200,
+        overallRank: row.finalRankOffset,
+        percentile: row.placementPercentile,
         status: "CONFIRMED",
         weeklyExamsUntilConfirmed: 0,
         seasonId: seasonKey,
@@ -411,25 +560,30 @@ async function main() {
         userId: user._id,
         accessState: "PAID_ACTIVE",
         currentCompetitiveDivision: row.division,
-        skillMmr: 900 + row.number * 5,
+        skillMmr: row.initialMmr,
         weeklyMockBonus: (row.number % 4) * 10,
         publishedWeeklyMockBonus: (row.number % 4) * 10,
-        seasonSubCurrentPercentile: row.division === "SUB" ? row.number / 200 : null,
-        seasonMainCurrentPercentile: row.division === "MAIN" ? row.number / 200 : null,
+        seasonSubCurrentPercentile: row.division === "SUB" ? row.placementPercentile : null,
+        seasonMainCurrentPercentile: row.division === "MAIN" ? row.placementPercentile : null,
         seasonSettledNormalAttackCount: row.number % 6,
-        finalRating: 2400 - row.number,
-        finalRank: currentMaximumFinalRank + row.number,
-        publishedFinalRating: 2400 - row.number,
-        publishedFinalRank: currentMaximumFinalRank + row.number,
+        finalRating: row.initialMmr + (row.division === "MAIN" ? 1 : 0),
+        finalRank: currentMaximumFinalRank + row.finalRankOffset,
+        publishedFinalRating: row.initialMmr + (row.division === "MAIN" ? 1 : 0),
+        publishedFinalRank: currentMaximumFinalRank + row.finalRankOffset,
         lastPublishedAt: now,
         status: "ACTIVE",
         calculationKey: `${TEST_BATCH_KEY}:${row.number}`,
       });
       row.accessCycleId = String(cycleId);
       row.standingId = String(standingId);
+      row.placementAttemptId = String(placementAttemptId);
+      row.placementStartedAt = placementStartedAt.toISOString();
+      row.placementSubmittedAt = placementSubmittedAt.toISOString();
+      row.placementElapsedTimeMs = placementElapsedTimeMs;
     }
 
     await Promise.all([
+      AssessmentAttempt.insertMany(placementAttempts, { ordered: true }),
       AccessCycle.insertMany(cycles, { ordered: true }),
       ArenaStanding.insertMany(standings, { ordered: true }),
       RankingProfile.insertMany(rankingProfiles, { ordered: true }),
@@ -437,6 +591,12 @@ async function main() {
       ArenaLearningDayLedger.insertMany(initialLedgers, { ordered: true }),
     ]);
     await ArenaAccessState.insertMany(accessStates, { ordered: true });
+    const testActorUpdate = await setTestMatchActorAccess(true);
+    if (Number(testActorUpdate.matchedCount || 0) !== 1) {
+      throw new Error(
+        `${TEST_MATCH_ACTOR_USERNAME} 테스트 실행 계정을 찾지 못해 더미 계정 매칭 권한을 켜지 못했습니다.`
+      );
+    }
 
     fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
     fs.writeFileSync(
@@ -461,6 +621,8 @@ async function main() {
         batchKey: TEST_BATCH_KEY,
         subUsers: manifest.filter((row) => row.division === "SUB").length,
         mainUsers: manifest.filter((row) => row.division === "MAIN").length,
+        testMatchActor: TEST_MATCH_ACTOR_USERNAME,
+        testMatchingEnabled: true,
         manifestPath: OUTPUT_PATH,
       })
     );

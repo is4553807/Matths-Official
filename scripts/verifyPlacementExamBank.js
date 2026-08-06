@@ -4,6 +4,7 @@ const assert = require(
 const {
   auditPlacementBank,
   buildPlacementPaper,
+  buildPlacementVerificationQuestions,
   candidateTypesForBlueprint,
   PLACEMENT_QUESTION_BLUEPRINTS,
 } = require(
@@ -76,6 +77,35 @@ for (
         question.prompt
     )
   );
+  const uniqueTypeIdentities =
+    new Set(
+      paper.questions.map(
+        (question) =>
+          question.semanticTypeId ||
+          question.similarGroupId
+      )
+    );
+  const verificationQuestions =
+    buildPlacementVerificationQuestions({
+      excludedTypeIds:
+        paper.questions.map(
+          (question) =>
+            question.typeId
+        ),
+      excludedSemanticTypeIds:
+        [
+          ...uniqueTypeIdentities,
+        ],
+    });
+  const allSemanticTypes =
+    new Set([
+      ...uniqueTypeIdentities,
+      ...verificationQuestions.map(
+        (question) =>
+          question.semanticTypeId ||
+          question.similarGroupId
+      ),
+    ]);
   const threePointCount =
     paper.questions.filter(
       (question) =>
@@ -133,6 +163,9 @@ for (
     paper.questions.length !== 30 ||
     paper.totalPoints !== 100 ||
     prompts.size !== 30 ||
+    uniqueTypeIdentities.size !== 30 ||
+    verificationQuestions.length !== 4 ||
+    allSemanticTypes.size !== 34 ||
     threePointCount !== 20 ||
     fourPointCount !== 10 ||
     categoryCounts[

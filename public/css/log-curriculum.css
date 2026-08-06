@@ -1,6 +1,7 @@
 .logged-curriculum-main {
     padding-bottom: 24px;
 }
+.course-shortcuts a.is-development-locked{filter:grayscale(.7);opacity:.68}.curriculum-course.is-development-locked{border-style:dashed;box-shadow:none}.curriculum-course.is-development-locked .course-heading{background:linear-gradient(135deg,#4a5065,#697086)}.course-development-badge{display:inline-flex;vertical-align:middle;margin-left:8px;padding:5px 8px;color:#3d4661;background:#eef1f7;border-radius:999px;font-size:9px;letter-spacing:0}.course-development-panel{display:grid;gap:7px;margin:20px;padding:27px;color:#75809b;background:#f5f7fb;border:1px dashed #cfd6e4;border-radius:15px}.course-development-panel strong{color:#252c43;font-size:15px}.course-development-panel span{font-size:10px;line-height:1.65}
 
 .dashboard-return {
     min-height: 40px;

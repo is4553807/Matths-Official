@@ -555,7 +555,7 @@ async function activateArenaProblemDataVersion({ adminUserId, versionId, now = n
             activatedBy: adminUserId,
           },
         },
-        { session, new: true, runValidators: true }
+        { session, returnDocument: "after", runValidators: true }
       );
       if (!activated) {
         throw statusError(409, "문제 데이터 초안 상태가 변경되었습니다. 새로고침해주세요.");

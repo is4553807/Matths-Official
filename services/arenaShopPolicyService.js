@@ -28,6 +28,9 @@ const {
 const {
   recordPolicyChangeScheduled,
 } = require("./policyChangeOutboxService");
+const {
+  mainNormalMatchStakes,
+} = require("./mainNormalMatchEconomyService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -121,7 +124,7 @@ const MAIN_SHOP_ITEMS = Object.freeze({
   },
   MAIN_PROFILE_BORDER: {
     itemCode: "MAIN_PROFILE_BORDER",
-    displayName: "Main 프로필 테두리",
+    displayName: "Ranked 프로필 테두리",
     priceDays: 2,
   },
   STYLE_ENTRANCE: {
@@ -281,7 +284,7 @@ async function ensureDefaultMainShopPolicy(now = new Date()) {
     return (
       await MainShopPolicyVersion.create({
         code: MAIN_SHOP_POLICY_VERSION,
-        displayName: "Main Division 상점 정책 v1",
+        displayName: "Ranked 상점 정책 v1",
         status: "ACTIVE",
         effectiveFrom: new Date("2026-08-02T00:00:00+09:00"),
         items: defaultPolicyItems(),
@@ -289,7 +292,7 @@ async function ensureDefaultMainShopPolicy(now = new Date()) {
         cosmeticRolloverWindowDays: SEASON_ROLLOVER_WINDOW_DAYS,
         analysisTimeoutMs: MATCH_ANALYSIS_TIMEOUT_MS,
         analysisMaximumRetries: MATCH_ANALYSIS_MAX_RETRIES,
-        changeSummary: "Main Division 상점 확정 정책 v1.0",
+        changeSummary: "Ranked 상점 확정 정책 v1.0",
       })
     ).toObject();
   } catch (error) {
@@ -317,7 +320,7 @@ async function getActiveMainShopPolicy(now = new Date(), session = null) {
       .lean();
   }
   if (!policy) {
-    throw statusError(503, "현재 적용 중인 Main Division 상점 정책이 없습니다.", "MAIN_SHOP_POLICY_UNAVAILABLE");
+    throw statusError(503, "현재 적용 중인 Ranked 상점 정책이 없습니다.", "MAIN_SHOP_POLICY_UNAVAILABLE");
   }
   return policy;
 }
@@ -349,10 +352,10 @@ async function loadShopContext({ userId, now = new Date(), session = null }) {
       cycle
   );
   if (!eligible) {
-    throw statusError(403, "Main Division 활성 사용자만 상점을 이용할 수 있습니다.", "MAIN_SHOP_ACCESS_REQUIRED");
+    throw statusError(403, "Ranked 활성 사용자만 상점을 이용할 수 있습니다.", "MAIN_SHOP_ACCESS_REQUIRED");
   }
   if (isSundayShopLocked(now)) {
-    throw statusError(409, "일요일 15시부터 월요일 0시까지는 Main Division 상점을 이용할 수 없습니다.", "SUNDAY_MAIN_SHOP_LOCK");
+    throw statusError(409, "일요일 15시부터 월요일 0시까지는 Ranked 상점을 이용할 수 없습니다.", "SUNDAY_MAIN_SHOP_LOCK");
   }
   return { user, accessState, cycle };
 }
@@ -701,10 +704,20 @@ async function useDefenseScheduleProtection({
       if (!attackerCycle || Number(attackerCycle.lockedLearningDays || 0) < Number(match.challenger.stakeDays || 0)) {
         throw statusError(409, "공격자의 경기 예치 학습일수를 확인해주세요.", "DEFENSE_PROTECTION_ATTACKER_DEPOSIT_MISSING");
       }
-      const stakeDays = Number(match.challenger.stakeDays || 0);
-      let attackerState = settleLocked(attackerCycle, { returnDays: stakeDays, removeDays: stakeDays });
+      const {
+        challengerStakeDays,
+        defenderStakeDays,
+        normalStakeMode,
+      } = mainNormalMatchStakes(match);
+      let attackerState = settleLocked(attackerCycle, {
+        returnDays: challengerStakeDays,
+        removeDays: challengerStakeDays,
+      });
       attackerState = addMatchTransfer(attackerState, 1);
-      const defenderReleased = settleLocked(context.cycle, { returnDays: stakeDays, removeDays: stakeDays });
+      const defenderReleased = settleLocked(context.cycle, {
+        returnDays: defenderStakeDays,
+        removeDays: defenderStakeDays,
+      });
       const defenderState = burnedAvailableState(defenderReleased, 2);
       await writeCycleState({ cycle: attackerCycle, state: attackerState, session });
       await writeCycleState({ cycle: context.cycle, state: defenderState, session });
@@ -760,11 +773,14 @@ async function useDefenseScheduleProtection({
         purchaseId,
         idempotencyKey: `${match._id}:DEFENSE_PROTECTION_ATTACKER_RELEASE`,
         eventType: "DEFENSE_SCHEDULE_PROTECTION_DEPOSIT_RELEASE",
-        availableDelta: stakeDays,
-        lockedDelta: -stakeDays,
+        availableDelta: challengerStakeDays,
+        lockedDelta: -challengerStakeDays,
         state: attackerState,
         now,
-        metadata: { depositReleasedDays: stakeDays },
+        metadata: {
+          depositReleasedDays: challengerStakeDays,
+          normalStakeMode,
+        },
         session,
       });
       await recordShopLedger({
@@ -785,11 +801,14 @@ async function useDefenseScheduleProtection({
         purchaseId,
         idempotencyKey: `${match._id}:DEFENSE_PROTECTION_DEFENDER_RELEASE`,
         eventType: "DEFENSE_SCHEDULE_PROTECTION_DEPOSIT_RELEASE",
-        availableDelta: stakeDays,
-        lockedDelta: -stakeDays,
+        availableDelta: defenderStakeDays,
+        lockedDelta: -defenderStakeDays,
         state: defenderState,
         now,
-        metadata: { depositReleasedDays: stakeDays },
+        metadata: {
+          depositReleasedDays: defenderStakeDays,
+          normalStakeMode,
+        },
         session,
       });
       await recordShopLedger({
@@ -1074,7 +1093,7 @@ async function getMainShopPageData({ userId, now = new Date() }) {
     purchases,
     invitations,
     policyVersionCode: policy.code,
-    policyDisplayName: policy.displayName || "Main Division 상점 운영 정책",
+    policyDisplayName: policy.displayName || "Ranked 상점 운영 정책",
     policyEffectiveFrom: policy.effectiveFrom || null,
     sundayLocked: isSundayShopLocked(now),
   };
@@ -1190,7 +1209,7 @@ async function updateMainShopPolicy({ adminUserId, itemPrices = {}, enabledItems
     };
   });
   if (!items.some((item) => item.enabled)) {
-    throw statusError(400, "판매할 Main Division 상점 아이템을 한 개 이상 선택해주세요.", "MAIN_SHOP_ITEM_REQUIRED");
+    throw statusError(400, "판매할 Ranked 상점 아이템을 한 개 이상 선택해주세요.", "MAIN_SHOP_ITEM_REQUIRED");
   }
   const session = await mongoose.startSession();
   let created;
@@ -1202,7 +1221,7 @@ async function updateMainShopPolicy({ adminUserId, itemPrices = {}, enabledItems
         effectiveFrom,
       }).session(session).lean();
       if (existingAtStart) {
-        throw statusError(409, "같은 적용 시각에 이미 Main Division 상점 정책이 있습니다.");
+        throw statusError(409, "같은 적용 시각에 이미 Ranked 상점 정책이 있습니다.");
       }
       const previous = await MainShopPolicyVersion.findOne({
         status: "ACTIVE",
@@ -1223,7 +1242,7 @@ async function updateMainShopPolicy({ adminUserId, itemPrices = {}, enabledItems
         [
           {
             code: `MAIN-SHOP-${effectiveFrom.toISOString().replace(/\D/g, "").slice(0, 14)}`,
-            displayName: "Main Division 상점 운영 정책",
+            displayName: "Ranked 상점 운영 정책",
             status: "ACTIVE",
             effectiveFrom,
             effectiveUntil: next?.effectiveFrom || null,
@@ -1242,7 +1261,7 @@ async function updateMainShopPolicy({ adminUserId, itemPrices = {}, enabledItems
           {
             adminUserId,
             action: "arena.main-shop-policy-update",
-            detail: "Main Division 상점 판매 가격·상태 변경",
+            detail: "Ranked 상점 판매 가격·상태 변경",
             metadata: { policyId: String(document._id), policyCode: document.code },
           },
         ],

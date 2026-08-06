@@ -7,6 +7,10 @@ const {
   getSchoolSelectData,
 } = require("../services/schoolService");
 const {
+  findUniversity,
+  getUniversitySelectData,
+} = require("../services/universityService");
+const {
   loadCurriculum,
 } = require("../services/curriculumService");
 const {
@@ -39,7 +43,6 @@ const {
   verifyPasswordResetCode,
 } = require("../services/passwordResetService");
 const {
-  normalizeRankingDisplayMode,
   validateRealName,
 } = require("../services/userIdentityService");
 const {
@@ -57,9 +60,6 @@ const {
   buildIdentityMatchHash,
   normalizeBirthDate,
 } = require("../services/identityRiskService");
-const {
-  synchronizeDormantArenaReturn,
-} = require("../services/arenaDormancyService");
 
 const BCRYPT_ROUNDS = 12;
 
@@ -73,7 +73,7 @@ function serializeUser(user) {
     schoolGrade: user.schoolGrade,
     educationStatus:
       user.educationStatus ||
-      (Number(user.schoolGrade) === 13
+      ([13, 15].includes(Number(user.schoolGrade))
         ? "graduated"
         : "enrolled"),
     schoolGradeLabel: getGradeLabel(
@@ -86,14 +86,19 @@ function serializeUser(user) {
           name: user.school.name,
         }
       : null,
+    university: user.university?.code
+      ? {
+          code: user.university.code,
+          name: user.university.name,
+          campus: user.university.campus,
+          region: user.university.region,
+        }
+      : null,
     currentStreak:
       Number(user.currentStreak) || 0,
     longestStreak:
       Number(user.longestStreak) || 0,
-    rankingDisplayMode:
-      user.preferences
-        ?.rankingDisplayMode ||
-      "nickname",
+    rankingDisplayMode: "nickname",
   };
 }
 
@@ -119,6 +124,9 @@ exports.schools = (req, res) =>
   res.json({
     regions: getSchoolSelectData(),
   });
+
+exports.universities = (_req, res) =>
+  res.json({ universities: getUniversitySelectData() });
 
 exports.register = async (
   req,
@@ -155,6 +163,9 @@ exports.register = async (
     const schoolCode = String(
       req.body.schoolCode || ""
     ).trim();
+    const universityCode = String(
+      req.body.universityCode || ""
+    ).trim();
     const termsAccepted =
       req.body.termsAccepted === true;
 
@@ -164,8 +175,9 @@ exports.register = async (
       !email ||
       !password ||
       !birthDateInput ||
-      (schoolGrade !== 13 &&
+      ([10, 11, 12].includes(schoolGrade) &&
         (!schoolRegion || !schoolCode))
+      || (schoolGrade === 14 && !universityCode)
     ) {
       return res.status(400).json({
         code: "INVALID_INPUT",
@@ -218,14 +230,14 @@ exports.register = async (
     }
 
     if (
-      ![10, 11, 12, 13].includes(
+      ![10, 11, 12, 13, 14, 15].includes(
         schoolGrade
       )
     ) {
       return res.status(400).json({
         code: "INVALID_GRADE",
         message:
-          "현재 학년 또는 N수생을 선택해주세요.",
+          "현재 학습자 구분을 선택해주세요.",
       });
     }
 
@@ -250,18 +262,28 @@ exports.register = async (
     }
 
     const school =
-      schoolGrade === 13
-        ? null
-        : findSchool(
+      [10, 11, 12].includes(schoolGrade)
+        ? findSchool(
             schoolRegion,
             schoolCode
-          );
+          )
+        : null;
+    const university =
+      schoolGrade === 14
+        ? findUniversity(universityCode)
+        : null;
 
-    if (schoolGrade !== 13 && !school) {
+    if ([10, 11, 12].includes(schoolGrade) && !school) {
       return res.status(400).json({
         code: "INVALID_SCHOOL",
         message:
           "목록에서 고등학교를 선택해주세요.",
+      });
+    }
+    if (schoolGrade === 14 && !university) {
+      return res.status(400).json({
+        code: "INVALID_UNIVERSITY",
+        message: "목록에서 대학교를 선택해주세요.",
       });
     }
 
@@ -336,8 +358,16 @@ exports.register = async (
           }
         : {}),
       schoolGrade,
-      educationStatus:
+      learnerType:
         schoolGrade === 13
+          ? "RETAKER"
+          : schoolGrade === 14
+            ? "UNIVERSITY"
+            : schoolGrade === 15
+              ? "WORKER"
+              : "HIGH_SCHOOL",
+      educationStatus:
+        [13, 15].includes(schoolGrade)
           ? "graduated"
           : "enrolled",
       lastGradePromotionYear:
@@ -356,6 +386,9 @@ exports.register = async (
                 school.highSchoolType || "",
             },
           }
+        : {}),
+      ...(university
+        ? { university }
         : {}),
       termsAcceptedAt: now,
       termsVersion: "2026-08-01",
@@ -481,11 +514,6 @@ exports.login = async (
         access.user._id
       );
     const loginAt = new Date();
-    await synchronizeDormantArenaReturn({
-      userId: synchronized._id,
-      lastLoginAt: synchronized.lastLoginAt,
-      now: loginAt,
-    });
     synchronized.lastLoginAt =
       loginAt;
     await synchronized.save();
@@ -525,68 +553,6 @@ exports.withdrawMe = async (
       dataRetention: "anonymous",
       message:
         "개인정보는 제거되었고 학습 데이터는 익명으로 보존됩니다.",
-    });
-  } catch (error) {
-    return next(error);
-  }
-};
-
-exports.updateRankingIdentity = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const rankingDisplayMode =
-      normalizeRankingDisplayMode(
-        req.body.rankingDisplayMode
-      );
-
-    if (!rankingDisplayMode) {
-      return res.status(400).json({
-        code:
-          "INVALID_RANKING_DISPLAY_MODE",
-        message:
-          "랭킹 표시 방식은 nickname 또는 realName이어야 합니다.",
-      });
-    }
-
-    if (
-      rankingDisplayMode === "realName" &&
-      !String(
-        req.apiUser.realName || ""
-      ).trim()
-    ) {
-      return res.status(400).json({
-        code: "REAL_NAME_NOT_REGISTERED",
-        message:
-          "회원가입 때 등록한 실명이 없어 실명으로 표시할 수 없습니다.",
-      });
-    }
-
-    const user =
-      await User.findByIdAndUpdate(
-        req.apiUser._id,
-        {
-          "preferences.rankingDisplayMode":
-            rankingDisplayMode,
-        },
-        {
-          new: true,
-          runValidators: true,
-        }
-      );
-
-    if (!user) {
-      return res.status(404).json({
-        code: "USER_NOT_FOUND",
-        message:
-          "사용자 정보를 찾을 수 없습니다.",
-      });
-    }
-
-    return res.json({
-      user: serializeUser(user),
     });
   } catch (error) {
     return next(error);

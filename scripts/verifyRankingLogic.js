@@ -158,7 +158,7 @@ const tierPool =
     {
       key: "SUB",
       label:
-        "Sub Division",
+        "Unranked",
       dataState:
         "seed-preview",
     }
@@ -176,6 +176,23 @@ assert.equal(
 assert.equal(
   tierPool.defaultTierKey,
   "gold"
+);
+
+const mixedTierEncodingPool =
+  buildTierRankingPool(
+    [
+      { ...students[0], arenaRank: "BRONZE", arenaPosition: 2, arenaGp: 20 },
+      { ...students[1], arenaRank: "브론즈", arenaPosition: 1, arenaGp: 60 },
+      { ...students[2], arenaRank: "SILVER", arenaPosition: 1, arenaGp: 40 },
+      { ...students[0], userId: "u4", arenaRank: "실버", arenaPosition: 2, arenaGp: 10 },
+    ],
+    "u1",
+    { key: "SUB", label: "Unranked", dataState: "seed-preview" }
+  );
+assert.deepEqual(
+  mixedTierEncodingPool.tierBoards.map((board) => [board.tierKey, board.memberCount]),
+  [["silver", 2], ["bronze", 2]],
+  "영문 코드와 한국어 표시명이 섞여도 티어 선택 항목은 하나씩만 표시되어야 합니다."
 );
 
 const gpOrderedTierPool =
@@ -200,7 +217,7 @@ const gpOrderedTierPool =
     {
       key: "SUB",
       label:
-        "Sub Division",
+        "Unranked",
       dataState:
         "seed-preview",
     }
@@ -255,6 +272,35 @@ const finalRankingGroups =
       educationStatus: "graduated",
       finalRank: 7,
     },
+    {
+      userId: "university-1",
+      displayName: "대학생1",
+      universityCode: "university-a",
+      universityName: "A대학교",
+      universityCampus: "본교",
+      universityRegion: "서울",
+      grade: 14,
+      educationStatus: "enrolled",
+      finalRank: 12,
+    },
+    {
+      userId: "university-2",
+      displayName: "대학생2",
+      universityCode: "university-a",
+      universityName: "A대학교",
+      universityCampus: "본교",
+      universityRegion: "서울",
+      grade: 14,
+      educationStatus: "enrolled",
+      finalRank: 28,
+    },
+    {
+      userId: "worker",
+      displayName: "직장인",
+      grade: 15,
+      educationStatus: "graduated",
+      finalRank: 9,
+    },
   ]);
 assert.equal(finalRankingGroups.schools[0].averageFinalRank, 20);
 assert.deepEqual(
@@ -264,6 +310,15 @@ assert.deepEqual(
 assert.deepEqual(
   finalRankingGroups.retakers.map((entry) => entry.userId),
   ["retaker"]
+);
+assert.equal(finalRankingGroups.universities[0].averageFinalRank, 20);
+assert.deepEqual(
+  finalRankingGroups.universities[0].students.map((entry) => entry.userId),
+  ["university-1", "university-2"]
+);
+assert.deepEqual(
+  finalRankingGroups.workers.map((entry) => entry.userId),
+  ["worker"]
 );
 assert.equal(
   isArchiveAdmin({
@@ -393,5 +448,5 @@ assert.equal(
 );
 
 console.log(
-  "MMR·티어·동점 기준·최종 종합·재학생 학교 평균·N수생 랭킹·내 순위 중심 스크롤 검증 완료"
+  "MMR·티어·동점 기준·최종 종합·고등학교·대학교 평균·N수생·직장인 랭킹·내 순위 중심 스크롤 검증 완료"
 );

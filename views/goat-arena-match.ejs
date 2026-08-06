@@ -28,6 +28,7 @@
     <meta name="theme-color" content="#070913" />
     <title>1대1 <%= matchData.matchTitle %> | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
+    <%- include("partials/rank-motion-head") %>
     <link rel="icon" type="image/jpeg" href="/images/goat-arena/goat-arena-logo.jpg" />
     <script>
       window.MathJax = {
@@ -53,6 +54,10 @@
       activeArenaPage,
       arenaUser,
     }) %>
+    <% if (matchData.revengeRight?.canClaim) { %>
+      <% /* 복수하기 선택은 결과 직후 전용 오버레이에서만 제공한다. */ %>
+      <%- include("partials/arena-revenge-overlay", { revengeRight: matchData.revengeRight, revengeRequestId }) %>
+    <% } %>
 
     <main class="arena-page-main arena-match-main" id="arena-match-main">
       <a class="arena-challenge-back" href="/goat-arena/<%= matchData.division === 'MAIN' ? 'main/battle' : 'sub/challenge' %>">← <%= matchData.divisionLabel %> 경기로 돌아가기</a>
@@ -90,7 +95,7 @@
       <% if (matchData.canUseDefenseScheduleProtection) { %>
         <section class="arena-protection-option">
           <div>
-            <small>Main Division 일정 보호</small>
+            <small>Ranked 일정 보호</small>
             <strong>지금 경기를 승패 없이 종료해야 하나요?</strong>
             <p>학습일수 2일을 사용하면 양측의 경기 예치를 전부 반환하고, 공격자에게 1일을 보상하며 1일은 소각합니다.</p>
           </div>
@@ -147,17 +152,7 @@
             </article>
           </div>
           <% if (matchData.revengeRight?.canClaim) { %>
-            <div class="arena-revenge-decision">
-              <div><small>직전 경기 패자 전용</small><h3>지금 복수전을 선택할까요?</h3><p>복수전은 정기권 학습 가능 일수 <%= matchData.revengeRight.stakeDays %>일을 예치하며, 상대는 자동 참가합니다. 경기 종료를 선택하면 이 권리는 다시 받을 수 없습니다.</p></div>
-              <form action="/goat-arena/revenge-rights/<%= matchData.revengeRight.id %>/claim" method="post">
-                <input type="hidden" name="requestId" value="<%= revengeRequestId %>:claim" />
-                <button type="submit">복수하기</button>
-              </form>
-              <form action="/goat-arena/revenge-rights/<%= matchData.revengeRight.id %>/forfeit" method="post">
-                <input type="hidden" name="requestId" value="<%= revengeRequestId %>:forfeit" />
-                <button class="secondary" type="submit">경기 종료</button>
-              </form>
-            </div>
+            <p class="arena-revenge-ready-hint">직전 경기의 복수전 선택 창이 열렸습니다.</p>
           <% } else if (matchData.revengeRight?.revengeMatchId) { %>
             <a href="/goat-arena/matches/<%= matchData.revengeRight.revengeMatchId %>">진행 중인 복수전으로 <span aria-hidden="true">→</span></a>
           <% } else { %>
@@ -177,7 +172,7 @@
           <div>
             <small>문제 팩 배정 전</small>
             <h2>경기 조건을 먼저 고정합니다.</h2>
-            <p>신청 순간 방어자 티어 기준 T1~T9 정책과 자동 검산을 통과한 주관식 준킬러 5문항만 배정합니다. 답은 1~999 자연수이며, 유형 생성기가 연결되지 않았거나 10분 제한·채점 기준을 충족하지 못한 문제는 실제 경기에 사용되지 않습니다.</p>
+            <p>신청 순간 방어자 티어 기준 T1~T9 정책과 자동 검산을 통과한 주관식 준킬러 5문항만 배정합니다. 답은 1~999 자연수이며, 유형 생성기가 연결되지 않았거나 문항당 10분 제한·채점 기준을 충족하지 못한 문제는 실제 경기에 사용되지 않습니다.</p>
           </div>
           <form action="/goat-arena/matches/<%= matchData.id %>/prepare" method="post">
             <button type="submit">경기 문제 준비 <span aria-hidden="true">→</span></button>
@@ -188,11 +183,11 @@
           <div>
             <small><%= matchData.matchRequestLocked ? "일요일 경기 시작 마감" : "응시 준비 완료" %></small>
             <h2><%= matchData.matchRequestLocked ? "오늘은 새 경기를 시작할 수 없습니다." : "시작하면 내 제한 시간이 바로 흐릅니다." %></h2>
-            <p><%= matchData.matchRequestLocked ? "Sub Division과 Main Division 모두 일요일 14:30부터 새 경기 시작을 차단하며, 이미 진행 중인 경기만 15:00까지 마칠 수 있습니다." : "한번 시작한 타이머는 화면을 닫아도 멈추지 않습니다. 현재 문항의 답은 다음 버튼을 누르기 전까지만 바꿀 수 있으며 모든 변경은 서버에 자동 저장됩니다." %></p>
+            <p><%= matchData.matchRequestLocked ? "Unranked와 Ranked 모두 일요일 14:00부터 새 경기 시작을 차단하며, 이미 진행 중인 경기만 15:00까지 마칠 수 있습니다." : "한번 시작한 타이머는 화면을 닫아도 멈추지 않습니다. 현재 문항의 답은 다음 버튼을 누르기 전까지만 바꿀 수 있으며 모든 변경은 서버에 자동 저장됩니다." %></p>
           </div>
           <dl>
             <div><dt>문항</dt><dd><%= matchData.problemPack.questionCount %>문항</dd></div>
-            <div><dt>제한 시간</dt><dd><%= matchData.problemPack.timeLimitLabel %></dd></div>
+            <div><dt>제한 시간</dt><dd>문항당 <%= matchData.problemPack.timeLimitLabel %></dd></div>
             <div><dt>범위</dt><dd><%= coverageLabel %></dd></div>
           </dl>
           <form action="/goat-arena/matches/<%= matchData.id %>/start" method="post">
@@ -209,11 +204,22 @@
           data-deadline="<%= matchData.attempt.deadlineAt.toISOString() %>"
           data-solve-start="<%= matchData.attempt.startedAt.toISOString() %>"
           data-final-question="<%= Number(matchData.attempt.currentQuestionIndex) === 4 ? 'true' : 'false' %>"
+          data-question-number="<%= Number(matchData.attempt.currentQuestionIndex) + 1 %>"
+          data-question-time-limit-ms="<%= matchData.problemPack.timeLimitMs %>"
         >
-          <div class="arena-fight-overlay" aria-hidden="true">
-            <span>READY</span>
-            <strong>FIGHT!</strong>
-          </div>
+          <% if (matchStarted && Number(matchData.attempt.currentQuestionIndex) === 0) { %>
+            <div class="arena-fight-overlay is-match-start" aria-hidden="true">
+              <span>READY</span>
+              <strong>FIGHT!</strong>
+              <em>QUESTION 1</em>
+            </div>
+          <% } else if (questionIntroduced === Number(matchData.attempt.currentQuestionIndex) + 1) { %>
+            <div class="arena-question-intro" aria-hidden="true">
+              <small>NEXT ROUND</small>
+              <strong>QUESTION <%= Number(matchData.attempt.currentQuestionIndex) + 1 %></strong>
+              <i></i>
+            </div>
+          <% } %>
           <header class="arena-match-timer-bar">
             <div>
               <small>남은 시간</small>
@@ -270,17 +276,29 @@
         </section>
       <% } else if (matchData.evidenceRequired) { %>
         <section class="arena-match-wait-card arena-evidence-card" data-evidence-deadline="<%= matchData.attempt.evidenceDeadlineAt?.toISOString() %>" data-evidence-server-now="<%= matchData.serverNow %>">
-          <div class="arena-match-wait-mark" aria-hidden="true">↥</div>
-          <small>풀이 증거 제출</small>
-          <h2>문제는 다시 볼 수 없습니다.</h2>
-          <p>직접 풀이한 종이를 촬영해 마지막 답안 제출 후 1분 안에 업로드하세요. 사진은 상대에게 공개되지 않으며 운영자가 관리자 페이지에서 확인할 수 있습니다.</p>
-          <strong class="arena-evidence-countdown" data-evidence-countdown>01:00</strong>
-          <form action="/goat-arena/matches/<%= matchData.id %>/evidence" method="post" enctype="multipart/form-data">
-            <label>
-              <span>풀이 사진 1~5장</span>
-              <input type="file" name="evidenceFiles" accept=".jpg,.jpeg,.png,.webp,.heic,image/*" capture="environment" multiple required />
+          <div class="arena-evidence-heading">
+            <div class="arena-match-wait-mark" aria-hidden="true">↥</div>
+            <div class="arena-evidence-copy">
+              <small>풀이 증거 제출</small>
+              <h2>문제 화면은 종료되었습니다.</h2>
+              <p>직접 풀이한 종이를 촬영해 마지막 답안 확정 후 1분 안에 전송하세요. 요청이 제한시간 안에 서버에 도착하면 업로드 처리 중 시간이 지나도 정상 제출로 인정합니다.</p>
+            </div>
+            <div class="arena-evidence-timer" aria-live="polite">
+              <span>제출까지 남은 시간</span>
+              <strong class="arena-evidence-countdown" data-evidence-countdown>01:00</strong>
+              <small>마지막 답안 확정 시점부터 계산됩니다.</small>
+            </div>
+          </div>
+          <form action="/goat-arena/matches/<%= matchData.id %>/evidence" method="post" enctype="multipart/form-data" data-arena-evidence-form>
+            <label class="arena-evidence-dropzone">
+              <span>풀이 사진 선택</span>
+              <strong>1~5장의 JPG · PNG · WEBP · HEIC</strong>
+              <small>한 장을 누르거나 여러 장을 한 번에 선택하세요. 경기당 총 30MB까지 제출할 수 있습니다.</small>
+              <input type="file" name="evidenceFiles" accept=".jpg,.jpeg,.png,.webp,.heic,image/*" capture="environment" multiple required data-arena-evidence-input />
             </label>
-            <button type="submit">풀이 증거 제출</button>
+            <div class="arena-evidence-selection" data-arena-evidence-selection>아직 선택한 사진이 없습니다.</div>
+            <button type="submit" data-arena-evidence-submit>풀이 증거 제출</button>
+            <p class="arena-evidence-submit-state" data-arena-evidence-state role="status" hidden></p>
           </form>
         </section>
         <script>
@@ -290,11 +308,51 @@
             const deadline = new Date(card?.dataset.evidenceDeadline || 0).getTime();
             const serverNow = new Date(card?.dataset.evidenceServerNow || 0).getTime();
             const clockOffset = serverNow - Date.now();
+            const form = card?.querySelector("[data-arena-evidence-form]");
+            const input = card?.querySelector("[data-arena-evidence-input]");
+            const selection = card?.querySelector("[data-arena-evidence-selection]");
+            const submitButton = card?.querySelector("[data-arena-evidence-submit]");
+            const submitState = card?.querySelector("[data-arena-evidence-state]");
+            let submitting = false;
+            const refreshSelection = () => {
+              const files = [...(input?.files || [])];
+              const total = files.reduce((sum, file) => sum + file.size, 0);
+              if (selection) {
+                selection.textContent = files.length
+                  ? `${files.length}장 선택 · ${(total / 1024 / 1024).toFixed(1)}MB · ${files.map((file) => file.name).join(" · ")}`
+                  : "아직 선택한 사진이 없습니다.";
+              }
+              if (submitButton && !submitting) submitButton.disabled = files.length < 1 || files.length > 5 || total > 30 * 1024 * 1024;
+            };
             const tick = () => {
               const seconds = Math.max(0, Math.ceil((deadline - (Date.now() + clockOffset)) / 1000));
               if (output) output.textContent = `00:${String(seconds).padStart(2, "0")}`;
-              if (seconds <= 0) card?.querySelectorAll("input, button").forEach((item) => item.disabled = true);
+              if (seconds <= 0 && !submitting) card?.querySelectorAll("input, button").forEach((item) => item.disabled = true);
             };
+            input?.addEventListener("change", refreshSelection);
+            form?.addEventListener("submit", (event) => {
+              const files = [...(input?.files || [])];
+              const total = files.reduce((sum, file) => sum + file.size, 0);
+              if (!files.length || files.length > 5 || total > 30 * 1024 * 1024) {
+                event.preventDefault();
+                if (submitState) {
+                  submitState.hidden = false;
+                  submitState.textContent = !files.length ? "풀이 사진을 한 장 이상 선택해주세요." : "사진은 최대 5장·총 30MB까지 제출할 수 있습니다.";
+                }
+                return;
+              }
+              submitting = true;
+              if (input) input.disabled = false;
+              if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = "안전하게 업로드하는 중…";
+              }
+              if (submitState) {
+                submitState.hidden = false;
+                submitState.textContent = "창을 닫지 마세요. 사진을 암호화된 비공개 저장소로 전송하고 있습니다.";
+              }
+            });
+            refreshSelection();
             tick();
             window.setInterval(tick, 250);
           })();
@@ -304,7 +362,7 @@
           <div class="arena-match-wait-mark" aria-hidden="true">✓</div>
           <small>내 답안 제출 완료</small>
           <h2><%= matchData.attempt.submissionMode === "TIME_LIMIT" ? "제한 시간이 끝나 최종 저장 답안이 제출되었습니다." : "최종 답안이 안전하게 제출되었습니다." %></h2>
-          <p>상대도 제출하면 경기는 서버 채점과 무결성 확인 단계로 넘어갑니다. 아직 GP·티어·티어 내 순위·정기권 학습 가능 일수는 변경되지 않았습니다.</p>
+          <p>상대도 제출하면 경기는 서버 채점과 무결성 확인 단계로 넘어갑니다. 아직 GP·티어·티어 내 순위·페이백 점수·정기권 학습 가능 일수는 변경되지 않았습니다.</p>
           <a href="/goat-arena/<%= matchData.division === 'MAIN' ? 'main' : 'sub' %>"><%= matchData.divisionLabel %> 전장으로 <span aria-hidden="true">→</span></a>
         </section>
       <% } else { %>

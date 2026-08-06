@@ -6,16 +6,16 @@
   const rankingUserId =
     String(user._id || "");
   const activeDivisionKey =
-    typeof arenaAccess !== "undefined" && ["SUB", "MAIN"].includes(arenaAccess?.activeDivision)
-      ? arenaAccess.activeDivision
-      : (["SUB", "MAIN"].includes(ranking.current?.arenaDivision)
-          ? ranking.current.arenaDivision
+    ["SUB", "MAIN"].includes(ranking.current?.arenaDivision)
+      ? ranking.current.arenaDivision
+      : (typeof arenaAccess !== "undefined" && ["SUB", "MAIN"].includes(arenaAccess?.activeDivision)
+          ? arenaAccess.activeDivision
           : "SUB");
 %>
 <section
   class="tier-ranking-hub <%= rankingTheme %>"
   data-tier-ranking-root
-  aria-label="Sub Division 및 Main Division 랭킹"
+  aria-label="Unranked 및 Ranked 랭킹"
 >
   <div
     class="ranking-pool-tabs"
@@ -48,8 +48,8 @@
         <article class="tier-ranking-viewing-notice" aria-label="다른 Division 순위 열람 안내">
           <div>
             <small><%= pool.label %> 순위 열람</small>
-            <strong><%= pool.label %> 전체 순위를 보고 있습니다.</strong>
-            <p>현재 소속은 <%= activeDivisionKey === "MAIN" ? "Main Division" : "Sub Division" %>이며, 다른 Division에서는 개인 순위 카드 없이 해당 Division의 실제 순위만 표시됩니다.</p>
+            <strong><%= pool.scopeLabel || `${pool.label} 전체` %> 순위를 보고 있습니다.</strong>
+            <p>현재 소속은 <%= activeDivisionKey === "MAIN" ? "Ranked" : "Unranked" %>이며, 다른 Division에서는 개인 순위 카드 없이 해당 Division의 실제 순위만 표시됩니다.</p>
           </div>
         </article>
       <% } else if (pool.current) { %>
@@ -79,7 +79,7 @@
             </div>
             <div>
               <dt>랭킹 풀</dt>
-              <dd class="ranking-pool-name"><%= pool.label %></dd>
+              <dd class="ranking-pool-name"><%= pool.scopeLabel || pool.label %></dd>
             </div>
           </dl>
         </article>
@@ -89,12 +89,12 @@
             <small>내 티어 랭킹</small>
             <h2>
               <%= pool.key === "MAIN"
-                ? "아직 Main Division 소속이 아닙니다."
+                ? "아직 Ranked 소속이 아닙니다."
                 : "아직 표시할 티어 랭킹이 없습니다." %>
             </h2>
             <p>
               <%= pool.key === "MAIN"
-                ? "Sub Division과 Main Division 순위는 모두 열람할 수 있습니다."
+                ? "Unranked와 Ranked 순위는 모두 열람할 수 있습니다."
                 : "배치고사 뒤 Arena 순위가 확정되면 내 티어 안의 순위가 표시됩니다." %>
             </p>
           </div>
@@ -106,14 +106,9 @@
           <div>
             <small>티어별 랭킹</small>
             <h3>
-              <%= pool.current
-                ? `${pool.current.tier} 랭킹`
-                : `${pool.label} 티어별 랭킹` %>
+              <%= `${pool.label} 티어 순위` %>
             </h3>
             <p>랭킹 숫자는 선택한 티어 안에서의 순위입니다.</p>
-            <% if (pool.dataState === "arena-standing") { %>
-              <p>현재 <%= pool.label %> 목록은 확정된 GP와 티어 내 순위를 사용합니다.</p>
-            <% } %>
           </div>
 
           <% if (pool.tierBoards.length) { %>
@@ -157,6 +152,7 @@
                 class="tier-ranking-scroll"
                 data-ranking-scroll
                 data-ranking-kind="tier"
+                data-ranking-filters="tier"
                 tabindex="0"
                 aria-label="<%= board.tier %> 랭킹 스크롤 목록"
               >
@@ -165,7 +161,7 @@
                     <span>랭킹</span>
                     <span>티어</span>
                     <span>플레이어</span>
-                    <span>학교</span>
+                    <span>소속</span>
                     <span>GP</span>
                   </div>
                   <% board.entries.forEach((entry) => { %>

@@ -6713,15 +6713,6 @@ async function submitPrivateMockAttempt({
     attempt,
     now,
   });
-  if (!exam.isTest) {
-    const { recordMainQualifyingActivity } = require("./arenaDormancyService");
-    await recordMainQualifyingActivity({
-      userId,
-      activityAt: now,
-      sourceType: `WEEKLY_OFFICIAL_MOCK:${exam._id}`,
-    });
-  }
-
   return {
     elapsedMs:
       attempt.elapsedMs,

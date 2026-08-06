@@ -13,12 +13,15 @@ const {
   NORMAL_MATCH_SCORING_PENDING,
   arenaTupleFromStanding,
   buildEligibleDefenseCandidates,
+  eligibleSubDefenseCandidates,
+  isEligibleSubDefenseDirection,
   isSundayDivisionLocked,
   isSundayMatchRequestLocked,
   matchKeyForRequest,
   normalStakeDaysFromCycle,
   normalizeRequestId,
   sameTestAccountCohort,
+  selectRandomSubDefenseCandidate,
   subDailyEligibilityReasons,
   subDailyLimitState,
   subMatchStartDeadline,
@@ -35,6 +38,20 @@ async function run() {
   assert.equal(sameTestAccountCohort({ isTestAccount: true }, { isTestAccount: true }), true);
   assert.equal(sameTestAccountCohort({ isTestAccount: true }, { isTestAccount: false }), false);
   assert.equal(sameTestAccountCohort({ isTestAccount: false }, { isTestAccount: true }), false);
+  assert.equal(
+    sameTestAccountCohort(
+      { isTestAccount: false, arenaTestMatchEnabled: true },
+      { isTestAccount: true }
+    ),
+    true
+  );
+  assert.equal(
+    sameTestAccountCohort(
+      { isTestAccount: true },
+      { isTestAccount: false, arenaTestMatchEnabled: true }
+    ),
+    true
+  );
 
   assert.equal(
     isSundayDivisionLocked(
@@ -44,13 +61,13 @@ async function run() {
   );
   assert.equal(
     isSundayMatchRequestLocked(
-      "2026-08-02T14:29:59+09:00"
+      "2026-08-02T13:59:59+09:00"
     ),
     false
   );
   assert.equal(
     isSundayMatchRequestLocked(
-      "2026-08-02T14:30:00+09:00"
+      "2026-08-02T14:00:00+09:00"
     ),
     true
   );
@@ -72,13 +89,13 @@ async function run() {
     subMatchStartDeadline(
       "2026-08-01T20:00:00+09:00"
     ).toISOString(),
-    new Date("2026-08-02T14:30:00+09:00").toISOString()
+    new Date("2026-08-02T14:00:00+09:00").toISOString()
   );
-  assert.equal(SUB_TIER_PAIR_CONFIG.length, 10);
+  assert.equal(SUB_TIER_PAIR_CONFIG.length, 17);
   assert.equal(isAllowedSubTierChallenge("브론즈", "브론즈"), true);
   assert.equal(isAllowedSubTierChallenge("브론즈", "실버"), true);
   assert.equal(isAllowedSubTierChallenge("실버", "골드"), true);
-  assert.equal(isAllowedSubTierChallenge("실버", "실버"), false);
+  assert.equal(isAllowedSubTierChallenge("실버", "실버"), true);
   assert.equal(isAllowedSubTierChallenge("실버", "플래티넘"), false);
   assert.equal(isAllowedSubTierChallenge("챌린저", "챌린저"), true);
   assert.equal(
@@ -176,11 +193,11 @@ async function run() {
       attackRemaining: bronzeDaily.attackRemaining,
       defenseRemaining: bronzeDaily.defenseRemaining,
     },
-    { attackLimit: 4, defenseLimit: 1, attackRemaining: 1, defenseRemaining: 1 }
+    { attackLimit: 3, defenseLimit: 1, attackRemaining: 0, defenseRemaining: 1 }
   );
   assert.deepEqual(
     subDailyEligibilityReasons({
-      daily: { ...bronzeDaily, attackCount: 4 },
+      daily: { ...bronzeDaily, attackCount: 3 },
       role: "CHALLENGER",
     }),
     ["SUB_DAILY_ATTACK_LIMIT_REACHED"]
@@ -285,6 +302,71 @@ async function run() {
   assert.equal(
     candidateLayout.hasMore,
     false
+  );
+
+  const fairSelection = selectRandomSubDefenseCandidate({
+    candidates: [
+      { userId: "already-defended", arenaRank: "실버", dailyDefenseCount: 1 },
+      { userId: "not-defended-a", arenaRank: "실버", dailyDefenseCount: 0 },
+      { userId: "not-defended-b", arenaRank: "실버", dailyDefenseCount: 0 },
+    ],
+    targetTier: "SILVER",
+    randomSelectionSeed: "fair-defense-distribution",
+  });
+  assert.ok(
+    ["not-defended-a", "not-defended-b"].includes(fairSelection.userId)
+  );
+
+  const bronzeChallenger = {
+    arenaRank: "브론즈",
+    arenaPosition: 20,
+    arenaGp: 0,
+  };
+  assert.equal(
+    isEligibleSubDefenseDirection({
+      challengerStanding: bronzeChallenger,
+      candidate: { arenaRank: "브론즈", arenaPosition: 19, arenaGp: 0 },
+    }),
+    true
+  );
+  assert.equal(
+    isEligibleSubDefenseDirection({
+      challengerStanding: { arenaRank: "골드", arenaPosition: 8 },
+      candidate: { arenaRank: "골드", arenaPosition: 7 },
+    }),
+    true
+  );
+  assert.equal(
+    isEligibleSubDefenseDirection({
+      challengerStanding: { arenaRank: "골드", arenaPosition: 8 },
+      candidate: { arenaRank: "골드", arenaPosition: 9 },
+    }),
+    false
+  );
+  assert.equal(
+    isEligibleSubDefenseDirection({
+      challengerStanding: bronzeChallenger,
+      candidate: { arenaRank: "브론즈", arenaPosition: 21, arenaGp: 0 },
+    }),
+    false
+  );
+  assert.equal(
+    isEligibleSubDefenseDirection({
+      challengerStanding: bronzeChallenger,
+      candidate: { arenaRank: "실버", arenaPosition: 50, arenaGp: 0 },
+    }),
+    true
+  );
+  assert.deepEqual(
+    eligibleSubDefenseCandidates({
+      challengerStanding: bronzeChallenger,
+      candidates: [
+        { userId: "higher-bronze", arenaRank: "브론즈", arenaPosition: 19 },
+        { userId: "lower-bronze", arenaRank: "브론즈", arenaPosition: 21 },
+        { userId: "silver", arenaRank: "실버", arenaPosition: 50 },
+      ],
+    }).map((candidate) => candidate.userId),
+    ["higher-bronze", "silver"]
   );
 
   const match = new ArenaMatch({
@@ -395,6 +477,10 @@ async function run() {
       ),
       "utf8"
     );
+  const mainServiceSource = fs.readFileSync(
+    path.join(root, "services/mainArenaMatchService.js"),
+    "utf8"
+  );
   const viewSource = fs.readFileSync(
     path.join(
       root,
@@ -431,6 +517,12 @@ async function run() {
       )
   );
   assert.ok(
+    mainServiceSource.includes(
+      "mandatoryDefense ? { defensePoolEligible: true } : {}"
+    ),
+    "Ranked 자동 방어 후보에서도 5회 미응시 제외 상태를 적용해야 합니다."
+  );
+  assert.ok(
     routeSource.includes(
       '"/goat-arena/sub/challenge"'
     ) &&
@@ -442,11 +534,11 @@ async function run() {
       )
   );
   assert.ok(
-    viewSource.includes(
+    !viewSource.includes(
       'name="targetTier"'
     ) &&
       viewSource.includes(
-        "무작위로 선정해 자동 매치"
+        "같은 티어의 더 높은 순위"
       ) &&
       !viewSource.includes(
         'name="defenderStandingId"'

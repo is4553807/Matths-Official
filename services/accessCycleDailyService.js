@@ -25,12 +25,6 @@ const {
 const {
   consumeAvailableDay,
 } = require("./mainLearningDayService");
-const {
-  dormancyConsumptionThroughDate,
-  inactivityDayCount,
-  initializeMainInactivityWindows,
-  processMainDormancyTransitions,
-} = require("./arenaDormancyService");
 const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -260,7 +254,6 @@ async function disableDepletedAccess({
       $setOnInsert: {
         currentCompetitiveDivision:
           cycle.division || "SUB",
-        accessCycleId: cycle._id,
         state: "PAID_ACTIVE",
         currentSeasonPlacementCompleted:
           false,
@@ -361,7 +354,7 @@ async function createExpirationSnapshot({
     if (wasMain) {
       throw statusError(
         409,
-        "Main Division 만료 전 마지막 순위 스냅샷 원본이 필요합니다.",
+        "Ranked 만료 전 마지막 순위 스냅샷 원본이 필요합니다.",
         "MAIN_STANDING_REQUIRED_FOR_DEMOTION"
       );
     }
@@ -500,6 +493,7 @@ function buildExpiredAccessStateUpdate({
     : null;
   const accessUpdate = {
     currentCompetitiveDivision: "SUB",
+    mainCompetitivePool: null,
     accessCycleId: cycle._id,
     state: "SUB_ACCESS_EXPIRED_LOCKED",
     currentSeasonPlacementCompleted: false,
@@ -516,7 +510,7 @@ function buildExpiredAccessStateUpdate({
     if (!snapshotId) {
       throw statusError(
         500,
-        "Main Division 강등 스냅샷을 확인할 수 없습니다.",
+        "Ranked 만료 스냅샷을 확인할 수 없습니다.",
         "MAIN_DEMOTION_SNAPSHOT_REQUIRED"
       );
     }
@@ -806,16 +800,6 @@ async function consumeDueDailyLearningDays({
         };
         return;
       }
-      if (cycle.dailyConsumptionPausedAt) {
-        result = {
-          cycle,
-          consumedDates: [],
-          replayed: true,
-          expired: false,
-          reason: "MAIN_DORMANCY_FROZEN",
-        };
-        return;
-      }
       if (!cycle.firstDayConsumedAt) {
         result = {
           cycle,
@@ -827,33 +811,7 @@ async function consumeDueDailyLearningDays({
         return;
       }
 
-      let throughDateKst =
-        kstDateKey(processedAt);
-      if (cycle.division === "MAIN") {
-        const dormancyState = await ArenaAccessState.findOne({
-          userId: cycle.userId,
-          currentCompetitiveDivision: "MAIN",
-          state: "PAID_ACTIVE",
-          mainInactivityStartedAt: { $ne: null },
-          mainInactivityStartAvailableDays: { $gte: 20 },
-          mainDormancyRecoveryMode: null,
-        })
-          .session(session)
-          .lean();
-        const dormancyThroughDate = dormancyConsumptionThroughDate(
-          dormancyState?.mainInactivityStartedAt,
-          {
-            allowFinalDay:
-              inactivityDayCount({
-                startedAt: dormancyState?.mainInactivityStartedAt,
-                now: processedAt,
-              }) >= 21,
-          }
-        );
-        if (dormancyThroughDate && dormancyThroughDate < throughDateKst) {
-          throughDateKst = dormancyThroughDate;
-        }
-      }
+      const throughDateKst = kstDateKey(processedAt);
       const plan = buildDailyConsumptionPlan({
         cycle,
         throughDateKst,
@@ -1081,7 +1039,6 @@ async function processDueDailyConsumptions({
   );
   const dueCycles = await AccessCycle.find({
     status: "ACTIVE",
-    dailyConsumptionPausedAt: null,
     firstDayConsumedAt: { $ne: null },
     availableLearningDays: { $gt: 0 },
     $or: [
@@ -1185,9 +1142,7 @@ async function runDailyAccessCycleSchedule() {
   if (dailyScheduleRunning) return;
   dailyScheduleRunning = true;
   try {
-    await initializeMainInactivityWindows();
     await processDueDailyConsumptions();
-    await processMainDormancyTransitions();
     const {
       cancelZeroAvailableMainInvitations,
       refreshMainInvitationOffers,

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>자녀 계정 연결 | Matths 학부모</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/parent.css" />
+  </head>
+  <body class="parent-auth-page">
+    <main class="parent-auth-shell">
+      <a class="parent-auth-brand" href="/parent" aria-label="학부모 대시보드"><span class="brand-mark">M</span><strong>Matths</strong></a>
+      <section class="parent-auth-card parent-link-card">
+        <p>CHILD ACCOUNT LINK</p>
+        <h1>새 자녀 계정을 연결할까요?</h1>
+        <span>초대 이메일과 현재 로그인한 학부모 계정이 일치합니다. 연결 후에는 상단 메뉴에서 자녀별 학습 현황과 결제 대상을 전환할 수 있습니다.</span>
+        <dl>
+          <div><dt>연결할 자녀</dt><dd><%= invite.childUserId.realName || invite.childUserId.name %></dd></div>
+          <div><dt>요청 상품</dt><dd><%= invite.productCode === "LEARNING_PACKAGE_29" ? "29일 학습권 패키지" : "Matths 주간 공식 모의고사 이용권" %></dd></div>
+          <div><dt>초대 이메일</dt><dd><%= invite.parentEmail %></dd></div>
+        </dl>
+        <form action="/parent/invite/<%= token %>/link" method="post" class="parent-auth-form">
+          <button type="submit">자녀 계정 연결하기</button>
+        </form>
+        <a class="parent-link-cancel" href="/parent">지금은 연결하지 않기</a>
+      </section>
+    </main>
+  </body>
+</html>

@@ -28,11 +28,15 @@
           <p><%= eyebrow %></p>
           <h1 id="error-title"><%= title %></h1>
           <span><%= message %></span>
+          <div class="matths-error-code" aria-label="오류 식별 코드">
+            <small>오류 코드</small>
+            <code><%= errorCode %></code>
+          </div>
 
           <div class="matths-error-actions">
             <a class="matths-error-primary" href="<%= primaryAction.href %>"><%= primaryAction.label %></a>
             <button type="button" data-error-back data-fallback-href="<%= primaryAction.href %>">이전 페이지</button>
-            <a class="matths-error-secondary" href="<%= secondaryAction.href %>"><%= secondaryAction.label %></a>
+            <a class="matths-error-secondary" href="<%= errorFaqHref %>">FAQ에서 <%= statusCode %> 코드 찾기</a>
           </div>
 
           <div class="matths-error-help">

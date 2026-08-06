@@ -1,4 +1,12 @@
 <%
+  const pendingRankUpPresentation =
+    typeof rankUpPresentation !== "undefined"
+      ? rankUpPresentation
+      : null;
+  const arenaNotificationState =
+    typeof arenaNotifications !== "undefined"
+      ? arenaNotifications
+      : null;
   const arenaNavigationItems = [
     {
       key: "home",
@@ -14,20 +22,22 @@
     },
     {
       key: "sub",
-      label: "페이백 도전",
-      ariaLabel: "Sub Division 페이백 도전",
+      label: "UNRANKED",
+      ariaLabel: "Unranked 페이백 도전",
       href: "/goat-arena/sub",
+      alertCount: arenaNotificationState?.actionByDivision?.SUB || arenaNotificationState?.defenseByDivision?.SUB || 0,
     },
     {
       key: "main",
-      label: "상위 전장",
-      ariaLabel: "Main Division 상위 전장",
+      label: "RANKED",
+      ariaLabel: "Ranked 상위 전장",
       href: "/goat-arena/main",
+      alertCount: arenaNotificationState?.actionByDivision?.MAIN || arenaNotificationState?.defenseByDivision?.MAIN || 0,
     },
     {
       key: "shop",
       label: "상점",
-      ariaLabel: "GOAT Arena Main Division 상점",
+      ariaLabel: "GOAT Arena Ranked 상점",
       href: "/goat-arena/main/shop",
     },
     {
@@ -65,7 +75,7 @@
         href="<%= item.href %>"
         aria-label="<%= item.ariaLabel %>"
         <%= activeArenaPage === item.key ? 'aria-current="page"' : '' %>
-      ><%= item.label %></a>
+      ><%= item.label %><% if (item.alertCount) { %><span class="arena-nav-alert-dot" aria-label="확인할 방어 경기 <%= item.alertCount %>개"></span><% } %></a>
     <% }) %>
   </nav>
 
@@ -74,6 +84,30 @@
       class="arena-dashboard-link"
       href="/main"
     >Matths 대시보드</a>
+    <div class="arena-mailbox" data-arena-mailbox>
+      <button
+        class="arena-mailbox-button"
+        type="button"
+        aria-label="GOAT Arena 우편함<%= arenaNotificationState?.unreadCount ? `, 읽지 않은 알림 ${arenaNotificationState.unreadCount}개` : '' %>"
+        aria-expanded="false"
+        data-arena-mailbox-toggle
+      >
+        <span aria-hidden="true">✉</span>
+        <% if (arenaNotificationState?.unreadCount) { %><b><%= arenaNotificationState.unreadCount > 99 ? "99+" : arenaNotificationState.unreadCount %></b><% } %>
+      </button>
+      <section class="arena-mailbox-panel" aria-label="최근 알림" hidden data-arena-mailbox-panel>
+        <header><strong>우편함</strong><a href="/notifications">전체 보기</a></header>
+        <% if (!arenaNotificationState?.notifications?.length) { %>
+          <p>도착한 알림이 없습니다.</p>
+        <% } %>
+        <% arenaNotificationState?.notifications?.forEach((notification) => { %>
+          <a class="arena-mailbox-item <%= notification.unread ? 'is-unread' : '' %> <%= notification.tone ? `is-${notification.tone}` : '' %>" href="<%= notification.href %>">
+            <strong><%= notification.title %></strong>
+            <span><%= notification.message %></span>
+          </a>
+        <% }) %>
+      </section>
+    </div>
     <a
       class="arena-player <%= activeArenaPage === 'profile' ? 'active' : '' %> <%= arenaUser.hasMainProfileBorder ? 'has-main-shop-border' : '' %>"
       href="/goat-arena/profile"
@@ -88,4 +122,14 @@
     </a>
   </div>
 </header>
+<% if (pendingRankUpPresentation) { %>
+  <%- include("rank-motion-dialog", {
+    rankMotionAssetBase: "/media/rank-motion",
+    rankMotionMode: "modal",
+    rankMotionBackdrop: true,
+    rankMotionControls: true,
+  }) %>
+  <script type="application/json" data-rank-up-presentation-payload><%- JSON.stringify(pendingRankUpPresentation).replace(/</g, "\\u003c") %></script>
+<% } %>
 <script src="/js/session-usage.js" defer></script>
+<script src="/js/goat-arena-navigation.js" defer></script>

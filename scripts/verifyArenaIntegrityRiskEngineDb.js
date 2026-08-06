@@ -12,7 +12,7 @@ const {
   ArenaIntegrityRiskProfile,
   ArenaMatch,
 } = require("../models/goatArenaModel");
-const { AdminTodo, User, UserNotification } = require("../models/matthsModel");
+const { AdminActionLog, AdminTodo, User, UserNotification } = require("../models/matthsModel");
 const {
   evaluateArenaIntegrityRiskForUser,
   recordConnectionIntegritySignals,
@@ -148,7 +148,7 @@ async function main() {
     assert.equal(riskCase.status, "OPEN");
     assert.equal(profile.status, "REVIEW_REQUIRED");
     assert.equal(accessState.integrityStatus, "REVIEW_REQUIRED");
-    assert.equal(accessState.defensePoolEligible, false);
+    assert.equal(accessState.defensePoolEligible, true);
     assert.equal(todo.status, "pending");
     const storedSignal = await ArenaIntegrityLinkSignal.findOne({
       userId,
@@ -178,7 +178,7 @@ async function main() {
     assert.equal(
       await UserNotification.countDocuments({
         userId,
-        dedupeKey: `arena-integrity-review:${caseId}:CLEAR`,
+        dedupeKey: `arena-integrity-review-result:${caseId}:CLEAR:${userId}`,
       }),
       1
     );
@@ -222,6 +222,7 @@ async function main() {
     const userIds = [userId, opponentId, adminId];
     await Promise.all([
       AdminTodo.deleteMany({ $or: [{ targetUserId: userId }, ...(caseId ? [{ sourceId: caseId }] : [])] }),
+      AdminActionLog.deleteMany({ targetUserId: { $in: userIds } }),
       UserNotification.deleteMany({ userId: { $in: userIds } }),
       ArenaIntegrityRiskCase.deleteMany({ userId: { $in: userIds } }),
       ArenaIntegrityRiskProfile.deleteMany({ userId: { $in: userIds } }),

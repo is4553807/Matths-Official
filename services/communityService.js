@@ -45,6 +45,8 @@ const BOARD_LABELS = {
     "통합 고등학교 게시판",
   school: "학교 게시판",
   retaker: "N수생 게시판",
+  university: "대학교 게시판",
+  worker: "직장인 게시판",
   operations: "운영 게시판",
 };
 const OPERATIONS_CATEGORY_LABELS = {
@@ -140,6 +142,52 @@ const COMMUNITY_BOARD_RULES = {
         title: "사진·파일 첨부 기준",
         content:
           "게시글 하나에 사진 또는 파일을 최대 5개, 파일당 10MB까지 첨부할 수 있습니다. 경고 횟수가 0회인 계정만 첨부할 수 있습니다.",
+      },
+    ],
+  },
+  university: {
+    eyebrow: "UNIVERSITY BOARD RULES",
+    title: "대학교 게시판 운영 규칙",
+    introduction: "같은 대학교에 재학 중인 이용자가 대학 생활과 학습 정보를 안전하게 나누는 전용 공간입니다.",
+    sections: [
+      {
+        title: "같은 학교 구성원을 보호해주세요",
+        content: "개인을 특정할 수 있는 학과·학번·수업 정보와 연락처를 게시하지 마세요. 비방, 괴롭힘 또는 확인되지 않은 소문은 신고 검토 후 제재될 수 있습니다.",
+      },
+      {
+        title: "확인된 정보만 공유해주세요",
+        content: "수업, 시험, 장학금, 편입 및 진로 정보는 기준 시점과 출처를 확인하고 시험 보안이나 부정행위에 해당하는 자료를 올리지 마세요.",
+      },
+      {
+        title: "게시글은 하루 최대 5개입니다",
+        content: "다른 게시판의 작성 횟수를 포함해 한국 시간 기준 하루 최대 5개까지 작성할 수 있습니다.",
+      },
+      {
+        title: "사진·파일 첨부 기준",
+        content: "게시글 하나에 사진 또는 파일을 최대 5개, 파일당 10MB까지 첨부할 수 있습니다. 경고 횟수가 0회인 계정만 첨부할 수 있습니다.",
+      },
+    ],
+  },
+  worker: {
+    eyebrow: "WORKER BOARD RULES",
+    title: "직장인 게시판 운영 규칙",
+    introduction: "직장인으로 등록된 이용자가 업무와 학습을 병행하는 경험, 진로와 수학 학습 정보를 나누는 전용 공간입니다.",
+    sections: [
+      {
+        title: "회사와 개인 정보를 보호해주세요",
+        content: "회사명, 부서, 실명, 업무 문서처럼 본인이나 타인을 특정할 수 있는 정보와 회사의 비공개 자료를 게시하지 마세요.",
+      },
+      {
+        title: "광고와 채용 사기를 주의해주세요",
+        content: "과도한 홍보, 금전 거래 유도, 허위 채용 정보와 불분명한 외부 링크는 신고 검토 후 삭제되거나 제재될 수 있습니다.",
+      },
+      {
+        title: "게시글은 하루 최대 5개입니다",
+        content: "다른 게시판의 작성 횟수를 포함해 한국 시간 기준 하루 최대 5개까지 작성할 수 있습니다.",
+      },
+      {
+        title: "사진·파일 첨부 기준",
+        content: "게시글 하나에 사진 또는 파일을 최대 5개, 파일당 10MB까지 첨부할 수 있습니다. 경고 횟수가 0회인 계정만 첨부할 수 있습니다.",
       },
     ],
   },
@@ -278,7 +326,7 @@ async function reserveCommunityPostSlot(
           },
         },
         {
-          new: true,
+          returnDocument: "after",
           runValidators: true,
         }
       ).lean();
@@ -348,6 +396,8 @@ function getCommunityBoardRules({
   board,
   schoolCode = "",
   schoolName = "",
+  universityCode = "",
+  universityName = "",
 } = {}) {
   const normalizedBoard =
     String(board || "");
@@ -378,6 +428,8 @@ function getCommunityBoardRules({
       schoolName,
       120
     );
+  const cleanUniversityCode = cleanSingleLine(universityCode, 100);
+  const cleanUniversityName = cleanSingleLine(universityName, 160);
 
   return {
     ...template,
@@ -388,6 +440,8 @@ function getCommunityBoardRules({
         "school" &&
       cleanSchoolName
         ? `${cleanSchoolName} 게시판`
+        : normalizedBoard === "university" && cleanUniversityName
+          ? `${cleanUniversityName} 게시판`
         : BOARD_LABELS[
             normalizedBoard
           ],
@@ -401,6 +455,10 @@ function getCommunityBoardRules({
       "school"
         ? cleanSchoolName
         : "",
+    universityCode:
+      normalizedBoard === "university" ? cleanUniversityCode : "",
+    universityName:
+      normalizedBoard === "university" ? cleanUniversityName : "",
     updatedAt: new Date(
       "2026-08-01T00:00:00+09:00"
     ),
@@ -410,6 +468,7 @@ function getCommunityBoardRules({
 function createCommunityRulesNotice({
   board,
   selectedSchool,
+  selectedUniversity,
 }) {
   const rules =
     getCommunityBoardRules({
@@ -420,6 +479,10 @@ function createCommunityRulesNotice({
       schoolName:
         selectedSchool?.name ||
         "",
+      universityCode:
+        selectedUniversity?.code || "",
+      universityName:
+        selectedUniversity?.name || "",
     });
   const query = new URLSearchParams();
   if (rules.schoolCode) {
@@ -427,6 +490,9 @@ function createCommunityRulesNotice({
       "school",
       rules.schoolCode
     );
+  }
+  if (rules.universityCode) {
+    query.set("university", rules.universityCode);
   }
 
   return {
@@ -484,6 +550,8 @@ async function ensureDefaultCommunityNotices() {
         "high-school",
         "school",
         "retaker",
+        "university",
+        "worker",
       ].map((boardType) => {
         const rules =
           getCommunityBoardRules({
@@ -499,6 +567,8 @@ async function ensureDefaultCommunityNotices() {
               boardType,
               schoolCode: "",
               schoolName: "",
+              universityCode: "",
+              universityName: "",
               title:
                 `[필독] ${rules.title}`,
               content:
@@ -566,8 +636,16 @@ async function getCommunityViewer(
       ],
     },
   })
-    .select("school role schoolGrade educationStatus")
+    .select("school university role schoolGrade educationStatus")
     .lean();
+}
+
+function privateBoardForViewer(viewer) {
+  return {
+    13: "retaker",
+    14: "university",
+    15: "worker",
+  }[Number(viewer?.schoolGrade)] || "school";
 }
 
 function assertCommunityBoardAccess(
@@ -590,6 +668,27 @@ function assertCommunityBoardAccess(
     return;
   }
 
+  if (resource?.boardType === "worker") {
+    if (viewer?.role !== "admin" && Number(viewer?.schoolGrade) !== 15) {
+      throw statusError(403, "직장인 게시판은 직장인으로 등록된 회원만 열람할 수 있습니다.");
+    }
+    return;
+  }
+
+  if (resource?.boardType === "university") {
+    if (viewer?.role === "admin") return;
+    if (Number(viewer?.schoolGrade) !== 14 || !viewer?.university?.code) {
+      throw statusError(403, "대학교 게시판은 재학 중인 대학교가 등록된 대학생만 열람할 수 있습니다.");
+    }
+    if (
+      resource.universityCode &&
+      String(viewer.university.code) !== String(resource.universityCode)
+    ) {
+      throw statusError(403, "이 대학교 게시판은 해당 대학교 소속 학생만 열람할 수 있습니다.");
+    }
+    return;
+  }
+
   if (
     resource?.boardType !==
     "school"
@@ -601,10 +700,10 @@ function assertCommunityBoardAccess(
     return;
   }
 
-  if (Number(viewer?.schoolGrade) === 13) {
+  if (![10, 11, 12].includes(Number(viewer?.schoolGrade))) {
     throw statusError(
       403,
-      "N수생 계정은 학교별 게시판 대신 N수생 게시판을 이용합니다."
+      "학교 게시판은 재학 중인 고등학교가 등록된 고등학생만 이용할 수 있습니다."
     );
   }
 
@@ -758,7 +857,7 @@ async function ensureAnonymousNumber(
             },
           },
           {
-            new: true,
+            returnDocument: "after",
             runValidators: true,
           }
         )
@@ -946,6 +1045,7 @@ async function getCommunityBoardData({
           normalizedBoard
         ],
       selectedSchool: null,
+      selectedUniversity: null,
       schoolOptions: [],
       posts: posts.map(
         (post) => ({
@@ -987,7 +1087,7 @@ async function getCommunityBoardData({
   }
   await ensureDefaultCommunityNotices();
   const authorizedViewer =
-    ["school", "retaker"].includes(
+    ["school", "retaker", "university", "worker"].includes(
       normalizedBoard
     )
       ? await getCommunityViewer(
@@ -1015,11 +1115,19 @@ async function getCommunityBoardData({
             ),
         }
       : null;
-  const normalizedSchoolCode =
-    normalizedBoard === "school"
-      ? viewerSchool?.code ||
-        ""
-      : "";
+  const viewerUniversity =
+    authorizedViewer?.university?.code
+      ? {
+          code: cleanSingleLine(authorizedViewer.university.code, 100),
+          name: cleanSingleLine(authorizedViewer.university.name, 160),
+        }
+      : null;
+  const normalizedSchoolCode = normalizedBoard === "school"
+    ? viewerSchool?.code || ""
+    : "";
+  const normalizedUniversityCode = normalizedBoard === "university"
+    ? viewerUniversity?.code || ""
+    : "";
   const selectedSchool =
     normalizedBoard ===
       "school" &&
@@ -1028,6 +1136,10 @@ async function getCommunityBoardData({
           ...viewerSchool,
           postCount: 0,
         }
+      : null;
+  const selectedUniversity =
+    normalizedBoard === "university" && viewerUniversity
+      ? { ...viewerUniversity, postCount: 0 }
       : null;
   const searchData =
     createSearchFilter(search);
@@ -1058,7 +1170,7 @@ async function getCommunityBoardData({
 
   if (
     normalizedBoard ===
-    "school"
+      "school"
   ) {
     if (
       !normalizedSchoolCode
@@ -1071,6 +1183,7 @@ async function getCommunityBoardData({
             normalizedBoard
           ],
         selectedSchool: null,
+        selectedUniversity: null,
         schoolOptions: [],
         schoolAccessRestricted:
           true,
@@ -1092,6 +1205,31 @@ async function getCommunityBoardData({
 
     filter.schoolCode =
       normalizedSchoolCode;
+  }
+
+  if (normalizedBoard === "university") {
+    if (!normalizedUniversityCode) {
+      return {
+        board: normalizedBoard,
+        boardLabel: BOARD_LABELS[normalizedBoard],
+        selectedSchool: null,
+        selectedUniversity: null,
+        schoolOptions: [],
+        schoolAccessRestricted: true,
+        posts: [],
+        popularPosts: [],
+        search: searchData.search,
+        sort: normalizedSort,
+        pagination: {
+          page: 1,
+          totalPages: 1,
+          total: 0,
+          hasPrevious: false,
+          hasNext: false,
+        },
+      };
+    }
+    filter.universityCode = normalizedUniversityCode;
   }
 
   const popularFilter = {
@@ -1187,7 +1325,14 @@ async function getCommunityBoardData({
                   },
                 ],
               }
-            : {}),
+            : normalizedBoard === "university"
+              ? {
+                  $or: [
+                    { universityCode: "" },
+                    { universityCode: normalizedUniversityCode },
+                  ],
+                }
+              : {}),
         })
           .sort({
             isPinned: -1,
@@ -1256,10 +1401,13 @@ async function getCommunityBoardData({
         "school" &&
       selectedSchool
         ? `${selectedSchool.name} 게시판`
+        : normalizedBoard === "university" && selectedUniversity
+          ? `${selectedUniversity.name} 게시판`
         : BOARD_LABELS[
             normalizedBoard
           ],
     selectedSchool,
+    selectedUniversity,
     schoolOptions: [],
     schoolAccessRestricted:
       false,
@@ -1371,6 +1519,8 @@ function cleanCommunityNoticeInput({
   board,
   schoolCode,
   schoolName,
+  universityCode,
+  universityName,
   title,
   content,
 }) {
@@ -1381,6 +1531,8 @@ function cleanCommunityNoticeInput({
       "high-school",
       "school",
       "retaker",
+      "university",
+      "worker",
     ].includes(boardType)
   ) {
     throw statusError(
@@ -1410,6 +1562,12 @@ function cleanCommunityNoticeInput({
           120
         )
       : "";
+  const cleanUniversityCode = boardType === "university"
+    ? cleanSingleLine(universityCode, 100)
+    : "";
+  const cleanUniversityName = boardType === "university"
+    ? cleanSingleLine(universityName, 160)
+    : "";
 
   if (
     cleanTitle.length < 2 ||
@@ -1418,6 +1576,12 @@ function cleanCommunityNoticeInput({
     throw statusError(
       400,
       "공지 제목과 내용을 2자 이상 입력해주세요."
+    );
+  }
+  if (Boolean(cleanUniversityCode) !== Boolean(cleanUniversityName)) {
+    throw statusError(
+      400,
+      "특정 대학교 공지라면 대학교 코드와 이름을 모두 입력해주세요. 대학교 게시판 전체 공지라면 둘 다 비워주세요."
     );
   }
   if (
@@ -1436,6 +1600,8 @@ function cleanCommunityNoticeInput({
       cleanSchoolCode,
     schoolName:
       cleanSchoolName,
+    universityCode: cleanUniversityCode,
+    universityName: cleanUniversityName,
     title: cleanTitle,
     content: cleanContent,
   };
@@ -1446,6 +1612,8 @@ async function createCommunityNotice({
   board,
   schoolCode,
   schoolName,
+  universityCode,
+  universityName,
   title,
   content,
 }) {
@@ -1454,6 +1622,8 @@ async function createCommunityNotice({
       board,
       schoolCode,
       schoolName,
+      universityCode,
+      universityName,
       title,
       content,
     });
@@ -1492,6 +1662,8 @@ async function updateCommunityNotice({
   board,
   schoolCode,
   schoolName,
+  universityCode,
+  universityName,
   title,
   content,
 }) {
@@ -1510,6 +1682,8 @@ async function updateCommunityNotice({
       board,
       schoolCode,
       schoolName,
+      universityCode,
+      universityName,
       title,
       content,
     });
@@ -1865,11 +2039,20 @@ async function createCommunityPost({
   if (
     normalizedBoard === "school" &&
     (!user.school?.code ||
-      Number(user.schoolGrade) === 13)
+      ![10, 11, 12].includes(Number(user.schoolGrade)))
   ) {
     throw statusError(
       400,
       "학교 게시판은 재학 중인 소속 고등학교가 있는 회원만 이용할 수 있습니다."
+    );
+  }
+  if (
+    normalizedBoard === "university" &&
+    (Number(user.schoolGrade) !== 14 || !user.university?.code)
+  ) {
+    throw statusError(
+      400,
+      "대학교 게시판은 재학 중인 소속 대학교가 있는 대학생만 이용할 수 있습니다."
     );
   }
 
@@ -1908,11 +2091,15 @@ async function createCommunityPost({
               ? user.school.code
               : "",
           schoolName:
-            user.school?.name ||
-            "",
+            normalizedBoard === "school" ? user.school?.name || "" : "",
+          universityCode:
+            normalizedBoard === "university" ? user.university.code : "",
+          universityName:
+            normalizedBoard === "university" ? user.university.name : "",
           authorRegion:
-            user.school?.region ||
-            "",
+            normalizedBoard === "university"
+              ? user.university?.region || ""
+              : user.school?.region || "",
           authorSchoolGrade:
             Number(
               user.schoolGrade
@@ -2064,7 +2251,7 @@ async function getCommunityAttachment({
         status: "published",
       })
         .select(
-          "attachments boardType schoolCode"
+          "attachments boardType schoolCode universityCode"
         )
         .lean(),
       getCommunityViewer(
@@ -2142,7 +2329,7 @@ async function reportCommunityPost({
         _id: userId,
         isActive: true,
       })
-        .select("school role")
+        .select("school university role schoolGrade")
         .lean(),
     ]);
   if (!post) {
@@ -2240,7 +2427,7 @@ async function voteCommunityPost({
       status: "published",
     })
       .select(
-        "_id boardType schoolCode"
+        "_id boardType schoolCode universityCode"
       )
       .lean(),
     User.findOne({
@@ -2253,7 +2440,7 @@ async function voteCommunityPost({
         ],
       },
     })
-      .select("school role")
+      .select("school university role schoolGrade")
       .lean(),
   ]);
 
@@ -3491,6 +3678,7 @@ module.exports = {
   moderateCommunityPost,
   reviewCommunityReport,
   normalizeBoard,
+  privateBoardForViewer,
   setCommunityPostPinned,
   setCommunityNoticePinned,
   updateCommunityNotice,

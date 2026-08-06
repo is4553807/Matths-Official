@@ -18,6 +18,10 @@ router.get(
   "/schools",
   apiController.schools
 );
+router.get(
+  "/universities",
+  apiController.universities
+);
 router.post(
   "/auth/register",
   apiController.register
@@ -48,10 +52,6 @@ router.get(
 router.delete(
   "/me",
   apiController.withdrawMe
-);
-router.patch(
-  "/me/ranking-identity",
-  apiController.updateRankingIdentity
 );
 router.get(
   "/curriculum",

@@ -91,51 +91,6 @@
     });
   }
 
-  function initRankingIdentityPreview() {
-    const form = document.querySelector(
-      "[data-ranking-identity-form]"
-    );
-
-    if (!form) {
-      return;
-    }
-
-    const preview = form.querySelector(
-      "[data-ranking-name-preview]"
-    );
-    const choices = form.querySelectorAll(
-      'input[name="rankingDisplayMode"]'
-    );
-    const nickname =
-      form.dataset.nickname || "익명 학생";
-    const realName =
-      String(form.dataset.realName || "").trim();
-
-    if (!preview) {
-      return;
-    }
-
-    function updatePreview() {
-      const selected = form.querySelector(
-        'input[name="rankingDisplayMode"]:checked'
-      );
-
-      preview.textContent =
-        selected?.value === "realName"
-          ? realName ||
-            "실명을 입력해주세요"
-          : nickname;
-    }
-
-    choices.forEach((choice) => {
-      choice.addEventListener(
-        "change",
-        updatePreview
-      );
-    });
-    updatePreview();
-  }
-
   function initWithdrawalForm() {
     const form = document.querySelector(
       "[data-withdraw-form]"
@@ -173,7 +128,6 @@
 
   function init() {
     initPasswordConfirmation();
-    initRankingIdentityPreview();
     initSubmitStates();
     initWithdrawalForm();
   }

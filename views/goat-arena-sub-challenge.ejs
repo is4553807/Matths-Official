@@ -8,11 +8,12 @@
     />
     <meta
       name="description"
-      content="GOAT Arena Sub Division 일반 쟁탈전 신청"
+      content="GOAT Arena Unranked 일반 쟁탈전 신청"
     />
     <meta name="theme-color" content="#070913" />
     <title>일반 쟁탈전 신청 | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
+    <%- include("partials/rank-motion-head") %>
     <link
       rel="icon"
       type="image/jpeg"
@@ -28,14 +29,14 @@
     }) %>
 
     <main class="arena-page-main arena-battle-main" id="sub-challenge-main">
-      <a class="arena-challenge-back" href="/goat-arena/sub">← Sub Division으로 돌아가기</a>
+      <a class="arena-challenge-back" href="/goat-arena/sub">← Unranked로 돌아가기</a>
 
       <header class="arena-page-heading arena-challenge-heading arena-command-hero arena-command-hero--sub">
         <div>
-          <p>SUB DIVISION · 1대1</p>
+          <p>UNRANKED · 1대1</p>
           <h1>순위를 <span>탈취할</span> 시간</h1>
         </div>
-        <div class="arena-command-hero-copy"><p>목표 티어만 선택하면 서버가 같은 Sub Division의 적격 상위 티어 사용자 한 명을 무작위로 선정해 자동 매치합니다. 특정 사용자는 직접 선택할 수 없습니다.</p><div class="arena-command-tags"><span><i></i>자동 매칭 온라인</span><span>상위 1티어 도전</span><span>동일 5문항 · 10분</span></div></div>
+        <div class="arena-command-hero-copy"><p>서버가 먼저 같은 티어에서 나보다 순위가 높은 적격 후보를 찾습니다. 후보가 없을 때만 바로 위 티어로 범위를 한 단계 넓히며, 그보다 높은 티어로는 넘어가지 않습니다. 후보군 안에서는 오늘 방어 횟수가 가장 적은 사용자를 우선하고 동률이면 무작위로 연결합니다.</p><div class="arena-command-tags"><span><i></i>공정 자동 매칭</span><span>최대 한 티어 상향</span><span>동일 5문항 · 문항당 10분</span></div></div>
       </header>
 
       <section class="arena-division-status arena-challenge-status arena-command-status">
@@ -59,8 +60,8 @@
         </article>
         <article>
           <small>참가 가능 범위</small>
-          <strong>Sub Division</strong>
-          <span>자신의 바로 위 티어에게만 신청하며 브론즈·챌린저에는 경계 예외가 있습니다. 서버 무작위 선정에는 내부 실력 지표와 최종 종합 랭킹을 사용하지 않습니다.</span>
+          <strong>Unranked</strong>
+          <span>같은 티어의 상위 순위를 먼저 찾고, 없으면 바로 위 티어에서 찾습니다. 서버 무작위 선정에는 내부 실력 지표와 최종 종합 랭킹을 사용하지 않습니다.</span>
         </article>
       </section>
 
@@ -99,6 +100,9 @@
             <small>일반 쟁탈전 신청 불가</small>
             <h2>현재는 새 경기를 만들 수 없습니다.</h2>
             <p><%= challengeData.unavailableMessage %></p>
+            <% if (challengeData.reasons.includes("INTEGRITY_PENALTY_ACTIVE")) { %>
+              <p class="arena-challenge-penalty-notice">부정행위가 확인되어 GOAT Arena 매치메이킹이 제한되었습니다.<br />제한 해제: <strong><%= formatMatchmakingRestriction(challengeData.matchmakingRestrictedUntil) %> (KST)</strong></p>
+            <% } %>
             <p>오늘 공격 <%= challengeData.dailyUsage.attackCount %>/<%= challengeData.dailyUsage.attackLimit %>회 · 오늘 방어 <%= challengeData.dailyUsage.defenseCount %>/<%= challengeData.dailyUsage.defenseLimit %>회</p>
           </div>
           <a href="/goat-arena/profile">Arena 프로필 확인</a>
@@ -125,43 +129,30 @@
           <header>
             <div>
               <small>서버 자동 매치</small>
-              <h2 id="candidate-title">도전할 티어를 선택하세요.</h2>
+              <h2 id="candidate-title">서버가 가장 가까운 상위 순위를 찾습니다.</h2>
             </div>
             <p>
-              서버가 활성 이용권·시즌 배치·방어 자격·미정산 경기 여부를 검사한 뒤 선택한 티어 안에서 상대 한 명을 무작위로 배정합니다. 배정된 상위 티어 사용자는 자동 참가합니다.
+              서버가 활성 이용권·시즌 배치·방어 자격·미정산 경기 여부를 검사합니다. 같은 티어의 더 높은 순위가 있으면 그 후보군에서, 없으면 바로 위 티어 후보군에서 상대 한 명을 무작위로 배정합니다. 배정된 사용자는 자동 참가합니다.
             </p>
           </header>
 
           <% if (challengeData.hasEligibleOpponent) { %>
             <div class="arena-candidate-list">
-              <% challengeData.targetTiers.forEach((target) => { %>
-                <article>
-                  <div class="arena-candidate-crest">
-                    <%- include("partials/rank-crest", {
-                      tier: target.tier,
-                      size: "sm",
-                    }) %>
-                  </div>
+                <% const automaticCandidateCount = challengeData.targetTiers.reduce((sum, target) => sum + target.candidateCount, 0); %>
+                <article class="arena-candidate-auto-tier">
+                  <div class="arena-candidate-crest"><span class="arena-random-tier-mark" aria-hidden="true">?</span></div>
                   <div class="arena-candidate-identity">
-                    <small>목표 티어</small>
-                    <strong><%= target.label %></strong>
-                    <span>현재 적격 후보 <%= target.candidateCount %>명</span>
+                    <small>순차 자동 배정</small>
+                    <strong><%= challengeData.currentStanding?.arenaRank || "현재 티어" %> 상위 순위<%= challengeData.nextTierTarget ? ` → ${challengeData.nextTierTarget.label}` : "" %></strong>
+                    <span>같은 티어 <%= challengeData.sameTierTarget?.candidateCount || 0 %>명 · 바로 위 티어 <%= challengeData.nextTierTarget?.candidateCount || 0 %>명</span>
                   </div>
-                  <form action="/goat-arena/sub/challenges" method="post">
-                    <input type="hidden" name="requestId" value="<%= requestId %>" />
-                    <input type="hidden" name="targetTier" value="<%= target.tier %>" />
-                    <button type="submit" <%= target.candidateCount > 0 ? "" : "disabled" %>>
-                      자동 매치 신청
-                      <span aria-hidden="true">→</span>
-                    </button>
-                  </form>
+                  <form action="/goat-arena/sub/challenges" method="post"><input type="hidden" name="requestId" value="<%= requestId %>" /><button type="submit" <%= automaticCandidateCount > 0 ? "" : "disabled" %>>자동 매치 신청 <span aria-hidden="true">→</span></button></form>
                 </article>
-              <% }) %>
             </div>
           <% } else { %>
             <div class="arena-candidate-empty">
               <strong>지금 자동 매치할 수 있는 상대가 없습니다.</strong>
-              <p>적격 상대가 없으므로 정기권 학습 가능 일수는 예치되거나 차감되지 않았습니다. 잠시 후 다시 확인해주세요.</p>
+              <p>적격 상대가 없으므로 페이백 점수는 예치되거나 차감되지 않았습니다. 잠시 후 다시 확인해주세요.</p>
             </div>
           <% } %>
         </section>

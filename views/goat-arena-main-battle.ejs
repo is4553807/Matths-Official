@@ -11,10 +11,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Main Division 상향 쟁탈전과 하위 티어 초대 관리" />
+    <meta name="description" content="Ranked 상향 쟁탈전과 하위 티어 초대 관리" />
     <meta name="theme-color" content="#070913" />
-    <title>Main Division 경기 | GOAT Arena</title>
+    <title>Ranked 경기 | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
+    <%- include("partials/rank-motion-head") %>
     <link rel="icon" type="image/jpeg" href="/images/goat-arena/goat-arena-logo.jpg" />
     <script src="/js/goat-arena.js" defer></script>
   </head>
@@ -24,7 +25,7 @@
 
     <main class="arena-page-main main-battle-main arena-battle-main" id="main-battle-main">
       <header class="arena-page-heading arena-command-hero arena-command-hero--main">
-        <div><p>Main Division · COMMAND CENTER</p><h1>상위 전장 <span>지휘소</span></h1></div>
+        <div><p>Ranked · COMMAND CENTER</p><h1>상위 전장 <span>지휘소</span></h1></div>
         <div class="arena-command-hero-copy"><p>상대 사용자를 직접 고르지 않고 목표 티어와 예치 학습일수만 선택합니다. 서버가 최근 7일 상대·이용 자격·잔액·진행 중 경기를 확인한 뒤 무작위로 상대를 정합니다.</p><div class="arena-command-tags"><span><i></i>매칭 서버 온라인</span><span>최대 3티어 작전</span><span>최근 상대 7일 제외</span></div></div>
       </header>
 
@@ -33,26 +34,27 @@
 
       <section class="main-battle-status arena-command-status">
         <article><small>현재 티어</small><strong><%= battleData.currentTier || '미배정' %></strong></article>
+        <article><small>매칭 범위</small><strong>전체 Ranked</strong><span>소속과 무관하게 목표 티어 안에서 매칭</span></article>
         <article><small>사용 가능 학습일수</small><strong><%= battleData.availableLearningDays %><span>일</span></strong></article>
         <article><small>동시 공식 경기</small><strong><%= battleData.activeMatch ? '1경기 진행 중' : '없음' %></strong><% if (battleData.activeMatch) { %><a href="/goat-arena/matches/<%= battleData.activeMatch.id %>">경기로 이동</a><% } %></article>
       </section>
 
       <% if (!battleData.eligible) { %>
-        <section class="arena-feature-lock"><span aria-hidden="true">◇</span><h2>Main Division 경기 이용 권한을 확인해주세요.</h2><p>활성 학습권, Main Division 소속, 시즌 배치와 최소 1일의 사용 가능 학습일수가 모두 필요합니다.</p></section>
+        <section class="arena-feature-lock"><span aria-hidden="true">◇</span><h2><%= battleData.reasons.includes("INTEGRITY_PENALTY_ACTIVE") ? "GOAT Arena 매치메이킹이 제한되었습니다." : "Ranked 경기 이용 권한을 확인해주세요." %></h2><p><%= battleData.reasons.includes("INTEGRITY_PENALTY_ACTIVE") ? "부정행위가 확인되어 새 경기를 신청할 수 없습니다." : "활성 학습권, Ranked 소속, 시즌 배치와 최소 1일의 사용 가능 학습일수가 모두 필요합니다." %></p><% if (battleData.reasons.includes("INTEGRITY_PENALTY_ACTIVE")) { %><p class="arena-challenge-penalty-notice">제한 해제: <strong><%= formatMatchmakingRestriction(battleData.matchmakingRestrictedUntil) %> (KST)</strong></p><% } %></section>
       <% } else { %>
         <section class="main-battle-action-grid arena-main-operation-grid">
           <article class="arena-operation-card arena-operation-card--attack">
-            <header><span class="arena-operation-code">OPERATION 01</span><small>하위 → 상위</small><h2>상위 티어 쟁탈전</h2><p>선택한 상위 티어에서 서버가 한 명을 정하고 상대는 의무 참가합니다. 양측이 같은 학습일수를 예치합니다.</p></header>
+            <header><span class="arena-operation-code">OPERATION 01</span><small>하위 → 상위</small><h2>상위 티어 쟁탈전</h2><p>선택한 상위 티어에서 서버가 한 명을 정하고 상대는 의무 참가합니다. 공격자만 학습일수를 예치하며, 승리하면 예치금을 그대로 돌려받고 Arena 상태를 탈취합니다.</p></header>
             <form action="/goat-arena/main/challenges" method="post">
               <input type="hidden" name="requestId" value="<%= requestId %>:upward" />
-              <label><span>목표 상위 티어</span><select name="targetTier" required><option value="">선택</option><% battleData.upwardTargets.forEach((tier) => { %><option value="<%= tier.label %>"><%= tier.label %> · <%= tier.gap %>단계 위</option><% }) %></select></label>
-              <label><span>예치 학습일수</span><input type="number" name="stakeDays" min="1" max="<%= Math.max(1, battleData.availableLearningDays - 1) %>" required /><small>1단계 최소 1일 · 2단계 2일 · 3단계 3일, 예치 뒤 최소 1일을 남겨야 합니다.</small></label>
+              <label><span>목표 상위 티어</span><select name="targetTier" data-main-upward-target required><option value="">선택</option><% battleData.upwardTargets.forEach((tier) => { %><option value="<%= tier.label %>" data-min-stake="<%= tier.minimumStakeDays %>"><%= tier.label %> · <%= tier.gap %>단계 위</option><% }) %></select></label>
+              <label><span>예치 학습일수</span><input type="number" name="stakeDays" min="1" max="<%= Math.max(1, Math.min(5, battleData.availableLearningDays - 1)) %>" data-main-upward-stake required /><small>1단계 차이 1일 이상 · 2단계 2일 이상 · 3단계 3일 이상이며, 모든 상향 쟁탈전의 최대 예치는 5일입니다. 예치 뒤 최소 1일을 남겨야 합니다.</small></label>
               <button type="submit" <%= battleData.activeMatch ? 'disabled' : '' %>>서버 무작위 매칭 시작</button>
             </form>
           </article>
 
           <article class="arena-operation-card arena-operation-card--invite" id="main-invitation-create">
-            <header><span class="arena-operation-code">OPERATION 02</span><small>상위 → 하위</small><h2>하위 티어 초대전</h2><p>학습일수를 예약하고 하위 티어 후보들에게 일괄 초대합니다. 먼저 수락을 완료한 한 명과만 경기하며 직접 취소는 무료입니다.</p></header>
+            <header><span class="arena-operation-code">OPERATION 02</span><small>상위 → 하위</small><h2>하위 티어 초대전</h2><p>학습일수를 예약하고 하위 티어 후보들에게 일괄 초대합니다. 먼저 수락을 완료한 한 명과만 경기하며, 수락 뒤에는 양측이 같은 학습일수를 예치합니다.</p></header>
             <form action="/goat-arena/main/invitations" method="post">
               <input type="hidden" name="requestId" value="<%= requestId %>:invitation" />
               <label><span>목표 하위 티어</span><select name="targetTier" required><option value="">선택</option><% battleData.lowerTargets.forEach((tier) => { %><option value="<%= tier.label %>"><%= tier.label %> · <%= tier.gap %>단계 아래</option><% }) %></select></label>
@@ -63,13 +65,27 @@
         </section>
 
         <section class="main-invitation-board" id="main-invitations">
-          <header><div><small>초대 관리</small><h2>받은 초대와 보낸 예약</h2></div><p>받은 초대는 참가 여부를 선택할 수 있습니다. 보낸 예약은 상대가 수락하기 전까지 무료로 취소할 수 있습니다.</p></header>
+          <header><div><small>초대 관리</small><h2>받은 초대와 보낸 예약</h2></div><p>6시간 자동 방어 유예 중에도 자발적인 초대전은 알림을 받고 수락하거나 거절할 수 있습니다. 보낸 예약은 상대가 수락하기 전까지 무료로 취소할 수 있습니다.</p></header>
           <div class="main-invitation-columns">
-            <article><h3>받은 초대</h3><% if (!battleData.receivedOffers.length) { %><p class="empty">현재 받은 초대가 없습니다.</p><% } %><% battleData.receivedOffers.forEach((offer) => { const invitation = offer.invitationRequestId || {}; %><div class="main-invitation-item"><span><b><%= invitation.initiatorArenaTier || '상위 티어' %></b>에서 <%= invitation.stakeDays || 0 %>일 예치 경기</span><div><form action="/goat-arena/main/invitation-offers/<%= offer._id %>/respond" method="post"><input type="hidden" name="response" value="ACCEPT" /><button type="submit">수락</button></form><form action="/goat-arena/main/invitation-offers/<%= offer._id %>/respond" method="post"><input type="hidden" name="response" value="DECLINE" /><button class="secondary" type="submit">거절</button></form></div></div><% }) %></article>
+            <article><h3>받은 초대</h3><% if (!battleData.receivedOffers.length) { %><p class="empty">현재 받은 초대가 없습니다.</p><% } %><% battleData.receivedOffers.forEach((offer) => { const invitation = offer.invitationRequestId || {}; const stake = Number(invitation.stakeDays || 0); %><div class="main-invitation-item main-invitation-item--offer"><header><span>상위 티어 초대전</span><strong><%= invitation.initiatorArenaTier || '상위 티어' %> → <%= invitation.targetTier || battleData.currentTier || '현재 티어' %></strong><small>티어 차이 <%= offer.tierGap || '—' %>단계 · 양측 <%= stake %>일씩 예치</small></header><dl><div><dt>수락 후 승리</dt><dd>내 예치 <%= stake %>일 반환 + 상대 예치 <%= stake %>일 획득 · Arena 상태 교환</dd></div><div><dt>수락 후 패배</dt><dd>내 예치 <%= stake %>일이 상대에게 이전 · Arena 상태 유지</dd></div></dl><p>수락하면 위 조건으로 즉시 공식 경기 참가와 동일 예치에 동의하게 됩니다.</p><div class="main-invitation-actions"><form action="/goat-arena/main/invitation-offers/<%= offer._id %>/respond" method="post"><input type="hidden" name="response" value="ACCEPT" /><button type="submit">조건 확인 후 수락</button></form><form action="/goat-arena/main/invitation-offers/<%= offer._id %>/respond" method="post"><input type="hidden" name="response" value="DECLINE" /><button class="secondary" type="submit">거절</button></form></div></div><% }) %></article>
             <article><h3>보낸 예약</h3><% if (!battleData.sentInvitations.length) { %><p class="empty">현재 대기 중인 예약이 없습니다.</p><% } %><% battleData.sentInvitations.forEach((invitation) => { %><div class="main-invitation-item"><span><b><%= invitation.targetTier %></b> 대상 · <%= invitation.stakeDays %>일 예약 · <%= invitationStatusLabels[invitation.status] || "상태 확인 중" %></span><form action="/goat-arena/main/invitations/<%= invitation._id %>/cancel" method="post"><button class="secondary" type="submit">무료 취소</button></form></div><% }) %></article>
           </div>
         </section>
       <% } %>
     </main>
+    <script>
+      (() => {
+        const target = document.querySelector("[data-main-upward-target]");
+        const stake = document.querySelector("[data-main-upward-stake]");
+        if (!target || !stake) return;
+        const syncStakeBounds = () => {
+          const minimum = Number(target.selectedOptions[0]?.dataset.minStake || 1);
+          stake.min = String(minimum);
+          if (stake.value && Number(stake.value) < minimum) stake.value = String(minimum);
+        };
+        target.addEventListener("change", syncStakeBounds);
+        syncStakeBounds();
+      })();
+    </script>
   </body>
 </html>

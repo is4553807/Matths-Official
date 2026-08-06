@@ -20,6 +20,13 @@ const {
 const {
   getRankingDisplayName,
 } = require("./userIdentityService");
+const {
+  arenaAffiliationLabel,
+} = require("./mainCompetitivePoolService");
+const {
+  normalizeTierCode,
+  TIER_LABELS,
+} = require("./arenaOneOnOneDifficultyPolicy");
 
 function numberValue(
   value,
@@ -150,24 +157,13 @@ const TIER_DISPLAY_ORDER = [
 ];
 
 function tierKey(tier) {
-  const aliases = {
-    챌린저: "challenger",
-    그랜드마스터:
-      "grandmaster",
-    마스터: "master",
-    다이아몬드: "diamond",
-    에메랄드: "emerald",
-    플래티넘: "platinum",
-    골드: "gold",
-    실버: "silver",
-    브론즈: "bronze",
-  };
+  const code = normalizeTierCode(tier);
+  return code ? String(code).toLowerCase() : "unknown";
+}
 
-  return (
-    aliases[
-      String(tier || "")
-    ] || "bronze"
-  );
+function normalizedTierLabel(tier) {
+  const code = normalizeTierCode(tier);
+  return TIER_LABELS[code] || String(tier || "").trim();
 }
 
 function buildTierRankingPool(
@@ -177,6 +173,8 @@ function buildTierRankingPool(
     key,
     label,
     dataState,
+    competitivePool = null,
+    scopeLabel = "",
   }
 ) {
   const normalizedUserId =
@@ -191,8 +189,10 @@ function buildTierRankingPool(
     if (!Number.isFinite(gp)) {
       continue;
     }
-    const tier =
-      String(entry.arenaRank || "");
+    // 신규 문서는 영문 코드, 이전 데이터는 한국어 표시명을 저장할 수 있다.
+    // 표시·선택·그룹화 전에 한 번만 정규화해 같은 티어가 드롭다운에 두 번
+    // 보이는 일을 막는다.
+    const tier = normalizedTierLabel(entry.arenaRank);
     const arenaPosition =
       Number(entry.arenaPosition);
     if (
@@ -310,6 +310,8 @@ function buildTierRankingPool(
     key,
     label,
     dataState,
+    competitivePool,
+    scopeLabel,
     cohortSize:
       entries.length,
     current,
@@ -435,10 +437,29 @@ function aggregateRankings(
 
 function buildSchoolAndRetakerRankings(finalEntries = []) {
   const schools = new Map();
+  const universities = new Map();
   const retakers = [];
+  const workers = [];
   for (const entry of finalEntries) {
     if (Number(entry.grade) === 13) {
       retakers.push(entry);
+      continue;
+    }
+    if (Number(entry.grade) === 14) {
+      if (!entry.universityCode || !entry.universityName) continue;
+      const group = universities.get(entry.universityCode) || {
+        id: entry.universityCode,
+        name: entry.universityName,
+        campus: entry.universityCampus,
+        region: entry.universityRegion,
+        students: [],
+      };
+      group.students.push(entry);
+      universities.set(entry.universityCode, group);
+      continue;
+    }
+    if (Number(entry.grade) === 15) {
+      workers.push(entry);
       continue;
     }
     if (entry.educationStatus !== "enrolled") continue;
@@ -481,11 +502,39 @@ function buildSchoolAndRetakerRankings(finalEntries = []) {
     })
     .map((group, index) => ({ ...group, rank: index + 1 }));
 
+  const universityRankings = [...universities.values()]
+    .map((group) => {
+      const students = [...group.students].sort(
+        (left, right) => left.finalRank - right.finalRank
+      );
+      return {
+        ...group,
+        students,
+        participantCount: students.length,
+        averageFinalRank:
+          Math.round(
+            (students.reduce((sum, student) => sum + student.finalRank, 0) /
+              students.length) * 10
+          ) / 10,
+        bestFinalRank: students[0]?.finalRank || null,
+      };
+    })
+    .sort((left, right) =>
+      left.averageFinalRank - right.averageFinalRank ||
+      right.participantCount - left.participantCount ||
+      left.bestFinalRank - right.bestFinalRank
+    )
+    .map((group, index) => ({ ...group, rank: index + 1 }));
+
   return {
     schools: schoolRankings,
+    universities: universityRankings,
     retakers: [...retakers]
       .sort((left, right) => left.finalRank - right.finalRank)
       .map((entry, index) => ({ ...entry, retakerRank: index + 1 })),
+    workers: [...workers]
+      .sort((left, right) => left.finalRank - right.finalRank)
+      .map((entry, index) => ({ ...entry, workerRank: index + 1 })),
   };
 }
 
@@ -544,32 +593,19 @@ function findRank(
 async function getRankingData(
   currentUserId
 ) {
-  const [attempts, liveFinalProfiles] = await Promise.all([
+  const [attempts, liveFinalProfiles, arenaStandings] = await Promise.all([
     latestPlacementAttempts(),
     LiveFinalRankingProfile.find({
       status: { $in: ["ACTIVE", "SUNDAY_DISPLAY_FROZEN"] },
     })
       .sort({ finalRank: 1 })
       .lean(),
+    ArenaStanding.find({
+      status: "ACTIVE",
+    })
+      .sort({ updatedAt: -1 })
+      .lean(),
   ]);
-  const arenaStandings = await ArenaStanding.find({
-    status: "ACTIVE",
-  })
-    .sort({ updatedAt: -1 })
-    .lean();
-  const standingChanges = await ArenaStandingChangeLedger.find({
-    userId: { $in: arenaStandings.map((standing) => standing.userId) },
-  })
-    .sort({ occurredAt: -1, _id: -1 })
-    .limit(5000)
-    .lean();
-  const latestStandingChangeByUser = new Map();
-  for (const change of standingChanges) {
-    const userId = String(change.userId);
-    if (!latestStandingChangeByUser.has(userId)) {
-      latestStandingChangeByUser.set(userId, change);
-    }
-  }
   const rankingUserIds = [
     ...new Set([
       ...attempts.map((attempt) => String(attempt.userId)),
@@ -577,37 +613,48 @@ async function getRankingData(
       ...liveFinalProfiles.map((profile) => String(profile.userId)),
     ]),
   ];
-  const users =
-    await User.find({
+  const [standingChanges, users, activeMainProfileBorders, profiles] =
+    await Promise.all([
+      ArenaStandingChangeLedger.find({
+        userId: { $in: arenaStandings.map((standing) => standing.userId) },
+      })
+        .sort({ occurredAt: -1, _id: -1 })
+        .limit(5000)
+        .lean(),
+      User.find({
       _id: {
         $in: rankingUserIds,
       },
       isActive: true,
     })
       .select(
-        "name realName preferences.rankingDisplayMode school schoolGrade educationStatus accountStatus"
+        "name school university schoolGrade educationStatus accountStatus"
       )
-      .lean();
-  const activeMainProfileBorders = await MainShopEffect.find({
-    userId: { $in: rankingUserIds },
-    itemCode: "MAIN_PROFILE_BORDER",
-    status: "ACTIVE",
-    endsAt: { $gt: new Date() },
-  })
-    .select("userId")
-    .lean();
+      .lean(),
+      MainShopEffect.find({
+        userId: { $in: rankingUserIds },
+        itemCode: "MAIN_PROFILE_BORDER",
+        status: "ACTIVE",
+        endsAt: { $gt: new Date() },
+      })
+        .select("userId")
+        .lean(),
+      RankingProfile.find({
+        userId: {
+          $in: attempts.map((attempt) => attempt.userId),
+        },
+      }).lean(),
+    ]);
+  const latestStandingChangeByUser = new Map();
+  for (const change of standingChanges) {
+    const userId = String(change.userId);
+    if (!latestStandingChangeByUser.has(userId)) {
+      latestStandingChangeByUser.set(userId, change);
+    }
+  }
   const mainProfileBorderUserIds = new Set(
     activeMainProfileBorders.map((effect) => String(effect.userId))
   );
-  const profiles =
-    await RankingProfile.find({
-      userId: {
-        $in: attempts.map(
-          (attempt) =>
-            attempt.userId
-        ),
-      },
-    }).lean();
   const profileByUserId =
     new Map(
       profiles.map(
@@ -625,29 +672,28 @@ async function getRankingData(
       user,
     ])
   );
-  const finalUserIds = liveFinalProfiles.map((profile) => profile.userId);
-  const finalUsers = await User.find({
-    _id: { $in: finalUserIds },
-    isActive: true,
-    accountStatus: "active",
-  })
-    .select(
-      "name realName preferences.rankingDisplayMode school schoolGrade educationStatus"
-    )
-    .lean();
-  const finalUserById = new Map(
-    finalUsers.map((user) => [String(user._id), user])
-  );
   const finalOverall = liveFinalProfiles
     .map((profile) => {
-      const user = finalUserById.get(String(profile.userId));
-      if (!user) return null;
+      const user = userById.get(String(profile.userId));
+      if (!user || user.accountStatus !== "active") return null;
       return {
         userId: String(user._id),
         displayName: getRankingDisplayName(user),
         schoolCode: String(user.school?.code || ""),
         schoolName: String(user.school?.name || ""),
         region: String(user.school?.region || ""),
+        universityCode: String(user.university?.code || ""),
+        universityName: String(user.university?.name || ""),
+        universityCampus: String(user.university?.campus || ""),
+        universityRegion: String(user.university?.region || ""),
+        affiliationName:
+          Number(user.schoolGrade) === 14
+            ? String(user.university?.name || "대학생")
+            : Number(user.schoolGrade) === 15
+              ? "직장인"
+              : Number(user.schoolGrade) === 13
+                ? "N수생"
+                : String(user.school?.name || ""),
         grade: numberValue(user.schoolGrade),
         educationStatus: String(
           user.educationStatus || "enrolled"
@@ -949,17 +995,20 @@ async function getRankingData(
         displayName: getRankingDisplayName(user),
         schoolCode: String(user.school?.code || ""),
         schoolName:
-          Number(user.schoolGrade) === 13
-            ? "N수생"
-            : String(user.school?.name || "학교 미설정"),
+          arenaAffiliationLabel(user),
         region: String(user.school?.region || "지역 미설정"),
         grade: numberValue(user.schoolGrade),
         educationStatus: String(user.educationStatus || "enrolled"),
       };
       return {
         ...rankingIdentity,
+        schoolName: arenaAffiliationLabel(user),
         division:
           standing.division,
+        competitivePool:
+          standing.division === "MAIN"
+            ? "ALL"
+            : "ALL",
         tier: standing.arenaRank,
         arenaRank:
           standing.arenaRank,
@@ -1002,6 +1051,15 @@ async function getRankingData(
       (entry) =>
         entry.division === "MAIN"
     );
+  const currentArenaEntry =
+    arenaEntries.find(
+      (entry) =>
+        entry.userId ===
+        String(currentUserId)
+    ) || null;
+  const currentUser = userById.get(String(currentUserId)) || null;
+  const mainCompetitivePool = "ALL";
+  const visibleMainArenaEntries = mainArenaEntries;
   const subPool =
     buildTierRankingPool(
       subArenaEntries,
@@ -1009,7 +1067,7 @@ async function getRankingData(
       {
         key: "SUB",
         label:
-          "Sub Division",
+          "Unranked",
         dataState:
           subArenaEntries.length
             ? "arena-standing"
@@ -1018,24 +1076,20 @@ async function getRankingData(
     );
   const mainPool =
     buildTierRankingPool(
-      mainArenaEntries,
+      visibleMainArenaEntries,
       currentUserId,
       {
         key: "MAIN",
         label:
-          "Main Division",
+          "Ranked",
         dataState:
-          mainArenaEntries.length
+          visibleMainArenaEntries.length
             ? "arena-standing"
             : "awaiting-arena-profile",
+        competitivePool: mainCompetitivePool,
+        scopeLabel: "Ranked 전체 티어 순위",
       }
     );
-  const currentArenaEntry =
-    arenaEntries.find(
-      (entry) =>
-        entry.userId ===
-        String(currentUserId)
-      ) || null;
   const currentRankingEntry =
     currentEntry || currentArenaEntry;
 
@@ -1111,7 +1165,9 @@ async function getRankingData(
           : latest;
       }, null),
     schoolRankings: schoolAndRetakerRankings.schools,
+    universityRankings: schoolAndRetakerRankings.universities,
     retakerRankings: schoolAndRetakerRankings.retakers,
+    workerRankings: schoolAndRetakerRankings.workers,
     currentFinal:
       finalOverall.find(
         (entry) => entry.userId === String(currentUserId)

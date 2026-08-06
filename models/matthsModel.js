@@ -31,8 +31,8 @@ const preferenceSchema = new Schema(
     },
 
     /*
-     * 랭킹전에서는 기본적으로 닉네임을 사용한다.
-     * 사용자가 명시적으로 선택한 경우에만 실명을 공개한다.
+     * 공개 랭킹과 GOAT Arena에서는 항상 닉네임을 사용한다.
+     * realName 값은 기존 저장 데이터 호환을 위해서만 유지한다.
      */
     rankingDisplayMode: {
       type: String,
@@ -166,6 +166,17 @@ const userSchema = new Schema(
       index: true,
     },
 
+    /*
+     * 실제 운영 계정을 테스트 전용 계정과 제한적으로 1대1 매칭할 때만
+     * 운영자가 켜는 임시 권한입니다. 일반 사용자는 기본값 false이며,
+     * 테스트 계정과의 매칭은 이 값이 명시적으로 true인 경우에만 허용합니다.
+     */
+    arenaTestMatchEnabled: {
+      type: Boolean,
+      default: false,
+      select: false,
+    },
+
     operatorRemark: {
       type: String,
       trim: true,
@@ -175,8 +186,15 @@ const userSchema = new Schema(
 
     schoolGrade: {
       type: Number,
-      enum: [10, 11, 12, 13],
+      enum: [10, 11, 12, 13, 14, 15],
       default: 10,
+    },
+
+    learnerType: {
+      type: String,
+      enum: ["HIGH_SCHOOL", "RETAKER", "UNIVERSITY", "WORKER"],
+      default: "HIGH_SCHOOL",
+      index: true,
     },
 
     /*
@@ -421,6 +439,72 @@ const userSchema = new Schema(
         default: "",
       },
     },
+
+    university: {
+      code: { type: String, default: "" },
+      name: { type: String, default: "" },
+      campus: { type: String, default: "" },
+      region: { type: String, default: "" },
+      institutionLevel: { type: String, default: "" },
+      institutionType: { type: String, default: "" },
+      establishment: { type: String, default: "" },
+    },
+
+    /*
+     * 페이백 계좌는 선택 정보입니다. 계좌번호 원문은 저장하지 않고
+     * AES-256-GCM 암호문만 보관합니다. 사용자 화면에는 마지막 4자리만,
+     * 정산 권한이 있는 운영자 화면에서만 복호화한 값을 표시합니다.
+     */
+    paybackAccount: {
+      status: {
+        type: String,
+        enum: ["UNLINKED", "CONFIRMED"],
+        default: "UNLINKED",
+        index: true,
+      },
+      bankName: {
+        type: String,
+        trim: true,
+        maxlength: 40,
+        default: "",
+      },
+      accountHolderName: {
+        type: String,
+        trim: true,
+        maxlength: 40,
+        default: "",
+        select: false,
+      },
+      accountNumberEncrypted: {
+        type: String,
+        default: "",
+        select: false,
+      },
+      accountNumberIv: {
+        type: String,
+        default: "",
+        select: false,
+      },
+      accountNumberTag: {
+        type: String,
+        default: "",
+        select: false,
+      },
+      accountNumberLast4: {
+        type: String,
+        trim: true,
+        maxlength: 4,
+        default: "",
+      },
+      confirmedAt: {
+        type: Date,
+        default: null,
+      },
+      updatedAt: {
+        type: Date,
+        default: null,
+      },
+    },
   },
   {
     timestamps: true,
@@ -434,6 +518,11 @@ userSchema.index(
 );
 userSchema.index({
   "school.code": 1,
+  schoolGrade: 1,
+  isActive: 1,
+});
+userSchema.index({
+  "university.code": 1,
   schoolGrade: 1,
   isActive: 1,
 });
@@ -1236,6 +1325,12 @@ problemAttemptSchema.index({
 
 problemAttemptSchema.index({
   userId: 1,
+  isCorrect: 1,
+  submittedAt: -1,
+});
+
+problemAttemptSchema.index({
+  userId: 1,
   "review.status": 1,
   "review.scheduledAt": 1,
 });
@@ -1321,6 +1416,12 @@ const assessmentQuestionSchema =
       selectedTypeLabel: {
         type: String,
         default: "",
+      },
+
+      semanticTypeId: {
+        type: String,
+        default: "",
+        maxlength: 160,
       },
 
       difficultyScore: {
@@ -1987,8 +2088,6 @@ const assessmentAttemptSchema =
           "INITIAL",
           "SEASON",
           "RENEWAL_RANK_ASSESSMENT",
-          // 이전 정책 데이터 읽기 전용. 신규 휴면 복귀 시험은 생성하지 않는다.
-          "DORMANCY_RETURN",
         ],
         default: null,
         index: true,
@@ -2153,6 +2252,27 @@ assessmentAttemptSchema.index({
   passed: 1,
   submittedAt: -1,
 });
+
+/*
+ * 배치고사는 INITIAL·시즌·랭크 복귀처럼 서버가 정한 동일 응시 구간에서
+ * 한 번만 생성한다. 부분 고유 인덱스로 연속 클릭이나 동시 요청도 막는다.
+ */
+assessmentAttemptSchema.index(
+  {
+    userId: 1,
+    scopeType: 1,
+    placementContextKey: 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      scopeType: "placement",
+      placementContextKey: {
+        $type: "string",
+      },
+    },
+  }
+);
 
 /* --------------------------------------------------
  * 6. LearningEvent
@@ -3355,6 +3475,14 @@ const userNotificationSchema =
                 ],
                 default: "admin",
             },
+            // GOAT Arena 우편함의 시각적 우선순위. 일반 Matths 알림에는
+            // 빈 값으로 두어 기존 표시를 변경하지 않는다.
+            tone: {
+                type: String,
+                trim: true,
+                maxlength: 32,
+                default: "",
+            },
             announcementId: {
                 type: Schema.Types.ObjectId,
                 ref: "Announcement",
@@ -3413,7 +3541,7 @@ userNotificationSchema.index(
 
 /* --------------------------------------------------
  * 14. CommunityPost
- * 통합 고등학교·학교별 커뮤니티 게시글
+ * 통합·고등학교·대학교·N수생·직장인 커뮤니티 게시글
  * -------------------------------------------------- */
 
 const communityAttachmentSchema =
@@ -3499,6 +3627,8 @@ const communityPostSchema =
                     "high-school",
                     "school",
                     "retaker",
+                    "university",
+                    "worker",
                 ],
                 required: true,
                 index: true,
@@ -3516,6 +3646,19 @@ const communityPostSchema =
                 maxlength: 120,
                 default: "",
             },
+            universityCode: {
+                type: String,
+                trim: true,
+                maxlength: 100,
+                default: "",
+                index: true,
+            },
+            universityName: {
+                type: String,
+                trim: true,
+                maxlength: 160,
+                default: "",
+            },
             authorRegion: {
                 type: String,
                 trim: true,
@@ -3524,7 +3667,7 @@ const communityPostSchema =
             },
             authorSchoolGrade: {
                 type: Number,
-                enum: [10, 11, 12, 13],
+                enum: [10, 11, 12, 13, 14, 15],
                 default: null,
             },
             authorName: {
@@ -3652,6 +3795,14 @@ communityPostSchema.index({
     createdAt: -1,
 });
 communityPostSchema.index({
+    boardType: 1,
+    universityCode: 1,
+    status: 1,
+    isPinned: -1,
+    pinnedAt: -1,
+    createdAt: -1,
+});
+communityPostSchema.index({
     title: "text",
     content: "text",
 });
@@ -3715,6 +3866,8 @@ const communityBoardNoticeSchema =
                     "high-school",
                     "school",
                     "retaker",
+                    "university",
+                    "worker",
                 ],
                 required: true,
                 index: true,
@@ -3730,6 +3883,19 @@ const communityBoardNoticeSchema =
                 type: String,
                 trim: true,
                 maxlength: 120,
+                default: "",
+            },
+            universityCode: {
+                type: String,
+                trim: true,
+                maxlength: 100,
+                default: "",
+                index: true,
+            },
+            universityName: {
+                type: String,
+                trim: true,
+                maxlength: 160,
                 default: "",
             },
             title: {
@@ -3790,6 +3956,14 @@ const communityBoardNoticeSchema =
 communityBoardNoticeSchema.index({
     boardType: 1,
     schoolCode: 1,
+    status: 1,
+    isPinned: -1,
+    pinnedAt: -1,
+    createdAt: -1,
+});
+communityBoardNoticeSchema.index({
+    boardType: 1,
+    universityCode: 1,
     status: 1,
     isPinned: -1,
     pinnedAt: -1,
@@ -4226,10 +4400,16 @@ privateMockExamSchema.index({
     attemptNumber: 1,
 });
 privateMockExamSchema.index({
-    status: 1,
-    aggregationStartsAt: 1,
-    rankingPublishesAt: 1,
-    archiveAt: 1,
+  status: 1,
+  aggregationStartsAt: 1,
+  rankingPublishesAt: 1,
+  archiveAt: 1,
+});
+privateMockExamSchema.index({
+  "answerReview.status": 1,
+});
+privateMockExamSchema.index({
+  parentFolderId: 1,
 });
 
 const privateMockUploadReminderSchema =

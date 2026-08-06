@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="GOAT Arena 경기 추가 소명 자료 제출" />
+    <meta name="theme-color" content="#070913" />
+    <title>추가 소명 자료 | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <link rel="icon" type="image/jpeg" href="/images/goat-arena/goat-arena-logo.jpg" />
+  </head>
+  <body class="goat-arena-page arena-inner-page">
+    <a class="arena-skip-link" href="#supplemental-evidence-main">본문으로 바로가기</a>
+    <%- include("partials/goat-arena-navigation", { activeArenaPage, arenaUser }) %>
+
+    <main class="arena-page-main arena-supplemental-main" id="supplemental-evidence-main">
+      <section class="arena-supplemental-card <%= requestData.status === 'EXPIRED' ? 'is-expired' : '' %>">
+        <header>
+          <div>
+            <p>SUPPLEMENTAL EVIDENCE</p>
+            <h1>추가 소명 자료를 제출해주세요.</h1>
+            <span><%= requestData.division === "MAIN" ? "Ranked" : "Unranked" %> · <%= requestData.role === "CHALLENGER" ? "공격자" : "방어자" %> 기록 확인</span>
+          </div>
+          <div
+            class="arena-supplemental-timer"
+            data-supplemental-timer
+            data-deadline="<%= requestData.deadlineAt ? new Date(requestData.deadlineAt).toISOString() : '' %>"
+            data-server-now="<%= requestData.serverNow %>"
+          >
+            <small>남은 제출 시간</small>
+            <strong data-supplemental-countdown><%= requestData.status === "SUBMITTED" ? "제출 완료" : requestData.status === "EXPIRED" ? "24시간 기한 종료" : "24:00:00" %></strong>
+          </div>
+        </header>
+
+        <% if (requestData.requestMessage) { %>
+          <aside><small>운영자 요청 사유</small><p><%= requestData.requestMessage %></p></aside>
+        <% } %>
+        <p class="arena-supplemental-guide">
+          기존 필수 풀이 증거와 별도로, 실제 풀이 흐름을 확인할 수 있는 사진을 1~5장 제출해주세요.
+          제출 후에는 파일을 교체할 수 없으며 운영 검토가 끝날 때까지 안전하게 보관됩니다.
+        </p>
+
+        <% if (uploadError) { %><div class="arena-supplemental-feedback is-error" role="alert"><%= uploadError %></div><% } %>
+        <% if (submitted || requestData.status === "SUBMITTED") { %>
+          <div class="arena-supplemental-feedback is-success" role="status">
+            추가 소명 자료가 제출되었습니다. 운영 검토 결과는 GOAT Arena 우편함과 이메일로 안내합니다.
+          </div>
+        <% } %>
+
+        <% if (requestData.status === "EXPIRED") { %>
+          <div class="arena-supplemental-feedback is-error" data-supplemental-expired-message>추가 소명 자료 요청 후 24시간 안에 응답이 없어 소명 자료 미제출로 처리되었습니다.</div>
+        <% } %>
+
+        <% if (requestData.status === "REQUESTED") { %>
+          <form method="post" action="/goat-arena/matches/<%= requestData.matchId %>/supplemental-evidence" enctype="multipart/form-data" class="arena-supplemental-form">
+            <label class="arena-supplemental-dropzone">
+              <span aria-hidden="true">＋</span>
+              <strong>소명 사진 선택</strong>
+              <small>JPG · PNG · WEBP · HEIC / 최대 5장 / 장당 10MB</small>
+              <input type="file" name="evidenceFiles" accept=".jpg,.jpeg,.png,.webp,.heic,image/jpeg,image/png,image/webp,image/heic" multiple required />
+            </label>
+            <button type="submit">추가 소명 자료 제출</button>
+          </form>
+        <% } %>
+
+        <footer>
+          <a href="/goat-arena/matches/<%= requestData.matchId %>">경기 화면으로 돌아가기</a>
+          <span>요청 시각 <%= requestData.requestedAt ? new Date(requestData.requestedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "-" %></span>
+        </footer>
+      </section>
+    </main>
+
+    <script>
+      (() => {
+        const root = document.querySelector("[data-supplemental-timer]");
+        const output = root?.querySelector("[data-supplemental-countdown]");
+        if (!root || !output || !root.dataset.deadline || output.textContent.trim() === "제출 완료") return;
+        const deadline = new Date(root.dataset.deadline).getTime();
+        const serverNow = new Date(root.dataset.serverNow).getTime();
+        const offset = Number.isFinite(serverNow) ? serverNow - Date.now() : 0;
+        const render = () => {
+          const delta = deadline - (Date.now() + offset);
+          const remaining = Math.max(0, delta);
+          const hours = Math.floor(remaining / 3600000);
+          const minutes = Math.floor((remaining % 3600000) / 60000);
+          const seconds = Math.floor((remaining % 60000) / 1000);
+          output.textContent = delta <= 0
+            ? "24시간 기한 종료"
+            : [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+          root.classList.toggle("is-overdue", delta <= 0);
+          if (delta <= 0) {
+            const form = document.querySelector(".arena-supplemental-form");
+            form?.querySelectorAll("input, button").forEach((control) => { control.disabled = true; });
+            if (form && !document.querySelector("[data-supplemental-expired-message]")) {
+              const message = document.createElement("div");
+              message.className = "arena-supplemental-feedback is-error";
+              message.dataset.supplementalExpiredMessage = "";
+              message.textContent = "추가 소명 자료 요청 후 24시간 안에 응답이 없어 소명 자료 미제출로 처리되었습니다.";
+              form.before(message);
+            }
+          }
+        };
+        render();
+        window.setInterval(render, 1000);
+      })();
+    </script>
+  </body>
+</html>

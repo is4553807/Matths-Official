@@ -106,7 +106,7 @@ async function preparePaidMainRenewalInTransaction({
   if (!accessState?.referenceSubPlacementId || !accessState?.lastMainSnapshotId) {
     throw statusError(
       409,
-      "Main Division 재구독 기준 순위를 찾을 수 없습니다.",
+      "Ranked 재구독 기준 순위를 찾을 수 없습니다.",
       "MAIN_RENEWAL_REFERENCE_REQUIRED"
     );
   }
@@ -123,7 +123,7 @@ async function preparePaidMainRenewalInTransaction({
   ) {
     throw statusError(
       409,
-      "Main Division 재구독 기준 순위가 유효하지 않습니다.",
+      "Ranked 재구독 기준 순위가 유효하지 않습니다.",
       "MAIN_RENEWAL_REFERENCE_INVALID"
     );
   }
@@ -153,6 +153,7 @@ async function preparePaidMainRenewalInTransaction({
       {
         $set: {
           currentCompetitiveDivision: "SUB",
+          mainCompetitivePool: null,
           accessCycleId: cycleId,
           standingId: standing._id,
           state: "PAID_ACTIVE",
@@ -221,6 +222,7 @@ async function preparePaidMainRenewalInTransaction({
     {
       $set: {
         currentCompetitiveDivision: "SUB",
+        mainCompetitivePool: null,
         accessCycleId: cycleId,
         state: "PAID_PENDING_RENEWAL_ASSESSMENT",
         currentSeasonPlacementCompleted: false,

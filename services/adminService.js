@@ -819,7 +819,7 @@ async function getAdminUsersData({
     Number(grade);
 
   if (
-    [10, 11, 12, 13].includes(
+    [10, 11, 12, 13, 14, 15].includes(
       gradeNumber
     )
   ) {
@@ -914,7 +914,7 @@ async function getAdminUsersData({
     await Promise.all([
       User.find(filter)
         .select(
-          "name realName email role school schoolGrade isActive accountStatus accountStatusReason suspendedUntil warningCount totalStudySeconds currentStreak lastLoginAt createdAt"
+          "name realName email role school university schoolGrade isActive accountStatus accountStatusReason suspendedUntil warningCount totalStudySeconds currentStreak lastLoginAt createdAt"
         )
         .sort({
           createdAt: -1,
@@ -965,7 +965,7 @@ async function getAdminUsersData({
           schoolCode || ""
         ),
       grade:
-        [10, 11, 12, 13].includes(
+        [10, 11, 12, 13, 14, 15].includes(
           gradeNumber
         )
           ? gradeNumber

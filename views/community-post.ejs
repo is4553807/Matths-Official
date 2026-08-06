@@ -1,11 +1,11 @@
 <%
   const loggedIn = typeof user !== "undefined" && Boolean(user);
-  const boardLabels = { "high-school": "통합 고등학교 게시판", school: post.schoolName ? `${post.schoolName} 게시판` : "학교 게시판", retaker: "N수생 게시판" };
+  const boardLabels = { "high-school": "통합 고등학교 게시판", school: post.schoolName ? `${post.schoolName} 게시판` : "학교 게시판", retaker: "N수생 게시판", university: post.universityName ? `${post.universityName} 게시판` : "대학교 게시판", worker: "직장인 게시판" };
   const boardLabel = boardLabels[post.boardType] || "통합 고등학교 게시판";
   const formatDate = (date) => new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long", timeStyle: "short" }).format(new Date(date));
-  const backHref = post.boardType === "school" ? "/community?board=school" : (post.boardType === "retaker" ? "/community?board=retaker" : "/community?board=high-school");
-  const gradeLabel = { 10: "1학년", 11: "2학년", 12: "3학년", 13: "N수생" }[Number(post.authorSchoolGrade)] || "";
-  const anonymousSchoolLabel = Number(post.authorSchoolGrade) === 13 ? "N수생" : [post.authorRegion, "OO고등학교", gradeLabel].filter(Boolean).join(" ");
+  const backHref = ["school", "retaker", "university", "worker"].includes(post.boardType) ? `/community?board=${post.boardType}` : "/community?board=high-school";
+  const gradeLabel = { 10: "1학년", 11: "2학년", 12: "3학년", 13: "N수생", 14: "대학생", 15: "직장인" }[Number(post.authorSchoolGrade)] || "";
+  const anonymousSchoolLabel = Number(post.authorSchoolGrade) === 13 ? "N수생" : Number(post.authorSchoolGrade) === 14 ? "OO대학교 대학생" : Number(post.authorSchoolGrade) === 15 ? "직장인" : [post.authorRegion, "OO고등학교", gradeLabel].filter(Boolean).join(" ");
   const attachments = Array.isArray(post.attachments) ? post.attachments : [];
   const imageExtensions = new Set(["png", "jpg", "jpeg", "webp", "heic"]);
   const attachmentHref = (attachment, download = false) => `/community/${post._id}/attachments/${attachment._id}${download ? "?download=1" : ""}`;
@@ -172,7 +172,7 @@
           <% }) %>
         </div>
       </section>
-      <div class="community-post-actions"><a href="<%= backHref %>">목록으로</a><a class="primary" href="/community/new?board=<%= post.boardType === "school" ? "school" : "high-school" %>">새 글 쓰기</a></div>
+      <div class="community-post-actions"><a href="<%= backHref %>">목록으로</a><a class="primary" href="/community/new?board=<%= ["school", "retaker", "university", "worker"].includes(post.boardType) ? post.boardType : "high-school" %>">새 글 쓰기</a></div>
     </main>
   </body>
 </html>

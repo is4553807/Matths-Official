@@ -1,0 +1,3199 @@
+source:
+  name: 대학알리미 공시대상대학
+  organization: 한국대학교육협의회 대학정보공시센터
+  url: https://m.academyinfo.go.kr/intro/intro0350/intro.do
+  disclosure_year: 2026
+  synced_at: '2026-08-03T20:21:08.031Z'
+universities:
+  - code: '0002749'
+    name: 가야대학교(고령)
+    campus: 제2캠퍼스
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002748'
+    name: 가야대학교(김해)
+    campus: 본교
+    region: 경남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000063'
+    name: 가천대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000072'
+    name: 가톨릭관동대학교
+    campus: 본교
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000215'
+    name: 가톨릭꽃동네대학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000046'
+    name: 가톨릭대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000048'
+    name: 가톨릭대학교
+    campus: 제2캠퍼스
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000049'
+    name: 가톨릭대학교
+    campus: 제3캠퍼스
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000410'
+    name: 가톨릭상지대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000050'
+    name: 감리교신학대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000051'
+    name: 강남대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000433'
+    name: 강동대학교
+    campus: 본교
+    region: 충북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000514'
+    name: 강릉영동대학교
+    campus: 본교
+    region: 강원
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000079'
+    name: 강서대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000003'
+    name: 강원대학교
+    campus: 본교
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000004'
+    name: 강원대학교
+    campus: 제2캠퍼스
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0003363'
+    name: 강원대학교
+    campus: 제3캠퍼스
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0003364'
+    name: 강원대학교
+    campus: 제4캠퍼스
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0002639'
+    name: 강원도립대학교
+    campus: 본교
+    region: 강원
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 공립
+  - code: '0000663'
+    name: 개신대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000412'
+    name: 거제대학교
+    campus: 본교
+    region: 경남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000052'
+    name: 건국대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000053'
+    name: 건국대학교(글로컬)
+    campus: 분교
+    region: 충북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000643'
+    name: 건신대학원대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000054'
+    name: 건양대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000055'
+    name: 건양대학교
+    campus: 제2캠퍼스
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000335'
+    name: 건양사이버대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000560'
+    name: 경기과학기술대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000056'
+    name: 경기대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000058'
+    name: 경기대학교
+    campus: 제2캠퍼스
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000059'
+    name: 경남대학교
+    campus: 본교
+    region: 경남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002640'
+    name: 경남정보대학교
+    campus: 본교
+    region: 부산
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000060'
+    name: 경동대학교
+    campus: 본교
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002573'
+    name: 경동대학교
+    campus: 제2캠퍼스
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002574'
+    name: 경동대학교
+    campus: 제3캠퍼스
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002744'
+    name: 경동대학교
+    campus: 제4캠퍼스
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000416'
+    name: 경민대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0002641'
+    name: 경복대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000456'
+    name: 경북과학대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000005'
+    name: 경북대학교
+    campus: 본교
+    region: 대구
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000438'
+    name: 경북보건대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0002642'
+    name: 경북전문대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000007'
+    name: 경상국립대학교
+    campus: 본교
+    region: 경남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000062'
+    name: 경성대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000668'
+    name: 경안대학원대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000244'
+    name: 경운대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000256'
+    name: 경인교육대학교
+    campus: 본교
+    region: 인천
+    institution_level: 대학
+    institution_type: 교육대학
+    establishment: 국립
+  - code: '0000257'
+    name: 경인교육대학교
+    campus: 제2캠퍼스
+    region: 경기
+    institution_level: 대학
+    institution_type: 교육대학
+    establishment: 국립
+  - code: '0000422'
+    name: 경인여자대학교
+    campus: 본교
+    region: 인천
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000064'
+    name: 경일대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000066'
+    name: 경희대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000318'
+    name: 경희사이버대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000068'
+    name: 계명대학교
+    campus: 본교
+    region: 대구
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000425'
+    name: 계명문화대학교
+    campus: 본교
+    region: 대구
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000426'
+    name: 계원예술대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000069'
+    name: 고려대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000070'
+    name: 고려대학교(세종)
+    campus: 분교
+    region: 세종
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000328'
+    name: 고려사이버대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000071'
+    name: 고신대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000251'
+    name: 공주교육대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 교육대학
+    establishment: 국립
+  - code: '0000664'
+    name: 과학기술연합대학원대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 기타
+  - code: '0000073'
+    name: 광신대학교
+    campus: 본교
+    region: 광주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000428'
+    name: 광양보건대학교
+    campus: 본교
+    region: 전남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000074'
+    name: 광운대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000075'
+    name: 광주가톨릭대학교
+    campus: 본교
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000381'
+    name: 광주과학기술원
+    campus: 본교
+    region: 광주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 특별법법인
+  - code: '0000252'
+    name: 광주교육대학교
+    campus: 본교
+    region: 광주
+    institution_level: 대학
+    institution_type: 교육대학
+    establishment: 국립
+  - code: '0000231'
+    name: 광주대학교
+    campus: 본교
+    region: 광주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000429'
+    name: 광주보건대학교
+    campus: 본교
+    region: 광주
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000076'
+    name: 광주여자대학교
+    campus: 본교
+    region: 광주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000430'
+    name: 구미대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0002857'
+    name: 구세군사관대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 특수대학원
+    establishment: 사립
+  - code: '0000021'
+    name: 국립경국대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000008'
+    name: 국립공주대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000009'
+    name: 국립군산대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000010'
+    name: 국립금오공과대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000011'
+    name: 국립목포대학교
+    campus: 본교
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0003312'
+    name: 국립목포대학교(담양캠퍼스)
+    campus: 제2캠퍼스
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000012'
+    name: 국립목포해양대학교
+    campus: 본교
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000013'
+    name: 국립부경대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000020'
+    name: 국립순천대학교
+    campus: 본교
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0002928'
+    name: 국립암센터국제암대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 특별법법인
+  - code: '0000028'
+    name: 국립창원대학교
+    campus: 본교
+    region: 경남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0003297'
+    name: 국립창원대학교(거창캠퍼스)
+    campus: 제2캠퍼스
+    region: 경남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0003298'
+    name: 국립창원대학교(남해캠퍼스)
+    campus: 제3캠퍼스
+    region: 경남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000034'
+    name: 국립한국교통대학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000033'
+    name: 국립한국해양대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000039'
+    name: 국립한밭대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000078'
+    name: 국민대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000657'
+    name: 국제뇌교육종합대학원대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000549'
+    name: 국제대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000655'
+    name: 국제법률경영대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000319'
+    name: 국제사이버대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000656'
+    name: 국제언어대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0002971'
+    name: 군산간호대학교
+    campus: 본교
+    region: 전북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000432'
+    name: 군장대학교
+    campus: 본교
+    region: 전북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000080'
+    name: 극동대학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000334'
+    name: 글로벌사이버대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000224'
+    name: 금강대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002972'
+    name: 기독간호대학교
+    campus: 본교
+    region: 광주
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000241'
+    name: 김천대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000440'
+    name: 김포대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000569'
+    name: 김해대학교
+    campus: 본교
+    region: 경남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000081'
+    name: 나사렛대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000435'
+    name: 나주대학교
+    campus: 본교
+    region: 전남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000216'
+    name: 남부대학교
+    campus: 본교
+    region: 광주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000245'
+    name: 남서울대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000441'
+    name: 농협대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0002818'
+    name: 능인대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000082'
+    name: 단국대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002726'
+    name: 단국대학교
+    campus: 제2캠퍼스
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000442'
+    name: 대경대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000088'
+    name: 대구가톨릭대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000382'
+    name: 대구경북과학기술원
+    campus: 본교
+    region: 대구
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 특별법법인
+  - code: '0000443'
+    name: 대구공업대학교
+    campus: 본교
+    region: 대구
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000446'
+    name: 대구과학대학교
+    campus: 본교
+    region: 대구
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000253'
+    name: 대구교육대학교
+    campus: 본교
+    region: 대구
+    institution_level: 대학
+    institution_type: 교육대학
+    establishment: 국립
+  - code: '0000084'
+    name: 대구대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000444'
+    name: 대구보건대학교
+    campus: 본교
+    region: 대구
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000320'
+    name: 대구사이버대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000087'
+    name: 대구예술대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000061'
+    name: 대구한의대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000546'
+    name: 대덕대학교
+    campus: 본교
+    region: 대전
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000447'
+    name: 대동대학교
+    campus: 본교
+    region: 부산
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000448'
+    name: 대림대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000093'
+    name: 대신대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000449'
+    name: 대원대학교
+    campus: 본교
+    region: 충북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000094'
+    name: 대전가톨릭대학교
+    campus: 본교
+    region: 세종
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000453'
+    name: 대전과학기술대학교
+    campus: 본교
+    region: 대전
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000095'
+    name: 대전대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000451'
+    name: 대전보건대학교
+    campus: 본교
+    region: 대전
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000238'
+    name: 대전신학대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000097'
+    name: 대진대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000641'
+    name: 대한신학대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000099'
+    name: 덕성여자대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000460'
+    name: 동강대학교
+    campus: 본교
+    region: 광주
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000100'
+    name: 동국대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000101'
+    name: 동국대학교(WISE)
+    campus: 분교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000457'
+    name: 동남보건대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000102'
+    name: 동덕여자대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000235'
+    name: 동명대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000669'
+    name: 동방문화대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000103'
+    name: 동서대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000450'
+    name: 동서울대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000104'
+    name: 동신대학교
+    campus: 본교
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000105'
+    name: 동아대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000461'
+    name: 동아방송예술대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000462'
+    name: 동아보건대학교
+    campus: 본교
+    region: 전남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000106'
+    name: 동양대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000463'
+    name: 동양미래대학교
+    campus: 본교
+    region: 서울
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000509'
+    name: 동원과학기술대학교
+    campus: 본교
+    region: 경남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000465'
+    name: 동원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000466'
+    name: 동의과학대학교
+    campus: 본교
+    region: 부산
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000107'
+    name: 동의대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000469'
+    name: 두원공과대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000330'
+    name: 디지털서울문화예술대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000108'
+    name: 루터대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000470'
+    name: 마산대학교
+    campus: 본교
+    region: 경남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000109'
+    name: 명지대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000111'
+    name: 명지대학교
+    campus: 제2캠퍼스
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000473'
+    name: 명지전문대학
+    campus: 본교
+    region: 서울
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000112'
+    name: 목원대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000221'
+    name: 목포가톨릭대학교
+    campus: 본교
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000474'
+    name: 목포과학대학교
+    campus: 본교
+    region: 전남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000475'
+    name: 문경대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000113'
+    name: 배재대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000476'
+    name: 배화여자대학교
+    campus: 본교
+    region: 서울
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000178'
+    name: 백석대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000543'
+    name: 백석문화대학교
+    campus: 본교
+    region: 충남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000477'
+    name: 백제예술대학교
+    campus: 본교
+    region: 전북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000642'
+    name: 베뢰아국제대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000114'
+    name: 부산가톨릭대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000479'
+    name: 부산경상대학교
+    campus: 본교
+    region: 부산
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000481'
+    name: 부산과학기술대학교
+    campus: 본교
+    region: 부산
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000254'
+    name: 부산교육대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 교육대학
+    establishment: 국립
+  - code: '0000014'
+    name: 부산대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000321'
+    name: 부산디지털대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000467'
+    name: 부산보건대학교
+    campus: 본교
+    region: 부산
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000480'
+    name: 부산여자대학교
+    campus: 본교
+    region: 부산
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000561'
+    name: 부산예술대학교
+    campus: 본교
+    region: 부산
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000115'
+    name: 부산외국어대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000222'
+    name: 부산장신대학교
+    campus: 본교
+    region: 경남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000482'
+    name: 부천대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000670'
+    name: 북한대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000332'
+    name: 사이버한국외국어대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000116'
+    name: 삼육대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000483'
+    name: 삼육보건대학교
+    campus: 본교
+    region: 서울
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000117'
+    name: 상명대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002959'
+    name: 상명대학교
+    campus: 제2캠퍼스
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000119'
+    name: 상지대학교
+    campus: 본교
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000120'
+    name: 서강대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000121'
+    name: 서경대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002646'
+    name: 서영대학교
+    campus: 본교
+    region: 광주
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000036'
+    name: 서울과학기술대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000666'
+    name: 서울과학종합대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000255'
+    name: 서울교육대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 교육대학
+    establishment: 국립
+  - code: '0000098'
+    name: 서울기독대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000019'
+    name: 서울대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립대법인
+  - code: '0000322'
+    name: 서울디지털대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000677'
+    name: 서울미디어대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 특수대학원
+    establishment: 사립
+  - code: '0000660'
+    name: 서울벤처대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000658'
+    name: 서울불교대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000323'
+    name: 서울사이버대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000653'
+    name: 서울사회복지대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 특수대학원
+    establishment: 사립
+  - code: '0000678'
+    name: 서울상담심리대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000650'
+    name: 서울성경신학대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000040'
+    name: 서울시립대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 공립
+  - code: '0000125'
+    name: 서울신학대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002973'
+    name: 서울여자간호대학교
+    campus: 본교
+    region: 서울
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000126'
+    name: 서울여자대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000489'
+    name: 서울예술대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000659'
+    name: 서울외국어대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000127'
+    name: 서울장신대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000205'
+    name: 서울한영대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000128'
+    name: 서원대학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000490'
+    name: 서일대학교
+    campus: 본교
+    region: 서울
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000566'
+    name: 서정대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000550'
+    name: 선린대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000129'
+    name: 선문대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000667'
+    name: 선학유피대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000131'
+    name: 성결대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000132'
+    name: 성공회대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000133'
+    name: 성균관대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000644'
+    name: 성산효대학원대학교
+    campus: 본교
+    region: 인천
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000661'
+    name: 성서침례대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000136'
+    name: 성신여자대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002647'
+    name: 성운대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000515'
+    name: 세경대학교
+    campus: 본교
+    region: 강원
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000137'
+    name: 세명대학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000138'
+    name: 세종대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000325'
+    name: 세종사이버대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000092'
+    name: 세한대학교
+    campus: 본교
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000567'
+    name: 송곡대학교
+    campus: 본교
+    region: 강원
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000243'
+    name: 송원대학교
+    campus: 본교
+    region: 광주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000564'
+    name: 송호대학교
+    campus: 본교
+    region: 강원
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000649'
+    name: 수도국제대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0002649'
+    name: 수성대학교
+    campus: 본교
+    region: 대구
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000139'
+    name: 수원가톨릭대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000497'
+    name: 수원과학대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000140'
+    name: 수원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000496'
+    name: 수원여자대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000141'
+    name: 숙명여자대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000671'
+    name: 순복음대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000317'
+    name: 순복음총회신학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 각종학교(대학)
+    establishment: 사립
+  - code: '0000498'
+    name: 순천제일대학교
+    campus: 본교
+    region: 전남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000142'
+    name: 순천향대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000143'
+    name: 숭실대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000329'
+    name: 숭실사이버대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000500'
+    name: 숭의여자대학교
+    campus: 본교
+    region: 서울
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000065'
+    name: 신경주대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000501'
+    name: 신구대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000144'
+    name: 신라대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000502'
+    name: 신성대학교
+    campus: 본교
+    region: 충남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000506'
+    name: 신안산대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0002712'
+    name: 신한대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002800'
+    name: 신한대학교
+    campus: 제2캠퍼스
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000672'
+    name: 실천신학대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000145'
+    name: 아신대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000146'
+    name: 아주대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000454'
+    name: 아주자동차대학교
+    campus: 본교
+    region: 충남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0002650'
+    name: 안동과학대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000507'
+    name: 안산대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000147'
+    name: 안양대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000148'
+    name: 안양대학교
+    campus: 제2캠퍼스
+    region: 인천
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000662'
+    name: 에스라성경대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000510'
+    name: 여주대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0002651'
+    name: 연성대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000149'
+    name: 연세대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000150'
+    name: 연세대학교(미래)
+    campus: 분교
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002652'
+    name: 연암공과대학교
+    campus: 본교
+    region: 경남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000512'
+    name: 연암대학교
+    campus: 본교
+    region: 충남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000151'
+    name: 영남대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000153'
+    name: 영남신학대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000418'
+    name: 영남외국어대학
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000513'
+    name: 영남이공대학교
+    campus: 본교
+    region: 대구
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0003194'
+    name: 영산대학교(양산)
+    campus: 제2캠퍼스
+    region: 경남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0003193'
+    name: 영산대학교(해운대)
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000155'
+    name: 영산선학대학교
+    campus: 본교
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000575'
+    name: 영진사이버대학교
+    campus: 본교
+    region: 대구
+    institution_level: 전문대학
+    institution_type: 사이버대학(전문대학)
+    establishment: 사립
+  - code: '0000517'
+    name: 영진전문대학교
+    campus: 본교
+    region: 대구
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000651'
+    name: 예명대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000228'
+    name: 예수대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000218'
+    name: 예원예술대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000219'
+    name: 예원예술대학교
+    campus: 제2캠퍼스
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002653'
+    name: 오산대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000654'
+    name: 온석대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000156'
+    name: 용인대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000520'
+    name: 용인예술과학대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000157'
+    name: 우석대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000240'
+    name: 우송대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000452'
+    name: 우송정보대학
+    campus: 본교
+    region: 대전
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000250'
+    name: 울산과학기술원
+    campus: 본교
+    region: 울산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 특별법법인
+  - code: '0000521'
+    name: 울산과학대학교
+    campus: 본교
+    region: 울산
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000158'
+    name: 울산대학교
+    campus: 본교
+    region: 울산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000568'
+    name: 웅지세무대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000159'
+    name: 원광대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000327'
+    name: 원광디지털대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000645'
+    name: 원불교대학원대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000646'
+    name: 웨스트민스터신학대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000160'
+    name: 위덕대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000154'
+    name: 유원대학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000524'
+    name: 유한대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000161'
+    name: 을지대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000162'
+    name: 을지대학교
+    campus: 제2캠퍼스
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002911'
+    name: 을지대학교
+    campus: 제3캠퍼스
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000163'
+    name: 이화여자대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000525'
+    name: 인덕대학교
+    campus: 본교
+    region: 서울
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000164'
+    name: 인제대학교
+    campus: 본교
+    region: 경남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000166'
+    name: 인제대학교
+    campus: 제2캠퍼스
+    region: 부산
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000168'
+    name: 인천가톨릭대학교
+    campus: 본교
+    region: 인천
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000167'
+    name: 인천가톨릭대학교
+    campus: 제2캠퍼스
+    region: 인천
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002660'
+    name: 인천대학교
+    campus: 본교
+    region: 인천
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립대법인
+  - code: '0002654'
+    name: 인하공업전문대학
+    campus: 본교
+    region: 인천
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000169'
+    name: 인하대학교
+    campus: 본교
+    region: 인천
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000170'
+    name: 장로회신학대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000527'
+    name: 장안대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000455'
+    name: 재능대학교
+    campus: 본교
+    region: 인천
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000529'
+    name: 전남과학대학교
+    campus: 본교
+    region: 전남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000023'
+    name: 전남대학교
+    campus: 본교
+    region: 광주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000024'
+    name: 전남대학교
+    campus: 제2캠퍼스
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000531'
+    name: 전북과학대학교
+    campus: 본교
+    region: 전북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000025'
+    name: 전북대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000258'
+    name: 전주교육대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학
+    institution_type: 교육대학
+    establishment: 국립
+  - code: '0000437'
+    name: 전주기전대학
+    campus: 본교
+    region: 전북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000171'
+    name: 전주대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000530'
+    name: 전주비전대학교
+    campus: 본교
+    region: 전북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000288'
+    name: 정석대학
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 기술대학
+    establishment: 사립
+  - code: '0002668'
+    name: 제네바신학대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000532'
+    name: 제주관광대학교
+    campus: 본교
+    region: 제주
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000248'
+    name: 제주국제대학교
+    campus: 본교
+    region: 제주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000027'
+    name: 제주대학교
+    campus: 본교
+    region: 제주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0002655'
+    name: 제주한라대학교
+    campus: 본교
+    region: 제주
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0002974'
+    name: 조선간호대학교
+    campus: 본교
+    region: 광주
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000172'
+    name: 조선대학교
+    campus: 본교
+    region: 광주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000534'
+    name: 조선이공대학교
+    campus: 본교
+    region: 광주
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000680'
+    name: 주안대학원대학교
+    campus: 본교
+    region: 인천
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000173'
+    name: 중부대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000175'
+    name: 중앙대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000174'
+    name: 중앙대학교
+    campus: 제2캠퍼스
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000177'
+    name: 중앙승가대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000239'
+    name: 중원대학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000260'
+    name: 진주교육대학교
+    campus: 본교
+    region: 경남
+    institution_level: 대학
+    institution_type: 교육대학
+    establishment: 국립
+  - code: '0000539'
+    name: 진주보건대학교
+    campus: 본교
+    region: 경남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000187'
+    name: 차의과학대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000249'
+    name: 창신대학교
+    campus: 본교
+    region: 경남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000542'
+    name: 창원문성대학교
+    campus: 본교
+    region: 경남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000544'
+    name: 청강문화산업대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0002656'
+    name: 청암대학교
+    campus: 본교
+    region: 전남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000284'
+    name: 청운대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 산업대학
+    establishment: 사립
+  - code: '0000261'
+    name: 청주교육대학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 교육대학
+    establishment: 국립
+  - code: '0000179'
+    name: 청주대학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000246'
+    name: 초당대학교
+    campus: 본교
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000180'
+    name: 총신대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000181'
+    name: 추계예술대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000262'
+    name: 춘천교육대학교
+    campus: 본교
+    region: 강원
+    institution_level: 대학
+    institution_type: 교육대학
+    establishment: 국립
+  - code: '0000545'
+    name: 춘해보건대학교
+    campus: 본교
+    region: 울산
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000029'
+    name: 충남대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0002657'
+    name: 충남도립대학교
+    campus: 본교
+    region: 충남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 공립
+  - code: '0000030'
+    name: 충북대학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000406'
+    name: 충북도립대학교
+    campus: 본교
+    region: 충북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 공립
+  - code: '0000536'
+    name: 충북보건과학대학교
+    campus: 본교
+    region: 충북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000547'
+    name: 충청대학교
+    campus: 본교
+    region: 충북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0002817'
+    name: 치유상담대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000184'
+    name: 칼빈대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0003183'
+    name: 태재대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000186'
+    name: 평택대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000188'
+    name: 포항공과대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002658'
+    name: 포항대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000037'
+    name: 한경국립대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000640'
+    name: 한국개발연구원국제정책대학원대학교
+    campus: 본교
+    region: 세종
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000578'
+    name: 한국골프과학기술대학교
+    campus: 본교
+    region: 강원
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000247'
+    name: 한국공학대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000374'
+    name: 한국과학기술원
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 특별법법인
+  - code: '0000565'
+    name: 한국관광대학교
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000031'
+    name: 한국교원대학교
+    campus: 본교
+    region: 충북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000189'
+    name: 한국기술교육대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0003019'
+    name: 한국농수산대학교
+    campus: 본교
+    region: 전북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 특별법국립
+  - code: '0000273'
+    name: 한국방송통신대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 방송통신대학
+    establishment: 국립
+  - code: '0000576'
+    name: 한국복지사이버대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 사이버대학(전문대학)
+    establishment: 사립
+  - code: '0000679'
+    name: 한국상담대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000191'
+    name: 한국성서대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000570'
+    name: 한국승강기대학교
+    campus: 본교
+    region: 경남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0003139'
+    name: 한국에너지공과대학교
+    campus: 본교
+    region: 전남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 특별법법인
+  - code: '0000326'
+    name: 한국열린사이버대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000522'
+    name: 한국영상대학교
+    campus: 본교
+    region: 세종
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000383'
+    name: 한국예술종합학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 각종학교(대학)
+    establishment: 특별법국립
+  - code: '0000192'
+    name: 한국외국어대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000681'
+    name: 한국전력국제원자력대학원대학교
+    campus: 본교
+    region: 울산
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0003022'
+    name: 한국전통문화대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 특별법국립
+  - code: '0000032'
+    name: 한국체육대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 국립
+  - code: '0000182'
+    name: 한국침례신학대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0003104'
+    name: 한국폴리텍 특성화대학 로봇캠퍼스
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000635'
+    name: 한국폴리텍 특성화대학 바이오캠퍼스
+    campus: 본교
+    region: 충남
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000637'
+    name: 한국폴리텍 특성화대학 반도체융합캠퍼스
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000638'
+    name: 한국폴리텍 특성화대학 항공캠퍼스
+    campus: 본교
+    region: 경남
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000585'
+    name: 한국폴리텍 I 대학 서울강서캠퍼스
+    campus: 본교
+    region: 서울
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000584'
+    name: 한국폴리텍 I 대학 서울정수캠퍼스
+    campus: 본교
+    region: 서울
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000586'
+    name: 한국폴리텍 I 대학 성남캠퍼스
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0002912'
+    name: 한국폴리텍 I 대학 제주캠퍼스
+    campus: 본교
+    region: 제주
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000590'
+    name: 한국폴리텍 II 대학 남인천캠퍼스
+    campus: 본교
+    region: 인천
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000589'
+    name: 한국폴리텍 II 대학 인천캠퍼스
+    campus: 본교
+    region: 인천
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0003105'
+    name: 한국폴리텍 II 대학 화성캠퍼스
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000594'
+    name: 한국폴리텍 III 대학 강릉캠퍼스
+    campus: 본교
+    region: 강원
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0002854'
+    name: 한국폴리텍 III 대학 원주캠퍼스
+    campus: 본교
+    region: 강원
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000593'
+    name: 한국폴리텍 III 대학 춘천캠퍼스
+    campus: 본교
+    region: 강원
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000603'
+    name: 한국폴리텍 IV 대학 대전캠퍼스
+    campus: 본교
+    region: 대전
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000606'
+    name: 한국폴리텍 IV 대학 아산캠퍼스
+    campus: 본교
+    region: 충남
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000604'
+    name: 한국폴리텍 IV 대학 청주캠퍼스
+    campus: 본교
+    region: 충북
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000607'
+    name: 한국폴리텍 IV 대학 충남캠퍼스
+    campus: 본교
+    region: 충남
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000616'
+    name: 한국폴리텍 V 대학 광주캠퍼스
+    campus: 본교
+    region: 광주
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0002975'
+    name: 한국폴리텍 V 대학 순천캠퍼스
+    campus: 본교
+    region: 전남
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000620'
+    name: 한국폴리텍 V 대학 익산캠퍼스
+    campus: 본교
+    region: 전북
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000619'
+    name: 한국폴리텍 V 대학 전남캠퍼스
+    campus: 본교
+    region: 전남
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000617'
+    name: 한국폴리텍 V 대학 전북캠퍼스
+    campus: 본교
+    region: 전북
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000624'
+    name: 한국폴리텍 VI 대학 구미캠퍼스
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000623'
+    name: 한국폴리텍 VI 대학 대구캠퍼스
+    campus: 본교
+    region: 대구
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000636'
+    name: 한국폴리텍 VI 대학 영남융합기술캠퍼스
+    campus: 본교
+    region: 대구
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0002674'
+    name: 한국폴리텍 VI 대학 영주캠퍼스
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0003163'
+    name: 한국폴리텍 VII 대학 동부산캠퍼스
+    campus: 본교
+    region: 부산
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000632'
+    name: 한국폴리텍 VII 대학 부산캠퍼스
+    campus: 본교
+    region: 부산
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000633'
+    name: 한국폴리텍 VII 대학 울산캠퍼스
+    campus: 본교
+    region: 울산
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0003157'
+    name: 한국폴리텍 VII 대학 진주캠퍼스
+    campus: 본교
+    region: 경남
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000631'
+    name: 한국폴리텍 VII 대학 창원캠퍼스
+    campus: 본교
+    region: 경남
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립
+  - code: '0000683'
+    name: 한국학대학원
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 일반대학원
+    establishment: 특별법법인
+  - code: '0000194'
+    name: 한국항공대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000195'
+    name: 한남대학교
+    campus: 본교
+    region: 대전
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000196'
+    name: 한동대학교
+    campus: 본교
+    region: 경북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000197'
+    name: 한라대학교
+    campus: 본교
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000673'
+    name: 한림국제대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 특수대학원
+    establishment: 사립
+  - code: '0000198'
+    name: 한림대학교
+    campus: 본교
+    region: 강원
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000553'
+    name: 한림성심대학교
+    campus: 본교
+    region: 강원
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000676'
+    name: 한반도국제대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 특수대학원
+    establishment: 사립
+  - code: '0000199'
+    name: 한서대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000200'
+    name: 한성대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000201'
+    name: 한세대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000202'
+    name: 한신대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000203'
+    name: 한양대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000204'
+    name: 한양대학교(ERICA)
+    campus: 분교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000331'
+    name: 한양사이버대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000554'
+    name: 한양여자대학교
+    campus: 본교
+    region: 서울
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000555'
+    name: 한영대학교
+    campus: 본교
+    region: 전남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000206'
+    name: 한일장신대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000647'
+    name: 합동신학대학원대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000207'
+    name: 협성대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000556'
+    name: 혜전대학교
+    campus: 본교
+    region: 충남
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000208'
+    name: 호남대학교
+    campus: 본교
+    region: 광주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000209'
+    name: 호남신학대학교
+    campus: 본교
+    region: 광주
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000415'
+    name: 호산대학교
+    campus: 본교
+    region: 경북
+    institution_level: 전문대학
+    institution_type: 전문대학
+    establishment: 사립
+  - code: '0000211'
+    name: 호서대학교
+    campus: 본교
+    region: 충남
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000282'
+    name: 호원대학교
+    campus: 본교
+    region: 전북
+    institution_level: 대학
+    institution_type: 산업대학
+    establishment: 사립
+  - code: '0000212'
+    name: 홍익대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0002949'
+    name: 홍익대학교
+    campus: 제2캠퍼스
+    region: 세종
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000233'
+    name: 화성의과학대학교
+    campus: 본교
+    region: 경기
+    institution_level: 대학
+    institution_type: 대학교
+    establishment: 사립
+  - code: '0000333'
+    name: 화신사이버대학교
+    campus: 본교
+    region: 부산
+    institution_level: 대학
+    institution_type: 사이버대학(대학)
+    establishment: 사립
+  - code: '0000648'
+    name: 횃불트리니티신학대학원대학교
+    campus: 본교
+    region: 서울
+    institution_level: 대학원대학
+    institution_type: 전문대학원
+    establishment: 사립
+  - code: '0000579'
+    name: ICT폴리텍대학
+    campus: 본교
+    region: 경기
+    institution_level: 전문대학
+    institution_type: 기능대학
+    establishment: 사립

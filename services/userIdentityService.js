@@ -1,6 +1,5 @@
 const RANKING_DISPLAY_MODES = Object.freeze([
   "nickname",
-  "realName",
 ]);
 
 function normalizeRealName(value) {
@@ -38,30 +37,13 @@ function validateRealName(value) {
   };
 }
 
-function normalizeRankingDisplayMode(value) {
-  const mode = String(value || "").trim();
-
-  return RANKING_DISPLAY_MODES.includes(mode)
-    ? mode
-    : null;
-}
-
 function getRankingDisplayName(user) {
-  const mode = normalizeRankingDisplayMode(
-    user?.preferences?.rankingDisplayMode
-  );
-
-  if (mode === "realName" && user?.realName) {
-    return String(user.realName);
-  }
-
   return String(user?.name || "익명 학생");
 }
 
 module.exports = {
   RANKING_DISPLAY_MODES,
   getRankingDisplayName,
-  normalizeRankingDisplayMode,
   normalizeRealName,
   validateRealName,
 };

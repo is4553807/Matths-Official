@@ -42,6 +42,8 @@ const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const MAX_CHANGE_EVENTS_PER_REQUEST = 200;
 const MAX_SIGNAL_EVENTS_PER_REQUEST = 200;
+const MATCH_START_INTRO_DELAY_MS = 3650;
+const QUESTION_INTRO_DELAY_MS = 1700;
 const ATTEMPT_SCHEDULER_INTERVAL_MS = 10 * 1000;
 let attemptScheduleTimer = null;
 let attemptScheduleRunning = false;
@@ -210,6 +212,43 @@ function formatTimeLimit(timeLimitMs) {
   }초`;
 }
 
+function questionDeadlineAt({
+  startedAt,
+  match,
+}) {
+  const regularDeadline = new Date(
+    new Date(startedAt).getTime() +
+      ARENA_ONE_ON_ONE_TIME_LIMIT_MS
+  );
+  const completionDeadline =
+    match?.completionDeadlineAt
+      ? new Date(
+          match.completionDeadlineAt
+        )
+      : null;
+  return completionDeadline &&
+    completionDeadline <
+      regularDeadline
+    ? completionDeadline
+    : regularDeadline;
+}
+
+function completedSolveTimeMs(
+  attempt
+) {
+  return (attempt.questionTimings || []).reduce(
+    (total, timing) =>
+      total +
+      Math.max(
+        0,
+        Number(
+          timing.responseTimeMs
+        ) || 0
+      ),
+    0
+  );
+}
+
 async function loadMatch(matchId, session = null) {
   if (!mongoose.isValidObjectId(matchId)) {
     throw statusError(
@@ -292,8 +331,8 @@ async function prepareArenaMatch({
         throw statusError(
           423,
           match.division === "MAIN"
-            ? "Main Division은 일요일 14시 30분부터 새 경기 준비와 시작이 차단됩니다."
-            : "Sub Division은 일요일 14시 30분부터 새 경기 준비와 시작이 차단됩니다.",
+            ? "Ranked는 일요일 14시부터 새 경기 준비와 시작이 차단됩니다."
+            : "Unranked는 일요일 14시부터 새 경기 준비와 시작이 차단됩니다.",
           "SUNDAY_MATCH_START_LOCK"
         );
       }
@@ -437,6 +476,17 @@ async function startArenaMatchAttempt({
         };
         return;
       }
+      if (match.status === "HELD" && match.integrityStatus === "CLEAR") {
+        const matchAttempts = await queryWithSession(
+          ArenaMatchAttempt.find({ matchId: match._id }).select("status"),
+          session
+        );
+        const anotherParticipantStarted = matchAttempts.some((entry) =>
+          ["IN_PROGRESS", "EVIDENCE_REQUIRED", "SUBMITTED"].includes(entry.status)
+        );
+        match.status = anotherParticipantStarted ? "IN_PROGRESS" : "READY";
+        await match.save({ session });
+      }
       if (
         !["READY", "IN_PROGRESS"].includes(
           match.status
@@ -467,8 +517,8 @@ async function startArenaMatchAttempt({
         throw statusError(
           423,
           match.division === "MAIN"
-            ? "Main Division은 일요일 14시 30분부터 새 경기를 시작할 수 없습니다."
-            : "Sub Division은 일요일 14시 30분부터 새 경기를 시작할 수 없습니다.",
+            ? "Ranked는 일요일 14시부터 새 경기를 시작할 수 없습니다."
+            : "Unranked는 일요일 14시부터 새 경기를 시작할 수 없습니다.",
           "SUNDAY_MATCH_START_LOCK"
         );
       }
@@ -476,21 +526,18 @@ async function startArenaMatchAttempt({
       const startKey =
         `ARENA_START:${attempt._id}:${operationId}`;
       const solveStartedAt = new Date(
-        now.getTime() + 2500
+        now.getTime() +
+          MATCH_START_INTRO_DELAY_MS
       );
       attempt.status = "IN_PROGRESS";
       attempt.startIdempotencyKey = startKey;
       attempt.startedAt = solveStartedAt;
-      const regularAttemptDeadline = new Date(
-        solveStartedAt.getTime() +
-          Number(match.timeLimitMs)
-      );
-      const completionDeadline = match.completionDeadlineAt
-        ? new Date(match.completionDeadlineAt)
-        : null;
-      attempt.deadlineAt = completionDeadline && completionDeadline < regularAttemptDeadline
-        ? completionDeadline
-        : regularAttemptDeadline;
+      attempt.deadlineAt =
+        questionDeadlineAt({
+          startedAt:
+            solveStartedAt,
+          match,
+        });
       attempt.lastHeartbeatAt = now;
       attempt.focusState = "FOCUSED";
       attempt.currentQuestionIndex = 0;
@@ -646,7 +693,11 @@ async function loadWritableAttempt({
   return { match, attempt, pack };
 }
 
-function assertAttemptWritable(attempt, now) {
+function assertAttemptWritable(
+  attempt,
+  now,
+  { allowExpired = false } = {}
+) {
   if (isSundayDivisionLocked(now)) {
     throw statusError(
       423,
@@ -662,8 +713,15 @@ function assertAttemptWritable(attempt, now) {
     );
   }
   if (
-    !attempt.deadlineAt ||
-    new Date(attempt.deadlineAt) <= now
+    (
+      !allowExpired &&
+      (
+        !attempt.deadlineAt ||
+        new Date(
+          attempt.deadlineAt
+        ) <= now
+      )
+    )
   ) {
     throw statusError(
       410,
@@ -764,6 +822,7 @@ async function advanceArenaMatchQuestion({
   userId,
   requestId,
   value,
+  submissionMode = "MANUAL",
   now = new Date(),
 }) {
   const operationId = normalizeOperationId(
@@ -797,7 +856,29 @@ async function advanceArenaMatchQuestion({
         };
         return;
       }
-      assertAttemptWritable(attempt, now);
+      const timedOut =
+        submissionMode ===
+        "TIME_LIMIT";
+      assertAttemptWritable(
+        attempt,
+        now,
+        { allowExpired: timedOut }
+      );
+      if (
+        timedOut &&
+        (
+          !attempt.deadlineAt ||
+          new Date(
+            attempt.deadlineAt
+          ) > now
+        )
+      ) {
+        throw statusError(
+          409,
+          "현재 문항의 제한 시간이 아직 남아 있습니다.",
+          "ARENA_QUESTION_TIME_REMAINS"
+        );
+      }
 
       const currentIndex = Number(attempt.currentQuestionIndex || 0);
       const question = pack.questions[currentIndex];
@@ -808,7 +889,15 @@ async function advanceArenaMatchQuestion({
           "ARENA_CURRENT_QUESTION_NOT_FOUND"
         );
       }
-      const finalAnswer = cleanAnswer(value);
+      const savedAnswer =
+        attempt.answers.find(
+          (answer) =>
+            answer.questionKey ===
+            question.questionKey
+        )?.value || "";
+      const finalAnswer = timedOut
+        ? cleanAnswer(savedAnswer)
+        : cleanAnswer(value);
       if (finalAnswer) {
         assertNaturalNumberMaxThreeDigits(finalAnswer);
       }
@@ -822,16 +911,31 @@ async function advanceArenaMatchQuestion({
         ],
         [question.questionKey]
       );
-      applyAnswerChanges({ attempt, changes: change, now });
+      if (!timedOut) {
+        applyAnswerChanges({
+          attempt,
+          changes: change,
+          now,
+        });
+      }
 
       const timing = (attempt.questionTimings || []).find(
         (entry) => entry.questionKey === question.questionKey
       );
       if (timing && !timing.completedAt) {
-        timing.completedAt = now;
+        timing.completedAt = timedOut
+          ? new Date(
+              attempt.deadlineAt
+            )
+          : now;
         timing.responseTimeMs = Math.max(
           0,
-          now.getTime() - new Date(timing.startedAt).getTime()
+          new Date(
+            timing.completedAt
+          ).getTime() -
+            new Date(
+              timing.startedAt
+            ).getTime()
         );
       }
 
@@ -842,11 +946,13 @@ async function advanceArenaMatchQuestion({
         attempt.currentQuestionIndex = pack.questions.length;
         attempt.submissionIdempotencyKey = submissionKey;
         attempt.submittedAt = now;
-        attempt.submissionMode = "MANUAL";
-        attempt.activeSolveTimeMs = Math.max(
-          0,
-          now.getTime() - new Date(attempt.startedAt).getTime()
-        );
+        attempt.submissionMode = timedOut
+          ? "TIME_LIMIT"
+          : "MANUAL";
+        attempt.activeSolveTimeMs =
+          completedSolveTimeMs(
+            attempt
+          );
         attempt.evidenceDeadlineAt = new Date(
           now.getTime() + ARENA_ONE_ON_ONE_EVIDENCE_LIMIT_MS
         );
@@ -857,10 +963,22 @@ async function advanceArenaMatchQuestion({
           now
         );
       } else {
+        const nextQuestionStartedAt =
+          new Date(
+            now.getTime() +
+              QUESTION_INTRO_DELAY_MS
+          );
         attempt.currentQuestionIndex = currentIndex + 1;
+        attempt.deadlineAt =
+          questionDeadlineAt({
+            startedAt:
+              nextQuestionStartedAt,
+            match,
+          });
         attempt.questionTimings.push({
           questionKey: pack.questions[currentIndex + 1].questionKey,
-          startedAt: now,
+          startedAt:
+            nextQuestionStartedAt,
           completedAt: null,
           responseTimeMs: null,
         });
@@ -880,6 +998,10 @@ async function advanceArenaMatchQuestion({
             metadata: {
               completedQuestionNumber: currentIndex + 1,
               finalQuestion,
+              submissionMode:
+                timedOut
+                  ? "TIME_LIMIT"
+                  : "MANUAL",
               evidenceDeadlineAt: attempt.evidenceDeadlineAt || null,
             },
           },
@@ -1089,6 +1211,21 @@ async function submitArenaMatchAttempt({
           "SUNDAY_DIVISION_LOCK"
         );
       }
+      const currentQuestionIndex =
+        Number(
+          attempt.currentQuestionIndex ||
+            0
+        );
+      if (
+        currentQuestionIndex !==
+        pack.questions.length - 1
+      ) {
+        throw statusError(
+          409,
+          "현재 문항을 확정한 뒤 순서대로 다음 문제로 이동해주세요.",
+          "ARENA_QUESTION_SEQUENCE_REQUIRED"
+        );
+      }
       const deadlineReached =
         !attempt.deadlineAt ||
         new Date(attempt.deadlineAt) <= now;
@@ -1101,10 +1238,11 @@ async function submitArenaMatchAttempt({
         ? []
         : normalizeAnswerChanges(
             changes,
-            pack.questions.map(
-              (question) =>
-                question.questionKey
-            )
+            [
+              pack.questions[
+                currentQuestionIndex
+              ]?.questionKey,
+            ].filter(Boolean)
           );
       if (normalized.length) {
         applyAnswerChanges({
@@ -1122,13 +1260,39 @@ async function submitArenaMatchAttempt({
       attempt.submissionMode = effectiveMode;
       attempt.lastSavedAt = now;
       attempt.currentQuestionIndex = 5;
-      attempt.activeSolveTimeMs = Math.max(
-        0,
-        Math.min(
-          now.getTime(),
-          new Date(attempt.deadlineAt).getTime()
-        ) - new Date(attempt.startedAt).getTime()
-      );
+      const currentTiming =
+        (attempt.questionTimings || []).find(
+          (timing) =>
+            timing.questionKey ===
+            pack.questions[
+              currentQuestionIndex
+            ]?.questionKey
+        );
+      if (
+        currentTiming &&
+        !currentTiming.completedAt
+      ) {
+        currentTiming.completedAt =
+          deadlineReached
+            ? new Date(
+                attempt.deadlineAt
+              )
+            : now;
+        currentTiming.responseTimeMs =
+          Math.max(
+            0,
+            new Date(
+              currentTiming.completedAt
+            ).getTime() -
+              new Date(
+                currentTiming.startedAt
+              ).getTime()
+          );
+      }
+      attempt.activeSolveTimeMs =
+        completedSolveTimeMs(
+          attempt
+        );
       attempt.evidenceDeadlineAt = new Date(
         now.getTime() + ARENA_ONE_ON_ONE_EVIDENCE_LIMIT_MS
       );
@@ -1203,6 +1367,7 @@ async function getArenaMatchPageData({
   userId,
   now = new Date(),
 }) {
+  let autoAdvancedQuestionNumber = 0;
   let match = await loadMatch(matchId);
   const role = assertMatchParticipant(
     match,
@@ -1226,11 +1391,11 @@ async function getArenaMatchPageData({
     attempt.deadlineAt &&
     new Date(attempt.deadlineAt) <= now
   ) {
-    await submitArenaMatchAttempt({
+    await advanceArenaMatchQuestion({
       matchId: match._id,
       userId,
       requestId:
-        `TIME_LIMIT:${attempt._id}:${new Date(
+        `QUESTION_TIME_LIMIT:${attempt._id}:${new Date(
           attempt.deadlineAt
         ).getTime()}`,
       submissionMode: "TIME_LIMIT",
@@ -1243,6 +1408,15 @@ async function getArenaMatchPageData({
         userId,
       }).lean(),
     ]);
+    if (
+      attempt?.status ===
+      "IN_PROGRESS"
+    ) {
+      autoAdvancedQuestionNumber =
+        Number(
+          attempt.currentQuestionIndex
+        ) + 1;
+    }
   }
 
   const opponentUserId =
@@ -1290,13 +1464,13 @@ async function getArenaMatchPageData({
         ? "공격자"
         : "방어자",
     opponentName:
-      String(opponent?.username || opponent?.name || "상대 사용자"),
+      String(opponent?.name || opponent?.username || "닉네임 확인 중"),
     matchType: match.matchType,
     matchTitle: match.matchType === "REVENGE" ? "복수전" : "일반 쟁탈전",
     divisionLabel:
       match.division === "MAIN"
-        ? "Main Division"
-        : "Sub Division",
+        ? "Ranked"
+        : "Unranked",
     division: match.division,
     canUseDefenseScheduleProtection:
       match.division === "MAIN" &&
@@ -1354,14 +1528,16 @@ async function getArenaMatchPageData({
       : [],
     serverNow: now.toISOString(),
     remainingMs,
+    autoAdvancedQuestionNumber,
     canPrepare:
       match.status === "MATCHED" &&
       !match.problemPackId &&
       !matchRequestLocked,
     canStart:
       attempt?.status === "READY" &&
-      ["READY", "IN_PROGRESS"].includes(
-        match.status
+      (
+        ["READY", "IN_PROGRESS"].includes(match.status) ||
+        (match.status === "HELD" && match.integrityStatus === "CLEAR")
       ) &&
       !matchRequestLocked,
     inProgress: showQuestions,
@@ -1391,6 +1567,9 @@ async function getArenaMatchPageData({
     revengeRight: revengeRight
       ? {
           id: String(revengeRight._id),
+          // 결과 화면의 복수전 오버레이가 Unranked 페이백 점수와
+          // Ranked 학습일수를 정확히 구분하도록 원경기 Division을 함께 전달한다.
+          division: match.division,
           status: revengeRight.status,
           canClaim: revengeRight.status === "AVAILABLE",
           revengeMatchId: revengeRight.revengeMatchId
@@ -1425,11 +1604,11 @@ async function submitExpiredArenaAttempts({
   let submitted = 0;
   for (const attempt of attempts) {
     try {
-      await submitArenaMatchAttempt({
+      await advanceArenaMatchQuestion({
         matchId: attempt.matchId,
         userId: attempt.userId,
         requestId:
-          `TIME_LIMIT:${attempt._id}:${new Date(
+          `QUESTION_TIME_LIMIT:${attempt._id}:${new Date(
             attempt.deadlineAt
           ).getTime()}`,
         submissionMode: "TIME_LIMIT",
@@ -1484,10 +1663,14 @@ function startArenaMatchAttemptScheduler() {
 
 module.exports = {
   ATTEMPT_SCHEDULER_INTERVAL_MS,
+  MATCH_START_INTRO_DELAY_MS,
+  QUESTION_INTRO_DELAY_MS,
   advanceArenaMatchQuestion,
   applyAnswerChanges,
   chooseSealedProblemPack,
   formatTimeLimit,
+  completedSolveTimeMs,
+  questionDeadlineAt,
   getArenaMatchPageData,
   initialAnswersForPack,
   normalizeAnswerChanges,

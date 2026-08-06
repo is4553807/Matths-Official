@@ -45,7 +45,7 @@ async function main() {
   assert.ok(displayed.every((entry) => !/데이터\s*연결\s*대기/.test(entry.displayName || "")));
 
   console.log(
-    `Ranking DB verification passed: Sub=${expected.SUB}, Main=${expected.MAIN}, Final=${ranking.finalOverall.length}`
+    `Ranking DB verification passed: Unranked=${expected.SUB}, Ranked=${expected.MAIN}, Final=${ranking.finalOverall.length}`
   );
 }
 

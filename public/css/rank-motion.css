@@ -1,0 +1,98 @@
+/* Page placement only. Player internals are isolated in Shadow DOM. */
+.rank-motion-stage {
+  display: grid;
+  min-block-size: 100vh;
+  min-block-size: 100dvh;
+  place-items: center;
+  padding:
+    max(1rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+  overflow: hidden;
+  background: #05080d;
+}
+
+.rank-motion-card-slot {
+  inline-size: min(100%, 30rem);
+  margin-inline: auto;
+}
+
+.rank-motion-wide-slot {
+  inline-size: 100%;
+  block-size: clamp(22rem, 72dvh, 52rem);
+}
+
+.rank-motion-dialog {
+  max-inline-size: none;
+  max-block-size: none;
+  margin: auto;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.rank-motion-dialog::backdrop {
+  background: rgba(1, 4, 9, 0.86);
+  backdrop-filter: blur(0.75rem);
+  -webkit-backdrop-filter: blur(0.75rem);
+}
+
+.rank-motion-dialog__close {
+  position: absolute;
+  z-index: 10;
+  inset-block-start: max(0.75rem, env(safe-area-inset-top));
+  inset-inline-end: max(0.75rem, env(safe-area-inset-right));
+  display: grid;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(3, 8, 14, 0.72);
+  font: 400 1.45rem/1 ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+  backdrop-filter: blur(0.75rem);
+  -webkit-backdrop-filter: blur(0.75rem);
+}
+
+.rank-motion-dialog__close:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.58);
+  outline-offset: 3px;
+}
+
+matths-rank-motion:not(:defined) {
+  display: block;
+  inline-size: min(92vw, calc(90dvh * 9 / 16));
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: #05080d;
+}
+
+matths-rank-motion:not(:defined) .rank-motion-fallback {
+  display: grid;
+  block-size: 100%;
+  place-items: center;
+  padding: 1.5rem;
+  color: rgba(255, 255, 255, 0.68);
+  font: 600 0.85rem/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+  text-align: center;
+}
+
+@media (orientation: landscape) and (max-height: 34rem) {
+  .rank-motion-stage {
+    padding-block: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rank-motion-dialog::backdrop {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

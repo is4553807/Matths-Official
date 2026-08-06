@@ -21,9 +21,6 @@ const {
   SUB_TIER_PAIR_CONFIG,
 } = require("../services/arenaOneOnOneProblemBank");
 const {
-  MAIN_DORMANCY_DAYS,
-} = require("../services/arenaDormancyService");
-const {
   SUB_NORMAL_STAKE_DAYS,
   SUB_REVENGE_STAKE_DAYS,
 } = require("../services/arenaDivisionRuleService");
@@ -83,7 +80,7 @@ assert.equal(ARENA_ONE_ON_ONE_TIME_LIMIT_MS, 10 * 60 * 1000);
 assert.equal(ARENA_ONE_ON_ONE_EVIDENCE_LIMIT_MS, 60 * 1000);
 assert.equal(ARENA_ONE_ON_ONE_START_LIMIT_MS, 24 * 60 * 60 * 1000);
 assert.equal(ARENA_ONE_ON_ONE_PACKS_PER_PAIR, 30);
-assert.equal(SUB_TIER_PAIR_CONFIG.length, 10);
+assert.equal(SUB_TIER_PAIR_CONFIG.length, 17);
 assert.ok(
   SUB_TIER_PAIR_CONFIG.every(
     (pair) => pair.packSlots.length === 30 && pair.packSlots.every((pack) => pack.questionSlots.length === 5)
@@ -91,11 +88,23 @@ assert.ok(
 );
 assert.equal(SUB_NORMAL_STAKE_DAYS, 1);
 assert.equal(SUB_REVENGE_STAKE_DAYS, 2);
-assert.equal(MAIN_DORMANCY_DAYS, 20);
 assert.equal(SOFT_RESET_RETENTION, 0.6);
 
+for (const retiredDormancyRule of [
+  "미활동 1~19일차",
+  "20일차 추가 차감 없음",
+  "RANKED_ASSESSMENT_REQUIRED",
+  "Ranked 휴면 평가",
+  "휴면 강등 예치분",
+]) {
+  assert.ok(
+    !logicText.includes(retiredDormancyRule),
+    `권위 문서에 폐기한 Ranked 휴면 규칙이 남아 있습니다: ${retiredDormancyRule}`
+  );
+}
+
 for (const requiredRule of [
-  "일요일 14:30",
+  "일요일 14:00",
   "일요일 15:00",
   "점수 높은 순 → 정답 수 많은 순 → 정답 문항 풀이시간 짧은 순 → 전체 풀이시간 짧은 순",
   "정기권 학습 가능 일수",
@@ -107,5 +116,5 @@ for (const requiredRule of [
 }
 
 console.log(
-  `규칙 문서 13개·상품·페이백·1대1·휴면·시즌 핵심 상수와 웹 용어 정합성 검증 완료`
+  `규칙 문서 13개·상품·페이백·1대1·시즌 핵심 상수와 웹 용어 정합성 검증 완료`
 );

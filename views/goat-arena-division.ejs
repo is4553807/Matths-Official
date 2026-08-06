@@ -7,6 +7,10 @@
     division === "SUB"
       ? ranking.pools.sub
       : ranking.pools.main;
+  const arenaNotificationState =
+    typeof arenaNotifications !== "undefined"
+      ? arenaNotifications
+      : null;
 %>
 <!doctype html>
 <html lang="ko">
@@ -23,6 +27,7 @@
     <meta name="theme-color" content="#070913" />
     <title><%= divisionLabel %> | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
+    <%- include("partials/rank-motion-head") %>
     <link
       rel="icon"
       type="image/jpeg"
@@ -46,8 +51,8 @@
         </div>
         <div class="arena-command-hero-copy">
           <p><%= division === "SUB"
-              ? "배치고사 이후 첫 순위를 확보하고, 바로 위 티어를 상대로 순위를 쟁탈하며 페이백 조건을 완성하는 전장입니다."
-              : "Sub Division을 돌파한 사용자가 학습일수를 운용해 상향 쟁탈전·하위 티어 초대전·복수전을 지휘하는 상위 전장입니다." %></p>
+              ? "배치고사 이후 첫 순위를 확보하고, 같은 티어의 상위 순위부터 바로 위 티어까지 순차적으로 도전하며 페이백 조건을 완성하는 전장입니다."
+              : "Unranked를 돌파한 사용자가 학습일수를 운용해 상향 쟁탈전·하위 티어 초대전·복수전을 지휘하는 상위 전장입니다." %></p>
           <div class="arena-command-tags"><span><i></i><%= hasDivisionAccess ? "전장 연결 완료" : "열람 모드" %></span><span><%= division === "SUB" ? "자동 상대 배정" : "최대 3티어 작전" %></span><span>KST 시즌 운영</span></div>
         </div>
       </header>
@@ -75,6 +80,13 @@
           </strong>
           <span>표시 순위는 현재 티어 안에서의 랭킹입니다.</span>
         </article>
+        <% if (division === "MAIN") { %>
+          <article>
+            <small>Ranked 매칭 범위</small>
+            <strong>전체 Ranked</strong>
+            <span>소속과 무관하게 같은 Ranked 티어 순위와 공식 경기를 계산합니다.</span>
+          </article>
+        <% } %>
         <article>
           <small><%= division === "MAIN" ? "사용 가능 학습일수" : "정기권 학습 가능 일수" %></small>
           <strong>
@@ -99,8 +111,8 @@
               <%= division === "MAIN" && activeMainPolicy
                 ? `현재 정책은 최대 ${activeMainPolicy.maximumTargetTierGap}단계 티어 차이까지 허용하며, 차이별 최소 예치 일수와 초대·복수전 조건을 경기 생성 시점에 고정합니다.`
                 : division === "SUB"
-                  ? "목표 티어만 선택하면 서버가 적격 상대를 무작위로 정하며, 일반 쟁탈전은 페이백 점수 1점을 예치합니다."
-                  : "활성 Main Division 정책이 적용되면 실제 경기 기능이 열립니다." %>
+                  ? "서버가 같은 티어의 더 높은 순위 후보를 먼저 찾고, 후보가 없을 때만 바로 위 티어에서 상대를 정합니다. 일반 쟁탈전은 페이백 점수 1점을 예치합니다."
+                  : "활성 Ranked 정책이 적용되면 실제 경기 기능이 열립니다." %>
             </p>
           </header>
 
@@ -113,6 +125,9 @@
                 </header>
                 <div class="arena-feature-grid">
                   <% group.features.forEach((feature) => { commandIndex += 1; %>
+                    <% const featureActionCount = ["subActiveMatch", "mainActiveMatch"].includes(feature.key)
+                      ? Math.max(Number(arenaNotificationState?.actionByDivision?.[division] || 0), Number(arenaNotificationState?.defenseByDivision?.[division] || 0))
+                      : 0; %>
                     <% if (feature.href) { %>
                       <a class="arena-command-card" href="<%= feature.href %>" data-command-index="<%= String(commandIndex).padStart(2, '0') %>">
                     <% } else { %>
@@ -121,6 +136,7 @@
                       <span><%= String(commandIndex).padStart(2, "0") %></span>
                       <small><%= group.eyebrow %></small>
                       <strong><%= feature.name %></strong>
+                      <% if (featureActionCount > 0) { %><b class="arena-command-alert-dot" aria-label="지금 확인할 경기 <%= featureActionCount %>개"></b><% } %>
                       <em><%= feature.description %></em>
                       <i aria-hidden="true">→</i>
                     <% if (feature.href) { %></a><% } else { %></button><% } %>

@@ -403,6 +403,12 @@
   border-radius: 14px;
 }
 
+/* 티어 목록은 이미 하나의 Division·티어로 고정되어 있다. 불필요한
+   중복 필터를 제거해 검색·내 위치 이동만 빠르게 쓸 수 있게 한다. */
+.ranking-list-tools[data-filter-mode="tier"] {
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+}
+
 .ranking-list-tools label {
   display: grid;
   gap: 5px;

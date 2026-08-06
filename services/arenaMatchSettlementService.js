@@ -28,11 +28,14 @@ const {
 const {
   finalizeExpiredAccessCycle,
 } = require("./accessCycleDailyService");
+const {
+  createRankUpPresentationsForSettlement,
+} = require("./arenaRankUpPresentationService");
 
 const SUB_NORMAL_SETTLEMENT_VERSION =
-  "SUB-NORMAL-SETTLEMENT-V1";
+  "SUB-NORMAL-SETTLEMENT-V2";
 const SUB_REVENGE_SETTLEMENT_VERSION =
-  "SUB-REVENGE-SETTLEMENT-V1";
+  "SUB-REVENGE-SETTLEMENT-V2";
 
 function statusError(status, message, code = "") {
   const error = new Error(message);
@@ -64,18 +67,11 @@ function tuplesEqual(left, right) {
   );
 }
 
-function isBronzeTuple(tuple) {
-  return ["BRONZE", "브론즈"].includes(
-    String(tuple?.arenaRank || "").trim().toUpperCase()
-  );
-}
-
 function buildSubNormalSettlementPlan({
   winnerRole,
   challengerTuple,
   defenderTuple,
   stakeDays = 1,
-  bronzeRefundDays,
 }) {
   const winner = String(winnerRole || "").toUpperCase();
   if (!["CHALLENGER", "DEFENDER"].includes(winner)) {
@@ -88,19 +84,16 @@ function buildSubNormalSettlementPlan({
   if (Number(stakeDays) !== 1) {
     throw statusError(
       409,
-      "Sub Division 일반 쟁탈전 예치 일수는 1일 고정입니다.",
+      "Unranked 일반 쟁탈전 예치 페이백 점수는 1점 고정입니다.",
       "INVALID_SUB_NORMAL_STAKE"
     );
   }
   const challengerBefore = normalizedTuple(challengerTuple);
   const defenderBefore = normalizedTuple(defenderTuple);
-  const shouldRefundBronze =
-    winner === "CHALLENGER" &&
-    isBronzeTuple(challengerBefore) &&
-    Number(bronzeRefundDays ?? 1) === 1;
+  const shouldRefundChallenger = winner === "CHALLENGER";
   const challengerDelta = {
     availableLearningDays: 0,
-    paybackScoreDays: shouldRefundBronze ? 1 : 0,
+    paybackScoreDays: shouldRefundChallenger ? 1 : 0,
     lockedPaybackScoreDays: -1,
     lockedLearningDays: 0,
     paidNormalAttacksCompleted: 1,
@@ -122,15 +115,14 @@ function buildSubNormalSettlementPlan({
       winner === "CHALLENGER" ? challengerBefore : defenderBefore,
     challengerDelta,
     defenderDelta,
-    challengerStakeOutcome: shouldRefundBronze
-      ? "BRONZE_REFUND"
+    challengerStakeOutcome: shouldRefundChallenger
+      ? "CHALLENGER_WIN_REFUND"
       : winner === "DEFENDER"
         ? "TRANSFERRED_TO_DEFENDER"
-        : "BURNED",
+        : "UNRESOLVED",
     transferredPaybackScore: winner === "DEFENDER" ? 1 : 0,
-    burnedPaybackScore:
-      winner === "CHALLENGER" && !shouldRefundBronze ? 1 : 0,
-    returnedPaybackScore: shouldRefundBronze ? 1 : 0,
+    burnedPaybackScore: 0,
+    returnedPaybackScore: shouldRefundChallenger ? 1 : 0,
   };
 }
 
@@ -370,6 +362,7 @@ async function settleSubRevengeOutcome({
   matchId,
   outcome = null,
   now = new Date(),
+  allowEarlyForfeit = false,
 }) {
   if (!mongoose.isValidObjectId(matchId)) {
     throw statusError(400, "정산할 복수전 정보를 확인해주세요.");
@@ -391,7 +384,7 @@ async function settleSubRevengeOutcome({
         return;
       }
       if (match.division !== "SUB" || match.matchType !== "REVENGE") {
-        throw statusError(409, "현재 정산기는 Sub Division 복수전만 처리합니다.");
+        throw statusError(409, "현재 정산기는 Unranked 복수전만 처리합니다.");
       }
       if (isSundayDivisionLocked(processedAt)) {
         result = await putSettlementHold({
@@ -423,7 +416,7 @@ async function settleSubRevengeOutcome({
           return;
         }
         if (
-          evidence.some((entry) => entry.status === "ANOMALY_FLAGGED" || (entry.anomalyFlags || []).length) ||
+          evidence.some((entry) => entry.status !== "REVIEWED" && (entry.status === "ANOMALY_FLAGGED" || (entry.anomalyFlags || []).length)) ||
           match.integrityStatus !== "CLEAR"
         ) {
           result = await putSettlementHold({
@@ -458,7 +451,7 @@ async function settleSubRevengeOutcome({
           : REVENGE_OUTCOMES.DEFENDER_WIN;
         tieBreak = tieBreakStep(challengerScore, defenderScore);
       } else {
-        if (!match.completionDeadlineAt || new Date(match.completionDeadlineAt) > processedAt) {
+        if (!allowEarlyForfeit && (!match.completionDeadlineAt || new Date(match.completionDeadlineAt) > processedAt)) {
           throw statusError(409, "복수전 완료 기한이 지나기 전에는 No-show 정산을 할 수 없습니다.");
         }
         const completedRole = resolvedOutcome === REVENGE_OUTCOMES.BOTH_NO_SHOW
@@ -472,6 +465,7 @@ async function settleSubRevengeOutcome({
         });
         if (
           completedEvidence &&
+          completedEvidence.status !== "REVIEWED" &&
           (completedEvidence.status === "ANOMALY_FLAGGED" || (completedEvidence.anomalyFlags || []).length)
         ) {
           result = await putSettlementHold({
@@ -558,12 +552,28 @@ async function settleSubRevengeOutcome({
         ],
         { session, ordered: true }
       );
+      await createRankUpPresentationsForSettlement({
+        matchId: match._id,
+        challengerUserId: match.challenger.userId,
+        defenderUserId: match.defender.userId,
+        challengerTupleBefore: challengerBefore,
+        challengerTupleAfter: challengerAfter,
+        defenderTupleBefore: defenderBefore,
+        defenderTupleAfter: defenderAfter,
+        occurredAt: processedAt,
+        session,
+      });
       const ledgerEntries = [
         {
           userId: match.challenger.userId,
           accessCycleId: challengerCycle._id,
           idempotencyKey: `${match._id}:${SUB_REVENGE_SETTLEMENT_VERSION}:CHALLENGER:DAYS`,
-          eventType: settlement.returnToAttackerDays > 0 ? "REVENGE_NO_SHOW_PARTIAL_REFUND" : "REVENGE_FEE_BURN",
+          eventType:
+            settlement.returnToAttackerDays <= 0
+              ? "REVENGE_FEE_BURN"
+              : resolvedOutcome === REVENGE_OUTCOMES.ATTACKER_WIN
+                ? "REVENGE_STAKE_RELEASED"
+                : "REVENGE_NO_SHOW_PARTIAL_REFUND",
           availableLearningDaysDelta: challengerDelta.availableLearningDays,
           paybackScoreDaysDelta: challengerDelta.paybackScoreDays,
           lockedPaybackScoreDaysDelta: challengerDelta.lockedPaybackScoreDays,
@@ -679,14 +689,19 @@ async function settleSubRevengeMatch({ matchId, now = new Date() }) {
   return settleSubRevengeOutcome({ matchId, now });
 }
 
-async function settleSubRevengeNoShow({ matchId, noShowRole, now = new Date() }) {
+async function settleSubRevengeNoShow({
+  matchId,
+  noShowRole,
+  now = new Date(),
+  allowEarlyForfeit = false,
+}) {
   const role = String(noShowRole || "").toUpperCase();
   const outcome = role === "CHALLENGER"
     ? REVENGE_OUTCOMES.ATTACKER_NO_SHOW
     : role === "DEFENDER"
       ? REVENGE_OUTCOMES.DEFENDER_NO_SHOW
       : REVENGE_OUTCOMES.BOTH_NO_SHOW;
-  return settleSubRevengeOutcome({ matchId, outcome, now });
+  return settleSubRevengeOutcome({ matchId, outcome, now, allowEarlyForfeit });
 }
 
 async function settleArenaMatch({ matchId, now = new Date() }) {
@@ -749,6 +764,8 @@ async function settleExpiredSubRevengeMatches({ now = new Date(), limit = 100 } 
 async function settleSubNormalMatch({
   matchId,
   now = new Date(),
+  forcedWinnerRole = null,
+  automaticReason = "",
 }) {
   if (!mongoose.isValidObjectId(matchId)) {
     throw statusError(
@@ -792,11 +809,13 @@ async function settleSubNormalMatch({
       ) {
         throw statusError(
           409,
-          "현재 정산기는 Sub Division 일반 쟁탈전만 처리합니다.",
+          "현재 정산기는 Unranked 일반 쟁탈전만 처리합니다.",
           "UNSUPPORTED_ARENA_SETTLEMENT_TYPE"
         );
       }
-      if (match.status !== "SUBMITTED") {
+      const forcedWinner = String(forcedWinnerRole || "").toUpperCase();
+      const automaticSettlement = ["CHALLENGER", "DEFENDER"].includes(forcedWinner);
+      if (!automaticSettlement && match.status !== "SUBMITTED") {
         result = {
           status: match.status,
           settled: false,
@@ -804,7 +823,7 @@ async function settleSubNormalMatch({
         };
         return;
       }
-      if (isSundayDivisionLocked(processedAt)) {
+      if (!automaticSettlement && isSundayDivisionLocked(processedAt)) {
         result = await putSettlementHold({
           match,
           session,
@@ -822,11 +841,11 @@ async function settleSubNormalMatch({
       const evidence = await ArenaMatchEvidence.find({ matchId: match._id })
         .session(session)
         .lean();
-      if (
+      if (!automaticSettlement && (
         attempts.length !== 2 ||
         attempts.some((attempt) => attempt.status !== "SUBMITTED") ||
         evidence.length !== 2
-      ) {
+      )) {
         result = await putSettlementHold({
           match,
           session,
@@ -839,10 +858,11 @@ async function settleSubNormalMatch({
       }
       const suspiciousEvidence = evidence.some(
         (entry) =>
-          entry.status === "ANOMALY_FLAGGED" ||
-          (entry.anomalyFlags || []).length > 0
+          entry.status !== "REVIEWED" &&
+          (entry.status === "ANOMALY_FLAGGED" ||
+            (entry.anomalyFlags || []).length > 0)
       );
-      if (suspiciousEvidence || match.integrityStatus !== "CLEAR") {
+      if (!automaticSettlement && (suspiciousEvidence || match.integrityStatus !== "CLEAR")) {
         result = await putSettlementHold({
           match,
           session,
@@ -854,11 +874,13 @@ async function settleSubNormalMatch({
         return;
       }
 
-      const problemPack = await ArenaProblemPack.findById(match.problemPackId)
-        .select("+questions")
-        .session(session)
-        .lean();
-      if (!problemPack) {
+      const problemPack = automaticSettlement
+        ? null
+        : await ArenaProblemPack.findById(match.problemPackId)
+            .select("+questions")
+            .session(session)
+            .lean();
+      if (!automaticSettlement && !problemPack) {
         result = await putSettlementHold({
           match,
           session,
@@ -872,26 +894,32 @@ async function settleSubNormalMatch({
       const attemptByRole = new Map(
         attempts.map((attempt) => [attempt.role, attempt])
       );
-      const challengerScore = scoreArenaAttempt({
-        attempt: attemptByRole.get("CHALLENGER"),
-        problemPack,
-      });
-      const defenderScore = scoreArenaAttempt({
-        attempt: attemptByRole.get("DEFENDER"),
-        problemPack,
-      });
-      const winnerRole = compareArenaAttemptScores(
-        challengerScore,
-        defenderScore
-      );
+      const challengerScore = automaticSettlement
+        ? null
+        : scoreArenaAttempt({
+            attempt: attemptByRole.get("CHALLENGER"),
+            problemPack,
+          });
+      const defenderScore = automaticSettlement
+        ? null
+        : scoreArenaAttempt({
+            attempt: attemptByRole.get("DEFENDER"),
+            problemPack,
+          });
+      const winnerRole = automaticSettlement
+        ? forcedWinner
+        : compareArenaAttemptScores(challengerScore, defenderScore);
       const plan = buildSubNormalSettlementPlan({
         winnerRole,
         challengerTuple: match.challenger.tupleBefore,
         defenderTuple: match.defender.tupleBefore,
         stakeDays: match.economySnapshot?.challengerStakeDays,
-        bronzeRefundDays:
-          match.economySnapshot?.bronzeChallengerWinRefundDays,
       });
+      if (automaticSettlement) {
+        // 미시작·필수 풀이 증거 미제출은 공식 승패이지만, 실제 풀이를
+        // 완료한 일반 공격으로 집계하지 않는다.
+        plan.challengerDelta.paidNormalAttacksCompleted = 0;
+      }
 
       const [challengerStanding, defenderStanding, challengerCycle, defenderCycle] =
         await Promise.all([
@@ -1022,6 +1050,17 @@ async function settleSubNormalMatch({
         ],
         { session, ordered: true }
       );
+      await createRankUpPresentationsForSettlement({
+        matchId: match._id,
+        challengerUserId: match.challenger.userId,
+        defenderUserId: match.defender.userId,
+        challengerTupleBefore: plan.challengerTupleBefore,
+        challengerTupleAfter: plan.challengerTupleAfter,
+        defenderTupleBefore: plan.defenderTupleBefore,
+        defenderTupleAfter: plan.defenderTupleAfter,
+        occurredAt: processedAt,
+        session,
+      });
 
       const learningEntries = [
         learningLedgerEntry({
@@ -1031,7 +1070,7 @@ async function settleSubNormalMatch({
           delta: plan.challengerDelta,
           balanceAfter: challengerBalanceAfter,
           eventType:
-            plan.challengerStakeOutcome === "BRONZE_REFUND"
+            plan.challengerStakeOutcome === "CHALLENGER_WIN_REFUND"
               ? "MATCH_STAKE_RELEASED"
               : plan.challengerStakeOutcome === "BURNED"
                 ? "MATCH_SETTLEMENT_BURN"
@@ -1065,7 +1104,9 @@ async function settleSubNormalMatch({
       const opponentUserId = winnerRole === "CHALLENGER"
         ? match.challenger.userId
         : match.defender.userId;
-      const revengeRight = await ArenaRevengeRight.findOneAndUpdate(
+      const revengeRight = automaticSettlement
+        ? null
+        : await ArenaRevengeRight.findOneAndUpdate(
         { sourceMatchId: match._id },
         {
           $setOnInsert: {
@@ -1095,7 +1136,8 @@ async function settleSubNormalMatch({
         returnedPaybackScore: plan.returnedPaybackScore,
         challengerBalanceAfter,
         defenderBalanceAfter,
-        revengeRightId: String(revengeRight._id),
+        revengeRightId: revengeRight ? String(revengeRight._id) : null,
+        automaticReason: automaticSettlement ? String(automaticReason || "AUTO_FORFEIT") : "",
       };
       match.status = "SETTLED";
       match.winnerRole = winnerRole;
@@ -1108,7 +1150,9 @@ async function settleSubNormalMatch({
         scoringPolicyVersion: match.scoringVersion,
         challenger: challengerScore,
         defender: defenderScore,
-        tieBreakStep: tieBreakStep(challengerScore, defenderScore),
+        tieBreakStep: automaticSettlement
+          ? String(automaticReason || "AUTO_FORFEIT")
+          : tieBreakStep(challengerScore, defenderScore),
         winnerRole,
         settlementSummary,
         resolvedAt: processedAt,
@@ -1133,7 +1177,7 @@ async function settleSubNormalMatch({
               settlementVersion: SUB_NORMAL_SETTLEMENT_VERSION,
             },
           },
-          {
+          ...(revengeRight ? [{
             eventType: "ArenaRevengeRightCreated",
             aggregateType: "ArenaRevengeRight",
             aggregateId: revengeRight._id,
@@ -1145,7 +1189,7 @@ async function settleSubNormalMatch({
               division: "SUB",
               revengeStakeDays: 2,
             },
-          },
+          }] : []),
         ],
         { session, ordered: true }
       );
@@ -1192,10 +1236,108 @@ async function settleSubNormalMatch({
   return result;
 }
 
+// 양측 모두 24시간 안에 시작하지 않은 일반 쟁탈전은 승패·복수전 권리 없이
+// 취소한다. Unranked에서는 공격자만 페이백 점수를 예치하므로 그 점수를 전액
+// 원래 이용 주기로 돌려놓는다.
+async function cancelSubNormalNoStart({
+  matchId,
+  now = new Date(),
+  cancellationReason = "BOTH_START_DEADLINE_NO_SHOW",
+}) {
+  const processedAt = new Date(now);
+  const session = await mongoose.startSession();
+  let result;
+  try {
+    await session.withTransaction(async () => {
+      const match = await ArenaMatch.findById(matchId).session(session);
+      if (!match) throw statusError(404, "취소할 경기를 찾을 수 없습니다.", "ARENA_MATCH_NOT_FOUND");
+      if (match.status === "CANCELLED") {
+        result = { status: "CANCELLED", cancelled: true, replayed: true };
+        return;
+      }
+      if (match.status === "SETTLED" || match.status === "HELD") {
+        result = { status: match.status, cancelled: false, replayed: true };
+        return;
+      }
+      if (match.division !== "SUB" || match.matchType !== "NORMAL") {
+        throw statusError(409, "Unranked 일반 쟁탈전만 미시작 취소할 수 있습니다.", "UNSUPPORTED_SUB_NO_START_CANCEL");
+      }
+      const stake = Number(match.economySnapshot?.challengerStakeDays || 0);
+      const cycle = await AccessCycle.findById(match.challenger.accessCycleId).session(session).lean();
+      if (!cycle || cycle.status !== "ACTIVE" || Number(cycle.lockedPaybackScoreDays || 0) < stake) {
+        throw statusError(409, "반환할 페이백 점수 원본이 변경되었습니다.", "SUB_NO_START_STAKE_CONFLICT");
+      }
+      const delta = {
+        availableLearningDays: 0,
+        paybackScoreDays: stake,
+        lockedPaybackScoreDays: -stake,
+        lockedLearningDays: 0,
+        paidNormalAttacksCompleted: 0,
+      };
+      const after = await updateCycle({
+        cycle,
+        delta,
+        userId: match.challenger.userId,
+        session,
+      });
+      await ArenaLearningDayLedger.create([
+        learningLedgerEntry({
+          match,
+          cycle,
+          userId: match.challenger.userId,
+          delta,
+          balanceAfter: after,
+          eventType: "MATCH_STAKE_RELEASED",
+          role: "CHALLENGER",
+          now: processedAt,
+        }),
+      ], { session, ordered: true });
+      match.status = "CANCELLED";
+      match.integrityStatus = "CLEAR";
+      match.noShowRole = cancellationReason === "BOTH_START_DEADLINE_NO_SHOW"
+        ? "BOTH"
+        : null;
+      match.resolvedAt = processedAt;
+      match.settlementIdempotencyKey = `${match._id}:${SUB_NORMAL_SETTLEMENT_VERSION}:${cancellationReason}:CANCEL`;
+      match.resultSnapshot = {
+        scoringPolicyVersion: match.scoringVersion,
+        challenger: null,
+        defender: null,
+        tieBreakStep: cancellationReason,
+        winnerRole: null,
+        settlementSummary: {
+          version: SUB_NORMAL_SETTLEMENT_VERSION,
+          outcome: cancellationReason,
+          returnedPaybackScore: stake,
+        },
+        resolvedAt: processedAt,
+      };
+      await match.save({ session });
+      await ArenaMatchParticipantLock.deleteMany({ matchId: match._id }, { session });
+      await ArenaOutboxEvent.findOneAndUpdate(
+        { idempotencyKey: `${match._id}:ArenaMatchCancelled:${cancellationReason}` },
+        { $setOnInsert: {
+          eventType: "ArenaMatchCancelled",
+          aggregateType: "ArenaMatch",
+          aggregateId: match._id,
+          idempotencyKey: `${match._id}:ArenaMatchCancelled:${cancellationReason}`,
+          payload: { division: "SUB", matchType: "NORMAL", reason: cancellationReason, returnedPaybackScore: stake },
+        } },
+        { upsert: true, setDefaultsOnInsert: true, session }
+      );
+      result = { status: "CANCELLED", cancelled: true, replayed: false };
+    });
+  } finally {
+    await session.endSession();
+  }
+  return result;
+}
+
 module.exports = {
   SUB_NORMAL_SETTLEMENT_VERSION,
   SUB_REVENGE_SETTLEMENT_VERSION,
   buildSubNormalSettlementPlan,
+  cancelSubNormalNoStart,
   settleSubNormalMatch,
   settleSubRevengeMatch,
   settleSubRevengeNoShow,

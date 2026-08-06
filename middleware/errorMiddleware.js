@@ -1,3 +1,7 @@
+const {
+  errorFaqHref,
+} = require("../services/errorHelpService");
+
 const ERROR_COPY = {
   400: {
     eyebrow: "요청 확인",
@@ -154,6 +158,13 @@ function buildErrorViewModel({ error = null, req, status }) {
     eyebrow: copy.eyebrow,
     title: copy.title,
     message: safeMessage,
+    errorCode:
+      String(
+        error?.code ||
+          `HTTP_${status}`
+      ),
+    errorFaqHref:
+      errorFaqHref(status),
     ...actionSet(status, user, error?.code),
   };
 }
@@ -184,6 +195,11 @@ function errorHandler(error, req, res, next) {
 
   if (String(req.originalUrl || "").startsWith("/api/")) {
     return res.status(status).json({
+      code:
+        String(
+          error?.code ||
+            `HTTP_${status}`
+        ),
       message:
         status >= 500
           ? ERROR_COPY[500].fallbackMessage

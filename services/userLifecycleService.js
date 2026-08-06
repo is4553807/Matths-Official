@@ -171,6 +171,8 @@ function getGradeLabel(schoolGrade) {
     11: "고등학교 2학년",
     12: "고등학교 3학년",
     13: "N수생",
+    14: "대학생",
+    15: "직장인",
   }[Number(schoolGrade)] || "학년 미설정";
 }
 
@@ -179,6 +181,14 @@ function promotedEducationState({
   baseAcademicYear,
   currentAcademicYear,
 }) {
+  if (Number(schoolGrade) >= 13) {
+    return {
+      schoolGrade: Number(schoolGrade),
+      educationStatus:
+        Number(schoolGrade) === 14 ? "enrolled" : "graduated",
+      promotions: 0,
+    };
+  }
   const promotions = Math.max(
     0,
     Number(currentAcademicYear) -
@@ -236,7 +246,7 @@ function lifecycleSessionView(
       Number(user.schoolGrade) || 10,
     educationStatus:
       user.educationStatus ||
-      (Number(user.schoolGrade) === 13
+      ([13, 15].includes(Number(user.schoolGrade))
         ? "graduated"
         : "enrolled"),
     currentStreak:

@@ -42,10 +42,16 @@ const {
   moveAvailable,
   settleLocked,
 } = require("./mainLearningDayService");
+const {
+  finalizeExpiredAccessCycle,
+} = require("./accessCycleDailyService");
 const { kstSeasonKey } = require("./arenaStandingService");
 const { normalizeDecisionId } = require("./arenaRevengeService");
+const {
+  createRankUpPresentationsForSettlement,
+} = require("./arenaRankUpPresentationService");
 
-const MAIN_REVENGE_SETTLEMENT_VERSION = "MAIN-REVENGE-SETTLEMENT-V1";
+const MAIN_REVENGE_SETTLEMENT_VERSION = "MAIN-REVENGE-SETTLEMENT-V2";
 
 function statusError(status, message, code = "") {
   const error = new Error(message);
@@ -105,12 +111,15 @@ async function writeCycleState({ cycle, state, session }) {
     { session }
   );
   if (!update.modifiedCount) {
-    throw statusError(409, "Main 복수전 학습일수 상태가 변경되었습니다.", "MAIN_REVENGE_CYCLE_CONFLICT");
+    throw statusError(409, "Ranked 복수전 학습일수 상태가 변경되었습니다.", "MAIN_REVENGE_CYCLE_CONFLICT");
   }
 }
 
 async function swapStandings({ match, challengerStanding, defenderStanding, challengerBefore, defenderBefore, session }) {
-  const highest = await ArenaStanding.findOne({ division: "MAIN", seasonKey: match.seasonKey })
+  const highest = await ArenaStanding.findOne({
+    division: "MAIN",
+    seasonKey: match.seasonKey,
+  })
     .sort({ arenaPosition: -1 })
     .select("arenaPosition")
     .session(session)
@@ -136,7 +145,7 @@ async function swapStandings({ match, challengerStanding, defenderStanding, chal
     { session }
   );
   if (!first.modifiedCount || !second.modifiedCount || !third.modifiedCount) {
-    throw statusError(409, "Main 복수전 정산 중 Arena 상태가 변경되었습니다.", "MAIN_REVENGE_STANDING_CONFLICT");
+    throw statusError(409, "Ranked 복수전 정산 중 Arena 상태가 변경되었습니다.", "MAIN_REVENGE_STANDING_CONFLICT");
   }
 }
 
@@ -147,15 +156,15 @@ async function createMainRevengeMatch({
   now = new Date(),
 }) {
   if (!mongoose.isValidObjectId(revengeRightId) || !mongoose.isValidObjectId(userId)) {
-    throw statusError(400, "Main 복수전 권리와 사용자 정보를 확인해주세요.");
+    throw statusError(400, "Ranked 복수전 권리와 사용자 정보를 확인해주세요.");
   }
   const decisionId = normalizeDecisionId(requestId);
   if (isSundayMatchRequestLocked(now, "MAIN")) {
-    throw statusError(423, "일요일 14시 30분부터 새 Main 복수전을 신청할 수 없습니다.", "SUNDAY_REVENGE_LOCK");
+    throw statusError(423, "일요일 14시부터 새 Ranked 복수전을 신청할 수 없습니다.", "SUNDAY_REVENGE_LOCK");
   }
   const rightPreview = await ArenaRevengeRight.findById(revengeRightId).lean();
   if (!rightPreview || rightPreview.division !== "MAIN") {
-    throw statusError(404, "사용 가능한 Main 복수전 권리를 찾지 못했습니다.");
+    throw statusError(404, "사용 가능한 Ranked 복수전 권리를 찾지 못했습니다.");
   }
   const previewAttacker = await loadMatchActorContext({
     userId,
@@ -190,17 +199,17 @@ async function createMainRevengeMatch({
     await session.withTransaction(async () => {
       const right = await ArenaRevengeRight.findById(revengeRightId).session(session);
       if (!right || right.division !== "MAIN") {
-        throw statusError(404, "사용 가능한 Main 복수전 권리를 찾지 못했습니다.");
+        throw statusError(404, "사용 가능한 Ranked 복수전 권리를 찾지 못했습니다.");
       }
       if (String(right.eligibleUserId) !== String(userId)) {
-        throw statusError(403, "이 Main 복수전 권리를 사용할 수 없습니다.");
+        throw statusError(403, "이 Ranked 복수전 권리를 사용할 수 없습니다.");
       }
       if (right.status === "CLAIMED" && right.revengeMatchId) {
         result = { matchId: String(right.revengeMatchId), replayed: true };
         return;
       }
       if (right.status !== "AVAILABLE") {
-        throw statusError(409, "이미 사용하거나 포기한 Main 복수전 권리입니다.");
+        throw statusError(409, "이미 사용하거나 포기한 Ranked 복수전 권리입니다.");
       }
       const [attacker, defender, sourceMatch] = await Promise.all([
         loadMatchActorContext({ userId: right.eligibleUserId, division: "MAIN", now, session }),
@@ -208,17 +217,26 @@ async function createMainRevengeMatch({
         ArenaMatch.findById(right.sourceMatchId).session(session).lean(),
       ]);
       if (!attacker.eligible || !defender.eligible) {
-        throw statusError(409, "Main 복수전 참가자의 현재 이용 상태를 확인해주세요.", "MAIN_REVENGE_PARTICIPANT_INELIGIBLE");
+        throw statusError(409, "Ranked 복수전 참가자의 현재 이용 상태를 확인해주세요.", "MAIN_REVENGE_PARTICIPANT_INELIGIBLE");
       }
       if (Number(attacker.accessCycle.availableLearningDays || 0) <= Number(right.revengeStakeDays)) {
         throw statusError(409, "복수전 예치 후에도 최소 1일의 사용 가능한 학습일수가 남아야 합니다.", "MAIN_REVENGE_REQUIRES_REMAINING_DAY");
       }
       if (!sourceMatch || sourceMatch.status !== "SETTLED") {
-        throw statusError(409, "원경기 정산이 끝난 뒤에만 Main 복수전을 시작할 수 있습니다.");
+        throw statusError(409, "원경기 정산이 끝난 뒤에만 Ranked 복수전을 시작할 수 있습니다.");
+      }
+      // 과거 소속별 경기 이력도 복수전에서는 통합 Ranked 규칙으로 이어진다.
+      if (sourceMatch.competitivePool !== "ALL") {
+        await ArenaMatch.updateOne(
+          { _id: sourceMatch._id },
+          { $set: { competitivePool: "ALL" } },
+          { session }
+        );
+        sourceMatch.competitivePool = "ALL";
       }
       const pair = getMainTierPair(attacker.standing.arenaRank, defender.standing.arenaRank);
       if (!pair) {
-        throw statusError(409, "현재 Arena 상태로 Main 복수전을 만들 수 없습니다.", "MAIN_REVENGE_TIER_PAIR_CHANGED");
+        throw statusError(409, "현재 Arena 상태로 Ranked 복수전을 만들 수 없습니다.", "MAIN_REVENGE_TIER_PAIR_CHANGED");
       }
       const matchKey = revengeMatchKey(right);
       const existing = await ArenaMatch.findOne({ matchKey }).session(session).lean();
@@ -256,6 +274,7 @@ async function createMainRevengeMatch({
         matchKey,
         division: "MAIN",
         seasonKey: kstSeasonKey(now),
+        competitivePool: "ALL",
         matchType: "REVENGE",
         matchOrigin: "REVENGE",
         requestInitiatorUserId: attacker.user._id,
@@ -371,7 +390,7 @@ async function forfeitMainRevengeRight({ revengeRightId, userId, requestId, now 
     { $set: { status: "FORFEITED", decisionIdempotencyKey: `${revengeRightId}:FORFEIT:${decisionId}`, forfeitedAt: now } },
     { returnDocument: "after" }
   );
-  if (!right) throw statusError(409, "이미 사용했거나 포기한 Main 복수전 권리입니다.");
+  if (!right) throw statusError(409, "이미 사용했거나 포기한 Ranked 복수전 권리입니다.");
   await ArenaOutboxEvent.findOneAndUpdate(
     { idempotencyKey: `${right._id}:ArenaRevengeForfeited` },
     { $setOnInsert: { eventType: "ArenaRevengeForfeited", aggregateType: "ArenaRevengeRight", aggregateId: right._id, idempotencyKey: `${right._id}:ArenaRevengeForfeited`, payload: { division: "MAIN", sourceMatchId: right.sourceMatchId } } },
@@ -386,20 +405,26 @@ async function holdSettlement({ match, session, reasonCode, description, now }) 
   await match.save({ session });
   await AdminTodo.findOneAndUpdate(
     { sourceType: "ArenaMatchSettlement", sourceId: match._id },
-    { $setOnInsert: { category: "integrity", title: "Main 복수전 정산 보류", description, href: `/admin/arena-matches#match-${match._id}`, targetUserId: match.challenger.userId, actorUserId: match.challenger.userId, sourceType: "ArenaMatchSettlement", sourceId: match._id, status: "pending", metadata: { reasonCode } } },
+    { $setOnInsert: { category: "integrity", title: "Ranked 복수전 정산 보류", description, href: `/admin/arena-matches#match-${match._id}`, targetUserId: match.challenger.userId, actorUserId: match.challenger.userId, sourceType: "ArenaMatchSettlement", sourceId: match._id, status: "pending", metadata: { reasonCode } } },
     { upsert: true, setDefaultsOnInsert: true, session }
   );
   return { status: "HELD", held: true, settled: false, reasonCode, resolvedAt: now };
 }
 
-async function settleMainRevengeOutcome({ matchId, outcome = null, now = new Date() }) {
+async function settleMainRevengeOutcome({
+  matchId,
+  outcome = null,
+  now = new Date(),
+  allowEarlyForfeit = false,
+}) {
   const processedAt = new Date(now);
   const session = await mongoose.startSession();
   let result;
+  let depletedCycleIds = [];
   try {
     await session.withTransaction(async () => {
       const match = await ArenaMatch.findById(matchId).session(session);
-      if (!match) throw statusError(404, "정산할 Main 복수전을 찾을 수 없습니다.");
+      if (!match) throw statusError(404, "정산할 Ranked 복수전을 찾을 수 없습니다.");
       if (match.status === "SETTLED") {
         result = { status: "SETTLED", settled: true, replayed: true, winnerRole: match.winnerRole, resultSnapshot: match.resultSnapshot };
         return;
@@ -409,10 +434,10 @@ async function settleMainRevengeOutcome({ matchId, outcome = null, now = new Dat
         return;
       }
       if (match.division !== "MAIN" || match.matchType !== "REVENGE") {
-        throw statusError(409, "Main Division 복수전만 이 정산기로 처리할 수 있습니다.");
+        throw statusError(409, "Ranked 복수전만 이 정산기로 처리할 수 있습니다.");
       }
       if (isSundayDivisionLocked(processedAt)) {
-        result = await holdSettlement({ match, session, reasonCode: "SUNDAY_DIVISION_LOCK", description: "일요일 15시 이후 Main 복수전 정산을 보류했습니다.", now: processedAt });
+        result = await holdSettlement({ match, session, reasonCode: "SUNDAY_DIVISION_LOCK", description: "일요일 15시 이후 Ranked 복수전 정산을 보류했습니다.", now: processedAt });
         return;
       }
       const attempts = await ArenaMatchAttempt.find({ matchId }).session(session).lean();
@@ -427,13 +452,13 @@ async function settleMainRevengeOutcome({ matchId, outcome = null, now = new Dat
           result = { status: match.status, settled: false, waiting: true };
           return;
         }
-        if (match.integrityStatus !== "CLEAR" || evidence.some((item) => item.status === "ANOMALY_FLAGGED" || (item.anomalyFlags || []).length)) {
-          result = await holdSettlement({ match, session, reasonCode: "INTEGRITY_REVIEW_REQUIRED", description: "Main 복수전 풀이 증거에 이상 징후가 있습니다.", now: processedAt });
+        if (match.integrityStatus !== "CLEAR" || evidence.some((item) => item.status !== "REVIEWED" && (item.status === "ANOMALY_FLAGGED" || (item.anomalyFlags || []).length))) {
+          result = await holdSettlement({ match, session, reasonCode: "INTEGRITY_REVIEW_REQUIRED", description: "Ranked 복수전 풀이 증거에 이상 징후가 있습니다.", now: processedAt });
           return;
         }
         const pack = await ArenaProblemPack.findById(match.problemPackId).select("+questions").session(session).lean();
         if (!pack) {
-          result = await holdSettlement({ match, session, reasonCode: "PROBLEM_PACK_NOT_FOUND", description: "Main 복수전 문제 팩을 찾지 못했습니다.", now: processedAt });
+          result = await holdSettlement({ match, session, reasonCode: "PROBLEM_PACK_NOT_FOUND", description: "Ranked 복수전 문제 팩을 찾지 못했습니다.", now: processedAt });
           return;
         }
         const byRole = new Map(attempts.map((attempt) => [attempt.role, attempt]));
@@ -444,7 +469,7 @@ async function settleMainRevengeOutcome({ matchId, outcome = null, now = new Dat
         const comparisons = ["score", "correctCount", "correctAnswerSolveTimeMs", "totalSolveTimeMs"];
         tieBreakStep = comparisons.find((key) => Number(challengerScore[key]) !== Number(defenderScore[key])) || "FULL_TIE_DEFENDER_WINS";
       } else {
-        if (!match.completionDeadlineAt || new Date(match.completionDeadlineAt) > processedAt) {
+        if (!allowEarlyForfeit && (!match.completionDeadlineAt || new Date(match.completionDeadlineAt) > processedAt)) {
           throw statusError(409, "복수전 완료 기한 전에는 No-show 정산을 할 수 없습니다.");
         }
         winnerRole = resolvedOutcome === REVENGE_OUTCOMES.DEFENDER_NO_SHOW
@@ -469,7 +494,7 @@ async function settleMainRevengeOutcome({ matchId, outcome = null, now = new Dat
       const defenderBefore = normalizedTuple(match.defender.tupleBefore);
       const stakeDays = Number(match.economySnapshot.challengerStakeDays || 0);
       if (!challengerStanding || !defenderStanding || !challengerCycle || !defenderCycle || !tuplesEqual(challengerStanding, challengerBefore) || !tuplesEqual(defenderStanding, defenderBefore) || Number(challengerCycle.lockedLearningDays || 0) < stakeDays) {
-        result = await holdSettlement({ match, session, reasonCode: "SETTLEMENT_SOURCE_CHANGED", description: "Main 복수전 원본 Arena 상태 또는 예치 학습일수가 변경되었습니다.", now: processedAt });
+        result = await holdSettlement({ match, session, reasonCode: "SETTLEMENT_SOURCE_CHANGED", description: "Ranked 복수전 원본 Arena 상태 또는 예치 학습일수가 변경되었습니다.", now: processedAt });
         return;
       }
       if (settlement.tupleAction === "SWAP") {
@@ -501,12 +526,27 @@ async function settleMainRevengeOutcome({ matchId, outcome = null, now = new Dat
         ],
         { session, ordered: true }
       );
+      await createRankUpPresentationsForSettlement({
+        matchId,
+        challengerUserId: match.challenger.userId,
+        defenderUserId: match.defender.userId,
+        challengerTupleBefore: challengerBefore,
+        challengerTupleAfter: challengerAfter,
+        defenderTupleBefore: defenderBefore,
+        defenderTupleAfter: defenderAfter,
+        occurredAt: processedAt,
+        session,
+      });
       const ledgers = [
         {
           userId: match.challenger.userId,
           accessCycleId: challengerCycle._id,
           idempotencyKey: `${matchId}:${MAIN_REVENGE_SETTLEMENT_VERSION}:CHALLENGER:DAYS`,
-          eventType: settlement.returnToAttackerDays > 0 ? "REVENGE_NO_SHOW_PARTIAL_REFUND" : "REVENGE_FEE_BURN",
+          eventType: settlement.returnToAttackerDays <= 0
+            ? "REVENGE_FEE_BURN"
+            : resolvedOutcome === REVENGE_OUTCOMES.ATTACKER_WIN
+              ? "REVENGE_STAKE_RELEASED"
+              : "REVENGE_NO_SHOW_PARTIAL_REFUND",
           availableLearningDaysDelta: settlement.returnToAttackerDays,
           paybackScoreDaysDelta: 0,
           lockedLearningDaysDelta: -stakeDays,
@@ -581,14 +621,32 @@ async function settleMainRevengeOutcome({ matchId, outcome = null, now = new Dat
         ],
         { session, ordered: true }
       );
+      depletedCycleIds = [
+        challengerState.availableLearningDays === 0 &&
+        challengerState.reservedLearningDays === 0 &&
+        challengerState.lockedLearningDays === 0
+          ? challengerCycle._id
+          : null,
+        defenderState.availableLearningDays === 0 &&
+        defenderState.reservedLearningDays === 0 &&
+        defenderState.lockedLearningDays === 0
+          ? defenderCycle._id
+          : null,
+      ].filter(Boolean);
       result = { status: "SETTLED", settled: true, replayed: false, winnerRole, resultSnapshot: match.resultSnapshot };
     });
   } finally {
     await session.endSession();
   }
   if (result?.settled) {
-    const { recordSettledMainMatchActivities } = require("./arenaDormancyService");
-    await recordSettledMainMatchActivities({ matchId, settledAt: processedAt });
+    // 복수전 중 만료된 학습권도 경기 예치가 풀린 뒤의 총 잔액으로만 종료한다.
+    if (depletedCycleIds.length) {
+      await Promise.all(
+        depletedCycleIds.map((cycleId) =>
+          finalizeExpiredAccessCycle({ cycleId, now: processedAt })
+        )
+      );
+    }
     const { recalculateFinalRanking } = require("./finalRankingService");
     await recalculateFinalRanking({ now: processedAt });
   }
@@ -599,14 +657,19 @@ async function settleMainRevengeMatch({ matchId, now = new Date() }) {
   return settleMainRevengeOutcome({ matchId, now });
 }
 
-async function settleMainRevengeNoShow({ matchId, noShowRole, now = new Date() }) {
+async function settleMainRevengeNoShow({
+  matchId,
+  noShowRole,
+  now = new Date(),
+  allowEarlyForfeit = false,
+}) {
   const role = String(noShowRole || "").toUpperCase();
   const outcome = role === "CHALLENGER"
     ? REVENGE_OUTCOMES.ATTACKER_NO_SHOW
     : role === "DEFENDER"
       ? REVENGE_OUTCOMES.DEFENDER_NO_SHOW
       : REVENGE_OUTCOMES.BOTH_NO_SHOW;
-  return settleMainRevengeOutcome({ matchId, outcome, now });
+  return settleMainRevengeOutcome({ matchId, outcome, now, allowEarlyForfeit });
 }
 
 async function settleExpiredMainRevengeMatches({ now = new Date(), limit = 100 } = {}) {

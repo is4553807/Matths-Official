@@ -19,6 +19,7 @@ const {
 } = require("../models/goatArenaModel");
 const {
   assertMainStakeSelection,
+  assertMainUpwardStakeSelection,
   calculateInvitationCancellation,
   officialMatchStartDeadline,
   resolveInvitationOfferCount,
@@ -56,8 +57,19 @@ const {
 const {
   arenaTierIndex,
 } = require("./arenaTierPolicy");
+const {
+  mainCompetitivePoolLabel,
+} = require("./mainCompetitivePoolService");
+const {
+  mainNormalStakeSnapshot,
+} = require("./mainNormalMatchEconomyService");
+const {
+  reactivateAutomaticDefenseAfterAttack,
+} = require("./arenaAutomaticDefenseService");
 
 const RECENT_OPPONENT_MS = 7 * 24 * 60 * 60 * 1000;
+const MAIN_DEFENSE_LOAD_WINDOW_MS = 24 * 60 * 60 * 1000;
+const MAIN_FORCED_DEFENSE_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
 function kstDateKey(value = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -75,6 +87,15 @@ function statusError(status, message, code) {
   return error;
 }
 
+function normalizeOfficialMatchConcurrencyError(error) {
+  if (Number(error?.code) !== 11000) return error;
+  return statusError(
+    409,
+    "동시에 들어온 다른 요청으로 이미 정산되지 않은 공식 경기가 확정되었습니다. 현재 경기 상태를 다시 확인해주세요.",
+    "OFFICIAL_MATCH_ALREADY_PENDING"
+  );
+}
+
 async function getInvitationPolicy(request, session = null) {
   const query = MainDivisionPolicyVersion.findById(request?.policyVersionId);
   if (session) query.session(session);
@@ -82,7 +103,7 @@ async function getInvitationPolicy(request, session = null) {
   if (!policy || policy.code !== request?.policyVersionCode) {
     throw statusError(
       409,
-      "초대 생성 당시 Main Division 정책 사본을 찾을 수 없습니다.",
+      "초대 생성 당시 Ranked 정책 사본을 찾을 수 없습니다.",
       "MAIN_INVITATION_POLICY_SNAPSHOT_MISSING"
     );
   }
@@ -114,6 +135,64 @@ function seededCandidateOrder(candidates, seed) {
   });
 }
 
+function leastDefendedCandidatePool(candidates, defenseCounts = new Map()) {
+  if (!candidates.length) return [];
+  const withCounts = candidates.map((candidate) => ({
+    ...candidate,
+    defenseCount24h: Number(defenseCounts.get(String(candidate.userId)) || 0),
+  }));
+  const minimumDefenseCount = Math.min(
+    ...withCounts.map((candidate) => candidate.defenseCount24h)
+  );
+  return withCounts.filter(
+    (candidate) => candidate.defenseCount24h === minimumDefenseCount
+  );
+}
+
+async function forcedDefenseHistory({ userIds, now = new Date() }) {
+  if (!userIds.length) return { defenseCounts: new Map(), cooldownUserIds: new Set() };
+  const nowMs = new Date(now).getTime();
+  const [recentMatches, cooldownMatches] = await Promise.all([
+    ArenaMatch.find({
+      division: "MAIN",
+      matchOrigin: "MAIN_UPWARD_AUTO_MATCH",
+      "defender.userId": { $in: userIds },
+      createdAt: { $gte: new Date(nowMs - MAIN_DEFENSE_LOAD_WINDOW_MS) },
+      status: { $nin: ["INVALID", "CANCELLED", "INSURED_CANCELLED"] },
+    })
+      .select("defender.userId")
+      .lean(),
+    ArenaMatch.find({
+      division: "MAIN",
+      $or: [
+        { "challenger.userId": { $in: userIds } },
+        { "defender.userId": { $in: userIds } },
+      ],
+      status: { $in: ["RESOLVED", "SETTLED"] },
+      $and: [{ $or: [
+        { resolvedAt: { $gte: new Date(nowMs - MAIN_FORCED_DEFENSE_COOLDOWN_MS) } },
+        { settledAt: { $gte: new Date(nowMs - MAIN_FORCED_DEFENSE_COOLDOWN_MS) } },
+      ] }],
+    })
+      .select("challenger.userId defender.userId")
+      .lean(),
+  ]);
+  const defenseCounts = new Map();
+  recentMatches.forEach((match) => {
+    const id = String(match.defender.userId);
+    defenseCounts.set(id, Number(defenseCounts.get(id) || 0) + 1);
+  });
+  return {
+    defenseCounts,
+    cooldownUserIds: new Set(
+      cooldownMatches.flatMap((match) => [
+        String(match.challenger.userId),
+        String(match.defender.userId),
+      ])
+    ),
+  };
+}
+
 function tierRelationship({ actorTier, targetTier, direction }) {
   const actorIndex = arenaTierIndex(actorTier);
   const targetIndex = arenaTierIndex(targetTier);
@@ -124,7 +203,7 @@ function tierRelationship({ actorTier, targetTier, direction }) {
   if (tierGap < 1 || tierGap > 3) {
     throw statusError(
       409,
-      "Main Division에서는 현재 티어보다 1~3단계 차이인 목표 티어만 선택할 수 있습니다.",
+      "Ranked에서는 현재 티어보다 1~3단계 차이인 목표 티어만 선택할 수 있습니다.",
       "MAIN_TARGET_TIER_GAP_NOT_ALLOWED"
     );
   }
@@ -191,15 +270,17 @@ async function listEligibleMainCandidates({
         !defenseRestIds.has(String(userId))
     );
   if (!userIds.length) return [];
-  const [requester, users, accessStates, cycles, locks] = await Promise.all([
-    User.findById(requesterUserId).select("+identityMatchHash isTestAccount").lean(),
+  const [requester, users, accessStates, cycles, locks, defenseHistory] = await Promise.all([
+    User.findById(requesterUserId)
+      .select("+identityMatchHash +arenaTestMatchEnabled isTestAccount")
+      .lean(),
     User.find({
       _id: { $in: userIds },
       accountStatus: "active",
       isActive: true,
       "privateMockRestriction.active": { $ne: true },
     })
-      .select("_id +identityMatchHash isTestAccount")
+      .select("_id +identityMatchHash +arenaTestMatchEnabled isTestAccount")
       .lean(),
     ArenaAccessState.find({
       userId: { $in: userIds },
@@ -207,17 +288,28 @@ async function listEligibleMainCandidates({
       currentCompetitiveDivision: "MAIN",
       currentSeasonPlacementCompleted: true,
       integrityStatus: { $in: ["CLEAR", null] },
+      // 5회 자동 방어 미응시 제한은 강제 자동 배정에만 적용한다.
+      // 자발적으로 수락·거절하는 하위 티어 초대 후보 자격은 유지한다.
+      ...(mandatoryDefense ? { defensePoolEligible: true } : {}),
     }).lean(),
     AccessCycle.find({
       userId: { $in: userIds },
       division: "MAIN",
       status: "ACTIVE",
-      availableLearningDays: { $gt: Number(stakeDays) },
+      // 서버가 자동 배정하는 상향 쟁탈전의 방어자는 학습일수를
+      // 예치하지 않는다. 다만 활성 이용자여야 하므로 최소 1일은 남긴다.
+      availableLearningDays: {
+        $gt: mandatoryDefense ? 0 : Number(stakeDays),
+      },
       lockedLearningDays: 0,
+      reservedLearningDays: 0,
     }).lean(),
     ArenaMatchParticipantLock.find({ userId: { $in: userIds } })
       .select("userId")
       .lean(),
+    mandatoryDefense
+      ? forcedDefenseHistory({ userIds, now })
+      : Promise.resolve({ defenseCounts: new Map(), cooldownUserIds: new Set() }),
   ]);
   const validUsers = new Set(
     users
@@ -237,14 +329,18 @@ async function listEligibleMainCandidates({
   );
   const cycleByUser = new Map(cycles.map((cycle) => [String(cycle.userId), cycle]));
   const lockedUsers = new Set(locks.map((lock) => String(lock.userId)));
-  return standings
+  const eligibleCandidates = standings
     .filter((standing) => {
       const id = String(standing.userId);
       return (
         validUsers.has(id) &&
         accessByUser.has(id) &&
         cycleByUser.has(id) &&
-        !lockedUsers.has(id)
+        !lockedUsers.has(id) &&
+        // 경기 종료 후 6시간 유예는 서버가 강제로 배정하는 상향
+        // 쟁탈전 방어만 막는다. 상위 티어가 보내는 초대전은 자발적으로
+        // 수락·거절할 수 있어야 하므로 유예 중에도 후보가 될 수 있다.
+        (!mandatoryDefense || !defenseHistory.cooldownUserIds.has(id))
       );
     })
     .map((standing) => ({
@@ -254,6 +350,9 @@ async function listEligibleMainCandidates({
       cycle: cycleByUser.get(String(standing.userId)),
       standing,
     }));
+  return mandatoryDefense
+    ? leastDefendedCandidatePool(eligibleCandidates, defenseHistory.defenseCounts)
+    : eligibleCandidates;
 }
 
 function cycleBalanceAfter(cycle, state) {
@@ -287,7 +386,7 @@ async function writeCycleState({ cycle, state, session }) {
   if (!update.modifiedCount) {
     throw statusError(
       409,
-      "Main Division 학습일수 잔액이 변경되어 요청을 처리하지 못했습니다.",
+      "Ranked 학습일수 잔액이 변경되어 요청을 처리하지 못했습니다.",
       "MAIN_LEARNING_DAY_CONCURRENCY_CONFLICT"
     );
   }
@@ -369,7 +468,7 @@ async function createMainMatchArtifacts({
     upperContext.standing.arenaRank
   );
   if (!pair) {
-    throw statusError(409, "Main Division 티어 조합을 확인해주세요.", "MAIN_TIER_PAIR_NOT_ALLOWED");
+    throw statusError(409, "Ranked 티어 조합을 확인해주세요.", "MAIN_TIER_PAIR_NOT_ALLOWED");
   }
   const sealedPack = await generatedMainPack({
     lowerTier: lowerContext.standing.arenaRank,
@@ -379,11 +478,13 @@ async function createMainMatchArtifacts({
     now,
   });
   const problemPackId = new mongoose.Types.ObjectId();
+  const normalStake = mainNormalStakeSnapshot({ matchOrigin, stakeDays });
   const matchDraft = {
     _id: matchId,
     matchKey,
     division: "MAIN",
     seasonKey: kstSeasonKey(now),
+    competitivePool: "ALL",
     matchType: "NORMAL",
     matchOrigin,
     requestInitiatorUserId,
@@ -397,14 +498,14 @@ async function createMainMatchArtifacts({
       standingId: lowerContext.standing._id,
       accessCycleId: lowerContext.accessCycle._id,
       tupleBefore: arenaTupleFromStanding(lowerContext.standing),
-      stakeDays,
+      stakeDays: normalStake.challengerStakeDays,
     },
     defender: {
       userId: upperContext.user._id,
       standingId: upperContext.standing._id,
       accessCycleId: upperContext.accessCycle._id,
       tupleBefore: arenaTupleFromStanding(upperContext.standing),
-      stakeDays,
+      stakeDays: normalStake.defenderStakeDays,
     },
     status: "READY",
     policyVersionCode: policy.code,
@@ -412,8 +513,9 @@ async function createMainMatchArtifacts({
     divisionPolicyVersionCode: policy.code,
     economySnapshot: {
       originalStakeDays: stakeDays,
-      challengerStakeDays: stakeDays,
-      defenderStakeDays: stakeDays,
+      normalStakeMode: normalStake.normalStakeMode,
+      challengerStakeDays: normalStake.challengerStakeDays,
+      defenderStakeDays: normalStake.defenderStakeDays,
       revengeStakeMultiplier: Number(policy.revengeStakeMultiplier || 2),
       feeDays: Number(policy.revengeFeeDays || 1),
     },
@@ -468,6 +570,11 @@ async function createMainMatchArtifacts({
     })),
     { session, ordered: true }
   );
+  await reactivateAutomaticDefenseAfterAttack({
+    userId: requestInitiatorUserId,
+    now,
+    session,
+  });
   await ArenaOutboxEvent.create(
     [
       {
@@ -480,7 +587,9 @@ async function createMainMatchArtifacts({
           matchOrigin,
           challengerUserId: lowerContext.user._id,
           defenderUserId: upperContext.user._id,
-          stakeDays,
+          challengerStakeDays: normalStake.challengerStakeDays,
+          defenderStakeDays: normalStake.defenderStakeDays,
+          normalStakeMode: normalStake.normalStakeMode,
         },
       },
       {
@@ -505,22 +614,21 @@ async function createMainUpwardChallenge({
 }) {
   const normalizedRequestId = normalizeRequestId(requestId);
   if (isSundayMatchRequestLocked(now, "MAIN")) {
-    throw statusError(409, "일요일 14시 30분 이후에는 신규 Main Division 경기를 만들 수 없습니다.", "SUNDAY_DIVISION_LOCK");
+    throw statusError(409, "일요일 14시 이후에는 신규 Ranked 경기를 만들 수 없습니다.", "SUNDAY_DIVISION_LOCK");
   }
   const [actor, policy] = await Promise.all([
     loadMatchActorContext({ userId, division: "MAIN", now }),
     getActiveMainDivisionPolicy(now),
   ]);
   if (!actor.eligible) {
-    throw statusError(409, "Main Division 경기 참가 상태를 확인해주세요.", actor.reasons[0]);
+    throw statusError(409, "Ranked 경기 참가 상태를 확인해주세요.", actor.reasons[0]);
   }
   const relationship = tierRelationship({
     actorTier: actor.standing.arenaRank,
     targetTier,
     direction: "UPWARD",
   });
-  const stake = assertMainStakeSelection({
-    policy,
+  const stake = assertMainUpwardStakeSelection({
     tierGap: relationship.tierGap,
     stakeDays,
     availableLearningDays: actor.accessCycle.availableLearningDays,
@@ -572,17 +680,10 @@ async function createMainUpwardChallenge({
       if (!lower.eligible || !upper.eligible) {
         throw statusError(409, "선정된 상대의 참가 상태가 변경되었습니다.", "MAIN_OPPONENT_STATE_CHANGED");
       }
-      assertMainStakeSelection({
-        policy,
+      assertMainUpwardStakeSelection({
         tierGap: relationship.tierGap,
         stakeDays: stake.stakeDays,
         availableLearningDays: lower.accessCycle.availableLearningDays,
-      });
-      assertMainStakeSelection({
-        policy,
-        tierGap: relationship.tierGap,
-        stakeDays: stake.stakeDays,
-        availableLearningDays: upper.accessCycle.availableLearningDays,
       });
       const matchId = new mongoose.Types.ObjectId();
       const auditId = new mongoose.Types.ObjectId();
@@ -619,30 +720,36 @@ async function createMainUpwardChallenge({
         now,
         session,
       });
-      for (const context of [lower, upper]) {
-        const state = moveAvailable(
-          context.accessCycle,
-          stake.stakeDays,
-          "lockedDays"
-        );
-        await writeCycleState({ cycle: context.accessCycle, state, session });
-        await createLearningLedger({
-          userId: context.user._id,
-          cycle: context.accessCycle,
-          idempotencyKey: `${matchId}:${context.user._id}:MAIN_NORMAL_STAKE_LOCKED`,
-          eventType: "MATCH_STAKE_LOCKED",
-          availableDelta: -stake.stakeDays,
-          lockedDelta: stake.stakeDays,
-          state,
-          sourceType: "ArenaMatch",
-          sourceId: matchId,
-          now,
-          metadata: { division: "MAIN", matchOrigin: "MAIN_UPWARD_AUTO_MATCH" },
-          session,
-        });
-      }
+      // 상향 쟁탈전은 서버가 상위 티어 방어자를 자동 배정한다. 따라서
+      // 신청자(하위 티어)만 학습일수를 예치하고, 방어자는 예치하지 않는다.
+      const lowerState = moveAvailable(
+        lower.accessCycle,
+        stake.stakeDays,
+        "lockedDays"
+      );
+      await writeCycleState({ cycle: lower.accessCycle, state: lowerState, session });
+      await createLearningLedger({
+        userId: lower.user._id,
+        cycle: lower.accessCycle,
+        idempotencyKey: `${matchId}:${lower.user._id}:MAIN_NORMAL_STAKE_LOCKED`,
+        eventType: "MATCH_STAKE_LOCKED",
+        availableDelta: -stake.stakeDays,
+        lockedDelta: stake.stakeDays,
+        state: lowerState,
+        sourceType: "ArenaMatch",
+        sourceId: matchId,
+        now,
+        metadata: {
+          division: "MAIN",
+          matchOrigin: "MAIN_UPWARD_AUTO_MATCH",
+          normalStakeMode: "INITIATOR_ONLY",
+        },
+        session,
+      });
       result = { match, replayed: false };
     });
+  } catch (error) {
+    throw normalizeOfficialMatchConcurrencyError(error);
   } finally {
     await session.endSession();
   }
@@ -658,14 +765,14 @@ async function createMainLowerInvitation({
 }) {
   const normalizedRequestId = normalizeRequestId(requestId);
   if (isSundayMatchRequestLocked(now, "MAIN")) {
-    throw statusError(409, "일요일 14시 30분 이후에는 Main Division 초대 예약을 만들 수 없습니다.", "SUNDAY_DIVISION_LOCK");
+    throw statusError(409, "일요일 14시 이후에는 Ranked 초대 예약을 만들 수 없습니다.", "SUNDAY_DIVISION_LOCK");
   }
   const [actor, policy] = await Promise.all([
     loadMatchActorContext({ userId, division: "MAIN", now }),
     getActiveMainDivisionPolicy(now),
   ]);
   if (!actor.eligible) {
-    throw statusError(409, "Main Division 초대 생성 자격을 확인해주세요.", actor.reasons[0]);
+    throw statusError(409, "Ranked 초대 생성 자격을 확인해주세요.", actor.reasons[0]);
   }
   const relationship = tierRelationship({
     actorTier: actor.standing.arenaRank,
@@ -763,6 +870,7 @@ async function createMainLowerInvitation({
             initiatorUserId: userId,
             initiatorStandingId: current.standing._id,
             initiatorArenaTier: current.standing.arenaRank,
+            competitivePool: "ALL",
             targetTier,
             stakeDays: stake.stakeDays,
             policyVersionId: policy._id,
@@ -825,6 +933,8 @@ async function createMainLowerInvitation({
       );
       invitation = created.toObject();
     });
+  } catch (error) {
+    throw normalizeOfficialMatchConcurrencyError(error);
   } finally {
     await session.endSession();
   }
@@ -842,7 +952,7 @@ async function respondToMainInvitation({
     throw statusError(400, "초대 응답을 확인해주세요.", "INVALID_INVITATION_RESPONSE");
   }
   if (isSundayMatchRequestLocked(now, "MAIN")) {
-    throw statusError(409, "일요일 14시 30분 이후에는 초대를 수락하거나 거절할 수 없습니다.", "SUNDAY_DIVISION_LOCK");
+    throw statusError(409, "일요일 14시 이후에는 초대를 수락하거나 거절할 수 없습니다.", "SUNDAY_DIVISION_LOCK");
   }
   const session = await mongoose.startSession();
   let result;
@@ -901,6 +1011,11 @@ async function respondToMainInvitation({
       ]);
       if (!lower.eligible || !upper.eligible) {
         throw statusError(409, "초대 당사자의 참가 상태가 변경되었습니다.", "MAIN_INVITATION_PARTICIPANT_CHANGED");
+      }
+      // 이전 소속별 Ranked 초대도 통합 Ranked 규칙으로 이어서 처리한다.
+      if (request.competitivePool !== "ALL") {
+        request.competitivePool = "ALL";
+        await request.save({ session });
       }
       if (Number(upper.accessCycle.reservedLearningDays || 0) < request.stakeDays) {
         throw statusError(409, "초대에 예약된 학습일수를 확인해주세요.", "MAIN_INVITATION_RESERVE_MISSING");
@@ -992,6 +1107,8 @@ async function respondToMainInvitation({
       );
       result = { status: "MATCHED", match, matchId, replayed: false };
     });
+  } catch (error) {
+    throw normalizeOfficialMatchConcurrencyError(error);
   } finally {
     await session.endSession();
   }
@@ -1028,7 +1145,7 @@ async function cancelMainInvitation({
         AccessCycle.findOne({ userId, division: "MAIN", status: "ACTIVE" }).session(session).lean(),
         getInvitationPolicy(request, session),
       ]);
-      if (!cycle) throw statusError(409, "초대 예약의 Main 학습일수 주기를 찾을 수 없습니다.", "MAIN_INVITATION_CYCLE_NOT_FOUND");
+      if (!cycle) throw statusError(409, "초대 예약의 Ranked 학습일수 주기를 찾을 수 없습니다.", "MAIN_INVITATION_CYCLE_NOT_FOUND");
       const settlement = calculateInvitationCancellation({
         reservedLearningDays: request.reservedLearningDays,
         cancellationFeeDays: policy.invitationCancellationFeeDays,
@@ -1155,6 +1272,21 @@ async function refreshMainInvitationOffers({ invitationId = null, now = new Date
       status: "OFFERED",
     });
     if (offeredCount > 0) continue;
+    // 과거 소속별 예약도 후보 재선정부터 통합 Ranked 규칙으로 처리한다.
+    const initiator = await loadMatchActorContext({
+      userId: request.initiatorUserId,
+      division: "MAIN",
+      now,
+      requiredAvailableDays: 0,
+    });
+    const competitivePool = "ALL";
+    if (request.competitivePool !== "ALL") {
+      await MainInvitationRequest.updateOne(
+        { _id: request._id, status: { $in: ["SEARCHING", "OFFERED"] } },
+        { $set: { competitivePool } }
+      );
+      request.competitivePool = competitivePool;
+    }
     const candidates = await listEligibleMainCandidates({
       requesterUserId: request.initiatorUserId,
       targetTier: request.targetTier,
@@ -1223,6 +1355,16 @@ async function refreshMainInvitationOffers({ invitationId = null, now = new Date
             selectionAuditId: auditId,
             status: "OFFERED",
             offeredAt: now,
+          })),
+          { session, ordered: true }
+        );
+        await ArenaOutboxEvent.create(
+          selected.map((candidate) => ({
+            eventType: "MainInvitationOffered",
+            aggregateType: "MainInvitationRequest",
+            aggregateId: current._id,
+            idempotencyKey: `${current._id}:${candidate.userId}:MainInvitationOffered`,
+            payload: { candidateUserId: candidate.userId },
           })),
           { session, ordered: true }
         );
@@ -1349,14 +1491,31 @@ async function getMainArenaActionData({ userId, now = new Date() }) {
   return {
     eligible: actor.eligible,
     reasons: actor.reasons,
+    matchmakingRestrictedUntil: actor.matchmakingRestrictedUntil || null,
     currentTier: actor.standing?.arenaRank || null,
     availableLearningDays: Number(actor.accessCycle?.availableLearningDays || 0),
+    competitivePool: "ALL",
+    competitivePoolLabel: mainCompetitivePoolLabel(),
     policy: snapshot,
     activeMatch,
     sentInvitations,
-    receivedOffers,
+    receivedOffers: receivedOffers.map((offer) => {
+      const invitation = offer.invitationRequestId || {};
+      return {
+        ...offer,
+        tierGap: Math.abs(
+          arenaTierIndex(invitation.initiatorArenaTier) -
+          arenaTierIndex(invitation.targetTier)
+        ),
+      };
+    }),
     upwardTargets: tiers
-      .map((label, index) => ({ label, gap: index - currentIndex }))
+      .map((label, index) => ({
+        label,
+        gap: index - currentIndex,
+        minimumStakeDays: index - currentIndex,
+        maximumStakeDays: 5,
+      }))
       .filter((tier) => tier.gap >= 1 && tier.gap <= 3),
     lowerTargets: tiers
       .map((label, index) => ({ label, gap: currentIndex - index }))
@@ -1376,6 +1535,7 @@ module.exports = {
   synchronizeMainInvitationPauseState,
   _testing: {
     candidatePoolHash,
+    leastDefendedCandidatePool,
     mainMatchKey,
     seededCandidateOrder,
     tierRelationship,

@@ -37,9 +37,25 @@ const KEY_QUESTION_NUMBERS = [
 ];
 const QUESTION_TIMING_GAP_LIMIT_MS =
   15 * 1000;
+const PLACEMENT_TERMINAL_STATUSES = [
+  "submitted",
+  "abandoned",
+  "disqualified",
+];
 
 async function placementAttemptContext(userId, now = new Date()) {
-  const accessState = await ArenaAccessState.findOne({ userId }).lean();
+  const [accessState, initialAttemptExists] = await Promise.all([
+    ArenaAccessState.findOne({ userId }).lean(),
+    AssessmentAttempt.exists({
+      userId,
+      scopeType: "placement",
+      $or: [
+        { placementPurpose: "INITIAL" },
+        { placementPurpose: null },
+        { placementPurpose: { $exists: false } },
+      ],
+    }),
+  ]);
   if (accessState?.state === "PAID_PENDING_RENEWAL_ASSESSMENT") {
     return {
       purpose: "RENEWAL_RANK_ASSESSMENT",
@@ -47,7 +63,10 @@ async function placementAttemptContext(userId, now = new Date()) {
       startLabel: "랭크 복귀전 시작",
     };
   }
-  if (accessState?.state === "SEASON_PLACEMENT_REQUIRED") {
+  if (
+    accessState?.state === "SEASON_PLACEMENT_REQUIRED" &&
+    initialAttemptExists
+  ) {
     return {
       purpose: "SEASON",
       contextKey: `SEASON:${kstSeasonKey(now)}:${accessState.currentCompetitiveDivision || "SUB"}`,
@@ -1314,11 +1333,19 @@ async function getPlacementDashboardData(
     );
   }
 
+  /*
+   * 일반 이용 상태에서는 과거 데이터의 purpose가 SEASON으로 잘못
+   * 저장된 최초 응시까지 포함해 이미 본 배치고사를 다시 열지 않는다.
+   */
+  const dashboardFilter =
+    attemptContext.purpose === "INITIAL"
+      ? {}
+      : contextFilter;
   const attempts =
     await AssessmentAttempt.find({
       userId,
       scopeType: "placement",
-      ...contextFilter,
+      ...dashboardFilter,
     })
       .sort({
         createdAt: -1,
@@ -1335,6 +1362,16 @@ async function getPlacementDashboardData(
       (attempt) =>
         attempt.status ===
         "in-progress"
+    );
+  const terminal =
+    attempts.find(
+      (attempt) =>
+        [
+          "abandoned",
+          "disqualified",
+        ].includes(
+          attempt.status
+        )
     );
 
   if (submitted) {
@@ -1356,8 +1393,7 @@ async function getPlacementDashboardData(
           String(
             submitted._id
           ),
-        ctaLabel:
-          "추가 실력 확인 4문항 풀기",
+        ctaLabel: "추가 실력 확인 4문항 풀기",
         ctaHref:
           `/war-of-masters/placement/${submitted._id}`,
         answeredCount:
@@ -1374,7 +1410,7 @@ async function getPlacementDashboardData(
       };
     }
 
-    /* 기존 완료자도 대시보드 재방문 시 Sub Division 배치를 멱등 복구한다. */
+    /* 기존 완료자도 대시보드 재방문 시 Unranked 배치를 멱등 복구한다. */
     await syncInitialArenaPlacement({
       userId,
       attemptId: submitted._id,
@@ -1395,8 +1431,7 @@ async function getPlacementDashboardData(
       status: "submitted",
       attemptId:
         String(submitted._id),
-      ctaLabel:
-        "배치 결과 확인",
+      ctaLabel: "배치 결과 확인",
       ctaHref:
         `/war-of-masters/placement/${submitted._id}`,
       answeredCount: 30,
@@ -1444,12 +1479,24 @@ async function getPlacementDashboardData(
       status: "in-progress",
       attemptId:
         String(active._id),
-      ctaLabel:
-        "배치고사 이어서 응시",
+      ctaLabel: "배치고사 이어서 응시",
       ctaHref:
         `/war-of-masters/placement/${active._id}`,
       answeredCount:
         answeredCount(active),
+      result: null,
+    };
+  }
+
+  if (terminal) {
+    return {
+      status: "attempt-used",
+      attemptId:
+        String(terminal._id),
+      ctaLabel: "배치고사 응시 종료",
+      ctaHref: null,
+      answeredCount:
+        answeredCount(terminal),
       result: null,
     };
   }
@@ -1473,20 +1520,38 @@ async function createPlacementAttempt({
   );
 
   const attemptContext = await placementAttemptContext(userId);
-  const contextFilter = placementContextFilter(attemptContext);
+  const contextFilter =
+    attemptContext.purpose === "INITIAL"
+      ? {}
+      : placementContextFilter(attemptContext);
 
-  const submitted =
+  const terminal =
     await AssessmentAttempt.findOne({
       userId,
       scopeType: "placement",
-      status: "submitted",
+      status: {
+        $in:
+          PLACEMENT_TERMINAL_STATUSES,
+      },
       ...contextFilter,
     }).sort({
-      submittedAt: -1,
+      createdAt: -1,
     });
 
-  if (submitted) {
-    return submitted;
+  if (terminal) {
+    const completed =
+      terminal.status ===
+      "submitted";
+    const error = httpError(
+      409,
+      completed
+        ? "이 배치고사는 이미 완료했습니다. 배치고사는 같은 응시 구간에서 한 번만 볼 수 있습니다."
+        : "이 배치고사의 응시 기회를 이미 사용했습니다. 배치고사는 같은 응시 구간에서 한 번만 볼 수 있습니다."
+    );
+    error.code = completed
+      ? "PLACEMENT_ATTEMPT_ALREADY_COMPLETED"
+      : "PLACEMENT_ATTEMPT_ALREADY_USED";
+    throw error;
   }
 
   const active =
@@ -1518,19 +1583,35 @@ async function createPlacementAttempt({
     firstQuestion.visitCount = 1;
   }
 
-  return AssessmentAttempt.create({
-    userId,
-    placementPurpose: attemptContext.purpose,
-    placementContextKey: attemptContext.contextKey,
-    ...paper,
-    startedAt,
-    activeQuestionId:
-      firstQuestion
-        ?.questionId || "",
-    currentQuestionIndex: 0,
-    questionTimingLastSeenAt:
+  try {
+    return await AssessmentAttempt.create({
+      userId,
+      placementPurpose: attemptContext.purpose,
+      placementContextKey: attemptContext.contextKey,
+      ...paper,
       startedAt,
-  });
+      activeQuestionId:
+        firstQuestion
+          ?.questionId || "",
+      currentQuestionIndex: 0,
+      questionTimingLastSeenAt:
+        startedAt,
+    });
+  } catch (error) {
+    if (
+      Number(error?.code) === 11000
+    ) {
+      const duplicateError =
+        httpError(
+          409,
+          "이미 생성된 배치고사가 있습니다. 대시보드에서 현재 응시 상태를 확인해주세요."
+        );
+      duplicateError.code =
+        "PLACEMENT_ATTEMPT_ALREADY_EXISTS";
+      throw duplicateError;
+    }
+    throw error;
+  }
 }
 
 function validateAttemptId(
@@ -1681,6 +1762,15 @@ async function finalizePlacementVerificationAttempt({
       attempt,
       standing,
     });
+  } else {
+    /*
+     * 시즌 배치는 기존 MMR을 변경하지 않는다. 다만 운영 초기화·데이터
+     * 복구처럼 프로필 자체가 없는 예외에서는 현재 배치 결과로 최초
+     * 프로필만 복구해 최종 종합 랭킹 계산이 누락되지 않게 한다.
+     */
+    await ensureRankingProfile(
+      attempt.userId
+    );
   }
   await syncInitialArenaPlacement({
     userId: attempt.userId,
@@ -1961,6 +2051,9 @@ async function submitPlacementAttempt({
       attempt.status === "submitted" &&
       !isVerificationPending(attempt)
     ) {
+      await ensureRankingProfile(
+        attempt.userId
+      );
       await syncInitialArenaPlacement({
         userId: attempt.userId,
         attemptId: attempt._id,
@@ -2160,6 +2253,13 @@ async function submitPlacementAttempt({
                 (question) =>
                   question.typeId
               ),
+          excludedSemanticTypeIds:
+            attempt.questions.map(
+              (question) =>
+                question.semanticTypeId ||
+                question.similarGroupId ||
+                question.typeId
+            ),
         })
       : [];
   attempt.placementResult = {
@@ -2257,6 +2357,10 @@ async function submitPlacementAttempt({
       attempt,
       standing,
     });
+  } else {
+    await ensureRankingProfile(
+      attempt.userId
+    );
   }
   await syncInitialArenaPlacement({
     userId: attempt.userId,

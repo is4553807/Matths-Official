@@ -63,6 +63,14 @@ const {
 } = require("../models/goatArenaModel");
 const { OperationalMetricEvent } = require("../models/operationModel");
 const {
+  ParentAlertDelivery,
+  ParentAccount,
+  ParentChildLink,
+  ParentInvite,
+  CheckoutIntent,
+} = require("../models/parentModel");
+const { PaybackPayoutRecord } = require("../models/paybackModel");
+const {
   ARCHIVE_STORAGE_DIR,
 } = require("./archiveService");
 const {
@@ -141,6 +149,11 @@ function buildAnonymousAccountUpdate({
         establishment: "",
         highSchoolType: "",
       },
+      learnerType: "RETAKER",
+      university: {
+        code: "",
+        name: "",
+      },
       educationStatus:
         "graduated",
       identityVerificationStatus:
@@ -160,6 +173,7 @@ function buildAnonymousAccountUpdate({
       identityMatchHash: 1,
       identityMatchVersion: 1,
       identityDuplicateAlertedAt: 1,
+      paybackAccount: 1,
     },
   };
 }
@@ -167,6 +181,46 @@ function buildAnonymousAccountUpdate({
 async function removePrivateAccountData(
   userId
 ) {
+  const childLinks = await ParentChildLink.find({ childUserId: userId })
+    .select("_id parentAccountId")
+    .lean();
+  const parentIds = [...new Set(
+    childLinks.map((link) => String(link.parentAccountId))
+  )];
+  const legacyParents = await ParentAccount.find({ childUserId: userId })
+    .select("_id childUserId")
+    .lean();
+  for (const parent of legacyParents) {
+    if (!parentIds.includes(String(parent._id))) parentIds.push(String(parent._id));
+  }
+  await Promise.all([
+    ParentAlertDelivery.deleteMany({
+      $or: [
+        { childUserId: userId },
+        { parentChildLinkId: { $in: childLinks.map((link) => link._id) } },
+      ],
+    }),
+    ParentChildLink.deleteMany({ childUserId: userId }),
+  ]);
+  for (const parentId of parentIds) {
+    const parent = await ParentAccount.findById(parentId).select("childUserId");
+    if (!parent || String(parent.childUserId) !== String(userId)) continue;
+    const replacement = await ParentChildLink.findOne({
+      parentAccountId: parent._id,
+      status: "ACTIVE",
+    }).sort({ linkedAt: 1, _id: 1 }).lean();
+    if (replacement) {
+      parent.childUserId = replacement.childUserId;
+      await parent.save();
+    } else {
+      await Promise.all([
+        ParentAccount.deleteOne({ _id: parent._id }),
+        ParentAlertDelivery.deleteMany({ parentAccountId: parent._id }),
+        CheckoutIntent.deleteMany({ parentAccountId: parent._id }),
+      ]);
+    }
+  }
+
   await Promise.all([
     PasswordResetCode.deleteMany({
       userId,
@@ -198,6 +252,8 @@ async function removePrivateAccountData(
     CommunityReport.deleteMany({
       $or: [{ reporterUserId: userId }, { reportedUserId: userId }],
     }),
+    ParentInvite.deleteMany({ childUserId: userId }),
+    CheckoutIntent.deleteMany({ studentUserId: userId }),
     /*
      * 작업의 종류와 시각은 감사용으로 남기되, 자유 입력 사유나 부가정보에
      * 식별정보가 섞였을 가능성이 있어 내용을 비식별화한다.
@@ -303,6 +359,16 @@ async function anonymizePublicActivity(
           isAnonymous: true,
           anonymousNumber: "",
           status: "hidden",
+        },
+      }
+    ),
+    PaybackPayoutRecord.updateMany(
+      { userId },
+      {
+        $set: {
+          bankName: "탈퇴회원",
+          accountNumberLast4: "****",
+          operatorNote: "탈퇴 계정의 지급 기록",
         },
       }
     ),
@@ -458,6 +524,12 @@ async function purgeArenaUserData(userId) {
 
   await Promise.all([
     ArenaPackagePayment.deleteMany({ userId }),
+    PaybackPayoutRecord.deleteMany({
+      $or: [
+        { userId },
+        ...(cycleIds.length ? [{ cycleId: { $in: cycleIds } }] : []),
+      ],
+    }),
     MockExamSubscription.deleteMany({ userId }),
     AccessCycle.deleteMany({ userId }),
     ArenaAccessState.deleteMany({ userId }),
@@ -622,7 +694,7 @@ async function withdrawUserAccount({
       user._id,
       update,
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );

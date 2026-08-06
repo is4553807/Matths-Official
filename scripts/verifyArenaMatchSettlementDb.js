@@ -88,6 +88,7 @@ async function run() {
   // 월요일 KST의 고정 시각에서 트랜잭션 정산을 검증한다.
   const now = new Date("2026-08-03T10:00:00.000+09:00");
   const suffix = randomUUID().replace(/-/g, "").toUpperCase();
+  const seasonKey = `E2E-${suffix}`;
   const challengerUserId = new mongoose.Types.ObjectId();
   const defenderUserId = new mongoose.Types.ObjectId();
   const challengerStandingId = new mongoose.Types.ObjectId();
@@ -113,7 +114,7 @@ async function run() {
     const sealedPack = sealArenaProblemPackDraft(
       {
         version: `E2E.SUB.NORMAL.${suffix}`,
-        displayName: "Sub 일반 쟁탈전 실연결 E2E",
+        displayName: "Unranked 일반 쟁탈전 실연결 E2E",
         status: "DRAFT",
         division: "SUB",
         matchType: "NORMAL",
@@ -154,7 +155,7 @@ async function run() {
               _id: challengerStandingId,
               userId: challengerUserId,
               division: "SUB",
-              seasonKey: "E2E",
+              seasonKey,
               arenaRank: "실버",
               arenaPosition: 7,
               arenaGp: 40,
@@ -164,7 +165,7 @@ async function run() {
               _id: defenderStandingId,
               userId: defenderUserId,
               division: "SUB",
-              seasonKey: "E2E",
+              seasonKey,
               arenaRank: "골드",
               arenaPosition: 2,
               arenaGp: 90,
@@ -196,8 +197,12 @@ async function run() {
               _id: challengerCycleId,
               userId: challengerUserId,
               availableLearningDays: 9,
-              paybackScoreDays: 10,
-              lockedLearningDays: 1,
+              // 경기 생성 단계에서 10점 중 1점을 예치한 직후 상태다.
+              // 공격자 승리 정산이 끝나면 이 1점이 반환되어 다시 10점이 된다.
+              paybackScoreDays: 9,
+              // Unranked 일반 쟁탈전은 학습일수가 아니라 페이백 점수 1점을
+              // 예치한다. 실제 정산 서비스와 같은 원본 상태를 만든다.
+              lockedPaybackScoreDays: 1,
             },
             {
               ...cycleBase,
@@ -220,7 +225,7 @@ async function run() {
               _id: matchId,
               matchKey: `E2E:SUB:NORMAL:${suffix}`,
               division: "SUB",
-              seasonKey: "E2E",
+              seasonKey,
               matchType: "NORMAL",
               matchOrigin: "SUB_UPWARD_AUTO_MATCH",
               requestInitiatorUserId: challengerUserId,
@@ -261,6 +266,7 @@ async function run() {
                 defenderStakeDays: 0,
                 revengeStakeMultiplier: 2,
                 feeDays: 0,
+                challengerWinRefundDays: 1,
                 bronzeChallengerWinRefundDays: 0,
               },
               problemPackId,
@@ -386,7 +392,7 @@ async function run() {
     assert.equal(defenderStanding.arenaRank, "실버");
     assert.equal(defenderStanding.arenaGp, 40);
     assert.equal(challengerCycle.availableLearningDays, 9);
-    assert.equal(challengerCycle.paybackScoreDays, 9);
+    assert.equal(challengerCycle.paybackScoreDays, 10);
     assert.equal(challengerCycle.lockedLearningDays, 0);
     assert.equal(challengerCycle.paidNormalAttacksCompleted, 1);
     assert.equal(

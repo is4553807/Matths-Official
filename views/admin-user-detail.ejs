@@ -1,4 +1,7 @@
 <%
+  const publicArenaText = typeof arenaPublicText === "function"
+    ? arenaPublicText
+    : (value) => String(value ?? "").replace(/Sub\s+Division/g, "Unranked").replace(/Main\s+Division/g, "Ranked");
   const member = detail.user;
   const isAdminProfile = member.role === "admin";
   const gradeLabels = {
@@ -6,6 +9,8 @@
     11: "고등학교 2학년",
     12: "고등학교 3학년",
     13: "N수생",
+    14: "대학생",
+    15: "직장인",
   };
   const formatDate = (date) =>
     date
@@ -98,8 +103,8 @@
 
       <section class="admin-user-summary">
         <% if (!isAdminProfile) { %>
-          <article><span>학교</span><strong><%= member.school?.name || "미설정" %></strong><small><%= member.school?.region || "" %></small></article>
-          <article><span>학년·상태</span><strong><%= gradeLabels[member.schoolGrade] || "미설정" %></strong><small><%= member.educationStatus === "graduated" || Number(member.schoolGrade) === 13 ? "졸업" : "재학" %></small></article>
+          <article><span>소속</span><strong><%= Number(member.schoolGrade) === 14 ? (member.university?.name || "대학교 미설정") : Number(member.schoolGrade) === 15 ? "직장인" : Number(member.schoolGrade) === 13 ? "N수생" : (member.school?.name || "미설정") %></strong><small><%= Number(member.schoolGrade) === 14 ? (member.university?.region || "") : (member.school?.region || "") %></small></article>
+          <article><span>학습자 구분</span><strong><%= gradeLabels[member.schoolGrade] || "미설정" %></strong><small><%= member.educationStatus === "graduated" || [13, 15].includes(Number(member.schoolGrade)) ? "졸업·일반" : "재학" %></small></article>
           <article><span>본인확인</span><strong><%= member.identityVerificationStatus === "review-required" ? "중복 검토 필요" : (member.identityVerificationStatus === "verified" ? "확인 완료" : "미확인") %></strong><small><%= member.identityDuplicateAlertedAt ? "동일 실명·생년월일·고등학교 계정이 감지되었습니다." : "중복 감지 알림 없음" %></small></article>
         <% } %>
         <article><span>가입일</span><strong><%= formatDate(member.createdAt) %></strong></article>
@@ -158,7 +163,7 @@
             <div>
               <span>보유 휘장</span>
               <strong><%= detail.arenaBadges.length %>개</strong>
-              <small>Main 시즌 보상과 성취 기록</small>
+              <small>Ranked 시즌 보상과 성취 기록</small>
             </div>
           </div>
           <% if (detail.arenaBadges.length) { %>
@@ -166,8 +171,8 @@
               <% detail.arenaBadges.forEach((badge) => { %>
                 <div>
                   <span><%= badge.seasonKey %></span>
-                  <strong><%= badge.displayName %></strong>
-                  <p><%= badge.description || "설명 없음" %></p>
+                  <strong><%= publicArenaText(badge.displayName) %></strong>
+                  <p><%= publicArenaText(badge.description || "설명 없음") %></p>
                   <small>지급일 <%= formatDate(badge.awardedAt) %> · <%= badge.badgeCode %></small>
                 </div>
               <% }) %>
@@ -219,7 +224,7 @@
             <div class="admin-ranking-card">
               <strong>내부 실력 지표 · <%= detail.ranking.tier %></strong>
               <span>내부 실력 지표 <%= detail.ranking.rating %></span>
-              <span><%= detail.ranking.gp !== null && detail.ranking.gp !== undefined ? `GOAT Arena · ${detail.ranking.arenaRank} ${detail.ranking.arenaDivision === "MAIN" ? "Main Division" : "Sub Division"} · ${detail.ranking.arenaPosition}위 · ${detail.ranking.gp} GP` : "GOAT Arena · GP 미확정" %></span>
+              <span><%= detail.ranking.gp !== null && detail.ranking.gp !== undefined ? `GOAT Arena · ${detail.ranking.arenaRank} ${detail.ranking.arenaDivision === "MAIN" ? "Ranked" : "Unranked"} · ${detail.ranking.arenaPosition}위 · ${detail.ranking.gp} GP` : "GOAT Arena · GP 미확정" %></span>
               <dl>
                 <div><dt>전체</dt><dd><%= detail.ranking.overallRank %>위</dd></div>
                 <div><dt>학교 내</dt><dd><%= detail.ranking.schoolStudentRank || "—" %><%= detail.ranking.schoolStudentRank ? "위" : "" %></dd></div>

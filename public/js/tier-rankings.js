@@ -72,11 +72,18 @@ document.addEventListener(
 
     function scrollRowToCenter(scroll, row) {
       if (!scroll || !row || row.hidden) return;
+      const scrollRect = scroll.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      const rowCenter =
+        scroll.scrollTop +
+        rowRect.top -
+        scrollRect.top +
+        rowRect.height / 2;
       const target = Math.max(
         0,
         Math.min(
           scroll.scrollHeight - scroll.clientHeight,
-          row.offsetTop - scroll.clientHeight / 2 + row.offsetHeight / 2
+          rowCenter - scroll.clientHeight / 2
         )
       );
       scroll.scrollTo({ top: target, behavior: "smooth" });
@@ -90,12 +97,16 @@ document.addEventListener(
       if (!rows.length) return;
       scroll.dataset.rankingEnhanced = "true";
       const current = scroll.querySelector("[data-current-ranker]");
+      const filterMode = scroll.dataset.rankingFilters || "full";
+      const useDivisionFilter = filterMode === "full";
+      const useSchoolFilter = useDivisionFilter && Boolean(scroll.dataset.currentSchool);
       const toolbar = document.createElement("div");
       toolbar.className = "ranking-list-tools";
+      toolbar.dataset.filterMode = filterMode;
       toolbar.innerHTML = `
         <label><span>순위·이름 찾기</span><input type="search" inputmode="search" placeholder="예: 25 또는 닉네임" data-ranking-query /></label>
-        <label><span>Division</span><select data-ranking-division><option value="">전체</option><option value="SUB">Sub Division</option><option value="MAIN">Main Division</option></select></label>
-        ${scroll.dataset.currentSchool ? `<label><span>소속</span><select data-ranking-school><option value="">전체</option><option value="${escapeMarkup(scroll.dataset.currentSchool)}">내 학교</option></select></label>` : ""}
+        ${useDivisionFilter ? `<label><span>Division</span><select data-ranking-division><option value="">전체</option><option value="SUB">Unranked</option><option value="MAIN">Ranked</option></select></label>` : ""}
+        ${useSchoolFilter ? `<label><span>소속</span><select data-ranking-school><option value="">전체</option><option value="${escapeMarkup(scroll.dataset.currentSchool)}">내 학교</option></select></label>` : ""}
         <button type="button" data-ranking-find>찾기</button>
         <button type="button" class="ranking-my-position" data-ranking-my-position ${current ? "" : "disabled"}>내 순위로 이동</button>
         <output data-ranking-tool-status aria-live="polite"></output>

@@ -78,7 +78,7 @@ async function run() {
   assert.equal(assertArenaProblemPackIntegrity(sealed), true);
 
   console.log(
-    `Arena problem data verified: ${types.length} generators, 9 tiers, version-pinned Sub/Main packs.`
+    `Arena problem data verified: ${types.length} generators, 9 tiers, version-pinned Unranked/Ranked packs.`
   );
 }
 

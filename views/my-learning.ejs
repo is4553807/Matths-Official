@@ -3,7 +3,7 @@
   const data = learningData;
   const displayName = String(learner.name || "학생");
   const totalUnits = data.courses.reduce(
-    (sum, course) => sum + course.units.length,
+    (sum, course) => sum + (course.developmentLocked ? 0 : course.units.length),
     0
   );
   const gradeLabel = learner.schoolGrade === 10
@@ -15,7 +15,9 @@
         : learner.schoolGrade === 13
           ? "N수생"
           : "학년 미설정";
-  const featuredCourse = [...data.courses].sort(
+  const featuredCourse = data.courses
+    .filter((course) => !course.developmentLocked)
+    .sort(
     (left, right) =>
       Number(right.progress || 0) -
         Number(left.progress || 0) ||
@@ -160,22 +162,27 @@
               <% data.courses.forEach((course, index) => { %>
                 <button
                   id="course-tab-<%= course.id %>"
-                  class="course-tab <%= course.id === featuredCourse?.id ? 'active' : '' %>"
+                  class="course-tab <%= course.developmentLocked ? 'is-development-locked' : '' %> <%= course.id === featuredCourse?.id ? 'active' : '' %>"
                   type="button"
                   role="tab"
-                  data-course="<%= course.id %>"
+                  <%= course.developmentLocked ? "disabled aria-disabled=true" : `data-course=${course.id}` %>
                   aria-selected="<%= course.id === featuredCourse?.id %>"
-                  aria-controls="panel-<%= course.id %>"
+                  <%= course.developmentLocked ? "" : `aria-controls=panel-${course.id}` %>
                   tabindex="<%= course.id === featuredCourse?.id ? 0 : -1 %>"
                 >
                   <span><%= course.officialTitle %></span>
-                  <b><%= course.progress %>%</b>
+                  <% if (course.developmentLocked) { %>
+                    <b class="course-lock-label"><i aria-hidden="true">🔒</i> 개발 중</b>
+                  <% } else { %>
+                    <b><%= course.progress %>%</b>
+                  <% } %>
                 </button>
               <% }) %>
             </div>
 
             <div class="course-panels">
               <% data.courses.forEach((course, courseIndex) => { %>
+                <% if (!course.developmentLocked) { %>
                 <section
                   class="course-panel <%= course.id === featuredCourse?.id ? 'active' : '' %>"
                   id="panel-<%= course.id %>"
@@ -282,6 +289,7 @@
                     <% }) %>
                   </div>
                 </section>
+                <% } %>
               <% }) %>
             </div>
           </section>

@@ -31,7 +31,7 @@ const copy = buildReminderCopy({
   thresholdHours: 24,
 });
 assert.match(copy.title, /24시간/);
-assert.match(copy.message, /Main Division/);
+assert.match(copy.message, /Ranked/);
 assert.match(copy.message, /경기 예치 3일/);
 assert.equal(copy.href, "/pricing");
 assert.equal(

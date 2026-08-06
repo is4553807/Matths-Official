@@ -39,6 +39,12 @@ const {
   buildGeneratedArenaProblemPackDraft,
   sealArenaProblemPackDraft,
 } = require("./arenaProblemPackService");
+const {
+  normalizeMainCompetitivePool,
+} = require("./mainCompetitivePoolService");
+const {
+  reactivateAutomaticDefenseAfterAttack,
+} = require("./arenaAutomaticDefenseService");
 
 const KST_TIME_ZONE = "Asia/Seoul";
 const NORMAL_MATCH_PROBLEM_PACK_PENDING =
@@ -80,11 +86,11 @@ const ELIGIBILITY_MESSAGES = {
   SUNDAY_DIVISION_LOCK:
     "일요일 Division별 신규 경기 마감 이후에는 신청할 수 없으며 15시부터 월요일 0시까지 공식 경기가 잠깁니다.",
   DIVISION_NOT_ACTIVE:
-    "현재 Sub Division 참가 상태가 아닙니다.",
+    "현재 Unranked 참가 상태가 아닙니다.",
   ACCESS_CYCLE_NOT_ACTIVE:
     "활성 학습권 패키지 이용 주기를 확인해주세요.",
   STANDING_NOT_ACTIVE:
-    "현재 시즌의 활성 Sub Division 순위를 확인해주세요.",
+    "현재 시즌의 활성 Unranked 순위를 확인해주세요.",
   DEFENSE_POOL_NOT_ELIGIBLE:
     "현재 방어 후보로 참가할 수 없는 상태입니다.",
   MATCH_STAKE_UNAVAILABLE:
@@ -93,6 +99,8 @@ const ELIGIBILITY_MESSAGES = {
     "이미 정산되지 않은 공식 경기가 있습니다.",
   INTEGRITY_REVIEW_REQUIRED:
     "계정·경기 무결성 검토가 끝날 때까지 신규 경기 참가가 보류됩니다.",
+  INTEGRITY_PENALTY_ACTIVE:
+    "부정행위가 확인되어 GOAT Arena 매치메이킹이 제한되었습니다.",
   SUB_DAILY_ATTACK_LIMIT_REACHED:
     "현재 티어의 오늘 일반 공격 횟수를 모두 사용했습니다.",
   SUB_DAILY_DEFENSE_LIMIT_REACHED:
@@ -120,7 +128,15 @@ function statusError(status, message, code = "") {
 }
 
 function sameTestAccountCohort(left, right) {
-  return Boolean(left?.isTestAccount) === Boolean(right?.isTestAccount);
+  const leftIsTest = Boolean(left?.isTestAccount);
+  const rightIsTest = Boolean(right?.isTestAccount);
+  if (leftIsTest === rightIsTest) return true;
+
+  // 실제 계정은 기본적으로 테스트 데이터와 완전히 분리한다. 단, 운영자가
+  // 명시적으로 테스트 매치 권한을 켠 경우에만 테스트 계정과 1대1 검증을
+  // 진행할 수 있다.
+  return Boolean(left?.arenaTestMatchEnabled && rightIsTest) ||
+    Boolean(right?.arenaTestMatchEnabled && leftIsTest);
 }
 
 function eligibilityMessage(reasons = []) {
@@ -290,7 +306,9 @@ function isSundayMatchRequestLocked(
   _division = "SUB"
 ) {
   const parts = kstClockParts(value);
-  const cutoffMinutes = 14 * 60 + 30;
+  // 문항당 최대 10분 × 5문항과 일요일 15시 전체 잠금 사이에
+  // 진행 중 경기를 모두 마칠 수 있도록, 신규 경기 요청·시작은 14:00부터 막는다.
+  const cutoffMinutes = 14 * 60;
   const currentMinutes =
     Number(parts.hour) * 60 + Number(parts.minute);
   return (
@@ -314,7 +332,7 @@ function nextSundayMatchCutoff(
         Number(parts.month) - 1,
         Number(parts.day),
         5,
-        30,
+        0,
         0,
         0
       )
@@ -352,7 +370,7 @@ function normalizeRequestId(value) {
 }
 
 function normalStakeDaysFromCycle(_cycle) {
-  // Sub Division 일반 쟁탈전은 정책 버전과 무관하게 1일 고정이다.
+  // Unranked 일반 쟁탈전의 페이백 점수 예치는 정책 버전과 무관하게 1점 고정이다.
   return 1;
 }
 
@@ -413,7 +431,7 @@ async function loadMatchActorContext({
   if (session) {
     user = await queryWithSession(
       User.findById(userId).select(
-        "accountStatus isActive"
+        "accountStatus isActive schoolGrade"
       ),
       session
     ).lean();
@@ -428,7 +446,7 @@ async function loadMatchActorContext({
       await Promise.all([
         User.findById(userId)
           .select(
-            "accountStatus isActive"
+            "accountStatus isActive schoolGrade"
           )
           .lean(),
         ArenaAccessState.findOne({
@@ -436,23 +454,79 @@ async function loadMatchActorContext({
         }).lean(),
       ]);
   }
+  const restrictionExpired = Boolean(
+    accessState?.integrityStatus === "RESTRICTED" &&
+    accessState?.reasonCode === "INTEGRITY_PENALTY_5_DAYS" &&
+    accessState?.matchmakingRestrictedUntil &&
+    new Date(accessState.matchmakingRestrictedUntil).getTime() <=
+      new Date(now).getTime()
+  );
+  if (restrictionExpired) {
+    const defensePoolEligible = Boolean(
+      accessState.state === "PAID_ACTIVE" &&
+      accessState.currentSeasonPlacementCompleted
+    );
+    await queryWithSession(
+      ArenaAccessState.updateOne(
+        {
+          _id: accessState._id,
+          integrityStatus: "RESTRICTED",
+          reasonCode: "INTEGRITY_PENALTY_5_DAYS",
+          matchmakingRestrictedUntil: { $lte: new Date(now) },
+        },
+        {
+          $set: {
+            integrityStatus: "CLEAR",
+            integrityCaseId: null,
+            defensePoolEligible,
+            matchmakingRestrictedUntil: null,
+            integrityPenaltyReason: "",
+            reasonCode: "INTEGRITY_PENALTY_COMPLETED",
+          },
+        }
+      ),
+      session
+    );
+    accessState.integrityStatus = "CLEAR";
+    accessState.integrityCaseId = null;
+    accessState.defensePoolEligible = defensePoolEligible;
+    accessState.matchmakingRestrictedUntil = null;
+    accessState.integrityPenaltyReason = "";
+    accessState.reasonCode = "INTEGRITY_PENALTY_COMPLETED";
+  }
   let accessCycle = null;
   let standing = null;
-  if (accessState?.accessCycleId) {
-    accessCycle = await queryWithSession(
-      AccessCycle.findById(
-        accessState.accessCycleId
-      ),
-      session
-    ).lean();
+  if (session) {
+    if (accessState?.accessCycleId) {
+      accessCycle = await queryWithSession(
+        AccessCycle.findById(accessState.accessCycleId),
+        session
+      ).lean();
+    }
+    if (accessState?.standingId) {
+      standing = await queryWithSession(
+        ArenaStanding.findById(accessState.standingId),
+        session
+      ).lean();
+    }
+  } else {
+    [accessCycle, standing] = await Promise.all([
+      accessState?.accessCycleId
+        ? AccessCycle.findById(accessState.accessCycleId).lean()
+        : null,
+      accessState?.standingId
+        ? ArenaStanding.findById(accessState.standingId).lean()
+        : null,
+    ]);
   }
-  if (accessState?.standingId) {
-    standing = await queryWithSession(
-      ArenaStanding.findById(
-        accessState.standingId
-      ),
-      session
-    ).lean();
+  if (division === "MAIN" && standing) {
+    /*
+     * 과거 문서의 호환 필드는 ALL로 정규화한다. 현재 티어 순위 고유 인덱스는
+     * 경쟁 풀 필드를 포함하지 않으므로 Ranked 전체가 하나의 순위표를 사용한다.
+     */
+    const competitivePool = normalizeMainCompetitivePool();
+    standing.competitivePool = competitivePool;
+    if (accessState) accessState.mainCompetitivePool = competitivePool;
   }
   const reasons = officialArenaEligibility({
     accountStatus:
@@ -481,7 +555,12 @@ async function loadMatchActorContext({
     accessState?.integrityStatus &&
     accessState.integrityStatus !== "CLEAR"
   ) {
-    reasons.push("INTEGRITY_REVIEW_REQUIRED");
+    reasons.push(
+      accessState.integrityStatus === "RESTRICTED" &&
+      accessState.reasonCode === "INTEGRITY_PENALTY_5_DAYS"
+        ? "INTEGRITY_PENALTY_ACTIVE"
+        : "INTEGRITY_REVIEW_REQUIRED"
+    );
   }
   if (
     !accessCycle ||
@@ -512,12 +591,15 @@ async function loadMatchActorContext({
       "DEFENSE_POOL_NOT_ELIGIBLE"
     );
   }
+  // Unranked는 페이백 점수, Ranked는 사용 가능 학습일수를 예치한다.
+  // 공통 actor context에서 Division별 예치 자산을 섞어 확인하면 Ranked
+  // 사용자가 남아 있지 않은 페이백 점수 때문에 잘못 막힐 수 있다.
+  const stakeBalance = division === "MAIN"
+    ? Number(accessCycle?.availableLearningDays || 0)
+    : Number(accessCycle?.paybackScoreDays || 0);
   if (
     !requireDefensePool &&
-    Number(
-      accessCycle?.paybackScoreDays ||
-        0
-    ) < Number(requiredAvailableDays)
+    stakeBalance < Number(requiredAvailableDays)
   ) {
     reasons.push("MATCH_STAKE_UNAVAILABLE");
   }
@@ -539,6 +621,11 @@ async function loadMatchActorContext({
     standing,
     eligible: reasons.length === 0,
     reasons: [...new Set(reasons)],
+    matchmakingRestrictedUntil:
+      accessState?.integrityStatus === "RESTRICTED" &&
+      accessState?.reasonCode === "INTEGRITY_PENALTY_5_DAYS"
+        ? accessState.matchmakingRestrictedUntil || null
+        : null,
   };
 }
 
@@ -586,7 +673,7 @@ async function findActiveMatchForUser({
     ? match.defender.userId
     : match.challenger.userId;
   const opponent = await queryWithSession(
-    User.findById(opponentId).select("username"),
+    User.findById(opponentId).select("name username"),
     session
   ).lean();
   return {
@@ -600,8 +687,9 @@ async function findActiveMatchForUser({
       : "방어자",
     opponentName:
       String(
-        opponent?.username ||
-          "상대 사용자"
+        opponent?.name ||
+          opponent?.username ||
+          "닉네임 확인 중"
       ),
     requestedAt: match.requestedAt,
     stakeDays: isChallenger
@@ -715,6 +803,7 @@ function buildEligibleDefenseCandidates({
         ),
         tierPairKey: tierPair?.key || "",
         tierPairLabel: tierPair?.label || "",
+        dailyDefenseCount: daily.defenseCount,
         dailyDefenseRemaining: daily.defenseRemaining,
       };
     })
@@ -751,19 +840,54 @@ function selectRandomSubDefenseCandidate({
     .toUpperCase();
   const pool = candidates.filter(
     (candidate) =>
-      String(candidate.arenaRank || "").toUpperCase() ===
-      normalizedTier
+      tierCode(candidate.arenaRank) === normalizedTier
   );
   if (!pool.length) return null;
+  // 발생한 공격은 같은 대상 티어에서 오늘 방어 횟수가 가장 적은
+  // 후보에게 먼저 돌아간다. 같은 횟수의 후보끼리는 서버 시드로
+  // 무작위 선정해 특정 사용자를 직접 고르거나 고정 편향이 생기지 않게 한다.
+  const minimumDefenseCount = Math.min(
+    ...pool.map((candidate) => Number(candidate.dailyDefenseCount || 0))
+  );
+  const fairPool = pool.filter(
+    (candidate) =>
+      Number(candidate.dailyDefenseCount || 0) === minimumDefenseCount
+  );
   const digest = createHash("sha256")
     .update(
-      `${randomSelectionSeed}:${pool
+      `${randomSelectionSeed}:${fairPool
         .map((candidate) => candidate.userId)
         .join(":")}`,
       "utf8"
     )
     .digest();
-  return pool[digest.readUInt32BE(0) % pool.length];
+  return fairPool[digest.readUInt32BE(0) % fairPool.length];
+}
+
+function isEligibleSubDefenseDirection({
+  challengerStanding,
+  candidate,
+}) {
+  if (!challengerStanding || !candidate) return false;
+  const challengerTier = tierCode(challengerStanding.arenaRank);
+  const defenderTier = tierCode(candidate.arenaRank);
+  if (challengerTier !== defenderTier) {
+    return true;
+  }
+
+  // Unranked 같은 티어 내부 경기는 순위 쟁탈의 방향을 지킨다.
+  // 방어자는 반드시 공격자보다 높은 티어 내부 순위여야 하므로,
+  // 같은 티어에서 자신보다 낮은 사용자를 공격 대상으로 삼을 수 없다.
+  return Number(candidate.arenaPosition) < Number(challengerStanding.arenaPosition);
+}
+
+function eligibleSubDefenseCandidates({
+  candidates = [],
+  challengerStanding,
+}) {
+  return candidates.filter((candidate) =>
+    isEligibleSubDefenseDirection({ challengerStanding, candidate })
+  );
 }
 
 async function listSubDefenseCandidates({
@@ -805,14 +929,14 @@ async function listSubDefenseCandidates({
     unsettledMatches,
   ] = await Promise.all([
     User.findById(challengerUserId)
-      .select("+identityMatchHash isTestAccount")
+      .select("+identityMatchHash +arenaTestMatchEnabled isTestAccount")
       .lean(),
     User.find({
       _id: { $in: userIds },
       accountStatus: "active",
       isActive: { $ne: false },
     })
-      .select("_id +identityMatchHash isTestAccount")
+      .select("_id +identityMatchHash +arenaTestMatchEnabled isTestAccount")
       .lean(),
     AccessCycle.find({
       _id: {
@@ -878,11 +1002,13 @@ async function listSubDefenseCandidates({
       unsettledMatches
     ).map(String),
   ];
-  const dailyUsageByUser = await loadSubDailyUsage({
-    userIds,
-    now,
-  });
-  const dailyPolicy = await getActiveArenaPolicy(now);
+  const [dailyUsageByUser, dailyPolicy] = await Promise.all([
+    loadSubDailyUsage({
+      userIds,
+      now,
+    }),
+    getActiveArenaPolicy(now),
+  ]);
   return buildEligibleDefenseCandidates({
     standings,
     accessStates,
@@ -906,7 +1032,6 @@ async function listSubDefenseCandidates({
 
 async function prepareSubAutoSelection({
   challengerUserId,
-  targetTier,
   requestId,
   now = new Date(),
 }) {
@@ -933,40 +1058,44 @@ async function prepareSubAutoSelection({
     })
   );
   assertMatchContext(actor);
-  const pair = getSubTierPair(
-    actor.standing.arenaRank,
-    targetTier
-  );
-  if (!pair) {
-    throw statusError(
-      409,
-      "현재 Sub Division 티어에서 신청할 수 있는 목표 티어를 선택해주세요.",
-      "SUB_TARGET_TIER_NOT_ALLOWED"
-    );
-  }
+  const challengerTier = tierCode(actor.standing.arenaRank);
   const candidateResult = await listSubDefenseCandidates({
     challengerUserId,
     challengerArenaRank: actor.standing.arenaRank,
     now,
     limit: SERVER_SELECTION_CANDIDATE_LIMIT,
   });
-  const randomSelectionSeed = randomBytes(24).toString("hex");
-  const selected = selectRandomSubDefenseCandidate({
+  const eligibleCandidates = eligibleSubDefenseCandidates({
     candidates: candidateResult.candidates,
-    targetTier: pair.defenderTier,
-    randomSelectionSeed,
+    challengerStanding: actor.standing,
   });
+  const randomSelectionSeed = randomBytes(24).toString("hex");
+  const targetOrder = allowedSubTargetTiers(challengerTier).map(
+    (target) => target.tier
+  );
+  let selected = null;
+  let pair = null;
+  for (const selectedTargetTier of targetOrder) {
+    const candidate = selectRandomSubDefenseCandidate({
+      candidates: eligibleCandidates,
+      targetTier: selectedTargetTier,
+      randomSelectionSeed,
+    });
+    if (!candidate) continue;
+    selected = candidate;
+    pair = getSubTierPair(challengerTier, selectedTargetTier);
+    break;
+  }
   if (!selected) {
     throw statusError(
       409,
-      "선택한 티어에 지금 자동 매치할 수 있는 사용자가 없습니다.",
+      "같은 티어의 상위 순위와 바로 위 티어에 지금 자동 매치할 수 있는 사용자가 없습니다.",
       "NO_ELIGIBLE_RANDOM_DEFENDER"
     );
   }
-  const pool = candidateResult.candidates.filter(
+  const pool = eligibleCandidates.filter(
     (candidate) =>
-      String(candidate.arenaRank).toUpperCase() ===
-      pair.defenderTier
+      tierCode(candidate.arenaRank) === pair.defenderTier
   );
   const candidateUserIds = pool.map(
     (candidate) => candidate.userId
@@ -1008,16 +1137,15 @@ async function getSubChallengeData({
     normalStakeDaysFromCycle(
       actor.accessCycle
     );
-  const activeMatch =
-    await findActiveMatchForUser({
-      userId,
-    });
   const reasons = [...actor.reasons];
-  const usageByUser = await loadSubDailyUsage({
-    userIds: [userId],
-    now,
-  });
-  const dailyPolicy = await getActiveArenaPolicy(now);
+  const [activeMatch, usageByUser, dailyPolicy] = await Promise.all([
+    findActiveMatchForUser({ userId }),
+    loadSubDailyUsage({
+      userIds: [userId],
+      now,
+    }),
+    getActiveArenaPolicy(now),
+  ]);
   const dailyUsage = subDailyLimitState({
     policy: dailyPolicy,
     cycle: actor.accessCycle,
@@ -1056,17 +1184,27 @@ async function getSubChallengeData({
         candidates: [],
         hasMore: false,
       };
+  const eligibleCandidates = eligibleSubDefenseCandidates({
+    candidates: candidateResult.candidates,
+    challengerStanding: actor.standing,
+  });
   const allowedTargets = allowedSubTargetTiers(
     actor.standing?.arenaRank || ""
   );
   const targetTiers = allowedTargets.map((target) => ({
     ...target,
-    candidateCount: candidateResult.candidates.filter(
+    candidateCount: eligibleCandidates.filter(
       (candidate) =>
-        String(candidate.arenaRank).toUpperCase() ===
-        target.tier
+        tierCode(candidate.arenaRank) === target.tier
     ).length,
   }));
+  const currentTier = tierCode(actor.standing?.arenaRank);
+  const sameTierTarget = targetTiers.find(
+    (target) => target.tier === currentTier
+  ) || null;
+  const nextTierTarget = targetTiers.find(
+    (target) => target.tier !== currentTier
+  ) || null;
 
   return {
     canRequest,
@@ -1075,6 +1213,7 @@ async function getSubChallengeData({
       ? ""
       : eligibilityMessage(reasons),
     stakeDays,
+    matchmakingRestrictedUntil: actor.matchmakingRestrictedUntil || null,
     policyVersionCode:
       actor.accessCycle
         ?.policyVersionCode || "",
@@ -1094,6 +1233,9 @@ async function getSubChallengeData({
     activeMatch,
     dailyUsage,
     targetTiers,
+    sameTierTarget,
+    nextTierTarget,
+    automaticLadderMatch: true,
     hasEligibleOpponent: targetTiers.some(
       (target) => target.candidateCount > 0
     ),
@@ -1197,7 +1339,7 @@ async function runCreateNormalMatchTransaction({
         if (!targetStanding) {
           throw statusError(
             404,
-            "서버가 자동 선정한 방어자를 현재 Sub Division 후보에서 찾을 수 없습니다.",
+            "서버가 자동 선정한 방어자를 현재 Unranked 후보에서 찾을 수 없습니다.",
             "DEFENDER_NOT_FOUND"
           );
         }
@@ -1282,8 +1424,20 @@ async function runCreateNormalMatchTransaction({
         if (!tierPair) {
           throw statusError(
             409,
-            "Sub Division에서는 바로 위 티어에게만 일반 쟁탈전을 신청할 수 있습니다. 브론즈·챌린저 예외도 정해진 티어 조합 안에서만 허용됩니다.",
+            "Unranked 일반 쟁탈전은 같은 티어 또는 바로 위 티어 사이에서만 성립합니다.",
             "SUB_TIER_PAIR_NOT_ALLOWED"
+          );
+        }
+        if (
+          !isEligibleSubDefenseDirection({
+            challengerStanding: challenger.standing,
+            candidate: defender.standing,
+          })
+        ) {
+          throw statusError(
+            409,
+            "Unranked 같은 티어 쟁탈전은 공격자보다 높은 순위의 방어자에게만 성립합니다.",
+            "SUB_SAME_TIER_DOWNWARD_MATCH_NOT_ALLOWED"
           );
         }
         if (
@@ -1425,12 +1579,8 @@ async function runCreateNormalMatchTransaction({
             feeDays: 0,
             recipientNoShowReturnDays: 1,
             recipientNoShowBurnDays: 1,
-            bronzeChallengerWinRefundDays:
-              tierCode(
-                challenger.standing.arenaRank
-              ) === "BRONZE"
-                ? stakeDays
-                : 0,
+            challengerWinRefundDays: stakeDays,
+            bronzeChallengerWinRefundDays: 0,
           },
           problemPackId,
           problemPackVersion:
@@ -1532,6 +1682,11 @@ async function runCreateNormalMatchTransaction({
           })),
           { session, ordered: true }
         );
+        await reactivateAutomaticDefenseAfterAttack({
+          userId: challenger.user._id,
+          now,
+          session,
+        });
 
         const cycle =
           challenger.accessCycle;
@@ -1695,7 +1850,6 @@ async function runCreateNormalMatchTransaction({
 
 async function createSubNormalChallenge({
   challengerUserId,
-  targetTier,
   requestId,
   now = new Date(),
 }) {
@@ -1724,7 +1878,6 @@ async function createSubNormalChallenge({
 
   let selection = await prepareSubAutoSelection({
     challengerUserId,
-    targetTier,
     requestId: normalizedRequestId,
     now: new Date(now),
   });
@@ -1773,7 +1926,6 @@ async function createSubNormalChallenge({
       ) {
         selection = await prepareSubAutoSelection({
           challengerUserId,
-          targetTier,
           requestId: normalizedRequestId,
           now: new Date(now),
         });
@@ -1807,6 +1959,7 @@ module.exports = {
   defenseCandidateAlias,
   findActiveMatchForUser,
   getSubChallengeData,
+  isEligibleSubDefenseDirection,
   isSundayDivisionLocked,
   isSundayMatchRequestLocked,
   kstDayWindow,
@@ -1820,6 +1973,7 @@ module.exports = {
   nextSundayMatchCutoff,
   prepareSubAutoSelection,
   selectRandomSubDefenseCandidate,
+  eligibleSubDefenseCandidates,
   sameTestAccountCohort,
   subDailyEligibilityReasons,
   subDailyLimitState,

@@ -13,6 +13,20 @@
   ).getTime();
   const finalQuestion =
     root.dataset.finalQuestion === "true";
+  const questionNumber = Math.max(
+    1,
+    Number(
+      root.dataset.questionNumber
+    ) || 1
+  );
+  const questionTimeLimitMs =
+    Math.max(
+      1000,
+      Number(
+        root.dataset
+          .questionTimeLimitMs
+      ) || 10 * 60 * 1000
+    );
   const clockOffset = serverNow - Date.now();
   const timer = root.querySelector(
     "[data-arena-match-timer]"
@@ -40,6 +54,8 @@
   let saveChain = Promise.resolve();
   let submitting = false;
   let automaticSubmitRequested = false;
+  let lastFocusSignalType = "";
+  let lastFocusSignalAt = 0;
 
   const operationId = () =>
     window.crypto?.randomUUID?.() ||
@@ -159,6 +175,21 @@
     }
   };
 
+  const enqueueFocusSignal = (type) => {
+    const now = Date.now();
+    // 한 번의 탭 전환에서 visibilitychange와 blur/focus가 연달아
+    // 발생하므로 같은 상태 신호를 중복 집계하지 않는다.
+    if (
+      type === lastFocusSignalType &&
+      now - lastFocusSignalAt < 750
+    ) {
+      return;
+    }
+    lastFocusSignalType = type;
+    lastFocusSignalAt = now;
+    enqueueSignal(type);
+  };
+
   const flushSignals = async ({
     keepalive = false,
   } = {}) => {
@@ -210,37 +241,43 @@
     submitButton.disabled = true;
     submitButton.textContent =
       submissionMode === "TIME_LIMIT"
-        ? "시간 종료 · 제출 중"
+        ? `${questionNumber}번 시간 종료 · 다음 문항 준비 중`
         : finalQuestion
           ? "풀이 완료 처리 중"
           : "다음 문제 준비 중";
     errorBox.hidden = true;
 
     try {
-      if (submissionMode === "TIME_LIMIT") {
-        await flushChanges();
-        const finalChanges = pendingChanges.splice(0, pendingChanges.length);
-        await request(
-          `/api/goat-arena/matches/${matchId}/submit`,
-          {
-            requestId: operationId(),
-            changes: finalChanges,
-            submissionMode,
-          }
-        );
-      } else {
-        window.clearTimeout(saveTimer);
+      window.clearTimeout(saveTimer);
+      if (submissionMode !== "TIME_LIMIT") {
         pendingChanges = [];
         await saveChain.catch(() => {});
-        await request(
-          `/api/goat-arena/matches/${matchId}/advance`,
-          {
-            requestId: operationId(),
-            value: inputs[0]?.value || "",
-          }
+      }
+      const result = await request(
+        `/api/goat-arena/matches/${matchId}/advance`,
+        {
+          requestId: operationId(),
+          value:
+            submissionMode ===
+            "TIME_LIMIT"
+              ? ""
+              : inputs[0]?.value || "",
+          submissionMode,
+        }
+      );
+      if (result.finalQuestion) {
+        window.location.assign(
+          `/goat-arena/matches/${matchId}`
+        );
+      } else {
+        const nextQuestion =
+          Number(
+            result.currentQuestionIndex
+          ) + 1;
+        window.location.assign(
+          `/goat-arena/matches/${matchId}?question=${nextQuestion}`
         );
       }
-      window.location.reload();
     } catch (error) {
       if (
         error.status === 410 ||
@@ -288,10 +325,13 @@
   );
 
   const refreshTimer = () => {
-    const remaining = Math.max(
-      0,
-      deadline -
-        (Date.now() + clockOffset)
+    const remaining = Math.min(
+      questionTimeLimitMs,
+      Math.max(
+        0,
+        deadline -
+          (Date.now() + clockOffset)
+      )
     );
     const seconds = Math.ceil(
       remaining / 1000
@@ -321,19 +361,22 @@
   document.addEventListener(
     "visibilitychange",
     () => {
-      enqueueSignal(
+      // 브라우저는 새 탭 생성 자체를 공개하지 않지만, 응시 탭을 떠나
+      // 새 탭·다른 창·다른 앱으로 이동하면 visibility/blur 신호가 난다.
+      // 서버에는 구체적인 이동 대상이 아니라 응시 화면 이탈 사실만 보낸다.
+      enqueueFocusSignal(
         document.hidden
           ? "FOCUS_LOST"
           : "FOCUS_GAINED"
       );
-      flushSignals().catch(() => {});
+      flushSignals({ keepalive: true }).catch(() => {});
     }
   );
   window.addEventListener("focus", () => {
-    enqueueSignal("FOCUS_GAINED");
+    enqueueFocusSignal("FOCUS_GAINED");
   });
   window.addEventListener("blur", () => {
-    enqueueSignal("FOCUS_LOST");
+    enqueueFocusSignal("FOCUS_LOST");
   });
   window.addEventListener(
     "beforeunload",
@@ -346,8 +389,41 @@
       }).catch(() => {});
     }
   );
+  window.addEventListener(
+    "pagehide",
+    () => {
+      enqueueFocusSignal("FOCUS_LOST");
+      flushChanges({ keepalive: true }).catch(() => {});
+      flushSignals({ keepalive: true }).catch(() => {});
+    }
+  );
 
-  enqueueSignal("FOCUS_GAINED");
+  enqueueFocusSignal("FOCUS_GAINED");
+  const currentUrl = new URL(
+    window.location.href
+  );
+  if (
+    currentUrl.searchParams.has(
+      "started"
+    ) ||
+    currentUrl.searchParams.has(
+      "question"
+    )
+  ) {
+    currentUrl.searchParams.delete(
+      "started"
+    );
+    currentUrl.searchParams.delete(
+      "question"
+    );
+    window.history.replaceState(
+      {},
+      "",
+      `${currentUrl.pathname}${
+        currentUrl.search
+      }${currentUrl.hash}`
+    );
+  }
   refreshAnswered();
   refreshTimer();
   window.setInterval(refreshTimer, 1000);

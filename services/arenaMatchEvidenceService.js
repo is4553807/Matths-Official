@@ -4,6 +4,7 @@ const { createHash } = require("node:crypto");
 const mongoose = require("mongoose");
 const { AdminTodo, User } = require("../models/matthsModel");
 const {
+  ArenaAccessState,
   ArenaMatch,
   ArenaMatchAttempt,
   ArenaMatchAttemptEvent,
@@ -15,11 +16,24 @@ const {
   ARENA_EVIDENCE_STORAGE_DIR,
 } = require("../middleware/arenaEvidenceUpload");
 const {
+  compareArenaAttemptScores,
   scoreArenaAttempt,
 } = require("./arenaMatchScoringService");
 const {
   isSundayDivisionLocked,
 } = require("./arenaMatchService");
+const {
+  cancelSubNormalNoStart,
+  settleSubNormalMatch,
+  settleSubRevengeNoShow,
+} = require("./arenaMatchSettlementService");
+const {
+  cancelMainNormalNoStart,
+  settleMainNormalMatch,
+} = require("./mainArenaSettlementService");
+const {
+  settleMainRevengeNoShow,
+} = require("./mainArenaRevengeService");
 const {
   destroyStoredAsset,
   signedCloudinaryUrl,
@@ -28,12 +42,17 @@ const {
   storeUploadedFile,
 } = require("./fileStorageService");
 const { withSchedulerLease } = require("./schedulerLeaseService");
+const {
+  reconcileAutomaticDefenseNoShows,
+  recordAutomaticDefenseNoShow,
+} = require("./arenaAutomaticDefenseService");
 
 const ARENA_EVIDENCE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 const ARENA_EVIDENCE_PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const FAST_COMPLETION_REVIEW_THRESHOLD_MS = 5 * 60 * 1000;
 const RAPID_CORRECT_ANSWER_THRESHOLD_MS = 60 * 1000;
 const RAPID_CORRECT_ANSWER_REVIEW_COUNT = 3;
+const ARENA_INTEGRITY_REVIEW_TARGET_MS = 24 * 60 * 60 * 1000;
 let arenaEvidenceRetentionTimer = null;
 
 function statusError(status, message, code = "") {
@@ -43,11 +62,67 @@ function statusError(status, message, code = "") {
   return error;
 }
 
+function isAtlasTransactionConflict(
+  error
+) {
+  return (
+    Number(error?.code) === 117 ||
+    error?.codeName ===
+      "ConflictingOperationInProgress"
+  );
+}
+
+async function withFreshEvidenceTransaction(
+  work,
+  { maxAttempts = 3 } = {}
+) {
+  let lastError = null;
+  for (
+    let attempt = 1;
+    attempt <= maxAttempts;
+    attempt += 1
+  ) {
+    const session =
+      await mongoose.startSession();
+    try {
+      return await session.withTransaction(
+        () => work(session)
+      );
+    } catch (error) {
+      lastError = error;
+      if (
+        !isAtlasTransactionConflict(
+          error
+        ) ||
+        attempt === maxAttempts
+      ) {
+        throw error;
+      }
+      await new Promise((resolve) =>
+        setTimeout(
+          resolve,
+          75 * attempt
+        )
+      );
+    } finally {
+      await session.endSession();
+    }
+  }
+  throw lastError;
+}
+
 async function discardArenaEvidenceFiles(files = []) {
   await Promise.all(
     files.map(async (file) => {
-      if (file?.storageAsset?.storageProvider === "CLOUDINARY") {
-        await destroyStoredAsset(file.storageAsset).catch(() => {});
+      const storedAsset =
+        file?.storageAsset || file;
+      if (
+        storedAsset?.storageProvider ===
+        "CLOUDINARY"
+      ) {
+        await destroyStoredAsset(
+          storedAsset
+        ).catch(() => {});
         return;
       }
       if (file?.path) await fs.promises.unlink(file.path).catch(() => {});
@@ -195,36 +270,10 @@ async function detectEvidenceAnomalies({ attempt, scoring, files, session }) {
   return [...new Set(flags)];
 }
 
-async function createEvidenceTodo({ evidence, attempt, flags, session }) {
-  if (!flags.length) return;
-  await AdminTodo.findOneAndUpdate(
-    {
-      sourceType: "ArenaMatchEvidence",
-      sourceId: evidence._id,
-    },
-    {
-      $setOnInsert: {
-        category: "integrity",
-        title: "GOAT Arena 풀이 증거 이상 징후",
-        description: `자동 감지 항목: ${flags.join(", ")}`,
-        href: `/admin/arena-matches#evidence-${evidence._id}`,
-        targetUserId: attempt.userId,
-        actorUserId: attempt.userId,
-        sourceType: "ArenaMatchEvidence",
-        sourceId: evidence._id,
-        status: "pending",
-        metadata: {
-          matchId: String(attempt.matchId),
-          anomalyFlags: flags,
-        },
-      },
-    },
-    {
-      upsert: true,
-      returnDocument: "after",
-      setDefaultsOnInsert: true,
-      session,
-    }
+function hasFinishedQuestions(attempt) {
+  return attempt?.status === "SUBMITTED" || (
+    attempt?.status === "EVIDENCE_REQUIRED" &&
+    Number(attempt?.currentQuestionIndex || 0) >= 5
   );
 }
 
@@ -232,9 +281,17 @@ async function submitArenaMatchEvidence({
   matchId,
   userId,
   files,
+  receivedAt = new Date(),
   now = new Date(),
 }) {
-  if (isSundayDivisionLocked(now)) {
+  const acceptedAt =
+    receivedAt instanceof Date &&
+    !Number.isNaN(
+      receivedAt.getTime()
+    )
+      ? receivedAt
+      : now;
+  if (isSundayDivisionLocked(acceptedAt)) {
     await discardArenaEvidenceFiles(files);
     throw statusError(
       423,
@@ -254,14 +311,24 @@ async function submitArenaMatchEvidence({
     throw error;
   }
 
-  const session = await mongoose.startSession();
   let result = null;
   try {
-    await session.withTransaction(async () => {
-      const [match, attempt] = await Promise.all([
-        ArenaMatch.findById(matchId).session(session),
-        ArenaMatchAttempt.findOne({ matchId, userId }).session(session),
-      ]);
+    await withFreshEvidenceTransaction(async (session) => {
+      result = null;
+      /*
+       * 같은 MongoDB 트랜잭션 세션에서는 병렬 명령을 실행할 수 없다.
+       * Promise.all로 두 조회를 동시에 보내면 Atlas에서 transaction
+       * number 충돌(code 117)이 발생하므로 반드시 순차 조회한다.
+       */
+      const match =
+        await ArenaMatch.findById(
+          matchId
+        ).session(session);
+      const attempt =
+        await ArenaMatchAttempt.findOne({
+          matchId,
+          userId,
+        }).session(session);
       if (!match || !attempt) {
         throw statusError(404, "풀이 증거를 제출할 경기를 찾을 수 없습니다.", "ARENA_EVIDENCE_MATCH_NOT_FOUND");
       }
@@ -282,7 +349,12 @@ async function submitArenaMatchEvidence({
       ) {
         throw statusError(410, "복수전의 24시간 완료 기한이 끝났습니다.", "REVENGE_COMPLETION_DEADLINE_EXPIRED");
       }
-      if (!attempt.evidenceDeadlineAt || new Date(attempt.evidenceDeadlineAt) < now) {
+      if (
+        !attempt.evidenceDeadlineAt ||
+        new Date(
+          attempt.evidenceDeadlineAt
+        ) < acceptedAt
+      ) {
         throw statusError(410, "풀이 증거 제출 제한시간 1분이 끝났습니다.", "ARENA_EVIDENCE_DEADLINE_EXPIRED");
       }
 
@@ -303,12 +375,7 @@ async function submitArenaMatchEvidence({
         attempt,
         problemPack,
       });
-      const flags = await detectEvidenceAnomalies({
-        attempt,
-        scoring,
-        files: evidenceFiles,
-        session,
-      });
+      let flags = [];
       const [evidence] = await ArenaMatchEvidence.create(
         [
           {
@@ -319,8 +386,8 @@ async function submitArenaMatchEvidence({
             deadlineAt: attempt.evidenceDeadlineAt,
             submittedAt: now,
             retentionUntil: new Date(now.getTime() + ARENA_EVIDENCE_RETENTION_MS),
-            status: flags.length ? "ANOMALY_FLAGGED" : "ON_TIME",
-            anomalyFlags: flags,
+            status: "ON_TIME",
+            anomalyFlags: [],
           },
         ],
         { session, ordered: true }
@@ -335,16 +402,139 @@ async function submitArenaMatchEvidence({
         matchId: match._id,
         userId: { $ne: userId },
       }).session(session);
+      let matchIntegrityFlags = [];
+      let evidenceByRole = {};
+      let screenedRole = null;
       if (otherAttempt?.status === "SUBMITTED") {
-        match.status = "SUBMITTED";
-      }
-      if (flags.length) {
-        match.integrityStatus = "SUSPICIOUS";
+        const otherEvidence = await ArenaMatchEvidence.findOne({
+          matchId: match._id,
+          attemptId: otherAttempt._id,
+        }).session(session).lean();
+        const attemptByRole = new Map([
+          [attempt.role, attempt],
+          [otherAttempt.role, otherAttempt],
+        ]);
+        const evidenceByAttemptId = new Map([
+          [String(evidence.attemptId), evidence],
+          [String(otherEvidence?.attemptId || ""), otherEvidence],
+        ]);
+        const scoringByRole = new Map([
+          [attempt.role, scoring],
+          [
+            otherAttempt.role,
+            scoreArenaAttempt({ attempt: otherAttempt, problemPack }),
+          ],
+        ]);
+        screenedRole = compareArenaAttemptScores(
+          scoringByRole.get("CHALLENGER"),
+          scoringByRole.get("DEFENDER")
+        );
+        const screenedAttempt = attemptByRole.get(screenedRole);
+        const screenedEvidence = evidenceByAttemptId.get(
+          String(screenedAttempt?._id || "")
+        );
+        if (!screenedAttempt || !screenedEvidence) {
+          throw statusError(
+            409,
+            "잠정 승자의 풀이 증거를 확인할 수 없습니다.",
+            "ARENA_WINNER_EVIDENCE_NOT_FOUND"
+          );
+        }
+        matchIntegrityFlags = await detectEvidenceAnomalies({
+          attempt: screenedAttempt,
+          scoring: scoringByRole.get(screenedRole),
+          files: screenedEvidence.files || [],
+          session,
+        });
+        await ArenaMatchEvidence.updateMany(
+          { matchId: match._id },
+          {
+            $set: {
+              screenedAsWinner: false,
+              anomalyFlags: [],
+              status: "ON_TIME",
+            },
+          },
+          { session }
+        );
+        await ArenaMatchEvidence.updateOne(
+          { _id: screenedEvidence._id },
+          {
+            $set: {
+              screenedAsWinner: true,
+              anomalyFlags: matchIntegrityFlags,
+              status: matchIntegrityFlags.length
+                ? "ANOMALY_FLAGGED"
+                : "ON_TIME",
+            },
+          },
+          { session }
+        );
+        if (String(screenedEvidence._id) === String(evidence._id)) {
+          evidence.screenedAsWinner = true;
+          evidence.anomalyFlags = matchIntegrityFlags;
+          evidence.status = matchIntegrityFlags.length
+            ? "ANOMALY_FLAGGED"
+            : "ON_TIME";
+        }
+        flags = screenedRole === attempt.role ? matchIntegrityFlags : [];
+        evidenceByRole = {
+          CHALLENGER:
+            screenedRole === "CHALLENGER" ? matchIntegrityFlags : [],
+          DEFENDER:
+            screenedRole === "DEFENDER" ? matchIntegrityFlags : [],
+        };
+        match.status = matchIntegrityFlags.length ? "HELD" : "SUBMITTED";
+        match.integrityStatus = matchIntegrityFlags.length
+          ? "SUSPICIOUS"
+          : "CLEAR";
+        if (matchIntegrityFlags.length) {
+          match.integrityScreenedRole = screenedRole;
+          match.integrityReviewStartedAt = now;
+          match.integrityReviewDeadlineAt = new Date(
+            now.getTime() + ARENA_INTEGRITY_REVIEW_TARGET_MS
+          );
+          match.integrityReviewCompletedAt = null;
+          match.integrityPauseCompensationMs = 0;
+          match.integrityPauseCompensatedAt = null;
+        }
       } else if (
-        otherAttempt?.status === "SUBMITTED" &&
-        match.integrityStatus !== "SUSPICIOUS"
+        otherAttempt?.status === "EVIDENCE_REQUIRED" &&
+        hasFinishedQuestions(otherAttempt)
       ) {
-        match.integrityStatus = "CLEAR";
+        // 상대의 1분 증거 제출 창이 아직 열려 있다면 경기 보류가 아니다.
+        // 제출 시한이 실제로 지난 뒤 스케줄러가 자동 패배를 정산한다.
+        match.status = "IN_PROGRESS";
+        match.integrityStatus = "PENDING";
+      } else if (
+        match.status === "HELD"
+      ) {
+        const deadlineTodo =
+          await AdminTodo.findOne({
+            sourceType:
+              "ArenaEvidenceDeadline",
+            sourceId: attempt._id,
+            status: "pending",
+          }).session(session);
+        if (deadlineTodo) {
+          deadlineTodo.status =
+            "completed";
+          deadlineTodo.description =
+            `${deadlineTodo.description} 업로드 요청은 제한시간 안에 서버에 도착해 정상 제출로 복구했습니다.`;
+          await deadlineTodo.save({
+            session,
+          });
+          match.status =
+            otherAttempt?.status ===
+            "SUBMITTED"
+              ? "SUBMITTED"
+              : "IN_PROGRESS";
+          match.integrityStatus =
+            otherAttempt?.status ===
+            "SUBMITTED"
+              ? "CLEAR"
+              : "PENDING";
+        }
       }
       await match.save({ session });
 
@@ -375,13 +565,70 @@ async function submitArenaMatchEvidence({
           payload: { matchId: String(match._id), userId: String(userId) },
         },
       ];
-      if (flags.length) {
+      if (match.status === "HELD" && matchIntegrityFlags.length) {
+        const participantUserIds = [
+          match.challenger.userId,
+          match.defender.userId,
+        ];
+        const targetUserId = screenedRole === "DEFENDER"
+          ? match.defender.userId
+          : match.challenger.userId;
+        await ArenaAccessState.updateMany(
+          { userId: { $in: participantUserIds } },
+          {
+            $set: {
+              integrityStatus: "REVIEW_REQUIRED",
+              defensePoolEligible: false,
+              reasonCode: "MATCH_INTEGRITY_REVIEW",
+            },
+          },
+          { session }
+        );
+        await AdminTodo.findOneAndUpdate(
+          {
+            sourceType: "ArenaMatchIntegrityReview",
+            sourceId: match._id,
+          },
+          {
+            $setOnInsert: {
+              category: "integrity",
+              title: "GOAT Arena 경기 종료 후 무결성 검토 필요",
+              description:
+                `양측 제출 완료 후 잠정 승자인 ${screenedRole === "DEFENDER" ? "방어자" : "공격자"} 기록에서 확인이 필요한 신호가 감지되었습니다.`,
+              href: `/admin/arena-matches#match-${match._id}`,
+              targetUserId,
+              actorUserId: targetUserId,
+              sourceType: "ArenaMatchIntegrityReview",
+              sourceId: match._id,
+              status: "pending",
+              metadata: {
+                matchId: String(match._id),
+                anomalyFlags: matchIntegrityFlags,
+                anomalyFlagsByRole: evidenceByRole,
+                screenedRole,
+                reviewStartedAt: match.integrityReviewStartedAt,
+                reviewDeadlineAt: match.integrityReviewDeadlineAt,
+              },
+            },
+          },
+          {
+            upsert: true,
+            returnDocument: "after",
+            setDefaultsOnInsert: true,
+            session,
+          }
+        );
         outbox.push({
-          eventType: "ArenaEvidenceAnomalyDetected",
-          aggregateType: "ArenaMatchEvidence",
-          aggregateId: evidence._id,
-          idempotencyKey: `${evidence._id}:ArenaEvidenceAnomalyDetected`,
-          payload: { matchId: String(match._id), flags },
+          eventType: "ArenaMatchIntegrityReviewStarted",
+          aggregateType: "ArenaMatch",
+          aggregateId: match._id,
+          idempotencyKey: `${match._id}:ArenaMatchIntegrityReviewStarted`,
+          payload: {
+            matchId: String(match._id),
+            anomalyFlags: matchIntegrityFlags,
+            anomalyFlagsByRole: evidenceByRole,
+            screenedRole,
+          },
         });
       }
       if (match.status === "SUBMITTED") {
@@ -397,11 +644,12 @@ async function submitArenaMatchEvidence({
         session,
         ordered: true,
       });
-      await createEvidenceTodo({ evidence, attempt, flags, session });
       result = { evidence, match, replayed: false };
     });
     if (result.replayed) {
-      await discardArenaEvidenceFiles(files);
+      await discardArenaEvidenceFiles(
+        evidenceFiles
+      );
     }
     return {
       evidenceId: String(result.evidence._id),
@@ -410,10 +658,180 @@ async function submitArenaMatchEvidence({
       replayed: result.replayed,
     };
   } catch (error) {
+    await discardArenaEvidenceFiles(
+      evidenceFiles?.length
+        ? evidenceFiles
+        : files
+    );
+    throw error;
+  }
+}
+
+async function getArenaSupplementalEvidenceRequest({
+  matchId,
+  userId,
+  now = new Date(),
+}) {
+  if (!mongoose.isValidObjectId(matchId) || !mongoose.isValidObjectId(userId)) {
+    throw statusError(404, "추가 소명 요청을 찾을 수 없습니다.", "ARENA_SUPPLEMENTAL_NOT_FOUND");
+  }
+  let evidence = await ArenaMatchEvidence.findOne({ matchId, userId }).lean();
+  if (!evidence || evidence.supplementalRequest?.status === "NONE") {
+    throw statusError(404, "현재 제출해야 할 추가 소명 자료가 없습니다.", "ARENA_SUPPLEMENTAL_NOT_REQUESTED");
+  }
+  if (
+    evidence.supplementalRequest?.status === "REQUESTED" &&
+    evidence.supplementalRequest?.deadlineAt &&
+    new Date(evidence.supplementalRequest.deadlineAt) <= now
+  ) {
+    await ArenaMatchEvidence.updateOne(
+      { _id: evidence._id, "supplementalRequest.status": "REQUESTED" },
+      { $set: { "supplementalRequest.status": "EXPIRED" } }
+    );
+    evidence = {
+      ...evidence,
+      supplementalRequest: {
+        ...evidence.supplementalRequest,
+        status: "EXPIRED",
+      },
+    };
+  }
+  const match = await ArenaMatch.findById(matchId)
+    .select("division matchType challenger.userId defender.userId")
+    .lean();
+  if (!match) {
+    throw statusError(404, "경기 정보를 찾을 수 없습니다.", "ARENA_SUPPLEMENTAL_MATCH_NOT_FOUND");
+  }
+  return {
+    matchId: String(match._id),
+    division: match.division,
+    matchType: match.matchType,
+    role: String(match.challenger?.userId) === String(userId)
+      ? "CHALLENGER"
+      : "DEFENDER",
+    status: evidence.supplementalRequest.status,
+    requestedAt: evidence.supplementalRequest.requestedAt,
+    deadlineAt: evidence.supplementalRequest.deadlineAt,
+    requestMessage: evidence.supplementalRequest.requestMessage || "",
+    submittedAt: evidence.supplementalRequest.submittedAt,
+    submittedLate: evidence.supplementalRequest.submittedLate === true,
+    lateByMs: Number(evidence.supplementalRequest.lateByMs || 0),
+    fileCount: evidence.supplementalRequest.files?.length || 0,
+    serverNow: now.toISOString(),
+  };
+}
+
+async function submitArenaSupplementalEvidence({
+  matchId,
+  userId,
+  files,
+  receivedAt = new Date(),
+  now = new Date(),
+}) {
+  const acceptedAt = receivedAt instanceof Date && !Number.isNaN(receivedAt.getTime())
+    ? receivedAt
+    : now;
+  if (!mongoose.isValidObjectId(matchId) || !mongoose.isValidObjectId(userId)) {
+    await discardArenaEvidenceFiles(files);
+    throw statusError(400, "추가 소명 요청 정보를 확인해주세요.", "INVALID_ARENA_SUPPLEMENTAL_TARGET");
+  }
+  const currentEvidence = await ArenaMatchEvidence.findOne({ matchId, userId }).lean();
+  if (!currentEvidence) {
+    await discardArenaEvidenceFiles(files);
+    throw statusError(404, "추가 소명 요청을 찾을 수 없습니다.", "ARENA_SUPPLEMENTAL_NOT_FOUND");
+  }
+  if (currentEvidence.supplementalRequest?.status === "SUBMITTED") {
+    await discardArenaEvidenceFiles(files);
+    return { replayed: true, status: "SUBMITTED" };
+  }
+  if (
+    currentEvidence.supplementalRequest?.status !== "REQUESTED" ||
+    !currentEvidence.supplementalRequest?.deadlineAt
+  ) {
+    await discardArenaEvidenceFiles(files);
+    throw statusError(
+      409,
+      "현재 제출할 수 있는 추가 소명 요청이 없습니다.",
+      "ARENA_SUPPLEMENTAL_NOT_ACTIVE"
+    );
+  }
+  const match = await ArenaMatch.findOne({
+    _id: matchId,
+    status: "HELD",
+  })
+    .select("_id")
+    .lean();
+  if (!match) {
+    await discardArenaEvidenceFiles(files);
+    throw statusError(
+      410,
+      "운영 검토가 이미 끝나 추가 소명 자료를 제출할 수 없습니다.",
+      "ARENA_SUPPLEMENTAL_REVIEW_COMPLETED"
+    );
+  }
+  const deadlineAt = new Date(currentEvidence.supplementalRequest.deadlineAt);
+  if (acceptedAt.getTime() >= deadlineAt.getTime()) {
+    await ArenaMatchEvidence.updateOne(
+      {
+        _id: currentEvidence._id,
+        "supplementalRequest.status": "REQUESTED",
+      },
+      { $set: { "supplementalRequest.status": "EXPIRED" } }
+    );
+    await discardArenaEvidenceFiles(files);
+    throw statusError(
+      410,
+      "추가 소명 자료의 24시간 제출 기한이 끝났습니다. 미제출로 처리됩니다.",
+      "ARENA_SUPPLEMENTAL_DEADLINE_EXPIRED"
+    );
+  }
+
+  let supplementalFiles;
+  try {
+    supplementalFiles = await buildEvidenceFiles(files);
+  } catch (error) {
     await discardArenaEvidenceFiles(files);
     throw error;
-  } finally {
-    await session.endSession();
+  }
+  try {
+    const retentionUntil = new Date(now.getTime() + ARENA_EVIDENCE_RETENTION_MS);
+    const updated = await ArenaMatchEvidence.findOneAndUpdate(
+      {
+        _id: currentEvidence._id,
+        "supplementalRequest.status": "REQUESTED",
+        "supplementalRequest.deadlineAt": { $gt: acceptedAt },
+      },
+      {
+        $set: {
+          "supplementalRequest.status": "SUBMITTED",
+          "supplementalRequest.submittedAt": now,
+          "supplementalRequest.submittedLate": false,
+          "supplementalRequest.lateByMs": 0,
+          "supplementalRequest.files": supplementalFiles,
+          retentionUntil: new Date(currentEvidence.retentionUntil) > retentionUntil
+            ? currentEvidence.retentionUntil
+            : retentionUntil,
+        },
+      },
+      { returnDocument: "after" }
+    ).lean();
+    if (!updated) {
+      await discardArenaEvidenceFiles(supplementalFiles);
+      throw statusError(409, "추가 소명 요청 상태가 변경되었습니다. 페이지를 새로고침해주세요.", "ARENA_SUPPLEMENTAL_STATE_CHANGED");
+    }
+    return {
+      replayed: false,
+      status: updated.supplementalRequest.status,
+      submittedAt: updated.supplementalRequest.submittedAt,
+      submittedLate: updated.supplementalRequest.submittedLate === true,
+      lateByMs: Number(updated.supplementalRequest.lateByMs || 0),
+      fileCount: updated.supplementalRequest.files.length,
+    };
+  } catch (error) {
+    if (error.code !== "ARENA_SUPPLEMENTAL_STATE_CHANGED") {
+      await discardArenaEvidenceFiles(supplementalFiles);
+    }
+    throw error;
   }
 }
 
@@ -424,46 +842,93 @@ async function holdExpiredEvidence({ now = new Date(), limit = 100 } = {}) {
   })
     .limit(Math.max(1, Math.min(500, Number(limit) || 100)))
     .lean();
-  let held = 0;
+  let settled = 0;
+  let cancelled = 0;
   for (const attempt of attempts) {
-    const match = await ArenaMatch.findOneAndUpdate(
-      {
-        _id: attempt.matchId,
-        status: { $in: ["READY", "IN_PROGRESS", "SUBMITTED"] },
-      },
-      {
-        $set: {
-          status: "HELD",
-          integrityStatus: "SUSPICIOUS",
-        },
-      },
-      { returnDocument: "after" }
-    );
-    if (!match) continue;
-    await AdminTodo.findOneAndUpdate(
-      { sourceType: "ArenaEvidenceDeadline", sourceId: attempt._id },
-      {
-        $setOnInsert: {
-          category: "integrity",
-          title: "GOAT Arena 풀이 증거 미제출",
-          description: "마지막 문제 완료 후 1분 안에 풀이 증거가 제출되지 않았습니다.",
-          href: `/admin/arena-matches#match-${match._id}`,
-          targetUserId: attempt.userId,
-          actorUserId: attempt.userId,
-          sourceType: "ArenaEvidenceDeadline",
-          sourceId: attempt._id,
-          status: "pending",
-          metadata: { matchId: String(match._id) },
-        },
-      },
-      { upsert: true, setDefaultsOnInsert: true }
-    );
-    held += 1;
+    const [match, matchAttempts] = await Promise.all([
+      ArenaMatch.findById(attempt.matchId),
+      ArenaMatchAttempt.find({ matchId: attempt.matchId }).lean(),
+    ]);
+    if (!match || !matchAttempts.length || ["SETTLED", "CANCELLED", "HELD"].includes(match.status)) continue;
+    const expiredMissingRoles = matchAttempts
+      .filter((entry) =>
+        entry.status === "EVIDENCE_REQUIRED" &&
+        entry.evidenceDeadlineAt &&
+        new Date(entry.evidenceDeadlineAt).getTime() <= now.getTime()
+      )
+      .map((entry) => entry.role);
+    if (!expiredMissingRoles.length || !matchAttempts.every(hasFinishedQuestions)) continue;
+    // 필수 풀이 증거는 별도의 추가 소명 유예 없이 경기 결과에 직접 반영한다.
+    // 양측 모두 미제출이면 승패를 만들 수 없으므로 예치만 원상 복구한다.
+    if (expiredMissingRoles.length >= 2) {
+      const result = match.matchType === "NORMAL"
+        ? (match.division === "SUB"
+            ? await cancelSubNormalNoStart({
+                matchId: match._id,
+                now,
+                cancellationReason: "BOTH_REQUIRED_EVIDENCE_NOT_SUBMITTED",
+              })
+            : await cancelMainNormalNoStart({
+                matchId: match._id,
+                now,
+                cancellationReason: "BOTH_REQUIRED_EVIDENCE_NOT_SUBMITTED",
+              }))
+        : (match.division === "SUB"
+            ? await settleSubRevengeNoShow({
+                matchId: match._id,
+                noShowRole: "BOTH",
+                now,
+                allowEarlyForfeit: true,
+              })
+            : await settleMainRevengeNoShow({
+                matchId: match._id,
+                noShowRole: "BOTH",
+                now,
+                allowEarlyForfeit: true,
+              }));
+      if (result?.cancelled) cancelled += 1;
+      if (result?.settled) settled += 1;
+      continue;
+    }
+    const missingRole = expiredMissingRoles[0];
+    const winnerRole = missingRole === "CHALLENGER" ? "DEFENDER" : "CHALLENGER";
+    let result;
+    if (match.matchType === "NORMAL") {
+      result = match.division === "SUB"
+        ? await settleSubNormalMatch({
+            matchId: match._id,
+            now,
+            forcedWinnerRole: winnerRole,
+            automaticReason: "REQUIRED_EVIDENCE_NOT_SUBMITTED",
+          })
+        : await settleMainNormalMatch({
+            matchId: match._id,
+            now,
+            forcedWinnerRole: winnerRole,
+            automaticReason: "REQUIRED_EVIDENCE_NOT_SUBMITTED",
+          });
+    } else {
+      result = match.division === "SUB"
+        ? await settleSubRevengeNoShow({
+            matchId: match._id,
+            noShowRole: missingRole,
+            now,
+            allowEarlyForfeit: true,
+          })
+        : await settleMainRevengeNoShow({
+            matchId: match._id,
+            noShowRole: missingRole,
+            now,
+            allowEarlyForfeit: true,
+          });
+    }
+    if (result?.settled) settled += 1;
   }
-  return { scanned: attempts.length, held };
+  return { scanned: attempts.length, settled, cancelled };
 }
 
 async function holdExpiredMatchStarts({ now = new Date(), limit = 100 } = {}) {
+  const recovered = await reconcileAutomaticDefenseNoShows({ now, limit });
   const matches = await ArenaMatch.find({
     matchType: { $ne: "REVENGE" },
     status: { $in: ["MATCHED", "READY", "IN_PROGRESS"] },
@@ -471,59 +936,55 @@ async function holdExpiredMatchStarts({ now = new Date(), limit = 100 } = {}) {
   })
     .limit(Math.max(1, Math.min(500, Number(limit) || 100)))
     .lean();
-  let held = 0;
+  let settled = 0;
+  let cancelled = 0;
+  let automaticDefenseNoShowsRecorded = recovered.recorded;
   for (const match of matches) {
     const attempts = await ArenaMatchAttempt.find({ matchId: match._id })
       .select("userId role status")
       .lean();
     const unstarted = attempts.filter((attempt) => attempt.status === "READY");
     if (!unstarted.length && attempts.length) continue;
-    const noShowRole =
-      unstarted.length !== 1 ? "BOTH" : unstarted[0].role;
-    const updated = await ArenaMatch.findOneAndUpdate(
-      {
-        _id: match._id,
-        status: { $in: ["MATCHED", "READY", "IN_PROGRESS"] },
-      },
-      { $set: { status: "HELD", noShowRole } },
-      { returnDocument: "after" }
-    );
-    if (!updated) continue;
-    const target = unstarted[0]?.userId || match.defender.userId;
-    await AdminTodo.findOneAndUpdate(
-      { sourceType: "ArenaMatchNoShow", sourceId: match._id },
-      {
-        $setOnInsert: {
-          category: "integrity",
-          title: "GOAT Arena 24시간 미시작 경기",
-          description: `미시작 역할: ${noShowRole}. 경제적 불이익 확정 전까지 경기 정산을 보류합니다.`,
-          href: `/admin/arena-matches#match-${match._id}`,
-          targetUserId: target,
-          actorUserId: target,
-          sourceType: "ArenaMatchNoShow",
-          sourceId: match._id,
-          status: "pending",
-          metadata: { noShowRole },
-        },
-      },
-      { upsert: true, setDefaultsOnInsert: true }
-    );
-    await ArenaOutboxEvent.findOneAndUpdate(
-      { idempotencyKey: `${match._id}:ArenaMatchNoShowDetected` },
-      {
-        $setOnInsert: {
-          eventType: "ArenaMatchNoShowDetected",
-          aggregateType: "ArenaMatch",
-          aggregateId: match._id,
-          idempotencyKey: `${match._id}:ArenaMatchNoShowDetected`,
-          payload: { noShowRole },
-        },
-      },
-      { upsert: true, setDefaultsOnInsert: true }
-    );
-    held += 1;
+    if (unstarted.length === 2) {
+      const result = match.division === "SUB"
+        ? await cancelSubNormalNoStart({ matchId: match._id, now })
+        : await cancelMainNormalNoStart({ matchId: match._id, now });
+      if (result?.cancelled) cancelled += 1;
+      continue;
+    }
+    if (unstarted.length !== 1) continue;
+    const noShowRole = unstarted[0].role;
+    const winnerRole = noShowRole === "CHALLENGER" ? "DEFENDER" : "CHALLENGER";
+    const result = match.division === "SUB"
+      ? await settleSubNormalMatch({
+          matchId: match._id,
+          now,
+          forcedWinnerRole: winnerRole,
+          automaticReason: "START_DEADLINE_NO_SHOW",
+        })
+      : await settleMainNormalMatch({
+          matchId: match._id,
+          now,
+          forcedWinnerRole: winnerRole,
+          automaticReason: "START_DEADLINE_NO_SHOW",
+        });
+    if (result?.settled) {
+      settled += 1;
+      if (noShowRole === "DEFENDER") {
+        const recorded = await recordAutomaticDefenseNoShow({
+          matchId: match._id,
+          now,
+        });
+        if (recorded.recorded) automaticDefenseNoShowsRecorded += 1;
+      }
+    }
   }
-  return { scanned: matches.length, held };
+  return {
+    scanned: matches.length,
+    settled,
+    cancelled,
+    automaticDefenseNoShowsRecorded,
+  };
 }
 
 async function holdSundayCutoffMatches({ now = new Date(), limit = 500 } = {}) {
@@ -583,7 +1044,12 @@ async function holdSundayCutoffMatches({ now = new Date(), limit = 500 } = {}) {
 }
 
 async function getAdminArenaEvidenceData() {
-  const evidence = await ArenaMatchEvidence.find()
+  // 추가 소명만을 위해 생성한 빈 문서는 '최근 필수 풀이 증거'로 보이지
+  // 않게 한다. 원본 풀이 증거가 실제로 제출된 건만 이 요약에 표시한다.
+  const evidence = await ArenaMatchEvidence.find({
+    originalEvidenceSubmitted: { $ne: false },
+    "files.0": { $exists: true },
+  })
     .sort({ submittedAt: -1 })
     .limit(300)
     .lean();
@@ -621,7 +1087,10 @@ async function getAdminEvidenceFile({ evidenceId, storedName }) {
   if (evidence?.contentPurgedAt) {
     throw statusError(410, "보존 기간이 끝나 풀이 증거 원본이 삭제되었습니다.");
   }
-  const file = evidence?.files?.find(
+  const file = [
+    ...(evidence?.files || []),
+    ...(evidence?.supplementalRequest?.files || []),
+  ].find(
     (entry) => entry.storedName === path.basename(String(storedName || ""))
   );
   if (!file) throw statusError(404, "풀이 증거 파일을 찾을 수 없습니다.");
@@ -671,8 +1140,12 @@ async function purgeExpiredArenaEvidence({ now = new Date(), limit = 100 } = {})
       continue;
     }
 
+    const retainedFiles = [
+      ...(evidence.files || []),
+      ...(evidence.supplementalRequest?.files || []),
+    ];
     await Promise.all(
-      (evidence.files || []).map((file) =>
+      retainedFiles.map((file) =>
         destroyStoredAsset({
           ...file,
           path: path.join(ARENA_EVIDENCE_STORAGE_DIR, path.basename(file.storedName || "")),
@@ -688,12 +1161,26 @@ async function purgeExpiredArenaEvidence({ now = new Date(), limit = 100 } = {})
       {
         $set: {
           contentPurgedAt: now,
-          "files.$[].storageProvider": "PURGED",
-          "files.$[].cloudPublicId": "",
-          "files.$[].cloudResourceType": "",
-          "files.$[].cloudDeliveryType": "",
-          "files.$[].cloudVersion": null,
-          "files.$[].cloudFormat": "",
+          files: (evidence.files || []).map((file) => ({
+            ...file,
+            storageProvider: "PURGED",
+            cloudPublicId: "",
+            cloudResourceType: "",
+            cloudDeliveryType: "",
+            cloudVersion: null,
+            cloudFormat: "",
+          })),
+          "supplementalRequest.files": (
+            evidence.supplementalRequest?.files || []
+          ).map((file) => ({
+            ...file,
+            storageProvider: "PURGED",
+            cloudPublicId: "",
+            cloudResourceType: "",
+            cloudDeliveryType: "",
+            cloudVersion: null,
+            cloudFormat: "",
+          })),
         },
       }
     );
@@ -728,11 +1215,15 @@ module.exports = {
   discardArenaEvidenceFiles,
   getAdminArenaEvidenceData,
   getAdminEvidenceFile,
+  getArenaSupplementalEvidenceRequest,
   holdExpiredEvidence,
   holdExpiredMatchStarts,
   holdSundayCutoffMatches,
   purgeExpiredArenaEvidence,
   startArenaEvidenceRetentionScheduler,
   submitArenaMatchEvidence,
+  submitArenaSupplementalEvidence,
   timingAnomalyFlags,
+  isAtlasTransactionConflict,
+  withFreshEvidenceTransaction,
 };

@@ -77,7 +77,7 @@ function reconcileMainBuckets(cycle) {
     adminBucket.reservedDays < 0 ||
     adminBucket.lockedDays < 0
   ) {
-    throw new Error(`${cycle._id}의 Main 학습일수 출처 묶음을 음수 없이 보정할 수 없습니다.`);
+    throw new Error(`${cycle._id}의 Ranked 학습일수 출처 묶음을 음수 없이 보정할 수 없습니다.`);
   }
   return buckets;
 }

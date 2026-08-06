@@ -398,6 +398,8 @@ async function sendAdminUserEmail({
   subject,
   message,
   idempotencyKey = "",
+  actionLabel = "",
+  actionUrl = "",
 }) {
   const normalizedSubject =
     normalizeAdminEmailSubject(
@@ -418,6 +420,8 @@ async function sendAdminUserEmail({
           normalizedSubject.display,
         body:
           cleanMessage,
+        actionLabel,
+        actionUrl,
       }),
     headers:
       idempotencyKey

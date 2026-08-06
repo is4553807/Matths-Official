@@ -1,0 +1,13 @@
+<section class="arena-revenge-overlay" role="dialog" aria-modal="true" aria-labelledby="arena-revenge-title">
+  <div class="arena-revenge-overlay__glow" aria-hidden="true"></div>
+  <div class="arena-revenge-overlay__card">
+    <p class="arena-revenge-overlay__eyebrow">REVENGE WINDOW · 직전 경기 패자 전용</p>
+    <div class="arena-revenge-overlay__icon" aria-hidden="true">↻</div>
+    <h2 id="arena-revenge-title">복수전 기회가 열렸습니다.</h2>
+    <p>같은 상대와 바로 다시 승부할 수 있습니다. <%= revengeRight.division === "MAIN" ? "학습일수" : "페이백 점수" %> <strong><%= revengeRight.stakeDays %><%= revengeRight.division === "MAIN" ? "일" : "점" %></strong>이 예치되며, 상대는 자동으로 참가합니다.</p>
+    <div class="arena-revenge-overlay__actions">
+      <form action="/goat-arena/revenge-rights/<%= revengeRight.id %>/claim" method="post"><input type="hidden" name="requestId" value="<%= revengeRequestId %>:claim" /><button type="submit" aria-label="복수하기 — 복수전 시작">복수전 시작 <span aria-hidden="true">→</span></button></form>
+      <form action="/goat-arena/revenge-rights/<%= revengeRight.id %>/forfeit" method="post"><input type="hidden" name="requestId" value="<%= revengeRequestId %>:forfeit" /><button class="secondary" type="submit">이번 경기는 종료</button></form>
+    </div>
+  </div>
+</section>

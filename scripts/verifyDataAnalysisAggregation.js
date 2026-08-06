@@ -105,7 +105,7 @@ const rows = calculateMonthlyObservations({
       division: "SUB",
       winnerRole: "CHALLENGER",
       challenger: { tupleBefore: { arenaRank: "BRONZE" } },
-      resultSnapshot: { settlementSummary: { returnedLearningDays: 1 } },
+      resultSnapshot: { settlementSummary: { returnedPaybackScore: 1 } },
     },
     {
       _id: "match-main",
@@ -113,7 +113,7 @@ const rows = calculateMonthlyObservations({
       division: "MAIN",
       winnerRole: "DEFENDER",
       challenger: { tupleBefore: { arenaRank: "GOLD" } },
-      resultSnapshot: { settlementSummary: { returnedLearningDays: 0 } },
+      resultSnapshot: { settlementSummary: { returnedPaybackScore: 0 } },
     },
   ],
   matchesCreated: [
@@ -164,7 +164,7 @@ assert.equal(row("main.expiry_to_sub_rate").numericValue, 100);
 assert.equal(row("payback.recipient_rate").numericValue, 100);
 assert.equal(row("payback.payout_rate").numericValue, 50);
 assert.equal(row("simulation.challenger_win_rate").numericValue, 50);
-assert.equal(row("simulation.bronze_self_return_rate").numericValue, 100);
+assert.equal(row("simulation.unranked_challenger_refund_rate").numericValue, 100);
 assert.equal(row("renewal.assessment_dropoff_rate").numericValue, 50);
 assert.equal(row("access.first_day_deduction_support_rate").numericValue, 50);
 assert.equal(row("conversion.payment_view_to_purchase").numericValue, 50);

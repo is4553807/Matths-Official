@@ -82,9 +82,11 @@ exports.isLoggedIn = async (req, res, next) => {
                         account.schoolGrade,
                     educationStatus:
                         account.educationStatus ||
-                        (Number(account.schoolGrade) === 13
+                        ([13, 15].includes(Number(account.schoolGrade))
                             ? "graduated"
                             : "enrolled"),
+                    university:
+                        account.university,
                     preferences:
                         account.preferences,
                 }

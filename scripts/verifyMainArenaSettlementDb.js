@@ -113,7 +113,7 @@ async function run() {
       {
         _id: ids.problemPackId,
         version: `E2E.MAIN.NORMAL.${suffix}`,
-        displayName: "Main Division 일반 쟁탈전 실연결 E2E",
+        displayName: "Ranked 일반 쟁탈전 실연결 E2E",
         status: "DRAFT",
         division: "MAIN",
         matchType: "NORMAL",
@@ -198,7 +198,16 @@ async function run() {
         await AccessCycle.create(
           [
             { ...cycleBase, _id: ids.challengerCycleId, userId: ids.challengerUserId },
-            { ...cycleBase, _id: ids.defenderCycleId, userId: ids.defenderUserId },
+            {
+              ...cycleBase,
+              _id: ids.defenderCycleId,
+              userId: ids.defenderUserId,
+              availableLearningDays: 10,
+              lockedLearningDays: 0,
+              learningDayBuckets: [
+                { sourceType: "MAIN_MATCH_TRANSFER", availableDays: 10, reservedDays: 0, lockedDays: 0 },
+              ],
+            },
           ],
           { session, ordered: true }
         );
@@ -229,7 +238,7 @@ async function run() {
                 standingId: ids.defenderStandingId,
                 accessCycleId: ids.defenderCycleId,
                 tupleBefore: { arenaRank: "골드", arenaPosition: 2, arenaGp: 88 },
-                stakeDays: 1,
+                stakeDays: 0,
                 submittedAt: now,
               },
               status: "SUBMITTED",
@@ -238,8 +247,9 @@ async function run() {
               divisionPolicyVersionCode: "E2E-MAIN-POLICY",
               economySnapshot: {
                 originalStakeDays: 1,
+                normalStakeMode: "INITIATOR_ONLY",
                 challengerStakeDays: 1,
-                defenderStakeDays: 1,
+                defenderStakeDays: 0,
                 revengeStakeMultiplier: 2,
                 feeDays: 1,
               },
@@ -330,9 +340,9 @@ async function run() {
       [defenderStanding.arenaRank, defenderStanding.arenaPosition, defenderStanding.arenaGp],
       ["실버", 8, 35]
     );
-    assert.equal(challengerCycle.availableLearningDays, 11);
+    assert.equal(challengerCycle.availableLearningDays, 10);
     assert.equal(challengerCycle.lockedLearningDays, 0);
-    assert.equal(defenderCycle.availableLearningDays, 9);
+    assert.equal(defenderCycle.availableLearningDays, 10);
     assert.equal(defenderCycle.lockedLearningDays, 0);
     assert.equal(revengeRight.revengeStakeDays, 2);
     assert.equal(revengeRight.feeDays, 1);
@@ -346,7 +356,7 @@ async function run() {
     try {
       await revengeSession.withTransaction(async () => {
         await AccessCycle.updateOne(
-          { _id: ids.defenderCycleId, availableLearningDays: 9, lockedLearningDays: 0 },
+          { _id: ids.defenderCycleId, availableLearningDays: 10, lockedLearningDays: 0 },
           {
             $set: {
               learningDayBuckets: revengeStakeState.buckets,
@@ -459,9 +469,9 @@ async function run() {
       [revengeDefenderStanding.arenaRank, revengeDefenderStanding.arenaPosition, revengeDefenderStanding.arenaGp],
       ["실버", 8, 35]
     );
-    assert.equal(revengeAttackerAfter.availableLearningDays, 8);
+    assert.equal(revengeAttackerAfter.availableLearningDays, 9);
     assert.equal(revengeAttackerAfter.lockedLearningDays, 0);
-    console.log(JSON.stringify({ ok: true, database: mongoose.connection.name, tupleSwapped: true, winnerDays: 11, loserDays: 9, revengeRight: true }));
+    console.log(JSON.stringify({ ok: true, database: mongoose.connection.name, tupleSwapped: true, challengerDays: 10, defenderDays: 10, revengeRight: true, normalStakeMode: "INITIATOR_ONLY" }));
   } finally {
     const right = await ArenaRevengeRight.findOne({ sourceMatchId: ids.matchId }).lean();
     await Promise.all([

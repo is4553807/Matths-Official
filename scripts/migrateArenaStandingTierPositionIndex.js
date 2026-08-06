@@ -19,6 +19,9 @@ const CURRENT_KEY = {
 };
 const CURRENT_INDEX_NAME =
   "division_1_seasonKey_1_arenaRank_1_arenaPosition_1";
+const CURRENT_PARTIAL_FILTER = {
+  status: "ACTIVE",
+};
 
 function sameKey(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
@@ -36,6 +39,7 @@ async function run() {
     const indexes = await collection.indexes();
     const legacy = indexes.find((index) => sameKey(index.key, LEGACY_KEY));
     const duplicates = await ArenaStanding.aggregate([
+      { $match: CURRENT_PARTIAL_FILTER },
       {
         $group: {
           _id: {
@@ -60,7 +64,12 @@ async function run() {
     }
     const refreshed = await collection.indexes();
     const current = refreshed.find((index) => sameKey(index.key, CURRENT_KEY));
-    if (current && current.unique !== true) {
+    const currentIsValid = Boolean(
+      current &&
+        current.unique === true &&
+        sameKey(current.partialFilterExpression, CURRENT_PARTIAL_FILTER)
+    );
+    if (current && !currentIsValid) {
       await collection.dropIndex(current.name);
     }
     const afterDrop = await collection.indexes();
@@ -68,6 +77,7 @@ async function run() {
       await collection.createIndex(CURRENT_KEY, {
         name: CURRENT_INDEX_NAME,
         unique: true,
+        partialFilterExpression: CURRENT_PARTIAL_FILTER,
       });
     }
     console.log(
@@ -76,6 +86,7 @@ async function run() {
         database: mongoose.connection.name,
         legacyIndexRemoved: Boolean(legacy),
         currentIndex: CURRENT_INDEX_NAME,
+        activeOnly: true,
         standingCount: await ArenaStanding.countDocuments({}),
       })
     );
