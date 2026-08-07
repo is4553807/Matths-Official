@@ -127,7 +127,7 @@ async function seedScenario({ division, cheatingRole, adminId, token, index, now
     { _id: challengerAttemptId, matchId, userId: challengerId, role: "CHALLENGER", status: "SUBMITTED", currentQuestionIndex: 5, evidenceDeadlineAt: null, answers: [], questionTimings: [], activeSolveTimeMs: 120000, correctCount: 3, score: 60, createdAt: now, updatedAt: now },
     { _id: defenderAttemptId, matchId, userId: defenderId, role: "DEFENDER", status: "SUBMITTED", currentQuestionIndex: 5, answers: [], questionTimings: [], activeSolveTimeMs: 140000, correctCount: 2, score: 40, createdAt: now, updatedAt: now },
   ]);
-  const evidenceFile = (name, hash) => ({ originalName: name, storedName: `${token}-${index}-${name}`, mimeType: "image/png", sizeBytes: 12000, sha256: hash.repeat(64), storageProvider: "LOCAL", storagePurpose: "USER_ARENA_EVIDENCE" });
+  const evidenceFile = (name, hash) => ({ originalName: name, storedName: `${token}-${index}-${name}`, mimeType: "image/png", sizeBytes: 12000, sha256: hash.repeat(64), storageProvider: "CLOUDINARY", storagePurpose: "USER_ARENA_EVIDENCE" });
   const evidenceRows = [
     { attemptId: defenderAttemptId, matchId, userId: defenderId, files: [evidenceFile("defender.png", "b")], deadlineAt: now, submittedAt: now, status: cheatingRole === "DEFENDER" ? "ANOMALY_FLAGGED" : "ON_TIME", anomalyFlags: cheatingRole === "DEFENDER" ? ["MULTIPLE_RAPID_CORRECT_ANSWERS"] : [], screenedAsWinner: cheatingRole === "DEFENDER", retentionUntil: new Date(now.getTime() + 86400000), createdAt: now, updatedAt: now },
   ];

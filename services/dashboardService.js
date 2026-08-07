@@ -945,6 +945,8 @@ async function getDashboardData(userId) {
 
     const todayStudyMinutes =
         activityMap.get(todayKey) || 0;
+    const todaySolvedProblems =
+        Number(activityByDate.get(todayKey)?.attempts) || 0;
     const activeStudyDays =
         weeklyActivityDays.filter(
             (day) => day.minutes > 0
@@ -1339,6 +1341,8 @@ async function getDashboardData(userId) {
 
             weeklySolvedProblems:
                 currentAttemptStats.attempts,
+
+            todaySolvedProblems,
 
             todayStudyMinutes,
 

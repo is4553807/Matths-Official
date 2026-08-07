@@ -52,6 +52,7 @@
     <title>고등학교 수학 교육과정 | Matths</title>
     <link rel="stylesheet" href="/css/curriculum.css" />
     <link rel="stylesheet" href="/css/public-navigation.css" />
+    <script src="/js/curriculum.js" defer></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -120,7 +121,13 @@
           </div>
           <div class="roadmap-list">
             <% categoryList.forEach((category, categoryIndex) => { %>
-              <article class="<%= categoryIndex === 0 ? "current" : "" %>">
+              <button
+                class="course-category-button <%= categoryIndex === 0 ? "current" : "" %>"
+                type="button"
+                data-course-category="<%= category.id %>"
+                aria-controls="category-<%= category.id %>"
+                aria-pressed="<%= categoryIndex === 0 ? "true" : "false" %>"
+              >
                 <span><%= category.englishTitle || "COURSE" %></span>
                 <div>
                   <strong><%= category.title %></strong>
@@ -129,7 +136,7 @@
                   </p>
                 </div>
                 <b><%= category.courses.length %>과목</b>
-              </article>
+              </button>
             <% }) %>
           </div>
         </div>

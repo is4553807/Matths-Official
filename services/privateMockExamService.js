@@ -29,7 +29,6 @@ const {
   ArenaAccessState,
 } = require("../models/goatArenaModel");
 const {
-  ARCHIVE_STORAGE_DIR,
   createArchiveItem,
   deleteArchiveItem,
   discardArchiveUpload,
@@ -1619,22 +1618,10 @@ async function createPrivateMockExamBatch({
           },
         }),
         archiveItem?.storedName
-          ? destroyStoredAsset({
-              ...archiveItem,
-              path: path.join(
-                ARCHIVE_STORAGE_DIR,
-                path.basename(archiveItem.storedName)
-              ),
-            }).catch(() => {})
+          ? destroyStoredAsset(archiveItem).catch(() => {})
           : Promise.resolve(),
         answerSheetItem?.storedName
-          ? destroyStoredAsset({
-              ...answerSheetItem,
-              path: path.join(
-                ARCHIVE_STORAGE_DIR,
-                path.basename(answerSheetItem.storedName)
-              ),
-            }).catch(() => {})
+          ? destroyStoredAsset(answerSheetItem).catch(() => {})
           : Promise.resolve(),
       ]);
     }
@@ -1705,25 +1692,6 @@ async function deletePrivateMockExam({
           exam.answerSheetArchiveItemId
         ).lean()
       : null;
-  const questionPath =
-    archiveItem?.storedName
-      ? path.join(
-          ARCHIVE_STORAGE_DIR,
-          path.basename(
-            archiveItem.storedName
-          )
-        )
-      : "";
-  const answerSheetPath =
-    answerSheetItem?.storedName
-      ? path.join(
-          ARCHIVE_STORAGE_DIR,
-          path.basename(
-            answerSheetItem.storedName
-          )
-        )
-      : "";
-
   await Promise.all([
     PrivateMockExamAttempt.deleteMany({
       examId: exam._id,
@@ -1748,10 +1716,10 @@ async function deletePrivateMockExam({
   ]);
 
   if (archiveItem) {
-    await destroyStoredAsset({ ...archiveItem, path: questionPath });
+    await destroyStoredAsset(archiveItem);
   }
   if (answerSheetItem) {
-    await destroyStoredAsset({ ...answerSheetItem, path: answerSheetPath });
+    await destroyStoredAsset(answerSheetItem);
   }
 
   return {
@@ -5371,11 +5339,7 @@ async function getPrivateMockExamFile({
     download: false,
     originalName: item.originalName,
   });
-  const filePath = ["CLOUDINARY", "R2"].includes(item.storageProvider)
-    ? null
-    : path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName));
-
-  if (!cloudUrl && (!filePath || !fs.existsSync(filePath))) {
+  if (!cloudUrl) {
     throw statusError(
       404,
       "문제지 파일을 찾을 수 없습니다."
@@ -5383,7 +5347,7 @@ async function getPrivateMockExamFile({
   }
 
   return {
-    path: filePath,
+    path: null,
     cloudUrl,
     name:
       repairUploadFilename(
@@ -5466,11 +5430,7 @@ async function getAdminPrivateMockPdfFile({
     download: false,
     originalName: item.originalName,
   });
-  const filePath = ["CLOUDINARY", "R2"].includes(item.storageProvider)
-    ? null
-    : path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName));
-
-  if (!cloudUrl && (!filePath || !fs.existsSync(filePath))) {
+  if (!cloudUrl) {
     throw statusError(
       404,
       "Matths 주간 공식 모의고사 PDF 파일을 찾을 수 없습니다."
@@ -5478,7 +5438,7 @@ async function getAdminPrivateMockPdfFile({
   }
 
   return {
-    path: filePath,
+    path: null,
     cloudUrl,
     name:
       repairUploadFilename(
@@ -6907,15 +6867,12 @@ async function getPrivateMockFormulaFile({
 
   const item =
     resource.archiveItemId;
-  const filePath =
-    path.join(
-      ARCHIVE_STORAGE_DIR,
-      path.basename(
-        item.storedName
-      )
-    );
+  const cloudUrl = await signedStoredAssetUrl(item, {
+    download: false,
+    originalName: item.originalName,
+  });
 
-  if (!fs.existsSync(filePath)) {
+  if (!cloudUrl) {
     throw statusError(
       404,
       "공식 암기 자료 파일을 찾을 수 없습니다."
@@ -6923,7 +6880,8 @@ async function getPrivateMockFormulaFile({
   }
 
   return {
-    path: filePath,
+    path: null,
+    cloudUrl,
     name:
       repairUploadFilename(
         item.originalName
@@ -7753,40 +7711,22 @@ async function getAdminPrivateMockIntegrityEvidenceFile({
     download: false,
     originalName: item.originalName,
   });
-  const filePath = ["CLOUDINARY", "R2"].includes(item.storageProvider)
-    ? null
-    : path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName));
-
-  if (!cloudUrl && (!filePath || !fs.existsSync(filePath))) {
+  if (!cloudUrl) {
     throw statusError(
       404,
       "소명 자료 파일을 찾을 수 없습니다."
     );
   }
-  const detectedMimeType = filePath
-    ? await detectIntegrityEvidenceMimeType(filePath)
-    : item.mimeType;
-
-  if (
-    !detectedMimeType ||
-    detectedMimeType !==
-      item.mimeType
-  ) {
-    throw statusError(
-      415,
-      "파일 내용과 저장된 형식이 일치하지 않아 안전 열람을 차단했습니다."
-    );
-  }
 
   return {
-    path: filePath,
+    path: null,
     cloudUrl,
     name:
       repairUploadFilename(
         item.originalName
       ),
     mimeType:
-      detectedMimeType,
+      item.mimeType,
   };
 }
 

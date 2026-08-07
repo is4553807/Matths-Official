@@ -221,7 +221,7 @@
           <article><small>스케줄러</small><strong><%= rankingOperations.operations.schedulerEnabled ? "실행 허용" : "중지됨" %></strong><span>시즌·차감·알림 작업</span></article>
         </div>
         <div class="maintenance-actions">
-          <% [["SETTLEMENT_RETRY", "대기 경기 정산 재처리"], ["ACCESS_CYCLE_RETRY", "일일 차감·만료 재처리"], ["NOTIFICATION_RETRY", "종료 예정 알림 재처리"], ["SEASON_RETRY", "시즌 작업 재처리"], ["STORAGE_BACKUP", "기존 로컬 파일 R2 이전 점검"], ["STORAGE_RESTORE_DRILL", "R2 원본 무결성 점검"]].forEach(([task, label]) => { %>
+          <% [["SETTLEMENT_RETRY", "대기 경기 정산 재처리"], ["ACCESS_CYCLE_RETRY", "일일 차감·만료 재처리"], ["NOTIFICATION_RETRY", "종료 예정 알림 재처리"], ["SEASON_RETRY", "시즌 작업 재처리"]].forEach(([task, label]) => { %>
             <form action="/admin/arena-audit/maintenance" method="POST"><input type="hidden" name="task" value="<%= task %>" /><button type="submit"><%= label %></button></form>
           <% }) %>
         </div>

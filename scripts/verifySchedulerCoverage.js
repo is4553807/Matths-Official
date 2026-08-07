@@ -15,7 +15,6 @@ const coverage = [
   ["services/dataAnalysisAggregationService.js", "DATA_ANALYSIS_MONTHLY"],
   ["services/arenaIntegrityRiskService.js", "ARENA_INTEGRITY_RISK"],
   ["services/arenaOutboxService.js", "ARENA_OUTBOX_DELIVERY"],
-  ["services/localStorageBackupService.js", "LOCAL_STORAGE_R2_BACKUP"],
   ["middleware/userCloudUploadStorage.js", "USER_CLOUD_TEMP_CLEANUP"],
 ];
 

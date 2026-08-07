@@ -181,18 +181,6 @@ async function runRankingMaintenanceTask({ adminUserId, task, now = new Date() }
   } else if (code === "SEASON_RETRY") {
     const { openAnnualArenaSeason } = require("./arenaSeasonService");
     result = await openAnnualArenaSeason({ now });
-  } else if (code === "STORAGE_BACKUP") {
-    const { runLocalStorageR2Backup } = require("./localStorageBackupService");
-    result = await runLocalStorageR2Backup();
-  } else if (code === "STORAGE_RESTORE_DRILL") {
-    const {
-      restoreMissingLocalFilesFromR2,
-      verifyR2RestoreDrill,
-    } = require("./localStorageBackupService");
-    result = {
-      verification: await verifyR2RestoreDrill(),
-      missingLocalRecovery: await restoreMissingLocalFilesFromR2(),
-    };
   } else {
     const error = new Error("지원하지 않는 운영 작업입니다.");
     error.status = 400;

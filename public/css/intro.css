@@ -2062,13 +2062,27 @@ a:focus-visible {
   border-radius: 10px;
 }
 
-.tone-modes span {
+.tone-modes button {
   padding: 9px 13px;
   color: #c3ccff;
+  background: transparent;
+  border: 0;
   border-radius: 7px;
+  font-family: inherit;
   font-size: 9px;
   font-weight: 750;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
 }
+
+/* JS가 선택 상태를 갱신하는 코치 말투 버튼의 독립 식별자입니다. */
+.intro-coach-mode {
+  min-width: 48px;
+}
+
+.tone-modes button:hover { color: #fff; }
+.tone-modes button:focus-visible { outline: 3px solid rgba(255,255,255,.45); outline-offset: 2px; }
 
 .tone-modes .active {
   color: var(--blue);
@@ -2741,7 +2755,7 @@ a:focus-visible {
     width: 100%;
   }
 
-  .tone-modes span {
+  .tone-modes button {
     flex: 1;
     text-align: center;
   }

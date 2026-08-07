@@ -78,16 +78,14 @@
     "arena-main-rulebook:verify-db": "node scripts/verifyMainRulebookActivePolicyDb.js",
     "file-storage:verify": "node scripts/verifyFileStorage.js",
     "file-storage:verify-cloud": "node scripts/verifyCloudinaryStorage.js",
-    "storage:backup": "node scripts/runLocalStorageBackup.js",
     "storage-r2:verify": "node scripts/verifyR2Storage.js",
-    "storage-r2:migrate": "node scripts/migrateLocalFilesToR2.js",
     "storage-policy:verify": "node scripts/verifyStoragePolicySplit.js",
-    "storage-backup:verify": "node scripts/verifyLocalStorageBackup.js",
     "storage-lifecycle:verify-db": "node scripts/verifyStorageLifecycleDb.js",
     "pdf-watermark:verify": "node scripts/verifyPdfWatermarkLocal.js",
     "pdf-watermark:verify-db": "node scripts/verifyPdfWatermark.js",
     "ranking-operations:verify-db": "node scripts/verifyRankingOperationsDb.js",
-    "accounts:configure-requested": "node scripts/configureRequestedAccounts.js"
+    "accounts:configure-requested": "node scripts/configureRequestedAccounts.js",
+    "launch-data:purge": "node scripts/purgeLaunchUserAndArchiveData.js --apply"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",

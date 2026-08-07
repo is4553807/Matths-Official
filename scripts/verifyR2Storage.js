@@ -2,18 +2,14 @@ require("dotenv").config({ path: "config.env" });
 
 const assert = require("node:assert/strict");
 const { createHash, randomUUID } = require("node:crypto");
-const fs = require("node:fs");
-const path = require("node:path");
 
 const {
   DeleteObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } = require("@aws-sdk/client-s3");
-const {
-  downloadAndVerifyR2Backup,
-} = require("../services/localStorageBackupService");
 
 const REQUIRED_ENV = [
   "R2_ACCOUNT_ID",
@@ -46,7 +42,6 @@ async function verifyR2Storage() {
   const testKey = `matths-connection-check/${Date.now()}.txt`;
   const testBody = Buffer.from("Matths R2 connection verification", "utf8");
   const testSha256 = createHash("sha256").update(testBody).digest("hex");
-  const restoredPath = path.join("/tmp", `matths-r2-restore-${randomUUID()}.txt`);
 
   try {
     await client.send(new HeadBucketCommand({ Bucket: bucket }));
@@ -71,21 +66,13 @@ async function verifyR2Storage() {
         Metadata: { sha256: testSha256 },
       })
     );
-    const restoreResult = await downloadAndVerifyR2Backup({
-      item: {
-        backupProvider: "R2",
-        backupObjectKey: testKey,
-        backupSha256: testSha256,
-      },
-      destinationPath: restoredPath,
-    });
-    assert.equal(restoreResult.sha256, testSha256);
-    assert.equal(fs.readFileSync(restoredPath, "utf8"), testBody.toString("utf8"));
-    fs.unlinkSync(restoredPath);
+    const uploaded = await client.send(
+      new HeadObjectCommand({ Bucket: bucket, Key: testKey })
+    );
+    assert.equal(String(uploaded.Metadata?.sha256 || ""), testSha256);
     await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: testKey }));
-    console.log("R2 upload, hash-verified restore, and deletion verified. Temporary files were removed.");
+    console.log("R2 upload, object metadata hash, and deletion verified. No local restore copy was created.");
   } finally {
-    fs.rmSync(restoredPath, { force: true });
     client.destroy();
   }
 }

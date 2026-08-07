@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const mongoose = require("mongoose");
@@ -9,7 +10,6 @@ require("dotenv").config({ path: path.resolve(__dirname, "..", "config.env") });
 const { ArchiveItem, User } = require("../models/matthsModel");
 const { r2ObjectExists } = require("../services/r2ObjectStorageService");
 const {
-  ARCHIVE_STORAGE_DIR,
   createArchiveItem,
   deleteArchiveItem,
   purgeArchiveItem,
@@ -23,9 +23,11 @@ async function run() {
     .lean();
   assert.ok(admin, "저장 수명주기 검증에 사용할 운영자 계정이 필요합니다.");
 
-  await fs.promises.mkdir(ARCHIVE_STORAGE_DIR, { recursive: true });
+  const temporaryDirectory = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), "matths-r2-lifecycle-")
+  );
   const storedName = `${Date.now()}-${randomUUID()}.pdf`;
-  const filePath = path.join(ARCHIVE_STORAGE_DIR, storedName);
+  const filePath = path.join(temporaryDirectory, storedName);
   await fs.promises.writeFile(filePath, Buffer.from("Matths storage lifecycle verification"));
   let itemId = null;
 
@@ -82,7 +84,7 @@ async function run() {
     console.log("운영자 R2 저장·30일 휴지통·복구·영구 삭제 Atlas E2E 검증 완료");
   } finally {
     if (itemId) await ArchiveItem.deleteOne({ _id: itemId }).catch(() => {});
-    await fs.promises.unlink(filePath).catch(() => {});
+    await fs.promises.rm(temporaryDirectory, { recursive: true, force: true }).catch(() => {});
     await mongoose.disconnect();
   }
 }

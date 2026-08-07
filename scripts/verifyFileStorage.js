@@ -24,11 +24,14 @@ storeUploadedFile({
   originalname: "test.png",
   mimetype: "image/png",
 })
-  .then((asset) => {
-    assert.equal(asset.storageProvider, "LOCAL");
-    assert.equal(getFileStorageStatus().provider, "local");
-    assert.deepEqual(storageFields(asset), {
-      storageProvider: "LOCAL",
+  .then(() => {
+    throw new Error("영구 로컬 저장 요청은 거부되어야 합니다.");
+  })
+  .catch((error) => {
+    assert.equal(error.code, "PERSISTENT_LOCAL_STORAGE_DISABLED");
+    assert.equal(getFileStorageStatus().persistentLocalReady, false);
+    assert.deepEqual(storageFields({}), {
+      storageProvider: "R2",
       storagePurpose: "GENERIC",
       cloudPublicId: "",
       cloudResourceType: "",
@@ -64,7 +67,7 @@ storeUploadedFile({
       assert.ok(source.includes("storeUploadedFile"));
       assert.ok(source.includes("storageFields"));
     }
-    console.log("Cloudinary 비공개 저장소 어댑터와 로컬 개발 대체 경로 검증 완료");
+    console.log("영구 로컬 저장 차단과 R2·Cloudinary 분리 저장 정책 검증 완료");
   })
   .finally(() => fs.promises.unlink(temporaryPath).catch(() => {}))
   .catch((error) => {

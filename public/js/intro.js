@@ -8,7 +8,60 @@
     "둘레 2πr의 절반이 밑변 πr이 됩니다.",
   ];
 
+  function initCoachModeSelector() {
+    const buttons = Array.from(document.querySelectorAll(".intro-coach-mode[data-coach-mode]"));
+    const tone = document.getElementById("intro-coach-tone");
+    const helper = document.getElementById("intro-coach-helper");
+    if (!buttons.length || !tone || !helper) return;
+
+    const modes = {
+      mild: {
+        tone: "조금 헷갈렸네. 조건부터 다시 확인해 보자.",
+        helper: "괜찮아. 막힌 Step부터 그림으로 다시 보여줄게.",
+      },
+      spicy: {
+        tone: "공식만 외운 거, 숫자 바뀌자마자 들켰네.",
+        helper: "바로 다시 잡자. 원리까지 이해하면 다음 숫자 변화에도 흔들리지 않아.",
+      },
+      silent: {
+        tone: "필요한 풀이 단계만 조용히 안내합니다.",
+        helper: "문구 대신 학습 흐름과 화면 안내만 표시합니다.",
+      },
+    };
+
+    function selectMode(mode, save) {
+      const selected = modes[mode] || modes.spicy;
+      tone.textContent = selected.tone;
+      helper.textContent = selected.helper;
+      buttons.forEach((button) => {
+        const active = button.dataset.coachMode === mode;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
+      if (save) {
+        try {
+          window.localStorage.setItem("matths-learning-mode", mode);
+        } catch (_error) {
+          // The selector remains usable when private browsing blocks storage.
+        }
+      }
+    }
+
+    let selectedMode = "spicy";
+    try {
+      const stored = window.localStorage.getItem("matths-learning-mode");
+      if (stored && modes[stored]) selectedMode = stored;
+    } catch (_error) {
+      // Keep the default mode when storage is unavailable.
+    }
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => selectMode(button.dataset.coachMode, true));
+    });
+    selectMode(selectedMode, false);
+  }
+
   function init() {
+    initCoachModeSelector();
     const demo = document.querySelector(".visual-demo[data-demo-step]");
     if (!demo) return;
 

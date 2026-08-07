@@ -95,7 +95,7 @@ async function main() {
       attemptId: ids.challengerAttempt,
       matchId: ids.match,
       userId: ids.challenger,
-      files: [{ originalName: "evidence.png", storedName: "test-evidence.png", mimeType: "image/png", sizeBytes: 10000, sha256: "a".repeat(64), storageProvider: "LOCAL", storagePurpose: "USER_ARENA_EVIDENCE" }],
+      files: [{ originalName: "evidence.png", storedName: "test-evidence.png", mimeType: "image/png", sizeBytes: 10000, sha256: "a".repeat(64), storageProvider: "CLOUDINARY", storagePurpose: "USER_ARENA_EVIDENCE" }],
       deadlineAt: new Date(now.getTime() + 60000),
       submittedAt: now,
       status: "ANOMALY_FLAGGED",

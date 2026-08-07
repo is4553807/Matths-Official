@@ -3,6 +3,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const mongoose = require("mongoose");
+const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 require("dotenv").config({ path: path.resolve(__dirname, "..", "config.env") });
 
 const {
@@ -18,20 +19,47 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+async function createVerificationSourcePdf(destinationPath) {
+  const document = await PDFDocument.create();
+  const font = await document.embedFont(StandardFonts.Helvetica);
+  for (let pageNumber = 1; pageNumber <= 4; pageNumber += 1) {
+    const page = document.addPage([595, 842]);
+    page.drawText("Matths PDF watermark verification source", {
+      x: 62,
+      y: 760,
+      size: 18,
+      font,
+      color: rgb(0.06, 0.1, 0.22),
+    });
+    page.drawText(`Verification page ${pageNumber}`, {
+      x: 62,
+      y: 720,
+      size: 13,
+      font,
+      color: rgb(0.25, 0.3, 0.45),
+    });
+  }
+  await fs.promises.mkdir(path.dirname(destinationPath), { recursive: true });
+  await fs.promises.writeFile(destinationPath, await document.save());
+  return destinationPath;
+}
+
 async function main() {
-  const sourcePath = path.resolve(
-    process.argv[2] ||
-      path.join(__dirname, "..", "storage", "store", "1786041053867-df9aaeb0-5d27-40d9-a87c-55dcb52ecd14.pdf")
-  );
+  const requestedSourcePath = String(process.argv[2] || "").trim();
+  const sourcePath = requestedSourcePath
+    ? path.resolve(requestedSourcePath)
+    : await createVerificationSourcePdf(
+        path.resolve(__dirname, "..", "tmp", "pdfs", "watermark-qa-source.pdf")
+      );
   assert(fs.existsSync(sourcePath), `검증 원본 PDF가 없습니다: ${sourcePath}`);
   const outputPath = path.resolve(__dirname, "..", "tmp", "pdfs", "watermark-qa.pdf");
   await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
   const userId = new mongoose.Types.ObjectId();
   const identity = buildForensicIdentity({
     userId,
-    examId: "LOCAL-PDF-WATERMARK-QA",
+    examId: "PDF-WATERMARK-QA",
     sourceType: "STORE",
-    sourceId: "LOCAL-PDF-WATERMARK-QA",
+    sourceId: "PDF-WATERMARK-QA",
     downloadedAt: new Date("2026-08-07T03:04:05.000Z"),
   });
   const sourceBytes = await fs.promises.readFile(sourcePath);
@@ -49,7 +77,7 @@ async function main() {
   assert(analysis.pageTraceCount === analysis.pageCount, "페이지별 식별 코드가 일부 누락되었습니다.");
   assert(verified, "서명된 숨김 식별정보를 복원하지 못했습니다.");
   assert(verified.user_id === String(userId), "숨김 사용자 ID가 발급 사용자와 다릅니다.");
-  assert(verified.exam_id === "LOCAL-PDF-WATERMARK-QA", "숨김 시험 ID가 다릅니다.");
+  assert(verified.exam_id === "PDF-WATERMARK-QA", "숨김 시험 ID가 다릅니다.");
   assert(verified.downloaded_at === "2026-08-07T03:04:05.000Z", "숨김 다운로드 시각이 다릅니다.");
   const screenshotPrefix = path.resolve(__dirname, "..", "tmp", "pdfs", "screenshot-qa");
   execFileSync("pdftoppm", [

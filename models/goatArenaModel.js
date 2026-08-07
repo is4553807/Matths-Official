@@ -1124,6 +1124,21 @@ const policyChangeDeliverySchema = new Schema(
       maxlength: 500,
       default: "/goat-arena/rules/sub",
     },
+    // 정책 공지에 함께 보여줄 변경 전·후 표의 행입니다. 원문 정책 전체를
+    // 복제하지 않고, 사용자에게 안내할 변경점만 전달 원장에 고정한다.
+    comparisonRows: {
+      type: [
+        new Schema(
+          {
+            label: { type: String, required: true, maxlength: 120 },
+            before: { type: String, maxlength: 500, default: "" },
+            after: { type: String, maxlength: 500, default: "" },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
     siteStatus: {
       type: String,
       enum: ["PENDING", "SENT", "FAILED"],
@@ -5005,8 +5020,8 @@ const arenaMatchEvidenceFileSchema = new Schema(
     },
     storageProvider: {
       type: String,
-      enum: ["LOCAL", "CLOUDINARY", "PURGED"],
-      default: "LOCAL",
+      enum: ["CLOUDINARY", "PURGED"],
+      default: "CLOUDINARY",
     },
     storagePurpose: {
       type: String,

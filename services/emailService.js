@@ -40,6 +40,7 @@ function textToHtml(value) {
 function buildBrandedHtml({
   heading,
   body = "",
+  bodyHtml = "",
   kicker = "MATTHS",
   highlight = "",
   actionLabel = "",
@@ -54,7 +55,7 @@ function buildBrandedHtml({
     <div style="max-width:620px;margin:auto;padding:32px;font-family:Arial,sans-serif;color:#111426">
       <p style="color:#3157f6;font-weight:800;letter-spacing:1px">${escapeHtml(kicker)}</p>
       <h1 style="margin:8px 0 24px;font-size:24px">${escapeHtml(heading)}</h1>
-      ${body ? `<div style="line-height:1.8">${textToHtml(body)}</div>` : ""}
+      ${bodyHtml ? `<div style="line-height:1.8">${bodyHtml}</div>` : body ? `<div style="line-height:1.8">${textToHtml(body)}</div>` : ""}
       ${highlight ? `<div style="margin:24px 0;padding:20px;text-align:center;font-size:34px;font-weight:900;letter-spacing:10px;background:#f1f4ff;border-radius:16px">${escapeHtml(highlight)}</div>` : ""}
       ${safeActionUrl ? `<p style="margin:28px 0"><a href="${safeActionUrl}" style="display:inline-block;padding:15px 22px;color:#fff;background:#3157f6;border-radius:12px;text-decoration:none;font-weight:800">${escapeHtml(actionLabel || "확인하기")}</a></p>` : ""}
       ${footer ? `<p style="margin-top:24px;color:#687086">${textToHtml(footer)}</p>` : ""}
@@ -400,6 +401,7 @@ async function sendAdminUserEmail({
   idempotencyKey = "",
   actionLabel = "",
   actionUrl = "",
+  bodyHtml = "",
 }) {
   const normalizedSubject =
     normalizeAdminEmailSubject(
@@ -420,6 +422,7 @@ async function sendAdminUserEmail({
           normalizedSubject.display,
         body:
           cleanMessage,
+        bodyHtml,
         actionLabel,
         actionUrl,
       }),

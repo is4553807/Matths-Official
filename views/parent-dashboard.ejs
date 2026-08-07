@@ -31,7 +31,7 @@
       </section>
       <section class="parent-summary-grid" aria-label="주요 학습 지표">
         <article><small>이번 주 학습 시간</small><strong><%= formatMinutes(stats.weeklyStudyMinutes) %></strong><span>오늘 <%= formatMinutes(stats.todayStudyMinutes) %></span></article>
-        <article><small>이번 주 풀이</small><strong><%= Number(stats.weeklySolvedProblems) || 0 %><em>문제</em></strong><span>활동일 <%= Number(stats.activeStudyDays) || 0 %>일</span></article>
+        <article><small>오늘 풀이</small><strong><%= Number(stats.todaySolvedProblems) || 0 %><em>문제</em></strong><span>KST 기준 · 이번 주 <%= Number(stats.weeklySolvedProblems) || 0 %>문제</span></article>
         <article><small>정답률</small><strong><%= accuracy %><em>%</em></strong><span>오답률 <%= wrongRate %>%</span></article>
         <article><small>연속 학습</small><strong><%= Number(child.currentStreak) || 0 %><em>일</em></strong><span>누적 학습 <%= formatMinutes((child.totalStudySeconds || 0) / 60) %></span></article>
       </section>

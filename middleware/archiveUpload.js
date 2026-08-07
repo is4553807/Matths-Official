@@ -1,23 +1,8 @@
-const fs = require("fs");
 const path = require("path");
-const {
-  randomUUID,
-} = require("crypto");
 const multer = require("multer");
 const {
   userCloudUploadStorage,
 } = require("./userCloudUploadStorage");
-
-const {
-  ARCHIVE_STORAGE_DIR,
-} = require("../services/archiveService");
-
-fs.mkdirSync(
-  ARCHIVE_STORAGE_DIR,
-  {
-    recursive: true,
-  }
-);
 
 const ADMIN_ARCHIVE_EXTENSIONS =
   new Set([
@@ -55,35 +40,7 @@ const USER_INTEGRITY_EVIDENCE_EXTENSIONS = new Set([
   ".heic",
 ]);
 
-const adminStorage =
-  multer.diskStorage({
-    destination(
-      req,
-      file,
-      callback
-    ) {
-      callback(
-        null,
-        ARCHIVE_STORAGE_DIR
-      );
-    },
-    filename(
-      req,
-      file,
-      callback
-    ) {
-      const extension =
-        path.extname(
-          file.originalname
-        ).toLowerCase();
-      callback(
-        null,
-        `${Date.now()}-${randomUUID()}${extension}`
-      );
-    },
-  });
-
-function createArchiveUpload({ extensions, files, fileSize, errorMessage, storage = adminStorage }) {
+function createArchiveUpload({ extensions, files, fileSize, errorMessage, storage = userCloudUploadStorage }) {
   return multer({
     storage,
     limits: {

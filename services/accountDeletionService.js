@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const path = require("node:path");
 const {
   AdminActionLog,
   ArchiveItem,
@@ -72,9 +73,6 @@ const {
 } = require("../models/parentModel");
 const { PaybackPayoutRecord } = require("../models/paybackModel");
 const {
-  ARCHIVE_STORAGE_DIR,
-} = require("./archiveService");
-const {
   discardCommunityUploads,
 } = require("./communityAttachmentService");
 const {
@@ -83,8 +81,6 @@ const {
 const {
   ARENA_EVIDENCE_STORAGE_DIR,
 } = require("../middleware/arenaEvidenceUpload");
-const fs = require("node:fs");
-const path = require("node:path");
 
 function statusError(status, message) {
   const error = new Error(message);
@@ -296,11 +292,7 @@ async function removeUserUploadedFiles(userId) {
   );
   await Promise.all(
     archiveItems.map(async (item) => {
-      const storedName = path.basename(String(item?.storedName || ""));
-      if (!storedName) return;
-      const absolutePath = path.resolve(ARCHIVE_STORAGE_DIR, storedName);
-      if (path.dirname(absolutePath) !== ARCHIVE_STORAGE_DIR) return;
-      await destroyStoredAsset({ ...item, path: absolutePath }).catch(() => {});
+      await destroyStoredAsset(item).catch(() => {});
     })
   );
   await Promise.all([
@@ -654,6 +646,18 @@ async function withdrawUserAccount({
   if (
     user.accountStatus === "withdrawn"
   ) {
+    // 익명 보존 탈퇴 뒤에도 운영자가 동일 계정을 다시 열어 남은
+    // 익명 활동 데이터까지 완전히 삭제할 수 있다.
+    if (!retainAnonymousData) {
+      await removePrivateAccountData(user._id);
+      await removeUserUploadedFiles(user._id);
+      await purgeUserOwnedData(user._id);
+      await User.deleteOne({ _id: user._id });
+      return {
+        user: { _id: user._id },
+        dataRetention: "purged",
+      };
+    }
     throw statusError(
       409,
       "이미 탈퇴 처리된 계정입니다."

@@ -2060,6 +2060,20 @@
   cursor: not-allowed;
 }
 
+.admin-form > .admin-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 43px;
+  padding: 0 16px;
+  color: #fff;
+  background: var(--admin-blue);
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
 .admin-checkbox {
   grid-template-columns: auto 1fr;
   align-items: center;

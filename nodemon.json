@@ -10,7 +10,6 @@
     "public"
   ],
   "ignore": [
-    "storage/**",
     "node_modules/**",
     ".git/**"
   ],

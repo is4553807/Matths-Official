@@ -355,12 +355,14 @@
             <span class="tone-mark" aria-hidden="true">M</span>
             <div>
               <small>MATTHS COACH</small>
-              <strong>공식만 외운 거, 숫자 바뀌자마자 들켰네.</strong>
+              <strong id="intro-coach-tone" aria-live="polite">공식만 외운 거, 숫자 바뀌자마자 들켰네.</strong>
             </div>
           </div>
-          <p>괜찮아. 막힌 Step부터 그림으로 다시 보여줄게.</p>
-          <div class="tone-modes" aria-label="동기부여 말투 모드">
-            <span>순한맛</span><span class="active">매운맛</span><span>무음</span>
+          <p id="intro-coach-helper">괜찮아. 막힌 Step부터 그림으로 다시 보여줄게.</p>
+          <div class="tone-modes" role="group" aria-label="학습 코치 말투 선택">
+            <button class="intro-coach-mode" type="button" data-coach-mode="mild" aria-pressed="false">순한맛</button>
+            <button class="intro-coach-mode active" type="button" data-coach-mode="spicy" aria-pressed="true">매운맛</button>
+            <button class="intro-coach-mode" type="button" data-coach-mode="silent" aria-pressed="false">무음</button>
           </div>
         </div>
       </section>

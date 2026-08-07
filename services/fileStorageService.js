@@ -85,42 +85,9 @@ function resourceTypeFor(file) {
   return "raw";
 }
 
-function getLocalStorageCapacity(directory) {
-  try {
-    fs.mkdirSync(directory, { recursive: true });
-    const stats = fs.statfsSync(directory);
-    const totalBytes = Number(stats.blocks) * Number(stats.bsize);
-    const availableBytes = Number(stats.bavail) * Number(stats.bsize);
-    const usedBytes = Math.max(0, totalBytes - availableBytes);
-    const usedPercent = totalBytes > 0 ? (usedBytes / totalBytes) * 100 : 0;
-    return {
-      totalBytes,
-      availableBytes,
-      usedBytes,
-      usedPercent: Math.round(usedPercent * 10) / 10,
-      level:
-        usedPercent >= 95
-          ? "BLOCKED"
-          : usedPercent >= 85
-            ? "WARNING"
-            : usedPercent >= 70
-              ? "NOTICE"
-              : "NORMAL",
-    };
-  } catch (error) {
-    return {
-      totalBytes: 0,
-      availableBytes: 0,
-      usedBytes: 0,
-      usedPercent: null,
-      level: "UNKNOWN",
-    };
-  }
-}
-
 function storageFields(asset = {}) {
   return {
-    storageProvider: asset.storageProvider || "LOCAL",
+    storageProvider: asset.storageProvider || "R2",
     storagePurpose: asset.storagePurpose || STORAGE_PURPOSES.GENERIC,
     cloudPublicId: asset.cloudPublicId || "",
     cloudResourceType: asset.cloudResourceType || "",
@@ -146,43 +113,10 @@ async function storeUploadedFile(
   const policy = storagePolicyFor(purpose);
   const provider = requestedProvider(policy.purpose);
   if (provider === "local") {
-    if (
-      policy.requiresPersistentDisk &&
-      process.env.NODE_ENV === "production" &&
-      process.env.LOCAL_STORAGE_PERSISTENT !== "1"
-    ) {
-      const error = new Error(
-        "운영자 파일을 보관할 영구 디스크 확인이 필요합니다. LOCAL_STORAGE_PERSISTENT=1 설정을 확인해주세요."
-      );
-      error.status = 503;
-      error.code = "PERSISTENT_LOCAL_STORAGE_REQUIRED";
-      throw error;
-    }
-    if (localDirectory) {
-      const expectedDirectory = path.resolve(localDirectory);
-      const capacity = getLocalStorageCapacity(expectedDirectory);
-      if (capacity.level === "BLOCKED") {
-        const error = new Error(
-          "운영자 파일 저장소 사용량이 95% 이상이어서 신규 업로드를 차단했습니다. 백업과 디스크 용량을 확인해주세요."
-        );
-        error.status = 507;
-        error.code = "LOCAL_STORAGE_CAPACITY_BLOCKED";
-        throw error;
-      }
-      const actualPath = path.resolve(String(file.path || ""));
-      if (!actualPath || path.dirname(actualPath) !== expectedDirectory) {
-        const error = new Error("로컬 파일 저장 경로가 허용된 운영자 저장소와 일치하지 않습니다.");
-        error.status = 500;
-        error.code = "LOCAL_STORAGE_PATH_MISMATCH";
-        throw error;
-      }
-    }
-    file.storageAsset = {
-      storageProvider: "LOCAL",
-      storagePurpose: policy.purpose,
-      storedName: String(file.filename || path.basename(file.path || "")),
-    };
-    return file.storageAsset;
+    const error = new Error("로컬 원본 저장은 지원하지 않습니다. R2 또는 Cloudinary 저장소를 설정해주세요.");
+    error.status = 503;
+    error.code = "PERSISTENT_LOCAL_STORAGE_DISABLED";
+    throw error;
   }
   if (provider === "r2") {
     if (!isR2Configured()) {
@@ -310,8 +244,6 @@ async function signedStoredAssetUrl(record, options = {}) {
 
 function getFileStorageStatus() {
   const provider = requestedProvider();
-  const persistentLocalReady =
-    process.env.NODE_ENV !== "production" || process.env.LOCAL_STORAGE_PERSISTENT === "1";
   const purposes = Object.fromEntries(
     Object.values(STORAGE_PURPOSES)
       .filter((purpose) => purpose !== STORAGE_PURPOSES.GENERIC)
@@ -326,29 +258,30 @@ function getFileStorageStatus() {
                 ? isCloudinaryConfigured()
                 : purposeProvider === "r2"
                   ? isR2Configured()
-                  : persistentLocalReady,
+                  : false,
           },
         ];
       })
   );
   const r2BackupConfigured = isR2Configured();
-  const defaultLocalDirectory = path.resolve(
-    process.env.ARCHIVE_STORAGE_DIR || path.join(__dirname, "..", "storage", "archive")
-  );
   return {
     provider,
     configured:
-      provider === "local"
-        ? persistentLocalReady
-        : provider === "r2"
+      provider === "r2"
           ? isR2Configured()
           : isCloudinaryConfigured(),
     privateDelivery: provider === "cloudinary" || provider === "r2",
     productionSafe: isCloudinaryConfigured() && isR2Configured(),
     mode: "split",
-    persistentLocalReady,
+    persistentLocalReady: false,
     r2BackupConfigured,
-    localCapacity: getLocalStorageCapacity(defaultLocalDirectory),
+    localCapacity: {
+      totalBytes: 0,
+      availableBytes: 0,
+      usedBytes: 0,
+      usedPercent: null,
+      level: "TEMPORARY_ONLY",
+    },
     purposes,
   };
 }
@@ -357,7 +290,6 @@ module.exports = {
   cloudAssetFromRecord,
   destroyStoredAsset,
   getFileStorageStatus,
-  getLocalStorageCapacity,
   isCloudinaryConfigured,
   signedCloudinaryUrl,
   signedStoredAssetUrl,

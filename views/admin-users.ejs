@@ -77,6 +77,7 @@
             <option value="">전체 역할</option>
             <option value="student" <%= usersData.filters.role === "student" ? "selected" : "" %>>학생</option>
             <option value="teacher" <%= usersData.filters.role === "teacher" ? "selected" : "" %>>교사</option>
+            <option value="parent" <%= usersData.filters.role === "parent" ? "selected" : "" %>>학부모</option>
             <option value="admin" <%= usersData.filters.role === "admin" ? "selected" : "" %>>관리자</option>
           </select>
         </label>
@@ -87,13 +88,13 @@
         <div class="admin-user-row head"><span>사용자</span><span>학교</span><span>학년</span><span>역할</span><span>상태·경고</span><span>학습 시간</span><span>최근 로그인</span><span></span></div>
         <% if (!usersData.users.length) { %><div class="admin-empty">조건에 맞는 사용자가 없습니다.</div><% } %>
         <% usersData.users.forEach((member) => { %>
-          <a class="admin-user-row" href="/admin/users/<%= member._id %>">
+          <a class="admin-user-row" href="<%= member.adminEntityType === 'PARENT' ? `/admin/parents/${member._id}` : `/admin/users/${member._id}` %>">
             <span><strong><%= member.name %></strong><small><%= member.email %></small></span>
-            <span><%= Number(member.schoolGrade) === 14 ? (member.university?.name || "대학교 미설정") : Number(member.schoolGrade) === 15 ? "직장인" : Number(member.schoolGrade) === 13 ? "N수생" : (member.school?.name || "미설정") %><small><%= Number(member.schoolGrade) === 14 ? (member.university?.region || "") : (member.school?.region || "") %></small></span>
-            <span><%= gradeLabels[member.schoolGrade] || "—" %></span>
-            <span><%= { student: "학생", teacher: "교사", admin: "관리자" }[member.role] || "역할 확인 필요" %></span>
-            <span class="<%= (member.accountStatus || (member.isActive ? 'active' : 'inactive')) === 'active' ? 'is-active' : 'is-inactive' %>"><%= { active: "활성", inactive: "비활성", suspended: "정지", withdrawn: "탈퇴" }[member.accountStatus || (member.isActive ? "active" : "inactive")] %><small>경고 <%= member.warningCount || 0 %>회</small></span>
-            <span><%= Math.round((member.totalStudySeconds || 0) / 60) %>분</span>
+            <span><%= member.adminEntityType === 'PARENT' ? `연결 자녀 ${member.parentChildCount || 0}명` : (Number(member.schoolGrade) === 14 ? (member.university?.name || "대학교 미설정") : Number(member.schoolGrade) === 15 ? "직장인" : Number(member.schoolGrade) === 13 ? "N수생" : (member.school?.name || "미설정")) %><small><%= member.adminEntityType === 'PARENT' ? '학부모 계정' : (Number(member.schoolGrade) === 14 ? (member.university?.region || "") : (member.school?.region || "")) %></small></span>
+            <span><%= member.adminEntityType === 'PARENT' ? '—' : (gradeLabels[member.schoolGrade] || "—") %></span>
+            <span><%= { student: "학생", teacher: "교사", parent: "학부모", admin: "관리자" }[member.role] || "역할 확인 필요" %></span>
+            <span class="<%= (member.accountStatus || (member.isActive ? 'active' : 'inactive')) === 'active' ? 'is-active' : 'is-inactive' %>"><%= { active: "활성", inactive: "비활성", suspended: "정지", withdrawn: "탈퇴" }[member.accountStatus || (member.isActive ? "active" : "inactive")] %><small><%= member.adminEntityType === 'PARENT' ? `연결 ${member.parentChildCount || 0}명` : `경고 ${member.warningCount || 0}회` %></small></span>
+            <span><%= member.adminEntityType === 'PARENT' ? '—' : `${Math.round((member.totalStudySeconds || 0) / 60)}분` %></span>
             <span><%= formatDate(member.lastLoginAt) %></span>
             <span>상세 →</span>
           </a>

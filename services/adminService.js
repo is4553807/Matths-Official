@@ -18,12 +18,24 @@ const {
   ArenaPackagePayment,
 } = require("../models/goatArenaModel");
 const {
+  CheckoutIntent,
+  ParentAccount,
+  ParentAlertDelivery,
+  ParentChildLink,
+} = require("../models/parentModel");
+const {
+  updateParentNotificationSettings,
+} = require("./parentFamilyService");
+const {
   sendAdminUserEmail,
   sendSupportReply,
 } = require("./emailService");
 const {
   getRankingData,
 } = require("./rankingService");
+const {
+  getDashboardData,
+} = require("./dashboardService");
 const {
   requestPasswordResetLink,
 } = require("./passwordResetService");
@@ -225,6 +237,7 @@ async function logAdminAction({
 async function getAdminDashboardData() {
   const [
     activeUsers,
+    activeParents,
     pendingInquiries,
     publishedAnnouncements,
     archiveItems,
@@ -237,6 +250,7 @@ async function getAdminDashboardData() {
       isActive: true,
       role: "student",
     }),
+    ParentAccount.countDocuments({ isActive: true }),
     SupportInquiry.countDocuments({
       status: {
         $in: [
@@ -264,6 +278,7 @@ async function getAdminDashboardData() {
   return {
     stats: {
       activeUsers,
+      activeParents,
       pendingInquiries,
       publishedAnnouncements,
       archiveItems,
@@ -885,7 +900,74 @@ async function getAdminUsersData({
       "student",
       "teacher",
       "admin",
+      "parent",
     ]);
+
+  const isParentRole = role === "parent";
+
+  if (isParentRole) {
+    const parentFilter = {};
+    if (cleanQuery) {
+      const expression = new RegExp(escapeRegex(cleanQuery), "i");
+      parentFilter.$or = [
+        { username: expression },
+        { email: expression },
+      ];
+    }
+    if (allowedStates.has(state)) {
+      if (state === "active") parentFilter.isActive = true;
+      else if (state === "inactive" || state === "withdrawn") parentFilter.isActive = false;
+      else parentFilter._id = null;
+    }
+
+    const currentPage = safePage(page);
+    const total = await ParentAccount.countDocuments(parentFilter);
+    const totalPages = Math.max(1, Math.ceil(total / USERS_PER_PAGE));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+    const parents = await ParentAccount.find(parentFilter)
+      .select("username email childUserId isActive lastLoginAt createdAt")
+      .sort({ createdAt: -1 })
+      .skip((safeCurrentPage - 1) * USERS_PER_PAGE)
+      .limit(USERS_PER_PAGE)
+      .lean();
+    const parentIds = parents.map((parent) => parent._id);
+    const links = parentIds.length
+      ? await ParentChildLink.aggregate([
+          { $match: { parentAccountId: { $in: parentIds }, status: "ACTIVE" } },
+          { $group: { _id: "$parentAccountId", count: { $sum: 1 } } },
+        ])
+      : [];
+    const linkCountByParent = new Map(
+      links.map((entry) => [String(entry._id), Number(entry.count) || 0])
+    );
+
+    return {
+      users: parents.map((parent) => ({
+        _id: parent._id,
+        adminEntityType: "PARENT",
+        name: parent.username,
+        email: parent.email,
+        role: "parent",
+        accountStatus: parent.isActive ? "active" : "inactive",
+        isActive: parent.isActive,
+        parentChildCount: linkCountByParent.get(String(parent._id)) || 0,
+        lastLoginAt: parent.lastLoginAt,
+        createdAt: parent.createdAt,
+      })),
+      schools: [],
+      filters: {
+        query: cleanQuery,
+        schoolCode: "",
+        grade: "",
+        state: allowedStates.has(state) ? state : "",
+        role: "parent",
+      },
+      page: safeCurrentPage,
+      total,
+      totalPages,
+      perPage: USERS_PER_PAGE,
+    };
+  }
 
   if (
     allowedRoles.has(role)
@@ -1204,6 +1286,134 @@ async function getAdminUserDetail(
     packageAccess,
     arenaBadges,
   };
+}
+
+async function getAdminParentDetail(parentId) {
+  if (!mongoose.isValidObjectId(parentId)) {
+    throw statusError(404, "학부모 계정을 찾을 수 없습니다.");
+  }
+  const parent = await ParentAccount.findById(parentId)
+    .select("username email childUserId isActive lastLoginAt acceptedTermsAt createdAt updatedAt")
+    .lean();
+  if (!parent) {
+    throw statusError(404, "학부모 계정을 찾을 수 없습니다.");
+  }
+
+  const [links, checkoutIntents, alertDeliveries, actionLogs] = await Promise.all([
+    ParentChildLink.find({ parentAccountId: parent._id })
+      .sort({ status: 1, linkedAt: 1 })
+      .populate("childUserId", "name realName email school schoolGrade university educationStatus isActive accountStatus lastLoginAt")
+      .lean(),
+    CheckoutIntent.find({ parentAccountId: parent._id })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean(),
+    ParentAlertDelivery.find({ parentAccountId: parent._id })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean(),
+    AdminActionLog.find({ "metadata.parentAccountId": String(parent._id) })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean(),
+  ]);
+
+  const activeLinks = links.filter((link) => link.status === "ACTIVE" && link.childUserId);
+  const children = await Promise.all(activeLinks.map(async (link) => {
+    const child = link.childUserId;
+    const [dashboard, ranking, packageAccess] = await Promise.all([
+      getDashboardData(child._id),
+      getRankingData(child._id),
+      getAdminPackageAccessSummary(child._id),
+    ]);
+    return {
+      link,
+      child,
+      dashboard: dashboard.stats || {},
+      ranking: ranking.current || null,
+      packageAccess,
+    };
+  }));
+
+  return {
+    parent,
+    links,
+    children,
+    checkoutIntents,
+    alertDeliveries,
+    actionLogs,
+  };
+}
+
+async function updateAdminParentStatus({
+  adminUserId,
+  parentId,
+  isActive,
+  reason,
+}) {
+  const parent = await ParentAccount.findById(parentId);
+  if (!parent) throw statusError(404, "학부모 계정을 찾을 수 없습니다.");
+  const nextActive = isActive === true || String(isActive) === "true" || String(isActive) === "1";
+  const cleanReason = cleanSingleLine(reason, 500);
+  if (!cleanReason) throw statusError(400, "변경 사유를 입력해주세요.");
+  parent.isActive = nextActive;
+  await parent.save();
+  await logAdminAction({
+    adminUserId,
+    action: "parent.account-status",
+    detail: cleanReason,
+    metadata: { parentAccountId: String(parent._id), isActive: nextActive },
+  });
+  return parent.toObject();
+}
+
+async function updateAdminParentChildNotifications({
+  adminUserId,
+  parentId,
+  childUserId,
+  input,
+}) {
+  const link = await ParentChildLink.findOne({
+    parentAccountId: parentId,
+    childUserId,
+    status: "ACTIVE",
+  }).lean();
+  if (!link) throw statusError(404, "활성 자녀 연결을 찾을 수 없습니다.");
+  const updated = await updateParentNotificationSettings({
+    parentAccountId: parentId,
+    childUserId,
+    input,
+  });
+  await logAdminAction({
+    adminUserId,
+    action: "parent.notification-settings",
+    detail: "학부모 자녀별 학습 알림 설정 변경",
+    metadata: { parentAccountId: String(parentId), childUserId: String(childUserId) },
+  });
+  return updated;
+}
+
+async function revokeAdminParentChildLink({
+  adminUserId,
+  parentId,
+  childUserId,
+  reason,
+}) {
+  const cleanReason = cleanSingleLine(reason, 500);
+  if (!cleanReason) throw statusError(400, "연결 해제 사유를 입력해주세요.");
+  const link = await ParentChildLink.findOneAndUpdate(
+    { parentAccountId: parentId, childUserId, status: "ACTIVE" },
+    { $set: { status: "REVOKED" } },
+    { returnDocument: "after" }
+  ).lean();
+  if (!link) throw statusError(404, "해제할 활성 자녀 연결을 찾을 수 없습니다.");
+  await logAdminAction({
+    adminUserId,
+    action: "parent.child-unlink",
+    detail: cleanReason,
+    metadata: { parentAccountId: String(parentId), childUserId: String(childUserId) },
+  });
+  return link;
 }
 
 async function getAdminAssessmentDetail({
@@ -1761,21 +1971,25 @@ async function updateUserAccountStatus({
       normalizeRetentionChoice(
         retainAnonymousData
       );
-    const notice =
-      accountEmailCopy.withdrawn({
-        reason: cleanReason,
-        keepAnonymousData,
-      });
+    // 익명 보존 계정의 두 번째 삭제는 남아 있는 익명 데이터를
+    // 완전히 제거하는 작업이다. 이미 개인정보와 수신 주소가 제거된
+    // 계정이므로 별도 안내 발송 없이 즉시 처리한다.
+    if (previousStatus !== "withdrawn") {
+      const notice =
+        accountEmailCopy.withdrawn({
+          reason: cleanReason,
+          keepAnonymousData,
+        });
 
-    await deliverModerationNotice({
-      user,
-      title: notice.title,
-      message: notice.message,
-      href: "/notifications",
-      kind: "account",
-      createdBy:
-        adminUserId,
-    });
+      await deliverModerationNotice({
+        user,
+        title: notice.title,
+        message: notice.message,
+        href: "/notifications",
+        kind: "account",
+        createdBy: adminUserId,
+      });
+    }
 
     const withdrawal =
       await withdrawUserAccount({
@@ -1794,7 +2008,9 @@ async function updateUserAccountStatus({
       action:
         "user.account-withdrawal",
       detail:
-        "관리자에 의한 계정 탈퇴 처리",
+        previousStatus === "withdrawn"
+          ? "익명 보존 계정의 모든 데이터 영구 삭제"
+          : "관리자에 의한 계정 탈퇴 처리",
       metadata: {
         previousStatus,
         nextStatus: "withdrawn",
@@ -2205,6 +2421,7 @@ module.exports = {
   getAdminRevenueMetrics,
   getAdminInquiryData,
   getAdminAssessmentDetail,
+  getAdminParentDetail,
   getAdminUserActivityData,
   getAdminUserDetail,
   getAdminUsersData,
@@ -2215,6 +2432,9 @@ module.exports = {
   setUserActive,
   toggleAnnouncement,
   updateInquiryStatus,
+  updateAdminParentChildNotifications,
+  updateAdminParentStatus,
+  revokeAdminParentChildLink,
   updateUserAccountStatus,
   updateUserNickname,
   updateUserRole,

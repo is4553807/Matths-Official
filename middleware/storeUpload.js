@@ -1,10 +1,11 @@
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const multer = require("multer");
 
 const STORE_UPLOAD_TEMP_DIR = path.resolve(
-  process.env.STORE_UPLOAD_TEMP_DIR || path.join(__dirname, "..", "storage", "tmp", "store-uploads")
+  process.env.STORE_UPLOAD_TEMP_DIR || path.join(os.tmpdir(), "matths-store-uploads")
 );
 
 fs.mkdirSync(STORE_UPLOAD_TEMP_DIR, { recursive: true });

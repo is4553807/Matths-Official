@@ -1,5 +1,4 @@
 const fs = require("fs");
-const path = require("path");
 const mongoose = require("mongoose");
 const {
   destroyStoredAsset,
@@ -8,11 +7,6 @@ const {
   storageFields,
   storeUploadedFile,
 } = require("./fileStorageService");
-const {
-  deleteR2BackupObject,
-  scheduleLocalStorageR2BackupSoon,
-} = require("./localStorageBackupService");
-
 const {
   ArchiveFolder,
   ArchiveItem,
@@ -24,17 +18,6 @@ const {
 } = require("../models/goatArenaModel");
 const { withSchedulerLease } = require("./schedulerLeaseService");
 
-const ARCHIVE_STORAGE_DIR =
-  path.resolve(
-    process.env
-      .ARCHIVE_STORAGE_DIR ||
-      path.join(
-        __dirname,
-        "..",
-        "storage",
-        "archive"
-      )
-  );
 const ARCHIVE_CATEGORIES = [
   "문제지",
   "해설",
@@ -186,7 +169,7 @@ function serializeArchiveItem(item) {
       repairedOriginalName,
     mimeType: item.mimeType,
     sizeBytes: item.sizeBytes,
-    storageProvider: item.storageProvider || "LOCAL",
+    storageProvider: item.storageProvider || "R2",
     storagePurpose: item.storagePurpose || "GENERIC",
     backupStatus: item.backupStatus || "PENDING",
     backedUpAt: item.backedUpAt || null,
@@ -697,7 +680,6 @@ async function createArchiveItem({
   try {
     const asset = await storeUploadedFile(file, {
       folder: "matths/archive",
-      localDirectory: ARCHIVE_STORAGE_DIR,
       purpose: storagePurpose,
     });
     const item =
@@ -721,11 +703,9 @@ async function createArchiveItem({
         uploadedBy: user.id,
         isPublished:
           isPublished !== false,
-        backupStatus: asset?.storageProvider === "R2" ? "NOT_CONFIGURED" : "PENDING",
+        backupStatus: "NOT_CONFIGURED",
         ...storageFields(asset),
       });
-
-    if (asset?.storageProvider === "LOCAL") scheduleLocalStorageR2BackupSoon();
 
     return serializeArchiveItem(
       item
@@ -1229,17 +1209,15 @@ async function getArchiveDownload({
     download: true,
     originalName: item.originalName,
   });
-  const filePath = ["CLOUDINARY", "R2"].includes(item.storageProvider)
-    ? null
-    : path.join(ARCHIVE_STORAGE_DIR, item.storedName);
-
-  if (!cloudUrl && (!filePath || !fs.existsSync(filePath))) {
+  if (!cloudUrl) {
     throw httpError(
       404,
       "자료 파일을 찾을 수 없습니다."
     );
   }
 
+  // 다운로드 통계 기록 장애가 실제 자료 제공을 막으면 안 된다. 원본 확인과
+  // 접근 권한 검증은 이미 끝난 상태이므로, 통계는 최선 노력으로만 남긴다.
   await ArchiveItem.updateOne(
     { _id: item._id },
     {
@@ -1247,10 +1225,12 @@ async function getArchiveDownload({
         downloadCount: 1,
       },
     }
-  );
+  ).catch((error) => {
+    console.error("아카이브 다운로드 통계 저장 실패:", error);
+  });
 
   return {
-    path: filePath,
+    path: null,
     cloudUrl,
     name:
       repairUploadFilename(
@@ -1467,10 +1447,6 @@ async function restoreArchiveItem({ itemId, user }) {
   }
   const item = await ArchiveItem.findOne({ _id: itemId, deletedAt: { $ne: null } }).lean();
   if (!item) throw httpError(404, "복구할 자료를 찾을 수 없습니다.");
-  const filePath = path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName));
-  if (item.storageProvider === "LOCAL" && !fs.existsSync(filePath)) {
-    throw httpError(409, "로컬 원본이 없어 자료를 복구할 수 없습니다. R2 백업을 확인해주세요.");
-  }
   await ArchiveItem.updateOne(
     { _id: item._id, deletedAt: { $ne: null } },
     {
@@ -1495,11 +1471,7 @@ async function purgeArchiveItem({ itemId, user }) {
   }
   const item = await ArchiveItem.findOne({ _id: itemId, deletedAt: { $ne: null } }).lean();
   if (!item) throw httpError(404, "영구 삭제할 자료를 찾을 수 없습니다.");
-  await deleteR2BackupObject(item);
-  await destroyStoredAsset({
-    ...item,
-    path: path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName)),
-  });
+  await destroyStoredAsset(item);
   await ArchiveItem.deleteOne({ _id: item._id, deletedAt: { $ne: null } });
   return serializeArchiveItem(item);
 }
@@ -1514,24 +1486,7 @@ async function purgeExpiredArchiveTrash({ now = new Date(), limit = 100 } = {}) 
     .lean();
   let purged = 0;
   for (const item of items) {
-    try {
-      await deleteR2BackupObject(item);
-    } catch (error) {
-      await ArchiveItem.updateOne(
-        { _id: item._id },
-        {
-          $set: {
-            backupStatus: "FAILED",
-            backupError: String(error?.message || "R2 백업 삭제 실패").slice(0, 500),
-          },
-        }
-      );
-      continue;
-    }
-    await destroyStoredAsset({
-      ...item,
-      path: path.join(ARCHIVE_STORAGE_DIR, path.basename(item.storedName)),
-    }).catch(() => {});
+    await destroyStoredAsset(item).catch(() => {});
     const result = await ArchiveItem.deleteOne({
       _id: item._id,
       deletedAt: { $ne: null },
@@ -1667,7 +1622,6 @@ async function moveArchiveItems({
 }
 
 module.exports = {
-  ARCHIVE_STORAGE_DIR,
   ARCHIVE_CATEGORIES,
   isArchiveAdmin,
   createArchiveFolder,

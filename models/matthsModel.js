@@ -3230,8 +3230,8 @@ const archiveItemSchema =
             },
             storageProvider: {
                 type: String,
-                enum: ["LOCAL", "CLOUDINARY", "R2"],
-                default: "LOCAL",
+                enum: ["CLOUDINARY", "R2"],
+                default: "R2",
             },
             storagePurpose: {
                 type: String,
@@ -3477,6 +3477,12 @@ const userNotificationSchema =
                 type: Schema.Types.ObjectId,
                 default: null,
             },
+            // 정책 변경 공지처럼 본문 외에 구조화된 안내가 필요한 경우에만
+            // 사용한다. 기존 일반 알림에는 빈 객체로 남겨 호환성을 유지한다.
+            metadata: {
+                type: Schema.Types.Mixed,
+                default: {},
+            },
             kind: {
                 type: String,
                 enum: [
@@ -3588,8 +3594,8 @@ const communityAttachmentSchema =
             },
             storageProvider: {
                 type: String,
-                enum: ["LOCAL", "CLOUDINARY"],
-                default: "LOCAL",
+                enum: ["CLOUDINARY"],
+                default: "CLOUDINARY",
             },
             storagePurpose: {
                 type: String,

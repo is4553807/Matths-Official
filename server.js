@@ -175,11 +175,6 @@ async function connectDB() {
         }
 
         const {
-            startLocalStorageBackupScheduler,
-        } = require("./services/localStorageBackupService");
-        startLocalStorageBackupScheduler();
-
-        const {
             startArchiveTrashPurgeScheduler,
         } = require("./services/archiveService");
         startArchiveTrashPurgeScheduler();

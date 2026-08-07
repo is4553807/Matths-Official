@@ -1,11 +1,6 @@
 *.env
 node_modules/
 node_modules.root-owned-backup/
-storage/archive/
-storage/community/
-storage/arena-evidence/
-storage/store/
-storage/tmp/
 tmp/
 __pycache__/
 *.pyc

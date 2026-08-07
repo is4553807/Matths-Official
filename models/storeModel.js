@@ -13,8 +13,8 @@ const storeAssetSchema = new mongoose.Schema(
     sizeBytes: { type: Number, default: 0, min: 0 },
     storageProvider: {
       type: String,
-      enum: ["LOCAL", "R2"],
-      default: "LOCAL",
+      enum: ["R2"],
+      default: "R2",
     },
     r2ObjectKey: { type: String, default: "", maxlength: 900 },
     r2Sha256: {

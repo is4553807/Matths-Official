@@ -3,6 +3,9 @@ const {
   ConceptProgress,
   ConceptLesson,
 } = require("../models/matthsModel");
+const {
+  ParentAccount,
+} = require("../models/parentModel");
 const {getSchoolSelectData,findSchool,} = require('../services/schoolService');
 const { getUniversitySelectData, findUniversity } = require('../services/universityService');
 const {getDashboardData, toggleDailyPlanTask, updateCoachMode,} = require('../services/dashboardService');
@@ -153,6 +156,7 @@ const {
   createDirectNotification,
   getAdminAssessmentDetail,
   getAdminDashboardData,
+  getAdminParentDetail,
   getAdminRevenueMetrics,
   getAdminInquiryData,
   getAdminUserActivityData,
@@ -169,6 +173,9 @@ const {
   updateUserNickname,
   updateUserRole,
   updateUserWarningCount,
+  updateAdminParentChildNotifications,
+  updateAdminParentStatus,
+  revokeAdminParentChildLink,
 } = require("../services/adminService");
 const {
   dismissDashboardAnnouncement,
@@ -1261,6 +1268,12 @@ function adminFeedbackFromQuery(
       "사용자 경고 횟수를 변경했습니다.",
     packageAccess:
       "사용자의 패키지 권한을 변경했습니다.",
+    parentAccountStatus:
+      "학부모 계정 이용 상태를 변경했습니다.",
+    parentNotificationSettings:
+      "자녀별 학습 알림 설정을 저장했습니다.",
+    parentChildUnlinked:
+      "학부모와 자녀 계정 연결을 해제했습니다.",
     communityEdit:
       "게시글을 수정했습니다.",
     communityModeration:
@@ -2457,6 +2470,60 @@ exports.adminUserDetailPage =
     }
   };
 
+exports.adminParentDetailPage = async (req, res, next) => {
+  try {
+    return res.render("admin-parent-detail", {
+      user: req.session.user,
+      detail: await getAdminParentDetail(req.params.parentId),
+      feedback: adminFeedbackFromQuery(req.query),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateParentAccountStatus = async (req, res, next) => {
+  try {
+    await updateAdminParentStatus({
+      adminUserId: req.session.user.id,
+      parentId: req.params.parentId,
+      isActive: req.body.isActive,
+      reason: req.body.reason,
+    });
+    return res.redirect(`/admin/parents/${req.params.parentId}?done=parentAccountStatus`);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateParentChildNotifications = async (req, res, next) => {
+  try {
+    await updateAdminParentChildNotifications({
+      adminUserId: req.session.user.id,
+      parentId: req.params.parentId,
+      childUserId: req.params.childUserId,
+      input: req.body,
+    });
+    return res.redirect(`/admin/parents/${req.params.parentId}?done=parentNotificationSettings#child-${req.params.childUserId}`);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminRevokeParentChildLink = async (req, res, next) => {
+  try {
+    await revokeAdminParentChildLink({
+      adminUserId: req.session.user.id,
+      parentId: req.params.parentId,
+      childUserId: req.params.childUserId,
+      reason: req.body.reason,
+    });
+    return res.redirect(`/admin/parents/${req.params.parentId}?done=parentChildUnlinked`);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.adminAssessmentDetailPage =
   async (req, res, next) => {
     try {
@@ -3066,6 +3133,12 @@ exports.privateMockFormulaFile =
           userId:
             req.session.user.id,
         });
+
+      if (file.cloudUrl) {
+        res.set("Cache-Control", "private, no-store");
+        res.set("Referrer-Policy", "no-referrer");
+        return res.redirect(302, file.cloudUrl);
+      }
 
       return res.sendFile(
         file.path,
@@ -4931,7 +5004,17 @@ exports.login = async (req, res, next) => {
          * 이메일 존재 여부와 비밀번호 오류를 같은 문구로 처리한다.
          * 어떤 이메일이 가입되어 있는지 외부에 노출하지 않기 위해서다.
          */
-        if (!user) {
+        const parentAccount = await ParentAccount.findOne({
+            $or: [
+                { email },
+                { usernameNormalized: nicknameKey(identifier) },
+            ],
+            isActive: true,
+        })
+            .select("+passwordHash")
+            .lean();
+
+        if (!user && !parentAccount) {
             return res.status(401).render("login", {
                 error: "이메일·닉네임 또는 비밀번호가 올바르지 않습니다.",
                 oldInput: {
@@ -4940,18 +5023,45 @@ exports.login = async (req, res, next) => {
             });
         }
 
-        const passwordMatched = await bcrypt.compare(
-            password,
-            user.passwordHash
-        );
+        const [userPasswordMatched, parentPasswordMatched] =
+            await Promise.all([
+                user
+                    ? bcrypt.compare(password, user.passwordHash || "")
+                    : false,
+                parentAccount
+                    ? bcrypt.compare(
+                        password,
+                        parentAccount.passwordHash || ""
+                    )
+                    : false,
+            ]);
 
-        if (!passwordMatched) {
+        if (!userPasswordMatched && !parentPasswordMatched) {
             return res.status(401).render("login", {
                 error: "이메일·닉네임 또는 비밀번호가 올바르지 않습니다.",
                 oldInput: {
                     identifier,
                 },
             });
+        }
+
+        // 학부모 계정은 학생 User와 별도 보안 모델을 사용한다. 일반
+        // Matths 로그인 화면으로 들어와도 계정을 정확히 판별해 학부모
+        // 전용 대시보드로 보낸다.
+        if (parentAccount && parentPasswordMatched && !userPasswordMatched) {
+            const parent = await ParentAccount.findById(parentAccount._id);
+            parent.lastLoginAt = new Date();
+            await parent.save();
+            await regenerateSession(req);
+            req.session.parent = {
+                id: String(parent._id),
+                username: parent.username,
+                email: parent.email,
+                childUserId: parent.childUserId ? String(parent.childUserId) : "",
+                selectedChildUserId: parent.childUserId ? String(parent.childUserId) : "",
+            };
+            await saveSession(req);
+            return res.redirect("/parent");
         }
 
         const access =

@@ -15,6 +15,9 @@
     integrity: "시험 소명 요청",
   };
   const urgentKinds = new Set(["warning", "account", "nickname", "integrity"]);
+  const policyChangeRows = Array.isArray(notification.metadata?.policyChangeRows)
+    ? notification.metadata.policyChangeRows
+    : [];
 %>
 <!doctype html>
 <html lang="ko">
@@ -62,6 +65,21 @@
           </header>
           <h2><%= notification.title %></h2>
           <div class="notification-detail-message"><%= notification.message %></div>
+          <% if (policyChangeRows.length) { %>
+            <section class="notification-policy-change" aria-label="정책 변경 전후 비교">
+              <h3>변경 전·후</h3>
+              <div class="notification-policy-table-wrap">
+                <table class="notification-policy-table">
+                  <thead><tr><th>항목</th><th>변경 전</th><th>변경 후</th></tr></thead>
+                  <tbody>
+                    <% policyChangeRows.forEach((row) => { %>
+                      <tr><th scope="row"><%= row.label %></th><td><%= row.before %></td><td><%= row.after %></td></tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          <% } %>
           <footer>
             <a href="/notifications">목록으로</a>
             <% if (notification.targetHref !== "/notifications") { %>

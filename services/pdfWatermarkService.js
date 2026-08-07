@@ -129,7 +129,9 @@ function mapIssuanceForAdmin(issuance, extra = {}) {
     documentIssueId: issuance.documentIssueId,
     traceCode: issuance.traceCode,
     userId: String(issuance.userId?._id || issuance.userId || ""),
-    username: issuance.userId?.username || "",
+    // Matths의 닉네임은 User.username이 아니라 User.name에 저장된다.
+    // 과거 호환 필드만 읽으면 정상 계정도 "미등록"으로 표시된다.
+    username: issuance.userId?.name || issuance.userId?.username || "",
     email: issuance.userId?.email || "",
     name: issuance.userId?.name || "",
     examId: issuance.examId,

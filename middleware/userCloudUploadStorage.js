@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const multer = require("multer");
@@ -6,7 +7,7 @@ const { withSchedulerLease } = require("../services/schedulerLeaseService");
 
 const USER_CLOUD_UPLOAD_TEMP_DIR = path.resolve(
   process.env.USER_CLOUD_UPLOAD_TEMP_DIR ||
-    path.join(__dirname, "..", "storage", "tmp", "user-cloud")
+    path.join(os.tmpdir(), "matths-user-cloud")
 );
 const USER_CLOUD_UPLOAD_TEMP_RETENTION_MS = 24 * 60 * 60 * 1000;
 const USER_CLOUD_UPLOAD_TEMP_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;

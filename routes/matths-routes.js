@@ -849,6 +849,30 @@ router.get(
   matthsController.adminUsersPage
 );
 router.get(
+  "/admin/parents/:parentId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminParentDetailPage
+);
+router.post(
+  "/admin/parents/:parentId/account-status",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateParentAccountStatus
+);
+router.post(
+  "/admin/parents/:parentId/children/:childUserId/notifications",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateParentChildNotifications
+);
+router.post(
+  "/admin/parents/:parentId/children/:childUserId/unlink",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRevokeParentChildLink
+);
+router.get(
   "/admin/users/:userId/activity",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,

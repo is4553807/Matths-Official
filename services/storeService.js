@@ -10,10 +10,6 @@ const {
   uploadLocalFileToR2,
 } = require("./r2ObjectStorageService");
 
-const LEGACY_STORE_STORAGE_DIR = path.resolve(
-  process.env.STORE_STORAGE_DIR || path.join(__dirname, "..", "storage", "store")
-);
-
 function httpError(status, message, code = "STORE_REQUEST_FAILED") {
   const error = new Error(message);
   error.status = status;
@@ -187,12 +183,7 @@ async function deleteStoreAsset(asset) {
   if (asset?.storageProvider === "R2" && asset?.r2ObjectKey) {
     return deleteR2Object(asset.r2ObjectKey);
   }
-  if (asset?.storedName) {
-    await fs.promises
-      .unlink(path.join(LEGACY_STORE_STORAGE_DIR, path.basename(asset.storedName)))
-      .catch(() => {});
-  }
-  return { deleted: true };
+  return { deleted: false, reason: "REMOTE_OBJECT_NOT_FOUND" };
 }
 
 async function assertValidUploadedImages(files = {}) {
@@ -224,7 +215,7 @@ function serializeAsset(asset) {
     originalName: asset.originalName,
     mimeType: asset.mimeType,
     sizeBytes: Number(asset.sizeBytes) || 0,
-    storageProvider: asset.storageProvider || "LOCAL",
+    storageProvider: asset.storageProvider || "R2",
     altText: asset.altText || "",
     downloadCount: Number(asset.downloadCount) || 0,
   };
@@ -526,10 +517,7 @@ async function getFreeProductDownload({ slug, assetId }) {
     download: true,
     originalName: asset.originalName,
   });
-  const filePath = asset.storageProvider === "R2"
-    ? null
-    : path.join(LEGACY_STORE_STORAGE_DIR, path.basename(asset.storedName));
-  if (!signedUrl && (!filePath || !fs.existsSync(filePath))) {
+  if (!signedUrl) {
     throw httpError(404, "저장된 자료 원본을 찾을 수 없습니다.");
   }
   await StoreProduct.updateOne(
@@ -537,7 +525,7 @@ async function getFreeProductDownload({ slug, assetId }) {
     { $inc: { freeDownloadCount: 1, "assets.$.downloadCount": 1 } }
   );
   return {
-    filePath,
+    filePath: null,
     signedUrl,
     originalName: path.basename(String(asset.originalName || "matths-resource")),
     mimeType: String(asset.mimeType || "application/octet-stream"),
@@ -563,13 +551,10 @@ async function getStoreMedia({ productId, assetId, admin = false }) {
     download: false,
     originalName: asset.originalName,
   });
-  const filePath = asset.storageProvider === "R2"
-    ? null
-    : path.join(LEGACY_STORE_STORAGE_DIR, path.basename(asset.storedName));
-  if (!signedUrl && (!filePath || !fs.existsSync(filePath))) {
+  if (!signedUrl) {
     throw httpError(404, "저장된 이미지 원본을 찾을 수 없습니다.");
   }
-  return { filePath, signedUrl, mimeType: asset.mimeType, originalName: asset.originalName };
+  return { filePath: null, signedUrl, mimeType: asset.mimeType, originalName: asset.originalName };
 }
 
 async function discardUploadedFiles(files = {}) {
