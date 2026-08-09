@@ -751,6 +751,7 @@
 #animate-property,
 #rerun-probability-simulation,
 #rerun-calculus-lab,
+#rerun-common-math,
 .submit-answer,
 .next-problem {
   min-height: 42px;
@@ -772,6 +773,41 @@
 
 .probability-lab {
   grid-template-columns: minmax(250px, 285px) minmax(0, 1fr);
+}
+
+.common-math-lab {
+  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+}
+
+.common-math-lab .lab-controls {
+  background:
+    radial-gradient(circle at 15% 5%, rgba(88, 118, 255, 0.1), transparent 34%),
+    #fafbff;
+}
+
+.common-math-lab .lab-formula {
+  min-height: 78px;
+}
+
+.common-math-lab .lab-formula strong {
+  max-width: calc(100% - 125px);
+  font-size: clamp(13px, 1.35vw, 19px);
+  text-align: right;
+}
+
+.common-math-visual-wrap {
+  min-height: 430px;
+  padding: 14px;
+  background:
+    linear-gradient(180deg, #f9fbff 0%, #f1f5ff 100%);
+}
+
+.common-math-visual-wrap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  box-shadow: 0 20px 45px rgba(24, 39, 82, 0.14);
 }
 
 .probability-lab .lab-controls {

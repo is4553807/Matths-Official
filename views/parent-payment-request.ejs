@@ -1,6 +1,42 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>부모님께 결제 요청 | Matths</title><link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" /><link rel="stylesheet" href="/css/main.css" /><link rel="stylesheet" href="/css/public-navigation.css" /><link rel="stylesheet" href="/css/brand.css" /><link rel="stylesheet" href="/css/parent.css" /></head>
-<body class="checkout-page"><%- include('partials/public-navigation', { activePage: 'pricing', user }) %><main class="student-checkout-main"><section class="student-checkout-card"><p>부모님께 결제 요청하기</p><h1><%= product.name %></h1><span>학부모 이메일로 전용 연결 링크를 보냅니다. 처음 이용하는 학부모는 전용 계정을 만들고, 기존 학부모 계정은 로그인 후 현재 학생을 추가 자녀로 연결합니다.</span>
-<% if (feedback) { %><div class="parent-form-message <%= previewUrl ? 'is-success' : '' %>"><%= feedback %></div><% } %>
-<form method="post"><label class="checkout-email-label"><span>학부모 이메일</span><input type="email" name="parentEmail" value="<%= oldInput.parentEmail %>" placeholder="parent@example.com" autocomplete="email" required /></label><button type="submit">자녀 연결·결제 요청 링크 보내기</button></form>
-<% if (previewUrl) { %><div class="parent-preview-link"><small>로컬 개발 환경 확인용 링크</small><a href="<%= previewUrl %>"><%= previewUrl %></a></div><% } %><a class="checkout-back" href="/pricing">이용권 비교로 돌아가기</a></section></main></body></html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>부모님께 결제 요청 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/parent.css" />
+  </head>
+  <body class="checkout-page">
+    <%- include('partials/public-navigation', { activePage: 'pricing', user }) %>
+    <main class="student-checkout-main">
+      <section class="student-checkout-card">
+        <p>부모님께 결제 요청하기</p>
+        <h1><%= product.name %></h1>
+        <span>학부모 이메일로 전용 연결 링크를 보냅니다. 처음 이용하는 학부모는 전용 계정을 만들고, 기존 학부모 계정은 로그인 후 현재 학생을 추가 자녀로 연결합니다.</span>
+
+        <% if (feedback) { %>
+          <div class="parent-form-message <%= previewUrl ? 'is-success' : 'is-error' %>" role="alert"><%= feedback %></div>
+        <% } %>
+
+        <form method="post" data-guardian-request-form>
+          <label class="checkout-email-label">
+            <span>학부모 이메일</span>
+            <input type="email" name="parentEmail" value="<%= oldInput.parentEmail %>" placeholder="parent@example.com" autocomplete="email" required />
+          </label>
+
+          <p class="parent-request-note">결제 요청 링크를 받은 학부모는 전용 페이지에서 상품·금액·이용 기간과 법정대리인 동의를 직접 확인합니다.</p>
+          <button type="submit">자녀 연결·결제 요청 링크 보내기</button>
+        </form>
+
+        <% if (previewUrl) { %>
+          <div class="parent-preview-link"><small>로컬 개발 환경 확인용 링크</small><a href="<%= previewUrl %>"><%= previewUrl %></a></div>
+        <% } %>
+        <a class="checkout-back" href="/pricing">이용권 비교로 돌아가기</a>
+      </section>
+    </main>
+  </body>
+</html>

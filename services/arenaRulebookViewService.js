@@ -7,15 +7,23 @@ const {
 const {
   ARENA_QUESTION_DESIGN_POLICY_VERSION,
   PACK_RULES,
+  PUBLIC_DIFFICULTY_TO_CATALOG_TIER,
+  PUBLIC_DIFFICULTY_SPECS,
+  RANKED_DEFENDER_TIER_TO_DIFFICULTY_CODE,
   TIER_LABELS,
   TIER_SPECS,
+  UNRANKED_DEFENDER_TIER_TO_DIFFICULTY_CODE,
 } = require("./arenaOneOnOneDifficultyPolicy");
+const {
+  getOfficialMockResearchSummary,
+} = require("./arenaOfficialMockResearchCatalog");
+const ARENA_2028_MATH_ALIGNMENT = require("../dataAnalysis/arena2028MathAlignment.json");
 
 const PAYBACK_RULEBOOK_BASELINE_AT =
   new Date("2026-08-02T00:00:00+09:00");
 
 const COMMON_MATCH_SUMMARY = [
-  "두 사용자는 같은 주관식 준킬러 5문항을 문항당 최대 10분 동안 풉니다.",
+  "두 사용자는 같은 주관식 5문항을 문항당 최대 10분 동안 풉니다. Unranked는 5문항 모두 준킬러, Ranked는 1~4번 준킬러와 5번 29·30번형 킬러로 구성합니다.",
   "이전 문항으로 돌아갈 수 없고, 5번 문항 완료 또는 시간 종료 뒤 문제는 닫힙니다. 새로고침·일시적 연결 끊김에도 제한시간은 계속 흐르며 같은 문항이 다시 표시됩니다.",
   "문제가 닫힌 뒤 60초 안에 풀이 증거 사진 1~5장을 제출합니다. 이 필수 증거를 기한 안에 내지 않으면 별도 소명 기한 없이 자동 패배합니다.",
   "매치가 성립한 뒤에는 상대의 서비스 닉네임만 표시하며 실명은 공개하지 않습니다.",
@@ -189,72 +197,143 @@ const RULEBOOKS = {
   },
 };
 
-const MATCHUP_ROWS = Object.freeze([
-  ["브론즈 → 브론즈", "BRONZE", "T1"],
-  ["브론즈 → 실버", "SILVER", "T2"],
-  ["실버 → 실버", "SILVER", "T2"],
-  ["실버 → 골드", "GOLD", "T3"],
-  ["골드 → 골드", "GOLD", "T3"],
-  ["골드 → 플래티넘", "PLATINUM", "T4"],
-  ["플래티넘 → 플래티넘", "PLATINUM", "T4"],
-  ["플래티넘 → 에메랄드", "EMERALD", "T5"],
-  ["에메랄드 → 에메랄드", "EMERALD", "T5"],
-  ["에메랄드 → 다이아몬드", "DIAMOND", "T6"],
-  ["다이아몬드 → 다이아몬드", "DIAMOND", "T6"],
-  ["다이아몬드 → 마스터", "MASTER", "T7"],
-  ["마스터 → 마스터", "MASTER", "T7"],
-  ["마스터 → 그랜드마스터", "GRANDMASTER", "T8"],
-  ["그랜드마스터 → 그랜드마스터", "GRANDMASTER", "T8"],
-  ["그랜드마스터 → 챌린저", "CHALLENGER", "T9"],
-  ["챌린저 → 챌린저", "CHALLENGER", "T9"],
+const PUBLIC_TIER_ORDER = Object.freeze([
+  "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD",
+  "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER",
 ]);
 
+const MATCHUP_ROWS = Object.freeze([
+  ...PUBLIC_TIER_ORDER.map((tier) => [
+    "Unranked",
+    `${TIER_LABELS[tier]} 방어`,
+    TIER_LABELS[tier],
+    UNRANKED_DEFENDER_TIER_TO_DIFFICULTY_CODE[tier],
+  ]),
+  ...PUBLIC_TIER_ORDER.map((tier, index) => [
+    "Ranked",
+    `${TIER_LABELS[tier]} 방어`,
+    `같은 번호의 Unranked보다 높은 부담`,
+    RANKED_DEFENDER_TIER_TO_DIFFICULTY_CODE[tier],
+  ]),
+]);
+
+function percentValue(value) {
+  const scaled = Number(value) * 100;
+  if (Number.isInteger(scaled)) return String(scaled);
+  return scaled.toFixed(1);
+}
+
 function percentRange(values) {
-  return `${Math.round(Number(values[0]) * 100)}~${Math.round(
-    Number(values[1]) * 100
-  )}%`;
+  // U1의 35.0% 표기는 39.9%와 같은 소수 단위 구간임을 명확히 보여준다.
+  const lower = Number(values[0]) === 0.35 ? "35.0" : percentValue(values[0]);
+  return `${lower}~${percentValue(values[1])}%`;
 }
 
 function commonProblemDesignView() {
+  const research = getOfficialMockResearchSummary();
+  const courseLabels = {
+    "common-math-1": "공통수학Ⅰ",
+    "common-math-2": "공통수학Ⅱ",
+    algebra: "대수",
+    "probability-statistics": "확률과 통계",
+    "calculus-1": "미적분Ⅰ",
+  };
   return {
     policyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
     principles: [
-      "Unranked와 Ranked 모두 문제 난이도를 도전자가 아니라 방어자 티어에 맞춥니다.",
-      "Ranked에서 티어 차이가 2~3단계여도 방어자 티어가 같은 경기는 같은 T등급을 사용합니다.",
-      "챌린저가 방어자인 경기는 T9를 사용하며, 챌린저끼리 대결할 때만 팩 안의 난이도 곡선을 상단으로 조정합니다.",
+      "두 사용자는 항상 완전히 같은 문제를 풀고, 난이도는 Division과 방어자 티어로 확정합니다.",
+      "Unranked는 U1~U9, Ranked는 R1~R9로 따로 표시하며 같은 숫자의 R 난이도가 U 난이도보다 항상 어렵습니다.",
+      "각 경기는 첫 문항에서 시작해 뒤 문항으로 갈수록 조건 결합과 경우분류 부담이 자연스럽게 높아집니다.",
     ],
-    matchupRows: MATCHUP_ROWS.map(([matchup, anchor, difficultyTier]) => ({
+    matchupRows: MATCHUP_ROWS.map(([division, matchup, anchor, difficultyCode]) => ({
+      division,
       matchup,
-      anchor: TIER_LABELS[anchor],
-      difficultyTier,
+      anchor,
+      difficultyCode,
     })),
-    accuracyRows: Object.entries(TIER_SPECS).map(
-      ([difficultyTier, spec]) => ({
-        difficultyTier,
-        anchor: TIER_LABELS[spec.anchor],
-        defenderAccuracy: percentRange(spec.defenderAccuracy),
-        challengerAccuracy:
-          difficultyTier === "T1"
-            ? `동티어 ${percentRange(spec.challengerAccuracy)}`
-            : percentRange(spec.challengerAccuracy),
-      })
-    ),
+    accuracyRows: Array.from({ length: 9 }, (_unused, index) => {
+      const unrankedCode = `U${index + 1}`;
+      const rankedCode = `R${index + 1}`;
+      const unrankedSpec = PUBLIC_DIFFICULTY_SPECS[unrankedCode];
+      const rankedSpec = PUBLIC_DIFFICULTY_SPECS[rankedCode];
+      return {
+        stage: `${unrankedCode} / ${rankedCode}`,
+        unrankedAccuracy: percentRange(unrankedSpec.regularAccuracy),
+        rankedRegularAccuracy: percentRange(rankedSpec.regularAccuracy),
+        rankedFinalAccuracy: percentRange(rankedSpec.finalAccuracy),
+      };
+    }),
     accuracyPrinciples: [
-      "방어자 목표 정답률은 대체로 45~60% 구간에 맞춥니다.",
-      "다른 티어끼리 대결할 때 도전자의 예상 정답률은 방어자보다 약 12~18%p 낮게 설계합니다.",
-      "등급이 T1에서 T9로 올라갈수록 절대 난이도도 올라갑니다.",
+      "Unranked의 5문항은 모두 준킬러이고, 같은 단계 안에서도 1번에서 5번으로 갈수록 목표 정답률을 낮춥니다.",
+      "Ranked의 1~4번은 준킬러, 5번은 29·30번형 킬러이며 R1→R9로 갈수록 목표 정답률이 낮아집니다.",
+      "초기 목표 구간은 실제 경기 데이터가 충분히 쌓이면 운영자가 난이도만 보정하며, 이미 생성된 경기는 바뀌지 않습니다.",
+    ],
+    curveRows: [
+      { division: "Unranked", sequence: "쉬움 → 보통 → 보통 → 어려움 → 가장 어려움", example: "U5 예시: 32% → 30% → 29% → 28% → 27%" },
+      { division: "Ranked", sequence: "쉬운 준킬러 → 준킬러 → 어려운 준킬러 → 최상위 준킬러 → 킬러", example: "R5 예시: 25~26% → 23~25% → 21~23% → 20~22% → 4~6%" },
     ],
     matchSpec: [
-      ["문항 수", `준킬러 ${PACK_RULES.items}문항`],
+      ["Unranked 문항", "준킬러 5문항"],
+      ["Ranked 문항", "준킬러 4문항 + 29·30번형 킬러 1문항"],
       ["총점", `${PACK_RULES.totalScore}점 (문항당 ${PACK_RULES.perItemPoints}점)`],
       ["제한 시간", `문항당 ${PACK_RULES.timeLimitMinutes}분`],
       ["문제 동일성", "두 사용자에게 완전히 같은 문제"],
       ["정답 형식", "3자리 이하 자연수 주관식"],
+      ["직접 출제 범위", "대수, 미적분Ⅰ, 확률과 통계"],
+      ["기초 연계 범위", "공통수학Ⅰ·Ⅱ의 위계·연계 개념"],
+      ["그래프·표", "문제 본문이 실제로 제시한 경우에만 정확한 식·라벨·점·좌표를 흰색 문제지에 표시"],
+      ["5번 문항", "Unranked는 준킬러, Ranked는 검산된 29·30번형 킬러를 의무 배정"],
+      ["유형 수", "U1~U9·R1~R9 각각 최소 30개 수치·조건 변형 유형"],
     ],
     semiKillerDefinition:
-      "개념 2개 이상을 결합하고, 조건을 최소 한 단계 변형해야 식이 나오는 문항입니다.",
+      "13·14·20·21·27·28번 4점 문항의 사고 구조를 바탕으로 개념 2개 이상과 조건 변형을 결합하며, 기출 문장을 그대로 복제하지 않습니다.",
     excludedQuestion:
-      "개념 하나를 직접 대입해 끝나는 기본 문항은 T1에도 넣지 않으며, 5문항 전부 준킬러로 구성합니다.",
+      "개념 하나를 직접 대입해 끝나는 기본 문항은 U1에도 넣지 않습니다. Unranked는 5문항 모두 준킬러이며, Ranked만 5번을 29·30번형 다중 조건 킬러로 고정합니다.",
+    curriculumAlignment: {
+      sourceTitle: ARENA_2028_MATH_ALIGNMENT.source.title,
+      directCourses: ARENA_2028_MATH_ALIGNMENT.assessmentScope.directCourses
+        .map((course) => course.label),
+      indirectCourses: ARENA_2028_MATH_ALIGNMENT.assessmentScope.indirectFoundationCourses
+        .map((course) => course.label),
+      behaviorDomains: ARENA_2028_MATH_ALIGNMENT.behaviorDomains
+        .map((domain) => domain.label),
+      representationRequirements:
+        ARENA_2028_MATH_ALIGNMENT.representationRequirements,
+    },
+    research: {
+      period: String(research.researchWindow || "").replace("-", "~"),
+      sourceForms: research.sourceForms,
+      referenceCount: research.targetQuestionReferences,
+      activeReferenceCount: research.activeReferences,
+      targetQuestions: research.targetQuestions.join("·"),
+      excludedExamType: "수능",
+      notice:
+        "평가원 6·9월 모의평가 공식 해설의 출제 의도와 풀이 구조를 유형화하며, 기출 문제 문장·수치·정답을 그대로 재사용하지 않습니다.",
+      courseRows: [
+        "common-math-1",
+        "common-math-2",
+        "algebra",
+        "probability-statistics",
+        "calculus-1",
+      ].map((courseId) => ({
+        courseId,
+        courseLabel: courseLabels[courseId] || courseId,
+        count: Number(research.byCourse?.[courseId] || 0),
+        referenceBasis:
+          Number(research.byCourse?.[courseId] || 0) > 0
+            ? "공식 해설 직접 참고"
+            : "현 교육과정 전이 골격",
+      })),
+      familyRows: research.familyStats.slice(0, 12).map((family) => ({
+        familyId: family.familyId,
+        familyLabel: family.familyLabel,
+        courseLabel: courseLabels[family.courseId] || family.courseId,
+        referenceCount: family.references,
+      })),
+      difficultyRows: Object.entries(research.byDifficulty || {}).map(
+        ([tier, count]) => ({ tier: `U${String(tier).replace("T", "")}`, count })
+      ),
+    },
   };
 }
 

@@ -190,6 +190,20 @@ function buildProblemEngineRegistry() {
   }
 
   const templateSourceByUnit = {
+    "common-math-1/polynomials":
+      "services/assessmentTemplates/commonMath/index.js",
+    "common-math-1/equations-and-inequalities":
+      "services/assessmentTemplates/commonMath/index.js",
+    "common-math-1/counting":
+      "services/assessmentTemplates/commonMath/index.js",
+    "common-math-1/matrices":
+      "services/assessmentTemplates/commonMath/index.js",
+    "common-math-2/coordinate-geometry":
+      "services/assessmentTemplates/commonMath/index.js",
+    "common-math-2/sets-and-propositions":
+      "services/assessmentTemplates/commonMath/index.js",
+    "common-math-2/functions-and-graphs":
+      "services/assessmentTemplates/commonMath/index.js",
     "algebra/exponential-logarithmic-functions":
       "services/assessmentTemplates/algebra/exponentialLogarithmicFunctions.js",
     "algebra/trigonometric-functions":
@@ -456,6 +470,7 @@ async function syncProblemTypeRegistry({
   );
   const inserted = [];
   const updated = [];
+  const retired = [];
   const newDocuments = [];
   for (const [registryKey, engine] of registry) {
     const current = activeByKey.get(registryKey);
@@ -511,16 +526,27 @@ async function syncProblemTypeRegistry({
       ordered: false,
     });
   }
+  const staleActive = active.filter(
+    (version) => !registry.has(`${version.category}:${version.engineKey}`)
+  );
+  if (staleActive.length) {
+    const staleIds = staleActive.map((version) => version._id);
+    await ProblemTypeVersion.updateMany(
+      { _id: { $in: staleIds }, status: "ACTIVE" },
+      { $set: { status: "RETIRED", retiredAt: new Date() } }
+    );
+    retired.push(...staleActive.map((version) => version.engineKey));
+  }
   await reloadActiveProblemTypeControls();
-  if (adminUserId && (inserted.length || updated.length)) {
+  if (adminUserId && (inserted.length || updated.length || retired.length)) {
     await AdminActionLog.create({
       adminUserId,
       action: "problem-types.registry-sync",
-      detail: `신규 ${inserted.length}개 · 소스 갱신 ${updated.length}개`,
-      metadata: { inserted, updated },
+      detail: `신규 ${inserted.length}개 · 소스 갱신 ${updated.length}개 · 폐기 ${retired.length}개`,
+      metadata: { inserted, updated, retired },
     });
   }
-  return { inserted, updated, total: registry.size };
+  return { inserted, updated, retired, total: registry.size };
 }
 
 async function ensureActiveControlCache() {

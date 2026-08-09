@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>미성년자 본인 결제 안내 | Matths</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/public-navigation.css" />
+  <link rel="stylesheet" href="/css/brand.css" />
+  <link rel="stylesheet" href="/css/parent.css" />
+</head>
+<body class="checkout-page">
+  <%- include('partials/public-navigation', { activePage: 'pricing', user }) %>
+  <main class="student-checkout-main">
+    <section class="student-checkout-card" aria-labelledby="minor-payment-title">
+      <p>미성년자 본인 결제</p>
+      <h1 id="minor-payment-title">결제 전 확인해주세요</h1>
+      <span>본인 결제는 법정대리인에게 상품과 결제 금액을 알리고 동의를 받은 뒤에만 진행할 수 있습니다.</span>
+
+      <dl>
+        <div><dt>선택한 상품</dt><dd><%= product.name %></dd></div>
+        <div><dt>이용 기간</dt><dd><%= product.periodLabel %></dd></div>
+        <div><dt>결제 예정 금액</dt><dd><strong><%= new Intl.NumberFormat('ko-KR').format(product.amount) %>원</strong></dd></div>
+      </dl>
+
+      <section class="guardian-consent-card" aria-label="미성년자 결제 안내">
+        <div>
+          <small>결제 안내</small>
+          <strong>법정대리인 동의 확인</strong>
+          <p>상품명·금액·이용 기간을 법정대리인에게 알리고, 본인 결제 진행에 대한 동의를 먼저 받아야 합니다. 동의를 받지 못했다면 아래의 학부모 결제 요청을 이용해주세요.</p>
+        </div>
+        <ul class="minor-payment-notice-list">
+          <li>이 확인은 결제 주문을 준비하기 위한 안내 확인 기록입니다.</li>
+          <li>결제 수단과 최종 승인 절차는 결제 서비스 연동 시 별도로 안내됩니다.</li>
+          <li>학부모가 직접 결제하려면 이용권 페이지에서 ‘부모님께 결제 요청하기’를 선택할 수 있습니다.</li>
+        </ul>
+      </section>
+
+      <% if (error) { %>
+        <p class="parent-form-message is-error" role="alert"><%= error %></p>
+      <% } %>
+
+      <form method="post" action="/pricing/<%= productRoute %>/self/minor-payment-consent" data-minor-payment-consent>
+        <label class="guardian-consent-check">
+          <input type="checkbox" name="minorPaymentNoticeAccepted" value="true" data-minor-payment-check />
+          <span>법정대리인에게 결제 내용을 알리고 동의를 받은 뒤 본인 결제를 진행한다는 점을 확인했습니다.</span>
+        </label>
+        <button type="submit" data-minor-payment-submit disabled>확인 후 본인 결제 계속하기</button>
+      </form>
+      <a class="checkout-back" href="/pricing">이용권 비교로 돌아가기</a>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const form = document.querySelector('[data-minor-payment-consent]');
+      const check = form?.querySelector('[data-minor-payment-check]');
+      const submit = form?.querySelector('[data-minor-payment-submit]');
+      if (!check || !submit) return;
+      const sync = () => { submit.disabled = !check.checked; };
+      check.addEventListener('change', sync);
+      sync();
+    })();
+  </script>
+</body>
+</html>

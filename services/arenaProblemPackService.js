@@ -1,32 +1,41 @@
-const {
-  createHash,
-} = require("node:crypto");
+const { createHash } = require("node:crypto");
 const mongoose = require("mongoose");
 const {
   ArenaProblemPack,
 } = require("../models/goatArenaModel");
 const {
-  generateValidatedAdvancedQuestion,
+  generateValidatedArenaOneOnOneQuestion,
 } = require("./arenaOneOnOneProblemTypes");
 const {
+  ARENA_ONE_ON_ONE_FINAL_TYPE_IDS,
+  ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS,
   ARENA_ONE_ON_ONE_TIME_LIMIT_MS,
   getMainTierPair,
   getSubTierPair,
 } = require("./arenaOneOnOneProblemBank");
 const {
+  ARENA_SOURCE_POSITION_BANDS,
   ARENA_LEGACY_CONTENT_VERSION,
   ARENA_QUESTION_DESIGN_POLICY_VERSION,
+  PUBLIC_DIFFICULTY_SPECS,
   TIER_SPECS,
   assertActivePackDesign,
   packCurveForPair,
   plannedPackSlots,
+  resolveArenaDifficultyCode,
   resolveArenaDifficultyTier,
 } = require("./arenaOneOnOneDifficultyPolicy");
+const {
+  problemWithVerifiedVisualization,
+} = require("./arenaTierQuestionCatalogService");
 
 const ARENA_PROBLEM_COUNT = 5;
 const ARENA_TOTAL_POINTS = 100;
 const ARENA_PROBLEM_CATEGORY =
   "semi-killer";
+const ARENA_SOURCE_POSITION_BAND_SET = new Set(
+  ARENA_SOURCE_POSITION_BANDS
+);
 
 function statusError(status, message, code = "") {
   const error = new Error(message);
@@ -83,6 +92,30 @@ function canonicalize(value) {
   return value;
 }
 
+function normalizeArenaVisualization(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  let serialized = "";
+  try {
+    serialized = JSON.stringify(value);
+  } catch (_error) {
+    throw statusError(
+      422,
+      "경기 문항의 그래프 데이터를 직렬화할 수 없습니다.",
+      "INVALID_ARENA_VISUALIZATION"
+    );
+  }
+  if (serialized.length > 50000) {
+    throw statusError(
+      422,
+      "경기 문항의 그래프 데이터가 허용 크기를 초과했습니다.",
+      "ARENA_VISUALIZATION_TOO_LARGE"
+    );
+  }
+  return JSON.parse(serialized);
+}
+
 function packHashPayload(pack) {
   const source =
     typeof pack?.toObject === "function"
@@ -107,6 +140,7 @@ function packHashPayload(pack) {
     designCompliance: source.designCompliance,
     difficultyAnchor: source.difficultyAnchor,
     difficultyTier: source.difficultyTier,
+    difficultyCode: source.difficultyCode || "",
     targetDefenderAccuracyMin: source.targetDefenderAccuracyMin,
     targetDefenderAccuracyMax: source.targetDefenderAccuracyMax,
     targetChallengerAccuracyMin: source.targetChallengerAccuracyMin,
@@ -138,10 +172,18 @@ function packHashPayload(pack) {
         designPolicyVersion: question.designPolicyVersion,
         designSlot: question.designSlot,
         plannedCourseId: question.plannedCourseId,
+        typeSkeletonId: question.typeSkeletonId,
+        referenceFamilyIds: question.referenceFamilyIds,
+        referenceFamilyLabels: question.referenceFamilyLabels,
+        referenceBasis: question.referenceBasis,
         difficultyPosition: question.difficultyPosition,
+        slotRole: question.slotRole,
+        difficultyClass: question.difficultyClass,
+        sourcePositionBand: question.sourcePositionBand,
         combinedConceptCount: question.combinedConceptCount,
         conditionTransformSteps: question.conditionTransformSteps,
         graphItem: question.graphItem,
+        visualization: question.visualization || null,
         calculationLoad: question.calculationLoad,
         prompt: question.prompt,
         inputMode: question.inputMode,
@@ -168,6 +210,7 @@ function packHashPayload(pack) {
           conditionsConsistent: question.validation?.conditionsConsistent,
           tierBurdenMatches: question.validation?.tierBurdenMatches,
           twoMinuteSolvable: question.validation?.twoMinuteSolvable,
+          tenMinuteSolvable: question.validation?.tenMinuteSolvable,
           originalityChecked: question.validation?.originalityChecked,
         },
       })
@@ -206,6 +249,7 @@ function validateArenaProblemPackDefinition(pack) {
     0
   );
   const activeDesign = pack?.designCompliance === "ACTIVE";
+  const v3Design = pack?.designPolicyVersion === ARENA_QUESTION_DESIGN_POLICY_VERSION;
   let activeDesignValid = true;
   if (activeDesign) {
     try {
@@ -219,6 +263,15 @@ function validateArenaProblemPackDefinition(pack) {
       activeDesignValid = false;
     }
   }
+  const normalizedDivision = String(pack?.division || "SUB").toUpperCase();
+  const compositionValid = questions.every((question, index) => {
+    const killerSlot = normalizedDivision === "MAIN" && index === questions.length - 1;
+    return (
+      question.category === (killerSlot ? "killer" : "semi-killer") &&
+      String(question.slotRole || "").toUpperCase() ===
+        (killerSlot ? "FINAL_29_30" : "REGULAR")
+    );
+  });
   const valid =
     Number(pack?.questionCount) ===
       ARENA_PROBLEM_COUNT &&
@@ -242,13 +295,16 @@ function validateArenaProblemPackDefinition(pack) {
     Boolean(pack?.contentSourceVersion) &&
     pack?.difficultyAnchor === "DEFENDER" &&
     Boolean(TIER_SPECS[pack?.difficultyTier]) &&
+    (!v3Design || compositionValid) &&
     Array.isArray(pack?.packCurve) &&
     pack.packCurve.length === ARENA_PROBLEM_COUNT &&
     activeDesignValid &&
     questions.every(
       (question) =>
-        question.category ===
-          ARENA_PROBLEM_CATEGORY &&
+        ["semi-killer", "killer"].includes(question.category) &&
+        ARENA_SOURCE_POSITION_BAND_SET.has(
+          String(question.sourcePositionBand || "").toUpperCase()
+        ) &&
         question.inputMode ===
           "short-answer" &&
         question.validation?.passed ===
@@ -341,27 +397,41 @@ function buildArenaProblemPackDraft({
     challengerTier,
     defenderTier
   );
-  const difficultySpec = TIER_SPECS[difficultyTier];
+  const difficultyCode = resolveArenaDifficultyCode(
+    challengerTier,
+    defenderTier,
+    { division: "SUB" }
+  );
+  const difficultySpec =
+    PUBLIC_DIFFICULTY_SPECS[difficultyCode] || TIER_SPECS[difficultyTier];
   const designSlots = plannedPackSlots(challengerTier, defenderTier);
   const questions = Array.from(
     { length: ARENA_PROBLEM_COUNT },
     (_, index) => {
+      const design = designSlots[index];
+      const eligibleTypeIds = (
+        design.slotRole === "FINAL_29_30"
+          ? ARENA_ONE_ON_ONE_FINAL_TYPE_IDS
+          : ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS
+      ).filter((typeId) => !excludedTypeIds.includes(typeId));
       let generated = null;
-      for (let retry = 0; retry < 100; retry += 1) {
-        const candidate = generateValidatedAdvancedQuestion({
-          category: ARENA_PROBLEM_CATEGORY,
-          excludedTypeIds,
-        });
-        if (candidate?.problem?.inputMode === "short-answer") {
-          generated = candidate;
-          break;
+      for (const typeId of eligibleTypeIds.sort(() => Math.random() - 0.5)) {
+        try {
+          const candidate = generateValidatedArenaOneOnOneQuestion({ typeId });
+          if (candidate?.problem?.inputMode === "short-answer") {
+            generated = candidate;
+            break;
+          }
+        } catch (_error) {
+          // 다른 승인 유형으로 재시도한다.
         }
-        excludedTypeIds.push(candidate.typeId);
       }
       if (!generated) {
         throw statusError(
           422,
-          "서로 다른 주관식 준킬러 5문항을 자동 생성하지 못했습니다.",
+          design.slotRole === "FINAL_29_30"
+            ? "5번에 배정할 서로 다른 29·30번형 킬러 문항을 자동 생성하지 못했습니다."
+            : "서로 다른 주관식 준킬러 5문항을 자동 생성하지 못했습니다.",
           "ARENA_SHORT_ANSWER_GENERATION_FAILED"
         );
       }
@@ -370,7 +440,6 @@ function buildArenaProblemPackDraft({
       );
       const { definition, problem } =
         generated;
-      const design = designSlots[index];
       return {
         questionKey: `Q${index + 1}`,
         typeId: generated.typeId,
@@ -388,7 +457,20 @@ function buildArenaProblemPackDraft({
         designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
         designSlot: design.order,
         plannedCourseId: design.courseId,
+        typeSkeletonId: design.typeSkeletonId,
+        referenceFamilyIds: (design.referenceFamilies || []).map(
+          (family) => family.familyId
+        ),
+        referenceFamilyLabels: (design.referenceFamilies || []).map(
+          (family) => family.familyLabel
+        ),
+        referenceBasis: (design.referenceFamilies || []).some(
+          (family) => family.basis === "OFFICIAL_MOCK_REFERENCE"
+        ) ? "OFFICIAL_MOCK_REFERENCE" : "CURRICULUM_TRANSFER",
         difficultyPosition: design.difficultyPosition,
+        slotRole: design.slotRole,
+        difficultyClass: design.difficultyClass,
+        sourcePositionBand: design.sourcePositionBand,
         combinedConceptCount: 0,
         conditionTransformSteps: 0,
         graphItem: false,
@@ -452,6 +534,7 @@ function buildArenaProblemPackDraft({
     designCompliance: "PENDING_FINAL_GENERATORS",
     difficultyAnchor: "DEFENDER",
     difficultyTier,
+    difficultyCode,
     targetDefenderAccuracyMin: difficultySpec.defenderAccuracy[0],
     targetDefenderAccuracyMax: difficultySpec.defenderAccuracy[1],
     targetChallengerAccuracyMin: difficultySpec.challengerAccuracy[0],
@@ -485,12 +568,17 @@ function buildArenaProblemPackDraft({
 
 function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
   const definition = question?.definition || {};
-  const problem = question?.problem || question || {};
+  const rawProblem = question?.problem || question || {};
+  const problem = problemWithVerifiedVisualization(rawProblem);
   const validation = question?.validation || problem.validation || {};
+  const difficultyClass = String(
+    question?.design?.difficultyClass ||
+      (question?.design?.slotRole === "FINAL_29_30" ? "KILLER" : "SEMI_KILLER")
+  ).toUpperCase();
   return {
     questionKey: `Q${index + 1}`,
     typeId: String(question?.typeId || problem.typeId || "").trim(),
-    category: ARENA_PROBLEM_CATEGORY,
+    category: difficultyClass === "KILLER" ? "killer" : "semi-killer",
     courseId: String(
       question?.courseId || definition.courseId || problem.courseId || ""
     ).trim(),
@@ -517,8 +605,24 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
     ).toUpperCase(),
     designSlot: Number(question?.design?.order || index + 1),
     plannedCourseId: String(question?.design?.courseId || ""),
+    typeSkeletonId: String(question?.design?.typeSkeletonId || ""),
+    referenceFamilyIds: (question?.design?.referenceFamilies || [])
+      .map((family) => String(family?.familyId || "").trim())
+      .filter(Boolean),
+    referenceFamilyLabels: (question?.design?.referenceFamilies || [])
+      .map((family) => String(family?.familyLabel || "").trim())
+      .filter(Boolean),
+    referenceBasis: (question?.design?.referenceFamilies || [])
+      .some((family) => family?.basis === "OFFICIAL_MOCK_REFERENCE")
+      ? "OFFICIAL_MOCK_REFERENCE"
+      : "CURRICULUM_TRANSFER",
     difficultyPosition: String(
       question?.design?.difficultyPosition || ""
+    ).toUpperCase(),
+    slotRole: String(question?.design?.slotRole || "").toUpperCase(),
+    difficultyClass,
+    sourcePositionBand: String(
+      question?.design?.sourcePositionBand || ""
     ).toUpperCase(),
     combinedConceptCount: Number(
       question?.design?.combinedConceptCount || 0
@@ -526,7 +630,9 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
     conditionTransformSteps: Number(
       question?.design?.conditionTransformSteps || 0
     ),
-    graphItem: question?.design?.graphItem === true,
+    graphItem:
+      question?.design?.graphItem === true && Boolean(problem.visualization),
+    visualization: normalizeArenaVisualization(problem.visualization),
     calculationLoad: String(
       question?.design?.calculationLoad || ""
     ).toUpperCase(),
@@ -547,6 +653,7 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
       conditionsConsistent: validation.conditionsConsistent === true,
       tierBurdenMatches: validation.tierBurdenMatches === true,
       twoMinuteSolvable: validation.twoMinuteSolvable === true,
+      tenMinuteSolvable: validation.tenMinuteSolvable === true,
       originalityChecked: validation.originalityChecked === true,
       checkedAt: validation.checkedAt
         ? new Date(validation.checkedAt)
@@ -590,9 +697,17 @@ function buildGeneratedArenaProblemPackDraft({
   );
   const difficultyTier = String(
     generation?.difficultyTier ||
-      resolveArenaDifficultyTier(challengerTier, defenderTier)
+      resolveArenaDifficultyTier(challengerTier, defenderTier, {
+        division: normalizedDivision,
+      })
   ).toUpperCase();
-  const difficultySpec = TIER_SPECS[difficultyTier];
+  const difficultyCode =
+    generation?.difficultyCode ||
+    resolveArenaDifficultyCode(challengerTier, defenderTier, {
+      division: normalizedDivision,
+    });
+  const difficultySpec =
+    PUBLIC_DIFFICULTY_SPECS[difficultyCode] || TIER_SPECS[difficultyTier];
   const versionHash = createHash("sha256")
     .update(String(matchKey), "utf8")
     .digest("hex")
@@ -618,6 +733,7 @@ function buildGeneratedArenaProblemPackDraft({
       generation.designCompliance || "PENDING_FINAL_GENERATORS",
     difficultyAnchor: "DEFENDER",
     difficultyTier,
+    difficultyCode,
     targetDefenderAccuracyMin: difficultySpec.defenderAccuracy[0],
     targetDefenderAccuracyMax: difficultySpec.defenderAccuracy[1],
     targetChallengerAccuracyMin: difficultySpec.challengerAccuracy[0],

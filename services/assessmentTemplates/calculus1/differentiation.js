@@ -272,6 +272,22 @@ const families = [
           }`,
         hintText:
           "방정식의 해 개수를 함수 그래프와 수평선의 교점 개수로 바꾸세요.",
+        visualization: {
+          kind: "polynomial",
+          degree: 3,
+          coefficients: {
+            cubic: 1,
+            quadratic: 0,
+            linear: -3 * t ** 2,
+            constant: 0,
+          },
+          comparisonLineY: mode === 0 ? level : 0,
+          focusX: 0,
+          note:
+            mode === 0
+              ? `삼차함수와 수평선 y=${level}의 교점 개수를 확인하세요.`
+              : "극댓값과 극솟값 사이의 수평선은 서로 다른 세 교점을 만듭니다.",
+        },
       });
     },
   },
@@ -678,6 +694,19 @@ const families = [
           `각 점의 함수값을 비교하면 요구한 값은 ${answer}이다.`,
         hintText:
           "닫힌구간에서는 임계점뿐 아니라 양 끝점의 함수값도 반드시 비교하세요.",
+        visualization: {
+          kind: "polynomial",
+          degree: 3,
+          coefficients: {
+            cubic: 1,
+            quadratic: 0,
+            linear: -3,
+            constant,
+          },
+          domain: [-2, 2],
+          focusX: 0,
+          note: "닫힌구간의 양 끝점과 임계점에서 함수값을 비교하세요.",
+        },
       });
     },
   },

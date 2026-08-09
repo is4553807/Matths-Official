@@ -40,7 +40,17 @@
       </section>
 
       <% if (!battleData.eligible) { %>
-        <section class="arena-feature-lock"><span aria-hidden="true">◇</span><h2><%= battleData.reasons.includes("INTEGRITY_PENALTY_ACTIVE") ? "GOAT Arena 매치메이킹이 제한되었습니다." : "Ranked 경기 이용 권한을 확인해주세요." %></h2><p><%= battleData.reasons.includes("INTEGRITY_PENALTY_ACTIVE") ? "부정행위가 확인되어 새 경기를 신청할 수 없습니다." : "활성 학습권, Ranked 소속, 시즌 배치와 최소 1일의 사용 가능 학습일수가 모두 필요합니다." %></p><% if (battleData.reasons.includes("INTEGRITY_PENALTY_ACTIVE")) { %><p class="arena-challenge-penalty-notice">제한 해제: <strong><%= formatMatchmakingRestriction(battleData.matchmakingRestrictedUntil) %> (KST)</strong></p><% } %></section>
+        <section class="arena-feature-lock is-<%= battleRestrictionNotice.tone %>">
+          <span aria-hidden="true">◇</span>
+          <h2><%= battleRestrictionNotice.title %></h2>
+          <p><%= battleRestrictionNotice.description %></p>
+          <% if (battleRestrictionNotice.detail) { %>
+            <p class="arena-feature-lock-detail"><%= battleRestrictionNotice.detail %></p>
+          <% } %>
+          <% if (battleRestrictionNotice.showRestrictionUntil) { %>
+            <p class="arena-challenge-penalty-notice">제한 해제: <strong><%= formatMatchmakingRestriction(battleData.matchmakingRestrictedUntil) %> (KST)</strong></p>
+          <% } %>
+        </section>
       <% } else { %>
         <section class="main-battle-action-grid arena-main-operation-grid">
           <article class="arena-operation-card arena-operation-card--attack">
@@ -62,6 +72,64 @@
               <button type="submit" <%= battleData.activeMatch ? 'disabled' : '' %>>하위 티어에 초대 보내기</button>
             </form>
           </article>
+        </section>
+
+        <section class="main-friendly-board" id="main-friendly-match">
+          <header>
+            <div><small>FRIENDLY MATCH</small><h2>친선 경기 초대</h2></div>
+            <p>친구의 닉네임을 검색해 초대하세요. 수락 순간 양측에서 이용 수수료 1일씩만 차감되며, 승패와 관계없이 티어·순위·학습일수는 이동하지 않습니다.</p>
+          </header>
+          <div class="main-friendly-search">
+            <form action="/goat-arena/main/battle#main-friendly-match" method="get">
+              <label><span>친구 닉네임</span><input type="search" name="friendlyNickname" value="<%= friendlyData.query %>" minlength="2" maxlength="40" placeholder="닉네임 2글자 이상 입력" required /></label>
+              <button type="submit">닉네임 검색</button>
+            </form>
+            <small>친선 경기는 활성 Ranked 사용자끼리만 이용할 수 있으며, 초대 수락 전까지 학습일수는 차감되지 않습니다.</small>
+          </div>
+          <% if (friendlyData.query) { %>
+            <div class="main-friendly-results" aria-live="polite">
+              <% if (!friendlyData.searchResults.length) { %>
+                <p class="empty">현재 초대할 수 있는 Ranked 사용자를 찾지 못했습니다. 닉네임, 이용 상태 또는 진행 중 경기를 확인해주세요.</p>
+              <% } %>
+              <% friendlyData.searchResults.forEach((candidate) => { %>
+                <article>
+                  <div><strong><%= candidate.nickname %></strong><span><%= candidate.tier %> · 사용 가능 학습일수 <%= candidate.availableLearningDays %>일</span></div>
+                  <form action="/goat-arena/main/friendly-invitations" method="post">
+                    <input type="hidden" name="requestId" value="<%= requestId %>:friendly:<%= candidate.userId %>" />
+                    <input type="hidden" name="inviteeUserId" value="<%= candidate.userId %>" />
+                    <button type="submit" <%= battleData.activeMatch ? 'disabled' : '' %>>1일씩 차감 후 초대</button>
+                  </form>
+                </article>
+              <% }) %>
+            </div>
+          <% } %>
+          <div class="main-friendly-columns">
+            <article>
+              <h3>받은 친선 초대</h3>
+              <% if (!friendlyData.receivedInvitations.length) { %><p class="empty">현재 받은 친선 초대가 없습니다.</p><% } %>
+              <% friendlyData.receivedInvitations.forEach((invitation) => { const inviter = invitation.inviterUserId || {}; %>
+                <div class="main-friendly-invitation-item">
+                  <strong><%= inviter.name || inviter.username || '닉네임 확인 중' %></strong>
+                  <span>수락 시 양측 1일씩 차감 · 순위와 학습일수 이전 없음</span>
+                  <div class="main-invitation-actions">
+                    <form action="/goat-arena/main/friendly-invitations/<%= invitation._id %>/respond" method="post"><input type="hidden" name="response" value="ACCEPT" /><button type="submit" <%= battleData.activeMatch ? 'disabled' : '' %>>조건 확인 후 수락</button></form>
+                    <form action="/goat-arena/main/friendly-invitations/<%= invitation._id %>/respond" method="post"><input type="hidden" name="response" value="DECLINE" /><button class="secondary" type="submit">거절</button></form>
+                  </div>
+                </div>
+              <% }) %>
+            </article>
+            <article>
+              <h3>보낸 친선 초대</h3>
+              <% if (!friendlyData.sentInvitations.length) { %><p class="empty">현재 보낸 친선 초대가 없습니다.</p><% } %>
+              <% friendlyData.sentInvitations.forEach((invitation) => { const invitee = invitation.inviteeUserId || {}; %>
+                <div class="main-friendly-invitation-item">
+                  <strong><%= invitee.name || invitee.username || '닉네임 확인 중' %></strong>
+                  <span>상대 수락 대기 중 · 수락 전에는 무료 취소 가능</span>
+                  <form action="/goat-arena/main/friendly-invitations/<%= invitation._id %>/cancel" method="post"><button class="secondary" type="submit">초대 취소</button></form>
+                </div>
+              <% }) %>
+            </article>
+          </div>
         </section>
 
         <section class="main-invitation-board" id="main-invitations">

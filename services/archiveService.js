@@ -185,7 +185,8 @@ function serializeArchiveItem(item) {
 
 function serializeArchiveFolder(
   folder,
-  itemCount = 0
+  itemCount = 0,
+  { isLocked = false } = {}
 ) {
   return {
     id: String(folder._id),
@@ -211,6 +212,7 @@ function serializeArchiveFolder(
     pinnedAt:
       folder.pinnedAt || null,
     itemCount,
+    isLocked,
     createdAt: folder.createdAt,
   };
 }
@@ -279,12 +281,9 @@ async function getArchiveData(
   const allFolderById = new Map(
     allFolders.map((folder) => [String(folder._id), folder])
   );
-  const folders = admin
-    ? allFolders
-    : allFolders.filter(
-        (folder) =>
-          paidAccess || !folderRequiresPaidAccess(folder, allFolderById)
-      );
+  // 패키지 전용 폴더도 무료 회원의 아카이브 목록에는 노출한다.
+  // 실제 폴더 진입과 다운로드 권한은 아래의 서버 검사를 그대로 거친다.
+  const folders = allFolders;
   const requestedFolderId =
     String(folderId || "");
   let selectedFolder = null;
@@ -501,7 +500,16 @@ async function getArchiveData(
           folder,
           totalItemCountByFolder.get(
             String(folder._id)
-          ) || 0
+          ) || 0,
+          {
+            isLocked:
+              !admin &&
+              !paidAccess &&
+              folderRequiresPaidAccess(
+                folder,
+                allFolderById
+              ),
+          }
         )
       ),
     folderOptions:

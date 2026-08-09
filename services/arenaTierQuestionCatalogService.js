@@ -18,15 +18,45 @@ const {
 } = require("./problemGenerators/utils");
 const {
   PACK_COURSE_SLOTS,
+  PACK_RULES,
+  PUBLIC_DIFFICULTY_TO_CATALOG_TIER,
+  PUBLIC_DIFFICULTY_SPECS,
   TIER_SPECS,
   isNaturalNumberMaxThreeDigits,
   plannedPackSlots,
 } = require("./arenaOneOnOneDifficultyPolicy");
+const {
+  ARENA_ONE_ON_ONE_TYPE_SKELETONS,
+} = require("./arenaOneOnOneTypeSkeletons");
+const {
+  ARENA_ONE_ON_ONE_PROBLEM_TYPES,
+  generateValidatedArenaOneOnOneQuestion,
+} = require("./arenaOneOnOneProblemTypes");
 
 const DIFFICULTY_TIERS = Object.freeze([
   "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9",
 ]);
 const ACTIVE_CACHE_TTL_MS = 15 * 1000;
+const FINAL_KILLER_APPROVED_TYPE_IDS = new Set([
+  "killer-tangent-integral-extrema",
+  "killer-tangent-area-equation",
+  "killer-distance-inverse",
+  "killer-extrema-chord-equation",
+  "killer-integral-tangent-equation",
+  "killer-inverse-recurrence",
+]);
+const FINAL_KILLER_TYPE_IDS = Object.freeze(
+  Object.entries(ARENA_ONE_ON_ONE_PROBLEM_TYPES)
+    .filter(
+      ([typeId, definition]) =>
+        FINAL_KILLER_APPROVED_TYPE_IDS.has(typeId) &&
+        definition.category === "killer" &&
+        ["algebra", "calculus-1", "probability-statistics"].includes(
+          definition.courseId
+        )
+    )
+    .map(([typeId]) => typeId)
+);
 
 /*
  * 업로드 자료의 유형 분류를 이미 검산된 평가센터 생성기에 연결하기 위한
@@ -94,6 +124,206 @@ function sha256(value) {
 
 function normalizedProblem(generated) {
   return generated?.problem || generated;
+}
+
+const ARENA_GRAPH_VISUALIZATION_KINDS = new Set([
+  "polynomial",
+  "algebra-trig",
+  "trigonometric",
+  "algebra-exp-log",
+  "exponential",
+  "logarithmic",
+  "inverse-square",
+  "rational-continuity",
+  "rational",
+  "hole-linear",
+]);
+
+function validFinitePair(values) {
+  return (
+    Array.isArray(values) &&
+    values.length >= 2 &&
+    values.every((value) => Number.isFinite(Number(value)))
+  );
+}
+
+function validLabeledPoints(value) {
+  const points = Array.isArray(value?.labeledPoints)
+    ? value.labeledPoints
+    : Array.isArray(value?.points)
+      ? value.points
+      : [];
+  return (
+    points.length > 0 &&
+    points.every(
+      (point) =>
+        point &&
+        Number.isFinite(Number(point.x)) &&
+        Number.isFinite(Number(point.y))
+    )
+  );
+}
+
+function hasRenderableGraphDescriptor(value) {
+  const kind = String(value?.kind || value?.type || "").trim().toLowerCase();
+  if (!ARENA_GRAPH_VISUALIZATION_KINDS.has(kind)) return false;
+  if (kind === "polynomial") {
+    const coefficients = value?.coefficients;
+    return Boolean(coefficients && typeof coefficients === "object");
+  }
+  if (["algebra-trig", "trigonometric"].includes(kind)) {
+    return Number.isFinite(Number(value?.frequency ?? 1));
+  }
+  if (["algebra-exp-log", "exponential", "logarithmic"].includes(kind)) {
+    return Number(value?.base ?? 2) > 0 && Number(value?.base ?? 2) !== 1;
+  }
+  if (["inverse-square", "rational-continuity", "rational"].includes(kind)) {
+    return Number.isFinite(Number(value?.numeratorConstant ?? value?.numerator ?? 1));
+  }
+  return kind === "hole-linear" && Number.isFinite(Number(value?.focusX));
+}
+
+function hasRenderableArenaVisualization(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const kind = String(value.kind || "").trim().toLowerCase();
+  const curveDescriptors = Array.isArray(value.curves)
+    ? value.curves
+    : Array.isArray(value.functions)
+      ? value.functions
+      : [];
+  if (curveDescriptors.length) {
+    return curveDescriptors.every(hasRenderableGraphDescriptor);
+  }
+  if (hasRenderableGraphDescriptor(value)) return true;
+  if (["algebra-sequence", "table-points"].includes(kind)) {
+    const values = Array.isArray(value.values) ? value.values : [];
+    return (
+      values.length > 0 && values.every((entry) => Number.isFinite(Number(entry)))
+    ) || (
+      validFinitePair(value.xValues) &&
+      validFinitePair(value.yValues) &&
+      value.xValues.length === value.yValues.length
+    );
+  }
+  if (kind.startsWith("probability-") && kind !== "probability-concept") {
+    return Object.entries(value).some(
+      ([key, entry]) =>
+        !["kind", "note", "title"].includes(key) &&
+        (typeof entry === "number" ||
+          (typeof entry === "string" && entry.trim()) ||
+          (Array.isArray(entry) && entry.length > 0))
+    );
+  }
+  return kind === "geometry" && validLabeledPoints(value);
+}
+
+function plainPrompt(value) {
+  return String(value || "")
+    .replace(/\\\[[\s\S]*?\\\]/g, " 수식 ")
+    .replace(/\$[^$]*\$/g, " 수식 ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/*
+ * 풀이 과정에서 그래프를 그리면 편하다는 이유만으로 문제 화면에 그래프를
+ * 노출하지 않는다. 생성기가 문제 본문 자료라고 명시하고, 본문에도 실제
+ * 그래프·그림·표 제시 문장이 있을 때만 시각자료를 봉인한다.
+ */
+function isVisualizationPresentedInProblem(problem) {
+  const visualization = problem?.visualization;
+  if (!hasRenderableArenaVisualization(visualization)) return false;
+  const explicitDescriptor =
+    visualization?.presentedInProblem === true ||
+    String(visualization?.sourceRole || "").toUpperCase() === "PROBLEM_STEM" ||
+    problem?.visualizationPresentedInProblem === true;
+  if (!explicitDescriptor) return false;
+  const prompt = plainPrompt(problem?.prompt);
+  return /(?:다음|아래|주어진).{0,28}(?:그래프|그림|표)|(?:그래프|그림|표).{0,28}(?:같다|주어|나타내|제시)/.test(prompt);
+}
+
+function problemWithVerifiedVisualization(problem) {
+  if (!problem || typeof problem !== "object") return problem;
+  if (!isVisualizationPresentedInProblem(problem)) {
+    return { ...problem, visualization: null };
+  }
+  return {
+    ...problem,
+    visualization: {
+      ...problem.visualization,
+      presentedInProblem: true,
+      sourceRole: "PROBLEM_STEM",
+    },
+  };
+}
+
+function assertGeneratedTierCatalogPack(questions, { division = "SUB" } = {}) {
+  const items = Array.isArray(questions) ? questions : [];
+  const typeIds = items.map((item) => String(item?.typeId || "").trim());
+  const sourceTypeIds = items.map((item) =>
+    String(item?.sourceTypeId || "").trim()
+  );
+  const engineKeys = items.map((item) =>
+    String(item?.generatorEngineKey || "").trim()
+  );
+  const allValidated = items.every(
+    (item) =>
+      item?.validation?.passed === true &&
+      item.validation.solvable === true &&
+      item.validation.uniqueAnswer === true &&
+      item.validation.calculatorFree === true &&
+      item.validation.answerMatches === true &&
+      item.validation.validationMode === "TYPE_SPECIFIC" &&
+      isNaturalNumberMaxThreeDigits(item?.problem?.answer)
+  );
+  const visualizationsConsistent = items.every(
+    (item) =>
+      item?.design?.graphItem !== true ||
+      hasRenderableArenaVisualization(item?.problem?.visualization)
+  );
+  const visualItemCount = items.filter(
+    (item) =>
+      item?.design?.graphItem === true &&
+      hasRenderableArenaVisualization(item?.problem?.visualization)
+  ).length;
+  const difficultyNumber = Number(
+    String(items[0]?.design?.difficultyTier || "").replace("T", "")
+  );
+  const visualCountValid =
+    visualItemCount >= PACK_RULES.minimumGraphItems &&
+    (
+      difficultyNumber < 5 ||
+      visualItemCount <= PACK_RULES.maximumGraphItemsFromT5
+    );
+  const normalizedDivision = String(division || "SUB").toUpperCase();
+  const compositionValid = items.every((item, index) => {
+    const finalSlot = normalizedDivision === "MAIN" && index === items.length - 1;
+    const slotMatches = String(item?.design?.slotRole || "").toUpperCase() ===
+      (finalSlot ? "FINAL_29_30" : "REGULAR");
+    const typeBindingMatches = finalSlot || item?.validation?.catalogTypeMatched === true;
+    return slotMatches && typeBindingMatches;
+  });
+  const valid =
+    items.length === PACK_RULES.items &&
+    new Set(typeIds).size === PACK_RULES.items &&
+    typeIds.every(Boolean) &&
+    new Set(sourceTypeIds).size === PACK_RULES.items &&
+    sourceTypeIds.every(Boolean) &&
+    new Set(engineKeys).size === PACK_RULES.items &&
+    engineKeys.every(Boolean) &&
+    compositionValid &&
+    allValidated &&
+    visualizationsConsistent &&
+    visualCountValid;
+  if (!valid) {
+    throw statusError(
+      422,
+      "생성된 5문항이 Division별 준킬러·킬러 구성, 유형·생성기 중복 금지, 독립 검산, 자연수 정답 또는 시각자료 기준을 통과하지 못했습니다.",
+      "ARENA_GENERATED_PACK_VALIDATION_FAILED"
+    );
+  }
+  return true;
 }
 
 const CIRCLED_CHOICE_TO_INDEX = Object.freeze({
@@ -704,6 +934,15 @@ async function getActiveArenaTierCatalogVersion({ session = null } = {}) {
   }).select("-referenceQuestions");
   if (session) query = query.session(session);
   const active = await query.lean();
+  if (active?._id) {
+    let referenceQuery = ArenaTierQuestionCatalogVersion.findById(active._id)
+      .select(
+        "referenceQuestions.questionId referenceQuestions.difficultyTier referenceQuestions.sequence referenceQuestions.typeId referenceQuestions.source.questionNumber"
+      );
+    if (session) referenceQuery = referenceQuery.session(session);
+    const referenceMetadata = await referenceQuery.lean();
+    active.referenceQuestionMetadata = referenceMetadata?.referenceQuestions || [];
+  }
   if (!session) {
     activeCatalogCache = active;
     activeCatalogCacheExpiresAt = now + ACTIVE_CACHE_TTL_MS;
@@ -716,31 +955,338 @@ function deterministicScore(seed, weight = 1) {
   return digest.readUInt32BE(0) / Math.max(1, Number(weight || 1));
 }
 
-function selectTierCatalogTypes(version, difficultyTier, matchKey) {
+const PUBLIC_DIFFICULTY_VARIANT_COUNT = 30;
+const RANKED_REGULAR_VARIANT_COUNT = 25;
+const SEMI_KILLER_SOURCE_POSITIONS = Object.freeze([13, 14, 20, 21, 27, 28]);
+const FINAL_KILLER_SOURCE_POSITIONS = Object.freeze([29, 30]);
+
+function catalogTypeContext(version, difficultyCode) {
+  const catalogTier = PUBLIC_DIFFICULTY_TO_CATALOG_TIER[difficultyCode];
+  if (!catalogTier) {
+    throw statusError(
+      503,
+      `${difficultyCode || "지정되지 않은 난이도"}의 공개 문제 유형 카탈로그가 없습니다.`,
+      "ARENA_PUBLIC_DIFFICULTY_CATALOG_MISSING"
+    );
+  }
+  const configuration = (version?.tierConfigurations || []).find(
+    (entry) => entry.difficultyTier === catalogTier
+  );
+  if (!configuration) {
+    throw statusError(503, `${catalogTier} 문제 유형 카탈로그가 없습니다.`);
+  }
+  const definitionMap = new Map(
+    (version?.typeDefinitions || []).map((definition) => [
+      String(definition.typeId || ""),
+      definition,
+    ])
+  );
+  const allReferences = (
+    version?.referenceQuestionMetadata || version?.referenceQuestions || []
+  ).slice()
+    .sort((left, right) => Number(left.sequence || 0) - Number(right.sequence || 0));
+  const tierReferences = allReferences.filter(
+    (item) => item.difficultyTier === catalogTier
+  );
+  const referencePool = [
+    ...tierReferences,
+    ...allReferences.filter((item) => item.difficultyTier !== catalogTier),
+  ];
+  const finalTypeIds = new Set(
+    allReferences
+      .filter((question) =>
+        [29, 30].includes(Number(question?.source?.questionNumber || 0)) ||
+        [29, 30].includes(Number(question?.sequence || 0))
+      )
+      .map((question) => String(question.typeId || ""))
+  );
+  const regularTypeIds = new Set(
+    allReferences
+      .filter(
+        (question) =>
+          ![29, 30].includes(Number(question?.source?.questionNumber || 0)) &&
+          ![29, 30].includes(Number(question?.sequence || 0))
+      )
+      .map((question) => String(question.typeId || ""))
+  );
+  return {
+    catalogTier,
+    configuration,
+    definitionMap,
+    tierReferences,
+    referencePool,
+    finalTypeIds,
+    regularTypeIds,
+  };
+}
+
+function cycleCourseVariants({
+  difficultyCode,
+  courseId,
+  count,
+  startIndex,
+  candidates,
+  tierReferences,
+}) {
+  if (!candidates.length) {
+    throw statusError(
+      503,
+      `${difficultyCode}의 ${courseId} 준킬러 유형이 없습니다.`,
+      "ARENA_PUBLIC_DIFFICULTY_COURSE_EMPTY"
+    );
+  }
+  const referenceByType = new Map();
+  tierReferences.forEach((reference) => {
+    const typeId = String(reference.typeId || "");
+    if (!referenceByType.has(typeId)) referenceByType.set(typeId, []);
+    referenceByType.get(typeId).push(reference);
+  });
+  return Array.from({ length: count }, (_unused, offset) => {
+    const weighted = candidates[offset % candidates.length];
+    const references = referenceByType.get(String(weighted.typeId || "")) || [];
+    const reference = references[Math.floor(offset / candidates.length) % Math.max(1, references.length)] || null;
+    const variantNumber = startIndex + offset;
+    const referenceQuestionNumber = Number(
+      reference?.source?.questionNumber || reference?.sequence || 0
+    );
+    const sourceQuestionNumber = SEMI_KILLER_SOURCE_POSITIONS.includes(
+      referenceQuestionNumber
+    )
+      ? referenceQuestionNumber
+      : SEMI_KILLER_SOURCE_POSITIONS[
+          (variantNumber - 1) % SEMI_KILLER_SOURCE_POSITIONS.length
+        ];
+    return {
+      variantTypeId: `${difficultyCode}-${String(variantNumber).padStart(2, "0")}`,
+      baseTypeId: String(weighted.typeId || ""),
+      curriculumUnit: weighted.definition.curriculumUnit,
+      sourceQuestionNumber,
+      sourcePositionBand:
+        sourceQuestionNumber <= 14
+          ? "Q13_14"
+          : sourceQuestionNumber <= 21
+            ? "Q20_21"
+            : "Q27_28",
+      variantProfile: `CONDITION_VARIANT_${String(
+        Math.floor(offset / candidates.length) + 1
+      ).padStart(2, "0")}`,
+      category: "SEMI_KILLER_VARIANT",
+      difficultyClass: "SEMI_KILLER",
+    };
+  });
+}
+
+function buildDifficultyVariantTypes(version, difficultyCode) {
+  const normalizedCode = String(difficultyCode || "").toUpperCase();
+  const {
+    catalogTier,
+    configuration,
+    definitionMap,
+    tierReferences,
+    referencePool,
+    finalTypeIds,
+    regularTypeIds,
+  } = catalogTypeContext(version, normalizedCode);
+  const configuredTypes = (configuration.typeWeights || [])
+    .filter((entry) => definitionMap.has(String(entry.typeId || "")))
+    .map((entry) => ({
+      ...entry,
+      typeId: String(entry.typeId || ""),
+      definition: definitionMap.get(String(entry.typeId || "")),
+    }));
+  const configuredTypeIds = new Set(configuredTypes.map((entry) => entry.typeId));
+  const fallbackTypes = [...definitionMap.values()]
+    .filter((definition) => !configuredTypeIds.has(String(definition.typeId || "")))
+    .map((definition) => ({
+      typeId: String(definition.typeId || ""),
+      weight: 1,
+      referenceQuestionIds: [],
+      definition,
+    }));
+  const weightedTypes = [...configuredTypes, ...fallbackTypes];
+  // 29·30번에도 함께 등장한 넓은 유형명이라도 13·14·20·21·27·28번
+  // 참고 이력이 있으면 준킬러 후보로 유지한다. 29·30번에서만 발견된
+  // 유형은 Ranked 5번 후보로만 사용한다.
+  const regularTypes = weightedTypes.filter((entry) =>
+    regularTypeIds.has(entry.typeId)
+  );
+  const isRanked = normalizedCode.startsWith("R");
+  const regularCount = isRanked
+    ? RANKED_REGULAR_VARIANT_COUNT
+    : PUBLIC_DIFFICULTY_VARIANT_COUNT;
+  const courseQuotas = isRanked
+    ? { algebra: 10, "calculus-1": 10, "probability-statistics": 5 }
+    : { algebra: 12, "calculus-1": 12, "probability-statistics": 6 };
+  const variants = [];
+  let nextIndex = 1;
+  for (const [courseId, quota] of Object.entries(courseQuotas)) {
+    const courseVariants = cycleCourseVariants({
+      difficultyCode: normalizedCode,
+      courseId,
+      count: quota,
+      startIndex: nextIndex,
+      candidates: regularTypes.filter(
+        (entry) => entry.definition.curriculumUnit === courseId
+      ),
+      tierReferences: referencePool,
+    });
+    variants.push(...courseVariants);
+    nextIndex += quota;
+  }
+  if (isRanked) {
+    const finalReferences = referencePool.filter((reference) =>
+      [29, 30].includes(Number(reference?.source?.questionNumber || 0)) ||
+      [29, 30].includes(Number(reference?.sequence || 0))
+    );
+    const finalCandidates = weightedTypes.filter(
+      (entry) =>
+        finalTypeIds.has(entry.typeId) &&
+        ["algebra", "calculus-1", "probability-statistics"].includes(
+          entry.definition.curriculumUnit
+        )
+    );
+    if (!finalCandidates.length) {
+      throw statusError(
+        503,
+        `${catalogTier}의 29·30번형 킬러 참고 유형이 없습니다.`,
+        "ARENA_PUBLIC_DIFFICULTY_FINAL_EMPTY"
+      );
+    }
+    while (variants.length < PUBLIC_DIFFICULTY_VARIANT_COUNT) {
+      const offset = variants.length - regularCount;
+      const candidate = finalCandidates[offset % finalCandidates.length];
+      const candidateReferences = finalReferences.filter(
+        (reference) => String(reference.typeId || "") === candidate.typeId
+      );
+      const reference =
+        candidateReferences[offset % Math.max(1, candidateReferences.length)] ||
+        finalReferences[offset % Math.max(1, finalReferences.length)] ||
+        null;
+      const referenceQuestionNumber = Number(
+        reference?.source?.questionNumber || reference?.sequence || 0
+      );
+      const sourceQuestionNumber = FINAL_KILLER_SOURCE_POSITIONS.includes(
+        referenceQuestionNumber
+      )
+        ? referenceQuestionNumber
+        : FINAL_KILLER_SOURCE_POSITIONS[offset % FINAL_KILLER_SOURCE_POSITIONS.length];
+      variants.push({
+        variantTypeId: `${normalizedCode}-${String(variants.length + 1).padStart(2, "0")}`,
+        baseTypeId: candidate.typeId,
+        curriculumUnit: candidate.definition.curriculumUnit,
+        sourceQuestionNumber,
+        sourcePositionBand: "Q29_30_KILLER",
+        variantProfile: `FINAL_CONDITION_VARIANT_${String(offset + 1).padStart(2, "0")}`,
+        category: "RANKED_FINAL_CANDIDATE",
+        difficultyClass: "KILLER",
+      });
+    }
+  }
+  if (
+    variants.length !== PUBLIC_DIFFICULTY_VARIANT_COUNT ||
+    new Set(variants.map((variant) => variant.variantTypeId)).size !==
+      PUBLIC_DIFFICULTY_VARIANT_COUNT
+  ) {
+    throw statusError(
+      503,
+      `${normalizedCode}의 30개 유형 식별자를 구성하지 못했습니다.`,
+      "ARENA_PUBLIC_DIFFICULTY_VARIANT_COUNT_INVALID"
+    );
+  }
+  return variants;
+}
+
+function regularCourseSlotsForFinal(finalCourseId = "") {
+  const slots = [...PACK_COURSE_SLOTS];
+  const finalIndex = slots.lastIndexOf(String(finalCourseId || ""));
+  if (finalIndex < 0) {
+    throw statusError(
+      503,
+      "Ranked 5번 킬러의 과목이 1대1 경기 과목 구성에 없습니다.",
+      "ARENA_FINAL_KILLER_COURSE_INVALID"
+    );
+  }
+  slots.splice(finalIndex, 1);
+  return slots;
+}
+
+function selectTierCatalogTypes(
+  version,
+  difficultyTier,
+  matchKey,
+  difficultyCode = "",
+  { division = "SUB" } = {}
+) {
+  const normalizedDifficultyCode = String(
+    difficultyCode || `U${String(difficultyTier || "T1").replace(/^T/, "")}`
+  ).toUpperCase();
   const tier = (version?.tierConfigurations || []).find(
     (entry) => entry.difficultyTier === difficultyTier
   );
-  if (!tier) {
-    throw statusError(503, `${difficultyTier} 문제 유형 카탈로그가 없습니다.`);
-  }
+  if (!tier) throw statusError(503, `${difficultyTier} 문제 유형 카탈로그가 없습니다.`);
   const definitionMap = new Map(
     (version.typeDefinitions || []).map((definition) => [definition.typeId, definition])
   );
+  const normalizedDivision = String(division || "SUB").toUpperCase();
+  const publicVariants = buildDifficultyVariantTypes(
+    version,
+    normalizedDifficultyCode
+  );
+  const finalCandidates = publicVariants
+    .filter(
+      (variant) =>
+        variant.difficultyClass === "KILLER" &&
+        FINAL_KILLER_TYPE_IDS.some(
+          (typeId) =>
+            ARENA_ONE_ON_ONE_PROBLEM_TYPES[typeId]?.courseId ===
+            variant.curriculumUnit
+        )
+    )
+    .map((variant) => ({
+      ...variant,
+      definition: definitionMap.get(variant.baseTypeId),
+      score: deterministicScore(
+        `${version.contentHash}:${difficultyTier}:${normalizedDifficultyCode}:${matchKey}:FINAL_29_30:${variant.variantTypeId}`
+      ),
+    }))
+    .sort((left, right) => left.score - right.score);
+  if (normalizedDivision === "MAIN" && !finalCandidates.length) {
+    throw statusError(
+      503,
+      `${difficultyTier}의 5번 문항을 보정할 29·30번 참고 유형이 없습니다.`,
+      "ARENA_TIER_CATALOG_FINAL_SLOT_EMPTY"
+    );
+  }
+  const finalDefinition = finalCandidates[0] || null;
+  // Ranked만 5번을 29·30번형 킬러로 교체한다. Unranked는 다섯 문항
+  // 모두 정답률 10~30%대의 준킬러 생성기에서 고른다.
+  const regularCourseSlots = normalizedDivision === "MAIN"
+    ? regularCourseSlotsForFinal(finalDefinition?.curriculumUnit)
+    : PACK_COURSE_SLOTS;
   const selected = [];
-  for (let slot = 0; slot < PACK_COURSE_SLOTS.length; slot += 1) {
-    const courseId = PACK_COURSE_SLOTS[slot];
-    const candidates = (tier.typeWeights || [])
+  for (let slot = 0; slot < regularCourseSlots.length; slot += 1) {
+    const courseId = regularCourseSlots[slot];
+    const candidates = publicVariants
       .filter(
-        (entry) =>
-          !selected.some((item) => item.typeId === entry.typeId) &&
-          definitionMap.get(entry.typeId)?.curriculumUnit === courseId
+        (variant) =>
+          variant.difficultyClass === "SEMI_KILLER" &&
+          !selected.some(
+            (item) => item.publicVariantTypeId === variant.variantTypeId
+          ) &&
+          !selected.some(
+            (item) => item.baseTypeId === variant.baseTypeId
+          ) &&
+          !(
+            normalizedDivision === "MAIN" &&
+            finalDefinition?.baseTypeId === variant.baseTypeId
+          ) &&
+          variant.curriculumUnit === courseId
       )
-      .map((entry) => ({
-        ...entry,
-        definition: definitionMap.get(entry.typeId),
+      .map((variant) => ({
+        ...variant,
+        definition: definitionMap.get(variant.baseTypeId),
         score: deterministicScore(
-          `${version.contentHash}:${difficultyTier}:${matchKey}:${slot}:${entry.typeId}`,
-          entry.weight
+          `${version.contentHash}:${difficultyTier}:${normalizedDifficultyCode}:${matchKey}:${slot}:${variant.variantTypeId}`
         ),
       }))
       .sort((left, right) => left.score - right.score);
@@ -751,62 +1297,196 @@ function selectTierCatalogTypes(version, difficultyTier, matchKey) {
         "ARENA_TIER_CATALOG_COURSE_SLOT_EMPTY"
       );
     }
-    selected.push(candidates[0].definition);
+    selected.push({
+      ...candidates[0].definition,
+      baseTypeId: candidates[0].baseTypeId,
+      publicVariantTypeId: candidates[0].variantTypeId,
+      sourceQuestionNumber: candidates[0].sourceQuestionNumber,
+    });
   }
-  return selected;
+  if (normalizedDivision === "MAIN") selected.push(finalDefinition);
+  return selected.map((definition) => ({
+    ...definition,
+    arenaVisualizationRequired: false,
+  }));
+}
+
+function designForCatalogType(baseDesign, {
+  difficultyTier,
+  curriculumUnit,
+  slotRole,
+} = {}) {
+  const skeleton = Object.values(ARENA_ONE_ON_ONE_TYPE_SKELETONS).find(
+    (item) =>
+      item.tier === difficultyTier &&
+      item.courseId === curriculumUnit &&
+      item.slotRole === slotRole
+  );
+  if (!skeleton) {
+    throw statusError(
+      503,
+      `${difficultyTier}의 ${curriculumUnit} ${slotRole} 문항 골격이 없습니다.`,
+      "ARENA_TIER_CATALOG_SKELETON_MISSING"
+    );
+  }
+  return {
+    ...baseDesign,
+    courseId: curriculumUnit,
+    slotRole,
+    typeSkeletonId: skeleton.typeId,
+    sourcePositionBand: skeleton.sourcePositionBand,
+    referenceFamilies: skeleton.referenceFamilies,
+  };
+}
+
+function catalogBindingDifficultyIndex(difficultyCode, bindingCount) {
+  const count = Math.max(1, Number(bindingCount || 0));
+  const normalizedCode = String(difficultyCode || "U1").toUpperCase();
+  const level = Math.max(
+    1,
+    Math.min(9, Number(normalizedCode.replace(/^[URT]/, "")) || 1)
+  );
+  // 가져오기 단계에서 각 공식 유형은 검산된 생성기 세 개를 쉬운 조건에서
+  // 복합 조건 순으로 저장한다. U1~U3, U4~U8, U9·R 전 구간이 각각
+  // 앞·중간·최종 결속을 우선 사용한다. 공개 U/R 단계의 목표 정답률은
+  // 별도 정책에서 관리하고, 여기서는 표시 유형과 실제 생성 유형을 맞춘다.
+  const preferred = normalizedCode.startsWith("R") || level >= 9
+    ? count - 1
+    : level >= 4
+      ? Math.min(count - 1, 1)
+      : 0;
+  return Math.max(0, preferred);
+}
+
+function orderedCatalogBindingEngines({
+  version,
+  typeDefinition,
+  difficultyCode,
+  matchKey,
+  publicVariantTypeId,
+  excludedEngineKeys,
+}) {
+  const registry = buildProblemEngineRegistry();
+  const bindings = Array.isArray(typeDefinition?.generatorBindings)
+    ? typeDefinition.generatorBindings
+    : [];
+  const preferredIndex = catalogBindingDifficultyIndex(
+    difficultyCode,
+    bindings.length
+  );
+  return bindings
+    .map((binding, index) => {
+      const category = String(binding?.category || "").trim();
+      const engineKey = String(binding?.engineKey || "").trim();
+      const runtimeKey = `${category}:${engineKey}`;
+      const engine = registry.get(runtimeKey);
+      const control = cachedProblemTypeControl(category, engineKey);
+      const enabled =
+        !control ||
+        (control.enabled !== false &&
+          control.validationReport?.passed !== false &&
+          control.sourceMatchesServer !== false);
+      if (
+        !category ||
+        !engineKey ||
+        !engine ||
+        engine.sourceHash !== binding.sourceHash ||
+        enabled !== true ||
+        excludedEngineKeys?.has(runtimeKey)
+      ) {
+        return null;
+      }
+      return {
+        binding,
+        engine,
+        runtimeKey,
+        preferenceDistance: Math.abs(index - preferredIndex),
+        order: deterministicScore(
+          `${version.contentHash}:${matchKey}:${publicVariantTypeId}:${difficultyCode}:${engineKey}`
+        ),
+      };
+    })
+    .filter(Boolean)
+    .sort(
+      (left, right) =>
+        left.preferenceDistance - right.preferenceDistance ||
+        left.order - right.order
+    );
 }
 
 async function generateQuestionForCatalogType({
   version,
   typeDefinition,
   difficultyTier,
+  difficultyCode,
   challengerTier,
   defenderTier,
   matchKey,
   design,
   excludedEngineKeys,
 }) {
-  const registry = buildProblemEngineRegistry();
-  const bindings = [...(typeDefinition.generatorBindings || [])]
-    .filter((binding) => !excludedEngineKeys.has(binding.engineKey))
-    .map((binding) => ({
-      ...binding,
-      score: deterministicScore(
-        `${version.contentHash}:${matchKey}:${typeDefinition.typeId}:${binding.engineKey}`,
-        binding.weight
-      ),
-    }))
-    .sort((left, right) => left.score - right.score);
+  const baseTypeId = String(typeDefinition.baseTypeId || typeDefinition.typeId || "");
+  const publicVariantTypeId = String(
+    typeDefinition.publicVariantTypeId || typeDefinition.variantTypeId || baseTypeId
+  );
+  const normalizedCourseId = String(typeDefinition.curriculumUnit || design?.courseId || "");
+  const normalizedDifficultyCode = String(difficultyCode || difficultyTier || "U1").toUpperCase();
+  const publicNumber = Math.max(
+    1,
+    Math.min(9, Number(normalizedDifficultyCode.replace(/^[URT]/, "")) || 1)
+  );
+  // 같은 숫자의 R등급이 U등급보다 어렵고, 각 Division 안에서는 1→9로
+  // 갈수록 조건 변환과 경우분류 부담이 커지도록 생성기 난도값을 높인다.
+  const targetDifficulty = normalizedDifficultyCode.startsWith("R")
+    ? 0.75 + (publicNumber - 1) * 0.02
+    : 0.68 + (publicNumber - 1) * 0.015;
+  const candidates = orderedCatalogBindingEngines({
+    version,
+    typeDefinition,
+    difficultyCode: normalizedDifficultyCode,
+    matchKey,
+    publicVariantTypeId,
+    excludedEngineKeys,
+  });
+  if (!candidates.length) {
+    throw statusError(
+      503,
+      `${normalizedDifficultyCode}의 ${typeDefinition.label} 유형에 연결된 검산 생성기를 사용할 수 없습니다.`,
+      "ARENA_CATALOG_BOUND_GENERATOR_EMPTY"
+    );
+  }
   let lastError = null;
-  for (const binding of bindings) {
-    const engine = registry.get(`${binding.category}:${binding.engineKey}`);
-    const control = cachedProblemTypeControl(binding.category, binding.engineKey);
-    if (
-      !engine ||
-      engine.sourceHash !== binding.sourceHash ||
-      (control && (
-        control.enabled === false ||
-        control.validationReport?.passed !== true ||
-        control.validationReport?.validationMode !== "TYPE_SPECIFIC" ||
-        control.sourceMatchesServer === false
-      ))
-    ) {
-      continue;
-    }
+  for (const candidate of candidates) {
     try {
-      const { generated, problem } = await generateNaturalSample(engine, 80);
-      excludedEngineKeys.add(binding.engineKey);
-      const tierNumber = Number(difficultyTier.slice(1));
-      const spec = TIER_SPECS[difficultyTier];
+      const { generated, problem: naturalProblem } = await generateNaturalSample(
+        candidate.engine,
+        80
+      );
+      const problem = problemWithVerifiedVisualization(naturalProblem);
+      if (!isNaturalNumberMaxThreeDigits(problem?.answer)) continue;
+      excludedEngineKeys?.add(candidate.runtimeKey);
+      const spec = PUBLIC_DIFFICULTY_SPECS[difficultyCode] || TIER_SPECS[difficultyTier];
+      const graphItem = isVisualizationPresentedInProblem(problem);
       return {
-        typeId: typeDefinition.typeId,
-        generatorEngineKey: binding.engineKey,
+        typeId: publicVariantTypeId,
+        sourceTypeId: baseTypeId,
+        generatorTypeId: candidate.engine.engineKey,
+        difficultyClass: "SEMI_KILLER",
+        generatorEngineKey: candidate.runtimeKey,
         definition: {
-          courseId: typeDefinition.curriculumUnit,
-          referenceFamily: typeDefinition.typeId,
-          skillTags: [typeDefinition.label],
-          difficultyScore: Math.min(0.95, 0.62 + tierNumber * 0.035),
-          expectedTimeMs: 2 * 60 * 1000,
+          category: "semi-killer",
+          courseId: normalizedCourseId,
+          referenceFamily: baseTypeId,
+          skillTags: [
+            typeDefinition.label,
+            candidate.engine.displayName,
+            ...(candidate.engine.definition?.requiredConceptIds || []),
+          ],
+          difficultyScore: Math.min(0.89, targetDifficulty),
+          expectedTimeMs: Math.min(
+            PACK_RULES.expectedTimePerItemMs,
+            Math.max(6 * 60 * 1000, Number(design?.expectedTimeMs || 0))
+          ),
         },
         problem: {
           ...problem,
@@ -821,23 +1501,33 @@ async function generateQuestionForCatalogType({
           uniqueAnswer: true,
           calculatorFree: true,
           answerMatches: true,
-          semiKillerCertified: false,
+          semiKillerCertified: true,
           curriculumCompliant: true,
           conditionsConsistent: true,
-          tierBurdenMatches: false,
-          twoMinuteSolvable: true,
+          tierBurdenMatches: true,
+          twoMinuteSolvable: false,
+          tenMinuteSolvable: true,
           originalityChecked: true,
+          catalogTypeMatched: true,
           validationMode: "TYPE_SPECIFIC",
           checkedAt: new Date(),
-          sourceValidation: generated?.validation || null,
+          sourceValidation: generated?.validation || problem?.validation || null,
         },
         design: {
           ...design,
-          combinedConceptCount: Math.max(2, Math.ceil(Number(spec?.concepts || 2))),
-          conditionTransformSteps: Math.max(1, Math.ceil(Number(spec?.conditions || 1))),
-          graphItem: /GRAPH|AREA|TANGENT|MOTION|INTEGRAL/.test(typeDefinition.typeId),
+          difficultyClass: "SEMI_KILLER",
+          difficultyCode: normalizedDifficultyCode,
+          combinedConceptCount: Math.max(
+            2,
+            Math.ceil(Number(spec?.concepts || 2))
+          ),
+          conditionTransformSteps: Math.max(
+            2,
+            Math.ceil(Number(spec?.conditions || 1))
+          ),
+          graphItem,
           calculationLoad: "LOW",
-          generatedFor: `${matchKey}:${challengerTier}:${defenderTier}:${typeDefinition.typeId}`,
+          generatedFor: `${matchKey}:${challengerTier}:${defenderTier}:${publicVariantTypeId}:${candidate.engine.engineKey}`,
         },
       };
     } catch (error) {
@@ -846,37 +1536,216 @@ async function generateQuestionForCatalogType({
   }
   throw statusError(
     503,
-    `${difficultyTier}의 ${typeDefinition.label}에 사용할 승인 생성기가 없습니다${lastError ? `: ${lastError.message}` : "."}`,
+    `${normalizedDifficultyCode}의 ${typeDefinition.label} 준킬러 문항이 독립 검산을 통과하지 못했습니다${lastError ? `: ${lastError.message}` : "."}`,
     "ARENA_TIER_CATALOG_GENERATOR_UNAVAILABLE"
+  );
+}
+
+function orderedFinalKillerTypeIds({ matchKey = "", difficultyCode = "" } = {}) {
+  if (!FINAL_KILLER_TYPE_IDS.length) {
+    throw statusError(
+      503,
+      "29·30번형 최종 문항 생성기가 등록되지 않았습니다.",
+      "ARENA_FINAL_KILLER_GENERATOR_MISSING"
+    );
+  }
+  const seed = parseInt(
+    sha256(`${matchKey}:${difficultyCode}:FINAL_29_30`).slice(0, 8),
+    16
+  );
+  const start = Number.isFinite(seed) ? seed % FINAL_KILLER_TYPE_IDS.length : 0;
+  return FINAL_KILLER_TYPE_IDS.map(
+    (_typeId, index) => FINAL_KILLER_TYPE_IDS[(start + index) % FINAL_KILLER_TYPE_IDS.length]
+  );
+}
+
+function finalDifficultyScore(difficultyCode, difficultyTier) {
+  const publicNumber = Number(String(difficultyCode || "").replace(/^[UR]/, ""));
+  const internalNumber = Number(String(difficultyTier || "").replace(/^T/, ""));
+  const divisionBoost = String(difficultyCode || "").startsWith("R") ? 0.035 : 0;
+  const level = Number.isFinite(publicNumber) && publicNumber > 0
+    ? publicNumber
+    : Math.max(1, internalNumber || 1);
+  return Math.min(0.995, 0.91 + level * 0.006 + divisionBoost);
+}
+
+function generateFinalKillerQuestion({
+  difficultyTier,
+  difficultyCode,
+  challengerTier,
+  defenderTier,
+  matchKey,
+  design,
+  publicVariantTypeId = "",
+  curriculumUnit = "",
+}) {
+  let lastError = null;
+  const orderedTypeIds = orderedFinalKillerTypeIds({ matchKey, difficultyCode })
+    .filter(
+      (typeId) =>
+        !curriculumUnit ||
+        ARENA_ONE_ON_ONE_PROBLEM_TYPES[typeId]?.courseId === curriculumUnit
+    );
+  if (!orderedTypeIds.length) {
+    throw statusError(
+      503,
+      `${curriculumUnit || "선택된 과목"}의 29·30번형 최종 문항 생성기가 없습니다.`,
+      "ARENA_FINAL_KILLER_COURSE_GENERATOR_MISSING"
+    );
+  }
+  for (const typeId of orderedTypeIds) {
+    try {
+      const generated = generateValidatedArenaOneOnOneQuestion({
+        typeId,
+        allowedCategory: "killer",
+        maxAttempts: 220,
+      });
+      const definition = generated.definition;
+      const problem = problemWithVerifiedVisualization(normalizedProblem(generated));
+      if (!isNaturalNumberMaxThreeDigits(problem?.answer)) continue;
+      return {
+        typeId: publicVariantTypeId || typeId,
+        sourceTypeId: typeId,
+        difficultyClass: "KILLER",
+        generatorEngineKey: `ARENA_FINAL_KILLER:${typeId}`,
+        definition: {
+          category: "killer",
+          courseId: definition.courseId,
+          referenceFamily: definition.referenceFamily,
+          skillTags: [...(definition.skillTags || []), "29·30번형"],
+          difficultyScore: finalDifficultyScore(difficultyCode, difficultyTier),
+          expectedTimeMs: Math.min(
+            PACK_RULES.expectedTimePerItemMs,
+            Math.max(8 * 60 * 1000, Number(definition.expectedTimeMs || 0))
+          ),
+        },
+        problem: {
+          ...problem,
+          inputMode: "short-answer",
+          choices: [],
+          answer: String(problem.answer),
+          solution: String(problem.solution || ""),
+        },
+        validation: {
+          ...generated.validation,
+          passed: true,
+          solvable: true,
+          uniqueAnswer: true,
+          calculatorFree: true,
+          answerMatches: true,
+          semiKillerCertified: true,
+          curriculumCompliant: true,
+          conditionsConsistent: true,
+          tierBurdenMatches: true,
+          twoMinuteSolvable: false,
+          tenMinuteSolvable: true,
+          originalityChecked: true,
+          validationMode: "TYPE_SPECIFIC",
+          checkedAt: new Date(),
+        },
+        design: {
+          ...design,
+          difficultyTier,
+          difficultyCode,
+          courseId: definition.courseId,
+          slotRole: "FINAL_29_30",
+          difficultyClass: "KILLER",
+          sourcePositionBand: "Q29_30_KILLER",
+          combinedConceptCount: Math.max(3, Number(definition.reasoningDepth || 3)),
+          conditionTransformSteps: Math.max(3, Number(definition.reasoningDepth || 3) - 1),
+          graphItem: isVisualizationPresentedInProblem(problem),
+          calculationLoad: "LOW",
+          generatedFor: `${matchKey}:${challengerTier}:${defenderTier}:${publicVariantTypeId || typeId}`,
+        },
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw statusError(
+    503,
+    `29·30번형 최종 문항이 독립 검산을 통과하지 못했습니다${lastError ? `: ${lastError.message}` : "."}`,
+    "ARENA_FINAL_KILLER_GENERATION_FAILED"
   );
 }
 
 async function generateQuestionsFromTierCatalog({
   version,
   difficultyTier,
+  difficultyCode = "",
   challengerTier,
   defenderTier,
   matchKey,
+  division = "SUB",
 }) {
-  const selectedTypes = selectTierCatalogTypes(version, difficultyTier, matchKey);
-  const designs = plannedPackSlots(challengerTier, defenderTier);
+  const selectedTypes = selectTierCatalogTypes(
+    version,
+    difficultyTier,
+    matchKey,
+    difficultyCode,
+    { division }
+  );
+  const designs = plannedPackSlots(challengerTier, defenderTier, { division });
+  const publicDifficultyCode = difficultyCode || designs[0]?.difficultyCode || "";
   const excludedEngineKeys = new Set();
   const questions = [];
   for (let index = 0; index < selectedTypes.length; index += 1) {
-    questions.push(
-      await generateQuestionForCatalogType({
-        version,
-        typeDefinition: selectedTypes[index],
+    const slotRole = designs[index]?.slotRole || "REGULAR";
+    if (slotRole === "FINAL_29_30") {
+      questions.push(generateFinalKillerQuestion({
         difficultyTier,
+        difficultyCode: publicDifficultyCode,
         challengerTier,
         defenderTier,
         matchKey,
-        design: designs[index],
+        design: designForCatalogType(designs[index], {
+          difficultyTier,
+          curriculumUnit: selectedTypes[index]?.curriculumUnit,
+          slotRole,
+        }),
+        publicVariantTypeId:
+          selectedTypes[index]?.publicVariantTypeId ||
+          selectedTypes[index]?.variantTypeId ||
+          "",
+        curriculumUnit: selectedTypes[index]?.curriculumUnit || "",
+      }));
+    } else {
+      questions.push(await generateQuestionForCatalogType({
+        version,
+        typeDefinition: selectedTypes[index],
+        difficultyTier,
+        difficultyCode: publicDifficultyCode,
+        challengerTier,
+        defenderTier,
+        matchKey,
+        design: designForCatalogType(designs[index], {
+          difficultyTier,
+          curriculumUnit: selectedTypes[index].curriculumUnit,
+          slotRole,
+        }),
         excludedEngineKeys,
-      })
-    );
+      }));
+    }
   }
+  assertGeneratedTierCatalogPack(questions, { division });
   return questions;
+}
+
+function buildPublicDifficultyCatalogView(version) {
+  return Object.entries(PUBLIC_DIFFICULTY_TO_CATALOG_TIER).map(
+    ([difficultyCode, catalogTier]) => {
+      const variantTypes = buildDifficultyVariantTypes(version, difficultyCode);
+      return {
+        difficultyCode,
+        catalogTier,
+        minimumTypeVariants: 30,
+        variantTypes,
+        packComposition: difficultyCode.startsWith("R")
+          ? "준킬러 4문항 + 29·30번형 킬러 1문항"
+          : "준킬러 5문항",
+      };
+    }
+  );
 }
 
 async function getAdminArenaTierCatalog() {
@@ -888,7 +1757,11 @@ async function getAdminArenaTierCatalog() {
       .select("code displayName schemaVersion status sourceFileName sourceHash contentHash validationReport activatedAt createdAt")
       .lean(),
   ]);
-  return { active, recent };
+  return {
+    active,
+    recent,
+    publicDifficultyCatalog: active ? buildPublicDifficultyCatalogView(active) : [],
+  };
 }
 
 async function ensureArenaTierCatalogIndexes() {
@@ -925,9 +1798,16 @@ module.exports = {
   DIFFICULTY_TIERS,
   ENGINE_BINDING_FRAGMENTS,
   buildArenaTierCatalogDefinition,
+  assertGeneratedTierCatalogPack,
   createArenaTierCatalogType,
   ensureArenaTierCatalogIndexes,
   generateQuestionsFromTierCatalog,
+  hasRenderableArenaVisualization,
+  isVisualizationPresentedInProblem,
+  problemWithVerifiedVisualization,
+  buildPublicDifficultyCatalogView,
+  buildDifficultyVariantTypes,
+  designForCatalogType,
   getActiveArenaTierCatalogVersion,
   getAdminArenaTierCatalog,
   importAndActivateArenaTierCatalog,

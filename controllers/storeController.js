@@ -13,6 +13,16 @@ const {
   updateStoreCategory,
 } = require("../services/storeService");
 const {
+  archiveStudyHallContent,
+  discardStudyHallUploads,
+  getStudyHallAsset,
+  getStudyHallContent,
+  listAdminStudyHall,
+  listStudyHall,
+  saveStudyHallAnswers,
+  saveStudyHallContent,
+} = require("../services/studyHallService");
+const {
   isPdfDownload,
   issuePersonalizedPdf,
 } = require("../services/pdfWatermarkService");
@@ -40,12 +50,51 @@ async function renderAdminStoreError(req, res, next, error, editId = "") {
 
 exports.storePage = async (req, res, next) => {
   try {
-    const storeData = await listPublishedProducts({
-      query: req.query.q,
-      sort: req.query.sort,
-      category: req.query.category,
+    const storeData = await listStudyHall({
+      userId: req.session.user.id,
+      tab: req.query.tab,
     });
     return res.render("store", { user: req.session.user, storeData });
+  } catch (error) { return next(error); }
+};
+
+exports.studyHallContentPage = async (req, res, next) => {
+  try {
+    const content = await getStudyHallContent({
+      contentId: req.params.contentId,
+      userId: req.session.user.id,
+    });
+    return res.render("store-study", { user: req.session.user, content });
+  } catch (error) { return next(error); }
+};
+
+async function updateStudyHallProgress(req, res, next, submit) {
+  try {
+    const content = await saveStudyHallAnswers({
+      contentId: req.params.contentId,
+      userId: req.session.user.id,
+      input: req.body,
+      submit,
+    });
+    if (String(req.get("accept") || "").includes("application/json")) {
+      return res.json({ ok: true, progress: content.progress });
+    }
+    return res.redirect(`/store/content/${content.id}${submit ? "?submitted=1" : "?saved=1"}`);
+  } catch (error) { return next(error); }
+}
+
+exports.saveStudyHallProgress = (req, res, next) => updateStudyHallProgress(req, res, next, false);
+exports.submitStudyHallProgress = (req, res, next) => updateStudyHallProgress(req, res, next, true);
+
+exports.downloadStudyHallAsset = async (req, res, next) => {
+  try {
+    const result = await getStudyHallAsset({
+      contentId: req.params.contentId,
+      assetId: req.params.assetId,
+      userId: req.session.user.id,
+      admin: req.session.user.role === "admin",
+    });
+    return res.redirect(302, result.signedUrl);
   } catch (error) { return next(error); }
 };
 
@@ -58,13 +107,54 @@ exports.storeProductPage = async (req, res, next) => {
 
 exports.adminStorePage = async (req, res, next) => {
   try {
-    const storeData = await getAdminStoreData({ editId: req.query.edit });
+    const storeData = await listAdminStudyHall({ editId: req.query.edit, tab: req.query.tab });
     return res.render("admin-store", {
       user: req.session.user,
       storeData,
-      feedback: feedbackFromQuery(req.query),
+      feedback: req.query.saved === "1"
+        ? { type: "success", message: "수험관 콘텐츠를 저장했습니다." }
+        : req.query.archived === "1"
+          ? { type: "success", message: "콘텐츠를 삭제하지 않고 비공개 보관했습니다." }
+          : null,
       error: null,
     });
+  } catch (error) { return next(error); }
+};
+
+async function renderStudyHallAdminError(req, res, next, error, editId = "") {
+  if (![400, 404, 409, 422].includes(Number(error.status))) return next(error);
+  try {
+    const storeData = await listAdminStudyHall({ editId, tab: req.body?.contentType || req.query?.tab });
+    return res.status(error.status).render("admin-store", {
+      user: req.session.user,
+      storeData,
+      feedback: null,
+      error: error.message,
+    });
+  } catch (renderError) { return next(renderError); }
+}
+
+async function saveHall(req, res, next, contentId = "") {
+  try {
+    const content = await saveStudyHallContent({
+      contentId,
+      input: req.body,
+      files: req.files || {},
+      adminUserId: req.session.user.id,
+    });
+    return res.redirect(`/admin/store?saved=1&edit=${content.id}&tab=${content.contentType}#content-editor`);
+  } catch (error) {
+    await discardStudyHallUploads(req.files || {});
+    return renderStudyHallAdminError(req, res, next, error, contentId);
+  }
+}
+
+exports.createStudyHallContent = (req, res, next) => saveHall(req, res, next);
+exports.updateStudyHallContent = (req, res, next) => saveHall(req, res, next, req.params.contentId);
+exports.archiveStudyHallContent = async (req, res, next) => {
+  try {
+    await archiveStudyHallContent(req.params.contentId, req.session.user.id);
+    return res.redirect("/admin/store?archived=1");
   } catch (error) { return next(error); }
 };
 

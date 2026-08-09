@@ -27,6 +27,9 @@ const {
 const {
   preparePaidMainRenewalInTransaction,
 } = require("./arenaRenewalService");
+const {
+  burnAvailable: burnMainAvailableLearningDays,
+} = require("./mainLearningDayService");
 const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1162,6 +1165,15 @@ async function consumeFirstLearningDay({
           lastConsumptionDateKst:
             cycle.firstConsumptionDateKst,
         };
+        // Ranked는 사용 가능·초대 예약·경기 예치 잔액을 출처별 묶음에도
+        // 함께 보관한다. 첫날 차감 시 숫자 필드만 줄이면 이후 친선 경기처럼
+        // 묶음 기준으로 계산하는 작업이 이전 잔액을 다시 덮어쓸 수 있다.
+        // 따라서 첫날 차감도 다른 Ranked 차감과 동일하게 묶음을 함께 소각한다.
+        let mainLearningDayState = null;
+        if (cycle.division === "MAIN") {
+          mainLearningDayState = burnMainAvailableLearningDays(cycle, 1);
+          cycleSet.learningDayBuckets = mainLearningDayState.buckets;
+        }
         if (availableBefore === 1) {
           cycleSet.depletedAt = occurredAt;
         }
@@ -1257,6 +1269,9 @@ async function consumeFirstLearningDay({
               occurredAt,
             lastConsumptionDateKst:
               cycle.firstConsumptionDateKst,
+            learningDayBuckets:
+              mainLearningDayState?.buckets ||
+              cycle.learningDayBuckets,
             depletedAt:
               availableBefore === 1
                 ? occurredAt

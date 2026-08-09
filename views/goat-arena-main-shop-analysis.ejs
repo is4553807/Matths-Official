@@ -57,7 +57,7 @@
         <section class="arena-analysis-solutions" aria-labelledby="analysis-solution-title">
           <header>
             <div><small>SEALED MATCH REVIEW</small><h2 id="analysis-solution-title">문항별 풀이과정</h2></div>
-            <p>이번 경기에 실제로 봉인된 문제 팩을 기준으로 표시합니다. T1~T9 유형표에 연결된 문항은 같은 유형의 풀이 로드맵도 함께 제공합니다.</p>
+            <p>이번 경기에 실제로 봉인된 문제 팩을 기준으로 표시합니다. U1~U9·R1~R9 유형표에 연결된 문항은 같은 유형의 풀이 로드맵도 함께 제공합니다.</p>
           </header>
           <div class="arena-analysis-question-list">
             <% (analysis.questionReviews || []).forEach((question) => { %>
@@ -78,7 +78,7 @@
                   </dl>
                   <article class="arena-analysis-exact-solution"><small>이번 문항 계산</small><h3>정답까지의 풀이</h3><p><%= question.solution || '이 문항의 상세 계산 풀이를 확인할 수 없습니다.' %></p></article>
                   <% if (question.referenceSolutionProcess?.length) { %>
-                    <article class="arena-analysis-reference-solution"><small>T1~T9 유형 풀이 기준</small><h3>유형 풀이 로드맵</h3><ol><% question.referenceSolutionProcess.forEach((step) => { %><li><b><%= step.step %></b><span><%= step.explanation %></span></li><% }) %></ol><% if (question.referenceFinalCheck) { %><p><strong>마지막 점검</strong><%= question.referenceFinalCheck %></p><% } %></article>
+                    <article class="arena-analysis-reference-solution"><small>U/R 유형 풀이 기준</small><h3>유형 풀이 로드맵</h3><ol><% question.referenceSolutionProcess.forEach((step) => { %><li><b><%= step.step %></b><span><%= step.explanation %></span></li><% }) %></ol><% if (question.referenceFinalCheck) { %><p><strong>마지막 점검</strong><%= question.referenceFinalCheck %></p><% } %></article>
                   <% } %>
                 </div>
               </details>

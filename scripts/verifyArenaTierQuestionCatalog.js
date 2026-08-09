@@ -7,13 +7,23 @@ const {
 } = require("../models/goatArenaModel");
 const {
   buildArenaTierCatalogDefinition,
+  buildDifficultyVariantTypes,
   generateQuestionsFromTierCatalog,
   selectTierCatalogTypes,
 } = require("../services/arenaTierQuestionCatalogService");
 const {
-  PACK_COURSE_SLOTS,
+  PACK_RULES,
   isNaturalNumberMaxThreeDigits,
 } = require("../services/arenaOneOnOneDifficultyPolicy");
+
+function assertCourseMix(questions) {
+  const counts = questions.reduce((result, item) => {
+    const courseId = item.curriculumUnit || item.definition?.courseId;
+    result[courseId] = Number(result[courseId] || 0) + 1;
+    return result;
+  }, {});
+  assert.deepEqual(counts, PACK_RULES.unitMix);
+}
 
 async function main() {
   const sourcePath = path.resolve(process.argv[2] || "");
@@ -73,41 +83,70 @@ async function main() {
   });
   await document.validate();
 
-  for (const difficultyTier of definition.tierConfigurations.map((entry) => entry.difficultyTier)) {
-    const selectedTypes = selectTierCatalogTypes(
-      definition,
-      difficultyTier,
-      `offline-verify:${difficultyTier}`
-    );
-    assert.deepEqual(
-      selectedTypes.map((item) => item.curriculumUnit),
-      PACK_COURSE_SLOTS,
-      `${difficultyTier}: 2·2·1 과목 배치를 확인해주세요.`
-    );
-    assert.equal(new Set(selectedTypes.map((item) => item.typeId)).size, 5);
+  for (let difficultyIndex = 1; difficultyIndex <= 9; difficultyIndex += 1) {
+    const difficultyTier = `T${difficultyIndex}`;
+    for (const division of ["SUB", "MAIN"]) {
+      const difficultyCode = `${division === "MAIN" ? "R" : "U"}${difficultyIndex}`;
+      const variants = buildDifficultyVariantTypes(definition, difficultyCode);
+      assert.equal(variants.length, 30);
+      assert.equal(new Set(variants.map((item) => item.variantTypeId)).size, 30);
+      assert.ok(variants.every((item) => item.variantTypeId.startsWith(`${difficultyCode}-`)));
+      assert.equal(
+        variants.filter((item) => item.difficultyClass === "KILLER").length,
+        division === "MAIN" ? 5 : 0
+      );
 
-    const questions = await generateQuestionsFromTierCatalog({
-      version: definition,
-      difficultyTier,
-      challengerTier: difficultyTier === "T1" ? "BRONZE" : "SILVER",
-      defenderTier: difficultyTier === "T1" ? "BRONZE" : "GOLD",
-      matchKey: `offline-verify:${difficultyTier}`,
-    });
-    assert.equal(questions.length, 5);
-    assert.deepEqual(
-      questions.map((item) => item.definition.courseId),
-      PACK_COURSE_SLOTS
-    );
-    assert.equal(new Set(questions.map((item) => item.typeId)).size, 5);
-    assert.equal(new Set(questions.map((item) => item.generatorEngineKey)).size, 5);
-    assert.equal(
-      questions.every((item) => isNaturalNumberMaxThreeDigits(item.problem.answer)),
-      true
-    );
-    assert.equal(
-      questions.every((item) => item.validation.validationMode === "TYPE_SPECIFIC"),
-      true
-    );
+      const selectedTypes = selectTierCatalogTypes(
+        definition,
+        difficultyTier,
+        `offline-verify:${difficultyCode}`,
+        difficultyCode,
+        { division }
+      );
+      assertCourseMix(selectedTypes);
+      assert.equal(new Set(selectedTypes.map((item) => item.publicVariantTypeId)).size, 5);
+
+      const questions = await generateQuestionsFromTierCatalog({
+        version: definition,
+        difficultyTier,
+        difficultyCode,
+        challengerTier: difficultyIndex === 1 ? "BRONZE" : "SILVER",
+        defenderTier: difficultyIndex === 1 ? "BRONZE" : "GOLD",
+        matchKey: `offline-verify:${difficultyCode}`,
+        division,
+      });
+      assert.equal(questions.length, 5);
+      assertCourseMix(questions);
+      assert.equal(
+        questions[4].design.slotRole,
+        division === "MAIN" ? "FINAL_29_30" : "REGULAR"
+      );
+      assert.equal(
+        questions[4].difficultyClass,
+        division === "MAIN" ? "KILLER" : "SEMI_KILLER"
+      );
+      assert.ok(questions.every((item) => item.typeId.startsWith(`${difficultyCode}-`)));
+      assert.equal(new Set(questions.map((item) => item.typeId)).size, 5);
+      assert.equal(new Set(questions.map((item) => item.generatorEngineKey)).size, 5);
+      const regularItems = division === "MAIN" ? questions.slice(0, 4) : questions;
+      assert.equal(
+        regularItems.every(
+          (item) =>
+            item.difficultyClass === "SEMI_KILLER" &&
+            /^ARENA_SEMI_KILLER:/.test(item.generatorEngineKey) &&
+            /^semi-/.test(item.generatorTypeId)
+        ),
+        true
+      );
+      assert.equal(
+        questions.every((item) => isNaturalNumberMaxThreeDigits(item.problem.answer)),
+        true
+      );
+      assert.equal(
+        questions.every((item) => item.validation.validationMode === "TYPE_SPECIFIC"),
+        true
+      );
+    }
   }
 
   console.log(

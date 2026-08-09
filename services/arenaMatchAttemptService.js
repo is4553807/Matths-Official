@@ -180,9 +180,10 @@ function publicQuestionsForAttempt(pack, attempt) {
     (question, index) => ({
       number: currentIndex + index + 1,
       questionKey: question.questionKey,
-      categoryLabel: "준킬러",
+      categoryLabel: question.category === "killer" ? "킬러" : "준킬러",
       courseId: question.courseId,
       prompt: question.prompt,
+      visualization: question.visualization || null,
       inputMode: question.inputMode,
       choices: (question.choices || []).map(
         (choice) => ({
@@ -330,9 +331,11 @@ async function prepareArenaMatch({
       ) {
         throw statusError(
           423,
-          match.division === "MAIN"
-            ? "Ranked는 일요일 14시부터 새 경기 준비와 시작이 차단됩니다."
-            : "Unranked는 일요일 14시부터 새 경기 준비와 시작이 차단됩니다.",
+          match.matchType === "FRIENDLY"
+            ? "GOAT Arena 친선 경기는 일요일 14시부터 새 경기 준비와 시작이 차단됩니다."
+            : match.division === "MAIN"
+              ? "Ranked는 일요일 14시부터 새 경기 준비와 시작이 차단됩니다."
+              : "Unranked는 일요일 14시부터 새 경기 준비와 시작이 차단됩니다.",
           "SUNDAY_MATCH_START_LOCK"
         );
       }
@@ -516,9 +519,11 @@ async function startArenaMatchAttempt({
       ) {
         throw statusError(
           423,
-          match.division === "MAIN"
-            ? "Ranked는 일요일 14시부터 새 경기를 시작할 수 없습니다."
-            : "Unranked는 일요일 14시부터 새 경기를 시작할 수 없습니다.",
+          match.matchType === "FRIENDLY"
+            ? "GOAT Arena 친선 경기는 일요일 14시부터 새 경기를 시작할 수 없습니다."
+            : match.division === "MAIN"
+              ? "Ranked는 일요일 14시부터 새 경기를 시작할 수 없습니다."
+              : "Unranked는 일요일 14시부터 새 경기를 시작할 수 없습니다.",
           "SUNDAY_MATCH_START_LOCK"
         );
       }
@@ -1446,6 +1451,7 @@ async function getArenaMatchPageData({
   const roleResultKey = role === "CHALLENGER" ? "challenger" : "defender";
   const opponentResultKey = role === "CHALLENGER" ? "defender" : "challenger";
   const resultSnapshot = match.resultSnapshot || null;
+  const isFriendlyMatch = match.matchType === "FRIENDLY";
   const revengeRight = match.status === "SETTLED" && match.matchType === "NORMAL"
     ? await ArenaRevengeRight.findOne({
         sourceMatchId: match._id,
@@ -1460,17 +1466,24 @@ async function getArenaMatchPageData({
       "경기 처리 중",
     role,
     roleLabel:
-      role === "CHALLENGER"
-        ? "공격자"
-        : "방어자",
+      isFriendlyMatch
+        ? (role === "CHALLENGER" ? "초대한 사용자" : "초대 수락 사용자")
+        : (role === "CHALLENGER" ? "공격자" : "방어자"),
     opponentName:
       String(opponent?.name || opponent?.username || "닉네임 확인 중"),
     matchType: match.matchType,
-    matchTitle: match.matchType === "REVENGE" ? "복수전" : "일반 쟁탈전",
+    matchTitle:
+      match.matchType === "REVENGE"
+        ? "복수전"
+        : match.matchType === "FRIENDLY"
+          ? "친선 경기"
+          : "일반 쟁탈전",
     divisionLabel:
-      match.division === "MAIN"
+      isFriendlyMatch
         ? "Ranked"
-        : "Unranked",
+        : match.division === "MAIN"
+          ? "Ranked"
+          : "Unranked",
     division: match.division,
     canUseDefenseScheduleProtection:
       match.division === "MAIN" &&

@@ -33,7 +33,11 @@ const {
 } = require("../services/arenaPolicyService");
 const { kstSeasonKey } = require("../services/arenaStandingService");
 
-const TEST_BATCH_KEY = "GOAT-ARENA-E2E-200-20260803";
+const TEST_BATCH_KEY = "GOAT-ARENA-VIRTUAL-USERS-20260808";
+const LEGACY_TEST_BATCH_KEYS = [
+  TEST_BATCH_KEY,
+  "GOAT-ARENA-E2E-200-20260803",
+];
 const TEST_PASSWORD = "REMOVED_FROM_HISTORY";
 const TEST_COUNT_PER_DIVISION = 100;
 const TEST_MATCH_ACTOR_USERNAME = "REMOVED_FROM_HISTORY";
@@ -41,8 +45,8 @@ const OUTPUT_PATH = path.resolve(
   __dirname,
   "..",
   "outputs",
-  "019fb1e7-d977-7813-80d6-e222909a9a87",
-  "arena-test-users-200.json"
+  "arena-virtual-users-20260808",
+  "GOAT_Arena_가상유저_200명_로그인목록.json"
 );
 const TIER_LABELS = {
   BRONZE: "브론즈",
@@ -55,7 +59,7 @@ const TIER_LABELS = {
   GRANDMASTER: "그랜드마스터",
   CHALLENGER: "챌린저",
 };
-const TEST_DATASET_VERSION = "GOAT-ARENA-PLACEMENT-REALISTIC-V2";
+const TEST_DATASET_VERSION = "GOAT-ARENA-VIRTUAL-USERS-REALISTIC-V3";
 const TIER_DISTRIBUTION = [
   { key: "BRONZE", count: 20, scoreMin: 28, scoreMax: 43, mmrMin: 620, mmrMax: 790 },
   { key: "SILVER", count: 18, scoreMin: 44, scoreMax: 53, mmrMin: 805, mmrMax: 915 },
@@ -73,21 +77,51 @@ const SCHOOLS = Array.from({ length: 10 }, (_, index) => ({
   region: ["서울특별시", "경기도", "인천광역시", "부산광역시", "대전광역시"][index % 5],
 }));
 
-function koreanNumber(value) {
-  const units = ["", "십", "백"];
-  const digits = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
-  if (value === 0) return "영";
-  let number = Math.max(0, Math.min(999, Number(value) || 0));
-  let result = "";
-  for (let unit = 2; unit >= 0; unit -= 1) {
-    const divisor = 10 ** unit;
-    const digit = Math.floor(number / divisor);
-    number %= divisor;
-    if (!digit) continue;
-    if (digit > 1 || unit === 0) result += digits[digit];
-    result += units[unit];
-  }
-  return result;
+const VIRTUAL_FAMILIES = [
+  { hangul: "김", latin: "kim" },
+  { hangul: "이", latin: "lee" },
+  { hangul: "박", latin: "park" },
+  { hangul: "최", latin: "choi" },
+  { hangul: "정", latin: "jung" },
+  { hangul: "강", latin: "kang" },
+  { hangul: "윤", latin: "yoon" },
+  { hangul: "한", latin: "han" },
+  { hangul: "오", latin: "oh" },
+  { hangul: "서", latin: "seo" },
+];
+const VIRTUAL_GIVEN_NAMES = [
+  { hangul: "민서", latin: "minseo" },
+  { hangul: "서준", latin: "seojun" },
+  { hangul: "지우", latin: "jiwoo" },
+  { hangul: "도윤", latin: "doyoon" },
+  { hangul: "하은", latin: "haeun" },
+  { hangul: "시우", latin: "siwoo" },
+  { hangul: "예린", latin: "yerin" },
+  { hangul: "준호", latin: "junho" },
+  { hangul: "수아", latin: "sua" },
+  { hangul: "현우", latin: "hyunwoo" },
+  { hangul: "채원", latin: "chaewon" },
+  { hangul: "태윤", latin: "taeyoon" },
+  { hangul: "은우", latin: "eunwoo" },
+  { hangul: "다은", latin: "daeun" },
+  { hangul: "건우", latin: "geonwoo" },
+  { hangul: "유진", latin: "yujin" },
+  { hangul: "성민", latin: "sungmin" },
+  { hangul: "아린", latin: "arin" },
+  { hangul: "재현", latin: "jaehyun" },
+  { hangul: "나연", latin: "nayeon" },
+];
+
+function virtualIdentityForNumber(number) {
+  const family = VIRTUAL_FAMILIES[(number * 7 + 3) % VIRTUAL_FAMILIES.length];
+  const given = VIRTUAL_GIVEN_NAMES[(number * 11 + 5) % VIRTUAL_GIVEN_NAMES.length];
+  const suffix = String(1000 + ((number * 73 + 417) % 9000));
+  const username = `${given.latin}${family.latin}${suffix}`;
+  return {
+    username,
+    realName: `${family.hangul}${given.hangul}`,
+    email: `${username}@arena-test.invalid`,
+  };
 }
 
 function plusDays(value, days) {
@@ -123,8 +157,11 @@ function placementProfileForIndex(localIndex) {
 }
 
 async function assertNoRealAccountCollision() {
-  const names = Array.from({ length: 200 }, (_, index) => `test${index + 1}`);
-  const emails = names.map((name) => `${name}@test.com`);
+  const identities = Array.from({ length: 200 }, (_, index) =>
+    virtualIdentityForNumber(index + 1)
+  );
+  const names = identities.map((identity) => identity.username);
+  const emails = identities.map((identity) => identity.email);
   const collisions = await User.find({
     $or: [
       { nameNormalized: { $in: names } },
@@ -132,7 +169,7 @@ async function assertNoRealAccountCollision() {
     ],
     $nor: [
       { isTestAccount: true },
-      { role: "test", testBatchKey: TEST_BATCH_KEY },
+      { isTestAccount: true, testBatchKey: { $in: LEGACY_TEST_BATCH_KEYS } },
     ],
   })
     .select("name email role isTestAccount testBatchKey")
@@ -150,7 +187,7 @@ async function assertNoRealAccountCollision() {
 async function cleanupTaggedTestAccounts() {
   const users = await User.find({
     isTestAccount: true,
-    testBatchKey: TEST_BATCH_KEY,
+    testBatchKey: { $in: LEGACY_TEST_BATCH_KEYS },
   })
     .select("_id")
     .lean();
@@ -264,9 +301,7 @@ async function main() {
         (TEST_COUNT_PER_DIVISION - localIndex - 1) * 2 +
         (division === "MAIN" ? 1 : 2);
       const school = SCHOOLS[localIndex % SCHOOLS.length];
-      const username = `test${number}`;
-      const email = `${username}@test.com`;
-      const realName = `테스트${koreanNumber(number)}`;
+      const { username, email, realName } = virtualIdentityForNumber(number);
       const userId = new mongoose.Types.ObjectId();
       users.push({
         _id: userId,
@@ -282,7 +317,7 @@ async function main() {
         role: "student",
         isTestAccount: true,
         testBatchKey: TEST_BATCH_KEY,
-        operatorRemark: "test · GOAT Arena Unranked/Ranked 전체 기능 검증용",
+        operatorRemark: "virtual-user · GOAT Arena Unranked/Ranked 전체 기능 검증용",
         schoolGrade: [10, 11, 12][localIndex % 3],
         educationStatus: "enrolled",
         school: {
@@ -322,7 +357,7 @@ async function main() {
         paybackScore: division === "SUB" ? 29 : 0,
         school: school.name,
         grade: [10, 11, 12][localIndex % 3],
-        remark: "test",
+        remark: "virtual-user",
         scenario: [
           "기본 활성",
           "빠른 정답 검증",

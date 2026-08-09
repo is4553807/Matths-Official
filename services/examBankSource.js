@@ -999,6 +999,71 @@
      ============================================================ */
   const EXAM_COURSES = [
     {
+      id: "common-math-1", label: "공통수학Ⅰ", icon: "📐",
+      units: [
+        {
+          id: "cm1-polynomials", numeral: "Ⅰ", label: "다항식",
+          subs: [
+            { id: "polynomial-arithmetic", label: "다항식의 연산", gens: [] },
+            { id: "identity-remainder", label: "항등식과 나머지정리", gens: [] },
+            { id: "factorization", label: "인수분해", gens: [] },
+          ],
+        },
+        {
+          id: "cm1-equations", numeral: "Ⅱ", label: "방정식과 부등식",
+          subs: [
+            { id: "complex-quadratic", label: "복소수와 이차방정식", gens: [] },
+            { id: "quadratic-graph", label: "이차함수와 그래프", gens: [] },
+            { id: "higher-equations", label: "여러 가지 방정식", gens: [] },
+            { id: "inequalities", label: "여러 가지 부등식", gens: [] },
+          ],
+        },
+        {
+          id: "cm1-counting", numeral: "Ⅲ", label: "경우의 수",
+          subs: [
+            { id: "principles", label: "합의 법칙과 곱의 법칙", gens: [] },
+            { id: "permutations", label: "순열", gens: [] },
+            { id: "combinations", label: "조합", gens: [] },
+          ],
+        },
+        {
+          id: "cm1-matrices", numeral: "Ⅳ", label: "행렬",
+          subs: [
+            { id: "matrix-concept", label: "행렬의 뜻", gens: [] },
+            { id: "matrix-operations", label: "행렬의 연산", gens: [] },
+          ],
+        },
+      ],
+    },
+    {
+      id: "common-math-2", label: "공통수학Ⅱ", icon: "📊",
+      units: [
+        {
+          id: "cm2-coordinate", numeral: "Ⅰ", label: "도형의 방정식",
+          subs: [
+            { id: "coordinates", label: "좌표와 직선", gens: [] },
+            { id: "circle", label: "원의 방정식", gens: [] },
+            { id: "transformations", label: "도형의 이동", gens: [] },
+          ],
+        },
+        {
+          id: "cm2-sets", numeral: "Ⅱ", label: "집합과 명제",
+          subs: [
+            { id: "sets", label: "집합", gens: [] },
+            { id: "propositions", label: "명제와 조건", gens: [] },
+            { id: "proof", label: "증명과 절대부등식", gens: [] },
+          ],
+        },
+        {
+          id: "cm2-functions", numeral: "Ⅲ", label: "함수와 그래프",
+          subs: [
+            { id: "functions", label: "함수·합성함수·역함수", gens: [] },
+            { id: "special-functions", label: "유리함수와 무리함수", gens: [] },
+          ],
+        },
+      ],
+    },
+    {
       id: "algebra", label: "대수", icon: "🧮",
       units: [
         {

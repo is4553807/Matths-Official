@@ -83,6 +83,20 @@ const families = [
           `$2\\pi/b=2\\pi/${frequency}$에서 $b=${frequency}$. 따라서 답은 ${answer}이다.`,
         hintText:
           "최댓값·최솟값의 평균과 차, 그리고 주기 공식을 각각 사용하세요.",
+        visualization: {
+          kind: "algebra-trig",
+          functionName: "sin",
+          amplitude,
+          frequency,
+          verticalShift: shift,
+          xUnit: "radian",
+          minimum,
+          maximum,
+          periodNumerator: 2,
+          periodDenominator: frequency,
+          note:
+            "그래프의 최댓값·최솟값과 한 주기의 길이를 문제의 조건과 함께 확인하세요.",
+        },
       });
     },
   },

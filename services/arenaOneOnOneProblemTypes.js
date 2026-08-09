@@ -1,10 +1,14 @@
 /*
  * GOAT Arena 1대1 경기 전용 문제 유형 원본.
  *
- * 2026-08-03 기준으로 배치고사 심화 유형을 독립 복사해 시작한다.
- * 이 파일은 placementAdvancedTypes.js를 import하지 않으므로 이후 Arena
- * 난이도·유형을 바꿔도 배치고사 문제은행에는 영향을 주지 않는다.
+ * 2016~2026 평가원 6·9월 모의평가의 13·14·20·21·27·28·29·30번
+ * 사고 구조를 추상화한 Arena 독립 생성기다. 기출 문장과 수치를 복사하지
+ * 않으며, 배치고사·평가센터 런타임을 import하지 않는다.
  */
+const {
+  ARENA_ONE_ON_ONE_TYPE_SKELETONS,
+} = require("./arenaOneOnOneTypeSkeletons");
+
 const ADVANCED_REFERENCE_FAMILIES = {
   "function-condition-graph": {
     label: "함수 조건과 그래프 추론",
@@ -1424,6 +1428,155 @@ function validateInverseRecurrence(
   };
 }
 
+function generateSymmetricExponentialInvariant() {
+  const setting = pick([
+    { base: 2, exponentSum: 8, firstRoot: 2 },
+    { base: 2, exponentSum: 9, firstRoot: 2 },
+    { base: 2, exponentSum: 10, firstRoot: 3 },
+    { base: 3, exponentSum: 7, firstRoot: 2 },
+    { base: 3, exponentSum: 8, firstRoot: 3 },
+  ]);
+  const secondRoot = setting.exponentSum - setting.firstRoot;
+  const coefficient =
+    setting.base ** setting.firstRoot + setting.base ** secondRoot;
+  const answer =
+    setting.firstRoot * secondRoot +
+    (secondRoot - setting.firstRoot) ** 2;
+
+  return {
+    problem: shortAnswer(
+      `방정식 $${setting.base}^{2x}-${coefficient}\\cdot ${setting.base}^{x}+${setting.base ** setting.exponentSum}=0$의 서로 다른 두 실근을 $\\alpha,\\beta\\;(\\alpha<\\beta)$라 하자. $\\alpha\\beta+(\\beta-\\alpha)^2$의 값을 구하시오.`,
+      answer,
+      `$t=${setting.base}^x\\;(t>0)$로 놓으면 $t^2-${coefficient}t+${setting.base ** setting.exponentSum}=0$입니다. 두 근은 $${setting.base}^{${setting.firstRoot}},${setting.base}^{${secondRoot}}$이므로 $\\alpha=${setting.firstRoot},\\beta=${secondRoot}$이고, 구하는 값은 ${answer}입니다.`
+    ),
+    parameters: {
+      ...setting,
+      secondRoot,
+      coefficient,
+      answer,
+    },
+    operationCount: 22,
+    maxInteger: Math.max(coefficient, answer),
+  };
+}
+
+function validateSymmetricExponentialInvariant(generated) {
+  const setting = generated.parameters;
+  const firstT = setting.base ** setting.firstRoot;
+  const secondT = setting.base ** setting.secondRoot;
+  const sumMatches = firstT + secondT === setting.coefficient;
+  const productMatches =
+    firstT * secondT === setting.base ** setting.exponentSum;
+  const solvedAnswer =
+    setting.firstRoot * setting.secondRoot +
+    (setting.secondRoot - setting.firstRoot) ** 2;
+
+  return {
+    solvable:
+      setting.firstRoot < setting.secondRoot &&
+      sumMatches &&
+      productMatches,
+    uniqueAnswer: true,
+    calculatorFree: setting.coefficient <= 2200 && solvedAnswer <= 999,
+    solvedAnswer: String(solvedAnswer),
+  };
+}
+
+function alternatingAffineTrace({ first, parameter, length }) {
+  const values = [Number(first)];
+  for (let index = 1; index < length; index += 1) {
+    values.push(2 * values.at(-1) + (index % 2 === 0 ? parameter : -parameter));
+  }
+  return values;
+}
+
+function generateAlternatingAffineRecurrence() {
+  const setting = pick([
+    { first: 3, parameter: 2 },
+    { first: 4, parameter: 3 },
+    { first: 5, parameter: 2 },
+    { first: 5, parameter: 4 },
+  ]);
+  const values = alternatingAffineTrace({ ...setting, length: 7 });
+  const answer = setting.first + setting.parameter + values[4];
+  return {
+    problem: shortAnswer(
+      `자연수 $c$와 수열 $\\{a_n\\}$이 $a_{n+1}=2a_n+(-1)^n c$를 만족한다. $a_3=${values[2]},\\;a_6=${values[5]}$일 때, $a_1+c+a_5$의 값을 구하시오.`,
+      answer,
+      `점화식을 차례로 전개하면 $a_3=4a_1-c$, $a_6=32a_1-11c$입니다. 두 조건을 연립하여 $a_1=${setting.first},c=${setting.parameter}$를 얻고, $a_5=${values[4]}$이므로 구하는 값은 ${answer}입니다.`
+    ),
+    parameters: { ...setting, values, answer },
+    operationCount: 28,
+    maxInteger: Math.max(...values, answer),
+  };
+}
+
+function validateAlternatingAffineRecurrence(generated) {
+  const setting = generated.parameters;
+  const candidates = [];
+  for (let first = 1; first <= 20; first += 1) {
+    for (let parameter = 1; parameter <= 12; parameter += 1) {
+      const values = alternatingAffineTrace({ first, parameter, length: 7 });
+      if (values[2] === setting.values[2] && values[5] === setting.values[5]) {
+        candidates.push({ first, parameter, values });
+      }
+    }
+  }
+  const only = candidates[0];
+  const solvedAnswer = only
+    ? only.first + only.parameter + only.values[4]
+    : Number.NaN;
+  return {
+    solvable: candidates.length === 1,
+    uniqueAnswer: candidates.length === 1,
+    calculatorFree: Number.isInteger(solvedAnswer) && solvedAnswer >= 1 && solvedAnswer <= 999,
+    solvedAnswer: String(solvedAnswer),
+  };
+}
+
+function generateSubsetResidueNaturalAnswer() {
+  const original = generateSubsetCondition();
+  const [numerator, denominator] = String(original.problem.answer)
+    .split("/")
+    .map(Number);
+  const answer = numerator + denominator;
+  return {
+    ...original,
+    problem: shortAnswer(
+      original.problem.prompt.replace(
+        /확률을 구하시오\.$/,
+        "확률을 서로소인 자연수 $p,q$에 대하여 $\\dfrac{p}{q}$라 할 때, $p+q$의 값을 구하시오."
+      ),
+      answer,
+      `${original.problem.solution} 따라서 $p=${numerator},q=${denominator}$이므로 $p+q=${answer}$입니다.`
+    ),
+    parameters: {
+      original,
+      numerator,
+      denominator,
+      answer,
+    },
+    operationCount: Number(original.operationCount || 0) + 3,
+    maxInteger: Math.max(Number(original.maxInteger || 0), answer),
+  };
+}
+
+function validateSubsetResidueNaturalAnswer(generated) {
+  const setting = generated.parameters;
+  const independent = validateSubsetCondition(setting.original);
+  const [numerator, denominator] = String(independent.solvedAnswer)
+    .split("/")
+    .map(Number);
+  const solvedAnswer = numerator + denominator;
+  return {
+    solvable: independent.solvable === true && Number.isInteger(solvedAnswer),
+    uniqueAnswer: independent.uniqueAnswer === true,
+    calculatorFree:
+      independent.calculatorFree === true && solvedAnswer >= 1 && solvedAnswer <= 999,
+    solvedAnswer: String(solvedAnswer),
+  };
+}
+
 function generateExtremaChordArea() {
   const a = pick([1, 2, 3, 4]);
   const constant =
@@ -2206,7 +2359,7 @@ function generateDistanceInverse() {
 
   return {
     problem: shortAnswer(
-      `점 P의 속도가 $v(t)=(t-${setting.a})(t-b)$이고 ${setting.a}<b\\le ${setting.candidateMax}$인 자연수이다. $t=0$부터 $t=${setting.end}$까지 움직인 거리를 $D$라 할 때 $6D=${scaledDistance}$이다. 가능한 모든 $b$의 합을 구하시오.`,
+      `점 P의 속도가 $v(t)=(t-${setting.a})(t-b)$이고 $${setting.a}<b\\le ${setting.candidateMax}$인 자연수이다. $t=0$부터 $t=${setting.end}$까지 움직인 거리를 $D$라 할 때 $6D=${scaledDistance}$이다. 가능한 모든 $b$의 합을 구하시오.`,
       answer,
       `미지수 $b$에서 속도의 부호가 바뀌므로 $0,${setting.a},b,${setting.end}$로 구간을 나눕니다. 각 구간의 변위의 절댓값을 더해 거리식을 만들고 자연수 범위를 검산하면 가능한 $b$는 ${candidates.join(", ")}이며 합은 ${answer}입니다.`
     ),
@@ -2466,11 +2619,97 @@ function validateIntegralTangentEquation(
 }
 
 const PLACEMENT_ADVANCED_TYPES = {
+  "semi-exponential-root-invariant": {
+    label: "지수방정식 치환과 두 근의 불변량",
+    category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
+    courseId: "algebra",
+    referenceFamily: "exponential-logarithmic-equation",
+    skillTags: ["지수방정식", "치환", "근과 계수의 관계"],
+    difficultyScore: 0.82,
+    expectedTimeMs: 8 * 60 * 1000,
+    reasoningDepth: 4,
+    similarGroupId: "symmetric-exponential-root-invariant",
+    generate: generateSymmetricExponentialInvariant,
+    validate: validateSymmetricExponentialInvariant,
+  },
+  "semi-inverse-recurrence": {
+    label: "홀짝 점화식의 역추적과 경우 분기",
+    category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
+    courseId: "algebra",
+    referenceFamily: "sequence-recurrence",
+    skillTags: ["점화식", "홀짝 분기", "역추론"],
+    difficultyScore: 0.84,
+    expectedTimeMs: 9 * 60 * 1000,
+    reasoningDepth: 5,
+    similarGroupId: "inverse-piecewise-recurrence-semi",
+    generate: generateInverseRecurrence,
+    validate: validateInverseRecurrence,
+  },
+  "semi-alternating-affine-recurrence": {
+    label: "교대 부호 점화식의 미정계수 역추론",
+    category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
+    courseId: "algebra",
+    referenceFamily: "sequence-recurrence",
+    skillTags: ["점화식", "미정계수", "연립 추론"],
+    difficultyScore: 0.86,
+    expectedTimeMs: 9 * 60 * 1000,
+    reasoningDepth: 5,
+    similarGroupId: "alternating-affine-recurrence",
+    generate: generateAlternatingAffineRecurrence,
+    validate: validateAlternatingAffineRecurrence,
+  },
+  "semi-tangent-area-parameter-reverse": {
+    label: "접선 넓이 방정식의 매개변수 역추론",
+    category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
+    courseId: "calculus-1",
+    referenceFamily: "integral-defined-area",
+    skillTags: ["접선", "정적분 넓이", "매개변수 역추론"],
+    difficultyScore: 0.86,
+    expectedTimeMs: 9 * 60 * 1000,
+    reasoningDepth: 5,
+    similarGroupId: "tangent-area-parameter-reverse-semi",
+    generate: generateTangentAreaEquation,
+    validate: validateTangentAreaEquation,
+  },
+  "semi-distance-parameter-reverse": {
+    label: "이동 거리 조건의 속도 영점 역추론",
+    category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
+    courseId: "calculus-1",
+    referenceFamily: "derivative-limit-motion",
+    skillTags: ["속도", "이동 거리", "매개변수 역추론"],
+    difficultyScore: 0.85,
+    expectedTimeMs: 9 * 60 * 1000,
+    reasoningDepth: 5,
+    similarGroupId: "distance-parameter-reverse-semi",
+    generate: generateDistanceInverse,
+    validate: validateDistanceInverse,
+  },
+  "semi-subset-residue-natural": {
+    label: "간격·합동 조건 부분집합의 확률 역산",
+    category: "semi-killer",
+    arenaNaturalAnswerEligible: true,
+    courseId: "probability-statistics",
+    referenceFamily: "probability-counting",
+    skillTags: ["부분집합", "간격 조건", "나머지 경우분류"],
+    difficultyScore: 0.85,
+    expectedTimeMs: 9 * 60 * 1000,
+    reasoningDepth: 5,
+    similarGroupId: "subset-residue-natural-semi",
+    generate: generateSubsetResidueNaturalAnswer,
+    validate: validateSubsetResidueNaturalAnswer,
+  },
   "semi-absolute-graph-area": {
     label:
       "절댓값 그래프의 교점과 구간별 넓이",
     category: "semi-killer",
     arenaNaturalAnswerEligible: true,
+    arenaSlotRole: "REGULAR",
+    sourcePositionBand: "Q27_28",
     courseId: "calculus-1",
     referenceFamily:
       "function-condition-graph",
@@ -2515,6 +2754,8 @@ const PLACEMENT_ADVANCED_TYPES = {
       "극대·극소점과 현 사이의 넓이",
     category: "semi-killer",
     arenaNaturalAnswerEligible: true,
+    arenaSlotRole: "REGULAR",
+    sourcePositionBand: "Q27_28",
     courseId: "calculus-1",
     referenceFamily:
       "function-condition-graph",
@@ -2538,6 +2779,8 @@ const PLACEMENT_ADVANCED_TYPES = {
       "속도의 부호 변화와 이동 거리",
     category: "semi-killer",
     arenaNaturalAnswerEligible: true,
+    arenaSlotRole: "REGULAR",
+    sourcePositionBand: "Q27_28",
     courseId: "calculus-1",
     referenceFamily:
       "derivative-limit-motion",
@@ -2561,6 +2804,8 @@ const PLACEMENT_ADVANCED_TYPES = {
       "적분함수와 미분가능 조건",
     category: "semi-killer",
     arenaNaturalAnswerEligible: true,
+    arenaSlotRole: "REGULAR",
+    sourcePositionBand: "Q27_28",
     courseId: "calculus-1",
     referenceFamily:
       "integral-defined-area",
@@ -2631,6 +2876,8 @@ const PLACEMENT_ADVANCED_TYPES = {
       "확률분포의 상수와 분산 연결",
     category: "semi-killer",
     arenaNaturalAnswerEligible: true,
+    arenaSlotRole: "REGULAR",
+    sourcePositionBand: "Q27_28",
     courseId:
       "probability-statistics",
     referenceFamily:
@@ -3133,23 +3380,34 @@ function generateValidatedAdvancedQuestion({
 
 function generateValidatedArenaOneOnOneQuestion({
   typeId,
+  allowedCategory = "semi-killer",
   maxAttempts = 160,
 } = {}) {
   const normalizedTypeId = String(typeId || "").trim();
   const definition = PLACEMENT_ADVANCED_TYPES[normalizedTypeId];
-  if (!definition || definition.category !== "semi-killer") {
+  const normalizedCategory = String(allowedCategory || "semi-killer").trim();
+  if (!definition || definition.category !== normalizedCategory) {
     throw new Error(
-      `${normalizedTypeId || "선택한 유형"}은 GOAT Arena 1대1 준킬러 유형이 아닙니다.`
+      `${normalizedTypeId || "선택한 유형"}은 GOAT Arena 1대1 ${normalizedCategory === "killer" ? "29·30번형 킬러" : "준킬러"} 유형이 아닙니다.`
     );
   }
 
-  return generateValidatedAdvancedQuestion({
-    category: "semi-killer",
+  const generated = generateValidatedAdvancedQuestion({
+    category: normalizedCategory,
     excludedTypeIds: Object.keys(PLACEMENT_ADVANCED_TYPES).filter(
       (candidateTypeId) => candidateTypeId !== normalizedTypeId
     ),
     maxAttempts,
   });
+  if (normalizedCategory === "killer") {
+    generated.definition = {
+      ...generated.definition,
+      arenaSlotRole: "FINAL_29_30",
+      sourcePositionBand: "Q29_30_KILLER",
+      expectedTimeMs: Math.min(10 * 60 * 1000, Number(generated.definition.expectedTimeMs || 10 * 60 * 1000)),
+    };
+  }
+  return generated;
 }
 
 function auditAdvancedTypeBank(
@@ -3220,6 +3478,7 @@ module.exports = {
   ADVANCED_REFERENCE_FAMILIES,
   PLACEMENT_ADVANCED_TYPES,
   ARENA_ONE_ON_ONE_PROBLEM_TYPES: PLACEMENT_ADVANCED_TYPES,
+  ARENA_ONE_ON_ONE_TYPE_SKELETONS,
   generateValidatedAdvancedQuestion,
   generateValidatedArenaOneOnOneQuestion,
   validateAdvancedGenerated,

@@ -18,13 +18,22 @@
     const seconds = Math.max(0, Math.round((Number(value) || 0) / 1000));
     return `${Math.floor(seconds / 60)}분 ${String(seconds % 60).padStart(2, "0")}초`;
   };
+  const matchReturnHref = matchData.matchType === "FRIENDLY"
+    ? "/goat-arena/main/battle#main-friendly-match"
+    : `/goat-arena/${matchData.division === "MAIN" ? "main/battle" : "sub/challenge"}`;
+  const arenaReturnHref = matchData.matchType === "FRIENDLY"
+    ? "/goat-arena/main"
+    : `/goat-arena/${matchData.division === "MAIN" ? "main" : "sub"}`;
+  const arenaReturnLabel = matchData.matchType === "FRIENDLY"
+    ? "Ranked 전장으로"
+    : `${matchData.divisionLabel} 전장으로`;
 %>
 <!doctype html>
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="GOAT Arena 1대1 일반 쟁탈전 응시" />
+    <meta name="description" content="GOAT Arena 1대1 <%= matchData.matchTitle %> 응시" />
     <meta name="theme-color" content="#070913" />
     <title>1대1 <%= matchData.matchTitle %> | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
@@ -44,6 +53,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js" defer></script>
     <% if (matchData.inProgress) { %>
+      <script src="/js/arena-problem-visualization.js" defer></script>
       <script src="/js/goat-arena-match.js" defer></script>
     <% } %>
   </head>
@@ -60,16 +70,16 @@
     <% } %>
 
     <main class="arena-page-main arena-match-main" id="arena-match-main">
-      <a class="arena-challenge-back" href="/goat-arena/<%= matchData.division === 'MAIN' ? 'main/battle' : 'sub/challenge' %>">← <%= matchData.divisionLabel %> 경기로 돌아가기</a>
+      <a class="arena-challenge-back" href="<%= matchReturnHref %>">← <%= matchData.matchType === 'FRIENDLY' ? '친선 경기' : `${matchData.divisionLabel} 경기` %>로 돌아가기</a>
 
       <header class="arena-page-heading arena-match-heading">
         <div>
           <p><%= matchData.divisionLabel %> · 1대1</p>
           <h1><%= matchData.matchTitle %></h1>
         </div>
-        <p>
-          두 참가자는 같은 검증·봉인 문제 팩과 같은 제한 시간을 사용합니다. 서로 동시에 접속할 필요는 없으며, 각자 시작 버튼을 누른 서버 시각부터 제한 시간이 흐릅니다.
-        </p>
+        <p><%= matchData.matchType === "FRIENDLY"
+          ? "친선 경기는 수락 시 양쪽에서 이용 수수료 1일씩만 차감됩니다. 승패와 관계없이 티어·순위·학습일수 이전은 없으며, 각자 시작 버튼을 누른 서버 시각부터 같은 제한 시간이 흐릅니다."
+          : "두 참가자는 같은 검증·봉인 문제 팩과 같은 제한 시간을 사용합니다. 서로 동시에 접속할 필요는 없으며, 각자 시작 버튼을 누른 서버 시각부터 제한 시간이 흐릅니다." %></p>
       </header>
 
       <% if (arenaUser.hasStyleEntrance) { %>
@@ -132,7 +142,9 @@
           <div class="arena-match-result-verdict">
             <small>자동 채점·정산 완료</small>
             <h2><%= matchData.didWin ? "VICTORY" : "DEFEAT" %></h2>
-            <p><%= matchData.result.tupleAction === "SWAP" ? "GP·티어·티어 내 순위가 상대와 함께 교환되었습니다." : "이번 경기에서는 GP·티어·티어 내 순위를 유지합니다." %></p>
+            <p><%= matchData.matchType === "FRIENDLY"
+              ? "친선 경기가 종료되었습니다. 수락 시 차감된 양쪽 1일 수수료 외에 티어·순위·학습일수 이전은 없습니다."
+              : (matchData.result.tupleAction === "SWAP" ? "GP·티어·티어 내 순위가 상대와 함께 교환되었습니다." : "이번 경기에서는 GP·티어·티어 내 순위를 유지합니다.") %></p>
           </div>
           <div class="arena-match-result-scoreboard" aria-label="경기 결과 비교">
             <article>
@@ -156,7 +168,7 @@
           <% } else if (matchData.revengeRight?.revengeMatchId) { %>
             <a href="/goat-arena/matches/<%= matchData.revengeRight.revengeMatchId %>">진행 중인 복수전으로 <span aria-hidden="true">→</span></a>
           <% } else { %>
-            <a href="/goat-arena/<%= matchData.division === 'MAIN' ? 'main' : 'sub' %>"><%= matchData.divisionLabel %> 전장으로 <span aria-hidden="true">→</span></a>
+            <a href="<%= arenaReturnHref %>"><%= arenaReturnLabel %> <span aria-hidden="true">→</span></a>
           <% } %>
         </section>
       <% } else if (matchData.divisionLocked) { %>
@@ -165,14 +177,14 @@
           <small>일요일 공식 경기 잠금</small>
           <h2>월요일 00:00까지 경기 진행을 멈춥니다.</h2>
           <p>일요일 15:00부터 공개 순위와 최종 종합 랭킹을 고정하는 시간입니다. 이 경기의 저장된 답안과 경기 예치 상태는 그대로 보호되며, 후속 판정 단계에서 보류 여부를 확인합니다.</p>
-          <a href="/goat-arena/<%= matchData.division === 'MAIN' ? 'main' : 'sub' %>"><%= matchData.divisionLabel %> 전장으로 <span aria-hidden="true">→</span></a>
+          <a href="<%= arenaReturnHref %>"><%= arenaReturnLabel %> <span aria-hidden="true">→</span></a>
         </section>
       <% } else if (matchData.canPrepare) { %>
         <section class="arena-match-lobby-card">
           <div>
             <small>문제 팩 배정 전</small>
             <h2>경기 조건을 먼저 고정합니다.</h2>
-            <p>신청 순간 방어자 티어 기준 T1~T9 정책과 자동 검산을 통과한 주관식 준킬러 5문항만 배정합니다. 답은 1~999 자연수이며, 유형 생성기가 연결되지 않았거나 문항당 10분 제한·채점 기준을 충족하지 못한 문제는 실제 경기에 사용되지 않습니다.</p>
+            <p>2016~2026 평가원 6·9월 모의평가 공식 해설에서 분류한 사고 유형을 바탕으로, Unranked U1~U9·Ranked R1~R9와 자동 검산을 통과한 주관식 5문항을 배정합니다. <%= matchData.division === "MAIN" || matchData.matchType === "FRIENDLY" ? "Ranked는 1~4번을 13·14·20·21·27·28번형 준킬러로, 5번을 29·30번형 다중 조건 킬러로 출제합니다." : "Unranked는 1~5번 모두 13·14·20·21·27·28번형 준킬러로 출제합니다." %> 답은 1~999 자연수입니다.</p>
           </div>
           <form action="/goat-arena/matches/<%= matchData.id %>/prepare" method="post">
             <button type="submit">경기 문제 준비 <span aria-hidden="true">→</span></button>
@@ -237,7 +249,7 @@
 
           <div class="arena-match-question-list">
             <% matchData.questions.forEach((question) => { %>
-              <article class="arena-match-question" data-arena-question="<%= question.questionKey %>">
+              <article class="arena-match-question arena-match-problem-paper" data-arena-question="<%= question.questionKey %>">
                 <header>
                   <span><%= String(question.number).padStart(2, "0") %></span>
                   <div>
@@ -246,6 +258,19 @@
                   </div>
                 </header>
                 <div class="arena-match-question-prompt"><%= question.prompt %></div>
+                <% if (question.visualization) { %>
+                  <figure
+                    class="arena-match-visualization"
+                    data-arena-visualization="<%= encodeURIComponent(JSON.stringify(question.visualization)) %>"
+                  >
+                    <div class="arena-match-visualization-heading">
+                      <strong>문제에 제시된 그래프·자료</strong>
+                      <span>식·점·좌표·보조선이 문제 조건과 함께 표시됩니다.</span>
+                    </div>
+                    <svg viewBox="0 0 760 440" role="img" aria-label="현재 문항의 식과 좌표로 생성된 그래프 또는 자료"></svg>
+                    <figcaption>그래프와 표에 표시된 모든 라벨과 수치는 문제의 일부입니다.</figcaption>
+                  </figure>
+                <% } %>
 
                 <label class="arena-match-short-answer">
                   <span>답</span>
@@ -363,7 +388,7 @@
           <small>내 답안 제출 완료</small>
           <h2><%= matchData.attempt.submissionMode === "TIME_LIMIT" ? "제한 시간이 끝나 최종 저장 답안이 제출되었습니다." : "최종 답안이 안전하게 제출되었습니다." %></h2>
           <p>상대도 제출하면 경기는 서버 채점과 무결성 확인 단계로 넘어갑니다. 아직 GP·티어·티어 내 순위·페이백 점수·정기권 학습 가능 일수는 변경되지 않았습니다.</p>
-          <a href="/goat-arena/<%= matchData.division === 'MAIN' ? 'main' : 'sub' %>"><%= matchData.divisionLabel %> 전장으로 <span aria-hidden="true">→</span></a>
+          <a href="<%= arenaReturnHref %>"><%= arenaReturnLabel %> <span aria-hidden="true">→</span></a>
         </section>
       <% } else { %>
         <section class="arena-match-wait-card">

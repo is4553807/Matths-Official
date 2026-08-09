@@ -84,7 +84,7 @@
       class="arena-dashboard-link"
       href="/main"
     >Matths 대시보드</a>
-    <div class="arena-mailbox" data-arena-mailbox>
+    <div class="arena-mailbox <%= activeArenaPage === 'mailbox' ? 'active' : '' %>" data-arena-mailbox>
       <button
         class="arena-mailbox-button"
         type="button"
@@ -96,7 +96,7 @@
         <% if (arenaNotificationState?.unreadCount) { %><b><%= arenaNotificationState.unreadCount > 99 ? "99+" : arenaNotificationState.unreadCount %></b><% } %>
       </button>
       <section class="arena-mailbox-panel" aria-label="최근 알림" hidden data-arena-mailbox-panel>
-        <header><strong>우편함</strong><a href="/notifications">전체 보기</a></header>
+        <header><strong>우편함</strong><a href="/goat-arena/mailbox">전체 보기</a></header>
         <% if (!arenaNotificationState?.notifications?.length) { %>
           <p>도착한 알림이 없습니다.</p>
         <% } %>

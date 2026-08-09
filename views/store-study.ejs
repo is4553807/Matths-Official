@@ -1,0 +1,97 @@
+<%
+  const displayName = String(user.name || user.username || "회원");
+  const answerMap = new Map(content.progress.answers.map((row) => [Number(row.number), String(row.answer || "")]));
+  const questionMap = new Map(content.questions.map((row) => [Number(row.number), row]));
+  const totalItems = Math.max(content.itemCount || 0, content.questions.length);
+  const questionNumbers = Array.from({ length: totalItems }, (_unused, index) => index + 1);
+  const isSubmitted = content.progress.status === "SUBMITTED";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= content.title %> | 고2·고3 수험관</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/store.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <script src="/js/main.js" defer></script>
+    <script src="/js/study-hall.js" defer></script>
+  </head>
+  <body class="study-hall-page study-hall-detail-page">
+    <div class="dashboard-shell study-hall-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top"><a class="brand" href="/main"><span class="brand-mark">M</span><span>Matths</span></a><button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button></div>
+        <%- include("partials/dashboard-navigation", { activePage: "store" }) %>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile"><a class="profile-avatar" href="/profile"><%= displayName.slice(0, 1) %></a><div class="profile-copy"><strong><%= displayName %>님</strong><small>Matths 회원</small></div></div>
+      </aside>
+      <main class="dashboard-main study-hall-main" id="study-hall-main">
+        <header class="study-hall-mobile-header"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기"><span></span><span></span><span></span></button><strong><%= content.tabLabel %></strong><a href="/store?tab=<%= content.contentType %>">목록</a></header>
+        <a class="study-hall-back" href="/store?tab=<%= content.contentType %>">← <%= content.tabLabel %>으로 돌아가기</a>
+
+        <section class="study-content-heading">
+          <div>
+            <p><%= content.series || content.phase || content.finalCategory || content.errorCategory || content.tabLabel %></p>
+            <h1><%= content.title %></h1>
+            <span><%= content.description %></span>
+            <dl><% if (content.subject) { %><div><dt>과목</dt><dd><%= content.subject %></dd></div><% } %><% if (content.itemCount) { %><div><dt>문항</dt><dd><%= content.itemCount %>문항</dd></div><% } %><% if (content.difficulty) { %><div><dt>난이도</dt><dd><%= content.difficulty %></dd></div><% } %><% if (content.timeLimitMinutes) { %><div><dt>제한 시간</dt><dd><%= content.timeLimitMinutes %>분</dd></div><% } %></dl>
+          </div>
+          <aside><small>학습 진행률</small><strong><%= content.progress.percent %>%</strong><span><i style="width:<%= content.progress.percent %>%"></i></span><em><%= isSubmitted ? `제출 완료 · ${content.progress.scorePercent}점` : content.progress.answeredCount ? `${content.progress.answeredCount}문항 입력` : '아직 시작하지 않았습니다.' %></em></aside>
+        </section>
+
+        <% if (content.questionPdf || content.solutionPdf || content.contentFiles.length) { %>
+          <section class="study-content-files" aria-label="학습 파일">
+            <h2>학습 자료</h2>
+            <div>
+              <% if (content.questionPdf) { %><a href="/store/content/<%= content.id %>/files/<%= content.questionPdf.id %>">문제지 PDF <span>다운로드</span></a><% } %>
+              <% if (content.solutionPdf) { %><a class="<%= isSubmitted ? '' : 'is-locked' %>" href="<%= isSubmitted ? `/store/content/${content.id}/files/${content.solutionPdf.id}` : '#' %>" <%= isSubmitted ? '' : 'aria-disabled="true"' %>>해설 PDF <span><%= isSubmitted ? '다운로드' : '제출 후 공개' %></span></a><% } %>
+              <% content.contentFiles.forEach((asset) => { %><a href="/store/content/<%= content.id %>/files/<%= asset.id %>"><%= asset.originalName %><span>다운로드</span></a><% }) %>
+            </div>
+          </section>
+        <% } %>
+
+        <% if (content.contentType === 'ERROR_REPORT') { %>
+          <section class="study-error-report">
+            <article><small>학생들이 자주 틀리는 이유</small><h2><%= content.commonMistake || '운영자가 내용을 준비하고 있습니다.' %></h2></article>
+            <article><small>잘못된 접근</small><p><%= content.wrongApproach || '등록된 내용이 없습니다.' %></p></article>
+            <article><small>올바른 풀이 방법</small><p><%= content.correctApproach || '등록된 내용이 없습니다.' %></p></article>
+            <% if (content.relatedProblem) { %><article><small>관련 대표 문제</small><p><%= content.relatedProblem %></p></article><% } %>
+          </section>
+        <% } %>
+
+        <% if (totalItems > 0) { %>
+          <form class="study-answer-sheet" data-study-hall-form data-content-id="<%= content.id %>" data-submitted="<%= isSubmitted ? '1' : '0' %>" action="/store/content/<%= content.id %>/submit" method="POST">
+            <input type="hidden" name="answersJson" data-answers-json value="<%- JSON.stringify(content.progress.answers).replace(/&/g, '&amp;').replace(/"/g, '&quot;') %>" />
+            <header><div><p>ANSWER SHEET</p><h2><%= content.questions.length ? '문제 풀이와 답안 마킹' : '답안 마킹' %></h2><span>임시 저장 후 이어서 풀 수 있으며, 최종 제출 뒤에는 답을 바꿀 수 없습니다.</span></div><strong><span data-answered-count><%= content.progress.answeredCount %></span> / <%= totalItems %><small>입력 완료</small></strong></header>
+
+            <div class="study-question-list">
+              <% questionNumbers.forEach((number) => { const question = questionMap.get(number); const savedAnswer = answerMap.get(number) || ''; %>
+                <article class="study-question <%= isSubmitted ? 'is-submitted' : '' %>" data-question-number="<%= number %>">
+                  <header><span><%= number %></span><strong><%= question?.stem || `${number}번 답안을 선택하세요.` %></strong><small data-question-state><%= savedAnswer ? '입력 완료' : '미입력' %></small></header>
+                  <% if (question?.choices?.length) { %><ol class="study-question-choices"><% question.choices.forEach((choice, index) => { %><li><%= index + 1 %>. <%= choice %></li><% }) %></ol><% } %>
+                  <% if (question?.choices?.length || ['DAILY_HALF', 'PRACTICE_MOCK'].includes(content.contentType)) { %>
+                    <div class="study-choice-row" role="radiogroup" aria-label="<%= number %>번 답안">
+                      <% [1,2,3,4,5].forEach((choice) => { %><label><input type="radio" name="answer-<%= number %>" value="<%= choice %>" <%= savedAnswer === String(choice) ? 'checked' : '' %> <%= isSubmitted ? 'disabled' : '' %> /><span><%= choice %></span></label><% }) %>
+                    </div>
+                  <% } else { %>
+                    <label class="study-short-answer"><span><%= number %>번 답</span><input type="text" name="answer-<%= number %>" value="<%= savedAnswer %>" maxlength="100" autocomplete="off" <%= isSubmitted ? 'disabled' : '' %> placeholder="답을 입력하세요" /></label>
+                  <% } %>
+                  <% if (isSubmitted && question) { %><div class="study-question-result"><strong>정답 <%= question.correctAnswer %></strong><p><%= question.explanation || '해설 PDF 또는 운영자가 등록한 해설을 확인하세요.' %></p></div><% } %>
+                </article>
+              <% }) %>
+            </div>
+
+            <% if (!isSubmitted) { %>
+              <footer><p data-save-status>변경한 답안은 임시 저장 버튼을 눌러 서버에 저장할 수 있습니다.</p><div><button type="button" class="secondary" data-save-progress>임시 저장</button><button type="submit">최종 제출</button></div></footer>
+            <% } else { %>
+              <footer class="is-result"><p>최종 제출이 완료되었습니다. 정답과 해설을 확인하고 다음 학습으로 이어가세요.</p><a href="/store?tab=<%= content.contentType %>">다른 콘텐츠 보기 →</a></footer>
+            <% } %>
+          </form>
+        <% } %>
+      </main>
+    </div>
+  </body>
+</html>

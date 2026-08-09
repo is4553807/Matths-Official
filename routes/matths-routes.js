@@ -266,6 +266,26 @@ router.get(
   storeController.storePage
 );
 router.get(
+  "/store/content/:contentId",
+  authMiddleware.isLoggedIn,
+  storeController.studyHallContentPage
+);
+router.post(
+  "/store/content/:contentId/save",
+  authMiddleware.isLoggedIn,
+  storeController.saveStudyHallProgress
+);
+router.post(
+  "/store/content/:contentId/submit",
+  authMiddleware.isLoggedIn,
+  storeController.submitStudyHallProgress
+);
+router.get(
+  "/store/content/:contentId/files/:assetId",
+  authMiddleware.isLoggedIn,
+  storeController.downloadStudyHallAsset
+);
+router.get(
   "/store/products/:slug",
   authMiddleware.isLoggedIn,
   storeController.storeProductPage
@@ -285,6 +305,26 @@ router.get(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   storeController.adminStorePage
+);
+router.post(
+  "/admin/store/content",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  handleStoreUpload,
+  storeController.createStudyHallContent
+);
+router.post(
+  "/admin/store/content/:contentId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  handleStoreUpload,
+  storeController.updateStudyHallContent
+);
+router.post(
+  "/admin/store/content/:contentId/archive",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  storeController.archiveStudyHallContent
 );
 router.post(
   "/admin/store/products",
@@ -1080,6 +1120,11 @@ router.get(
   "/pricing/:product/self",
   authMiddleware.isLoggedIn,
   checkoutController.selfCheckoutPage
+);
+router.post(
+  "/pricing/:product/self/minor-payment-consent",
+  authMiddleware.isLoggedIn,
+  checkoutController.acceptMinorPaymentNotice
 );
 router.post(
   "/pricing/:product/self",

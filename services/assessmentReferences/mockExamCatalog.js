@@ -212,6 +212,70 @@ const MOCK_EXAM_PAPERS =
   );
 
 const UNIT_REFERENCE_RULES = {
+  "common-math-1/polynomials": {
+    corpusFilter: (paper) => paper.grade === 1,
+    signals: [
+      "다항식의 구조를 보존하는 사칙연산",
+      "항등식의 계수 비교와 나머지정리",
+      "곱셈공식·치환을 이용한 인수분해",
+      "조건에서 다항식의 값을 역추론",
+    ],
+  },
+  "common-math-1/equations-and-inequalities": {
+    corpusFilter: (paper) => paper.grade === 1,
+    signals: [
+      "복소수의 연산과 켤레복소수",
+      "이차방정식의 판별식과 근의 위치",
+      "이차함수 그래프와 직선의 교점",
+      "고차방정식의 인수정리와 치환",
+      "절댓값·이차부등식의 해 구간",
+    ],
+  },
+  "common-math-1/counting": {
+    corpusFilter: (paper) => paper.grade === 1,
+    signals: [
+      "합의 법칙과 곱의 법칙의 구분",
+      "조건이 있는 순열의 단계별 분류",
+      "순서를 제거한 조합의 모델링",
+      "여사건을 이용한 경우의 수 계산",
+    ],
+  },
+  "common-math-1/matrices": {
+    corpusFilter: (paper) => paper.grade === 1,
+    signals: [
+      "행렬의 크기와 성분의 대응",
+      "행렬의 덧셈·실수배",
+      "행과 열을 연결한 행렬의 곱",
+      "행렬 관계식에서 미지 성분 복원",
+    ],
+  },
+  "common-math-2/coordinate-geometry": {
+    corpusFilter: (paper) => paper.grade === 1,
+    signals: [
+      "좌표에서 거리·내분점 복원",
+      "직선의 평행·수직과 점선거리",
+      "원과 직선의 위치 관계",
+      "평행이동·대칭이동의 방정식 변환",
+    ],
+  },
+  "common-math-2/sets-and-propositions": {
+    corpusFilter: (paper) => paper.grade === 1,
+    signals: [
+      "집합의 포함관계와 연산",
+      "조건의 진리집합과 명제의 참·거짓",
+      "역·이·대우와 필요충분조건",
+      "대우·귀류법과 절대부등식 증명",
+    ],
+  },
+  "common-math-2/functions-and-graphs": {
+    corpusFilter: (paper) => paper.grade === 1,
+    signals: [
+      "함수의 정의역·치역과 그래프",
+      "합성 순서와 합성함수의 정의역",
+      "역함수 존재 조건과 y=x 대칭",
+      "유리함수·무리함수의 이동과 정의역",
+    ],
+  },
   "algebra/exponential-logarithmic-functions": {
     corpusFilter: (paper) =>
       paper.grade < 3 ||

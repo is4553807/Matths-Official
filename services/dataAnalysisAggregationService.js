@@ -1558,7 +1558,7 @@ function dimensionValueLabel(key, value) {
   if (["tier", "sourceTier", "targetTier"].includes(key)) {
     return TIER_LABELS[normalizeTier(value)] || value;
   }
-  if (key === "matchType") return value === "REVENGE" ? "복수전" : "일반 쟁탈전";
+  if (key === "matchType") return value === "REVENGE" ? "복수전" : value === "FRIENDLY" ? "친선 경기" : "일반 쟁탈전";
   if (key === "tierGap") return `${value}티어 차이`;
   if (key === "stakeDays") return `${value}일 예치`;
   if (key === "ratePercent") return `${value}% 구간`;

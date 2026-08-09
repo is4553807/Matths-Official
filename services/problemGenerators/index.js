@@ -73,6 +73,9 @@ const {
 } = require(
   "./probabilityStatistics/generators"
 );
+const {
+  generatorMap: commonMathGeneratorMap,
+} = require("./commonMath/generators");
 
 const generatorRegistry = new Map([
   [
@@ -253,6 +256,7 @@ const generatorRegistry = new Map([
     mathematicalInduction,
   ],
   ...probabilityStatisticsGeneratorMap.entries(),
+  ...commonMathGeneratorMap.entries(),
 ]);
 
 function getProblemGenerator({

@@ -103,6 +103,174 @@ function assessmentIsOverdue(
  */
 const ASSESSMENT_CATALOG = [
   {
+    courseId: "common-math-1",
+    bankCourseId: "common-math-1",
+    units: [
+      {
+        unitId: "polynomials",
+        bankUnitId: "cm1-polynomials",
+        subunits: [
+          {
+            id: "polynomial-arithmetic",
+            conceptIds: ["polynomial-arithmetic"],
+          },
+          {
+            id: "identity-remainder",
+            conceptIds: ["identity-remainder-theorem"],
+          },
+          {
+            id: "factorization",
+            conceptIds: ["polynomial-factorization"],
+          },
+        ],
+      },
+      {
+        unitId: "equations-and-inequalities",
+        bankUnitId: "cm1-equations",
+        subunits: [
+          {
+            id: "complex-quadratic",
+            conceptIds: [
+              "complex-numbers",
+              "quadratic-discriminant",
+              "quadratic-roots-and-coefficients",
+            ],
+          },
+          {
+            id: "quadratic-graph",
+            conceptIds: [
+              "quadratic-equation-and-function",
+              "parabola-and-line",
+              "quadratic-max-min-restricted",
+            ],
+          },
+          {
+            id: "higher-equations",
+            conceptIds: [
+              "cubic-and-quartic-equations",
+              "simultaneous-quadratic-equations",
+            ],
+          },
+          {
+            id: "inequalities",
+            conceptIds: [
+              "simultaneous-linear-inequalities",
+              "absolute-linear-inequalities",
+              "quadratic-inequalities",
+            ],
+          },
+        ],
+      },
+      {
+        unitId: "counting",
+        bankUnitId: "cm1-counting",
+        subunits: [
+          {
+            id: "principles",
+            conceptIds: ["addition-and-multiplication-principles"],
+          },
+          {
+            id: "permutations",
+            conceptIds: ["permutations"],
+          },
+          {
+            id: "combinations",
+            conceptIds: ["combinations"],
+          },
+        ],
+      },
+      {
+        unitId: "matrices",
+        bankUnitId: "cm1-matrices",
+        subunits: [
+          {
+            id: "matrix-concept",
+            conceptIds: ["matrix-concept"],
+          },
+          {
+            id: "matrix-operations",
+            conceptIds: ["matrix-operations"],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    courseId: "common-math-2",
+    bankCourseId: "common-math-2",
+    units: [
+      {
+        unitId: "coordinate-geometry",
+        bankUnitId: "cm2-coordinate",
+        subunits: [
+          {
+            id: "coordinates",
+            conceptIds: [
+              "distance-and-internal-division",
+              "parallel-and-perpendicular-lines",
+              "point-line-distance",
+            ],
+          },
+          {
+            id: "circle",
+            conceptIds: ["circle-equation", "circle-line-position"],
+          },
+          {
+            id: "transformations",
+            conceptIds: ["geometric-translation", "geometric-reflection"],
+          },
+        ],
+      },
+      {
+        unitId: "sets-and-propositions",
+        bankUnitId: "cm2-sets",
+        subunits: [
+          {
+            id: "sets",
+            conceptIds: [
+              "set-concept-and-representation",
+              "set-inclusion",
+              "set-operations",
+            ],
+          },
+          {
+            id: "propositions",
+            conceptIds: [
+              "proposition-and-condition",
+              "converse-and-contrapositive",
+              "sufficient-and-necessary-conditions",
+            ],
+          },
+          {
+            id: "proof",
+            conceptIds: [
+              "proof-by-contrapositive-and-contradiction",
+              "absolute-inequality",
+            ],
+          },
+        ],
+      },
+      {
+        unitId: "functions-and-graphs",
+        bankUnitId: "cm2-functions",
+        subunits: [
+          {
+            id: "functions",
+            conceptIds: [
+              "function-concept-and-graph",
+              "composite-function",
+              "inverse-function",
+            ],
+          },
+          {
+            id: "special-functions",
+            conceptIds: ["rational-function", "irrational-function"],
+          },
+        ],
+      },
+    ],
+  },
+  {
     courseId: "algebra",
     bankCourseId: "algebra",
     units: [

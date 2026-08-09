@@ -105,8 +105,10 @@ Ranked 사용자:
 | 일반 쟁탈전 보호 경로 | `routes/goat-arena-routes.js` |
 | 일반 쟁탈전 생성 회귀 검증 | `scripts/verifyArenaMatchCreation.js` |
 | 경기 신청 시 문제 팩 생성·자동 봉인 해시·검산 | `services/arenaProblemPackService.js`, `services/arenaMatchService.js` |
-| Unranked·Ranked 공통 방어자 앵커 T1~T9·목표 정답률·유형 카탈로그·팩 곡선·실측 보정 | `services/arenaOneOnOneDifficultyPolicy.js` |
-| Unranked·Ranked 1대1 독립 준킬러 생성기와 티어 조합별 30묶음·5유형 배정 | `services/arenaOneOnOneProblemTypes.js`, `services/arenaOneOnOneProblemBank.js` |
+| Unranked U1~U9·Ranked R1~R9 절대 난이도·목표 정답률·팩 곡선·실측 보정 | `services/arenaOneOnOneDifficultyPolicy.js` |
+| 공통수학Ⅰ·Ⅱ·대수·확률과 통계·미적분Ⅰ U/R 일반·29/30형 킬러 최종 유형 골격 | `services/arenaOneOnOneTypeSkeletons.js` |
+| 2016~2026 평가원 6·9월 모의평가 공식 해설 조사·23개 사고 유형·U/R 설계 메타데이터 | `scripts/buildArenaOfficialMockResearchCatalog.mjs`, `dataAnalysis/arenaOfficialMockTypeCatalog2016_2026.json`, `services/arenaOfficialMockResearchCatalog.js` |
+| Unranked·Ranked 1대1 독립 생성기와 U/R 단계별 30유형·서로 다른 5유형·Unranked 전 문항 준킬러·Ranked 5번 실제 29/30형 킬러 배정 | `services/arenaOneOnOneProblemTypes.js`, `services/arenaOneOnOneProblemBank.js`, `services/arenaTierQuestionCatalogService.js` |
 | 봉인 팩 배정·개인 타이머·답안/활동 저장·자동 제출 | `services/arenaMatchAttemptService.js` |
 | 60초 풀이 증거·이상 징후·24시간 미시작 처리 | `services/arenaMatchEvidenceService.js`, `middleware/arenaEvidenceUpload.js` |
 | 운영자 전체 경기 증거 열람 | `views/admin-arena-matches.ejs`, `controllers/matthsController.js` |
@@ -135,8 +137,8 @@ Ranked 사용자:
 | 다중 서버 로그인 공유·TTL 만료 세션 | `models/sessionModel.js`, `services/mongoSessionStore.js`, `server.js` |
 | 연간 시즌 catch-up·다중 서버 단일 실행 lease | `models/operationModel.js`, `services/arenaSeasonService.js` |
 | Division별 공식 규정·활성 페이백 정책 표·KST 수정일 | `services/arenaRulebookViewService.js`, `controllers/goatArenaController.js`, `views/goat-arena-rules.ejs` |
-| 관리자 문제은행 코드 지도·T1~T9 문제 데이터 버전 편집 | `services/problemBankCatalogService.js`, `services/arenaProblemDataService.js`, `views/admin-problem-banks.ejs`, `public/js/admin-problem-data.js` |
-| Arena 1대1 독립 문제 유형·T1~T9 설계 정책·활성 DB 구성·티어 조합별 30묶음 | `services/arenaOneOnOneProblemTypes.js`, `services/arenaOneOnOneDifficultyPolicy.js`, `services/arenaProblemDataService.js`, `services/arenaOneOnOneProblemBank.js`, `services/arenaProblemPackService.js` |
+| 관리자 문제은행 코드 지도·공식 모의평가 분류 현황·U1~U9/R1~R9 문제 데이터 버전 편집 | `services/problemBankCatalogService.js`, `services/arenaProblemDataService.js`, `views/admin-problem-banks.ejs`, `public/js/admin-problem-data.js` |
+| Arena 1대1 독립 문제 유형·U/R 공개 설계 정책·활성 DB 구성·티어 조합별 30묶음 | `services/arenaOneOnOneProblemTypes.js`, `services/arenaOneOnOneDifficultyPolicy.js`, `services/arenaProblemDataService.js`, `services/arenaOneOnOneProblemBank.js`, `services/arenaProblemPackService.js` |
 | 관리자 기능군 드롭다운 내비게이션 | `views/partials/admin-navigation.ejs`, `public/css/admin.css`, `public/js/admin-navigation.js` |
 | 관리자 표준 절차·보존 기간·자동 작업·환경 변수·전체 DB 스키마 매뉴얼 | `services/adminOperationsGuideService.js`, `views/admin-operations-guide.ejs`, `routes/matths-routes.js` |
 | 관리자 무제한·무기한 상품 접근 | `services/superAdminAccessService.js`, `services/paidFeatureAccessService.js`, `services/dashboardService.js`, `controllers/goatArenaController.js` |

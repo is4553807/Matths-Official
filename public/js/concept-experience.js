@@ -111,7 +111,8 @@
     };
 
     const captions =
-      motionKey.startsWith("algebra-") &&
+      (motionKey.startsWith("algebra-") ||
+        motionKey.startsWith("common-math-")) &&
       Array.isArray(config.motionCaptions) &&
       config.motionCaptions.length
         ? config.motionCaptions
@@ -625,7 +626,10 @@
 
       drawGrid(width, height);
 
-      if (motionKey.startsWith("algebra-")) {
+      if (
+        motionKey.startsWith("algebra-") ||
+        motionKey.startsWith("common-math-")
+      ) {
         drawAlgebraMotion(
           width,
           height,

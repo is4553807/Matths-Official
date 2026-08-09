@@ -35,6 +35,10 @@ const {
   settleMainRevengeNoShow,
 } = require("./mainArenaRevengeService");
 const {
+  cancelMainFriendlyNoStart,
+  settleMainFriendlyMatch,
+} = require("./mainFriendlyMatchService");
+const {
   destroyStoredAsset,
   signedCloudinaryUrl,
   STORAGE_PURPOSES,
@@ -440,12 +444,16 @@ async function submitArenaMatchEvidence({
             "ARENA_WINNER_EVIDENCE_NOT_FOUND"
           );
         }
-        matchIntegrityFlags = await detectEvidenceAnomalies({
-          attempt: screenedAttempt,
-          scoring: scoringByRole.get(screenedRole),
-          files: screenedEvidence.files || [],
-          session,
-        });
+        // 친선 경기는 수수료 외에는 순위·티어·학습일수 이전이 없는 비공식 경기다.
+        // 증거는 제출받되, 공식 경기용 자동 무결성 보류와 제재 흐름에는 넣지 않는다.
+        matchIntegrityFlags = match.matchType === "FRIENDLY"
+          ? []
+          : await detectEvidenceAnomalies({
+              attempt: screenedAttempt,
+              scoring: scoringByRole.get(screenedRole),
+              files: screenedEvidence.files || [],
+              session,
+            });
         await ArenaMatchEvidence.updateMany(
           { matchId: match._id },
           {
@@ -861,6 +869,11 @@ async function holdExpiredEvidence({ now = new Date(), limit = 100 } = {}) {
     // 필수 풀이 증거는 별도의 추가 소명 유예 없이 경기 결과에 직접 반영한다.
     // 양측 모두 미제출이면 승패를 만들 수 없으므로 예치만 원상 복구한다.
     if (expiredMissingRoles.length >= 2) {
+      if (match.division === "MAIN" && match.matchType === "FRIENDLY") {
+        const result = await cancelMainFriendlyNoStart({ matchId: match._id, now });
+        if (result?.cancelled) cancelled += 1;
+        continue;
+      }
       const result = match.matchType === "NORMAL"
         ? (match.division === "SUB"
             ? await cancelSubNormalNoStart({
@@ -893,7 +906,14 @@ async function holdExpiredEvidence({ now = new Date(), limit = 100 } = {}) {
     const missingRole = expiredMissingRoles[0];
     const winnerRole = missingRole === "CHALLENGER" ? "DEFENDER" : "CHALLENGER";
     let result;
-    if (match.matchType === "NORMAL") {
+    if (match.division === "MAIN" && match.matchType === "FRIENDLY") {
+      result = await settleMainFriendlyMatch({
+        matchId: match._id,
+        now,
+        forcedWinnerRole: winnerRole,
+        automaticReason: "REQUIRED_EVIDENCE_NOT_SUBMITTED",
+      });
+    } else if (match.matchType === "NORMAL") {
       result = match.division === "SUB"
         ? await settleSubNormalMatch({
             matchId: match._id,
@@ -946,6 +966,11 @@ async function holdExpiredMatchStarts({ now = new Date(), limit = 100 } = {}) {
     const unstarted = attempts.filter((attempt) => attempt.status === "READY");
     if (!unstarted.length && attempts.length) continue;
     if (unstarted.length === 2) {
+      if (match.division === "MAIN" && match.matchType === "FRIENDLY") {
+        const result = await cancelMainFriendlyNoStart({ matchId: match._id, now });
+        if (result?.cancelled) cancelled += 1;
+        continue;
+      }
       const result = match.division === "SUB"
         ? await cancelSubNormalNoStart({ matchId: match._id, now })
         : await cancelMainNormalNoStart({ matchId: match._id, now });
@@ -955,7 +980,14 @@ async function holdExpiredMatchStarts({ now = new Date(), limit = 100 } = {}) {
     if (unstarted.length !== 1) continue;
     const noShowRole = unstarted[0].role;
     const winnerRole = noShowRole === "CHALLENGER" ? "DEFENDER" : "CHALLENGER";
-    const result = match.division === "SUB"
+    const result = match.division === "MAIN" && match.matchType === "FRIENDLY"
+      ? await settleMainFriendlyMatch({
+          matchId: match._id,
+          now,
+          forcedWinnerRole: winnerRole,
+          automaticReason: "START_DEADLINE_NO_SHOW",
+        })
+      : match.division === "SUB"
       ? await settleSubNormalMatch({
           matchId: match._id,
           now,
@@ -970,7 +1002,9 @@ async function holdExpiredMatchStarts({ now = new Date(), limit = 100 } = {}) {
         });
     if (result?.settled) {
       settled += 1;
-      if (noShowRole === "DEFENDER") {
+      // 친선 경기는 사용자가 직접 수락한 비공식 경기이므로, 시작하지 않았다고
+      // Ranked 자동 방어 미응시 누적에 포함하지 않는다.
+      if (noShowRole === "DEFENDER" && match.matchType !== "FRIENDLY") {
         const recorded = await recordAutomaticDefenseNoShow({
           matchId: match._id,
           now,

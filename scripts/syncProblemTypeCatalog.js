@@ -16,7 +16,7 @@ async function main() {
     activateSourceChanges: process.argv.includes("--activate-source-changes"),
   });
   console.log(
-    `Problem type catalog synced: total=${result.total}, new=${result.inserted.length}, updated=${result.updated.length}`
+    `Problem type catalog synced: total=${result.total}, new=${result.inserted.length}, updated=${result.updated.length}, retired=${result.retired.length}`
   );
 }
 

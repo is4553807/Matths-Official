@@ -205,6 +205,7 @@ function makeShortAnswer({
   independentAnswer,
   solution,
   hintText,
+  visualization = null,
   checks = [],
 }) {
   const verified =
@@ -219,6 +220,7 @@ function makeShortAnswer({
     answer,
     solution,
     hintText,
+    visualization,
     validityChecks: [
       {
         name: "finite-answer",

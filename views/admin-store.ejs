@@ -1,9 +1,12 @@
 <%
   const editing = storeData.editing;
-  const storeCategories = Array.isArray(storeData.categories) ? storeData.categories : [];
-  const defaultStoreCategory = storeCategories.find((category) => category.isVisible)?.name || storeCategories[0]?.name || "";
-  const formProduct = editing || { name:"", category:defaultStoreCategory, badge:"", subtitle:"", summary:"", price:"", originalPrice:"", popularityScore:0, status:"DRAFT", bundleItems:[], detailBlocks:[], productFiles:[] };
-  const textBlocks = formProduct.detailBlocks.filter((block) => block.type === "TEXT");
+  const formContent = editing || {
+    id:"", contentType: storeData.activeTab || "NJE", series:"", title:"", description:"", grade:"공통", subject:"", itemCount:0,
+    difficulty:"", timeLimitMinutes:0, recommendedStudyDays:0, estimatedMinutes:0, year:new Date().getFullYear(), month:new Date().getMonth()+1,
+    week:1, session:1, phase:"", finalCategory:"", errorCategory:"", commonMistake:"", wrongApproach:"", correctApproach:"", relatedProblem:"",
+    questions:[], assets:[], status:"DRAFT", sortOrder:0, publishAt:null,
+  };
+  const formatDatetime = (value) => value ? new Date(value).toISOString().slice(0, 16) : "";
   const formatBytes = (bytes) => Number(bytes) < 1024 ** 2 ? `${(Number(bytes) / 1024).toFixed(1)} KB` : `${(Number(bytes) / 1024 ** 2).toFixed(1)} MB`;
 %>
 <!doctype html>
@@ -11,7 +14,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>상점 관리 | Matths</title>
+    <title>고2·고3 수험관 관리 | Matths</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
@@ -19,83 +22,80 @@
     <link rel="stylesheet" href="/css/brand.css" />
     <script src="/js/admin-store.js" defer></script>
   </head>
-  <body class="admin-page admin-store-page">
+  <body class="admin-page admin-store-page study-hall-admin-page">
     <%- include("partials/admin-navigation", { activePage: "store" }) %>
     <main class="admin-main">
-      <header class="admin-heading"><div><p>MATTHS STORE</p><h1>교재 상점 관리</h1><span>GOAT Arena 상점과 분리된 현금 판매 교재 카탈로그입니다.</span></div><strong><%= storeData.products.length %><small>개 상품</small></strong></header>
+      <header class="admin-heading"><div><p>MATTHS EXAM PREP</p><h1>고2·고3 수험관 관리</h1><span>콘텐츠 등록, 답안 데이터, 공개 시각과 R2 파일을 한 화면에서 관리합니다.</span></div><strong><%= storeData.items.length %><small>개 콘텐츠</small></strong></header>
       <% if (feedback) { %><div class="store-admin-feedback <%= feedback.type %>" role="status"><%= feedback.message %></div><% } %>
       <% if (error) { %><div class="store-admin-feedback error" role="alert"><%= error %></div><% } %>
 
-      <section class="admin-panel store-category-manager" id="store-categories">
-        <div class="admin-panel-heading"><div><p>NAVIGATION</p><h2>Navbar 카테고리 관리</h2></div><span>끌어서 순서 변경</span></div>
-        <p class="store-category-guide">공개한 카테고리만 사용자 상점 상단에 표시됩니다. 상품이 연결된 카테고리는 다른 분류로 옮긴 뒤 삭제할 수 있습니다.</p>
-        <form class="store-category-create" action="/admin/store/categories" method="POST">
-          <label><span>새 카테고리 이름</span><input name="name" maxlength="40" placeholder="예: 기출 분석" required /></label>
-          <button type="submit">카테고리 추가</button>
-        </form>
-        <ol class="store-category-list" data-store-category-list>
-          <% storeCategories.forEach((category) => { %>
-            <li draggable="true" data-category-id="<%= category.id %>">
-              <button class="store-category-drag" type="button" aria-label="<%= category.name %> 순서 이동">⋮⋮</button>
-              <form class="store-category-edit" action="/admin/store/categories/<%= category.id %>" method="POST">
-                <input name="name" value="<%= category.name %>" maxlength="40" required />
-                <label><input type="checkbox" name="isVisible" <%= category.isVisible ? "checked" : "" %> /> 사용자 Navbar에 공개</label>
-                <small>연결 상품 <%= category.productCount %>개</small>
-                <button type="submit">저장</button>
-              </form>
-              <form action="/admin/store/categories/<%= category.id %>/delete" method="POST" onsubmit="return window.confirm('이 카테고리를 삭제할까요?');">
-                <button class="store-category-delete" type="submit" <%= category.productCount > 0 ? "disabled" : "" %> title="<%= category.productCount > 0 ? '연결된 상품 분류를 먼저 변경해주세요.' : '카테고리 삭제' %>">삭제</button>
-              </form>
-            </li>
-          <% }) %>
-        </ol>
-        <form class="store-category-order" action="/admin/store/categories/reorder" method="POST" data-store-category-order-form>
-          <input type="hidden" name="categoryOrderJson" value="[]" data-store-category-order-json />
-          <button type="submit">Navbar 순서 저장</button>
-        </form>
-      </section>
+      <nav class="study-hall-admin-tabs" aria-label="콘텐츠 종류">
+        <a href="/admin/store" class="<%= !storeData.activeTab ? 'is-active' : '' %>">전체</a>
+        <% storeData.tabs.forEach((tab) => { %><a href="/admin/store?tab=<%= tab.code %>" class="<%= storeData.activeTab === tab.code ? 'is-active' : '' %>"><%= tab.label %></a><% }) %>
+      </nav>
 
-      <section class="admin-panel store-admin-editor" id="product-editor">
-        <div class="admin-panel-heading"><div><p><%= editing ? "EDIT PRODUCT" : "NEW PRODUCT" %></p><h2><%= editing ? "묶음 상품 수정" : "새 묶음 상품 만들기" %></h2></div><% if (editing) { %><a href="/admin/store#product-editor">새 상품 입력</a><% } %></div>
-        <form class="admin-form store-product-form" action="<%= editing ? `/admin/store/products/${editing.id}` : '/admin/store/products' %>" method="POST" enctype="multipart/form-data" data-store-product-form>
-          <div class="store-form-grid">
-            <label><span>묶음 상품 이름</span><input name="name" value="<%= formProduct.name %>" maxlength="120" required /></label>
-            <label><span>분류</span><select name="category" required>
-              <% if (formProduct.category && !storeCategories.some((category) => category.name === formProduct.category)) { %><option value="<%= formProduct.category %>" selected><%= formProduct.category %> · 이전 분류</option><% } %>
-              <% storeCategories.forEach((category) => { %><option value="<%= category.name %>" <%= formProduct.category === category.name ? "selected" : "" %>><%= category.name %><%= category.isVisible ? "" : " · Navbar 숨김" %></option><% }) %>
-            </select></label>
-            <label><span>카드 배지</span><input name="badge" value="<%= formProduct.badge %>" maxlength="50" placeholder="예: 수능 직전 파이널" /></label>
-            <label><span>한 줄 설명</span><input name="subtitle" value="<%= formProduct.subtitle %>" maxlength="180" /></label>
-            <label><span>판매 가격(원)</span><input type="number" name="price" value="<%= formProduct.price %>" min="0" max="100000000" required /></label>
-            <label><span>정가(선택)</span><input type="number" name="originalPrice" value="<%= formProduct.originalPrice || '' %>" min="0" max="100000000" /></label>
-            <label><span>인기 정렬 점수</span><input type="number" name="popularityScore" value="<%= formProduct.popularityScore %>" min="0" max="1000000" /></label>
-            <label><span>게시 상태</span><select name="status"><option value="DRAFT" <%= formProduct.status === 'DRAFT' ? 'selected' : '' %>>초안·비공개</option><option value="PUBLISHED" <%= formProduct.status === 'PUBLISHED' ? 'selected' : '' %>>판매 목록 공개</option><option value="ARCHIVED" <%= formProduct.status === 'ARCHIVED' ? 'selected' : '' %>>판매 종료</option></select></label>
-          </div>
-          <label><span>카드·상세 상단 요약</span><textarea name="summary" rows="4" maxlength="1000"><%= formProduct.summary %></textarea></label>
-          <label><span>묶음 구성</span><textarea name="bundleItems" rows="6" placeholder="한 줄에 하나씩: 자료 이름 | 짧은 설명"><%= formProduct.bundleItems.map((item) => `${item.name}${item.description ? ` | ${item.description}` : ''}`).join('\n') %></textarea><small>업로드한 자료들을 사용자에게 보여줄 구성 단위로 정리합니다. 예: 문제지 PDF | 30문항 4회분</small></label>
-
-          <div class="store-upload-grid">
-            <label class="store-file-picker"><span>상품 썸네일 <%= editing ? "교체" : "업로드" %></span><input type="file" name="thumbnail" accept=".png,.jpg,.jpeg,.webp" <%= editing ? "" : "required" %> /><small>상품 카드와 상세 페이지 상단에 표시됩니다.</small></label>
-            <label class="store-file-picker"><span>묶음 판매 자료</span><input type="file" name="productFiles" accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx" multiple /><small>비공개 서버 저장소에 보관하며 현재 사용자에게 직접 노출하지 않습니다.</small></label>
-            <label class="store-file-picker"><span>상세 설명 PNG·이미지</span><input type="file" name="detailImages" accept=".png,.jpg,.jpeg,.webp" multiple /><small>업로드 순서대로 긴 상세 설명의 아래쪽에 렌더됩니다.</small></label>
+      <section class="admin-panel study-hall-editor" id="content-editor">
+        <div class="admin-panel-heading"><div><p><%= editing ? "EDIT CONTENT" : "NEW CONTENT" %></p><h2><%= editing ? "수험관 콘텐츠 수정" : "새 수험관 콘텐츠 등록" %></h2></div><% if (editing) { %><a href="/admin/store<%= storeData.activeTab ? `?tab=${storeData.activeTab}` : '' %>#content-editor">새 콘텐츠 입력</a><% } %></div>
+        <form class="admin-form study-hall-content-form" action="<%= editing ? `/admin/store/content/${editing.id}` : '/admin/store/content' %>" method="POST" enctype="multipart/form-data" data-study-hall-admin-form data-initial-questions="<%- JSON.stringify(formContent.questions || []).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') %>">
+          <div class="study-hall-form-grid">
+            <label><span>콘텐츠 종류</span><select name="contentType" data-content-type required><% storeData.tabs.forEach((tab) => { %><option value="<%= tab.code %>" <%= formContent.contentType === tab.code ? 'selected' : '' %>><%= tab.label %></option><% }) %></select></label>
+            <label><span>시리즈</span><input name="series" value="<%= formContent.series %>" maxlength="120" placeholder="예: TRIGGER, BLACKOUT" /></label>
+            <label class="wide"><span>제목</span><input name="title" value="<%= formContent.title %>" maxlength="180" required /></label>
+            <label><span>학년</span><select name="grade"><option value="공통" <%= formContent.grade === '공통' ? 'selected' : '' %>>공통</option><option value="고2" <%= formContent.grade === '고2' ? 'selected' : '' %>>고2</option><option value="고3" <%= formContent.grade === '고3' ? 'selected' : '' %>>고3</option></select></label>
+            <label><span>과목</span><input name="subject" value="<%= formContent.subject %>" maxlength="80" placeholder="수학Ⅰ, 수학Ⅱ, 미적분…" /></label>
+            <label><span>문항 수</span><input type="number" name="itemCount" value="<%= formContent.itemCount %>" min="0" max="500" /></label>
+            <label><span>난이도</span><input name="difficulty" value="<%= formContent.difficulty %>" maxlength="80" placeholder="예: 준킬러 집중" /></label>
+            <label><span>제한 시간(분)</span><input type="number" name="timeLimitMinutes" value="<%= formContent.timeLimitMinutes %>" min="0" max="600" /></label>
+            <label><span>권장 학습 기간(일)</span><input type="number" name="recommendedStudyDays" value="<%= formContent.recommendedStudyDays %>" min="0" max="365" /></label>
+            <label><span>예상 학습 시간(분)</span><input type="number" name="estimatedMinutes" value="<%= formContent.estimatedMinutes %>" min="0" max="10000" /></label>
+            <label><span>노출 순서</span><input type="number" name="sortOrder" value="<%= formContent.sortOrder %>" min="0" max="100000" /></label>
+            <label><span>공개 상태</span><select name="status"><option value="DRAFT" <%= formContent.status === 'DRAFT' ? 'selected' : '' %>>초안·비공개</option><option value="PUBLISHED" <%= formContent.status === 'PUBLISHED' ? 'selected' : '' %>>공개</option><option value="ARCHIVED" <%= formContent.status === 'ARCHIVED' ? 'selected' : '' %>>임시 비공개 보관</option></select></label>
+            <label><span>공개 시각</span><input type="datetime-local" name="publishAt" value="<%= formatDatetime(formContent.publishAt) %>" /></label>
+            <label class="wide"><span>설명</span><textarea name="description" rows="4" maxlength="4000"><%= formContent.description %></textarea></label>
           </div>
 
-          <% if (editing?.assets?.length) { %><div class="store-admin-file-list"><strong>현재 연결된 파일</strong><% editing.assets.forEach((file) => { %><label><input type="checkbox" name="removeAssetIds" value="<%= file.id %>" /><span><b><%= file.kind === 'THUMBNAIL' ? '썸네일' : file.kind === 'DETAIL_IMAGE' ? '상세 이미지' : '판매 자료' %> · <%= file.originalName %></b><small><%= formatBytes(file.sizeBytes) %> · 선택 시 저장할 때 삭제</small></span></label><% }) %></div><% } %>
-
-          <section class="store-rich-editor" data-store-editor data-initial-blocks="<%- JSON.stringify(textBlocks).replace(/&/g, '&amp;').replace(/\"/g, '&quot;').replace(/</g, '&lt;') %>">
-            <header><div><p>DETAIL EDITOR</p><h3>파일 상세 설명</h3></div><button type="button" data-add-text-block>+ 문구 블록 추가</button></header>
-            <p class="store-editor-guide">각 문구 블록마다 글자 크기·색상·굵기·밑줄·정렬을 정할 수 있습니다. 저장 시 허용된 서식 값만 DB에 기록됩니다.</p>
-            <div data-text-block-list></div>
-            <input type="hidden" name="detailBlocksJson" value="[]" data-detail-blocks-json />
+          <section class="study-hall-type-fields">
+            <header><p>분류별 상세 정보</p><span>사용하지 않는 값은 비워두면 됩니다.</span></header>
+            <div class="study-hall-form-grid">
+              <label><span>연도</span><input type="number" name="year" value="<%= formContent.year %>" min="0" max="2200" /></label>
+              <label><span>월</span><input type="number" name="month" value="<%= formContent.month %>" min="0" max="12" /></label>
+              <label><span>주차</span><input type="number" name="week" value="<%= formContent.week %>" min="0" max="6" /></label>
+              <label><span>회차</span><input type="number" name="session" value="<%= formContent.session %>" min="0" max="100" /></label>
+              <label><span>실전 시기</span><input name="phase" value="<%= formContent.phase %>" placeholder="예: 6~9월 실전 강화" /></label>
+              <label><span>파이널 분류</span><input name="finalCategory" value="<%= formContent.finalCategory %>" placeholder="예: D-7 압축" /></label>
+              <label><span>오답 유형 분류</span><input name="errorCategory" value="<%= formContent.errorCategory %>" placeholder="예: 조건 누락" /></label>
+            </div>
           </section>
-          <button type="submit"><%= editing ? "상품 변경사항 저장" : "묶음 상품 등록" %></button>
+
+          <section class="study-hall-report-fields">
+            <header><p>오답 유형 리포트</p><span>ERROR_REPORT에서 사용자에게 그대로 공개됩니다.</span></header>
+            <label><span>학생들이 자주 틀리는 이유</span><textarea name="commonMistake" rows="3"><%= formContent.commonMistake %></textarea></label>
+            <label><span>잘못된 접근</span><textarea name="wrongApproach" rows="4"><%= formContent.wrongApproach %></textarea></label>
+            <label><span>올바른 풀이 방법</span><textarea name="correctApproach" rows="4"><%= formContent.correctApproach %></textarea></label>
+            <label><span>관련 대표 문제</span><textarea name="relatedProblem" rows="4"><%= formContent.relatedProblem %></textarea></label>
+          </section>
+
+          <section class="study-hall-question-builder" data-question-builder>
+            <header><div><p>PLATFORM QUESTIONS</p><h3>플랫폼 풀이 문항</h3><span>N제·파이널·개념 학습은 PDF가 아닌 이 문항 데이터로 바로 풉니다. 데일리 하프·모의고사는 답과 선택지만 등록해 마킹에 사용할 수 있습니다.</span></div><button type="button" data-add-question>+ 문항 추가</button></header>
+            <div data-question-list></div>
+            <input type="hidden" name="questionsJson" value="[]" data-questions-json />
+          </section>
+
+          <section class="study-hall-upload-grid">
+            <label><span>표지·썸네일</span><input type="file" name="studyThumbnail" accept=".png,.jpg,.jpeg,.webp" /><small>카드와 상세 상단에 표시됩니다.</small></label>
+            <label><span>문제지 PDF</span><input type="file" name="questionPdf" accept=".pdf" /><small>데일리 하프·실전 모의고사에서 사용합니다.</small></label>
+            <label><span>해설 PDF</span><input type="file" name="solutionPdf" accept=".pdf" /><small>최종 제출 뒤 사용자에게 공개합니다.</small></label>
+            <label><span>추가 연결 자료</span><input type="file" name="contentFiles" accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx" multiple /><small>오답 리포트나 보조 학습 자료를 연결합니다.</small></label>
+          </section>
+          <% if (editing?.assets?.length) { %><div class="study-hall-current-files"><strong>현재 R2 연결 파일</strong><% editing.assets.forEach((file) => { %><label><input type="checkbox" name="removeAssetIds" value="<%= file.id %>" /><span><b><%= file.kind %> · <%= file.originalName %></b><small><%= formatBytes(file.sizeBytes) %> · 선택하면 저장 시 R2에서도 삭제</small></span></label><% }) %></div><% } %>
+          <button type="submit"><%= editing ? "콘텐츠 변경사항 저장" : "수험관 콘텐츠 등록" %></button>
         </form>
       </section>
 
       <section class="admin-panel">
-        <div class="admin-panel-heading"><div><p>CATALOG</p><h2>등록 상품</h2></div><a href="/store" target="_blank" rel="noopener">사용자 상점 열기 →</a></div>
-        <% if (!storeData.products.length) { %><p class="admin-empty">아직 등록한 상품이 없습니다.</p><% } else { %><div class="admin-store-list">
-          <% storeData.products.forEach((product) => { %><article><div class="admin-store-thumb"><% if (product.thumbnail) { %><img src="/store/media/<%= product.id %>/<%= product.thumbnail.id %>" alt="" /><% } else { %><span>MATTHS</span><% } %></div><div><p><%= product.status === 'PUBLISHED' ? '공개' : product.status === 'DRAFT' ? '초안' : '판매 종료' %> · <%= product.category %></p><h3><%= product.name %></h3><span><%= product.bundleItems.length %>개 구성 · <%= new Intl.NumberFormat('ko-KR').format(product.price) %>원 · 조회 <%= product.viewCount %></span></div><div class="admin-store-actions"><a href="/admin/store?edit=<%= product.id %>#product-editor">수정</a><% if (product.status === 'PUBLISHED') { %><a href="/store/products/<%= product.slug %>" target="_blank" rel="noopener">보기</a><% } %><form action="/admin/store/products/<%= product.id %>/delete" method="POST" onsubmit="return window.confirm('상품과 연결된 서버 파일을 모두 삭제할까요? 되돌릴 수 없습니다.');"><button type="submit">삭제</button></form></div></article><% }) %>
+        <div class="admin-panel-heading"><div><p>CONTENT CATALOG</p><h2>등록 콘텐츠</h2></div><a href="/store" target="_blank" rel="noopener">사용자 수험관 열기 →</a></div>
+        <% if (!storeData.items.length) { %><p class="admin-empty">아직 등록한 콘텐츠가 없습니다.</p><% } else { %><div class="study-hall-admin-list">
+          <% storeData.items.forEach((item) => { %><article><div><p><%= item.tabLabel %> · <%= item.status === 'PUBLISHED' ? '공개' : item.status === 'DRAFT' ? '초안' : '비공개 보관' %></p><h3><%= item.title %></h3><span><%= item.series || item.subject || '분류 없음' %> · <%= item.itemCount %>문항 · 수정 <%= new Date(item.updatedAt).toLocaleString('ko-KR', { timeZone:'Asia/Seoul' }) %></span></div><div><a href="/admin/store?edit=<%= item.id %>&tab=<%= item.contentType %>#content-editor">수정</a><% if (item.status === 'PUBLISHED') { %><a href="/store/content/<%= item.id %>" target="_blank" rel="noopener">보기</a><% } %><form action="/admin/store/content/<%= item.id %>/archive" method="POST" onsubmit="return window.confirm('삭제하지 않고 임시 비공개 보관할까요?');"><button type="submit">비공개 보관</button></form></div></article><% }) %>
         </div><% } %>
       </section>
     </main>

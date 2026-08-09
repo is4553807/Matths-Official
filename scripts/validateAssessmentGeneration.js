@@ -65,11 +65,10 @@ function assertAdvancedMathFormatting(
       `${template.id}/${field}: 비정상적인 연산 부호가 있습니다.`
     );
 
-    const outsideMath =
-      value.replace(
-        /\$[^$]*\$/g,
-        ""
-      );
+    const outsideMath = value
+      .replace(/\$[^$]*\$/g, "")
+      .replace(/\\\([\s\S]*?\\\)/g, "")
+      .replace(/\\\[[\s\S]*?\\\]/g, "");
 
     assert.doesNotMatch(
       outsideMath,
@@ -237,8 +236,8 @@ assert.deepEqual(
 assertAssessmentTemplateCatalog();
 assert.equal(
   unitConfigs.length,
-  9,
-  "9개 대단원별 기말평가 설정이 모두 있어야 합니다."
+  16,
+  "공개 5개 과목의 16개 대단원별 기말평가 설정이 모두 있어야 합니다."
 );
 assert.equal(
   unitConfigs.reduce(
@@ -248,8 +247,8 @@ assert.equal(
         .length,
     0
   ),
-  180,
-  "심화 문제 유형은 전체 180개여야 합니다."
+  320,
+  "심화 문제 유형은 전체 320개여야 합니다."
 );
 
 let validatedAdvancedProblems = 0;
@@ -587,13 +586,14 @@ const papers = Array.from(
 ).flat();
 papers.forEach(assertUniqueTypes);
 
-const template = fs.readFileSync(
-  path.join(
+const templatePath = path.join(
     __dirname,
     "..",
     "views",
     "assessment-attempt.ejs"
-  ),
+  );
+const template = fs.readFileSync(
+  templatePath,
   "utf8"
 );
 const samplePaper = papers.find(
@@ -612,6 +612,8 @@ const html = ejs.render(template, {
   },
   difficultyLabels:
     DIFFICULTY_LABELS,
+}, {
+  filename: templatePath,
 });
 const visibleChoiceMarkers = Array.from(
   html.matchAll(

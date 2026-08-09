@@ -52,6 +52,13 @@ async function run() {
         prompt: `검증용 주관식 문항 ${index + 1}`,
         answer: String(index + 1),
         solution: `검증 풀이 ${index + 1}`,
+        design: {
+          order: index + 1,
+          courseId: "COMMON-MATH",
+          difficultyPosition: ["LOW", "MID", "MID", "MID_HIGH", "HIGH"][index],
+          slotRole: "REGULAR",
+          sourcePositionBand: "Q27_28",
+        },
         validation: {
           passed: true,
           solvable: true,

@@ -78,14 +78,25 @@
           </div>
           <div class="archive-folder-grid">
             <% archiveData.folders.forEach((folder) => { %>
-              <a class="<%= folder.isPinned ? "is-pinned" : "" %>" href="/archive?folder=<%= folder.id %>">
-                <span aria-hidden="true">▰</span>
+              <a
+                class="<%= folder.isPinned ? "is-pinned" : "" %> <%= folder.isLocked ? "is-locked" : "" %>"
+                href="<%= folder.isLocked ? "/pricing" : `/archive?folder=${folder.id}` %>"
+                <% if (folder.isLocked) { %>aria-label="<%= folder.name %>, 패키지 구매 후 이용 가능"<% } %>
+              >
+                <span aria-hidden="true"><%= folder.isLocked ? "🔒" : "▰" %></span>
                 <div>
                   <% if (folder.isPinned) { %><b class="archive-folder-pin-badge">고정</b><% } %>
+                  <% if (folder.isLocked) { %><b class="archive-folder-lock-badge">패키지 전용</b><% } %>
                   <h3><%= folder.name %></h3>
                   <p><%= folder.description || "폴더 설명이 없습니다." %></p>
+                  <% if (folder.isLocked) { %>
+                    <small>29일 학습 패키지를 이용하면 자료를 열람할 수 있습니다.</small>
+                  <% } %>
                 </div>
-                <strong><%= folder.itemCount %><small>개</small></strong>
+                <strong>
+                  <%= folder.itemCount %><small>개</small>
+                  <% if (folder.isLocked) { %><em>이용권 보기 →</em><% } %>
+                </strong>
               </a>
             <% }) %>
           </div>

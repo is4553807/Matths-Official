@@ -9,8 +9,11 @@ const {
   ARENA_ONE_ON_ONE_PROBLEM_TYPES,
 } = require("./arenaOneOnOneProblemTypes");
 const {
-  TIER_TYPE_CATALOG,
-} = require("./arenaOneOnOneDifficultyPolicy");
+  ARENA_ONE_ON_ONE_TYPE_SKELETONS,
+} = require("./arenaOneOnOneTypeSkeletons");
+const {
+  getOfficialMockResearchSummary,
+} = require("./arenaOfficialMockResearchCatalog");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 
@@ -19,6 +22,7 @@ function relativeFile(file) {
 }
 
 function getAdminProblemBankCatalog() {
+  const officialResearch = getOfficialMockResearchSummary();
   const configuredArenaPacks = SUB_TIER_PAIR_CONFIG.reduce(
     (sum, pair) =>
       sum +
@@ -37,6 +41,7 @@ function getAdminProblemBankCatalog() {
     editableInBrowser: false,
     safetyReason:
       "문제 생성기는 서버에서 실행되는 코드이므로 관리자 화면에서 임의 JavaScript를 저장·실행하게 하면 서버 보안과 자동 검산을 우회할 수 있습니다.",
+    officialResearch,
     items: [
       {
         name: "배치고사 문제 은행",
@@ -53,11 +58,29 @@ function getAdminProblemBankCatalog() {
       {
         name: "GOAT Arena 1대1 난이도·유형 설계표",
         file: relativeFile("services/arenaOneOnOneDifficultyPolicy.js"),
-        purpose: `방어자 기준 T1~T9·목표 정답률·팩 곡선·최종 유형 ID ${Object.values(TIER_TYPE_CATALOG).reduce((sum, entries) => sum + entries.length, 0)}개`,
+        purpose: "Division·방어자 기준 U1~U9·R1~R9, Ranked 상향 난이도와 5번 29·30번형 킬러, Unranked 5문항 준킬러 구성을 관리",
         status: "정책 골격 연결 완료",
       },
       {
-        name: "GOAT Arena T1~T9 DB 카탈로그",
+        name: "GOAT Arena 1대1 5과목 유형 골격",
+        file: relativeFile("services/arenaOneOnOneTypeSkeletons.js"),
+        purpose: `공통수학Ⅰ·Ⅱ·대수·확률과 통계·미적분Ⅰ의 U/R 일반·최종 유형 ${Object.keys(ARENA_ONE_ON_ONE_TYPE_SKELETONS).length}개`,
+        status: "2016~2026 공식 모의평가 유형 분류 연결 완료 · 숫자 생성기는 승인된 유형만 활성화",
+      },
+      {
+        name: "GOAT Arena 공식 모의평가 유형 조사",
+        file: relativeFile("dataAnalysis/arenaOfficialMockTypeCatalog2016_2026.json"),
+        purpose: `평가원 6·9월 모의평가 ${officialResearch.sourceForms}개 형식의 대상 문항 ${officialResearch.targetQuestionReferences}건을 ${officialResearch.familyStats.length}개 사고 유형과 U/R 설계 난이도로 분류`,
+        status: `${officialResearch.activeReferences}건 사용 · ${officialResearch.excludedReferences}건 교육과정 제외 · 검토 보류 ${officialResearch.reviewRequired}건`,
+      },
+      {
+        name: "GOAT Arena 2028 수학 출제 정합성",
+        file: relativeFile("dataAnalysis/arena2028MathAlignment.json"),
+        purpose: "2028 수능 수학의 직접 출제 과목·기초 연계 과목·행동 영역·그래프와 표 해석 기준",
+        status: "공식 예시문항 수학 영역 검토 완료",
+      },
+      {
+        name: "GOAT Arena U1~U9·R1~R9 DB 카탈로그",
         file: relativeFile("services/arenaTierQuestionCatalogService.js"),
         purpose: "승인 생성기 검산, 참고 문항 270개 버전, 관리자 유형 추가와 신규 경기 무중단 반영",
         status: "관리자 화면에서 안전한 유형 추가 가능",
@@ -71,7 +94,7 @@ function getAdminProblemBankCatalog() {
       {
         name: "GOAT Arena 1대1 티어 조합",
         file: relativeFile("services/arenaOneOnOneProblemBank.js"),
-        purpose: `티어 조합별 30묶음·묶음당 5유형 (${configuredArenaPacks}/${totalArenaPacks}묶음 연결)`,
+        purpose: `티어 조합별 30묶음·묶음당 서로 다른 5유형·Unranked 전 문항 준킬러·Ranked 5번 29·30번형 배정 (${configuredArenaPacks}/${totalArenaPacks}묶음 연결)`,
         status:
           configuredArenaPacks === totalArenaPacks
             ? "연결 완료"

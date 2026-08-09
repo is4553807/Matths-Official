@@ -5851,6 +5851,50 @@
 .arena-tier-catalog-summary p { margin: 0 0 10px; padding: 12px 14px; border-radius: 12px; color: #626d89; background: rgba(255, 255, 255, .72); font-size: .74rem; line-height: 1.65; }
 .arena-tier-catalog-summary p strong { color: #4532b3; }
 .arena-tier-catalog-summary > small { color: #7b849c; font-size: .68rem; }
+.arena-public-difficulty-catalog { display: grid; gap: 14px; margin-top: 18px; padding: 20px; border: 1px solid #dfe5f4; border-radius: 18px; background: #f8f9fd; }
+.arena-public-difficulty-catalog > header { display: flex; justify-content: space-between; gap: 22px; align-items: end; }
+.arena-public-difficulty-catalog > header div { display: grid; gap: 5px; }
+.arena-public-difficulty-catalog > header span { color: #5d47e8; font-size: .66rem; font-weight: 900; letter-spacing: .12em; }
+.arena-public-difficulty-catalog > header h3 { margin: 0; color: #1d2543; }
+.arena-public-difficulty-catalog > header p { max-width: 680px; margin: 0; color: #68728d; font-size: .72rem; line-height: 1.65; }
+.arena-public-difficulty-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.arena-public-difficulty-card { overflow: hidden; border: 1px solid #dfe4f0; border-radius: 13px; background: #fff; }
+.arena-public-difficulty-card summary { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 13px 14px; cursor: pointer; }
+.arena-public-difficulty-card summary strong { color: #4934cb; font-size: 1rem; }
+.arena-public-difficulty-card summary span { color: #606a86; font-size: .7rem; }
+.arena-public-difficulty-card summary b { padding: 5px 8px; border-radius: 999px; color: #086985; background: #e4f8ff; font-size: .66rem; }
+.arena-public-difficulty-card > div { padding: 0 13px 13px; }
+.arena-public-difficulty-card > div > p { margin: 0 0 9px; color: #727b96; font-size: .66rem; line-height: 1.55; }
+.arena-public-difficulty-card ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.arena-public-difficulty-card li { display: grid; gap: 2px; min-width: 0; padding: 9px; border-radius: 9px; background: #f5f7fc; }
+.arena-public-difficulty-card li code { color: #4d38cb; font-size: .62rem; font-weight: 900; }
+.arena-public-difficulty-card li span { overflow: hidden; color: #2d3655; font-size: .67rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.arena-public-difficulty-card li small { color: #7a849e; font-size: .58rem; }
+.arena-official-research-summary { display: grid; gap: 16px; margin-top: 18px; padding: 22px; border: 1px solid rgba(27, 161, 201, .28); border-radius: 18px; background: linear-gradient(145deg, #f4fbff, #f8f6ff); }
+.arena-official-research-summary > header { display: flex; justify-content: space-between; gap: 22px; align-items: start; }
+.arena-official-research-summary > header div { display: grid; gap: 6px; }
+.arena-official-research-summary > header span { width: fit-content; color: #177d9b; font-size: .68rem; font-weight: 900; letter-spacing: .12em; }
+.arena-official-research-summary h3 { margin: 0; color: #171d37; }
+.arena-official-research-summary > header p { max-width: 760px; margin: 0; color: #68728d; font-size: .75rem; line-height: 1.65; }
+.arena-official-research-summary > header > strong { display: grid; min-width: 90px; padding: 13px; border-radius: 14px; color: #fff; background: linear-gradient(135deg, #5d47e8, #16a9d0); text-align: center; font-size: 1.45rem; }
+.arena-official-research-summary > header > strong small { font-size: .62rem; font-weight: 750; opacity: .82; }
+.arena-official-research-summary > dl { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin: 0; }
+.arena-official-research-summary > dl div { padding: 12px; border: 1px solid #e1e7f2; border-radius: 12px; background: rgba(255, 255, 255, .82); }
+.arena-official-research-summary dt { color: #7a839c; font-size: .67rem; }
+.arena-official-research-summary dd { margin: 5px 0 0; color: #25304f; font-size: .9rem; font-weight: 900; }
+.arena-official-research-tiers { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 7px; }
+.arena-official-research-tiers span { display: grid; gap: 3px; padding: 10px 6px; border-radius: 11px; color: #4330bd; background: #fff; text-align: center; }
+.arena-official-research-tiers b { font-size: .75rem; }
+.arena-official-research-tiers small { color: #78829d; font-size: .64rem; }
+.arena-official-research-summary details { border: 1px solid #dfe5f1; border-radius: 14px; background: rgba(255, 255, 255, .76); }
+.arena-official-research-summary summary { padding: 14px 16px; color: #303a59; cursor: pointer; font-size: .76rem; font-weight: 850; }
+.arena-official-research-families { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0 14px 14px; }
+.arena-official-research-families article { display: grid; gap: 4px; padding: 11px 12px; border-radius: 11px; background: #f4f7fc; }
+.arena-official-research-families article small { color: #6b45d3; font-size: .62rem; font-weight: 850; }
+.arena-official-research-families article strong { color: #27314f; font-size: .73rem; }
+.arena-official-research-families article span { color: #7a839b; font-size: .62rem; }
+.arena-official-research-note { margin: 0; padding: 12px 14px; border-radius: 12px; color: #63708c; background: #fff; font-size: .72rem; line-height: 1.6; }
+.arena-official-research-note strong { color: #4330bd; }
 .arena-tier-catalog-grid { display: grid; gap: 10px; margin-top: 14px; }
 .arena-tier-catalog-tier { overflow: hidden; border: 1px solid #dfe4f0; border-radius: 14px; background: #fff; }
 .arena-tier-catalog-tier summary { display: grid; grid-template-columns: 70px 1fr auto; gap: 14px; align-items: center; padding: 14px 16px; color: #5f6987; cursor: pointer; font-size: .76rem; }
@@ -5950,7 +5994,11 @@
 @media (max-width: 960px) {
   .problem-bank-section-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .arena-tier-catalog-summary dl,
+  .arena-official-research-summary > dl,
+  .arena-official-research-families,
   .arena-tier-catalog-tier > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .arena-public-difficulty-catalog > header { align-items: start; flex-direction: column; }
+  .arena-official-research-tiers { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .arena-tier-catalog-tier summary { grid-template-columns: 55px 1fr; }
   .arena-tier-catalog-tier summary b { grid-column: 2; }
   .problem-type-category-tabs,
@@ -5965,8 +6013,14 @@
 @media (max-width: 560px) {
   .problem-bank-section-nav { grid-template-columns: 1fr; }
   .arena-tier-catalog-summary > header { display: grid; }
+  .arena-official-research-summary > header { display: grid; }
   .arena-tier-catalog-summary dl,
+  .arena-official-research-summary > dl,
+  .arena-official-research-families,
   .arena-tier-catalog-tier > div { grid-template-columns: 1fr; }
+  .arena-public-difficulty-grid,
+  .arena-public-difficulty-card ol { grid-template-columns: 1fr; }
+  .arena-official-research-tiers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .arena-tier-type-create > header { display: grid; }
   .arena-tier-type-create fieldset > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

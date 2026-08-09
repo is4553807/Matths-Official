@@ -24,6 +24,24 @@ router.get(
 );
 
 router.get(
+  "/goat-arena/mailbox",
+  authMiddleware.isLoggedIn,
+  goatArenaController.arenaMailboxPage
+);
+
+router.post(
+  "/goat-arena/mailbox/read-all",
+  authMiddleware.isLoggedIn,
+  goatArenaController.markAllArenaMailboxRead
+);
+
+router.get(
+  "/goat-arena/mailbox/:notificationId",
+  authMiddleware.isLoggedIn,
+  goatArenaController.arenaMailboxDetailPage
+);
+
+router.get(
   "/goat-arena/sub",
   authMiddleware.isLoggedIn,
   goatArenaController.subDivisionPage
@@ -183,6 +201,24 @@ router.post(
   "/goat-arena/main/invitations/:invitationId/cancel",
   authMiddleware.isLoggedIn,
   goatArenaController.cancelMainInvitation
+);
+
+router.post(
+  "/goat-arena/main/friendly-invitations",
+  authMiddleware.isLoggedIn,
+  goatArenaController.createMainFriendlyInvitation
+);
+
+router.post(
+  "/goat-arena/main/friendly-invitations/:invitationId/respond",
+  authMiddleware.isLoggedIn,
+  goatArenaController.respondMainFriendlyInvitation
+);
+
+router.post(
+  "/goat-arena/main/friendly-invitations/:invitationId/cancel",
+  authMiddleware.isLoggedIn,
+  goatArenaController.cancelMainFriendlyInvitation
 );
 
 router.get(

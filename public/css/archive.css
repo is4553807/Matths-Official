@@ -686,6 +686,25 @@
     rgba(49, 87, 246, 0.1);
 }
 
+.archive-folder-grid > a.is-locked {
+  position: relative;
+  background:
+    linear-gradient(135deg, #faf9ff, #f1f3ff);
+  border-color: #cfd5f3;
+  box-shadow: 0 12px 30px rgba(62, 73, 143, 0.08);
+}
+
+.archive-folder-grid > a.is-locked:hover {
+  border-color: #806cf2;
+  box-shadow: 0 14px 34px rgba(91, 70, 204, 0.13);
+}
+
+.archive-folder-grid > a.is-locked > span {
+  color: #7259df;
+  background: #e9e4ff;
+  font-size: 17px;
+}
+
 .archive-folder-grid
   > a
   > span {
@@ -715,6 +734,17 @@
   font-weight: 900;
 }
 
+.archive-folder-lock-badge {
+  display: inline-flex;
+  margin: 0 5px 7px 0;
+  padding: 4px 7px;
+  color: #5a43c8;
+  background: #e9e4ff;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 900;
+}
+
 .archive-folder-grid p {
   margin: 0;
   color: #798196;
@@ -730,8 +760,18 @@
 }
 
 .archive-folder-grid strong {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
   color: #3157f6;
   font-size: 18px;
+}
+
+.archive-folder-grid strong em {
+  color: #654bd2;
+  font-size: 9px;
+  font-style: normal;
+  white-space: nowrap;
 }
 
 .archive-folder-grid small {

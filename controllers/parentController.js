@@ -283,6 +283,7 @@ exports.prepareCheckout = async (req, res, next) => {
       parentAccountId: parent._id,
       requestedBy: "PARENT",
       productCode: req.params.productCode,
+      legalGuardianConsent: req.body.legalGuardianConsent === "true",
     });
     return await renderCheckout(req, res, { intent });
   } catch (error) {

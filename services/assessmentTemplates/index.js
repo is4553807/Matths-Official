@@ -6,6 +6,7 @@ const {
 );
 
 const unitConfigs = [
+  ...require("./commonMath"),
   require("./algebra/exponentialLogarithmicFunctions"),
   require("./algebra/trigonometricFunctions"),
   require("./algebra/sequences"),

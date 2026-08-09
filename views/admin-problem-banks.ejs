@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/css/brand.css" />
   </head>
   <body class="admin-page">
+    <% const publicDifficultyLabel = (tier) => ({ T1: "U1", T2: "U2", T3: "U3", T4: "U4", T5: "U5", T6: "U6", T7: "U7", T8: "U8 · R1", T9: "U9 · R2~R9" }[String(tier)] || String(tier || "")); %>
     <%- include("partials/admin-navigation", { activePage: "problem-banks" }) %>
     <main class="admin-main">
       <header class="admin-heading">
@@ -55,7 +56,7 @@
       <% } %>
 
       <nav class="problem-bank-section-nav" aria-label="문제 데이터 관리 구역">
-        <a href="#arena-tier-catalog"><span>01</span><strong>1대1 매치 문제 관리</strong><small>T1~T9 유형·승인 생성기·풀이 자료</small></a>
+        <a href="#arena-tier-catalog"><span>01</span><strong>1대1 매치 문제 관리</strong><small>U1~U9·R1~R9 유형·승인 생성기·풀이 자료</small></a>
         <a href="#problem-type-catalog"><span>02</span><strong>학습·평가 문제 관리</strong><small>개념학습·평가센터·배치고사</small></a>
         <a href="#arena-problem-data"><span>03</span><strong>경기 출제 구성</strong><small>유형 가중치·난이도별 5문항 구성</small></a>
         <a href="#server-code-map"><span>04</span><strong>서버 코드 지도</strong><small>파일별 역할과 수정 방식</small></a>
@@ -64,14 +65,51 @@
       <section class="admin-panel arena-tier-catalog" id="arena-tier-catalog">
         <div class="admin-panel-heading">
           <div>
-            <span>T1–T9 MATCH CATALOG</span>
+            <span>U1–U9 · R1–R9 MATCH CATALOG</span>
             <h2>1대1 경기 티어별 문제 유형</h2>
-            <p>관리자가 제공한 T1~T9 참고 문항·정답·풀이과정과 유형 배치를 DB 버전으로 보존합니다. 신규 경기는 이 버전에 연결된 독립 검산 생성기로만 출제됩니다.</p>
+            <p>Unranked U1~U9와 Ranked R1~R9의 참고 문항·정답·풀이과정과 유형 배치를 DB 버전으로 보존합니다. 신규 경기는 이 버전에 연결된 독립 검산 생성기로만 출제됩니다.</p>
           </div>
         </div>
+        <% if (catalog?.officialResearch) { const officialResearch = catalog.officialResearch; const courseNames = { "common-math-1": "공통수학Ⅰ", "common-math-2": "공통수학Ⅱ", algebra: "대수", "probability-statistics": "확률과 통계", "calculus-1": "미적분Ⅰ" }; %>
+          <article class="arena-official-research-summary">
+            <header>
+              <div>
+                <span>OFFICIAL RESEARCH</span>
+                <h3>2016~2026 평가원 6·9월 모의평가 유형 분류</h3>
+                <p>수능은 제외하고, 공식 해설의 출제 의도와 풀이 구조를 읽어 문항 원문을 복제하지 않는 Arena 사고 유형으로 정리했습니다.</p>
+              </div>
+              <strong><%= officialResearch.familyStats.length %><small>개 사고 유형</small></strong>
+            </header>
+            <dl>
+              <div><dt>공식 시험 형식</dt><dd><%= officialResearch.sourceForms %>개</dd></div>
+              <div><dt>조사 대상</dt><dd><%= officialResearch.targetQuestionReferences %>건</dd></div>
+              <div><dt>Arena 반영</dt><dd><%= officialResearch.activeReferences %>건</dd></div>
+              <div><dt>교육과정 제외</dt><dd><%= officialResearch.excludedReferences %>건</dd></div>
+              <div><dt>검토 보류</dt><dd><%= officialResearch.reviewRequired %>건</dd></div>
+            </dl>
+            <div class="arena-official-research-tiers" aria-label="U1부터 U9까지 참고 분포">
+              <% Object.entries(officialResearch.byDifficulty || {}).forEach(([tier, count]) => { %>
+                <span><b>U<%= String(tier).replace('T', '') %></b><small><%= count %>건</small></span>
+              <% }) %>
+            </div>
+            <details>
+              <summary>사고 유형 <%= officialResearch.familyStats.length %>개 전체 보기</summary>
+              <div class="arena-official-research-families">
+                <% officialResearch.familyStats.forEach((family) => { %>
+                  <article>
+                    <small><%= courseNames[family.courseId] || family.courseId %></small>
+                    <strong><%= family.familyLabel %></strong>
+                    <span>총 <%= family.references %>건 · 일반 슬롯 <%= family.regularReferences %>건 · 5번 참고 <%= family.finalReferences %>건</span>
+                  </article>
+                <% }) %>
+              </div>
+            </details>
+            <p class="arena-official-research-note"><strong>운영 구분:</strong> 이 분류는 유형·난이도 설계의 근거입니다. 실제 경기 출제는 아래 ACTIVE DB 카탈로그와 독립 검산 생성기까지 통과한 유형만 사용합니다.</p>
+          </article>
+        <% } %>
         <% if (!tierCatalog?.active) { %>
           <div class="arena-tier-catalog-empty" role="status">
-            <strong>적용 중인 T1~T9 카탈로그가 없습니다.</strong>
+            <strong>적용 중인 U/R 난이도 카탈로그가 없습니다.</strong>
             <span>검증된 원본 JSON을 운영 배포 절차에서 가져오면 서버 재시작 없이 신규 경기부터 사용됩니다.</span>
           </div>
         <% } else { const activeTierCatalog = tierCatalog.active; const typeById = new Map((activeTierCatalog.typeDefinitions || []).map((item) => [item.typeId, item])); %>
@@ -90,13 +128,45 @@
               <div><dt>자동 검산 표본</dt><dd><%= activeTierCatalog.validationReport?.generatedSampleCount || 0 %>회</dd></div>
               <div><dt>원본</dt><dd><%= activeTierCatalog.sourceFileName %></dd></div>
             </dl>
-            <p><strong>안전 적용:</strong> 정답 270개와 풀이과정 270개는 원본 그대로 보존합니다. 다만 객관식 168개가 섞여 있고 실제 이미지 파일이 없으며 Arena 실전은 주관식 생성형이므로 참고 원문을 경기 화면에 직접 노출하지 않습니다. 실전 문항은 연결된 서버 생성기의 독립 검산과 1~999 자연수 답 검사를 다시 통과한 뒤 제공합니다.</p>
+            <p><strong>실전 ACTIVE DB 카탈로그:</strong> 기존 운영 카탈로그의 정답·풀이 자료는 버전 이력으로 보존합니다. 참고 원문은 경기 화면에 직접 노출하지 않으며, 신규 실전 문항은 위 공식 유형 분류와 연결된 서버 생성기의 독립 검산 및 1~999 자연수 답 검사를 다시 통과해야 합니다.</p>
             <small>내용 해시 <code><%= String(activeTierCatalog.contentHash || "").slice(0, 16) %>…</code> · 원본 해시 <code><%= String(activeTierCatalog.sourceHash || "").slice(0, 16) %>…</code></small>
           </article>
+          <section class="arena-public-difficulty-catalog" aria-labelledby="arena-public-difficulty-title">
+            <header>
+              <div>
+                <span>PUBLIC U/R DIFFICULTY</span>
+                <h3 id="arena-public-difficulty-title">실전 공개 난이도 18개 · 난이도별 최소 30개 유형</h3>
+              </div>
+              <p>Unranked와 Ranked는 별도 카탈로그로 관리합니다. 같은 숫자의 R등급이 U등급보다 어렵고, 각 경기 안에서도 1번부터 뒤 문항으로 갈수록 목표 정답률이 낮아집니다.</p>
+            </header>
+            <div class="arena-public-difficulty-grid">
+              <% (tierCatalog.publicDifficultyCatalog || []).forEach((difficulty) => { %>
+                <details class="arena-public-difficulty-card">
+                  <summary>
+                    <strong><%= difficulty.difficultyCode %></strong>
+                    <span><%= difficulty.packComposition %></span>
+                    <b><%= difficulty.variantTypes.length %>개</b>
+                  </summary>
+                  <div>
+                    <p><code><%= difficulty.catalogTier %></code> 내부 검산 생성기를 사용하되, 공개 난이도별 조건·수치 부담을 별도로 적용합니다.</p>
+                    <ol>
+                      <% difficulty.variantTypes.forEach((variant) => { %>
+                        <li>
+                          <code><%= variant.variantTypeId %></code>
+                          <span><%= variant.baseTypeId || '승인 생성기 배정 대기' %></span>
+                          <small><%= variant.category === 'RANKED_FINAL_CANDIDATE' ? '29·30번형 킬러 후보' : '준킬러 수치·조건 변형' %><%= variant.sourcePositionBand ? ` · 공식 조사 ${variant.sourcePositionBand.replaceAll('_', '·').replace('Q', '')}번 구간` : '' %></small>
+                        </li>
+                      <% }) %>
+                    </ol>
+                  </div>
+                </details>
+              <% }) %>
+            </div>
+          </section>
           <div class="arena-tier-catalog-grid">
             <% (activeTierCatalog.tierConfigurations || []).forEach((tier) => { const courseCounts = { algebra: 0, "calculus-1": 0, "probability-statistics": 0 }; (tier.typeWeights || []).forEach((entry) => { const definition = typeById.get(entry.typeId); if (definition) courseCounts[definition.curriculumUnit] = Number(courseCounts[definition.curriculumUnit] || 0) + Number(entry.weight || 0); }); %>
               <details class="arena-tier-catalog-tier">
-                <summary><strong><%= tier.difficultyTier %></strong><span>대수 <%= courseCounts.algebra %> · 미적분 <%= courseCounts["calculus-1"] %> · 확률과 통계 <%= courseCounts["probability-statistics"] %></span><b><%= tier.questionCount %>개 참고 문항</b></summary>
+                <summary><strong><%= publicDifficultyLabel(tier.difficultyTier) %></strong><span>대수 <%= courseCounts.algebra %> · 미적분 <%= courseCounts["calculus-1"] %> · 확률과 통계 <%= courseCounts["probability-statistics"] %></span><b><%= tier.questionCount %>개 참고 문항</b></summary>
                 <div>
                   <% (tier.typeWeights || []).forEach((entry) => { const definition = typeById.get(entry.typeId); %>
                     <span><strong><%= definition?.label || entry.typeId %></strong><small><%= definition?.curriculumUnit || "분류 없음" %> · 비중 <%= entry.weight %></small></span>
@@ -109,7 +179,7 @@
           <section class="arena-tier-type-create" id="arena-tier-type-create">
             <header>
               <div><span>SAFE TYPE ADDITION</span><h3>1대1 문제 유형 추가</h3></div>
-              <p>검산된 기존 생성기를 기반으로 새 유형 이름과 적용 T를 추가합니다. 서버에서 임의 코드를 실행하지 않으며, 원본 카탈로그는 이전 버전으로 보존됩니다.</p>
+              <p>검산된 기존 생성기를 기반으로 새 유형 이름과 적용 U/R 난이도를 추가합니다. 서버에서 임의 코드를 실행하지 않으며, 원본 카탈로그는 이전 버전으로 보존됩니다.</p>
             </header>
             <form method="post" action="/admin/problem-banks/arena/types" onsubmit="return confirm('자동 검산 후 새 카탈로그 버전을 즉시 적용할까요? 기존 버전은 이력으로 보존됩니다.')">
               <label>
@@ -131,10 +201,10 @@
                 <legend>배정할 난이도</legend>
                 <div>
                   <% ['T1','T2','T3','T4','T5','T6','T7','T8','T9'].forEach((tier) => { %>
-                    <label><input type="checkbox" name="difficultyTiers" value="<%= tier %>" /><span><%= tier %></span></label>
+                    <label><input type="checkbox" name="difficultyTiers" value="<%= tier %>" /><span><%= publicDifficultyLabel(tier) %></span></label>
                   <% }) %>
                 </div>
-                <small>하나 이상 선택하세요. 각 난이도의 30개 참고 문항 구성은 유지됩니다.</small>
+                <small>하나 이상 선택하세요. T는 ACTIVE DB 호환 키이며 실제 공개 배정은 위 U/R 난이도 표를 따릅니다.</small>
               </fieldset>
               <button type="submit">3회 검산 후 유형 추가</button>
             </form>
@@ -341,7 +411,7 @@
                   </div>
                   <label class="problem-data-setting-note">
                     운영 메모
-                    <input name="difficultyNote__<%= type.typeId %>" value="<%= setting.difficultyNote || '' %>" maxlength="300" placeholder="예: T5 이상에서 우선 사용" />
+                    <input name="difficultyNote__<%= type.typeId %>" value="<%= setting.difficultyNote || '' %>" maxlength="300" placeholder="예: U5·R2 이상에서 우선 사용" />
                   </label>
                 </article>
               <% }) %>
@@ -355,7 +425,7 @@
             %>
               <fieldset class="problem-data-tier-card">
                 <legend>
-                  <strong><%= difficultyTier %></strong>
+                  <strong><%= publicDifficultyLabel(difficultyTier) %></strong>
                   <span><b data-problem-type-count><%= selectedIds.size %></b>개 선택</span>
                 </legend>
                 <div class="problem-data-type-grid">

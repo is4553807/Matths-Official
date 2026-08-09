@@ -1755,6 +1755,7 @@ const arenaLearningDayLedgerSchema = new Schema(
         "SHOP_ITEM_EFFECT_APPLIED",
         "SHOP_ITEM_EFFECT_EXPIRED",
         "SHOP_ITEM_EFFECT_CANCELLED",
+        "FRIENDLY_MATCH_FEE_BURN",
         "DEFENSE_SCHEDULE_PROTECTION_COMPENSATION_TRANSFER",
         "DEFENSE_SCHEDULE_PROTECTION_BURN",
         "DEFENSE_SCHEDULE_PROTECTION_DEPOSIT_RELEASE",
@@ -2302,6 +2303,62 @@ const mainInvitationRequestSchema = new Schema(
   },
   { timestamps: true, versionKey: false }
 );
+
+/*
+ * Ranked 친선 경기는 순위·티어·정기권 학습일수의 승패 이전과 분리한다.
+ * 초대 수락 순간에만 양측의 1일 이용 수수료를 소각하고, 경기 자체는
+ * 일반 Arena 경기 화면과 동일한 문제·풀이 증거 흐름을 사용한다.
+ */
+const mainFriendlyInvitationSchema = new Schema(
+  {
+    requestId: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 160,
+    },
+    inviterUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    inviteeUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    inviterStandingId: {
+      type: Schema.Types.ObjectId,
+      ref: "ArenaStanding",
+      required: true,
+    },
+    inviteeStandingId: {
+      type: Schema.Types.ObjectId,
+      ref: "ArenaStanding",
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED", "EXPIRED"],
+      default: "PENDING",
+      index: true,
+    },
+    feeDays: { type: Number, min: 1, max: 1, default: 1 },
+    expiresAt: { type: Date, required: true, index: true },
+    respondedAt: { type: Date, default: null },
+    cancelledAt: { type: Date, default: null },
+    matchId: { type: Schema.Types.ObjectId, ref: "ArenaMatch", default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+mainFriendlyInvitationSchema.index(
+  { inviterUserId: 1, requestId: 1 },
+  { unique: true }
+);
+mainFriendlyInvitationSchema.index({ inviteeUserId: 1, status: 1, createdAt: -1 });
+mainFriendlyInvitationSchema.index({ inviterUserId: 1, status: 1, createdAt: -1 });
 
 mainInvitationRequestSchema.index({
   status: 1,
@@ -3207,7 +3264,7 @@ const arenaProblemQuestionSchema = new Schema(
     },
     category: {
       type: String,
-      enum: ["semi-killer"],
+      enum: ["semi-killer", "killer"],
       required: true,
     },
     courseId: {
@@ -3256,9 +3313,52 @@ const arenaProblemQuestionSchema = new Schema(
       maxlength: 80,
       default: "",
     },
+    typeSkeletonId: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      maxlength: 120,
+      default: "",
+    },
+    referenceFamilyIds: {
+      type: [String],
+      default: [],
+    },
+    referenceFamilyLabels: {
+      type: [String],
+      default: [],
+    },
+    referenceBasis: {
+      type: String,
+      enum: ["", "OFFICIAL_MOCK_REFERENCE", "CURRICULUM_TRANSFER"],
+      default: "",
+    },
     difficultyPosition: {
       type: String,
       enum: ["", "LOW", "MID", "MID_HIGH", "HIGH"],
+      default: "",
+    },
+    slotRole: {
+      type: String,
+      enum: ["", "REGULAR", "FINAL_29_30"],
+      default: "",
+    },
+    difficultyClass: {
+      type: String,
+      enum: ["", "SEMI_KILLER", "KILLER"],
+      default: "",
+    },
+    sourcePositionBand: {
+      type: String,
+      enum: [
+        "",
+        "Q13_14",
+        "Q20_21",
+        "Q27_28",
+        "MIXED_SEMI_KILLER",
+        "SOFTENED_Q29_30",
+        "Q29_30_KILLER",
+      ],
       default: "",
     },
     combinedConceptCount: {
@@ -3274,6 +3374,10 @@ const arenaProblemQuestionSchema = new Schema(
     graphItem: {
       type: Boolean,
       default: false,
+    },
+    visualization: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
     calculationLoad: {
       type: String,
@@ -3347,6 +3451,10 @@ const arenaProblemQuestionSchema = new Schema(
         default: false,
       },
       twoMinuteSolvable: {
+        type: Boolean,
+        default: false,
+      },
+      tenMinuteSolvable: {
         type: Boolean,
         default: false,
       },
@@ -3996,7 +4104,7 @@ const arenaProblemPackSchema = new Schema(
     },
     matchType: {
       type: String,
-      enum: ["NORMAL", "REVENGE"],
+      enum: ["NORMAL", "REVENGE", "FRIENDLY"],
       required: true,
       index: true,
     },
@@ -4068,6 +4176,12 @@ const arenaProblemPackSchema = new Schema(
       type: String,
       enum: ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9"],
       required: true,
+      index: true,
+    },
+    difficultyCode: {
+      type: String,
+      enum: ["", "U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9"],
+      default: "",
       index: true,
     },
     targetDefenderAccuracyMin: {
@@ -4260,6 +4374,7 @@ const immutableArenaProblemPackPaths = [
   "designCompliance",
   "difficultyAnchor",
   "difficultyTier",
+  "difficultyCode",
   "targetDefenderAccuracyMin",
   "targetDefenderAccuracyMax",
   "targetChallengerAccuracyMin",
@@ -4689,6 +4804,7 @@ const arenaMatchEconomySnapshotSchema = new Schema(
         "INITIATOR_ONLY",
         "BILATERAL_ACCEPTED_INVITATION",
         "LEGACY_BILATERAL",
+        "FRIENDLY_FEE_ONLY",
         "",
       ],
       default: "",
@@ -4764,7 +4880,7 @@ const arenaMatchSchema = new Schema(
     },
     matchType: {
       type: String,
-      enum: ["NORMAL", "REVENGE"],
+      enum: ["NORMAL", "REVENGE", "FRIENDLY"],
       required: true,
     },
     matchOrigin: {
@@ -4773,6 +4889,7 @@ const arenaMatchSchema = new Schema(
         "SUB_UPWARD_AUTO_MATCH",
         "MAIN_UPWARD_AUTO_MATCH",
         "MAIN_LOWER_INVITATION",
+        "MAIN_FRIENDLY_INVITATION",
         "REVENGE",
       ],
       default: "SUB_UPWARD_AUTO_MATCH",
@@ -4799,6 +4916,12 @@ const arenaMatchSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "MainInvitationRequest",
       default: null,
+    },
+    friendlyInvitationId: {
+      type: Schema.Types.ObjectId,
+      ref: "MainFriendlyInvitation",
+      default: null,
+      index: true,
     },
     revengeRightId: {
       type: Schema.Types.ObjectId,
@@ -5383,6 +5506,7 @@ const arenaOutboxEventSchema = new Schema(
         "ArenaMatchSettled",
         "ArenaOpponentSelected",
         "MainInvitationCreated",
+        "MainFriendlyInvitationCreated",
         "MainInvitationOffered",
         "MainInvitationAccepted",
         "MainInvitationDeclined",
@@ -5566,6 +5690,9 @@ const MainInvitationRequest =
     "MainInvitationRequest",
     mainInvitationRequestSchema
   );
+const MainFriendlyInvitation =
+  mongoose.models.MainFriendlyInvitation ||
+  mongoose.model("MainFriendlyInvitation", mainFriendlyInvitationSchema);
 const ArenaOpponentSelectionAudit =
   mongoose.models.ArenaOpponentSelectionAudit ||
   mongoose.model(
@@ -5750,6 +5877,7 @@ module.exports = {
   LiveFinalRankingProfile,
   MainDivisionPolicyVersion,
   MainInvitationOffer,
+  MainFriendlyInvitation,
   MainInvitationRequest,
   MainShopEffect,
   MainShopPolicyVersion,

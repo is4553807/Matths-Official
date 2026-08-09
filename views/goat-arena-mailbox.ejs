@@ -1,0 +1,94 @@
+<%
+  const formatDate = (date) => new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(date));
+  const kindLabels = {
+    admin: "운영자 알림",
+    system: "시스템 알림",
+    warning: "경고 안내",
+    account: "계정 상태 안내",
+    nickname: "닉네임 변경 요청",
+    announcement: "공지",
+    integrity: "경기 검토 안내",
+  };
+  const urgentKinds = new Set(["warning", "account", "nickname", "integrity"]);
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="GOAT Arena 우편함" />
+    <meta name="theme-color" content="#070913" />
+    <title>우편함 | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <%- include("partials/rank-motion-head") %>
+    <link rel="icon" type="image/jpeg" href="/images/goat-arena/goat-arena-logo.jpg" />
+    <script src="/js/goat-arena.js" defer></script>
+  </head>
+  <body class="goat-arena-page arena-inner-page arena-mailbox-page">
+    <a class="arena-skip-link" href="#arena-mailbox-main">본문으로 바로가기</a>
+    <%- include("partials/goat-arena-navigation", { activeArenaPage, arenaUser }) %>
+
+    <main class="arena-page-main arena-mailbox-main" id="arena-mailbox-main">
+      <header class="arena-mailbox-hero">
+        <div>
+          <p>GOAT ARENA INBOX</p>
+          <h1>경기의 흐름을<br /><strong>놓치지 마세요.</strong></h1>
+          <span>Matths 우편함과 같은 알림을 Arena 화면에 맞춰 한곳에서 확인합니다.</span>
+        </div>
+        <dl aria-label="우편함 현황">
+          <div><dt>전체</dt><dd><%= inbox.stats.total %></dd></div>
+          <div><dt>안 읽음</dt><dd><%= inbox.stats.unread %></dd></div>
+          <div><dt>중요 안내</dt><dd><%= inbox.stats.urgentUnread %></dd></div>
+        </dl>
+      </header>
+
+      <section class="arena-mailbox-list-section" aria-labelledby="arena-inbox-title">
+        <header>
+          <div><p>INBOX</p><h2 id="arena-inbox-title">도착한 우편</h2></div>
+          <% if (inbox.stats.unread) { %>
+            <form action="/goat-arena/mailbox/read-all" method="POST">
+              <button type="submit">모두 읽음 처리</button>
+            </form>
+          <% } %>
+        </header>
+
+        <% if (readAll) { %>
+          <p class="arena-mailbox-success" role="status">모든 우편을 읽음으로 처리했습니다.</p>
+        <% } %>
+
+        <% if (!inbox.notifications.length) { %>
+          <div class="arena-mailbox-empty"><span aria-hidden="true">✉</span><strong>도착한 우편이 없습니다.</strong><p>경기, 상점, 운영 안내가 도착하면 이곳에 보관됩니다.</p></div>
+        <% } else { %>
+          <div class="arena-mailbox-list">
+            <% inbox.notifications.forEach((notification) => { %>
+              <a class="<%= notification.readAt ? 'is-read' : 'is-unread' %> <%= urgentKinds.has(notification.kind) ? 'is-urgent' : '' %>" href="<%= notification.openHref %>">
+                <span class="arena-mailbox-list-state" aria-hidden="true"><%= notification.readAt ? "○" : "●" %></span>
+                <div>
+                  <small><%= kindLabels[notification.kind] || "알림" %> · <%= formatDate(notification.createdAt) %></small>
+                  <h3><%= notification.title %></h3>
+                  <p><%= notification.message %></p>
+                </div>
+                <b aria-hidden="true">→</b>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+
+        <% if (inbox.pagination.totalPages > 1) { %>
+          <nav class="arena-mailbox-pagination" aria-label="우편함 페이지">
+            <a class="<%= inbox.pagination.hasPrevious ? '' : 'is-disabled' %>" href="<%= inbox.pagination.hasPrevious ? `/goat-arena/mailbox?page=${inbox.pagination.page - 1}` : '#' %>">이전</a>
+            <span><%= inbox.pagination.page %> / <%= inbox.pagination.totalPages %></span>
+            <a class="<%= inbox.pagination.hasNext ? '' : 'is-disabled' %>" href="<%= inbox.pagination.hasNext ? `/goat-arena/mailbox?page=${inbox.pagination.page + 1}` : '#' %>">다음</a>
+          </nav>
+        <% } %>
+      </section>
+    </main>
+  </body>
+</html>

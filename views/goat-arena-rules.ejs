@@ -77,12 +77,12 @@
             <div class="arena-question-standard-number">01</div>
             <div>
               <small>난이도 기준</small>
-              <h3>항상 방어자 티어를 기준으로 출제합니다.</h3>
+              <h3>Division과 방어자 티어를 기준으로 출제합니다.</h3>
               <ul><% design.principles.forEach((line) => { %><li><%= line %></li><% }) %></ul>
               <div class="arena-question-table-wrap">
                 <table>
-                  <thead><tr><th scope="col">기본 매치업</th><th scope="col">방어자 앵커</th><th scope="col">난이도</th></tr></thead>
-                  <tbody><% design.matchupRows.forEach((row) => { %><tr><th scope="row"><%= row.matchup %></th><td><%= row.anchor %></td><td><strong><%= row.difficultyTier %></strong></td></tr><% }) %></tbody>
+                  <thead><tr><th scope="col">Division</th><th scope="col">방어자 티어</th><th scope="col">절대 난이도 비교</th><th scope="col">공개 난이도</th></tr></thead>
+                  <tbody><% design.matchupRows.forEach((row) => { %><tr><td><%= row.division %></td><th scope="row"><%= row.matchup %></th><td><%= row.anchor %></td><td><strong><%= row.difficultyCode %></strong></td></tr><% }) %></tbody>
                 </table>
               </div>
             </div>
@@ -92,12 +92,18 @@
             <div class="arena-question-standard-number">02</div>
             <div>
               <small>목표 정답률</small>
-              <h3>방어자에게는 변별력 있게, 도전자에게는 승리 가능성이 남게 설계합니다.</h3>
+              <h3>실제 목표 정답률 구간과 문항 순서로 난이도를 설계합니다.</h3>
               <ul><% design.accuracyPrinciples.forEach((line) => { %><li><%= line %></li><% }) %></ul>
               <div class="arena-question-table-wrap">
                 <table>
-                  <thead><tr><th scope="col">난이도</th><th scope="col">앵커 티어</th><th scope="col">방어자 목표</th><th scope="col">도전자 예상</th></tr></thead>
-                  <tbody><% design.accuracyRows.forEach((row) => { %><tr><th scope="row"><%= row.difficultyTier %></th><td><%= row.anchor %></td><td><%= row.defenderAccuracy %></td><td><%= row.challengerAccuracy %></td></tr><% }) %></tbody>
+                  <thead><tr><th scope="col">단계</th><th scope="col">Unranked 1~5번</th><th scope="col">Ranked 1~4번</th><th scope="col">Ranked 5번</th></tr></thead>
+                  <tbody><% design.accuracyRows.forEach((row) => { %><tr><th scope="row"><%= row.stage %></th><td><%= row.unrankedAccuracy %></td><td><%= row.rankedRegularAccuracy %></td><td><%= row.rankedFinalAccuracy %></td></tr><% }) %></tbody>
+                </table>
+              </div>
+              <div class="arena-question-table-wrap">
+                <table>
+                  <thead><tr><th scope="col">Division</th><th scope="col">한 경기 안의 난이도 흐름</th><th scope="col">예시</th></tr></thead>
+                  <tbody><% design.curveRows.forEach((row) => { %><tr><th scope="row"><%= row.division %></th><td><%= row.sequence %></td><td><%= row.example %></td></tr><% }) %></tbody>
                 </table>
               </div>
             </div>
@@ -106,13 +112,65 @@
           <article class="arena-question-standard-block">
             <div class="arena-question-standard-number">03</div>
             <div>
-              <small>준킬러 정의와 경기 규격</small>
-              <h3>워밍업 없이 5문항 모두 준킬러로 구성합니다.</h3>
+              <small>준킬러·킬러 정의와 경기 규격</small>
+              <h3>Unranked는 준킬러 5문항, Ranked는 준킬러 4문항과 킬러 1문항입니다.</h3>
               <blockquote><%= design.semiKillerDefinition %></blockquote>
               <p><%= design.excludedQuestion %></p>
               <dl><% design.matchSpec.forEach(([label, value]) => { %><div><dt><%= label %></dt><dd><%= value %></dd></div><% }) %></dl>
             </div>
           </article>
+
+          <% if (design.research) { const research = design.research; %>
+            <article class="arena-question-standard-block">
+              <div class="arena-question-standard-number">04</div>
+              <div>
+                <small>유형 분류 근거</small>
+                <h3><%= research.period %> 평가원 6·9월 모의평가를 유형별로 분석합니다.</h3>
+                <blockquote><%= research.notice %></blockquote>
+                <ul>
+                  <li><%= research.sourceForms %>개 공식 해설 형식에서 <%= research.targetQuestions %>번 문항 <%= research.referenceCount %>건을 조사했습니다.</li>
+                  <li>현재 교육과정과 Arena 범위에 맞는 <%= research.activeReferenceCount %>건의 사고 구조를 U1~U9와 더 어려운 R1~R9로 분리해 운영합니다.</li>
+                  <li><%= research.excludedExamType %>은 공식 해설 원본을 운영 기준으로 확보하지 않아 조사 근거에서 제외했습니다.</li>
+                </ul>
+                <div class="arena-question-table-wrap">
+                  <table>
+                    <thead><tr><th scope="col">난이도</th><th scope="col">분류 참고 수</th><th scope="col">출제 원칙</th></tr></thead>
+                    <tbody>
+                      <% research.difficultyRows.forEach((row) => { %>
+                        <tr><th scope="row"><%= row.tier %></th><td><%= row.count %>건</td><td><%= row.tier === 'U9' ? '13·14·20·21·27·28번형 최상위 준킬러 사고 구조' : '13·14·20·21·27·28번형 준킬러 사고 구조' %></td></tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="arena-question-table-wrap">
+                  <table>
+                    <thead><tr><th scope="col">과목</th><th scope="col">직접 참고 구조</th><th scope="col">대표 사고 유형</th></tr></thead>
+                    <tbody>
+                      <% research.courseRows.forEach((course) => { const familyNames = research.familyRows.filter((family) => family.courseLabel === course.courseLabel).slice(0, 3).map((family) => family.familyLabel).join(' · '); %>
+                        <tr><th scope="row"><%= course.courseLabel %></th><td><%= course.count ? `${course.count}건` : course.referenceBasis %></td><td><%= familyNames || '현 교육과정으로 전이한 조건 결합 골격' %></td></tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </article>
+          <% } %>
+
+          <% if (design.curriculumAlignment) { const alignment = design.curriculumAlignment; %>
+            <article class="arena-question-standard-block">
+              <div class="arena-question-standard-number">05</div>
+              <div>
+                <small>2028 수학 영역 정합성</small>
+                <h3><%= alignment.sourceTitle %>의 범위와 행동 영역을 반영합니다.</h3>
+                <ul>
+                  <li>직접 출제 과목은 <strong><%= alignment.directCourses.join(' · ') %></strong>입니다.</li>
+                  <li><strong><%= alignment.indirectCourses.join(' · ') %></strong>는 직접 슬롯이 아니라 위계·연계 기초 개념으로 반영합니다.</li>
+                  <li>문항은 <%= alignment.behaviorDomains.join(' · ') %>의 사고 행동을 함께 확인합니다.</li>
+                  <% alignment.representationRequirements.forEach((line) => { %><li><%= line %></li><% }) %>
+                </ul>
+              </div>
+            </article>
+          <% } %>
         </section>
       <% } %>
 
@@ -211,6 +269,31 @@
           </div>
           <footer>복수전의 2배 예치와 1일 수수료, 일일 학습일수 차감, 상점 이용은 일반전 정산과 별도의 운영 규정입니다.</footer>
         </section>
+
+      <% } %>
+
+      <% if (rulebook.division === "MAIN") { %>
+      <section class="arena-ranked-economy-map arena-friendly-policy" aria-labelledby="friendly-policy-title">
+        <header>
+          <div>
+            <small>Ranked · 친선 경기</small>
+            <h2 id="friendly-policy-title">순위 부담 없이 Ranked 사용자와 실력을 겨룰 수 있습니다.</h2>
+            <p>활성 Ranked 사용자는 닉네임을 검색해 서로 초대할 수 있습니다. 친구 목록이나 별도 친구 추가는 필요하지 않습니다.</p>
+          </div>
+        </header>
+        <div class="arena-ranked-economy-table-wrap">
+          <table>
+            <thead><tr><th scope="col">초대 전</th><th scope="col">수락 시</th><th scope="col">문제 난이도</th><th scope="col">경기 결과</th></tr></thead>
+            <tbody><tr>
+              <td>학습일수 차감 없이 초대·거절·취소 가능</td>
+              <td>양쪽에서 이용 수수료 1일씩 차감</td>
+              <td>두 참가자 중 더 높은 Ranked 티어에 맞춘 동일 5문항</td>
+              <td>티어·GP·순위·학습일수 이전 없음</td>
+            </tr></tbody>
+          </table>
+        </div>
+        <footer>친선 경기도 문항당 제한 시간과 필수 풀이 증거 제출 규정을 적용합니다. 복수전 권리, 공식 경기 전적과 공격·방어 횟수에는 포함되지 않습니다.</footer>
+      </section>
       <% } %>
 
       <% if (rulebook.paybackPolicy) { const policy = rulebook.paybackPolicy; %>

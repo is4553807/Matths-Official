@@ -76,6 +76,17 @@ const parentInviteSchema = new Schema(
       enum: ["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"],
       required: true,
     },
+    // 학생이 결제 요청 전 법정대리인의 최종 동의 필요성을 확인했다는 감사 기록입니다.
+    legalGuardianConsentAt: {
+      type: Date,
+      default: null,
+    },
+    legalGuardianConsentVersion: {
+      type: String,
+      trim: true,
+      maxlength: 40,
+      default: "",
+    },
     tokenHash: {
       type: String,
       required: true,
@@ -277,6 +288,29 @@ const checkoutIntentSchema = new Schema(
       type: String,
       enum: ["STUDENT", "PARENT"],
       required: true,
+    },
+    // 실제 학부모 결제 주문 준비 단계에서 다시 받는 동의 기록입니다.
+    legalGuardianConsentAt: {
+      type: Date,
+      default: null,
+    },
+    legalGuardianConsentVersion: {
+      type: String,
+      trim: true,
+      maxlength: 40,
+      default: "",
+    },
+    // 학생이 본인 결제로 진행할 때 미성년자 결제 안내를 확인한 기록입니다.
+    // 실제 법정대리인의 결제 동의와 혼동하지 않도록 별도 필드로 보관합니다.
+    minorPaymentNoticeAcceptedAt: {
+      type: Date,
+      default: null,
+    },
+    minorPaymentNoticeVersion: {
+      type: String,
+      trim: true,
+      maxlength: 40,
+      default: "",
     },
     productCode: {
       type: String,

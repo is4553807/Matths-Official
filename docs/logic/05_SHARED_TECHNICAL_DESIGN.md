@@ -464,8 +464,8 @@ weeklyMockBonus = 0
 
 ```text
 티어 조합·30개 슬롯 중 1개 결정
-+ ACTIVE ArenaProblemDataVersion의 T1~T9 유형 구성 조회
-+ 주관식 준킬러 5문항 자동 생성·자동 검산
++ ACTIVE ArenaProblemDataVersion의 공개 U1~U9·R1~R9 유형 구성 조회(T1~T9는 내부 DB 호환 키)
++ Unranked 준킬러 5문항 또는 Ranked 준킬러 4문항 + 29·30번형 킬러 1문항 자동 생성·자동 검산
 + ArenaProblemPack(SEALED, AUTO_ON_CHALLENGE)
 + ArenaMatch(READY)
 + challenger ArenaMatchAttempt(READY)
@@ -486,9 +486,10 @@ weeklyMockBonus = 0
 - 경기 정책 코드는 공격자의 이용 주기 정책 사본과 연결한다.
 - 도전자·방어자의 티어와 방향을 서버에서 재검증한다. Unranked는 같은 티어의 더 높은 순위 또는 정확히 바로 위 티어만 허용하고, 같은 티어 후보가 존재하면 바로 위 티어 폴백을 사용하지 않는다.
 - 자동 배정 방어자 미시작은 `ArenaMatch.automaticDefenseNoShowRecordedAt`로 경기당 한 번만 기록한다. 5회 누적 시 `ArenaAccessState.defensePoolEligible=false`와 `automaticDefenseSuspendedAt`을 설정하고, 정상 공격 경기 생성 트랜잭션에서 누적을 0으로 초기화해 후보 자격을 복구한다.
-- `arenaOneOnOneDifficultyPolicy.js`가 Unranked·Ranked 공통 방어자 앵커 T1~T9, 목표 정답률, 5슬롯 곡선, 단원 2·2·1, 유형 ID 75개, 1~999 자연수 답과 실측 보정 임계값을 관리한다. `arenaOneOnOneProblemTypes.js`는 숫자·조건을 생성하는 독립 콘텐츠 원본이다. 관리자는 실행 코드를 입력하지 않고 `ArenaProblemDataVersion` DRAFT에서 유형별 사용 여부·배정 가중치·정답 최솟값/최댓값을 조정하고 T1~T9별 등록 생성 유형을 최소 5개씩 선택한다. 가중치는 30개 팩별 결정적 유형 순서에 반영되고, 정답 범위 밖의 생성 결과는 서버가 버린 뒤 재생성한다. 적용 시 유형별 5회 검산에 성공한 버전만 ACTIVE가 되고, 신규 경기 생성 서비스는 ACTIVE 문서를 조회한다. 현재 콘텐츠는 배치고사 심화 준킬러를 독립 복사한 임시 버전이며 `PENDING_FINAL_GENERATORS`로 저장한다. 최종 티어별 생성기가 연결되면 `ACTIVE`로 전환하고 단원 배분·2분 예상 시간·자연수 답 검증을 강제한다. 유형 누락이나 자동 검산 실패 시 문제·경기·학습일수 예치·원장을 전부 만들지 않는다.
-- 같은 경기 문제는 양측에 공통 배정하며 제한 시간은 정확히 10분이다.
-- 문제 팩에는 `problemDataVersionId`, `designPolicyVersion`, `contentSourceVersion`, `designCompliance`, `difficultyAnchor=DEFENDER`, `difficultyTier`, 양측 목표 정답률 범위와 `packCurve`를 봉인 해시에 포함한다. 각 문항에는 계획 단원·슬롯·티어 내 위치를 함께 저장한다. 관리자가 다음 ACTIVE 문제 데이터를 적용해도 SEALED 팩은 생성 당시 버전과 문항을 유지한다.
+- `arenaOneOnOneDifficultyPolicy.js`가 Unranked `U1~U9`·Ranked `R1~R9` 방어자 앵커, 목표 정답률, 5슬롯 곡선, 단원 2·2·1, 1~999 자연수 답과 실측 보정 임계값을 관리한다. 기존 `T1~T9`는 배포된 DB 유형 카탈로그를 다시 쓰기 위한 내부 호환 키이며 사용자·룰 페이지에는 노출하지 않는다. `arenaOfficialMockTypeCatalog2016_2026.json`과 `arenaOneOnOneTypeSkeletons.js`는 2016~2026 평가원 6·9월 모의평가 공식 해설 42개 시험형·목표 문항 292건을 조사해 265건의 사고 구조를 23개 계열과 U/R 설계 구간으로 분류한 근거다. 수능과 기하 27건은 운영 범위에서 제외하고, 기출 문항·정답·해설 원문은 복제하지 않는다. ACTIVE DB 카탈로그는 각 공식 유형에 검산된 `generatorBindings`를 함께 저장하며 런타임은 표시 유형과 같은 결속 생성기만 사용한다. Ranked 5번은 `arenaOneOnOneProblemTypes.js`의 29·30번형 킬러 생성기를 별도로 사용한다. 한 경기 안에서는 공개 유형 ID·공식 기본 유형·실제 생성기 세 가지가 모두 중복되지 않아야 한다. 관리자는 실행 코드를 입력하지 않고 검산된 유형의 사용 여부와 배정을 조정하며, 유형 누락·소스 해시 불일치·자동 검산 실패 시 문제·경기·예치·원장을 전부 만들지 않는다.
+- 같은 경기 문제는 양측에 공통 배정하며 제한 시간은 문항마다 정확히 10분이다.
+- 공개 `U1~U9`·`R1~R9`마다 30개 이상 실전 유형 식별자를 구성한다. 같은 숫자의 R등급은 U등급보다 낮은 목표 정답률을 사용하고, 문제 본문이 실제 제시한 자료라는 명시와 정확한 렌더링 데이터가 함께 있을 때만 그래프·표를 보존한다.
+- 문제 팩에는 `problemDataVersionId`, `designPolicyVersion`, `contentSourceVersion`, `designCompliance`, `difficultyAnchor=DEFENDER`, 공개 `difficultyCode=U1~U9|R1~R9`, 내부 `difficultyTier`, 양측 목표 정답률 범위와 `packCurve`를 봉인 해시에 포함한다. 각 문항에는 계획 단원·슬롯·티어 내 위치를 함께 저장한다. 관리자가 다음 ACTIVE 문제 데이터를 적용해도 SEALED 팩은 생성 당시 버전과 문항을 유지한다.
 - 경기 생성 서비스는 내부 실력 지표와 최종 종합 랭킹 모델을 읽거나 쓰지 않는다.
 
 ## 11.2 문제 팩·응시 트랜잭션

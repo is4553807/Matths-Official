@@ -83,7 +83,7 @@
               <summary class="arena-held-match-overview">
                 <span class="arena-held-match-overview-header">
                   <span>
-                    <small><%= match.division === "MAIN" ? "RANKED" : "UNRANKED" %> · <%= match.matchType === "REVENGE" ? "복수전" : "일반 쟁탈전" %></small>
+                    <small><%= match.division === "MAIN" ? "RANKED" : "UNRANKED" %> · <%= match.matchType === "REVENGE" ? "복수전" : match.matchType === "FRIENDLY" ? "친선 경기" : "일반 쟁탈전" %></small>
                     <strong class="arena-held-match-tier-pair"><%= match.tierPairLabel || "티어 조합 확인 필요" %></strong>
                     <span><%= match.todo?.title || "경기 정산 보류" %></span>
                   </span>

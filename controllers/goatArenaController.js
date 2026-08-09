@@ -88,6 +88,12 @@ const {
   forfeitMainRevengeRight,
 } = require("../services/mainArenaRevengeService");
 const {
+  cancelMainFriendlyInvitation,
+  createMainFriendlyInvitation,
+  getMainFriendlyMatchData,
+  respondToMainFriendlyInvitation,
+} = require("../services/mainFriendlyMatchService");
+const {
   getMainShopAnalysisResult,
   getMainShopPageData,
   purchaseMainShopItem,
@@ -103,6 +109,11 @@ const {
 const {
   getArenaNotificationSummary,
 } = require("../services/arenaNotificationService");
+const {
+  getNotificationDetail,
+  getNotificationInbox,
+  markAllNotificationsRead,
+} = require("../services/notificationService");
 
 const GRADE_LABELS = {
   10: "고등학교 1학년",
@@ -493,6 +504,14 @@ const DIVISION_FEATURES = {
       group: "BATTLE",
     },
     {
+      key: "friendlyMatch",
+      name: "친선 경기",
+      description:
+        "Ranked 사용자와 닉네임으로 초대해 순위 부담 없이 경기합니다.",
+      href: "/goat-arena/main/battle#main-friendly-match",
+      group: "BATTLE",
+    },
+    {
       key: "mainLearningDayLedger",
       name: "학습일수 장부",
       description:
@@ -588,7 +607,10 @@ async function getArenaNavigationContext(userId) {
         endsAt: { $gt: now },
       }).lean(),
       getPendingRankUpPresentation({ userId }),
-      getArenaNotificationSummary({ userId }),
+      getArenaNotificationSummary({
+        userId,
+        hrefBase: "/goat-arena/mailbox",
+      }),
     ]);
   if (!user) {
     const error = new Error("사용자 정보를 찾을 수 없습니다.");
@@ -640,7 +662,10 @@ async function getArenaContext(
       endsAt: { $gt: new Date() },
     }).lean(),
     getPendingRankUpPresentation({ userId }),
-    getArenaNotificationSummary({ userId }),
+    getArenaNotificationSummary({
+      userId,
+      hrefBase: "/goat-arena/mailbox",
+    }),
     ArenaRevengeRight.findOne({
       eligibleUserId: userId,
       status: "AVAILABLE",
@@ -844,20 +869,133 @@ exports.subDivisionPage =
 exports.mainDivisionPage =
   divisionPage("MAIN");
 
+function mainBattleRestrictionNotice(battleData = {}) {
+  const reasons = new Set(
+    Array.isArray(battleData.reasons) ? battleData.reasons : []
+  );
+
+  if (reasons.has("INTEGRITY_PENALTY_ACTIVE")) {
+    return {
+      tone: "penalty",
+      title: "GOAT Arena 매치메이킹이 제한되었습니다.",
+      description:
+        "부정행위 판정에 따라 새 경기를 신청할 수 없습니다.",
+      detail: "",
+      showRestrictionUntil: true,
+    };
+  }
+
+  if (reasons.has("INTEGRITY_REVIEW_REQUIRED")) {
+    return {
+      tone: "review",
+      title: "경기 무결성 검토가 진행 중입니다.",
+      description:
+        "운영 검토가 완료될 때까지 신규 경기 참가가 일시 보류됩니다.",
+      detail:
+        "검토 결과는 GOAT Arena 우편함과 등록된 이메일로 안내합니다.",
+    };
+  }
+
+  if (reasons.has("OFFICIAL_MATCH_ALREADY_PENDING")) {
+    return {
+      tone: "pending",
+      title: "진행 중이거나 정산 중인 공식 경기가 있습니다.",
+      description:
+        "현재 경기를 완료하고 정산이 끝나면 새 Ranked 경기를 신청할 수 있습니다.",
+      detail: "",
+    };
+  }
+
+  if (
+    reasons.has("LEARNING_DAYS_DEPLETED") ||
+    reasons.has("MATCH_STAKE_UNAVAILABLE")
+  ) {
+    return {
+      tone: "balance",
+      title: "경기에 예치할 학습일수가 부족합니다.",
+      description:
+        "Ranked 공식 경기를 시작하려면 예치 후에도 사용할 수 있는 학습일수가 최소 1일 남아야 합니다.",
+      detail: "GOAT Arena 프로필의 학습일수 장부에서 잔액을 확인해주세요.",
+    };
+  }
+
+  if (reasons.has("SEASON_PLACEMENT_REQUIRED")) {
+    return {
+      tone: "placement",
+      title: "현재 시즌 배치가 필요합니다.",
+      description:
+        "시즌 배치를 완료하면 Ranked 경기 신청 기능이 활성화됩니다.",
+      detail: "",
+    };
+  }
+
+  if (
+    reasons.has("DIVISION_NOT_ACTIVE") ||
+    reasons.has("STANDING_NOT_ACTIVE")
+  ) {
+    return {
+      tone: "division",
+      title: "현재 Ranked 참가 상태를 확인해주세요.",
+      description:
+        "활성 Ranked 소속과 현재 시즌의 순위 배정이 확인되어야 공식 경기를 이용할 수 있습니다.",
+      detail: "",
+    };
+  }
+
+  if (
+    reasons.has("ACCOUNT_NOT_ACTIVE") ||
+    reasons.has("ACCESS_NOT_PAID_ACTIVE") ||
+    reasons.has("ACCESS_CYCLE_NOT_ACTIVE")
+  ) {
+    return {
+      tone: "access",
+      title: "Ranked 경기 이용 상태를 확인해주세요.",
+      description:
+        "활성 계정과 학습권, Ranked 이용 권한이 모두 확인되어야 공식 경기를 이용할 수 있습니다.",
+      detail: "GOAT Arena 프로필에서 현재 이용 상태를 확인해주세요.",
+    };
+  }
+
+  if (reasons.has("SUNDAY_DIVISION_LOCK")) {
+    return {
+      tone: "schedule",
+      title: "일요일 경기 마감 시간입니다.",
+      description:
+        "매주 일요일 14:00부터 신규 Ranked 경기 신청·초대 수락·준비·시작이 중단됩니다.",
+      detail:
+        "월요일 00:00 KST부터 다시 이용할 수 있습니다. 현재 Ranked 이용 권한과 학습일수는 정상입니다.",
+    };
+  }
+
+  return {
+    tone: "access",
+    title: "Ranked 경기 이용 상태를 확인해주세요.",
+    description:
+      "활성 학습권과 Ranked 이용 권한이 모두 확인되어야 공식 경기를 이용할 수 있습니다.",
+    detail: "GOAT Arena 프로필에서 현재 이용 상태를 확인해주세요.",
+  };
+}
+
 async function renderMainBattlePage(
   req,
   res,
   { status = 200, actionError = "", actionMessage = "" } = {}
 ) {
-  const [context, battleData] = await Promise.all([
+  const [context, battleData, friendlyData] = await Promise.all([
     getArenaContext(req.session.user.id),
     getMainArenaActionData({ userId: req.session.user.id }),
+    getMainFriendlyMatchData({
+      userId: req.session.user.id,
+      nickname: req.query.friendlyNickname || "",
+    }),
   ]);
   res.set("Cache-Control", "no-store");
   return res.status(status).render("goat-arena-main-battle", {
     ...context,
     activeArenaPage: "main",
     battleData,
+    battleRestrictionNotice: mainBattleRestrictionNotice(battleData),
+    friendlyData,
     actionError,
     actionMessage,
     requestId: randomUUID(),
@@ -982,6 +1120,56 @@ exports.cancelMainInvitation = (req, res, next) =>
       cancellationType: "MANUAL",
     })
   );
+
+exports.createMainFriendlyInvitation = (req, res, next) =>
+  friendlyAction(req, res, next, () =>
+    createMainFriendlyInvitation({
+      userId: req.session.user.id,
+      inviteeUserId: req.body.inviteeUserId,
+      requestId: req.body.requestId,
+    })
+  );
+
+exports.respondMainFriendlyInvitation = (req, res, next) =>
+  friendlyAction(req, res, next, () =>
+    respondToMainFriendlyInvitation({
+      invitationId: req.params.invitationId,
+      userId: req.session.user.id,
+      response: req.body.response,
+    })
+  );
+
+exports.cancelMainFriendlyInvitation = (req, res, next) =>
+  friendlyAction(req, res, next, () =>
+    cancelMainFriendlyInvitation({
+      invitationId: req.params.invitationId,
+      userId: req.session.user.id,
+    })
+  );
+
+async function friendlyAction(req, res, next, action) {
+  try {
+    const result = await action();
+    if (result?.match?._id || result?.matchId) {
+      return res.redirect(
+        `/goat-arena/matches/${result.match?._id || result.matchId}`
+      );
+    }
+    return res.redirect("/goat-arena/main/battle?done=1#main-friendly-match");
+  } catch (error) {
+    if ([400, 403, 404, 409, 410, 423].includes(Number(error.status))) {
+      try {
+        return await renderMainBattlePage(req, res, {
+          status: Number(error.status),
+          actionError: error.message,
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
+}
 
 async function renderMainShopPage(
   req,
@@ -1148,9 +1336,11 @@ function matchFeatureItem(match, userId) {
   const role = isChallenger ? "도전자" : "방어자";
   const stake = Number(match.economySnapshot?.challengerStakeDays || 0);
   return {
-    title: `${match.matchType === "REVENGE" ? "복수전" : "일반 쟁탈전"} · ${role}`,
+    title: `${match.matchType === "REVENGE" ? "복수전" : match.matchType === "FRIENDLY" ? "친선 경기" : "일반 쟁탈전"} · ${role}`,
     status: match.status,
-    description: `${match.tierPairLabel} · ${match.division === "SUB" ? `페이백 점수 ${stake || (match.matchType === "REVENGE" ? 2 : 1)}점` : `예치 학습일수 ${stake}일`}`,
+    description: match.matchType === "FRIENDLY"
+      ? `${match.tierPairLabel} · 양측 이용 수수료 1일 차감 · 순위·학습일수 이전 없음`
+      : `${match.tierPairLabel} · ${match.division === "SUB" ? `페이백 점수 ${stake || (match.matchType === "REVENGE" ? 2 : 1)}점` : `예치 학습일수 ${stake}일`}`,
     occurredAt: match.updatedAt || match.requestedAt || match.createdAt,
     href: FEATURE_MATCH_ACTIVE_STATUSES.includes(match.status)
       ? `/goat-arena/matches/${match._id}`
@@ -1170,6 +1360,17 @@ function ledgerChangeText(entry) {
     .filter(([value]) => Number(value || 0) !== 0)
     .map(([value, label]) => `${label} ${Number(value) > 0 ? "+" : ""}${Number(value)}`);
   return parts.join(" · ") || "잔액 변동 없음";
+}
+
+function ledgerChangeTone(entry) {
+  const delta = [
+    entry.availableLearningDaysDelta,
+    entry.lockedLearningDaysDelta,
+    entry.reservedLearningDaysDelta,
+  ].reduce((sum, value) => sum + Number(value || 0), 0);
+  if (delta > 0) return "gain";
+  if (delta < 0) return "loss";
+  return "neutral";
 }
 
 async function getDivisionFeatureData({ userId, division, featureKey, context }) {
@@ -1275,6 +1476,7 @@ async function getDivisionFeatureData({ userId, division, featureKey, context })
         title: entry.eventType,
         status: entry.sourceBucket || "UNSPECIFIED",
         description: ledgerChangeText(entry),
+        tone: ledgerChangeTone(entry),
         occurredAt: entry.occurredAt,
       })),
       emptyMessage: "아직 학습일수 변동 기록이 없습니다.",
@@ -1399,6 +1601,66 @@ exports.profilePage = async (req, res, next) => {
       accountUpdated: req.query.accountUpdated === "1",
       accountError: "",
     });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+function arenaMailboxInbox(inbox) {
+  return {
+    ...inbox,
+    notifications: inbox.notifications.map((notification) => ({
+      ...notification,
+      openHref: `/goat-arena/mailbox/${notification.id}`,
+    })),
+  };
+}
+
+exports.arenaMailboxPage = async (req, res, next) => {
+  try {
+    const [context, inbox] = await Promise.all([
+      getArenaContext(req.session.user.id),
+      getNotificationInbox({
+        userId: req.session.user.id,
+        page: req.query.page,
+      }),
+    ]);
+    res.set("Cache-Control", "no-store");
+    return res.render("goat-arena-mailbox", {
+      ...context,
+      activeArenaPage: "mailbox",
+      inbox: arenaMailboxInbox(inbox),
+      readAll: req.query.readAll === "1",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.arenaMailboxDetailPage = async (req, res, next) => {
+  try {
+    const [context, notification] = await Promise.all([
+      getArenaContext(req.session.user.id),
+      getNotificationDetail({
+        userId: req.session.user.id,
+        notificationId: req.params.notificationId,
+      }),
+    ]);
+    res.set("Cache-Control", "no-store");
+    return res.render("goat-arena-mailbox-detail", {
+      ...context,
+      activeArenaPage: "mailbox",
+      notification,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.markAllArenaMailboxRead = async (req, res, next) => {
+  try {
+    await markAllNotificationsRead(req.session.user.id);
+    return res.redirect("/goat-arena/mailbox?readAll=1");
   } catch (error) {
     return next(error);
   }
@@ -1592,7 +1854,9 @@ async function renderArenaMatchPage(
     {
       ...context,
       activeArenaPage:
-        matchData.division === "MAIN" ? "main" : "sub",
+        matchData.division === "MAIN"
+          ? "main"
+          : "sub",
       matchData,
       matchError,
       matchPrepared:

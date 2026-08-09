@@ -6,10 +6,12 @@ const {
 const {
   ARENA_LEGACY_CONTENT_VERSION,
   ARENA_QUESTION_DESIGN_POLICY_VERSION,
+  PUBLIC_DIFFICULTY_SPECS,
   TIER_SPECS,
   isNaturalNumberMaxThreeDigits,
   packCurveForPair,
   plannedPackSlots,
+  resolveArenaDifficultyCode,
   resolveArenaDifficultyTier,
 } = require("./arenaOneOnOneDifficultyPolicy");
 const {
@@ -25,9 +27,10 @@ const {
 /*
  * Unranked·Ranked 1대1 전용 문제 은행.
  *
- * 현재는 배치고사 심화 유형을 복사한 arenaOneOnOneProblemTypes.js를 사용한다.
- * 배치고사 파일을 직접 import하지 않으므로 이후 Arena 유형만 독립 교체할 수 있다.
- * 한 문제 묶음은 서로 다른 주관식 준킬러 유형 5개로 구성한다.
+ * 배치고사와 분리된 Arena 전용 생성기 arenaOneOnOneProblemTypes.js를 사용한다.
+ * 문제 유형·수치·검산 규칙은 운영 DB의 U/R 카탈로그와 결합해 독립적으로 교체한다.
+ * Unranked는 서로 다른 주관식 준킬러 5문항, Ranked는 서로 다른
+ * 준킬러 4문항과 29·30번형 킬러 1문항으로 구성한다.
  */
 const ARENA_ONE_ON_ONE_QUESTION_COUNT = 5;
 const ARENA_ONE_ON_ONE_PACKS_PER_PAIR = 30;
@@ -48,33 +51,92 @@ const ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS = Object.entries(
   )
   .map(([typeId]) => typeId);
 
+const ARENA_ONE_ON_ONE_APPROVED_FINAL_TYPE_IDS = new Set([
+  "killer-tangent-integral-extrema",
+  "killer-tangent-area-equation",
+  "killer-distance-inverse",
+  "killer-extrema-chord-equation",
+  "killer-integral-tangent-equation",
+  "killer-inverse-recurrence",
+]);
+
+const ARENA_ONE_ON_ONE_FINAL_TYPE_IDS = Object.entries(
+  ARENA_ONE_ON_ONE_PROBLEM_TYPES
+)
+  .filter(
+    ([typeId, definition]) =>
+      ARENA_ONE_ON_ONE_APPROVED_FINAL_TYPE_IDS.has(typeId) &&
+      definition.category === "killer" &&
+      ["algebra", "calculus-1", "probability-statistics"].includes(
+        definition.courseId
+      )
+  )
+  .map(([typeId]) => typeId);
+
 if (ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS.length < ARENA_ONE_ON_ONE_QUESTION_COUNT) {
   throw new Error(
     "GOAT Arena 1대1 경기에 필요한 서로 다른 준킬러 유형 5개가 준비되지 않았습니다."
   );
 }
 
+if (!ARENA_ONE_ON_ONE_FINAL_TYPE_IDS.length) {
+  throw new Error("5번 문항에 사용할 29·30번형 킬러 유형이 준비되지 않았습니다.");
+}
+
 function configuredQuestionSlots(
   packIndex,
   challengerTier,
   defenderTier,
-  eligibleTypeIds = ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS
+  eligibleTypeIds = ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS,
+  { division = "SUB" } = {}
 ) {
-  const designSlots = plannedPackSlots(challengerTier, defenderTier);
+  const designSlots = plannedPackSlots(challengerTier, defenderTier, { division });
+  const normalizedDivision = String(division || "SUB").toUpperCase();
+  const selectedTypeIds = new Set();
   return Array.from(
     { length: ARENA_ONE_ON_ONE_QUESTION_COUNT },
     (_unused, questionIndex) => {
+      const isFinalKiller =
+        normalizedDivision === "MAIN" &&
+        questionIndex === ARENA_ONE_ON_ONE_QUESTION_COUNT - 1;
+      const finalCandidates = eligibleTypeIds.filter((typeId) =>
+        ARENA_ONE_ON_ONE_FINAL_TYPE_IDS.includes(typeId)
+      );
+      const baseCandidates = isFinalKiller
+        ? (finalCandidates.length ? finalCandidates : ARENA_ONE_ON_ONE_FINAL_TYPE_IDS)
+        : eligibleTypeIds;
+      const slotCandidates = baseCandidates.filter(
+        (typeId) => !selectedTypeIds.has(typeId)
+      );
+      if (!slotCandidates.length) {
+        const error = new Error(
+          isFinalKiller
+            ? "5번 문항에 배정할 중복 없는 29·30번형 킬러 유형이 없습니다."
+            : "한 경기 안에 서로 다른 준킬러 유형 5개를 배정할 수 없습니다."
+        );
+        error.status = 409;
+        error.code = isFinalKiller
+          ? "ARENA_FINAL_SLOT_TYPE_NOT_CONFIGURED"
+          : "ARENA_DISTINCT_TYPE_NOT_CONFIGURED";
+        throw error;
+      }
       const typeKey =
-        eligibleTypeIds[
+        slotCandidates[
           (packIndex * ARENA_ONE_ON_ONE_QUESTION_COUNT + questionIndex) %
-            eligibleTypeIds.length
+            slotCandidates.length
         ];
+      selectedTypeIds.add(typeKey);
       return {
         order: questionIndex + 1,
         typeKey,
         design: designSlots[questionIndex],
         generator: () =>
-          generateValidatedArenaOneOnOneQuestion({ typeId: typeKey }),
+          generateValidatedArenaOneOnOneQuestion({
+            typeId: typeKey,
+            allowedCategory: isFinalKiller
+              ? "killer"
+              : "semi-killer",
+          }),
       };
     }
   );
@@ -84,18 +146,28 @@ function generateLegacyNaturalQuestion(
   preferredTypeId,
   excludedTypeIds,
   eligibleTypeIds = ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS,
-  problemDataVersion = null
+  problemDataVersion = null,
+  slotRole = "REGULAR"
 ) {
+  const slotEligibleTypeIds = slotRole === "FINAL_29_30"
+    ? eligibleTypeIds.filter((typeId) => ARENA_ONE_ON_ONE_FINAL_TYPE_IDS.includes(typeId))
+    : eligibleTypeIds;
+  const fallbackTypeIds = slotRole === "FINAL_29_30" && !slotEligibleTypeIds.length
+    ? ARENA_ONE_ON_ONE_FINAL_TYPE_IDS
+    : slotEligibleTypeIds;
   const orderedTypeIds = [
     preferredTypeId,
-    ...eligibleTypeIds.filter(
+    ...fallbackTypeIds.filter(
       (typeId) => typeId !== preferredTypeId
     ),
   ];
   for (const typeId of orderedTypeIds) {
     if (excludedTypeIds.has(typeId)) continue;
     for (let retry = 0; retry < 40; retry += 1) {
-      const generated = generateValidatedArenaOneOnOneQuestion({ typeId });
+      const generated = generateValidatedArenaOneOnOneQuestion({
+        typeId,
+        allowedCategory: slotRole === "FINAL_29_30" ? "killer" : "semi-killer",
+      });
       const setting = problemDataVersion
         ? problemTypeSetting(problemDataVersion, generated.typeId)
         : { answerMin: 1, answerMax: 999 };
@@ -110,7 +182,7 @@ function generateLegacyNaturalQuestion(
     }
   }
   const error = new Error(
-    "3자리 이하 자연수 정답을 가진 서로 다른 준킬러 5문항을 생성하지 못했습니다."
+    "3자리 이하 자연수 정답을 가진 서로 다른 준킬러 4문항과 29·30번형 킬러 1문항을 생성하지 못했습니다."
   );
   error.status = 422;
   error.code = "ARENA_NATURAL_ANSWER_GENERATION_FAILED";
@@ -125,12 +197,13 @@ function generateQuestionsFromPackSlot({
   problemDataVersion = null,
 }) {
   const excludedTypeIds = new Set();
-  return packSlot.questionSlots.map((slot) => {
+  const questions = packSlot.questionSlots.map((slot) => {
     const generated = generateLegacyNaturalQuestion(
       slot.typeKey,
       excludedTypeIds,
       eligibleTypeIds,
-      problemDataVersion
+      problemDataVersion,
+      slot.design?.slotRole || "REGULAR"
     );
     excludedTypeIds.add(generated.typeId);
     return {
@@ -142,6 +215,37 @@ function generateQuestionsFromPackSlot({
       },
     };
   });
+  const normalizedDivision = String(pair?.difficultyCode || "").startsWith("R")
+    ? "MAIN"
+    : "SUB";
+  const compositionValid = questions.every((question, index) =>
+    String(question?.design?.slotRole || "").toUpperCase() ===
+      (normalizedDivision === "MAIN" && index === questions.length - 1
+        ? "FINAL_29_30"
+        : "REGULAR")
+  );
+  const valid =
+    questions.length === ARENA_ONE_ON_ONE_QUESTION_COUNT &&
+    new Set(questions.map((question) => question.typeId)).size ===
+      ARENA_ONE_ON_ONE_QUESTION_COUNT &&
+    questions.every(
+      (question) =>
+        question.validation?.passed === true &&
+        question.validation.solvable === true &&
+        question.validation.uniqueAnswer === true &&
+        question.validation.calculatorFree === true &&
+        question.validation.answerMatches === true &&
+        isNaturalNumberMaxThreeDigits(question.problem?.answer)
+    ) && compositionValid;
+  if (!valid) {
+    const error = new Error(
+      "생성된 5문항이 유형 중복 금지·독립 검산·자연수 정답·Division별 최종 문항 기준을 통과하지 못했습니다."
+    );
+    error.status = 422;
+    error.code = "ARENA_GENERATED_PACK_VALIDATION_FAILED";
+    throw error;
+  }
+  return questions;
 }
 
 const ARENA_TIER_CODES = [
@@ -184,7 +288,8 @@ const SUB_TIER_PAIR_CONFIG = ARENA_TIER_CODES.flatMap(
 ).map(([challengerTier, defenderTier, label]) => {
   const difficultyTier = resolveArenaDifficultyTier(
     challengerTier,
-    defenderTier
+    defenderTier,
+    { division: "SUB" }
   );
   return {
     key: `${challengerTier}_${defenderTier}`,
@@ -193,10 +298,14 @@ const SUB_TIER_PAIR_CONFIG = ARENA_TIER_CODES.flatMap(
     defenderTier,
     difficultyAnchor: "DEFENDER",
     difficultyTier,
+    difficultyCode: resolveArenaDifficultyCode(challengerTier, defenderTier, { division: "SUB" }),
     designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
     contentSourceVersion: ARENA_LEGACY_CONTENT_VERSION,
     designCompliance: "PENDING_FINAL_GENERATORS",
-    targetAccuracy: TIER_SPECS[difficultyTier],
+    targetAccuracy:
+      PUBLIC_DIFFICULTY_SPECS[
+        resolveArenaDifficultyCode(challengerTier, defenderTier, { division: "SUB" })
+      ] || TIER_SPECS[difficultyTier],
     packCurve: packCurveForPair(challengerTier, defenderTier),
     packSlots: Array.from(
       { length: ARENA_ONE_ON_ONE_PACKS_PER_PAIR },
@@ -206,7 +315,9 @@ const SUB_TIER_PAIR_CONFIG = ARENA_TIER_CODES.flatMap(
         questionSlots: configuredQuestionSlots(
           index,
           challengerTier,
-          defenderTier
+          defenderTier,
+          ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS,
+          { division: "SUB" }
         ),
       })
     ),
@@ -218,7 +329,7 @@ const MAIN_TIER_LABELS = ARENA_TIER_LABELS;
 
 /*
  * Ranked는 최대 3티어 차이까지 열 수 있다. 현재는 Unranked와 같은
- * Arena 전용 준킬러 유형 복사본을 사용하고, 이후 티어별 유형표가 확정되면
+ * Arena 전용 준킬러·킬러 생성기를 사용하고, 운영 DB의 U/R 유형표가 바뀌면
  * 이 파일의 슬롯 배정만 교체한다.
  */
 const MAIN_TIER_PAIR_CONFIG = MAIN_TIER_CODES.flatMap(
@@ -229,7 +340,8 @@ const MAIN_TIER_PAIR_CONFIG = MAIN_TIER_CODES.flatMap(
         if (!upperTier) return null;
         const difficultyTier = resolveArenaDifficultyTier(
           lowerTier,
-          upperTier
+          upperTier,
+          { division: "MAIN" }
         );
         return {
           key: `${lowerTier}_${upperTier}`,
@@ -239,10 +351,14 @@ const MAIN_TIER_PAIR_CONFIG = MAIN_TIER_CODES.flatMap(
           tierGap: gap,
           difficultyAnchor: "DEFENDER",
           difficultyTier,
+          difficultyCode: resolveArenaDifficultyCode(lowerTier, upperTier, { division: "MAIN" }),
           designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
           contentSourceVersion: ARENA_LEGACY_CONTENT_VERSION,
           designCompliance: "PENDING_FINAL_GENERATORS",
-          targetAccuracy: TIER_SPECS[difficultyTier],
+          targetAccuracy:
+            PUBLIC_DIFFICULTY_SPECS[
+              resolveArenaDifficultyCode(lowerTier, upperTier, { division: "MAIN" })
+            ] || TIER_SPECS[difficultyTier],
           packCurve: packCurveForPair(lowerTier, upperTier),
           packSlots: Array.from(
             { length: ARENA_ONE_ON_ONE_PACKS_PER_PAIR },
@@ -252,7 +368,9 @@ const MAIN_TIER_PAIR_CONFIG = MAIN_TIER_CODES.flatMap(
               questionSlots: configuredQuestionSlots(
                 index,
                 lowerTier,
-                upperTier
+                upperTier,
+                ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS,
+                { division: "MAIN" }
               ),
             })
           ),
@@ -363,7 +481,8 @@ function configuredPackSlotForMatch({
           0,
           pair.challengerTier,
           pair.defenderTier,
-          eligibleTypeIds
+          eligibleTypeIds,
+          { division: "SUB" }
         ),
       }
     : pair.packSlots[slotIndex];
@@ -397,6 +516,7 @@ function generateSubOneOnOneQuestions({
     packSlot: packSlot.slot,
     difficultyAnchor: pair.difficultyAnchor,
     difficultyTier: pair.difficultyTier,
+    difficultyCode: pair.difficultyCode,
     designPolicyVersion: pair.designPolicyVersion,
     contentSourceVersion:
       problemDataVersion?.code || pair.contentSourceVersion,
@@ -427,9 +547,11 @@ async function generateSubOneOnOneQuestionsFromActiveData(input) {
     const questions = await generateQuestionsFromTierCatalog({
       version: tierCatalogVersion,
       difficultyTier: pair.difficultyTier,
+      difficultyCode: pair.difficultyCode,
       challengerTier: pair.challengerTier,
       defenderTier: pair.defenderTier,
       matchKey: input.matchKey,
+      division: "SUB",
     });
     return {
       pairKey: pair.key,
@@ -437,11 +559,12 @@ async function generateSubOneOnOneQuestionsFromActiveData(input) {
       packSlot: slotIndex + 1,
       difficultyAnchor: pair.difficultyAnchor,
       difficultyTier: pair.difficultyTier,
+      difficultyCode: pair.difficultyCode,
       designPolicyVersion: pair.designPolicyVersion,
       contentSourceVersion: tierCatalogVersion.code,
       problemDataVersionId: problemDataVersion?._id || null,
       tierCatalogVersionId: tierCatalogVersion._id,
-      designCompliance: "PENDING_FINAL_GENERATORS",
+      designCompliance: "ACTIVE",
       targetAccuracy: pair.targetAccuracy,
       packCurve: pair.packCurve,
       questions,
@@ -484,7 +607,8 @@ function generateMainOneOnOneQuestions({
           0,
           pair.challengerTier,
           pair.defenderTier,
-          eligibleTypeIds
+          eligibleTypeIds,
+          { division: "MAIN" }
         ),
       }
     : pair.packSlots[slotIndex];
@@ -495,6 +619,7 @@ function generateMainOneOnOneQuestions({
     packSlot: packSlot.slot,
     difficultyAnchor: pair.difficultyAnchor,
     difficultyTier: pair.difficultyTier,
+    difficultyCode: pair.difficultyCode,
     designPolicyVersion: pair.designPolicyVersion,
     contentSourceVersion:
       problemDataVersion?.code || pair.contentSourceVersion,
@@ -531,9 +656,11 @@ async function generateMainOneOnOneQuestionsFromActiveData(input) {
     const questions = await generateQuestionsFromTierCatalog({
       version: tierCatalogVersion,
       difficultyTier: pair.difficultyTier,
+      difficultyCode: pair.difficultyCode,
       challengerTier: pair.challengerTier,
       defenderTier: pair.defenderTier,
       matchKey: input.matchKey,
+      division: "MAIN",
     });
     return {
       pairKey: pair.key,
@@ -541,17 +668,156 @@ async function generateMainOneOnOneQuestionsFromActiveData(input) {
       packSlot: slotIndex + 1,
       difficultyAnchor: pair.difficultyAnchor,
       difficultyTier: pair.difficultyTier,
+      difficultyCode: pair.difficultyCode,
       designPolicyVersion: pair.designPolicyVersion,
       contentSourceVersion: tierCatalogVersion.code,
       problemDataVersionId: problemDataVersion?._id || null,
       tierCatalogVersionId: tierCatalogVersion._id,
-      designCompliance: "PENDING_FINAL_GENERATORS",
+      designCompliance: "ACTIVE",
       targetAccuracy: pair.targetAccuracy,
       packCurve: pair.packCurve,
       questions,
     };
   }
   return generateMainOneOnOneQuestions({ ...input, problemDataVersion });
+}
+
+function friendlyDifficultyPlan({
+  inviterTier,
+  inviterDivision,
+  inviteeTier,
+  inviteeDivision,
+}) {
+  const participants = [
+    { tier: tierCode(inviterTier), division: String(inviterDivision || "SUB").toUpperCase() },
+    { tier: tierCode(inviteeTier), division: String(inviteeDivision || "SUB").toUpperCase() },
+  ].map((participant) => ({
+    ...participant,
+    difficultyTier: resolveArenaDifficultyTier(
+      participant.tier,
+      participant.tier,
+      { division: participant.division }
+    ),
+  }));
+  const difficultyTier = participants
+    .map((participant) => participant.difficultyTier)
+    .sort((left, right) => Number(right.slice(1)) - Number(left.slice(1)))[0];
+  const anchorTier = TIER_SPECS[difficultyTier]?.anchor;
+  if (!anchorTier) {
+    const error = new Error("친선 경기 참가자에게 맞는 문제 난이도를 찾을 수 없습니다.");
+    error.status = 409;
+    error.code = "FRIENDLY_DIFFICULTY_NOT_CONFIGURED";
+    throw error;
+  }
+  return {
+    difficultyTier,
+    anchorTier,
+    pairKey: `FRIENDLY_${participants[0].division}_${participants[0].tier}_${participants[1].division}_${participants[1].tier}_${difficultyTier}`,
+    pairLabel: `${ARENA_TIER_LABELS[participants[0].tier] || participants[0].tier}-${ARENA_TIER_LABELS[participants[1].tier] || participants[1].tier} 친선 경기`,
+  };
+}
+
+async function generateFriendlyOneOnOneQuestionsFromActiveData(input) {
+  const plan = friendlyDifficultyPlan(input);
+  const [problemDataVersion, tierCatalogVersion] = await Promise.all([
+    getActiveArenaProblemDataVersion(),
+    getActiveArenaTierCatalogVersion(),
+  ]);
+  const slotIndex = deterministicPackSlot({
+    pairKey: plan.pairKey,
+    matchKey: input.matchKey,
+  });
+  if (tierCatalogVersion) {
+    const difficultyCode = resolveArenaDifficultyCode(
+      plan.anchorTier,
+      plan.anchorTier,
+      { division: "MAIN" }
+    );
+    const questions = await generateQuestionsFromTierCatalog({
+      version: tierCatalogVersion,
+      difficultyTier: plan.difficultyTier,
+      difficultyCode,
+      challengerTier: plan.anchorTier,
+      defenderTier: plan.anchorTier,
+      matchKey: input.matchKey,
+      division: "MAIN",
+    });
+    return {
+      pairKey: plan.pairKey,
+      pairLabel: plan.pairLabel,
+      packSlot: slotIndex + 1,
+      difficultyAnchor: "HIGHER_ABSOLUTE_DIFFICULTY",
+      difficultyTier: plan.difficultyTier,
+      difficultyCode,
+      designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
+      contentSourceVersion: tierCatalogVersion.code,
+      problemDataVersionId: problemDataVersion?._id || null,
+      tierCatalogVersionId: tierCatalogVersion._id,
+      designCompliance: "ACTIVE",
+      targetAccuracy: PUBLIC_DIFFICULTY_SPECS[difficultyCode] || TIER_SPECS[plan.difficultyTier],
+      questionTargetAccuracy: plannedPackSlots(plan.anchorTier, plan.anchorTier, {
+        division: "MAIN",
+      }).map((slot) => slot.targetAccuracy),
+      packCurve: packCurveForPair(plan.anchorTier, plan.anchorTier),
+      questions,
+    };
+  }
+  const difficultyCode = resolveArenaDifficultyCode(
+    plan.anchorTier,
+    plan.anchorTier,
+    { division: "MAIN" }
+  );
+  const eligibleTypeIds = problemDataVersion
+    ? weightedTypeIdsForPack(problemDataVersion, plan.difficultyTier, slotIndex)
+    : ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS;
+  const legacyPair = {
+    key: plan.pairKey,
+    label: plan.pairLabel,
+    challengerTier: plan.anchorTier,
+    defenderTier: plan.anchorTier,
+    difficultyTier: plan.difficultyTier,
+    difficultyCode,
+    designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
+    contentSourceVersion: problemDataVersion?.code || ARENA_LEGACY_CONTENT_VERSION,
+  };
+  const packSlot = {
+    slot: slotIndex + 1,
+    code: `${plan.pairKey}_${String(slotIndex + 1).padStart(2, "0")}`,
+    questionSlots: configuredQuestionSlots(
+      slotIndex,
+      plan.anchorTier,
+      plan.anchorTier,
+      eligibleTypeIds,
+      { division: "MAIN" }
+    ),
+  };
+  const legacy = {
+    pairKey: plan.pairKey,
+    pairLabel: plan.pairLabel,
+    packSlot: packSlot.slot,
+    difficultyAnchor: "HIGHER_ABSOLUTE_DIFFICULTY",
+    difficultyTier: plan.difficultyTier,
+    difficultyCode,
+    designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
+    contentSourceVersion: legacyPair.contentSourceVersion,
+    problemDataVersionId: problemDataVersion?._id || null,
+    designCompliance: "PENDING_FINAL_GENERATORS",
+    targetAccuracy: PUBLIC_DIFFICULTY_SPECS[difficultyCode] || TIER_SPECS[plan.difficultyTier],
+    questionTargetAccuracy: plannedPackSlots(plan.anchorTier, plan.anchorTier, {
+      division: "MAIN",
+    }).map((slot) => slot.targetAccuracy),
+    packCurve: packCurveForPair(plan.anchorTier, plan.anchorTier),
+    questions: generateQuestionsFromPackSlot({
+      pair: legacyPair,
+      packSlot,
+      matchKey: input.matchKey,
+      eligibleTypeIds,
+      problemDataVersion,
+    }),
+  };
+  return {
+    ...legacy,
+  };
 }
 
 module.exports = {
@@ -561,6 +827,7 @@ module.exports = {
   ARENA_ONE_ON_ONE_START_LIMIT_MS,
   ARENA_ONE_ON_ONE_TIME_LIMIT_MS,
   ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS,
+  ARENA_ONE_ON_ONE_FINAL_TYPE_IDS,
   SUB_TIER_PAIR_CONFIG,
   MAIN_TIER_PAIR_CONFIG,
   assertConfiguredPackSlot,
@@ -570,6 +837,8 @@ module.exports = {
   generateSubOneOnOneQuestionsFromActiveData,
   generateMainOneOnOneQuestions,
   generateMainOneOnOneQuestionsFromActiveData,
+  generateFriendlyOneOnOneQuestionsFromActiveData,
+  friendlyDifficultyPlan,
   getMainTierPair,
   getSubTierPair,
   isAllowedSubTierChallenge,

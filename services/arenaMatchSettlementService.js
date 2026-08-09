@@ -719,6 +719,12 @@ async function settleArenaMatch({ matchId, now = new Date() }) {
     } = require("./mainArenaSettlementService");
     return settleMainNormalMatch({ matchId, now });
   }
+  if (match.division === "MAIN" && match.matchType === "FRIENDLY") {
+    const {
+      settleMainFriendlyMatch,
+    } = require("./mainFriendlyMatchService");
+    return settleMainFriendlyMatch({ matchId, now });
+  }
   if (match.division === "MAIN" && match.matchType === "REVENGE") {
     const {
       settleMainRevengeMatch,

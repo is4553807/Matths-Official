@@ -4,6 +4,7 @@ const {
   ArenaMatch,
   ArenaMatchAttempt,
   ArenaMatchEvidence,
+  MainFriendlyInvitation,
   MainInvitationRequest,
 } = require("../models/goatArenaModel");
 const {
@@ -62,6 +63,7 @@ async function ensureArenaNotification({
   sourceId = null,
   kind = "system",
   tone = "",
+  metadata = {},
   email = false,
   emailActionLabel = "",
   emailActionUrl = "",
@@ -78,6 +80,7 @@ async function ensureArenaNotification({
         href: safeInternalHref(href),
         kind,
         tone: String(tone || "").slice(0, 32),
+        metadata: metadata && typeof metadata === "object" ? metadata : {},
         dedupeKey,
         sourceType,
         sourceId: mongoose.isValidObjectId(sourceId) ? sourceId : null,
@@ -121,12 +124,177 @@ async function notifyArenaMatchDefender({ matchId }) {
   return ensureArenaNotification({
     user,
     dedupeKey: `arena-defense-assigned:${match._id}`,
-    title: "방어해야 할 경기가 배정되었습니다",
-    message: `${match.division === "MAIN" ? "Ranked" : "Unranked"} ${match.matchType === "REVENGE" ? "복수전" : "쟁탈전"}이 자동 배정되었습니다. 제한시간 안에 경기를 확인해주세요.`,
+    title: match.matchType === "FRIENDLY" ? "친선 경기가 성립되었습니다" : "방어해야 할 경기가 배정되었습니다",
+    message: match.matchType === "FRIENDLY"
+      ? "친선 경기 수락이 완료되었습니다. 양측의 이용 수수료 1일이 차감되었으며, 티어·순위·학습일수 이전 없이 경기를 진행합니다."
+      : `${match.division === "MAIN" ? "Ranked" : "Unranked"} ${match.matchType === "REVENGE" ? "복수전" : "쟁탈전"}이 자동 배정되었습니다. 제한시간 안에 경기를 확인해주세요.`,
     href: `/goat-arena/matches/${match._id}`,
     sourceType: "ArenaMatch",
     sourceId: match._id,
     kind: "system",
+  });
+}
+
+function arenaMatchTypeLabel(matchType) {
+  if (matchType === "FRIENDLY") return "친선 경기";
+  if (matchType === "REVENGE") return "복수전";
+  return "쟁탈전";
+}
+
+function arenaDivisionLabel(division) {
+  return division === "MAIN" ? "Ranked" : "Unranked";
+}
+
+function arenaMatchRoleLabel({ matchType, role }) {
+  if (matchType === "FRIENDLY") {
+    return role === "CHALLENGER" ? "친선 초대 사용자" : "초대 수락 사용자";
+  }
+  if (matchType === "REVENGE") {
+    return role === "CHALLENGER" ? "복수전 신청자" : "복수전 상대";
+  }
+  return role === "CHALLENGER" ? "공격자" : "방어자";
+}
+
+function arenaMatchResultSummary(match) {
+  if (match.matchType === "FRIENDLY") {
+    return "친선 경기는 수락 시 차감된 양쪽 이용 수수료 1일 외에 티어·순위·학습일수 이전이 없습니다.";
+  }
+  const tupleAction = String(
+    match.resultSnapshot?.settlementSummary?.tupleAction || ""
+  ).toUpperCase();
+  if (tupleAction === "SWAP") {
+    return "이번 경기 결과에 따라 티어와 티어 내 순위가 반영되었습니다.";
+  }
+  return "이번 경기의 정산 결과가 반영되었습니다. 상세 규정과 정산 내역은 경기 기록에서 확인할 수 있습니다.";
+}
+
+/**
+ * 모든 최종 정산 경기의 결과를 양쪽 참가자에게 한 번씩 전달한다.
+ *
+ * 결과 정산은 트랜잭션 안에서 끝나고 outbox가 이를 비동기로 전달한다.
+ * 따라서 새로고침, 정산 재시도, outbox 재시도 중 어느 경우에도
+ * 경기·수신자 조합의 dedupeKey가 같은 우편을 한 번만 남긴다.
+ */
+async function notifyArenaMatchResult({ matchId, refreshExisting = false }) {
+  if (!mongoose.isValidObjectId(matchId)) return [];
+  const match = await ArenaMatch.findOne({ _id: matchId, status: "SETTLED" })
+    .select([
+      "division",
+      "matchType",
+      "winnerRole",
+      "challenger.userId",
+      "defender.userId",
+      "resultSnapshot.challenger",
+      "resultSnapshot.defender",
+      "resultSnapshot.tieBreakStep",
+      "resultSnapshot.settlementSummary",
+    ].join(" "))
+    .lean();
+  if (!match) return [];
+
+  const challengerId = match.challenger?.userId;
+  const defenderId = match.defender?.userId;
+  if (!challengerId || !defenderId) return [];
+
+  const participants = await User.find({
+    _id: { $in: [challengerId, defenderId] },
+  }).select("name email").lean();
+  const userById = new Map(participants.map((user) => [id(user._id), user]));
+  const matchLabel = `${arenaDivisionLabel(match.division)} ${arenaMatchTypeLabel(match.matchType)}`;
+  const friendly = match.matchType === "FRIENDLY";
+  const matchEndSubject = friendly ? `${matchLabel}가` : `${matchLabel}이`;
+  const settlementNote = arenaMatchResultSummary(match);
+
+  return Promise.all([
+    { role: "CHALLENGER", userId: challengerId, opponentId: defenderId },
+    { role: "DEFENDER", userId: defenderId, opponentId: challengerId },
+  ].map(async ({ role, userId, opponentId }) => {
+    const user = userById.get(id(userId));
+    if (!user) return null;
+    const opponentName = userById.get(id(opponentId))?.name || "상대 이용자";
+    const won = match.winnerRole === role;
+    const lost = ["CHALLENGER", "DEFENDER"].includes(match.winnerRole) && !won;
+    const resultLabel = won ? "승리" : lost ? "패배" : "결과 확정";
+    const myScore = role === "CHALLENGER"
+      ? match.resultSnapshot?.challenger
+      : match.resultSnapshot?.defender;
+    const opponentScore = role === "CHALLENGER"
+      ? match.resultSnapshot?.defender
+      : match.resultSnapshot?.challenger;
+    const resultMetadata = {
+      arenaMatchResult: {
+        version: 1,
+        matchId: id(match._id),
+        division: match.division,
+        divisionLabel: arenaDivisionLabel(match.division),
+        matchType: match.matchType,
+        matchLabel,
+        role,
+        roleLabel: arenaMatchRoleLabel({ matchType: match.matchType, role }),
+        opponentName,
+        outcome: won ? "WIN" : lost ? "LOSS" : "FINALIZED",
+        outcomeLabel: resultLabel,
+        matchStatusLabel: "경기 정산 완료",
+        myScore: myScore || null,
+        opponentScore: opponentScore || null,
+        tieBreakStep: String(match.resultSnapshot?.tieBreakStep || ""),
+        settlementNote,
+      },
+    };
+    const notification = await ensureArenaNotification({
+      user,
+      dedupeKey: `arena-match-result:${match._id}:${user._id}`,
+      title: `GOAT Arena 경기 결과 · ${resultLabel}`,
+      message: `${matchEndSubject} 종료되었습니다. ${opponentName}님과의 경기 결과는 ${resultLabel}입니다. ${settlementNote}`,
+      href: `/goat-arena/matches/${match._id}`,
+      sourceType: "ArenaMatch",
+      sourceId: match._id,
+      kind: "system",
+      tone: won ? "match-victory" : lost ? "match-defeat" : "match-result",
+      metadata: resultMetadata,
+    });
+    if (!refreshExisting || !notification?._id) return notification;
+    return UserNotification.findByIdAndUpdate(
+      notification._id,
+      {
+        $set: {
+          title: `GOAT Arena 경기 결과 · ${resultLabel}`,
+          message: `${matchEndSubject} 종료되었습니다. ${opponentName}님과의 경기 결과는 ${resultLabel}입니다. ${settlementNote}`,
+          href: `/goat-arena/matches/${match._id}`,
+          kind: "system",
+          tone: won ? "match-victory" : lost ? "match-defeat" : "match-result",
+          metadata: resultMetadata,
+        },
+      },
+      { returnDocument: "after" }
+    ).lean();
+  }));
+}
+
+async function notifyMainFriendlyInvitation({ invitationId }) {
+  if (!mongoose.isValidObjectId(invitationId)) return null;
+  const invitation = await MainFriendlyInvitation.findById(invitationId)
+    .select("inviterUserId inviteeUserId status expiresAt")
+    .lean();
+  if (!invitation || invitation.status !== "PENDING") return null;
+  const [inviter, invitee] = await Promise.all([
+    User.findById(invitation.inviterUserId).select("name username").lean(),
+    User.findById(invitation.inviteeUserId).select("email name").lean(),
+  ]);
+  if (!invitee) return null;
+  const inviterName = String(inviter?.name || inviter?.username || "친구");
+  return ensureArenaNotification({
+    user: invitee,
+    dedupeKey: `main-friendly-invitation:${invitation._id}`,
+    title: "GOAT Arena 친선 경기 초대가 도착했습니다",
+    message: `${inviterName}님이 친선 경기를 초대했습니다. 수락 시 양쪽에서 1일씩 차감되며, 티어·순위·학습일수 이전은 없습니다.`,
+    href: "/goat-arena/main/battle#main-friendly-match",
+    sourceType: "MainFriendlyInvitation",
+    sourceId: invitation._id,
+    kind: "system",
+    email: true,
+    emailActionLabel: "친선 경기 초대 확인",
+    emailActionUrl: absoluteAppUrl("/goat-arena/main/battle#main-friendly-match"),
   });
 }
 
@@ -469,8 +637,14 @@ function registerArenaNotificationOutboxHandlers() {
   registerArenaOutboxHandler("ArenaMatchCreated", (event) =>
     notifyArenaMatchDefender({ matchId: event.aggregateId })
   );
+  registerArenaOutboxHandler("MainFriendlyInvitationCreated", (event) =>
+    notifyMainFriendlyInvitation({ invitationId: event.aggregateId })
+  );
   registerArenaOutboxHandler("ArenaRevengeMatchCreated", (event) =>
     notifyArenaMatchDefender({ matchId: event.aggregateId })
+  );
+  registerArenaOutboxHandler("ArenaMatchSettled", (event) =>
+    notifyArenaMatchResult({ matchId: event.aggregateId })
   );
   registerArenaOutboxHandler("MainInvitationOffered", (event) =>
     notifyMainInvitationOffered({
@@ -488,7 +662,15 @@ function registerArenaNotificationOutboxHandlers() {
   );
 }
 
-async function getArenaNotificationSummary({ userId, limit = 5 }) {
+async function getArenaNotificationSummary({
+  userId,
+  limit = 5,
+  hrefBase = "/notifications",
+}) {
+  const notificationHrefBase =
+    hrefBase === "/goat-arena/mailbox"
+      ? "/goat-arena/mailbox"
+      : "/notifications";
   if (!mongoose.isValidObjectId(userId)) {
     return {
       unreadCount: 0,
@@ -552,7 +734,7 @@ async function getArenaNotificationSummary({ userId, limit = 5 }) {
       id: id(notification._id),
       title: notification.title,
       message: notification.message,
-      href: `/notifications/${notification._id}`,
+      href: `${notificationHrefBase}/${notification._id}`,
       createdAt: notification.createdAt,
       unread: !notification.readAt,
       tone: notification.tone || "",
@@ -567,6 +749,8 @@ module.exports = {
   notifyArenaIntegrityReviewResult,
   notifyArenaMatchIntegrityReviewStarted,
   notifyArenaMatchDefender,
+  notifyArenaMatchResult,
+  notifyMainFriendlyInvitation,
   notifyMainInvitationOffered,
   notifyArenaSupplementalEvidenceRequested,
   placeUserUnderArenaIntegrityReview,

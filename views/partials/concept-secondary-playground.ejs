@@ -43,6 +43,9 @@
           },
           actionLabel: "다시 실행",
         };
+  const commonMathExperience =
+    ["common-math-1", "common-math-2"].includes(course.id) &&
+    String(playgroundKey || "").startsWith("common-math-");
 %>
 
 <% if (calculusExperience && calculusProfile) { %>
@@ -758,6 +761,47 @@
           <span>관찰 결과</span>
           <strong id="algebra-graph-verdict">-</strong>
         </div>
+      </div>
+    </div>
+  </div>
+<% } else if (commonMathExperience) { %>
+  <div
+    class="limit-lab concept-specific-lab common-math-lab"
+    data-common-math-course="<%= course.id %>"
+    data-common-math-unit="<%= unit.id %>"
+    data-common-math-concept="<%= concept.id %>"
+  >
+    <aside class="lab-controls">
+      <div>
+        <p>확인할 관점</p>
+        <div class="mode-buttons">
+          <% (lesson.dashboardPreview?.blocks || []).forEach((block, index) => { %>
+            <button type="button" class="<%= index === 0 ? 'active' : '' %>" data-common-math-mode="<%= index %>">
+              <%= block.label %>
+            </button>
+          <% }) %>
+        </div>
+      </div>
+      <label>
+        <span><b>조건의 값 a</b><output id="common-math-primary-output">3</output></span>
+        <input id="common-math-primary" type="range" min="1" max="8" step="1" value="3" />
+      </label>
+      <label>
+        <span><b>변화량 b</b><output id="common-math-secondary-output">2</output></span>
+        <input id="common-math-secondary" type="range" min="-5" max="5" step="1" value="2" />
+      </label>
+      <button id="rerun-common-math" type="button">조건을 바꾸어 다시 보기</button>
+      <div class="lab-tip"><b>관찰 포인트</b><p id="common-math-tip"><%= lesson.steps?.[1]?.description || lesson.keyTakeaway %></p></div>
+    </aside>
+    <div class="lab-visual">
+      <div class="lab-formula"><span>현재 핵심 관계</span><strong id="common-math-formula"><%= lesson.dashboardPreview?.formula || concept.title %></strong></div>
+      <div class="limit-graph-wrap common-math-visual-wrap">
+        <svg id="common-math-playground-visual" viewBox="0 0 720 430" role="img" aria-label="<%= concept.title %>의 조건을 조작하는 시각 학습"></svg>
+      </div>
+      <div class="limit-readout">
+        <div><span>현재 조건</span><strong id="common-math-state">a=3, b=2</strong></div>
+        <div><span>그림에서 읽기</span><strong id="common-math-value"><%= concept.title %></strong></div>
+        <div class="limit-verdict"><span>관찰 결과</span><strong id="common-math-verdict"><%= lesson.keyTakeaway %></strong></div>
       </div>
     </div>
   </div>

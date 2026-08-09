@@ -427,6 +427,8 @@ function formatMathTextForCourse(
   value
 ) {
   return [
+    "common-math-1",
+    "common-math-2",
     "algebra",
     "probability-statistics",
   ].includes(courseId)

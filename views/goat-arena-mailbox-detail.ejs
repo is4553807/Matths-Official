@@ -1,0 +1,117 @@
+<%
+  const formatDate = (date) => new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    dateStyle: "long",
+    timeStyle: "short",
+  }).format(new Date(date));
+  const kindLabels = {
+    admin: "운영자 알림",
+    system: "시스템 알림",
+    warning: "경고 안내",
+    account: "계정 상태 안내",
+    nickname: "닉네임 변경 요청",
+    announcement: "공지",
+    integrity: "경기 검토 안내",
+  };
+  const urgentKinds = new Set(["warning", "account", "nickname", "integrity"]);
+  const policyChangeRows = Array.isArray(notification.metadata?.policyChangeRows)
+    ? notification.metadata.policyChangeRows
+    : [];
+  const matchResult = notification.metadata?.arenaMatchResult && typeof notification.metadata.arenaMatchResult === "object"
+    ? notification.metadata.arenaMatchResult
+    : null;
+  const formatDuration = (value) => {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+      return "기록 없음";
+    }
+    const seconds = Math.max(0, Math.round(Number(value) / 1000));
+    return `${Math.floor(seconds / 60)}분 ${String(seconds % 60).padStart(2, "0")}초`;
+  };
+  const matchVerdict = matchResult?.outcome === "WIN"
+    ? "VICTORY"
+    : matchResult?.outcome === "LOSS"
+      ? "DEFEAT"
+      : "RESULT";
+  const hasMatchScores = Boolean(matchResult?.myScore || matchResult?.opponentScore);
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#070913" />
+    <title><%= notification.title %> | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <%- include("partials/rank-motion-head") %>
+    <link rel="icon" type="image/jpeg" href="/images/goat-arena/goat-arena-logo.jpg" />
+    <script src="/js/goat-arena.js" defer></script>
+  </head>
+  <body class="goat-arena-page arena-inner-page arena-mailbox-page">
+    <a class="arena-skip-link" href="#arena-mailbox-detail-main">본문으로 바로가기</a>
+    <%- include("partials/goat-arena-navigation", { activeArenaPage, arenaUser }) %>
+
+    <main class="arena-page-main arena-mailbox-main" id="arena-mailbox-detail-main">
+      <a class="arena-mailbox-back" href="/goat-arena/mailbox">← GOAT Arena 우편함</a>
+      <article class="arena-mailbox-detail <%= urgentKinds.has(notification.kind) ? 'is-urgent' : '' %> <%= matchResult ? `is-match-result is-${String(matchResult.outcome || '').toLowerCase()}` : '' %>">
+        <header>
+          <span><%= matchResult ? `${matchResult.matchLabel || 'GOAT Arena 경기'} 결과` : (kindLabels[notification.kind] || "알림") %></span>
+          <time datetime="<%= new Date(notification.createdAt).toISOString() %>"><%= formatDate(notification.createdAt) %></time>
+        </header>
+        <% if (matchResult) { %>
+          <section class="arena-mailbox-result-hero" aria-label="경기 결과 요약">
+            <div class="arena-mailbox-result-verdict">
+              <small>자동 채점 · 정산 완료</small>
+              <h1><%= matchVerdict %></h1>
+              <p><strong><%= matchResult.opponentName || '상대 이용자' %></strong>님과의 경기 결과는 <b><%= matchResult.outcomeLabel || '확정' %></b>입니다.</p>
+            </div>
+            <dl class="arena-mailbox-result-status">
+              <div><dt>경기 상태</dt><dd><%= matchResult.matchStatusLabel || '경기 정산 완료' %></dd></div>
+              <div><dt>내 역할</dt><dd><%= matchResult.roleLabel || '참가자' %></dd></div>
+              <div><dt>상대</dt><dd><%= matchResult.opponentName || '상대 이용자' %></dd></div>
+            </dl>
+          </section>
+
+          <% if (hasMatchScores) { %>
+            <section class="arena-mailbox-result-scoreboard" aria-label="양쪽 경기 기록 비교">
+              <article>
+                <small>나</small>
+                <strong><%= matchResult.myScore?.score ?? 0 %>점</strong>
+                <span>정답 <%= matchResult.myScore?.correctCount ?? 0 %>문항</span>
+                <span>정답 문항 <%= formatDuration(matchResult.myScore?.correctAnswerSolveTimeMs) %></span>
+                <span>전체 <%= formatDuration(matchResult.myScore?.totalSolveTimeMs) %></span>
+              </article>
+              <b aria-hidden="true">VS</b>
+              <article>
+                <small><%= matchResult.opponentName || '상대' %></small>
+                <strong><%= matchResult.opponentScore?.score ?? 0 %>점</strong>
+                <span>정답 <%= matchResult.opponentScore?.correctCount ?? 0 %>문항</span>
+                <span>정답 문항 <%= formatDuration(matchResult.opponentScore?.correctAnswerSolveTimeMs) %></span>
+                <span>전체 <%= formatDuration(matchResult.opponentScore?.totalSolveTimeMs) %></span>
+              </article>
+            </section>
+          <% } %>
+
+          <section class="arena-mailbox-result-settlement" aria-label="경기 정산 안내">
+            <span>정산 안내</span>
+            <p><%= matchResult.settlementNote || notification.message %></p>
+          </section>
+        <% } else { %>
+          <h1><%= notification.title %></h1>
+          <p class="arena-mailbox-detail-message"><%= notification.message %></p>
+        <% } %>
+        <% if (policyChangeRows.length) { %>
+          <section class="arena-mailbox-policy-change" aria-label="정책 변경 전후 비교">
+            <h2>변경 전·후</h2>
+            <div><table><thead><tr><th>항목</th><th>변경 전</th><th>변경 후</th></tr></thead><tbody>
+              <% policyChangeRows.forEach((row) => { %><tr><th scope="row"><%= row.label %></th><td><%= row.before %></td><td><%= row.after %></td></tr><% }) %>
+            </tbody></table></div>
+          </section>
+        <% } %>
+        <footer>
+          <a href="/goat-arena/mailbox">목록으로</a>
+          <% if (notification.targetHref !== "/notifications") { %><a class="primary" href="<%= notification.targetHref %>">관련 페이지 열기 →</a><% } %>
+        </footer>
+      </article>
+    </main>
+  </body>
+</html>

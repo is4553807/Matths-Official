@@ -15,6 +15,8 @@ const { linkChildToParent } = require("./parentFamilyService");
 const INVITE_TTL_MS = 72 * 60 * 60 * 1000;
 const CHECKOUT_TTL_MS = 30 * 60 * 1000;
 const PRODUCTS = new Set(["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"]);
+const LEGAL_GUARDIAN_CONSENT_VERSION = "MINOR_PAYMENT_GUARDIAN_V1";
+const MINOR_PAYMENT_NOTICE_VERSION = "MINOR_SELF_PAYMENT_NOTICE_V1";
 
 function statusError(status, message, code = "") {
   const error = new Error(message);
@@ -69,6 +71,9 @@ async function createCheckoutIntent({
   parentAccountId = null,
   requestedBy,
   productCode,
+  legalGuardianConsent = false,
+  requiresMinorPaymentNotice = false,
+  minorPaymentNoticeAccepted = false,
 }) {
   const [student, product] = await Promise.all([
     User.findById(studentUserId).select("_id name isActive accountStatus").lean(),
@@ -77,6 +82,24 @@ async function createCheckoutIntent({
   if (!student || student.isActive === false || student.accountStatus === "withdrawn") {
     throw statusError(404, "결제 대상 학생 계정을 찾을 수 없습니다.");
   }
+  if (requestedBy === "PARENT" && legalGuardianConsent !== true) {
+    throw statusError(
+      400,
+      "미성년자 결제 법정대리인 동의를 확인한 뒤 결제 주문을 준비해주세요.",
+      "LEGAL_GUARDIAN_CONSENT_REQUIRED"
+    );
+  }
+  if (
+    requestedBy === "STUDENT" &&
+    requiresMinorPaymentNotice === true &&
+    minorPaymentNoticeAccepted !== true
+  ) {
+    throw statusError(
+      400,
+      "미성년자 결제 안내를 확인한 뒤 본인 결제를 진행해주세요.",
+      "MINOR_PAYMENT_NOTICE_REQUIRED"
+    );
+  }
   return CheckoutIntent.create({
     studentUserId: student._id,
     parentAccountId,
@@ -84,6 +107,18 @@ async function createCheckoutIntent({
     productCode: product.code,
     productName: product.name,
     amount: product.amount,
+    legalGuardianConsentAt:
+      requestedBy === "PARENT" ? new Date() : null,
+    legalGuardianConsentVersion:
+      requestedBy === "PARENT" ? LEGAL_GUARDIAN_CONSENT_VERSION : "",
+    minorPaymentNoticeAcceptedAt:
+      requestedBy === "STUDENT" && requiresMinorPaymentNotice
+        ? new Date()
+        : null,
+    minorPaymentNoticeVersion:
+      requestedBy === "STUDENT" && requiresMinorPaymentNotice
+        ? MINOR_PAYMENT_NOTICE_VERSION
+        : "",
     expiresAt: new Date(Date.now() + CHECKOUT_TTL_MS),
   });
 }
@@ -267,5 +302,7 @@ module.exports = {
   getParentInvite,
   getProduct,
   getProductCatalog,
+  LEGAL_GUARDIAN_CONSENT_VERSION,
+  MINOR_PAYMENT_NOTICE_VERSION,
   registerParent,
 };

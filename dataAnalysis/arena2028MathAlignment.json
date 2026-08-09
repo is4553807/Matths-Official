@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "1.0",
+  "source": {
+    "title": "2028학년도 대학수학능력시험 예시문항 안내자료집",
+    "publisher": "한국교육과정평가원",
+    "fileName": "2028예시문항안내자료집.pdf",
+    "reviewedSection": "수학 영역"
+  },
+  "assessmentScope": {
+    "directCourses": [
+      { "courseId": "algebra", "label": "대수" },
+      { "courseId": "calculus-1", "label": "미적분Ⅰ" },
+      { "courseId": "probability-statistics", "label": "확률과 통계" }
+    ],
+    "indirectFoundationCourses": [
+      { "courseId": "common-math-1", "label": "공통수학Ⅰ" },
+      { "courseId": "common-math-2", "label": "공통수학Ⅱ" }
+    ]
+  },
+  "behaviorDomains": [
+    { "code": "CALCULATION", "label": "계산" },
+    { "code": "UNDERSTANDING", "label": "이해" },
+    { "code": "INFERENCE", "label": "추론" },
+    { "code": "PROBLEM_SOLVING", "label": "문제해결" }
+  ],
+  "representationRequirements": [
+    "식·그래프·표·그림 사이의 정보를 해석할 수 있어야 한다.",
+    "그래프 또는 표가 문항 조건에 포함될 때 생성된 수치와 함께 경기 화면에 표시한다."
+  ],
+  "sampleEvidence": [
+    {
+      "printedPage": 42,
+      "questionNumber": 16,
+      "courseId": "algebra",
+      "classification": "삼각함수 그래프와 교점 개수 추론"
+    },
+    {
+      "printedPages": [44, 45],
+      "questionNumber": 27,
+      "courseId": "algebra",
+      "classification": "수열·로그함수 그래프·넓이 조건 결합"
+    },
+    {
+      "printedPage": 47,
+      "questionNumber": 18,
+      "courseId": "calculus-1",
+      "classification": "함수의 극한과 국소 구조 추론"
+    },
+    {
+      "printedPage": 49,
+      "questionNumber": 17,
+      "courseId": "calculus-1",
+      "classification": "정적분과 넓이 해석"
+    },
+    {
+      "printedPage": 51,
+      "questionNumber": 29,
+      "courseId": "probability-statistics",
+      "classification": "조건부확률과 다단계 사건 분류"
+    },
+    {
+      "printedPage": 53,
+      "questionNumber": 6,
+      "courseId": "probability-statistics",
+      "classification": "표본비율과 추정"
+    }
+  ],
+  "implementationDecision": {
+    "liveFiveQuestionCourseMix": {
+      "algebra": 2,
+      "calculus-1": 2,
+      "probability-statistics": 1
+    },
+    "commonMathUse": "공통수학Ⅰ·Ⅱ는 직접 출제 슬롯이 아니라 대수·미적분Ⅰ·확률과 통계 문항의 기초 연계 개념으로 사용한다.",
+    "copyrightBoundary": "예시문항의 문장·수치·정답을 복제하지 않고 교육과정 범위와 사고 행동만 정합성 검토에 사용한다."
+  }
+}
