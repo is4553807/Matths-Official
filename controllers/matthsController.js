@@ -1649,7 +1649,7 @@ function arenaPolicyFeedbackFromQuery(query = {}) {
     return "Ranked 정책을 종료했습니다.";
   }
   if (String(query.mainShopUpdated || "") === "1") {
-    return "Ranked 상점의 새 가격·판매 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 공지를 만들었습니다.";
+    return "Ranked 상점의 가격·판매 상태를 즉시 적용하고 전체 사용자 공지를 만들었습니다.";
   }
   return null;
 }

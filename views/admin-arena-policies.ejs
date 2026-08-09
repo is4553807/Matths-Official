@@ -177,7 +177,7 @@
           <% } %>
         </form>
       </section>
-      <div class="admin-feedback" role="note">모든 정책 변경은 등록 시점으로부터 최소 30일 뒤 적용됩니다. 적용 예약 직후 전체 활성 사용자에게 이메일과 사이트 우편함 공지가 생성됩니다.</div>
+      <div class="admin-feedback" role="note">Unranked·Ranked·패키지 정책은 등록 시점으로부터 최소 30일 뒤 적용됩니다. 단, Ranked 상점의 가격·판매 상태는 저장 즉시 적용되며, 두 경우 모두 전체 활성 사용자에게 이메일과 사이트 우편함 공지가 생성됩니다.</div>
 
       <nav class="admin-policy-jump" aria-label="Arena 정책 영역 바로가기">
         <a href="#product-policies"><span>01</span>상품·가격</a>
@@ -226,6 +226,19 @@
           <button type="submit">새 가격 정책 적용</button>
         </form>
         <br />
+        <% if (policyData.learningPackage.policies.length) { %>
+          <div class="admin-policy-list">
+            <% policyData.learningPackage.policies.forEach((policy) => { const learningState = policyState(policy); %>
+              <article class="admin-policy-card <%= learningState === '적용 중' ? 'is-current' : '' %>">
+                <header>
+                  <div><span><%= learningState %></span><h3><%= publicArenaText(policy.displayName) %></h3><small><%= formatDateTime(policy.effectiveFrom) %>부터</small></div>
+                  <strong><%= formatWon(policy.priceAmount) %></strong>
+                </header>
+                <% if (policy.changeSummary) { %><p><%= policy.changeSummary %></p><% } %>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
       </section>
 
       <section class="admin-panel admin-policy-create" id="mock-exam-package">
@@ -273,7 +286,7 @@
       <section class="admin-panel admin-policy-create" id="main-shop-policy">
         <div class="admin-panel-heading">
           <div><p>Ranked 상점</p><h2>판매 가격·아이템 상태 관리</h2></div>
-          <span>저장하면 30일 뒤 적용될 정책 버전을 만들고 즉시 전체 사용자에게 사전 공지합니다. 적용 전까지는 현재 가격이 유지됩니다.</span>
+          <span>저장 즉시 새 가격·판매 상태가 적용됩니다. 전체 사용자에게는 항목별 핵심 변경점을 불릿으로 안내합니다.</span>
         </div>
         <form class="admin-form" action="/admin/arena-policies/main-shop" method="POST">
           <div class="admin-policy-field-grid">
@@ -289,7 +302,7 @@
               <input name="changeSummary" maxlength="1000" value="<%= oldInput?.policyDivision === 'MAIN_SHOP' ? oldInput.changeSummary || '' : '' %>" placeholder="예: 2차 편의 기능 판매 시작" />
             </label>
           </div>
-          <button type="submit">새 상점 정책 적용</button>
+          <button type="submit">상점 정책 즉시 적용·전체 공지</button>
         </form>
         <br />
       </section>

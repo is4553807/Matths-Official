@@ -66,18 +66,27 @@
           <h2><%= notification.title %></h2>
           <div class="notification-detail-message"><%= notification.message %></div>
           <% if (policyChangeRows.length) { %>
-            <section class="notification-policy-change" aria-label="정책 변경 전후 비교">
-              <h3>변경 전·후</h3>
-              <div class="notification-policy-table-wrap">
-                <table class="notification-policy-table">
-                  <thead><tr><th>항목</th><th>변경 전</th><th>변경 후</th></tr></thead>
-                  <tbody>
-                    <% policyChangeRows.forEach((row) => { %>
-                      <tr><th scope="row"><%= row.label %></th><td><%= row.before %></td><td><%= row.after %></td></tr>
-                    <% }) %>
-                  </tbody>
-                </table>
-              </div>
+            <% const isMainShopPolicyChange = notification.metadata?.policyType === "MAIN_SHOP"; %>
+            <section class="notification-policy-change" aria-label="<%= isMainShopPolicyChange ? '상점 핵심 변경점' : '정책 변경 전후 비교' %>">
+              <h3><%= isMainShopPolicyChange ? "이번 상점 업데이트" : "변경 전·후" %></h3>
+              <% if (isMainShopPolicyChange) { %>
+                <ul class="notification-policy-bullets">
+                  <% policyChangeRows.forEach((row) => { %>
+                    <li><strong><%= row.label %></strong><span><%= row.before %> <b aria-hidden="true">→</b> <em><%= row.after %></em></span></li>
+                  <% }) %>
+                </ul>
+              <% } else { %>
+                <div class="notification-policy-table-wrap">
+                  <table class="notification-policy-table">
+                    <thead><tr><th>항목</th><th>변경 전</th><th>변경 후</th></tr></thead>
+                    <tbody>
+                      <% policyChangeRows.forEach((row) => { %>
+                        <tr><th scope="row"><%= row.label %></th><td><%= row.before %></td><td><%= row.after %></td></tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              <% } %>
             </section>
           <% } %>
           <footer>

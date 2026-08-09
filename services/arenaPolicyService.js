@@ -966,7 +966,10 @@ async function getArenaPolicyAdminData(
       upcomingPolicy,
     },
     learningPackage: {
-      policies,
+      // 관리자 화면의 적용 이력도 현재 카드와 동일한 정규화 값을 사용한다.
+      // 이전에는 목록 데이터가 전달됐지만 화면에서 렌더링하지 않아 모의고사
+      // 패키지와 달리 "적용 중" 카드를 볼 수 없었다.
+      policies: policies.map((policy) => learningPackagePolicyView(policy)),
       activePolicy:
         learningPackagePolicyView(activePolicy),
     },

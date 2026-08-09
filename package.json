@@ -16,6 +16,7 @@
     "arena-foundation:verify": "node scripts/verifyArenaFoundation.js",
     "arena-policy:verify": "node scripts/verifyArenaPolicyManagement.js",
     "arena-policy-cleanup:migrate": "node scripts/migrateRemoveMinimumPaidNormalAttacks.js",
+    "arena-main-shop-schedule:cleanup": "node scripts/cleanupScheduledMainShopPolicies.js --apply --confirm=REMOVE_SCHEDULED_MAIN_SHOP_POLICIES",
     "arena-retired-dormancy-cleanup:migrate": "node scripts/migrateRemoveRetiredDormancyPolicy.js",
     "db-indexes:audit": "node scripts/auditMongoIndexes.js",
     "db-indexes:cleanup": "node scripts/migrateRemoveStaleIndexes.js",

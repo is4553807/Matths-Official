@@ -23,9 +23,6 @@ const {
 } = require("./mainLearningDayService");
 const { scoreArenaAttempt } = require("./arenaMatchScoringService");
 const {
-  minimumPolicyEffectiveFrom,
-} = require("./arenaPolicyService");
-const {
   recordPolicyChangeScheduled,
 } = require("./policyChangeOutboxService");
 const {
@@ -1213,7 +1210,10 @@ async function updateMainShopPolicy({ adminUserId, itemPrices = {}, enabledItems
   }
   const session = await mongoose.startSession();
   let created;
-  const effectiveFrom = minimumPolicyEffectiveFrom(now);
+  // Ranked 상점의 판매 상태와 가격은 결제·경기 정산 규칙과 달리 미래
+  // 경기의 기준값을 바꾸지 않는다. 저장 즉시 새 버전을 현재 정책으로
+  // 전환해 운영자가 상품을 바로 공개·중지할 수 있게 한다.
+  const effectiveFrom = new Date(now);
   try {
     await session.withTransaction(async () => {
       const existingAtStart = await MainShopPolicyVersion.findOne({
@@ -1241,7 +1241,8 @@ async function updateMainShopPolicy({ adminUserId, itemPrices = {}, enabledItems
       const [document] = await MainShopPolicyVersion.create(
         [
           {
-            code: `MAIN-SHOP-${effectiveFrom.toISOString().replace(/\D/g, "").slice(0, 14)}`,
+            // 밀리초까지 포함해 관리자가 연속 저장해도 정책 코드가 충돌하지 않는다.
+            code: `MAIN-SHOP-${effectiveFrom.toISOString().replace(/\D/g, "").slice(0, 17)}`,
             displayName: "Ranked 상점 운영 정책",
             status: "ACTIVE",
             effectiveFrom,

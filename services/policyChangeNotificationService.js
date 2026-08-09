@@ -124,11 +124,50 @@ function formatPaybackBands(value) {
     .join(" / ") || "미설정";
 }
 
-function formatShopItems(value) {
-  if (!Array.isArray(value)) return "미설정";
-  return value
-    .map((entry) => `${entry.displayName || entry.itemCode || "아이템"}: ${entry.enabled ? "판매" : "판매 중지"}${Number.isFinite(Number(entry.priceDays)) ? ` · ${Number(entry.priceDays)}일` : ""}`)
-    .join(" / ") || "미설정";
+function formatShopItem(entry) {
+  if (!entry) return "미등록";
+  const saleState = entry.enabled ? "판매 중" : "판매 중지";
+  const price = Number.isFinite(Number(entry.priceDays))
+    ? ` · ${Number(entry.priceDays)}일`
+    : "";
+  return `${saleState}${price}`;
+}
+
+function buildMainShopComparisonRows(policy, previousPolicy) {
+  const currentItems = new Map(
+    (Array.isArray(policy?.items) ? policy.items : []).map((item) => [
+      String(item.itemCode || ""),
+      item,
+    ])
+  );
+  const previousItems = new Map(
+    (Array.isArray(previousPolicy?.items) ? previousPolicy.items : []).map((item) => [
+      String(item.itemCode || ""),
+      item,
+    ])
+  );
+  const itemCodes = new Set([...previousItems.keys(), ...currentItems.keys()]);
+  const rows = [];
+
+  for (const itemCode of itemCodes) {
+    const beforeItem = previousItems.get(itemCode);
+    const afterItem = currentItems.get(itemCode);
+    const label = afterItem?.displayName || beforeItem?.displayName || itemCode || "상점 항목";
+    const before = formatShopItem(beforeItem);
+    const after = formatShopItem(afterItem);
+    if (!previousPolicy || before !== after) rows.push({ label, before, after });
+  }
+
+  const scalarRows = [
+    ["방어 일정 보호권 재사용 대기", "defenseConvenienceCooldownDays", formatDays],
+    ["경기 분석권 재시도 횟수", "analysisMaximumRetries", (value) => `${Number(value) || 0}회`],
+  ];
+  for (const [label, path, formatter] of scalarRows) {
+    const before = previousPolicy ? formatter(readPath(previousPolicy, path)) : "기존 정책 없음";
+    const after = formatter(readPath(policy, path));
+    if (!previousPolicy || before !== after) rows.push({ label, before, after });
+  }
+  return rows;
 }
 
 const POLICY_COMPARISON_FIELDS = Object.freeze({
@@ -165,13 +204,14 @@ const POLICY_COMPARISON_FIELDS = Object.freeze({
     ["복수전 수수료", "revengeFeeDays", formatDays],
   ],
   MAIN_SHOP: [
-    ["판매 항목·가격", "items", formatShopItems],
-    ["방어 일정 보호권 재사용 대기", "defenseConvenienceCooldownDays", formatDays],
-    ["경기 분석권 재시도 횟수", "analysisMaximumRetries", (value) => `${Number(value) || 0}회`],
+    // 상점은 항목별 상태·가격이 중요한 만큼 별도의 불릿 행으로 만든다.
   ],
 });
 
 function buildComparisonRows({ policyType, policy, previousPolicy }) {
+  if (policyType === "MAIN_SHOP") {
+    return buildMainShopComparisonRows(policy, previousPolicy);
+  }
   const fields = POLICY_COMPARISON_FIELDS[policyType] || [];
   return fields.reduce((rows, [label, path, formatter]) => {
     const afterRaw = readPath(policy, path);
@@ -183,12 +223,15 @@ function buildComparisonRows({ policyType, policy, previousPolicy }) {
   }, []);
 }
 
-function buildPolicyChangeEmailBody({ message, comparisonRows }) {
+function buildPolicyChangeEmailBody({ message, comparisonRows, policyType }) {
   const rows = Array.isArray(comparisonRows) ? comparisonRows : [];
-  const table = rows.length
+  const shopBulletList = policyType === "MAIN_SHOP" && rows.length
+    ? `<section style="margin:22px 0;padding:18px 20px;background:#f6f8ff;border:1px solid #dfe4f1;border-radius:14px"><strong style="display:block;margin-bottom:10px;color:#202744">이번 상점 업데이트</strong><ul style="margin:0;padding-left:20px">${rows.map((row) => `<li style="margin:0 0 9px;color:#303a55"><strong>${escapeHtml(row.label)}</strong><br /><span style="color:#697289">${escapeHtml(row.before)}</span> <span aria-hidden="true">→</span> <span style="color:#3157f6;font-weight:700">${escapeHtml(row.after)}</span></li>`).join("")}</ul></section>`
+    : "";
+  const table = !shopBulletList && rows.length
     ? `<table role="presentation" style="width:100%;margin:22px 0;border-collapse:collapse;border:1px solid #dfe4f1"><thead><tr><th style="padding:10px;text-align:left;background:#f4f6fd;border-bottom:1px solid #dfe4f1">항목</th><th style="padding:10px;text-align:left;background:#f4f6fd;border-bottom:1px solid #dfe4f1">변경 전</th><th style="padding:10px;text-align:left;background:#f4f6fd;border-bottom:1px solid #dfe4f1">변경 후</th></tr></thead><tbody>${rows.map((row) => `<tr><td style="padding:10px;border-bottom:1px solid #edf0f6;font-weight:700">${escapeHtml(row.label)}</td><td style="padding:10px;border-bottom:1px solid #edf0f6;color:#697289">${escapeHtml(row.before)}</td><td style="padding:10px;border-bottom:1px solid #edf0f6;color:#3157f6;font-weight:700">${escapeHtml(row.after)}</td></tr>`).join("")}</tbody></table>`
     : "";
-  return `<div>${escapeHtml(message).replace(/\r?\n/g, "<br />")}</div>${table}`;
+  return `<div>${escapeHtml(message).replace(/\r?\n/g, "<br />")}</div>${shopBulletList}${table}`;
 }
 
 function policyModelFor(policyType) {
@@ -229,14 +272,23 @@ function buildPolicyChangeCopy({ policyType, policy, previousPolicy = null }) {
   const summary = cleanMessage(policy.changeSummary, 700) ||
     "운영 기준이 새 정책 버전으로 변경됩니다.";
   const comparisonRows = buildComparisonRows({ policyType, policy, previousPolicy });
+  const appliesImmediately = policyType === "MAIN_SHOP";
   return {
     title: `${label} 정책 변경 안내`,
     message: cleanMessage([
       `${label}의 최신 정책 변경 사항을 안내드립니다.`,
-      `적용 예정: ${effectiveLabel} KST`,
+      appliesImmediately
+        ? `적용 시각: ${effectiveLabel} KST · 저장 직후 반영`
+        : `적용 예정: ${effectiveLabel} KST`,
       summary,
-      comparisonRows.length ? "변경 전·후는 아래 비교표에서 확인하세요." : "세부 내용은 관련 정책 페이지에서 확인하세요.",
-      "적용 전까지는 현재 정책이 유지되며, 적용 시점 이후의 신규 경기와 이용 판정부터 변경된 기준을 사용합니다.",
+      comparisonRows.length
+        ? appliesImmediately
+          ? "이번 상점 업데이트는 아래 핵심 변경점에서 확인하세요."
+          : "변경 전·후는 아래 비교표에서 확인하세요."
+        : "세부 내용은 관련 정책 페이지에서 확인하세요.",
+      appliesImmediately
+        ? "현재 페이지를 새로고침하면 변경된 상점 상태와 가격을 확인할 수 있습니다."
+        : "적용 전까지는 현재 정책이 유지되며, 적용 시점 이후의 신규 경기와 이용 판정부터 변경된 기준을 사용합니다.",
     ].join("\n")),
     href: POLICY_HREFS[policyType] || "/main",
     comparisonRows,
@@ -434,6 +486,7 @@ async function deliverEmail(delivery, now, sendEmailFn) {
       bodyHtml: buildPolicyChangeEmailBody({
         message: delivery.message,
         comparisonRows: delivery.comparisonRows,
+        policyType: delivery.policyType,
       }),
     });
     await PolicyChangeDelivery.updateOne(
