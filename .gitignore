@@ -4,3 +4,7 @@ node_modules.root-owned-backup/
 tmp/
 __pycache__/
 *.pyc
+video/
+outputs/
+output/
+work/
