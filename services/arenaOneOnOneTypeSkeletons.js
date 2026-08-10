@@ -1,7 +1,8 @@
 /*
  * GOAT Arena 1대1 문항 유형 골격.
  *
- * 기출 문항 자체를 복제하지 않고, 2016~2026 평가원 6·9월 모의평가의
+ * 기출 문항 자체를 복제하지 않고, 2016~2026 고3 3·5·6·7·9·10·11월
+ * 전국연합학력평가·모의평가의
  * 공식 해설에서 반복되는 사고 구조만 추상화한다. 수능은 해설 원본을
  * 운영 기준으로 확보하지 않았으므로 조사 범위에서 제외한다.
  */
@@ -100,8 +101,8 @@ const TIER_PROFILES = Object.freeze({
   // T7도 DB에는 실제 문항 위치 대역만 저장한다. 29·30번의 영향도는
   // FINAL_29_30 슬롯과 별도 난이도 특성으로 표현하며 enum 값을 합성하지 않는다.
   T7: Object.freeze({ sourceBand: "Q27_28", concepts: 3, transforms: 3, cases: 3, expectedMinutes: [7, 10] }),
-  // U8·U9와 Ranked 1~4번도 준킬러다. 29·30번형은 Ranked 5번의
-  // FINAL_29_30 골격에서만 사용한다.
+  // 내부 T8·T9는 기존 DB 골격을 찾기 위한 호환 프로필이다. 실제 신규
+  // U7~U9·R7~R9의 다섯 슬롯은 난이도 정책이 FINAL_29_30으로 덮어쓴다.
   T8: Object.freeze({ sourceBand: "Q27_28", concepts: 3, transforms: 3, cases: 4, expectedMinutes: [8, 10] }),
   T9: Object.freeze({ sourceBand: "Q27_28", concepts: 4, transforms: 3, cases: 4, expectedMinutes: [8, 10] }),
 });

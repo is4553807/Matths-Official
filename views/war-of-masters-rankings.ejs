@@ -137,7 +137,7 @@
           <section data-final-ranking-panel="overall">
             <% if (ranking.currentFinal) { %>
               <article class="tier-my-ranking">
-                <div><small>나의 최종 종합 랭킹</small><h2><%= ranking.currentFinal.displayName %></h2><p><%= ranking.currentFinal.affiliationName || "소속 미설정" %> · <%= ranking.currentFinal.division === "MAIN" ? "Ranked" : "Unranked" %></p></div>
+                <div><small>나의 최종 종합 랭킹</small><h2><%= ranking.currentFinal.displayName %> <%- include("partials/arena-ranking-decoration", { decoration: ranking.currentFinal.rankingDecoration }) %></h2><p><%= ranking.currentFinal.affiliationName || "소속 미설정" %> · <%= ranking.currentFinal.division === "MAIN" ? "Ranked" : "Unranked" %></p></div>
                 <dl><div><dt>현재 순위</dt><dd><%= ranking.currentFinal.finalRank %><small>위</small></dd></div><div><dt>최종 종합 점수</dt><dd><%= ranking.currentFinal.finalRating %></dd></div></dl>
               </article>
             <% } %>
@@ -145,7 +145,7 @@
               <div class="tier-ranking-table">
                 <div class="tier-ranking-row tier-ranking-head"><span>순위</span><span>Division</span><span>이름</span><span>학교</span><span>최종 종합 점수</span></div>
                 <% ranking.finalOverall.forEach((entry) => { const isCurrentRanker = entry.userId === String(user._id); %>
-                  <div class="tier-ranking-row <%= isCurrentRanker ? 'is-me' : '' %>" data-ranking-row data-rank="<%= entry.finalRank %>" data-name="<%= entry.displayName %>" data-division="<%= entry.division %>" data-school="<%= entry.affiliationName || '소속 미설정' %>" data-rank-delta="<%= entry.rankDelta || 0 %>" <%= isCurrentRanker ? 'data-current-ranker aria-current="true"' : '' %>><b><%= entry.finalRank %></b><span><%= entry.division === "MAIN" ? "Ranked" : "Unranked" %></span><strong><%= entry.displayName %><%= isCurrentRanker ? " · 나" : "" %></strong><span><%= entry.affiliationName || "소속 미설정" %></span><em><%= entry.finalRating %><small class="ranking-delta <%= entry.rankDelta > 0 ? 'is-up' : entry.rankDelta < 0 ? 'is-down' : '' %>"><%= entry.rankDelta > 0 ? `▲${entry.rankDelta}` : entry.rankDelta < 0 ? `▼${Math.abs(entry.rankDelta)}` : '—' %></small></em></div>
+                  <div class="tier-ranking-row <%= isCurrentRanker ? 'is-me' : '' %>" data-ranking-row data-rank="<%= entry.finalRank %>" data-name="<%= entry.displayName %>" data-division="<%= entry.division %>" data-school="<%= entry.affiliationName || '소속 미설정' %>" data-rank-delta="<%= entry.rankDelta || 0 %>" <%= isCurrentRanker ? 'data-current-ranker aria-current="true"' : '' %>><b><%= entry.finalRank %></b><span><%= entry.division === "MAIN" ? "Ranked" : "Unranked" %></span><strong><%= entry.displayName %><%= isCurrentRanker ? " · 나" : "" %> <%- include("partials/arena-ranking-decoration", { decoration: entry.rankingDecoration }) %></strong><span><%= entry.affiliationName || "소속 미설정" %></span><em><%= entry.finalRating %><small class="ranking-delta <%= entry.rankDelta > 0 ? 'is-up' : entry.rankDelta < 0 ? 'is-down' : '' %>"><%= entry.rankDelta > 0 ? `▲${entry.rankDelta}` : entry.rankDelta < 0 ? `▼${Math.abs(entry.rankDelta)}` : '—' %></small></em></div>
                 <% }) %>
               </div>
             </div>
@@ -155,7 +155,7 @@
             <% if (Number(user.schoolGrade) === 13) { %>
               <div class="matths-ranking-table-scroll" data-ranking-scroll data-ranking-kind="retaker" tabindex="0" aria-label="N수생 랭킹 목록"><div class="tier-ranking-table">
                 <div class="tier-ranking-row tier-ranking-head"><span>순위</span><span>Division</span><span>이름</span><span>구분</span><span>최종 종합 순위</span></div>
-                <% ranking.retakerRankings.forEach((entry) => { const isCurrentRanker = entry.userId === String(user._id); %><div class="tier-ranking-row <%= isCurrentRanker ? 'is-me' : '' %>" data-ranking-row data-rank="<%= entry.retakerRank %>" data-name="<%= entry.displayName %>" data-division="<%= entry.division %>" data-school="N수생" <%= isCurrentRanker ? 'data-current-ranker aria-current="true"' : '' %>><b><%= entry.retakerRank %></b><span><%= entry.division === "MAIN" ? "Ranked" : "Unranked" %></span><strong><%= entry.displayName %><%= isCurrentRanker ? " · 나" : "" %></strong><span>N수생</span><em><%= entry.finalRank %>위</em></div><% }) %>
+                <% ranking.retakerRankings.forEach((entry) => { const isCurrentRanker = entry.userId === String(user._id); %><div class="tier-ranking-row <%= isCurrentRanker ? 'is-me' : '' %>" data-ranking-row data-rank="<%= entry.retakerRank %>" data-name="<%= entry.displayName %>" data-division="<%= entry.division %>" data-school="N수생" <%= isCurrentRanker ? 'data-current-ranker aria-current="true"' : '' %>><b><%= entry.retakerRank %></b><span><%= entry.division === "MAIN" ? "Ranked" : "Unranked" %></span><strong><%= entry.displayName %><%= isCurrentRanker ? " · 나" : "" %> <%- include("partials/arena-ranking-decoration", { decoration: entry.rankingDecoration }) %></strong><span>N수생</span><em><%= entry.finalRank %>위</em></div><% }) %>
               </div></div>
             <% } else if (Number(user.schoolGrade) === 14) { %>
               <div class="school-final-ranking-list">
@@ -169,7 +169,7 @@
             <% } else if (Number(user.schoolGrade) === 15) { %>
               <div class="matths-ranking-table-scroll" data-ranking-scroll data-ranking-kind="worker" tabindex="0" aria-label="직장인 랭킹 목록"><div class="tier-ranking-table">
                 <div class="tier-ranking-row tier-ranking-head"><span>순위</span><span>Division</span><span>이름</span><span>구분</span><span>최종 종합 순위</span></div>
-                <% ranking.workerRankings.forEach((entry) => { const isCurrentRanker = entry.userId === String(user._id); %><div class="tier-ranking-row <%= isCurrentRanker ? 'is-me' : '' %>" data-ranking-row data-rank="<%= entry.workerRank %>" data-name="<%= entry.displayName %>" data-division="<%= entry.division %>" data-school="직장인" <%= isCurrentRanker ? 'data-current-ranker aria-current="true"' : '' %>><b><%= entry.workerRank %></b><span><%= entry.division === "MAIN" ? "Ranked" : "Unranked" %></span><strong><%= entry.displayName %><%= isCurrentRanker ? ' · 나' : '' %></strong><span>직장인</span><em><%= entry.finalRank %>위</em></div><% }) %>
+                <% ranking.workerRankings.forEach((entry) => { const isCurrentRanker = entry.userId === String(user._id); %><div class="tier-ranking-row <%= isCurrentRanker ? 'is-me' : '' %>" data-ranking-row data-rank="<%= entry.workerRank %>" data-name="<%= entry.displayName %>" data-division="<%= entry.division %>" data-school="직장인" <%= isCurrentRanker ? 'data-current-ranker aria-current="true"' : '' %>><b><%= entry.workerRank %></b><span><%= entry.division === "MAIN" ? "Ranked" : "Unranked" %></span><strong><%= entry.displayName %><%= isCurrentRanker ? ' · 나' : '' %> <%- include("partials/arena-ranking-decoration", { decoration: entry.rankingDecoration }) %></strong><span>직장인</span><em><%= entry.finalRank %>위</em></div><% }) %>
               </div></div>
             <% } else { %>
               <div class="school-final-ranking-list">

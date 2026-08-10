@@ -3248,6 +3248,33 @@ const arenaProblemChoiceSchema = new Schema(
   { _id: false }
 );
 
+const arenaProblemSolutionStepSchema = new Schema(
+  {
+    step: {
+      type: Number,
+      min: 1,
+      required: true,
+    },
+    title: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      required: true,
+    },
+    expression: {
+      type: String,
+      maxlength: 3000,
+      default: "",
+    },
+    explanation: {
+      type: String,
+      maxlength: 5000,
+      default: "",
+    },
+  },
+  { _id: false }
+);
+
 const arenaProblemQuestionSchema = new Schema(
   {
     questionKey: {
@@ -3261,6 +3288,18 @@ const arenaProblemQuestionSchema = new Schema(
       required: true,
       trim: true,
       maxlength: 120,
+    },
+    sourceTypeId: {
+      type: String,
+      trim: true,
+      maxlength: 160,
+      default: "",
+    },
+    generatorEngineKey: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: "",
     },
     category: {
       type: String,
@@ -3371,6 +3410,34 @@ const arenaProblemQuestionSchema = new Schema(
       min: 0,
       default: 0,
     },
+    reasoningStepCount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    generatorDifficulty: {
+      type: Number,
+      min: 0,
+      max: 10,
+      default: 0,
+    },
+    caseBranchCount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    targetAccuracyMin: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: null,
+    },
+    targetAccuracyMax: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: null,
+    },
     graphItem: {
       type: Boolean,
       default: false,
@@ -3407,6 +3474,19 @@ const arenaProblemQuestionSchema = new Schema(
       type: String,
       maxlength: 20000,
       default: "",
+    },
+    solutionProcess: {
+      type: [arenaProblemSolutionStepSchema],
+      default: [],
+    },
+    finalCheck: {
+      type: String,
+      maxlength: 5000,
+      default: "",
+    },
+    answerKey: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
     points: {
       type: Number,
@@ -3447,6 +3527,10 @@ const arenaProblemQuestionSchema = new Schema(
         default: false,
       },
       tierBurdenMatches: {
+        type: Boolean,
+        default: false,
+      },
+      structuralDifficultyPassed: {
         type: Boolean,
         default: false,
       },
@@ -4320,18 +4404,32 @@ arenaProblemPackSchema.path("questions").validate(
     if (!Array.isArray(questions)) return false;
     const keys = questions.map((question) => question.questionKey);
     const typeIds = questions.map((question) => question.typeId);
+    const division = String(this.division || "SUB").toUpperCase();
+    const difficultyLevel = Number(
+      String(this.difficultyCode || "").replace(/^[UR]/, "")
+    );
+    const allKiller = Number.isFinite(difficultyLevel) && difficultyLevel >= 7;
     return (
       questions.length === Number(this.questionCount) &&
       new Set(keys).size === keys.length &&
       new Set(typeIds).size === typeIds.length &&
       questions.every(
-        (question) =>
-          question.category === "semi-killer" &&
-          question.validation?.passed === true &&
-          question.validation?.solvable === true &&
-          question.validation?.uniqueAnswer === true &&
-          question.validation?.calculatorFree === true &&
-          question.validation?.answerMatches === true
+        (question, index) => {
+          const rankedFinalQuestion =
+            allKiller ||
+            (division === "MAIN" && index === questions.length - 1);
+          return (
+            question.category ===
+              (rankedFinalQuestion ? "killer" : "semi-killer") &&
+            String(question.slotRole || "").toUpperCase() ===
+              (rankedFinalQuestion ? "FINAL_29_30" : "REGULAR") &&
+            question.validation?.passed === true &&
+            question.validation?.solvable === true &&
+            question.validation?.uniqueAnswer === true &&
+            question.validation?.calculatorFree === true &&
+            question.validation?.answerMatches === true
+          );
+        }
       ) &&
       questions.reduce(
         (sum, question) => sum + Number(question.points || 0),

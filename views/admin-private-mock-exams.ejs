@@ -56,6 +56,25 @@
         <div class="archive-feedback error" role="alert"><%= error %></div>
       <% } %>
 
+      <section class="admin-answer-key-guide" aria-labelledby="private-mock-answer-key-guide-title">
+        <div class="admin-answer-key-guide__copy">
+          <p>AUTO-GRADING JSON TEMPLATE</p>
+          <h2 id="private-mock-answer-key-guide-title">자동 채점 답안지 스켈레톤</h2>
+          <span>새 문제를 만들 때 아래 파일의 키 이름과 배열 순서를 유지해 답안·배점·해설을 작성하세요. 자리표시자는 실제 내용으로 모두 교체해야 합니다.</span>
+          <ul>
+            <li><b>answers</b>는 1번부터 30번까지 문자열 30개</li>
+            <li><b>points</b>는 문항별 2·3·4점, 전체 합계 100점</li>
+            <li><b>explanations</b>는 문항 번호·정답·출제 의도·개념·풀이 단계·요약·주의점 작성</li>
+          </ul>
+        </div>
+        <div class="admin-answer-key-guide__action">
+          <span>주간 공식 모의고사 기준</span>
+          <strong>30문항 · 100점</strong>
+          <small>1~21번 객관식 · 22~30번 단답형</small>
+          <a href="/templates/matths-answer-key-skeleton.json" download="MATTHS_자동채점_답안지_스켈레톤.json">스켈레톤 JSON 다운로드</a>
+        </div>
+      </section>
+
       <section class="admin-panel private-mock-admin-panel">
         <div class="admin-panel-heading">
           <div>
@@ -110,7 +129,7 @@
               <label class="archive-admin-file-picker private-mock-file-picker">
                 <span>답안지 JSON</span>
                 <input type="file" name="answerKeyFiles" accept=".json,application/json" required />
-                <small>답안지는 JSON 파일로 올려주세요. 30문항·100점 구조를 즉시 검증하며 유저에게 공개하지 않습니다.</small>
+                <small>상단 스켈레톤과 같은 형식으로 올려주세요. 30문항·100점 구조를 즉시 검증하며 유저에게 공개하지 않습니다.</small>
               </label>
               <label class="archive-admin-file-picker private-mock-file-picker">
                 <span>확인용 답지 PDF <b>선택</b></span>

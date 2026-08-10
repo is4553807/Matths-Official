@@ -9373,5 +9373,8 @@ module.exports = {
   summarizePrivateMockRestrictionWeeks,
   submitPrivateMockIntegrityEvidence,
   submitPrivateMockAttempt,
+  isCorrectAnswer,
+  normalizeAnswer,
+  standardQuestionMode,
   validateAnswerKeyJson,
 };

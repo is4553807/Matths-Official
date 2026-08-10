@@ -434,11 +434,19 @@ async function createLearningLedger({
   );
 }
 
-async function generatedMainPack({ lowerTier, upperTier, matchKey, matchType, now }) {
+async function generatedMainPack({
+  lowerTier,
+  upperTier,
+  matchKey,
+  matchType,
+  now,
+  participantUserIds = [],
+}) {
   const generation = await generateMainOneOnOneQuestionsFromActiveData({
     lowerTier,
     upperTier,
     matchKey,
+    participantUserIds,
   });
   return sealArenaProblemPackDraft(
     buildGeneratedArenaProblemPackDraft({
@@ -480,6 +488,7 @@ async function createMainMatchArtifacts({
     matchKey,
     matchType: "NORMAL",
     now,
+    participantUserIds: [lowerContext.user._id, upperContext.user._id],
   });
   const problemPackId = new mongoose.Types.ObjectId();
   const normalStake = mainNormalStakeSnapshot({ matchOrigin, stakeDays });

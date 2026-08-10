@@ -1510,6 +1510,10 @@ async function runCreateNormalMatchTransaction({
             defenderTier:
               defender.standing.arenaRank,
             matchKey,
+            participantUserIds: [
+              challenger.user._id,
+              defender.user._id,
+            ],
           });
         const generatedPackDraft =
           buildGeneratedArenaProblemPackDraft({

@@ -34,6 +34,8 @@
     "study-hall:verify-db": "node scripts/verifyStudyHallDb.js",
     "arena-official-mock-research:build": "node scripts/buildArenaOfficialMockResearchCatalog.mjs",
     "arena-official-mock-research:verify": "node scripts/verifyArenaOfficialMockResearchCatalog.js",
+    "arena-private-mock-research:verify": "node scripts/verifyArenaPrivateMockResearchCatalog.js",
+    "arena-private-mock-generated:verify": "node scripts/verifyArenaPrivateMockGeneratedProblems.js",
     "arena-problem-data:verify": "node scripts/verifyArenaProblemData.js",
     "arena-tier-catalog:import": "node scripts/importArenaTierQuestionCatalog.js",
     "arena-tier-catalog:verify": "node scripts/verifyArenaTierQuestionCatalogDb.js",

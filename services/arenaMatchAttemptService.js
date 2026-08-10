@@ -26,6 +26,7 @@ const {
 } = require("./arenaOneOnOneProblemBank");
 const {
   assertNaturalNumberMaxThreeDigits,
+  targetAccuracyRangeForSlot,
 } = require("./arenaOneOnOneDifficultyPolicy");
 const {
   holdExpiredEvidence,
@@ -163,6 +164,45 @@ function initialAnswersForPack(pack) {
   );
 }
 
+function formatAccuracyPercent(value) {
+  const percentage = Number(value) * 100;
+  if (!Number.isFinite(percentage)) return "";
+  return Number.isInteger(percentage)
+    ? String(percentage)
+    : percentage.toFixed(1).replace(/\.0$/, "");
+}
+
+function publicTargetAccuracyForQuestion(pack, question, order) {
+  const hasStoredValues =
+    question?.targetAccuracyMin !== null &&
+    question?.targetAccuracyMin !== undefined &&
+    question?.targetAccuracyMax !== null &&
+    question?.targetAccuracyMax !== undefined;
+  const storedRange = [
+    Number(question?.targetAccuracyMin),
+    Number(question?.targetAccuracyMax),
+  ];
+  const hasStoredRange =
+    hasStoredValues &&
+    storedRange.every(Number.isFinite) &&
+    storedRange[0] >= 0 &&
+    storedRange[1] >= storedRange[0] &&
+    storedRange[1] <= 1;
+  const range = hasStoredRange
+    ? storedRange
+    : targetAccuracyRangeForSlot({
+        difficultyCode: pack?.difficultyCode,
+        order,
+        division: pack?.division,
+      });
+  if (!range) return null;
+  return {
+    min: range[0],
+    max: range[1],
+    label: `${formatAccuracyPercent(range[0])}~${formatAccuracyPercent(range[1])}%`,
+  };
+}
+
 function publicQuestionsForAttempt(pack, attempt) {
   const answerByKey = new Map(
     (attempt?.answers || []).map(
@@ -177,26 +217,34 @@ function publicQuestionsForAttempt(pack, attempt) {
     Number(attempt?.currentQuestionIndex || 0)
   );
   return (pack?.questions || []).slice(currentIndex, currentIndex + 1).map(
-    (question, index) => ({
-      number: currentIndex + index + 1,
-      questionKey: question.questionKey,
-      categoryLabel: question.category === "killer" ? "킬러" : "준킬러",
-      courseId: question.courseId,
-      prompt: question.prompt,
-      visualization: question.visualization || null,
-      inputMode: question.inputMode,
-      choices: (question.choices || []).map(
-        (choice) => ({
-          key: choice.key,
-          text: choice.text,
-        })
-      ),
-      points: Number(question.points),
-      savedAnswer:
-        answerByKey.get(
-          question.questionKey
-        ) || "",
-    })
+    (question, index) => {
+      const number = currentIndex + index + 1;
+      return {
+        number,
+        questionKey: question.questionKey,
+        categoryLabel: question.category === "killer" ? "킬러" : "준킬러",
+        courseId: question.courseId,
+        prompt: question.prompt,
+        visualization: question.visualization || null,
+        inputMode: question.inputMode,
+        choices: (question.choices || []).map(
+          (choice) => ({
+            key: choice.key,
+            text: choice.text,
+          })
+        ),
+        points: Number(question.points),
+        targetAccuracy: publicTargetAccuracyForQuestion(
+          pack,
+          question,
+          number
+        ),
+        savedAnswer:
+          answerByKey.get(
+            question.questionKey
+          ) || "",
+      };
+    }
   );
 }
 

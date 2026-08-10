@@ -28,6 +28,10 @@ const {
 const {
   problemWithVerifiedVisualization,
 } = require("./arenaTierQuestionCatalogService");
+const {
+  buildArenaGeneratedAnswerKey,
+  normalizeSolutionProcess,
+} = require("./arenaGeneratedAnswerKey");
 
 const ARENA_PROBLEM_COUNT = 5;
 const ARENA_TOTAL_POINTS = 100;
@@ -116,6 +120,29 @@ function normalizeArenaVisualization(value) {
   return JSON.parse(serialized);
 }
 
+/*
+ * Mongoose minimizes empty objects while persisting Mixed values. Generated
+ * answer keys intentionally contain an empty parameterSnapshot when a type
+ * has no variable parameters, so hashing the in-memory draft and the stored
+ * document used to produce different payloads. Rehydrate that one semantic
+ * default before hashing so existing sealed packs and newly stored packs are
+ * verified with the same canonical representation.
+ */
+function normalizeAnswerKeyForPackHash(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value || null;
+  }
+  return {
+    ...value,
+    parameterSnapshot:
+      value.parameterSnapshot &&
+      typeof value.parameterSnapshot === "object" &&
+      !Array.isArray(value.parameterSnapshot)
+        ? value.parameterSnapshot
+        : {},
+  };
+}
+
 function packHashPayload(pack) {
   const source =
     typeof pack?.toObject === "function"
@@ -182,6 +209,11 @@ function packHashPayload(pack) {
         sourcePositionBand: question.sourcePositionBand,
         combinedConceptCount: question.combinedConceptCount,
         conditionTransformSteps: question.conditionTransformSteps,
+        reasoningStepCount: question.reasoningStepCount,
+        generatorDifficulty: question.generatorDifficulty,
+        caseBranchCount: question.caseBranchCount,
+        targetAccuracyMin: question.targetAccuracyMin,
+        targetAccuracyMax: question.targetAccuracyMax,
         graphItem: question.graphItem,
         visualization: question.visualization || null,
         calculationLoad: question.calculationLoad,
@@ -190,6 +222,9 @@ function packHashPayload(pack) {
         choices: question.choices,
         answer: String(question.answer),
         solution: question.solution,
+        solutionProcess: question.solutionProcess || [],
+        finalCheck: question.finalCheck || "",
+        answerKey: normalizeAnswerKeyForPackHash(question.answerKey),
         points: question.points,
         validation: {
           passed:
@@ -209,6 +244,8 @@ function packHashPayload(pack) {
           curriculumCompliant: question.validation?.curriculumCompliant,
           conditionsConsistent: question.validation?.conditionsConsistent,
           tierBurdenMatches: question.validation?.tierBurdenMatches,
+          structuralDifficultyPassed:
+            question.validation?.structuralDifficultyPassed,
           twoMinuteSolvable: question.validation?.twoMinuteSolvable,
           tenMinuteSolvable: question.validation?.tenMinuteSolvable,
           originalityChecked: question.validation?.originalityChecked,
@@ -218,17 +255,76 @@ function packHashPayload(pack) {
   };
 }
 
-function computeArenaProblemPackHash(pack) {
+function packHashPayloadLegacyV3(pack) {
+  const payload = packHashPayload(pack);
+  for (const question of payload.questions || []) {
+    delete question.reasoningStepCount;
+    delete question.generatorDifficulty;
+    delete question.caseBranchCount;
+    delete question.targetAccuracyMin;
+    delete question.targetAccuracyMax;
+    delete question.solutionProcess;
+    delete question.finalCheck;
+    delete question.answerKey;
+    if (question.validation) {
+      delete question.validation.structuralDifficultyPassed;
+    }
+  }
+  return payload;
+}
+
+function packHashPayloadLegacyV2(pack) {
+  const payload = packHashPayloadLegacyV3(pack);
+  delete payload.difficultyCode;
+  for (const question of payload.questions || []) {
+    delete question.typeSkeletonId;
+    delete question.referenceFamilyIds;
+    delete question.referenceFamilyLabels;
+    delete question.referenceBasis;
+    delete question.slotRole;
+    delete question.difficultyClass;
+    delete question.sourcePositionBand;
+    delete question.visualization;
+    if (question.validation) {
+      delete question.validation.tenMinuteSolvable;
+    }
+  }
+  return payload;
+}
+
+function packHashPayloadLegacyV2_5(pack) {
+  const payload = packHashPayloadLegacyV3(pack);
+  delete payload.difficultyCode;
+  for (const question of payload.questions || []) {
+    delete question.difficultyClass;
+  }
+  return payload;
+}
+
+function computeHashFromPayload(payload) {
   return createHash("sha256")
     .update(
       JSON.stringify(
         canonicalize(
-          packHashPayload(pack)
+          payload
         )
       ),
       "utf8"
     )
     .digest("hex");
+}
+
+function computeArenaProblemPackHash(pack) {
+  return computeHashFromPayload(packHashPayload(pack));
+}
+
+function computeArenaProblemPackHashCandidates(pack) {
+  return [
+    computeArenaProblemPackHash(pack),
+    computeHashFromPayload(packHashPayloadLegacyV3(pack)),
+    computeHashFromPayload(packHashPayloadLegacyV2_5(pack)),
+    computeHashFromPayload(packHashPayloadLegacyV2(pack)),
+  ];
 }
 
 function validateArenaProblemPackDefinition(pack) {
@@ -265,7 +361,12 @@ function validateArenaProblemPackDefinition(pack) {
   }
   const normalizedDivision = String(pack?.division || "SUB").toUpperCase();
   const compositionValid = questions.every((question, index) => {
-    const killerSlot = normalizedDivision === "MAIN" && index === questions.length - 1;
+    const difficultyLevel = Number(
+      String(pack?.difficultyCode || "").replace(/^[UR]/, "")
+    );
+    const killerSlot =
+      (Number.isFinite(difficultyLevel) && difficultyLevel >= 7) ||
+      (normalizedDivision === "MAIN" && index === questions.length - 1);
     return (
       question.category === (killerSlot ? "killer" : "semi-killer") &&
       String(question.slotRole || "").toUpperCase() ===
@@ -324,6 +425,65 @@ function validateArenaProblemPackDefinition(pack) {
       422,
       "경기 문제 팩의 문항 수·유형·배점·제한 시간 또는 검산 결과가 기준에 맞지 않습니다.",
       "INVALID_ARENA_PROBLEM_PACK"
+    );
+  }
+  return true;
+}
+
+/*
+ * A sealed pack is immutable, but the authoring schema keeps becoming more
+ * specific as the Arena question policy evolves. Historical packs must not
+ * fail at play time merely because a later policy added metadata such as a
+ * public U/R difficulty code, source-position band, or final-slot role.
+ *
+ * This validator deliberately checks only the safety invariants shared by
+ * every released pack. The exact historical payload is still authenticated
+ * by its content hash in assertArenaProblemPackIntegrity, so this does not
+ * permit a modified legacy pack to pass verification.
+ */
+function validateLegacySealedArenaProblemPack(pack) {
+  const questions = Array.isArray(pack?.questions) ? pack.questions : [];
+  const questionKeys = questions.map((question) => question.questionKey);
+  const typeIds = questions.map((question) => question.typeId);
+  const totalPoints = questions.reduce(
+    (sum, question) => sum + Number(question.points || 0),
+    0
+  );
+  const valid =
+    Number(pack?.questionCount) === ARENA_PROBLEM_COUNT &&
+    questions.length === ARENA_PROBLEM_COUNT &&
+    new Set(questionKeys).size === ARENA_PROBLEM_COUNT &&
+    new Set(typeIds).size === ARENA_PROBLEM_COUNT &&
+    questionKeys.every(Boolean) &&
+    typeIds.every(Boolean) &&
+    Number(pack?.totalPoints) === ARENA_TOTAL_POINTS &&
+    totalPoints === ARENA_TOTAL_POINTS &&
+    Number(pack?.timeLimitMs) === ARENA_ONE_ON_ONE_TIME_LIMIT_MS &&
+    Boolean(pack?.tierPairKey) &&
+    Boolean(pack?.tierPairLabel) &&
+    Boolean(pack?.scoringVersion) &&
+    Boolean(pack?.designPolicyVersion) &&
+    Boolean(pack?.contentSourceVersion) &&
+    pack?.difficultyAnchor === "DEFENDER" &&
+    Boolean(TIER_SPECS[pack?.difficultyTier]) &&
+    Array.isArray(pack?.packCurve) &&
+    pack.packCurve.length === ARENA_PROBLEM_COUNT &&
+    questions.every(
+      (question) =>
+        ["semi-killer", "killer"].includes(question.category) &&
+        question.inputMode === "short-answer" &&
+        question.validation?.passed === true &&
+        question.validation?.solvable === true &&
+        question.validation?.uniqueAnswer === true &&
+        question.validation?.calculatorFree === true &&
+        question.validation?.answerMatches === true
+    );
+
+  if (!valid) {
+    throw statusError(
+      422,
+      "봉인된 경기 문제 팩의 공통 안전 기준을 확인하지 못했습니다.",
+      "INVALID_LEGACY_ARENA_PROBLEM_PACK"
     );
   }
   return true;
@@ -430,7 +590,7 @@ function buildArenaProblemPackDraft({
         throw statusError(
           422,
           design.slotRole === "FINAL_29_30"
-            ? "5번에 배정할 서로 다른 29·30번형 킬러 문항을 자동 생성하지 못했습니다."
+            ? `${index + 1}번에 배정할 서로 다른 29·30번형 킬러 문항을 자동 생성하지 못했습니다.`
             : "서로 다른 주관식 준킬러 5문항을 자동 생성하지 못했습니다.",
           "ARENA_SHORT_ANSWER_GENERATION_FAILED"
         );
@@ -444,7 +604,9 @@ function buildArenaProblemPackDraft({
         questionKey: `Q${index + 1}`,
         typeId: generated.typeId,
         category:
-          ARENA_PROBLEM_CATEGORY,
+          design.slotRole === "FINAL_29_30"
+            ? "killer"
+            : ARENA_PROBLEM_CATEGORY,
         courseId: definition.courseId,
         referenceFamily:
           definition.referenceFamily,
@@ -486,6 +648,15 @@ function buildArenaProblemPackDraft({
         answer: String(problem.answer),
         solution:
           problem.solution || "",
+        solutionProcess: normalizeSolutionProcess(problem),
+        finalCheck: String(problem.finalCheck || ""),
+        answerKey:
+          problem.answerKey ||
+          buildArenaGeneratedAnswerKey({
+            typeId: generated.typeId,
+            problem,
+            validation: generated.validation,
+          }),
         points:
           ARENA_TOTAL_POINTS /
           ARENA_PROBLEM_COUNT,
@@ -575,9 +746,21 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
     question?.design?.difficultyClass ||
       (question?.design?.slotRole === "FINAL_29_30" ? "KILLER" : "SEMI_KILLER")
   ).toUpperCase();
+  const answerKey =
+    problem.answerKey ||
+    buildArenaGeneratedAnswerKey({
+      typeId: question?.typeId || problem.typeId,
+      problem,
+      parameters: question?.parameters || problem.parameters || {},
+      validation,
+    });
   return {
     questionKey: `Q${index + 1}`,
     typeId: String(question?.typeId || problem.typeId || "").trim(),
+    sourceTypeId: String(
+      question?.sourceTypeId || question?.typeId || problem.typeId || ""
+    ).trim(),
+    generatorEngineKey: String(question?.generatorEngineKey || "").trim(),
     category: difficultyClass === "KILLER" ? "killer" : "semi-killer",
     courseId: String(
       question?.courseId || definition.courseId || problem.courseId || ""
@@ -630,6 +813,25 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
     conditionTransformSteps: Number(
       question?.design?.conditionTransformSteps || 0
     ),
+    reasoningStepCount: Number(
+      question?.design?.reasoningStepCount || 0
+    ),
+    generatorDifficulty: Number(
+      question?.design?.generatorDifficulty || 0
+    ),
+    caseBranchCount: Number(
+      question?.design?.caseBranchCount || 0
+    ),
+    targetAccuracyMin: Number.isFinite(
+      Number(question?.design?.targetAccuracy?.[0])
+    )
+      ? Number(question.design.targetAccuracy[0])
+      : null,
+    targetAccuracyMax: Number.isFinite(
+      Number(question?.design?.targetAccuracy?.[1])
+    )
+      ? Number(question.design.targetAccuracy[1])
+      : null,
     graphItem:
       question?.design?.graphItem === true && Boolean(problem.visualization),
     visualization: normalizeArenaVisualization(problem.visualization),
@@ -641,6 +843,9 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
     choices: [],
     answer: String(problem.answer ?? ""),
     solution: String(problem.solution || ""),
+    solutionProcess: normalizeSolutionProcess(problem),
+    finalCheck: String(problem.finalCheck || ""),
+    answerKey,
     points: ARENA_TOTAL_POINTS / ARENA_PROBLEM_COUNT,
     validation: {
       passed: validation.passed === true,
@@ -652,6 +857,8 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
       curriculumCompliant: validation.curriculumCompliant === true,
       conditionsConsistent: validation.conditionsConsistent === true,
       tierBurdenMatches: validation.tierBurdenMatches === true,
+      structuralDifficultyPassed:
+        validation.structuralDifficultyPassed === true,
       twoMinuteSolvable: validation.twoMinuteSolvable === true,
       tenMinuteSolvable: validation.tenMinuteSolvable === true,
       originalityChecked: validation.originalityChecked === true,
@@ -789,21 +996,23 @@ function sealArenaProblemPackDraft(
 }
 
 function assertArenaProblemPackIntegrity(pack) {
-  validateArenaProblemPackDefinition(pack);
-  const actual =
-    computeArenaProblemPackHash(pack);
+  const hashCandidates = computeArenaProblemPackHashCandidates(pack);
+  const hashVersion = hashCandidates.indexOf(String(pack?.contentHash || ""));
   if (
-    !["SEALED", "RETIRED"].includes(
-      pack?.status
-    ) ||
+    !["SEALED", "RETIRED"].includes(pack?.status) ||
     !pack?.contentHash ||
-    actual !== pack.contentHash
+    hashVersion < 0
   ) {
     throw statusError(
       409,
       "봉인된 경기 문제 팩의 무결성을 확인하지 못했습니다.",
       "ARENA_PROBLEM_PACK_INTEGRITY_FAILED"
     );
+  }
+  if (hashVersion === 0) {
+    validateArenaProblemPackDefinition(pack);
+  } else {
+    validateLegacySealedArenaProblemPack(pack);
   }
   return true;
 }
@@ -841,6 +1050,7 @@ module.exports = {
   buildArenaProblemPackDraft,
   buildGeneratedArenaProblemPackDraft,
   computeArenaProblemPackHash,
+  computeArenaProblemPackHashCandidates,
   packHashPayload,
   saveArenaProblemPack,
   sealArenaProblemPackDraft,

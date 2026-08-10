@@ -1264,6 +1264,23 @@ router.get('/login', authMiddleware.isLoggedOut, matthsController.loginPage);
 
 router.post('/login', authMiddleware.isLoggedOut, matthsController.login);
 
+router.get(
+  "/auth/google",
+  authMiddleware.isLoggedOut,
+  (req, res, next) => {
+    req.params.provider = "google";
+    return matthsController.socialOAuthStart(req, res, next);
+  }
+);
+router.get(
+  "/auth/google/callback",
+  authMiddleware.isLoggedOut,
+  (req, res) => {
+    req.params.provider = "google";
+    return matthsController.socialOAuthCallback(req, res);
+  }
+);
+
 router.get('/register', matthsController.registerPage);
 
 router.post('/register', matthsController.register);

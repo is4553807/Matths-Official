@@ -66,6 +66,37 @@
     ["common-math-1", "common-math-2"].includes(course.id) &&
     String(lesson.playgroundKey || "").startsWith("common-math-");
 
+  const commonMathVisualType = isCommonMathExperience
+    ? lesson.dashboardPreview?.type || "formula"
+    : null;
+  const commonMathUnitSymbols = {
+    polynomials: "x²",
+    "equations-and-inequalities": "D",
+    counting: "nCr",
+    matrices: "[A]",
+    "coordinate-geometry": "(x,y)",
+    "sets-and-propositions": "A∩B",
+    "functions-and-graphs": "f(x)",
+  };
+  const commonMathMotionDescriptions =
+    commonMathVisualType === "graph"
+      ? [
+          "식과 좌표에서 기준이 되는 값을 찾습니다.",
+          "조건 변화가 그래프에 미치는 영향만 비교합니다.",
+          "교점·범위·위치를 식과 함께 확인합니다.",
+        ]
+      : commonMathVisualType === "area-model"
+        ? [
+            "대상과 조건을 알맞은 위치에 놓습니다.",
+            "공통부분·대응·경우의 관계를 비교합니다.",
+            "도식과 계산 결과가 같은지 확인합니다.",
+          ]
+        : [
+            "조건과 기호의 뜻을 먼저 확인합니다.",
+            "공식과 연산 순서에 따라 식을 정리합니다.",
+            "원래 조건에 대입해 답을 확인합니다.",
+          ];
+
   const isProbabilityExperience =
     course.id === "probability-statistics" ||
     String(lesson.playgroundKey || "").startsWith(
@@ -1115,13 +1146,23 @@
       }
     : isCommonMathExperience
     ? {
-        symbol: lesson.dashboardPreview?.formula || "\\(x\\)",
-        motionTitle: `${concept.title}의 정의가 식과 그림으로 연결되는 장면을 봅니다.`,
-        motionNote: "조건을 표시하고, 관계를 시각화한 뒤, 계산과 검산으로 이어지는 순서를 확인합니다.",
+        symbol: commonMathUnitSymbols[unit.id] || "x",
+        motionTitle: `${concept.title}의 풀이 흐름을 세 단계로 정리합니다.`,
+        motionNote: "개념에 필요하지 않은 그림은 덜어내고 정의·관계·적용만 연결합니다.",
         motionFormula: lesson.dashboardPreview?.formula || concept.title,
         initialCaption: lesson.steps?.[0]?.description || "핵심 정의와 기호의 뜻을 먼저 확인합니다.",
-        playgroundTitle: `${concept.title}: 조건을 바꾸며 직접 확인합니다.`,
-        playgroundNote: "슬라이더와 관점 버튼을 움직여 식·그림·결과가 동시에 어떻게 달라지는지 관찰하세요.",
+        playgroundTitle:
+          commonMathVisualType === "graph"
+            ? `${concept.title}: 그래프에서 조건을 확인합니다.`
+            : commonMathVisualType === "area-model"
+              ? `${concept.title}: 필요한 도식으로 관계를 확인합니다.`
+              : `${concept.title}: 식의 변화를 단계별로 확인합니다.`,
+        playgroundNote:
+          commonMathVisualType === "graph"
+            ? "그래프가 핵심인 개념에서만 좌표평면을 사용합니다."
+            : commonMathVisualType === "area-model"
+              ? "좌표 그래프 대신 표·수직선·대응·영역 중 알맞은 표현을 사용합니다."
+              : "불필요한 그래프 없이 조건, 식 정리, 검산에 집중합니다.",
       }
     : isAlgebraExperience
     ? {
@@ -1261,7 +1302,7 @@
         <p>STEP 01 · CONCEPT</p>
         <h3>먼저 개념을 이해합니다.</h3>
       </div>
-      <span>공식보다 움직임을 먼저 봅니다.</span>
+      <span><%= isCommonMathExperience ? "핵심 기준부터 차례대로 정리합니다." : "공식보다 움직임을 먼저 봅니다." %></span>
     </div>
 
     <div class="concept-intro-card">
@@ -1273,10 +1314,23 @@
       </div>
     </div>
 
-    <div class="concept-step-grid">
-      <% lesson.steps.forEach((step) => { %>
+    <div class="concept-step-grid <%= isCommonMathExperience ? 'common-math-step-grid' : '' %>">
+      <%
+        const displayedConceptSteps = isCommonMathExperience
+          ? [0, 2, 4].map((startIndex, groupIndex) => ({
+              order: groupIndex + 1,
+              title: ["기준 세우기", "원리 적용하기", "비교하고 검산하기"][groupIndex],
+              description: (lesson.steps || [])
+                .slice(startIndex, startIndex + 2)
+                .map((step) => step.description)
+                .filter(Boolean)
+                .join(" "),
+            }))
+          : lesson.steps;
+        displayedConceptSteps.forEach((step) => {
+      %>
         <article>
-          <span>STEP <%= String(step.order).padStart(2, "0") %></span>
+          <span><%= isCommonMathExperience ? "PHASE" : "STEP" %> <%= String(step.order).padStart(2, "0") %></span>
           <h4><%= step.title %></h4>
           <p><%= step.description %></p>
         </article>
@@ -1298,9 +1352,26 @@
 
     <div class="motion-player">
       <div
-        class="motion-stage <%= algebraGraphProfile || isProbabilityExperience || isAdvancedCalculusExperience ? 'algebra-motion-stage' : '' %>"
+        class="motion-stage <%= isCommonMathExperience ? 'common-math-motion-stage' : algebraGraphProfile || isProbabilityExperience || isAdvancedCalculusExperience ? 'algebra-motion-stage' : '' %>"
       >
-        <% if (isAdvancedCalculusExperience) { %>
+        <% if (isCommonMathExperience) { %>
+          <div class="common-math-motion-board" aria-label="<%= concept.title %>의 세 단계 학습 흐름">
+            <div class="common-math-motion-formula">
+              <span>핵심 관계</span>
+              <strong><%= lesson.dashboardPreview?.formula || concept.title %></strong>
+            </div>
+            <div class="common-math-motion-flow">
+              <% (lesson.dashboardPreview?.blocks || []).forEach((block, index) => { %>
+                <article>
+                  <b><%= String(index + 1).padStart(2, "0") %></b>
+                  <strong><%= block.label %></strong>
+                  <p><%= commonMathMotionDescriptions[index] || lesson.keyTakeaway %></p>
+                </article>
+                <% if (index < 2) { %><span aria-hidden="true">→</span><% } %>
+              <% }) %>
+            </div>
+          </div>
+        <% } else if (isAdvancedCalculusExperience) { %>
           <svg
             id="calculus-motion-visual"
             class="algebra-graph-svg calculus-motion-visual"
@@ -1363,7 +1434,9 @@
           </strong>
         </div>
 
-        <% if (isAdvancedCalculusExperience) { %>
+        <% if (isCommonMathExperience) { %>
+          <span class="common-math-motion-caption">정의에서 검산까지 한 흐름으로 정리했습니다.</span>
+        <% } else if (isAdvancedCalculusExperience) { %>
           <button id="replay-calculus-motion" type="button">
             처음부터 다시 보기
           </button>

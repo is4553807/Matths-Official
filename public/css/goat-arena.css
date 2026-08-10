@@ -5579,6 +5579,45 @@ html {
   gap: 4px;
 }
 
+.arena-match-question-accuracy {
+  display: grid;
+  gap: 3px;
+  margin-left: auto;
+  padding: 8px 11px;
+  border: 1px solid #dbe5f4;
+  border-radius: 10px;
+  background: #f8fafc;
+  text-align: right;
+}
+
+.arena-match-question-accuracy small {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+}
+
+.arena-match-question-accuracy strong {
+  color: #334155;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .arena-match-question > header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .arena-match-question-accuracy {
+    width: 100%;
+    margin-left: 0;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    text-align: left;
+  }
+}
+
 .arena-match-question > header small {
   color: #64748b;
   font-size: 10px;

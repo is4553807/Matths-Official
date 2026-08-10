@@ -5,10 +5,12 @@ const dotenv = require("dotenv");
 dotenv.config({ path: "./config.env" });
 
 const {
+  ArenaProblemPack,
   ArenaTierQuestionCatalogVersion,
 } = require("../models/goatArenaModel");
 const {
   buildDifficultyVariantTypes,
+  generateQuestionsFromTierCatalog,
 } = require("../services/arenaTierQuestionCatalogService");
 const {
   reloadActiveProblemTypeControls,
@@ -59,9 +61,20 @@ function verifyGeneration(generation, active, division) {
   }, {});
   assert.deepEqual(counts, PACK_RULES.unitMix);
   const ranked = division === "MAIN";
-  assert.equal(generation.questions[4].design.slotRole, ranked ? "FINAL_29_30" : "REGULAR");
-  assert.equal(generation.questions[4].difficultyClass, ranked ? "KILLER" : "SEMI_KILLER");
-  const regularItems = ranked ? generation.questions.slice(0, 4) : generation.questions;
+  const level = Number(String(generation.difficultyCode || "").replace(/^[UR]/, ""));
+  const allKiller = level >= 7;
+  const expectedKillerCount = allKiller ? 5 : ranked ? 1 : 0;
+  assert.equal(
+    generation.questions.filter((item) => item.design.slotRole === "FINAL_29_30").length,
+    expectedKillerCount
+  );
+  assert.equal(
+    generation.questions.filter((item) => item.difficultyClass === "KILLER").length,
+    expectedKillerCount
+  );
+  const regularItems = generation.questions.filter(
+    (item) => item.design.slotRole === "REGULAR"
+  );
   assert.equal(
     regularItems.every(
       (item) =>
@@ -73,12 +86,21 @@ function verifyGeneration(generation, active, division) {
     true,
     `${generation.pairKey}: 일반 슬롯은 표시된 공식 유형과 직접 결속된 독립 검산 생성기를 사용해야 합니다.`
   );
-  if (ranked) {
-    assert.equal(generation.questions[4].design.sourcePositionBand, "Q29_30_KILLER");
-    assert.match(generation.questions[4].generatorEngineKey, /^ARENA_FINAL_KILLER:/);
+  if (expectedKillerCount > 0) {
+    const killerItems = generation.questions.filter(
+      (item) => item.design.slotRole === "FINAL_29_30"
+    );
+    assert.equal(
+      killerItems.every((item) => item.design.sourcePositionBand === "Q29_30_KILLER"),
+      true
+    );
+    assert.equal(
+      killerItems.every((item) => /^ARENA_FINAL_KILLER:/.test(item.generatorEngineKey)),
+      true
+    );
     assert.ok(
-      generation.questions[4].definition.skillTags.includes("29·30번형"),
-      "Ranked 5번은 독립 생성·검산한 29·30번형 킬러여야 합니다."
+      killerItems.every((item) => item.definition.skillTags.includes("29·30번형")),
+      "킬러 슬롯은 독립 생성·검산한 29·30번형이어야 합니다."
     );
   }
   assert.ok(generation.questions.every((item) => item.typeId.startsWith(`${ranked ? "R" : "U"}`)));
@@ -115,6 +137,19 @@ function verifyGeneration(generation, active, division) {
     ),
     true,
     `${generation.pairKey}: 다섯 문항 중 생성·독립 검산을 통과하지 않은 문항이 있습니다.`
+  );
+  assert.equal(
+    generation.questions.every(
+      (item) =>
+        item.validation?.structuralDifficultyPassed === true &&
+        Number(item.design?.reasoningStepCount) >=
+          (item.design?.slotRole === "FINAL_29_30" ? 5 : 4) &&
+        Number(item.design?.generatorDifficulty) >= 4 &&
+        Array.isArray(item.design?.targetAccuracy) &&
+        item.design.targetAccuracy.length === 2
+    ),
+    true,
+    `${generation.pairKey}: 구조 난이도와 예상 정답률 검증값이 누락되었습니다.`
   );
 }
 
@@ -191,6 +226,7 @@ async function main() {
         division: "SUB",
       });
       assert.equal(String(draft.tierCatalogVersionId), String(active._id));
+      await new ArenaProblemPack(draft).validate();
       verifiedPackCount += 1;
     }
   }
@@ -213,6 +249,7 @@ async function main() {
         division: "MAIN",
       });
       assert.equal(String(draft.tierCatalogVersionId), String(active._id));
+      await new ArenaProblemPack(draft).validate();
       verifiedPackCount += 1;
     }
   }
@@ -223,6 +260,41 @@ async function main() {
     0,
     "문제 본문에 제시됐다는 명시가 없는 풀이용 그래프는 경기 화면에 노출하면 안 됩니다."
   );
+
+  // Ranked 공식 상향 쟁탈전은 최소 한 티어 위 방어자를 사용하므로
+  // 실제 조합이 존재하는 가장 낮은 공개 난이도는 R2(실버)다.
+  for (const difficultyCode of ["U1", "U7", "R2", "R7"]) {
+    const pairSource = difficultyCode.startsWith("U")
+      ? SUB_TIER_PAIR_CONFIG
+      : MAIN_TIER_PAIR_CONFIG;
+    const pair = pairSource.find((item) => item.difficultyCode === difficultyCode);
+    assert.ok(pair, `${difficultyCode}: 반복 회피 검증용 티어 조합이 없습니다.`);
+    const first = await generateQuestionsFromTierCatalog({
+      version: active,
+      difficultyTier: pair.difficultyTier,
+      difficultyCode,
+      challengerTier: pair.challengerTier,
+      defenderTier: pair.defenderTier,
+      matchKey: `db-repeat-baseline-${difficultyCode}`,
+      division: difficultyCode.startsWith("U") ? "SUB" : "MAIN",
+    });
+    const recentTypeIds = first.flatMap((item) => [item.typeId, item.sourceTypeId]);
+    const next = await generateQuestionsFromTierCatalog({
+      version: active,
+      difficultyTier: pair.difficultyTier,
+      difficultyCode,
+      challengerTier: pair.challengerTier,
+      defenderTier: pair.defenderTier,
+      matchKey: `db-repeat-next-${difficultyCode}`,
+      division: difficultyCode.startsWith("U") ? "SUB" : "MAIN",
+      recentTypeIds,
+    });
+    assert.equal(
+      next.some((item) => first.some((previous) => previous.typeId === item.typeId)),
+      false,
+      `${difficultyCode}: 최근 경기의 공개 유형이 바로 재등장했습니다.`
+    );
+  }
 
   console.log(
     `Arena tier catalog DB verification passed: code=${active.code} publicDifficulties=18 variantsPerDifficulty=30 types=30 tiers=9 references=270 answers=270 solutions=270 choices=168 naturals=102 packs=${verifiedPackCount} visualizations=${renderedVisualizationCount}`

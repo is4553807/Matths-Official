@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const ejs = require("ejs");
 const { CONTENT_TYPES } = require("../models/studyHallModel");
-const { STUDY_HALL_TABS } = require("../services/studyHallService");
+const { STUDY_HALL_TABS, validateStudyHallAnswerKeyJson } = require("../services/studyHallService");
 
 const root = path.resolve(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -42,6 +42,43 @@ for (const guard of [
   'itemCount !== questions.length',
 ]) assert.ok(service.includes(guard), `missing study-hall guard ${guard}`);
 
+const flexibleAnswerKey = validateStudyHallAnswerKeyJson({
+  schemaVersion: "matths-answer-key-v1",
+  questions: Array.from({ length: 15 }, (_unused, index) => ({
+    number: index + 1,
+    answer: String((index % 5) + 1),
+    points: index === 14 ? 2 : 1,
+    type: "multiple-choice",
+  })),
+}, { expectedCount: 15 });
+assert.equal(flexibleAnswerKey.questionCount, 15);
+assert.equal(flexibleAnswerKey.totalPoints, 16);
+assert.equal(flexibleAnswerKey.questions[14].points, 2);
+
+const weeklyPoints = [
+  2, 2, 2, 3, 3,
+  3, 3, 3, 3, 3,
+  3, 3, 3, 4, 4,
+  4, 4, 4, 4, 4,
+  4, 3, 3, 3, 3,
+  4, 4, 4, 4, 4,
+];
+const weeklyFormatAnswerKey = validateStudyHallAnswerKeyJson({
+  schemaVersion: "matths-answer-key-v1",
+  answers: Array.from({ length: 30 }, (_unused, index) => index < 21 ? String((index % 5) + 1) : String(index + 10)),
+  points: weeklyPoints,
+  questionModes: Array.from({ length: 30 }, (_unused, index) => index < 21 ? "multiple-choice" : "short-answer"),
+  explanations: Array.from({ length: 30 }, (_unused, index) => ({
+    number: index + 1,
+    concept: `${index + 1}번 핵심 개념`,
+    steps: [`${index + 1}번 풀이`],
+  })),
+});
+assert.equal(weeklyFormatAnswerKey.questionCount, 30);
+assert.equal(weeklyFormatAnswerKey.totalPoints, 100);
+assert.equal(weeklyFormatAnswerKey.questions[21].answerType, "short-answer");
+assert.match(weeklyFormatAnswerKey.questions[0].explanation, /핵심 개념/);
+
 const userView = read("views/store.ejs");
 for (const label of [
   "자체제작 N제",
@@ -66,6 +103,7 @@ for (const field of [
   'name="description"',
   'name="questionPdf"',
   'name="solutionPdf"',
+  'name="answerKeyJson"',
   'name="status"',
   'name="sortOrder"',
   'name="publishAt"',

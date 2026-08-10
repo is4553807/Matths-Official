@@ -23,6 +23,8 @@ function questions() {
     stem: `DB 검증 문항 ${index + 1}`,
     choices: ["1", "2", "3", "4", "5"],
     correctAnswer: String((index % 5) + 1),
+    answerType: "multiple-choice",
+    points: index === 14 ? 2 : 1,
     explanation: `DB 검증 해설 ${index + 1}`,
   }));
 }
@@ -96,6 +98,8 @@ async function run() {
     });
     assert(submitted.progress.status === "SUBMITTED", "최종 제출 상태가 올바르지 않습니다.");
     assert(submitted.progress.correctCount === 15, "채점 결과가 올바르지 않습니다.");
+    assert(submitted.progress.scorePoints === 16, "배점 합산이 올바르지 않습니다.");
+    assert(submitted.progress.totalPoints === 16, "총점 계산이 올바르지 않습니다.");
     assert(submitted.progress.scorePercent === 100, "점수 계산이 올바르지 않습니다.");
 
     const afterSubmit = await getStudyHallContent({ contentId, userId: user._id });

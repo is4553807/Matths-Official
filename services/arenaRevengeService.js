@@ -134,6 +134,7 @@ async function createSubRevengeMatch({
         challengerTier: attacker.standing.arenaRank,
         defenderTier: defender.standing.arenaRank,
         matchKey,
+        participantUserIds: participantIds,
       });
       const sealed = sealArenaProblemPackDraft(
         buildGeneratedArenaProblemPackDraft({ generation, matchKey, generatedAt: now }),

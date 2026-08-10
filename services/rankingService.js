@@ -27,6 +27,9 @@ const {
   normalizeTierCode,
   TIER_LABELS,
 } = require("./arenaOneOnOneDifficultyPolicy");
+const {
+  buildArenaRankingDecorations,
+} = require("./arenaRankingDecorationService");
 
 function numberValue(
   value,
@@ -628,7 +631,7 @@ async function getRankingData(
       isActive: true,
     })
       .select(
-        "name school university schoolGrade educationStatus accountStatus"
+        "name school university schoolGrade educationStatus accountStatus warningCount"
       )
       .lean(),
       MainShopEffect.find({
@@ -724,8 +727,6 @@ async function getRankingData(
     })
     .filter(Boolean)
     .sort((left, right) => left.finalRank - right.finalRank);
-  const schoolAndRetakerRankings =
-    buildSchoolAndRetakerRankings(finalOverall);
   const eligibleAttempts =
     attempts.filter((attempt) =>
       userById.has(
@@ -1041,6 +1042,21 @@ async function getRankingData(
       };
     })
     .filter(Boolean);
+  const currentWarningCounts = new Map(
+    users.map((user) => [String(user._id), numberValue(user.warningCount)])
+  );
+  const decorationByUserId = await buildArenaRankingDecorations({
+    arenaEntries,
+    currentWarningCounts,
+  });
+  for (const entry of arenaEntries) {
+    entry.rankingDecoration = decorationByUserId.get(entry.userId) || null;
+  }
+  for (const entry of finalOverall) {
+    entry.rankingDecoration = decorationByUserId.get(entry.userId) || null;
+  }
+  const schoolAndRetakerRankings =
+    buildSchoolAndRetakerRankings(finalOverall);
   const subArenaEntries =
     arenaEntries.filter(
       (entry) =>

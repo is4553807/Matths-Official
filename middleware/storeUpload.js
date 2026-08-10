@@ -15,6 +15,7 @@ const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const PRODUCT_EXTENSIONS = new Set([
   ".pdf", ".zip", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
 ]);
+const JSON_MIME_TYPES = new Set(["application/json", "text/json", "text/plain", "application/octet-stream"]);
 
 const storage = multer.diskStorage({
   destination(_req, _file, callback) {
@@ -32,17 +33,22 @@ const storeUpload = multer({
     const extension = path.extname(file.originalname).toLowerCase();
     const imageField = ["thumbnail", "detailImages", "studyThumbnail"].includes(file.fieldname);
     const pdfField = ["questionPdf", "solutionPdf"].includes(file.fieldname);
+    const jsonField = file.fieldname === "answerKeyJson";
     const allowed = imageField
       ? IMAGE_EXTENSIONS.has(extension) && IMAGE_MIME_TYPES.has(String(file.mimetype || "").toLowerCase())
       : pdfField
         ? extension === ".pdf" && String(file.mimetype || "").toLowerCase() === "application/pdf"
-        : PRODUCT_EXTENSIONS.has(extension);
+        : jsonField
+          ? extension === ".json" && JSON_MIME_TYPES.has(String(file.mimetype || "").toLowerCase())
+          : PRODUCT_EXTENSIONS.has(extension);
     if (!allowed) {
       const error = new Error(
         imageField
           ? "썸네일과 상세 이미지는 PNG, JPG 또는 WEBP만 올릴 수 있습니다."
           : pdfField
             ? "문제지와 해설지는 PDF만 올릴 수 있습니다."
+            : jsonField
+              ? "답지 데이터는 JSON 파일만 올릴 수 있습니다."
             : "수험관 연결 자료는 PDF, ZIP 또는 문서 파일만 올릴 수 있습니다."
       );
       error.status = 400;
@@ -60,6 +66,7 @@ function handleStoreUpload(req, res, next) {
     { name: "studyThumbnail", maxCount: 1 },
     { name: "questionPdf", maxCount: 1 },
     { name: "solutionPdf", maxCount: 1 },
+    { name: "answerKeyJson", maxCount: 1 },
     { name: "contentFiles", maxCount: 20 },
   ])(req, res, (error) => {
     if (error) {

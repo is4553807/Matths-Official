@@ -120,6 +120,7 @@ async function createFriendlyProblemPack({ inviter, invitee, matchKey, now }) {
     inviteeTier: invitee.standing.arenaRank,
     inviteeDivision: "MAIN",
     matchKey,
+    participantUserIds: [inviter.user._id, invitee.user._id],
   });
   return sealArenaProblemPackDraft(
     buildGeneratedArenaProblemPackDraft({

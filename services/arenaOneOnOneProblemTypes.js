@@ -1,13 +1,20 @@
 /*
  * GOAT Arena 1대1 경기 전용 문제 유형 원본.
  *
- * 2016~2026 평가원 6·9월 모의평가의 13·14·20·21·27·28·29·30번
+ * 2016~2026 고3 3·5·6·7·9·10·11월 전국연합학력평가·모의평가의
+ * 13·14·20·21·27·28·29·30번
  * 사고 구조를 추상화한 Arena 독립 생성기다. 기출 문장과 수치를 복사하지
  * 않으며, 배치고사·평가센터 런타임을 import하지 않는다.
  */
 const {
   ARENA_ONE_ON_ONE_TYPE_SKELETONS,
 } = require("./arenaOneOnOneTypeSkeletons");
+const {
+  PRIVATE_MOCK_ABSTRACT_TYPES,
+} = require("./arenaPrivateMockProblemTypes");
+const {
+  buildArenaGeneratedAnswerKey,
+} = require("./arenaGeneratedAnswerKey");
 
 const ADVANCED_REFERENCE_FAMILIES = {
   "function-condition-graph": {
@@ -3191,6 +3198,7 @@ const PLACEMENT_ADVANCED_TYPES = {
     validate:
       validateInverseRecurrence,
   },
+  ...PRIVATE_MOCK_ABSTRACT_TYPES,
 };
 
 function validateAdvancedGenerated(
@@ -3359,17 +3367,26 @@ function generateValidatedAdvancedQuestion({
       continue;
     }
 
+    const finalValidation = {
+      ...validation,
+      attempts: attempt,
+      checkedAt:
+        new Date(),
+    };
+
     return {
       typeId,
       definition,
-      problem:
-        generated.problem,
-      validation: {
-        ...validation,
-        attempts: attempt,
-        checkedAt:
-          new Date(),
+      problem: {
+        ...generated.problem,
+        answerKey: buildArenaGeneratedAnswerKey({
+          typeId,
+          problem: generated.problem,
+          parameters: generated.parameters,
+          validation: finalValidation,
+        }),
       },
+      validation: finalValidation,
     };
   }
 
@@ -3400,6 +3417,51 @@ function generateValidatedArenaOneOnOneQuestion({
     maxAttempts,
   });
   if (normalizedCategory === "killer") {
+    const rawAnswer = String(generated.problem?.answer ?? "").trim();
+    const fractionMatch = rawAnswer.match(/^(\d+)\s*\/\s*(\d+)$/);
+    if (fractionMatch) {
+      const numerator = Number(fractionMatch[1]);
+      const denominator = Number(fractionMatch[2]);
+      const arenaAnswer = numerator + denominator;
+      if (!Number.isInteger(arenaAnswer) || arenaAnswer < 1 || arenaAnswer > 999) {
+        throw new Error(
+          `${normalizedTypeId} 킬러 문항의 자연수 변환 정답이 1~999 범위를 벗어났습니다.`
+        );
+      }
+      const originalProblem = generated.problem;
+      const solutionSuffix =
+        `따라서 $p=${numerator}$, $q=${denominator}$이므로 $p+q=${arenaAnswer}$이다.`;
+      generated.problem = {
+        ...originalProblem,
+        prompt:
+          `${String(originalProblem.prompt || "").trim()} ` +
+          `이 확률을 기약분수 $\\frac{p}{q}$로 나타낼 때, $p+q$를 구하시오.`,
+        answer: String(arenaAnswer),
+        solution: `${String(originalProblem.solution || "").trim()} ${solutionSuffix}`.trim(),
+        solutionProcess: [
+          ...(Array.isArray(originalProblem.solutionProcess)
+            ? originalProblem.solutionProcess
+            : []),
+          {
+            step:
+              (Array.isArray(originalProblem.solutionProcess)
+                ? originalProblem.solutionProcess.length
+                : 0) + 1,
+            title: "자연수 답으로 정리",
+            expression: `${numerator}+${denominator}=${arenaAnswer}`,
+            explanation: solutionSuffix,
+          },
+        ],
+        finalCheck:
+          `기약분수의 분자와 분모 합은 ${arenaAnswer}이며 1~999 자연수 조건을 만족한다.`,
+      };
+      generated.problem.answerKey = buildArenaGeneratedAnswerKey({
+        typeId: normalizedTypeId,
+        problem: generated.problem,
+        parameters: originalProblem.answerKey?.parameterSnapshot || {},
+        validation: generated.validation,
+      });
+    }
     generated.definition = {
       ...generated.definition,
       arenaSlotRole: "FINAL_29_30",

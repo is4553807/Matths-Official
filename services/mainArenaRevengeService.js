@@ -253,6 +253,7 @@ async function createMainRevengeMatch({
         lowerTier: attacker.standing.arenaRank,
         upperTier: defender.standing.arenaRank,
         matchKey,
+        participantUserIds: participantIds,
       });
       const sealed = sealArenaProblemPackDraft(
         buildGeneratedArenaProblemPackDraft({ generation, matchKey, generatedAt: now, division: "MAIN", matchType: "REVENGE" }),

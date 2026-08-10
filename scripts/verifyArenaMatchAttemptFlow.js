@@ -342,6 +342,7 @@ async function run() {
     publicQuestions[0].savedAnswer,
     "13"
   );
+  assert.match(publicQuestions[0].targetAccuracy.label, /%$/);
   assert.equal(
     Object.hasOwn(
       publicQuestions[0],
@@ -352,6 +353,7 @@ async function run() {
 
   attempt.answers[0].value = "1/2";
   sealed.questions[0].answer = "0.5";
+  sealed.questions[0].answerKey = null;
   attempt.questionTimings = [
     {
       questionKey: sealed.questions[0].questionKey,

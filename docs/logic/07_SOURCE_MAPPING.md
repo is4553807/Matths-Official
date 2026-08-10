@@ -107,8 +107,10 @@ Ranked 사용자:
 | 경기 신청 시 문제 팩 생성·자동 봉인 해시·검산 | `services/arenaProblemPackService.js`, `services/arenaMatchService.js` |
 | Unranked U1~U9·Ranked R1~R9 절대 난이도·목표 정답률·팩 곡선·실측 보정 | `services/arenaOneOnOneDifficultyPolicy.js` |
 | 공통수학Ⅰ·Ⅱ·대수·확률과 통계·미적분Ⅰ U/R 일반·29/30형 킬러 최종 유형 골격 | `services/arenaOneOnOneTypeSkeletons.js` |
-| 2016~2026 평가원 6·9월 모의평가 공식 해설 조사·23개 사고 유형·U/R 설계 메타데이터 | `scripts/buildArenaOfficialMockResearchCatalog.mjs`, `dataAnalysis/arenaOfficialMockTypeCatalog2016_2026.json`, `services/arenaOfficialMockResearchCatalog.js` |
-| Unranked·Ranked 1대1 독립 생성기와 U/R 단계별 30유형·서로 다른 5유형·Unranked 전 문항 준킬러·Ranked 5번 실제 29/30형 킬러 배정 | `services/arenaOneOnOneProblemTypes.js`, `services/arenaOneOnOneProblemBank.js`, `services/arenaTierQuestionCatalogService.js` |
+| 2016~2026 고3 3·5·6·7·9·10·11월 전국연합학력평가·모의평가 공개 해설 조사·23개 사고 유형·U/R 설계 메타데이터 | `scripts/buildArenaOfficialMockResearchCatalog.mjs`, `dataAnalysis/arenaOfficialMockTypeCatalog2016_2026.json`, `services/arenaOfficialMockResearchCatalog.js` |
+| 공식 무료 배포 사설 모의고사 문제지·정답·해설·문항별 정답률·표본·이용조건 선별 및 U/R 목표 정답률 보조 검증 | `dataAnalysis/arenaPrivateMockResearchCatalog.json`, `services/arenaPrivateMockResearchCatalog.js`, `scripts/verifyArenaPrivateMockResearchCatalog.js` |
+| 승인 사설 자료의 추상 구조 기반 자체 문항·정답 JSON·단계별 동적 풀이·독립 검산·자동채점 | `services/arenaPrivateMockProblemTypes.js`, `services/arenaGeneratedAnswerKey.js`, `dataAnalysis/arenaGeneratedAnswerKey.schema.json`, `services/arenaProblemPackService.js`, `services/arenaMatchScoringService.js`, `scripts/verifyArenaPrivateMockGeneratedProblems.js` |
+| Unranked·Ranked 1대1 독립 생성기와 U/R 단계별 30유형·서로 다른 5유형·U1~U6 전 문항 준킬러·R1~R6 5번 킬러·U7~U9/R7~R9 전 문항 29/30형 킬러·최근 5경기 유형 회피 | `services/arenaOneOnOneProblemTypes.js`, `services/arenaOneOnOneProblemBank.js`, `services/arenaTierQuestionCatalogService.js` |
 | 봉인 팩 배정·개인 타이머·답안/활동 저장·자동 제출 | `services/arenaMatchAttemptService.js` |
 | 60초 풀이 증거·이상 징후·24시간 미시작 처리 | `services/arenaMatchEvidenceService.js`, `middleware/arenaEvidenceUpload.js` |
 | 운영자 전체 경기 증거 열람 | `views/admin-arena-matches.ejs`, `controllers/matthsController.js` |

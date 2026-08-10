@@ -101,6 +101,7 @@ function getOfficialMockResearchSummary() {
     byPositionBand: countActiveBy("sourcePositionBand"),
     schemaVersion: catalog.schemaVersion,
     generatedAt: catalog.generatedAt,
+    targetMonths: [...(catalog.methodology.targetMonths || [6, 9])],
     targetQuestions: [...catalog.methodology.targetQuestions],
     sourcePositionsAreAuxiliary: catalog.methodology.sourcePositionsAreAuxiliary === true,
     fifthSlotRule: catalog.methodology.fifthSlotRule,

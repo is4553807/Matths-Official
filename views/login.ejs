@@ -8,6 +8,10 @@
     typeof oldInput !== "undefined" && oldInput
       ? oldInput
       : { identifier: "" };
+  const socialProviders =
+    typeof socialAuthProviders !== "undefined" && Array.isArray(socialAuthProviders)
+      ? socialAuthProviders
+      : [];
 %>
 
 <!doctype html>
@@ -197,6 +201,19 @@
               <span aria-hidden="true">→</span>
             </button>
           </form>
+
+          <div class="social-auth" aria-label="소셜 로그인">
+            <div class="social-auth-divider"><span>또는</span></div>
+            <div class="social-auth-buttons">
+              <a class="social-auth-button is-google" href="/auth/google">
+                <span class="social-auth-mark" aria-hidden="true">G</span>
+                Google로 계속하기
+              </a>
+            </div>
+            <% if (socialProviders.length && !socialProviders.some((provider) => provider.configured)) { %>
+              <small class="social-auth-guide">소셜 로그인 운영 키를 설정하면 바로 사용할 수 있습니다.</small>
+            <% } %>
+          </div>
 
           <div class="auth-switch">
             <span>Matths가 처음인가요?</span>

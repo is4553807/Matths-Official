@@ -33,22 +33,30 @@ const forbiddenContentKeys = new Set([
   "intentText",
 ]);
 
-assert.equal(catalog.schemaVersion, "ARENA_OFFICIAL_MOCK_RESEARCH_V1");
+assert.equal(catalog.schemaVersion, "ARENA_OFFICIAL_MOCK_RESEARCH_V2");
 assert.equal(catalog.summary.researchWindow, "2016-2026");
 assert.equal(catalog.summary.excludedExamType, "CSAT");
-assert.equal(catalog.summary.sourceForms, 42);
-assert.equal(catalog.summary.targetQuestionReferences, 292);
-assert.equal(catalog.summary.activeReferences, 265);
-assert.equal(catalog.summary.excludedReferences, 27);
-assert.equal(catalog.summary.reviewRequired, 0);
-assert.equal(catalog.records.length, 292);
+assert.deepEqual(catalog.methodology.targetMonths, [3, 5, 6, 7, 9, 10, 11]);
+assert.ok(catalog.summary.sourceForms > 42);
+assert.ok(catalog.summary.targetQuestionReferences > 292);
+assert.equal(catalog.records.length, catalog.summary.targetQuestionReferences);
+assert.ok(catalog.summary.byAuthority.EDUCATION_OFFICE > 0);
+assert.ok(catalog.summary.byAuthority.KICE > 0);
+for (const month of [3, 5, 6, 7, 9, 10]) {
+  assert.ok(Number(catalog.summary.bySessionMonth[String(month)] || 0) > 0);
+}
+assert.equal(
+  catalog.summary.activeReferences + catalog.summary.excludedReferences + catalog.summary.reviewRequired,
+  catalog.summary.targetQuestionReferences
+);
 
 for (const record of catalog.records) {
   assert.ok(targetQuestions.has(record.questionNumber));
   assert.ok(validBands.has(record.sourcePositionBand));
   assert.ok(record.year >= 2016 && record.year <= 2026);
-  assert.ok([6, 8, 9].includes(record.administeredMonth));
-  assert.equal(record.sourceAuthority, "KICE");
+  assert.ok([3, 5, 6, 7, 8, 9, 10, 11].includes(record.administeredMonth));
+  assert.ok([3, 5, 6, 7, 9, 10, 11].includes(record.sessionMonth));
+  assert.ok(["KICE", "EDUCATION_OFFICE"].includes(record.sourceAuthority));
   assert.ok(!String(record.sourceId).includes("CSAT"));
   for (const key of forbiddenContentKeys) {
     assert.ok(!(key in record), `제품 카탈로그에 원문 필드 ${key}를 저장할 수 없습니다.`);
@@ -60,7 +68,7 @@ for (const record of catalog.records) {
 }
 
 const active = activeRecords();
-assert.equal(active.length, 265);
+assert.equal(active.length, catalog.summary.activeReferences);
 for (let index = 1; index <= 9; index += 1) {
   assert.ok(active.some((record) => record.difficultyTier === `T${index}`));
 }
@@ -115,10 +123,10 @@ for (const courseId of ARENA_SUPPORTED_COURSES) {
 }
 
 const summary = getOfficialMockResearchSummary();
-assert.equal(summary.familyStats.length, 23);
+assert.ok(summary.familyStats.length >= 23);
 assert.equal(
   Object.values(summary.byDifficulty).reduce((sum, count) => sum + count, 0),
-  265
+  catalog.summary.activeReferences
 );
 
 console.log(

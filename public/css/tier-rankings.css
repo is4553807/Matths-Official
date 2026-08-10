@@ -844,3 +844,123 @@
   font-size: 0.78rem;
   line-height: 1.65;
 }
+
+/*
+ * 이용자당 하나만 배정되는 Arena 공식 랭킹 장식.
+ * 집계형 학교·대학교 카드에는 partial 자체를 렌더하지 않는다.
+ */
+.arena-rank-decoration {
+  --decoration-a: #6457d8;
+  --decoration-b: #2e92da;
+  --decoration-glow: rgba(98, 100, 232, 0.24);
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  min-height: 24px;
+  align-items: center;
+  gap: 5px;
+  margin-left: 7px;
+  padding: 3px 8px 3px 5px;
+  color: #fff;
+  vertical-align: middle;
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--decoration-a) 92%, #080b18), var(--decoration-b));
+  border: 1px solid color-mix(in srgb, var(--decoration-b) 58%, #fff);
+  border-radius: 7px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 5px 16px var(--decoration-glow);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transform: translateY(-1px);
+}
+
+.arena-rank-decoration i {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  color: #fff;
+  background: rgba(7, 10, 25, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  font-size: 10px;
+  font-style: normal;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.38);
+}
+
+.arena-rank-decoration--silver {
+  --decoration-a: #7d8799;
+  --decoration-b: #dce8f7;
+  --decoration-glow: rgba(174, 194, 221, 0.26);
+  color: #111827;
+  border-color: #edf5ff;
+}
+
+.arena-rank-decoration--silver i {
+  color: #f9fcff;
+  background: #536071;
+}
+
+.arena-rank-decoration--gold {
+  --decoration-a: #7a4b06;
+  --decoration-b: #f2bd3f;
+  --decoration-glow: rgba(238, 174, 45, 0.3);
+  border-color: #ffe5a0;
+}
+
+.arena-rank-decoration--violet {
+  --decoration-a: #5f33bb;
+  --decoration-b: #a868ff;
+  --decoration-glow: rgba(147, 88, 245, 0.3);
+}
+
+.arena-rank-decoration--cyan {
+  --decoration-a: #075d77;
+  --decoration-b: #19c7d9;
+  --decoration-glow: rgba(33, 192, 215, 0.28);
+}
+
+.arena-rank-decoration--blue {
+  --decoration-a: #183a8c;
+  --decoration-b: #3484f4;
+  --decoration-glow: rgba(52, 120, 235, 0.25);
+}
+
+.arena-rank-decoration--red {
+  --decoration-a: #7d1b35;
+  --decoration-b: #e34a67;
+  --decoration-glow: rgba(221, 58, 91, 0.24);
+}
+
+.arena-rank-decoration--steel {
+  --decoration-a: #303b52;
+  --decoration-b: #7587a5;
+  --decoration-glow: rgba(99, 118, 151, 0.24);
+}
+
+.tier-ranking-row > strong,
+.arena-final-ranking-row > strong,
+.tier-my-ranking h2,
+.arena-final-my-rank strong {
+  align-items: center;
+}
+
+@media (max-width: 700px) {
+  .arena-rank-decoration {
+    min-height: 21px;
+    margin: 4px 0 0;
+    padding: 2px 6px 2px 4px;
+    font-size: 9px;
+  }
+
+  .arena-rank-decoration i {
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+  }
+}

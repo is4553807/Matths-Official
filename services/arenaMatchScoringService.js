@@ -21,7 +21,9 @@ function scoreArenaAttempt({ attempt, problemPack }) {
   );
   const questionResults = (problemPack?.questions || []).map((question) => {
     const submittedAnswer = answerByKey.get(String(question.questionKey)) || "";
-    const correct = answersEquivalent(question.answer, submittedAnswer);
+    const expectedAnswer =
+      question?.answerKey?.correctAnswer ?? question.answer;
+    const correct = answersEquivalent(expectedAnswer, submittedAnswer);
     return {
       questionKey: String(question.questionKey),
       correct,

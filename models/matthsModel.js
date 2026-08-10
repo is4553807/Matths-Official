@@ -134,6 +134,24 @@ const userSchema = new Schema(
       lowercase: true,
     },
 
+    /*
+     * 검증된 공급자 이메일로 연결한 소셜 계정 식별자입니다.
+     * 로그인 화면이나 일반 사용자 조회에는 노출하지 않습니다.
+     */
+    socialAuth: {
+      googleId: {
+        type: String,
+        trim: true,
+        default: undefined,
+        select: false,
+      },
+    },
+
+    emailVerifiedAt: {
+      type: Date,
+      default: null,
+    },
+
     // 원본 비밀번호가 아닌 암호화된 값만 저장
     passwordHash: {
       type: String,
@@ -515,6 +533,15 @@ const userSchema = new Schema(
 userSchema.index(
   { email: 1 },
   { unique: true }
+);
+userSchema.index(
+  { "socialAuth.googleId": 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      "socialAuth.googleId": { $type: "string" },
+    },
+  }
 );
 userSchema.index({
   "school.code": 1,

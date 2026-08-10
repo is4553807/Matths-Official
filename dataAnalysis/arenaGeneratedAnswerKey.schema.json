@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://matths.local/schemas/arenaGeneratedAnswerKey.schema.json",
+  "title": "GOAT Arena generated answer key",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "typeId",
+    "inputMode",
+    "gradingMode",
+    "correctAnswer",
+    "normalizedAnswer",
+    "acceptedAnswers",
+    "parameterSnapshot",
+    "solutionProcess",
+    "finalCheck",
+    "validation",
+    "contentHash"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "ARENA_GENERATED_ANSWER_V1" },
+    "typeId": { "type": "string", "minLength": 1 },
+    "inputMode": { "const": "short-answer" },
+    "gradingMode": { "const": "MATHEMATICAL_EQUIVALENCE" },
+    "correctAnswer": { "type": "string", "minLength": 1 },
+    "normalizedAnswer": { "type": "string", "minLength": 1 },
+    "acceptedAnswers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "parameterSnapshot": { "type": "object" },
+    "solutionProcess": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["step", "title", "expression", "explanation"],
+        "properties": {
+          "step": { "type": "integer", "minimum": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "expression": { "type": "string" },
+          "explanation": { "type": "string" }
+        }
+      }
+    },
+    "finalCheck": { "type": "string" },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "passed",
+        "solvable",
+        "uniqueAnswer",
+        "calculatorFree",
+        "answerMatches"
+      ],
+      "properties": {
+        "passed": { "type": "boolean" },
+        "solvable": { "type": "boolean" },
+        "uniqueAnswer": { "type": "boolean" },
+        "calculatorFree": { "type": "boolean" },
+        "answerMatches": { "type": "boolean" }
+      }
+    },
+    "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

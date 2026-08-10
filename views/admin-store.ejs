@@ -29,6 +29,25 @@
       <% if (feedback) { %><div class="store-admin-feedback <%= feedback.type %>" role="status"><%= feedback.message %></div><% } %>
       <% if (error) { %><div class="store-admin-feedback error" role="alert"><%= error %></div><% } %>
 
+      <section class="admin-answer-key-guide" aria-labelledby="study-hall-answer-key-guide-title">
+        <div class="admin-answer-key-guide__copy">
+          <p>AUTO-GRADING JSON TEMPLATE</p>
+          <h2 id="study-hall-answer-key-guide-title">자동 채점 답안지 스켈레톤</h2>
+          <span>30문항 모의고사 콘텐츠는 아래 파일의 키 이름과 배열 순서를 유지해 작성하세요. 자리표시자를 실제 답안과 해설로 모두 교체한 뒤 업로드해야 합니다.</span>
+          <ul>
+            <li><b>answers</b>와 <b>explanations.answer</b>에는 같은 정답 입력</li>
+            <li><b>points</b>는 문항별 2·3·4점, 전체 합계 100점</li>
+            <li>해설은 출제 의도·핵심 개념·단계별 풀이·요약·주의점까지 작성</li>
+          </ul>
+        </div>
+        <div class="admin-answer-key-guide__action">
+          <span>Matths 공통 답안 규격</span>
+          <strong>30문항 · 100점</strong>
+          <small>주간 공식 모의고사와 같은 자동 채점 형식</small>
+          <a href="/templates/matths-answer-key-skeleton.json" download="MATTHS_자동채점_답안지_스켈레톤.json">스켈레톤 JSON 다운로드</a>
+        </div>
+      </section>
+
       <nav class="study-hall-admin-tabs" aria-label="콘텐츠 종류">
         <a href="/admin/store" class="<%= !storeData.activeTab ? 'is-active' : '' %>">전체</a>
         <% storeData.tabs.forEach((tab) => { %><a href="/admin/store?tab=<%= tab.code %>" class="<%= storeData.activeTab === tab.code ? 'is-active' : '' %>"><%= tab.label %></a><% }) %>
@@ -85,6 +104,7 @@
             <label><span>표지·썸네일</span><input type="file" name="studyThumbnail" accept=".png,.jpg,.jpeg,.webp" /><small>카드와 상세 상단에 표시됩니다.</small></label>
             <label><span>문제지 PDF</span><input type="file" name="questionPdf" accept=".pdf" /><small>데일리 하프·실전 모의고사에서 사용합니다.</small></label>
             <label><span>해설 PDF</span><input type="file" name="solutionPdf" accept=".pdf" /><small>최종 제출 뒤 사용자에게 공개합니다.</small></label>
+            <label><span>자동 채점 답지 JSON</span><input type="file" name="answerKeyJson" accept=".json,application/json" /><small>30문항 모의고사는 상단 스켈레톤 형식을 사용합니다. 새 JSON을 올리면 위 수동 문항 데이터를 대신합니다.</small></label>
             <label><span>추가 연결 자료</span><input type="file" name="contentFiles" accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx" multiple /><small>오답 리포트나 보조 학습 자료를 연결합니다.</small></label>
           </section>
           <% if (editing?.assets?.length) { %><div class="study-hall-current-files"><strong>현재 R2 연결 파일</strong><% editing.assets.forEach((file) => { %><label><input type="checkbox" name="removeAssetIds" value="<%= file.id %>" /><span><b><%= file.kind %> · <%= file.originalName %></b><small><%= formatBytes(file.sizeBytes) %> · 선택하면 저장 시 R2에서도 삭제</small></span></label><% }) %></div><% } %>

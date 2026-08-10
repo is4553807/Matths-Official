@@ -191,7 +191,7 @@
   height: 74px;
   display: grid;
   place-items: center;
-  overflow: visible;
+  overflow: hidden;
   padding: 8px 4px;
   color: #fff;
   background: var(--blue);
@@ -201,14 +201,14 @@
   font-weight: 800;
   line-height: 1;
   text-align: center;
-  transform: rotate(-3deg);
+  transform: none;
   box-shadow: 0 13px 25px rgba(49, 87, 246, 0.22);
 }
 
 .concept-intro-card > span mjx-container {
   max-width: 100%;
   margin: 0 !important;
-  overflow: visible;
+  overflow: hidden;
   font-size: 0.78em !important;
 }
 
@@ -603,6 +603,30 @@
   border-radius: 15px;
 }
 
+.common-math-step-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.common-math-step-grid article {
+  min-width: 0;
+  min-height: 0;
+  padding: 23px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(26, 39, 82, 0.055);
+}
+
+.common-math-step-grid h4 {
+  margin-top: 14px;
+}
+
+.common-math-step-grid p {
+  font-size: 10px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
 .concept-step-grid span {
   color: var(--blue);
   font-size: 9px;
@@ -631,6 +655,7 @@
 
 .motion-stage {
   position: relative;
+  min-width: 0;
   min-height: 430px;
   display: grid;
   place-items: center;
@@ -639,6 +664,108 @@
     linear-gradient(90deg, rgba(49, 87, 246, 0.035) 1px, transparent 1px),
     #f9faff;
   background-size: 28px 28px;
+  overflow: hidden;
+}
+
+.common-math-motion-stage {
+  min-height: 340px;
+  padding: clamp(24px, 4vw, 44px);
+}
+
+.common-math-motion-board {
+  width: min(100%, 960px);
+  min-width: 0;
+  display: grid;
+  gap: 24px;
+}
+
+.common-math-motion-formula {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 19px 22px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #dce3f3;
+  border-radius: 16px;
+  box-shadow: 0 14px 32px rgba(31, 45, 91, 0.07);
+}
+
+.common-math-motion-formula span {
+  flex: 0 0 auto;
+  color: #7c869d;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.common-math-motion-formula strong {
+  min-width: 0;
+  color: var(--blue);
+  font-size: clamp(17px, 2vw, 25px);
+  line-height: 1.45;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.common-math-motion-formula strong mjx-container {
+  max-width: 100%;
+  margin: 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.common-math-motion-flow {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 12px;
+}
+
+.common-math-motion-flow article {
+  min-width: 0;
+  padding: 19px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #dfe5f3;
+  border-radius: 15px;
+}
+
+.common-math-motion-flow article b {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--blue);
+  font-size: 9px;
+  letter-spacing: 1.2px;
+}
+
+.common-math-motion-flow article strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.common-math-motion-flow article p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.common-math-motion-flow > span {
+  align-self: center;
+  color: #9ba7c0;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.common-math-motion-caption {
+  flex: 0 0 auto;
+  color: #7b8499;
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .algebra-motion-stage {
@@ -653,6 +780,19 @@
   width: 100%;
   height: 430px;
   display: block;
+  object-fit: contain;
+}
+
+.concept-experience img,
+.concept-experience video,
+.concept-experience canvas,
+.concept-experience svg {
+  max-width: 100%;
+}
+
+.concept-experience img,
+.concept-experience video {
+  height: auto;
   object-fit: contain;
 }
 
@@ -776,7 +916,8 @@
 }
 
 .common-math-lab {
-  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
 }
 
 .common-math-lab .lab-controls {
@@ -790,24 +931,87 @@
 }
 
 .common-math-lab .lab-formula strong {
+  min-width: 0;
   max-width: calc(100% - 125px);
   font-size: clamp(13px, 1.35vw, 19px);
   text-align: right;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .common-math-visual-wrap {
+  width: 100%;
+  min-width: 0;
   min-height: 430px;
+  display: grid;
+  place-items: center;
   padding: 14px;
   background:
     linear-gradient(180deg, #f9fbff 0%, #f1f5ff 100%);
 }
 
+.common-math-visual-wrap.is-formula-mode {
+  min-height: 310px;
+  padding: clamp(22px, 4vw, 42px);
+}
+
 .common-math-visual-wrap svg {
   display: block;
   width: 100%;
-  height: auto;
+  height: min(430px, 60vw);
+  min-height: 300px;
   border-radius: 18px;
   box-shadow: 0 20px 45px rgba(24, 39, 82, 0.14);
+}
+
+.common-math-formula-visual {
+  width: min(100%, 860px);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 12px;
+}
+
+.common-math-formula-visual article {
+  min-width: 0;
+  min-height: 150px;
+  display: grid;
+  align-content: center;
+  gap: 15px;
+  padding: 22px;
+  background: #fff;
+  border: 1px solid #dce3f3;
+  border-radius: 16px;
+  box-shadow: 0 14px 32px rgba(31, 45, 91, 0.07);
+}
+
+.common-math-formula-visual article b {
+  color: var(--blue);
+  font-size: 9px;
+  letter-spacing: 1.2px;
+}
+
+.common-math-formula-visual article strong,
+.common-math-formula-visual article p {
+  margin: 0;
+  color: #26324b;
+  font-size: clamp(12px, 1.25vw, 16px);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.common-math-formula-visual article p {
+  color: #5f6980;
+  font-size: 11px;
+}
+
+.common-math-formula-visual > span {
+  align-self: center;
+  color: #9ba7c0;
+  font-size: 22px;
+  font-weight: 800;
 }
 
 .probability-lab .lab-controls {
@@ -1575,8 +1779,25 @@
   #advance-algebra,
   #animate-property,
   #rerun-probability-simulation,
-  #rerun-calculus-lab {
+  #rerun-calculus-lab,
+  #rerun-common-math {
     grid-column: 1 / -1;
+  }
+
+  .common-math-motion-flow,
+  .common-math-formula-visual {
+    grid-template-columns: 1fr;
+  }
+
+  .common-math-motion-flow > span,
+  .common-math-formula-visual > span {
+    justify-self: center;
+    transform: rotate(90deg);
+  }
+
+  .common-math-visual-wrap svg {
+    height: auto;
+    min-height: 0;
   }
 
   .transformation-stage {
@@ -1635,6 +1856,53 @@
   .probability-lab .lab-formula strong {
     max-width: calc(100% - 72px);
     font-size: 13px;
+  }
+
+  .common-math-motion-stage {
+    min-height: 0;
+    padding: 18px;
+  }
+
+  .common-math-motion-formula {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+  }
+
+  .common-math-motion-formula strong {
+    width: 100%;
+    text-align: left;
+  }
+
+  .common-math-motion-flow article,
+  .common-math-formula-visual article {
+    min-height: 0;
+    padding: 17px;
+  }
+
+  .common-math-lab .lab-formula {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 15px;
+  }
+
+  .common-math-lab .lab-formula strong {
+    width: 100%;
+    max-width: none;
+    font-size: 13px;
+    text-align: left;
+  }
+
+  .common-math-visual-wrap,
+  .common-math-visual-wrap.is-formula-mode {
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .common-math-motion-caption {
+    display: none;
   }
 
   .calculus-graph-toolbar {

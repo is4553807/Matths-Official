@@ -39,7 +39,7 @@
             <span><%= content.description %></span>
             <dl><% if (content.subject) { %><div><dt>과목</dt><dd><%= content.subject %></dd></div><% } %><% if (content.itemCount) { %><div><dt>문항</dt><dd><%= content.itemCount %>문항</dd></div><% } %><% if (content.difficulty) { %><div><dt>난이도</dt><dd><%= content.difficulty %></dd></div><% } %><% if (content.timeLimitMinutes) { %><div><dt>제한 시간</dt><dd><%= content.timeLimitMinutes %>분</dd></div><% } %></dl>
           </div>
-          <aside><small>학습 진행률</small><strong><%= content.progress.percent %>%</strong><span><i style="width:<%= content.progress.percent %>%"></i></span><em><%= isSubmitted ? `제출 완료 · ${content.progress.scorePercent}점` : content.progress.answeredCount ? `${content.progress.answeredCount}문항 입력` : '아직 시작하지 않았습니다.' %></em></aside>
+          <aside><small>학습 진행률</small><strong><%= content.progress.percent %>%</strong><span><i style="width:<%= content.progress.percent %>%"></i></span><em><%= isSubmitted ? `제출 완료 · ${content.progress.scorePoints}/${content.progress.totalPoints}점 (${content.progress.scorePercent}%)` : content.progress.answeredCount ? `${content.progress.answeredCount}문항 입력` : '아직 시작하지 않았습니다.' %></em></aside>
         </section>
 
         <% if (content.questionPdf || content.solutionPdf || content.contentFiles.length) { %>
@@ -69,17 +69,17 @@
 
             <div class="study-question-list">
               <% questionNumbers.forEach((number) => { const question = questionMap.get(number); const savedAnswer = answerMap.get(number) || ''; %>
-                <article class="study-question <%= isSubmitted ? 'is-submitted' : '' %>" data-question-number="<%= number %>">
-                  <header><span><%= number %></span><strong><%= question?.stem || `${number}번 답안을 선택하세요.` %></strong><small data-question-state><%= savedAnswer ? '입력 완료' : '미입력' %></small></header>
+                <article class="study-question <%= isSubmitted ? 'is-submitted' : '' %> <%= isSubmitted && question?.isCorrect ? 'is-correct' : isSubmitted && question ? 'is-incorrect' : '' %>" data-question-number="<%= number %>">
+                  <header><span><%= number %></span><strong><%= question?.stem || `${number}번 답안을 입력하세요.` %></strong><small data-question-state><%= isSubmitted && question ? (question.isCorrect ? '정답' : '오답') : savedAnswer ? '입력 완료' : '미입력' %></small></header>
                   <% if (question?.choices?.length) { %><ol class="study-question-choices"><% question.choices.forEach((choice, index) => { %><li><%= index + 1 %>. <%= choice %></li><% }) %></ol><% } %>
-                  <% if (question?.choices?.length || ['DAILY_HALF', 'PRACTICE_MOCK'].includes(content.contentType)) { %>
+                  <% if (question?.answerType !== 'short-answer' && (question?.choices?.length || ['DAILY_HALF', 'PRACTICE_MOCK'].includes(content.contentType))) { %>
                     <div class="study-choice-row" role="radiogroup" aria-label="<%= number %>번 답안">
                       <% [1,2,3,4,5].forEach((choice) => { %><label><input type="radio" name="answer-<%= number %>" value="<%= choice %>" <%= savedAnswer === String(choice) ? 'checked' : '' %> <%= isSubmitted ? 'disabled' : '' %> /><span><%= choice %></span></label><% }) %>
                     </div>
                   <% } else { %>
                     <label class="study-short-answer"><span><%= number %>번 답</span><input type="text" name="answer-<%= number %>" value="<%= savedAnswer %>" maxlength="100" autocomplete="off" <%= isSubmitted ? 'disabled' : '' %> placeholder="답을 입력하세요" /></label>
                   <% } %>
-                  <% if (isSubmitted && question) { %><div class="study-question-result"><strong>정답 <%= question.correctAnswer %></strong><p><%= question.explanation || '해설 PDF 또는 운영자가 등록한 해설을 확인하세요.' %></p></div><% } %>
+                  <% if (isSubmitted && question) { %><div class="study-question-result"><strong><%= question.isCorrect ? '정답' : '오답' %> · 정답 <%= question.correctAnswer %> · <%= question.points %>점</strong><p><%= question.explanation || '해설 PDF 또는 운영자가 등록한 해설을 확인하세요.' %></p></div><% } %>
                 </article>
               <% }) %>
             </div>

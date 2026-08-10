@@ -10,6 +10,9 @@ const {
   ARENA_ONE_ON_ONE_TYPE_SKELETONS,
   ARENA_SUPPORTED_COURSES,
 } = require("./arenaOneOnOneTypeSkeletons");
+const {
+  calibrationEvidenceForAccuracyRange,
+} = require("./arenaPrivateMockResearchCatalog");
 
 const ARENA_QUESTION_DESIGN_POLICY_VERSION =
   "GOAT_ARENA_U_R_DIFFICULTY_V5";
@@ -139,9 +142,9 @@ const PUBLIC_DIFFICULTY_SPECS = Object.freeze({
   U4: Object.freeze({ ...TIER_SPECS.T4, defenderAccuracy: [0.29, 0.34], challengerAccuracy: [0.29, 0.34], regularAccuracy: [0.29, 0.34] }),
   U5: Object.freeze({ ...TIER_SPECS.T5, defenderAccuracy: [0.27, 0.32], challengerAccuracy: [0.27, 0.32], regularAccuracy: [0.27, 0.32] }),
   U6: Object.freeze({ ...TIER_SPECS.T6, defenderAccuracy: [0.25, 0.3], challengerAccuracy: [0.25, 0.3], regularAccuracy: [0.25, 0.3] }),
-  U7: Object.freeze({ ...TIER_SPECS.T7, defenderAccuracy: [0.23, 0.28], challengerAccuracy: [0.23, 0.28], regularAccuracy: [0.23, 0.28] }),
-  U8: Object.freeze({ ...TIER_SPECS.T8, defenderAccuracy: [0.21, 0.26], challengerAccuracy: [0.21, 0.26], regularAccuracy: [0.21, 0.26] }),
-  U9: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.19, 0.24], challengerAccuracy: [0.19, 0.24], regularAccuracy: [0.19, 0.24] }),
+  U7: Object.freeze({ ...TIER_SPECS.T7, defenderAccuracy: [0.23, 0.28], challengerAccuracy: [0.23, 0.28], regularAccuracy: [0.23, 0.28], finalAccuracy: [0.06, 0.09] }),
+  U8: Object.freeze({ ...TIER_SPECS.T8, defenderAccuracy: [0.21, 0.26], challengerAccuracy: [0.21, 0.26], regularAccuracy: [0.21, 0.26], finalAccuracy: [0.04, 0.07] }),
+  U9: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.19, 0.24], challengerAccuracy: [0.19, 0.24], regularAccuracy: [0.19, 0.24], finalAccuracy: [0.025, 0.05] }),
   R1: Object.freeze({ ...TIER_SPECS.T8, defenderAccuracy: [0.28, 0.34], challengerAccuracy: [0.28, 0.34], regularAccuracy: [0.28, 0.34], finalAccuracy: [0.08, 0.099], absoluteBurden: 8.5 }),
   R2: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.26, 0.32], challengerAccuracy: [0.26, 0.32], regularAccuracy: [0.26, 0.32], finalAccuracy: [0.07, 0.09], absoluteBurden: 9 }),
   R3: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.24, 0.3], challengerAccuracy: [0.24, 0.3], regularAccuracy: [0.24, 0.3], finalAccuracy: [0.06, 0.08], concepts: 3.25, conditions: 3.25, cases: 4.25, absoluteBurden: 9.5 }),
@@ -152,6 +155,19 @@ const PUBLIC_DIFFICULTY_SPECS = Object.freeze({
   R8: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.13, 0.19], challengerAccuracy: [0.13, 0.19], regularAccuracy: [0.13, 0.19], finalAccuracy: [0.015, 0.035], concepts: 4.5, conditions: 4.5, cases: 5.5, absoluteBurden: 12 }),
   R9: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.1, 0.15], challengerAccuracy: [0.1, 0.15], regularAccuracy: [0.1, 0.15], finalAccuracy: [0.01, 0.025], concepts: 5, conditions: 5, cases: 6, absoluteBurden: 13 }),
 });
+
+function privateMockCalibrationForDifficulty(
+  difficultyCode,
+  { slotRole = "REGULAR", limit = 4 } = {}
+) {
+  const spec = PUBLIC_DIFFICULTY_SPECS[String(difficultyCode || "").toUpperCase()];
+  if (!spec) return [];
+  const targetAccuracy = slotRole === "FINAL_29_30"
+    ? spec.finalAccuracy
+    : spec.regularAccuracy;
+  if (!targetAccuracy) return [];
+  return calibrationEvidenceForAccuracyRange(targetAccuracy, { slotRole, limit });
+}
 
 const SUB_MATCH_TO_DIFFICULTY = Object.freeze({
   BRONZE_BRONZE: "T1",
@@ -377,6 +393,102 @@ function packCurveForPair(challengerTier, defenderTier) {
     : [...PACK_CURVE];
 }
 
+function targetAccuracyRangeForSlot({
+  difficultyCode,
+  order,
+  division = "SUB",
+} = {}) {
+  const normalizedCode = String(difficultyCode || "").trim().toUpperCase();
+  const normalizedOrder = Math.max(1, Math.min(5, Number(order) || 1));
+  const publicSpec = PUBLIC_DIFFICULTY_SPECS[normalizedCode];
+  if (!publicSpec) return null;
+  const isRanked = String(division || "SUB").trim().toUpperCase() === "MAIN";
+  const slotRole = expectedSlotRole({
+    difficultyCode: normalizedCode,
+    division: isRanked ? "MAIN" : "SUB",
+    index: normalizedOrder - 1,
+  });
+  if (slotRole === "FINAL_29_30" && publicSpec.finalAccuracy) {
+    const [min, max] = publicSpec.finalAccuracy.map(Number);
+    const weights = [1, 0.75, 0.5, 0.25, 0];
+    const target = min + (max - min) * weights[normalizedOrder - 1];
+    const spread = Math.min(0.006, Math.max(0.003, (max - min) / 5));
+    return [
+      Number(Math.max(min, target - spread).toFixed(3)),
+      Number(Math.min(max, target + spread).toFixed(3)),
+    ];
+  }
+  const regularRange = publicSpec.regularAccuracy || publicSpec.defenderAccuracy;
+  if (!regularRange) return null;
+  const slotAccuracyWeights = isRanked
+    ? [0.83, 0.55, 0.28, 0, 0]
+    : [1, 0.75, 0.5, 0.25, 0];
+  const min = Number(regularRange[0] || 0);
+  const max = Number(regularRange[1] || min);
+  const target = min + (max - min) * slotAccuracyWeights[normalizedOrder - 1];
+  const spread = Math.min(0.01, Math.max(0.005, (max - min) / 4));
+  return [
+    Number(Math.max(min, target - spread).toFixed(3)),
+    Number(Math.min(max, target + spread).toFixed(3)),
+  ];
+}
+
+function publicDifficultyLevel(difficultyCode = "") {
+  return Math.max(
+    1,
+    Math.min(9, Number(String(difficultyCode || "").replace(/^[UR]/i, "")) || 1)
+  );
+}
+
+function isAllKillerDifficultyCode(difficultyCode = "") {
+  return publicDifficultyLevel(difficultyCode) >= 7;
+}
+
+function expectedSlotRole({
+  difficultyCode = "",
+  division = "SUB",
+  index = 0,
+  questionCount = PACK_RULES.items,
+} = {}) {
+  const normalizedDivision = String(division || "SUB").trim().toUpperCase();
+  return isAllKillerDifficultyCode(difficultyCode) ||
+    (normalizedDivision === "MAIN" && Number(index) === Number(questionCount) - 1)
+    ? "FINAL_29_30"
+    : "REGULAR";
+}
+
+function difficultyGateForQuestion({
+  difficultyCode,
+  order,
+  slotRole = "REGULAR",
+} = {}) {
+  const normalizedCode = String(difficultyCode || "").trim().toUpperCase();
+  const level = Math.max(
+    1,
+    Math.min(9, Number(normalizedCode.replace(/^[UR]/, "")) || 1)
+  );
+  const isRanked = normalizedCode.startsWith("R");
+  const isFinal = String(slotRole || "REGULAR").toUpperCase() === "FINAL_29_30";
+  const minimumCombinedConcepts = isFinal
+    ? 5
+    : isRanked
+      ? Math.min(5, 3 + Math.floor((level - 1) / 3))
+      : Math.min(4, 2 + Math.floor((level - 1) / 4));
+  const minimumConditionTransformSteps = isFinal
+    ? 5
+    : isRanked
+      ? Math.min(5, 3 + Math.floor((level - 1) / 3))
+      : Math.min(4, 3 + Math.floor((level - 1) / 6));
+  return Object.freeze({
+    minimumCombinedConcepts,
+    minimumConditionTransformSteps,
+    minimumReasoningSteps: isFinal ? 5 : 4,
+    minimumGeneratorDifficulty: 4,
+    minimumDifficultyScore: isFinal ? 0.9 : isRanked ? 0.75 : 0.68,
+    order: Math.max(1, Math.min(5, Number(order) || 1)),
+  });
+}
+
 function plannedPackSlots(challengerTier, defenderTier, options = {}) {
   const difficultyTier = resolveArenaDifficultyTier(
     challengerTier,
@@ -390,15 +502,13 @@ function plannedPackSlots(challengerTier, defenderTier, options = {}) {
   );
   const curve = packCurveForPair(challengerTier, defenderTier);
   const isRanked = String(options.division || "SUB").trim().toUpperCase() === "MAIN";
-  const publicSpec = PUBLIC_DIFFICULTY_SPECS[difficultyCode];
-  const regularRange = publicSpec?.regularAccuracy || publicSpec?.defenderAccuracy;
-  const slotAccuracyWeights = isRanked
-    ? [0.83, 0.55, 0.28, 0, 0]
-    : [1, 0.75, 0.5, 0.25, 0];
   return PACK_COURSE_SLOTS.map((courseId, index) => {
-    const slotRole = isRanked && index === PACK_COURSE_SLOTS.length - 1
-      ? "FINAL_29_30"
-      : "REGULAR";
+    const slotRole = expectedSlotRole({
+      difficultyCode,
+      division: isRanked ? "MAIN" : "SUB",
+      index,
+      questionCount: PACK_COURSE_SLOTS.length,
+    });
     const skeleton = Object.values(ARENA_ONE_ON_ONE_TYPE_SKELETONS).find(
       (item) =>
         item.tier === difficultyTier &&
@@ -422,19 +532,11 @@ function plannedPackSlots(challengerTier, defenderTier, options = {}) {
             : "MIXED_SEMI_KILLER"
       ),
       difficultyClass: slotRole === "FINAL_29_30" ? "KILLER" : "SEMI_KILLER",
-      targetAccuracy: (() => {
-        if (slotRole === "FINAL_29_30" && publicSpec?.finalAccuracy) {
-          return [...publicSpec.finalAccuracy];
-        }
-        const min = Number(regularRange?.[0] || 0);
-        const max = Number(regularRange?.[1] || min);
-        const target = min + (max - min) * slotAccuracyWeights[index];
-        const spread = Math.min(0.01, Math.max(0.005, (max - min) / 4));
-        return [
-          Number(Math.max(min, target - spread).toFixed(3)),
-          Number(Math.min(max, target + spread).toFixed(3)),
-        ];
-      })(),
+      targetAccuracy: targetAccuracyRangeForSlot({
+        difficultyCode,
+        order: index + 1,
+        division: isRanked ? "MAIN" : "SUB",
+      }),
       referenceFamilies: skeleton?.referenceFamilies || [],
     };
   });
@@ -456,11 +558,26 @@ function assertNaturalNumberMaxThreeDigits(value, { allowBlank = false } = {}) {
   return normalized;
 }
 
-function assertActiveQuestionDesign(question) {
+function assertActiveQuestionDesign(question, options = {}) {
   const validCourses = new Set(ARENA_SUPPORTED_COURSES);
   const review = question?.validation || {};
   const withinTimeLimit =
     review.tenMinuteSolvable === true || review.twoMinuteSolvable === true;
+  const difficultyCode = String(options.difficultyCode || "").toUpperCase();
+  const gate = difficultyCode
+    ? difficultyGateForQuestion({
+        difficultyCode,
+        order: options.order || question?.designSlot,
+        slotRole: question?.slotRole,
+      })
+    : null;
+  const difficultyGatePassed = !gate || (
+    Number(question?.combinedConceptCount) >= gate.minimumCombinedConcepts &&
+    Number(question?.conditionTransformSteps) >= gate.minimumConditionTransformSteps &&
+    Number(question?.reasoningStepCount) >= gate.minimumReasoningSteps &&
+    Number(question?.generatorDifficulty) >= gate.minimumGeneratorDifficulty &&
+    Number(question?.difficultyScore) >= gate.minimumDifficultyScore
+  );
   const valid =
     isNaturalNumberMaxThreeDigits(question?.answer) &&
     validCourses.has(String(question?.courseId || "")) &&
@@ -480,7 +597,8 @@ function assertActiveQuestionDesign(question) {
     review.conditionsConsistent === true &&
     review.tierBurdenMatches === true &&
     withinTimeLimit &&
-    review.originalityChecked === true;
+    review.originalityChecked === true &&
+    difficultyGatePassed;
   if (!valid) {
     const error = new Error(
       "활성 Arena 문항이 난이도·교육과정·풀이시간·자연수 답 검수 기준을 통과하지 못했습니다."
@@ -500,7 +618,12 @@ function assertActivePackDesign(
   if (questions.length !== PACK_RULES.items) {
     throw new Error("활성 Arena 문제 팩은 정확히 5문항이어야 합니다.");
   }
-  questions.forEach(assertActiveQuestionDesign);
+  questions.forEach((question, index) =>
+    assertActiveQuestionDesign(question, {
+      difficultyCode: pack?.difficultyCode,
+      order: index + 1,
+    })
+  );
   const courseCounts = questions.reduce((counts, question) => {
     counts[question.courseId] = Number(counts[question.courseId] || 0) + 1;
     return counts;
@@ -518,7 +641,9 @@ function assertActivePackDesign(
     .flat();
   const recentTypeSet = new Set(recentMatches.map(String));
   const historyValid = questions.every(
-    (question) => !recentTypeSet.has(String(question.typeId))
+    (question) =>
+      !recentTypeSet.has(String(question.sourceTypeId || question.typeId)) &&
+      !recentTypeSet.has(String(question.typeId))
   );
   const curveValid =
     Array.isArray(pack?.packCurve) &&
@@ -529,9 +654,12 @@ function assertActivePackDesign(
     );
   const division = String(pack?.division || "SUB").trim().toUpperCase();
   const compositionValid = questions.every((question, index) => {
-    const expectedRole = division === "MAIN" && index === questions.length - 1
-      ? "FINAL_29_30"
-      : "REGULAR";
+    const expectedRole = expectedSlotRole({
+      difficultyCode: pack?.difficultyCode,
+      division,
+      index,
+      questionCount: questions.length,
+    });
     const expectedClass = expectedRole === "FINAL_29_30"
       ? "KILLER"
       : "SEMI_KILLER";
@@ -625,6 +753,12 @@ module.exports = {
   normalizeTierCode,
   packCurveForPair,
   plannedPackSlots,
+  targetAccuracyRangeForSlot,
+  difficultyGateForQuestion,
+  expectedSlotRole,
+  isAllKillerDifficultyCode,
+  publicDifficultyLevel,
+  privateMockCalibrationForDifficulty,
   resolveArenaDifficultyTier,
   resolveArenaDifficultyCode,
 };

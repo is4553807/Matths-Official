@@ -1,0 +1,10 @@
+<% if (typeof decoration !== "undefined" && decoration) { %>
+  <span
+    class="arena-rank-decoration arena-rank-decoration--<%= decoration.tone %>"
+    title="<%= decoration.title %>"
+    aria-label="랭킹 장식: <%= decoration.label %>"
+  >
+    <i aria-hidden="true"><%= decoration.icon %></i>
+    <span><%= decoration.label %></span>
+  </span>
+<% } %>

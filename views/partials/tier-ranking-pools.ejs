@@ -61,7 +61,12 @@
             }) %>
             <div>
               <small>내 티어 랭킹</small>
-              <h2><%= pool.current.displayName %></h2>
+              <h2>
+                <%= pool.current.displayName %>
+                <%- include("arena-ranking-decoration", {
+                  decoration: pool.current.rankingDecoration,
+                }) %>
+              </h2>
               <p>
                 <%= pool.current.schoolName %> ·
                 <%= pool.current.tier %>
@@ -186,6 +191,9 @@
                       <strong>
                         <%= entry.displayName %>
                         <%= entry.userId === rankingUserId ? " · 나" : "" %>
+                        <%- include("arena-ranking-decoration", {
+                          decoration: entry.rankingDecoration,
+                        }) %>
                       </strong>
                       <span>
                         <%= entry.schoolName %>

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * 2016년 이후 평가원 6·9월 모의평가 수학 해설에서 출제의도를 읽어
+ * 2016년 이후 고3 3·5·6·7·9·10·11월 전국연합학력평가·모의평가
+ * 수학 해설에서 출제의도를 읽어
  * GOAT Arena용 추상 유형 메타데이터를 만든다.
  *
  * 원문 문제·정답·해설 전문은 저장하지 않는다. 최종 산출물에는 공식 출처,
@@ -25,6 +26,8 @@ const RAW_RESEARCH_FILE = "/private/tmp/matths-arena-official-mock-raw-intents.j
 const EBS_AJAX_URL = "https://www.ebsi.co.kr/ebs/xip/xipc/previousPaperListAjax.ajax";
 const EBS_DOWNLOAD_ROOT = "https://wdown.ebsi.co.kr/W61001/01exam";
 const TARGET_QUESTIONS = Object.freeze([13, 14, 20, 21, 27, 28, 29, 30]);
+const TARGET_MONTHS = Object.freeze([3, 5, 6, 7, 9, 10, 11]);
+const TARGET_MONTH_LIST = TARGET_MONTHS.map((month) => String(month).padStart(2, "0")).join(",");
 
 const COURSE_LABELS = Object.freeze({
   "common-math-1": "공통수학Ⅰ",
@@ -149,13 +152,21 @@ async function fetchIndexPage({ currentPage = 1, yearList, monthList }) {
 
 async function collectOfficialForms() {
   const yearList = Array.from({ length: 11 }, (_value, index) => 2016 + index).join(",");
-  const pages = await Promise.all(
-    [1, 2, 3, 4].map((currentPage) => fetchIndexPage({ currentPage, yearList, monthList: "06,09" }))
-  );
+  const pages = [];
+  for (let currentPage = 1; currentPage <= 30; currentPage += 1) {
+    const html = await fetchIndexPage({ currentPage, yearList, monthList: TARGET_MONTH_LIST });
+    const entries = parseIndexHtml(html);
+    if (!entries.length) break;
+    pages.push(entries);
+  }
+  // EBSi에서 2022년 9월 자료가 시행월 8월로 분류된 예외를 보완한다.
   const september2022 = await fetchIndexPage({ currentPage: 1, yearList: "2022", monthList: "08" });
-  const all = [...pages.flatMap(parseIndexHtml), ...parseIndexHtml(september2022)];
+  const all = [...pages.flat(), ...parseIndexHtml(september2022)];
   const deduped = [...new Map(all.map((entry) => [entry.solutionUrl, entry])).values()];
   return deduped.filter((entry) => {
+    const sessionMonth = entry.month === 8 && entry.year === 2022 ? 9 : entry.month;
+    if (!TARGET_MONTHS.includes(sessionMonth)) return false;
+    if (/대학수학능력시험|\b수능\b/.test(entry.title)) return false;
     if (entry.year <= 2020) return ["GA", "NA"].includes(entry.form);
     return ["PROBABILITY_STATISTICS", "CALCULUS"].includes(entry.form);
   });
@@ -192,14 +203,23 @@ async function readPdfText(file) {
 function extractQuestionSections(text) {
   const normalized = normalizeIntent(text);
   const markers = [...normalized.matchAll(
-    /(?:^|\s)(?:(\d{1,2})\.\s*출제의도|출제의도\s*(\d{1,2})\.)\s*:?\s*/g
+    /(?:^|\s)(?:(\d{1,2})\.\s*(?:\[\s*)?출제의도(?:\s*\])?|(?:\[\s*)?출제의도(?:\s*\])?\s*(\d{1,2})\.)\s*:?\s*/g
   )];
   return markers.map((marker, index) => {
     const start = marker.index + marker[0].length;
     const end = markers[index + 1]?.index ?? normalized.length;
     const section = normalized.slice(start, end);
-    const intent = normalizeIntent(section.split(/정답풀이\s*:/)[0]);
-    const solution = normalizeIntent(section.split(/정답풀이\s*:/).slice(1).join(" "));
+    const parts = section.split(/정답풀이\s*:/);
+    const isEducationOfficeFormat = /\[\s*출제의도\s*\]/.test(marker[0]);
+    // 교육청 해설지는 출제의도 바로 뒤에 풀이를 이어 쓰므로 별도
+    // `정답풀이:` 표지가 없다. 유형 분류에는 앞부분만 사용하고,
+    // 풀이 구조 길이는 해당 문항 구간 전체에서 계산한다.
+    const intent = isEducationOfficeFormat
+      ? normalizeIntent(parts[0]).slice(0, 220)
+      : normalizeIntent(parts[0]);
+    const solution = isEducationOfficeFormat
+      ? normalizeIntent(section)
+      : normalizeIntent(parts.slice(1).join(" "));
     return {
       questionNumber: Number(marker[1] || marker[2]),
       intent,
@@ -299,13 +319,17 @@ function selectTargetSections(form, sections) {
 function makeAbstractRecord(form, question) {
   const family = familyFor(question.intent);
   const difficulty = difficultyFor({ ...question });
-  const sourceId = [form.year, String(form.month).padStart(2, "0"), form.form, `Q${question.questionNumber}`].join("-");
+  const sessionMonth = form.month === 8 && form.year === 2022 ? 9 : form.month;
+  const isKiceMock = [6, 9].includes(sessionMonth);
+  const sourceAuthority = isKiceMock ? "KICE" : "EDUCATION_OFFICE";
+  const sourceId = [form.year, String(sessionMonth).padStart(2, "0"), sourceAuthority, form.form, `Q${question.questionNumber}`].join("-");
   return {
     sourceId,
-    sourceAuthority: "KICE",
+    sourceAuthority,
+    sourceKind: isKiceMock ? "MOCK_EVALUATION" : "NATIONAL_ACHIEVEMENT_TEST",
     archiveProvider: "EBSI",
     year: form.year,
-    sessionMonth: form.month === 8 && form.year === 2022 ? 9 : form.month,
+    sessionMonth,
     administeredMonth: form.month,
     form: form.form,
     questionNumber: question.questionNumber,
@@ -356,6 +380,8 @@ function summarize(records, forms) {
     byDifficulty: countBy(active, "difficultyTier"),
     byFamily: countBy(active, "familyId"),
     byPositionBand: countBy(active, "sourcePositionBand"),
+    bySessionMonth: countBy(active, "sessionMonth"),
+    byAuthority: countBy(active, "sourceAuthority"),
   };
 }
 
@@ -374,12 +400,15 @@ async function main() {
   await fs.writeFile(RAW_RESEARCH_FILE, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
   const records = raw.flatMap((form) => form.questions.map((question) => makeAbstractRecord(form, question)));
   const payload = {
-    schemaVersion: "ARENA_OFFICIAL_MOCK_RESEARCH_V1",
+    schemaVersion: "ARENA_OFFICIAL_MOCK_RESEARCH_V2",
     generatedAt: new Date().toISOString(),
-    sourceNotice: "평가원 6·9월 모의평가의 공식 EBSi 해설에서 출제의도만 분석하고 원문 문제·정답·해설은 저장하지 않음",
+    sourceNotice: "2016년 이후 고3 3·5·6·7·9·10·11월 전국연합학력평가·모의평가의 EBSi 해설에서 출제의도만 분석하고 원문 문제·정답·해설은 저장하지 않음. 수능은 제외함",
     methodology: {
       targetYears: [2016, 2026],
+      targetGrade: 3,
+      targetMonths: TARGET_MONTHS,
       targetQuestions: TARGET_QUESTIONS,
+      excludedExamTypes: ["CSAT"],
       sourcePositionsAreAuxiliary: true,
       difficultySignals: ["문항 위치", "출제의도 구조", "조건 신호", "풀이 구조 길이"],
       fifthSlotRule: "Q29_30_KILLER",

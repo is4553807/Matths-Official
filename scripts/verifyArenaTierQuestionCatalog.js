@@ -93,7 +93,7 @@ async function main() {
       assert.ok(variants.every((item) => item.variantTypeId.startsWith(`${difficultyCode}-`)));
       assert.equal(
         variants.filter((item) => item.difficultyClass === "KILLER").length,
-        division === "MAIN" ? 5 : 0
+        difficultyIndex >= 7 ? 30 : division === "MAIN" ? 5 : 0
       );
 
       const selectedTypes = selectTierCatalogTypes(
@@ -117,18 +117,21 @@ async function main() {
       });
       assert.equal(questions.length, 5);
       assertCourseMix(questions);
+      const allKiller = difficultyIndex >= 7;
+      const killerCount = questions.filter(
+        (item) => item.design.slotRole === "FINAL_29_30"
+      ).length;
+      assert.equal(killerCount, allKiller ? 5 : division === "MAIN" ? 1 : 0);
       assert.equal(
-        questions[4].design.slotRole,
-        division === "MAIN" ? "FINAL_29_30" : "REGULAR"
-      );
-      assert.equal(
-        questions[4].difficultyClass,
-        division === "MAIN" ? "KILLER" : "SEMI_KILLER"
+        questions.filter((item) => item.difficultyClass === "KILLER").length,
+        allKiller ? 5 : division === "MAIN" ? 1 : 0
       );
       assert.ok(questions.every((item) => item.typeId.startsWith(`${difficultyCode}-`)));
       assert.equal(new Set(questions.map((item) => item.typeId)).size, 5);
       assert.equal(new Set(questions.map((item) => item.generatorEngineKey)).size, 5);
-      const regularItems = division === "MAIN" ? questions.slice(0, 4) : questions;
+      const regularItems = questions.filter(
+        (item) => item.design.slotRole === "REGULAR"
+      );
       assert.equal(
         regularItems.every(
           (item) =>

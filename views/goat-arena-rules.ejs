@@ -57,7 +57,7 @@
       </header>
 
       <section class="arena-rulebook-summary" aria-labelledby="rule-summary-title">
-        <div><small>UNRANKED · RANKED 공통</small><h2 id="rule-summary-title">모든 1대1 경기에 적용되는 공통 규정</h2></div>
+        <div><small><%= rulebook.division === 'MAIN' ? 'RANKED' : 'UNRANKED' %> 핵심 규정</small><h2 id="rule-summary-title"><%= rulebook.division === 'MAIN' ? 'Ranked' : 'Unranked' %> 1대1 경기에 적용되는 규정</h2></div>
         <ol>
           <% rulebook.summary.forEach((item) => { %><li><%= item %></li><% }) %>
         </ol>
@@ -67,10 +67,10 @@
         <section class="arena-question-standard" aria-labelledby="arena-question-standard-title">
           <header>
             <div>
-              <small>UNRANKED · RANKED 공통 출제 기준</small>
-              <h2 id="arena-question-standard-title">1대1 준킬러 문제는 이렇게 정합니다.</h2>
+              <small><%= design.publicName.toUpperCase() %> 출제 기준</small>
+              <h2 id="arena-question-standard-title"><%= design.publicName %> 1대1 문제는 이렇게 정합니다.</h2>
             </div>
-            <span>공통 출제 기준</span>
+            <span><%= design.difficultyPrefix %>1~<%= design.difficultyPrefix %>9</span>
           </header>
 
           <article class="arena-question-standard-block">
@@ -81,10 +81,14 @@
               <ul><% design.principles.forEach((line) => { %><li><%= line %></li><% }) %></ul>
               <div class="arena-question-table-wrap">
                 <table>
-                  <thead><tr><th scope="col">Division</th><th scope="col">방어자 티어</th><th scope="col">절대 난이도 비교</th><th scope="col">공개 난이도</th></tr></thead>
-                  <tbody><% design.matchupRows.forEach((row) => { %><tr><td><%= row.division %></td><th scope="row"><%= row.matchup %></th><td><%= row.anchor %></td><td><strong><%= row.difficultyCode %></strong></td></tr><% }) %></tbody>
+                  <thead><tr><th scope="col">방어자 티어</th><th scope="col">난이도 기준</th><th scope="col">공개 난이도</th></tr></thead>
+                  <tbody><% design.matchupRows.forEach((row) => { %><tr><th scope="row"><%= row.matchup %></th><td><%= row.anchor %></td><td><strong><%= row.difficultyCode %></strong></td></tr><% }) %></tbody>
                 </table>
               </div>
+              <% if (design.structuralDifficultyPrinciples?.length) { %>
+                <h4>쉬운 변형 문항을 걸러내는 기준</h4>
+                <ul><% design.structuralDifficultyPrinciples.forEach((line) => { %><li><%= line %></li><% }) %></ul>
+              <% } %>
             </div>
           </article>
 
@@ -96,8 +100,13 @@
               <ul><% design.accuracyPrinciples.forEach((line) => { %><li><%= line %></li><% }) %></ul>
               <div class="arena-question-table-wrap">
                 <table>
-                  <thead><tr><th scope="col">단계</th><th scope="col">Unranked 1~5번</th><th scope="col">Ranked 1~4번</th><th scope="col">Ranked 5번</th></tr></thead>
-                  <tbody><% design.accuracyRows.forEach((row) => { %><tr><th scope="row"><%= row.stage %></th><td><%= row.unrankedAccuracy %></td><td><%= row.rankedRegularAccuracy %></td><td><%= row.rankedFinalAccuracy %></td></tr><% }) %></tbody>
+                  <% if (design.isRanked) { %>
+                    <thead><tr><th scope="col">단계</th><th scope="col">1~4번 목표 정답률</th><th scope="col">5번 목표 정답률</th><th scope="col">문항 구성</th></tr></thead>
+                    <tbody><% design.accuracyRows.forEach((row) => { %><tr><th scope="row"><%= row.stage %></th><td><%= row.primaryAccuracy %></td><td><%= row.finalAccuracy || row.primaryAccuracy %></td><td><%= row.composition %></td></tr><% }) %></tbody>
+                  <% } else { %>
+                    <thead><tr><th scope="col">단계</th><th scope="col">1~5번 목표 정답률</th><th scope="col">문항 구성</th></tr></thead>
+                    <tbody><% design.accuracyRows.forEach((row) => { %><tr><th scope="row"><%= row.stage %></th><td><%= row.primaryAccuracy %></td><td><%= row.composition %></td></tr><% }) %></tbody>
+                  <% } %>
                 </table>
               </div>
               <div class="arena-question-table-wrap">
@@ -113,7 +122,7 @@
             <div class="arena-question-standard-number">03</div>
             <div>
               <small>준킬러·킬러 정의와 경기 규격</small>
-              <h3>Unranked는 준킬러 5문항, Ranked는 준킬러 4문항과 킬러 1문항입니다.</h3>
+              <h3><%= design.compositionHeadline %></h3>
               <blockquote><%= design.semiKillerDefinition %></blockquote>
               <p><%= design.excludedQuestion %></p>
               <dl><% design.matchSpec.forEach(([label, value]) => { %><div><dt><%= label %></dt><dd><%= value %></dd></div><% }) %></dl>
@@ -125,19 +134,23 @@
               <div class="arena-question-standard-number">04</div>
               <div>
                 <small>유형 분류 근거</small>
-                <h3><%= research.period %> 평가원 6·9월 모의평가를 유형별로 분석합니다.</h3>
+                <h3><%= research.period %> 고3 <%= research.targetMonths %>월 모의고사를 유형별로 분석합니다.</h3>
                 <blockquote><%= research.notice %></blockquote>
                 <ul>
                   <li><%= research.sourceForms %>개 공식 해설 형식에서 <%= research.targetQuestions %>번 문항 <%= research.referenceCount %>건을 조사했습니다.</li>
-                  <li>현재 교육과정과 Arena 범위에 맞는 <%= research.activeReferenceCount %>건의 사고 구조를 U1~U9와 더 어려운 R1~R9로 분리해 운영합니다.</li>
+                  <li>현재 교육과정과 Arena 범위에 맞는 <%= research.activeReferenceCount %>건의 사고 구조를 <%= design.difficultyPrefix %>1~<%= design.difficultyPrefix %>9 난이도로 분리해 운영합니다.</li>
                   <li><%= research.excludedExamType %>은 공식 해설 원본을 운영 기준으로 확보하지 않아 조사 근거에서 제외했습니다.</li>
+                  <% if (research.privateCalibration) { %>
+                    <li><%= research.privateCalibration.notice %></li>
+                    <li>공개 사설 모의고사 <%= research.privateCalibration.reviewedSources %>개를 검토했으며, 현재는 정제 표본 <%= research.privateCalibration.minimumSampleSize %>명 이상을 포함한 <%= research.privateCalibration.activeSources %>개 출처의 문항별 지표 <%= research.privateCalibration.activeMetrics %>개만 난이도 보정에 사용합니다.</li>
+                  <% } %>
                 </ul>
                 <div class="arena-question-table-wrap">
                   <table>
                     <thead><tr><th scope="col">난이도</th><th scope="col">분류 참고 수</th><th scope="col">출제 원칙</th></tr></thead>
                     <tbody>
                       <% research.difficultyRows.forEach((row) => { %>
-                        <tr><th scope="row"><%= row.tier %></th><td><%= row.count %>건</td><td><%= row.tier === 'U9' ? '13·14·20·21·27·28번형 최상위 준킬러 사고 구조' : '13·14·20·21·27·28번형 준킬러 사고 구조' %></td></tr>
+                        <tr><th scope="row"><%= row.tier %></th><td><%= row.count %>건</td><td><%= row.composition %></td></tr>
                       <% }) %>
                     </tbody>
                   </table>

@@ -326,7 +326,17 @@ const {
 const {
   recordOperationalMetricEvent,
 } = require("../services/operationalMetricEventService");
+const {
+  beginSocialAuthorization,
+  clearPendingSocialRegistration,
+  completeSocialAuthorization,
+  getPendingSocialRegistration,
+  publicProviderStatus,
+  setPendingSocialRegistration,
+  socialIdPath,
+} = require("../services/socialAuthService");
 const bcrypt = require('bcrypt');
+const crypto = require("crypto");
 const BCRYPT_ROUNDS = 12;
 
 exports.mainPage = (req,res) => {
@@ -411,7 +421,14 @@ exports.loginPage = (req,res) => {
       String(
         req.query.account || ""
       );
+    const socialOAuthError = String(
+      req.session?.socialOAuthError || ""
+    );
+    if (req.session) {
+      delete req.session.socialOAuthError;
+    }
     res.render('login', {
+      socialAuthProviders: publicProviderStatus(),
       success:
         req.query.reset === "1"
           ? "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요."
@@ -420,11 +437,11 @@ exports.loginPage = (req,res) => {
             ? "계정 탈퇴가 완료되었습니다. 개인정보는 제거되었고 학습 데이터는 익명으로 보존됩니다."
           : null,
       error:
-        blockedStatus
+        socialOAuthError || (blockedStatus
           ? accountBlockedMessage(
               blockedStatus
             )
-          : null,
+          : null),
       oldInput: {
         identifier: "",
       },
@@ -439,16 +456,19 @@ exports.registerPage = (
   try {
     const schoolRegions =
       getSchoolSelectData();
+    const socialRegistration =
+      getPendingSocialRegistration(req);
 
     return res.render("register", {
       schoolRegions,
       universities: getUniversitySelectData(),
+      socialRegistration,
       error: null,
       oldInput: {
         realName: "",
         birthDate: "",
-        name: "",
-        email: "",
+        name: socialRegistration?.displayName || "",
+        email: socialRegistration?.email || "",
         schoolGrade: 10,
         schoolRegion: "",
         schoolCode: "",
@@ -457,6 +477,123 @@ exports.registerPage = (
     });
   } catch (error) {
     return next(error);
+  }
+};
+
+exports.socialOAuthStart = async (req, res) => {
+  try {
+    const authorizationUrl = beginSocialAuthorization(
+      req,
+      req.params.provider
+    );
+    // OAuth state를 공급자 페이지로 이동하기 전에 확실히 저장한다.
+    await saveSession(req);
+    return res.redirect(authorizationUrl);
+  } catch (error) {
+    return redirectSocialAuthError(req, res, error);
+  }
+};
+
+async function redirectSocialAuthError(req, res, error) {
+  const userSafeCodes = new Set([
+    "SOCIAL_AUTH_NOT_CONFIGURED",
+    "SOCIAL_AUTH_EMAIL_REQUIRED",
+    "SOCIAL_AUTH_ACCOUNT_CONFLICT",
+    "SOCIAL_AUTH_PARENT_ACCOUNT",
+    "SOCIAL_AUTH_ACCOUNT_BLOCKED",
+    "SOCIAL_AUTH_CANCELLED",
+    "SOCIAL_AUTH_STATE_INVALID",
+  ]);
+  req.session.socialOAuthError = userSafeCodes.has(error?.code)
+    ? error.message
+    : "소셜 로그인을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.";
+  await saveSession(req);
+  return res.redirect("/login");
+}
+
+exports.socialOAuthCallback = async (req, res) => {
+  try {
+    if (req.query.error) {
+      const error = new Error("소셜 로그인이 취소되었습니다.");
+      error.code = "SOCIAL_AUTH_CANCELLED";
+      throw error;
+    }
+    const profile = await completeSocialAuthorization(
+      req,
+      req.params.provider,
+      {
+        code: req.query.code,
+        state: req.query.state,
+      }
+    );
+    const idPath = socialIdPath(profile.provider);
+    const [providerUser, emailUser, parentAccount] = await Promise.all([
+      User.findOne({ [idPath]: profile.providerUserId })
+        .select("+socialAuth.googleId"),
+      User.findOne({ email: profile.email })
+        .select("+socialAuth.googleId"),
+      ParentAccount.exists({ email: profile.email, isActive: true }),
+    ]);
+
+    if (
+      providerUser &&
+      emailUser &&
+      String(providerUser._id) !== String(emailUser._id)
+    ) {
+      const error = new Error("소셜 계정 연결 정보가 다른 계정과 충돌합니다.");
+      error.code = "SOCIAL_AUTH_ACCOUNT_CONFLICT";
+      throw error;
+    }
+
+    const user = providerUser || emailUser;
+    if (user) {
+      const linkedId = String(user.get(idPath) || "");
+      if (linkedId && linkedId !== profile.providerUserId) {
+        const error = new Error("이미 다른 소셜 계정이 연결된 이메일입니다.");
+        error.code = "SOCIAL_AUTH_ACCOUNT_CONFLICT";
+        throw error;
+      }
+      user.set(idPath, profile.providerUserId);
+      user.emailVerifiedAt = user.emailVerifiedAt || new Date();
+      user.lastLoginAt = new Date();
+      await user.save();
+
+      const access = await synchronizeAccountAccess(user._id);
+      if (!access?.allowed) {
+        const error = new Error(
+          accountBlockedMessage(access?.status, access?.user?.accountStatusReason)
+        );
+        error.code = "SOCIAL_AUTH_ACCOUNT_BLOCKED";
+        throw error;
+      }
+      const synchronizedUser = await synchronizeUserLifecycle(access.user._id);
+      synchronizedUser.lastLoginAt = new Date();
+      await synchronizedUser.save();
+      await createLoginSession(req, synchronizedUser);
+
+      const adminEmail = String(
+        process.env.ADMIN_EMAIL || "admin@lsbproduction.com"
+      ).trim().toLowerCase();
+      return res.redirect(
+        synchronizedUser.role === "admin" || synchronizedUser.email === adminEmail
+          ? "/admin"
+          : "/main"
+      );
+    }
+
+    if (parentAccount) {
+      const error = new Error(
+        "같은 이메일의 학부모 계정이 있습니다. 학부모 로그인 방식을 이용해주세요."
+      );
+      error.code = "SOCIAL_AUTH_PARENT_ACCOUNT";
+      throw error;
+    }
+
+    setPendingSocialRegistration(req, profile);
+    await saveSession(req);
+    return res.redirect(`/register?social=${encodeURIComponent(profile.provider)}`);
+  } catch (error) {
+    return redirectSocialAuthError(req, res, error);
   }
 };
 
@@ -4422,6 +4559,8 @@ function renderRegisterError(res, status, error, oldInput = {}) {
     return res.status(status).render("register", {
         schoolRegions: getSchoolSelectData(),
         universities: getUniversitySelectData(),
+        socialRegistration:
+          res.locals.socialRegistration || null,
         error,
         oldInput: {
             realName: "",
@@ -4497,12 +4636,18 @@ function createLoginSession(req, user) {
 
 exports.register = async (req, res, next) => {
     try {
+        const socialRegistration =
+          getPendingSocialRegistration(req);
+        res.locals.socialRegistration =
+          socialRegistration;
         const realNameValidation = validateRealName(
             req.body.realName
         );
         const realName = realNameValidation.realName;
         const name = String(req.body.name || "").trim();
-        const email = String(req.body.email || "")
+        const email = String(
+          socialRegistration?.email || req.body.email || ""
+        )
             .trim()
             .toLowerCase();
         const birthDateInput = String(
@@ -4541,8 +4686,8 @@ exports.register = async (req, res, next) => {
             ([10, 11, 12].includes(schoolGrade) &&
                 (!schoolRegion || !schoolCode)) ||
             (schoolGrade === 14 && !universityCode) ||
-            !password ||
-            !passwordConfirm
+            (!socialRegistration && !password) ||
+            (!socialRegistration && !passwordConfirm)
         ) {
             return renderRegisterError(
                 res,
@@ -4590,7 +4735,7 @@ exports.register = async (req, res, next) => {
             );
         }
 
-        if (password.length < 8) {
+        if (!socialRegistration && password.length < 8) {
             return renderRegisterError(
                 res,
                 400,
@@ -4599,7 +4744,7 @@ exports.register = async (req, res, next) => {
             );
         }
 
-        if (Buffer.byteLength(password, "utf8") > 72) {
+        if (!socialRegistration && Buffer.byteLength(password, "utf8") > 72) {
             return renderRegisterError(
                 res,
                 400,
@@ -4608,7 +4753,7 @@ exports.register = async (req, res, next) => {
             );
         }
 
-        if (password !== passwordConfirm) {
+        if (!socialRegistration && password !== passwordConfirm) {
             return renderRegisterError(
                 res,
                 400,
@@ -4674,7 +4819,13 @@ exports.register = async (req, res, next) => {
             );
         }
 
-        const [existingUser, existingNickname] =
+        const socialIdentityQuery = socialRegistration
+          ? {
+              [socialIdPath(socialRegistration.provider)]:
+                socialRegistration.providerUserId,
+            }
+          : { _id: null };
+        const [existingUser, existingNickname, existingSocialIdentity] =
           await Promise.all([
             User.exists({
               email,
@@ -4699,6 +4850,7 @@ exports.register = async (req, res, next) => {
                 },
               ],
             }),
+            User.exists(socialIdentityQuery),
           ]);
 
         if (existingUser) {
@@ -4719,8 +4871,19 @@ exports.register = async (req, res, next) => {
             );
         }
 
+        if (existingSocialIdentity) {
+            return renderRegisterError(
+                res,
+                409,
+                "이미 연결된 소셜 계정입니다. 로그인 화면에서 다시 시도해주세요.",
+                oldInput
+            );
+        }
+
         const passwordHash = await bcrypt.hash(
-            password,
+            socialRegistration
+              ? crypto.randomBytes(48).toString("base64url")
+              : password,
             BCRYPT_ROUNDS
         );
 
@@ -4731,6 +4894,14 @@ exports.register = async (req, res, next) => {
               nicknameKey(name),
             email,
             passwordHash,
+            ...(socialRegistration
+              ? {
+                  socialAuth: {
+                    googleId: socialRegistration.providerUserId,
+                  },
+                  emailVerifiedAt: new Date(),
+                }
+              : {}),
             birthDate,
             ...(selectedSchool
                 ? {
@@ -4796,10 +4967,18 @@ exports.register = async (req, res, next) => {
         });
 
         // 회원가입 완료 후 바로 로그인 처리
+        clearPendingSocialRegistration(req);
         await createLoginSession(req, user);
 
         return res.redirect("/main");
     } catch (error) {
+        const pendingSocialRegistration =
+          getPendingSocialRegistration(req);
+        const submittedEmail = String(
+          pendingSocialRegistration?.email || req.body.email || ""
+        )
+          .trim()
+          .toLowerCase();
         // 동시에 같은 이메일로 가입 요청이 들어온 경우
         if (error.code === 11000 && error.keyPattern?.email) {
             return renderRegisterError(
@@ -4814,9 +4993,7 @@ exports.register = async (req, res, next) => {
                         req.body.birthDate || ""
                     ).trim(),
                     name: String(req.body.name || "").trim(),
-                    email: String(req.body.email || "")
-                        .trim()
-                        .toLowerCase(),
+                    email: submittedEmail,
                     schoolGrade: Number(req.body.schoolGrade) || 10,
                     schoolRegion: String(
                         req.body.schoolRegion || ""
@@ -4851,13 +5028,7 @@ exports.register = async (req, res, next) => {
                   req.body.name ||
                     ""
                 ).trim(),
-              email:
-                String(
-                  req.body.email ||
-                    ""
-                )
-                  .trim()
-                  .toLowerCase(),
+              email: submittedEmail,
               schoolGrade:
                 Number(
                   req.body
@@ -4875,6 +5046,27 @@ exports.register = async (req, res, next) => {
                     .schoolCode ||
                     ""
                 ).trim(),
+            }
+          );
+        }
+
+        if (
+          error.code === 11000 &&
+          error.keyPattern?.["socialAuth.googleId"]
+        ) {
+          return renderRegisterError(
+            res,
+            409,
+            "이미 연결된 소셜 계정입니다. 로그인 화면에서 다시 시도해주세요.",
+            {
+              realName: validateRealName(req.body.realName).realName,
+              birthDate: String(req.body.birthDate || "").trim(),
+              name: String(req.body.name || "").trim(),
+              email: submittedEmail,
+              schoolGrade: Number(req.body.schoolGrade) || 10,
+              schoolRegion: String(req.body.schoolRegion || "").trim(),
+              schoolCode: String(req.body.schoolCode || "").trim(),
+              universityCode: String(req.body.universityCode || "").trim(),
             }
           );
         }

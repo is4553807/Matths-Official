@@ -8,6 +8,12 @@ const {
   signedR2Url,
   uploadLocalFileToR2,
 } = require("./r2ObjectStorageService");
+const {
+  isCorrectAnswer,
+  normalizeAnswer,
+  standardQuestionMode,
+  validateAnswerKeyJson,
+} = require("./privateMockExamService");
 
 const STUDY_HALL_TABS = Object.freeze([
   { code: "NJE", label: "자체제작 N제", summary: "시리즈별 문제집을 플랫폼에서 바로 풉니다." },
@@ -41,6 +47,128 @@ function normalizedTab(value) {
   return STUDY_HALL_TABS.some((tab) => tab.code === code) ? code : "NJE";
 }
 
+function normalizedAnswerType(value, questionNumber, questionCount = 30) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (["multiple-choice", "multiple_choice", "multiple", "choice", "객관식"].includes(raw)) {
+    return "multiple-choice";
+  }
+  if (["short-answer", "short_answer", "short", "subjective", "주관식", "단답형"].includes(raw)) {
+    return "short-answer";
+  }
+  if (questionCount === 30) return standardQuestionMode(questionNumber);
+  return "multiple-choice";
+}
+
+function explanationText(value) {
+  if (!value) return "";
+  if (typeof value === "string") return cleanText(value, 20000);
+  const lines = [];
+  const append = (label, text) => {
+    const cleaned = cleanText(text, 6000);
+    if (cleaned) lines.push(label ? `${label}: ${cleaned}` : cleaned);
+  };
+  append("출제 의도", value.intent);
+  append("핵심 개념", value.concept);
+  if (Array.isArray(value.steps)) {
+    value.steps.forEach((step, index) => append(`풀이 ${index + 1}`, step?.text ?? step));
+  }
+  append("정리", value.summary);
+  append("주의", value.commonMistake);
+  append("", value.text);
+  return cleanText(lines.join("\n"), 20000);
+}
+
+function answerKeyRows(parsed) {
+  if (Array.isArray(parsed?.questions)) return parsed.questions;
+  if (Array.isArray(parsed?.answers)) {
+    const explanations = new Map(
+      (Array.isArray(parsed.explanations) ? parsed.explanations : [])
+        .map((value) => [Number(value?.number), value])
+    );
+    return parsed.answers.map((answer, index) => ({
+      number: index + 1,
+      answer,
+      points: parsed.points?.[index],
+      type: parsed.questionModes?.[index],
+      explanation: explanations.get(index + 1) || null,
+    }));
+  }
+  return null;
+}
+
+function validateStudyHallAnswerKeyJson(value, { expectedCount = 0 } = {}) {
+  let parsed = value;
+  if (Buffer.isBuffer(parsed)) parsed = parsed.toString("utf8");
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch (_error) {
+      throw httpError(400, "답지 JSON 문법이 올바르지 않습니다.", "INVALID_STUDY_HALL_ANSWER_KEY");
+    }
+  }
+  const rawRows = answerKeyRows(parsed);
+  if (!Array.isArray(rawRows) || !rawRows.length) {
+    throw httpError(400, "주간 공식 모의고사 답지와 같은 questions 또는 answers 형식이 필요합니다.", "INVALID_STUDY_HALL_ANSWER_KEY");
+  }
+  const questionCount = rawRows.length;
+  if (expectedCount > 0 && questionCount !== expectedCount) {
+    throw httpError(400, `답지 JSON은 ${expectedCount}문항이어야 합니다. 현재 ${questionCount}문항입니다.`, "STUDY_HALL_ANSWER_KEY_COUNT_MISMATCH");
+  }
+
+  // 30문항 모의고사는 주간 공식 모의고사와 동일한 100점·문항 유형 검증을 그대로 적용한다.
+  let normalizedRows = rawRows;
+  if (questionCount === 30) {
+    normalizedRows = validateAnswerKeyJson(parsed).questions.map((validated, index) => ({
+      ...rawRows[index],
+      ...validated,
+      stem: rawRows[index]?.stem,
+      choices: rawRows[index]?.choices,
+      explanation: rawRows[index]?.explanation ?? validated.explanation,
+    }));
+  }
+
+  const seen = new Set();
+  const questions = normalizedRows.map((row, index) => {
+    const number = integer(row?.number, { min: 1, max: 500, fallback: index + 1 });
+    if (number !== index + 1 || seen.has(number)) {
+      throw httpError(400, "답지 JSON의 문항 번호는 1번부터 빠짐없이 한 번씩 있어야 합니다.", "INVALID_STUDY_HALL_ANSWER_KEY_ORDER");
+    }
+    seen.add(number);
+    const correctAnswer = cleanText(row?.answer ?? row?.correctAnswer, 100);
+    if (!normalizeAnswer(correctAnswer)) {
+      throw httpError(400, `${number}번 정답이 비어 있습니다.`, "INVALID_STUDY_HALL_ANSWER_KEY_ANSWER");
+    }
+    const points = Number(row?.points ?? 1);
+    if (!Number.isFinite(points) || points < 0 || points > 100) {
+      throw httpError(400, `${number}번 배점을 확인해주세요.`, "INVALID_STUDY_HALL_ANSWER_KEY_POINTS");
+    }
+    const answerType = normalizedAnswerType(row?.type ?? row?.answerType, number, questionCount);
+    const choices = Array.isArray(row?.choices)
+      ? row.choices.slice(0, 5).map((choice) => cleanText(choice, 1000))
+      : [];
+    return {
+      number,
+      stem: cleanText(row?.stem, 10000),
+      choices,
+      answerType,
+      points,
+      correctAnswer,
+      explanation: explanationText(row?.explanation),
+    };
+  });
+  return {
+    schemaVersion: String(parsed?.schemaVersion || "matths-answer-key-v1"),
+    questionCount,
+    totalPoints: questions.reduce((sum, question) => sum + question.points, 0),
+    questions,
+  };
+}
+
+async function questionsFromAnswerKeyFile(file, { expectedCount = 0 } = {}) {
+  const buffer = await fs.promises.readFile(file.path);
+  return validateStudyHallAnswerKeyJson(buffer, { expectedCount }).questions;
+}
+
 function parseQuestions(value) {
   let rows;
   try {
@@ -61,6 +189,8 @@ function parseQuestions(value) {
       choices: Array.isArray(row?.choices)
         ? row.choices.slice(0, 5).map((choice) => cleanText(choice, 1000))
         : [],
+      answerType: normalizedAnswerType(row?.answerType ?? row?.type, number, rows.length),
+      points: Number.isFinite(Number(row?.points)) ? Math.max(0, Math.min(100, Number(row.points))) : 1,
       correctAnswer,
       explanation: cleanText(row?.explanation, 20000),
     }];
@@ -124,6 +254,9 @@ function progressPercent(progress, itemCount) {
 function serializeContent(content, progress = null, { admin = false } = {}) {
   const itemCount = Number(content.itemCount || content.questions?.length || 0);
   const assets = (content.assets || []).map(serializeAsset);
+  const answerMap = new Map(
+    Array.from(progress?.answers || []).map((answer) => [Number(answer.number), String(answer.answer || "")])
+  );
   return {
     id: String(content._id),
     contentType: content.contentType,
@@ -154,8 +287,16 @@ function serializeContent(content, progress = null, { admin = false } = {}) {
       number: Number(question.number),
       stem: question.stem || "",
       choices: Array.from(question.choices || []),
+      answerType: question.answerType || normalizedAnswerType("", Number(question.number), itemCount),
+      points: Number(question.points ?? 1),
       ...(admin || progress?.status === "SUBMITTED"
-        ? { correctAnswer: question.correctAnswer, explanation: question.explanation || "" }
+        ? {
+          correctAnswer: question.correctAnswer,
+          explanation: question.explanation || "",
+          isCorrect: progress?.status === "SUBMITTED"
+            ? isCorrectAnswer(answerMap.get(Number(question.number)), question.correctAnswer)
+            : null,
+        }
         : {}),
     })),
     assets,
@@ -173,6 +314,8 @@ function serializeContent(content, progress = null, { admin = false } = {}) {
       lastQuestionNumber: Number(progress?.lastQuestionNumber || 0),
       answeredCount: Number(progress?.answeredCount || 0),
       correctCount: Number(progress?.correctCount || 0),
+      scorePoints: Number(progress?.scorePoints || 0),
+      totalPoints: Number(progress?.totalPoints || 0),
       scorePercent: Number(progress?.scorePercent || 0),
       percent: progressPercent(progress, itemCount),
       answers: Array.from(progress?.answers || []).map((answer) => ({ number: answer.number, answer: answer.answer })),
@@ -258,11 +401,14 @@ async function saveStudyHallAnswers({ contentId, userId, input, submit = false }
   const answeredCount = answers.filter((answer) => answer.answer).length;
   const lastQuestionNumber = Math.max(0, ...answers.filter((answer) => answer.answer).map((answer) => answer.number));
   let correctCount = 0;
+  let scorePoints = 0;
+  const totalPoints = questions.reduce((sum, question) => sum + Number(question.points ?? 1), 0);
   if (submit) {
-    correctCount = questions.reduce((count, question) => (
-      cleanText(answerMap.get(Number(question.number)), 100) === cleanText(question.correctAnswer, 100)
-        ? count + 1 : count
-    ), 0);
+    for (const question of questions) {
+      if (!isCorrectAnswer(answerMap.get(Number(question.number)), question.correctAnswer)) continue;
+      correctCount += 1;
+      scorePoints += Number(question.points ?? 1);
+    }
   }
   const progress = await StudyHallProgress.findOneAndUpdate(
     { userId, contentId, status: { $ne: "SUBMITTED" } },
@@ -273,7 +419,13 @@ async function saveStudyHallAnswers({ contentId, userId, input, submit = false }
         answeredCount,
         lastQuestionNumber,
         correctCount: submit ? correctCount : 0,
-        scorePercent: submit && questions.length ? Math.round((correctCount / questions.length) * 100) : 0,
+        scorePoints: submit ? scorePoints : 0,
+        totalPoints,
+        scorePercent: submit && totalPoints > 0
+          ? Math.round((scorePoints / totalPoints) * 100)
+          : submit && questions.length
+            ? Math.round((correctCount / questions.length) * 100)
+            : 0,
         submittedAt: submit ? new Date() : null,
         startedAt: existing?.startedAt || now,
       },
@@ -310,8 +462,12 @@ async function saveStudyHallContent({ contentId = "", input, files = {}, adminUs
   const title = cleanText(input.title, 180);
   if (!title) throw httpError(400, "콘텐츠 제목을 입력해주세요.");
   const contentType = normalizedTab(input.contentType);
-  const questions = parseQuestions(input.questionsJson);
-  const itemCount = integer(input.itemCount, { min: 0, max: 500, fallback: questions.length });
+  const answerKeyFile = files.answerKeyJson?.[0] || null;
+  const requestedItemCount = integer(input.itemCount, { min: 0, max: 500, fallback: 0 });
+  const questions = answerKeyFile
+    ? await questionsFromAnswerKeyFile(answerKeyFile, { expectedCount: requestedItemCount })
+    : parseQuestions(input.questionsJson);
+  const itemCount = requestedItemCount > 0 ? requestedItemCount : questions.length;
   const status = ["DRAFT", "PUBLISHED", "ARCHIVED"].includes(input.status) ? input.status : "DRAFT";
   if (status === "PUBLISHED" && contentType !== "ERROR_REPORT") {
     if (!questions.length) {
@@ -444,4 +600,5 @@ module.exports = {
   listStudyHall,
   saveStudyHallAnswers,
   saveStudyHallContent,
+  validateStudyHallAnswerKeyJson,
 };

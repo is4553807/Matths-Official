@@ -40,6 +40,66 @@ const CONCEPT_DETAILS = {
   "irrational-function": ["무리함수", "근호 안이 0 이상이라는 정의역 조건을 먼저 세우고 기준 그래프의 이동과 대칭으로 개형을 파악합니다.", String.raw`y=a\sqrt{x-p}+q`],
 };
 
+const GRAPH_CONCEPT_IDS = new Set([
+  "quadratic-equation-and-function",
+  "parabola-and-line",
+  "quadratic-max-min-restricted",
+  "distance-and-internal-division",
+  "parallel-and-perpendicular-lines",
+  "point-line-distance",
+  "circle-equation",
+  "circle-line-position",
+  "geometric-translation",
+  "geometric-reflection",
+  "function-concept-and-graph",
+  "inverse-function",
+  "rational-function",
+  "irrational-function",
+]);
+
+const DIAGRAM_CONCEPT_IDS = new Set([
+  "simultaneous-linear-inequalities",
+  "absolute-linear-inequalities",
+  "quadratic-inequalities",
+  "addition-and-multiplication-principles",
+  "permutations",
+  "combinations",
+  "matrix-concept",
+  "matrix-operations",
+  "set-concept-and-representation",
+  "set-inclusion",
+  "set-operations",
+  "composite-function",
+]);
+
+function commonMathVisualType(conceptId) {
+  if (GRAPH_CONCEPT_IDS.has(conceptId)) return "graph";
+  if (DIAGRAM_CONCEPT_IDS.has(conceptId)) return "area-model";
+  return "formula";
+}
+
+function previewBlocksFor(type) {
+  if (type === "graph") {
+    return [
+      { label: "기준 그래프", tone: "secondary" },
+      { label: "조건 변화", tone: "primary" },
+      { label: "결과 확인", tone: "accent" },
+    ];
+  }
+  if (type === "area-model") {
+    return [
+      { label: "대상 배치", tone: "secondary" },
+      { label: "관계 비교", tone: "primary" },
+      { label: "경우 확인", tone: "accent" },
+    ];
+  }
+  return [
+    { label: "조건 읽기", tone: "secondary" },
+    { label: "식 정리", tone: "primary" },
+    { label: "검산", tone: "accent" },
+  ];
+}
+
 function detailedSteps(concept, detail) {
   const topics = Array.isArray(concept.topics) && concept.topics.length
     ? concept.topics
@@ -47,12 +107,12 @@ function detailedSteps(concept, detail) {
   const [title, takeaway, formula] = detail;
   const topicAt = (index) => topics[index % topics.length];
   return [
-    ["정의와 출발점을 세웁니다", `${topicAt(0)}의 뜻을 말로 확인하고, 식이나 그림에서 각 기호가 나타내는 대상을 구분합니다.`],
-    ["핵심 관계를 시각화합니다", `${topicAt(1)}을 수직선·좌표평면·표·영역 중 알맞은 표현으로 바꾸어 조건이 움직이는 모습을 관찰합니다.`],
-    ["공식이 만들어지는 이유를 이해합니다", `${formula}를 외우기 전에 정의에서 어떤 계산을 거쳐 이 관계가 나오는지 한 단계씩 연결합니다.`],
-    ["대표 유형을 풉니다", `${topicAt(2)}의 기본 조건을 식으로 번역하고, 계산 순서와 답의 범위를 동시에 확인합니다.`],
-    ["조건이 바뀐 유형을 비교합니다", `${topicAt(3)}에서 부호·범위·순서가 달라질 때 사용할 성질과 결론이 어떻게 달라지는지 비교합니다.`],
-    ["오류를 점검하고 종합합니다", `${title} 문제에서 자주 생기는 정의역 누락, 부호 오류, 중복 계산을 검산한 뒤 여러 조건을 결합한 문제로 마무리합니다.`],
+    ["정의를 먼저 고정합니다", `${topicAt(0)}의 뜻과 기호가 가리키는 대상을 짧게 정리합니다.`],
+    ["알맞은 표현을 고릅니다", `${topicAt(1)}을 식·표·도식·좌표평면 중 개념에 꼭 필요한 표현으로 바꿉니다.`],
+    ["핵심 관계를 유도합니다", `${formula}가 정의에서 어떤 계산을 거쳐 나오는지 순서대로 연결합니다.`],
+    ["대표 조건을 적용합니다", `${topicAt(2)}의 조건을 식으로 번역하고 계산 순서와 답의 범위를 확인합니다.`],
+    ["바뀐 조건을 비교합니다", `${topicAt(3)}의 부호·범위·순서가 달라질 때 결론이 어떻게 바뀌는지 비교합니다.`],
+    ["검산으로 마무리합니다", `${title}에서 자주 생기는 정의역 누락, 부호 오류, 중복 계산을 마지막에 점검합니다.`],
   ].map(([stepTitle, description], index) => ({ order: index + 1, title: stepTitle, description }));
 }
 
@@ -63,6 +123,7 @@ function buildCommonMathLessonDefinitions(curriculum) {
       const detail = CONCEPT_DETAILS[concept.id];
       if (!detail) throw new Error(`공통수학 상세 설명이 없습니다: ${concept.id}`);
       const [title, keyTakeaway, formula] = detail;
+      const visualType = commonMathVisualType(concept.id);
       return {
         curriculumId: curriculum.curriculum?.id || "kr-2022",
         courseId: course.id,
@@ -70,21 +131,17 @@ function buildCommonMathLessonDefinitions(curriculum) {
         conceptId: concept.id,
         content: {
           estimatedMinutes: 28,
-          summary: `${title}은(는) ${concept.achievementStandard || keyTakeaway} 개념의 정의, 시각적 의미, 계산 원리, 조건 변화와 실전 적용을 순서대로 학습합니다.`,
+          summary: `${title}의 핵심 정의와 판단 기준을 먼저 익힌 뒤, 필요한 표현과 계산 원리를 대표 조건에 적용합니다.`,
           keyTakeaway,
           steps: detailedSteps(concept, detail),
           motion: { assetUrl: null, posterUrl: null, durationSeconds: 18 },
           playgroundKey: `common-math-${concept.id}`,
           practice: { generatorKey: `common-math-${concept.id}`, requiredDistinctTypes: 10 },
           dashboardPreview: {
-            type: "interactive",
+            type: visualType,
             title,
             formula,
-            blocks: [
-              { label: "정의", tone: "secondary" },
-              { label: "시각화", tone: "primary" },
-              { label: "조건 변화", tone: "accent" },
-            ],
+            blocks: previewBlocksFor(visualType),
           },
           isPublished: true,
         },
@@ -92,4 +149,10 @@ function buildCommonMathLessonDefinitions(curriculum) {
     })));
 }
 
-module.exports = { CONCEPT_DETAILS, buildCommonMathLessonDefinitions };
+module.exports = {
+  CONCEPT_DETAILS,
+  GRAPH_CONCEPT_IDS,
+  DIAGRAM_CONCEPT_IDS,
+  commonMathVisualType,
+  buildCommonMathLessonDefinitions,
+};

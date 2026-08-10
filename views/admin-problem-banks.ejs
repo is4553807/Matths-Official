@@ -75,7 +75,7 @@
             <header>
               <div>
                 <span>OFFICIAL RESEARCH</span>
-                <h3>2016~2026 평가원 6·9월 모의평가 유형 분류</h3>
+                <h3>2016~2026 고3 3·5·6·7·9·10·11월 모의고사 유형 분류</h3>
                 <p>수능은 제외하고, 공식 해설의 출제 의도와 풀이 구조를 읽어 문항 원문을 복제하지 않는 Arena 사고 유형으로 정리했습니다.</p>
               </div>
               <strong><%= officialResearch.familyStats.length %><small>개 사고 유형</small></strong>
@@ -105,6 +105,40 @@
               </div>
             </details>
             <p class="arena-official-research-note"><strong>운영 구분:</strong> 이 분류는 유형·난이도 설계의 근거입니다. 실제 경기 출제는 아래 ACTIVE DB 카탈로그와 독립 검산 생성기까지 통과한 유형만 사용합니다.</p>
+          </article>
+        <% } %>
+        <% if (catalog?.privateResearch) { const privateResearch = catalog.privateResearch; %>
+          <article class="arena-official-research-summary">
+            <header>
+              <div>
+                <span>PRIVATE MOCK CALIBRATION</span>
+                <h3>공식 무료 배포 사설 모의고사 난이도 보정</h3>
+                <p>문제지·정답·해설·문항별 정답률이 모두 공개된 자료만 선별하고, 표본과 교육과정까지 통과한 자료만 신규 문제 난이도 검증에 사용합니다.</p>
+              </div>
+              <strong><%= privateResearch.activeCalibrationMetrics %><small>개 활성 지표</small></strong>
+            </header>
+            <dl>
+              <div><dt>검토 출처</dt><dd><%= privateResearch.reviewedSources %>개</dd></div>
+              <div><dt>실제 보정</dt><dd><%= privateResearch.activeCalibrationSources %>개</dd></div>
+              <div><dt>연구 전용</dt><dd><%= privateResearch.researchOnlySources %>개</dd></div>
+              <div><dt>과거 검증</dt><dd><%= privateResearch.historicalOnlySources %>개</dd></div>
+              <div><dt>권리·근거 미충족 제외</dt><dd><%= privateResearch.excludedSources %>개</dd></div>
+              <div><dt>자체 생성형 반영</dt><dd><%= privateResearch.integratedAbstractGenerators %>개</dd></div>
+            </dl>
+            <details>
+              <summary>검토 출처 <%= privateResearch.sources.length %>개와 반영 상태 보기</summary>
+              <div class="arena-official-research-families">
+                <% privateResearch.sources.forEach((source) => { const stateLabel = source.runtimeStatus === 'ACTIVE_CALIBRATION' ? '실제 보정' : source.runtimeStatus === 'RESEARCH_ONLY' ? '연구 전용' : source.runtimeStatus === 'HISTORICAL_ONLY' ? '과거 검증' : '제외'; %>
+                  <article>
+                    <small><%= stateLabel %> · <%= source.confidence %><%= source.sampleSize ? ` · 표본 ${source.sampleSize}명` : '' %></small>
+                    <strong><%= source.title %></strong>
+                    <span><%= source.notes %></span>
+                    <% if (source.sourceUrl) { %><a href="<%= source.sourceUrl %>" target="_blank" rel="noopener noreferrer">공개 배포 출처 확인</a><% } %>
+                  </article>
+                <% }) %>
+              </div>
+            </details>
+            <p class="arena-official-research-note"><strong>저작권 보호:</strong> 사설 문제·정답·해설 원문은 저장하지 않습니다. 공개 정답률과 추상 난이도 근거만 이용하며, 실제 경기에는 숫자·정답 JSON·단계별 풀이를 함께 만든 뒤 독립 검산을 통과한 자체 문항만 출제합니다.</p>
           </article>
         <% } %>
         <% if (!tierCatalog?.active) { %>
@@ -137,7 +171,7 @@
                 <span>PUBLIC U/R DIFFICULTY</span>
                 <h3 id="arena-public-difficulty-title">실전 공개 난이도 18개 · 난이도별 최소 30개 유형</h3>
               </div>
-              <p>Unranked와 Ranked는 별도 카탈로그로 관리합니다. 같은 숫자의 R등급이 U등급보다 어렵고, 각 경기 안에서도 1번부터 뒤 문항으로 갈수록 목표 정답률이 낮아집니다.</p>
+              <p>Unranked와 Ranked는 별도 카탈로그로 관리합니다. 같은 숫자의 R등급이 U등급보다 어렵고, 각 경기 안에서도 1번부터 뒤 문항으로 갈수록 목표 정답률이 낮아집니다. 신규 문항은 개념 결합·조건 변환·추론 단계 난이도 게이트를 통과해야 하며, 경기 화면에는 해당 문항의 예상 정답률 구간이 표시됩니다.</p>
             </header>
             <div class="arena-public-difficulty-grid">
               <% (tierCatalog.publicDifficultyCatalog || []).forEach((difficulty) => { %>
