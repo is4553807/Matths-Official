@@ -29,6 +29,12 @@ const {
   targetAccuracyRangeForSlot,
 } = require("./arenaOneOnOneDifficultyPolicy");
 const {
+  SOURCE_DIFFICULTY_BANDS,
+} = require("./arenaMatchDifficultyPlan");
+const {
+  arenaPdfSourceMetadataForReferenceId,
+} = require("./arenaPdfOneOnOneQuestionPool");
+const {
   holdExpiredEvidence,
   holdExpiredMatchStarts,
   holdSundayCutoffMatches,
@@ -172,7 +178,60 @@ function formatAccuracyPercent(value) {
     : percentage.toFixed(1).replace(/\.0$/, "");
 }
 
+function formatSourceCorrectRatePercent(value) {
+  const percentage = Number(value);
+  if (!Number.isFinite(percentage)) return "";
+  return Number.isInteger(percentage)
+    ? String(percentage)
+    : percentage.toFixed(1).replace(/\.0$/, "");
+}
+
+function publicSourceAccuracyForQuestion(question) {
+  const source = arenaPdfSourceMetadataForReferenceId(
+    question?.sourceTypeId
+  );
+  if (!source) return null;
+  const band = SOURCE_DIFFICULTY_BANDS[source.sourceDifficultyCode];
+  if (!band) return null;
+
+  const exact = source.correctRatePercent === null
+    ? null
+    : Number(source.correctRatePercent);
+  if (exact !== null && Number.isFinite(exact)) {
+    return {
+      min: exact / 100,
+      max: exact / 100,
+      label: `${formatSourceCorrectRatePercent(exact)}%`,
+      basisLabel: "원문 정답률",
+      rangeLabel: `${source.sourceDifficultyCode} · ${band.rangeLabel}`,
+      sourceDifficultyCode: source.sourceDifficultyCode,
+      evidenceKind: "EXACT",
+    };
+  }
+
+  const lower = source.correctRateLowerBoundPercent === null
+    ? null
+    : Number(source.correctRateLowerBoundPercent);
+  if (lower !== null && Number.isFinite(lower)) {
+    return {
+      min: lower / 100,
+      max: source.correctRateUpperBoundPercent !== null &&
+        Number.isFinite(Number(source.correctRateUpperBoundPercent))
+        ? Number(source.correctRateUpperBoundPercent) / 100
+        : 1,
+      label: `${formatSourceCorrectRatePercent(lower)}% 이상`,
+      basisLabel: "원문 정답률 하한",
+      rangeLabel: `${source.sourceDifficultyCode} · ${band.rangeLabel}`,
+      sourceDifficultyCode: source.sourceDifficultyCode,
+      evidenceKind: "CENSORED_BOUND",
+    };
+  }
+  return null;
+}
+
 function publicTargetAccuracyForQuestion(pack, question, order) {
+  const sourceAccuracy = publicSourceAccuracyForQuestion(question);
+  if (sourceAccuracy) return sourceAccuracy;
   const hasStoredValues =
     question?.targetAccuracyMin !== null &&
     question?.targetAccuracyMin !== undefined &&
@@ -200,7 +259,23 @@ function publicTargetAccuracyForQuestion(pack, question, order) {
     min: range[0],
     max: range[1],
     label: `${formatAccuracyPercent(range[0])}~${formatAccuracyPercent(range[1])}%`,
+    basisLabel: "목표 정답률 구간",
+    rangeLabel: "",
+    sourceDifficultyCode: "",
+    evidenceKind: "TARGET_RANGE",
   };
+}
+
+const QUESTION_CATEGORY_LABELS = Object.freeze({
+  "basic-general": "기초 일반",
+  general: "일반",
+  "upper-general": "상위 일반",
+  "semi-killer": "준킬러",
+  killer: "킬러",
+});
+
+function publicCategoryLabelForQuestion(question) {
+  return QUESTION_CATEGORY_LABELS[question?.category] || "일반";
 }
 
 function publicQuestionsForAttempt(pack, attempt) {
@@ -219,10 +294,17 @@ function publicQuestionsForAttempt(pack, attempt) {
   return (pack?.questions || []).slice(currentIndex, currentIndex + 1).map(
     (question, index) => {
       const number = currentIndex + index + 1;
+      const targetAccuracy = publicTargetAccuracyForQuestion(
+        pack,
+        question,
+        number
+      );
       return {
         number,
         questionKey: question.questionKey,
-        categoryLabel: question.category === "killer" ? "킬러" : "준킬러",
+        sourceDifficultyCode:
+          targetAccuracy?.sourceDifficultyCode || "",
+        categoryLabel: publicCategoryLabelForQuestion(question),
         courseId: question.courseId,
         prompt: question.prompt,
         visualization: question.visualization || null,
@@ -234,11 +316,7 @@ function publicQuestionsForAttempt(pack, attempt) {
           })
         ),
         points: Number(question.points),
-        targetAccuracy: publicTargetAccuracyForQuestion(
-          pack,
-          question,
-          number
-        ),
+        targetAccuracy,
         savedAnswer:
           answerByKey.get(
             question.questionKey
@@ -1083,6 +1161,7 @@ function normalizeSignals(
     "FOCUS_GAINED",
     "FOCUS_LOST",
     "QUESTION_FOCUSED",
+    "PAGE_EXITED",
   ]);
   const allowedQuestions = new Set(
     allowedQuestionKeys
@@ -1110,7 +1189,10 @@ function normalizeSignals(
       .trim()
       .slice(0, 40);
     if (
-      type === "QUESTION_FOCUSED" &&
+      [
+        "QUESTION_FOCUSED",
+        "PAGE_EXITED",
+      ].includes(type) &&
       !allowedQuestions.has(questionKey)
     ) {
       throw statusError(
@@ -1739,7 +1821,9 @@ module.exports = {
   normalizeSignals,
   participantRole,
   prepareArenaMatch,
+  publicCategoryLabelForQuestion,
   publicQuestionsForAttempt,
+  publicSourceAccuracyForQuestion,
   recordArenaMatchActivity,
   saveArenaMatchAnswers,
   startArenaMatchAttempt,

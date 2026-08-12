@@ -5,15 +5,15 @@ const {
   mainPolicySnapshot,
 } = require("./arenaPolicyService");
 const {
-  ARENA_QUESTION_DESIGN_POLICY_VERSION,
   PACK_RULES,
-  PUBLIC_DIFFICULTY_TO_CATALOG_TIER,
-  PUBLIC_DIFFICULTY_SPECS,
-  RANKED_DEFENDER_TIER_TO_DIFFICULTY_CODE,
   TIER_LABELS,
-  TIER_SPECS,
-  UNRANKED_DEFENDER_TIER_TO_DIFFICULTY_CODE,
 } = require("./arenaOneOnOneDifficultyPolicy");
+const {
+  ARENA_MATCH_DIFFICULTY_PLAN_VERSION,
+  ARENA_MATCH_QUESTION_ROLLOUT,
+  difficultyBandsForDivision,
+  difficultyRowsForDivision,
+} = require("./arenaMatchDifficultyPlan");
 const {
   getOfficialMockResearchSummary,
 } = require("./arenaOfficialMockResearchCatalog");
@@ -200,43 +200,13 @@ const RULEBOOKS = {
   },
 };
 
-const PUBLIC_TIER_ORDER = Object.freeze([
-  "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD",
-  "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER",
-]);
-
-const MATCHUP_ROWS = Object.freeze([
-  ...PUBLIC_TIER_ORDER.map((tier) => [
-    "Unranked",
-    `${TIER_LABELS[tier]} 방어`,
-    TIER_LABELS[tier],
-    UNRANKED_DEFENDER_TIER_TO_DIFFICULTY_CODE[tier],
-  ]),
-  ...PUBLIC_TIER_ORDER.map((tier, index) => [
-    "Ranked",
-    `${TIER_LABELS[tier]} 방어`,
-    `같은 번호의 Unranked보다 높은 부담`,
-    RANKED_DEFENDER_TIER_TO_DIFFICULTY_CODE[tier],
-  ]),
-]);
-
-function percentValue(value) {
-  const scaled = Number(value) * 100;
-  if (Number.isInteger(scaled)) return String(scaled);
-  return scaled.toFixed(1);
-}
-
-function percentRange(values) {
-  // U1의 35.0% 표기는 39.9%와 같은 소수 단위 구간임을 명확히 보여준다.
-  const lower = Number(values[0]) === 0.35 ? "35.0" : percentValue(values[0]);
-  return `${lower}~${percentValue(values[1])}%`;
-}
-
 function problemDesignView(division = "SUB") {
   const normalizedDivision = String(division || "SUB").toUpperCase();
   const isRanked = normalizedDivision === "MAIN";
   const publicName = isRanked ? "Ranked" : "Unranked";
   const difficultyPrefix = isRanked ? "R" : "U";
+  const accuracyRows = difficultyRowsForDivision(normalizedDivision);
+  const difficultyBands = difficultyBandsForDivision(normalizedDivision);
   const research = getOfficialMockResearchSummary();
   const privateResearch = getPrivateMockResearchSummary();
   const courseLabels = {
@@ -247,71 +217,73 @@ function problemDesignView(division = "SUB") {
     "calculus-1": "미적분Ⅰ",
   };
   return {
-    policyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
+    policyVersion: ARENA_MATCH_DIFFICULTY_PLAN_VERSION,
     division: normalizedDivision,
     isRanked,
     publicName,
     difficultyPrefix,
-    principles: [
-      "두 사용자는 항상 완전히 같은 문제를 풀고, 난이도는 Division과 방어자 티어로 확정합니다.",
-      `${publicName} 난이도는 ${difficultyPrefix}1~${difficultyPrefix}9로 표시하며 숫자가 커질수록 조건 결합과 추론 부담이 높아집니다.`,
-      "마스터·그랜드마스터·챌린저 구간은 다섯 문항 모두 29·30번형 킬러로 출제합니다.",
-      "각 경기는 첫 문항에서 시작해 뒤 문항으로 갈수록 조건 결합과 경우분류 부담이 자연스럽게 높아집니다.",
-    ],
-    matchupRows: MATCHUP_ROWS
-      .filter(([rowDivision]) => rowDivision === publicName)
-      .map(([rowDivision, matchup, anchor, difficultyCode]) => ({
-        division: rowDivision,
-        matchup,
-        anchor,
-        difficultyCode,
-      })),
-    accuracyRows: Array.from({ length: 9 }, (_unused, index) => {
-      const stage = `${difficultyPrefix}${index + 1}`;
-      const spec = PUBLIC_DIFFICULTY_SPECS[stage];
-      const allKiller = index >= 6;
-      return {
-        stage,
-        primaryAccuracy: percentRange(
-          allKiller ? spec.finalAccuracy : spec.regularAccuracy
-        ),
-        finalAccuracy: isRanked && !allKiller
-          ? percentRange(spec.finalAccuracy)
-          : "",
-        composition: allKiller
-          ? "29·30번형 킬러 5문항"
-          : isRanked
-            ? "준킬러 4문항 + 킬러 1문항"
-            : "준킬러 5문항",
-      };
-    }),
-    accuracyPrinciples: [
-      isRanked
-        ? "R1~R6은 1~4번 준킬러와 5번 29·30번형 킬러로 구성하고, R7~R9은 1~5번을 모두 29·30번형 킬러로 구성합니다."
-        : "U1~U6은 1~5번을 모두 준킬러로 구성하고, U7~U9은 1~5번을 모두 29·30번형 킬러로 구성합니다.",
-      "경기 화면에는 현재 문항의 예상 정답률 구간을 표시합니다. 이는 난이도 설계 목표이며 개인의 정답 확률이나 결과를 보장하는 수치가 아닙니다.",
-      "초기 목표 구간은 실제 경기 데이터가 충분히 쌓이면 운영자가 난이도만 보정하며, 이미 생성된 경기는 바뀌지 않습니다.",
-    ],
+    rollout: ARENA_MATCH_QUESTION_ROLLOUT,
+    principles: isRanked
+      ? [
+          "Ranked 두 사용자는 R1~R9 중 방어자 티어에 해당하는 완전히 같은 5문항을 풉니다.",
+          "R1~R3은 일반·상위 일반, R4부터 준킬러, R7부터 킬러를 섞어 경쟁 변별력을 높입니다.",
+          "R9은 준킬러 4문항과 정답률 8% 미만의 최상위 킬러 1문항으로 구성합니다.",
+          "각 경기의 1번에서 5번으로 갈수록 원문 정답률이 낮아지도록 배치합니다.",
+        ]
+      : [
+          "Unranked 두 사용자는 U1~U9 중 방어자 티어에 해당하는 완전히 같은 5문항을 풉니다.",
+          "U1은 기초 일반 중심으로 시작하고 U8부터 준킬러를 한 문항씩 섞어 단계적으로 적응시킵니다.",
+          "U1~U9에는 킬러를 넣지 않으며 U9도 상위 일반과 준킬러까지만 사용합니다.",
+          "각 경기의 1번에서 5번으로 갈수록 원문 정답률이 낮아지도록 배치합니다.",
+        ],
+    matchupRows: accuracyRows.map((row) => ({
+      matchup: `${row.tierLabel} 방어`,
+      anchor: row.tierLabel,
+      difficultyCode: row.stage,
+    })),
+    accuracyRows,
+    accuracyPrinciples: isRanked
+      ? [
+          "이 표는 Ranked 전용입니다. R1~R9은 Unranked 표나 평균값을 재사용하지 않고 별도의 문항 조합으로 관리합니다.",
+          "D2~D9는 EBSi 공개 문항별 정답률을 60~70%, 50~60%, 42~50%, 35~42%, 25~35%, 15~25%, 8~15%, 8% 미만으로 나눈 절대 난이도입니다.",
+          "표의 평균은 원문 조사 표본의 정답률이며 개인의 정답 확률이나 경기 결과를 보장하지 않습니다.",
+        ]
+      : [
+          "이 표는 Unranked 전용입니다. U1~U9은 Ranked 표나 평균값을 재사용하지 않고 별도의 문항 조합으로 관리합니다.",
+          "D1~D6은 EBSi 공개 문항별 정답률을 70% 이상, 60~70%, 50~60%, 42~50%, 35~42%, 25~35%로 나눈 절대 난이도입니다.",
+          "표의 평균은 원문 조사 표본의 정답률이며 개인의 정답 확률이나 경기 결과를 보장하지 않습니다.",
+        ],
     structuralDifficultyPrinciples: [
       "단순 계산량을 늘리는 대신 서로 다른 개념의 결합, 조건의 식 변환, 경우 분류와 역추론을 중심으로 난이도를 만듭니다.",
-      "준킬러는 최소 4단계, 29·30번형 킬러는 최소 5단계의 핵심 추론 구조를 통과해야 경기 문항으로 확정됩니다.",
+      "원문 정답률은 스켈레톤의 최초 난이도 근거로만 쓰고, 숫자·조건 변형본은 별도 검산을 통과해야 합니다.",
       "숫자를 바꾼 뒤 우연히 쉬워진 문항은 생성 단계에서 제외하고, 자연수 정답·유일해·계산기 없이 풀이 가능 여부를 다시 검산합니다.",
     ],
     curveRows: isRanked
       ? [
-          { division: "R1~R6", sequence: "쉬운 준킬러 → 준킬러 → 어려운 준킬러 → 최상위 준킬러 → 킬러", example: "R5 예시: 25~26% → 23~25% → 21~23% → 20~22% → 4~6%" },
-          { division: "R7~R9", sequence: "킬러 → 킬러 → 킬러 → 킬러 → 킬러", example: "다섯 문항 모두 29·30번형" },
+          { division: "R1~R3", sequence: "일반 → 상위 일반", example: "골드까지 준킬러·킬러 없음" },
+          { division: "R4~R6", sequence: "상위 일반 → 준킬러", example: "플래티넘부터 준킬러 진입" },
+          { division: "R7~R9", sequence: "준킬러 → 킬러", example: "마스터부터 킬러 혼합" },
         ]
       : [
-          { division: "U1~U6", sequence: "쉬움 → 보통 → 보통 → 어려움 → 가장 어려움", example: "U5 예시: 32% → 30% → 29% → 28% → 27%" },
-          { division: "U7~U9", sequence: "킬러 → 킬러 → 킬러 → 킬러 → 킬러", example: "다섯 문항 모두 29·30번형" },
+          { division: "U1~U3", sequence: "기초 일반 → 일반", example: "처음 시작해도 풀이 흐름을 익힐 수 있는 구간" },
+          { division: "U4~U7", sequence: "일반 → 상위 일반", example: "조건 결합과 역추론을 단계적으로 추가" },
+          { division: "U8~U9", sequence: "상위 일반 → 준킬러", example: "킬러 없이 준킬러 입문" },
         ],
     compositionHeadline: isRanked
-      ? "R1~R6은 준킬러 4문항과 킬러 1문항, R7~R9은 킬러 5문항입니다."
-      : "U1~U6은 준킬러 5문항, U7~U9은 킬러 5문항입니다.",
+      ? "Ranked는 일반에서 시작해 마스터 이상부터 준킬러와 킬러를 함께 사용합니다."
+      : "Unranked는 기초 일반에서 시작해 준킬러 입문까지 올라가며 킬러는 사용하지 않습니다.",
     matchSpec: [
-      [`${publicName} 일반 구간`, isRanked ? "R1~R6: 준킬러 4문항 + 29·30번형 킬러 1문항" : "U1~U6: 준킬러 5문항"],
-      [`${publicName} 상위 구간`, `${difficultyPrefix}7~${difficultyPrefix}9: 29·30번형 킬러 5문항`],
+      ...(isRanked
+        ? [
+            ["브론즈·실버·골드", "일반·상위 일반만 사용"],
+            ["플래티넘·에메랄드·다이아몬드", "상위 일반과 준킬러 혼합"],
+            ["마스터·그랜드마스터·챌린저", "준킬러와 킬러 혼합"],
+          ]
+        : [
+            ["브론즈·실버·골드", "기초 일반과 일반 중심"],
+            ["플래티넘·에메랄드·다이아몬드", "일반과 상위 일반 중심"],
+            ["마스터·그랜드마스터·챌린저", "상위 일반과 준킬러 입문"],
+          ]),
       ["총점", `${PACK_RULES.totalScore}점 (문항당 ${PACK_RULES.perItemPoints}점)`],
       ["제한 시간", `문항당 ${PACK_RULES.timeLimitMinutes}분`],
       ["문제 동일성", "두 사용자에게 완전히 같은 문제"],
@@ -319,14 +291,14 @@ function problemDesignView(division = "SUB") {
       ["직접 출제 범위", "대수, 미적분Ⅰ, 확률과 통계"],
       ["기초 연계 범위", "공통수학Ⅰ·Ⅱ의 위계·연계 개념"],
       ["그래프·표", "문제 본문이 실제로 제시한 경우에만 정확한 식·라벨·점·좌표를 흰색 문제지에 표시"],
-      ["유형 수", `${difficultyPrefix}1~${difficultyPrefix}9 각각 최소 30개 수치·조건 변형 유형`],
+      ["난이도 코드", `${difficultyPrefix}1~${difficultyPrefix}9 전용 조합`],
       ["반복 방지", "한 경기 안 유형 중복 금지 + 양쪽 참가자의 최근 공식 경기 5개 유형 우선 제외"],
     ],
-    semiKillerDefinition:
-      "13·14·20·21·27·28번 4점 문항의 사고 구조를 바탕으로 개념 2개 이상과 조건 변형을 결합하며, 기출 문장을 그대로 복제하지 않습니다.",
-    excludedQuestion: isRanked
-      ? "개념 하나를 직접 대입해 끝나는 기본 문항은 R1에도 넣지 않습니다. R1~R6은 마지막 문항을, R7~R9은 전 문항을 검산된 29·30번형 다중 조건 킬러로 고정합니다."
-      : "개념 하나를 직접 대입해 끝나는 기본 문항은 U1에도 넣지 않습니다. U1~U6은 전 문항 준킬러, U7~U9은 전 문항을 검산된 29·30번형 다중 조건 킬러로 고정합니다.",
+    semiKillerDefinition: isRanked
+      ? "Ranked 난이도는 D2~D9만 사용하며 R단계별 5문항 조합을 독립적으로 고정합니다."
+      : "Unranked 난이도는 D1~D6만 사용하며 U단계별 5문항 조합을 독립적으로 고정합니다.",
+    excludedQuestion:
+      "정답률 근거가 없거나 공개 경계가 두 난이도 구간에 걸치는 문항은 자동 출제 근거에서 제외합니다.",
     curriculumAlignment: {
       sourceTitle: ARENA_2028_MATH_ALIGNMENT.source.title,
       directCourses: ARENA_2028_MATH_ALIGNMENT.assessmentScope.directCourses
@@ -343,11 +315,14 @@ function problemDesignView(division = "SUB") {
       sourceForms: research.sourceForms,
       referenceCount: research.targetQuestionReferences,
       activeReferenceCount: research.activeReferences,
+      runtimeDifficultyEligibleReferences:
+        research.runtimeDifficultyEligibleReferences,
       targetMonths: (research.targetMonths || []).join("·"),
       targetQuestions: research.targetQuestions.join("·"),
       excludedExamType: "수능",
-      notice:
-        "고3 전국연합학력평가와 평가원 모의평가의 공개 해설에서 출제 의도와 풀이 구조만 유형화하며, 기출 문제 문장·수치·정답을 그대로 재사용하지 않습니다.",
+      notice: isRanked
+        ? "Ranked에 사용되는 D2~D9 구간만 별도로 집계합니다. 기출 문제 문장·수치·정답은 그대로 재사용하지 않습니다."
+        : "Unranked에 사용되는 D1~D6 구간만 별도로 집계합니다. 기출 문제 문장·수치·정답은 그대로 재사용하지 않습니다.",
       privateCalibration: {
         reviewedSources: privateResearch.reviewedSources,
         activeSources: privateResearch.activeCalibrationSources,
@@ -377,15 +352,11 @@ function problemDesignView(division = "SUB") {
         courseLabel: courseLabels[family.courseId] || family.courseId,
         referenceCount: family.references,
       })),
-      difficultyRows: Object.entries(research.byDifficulty || {}).map(
-        ([tier, count]) => ({
-          tier: `${difficultyPrefix}${String(tier).replace("T", "")}`,
-          count,
-          composition: Number(String(tier).replace("T", "")) >= 7
-            ? "29·30번형 킬러 사고 구조"
-            : "13·14·20·21·27·28번형 준킬러 사고 구조",
-        })
-      ),
+      difficultyRows: difficultyBands.map((band) => ({
+        tier: `${band.code} · ${band.label}`,
+        count: band.observedReferenceCount,
+        composition: band.rangeLabel,
+      })),
     },
   };
 }
@@ -560,8 +531,8 @@ function getArenaRulebook(
     summary: rulebook.summary.map((line, index) => {
       if (index !== 0) return line;
       return normalizedDivision === "MAIN"
-        ? "두 사용자는 같은 주관식 5문항을 문항당 최대 10분 동안 풉니다. R1~R6은 1~4번 준킬러와 5번 29·30번형 킬러, R7~R9은 5문항 모두 29·30번형 킬러로 구성합니다."
-        : "두 사용자는 같은 주관식 5문항을 문항당 최대 10분 동안 풉니다. U1~U6은 5문항 모두 준킬러, U7~U9은 5문항 모두 29·30번형 킬러로 구성합니다.";
+        ? "두 사용자는 Ranked 전용 R1~R9 조합의 같은 주관식 5문항을 문항당 최대 10분 동안 풉니다. R4부터 준킬러, R7부터 킬러를 섞습니다."
+        : "두 사용자는 Unranked 전용 U1~U9 조합의 같은 주관식 5문항을 문항당 최대 10분 동안 풉니다. U1은 기초 일반에서 시작하고 U8부터 준킬러를 섞되 킬러는 사용하지 않습니다.";
     }),
     rules: rulebookRules(
       normalizedDivision,

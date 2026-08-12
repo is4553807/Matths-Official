@@ -1,0 +1,625 @@
+{
+  "schemaVersion": "ARENA_PDF_FORMULA_TRANSCRIPTION_BATCH_V1",
+  "stage": "6-B-7",
+  "scope": "GOAT_ARENA_ONE_ON_ONE_ONLY",
+  "selectionPolicy": "remaining FORMULA_TRANSCRIPTION_REQUIRED structures with non-null source correct-rate ordered ascending, followed by censored records ordered by lower bound and sourceId; next 25 after batches 6-B-1 through 6-B-6",
+  "recordCount": 25,
+  "sourceUsePolicy": {
+    "verbatimProblemTextStored": false,
+    "formulaAndConditionSkeletonOnly": true,
+    "productionRuntimeModified": false
+  },
+  "statusSummary": {
+    "TRANSCRIBED_PENDING_SOLVER_CONTRACT": 25,
+    "VISUAL_CONTRACT_CORRECTION_REQUIRED": 2,
+    "FAMILY_CONTRACT_CORRECTION_REQUIRED": 8,
+    "TARGET_CONTRACT_CORRECTION_REQUIRED": 5,
+    "SOURCE_CONTEXT_AUGMENTATION_REQUIRED": 0,
+    "CENSORED_CORRECT_RATE_LOWER_BOUND": 7
+  },
+  "records": [
+    {
+      "sourceId": "2025-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-7A3B155B",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 64.9,
+      "targetKind": "SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2025-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18.jpg",
+      "givensTeX": [
+        "\\sum_{n=1}^{7}(a_n-2)(b_n-2)=60",
+        "\\sum_{n=1}^{7}(a_n+b_n)=44"
+      ],
+      "targetTeX": "\\sum_{n=1}^{7}a_nb_n",
+      "solverShape": "Expand the shifted products, substitute the supplied sum of all sequence terms, and isolate the requested finite sum of pairwise products.",
+      "visualAudit": "NONE_REQUIRED",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical EXTREMUM is unrelated to the requested finite SUM of pairwise products.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-0D012D5D",
+      "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-7A3B155B",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2020-09-KICE-GA-Q27",
+      "canonicalStructureId": "STR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-8E74285D",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 65.3,
+      "targetKind": "SEQUENCE_TERM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2020-09-KICE-GA-Q27.jpg",
+      "givensTeX": [
+        "(a_n)\\text{ is geometric}",
+        "S_n=\\sum_{k=1}^{n}a_k",
+        "S_{n+3}-S_n=13\\cdot3^{n-1}\\quad(n\\in\\mathbb{N})"
+      ],
+      "targetTeX": "a_4",
+      "solverShape": "Rewrite the partial-sum difference as three consecutive geometric terms, compare the identity at adjacent indices to recover the common ratio, and evaluate the fourth term.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the governing structure is a geometric sequence with a partial-sum difference, so ALG-SEQUENCE-SUM is more accurate than ALG-SEQUENCE-RECURRENCE.",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical INTEGER_PARAMETER conflicts with the requested sequence term a_4.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-50E6935E",
+      "contractId": "CTR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-8E74285D",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-04-EDUCATION_OFFICE-GA-Q25",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-7C4D1B9D",
+      "familyId": "C1-DERIVATIVE",
+      "correctRatePercent": 65.8,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-04-EDUCATION_OFFICE-GA-Q25.jpg",
+      "givensTeX": [
+        "f(x)=\\frac{x}{x^2+x+8}",
+        "f'(x)>0\\iff \\alpha<x<\\beta"
+      ],
+      "targetTeX": "\\alpha^2+\\beta^2",
+      "solverShape": "Differentiate the rational function, use the always-positive denominator to solve the quadratic numerator inequality, and combine its two boundary roots by Vieta's formulas.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1DER-C1DER-BASE-SCALAR-VALUE-B0-C8CBEC72",
+      "contractId": "CTR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-7C4D1B9D",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-07-EDUCATION_OFFICE-GA-Q23",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-9CD6BCCE",
+      "familyId": "C1-DERIVATIVE",
+      "correctRatePercent": 65.9,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-07-EDUCATION_OFFICE-GA-Q23.jpg",
+      "givensTeX": [
+        "f(x)=6\\tan(2x)"
+      ],
+      "targetTeX": "f'\\left(\\frac{\\pi}{6}\\right)",
+      "solverShape": "Apply the chain rule to the tangent function and substitute pi over six using the exact secant value.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1DER-C1DER-BASE-SCALAR-VALUE-B0-5B74A5CE",
+      "contractId": "CTR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-9CD6BCCE",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-09-KICE-NA-Q26",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-C309D465",
+      "familyId": "PS-PROBABILITY-AXIOMS",
+      "correctRatePercent": 65.9,
+      "targetKind": "REDUCED_RATIONAL_COMPONENT_SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-09-KICE-NA-Q26.jpg",
+      "givensTeX": [
+        "\\text{an urn contains two white balls and four red balls}",
+        "\\text{two balls are drawn simultaneously and uniformly}",
+        "P(\\text{both balls are white})=\\frac{q}{p}",
+        "p,q\\in\\mathbb{N},\\quad\\gcd(p,q)=1"
+      ],
+      "targetTeX": "p+q",
+      "solverShape": "Count unordered two-ball samples, count the all-white samples, reduce the probability, and add its denominator and numerator in the source notation.",
+      "visualAudit": "NONE_REQUIRED",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical PROBABILITY describes an intermediate fraction, while the requested final answer is the reduced component sum p+q.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-23BDED7B",
+      "contractId": "CTR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-C309D465",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-07-EDUCATION_OFFICE-NA-Q25",
+      "canonicalStructureId": "STR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-0A49B85E",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 65.9,
+      "targetKind": "SEQUENCE_TERM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-07-EDUCATION_OFFICE-NA-Q25.jpg",
+      "givensTeX": [
+        "(a_n)\\text{ is arithmetic}",
+        "S_n=\\sum_{k=1}^{n}a_k",
+        "a_2=7",
+        "S_7-S_5=50"
+      ],
+      "targetTeX": "a_{11}",
+      "solverShape": "Express the partial-sum difference as a_6 plus a_7, solve for the common difference together with a_2, and propagate to the eleventh term.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is an arithmetic-sequence partial-sum problem, so ALG-SEQUENCE-SUM is more accurate than ALG-SEQUENCE-RECURRENCE.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-ACE2877F",
+      "contractId": "CTR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-0A49B85E",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-09-KICE-NA-Q26",
+      "canonicalStructureId": "STR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-78608D8D",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 66.0,
+      "targetKind": "SEQUENCE_TERM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-09-KICE-NA-Q26.jpg",
+      "givensTeX": [
+        "(a_n)\\text{ is a positive geometric sequence}",
+        "S_n=\\sum_{k=1}^{n}a_k",
+        "S_4-S_3=2",
+        "S_6-S_5=50"
+      ],
+      "targetTeX": "a_5",
+      "solverShape": "Recognize the two partial-sum differences as a_4 and a_6, use positivity to select the common ratio, and take the geometric mean term a_5.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is a geometric-sequence partial-sum identity rather than a recurrence problem; review as ALG-SEQUENCE-SUM.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-ABC42998",
+      "contractId": "CTR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-78608D8D",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-09-KICE-NA-Q25",
+      "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-PARAMETER-B0-NONE-EA77861D",
+      "familyId": "C1-LIMIT-CONTINUITY",
+      "correctRatePercent": 66.1,
+      "targetKind": "PARAMETER",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-09-KICE-NA-Q25.jpg",
+      "givensTeX": [
+        "f(x)=\\begin{cases}ax^2+1,&x<1,\\\\x^4+a,&x\\ge1,\\end{cases}",
+        "f\\text{ is differentiable at }x=1"
+      ],
+      "targetTeX": "a",
+      "solverShape": "Match the one-sided function values and derivatives at the join, then solve the resulting parameter conditions.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1LIMCONT-DIFFERENTIABILITY-MATCH-PARAMETER-B0-300A4D24",
+      "contractId": "CTR-C1LIMCONT-DIFFERENTIABILITY-MATCH-PARAMETER-B0-NONE-EA77861D",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-04-EDUCATION_OFFICE-NA-Q23",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-2B5463B0",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 67.5,
+      "targetKind": "SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-04-EDUCATION_OFFICE-NA-Q23.jpg",
+      "givensTeX": [
+        "\\sum_{k=1}^{6}(k^2+5)"
+      ],
+      "targetTeX": "\\sum_{k=1}^{6}(k^2+5)",
+      "solverShape": "Split the finite sum into the standard sum of squares and six copies of the constant term.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-B0E2D856",
+      "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-2B5463B0",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2020-07-EDUCATION_OFFICE-GA-Q25",
+      "canonicalStructureId": "STR-C1MOTION-SPEED-ACCELERATION-VALUE-SPEED-OR-ACCELERATION-B0-NONE-B48B487C",
+      "familyId": "C1-VELOCITY-DISTANCE",
+      "correctRatePercent": 67.5,
+      "targetKind": "SPEED_OR_ACCELERATION",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2020-07-EDUCATION_OFFICE-GA-Q25.jpg",
+      "givensTeX": [
+        "t>0",
+        "x(t)=3t-\\frac{2}{\\pi}\\cos(\\pi t)",
+        "y(t)=6\\ln t-\\frac{2}{\\pi}\\sin(\\pi t)"
+      ],
+      "targetTeX": "\\sqrt{\\left\\{x'\\left(\\frac12\\right)\\right\\}^2+\\left\\{y'\\left(\\frac12\\right)\\right\\}^2}",
+      "solverShape": "Differentiate both coordinate functions, evaluate the velocity components at one half, and take their Euclidean norm.",
+      "visualAudit": "VISUAL_CONTRACT_CORRECTION_REQUIRED: canonical GRAPH is unsupported because the source contains only the parametric coordinate formulas and no plotted graph; review as NONE.",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the requested quantity is planar speed from coordinate derivatives; review as C1-VELOCITY-DISTANCE rather than ALG-TRIG-GRAPH.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1MOTION-SPEED-ACCELERATION-VALUE-SPEED-OR-ACCELERATION-B0-ACE7FE6F",
+      "contractId": "CTR-C1MOTION-SPEED-ACCELERATION-VALUE-SPEED-OR-ACCELERATION-B0-NONE-B48B487C",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY",
+        "VISUAL"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-06-KICE-NA-Q25",
+      "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-AD2661B5",
+      "familyId": "ALG-EXP-LOG-EQUATION",
+      "correctRatePercent": 68.6,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-06-KICE-NA-Q25.jpg",
+      "givensTeX": [
+        "\\log_3\\frac{9}{2}+\\log_3 6"
+      ],
+      "targetTeX": "\\log_3\\frac{9}{2}+\\log_3 6",
+      "solverShape": "Combine the two logarithms with the product rule and evaluate the resulting integer power of three.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-09AE8D15",
+      "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-AD2661B5",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-NA-Q26",
+      "canonicalStructureId": "STR-C1LIMCONT-C1LIMCONT-BASE-SUM-OF-PARAMETERS-B0-NONE-DBA8630A",
+      "familyId": "C1-LIMIT-CONTINUITY",
+      "correctRatePercent": 69.0,
+      "targetKind": "SUM_OF_PARAMETERS",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2019-04-EDUCATION_OFFICE-NA-Q26.jpg",
+      "givensTeX": [
+        "a,b\\in\\mathbb{R}",
+        "\\lim_{x\\to\\infty}\\frac{ax^2}{x^2-1}=2",
+        "\\lim_{x\\to1}\\frac{a(x-1)}{x^2-1}=b"
+      ],
+      "targetTeX": "a+b",
+      "solverShape": "Use the leading-coefficient ratio at infinity to obtain a, cancel the removable factor at one to obtain b, and add the parameters.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1LIMCONT-C1LIMCONT-BASE-SUM-OF-PARAMETERS-B0-D534F811",
+      "contractId": "CTR-C1LIMCONT-C1LIMCONT-BASE-SUM-OF-PARAMETERS-B0-NONE-DBA8630A",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-04-EDUCATION_OFFICE-GA-Q25",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-PARAMETER-B0-NONE-8D3850D0",
+      "familyId": "C1-INTEGRAL-DEFINED",
+      "correctRatePercent": 69.3,
+      "targetKind": "PARAMETER",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-04-EDUCATION_OFFICE-GA-Q25.jpg",
+      "givensTeX": [
+        "\\int_1^5\\left(\\frac{1}{x+1}+\\frac{1}{x}\\right)\\,dx=\\ln\\alpha",
+        "\\alpha\\in\\mathbb{R}"
+      ],
+      "targetTeX": "\\alpha",
+      "solverShape": "Integrate the two logarithmic derivatives, combine the endpoint logarithms, and exponentiate to recover alpha.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is direct definite-integral evaluation with logarithms, not an area problem; review as C1-INTEGRAL-DEFINED.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-PARAMETER-B0-B4DB03BA",
+      "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-PARAMETER-B0-NONE-8D3850D0",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-09-KICE-NA-Q23",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-20927076",
+      "familyId": "C1-INTEGRAL-DEFINED",
+      "correctRatePercent": 69.3,
+      "targetKind": "DEFINITE_INTEGRAL",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-09-KICE-NA-Q23.jpg",
+      "givensTeX": [
+        "\\int_0^3(x^2-4x+11)\\,dx"
+      ],
+      "targetTeX": "\\int_0^3(x^2-4x+11)\\,dx",
+      "solverShape": "Evaluate the polynomial antiderivative at three and zero.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is direct definite-integral evaluation rather than an area calculation; review as C1-INTEGRAL-DEFINED.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-7AD78AC7",
+      "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-20927076",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-GA-Q24",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-57069AFA",
+      "familyId": "C1-DERIVATIVE",
+      "correctRatePercent": 70.7,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-04-EDUCATION_OFFICE-GA-Q24.jpg",
+      "givensTeX": [
+        "t>0",
+        "x=t+2\\sqrt{t}",
+        "y=4t^3"
+      ],
+      "targetTeX": "\\left.\\frac{dy}{dx}\\right|_{t=1}",
+      "solverShape": "Differentiate x and y with respect to the parameter and divide dy by dt by dx by dt at t equal to one.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1DER-C1DER-BASE-SCALAR-VALUE-B0-DF21FDD3",
+      "contractId": "CTR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-57069AFA",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-09-KICE-GA-Q26",
+      "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALED-SQUARED-PARAMETER-B0-NONE-132B4225",
+      "familyId": "C1-LIMIT-CONTINUITY",
+      "correctRatePercent": 70.9,
+      "targetKind": "SCALED_SQUARED_PARAMETER",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-09-KICE-GA-Q26.jpg",
+      "givensTeX": [
+        "f\\text{ is differentiable}",
+        "g(x)=\\sin x",
+        "h(x)=(g\\circ f)(x)",
+        "\\text{the tangent to }y=h(x)\\text{ at }(1,h(1))\\text{ passes through }(0,0)",
+        "\\lim_{x\\to1}\\frac{f(x)-\\frac{\\pi}{6}}{x-1}=k"
+      ],
+      "targetTeX": "30k^2",
+      "solverShape": "Use finiteness of the limit to identify f(1), translate the origin-passing tangent into h'(1)=h(1), and apply the chain rule to solve for k before scaling its square.",
+      "visualAudit": "VISUAL_CONTRACT_CORRECTION_REQUIRED: the source states a tangent condition in prose but contains no plotted graph; canonical GRAPH should be reviewed as NONE.",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical LIMIT_VALUE describes the intermediate k, while the requested final answer is the scaled square 30k^2.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALED-SQUARED-PARAMETER-B0-217FFC03",
+      "contractId": "CTR-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALED-SQUARED-PARAMETER-B0-NONE-132B4225",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "TARGET",
+        "VISUAL"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q25",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-PARAMETER-B0-NONE-E22050CB",
+      "familyId": "C1-DERIVATIVE",
+      "correctRatePercent": 71.0,
+      "targetKind": "PARAMETER",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-07-EDUCATION_OFFICE-GA-Q25.jpg",
+      "givensTeX": [
+        "f(x)=kx^2-2x",
+        "g(x)=e^{3x}+1",
+        "h(x)=(f\\circ g)(x)",
+        "h'(0)=42"
+      ],
+      "targetTeX": "k",
+      "solverShape": "Apply the chain rule to the composition, evaluate g and its derivative at zero, and solve the resulting linear equation for k.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the exponential expression is only inside a composition; the governing operation is chain-rule differentiation, so review as C1-DERIVATIVE.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1DER-C1DER-BASE-PARAMETER-B0-43C51C17",
+      "contractId": "CTR-C1DER-C1DER-BASE-PARAMETER-B0-NONE-E22050CB",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-09-KICE-GA-Q24",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-A5D3A06E",
+      "familyId": "PS-PROBABILITY-AXIOMS",
+      "correctRatePercent": 80.1,
+      "targetKind": "REDUCED_RATIONAL_COMPONENT_SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-09-KICE-GA-Q24.jpg",
+      "givensTeX": [
+        "\\text{an urn contains two white balls and four red balls}",
+        "\\text{two balls are drawn simultaneously and uniformly}",
+        "P(\\text{both balls are white})=\\frac{q}{p}",
+        "p,q\\in\\mathbb{N},\\quad\\gcd(p,q)=1"
+      ],
+      "targetTeX": "p+q",
+      "solverShape": "Count unordered two-ball samples and the all-white samples, reduce the probability, and add its denominator and numerator in the source notation.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is the same urn-probability structure as 2016-09-KICE-NA-Q26 and should be reviewed under PS-PROBABILITY-AXIOMS rather than PS-COUNTING.",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical PROBABILITY describes an intermediate fraction, while the requested final answer is the reduced component sum p+q.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-D0B3DDF3",
+      "contractId": "CTR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-A5D3A06E",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2021-04-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q16",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-PARAMETER-B0-NONE-0BEF26BD",
+      "familyId": "C1-DERIVATIVE",
+      "correctRatePercent": null,
+      "correctRateLowerBoundPercent": 70.1,
+      "correctRateUpperBoundPercent": 100.0,
+      "correctRateEvidenceKind": "EBSI_TOP15_CENSORED_LOWER_BOUND",
+      "targetKind": "PARAMETER",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2021-04-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q16.jpg",
+      "givensTeX": [
+        "f(x)=x^2+ax",
+        "f'(1)=4"
+      ],
+      "targetTeX": "a",
+      "solverShape": "Differentiate the quadratic, evaluate at one, and solve the resulting linear equation for a.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1DER-C1DER-BASE-PARAMETER-B0-F1ACA653",
+      "contractId": "CTR-C1DER-C1DER-BASE-PARAMETER-B0-NONE-0BEF26BD",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2021-04-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-TRIG-VALUE-B0-NONE-2450BC4E",
+      "familyId": "ALG-TRIG-GRAPH",
+      "correctRatePercent": null,
+      "correctRateLowerBoundPercent": 70.1,
+      "correctRateUpperBoundPercent": 100.0,
+      "correctRateEvidenceKind": "EBSI_TOP15_CENSORED_LOWER_BOUND",
+      "targetKind": "SCALED_TRIG_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2021-04-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17.jpg",
+      "givensTeX": [
+        "0<\\theta<\\frac{\\pi}{2}",
+        "\\sin\\theta\\cos\\theta=\\frac{7}{18}"
+      ],
+      "targetTeX": "30(\\sin\\theta+\\cos\\theta)",
+      "solverShape": "Square the requested sine-cosine sum, substitute the product condition, and choose the positive root from the first-quadrant condition before applying the scale.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-TRIG-VALUE-B0-A738D644",
+      "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-TRIG-VALUE-B0-NONE-2450BC4E",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-06-KICE-NA-Q22",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-B7CD2650",
+      "familyId": "PS-COUNTING",
+      "correctRatePercent": null,
+      "correctRateLowerBoundPercent": 70.5,
+      "correctRateUpperBoundPercent": 100.0,
+      "correctRateEvidenceKind": "EBSI_TOP15_CENSORED_LOWER_BOUND",
+      "targetKind": "COUNT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-06-KICE-NA-Q22.jpg",
+      "givensTeX": [
+        "{}_4P_3"
+      ],
+      "targetTeX": "{}_4P_3",
+      "solverShape": "Evaluate the number of ordered selections of three distinct objects from four.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSCNT-PSCNT-BASE-COUNT-B0-A491DA26",
+      "contractId": "CTR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-B7CD2650",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-06-KICE-NA-Q23",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-C1169EBD",
+      "familyId": "C1-DERIVATIVE",
+      "correctRatePercent": null,
+      "correctRateLowerBoundPercent": 70.5,
+      "correctRateUpperBoundPercent": 100.0,
+      "correctRateEvidenceKind": "EBSI_TOP15_CENSORED_LOWER_BOUND",
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-06-KICE-NA-Q23.jpg",
+      "givensTeX": [
+        "f(x)=x^3-2x-2"
+      ],
+      "targetTeX": "f'(3)",
+      "solverShape": "Differentiate the cubic polynomial and substitute three.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1DER-C1DER-BASE-SCALAR-VALUE-B0-F122EDA1",
+      "contractId": "CTR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-C1169EBD",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-GA-Q22",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-CBCFE745",
+      "familyId": "PS-COUNTING",
+      "correctRatePercent": null,
+      "correctRateLowerBoundPercent": 70.7,
+      "correctRateUpperBoundPercent": 100.0,
+      "correctRateEvidenceKind": "EBSI_TOP15_CENSORED_LOWER_BOUND",
+      "targetKind": "COUNT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-04-EDUCATION_OFFICE-GA-Q22.jpg",
+      "givensTeX": [
+        "{}_5\\Pi_2"
+      ],
+      "targetTeX": "{}_5\\Pi_2",
+      "solverShape": "Evaluate the number of length-two ordered selections with repetition from five available objects.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSCNT-PSCNT-BASE-COUNT-B0-5D9EFF82",
+      "contractId": "CTR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-CBCFE745",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-GA-Q23",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-D5E71F8F",
+      "familyId": "C1-DERIVATIVE",
+      "correctRatePercent": null,
+      "correctRateLowerBoundPercent": 70.7,
+      "correctRateUpperBoundPercent": 100.0,
+      "correctRateEvidenceKind": "EBSI_TOP15_CENSORED_LOWER_BOUND",
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-04-EDUCATION_OFFICE-GA-Q23.jpg",
+      "givensTeX": [
+        "f(x)=-\\frac{1}{x^2}"
+      ],
+      "targetTeX": "f'\\left(\\frac13\\right)",
+      "solverShape": "Differentiate the negative reciprocal square by the power rule and substitute one third.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1DER-C1DER-BASE-SCALAR-VALUE-B0-36C3CBE1",
+      "contractId": "CTR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-D5E71F8F",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-06-KICE-NA-Q22",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-D8F358C4",
+      "familyId": "PS-COUNTING",
+      "correctRatePercent": null,
+      "correctRateLowerBoundPercent": 71.3,
+      "correctRateUpperBoundPercent": 100.0,
+      "correctRateEvidenceKind": "EBSI_TOP15_CENSORED_LOWER_BOUND",
+      "targetKind": "COUNT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-06-KICE-NA-Q22.jpg",
+      "givensTeX": [
+        "{}_6C_4"
+      ],
+      "targetTeX": "{}_6C_4",
+      "solverShape": "Evaluate the number of unordered selections of four distinct objects from six.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSCNT-PSCNT-BASE-COUNT-B0-D943DA69",
+      "contractId": "CTR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-D8F358C4",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    }
+  ],
+  "reconciliation": {
+    "schemaVersion": "ARENA_PDF_TRANSCRIPTION_RECONCILIATION_V1",
+    "reconciliationHash": "559be8077adf604ec6c67eb95161be963cd7d40bcb618db089542d9cc7bc2d32",
+    "catalogContentHash": "662ac239778e9d7c8ad212fc4400f93596ca02c6a1c3216afff5fdc95a68fa68",
+    "contractContentHash": "d1e1eff6d4811958bda9853cd3e29a358acb4a1df5e95d59af9700f38f8239f2",
+    "recordCount": 25,
+    "canonicalIdRefreshCount": 19,
+    "familyMetadataRefreshCount": 8,
+    "status": "VERIFIED"
+  }
+}

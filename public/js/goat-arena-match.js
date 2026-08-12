@@ -70,6 +70,25 @@
   let automaticSubmitRequested = false;
   let lastFocusSignalType = "";
   let lastFocusSignalAt = 0;
+  let navigationGuardEnabled = true;
+  let restoringGuardHistory = false;
+  let pageExitSignalQueued = false;
+
+  const exitWarningMessage =
+    "1대1 매치가 진행 중입니다. 지금 나가도 제한 시간은 계속 흐르며, 저장되지 않은 답안은 사라질 수 있습니다. 경기 화면에서 나가시겠습니까?";
+
+  const releaseNavigationGuard = () => {
+    navigationGuardEnabled = false;
+  };
+
+  const confirmMatchExit = () => {
+    if (!navigationGuardEnabled) return true;
+    if (!window.confirm(exitWarningMessage)) {
+      return false;
+    }
+    releaseNavigationGuard();
+    return true;
+  };
 
   const operationId = () =>
     window.crypto?.randomUUID?.() ||
@@ -204,6 +223,17 @@
     enqueueSignal(type);
   };
 
+  const enqueuePageExitSignal = () => {
+    if (submitting || pageExitSignalQueued) {
+      return;
+    }
+    pageExitSignalQueued = true;
+    enqueueSignal(
+      "PAGE_EXITED",
+      inputs[0]?.dataset.arenaAnswer || ""
+    );
+  };
+
   const flushSignals = async ({
     keepalive = false,
   } = {}) => {
@@ -280,6 +310,7 @@
         }
       );
       if (result.finalQuestion) {
+        releaseNavigationGuard();
         window.location.assign(
           `/goat-arena/matches/${matchId}`
         );
@@ -288,6 +319,7 @@
           Number(
             result.currentQuestionIndex
           ) + 1;
+        releaseNavigationGuard();
         window.location.assign(
           `/goat-arena/matches/${matchId}?question=${nextQuestion}`
         );
@@ -297,6 +329,7 @@
         error.status === 410 ||
         error.status === 423
       ) {
+        releaseNavigationGuard();
         window.location.reload();
         return;
       }
@@ -392,20 +425,71 @@
   window.addEventListener("blur", () => {
     enqueueFocusSignal("FOCUS_LOST");
   });
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      const link = event.target.closest?.("a[href]");
+      if (
+        !link ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        link.target === "_blank" ||
+        link.hasAttribute("download")
+      ) {
+        return;
+      }
+
+      const destination = new URL(
+        link.href,
+        window.location.href
+      );
+      const current = new URL(
+        window.location.href
+      );
+      const isSameDocumentAnchor =
+        destination.origin === current.origin &&
+        destination.pathname === current.pathname &&
+        destination.search === current.search &&
+        destination.hash;
+      if (isSameDocumentAnchor) return;
+
+      if (!confirmMatchExit()) {
+        event.preventDefault();
+      }
+    },
+    true
+  );
+
   window.addEventListener(
     "beforeunload",
-    () => {
+    (event) => {
       flushChanges({
         keepalive: true,
       }).catch(() => {});
       flushSignals({
         keepalive: true,
       }).catch(() => {});
+      if (navigationGuardEnabled) {
+        event.preventDefault();
+        // Chrome·Safari의 legacy 경로까지 포함해 새로고침·탭 닫기
+        // 경고가 빠지지 않도록 truthy returnValue를 함께 설정한다.
+        event.returnValue = true;
+        return true;
+      }
     }
   );
   window.addEventListener(
     "pagehide",
     () => {
+      // 정상적인 다음 문항·최종 제출 이동은 submitting=true이므로 제외한다.
+      // 브라우저 뒤로가기, 링크 이탈, 새로고침, 탭 닫기처럼 실제 문제
+      // 문서가 종료된 경우에만 현재 문항과 함께 감사 이벤트를 남긴다.
+      enqueuePageExitSignal();
       enqueueFocusSignal("FOCUS_LOST");
       flushChanges({ keepalive: true }).catch(() => {});
       flushSignals({ keepalive: true }).catch(() => {});
@@ -438,6 +522,59 @@
       }${currentUrl.hash}`
     );
   }
+
+  const currentHistoryState =
+    window.history.state || {};
+  const historyGuardAlreadyInstalled =
+    currentHistoryState.arenaMatchGuard ===
+    matchId;
+  if (!historyGuardAlreadyInstalled) {
+    window.history.replaceState(
+      {
+        ...currentHistoryState,
+        arenaMatchGuardBase: matchId,
+      },
+      "",
+      window.location.href
+    );
+    window.history.pushState(
+      {
+        ...currentHistoryState,
+        arenaMatchGuard: matchId,
+      },
+      "",
+      window.location.href
+    );
+  }
+  window.addEventListener(
+    "popstate",
+    () => {
+      if (!navigationGuardEnabled) return;
+      if (restoringGuardHistory) {
+        restoringGuardHistory = false;
+        return;
+      }
+
+      if (confirmMatchExit()) {
+        window.history.back();
+        return;
+      }
+
+      restoringGuardHistory = true;
+      window.history.forward();
+    }
+  );
+  window.addEventListener(
+    "pageshow",
+    (event) => {
+      if (!event.persisted) return;
+      // 명시적으로 나갔다가 BFCache의 경기 화면으로 돌아온 경우,
+      // 서버의 최신 응시 상태를 받으면서 보호막도 새로 활성화한다.
+      releaseNavigationGuard();
+      window.location.reload();
+    }
+  );
+
   refreshAnswered();
   refreshTimer();
   window.setInterval(refreshTimer, 1000);

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * 2016년 이후 고3 3·5·6·7·9·10·11월 전국연합학력평가·모의평가
- * 수학 해설에서 출제의도를 읽어
- * GOAT Arena용 추상 유형 메타데이터를 만든다.
+ * 2016년 이후 고3 전국연합학력평가·모의평가의 수학 전 문항 해설과
+ * EBSi 자체분석 문항 정답률을 결합해 GOAT Arena용 추상 유형·난이도
+ * 메타데이터를 만든다.
  *
  * 원문 문제·정답·해설 전문은 저장하지 않는다. 최종 산출물에는 공식 출처,
- * 시행 정보, 문항 위치, 추상 유형, 과목, 구조 지표와 T1~T9만 남긴다.
+ * 시행 정보, 추상 유형, 과목, 정답률 근거와 보수적 난이도 구간만 남긴다.
  */
 
 import fs from "node:fs/promises";
@@ -14,7 +14,13 @@ import path from "node:path";
 import process from "node:process";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import accuracyPolicy from "../services/arenaAccuracyDifficultyPolicy.js";
+
+const {
+  ARENA_ACCURACY_DIFFICULTY_POLICY_VERSION,
+  classifyAccuracyEvidence,
+  sourceBandForDifficultyClass,
+} = accuracyPolicy;
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT_FILE = path.join(
@@ -25,9 +31,96 @@ const CACHE_DIR = "/private/tmp/pdfs/matths-arena-official-mock-research";
 const RAW_RESEARCH_FILE = "/private/tmp/matths-arena-official-mock-raw-intents.json";
 const EBS_AJAX_URL = "https://www.ebsi.co.kr/ebs/xip/xipc/previousPaperListAjax.ajax";
 const EBS_DOWNLOAD_ROOT = "https://wdown.ebsi.co.kr/W61001/01exam";
-const TARGET_QUESTIONS = Object.freeze([13, 14, 20, 21, 27, 28, 29, 30]);
-const TARGET_MONTHS = Object.freeze([3, 5, 6, 7, 9, 10, 11]);
+const EBS_WRONG_ANSWER_ROOT = "https://www.ebsi.co.kr/ebs/xip/xipa";
+const TARGET_QUESTIONS = Object.freeze(
+  Array.from({ length: 30 }, (_unused, index) => index + 1)
+);
+// 월을 미리 선별하지 않는다. EBSi 고3 목록에 존재하는 2016~2026 전월을
+// 조회한 뒤 실제 수능 제목만 제외해 월별 모의고사를 빠뜨리지 않는다.
+const TARGET_MONTHS = Object.freeze(
+  Array.from({ length: 12 }, (_unused, index) => index + 1)
+);
 const TARGET_MONTH_LIST = TARGET_MONTHS.map((month) => String(month).padStart(2, "0")).join(",");
+let pdfDocumentLoader = null;
+
+function installPdfTextExtractionPolyfills() {
+  if (typeof globalThis.DOMMatrix === "undefined") {
+    globalThis.DOMMatrix = class DOMMatrix {
+      constructor(values = [1, 0, 0, 1, 0, 0]) {
+        const source = Array.isArray(values) || ArrayBuffer.isView(values)
+          ? [...values]
+          : [1, 0, 0, 1, 0, 0];
+        [this.a, this.b, this.c, this.d, this.e, this.f] = [
+          Number(source[0] ?? 1),
+          Number(source[1] ?? 0),
+          Number(source[2] ?? 0),
+          Number(source[3] ?? 1),
+          Number(source[4] ?? 0),
+          Number(source[5] ?? 0),
+        ];
+      }
+
+      multiplySelf(other) {
+        const right = other instanceof globalThis.DOMMatrix
+          ? other
+          : new globalThis.DOMMatrix(other);
+        const { a, b, c, d, e, f } = this;
+        this.a = a * right.a + c * right.b;
+        this.b = b * right.a + d * right.b;
+        this.c = a * right.c + c * right.d;
+        this.d = b * right.c + d * right.d;
+        this.e = a * right.e + c * right.f + e;
+        this.f = b * right.e + d * right.f + f;
+        return this;
+      }
+
+      preMultiplySelf(other) {
+        const left = new globalThis.DOMMatrix(other);
+        left.multiplySelf(this);
+        Object.assign(this, left);
+        return this;
+      }
+
+      translate(tx = 0, ty = 0) {
+        return new globalThis.DOMMatrix([this.a, this.b, this.c, this.d, this.e, this.f])
+          .multiplySelf(new globalThis.DOMMatrix([1, 0, 0, 1, tx, ty]));
+      }
+
+      scale(value = 1) {
+        return new globalThis.DOMMatrix([this.a, this.b, this.c, this.d, this.e, this.f])
+          .multiplySelf(new globalThis.DOMMatrix([value, 0, 0, value, 0, 0]));
+      }
+
+      inverse() {
+        const determinant = this.a * this.d - this.b * this.c;
+        if (!determinant) return new globalThis.DOMMatrix();
+        return new globalThis.DOMMatrix([
+          this.d / determinant,
+          -this.b / determinant,
+          -this.c / determinant,
+          this.a / determinant,
+          (this.c * this.f - this.d * this.e) / determinant,
+          (this.b * this.e - this.a * this.f) / determinant,
+        ]);
+      }
+    };
+  }
+  if (typeof globalThis.ImageData === "undefined") {
+    globalThis.ImageData = class ImageData {};
+  }
+  if (typeof globalThis.Path2D === "undefined") {
+    globalThis.Path2D = class Path2D {};
+  }
+}
+
+async function getPdfDocumentLoader() {
+  if (pdfDocumentLoader) return pdfDocumentLoader;
+  installPdfTextExtractionPolyfills();
+  ({ getDocument: pdfDocumentLoader } = await import(
+    "pdfjs-dist/legacy/build/pdf.mjs"
+  ));
+  return pdfDocumentLoader;
+}
 
 const COURSE_LABELS = Object.freeze({
   "common-math-1": "공통수학Ⅰ",
@@ -35,17 +128,6 @@ const COURSE_LABELS = Object.freeze({
   algebra: "대수",
   "probability-statistics": "확률과 통계",
   "calculus-1": "미적분Ⅰ",
-});
-
-const POSITION_BASE = Object.freeze({
-  13: 1.2,
-  14: 1.8,
-  20: 3.3,
-  21: 4.1,
-  27: 4.5,
-  28: 5.4,
-  29: 7.2,
-  30: 8.2,
 });
 
 const FAMILY_RULES = Object.freeze([
@@ -172,6 +254,127 @@ async function collectOfficialForms() {
   });
 }
 
+async function postEbsiJson(pathname, data = {}) {
+  const response = await fetch(`${EBS_WRONG_ANSWER_ROOT}/${pathname}`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded; charset=UTF-8" },
+    body: new URLSearchParams(data),
+  });
+  if (!response.ok) {
+    throw new Error(`EBSi 정답률 요청 실패 ${response.status}: ${pathname}`);
+  }
+  return response.json();
+}
+
+async function postEbsiHtml(pathname, data = {}) {
+  const response = await fetch(`${EBS_WRONG_ANSWER_ROOT}/${pathname}`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded; charset=UTF-8" },
+    body: new URLSearchParams(data),
+  });
+  if (!response.ok) {
+    throw new Error(`EBSi 정답률 표 요청 실패 ${response.status}: ${pathname}`);
+  }
+  return response.text();
+}
+
+function accuracyFormForSubject(subjectLabel) {
+  const compact = compactText(subjectLabel).replace(/\s+/g, "");
+  if (compact.includes("확률과통계")) return "PROBABILITY_STATISTICS";
+  if (compact.includes("미적분")) return "CALCULUS";
+  if (compact.includes("수학가형")) return "GA";
+  if (compact.includes("수학나형")) return "NA";
+  return "";
+}
+
+function parseWrongAnswerRows(html) {
+  return [...String(html || "").matchAll(/<tr>([\s\S]*?)<\/tr>/g)]
+    .map((match) => {
+      const cells = [...match[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)]
+        .map((cell) => compactText(cell[1]));
+      if (cells.length < 5) return null;
+      const rank = Number(cells[0]);
+      const questionNumber = Number(cells[1]);
+      const wrongRatePercent = Number(cells[2]);
+      const itemId = Number(match[1].match(/itemView\((\d+)\)/)?.[1] || 0);
+      if (
+        !Number.isInteger(rank) ||
+        !TARGET_QUESTIONS.includes(questionNumber) ||
+        !Number.isFinite(wrongRatePercent)
+      ) {
+        return null;
+      }
+      return {
+        rank,
+        questionNumber,
+        wrongRatePercent,
+        correctRatePercent: Number((100 - wrongRatePercent).toFixed(1)),
+        points: Number(cells[3]) || null,
+        itemId: itemId || null,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.questionNumber - right.questionNumber);
+}
+
+function normalizedSessionMonth(year, month) {
+  return Number(year) === 2022 && Number(month) === 8 ? 9 : Number(month);
+}
+
+async function collectOfficialAccuracyPapers() {
+  const papers = [];
+  for (let year = 2016; year <= 2026; year += 1) {
+    const monthPayload = await postEbsiJson(
+      "retrieveWrongAnswerRateMonthList.ajax",
+      { year: String(year), targetCd: "D300" }
+    );
+    for (const monthEntry of monthPayload.result || []) {
+      const month = Number(monthEntry.value);
+      const sessionMonth = normalizedSessionMonth(year, month);
+      if (!TARGET_MONTHS.includes(sessionMonth)) continue;
+      const subjectPayload = await postEbsiJson(
+        "retrieveWrongAnswerRateSubjList.ajax",
+        {
+          year: String(year),
+          targetCd: "D300",
+          irecord: String(monthEntry.code),
+          arOrd: "2",
+        }
+      );
+      for (const subject of subjectPayload.result || []) {
+        const form = accuracyFormForSubject(subject.value);
+        if (!form) continue;
+        const paperId = String(subject.code || "");
+        const html = await postEbsiHtml("retrieveWrongAnswerRateList.ajax", {
+          paperId,
+        });
+        const rows = parseWrongAnswerRows(html);
+        if (!rows.length) continue;
+        papers.push({
+          year,
+          sessionMonth,
+          administeredMonth: month,
+          irecord: String(monthEntry.code),
+          form,
+          subjectLabel: compactText(subject.value),
+          paperId,
+          rows,
+          top15WrongRateCutoffPercent: Math.min(
+            ...rows.map((row) => row.wrongRatePercent)
+          ),
+          sourceUrl:
+            "https://www.ebsi.co.kr/ebs/xip/xipa/retrievePastGrdCutWrongAnswerRate.ebs?tab=2",
+        });
+      }
+    }
+  }
+  return papers;
+}
+
+function accuracyPaperKey({ year, sessionMonth, form }) {
+  return `${year}:${sessionMonth}:${form}`;
+}
+
 async function downloadPdf(url) {
   await fs.mkdir(CACHE_DIR, { recursive: true });
   const file = path.join(CACHE_DIR, `${createHash("sha1").update(url).digest("hex")}.pdf`);
@@ -190,6 +393,7 @@ async function downloadPdf(url) {
 
 async function readPdfText(file) {
   const data = new Uint8Array(await fs.readFile(file));
+  const getDocument = await getPdfDocumentLoader();
   const document = await getDocument({ data }).promise;
   const pages = [];
   for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
@@ -228,13 +432,6 @@ function extractQuestionSections(text) {
   });
 }
 
-function positionBand(questionNumber) {
-  if ([13, 14].includes(questionNumber)) return "Q13_14";
-  if ([20, 21].includes(questionNumber)) return "Q20_21";
-  if ([27, 28].includes(questionNumber)) return "Q27_28";
-  return "Q29_30_KILLER";
-}
-
 function familyFor(intent) {
   const normalized = normalizeIntent(intent);
   const compact = normalized.replace(/\s+/g, "");
@@ -257,39 +454,88 @@ function familyFor(intent) {
   };
 }
 
-function difficultyFor({ questionNumber, intent, solutionCharacters }) {
-  const text = normalizeIntent(intent);
-  let score = Number(POSITION_BASE[questionNumber] || 4);
-  const structuralSignals = [
-    /조건|모든|항상|존재|개수|정수|자연수/,
-    /그래프|교점|구간|범위|영역/,
-    /최댓값|최솟값|극값|필요충분/,
-    /합성|역함수|점화식|정규분포|조건부/,
-  ];
-  score += structuralSignals.filter((pattern) => pattern.test(text)).length * 0.35;
-  score += Math.min(1.1, Math.max(0, Number(solutionCharacters || 0) - 500) / 1800);
-  const tierNumber = Math.max(1, Math.min(9, Math.round(score)));
-  return {
-    difficultyTier: `T${tierNumber}`,
-    difficultyScore: Number(score.toFixed(2)),
-    difficultyBasis: "POSITION_INTENT_STRUCTURE_SOLUTION_LENGTH",
-  };
+function conservativeTierForAccuracy({
+  correctRatePercent,
+  correctRateLowerBoundPercent,
+  difficultyClass,
+} = {}) {
+  if (difficultyClass === "UNRESOLVED") return "";
+  const hasExact =
+    correctRatePercent !== null &&
+    correctRatePercent !== undefined &&
+    correctRatePercent !== "";
+  const percent = hasExact && Number.isFinite(Number(correctRatePercent))
+    ? Number(correctRatePercent)
+    : Number(correctRateLowerBoundPercent);
+  if (!Number.isFinite(percent)) return "";
+  if (percent >= 90) return "T1";
+  if (percent >= 80) return "T2";
+  if (percent >= 70) return "T3";
+  if (percent >= 60) return "T4";
+  if (percent >= 50) return "T5";
+  if (percent >= 40) return "T6";
+  if (percent >= 30) return "T7";
+  if (percent >= 15) return "T8";
+  return "T9";
 }
 
-function shouldKeepCurrentQuestion(form, questionNumber, year) {
-  if (year <= 2020) return true;
-  if ([13, 14, 20, 21].includes(questionNumber)) {
-    return form === "PROBABILITY_STATISTICS";
+function accuracyEvidenceForQuestion(accuracyPaper, questionNumber) {
+  if (!accuracyPaper) {
+    return {
+      metricKind: "UNAVAILABLE",
+      runtimeEligible: false,
+      correctRatePercent: null,
+      correctRateLowerBoundPercent: null,
+      correctRateUpperBoundPercent: null,
+      wrongRatePercent: null,
+      wrongRateUpperBoundPercent: null,
+      paperId: "",
+      itemId: null,
+      sourceUrl: "",
+    };
   }
-  return ["PROBABILITY_STATISTICS", "CALCULUS"].includes(form);
+  const exact = accuracyPaper.rows.find(
+    (row) => row.questionNumber === questionNumber
+  );
+  if (exact) {
+    return {
+      metricKind: "EBSI_OBSERVED_TOP15",
+      runtimeEligible: true,
+      correctRatePercent: exact.correctRatePercent,
+      correctRateLowerBoundPercent: exact.correctRatePercent,
+      correctRateUpperBoundPercent: exact.correctRatePercent,
+      wrongRatePercent: exact.wrongRatePercent,
+      wrongRateUpperBoundPercent: exact.wrongRatePercent,
+      points: exact.points,
+      paperId: accuracyPaper.paperId,
+      itemId: exact.itemId,
+      sourceUrl: accuracyPaper.sourceUrl,
+    };
+  }
+  const lowerBound = Number(
+    (100 - accuracyPaper.top15WrongRateCutoffPercent).toFixed(1)
+  );
+  return {
+    metricKind: "EBSI_TOP15_CENSORED_LOWER_BOUND",
+    runtimeEligible: true,
+    correctRatePercent: null,
+    correctRateLowerBoundPercent: lowerBound,
+    correctRateUpperBoundPercent: 100,
+    wrongRatePercent: null,
+    wrongRateUpperBoundPercent: accuracyPaper.top15WrongRateCutoffPercent,
+    points: null,
+    paperId: accuracyPaper.paperId,
+    itemId: null,
+    sourceUrl: accuracyPaper.sourceUrl,
+  };
 }
 
 function selectTargetSections(form, sections) {
   const target = sections.filter((question) => TARGET_QUESTIONS.includes(question.questionNumber));
+  const selected = TARGET_QUESTIONS.flatMap((questionNumber) =>
+    target.find((question) => question.questionNumber === questionNumber) || []
+  );
   if (form.year <= 2020) {
-    const selected = TARGET_QUESTIONS.flatMap((questionNumber) =>
-      target.find((question) => question.questionNumber === questionNumber) || []
-    );
     // 2020년 6월 가형 21번은 EBS 해설 PDF의 2단 편집 때문에 PDF 텍스트
     // 항목 순서가 뒤섞여 자동 marker가 소실된다. 해당 페이지를 직접 검수한
     // 추상 출제의도만 보완하며 원문 문제·해설은 저장하지 않는다.
@@ -307,18 +553,24 @@ function selectTargetSections(form, sections) {
     }
     return selected.sort((left, right) => left.questionNumber - right.questionNumber);
   }
-  const selectionIndex = form.form === "CALCULUS" ? 1 : 0;
-  return TARGET_QUESTIONS.flatMap((questionNumber) => {
-    const matches = target.filter((question) => question.questionNumber === questionNumber);
-    if ([13, 14, 20, 21].includes(questionNumber)) return matches.slice(0, 1);
-    const selected = matches.length > selectionIndex ? matches[selectionIndex] : matches[0];
-    return selected ? [selected] : [];
-  });
+  // 2021학년도 이후 공통 1~22번은 확률과 통계 응시 집단의 정답률을
+  // 대표값으로 한 번만 저장하고, 미적분 파일에서는 선택 23~30번만 남긴다.
+  return form.form === "CALCULUS"
+    ? selected.filter((question) => question.questionNumber >= 23)
+    : selected;
 }
 
-function makeAbstractRecord(form, question) {
+function makeAbstractRecord(form, question, accuracyPaper) {
   const family = familyFor(question.intent);
-  const difficulty = difficultyFor({ ...question });
+  const accuracyEvidence = accuracyEvidenceForQuestion(
+    accuracyPaper,
+    question.questionNumber
+  );
+  const classification = classifyAccuracyEvidence(accuracyEvidence);
+  const difficultyTier = conservativeTierForAccuracy({
+    ...classification,
+    difficultyClass: classification.difficultyClass,
+  });
   const sessionMonth = form.month === 8 && form.year === 2022 ? 9 : form.month;
   const isKiceMock = [6, 9].includes(sessionMonth);
   const sourceAuthority = isKiceMock ? "KICE" : "EDUCATION_OFFICE";
@@ -333,15 +585,32 @@ function makeAbstractRecord(form, question) {
     administeredMonth: form.month,
     form: form.form,
     questionNumber: question.questionNumber,
-    sourcePositionBand: positionBand(question.questionNumber),
-    finalSlotInfluence: [29, 30].includes(question.questionNumber),
+    sourcePositionBand: sourceBandForDifficultyClass(
+      classification.difficultyClass
+    ),
+    finalSlotInfluence: classification.difficultyClass === "KILLER",
     status: family.status,
     exclusionReason: family.exclusionReason,
     courseId: family.courseId,
     courseLabel: COURSE_LABELS[family.courseId] || "",
     familyId: family.familyId,
     familyLabel: family.familyLabel,
-    ...difficulty,
+    difficultyTier,
+    difficultyClass: classification.difficultyClass,
+    difficultyPolicyVersion: ARENA_ACCURACY_DIFFICULTY_POLICY_VERSION,
+    difficultyBasis:
+      classification.classificationConfidence === "EXACT"
+        ? "EBSI_OBSERVED_CORRECT_RATE"
+        : classification.classificationConfidence === "CENSORED_BOUND"
+          ? "EBSI_TOP15_CENSORED_CORRECT_RATE_BOUND"
+          : "UNRESOLVED_ACCURACY_EVIDENCE",
+    runtimeDifficultyEligible:
+      family.status === "ACTIVE_REFERENCE" &&
+      classification.difficultyClass !== "UNRESOLVED",
+    accuracyEvidence: {
+      ...accuracyEvidence,
+      classificationConfidence: classification.classificationConfidence,
+    },
     structureMetrics: {
       solutionCharacterBand: question.solutionCharacters >= 1800
         ? "LONG"
@@ -362,6 +631,9 @@ function makeAbstractRecord(form, question) {
 
 function summarize(records, forms) {
   const active = records.filter((record) => record.status === "ACTIVE_REFERENCE");
+  const runtimeEligible = active.filter(
+    (record) => record.runtimeDifficultyEligible === true
+  );
   const countBy = (items, key) => Object.fromEntries(
     [...new Set(items.map((record) => record[key]).filter(Boolean))]
       .sort()
@@ -374,10 +646,24 @@ function summarize(records, forms) {
     sourceForms: forms.length,
     targetQuestionReferences: records.length,
     activeReferences: records.filter((record) => record.status === "ACTIVE_REFERENCE").length,
+    runtimeDifficultyEligibleReferences: runtimeEligible.length,
+    exactAccuracyReferences: records.filter(
+      (record) => record.accuracyEvidence?.metricKind === "EBSI_OBSERVED_TOP15"
+    ).length,
+    censoredAccuracyReferences: records.filter(
+      (record) =>
+        record.accuracyEvidence?.metricKind ===
+        "EBSI_TOP15_CENSORED_LOWER_BOUND"
+    ).length,
+    unavailableAccuracyReferences: records.filter(
+      (record) => record.accuracyEvidence?.metricKind === "UNAVAILABLE"
+    ).length,
     excludedReferences: records.filter((record) => record.status === "EXCLUDED").length,
     reviewRequired: records.filter((record) => record.status === "REVIEW_REQUIRED").length,
     byCourse: countBy(active, "courseId"),
     byDifficulty: countBy(active, "difficultyTier"),
+    byDifficultyClass: countBy(runtimeEligible, "difficultyClass"),
+    byAccuracyEvidence: countBy(records, "difficultyBasis"),
     byFamily: countBy(active, "familyId"),
     byPositionBand: countBy(active, "sourcePositionBand"),
     bySessionMonth: countBy(active, "sessionMonth"),
@@ -386,32 +672,57 @@ function summarize(records, forms) {
 }
 
 async function main() {
-  const forms = await collectOfficialForms();
+  const [forms, accuracyPapers] = await Promise.all([
+    collectOfficialForms(),
+    collectOfficialAccuracyPapers(),
+  ]);
+  const accuracyPaperMap = new Map(
+    accuracyPapers.map((paper) => [accuracyPaperKey(paper), paper])
+  );
   const raw = [];
   for (const [index, form] of forms.entries()) {
     process.stdout.write(`[${index + 1}/${forms.length}] ${form.year} ${form.month} ${form.form}\n`);
     const file = await downloadPdf(form.solutionUrl);
     const text = await readPdfText(file);
-    const sections = selectTargetSections(form, extractQuestionSections(text)).filter((question) =>
-      shouldKeepCurrentQuestion(form.form, question.questionNumber, form.year)
-    );
+    const sections = selectTargetSections(form, extractQuestionSections(text));
     raw.push({ ...form, questions: sections });
   }
   await fs.writeFile(RAW_RESEARCH_FILE, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
-  const records = raw.flatMap((form) => form.questions.map((question) => makeAbstractRecord(form, question)));
+  const records = raw.flatMap((form) => {
+    const sessionMonth = normalizedSessionMonth(form.year, form.month);
+    const accuracyPaper = accuracyPaperMap.get(
+      accuracyPaperKey({
+        year: form.year,
+        sessionMonth,
+        form: form.form,
+      })
+    );
+    return form.questions.map((question) =>
+      makeAbstractRecord(form, question, accuracyPaper)
+    );
+  });
   const payload = {
-    schemaVersion: "ARENA_OFFICIAL_MOCK_RESEARCH_V2",
+    schemaVersion: "ARENA_OFFICIAL_MOCK_RESEARCH_V3",
     generatedAt: new Date().toISOString(),
-    sourceNotice: "2016년 이후 고3 3·5·6·7·9·10·11월 전국연합학력평가·모의평가의 EBSi 해설에서 출제의도만 분석하고 원문 문제·정답·해설은 저장하지 않음. 수능은 제외함",
+    sourceNotice: "2016년 이후 고3 전국연합학력평가·모의평가의 EBSi 해설 출제의도와 EBSi 자체분석 문항 정답률을 결합하고 원문 문제·정답·해설은 저장하지 않음. 수능은 제외함",
     methodology: {
       targetYears: [2016, 2026],
       targetGrade: 3,
-      targetMonths: TARGET_MONTHS,
+      queriedMonths: TARGET_MONTHS,
+      targetMonths: [...new Set(forms.map((form) =>
+        normalizedSessionMonth(form.year, form.month)
+      ))].sort((left, right) => left - right),
       targetQuestions: TARGET_QUESTIONS,
       excludedExamTypes: ["CSAT"],
       sourcePositionsAreAuxiliary: true,
-      difficultySignals: ["문항 위치", "출제의도 구조", "조건 신호", "풀이 구조 길이"],
-      fifthSlotRule: "Q29_30_KILLER",
+      difficultyPolicyVersion: ARENA_ACCURACY_DIFFICULTY_POLICY_VERSION,
+      difficultySignals: [
+        "EBSi 자체분석 문항 정답률",
+        "EBSi 오답률 TOP15 비노출 문항의 검증 가능한 정답률 하한",
+      ],
+      accuracyEvidencePolicy:
+        "TOP15는 정확한 정답률로 분류하고 비노출 문항은 하한과 상한이 하나의 난이도 구간에 완전히 포함될 때만 확정",
+      fifthSlotRule: "TIER_ACCURACY_CLASS_MIX",
     },
     summary: summarize(records, forms),
     records,

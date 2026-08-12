@@ -63,20 +63,20 @@ function getAdminProblemBankCatalog() {
       {
         name: "GOAT Arena 1대1 난이도·유형 설계표",
         file: relativeFile("services/arenaOneOnOneDifficultyPolicy.js"),
-        purpose: "Division·방어자 기준 U1~U9·R1~R9와 난이도 곡선을 관리합니다. U1~U6은 5문항 준킬러, R1~R6은 1~4번 준킬러·5번 킬러, U7~U9·R7~R9은 5문항 전부 29·30번형 킬러입니다.",
-        status: "정책 골격 연결 완료",
+        purpose: "Division·방어자 기준으로 완전히 분리된 U1~U9·R1~R9와 EBSi 정답률 D1~D9 사다리를 관리합니다.",
+        status: "Arena PDF 운영 풀 연결 완료",
       },
       {
         name: "GOAT Arena 1대1 5과목 유형 골격",
         file: relativeFile("services/arenaOneOnOneTypeSkeletons.js"),
         purpose: `공통수학Ⅰ·Ⅱ·대수·확률과 통계·미적분Ⅰ의 U/R 일반·최종 유형 ${Object.keys(ARENA_ONE_ON_ONE_TYPE_SKELETONS).length}개`,
-        status: "2016~2026 고3 3·5·6·7·9·10·11월 모의고사 유형 분류 연결 완료 · 숫자 생성기는 승인된 유형만 활성화",
+        status: "2016~2026 고3 전월 모의고사 전 문항 정답률 분류 연결 완료 · 숫자 생성기는 승인된 유형만 활성화",
       },
       {
         name: "GOAT Arena 공식 모의평가 유형 조사",
         file: relativeFile("dataAnalysis/arenaOfficialMockTypeCatalog2016_2026.json"),
-        purpose: `고3 3·5·6·7·9·10·11월 전국연합학력평가·모의평가 ${officialResearch.sourceForms}개 형식의 대상 문항 ${officialResearch.targetQuestionReferences}건을 ${officialResearch.familyStats.length}개 사고 유형과 U/R 설계 난이도로 분류`,
-        status: `${officialResearch.activeReferences}건 사용 · ${officialResearch.excludedReferences}건 교육과정 제외 · 검토 보류 ${officialResearch.reviewRequired}건`,
+        purpose: `고3 전월 전국연합학력평가·모의평가 ${officialResearch.sourceForms}개 시험지의 전 문항 ${officialResearch.targetQuestionReferences}건을 ${officialResearch.familyStats.length}개 사고 유형과 5개 객관 난이도로 분류`,
+        status: `${officialResearch.runtimeDifficultyEligibleReferences}건 런타임 사용 · ${officialResearch.excludedReferences}건 교육과정 제외 · 검토 보류 ${officialResearch.reviewRequired}건`,
       },
       {
         name: "GOAT Arena 공개 사설 모의고사 난이도 조사",
@@ -105,19 +105,19 @@ function getAdminProblemBankCatalog() {
       {
         name: "GOAT Arena U1~U9·R1~R9 DB 카탈로그",
         file: relativeFile("services/arenaTierQuestionCatalogService.js"),
-        purpose: "승인 생성기 검산, 참고 문항 270개 버전, 관리자 유형 추가와 신규 경기 무중단 반영",
-        status: "관리자 화면에서 안전한 유형 추가 가능",
+        purpose: "과거 Arena 유형과 관리자 검토 자료를 보존하는 레거시 카탈로그",
+        status: "현재 신규 1대1 런타임 미사용 · PDF 운영 풀과 분리",
       },
       {
         name: "GOAT Arena 1대1 문제 유형",
         file: relativeFile("services/arenaOneOnOneProblemTypes.js"),
         purpose: `배치고사와 분리된 Arena 전용 준킬러 ${Object.values(ARENA_ONE_ON_ONE_PROBLEM_TYPES).filter((definition) => definition.category === "semi-killer").length}개 중 3자리 이하 자연수 답 조건을 충족하는 ${Object.values(ARENA_ONE_ON_ONE_PROBLEM_TYPES).filter((definition) => definition.arenaNaturalAnswerEligible === true).length}개 생성 유형과 자동 검산`,
-        status: "수학 생성 로직 배포용 · 유형 배정은 관리자 DB 버전으로 변경 가능",
+        status: "레거시 Arena 생성기 · 현재 신규 1대1 런타임 미사용",
       },
       {
         name: "GOAT Arena 1대1 티어 조합",
         file: relativeFile("services/arenaOneOnOneProblemBank.js"),
-        purpose: `티어 조합별 30묶음·묶음당 서로 다른 5유형·U1~U6 전 문항 준킬러·R1~R6 5번 킬러·U7~U9와 R7~R9 전 문항 킬러 배정 (${configuredArenaPacks}/${totalArenaPacks}묶음 연결)`,
+        purpose: `신규 경기마다 200개 PDF 스켈레톤에서 U/R 전용 D1~D9 조합과 과목 2·2·1에 맞는 서로 다른 5유형을 생성 (${configuredArenaPacks}/${totalArenaPacks} 레거시 묶음 보존)`,
         status:
           configuredArenaPacks === totalArenaPacks
             ? "연결 완료"

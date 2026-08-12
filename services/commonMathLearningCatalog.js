@@ -136,7 +136,7 @@ function buildCommonMathLessonDefinitions(curriculum) {
           steps: detailedSteps(concept, detail),
           motion: { assetUrl: null, posterUrl: null, durationSeconds: 18 },
           playgroundKey: `common-math-${concept.id}`,
-          practice: { generatorKey: `common-math-${concept.id}`, requiredDistinctTypes: 10 },
+          practice: { generatorKey: `common-math-${concept.id}`, requiredDistinctTypes: 5 },
           dashboardPreview: {
             type: visualType,
             title,

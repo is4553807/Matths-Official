@@ -1,7 +1,17 @@
 # Secrets and local configuration
 *.env
+.env.*
 !.env.example
 !*.env.example
+!.env.*.example
+credentials*.json
+service-account*.json
+!credentials*.example.json
+!service-account*.example.json
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Dependencies
 node_modules/
@@ -14,8 +24,14 @@ coverage/
 .nyc_output/
 .cache/
 logs/
+uploads/
 *.log
 *.pid
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.bson
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -25,6 +41,21 @@ output/
 outputs/
 video/
 work/
+
+# Local browser and visual regression artifacts
+playwright-report/
+test-results/
+browser-artifacts/
+screenshots/
+*.har
+*.trace.zip
+
+# Generated Arena PDF inspection outputs. Source ledgers, transcriptions,
+# contracts and generator code remain trackable for reproducibility.
+dataAnalysis/arenaPdfSkeletonImplementation/*preview*.html
+dataAnalysis/arenaPdfSkeletonImplementation/*render*.html
+dataAnalysis/arenaPdfSkeletonImplementation/*verification*.json
+dataAnalysis/arenaPdfSkeletonImplementation/*audit*.json
 
 # Python caches
 __pycache__/

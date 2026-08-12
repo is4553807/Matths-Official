@@ -248,7 +248,7 @@ async function detectEvidenceAnomalies({ attempt, scoring, files, session }) {
   if (files.some((file) => Number(file.sizeBytes) < 5 * 1024)) {
     flags.push("VERY_SMALL_EVIDENCE_FILE");
   }
-  const focusRows = await ArenaMatchAttemptEvent.aggregate([
+  const activityRows = await ArenaMatchAttemptEvent.aggregate([
     {
       $match: {
         attemptId: attempt._id,
@@ -256,12 +256,38 @@ async function detectEvidenceAnomalies({ attempt, scoring, files, session }) {
       },
     },
     { $unwind: "$signals" },
-    { $match: { "signals.type": "FOCUS_LOST" } },
-    { $count: "count" },
+    {
+      $match: {
+        "signals.type": {
+          $in: ["FOCUS_LOST", "PAGE_EXITED"],
+        },
+      },
+    },
+    {
+      $group: {
+        _id: "$signals.type",
+        count: { $sum: 1 },
+      },
+    },
   ]).session(session);
-  const focusEvents = Number(focusRows[0]?.count || 0);
+  const activityCounts = new Map(
+    activityRows.map((row) => [
+      String(row._id),
+      Number(row.count || 0),
+    ])
+  );
+  const focusEvents = Number(
+    activityCounts.get("FOCUS_LOST") || 0
+  );
   if (focusEvents >= 5) {
     flags.push("REPEATED_FOCUS_LOSS");
+  }
+  if (
+    Number(
+      activityCounts.get("PAGE_EXITED") || 0
+    ) > 0
+  ) {
+    flags.push("MATCH_PAGE_EXITED");
   }
   const duplicate = await ArenaMatchEvidence.exists({
     matchId: attempt.matchId,

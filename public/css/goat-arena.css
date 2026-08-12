@@ -5603,6 +5603,13 @@ html {
   font-variant-numeric: tabular-nums;
 }
 
+.arena-match-question-accuracy span {
+  color: #7c8ba1;
+  font-size: 9px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 560px) {
   .arena-match-question > header {
     align-items: flex-start;
@@ -5615,6 +5622,10 @@ html {
     grid-template-columns: 1fr auto;
     align-items: center;
     text-align: left;
+  }
+
+  .arena-match-question-accuracy span {
+    grid-column: 1 / -1;
   }
 }
 
@@ -5665,13 +5676,32 @@ html {
   font-weight: 750;
 }
 
-.arena-match-visualization svg {
+.arena-match-visualization > svg {
   width: 100%;
   min-height: 260px;
   max-height: 440px;
   border: 1px solid #edf0f5;
   border-radius: 6px;
   background: #fff;
+}
+
+.arena-svg-math-label {
+  overflow: visible;
+}
+
+.arena-svg-math-label mjx-container {
+  margin: 0 !important;
+  color: inherit !important;
+}
+
+.arena-svg-math-label mjx-container > svg {
+  width: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  overflow: visible !important;
 }
 
 .arena-match-problem-paper .MathJax,
@@ -5696,7 +5726,7 @@ html {
     flex-direction: column;
   }
 
-  .arena-match-visualization svg {
+  .arena-match-visualization > svg {
     min-height: 220px;
   }
 }
@@ -5912,13 +5942,19 @@ html {
 .arena-question-standard > header small, .arena-question-standard-block > div > small { color: #68dbff; font-size: .7rem; font-weight: 900; letter-spacing: .14em; }
 .arena-question-standard > header h2 { margin: 8px 0 0; color: #f7f8ff; font-size: clamp(1.8rem, 3vw, 2.75rem); letter-spacing: -.035em; }
 .arena-question-standard > header > span { flex: 0 0 auto; color: #7885ab; font-size: .68rem; }
+.arena-question-rollout-notice { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; padding: 18px 22px; border: 1px solid rgba(255, 196, 91, .24); border-radius: 16px; color: #bdc6df; background: rgba(74, 51, 10, .22); }
+.arena-question-rollout-notice strong { color: #ffd57a; font-size: .78rem; white-space: nowrap; }
+.arena-question-rollout-notice p { margin: 0; font-size: .78rem; line-height: 1.65; }
 .arena-question-standard-block { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 26px; padding: clamp(24px, 4vw, 38px); border: 1px solid rgba(123, 142, 218, .17); border-radius: 22px; background: linear-gradient(140deg, rgba(16, 22, 49, .95), rgba(9, 13, 30, .94)); }
 .arena-question-standard-number { display: grid; place-items: center; width: 58px; height: 58px; border: 1px solid rgba(87, 215, 255, .3); border-radius: 17px; color: #7de2ff; background: rgba(36, 174, 223, .08); font-size: .82rem; font-weight: 950; letter-spacing: .1em; }
 .arena-question-standard-block h3 { margin: 9px 0 14px; color: #f4f6ff; font-size: clamp(1.25rem, 2.2vw, 1.85rem); }
 .arena-question-standard-block ul { display: grid; gap: 7px; margin: 0 0 22px; padding-left: 20px; color: #aeb8d4; line-height: 1.7; }
+.arena-question-standard-block ul { grid-template-columns: minmax(0, 1fr); }
+.arena-question-standard-block li { min-width: 0; overflow-wrap: anywhere; }
 .arena-question-standard-block li::marker { color: #8d63ff; }
 .arena-question-table-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; border: 1px solid rgba(124, 146, 222, .16); border-radius: 15px; }
 .arena-question-standard table { width: 100%; min-width: 620px; border-collapse: collapse; color: #bbc4dd; }
+.arena-question-standard .arena-difficulty-plan-table { min-width: 1040px; }
 .arena-question-standard th, .arena-question-standard td { padding: 13px 16px; border-bottom: 1px solid rgba(124, 146, 222, .11); text-align: left; }
 .arena-question-standard thead th { color: #80d9ff; background: rgba(74, 136, 221, .08); font-size: .7rem; letter-spacing: .04em; }
 .arena-question-standard tbody th { color: #edf0fb; font-size: .82rem; }
@@ -6046,6 +6082,8 @@ html {
 @media (max-width: 560px) {
   .arena-rulebook-hero { padding-top: 60px; }
   .arena-question-standard > header { align-items: flex-start; flex-direction: column; }
+  .arena-question-rollout-notice { grid-template-columns: 1fr; gap: 7px; }
+  .arena-question-rollout-notice strong { white-space: normal; }
   .arena-question-standard-block { grid-template-columns: 1fr; }
   .arena-question-standard dl { grid-template-columns: 1fr; }
   .arena-rulebook-switcher { display: grid; }
@@ -6060,6 +6098,37 @@ html {
   .arena-main-policy > header { align-items: start; flex-direction: column; }
   .arena-main-policy > header > strong { text-align: left; }
   .arena-main-policy dl { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .arena-question-table-wrap:has(.arena-difficulty-plan-table),
+  .arena-question-table-wrap:has(.arena-mobile-card-table) { overflow: visible; border: 0; }
+  .arena-question-standard .arena-difficulty-plan-table,
+  .arena-question-standard .arena-mobile-card-table,
+  .arena-difficulty-plan-table tbody,
+  .arena-mobile-card-table tbody,
+  .arena-difficulty-plan-table tr,
+  .arena-mobile-card-table tr,
+  .arena-difficulty-plan-table th,
+  .arena-mobile-card-table th,
+  .arena-difficulty-plan-table td { display: block; width: 100%; min-width: 0; }
+  .arena-mobile-card-table td { display: block; width: 100%; min-width: 0; }
+  .arena-difficulty-plan-table thead,
+  .arena-mobile-card-table thead { display: none; }
+  .arena-difficulty-plan-table tbody,
+  .arena-mobile-card-table tbody { display: grid; gap: 12px; }
+  .arena-difficulty-plan-table tr,
+  .arena-mobile-card-table tr { overflow: hidden; border: 1px solid rgba(124, 146, 222, .18); border-radius: 14px; background: rgba(255, 255, 255, .02); }
+  .arena-difficulty-plan-table tbody th,
+  .arena-mobile-card-table tbody th { padding: 15px 16px; background: rgba(74, 136, 221, .09); }
+  .arena-difficulty-plan-table tbody td,
+  .arena-mobile-card-table tbody td { display: grid; grid-template-columns: minmax(76px, .32fr) minmax(0, 1fr); gap: 10px; padding: 12px 16px; }
+  .arena-difficulty-plan-table tbody td::before,
+  .arena-mobile-card-table tbody td::before { content: attr(data-label); color: #7f8bad; font-size: .7rem; font-weight: 900; }
+  .arena-difficulty-plan-table tbody td span,
+  .arena-difficulty-plan-table tbody td strong,
+  .arena-difficulty-plan-table tbody td small,
+  .arena-mobile-card-table tbody td,
+  .arena-mobile-card-table tbody td strong { min-width: 0; overflow-wrap: anywhere; }
 }
 .arena-revenge-decision { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: end; width: 100%; margin-top: 26px; padding: 22px; border: 1px solid rgba(210, 66, 238, .35); border-radius: 18px; background: linear-gradient(125deg, rgba(91, 35, 154, .2), rgba(15, 30, 66, .72)); }
 .arena-revenge-decision h3 { margin: 6px 0; color: #fff; font-size: 1.25rem; }
@@ -7008,8 +7077,59 @@ html {
 
   .arena-mailbox-panel {
     position: fixed;
-    top: 72px;
+    top: 116px;
     right: 12px;
+  }
+}
+
+@media (max-width: 800px) {
+  .arena-hud {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 8px 10px;
+    min-height: 0;
+    padding: 10px 14px 8px;
+  }
+
+  .arena-brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .arena-brand-logo {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .arena-account {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .arena-main-navigation {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 2px;
+    width: 100%;
+  }
+
+  .arena-main-navigation a {
+    min-width: 0;
+    min-height: 32px;
+    justify-content: center;
+    padding: 0 2px;
+    font-size: 7.5px;
+    letter-spacing: 0;
+    text-align: center;
+  }
+}
+
+@media (max-width: 420px) {
+  .arena-brand > span:last-child {
+    display: none;
   }
 }
 

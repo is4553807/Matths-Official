@@ -20,6 +20,7 @@ const {
   PUBLIC_DIFFICULTY_SPECS,
   TIER_SPECS,
   assertActivePackDesign,
+  difficultyClassForDifficultyCodeSlot,
   packCurveForPair,
   plannedPackSlots,
   resolveArenaDifficultyCode,
@@ -27,7 +28,7 @@ const {
 } = require("./arenaOneOnOneDifficultyPolicy");
 const {
   problemWithVerifiedVisualization,
-} = require("./arenaTierQuestionCatalogService");
+} = require("./arenaProblemVisualizationPolicy");
 const {
   buildArenaGeneratedAnswerKey,
   normalizeSolutionProcess,
@@ -361,14 +362,21 @@ function validateArenaProblemPackDefinition(pack) {
   }
   const normalizedDivision = String(pack?.division || "SUB").toUpperCase();
   const compositionValid = questions.every((question, index) => {
-    const difficultyLevel = Number(
-      String(pack?.difficultyCode || "").replace(/^[UR]/, "")
+    const expectedClass = difficultyClassForDifficultyCodeSlot(
+      pack?.difficultyCode,
+      index
     );
-    const killerSlot =
-      (Number.isFinite(difficultyLevel) && difficultyLevel >= 7) ||
-      (normalizedDivision === "MAIN" && index === questions.length - 1);
+    const categoryByClass = {
+      BASIC_GENERAL: "basic-general",
+      GENERAL: "general",
+      UPPER_GENERAL: "upper-general",
+      SEMI_KILLER: "semi-killer",
+      KILLER: "killer",
+    };
+    const killerSlot = expectedClass === "KILLER";
     return (
-      question.category === (killerSlot ? "killer" : "semi-killer") &&
+      String(question.difficultyClass || "").toUpperCase() === expectedClass &&
+      question.category === categoryByClass[expectedClass] &&
       String(question.slotRole || "").toUpperCase() ===
         (killerSlot ? "FINAL_29_30" : "REGULAR")
     );
@@ -396,13 +404,19 @@ function validateArenaProblemPackDefinition(pack) {
     Boolean(pack?.contentSourceVersion) &&
     pack?.difficultyAnchor === "DEFENDER" &&
     Boolean(TIER_SPECS[pack?.difficultyTier]) &&
-    (!v3Design || compositionValid) &&
+    (!activeDesign || !v3Design || compositionValid) &&
     Array.isArray(pack?.packCurve) &&
     pack.packCurve.length === ARENA_PROBLEM_COUNT &&
     activeDesignValid &&
     questions.every(
       (question) =>
-        ["semi-killer", "killer"].includes(question.category) &&
+        [
+          "basic-general",
+          "general",
+          "upper-general",
+          "semi-killer",
+          "killer",
+        ].includes(question.category) &&
         ARENA_SOURCE_POSITION_BAND_SET.has(
           String(question.sourcePositionBand || "").toUpperCase()
         ) &&
@@ -761,7 +775,13 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
       question?.sourceTypeId || question?.typeId || problem.typeId || ""
     ).trim(),
     generatorEngineKey: String(question?.generatorEngineKey || "").trim(),
-    category: difficultyClass === "KILLER" ? "killer" : "semi-killer",
+    category: ({
+      BASIC_GENERAL: "basic-general",
+      GENERAL: "general",
+      UPPER_GENERAL: "upper-general",
+      SEMI_KILLER: "semi-killer",
+      KILLER: "killer",
+    })[difficultyClass] || "general",
     courseId: String(
       question?.courseId || definition.courseId || problem.courseId || ""
     ).trim(),
@@ -796,9 +816,12 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
       .map((family) => String(family?.familyLabel || "").trim())
       .filter(Boolean),
     referenceBasis: (question?.design?.referenceFamilies || [])
-      .some((family) => family?.basis === "OFFICIAL_MOCK_REFERENCE")
-      ? "OFFICIAL_MOCK_REFERENCE"
-      : "CURRICULUM_TRANSFER",
+      .some((family) => family?.basis === "EBSI_ACCURACY_REFERENCE")
+      ? "EBSI_ACCURACY_REFERENCE"
+      : (question?.design?.referenceFamilies || [])
+          .some((family) => family?.basis === "OFFICIAL_MOCK_REFERENCE")
+        ? "OFFICIAL_MOCK_REFERENCE"
+        : "CURRICULUM_TRANSFER",
     difficultyPosition: String(
       question?.design?.difficultyPosition || ""
     ).toUpperCase(),
@@ -854,6 +877,7 @@ function normalizeGeneratedArenaQuestion(question, index, checkedAt) {
       calculatorFree: validation.calculatorFree === true,
       answerMatches: validation.answerMatches === true,
       semiKillerCertified: validation.semiKillerCertified === true,
+      accuracyClassCertified: validation.accuracyClassCertified === true,
       curriculumCompliant: validation.curriculumCompliant === true,
       conditionsConsistent: validation.conditionsConsistent === true,
       tierBurdenMatches: validation.tierBurdenMatches === true,

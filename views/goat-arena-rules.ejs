@@ -73,6 +73,13 @@
             <span><%= design.difficultyPrefix %>1~<%= design.difficultyPrefix %>9</span>
           </header>
 
+          <% if (design.rollout) { %>
+            <aside class="arena-question-rollout-notice" role="note">
+              <strong><%= design.rollout.runtimeConnected === true ? "현재 신규 경기 출제 풀" : "출제 정책 준비 상태" %></strong>
+              <p><%= design.rollout.notice %></p>
+            </aside>
+          <% } %>
+
           <article class="arena-question-standard-block">
             <div class="arena-question-standard-number">01</div>
             <div>
@@ -80,9 +87,9 @@
               <h3>Division과 방어자 티어를 기준으로 출제합니다.</h3>
               <ul><% design.principles.forEach((line) => { %><li><%= line %></li><% }) %></ul>
               <div class="arena-question-table-wrap">
-                <table>
+                <table class="arena-mobile-card-table">
                   <thead><tr><th scope="col">방어자 티어</th><th scope="col">난이도 기준</th><th scope="col">공개 난이도</th></tr></thead>
-                  <tbody><% design.matchupRows.forEach((row) => { %><tr><th scope="row"><%= row.matchup %></th><td><%= row.anchor %></td><td><strong><%= row.difficultyCode %></strong></td></tr><% }) %></tbody>
+                  <tbody><% design.matchupRows.forEach((row) => { %><tr><th scope="row"><%= row.matchup %></th><td data-label="난이도 기준"><%= row.anchor %></td><td data-label="공개 난이도"><strong><%= row.difficultyCode %></strong></td></tr><% }) %></tbody>
                 </table>
               </div>
               <% if (design.structuralDifficultyPrinciples?.length) { %>
@@ -95,24 +102,29 @@
           <article class="arena-question-standard-block">
             <div class="arena-question-standard-number">02</div>
             <div>
-              <small>목표 정답률</small>
-              <h3>실제 목표 정답률 구간과 문항 순서로 난이도를 설계합니다.</h3>
+              <small><%= design.publicName %> 전용 정답률표</small>
+              <h3>원문 정답률 구간과 문항 순서로 <%= design.difficultyPrefix %>1~<%= design.difficultyPrefix %>9을 설계합니다.</h3>
               <ul><% design.accuracyPrinciples.forEach((line) => { %><li><%= line %></li><% }) %></ul>
               <div class="arena-question-table-wrap">
-                <table>
-                  <% if (design.isRanked) { %>
-                    <thead><tr><th scope="col">단계</th><th scope="col">1~4번 목표 정답률</th><th scope="col">5번 목표 정답률</th><th scope="col">문항 구성</th></tr></thead>
-                    <tbody><% design.accuracyRows.forEach((row) => { %><tr><th scope="row"><%= row.stage %></th><td><%= row.primaryAccuracy %></td><td><%= row.finalAccuracy || row.primaryAccuracy %></td><td><%= row.composition %></td></tr><% }) %></tbody>
-                  <% } else { %>
-                    <thead><tr><th scope="col">단계</th><th scope="col">1~5번 목표 정답률</th><th scope="col">문항 구성</th></tr></thead>
-                    <tbody><% design.accuracyRows.forEach((row) => { %><tr><th scope="row"><%= row.stage %></th><td><%= row.primaryAccuracy %></td><td><%= row.composition %></td></tr><% }) %></tbody>
-                  <% } %>
+                <table class="arena-difficulty-plan-table">
+                  <thead><tr><th scope="col">단계·티어</th><% [1, 2, 3, 4, 5].forEach((order) => { %><th scope="col"><%= order %>번</th><% }) %><th scope="col">원문 평균</th></tr></thead>
+                  <tbody>
+                    <% design.accuracyRows.forEach((row) => { %>
+                      <tr>
+                        <th scope="row"><strong><%= row.stage %></strong><br><small><%= row.tierLabel %></small></th>
+                        <% row.slots.forEach((slot) => { %>
+                          <td data-label="<%= slot.order %>번"><span><strong><%= slot.code %> · <%= slot.label %></strong><br><small>원문 정답률 <%= slot.rangeLabel %></small></span></td>
+                        <% }) %>
+                        <td data-label="원문 평균"><span><strong><%= row.referenceAveragePercent %>%</strong></span></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
                 </table>
               </div>
               <div class="arena-question-table-wrap">
-                <table>
+                <table class="arena-mobile-card-table">
                   <thead><tr><th scope="col">Division</th><th scope="col">한 경기 안의 난이도 흐름</th><th scope="col">예시</th></tr></thead>
-                  <tbody><% design.curveRows.forEach((row) => { %><tr><th scope="row"><%= row.division %></th><td><%= row.sequence %></td><td><%= row.example %></td></tr><% }) %></tbody>
+                  <tbody><% design.curveRows.forEach((row) => { %><tr><th scope="row"><%= row.division %></th><td data-label="난이도 흐름"><%= row.sequence %></td><td data-label="예시"><%= row.example %></td></tr><% }) %></tbody>
                 </table>
               </div>
             </div>
@@ -121,7 +133,7 @@
           <article class="arena-question-standard-block">
             <div class="arena-question-standard-number">03</div>
             <div>
-              <small>준킬러·킬러 정의와 경기 규격</small>
+              <small><%= design.publicName %> 난이도 정의와 경기 규격</small>
               <h3><%= design.compositionHeadline %></h3>
               <blockquote><%= design.semiKillerDefinition %></blockquote>
               <p><%= design.excludedQuestion %></p>
@@ -138,7 +150,7 @@
                 <blockquote><%= research.notice %></blockquote>
                 <ul>
                   <li><%= research.sourceForms %>개 공식 해설 형식에서 <%= research.targetQuestions %>번 문항 <%= research.referenceCount %>건을 조사했습니다.</li>
-                  <li>현재 교육과정과 Arena 범위에 맞는 <%= research.activeReferenceCount %>건의 사고 구조를 <%= design.difficultyPrefix %>1~<%= design.difficultyPrefix %>9 난이도로 분리해 운영합니다.</li>
+                  <li>현재 교육과정과 Arena 범위에 맞는 <%= research.activeReferenceCount %>건 중 정답률 근거로 한 구간이 확정된 <%= research.runtimeDifficultyEligibleReferences %>건만 자동 출제 근거로 사용합니다.</li>
                   <li><%= research.excludedExamType %>은 공식 해설 원본을 운영 기준으로 확보하지 않아 조사 근거에서 제외했습니다.</li>
                   <% if (research.privateCalibration) { %>
                     <li><%= research.privateCalibration.notice %></li>
@@ -146,21 +158,21 @@
                   <% } %>
                 </ul>
                 <div class="arena-question-table-wrap">
-                  <table>
+                  <table class="arena-mobile-card-table">
                     <thead><tr><th scope="col">난이도</th><th scope="col">분류 참고 수</th><th scope="col">출제 원칙</th></tr></thead>
                     <tbody>
                       <% research.difficultyRows.forEach((row) => { %>
-                        <tr><th scope="row"><%= row.tier %></th><td><%= row.count %>건</td><td><%= row.composition %></td></tr>
+                        <tr><th scope="row"><%= row.tier %></th><td data-label="분류 참고 수"><%= row.count %>건</td><td data-label="출제 원칙"><%= row.composition %></td></tr>
                       <% }) %>
                     </tbody>
                   </table>
                 </div>
                 <div class="arena-question-table-wrap">
-                  <table>
+                  <table class="arena-mobile-card-table">
                     <thead><tr><th scope="col">과목</th><th scope="col">직접 참고 구조</th><th scope="col">대표 사고 유형</th></tr></thead>
                     <tbody>
                       <% research.courseRows.forEach((course) => { const familyNames = research.familyRows.filter((family) => family.courseLabel === course.courseLabel).slice(0, 3).map((family) => family.familyLabel).join(' · '); %>
-                        <tr><th scope="row"><%= course.courseLabel %></th><td><%= course.count ? `${course.count}건` : course.referenceBasis %></td><td><%= familyNames || '현 교육과정으로 전이한 조건 결합 골격' %></td></tr>
+                        <tr><th scope="row"><%= course.courseLabel %></th><td data-label="직접 참고 구조"><%= course.count ? `${course.count}건` : course.referenceBasis %></td><td data-label="대표 사고 유형"><%= familyNames || '현 교육과정으로 전이한 조건 결합 골격' %></td></tr>
                       <% }) %>
                     </tbody>
                   </table>

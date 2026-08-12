@@ -1,0 +1,3037 @@
+{
+  "schemaVersion": "ARENA_PDF_GENERATOR_IMPLEMENTATION_LEDGER_V1",
+  "generatedAt": "2026-08-11T15:49:35.767050+00:00",
+  "sourceBlueprints": {
+    "schemaVersion": "ARENA_PDF_GENERATOR_BLUEPRINTS_V1",
+    "contentHash": "78f49b4a00b2b3794a4126eb1f7745b3c0d346098274e8b6af0dc7a9cf4ba480"
+  },
+  "summary": {
+    "blueprintCount": 200,
+    "implementedCount": 200,
+    "queuedCount": 0,
+    "statusCounts": {
+      "IMPLEMENTED_DUAL_ORACLE_VERIFIED": 200
+    },
+    "byImplementationWave": {
+      "6C-WAVE-1-DISCRETE-EXACT": {
+        "total": 93,
+        "implemented": 93,
+        "queued": 0
+      },
+      "6C-WAVE-2-SYMBOLIC-TEXT": {
+        "total": 92,
+        "implemented": 92,
+        "queued": 0
+      },
+      "6C-WAVE-3-VISUAL": {
+        "total": 15,
+        "implemented": 15,
+        "queued": 0
+      }
+    },
+    "productionConnected": false
+  },
+  "contentHash": "49c5e8123bf860f0f9ebad45dbab582e7502a59d56a642081c1b1445e0f3cb40",
+  "records": [
+    {
+      "sourceId": "2018-03-EDUCATION_OFFICE-NA-Q30",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-AECC785D",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-AECC785D",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 21,
+        "answerVariantCount": 21
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-03-EDUCATION_OFFICE-NA-Q29",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-324244D6",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-324244D6",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 51,
+        "answerVariantCount": 36
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-03-EDUCATION_OFFICE-NA-Q30",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-LIMIT-VALUE-B0-NONE-6F8CA324",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-LIMIT-VALUE-B0-NONE-6F8CA324",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 12,
+        "answerVariantCount": 12
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-04-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q21",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-5EF23BFE",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-5EF23BFE",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 24,
+        "answerVariantCount": 6
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2023-09-KICE-PROBABILITY_STATISTICS-Q21",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-8F49B6B4",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-8F49B6B4",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 35,
+        "answerVariantCount": 19
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2025-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q22",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-7986F6B0",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-7986F6B0",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 32,
+        "answerVariantCount": 12
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2025-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q22",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-54489961",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-54489961",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 33,
+        "answerVariantCount": 23
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2026-06-KICE-PROBABILITY_STATISTICS-Q22",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-COUNT-B0-NONE-5E9865BA",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-COUNT-B0-NONE-5E9865BA",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 77,
+        "answerVariantCount": 29
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-04-EDUCATION_OFFICE-NA-Q29",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SUM-OF-COUNTS-B1-GEO-6D5A143F",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-OF-COUNTS-B1-GEO-6D5A143F",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 47,
+        "answerVariantCount": 8
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-09-KICE-NA-Q29",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-BM-GEO-GRAPH-762E1D13",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-BM-GEO-GRAPH-762E1D13",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 54,
+        "answerVariantCount": 6
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-07-EDUCATION_OFFICE-NA-Q27",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-SUM-OF-COUNTS-B0-NONE-4870D422",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SUM-OF-COUNTS-B0-NONE-4870D422",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 7,
+        "answerVariantCount": 7
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-04-EDUCATION_OFFICE-GA-Q30",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B1-GRAPH-DB744484",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B1-GRAPH-DB744484",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 6,
+        "answerVariantCount": 6
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-09-KICE-GA-Q30",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-MAX-MIN-COMBINATION-B0-NONE-3BB2178B",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-MAX-MIN-COMBINATION-B0-NONE-3BB2178B",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 196,
+        "answerVariantCount": 14
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-09-KICE-CALCULUS-Q29",
+      "generatorContractId": "GEN-C1ADVMIX-C1ADVMIX-BASE-SCALAR-VALUE-B0-NONE-62E96399",
+      "canonicalStructureId": "STR-C1ADVMIX-C1ADVMIX-BASE-SCALAR-VALUE-B0-NONE-62E96399",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 161,
+        "answerVariantCount": 9
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2023-06-KICE-PROBABILITY_STATISTICS-Q22",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-45BFCC71",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-45BFCC71",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 130,
+        "answerVariantCount": 66
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-GA-Q30",
+      "generatorContractId": "GEN-C1DERROOT-C1DERROOT-BASE-EXTREMUM-B0-NONE-AA84AFF2",
+      "canonicalStructureId": "STR-C1DERROOT-C1DERROOT-BASE-EXTREMUM-B0-NONE-AA84AFF2",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 8,
+        "answerVariantCount": 8
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-09-KICE-NA-Q30",
+      "generatorContractId": "GEN-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-GRAPH-FEA6AFA4",
+      "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-GRAPH-FEA6AFA4",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 97,
+        "answerVariantCount": 58
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-06-KICE-GA-Q30",
+      "generatorContractId": "GEN-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-6C125877",
+      "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-6C125877",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 180,
+        "answerVariantCount": 38
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-10-EDUCATION_OFFICE-NA-Q29",
+      "generatorContractId": "GEN-C1INTAREA-C1INTAREA-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-36A70106",
+      "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-36A70106",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 93,
+        "answerVariantCount": 17
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-10-EDUCATION_OFFICE-NA-Q30",
+      "generatorContractId": "GEN-C1INTAREA-C1INTAREA-BASE-SUM-B0-NONE-FB4842FB",
+      "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SUM-B0-NONE-FB4842FB",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 174,
+        "answerVariantCount": 74
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-06-KICE-GA-Q30",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-ALGEBRAIC-COEFFICIENT-DIFFERENCE-B0-GRAPH-36E8DBF4",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-ALGEBRAIC-COEFFICIENT-DIFFERENCE-B0-GRAPH-36E8DBF4",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 128,
+        "answerVariantCount": 50
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-09-KICE-GA-Q30",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-7E5694F1",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-7E5694F1",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 197,
+        "answerVariantCount": 125
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-07-EDUCATION_OFFICE-NA-Q28",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-74AE5075",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-74AE5075",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 65,
+        "answerVariantCount": 42
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q22",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B1-NONE-76CFDBD3",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B1-NONE-76CFDBD3",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 5,
+        "answerVariantCount": 5
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-06-KICE-PROBABILITY_STATISTICS-Q20",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-D4E95505",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-D4E95505",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 85,
+        "answerVariantCount": 50
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2023-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q20",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-EB51C2B9",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-EB51C2B9",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 105,
+        "answerVariantCount": 70
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-06-KICE-NA-Q29",
+      "generatorContractId": "GEN-C1LIMCONT-DIFFERENTIABILITY-MATCH-SUM-B0-GRAPH-34686CC9",
+      "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-SUM-B0-GRAPH-34686CC9",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 5,
+        "answerVariantCount": 5
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-10-EDUCATION_OFFICE-NA-Q30",
+      "generatorContractId": "GEN-C1LIMCONT-DIFFERENTIABILITY-MATCH-SUM-B0-NONE-494134E5",
+      "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-SUM-B0-NONE-494134E5",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 30,
+        "answerVariantCount": 27
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-09-KICE-NA-Q30",
+      "generatorContractId": "GEN-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALAR-VALUE-B0-NONE-940729C4",
+      "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALAR-VALUE-B0-NONE-940729C4",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 25,
+        "answerVariantCount": 22
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2025-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q22",
+      "generatorContractId": "GEN-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALAR-VALUE-B0-NONE-4B89E195",
+      "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALAR-VALUE-B0-NONE-4B89E195",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 16,
+        "answerVariantCount": 15
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-10-EDUCATION_OFFICE-NA-Q30",
+      "generatorContractId": "GEN-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B0-NONE-5625FB3F",
+      "canonicalStructureId": "STR-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B0-NONE-5625FB3F",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 144,
+        "answerVariantCount": 73
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2021-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q22",
+      "generatorContractId": "GEN-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B0-NONE-56457BD4",
+      "canonicalStructureId": "STR-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B0-NONE-56457BD4",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 4,
+        "answerVariantCount": 4
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2026-07-EDUCATION_OFFICE-CALCULUS-Q30",
+      "generatorContractId": "GEN-C1LIMCONT-DIFFERENTIABILITY-MATCH-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-935337CF",
+      "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-935337CF",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 6,
+        "answerVariantCount": 6
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-NA-Q30",
+      "generatorContractId": "GEN-CM2RAT-CM2RAT-BASE-EXTREMUM-B1-GRAPH-D5633BEE",
+      "canonicalStructureId": "STR-CM2RAT-CM2RAT-BASE-EXTREMUM-B1-GRAPH-D5633BEE",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 6,
+        "answerVariantCount": 6
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-06-KICE-NA-Q30",
+      "generatorContractId": "GEN-CM2RAT-CM2RAT-BASE-SCALAR-VALUE-B0-GRAPH-97154836",
+      "canonicalStructureId": "STR-CM2RAT-CM2RAT-BASE-SCALAR-VALUE-B0-GRAPH-97154836",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 3,
+        "answerVariantCount": 3
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-06-KICE-NA-Q30",
+      "generatorContractId": "GEN-FNGRAPH-FNGRAPH-BASE-SCALAR-VALUE-B0-NONE-5CBBB625",
+      "canonicalStructureId": "STR-FNGRAPH-FNGRAPH-BASE-SCALAR-VALUE-B0-NONE-5CBBB625",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 170,
+        "answerVariantCount": 71
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-09-KICE-PROBABILITY_STATISTICS-Q30",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-C7FD3A46",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-C7FD3A46",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 4,
+        "answerVariantCount": 4
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2021-07-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q29",
+      "generatorContractId": "GEN-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B1-NONE-8C9606EA",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B1-NONE-8C9606EA",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 12,
+        "answerVariantCount": 10
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-06-KICE-PROBABILITY_STATISTICS-Q30",
+      "generatorContractId": "GEN-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B1-NONE-F58BCD54",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B1-NONE-F58BCD54",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 86,
+        "answerVariantCount": 35
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-07-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q30",
+      "generatorContractId": "GEN-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-EE54D9DA",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-EE54D9DA",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 5,
+        "answerVariantCount": 5
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2025-07-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q30",
+      "generatorContractId": "GEN-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-C4A61933",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-C4A61933",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 12,
+        "answerVariantCount": 3
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2025-09-KICE-PROBABILITY_STATISTICS-Q30",
+      "generatorContractId": "GEN-PSAXM-PSAXM-BASE-SCALAR-VALUE-B1-NONE-4CBFC339",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-SCALAR-VALUE-B1-NONE-4CBFC339",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 4,
+        "answerVariantCount": 4
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-10-EDUCATION_OFFICE-GA-Q30",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B1-NONE-39DBD66F",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-39DBD66F",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 6,
+        "answerVariantCount": 6
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-10-EDUCATION_OFFICE-NA-Q28",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B1-NONE-306B1903",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-306B1903",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 79,
+        "answerVariantCount": 32
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-03-EDUCATION_OFFICE-GA-Q29",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B1-LAYOUT-213B9EC8",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-LAYOUT-213B9EC8",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 7,
+        "answerVariantCount": 5
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-NA-Q30",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-SUM-B1-NONE-CED77019",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-SUM-B1-NONE-CED77019",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 6,
+        "answerVariantCount": 6
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-04-EDUCATION_OFFICE-GA-Q29",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-05CECB67",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-05CECB67",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 22,
+        "answerVariantCount": 22
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q29",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-B7A6EDA7",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-B7A6EDA7",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 6,
+        "answerVariantCount": 6
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-06-KICE-PROBABILITY_STATISTICS-Q29",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-E2510226",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-E2510226",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 7,
+        "answerVariantCount": 5
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2023-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q30",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-571E6F7E",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-571E6F7E",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 81,
+        "answerVariantCount": 22
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2023-07-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q30",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-B7102B15",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-B7102B15",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 8,
+        "answerVariantCount": 7
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2024-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q30",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-A1A8EEB6",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-A1A8EEB6",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 3,
+        "answerVariantCount": 3
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2024-06-KICE-PROBABILITY_STATISTICS-Q30",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-65055472",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-65055472",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 4,
+        "answerVariantCount": 4
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2024-07-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q30",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B1-NONE-16520694",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B1-NONE-16520694",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 4,
+        "answerVariantCount": 4
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2024-09-KICE-CALCULUS-Q30",
+      "generatorContractId": "GEN-C1LIMCONT-DIFFERENTIABILITY-MATCH-ALGEBRAIC-COEFFICIENT-SUM-B0-NONE-635D452D",
+      "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-ALGEBRAIC-COEFFICIENT-SUM-B0-NONE-635D452D",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 4,
+        "answerVariantCount": 4
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2025-10-EDUCATION_OFFICE-CALCULUS-Q29",
+      "generatorContractId": "GEN-C1SEQLIM-C1SEQLIM-BASE-EXTREMUM-B0-NONE-68A90ADB",
+      "canonicalStructureId": "STR-C1SEQLIM-C1SEQLIM-BASE-EXTREMUM-B0-NONE-68A90ADB",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 20,
+        "answerVariantCount": 2
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2025-06-KICE-CALCULUS-Q29",
+      "generatorContractId": "GEN-C1SEQLIM-C1SEQLIM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-14D557AF",
+      "canonicalStructureId": "STR-C1SEQLIM-C1SEQLIM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-14D557AF",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 139,
+        "answerVariantCount": 11
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-05-EDUCATION_OFFICE-GA-Q28",
+      "generatorContractId": "GEN-ALGELGR-ALGELGR-BASE-SCALED-DISTANCE-B1-GRAPH-D87299A1",
+      "canonicalStructureId": "STR-ALGELGR-ALGELGR-BASE-SCALED-DISTANCE-B1-GRAPH-D87299A1",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 30,
+        "answerVariantCount": 28
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-NA-Q27",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-26F0A86F",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-26F0A86F",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 171,
+        "answerVariantCount": 141
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-10-EDUCATION_OFFICE-NA-Q29",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B1-NONE-48C119E4",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B1-NONE-48C119E4",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 186,
+        "answerVariantCount": 63
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-06-KICE-NA-Q28",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-D5EBEE1E",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-D5EBEE1E",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 181,
+        "answerVariantCount": 126
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-10-EDUCATION_OFFICE-GA-Q29",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-COUNT-B0-NONE-09640B7D",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-COUNT-B0-NONE-09640B7D",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 15,
+        "answerVariantCount": 15
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2021-04-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q21",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-MINIMUM-INTEGER-B0-NONE-F8803AF3",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-MINIMUM-INTEGER-B0-NONE-F8803AF3",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 108,
+        "answerVariantCount": 8
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q20",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SCALED-SCALAR-VALUE-B0-NONE-209F09A0",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALED-SCALAR-VALUE-B0-NONE-209F09A0",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 124,
+        "answerVariantCount": 82
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-07-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q21",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-8F1113CA",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-8F1113CA",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 89,
+        "answerVariantCount": 71
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2023-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q20",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-BE78F3C9",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-BE78F3C9",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 8,
+        "answerVariantCount": 8
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2024-09-KICE-PROBABILITY_STATISTICS-Q22",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-085D235D",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-085D235D",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 4,
+        "answerVariantCount": 2
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-03-EDUCATION_OFFICE-NA-Q30",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-EXTREMUM-B0-NONE-320261DF",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-EXTREMUM-B0-NONE-320261DF",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 153,
+        "answerVariantCount": 14
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-03-EDUCATION_OFFICE-NA-Q27",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-B11F1BDA",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-B11F1BDA",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 166,
+        "answerVariantCount": 72
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-10-EDUCATION_OFFICE-NA-Q25",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-230B18EE",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-230B18EE",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 4,
+        "answerVariantCount": 4
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-10-EDUCATION_OFFICE-NA-Q26",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-COUNT-SUM-B1-NONE-553FA900",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-COUNT-SUM-B1-NONE-553FA900",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 45,
+        "answerVariantCount": 28
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-03-EDUCATION_OFFICE-NA-Q28",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-GEO-GRAPH-31B8723E",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-GEO-GRAPH-31B8723E",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 200,
+        "answerVariantCount": 159
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-03-EDUCATION_OFFICE-GA-Q26",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-TRIG-VALUE-B0-GEO-352A0FA7",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-TRIG-VALUE-B0-GEO-352A0FA7",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 195,
+        "answerVariantCount": 83
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-03-EDUCATION_OFFICE-GA-Q28",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-E04344D2",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-E04344D2",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 101,
+        "answerVariantCount": 20
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-GA-Q29",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-39EED5D1",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-39EED5D1",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch1.json",
+        "verificationHash": "4045ff1a6e4970f844bc34c63d1f880509a940fa1c667e1b44b6faef516b42f6",
+        "sampleCount": 200,
+        "parameterVariantCount": 141,
+        "answerVariantCount": 14
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2025-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q20",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-7D404B1A",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-7D404B1A",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 8,
+        "answerVariantCount": 8
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-05-EDUCATION_OFFICE-NA-Q26",
+      "generatorContractId": "GEN-C1MOTION-C1MOTION-BASE-DISTANCE-OR-LENGTH-B1-NONE-16670632",
+      "canonicalStructureId": "STR-C1MOTION-C1MOTION-BASE-DISTANCE-OR-LENGTH-B1-NONE-16670632",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 98,
+        "answerVariantCount": 52
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-07-EDUCATION_OFFICE-NA-Q28",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-AREA-B0-NONE-56C30D46",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-AREA-B0-NONE-56C30D46",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 15,
+        "answerVariantCount": 15
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-03-EDUCATION_OFFICE-GA-Q28",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-SCALED-AREA-B0-NONE-87A0C246",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALED-AREA-B0-NONE-87A0C246",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 187,
+        "answerVariantCount": 83
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-10-EDUCATION_OFFICE-NA-Q27",
+      "generatorContractId": "GEN-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B1-NONE-4582D6EC",
+      "canonicalStructureId": "STR-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B1-NONE-4582D6EC",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 151,
+        "answerVariantCount": 122
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-03-EDUCATION_OFFICE-NA-Q26",
+      "generatorContractId": "GEN-C1MOTION-C1MOTION-BASE-LIMIT-VALUE-B1-NONE-7992C012",
+      "canonicalStructureId": "STR-C1MOTION-C1MOTION-BASE-LIMIT-VALUE-B1-NONE-7992C012",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 198,
+        "answerVariantCount": 88
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-10-EDUCATION_OFFICE-NA-Q28",
+      "generatorContractId": "GEN-CM2COMPINV-CM2COMPINV-BASE-SCALAR-VALUE-B0-NONE-D66A6957",
+      "canonicalStructureId": "STR-CM2COMPINV-CM2COMPINV-BASE-SCALAR-VALUE-B0-NONE-D66A6957",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 20,
+        "answerVariantCount": 20
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-06-KICE-GA-Q28",
+      "generatorContractId": "GEN-PSCOND-PSCOND-BASE-SUM-B0-NONE-41411F89",
+      "canonicalStructureId": "STR-PSCOND-PSCOND-BASE-SUM-B0-NONE-41411F89",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 46,
+        "answerVariantCount": 19
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2026-06-KICE-PROBABILITY_STATISTICS-Q29",
+      "generatorContractId": "GEN-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B1-NONE-C76F25C1",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B1-NONE-C76F25C1",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 40,
+        "answerVariantCount": 20
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-03-EDUCATION_OFFICE-GA-Q29",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-97619028",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-97619028",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 11,
+        "answerVariantCount": 8
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-07-EDUCATION_OFFICE-NA-Q28",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-C4C2EE30",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-C4C2EE30",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 3,
+        "answerVariantCount": 3
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-10-EDUCATION_OFFICE-NA-Q26",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-BM-NONE-20D590E7",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-BM-NONE-20D590E7",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 200,
+        "answerVariantCount": 69
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2021-03-EDUCATION_OFFICE-CALCULUS-Q30",
+      "generatorContractId": "GEN-C1TANEXT-C1TANEXT-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-DD4F8697",
+      "canonicalStructureId": "STR-C1TANEXT-C1TANEXT-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-DD4F8697",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 30,
+        "answerVariantCount": 13
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q29",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-B7DD15B8",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-B7DD15B8",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 27,
+        "answerVariantCount": 23
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2024-10-EDUCATION_OFFICE-CALCULUS-Q29",
+      "generatorContractId": "GEN-C1ADVMIX-C1ADVMIX-BASE-INTEGER-QUADRATIC-SUM-B0-NONE-1225DB62",
+      "canonicalStructureId": "STR-C1ADVMIX-C1ADVMIX-BASE-INTEGER-QUADRATIC-SUM-B0-NONE-1225DB62",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 20,
+        "answerVariantCount": 20
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2026-03-EDUCATION_OFFICE-CALCULUS-Q29",
+      "generatorContractId": "GEN-C1ADVMIX-C1ADVMIX-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-GEO-A19DFCF4",
+      "canonicalStructureId": "STR-C1ADVMIX-C1ADVMIX-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-GEO-A19DFCF4",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 154,
+        "answerVariantCount": 49
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2024-09-KICE-CALCULUS-Q29",
+      "generatorContractId": "GEN-C1SEQLIM-C1SEQLIM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-F14A7AC5",
+      "canonicalStructureId": "STR-C1SEQLIM-C1SEQLIM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-F14A7AC5",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 114,
+        "answerVariantCount": 67
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-06-KICE-GA-Q27",
+      "generatorContractId": "GEN-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-E7A19CFD",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-E7A19CFD",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 131,
+        "answerVariantCount": 36
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-10-EDUCATION_OFFICE-NA-Q23",
+      "generatorContractId": "GEN-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-D48FA5EE",
+      "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-D48FA5EE",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 9,
+        "answerVariantCount": 9
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-06-KICE-NA-Q26",
+      "generatorContractId": "GEN-C1DER-INSTANTANEOUS-RATE-POSITIVE-PARAMETER-B0-NONE-D776B25D",
+      "canonicalStructureId": "STR-C1DER-INSTANTANEOUS-RATE-POSITIVE-PARAMETER-B0-NONE-D776B25D",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 165,
+        "answerVariantCount": 11
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-NA-Q26",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-A8D8DAE4",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-A8D8DAE4",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 198,
+        "answerVariantCount": 44
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-03-EDUCATION_OFFICE-NA-Q24",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-LIMIT-VALUE-B0-NONE-0C4963D6",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-LIMIT-VALUE-B0-NONE-0C4963D6",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 191,
+        "answerVariantCount": 106
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-07-EDUCATION_OFFICE-NA-Q26",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-5784ABC2",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-5784ABC2",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 30,
+        "answerVariantCount": 28
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2021-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-PARTIAL-SUM-VALUE-B0-NONE-2D8D4E34",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-PARTIAL-SUM-VALUE-B0-NONE-2D8D4E34",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 43,
+        "answerVariantCount": 27
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-03-EDUCATION_OFFICE-NA-Q23",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SEQUENCE-TERM-B0-NONE-EB8168A2",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SEQUENCE-TERM-B0-NONE-EB8168A2",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 198,
+        "answerVariantCount": 29
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-09-KICE-NA-Q26",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-9B241CF8",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-9B241CF8",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 23,
+        "answerVariantCount": 23
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-10-EDUCATION_OFFICE-NA-Q25",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-NONE-72863979",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-NONE-72863979",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 3,
+        "answerVariantCount": 3
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SUM-OF-INTEGER-SOLUTIONS-B0-NONE-8E3C1631",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-OF-INTEGER-SOLUTIONS-B0-NONE-8E3C1631",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 30,
+        "answerVariantCount": 27
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2023-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B1-NONE-E19F4F95",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B1-NONE-E19F4F95",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 174,
+        "answerVariantCount": 137
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-10-EDUCATION_OFFICE-GA-Q28",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-LIMIT-VALUE-B0-GEO-DF6AE922",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-LIMIT-VALUE-B0-GEO-DF6AE922",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 197,
+        "answerVariantCount": 127
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-04-EDUCATION_OFFICE-GA-Q24",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-NONE-CB583F6A",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-NONE-CB583F6A",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 19,
+        "answerVariantCount": 19
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2024-07-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-SQUARED-PARAMETER-B0-NONE-DF89833A",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SQUARED-PARAMETER-B0-NONE-DF89833A",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 15,
+        "answerVariantCount": 15
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-06-KICE-NA-Q24",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-BFB437BC",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-BFB437BC",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 174,
+        "answerVariantCount": 48
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-09-KICE-NA-Q27",
+      "generatorContractId": "GEN-C1DERROOT-C1DERROOT-BASE-PRODUCT-OF-PARAMETERS-B0-NONE-5277DE6C",
+      "canonicalStructureId": "STR-C1DERROOT-C1DERROOT-BASE-PRODUCT-OF-PARAMETERS-B0-NONE-5277DE6C",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 183,
+        "answerVariantCount": 38
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-03-EDUCATION_OFFICE-GA-Q27",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-PRODUCT-B0-NONE-F4CBEF28",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-PRODUCT-B0-NONE-F4CBEF28",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 58,
+        "answerVariantCount": 24
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-04-EDUCATION_OFFICE-GA-Q27",
+      "generatorContractId": "GEN-C1INTDEF-INTEGRAL-EXTREMUM-SUM-B0-NONE-B00D0EDC",
+      "canonicalStructureId": "STR-C1INTDEF-INTEGRAL-EXTREMUM-SUM-B0-NONE-B00D0EDC",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 8,
+        "answerVariantCount": 8
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-GA-Q27",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-CE6F58CC",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-CE6F58CC",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 152,
+        "answerVariantCount": 45
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-431B4E8B",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-431B4E8B",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 168,
+        "answerVariantCount": 58
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2024-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-C456725D",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-C456725D",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 156,
+        "answerVariantCount": 110
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-03-EDUCATION_OFFICE-NA-Q29",
+      "generatorContractId": "GEN-CM2SET-SET-OPERATION-COUNT-PRODUCT-OF-SET-ELEMENTS-B0-NONE-1152EEBF",
+      "canonicalStructureId": "STR-CM2SET-SET-OPERATION-COUNT-PRODUCT-OF-SET-ELEMENTS-B0-NONE-1152EEBF",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 38,
+        "answerVariantCount": 4
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2023-06-KICE-PROBABILITY_STATISTICS-Q19",
+      "generatorContractId": "GEN-ALGTRIGGR-TRIG-ROOT-COUNT-SUM-OF-PARAMETERS-B1-NONE-BDDF0903",
+      "canonicalStructureId": "STR-ALGTRIGGR-TRIG-ROOT-COUNT-SUM-OF-PARAMETERS-B1-NONE-BDDF0903",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 136,
+        "answerVariantCount": 29
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-03-EDUCATION_OFFICE-GA-Q24",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-SUM-B0-NONE-F12C84CE",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-SUM-B0-NONE-F12C84CE",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 11,
+        "answerVariantCount": 11
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-NA-Q26",
+      "generatorContractId": "GEN-FNGRAPH-FNGRAPH-BASE-INTEGER-PARAMETER-B0-NONE-A1C89232",
+      "canonicalStructureId": "STR-FNGRAPH-FNGRAPH-BASE-INTEGER-PARAMETER-B0-NONE-A1C89232",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 129,
+        "answerVariantCount": 8
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-06-KICE-NA-Q28",
+      "generatorContractId": "GEN-FNGRAPH-FNGRAPH-BASE-SCALAR-VALUE-B0-NONE-ABC9CCF7",
+      "canonicalStructureId": "STR-FNGRAPH-FNGRAPH-BASE-SCALAR-VALUE-B0-NONE-ABC9CCF7",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 179,
+        "answerVariantCount": 63
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-06-KICE-NA-Q27",
+      "generatorContractId": "GEN-PSCOND-PSCOND-BASE-INTEGER-PARAMETER-B1-NONE-D3FFF67B",
+      "canonicalStructureId": "STR-PSCOND-PSCOND-BASE-INTEGER-PARAMETER-B1-NONE-D3FFF67B",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 181,
+        "answerVariantCount": 27
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-09-KICE-GA-Q28",
+      "generatorContractId": "GEN-PSCOND-PSCOND-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-EDBB1855",
+      "canonicalStructureId": "STR-PSCOND-PSCOND-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-EDBB1855",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 48,
+        "answerVariantCount": 37
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-10-EDUCATION_OFFICE-NA-Q28",
+      "generatorContractId": "GEN-PSCOND-PSCOND-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-42F32304",
+      "canonicalStructureId": "STR-PSCOND-PSCOND-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-42F32304",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 200,
+        "answerVariantCount": 171
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-GA-Q28",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-BM-NONE-B0E1669D",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-BM-NONE-B0E1669D",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch3.json",
+        "verificationHash": "2d19743a32644f52e60d7ecae4a9b20edb9deb70f7b6de128311e938fcdbf564",
+        "sampleCount": 200,
+        "parameterVariantCount": 10,
+        "answerVariantCount": 2
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q26",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B1-NONE-DE879226",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-DE879226",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 8,
+        "answerVariantCount": 8
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-10-EDUCATION_OFFICE-GA-Q26",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-DC30061B",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-DC30061B",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 8,
+        "answerVariantCount": 6
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-07-EDUCATION_OFFICE-NA-Q26",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B1-NONE-74E9F0E1",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-74E9F0E1",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 24,
+        "answerVariantCount": 23
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-10-EDUCATION_OFFICE-GA-Q28",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B1-GEO-B32B6CAC",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-GEO-B32B6CAC",
+      "implementationWave": "6C-WAVE-3-VISUAL",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave3-batch1.json",
+        "verificationHash": "b726ce08fa5116b24c48d4a081cd446782570e3b8daa125b6b8a4ad5fb0e96ab",
+        "sampleCount": 200,
+        "parameterVariantCount": 3,
+        "answerVariantCount": 3
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2024-06-KICE-PROBABILITY_STATISTICS-Q29",
+      "generatorContractId": "GEN-PSAXM-PSAXM-BASE-SCALED-PROBABILITY-B1-NONE-6CE2B541",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-SCALED-PROBABILITY-B1-NONE-6CE2B541",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 44,
+        "answerVariantCount": 36
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-07-EDUCATION_OFFICE-NA-Q24",
+      "generatorContractId": "GEN-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-88D27816",
+      "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-88D27816",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch2.json",
+        "verificationHash": "b7877a1d8a4bd149d9ae4165896dec5fb324957f23d0eac57d1a42ca9b676b31",
+        "sampleCount": 200,
+        "parameterVariantCount": 192,
+        "answerVariantCount": 78
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-10-EDUCATION_OFFICE-NA-Q25",
+      "generatorContractId": "GEN-ALGELEQ-ALGELEQ-BASE-PRODUCT-B0-NONE-F5B0CA24",
+      "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-PRODUCT-B0-NONE-F5B0CA24",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 199,
+        "answerVariantCount": 72
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-06-KICE-NA-Q25",
+      "generatorContractId": "GEN-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-AD2661B5",
+      "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-AD2661B5",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 176,
+        "answerVariantCount": 7
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-NA-Q25",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-DERIVATIVE-LIMIT-B0-NONE-9BE6B91C",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-DERIVATIVE-LIMIT-B0-NONE-9BE6B91C",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 189,
+        "answerVariantCount": 144
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-09-KICE-GA-Q26",
+      "generatorContractId": "GEN-PSNORM-SAMPLE-MEAN-DISTRIBUTION-SCALED-RATIO-B0-NONE-4204533D",
+      "canonicalStructureId": "STR-PSNORM-SAMPLE-MEAN-DISTRIBUTION-SCALED-RATIO-B0-NONE-4204533D",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 193,
+        "answerVariantCount": 19
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-NA-Q27",
+      "generatorContractId": "GEN-ALGELEQ-ALGELEQ-BASE-SUM-OF-PARAMETERS-B0-NONE-022C04DD",
+      "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SUM-OF-PARAMETERS-B0-NONE-022C04DD",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 11,
+        "answerVariantCount": 11
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-07-EDUCATION_OFFICE-NA-Q25",
+      "generatorContractId": "GEN-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-0A49B85E",
+      "canonicalStructureId": "STR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-0A49B85E",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 189,
+        "answerVariantCount": 81
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-09-KICE-NA-Q26",
+      "generatorContractId": "GEN-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-78608D8D",
+      "canonicalStructureId": "STR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-78608D8D",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 37,
+        "answerVariantCount": 28
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-03-EDUCATION_OFFICE-NA-Q25",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-SEQUENCE-TERM-B0-NONE-632E42EF",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SEQUENCE-TERM-B0-NONE-632E42EF",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 169,
+        "answerVariantCount": 30
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-06-KICE-GA-Q24",
+      "generatorContractId": "GEN-ALGSEQREC-ALGSEQREC-BASE-COUNT-B0-NONE-E2208C1C",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-COUNT-B0-NONE-E2208C1C",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 194,
+        "answerVariantCount": 57
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-09-KICE-GA-Q27",
+      "generatorContractId": "GEN-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-8E74285D",
+      "canonicalStructureId": "STR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-8E74285D",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 61,
+        "answerVariantCount": 42
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-04-EDUCATION_OFFICE-NA-Q23",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-2B5463B0",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-2B5463B0",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 94,
+        "answerVariantCount": 90
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-NA-Q25",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-9E7688F9",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-9E7688F9",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 193,
+        "answerVariantCount": 150
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2021-09-KICE-PROBABILITY_STATISTICS-Q18",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-EE7AEFAA",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-EE7AEFAA",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 200,
+        "answerVariantCount": 69
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-NONE-A1E490D3",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-NONE-A1E490D3",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 74,
+        "answerVariantCount": 60
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2025-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-E2475A9D",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-E2475A9D",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 200,
+        "answerVariantCount": 117
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2025-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "generatorContractId": "GEN-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-7A3B155B",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-7A3B155B",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 200,
+        "answerVariantCount": 117
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2026-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "generatorContractId": "GEN-ALGTRIGGEO-ALGTRIGGEO-BASE-SQUARED-LENGTH-B0-NONE-AAE33329",
+      "canonicalStructureId": "STR-ALGTRIGGEO-ALGTRIGGEO-BASE-SQUARED-LENGTH-B0-NONE-AAE33329",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 156,
+        "answerVariantCount": 118
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-03-EDUCATION_OFFICE-GA-Q23",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-LIMIT-VALUE-B0-NONE-4F7F72E5",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-LIMIT-VALUE-B0-NONE-4F7F72E5",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 120,
+        "answerVariantCount": 78
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-07-EDUCATION_OFFICE-GA-Q25",
+      "generatorContractId": "GEN-C1MOTION-SPEED-ACCELERATION-VALUE-SPEED-OR-ACCELERATION-B0-NONE-B48B487C",
+      "canonicalStructureId": "STR-C1MOTION-SPEED-ACCELERATION-VALUE-SPEED-OR-ACCELERATION-B0-NONE-B48B487C",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 159,
+        "answerVariantCount": 20
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-10-EDUCATION_OFFICE-GA-Q24",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-4E39401F",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-4E39401F",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 167,
+        "answerVariantCount": 96
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-07-EDUCATION_OFFICE-GA-Q23",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-9CD6BCCE",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-9CD6BCCE",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 112,
+        "answerVariantCount": 72
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-04-EDUCATION_OFFICE-GA-Q25",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-7C4D1B9D",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-7C4D1B9D",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 113,
+        "answerVariantCount": 14
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-04-EDUCATION_OFFICE-GA-Q25",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-PARAMETER-B0-NONE-8D3850D0",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-PARAMETER-B0-NONE-8D3850D0",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 29,
+        "answerVariantCount": 29
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-09-KICE-NA-Q23",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-20927076",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-20927076",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 193,
+        "answerVariantCount": 120
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-09-KICE-GA-Q25",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-0BB3F7D1",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-0BB3F7D1",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 20,
+        "answerVariantCount": 20
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-10-EDUCATION_OFFICE-NA-Q25",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-NONE-BD022C51",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-NONE-BD022C51",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 44,
+        "answerVariantCount": 40
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q27",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-NONE-DE5ACA52",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-NONE-DE5ACA52",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 76,
+        "answerVariantCount": 76
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2025-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-F592A8AF",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-F592A8AF",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 20,
+        "answerVariantCount": 20
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-09-KICE-NA-Q25",
+      "generatorContractId": "GEN-C1LIMCONT-DIFFERENTIABILITY-MATCH-PARAMETER-B0-NONE-EA77861D",
+      "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-PARAMETER-B0-NONE-EA77861D",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 20,
+        "answerVariantCount": 20
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-NA-Q26",
+      "generatorContractId": "GEN-C1LIMCONT-C1LIMCONT-BASE-SUM-OF-PARAMETERS-B0-NONE-DBA8630A",
+      "canonicalStructureId": "STR-C1LIMCONT-C1LIMCONT-BASE-SUM-OF-PARAMETERS-B0-NONE-DBA8630A",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 111,
+        "answerVariantCount": 88
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2023-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17",
+      "generatorContractId": "GEN-C1TANEXT-C1TANEXT-BASE-PARAMETER-B0-NONE-00A5002F",
+      "canonicalStructureId": "STR-C1TANEXT-C1TANEXT-BASE-PARAMETER-B0-NONE-00A5002F",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 196,
+        "answerVariantCount": 112
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-04-EDUCATION_OFFICE-NA-Q26",
+      "generatorContractId": "GEN-CM2COMPINV-CM2COMPINV-BASE-PARAMETER-B0-NONE-A8798726",
+      "canonicalStructureId": "STR-CM2COMPINV-CM2COMPINV-BASE-PARAMETER-B0-NONE-A8798726",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 81,
+        "answerVariantCount": 19
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2022-06-KICE-PROBABILITY_STATISTICS-Q19",
+      "generatorContractId": "GEN-C1TANEXT-EXTREMUM-VALUE-BACKSOLVE-SUM-OF-PARAMETERS-B0-NONE-2B51787B",
+      "canonicalStructureId": "STR-C1TANEXT-EXTREMUM-VALUE-BACKSOLVE-SUM-OF-PARAMETERS-B0-NONE-2B51787B",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 106,
+        "answerVariantCount": 94
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-10-EDUCATION_OFFICE-GA-Q26",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B1-NONE-DB693DBC",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-DB693DBC",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 200,
+        "answerVariantCount": 14
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-09-KICE-NA-Q26",
+      "generatorContractId": "GEN-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-C309D465",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-C309D465",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 48,
+        "answerVariantCount": 30
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q25",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-PARAMETER-B0-NONE-E22050CB",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-PARAMETER-B0-NONE-E22050CB",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 197,
+        "answerVariantCount": 20
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-09-KICE-GA-Q23",
+      "generatorContractId": "GEN-ALGELGR-ALGELGR-BASE-SQUARED-PARAMETER-B0-NONE-CB05E890",
+      "canonicalStructureId": "STR-ALGELGR-ALGELGR-BASE-SQUARED-PARAMETER-B0-NONE-CB05E890",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 128,
+        "answerVariantCount": 25
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-06-KICE-GA-Q24",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-6BF4A7A4",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-6BF4A7A4",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 159,
+        "answerVariantCount": 30
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q24",
+      "generatorContractId": "GEN-ALGELGR-ALGELGR-BASE-SUM-OF-PARAMETERS-B0-NONE-A5B45E2C",
+      "canonicalStructureId": "STR-ALGELGR-ALGELGR-BASE-SUM-OF-PARAMETERS-B0-NONE-A5B45E2C",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch3.json",
+        "verificationHash": "a68b3d5ce5dfeaf039e756d6738a23d0c67702403cbcc4bdfe46fd34ca8e7514",
+        "sampleCount": 200,
+        "parameterVariantCount": 200,
+        "answerVariantCount": 30
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-06-KICE-GA-Q22",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-LIMIT-VALUE-B0-NONE-D6D67A89",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-LIMIT-VALUE-B0-NONE-D6D67A89",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 150,
+        "answerVariantCount": 40
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-07-EDUCATION_OFFICE-GA-Q25",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-7FCFE969",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-7FCFE969",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 106,
+        "answerVariantCount": 23
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-06-KICE-GA-Q23",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-B78F7CBD",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-B78F7CBD",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 48,
+        "answerVariantCount": 48
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2021-04-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17",
+      "generatorContractId": "GEN-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-TRIG-VALUE-B0-NONE-2450BC4E",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-TRIG-VALUE-B0-NONE-2450BC4E",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 67,
+        "answerVariantCount": 25
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-06-KICE-NA-Q23",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-C1169EBD",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-C1169EBD",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 199,
+        "answerVariantCount": 145
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-GA-Q23",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-D5E71F8F",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-D5E71F8F",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 18,
+        "answerVariantCount": 17
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-GA-Q24",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-57069AFA",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-57069AFA",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 130,
+        "answerVariantCount": 40
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-06-KICE-GA-Q23",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-39370A91",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-39370A91",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 71,
+        "answerVariantCount": 20
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-06-KICE-NA-Q23",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-C203A533",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-C203A533",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 186,
+        "answerVariantCount": 124
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-10-EDUCATION_OFFICE-GA-Q23",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-58A42254",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-58A42254",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 194,
+        "answerVariantCount": 126
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-10-EDUCATION_OFFICE-GA-Q25",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-LIMIT-VALUE-B0-NONE-6C1B3A22",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-LIMIT-VALUE-B0-NONE-6C1B3A22",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 199,
+        "answerVariantCount": 74
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-GA-Q23",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-20AC49B7",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-20AC49B7",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 120,
+        "answerVariantCount": 99
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2020-09-KICE-GA-Q23",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-4D49C3B3",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-4D49C3B3",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 76,
+        "answerVariantCount": 38
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2021-04-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q16",
+      "generatorContractId": "GEN-C1DER-C1DER-BASE-PARAMETER-B0-NONE-0BEF26BD",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-PARAMETER-B0-NONE-0BEF26BD",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 195,
+        "answerVariantCount": 49
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2026-06-KICE-PROBABILITY_STATISTICS-Q17",
+      "generatorContractId": "GEN-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-NONE-7FAF851B",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-NONE-7FAF851B",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 199,
+        "answerVariantCount": 128
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-09-KICE-GA-Q26",
+      "generatorContractId": "GEN-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALED-SQUARED-PARAMETER-B0-NONE-132B4225",
+      "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALED-SQUARED-PARAMETER-B0-NONE-132B4225",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 90,
+        "answerVariantCount": 90
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-09-KICE-NA-Q24",
+      "generatorContractId": "GEN-CM2COMPINV-CM2COMPINV-BASE-FUNCTION-VALUE-B0-NONE-775AC89D",
+      "canonicalStructureId": "STR-CM2COMPINV-CM2COMPINV-BASE-FUNCTION-VALUE-B0-NONE-775AC89D",
+      "implementationWave": "6C-WAVE-2-SYMBOLIC-TEXT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave2-batch4.json",
+        "verificationHash": "acb19c3b5b343b513e214b3869c4d88f5e17a506b4cdb1869d5e535410e4aff7",
+        "sampleCount": 200,
+        "parameterVariantCount": 199,
+        "answerVariantCount": 49
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-06-KICE-NA-Q22",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B0-NONE-B7CD2650",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-B7CD2650",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 14,
+        "answerVariantCount": 12
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-09-KICE-GA-Q22",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B0-NONE-C0EA0CF5",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-C0EA0CF5",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 30,
+        "answerVariantCount": 24
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-09-KICE-GA-Q24",
+      "generatorContractId": "GEN-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-A5D3A06E",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-A5D3A06E",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 48,
+        "answerVariantCount": 30
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-09-KICE-NA-Q22",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B0-NONE-FD62D390",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-FD62D390",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 31,
+        "answerVariantCount": 25
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-GA-Q22",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B0-NONE-CBCFE745",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-CBCFE745",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 16,
+        "answerVariantCount": 15
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-06-KICE-GA-Q22",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B0-NONE-B37D2E6E",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-B37D2E6E",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch1.json",
+        "verificationHash": "4e167bd5bcb991d6c0ae16a86b11b73c0d7c908a366075d0412f946e5f6d31ed",
+        "sampleCount": 200,
+        "parameterVariantCount": 31,
+        "answerVariantCount": 25
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-06-KICE-NA-Q22",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B0-NONE-D8F358C4",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-D8F358C4",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 31,
+        "answerVariantCount": 25
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q23",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-INTEGER-PARAMETER-B0-NONE-B41D6FD9",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-INTEGER-PARAMETER-B0-NONE-B41D6FD9",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 11,
+        "answerVariantCount": 11
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-NA-Q23",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-SUM-OF-COUNTS-B0-NONE-2D786D22",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-SUM-OF-COUNTS-B0-NONE-2D786D22",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 141,
+        "answerVariantCount": 98
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2017-09-KICE-GA-Q22",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B0-NONE-9036D85C",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-9036D85C",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 14,
+        "answerVariantCount": 12
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-09-KICE-GA-Q22",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-SUM-OF-COUNTS-B0-NONE-BFBB0D53",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-SUM-OF-COUNTS-B0-NONE-BFBB0D53",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 135,
+        "answerVariantCount": 96
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2018-10-EDUCATION_OFFICE-GA-Q22",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B1-NONE-B77F4D7A",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B1-NONE-B77F4D7A",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 4,
+        "answerVariantCount": 4
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-GA-Q22",
+      "generatorContractId": "GEN-PSCNT-PSCNT-BASE-COUNT-B0-NONE-1E836109",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B0-NONE-1E836109",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 16,
+        "answerVariantCount": 15
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2019-10-EDUCATION_OFFICE-GA-Q22",
+      "generatorContractId": "GEN-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-6E092C48",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-6E092C48",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 36,
+        "answerVariantCount": 22
+      },
+      "productionConnected": false
+    },
+    {
+      "sourceId": "2016-04-EDUCATION_OFFICE-GA-Q23",
+      "generatorContractId": "GEN-PSAXM-PSAXM-BASE-SCALED-PROBABILITY-B0-NONE-BEF7596C",
+      "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-SCALED-PROBABILITY-B0-NONE-BEF7596C",
+      "implementationWave": "6C-WAVE-1-DISCRETE-EXACT",
+      "status": "IMPLEMENTED_DUAL_ORACLE_VERIFIED",
+      "verificationEvidence": {
+        "verificationArtifact": "generator-verification-6c2-wave1-batch2.json",
+        "verificationHash": "ed743ce3bd4753d772ab04ef9086bc1523fc2e8a681f06334fd5412653456677",
+        "sampleCount": 200,
+        "parameterVariantCount": 196,
+        "answerVariantCount": 63
+      },
+      "productionConnected": false
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+name: matths
+app: node@20
+options:
+  env:
+    - name: NODE_ENV
+      value: production
+    - name: HOST
+      value: 0.0.0.0
+    - name: PORT
+      value: "8000"
+  install: npm ci --omit=dev --no-audit
+  ports: 8000/http
+  start: npm start

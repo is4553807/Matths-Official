@@ -174,7 +174,7 @@ function buildGeneratorMap() {
         }));
         map.set([course.id, unit.id, concept.id].join("/"), {
           key: `common-math-${concept.id}`,
-          requiredDistinctTypes: 10,
+          requiredDistinctTypes: 5,
           problemTypes,
           isCorrectAnswer,
         });

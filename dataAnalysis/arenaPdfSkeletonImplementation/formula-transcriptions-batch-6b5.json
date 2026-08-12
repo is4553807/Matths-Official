@@ -1,0 +1,631 @@
+{
+  "schemaVersion": "ARENA_PDF_FORMULA_TRANSCRIPTION_BATCH_V1",
+  "stage": "6-B-5",
+  "scope": "GOAT_ARENA_ONE_ON_ONE_ONLY",
+  "selectionPolicy": "FORMULA_TRANSCRIPTION_REQUIRED structures ordered by lowest non-null source correct-rate after batches 6-B-1 through 6-B-4; next 25",
+  "recordCount": 25,
+  "sourceUsePolicy": {
+    "verbatimProblemTextStored": false,
+    "formulaAndConditionSkeletonOnly": true,
+    "productionRuntimeModified": false
+  },
+  "statusSummary": {
+    "TRANSCRIBED_PENDING_SOLVER_CONTRACT": 25,
+    "VISUAL_CONTRACT_CORRECTION_REQUIRED": 1,
+    "FAMILY_CONTRACT_CORRECTION_REQUIRED": 9,
+    "TARGET_CONTRACT_CORRECTION_REQUIRED": 5,
+    "SOURCE_CONTEXT_AUGMENTATION_REQUIRED": 1
+  },
+  "records": [
+    {
+      "sourceId": "2019-09-KICE-NA-Q27",
+      "canonicalStructureId": "STR-C1DERROOT-C1DERROOT-BASE-PRODUCT-OF-PARAMETERS-B0-NONE-5277DE6C",
+      "familyId": "C1-DERIVATIVE-ROOTS",
+      "correctRatePercent": 37.8,
+      "targetKind": "PRODUCT_OF_PARAMETERS",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2019-09-KICE-NA-Q27.jpg",
+      "givensTeX": [
+        "C:y=x^3-3x^2+2x-3",
+        "\\ell_k:y=2x+k",
+        "\\#(C\\cap\\ell_k)=2",
+        "k\\in\\mathbb{R}"
+      ],
+      "targetTeX": "\\prod_{k\\text{ satisfying the intersection condition}}k",
+      "solverShape": "A cubic and a line meet at exactly two distinct points precisely when the difference cubic has a repeated real root; evaluate it at the derivative roots and multiply the resulting parameter values.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1DERROOT-C1DERROOT-BASE-PRODUCT-OF-PARAMETERS-B0-7733AD68",
+      "contractId": "CTR-C1DERROOT-C1DERROOT-BASE-PRODUCT-OF-PARAMETERS-B0-NONE-5277DE6C",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-10-EDUCATION_OFFICE-GA-Q26",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-DC30061B",
+      "familyId": "PS-COUNTING",
+      "correctRatePercent": 38.5,
+      "targetKind": "COUNT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-10-EDUCATION_OFFICE-GA-Q26.jpg",
+      "givensTeX": [
+        "X=\\{1,2,3,4,5,6\\},\\quad f:X\\to X",
+        "f\\text{ is injective}",
+        "f(2n)<f(n)<f(3n)\\quad(n=1,2)"
+      ],
+      "targetTeX": "\\#\\{f:X\\to X\\text{ satisfying all conditions}\\}",
+      "solverShape": "Because the domain and codomain have equal finite size, count permutations of six values subject to the two three-term order constraints, using a partial-order linear-extension count.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-41C5083A",
+      "contractId": "CTR-PSCNT-MAPPING-FUNCTION-COUNT-COUNT-B0-NONE-DC30061B",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-431B4E8B",
+      "familyId": "C1-INTEGRAL-DEFINED",
+      "correctRatePercent": 38.6,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17.jpg",
+      "givensTeX": [
+        "I_1=\\int_{-3}^{2}\\left(2x^3+6|x|\\right)\\,dx",
+        "I_2=\\int_{-3}^{-2}\\left(2x^3-6x\\right)\\,dx"
+      ],
+      "targetTeX": "I_1-I_2",
+      "solverShape": "Split the absolute-value integral at zero, combine the overlapping negative interval where possible, and evaluate the resulting polynomial antiderivatives.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is direct definite-integral evaluation rather than an area problem; review as C1-INTEGRAL-DEFINED.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-6348135B",
+      "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-431B4E8B",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-04-EDUCATION_OFFICE-GA-Q27",
+      "canonicalStructureId": "STR-C1INTDEF-INTEGRAL-EXTREMUM-SUM-B0-NONE-B00D0EDC",
+      "familyId": "C1-INTEGRAL-DEFINED",
+      "correctRatePercent": 39.1,
+      "targetKind": "SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-04-EDUCATION_OFFICE-GA-Q27.jpg",
+      "givensTeX": [
+        "n\\in\\mathbb{N}",
+        "f_n(x)=\\int_{1}^{x}\\frac{n-\\ln t}{t}\\,dt\\quad(x>0)",
+        "g(n)=\\max_{x>0}f_n(x)"
+      ],
+      "targetTeX": "\\sum_{n=1}^{12}g(n)",
+      "solverShape": "Set u equal to log x so the integral-defined function becomes a concave quadratic in u, read off its maximum for each natural n, and sum the twelve maxima.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the function is defined by an integral and optimized; C1-INTEGRAL-DEFINED is more accurate than C1-INTEGRAL-AREA.",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical EXTREMUM describes the intermediate g(n), but the requested final answer is a finite SUM.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1INTDEF-INTEGRAL-EXTREMUM-SUM-B0-AD1A5233",
+      "contractId": "CTR-C1INTDEF-INTEGRAL-EXTREMUM-SUM-B0-NONE-B00D0EDC",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2019-07-EDUCATION_OFFICE-NA-Q26",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-5784ABC2",
+      "familyId": "ALG-SEQUENCE-RECURRENCE",
+      "correctRatePercent": 39.2,
+      "targetKind": "SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2019-07-EDUCATION_OFFICE-NA-Q26.jpg",
+      "givensTeX": [
+        "a_1=2,\\quad a_n>0",
+        "a_nx^2-a_{n+1}x+a_n=0\\text{ has a repeated root for every }n\\in\\mathbb{N}"
+      ],
+      "targetTeX": "\\sum_{k=1}^{8}a_k",
+      "solverShape": "Set the quadratic discriminant to zero, use positivity to select the positive recurrence multiplier, and sum the resulting geometric sequence.",
+      "visualAudit": "NONE_REQUIRED",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical INTEGER_PARAMETER conflicts with the source, which requests a finite sequence SUM.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-F2562DBA",
+      "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-5784ABC2",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2024-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-C456725D",
+      "familyId": "C1-INTEGRAL-DEFINED",
+      "correctRatePercent": 39.7,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2024-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18.jpg",
+      "givensTeX": [
+        "f\\text{ is quadratic with leading coefficient }3",
+        "\\int_{0}^{x}f(t)\\,dt=2x^3+\\int_{0}^{-x}f(t)\\,dt\\quad(x\\in\\mathbb{R})",
+        "f(1)=5"
+      ],
+      "targetTeX": "f(2)",
+      "solverShape": "Write the general quadratic, evaluate both parameterized integrals with careful orientation at negative x, compare coefficients, and use the value at one.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the integral identity determines a polynomial and has no area target; review as C1-INTEGRAL-DEFINED.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-14F091A7",
+      "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-C456725D",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2023-06-KICE-PROBABILITY_STATISTICS-Q19",
+      "canonicalStructureId": "STR-ALGTRIGGR-TRIG-ROOT-COUNT-SUM-OF-PARAMETERS-B1-NONE-BDDF0903",
+      "familyId": "ALG-TRIG-GRAPH",
+      "correctRatePercent": 39.9,
+      "targetKind": "SUM_OF_PARAMETERS",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2023-06-KICE-PROBABILITY_STATISTICS-Q19.jpg",
+      "givensTeX": [
+        "a,b\\in\\mathbb{N}",
+        "f(x)=a\\sin(bx)+8-a",
+        "f(x)\\ge0\\quad(x\\in\\mathbb{R})",
+        "\\#\\{x\\in[0,2\\pi):f(x)=0\\}=4"
+      ],
+      "targetTeX": "a+b",
+      "solverShape": "The global nonnegativity and existence of zeros force the vertical shift to equal the amplitude at the minimum; then count sine minima across one two-pi interval to determine the frequency.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is a trigonometric range and zero-count problem, not calculus tangent or extrema; review as ALG-TRIG-GRAPH.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGTRIGGR-TRIG-ROOT-COUNT-SUM-OF-PARAMETERS-B1-583A9610",
+      "contractId": "CTR-ALGTRIGGR-TRIG-ROOT-COUNT-SUM-OF-PARAMETERS-B1-NONE-BDDF0903",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q26",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-DE879226",
+      "familyId": "PS-COUNTING",
+      "correctRatePercent": 40.9,
+      "targetKind": "COUNT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-07-EDUCATION_OFFICE-GA-Q26.jpg",
+      "givensTeX": [
+        "\\text{five distinguishable dolls are distributed among labeled bags }A,B,C",
+        "\\text{every bag receives at least one doll}"
+      ],
+      "targetTeX": "\\#\\{\\text{valid distributions}\\}",
+      "solverShape": "Count onto functions from five labeled dolls to three labeled bags by inclusion-exclusion, or equivalently multiply a Stirling partition count by three factorial.",
+      "visualAudit": "ILLUSTRATION_PRESENT_BUT_NOT_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSCNT-PSCNT-BASE-COUNT-B1-88A857D4",
+      "contractId": "CTR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-DE879226",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2020-06-KICE-NA-Q24",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-BFB437BC",
+      "familyId": "C1-DERIVATIVE",
+      "correctRatePercent": 41.3,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2020-06-KICE-NA-Q24.jpg",
+      "givensTeX": [
+        "f(x)=x^3-6x^2+6",
+        "(1,1)\\in y=f(x)",
+        "\\text{the tangent to }y=f(x)\\text{ at }(1,1)\\text{ passes through }(0,a)"
+      ],
+      "targetTeX": "a",
+      "solverShape": "Evaluate the derivative at one, write the point-slope tangent line through the given curve point, and take its y-intercept.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1DER-C1DER-BASE-SCALAR-VALUE-B0-E1AD7EE9",
+      "contractId": "CTR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-BFB437BC",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2019-10-EDUCATION_OFFICE-GA-Q28",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-GEO-B32B6CAC",
+      "familyId": "PS-COUNTING",
+      "correctRatePercent": 41.4,
+      "targetKind": "COUNT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2019-10-EDUCATION_OFFICE-GA-Q28.jpg",
+      "givensTeX": [
+        "\\text{six right-isosceles triangular pieces have leg length }1",
+        "\\text{triangle labels occur with multiplicities }1,1,4",
+        "\\text{one square piece has side length }1\\text{ and a fourth label}",
+        "\\text{all seven pieces tile a fixed connected figure of four unit squares without overlap}",
+        "\\text{the four identically labeled triangular pieces are indistinguishable}",
+        "\\text{pieces may not be flipped}"
+      ],
+      "targetTeX": "\\#\\{\\text{valid labeled tilings of the supplied figure}\\}",
+      "solverShape": "Enumerate the diagonal choices and placements of the unique labeled pieces on the four-cell polyomino, quotient by the indistinguishability of the four repeated triangles, and enforce the no-flip orientation rule.",
+      "visualAudit": "REQUIRED_PIECE_AND_TARGET_TILING_DIAGRAMS",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSCNT-PSCNT-BASE-COUNT-B1-4B0451F7",
+      "contractId": "CTR-PSCNT-PSCNT-BASE-COUNT-B1-GEO-B32B6CAC",
+      "resolvedVisualContract": "GEO",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-03-EDUCATION_OFFICE-GA-Q24",
+      "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-SUM-B0-NONE-F12C84CE",
+      "familyId": "PS-COUNTING",
+      "correctRatePercent": 42.3,
+      "targetKind": "SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-03-EDUCATION_OFFICE-GA-Q24.jpg",
+      "givensTeX": [
+        "P(n,r)=\\#\\{\\text{partitions of the natural number }n\\text{ into }r\\text{ positive parts}\\}",
+        "S(n,r)=\\#\\{\\text{partitions of an }n\\text{-element set into }r\\text{ nonempty unlabeled subsets}\\}"
+      ],
+      "targetTeX": "P(5,3)+S(5,3)",
+      "solverShape": "List integer partitions of five into three positive parts, then count set partitions of type three-one-one and two-two-one, and add the two partition counts.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: natural-number and set partitions are counting structures; review as PS-COUNTING rather than CM2-SETS-PROPOSITIONS.",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical EXTREMUM has no relation to the requested sum of two partition counts.",
+      "contextAudit": "SOURCE_CONTEXT_AUGMENTATION_REQUIRED: the problem page assumes the standard meanings of P(n,r) and S(n,r); the self-contained definitions above were confirmed from the official solution.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSCNT-MAPPING-FUNCTION-COUNT-SUM-B0-43742EA7",
+      "contractId": "CTR-PSCNT-MAPPING-FUNCTION-COUNT-SUM-B0-NONE-F12C84CE",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY",
+        "TARGET",
+        "CONTEXT"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-06-KICE-NA-Q27",
+      "canonicalStructureId": "STR-PSCOND-PSCOND-BASE-INTEGER-PARAMETER-B1-NONE-D3FFF67B",
+      "familyId": "PS-CONDITIONAL",
+      "correctRatePercent": 44.1,
+      "targetKind": "INTEGER_PARAMETER",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-06-KICE-NA-Q27.jpg",
+      "givensTeX": [
+        "a\\in\\mathbb{N}",
+        "\\text{box }A:(W,B)=(a,100-a)",
+        "\\text{box }B:(W,B)=(100-2a,2a)",
+        "\\text{one ball is drawn independently from each box}",
+        "P(WW\\mid\\text{same color})=\\frac29"
+      ],
+      "targetTeX": "a",
+      "solverShape": "Write the white-white and black-black joint probabilities from the table, form the conditional ratio, clear denominators, and retain the natural solution compatible with all ball counts.",
+      "visualAudit": "TABLE_PRESENT_BUT_CONDITIONS_ARE_SELF_CONTAINED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSCOND-PSCOND-BASE-INTEGER-PARAMETER-B1-AB30AB65",
+      "contractId": "CTR-PSCOND-PSCOND-BASE-INTEGER-PARAMETER-B1-NONE-D3FFF67B",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-03-EDUCATION_OFFICE-GA-Q27",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-PRODUCT-B0-NONE-F4CBEF28",
+      "familyId": "C1-INTEGRAL-DEFINED",
+      "correctRatePercent": 44.2,
+      "targetKind": "PRODUCT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-03-EDUCATION_OFFICE-GA-Q27.jpg",
+      "givensTeX": [
+        "f\\text{ is continuous on }\\mathbb{R}",
+        "x\\int_{0}^{x}f(t)\\,dt-\\int_{0}^{x}t f(t)\\,dt=ae^{2x}-4x+b",
+        "a,b\\in\\mathbb{R}"
+      ],
+      "targetTeX": "f(a)f(b)",
+      "solverShape": "Set x to zero to relate the constants, differentiate the integral identity once to obtain the accumulated integral and again to recover f, and then evaluate at the determined constants.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is an integral equation defining a function, not an area problem; review as C1-INTEGRAL-DEFINED.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-PRODUCT-B0-63BF4BE6",
+      "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-PRODUCT-B0-NONE-F4CBEF28",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-NA-Q26",
+      "canonicalStructureId": "STR-FNGRAPH-FNGRAPH-BASE-INTEGER-PARAMETER-B0-NONE-A1C89232",
+      "familyId": "FUNCTION-GRAPH-CONDITION",
+      "correctRatePercent": 45.1,
+      "targetKind": "INTEGER_PARAMETER",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-04-EDUCATION_OFFICE-NA-Q26.jpg",
+      "givensTeX": [
+        "f(x)=\\begin{cases}\\sqrt{4-x}+3,&x<4\\\\-(x-a)^2+4,&x\\ge4\\end{cases}",
+        "f:\\mathbb{R}\\to\\mathbb{R}",
+        "a\\in\\mathbb{R}",
+        "f\\text{ is injective}"
+      ],
+      "targetTeX": "a",
+      "solverShape": "Determine the range and monotonic direction of each branch, enforce injectivity within the quadratic half-branch and disjointness of the two branch ranges, and solve for the vertex position.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-FNGRAPH-FNGRAPH-BASE-INTEGER-PARAMETER-B0-73F19219",
+      "contractId": "CTR-FNGRAPH-FNGRAPH-BASE-INTEGER-PARAMETER-B0-NONE-A1C89232",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-03-EDUCATION_OFFICE-NA-Q29",
+      "canonicalStructureId": "STR-CM2SET-SET-OPERATION-COUNT-PRODUCT-OF-SET-ELEMENTS-B0-NONE-1152EEBF",
+      "familyId": "CM2-SETS-PROPOSITIONS",
+      "correctRatePercent": 46.2,
+      "targetKind": "PRODUCT_OF_SET_ELEMENTS",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-03-EDUCATION_OFFICE-NA-Q29.jpg",
+      "givensTeX": [
+        "A=\\{1,2,3,4\\}",
+        "B=\\{1,2,3,4,5,6,7,8\\}",
+        "P\\subseteq B",
+        "|P\\cap A|=2",
+        "\\sum_{x\\in P}x=28"
+      ],
+      "targetTeX": "\\prod_{x\\in P\\setminus A}x",
+      "solverShape": "Use the total-sum condition with exactly two selected elements from A to identify the unique compatible subset of B, then multiply the elements outside A.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is a finite-set selection problem, not calculus tangent or extrema; review as CM2-SETS-PROPOSITIONS.",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical SUM conflicts with the requested PRODUCT of elements in the set difference.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-CM2SET-SET-OPERATION-COUNT-PRODUCT-OF-SET-ELEMENTS-B0-A3128D1B",
+      "contractId": "CTR-CM2SET-SET-OPERATION-COUNT-PRODUCT-OF-SET-ELEMENTS-B0-NONE-1152EEBF",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2020-06-KICE-NA-Q26",
+      "canonicalStructureId": "STR-C1DER-INSTANTANEOUS-RATE-POSITIVE-PARAMETER-B0-NONE-D776B25D",
+      "familyId": "C1-DERIVATIVE",
+      "correctRatePercent": 46.2,
+      "targetKind": "POSITIVE_PARAMETER",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2020-06-KICE-NA-Q26.jpg",
+      "givensTeX": [
+        "f(x)=x^3-3x^2+5x",
+        "a>0",
+        "\\frac{f(a)-f(0)}{a-0}=f'(2)"
+      ],
+      "targetTeX": "a",
+      "solverShape": "Compute the derivative value and the secant slope from zero to a, equate them, factor the resulting polynomial equation, and retain the positive nonzero parameter.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the source is an average-rate-of-change and derivative equation with no exponential or logarithmic structure; review as C1-DERIVATIVE.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1DER-INSTANTANEOUS-RATE-POSITIVE-PARAMETER-B0-61B742D9",
+      "contractId": "CTR-C1DER-INSTANTANEOUS-RATE-POSITIVE-PARAMETER-B0-NONE-D776B25D",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-03-EDUCATION_OFFICE-NA-Q24",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-LIMIT-VALUE-B0-NONE-0C4963D6",
+      "familyId": "ALG-SEQUENCE-RECURRENCE",
+      "correctRatePercent": 47.0,
+      "targetKind": "LIMIT_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-03-EDUCATION_OFFICE-NA-Q24.jpg",
+      "givensTeX": [
+        "S_n=\\sum_{k=1}^{n}a_k",
+        "\\lim_{n\\to\\infty}S_n=7"
+      ],
+      "targetTeX": "\\lim_{n\\to\\infty}(2a_n+3S_n)",
+      "solverShape": "Use convergence of the partial sums to infer that the underlying sequence term tends to zero, then apply limit linearity.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-LIMIT-VALUE-B0-BF91ED71",
+      "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-LIMIT-VALUE-B0-NONE-0C4963D6",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-04-EDUCATION_OFFICE-GA-Q24",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-NONE-CB583F6A",
+      "familyId": "ALG-TRIG-GRAPH",
+      "correctRatePercent": 47.0,
+      "targetKind": "COUNT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-04-EDUCATION_OFFICE-GA-Q24.jpg",
+      "givensTeX": [
+        "y=4\\sin\\left(\\frac{\\pi}{2}x\\right)",
+        "0\\le x\\le2"
+      ],
+      "targetTeX": "\\#\\{(x,y):y=4\\sin(\\tfrac{\\pi}{2}x),\\ 0\\le x\\le2,\\ y\\in\\mathbb{Z}\\}",
+      "solverShape": "List the attainable integer y levels from zero through four and count how many x values in the closed interval realize each level, treating the maximum and endpoints separately.",
+      "visualAudit": "VISUAL_CONTRACT_CORRECTION_REQUIRED: canonical GRAPH is not supported by the source page, which contains only the formula and interval; review as NONE or optional generated graph.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-1A3CDF4B",
+      "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-NONE-CB583F6A",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "VISUAL"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-09-KICE-GA-Q28",
+      "canonicalStructureId": "STR-PSCOND-PSCOND-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-EDBB1855",
+      "familyId": "PS-CONDITIONAL",
+      "correctRatePercent": 47.0,
+      "targetKind": "REDUCED_RATIONAL_COMPONENT_SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-09-KICE-GA-Q28.jpg",
+      "givensTeX": [
+        "a,b,c\\in\\mathbb{Z}_{\\ge0}",
+        "a+b+c=9",
+        "(a,b,c)\\text{ is chosen uniformly from all solutions}",
+        "P(a<2\\text{ or }b<2)=\\frac{q}{p}",
+        "\\gcd(p,q)=1"
+      ],
+      "targetTeX": "p+q",
+      "solverShape": "Count all nonnegative ordered solutions by stars and bars, count the union using inclusion-exclusion on a and b below two, and reduce the probability.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSCOND-PSCOND-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-64988554",
+      "contractId": "CTR-PSCOND-PSCOND-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-EDBB1855",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-GA-Q27",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-CE6F58CC",
+      "familyId": "C1-INTEGRAL-DEFINED",
+      "correctRatePercent": 47.7,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2019-04-EDUCATION_OFFICE-GA-Q27.jpg",
+      "givensTeX": [
+        "f,g:\\mathbb{R}\\to\\mathbb{R}\\text{ are differentiable}",
+        "g=f^{-1}",
+        "g(2)=1,\\quad g(5)=5",
+        "I=\\int_{1}^{5}\\frac{40}{g'(f(x))\\{f(x)\\}^2}\\,dx"
+      ],
+      "targetTeX": "I",
+      "solverShape": "Use the inverse derivative identity to replace one over g prime of f(x) by f prime of x, infer f(1) and f(5) from the inverse values, and integrate an exact derivative of the reciprocal.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is an inverse-function derivative substitution in a definite integral, not an area problem; review as C1-INTEGRAL-DEFINED.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-0E658ABD",
+      "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-CE6F58CC",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2023-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B1-NONE-E19F4F95",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 47.8,
+      "targetKind": "SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2023-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18.jpg",
+      "givensTeX": [
+        "n\\in\\mathbb{N}",
+        "x^2-5nx+4n^2=0",
+        "\\alpha_n,\\beta_n\\text{ are its two roots}"
+      ],
+      "targetTeX": "\\sum_{n=1}^{7}(1-\\alpha_n)(1-\\beta_n)",
+      "solverShape": "Expand the target factor through the root sum and product, apply Vieta to obtain a quadratic expression in n, and sum it from one through seven.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B1-5071425B",
+      "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B1-NONE-E19F4F95",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-10-EDUCATION_OFFICE-GA-Q28",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-LIMIT-VALUE-B0-GEO-DF6AE922",
+      "familyId": "ALG-TRIG-GRAPH",
+      "correctRatePercent": 47.9,
+      "targetKind": "SCALED_LIMIT_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-10-EDUCATION_OFFICE-GA-Q28.jpg",
+      "givensTeX": [
+        "\\triangle ABC:\\ \\angle A=\\frac{\\pi}{2},\\ \\angle B=\\theta,\\ 0<\\theta<\\frac{\\pi}{2},\\ \\overline{BC}=1",
+        "D\\in\\overline{AC}",
+        "\\text{the circle with diameter }\\overline{AD}\\text{ is tangent to }\\overline{BC}",
+        "k=\\lim_{\\theta\\to0+}\\frac{\\overline{CD}}{\\theta^3}"
+      ],
+      "targetTeX": "100k",
+      "solverShape": "Express the right-triangle sides in theta, impose the distance-to-line tangency condition for the circle with diameter AD to solve for CD, and take the third-order small-angle limit.",
+      "visualAudit": "REQUIRED_RIGHT_TRIANGLE_AND_TANGENT_CIRCLE_DIAGRAM",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-LIMIT-VALUE-B0-C5E32776",
+      "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-SCALED-LIMIT-VALUE-B0-GEO-DF6AE922",
+      "resolvedVisualContract": "GEO",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2024-07-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SQUARED-PARAMETER-B0-NONE-DF89833A",
+      "familyId": "ALG-TRIG-GRAPH",
+      "correctRatePercent": 47.9,
+      "targetKind": "SQUARED_PARAMETER",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2024-07-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19.jpg",
+      "givensTeX": [
+        "a>0",
+        "f(x)=a\\sin(\\pi x),\\quad g(x)=a\\cos(\\pi x)\\quad(0\\le x\\le3)",
+        "\\text{the three distinct intersections of }y=f(x)\\text{ and }y=g(x)\\text{ form a triangle of area }2"
+      ],
+      "targetTeX": "a^2",
+      "solverShape": "Solve sine equals cosine on the restricted interval to obtain the three intersection coordinates, compute the triangle base and height as functions of a, and impose the area.",
+      "visualAudit": "GRAPH_PRESENT_BUT_EQUATIONS_AND_DOMAIN_ARE_SELF_CONTAINED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-SQUARED-PARAMETER-B0-7613E473",
+      "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-SQUARED-PARAMETER-B0-NONE-DF89833A",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2019-10-EDUCATION_OFFICE-NA-Q23",
+      "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-D48FA5EE",
+      "familyId": "ALG-EXP-LOG-EQUATION",
+      "correctRatePercent": 48.0,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2019-10-EDUCATION_OFFICE-NA-Q23.jpg",
+      "givensTeX": [
+        "a,b>0,\\quad a\\ne1,\\quad b\\ne1",
+        "\\log_a b=3"
+      ],
+      "targetTeX": "\\log\\left(\\frac{b}{a}\\right)\\cdot\\log_a100",
+      "solverShape": "Convert b to a cubed, rewrite the common logarithm of the quotient and the base-a logarithm of one hundred by change of base, and cancel the logarithm of a.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-8496C74B",
+      "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-D48FA5EE",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2021-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-PARTIAL-SUM-VALUE-B0-NONE-2D8D4E34",
+      "familyId": "ALG-SEQUENCE-RECURRENCE",
+      "correctRatePercent": 48.0,
+      "targetKind": "PARTIAL_SUM_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2021-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19.jpg",
+      "givensTeX": [
+        "S_n=\\sum_{k=1}^{n}a_k",
+        "a_1=2,\\quad a_2=4",
+        "a_{n+1}S_n=a_nS_{n+1}\\quad(n\\ge2)"
+      ],
+      "targetTeX": "S_5",
+      "solverShape": "Substitute S at n plus one as S_n plus a_{n+1}, isolate a recurrence linking the next term to adjacent partial sums, and iterate from the two initial terms through S_5.",
+      "visualAudit": "NONE_REQUIRED",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical INTEGER_PARAMETER conflicts with the requested partial-sum value S_5.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-PARTIAL-SUM-VALUE-B0-4289AE0B",
+      "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-PARTIAL-SUM-VALUE-B0-NONE-2D8D4E34",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    }
+  ],
+  "reconciliation": {
+    "schemaVersion": "ARENA_PDF_TRANSCRIPTION_RECONCILIATION_V1",
+    "reconciliationHash": "559be8077adf604ec6c67eb95161be963cd7d40bcb618db089542d9cc7bc2d32",
+    "catalogContentHash": "662ac239778e9d7c8ad212fc4400f93596ca02c6a1c3216afff5fdc95a68fa68",
+    "contractContentHash": "d1e1eff6d4811958bda9853cd3e29a358acb4a1df5e95d59af9700f38f8239f2",
+    "recordCount": 25,
+    "canonicalIdRefreshCount": 19,
+    "familyMetadataRefreshCount": 9,
+    "status": "VERIFIED"
+  }
+}

@@ -3303,7 +3303,13 @@ const arenaProblemQuestionSchema = new Schema(
     },
     category: {
       type: String,
-      enum: ["semi-killer", "killer"],
+      enum: [
+        "basic-general",
+        "general",
+        "upper-general",
+        "semi-killer",
+        "killer",
+      ],
       required: true,
     },
     courseId: {
@@ -3369,7 +3375,12 @@ const arenaProblemQuestionSchema = new Schema(
     },
     referenceBasis: {
       type: String,
-      enum: ["", "OFFICIAL_MOCK_REFERENCE", "CURRICULUM_TRANSFER"],
+      enum: [
+        "",
+        "EBSI_ACCURACY_REFERENCE",
+        "OFFICIAL_MOCK_REFERENCE",
+        "CURRICULUM_TRANSFER",
+      ],
       default: "",
     },
     difficultyPosition: {
@@ -3384,7 +3395,14 @@ const arenaProblemQuestionSchema = new Schema(
     },
     difficultyClass: {
       type: String,
-      enum: ["", "SEMI_KILLER", "KILLER"],
+      enum: [
+        "",
+        "BASIC_GENERAL",
+        "GENERAL",
+        "UPPER_GENERAL",
+        "SEMI_KILLER",
+        "KILLER",
+      ],
       default: "",
     },
     sourcePositionBand: {
@@ -3397,6 +3415,12 @@ const arenaProblemQuestionSchema = new Schema(
         "MIXED_SEMI_KILLER",
         "SOFTENED_Q29_30",
         "Q29_30_KILLER",
+        "ACCURACY_BASIC_GENERAL",
+        "ACCURACY_GENERAL",
+        "ACCURACY_UPPER_GENERAL",
+        "ACCURACY_SEMI_KILLER",
+        "ACCURACY_KILLER",
+        "ACCURACY_UNRESOLVED",
       ],
       default: "",
     },
@@ -3515,6 +3539,10 @@ const arenaProblemQuestionSchema = new Schema(
         required: true,
       },
       semiKillerCertified: {
+        type: Boolean,
+        default: false,
+      },
+      accuracyClassCertified: {
         type: Boolean,
         default: false,
       },
@@ -4404,25 +4432,41 @@ arenaProblemPackSchema.path("questions").validate(
     if (!Array.isArray(questions)) return false;
     const keys = questions.map((question) => question.questionKey);
     const typeIds = questions.map((question) => question.typeId);
-    const division = String(this.division || "SUB").toUpperCase();
-    const difficultyLevel = Number(
-      String(this.difficultyCode || "").replace(/^[UR]/, "")
-    );
-    const allKiller = Number.isFinite(difficultyLevel) && difficultyLevel >= 7;
+    const categoryByClass = {
+      BASIC_GENERAL: "basic-general",
+      GENERAL: "general",
+      UPPER_GENERAL: "upper-general",
+      SEMI_KILLER: "semi-killer",
+      KILLER: "killer",
+    };
+    const activeAccuracyDesign = this.designCompliance === "ACTIVE";
     return (
       questions.length === Number(this.questionCount) &&
       new Set(keys).size === keys.length &&
       new Set(typeIds).size === typeIds.length &&
       questions.every(
-        (question, index) => {
-          const rankedFinalQuestion =
-            allKiller ||
-            (division === "MAIN" && index === questions.length - 1);
+        (question) => {
+          const difficultyClass = String(
+            question.difficultyClass || ""
+          ).toUpperCase();
+          const killerQuestion = difficultyClass === "KILLER";
+          const expectedCategory = activeAccuracyDesign
+            ? categoryByClass[difficultyClass]
+            : question.category;
+          const expectedFinalRole = activeAccuracyDesign
+            ? killerQuestion
+            : question.category === "killer";
           return (
-            question.category ===
-              (rankedFinalQuestion ? "killer" : "semi-killer") &&
+            [
+              "basic-general",
+              "general",
+              "upper-general",
+              "semi-killer",
+              "killer",
+            ].includes(question.category) &&
+            question.category === expectedCategory &&
             String(question.slotRole || "").toUpperCase() ===
-              (rankedFinalQuestion ? "FINAL_29_30" : "REGULAR") &&
+              (expectedFinalRole ? "FINAL_29_30" : "REGULAR") &&
             question.validation?.passed === true &&
             question.validation?.solvable === true &&
             question.validation?.uniqueAnswer === true &&
@@ -4810,6 +4854,7 @@ const arenaAttemptSignalSchema = new Schema(
         "FOCUS_GAINED",
         "FOCUS_LOST",
         "QUESTION_FOCUSED",
+        "PAGE_EXITED",
       ],
       required: true,
     },

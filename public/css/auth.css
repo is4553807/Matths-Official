@@ -746,6 +746,13 @@ select:focus-visible {
   background: #fff;
 }
 
+.social-auth-google-mark {
+  width: 20px;
+  height: 20px;
+  display: block;
+  flex: 0 0 auto;
+}
+
 .social-auth-mark {
   width: 26px;
   height: 26px;

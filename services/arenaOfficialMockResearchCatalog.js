@@ -19,6 +19,15 @@ function activeRecords() {
   return catalog.records.filter((record) => record.status === "ACTIVE_REFERENCE");
 }
 
+function runtimeDifficultyRecords() {
+  return activeRecords().filter(
+    (record) =>
+      record.runtimeDifficultyEligible === true &&
+      record.difficultyClass &&
+      record.difficultyClass !== "UNRESOLVED"
+  );
+}
+
 function familyStats() {
   const stats = new Map();
   for (const record of activeRecords()) {
@@ -30,11 +39,16 @@ function familyStats() {
       tiers: {},
       regularReferences: 0,
       finalReferences: 0,
+      difficultyClasses: {},
     };
     current.references += 1;
     current.tiers[record.difficultyTier] = Number(current.tiers[record.difficultyTier] || 0) + 1;
     if (record.finalSlotInfluence) current.finalReferences += 1;
     else current.regularReferences += 1;
+    if (record.runtimeDifficultyEligible === true && record.difficultyClass) {
+      current.difficultyClasses[record.difficultyClass] =
+        Number(current.difficultyClasses[record.difficultyClass] || 0) + 1;
+    }
     stats.set(record.familyId, current);
   }
   return [...stats.values()].sort(
@@ -92,11 +106,53 @@ function familiesForTier(tier, courseId, { slotRole = "REGULAR", limit = 4 } = {
   )].slice(0, limit);
 }
 
+function familiesForDifficultyClass(
+  difficultyClass,
+  courseId,
+  { limit = 4 } = {}
+) {
+  const normalizedClass = String(difficultyClass || "").trim().toUpperCase();
+  const stats = new Map();
+  for (const record of runtimeDifficultyRecords()) {
+    if (
+      record.difficultyClass !== normalizedClass ||
+      record.courseId !== courseId
+    ) continue;
+    const current = stats.get(record.familyId) || {
+      familyId: record.familyId,
+      familyLabel: record.familyLabel,
+      courseId: record.courseId,
+      references: 0,
+      exactReferences: 0,
+      censoredReferences: 0,
+      basis: "EBSI_ACCURACY_REFERENCE",
+      difficultyClass: normalizedClass,
+    };
+    current.references += 1;
+    if (record.accuracyEvidence?.metricKind === "EBSI_OBSERVED_TOP15") {
+      current.exactReferences += 1;
+    } else {
+      current.censoredReferences += 1;
+    }
+    stats.set(record.familyId, current);
+  }
+  return [...stats.values()]
+    .sort(
+      (left, right) =>
+        right.references - left.references ||
+        right.exactReferences - left.exactReferences ||
+        left.familyLabel.localeCompare(right.familyLabel, "ko")
+    )
+    .slice(0, Math.max(1, Number(limit) || 4));
+}
+
 function getOfficialMockResearchSummary() {
   return {
     ...catalog.summary,
     byCourse: countActiveBy("courseId"),
     byDifficulty: countActiveBy("difficultyTier"),
+    byDifficultyClass: catalog.summary.byDifficultyClass || {},
+    byAccuracyEvidence: catalog.summary.byAccuracyEvidence || {},
     byFamily: countActiveBy("familyId"),
     byPositionBand: countActiveBy("sourcePositionBand"),
     schemaVersion: catalog.schemaVersion,
@@ -117,6 +173,8 @@ module.exports = {
   COURSE_TRANSFER_FAMILIES,
   FAMILY_STATS,
   activeRecords,
+  runtimeDifficultyRecords,
+  familiesForDifficultyClass,
   familiesForTier,
   getOfficialMockResearchSummary,
 };

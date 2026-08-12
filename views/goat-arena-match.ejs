@@ -184,7 +184,7 @@
           <div>
             <small>문제 팩 배정 전</small>
             <h2>경기 조건을 먼저 고정합니다.</h2>
-            <p>2016~2026 고3 3·5·6·7·9·10·11월 전국연합학력평가·모의평가 공개 해설에서 분류한 사고 유형을 바탕으로, Unranked U1~U9·Ranked R1~R9와 자동 검산을 통과한 주관식 5문항을 배정합니다. <%= matchData.division === "MAIN" || matchData.matchType === "FRIENDLY" ? "R1~R6은 1~4번을 준킬러, 5번을 29·30번형 킬러로 출제하고, 마스터·그랜드마스터·챌린저에 해당하는 R7~R9은 5문항 전부 29·30번형 킬러로 출제합니다." : "U1~U6은 5문항 모두 준킬러로 출제하고, 마스터·그랜드마스터·챌린저에 해당하는 U7~U9은 5문항 전부 29·30번형 킬러로 출제합니다." %> 답은 1~999 자연수입니다.</p>
+            <p>2016~2026 고3 전월 전국연합학력평가·모의평가 문항의 EBSi 정답률로 분류한 Arena 전용 PDF 스켈레톤에서 자동 검산을 통과한 주관식 5문항을 배정합니다. Unranked는 U1의 기초 일반 4+일반 1에서 시작해 U9의 상위 일반 3+준킬러 2까지 올라가며 킬러는 사용하지 않습니다. Ranked는 별도 표를 사용해 R1의 일반 4+상위 일반 1에서 시작하고 R4부터 준킬러, R7부터 킬러를 섞어 R9은 준킬러 4+킬러 1로 구성합니다. 답은 1~999 자연수입니다.</p>
           </div>
           <form action="/goat-arena/matches/<%= matchData.id %>/prepare" method="post">
             <button type="submit">경기 문제 준비 <span aria-hidden="true">→</span></button>
@@ -253,13 +253,14 @@
                 <header>
                   <span><%= String(question.number).padStart(2, "0") %></span>
                   <div>
-                    <small><%= question.categoryLabel %> · <%= courseLabels[question.courseId] || question.courseId %></small>
+                    <small><%= question.sourceDifficultyCode ? `${question.sourceDifficultyCode} · ` : "" %><%= question.categoryLabel %> · <%= courseLabels[question.courseId] || question.courseId %></small>
                     <strong><%= question.points %>점</strong>
                   </div>
                   <% if (question.targetAccuracy?.label) { %>
-                    <aside class="arena-match-question-accuracy" aria-label="이 문항의 예상 정답률 구간">
-                      <small>예상 정답률</small>
+                    <aside class="arena-match-question-accuracy" aria-label="<%= question.targetAccuracy.basisLabel %> <%= question.targetAccuracy.label %>">
+                      <small><%= question.targetAccuracy.basisLabel || "목표 정답률 구간" %></small>
                       <strong><%= question.targetAccuracy.label %></strong>
+                      <% if (question.targetAccuracy.rangeLabel) { %><span><%= question.targetAccuracy.rangeLabel %></span><% } %>
                     </aside>
                   <% } %>
                 </header>

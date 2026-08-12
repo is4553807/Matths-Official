@@ -1,0 +1,43 @@
+# PDF 스켈레톤 구현 6-C-2 - wave2-batch2 생성기 배치
+
+- 구현 문항: 25개
+- 문항별 검증 seed: 67개
+- 총 생성·이중 검산: 1675회
+- 주 솔버/독립 검산 불일치: 0건
+- 비결정적 재생성: 0건
+- 범위 밖 정답: 0건
+- 평가원형 표면 품질 오류: 0건
+- 운영 연결: true
+- 검증 해시: `695abee572bcc8511b39340eacb5327254ccf98a5803efc769e5f83b82ae602e`
+
+## 문항별 결과
+
+| sourceId | seed | 매개변수 변형 | 정답 변형 | 상태 |
+|---|---:|---:|---:|---|
+| `2025-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q20` | 67 | 8 | 8 | `PASSED` |
+| `2020-05-EDUCATION_OFFICE-NA-Q26` | 67 | 48 | 36 | `PASSED` |
+| `2016-07-EDUCATION_OFFICE-NA-Q28` | 67 | 15 | 15 | `PASSED` |
+| `2017-03-EDUCATION_OFFICE-GA-Q28` | 67 | 66 | 44 | `PASSED` |
+| `2019-10-EDUCATION_OFFICE-NA-Q27` | 67 | 63 | 58 | `PASSED` |
+| `2016-03-EDUCATION_OFFICE-NA-Q26` | 67 | 67 | 44 | `PASSED` |
+| `2018-10-EDUCATION_OFFICE-NA-Q28` | 67 | 18 | 18 | `PASSED` |
+| `2021-03-EDUCATION_OFFICE-CALCULUS-Q30` | 67 | 30 | 13 | `PASSED` |
+| `2024-10-EDUCATION_OFFICE-CALCULUS-Q29` | 67 | 19 | 19 | `PASSED` |
+| `2024-09-KICE-CALCULUS-Q29` | 67 | 56 | 44 | `PASSED` |
+| `2019-10-EDUCATION_OFFICE-NA-Q23` | 67 | 9 | 9 | `PASSED` |
+| `2020-06-KICE-NA-Q26` | 67 | 62 | 11 | `PASSED` |
+| `2018-04-EDUCATION_OFFICE-GA-Q24` | 67 | 19 | 19 | `PASSED` |
+| `2024-07-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19` | 67 | 15 | 15 | `PASSED` |
+| `2020-06-KICE-NA-Q24` | 67 | 64 | 32 | `PASSED` |
+| `2019-09-KICE-NA-Q27` | 67 | 63 | 27 | `PASSED` |
+| `2018-03-EDUCATION_OFFICE-GA-Q27` | 67 | 40 | 22 | `PASSED` |
+| `2018-04-EDUCATION_OFFICE-GA-Q27` | 67 | 8 | 8 | `PASSED` |
+| `2019-04-EDUCATION_OFFICE-GA-Q27` | 67 | 60 | 33 | `PASSED` |
+| `2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17` | 67 | 66 | 38 | `PASSED` |
+| `2024-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18` | 67 | 61 | 52 | `PASSED` |
+| `2023-06-KICE-PROBABILITY_STATISTICS-Q19` | 67 | 56 | 28 | `PASSED` |
+| `2017-04-EDUCATION_OFFICE-NA-Q26` | 67 | 59 | 8 | `PASSED` |
+| `2018-06-KICE-NA-Q28` | 67 | 63 | 37 | `PASSED` |
+| `2016-07-EDUCATION_OFFICE-NA-Q24` | 67 | 67 | 44 | `PASSED` |
+
+이 배치는 Arena 전용 어댑터를 통해 신규 1대1 경기에 연결된다. 평가센터와 기존 문제은행 경계 파일에는 직접 import가 없는지 함께 검사했다.

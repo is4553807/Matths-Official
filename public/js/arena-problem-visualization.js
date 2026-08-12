@@ -21,6 +21,9 @@
   }
 
   function text(svg, value, x, y, options = {}) {
+    if (options.mathTex) {
+      return mathText(svg, options.mathTex, x, y, options);
+    }
     const node = element("text", {
       x,
       y,
@@ -29,10 +32,119 @@
       "font-weight": options.weight || 650,
       "text-anchor": options.anchor || "middle",
       "font-family": "Pretendard, Noto Sans KR, Arial, sans-serif",
+      "paint-order": options.halo ? "stroke fill" : undefined,
+      stroke: options.halo ? "rgba(255,255,255,0.98)" : undefined,
+      "stroke-width": options.halo ? 4 : undefined,
+      "stroke-linejoin": options.halo ? "round" : undefined,
+      "data-label-placement": options.placement || undefined,
+      "data-label-origin-x": options.originX,
+      "data-label-origin-y": options.originY,
     });
     node.textContent = String(value);
     svg.append(node);
     return node;
+  }
+
+  function mathText(svg, tex, x, y, options = {}) {
+    const width = Math.max(44, finite(options.width, 172));
+    const height = Math.max(26, finite(options.height, 38));
+    const anchor = options.anchor || "middle";
+    const left = anchor === "start" ? x : anchor === "end" ? x - width : x - width / 2;
+    const node = element("foreignObject", {
+      x: left,
+      y: y - height * 0.72,
+      width,
+      height,
+      class: "arena-svg-math-label",
+      "data-math-tex": String(tex),
+      "data-label-placement": options.placement || undefined,
+      "data-label-origin-x": options.originX,
+      "data-label-origin-y": options.originY,
+    });
+    const content = document.createElement("div");
+    content.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+    content.style.display = "flex";
+    content.style.alignItems = "center";
+    content.style.justifyContent = anchor === "start" ? "flex-start" : anchor === "end" ? "flex-end" : "center";
+    content.style.width = "100%";
+    content.style.height = "100%";
+    content.style.overflow = options.clip ? "hidden" : "visible";
+    content.style.whiteSpace = "nowrap";
+    content.style.color = options.fill || "#111827";
+    content.style.fontSize = `${options.size || 12}px`;
+    content.style.fontWeight = options.weight || 650;
+    content.style.lineHeight = "1";
+    const formula = document.createElement("span");
+    formula.className = "arena-svg-math-formula";
+    formula.style.display = "inline-flex";
+    formula.style.alignItems = "center";
+    formula.style.minHeight = "20px";
+    formula.style.padding = options.background === false ? "0" : "1px 4px";
+    formula.style.borderRadius = "5px";
+    formula.style.background = options.background === false ? "transparent" : "rgba(255,255,255,0.94)";
+    formula.style.boxShadow = options.background === false ? "none" : "0 0 0 2px rgba(255,255,255,0.84)";
+    formula.textContent = `\\(${tex}\\)`;
+    content.append(formula);
+    node.append(content);
+    svg.append(node);
+    return node;
+  }
+
+  function plainFormulaToTeX(value) {
+    return String(value || "")
+      .replaceAll("−", "-")
+      .replaceAll("²", "^{2}")
+      .replaceAll("³", "^{3}")
+      .replaceAll("ˣ", "^{x}")
+      .replace(/\bsin\b/g, "\\sin ")
+      .replace(/\bcos\b/g, "\\cos ")
+      .replace(/\blog\b/g, "\\log ")
+      .replace(/_([A-Za-z0-9]+)/g, "_{$1}");
+  }
+
+  function renderGraphLegend(svg, items) {
+    const values = items.filter((item) => item && (item.text || item.mathTex));
+    if (!values.length) return;
+    const left = PLOT.left + 4;
+    const right = PLOT.right - 4;
+    const slotWidth = (right - left) / values.length;
+    svg.append(element("rect", {
+      x: left,
+      y: 5,
+      width: right - left,
+      height: 34,
+      rx: 7,
+      fill: "#f8fafc",
+      stroke: "#dbe3ee",
+      "stroke-width": 1,
+      "data-graph-label-band": "true",
+    }));
+    values.forEach((item, index) => {
+      const slotLeft = left + slotWidth * index;
+      const color = item.color || CURVE_COLORS[index % CURVE_COLORS.length];
+      svg.append(element("line", {
+        x1: slotLeft + 10,
+        x2: slotLeft + 28,
+        y1: 22,
+        y2: 22,
+        stroke: color,
+        "stroke-width": 3,
+        "stroke-dasharray": item.dashed ? "7 5" : "",
+        "stroke-linecap": "round",
+      }));
+      text(svg, item.text || item.mathTex, slotLeft + 36, 25, {
+        anchor: "start",
+        size: item.size || 14,
+        weight: 800,
+        fill: color,
+        width: Math.max(48, slotWidth - 42),
+        height: 30,
+        mathTex: item.mathTex || "",
+        placement: "legend",
+        background: false,
+        clip: true,
+      });
+    });
   }
 
   function cleanNumber(value) {
@@ -177,6 +289,13 @@
       showCoordinates: point.showCoordinates === true,
       showGuides: point.showGuides === true,
       open: point.open === true,
+      hidden: point.hidden === true,
+      color: point.color || "",
+      mathTex: point.mathTex || "",
+      coordinateMathTex: point.coordinateMathTex || "",
+      labelDx: Number.isFinite(Number(point.labelDx)) ? Number(point.labelDx) : null,
+      labelDy: Number.isFinite(Number(point.labelDy)) ? Number(point.labelDy) : null,
+      labelWidth: Number.isFinite(Number(point.labelWidth)) ? Number(point.labelWidth) : null,
     }));
   }
 
@@ -196,6 +315,22 @@
     if (!Array.isArray(explicitY)) {
       const pad = Math.max(0.5, (maxY - minY) * 0.12); minY -= pad; maxY += pad;
     }
+    if (model.equalScale === true) {
+      const plotAspect = (PLOT.right - PLOT.left) / (PLOT.bottom - PLOT.top);
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const width = maxX - minX;
+      const height = maxY - minY;
+      if (width / height < plotAspect) {
+        const adjustedWidth = height * plotAspect;
+        minX = centerX - adjustedWidth / 2;
+        maxX = centerX + adjustedWidth / 2;
+      } else {
+        const adjustedHeight = width / plotAspect;
+        minY = centerY - adjustedHeight / 2;
+        maxY = centerY + adjustedHeight / 2;
+      }
+    }
     return { minX, maxX, minY, maxY };
   }
 
@@ -205,24 +340,30 @@
     const mapY = (value) => PLOT.bottom - ((value - range.minY) / (range.maxY - range.minY)) * (PLOT.bottom - PLOT.top);
     svg.append(element("rect", { x: 0, y: 0, width: WIDTH, height: HEIGHT, fill: "#ffffff" }));
     svg.append(element("rect", { x: PLOT.left, y: PLOT.top, width: PLOT.right - PLOT.left, height: PLOT.bottom - PLOT.top, fill: "#ffffff", stroke: "#cbd5e1", "stroke-width": 1 }));
-    for (let step = 0; step <= 8; step += 1) {
-      const x = PLOT.left + ((PLOT.right - PLOT.left) * step) / 8;
-      svg.append(element("line", { x1: x, x2: x, y1: PLOT.top, y2: PLOT.bottom, stroke: "#eef2f7", "stroke-width": 1 }));
-    }
-    for (let step = 0; step <= 6; step += 1) {
-      const y = PLOT.top + ((PLOT.bottom - PLOT.top) * step) / 6;
-      svg.append(element("line", { x1: PLOT.left, x2: PLOT.right, y1: y, y2: y, stroke: "#eef2f7", "stroke-width": 1 }));
+    if (model.showGrid !== false) {
+      for (let step = 0; step <= 8; step += 1) {
+        const x = PLOT.left + ((PLOT.right - PLOT.left) * step) / 8;
+        svg.append(element("line", { x1: x, x2: x, y1: PLOT.top, y2: PLOT.bottom, stroke: "#eef2f7", "stroke-width": 1 }));
+      }
+      for (let step = 0; step <= 6; step += 1) {
+        const y = PLOT.top + ((PLOT.bottom - PLOT.top) * step) / 6;
+        svg.append(element("line", { x1: PLOT.left, x2: PLOT.right, y1: y, y2: y, stroke: "#eef2f7", "stroke-width": 1 }));
+      }
     }
     const axisY = range.minY <= 0 && range.maxY >= 0 ? mapY(0) : PLOT.bottom;
     const axisX = range.minX <= 0 && range.maxX >= 0 ? mapX(0) : PLOT.left;
-    svg.append(element("line", { x1: PLOT.left, x2: PLOT.right + 7, y1: axisY, y2: axisY, stroke: "#111827", "stroke-width": 1.7 }));
-    svg.append(element("path", { d: `M ${PLOT.right + 7} ${axisY} l -8 -4 l 0 8 Z`, fill: "#111827" }));
-    svg.append(element("line", { x1: axisX, x2: axisX, y1: PLOT.bottom, y2: PLOT.top - 7, stroke: "#111827", "stroke-width": 1.7 }));
-    svg.append(element("path", { d: `M ${axisX} ${PLOT.top - 7} l -4 8 l 8 0 Z`, fill: "#111827" }));
-    text(svg, model.xAxisLabel || "x", PLOT.right + 14, axisY + 17, { anchor: "start", size: 12, weight: 750 });
-    text(svg, model.yAxisLabel || "y", axisX + 10, PLOT.top - 10, { anchor: "start", size: 12, weight: 750 });
-    if (range.minX <= 0 && range.maxX >= 0 && range.minY <= 0 && range.maxY >= 0) {
-      text(svg, "O", axisX - 8, axisY + 16, { anchor: "end", size: 11, weight: 600 });
+    if (model.showAxes !== false) {
+      svg.append(element("line", { x1: PLOT.left, x2: PLOT.right + 7, y1: axisY, y2: axisY, stroke: "#111827", "stroke-width": 1.7 }));
+      svg.append(element("path", { d: `M ${PLOT.right + 7} ${axisY} l -8 -4 l 0 8 Z`, fill: "#111827" }));
+      svg.append(element("line", { x1: axisX, x2: axisX, y1: PLOT.bottom, y2: PLOT.top - 7, stroke: "#111827", "stroke-width": 1.7 }));
+      svg.append(element("path", { d: `M ${axisX} ${PLOT.top - 7} l -4 8 l 8 0 Z`, fill: "#111827" }));
+      const xAxisLabel = model.xAxisLabel || "x";
+      const yAxisLabel = model.yAxisLabel || "y";
+      text(svg, xAxisLabel, PLOT.right + 14, axisY + 17, { anchor: "start", size: 12, weight: 750, width: 72, mathTex: model.xAxisMathTex || plainFormulaToTeX(xAxisLabel) });
+      text(svg, yAxisLabel, PLOT.left - 8, PLOT.top - 10, { anchor: "end", size: 12, weight: 750, width: 54, mathTex: model.yAxisMathTex || plainFormulaToTeX(yAxisLabel), background: true });
+      if (range.minX <= 0 && range.maxX >= 0 && range.minY <= 0 && range.maxY >= 0) {
+        text(svg, "O", axisX - 8, axisY + 16, { anchor: "end", size: 11, weight: 600, width: 42, mathTex: "O" });
+      }
     }
     const xTicks = Array.isArray(model.xTicks) ? model.xTicks.map(Number) : [];
     const yTicks = Array.isArray(model.yTicks) ? model.yTicks.map(Number) : [];
@@ -261,10 +402,35 @@
       svg.append(element("line", { x1: x, x2: x, y1: y, y2: system.axisY, stroke: "#64748b", "stroke-dasharray": "5 4" }));
       svg.append(element("line", { x1: x, x2: system.axisX, y1: y, y2: y, stroke: "#64748b", "stroke-dasharray": "5 4" }));
     }
-    svg.append(element("circle", { cx: x, cy: y, r: 4.5, fill: point.open ? "#ffffff" : options.color || "#111827", stroke: options.color || "#111827", "stroke-width": 2 }));
+    const color = point.color || options.color || "#111827";
+    if (!point.hidden) {
+      svg.append(element("circle", { cx: x, cy: y, r: 4.5, fill: point.open ? "#ffffff" : color, stroke: color, "stroke-width": 2 }));
+    }
     const coordinate = point.coordinateLabel || (point.showCoordinates ? `(${cleanNumber(point.x)}, ${cleanNumber(point.y)})` : "");
+    const coordinateMathTex = point.coordinateMathTex || (point.showCoordinates ? `\\left(${cleanNumber(point.x)},${cleanNumber(point.y)}\\right)` : "");
     const label = [point.label, coordinate].filter(Boolean).join(" ");
-    if (label) text(svg, label, x + 8, y - 10, { anchor: "start", size: 11, weight: 750, fill: options.color || "#111827" });
+    const mathTex = [point.mathTex, coordinateMathTex].filter(Boolean).join("\\ ");
+    if (label) {
+      const plotCenterX = (PLOT.left + PLOT.right) / 2;
+      const plotCenterY = (PLOT.top + PLOT.bottom) / 2;
+      const directionX = x < plotCenterX ? -1 : 1;
+      const directionY = y < plotCenterY ? -1 : 1;
+      const dx = point.labelDx ?? directionX * 12;
+      const dy = point.labelDy ?? directionY * 18;
+      text(svg, label, x + dx, y + dy, {
+        anchor: dx < 0 ? "end" : "start",
+        size: 13,
+        weight: 750,
+        fill: color,
+        width: point.labelWidth || 132,
+        mathTex,
+        halo: !mathTex,
+        background: true,
+        placement: "point",
+        originX: x,
+        originY: y,
+      });
+    }
   }
 
   function renderGraph(svg, model) {
@@ -277,6 +443,7 @@
     const labeledPoints = explicitPoints(model);
     const allPoints = sampled.flatMap((descriptor) => descriptor.points).concat(labeledPoints);
     const system = coordinateSystem(svg, allPoints, model);
+    const legendItems = [];
 
     (Array.isArray(model.regions) ? model.regions : []).forEach((region) => {
       const points = Array.isArray(region.points) ? region.points : [];
@@ -307,17 +474,14 @@
       const y1 = Number.isFinite(Number(line.y1)) ? Number(line.y1) : slope * x1 + intercept;
       const y2 = Number.isFinite(Number(line.y2)) ? Number(line.y2) : slope * x2 + intercept;
       svg.append(element("line", { x1: system.mapX(x1), x2: system.mapX(x2), y1: system.mapY(y1), y2: system.mapY(y2), stroke: color, "stroke-width": 2.2, "stroke-dasharray": line.dashed ? "8 6" : "" }));
-      if (line.label) text(svg, line.label, system.mapX(x2) - 5, system.mapY(y2) - 8 - index * 12, { anchor: "end", fill: color, size: 11, weight: 750 });
+      if (line.label) legendItems.push({ text: line.label, mathTex: line.mathTex || plainFormulaToTeX(line.label), color, dashed: line.dashed });
     });
 
     sampled.forEach((descriptor, index) => {
       pathSegments(descriptor.points, system.mapX, system.mapY).forEach((path) => {
         svg.append(element("path", { d: path, fill: "none", stroke: descriptor.color, "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round" }));
       });
-      const labelPoint = descriptor.points.filter((point) => Number.isFinite(point.y))[Math.floor(descriptor.points.length * (0.7 - index * 0.08))];
-      if (labelPoint && descriptor.label) {
-        text(svg, descriptor.label, system.mapX(labelPoint.x), system.mapY(labelPoint.y) - 10, { anchor: "start", fill: descriptor.color, size: 11, weight: 800 });
-      }
+      if (descriptor.label) legendItems.push({ text: descriptor.label, mathTex: descriptor.mathTex || plainFormulaToTeX(descriptor.label), color: descriptor.color });
       (descriptor.holes || []).forEach((point) => drawLabeledPoint(svg, { ...point, open: true }, system, { color: descriptor.color }));
     });
     labeledPoints.forEach((point) => drawLabeledPoint(svg, point, system));
@@ -329,6 +493,7 @@
         drawLabeledPoint(svg, { x: focusX, y: focusY, label: model.focusLabel || "P", showCoordinates: true, showGuides: true }, system, { color: sampled[0].color });
       }
     }
+    renderGraphLegend(svg, legendItems);
     return true;
   }
 
@@ -341,7 +506,8 @@
     const system = coordinateSystem(svg, points, model);
     points.forEach((point, index) => drawLabeledPoint(svg, {
       ...point,
-      label: model.pointLabels?.[index] || `a${index + 1}`,
+      label: model.pointLabels?.[index] || `a_${index + 1}`,
+      mathTex: model.pointMathTex?.[index] || `a_{${index + 1}}`,
       showCoordinates: model.showCoordinates === true,
       showGuides: index + 1 === Number(model.focusIndex),
     }, system, { color: index + 1 === Number(model.focusIndex) ? "#7c3aed" : "#2563eb" }));
@@ -370,8 +536,61 @@
   function renderGeometry(svg, model) {
     if (String(model.kind || "") !== "geometry") return false;
     const points = explicitPoints(model);
-    if (!points.length) return false;
+    const textItems = Array.isArray(model.texts) ? model.texts : [];
+    const legendTexts = textItems.filter((item) => item.placement === "legend");
+    const positionedTexts = textItems.filter((item) => item.placement !== "legend");
+    const primitiveCount =
+      points.length +
+      (Array.isArray(model.segments) ? model.segments.length : 0) +
+      (Array.isArray(model.circles) ? model.circles.length : 0) +
+      (Array.isArray(model.polylines) ? model.polylines.length : 0) +
+      (Array.isArray(model.polygons) ? model.polygons.length : 0) +
+      (Array.isArray(model.rectangles) ? model.rectangles.length : 0) +
+      textItems.length;
+    if (!primitiveCount) return false;
     const system = coordinateSystem(svg, points, model);
+    (Array.isArray(model.polygons) ? model.polygons : []).forEach((polygon) => {
+      const vertices = Array.isArray(polygon.points) ? polygon.points : [];
+      if (vertices.length < 3) return;
+      svg.append(element("polygon", {
+        points: vertices.map((point) => `${system.mapX(finite(point.x))},${system.mapY(finite(point.y))}`).join(" "),
+        fill: polygon.fill || "rgba(37, 99, 235, 0.1)",
+        stroke: polygon.stroke || "#334155",
+        "stroke-width": polygon.width || 1.8,
+      }));
+    });
+    (Array.isArray(model.rectangles) ? model.rectangles : []).forEach((rectangle) => {
+      const x = finite(rectangle.x);
+      const y = finite(rectangle.y);
+      const width = finite(rectangle.width, 1);
+      const height = finite(rectangle.height, 1);
+      const mappedX = system.mapX(x);
+      const mappedY = system.mapY(y + height);
+      svg.append(element("rect", {
+        x: mappedX,
+        y: mappedY,
+        width: Math.abs(system.mapX(x + width) - mappedX),
+        height: Math.abs(system.mapY(y) - mappedY),
+        rx: rectangle.rx || 0,
+        fill: rectangle.fill || "#ffffff",
+        stroke: rectangle.stroke || "#334155",
+        "stroke-width": rectangle.strokeWidth || 2,
+        "stroke-dasharray": rectangle.dashed ? "7 5" : "",
+      }));
+    });
+    (Array.isArray(model.polylines) ? model.polylines : []).forEach((polyline) => {
+      const vertices = Array.isArray(polyline.points) ? polyline.points : [];
+      if (vertices.length < 2) return;
+      svg.append(element("polyline", {
+        points: vertices.map((point) => `${system.mapX(finite(point.x))},${system.mapY(finite(point.y))}`).join(" "),
+        fill: polyline.fill || "none",
+        stroke: polyline.color || "#111827",
+        "stroke-width": polyline.width || 2.5,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+        "stroke-dasharray": polyline.dashed ? "7 5" : "",
+      }));
+    });
     (Array.isArray(model.segments) ? model.segments : []).forEach((segment) => {
       const start = points.find((point) => point.label === segment.from) || segment.from;
       const end = points.find((point) => point.label === segment.to) || segment.to;
@@ -382,6 +601,25 @@
       svg.append(element("circle", { cx: system.mapX(finite(circle.cx)), cy: system.mapY(finite(circle.cy)), r: Math.abs(system.mapX(finite(circle.cx) + finite(circle.radius, 1)) - system.mapX(finite(circle.cx))), fill: "none", stroke: circle.color || "#111827", "stroke-width": 2 }));
     });
     points.forEach((point) => drawLabeledPoint(svg, point, system));
+    positionedTexts.forEach((item) => {
+      text(svg, item.text || "", system.mapX(finite(item.x)), system.mapY(finite(item.y)), {
+        anchor: item.anchor || "middle",
+        size: item.size || 12,
+        weight: item.weight || 750,
+        fill: item.color || "#111827",
+        width: item.width || 190,
+        mathTex: item.mathTex || "",
+        halo: !item.mathTex,
+        background: true,
+      });
+    });
+    renderGraphLegend(svg, legendTexts.map((item) => ({
+      text: item.text || item.mathTex,
+      mathTex: item.mathTex || "",
+      color: item.color || "#111827",
+      dashed: item.dashed === true,
+      size: item.size || 14,
+    })));
     return true;
   }
 
@@ -402,7 +640,13 @@
     document.querySelectorAll("[data-arena-visualization]").forEach((container) => {
       try {
         const model = JSON.parse(decodeURIComponent(container.dataset.arenaVisualization || ""));
-        if (!renderInto(container.querySelector("svg"), model)) container.classList.add("is-invalid");
+        if (!renderInto(container.querySelector("svg"), model)) {
+          container.classList.add("is-invalid");
+        } else if (window.MathJax?.startup?.promise) {
+          window.MathJax.startup.promise
+            .then(() => window.MathJax.typesetPromise?.([container]))
+            .catch(() => container.classList.add("is-math-invalid"));
+        }
       } catch (_error) {
         container.classList.add("is-invalid");
       }

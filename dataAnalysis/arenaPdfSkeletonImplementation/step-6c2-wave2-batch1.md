@@ -1,0 +1,43 @@
+# PDF 스켈레톤 구현 6-C-2 - wave2-batch1 생성기 배치
+
+- 구현 문항: 25개
+- 문항별 검증 seed: 67개
+- 총 생성·이중 검산: 1675회
+- 주 솔버/독립 검산 불일치: 0건
+- 비결정적 재생성: 0건
+- 범위 밖 정답: 0건
+- 평가원형 표면 품질 오류: 0건
+- 운영 연결: true
+- 검증 해시: `af708202c3acaac3bc8be4a300815bb2e57be98eb6ea3dfcba3c460f1d45199a`
+
+## 문항별 결과
+
+| sourceId | seed | 매개변수 변형 | 정답 변형 | 상태 |
+|---|---:|---:|---:|---|
+| `2020-07-EDUCATION_OFFICE-NA-Q27` | 67 | 7 | 7 | `PASSED` |
+| `2017-09-KICE-GA-Q30` | 67 | 67 | 12 | `PASSED` |
+| `2022-09-KICE-CALCULUS-Q29` | 67 | 60 | 9 | `PASSED` |
+| `2023-06-KICE-PROBABILITY_STATISTICS-Q22` | 67 | 56 | 40 | `PASSED` |
+| `2019-04-EDUCATION_OFFICE-GA-Q30` | 67 | 8 | 8 | `PASSED` |
+| `2018-06-KICE-GA-Q30` | 67 | 65 | 27 | `PASSED` |
+| `2018-10-EDUCATION_OFFICE-NA-Q29` | 67 | 50 | 17 | `PASSED` |
+| `2020-10-EDUCATION_OFFICE-NA-Q30` | 67 | 63 | 40 | `PASSED` |
+| `2019-09-KICE-GA-Q30` | 67 | 67 | 57 | `PASSED` |
+| `2020-07-EDUCATION_OFFICE-NA-Q28` | 67 | 45 | 33 | `PASSED` |
+| `2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q22` | 67 | 5 | 5 | `PASSED` |
+| `2022-06-KICE-PROBABILITY_STATISTICS-Q20` | 67 | 52 | 39 | `PASSED` |
+| `2023-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q20` | 67 | 56 | 43 | `PASSED` |
+| `2017-10-EDUCATION_OFFICE-NA-Q30` | 67 | 27 | 24 | `PASSED` |
+| `2020-09-KICE-NA-Q30` | 67 | 24 | 22 | `PASSED` |
+| `2025-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q22` | 67 | 16 | 15 | `PASSED` |
+| `2018-10-EDUCATION_OFFICE-NA-Q30` | 67 | 62 | 46 | `PASSED` |
+| `2021-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q22` | 67 | 4 | 4 | `PASSED` |
+| `2026-07-EDUCATION_OFFICE-CALCULUS-Q30` | 67 | 6 | 6 | `PASSED` |
+| `2018-06-KICE-NA-Q30` | 67 | 62 | 39 | `PASSED` |
+| `2024-09-KICE-CALCULUS-Q30` | 67 | 4 | 4 | `PASSED` |
+| `2025-10-EDUCATION_OFFICE-CALCULUS-Q29` | 67 | 19 | 2 | `PASSED` |
+| `2025-06-KICE-CALCULUS-Q29` | 67 | 61 | 11 | `PASSED` |
+| `2016-03-EDUCATION_OFFICE-GA-Q28` | 67 | 54 | 20 | `PASSED` |
+| `2019-04-EDUCATION_OFFICE-GA-Q29` | 67 | 49 | 12 | `PASSED` |
+
+이 배치는 Arena 전용 어댑터를 통해 신규 1대1 경기에 연결된다. 평가센터와 기존 문제은행 경계 파일에는 직접 import가 없는지 함께 검사했다.

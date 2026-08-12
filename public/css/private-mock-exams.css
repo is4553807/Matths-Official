@@ -2162,6 +2162,21 @@
     grid-template-columns: 1fr;
   }
 
+  .private-mock-resource-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .private-mock-resource-form > *,
+  .private-mock-resource-form input[type="file"] {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .private-mock-resource-form > button {
+    width: 100%;
+  }
+
   .private-mock-admin-integrity-request,
   .admin-review-grid {
     grid-template-columns: 1fr;

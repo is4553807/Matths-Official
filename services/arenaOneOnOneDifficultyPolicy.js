@@ -1,5 +1,5 @@
 /*
- * GOAT Arena 1대1 U/R 난이도 설계 정책 v5.
+ * GOAT Arena 1대1 정답률 기반 난이도 설계 정책 v6.
  *
  * 이 파일은 Unranked·Ranked가 함께 사용하는 문제 설계의 단일 원본이다.
  * 실제 문항 생성기는 arenaOneOnOneProblemTypes.js에 독립적으로 두며,
@@ -13,13 +13,26 @@ const {
 const {
   calibrationEvidenceForAccuracyRange,
 } = require("./arenaPrivateMockResearchCatalog");
+const {
+  ARENA_DIFFICULTY_CLASS_SOURCE_BANDS,
+  accuracyRangeForDifficultyClass,
+  difficultyClassForTierSlot,
+  difficultyClassMixForTier,
+  generatorDifficultyForClass,
+  sourceBandForDifficultyClass,
+} = require("./arenaAccuracyDifficultyPolicy");
+const {
+  RANKED_DIFFICULTY_PACKS,
+  SOURCE_DIFFICULTY_BANDS,
+  UNRANKED_DIFFICULTY_PACKS,
+} = require("./arenaMatchDifficultyPlan");
 
 const ARENA_QUESTION_DESIGN_POLICY_VERSION =
-  "GOAT_ARENA_U_R_DIFFICULTY_V5";
+  "GOAT_ARENA_ACCURACY_LADDER_V7_PDF_POOL";
 const ARENA_LEGACY_CONTENT_VERSION =
   "LEGACY_PLACEMENT_COPY_V1";
 const ARENA_FINAL_CONTENT_VERSION =
-  "GOAT_ARENA_OFFICIAL_MOCK_TYPES_V3";
+  "GOAT_ARENA_OFFICIAL_MOCK_ACCURACY_TYPES_V4";
 
 const ARENA_SOURCE_POSITION_BANDS = Object.freeze([
   "Q13_14",
@@ -27,6 +40,7 @@ const ARENA_SOURCE_POSITION_BANDS = Object.freeze([
   "Q27_28",
   "MIXED_SEMI_KILLER",
   "Q29_30_KILLER",
+  ...Object.values(ARENA_DIFFICULTY_CLASS_SOURCE_BANDS),
 ]);
 
 const TIER_TYPE_SKELETON_CATALOG = Object.freeze(
@@ -132,29 +146,64 @@ const PUBLIC_DIFFICULTY_TO_CATALOG_TIER = Object.freeze({
   R9: "T9",
 });
 
-// 공개 난이도별 목표 정답률. `defenderAccuracy`와 `challengerAccuracy`는
-// 기존 경기 문서 스키마와의 호환 필드이며, 실제 출제 목표는 역할이 아니라
-// Division·공개 난이도·문항 위치로 결정한다.
-const PUBLIC_DIFFICULTY_SPECS = Object.freeze({
-  U1: Object.freeze({ ...TIER_SPECS.T1, defenderAccuracy: [0.35, 0.399], challengerAccuracy: [0.35, 0.399], regularAccuracy: [0.35, 0.399] }),
-  U2: Object.freeze({ ...TIER_SPECS.T2, defenderAccuracy: [0.33, 0.38], challengerAccuracy: [0.33, 0.38], regularAccuracy: [0.33, 0.38] }),
-  U3: Object.freeze({ ...TIER_SPECS.T3, defenderAccuracy: [0.31, 0.36], challengerAccuracy: [0.31, 0.36], regularAccuracy: [0.31, 0.36] }),
-  U4: Object.freeze({ ...TIER_SPECS.T4, defenderAccuracy: [0.29, 0.34], challengerAccuracy: [0.29, 0.34], regularAccuracy: [0.29, 0.34] }),
-  U5: Object.freeze({ ...TIER_SPECS.T5, defenderAccuracy: [0.27, 0.32], challengerAccuracy: [0.27, 0.32], regularAccuracy: [0.27, 0.32] }),
-  U6: Object.freeze({ ...TIER_SPECS.T6, defenderAccuracy: [0.25, 0.3], challengerAccuracy: [0.25, 0.3], regularAccuracy: [0.25, 0.3] }),
-  U7: Object.freeze({ ...TIER_SPECS.T7, defenderAccuracy: [0.23, 0.28], challengerAccuracy: [0.23, 0.28], regularAccuracy: [0.23, 0.28], finalAccuracy: [0.06, 0.09] }),
-  U8: Object.freeze({ ...TIER_SPECS.T8, defenderAccuracy: [0.21, 0.26], challengerAccuracy: [0.21, 0.26], regularAccuracy: [0.21, 0.26], finalAccuracy: [0.04, 0.07] }),
-  U9: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.19, 0.24], challengerAccuracy: [0.19, 0.24], regularAccuracy: [0.19, 0.24], finalAccuracy: [0.025, 0.05] }),
-  R1: Object.freeze({ ...TIER_SPECS.T8, defenderAccuracy: [0.28, 0.34], challengerAccuracy: [0.28, 0.34], regularAccuracy: [0.28, 0.34], finalAccuracy: [0.08, 0.099], absoluteBurden: 8.5 }),
-  R2: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.26, 0.32], challengerAccuracy: [0.26, 0.32], regularAccuracy: [0.26, 0.32], finalAccuracy: [0.07, 0.09], absoluteBurden: 9 }),
-  R3: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.24, 0.3], challengerAccuracy: [0.24, 0.3], regularAccuracy: [0.24, 0.3], finalAccuracy: [0.06, 0.08], concepts: 3.25, conditions: 3.25, cases: 4.25, absoluteBurden: 9.5 }),
-  R4: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.22, 0.28], challengerAccuracy: [0.22, 0.28], regularAccuracy: [0.22, 0.28], finalAccuracy: [0.05, 0.07], concepts: 3.5, conditions: 3.5, cases: 4.5, absoluteBurden: 10 }),
-  R5: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.2, 0.26], challengerAccuracy: [0.2, 0.26], regularAccuracy: [0.2, 0.26], finalAccuracy: [0.04, 0.06], concepts: 3.75, conditions: 3.75, cases: 4.75, absoluteBurden: 10.5 }),
-  R6: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.18, 0.24], challengerAccuracy: [0.18, 0.24], regularAccuracy: [0.18, 0.24], finalAccuracy: [0.03, 0.05], concepts: 4, conditions: 4, cases: 5, absoluteBurden: 11 }),
-  R7: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.16, 0.22], challengerAccuracy: [0.16, 0.22], regularAccuracy: [0.16, 0.22], finalAccuracy: [0.025, 0.045], concepts: 4.25, conditions: 4.25, cases: 5.25, absoluteBurden: 11.5 }),
-  R8: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.13, 0.19], challengerAccuracy: [0.13, 0.19], regularAccuracy: [0.13, 0.19], finalAccuracy: [0.015, 0.035], concepts: 4.5, conditions: 4.5, cases: 5.5, absoluteBurden: 12 }),
-  R9: Object.freeze({ ...TIER_SPECS.T9, defenderAccuracy: [0.1, 0.15], challengerAccuracy: [0.1, 0.15], regularAccuracy: [0.1, 0.15], finalAccuracy: [0.01, 0.025], concepts: 5, conditions: 5, cases: 6, absoluteBurden: 13 }),
-});
+function difficultyClassForSourceDifficultyCode(sourceDifficultyCode = "") {
+  const level = Number(String(sourceDifficultyCode || "").replace(/^D/i, ""));
+  if (level === 1) return "BASIC_GENERAL";
+  if (level <= 3) return "GENERAL";
+  if (level <= 5) return "UPPER_GENERAL";
+  if (level <= 7) return "SEMI_KILLER";
+  if (level <= 9) return "KILLER";
+  return "UNRESOLVED";
+}
+
+function sourceDifficultyPack(difficultyCode = "") {
+  const normalized = String(difficultyCode || "").trim().toUpperCase();
+  if (!/^[UR][1-9]$/.test(normalized)) return null;
+  const packs = normalized.startsWith("R")
+    ? RANKED_DIFFICULTY_PACKS
+    : UNRANKED_DIFFICULTY_PACKS;
+  return packs[Number(normalized.slice(1)) - 1] || null;
+}
+
+// U/R은 서로 독립된 D1~D9 5문항 조합을 사용한다. 호환 필드의
+// 정답률은 해당 조합의 EBSi 정답률 구간 전체를 나타낸다.
+const PUBLIC_DIFFICULTY_SPECS = Object.freeze(
+  Object.fromEntries(
+    ["U", "R"].flatMap((prefix) =>
+      TIER_ORDER.map((tier, index) => {
+        const sourcePack = (prefix === "R"
+          ? RANKED_DIFFICULTY_PACKS
+          : UNRANKED_DIFFICULTY_PACKS)[index];
+        const classMix = sourcePack.map(difficultyClassForSourceDifficultyCode);
+        const ranges = sourcePack.map((sourceDifficultyCode) => {
+          const band = SOURCE_DIFFICULTY_BANDS[sourceDifficultyCode];
+          return [
+            band.minimumCorrectRatePercent / 100,
+            band.maximumCorrectRatePercent / 100,
+          ];
+        });
+        const overallAccuracy = [
+          Math.min(...ranges.map((range) => range[0])),
+          Math.max(...ranges.map((range) => range[1])),
+        ];
+        return [
+          `${prefix}${index + 1}`,
+          Object.freeze({
+            ...TIER_SPECS[`T${index + 1}`],
+            anchor: tier,
+            classMix: Object.freeze(classMix),
+            defenderAccuracy: Object.freeze(overallAccuracy),
+            challengerAccuracy: Object.freeze(overallAccuracy),
+            regularAccuracy: Object.freeze(overallAccuracy),
+            finalAccuracy: classMix.includes("KILLER")
+              ? Object.freeze(ranges[classMix.lastIndexOf("KILLER")])
+              : undefined,
+          }),
+        ];
+      })
+    )
+  )
+);
 
 function privateMockCalibrationForDifficulty(
   difficultyCode,
@@ -210,8 +259,8 @@ const PACK_RULES = Object.freeze({
   banRecentTypeIdsForMatches: 3,
   calculationLoad: "LOW",
   answerFormat: "NATURAL_NUMBER_MAX_3_DIGITS",
-  minimumCombinedConcepts: 2,
-  minimumConditionTransformSteps: 1,
+  minimumCombinedConcepts: 1,
+  minimumConditionTransformSteps: 0,
   expectedTimePerItemMs: 10 * 60 * 1000,
 });
 
@@ -396,40 +445,18 @@ function packCurveForPair(challengerTier, defenderTier) {
 function targetAccuracyRangeForSlot({
   difficultyCode,
   order,
-  division = "SUB",
+  division: _division = "SUB",
 } = {}) {
   const normalizedCode = String(difficultyCode || "").trim().toUpperCase();
   const normalizedOrder = Math.max(1, Math.min(5, Number(order) || 1));
-  const publicSpec = PUBLIC_DIFFICULTY_SPECS[normalizedCode];
-  if (!publicSpec) return null;
-  const isRanked = String(division || "SUB").trim().toUpperCase() === "MAIN";
-  const slotRole = expectedSlotRole({
-    difficultyCode: normalizedCode,
-    division: isRanked ? "MAIN" : "SUB",
-    index: normalizedOrder - 1,
-  });
-  if (slotRole === "FINAL_29_30" && publicSpec.finalAccuracy) {
-    const [min, max] = publicSpec.finalAccuracy.map(Number);
-    const weights = [1, 0.75, 0.5, 0.25, 0];
-    const target = min + (max - min) * weights[normalizedOrder - 1];
-    const spread = Math.min(0.006, Math.max(0.003, (max - min) / 5));
-    return [
-      Number(Math.max(min, target - spread).toFixed(3)),
-      Number(Math.min(max, target + spread).toFixed(3)),
-    ];
-  }
-  const regularRange = publicSpec.regularAccuracy || publicSpec.defenderAccuracy;
-  if (!regularRange) return null;
-  const slotAccuracyWeights = isRanked
-    ? [0.83, 0.55, 0.28, 0, 0]
-    : [1, 0.75, 0.5, 0.25, 0];
-  const min = Number(regularRange[0] || 0);
-  const max = Number(regularRange[1] || min);
-  const target = min + (max - min) * slotAccuracyWeights[normalizedOrder - 1];
-  const spread = Math.min(0.01, Math.max(0.005, (max - min) / 4));
+  const sourceDifficultyCode = sourceDifficultyPack(normalizedCode)?.[
+    normalizedOrder - 1
+  ];
+  const band = SOURCE_DIFFICULTY_BANDS[sourceDifficultyCode];
+  if (!band) return null;
   return [
-    Number(Math.max(min, target - spread).toFixed(3)),
-    Number(Math.min(max, target + spread).toFixed(3)),
+    band.minimumCorrectRatePercent / 100,
+    band.maximumCorrectRatePercent / 100,
   ];
 }
 
@@ -440,19 +467,34 @@ function publicDifficultyLevel(difficultyCode = "") {
   );
 }
 
+function tierForDifficultyCode(difficultyCode = "") {
+  const normalized = String(difficultyCode || "").trim().toUpperCase();
+  if (!/^[UR][1-9]$/.test(normalized)) return "";
+  return TIER_ORDER[publicDifficultyLevel(normalized) - 1] || "";
+}
+
+function difficultyClassForDifficultyCodeSlot(difficultyCode = "", index = 0) {
+  const pack = sourceDifficultyPack(difficultyCode);
+  const sourceDifficultyCode = pack?.[
+    Math.max(0, Math.min(4, Number(index) || 0))
+  ];
+  return difficultyClassForSourceDifficultyCode(sourceDifficultyCode);
+}
+
 function isAllKillerDifficultyCode(difficultyCode = "") {
-  return publicDifficultyLevel(difficultyCode) >= 7;
+  const tier = tierForDifficultyCode(difficultyCode);
+  return Boolean(tier) && difficultyClassMixForTier(tier).every(
+    (difficultyClass) => difficultyClass === "KILLER"
+  );
 }
 
 function expectedSlotRole({
   difficultyCode = "",
-  division = "SUB",
+  division: _division = "SUB",
   index = 0,
   questionCount = PACK_RULES.items,
 } = {}) {
-  const normalizedDivision = String(division || "SUB").trim().toUpperCase();
-  return isAllKillerDifficultyCode(difficultyCode) ||
-    (normalizedDivision === "MAIN" && Number(index) === Number(questionCount) - 1)
+  return difficultyClassForDifficultyCodeSlot(difficultyCode, index) === "KILLER"
     ? "FINAL_29_30"
     : "REGULAR";
 }
@@ -460,31 +502,28 @@ function expectedSlotRole({
 function difficultyGateForQuestion({
   difficultyCode,
   order,
-  slotRole = "REGULAR",
+  slotRole: _slotRole = "REGULAR",
 } = {}) {
   const normalizedCode = String(difficultyCode || "").trim().toUpperCase();
-  const level = Math.max(
-    1,
-    Math.min(9, Number(normalizedCode.replace(/^[UR]/, "")) || 1)
+  const difficultyClass = difficultyClassForDifficultyCodeSlot(
+    normalizedCode,
+    Math.max(1, Math.min(5, Number(order) || 1)) - 1
   );
-  const isRanked = normalizedCode.startsWith("R");
-  const isFinal = String(slotRole || "REGULAR").toUpperCase() === "FINAL_29_30";
-  const minimumCombinedConcepts = isFinal
-    ? 5
-    : isRanked
-      ? Math.min(5, 3 + Math.floor((level - 1) / 3))
-      : Math.min(4, 2 + Math.floor((level - 1) / 4));
-  const minimumConditionTransformSteps = isFinal
-    ? 5
-    : isRanked
-      ? Math.min(5, 3 + Math.floor((level - 1) / 3))
-      : Math.min(4, 3 + Math.floor((level - 1) / 6));
+  const gates = {
+    BASIC_GENERAL: [1, 0, 1, 1, 0.2],
+    GENERAL: [1, 1, 1, 2, 0.35],
+    UPPER_GENERAL: [2, 2, 2, 3, 0.5],
+    SEMI_KILLER: [2, 3, 4, 4, 0.68],
+    KILLER: [3, 5, 5, 5, 0.9],
+  };
+  const gate = gates[difficultyClass] || gates.GENERAL;
   return Object.freeze({
-    minimumCombinedConcepts,
-    minimumConditionTransformSteps,
-    minimumReasoningSteps: isFinal ? 5 : 4,
-    minimumGeneratorDifficulty: 4,
-    minimumDifficultyScore: isFinal ? 0.9 : isRanked ? 0.75 : 0.68,
+    difficultyClass,
+    minimumCombinedConcepts: gate[0],
+    minimumConditionTransformSteps: gate[1],
+    minimumReasoningSteps: gate[2],
+    minimumGeneratorDifficulty: gate[3],
+    minimumDifficultyScore: gate[4],
     order: Math.max(1, Math.min(5, Number(order) || 1)),
   });
 }
@@ -503,6 +542,10 @@ function plannedPackSlots(challengerTier, defenderTier, options = {}) {
   const curve = packCurveForPair(challengerTier, defenderTier);
   const isRanked = String(options.division || "SUB").trim().toUpperCase() === "MAIN";
   return PACK_COURSE_SLOTS.map((courseId, index) => {
+    const difficultyClass = difficultyClassForDifficultyCodeSlot(
+      difficultyCode,
+      index
+    );
     const slotRole = expectedSlotRole({
       difficultyCode,
       division: isRanked ? "MAIN" : "SUB",
@@ -524,14 +567,9 @@ function plannedPackSlots(challengerTier, defenderTier, options = {}) {
       difficultyCode,
       slotRole,
       typeSkeletonId: skeleton?.typeId || "",
-      sourcePositionBand: skeleton?.sourcePositionBand || (
-        slotRole === "FINAL_29_30"
-          ? "Q29_30_KILLER"
-          : index === PACK_COURSE_SLOTS.length - 1
-            ? "Q27_28"
-            : "MIXED_SEMI_KILLER"
-      ),
-      difficultyClass: slotRole === "FINAL_29_30" ? "KILLER" : "SEMI_KILLER",
+      sourcePositionBand: sourceBandForDifficultyClass(difficultyClass),
+      difficultyClass,
+      generatorDifficulty: generatorDifficultyForClass(difficultyClass),
       targetAccuracy: targetAccuracyRangeForSlot({
         difficultyCode,
         order: index + 1,
@@ -592,7 +630,8 @@ function assertActiveQuestionDesign(question, options = {}) {
     review.uniqueAnswer === true &&
     review.calculatorFree === true &&
     review.answerMatches === true &&
-    review.semiKillerCertified === true &&
+    (review.accuracyClassCertified === true ||
+      review.semiKillerCertified === true) &&
     review.curriculumCompliant === true &&
     review.conditionsConsistent === true &&
     review.tierBurdenMatches === true &&
@@ -660,9 +699,10 @@ function assertActivePackDesign(
       index,
       questionCount: questions.length,
     });
-    const expectedClass = expectedRole === "FINAL_29_30"
-      ? "KILLER"
-      : "SEMI_KILLER";
+    const expectedClass = difficultyClassForDifficultyCodeSlot(
+      pack?.difficultyCode,
+      index
+    );
     return (
       String(question?.slotRole || "").toUpperCase() === expectedRole &&
       String(question?.difficultyClass || expectedClass).toUpperCase() === expectedClass
@@ -670,7 +710,7 @@ function assertActivePackDesign(
   });
   if (!courseMixValid || !graphValid || !historyValid || !curveValid || !compositionValid) {
     const error = new Error(
-      "활성 Arena 문제 팩이 단원 2·2·1, Division별 준킬러·킬러 구성, 시각자료, 난이도 곡선 또는 최근 유형 제외 기준을 통과하지 못했습니다."
+      "활성 Arena 문제 팩이 단원 2·2·1, 티어별 정답률 난이도 구성, 시각자료, 난이도 곡선 또는 최근 유형 제외 기준을 통과하지 못했습니다."
     );
     error.status = 422;
     error.code = "INVALID_ACTIVE_ARENA_PACK_DESIGN";
@@ -755,9 +795,13 @@ module.exports = {
   plannedPackSlots,
   targetAccuracyRangeForSlot,
   difficultyGateForQuestion,
+  difficultyClassForDifficultyCodeSlot,
+  difficultyClassForSourceDifficultyCode,
   expectedSlotRole,
   isAllKillerDifficultyCode,
   publicDifficultyLevel,
+  sourceDifficultyPack,
+  tierForDifficultyCode,
   privateMockCalibrationForDifficulty,
   resolveArenaDifficultyTier,
   resolveArenaDifficultyCode,

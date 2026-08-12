@@ -1,0 +1,590 @@
+{
+  "schemaVersion": "ARENA_PDF_FORMULA_TRANSCRIPTION_BATCH_V1",
+  "stage": "6-B-6",
+  "scope": "GOAT_ARENA_ONE_ON_ONE_ONLY",
+  "selectionPolicy": "FORMULA_TRANSCRIPTION_REQUIRED structures ordered by lowest non-null source correct-rate after batches 6-B-1 through 6-B-5; next 25",
+  "recordCount": 25,
+  "sourceUsePolicy": {
+    "verbatimProblemTextStored": false,
+    "formulaAndConditionSkeletonOnly": true,
+    "productionRuntimeModified": false
+  },
+  "statusSummary": {
+    "TRANSCRIBED_PENDING_SOLVER_CONTRACT": 25,
+    "VISUAL_CONTRACT_CORRECTION_REQUIRED": 0,
+    "FAMILY_CONTRACT_CORRECTION_REQUIRED": 5,
+    "TARGET_CONTRACT_CORRECTION_REQUIRED": 5,
+    "SOURCE_CONTEXT_AUGMENTATION_REQUIRED": 0
+  },
+  "records": [
+    {
+      "sourceId": "2017-04-EDUCATION_OFFICE-GA-Q28",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-BM-NONE-B0E1669D",
+      "familyId": "PS-COUNTING",
+      "correctRatePercent": 48.3,
+      "targetKind": "COUNT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-04-EDUCATION_OFFICE-GA-Q28.jpg",
+      "givensTeX": [
+        "\\text{there are two balls of each type }(W,1),(B,1),(W,2),(B,2)",
+        "\\text{the eight balls are placed one per labeled compartment }1,\\ldots,8",
+        "\\text{the labels in compartments }4,5,6\\text{ sum to }5",
+        "\\text{the balls in compartments }4,5,6\\text{ have the same color}"
+      ],
+      "targetTeX": "\\#\\{\\text{valid placements}\\}",
+      "solverShape": "Choose the common color, choose which of compartments four through six receives the single label-one ball, and arrange the remaining multiset among the other five labeled compartments.",
+      "visualAudit": "ILLUSTRATION_PRESENT_BUT_CONDITIONS_ARE_SELF_CONTAINED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSCNT-PSCNT-BASE-COUNT-BM-A4A56912",
+      "contractId": "CTR-PSCNT-PSCNT-BASE-COUNT-BM-NONE-B0E1669D",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-03-EDUCATION_OFFICE-NA-Q23",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SEQUENCE-TERM-B0-NONE-EB8168A2",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 48.6,
+      "targetKind": "SEQUENCE_TERM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-03-EDUCATION_OFFICE-NA-Q23.jpg",
+      "givensTeX": [
+        "\\sum_{k=1}^{n}a_k=2n-1\\quad(n\\in\\mathbb{N})"
+      ],
+      "targetTeX": "a_{10}",
+      "solverShape": "Subtract the partial-sum identity at nine from the identity at ten to isolate the tenth term.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-SEQUENCE-TERM-B0-5EE0E2A7",
+      "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-SEQUENCE-TERM-B0-NONE-EB8168A2",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2020-10-EDUCATION_OFFICE-NA-Q25",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-NONE-72863979",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 49.6,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2020-10-EDUCATION_OFFICE-NA-Q25.jpg",
+      "givensTeX": [
+        "f(x)=(1+x^4+x^8+x^{12})(1+x+x^2+x^3)"
+      ],
+      "targetTeX": "\\frac{f(2)}{\\{f(1)-1\\}\\{f(1)+1\\}}",
+      "solverShape": "Recognize the product as the complete finite geometric sum from x to the zeroth through fifteenth powers, evaluate at one and two, and simplify the resulting ratio.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-4CFBB8F7",
+      "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-NONE-72863979",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-10-EDUCATION_OFFICE-NA-Q25",
+      "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-PRODUCT-B0-NONE-F5B0CA24",
+      "familyId": "ALG-EXP-LOG-EQUATION",
+      "correctRatePercent": 50.6,
+      "targetKind": "PRODUCT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-10-EDUCATION_OFFICE-NA-Q25.jpg",
+      "givensTeX": [
+        "a,b>0,\\quad a\\ne1,\\quad b\\ne1",
+        "\\frac{\\log_a b}{2a}=\\frac{18\\log_b a}{b}=\\frac34"
+      ],
+      "targetTeX": "ab",
+      "solverShape": "Extract log base a of b and its reciprocal from the two equal ratios, multiply them, and use their product being one to obtain ab directly.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-PRODUCT-B0-0A2B19A5",
+      "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-PRODUCT-B0-NONE-F5B0CA24",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-09-KICE-GA-Q26",
+      "canonicalStructureId": "STR-PSNORM-SAMPLE-MEAN-DISTRIBUTION-SCALED-RATIO-B0-NONE-4204533D",
+      "familyId": "PS-NORMAL-SAMPLE",
+      "correctRatePercent": 50.6,
+      "targetKind": "SCALED_RATIO",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-09-KICE-GA-Q26.jpg",
+      "givensTeX": [
+        "X\\sim N(m,\\sigma^2)",
+        "n=49,\\quad \\bar X=\\overline{x}",
+        "m\\text{ has a }95\\%\\text{ confidence interval }[1.73,1.87]",
+        "P(0\\le Z\\le1.96)=0.475",
+        "k=\\frac{\\sigma}{\\overline{x}}"
+      ],
+      "targetTeX": "180k",
+      "solverShape": "Use the interval midpoint for the sample mean and the half-width formula one-point-nine-six sigma over square-root forty-nine to determine sigma, then evaluate the scaled coefficient of variation.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is normal-sample confidence-interval estimation with no exponential or logarithmic equation; review as PS-NORMAL-SAMPLE.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSNORM-SAMPLE-MEAN-DISTRIBUTION-SCALED-RATIO-B0-0E626D2A",
+      "contractId": "CTR-PSNORM-SAMPLE-MEAN-DISTRIBUTION-SCALED-RATIO-B0-NONE-4204533D",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2025-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-E2475A9D",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 51.9,
+      "targetKind": "SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2025-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18.jpg",
+      "givensTeX": [
+        "\\sum_{k=1}^{8}a_k=8",
+        "\\sum_{k=1}^{8}a_k^2=20"
+      ],
+      "targetTeX": "\\sum_{k=1}^{8}(a_k+3)(a_k-1)",
+      "solverShape": "Expand the quadratic summand and substitute the supplied first-moment, second-moment, and term-count totals.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-7A39EA6C",
+      "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-E2475A9D",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2022-06-KICE-PROBABILITY_STATISTICS-Q19",
+      "canonicalStructureId": "STR-C1TANEXT-EXTREMUM-VALUE-BACKSOLVE-SUM-OF-PARAMETERS-B0-NONE-2B51787B",
+      "familyId": "C1-TANGENT-EXTREMA",
+      "correctRatePercent": 52.1,
+      "targetKind": "SUM_OF_PARAMETERS",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2022-06-KICE-PROBABILITY_STATISTICS-Q19.jpg",
+      "givensTeX": [
+        "f(x)=x^4+ax^2+b",
+        "x=1\\text{ is a local minimum point of }f",
+        "\\min_{x\\in\\mathbb{R}}f(x)=4",
+        "a,b\\in\\mathbb{R}"
+      ],
+      "targetTeX": "a+b",
+      "solverShape": "Use the derivative condition at one to determine the quadratic coefficient, then impose the minimum value at the same point to determine the constant.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the source is a polynomial derivative and extremum problem; review as C1-TANGENT-EXTREMA rather than a generic graph condition.",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical EXTREMUM describes a given condition, while the requested target is the parameter sum a+b.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1TANEXT-EXTREMUM-VALUE-BACKSOLVE-SUM-OF-PARAMETERS-B0-4773E41D",
+      "contractId": "CTR-C1TANEXT-EXTREMUM-VALUE-BACKSOLVE-SUM-OF-PARAMETERS-B0-NONE-2B51787B",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2025-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-F592A8AF",
+      "familyId": "C1-INTEGRAL-DEFINED",
+      "correctRatePercent": 52.2,
+      "targetKind": "DEFINITE_INTEGRAL",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2025-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19.jpg",
+      "givensTeX": [
+        "f\\text{ is a polynomial}",
+        "\\int_{0}^{x}\\{f(t)+t^2\\}\\,dt=xf(x)-x^3\\quad(x\\in\\mathbb{R})"
+      ],
+      "targetTeX": "\\int_{0}^{4}f'(x)\\,dx",
+      "solverShape": "Differentiate the integral identity, solve the resulting first-order algebraic relation for f and its derivative, or determine f at the endpoints and apply the fundamental theorem.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-65A7BAD3",
+      "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-F592A8AF",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2026-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "canonicalStructureId": "STR-ALGTRIGGEO-ALGTRIGGEO-BASE-SQUARED-LENGTH-B0-NONE-AAE33329",
+      "familyId": "ALG-TRIG-GEOMETRY",
+      "correctRatePercent": 53.3,
+      "targetKind": "SQUARED_LENGTH",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2026-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18.jpg",
+      "givensTeX": [
+        "\\triangle ABC",
+        "\\overline{AB}=6,\\quad\\overline{AC}=8",
+        "\\cos A=-\\frac14"
+      ],
+      "targetTeX": "\\overline{BC}^{\\,2}",
+      "solverShape": "Apply the cosine rule at angle A and simplify the squared opposite side directly.",
+      "visualAudit": "NONE_REQUIRED",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical EXTREMUM conflicts with the requested squared side length.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGTRIGGEO-ALGTRIGGEO-BASE-SQUARED-LENGTH-B0-01E66BAB",
+      "contractId": "CTR-ALGTRIGGEO-ALGTRIGGEO-BASE-SQUARED-LENGTH-B0-NONE-AAE33329",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2023-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17",
+      "canonicalStructureId": "STR-C1TANEXT-C1TANEXT-BASE-PARAMETER-B0-NONE-00A5002F",
+      "familyId": "C1-TANGENT-EXTREMA",
+      "correctRatePercent": 54.2,
+      "targetKind": "PARAMETER",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2023-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17.jpg",
+      "givensTeX": [
+        "\\ell:y=4x+5",
+        "C_k:y=2x^4-4x+k",
+        "\\ell\\text{ is tangent to }C_k"
+      ],
+      "targetTeX": "k",
+      "solverShape": "Set the curve-line difference and its derivative to zero at the tangency point, determine that point, and solve for the vertical parameter.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1TANEXT-C1TANEXT-BASE-PARAMETER-B0-A0C6D6E9",
+      "contractId": "CTR-C1TANEXT-C1TANEXT-BASE-PARAMETER-B0-NONE-00A5002F",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2020-06-KICE-GA-Q24",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-COUNT-B0-NONE-E2208C1C",
+      "familyId": "ALG-SEQUENCE-RECURRENCE",
+      "correctRatePercent": 54.5,
+      "targetKind": "COUNT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2020-06-KICE-GA-Q24.jpg",
+      "givensTeX": [
+        "a_1=9,\\quad a_2=3",
+        "a_{n+2}=a_{n+1}-a_n\\quad(n\\in\\mathbb{N})"
+      ],
+      "targetTeX": "\\#\\{k\\in\\mathbb{N}:k\\le100,\\ |a_k|=3\\}",
+      "solverShape": "Generate the short signed recurrence cycle, identify the residue classes where the absolute value is three, and count those indices through one hundred.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-COUNT-B0-DCF139B8",
+      "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-COUNT-B0-NONE-E2208C1C",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-NA-Q27",
+      "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SUM-OF-PARAMETERS-B0-NONE-022C04DD",
+      "familyId": "ALG-EXP-LOG-EQUATION",
+      "correctRatePercent": 55.0,
+      "targetKind": "SUM_OF_PARAMETERS",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2019-04-EDUCATION_OFFICE-NA-Q27.jpg",
+      "givensTeX": [
+        "3,a,b\\text{ form a geometric sequence in this order}",
+        "\\log_a(3b)+\\log_3 b=5"
+      ],
+      "targetTeX": "a+b",
+      "solverShape": "Use the geometric-mean relation a squared equals three b so the first logarithm becomes two, solve the remaining base-three logarithm for b, and use the logarithm-base condition to select the positive root for a.",
+      "visualAudit": "NONE_REQUIRED",
+      "transcriptionAudit": "OFFICIAL_SOLUTION_CROSSCHECKED: the first logarithm has base a and argument 3b; the second has base 3 and argument b.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-SUM-OF-PARAMETERS-B0-CCDB588F",
+      "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-SUM-OF-PARAMETERS-B0-NONE-022C04DD",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-10-EDUCATION_OFFICE-NA-Q25",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-NONE-BD022C51",
+      "familyId": "C1-INTEGRAL-DEFINED",
+      "correctRatePercent": 55.6,
+      "targetKind": "FUNCTION_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-10-EDUCATION_OFFICE-NA-Q25.jpg",
+      "givensTeX": [
+        "f\\text{ is a polynomial}",
+        "\\int_{a}^{x}f(t)\\,dt=\\frac13x^3-9\\quad(x\\in\\mathbb{R})",
+        "a\\in\\mathbb{R}"
+      ],
+      "targetTeX": "f(a)",
+      "solverShape": "Differentiate the identity to recover f, set x equal to the lower-limit parameter so the integral vanishes, and then evaluate the recovered polynomial at that parameter.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is an integral-defined polynomial identity rather than an area problem; review as C1-INTEGRAL-DEFINED.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-3A6A7A1E",
+      "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-NONE-BD022C51",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-03-EDUCATION_OFFICE-GA-Q23",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-LIMIT-VALUE-B0-NONE-4F7F72E5",
+      "familyId": "ALG-TRIG-GRAPH",
+      "correctRatePercent": 55.7,
+      "targetKind": "LIMIT_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-03-EDUCATION_OFFICE-GA-Q23.jpg",
+      "givensTeX": [
+        "f(\\theta)=1-\\frac1{1+2\\sin\\theta}"
+      ],
+      "targetTeX": "\\lim_{\\theta\\to0}\\frac{10f(\\theta)}{\\theta}",
+      "solverShape": "Algebraically isolate a sine factor in f, divide by theta, and use the standard sine-over-angle limit.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-LIMIT-VALUE-B0-F4B4392A",
+      "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-LIMIT-VALUE-B0-NONE-4F7F72E5",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-07-EDUCATION_OFFICE-NA-Q24",
+      "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-88D27816",
+      "familyId": "ALG-EXP-LOG-EQUATION",
+      "correctRatePercent": 57.3,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-07-EDUCATION_OFFICE-NA-Q24.jpg",
+      "givensTeX": [
+        "a,b,c>1",
+        "\\log_c a:\\log_c b=2:3"
+      ],
+      "targetTeX": "10\\log_a b+9\\log_b a",
+      "solverShape": "Convert the given logarithm ratio into the reciprocal pair log base a of b and log base b of a, then evaluate the weighted sum.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-0B6B28A4",
+      "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-88D27816",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q27",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-NONE-DE5ACA52",
+      "familyId": "C1-INTEGRAL-DEFINED",
+      "correctRatePercent": 58.0,
+      "targetKind": "FUNCTION_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-07-EDUCATION_OFFICE-GA-Q27.jpg",
+      "givensTeX": [
+        "f(x)=e^x+\\int_{0}^{1}t f(t)\\,dt"
+      ],
+      "targetTeX": "f(\\ln10)",
+      "solverShape": "Treat the definite integral as an unknown constant, substitute the functional form back into that constant, solve the resulting linear equation, and evaluate at log ten.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-0AACCAB0",
+      "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-FUNCTION-VALUE-B0-NONE-DE5ACA52",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2016-10-EDUCATION_OFFICE-GA-Q26",
+      "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-DB693DBC",
+      "familyId": "PS-COUNTING",
+      "correctRatePercent": 58.5,
+      "targetKind": "COUNT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2016-10-EDUCATION_OFFICE-GA-Q26.jpg",
+      "givensTeX": [
+        "\\text{available identical flowers by species are }8,6,8",
+        "\\text{vase }A\\text{ receives one flower}",
+        "\\text{vase }B\\text{ receives eight flowers of a species different from the species in }A"
+      ],
+      "targetTeX": "\\#\\{\\text{valid selections for the two labeled vases}\\}",
+      "solverShape": "Condition on the species selected for the one-flower vase, then count which of the two remaining species has at least eight available flowers for the other vase.",
+      "visualAudit": "ILLUSTRATION_PRESENT_BUT_NOT_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-PSCNT-PSCNT-BASE-COUNT-B1-FB206A79",
+      "contractId": "CTR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-DB693DBC",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-04-EDUCATION_OFFICE-NA-Q26",
+      "canonicalStructureId": "STR-CM2COMPINV-CM2COMPINV-BASE-PARAMETER-B0-NONE-A8798726",
+      "familyId": "CM2-COMPOSITION-INVERSE",
+      "correctRatePercent": 59.0,
+      "targetKind": "PARAMETER",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-04-EDUCATION_OFFICE-NA-Q26.jpg",
+      "givensTeX": [
+        "f(x)=x+a",
+        "g(x)=\\begin{cases}x-2,&x<2\\\\x^2,&x\\ge2\\end{cases}",
+        "(f\\circ g)(0)+(g\\circ f)(0)=10"
+      ],
+      "targetTeX": "a",
+      "solverShape": "Evaluate f of g at zero, split g of f at zero according to whether a is below two, solve both branch equations, and retain only branch-consistent solutions.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-CM2COMPINV-CM2COMPINV-BASE-PARAMETER-B0-A8CA8C7E",
+      "contractId": "CTR-CM2COMPINV-CM2COMPINV-BASE-PARAMETER-B0-NONE-A8798726",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2018-09-KICE-GA-Q25",
+      "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-0BB3F7D1",
+      "familyId": "C1-INTEGRAL-DEFINED",
+      "correctRatePercent": 59.0,
+      "targetKind": "DEFINITE_INTEGRAL",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2018-09-KICE-GA-Q25.jpg",
+      "givensTeX": [
+        "I=\\int_{0}^{\\pi/2}(\\cos x+3\\cos^3x)\\,dx"
+      ],
+      "targetTeX": "I",
+      "solverShape": "Evaluate the cosine term directly and rewrite cosine cubed as cosine times one minus sine squared for a one-step substitution.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is direct definite-integral evaluation with no area interpretation; review as C1-INTEGRAL-DEFINED.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-F72D1DCB",
+      "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-DEFINITE-INTEGRAL-B0-NONE-0BB3F7D1",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2019-03-EDUCATION_OFFICE-NA-Q25",
+      "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SEQUENCE-TERM-B0-NONE-632E42EF",
+      "familyId": "ALG-SEQUENCE-RECURRENCE",
+      "correctRatePercent": 59.0,
+      "targetKind": "SEQUENCE_TERM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2019-03-EDUCATION_OFFICE-NA-Q25.jpg",
+      "givensTeX": [
+        "a_1=4",
+        "a_{n+2}=a_{n+1}+a_n\\quad(n\\in\\mathbb{N})",
+        "a_4=34"
+      ],
+      "targetTeX": "a_2",
+      "solverShape": "Express the fourth term in the first two terms by two recurrence steps and solve the resulting linear equation.",
+      "visualAudit": "NONE_REQUIRED",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical INTEGER_PARAMETER conflicts with the requested sequence term a_2.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-SEQUENCE-TERM-B0-D9C5E88B",
+      "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-SEQUENCE-TERM-B0-NONE-632E42EF",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2022-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-NONE-A1E490D3",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 59.1,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2022-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18.jpg",
+      "givensTeX": [
+        "E=\\sum_{k=1}^{6}(k+1)^2-\\sum_{k=1}^{5}(k-1)^2"
+      ],
+      "targetTeX": "E",
+      "solverShape": "Shift both indices, cancel their common square terms, and evaluate the few remaining endpoint squares.",
+      "visualAudit": "NONE_REQUIRED",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical DISTANCE_OR_LENGTH has no relation to the requested numerical difference of finite sums.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-640C415A",
+      "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-NONE-A1E490D3",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2020-10-EDUCATION_OFFICE-GA-Q24",
+      "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-4E39401F",
+      "familyId": "ALG-TRIG-GRAPH",
+      "correctRatePercent": 60.7,
+      "targetKind": "SCALAR_VALUE",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2020-10-EDUCATION_OFFICE-GA-Q24.jpg",
+      "givensTeX": [
+        "\\sin\\left(\\frac{\\pi}{2}+\\theta\\right)\\tan(\\pi-\\theta)=\\frac35"
+      ],
+      "targetTeX": "30(1-\\sin\\theta)",
+      "solverShape": "Apply the supplementary- and cofunction-angle identities so the product reduces to minus sine theta, then substitute into the target.",
+      "visualAudit": "NONE_REQUIRED",
+      "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical INTEGER_PARAMETER conflicts with the requested scalar trigonometric expression.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-4442F7E7",
+      "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-4E39401F",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "TARGET"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2017-07-EDUCATION_OFFICE-NA-Q25",
+      "canonicalStructureId": "STR-C1DER-C1DER-BASE-DERIVATIVE-LIMIT-B0-NONE-9BE6B91C",
+      "familyId": "C1-DERIVATIVE",
+      "correctRatePercent": 60.9,
+      "targetKind": "DERIVATIVE_LIMIT",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2017-07-EDUCATION_OFFICE-NA-Q25.jpg",
+      "givensTeX": [
+        "f(x)=\\int_{0}^{x}(3t^2+5)\\,dt"
+      ],
+      "targetTeX": "\\lim_{x\\to2}\\frac{f(x)-f(2)}{x-2}",
+      "solverShape": "Recognize the quotient as f prime at two and apply the fundamental theorem of calculus to evaluate the derivative from the integrand.",
+      "visualAudit": "NONE_REQUIRED",
+      "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is a derivative limit of an integral-defined function with no exponential or logarithmic structure; review as C1-DERIVATIVE.",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-C1DER-C1DER-BASE-DERIVATIVE-LIMIT-B0-371D571C",
+      "contractId": "CTR-C1DER-C1DER-BASE-DERIVATIVE-LIMIT-B0-NONE-9BE6B91C",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [
+        "FAMILY"
+      ],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2021-09-KICE-PROBABILITY_STATISTICS-Q18",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-EE7AEFAA",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 61.0,
+      "targetKind": "SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2021-09-KICE-PROBABILITY_STATISTICS-Q18.jpg",
+      "givensTeX": [
+        "\\sum_{k=1}^{10}(a_k+2b_k)=45",
+        "\\sum_{k=1}^{10}(a_k-b_k)=3"
+      ],
+      "targetTeX": "\\sum_{k=1}^{10}\\left(b_k-\\frac12\\right)",
+      "solverShape": "Treat the ten-term sums of a and b as two unknowns, solve the two linear equations, and subtract five from the recovered b sum.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-CC00CFEE",
+      "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-EE7AEFAA",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    },
+    {
+      "sourceId": "2019-04-EDUCATION_OFFICE-NA-Q25",
+      "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-9E7688F9",
+      "familyId": "ALG-SEQUENCE-SUM",
+      "correctRatePercent": 62.6,
+      "targetKind": "SUM",
+      "cropPath": "tmp/pdfs/arena_short_answer_audit/crops/2019-04-EDUCATION_OFFICE-NA-Q25.jpg",
+      "givensTeX": [
+        "\\sum_{k=1}^{10}a_k=30"
+      ],
+      "targetTeX": "\\sum_{k=1}^{10}(k+a_k)",
+      "solverShape": "Split the requested sum into the sum of the first ten natural numbers and the supplied sequence sum.",
+      "visualAudit": "NONE_REQUIRED",
+      "status": "TRANSCRIBED_PENDING_SOLVER_CONTRACT",
+      "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-75CAC6E0",
+      "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-9E7688F9",
+      "resolvedVisualContract": "NONE",
+      "correctionFlags": [],
+      "reconciliationStatus": "VERIFIED_AGAINST_STAGE_6B10_CONTRACT"
+    }
+  ],
+  "reconciliation": {
+    "schemaVersion": "ARENA_PDF_TRANSCRIPTION_RECONCILIATION_V1",
+    "reconciliationHash": "559be8077adf604ec6c67eb95161be963cd7d40bcb618db089542d9cc7bc2d32",
+    "catalogContentHash": "662ac239778e9d7c8ad212fc4400f93596ca02c6a1c3216afff5fdc95a68fa68",
+    "contractContentHash": "d1e1eff6d4811958bda9853cd3e29a358acb4a1df5e95d59af9700f38f8239f2",
+    "recordCount": 25,
+    "canonicalIdRefreshCount": 19,
+    "familyMetadataRefreshCount": 5,
+    "status": "VERIFIED"
+  }
+}

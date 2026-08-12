@@ -154,6 +154,9 @@ assert.match(source("services/arenaNotificationService.js"), /ArenaMatchIntegrit
 assert.match(source("services/arenaMatchEvidenceService.js"), /ArenaMatchIntegrityReviewStarted/);
 assert.match(source("services/arenaMatchEvidenceService.js"), /ArenaMatchIntegrityReview/);
 assert.match(source("services/arenaMatchEvidenceService.js"), /compareArenaAttemptScores/);
+assert.match(source("services/arenaMatchEvidenceService.js"), /MATCH_PAGE_EXITED/);
+assert.match(source("services/arenaMatchEvidenceService.js"), /PAGE_EXITED/);
+assert.match(source("views\/admin-arena-matches.ejs"), /경기 중 문제 화면 이탈/);
 assert.match(source("services/arenaMatchEvidenceService.js"), /screenedAsWinner/);
 assert.match(source("services/arenaMatchEvidenceService.js"), /submitArenaSupplementalEvidence/);
 assert.doesNotMatch(source("services/arenaMatchEvidenceService.js"), /eventType:\s*"ArenaEvidenceAnomalyDetected"/);

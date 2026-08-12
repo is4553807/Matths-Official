@@ -20,14 +20,138 @@ const {
 const {
   formatAdminMath,
 } = require("../services/mathTextService");
+const {
+  generateArenaPdfOneOnOneQuestions,
+} = require("../services/arenaPdfOneOnOneQuestionPool");
+const {
+  publicSourceAccuracyForQuestion,
+} = require("../services/arenaMatchAttemptService");
 
 const app = express();
 const root = path.resolve(__dirname, "..");
 const port = Number(process.env.MATTHS_PREVIEW_PORT) || 8011;
+const previewArenaActivityAudit = [];
 
 app.set("view engine", "ejs");
 app.set("views", path.join(root, "views"));
+app.use(express.json({ limit: "256kb" }));
 app.use(express.static(path.join(root, "public")));
+
+app.post("/api/goat-arena/matches/:matchId/activity", (req, res) => {
+  const signals = Array.isArray(req.body?.signals) ? req.body.signals : [];
+  previewArenaActivityAudit.push({
+    matchId: req.params.matchId,
+    requestId: String(req.body?.requestId || ""),
+    signals,
+    receivedAt: new Date().toISOString(),
+  });
+  if (previewArenaActivityAudit.length > 100) {
+    previewArenaActivityAudit.splice(0, previewArenaActivityAudit.length - 100);
+  }
+  res.json({ recorded: signals.length, replayed: false });
+});
+
+app.get("/preview/goat-arena/activity-audit", (_req, res) => {
+  const payload = JSON.stringify({ events: previewArenaActivityAudit }, null, 2)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+  res.type("html").send(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>Arena activity audit</title></head><body><pre data-preview-activity-audit>${payload}</pre></body></html>`);
+});
+
+app.get("/preview/goat-arena/match-pdf-pool-mobile", (_req, res) => {
+  res.type("html").send(`<!doctype html>
+    <html lang="ko"><head><meta charset="utf-8"><title>Arena mobile QA</title>
+    <style>html,body{margin:0;min-height:100%;background:#050711;display:grid;place-items:start center}iframe{width:390px;height:844px;border:0;background:#050711}</style>
+    </head><body><iframe title="GOAT Arena 모바일 매치 검수" src="/preview/goat-arena/match-pdf-pool?difficulty=R9&amp;seed=0"></iframe></body></html>`);
+});
+
+app.get("/preview/goat-arena/match-pdf-pool", (req, res) => {
+  const requestedDifficulty = String(req.query.difficulty || "R9").toUpperCase();
+  const difficultyCode = /^[UR][1-9]$/.test(requestedDifficulty)
+    ? requestedDifficulty
+    : "R9";
+  const division = difficultyCode.startsWith("R") ? "MAIN" : "SUB";
+  const matchKey = `preview:${difficultyCode}:${String(req.query.seed || "0")}`;
+  const now = new Date();
+  const generated = generateArenaPdfOneOnOneQuestions({
+    difficultyCode,
+    matchKey,
+    packCurve: ["LOW", "MID", "MID", "MID_HIGH", "HIGH"],
+  });
+  const classLabels = {
+    BASIC_GENERAL: "기초 일반",
+    GENERAL: "일반",
+    UPPER_GENERAL: "상위 일반",
+    SEMI_KILLER: "준킬러",
+    KILLER: "킬러",
+  };
+  const questions = generated.map((question, index) => {
+    return {
+      questionKey: `Q${index + 1}`,
+      number: index + 1,
+      sourceDifficultyCode: question.design.sourceDifficultyCode,
+      categoryLabel: classLabels[question.design.difficultyClass],
+      courseId: question.courseId,
+      points: 20,
+      targetAccuracy: publicSourceAccuracyForQuestion(question),
+      prompt: question.problem.prompt,
+      visualization: question.problem.visualization || null,
+      savedAnswer: "",
+    };
+  });
+  res.render("goat-arena-match", {
+    activeArenaPage: division === "MAIN" ? "main" : "sub",
+    arenaUser: {
+      nickname: "preview-user",
+      hasStyleEntrance: false,
+      hasMainProfileBorder: false,
+    },
+    arenaNotifications: { unreadCount: 0, notifications: [], defenseByDivision: {} },
+    rankUpPresentation: null,
+    matchPrepared: true,
+    matchStarted: false,
+    evidenceSubmitted: false,
+    matchError: "",
+    questionIntroduced: 0,
+    startRequestId: "preview-start",
+    revengeRequestId: "preview-revenge",
+    matchData: {
+      id: "preview-pdf-pool-match",
+      division,
+      divisionLabel: division === "MAIN" ? "Ranked" : "Unranked",
+      matchType: "NORMAL",
+      matchTitle: `${difficultyCode} PDF 문제 풀 렌더 검수`,
+      matchStatus: "IN_PROGRESS",
+      matchStatusLabel: "문제 풀이 중",
+      roleLabel: "공격자",
+      opponentName: "렌더 검수 상대",
+      problemPack: {
+        questionCount: 5,
+        timeLimitMs: 10 * 60 * 1000,
+        timeLimitLabel: "10분",
+        curriculumCoverage: [...new Set(questions.map((question) => question.courseId))],
+      },
+      questions,
+      settled: false,
+      result: null,
+      divisionLocked: false,
+      canPrepare: false,
+      canStart: false,
+      inProgress: true,
+      evidenceRequired: false,
+      submitted: false,
+      canUseDefenseScheduleProtection: false,
+      serverNow: now.toISOString(),
+      attempt: {
+        status: "IN_PROGRESS",
+        currentQuestionIndex: 0,
+        startedAt: now,
+        deadlineAt: new Date(now.getTime() + 10 * 60 * 1000),
+      },
+    },
+  });
+});
 
 app.get("/preview/goat-arena/evidence", (_req, res) => {
   const now = new Date();
@@ -291,6 +415,8 @@ app.get("/goat-arena", (_req, res) => {
   res.render("goat-arena", {
     activeArenaPage: "home",
     arenaUser: { nickname: "preview", displayName: "preview" },
+    pendingRevengeRight: null,
+    pendingRevengeRequestId: null,
     seedState: {
       ready: true,
       label: "현재 Arena 상태",
@@ -424,6 +550,14 @@ app.get("/goat-arena/rankings", (_req, res) => {
 app.get("/goat-arena/profile", (_req, res) => {
   res.render("goat-arena-profile", {
     activeArenaPage: "profile",
+    accountUpdated: false,
+    accountError: null,
+    payoutEligible: false,
+    paybackAccount: {
+      confirmed: false,
+      bankName: "",
+      last4: "",
+    },
     arenaUser: {
       nickname: "긴닉네임줄바꿈확인사용자",
       displayName: "긴닉네임줄바꿈확인사용자",
@@ -545,6 +679,15 @@ app.get("/goat-arena/sub/challenge", (_req, res) => {
       activeMatch: null,
       canRequest: true,
       hasEligibleOpponent: true,
+      dailyUsage: {
+        attackCount: 1,
+        attackLimit: 3,
+        attackRemaining: 2,
+        defenseCount: 0,
+        defenseLimit: 3,
+        defenseRemaining: 3,
+        challengerWin: false,
+      },
       targetTiers: [
         { tier: "DIAMOND", label: "다이아몬드", candidateCount: 23 },
         { tier: "MASTER", label: "마스터", candidateCount: 8 },
@@ -560,6 +703,12 @@ app.get("/goat-arena/main/battle", (_req, res) => {
     requestId: "preview-main-battle",
     actionError: "",
     actionMessage: "",
+    friendlyData: {
+      query: "",
+      searchResults: [],
+      receivedInvitations: [],
+      sentInvitations: [],
+    },
     battleData: {
       currentTier: "DIAMOND",
       availableLearningDays: 30,
@@ -684,7 +833,7 @@ app.get("/admin/arena-matches", (req, res) => {
         evidence: {
           _id: "64b000000000000000000091",
           status: "ANOMALY_FLAGGED",
-          anomalyFlags: ["MULTIPLE_RAPID_CORRECT_ANSWERS", "REPEATED_FOCUS_LOSS"],
+          anomalyFlags: ["MULTIPLE_RAPID_CORRECT_ANSWERS", "REPEATED_FOCUS_LOSS", "MATCH_PAGE_EXITED"],
           files: [{ storedName: "preview-solution-1.jpg", originalName: "풀이과정-공격자.jpg" }],
         },
         questions: Array.from({ length: 5 }, (_, index) => ({
@@ -745,6 +894,7 @@ app.get("/admin/arena-matches", (req, res) => {
   res.locals.adminTodoSummary = { pendingCount: 2, items: [] };
   res.render("admin-arena-matches", {
     user: { name: "preview-admin", role: "admin" },
+    adminNotice: "",
     reviewStatus,
     evidenceEntries: [],
     formatAdminMath,
@@ -1069,9 +1219,10 @@ app.get("/admin/arena-policies", (_req, res) => {
     oldInput: null,
     policyData: {
       now,
-      learningPackage: { activePolicy: subPolicy },
+      sub: { activePolicy: subPolicy, upcomingPolicy: null, policies: [subPolicy] },
+      learningPackage: { activePolicy: subPolicy, policies: [subPolicy] },
       policies: [subPolicy],
-      main: { activePolicy: mainPolicy, policies: [mainPolicy] },
+      main: { activePolicy: mainPolicy, upcomingPolicy: null, policies: [mainPolicy] },
       mockExamOnly: { now, activePolicy: mockPolicy, policies: [mockPolicy] },
       mainShop: { activePolicy: shopPolicy, policies: [shopPolicy] },
     },

@@ -1,0 +1,1991 @@
+{
+  "schemaVersion": "ARENA_PDF_CANONICAL_ID_MIGRATION_V1",
+  "generatedAt": "2026-08-11T13:47:58.844478+00:00",
+  "sourceCorrections": {
+    "schemaVersion": "ARENA_PDF_CONTRACT_CORRECTIONS_V1",
+    "correctionHash": "8d24453eb1651346ed7b6416da7c6fc501d5177860d2da42341a7f01fce5c70c"
+  },
+  "sourceCatalog": {
+    "schemaVersion": "ARENA_PDF_CANONICAL_STRUCTURE_CATALOG_V1",
+    "contentHash": "21206301c9e34d5efc38a7930154a25b310a9521b5e4703fbdb185b2eed0dde7"
+  },
+  "sourceContracts": {
+    "schemaVersion": "ARENA_PDF_STRUCTURE_CONTRACTS_V1",
+    "contentHash": "9995ae48df53ac26f41a76de1593047c73921434f0032ac170c4984060943564"
+  },
+  "summary": {
+    "transcribedSourceCount": 200,
+    "correctedSourceCount": 41,
+    "flagCounts": {
+      "CONTEXT": 1,
+      "FAMILY": 25,
+      "TARGET": 15,
+      "VISUAL": 9
+    },
+    "canonicalStructureIdMigrationCount": 41,
+    "solverGroupIdMigrationCount": 34,
+    "contractIdMigrationCount": 41,
+    "replacementStructureCount": 41,
+    "sharedStructureSplitCount": 0,
+    "deferredDuplicateCandidateCount": 1,
+    "productionRuntimeModified": false
+  },
+  "migrationHash": "b12404035ba144d3ce0ec2a1f4f5ca181f49b80bb4652fa1161a6d1b54aa08f7",
+  "migrations": [
+    {
+      "ledgerIndex": 77,
+      "sourceId": "2017-09-KICE-NA-Q30",
+      "flags": [
+        "VISUAL"
+      ],
+      "changedIdDimensions": [
+        "VISUAL"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-932ADE8E",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-0DAB1369",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-932ADE8E"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-GRAPH-FEA6AFA4",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-0DAB1369",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-GRAPH-FEA6AFA4"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": false,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "algorithmVariant": {
+          "id": "C1INTAREA_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "GRAPH",
+        "groupingDiscriminator": "2017-09-KICE-NA-Q30",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 173,
+      "sourceId": "2017-03-EDUCATION_OFFICE-GA-Q29",
+      "flags": [
+        "VISUAL"
+      ],
+      "changedIdDimensions": [
+        "VISUAL"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-675DE0C5",
+        "solverGroupId": "SOL-PSCNT-PSCNT-BASE-COUNT-B1-AA8460DF",
+        "contractId": "CTR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-675DE0C5"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-LAYOUT-213B9EC8",
+        "solverGroupId": "SOL-PSCNT-PSCNT-BASE-COUNT-B1-AA8460DF",
+        "contractId": "CTR-PSCNT-PSCNT-BASE-COUNT-B1-LAYOUT-213B9EC8"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": false,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "PS-COUNTING",
+        "algorithmVariant": {
+          "id": "PSCNT_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "COUNT",
+        "branchContract": "B1",
+        "visualContract": "LAYOUT",
+        "groupingDiscriminator": "2017-03-EDUCATION_OFFICE-GA-Q29",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 258,
+      "sourceId": "2017-10-EDUCATION_OFFICE-NA-Q29",
+      "flags": [
+        "VISUAL"
+      ],
+      "changedIdDimensions": [
+        "VISUAL"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B1-GRAPH-94374641",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B1-AD9BFD59",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B1-GRAPH-94374641"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B1-NONE-48C119E4",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B1-AD9BFD59",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B1-NONE-48C119E4"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": false,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "algorithmVariant": {
+          "id": "ALGSEQREC_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B1",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2017-10-EDUCATION_OFFICE-NA-Q29",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 271,
+      "sourceId": "2017-10-EDUCATION_OFFICE-NA-Q26",
+      "flags": [
+        "VISUAL"
+      ],
+      "changedIdDimensions": [
+        "VISUAL"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-COUNT-B1-GRAPH-9C5A2F47",
+        "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-COUNT-B1-E66DA691",
+        "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-COUNT-B1-GRAPH-9C5A2F47"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-COUNT-B1-NONE-9B63F695",
+        "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-COUNT-B1-E66DA691",
+        "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-COUNT-B1-NONE-9B63F695"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": false,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "algorithmVariant": {
+          "id": "ALGSEQSUM_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "COUNT",
+        "branchContract": "B1",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2017-10-EDUCATION_OFFICE-NA-Q26",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 283,
+      "sourceId": "2016-03-EDUCATION_OFFICE-GA-Q26",
+      "flags": [
+        "VISUAL"
+      ],
+      "changedIdDimensions": [
+        "VISUAL"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-83D5BDDB",
+        "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-A4F48612",
+        "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-83D5BDDB"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-GEO-D389B8E3",
+        "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-A4F48612",
+        "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-GEO-D389B8E3"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": false,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "algorithmVariant": {
+          "id": "ALGTRIGGR_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "GEO",
+        "groupingDiscriminator": "2016-03-EDUCATION_OFFICE-GA-Q26",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 299,
+      "sourceId": "2020-05-EDUCATION_OFFICE-NA-Q26",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-DISTANCE-OR-LENGTH-B1-NONE-622FCC8D",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-DISTANCE-OR-LENGTH-B1-9C839D7A",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-DISTANCE-OR-LENGTH-B1-NONE-622FCC8D"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1MOTION-C1MOTION-BASE-DISTANCE-OR-LENGTH-B1-NONE-16670632",
+        "solverGroupId": "SOL-C1MOTION-C1MOTION-BASE-DISTANCE-OR-LENGTH-B1-BC421008",
+        "contractId": "CTR-C1MOTION-C1MOTION-BASE-DISTANCE-OR-LENGTH-B1-NONE-16670632"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-VELOCITY-DISTANCE",
+        "algorithmVariant": {
+          "id": "C1MOTION_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "DISTANCE_OR_LENGTH",
+        "branchContract": "B1",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2020-05-EDUCATION_OFFICE-NA-Q26",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 394,
+      "sourceId": "2020-06-KICE-NA-Q26",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-6AD16942",
+        "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-2E88C79D",
+        "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-6AD16942"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1DER-INSTANTANEOUS-RATE-SCALAR-VALUE-B0-NONE-F4D9DBE9",
+        "solverGroupId": "SOL-C1DER-INSTANTANEOUS-RATE-SCALAR-VALUE-B0-638874A2",
+        "contractId": "CTR-C1DER-INSTANTANEOUS-RATE-SCALAR-VALUE-B0-NONE-F4D9DBE9"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-DERIVATIVE",
+        "algorithmVariant": {
+          "id": "INSTANTANEOUS_RATE",
+          "evidencePatternId": "RATE",
+          "confidence": "HIGH"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2020-06-KICE-NA-Q26",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 400,
+      "sourceId": "2019-07-EDUCATION_OFFICE-NA-Q26",
+      "flags": [
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-578D3C45",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-D11ED44B",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-578D3C45"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-5784ABC2",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-F2562DBA",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-SUM-B0-NONE-5784ABC2"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "algorithmVariant": {
+          "id": "ALGSEQREC_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SUM",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2019-07-EDUCATION_OFFICE-NA-Q26",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 401,
+      "sourceId": "2021-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19",
+      "flags": [
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-A1D2DC61",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-DA28F041",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-A1D2DC61"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-PARTIAL-SUM-VALUE-B0-NONE-2D8D4E34",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-PARTIAL-SUM-VALUE-B0-4289AE0B",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-PARTIAL-SUM-VALUE-B0-NONE-2D8D4E34"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "algorithmVariant": {
+          "id": "ALGSEQREC_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "PARTIAL_SUM_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2021-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 418,
+      "sourceId": "2018-04-EDUCATION_OFFICE-GA-Q24",
+      "flags": [
+        "VISUAL"
+      ],
+      "changedIdDimensions": [
+        "VISUAL"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-GRAPH-3FE96F89",
+        "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-1A3CDF4B",
+        "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-GRAPH-3FE96F89"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-NONE-CB583F6A",
+        "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-1A3CDF4B",
+        "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-NONE-CB583F6A"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": false,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "algorithmVariant": {
+          "id": "ALGTRIGGR_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "COUNT",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2018-04-EDUCATION_OFFICE-GA-Q24",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 424,
+      "sourceId": "2018-03-EDUCATION_OFFICE-GA-Q27",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-44A54A75",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-A350B541",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-44A54A75"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-37E12CCB",
+        "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-1F85AA27",
+        "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-37E12CCB"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "algorithmVariant": {
+          "id": "C1INTDEF_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2018-03-EDUCATION_OFFICE-GA-Q27",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 425,
+      "sourceId": "2018-04-EDUCATION_OFFICE-GA-Q27",
+      "flags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-EXTREMUM-B0-NONE-D6E08994",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-EXTREMUM-B0-A856115E",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-EXTREMUM-B0-NONE-D6E08994"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTDEF-INTEGRAL-EXTREMUM-SUM-B0-NONE-B00D0EDC",
+        "solverGroupId": "SOL-C1INTDEF-INTEGRAL-EXTREMUM-SUM-B0-AD1A5233",
+        "contractId": "CTR-C1INTDEF-INTEGRAL-EXTREMUM-SUM-B0-NONE-B00D0EDC"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "algorithmVariant": {
+          "id": "INTEGRAL_EXTREMUM",
+          "evidencePatternId": "EXTREMUM",
+          "confidence": "HIGH"
+        },
+        "targetContract": "SUM",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2018-04-EDUCATION_OFFICE-GA-Q27",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 427,
+      "sourceId": "2019-04-EDUCATION_OFFICE-GA-Q27",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-95B5FEEA",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-8A9BD33E",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-95B5FEEA"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-CE6F58CC",
+        "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-0E658ABD",
+        "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-CE6F58CC"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "algorithmVariant": {
+          "id": "C1INTDEF_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2019-04-EDUCATION_OFFICE-GA-Q27",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 430,
+      "sourceId": "2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-AEA7A32D",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-3EAA5DBC",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-AEA7A32D"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-431B4E8B",
+        "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-6348135B",
+        "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-431B4E8B"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "algorithmVariant": {
+          "id": "C1INTDEF_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 431,
+      "sourceId": "2024-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-CE1D3343",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-345A3DA1",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-CE1D3343"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-C456725D",
+        "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-14F091A7",
+        "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-C456725D"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "algorithmVariant": {
+          "id": "C1INTDEF_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2024-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 437,
+      "sourceId": "2016-03-EDUCATION_OFFICE-NA-Q29",
+      "flags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1TANEXT-C1TANEXT-BASE-SUM-B0-NONE-0BD4A1A3",
+        "solverGroupId": "SOL-C1TANEXT-C1TANEXT-BASE-SUM-B0-F4BD3BAA",
+        "contractId": "CTR-C1TANEXT-C1TANEXT-BASE-SUM-B0-NONE-0BD4A1A3"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-CM2SET-SET-OPERATION-COUNT-PRODUCT-OF-SET-ELEMENTS-B0-NONE-1152EEBF",
+        "solverGroupId": "SOL-CM2SET-SET-OPERATION-COUNT-PRODUCT-OF-SET-ELEMENTS-B0-A3128D1B",
+        "contractId": "CTR-CM2SET-SET-OPERATION-COUNT-PRODUCT-OF-SET-ELEMENTS-B0-NONE-1152EEBF"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "CM2-SETS-PROPOSITIONS",
+        "algorithmVariant": {
+          "id": "SET_OPERATION_COUNT",
+          "evidencePatternId": "SET_OPERATION",
+          "confidence": "HIGH"
+        },
+        "targetContract": "PRODUCT_OF_SET_ELEMENTS",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2016-03-EDUCATION_OFFICE-NA-Q29",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 442,
+      "sourceId": "2023-06-KICE-PROBABILITY_STATISTICS-Q19",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B1-NONE-C6AA8114",
+        "solverGroupId": "SOL-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B1-D72427F8",
+        "contractId": "CTR-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B1-NONE-C6AA8114"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-TRIG-ROOT-COUNT-SCALAR-VALUE-B1-NONE-94F49E53",
+        "solverGroupId": "SOL-ALGTRIGGR-TRIG-ROOT-COUNT-SCALAR-VALUE-B1-ED05BACA",
+        "contractId": "CTR-ALGTRIGGR-TRIG-ROOT-COUNT-SCALAR-VALUE-B1-NONE-94F49E53"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "algorithmVariant": {
+          "id": "TRIG_ROOT_COUNT",
+          "evidencePatternId": "ROOT_COUNT",
+          "confidence": "HIGH"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B1",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2023-06-KICE-PROBABILITY_STATISTICS-Q19",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 449,
+      "sourceId": "2018-03-EDUCATION_OFFICE-GA-Q24",
+      "flags": [
+        "FAMILY",
+        "TARGET",
+        "CONTEXT"
+      ],
+      "changedIdDimensions": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-CM2SET-CM2SET-BASE-EXTREMUM-B0-NONE-6CAF438A",
+        "solverGroupId": "SOL-CM2SET-CM2SET-BASE-EXTREMUM-B0-D4049084",
+        "contractId": "CTR-CM2SET-CM2SET-BASE-EXTREMUM-B0-NONE-6CAF438A"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-PSCNT-MAPPING-FUNCTION-COUNT-SUM-B0-NONE-F12C84CE",
+        "solverGroupId": "SOL-PSCNT-MAPPING-FUNCTION-COUNT-SUM-B0-43742EA7",
+        "contractId": "CTR-PSCNT-MAPPING-FUNCTION-COUNT-SUM-B0-NONE-F12C84CE"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "PS-COUNTING",
+        "algorithmVariant": {
+          "id": "MAPPING_FUNCTION_COUNT",
+          "evidencePatternId": "MAPPING",
+          "confidence": "HIGH"
+        },
+        "targetContract": "SUM",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2018-03-EDUCATION_OFFICE-GA-Q24",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": true,
+        "semanticDefinitions": [
+          "integer partition count P(n,r)",
+          "unlabeled nonempty set-partition count S(n,r)"
+        ],
+        "evidence": "OFFICIAL_SOLUTION_CONFIRMED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 481,
+      "sourceId": "2017-07-EDUCATION_OFFICE-NA-Q25",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-LIMIT-VALUE-B0-NONE-37C6CF73",
+        "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-LIMIT-VALUE-B0-13CF22B9",
+        "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-LIMIT-VALUE-B0-NONE-37C6CF73"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1DER-C1DER-BASE-LIMIT-VALUE-B0-NONE-0648A92F",
+        "solverGroupId": "SOL-C1DER-C1DER-BASE-LIMIT-VALUE-B0-37D6B93D",
+        "contractId": "CTR-C1DER-C1DER-BASE-LIMIT-VALUE-B0-NONE-0648A92F"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-DERIVATIVE",
+        "algorithmVariant": {
+          "id": "C1DER_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "LIMIT_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2017-07-EDUCATION_OFFICE-NA-Q25",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 482,
+      "sourceId": "2017-09-KICE-GA-Q26",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-E304A527",
+        "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-50F53187",
+        "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-E304A527"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-PSNORM-SAMPLE-MEAN-DISTRIBUTION-SCALAR-VALUE-B0-NONE-76F275CA",
+        "solverGroupId": "SOL-PSNORM-SAMPLE-MEAN-DISTRIBUTION-SCALAR-VALUE-B0-5E7FAEA6",
+        "contractId": "CTR-PSNORM-SAMPLE-MEAN-DISTRIBUTION-SCALAR-VALUE-B0-NONE-76F275CA"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "PS-NORMAL-SAMPLE",
+        "algorithmVariant": {
+          "id": "SAMPLE_MEAN_DISTRIBUTION",
+          "evidencePatternId": "SAMPLE_MEAN",
+          "confidence": "HIGH"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2017-09-KICE-GA-Q26",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 489,
+      "sourceId": "2018-07-EDUCATION_OFFICE-NA-Q25",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-83EB1FE9",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-F27A8186",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-83EB1FE9"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SCALAR-VALUE-B0-NONE-65169F8B",
+        "solverGroupId": "SOL-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SCALAR-VALUE-B0-5567BFD5",
+        "contractId": "CTR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SCALAR-VALUE-B0-NONE-65169F8B"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "algorithmVariant": {
+          "id": "ARITHMETIC_GEOMETRIC_SUM",
+          "evidencePatternId": "ARITH_GEO",
+          "confidence": "HIGH"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2018-07-EDUCATION_OFFICE-NA-Q25",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 490,
+      "sourceId": "2018-09-KICE-NA-Q26",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-1E446654",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-9A736411",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-1E446654"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SCALAR-VALUE-B0-NONE-C3ACA194",
+        "solverGroupId": "SOL-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SCALAR-VALUE-B0-423A3AFD",
+        "contractId": "CTR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SCALAR-VALUE-B0-NONE-C3ACA194"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "algorithmVariant": {
+          "id": "ARITHMETIC_GEOMETRIC_SUM",
+          "evidencePatternId": "ARITH_GEO",
+          "confidence": "HIGH"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2018-09-KICE-NA-Q26",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 491,
+      "sourceId": "2019-03-EDUCATION_OFFICE-NA-Q25",
+      "flags": [
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-A8554236",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-29A29F72",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-A8554236"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SEQUENCE-TERM-B0-NONE-632E42EF",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-SEQUENCE-TERM-B0-D9C5E88B",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-SEQUENCE-TERM-B0-NONE-632E42EF"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "algorithmVariant": {
+          "id": "ALGSEQREC_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SEQUENCE_TERM",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2019-03-EDUCATION_OFFICE-NA-Q25",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 494,
+      "sourceId": "2020-09-KICE-GA-Q27",
+      "flags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-C5EE64C2",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-D42680F5",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-C5EE64C2"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-8E74285D",
+        "solverGroupId": "SOL-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-50E6935E",
+        "contractId": "CTR-ALGSEQSUM-ARITHMETIC-GEOMETRIC-SUM-SEQUENCE-TERM-B0-NONE-8E74285D"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "algorithmVariant": {
+          "id": "ARITHMETIC_GEOMETRIC_SUM",
+          "evidencePatternId": "ARITH_GEO",
+          "confidence": "HIGH"
+        },
+        "targetContract": "SEQUENCE_TERM",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2020-09-KICE-GA-Q27",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 501,
+      "sourceId": "2022-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "flags": [
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-DISTANCE-OR-LENGTH-B0-NONE-CCCA2046",
+        "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-DISTANCE-OR-LENGTH-B0-2B9538ED",
+        "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-DISTANCE-OR-LENGTH-B0-NONE-CCCA2046"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-NONE-A1E490D3",
+        "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-640C415A",
+        "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-SCALAR-VALUE-B0-NONE-A1E490D3"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "algorithmVariant": {
+          "id": "ALGSEQSUM_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2022-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 503,
+      "sourceId": "2025-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "flags": [
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-EXTREMUM-B0-NONE-FDAEB07D",
+        "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-EXTREMUM-B0-D176917D",
+        "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-EXTREMUM-B0-NONE-FDAEB07D"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-7A3B155B",
+        "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-0D012D5D",
+        "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-SUM-B0-NONE-7A3B155B"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "algorithmVariant": {
+          "id": "ALGSEQSUM_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SUM",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2025-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 506,
+      "sourceId": "2026-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "flags": [
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGEO-ALGTRIGGEO-BASE-EXTREMUM-B0-NONE-0137AB1D",
+        "solverGroupId": "SOL-ALGTRIGGEO-ALGTRIGGEO-BASE-EXTREMUM-B0-74551565",
+        "contractId": "CTR-ALGTRIGGEO-ALGTRIGGEO-BASE-EXTREMUM-B0-NONE-0137AB1D"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGEO-ALGTRIGGEO-BASE-SQUARED-LENGTH-B0-NONE-AAE33329",
+        "solverGroupId": "SOL-ALGTRIGGEO-ALGTRIGGEO-BASE-SQUARED-LENGTH-B0-01E66BAB",
+        "contractId": "CTR-ALGTRIGGEO-ALGTRIGGEO-BASE-SQUARED-LENGTH-B0-NONE-AAE33329"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-TRIG-GEOMETRY",
+        "algorithmVariant": {
+          "id": "ALGTRIGGEO_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SQUARED_LENGTH",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2026-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 511,
+      "sourceId": "2020-07-EDUCATION_OFFICE-GA-Q25",
+      "flags": [
+        "FAMILY",
+        "VISUAL"
+      ],
+      "changedIdDimensions": [
+        "FAMILY",
+        "VISUAL"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SPEED-OR-ACCELERATION-B0-GRAPH-E4BFC160",
+        "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-SPEED-OR-ACCELERATION-B0-165DA752",
+        "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-SPEED-OR-ACCELERATION-B0-GRAPH-E4BFC160"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1MOTION-SPEED-ACCELERATION-VALUE-SPEED-OR-ACCELERATION-B0-NONE-B48B487C",
+        "solverGroupId": "SOL-C1MOTION-SPEED-ACCELERATION-VALUE-SPEED-OR-ACCELERATION-B0-ACE7FE6F",
+        "contractId": "CTR-C1MOTION-SPEED-ACCELERATION-VALUE-SPEED-OR-ACCELERATION-B0-NONE-B48B487C"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-VELOCITY-DISTANCE",
+        "algorithmVariant": {
+          "id": "SPEED_ACCELERATION_VALUE",
+          "evidencePatternId": "SPEED_ACCEL",
+          "confidence": "HIGH"
+        },
+        "targetContract": "SPEED_OR_ACCELERATION",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2020-07-EDUCATION_OFFICE-GA-Q25",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 512,
+      "sourceId": "2020-10-EDUCATION_OFFICE-GA-Q24",
+      "flags": [
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-INTEGER-PARAMETER-B0-NONE-54CA1FB4",
+        "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-INTEGER-PARAMETER-B0-28BF9231",
+        "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-INTEGER-PARAMETER-B0-NONE-54CA1FB4"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-4E39401F",
+        "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-4442F7E7",
+        "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-4E39401F"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "algorithmVariant": {
+          "id": "ALGTRIGGR_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2020-10-EDUCATION_OFFICE-GA-Q24",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 520,
+      "sourceId": "2016-04-EDUCATION_OFFICE-GA-Q25",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-1CED5F23",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-293EF454",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-1CED5F23"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-7A4E96F8",
+        "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-93366E21",
+        "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-7A4E96F8"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "algorithmVariant": {
+          "id": "C1INTDEF_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2016-04-EDUCATION_OFFICE-GA-Q25",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 521,
+      "sourceId": "2016-09-KICE-NA-Q23",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-8B7256CE",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-C00D417D",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-8B7256CE"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-4A6363B6",
+        "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-450E091F",
+        "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-4A6363B6"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "algorithmVariant": {
+          "id": "C1INTDEF_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2016-09-KICE-NA-Q23",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 523,
+      "sourceId": "2018-09-KICE-GA-Q25",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-353C683E",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-A3345520",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-353C683E"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-97EBCC1C",
+        "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-F4FB8B24",
+        "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-97EBCC1C"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "algorithmVariant": {
+          "id": "C1INTDEF_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2018-09-KICE-GA-Q25",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 524,
+      "sourceId": "2018-10-EDUCATION_OFFICE-NA-Q25",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-694E2330",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-8A02E087",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-694E2330"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-18AA0D73",
+        "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-592BC778",
+        "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-18AA0D73"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "algorithmVariant": {
+          "id": "C1INTDEF_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2018-10-EDUCATION_OFFICE-NA-Q25",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 551,
+      "sourceId": "2022-06-KICE-PROBABILITY_STATISTICS-Q19",
+      "flags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-FNGRAPH-FNGRAPH-BASE-EXTREMUM-B0-NONE-E7605B7E",
+        "solverGroupId": "SOL-FNGRAPH-FNGRAPH-BASE-EXTREMUM-B0-F895F6E5",
+        "contractId": "CTR-FNGRAPH-FNGRAPH-BASE-EXTREMUM-B0-NONE-E7605B7E"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1TANEXT-EXTREMUM-VALUE-BACKSOLVE-SUM-OF-PARAMETERS-B0-NONE-2B51787B",
+        "solverGroupId": "SOL-C1TANEXT-EXTREMUM-VALUE-BACKSOLVE-SUM-OF-PARAMETERS-B0-4773E41D",
+        "contractId": "CTR-C1TANEXT-EXTREMUM-VALUE-BACKSOLVE-SUM-OF-PARAMETERS-B0-NONE-2B51787B"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-TANGENT-EXTREMA",
+        "algorithmVariant": {
+          "id": "EXTREMUM_VALUE_BACKSOLVE",
+          "evidencePatternId": "EXTREMUM",
+          "confidence": "HIGH"
+        },
+        "targetContract": "SUM_OF_PARAMETERS",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2022-06-KICE-PROBABILITY_STATISTICS-Q19",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 566,
+      "sourceId": "2016-09-KICE-NA-Q26",
+      "flags": [
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-PROBABILITY-B0-NONE-07D1701B",
+        "solverGroupId": "SOL-PSAXM-PSAXM-BASE-PROBABILITY-B0-09C44195",
+        "contractId": "CTR-PSAXM-PSAXM-BASE-PROBABILITY-B0-NONE-07D1701B"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-C309D465",
+        "solverGroupId": "SOL-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-23BDED7B",
+        "contractId": "CTR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-C309D465"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "PS-PROBABILITY-AXIOMS",
+        "algorithmVariant": {
+          "id": "PSAXM_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "REDUCED_RATIONAL_COMPONENT_SUM",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2016-09-KICE-NA-Q26",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": {
+          "candidateGroup": "2016-09-KICE-URN-TWO-WHITE-FOUR-RED-DRAW-TWO",
+          "decision": "DEFER_EXACT_DUPLICATE_MERGE_TO_STAGE_6C_SOLVER_VALIDATION"
+        }
+      }
+    },
+    {
+      "ledgerIndex": 572,
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q25",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-4BC32D13",
+        "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-5674482E",
+        "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-4BC32D13"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-7B30BD62",
+        "solverGroupId": "SOL-C1DER-C1DER-BASE-SCALAR-VALUE-B0-0105EFFC",
+        "contractId": "CTR-C1DER-C1DER-BASE-SCALAR-VALUE-B0-NONE-7B30BD62"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-DERIVATIVE",
+        "algorithmVariant": {
+          "id": "C1DER_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2017-07-EDUCATION_OFFICE-GA-Q25",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 578,
+      "sourceId": "2017-06-KICE-GA-Q24",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-NONE-6BDD57CD",
+        "solverGroupId": "SOL-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-127FE043",
+        "contractId": "CTR-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-NONE-6BDD57CD"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-6BF4A7A4",
+        "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-D499FA2A",
+        "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-6BF4A7A4"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "algorithmVariant": {
+          "id": "C1INTDEF_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2017-06-KICE-GA-Q24",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 579,
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q24",
+      "flags": [
+        "VISUAL"
+      ],
+      "changedIdDimensions": [
+        "VISUAL"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-GRAPH-528A10E2",
+        "solverGroupId": "SOL-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-129247D2",
+        "contractId": "CTR-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-GRAPH-528A10E2"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-NONE-41672C7D",
+        "solverGroupId": "SOL-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-129247D2",
+        "contractId": "CTR-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-NONE-41672C7D"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": false,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "ALG-EXP-LOG-GRAPH",
+        "algorithmVariant": {
+          "id": "ALGELGR_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2017-07-EDUCATION_OFFICE-GA-Q24",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 599,
+      "sourceId": "2026-06-KICE-PROBABILITY_STATISTICS-Q17",
+      "flags": [
+        "FAMILY"
+      ],
+      "changedIdDimensions": [
+        "FAMILY"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-258F619F",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-8B9665BB",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-258F619F"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-D588DDC0",
+        "solverGroupId": "SOL-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-7640C4AB",
+        "contractId": "CTR-C1INTDEF-C1INTDEF-BASE-SCALAR-VALUE-B0-NONE-D588DDC0"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "algorithmVariant": {
+          "id": "C1INTDEF_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "SCALAR_VALUE",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2026-06-KICE-PROBABILITY_STATISTICS-Q17",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 601,
+      "sourceId": "2018-09-KICE-GA-Q26",
+      "flags": [
+        "TARGET",
+        "VISUAL"
+      ],
+      "changedIdDimensions": [
+        "TARGET",
+        "VISUAL"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-LIMIT-VALUE-B0-GRAPH-A6A33855",
+        "solverGroupId": "SOL-C1LIMCONT-DIFFERENTIABILITY-MATCH-LIMIT-VALUE-B0-D13619C0",
+        "contractId": "CTR-C1LIMCONT-DIFFERENTIABILITY-MATCH-LIMIT-VALUE-B0-GRAPH-A6A33855"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALED-SQUARED-PARAMETER-B0-NONE-132B4225",
+        "solverGroupId": "SOL-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALED-SQUARED-PARAMETER-B0-217FFC03",
+        "contractId": "CTR-C1LIMCONT-DIFFERENTIABILITY-MATCH-SCALED-SQUARED-PARAMETER-B0-NONE-132B4225"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "C1-LIMIT-CONTINUITY",
+        "algorithmVariant": {
+          "id": "DIFFERENTIABILITY_MATCH",
+          "evidencePatternId": "DIFFERENTIABLE",
+          "confidence": "HIGH"
+        },
+        "targetContract": "SCALED_SQUARED_PARAMETER",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2018-09-KICE-GA-Q26",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 611,
+      "sourceId": "2016-09-KICE-GA-Q24",
+      "flags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "changedIdDimensions": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-PROBABILITY-B0-NONE-8D3BCD6D",
+        "solverGroupId": "SOL-PSCNT-PSCNT-BASE-PROBABILITY-B0-EF7EB621",
+        "contractId": "CTR-PSCNT-PSCNT-BASE-PROBABILITY-B0-NONE-8D3BCD6D"
+      },
+      "replacementIdentifiers": {
+        "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-A5D3A06E",
+        "solverGroupId": "SOL-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-D0B3DDF3",
+        "contractId": "CTR-PSAXM-PSAXM-BASE-REDUCED-RATIONAL-COMPONENT-SUM-B0-NONE-A5D3A06E"
+      },
+      "identifierChanged": {
+        "canonicalStructureId": true,
+        "solverGroupId": true,
+        "contractId": true
+      },
+      "resolvedContract": {
+        "familyId": "PS-PROBABILITY-AXIOMS",
+        "algorithmVariant": {
+          "id": "PSAXM_BASE",
+          "evidencePatternId": "FAMILY_FALLBACK",
+          "confidence": "MEDIUM"
+        },
+        "targetContract": "REDUCED_RATIONAL_COMPONENT_SUM",
+        "branchContract": "B0",
+        "visualContract": "NONE",
+        "groupingDiscriminator": "2016-09-KICE-GA-Q24",
+        "status": "FORMULA_TRANSCRIPTION_REQUIRED"
+      },
+      "contextAugmentation": {
+        "required": false
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": {
+          "candidateGroup": "2016-09-KICE-URN-TWO-WHITE-FOUR-RED-DRAW-TWO",
+          "decision": "DEFER_EXACT_DUPLICATE_MERGE_TO_STAGE_6C_SOLVER_VALIDATION"
+        }
+      }
+    }
+  ]
+}

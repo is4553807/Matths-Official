@@ -407,8 +407,12 @@ async function run() {
         clientAt:
           "2026-08-01T03:00:00+09:00",
       },
-    ]).map((signal) => signal.type),
-    ["HEARTBEAT", "FOCUS_LOST"]
+      {
+        type: "page_exited",
+        questionKey: "Q1",
+      },
+    ], ["Q1"]).map((signal) => signal.type),
+    ["HEARTBEAT", "FOCUS_LOST", "PAGE_EXITED"]
   );
   assert.throws(
     () =>
@@ -574,7 +578,18 @@ async function run() {
       clientSource.includes("visibilitychange") &&
       clientSource.includes('enqueueFocusSignal("FOCUS_LOST")') &&
       clientSource.includes('"pagehide"') &&
-      clientSource.includes("lastFocusSignalAt")
+      clientSource.includes("lastFocusSignalAt") &&
+      clientSource.includes('"beforeunload"') &&
+      clientSource.includes("event.returnValue = true") &&
+      clientSource.includes('"popstate"') &&
+      clientSource.includes("window.history.pushState") &&
+      clientSource.includes("confirmMatchExit") &&
+      clientSource.includes("releaseNavigationGuard") &&
+      clientSource.includes("historyGuardAlreadyInstalled") &&
+      clientSource.includes('"pageshow"') &&
+      clientSource.includes("event.persisted") &&
+      clientSource.includes('"PAGE_EXITED"') &&
+      clientSource.includes("enqueuePageExitSignal")
   );
 
   console.log(

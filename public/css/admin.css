@@ -273,10 +273,12 @@
 }
 
 .admin-guide-workflow-grid dd {
+  min-width: 0;
   color: #606983;
   font-size: 11px;
   line-height: 1.55;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .admin-guide-subtitle {
@@ -3254,8 +3256,43 @@
     padding: 10px 14px 0;
   }
 
+  .admin-main-nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+  }
+
+  .admin-topbar nav a,
+  .admin-nav-group > button {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 4px;
+    font-size: 9px;
+  }
+
+  .admin-nav-group {
+    min-width: 0;
+  }
+
+  .admin-nav-menu {
+    position: fixed;
+    top: 154px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-width: none;
+    transform: translateY(8px);
+  }
+
+  .admin-nav-group:hover .admin-nav-menu,
+  .admin-nav-group:focus-within .admin-nav-menu,
+  .admin-nav-group.is-open .admin-nav-menu {
+    transform: translateY(0);
+  }
+
   .admin-alert-dock {
-    top: 120px;
+    top: 158px;
     right: 14px;
   }
 

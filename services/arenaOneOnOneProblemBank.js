@@ -20,22 +20,36 @@ const {
   weightedTypeIdsForPack,
 } = require("./arenaProblemDataService");
 const {
-  generateQuestionsFromTierCatalog,
-  getActiveArenaTierCatalogVersion,
-} = require("./arenaTierQuestionCatalogService");
+  ARENA_MATCH_QUESTION_ROLLOUT,
+} = require("./arenaMatchDifficultyPlan");
 const {
   ArenaMatch,
   ArenaProblemPack,
 } = require("../models/goatArenaModel");
 
 /*
+ * 활성화된 PDF 스켈레톤 풀은 GOAT Arena 1대1 전용 어댑터로만 읽는다.
+ * Matths 평가센터의 서비스·카탈로그·생성기는 이 경로에 포함하지 않는다.
+ */
+function preparedArenaQuestionRuntime() {
+  if (ARENA_MATCH_QUESTION_ROLLOUT.runtimeConnected !== true) {
+    const error = new Error(
+      "준비 중인 Arena PDF 문제 풀은 아직 실제 1대1 매치에 연결되지 않았습니다."
+    );
+    error.status = 503;
+    error.code = "ARENA_PREPARED_QUESTION_POOL_NOT_CONNECTED";
+    throw error;
+  }
+  return require("./arenaPdfOneOnOneQuestionPool");
+}
+
+/*
  * Unranked·Ranked 1대1 전용 문제 은행.
  *
  * 배치고사와 분리된 Arena 전용 생성기 arenaOneOnOneProblemTypes.js를 사용한다.
  * 문제 유형·수치·검산 규칙은 운영 DB의 U/R 카탈로그와 결합해 독립적으로 교체한다.
- * U1~U6은 서로 다른 주관식 준킬러 5문항, R1~R6은 서로 다른
- * 준킬러 4문항과 29·30번형 킬러 1문항으로 구성한다. 마스터 이상에
- * 대응하는 U7~U9·R7~R9는 5문항 모두 29·30번형 킬러로 구성한다.
+ * 기초 일반·일반·상위 일반·준킬러·킬러를 방어자 티어에 따라 섞고,
+ * 같은 경기 안에서 서로 다른 유형과 생성기 5개를 사용한다.
  */
 const ARENA_ONE_ON_ONE_QUESTION_COUNT = 5;
 const ARENA_ONE_ON_ONE_PACKS_PER_PAIR = 30;
@@ -569,11 +583,17 @@ function generateSubOneOnOneQuestions({
 }
 
 async function generateSubOneOnOneQuestionsFromActiveData(input) {
-  const [problemDataVersion, tierCatalogVersion] = await Promise.all([
-    getActiveArenaProblemDataVersion(),
-    getActiveArenaTierCatalogVersion(),
-  ]);
-  if (tierCatalogVersion) {
+  const problemDataVersion = await getActiveArenaProblemDataVersion();
+  if (ARENA_MATCH_QUESTION_ROLLOUT.runtimeConnected !== true) {
+    return generateSubOneOnOneQuestions({
+      challengerTier: input.challengerTier,
+      defenderTier: input.defenderTier,
+      matchKey: input.matchKey,
+      problemDataVersion,
+    });
+  }
+  const { generateArenaPdfOneOnOneQuestions } = preparedArenaQuestionRuntime();
+  {
     const pair = getSubTierPair(input.challengerTier, input.defenderTier);
     if (!pair) {
       const error = new Error(
@@ -587,14 +607,10 @@ async function generateSubOneOnOneQuestionsFromActiveData(input) {
     const recentTypeIds = await recentArenaTypeIdsForParticipants(
       input.participantUserIds
     );
-    const questions = await generateQuestionsFromTierCatalog({
-      version: tierCatalogVersion,
-      difficultyTier: pair.difficultyTier,
+    const questions = generateArenaPdfOneOnOneQuestions({
       difficultyCode: pair.difficultyCode,
-      challengerTier: pair.challengerTier,
-      defenderTier: pair.defenderTier,
       matchKey: input.matchKey,
-      division: "SUB",
+      packCurve: pair.packCurve,
       recentTypeIds,
     });
     return {
@@ -605,16 +621,15 @@ async function generateSubOneOnOneQuestionsFromActiveData(input) {
       difficultyTier: pair.difficultyTier,
       difficultyCode: pair.difficultyCode,
       designPolicyVersion: pair.designPolicyVersion,
-      contentSourceVersion: tierCatalogVersion.code,
-      problemDataVersionId: problemDataVersion?._id || null,
-      tierCatalogVersionId: tierCatalogVersion._id,
+      contentSourceVersion: ARENA_MATCH_QUESTION_ROLLOUT.preparedPoolId,
+      problemDataVersionId: null,
+      tierCatalogVersionId: null,
       designCompliance: "ACTIVE",
       targetAccuracy: pair.targetAccuracy,
       packCurve: pair.packCurve,
       questions,
     };
   }
-  return generateSubOneOnOneQuestions({ ...input, problemDataVersion });
 }
 
 function getMainTierPair(lowerTier, upperTier) {
@@ -682,11 +697,17 @@ function generateMainOneOnOneQuestions({
 }
 
 async function generateMainOneOnOneQuestionsFromActiveData(input) {
-  const [problemDataVersion, tierCatalogVersion] = await Promise.all([
-    getActiveArenaProblemDataVersion(),
-    getActiveArenaTierCatalogVersion(),
-  ]);
-  if (tierCatalogVersion) {
+  const problemDataVersion = await getActiveArenaProblemDataVersion();
+  if (ARENA_MATCH_QUESTION_ROLLOUT.runtimeConnected !== true) {
+    return generateMainOneOnOneQuestions({
+      lowerTier: input.lowerTier,
+      upperTier: input.upperTier,
+      matchKey: input.matchKey,
+      problemDataVersion,
+    });
+  }
+  const { generateArenaPdfOneOnOneQuestions } = preparedArenaQuestionRuntime();
+  {
     const pair = getMainTierPair(input.lowerTier, input.upperTier);
     if (!pair) {
       const error = new Error(
@@ -700,14 +721,10 @@ async function generateMainOneOnOneQuestionsFromActiveData(input) {
     const recentTypeIds = await recentArenaTypeIdsForParticipants(
       input.participantUserIds
     );
-    const questions = await generateQuestionsFromTierCatalog({
-      version: tierCatalogVersion,
-      difficultyTier: pair.difficultyTier,
+    const questions = generateArenaPdfOneOnOneQuestions({
       difficultyCode: pair.difficultyCode,
-      challengerTier: pair.challengerTier,
-      defenderTier: pair.defenderTier,
       matchKey: input.matchKey,
-      division: "MAIN",
+      packCurve: pair.packCurve,
       recentTypeIds,
     });
     return {
@@ -718,16 +735,15 @@ async function generateMainOneOnOneQuestionsFromActiveData(input) {
       difficultyTier: pair.difficultyTier,
       difficultyCode: pair.difficultyCode,
       designPolicyVersion: pair.designPolicyVersion,
-      contentSourceVersion: tierCatalogVersion.code,
-      problemDataVersionId: problemDataVersion?._id || null,
-      tierCatalogVersionId: tierCatalogVersion._id,
+      contentSourceVersion: ARENA_MATCH_QUESTION_ROLLOUT.preparedPoolId,
+      problemDataVersionId: null,
+      tierCatalogVersionId: null,
       designCompliance: "ACTIVE",
       targetAccuracy: pair.targetAccuracy,
       packCurve: pair.packCurve,
       questions,
     };
   }
-  return generateMainOneOnOneQuestions({ ...input, problemDataVersion });
 }
 
 function friendlyDifficultyPlan({
@@ -767,15 +783,82 @@ function friendlyDifficultyPlan({
 
 async function generateFriendlyOneOnOneQuestionsFromActiveData(input) {
   const plan = friendlyDifficultyPlan(input);
-  const [problemDataVersion, tierCatalogVersion] = await Promise.all([
-    getActiveArenaProblemDataVersion(),
-    getActiveArenaTierCatalogVersion(),
-  ]);
+  const problemDataVersion = await getActiveArenaProblemDataVersion();
   const slotIndex = deterministicPackSlot({
     pairKey: plan.pairKey,
     matchKey: input.matchKey,
   });
-  if (tierCatalogVersion) {
+  if (ARENA_MATCH_QUESTION_ROLLOUT.runtimeConnected !== true) {
+    const difficultyCode = resolveArenaDifficultyCode(
+      plan.anchorTier,
+      plan.anchorTier,
+      { division: "MAIN" }
+    );
+    const eligibleTypeIds = problemDataVersion
+      ? weightedTypeIdsForPack(
+          problemDataVersion,
+          plan.difficultyTier,
+          slotIndex
+        )
+      : ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS;
+    const pair = {
+      key: plan.pairKey,
+      label: plan.pairLabel,
+      challengerTier: plan.anchorTier,
+      defenderTier: plan.anchorTier,
+      difficultyAnchor: "HIGHER_ABSOLUTE_DIFFICULTY",
+      difficultyTier: plan.difficultyTier,
+      difficultyCode,
+      designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
+      contentSourceVersion:
+        problemDataVersion?.code || ARENA_LEGACY_CONTENT_VERSION,
+      designCompliance: "PENDING_FINAL_GENERATORS",
+      targetAccuracy:
+        PUBLIC_DIFFICULTY_SPECS[difficultyCode] || TIER_SPECS[plan.difficultyTier],
+      packCurve: packCurveForPair(plan.anchorTier, plan.anchorTier),
+    };
+    const packSlot = {
+      slot: slotIndex + 1,
+      code: `FRIENDLY_${String(slotIndex + 1).padStart(2, "0")}`,
+      questionSlots: configuredQuestionSlots(
+        slotIndex,
+        plan.anchorTier,
+        plan.anchorTier,
+        eligibleTypeIds,
+        { division: "MAIN" }
+      ),
+    };
+    assertConfiguredPackSlot(packSlot);
+    return {
+      pairKey: plan.pairKey,
+      pairLabel: plan.pairLabel,
+      packSlot: slotIndex + 1,
+      difficultyAnchor: pair.difficultyAnchor,
+      difficultyTier: pair.difficultyTier,
+      difficultyCode,
+      designPolicyVersion: pair.designPolicyVersion,
+      contentSourceVersion: pair.contentSourceVersion,
+      problemDataVersionId: problemDataVersion?._id || null,
+      tierCatalogVersionId: null,
+      designCompliance: pair.designCompliance,
+      targetAccuracy: pair.targetAccuracy,
+      questionTargetAccuracy: plannedPackSlots(
+        plan.anchorTier,
+        plan.anchorTier,
+        { division: "MAIN" }
+      ).map((slot) => slot.targetAccuracy),
+      packCurve: pair.packCurve,
+      questions: generateQuestionsFromPackSlot({
+        pair,
+        packSlot,
+        matchKey: input.matchKey,
+        eligibleTypeIds,
+        problemDataVersion,
+      }),
+    };
+  }
+  const { generateArenaPdfOneOnOneQuestions } = preparedArenaQuestionRuntime();
+  {
     const difficultyCode = resolveArenaDifficultyCode(
       plan.anchorTier,
       plan.anchorTier,
@@ -784,14 +867,11 @@ async function generateFriendlyOneOnOneQuestionsFromActiveData(input) {
     const recentTypeIds = await recentArenaTypeIdsForParticipants(
       input.participantUserIds
     );
-    const questions = await generateQuestionsFromTierCatalog({
-      version: tierCatalogVersion,
-      difficultyTier: plan.difficultyTier,
+    const friendlyPackCurve = packCurveForPair(plan.anchorTier, plan.anchorTier);
+    const questions = generateArenaPdfOneOnOneQuestions({
       difficultyCode,
-      challengerTier: plan.anchorTier,
-      defenderTier: plan.anchorTier,
       matchKey: input.matchKey,
-      division: "MAIN",
+      packCurve: friendlyPackCurve,
       recentTypeIds,
     });
     return {
@@ -802,74 +882,18 @@ async function generateFriendlyOneOnOneQuestionsFromActiveData(input) {
       difficultyTier: plan.difficultyTier,
       difficultyCode,
       designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
-      contentSourceVersion: tierCatalogVersion.code,
-      problemDataVersionId: problemDataVersion?._id || null,
-      tierCatalogVersionId: tierCatalogVersion._id,
+      contentSourceVersion: ARENA_MATCH_QUESTION_ROLLOUT.preparedPoolId,
+      problemDataVersionId: null,
+      tierCatalogVersionId: null,
       designCompliance: "ACTIVE",
       targetAccuracy: PUBLIC_DIFFICULTY_SPECS[difficultyCode] || TIER_SPECS[plan.difficultyTier],
       questionTargetAccuracy: plannedPackSlots(plan.anchorTier, plan.anchorTier, {
         division: "MAIN",
       }).map((slot) => slot.targetAccuracy),
-      packCurve: packCurveForPair(plan.anchorTier, plan.anchorTier),
+      packCurve: friendlyPackCurve,
       questions,
     };
   }
-  const difficultyCode = resolveArenaDifficultyCode(
-    plan.anchorTier,
-    plan.anchorTier,
-    { division: "MAIN" }
-  );
-  const eligibleTypeIds = problemDataVersion
-    ? weightedTypeIdsForPack(problemDataVersion, plan.difficultyTier, slotIndex)
-    : ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS;
-  const legacyPair = {
-    key: plan.pairKey,
-    label: plan.pairLabel,
-    challengerTier: plan.anchorTier,
-    defenderTier: plan.anchorTier,
-    difficultyTier: plan.difficultyTier,
-    difficultyCode,
-    designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
-    contentSourceVersion: problemDataVersion?.code || ARENA_LEGACY_CONTENT_VERSION,
-  };
-  const packSlot = {
-    slot: slotIndex + 1,
-    code: `${plan.pairKey}_${String(slotIndex + 1).padStart(2, "0")}`,
-    questionSlots: configuredQuestionSlots(
-      slotIndex,
-      plan.anchorTier,
-      plan.anchorTier,
-      eligibleTypeIds,
-      { division: "MAIN" }
-    ),
-  };
-  const legacy = {
-    pairKey: plan.pairKey,
-    pairLabel: plan.pairLabel,
-    packSlot: packSlot.slot,
-    difficultyAnchor: "HIGHER_ABSOLUTE_DIFFICULTY",
-    difficultyTier: plan.difficultyTier,
-    difficultyCode,
-    designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
-    contentSourceVersion: legacyPair.contentSourceVersion,
-    problemDataVersionId: problemDataVersion?._id || null,
-    designCompliance: "PENDING_FINAL_GENERATORS",
-    targetAccuracy: PUBLIC_DIFFICULTY_SPECS[difficultyCode] || TIER_SPECS[plan.difficultyTier],
-    questionTargetAccuracy: plannedPackSlots(plan.anchorTier, plan.anchorTier, {
-      division: "MAIN",
-    }).map((slot) => slot.targetAccuracy),
-    packCurve: packCurveForPair(plan.anchorTier, plan.anchorTier),
-    questions: generateQuestionsFromPackSlot({
-      pair: legacyPair,
-      packSlot,
-      matchKey: input.matchKey,
-      eligibleTypeIds,
-      problemDataVersion,
-    }),
-  };
-  return {
-    ...legacy,
-  };
 }
 
 module.exports = {

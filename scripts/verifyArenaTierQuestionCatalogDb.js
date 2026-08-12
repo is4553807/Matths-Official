@@ -26,6 +26,8 @@ const {
 } = require("../services/arenaProblemPackService");
 const {
   PACK_RULES,
+  difficultyClassForDifficultyCodeSlot,
+  difficultyGateForQuestion,
   isNaturalNumberMaxThreeDigits,
 } = require("../services/arenaOneOnOneDifficultyPolicy");
 
@@ -60,10 +62,12 @@ function verifyGeneration(generation, active, division) {
     return result;
   }, {});
   assert.deepEqual(counts, PACK_RULES.unitMix);
-  const ranked = division === "MAIN";
-  const level = Number(String(generation.difficultyCode || "").replace(/^[UR]/, ""));
-  const allKiller = level >= 7;
-  const expectedKillerCount = allKiller ? 5 : ranked ? 1 : 0;
+  const expectedClasses = generation.questions.map((_item, index) =>
+    difficultyClassForDifficultyCodeSlot(generation.difficultyCode, index)
+  );
+  const expectedKillerCount = expectedClasses.filter(
+    (difficultyClass) => difficultyClass === "KILLER"
+  ).length;
   assert.equal(
     generation.questions.filter((item) => item.design.slotRole === "FINAL_29_30").length,
     expectedKillerCount
@@ -78,20 +82,21 @@ function verifyGeneration(generation, active, division) {
   assert.equal(
     regularItems.every(
       (item) =>
-        item.difficultyClass === "SEMI_KILLER" &&
-        /^ASSESSMENT_CENTER:advanced:/.test(item.generatorEngineKey) &&
-        /^advanced:/.test(item.generatorTypeId) &&
-        item.validation?.catalogTypeMatched === true
+        ["BASIC_GENERAL", "GENERAL", "UPPER_GENERAL", "SEMI_KILLER"].includes(
+          item.difficultyClass
+        ) &&
+        /^ASSESSMENT_CENTER:/.test(item.generatorEngineKey) &&
+        item.validation?.accuracyClassCertified === true
     ),
     true,
-    `${generation.pairKey}: 일반 슬롯은 표시된 공식 유형과 직접 결속된 독립 검산 생성기를 사용해야 합니다.`
+    `${generation.pairKey}: 일반 슬롯은 객관 난이도와 같은 검산 생성기를 사용해야 합니다.`
   );
   if (expectedKillerCount > 0) {
     const killerItems = generation.questions.filter(
       (item) => item.design.slotRole === "FINAL_29_30"
     );
     assert.equal(
-      killerItems.every((item) => item.design.sourcePositionBand === "Q29_30_KILLER"),
+      killerItems.every((item) => item.design.sourcePositionBand === "ACCURACY_KILLER"),
       true
     );
     assert.equal(
@@ -103,7 +108,6 @@ function verifyGeneration(generation, active, division) {
       "킬러 슬롯은 독립 생성·검산한 29·30번형이어야 합니다."
     );
   }
-  assert.ok(generation.questions.every((item) => item.typeId.startsWith(`${ranked ? "R" : "U"}`)));
   assert.equal(new Set(generation.questions.map((item) => item.typeId)).size, 5);
   assert.equal(
     new Set(generation.questions.map((item) => item.sourceTypeId)).size,
@@ -140,13 +144,20 @@ function verifyGeneration(generation, active, division) {
   );
   assert.equal(
     generation.questions.every(
-      (item) =>
+      (item, index) => {
+        const gate = difficultyGateForQuestion({
+          difficultyCode: generation.difficultyCode,
+          order: index + 1,
+        });
+        return (
         item.validation?.structuralDifficultyPassed === true &&
-        Number(item.design?.reasoningStepCount) >=
-          (item.design?.slotRole === "FINAL_29_30" ? 5 : 4) &&
-        Number(item.design?.generatorDifficulty) >= 4 &&
+        item.validation?.accuracyClassCertified === true &&
+        Number(item.design?.reasoningStepCount) >= gate.minimumReasoningSteps &&
+        Number(item.design?.generatorDifficulty) >= gate.minimumGeneratorDifficulty &&
         Array.isArray(item.design?.targetAccuracy) &&
         item.design.targetAccuracy.length === 2
+        );
+      }
     ),
     true,
     `${generation.pairKey}: 구조 난이도와 예상 정답률 검증값이 누락되었습니다.`

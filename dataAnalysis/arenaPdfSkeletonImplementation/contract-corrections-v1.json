@@ -1,0 +1,1611 @@
+{
+  "schemaVersion": "ARENA_PDF_CONTRACT_CORRECTIONS_V1",
+  "generatedAt": "2026-08-11T13:48:06.294541+00:00",
+  "scope": {
+    "productionRuntimeModified": false,
+    "transcriptionBatchCount": 8,
+    "transcribedSourceCount": 200
+  },
+  "summary": {
+    "correctedSourceCount": 41,
+    "flagCounts": {
+      "FAMILY": 25,
+      "TARGET": 15,
+      "VISUAL": 9,
+      "CONTEXT": 1
+    },
+    "sharedStructureSplitCount": 0,
+    "sourceIsolatedReissueCount": 41,
+    "deferredDuplicateCandidateCount": 1
+  },
+  "correctionHash": "8d24453eb1651346ed7b6416da7c6fc501d5177860d2da42341a7f01fce5c70c",
+  "records": [
+    {
+      "ledgerIndex": 77,
+      "sourceId": "2017-09-KICE-NA-Q30",
+      "evidenceBatch": "formula-transcriptions-batch-6b1",
+      "flags": [
+        "VISUAL"
+      ],
+      "auditEvidence": {
+        "visualAudit": "REQUIRED_GRAPH; existing canonical visual contract NONE must be corrected before generator design"
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-932ADE8E",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-0DAB1369",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-932ADE8E"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2017-09-KICE-NA-Q30"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "GRAPH",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 173,
+      "sourceId": "2017-03-EDUCATION_OFFICE-GA-Q29",
+      "evidenceBatch": "formula-transcriptions-batch-6b2",
+      "flags": [
+        "VISUAL"
+      ],
+      "auditEvidence": {
+        "visualAudit": "REQUIRED_DIAGRAM; existing canonical visual contract NONE must be corrected before generator design"
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-675DE0C5",
+        "solverGroupId": "SOL-PSCNT-PSCNT-BASE-COUNT-B1-AA8460DF",
+        "contractId": "CTR-PSCNT-PSCNT-BASE-COUNT-B1-NONE-675DE0C5"
+      },
+      "priorContract": {
+        "familyId": "PS-COUNTING",
+        "targetContract": "COUNT",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2017-03-EDUCATION_OFFICE-GA-Q29"
+      },
+      "resolution": {
+        "familyId": "PS-COUNTING",
+        "targetContract": "COUNT",
+        "visualContract": "LAYOUT",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 258,
+      "sourceId": "2017-10-EDUCATION_OFFICE-NA-Q29",
+      "evidenceBatch": "formula-transcriptions-batch-6b3",
+      "flags": [
+        "VISUAL"
+      ],
+      "auditEvidence": {
+        "visualAudit": "NONE_REQUIRED; existing canonical visual contract GRAPH is not supported by the source crop and should be reviewed"
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B1-GRAPH-94374641",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B1-AD9BFD59",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B1-GRAPH-94374641"
+      },
+      "priorContract": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "GRAPH",
+        "recordCount": 1,
+        "groupingDiscriminator": "2017-10-EDUCATION_OFFICE-NA-Q29"
+      },
+      "resolution": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 271,
+      "sourceId": "2017-10-EDUCATION_OFFICE-NA-Q26",
+      "evidenceBatch": "formula-transcriptions-batch-6b4",
+      "flags": [
+        "VISUAL"
+      ],
+      "auditEvidence": {
+        "visualAudit": "VISUAL_CONTRACT_CORRECTION_REQUIRED: canonical GRAPH is not supported by the source, which contains formulas and prose only; review as NONE or optional generated graph."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-COUNT-B1-GRAPH-9C5A2F47",
+        "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-COUNT-B1-E66DA691",
+        "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-COUNT-B1-GRAPH-9C5A2F47"
+      },
+      "priorContract": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "targetContract": "COUNT",
+        "visualContract": "GRAPH",
+        "recordCount": 1,
+        "groupingDiscriminator": "2017-10-EDUCATION_OFFICE-NA-Q26"
+      },
+      "resolution": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "targetContract": "COUNT",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 283,
+      "sourceId": "2016-03-EDUCATION_OFFICE-GA-Q26",
+      "evidenceBatch": "formula-transcriptions-batch-6b4",
+      "flags": [
+        "VISUAL"
+      ],
+      "auditEvidence": {
+        "visualAudit": "VISUAL_CONTRACT_CORRECTION_REQUIRED: canonical NONE omits the source figure needed to disambiguate the tangent-point branches; a diagram must be included."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-83D5BDDB",
+        "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-A4F48612",
+        "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-SCALAR-VALUE-B0-NONE-83D5BDDB"
+      },
+      "priorContract": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2016-03-EDUCATION_OFFICE-GA-Q26"
+      },
+      "resolution": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "GEO",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 299,
+      "sourceId": "2020-05-EDUCATION_OFFICE-NA-Q26",
+      "evidenceBatch": "formula-transcriptions-batch-6b3",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "contractAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED; source is C1-VELOCITY-DISTANCE rather than C1-INTEGRAL-AREA"
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-DISTANCE-OR-LENGTH-B1-NONE-622FCC8D",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-DISTANCE-OR-LENGTH-B1-9C839D7A",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-DISTANCE-OR-LENGTH-B1-NONE-622FCC8D"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "DISTANCE_OR_LENGTH",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2020-05-EDUCATION_OFFICE-NA-Q26"
+      },
+      "resolution": {
+        "familyId": "C1-VELOCITY-DISTANCE",
+        "targetContract": "DISTANCE_OR_LENGTH",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 394,
+      "sourceId": "2020-06-KICE-NA-Q26",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the source is an average-rate-of-change and derivative equation with no exponential or logarithmic structure; review as C1-DERIVATIVE."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-6AD16942",
+        "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-2E88C79D",
+        "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-6AD16942"
+      },
+      "priorContract": {
+        "familyId": "ALG-EXP-LOG-EQUATION",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2020-06-KICE-NA-Q26"
+      },
+      "resolution": {
+        "familyId": "C1-DERIVATIVE",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 400,
+      "sourceId": "2019-07-EDUCATION_OFFICE-NA-Q26",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical INTEGER_PARAMETER conflicts with the source, which requests a finite sequence SUM."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-578D3C45",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-D11ED44B",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-578D3C45"
+      },
+      "priorContract": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "targetContract": "INTEGER_PARAMETER",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2019-07-EDUCATION_OFFICE-NA-Q26"
+      },
+      "resolution": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "targetContract": "SUM",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 401,
+      "sourceId": "2021-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical INTEGER_PARAMETER conflicts with the requested partial-sum value S_5."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-A1D2DC61",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-DA28F041",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-A1D2DC61"
+      },
+      "priorContract": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "targetContract": "INTEGER_PARAMETER",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2021-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q19"
+      },
+      "resolution": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "targetContract": "PARTIAL_SUM_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 418,
+      "sourceId": "2018-04-EDUCATION_OFFICE-GA-Q24",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "VISUAL"
+      ],
+      "auditEvidence": {
+        "visualAudit": "VISUAL_CONTRACT_CORRECTION_REQUIRED: canonical GRAPH is not supported by the source page, which contains only the formula and interval; review as NONE or optional generated graph."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-GRAPH-3FE96F89",
+        "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-1A3CDF4B",
+        "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-COUNT-B0-GRAPH-3FE96F89"
+      },
+      "priorContract": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "targetContract": "COUNT",
+        "visualContract": "GRAPH",
+        "recordCount": 1,
+        "groupingDiscriminator": "2018-04-EDUCATION_OFFICE-GA-Q24"
+      },
+      "resolution": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "targetContract": "COUNT",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 424,
+      "sourceId": "2018-03-EDUCATION_OFFICE-GA-Q27",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is an integral equation defining a function, not an area problem; review as C1-INTEGRAL-DEFINED."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-44A54A75",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-A350B541",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-44A54A75"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2018-03-EDUCATION_OFFICE-GA-Q27"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 425,
+      "sourceId": "2018-04-EDUCATION_OFFICE-GA-Q27",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the function is defined by an integral and optimized; C1-INTEGRAL-DEFINED is more accurate than C1-INTEGRAL-AREA.",
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical EXTREMUM describes the intermediate g(n), but the requested final answer is a finite SUM."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-EXTREMUM-B0-NONE-D6E08994",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-EXTREMUM-B0-A856115E",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-EXTREMUM-B0-NONE-D6E08994"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "EXTREMUM",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2018-04-EDUCATION_OFFICE-GA-Q27"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "targetContract": "SUM",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 427,
+      "sourceId": "2019-04-EDUCATION_OFFICE-GA-Q27",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is an inverse-function derivative substitution in a definite integral, not an area problem; review as C1-INTEGRAL-DEFINED."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-95B5FEEA",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-8A9BD33E",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-95B5FEEA"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2019-04-EDUCATION_OFFICE-GA-Q27"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 430,
+      "sourceId": "2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is direct definite-integral evaluation rather than an area problem; review as C1-INTEGRAL-DEFINED."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-AEA7A32D",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-3EAA5DBC",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-AEA7A32D"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2022-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q17"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 431,
+      "sourceId": "2024-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the integral identity determines a polynomial and has no area target; review as C1-INTEGRAL-DEFINED."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-CE1D3343",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-345A3DA1",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-CE1D3343"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2024-05-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 437,
+      "sourceId": "2016-03-EDUCATION_OFFICE-NA-Q29",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is a finite-set selection problem, not calculus tangent or extrema; review as CM2-SETS-PROPOSITIONS.",
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical SUM conflicts with the requested PRODUCT of elements in the set difference."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1TANEXT-C1TANEXT-BASE-SUM-B0-NONE-0BD4A1A3",
+        "solverGroupId": "SOL-C1TANEXT-C1TANEXT-BASE-SUM-B0-F4BD3BAA",
+        "contractId": "CTR-C1TANEXT-C1TANEXT-BASE-SUM-B0-NONE-0BD4A1A3"
+      },
+      "priorContract": {
+        "familyId": "C1-TANGENT-EXTREMA",
+        "targetContract": "SUM",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2016-03-EDUCATION_OFFICE-NA-Q29"
+      },
+      "resolution": {
+        "familyId": "CM2-SETS-PROPOSITIONS",
+        "targetContract": "PRODUCT_OF_SET_ELEMENTS",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 442,
+      "sourceId": "2023-06-KICE-PROBABILITY_STATISTICS-Q19",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is a trigonometric range and zero-count problem, not calculus tangent or extrema; review as ALG-TRIG-GRAPH."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B1-NONE-C6AA8114",
+        "solverGroupId": "SOL-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B1-D72427F8",
+        "contractId": "CTR-C1TANEXT-C1TANEXT-BASE-SCALAR-VALUE-B1-NONE-C6AA8114"
+      },
+      "priorContract": {
+        "familyId": "C1-TANGENT-EXTREMA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2023-06-KICE-PROBABILITY_STATISTICS-Q19"
+      },
+      "resolution": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 449,
+      "sourceId": "2018-03-EDUCATION_OFFICE-GA-Q24",
+      "evidenceBatch": "formula-transcriptions-batch-6b5",
+      "flags": [
+        "FAMILY",
+        "TARGET",
+        "CONTEXT"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: natural-number and set partitions are counting structures; review as PS-COUNTING rather than CM2-SETS-PROPOSITIONS.",
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical EXTREMUM has no relation to the requested sum of two partition counts.",
+        "contextAudit": "SOURCE_CONTEXT_AUGMENTATION_REQUIRED: the problem page assumes the standard meanings of P(n,r) and S(n,r); the self-contained definitions above were confirmed from the official solution."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-CM2SET-CM2SET-BASE-EXTREMUM-B0-NONE-6CAF438A",
+        "solverGroupId": "SOL-CM2SET-CM2SET-BASE-EXTREMUM-B0-D4049084",
+        "contractId": "CTR-CM2SET-CM2SET-BASE-EXTREMUM-B0-NONE-6CAF438A"
+      },
+      "priorContract": {
+        "familyId": "CM2-SETS-PROPOSITIONS",
+        "targetContract": "EXTREMUM",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2018-03-EDUCATION_OFFICE-GA-Q24"
+      },
+      "resolution": {
+        "familyId": "PS-COUNTING",
+        "targetContract": "SUM",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": true,
+          "semanticDefinitions": [
+            "integer partition count P(n,r)",
+            "unlabeled nonempty set-partition count S(n,r)"
+          ],
+          "evidence": "OFFICIAL_SOLUTION_CONFIRMED"
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 481,
+      "sourceId": "2017-07-EDUCATION_OFFICE-NA-Q25",
+      "evidenceBatch": "formula-transcriptions-batch-6b6",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is a derivative limit of an integral-defined function with no exponential or logarithmic structure; review as C1-DERIVATIVE."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-LIMIT-VALUE-B0-NONE-37C6CF73",
+        "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-LIMIT-VALUE-B0-13CF22B9",
+        "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-LIMIT-VALUE-B0-NONE-37C6CF73"
+      },
+      "priorContract": {
+        "familyId": "ALG-EXP-LOG-EQUATION",
+        "targetContract": "LIMIT_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2017-07-EDUCATION_OFFICE-NA-Q25"
+      },
+      "resolution": {
+        "familyId": "C1-DERIVATIVE",
+        "targetContract": "LIMIT_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 482,
+      "sourceId": "2017-09-KICE-GA-Q26",
+      "evidenceBatch": "formula-transcriptions-batch-6b6",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is normal-sample confidence-interval estimation with no exponential or logarithmic equation; review as PS-NORMAL-SAMPLE."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-E304A527",
+        "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-50F53187",
+        "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-E304A527"
+      },
+      "priorContract": {
+        "familyId": "ALG-EXP-LOG-EQUATION",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2017-09-KICE-GA-Q26"
+      },
+      "resolution": {
+        "familyId": "PS-NORMAL-SAMPLE",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 489,
+      "sourceId": "2018-07-EDUCATION_OFFICE-NA-Q25",
+      "evidenceBatch": "formula-transcriptions-batch-6b7",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is an arithmetic-sequence partial-sum problem, so ALG-SEQUENCE-SUM is more accurate than ALG-SEQUENCE-RECURRENCE."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-83EB1FE9",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-F27A8186",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-83EB1FE9"
+      },
+      "priorContract": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2018-07-EDUCATION_OFFICE-NA-Q25"
+      },
+      "resolution": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 490,
+      "sourceId": "2018-09-KICE-NA-Q26",
+      "evidenceBatch": "formula-transcriptions-batch-6b7",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is a geometric-sequence partial-sum identity rather than a recurrence problem; review as ALG-SEQUENCE-SUM."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-1E446654",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-9A736411",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-SCALAR-VALUE-B0-NONE-1E446654"
+      },
+      "priorContract": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2018-09-KICE-NA-Q26"
+      },
+      "resolution": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 491,
+      "sourceId": "2019-03-EDUCATION_OFFICE-NA-Q25",
+      "evidenceBatch": "formula-transcriptions-batch-6b6",
+      "flags": [
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical INTEGER_PARAMETER conflicts with the requested sequence term a_2."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-A8554236",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-29A29F72",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-A8554236"
+      },
+      "priorContract": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "targetContract": "INTEGER_PARAMETER",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2019-03-EDUCATION_OFFICE-NA-Q25"
+      },
+      "resolution": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "targetContract": "SEQUENCE_TERM",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 494,
+      "sourceId": "2020-09-KICE-GA-Q27",
+      "evidenceBatch": "formula-transcriptions-batch-6b7",
+      "flags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the governing structure is a geometric sequence with a partial-sum difference, so ALG-SEQUENCE-SUM is more accurate than ALG-SEQUENCE-RECURRENCE.",
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical INTEGER_PARAMETER conflicts with the requested sequence term a_4."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-C5EE64C2",
+        "solverGroupId": "SOL-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-D42680F5",
+        "contractId": "CTR-ALGSEQREC-ALGSEQREC-BASE-INTEGER-PARAMETER-B0-NONE-C5EE64C2"
+      },
+      "priorContract": {
+        "familyId": "ALG-SEQUENCE-RECURRENCE",
+        "targetContract": "INTEGER_PARAMETER",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2020-09-KICE-GA-Q27"
+      },
+      "resolution": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "targetContract": "SEQUENCE_TERM",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 501,
+      "sourceId": "2022-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "evidenceBatch": "formula-transcriptions-batch-6b6",
+      "flags": [
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical DISTANCE_OR_LENGTH has no relation to the requested numerical difference of finite sums."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-DISTANCE-OR-LENGTH-B0-NONE-CCCA2046",
+        "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-DISTANCE-OR-LENGTH-B0-2B9538ED",
+        "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-DISTANCE-OR-LENGTH-B0-NONE-CCCA2046"
+      },
+      "priorContract": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "targetContract": "DISTANCE_OR_LENGTH",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2022-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18"
+      },
+      "resolution": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 503,
+      "sourceId": "2025-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "evidenceBatch": "formula-transcriptions-batch-6b7",
+      "flags": [
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical EXTREMUM is unrelated to the requested finite SUM of pairwise products."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGSEQSUM-ALGSEQSUM-BASE-EXTREMUM-B0-NONE-FDAEB07D",
+        "solverGroupId": "SOL-ALGSEQSUM-ALGSEQSUM-BASE-EXTREMUM-B0-D176917D",
+        "contractId": "CTR-ALGSEQSUM-ALGSEQSUM-BASE-EXTREMUM-B0-NONE-FDAEB07D"
+      },
+      "priorContract": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "targetContract": "EXTREMUM",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2025-10-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18"
+      },
+      "resolution": {
+        "familyId": "ALG-SEQUENCE-SUM",
+        "targetContract": "SUM",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 506,
+      "sourceId": "2026-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18",
+      "evidenceBatch": "formula-transcriptions-batch-6b6",
+      "flags": [
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical EXTREMUM conflicts with the requested squared side length."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGEO-ALGTRIGGEO-BASE-EXTREMUM-B0-NONE-0137AB1D",
+        "solverGroupId": "SOL-ALGTRIGGEO-ALGTRIGGEO-BASE-EXTREMUM-B0-74551565",
+        "contractId": "CTR-ALGTRIGGEO-ALGTRIGGEO-BASE-EXTREMUM-B0-NONE-0137AB1D"
+      },
+      "priorContract": {
+        "familyId": "ALG-TRIG-GEOMETRY",
+        "targetContract": "EXTREMUM",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2026-03-EDUCATION_OFFICE-PROBABILITY_STATISTICS-Q18"
+      },
+      "resolution": {
+        "familyId": "ALG-TRIG-GEOMETRY",
+        "targetContract": "SQUARED_LENGTH",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 511,
+      "sourceId": "2020-07-EDUCATION_OFFICE-GA-Q25",
+      "evidenceBatch": "formula-transcriptions-batch-6b7",
+      "flags": [
+        "FAMILY",
+        "VISUAL"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the requested quantity is planar speed from coordinate derivatives; review as C1-VELOCITY-DISTANCE rather than ALG-TRIG-GRAPH.",
+        "visualAudit": "VISUAL_CONTRACT_CORRECTION_REQUIRED: canonical GRAPH is unsupported because the source contains only the parametric coordinate formulas and no plotted graph; review as NONE."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-SPEED-OR-ACCELERATION-B0-GRAPH-E4BFC160",
+        "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-SPEED-OR-ACCELERATION-B0-165DA752",
+        "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-SPEED-OR-ACCELERATION-B0-GRAPH-E4BFC160"
+      },
+      "priorContract": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "targetContract": "SPEED_OR_ACCELERATION",
+        "visualContract": "GRAPH",
+        "recordCount": 1,
+        "groupingDiscriminator": "2020-07-EDUCATION_OFFICE-GA-Q25"
+      },
+      "resolution": {
+        "familyId": "C1-VELOCITY-DISTANCE",
+        "targetContract": "SPEED_OR_ACCELERATION",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 512,
+      "sourceId": "2020-10-EDUCATION_OFFICE-GA-Q24",
+      "evidenceBatch": "formula-transcriptions-batch-6b6",
+      "flags": [
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical INTEGER_PARAMETER conflicts with the requested scalar trigonometric expression."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGTRIGGR-ALGTRIGGR-BASE-INTEGER-PARAMETER-B0-NONE-54CA1FB4",
+        "solverGroupId": "SOL-ALGTRIGGR-ALGTRIGGR-BASE-INTEGER-PARAMETER-B0-28BF9231",
+        "contractId": "CTR-ALGTRIGGR-ALGTRIGGR-BASE-INTEGER-PARAMETER-B0-NONE-54CA1FB4"
+      },
+      "priorContract": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "targetContract": "INTEGER_PARAMETER",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2020-10-EDUCATION_OFFICE-GA-Q24"
+      },
+      "resolution": {
+        "familyId": "ALG-TRIG-GRAPH",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 520,
+      "sourceId": "2016-04-EDUCATION_OFFICE-GA-Q25",
+      "evidenceBatch": "formula-transcriptions-batch-6b7",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is direct definite-integral evaluation with logarithms, not an area problem; review as C1-INTEGRAL-DEFINED."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-1CED5F23",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-293EF454",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-1CED5F23"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2016-04-EDUCATION_OFFICE-GA-Q25"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 521,
+      "sourceId": "2016-09-KICE-NA-Q23",
+      "evidenceBatch": "formula-transcriptions-batch-6b7",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is direct definite-integral evaluation rather than an area calculation; review as C1-INTEGRAL-DEFINED."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-8B7256CE",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-C00D417D",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-8B7256CE"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2016-09-KICE-NA-Q23"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 523,
+      "sourceId": "2018-09-KICE-GA-Q25",
+      "evidenceBatch": "formula-transcriptions-batch-6b6",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is direct definite-integral evaluation with no area interpretation; review as C1-INTEGRAL-DEFINED."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-353C683E",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-A3345520",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-353C683E"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2018-09-KICE-GA-Q25"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 524,
+      "sourceId": "2018-10-EDUCATION_OFFICE-NA-Q25",
+      "evidenceBatch": "formula-transcriptions-batch-6b6",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is an integral-defined polynomial identity rather than an area problem; review as C1-INTEGRAL-DEFINED."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-694E2330",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-8A02E087",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-694E2330"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2018-10-EDUCATION_OFFICE-NA-Q25"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 551,
+      "sourceId": "2022-06-KICE-PROBABILITY_STATISTICS-Q19",
+      "evidenceBatch": "formula-transcriptions-batch-6b6",
+      "flags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the source is a polynomial derivative and extremum problem; review as C1-TANGENT-EXTREMA rather than a generic graph condition.",
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical EXTREMUM describes a given condition, while the requested target is the parameter sum a+b."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-FNGRAPH-FNGRAPH-BASE-EXTREMUM-B0-NONE-E7605B7E",
+        "solverGroupId": "SOL-FNGRAPH-FNGRAPH-BASE-EXTREMUM-B0-F895F6E5",
+        "contractId": "CTR-FNGRAPH-FNGRAPH-BASE-EXTREMUM-B0-NONE-E7605B7E"
+      },
+      "priorContract": {
+        "familyId": "FUNCTION-GRAPH-CONDITION",
+        "targetContract": "EXTREMUM",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2022-06-KICE-PROBABILITY_STATISTICS-Q19"
+      },
+      "resolution": {
+        "familyId": "C1-TANGENT-EXTREMA",
+        "targetContract": "SUM_OF_PARAMETERS",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 566,
+      "sourceId": "2016-09-KICE-NA-Q26",
+      "evidenceBatch": "formula-transcriptions-batch-6b7",
+      "flags": [
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical PROBABILITY describes an intermediate fraction, while the requested final answer is the reduced component sum p+q."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-PSAXM-PSAXM-BASE-PROBABILITY-B0-NONE-07D1701B",
+        "solverGroupId": "SOL-PSAXM-PSAXM-BASE-PROBABILITY-B0-09C44195",
+        "contractId": "CTR-PSAXM-PSAXM-BASE-PROBABILITY-B0-NONE-07D1701B"
+      },
+      "priorContract": {
+        "familyId": "PS-PROBABILITY-AXIOMS",
+        "targetContract": "PROBABILITY",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2016-09-KICE-NA-Q26"
+      },
+      "resolution": {
+        "familyId": "PS-PROBABILITY-AXIOMS",
+        "targetContract": "REDUCED_RATIONAL_COMPONENT_SUM",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": {
+          "candidateGroup": "2016-09-KICE-URN-TWO-WHITE-FOUR-RED-DRAW-TWO",
+          "decision": "DEFER_EXACT_DUPLICATE_MERGE_TO_STAGE_6C_SOLVER_VALIDATION"
+        }
+      }
+    },
+    {
+      "ledgerIndex": 572,
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q25",
+      "evidenceBatch": "formula-transcriptions-batch-6b7",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the exponential expression is only inside a composition; the governing operation is chain-rule differentiation, so review as C1-DERIVATIVE."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-4BC32D13",
+        "solverGroupId": "SOL-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-5674482E",
+        "contractId": "CTR-ALGELEQ-ALGELEQ-BASE-SCALAR-VALUE-B0-NONE-4BC32D13"
+      },
+      "priorContract": {
+        "familyId": "ALG-EXP-LOG-EQUATION",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2017-07-EDUCATION_OFFICE-GA-Q25"
+      },
+      "resolution": {
+        "familyId": "C1-DERIVATIVE",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 578,
+      "sourceId": "2017-06-KICE-GA-Q24",
+      "evidenceBatch": "formula-transcriptions-batch-6b8",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: the governing operation is direct definite integration of an exponential function, so review as C1-INTEGRAL-DEFINED rather than ALG-EXP-LOG-GRAPH."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-NONE-6BDD57CD",
+        "solverGroupId": "SOL-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-127FE043",
+        "contractId": "CTR-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-NONE-6BDD57CD"
+      },
+      "priorContract": {
+        "familyId": "ALG-EXP-LOG-GRAPH",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2017-06-KICE-GA-Q24"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 579,
+      "sourceId": "2017-07-EDUCATION_OFFICE-GA-Q24",
+      "evidenceBatch": "formula-transcriptions-batch-6b8",
+      "flags": [
+        "VISUAL"
+      ],
+      "auditEvidence": {
+        "visualAudit": "VISUAL_CONTRACT_CORRECTION_REQUIRED: the source gives the asymptote in prose and contains no plotted graph; canonical GRAPH should be reviewed as NONE."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-GRAPH-528A10E2",
+        "solverGroupId": "SOL-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-129247D2",
+        "contractId": "CTR-ALGELGR-ALGELGR-BASE-SCALAR-VALUE-B0-GRAPH-528A10E2"
+      },
+      "priorContract": {
+        "familyId": "ALG-EXP-LOG-GRAPH",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "GRAPH",
+        "recordCount": 1,
+        "groupingDiscriminator": "2017-07-EDUCATION_OFFICE-GA-Q24"
+      },
+      "resolution": {
+        "familyId": "ALG-EXP-LOG-GRAPH",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 599,
+      "sourceId": "2026-06-KICE-PROBABILITY_STATISTICS-Q17",
+      "evidenceBatch": "formula-transcriptions-batch-6b8",
+      "flags": [
+        "FAMILY"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this reconstructs a function value from its derivative and is not an area problem; review as C1-INTEGRAL-DEFINED."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-258F619F",
+        "solverGroupId": "SOL-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-8B9665BB",
+        "contractId": "CTR-C1INTAREA-C1INTAREA-BASE-SCALAR-VALUE-B0-NONE-258F619F"
+      },
+      "priorContract": {
+        "familyId": "C1-INTEGRAL-AREA",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2026-06-KICE-PROBABILITY_STATISTICS-Q17"
+      },
+      "resolution": {
+        "familyId": "C1-INTEGRAL-DEFINED",
+        "targetContract": "SCALAR_VALUE",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 601,
+      "sourceId": "2018-09-KICE-GA-Q26",
+      "evidenceBatch": "formula-transcriptions-batch-6b7",
+      "flags": [
+        "TARGET",
+        "VISUAL"
+      ],
+      "auditEvidence": {
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical LIMIT_VALUE describes the intermediate k, while the requested final answer is the scaled square 30k^2.",
+        "visualAudit": "VISUAL_CONTRACT_CORRECTION_REQUIRED: the source states a tangent condition in prose but contains no plotted graph; canonical GRAPH should be reviewed as NONE."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-C1LIMCONT-DIFFERENTIABILITY-MATCH-LIMIT-VALUE-B0-GRAPH-A6A33855",
+        "solverGroupId": "SOL-C1LIMCONT-DIFFERENTIABILITY-MATCH-LIMIT-VALUE-B0-D13619C0",
+        "contractId": "CTR-C1LIMCONT-DIFFERENTIABILITY-MATCH-LIMIT-VALUE-B0-GRAPH-A6A33855"
+      },
+      "priorContract": {
+        "familyId": "C1-LIMIT-CONTINUITY",
+        "targetContract": "LIMIT_VALUE",
+        "visualContract": "GRAPH",
+        "recordCount": 1,
+        "groupingDiscriminator": "2018-09-KICE-GA-Q26"
+      },
+      "resolution": {
+        "familyId": "C1-LIMIT-CONTINUITY",
+        "targetContract": "SCALED_SQUARED_PARAMETER",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": null
+      }
+    },
+    {
+      "ledgerIndex": 611,
+      "sourceId": "2016-09-KICE-GA-Q24",
+      "evidenceBatch": "formula-transcriptions-batch-6b7",
+      "flags": [
+        "FAMILY",
+        "TARGET"
+      ],
+      "auditEvidence": {
+        "familyAudit": "FAMILY_CONTRACT_CORRECTION_REQUIRED: this is the same urn-probability structure as 2016-09-KICE-NA-Q26 and should be reviewed under PS-PROBABILITY-AXIOMS rather than PS-COUNTING.",
+        "targetAudit": "TARGET_CONTRACT_CORRECTION_REQUIRED: canonical PROBABILITY describes an intermediate fraction, while the requested final answer is the reduced component sum p+q."
+      },
+      "priorIdentifiers": {
+        "canonicalStructureId": "STR-PSCNT-PSCNT-BASE-PROBABILITY-B0-NONE-8D3BCD6D",
+        "solverGroupId": "SOL-PSCNT-PSCNT-BASE-PROBABILITY-B0-EF7EB621",
+        "contractId": "CTR-PSCNT-PSCNT-BASE-PROBABILITY-B0-NONE-8D3BCD6D"
+      },
+      "priorContract": {
+        "familyId": "PS-COUNTING",
+        "targetContract": "PROBABILITY",
+        "visualContract": "NONE",
+        "recordCount": 1,
+        "groupingDiscriminator": "2016-09-KICE-GA-Q24"
+      },
+      "resolution": {
+        "familyId": "PS-PROBABILITY-AXIOMS",
+        "targetContract": "REDUCED_RATIONAL_COMPONENT_SUM",
+        "visualContract": "NONE",
+        "contextAugmentation": {
+          "required": false
+        },
+        "groupingPolicy": "SOURCE_ISOLATED_UNTIL_GENERATOR_VALIDATED"
+      },
+      "migrationDecision": {
+        "action": "REISSUE_SOURCE_ISOLATED_CANONICAL_SOLVER_AND_CONTRACT_IDS",
+        "sharedStructureSplitRequired": false,
+        "reason": "the audited source already occupied a one-record source-isolated contract",
+        "duplicateCandidate": {
+          "candidateGroup": "2016-09-KICE-URN-TWO-WHITE-FOUR-RED-DRAW-TWO",
+          "decision": "DEFER_EXACT_DUPLICATE_MERGE_TO_STAGE_6C_SOLVER_VALIDATION"
+        }
+      }
+    }
+  ]
+}
