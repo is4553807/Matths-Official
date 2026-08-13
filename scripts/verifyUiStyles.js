@@ -271,6 +271,30 @@ for (const filename of copyFiles) {
   );
 }
 
+const rulebookCopyFiles = [
+  path.join(
+    root,
+    "services",
+    "arenaRulebookViewService.js"
+  ),
+  path.join(
+    root,
+    "dataAnalysis",
+    "arena2028MathAlignment.json"
+  ),
+];
+
+for (const filename of rulebookCopyFiles) {
+  assert.doesNotMatch(
+    fs.readFileSync(filename, "utf8"),
+    /(?<!니)다\./u,
+    `경기 규정 사용자 문구는 높임말로 작성해야 합니다: ${path.relative(
+      root,
+      filename
+    )}`
+  );
+}
+
 console.log(
   `UI verification passed: ${viewFiles.length} EJS templates compiled and audited styles are present`
 );
