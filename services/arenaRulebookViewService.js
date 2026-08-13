@@ -9,24 +9,15 @@ const {
   TIER_LABELS,
 } = require("./arenaOneOnOneDifficultyPolicy");
 const {
-  ARENA_MATCH_DIFFICULTY_PLAN_VERSION,
-  ARENA_MATCH_QUESTION_ROLLOUT,
-  difficultyBandsForDivision,
   difficultyRowsForDivision,
 } = require("./arenaMatchDifficultyPlan");
-const {
-  getOfficialMockResearchSummary,
-} = require("./arenaOfficialMockResearchCatalog");
-const {
-  getPrivateMockResearchSummary,
-} = require("./arenaPrivateMockResearchCatalog");
 const ARENA_2028_MATH_ALIGNMENT = require("../dataAnalysis/arena2028MathAlignment.json");
 
 const PAYBACK_RULEBOOK_BASELINE_AT =
   new Date("2026-08-02T00:00:00+09:00");
 
 const COMMON_MATCH_SUMMARY = [
-  "두 사용자는 Division과 티어에 맞게 생성·검산된 같은 주관식 5문항을 문항당 최대 10분 동안 풉니다.",
+  "두 사용자는 Division과 티어에 맞는 같은 주관식 5문항을 문항당 최대 10분 동안 풉니다.",
   "이전 문항으로 돌아갈 수 없고, 5번 문항 완료 또는 시간 종료 뒤 문제는 닫힙니다. 새로고침·일시적 연결 끊김에도 제한시간은 계속 흐르며 같은 문항이 다시 표시됩니다.",
   "문제가 닫힌 뒤 60초 안에 풀이 증거 사진 1~5장을 제출합니다. 이 필수 증거를 기한 안에 내지 않으면 별도 소명 기한 없이 자동 패배합니다.",
   "매치가 성립한 뒤에는 상대의 서비스 닉네임만 표시하며 실명은 공개하지 않습니다.",
@@ -206,35 +197,23 @@ function problemDesignView(division = "SUB") {
   const publicName = isRanked ? "Ranked" : "Unranked";
   const difficultyPrefix = isRanked ? "R" : "U";
   const accuracyRows = difficultyRowsForDivision(normalizedDivision);
-  const difficultyBands = difficultyBandsForDivision(normalizedDivision);
-  const research = getOfficialMockResearchSummary();
-  const privateResearch = getPrivateMockResearchSummary();
-  const courseLabels = {
-    "common-math-1": "공통수학Ⅰ",
-    "common-math-2": "공통수학Ⅱ",
-    algebra: "대수",
-    "probability-statistics": "확률과 통계",
-    "calculus-1": "미적분Ⅰ",
-  };
   return {
-    policyVersion: ARENA_MATCH_DIFFICULTY_PLAN_VERSION,
     division: normalizedDivision,
     isRanked,
     publicName,
     difficultyPrefix,
-    rollout: ARENA_MATCH_QUESTION_ROLLOUT,
     principles: isRanked
       ? [
           "Ranked 두 사용자는 R1~R9 중 방어자 티어에 해당하는 완전히 같은 5문항을 풉니다.",
           "R1~R3은 일반·상위 일반, R4부터 준킬러, R7부터 킬러를 섞어 경쟁 변별력을 높입니다.",
           "R9은 준킬러 4문항과 정답률 8% 미만의 최상위 킬러 1문항으로 구성합니다.",
-          "각 경기의 1번에서 5번으로 갈수록 원문 정답률이 낮아지도록 배치합니다.",
+          "각 경기의 1번에서 5번으로 갈수록 문항 난이도가 높아집니다.",
         ]
       : [
           "Unranked 두 사용자는 U1~U9 중 방어자 티어에 해당하는 완전히 같은 5문항을 풉니다.",
           "U1은 기초 일반 중심으로 시작하고 U8부터 준킬러를 한 문항씩 섞어 단계적으로 적응시킵니다.",
           "U1~U9에는 킬러를 넣지 않으며 U9도 상위 일반과 준킬러까지만 사용합니다.",
-          "각 경기의 1번에서 5번으로 갈수록 원문 정답률이 낮아지도록 배치합니다.",
+          "각 경기의 1번에서 5번으로 갈수록 문항 난이도가 높아집니다.",
         ],
     matchupRows: accuracyRows.map((row) => ({
       matchup: `${row.tierLabel} 방어`,
@@ -244,20 +223,15 @@ function problemDesignView(division = "SUB") {
     accuracyRows,
     accuracyPrinciples: isRanked
       ? [
-          "이 표는 Ranked 전용입니다. R1~R9은 Unranked 표나 평균값을 재사용하지 않고 별도의 문항 조합으로 관리합니다.",
-          "D2~D9는 EBSi 공개 문항별 정답률을 60~70%, 50~60%, 42~50%, 35~42%, 25~35%, 15~25%, 8~15%, 8% 미만으로 나눈 절대 난이도입니다.",
-          "표의 평균은 원문 조사 표본의 정답률이며 개인의 정답 확률이나 경기 결과를 보장하지 않습니다.",
+          "Ranked는 R1~R9 단계별로 서로 다른 문항 조합을 사용합니다.",
+          "D2~D9는 기준 정답률을 60~70%, 50~60%, 42~50%, 35~42%, 25~35%, 15~25%, 8~15%, 8% 미만으로 나눈 난이도입니다.",
+          "표의 평균은 난이도를 설명하기 위한 참고값이며 개인의 정답 확률이나 경기 결과를 보장하지 않습니다.",
         ]
       : [
-          "이 표는 Unranked 전용입니다. U1~U9은 Ranked 표나 평균값을 재사용하지 않고 별도의 문항 조합으로 관리합니다.",
-          "D1~D6은 EBSi 공개 문항별 정답률을 70% 이상, 60~70%, 50~60%, 42~50%, 35~42%, 25~35%로 나눈 절대 난이도입니다.",
-          "표의 평균은 원문 조사 표본의 정답률이며 개인의 정답 확률이나 경기 결과를 보장하지 않습니다.",
+          "Unranked는 U1~U9 단계별로 서로 다른 문항 조합을 사용합니다.",
+          "D1~D6은 기준 정답률을 70% 이상, 60~70%, 50~60%, 42~50%, 35~42%, 25~35%로 나눈 난이도입니다.",
+          "표의 평균은 난이도를 설명하기 위한 참고값이며 개인의 정답 확률이나 경기 결과를 보장하지 않습니다.",
         ],
-    structuralDifficultyPrinciples: [
-      "단순 계산량을 늘리는 대신 서로 다른 개념의 결합, 조건의 식 변환, 경우 분류와 역추론을 중심으로 난이도를 만듭니다.",
-      "원문 정답률은 스켈레톤의 최초 난이도 근거로만 쓰고, 숫자·조건 변형본은 별도 검산을 통과해야 합니다.",
-      "숫자를 바꾼 뒤 우연히 쉬워진 문항은 생성 단계에서 제외하고, 자연수 정답·유일해·계산기 없이 풀이 가능 여부를 다시 검산합니다.",
-    ],
     curveRows: isRanked
       ? [
           { division: "R1~R3", sequence: "일반 → 상위 일반", example: "골드까지 준킬러·킬러 없음" },
@@ -290,15 +264,13 @@ function problemDesignView(division = "SUB") {
       ["정답 형식", "3자리 이하 자연수 주관식"],
       ["직접 출제 범위", "대수, 미적분Ⅰ, 확률과 통계"],
       ["기초 연계 범위", "공통수학Ⅰ·Ⅱ의 위계·연계 개념"],
-      ["그래프·표", "문제 본문이 실제로 제시한 경우에만 정확한 식·라벨·점·좌표를 흰색 문제지에 표시"],
+      ["그래프·표", "풀이에 필요한 그래프와 표는 문제와 함께 제공"],
       ["난이도 코드", `${difficultyPrefix}1~${difficultyPrefix}9 전용 조합`],
       ["반복 방지", "한 경기 안 유형 중복 금지 + 양쪽 참가자의 최근 공식 경기 5개 유형 우선 제외"],
     ],
     semiKillerDefinition: isRanked
-      ? "Ranked 난이도는 D2~D9만 사용하며 R단계별 5문항 조합을 독립적으로 고정합니다."
-      : "Unranked 난이도는 D1~D6만 사용하며 U단계별 5문항 조합을 독립적으로 고정합니다.",
-    excludedQuestion:
-      "정답률 근거가 없거나 공개 경계가 두 난이도 구간에 걸치는 문항은 자동 출제 근거에서 제외합니다.",
+      ? "Ranked는 D2~D9 난이도를 사용합니다."
+      : "Unranked는 D1~D6 난이도를 사용합니다.",
     curriculumAlignment: {
       sourceTitle: ARENA_2028_MATH_ALIGNMENT.source.title,
       directCourses: ARENA_2028_MATH_ALIGNMENT.assessmentScope.directCourses
@@ -309,54 +281,6 @@ function problemDesignView(division = "SUB") {
         .map((domain) => domain.label),
       representationRequirements:
         ARENA_2028_MATH_ALIGNMENT.representationRequirements,
-    },
-    research: {
-      period: String(research.researchWindow || "").replace("-", "~"),
-      sourceForms: research.sourceForms,
-      referenceCount: research.targetQuestionReferences,
-      activeReferenceCount: research.activeReferences,
-      runtimeDifficultyEligibleReferences:
-        research.runtimeDifficultyEligibleReferences,
-      targetMonths: (research.targetMonths || []).join("·"),
-      targetQuestions: research.targetQuestions.join("·"),
-      excludedExamType: "수능",
-      notice: isRanked
-        ? "Ranked에 사용되는 D2~D9 구간만 별도로 집계합니다. 기출 문제 문장·수치·정답은 그대로 재사용하지 않습니다."
-        : "Unranked에 사용되는 D1~D6 구간만 별도로 집계합니다. 기출 문제 문장·수치·정답은 그대로 재사용하지 않습니다.",
-      privateCalibration: {
-        reviewedSources: privateResearch.reviewedSources,
-        activeSources: privateResearch.activeCalibrationSources,
-        activeMetrics: privateResearch.activeCalibrationMetrics,
-        minimumSampleSize: privateResearch.minimumCleanSampleSize,
-        notice:
-          "공식 무료 배포 사설 모의고사는 문제지·정답·해설·문항별 정답률과 충분한 표본을 모두 확인한 경우에만 목표 정답률 검증에 사용합니다. 사설 문항 원문은 복제하지 않습니다.",
-      },
-      courseRows: [
-        "common-math-1",
-        "common-math-2",
-        "algebra",
-        "probability-statistics",
-        "calculus-1",
-      ].map((courseId) => ({
-        courseId,
-        courseLabel: courseLabels[courseId] || courseId,
-        count: Number(research.byCourse?.[courseId] || 0),
-        referenceBasis:
-          Number(research.byCourse?.[courseId] || 0) > 0
-            ? "공식 해설 직접 참고"
-            : "현 교육과정 전이 골격",
-      })),
-      familyRows: research.familyStats.slice(0, 12).map((family) => ({
-        familyId: family.familyId,
-        familyLabel: family.familyLabel,
-        courseLabel: courseLabels[family.courseId] || family.courseId,
-        referenceCount: family.references,
-      })),
-      difficultyRows: difficultyBands.map((band) => ({
-        tier: `${band.code} · ${band.label}`,
-        count: band.observedReferenceCount,
-        composition: band.rangeLabel,
-      })),
     },
   };
 }

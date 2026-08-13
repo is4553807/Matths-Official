@@ -37,7 +37,7 @@
           <p>UNRANKED · 1대1</p>
           <h1>순위를 <span>탈취할</span> 시간</h1>
         </div>
-        <div class="arena-command-hero-copy"><p>서버가 먼저 같은 티어에서 나보다 순위가 높은 적격 후보를 찾습니다. 후보가 없을 때만 바로 위 티어로 범위를 한 단계 넓히며, 그보다 높은 티어로는 넘어가지 않습니다. 후보군 안에서는 오늘 방어 횟수가 가장 적은 사용자를 우선하고 동률이면 무작위로 연결합니다.</p><div class="arena-command-tags"><span><i></i>공정 자동 매칭</span><span>최대 한 티어 상향</span><span>동일 5문항 · 문항당 10분</span></div></div>
+        <div class="arena-command-hero-copy"><p>먼저 같은 티어에서 나보다 순위가 높은 후보를 찾습니다. 후보가 없을 때만 바로 위 티어로 범위를 한 단계 넓히며, 그보다 높은 티어로는 넘어가지 않습니다. 후보군 안에서는 오늘 방어 횟수가 가장 적은 사용자를 우선하고 동률이면 무작위로 연결합니다.</p><div class="arena-command-tags"><span><i></i>공정 자동 매칭</span><span>최대 한 티어 상향</span><span>동일 5문항 · 문항당 10분</span></div></div>
       </header>
 
       <section class="arena-division-status arena-challenge-status arena-command-status">
@@ -57,12 +57,12 @@
         <article>
           <small>일반 쟁탈전 예치</small>
           <strong>페이백 점수 <%= challengeData.stakeDays %>점</strong>
-          <span>정기권 학습 가능 일수와 별도로 관리하며, 경기 신청 시 서버가 예치합니다.</span>
+          <span>정기권 학습 가능 일수와 별도로 관리하며, 경기 신청과 동시에 예치됩니다.</span>
         </article>
         <article>
           <small>참가 가능 범위</small>
           <strong>Unranked</strong>
-          <span>같은 티어의 상위 순위를 먼저 찾고, 없으면 바로 위 티어에서 찾습니다. 서버 무작위 선정에는 내부 실력 지표와 최종 종합 랭킹을 사용하지 않습니다.</span>
+          <span>같은 티어의 상위 순위를 먼저 찾고, 없으면 바로 위 티어에서 찾습니다. 상대 선정에는 내부 실력 지표와 최종 종합 랭킹을 사용하지 않습니다.</span>
         </article>
       </section>
 
@@ -129,11 +129,11 @@
         <section class="arena-candidate-section arena-battle-console" aria-labelledby="candidate-title">
           <header>
             <div>
-              <small>서버 자동 매치</small>
-              <h2 id="candidate-title">서버가 가장 가까운 상위 순위를 찾습니다.</h2>
+              <small>자동 매치</small>
+              <h2 id="candidate-title">가장 가까운 상위 순위를 찾습니다.</h2>
             </div>
             <p>
-              서버가 활성 이용권·시즌 배치·방어 자격·미정산 경기 여부를 검사합니다. 같은 티어의 더 높은 순위가 있으면 그 후보군에서, 없으면 바로 위 티어 후보군에서 상대 한 명을 무작위로 배정합니다. 배정된 사용자는 자동 참가합니다.
+              참가 조건을 충족한 사용자 중 같은 티어의 더 높은 순위가 있으면 그 후보군에서, 없으면 바로 위 티어 후보군에서 상대 한 명을 무작위로 정합니다. 배정된 사용자는 자동 참가합니다.
             </p>
           </header>
 

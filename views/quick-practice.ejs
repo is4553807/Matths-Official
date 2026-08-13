@@ -86,7 +86,7 @@
           <div>
             <p class="quick-kicker">2·3점 기본기 속도 훈련</p>
             <h2>식을 길게 쓰기 전에,<br />머릿속에서 먼저 끝내세요.</h2>
-            <p><%= catalog.scope %>의 출제 구조를 모았습니다. 문제당 제한 시간은 40초이며, 매번 새 숫자로 만든 문항만 자동 검산을 거쳐 출제합니다.</p>
+            <p><%= catalog.scope %>의 핵심 유형을 40초 안에 빠르게 훈련합니다. 같은 유형도 매번 다른 숫자로 출제됩니다.</p>
           </div>
           <div class="quick-stats" aria-label="눈풀이 기록">
             <article><span>푼 문제</span><strong id="quick-total"><%= stats.total %></strong><small>문제</small></article>
@@ -105,7 +105,7 @@
             </div>
             <ul>
               <li>풀이 과정 없이 답만 입력합니다.</li>
-              <li>시간이 끝나면 서버에서 자동 만료됩니다.</li>
+              <li>40초가 지나면 해당 문제는 종료됩니다.</li>
               <li>최근 핵심 유형과 세부 유형은 연속 출제를 피합니다.</li>
             </ul>
             <details class="quick-catalog">

@@ -308,7 +308,7 @@
           <%= disqualified
             ? "제한 시간 초과 · 실격"
             : submitted
-              ? "제출 완료 · 서버 시간 확정"
+              ? "제출 완료 · 제출 시각 확정"
               : "답안 자동 저장 · 0초에 자동 실격" %>
         </small>
       </div>
@@ -484,7 +484,7 @@
                 <b id="current-question-number"><%= initialQuestionIndex + 1 %></b>
                 / <%= attempt.questions.length %>
               </strong>
-              <small>문항을 이동할 때까지의 시간이 서버에 누적됩니다.</small>
+              <small>다음 문항으로 이동할 때까지의 풀이 시간이 기록됩니다.</small>
             </div>
             <div
               class="placement-question-map"

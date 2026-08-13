@@ -85,7 +85,7 @@
             </div>
 
             <% if (!isSubmitted) { %>
-              <footer><p data-save-status>변경한 답안은 임시 저장 버튼을 눌러 서버에 저장할 수 있습니다.</p><div><button type="button" class="secondary" data-save-progress>임시 저장</button><button type="submit">최종 제출</button></div></footer>
+              <footer><p data-save-status>변경한 답안은 임시 저장 버튼을 눌러 보관할 수 있습니다.</p><div><button type="button" class="secondary" data-save-progress>임시 저장</button><button type="submit">최종 제출</button></div></footer>
             <% } else { %>
               <footer class="is-result"><p>최종 제출이 완료되었습니다. 정답과 해설을 확인하고 다음 학습으로 이어가세요.</p><a href="/store?tab=<%= content.contentType %>">다른 콘텐츠 보기 →</a></footer>
             <% } %>

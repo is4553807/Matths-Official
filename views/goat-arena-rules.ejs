@@ -73,13 +73,6 @@
             <span><%= design.difficultyPrefix %>1~<%= design.difficultyPrefix %>9</span>
           </header>
 
-          <% if (design.rollout) { %>
-            <aside class="arena-question-rollout-notice" role="note">
-              <strong><%= design.rollout.runtimeConnected === true ? "현재 신규 경기 출제 풀" : "출제 정책 준비 상태" %></strong>
-              <p><%= design.rollout.notice %></p>
-            </aside>
-          <% } %>
-
           <article class="arena-question-standard-block">
             <div class="arena-question-standard-number">01</div>
             <div>
@@ -92,10 +85,6 @@
                   <tbody><% design.matchupRows.forEach((row) => { %><tr><th scope="row"><%= row.matchup %></th><td data-label="난이도 기준"><%= row.anchor %></td><td data-label="공개 난이도"><strong><%= row.difficultyCode %></strong></td></tr><% }) %></tbody>
                 </table>
               </div>
-              <% if (design.structuralDifficultyPrinciples?.length) { %>
-                <h4>쉬운 변형 문항을 걸러내는 기준</h4>
-                <ul><% design.structuralDifficultyPrinciples.forEach((line) => { %><li><%= line %></li><% }) %></ul>
-              <% } %>
             </div>
           </article>
 
@@ -103,19 +92,19 @@
             <div class="arena-question-standard-number">02</div>
             <div>
               <small><%= design.publicName %> 전용 정답률표</small>
-              <h3>원문 정답률 구간과 문항 순서로 <%= design.difficultyPrefix %>1~<%= design.difficultyPrefix %>9을 설계합니다.</h3>
+              <h3>정답률 구간과 문항 순서로 <%= design.difficultyPrefix %>1~<%= design.difficultyPrefix %>9 난이도를 구분합니다.</h3>
               <ul><% design.accuracyPrinciples.forEach((line) => { %><li><%= line %></li><% }) %></ul>
               <div class="arena-question-table-wrap">
                 <table class="arena-difficulty-plan-table">
-                  <thead><tr><th scope="col">단계·티어</th><% [1, 2, 3, 4, 5].forEach((order) => { %><th scope="col"><%= order %>번</th><% }) %><th scope="col">원문 평균</th></tr></thead>
+                  <thead><tr><th scope="col">단계·티어</th><% [1, 2, 3, 4, 5].forEach((order) => { %><th scope="col"><%= order %>번</th><% }) %><th scope="col">기준 평균</th></tr></thead>
                   <tbody>
                     <% design.accuracyRows.forEach((row) => { %>
                       <tr>
                         <th scope="row"><strong><%= row.stage %></strong><br><small><%= row.tierLabel %></small></th>
                         <% row.slots.forEach((slot) => { %>
-                          <td data-label="<%= slot.order %>번"><span><strong><%= slot.code %> · <%= slot.label %></strong><br><small>원문 정답률 <%= slot.rangeLabel %></small></span></td>
+                          <td data-label="<%= slot.order %>번"><span><strong><%= slot.code %> · <%= slot.label %></strong><br><small>기준 정답률 <%= slot.rangeLabel %></small></span></td>
                         <% }) %>
-                        <td data-label="원문 평균"><span><strong><%= row.referenceAveragePercent %>%</strong></span></td>
+                        <td data-label="기준 평균"><span><strong><%= row.referenceAveragePercent %>%</strong></span></td>
                       </tr>
                     <% }) %>
                   </tbody>
@@ -136,57 +125,16 @@
               <small><%= design.publicName %> 난이도 정의와 경기 규격</small>
               <h3><%= design.compositionHeadline %></h3>
               <blockquote><%= design.semiKillerDefinition %></blockquote>
-              <p><%= design.excludedQuestion %></p>
               <dl><% design.matchSpec.forEach(([label, value]) => { %><div><dt><%= label %></dt><dd><%= value %></dd></div><% }) %></dl>
             </div>
           </article>
 
-          <% if (design.research) { const research = design.research; %>
+          <% if (design.curriculumAlignment) { const alignment = design.curriculumAlignment; %>
             <article class="arena-question-standard-block">
               <div class="arena-question-standard-number">04</div>
               <div>
-                <small>유형 분류 근거</small>
-                <h3><%= research.period %> 고3 <%= research.targetMonths %>월 모의고사를 유형별로 분석합니다.</h3>
-                <blockquote><%= research.notice %></blockquote>
-                <ul>
-                  <li><%= research.sourceForms %>개 공식 해설 형식에서 <%= research.targetQuestions %>번 문항 <%= research.referenceCount %>건을 조사했습니다.</li>
-                  <li>현재 교육과정과 Arena 범위에 맞는 <%= research.activeReferenceCount %>건 중 정답률 근거로 한 구간이 확정된 <%= research.runtimeDifficultyEligibleReferences %>건만 자동 출제 근거로 사용합니다.</li>
-                  <li><%= research.excludedExamType %>은 공식 해설 원본을 운영 기준으로 확보하지 않아 조사 근거에서 제외했습니다.</li>
-                  <% if (research.privateCalibration) { %>
-                    <li><%= research.privateCalibration.notice %></li>
-                    <li>공개 사설 모의고사 <%= research.privateCalibration.reviewedSources %>개를 검토했으며, 현재는 정제 표본 <%= research.privateCalibration.minimumSampleSize %>명 이상을 포함한 <%= research.privateCalibration.activeSources %>개 출처의 문항별 지표 <%= research.privateCalibration.activeMetrics %>개만 난이도 보정에 사용합니다.</li>
-                  <% } %>
-                </ul>
-                <div class="arena-question-table-wrap">
-                  <table class="arena-mobile-card-table">
-                    <thead><tr><th scope="col">난이도</th><th scope="col">분류 참고 수</th><th scope="col">출제 원칙</th></tr></thead>
-                    <tbody>
-                      <% research.difficultyRows.forEach((row) => { %>
-                        <tr><th scope="row"><%= row.tier %></th><td data-label="분류 참고 수"><%= row.count %>건</td><td data-label="출제 원칙"><%= row.composition %></td></tr>
-                      <% }) %>
-                    </tbody>
-                  </table>
-                </div>
-                <div class="arena-question-table-wrap">
-                  <table class="arena-mobile-card-table">
-                    <thead><tr><th scope="col">과목</th><th scope="col">직접 참고 구조</th><th scope="col">대표 사고 유형</th></tr></thead>
-                    <tbody>
-                      <% research.courseRows.forEach((course) => { const familyNames = research.familyRows.filter((family) => family.courseLabel === course.courseLabel).slice(0, 3).map((family) => family.familyLabel).join(' · '); %>
-                        <tr><th scope="row"><%= course.courseLabel %></th><td data-label="직접 참고 구조"><%= course.count ? `${course.count}건` : course.referenceBasis %></td><td data-label="대표 사고 유형"><%= familyNames || '현 교육과정으로 전이한 조건 결합 골격' %></td></tr>
-                      <% }) %>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </article>
-          <% } %>
-
-          <% if (design.curriculumAlignment) { const alignment = design.curriculumAlignment; %>
-            <article class="arena-question-standard-block">
-              <div class="arena-question-standard-number">05</div>
-              <div>
-                <small>2028 수학 영역 정합성</small>
-                <h3><%= alignment.sourceTitle %>의 범위와 행동 영역을 반영합니다.</h3>
+                <small>출제 범위</small>
+                <h3>경기 문제의 과목과 범위를 확인하세요.</h3>
                 <ul>
                   <li>직접 출제 과목은 <strong><%= alignment.directCourses.join(' · ') %></strong>입니다.</li>
                   <li><strong><%= alignment.indirectCourses.join(' · ') %></strong>는 직접 슬롯이 아니라 위계·연계 기초 개념으로 반영합니다.</li>
@@ -204,11 +152,11 @@
           <section class="arena-main-policy" aria-labelledby="main-policy-title">
             <header>
               <div>
-                <small>현재 활성 운영 기준</small>
+                <small>현재 적용 규정</small>
                 <h2 id="main-policy-title">Ranked 경기 예치 기준</h2>
                 <p>신규 상향 쟁탈전에는 티어 차이별 최소 예치와 공통 최대 5일 기준이 적용됩니다.</p>
               </div>
-              <strong><%= publicArenaText(policy.displayName) %></strong>
+              <strong>Ranked 공식 규정</strong>
             </header>
             <dl>
               <div>
@@ -252,9 +200,9 @@
           </section>
         <% } else { %>
           <section class="arena-main-policy-empty" role="status">
-            <small>운영 기준 확인 필요</small>
+            <small>이용 준비 중</small>
             <h2>Ranked 신규 경기가 잠시 중단되었습니다.</h2>
-            <p>현재 적용 중인 Ranked 운영 정책이 없습니다. 정책이 활성화되면 최대 티어 차이와 최소 예치 일수가 이 화면에 자동 표시됩니다.</p>
+            <p>Ranked 신규 경기를 다시 이용할 수 있게 되면 최대 티어 차이와 최소 예치 일수를 이 화면에서 안내합니다.</p>
           </section>
         <% } %>
 
@@ -325,11 +273,11 @@
         <section class="arena-payback-policy" aria-labelledby="payback-policy-title">
           <header>
             <div>
-              <small>현재 활성 정책</small>
+              <small>현재 적용 기준</small>
               <h2 id="payback-policy-title">페이백 기준</h2>
               <p>이용을 시작할 때 안내된 기준으로 자격과 최종 금액을 판정합니다.</p>
             </div>
-            <strong><%= publicArenaText(policy.displayName) %></strong>
+            <strong>학습권 패키지</strong>
           </header>
           <dl>
             <div><dt>패키지 가격</dt><dd><%= formatWon(policy.priceAmount) %></dd></div>

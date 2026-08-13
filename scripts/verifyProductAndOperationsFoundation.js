@@ -169,7 +169,7 @@ assert.ok(arenaRoutes.includes('"/goat-arena/rules/main"'));
 assert.ok(arenaHome.includes("Unranked 공식 규정"));
 assert.ok(arenaHome.includes("Ranked 공식 규정"));
 assert.ok(rulebook.includes("<details"));
-assert.ok(rulebook.includes("현재 활성 정책"));
+assert.ok(rulebook.includes("현재 적용 기준"));
 assert.ok(rulebook.includes("최근 수정일"));
 
 const subRulebook = getArenaRulebook("SUB", {

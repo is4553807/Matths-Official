@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 const path = require("node:path");
 const ejs = require("ejs");
 
@@ -21,6 +22,49 @@ async function render(name, locals) {
 }
 
 async function main() {
+  const userFacingViews = fs
+    .readdirSync(views, { recursive: true })
+    .filter((viewName) => viewName.endsWith(".ejs"))
+    .filter((viewName) => !/(^|\/)admin-/.test(viewName));
+  const developerCopyPatterns = [
+    /현재 신규 경기 출제 풀/,
+    /2016~2026 PDF 기반 Arena/,
+    /쉬운 변형 문항을 걸러내는 기준/,
+    /스켈레톤/,
+    /자동 검산/,
+    /자동 출제 근거/,
+    /공식 해설 형식/,
+    /분류 참고 수/,
+    /YAML/,
+    /\bAPI\b/,
+    /런타임/,
+    /환경변수/,
+    /접속키/,
+    /MongoDB 연결/,
+    /서버 로그/,
+    /서버 시각/,
+    /DB에 (?:저장|보관)/,
+    /문제 팩/,
+    /감사 기록/,
+    /감사값/,
+    /메타데이터/,
+    /해시/,
+    /매칭 서버 온라인/,
+    /정책 공식/,
+    /검증·봉인/,
+  ];
+
+  for (const viewName of userFacingViews) {
+    const source = fs.readFileSync(path.join(views, viewName), "utf8");
+    for (const pattern of developerCopyPatterns) {
+      assert.doesNotMatch(
+        source,
+        pattern,
+        `${viewName}에 사용자용이 아닌 구현 설명이 포함되어 있습니다: ${pattern}`,
+      );
+    }
+  }
+
   const dashboard = await render("admin-dashboard.ejs", {
     user: admin,
     feedback: null,

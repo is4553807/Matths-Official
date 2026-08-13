@@ -166,7 +166,7 @@
         >
           <p>응시 준비</p>
           <h2><%= examData.canStart ? "시험 시작 준비가 끝났습니다." : "시험 시작까지 기다려주세요." %></h2>
-          <span><%= examData.canStart ? "시험 시작 버튼을 누르면 이 화면 안에 문제지 PDF가 표시되고 서버에서 100분 타이머가 시작됩니다." : "시험장은 10분 일찍 열렸습니다. 시작 시각이 되기 전에는 문제지 PDF를 열거나 저장할 수 없습니다." %></span>
+          <span><%= examData.canStart ? "시험 시작 버튼을 누르면 이 화면 안에 문제지 PDF가 표시되고 100분 제한 시간이 시작됩니다." : "시험장은 10분 일찍 열렸습니다. 시작 시각이 되기 전에는 문제지 PDF를 열거나 저장할 수 없습니다." %></span>
           <div class="private-mock-lobby-countdown">
             <small>시험 시작까지</small>
             <strong data-private-mock-lobby-countdown><%= examData.canStart ? "00:00" : "--:--" %></strong>
