@@ -6,7 +6,7 @@ const refundRequestSchema = new Schema(
   {
     requestKey: { type: String, required: true, unique: true, trim: true, maxlength: 160 },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    paymentId: { type: Schema.Types.ObjectId, ref: "ArenaPackagePayment", required: true, index: true },
+    paymentId: { type: Schema.Types.ObjectId, ref: "ArenaPackagePayment", required: true },
     supportInquiryId: { type: Schema.Types.ObjectId, ref: "SupportInquiry", default: null, index: true },
     productCode: { type: String, enum: ["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"], required: true },
     productNameSnapshot: { type: String, required: true, trim: true, maxlength: 140 },

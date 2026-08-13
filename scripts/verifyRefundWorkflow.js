@@ -64,6 +64,14 @@ async function main() {
   assert.ok(ArenaPackagePayment.schema.path("refundedAmount"));
   assert.ok(SupportInquiry.schema.path("refundRequestId"));
   assert.ok(RefundRequest.schema.path("decision.providerCancellationTransactionKey"));
+  const paymentIndexes = RefundRequest.schema.indexes().filter(
+    ([keys]) => Object.keys(keys).length === 1 && keys.paymentId === 1
+  );
+  assert.equal(paymentIndexes.length, 1);
+  assert.equal(paymentIndexes[0][1].unique, true);
+  assert.deepEqual(paymentIndexes[0][1].partialFilterExpression, {
+    status: { $in: ["REQUESTED", "CALCULATED"] },
+  });
 
   const products = [product("MOCK_EXAM_ONLY", 5000, "30일"), product("LEARNING_PACKAGE_29", 29000, "29일")];
   const pricing = await render("pricing.ejs", {
