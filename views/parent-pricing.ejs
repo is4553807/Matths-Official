@@ -8,6 +8,7 @@
       <section class="parent-product-grid">
         <% products.forEach((product) => { %><article>
           <small><%= product.periodLabel %> 이용</small><h2><%= product.name %></h2><p><%= product.description %></p><strong><%= new Intl.NumberFormat('ko-KR').format(product.amount) %><em>원</em></strong>
+          <section class="pricing-refund-summary"><b>환불 기준</b><p><%= product.refundPolicy.fullRefund %></p><p><%= product.refundPolicy.partialRefund %></p><code><%= product.refundPolicy.formula %></code></section>
           <% if (checkoutEnabled) { %><a href="/parent/checkout/<%= product.code %>">결제하기</a><% } else { %><p class="parent-pg-note">온라인 결제 준비 중</p><% } %>
         </article><% }) %>
       </section>

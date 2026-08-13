@@ -88,13 +88,28 @@ function findConcept(
 }
 
 async function seed() {
+    if (process.env.ALLOW_TEST_DATA_MUTATION !== "1") {
+        throw new Error(
+            "대시보드 테스트 데이터 변경은 기본적으로 차단됩니다. ALLOW_TEST_DATA_MUTATION=1을 명시하세요."
+        );
+    }
+    if (
+        process.env.NODE_ENV === "production" &&
+        process.env.CONFIRM_PRODUCTION_TEST_DATA_MUTATION !== "DASHBOARD-SEED"
+    ) {
+        throw new Error(
+            "운영 DB 변경을 확인하려면 CONFIRM_PRODUCTION_TEST_DATA_MUTATION=DASHBOARD-SEED가 필요합니다."
+        );
+    }
     await mongoose.connect(process.env.DB);
 
     const targetEmail =
         String(
-            process.argv[2] ||
-            "demo@matths.kr"
+            process.argv[2] || ""
         ).toLowerCase();
+    if (!targetEmail) {
+        throw new Error("사용법: node scripts/seedDashboard.js <test-user-email>");
+    }
 
     let user = await User.findOne({
         email: targetEmail,
@@ -105,9 +120,18 @@ async function seed() {
     if (!user) {
         createdUser = true;
 
+        const testPassword = String(
+            process.env.TEST_ACCOUNT_PASSWORD || ""
+        );
+        if (testPassword.length < 12) {
+            throw new Error(
+                "새 테스트 계정을 만들려면 TEST_ACCOUNT_PASSWORD에 12자 이상의 비밀번호가 필요합니다."
+            );
+        }
+
         const passwordHash =
             await bcrypt.hash(
-                "REMOVED_FROM_HISTORY",
+                testPassword,
                 12
             );
 
@@ -837,11 +861,7 @@ async function seed() {
         `Dashboard seed complete: ${targetEmail}`
     );
 
-    if (createdUser) {
-        console.log(
-            "Demo password: REMOVED_FROM_HISTORY"
-        );
-    }
+    if (createdUser) console.log("Demo account created with TEST_ACCOUNT_PASSWORD.");
 
     await mongoose.disconnect();
 }

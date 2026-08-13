@@ -308,6 +308,12 @@
 .pricing-mmr-note p { margin: 0; }
 .pricing-mmr-note strong { color: var(--pricing-ink); }
 
+.pricing-refund-summary { display: grid; gap: 8px; margin-top: 18px; padding: 16px; border: 1px solid rgba(49, 87, 246, 0.16); border-radius: 14px; background: #f7f8ff; }
+.pricing-refund-summary strong, .pricing-refund-summary b { color: #27388b; font-size: 0.78rem; }
+.pricing-refund-summary p { min-height: 0; margin: 0; color: #606a82; font-size: 0.7rem; line-height: 1.65; }
+.pricing-refund-summary code { overflow-wrap: anywhere; color: #394976; font-size: 0.68rem; }
+.pricing-payback-disclosure { margin-bottom: 24px; }
+
 @media (max-width: 1080px) {
   .pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pricing-card--learning { grid-column: 1 / -1; width: min(100%, 620px); justify-self: center; }

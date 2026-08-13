@@ -17,9 +17,6 @@ const validProductionEnvironment = {
   R2_ACCESS_KEY_ID: "access",
   R2_SECRET_ACCESS_KEY: "secret",
   R2_BUCKET: "matths-private",
-  SMTP_HOST: "smtp.example.com",
-  SMTP_USER: "system@example.com",
-  SMTP_PASSWORD: "password",
   SUPPORT_SMTP_HOST: "smtp.gmail.com",
   SUPPORT_SMTP_USER: "support@gmail.com",
   GMAIL_APP_PASSWORD: "app-password",
@@ -40,14 +37,6 @@ async function main() {
     APP_BASE_URL: "http://www.matths.kr/path",
   });
   assert.ok(insecureUrlReport.errors.some((item) => item.includes("APP_BASE_URL")));
-
-  const malformedOperatorReport = runtimeEnvironmentReport({
-    ...validProductionEnvironment,
-    OPERATOR_SMTP_ACCOUNTS_JSON: "not-json",
-  });
-  assert.ok(
-    malformedOperatorReport.errors.some((item) => item.includes("OPERATOR_SMTP_ACCOUNTS_JSON"))
-  );
 
   const apiController = require("../controllers/apiController");
   function responseRecorder() {

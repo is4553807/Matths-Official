@@ -336,6 +336,7 @@ async function requestPasswordResetLink({
       requested: true,
       delivered:
         delivery.delivered,
+      fromAddress: delivery.fromAddress,
     };
   } catch (error) {
     await PasswordResetCode.deleteOne({

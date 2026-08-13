@@ -7,9 +7,8 @@ process.env.SUPPORT_SMTP_HOST = "smtp.gmail.com";
 process.env.SUPPORT_SMTP_PORT = "465";
 process.env.SUPPORT_SMTP_SECURE = "true";
 process.env.SUPPORT_SMTP_USER = "lsbproduction00@gmail.com";
-process.env.SUPPORT_SMTP_PASSWORD = "verification-only-password";
+process.env.GMAIL_APP_PASSWORD = "verification-only-password";
 process.env.SUPPORT_EMAIL_FROM_NAME = "Matths";
-process.env.SUPPORT_EMAIL_FROM_ADDRESS = "lsbproduction00@gmail.com";
 
 const { getSupportSmtpAccount } = require("../services/emailService");
 

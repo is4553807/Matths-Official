@@ -1,4 +1,18 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>결제 준비 | Matths</title><link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" /><link rel="stylesheet" href="/css/main.css" /><link rel="stylesheet" href="/css/public-navigation.css" /><link rel="stylesheet" href="/css/brand.css" /><link rel="stylesheet" href="/css/parent.css" /></head>
 <body class="checkout-page"><%- include('partials/public-navigation', { activePage: 'pricing', user }) %><main class="student-checkout-main"><section class="student-checkout-card"><p>본인 결제</p><h1><%= product.name %></h1><span><%= product.description %></span><dl><div><dt>이용 기간</dt><dd><%= product.periodLabel %></dd></div><div><dt>결제 예정 금액</dt><dd><strong><%= new Intl.NumberFormat('ko-KR').format(product.amount) %>원</strong></dd></div></dl>
-<% if (!intent) { %><form method="post"><label><input type="checkbox" required /> 상품과 금액을 확인했습니다.</label><button type="submit">결제 계속하기</button></form><% } else { %><div class="parent-pending-payment"><strong>결제 요청을 확인했습니다.</strong><p>주문번호 <%= intent._id %></p><span>결제 서비스의 승인 화면에서 최종 결제를 완료해주세요.</span></div><% } %><a class="checkout-back" href="/pricing">이용권 비교로 돌아가기</a></section></main></body></html>
+<% if (!intent) { %>
+  <section class="checkout-refund-table" aria-labelledby="checkout-refund-title">
+    <h2 id="checkout-refund-title">결제 전 환불 기준</h2>
+    <table><tbody>
+      <tr><th>전액 환불</th><td><%= product.refundPolicy.fullRefund %></td></tr>
+      <tr><th>부분 환불</th><td><%= product.refundPolicy.partialRefund %><br /><code><%= product.refundPolicy.formula %></code></td></tr>
+      <tr><th>신청·처리</th><td><%= product.refundPolicy.application %> <%= product.refundPolicy.processing %></td></tr>
+    </tbody></table>
+  </section>
+  <form method="post">
+    <label><input type="checkbox" required /> 상품과 금액을 확인했습니다.</label>
+    <label class="guardian-consent-check"><input type="checkbox" name="refundPolicyAccepted" value="true" required /><span>위 상품별 전액·부분 환불 기준, 산식, 신청방법과 3영업일 처리기한을 확인하고 동의합니다.</span></label>
+    <button type="submit">결제 계속하기</button>
+  </form>
+<% } else { %><div class="parent-pending-payment"><strong>결제 요청을 확인했습니다.</strong><p>주문번호 <%= intent._id %></p><span>결제 서비스의 승인 화면에서 최종 결제를 완료해주세요.</span></div><% } %><a class="checkout-back" href="/pricing">이용권 비교로 돌아가기</a></section></main></body></html>

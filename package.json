@@ -12,6 +12,7 @@
     "email-routing:verify": "node scripts/verifyOperatorEmailRouting.js",
     "support-email-routing:verify": "node scripts/verifySupportEmailRouting.js",
     "finance:verify": "node scripts/verifyFinanceLedger.js",
+    "refund:verify": "node scripts/verifyRefundWorkflow.js",
     "payback-completion:verify": "node scripts/verifyPaybackCompletionWorkflow.js",
     "admin-audit:verify": "node scripts/verifyAdminAuditTrail.js",
     "launch-views:verify": "node scripts/verifyLaunchViews.js",
@@ -97,7 +98,6 @@
     "test-accounts:seed-focused": "node scripts/seedFocusedLaunchTestAccounts.js",
     "arena-test-users:reconcile": "node scripts/reconcileArenaTestCycles.js",
     "arena-test-users:reconcile-apply": "node scripts/reconcileArenaTestCycles.js --apply",
-    "arena-test:prepare-sangyoon": "node scripts/prepareSangyoonArenaPlacementTest.js",
     "arena-test:verify-db": "node scripts/verifyArenaTestDataset.js",
     "data-analysis:aggregate": "node scripts/runDataAnalysisAggregation.js",
     "data-analysis:verify": "node scripts/verifyDataAnalysisAggregation.js",
@@ -117,8 +117,7 @@
     "storage-lifecycle:verify-db": "node scripts/verifyStorageLifecycleDb.js",
     "pdf-watermark:verify": "node scripts/verifyPdfWatermarkLocal.js",
     "pdf-watermark:verify-db": "node scripts/verifyPdfWatermark.js",
-    "ranking-operations:verify-db": "node scripts/verifyRankingOperationsDb.js",
-    "accounts:configure-requested": "node scripts/configureRequestedAccounts.js"
+    "ranking-operations:verify-db": "node scripts/verifyRankingOperationsDb.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",

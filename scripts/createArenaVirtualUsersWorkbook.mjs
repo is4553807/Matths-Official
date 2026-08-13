@@ -103,7 +103,7 @@ const headers = [[
 sheet.getRange("A1:R1").merge();
 sheet.getRange("A1").values = [["GOAT Arena 가상 유저 로그인 목록"]];
 sheet.getRange("A2:R2").merge();
-sheet.getRange("A2").values = [["비밀번호는 모두 REMOVED_FROM_HISTORY | 계정은 Unranked 100명, Ranked 100명으로 균등 배치되어 있습니다."]];
+sheet.getRange("A2").values = [["공통 비밀번호는 생성 명세에서 불러옵니다. | 계정은 Unranked 100명, Ranked 100명으로 균등 배치되어 있습니다."]];
 sheet.getRange("A4:R5").merge();
 sheet.getRange("A4").values = [["로그인 방법: 닉네임 또는 이메일과 공통 비밀번호를 사용합니다. 실제 서비스 회원과 구분되는 가상 계정이며, 운영 테스트 전용입니다."]];
 sheet.getRange("A7:R7").values = headers;

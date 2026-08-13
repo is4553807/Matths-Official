@@ -26,11 +26,16 @@ const {
 const {
   publicSourceAccuracyForQuestion,
 } = require("../services/arenaMatchAttemptService");
+const { getRefundDisclosure } = require("../services/refundPolicyService");
 
 const app = express();
 const root = path.resolve(__dirname, "..");
 const port = Number(process.env.MATTHS_PREVIEW_PORT) || 8011;
 const previewArenaActivityAudit = [];
+const previewProducts = [
+  { code: "MOCK_EXAM_ONLY", name: "Matths 주간 공식 모의고사 이용권", amount: 5000, periodLabel: "30일", description: "주간 공식 모의고사 응시에 집중하는 이용권" },
+  { code: "LEARNING_PACKAGE_29", name: "29일 학습권 패키지", amount: 29000, periodLabel: "29일", description: "모의고사·배치고사·GOAT Arena까지 포함한 학습권" },
+].map((product) => ({ ...product, refundPolicy: getRefundDisclosure(product) }));
 
 app.set("view engine", "ejs");
 app.set("views", path.join(root, "views"));
@@ -206,6 +211,66 @@ app.get("/pricing", (req, res) => {
     activePage: "pricing",
     mockExamPolicy: { monthlyPriceAmount: 5000 },
     learningPackagePolicy: { priceAmount: 29000 },
+    products: previewProducts,
+    checkoutEnabled: true,
+  });
+});
+
+app.get("/preview/refunds/checkout", (_req, res) => {
+  res.render("checkout", {
+    user: { id: "preview-user", name: "preview-user", role: "student" },
+    product: previewProducts[1],
+    intent: null,
+  });
+});
+
+app.get("/preview/refunds/parent-checkout", (_req, res) => {
+  res.render("parent-checkout", {
+    parent: { id: "preview-parent", username: "학부모" },
+    child: { id: "preview-child", name: "학생", realName: "김학생" },
+    familyChildren: [],
+    selectedChildId: "preview-child",
+    product: previewProducts[1],
+    intent: null,
+  });
+});
+
+app.get("/preview/refunds/contact", (_req, res) => {
+  res.render("contact", {
+    user: { id: "preview-user", name: "preview-user", role: "student" },
+    contactData: {
+      user: { nickname: "preview-user", schoolName: "미리보기 고등학교", email: "preview@example.com" },
+      inquiries: [],
+      refundableOrders: [{ id: "64b000000000000000000091", productName: previewProducts[1].name, orderReference: "ORDER-PREVIEW-20260813", remainingAmount: 19000 }],
+    },
+    feedback: null,
+    oldInput: { inquiryType: "REFUND", paymentId: "64b000000000000000000091", refundReasonType: "SIMPLE_CHANGE", subject: "환불을 신청합니다", content: "상품 환불 기준과 산정 금액을 확인해주세요." },
+  });
+});
+
+app.get("/preview/admin/refunds", (_req, res) => {
+  res.locals.adminTodoSummary = { pendingCount: 1, items: [] };
+  const requestedAt = new Date("2026-08-13T10:00:00+09:00");
+  res.render("admin-refunds", {
+    user: { id: "preview-admin", name: "preview-admin", realName: "홍길동", role: "admin" },
+    feedback: null,
+    refundData: {
+      requests: [{
+        _id: "64b000000000000000000092",
+        userId: { name: "preview-user", realName: "김학생", email: "preview@example.com" },
+        productNameSnapshot: previewProducts[1].name,
+        orderReferenceSnapshot: "ORDER-PREVIEW-20260813",
+        reasonDetail: "상품 환불 기준과 산정 금액을 확인해주세요.",
+        status: "CALCULATED",
+        requestedAt,
+        processingDeadlineAt: new Date("2026-08-18T10:00:00+09:00"),
+        calculation: { approvedAmount: 29000, calculatedAmount: 19000, usedDays: 10, calculationType: "PARTIAL", formula: "부분 환불액 = 결제금액 - 일할 이용금액(결제금액 × 이용일수 ÷ 29일, 계산 중 발생하는 1원 미만 금액은 버림)", calculatedBy: { realName: "홍길동" } },
+      }],
+      status: "",
+      page: 1,
+      total: 1,
+      totalPages: 1,
+    },
   });
 });
 

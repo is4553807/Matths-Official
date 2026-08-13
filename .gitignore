@@ -4,14 +4,22 @@
 !.env.example
 !*.env.example
 !.env.*.example
+.envrc
+.direnv/
+.secrets/
+local-secrets/
 credentials*.json
 service-account*.json
 !credentials*.example.json
 !service-account*.example.json
+.npmrc
 *.pem
 *.key
 *.p12
 *.pfx
+*.jks
+*.keystore
+*.mobileprovision
 
 # Dependencies
 node_modules/
@@ -32,6 +40,11 @@ uploads/
 *.sqlite3
 *.dump
 *.bson
+*.bak
+*.backup
+*.orig
+*.rej
+*.bundle
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -41,6 +54,18 @@ output/
 outputs/
 video/
 work/
+# Marketing/video production source is maintained outside the deployable app.
+social/
+backup/
+backups/
+
+# Machine- or operator-specific scripts must stay local. Reusable scripts belong
+# directly under scripts/ and must not contain a real account identifier.
+scripts/local/
+scripts/private/
+scripts/*.local.js
+scripts/*.local.cjs
+scripts/*.local.mjs
 
 # Local browser and visual regression artifacts
 playwright-report/

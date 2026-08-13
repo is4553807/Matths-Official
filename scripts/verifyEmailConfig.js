@@ -38,7 +38,7 @@ async function main() {
 
   if (!result.configured) {
     console.error(
-      "SMTP 설정이 없습니다. config.env의 SMTP_HOST, SMTP_USER, SMTP_PASSWORD를 확인해주세요."
+      "Gmail SMTP 설정이 없습니다. config.env의 SUPPORT_SMTP_HOST, SUPPORT_SMTP_USER, GMAIL_APP_PASSWORD를 확인해주세요."
     );
     process.exitCode = 1;
     return;

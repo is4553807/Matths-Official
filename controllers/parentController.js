@@ -297,6 +297,7 @@ exports.prepareCheckout = async (req, res, next) => {
       requestedBy: "PARENT",
       productCode: req.params.productCode,
       legalGuardianConsent: req.body.legalGuardianConsent === "true",
+      refundPolicyAccepted: req.body.refundPolicyAccepted === "true",
     });
     return await renderCheckout(req, res, { intent });
   } catch (error) {

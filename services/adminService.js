@@ -762,7 +762,8 @@ async function replyToInquiry({
         String(inquiry._id),
       delivered:
         delivery.delivered,
-      senderEmail: sender.email,
+      senderEmail: delivery.fromAddress,
+      actingAdminEmail: sender.email,
       providerMessageId: delivery.providerMessageId || "",
     },
   });
@@ -2510,7 +2511,8 @@ async function sendDirectUserEmail({
     metadata: {
       delivered:
         delivery.delivered,
-      senderEmail: sender.email,
+      senderEmail: delivery.fromAddress,
+      actingAdminEmail: sender.email,
       providerMessageId: delivery.providerMessageId || "",
     },
   });
@@ -2553,7 +2555,8 @@ async function sendUserPasswordReset({
     detail:
       "비밀번호 재설정 링크 발송",
     metadata: {
-      senderEmail: sender.email,
+      senderEmail: result.fromAddress,
+      actingAdminEmail: sender.email,
     },
   });
 

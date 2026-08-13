@@ -420,8 +420,8 @@ exports.register = async (
         ? { university }
         : {}),
       termsAcceptedAt: now,
-      termsVersion: "2026-08-01",
-      privacyVersion: "2026-08-01",
+      termsVersion: "2026-08-13",
+      privacyVersion: "2026-08-13",
     });
 
     await alertPotentialDuplicateIdentity(

@@ -20,6 +20,9 @@ const {
 } = require("../services/arenaMatchService");
 
 const TEST_BATCH_KEY = "GOAT-ARENA-E2E-200-20260803";
+const TEST_MATCH_ACTOR_USERNAME = String(
+  process.env.ARENA_TEST_ACTOR_USERNAME || ""
+).trim().toLowerCase();
 const EXPECTED_TIER_COUNTS = {
   브론즈: 20,
   실버: 18,
@@ -34,6 +37,9 @@ const EXPECTED_TIER_COUNTS = {
 
 async function main() {
   if (!process.env.DB) throw new Error("config.env의 DB 연결 문자열이 필요합니다.");
+  if (!TEST_MATCH_ACTOR_USERNAME) {
+    throw new Error("ARENA_TEST_ACTOR_USERNAME에 검증할 테스트 실행 계정을 지정하세요.");
+  }
   await mongoose.connect(process.env.DB, {
     serverSelectionTimeoutMS: 15_000,
     connectTimeoutMS: 15_000,
@@ -68,7 +74,7 @@ async function main() {
         scopeType: "placement",
         status: "submitted",
       }).lean(),
-      User.findOne({ nameNormalized: "REMOVED_FROM_HISTORY" })
+      User.findOne({ nameNormalized: TEST_MATCH_ACTOR_USERNAME })
         .select("_id name +arenaTestMatchEnabled")
         .lean(),
     ]);
@@ -120,11 +126,11 @@ async function main() {
       }
     }
 
-    assert.ok(target, "REMOVED_FROM_HISTORY 계정을 찾을 수 없습니다.");
+    assert.ok(target, `${TEST_MATCH_ACTOR_USERNAME} 계정을 찾을 수 없습니다.`);
     assert.equal(
       target.arenaTestMatchEnabled,
       true,
-      "REMOVED_FROM_HISTORY의 테스트 계정 매칭 권한이 꺼져 있습니다. arena-test:prepare-sangyoon을 실행해주세요."
+      `${TEST_MATCH_ACTOR_USERNAME}의 테스트 계정 매칭 권한이 꺼져 있습니다.`
     );
     const [targetCycle, targetState, targetActiveStandings, targetProfiles, targetPlacements] =
       await Promise.all([

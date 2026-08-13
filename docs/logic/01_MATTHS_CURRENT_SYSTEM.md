@@ -229,12 +229,10 @@ Ranked 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다.
 | `PASSWORD_RESET_SECRET` | 재설정 코드 HMAC, 없으면 `SECRET` |
 | `NICKNAME_CHECK_SECRET` | 닉네임 가용성 증명 HMAC |
 | `SESSION_SECRET` | 닉네임 증명의 중간 폴백 |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Cafe24 SMTP 연결 |
-| `SMTP_USER`, `SMTP_PASSWORD` | 기본 시스템 메일 계정 |
-| `EMAIL_FROM_ADDRESS` | 기본 시스템 발신 주소 |
-| `OPERATOR_SMTP_ACCOUNTS_JSON` | 운영자별 SMTP 발신 계정 |
+| `SUPPORT_SMTP_HOST`, `SUPPORT_SMTP_PORT`, `SUPPORT_SMTP_SECURE` | Gmail 단일 SMTP 연결 |
+| `SUPPORT_SMTP_USER`, `GMAIL_APP_PASSWORD` | 모든 메일의 Gmail 로그인·발신 계정 |
 | `FINANCE_PG_FEE_RESERVE_BPS` | PG 수수료 준비금 비율(부가세 포함 계약 기준) |
-| `EMAIL_FROM_NAME` | 선택적 발신 이름 |
+| `SUPPORT_EMAIL_FROM_NAME` | 메일에 표시할 발신자 이름 |
 | `ARCHIVE_STORAGE_DIR` | R2 전송 전 아카이브 임시 업로드 경로와 기존 로컬 파일 이전 경로 |
 | `FONTCONFIG_FILE` | 소셜 카드 생성 보조 폰트 설정 |
 | `MATTHS_PREVIEW_PORT` | 소셜 카드 미리보기 서버, 기본 4173 |
@@ -1839,7 +1837,7 @@ YAML의 각 모드·상황 문구는 비어 있으면 안 된다. 세션/사용�
 
 ### 15.4 이메일
 
-- Cafe24 SMTP 587 STARTTLS
+- Gmail SMTP 465 TLS 단일 발신
 - 운영 환경 자격증명 누락: 서비스 오류
 - 비운영 환경 누락: 프리뷰 가능
 - 공급자 전송 실패: 게이트웨이 오류 계열
@@ -2640,7 +2638,7 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | `curriculumService.js` | YAML 카탈로그 로드·정규화·검색 |
 | `dashboardService.js` | 사용자 대시보드 집계·일일 계획 |
 | `dataAnalysisService.js` | 첫 달 운영 지표 카탈로그·관측값 집계 |
-| `emailService.js` | Cafe24 SMTP, 운영자별 발신, 브랜드 메일 |
+| `emailService.js` | Gmail 단일 SMTP 발신, 브랜드 메일 |
 | `examBankSource.js` | 공식 시험 분포·문제 원천 메타데이터 |
 | `learningProgressService.js` | 30/60/10 진행률, 과정·단원 집계 |
 | `identityRiskService.js` | 실명·생년월일·고등학교 조합 해시와 중복 계정 검토 알림 |

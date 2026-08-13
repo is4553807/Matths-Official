@@ -66,14 +66,14 @@ async function paymentTotals(now = new Date()) {
         netCollected: {
           $sum: {
             $cond: [
-              { $in: ["$status", ["APPROVED", "APPLIED"]] },
-              "$approvedAmount",
+              { $in: ["$status", ["APPROVED", "APPLIED", "PARTIALLY_REFUNDED", "REFUNDED"]] },
+              { $max: [0, { $subtract: ["$approvedAmount", { $ifNull: ["$refundedAmount", 0] }] }] },
               0,
             ],
           },
         },
         refunded: {
-          $sum: { $cond: [{ $eq: ["$status", "REFUNDED"] }, "$approvedAmount", 0] },
+          $sum: { $ifNull: ["$refundedAmount", 0] },
         },
         cancelled: {
           $sum: { $cond: [{ $eq: ["$status", "CANCELLED"] }, "$approvedAmount", 0] },
@@ -84,10 +84,10 @@ async function paymentTotals(now = new Date()) {
               {
                 $and: [
                   { $gte: ["$approvedAt", today] },
-                  { $in: ["$status", ["APPROVED", "APPLIED"]] },
+                  { $in: ["$status", ["APPROVED", "APPLIED", "PARTIALLY_REFUNDED"]] },
                 ],
               },
-              "$approvedAmount",
+              { $max: [0, { $subtract: ["$approvedAmount", { $ifNull: ["$refundedAmount", 0] }] }] },
               0,
             ],
           },

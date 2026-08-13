@@ -312,6 +312,16 @@ const checkoutIntentSchema = new Schema(
       maxlength: 40,
       default: "",
     },
+    refundPolicyAcceptedAt: {
+      type: Date,
+      default: null,
+    },
+    refundPolicyVersion: {
+      type: String,
+      trim: true,
+      maxlength: 60,
+      default: "",
+    },
     productCode: {
       type: String,
       enum: ["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"],

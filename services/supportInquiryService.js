@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const {
   SupportInquiry,
   User,
@@ -8,6 +9,10 @@ const {
 const {
   createAdminTodo,
 } = require("./adminTodoService");
+const {
+  createRefundRequest,
+  listRefundableOrders,
+} = require("./refundService");
 
 const SUBJECT_MIN_LENGTH = 2;
 const SUBJECT_MAX_LENGTH = 120;
@@ -57,7 +62,7 @@ function serializeInquiry(inquiry) {
 async function getContactPageData(
   userId
 ) {
-  const [user, inquiries] =
+  const [user, inquiries, refundableOrders] =
     await Promise.all([
       User.findOne({
         _id: userId,
@@ -71,6 +76,7 @@ async function getContactPageData(
         })
         .limit(8)
         .lean(),
+      listRefundableOrders(userId),
     ]);
 
   if (!user) {
@@ -101,6 +107,7 @@ async function getContactPageData(
       inquiries.map(
         serializeInquiry
       ),
+    refundableOrders,
   };
 }
 
@@ -108,11 +115,17 @@ async function createSupportInquiry({
   userId,
   subject,
   content,
+  inquiryType = "GENERAL",
+  paymentId = "",
+  refundReasonType = "SIMPLE_CHANGE",
 }) {
   const cleanSubject =
     normalizeSubject(subject);
   const cleanContent =
     normalizeContent(content);
+  const normalizedType = String(inquiryType || "GENERAL").toUpperCase() === "REFUND"
+    ? "REFUND"
+    : "GENERAL";
 
   if (
     cleanSubject.length <
@@ -180,24 +193,42 @@ async function createSupportInquiry({
     schoolName:
       String(user.school?.name || ""),
   };
-  const inquiry =
-    await SupportInquiry.create({
-      userId: user._id,
-      authorNickname:
-        contactUser.nickname,
-      authorRealName:
-        contactUser.realName,
-      contactEmail:
-        contactUser.email,
-      schoolName:
-        contactUser.schoolName,
-      subject: cleanSubject,
-      content: cleanContent,
+  const session = await mongoose.startSession();
+  let inquiry;
+  try {
+    await session.withTransaction(async () => {
+      [inquiry] = await SupportInquiry.create([{
+        userId: user._id,
+        authorNickname: contactUser.nickname,
+        authorRealName: contactUser.realName,
+        contactEmail: contactUser.email,
+        schoolName: contactUser.schoolName,
+        inquiryType: normalizedType,
+        subject: cleanSubject,
+        content: cleanContent,
+      }], { session });
+      if (normalizedType === "REFUND") {
+        const refundRequest = await createRefundRequest({
+          userId: user._id,
+          paymentId,
+          reasonType: refundReasonType,
+          reasonDetail: cleanContent,
+          supportInquiryId: inquiry._id,
+          session,
+        });
+        inquiry.paymentId = refundRequest.paymentId;
+        inquiry.refundRequestId = refundRequest._id;
+        inquiry.orderReferenceSnapshot = refundRequest.orderReferenceSnapshot;
+        await inquiry.save({ session });
+      }
     });
+  } finally {
+    await session.endSession();
+  }
 
   await createAdminTodo({
     category: "inquiry",
-    title: `문의 확인 · ${cleanSubject}`,
+    title: `${normalizedType === "REFUND" ? "환불 신청" : "문의 확인"} · ${cleanSubject}`,
     description: cleanContent,
     href: `/admin/inquiries#inquiry-${inquiry._id}`,
     targetUserId: user._id,
@@ -218,8 +249,10 @@ async function createSupportInquiry({
         inquiryId:
           String(inquiry._id),
         user: contactUser,
-        subject: cleanSubject,
-        content: cleanContent,
+        subject: normalizedType === "REFUND" ? `[환불] ${cleanSubject}` : cleanSubject,
+        content: normalizedType === "REFUND"
+          ? `주문번호: ${inquiry.orderReferenceSnapshot}\n\n${cleanContent}`
+          : cleanContent,
       });
 
     notification = {

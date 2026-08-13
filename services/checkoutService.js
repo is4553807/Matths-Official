@@ -11,6 +11,10 @@ const { sendEmail, buildBrandedHtml } = require("./emailService");
 const { getActiveMockExamPackagePolicy } = require("./mockExamPackageService");
 const { getActiveArenaPolicy } = require("./arenaPolicyService");
 const { linkChildToParent } = require("./parentFamilyService");
+const {
+  REFUND_POLICY_VERSION,
+  getRefundDisclosure,
+} = require("./refundPolicyService");
 
 const INVITE_TTL_MS = 72 * 60 * 60 * 1000;
 const CHECKOUT_TTL_MS = 30 * 60 * 1000;
@@ -63,7 +67,7 @@ async function getProductCatalog() {
     getActiveMockExamPackagePolicy(),
     getActiveArenaPolicy(),
   ]);
-  return [
+  const products = [
     {
       code: "MOCK_EXAM_ONLY",
       name: "Matths 주간 공식 모의고사 이용권",
@@ -79,6 +83,10 @@ async function getProductCatalog() {
       description: "모의고사·배치고사·GOAT Arena까지 포함한 학습권",
     },
   ];
+  return products.map((product) => ({
+    ...product,
+    refundPolicy: getRefundDisclosure(product),
+  }));
 }
 
 async function getProduct(code) {
@@ -95,6 +103,7 @@ async function createCheckoutIntent({
   legalGuardianConsent = false,
   requiresMinorPaymentNotice = false,
   minorPaymentNoticeAccepted = false,
+  refundPolicyAccepted = false,
 }) {
   assertPaidCheckoutEnabled();
   const [student, product] = await Promise.all([
@@ -122,6 +131,13 @@ async function createCheckoutIntent({
       "MINOR_PAYMENT_NOTICE_REQUIRED"
     );
   }
+  if (refundPolicyAccepted !== true) {
+    throw statusError(
+      400,
+      "상품별 환불 기준과 산식, 신청방법 및 처리기한을 확인하고 동의해주세요.",
+      "REFUND_POLICY_CONSENT_REQUIRED"
+    );
+  }
   return CheckoutIntent.create({
     studentUserId: student._id,
     parentAccountId,
@@ -141,6 +157,8 @@ async function createCheckoutIntent({
       requestedBy === "STUDENT" && requiresMinorPaymentNotice
         ? MINOR_PAYMENT_NOTICE_VERSION
         : "",
+    refundPolicyAcceptedAt: new Date(),
+    refundPolicyVersion: REFUND_POLICY_VERSION,
     expiresAt: new Date(Date.now() + CHECKOUT_TTL_MS),
   });
 }
@@ -326,6 +344,7 @@ module.exports = {
   getProductCatalog,
   LEGAL_GUARDIAN_CONSENT_VERSION,
   MINOR_PAYMENT_NOTICE_VERSION,
+  REFUND_POLICY_VERSION,
   assertPaidCheckoutEnabled,
   isPaidCheckoutEnabled,
   registerParent,

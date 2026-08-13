@@ -3,6 +3,8 @@
     new Intl.NumberFormat("ko-KR").format(Number(value) || 0);
   const mockPrice = mockExamPolicy?.monthlyPriceAmount ?? 5000;
   const learningPrice = learningPackagePolicy?.priceAmount ?? 29000;
+  const mockProduct = products?.find((product) => product.code === "MOCK_EXAM_ONLY");
+  const learningProduct = products?.find((product) => product.code === "LEARNING_PACKAGE_29");
 %>
 <!doctype html>
 <html lang="ko">
@@ -80,6 +82,12 @@
             <% } %>
           </div>
           <small class="pricing-note">주간 공식 모의고사를 4회 이상 응시한 뒤 학습권 패키지로 변경하면, 배치고사 결과와 기존 기록을 함께 사용해 내부 실력 지표를 갱신합니다.</small>
+          <section class="pricing-refund-summary" aria-label="주간 공식 모의고사 이용권 환불 기준">
+            <strong>환불 기준</strong>
+            <p><%= mockProduct.refundPolicy.fullRefund %></p>
+            <p><%= mockProduct.refundPolicy.partialRefund %></p>
+            <code><%= mockProduct.refundPolicy.formula %></code>
+          </section>
         </article>
 
         <article class="pricing-card pricing-card--learning">
@@ -114,7 +122,22 @@
             <% } %>
           </div>
           <small class="pricing-note">배치고사를 완료하면 Unranked에 반영되며, 학습 결과와 Arena 성과가 하나의 흐름으로 연결됩니다.</small>
+          <section class="pricing-refund-summary" aria-label="29일 학습권 패키지 환불 기준">
+            <strong>환불 기준</strong>
+            <p><%= learningProduct.refundPolicy.fullRefund %></p>
+            <p><%= learningProduct.refundPolicy.partialRefund %></p>
+            <code><%= learningProduct.refundPolicy.formula %></code>
+          </section>
         </article>
+      </section>
+
+      <section class="pricing-guide pricing-payback-disclosure" aria-labelledby="pricing-payback-title">
+        <div><p>REFUND &amp; PAYBACK</p><h2 id="pricing-payback-title">환불과 페이백은 서로 다른 제도입니다.</h2></div>
+        <div class="pricing-guide-grid">
+          <article><b>환불</b><span>이용자가 결제 취소를 신청하면 상품별 이용일수 산식에 따라 원 결제수단으로 전체 또는 부분 취소합니다.</span></article>
+          <article><b>페이백</b><span>29일 이용 주기를 마치고 공개된 조건을 충족한 이용자에게 운영자가 별도 준비금으로 지급합니다. 다른 이용자의 결제금이나 경기 예치금을 상금 재원으로 사용하지 않습니다.</span></article>
+          <article><b>지급 기한</b><span>페이백 확정 및 계좌 확인 완료일부터 7영업일 이내 운영자가 등록 계좌로 송금하고 완료 알림을 보냅니다.</span></article>
+        </div>
       </section>
 
       <section class="pricing-guide" aria-labelledby="pricing-guide-title">

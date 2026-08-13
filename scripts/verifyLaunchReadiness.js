@@ -13,6 +13,7 @@ const checks = [
   "admin-audit:verify",
   "account-deletion:verify",
   "finance:verify",
+  "refund:verify",
   "payback-completion:verify",
   "product-foundation:verify",
   "launch-views:verify",

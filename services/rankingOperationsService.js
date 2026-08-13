@@ -128,9 +128,9 @@ async function getRankingOperationsDashboard({ preview = false, now = new Date()
   const operations = {
     storage,
     emailConfigured: Boolean(
-      process.env.SMTP_HOST &&
-      process.env.SMTP_USER &&
-      process.env.SMTP_PASSWORD
+      process.env.SUPPORT_SMTP_HOST &&
+      process.env.SUPPORT_SMTP_USER &&
+      process.env.GMAIL_APP_PASSWORD
     ),
     sharedSessionConfigured: true,
     schedulerEnabled: process.env.DISABLE_SCHEDULERS !== "1",

@@ -149,6 +149,7 @@ exports.prepareSelfCheckout = async (req, res, next) => {
       requiresMinorPaymentNotice: needsNotice,
       minorPaymentNoticeAccepted:
         !needsNotice || hasMinorPaymentNotice(req, productCode),
+      refundPolicyAccepted: req.body.refundPolicyAccepted === "true",
     });
     return await renderCheckout(req, res, { intent });
   } catch (error) {

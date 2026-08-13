@@ -34,7 +34,7 @@
         <% if (!paybacks.rows.length) { %><div class="admin-empty">현재 지급 대기 중인 페이백이 없습니다.</div><% } %>
         <% paybacks.rows.forEach((row) => { %>
           <article class="admin-payback-row <%= row.accountConfirmed ? 'is-ready' : 'is-waiting' %>">
-            <div><small><%= row.accountConfirmed ? '계좌 확인 완료' : '계좌 확인 대기' %></small><strong><%= row.userName %></strong><span><%= row.email %> · 심사 <%= kst(row.evaluatedAt) %></span></div>
+            <div><small><%= row.accountConfirmed ? row.payoutOverdue ? '7영업일 지급기한 경과' : '계좌 확인 완료' : '계좌 확인 대기' %></small><strong><%= row.userName %></strong><span><%= row.email %> · 심사 <%= kst(row.evaluatedAt) %><% if (row.payoutDeadlineAt) { %> · 지급기한 <%= kst(row.payoutDeadlineAt) %><% } %></span></div>
             <dl><div><dt>페이백율</dt><dd><%= row.paybackRate %>%</dd></div><div><dt>지급액</dt><dd><%= money(row.paybackAmount) %></dd></div><div><dt>지급 계좌</dt><dd><%= row.accountConfirmed ? `${row.bankName} ${row.accountNumber} (${row.accountHolderName})` : row.decryptError ? '복호화 확인 필요' : '사용자 미연결' %></dd></div></dl>
             <form method="post" action="/admin/paybacks/<%= row.cycleId %>/complete" onsubmit="return confirm('실제 송금을 완료했는지 확인했습니다. 지급 완료로 기록할까요?')">
               <input type="hidden" name="period" value="<%= paybacks.periodKey %>" /><input type="hidden" name="page" value="<%= page %>" />

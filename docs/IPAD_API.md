@@ -74,7 +74,7 @@ MongoDB 드라이버를 사용하지 않고 `https://<server>/api/v1`만 호출�
 3. `POST /api/v1/auth/password-reset/complete` — 검증 응답의 `resetId`,
    `userId`와 새 비밀번호를 전송
 
-운영 환경에서는 서버에 `GMAIL_USER`와
+운영 환경에서는 서버에 `SUPPORT_SMTP_USER`와
 `GMAIL_APP_PASSWORD`를 설정해야 합니다. iPad 앱에는 두 값을
 포함하지 않습니다.
 

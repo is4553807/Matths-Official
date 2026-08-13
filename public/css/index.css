@@ -73,6 +73,56 @@ a {
   margin-inline: auto;
 }
 
+.payment-policy-summary {
+  padding: 26px 0 64px;
+}
+
+.payment-policy-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 32px;
+  padding: 30px 34px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: var(--shadow-sm);
+}
+
+.payment-policy-eyebrow {
+  margin: 0 0 7px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.payment-policy-card h2 {
+  margin: 0;
+  font-size: clamp(20px, 2.2vw, 28px);
+  letter-spacing: -0.6px;
+}
+
+.payment-policy-card p:not(.payment-policy-eyebrow) {
+  max-width: 760px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.payment-policy-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 190px;
+}
+
+.payment-policy-links .button {
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 13px;
+}
+
 .site-header {
   position: sticky;
   top: 0;
@@ -1059,6 +1109,25 @@ summary:focus-visible {
 }
 
 @media (max-width: 640px) {
+  .payment-policy-summary {
+    padding: 18px 0 42px;
+  }
+
+  .payment-policy-card {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding: 24px 20px;
+  }
+
+  .payment-policy-card p:not(.payment-policy-eyebrow) {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .payment-policy-links {
+    width: 100%;
+  }
+
   .container {
     width: min(100% - 32px, 1180px);
   }

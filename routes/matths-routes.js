@@ -442,6 +442,24 @@ router.get(
   authMiddleware.isAdmin,
   matthsController.adminPaybacksPage
 );
+router.get(
+  "/admin/refunds",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRefundsPage
+);
+router.post(
+  "/admin/refunds/:refundRequestId/calculate",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCalculateRefund
+);
+router.post(
+  "/admin/refunds/:refundRequestId/complete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminCompleteRefund
+);
 router.post(
   "/admin/paybacks/:cycleId/complete",
   authMiddleware.isLoggedIn,

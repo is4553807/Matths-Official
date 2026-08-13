@@ -535,7 +535,7 @@ const ENVIRONMENT_CONFIGURATION = [
   ["사용자 파일", "FILE_STORAGE_PROVIDER, CLOUDINARY_URL 또는 Cloudinary 3개 키", "게시판·증거·소명 원본", "authenticated 전달 방식과 사용량 확인"],
   ["운영자·상점 원본", "R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET", "아카이브·주간 모의고사·교재 상점", "비공개 버킷·Object Read & Write"],
   ["PDF 개인 식별", "DOCUMENT_WATERMARK_SECRET", "PDF 발급 토큰 서명·유출 역추적", "16자 이상의 별도 운영 secret. 브라우저·로그·Git 노출 금지"],
-  ["메일", "SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, OPERATOR_SMTP_ACCOUNTS_JSON", "계정·정책·무결성 알림", "Cafe24 SMTP 사용, 운영자별 발신 계정 일치와 발송 실패 재시도 확인"],
+  ["메일", "SUPPORT_SMTP_HOST, SUPPORT_SMTP_USER, GMAIL_APP_PASSWORD", "계정·정책·무결성 알림", "모든 발신은 lsbproduction00@gmail.com으로 통일하고 실제 처리 운영자는 감사 로그에서 확인"],
   ["자금 준비금", "FINANCE_PG_FEE_RESERVE_BPS", "PG 수수료 준비금과 사업자 출금 잠금", "PG 계약 기준의 부가세 포함 bp 값을 설정하기 전에는 출금 불가"],
   ["자동 작업", "DISABLE_SCHEDULERS", "스케줄러 실행 여부", "실서비스에서는 임의로 1로 두지 않음"],
 ];

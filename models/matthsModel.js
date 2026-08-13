@@ -3081,6 +3081,28 @@ const supportInquirySchema =
                 maxlength: 120,
                 default: "",
             },
+            inquiryType: {
+                type: String,
+                enum: ["GENERAL", "REFUND"],
+                default: "GENERAL",
+                index: true,
+            },
+            paymentId: {
+                type: Schema.Types.ObjectId,
+                ref: "ArenaPackagePayment",
+                default: null,
+            },
+            refundRequestId: {
+                type: Schema.Types.ObjectId,
+                ref: "RefundRequest",
+                default: null,
+            },
+            orderReferenceSnapshot: {
+                type: String,
+                trim: true,
+                maxlength: 160,
+                default: "",
+            },
 
             subject: {
                 type: String,

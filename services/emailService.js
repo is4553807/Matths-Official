@@ -86,25 +86,6 @@ function normalizeTlsMinVersion(value, fallback = "") {
     : "";
 }
 
-function parseOperatorAccounts() {
-  const source = String(process.env.OPERATOR_SMTP_ACCOUNTS_JSON || "").trim();
-  if (!source) return {};
-  try {
-    const parsed = JSON.parse(source);
-    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-      throw new Error("객체 형식이 아닙니다.");
-    }
-    return parsed;
-  } catch (error) {
-    const setupError = new Error(
-      "OPERATOR_SMTP_ACCOUNTS_JSON 설정이 올바른 JSON 형식이 아닙니다."
-    );
-    setupError.status = 503;
-    setupError.cause = error;
-    throw setupError;
-  }
-}
-
 function normalizeSmtpAccount(raw = {}, fallback = {}) {
   const host = String(raw.host || fallback.host || "").trim();
   const secure = parseBoolean(raw.secure, parseBoolean(fallback.secure, false));
@@ -142,20 +123,7 @@ function normalizeSmtpAccount(raw = {}, fallback = {}) {
 }
 
 function getDefaultSmtpAccount() {
-  return normalizeSmtpAccount({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_SECURE,
-    tlsMinVersion: process.env.SMTP_TLS_MIN_VERSION,
-    tlsCiphers: process.env.SMTP_TLS_CIPHERS,
-    tlsAllowLegacyServerConnect:
-      process.env.SMTP_TLS_ALLOW_LEGACY_SERVER_CONNECT,
-    tlsRejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED,
-    user: process.env.SMTP_USER,
-    password: process.env.SMTP_PASSWORD,
-    fromAddress: process.env.EMAIL_FROM_ADDRESS,
-    fromName: process.env.EMAIL_FROM_NAME,
-  });
+  return getSupportSmtpAccount();
 }
 
 function createEmailSetupError(message = "이메일 발송 설정이 완료되지 않았습니다.") {
@@ -168,7 +136,7 @@ function createEmailSetupError(message = "이메일 발송 설정이 완료되�
 function validateSmtpAccount(account, requestedFrom = "") {
   if (!account.host || !account.user || !account.password || !account.fromAddress) {
     throw createEmailSetupError(
-      "이메일 발송 설정이 완료되지 않았습니다. SMTP_HOST, SMTP_USER, SMTP_PASSWORD를 확인해주세요."
+      "이메일 발송 설정이 완료되지 않았습니다. SUPPORT_SMTP_HOST, SUPPORT_SMTP_USER, Gmail 앱 비밀번호를 확인해주세요."
     );
   }
   if (requestedFrom && account.fromAddress !== normalizeEmail(requestedFrom)) {
@@ -187,49 +155,21 @@ function getSupportSmtpAccount() {
       process.env.SUPPORT_SMTP_SECURE === undefined
         ? true
         : process.env.SUPPORT_SMTP_SECURE,
-    user: process.env.SUPPORT_SMTP_USER || process.env.GMAIL_USER,
-    password:
-      process.env.SUPPORT_SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD,
-    fromAddress:
-      process.env.SUPPORT_EMAIL_FROM_ADDRESS ||
-      process.env.SUPPORT_SMTP_USER ||
-      process.env.GMAIL_USER,
-    fromName:
-      process.env.SUPPORT_EMAIL_FROM_NAME ||
-      process.env.EMAIL_FROM_NAME ||
-      DEFAULT_FROM_NAME,
+    user: process.env.SUPPORT_SMTP_USER,
+    password: process.env.GMAIL_APP_PASSWORD,
+    // SMTP 로그인 계정과 실제 From 주소를 항상 같게 유지한다.
+    fromAddress: process.env.SUPPORT_SMTP_USER,
+    fromName: process.env.SUPPORT_EMAIL_FROM_NAME || DEFAULT_FROM_NAME,
   });
   return validateSmtpAccount(account, account.fromAddress);
 }
 
 function getSmtpAccount(fromAddress = "") {
-  const requestedFrom = normalizeEmail(fromAddress);
-  const defaultAccount = getDefaultSmtpAccount();
-  if (!requestedFrom || requestedFrom === defaultAccount.fromAddress) {
-    return validateSmtpAccount(defaultAccount, requestedFrom);
-  }
-
-  const rawAccount = parseOperatorAccounts()[requestedFrom];
-  if (!rawAccount) {
-    throw createEmailSetupError(
-      `${requestedFrom} 운영자 메일의 SMTP 계정이 OPERATOR_SMTP_ACCOUNTS_JSON에 등록되지 않았습니다.`
-    );
-  }
-  return validateSmtpAccount(
-    normalizeSmtpAccount(rawAccount, {
-      host: defaultAccount.host,
-      port: defaultAccount.port,
-      secure: defaultAccount.secure,
-      tlsMinVersion: defaultAccount.tlsMinVersion,
-      tlsCiphers: defaultAccount.tlsCiphers,
-      tlsAllowLegacyServerConnect:
-        defaultAccount.tlsAllowLegacyServerConnect,
-      tlsRejectUnauthorized: defaultAccount.tlsRejectUnauthorized,
-      fromAddress: requestedFrom,
-      fromName: DEFAULT_FROM_NAME,
-    }),
-    requestedFrom
-  );
+  // 운영자가 누구인지의 기록은 AdminActionLog에 남기고, 실제 발신 SMTP는
+  // lsbproduction00@gmail.com 한 계정으로 고정한다. 호출부가 과거 방식의
+  // fromAddress를 넘겨도 운영자 개인 주소로 발송되지 않는다.
+  void fromAddress;
+  return getSupportSmtpAccount();
 }
 
 function transporterSignature(account) {
@@ -300,7 +240,7 @@ async function sendEmail({
     throw error;
   }
   const account = smtpAccount || getSmtpAccount(fromAddress);
-  const senderAddress = normalizeEmail(fromAddress || account.fromAddress);
+  const senderAddress = normalizeEmail(account.fromAddress);
 
   try {
     const result = await getSmtpTransporter(account).sendMail({

@@ -19,18 +19,28 @@ const {
   ArenaMatchParticipantLock,
 } = require("../models/goatArenaModel");
 
+const TARGET_USERNAME = String(
+  process.env.ADMIN_INSPECT_TARGET_USERNAME || ""
+).trim();
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function main() {
   if (!process.env.DB) throw new Error("config.env의 DB 연결 문자열이 필요합니다.");
   await mongoose.connect(process.env.DB, { serverSelectionTimeoutMS: 10000 });
 
-  const user = await User.findOne({
-    $or: [
-      { username: /^REMOVED_FROM_HISTORY$/i },
-      { name: /^REMOVED_FROM_HISTORY$/i },
-    ],
-  })
-    .select("_id username name email")
-    .lean();
+  const user = TARGET_USERNAME
+    ? await User.findOne({
+        $or: [
+          { username: new RegExp(`^${escapeRegex(TARGET_USERNAME)}$`, "i") },
+          { name: new RegExp(`^${escapeRegex(TARGET_USERNAME)}$`, "i") },
+        ],
+      })
+        .select("_id username name email")
+        .lean()
+    : null;
   const heldMatches = await ArenaMatch.find({
     status: { $nin: ["SETTLED", "INVALID", "CANCELLED", "INSURED_CANCELLED"] },
     $or: [{ status: "HELD" }, { integrityStatus: "SUSPICIOUS" }],

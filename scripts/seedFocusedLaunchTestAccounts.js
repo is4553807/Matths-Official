@@ -35,7 +35,7 @@ const {
 } = require("../services/paybackAccountService");
 
 const BATCH_KEY = "GOAT-ARENA-FOCUSED-LAUNCH-E2E-20260807";
-const TEST_PASSWORD = "REMOVED_FROM_HISTORY";
+const TEST_PASSWORD = String(process.env.TEST_ACCOUNT_PASSWORD || "");
 const OUTPUT_PATH = path.resolve(
   __dirname,
   "..",
@@ -315,6 +315,22 @@ async function activatePlacedAccount({ user, scenario, now, seasonKey, positions
 
 async function main() {
   if (!process.env.DB) throw new Error("config.env의 DB 연결 문자열이 필요합니다.");
+  if (process.env.ALLOW_TEST_DATA_MUTATION !== "1") {
+    throw new Error(
+      "테스트 데이터 변경은 기본적으로 차단됩니다. 실행하려면 ALLOW_TEST_DATA_MUTATION=1을 명시하세요."
+    );
+  }
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.CONFIRM_PRODUCTION_TEST_DATA_MUTATION !== BATCH_KEY
+  ) {
+    throw new Error(
+      `운영 DB 테스트 데이터 변경을 확인하려면 CONFIRM_PRODUCTION_TEST_DATA_MUTATION=${BATCH_KEY}가 필요합니다.`
+    );
+  }
+  if (TEST_PASSWORD.length < 12) {
+    throw new Error("TEST_ACCOUNT_PASSWORD에 12자 이상의 전용 테스트 비밀번호가 필요합니다.");
+  }
   await mongoose.connect(process.env.DB, { serverSelectionTimeoutMS: 15_000, connectTimeoutMS: 15_000 });
   const now = new Date();
   try {

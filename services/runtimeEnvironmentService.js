@@ -40,19 +40,11 @@ function hasR2Config(environment) {
   ].every((key) => valueOf(environment, key));
 }
 
-function hasDefaultSmtpConfig(environment) {
-  return ["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"]
-    .every((key) => valueOf(environment, key));
-}
-
 function hasSupportSmtpConfig(environment) {
   return Boolean(
     valueOf(environment, "SUPPORT_SMTP_HOST") &&
     valueOf(environment, "SUPPORT_SMTP_USER") &&
-    (
-      valueOf(environment, "SUPPORT_SMTP_PASSWORD") ||
-      valueOf(environment, "GMAIL_APP_PASSWORD")
-    )
+    valueOf(environment, "GMAIL_APP_PASSWORD")
   );
 }
 
@@ -86,11 +78,8 @@ function runtimeEnvironmentReport(environment = process.env) {
   if (!hasR2Config(environment)) {
     errors.push("관리자 원본 파일 보관을 위한 Cloudflare R2 운영 연결 정보가 필요합니다.");
   }
-  if (!hasDefaultSmtpConfig(environment)) {
-    errors.push("자동 발송 메일을 위한 SMTP_HOST, SMTP_USER, SMTP_PASSWORD가 필요합니다.");
-  }
   if (!hasSupportSmtpConfig(environment)) {
-    errors.push("FAQ 문의 알림을 위한 SUPPORT_SMTP_HOST, SUPPORT_SMTP_USER와 앱 비밀번호가 필요합니다.");
+    errors.push("전체 운영 메일 발송을 위한 SUPPORT_SMTP_HOST, SUPPORT_SMTP_USER, GMAIL_APP_PASSWORD가 필요합니다.");
   }
 
   if (valueOf(environment, "DOCUMENT_WATERMARK_SECRET").length < 16) {
@@ -122,16 +111,6 @@ function runtimeEnvironmentReport(environment = process.env) {
   ]) {
     if (!valueOf(environment, key)) {
       warnings.push(`${key}가 없어 현재 SECRET을 함께 사용합니다. 출시 후 키 분리 전에는 데이터 이관 검토가 필요합니다.`);
-    }
-  }
-
-  const operatorAccounts = valueOf(environment, "OPERATOR_SMTP_ACCOUNTS_JSON");
-  if (operatorAccounts) {
-    try {
-      const parsed = JSON.parse(operatorAccounts);
-      if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error("not an object");
-    } catch (_error) {
-      errors.push("OPERATOR_SMTP_ACCOUNTS_JSON은 올바른 JSON 객체여야 합니다.");
     }
   }
 

@@ -38,9 +38,11 @@ const LEGACY_TEST_BATCH_KEYS = [
   TEST_BATCH_KEY,
   "GOAT-ARENA-E2E-200-20260803",
 ];
-const TEST_PASSWORD = "REMOVED_FROM_HISTORY";
+const TEST_PASSWORD = String(process.env.TEST_ACCOUNT_PASSWORD || "");
 const TEST_COUNT_PER_DIVISION = 100;
-const TEST_MATCH_ACTOR_USERNAME = "REMOVED_FROM_HISTORY";
+const TEST_MATCH_ACTOR_USERNAME = String(
+  process.env.ARENA_TEST_ACTOR_USERNAME || ""
+).trim().toLowerCase();
 const OUTPUT_PATH = path.resolve(
   __dirname,
   "..",
@@ -227,6 +229,7 @@ async function cleanupTaggedTestAccounts() {
 }
 
 async function setTestMatchActorAccess(enabled) {
+  if (!TEST_MATCH_ACTOR_USERNAME) return { skipped: true, matchedCount: 0 };
   return User.updateOne(
     {
       nameNormalized: TEST_MATCH_ACTOR_USERNAME,
@@ -258,6 +261,23 @@ async function nextTierPositions(seasonKey) {
 
 async function main() {
   if (!process.env.DB) throw new Error("config.env의 DB 연결 문자열이 필요합니다.");
+  if (process.env.ALLOW_TEST_DATA_MUTATION !== "1") {
+    throw new Error(
+      "테스트 데이터 변경은 기본적으로 차단됩니다. 실행하려면 ALLOW_TEST_DATA_MUTATION=1을 명시하세요."
+    );
+  }
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.CONFIRM_PRODUCTION_TEST_DATA_MUTATION !== TEST_BATCH_KEY
+  ) {
+    throw new Error(
+      `운영 DB 테스트 데이터 변경을 확인하려면 CONFIRM_PRODUCTION_TEST_DATA_MUTATION=${TEST_BATCH_KEY}가 필요합니다.`
+    );
+  }
+  const cleanupOnly = process.argv.includes("--cleanup-only");
+  if (!cleanupOnly && TEST_PASSWORD.length < 12) {
+    throw new Error("TEST_ACCOUNT_PASSWORD에 12자 이상의 전용 테스트 비밀번호가 필요합니다.");
+  }
   await mongoose.connect(process.env.DB, {
     serverSelectionTimeoutMS: 15_000,
     connectTimeoutMS: 15_000,
@@ -266,7 +286,7 @@ async function main() {
   try {
     await assertNoRealAccountCollision();
     const cleanup = await cleanupTaggedTestAccounts();
-    if (process.argv.includes("--cleanup-only")) {
+    if (cleanupOnly) {
       await setTestMatchActorAccess(false);
       console.log(JSON.stringify({
         ok: true,
@@ -627,7 +647,10 @@ async function main() {
     ]);
     await ArenaAccessState.insertMany(accessStates, { ordered: true });
     const testActorUpdate = await setTestMatchActorAccess(true);
-    if (Number(testActorUpdate.matchedCount || 0) !== 1) {
+    if (
+      TEST_MATCH_ACTOR_USERNAME &&
+      Number(testActorUpdate.matchedCount || 0) !== 1
+    ) {
       throw new Error(
         `${TEST_MATCH_ACTOR_USERNAME} 테스트 실행 계정을 찾지 못해 더미 계정 매칭 권한을 켜지 못했습니다.`
       );
@@ -656,8 +679,8 @@ async function main() {
         batchKey: TEST_BATCH_KEY,
         subUsers: manifest.filter((row) => row.division === "SUB").length,
         mainUsers: manifest.filter((row) => row.division === "MAIN").length,
-        testMatchActor: TEST_MATCH_ACTOR_USERNAME,
-        testMatchingEnabled: true,
+        testMatchActor: TEST_MATCH_ACTOR_USERNAME || null,
+        testMatchingEnabled: Boolean(TEST_MATCH_ACTOR_USERNAME),
         manifestPath: OUTPUT_PATH,
       })
     );

@@ -213,6 +213,20 @@ function monthBounds(periodKey) {
   };
 }
 
+function addBusinessDaysKst(value, count) {
+  let cursor = new Date(value);
+  let remaining = Math.max(0, Number(count) || 0);
+  while (remaining > 0) {
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+    const weekday = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      weekday: "short",
+    }).format(cursor);
+    if (!new Set(["Sat", "Sun"]).has(weekday)) remaining -= 1;
+  }
+  return cursor;
+}
+
 async function getAdminPaybackDashboard({ page = 1, periodKey } = {}) {
   const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
   const range = monthBounds(periodKey);
@@ -278,6 +292,10 @@ async function getAdminPaybackDashboard({ page = 1, periodKey } = {}) {
         decryptError = true;
       }
     }
+    const deadlineAnchor = account.status === "CONFIRMED" && account.confirmedAt
+      ? new Date(Math.max(new Date(cycle.evaluatedAt || cycle.updatedAt), new Date(account.confirmedAt)))
+      : null;
+    const payoutDeadlineAt = deadlineAnchor ? addBusinessDaysKst(deadlineAnchor, 7) : null;
     return {
       cycleId: String(cycle._id),
       userId: String(user._id || ""),
@@ -286,6 +304,8 @@ async function getAdminPaybackDashboard({ page = 1, periodKey } = {}) {
       paybackRate: Number(cycle.paybackRate || 0),
       paybackAmount: Number(cycle.paybackAmount || 0),
       evaluatedAt: cycle.evaluatedAt || cycle.updatedAt,
+      payoutDeadlineAt,
+      payoutOverdue: Boolean(payoutDeadlineAt && payoutDeadlineAt < new Date()),
       accountConfirmed: account.status === "CONFIRMED" && Boolean(accountNumber),
       bankName: String(account.bankName || ""),
       accountHolderName: String(account.accountHolderName || ""),

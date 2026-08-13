@@ -109,6 +109,7 @@ const {
   createSupportInquiry,
   getContactPageData,
 } = require("../services/supportInquiryService");
+const { getProductCatalog } = require("../services/checkoutService");
 const {
   createArchiveFolder,
   createArchiveItems,
@@ -148,6 +149,11 @@ const {
   recordBusinessWithdrawal,
   updateOtherUnpaidCosts,
 } = require("../services/financeService");
+const {
+  calculateRefundRequest,
+  completeRefundRequest,
+  getAdminRefundData,
+} = require("../services/refundService");
 const {
   getAdminArenaEvidenceData,
   getAdminEvidenceFile,
@@ -378,15 +384,17 @@ exports.pricingPage = async (req, res, next) => {
       occurredAt: viewedAt,
       metadata: { path: "/pricing" },
     });
-    const [mockExamPolicy, learningPackagePolicy] = await Promise.all([
+    const [mockExamPolicy, learningPackagePolicy, products] = await Promise.all([
       getActiveMockExamPackagePolicy(),
       getActiveArenaPolicy(),
+      getProductCatalog(),
     ]);
     return res.render("pricing", {
       user: pricingUser,
       activePage: "pricing",
       mockExamPolicy,
       learningPackagePolicy,
+      products,
       checkoutEnabled: require("../services/checkoutService").isPaidCheckoutEnabled(),
     });
   } catch (error) {
@@ -645,6 +653,9 @@ async function renderContactPage(
       contactData,
       feedback,
       oldInput: {
+        inquiryType: String(oldInput.inquiryType || "GENERAL"),
+        paymentId: String(oldInput.paymentId || ""),
+        refundReasonType: String(oldInput.refundReasonType || "SIMPLE_CHANGE"),
         subject:
           String(
             oldInput.subject || ""
@@ -698,6 +709,9 @@ exports.submitContactInquiry =
             req.body.subject,
           content:
             req.body.content,
+          inquiryType: req.body.inquiryType,
+          paymentId: req.body.paymentId,
+          refundReasonType: req.body.refundReasonType,
         });
 
       req.session.contactFeedback = {
@@ -733,6 +747,9 @@ exports.submitContactInquiry =
                 req.body.subject,
               content:
                 req.body.content,
+              inquiryType: req.body.inquiryType,
+              paymentId: req.body.paymentId,
+              refundReasonType: req.body.refundReasonType,
             },
           }
         );
@@ -1562,6 +1579,55 @@ exports.adminPaybacksPage = async (req, res, next) => {
       feedbackTone:
         req.query.email === "failed" ? "error" : "success",
     });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminRefundsPage = async (req, res, next) => {
+  try {
+    return res.render("admin-refunds", {
+      user: req.session.user,
+      refundData: await getAdminRefundData({
+        page: req.query.page,
+        status: req.query.status,
+      }),
+      feedback: req.query.completed === "1"
+        ? "환불 취소 거래와 권한 종료가 완료되었습니다."
+        : req.query.calculated === "1"
+          ? "환불 예정액을 산정해 원장에 저장했습니다."
+          : null,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminCalculateRefund = async (req, res, next) => {
+  try {
+    await calculateRefundRequest({
+      adminUserId: req.session.user.id,
+      refundRequestId: req.params.refundRequestId,
+      paidFeatureUsed: req.body.paidFeatureUsed === "true",
+    });
+    return res.redirect("/admin/refunds?calculated=1");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminCompleteRefund = async (req, res, next) => {
+  try {
+    await completeRefundRequest({
+      adminUserId: req.session.user.id,
+      refundRequestId: req.params.refundRequestId,
+      approvedAmount: req.body.approvedAmount,
+      cancellationMode: req.body.cancellationMode,
+      providerCancellationTransactionKey: req.body.providerCancellationTransactionKey,
+      providerCancelledAt: req.body.providerCancelledAt,
+      operatorNote: req.body.operatorNote,
+    });
+    return res.redirect("/admin/refunds?completed=1");
   } catch (error) {
     return next(error);
   }
@@ -5041,8 +5107,8 @@ exports.register = async (req, res, next) => {
                 : {}),
 
             termsAcceptedAt: new Date(),
-            termsVersion: "2026-08-01",
-            privacyVersion: "2026-08-01",
+            termsVersion: "2026-08-13",
+            privacyVersion: "2026-08-13",
         });
 
         await alertPotentialDuplicateIdentity(

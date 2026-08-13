@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const bcrypt = require("bcrypt");
+const crypto = require("node:crypto");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
 
@@ -23,7 +24,7 @@ async function createTemporaryUser(suffix) {
     nameNormalized: `deleteverify${token}`.slice(0, 30),
     realName: "삭제검증",
     email: `deleteverify-${token}@test.invalid`,
-    passwordHash: await bcrypt.hash("REMOVED_FROM_HISTORY", 4),
+    passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 4),
     role: "student",
     isTestAccount: true,
     testBatchKey: TEST_BATCH_KEY,
