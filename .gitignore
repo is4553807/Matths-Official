@@ -1,9 +1,6 @@
 # Secrets and local configuration
 *.env
 .env.*
-!.env.example
-!*.env.example
-!.env.*.example
 .envrc
 .direnv/
 .secrets/
@@ -58,6 +55,10 @@ work/
 social/
 backup/
 backups/
+
+# Private project documentation kept outside the public repository
+MATTHS_FINAL_LOGIC_FLOW.md
+docs/
 
 # Machine- or operator-specific scripts must stay local. Reusable scripts belong
 # directly under scripts/ and must not contain a real account identifier.
