@@ -37,7 +37,11 @@ async function main() {
   );
   assert.match(
     parentDashboard,
-    /currentArena\?\.arenaRank \|\| currentArena\?\.tier/
+    /currentArena\?\.arenaRank \|\| currentArena\?\.placementTier/
+  );
+  assert.match(
+    rankingService,
+    /placementTier:\s*String\(/
   );
   assert.match(parentRoutes, /"\/parent\/inquiries"/);
   assert.match(parentNavigation, /문의하기/);

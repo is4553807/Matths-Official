@@ -832,6 +832,15 @@ async function getRankingData(
           tier:
             tier?.label ||
             standing.tier,
+          placementTier:
+            String(
+              attempt.placementResult
+                ?.initialTier ||
+                attempt.placementResult
+                  ?.tier ||
+                standing.tier ||
+                ""
+            ),
           rankPoint:
             profile
               ?.rankPoint ??

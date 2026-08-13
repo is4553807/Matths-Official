@@ -40,7 +40,7 @@
         <div class="parent-ranking-grid">
           <article><small>최종 종합 랭킹</small><strong><%= currentFinal?.finalRank ?? '—' %><em><%= currentFinal ? '위' : '' %></em></strong><span><%= currentFinal ? `${divisionLabel(currentFinal.division)} · ${currentFinal.finalRating}점` : '아직 확정된 최종 종합 랭킹이 없습니다.' %></span></article>
           <article><small><%= Number(child.schoolGrade) === 13 ? 'N수생 랭킹' : Number(child.schoolGrade) === 14 ? '대학교 랭킹' : Number(child.schoolGrade) === 15 ? '직장인 랭킹' : '고등학교 랭킹' %></small><strong><%= affiliationRanking?.retakerRank ?? affiliationRanking?.workerRank ?? affiliationRanking?.rank ?? '—' %><em><%= affiliationRanking ? '위' : '' %></em></strong><span><%= affiliationRanking ? affiliationLabel : '소속별 공식 랭킹이 아직 확정되지 않았습니다.' %></span></article>
-          <article><small>Arena 현재 상태</small><strong class="parent-ranking-text"><%= currentArena?.arenaRank || currentArena?.tier || '미배정' %></strong><span><%= currentArena?.arenaDivision ? `${divisionLabel(currentArena.arenaDivision)} · 티어 내 ${currentArena.tierRank || '—'}위 · ${currentArena.gp ?? '—'} GP` : '배치고사 후 Arena 티어와 순위가 표시됩니다.' %></span></article>
+          <article><small>Arena 현재 상태</small><strong class="parent-ranking-text"><%= currentArena?.arenaRank || currentArena?.placementTier || '미배정' %></strong><span><%= currentArena?.arenaDivision ? `${divisionLabel(currentArena.arenaDivision)} · 티어 내 ${currentArena.tierRank || '—'}위 · ${currentArena.gp ?? '—'} GP` : currentArena?.placementTier ? '최근 완료한 배치고사에서 확정된 최초 티어입니다.' : '배치고사 후 Arena 티어와 순위가 표시됩니다.' %></span></article>
         </div>
       </section>
     </main>

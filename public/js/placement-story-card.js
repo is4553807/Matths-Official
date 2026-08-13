@@ -164,9 +164,7 @@
         detail:
           config.actualRankPublished === true
             ? `실응시 ${config.cohortSize}명 중 ${config.cohortRank}위`
-            : config.usesMoeNineGradeReference === true
-              ? "교육부 9등급 비율 준용"
-              : "응시 당시 고정 기준분포",
+            : "10,000명 기준 예상 순위",
       },
     ];
 

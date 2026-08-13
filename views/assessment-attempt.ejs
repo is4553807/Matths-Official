@@ -413,12 +413,6 @@
               )
             )
         );
-        const usesMoeNineGradeReference =
-          String(placementResult.referenceStandard || "") ===
-            "MOE_NINE_GRADE_CUMULATIVE_RANK_RATIO" ||
-          String(placementResult.calibrationPolicyVersion || "").startsWith(
-            "PLACEMENT_REFERENCE_V2_MOE_NINE_GRADE"
-          );
       %>
         <section
           class="placement-result-summary"
@@ -433,7 +427,7 @@
             <p>문항별 채점 결과와 해설은 공개하지 않습니다.</p>
           </article>
           <article>
-            <span><%= usesMoeNineGradeReference ? "교육부 9등급 비율 준용 예상 순위" : "기준분포 예상 순위" %></span>
+            <span>예상 순위</span>
             <strong>
               <% if (estimatedTopPercent === null) { %>
                 순위 산정 중
@@ -443,9 +437,8 @@
               <% } %>
             </strong>
             <p>
-              <%= usesMoeNineGradeReference ? "교육부 9등급 비율 준용" : "고정 기준분포로 산정" %>
               <% if (estimatedTopPercent !== null) { %>
-                · 예상 상위 <%= estimatedTopPercent %>%
+                예상 상위 <%= estimatedTopPercent %>%
               <% } %>
               <% if (actualRankPublished) { %>
                 <br />현재 실제 응시자 <%= actualCohortSize.toLocaleString("ko-KR") %>명 중 공동 <%= actualCohortRank.toLocaleString("ko-KR") %>위
