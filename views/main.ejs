@@ -87,7 +87,7 @@
           <p><%= accessRenewalNotice.kind === "MAIN_DEMOTION" ? "RANKED 이용 종료" : "학습권 이용 종료" %></p>
           <h2>정기권 학습 가능 일수를 모두 사용했습니다.</h2>
           <% if (accessRenewalNotice.kind === "MAIN_DEMOTION") { %>
-            <span>Ranked 이용이 종료되어 Unranked로 전환됐습니다. 다시 이용하려면 29일 학습권 패키지를 구매해주세요.</span>
+            <span>Ranked 이용이 종료되어 Unranked로 전환됐습니다. 다시 이용하려면 29일 학습권 패키지를 구매해 주세요.</span>
             <dl class="access-renewal-preview">
               <div><dt>72시간 내 재구매 예상 위치</dt><dd><strong><%= accessRenewalNotice.referenceTier %></strong> · <%= accessRenewalNotice.referenceGp %> GP<% if (accessRenewalNotice.referenceOverallPosition) { %> · 전체 <%= accessRenewalNotice.referenceOverallPosition %>위<% } %></dd></div>
               <div><dt>72시간 종료까지</dt><dd data-renewal-countdown><%= accessRenewalNotice.withinGrace ? "계산 중" : "종료됨" %></dd></div>
@@ -95,7 +95,7 @@
             </dl>
             <small>72시간은 무료 이용 기간이 아닙니다. 기한이 지나면 결제 후 랭크 복귀전을 완료해야 합니다.</small>
           <% } else { %>
-            <span>GOAT Arena와 Matths 주간 공식 모의고사 이용이 중단됐습니다. 새 학습권 패키지의 가격과 이용 범위를 확인해주세요.</span>
+            <span>GOAT Arena와 Matths 주간 공식 모의고사 이용이 중단됐습니다. 새 학습권 패키지의 가격과 이용 범위를 확인해 주세요.</span>
           <% } %>
           <div class="access-renewal-dialog__actions">
             <a href="/pricing">학습권 패키지 확인</a>
@@ -163,7 +163,7 @@
 
             <div>
               <p id="today-label">오늘의 학습</p>
-              <h1><%= greetingName %>님, 반가워요.</h1>
+              <h1><%= greetingName %>님, 반갑습니다.</h1>
             </div>
           </div>
 

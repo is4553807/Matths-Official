@@ -24,7 +24,7 @@
           !selected
         ) {
           status.textContent =
-            "반영할 시험을 선택해주세요.";
+            "반영할 시험을 선택해 주세요.";
           return;
         }
 

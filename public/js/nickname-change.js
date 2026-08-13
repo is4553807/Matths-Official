@@ -35,7 +35,7 @@
     result.className =
       "nickname-check-result";
     result.textContent =
-      "닉네임을 변경했다면 중복 확인을 다시 완료해주세요.";
+      "닉네임을 변경했다면 중복 확인을 다시 완료해 주세요.";
   }
 
   input.addEventListener(
@@ -53,7 +53,7 @@
         result.className =
           "nickname-check-result error";
         result.textContent =
-          "새 닉네임을 입력해주세요.";
+          "새 닉네임을 입력해 주세요.";
         return;
       }
 
@@ -117,7 +117,7 @@
         result.className =
           "nickname-check-result error";
         result.textContent =
-          "중복 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+          "중복 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
       } finally {
         checkButton.disabled =
           false;
@@ -133,7 +133,7 @@
         result.className =
           "nickname-check-result error";
         result.textContent =
-          "닉네임 중복 확인을 먼저 완료해주세요.";
+          "닉네임 중복 확인을 먼저 완료해 주세요.";
       }
     }
   );

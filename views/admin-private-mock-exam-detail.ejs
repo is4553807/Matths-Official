@@ -233,7 +233,7 @@
                   </label>
                   <label class="wide" data-penalty-reason>
                     <span>판단·페널티 사유</span>
-                    <textarea name="reason" rows="3" maxlength="2000" placeholder="검토 판단 근거를 기록해주세요. 페널티 부여 시 5자 이상 필수입니다."><%= attempt.integrityCase.decision?.reason || "" %></textarea>
+                    <textarea name="reason" rows="3" maxlength="2000" placeholder="검토 판단 근거를 기록해 주세요. 페널티 부여 시 5자 이상 필수입니다."><%= attempt.integrityCase.decision?.reason || "" %></textarea>
                   </label>
                   <p class="wide">페널티는 자동 부여되지 않습니다. 관리자가 “부여함”으로 저장할 때만 이후 3회차 응시 제한, 이메일, 우편함 및 대시보드 알림이 적용됩니다.</p>
                   <button type="submit">검토 결과 저장</button>
@@ -256,7 +256,7 @@
                 </label>
                 <label>
                   <span>요청 안내</span>
-                  <textarea name="instructions" rows="3" maxlength="1000">지정 문항의 전체 풀이과정을 사진 또는 PDF로 제출해주세요.</textarea>
+                  <textarea name="instructions" rows="3" maxlength="1000">지정 문항의 전체 풀이과정을 사진 또는 PDF로 제출해 주세요.</textarea>
                 </label>
                 <button type="submit">소명 자료 요청</button>
               </form>
@@ -293,7 +293,7 @@
                         <% if (question.explanation.summary) { %><p><strong>정리</strong><span><%= question.explanation.summary %></span></p><% } %>
                         <% if (question.explanation.commonMistake) { %><p class="mistake"><strong>자주 하는 실수</strong><span><%= question.explanation.commonMistake %></span></p><% } %>
                       <% } else { %>
-                        <p class="private-mock-explanation-missing">이 회차를 등록할 때 DB에 저장된 해설이 없습니다. 업로드한 답지 JSON의 <code>explanations</code> 항목을 확인해주세요.</p>
+                        <p class="private-mock-explanation-missing">이 회차를 등록할 때 DB에 저장된 해설이 없습니다. 업로드한 답지 JSON의 <code>explanations</code> 항목을 확인해 주세요.</p>
                       <% } %>
                     </details>
                   <% } %>

@@ -103,7 +103,7 @@
                   <label>
                     <span>가속할 초대 요청</span>
                     <select name="relatedInvitationId" required>
-                      <option value="">선택해주세요</option>
+                      <option value="">선택해 주세요</option>
                       <% shopData.invitations.forEach((invitation) => { %>
                         <option value="<%= invitation._id %>"><%= invitation.targetTier %> 초대 · <%= invitation.stakeDays %>일 예치</option>
                       <% }) %>

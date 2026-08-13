@@ -199,7 +199,7 @@
           syncTaskLabel(checkbox);
           setText(
             feedback,
-            `${error.message} 잠시 후 다시 시도해주세요.`
+            `${error.message} 잠시 후 다시 시도해 주세요.`
           );
         } finally {
           setSaving(false, checkbox);

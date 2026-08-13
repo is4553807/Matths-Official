@@ -2259,6 +2259,7 @@
 }
 
 .status-replied,
+.status-in_review,
 .admin-announcement-list
   article
   span.is-live {
@@ -2274,6 +2275,14 @@
 .status-pinned {
   color: #3157f6;
   background: #e7ecff;
+}
+
+.admin-parent-metric-row {
+  margin-top: 8px;
+}
+
+.admin-parent-action-grid {
+  margin-top: 18px;
 }
 
 .admin-announcement-list {

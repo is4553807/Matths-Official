@@ -211,7 +211,7 @@
     statusNode.textContent = "PNG 파일을 만들고 있습니다.";
     canvas.toBlob((blob) => {
       if (!blob) {
-        statusNode.textContent = "이미지를 만들지 못했습니다. 다시 시도해주세요.";
+        statusNode.textContent = "이미지를 만들지 못했습니다. 다시 시도해 주세요.";
         downloadButton.disabled = false;
         return;
       }
@@ -229,6 +229,6 @@
   });
 
   render().catch(() => {
-    statusNode.textContent = "스토리 카드를 불러오지 못했습니다. 페이지를 새로고침해주세요.";
+    statusNode.textContent = "스토리 카드를 불러오지 못했습니다. 페이지를 새로고침해 주세요.";
   });
 })();

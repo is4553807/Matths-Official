@@ -79,7 +79,7 @@
         <section class="suggestion-hero">
           <div>
             <p>학생이 만드는 코치</p>
-            <h2>공부할 때 정신이 번쩍 드는<br />한마디를 제안해주세요.</h2>
+            <h2>공부할 때 정신이 번쩍 드는<br />한마디를 제안해 주세요.</h2>
             <span>운영자 검수를 통과한 문구는 순한맛·매운맛·무음 모드의 실제 피드백에 추가됩니다.</span>
           </div>
           <aside>
@@ -127,7 +127,7 @@
               </label>
               <label class="message-field">
                 <span>제안 문구 <small>4~120자</small></span>
-                <textarea name="message" minlength="4" maxlength="120" required placeholder="예: 지금 막힌 한 줄이 오늘 가장 중요한 공부다."><%= input.message || "" %></textarea>
+                <textarea name="message" minlength="4" maxlength="120" required placeholder="예: 지금 막힌 한 줄이 오늘 가장 중요한 공부입니다."><%= input.message || "" %></textarea>
               </label>
             </div>
             <button type="submit">검수 요청하기 →</button>
@@ -191,7 +191,7 @@
             <h3>학생이 만든 코치 문구</h3>
           </div>
           <% if (!board.approved.length) { %>
-            <div class="suggestion-empty">아직 승인된 학생 문구가 없습니다. 첫 문구를 제안해보세요.</div>
+            <div class="suggestion-empty">아직 승인된 학생 문구가 없습니다. 첫 문구를 제안해 보세요.</div>
           <% } %>
           <div class="approved-grid">
             <% board.approved.forEach((item) => { %>

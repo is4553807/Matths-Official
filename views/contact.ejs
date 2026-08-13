@@ -186,7 +186,7 @@
               <section class="refund-request-fields" data-refund-request-fields <%= oldInput.inquiryType === "REFUND" ? "" : "hidden" %>>
                 <label for="refund-payment-id"><span>환불할 주문번호 <b aria-hidden="true">*</b></span></label>
                 <select id="refund-payment-id" name="paymentId" data-refund-payment>
-                  <option value="">주문번호를 선택해주세요</option>
+                  <option value="">주문번호를 선택해 주세요</option>
                   <% refundableOrders.forEach((order) => { %>
                     <option value="<%= order.id %>" <%= oldInput.paymentId === order.id ? "selected" : "" %>><%= order.productName %> · <%= order.orderReference %> · 잔여 <%= new Intl.NumberFormat("ko-KR").format(order.remainingAmount) %>원</option>
                   <% }) %>
@@ -375,7 +375,7 @@
           >M</span>
           <span>Matths</span>
         </a>
-        <p>수학이 보이면, 풀이가 시작된다.</p>
+        <p>수학이 보이면, 풀이가 시작됩니다.</p>
         <div>
           <a href="/terms">이용약관</a>
           <a href="/privacy">개인정보처리방침</a>

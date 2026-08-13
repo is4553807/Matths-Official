@@ -272,7 +272,7 @@
       uploadStatus.hidden =
         false;
       uploadStatus.textContent =
-        "등록할 모든 회차의 이름·날짜·시험형·문제지 PDF·답지 JSON을 확인해주세요.";
+        "등록할 모든 회차의 이름·날짜·시험형·문제지 PDF·답지 JSON을 확인해 주세요.";
       uploadStatus.classList.add(
         "error"
       );

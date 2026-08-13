@@ -87,13 +87,13 @@
               <div><span>이번 주 학습</span><strong><%= formatMinutes(entry.dashboard.weeklyStudyMinutes) %></strong><small>연속 학습 <%= Number(child.currentStreak) || 0 %>일</small></div>
               <div><span>정답률</span><strong><%= Number(entry.dashboard.correctRate) || 0 %>%</strong><small>오답률 <%= Math.max(0, 100 - (Number(entry.dashboard.correctRate) || 0)) %>%</small></div>
             </div>
-            <div class="admin-metric-row" style="margin-top:8px">
+            <div class="admin-metric-row admin-parent-metric-row">
               <div><span>현재 패키지</span><strong><%= formatPackage(entry.packageAccess) %></strong><small><%= entry.packageAccess?.cycle ? `남은 학습일수 ${entry.packageAccess.cycle.availableLearningDays || 0}일` : entry.packageAccess?.mockSubscription ? `${formatDate(entry.packageAccess.mockSubscription.endsAt)}까지` : '유료 권한 없음' %></small></div>
               <div><span>최종 종합 랭킹</span><strong><%= entry.ranking?.finalRank ?? '—' %><%= entry.ranking?.finalRank ? '위' : '' %></strong><small><%= entry.ranking ? `${entry.ranking.finalRating ?? '—'}점` : '랭킹 미확정' %></small></div>
               <div><span>GOAT Arena</span><strong><%= entry.ranking?.arenaRank || '미배정' %></strong><small><%= entry.ranking?.arenaDivision ? `${entry.ranking.arenaDivision === 'MAIN' ? 'RANKED' : 'UNRANKED'} · ${entry.ranking.gp ?? 0} GP` : '배치고사 후 표시' %></small></div>
               <div><span>최근 로그인</span><strong><%= formatDate(child.lastLoginAt) %></strong><small><%= child.accountStatus === 'withdrawn' ? '탈퇴 계정' : child.isActive === false ? '비활성화 계정' : '활성 계정' %></small></div>
             </div>
-            <div class="admin-action-grid" style="margin-top:18px">
+            <div class="admin-action-grid admin-parent-action-grid">
               <form class="admin-form" action="/admin/parents/<%= parent._id %>/children/<%= child._id %>/notifications" method="POST">
                 <h3>학습·미접속 알림 설정</h3>
                 <label class="admin-checkbox"><input type="checkbox" name="emailEnabled" value="1" <%= settings.emailEnabled !== false ? 'checked' : '' %> /><span>학부모 이메일 알림 받기</span></label>

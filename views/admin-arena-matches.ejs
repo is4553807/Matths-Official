@@ -148,7 +148,7 @@
                         <% if (supplemental.status === "NONE") { %>
                           <% if (!attempt.evidence || attempt.evidence.originalEvidenceSubmitted === false) { %><p class="arena-supplemental-unavailable">필수 풀이 증거는 미제출 상태입니다. 추가 소명 자료는 별도로 요청할 수 있습니다.</p><% } %>
                           <form method="post" action="/admin/arena-matches/<%= match.id %>/supplemental-evidence/<%= attempt.role %>/request" class="arena-supplemental-request-form">
-                            <label><span><%= arenaRole(attempt.role) %>에게 전달할 요청 사유</span><textarea name="requestMessage" rows="2" maxlength="500" placeholder="추가로 확인할 풀이 단계나 자료를 안내해주세요."></textarea></label>
+                            <label><span><%= arenaRole(attempt.role) %>에게 전달할 요청 사유</span><textarea name="requestMessage" rows="2" maxlength="500" placeholder="추가로 확인할 풀이 단계나 자료를 안내해 주세요."></textarea></label>
                             <button type="submit" class="admin-secondary-button"><%= arenaRole(attempt.role) %>에게 추가 소명 자료 요청</button>
                           </form>
                         <% } %>
@@ -218,7 +218,7 @@
                 <details class="arena-sanction-history"><summary>이 경기의 운영 검토 메모 <%= match.reviewActions.length %>건</summary><ul><% match.reviewActions.forEach((entry) => { %><li><b><%= entry.action %></b><span><%= arenaDate(entry.createdAt) %> · <%= entry.detail %></span></li><% }) %></ul></details>
               <% } %>
               <form class="arena-held-review-form" method="post" action="/admin/arena-matches/<%= match.id %>/review" data-supplemental-review-form>
-                <label><span>판단 근거·운영 메모</span><textarea name="note" rows="3" maxlength="1000" required placeholder="감지 사유가 실제 위반인지, 정상 풀이로 판단한 근거가 무엇인지 구체적으로 기록해주세요."></textarea></label>
+                <label><span>판단 근거·운영 메모</span><textarea name="note" rows="3" maxlength="1000" required placeholder="감지 사유가 실제 위반인지, 정상 풀이로 판단한 근거가 무엇인지 구체적으로 기록해 주세요."></textarea></label>
                 <% if (!attemptsFinished) { %><p class="arena-current-match-notice">현재 경기는 계속 진행됩니다. 양측이 5문제를 모두 끝낸 뒤 공격자·방어자의 답안, 풀이시간과 증거를 함께 검토하고 최종 판정할 수 있습니다.</p><% } else if (!matchComplete) { %><p class="arena-current-match-notice">양측 풀이가 끝났지만 필수 풀이 증거가 누락되었습니다. 미제출 자체를 포함해 양측의 위반 여부를 판정하세요. 업로드 시스템 오류가 확인된 경우에만 시스템 오류 확인을 선택하면 경기를 취소하고 예치를 전액 반환한 뒤 참가자 잠금을 해제합니다.</p><% } else if (hasActiveSupplementalRequest) { %><p class="arena-current-match-notice">추가 소명 자료의 24시간 제출 기한이 진행 중입니다. 제출 완료 또는 기한 종료 후 최종 판정할 수 있습니다.</p><% } %>
                 <div>
                   <button type="submit" name="decision" value="NOTE" class="admin-secondary-button">메모 저장</button>
@@ -272,7 +272,7 @@
                 <form method="post" action="/admin/arena-integrity/<%= riskCase.id %>/review">
                   <label>
                     <span>검토 메모</span>
-                    <textarea name="note" rows="2" maxlength="1000" required placeholder="판단 근거를 기록해주세요."></textarea>
+                    <textarea name="note" rows="2" maxlength="1000" required placeholder="판단 근거를 기록해 주세요."></textarea>
                   </label>
                   <button type="submit" name="decision" value="CLEAR" class="admin-secondary-button">이상 없음 · 신규 경기 제한 해제</button>
                   <button type="submit" name="decision" value="RESTRICT" class="admin-danger-button">위험 확인 · 신규 경기 제한</button>

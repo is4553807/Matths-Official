@@ -52,3 +52,28 @@ h6 {
 .auth-brand > .brand-mark {
   flex: 0 0 auto;
 }
+
+.footer-social-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-social-links > a {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  color: inherit;
+  border: 1px solid currentColor;
+  border-radius: 9px;
+  opacity: 0.82;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.footer-social-links > a:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}

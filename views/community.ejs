@@ -161,7 +161,7 @@
           <div class="community-empty">
             <span aria-hidden="true">☷</span>
             <h3><%= boardData.board === "operations" ? "아직 공개된 운영 공지가 없습니다." : boardData.board === "school" && !loggedIn ? "로그인 후 사용하세요." : boardData.board === "school" && !boardData.selectedSchool ? "소속 고등학교 정보가 필요합니다." : boardData.board === "university" && !boardData.selectedUniversity ? "소속 대학교 정보가 필요합니다." : "아직 게시글이 없습니다." %></h3>
-            <p><%= boardData.board === "operations" ? "새 공지가 발표되면 이곳에 계속 누적됩니다." : "첫 글을 작성해 게시판을 시작해보세요." %></p>
+            <p><%= boardData.board === "operations" ? "새 공지가 발표되면 이곳에 계속 누적됩니다." : "첫 글을 작성해 게시판을 시작해 보세요." %></p>
           </div>
         <% } else { %>
           <div class="community-post-list">

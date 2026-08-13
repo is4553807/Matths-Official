@@ -166,7 +166,7 @@ document.addEventListener(
       function findRanking() {
         const value = String(query?.value || "").trim().toLocaleLowerCase("ko-KR");
         if (!value) {
-          if (status) status.value = "순위 또는 이름을 입력해주세요.";
+          if (status) status.value = "순위 또는 이름을 입력해 주세요.";
           query?.focus();
           return;
         }

@@ -164,69 +164,112 @@ assert.ok(
   "회원가입 생년월일은 실명 다음, 닉네임 전에 있어야 합니다."
 );
 
-const auditedViews = [
-  "error.ejs",
-  "register.ejs",
-  "intro.ejs",
-  "admin-arena-audit.ejs",
-  "admin-data-analysis.ejs",
-  "goat-arena.ejs",
-  "goat-arena-division.ejs",
-  "goat-arena-profile.ejs",
-  "goat-arena-rankings.ejs",
-  "partials/goat-arena-navigation.ejs",
-  "partials/rank-crest.ejs",
-  "partials/tier-ranking-pools.ejs",
-];
+const auditedViews = viewFiles.map((filename) =>
+  path.relative(viewRoot, filename)
+);
+// These hooks are intentionally styled through an element, parent, or attribute selector.
 const structuralClasses = new Set([
   "active",
+  "admin-nav-home",
+  "archive-download-link",
+  "arena-analysis-exact-solution",
+  "arena-analysis-problem-copy",
+  "arena-back-link",
+  "arena-candidate-auto-tier",
+  "arena-random-tier-mark",
+  "course-panels",
+  "faq-error-reference",
+  "goat-arena-entry",
   "is-me",
+  "is-result",
+  "mode-button",
+  "not-started",
+  "parent-page",
+  "previous",
+  "progress-unit-list",
+  "step-button",
 ]);
-const missing = new Set();
+const missing = new Map();
 
 for (const relative of auditedViews) {
   const markup = fs.readFileSync(
     path.join(viewRoot, relative),
     "utf8"
   );
-  const attributes = markup.matchAll(
+  const staticMarkup = markup.replace(
+    /<%[\s\S]*?%>/g,
+    " "
+  );
+  const attributes = staticMarkup.matchAll(
     /class\s*=\s*"([^"]+)"/g
   );
   for (const attribute of attributes) {
-    const staticValue = attribute[1].replace(
-      /<%[\s\S]*?%>/g,
-      " "
-    );
-    for (const className of staticValue.split(/\s+/)) {
-      if (
-        !/^[a-z][a-z0-9_-]*$/i.test(
-          className
-        ) ||
-        className.endsWith("-") ||
-        structuralClasses.has(className)
-      ) {
-        continue;
-      }
+    const classNames = attribute[1]
+      .split(/\s+/)
+      .filter(
+        (className) =>
+          /^[a-z][a-z0-9_-]*$/i.test(
+            className
+          ) &&
+          !className.endsWith("-")
+      );
+    const hasStyledClass = classNames.some((className) => {
       const selector = new RegExp(
         `\\.${className.replace(
           /[-/\\^$*+?.()|[\]{}]/g,
           "\\$&"
         )}(?![a-zA-Z0-9_-])`
       );
-      if (!selector.test(css)) {
-        missing.add(className);
+      return selector.test(css);
+    });
+
+    if (
+      classNames.length > 0 &&
+      !hasStyledClass &&
+      !classNames.some((className) =>
+        structuralClasses.has(className)
+      )
+    ) {
+      const classGroup = classNames.join(" ");
+      if (!missing.has(classGroup)) {
+        missing.set(classGroup, new Set());
       }
+      missing.get(classGroup).add(relative);
     }
   }
 }
 
 assert.deepEqual(
-  [...missing].sort(),
+  [...missing.keys()].sort(),
   [],
-  `스타일 정의가 없는 정적 class: ${[
-    ...missing,
-  ].sort().join(", ")}`
+  `스타일 정의를 상속할 기준 class가 없는 요소:\n${[
+    ...missing.entries(),
+  ]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([className, files]) => `- ${className}: ${[...files].join(", ")}`)
+    .join("\n")}`
 );
+
+const copyFiles = [
+  ...viewFiles,
+  ...filesIn(
+    path.join(publicRoot, "js"),
+    ".js"
+  ),
+];
+const informalCopy =
+  /해주세요|해보세요|반가워요|할게요|해줄게요|줄게요|괜찮아|들켰네|보자\.|빼자\.|읽자\.|(?<!니)까\?|원점이야|공부다\.|시작된다\.|안전해요|있어요|이에요|예요\.|완료됐어요/u;
+
+for (const filename of copyFiles) {
+  assert.doesNotMatch(
+    fs.readFileSync(filename, "utf8"),
+    informalCopy,
+    `사용자 문구의 높임말·띄어쓰기를 확인해야 합니다: ${path.relative(
+      root,
+      filename
+    )}`
+  );
+}
 
 console.log(
   `UI verification passed: ${viewFiles.length} EJS templates compiled and audited styles are present`

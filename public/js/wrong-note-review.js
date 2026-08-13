@@ -220,7 +220,7 @@
     }
     if (hintTitle) {
       hintTitle.textContent =
-        "이 문제의 첫 단계를 확인해보세요.";
+        "이 문제의 첫 단계를 확인해 보세요.";
     }
     if (coachHintMessage) {
       coachHintMessage.hidden = true;
@@ -407,11 +407,11 @@
 
     if (result.correct) {
       strong.textContent = result.review?.completed
-        ? "정답입니다. 이 오답의 복습이 완료됐어요."
+        ? "정답입니다. 이 오답의 복습이 완료됐습니다."
         : "정답입니다.";
     } else {
       strong.textContent =
-        "아직 같은 구조를 놓친 부분이 있어요.";
+        "아직 같은 구조를 놓친 부분이 있습니다.";
     }
 
     body.textContent = result.solution || "";
@@ -445,7 +445,7 @@
       feedback.textContent =
         currentProblem.coachPrompt
           ?.message ||
-        "정답을 먼저 입력해주세요.";
+        "정답을 먼저 입력해 주세요.";
       answerArea.querySelector("input")?.focus();
       return;
     }
@@ -1904,7 +1904,7 @@
     drawText(
       graph,
       headingByKind[kind] ||
-        "그림의 영역과 문제의 수를 연결해보세요.",
+        "그림의 영역과 문제의 수를 연결해 보세요.",
       360,
       35,
       {
@@ -2369,7 +2369,7 @@
       }
       drawText(
         graph,
-        "각 칸·막대·표본이 무엇을 뜻하는지 문제에 표시해보세요.",
+        "각 칸·막대·표본이 무엇을 뜻하는지 문제에 표시해 보세요.",
         360,
         310,
         {

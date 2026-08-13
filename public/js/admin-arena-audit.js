@@ -40,7 +40,7 @@ async function checkArenaAudit() {
     }
     if (pollStatus) pollStatus.textContent = "변경 없음 · 30초마다 확인";
   } catch (_error) {
-    if (pollStatus) pollStatus.textContent = "자동 확인 실패 · 직접 다시 검사해주세요";
+    if (pollStatus) pollStatus.textContent = "자동 확인 실패 · 직접 다시 검사해 주세요";
   }
 }
 

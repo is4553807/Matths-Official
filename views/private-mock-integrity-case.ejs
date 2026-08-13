@@ -49,7 +49,7 @@
         <header>
           <div>
             <p><%= integrityCase.examId?.formCode || "" %>형 · <%= integrityCase.examId?.title || "Matths 주간 공식 모의고사" %></p>
-            <h2><%= integrityCase.requestedQuestionNumbers.join(", ") %>번 풀이과정을 제출해주세요.</h2>
+            <h2><%= integrityCase.requestedQuestionNumbers.join(", ") %>번 풀이과정을 제출해 주세요.</h2>
           </div>
           <span class="private-mock-status"><%= integrityStatusLabels[integrityCase.status] || "검토 상태 확인 중" %></span>
         </header>
