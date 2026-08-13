@@ -1,0 +1,75 @@
+<%
+  const formatDate = (value) => value
+    ? new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(value))
+    : "-";
+  const statusLabels = {
+    pending: "접수",
+    in_review: "확인 중",
+    replied: "답변 완료",
+    closed: "종료",
+  };
+%>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>문의하기 | Matths 학부모</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  <link rel="stylesheet" href="/css/brand.css" />
+  <link rel="stylesheet" href="/css/parent.css" />
+</head>
+<body class="parent-page">
+  <%- include('partials/parent-navigation', { activeParentPage: 'inquiries' }) %>
+  <main class="parent-main">
+    <header class="parent-page-heading">
+      <p>문의하기</p>
+      <h1><%= child.realName || child.name %> 학생의<br />이용 문의를 남겨주세요.</h1>
+      <span>서비스·학습·결제 관련 문의를 운영팀에 전달합니다. 답변은 학부모 가입 이메일 <strong><%= inquiryData.contactEmail %></strong>로 보내드립니다.</span>
+    </header>
+
+    <% if (feedback) { %><div class="parent-form-message is-success" role="status"><%= feedback %></div><% } %>
+    <% if (error) { %><div class="parent-form-message is-error" role="alert"><%= error %></div><% } %>
+
+    <section class="parent-inquiry-layout">
+      <div class="parent-inquiry-form-card">
+        <div class="parent-inquiry-refund-guide">
+          <div><small>환불을 요청하시나요?</small><strong>결제 건을 선택해 신청해주세요.</strong><p>환불은 주문 소유권과 결제 잔액을 확인해야 하므로 결제 내역에서 접수합니다.</p></div>
+          <a href="/parent/payments">결제·환불 관리 <span aria-hidden="true">→</span></a>
+        </div>
+
+        <form class="parent-inquiry-form" action="/parent/inquiries" method="post">
+          <label>
+            <span>문의 제목</span>
+            <input type="text" name="subject" minlength="2" maxlength="120" required value="<%= oldInput.subject %>" placeholder="문의 내용을 간단히 적어주세요." />
+          </label>
+          <label>
+            <span>문의 내용</span>
+            <textarea name="content" minlength="10" maxlength="5000" rows="9" required placeholder="확인이 필요한 내용을 10자 이상 자세히 적어주세요."><%= oldInput.content %></textarea>
+          </label>
+          <p><%= child.realName || child.name %> 학생의 계정과 연결해 접수되며, 운영자가 확인 후 학부모 이메일로 답변합니다.</p>
+          <button type="submit">문의 접수하기</button>
+        </form>
+      </div>
+
+      <aside class="parent-inquiry-history" aria-label="최근 문의 내역">
+        <header><div><small>최근 문의</small><h2>처리 현황</h2></div><strong><%= inquiryData.inquiries.length %><em>건</em></strong></header>
+        <% if (!inquiryData.inquiries.length) { %>
+          <div class="parent-inquiry-empty"><strong>아직 접수한 문의가 없습니다.</strong><p>문의가 접수되면 진행 상태를 이곳에서 확인할 수 있습니다.</p></div>
+        <% } %>
+        <% inquiryData.inquiries.forEach((inquiry) => { %>
+          <article>
+            <div><span class="status-<%= inquiry.status %>"><%= statusLabels[inquiry.status] || inquiry.status %></span><time><%= formatDate(inquiry.createdAt) %></time></div>
+            <strong><%= inquiry.subject %></strong>
+            <% if (inquiry.repliedAt) { %><small>답변 발송 <%= formatDate(inquiry.repliedAt) %></small><% } else { %><small>운영팀 확인 후 이메일로 답변드립니다.</small><% } %>
+          </article>
+        <% }) %>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>

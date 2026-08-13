@@ -55,6 +55,16 @@ router.post(
   parentController.requestPaymentRefund
 );
 router.get(
+  "/parent/inquiries",
+  isParentLoggedIn,
+  parentController.inquiriesPage
+);
+router.post(
+  "/parent/inquiries",
+  isParentLoggedIn,
+  parentController.submitInquiry
+);
+router.get(
   "/parent/checkout/:productCode",
   isParentLoggedIn,
   parentController.checkoutPage

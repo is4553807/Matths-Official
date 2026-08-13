@@ -4,6 +4,10 @@ const {
   User,
 } = require("../models/matthsModel");
 const {
+  ParentAccount,
+  ParentChildLink,
+} = require("../models/parentModel");
+const {
   sendSupportInquiryNotification,
 } = require("./emailService");
 const {
@@ -59,6 +63,90 @@ function serializeInquiry(inquiry) {
   };
 }
 
+async function resolveParentInquiryContext({
+  parentAccountId,
+  userId,
+}) {
+  if (
+    !mongoose.isValidObjectId(parentAccountId) ||
+    !mongoose.isValidObjectId(userId)
+  ) {
+    throw createStatusError(
+      404,
+      "학부모와 자녀 연결 정보를 찾을 수 없습니다."
+    );
+  }
+
+  const [parent, user, link] = await Promise.all([
+    ParentAccount.findOne({
+      _id: parentAccountId,
+      isActive: true,
+    }).lean(),
+    User.findOne({
+      _id: userId,
+      isActive: true,
+    }).lean(),
+    ParentChildLink.findOne({
+      parentAccountId,
+      childUserId: userId,
+      status: "ACTIVE",
+    }).lean(),
+  ]);
+
+  if (!parent || !user || !link) {
+    throw createStatusError(
+      403,
+      "연결된 자녀에 대해서만 문의할 수 있습니다."
+    );
+  }
+
+  return { parent, user };
+}
+
+function parentContactSnapshot(parent, user) {
+  const childName = String(
+    user.realName || user.name || "학생"
+  ).trim();
+  return {
+    nickname: String(
+      parent.username || "학부모"
+    ).slice(0, 30),
+    realName: `${childName} 학생 학부모`.slice(0, 40),
+    email: String(parent.email || "")
+      .trim()
+      .toLowerCase(),
+    schoolName: String(
+      user.school?.name ||
+        user.university?.name ||
+        ""
+    ).slice(0, 120),
+  };
+}
+
+async function getParentInquiryPageData({
+  parentAccountId,
+  userId,
+}) {
+  const { parent, user } =
+    await resolveParentInquiryContext({
+      parentAccountId,
+      userId,
+    });
+  const inquiries = await SupportInquiry.find({
+    parentAccountId: parent._id,
+    userId: user._id,
+    submittedByType: "PARENT",
+  })
+    .sort({ createdAt: -1 })
+    .limit(12)
+    .lean();
+
+  return {
+    contactEmail: String(parent.email || ""),
+    inquiries: inquiries.map(serializeInquiry),
+  };
+}
+
 async function getContactPageData(
   userId
 ) {
@@ -70,6 +158,10 @@ async function getContactPageData(
       }).lean(),
       SupportInquiry.find({
         userId,
+        $or: [
+          { submittedByType: "STUDENT" },
+          { submittedByType: { $exists: false } },
+        ],
       })
         .sort({
           createdAt: -1,
@@ -113,6 +205,7 @@ async function getContactPageData(
 
 async function createSupportInquiry({
   userId,
+  parentAccountId = null,
   subject,
   content,
   inquiryType = "GENERAL",
@@ -151,10 +244,22 @@ async function createSupportInquiry({
     );
   }
 
-  const user = await User.findOne({
-    _id: userId,
-    isActive: true,
-  }).lean();
+  let user;
+  let parent = null;
+  if (parentAccountId) {
+    const context =
+      await resolveParentInquiryContext({
+        parentAccountId,
+        userId,
+      });
+    user = context.user;
+    parent = context.parent;
+  } else {
+    user = await User.findOne({
+      _id: userId,
+      isActive: true,
+    }).lean();
+  }
 
   if (!user) {
     throw createStatusError(
@@ -163,9 +268,27 @@ async function createSupportInquiry({
     );
   }
 
+  if (parent && normalizedType === "REFUND") {
+    throw createStatusError(
+      400,
+      "환불 요청은 결제·환불 관리에서 주문별로 신청해주세요."
+    );
+  }
+
   const recentInquiry =
     await SupportInquiry.exists({
       userId,
+      ...(parent
+        ? {
+            parentAccountId: parent._id,
+            submittedByType: "PARENT",
+          }
+        : {
+            $or: [
+              { submittedByType: "STUDENT" },
+              { submittedByType: { $exists: false } },
+            ],
+          }),
       createdAt: {
         $gte: new Date(
           Date.now() -
@@ -181,24 +304,28 @@ async function createSupportInquiry({
     );
   }
 
-  const contactUser = {
-    nickname:
-      String(user.name || "학생"),
-    realName:
-      String(user.realName || ""),
-    email:
-      String(user.email || "")
-        .trim()
-        .toLowerCase(),
-    schoolName:
-      String(user.school?.name || ""),
-  };
+  const contactUser = parent
+    ? parentContactSnapshot(parent, user)
+    : {
+        nickname:
+          String(user.name || "학생"),
+        realName:
+          String(user.realName || ""),
+        email:
+          String(user.email || "")
+            .trim()
+            .toLowerCase(),
+        schoolName:
+          String(user.school?.name || ""),
+      };
   const session = await mongoose.startSession();
   let inquiry;
   try {
     await session.withTransaction(async () => {
       [inquiry] = await SupportInquiry.create([{
         userId: user._id,
+        submittedByType: parent ? "PARENT" : "STUDENT",
+        parentAccountId: parent?._id || null,
         authorNickname: contactUser.nickname,
         authorRealName: contactUser.realName,
         contactEmail: contactUser.email,
@@ -232,7 +359,7 @@ async function createSupportInquiry({
     description: cleanContent,
     href: `/admin/inquiries#inquiry-${inquiry._id}`,
     targetUserId: user._id,
-    actorUserId: user._id,
+    actorUserId: parent ? null : user._id,
     sourceType: "SupportInquiry",
     sourceId: inquiry._id,
   });
@@ -317,6 +444,10 @@ module.exports = {
   SUBMISSION_COOLDOWN_MS,
   createSupportInquiry,
   getContactPageData,
+  getParentInquiryPageData,
   normalizeContent,
   normalizeSubject,
+  _testing: {
+    parentContactSnapshot,
+  },
 };

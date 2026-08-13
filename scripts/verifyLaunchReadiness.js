@@ -16,6 +16,7 @@ const checks = [
   "refund:verify",
   "payments:toss:verify",
   "parent-payments:verify",
+  "parent-inquiries:verify",
   "placement-story:verify",
   "payback-completion:verify",
   "product-foundation:verify",

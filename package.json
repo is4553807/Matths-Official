@@ -15,6 +15,7 @@
     "refund:verify": "node scripts/verifyRefundWorkflow.js",
     "payments:toss:verify": "node scripts/verifyTossPaymentsIntegration.js",
     "parent-payments:verify": "node scripts/verifyParentPayments.js",
+    "parent-inquiries:verify": "node scripts/verifyParentInquiries.js",
     "payback-completion:verify": "node scripts/verifyPaybackCompletionWorkflow.js",
     "admin-audit:verify": "node scripts/verifyAdminAuditTrail.js",
     "launch-views:verify": "node scripts/verifyLaunchViews.js",

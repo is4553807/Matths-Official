@@ -1121,6 +1121,8 @@ async function getRankingData(
                   currentArenaEntry.division,
                 arenaRank:
                   currentArenaEntry.arenaRank,
+                tier:
+                  currentArenaEntry.arenaRank,
                 arenaPosition:
                   currentArenaEntry.arenaPosition,
               }

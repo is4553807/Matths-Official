@@ -23,6 +23,10 @@ const {
   getParentPaymentManagement,
   requestParentPaymentRefund,
 } = require("../services/parentPaymentService");
+const {
+  createSupportInquiry,
+  getParentInquiryPageData,
+} = require("../services/supportInquiryService");
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -321,6 +325,70 @@ exports.requestPaymentRefund = async (req, res, next) => {
       return renderPaymentManagement(req, res, {
         status: Number(error.status),
         error: error.message,
+      });
+    }
+    return next(error);
+  }
+};
+
+async function renderParentInquiries(
+  req,
+  res,
+  {
+    status = 200,
+    error = "",
+    oldInput = {},
+  } = {}
+) {
+  const context = await getRequestParentContext(req);
+  const { parent, child } = context;
+  const inquiryData = await getParentInquiryPageData({
+    parentAccountId: parent._id,
+    userId: child._id,
+  });
+  res.set("Cache-Control", "no-store");
+  return res.status(status).render("parent-inquiries", {
+    parent,
+    child,
+    familyChildren: context.familyChildren,
+    selectedChildId: context.selectedChildId,
+    inquiryData,
+    feedback: req.query.submitted === "1"
+      ? `문의를 접수했습니다. 답변은 ${inquiryData.contactEmail} 이메일로 보내드립니다.`
+      : "",
+    error,
+    oldInput: {
+      subject: String(oldInput.subject || ""),
+      content: String(oldInput.content || ""),
+    },
+  });
+}
+
+exports.inquiriesPage = async (req, res, next) => {
+  try {
+    return await renderParentInquiries(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.submitInquiry = async (req, res, next) => {
+  try {
+    const context = await getRequestParentContext(req);
+    await createSupportInquiry({
+      userId: context.child._id,
+      parentAccountId: context.parent._id,
+      inquiryType: "GENERAL",
+      subject: req.body.subject,
+      content: req.body.content,
+    });
+    return res.redirect("/parent/inquiries?submitted=1");
+  } catch (error) {
+    if ([400, 403, 404, 429].includes(Number(error.status))) {
+      return renderParentInquiries(req, res, {
+        status: Number(error.status),
+        error: error.message,
+        oldInput: req.body,
       });
     }
     return next(error);

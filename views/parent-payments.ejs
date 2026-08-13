@@ -42,6 +42,7 @@
       <p>결제·환불 관리</p>
       <h1><%= child.realName || child.name %> 학생의<br />결제 기록을 확인하세요.</h1>
       <span>이 학부모 계정에서 결제한 주문만 표시합니다. 영수증 확인과 환불 신청 상태를 한곳에서 관리할 수 있습니다.</span>
+      <a class="parent-page-action" href="/parent/inquiries">결제 관련 문의하기 <span aria-hidden="true">→</span></a>
     </header>
 
     <% if (feedback) { %><div class="parent-form-message is-success" role="status"><%= feedback %></div><% } %>

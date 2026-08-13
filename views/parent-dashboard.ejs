@@ -27,7 +27,7 @@
       <section class="parent-family-strip" aria-label="연결된 자녀 계정">
         <div><small>연결된 자녀</small><strong><%= familyChildren.length %>명</strong></div>
         <p>상단의 자녀 선택 메뉴로 학습 현황·랭킹·패키지 결제 대상을 안전하게 전환할 수 있습니다.</p>
-        <a href="/parent/notifications">자녀별 알림 설정 <span aria-hidden="true">→</span></a>
+        <div class="parent-family-actions"><a href="/parent/notifications">자녀별 알림 설정 <span aria-hidden="true">→</span></a><a href="/parent/inquiries">운영팀에 문의하기 <span aria-hidden="true">→</span></a></div>
       </section>
       <section class="parent-summary-grid" aria-label="주요 학습 지표">
         <article><small>이번 주 학습 시간</small><strong><%= formatMinutes(stats.weeklyStudyMinutes) %></strong><span>오늘 <%= formatMinutes(stats.todayStudyMinutes) %></span></article>
@@ -40,7 +40,7 @@
         <div class="parent-ranking-grid">
           <article><small>최종 종합 랭킹</small><strong><%= currentFinal?.finalRank ?? '—' %><em><%= currentFinal ? '위' : '' %></em></strong><span><%= currentFinal ? `${divisionLabel(currentFinal.division)} · ${currentFinal.finalRating}점` : '아직 확정된 최종 종합 랭킹이 없습니다.' %></span></article>
           <article><small><%= Number(child.schoolGrade) === 13 ? 'N수생 랭킹' : Number(child.schoolGrade) === 14 ? '대학교 랭킹' : Number(child.schoolGrade) === 15 ? '직장인 랭킹' : '고등학교 랭킹' %></small><strong><%= affiliationRanking?.retakerRank ?? affiliationRanking?.workerRank ?? affiliationRanking?.rank ?? '—' %><em><%= affiliationRanking ? '위' : '' %></em></strong><span><%= affiliationRanking ? affiliationLabel : '소속별 공식 랭킹이 아직 확정되지 않았습니다.' %></span></article>
-          <article><small>Arena 현재 상태</small><strong class="parent-ranking-text"><%= currentArena?.tier || '미배정' %></strong><span><%= currentArena?.arenaDivision ? `${divisionLabel(currentArena.arenaDivision)} · 티어 내 ${currentArena.tierRank || '—'}위 · ${currentArena.gp ?? '—'} GP` : '배치고사 후 Arena 티어와 순위가 표시됩니다.' %></span></article>
+          <article><small>Arena 현재 상태</small><strong class="parent-ranking-text"><%= currentArena?.arenaRank || currentArena?.tier || '미배정' %></strong><span><%= currentArena?.arenaDivision ? `${divisionLabel(currentArena.arenaDivision)} · 티어 내 ${currentArena.tierRank || '—'}위 · ${currentArena.gp ?? '—'} GP` : '배치고사 후 Arena 티어와 순위가 표시됩니다.' %></span></article>
         </div>
       </section>
     </main>

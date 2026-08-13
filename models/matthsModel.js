@@ -3150,6 +3150,20 @@ const supportInquirySchema =
                 index: true,
             },
 
+            submittedByType: {
+                type: String,
+                enum: ["STUDENT", "PARENT"],
+                default: "STUDENT",
+                index: true,
+            },
+
+            parentAccountId: {
+                type: Schema.Types.ObjectId,
+                ref: "ParentAccount",
+                default: null,
+                index: true,
+            },
+
             authorNickname: {
                 type: String,
                 required: true,
@@ -3289,6 +3303,12 @@ supportInquirySchema.index({
 
 supportInquirySchema.index({
     status: 1,
+    createdAt: -1,
+});
+
+supportInquirySchema.index({
+    parentAccountId: 1,
+    userId: 1,
     createdAt: -1,
 });
 
