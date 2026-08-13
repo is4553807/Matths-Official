@@ -81,6 +81,9 @@ function balanceDescription(balance) {
 function arenaTuple(source = {}) {
   return {
     arenaRank: String(source?.arenaRank || ""),
+    qualifiedArenaRank: String(
+      source?.qualifiedArenaRank || source?.arenaRank || ""
+    ),
     arenaPosition: numeric(source?.arenaPosition),
     arenaGp: numeric(source?.arenaGp),
   };
@@ -91,6 +94,7 @@ function arenaTuplesEqual(left, right) {
   const b = arenaTuple(right);
   return (
     a.arenaRank === b.arenaRank &&
+    a.qualifiedArenaRank === b.qualifiedArenaRank &&
     a.arenaPosition === b.arenaPosition &&
     a.arenaGp === b.arenaGp
   );

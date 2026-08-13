@@ -1342,6 +1342,13 @@ const arenaStandingSchema = new Schema(
       trim: true,
       maxlength: 40,
     },
+    qualifiedArenaRank: {
+      /* Ranked 인원 상한 적용 전, 현재 Arena 상태가 자격을 얻은 원본 티어 */
+      type: String,
+      trim: true,
+      maxlength: 40,
+      default: "",
+    },
     arenaPosition: {
       /* 현재 Arena 티어 안에서 몇 위인지 나타내는 정확한 순위 */
       type: Number,
@@ -2755,6 +2762,12 @@ const arenaTupleSchema = new Schema(
       min: 0,
       max: 99,
       required: true,
+    },
+    qualifiedArenaRank: {
+      type: String,
+      trim: true,
+      maxlength: 40,
+      default: "",
     },
     gpScaleVersion: {
       type: String,

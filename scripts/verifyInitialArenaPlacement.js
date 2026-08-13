@@ -292,6 +292,80 @@ async function run() {
     ),
     "Ranked 100명 미만에서는 최고 티어가 마스터여야 합니다."
   );
+  assert.ok(
+    smallRankedLayout.every(
+      (entry) => entry.qualifiedArenaRank === "챌린저"
+    ),
+    "Ranked 인원 상한은 원본 자격 티어를 덮어쓰면 안 됩니다."
+  );
+  const cappedTierOrder = computeArenaCohortLayout(
+    [
+      {
+        _id: new mongoose.Types.ObjectId(),
+        userId: new mongoose.Types.ObjectId(),
+        arenaRank: "마스터",
+        qualifiedArenaRank: "챌린저",
+        arenaGp: 0,
+        reachedCurrentGpAt: new Date("2026-08-01T00:00:00.000Z"),
+      },
+      {
+        _id: new mongoose.Types.ObjectId(),
+        userId: new mongoose.Types.ObjectId(),
+        arenaRank: "마스터",
+        qualifiedArenaRank: "마스터",
+        arenaGp: 99,
+        reachedCurrentGpAt: new Date("2026-08-01T00:00:01.000Z"),
+      },
+    ],
+    { division: "MAIN" }
+  );
+  assert.equal(
+    cappedTierOrder[0].qualifiedArenaRank,
+    "챌린저",
+    "같은 공개 티어 안에서는 상한 전 자격 티어를 먼저 정렬해야 합니다."
+  );
+
+  const transitionSources = syntheticStandings(100);
+  const cappedNinetyNine = computeArenaCohortLayout(
+    transitionSources.slice(0, 99),
+    { division: "MAIN" }
+  ).map((entry) => ({
+    ...transitionSources.find(
+      (source) => String(source._id) === String(entry._id)
+    ),
+    ...entry,
+  }));
+  const expandedRankedLayout = computeArenaCohortLayout(
+    [...cappedNinetyNine, transitionSources[99]],
+    { division: "MAIN" }
+  );
+  assert.equal(
+    String(expandedRankedLayout[0]._id),
+    String(transitionSources[0]._id),
+    "100명 도달 시 기존 1위의 챌린저 자격이 자동 복구되어야 합니다."
+  );
+  assert.equal(expandedRankedLayout[0].arenaRank, "챌린저");
+  assert.equal(
+    expandedRankedLayout[0].qualifiedArenaRank,
+    "챌린저"
+  );
+  const shrunkRankedLayout = computeArenaCohortLayout(
+    expandedRankedLayout.slice(0, 99).map((entry) => ({
+      ...transitionSources.find(
+        (source) => String(source._id) === String(entry._id)
+      ),
+      ...entry,
+    })),
+    { division: "MAIN" }
+  );
+  assert.ok(
+    shrunkRankedLayout.every(
+      (entry) =>
+        entry.arenaRank === "마스터" &&
+        entry.qualifiedArenaRank === "챌린저"
+    ),
+    "모집단 감소 시 공개 티어만 내려가고 자격 티어는 유지되어야 합니다."
+  );
 
   const mediumLayout =
     computeArenaCohortLayout(
@@ -365,6 +439,7 @@ async function run() {
     seedPlacementScore: 84.5,
     seededAt: new Date(),
     arenaRank: "다이아몬드",
+    qualifiedArenaRank: "챌린저",
     arenaPosition: 1,
     arenaGp: 34,
     status: "LOCKED",
@@ -372,6 +447,7 @@ async function run() {
   await assert.doesNotReject(() =>
     standingDocument.validate()
   );
+  assert.equal(standingDocument.qualifiedArenaRank, "챌린저");
   const accessStateDocument =
     new ArenaAccessState({
       userId,

@@ -15,6 +15,9 @@ const {
 const {
   isPaidCheckoutEnabled,
 } = require("../services/checkoutService");
+const {
+  _testing: accessCycleTesting,
+} = require("../services/accessCycleService");
 
 const root = path.resolve(__dirname, "..");
 const fakeEnvironment = {
@@ -30,6 +33,13 @@ async function main() {
   assert.equal(config.mode, "TEST");
   assert.equal(isTossConfigured(fakeEnvironment), true);
   assert.equal(isPaidCheckoutEnabled(fakeEnvironment), true);
+  assert.match(
+    accessCycleTesting.packagePurchaseBlockedMessage([
+      "AVAILABLE_BALANCE_REMAINS",
+      "PENDING_SETTLEMENT",
+    ]),
+    /사용 가능한 학습일.*정산이 끝나지 않은 GOAT Arena 경기/
+  );
   assert.equal(
     isPaidCheckoutEnabled({ ...fakeEnvironment, TOSS_TEST_SECRET_KEY: "" }),
     false
@@ -173,8 +183,15 @@ async function main() {
   assert.match(refundService, /cancelPayment/);
   assert.match(refundService, /idempotencyKey: `refund-/);
   assert.match(refundService, /providerMode !== tossConfig\.mode/);
+  const checkoutService = fs.readFileSync(
+    path.join(root, "services", "checkoutService.js"),
+    "utf8"
+  );
+  assert.match(checkoutService, /assertPackagePurchaseEligible/);
+  assert.match(checkoutService, /assertMockExamPurchaseEligible/);
+  assert.match(checkoutService, /PRODUCT_POLICY_UNAVAILABLE/);
 
-  console.log("Toss Payments TEST integration verified: keys, widget, amount validation, idempotency, routes, refunds, and retained checkout audit.");
+  console.log("Toss Payments TEST integration verified: keys, widget, preflight eligibility, amount validation, idempotency, routes, refunds, and retained checkout audit.");
 }
 
 main().catch((error) => {

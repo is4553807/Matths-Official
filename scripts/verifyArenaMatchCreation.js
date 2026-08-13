@@ -217,6 +217,7 @@ async function run() {
     }),
     {
       arenaRank: "에메랄드",
+      qualifiedArenaRank: "에메랄드",
       arenaPosition: 8,
       arenaGp: 40,
     }

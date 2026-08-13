@@ -841,6 +841,50 @@ async function updateInquiryStatus({
   }
 }
 
+function adminParentFilter({ cleanQuery, state, allowedStates }) {
+  const filter = {};
+  if (cleanQuery) {
+    const expression = new RegExp(escapeRegex(cleanQuery), "i");
+    filter.$or = [
+      { username: expression },
+      { email: expression },
+    ];
+  }
+  if (allowedStates.has(state)) {
+    if (state === "active") filter.isActive = true;
+    else if (state === "inactive" || state === "withdrawn") {
+      filter.isActive = false;
+    } else {
+      filter._id = null;
+    }
+  }
+  return filter;
+}
+
+function adminParentRow(parent, linkCountByParent = new Map()) {
+  return {
+    _id: parent._id,
+    adminEntityType: "PARENT",
+    name: parent.username,
+    email: parent.email,
+    role: "parent",
+    accountStatus: parent.isActive ? "active" : "inactive",
+    isActive: parent.isActive,
+    parentChildCount:
+      linkCountByParent.get(String(parent._id)) || 0,
+    lastLoginAt: parent.lastLoginAt,
+    createdAt: parent.createdAt,
+  };
+}
+
+function compareAdminUsersByCreatedAt(left, right) {
+  const createdDifference =
+    new Date(right?.createdAt || 0).getTime() -
+    new Date(left?.createdAt || 0).getTime();
+  if (createdDifference !== 0) return createdDifference;
+  return String(right?._id || "").localeCompare(String(left?._id || ""));
+}
+
 async function getAdminUsersData({
   query,
   schoolCode,
@@ -948,22 +992,13 @@ async function getAdminUsersData({
     ]);
 
   const isParentRole = role === "parent";
+  const parentFilter = adminParentFilter({
+    cleanQuery,
+    state,
+    allowedStates,
+  });
 
   if (isParentRole) {
-    const parentFilter = {};
-    if (cleanQuery) {
-      const expression = new RegExp(escapeRegex(cleanQuery), "i");
-      parentFilter.$or = [
-        { username: expression },
-        { email: expression },
-      ];
-    }
-    if (allowedStates.has(state)) {
-      if (state === "active") parentFilter.isActive = true;
-      else if (state === "inactive" || state === "withdrawn") parentFilter.isActive = false;
-      else parentFilter._id = null;
-    }
-
     const currentPage = safePage(page);
     const total = await ParentAccount.countDocuments(parentFilter);
     const totalPages = Math.max(1, Math.ceil(total / USERS_PER_PAGE));
@@ -986,18 +1021,9 @@ async function getAdminUsersData({
     );
 
     return {
-      users: parents.map((parent) => ({
-        _id: parent._id,
-        adminEntityType: "PARENT",
-        name: parent.username,
-        email: parent.email,
-        role: "parent",
-        accountStatus: parent.isActive ? "active" : "inactive",
-        isActive: parent.isActive,
-        parentChildCount: linkCountByParent.get(String(parent._id)) || 0,
-        lastLoginAt: parent.lastLoginAt,
-        createdAt: parent.createdAt,
-      })),
+      users: parents.map((parent) =>
+        adminParentRow(parent, linkCountByParent)
+      ),
       schools: [],
       filters: {
         query: cleanQuery,
@@ -1019,12 +1045,42 @@ async function getAdminUsersData({
     filter.role = role;
   }
 
-  const currentPage =
-    safePage(page);
-  const total =
-    await User.countDocuments(
-      filter
-    );
+  const hasEducationFilter = Boolean(
+    schoolCode ||
+      [10, 11, 12, 13, 14, 15].includes(gradeNumber)
+  );
+  const normalizedRole = allowedRoles.has(role) ? role : "";
+  const includeParents = !normalizedRole && !hasEducationFilter;
+  const currentPage = safePage(page);
+  const [studentTotal, parentTotal, schools] = await Promise.all([
+    User.countDocuments(filter),
+    includeParents
+      ? ParentAccount.countDocuments(parentFilter)
+      : Promise.resolve(0),
+    User.aggregate([
+      {
+        $match: {
+          "school.code": {
+            $type: "string",
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$school.code",
+          name: {
+            $first: "$school.name",
+          },
+        },
+      },
+      {
+        $sort: {
+          name: 1,
+        },
+      },
+    ]),
+  ]);
+  const total = studentTotal + parentTotal;
   const totalPages = Math.max(
     1,
     Math.ceil(
@@ -1036,45 +1092,61 @@ async function getAdminUsersData({
       currentPage,
       totalPages
     );
-  const [users, schools] =
-    await Promise.all([
-      User.find(filter)
-        .select(
-          "name realName email role school university schoolGrade isActive accountStatus accountStatusReason suspendedUntil warningCount totalStudySeconds currentStreak lastLoginAt createdAt"
-        )
-        .sort({
-          createdAt: -1,
-        })
-        .skip(
-          (safeCurrentPage - 1) *
-            USERS_PER_PAGE
-        )
-        .limit(USERS_PER_PAGE)
-        .lean(),
-      User.aggregate([
+  const pageOffset = (safeCurrentPage - 1) * USERS_PER_PAGE;
+  const mergeLimit = safeCurrentPage * USERS_PER_PAGE;
+  const studentQuery = User.find(filter)
+    .select(
+      "name realName email role school university schoolGrade isActive accountStatus accountStatusReason suspendedUntil warningCount totalStudySeconds currentStreak lastLoginAt createdAt"
+    )
+    .sort({ createdAt: -1, _id: -1 });
+  if (includeParents) {
+    studentQuery.limit(mergeLimit);
+  } else {
+    studentQuery.skip(pageOffset).limit(USERS_PER_PAGE);
+  }
+  const [studentRows, parentRows] = await Promise.all([
+    studentQuery.lean(),
+    includeParents
+      ? ParentAccount.find(parentFilter)
+          .select("username email childUserId isActive lastLoginAt createdAt")
+          .sort({ createdAt: -1, _id: -1 })
+          .limit(mergeLimit)
+          .lean()
+      : Promise.resolve([]),
+  ]);
+  const parentIds = parentRows.map((parent) => parent._id);
+  const parentLinkCounts = parentIds.length
+    ? await ParentChildLink.aggregate([
         {
           $match: {
-            "school.code": {
-              $type: "string",
-            },
+            parentAccountId: { $in: parentIds },
+            status: "ACTIVE",
           },
         },
         {
           $group: {
-            _id: "$school.code",
-            name: {
-              $first:
-                "$school.name",
-            },
+            _id: "$parentAccountId",
+            count: { $sum: 1 },
           },
         },
-        {
-          $sort: {
-            name: 1,
-          },
-        },
-      ]),
-    ]);
+      ])
+    : [];
+  const linkCountByParent = new Map(
+    parentLinkCounts.map((entry) => [
+      String(entry._id),
+      Number(entry.count) || 0,
+    ])
+  );
+  const users = includeParents
+    ? [
+        ...studentRows,
+        ...parentRows.map((parent) =>
+          adminParentRow(parent, linkCountByParent)
+        ),
+      ]
+        .sort(compareAdminUsersByCreatedAt)
+        .slice(pageOffset, pageOffset + USERS_PER_PAGE)
+    : studentRows;
 
   return {
     users,
@@ -1101,9 +1173,7 @@ async function getAdminUsersData({
           ? state
           : "",
       role:
-        allowedRoles.has(role)
-          ? role
-          : "",
+        normalizedRole,
     },
     page: safeCurrentPage,
     total,

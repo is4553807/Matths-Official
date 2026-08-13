@@ -70,6 +70,8 @@ async function upsertRenewalSubStanding({
     {
       $set: {
         arenaRank: arenaTierByValue(tuple.arenaRank).label,
+        qualifiedArenaRank:
+          arenaTierByValue(tuple.arenaRank).label,
         arenaGp: Math.max(0, Math.min(99, Number(tuple.arenaGp) || 0)),
         status: "ACTIVE",
         reachedCurrentGpAt: now,

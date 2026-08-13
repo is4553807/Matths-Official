@@ -223,6 +223,14 @@ async function markIntentFromPayment(intent, normalized, status) {
 
 async function rollbackApproval(intent, normalized, cause) {
   try {
+    const entitlementFailureCode = clean(
+      cause?.code || "ENTITLEMENT_APPLY_FAILED",
+      100
+    );
+    const entitlementFailureMessage = clean(
+      cause?.message || "이용권 지급 조건을 확인할 수 없습니다.",
+      300
+    );
     const cancellation = await cancelPayment({
       paymentKey: normalized.paymentKey,
       cancelReason: "Matths 이용권 지급 실패에 따른 자동 전체 취소",
@@ -238,8 +246,11 @@ async function rollbackApproval(intent, normalized, cause) {
           status: "CANCELLED",
           providerPaymentKey: normalized.paymentKey,
           providerStatus: clean(cancellation.status || "CANCELED", 60),
-          failureCode: clean(cause?.code || "ENTITLEMENT_APPLY_FAILED", 100),
-          failureMessage: "결제 승인 후 이용권 지급에 실패해 자동 전체 취소했습니다.",
+          failureCode: entitlementFailureCode,
+          failureMessage: clean(
+            `결제 승인 후 이용권 지급에 실패해 자동 전체 취소했습니다. 원인: ${entitlementFailureMessage}`,
+            500
+          ),
           approvedAt: normalized.approvedAt,
         },
       }
@@ -249,6 +260,7 @@ async function rollbackApproval(intent, normalized, cause) {
       "이용권을 적용할 수 없어 승인된 결제를 자동으로 전체 취소했습니다.",
       "PAYMENT_AUTOMATICALLY_CANCELLED"
     );
+    error.entitlementFailureCode = entitlementFailureCode;
     error.providerCancellationTransactionKey = clean(latestCancel?.transactionKey, 200);
     throw error;
   } catch (rollbackError) {

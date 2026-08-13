@@ -139,6 +139,27 @@ async function policyForApproval(approvedAt, session) {
     .lean();
 }
 
+async function assertMockExamPurchaseEligible({
+  userId,
+  now = new Date(),
+}) {
+  const activeSubscription = await MockExamSubscription.findOne({
+    userId,
+    status: "ACTIVE",
+    endsAt: { $gt: now },
+  })
+    .select("endsAt")
+    .lean();
+  if (activeSubscription) {
+    throw statusError(
+      409,
+      "이미 사용 중인 모의고사 이용권이 있습니다. 만료 후 다시 구매해주세요.",
+      "MOCK_SUBSCRIPTION_ALREADY_ACTIVE"
+    );
+  }
+  return true;
+}
+
 async function applyApprovedMockExamPayment(input) {
   const approval = normalizeApproval(input);
   const replay = await findAppliedPayment(approval);
@@ -265,6 +286,7 @@ async function applyApprovedMockExamPayment(input) {
 
 module.exports = {
   applyApprovedMockExamPayment,
+  assertMockExamPurchaseEligible,
   _testing: {
     assertSameApproval,
     normalizeApproval,

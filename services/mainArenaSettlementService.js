@@ -46,6 +46,9 @@ function statusError(status, message, code) {
 function tuple(tupleValue) {
   return {
     arenaRank: String(tupleValue?.arenaRank || ""),
+    qualifiedArenaRank: String(
+      tupleValue?.qualifiedArenaRank || tupleValue?.arenaRank || ""
+    ),
     arenaPosition: Number(tupleValue?.arenaPosition || 0),
     arenaGp: Number(tupleValue?.arenaGp || 0),
   };
@@ -56,6 +59,7 @@ function tuplesEqual(left, right) {
   const b = tuple(right);
   return (
     a.arenaRank === b.arenaRank &&
+    a.qualifiedArenaRank === b.qualifiedArenaRank &&
     a.arenaPosition === b.arenaPosition &&
     a.arenaGp === b.arenaGp
   );

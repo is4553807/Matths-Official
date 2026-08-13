@@ -61,6 +61,19 @@ const read = (file) =>
     "utf8"
   );
 
+const adminServiceSource = read("services/adminService.js");
+const adminUsersView = read("views/admin-users.ejs");
+assert.match(
+  adminServiceSource,
+  /const includeParents = !normalizedRole && !hasEducationFilter/
+);
+assert.match(adminServiceSource, /ParentAccount\.countDocuments\(parentFilter\)/);
+assert.match(adminServiceSource, /adminParentRow\(parent, linkCountByParent\)/);
+assert.match(
+  adminUsersView,
+  /member\.adminEntityType === 'PARENT'/
+);
+
 assert.deepEqual(
   User.schema.path("role")
     .options.enum,

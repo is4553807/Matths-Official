@@ -52,6 +52,9 @@ function numeric(value) {
 function normalizedTuple(tuple) {
   return {
     arenaRank: String(tuple?.arenaRank || ""),
+    qualifiedArenaRank: String(
+      tuple?.qualifiedArenaRank || tuple?.arenaRank || ""
+    ),
     arenaPosition: numeric(tuple?.arenaPosition),
     arenaGp: numeric(tuple?.arenaGp),
   };
@@ -62,6 +65,7 @@ function tuplesEqual(left, right) {
   const b = normalizedTuple(right);
   return (
     a.arenaRank === b.arenaRank &&
+    a.qualifiedArenaRank === b.qualifiedArenaRank &&
     a.arenaPosition === b.arenaPosition &&
     a.arenaGp === b.arenaGp
   );
@@ -319,6 +323,8 @@ async function writeTupleSwap({
     {
       $set: {
         arenaRank: challengerTupleBefore.arenaRank,
+        qualifiedArenaRank:
+          challengerTupleBefore.qualifiedArenaRank,
         arenaPosition: temporaryPosition,
         arenaGp: challengerTupleBefore.arenaGp,
       },

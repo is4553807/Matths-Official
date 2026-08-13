@@ -433,7 +433,7 @@
             <p>문항별 채점 결과와 해설은 공개하지 않습니다.</p>
           </article>
           <article>
-            <span><%= usesMoeNineGradeReference ? "교육부 9등급 기준 예상 순위" : "기준분포 예상 순위" %></span>
+            <span><%= usesMoeNineGradeReference ? "교육부 9등급 비율 준용 예상 순위" : "기준분포 예상 순위" %></span>
             <strong>
               <% if (estimatedTopPercent === null) { %>
                 순위 산정 중
@@ -443,7 +443,7 @@
               <% } %>
             </strong>
             <p>
-              <%= usesMoeNineGradeReference ? "교육부 석차 9등급 누적비율 준용" : "고정 기준분포로 산정" %>
+              <%= usesMoeNineGradeReference ? "교육부 9등급 비율 준용" : "고정 기준분포로 산정" %>
               <% if (estimatedTopPercent !== null) { %>
                 · 예상 상위 <%= estimatedTopPercent %>%
               <% } %>

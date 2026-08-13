@@ -306,6 +306,9 @@ async function createOrActivateMainStanding({
     {
       $set: {
         arenaRank: subStanding.arenaRank,
+        qualifiedArenaRank:
+          subStanding.qualifiedArenaRank ||
+          subStanding.arenaRank,
         arenaGp: subStanding.arenaGp,
         competitivePool,
         status: "ACTIVE",

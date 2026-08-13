@@ -16,16 +16,19 @@ function run() {
   const root = path.resolve(__dirname, "..");
   const bronze = {
     arenaRank: "브론즈",
+    qualifiedArenaRank: "브론즈",
     arenaPosition: 8,
     arenaGp: 20,
   };
   const silver = {
     arenaRank: "실버",
+    qualifiedArenaRank: "실버",
     arenaPosition: 3,
     arenaGp: 60,
   };
   const gold = {
     arenaRank: "골드",
+    qualifiedArenaRank: "골드",
     arenaPosition: 2,
     arenaGp: 90,
   };

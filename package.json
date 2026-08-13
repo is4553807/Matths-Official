@@ -44,6 +44,7 @@
     "access-cycle:verify": "node scripts/verifyAccessCycleLifecycle.js",
     "access-cycle-daily:verify": "node scripts/verifyDailyAccessCycleLifecycle.js",
     "arena-placement:verify": "node scripts/verifyInitialArenaPlacement.js",
+    "arena-ranked-cap:verify-db": "node scripts/verifyRankedPopulationCapDb.js",
     "arena-match:verify": "node scripts/verifyArenaMatchCreation.js",
     "arena-matchmaking-control:verify": "node scripts/verifyArenaMatchmakingControl.js",
     "arena-match-attempt:verify": "node scripts/verifyArenaMatchAttemptFlow.js",

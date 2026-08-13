@@ -645,6 +645,75 @@ async function hasPendingMatchSettlement({
   );
 }
 
+function packagePurchaseBlockedMessage(reasons = []) {
+  const reasonMessages = {
+    AVAILABLE_BALANCE_REMAINS:
+      "현재 학습권의 사용 가능한 학습일이 남아 있습니다.",
+    LOCKED_BALANCE_REMAINS:
+      "GOAT Arena 경기에 예치된 학습일이 남아 있습니다.",
+    LOCKED_PAYBACK_SCORE_REMAINS:
+      "GOAT Arena 경기에 예치된 페이백 점수가 남아 있습니다.",
+    RESERVED_BALANCE_REMAINS:
+      "Ranked 초대에 예약된 학습일이 남아 있습니다.",
+    PENDING_SETTLEMENT:
+      "아직 정산이 끝나지 않은 GOAT Arena 경기가 있습니다.",
+  };
+  const details = [...new Set(reasons)]
+    .map((reason) => reasonMessages[reason])
+    .filter(Boolean);
+  return [
+    "기존 29일 학습권을 정리한 뒤 새 학습권을 결제할 수 있습니다.",
+    ...details,
+  ].join(" ");
+}
+
+async function getPackagePurchaseEligibilityForUser({
+  userId,
+  session = null,
+}) {
+  const cycleQuery = AccessCycle.findOne({
+    userId,
+    status: "ACTIVE",
+  }).select(
+    "availableLearningDays reservedLearningDays lockedLearningDays lockedPaybackScoreDays"
+  );
+  if (session) cycleQuery.session(session);
+  const [activeCycle, pendingSettlement] = await Promise.all([
+    cycleQuery.lean(),
+    hasPendingMatchSettlement({ userId, session }),
+  ]);
+  const eligibility = packagePurchaseEligibility({
+    availableLearningDays:
+      activeCycle?.availableLearningDays || 0,
+    reservedLearningDays:
+      activeCycle?.reservedLearningDays || 0,
+    lockedLearningDays:
+      activeCycle?.lockedLearningDays || 0,
+    lockedPaybackScoreDays:
+      activeCycle?.lockedPaybackScoreDays || 0,
+    hasPendingSettlement: pendingSettlement,
+  });
+  return { ...eligibility, activeCycle };
+}
+
+async function assertPackagePurchaseEligible({
+  userId,
+  session = null,
+}) {
+  const eligibility =
+    await getPackagePurchaseEligibilityForUser({ userId, session });
+  if (!eligibility.eligible) {
+    const error = statusError(
+      409,
+      packagePurchaseBlockedMessage(eligibility.reasons),
+      "PACKAGE_PURCHASE_NOT_ELIGIBLE"
+    );
+    error.reasons = eligibility.reasons;
+    throw error;
+  }
+  return eligibility;
+}
+
 function assertPolicyPaymentMatches(
   approval,
   policy
@@ -1425,12 +1494,14 @@ function stopAccessCycleScheduler() {
 
 module.exports = {
   applyApprovedPackagePayment,
+  assertPackagePurchaseEligible,
   buildAccessCycleDraft,
   buildApprovedCycleState,
   buildRenewalPolicyNotice,
   computeAccessCycleWindow,
   consumeFirstLearningDay,
   hasPendingMatchSettlement,
+  getPackagePurchaseEligibilityForUser,
   kstDateKey,
   kstMidnight,
   normalizePaymentApproval,
@@ -1443,5 +1514,6 @@ module.exports = {
     kstDateKey,
     kstMidnight,
     paymentReplayFilter,
+    packagePurchaseBlockedMessage,
   },
 };

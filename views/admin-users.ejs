@@ -40,7 +40,7 @@
     <%- include("partials/admin-navigation", { activePage: "users" }) %>
     <main class="admin-main">
       <header class="admin-heading">
-        <div><p>USER MANAGEMENT</p><h1>유저 관리</h1><span>검색과 필터로 사용자를 찾은 뒤 학습·랭킹·계정 정보를 확인합니다.</span></div>
+        <div><p>USER MANAGEMENT</p><h1>유저 관리</h1><span>학생·교사·학부모·관리자를 한 목록에서 찾고 계정 정보를 확인합니다.</span></div>
         <strong><%= usersData.total %><small>명</small></strong>
       </header>
       <nav class="admin-user-tabs" aria-label="유저 관리 메뉴">
@@ -50,7 +50,7 @@
       <% if (typeof feedback !== "undefined" && feedback) { %><div class="admin-feedback" role="status"><%= feedback %></div><% } %>
 
       <form class="admin-filter-bar user-filter-bar" action="/admin/users" method="GET">
-        <label class="wide"><span>닉네임·실명·이메일 검색</span><input type="search" name="query" value="<%= usersData.filters.query %>" placeholder="검색어 입력" /></label>
+        <label class="wide"><span>닉네임·실명·학부모명·이메일 검색</span><input type="search" name="query" value="<%= usersData.filters.query %>" placeholder="검색어 입력" /></label>
         <label><span>고등학교</span>
           <select name="school">
             <option value="">전체 학교</option>

@@ -89,6 +89,13 @@
             <% } %>
           </div>
 
+          <% if (order.failureDisplayMessage) { %>
+            <section class="parent-refund-status" role="status">
+              <div><small>자동 취소 사유</small><strong>승인 금액 전체 취소</strong></div>
+              <p><%= order.failureDisplayMessage %></p>
+            </section>
+          <% } %>
+
           <% if (order.refund) { %>
             <section class="parent-refund-status">
               <div><small>최근 환불 신청</small><strong><%= refundStatusLabels[order.refund.status] || order.refund.status %></strong></div>

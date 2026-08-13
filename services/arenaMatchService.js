@@ -393,6 +393,8 @@ function matchKeyForRequest({
 function arenaTupleFromStanding(standing) {
   return {
     arenaRank: standing.arenaRank,
+    qualifiedArenaRank:
+      standing.qualifiedArenaRank || standing.arenaRank,
     arenaPosition: Number(
       standing.arenaPosition
     ),

@@ -70,6 +70,9 @@ function revengeMatchKey(right) {
 function normalizedTuple(value) {
   return {
     arenaRank: String(value?.arenaRank || ""),
+    qualifiedArenaRank: String(
+      value?.qualifiedArenaRank || value?.arenaRank || ""
+    ),
     arenaPosition: Number(value?.arenaPosition || 0),
     arenaGp: Number(value?.arenaGp || 0),
   };
@@ -79,6 +82,7 @@ function tuplesEqual(left, right) {
   const a = normalizedTuple(left);
   const b = normalizedTuple(right);
   return a.arenaRank === b.arenaRank &&
+    a.qualifiedArenaRank === b.qualifiedArenaRank &&
     a.arenaPosition === b.arenaPosition &&
     a.arenaGp === b.arenaGp;
 }
@@ -131,12 +135,22 @@ async function swapStandings({ match, challengerStanding, defenderStanding, chal
     defenderBefore.arenaPosition
   ) + 1;
   const first = await ArenaStanding.updateOne(
-    { _id: challengerStanding._id, ...challengerBefore },
+    {
+      _id: challengerStanding._id,
+      arenaRank: challengerBefore.arenaRank,
+      arenaPosition: challengerBefore.arenaPosition,
+      arenaGp: challengerBefore.arenaGp,
+    },
     { $set: { ...challengerBefore, arenaPosition: temporaryPosition } },
     { session }
   );
   const second = await ArenaStanding.updateOne(
-    { _id: defenderStanding._id, ...defenderBefore },
+    {
+      _id: defenderStanding._id,
+      arenaRank: defenderBefore.arenaRank,
+      arenaPosition: defenderBefore.arenaPosition,
+      arenaGp: defenderBefore.arenaGp,
+    },
     { $set: challengerBefore },
     { session }
   );

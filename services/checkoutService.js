@@ -10,6 +10,12 @@ const { User } = require("../models/matthsModel");
 const { sendEmail, buildBrandedHtml } = require("./emailService");
 const { getActiveMockExamPackagePolicy } = require("./mockExamPackageService");
 const { getActiveArenaPolicy } = require("./arenaPolicyService");
+const {
+  assertPackagePurchaseEligible,
+} = require("./accessCycleService");
+const {
+  assertMockExamPurchaseEligible,
+} = require("./mockExamPaymentService");
 const { linkChildToParent } = require("./parentFamilyService");
 const {
   REFUND_POLICY_VERSION,
@@ -74,6 +80,7 @@ async function getProductCatalog() {
       amount: Number(mockPolicy?.monthlyPriceAmount ?? 5000),
       periodLabel: "30일",
       description: "주간 공식 모의고사 응시에 집중하는 이용권",
+      policyAvailable: Boolean(mockPolicy),
     },
     {
       code: "LEARNING_PACKAGE_29",
@@ -81,6 +88,7 @@ async function getProductCatalog() {
       amount: Number(learningPolicy?.priceAmount ?? 29000),
       periodLabel: "29일",
       description: "모의고사·배치고사·GOAT Arena까지 포함한 학습권",
+      policyAvailable: Boolean(learningPolicy),
     },
   ];
   return products.map((product) => ({
@@ -113,6 +121,13 @@ async function createCheckoutIntent({
   if (!student || student.isActive === false || student.accountStatus === "withdrawn") {
     throw statusError(404, "결제 대상 학생 계정을 찾을 수 없습니다.");
   }
+  if (!product?.policyAvailable) {
+    throw statusError(
+      503,
+      "현재 적용 가능한 이용권 가격 정책이 없어 결제를 시작할 수 없습니다. 잠시 후 다시 시도해주세요.",
+      "PRODUCT_POLICY_UNAVAILABLE"
+    );
+  }
   if (requestedBy === "PARENT" && legalGuardianConsent !== true) {
     throw statusError(
       400,
@@ -137,6 +152,11 @@ async function createCheckoutIntent({
       "상품별 환불 기준과 산식, 신청방법 및 처리기한을 확인하고 동의해주세요.",
       "REFUND_POLICY_CONSENT_REQUIRED"
     );
+  }
+  if (product.code === "LEARNING_PACKAGE_29") {
+    await assertPackagePurchaseEligible({ userId: student._id });
+  } else if (product.code === "MOCK_EXAM_ONLY") {
+    await assertMockExamPurchaseEligible({ userId: student._id });
   }
   const { mode: providerMode } = getTossConfig();
   const uniqueOrderPart = randomUUID().replace(/-/g, "");

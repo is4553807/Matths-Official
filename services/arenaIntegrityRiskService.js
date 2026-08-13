@@ -819,6 +819,9 @@ const INTEGRITY_CLEAR_CANCELLATION_VERSION =
 function arenaTuple(value) {
   return {
     arenaRank: String(value?.arenaRank || ""),
+    qualifiedArenaRank: String(
+      value?.qualifiedArenaRank || value?.arenaRank || ""
+    ),
     arenaPosition: Number(value?.arenaPosition || 0),
     arenaGp: Number(value?.arenaGp || 0),
   };
@@ -828,6 +831,7 @@ function arenaTuplesEqual(left, right) {
   const a = arenaTuple(left);
   const b = arenaTuple(right);
   return a.arenaRank === b.arenaRank &&
+    a.qualifiedArenaRank === b.qualifiedArenaRank &&
     a.arenaPosition === b.arenaPosition &&
     a.arenaGp === b.arenaGp;
 }

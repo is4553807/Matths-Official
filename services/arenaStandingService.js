@@ -93,11 +93,7 @@ function isInitialPlacementStanding(standing) {
   );
 }
 
-function compareStandingForLayout(left, right) {
-  const tierDifference =
-    arenaTierIndex(right.arenaRank) -
-    arenaTierIndex(left.arenaRank);
-  if (tierDifference !== 0) return tierDifference;
+function compareStandingTieBreakers(left, right) {
   const gpDifference =
     Number(right.arenaGp) -
     Number(left.arenaGp);
@@ -167,6 +163,44 @@ function compareStandingForLayout(left, right) {
   );
 }
 
+function compareStandingForLayout(left, right) {
+  const tierDifference =
+    arenaTierIndex(right.arenaRank) -
+    arenaTierIndex(left.arenaRank);
+  if (tierDifference !== 0) return tierDifference;
+  const qualificationDifference =
+    arenaTierIndex(qualifiedArenaRank(right)) -
+    arenaTierIndex(qualifiedArenaRank(left));
+  if (qualificationDifference !== 0) {
+    return qualificationDifference;
+  }
+  return compareStandingTieBreakers(left, right);
+}
+
+function qualifiedArenaRank(standing) {
+  if (standing?.qualifiedArenaRank) {
+    return standing.qualifiedArenaRank;
+  }
+  if (
+    standing?.seedPolicyVersion ===
+      INITIAL_ARENA_SEED_POLICY_VERSION &&
+    Number.isFinite(Number(standing?.seedPlacementMmr))
+  ) {
+    return arenaTupleFromLegacyGp(
+      Number(standing.seedPlacementMmr)
+    ).arenaRank;
+  }
+  return standing?.arenaRank;
+}
+
+function compareStandingForQualification(left, right) {
+  const tierDifference =
+    arenaTierIndex(qualifiedArenaRank(right)) -
+    arenaTierIndex(qualifiedArenaRank(left));
+  if (tierDifference !== 0) return tierDifference;
+  return compareStandingTieBreakers(left, right);
+}
+
 /*
  * 공개 순위는 티어 → 티어 내부 GP 내림차순으로 정렬하되, arenaPosition은
  * 전체 순위가 아니라 같은 티어 안의 순위입니다. 동점이면 배치 동점 원본과
@@ -184,13 +218,13 @@ function computeArenaCohortLayout(
       "SUB"
   ).toUpperCase();
   const canonicalOrder = [...standings].sort(
-    compareStandingForLayout
+    compareStandingForQualification
   );
   const activeRankerCount = canonicalOrder.length;
   const resolved = canonicalOrder.map((standing, index) => {
     const tier = resolveArenaTier({
       division: cohortDivision,
-      rank: standing.arenaRank,
+      rank: qualifiedArenaRank(standing),
       gp: standing.arenaGp,
       topPercentile:
         activeRankerCount > 0
@@ -198,7 +232,11 @@ function computeArenaCohortLayout(
           : 1,
       activeRankerCount,
     });
-    return { ...standing, arenaRank: tier.label };
+    return {
+      ...standing,
+      qualifiedArenaRank: qualifiedArenaRank(standing),
+      arenaRank: tier.label,
+    };
   });
   const sorted = resolved.sort(compareStandingForLayout);
   const tierPositions = new Map();
@@ -213,6 +251,7 @@ function computeArenaCohortLayout(
       userId: standing.userId,
       arenaGp: Number(standing.arenaGp),
       arenaRank: tier.label,
+      qualifiedArenaRank: standing.qualifiedArenaRank,
       arenaPosition: position,
     };
   });
@@ -309,6 +348,8 @@ async function rebalanceArenaCohortInTransaction({
       return (
         current?.arenaRank !==
           entry.arenaRank ||
+        (current?.qualifiedArenaRank || current?.arenaRank) !==
+          entry.qualifiedArenaRank ||
         Number(current?.arenaPosition) !==
           entry.arenaPosition
       );
@@ -360,6 +401,8 @@ async function rebalanceArenaCohortInTransaction({
         update: {
           $set: {
             arenaRank: entry.arenaRank,
+            qualifiedArenaRank:
+              entry.qualifiedArenaRank,
             arenaPosition:
               entry.arenaPosition,
           },
@@ -448,6 +491,8 @@ async function activateStandingForPaidPlacement({
         $set: {
           status: "ACTIVE",
           arenaRank:
+            activationArenaRank,
+          qualifiedArenaRank:
             activationArenaRank,
           arenaGp:
             activationArenaGp,
@@ -829,6 +874,8 @@ async function runInitialPlacementTransaction({
                 seededAt,
                 arenaRank:
                   placeholderTier.label,
+                qualifiedArenaRank:
+                  placeholderTier.label,
                 arenaPosition:
                   temporaryArenaPosition,
                 arenaGp,
@@ -868,6 +915,9 @@ async function runInitialPlacementTransaction({
               seedPlacementStartedAt,
             seededAt:
               standing.seededAt || seededAt,
+            qualifiedArenaRank:
+              standing.qualifiedArenaRank ||
+              placeholderTier.label,
             status: paidActive
               ? "ACTIVE"
               : "LOCKED",

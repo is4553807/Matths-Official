@@ -52,6 +52,42 @@ function displayStatus({ intentStatus, payment, refund }) {
   return intentStatus;
 }
 
+function checkoutFailureDisplayMessage(intent = {}) {
+  if (intent.status !== "CANCELLED") return "";
+  const codes = String(intent.failureCode || "")
+    .split(",")
+    .map((code) => code.trim())
+    .filter(Boolean);
+  const messages = {
+    AVAILABLE_BALANCE_REMAINS:
+      "자녀 계정에 기존 학습권의 사용 가능한 학습일이 남아 있어 결제가 자동 취소되었습니다.",
+    LOCKED_BALANCE_REMAINS:
+      "GOAT Arena 경기에 예치된 학습일이 있어 결제가 자동 취소되었습니다.",
+    LOCKED_PAYBACK_SCORE_REMAINS:
+      "GOAT Arena 경기에 예치된 페이백 점수가 있어 결제가 자동 취소되었습니다.",
+    RESERVED_BALANCE_REMAINS:
+      "Ranked 초대에 예약된 학습일이 있어 결제가 자동 취소되었습니다.",
+    PENDING_SETTLEMENT:
+      "정산이 끝나지 않은 GOAT Arena 경기가 있어 결제가 자동 취소되었습니다.",
+    PACKAGE_PURCHASE_NOT_ELIGIBLE:
+      "자녀 계정의 기존 학습권 상태 때문에 결제가 자동 취소되었습니다.",
+    MOCK_SUBSCRIPTION_ALREADY_ACTIVE:
+      "이미 사용 중인 모의고사 이용권이 있어 결제가 자동 취소되었습니다.",
+    ACTIVE_POLICY_NOT_FOUND:
+      "승인 시각에 적용할 이용권 정책을 찾지 못해 결제가 자동 취소되었습니다.",
+    PAYMENT_AMOUNT_MISMATCH:
+      "승인 금액과 적용 가격이 일치하지 않아 결제가 자동 취소되었습니다.",
+    PAYMENT_CURRENCY_MISMATCH:
+      "승인 통화와 적용 통화가 일치하지 않아 결제가 자동 취소되었습니다.",
+    ACCOUNT_NOT_ACTIVE:
+      "자녀 계정이 활성 상태가 아니어서 결제가 자동 취소되었습니다.",
+  };
+  return (
+    codes.map((code) => messages[code]).find(Boolean) ||
+    "이용권 적용 조건을 충족하지 못해 결제가 자동 취소되었습니다. 실제 승인 금액은 토스페이먼츠에서 전체 취소 처리되었습니다."
+  );
+}
+
 async function getParentPaymentManagement({
   parentAccountId,
   studentUserId,
@@ -124,6 +160,9 @@ async function getParentPaymentManagement({
       providerMode: intent.providerMode || payment?.providerMode || "",
       intentStatus,
       status: displayStatus({ intentStatus, payment, refund }),
+      failureCode: intent.failureCode || "",
+      failureDisplayMessage:
+        checkoutFailureDisplayMessage(intent),
       paymentId: payment ? String(payment._id) : "",
       payment,
       refund,
@@ -220,6 +259,7 @@ module.exports = {
   getParentPaymentManagement,
   requestParentPaymentRefund,
   _testing: {
+    checkoutFailureDisplayMessage,
     displayStatus,
     effectiveCheckoutStatus,
   },

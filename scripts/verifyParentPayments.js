@@ -40,6 +40,13 @@ async function main() {
     }),
     "REFUNDED"
   );
+  assert.match(
+    parentPaymentTesting.checkoutFailureDisplayMessage({
+      status: "CANCELLED",
+      failureCode: "AVAILABLE_BALANCE_REMAINS",
+    }),
+    /사용 가능한 학습일.*자동 취소/
+  );
 
   const parentRoutes = read("routes/parent-routes.js");
   const parentService = read("services/parentPaymentService.js");

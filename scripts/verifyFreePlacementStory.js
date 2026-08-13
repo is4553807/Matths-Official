@@ -85,7 +85,7 @@ assert.ok(storyHtml.includes('width="1080"'));
 assert.ok(storyHtml.includes('height="1920"'));
 assert.ok(storyHtml.includes("스토리 이미지 다운로드"));
 assert.ok(storyHtml.includes("공개닉네임"));
-assert.ok(storyHtml.includes("교육부 석차 9등급 누적비율"));
+assert.ok(storyHtml.includes("교육부 9등급 비율"));
 assert.ok(storyHtml.includes("10,000명 기준 예상 순위"));
 assert.equal(storyHtml.includes("userId"), false);
 assert.equal(storyHtml.includes("email"), false);
