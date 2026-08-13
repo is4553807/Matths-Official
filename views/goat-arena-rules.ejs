@@ -286,11 +286,14 @@
             <div><dt>일반 쟁탈전 참여</dt><dd>최소 횟수 없음</dd></div>
             <div><dt>최소 페이백 점수</dt><dd><%= policy.minimumScoreDays %>점</dd></div>
           </dl>
-          <div class="arena-payback-table-wrap">
-            <h3>지급과 환불의 구분</h3>
-            <p>페이백은 다른 이용자의 결제금이나 경기 예치금을 재분배하는 방식이 아니라 운영자가 별도로 확보한 준비금에서 지급합니다. 운영자가 지급 대상과 계좌를 확인한 뒤 직접 송금하며, 페이백 확정 및 계좌 확인 완료일부터 7영업일 이내 지급합니다.</p>
-            <p>환불은 이용자가 낸 결제대금을 원 결제수단으로 취소하는 별도 절차입니다. 환불이 완료되면 해당 유료 이용 주기와 신규 Arena 참가 권한, 남은 페이백 심사·지급 대상 자격이 함께 종료됩니다.</p>
-          </div>
+          <article class="arena-payback-disclosure">
+            <span>제도 안내</span>
+            <div>
+              <h3>지급과 환불의 구분</h3>
+              <p>페이백은 다른 이용자의 결제금이나 경기 예치금을 재분배하는 방식이 아니라 운영자가 별도로 확보한 준비금에서 지급합니다. 운영자가 지급 대상과 계좌를 확인한 뒤 직접 송금하며, 페이백 확정 및 계좌 확인 완료일부터 7영업일 이내 지급합니다.</p>
+              <p>환불은 이용자가 낸 결제대금을 원 결제수단으로 취소하는 별도 절차입니다. 환불이 완료되면 해당 유료 이용 주기와 신규 Arena 참가 권한, 남은 페이백 심사·지급 대상 자격이 함께 종료됩니다.</p>
+            </div>
+          </article>
           <div class="arena-payback-table-wrap">
             <table>
               <thead><tr><th scope="col">페이백 점수</th><th scope="col">페이백 비율</th><th scope="col">예상 페이백 금액</th></tr></thead>
@@ -301,20 +304,27 @@
               </tbody>
             </table>
           </div>
-          <div class="arena-payback-table-wrap" aria-labelledby="sub-daily-limit-title">
-            <h3 id="sub-daily-limit-title">티어별 일일 일반 쟁탈전 상한</h3>
-            <table>
-              <thead><tr><th scope="col">티어</th><th scope="col">공격</th><th scope="col">방어</th></tr></thead>
-              <tbody>
-                <% policy.dailyMatchLimitsByTier.forEach((row) => { %>
-                  <tr><th scope="row"><%= row.tierLabel || row.tier %></th><td><%= row.attackLimit %>회</td><td><%= row.defenseLimit %>회</td></tr>
-                <% }) %>
-              </tbody>
-            </table>
-            <p>일반 공격은 모든 티어에서 하루 최대 3회이며, 방어 상한은 티어가 올라갈수록 증가합니다. KST 날짜 기준으로 성립한 일반 쟁탈전만 집계하고 복수전은 제외합니다. 경기 뒤 티어가 바뀌면 새 티어의 방어 한도가 즉시 적용되며, 도전자로 승리하면 그날 남은 일반 공격·방어가 잠깁니다.</p>
-            <p>같은 대상 티어에서는 오늘 방어 기회가 가장 적었던 사용자에게 먼저 공정하게 배정합니다. 특정 사용자를 직접 선택할 수 없습니다.</p>
-            <p>페이백 점수가 0점이어도 패키지 이용 기간에는 방어할 수 있습니다. 정기권 학습 가능 일수가 0일이 되면 공격과 방어가 모두 잠깁니다.</p>
-          </div>
+          <section class="arena-payback-limits" aria-labelledby="sub-daily-limit-title">
+            <header>
+              <small>경기 참여 기준</small>
+              <h3 id="sub-daily-limit-title">티어별 일일 일반 쟁탈전 상한</h3>
+            </header>
+            <div class="arena-payback-table-wrap">
+              <table>
+                <thead><tr><th scope="col">티어</th><th scope="col">공격</th><th scope="col">방어</th></tr></thead>
+                <tbody>
+                  <% policy.dailyMatchLimitsByTier.forEach((row) => { %>
+                    <tr><th scope="row"><%= row.tierLabel || row.tier %></th><td><%= row.attackLimit %>회</td><td><%= row.defenseLimit %>회</td></tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <div class="arena-payback-limit-notes">
+              <p>일반 공격은 모든 티어에서 하루 최대 3회이며, 방어 상한은 티어가 올라갈수록 증가합니다. KST 날짜 기준으로 성립한 일반 쟁탈전만 집계하고 복수전은 제외합니다. 경기 뒤 티어가 바뀌면 새 티어의 방어 한도가 즉시 적용되며, 도전자로 승리하면 그날 남은 일반 공격·방어가 잠깁니다.</p>
+              <p>같은 대상 티어에서는 오늘 방어 기회가 가장 적었던 사용자에게 먼저 공정하게 배정합니다. 특정 사용자를 직접 선택할 수 없습니다.</p>
+              <p>페이백 점수가 0점이어도 패키지 이용 기간에는 방어할 수 있습니다. 정기권 학습 가능 일수가 0일이 되면 공격과 방어가 모두 잠깁니다.</p>
+            </div>
+          </section>
           <footer>최근 수정일 <time datetime="<%= new Date(policy.lastModifiedAt).toISOString() %>"><%= formatKstDate(policy.lastModifiedAt) %></time> (KST)</footer>
         </section>
       <% } %>

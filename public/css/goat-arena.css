@@ -5994,23 +5994,35 @@ html {
 .arena-ranked-economy-map tbody td { color: #b9c2dd; }
 .arena-ranked-economy-map tbody tr:last-child th, .arena-ranked-economy-map tbody tr:last-child td { border-bottom: 0; }
 .arena-ranked-economy-map > footer { margin-top: 15px; color: #818cac; font-size: .7rem; line-height: 1.65; }
-.arena-payback-policy { margin: -30px 0 64px; padding: clamp(24px, 4vw, 38px); border: 1px solid rgba(98, 201, 255, .2); border-radius: 22px; background: radial-gradient(circle at 100% 0, rgba(114, 54, 229, .15), transparent 32rem), rgba(12, 17, 39, .92); box-shadow: 0 24px 70px rgba(0, 0, 0, .2); }
-.arena-payback-policy > header { display: flex; justify-content: space-between; gap: 28px; align-items: end; }
+.arena-payback-policy { margin: -30px 0 64px; padding: clamp(24px, 4vw, 38px); border: 1px solid rgba(98, 201, 255, .2); border-radius: 22px; background: radial-gradient(circle at 100% 0, rgba(114, 54, 229, .15), transparent 32rem), rgba(12, 17, 39, .92); box-shadow: 0 24px 70px rgba(0, 0, 0, .2); font-family: inherit; }
+.arena-payback-policy > header { display: flex; justify-content: space-between; gap: 28px; align-items: center; padding-bottom: 24px; border-bottom: 1px solid rgba(126, 146, 220, .14); }
 .arena-payback-policy > header small { color: #67d8ff; font-size: .7rem; font-weight: 900; letter-spacing: .16em; }
 .arena-payback-policy > header h2 { margin: 8px 0 7px; color: #f7f8ff; font-size: clamp(1.8rem, 3vw, 2.7rem); }
 .arena-payback-policy > header p { margin: 0; color: #98a4c6; line-height: 1.7; }
-.arena-payback-policy > header > strong { color: #cfb8ff; font-size: .9rem; }
-.arena-payback-policy dl { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin: 28px 0 18px; }
+.arena-payback-policy > header > strong { display: inline-flex; align-items: center; min-height: 38px; padding: 0 14px; color: #d8c5ff; border: 1px solid rgba(164, 124, 255, .25); border-radius: 999px; background: rgba(119, 71, 224, .1); font-size: .76rem; white-space: nowrap; }
+.arena-payback-policy dl { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin: 20px 0 0; }
 .arena-payback-policy dl div { padding: 15px; border: 1px solid rgba(125, 145, 218, .14); border-radius: 13px; background: rgba(255, 255, 255, .025); }
 .arena-payback-policy dt { color: #818daf; font-size: .68rem; line-height: 1.5; }
 .arena-payback-policy dd { margin: 7px 0 0; color: #f0f3ff; font-size: .92rem; font-weight: 900; }
+.arena-payback-disclosure { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 14px; padding: 24px; border: 1px solid rgba(104, 205, 255, .18); border-radius: 16px; background: linear-gradient(135deg, rgba(32, 132, 186, .08), rgba(111, 67, 213, .07)); }
+.arena-payback-disclosure > span { width: max-content; padding: 8px 10px; color: #78dcff; border: 1px solid rgba(91, 211, 255, .2); border-radius: 9px; background: rgba(46, 161, 207, .08); font-size: .65rem; font-weight: 900; letter-spacing: .08em; }
+.arena-payback-disclosure h3 { margin: 0 0 10px; color: #f3f6ff; font-family: inherit; font-size: 1.05rem; line-height: 1.45; }
+.arena-payback-disclosure p { margin: 0; color: #aeb9d4; font-family: inherit; font-size: .8rem; line-height: 1.8; }
+.arena-payback-disclosure p + p { margin-top: 10px; }
 .arena-payback-table-wrap { overflow-x: auto; border: 1px solid rgba(126, 146, 220, .17); border-radius: 14px; }
-.arena-payback-policy table { width: 100%; border-collapse: collapse; color: #c7cee2; }
+.arena-payback-policy > .arena-payback-table-wrap { margin-top: 14px; background: rgba(7, 11, 28, .24); }
+.arena-payback-policy table { width: 100%; border-collapse: collapse; color: #c7cee2; font-family: inherit; }
 .arena-payback-policy th, .arena-payback-policy td { padding: 15px 18px; border-bottom: 1px solid rgba(126, 146, 220, .12); text-align: left; }
 .arena-payback-policy thead th { color: #7fcfff; background: rgba(86, 130, 232, .07); font-size: .72rem; letter-spacing: .05em; }
 .arena-payback-policy tbody th { color: #eef1ff; font-size: .84rem; }
 .arena-payback-policy tbody td { font-size: .84rem; }
 .arena-payback-policy tbody tr:last-child th, .arena-payback-policy tbody tr:last-child td { border-bottom: 0; }
+.arena-payback-limits { margin-top: 14px; padding: 24px; border: 1px solid rgba(126, 146, 220, .17); border-radius: 16px; background: rgba(7, 11, 28, .25); }
+.arena-payback-limits > header small { color: #72d9ff; font-size: .66rem; font-weight: 900; letter-spacing: .13em; }
+.arena-payback-limits > header h3 { margin: 7px 0 0; color: #f2f4ff; font-family: inherit; font-size: 1.12rem; line-height: 1.45; }
+.arena-payback-limits > .arena-payback-table-wrap { margin-top: 18px; background: rgba(12, 17, 39, .7); }
+.arena-payback-limit-notes { display: grid; gap: 9px; margin-top: 16px; padding: 18px 20px; border-radius: 13px; background: rgba(255, 255, 255, .025); }
+.arena-payback-limit-notes p { margin: 0; color: #98a5c5; font-family: inherit; font-size: .76rem; line-height: 1.75; }
 .arena-payback-policy > footer { margin-top: 13px; color: #747f9f; font-size: .66rem; text-align: right; }
 .arena-upcoming-policy { margin: -42px 0 64px; padding: clamp(22px, 4vw, 34px); border: 1px solid rgba(187, 122, 255, .3); border-radius: 22px; background: linear-gradient(135deg, rgba(89, 44, 173, .2), rgba(10, 18, 42, .94) 46%, rgba(25, 85, 124, .18)); box-shadow: 0 22px 64px rgba(0, 0, 0, .22); }
 .arena-upcoming-policy > header { display: flex; align-items: end; justify-content: space-between; gap: 22px; }
@@ -6089,6 +6101,9 @@ html {
   .arena-rule-group summary { grid-template-columns: 54px 1fr 20px; }
   .arena-payback-policy > header { align-items: start; flex-direction: column; }
   .arena-payback-policy dl { grid-template-columns: 1fr; }
+  .arena-payback-disclosure { grid-template-columns: 1fr; gap: 14px; padding: 20px; }
+  .arena-payback-limits { padding: 20px; }
+  .arena-payback-limit-notes { padding: 16px; }
   .arena-upcoming-policy > header { align-items: start; flex-direction: column; }
   .arena-upcoming-policy > header strong { text-align: left; }
   .arena-upcoming-policy dl { grid-template-columns: 1fr 1fr; }
