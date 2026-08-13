@@ -259,15 +259,20 @@ async function removePrivateAccountData(
       {
         targetUserId: userId,
       },
-      {
-        $set: {
-          detail:
-            "탈퇴 계정 관련 관리자 작업 기록",
-          metadata: {
-            anonymized: true,
+      [
+        {
+          $set: {
+            detail:
+              "탈퇴 계정 관련 관리자 작업 기록",
+            metadata: {
+              anonymized: true,
+              actorSnapshot:
+                "$metadata.actorSnapshot",
+            },
           },
         },
-      }
+      ],
+      { updatePipeline: true }
     ),
   ]);
 }

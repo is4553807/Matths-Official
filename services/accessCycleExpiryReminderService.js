@@ -301,7 +301,7 @@ async function deliverClaimedReminder({
           thresholdHours: reminder.thresholdHours,
         }),
       });
-      emailStatus = delivery?.preview ? "PREVIEW" : "SENT";
+      emailStatus = delivery?.delivered ? "SENT" : "FAILED";
       emailDeliveredAt = now;
       emailProviderMessageId = String(delivery?.providerMessageId || "");
     } catch (error) {

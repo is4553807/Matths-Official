@@ -243,7 +243,7 @@ const RETENTION_POLICIES = [
   ["개인 식별 PDF 임시 사본", "응답 완료 즉시 삭제", "발급 원장·추적 코드만 MongoDB에 보존"],
   ["로그인 세션", "기본 7일", "SESSION_TTL_SECONDS 설정과 MongoDB TTL 인덱스 사용"],
   ["학부모 가입 초대", "72시간", "사용·재요청·만료 시 상태를 변경하며 토큰 원문은 저장하지 않음"],
-  ["PG 연결 전 결제 대기", "30분", "결제 승인이나 이용권 지급 없이 CheckoutIntent에 준비 상태만 기록"],
+  ["완료되지 않은 결제 요청", "30분", "승인 완료 전 CheckoutIntent를 자동 만료 처리"],
   ["페이백 계좌", "재등록 또는 탈퇴 시까지", "AES-256-GCM 암호문으로 저장하고 사용자 화면에는 끝 4자리만 표시"],
   ["위험 연결 신호", "30~730일", "종류별 TTL: 네트워크 30일, 브라우저 90일, 기기 180일, 결제·계좌 730일"],
   ["감사·정산 원장", "원칙적으로 기한 없음", "원본 거래를 수정하지 않고 보정 이벤트를 추가"],
@@ -324,6 +324,21 @@ const INCIDENT_PLAYBOOK = [
 ];
 
 const OPERATING_WORKFLOWS = [
+  {
+    title: "페이백 실제 송금·완료 확인",
+    cadence: "페이백 지급 대상 확정 후",
+    objective: "실제 계좌 송금, 사용자 통지와 담당 운영자 기록을 하나의 지급 이력으로 보존합니다.",
+    steps: [
+      "페이백 정산에서 대상 사용자, 지급액과 마스킹된 계좌 끝 4자리를 확인합니다.",
+      "운영자가 은행에서 직접 송금한 뒤 송금 사실을 확인할 수 있는 메모를 입력합니다.",
+      "송금 확인 및 지급 완료 버튼을 누릅니다. 버튼을 누르기 전까지 해당 페이백은 완료로 처리되지 않습니다.",
+      "처리 직후 Matths·GOAT Arena 공용 우편함 알림, 로그인한 운영자 이메일 발신의 완료 안내와 지급 담당자 계정이 생성됐는지 확인합니다.",
+      "이메일만 실패한 경우 실제 지급 완료 상태를 되돌리지 말고 지급 이력의 재발송 버튼을 사용합니다.",
+      "운영 감사 로그에서 완료 처리자·재발송 처리자, 시각, 대상 사용자와 성공 여부를 확인합니다.",
+    ],
+    hardStops: "실제 계좌 송금 전에 완료 버튼을 누르거나, 이메일 실패를 이유로 같은 페이백을 다시 송금하지 않습니다.",
+    audit: "PaybackPayoutRecord.completedBySnapshot, UserNotification, AdminActionLog",
+  },
   {
     title: "회원·권한·상품 변경",
     cadence: "요청·결제·고객지원 발생 시",
@@ -516,11 +531,12 @@ const OPERATING_WORKFLOWS = [
 
 const ENVIRONMENT_CONFIGURATION = [
   ["MongoDB", "DB", "계정·학습·경기·감사 데이터", "Atlas 연결·백업·인덱스 상태 확인"],
-  ["세션", "SESSION_SECRET, SESSION_TTL_SECONDS", "로그인 세션 서명·TTL", "운영용 긴 무작위 secret, 기본 7일 TTL"],
+  ["세션", "SECRET, SESSION_TTL_SECONDS", "로그인 세션 서명·TTL", "운영용 긴 무작위 secret, 기본 7일 TTL"],
   ["사용자 파일", "FILE_STORAGE_PROVIDER, CLOUDINARY_URL 또는 Cloudinary 3개 키", "게시판·증거·소명 원본", "authenticated 전달 방식과 사용량 확인"],
   ["운영자·상점 원본", "R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET", "아카이브·주간 모의고사·교재 상점", "비공개 버킷·Object Read & Write"],
   ["PDF 개인 식별", "DOCUMENT_WATERMARK_SECRET", "PDF 발급 토큰 서명·유출 역추적", "16자 이상의 별도 운영 secret. 브라우저·로그·Git 노출 금지"],
-  ["메일", "GMAIL_USER, GMAIL_APP_PASSWORD, EMAIL_FROM_ADDRESS, EMAIL_FROM_NAME", "계정·정책·무결성 알림", "Gmail 앱 비밀번호 사용, 발송 실패 재시도와 우편함 알림 병행"],
+  ["메일", "SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, OPERATOR_SMTP_ACCOUNTS_JSON", "계정·정책·무결성 알림", "Cafe24 SMTP 사용, 운영자별 발신 계정 일치와 발송 실패 재시도 확인"],
+  ["자금 준비금", "FINANCE_PG_FEE_RESERVE_BPS", "PG 수수료 준비금과 사업자 출금 잠금", "PG 계약 기준의 부가세 포함 bp 값을 설정하기 전에는 출금 불가"],
   ["자동 작업", "DISABLE_SCHEDULERS", "스케줄러 실행 여부", "실서비스에서는 임의로 1로 두지 않음"],
 ];
 

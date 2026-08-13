@@ -605,7 +605,7 @@ function buildArenaProblemPackDraft({
           422,
           design.slotRole === "FINAL_29_30"
             ? `${index + 1}번에 배정할 서로 다른 29·30번형 킬러 문항을 자동 생성하지 못했습니다.`
-            : "서로 다른 주관식 준킬러 5문항을 자동 생성하지 못했습니다.",
+            : "현재 난이도에 맞는 서로 다른 주관식 5문항을 자동 생성하지 못했습니다.",
           "ARENA_SHORT_ANSWER_GENERATION_FAILED"
         );
       }

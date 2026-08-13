@@ -1,5 +1,5 @@
 name: matths
-app: node@20
+app: node@24
 options:
   env:
     - name: NODE_ENV
@@ -8,6 +8,10 @@ options:
       value: 0.0.0.0
     - name: PORT
       value: "8000"
+    - name: APP_BASE_URL
+      value: https://www.matths.kr
+    - name: PUBLIC_BASE_URL
+      value: https://www.matths.kr
   install: npm ci --omit=dev --no-audit
   ports: 8000/http
   start: npm start

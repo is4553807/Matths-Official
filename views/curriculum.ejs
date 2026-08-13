@@ -181,7 +181,7 @@
                       <div>
                         <small><%= category.englishTitle || "MATHEMATICS" %></small>
                         <h3><%= courseTitle %></h3>
-                        <% if (course.developmentLocked) { %><b class="course-development-badge">개발중</b><% } %>
+                        <% if (course.developmentLocked) { %><b class="course-development-badge">준비 중</b><% } %>
                       </div>
                     </div>
 
@@ -198,7 +198,7 @@
                   </header>
 
                   <% if (course.developmentLocked) { %>
-                    <div class="course-development-panel"><strong>현재 개발 중인 과목입니다.</strong><span>개념과 학습 기능이 준비되면 이 화면에서 바로 열립니다.</span></div>
+                    <div class="course-development-panel"><strong>현재 준비 중인 과목입니다.</strong><span>개념과 학습 기능이 준비되면 이 화면에서 바로 열립니다.</span></div>
                   <% } else { %>
                   <div class="unit-list">
                     <% units.forEach((unit, unitIndex) => {

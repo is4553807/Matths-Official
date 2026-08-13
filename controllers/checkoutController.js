@@ -1,4 +1,5 @@
 const {
+  assertPaidCheckoutEnabled,
   createCheckoutIntent,
   createParentInvite,
   getProduct,
@@ -87,6 +88,7 @@ async function renderCheckout(req, res, { intent = null, status = 200 } = {}) {
 
 exports.selfCheckoutPage = async (req, res, next) => {
   try {
+    assertPaidCheckoutEnabled();
     const productCode = productCodeFromRoute(req);
     if (
       (await requiresMinorPaymentNotice(req.session.user.id)) &&
@@ -108,6 +110,7 @@ exports.selfCheckoutPage = async (req, res, next) => {
 
 exports.acceptMinorPaymentNotice = async (req, res, next) => {
   try {
+    assertPaidCheckoutEnabled();
     const productCode = productCodeFromRoute(req);
     if (!(await requiresMinorPaymentNotice(req.session.user.id))) {
       return res.redirect(`/pricing/${req.params.product}/self`);
@@ -156,7 +159,7 @@ exports.prepareSelfCheckout = async (req, res, next) => {
 async function renderParentRequest(
   req,
   res,
-  { status = 200, feedback = null, oldInput = {}, previewUrl = "" } = {}
+  { status = 200, feedback = null, feedbackTone = "error", oldInput = {} } = {}
 ) {
   const product = await getProduct(productCodeFromRoute(req));
   res.set("Cache-Control", "no-store");
@@ -164,7 +167,7 @@ async function renderParentRequest(
     user: req.session.user,
     product,
     feedback,
-    previewUrl,
+    feedbackTone,
     oldInput: {
       parentEmail: String(oldInput.parentEmail || ""),
     },
@@ -173,6 +176,7 @@ async function renderParentRequest(
 
 exports.parentRequestPage = async (req, res, next) => {
   try {
+    assertPaidCheckoutEnabled();
     return await renderParentRequest(req, res);
   } catch (error) {
     return next(error);
@@ -181,6 +185,7 @@ exports.parentRequestPage = async (req, res, next) => {
 
 exports.sendParentRequest = async (req, res, next) => {
   try {
+    assertPaidCheckoutEnabled();
     const result = await createParentInvite({
       childUserId: req.session.user.id,
       parentEmail: req.body.parentEmail,
@@ -191,7 +196,7 @@ exports.sendParentRequest = async (req, res, next) => {
       feedback: result.existingParent
         ? "기존 학부모 계정에 자녀를 추가할 수 있는 연결 링크를 보냈습니다. 링크는 72시간 동안 유효합니다."
         : "학부모 가입 및 자녀 연결 링크를 이메일로 보냈습니다. 링크는 72시간 동안 유효합니다.",
-      previewUrl: result.previewUrl,
+      feedbackTone: "success",
     });
   } catch (error) {
     if ([400, 409].includes(Number(error.status))) {

@@ -28,7 +28,7 @@ const storage = multer.diskStorage({
 
 const storeUpload = multer({
   storage,
-  limits: { files: 32, fileSize: 500 * 1024 * 1024 },
+  limits: { files: 32, fileSize: 100 * 1024 * 1024 },
   fileFilter(_req, file, callback) {
     const extension = path.extname(file.originalname).toLowerCase();
     const imageField = ["thumbnail", "detailImages", "studyThumbnail"].includes(file.fieldname);

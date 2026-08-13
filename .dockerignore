@@ -1,0 +1,56 @@
+.git
+.gitignore
+.DS_Store
+.idea
+.vscode
+
+# Local configuration and credentials are injected by the hosting platform.
+*.env
+.env.*
+config.env
+credentials*.json
+service-account*.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Dependencies and local runtime output.
+node_modules
+node_modules.root-owned-backup
+coverage
+logs
+output
+outputs
+tmp
+temp
+uploads
+video
+work
+*.log
+*.pid
+*.db
+*.sqlite*
+*.dump
+*.bson
+
+# Development, audit and authoring material is not required by the web server.
+docs
+scripts
+social
+ipad
+nodemon.json
+MATTHS_FINAL_LOGIC_FLOW.md
+playwright-report
+test-results
+browser-artifacts
+screenshots
+*.har
+*.trace.zip
+__pycache__
+*.pyc
+
+# Generated inspection pages are not part of the live problem pool.
+dataAnalysis/arenaPdfSkeletonImplementation/*
+!dataAnalysis/arenaPdfSkeletonImplementation/canonical-structure-catalog-v1.json
+!dataAnalysis/arenaPdfSkeletonImplementation/generator-blueprints-v1.json

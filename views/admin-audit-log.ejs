@@ -1,0 +1,72 @@
+<%
+  const formatDateTime = (value) => value
+    ? new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        dateStyle: "medium",
+        timeStyle: "medium",
+      }).format(new Date(value))
+    : "기록 없음";
+  const page = audit.pagination.page;
+  const totalPages = audit.pagination.totalPages;
+  const personName = (person, fallback) => person
+    ? String(person.realName || person.name || person.email || fallback)
+    : fallback;
+  const pageHref = (targetPage) => {
+    const params = new URLSearchParams();
+    if (audit.filters.adminUserId) params.set("admin", audit.filters.adminUserId);
+    if (audit.filters.query) params.set("query", audit.filters.query);
+    params.set("page", String(targetPage));
+    return `/admin/audit-log?${params.toString()}`;
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>운영 감사 로그 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "audit-log" }) %>
+    <main class="admin-main">
+      <header class="admin-heading">
+        <div><p>USER ACTION AUDIT</p><h1>운영 감사 로그</h1><span>관리자가 특정 사용자에게 실제로 수행한 조치만 표시합니다. 관리자 로그인 시각은 이번 적용 이후 생성된 조치부터 기록됩니다.</span></div>
+        <strong><%= audit.pagination.total %><small>건</small></strong>
+      </header>
+
+      <form class="admin-filter-form admin-audit-filter" method="get" action="/admin/audit-log">
+        <label><span>처리 운영자</span><select name="admin"><option value="">전체 운영자</option><% audit.admins.forEach((admin) => { %><option value="<%= admin._id %>" <%= String(admin._id) === audit.filters.adminUserId ? 'selected' : '' %>><%= personName(admin, '운영자') %> · <%= admin.email %></option><% }) %></select></label>
+        <label class="wide"><span>조치·사용자·상세 검색</span><input type="search" name="query" value="<%= audit.filters.query %>" maxlength="120" placeholder="예: 페이백, 경고, 사용자 이메일" /></label>
+        <button type="submit">조회</button>
+        <a href="/admin/audit-log">초기화</a>
+      </form>
+
+      <section class="admin-panel admin-audit-history" aria-label="운영자 행동 목록">
+        <% if (!audit.rows.length) { %>
+          <div class="admin-empty">조건에 맞는 운영자 행동 기록이 없습니다.</div>
+        <% } else { %>
+          <div class="admin-table-wrap"><table>
+            <thead><tr><th>처리 시각</th><th>처리 관리자</th><th>관리자 로그인</th><th>사용자 조치</th><th>대상 사용자</th><th>처리 내용</th></tr></thead>
+            <tbody><% audit.rows.forEach((item) => { %><tr>
+              <td><%= formatDateTime(item.createdAt) %></td>
+              <td><strong><%= personName(item.actor, "운영자 계정 확인 필요") %></strong><small><%= item.actor?.email || item.metadata?.actorSnapshot?.email || "이메일 기록 없음" %></small></td>
+              <td><%= formatDateTime(item.metadata?.actorSnapshot?.loginAt) %></td>
+              <td><strong><%= item.actionLabel %></strong></td>
+              <td><% if (item.target?._id) { %><a href="/admin/users/<%= item.target._id %>"><%= personName(item.target, "사용자") %></a><small><%= item.target.email || "" %></small><% } else if (item.target) { %><span><%= personName(item.target, "탈퇴 사용자") %></span><small><%= item.target.email || "계정 탈퇴 후 식별정보 제거" %></small><% } else { %><span>사용자 기록 확인 필요</span><% } %></td>
+              <td><span><%= item.detail || "처리 완료" %></span></td>
+            </tr><% }) %></tbody>
+          </table></div>
+        <% } %>
+      </section>
+      <nav class="admin-pagination" aria-label="운영 감사 로그 페이지">
+        <a class="<%= page <= 1 ? 'disabled' : '' %>" href="<%= pageHref(Math.max(1, page - 1)) %>">← 이전</a>
+        <span><strong><%= page %></strong> / <%= totalPages %> · 페이지당 <%= audit.pagination.perPage %>건</span>
+        <a class="<%= page >= totalPages ? 'disabled' : '' %>" href="<%= pageHref(Math.min(totalPages, page + 1)) %>">다음 →</a>
+      </nav>
+    </main>
+  </body>
+</html>

@@ -15,9 +15,6 @@ const {
 } = require("./arenaPrivateMockResearchCatalog");
 const {
   ARENA_DIFFICULTY_CLASS_SOURCE_BANDS,
-  accuracyRangeForDifficultyClass,
-  difficultyClassForTierSlot,
-  difficultyClassMixForTier,
   generatorDifficultyForClass,
   sourceBandForDifficultyClass,
 } = require("./arenaAccuracyDifficultyPolicy");
@@ -482,9 +479,10 @@ function difficultyClassForDifficultyCodeSlot(difficultyCode = "", index = 0) {
 }
 
 function isAllKillerDifficultyCode(difficultyCode = "") {
-  const tier = tierForDifficultyCode(difficultyCode);
-  return Boolean(tier) && difficultyClassMixForTier(tier).every(
-    (difficultyClass) => difficultyClass === "KILLER"
+  const pack = sourceDifficultyPack(difficultyCode);
+  return Boolean(pack?.length) && pack.every(
+    (sourceDifficultyCode) =>
+      difficultyClassForSourceDifficultyCode(sourceDifficultyCode) === "KILLER"
   );
 }
 

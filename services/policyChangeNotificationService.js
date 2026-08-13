@@ -493,7 +493,7 @@ async function deliverEmail(delivery, now, sendEmailFn) {
       { _id: delivery._id, leaseToken: delivery.leaseToken },
       {
         $set: {
-          emailStatus: result?.preview ? "PREVIEW" : "SENT",
+          emailStatus: result?.delivered ? "SENT" : "FAILED",
           emailAttempts: attempts,
           emailLastAttemptAt: now,
           emailNextRetryAt: null,

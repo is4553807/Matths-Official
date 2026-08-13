@@ -7,6 +7,13 @@ const goatArenaController =
 const {
   arenaEvidenceUpload,
 } = require("../middleware/arenaEvidenceUpload");
+const {
+  createUploadContentValidator,
+} = require("../middleware/uploadContentValidation");
+
+const validateArenaEvidenceContent = createUploadContentValidator({
+  maxTotalBytes: 30 * 1024 * 1024,
+});
 
 const router =
   express.Router();
@@ -110,6 +117,7 @@ router.post(
     next();
   },
   arenaEvidenceUpload.array("evidenceFiles", 5),
+  validateArenaEvidenceContent,
   (
     error,
     req,
@@ -139,6 +147,7 @@ router.post(
     next();
   },
   arenaEvidenceUpload.array("evidenceFiles", 5),
+  validateArenaEvidenceContent,
   (error, req, res, next) =>
     goatArenaController.arenaSupplementalEvidenceUploadError(
       error,

@@ -43,6 +43,10 @@
         <div><p>USER MANAGEMENT</p><h1>유저 관리</h1><span>검색과 필터로 사용자를 찾은 뒤 학습·랭킹·계정 정보를 확인합니다.</span></div>
         <strong><%= usersData.total %><small>명</small></strong>
       </header>
+      <nav class="admin-user-tabs" aria-label="유저 관리 메뉴">
+        <a class="active" href="/admin/users" aria-current="page">사용자 목록</a>
+        <a href="/admin/users/sanctions">최근 제재 내역</a>
+      </nav>
       <% if (typeof feedback !== "undefined" && feedback) { %><div class="admin-feedback" role="status"><%= feedback %></div><% } %>
 
       <form class="admin-filter-bar user-filter-bar" action="/admin/users" method="GET">

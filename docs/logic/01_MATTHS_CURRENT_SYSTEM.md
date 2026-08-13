@@ -168,7 +168,7 @@ Ranked 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다.
 - 자체 HMAC 서명 Bearer 토큰 기반 모바일/API 인증
 - `bcrypt` 12 rounds 비밀번호 해시
 - `multer` 파일 업로드
-- `nodemailer` Gmail SMTP 메일 발송
+- `nodemailer` Cafe24 웹메일 SMTP 발송
 - `js-yaml` 2022 개정 교육과정·학교 데이터 로딩
 - 브라우저 순수 JavaScript 기반 타이머, 자동 저장, 그래프, 문제 풀이 UI
 
@@ -222,16 +222,18 @@ Ranked 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다.
 | `PORT` | 서버 포트, 기본 8000 |
 | `HOST` | 바인드 호스트, 기본 `0.0.0.0` |
 | `NODE_ENV` | 운영/비운영 이메일 동작 등 |
-| `ADMIN_EMAIL` | 관리자 이메일 판정·운영 메일 수신 |
+| `ADMIN_EMAIL` | 운영 알림 수신 메일 |
 | `APP_BASE_URL` | 이메일 링크 절대 URL |
 | `API_TOKEN_SECRET` | 모바일/API HMAC 토큰 서명 |
 | `API_TOKEN_TTL_SECONDS` | API 토큰 유효 기간 |
 | `PASSWORD_RESET_SECRET` | 재설정 코드 HMAC, 없으면 `SECRET` |
 | `NICKNAME_CHECK_SECRET` | 닉네임 가용성 증명 HMAC |
 | `SESSION_SECRET` | 닉네임 증명의 중간 폴백 |
-| `GMAIL_USER` | SMTP Gmail 계정 |
-| `GMAIL_APP_PASSWORD` | Gmail 앱 비밀번호 |
-| `EMAIL_FROM_ADDRESS` | 선택적 발신 주소 |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Cafe24 SMTP 연결 |
+| `SMTP_USER`, `SMTP_PASSWORD` | 기본 시스템 메일 계정 |
+| `EMAIL_FROM_ADDRESS` | 기본 시스템 발신 주소 |
+| `OPERATOR_SMTP_ACCOUNTS_JSON` | 운영자별 SMTP 발신 계정 |
+| `FINANCE_PG_FEE_RESERVE_BPS` | PG 수수료 준비금 비율(부가세 포함 계약 기준) |
 | `EMAIL_FROM_NAME` | 선택적 발신 이름 |
 | `ARCHIVE_STORAGE_DIR` | R2 전송 전 아카이브 임시 업로드 경로와 기존 로컬 파일 이전 경로 |
 | `FONTCONFIG_FILE` | 소셜 카드 생성 보조 폰트 설정 |
@@ -284,7 +286,7 @@ Ranked 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다.
 
 - 서버에서 실행되는 JavaScript를 웹 관리자 화면에서 직접 저장·실행하는 기능은 제공하지 않는다. 수학식 생성·검산 엔진은 코드 배포로만 바꾼다.
 - 관리자는 `/admin/problem-banks`에서 서버에 등록된 1대1 생성 유형의 사용 여부·배정 가중치·1~999 정답 범위·운영 메모를 조정하고, 공개 `U1~U9`·`R1~R9`에 연결된 내부 카탈로그별로 최소 5개씩 선택해 DRAFT 문제 데이터 버전을 저장·수정·자동 검산·적용할 수 있다.
-- Arena 1대1의 방어자 앵커 `U1~U9`·`R1~R9`, 객관 정답률 등급·단원 구성·실측 보정은 `arenaOneOnOneDifficultyPolicy.js`와 `arenaAccuracyDifficultyPolicy.js`가 관리한다. 기존 `T1~T9`는 DB 카탈로그 호환용 내부 키다. 2016~2026 고3 전월 전국연합학력평가·모의평가 128개 수학 시험지의 전 문항 3,037건을 조사했고, 교육과정에 맞으며 정답률 등급이 확정된 1,628건만 런타임 분류 근거로 쓴다. 브론즈부터 골드는 기초 일반·일반·상위 일반, 플래티넘부터 준킬러, 마스터부터 킬러를 단계적으로 혼합하며 참가자 양쪽의 최근 공식 경기 5개 유형을 먼저 제외한다.
+- Arena 1대1의 방어자 앵커 `U1~U9`·`R1~R9`, 객관 정답률 등급·단원 구성·실측 보정은 `arenaMatchDifficultyPlan.js`, `arenaOneOnOneDifficultyPolicy.js`, `arenaAccuracyDifficultyPolicy.js`가 관리한다. 기존 `T1~T9`는 DB 카탈로그 호환용 내부 키다. 2016~2026 고3 전월 전국연합학력평가·모의평가 128개 수학 시험지의 전 문항 3,037건을 조사했고, 교육과정에 맞으며 정답률 등급이 확정된 1,628건만 런타임 분류 근거로 쓴다. Unranked는 D1~D6, Ranked는 D2~D9의 서로 다른 조합표를 사용하며 참가자 양쪽의 최근 공식 경기 5개 유형을 먼저 제외한다.
 - 문제 데이터 활성화는 유형별 5회 자동 검산을 통과해야 한다. 신규 경기는 활성 버전을 읽고 `ArenaProblemPack.problemDataVersionId`와 콘텐츠 버전을 봉인하므로, 적용 뒤에도 진행 중 경기는 생성 당시 문제를 유지한다.
 - MongoDB Change Stream이 문제 데이터 캐시를 즉시 비우고, 지원하지 않는 환경은 최대 15초 TTL 뒤 새 버전을 조회하므로 데이터 구성 변경에는 서버 재시작이 필요 없다. 새 생성 함수나 검산 코드 자체를 바꾸는 경우에는 정상 코드 배포가 필요하다.
 - 운영자가 업로드하는 주간 공식 모의고사 자료는 기존 관리자 업로드 화면에서 관리하며, 생성기 코드 변경은 자동 검산과 회귀 검증을 거쳐 배포한다.
@@ -326,8 +328,7 @@ Ranked 전용 상점 정책의 권위 원본은 [`12_SHOP.md`](./12_SHOP.md)다.
 다음 중 하나면 관리자다.
 
 - 사용자 역할이 `admin`.
-- 사용자 이메일이 `ADMIN_EMAIL`과 일치.
-- `ADMIN_EMAIL`이 없으면 폴백 이메일 `admin@lsbproduction.com`과 일치.
+- 사용자 계정의 `role`이 `admin`인 경우에만 운영센터 접근을 허용.
 
 관리자 전용 라우트는 로그인과 관리자 판정을 모두 거친다.
 
@@ -423,7 +424,7 @@ base64url(header).base64url(payload).base64url(HMAC-SHA256(signature))
 - `tokenVersion` 증가
 - 사용된 요청과 다른 열린 요청을 잠금/종료
 
-운영 환경에서는 Gmail 설정 누락을 오류로 처리한다. 비운영 환경에서는 실제 전송 대신 확인 가능한 프리뷰를 반환할 수 있다.
+SMTP 설정이 없으면 환경과 관계없이 발송을 거절한다. 사용자 화면에 인증코드나 전용 링크를 대신 노출하지 않는다.
 
 ### 2.8 학교와 공개 랭킹 신원
 
@@ -1838,7 +1839,7 @@ YAML의 각 모드·상황 문구는 비어 있으면 안 된다. 세션/사용�
 
 ### 15.4 이메일
 
-- Gmail SMTP 465
+- Cafe24 SMTP 587 STARTTLS
 - 운영 환경 자격증명 누락: 서비스 오류
 - 비운영 환경 누락: 프리뷰 가능
 - 공급자 전송 실패: 게이트웨이 오류 계열
@@ -2224,7 +2225,7 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 
 ### 16.10 일반 쟁탈전 문제 준비·응시
 
-- 운영자 수동 검수 대신 JS 생성기와 자동 검산을 통과한 총 5문항·100점 팩만 봉인한다. 브론즈는 기초 일반 2+일반 3에서 시작해 챌린저는 준킬러 2+킬러 3까지 단계적으로 높이며 제한 시간은 문항마다 10분이다.
+- 운영자 수동 검수 대신 JS 생성기와 자동 검산을 통과한 총 5문항·100점 팩만 봉인한다. U1은 D1 4문항+D2 1문항, U9은 D4 1문항+D5 2문항+D6 2문항이며, R1은 D2 2문항+D3 2문항+D4 1문항, R9은 D6 1문항+D7 3문항+D9 1문항이다. 제한 시간은 문항마다 10분이다.
 - 봉인 팩 전체 콘텐츠 해시가 일치해야 실제 경기에 배정한다.
 - 양측에는 난이도와 내용이 완전히 같은 문제를 제공한다. Unranked는 방어자 티어의 `U1~U9`, Ranked는 `R1~R9`를 사용하고 같은 숫자의 R등급이 U등급보다 어렵다. 각 공개 난이도에는 실제 경기 선택에 쓰는 최소 30개 유형 ID가 있다.
 - 그래프·표·도식은 문제 본문이 실제 제시 자료라고 명시하고 생성 수치에 대응하는 식·라벨·좌표 데이터가 있을 때만 흰색 문제지에 표시한다. 풀이과정에서만 사용된 보조 그래프는 표시하지 않는다.
@@ -2639,7 +2640,7 @@ Arena 값은 별도 `ArenaStanding`에서 관리한다.
 | `curriculumService.js` | YAML 카탈로그 로드·정규화·검색 |
 | `dashboardService.js` | 사용자 대시보드 집계·일일 계획 |
 | `dataAnalysisService.js` | 첫 달 운영 지표 카탈로그·관측값 집계 |
-| `emailService.js` | Gmail/프리뷰, 브랜드 메일 |
+| `emailService.js` | Cafe24 SMTP, 운영자별 발신, 브랜드 메일 |
 | `examBankSource.js` | 공식 시험 분포·문제 원천 메타데이터 |
 | `learningProgressService.js` | 30/60/10 진행률, 과정·단원 집계 |
 | `identityRiskService.js` | 실명·생년월일·고등학교 조합 해시와 중복 계정 검토 알림 |

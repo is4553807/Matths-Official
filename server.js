@@ -18,13 +18,57 @@ const {
 const {
     arenaPublicText,
 } = require("./services/arenaPublicTerminologyService");
+const {
+    sameOriginProtection,
+} = require("./middleware/requestSecurity");
+const {
+    assertRuntimeEnvironment,
+} = require("./services/runtimeEnvironmentService");
 
-server.use(express.static("public"));
+const runtimeEnvironment = assertRuntimeEnvironment();
+for (const warning of runtimeEnvironment.warnings) {
+    console.warn(`[startup warning] ${warning}`);
+}
+
+server.disable("x-powered-by");
+server.use((_req, res, next) => {
+    res.set({
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Resource-Policy": "same-origin",
+        "X-DNS-Prefetch-Control": "off",
+        "Content-Security-Policy": [
+            "default-src 'self'",
+            "base-uri 'self'",
+            "connect-src 'self'",
+            "font-src 'self' data:",
+            "form-action 'self'",
+            "frame-ancestors 'none'",
+            "img-src 'self' data: blob: https:",
+            "object-src 'none'",
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+            "style-src 'self' 'unsafe-inline'",
+        ].join("; "),
+    });
+    if (process.env.NODE_ENV === "production") {
+        res.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    }
+    next();
+});
+
+server.use(express.static("public", {
+    etag: true,
+    lastModified: true,
+    maxAge: process.env.NODE_ENV === "production" ? "1d" : 0,
+}));
 server.set('view engine', 'ejs');
 server.use(express.urlencoded({extended:true}));
 server.use(express.json());
 
-const secret = process.env.SECRET;
+const secret = process.env.SECRET || "matths-local-session-secret-change-before-production";
 if (process.env.NODE_ENV === "production") {
     server.set("trust proxy", 1);
 }
@@ -46,9 +90,12 @@ server.use(session({
         maxAge: sessionTtlSeconds * 1000,
     },
 }));
+server.use(sameOriginProtection);
 server.use((req, res, next) => {
     res.locals.user = req.session?.user || null;
     res.locals.arenaPublicText = arenaPublicText;
+    res.locals.publicContactEmail =
+        String(process.env.PUBLIC_CONTACT_EMAIL || "admin@lsbproduction.com").trim();
     res.locals.coach = getCoachView({
         mode:
             req.session?.user?.preferences
@@ -75,7 +122,10 @@ server.use(errorHandler);
 
 async function connectDB() {
     try {
-        await mongoose.connect(process.env.DB);
+        await mongoose.connect(process.env.DB, {
+            serverSelectionTimeoutMS:
+                process.env.NODE_ENV === "production" ? 15_000 : 5_000,
+        });
         console.log("MongoDB Connected Successfully");
 
         const {
@@ -204,9 +254,12 @@ async function connectDB() {
         startParentAlertScheduler();
     } catch (error) {
         console.error("MongoDB Connection Failed:", error);
-        process.exit(1);
+        throw error;
     }
 };
+
+let httpServer = null;
+let shutdownPromise = null;
 
 function startServer() {
     const port =
@@ -214,11 +267,57 @@ function startServer() {
     const hostname =
         process.env.HOST || "0.0.0.0";
 
-    server.listen(port, hostname, () => {
+    httpServer = server.listen(port, hostname, () => {
         console.log(
             `Server running at http://${hostname}:${port}/`
         );
-    })
+    });
+    return httpServer;
 }
 
-connectDB().then(startServer);
+async function startApplication() {
+    await connectDB();
+    return startServer();
+}
+
+async function shutdown(signal = "shutdown", { exitProcess = false } = {}) {
+    if (shutdownPromise) return shutdownPromise;
+    shutdownPromise = (async () => {
+        console.log(`[shutdown] ${signal} received; stopping new requests.`);
+        const forceTimer = setTimeout(() => {
+            console.error("[shutdown] Graceful shutdown timed out.");
+            if (exitProcess) process.exit(1);
+        }, 20_000);
+        forceTimer.unref();
+
+        if (httpServer) {
+            httpServer.closeIdleConnections?.();
+            await new Promise((resolve) => httpServer.close(resolve));
+            httpServer = null;
+        }
+        if (mongoose.connection.readyState !== 0) {
+            await mongoose.disconnect();
+        }
+        clearTimeout(forceTimer);
+        console.log("[shutdown] Server and database connection stopped.");
+        if (exitProcess) process.exit(0);
+    })();
+    return shutdownPromise;
+}
+
+if (require.main === module) {
+    startApplication().catch((error) => {
+        console.error("Application startup failed:", error);
+        process.exit(1);
+    });
+    process.once("SIGTERM", () => shutdown("SIGTERM", { exitProcess: true }));
+    process.once("SIGINT", () => shutdown("SIGINT", { exitProcess: true }));
+}
+
+module.exports = {
+    connectDB,
+    server,
+    shutdown,
+    startApplication,
+    startServer,
+};

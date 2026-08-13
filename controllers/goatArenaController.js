@@ -1904,7 +1904,7 @@ async function renderArenaMatchActionError(
   error
 ) {
   if (
-    [400, 403, 404, 409, 410, 413, 423].includes(
+    [400, 403, 404, 409, 410, 413, 422, 423].includes(
       Number(error.status)
     )
   ) {

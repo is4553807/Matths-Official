@@ -529,6 +529,7 @@ summary:focus-visible {
 .category-panel {
   position: sticky;
   top: calc(var(--nav) + 35px);
+  min-width: 0;
 }
 
 .category-panel > p {
@@ -542,6 +543,10 @@ summary:focus-visible {
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: 0 14px 35px rgba(28, 35, 76, 0.06);
+}
+
+.faq-content {
+  min-width: 0;
 }
 
 .category-button {

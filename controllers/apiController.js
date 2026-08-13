@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const mongoose = require("mongoose");
 const {
   User,
 } = require("../models/matthsModel");
@@ -113,12 +114,40 @@ function authResponse(user) {
   };
 }
 
-exports.health = (req, res) =>
+exports.liveness = (_req, res) =>
   res.json({
     service: "Matths API",
     version: "v1",
     status: "ok",
   });
+
+exports.readiness = async (_req, res) => {
+  const connected = mongoose.connection.readyState === 1;
+  if (!connected) {
+    return res.status(503).json({
+      service: "Matths API",
+      version: "v1",
+      status: "not_ready",
+    });
+  }
+
+  try {
+    await mongoose.connection.db.admin().ping();
+    return res.json({
+      service: "Matths API",
+      version: "v1",
+      status: "ready",
+    });
+  } catch (_error) {
+    return res.status(503).json({
+      service: "Matths API",
+      version: "v1",
+      status: "not_ready",
+    });
+  }
+};
+
+exports.health = exports.readiness;
 
 exports.schools = (req, res) =>
   res.json({
@@ -767,16 +796,13 @@ exports.moderateSuggestion =
 exports.requestPasswordReset =
   async (req, res, next) => {
     try {
-      const result =
-        await requestPasswordReset(
-          req.body.email
-        );
+      await requestPasswordReset(
+        req.body.email
+      );
 
       return res.json({
         message:
           "가입된 이메일이라면 인증코드를 발송했습니다.",
-        previewCode:
-          result.previewCode,
       });
     } catch (error) {
       return next(error);

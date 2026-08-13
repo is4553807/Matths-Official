@@ -12,6 +12,7 @@ const {
   UserNotification,
 } = require("../models/matthsModel");
 const { sendAdminUserEmail } = require("./emailService");
+const { getActiveAdminSender } = require("./adminIdentityService");
 const { registerArenaOutboxHandler } = require("./arenaOutboxService");
 
 const ACTIVE_MATCH_STATUSES = Object.freeze([
@@ -36,9 +37,7 @@ function absoluteAppUrl(href) {
   const baseUrl = String(
     process.env.APP_BASE_URL ||
       process.env.PUBLIC_BASE_URL ||
-      (process.env.NODE_ENV === "production"
-        ? ""
-        : `http://localhost:${Number(process.env.PORT) || 8000}`)
+      ""
   ).replace(/\/$/, "");
   const internalHref = safeInternalHref(href);
   return baseUrl ? `${baseUrl}${internalHref}` : "";
@@ -67,6 +66,7 @@ async function ensureArenaNotification({
   email = false,
   emailActionLabel = "",
   emailActionUrl = "",
+  fromAddress = "",
 }) {
   if (!user?._id || !dedupeKey) return null;
   const existing = await UserNotification.findOne({ dedupeKey }).lean();
@@ -99,6 +99,7 @@ async function ensureArenaNotification({
         idempotencyKey: dedupeKey,
         actionLabel: emailActionLabel,
         actionUrl: emailActionUrl,
+        fromAddress,
       });
     } catch (error) {
       // 이메일 공급자 장애가 사이트 우편 생성이나 경기 상태를 되돌리면 안 됩니다.
@@ -365,6 +366,7 @@ async function notifyArenaIntegrityReviewResult({
   compensationMs = 0,
   assetPenaltyBurned = 0,
   assetPenaltyKind = "",
+  adminUserId = null,
 }) {
   if (!mongoose.isValidObjectId(userId)) return null;
   const user = await User.findById(userId).select("email name").lean();
@@ -404,6 +406,7 @@ async function notifyArenaIntegrityReviewResult({
         hourCycle: "h23",
       }).format(new Date(restrictedUntil))
     : "판정 시점부터 5일 뒤";
+  const sender = adminUserId ? await getActiveAdminSender(adminUserId) : null;
   return ensureArenaNotification({
     user,
     dedupeKey: `arena-integrity-review-result:${sourceId}:${decision}:${userId}`,
@@ -443,6 +446,7 @@ async function notifyArenaIntegrityReviewResult({
     // 주황 표시로 Arena 우편함에 보여준다.
     tone: cleared ? "review-cleared" : "integrity-alert",
     email: true,
+    fromAddress: sender?.email || "",
   });
 }
 
@@ -535,6 +539,7 @@ async function notifyArenaSupplementalEvidenceRequested({
   requestedAt,
   deadlineAt,
   requestMessage = "",
+  adminUserId = null,
 }) {
   if (!mongoose.isValidObjectId(matchId) || !mongoose.isValidObjectId(userId)) {
     return null;
@@ -552,6 +557,7 @@ async function notifyArenaSupplementalEvidenceRequested({
     hourCycle: "h23",
   }).format(new Date(deadlineAt));
   const reason = String(requestMessage || "").trim();
+  const sender = adminUserId ? await getActiveAdminSender(adminUserId) : null;
   return ensureArenaNotification({
     user,
     dedupeKey: `arena-supplemental-evidence:${matchId}:${role}:${new Date(requestedAt).getTime()}`,
@@ -564,6 +570,7 @@ async function notifyArenaSupplementalEvidenceRequested({
     email: true,
     emailActionLabel: "소명 자료 업로드하기",
     emailActionUrl: absoluteAppUrl(href),
+    fromAddress: sender?.email || "",
   });
 }
 

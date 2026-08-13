@@ -706,6 +706,7 @@ async function reviewArenaIntegrityCase({
     decision,
     note: riskCase.decisionNote,
     accessReleased,
+    adminUserId,
   });
   return {
     caseId: id(riskCase._id),
@@ -2166,6 +2167,7 @@ async function reviewHeldArenaMatch({
           penaltyBurnByUserId.get(id(userId))?.burnedAmount || 0
         ),
         assetPenaltyKind: penaltyBurnByUserId.get(id(userId))?.assetKind || "",
+        adminUserId,
       });
     }
   }
@@ -2290,6 +2292,7 @@ async function requestArenaSupplementalEvidence({
     requestedAt: current,
     deadlineAt,
     requestMessage: message,
+    adminUserId,
   });
   return {
     matchId: id(matchId),
@@ -2305,7 +2308,7 @@ async function requestArenaSupplementalEvidence({
 async function cancelHeldArenaMatchForAdminReset({
   matchId,
   adminUserId,
-  note = "운영 테스트 상태 초기화",
+  note = "운영 상태 초기화",
   now = new Date(),
 }) {
   if (!mongoose.isValidObjectId(matchId)) {
@@ -2340,7 +2343,7 @@ async function cancelHeldArenaMatchForAdminReset({
               reviewedAt: current,
               reviewedBy: adminUserId,
               retentionHoldReason: String(
-                note || "운영 테스트 상태 초기화"
+                note || "운영 상태 초기화"
               ).slice(0, 300),
             },
           },

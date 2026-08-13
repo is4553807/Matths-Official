@@ -104,7 +104,11 @@ assert.ok(parentRegister.includes("readonly"));
 assert.ok(parentDashboard.includes("오답률"));
 assert.ok(parentDashboard.includes("최종 종합 랭킹"));
 assert.ok(parentPricing.includes("결제하기"));
-assert.ok(parentPricing.includes("PG 연결 전"));
+assert.ok(parentPricing.includes("온라인 결제 준비 중"));
+assert.equal(parentPricing.includes("PG 연결 전"), false);
+const checkoutService = read("services/checkoutService.js");
+assert.ok(checkoutService.includes("PAID_CHECKOUT_UNAVAILABLE"));
+assert.ok(checkoutService.includes("implementedProviders"));
 
 const accessService = read("services/paidFeatureAccessService.js");
 const privateMockService = read("services/privateMockExamService.js");

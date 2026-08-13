@@ -128,12 +128,10 @@ textarea:focus {
 /* Shared brand */
 
 .brand-mark,
-.auth-brand > span,
-.admin-brand > span {
-  background-color: var(--matths-navy) !important;
-  box-shadow:
-    0 10px 24px rgba(2, 4, 17, 0.28),
-    0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+.auth-brand > .brand-mark,
+.admin-brand > .brand-mark {
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 /* Dashboard shell and navigation */
@@ -159,9 +157,7 @@ textarea:focus {
 }
 
 .sidebar .brand-mark {
-  box-shadow:
-    0 9px 22px rgba(118, 84, 247, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
 }
 
 .sidebar-close {

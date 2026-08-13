@@ -79,7 +79,7 @@ function availableTypeIdSet() {
 function defaultTierConfigurations() {
   const typeIds = availableArenaProblemTypes().map((item) => item.typeId);
   if (typeIds.length < 5) {
-    throw new Error("Arena 기본 문제 데이터를 만들 준킬러 유형이 5개 미만입니다.");
+    throw new Error("Arena 기본 문제 데이터를 만들 일반 슬롯 유형이 5개 미만입니다.");
   }
   return ARENA_PROBLEM_DIFFICULTY_TIERS.map((difficultyTier, tierIndex) => ({
     difficultyTier,

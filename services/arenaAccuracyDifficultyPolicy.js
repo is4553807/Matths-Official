@@ -63,72 +63,6 @@ const ARENA_ACCURACY_BANDS = Object.freeze([
   }),
 ]);
 
-const ARENA_TIER_DIFFICULTY_CLASS_MIX = Object.freeze({
-  BRONZE: Object.freeze([
-    "BASIC_GENERAL",
-    "BASIC_GENERAL",
-    "GENERAL",
-    "GENERAL",
-    "GENERAL",
-  ]),
-  SILVER: Object.freeze([
-    "GENERAL",
-    "GENERAL",
-    "GENERAL",
-    "GENERAL",
-    "GENERAL",
-  ]),
-  GOLD: Object.freeze([
-    "GENERAL",
-    "GENERAL",
-    "UPPER_GENERAL",
-    "UPPER_GENERAL",
-    "UPPER_GENERAL",
-  ]),
-  PLATINUM: Object.freeze([
-    "UPPER_GENERAL",
-    "UPPER_GENERAL",
-    "UPPER_GENERAL",
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-  ]),
-  EMERALD: Object.freeze([
-    "UPPER_GENERAL",
-    "UPPER_GENERAL",
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-  ]),
-  DIAMOND: Object.freeze([
-    "UPPER_GENERAL",
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-  ]),
-  MASTER: Object.freeze([
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-    "KILLER",
-  ]),
-  GRANDMASTER: Object.freeze([
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-    "KILLER",
-    "KILLER",
-  ]),
-  CHALLENGER: Object.freeze([
-    "SEMI_KILLER",
-    "SEMI_KILLER",
-    "KILLER",
-    "KILLER",
-    "KILLER",
-  ]),
-});
-
 const ARENA_DIFFICULTY_CLASS_SOURCE_BANDS = Object.freeze({
   BASIC_GENERAL: "ACCURACY_BASIC_GENERAL",
   GENERAL: "ACCURACY_GENERAL",
@@ -196,18 +130,6 @@ function classifyAccuracyEvidence({
   });
 }
 
-function difficultyClassMixForTier(tier) {
-  const normalizedTier = String(tier || "").trim().toUpperCase();
-  const mix = ARENA_TIER_DIFFICULTY_CLASS_MIX[normalizedTier];
-  if (!mix) throw new Error(`Arena 티어 난이도 구성을 찾을 수 없습니다: ${tier}`);
-  return [...mix];
-}
-
-function difficultyClassForTierSlot(tier, index) {
-  const mix = difficultyClassMixForTier(tier);
-  return mix[Math.max(0, Math.min(mix.length - 1, Number(index) || 0))];
-}
-
 function accuracyRangeForDifficultyClass(difficultyClass) {
   const normalized = String(difficultyClass || "").trim().toUpperCase();
   const band = ARENA_ACCURACY_BANDS.find(
@@ -239,12 +161,9 @@ module.exports = {
   ARENA_DIFFICULTY_CLASSES,
   ARENA_DIFFICULTY_CLASS_LABELS,
   ARENA_DIFFICULTY_CLASS_SOURCE_BANDS,
-  ARENA_TIER_DIFFICULTY_CLASS_MIX,
   accuracyBandForPercent,
   accuracyRangeForDifficultyClass,
   classifyAccuracyEvidence,
-  difficultyClassForTierSlot,
-  difficultyClassMixForTier,
   generatorDifficultyForClass,
   sourceBandForDifficultyClass,
 };

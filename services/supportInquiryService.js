@@ -226,7 +226,7 @@ async function createSupportInquiry({
       status:
         delivery.delivered
           ? "sent"
-          : "preview",
+          : "failed",
       providerMessageId:
         delivery
           .providerMessageId || "",

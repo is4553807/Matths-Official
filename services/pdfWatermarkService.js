@@ -25,7 +25,7 @@ const { PdfWatermarkIssuance } = require("../models/documentSecurityModel");
 const { downloadR2ObjectToFile } = require("./r2ObjectStorageService");
 const { signedStoredAssetUrl } = require("./fileStorageService");
 
-const DEFAULT_MAX_PDF_BYTES = 150 * 1024 * 1024;
+const DEFAULT_MAX_PDF_BYTES = 50 * 1024 * 1024;
 const FORENSIC_PREFIX = "MTHS1";
 const TRACE_PATTERN = /MTH-[A-F0-9]{16}/g;
 const TOKEN_PATTERN = /MTHS1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;

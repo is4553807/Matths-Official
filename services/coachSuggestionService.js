@@ -12,22 +12,8 @@ const {
   setCommunityCoachMessages,
 } = require("./coachMessageService");
 
-const ADMIN_EMAIL =
-  String(
-    process.env.ADMIN_EMAIL ||
-      "admin@lsbproduction.com"
-  )
-    .trim()
-    .toLowerCase();
-
 function isCoachAdmin(user) {
-  return (
-    user?.role === "admin" ||
-    String(user?.email || "")
-      .trim()
-      .toLowerCase() ===
-      ADMIN_EMAIL
-  );
+  return user?.role === "admin";
 }
 
 function sanitizeMessage(value) {
@@ -380,7 +366,6 @@ async function moderateSuggestion({
 }
 
 module.exports = {
-  ADMIN_EMAIL,
   createSuggestion,
   getSuggestionBoardData,
   getAdminSuggestionData,

@@ -18,8 +18,6 @@ const {
 const {
   MAIN_TIER_PAIR_CONFIG,
   SUB_TIER_PAIR_CONFIG,
-  generateSubOneOnOneQuestionsFromActiveData,
-  generateMainOneOnOneQuestionsFromActiveData,
 } = require("../services/arenaOneOnOneProblemBank");
 const {
   buildGeneratedArenaProblemPackDraft,
@@ -164,6 +162,27 @@ function verifyGeneration(generation, active, division) {
   );
 }
 
+async function generateCatalogVerificationPack({ active, pair, matchKey, division }) {
+  const questions = await generateQuestionsFromTierCatalog({
+    version: active,
+    difficultyTier: pair.difficultyTier,
+    difficultyCode: pair.difficultyCode,
+    challengerTier: pair.challengerTier,
+    defenderTier: pair.defenderTier,
+    matchKey,
+    division,
+  });
+  return {
+    pairKey: pair.key,
+    pairLabel: pair.label,
+    difficultyTier: pair.difficultyTier,
+    difficultyCode: pair.difficultyCode,
+    tierCatalogVersionId: active._id,
+    contentSourceVersion: active.code,
+    questions,
+  };
+}
+
 async function main() {
   assert.ok(process.env.DB, "config.env의 DB 연결 문자열이 필요합니다.");
   await mongoose.connect(process.env.DB);
@@ -222,10 +241,11 @@ async function main() {
   for (const pair of SUB_TIER_PAIR_CONFIG) {
     for (let sample = 1; sample <= 3; sample += 1) {
       const matchKey = `db-verify-sub-${pair.key}-${sample}`;
-      const generation = await generateSubOneOnOneQuestionsFromActiveData({
-        challengerTier: pair.challengerTier,
-        defenderTier: pair.defenderTier,
+      const generation = await generateCatalogVerificationPack({
+        active,
+        pair,
         matchKey,
+        division: "SUB",
       });
       verifyGeneration(generation, active, "SUB");
       renderedVisualizationCount += generation.questions.filter(
@@ -245,10 +265,11 @@ async function main() {
   for (const pair of MAIN_TIER_PAIR_CONFIG) {
     for (let sample = 1; sample <= 3; sample += 1) {
       const matchKey = `db-verify-main-${pair.key}-${sample}`;
-      const generation = await generateMainOneOnOneQuestionsFromActiveData({
-        lowerTier: pair.challengerTier,
-        upperTier: pair.defenderTier,
+      const generation = await generateCatalogVerificationPack({
+        active,
+        pair,
         matchKey,
+        division: "MAIN",
       });
       verifyGeneration(generation, active, "MAIN");
       renderedVisualizationCount += generation.questions.filter(

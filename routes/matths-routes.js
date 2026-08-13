@@ -33,6 +33,32 @@ const {
 const {
   assertPaidPackageAccess,
 } = require("../services/paidFeatureAccessService");
+const {
+  loginRateLimit,
+  passwordResetRateLimit,
+  registrationRateLimit,
+} = require("../middleware/requestSecurity");
+const {
+  createUploadContentValidator,
+  discardRequestUploads,
+  validateRequestUploads,
+} = require("../middleware/uploadContentValidation");
+
+const validateAdminArchiveContent = createUploadContentValidator({
+  maxTotalBytes: 500 * 1024 * 1024,
+});
+const validateAdminExamContent = createUploadContentValidator({
+  maxTotalBytes: 300 * 1024 * 1024,
+});
+const validateForensicContent = createUploadContentValidator({
+  maxTotalBytes: 50 * 1024 * 1024,
+});
+const validateIntegrityEvidenceContent = createUploadContentValidator({
+  maxTotalBytes: 100 * 1024 * 1024,
+});
+const validateStoreContent = createUploadContentValidator({
+  maxTotalBytes: 500 * 1024 * 1024,
+});
 
 const curriculumPath = path.resolve(__dirname, "..", "kr-2022-g10-math-curri.yaml");
 
@@ -55,6 +81,16 @@ function handleCommunityUpload(
         req.files = [];
         req.communityUploadError =
           error;
+      } else {
+        try {
+          await validateRequestUploads(req, {
+            maxTotalBytes: 50 * 1024 * 1024,
+          });
+        } catch (validationError) {
+          await discardRequestUploads(req);
+          req.files = [];
+          req.communityUploadError = validationError;
+        }
       }
       return next();
     }
@@ -221,6 +257,7 @@ router.post(
       }
     );
   },
+  validateAdminArchiveContent,
   matthsController.uploadArchiveItem
 );
 router.post(
@@ -311,6 +348,7 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   handleStoreUpload,
+  validateStoreContent,
   storeController.createStudyHallContent
 );
 router.post(
@@ -318,6 +356,7 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   handleStoreUpload,
+  validateStoreContent,
   storeController.updateStudyHallContent
 );
 router.post(
@@ -331,6 +370,7 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   handleStoreUpload,
+  validateStoreContent,
   storeController.createStoreProduct
 );
 router.post(
@@ -338,6 +378,7 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   handleStoreUpload,
+  validateStoreContent,
   storeController.updateStoreProduct
 );
 router.post(
@@ -383,6 +424,18 @@ router.get(
   authMiddleware.isAdmin,
   matthsController.adminRevenueMetrics
 );
+router.post(
+  "/admin/finance/withdrawals",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRecordBusinessWithdrawal
+);
+router.post(
+  "/admin/finance/other-unpaid-costs",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateOtherUnpaidCosts
+);
 router.get(
   "/admin/paybacks",
   authMiddleware.isLoggedIn,
@@ -394,6 +447,12 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminCompletePayback
+);
+router.post(
+  "/admin/paybacks/payouts/:payoutRecordId/resend-email",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminResendPaybackEmail
 );
 router.get(
   "/admin/operations-guide",
@@ -412,19 +471,8 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   pdfForensicsUpload.single("forensicFile"),
+  validateForensicContent,
   matthsController.adminAnalyzeForensicPdf
-);
-router.get(
-  "/admin/test-control",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminTestControlPage
-);
-router.post(
-  "/admin/test-control/clock",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminSetTestClock
 );
 router.get(
   "/admin/arena-policies",
@@ -676,6 +724,7 @@ router.post(
       }
     );
   },
+  validateAdminExamContent,
   matthsController.adminCreatePrivateMockExam
 );
 router.post(
@@ -754,6 +803,7 @@ router.post(
       return next();
     });
   },
+  validateAdminExamContent,
   matthsController.adminUploadPrivateMockFormula
 );
 router.post(
@@ -887,6 +937,18 @@ router.get(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminUsersPage
+);
+router.get(
+  "/admin/users/sanctions",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUserSanctionsPage
+);
+router.get(
+  "/admin/audit-log",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminAuditLogPage
 );
 router.get(
   "/admin/parents/:parentId",
@@ -1031,14 +1093,17 @@ router.get(
 );
 router.post(
   "/forgot-password",
+  passwordResetRateLimit,
   matthsController.requestPasswordReset
 );
 router.post(
   "/forgot-password/verify",
+  passwordResetRateLimit,
   matthsController.verifyPasswordReset
 );
 router.post(
   "/forgot-password/reset",
+  passwordResetRateLimit,
   matthsController.completePasswordReset
 );
 
@@ -1212,6 +1277,7 @@ router.post(
       return next();
     });
   },
+  validateIntegrityEvidenceContent,
   matthsController.submitPrivateMockIntegrityEvidence
 );
 router.get(
@@ -1262,7 +1328,12 @@ router.post(
 
 router.get('/login', authMiddleware.isLoggedOut, matthsController.loginPage);
 
-router.post('/login', authMiddleware.isLoggedOut, matthsController.login);
+router.post(
+  '/login',
+  authMiddleware.isLoggedOut,
+  loginRateLimit,
+  matthsController.login
+);
 
 router.get(
   "/auth/google",
@@ -1283,7 +1354,7 @@ router.get(
 
 router.get('/register', matthsController.registerPage);
 
-router.post('/register', matthsController.register);
+router.post('/register', registrationRateLimit, matthsController.register);
 
 router.post('/logout', authMiddleware.isLoggedIn, matthsController.logout);
 

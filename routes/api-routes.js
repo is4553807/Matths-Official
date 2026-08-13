@@ -7,12 +7,25 @@ const {
 } = require(
   "../middleware/apiAuthMiddleware"
 );
+const {
+  loginRateLimit,
+  passwordResetRateLimit,
+  registrationRateLimit,
+} = require("../middleware/requestSecurity");
 
 const router = express.Router();
 
 router.get(
   "/health",
   apiController.health
+);
+router.get(
+  "/live",
+  apiController.liveness
+);
+router.get(
+  "/ready",
+  apiController.readiness
 );
 router.get(
   "/schools",
@@ -24,22 +37,27 @@ router.get(
 );
 router.post(
   "/auth/register",
+  registrationRateLimit,
   apiController.register
 );
 router.post(
   "/auth/login",
+  loginRateLimit,
   apiController.login
 );
 router.post(
   "/auth/password-reset/request",
+  passwordResetRateLimit,
   apiController.requestPasswordReset
 );
 router.post(
   "/auth/password-reset/verify",
+  passwordResetRateLimit,
   apiController.verifyPasswordReset
 );
 router.post(
   "/auth/password-reset/complete",
+  passwordResetRateLimit,
   apiController.resetPassword
 );
 

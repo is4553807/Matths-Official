@@ -18,6 +18,27 @@ const PRODUCTS = new Set(["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"]);
 const LEGAL_GUARDIAN_CONSENT_VERSION = "MINOR_PAYMENT_GUARDIAN_V1";
 const MINOR_PAYMENT_NOTICE_VERSION = "MINOR_SELF_PAYMENT_NOTICE_V1";
 
+function isPaidCheckoutEnabled(environment = process.env) {
+  const requested =
+    String(environment.PAID_CHECKOUT_ENABLED || "").trim().toLowerCase() === "true";
+  // 결제 승인·웹훅·중복 승인 방지 어댑터가 구현된 공급자만 여기에 추가한다.
+  // 현재 릴리스는 무료 기능만 안전하게 공개하며 환경변수만으로 결제를 열 수 없다.
+  const implementedProviders = new Set();
+  return requested && implementedProviders.has(
+    String(environment.PAYMENT_PROVIDER || "").trim().toUpperCase()
+  );
+}
+
+function assertPaidCheckoutEnabled() {
+  if (!isPaidCheckoutEnabled()) {
+    throw statusError(
+      503,
+      "온라인 결제는 현재 준비 중입니다. 무료 학습은 바로 이용할 수 있습니다.",
+      "PAID_CHECKOUT_UNAVAILABLE"
+    );
+  }
+}
+
 function statusError(status, message, code = "") {
   const error = new Error(message);
   error.status = status;
@@ -75,6 +96,7 @@ async function createCheckoutIntent({
   requiresMinorPaymentNotice = false,
   minorPaymentNoticeAccepted = false,
 }) {
+  assertPaidCheckoutEnabled();
   const [student, product] = await Promise.all([
     User.findById(studentUserId).select("_id name isActive accountStatus").lean(),
     getProduct(productCode),
@@ -129,6 +151,7 @@ async function createParentInvite({
   productCode,
   baseUrl,
 }) {
+  assertPaidCheckoutEnabled();
   const email = String(parentEmail || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw statusError(400, "학부모 이메일 주소를 정확히 입력해주세요.");
@@ -208,7 +231,6 @@ async function createParentInvite({
   return {
     invite,
     existingParent: Boolean(existingParent),
-    previewUrl: process.env.NODE_ENV === "production" ? "" : signupUrl,
   };
 }
 
@@ -304,5 +326,7 @@ module.exports = {
   getProductCatalog,
   LEGAL_GUARDIAN_CONSENT_VERSION,
   MINOR_PAYMENT_NOTICE_VERSION,
+  assertPaidCheckoutEnabled,
+  isPaidCheckoutEnabled,
   registerParent,
 };

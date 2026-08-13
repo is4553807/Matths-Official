@@ -1119,8 +1119,8 @@ function buildDifficultyVariantTypes(version, difficultyCode) {
     }));
   const weightedTypes = [...configuredTypes, ...fallbackTypes];
   // 29·30번에도 함께 등장한 넓은 유형명이라도 13·14·20·21·27·28번
-  // 참고 이력이 있으면 준킬러 후보로 유지한다. 29·30번에서만 발견된
-  // 유형은 R1~R6의 5번과 U7~U9·R7~R9 전 문항 후보로 사용한다.
+  // 참고 이력이 있으면 일반 슬롯 후보로 유지한다. 29·30번 전용 유형은
+  // 현재 R7~R9의 킬러 슬롯 후보 저장소로 사용한다.
   const regularTypes = weightedTypes.filter((entry) =>
     regularTypeIds.has(entry.typeId)
   );
@@ -1153,6 +1153,11 @@ function buildDifficultyVariantTypes(version, difficultyCode) {
     }
   }
   if (isRanked || allKiller) {
+    const plannedKillerCourses = (
+      PUBLIC_DIFFICULTY_SPECS[normalizedCode]?.classMix || []
+    ).flatMap((difficultyClass, index) =>
+      difficultyClass === "KILLER" ? [PACK_COURSE_SLOTS[index]] : []
+    );
     const finalReferences = referencePool.filter((reference) =>
       [29, 30].includes(Number(reference?.source?.questionNumber || 0)) ||
       [29, 30].includes(Number(reference?.sequence || 0))
@@ -1179,7 +1184,9 @@ function buildDifficultyVariantTypes(version, difficultyCode) {
             ...Array(12).fill("calculus-1"),
             ...Array(6).fill("probability-statistics"),
           ][variants.length]
-        : "";
+        : plannedKillerCourses.length
+          ? plannedKillerCourses[offset % plannedKillerCourses.length]
+          : "";
       const courseCandidates = plannedCourse
         ? finalCandidates.filter(
             (entry) => entry.definition.curriculumUnit === plannedCourse
@@ -1244,26 +1251,12 @@ function buildDifficultyVariantTypes(version, difficultyCode) {
   return variants;
 }
 
-function regularCourseSlotsForFinal(finalCourseId = "") {
-  const slots = [...PACK_COURSE_SLOTS];
-  const finalIndex = slots.lastIndexOf(String(finalCourseId || ""));
-  if (finalIndex < 0) {
-    throw statusError(
-      503,
-      "29·30번형 킬러의 과목이 1대1 경기 과목 구성에 없습니다.",
-      "ARENA_FINAL_KILLER_COURSE_INVALID"
-    );
-  }
-  slots.splice(finalIndex, 1);
-  return slots;
-}
-
 function selectTierCatalogTypes(
   version,
   difficultyTier,
   matchKey,
   difficultyCode = "",
-  { division = "SUB", recentTypeIds = [] } = {}
+  { division: _division = "SUB", recentTypeIds = [] } = {}
 ) {
   const normalizedDifficultyCode = String(
     difficultyCode || `U${String(difficultyTier || "T1").replace(/^T/, "")}`
@@ -1275,12 +1268,10 @@ function selectTierCatalogTypes(
   const definitionMap = new Map(
     (version.typeDefinitions || []).map((definition) => [definition.typeId, definition])
   );
-  const normalizedDivision = String(division || "SUB").toUpperCase();
   const recentTypeSet = new Set((recentTypeIds || []).map(String));
   const recentTypePenalty = (variantTypeId, baseTypeId) =>
     (recentTypeSet.has(String(variantTypeId || "")) ? 1_000_000_000_000 : 0) +
     (recentTypeSet.has(String(baseTypeId || "")) ? 1_000_000 : 0);
-  const allKiller = isAllKillerDifficultyCode(normalizedDifficultyCode);
   const publicVariants = buildDifficultyVariantTypes(
     version,
     normalizedDifficultyCode
@@ -1305,98 +1296,45 @@ function selectTierCatalogTypes(
         ),
     }))
     .sort((left, right) => left.score - right.score);
-  if ((normalizedDivision === "MAIN" || allKiller) && !finalCandidates.length) {
+  const classMix = PUBLIC_DIFFICULTY_SPECS[normalizedDifficultyCode]?.classMix || [];
+  const requiresFinalCandidate = classMix.includes("KILLER");
+  if (requiresFinalCandidate && !finalCandidates.length) {
     throw statusError(
       503,
-      `${difficultyTier}의 5번 문항을 보정할 29·30번 참고 유형이 없습니다.`,
+      `${difficultyTier}의 킬러 슬롯을 보정할 29·30번 참고 유형이 없습니다.`,
       "ARENA_TIER_CATALOG_FINAL_SLOT_EMPTY"
     );
   }
-  if (allKiller) {
-    const selectedFinals = [];
-    for (let slot = 0; slot < PACK_COURSE_SLOTS.length; slot += 1) {
-      const courseId = PACK_COURSE_SLOTS[slot];
-      const candidates = finalCandidates
-        .filter(
-          (variant) =>
-            variant.curriculumUnit === courseId &&
-            !selectedFinals.some(
-              (item) => item.publicVariantTypeId === variant.variantTypeId
-            ) &&
-            !selectedFinals.some(
-              (item) => item.baseTypeId === variant.baseTypeId
-            )
-        )
-        .map((variant) => ({
-          ...variant,
-          score:
-            variant.score +
-            deterministicScore(`${matchKey}:ALL_KILLER:${slot}:${variant.variantTypeId}`),
-        }))
-        .sort((left, right) => left.score - right.score);
-      if (!candidates.length) {
-        throw statusError(
-          503,
-          `${normalizedDifficultyCode}의 ${courseId} 킬러 유형을 배정할 수 없습니다.`,
-          "ARENA_TIER_CATALOG_ALL_KILLER_COURSE_EMPTY"
-        );
-      }
-      const candidate = candidates[0];
-      selectedFinals.push({
-        ...candidate.definition,
-        baseTypeId: candidate.baseTypeId,
-        publicVariantTypeId: candidate.variantTypeId,
-        variantTypeId: candidate.variantTypeId,
-        curriculumUnit: courseId,
-        sourceQuestionNumber: candidate.sourceQuestionNumber,
-        difficultyClass: "KILLER",
-      });
-    }
-    return selectedFinals.map((definition) => ({
-      ...definition,
-      arenaVisualizationRequired: false,
-    }));
-  }
-
-  const finalDefinition = finalCandidates[0] || null;
-  // R1~R6만 5번을 29·30번형 킬러로 교체한다. U1~U6은 다섯 문항
-  // 모두 준킬러이고, U7~U9·R7~R9는 위 분기에서 다섯 문항 모두 킬러다.
-  const regularCourseSlots = normalizedDivision === "MAIN"
-    ? regularCourseSlotsForFinal(finalDefinition?.curriculumUnit)
-    : PACK_COURSE_SLOTS;
   const selected = [];
-  for (let slot = 0; slot < regularCourseSlots.length; slot += 1) {
-    const courseId = regularCourseSlots[slot];
-    const candidates = publicVariants
+  for (let slot = 0; slot < PACK_COURSE_SLOTS.length; slot += 1) {
+    const courseId = PACK_COURSE_SLOTS[slot];
+    const killerSlot = classMix[slot] === "KILLER";
+    const candidates = (killerSlot ? finalCandidates : publicVariants)
       .filter(
         (variant) =>
-          variant.difficultyClass === "SEMI_KILLER" &&
+          variant.difficultyClass === (killerSlot ? "KILLER" : "SEMI_KILLER") &&
           !selected.some(
             (item) => item.publicVariantTypeId === variant.variantTypeId
           ) &&
           !selected.some(
             (item) => item.baseTypeId === variant.baseTypeId
           ) &&
-          !(
-            normalizedDivision === "MAIN" &&
-            finalDefinition?.baseTypeId === variant.baseTypeId
-          ) &&
           variant.curriculumUnit === courseId
       )
       .map((variant) => ({
         ...variant,
-        definition: definitionMap.get(variant.baseTypeId),
+        definition: variant.definition || definitionMap.get(variant.baseTypeId),
         score:
           recentTypePenalty(variant.variantTypeId, variant.baseTypeId) +
           deterministicScore(
-            `${version.contentHash}:${difficultyTier}:${normalizedDifficultyCode}:${matchKey}:${slot}:${variant.variantTypeId}`
+            `${version.contentHash}:${difficultyTier}:${normalizedDifficultyCode}:${matchKey}:${killerSlot ? "FINAL" : "REGULAR"}:${slot}:${variant.variantTypeId}`
           ),
       }))
       .sort((left, right) => left.score - right.score);
     if (!candidates.length) {
       throw statusError(
         503,
-        `${difficultyTier}의 ${courseId} 유형을 중복 없이 배정할 수 없습니다.`,
+        `${difficultyTier}의 ${courseId} ${killerSlot ? "킬러" : "일반"} 유형을 중복 없이 배정할 수 없습니다.`,
         "ARENA_TIER_CATALOG_COURSE_SLOT_EMPTY"
       );
     }
@@ -1404,10 +1342,11 @@ function selectTierCatalogTypes(
       ...candidates[0].definition,
       baseTypeId: candidates[0].baseTypeId,
       publicVariantTypeId: candidates[0].variantTypeId,
+      variantTypeId: candidates[0].variantTypeId,
       sourceQuestionNumber: candidates[0].sourceQuestionNumber,
+      difficultyClass: classMix[slot],
     });
   }
-  if (normalizedDivision === "MAIN") selected.push(finalDefinition);
   return selected.map((definition) => ({
     ...definition,
     arenaVisualizationRequired: false,

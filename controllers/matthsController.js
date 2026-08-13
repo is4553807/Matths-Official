@@ -140,13 +140,14 @@ const {
   getAdminOperationsGuideData,
 } = require("../services/adminOperationsGuideService");
 const {
-  getAdminTestControlData,
-  setTestClock,
-} = require("../services/adminTestControlService");
-const {
   completePaybackPayout,
   getAdminPaybackDashboard,
+  resendPaybackPayoutEmail,
 } = require("../services/paybackAccountService");
+const {
+  recordBusinessWithdrawal,
+  updateOtherUnpaidCosts,
+} = require("../services/financeService");
 const {
   getAdminArenaEvidenceData,
   getAdminEvidenceFile,
@@ -156,8 +157,10 @@ const {
   createDirectNotification,
   getAdminAssessmentDetail,
   getAdminDashboardData,
+  getAdminAuditHistory,
   getAdminParentDetail,
   getAdminRevenueMetrics,
+  getAdminSanctionHistory,
   getAdminInquiryData,
   getAdminUserActivityData,
   getAdminUserDetail,
@@ -384,6 +387,7 @@ exports.pricingPage = async (req, res, next) => {
       activePage: "pricing",
       mockExamPolicy,
       learningPackagePolicy,
+      checkoutEnabled: require("../services/checkoutService").isPaidCheckoutEnabled(),
     });
   } catch (error) {
     return next(error);
@@ -571,11 +575,8 @@ exports.socialOAuthCallback = async (req, res) => {
       await synchronizedUser.save();
       await createLoginSession(req, synchronizedUser);
 
-      const adminEmail = String(
-        process.env.ADMIN_EMAIL || "admin@lsbproduction.com"
-      ).trim().toLowerCase();
       return res.redirect(
-        synchronizedUser.role === "admin" || synchronizedUser.email === adminEmail
+        synchronizedUser.role === "admin"
           ? "/admin"
           : "/main"
       );
@@ -1441,6 +1442,10 @@ function adminFeedbackFromQuery(
       "게시판 공지 고정을 해제했습니다.",
     communityNoticeModerated:
       "게시판 공지 공개 상태를 변경했습니다.",
+    financeWithdrawal:
+      "사업자 출금 기록을 저장했습니다.",
+    financeReserve:
+      "기타 미지급 비용 준비금을 저장했습니다.",
   };
 
   return messages[
@@ -1483,6 +1488,58 @@ exports.adminRevenueMetrics = async (_req, res, next) => {
   }
 };
 
+exports.adminRecordBusinessWithdrawal = async (req, res, next) => {
+  try {
+    await recordBusinessWithdrawal({
+      adminUserId: req.session.user.id,
+      amount: Number(req.body.amount),
+      operatorNote: req.body.operatorNote,
+    });
+    return res.redirect("/admin?done=financeWithdrawal");
+  } catch (error) {
+    if ([400, 409, 503].includes(Number(error.status))) {
+      return res.status(Number(error.status)).render("admin-dashboard", {
+        user: req.session.user,
+        adminData: await getAdminDashboardData(),
+        feedback: null,
+        error: error.message,
+        oldInput: null,
+        withdrawalInput: {
+          amount: String(req.body.amount || ""),
+          operatorNote: String(req.body.operatorNote || ""),
+        },
+      });
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateOtherUnpaidCosts = async (req, res, next) => {
+  try {
+    await updateOtherUnpaidCosts({
+      adminUserId: req.session.user.id,
+      amount: Number(req.body.amount),
+      operatorNote: req.body.operatorNote,
+    });
+    return res.redirect("/admin?done=financeReserve");
+  } catch (error) {
+    if (Number(error.status) === 400) {
+      return res.status(400).render("admin-dashboard", {
+        user: req.session.user,
+        adminData: await getAdminDashboardData(),
+        feedback: null,
+        error: error.message,
+        oldInput: null,
+        reserveInput: {
+          amount: String(req.body.amount || ""),
+          operatorNote: String(req.body.operatorNote || ""),
+        },
+      });
+    }
+    return next(error);
+  }
+};
+
 exports.adminPaybacksPage = async (req, res, next) => {
   try {
     res.set("Cache-Control", "no-store");
@@ -1494,8 +1551,16 @@ exports.adminPaybacksPage = async (req, res, next) => {
       }),
       feedback:
         req.query.completed === "1"
-          ? "페이백 지급 완료를 기록했습니다."
-          : "",
+          ? req.query.email === "sent"
+            ? "페이백 지급 완료, 우편함 알림 생성과 이메일 발송을 모두 처리했습니다."
+            : "페이백 지급 완료와 우편함 알림은 처리했지만 이메일 발송에 실패했습니다. 지급 기록에서 재발송해주세요."
+          : req.query.resent === "1"
+            ? req.query.email === "sent"
+              ? "페이백 지급 완료 이메일을 재발송했습니다."
+              : "이메일 재발송에 실패했습니다. SMTP 계정 설정을 확인해주세요."
+            : "",
+      feedbackTone:
+        req.query.email === "failed" ? "error" : "success",
     });
   } catch (error) {
     return next(error);
@@ -1504,7 +1569,7 @@ exports.adminPaybacksPage = async (req, res, next) => {
 
 exports.adminCompletePayback = async (req, res, next) => {
   try {
-    await completePaybackPayout({
+    const result = await completePaybackPayout({
       cycleId: req.params.cycleId,
       adminUserId: req.session.user.id,
       operatorNote: req.body.operatorNote,
@@ -1512,7 +1577,23 @@ exports.adminCompletePayback = async (req, res, next) => {
     const period = encodeURIComponent(String(req.body.period || ""));
     const page = Math.max(1, Number.parseInt(req.body.page, 10) || 1);
     return res.redirect(
-      `/admin/paybacks?period=${period}&page=${page}&completed=1`
+      `/admin/paybacks?period=${period}&page=${page}&completed=1&email=${result.emailDelivered ? "sent" : "failed"}`
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminResendPaybackEmail = async (req, res, next) => {
+  try {
+    const result = await resendPaybackPayoutEmail({
+      payoutRecordId: req.params.payoutRecordId,
+      adminUserId: req.session.user.id,
+    });
+    const period = encodeURIComponent(String(req.body.period || ""));
+    const page = Math.max(1, Number.parseInt(req.body.page, 10) || 1);
+    return res.redirect(
+      `/admin/paybacks?period=${period}&page=${page}&resent=1&email=${result.emailDelivered ? "sent" : "failed"}`
     );
   } catch (error) {
     return next(error);
@@ -1526,30 +1607,6 @@ exports.adminOperationsGuidePage = async (req, res, next) => {
       user: req.session.user,
       guide: getAdminOperationsGuideData(),
     });
-  } catch (error) {
-    return next(error);
-  }
-};
-
-exports.adminTestControlPage = async (req, res, next) => {
-  try {
-    res.set("Cache-Control", "no-store");
-    return res.render("admin-test-control", {
-      user: req.session.user,
-      testData: await getAdminTestControlData(),
-    });
-  } catch (error) {
-    return next(error);
-  }
-};
-
-exports.adminSetTestClock = async (req, res, next) => {
-  try {
-    await setTestClock({
-      adminUserId: req.session.user.id,
-      offsetDays: req.body.offsetDays,
-    });
-    return res.redirect("/admin/test-control");
   } catch (error) {
     return next(error);
   }
@@ -2583,6 +2640,34 @@ exports.adminUsersPage =
       return next(error);
     }
   };
+
+exports.adminUserSanctionsPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.render("admin-user-sanctions", {
+      user: req.session.user,
+      sanctions: await getAdminSanctionHistory({ page: req.query.page }),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminAuditLogPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.render("admin-audit-log", {
+      user: req.session.user,
+      audit: await getAdminAuditHistory({
+        page: req.query.page,
+        adminUserId: req.query.admin,
+        query: req.query.query,
+      }),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
 
 exports.adminUserDetailPage =
   async (req, res, next) => {
@@ -4427,7 +4512,7 @@ exports.unitLearning = async (
 ) => {
   try {
     if (!isCourseAvailable(req.params.courseId)) {
-      const error = new Error("현재 개발 중인 과목입니다. 제공 과목이 준비되면 안내하겠습니다.");
+      const error = new Error("현재 준비 중인 과목입니다. 제공이 시작되면 안내하겠습니다.");
       error.status = 423;
       error.code = "COURSE_IN_DEVELOPMENT";
       return next(error);
@@ -4588,6 +4673,9 @@ function createLoginSession(req, user) {
                 name: user.name,
                 realName: user.realName || "",
                 email: user.email,
+                loginAt:
+                    user.lastLoginAt ||
+                    new Date(),
                 role: user.role || "student",
                 tokenVersion:
                     Number(user.tokenVersion) || 0,
@@ -5309,6 +5397,7 @@ exports.login = async (req, res, next) => {
             name: user.name,
             realName: user.realName || "",
             email: user.email,
+            loginAt,
             role: user.role || "student",
             tokenVersion:
                 Number(user.tokenVersion) || 0,
@@ -5346,19 +5435,8 @@ exports.login = async (req, res, next) => {
 
         await saveSession(req);
 
-        const adminEmail =
-            String(
-                process.env.ADMIN_EMAIL ||
-                    "admin@lsbproduction.com"
-            )
-                .trim()
-                .toLowerCase();
         if (
-            user.role === "admin" ||
-            String(user.email || "")
-                .trim()
-                .toLowerCase() ===
-                adminEmail
+            user.role === "admin"
         ) {
             return res.redirect("/admin");
         }
@@ -6631,7 +6709,6 @@ exports.forgotPasswordPage = (
     step: "request",
     error: null,
     email: "",
-    previewCode: null,
   });
 
 exports.openPasswordResetLink =
@@ -6666,7 +6743,6 @@ exports.openPasswordResetLink =
           step: "reset",
           error: null,
           email: "",
-          previewCode: null,
         }
       );
     } catch (error) {
@@ -6680,7 +6756,6 @@ exports.openPasswordResetLink =
               error:
                 error.message,
               email: "",
-              previewCode: null,
             }
           );
       }
@@ -6698,10 +6773,9 @@ exports.requestPasswordReset =
       .toLowerCase();
 
     try {
-      const result =
-        await requestPasswordReset(
-          email
-        );
+      await requestPasswordReset(
+        email
+      );
 
       return res.render(
         "password-reset",
@@ -6709,8 +6783,6 @@ exports.requestPasswordReset =
           step: "verify",
           error: null,
           email,
-          previewCode:
-            result.previewCode,
         }
       );
     } catch (error) {
@@ -6724,7 +6796,6 @@ exports.requestPasswordReset =
               error:
                 error.message,
               email,
-              previewCode: null,
             }
           );
       }
@@ -6766,7 +6837,6 @@ exports.verifyPasswordReset =
           step: "reset",
           error: null,
           email,
-          previewCode: null,
         }
       );
     } catch (error) {
@@ -6780,7 +6850,6 @@ exports.verifyPasswordReset =
               error:
                 error.message,
               email,
-              previewCode: null,
             }
           );
       }
@@ -6846,7 +6915,6 @@ exports.completePasswordReset =
               error:
                 error.message,
               email: "",
-              previewCode: null,
             }
           );
       }

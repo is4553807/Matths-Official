@@ -127,7 +127,11 @@ async function getRankingOperationsDashboard({ preview = false, now = new Date()
   const storage = getFileStorageStatus();
   const operations = {
     storage,
-    emailConfigured: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
+    emailConfigured: Boolean(
+      process.env.SMTP_HOST &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASSWORD
+    ),
     sharedSessionConfigured: true,
     schedulerEnabled: process.env.DISABLE_SCHEDULERS !== "1",
   };

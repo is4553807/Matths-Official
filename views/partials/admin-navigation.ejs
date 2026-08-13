@@ -8,6 +8,10 @@
     typeof adminTodoSummary !== "undefined"
       ? adminTodoSummary
       : { pendingCount: 0, items: [] };
+  const currentAdminRealName =
+    typeof user !== "undefined" && user?.role === "admin"
+      ? String(user.realName || "").trim()
+      : "";
   const adminNavigationGroups = [
     {
       id: "members",
@@ -46,7 +50,6 @@
       label: "데이터",
       items: [
         { id: "data-analysis", href: "/admin/data-analysis", label: "운영 지표" },
-        { id: "test-control", href: "/admin/test-control", label: "테스트 리모콘" },
       ],
     },
     {
@@ -54,6 +57,7 @@
       label: "운영 안내",
       items: [
         { id: "operations-guide", href: "/admin/operations-guide", label: "관리 매뉴얼" },
+        { id: "audit-log", href: "/admin/audit-log", label: "운영 감사 로그" },
       ],
     },
   ];
@@ -99,7 +103,7 @@
   </nav>
   <div class="admin-account">
     <div class="admin-account-user">
-      <span><%= user.name %> 관리자</span>
+      <span><%= currentAdminRealName || "실명 미등록" %> 관리자</span>
       <form action="/logout" method="POST">
         <button type="submit">로그아웃</button>
       </form>

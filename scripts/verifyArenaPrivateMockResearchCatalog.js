@@ -101,7 +101,12 @@ for (let index = 1; index <= 9; index += 1) {
   assert.ok(PUBLIC_DIFFICULTY_SPECS[rankedCode]);
   assert.ok(privateMockCalibrationForDifficulty(unrankedCode, { slotRole: "REGULAR" }).length > 0);
   assert.ok(privateMockCalibrationForDifficulty(rankedCode, { slotRole: "REGULAR" }).length > 0);
-  assert.ok(privateMockCalibrationForDifficulty(rankedCode, { slotRole: "FINAL_29_30" }).length > 0);
+  const expectedFinalCalibration =
+    PUBLIC_DIFFICULTY_SPECS[rankedCode].classMix.includes("KILLER");
+  assert.equal(
+    privateMockCalibrationForDifficulty(rankedCode, { slotRole: "FINAL_29_30" }).length > 0,
+    expectedFinalCalibration
+  );
 }
 
 assert.ok(

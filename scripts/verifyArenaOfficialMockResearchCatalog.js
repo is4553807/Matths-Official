@@ -14,6 +14,7 @@ const {
   classifyAccuracyEvidence,
 } = require("../services/arenaAccuracyDifficultyPolicy");
 const {
+  PUBLIC_DIFFICULTY_SPECS,
   plannedPackSlots,
   tierForDifficultyCode,
 } = require("../services/arenaOneOnOneDifficultyPolicy");
@@ -106,20 +107,10 @@ for (const difficultyClass of validClasses) {
   }
 }
 
-const expectedMixes = {
-  U1: ["BASIC_GENERAL", "BASIC_GENERAL", "GENERAL", "GENERAL", "GENERAL"],
-  U2: Array(5).fill("GENERAL"),
-  U3: ["GENERAL", "GENERAL", "UPPER_GENERAL", "UPPER_GENERAL", "UPPER_GENERAL"],
-  U4: ["UPPER_GENERAL", "UPPER_GENERAL", "UPPER_GENERAL", "SEMI_KILLER", "SEMI_KILLER"],
-  U5: ["UPPER_GENERAL", "UPPER_GENERAL", "SEMI_KILLER", "SEMI_KILLER", "SEMI_KILLER"],
-  U6: ["UPPER_GENERAL", "SEMI_KILLER", "SEMI_KILLER", "SEMI_KILLER", "SEMI_KILLER"],
-  U7: ["SEMI_KILLER", "SEMI_KILLER", "SEMI_KILLER", "SEMI_KILLER", "KILLER"],
-  U8: ["SEMI_KILLER", "SEMI_KILLER", "SEMI_KILLER", "KILLER", "KILLER"],
-  U9: ["SEMI_KILLER", "SEMI_KILLER", "KILLER", "KILLER", "KILLER"],
-};
-for (const [code, expected] of Object.entries(expectedMixes)) {
+for (let level = 1; level <= 9; level += 1) {
   for (const prefix of ["U", "R"]) {
-    const currentCode = `${prefix}${code.slice(1)}`;
+    const currentCode = `${prefix}${level}`;
+    const expected = PUBLIC_DIFFICULTY_SPECS[currentCode].classMix;
     const slots = plannedPackSlots("BRONZE", tierForDifficultyCode(currentCode), {
       division: prefix === "R" ? "MAIN" : "SUB",
     });

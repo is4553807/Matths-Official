@@ -546,7 +546,7 @@ assert.equal(
 assert.ok(
   ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS.length >=
     ARENA_ONE_ON_ONE_QUESTION_COUNT,
-  "Arena 전용 준킬러 문제 유형이 5개 이상이어야 합니다."
+  "Arena 전용 일반 슬롯 문제 유형이 5개 이상이어야 합니다."
 );
 const generatedArenaPack = generateSubOneOnOneQuestions({
   challengerTier: "BRONZE",

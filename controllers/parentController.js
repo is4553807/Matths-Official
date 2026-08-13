@@ -2,10 +2,12 @@ const bcrypt = require("bcrypt");
 const { ParentAccount } = require("../models/parentModel");
 const {
   acceptParentInvite,
+  assertPaidCheckoutEnabled,
   createCheckoutIntent,
   getParentInvite,
   getProduct,
   getProductCatalog,
+  isPaidCheckoutEnabled,
   registerParent,
 } = require("../services/checkoutService");
 const {
@@ -18,6 +20,12 @@ const { getRankingData } = require("../services/rankingService");
 function saveSession(req) {
   return new Promise((resolve, reject) => {
     req.session.save((error) => (error ? reject(error) : resolve()));
+  });
+}
+
+function regenerateSession(req) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((error) => (error ? reject(error) : resolve()));
   });
 }
 
@@ -98,6 +106,7 @@ exports.completeInviteSignup = async (req, res, next) => {
       password: req.body.password,
       passwordConfirm: req.body.passwordConfirm,
     });
+    await regenerateSession(req);
     req.session.parent = parentSession(parent);
     await saveSession(req);
     return res.redirect("/parent?welcome=1");
@@ -139,11 +148,13 @@ exports.login = async (req, res, next) => {
         next: safeNext(req.body.next),
       });
     }
+    const nextPath = safeNext(req.body.next);
     parent.lastLoginAt = new Date();
     await parent.save();
+    await regenerateSession(req);
     req.session.parent = parentSession(parent);
     await saveSession(req);
-    return res.redirect(safeNext(req.body.next));
+    return res.redirect(nextPath);
   } catch (error) {
     return next(error);
   }
@@ -248,6 +259,7 @@ exports.pricingPage = async (req, res, next) => {
       familyChildren: context.familyChildren,
       selectedChildId: context.selectedChildId,
       products: await getProductCatalog(),
+      checkoutEnabled: isPaidCheckoutEnabled(),
     });
   } catch (error) {
     return next(error);
@@ -269,6 +281,7 @@ async function renderCheckout(req, res, { intent = null } = {}) {
 
 exports.checkoutPage = async (req, res, next) => {
   try {
+    assertPaidCheckoutEnabled();
     return await renderCheckout(req, res);
   } catch (error) {
     return next(error);

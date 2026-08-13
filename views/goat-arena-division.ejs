@@ -30,8 +30,9 @@
     <%- include("partials/rank-motion-head") %>
     <link
       rel="icon"
-      type="image/jpeg"
-      href="/images/goat-arena/goat-arena-logo.jpg"
+      type="image/png"
+      sizes="32x32"
+      href="/images/favicon-32.png"
     />
     <script src="/js/goat-arena.js" defer></script>
   </head>
@@ -62,7 +63,7 @@
           <small>이용 권한</small>
           <strong>
             <%= hasDivisionAccess
-              ? (arenaAccess.isAdminPreview ? "관리자 미리보기" : "사용 가능")
+              ? (arenaAccess.isAdminPreview ? "운영자 열람" : "사용 가능")
               : "권한 없음" %>
           </strong>
           <span>
@@ -156,7 +157,7 @@
       <% } else { %>
         <section class="arena-access-gate">
           <img
-            src="/images/goat-arena/goat-arena-logo.jpg"
+            src="/images/matths-mark.png"
             alt=""
           />
           <div>

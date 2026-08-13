@@ -8,20 +8,7 @@ const {
 } = require("../services/accountAccessService");
 
 function isAdminSessionUser(user) {
-    const adminEmail = String(
-        process.env.ADMIN_EMAIL ||
-            "admin@lsbproduction.com"
-    )
-        .trim()
-        .toLowerCase();
-
-    return (
-        user?.role === "admin" ||
-        String(user?.email || "")
-            .trim()
-            .toLowerCase() ===
-            adminEmail
-    );
+    return user?.role === "admin";
 }
 
 exports.isLoggedIn = async (req, res, next) => {

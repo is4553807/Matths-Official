@@ -22,7 +22,7 @@
         <div><p>MONTHLY PAYBACK</p><h1>페이백 정산</h1><span>지급 대상 계좌 확인, 지급 완료 기록, 월별 매출과 페이백을 한 화면에서 관리합니다.</span></div>
         <form class="admin-payback-period" method="get" action="/admin/paybacks"><label>조회 월<input type="month" name="period" value="<%= paybacks.periodKey %>" /></label><button type="submit">조회</button></form>
       </header>
-      <% if (feedback) { %><div class="admin-feedback"><%= feedback %></div><% } %>
+      <% if (feedback) { %><div class="admin-feedback <%= typeof feedbackTone !== 'undefined' && feedbackTone === 'error' ? 'admin-feedback--error' : '' %>"><%= feedback %></div><% } %>
       <section class="admin-stat-grid admin-payback-stats">
         <article><span>현재 지급 대상</span><strong><%= paybacks.eligible.total %>명</strong><small>페이지당 20명</small></article>
         <article><span>계좌 확인율</span><strong><%= paybacks.eligible.payoutRate %>%</strong><small><%= paybacks.eligible.linkedTotal %>명 계좌 확인</small></article>
@@ -38,8 +38,8 @@
             <dl><div><dt>페이백율</dt><dd><%= row.paybackRate %>%</dd></div><div><dt>지급액</dt><dd><%= money(row.paybackAmount) %></dd></div><div><dt>지급 계좌</dt><dd><%= row.accountConfirmed ? `${row.bankName} ${row.accountNumber} (${row.accountHolderName})` : row.decryptError ? '복호화 확인 필요' : '사용자 미연결' %></dd></div></dl>
             <form method="post" action="/admin/paybacks/<%= row.cycleId %>/complete" onsubmit="return confirm('실제 송금을 완료했는지 확인했습니다. 지급 완료로 기록할까요?')">
               <input type="hidden" name="period" value="<%= paybacks.periodKey %>" /><input type="hidden" name="page" value="<%= page %>" />
-              <input name="operatorNote" maxlength="500" placeholder="송금 메모 또는 내부 확인 사항" <%= row.accountConfirmed ? '' : 'disabled' %> />
-              <button type="submit" <%= row.accountConfirmed ? '' : 'disabled' %>>지급 완료</button>
+              <input name="operatorNote" minlength="2" maxlength="500" placeholder="실제 송금 메모 또는 거래 기록" required <%= row.accountConfirmed ? '' : 'disabled' %> />
+              <button type="submit" <%= row.accountConfirmed ? '' : 'disabled' %>>송금 확인 및 지급 완료</button>
             </form>
           </article>
         <% }) %>
@@ -50,7 +50,7 @@
       <section class="admin-panel admin-payback-history">
         <header><div><p>MONTHLY HISTORY</p><h2><%= paybacks.periodKey %> 지급 기록</h2></div><span>완료 시각은 KST 기준으로 표시됩니다.</span></header>
         <% if (!paybacks.history.length) { %><div class="admin-empty">이 달에 기록된 페이백 지급이 없습니다.</div><% } %>
-        <div class="admin-table-wrap"><table><thead><tr><th>완료 시각</th><th>사용자</th><th>페이백율</th><th>금액</th><th>계좌</th><th>메모</th></tr></thead><tbody><% paybacks.history.forEach((item) => { %><tr><td><%= kst(item.completedAt) %></td><td><%= item.userId?.realName || item.userId?.name || '탈퇴 사용자' %></td><td><%= item.paybackRate %>%</td><td><%= money(item.amount) %></td><td><%= item.bankName %> · 끝 <%= item.accountNumberLast4 %></td><td><%= item.operatorNote || '—' %></td></tr><% }) %></tbody></table></div>
+        <div class="admin-table-wrap"><table><thead><tr><th>완료 시각</th><th>사용자</th><th>처리 운영자</th><th>금액</th><th>계좌</th><th>알림 상태</th><th>메모</th></tr></thead><tbody><% paybacks.history.forEach((item) => { const emailStatus = item.emailStatus || 'PENDING'; %><tr><td><%= kst(item.completedAt) %></td><td><%= item.userId?.realName || item.userId?.name || '탈퇴 사용자' %><small><%= item.userId?.email || '' %></small></td><td><%= item.completedBy?.realName || item.completedBy?.name || item.completedBySnapshot?.name || '운영자' %><small><%= item.completedBy?.email || item.completedBySnapshot?.email || '' %></small></td><td><%= money(item.amount) %><small><%= item.paybackRate %>%</small></td><td><%= item.bankName %> · 끝 <%= item.accountNumberLast4 %></td><td><strong><%= item.siteNotificationId ? '우편함 완료' : '이전 기록' %></strong><small><%= emailStatus === 'SENT' ? '이메일 발송 완료' : emailStatus === 'FAILED' ? '이메일 발송 실패' : '이메일 확인 필요' %></small><% if (emailStatus !== 'SENT') { %><form method="post" action="/admin/paybacks/payouts/<%= item._id %>/resend-email"><input type="hidden" name="period" value="<%= paybacks.periodKey %>" /><input type="hidden" name="page" value="<%= page %>" /><button type="submit">이메일 재발송</button></form><% } %></td><td><%= item.operatorNote || '—' %></td></tr><% }) %></tbody></table></div>
       </section>
     </main>
   </body>

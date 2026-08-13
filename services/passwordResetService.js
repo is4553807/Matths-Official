@@ -77,7 +77,6 @@ async function requestPasswordReset(
     return {
       requested: true,
       email: normalizedEmail,
-      previewCode: null,
     };
   }
 
@@ -96,7 +95,6 @@ async function requestPasswordReset(
     return {
       requested: true,
       email: normalizedEmail,
-      previewCode: null,
     };
   }
 
@@ -146,12 +144,6 @@ async function requestPasswordReset(
     return {
       requested: true,
       email: normalizedEmail,
-      previewCode:
-        delivery.preview &&
-        process.env.NODE_ENV !==
-          "production"
-          ? code
-          : null,
     };
   } catch (error) {
     await PasswordResetCode.deleteOne({
@@ -247,6 +239,7 @@ async function verifyPasswordResetCode({
 async function requestPasswordResetLink({
   email,
   baseUrl,
+  fromAddress = "",
 }) {
   const normalizedEmail =
     String(email || "")
@@ -336,6 +329,7 @@ async function requestPasswordResetLink({
       await sendPasswordResetLink({
         to: normalizedEmail,
         resetUrl,
+        fromAddress,
       });
 
     return {

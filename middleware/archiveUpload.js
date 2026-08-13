@@ -62,7 +62,7 @@ function createArchiveUpload({ extensions, files, fileSize, errorMessage, storag
 const adminArchiveUpload = createArchiveUpload({
   extensions: ADMIN_ARCHIVE_EXTENSIONS,
   files: 20,
-  fileSize: 500 * 1024 * 1024,
+  fileSize: 100 * 1024 * 1024,
   errorMessage:
     "아카이브에는 PDF, 문서, 스프레드시트, 프레젠테이션, ZIP, JSON 또는 이미지 파일만 올릴 수 있습니다.",
 });

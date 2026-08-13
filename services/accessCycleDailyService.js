@@ -26,6 +26,9 @@ const {
   consumeAvailableDay,
 } = require("./mainLearningDayService");
 const { withSchedulerLease } = require("./schedulerLeaseService");
+const {
+  reconcileFinanceDailyIfNeeded,
+} = require("./financeService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_SCHEDULER_INTERVAL_MS =
@@ -1163,6 +1166,7 @@ async function runDailyAccessCycleSchedule() {
     await openAnnualArenaSeason();
     await processDepletedAccessCycles();
     await processDuePaybackReviewHolds();
+    await reconcileFinanceDailyIfNeeded();
     const {
       recalculateFinalRanking,
     } = require("./finalRankingService");

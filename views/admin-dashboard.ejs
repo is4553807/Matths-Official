@@ -32,6 +32,15 @@
       : {};
   const hasAnnouncementInput =
     Object.keys(announcementInput).length > 0;
+  const withdrawalForm =
+    typeof withdrawalInput === "object" && withdrawalInput
+      ? withdrawalInput
+      : {};
+  const reserveForm =
+    typeof reserveInput === "object" && reserveInput
+      ? reserveInput
+      : {};
+  const money = (value) => Number(value || 0).toLocaleString("ko-KR");
 %>
 <!doctype html>
 <html lang="ko">
@@ -75,14 +84,40 @@
 
       <section class="admin-panel admin-revenue-panel" data-admin-revenue>
         <div class="admin-panel-heading">
-          <div><p>LIVE REVENUE</p><h2>현재 매출 지표</h2></div>
-          <span>15초마다 자동 갱신 · 결제 승인·취소·환불 원장 기준 · 비용 제외 전</span>
+          <div><p>SAFE FUNDS</p><h2>자금 현황</h2></div>
+          <span>결제·페이백·출금 원장 기준 · 미확정 페이백 금액은 이익에서 제외</span>
         </div>
-        <div class="admin-stat-grid">
-          <article><span>현재 순매출</span><strong data-revenue="netRevenue"><%= Number(adminData.revenue.netRevenue || 0).toLocaleString("ko-KR") %><small>원</small></strong></article>
-          <article><span>오늘 승인 매출</span><strong data-revenue="todayRevenue"><%= Number(adminData.revenue.todayRevenue || 0).toLocaleString("ko-KR") %><small>원</small></strong></article>
-          <article><span>누적 승인액</span><strong data-revenue="grossApproved"><%= Number(adminData.revenue.grossApproved || 0).toLocaleString("ko-KR") %><small>원</small></strong></article>
-          <article><span>환불·취소</span><strong data-revenue="deductions"><%= Number((adminData.revenue.refunded || 0) + (adminData.revenue.cancelled || 0)).toLocaleString("ko-KR") %><small>원</small></strong></article>
+        <% if (!adminData.revenue.withdrawalsEnabled) { %>
+          <div class="admin-feedback admin-feedback--error" role="alert">PG 수수료 준비금 비율이 설정되지 않아 사업자 출금이 잠겨 있습니다. 운영 환경에 FINANCE_PG_FEE_RESERVE_BPS를 먼저 설정하세요.</div>
+        <% } %>
+        <div class="admin-stat-grid admin-finance-grid">
+          <article><span>총 누적 결제액</span><strong data-revenue="grossPayments"><%= money(adminData.revenue.grossPayments) %><small>원</small></strong></article>
+          <article><span>누적 페이백 지급액</span><strong data-revenue="cumulativePaybackPaid"><%= money(adminData.revenue.cumulativePaybackPaid) %><small>원</small></strong></article>
+          <article><span>페이백 준비금</span><strong data-revenue="paybackReserve"><%= money(adminData.revenue.paybackReserve) %><small>원</small></strong><small>미확정 유저 최대 지급 가능액</small></article>
+          <article><span>확정·미송금 페이백</span><strong data-revenue="confirmedUnpaidPayback"><%= money(adminData.revenue.confirmedUnpaidPayback) %><small>원</small></strong></article>
+          <article><span>PG 수수료 준비금</span><strong data-revenue="pgFeeReserve"><%= money(adminData.revenue.pgFeeReserve) %><small>원</small></strong><small><%= Number(adminData.revenue.pgFeeReserveBps || 0) / 100 %>% 적용 · 세금 제외</small></article>
+          <article><span>기타 미지급 비용</span><strong data-revenue="otherUnpaidCosts"><%= money(adminData.revenue.otherUnpaidCosts) %><small>원</small></strong></article>
+          <article><span>현재 실제 현금</span><strong data-revenue="actualCashBalance"><%= money(adminData.revenue.actualCashBalance) %><small>원</small></strong></article>
+          <article><span>누적 확정이익</span><strong data-revenue="cumulativeConfirmedProfit"><%= money(adminData.revenue.cumulativeConfirmedProfit) %><small>원</small></strong></article>
+          <article><span>누적 출금액</span><strong data-revenue="cumulativeWithdrawals"><%= money(adminData.revenue.cumulativeWithdrawals) %><small>원</small></strong></article>
+          <article class="is-withdrawable"><span>현재 출금가능액</span><strong data-revenue="withdrawableAmount"><%= money(adminData.revenue.withdrawableAmount) %><small>원</small></strong><small>서버가 허용하는 최대 금액</small></article>
+        </div>
+        <div class="admin-finance-actions">
+          <form class="admin-form" action="/admin/finance/withdrawals" method="post" onsubmit="return confirm('실제 사업자 계좌 출금을 완료했고 이 금액을 장부에 기록할까요?')">
+            <label><span>출금액</span><input type="number" name="amount" min="1" step="1" max="<%= adminData.revenue.withdrawableAmount %>" value="<%= withdrawalForm.amount || '' %>" required /></label>
+            <label><span>출금 목적·이체 기록</span><input type="text" name="operatorNote" maxlength="500" value="<%= withdrawalForm.operatorNote || '' %>" placeholder="예: 2026-08-13 사업자 계좌 출금" required /></label>
+            <button type="submit" <%= !adminData.revenue.withdrawalsEnabled || Number(adminData.revenue.withdrawableAmount) < 1 ? 'disabled' : '' %>>출금 기록 저장</button>
+          </form>
+          <form class="admin-form" action="/admin/finance/other-unpaid-costs" method="post">
+            <label><span>기타 미지급 비용 준비금</span><input type="number" name="amount" min="0" step="1" value="<%= reserveForm.amount ?? adminData.revenue.otherUnpaidCosts %>" required /></label>
+            <label><span>변경 사유</span><input type="text" name="operatorNote" maxlength="500" value="<%= reserveForm.operatorNote || '' %>" placeholder="예: 미지급 외주비 반영" required /></label>
+            <button type="submit">기타 준비금 저장</button>
+          </form>
+          <div class="admin-finance-history">
+            <strong>최근 출금 기록</strong>
+            <% if (!(adminData.revenue.recentWithdrawals || []).length) { %><p>아직 출금 기록이 없습니다.</p><% } %>
+            <% (adminData.revenue.recentWithdrawals || []).forEach((item) => { %><p><b><%= money(item.amount) %>원</b><span><%= formatDate(item.completedAt) %> · <%= item.completedBy?.email || '운영자' %> · <%= item.operatorNote %></span></p><% }) %>
+          </div>
         </div>
         <small data-revenue-updated>마지막 갱신 <%= new Date(adminData.revenue.updatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) %></small>
       </section>
@@ -95,12 +130,10 @@
             const response = await fetch("/api/admin/revenue", { headers: { Accept: "application/json" } });
             if (!response.ok) return;
             const { revenue } = await response.json();
-            ["netRevenue", "todayRevenue", "grossApproved"].forEach((key) => {
+            ["grossPayments", "cumulativePaybackPaid", "paybackReserve", "confirmedUnpaidPayback", "pgFeeReserve", "otherUnpaidCosts", "actualCashBalance", "cumulativeConfirmedProfit", "cumulativeWithdrawals", "withdrawableAmount"].forEach((key) => {
               const node = root.querySelector(`[data-revenue="${key}"]`);
               if (node) node.innerHTML = format(revenue[key]);
             });
-            const deductions = root.querySelector('[data-revenue="deductions"]');
-            if (deductions) deductions.innerHTML = format(Number(revenue.refunded || 0) + Number(revenue.cancelled || 0));
             const updated = root.querySelector("[data-revenue-updated]");
             if (updated) updated.textContent = `마지막 갱신 ${new Date(revenue.updatedAt).toLocaleString("ko-KR")}`;
           };

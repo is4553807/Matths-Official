@@ -7,6 +7,7 @@ const {
 const {
   professionalNotice,
 } = require("../content/email/moderation");
+const { getActiveAdminSender } = require("./adminIdentityService");
 
 function safeInternalHref(value) {
   const href = String(
@@ -61,10 +62,12 @@ async function deliverModerationNotice({
 
   let delivery = {
     delivered: false,
-    preview: false,
   };
 
   try {
+    const sender = createdBy
+      ? await getActiveAdminSender(createdBy)
+      : null;
     delivery =
       await sendAdminUserEmail({
         to: user.email,
@@ -78,6 +81,7 @@ async function deliverModerationNotice({
               emailMessage ||
               message,
           }),
+        fromAddress: sender?.email || "",
       });
   } catch (error) {
     /*
@@ -100,7 +104,6 @@ async function deliverModerationNotice({
     );
     delivery = {
       delivered: false,
-      preview: false,
       error:
         error?.message ||
         "이메일 발송 실패",

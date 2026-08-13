@@ -5941,6 +5941,50 @@ adminActionLogSchema.index({
     createdAt: -1,
 });
 
+/*
+ * 신규 관리자 조치에는 당시 운영자 실명·이메일·로그인 시각을 보존합니다.
+ * 대상 사용자의 실명·이메일은 별도 복제하지 않아 탈퇴 시 개인정보 삭제
+ * 정책과 충돌하지 않게 합니다.
+ */
+adminActionLogSchema.pre("validate", async function preserveAdminActorSnapshot() {
+    const currentMetadata =
+        this.metadata && typeof this.metadata === "object"
+            ? this.metadata
+            : {};
+    const currentActor = currentMetadata.actorSnapshot || {};
+    const needsActor =
+        Boolean(this.adminUserId) &&
+        (!currentActor.email || !currentActor.loginAt);
+    if (!needsActor) {
+        return;
+    }
+    const UserModel = this.constructor.db.models.User;
+    if (!UserModel) {
+        return;
+    }
+    const session = typeof this.$session === "function" ? this.$session() : null;
+    const query = UserModel.findById(this.adminUserId)
+        .select("name realName email lastLoginAt")
+        .lean();
+    if (session) query.session(session);
+    const actor = await query;
+    const actorSnapshot = {
+        id: String(currentActor.id || actor?._id || this.adminUserId || ""),
+        name: String(
+            currentActor.name || actor?.realName || actor?.name || "운영자"
+        ),
+        email: String(currentActor.email || actor?.email || "")
+            .trim()
+            .toLowerCase(),
+        loginAt: currentActor.loginAt || actor?.lastLoginAt || null,
+    };
+    this.metadata = {
+        ...currentMetadata,
+        actorSnapshot,
+    };
+    this.markModified("metadata");
+});
+
 const adminTodoSchema =
     new Schema(
         {

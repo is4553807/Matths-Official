@@ -196,7 +196,7 @@
 
       <% if (rankingOperations.recalculationPreview) { %>
         <section class="admin-panel ranking-preview" id="ranking-preview">
-          <div class="admin-panel-heading"><div><p>DRY RUN</p><h2>재계산 미리보기</h2></div><span>DB 변경 없음 · <%= rankingOperations.recalculationPreview.changedCount %>명 변동</span></div>
+          <div class="admin-panel-heading"><div><p>CHANGE REVIEW</p><h2>재계산 변경 전 검토</h2></div><span>저장 전 확인 · <%= rankingOperations.recalculationPreview.changedCount %>명 변동</span></div>
           <% if (!rankingOperations.recalculationPreview.changes.length) { %><div class="arena-audit-empty"><strong>현재 랭킹과 계산 결과가 같습니다.</strong></div><% } else { %>
             <div class="ranking-history-table"><div class="ranking-history-row is-head"><span>사용자</span><span>기존 순위</span><span>예상 순위</span><span>점수 변화</span></div>
               <% rankingOperations.recalculationPreview.changes.forEach((change) => { %><div class="ranking-history-row"><strong><%= change.user?.realName || change.user?.name || change.userId %></strong><span><%= change.beforeRank || "신규" %>위</span><span><%= change.afterRank %>위</span><span><%= change.beforeRating ?? "-" %> → <%= change.afterRating %></span></div><% }) %>

@@ -84,7 +84,7 @@ const ARENA_ONE_ON_ONE_FINAL_TYPE_IDS = Object.entries(
 
 if (ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS.length < ARENA_ONE_ON_ONE_QUESTION_COUNT) {
   throw new Error(
-    "GOAT Arena 1대1 경기에 필요한 서로 다른 준킬러 유형 5개가 준비되지 않았습니다."
+    "GOAT Arena 1대1 경기에 필요한 서로 다른 일반 슬롯 유형 5개가 준비되지 않았습니다."
   );
 }
 
@@ -171,7 +171,7 @@ function configuredQuestionSlots(
         const error = new Error(
           isFinalKiller
             ? "해당 슬롯에 배정할 중복 없는 29·30번형 킬러 유형이 없습니다."
-            : "한 경기 안에 서로 다른 준킬러 유형 5개를 배정할 수 없습니다."
+            : "한 경기 안에 서로 다른 일반 슬롯 유형 5개를 배정할 수 없습니다."
         );
         error.status = 409;
         error.code = isFinalKiller

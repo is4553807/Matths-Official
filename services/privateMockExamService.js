@@ -61,6 +61,9 @@ const {
   deliverModerationNotice,
 } = require("./moderationNoticeService");
 const {
+  getActiveAdminSender,
+} = require("./adminIdentityService");
+const {
   completeAdminTodoBySource,
   createAdminTodo,
 } = require("./adminTodoService");
@@ -3349,7 +3352,7 @@ async function processUploadReminder(
           deliveryMode:
             delivery.delivered
               ? "email"
-              : "preview",
+              : "failed",
           nextRetryAt: null,
         },
       }
@@ -8296,6 +8299,7 @@ async function correctPrivateMockAnswers({
       reason:
         cleanReason,
     });
+  const sender = await getActiveAdminSender(adminUserId);
   let delivered = 0;
   let failed = 0;
 
@@ -8321,6 +8325,7 @@ async function correctPrivateMockAnswers({
             template.subject,
           message:
             template.message,
+          fromAddress: sender.email,
         });
       if (
         delivery.delivered

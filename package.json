@@ -4,11 +4,17 @@
   "private": true,
   "main": "server.js",
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=24"
   },
   "scripts": {
     "start": "node server.js",
     "email:verify": "node scripts/verifyEmailConfig.js",
+    "email-routing:verify": "node scripts/verifyOperatorEmailRouting.js",
+    "support-email-routing:verify": "node scripts/verifySupportEmailRouting.js",
+    "finance:verify": "node scripts/verifyFinanceLedger.js",
+    "payback-completion:verify": "node scripts/verifyPaybackCompletionWorkflow.js",
+    "admin-audit:verify": "node scripts/verifyAdminAuditTrail.js",
+    "launch-views:verify": "node scripts/verifyLaunchViews.js",
     "admin:verify": "node scripts/validateCommunityAndAdmin.js",
     "admin:verify-db": "node scripts/verifyAdminActivityData.js",
     "account-deletion:verify": "node scripts/verifyAccountDeletionPolicy.js",
@@ -64,8 +70,15 @@
     "arena-gp:migrate": "node scripts/migrateArenaGpToTierLocal.js",
     "ui:preview": "node scripts/previewLocalUi.js",
     "ui:verify": "node scripts/verifyUiStyles.js",
+    "brand:verify": "node scripts/verifyBrandAssets.js",
     "error-page:verify": "node scripts/verifyErrorMiddleware.js",
     "session-store:verify": "node scripts/verifySharedSessionStore.js",
+    "request-security:verify": "node scripts/verifyRequestSecurity.js",
+    "upload-security:verify": "node scripts/verifyUploadContentValidation.js",
+    "runtime:verify": "node scripts/verifyRuntimeReadiness.js",
+    "http-surface:verify": "node scripts/verifyHttpSurface.js",
+    "deployment-surface:verify": "node scripts/verifyDeploymentSurface.js",
+    "launch:verify": "node scripts/verifyLaunchReadiness.js",
     "scheduler-lease:verify-db": "node scripts/verifySchedulerLeaseDb.js",
     "scheduler-coverage:verify": "node scripts/verifySchedulerCoverage.js",
     "private-mock:verify": "node scripts/verifyPrivateMockWorkflow.js",
@@ -105,8 +118,7 @@
     "pdf-watermark:verify": "node scripts/verifyPdfWatermarkLocal.js",
     "pdf-watermark:verify-db": "node scripts/verifyPdfWatermark.js",
     "ranking-operations:verify-db": "node scripts/verifyRankingOperationsDb.js",
-    "accounts:configure-requested": "node scripts/configureRequestedAccounts.js",
-    "launch-data:purge": "node scripts/purgeLaunchUserAndArchiveData.js --apply"
+    "accounts:configure-requested": "node scripts/configureRequestedAccounts.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",
@@ -118,12 +130,12 @@
     "ejs": "^6.0.1",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
-    "js-yaml": "^5.2.1",
+    "js-yaml": "^5.2.3",
     "mongoose": "^9.7.4",
     "multer": "^2.2.0",
-    "nodemailer": "^7.0.11",
+    "nodemailer": "^9.0.5",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "5.6.205",
+    "pdfjs-dist": "6.2.108",
     "sharp": "^0.35.3",
     "tesseract.js": "^7.0.0"
   },

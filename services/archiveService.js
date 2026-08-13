@@ -24,12 +24,6 @@ const ARCHIVE_CATEGORIES = [
   "개념 자료",
   "기타",
 ];
-const ADMIN_EMAIL = String(
-  process.env.ADMIN_EMAIL ||
-    "admin@lsbproduction.com"
-)
-  .trim()
-  .toLowerCase();
 const PRIVATE_MOCK_ARCHIVE_FOLDER_NAME =
   "2026 Matths 사설 모의고사";
 const ARCHIVE_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -37,13 +31,7 @@ const ARCHIVE_TRASH_PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 let archiveTrashPurgeTimer = null;
 
 function isArchiveAdmin(user) {
-  return (
-    user?.role === "admin" ||
-    String(user?.email || "")
-      .trim()
-      .toLowerCase() ===
-      ADMIN_EMAIL
-  );
+  return user?.role === "admin";
 }
 
 function httpError(status, message) {

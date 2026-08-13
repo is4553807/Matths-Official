@@ -69,8 +69,12 @@
           </ul>
           <div class="pricing-actions">
             <% if (user) { %>
-              <a class="pricing-primary" href="/pricing/mock-exam-only/self">본인 결제</a>
-              <a class="pricing-secondary" href="/pricing/mock-exam-only/parent-request">부모님께 결제 요청하기</a>
+              <% if (checkoutEnabled) { %>
+                <a class="pricing-primary" href="/pricing/mock-exam-only/self">본인 결제</a>
+                <a class="pricing-secondary" href="/pricing/mock-exam-only/parent-request">부모님께 결제 요청하기</a>
+              <% } else { %>
+                <span class="pricing-secondary" aria-disabled="true">온라인 결제 준비 중</span>
+              <% } %>
             <% } else { %>
               <a class="pricing-primary" href="/register">지금 바로 시작하기</a>
             <% } %>
@@ -99,8 +103,12 @@
           </ul>
           <div class="pricing-actions">
             <% if (user) { %>
-              <a class="pricing-primary" href="/pricing/learning-package/self">본인 결제</a>
-              <a class="pricing-secondary" href="/pricing/learning-package/parent-request">부모님께 결제 요청하기</a>
+              <% if (checkoutEnabled) { %>
+                <a class="pricing-primary" href="/pricing/learning-package/self">본인 결제</a>
+                <a class="pricing-secondary" href="/pricing/learning-package/parent-request">부모님께 결제 요청하기</a>
+              <% } else { %>
+                <span class="pricing-secondary" aria-disabled="true">온라인 결제 준비 중</span>
+              <% } %>
             <% } else { %>
               <a class="pricing-primary" href="/register">지금 바로 시작하기</a>
             <% } %>

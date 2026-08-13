@@ -36,14 +36,14 @@ h6 {
   overflow: hidden !important;
   padding: 0 !important;
   color: transparent !important;
-  background-color: #0b0c14 !important;
+  background-color: transparent !important;
   background-image: url("/images/matths-mark.png") !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
-  background-size: cover !important;
-  box-shadow:
-    0 8px 18px
-      rgba(20, 38, 115, 0.2) !important;
+  background-size: contain !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   font-size: 0 !important;
   letter-spacing: 0 !important;
   transform: none !important;

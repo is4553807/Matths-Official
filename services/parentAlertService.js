@@ -13,7 +13,7 @@ const {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_INTERVAL_MS = 30 * 60 * 1000;
 const MAX_ATTEMPTS_PER_DAY = 3;
-const TERMINAL_STATUSES = new Set(["SENT", "PREVIEW"]);
+const TERMINAL_STATUSES = new Set(["SENT"]);
 
 let schedulerTimer = null;
 let schedulerRunning = false;
@@ -161,11 +161,7 @@ async function deliverAlert({ link, alertType, reasonSnapshot, now, sendEmailFn 
         footer: "학부모 페이지의 학습 알림 메뉴에서 자녀별 기준을 변경하거나 알림을 끌 수 있습니다.",
       }),
     });
-    const status = result.delivered === true
-      ? "SENT"
-      : result.preview === true
-        ? "PREVIEW"
-        : "FAILED";
+    const status = result.delivered === true ? "SENT" : "FAILED";
     await ParentAlertDelivery.updateOne(
       { _id: delivery._id },
       {
@@ -177,7 +173,7 @@ async function deliverAlert({ link, alertType, reasonSnapshot, now, sendEmailFn 
         },
       }
     );
-    return { delivered: status === "SENT", preview: status === "PREVIEW" };
+    return { delivered: status === "SENT" };
   } catch (error) {
     await ParentAlertDelivery.updateOne(
       { _id: delivery._id },

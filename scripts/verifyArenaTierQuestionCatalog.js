@@ -13,6 +13,8 @@ const {
 } = require("../services/arenaTierQuestionCatalogService");
 const {
   PACK_RULES,
+  PUBLIC_DIFFICULTY_SPECS,
+  PUBLIC_DIFFICULTY_TO_CATALOG_TIER,
   isNaturalNumberMaxThreeDigits,
 } = require("../services/arenaOneOnOneDifficultyPolicy");
 
@@ -84,16 +86,20 @@ async function main() {
   await document.validate();
 
   for (let difficultyIndex = 1; difficultyIndex <= 9; difficultyIndex += 1) {
-    const difficultyTier = `T${difficultyIndex}`;
     for (const division of ["SUB", "MAIN"]) {
       const difficultyCode = `${division === "MAIN" ? "R" : "U"}${difficultyIndex}`;
+      const difficultyTier = PUBLIC_DIFFICULTY_TO_CATALOG_TIER[difficultyCode];
+      const expectedClasses = PUBLIC_DIFFICULTY_SPECS[difficultyCode].classMix;
+      const expectedKillerCount = expectedClasses.filter(
+        (difficultyClass) => difficultyClass === "KILLER"
+      ).length;
       const variants = buildDifficultyVariantTypes(definition, difficultyCode);
       assert.equal(variants.length, 30);
       assert.equal(new Set(variants.map((item) => item.variantTypeId)).size, 30);
       assert.ok(variants.every((item) => item.variantTypeId.startsWith(`${difficultyCode}-`)));
       assert.equal(
         variants.filter((item) => item.difficultyClass === "KILLER").length,
-        difficultyIndex >= 7 ? 30 : division === "MAIN" ? 5 : 0
+        division === "MAIN" ? 5 : 0
       );
 
       const selectedTypes = selectTierCatalogTypes(
@@ -105,6 +111,10 @@ async function main() {
       );
       assertCourseMix(selectedTypes);
       assert.equal(new Set(selectedTypes.map((item) => item.publicVariantTypeId)).size, 5);
+      assert.equal(
+        selectedTypes.filter((item) => item.difficultyClass === "KILLER").length,
+        expectedKillerCount
+      );
 
       const questions = await generateQuestionsFromTierCatalog({
         version: definition,
@@ -117,14 +127,13 @@ async function main() {
       });
       assert.equal(questions.length, 5);
       assertCourseMix(questions);
-      const allKiller = difficultyIndex >= 7;
       const killerCount = questions.filter(
         (item) => item.design.slotRole === "FINAL_29_30"
       ).length;
-      assert.equal(killerCount, allKiller ? 5 : division === "MAIN" ? 1 : 0);
+      assert.equal(killerCount, expectedKillerCount);
       assert.equal(
         questions.filter((item) => item.difficultyClass === "KILLER").length,
-        allKiller ? 5 : division === "MAIN" ? 1 : 0
+        expectedKillerCount
       );
       assert.ok(questions.every((item) => item.typeId.startsWith(`${difficultyCode}-`)));
       assert.equal(new Set(questions.map((item) => item.typeId)).size, 5);
@@ -135,9 +144,11 @@ async function main() {
       assert.equal(
         regularItems.every(
           (item) =>
-            item.difficultyClass === "SEMI_KILLER" &&
-            /^ARENA_SEMI_KILLER:/.test(item.generatorEngineKey) &&
-            /^semi-/.test(item.generatorTypeId)
+            ["BASIC_GENERAL", "GENERAL", "UPPER_GENERAL", "SEMI_KILLER"].includes(
+              item.difficultyClass
+            ) &&
+            /^ASSESSMENT_CENTER:/.test(item.generatorEngineKey) &&
+            item.validation?.accuracyClassCertified === true
         ),
         true
       );

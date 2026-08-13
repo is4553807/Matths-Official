@@ -32,7 +32,7 @@ const pdfForensicsUpload = multer({
     files: 1,
     fileSize: Math.max(
       1024 * 1024,
-      Number(process.env.PDF_FORENSICS_MAX_BYTES) || 150 * 1024 * 1024
+      Number(process.env.PDF_FORENSICS_MAX_BYTES) || 50 * 1024 * 1024
     ),
   },
   fileFilter(_req, file, callback) {

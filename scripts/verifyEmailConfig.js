@@ -10,7 +10,7 @@ dotenv.config({
 });
 
 const {
-  getGmailCredentials,
+  getDefaultSmtpAccount,
   verifyEmailConnection,
 } = require("../services/emailService");
 
@@ -19,7 +19,7 @@ function maskEmail(email) {
     String(email || "").split("@");
 
   if (!local || !domain) {
-    return "설정된 Gmail 계정";
+    return "설정된 SMTP 계정";
   }
 
   const visible =
@@ -32,13 +32,13 @@ function maskEmail(email) {
 
 async function main() {
   const credentials =
-    getGmailCredentials();
+    getDefaultSmtpAccount();
   const result =
     await verifyEmailConnection();
 
   if (!result.configured) {
     console.error(
-      "Gmail SMTP 설정이 없습니다. config.env에 GMAIL_USER와 GMAIL_APP_PASSWORD를 추가해주세요."
+      "SMTP 설정이 없습니다. config.env의 SMTP_HOST, SMTP_USER, SMTP_PASSWORD를 확인해주세요."
     );
     process.exitCode = 1;
     return;
@@ -46,7 +46,7 @@ async function main() {
 
   if (!result.connected) {
     console.error(
-      `Gmail SMTP 연결에 실패했습니다. 오류 코드: ${result.code || "확인 불가"}`
+      `SMTP 연결에 실패했습니다. 오류 코드: ${result.code || "확인 불가"}`
     );
     process.exitCode = 1;
     return;
@@ -55,13 +55,13 @@ async function main() {
   console.log(
     `${maskEmail(
       credentials.user
-    )} Gmail SMTP 연결 성공`
+    )} SMTP 연결 성공`
   );
 }
 
 main().catch((error) => {
   console.error(
-    "Gmail SMTP 설정 확인 중 오류가 발생했습니다.",
+    "SMTP 설정 확인 중 오류가 발생했습니다.",
     error.message
   );
   process.exitCode = 1;

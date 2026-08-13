@@ -4,6 +4,31 @@ const { MongoClient } = require("mongodb");
 
 const APPLY = process.argv.includes("--apply");
 const RETIRED_INDEXES = Object.freeze({
+  accesscycles: [
+    "policyVersionId_1",
+    "refundStatus_1",
+    "activeRanking_1",
+    "status_1_day30ReviewOn_1",
+    "refundStatus_1_day30ReviewOn_1",
+    "activeRanking_1_status_1",
+  ],
+  arenamatchattempts: [
+    "participantUserId_1",
+    "endsAt_1",
+    "arena_attempt_deadline_scan",
+  ],
+  arenarevengerights: [
+    "seasonId_1",
+    "policyVersionId_1",
+    "rankingType_1",
+    "entitledUserId_1",
+    "targetUserId_1",
+    "expiresAt_1",
+    "one_revenge_right_per_source_and_loser",
+    "one_revenge_right_per_consuming_match",
+    "entitledUserId_1_seasonId_1_rankingType_1_status_1_expiresAt_1",
+  ],
+  arenatierquestioncatalogversions: ["difficultyCode_1"],
   archivefolders: [
     "isPublished_1_name_1",
     "isPublished_1_parentFolderId_1_name_1",
@@ -21,6 +46,7 @@ const RETIRED_INDEXES = Object.freeze({
   users: [
     "identityMatchHash_1_accountStatus_1",
     "identityMatchHash_1_school.code_1_accountStatus_1",
+    "socialAuth.kakaoId_1",
   ],
 });
 

@@ -15,9 +15,6 @@ const {
 } = require("../models/matthsModel");
 const mongoose = require("mongoose");
 const {
-  ArenaPackagePayment,
-} = require("../models/goatArenaModel");
-const {
   CheckoutIntent,
   ParentAccount,
   ParentAlertDelivery,
@@ -58,12 +55,96 @@ const {
 const {
   getUserArenaBadges,
 } = require("./arenaBadgeService");
+const {
+  getActiveAdminSender,
+} = require("./adminIdentityService");
+const {
+  createUserAppliedAdminAuditFilter,
+} = require("./adminAuditPolicyService");
+const {
+  getFinanceDashboardData,
+} = require("./financeService");
 const accountEmailCopy =
   require("../content/email/account");
 
 const USERS_PER_PAGE = 20;
 const INQUIRIES_PER_PAGE = 20;
 const USER_ACTIVITY_PAGE_SIZE = 50;
+const SANCTIONS_PER_PAGE = 20;
+const ADMIN_AUDIT_PER_PAGE = 20;
+
+const SANCTION_ACTION_FILTER = {
+  $or: [
+    {
+      action: {
+        $in: [
+          "user.deactivate",
+          "user.restore",
+          "user.account-status",
+          "user.account-withdrawal",
+          "user.warning-count",
+          "user.nickname-request",
+        ],
+      },
+    },
+    { action: /^community\.(?:post|comment)-(?:hide|restore|delete|warning)$/ },
+    { action: /^arena\.integrity\./ },
+    { action: /^private-mock\.integrity-/ },
+  ],
+};
+
+function sanctionActionLabel(action) {
+  const exact = {
+    "user.deactivate": "계정 비활성화",
+    "user.restore": "계정 복구",
+    "user.account-status": "계정 상태 변경",
+    "user.account-withdrawal": "관리자 계정 탈퇴 처리",
+    "user.warning-count": "경고 횟수 변경",
+    "user.nickname-request": "닉네임 변경 요청",
+    "community.post-hide": "게시글 숨김",
+    "community.post-restore": "게시글 복구",
+    "community.post-delete": "게시글 삭제",
+    "community.post-warning": "게시글 경고",
+    "community.comment-hide": "댓글 숨김",
+    "community.comment-restore": "댓글 복구",
+    "community.comment-delete": "댓글 삭제",
+    "community.comment-warning": "댓글 경고",
+    "private-mock.integrity-penalty": "공식 모의고사 무결성 제재",
+    "private-mock.integrity-review": "공식 모의고사 무결성 재검토",
+  };
+  if (exact[action]) return exact[action];
+  if (/^arena\.integrity\./.test(action)) {
+    if (/cleared$/.test(action)) return "Arena 무결성 제재 해제";
+    if (/supplemental_requested/.test(action)) return "Arena 추가 소명 요청";
+    if (/note$/.test(action)) return "Arena 무결성 검토 기록";
+    return "Arena 무결성 제재";
+  }
+  return action;
+}
+
+function adminAuditActionLabel(action) {
+  const exact = {
+    "finance.payback-completed": "페이백 지급 완료",
+    "finance.payback-email-resent": "페이백 이메일 재발송",
+    "finance.business-withdrawal": "사업자 출금 기록",
+    "finance.other-unpaid-costs": "기타 미지급 비용 변경",
+    "user.email": "사용자 이메일 발송",
+    "user.password-reset": "비밀번호 재설정 발송",
+    "user.notification": "우편함 알림 발송",
+    "user.package-access": "이용권·Division 권한 변경",
+    "user.role": "회원 역할 변경",
+    "inquiry.reply": "문의 답변",
+  };
+  if (exact[action]) return exact[action];
+  const sanctionLabel = sanctionActionLabel(action);
+  if (sanctionLabel !== action) return sanctionLabel;
+  if (/^user\./.test(action)) return "사용자 관리";
+  if (/^community\./.test(action)) return "게시판 관리";
+  if (/^arena\./.test(action)) return "GOAT Arena 관리";
+  if (/^private-mock\./.test(action)) return "공식 모의고사 관리";
+  if (/^(archive|store|problem)/.test(action)) return "콘텐츠 관리";
+  return action;
+}
 
 function statusError(status, message) {
   const error = new Error(message);
@@ -224,13 +305,22 @@ async function logAdminAction({
   detail = "",
   metadata = {},
 }) {
+  const actor = await getActiveAdminSender(adminUserId);
   await AdminActionLog.create({
     adminUserId,
     targetUserId,
     action,
     detail:
       cleanSingleLine(detail, 1000),
-    metadata,
+    metadata: {
+      ...metadata,
+      actorSnapshot: {
+        id: actor.id,
+        name: actor.name,
+        email: actor.email,
+        loginAt: actor.loginAt,
+      },
+    },
   });
 }
 
@@ -290,65 +380,13 @@ async function getAdminDashboardData() {
   };
 }
 
-function startOfKstDay(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  const values = Object.fromEntries(
-    parts.filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)])
-  );
-  return new Date(Date.UTC(values.year, values.month - 1, values.day, -9));
-}
-
 async function getAdminRevenueMetrics(now = new Date()) {
-  const today = startOfKstDay(now);
-  const rows = await ArenaPackagePayment.aggregate([
-    {
-      $group: {
-        _id: null,
-        grossApproved: { $sum: "$approvedAmount" },
-        refunded: {
-          $sum: { $cond: [{ $eq: ["$status", "REFUNDED"] }, "$approvedAmount", 0] },
-        },
-        cancelled: {
-          $sum: { $cond: [{ $eq: ["$status", "CANCELLED"] }, "$approvedAmount", 0] },
-        },
-        todayNet: {
-          $sum: {
-            $cond: [
-              {
-                $and: [
-                  { $gte: ["$approvedAt", today] },
-                  { $in: ["$status", ["APPROVED", "APPLIED"]] },
-                ],
-              },
-              "$approvedAmount",
-              0,
-            ],
-          },
-        },
-        successfulPayments: {
-          $sum: { $cond: [{ $in: ["$status", ["APPROVED", "APPLIED"]] }, 1, 0] },
-        },
-      },
-    },
-  ]);
-  const value = rows[0] || {};
-  const grossApproved = Number(value.grossApproved || 0);
-  const refunded = Number(value.refunded || 0);
-  const cancelled = Number(value.cancelled || 0);
+  const finance = await getFinanceDashboardData({ now });
   return {
-    currency: "KRW",
-    grossApproved,
-    refunded,
-    cancelled,
-    netRevenue: grossApproved - refunded - cancelled,
-    todayRevenue: Number(value.todayNet || 0),
-    successfulPayments: Number(value.successfulPayments || 0),
-    updatedAt: new Date(),
+    ...finance,
+    grossApproved: finance.grossPayments,
+    netRevenue: finance.netCollected,
+    updatedAt: finance.lastReconciledAt || now,
   };
 }
 
@@ -693,11 +731,14 @@ async function replyToInquiry({
     );
   }
 
+  const sender = await getActiveAdminSender(adminUserId);
+
   const delivery =
     await sendSupportReply({
       to: inquiry.contactEmail,
       subject: inquiry.subject,
       message: cleanMessage,
+      fromAddress: sender.email,
     });
 
   inquiry.status = "replied";
@@ -721,6 +762,8 @@ async function replyToInquiry({
         String(inquiry._id),
       delivered:
         delivery.delivered,
+      senderEmail: sender.email,
+      providerMessageId: delivery.providerMessageId || "",
     },
   });
   await completeAdminTodoBySource({
@@ -1065,6 +1108,133 @@ async function getAdminUsersData({
     total,
     totalPages,
     perPage: USERS_PER_PAGE,
+  };
+}
+
+async function getAdminSanctionHistory({ page } = {}) {
+  const requestedPage = safePage(page);
+  const total = await AdminActionLog.countDocuments(SANCTION_ACTION_FILTER);
+  const totalPages = Math.max(1, Math.ceil(total / SANCTIONS_PER_PAGE));
+  const currentPage = Math.min(requestedPage, totalPages);
+  const logs = await AdminActionLog.find(SANCTION_ACTION_FILTER)
+    .sort({ createdAt: -1, _id: -1 })
+    .skip((currentPage - 1) * SANCTIONS_PER_PAGE)
+    .limit(SANCTIONS_PER_PAGE)
+    .populate("adminUserId", "name realName email")
+    .populate("targetUserId", "name realName email accountStatus")
+    .lean();
+
+  return {
+    rows: logs.map((log) => ({
+      ...log,
+      actionLabel: sanctionActionLabel(log.action),
+      actor: log.adminUserId || log.metadata?.actorSnapshot || null,
+      target: log.targetUserId || null,
+    })),
+    pagination: {
+      page: currentPage,
+      perPage: SANCTIONS_PER_PAGE,
+      total,
+      totalPages,
+    },
+  };
+}
+
+async function getAdminAuditHistory({ page, adminUserId, query } = {}) {
+  const requestedPage = safePage(page);
+  const cleanQuery = cleanSingleLine(query, 120);
+  const extraClauses = [];
+  if (mongoose.isValidObjectId(adminUserId)) {
+    extraClauses.push({ adminUserId });
+  }
+  if (cleanQuery) {
+    const expression = new RegExp(escapeRegex(cleanQuery), "i");
+    const matchingUsers = await User.find({
+      $or: [
+        { email: expression },
+        { name: expression },
+        { realName: expression },
+      ],
+    })
+      .select("_id")
+      .limit(200)
+      .lean();
+    const matchingUserIds = matchingUsers.map((user) => user._id);
+    extraClauses.push({
+      $or: [
+        { action: expression },
+        { detail: expression },
+        { "metadata.actorSnapshot.email": expression },
+        { "metadata.actorSnapshot.name": expression },
+        ...(matchingUserIds.length
+          ? [
+              { adminUserId: { $in: matchingUserIds } },
+              { targetUserId: { $in: matchingUserIds } },
+            ]
+          : []),
+      ],
+    });
+  }
+  const filter = createUserAppliedAdminAuditFilter(extraClauses);
+  const [total, admins] = await Promise.all([
+    AdminActionLog.countDocuments(filter),
+    User.find({ role: "admin" })
+      .select("name realName email isActive accountStatus")
+      .sort({ isActive: -1, name: 1 })
+      .lean(),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(total / ADMIN_AUDIT_PER_PAGE));
+  const currentPage = Math.min(requestedPage, totalPages);
+  const logs = await AdminActionLog.find(filter)
+    .sort({ createdAt: -1, _id: -1 })
+    .skip((currentPage - 1) * ADMIN_AUDIT_PER_PAGE)
+    .limit(ADMIN_AUDIT_PER_PAGE)
+    .lean();
+  const relatedUserIds = [
+    ...new Set(
+      logs
+        .flatMap((log) => [log.adminUserId, log.targetUserId])
+        .filter(Boolean)
+        .map(String)
+    ),
+  ];
+  const relatedUsers = relatedUserIds.length
+    ? await User.find({ _id: { $in: relatedUserIds } })
+        .select("name realName email accountStatus")
+        .lean()
+    : [];
+  const relatedUserMap = new Map(
+    relatedUsers.map((relatedUser) => [String(relatedUser._id), relatedUser])
+  );
+  return {
+    rows: logs.map((log) => ({
+      ...log,
+      actionLabel: adminAuditActionLabel(log.action),
+      actor:
+        relatedUserMap.get(String(log.adminUserId || "")) ||
+        log.metadata?.actorSnapshot ||
+        null,
+      target: log.targetUserId
+        ? relatedUserMap.get(String(log.targetUserId)) || {
+            id: String(log.targetUserId),
+            name: "탈퇴·삭제 사용자",
+            email: "",
+          }
+        : log.metadata?.targetAccountPurged
+          ? { name: "탈퇴·삭제 사용자", email: "" }
+          : null,
+    })),
+    admins,
+    filters: {
+      adminUserId: mongoose.isValidObjectId(adminUserId) ? String(adminUserId) : "",
+      query: cleanQuery,
+    },
+    pagination: {
+      page: currentPage,
+      perPage: ADMIN_AUDIT_PER_PAGE,
+      total,
+      totalPages,
+    },
   };
 }
 
@@ -2016,6 +2186,8 @@ async function updateUserAccountStatus({
         nextStatus: "withdrawn",
         dataRetention:
           withdrawal.dataRetention,
+        targetAccountPurged:
+          withdrawal.dataRetention === "purged",
       },
     });
 
@@ -2320,11 +2492,14 @@ async function sendDirectUserEmail({
     );
   }
 
+  const sender = await getActiveAdminSender(adminUserId);
+
   const delivery =
     await sendAdminUserEmail({
       to: user.email,
       subject: cleanSubject,
       message: cleanMessage,
+      fromAddress: sender.email,
     });
 
   await logAdminAction({
@@ -2335,6 +2510,8 @@ async function sendDirectUserEmail({
     metadata: {
       delivered:
         delivery.delivered,
+      senderEmail: sender.email,
+      providerMessageId: delivery.providerMessageId || "",
     },
   });
 
@@ -2359,10 +2536,13 @@ async function sendUserPasswordReset({
     );
   }
 
+  const sender = await getActiveAdminSender(adminUserId);
+
   const result =
     await requestPasswordResetLink({
       email: user.email,
       baseUrl,
+      fromAddress: sender.email,
     });
 
   await logAdminAction({
@@ -2372,6 +2552,9 @@ async function sendUserPasswordReset({
       "user.password-reset",
     detail:
       "비밀번호 재설정 링크 발송",
+    metadata: {
+      senderEmail: sender.email,
+    },
   });
 
   return result;
@@ -2418,7 +2601,9 @@ module.exports = {
   createAnnouncement,
   createDirectNotification,
   getAdminDashboardData,
+  getAdminAuditHistory,
   getAdminRevenueMetrics,
+  getAdminSanctionHistory,
   getAdminInquiryData,
   getAdminAssessmentDetail,
   getAdminParentDetail,

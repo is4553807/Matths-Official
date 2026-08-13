@@ -200,6 +200,12 @@ for (const expected of [
   );
 }
 
+assert.match(
+  accountService,
+  /AdminActionLog\.updateMany\([\s\S]*?\$metadata\.actorSnapshot[\s\S]*?updatePipeline:\s*true[\s\S]*?\)/,
+  "감사 로그 비식별화 파이프라인에는 Mongoose updatePipeline 옵션이 필요합니다."
+);
+
 const routes = read(
   "routes/matths-routes.js"
 );
