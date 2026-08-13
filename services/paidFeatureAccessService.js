@@ -45,7 +45,7 @@ async function assertPaidPackageAccess(userId) {
   const access = await getPaidPackageAccess(userId);
   if (!access.active) {
     const error = new Error(
-      "배치고사, Matths 주간 공식 모의고사와 GOAT Arena 공식 경기는 활성 학습권 패키지 회원만 이용할 수 있습니다."
+      "시즌·복귀 배치고사와 GOAT Arena 공식 경기는 활성 학습권 패키지 회원만 이용할 수 있습니다. 최초 배치고사 1회는 무료입니다."
     );
     error.status = 403;
     error.code = "PAID_PACKAGE_REQUIRED";

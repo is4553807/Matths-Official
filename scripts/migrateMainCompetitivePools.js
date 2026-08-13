@@ -86,7 +86,10 @@ async function run() {
     const finalOperations = [];
     for (const standings of groupBySeason(activeStandings).values()) {
       const layoutById = new Map(
-        computeArenaCohortLayout(standings).map((entry) => [
+        computeArenaCohortLayout(
+          standings,
+          { division: "MAIN" }
+        ).map((entry) => [
           String(entry._id),
           entry,
         ])

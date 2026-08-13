@@ -216,11 +216,99 @@ app.get("/pricing", (req, res) => {
   });
 });
 
+app.get("/preview/placement/story", (req, res) => {
+  const now = new Date();
+  const previewCohortSize = req.query.sample === "small" ? 37 : 128;
+  const previewCohortRank = req.query.sample === "small" ? 1 : 14;
+  res.render("assessment-attempt", {
+    user: {
+      name: "수학하는염소",
+      schoolGrade: 11,
+    },
+    difficultyLabels: {},
+    attempt: {
+      _id: "64b000000000000000000091",
+      scopeType: "placement",
+      placementPurpose: "INITIAL",
+      title: "GOAT Arena 입단 배치고사",
+      subtitle: "30문항 · 100점",
+      status: "submitted",
+      passed: true,
+      questions: [],
+      earnedPoints: 82,
+      totalPoints: 100,
+      scorePercent: 82,
+      timeLimitMs: 100 * 60 * 1000,
+      elapsedTimeMs: 78 * 60 * 1000,
+      deadlineAt: new Date(now.getTime() + 22 * 60 * 1000),
+      placementResult: {
+        totalCorrect: 25,
+        placementScore: 82,
+        initialMmr: 1264,
+        initialRating: 1264,
+        initialTier: "다이아몬드",
+        tier: "다이아몬드",
+        rankingStatus: "provisional",
+        calibrationPolicyVersion: "PLACEMENT_REFERENCE_V2_MOE_NINE_GRADE",
+        positionBasis: "MOE_NINE_GRADE_REFERENCE_DISTRIBUTION",
+        referenceStandard: "MOE_NINE_GRADE_CUMULATIVE_RANK_RATIO",
+        referenceGrade: 4,
+        estimatedPercentile: 71.3,
+        estimatedTopPercent: 28.7,
+        estimatedTopPercentMin: 23,
+        estimatedTopPercentMax: 40,
+        estimatedRankPopulation: 10000,
+        estimatedRank: 2870,
+        cohortSize: previewCohortSize,
+        cohortRank: previewCohortRank,
+        actualRankMinimumCohortSize: 100,
+        actualRankPublished: previewCohortSize >= 100,
+        actualPercentile: 89.1,
+        cohortAverage: 61.4,
+        cohortStandardDeviation: 14.7,
+        standardizedScore: 1.4,
+        percentile: 71.3,
+      },
+    },
+  });
+});
+
 app.get("/preview/refunds/checkout", (_req, res) => {
   res.render("checkout", {
     user: { id: "preview-user", name: "preview-user", role: "student" },
     product: previewProducts[1],
     intent: null,
+  });
+});
+
+app.get("/preview/payments/toss", (_req, res) => {
+  const intent = {
+    orderId: "matths-preview-0123456789abcdef",
+    customerKey: "customer-preview-0123456789abcdef",
+    providerMode: "TEST",
+    productName: previewProducts[1].name,
+    amount: previewProducts[1].amount,
+    currency: "KRW",
+  };
+  res.render("checkout", {
+    user: { id: "preview-user", name: "김학생", email: "preview@example.com", role: "student" },
+    product: previewProducts[1],
+    intent,
+    checkoutConfig: {
+      clientKey: "test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm",
+      mode: "TEST",
+      customerKey: intent.customerKey,
+      amount: intent.amount,
+      currency: intent.currency,
+      orderId: intent.orderId,
+      orderName: intent.productName,
+      customerEmail: "preview@example.com",
+      customerName: "김학생",
+      successUrl: `http://127.0.0.1:${port}/payments/toss/success`,
+      failUrl: `http://127.0.0.1:${port}/payments/toss/fail`,
+      paymentVariantKey: "DEFAULT",
+      agreementVariantKey: "AGREEMENT",
+    },
   });
 });
 
@@ -232,6 +320,98 @@ app.get("/preview/refunds/parent-checkout", (_req, res) => {
     selectedChildId: "preview-child",
     product: previewProducts[1],
     intent: null,
+  });
+});
+
+app.get("/preview/parent/payments", (_req, res) => {
+  res.render("parent-payments", {
+    parent: { _id: "64b000000000000000000081", username: "김학부모" },
+    child: { _id: "64b000000000000000000082", name: "학생", realName: "김학생" },
+    familyChildren: [
+      {
+        childId: "64b000000000000000000082",
+        child: { name: "학생", realName: "김학생" },
+      },
+    ],
+    selectedChildId: "64b000000000000000000082",
+    feedback: "",
+    error: "",
+    paymentData: {
+      summary: {
+        orderCount: 3,
+        paidCount: 2,
+        paidAmount: 34000,
+        refundedAmount: 5000,
+        refundableCount: 1,
+      },
+      orders: [
+        {
+          id: "intent-paid",
+          orderId: "matths-preview-paid-order",
+          productCode: "LEARNING_PACKAGE_29",
+          productName: "29일 학습권 패키지",
+          amount: 29000,
+          currency: "KRW",
+          createdAt: new Date("2026-08-13T08:00:00.000Z"),
+          approvedAt: new Date("2026-08-13T08:02:00.000Z"),
+          paymentMethod: "카드",
+          receiptUrl: "https://dashboard.tosspayments.com/receipt/preview",
+          providerMode: "TEST",
+          intentStatus: "PAID",
+          status: "PAID",
+          paymentId: "64b000000000000000000091",
+          payment: { status: "APPLIED" },
+          refund: null,
+          remainingAmount: 29000,
+          isRefundable: true,
+        },
+        {
+          id: "intent-refunded",
+          orderId: "matths-preview-refunded-order",
+          productCode: "MOCK_EXAM_ONLY",
+          productName: "Matths 주간 공식 모의고사 이용권",
+          amount: 5000,
+          currency: "KRW",
+          createdAt: new Date("2026-07-01T03:00:00.000Z"),
+          approvedAt: new Date("2026-07-01T03:01:00.000Z"),
+          paymentMethod: "카드",
+          receiptUrl: "https://dashboard.tosspayments.com/receipt/refunded-preview",
+          providerMode: "TEST",
+          intentStatus: "CANCELLED",
+          status: "REFUNDED",
+          paymentId: "64b000000000000000000092",
+          payment: { status: "REFUNDED" },
+          refund: {
+            status: "COMPLETED",
+            requestedAt: new Date("2026-07-02T03:00:00.000Z"),
+            processingDeadlineAt: new Date("2026-07-07T03:00:00.000Z"),
+            decision: { approvedAmount: 5000 },
+          },
+          remainingAmount: 0,
+          isRefundable: false,
+        },
+        {
+          id: "intent-expired",
+          orderId: "matths-preview-expired-order",
+          productCode: "LEARNING_PACKAGE_29",
+          productName: "29일 학습권 패키지",
+          amount: 29000,
+          currency: "KRW",
+          createdAt: new Date("2026-06-01T03:00:00.000Z"),
+          approvedAt: null,
+          paymentMethod: "",
+          receiptUrl: "",
+          providerMode: "TEST",
+          intentStatus: "EXPIRED",
+          status: "EXPIRED",
+          paymentId: "",
+          payment: null,
+          refund: null,
+          remainingAmount: 0,
+          isRefundable: false,
+        },
+      ],
+    },
   });
 });
 

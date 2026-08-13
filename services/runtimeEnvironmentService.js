@@ -97,9 +97,21 @@ function runtimeEnvironmentReport(environment = process.env) {
   }
 
   if (valueOf(environment, "PAID_CHECKOUT_ENABLED").toLowerCase() === "true") {
-    errors.push(
-      "이 릴리스에는 결제 승인·웹훅 어댑터가 없으므로 PAID_CHECKOUT_ENABLED는 false여야 합니다."
-    );
+    if (valueOf(environment, "PAYMENT_PROVIDER").toUpperCase() !== "TOSS") {
+      errors.push("유료 결제를 열려면 PAYMENT_PROVIDER=TOSS가 필요합니다.");
+    } else {
+      try {
+        const { getTossConfig } = require("./tossPaymentService");
+        const toss = getTossConfig(environment);
+        if (toss.mode === "TEST") {
+          warnings.push(
+            "토스페이먼츠 TEST 모드입니다. 실제 청구는 발생하지 않으며, 라이브 오픈 전 LIVE 키와 웹훅을 별도로 점검해야 합니다."
+          );
+        }
+      } catch (error) {
+        errors.push(error.message);
+      }
+    }
   }
 
   for (const key of [

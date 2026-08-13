@@ -269,8 +269,140 @@ assert.equal(
     4,
     [{ scorePercent: 4 }]
   ),
-  0.5,
-  "소표본 한 명을 자동으로 100백분위로 처리하면 안 됩니다."
+  0.019,
+  "소표본 배치 점수는 더미 모집단이 아니라 고정 기준분포 백분위를 사용해야 합니다."
+);
+const oneCorrectPaper =
+  buildPlacementPaper();
+oneCorrectPaper.questions.forEach(
+  (question, index) => {
+    question.isCorrect =
+      index === 0;
+    question.submittedAnswer =
+      question.isCorrect
+        ? question.answer
+        : "검산용 오답";
+  }
+);
+const oneCorrectProfile =
+  _testing.placementProfile({
+    attempt: oneCorrectPaper,
+    totalPercentile:
+      _testing.stableTotalPercentile(
+        3,
+        []
+      ),
+    threePointCorrect: 1,
+    fourPointCorrect: 0,
+    keyQuestions:
+      [20, 21, 28, 30].map(
+        (questionNumber) => ({
+          questionNumber,
+          answered: true,
+          correct: false,
+          category:
+            oneCorrectPaper
+              .questions[
+                questionNumber - 1
+              ].placementCategory,
+          skillTags:
+            oneCorrectPaper
+              .questions[
+                questionNumber - 1
+              ].skillTags,
+        })
+      ),
+    answered: 30,
+  });
+const oneCorrectStanding =
+  _testing.standingFromScores(
+    oneCorrectProfile
+      .placementScore,
+    [
+      {
+        placementResult: {
+          placementScore:
+            oneCorrectProfile
+              .placementScore,
+        },
+      },
+    ]
+  );
+assert.equal(
+  oneCorrectStanding.initialTier,
+  "브론즈",
+  "1/30 수준의 배치 결과가 중상위 티어로 산정되면 안 됩니다."
+);
+const lowStanding =
+  _testing.standingFromScores(
+    10,
+    [
+      {
+        placementResult: {
+          placementScore: 10,
+        },
+      },
+    ]
+  );
+assert.equal(
+  lowStanding.initialTier,
+  "브론즈"
+);
+assert.equal(
+  lowStanding.calibrationPolicyVersion,
+  "PLACEMENT_REFERENCE_V2_MOE_NINE_GRADE"
+);
+assert.equal(lowStanding.referenceGrade, 9);
+assert.equal(lowStanding.estimatedRankPopulation, 10000);
+assert.equal(lowStanding.estimatedRank, 9910);
+assert.equal(
+  lowStanding.cohortRank,
+  1
+);
+assert.equal(lowStanding.actualRankPublished, false);
+assert.equal(lowStanding.actualRankMinimumCohortSize, 100);
+assert.equal(
+  _testing.actualStandingFromScores(
+    50,
+    Array.from({ length: 100 }, (_, index) => ({
+      placementResult: { placementScore: index },
+    }))
+  ).actualRankPublished,
+  true,
+  "실제 응시자 순위는 유효 응시자 100명부터 공개해야 합니다."
+);
+const refreshedActualStanding =
+  _testing.actualStandingFromScores(
+    10,
+    [
+      { placementResult: { placementScore: 80 } },
+      { placementResult: { placementScore: 10 } },
+      { placementResult: { placementScore: 5 } },
+    ]
+  );
+const frozenStanding =
+  _testing.frozenStandingView(
+    {
+      ...lowStanding,
+      calibratedAt:
+        new Date("2026-08-14T00:00:00.000Z"),
+    },
+    refreshedActualStanding
+  );
+assert.equal(
+  frozenStanding.initialMmr,
+  lowStanding.initialMmr,
+  "실제 응시자가 늘어나도 확정된 초기 MMR은 바뀌면 안 됩니다."
+);
+assert.equal(
+  frozenStanding.initialTier,
+  "브론즈",
+  "실제 응시자가 늘어나도 확정된 최초 티어는 바뀌면 안 됩니다."
+);
+assert.equal(
+  frozenStanding.cohortRank,
+  2,
+  "실제 응시자 순위만 최신 제출 기록으로 갱신되어야 합니다."
 );
 const standing =
   _testing.standingFromScores(
@@ -336,6 +468,8 @@ if (
   ) ||
   standing.rankingStatus !==
     "provisional" ||
+  standing.positionBasis !==
+    "MOE_NINE_GRADE_REFERENCE_DISTRIBUTION" ||
   timingAttempt.questions[0]
     .responseTimeMs !== 5000 ||
   timingAttempt.questions[1]

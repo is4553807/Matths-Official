@@ -183,11 +183,12 @@ function arenaTupleFromLegacyGp(gp) {
 }
 
 /*
- * 상위 티어는 GP 구간을 먼저 만족한 사용자에게만 허용하고, 활성 모집단
- * 규모에 따른 인원·백분위 상한으로 한 번 더 제한합니다. Skill MMR 설정은
- * 가져오지 않으며 ArenaStanding 재배치에서만 사용합니다.
+ * Unranked는 배치고사 또는 현재 Arena 상태의 티어를 그대로 사용합니다.
+ * 활성 모집단 규모에 따른 인원·백분위 상한은 Ranked에만 적용합니다.
+ * Skill MMR 설정은 가져오지 않으며 ArenaStanding 재배치에서만 사용합니다.
  */
 function resolveArenaTier({
+  division = "MAIN",
   rank = null,
   gp,
   topPercentile = 1,
@@ -204,6 +205,17 @@ function resolveArenaTier({
     0,
     Math.min(1, Number(topPercentile) || 0)
   );
+  const normalizedDivision = String(
+    division || ""
+  ).trim().toUpperCase();
+
+  if (
+    !["MAIN", "RANKED"].includes(
+      normalizedDivision
+    )
+  ) {
+    return tier;
+  }
 
   if (count < 100) {
     if (
@@ -299,10 +311,10 @@ function arenaUpperTierPopulationGuide() {
       ? Number(rule.maximumPopulation)
       : null;
     const populationLabel = maximum === null
-      ? `활성 ${rule.minimumPopulation}명 이상`
+      ? `Ranked 활성 ${rule.minimumPopulation}명 이상`
       : Number(rule.minimumPopulation) === 0
-        ? `활성 ${maximum}명 이하`
-        : `활성 ${rule.minimumPopulation}~${maximum}명`;
+        ? `Ranked 활성 ${maximum}명 이하`
+        : `Ranked 활성 ${rule.minimumPopulation}~${maximum}명`;
     if (rule.highestAllowedTier) {
       const tier = arenaTierByValue(rule.highestAllowedTier);
       return {

@@ -38,6 +38,24 @@ async function main() {
   });
   assert.ok(insecureUrlReport.errors.some((item) => item.includes("APP_BASE_URL")));
 
+  const missingTossKeysReport = runtimeEnvironmentReport({
+    ...validProductionEnvironment,
+    PAID_CHECKOUT_ENABLED: "true",
+    PAYMENT_PROVIDER: "TOSS",
+    TOSS_PAYMENTS_MODE: "TEST",
+  });
+  assert.ok(missingTossKeysReport.errors.some((item) => item.includes("TOSS_TEST_CLIENT_KEY")));
+  const testPaymentsReport = runtimeEnvironmentReport({
+    ...validProductionEnvironment,
+    PAID_CHECKOUT_ENABLED: "true",
+    PAYMENT_PROVIDER: "TOSS",
+    TOSS_PAYMENTS_MODE: "TEST",
+    TOSS_TEST_CLIENT_KEY: "test_gck_runtime_verification",
+    TOSS_TEST_SECRET_KEY: "test_gsk_runtime_verification",
+  });
+  assert.deepEqual(testPaymentsReport.errors, []);
+  assert.ok(testPaymentsReport.warnings.some((item) => item.includes("TEST 모드")));
+
   const apiController = require("../controllers/apiController");
   function responseRecorder() {
     return {
@@ -66,6 +84,8 @@ async function main() {
 
   const serverSource = fs.readFileSync(path.resolve(__dirname, "../server.js"), "utf8");
   assert.match(serverSource, /frame-ancestors 'none'/);
+  assert.match(serverSource, /frame-src https:\/\/\*\.tosspayments\.com/);
+  assert.match(serverSource, /https:\/\/js\.tosspayments\.com/);
   assert.match(serverSource, /X-Content-Type-Options/);
   assert.match(serverSource, /process\.once\("SIGTERM"/);
   assert.match(serverSource, /mongoose\.disconnect\(\)/);

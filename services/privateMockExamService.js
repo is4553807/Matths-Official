@@ -4014,7 +4014,7 @@ async function getPrivateMockEligibility(
       status: "mock-exam-only-ready",
       title: "Matths 주간 공식 모의고사 응시 가능",
       message:
-        "Matths 주간 공식 모의고사 이용권에서는 배치고사와 GOAT Arena를 이용할 수 없지만, 공식 모의고사 결과로 내부 실력 지표를 계속 계산해 저장합니다.",
+        "Matths 주간 공식 모의고사 이용권에서도 최초 배치고사 1회는 무료로 응시할 수 있습니다. GOAT Arena는 이용할 수 없지만, 공식 모의고사 결과로 내부 실력 지표를 계속 계산해 저장합니다.",
       ctaLabel: "Matths 주간 공식 모의고사 입장",
       ctaHref: "/private-mock-exams",
       packageType: "MOCK_EXAM_ONLY",
@@ -4085,7 +4085,7 @@ async function getPrivateMockEligibility(
       message:
         "배치 결과와 추가 확인 기록을 바탕으로 초기 티어와 GP가 생성되면 Matths 주간 공식 모의고사에 입장할 수 있습니다.",
       ctaLabel:
-        "War of GOAT으로",
+        "GOAT Arena로",
       ctaHref:
         "/war-of-masters",
     };

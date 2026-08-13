@@ -9,7 +9,7 @@ const PRODUCT_RULES = Object.freeze({
   }),
   LEARNING_PACKAGE_29: Object.freeze({
     periodDays: 29,
-    fullRefundUnusedFeature: "배치고사·주간 공식 모의고사·GOAT Arena 등 유료 기능",
+    fullRefundUnusedFeature: "시즌·복귀 배치고사·주간 공식 모의고사·GOAT Arena 등 유료 기능",
     partialFormula: "부분 환불액 = 결제금액 - 일할 이용금액(결제금액 × 이용일수 ÷ 29일)",
   }),
 });

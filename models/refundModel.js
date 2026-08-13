@@ -8,6 +8,19 @@ const refundRequestSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     paymentId: { type: Schema.Types.ObjectId, ref: "ArenaPackagePayment", required: true },
     supportInquiryId: { type: Schema.Types.ObjectId, ref: "SupportInquiry", default: null, index: true },
+    requestedByType: {
+      type: String,
+      enum: ["STUDENT", "PARENT"],
+      default: "STUDENT",
+      required: true,
+      index: true,
+    },
+    parentAccountId: {
+      type: Schema.Types.ObjectId,
+      ref: "ParentAccount",
+      default: null,
+      index: true,
+    },
     productCode: { type: String, enum: ["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"], required: true },
     productNameSnapshot: { type: String, required: true, trim: true, maxlength: 140 },
     orderReferenceSnapshot: { type: String, required: true, trim: true, maxlength: 160 },
@@ -59,6 +72,7 @@ const refundRequestSchema = new Schema(
 );
 
 refundRequestSchema.index({ status: 1, requestedAt: -1 });
+refundRequestSchema.index({ parentAccountId: 1, requestedAt: -1 });
 refundRequestSchema.index(
   { paymentId: 1 },
   { unique: true, partialFilterExpression: { status: { $in: ["REQUESTED", "CALCULATED"] } } }

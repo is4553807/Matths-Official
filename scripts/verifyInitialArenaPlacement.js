@@ -263,24 +263,40 @@ async function run() {
     "티어 이동 재정렬의 임시 순위는 최종 최대 순위 뒤에서 시작해야 합니다."
   );
 
-  const smallLayout =
+  const smallUnrankedLayout =
     computeArenaCohortLayout(
-      syntheticStandings(99)
+      syntheticStandings(99),
+      { division: "SUB" }
     );
   assert.ok(
-    smallLayout.every(
+    smallUnrankedLayout.every(
       (entry) =>
-        entry.arenaRank === "마스터"
-    )
+        entry.arenaRank === "챌린저"
+    ),
+    "Unranked는 활성 인원과 관계없이 배치 티어를 그대로 유지해야 합니다."
   );
   assert.equal(
-    smallLayout[98].arenaPosition,
+    smallUnrankedLayout[98].arenaPosition,
     99
+  );
+
+  const smallRankedLayout =
+    computeArenaCohortLayout(
+      syntheticStandings(99),
+      { division: "MAIN" }
+    );
+  assert.ok(
+    smallRankedLayout.every(
+      (entry) =>
+        entry.arenaRank === "마스터"
+    ),
+    "Ranked 100명 미만에서는 최고 티어가 마스터여야 합니다."
   );
 
   const mediumLayout =
     computeArenaCohortLayout(
-      syntheticStandings(100)
+      syntheticStandings(100),
+      { division: "MAIN" }
     );
   assert.deepEqual(
     mediumLayout.slice(0, 6).map(
@@ -306,6 +322,7 @@ async function run() {
 
   assert.equal(
     resolveArenaTier({
+      division: "MAIN",
       rank: "챌린저",
       gp: 99,
       activeRankerCount: 300,
@@ -315,12 +332,24 @@ async function run() {
   );
   assert.equal(
     resolveArenaTier({
+      division: "MAIN",
       rank: "챌린저",
       gp: 99,
       activeRankerCount: 300,
       topPercentile: 0.051,
     }).label,
     "다이아몬드"
+  );
+  assert.equal(
+    resolveArenaTier({
+      division: "SUB",
+      rank: "챌린저",
+      gp: 99,
+      activeRankerCount: 1,
+      topPercentile: 1,
+    }).label,
+    "챌린저",
+    "Unranked에는 마스터 이상 인원 제한을 적용하면 안 됩니다."
   );
 
   const userId = new mongoose.Types.ObjectId();
@@ -426,6 +455,9 @@ async function run() {
       ) &&
       standingSource.includes(
         "HISTORICAL_PLACEMENT_CANNOT_OPEN_CURRENT_SEASON"
+      ) &&
+      standingSource.includes(
+        "placementSeedTuple"
       )
   );
   assert.ok(

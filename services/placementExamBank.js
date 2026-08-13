@@ -2874,7 +2874,7 @@ function buildPlacementPaper() {
     unitId: null,
     subunitId: null,
     title:
-      "War of GOAT 입단 배치고사",
+      "GOAT Arena 입단 배치고사",
     subtitle:
       "대수 · 미적분Ⅰ · 확률과 통계 통합 30문항",
     passScore: 0,

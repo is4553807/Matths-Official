@@ -2,6 +2,7 @@ const express = require("express");
 const apiController = require(
   "../controllers/apiController"
 );
+const paymentController = require("../controllers/paymentController");
 const {
   requireApiAuth,
 } = require(
@@ -26,6 +27,10 @@ router.get(
 router.get(
   "/ready",
   apiController.readiness
+);
+router.post(
+  "/payments/toss/webhook",
+  paymentController.tossWebhook
 );
 router.get(
   "/schools",

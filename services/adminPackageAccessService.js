@@ -44,7 +44,7 @@ const UNRESOLVED_MATCH_STATUSES = [
 
 function packageLabel(packageType) {
   return {
-    FREE: "무료",
+    FREE: "기본학습 패키지",
     MOCK_EXAM_ONLY: "Matths 주간 공식 모의고사 이용권",
     LEARNING_PACKAGE: "29일 학습권 패키지",
   }[packageType] || packageType;

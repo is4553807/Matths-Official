@@ -301,6 +301,10 @@ function normalizePaymentApproval(input = {}) {
     input.provider,
     40
   ).toUpperCase();
+  const providerMode = cleanSingleLine(
+    input.providerMode,
+    10
+  ).toUpperCase();
   const providerPaymentKey =
     cleanSingleLine(
       input.providerPaymentKey
@@ -341,6 +345,13 @@ function normalizePaymentApproval(input = {}) {
       "PAYMENT_IDENTIFIER_REQUIRED"
     );
   }
+  if (provider === "TOSS" && !["TEST", "LIVE"].includes(providerMode)) {
+    throw statusError(
+      400,
+      "토스페이먼츠 결제 실행 모드를 확인해주세요.",
+      "PAYMENT_PROVIDER_MODE_REQUIRED"
+    );
+  }
   if (!/^[A-Z]{3}$/.test(currency)) {
     throw statusError(
       400,
@@ -371,6 +382,7 @@ function normalizePaymentApproval(input = {}) {
       userId
     ),
     provider,
+    providerMode: providerMode || undefined,
     providerPaymentKey,
     orderReference,
     idempotencyKey,
@@ -409,6 +421,8 @@ function assertSamePaymentApproval(
       String(approval.userId) &&
     existing.provider ===
       approval.provider &&
+    String(existing.providerMode || "") ===
+      String(approval.providerMode || "") &&
     existing.providerPaymentKey ===
       approval.providerPaymentKey &&
     existing.orderReference ===

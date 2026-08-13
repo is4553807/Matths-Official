@@ -20,6 +20,7 @@ const {
 );
 const {
   calculateInitialMmr,
+  placementReferenceForScore,
   processWeeklyMmr,
   resolveTier,
 } = require(
@@ -344,6 +345,61 @@ assert.equal(
   }),
   1200,
   "배치 MMR은 1000 + 200z 공식을 따라야 합니다."
+);
+assert.deepEqual(
+  placementReferenceForScore(10),
+  {
+    policyVersion:
+      "PLACEMENT_REFERENCE_V2_MOE_NINE_GRADE",
+    positionBasis:
+      "MOE_NINE_GRADE_REFERENCE_DISTRIBUTION",
+    referenceStandard:
+      "MOE_NINE_GRADE_CUMULATIVE_RANK_RATIO",
+    referenceGrade: 9,
+    score: 10,
+    tierCode: "BRONZE",
+    initialMmr: 493,
+    estimatedPercentile: 0.9,
+    estimatedTopPercent: 99.1,
+    estimatedRankPopulation: 10000,
+    estimatedRank: 9910,
+    estimatedTopPercentMin: 96,
+    estimatedTopPercentMax: 100,
+  },
+  "낮은 배치 점수는 실제 모집단 크기와 무관하게 브론즈 기준분포에 고정되어야 합니다."
+);
+assert.equal(
+  placementReferenceForScore(82)
+    .tierCode,
+  "DIAMOND"
+);
+assert.deepEqual(
+  [0, 43, 44, 53, 54, 62, 63, 70, 71, 77, 78, 84, 85, 89, 90, 94, 95, 100]
+    .map((score) => {
+      const reference = placementReferenceForScore(score);
+      return [score, reference.referenceGrade, reference.estimatedTopPercent];
+    }),
+  [
+    [0, 9, 100],
+    [43, 9, 96],
+    [44, 8, 96],
+    [53, 8, 89],
+    [54, 7, 89],
+    [62, 7, 77],
+    [63, 6, 77],
+    [70, 6, 60],
+    [71, 5, 60],
+    [77, 5, 40],
+    [78, 4, 40],
+    [84, 4, 23],
+    [85, 3, 23],
+    [89, 3, 11],
+    [90, 2, 11],
+    [94, 2, 4],
+    [95, 1, 4],
+    [100, 1, 0],
+  ],
+  "티어의 누적 상위 구간은 교육부 석차 9등급 비율과 일치해야 합니다."
 );
 assert.equal(
   resolveTier({

@@ -19,15 +19,22 @@ const {
   buildPlacementVerificationQuestions,
 } = require("./placementExamBank");
 const {
+  ESTIMATED_RANK_POPULATION,
+  actualCohortStanding,
   ensureRankingProfile,
+  estimatedRankForTopPercent,
   initialStanding,
   rankingProfileView,
+  referencePercentileForScore,
   upsertInitialRankingProfile,
 } = require("./mmrService");
 const {
   kstSeasonKey,
   syncInitialArenaPlacement,
 } = require("./arenaStandingService");
+const {
+  assertPaidPackageAccess,
+} = require("./paidFeatureAccessService");
 
 const KEY_QUESTION_NUMBERS = [
   20,
@@ -90,6 +97,100 @@ function placementContextFilter(context) {
       { placementContextKey: null },
       { placementContextKey: { $exists: false } },
     ],
+  };
+}
+
+function isInitialPlacementPurpose(purpose) {
+  return !purpose || purpose === "INITIAL";
+}
+
+function placementAccessView(context) {
+  const purpose = String(
+    context?.purpose || "INITIAL"
+  );
+  return {
+    purpose,
+    freeInitialAttempt:
+      isInitialPlacementPurpose(
+        purpose
+      ),
+    requiresPaidAccess:
+      !isInitialPlacementPurpose(
+        purpose
+      ),
+  };
+}
+
+/*
+ * 최초 배치고사는 모든 로그인 회원에게 한 번 공개한다. 이미 최초 배치를
+ * 마친 뒤의 시즌 배치와 랭크 복귀전만 기존 학습권 권한을 계속 요구한다.
+ * attemptId가 있는 요청은 URL만 바꿔 후속 유료 시험에 접근하지 못하도록
+ * 해당 기록의 소유자와 purpose를 함께 확인한다.
+ */
+async function assertPlacementExamAccess({
+  userId,
+  attemptId = "",
+  now = new Date(),
+}) {
+  if (!mongoose.isValidObjectId(userId)) {
+    throw httpError(
+      403,
+      "배치고사를 이용할 사용자 정보를 확인해주세요."
+    );
+  }
+
+  if (attemptId) {
+    validateAttemptId(attemptId);
+    const attempt =
+      await AssessmentAttempt.findOne({
+        _id: attemptId,
+        userId,
+        scopeType: "placement",
+      })
+        .select("placementPurpose")
+        .lean();
+    if (!attempt) {
+      throw httpError(
+        404,
+        "배치고사 기록을 찾을 수 없습니다."
+      );
+    }
+    if (
+      isInitialPlacementPurpose(
+        attempt.placementPurpose
+      )
+    ) {
+      return {
+        accessType: "FREE_INITIAL",
+        purpose: "INITIAL",
+      };
+    }
+    await assertPaidPackageAccess(userId);
+    return {
+      accessType: "PAID_FOLLOW_UP",
+      purpose: attempt.placementPurpose,
+    };
+  }
+
+  const context =
+    await placementAttemptContext(
+      userId,
+      now
+    );
+  if (
+    isInitialPlacementPurpose(
+      context.purpose
+    )
+  ) {
+    return {
+      accessType: "FREE_INITIAL",
+      purpose: "INITIAL",
+    };
+  }
+  await assertPaidPackageAccess(userId);
+  return {
+    accessType: "PAID_FOLLOW_UP",
+    purpose: context.purpose,
   };
 }
 
@@ -765,11 +866,37 @@ function divisionForRating(
   );
 }
 
-async function latestSubmittedScores() {
+function placementScoreCohortFilter(
+  purpose
+) {
+  if (
+    isInitialPlacementPurpose(
+      purpose
+    )
+  ) {
+    return {
+      $or: [
+        { placementPurpose: "INITIAL" },
+        { placementPurpose: null },
+      ],
+    };
+  }
+
+  return {
+    placementPurpose: purpose,
+  };
+}
+
+async function latestSubmittedScores(
+  purpose = "INITIAL"
+) {
   const attempts =
     await AssessmentAttempt.find({
       scopeType: "placement",
       status: "submitted",
+      ...placementScoreCohortFilter(
+        purpose
+      ),
       "placementResult.verification.result":
         {
           $ne: "pending",
@@ -781,18 +908,40 @@ async function latestSubmittedScores() {
       .select(
         "userId scorePercent placementResult.placementScore submittedAt"
       )
+      .populate({
+        path: "userId",
+        select:
+          "isTestAccount accountStatus isActive",
+      })
       .lean();
   const latestByUser = new Map();
 
   for (const attempt of attempts) {
+    const learner =
+      attempt.userId;
+
+    if (
+      !learner?._id ||
+      learner.isTestAccount ===
+        true ||
+      learner.accountStatus !==
+        "active" ||
+      learner.isActive === false
+    ) {
+      continue;
+    }
+
     const key = String(
-      attempt.userId
+      learner._id
     );
 
     if (!latestByUser.has(key)) {
       latestByUser.set(
         key,
-        attempt
+        {
+          ...attempt,
+          userId: learner._id,
+        }
       );
     }
   }
@@ -866,20 +1015,10 @@ function percentileForScore(
 
 function stableTotalPercentile(
   score,
-  scoreRecords
+  _scoreRecords
 ) {
-  if (
-    !Array.isArray(
-      scoreRecords
-    ) ||
-    scoreRecords.length < 5
-  ) {
-    return 0.5;
-  }
-
-  return percentileForScore(
-    score,
-    scoreRecords
+  return referencePercentileForScore(
+    score
   );
 }
 
@@ -1278,6 +1417,87 @@ function standingFromScores(
   });
 }
 
+function actualStandingFromScores(
+  placementScore,
+  scoreRecords
+) {
+  return actualCohortStanding({
+    placementScore,
+    scoreValues:
+      scoreRecords.map(
+        (record) =>
+          Number(
+            record.placementResult
+              ?.placementScore
+          ) ||
+          Number(
+            record.scorePercent
+          ) ||
+          0
+      ),
+  });
+}
+
+function frozenStandingView(
+  result,
+  actual
+) {
+  const estimatedRankPopulation =
+    Number(
+      result.estimatedRankPopulation
+    ) || ESTIMATED_RANK_POPULATION;
+  const estimatedRank =
+    Number(result.estimatedRank) ||
+    estimatedRankForTopPercent(
+      result.estimatedTopPercent,
+      estimatedRankPopulation
+    );
+
+  return {
+    calibrationPolicyVersion:
+      result
+        .calibrationPolicyVersion,
+    calibratedAt:
+      result.calibratedAt,
+    positionBasis:
+      result.positionBasis,
+    referenceStandard:
+      result.referenceStandard,
+    referenceGrade:
+      result.referenceGrade,
+    estimatedPercentile:
+      result.estimatedPercentile,
+    estimatedTopPercent:
+      result.estimatedTopPercent,
+    estimatedTopPercentMin:
+      result
+        .estimatedTopPercentMin,
+    estimatedTopPercentMax:
+      result
+        .estimatedTopPercentMax,
+    estimatedRankPopulation,
+    estimatedRank,
+    percentile:
+      result.percentile,
+    initialMmr:
+      result.initialMmr,
+    initialRating:
+      result.initialRating,
+    initialTier:
+      result.initialTier,
+    tier: result.tier,
+    rankPoint:
+      result.rankPoint,
+    rankingStatus:
+      result.rankingStatus,
+    matchesUntilConfirmed:
+      result.matchesUntilConfirmed,
+    standardizedScore:
+      result.standardizedScore,
+    ...actual,
+  };
+}
+
 async function currentStanding(
   attempt
 ) {
@@ -1290,19 +1510,42 @@ async function currentStanding(
   }
 
   const records =
-    await latestSubmittedScores();
-
-  return standingFromScores(
+    await latestSubmittedScores(
+      attempt.placementPurpose ||
+        "INITIAL"
+    );
+  const placementScore =
     Number(
       attempt.placementResult
         ?.placementScore
     ) ||
-      Number(
-        attempt.scorePercent
-      ) ||
-      0,
-    records
-  );
+    Number(
+      attempt.scorePercent
+    ) ||
+    0;
+  const actual =
+    actualStandingFromScores(
+      placementScore,
+      records
+    );
+
+  if (
+    attempt.placementResult
+      ?.calibrationPolicyVersion
+  ) {
+    return frozenStandingView(
+      attempt.placementResult,
+      actual
+    );
+  }
+
+  return {
+    ...standingFromScores(
+      placementScore,
+      records
+    ),
+    calibratedAt: new Date(),
+  };
 }
 
 async function getPlacementDashboardData(
@@ -1387,6 +1630,13 @@ async function getPlacementDashboardData(
       "pending"
     ) {
       return {
+        ...placementAccessView(
+          {
+            purpose:
+              submitted.placementPurpose ||
+              "INITIAL",
+          }
+        ),
         status:
           "verification-required",
         attemptId:
@@ -1410,16 +1660,31 @@ async function getPlacementDashboardData(
       };
     }
 
+    /*
+     * 레거시 완료 기록은 기준분포 값을 먼저 확정해야 과거의 소표본 MMR이
+     * Arena 시작 위치에 복사되지 않는다. 이미 버전이 있는 결과에서는
+     * 실제 응시자 순위 필드만 갱신된다.
+     */
+    const submittedDocument =
+      await AssessmentAttempt.findById(
+        submitted._id
+      );
+    const standing =
+      await currentStanding(
+        submittedDocument
+      );
+    Object.assign(
+      submittedDocument
+        .placementResult,
+      standing
+    );
+    await submittedDocument.save();
+
     /* 기존 완료자도 대시보드 재방문 시 Unranked 배치를 멱등 복구한다. */
     await syncInitialArenaPlacement({
       userId,
       attemptId: submitted._id,
     });
-
-    const standing =
-      await currentStanding(
-        submitted
-      );
     const rankingProfile =
       rankingProfileView(
         await ensureRankingProfile(
@@ -1428,6 +1693,13 @@ async function getPlacementDashboardData(
       );
 
     return {
+      ...placementAccessView(
+        {
+          purpose:
+            submitted.placementPurpose ||
+            "INITIAL",
+        }
+      ),
       status: "submitted",
       attemptId:
         String(submitted._id),
@@ -1448,26 +1720,58 @@ async function getPlacementDashboardData(
               ?.correct
           ),
         initialMmr:
-          rankingProfile?.mmr ??
-          standing.initialMmr,
+          standing.initialMmr ??
+          rankingProfile?.mmr,
         initialRating:
-          rankingProfile?.mmr ??
-          standing.initialRating,
+          standing.initialRating ??
+          rankingProfile?.mmr,
         initialTier:
+          standing.initialTier ||
           rankingProfile
-            ?.tierLabel ||
-          standing.initialTier,
+            ?.tierLabel,
         tier: standing.tier,
         rankPoint:
+          standing.rankPoint ??
           rankingProfile
-            ?.rankPoint ??
-          standing.rankPoint,
+            ?.rankPoint,
         rankingStatus:
           rankingProfile
             ?.status ||
           standing.rankingStatus,
         cohortSize:
           standing.cohortSize,
+        cohortRank:
+          standing.cohortRank,
+        actualPercentile:
+          standing.actualPercentile,
+        calibrationPolicyVersion:
+          standing
+            .calibrationPolicyVersion,
+        positionBasis:
+          standing.positionBasis,
+        referenceStandard:
+          standing.referenceStandard,
+        referenceGrade:
+          standing.referenceGrade,
+        estimatedTopPercent:
+          standing
+            .estimatedTopPercent,
+        estimatedTopPercentMin:
+          standing
+            .estimatedTopPercentMin,
+        estimatedTopPercentMax:
+          standing
+            .estimatedTopPercentMax,
+        estimatedRankPopulation:
+          standing
+            .estimatedRankPopulation,
+        estimatedRank:
+          standing.estimatedRank,
+        actualRankMinimumCohortSize:
+          standing
+            .actualRankMinimumCohortSize,
+        actualRankPublished:
+          standing.actualRankPublished,
         percentile:
           standing.percentile,
       },
@@ -1476,6 +1780,13 @@ async function getPlacementDashboardData(
 
   if (active) {
     return {
+      ...placementAccessView(
+        {
+          purpose:
+            active.placementPurpose ||
+            "INITIAL",
+        }
+      ),
       status: "in-progress",
       attemptId:
         String(active._id),
@@ -1490,6 +1801,13 @@ async function getPlacementDashboardData(
 
   if (terminal) {
     return {
+      ...placementAccessView(
+        {
+          purpose:
+            terminal.placementPurpose ||
+            "INITIAL",
+        }
+      ),
       status: "attempt-used",
       attemptId:
         String(terminal._id),
@@ -1502,6 +1820,9 @@ async function getPlacementDashboardData(
   }
 
   return {
+    ...placementAccessView(
+      attemptContext
+    ),
     status: "not-started",
     attemptId: null,
     ctaLabel:
@@ -1744,13 +2065,18 @@ async function finalizePlacementVerificationAttempt({
   await attempt.save();
 
   const scoreRecords =
-    await latestSubmittedScores();
-  const standing =
-    standingFromScores(
+    await latestSubmittedScores(
+      attempt.placementPurpose ||
+        "INITIAL"
+    );
+  const standing = {
+    ...standingFromScores(
       attempt.placementResult
         .placementScore,
       scoreRecords
-    );
+    ),
+    calibratedAt: new Date(),
+  };
 
   Object.assign(
     attempt.placementResult,
@@ -2209,7 +2535,10 @@ async function submitPlacementAttempt({
   attempt.lastSavedAt =
     submittedAt;
   const existingScoreRecords =
-    await latestSubmittedScores();
+    await latestSubmittedScores(
+      attempt.placementPurpose ||
+        "INITIAL"
+    );
   const rawScoreRecords = [
     ...existingScoreRecords,
     {
@@ -2339,13 +2668,18 @@ async function submitPlacementAttempt({
   }
 
   const scoreRecords =
-    await latestSubmittedScores();
-  const standing =
-    standingFromScores(
+    await latestSubmittedScores(
+      attempt.placementPurpose ||
+        "INITIAL"
+    );
+  const standing = {
+    ...standingFromScores(
       attempt.placementResult
         .placementScore,
       scoreRecords
-    );
+    ),
+    calibratedAt: new Date(),
+  };
 
   Object.assign(
     attempt.placementResult,
@@ -2382,7 +2716,7 @@ function normalizeAttempt(
       ? "GOAT Arena 시즌 배치고사"
       : view.placementPurpose === "RENEWAL_RANK_ASSESSMENT"
         ? "GOAT Arena 랭크 복귀전"
-        : "War of GOAT 입단 배치고사";
+        : "GOAT Arena 입단 배치고사";
   }
   const verificationPending =
     isVerificationPending(
@@ -2506,6 +2840,37 @@ function normalizeAttempt(
         Number(
           result.placementScore
         ) || 0,
+      calibrationPolicyVersion:
+        result
+          .calibrationPolicyVersion,
+      calibratedAt:
+        result.calibratedAt,
+      positionBasis:
+        result.positionBasis,
+      referenceStandard:
+        result.referenceStandard,
+      referenceGrade:
+        result.referenceGrade,
+      estimatedPercentile:
+        result.estimatedPercentile,
+      estimatedTopPercent:
+        result.estimatedTopPercent,
+      estimatedTopPercentMin:
+        result
+          .estimatedTopPercentMin,
+      estimatedTopPercentMax:
+        result
+          .estimatedTopPercentMax,
+      estimatedRankPopulation:
+        Number(
+          result.estimatedRankPopulation
+        ) || ESTIMATED_RANK_POPULATION,
+      estimatedRank:
+        Number(result.estimatedRank) ||
+        estimatedRankForTopPercent(
+          result.estimatedTopPercent,
+          result.estimatedRankPopulation
+        ),
       initialMmr:
         result.initialMmr,
       tier: result.tier,
@@ -2513,6 +2878,15 @@ function normalizeAttempt(
         result.rankingStatus,
       cohortSize:
         result.cohortSize,
+      cohortRank:
+        result.cohortRank,
+      actualRankMinimumCohortSize:
+        result
+          .actualRankMinimumCohortSize,
+      actualRankPublished:
+        result.actualRankPublished,
+      actualPercentile:
+        result.actualPercentile,
       cohortAverage:
         result.cohortAverage,
       cohortStandardDeviation:
@@ -2526,6 +2900,8 @@ function normalizeAttempt(
         result.initialRating,
       initialTier:
         result.initialTier,
+      rankPoint:
+        result.rankPoint,
     };
   }
 
@@ -2621,6 +2997,7 @@ async function getPlacementAttempt({
 
 module.exports = {
   KEY_QUESTION_NUMBERS,
+  assertPlacementExamAccess,
   getPlacementDashboardData,
   createPlacementAttempt,
   getPlacementAttempt,
@@ -2628,12 +3005,16 @@ module.exports = {
   expirePlacementAttempt,
   submitPlacementAttempt,
   _testing: {
+    actualStandingFromScores,
     adjustedAccuracy,
     scoreBreakdown,
     percentileForScore,
     stableTotalPercentile,
     placementProfile,
     standingFromScores,
+    isInitialPlacementPurpose,
+    placementAccessView,
+    frozenStandingView,
     touchQuestionTiming,
     refreshStaleEmptyAttempt,
   },

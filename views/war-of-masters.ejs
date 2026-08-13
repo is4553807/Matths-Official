@@ -8,10 +8,10 @@
     />
     <meta
       name="description"
-      content="Matths 최종 종합 랭킹 War of GOAT"
+      content="Matths 최종 종합 랭킹 GOAT Arena"
     />
     <meta name="theme-color" content="#0c1125" />
-    <title>War of GOAT | Matths</title>
+    <title>GOAT Arena | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/war-of-masters.css" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -88,7 +88,7 @@
             </button>
             <div>
               <p>Matths 랭킹 Arena</p>
-              <h1>War of GOAT</h1>
+              <h1>GOAT Arena</h1>
             </div>
           </div>
           <a class="back-dashboard learning-home-button" href="/main">
@@ -96,7 +96,7 @@
           </a>
         </header>
 
-        <section class="masters-actions" aria-label="War of GOAT 메뉴">
+        <section class="masters-actions" aria-label="GOAT Arena 메뉴">
           <article class="masters-action-card goat-arena-action-card">
             <div>
               <p>일반 쟁탈전</p>
@@ -123,21 +123,23 @@
               <p>배치고사</p>
               <h2>배치고사</h2>
               <small>
-                <%= !paidPackageAccess.active
-                  ? "활성 학습권 패키지 회원만 배치고사를 응시할 수 있습니다."
+                <%= placement.requiresPaidAccess && !paidPackageAccess.active
+                  ? "시즌·복귀 배치고사는 활성 학습권 패키지가 필요합니다."
                   : placement.status === "submitted"
                   ? `${placement.result.correctCount} / 30문항 정답 · ${placement.result.initialTier}`
                   : placement.status === "verification-required"
                     ? `${placement.answeredCount} / 4문항 저장됨 · 준킬러 2 + 킬러 2`
                   : placement.status === "in-progress"
                     ? `${placement.answeredCount} / 30문항 저장됨`
-                    : "30문항 · 제한 시간 100분" %>
+                    : placement.status === "not-started" && placement.freeInitialAttempt
+                      ? "모든 회원 최초 1회 무료 · 30문항 · 제한 시간 100분"
+                      : "30문항 · 제한 시간 100분" %>
               </small>
             </div>
-            <% if (!paidPackageAccess.active) { %>
+            <% if (placement.requiresPaidAccess && !paidPackageAccess.active) { %>
               <button type="button" class="private-mock-disabled-action" disabled aria-disabled="true">배치고사 잠김 <span aria-hidden="true">×</span></button>
             <% } else if (placement.status === "submitted") { %>
-              <button type="button" class="private-mock-disabled-action placement-complete-action" disabled aria-disabled="true">배치고사 완료 <span aria-hidden="true">✓</span></button>
+              <a href="<%= placement.ctaHref %>">배치 결과·스토리 카드 보기 <span aria-hidden="true">→</span></a>
             <% } else if (placement.status === "attempt-used") { %>
               <button type="button" class="private-mock-disabled-action placement-complete-action" disabled aria-disabled="true">배치고사 응시 종료 <span aria-hidden="true">×</span></button>
             <% } else if (placement.status === "not-started") { %>
@@ -246,6 +248,9 @@
         <p>배치고사</p>
         <h2 id="placement-dialog-title">100분 배치고사를 시작합니다.</h2>
         <ul>
+          <% if (placement.freeInitialAttempt) { %>
+            <li>최초 1회는 결제 없이 무료로 응시할 수 있습니다.</li>
+          <% } %>
           <li>총 30문항이며 만점은 100점입니다.</li>
           <li>시작한 순간부터 서버에서 100분을 계산합니다.</li>
           <li>중간에 나가도 답안은 저장되지만 시간은 계속 흐릅니다.</li>

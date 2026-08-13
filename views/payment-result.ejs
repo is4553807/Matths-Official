@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>결제 결과 | Matths</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  <link rel="stylesheet" href="/css/brand.css" />
+  <link rel="stylesheet" href="/css/parent.css" />
+</head>
+<body class="checkout-page">
+  <main class="student-checkout-main">
+    <section class="student-checkout-card payment-result-card">
+      <% if (mode === "TEST") { %><span class="payment-test-badge">토스 테스트 결제</span><% } %>
+      <% if (result.state === "PAID") { %>
+        <p>PAYMENT COMPLETE</p>
+        <h1>결제가 완료되었습니다.</h1>
+        <span><%= result.intent.productName %> 이용 권한을 계정에 적용했습니다.</span>
+        <dl>
+          <div><dt>주문번호</dt><dd><%= result.intent.orderId %></dd></div>
+          <div><dt>결제금액</dt><dd><strong><%= new Intl.NumberFormat("ko-KR").format(result.intent.amount) %>원</strong></dd></div>
+          <div><dt>상태</dt><dd>승인 완료</dd></div>
+        </dl>
+        <% if (result.intent.receiptUrl) { %><a class="payment-receipt-link" href="<%= result.intent.receiptUrl %>" target="_blank" rel="noopener noreferrer">결제 영수증 보기</a><% } %>
+      <% } else if (result.state === "AWAITING_DEPOSIT") { %>
+        <p>PAYMENT PENDING</p>
+        <h1>입금을 기다리고 있습니다.</h1>
+        <span>입금 완료 웹훅을 확인한 뒤 이용 권한이 자동으로 적용됩니다.</span>
+      <% } else { %>
+        <p>PAYMENT NOT COMPLETED</p>
+        <h1>결제가 완료되지 않았습니다.</h1>
+        <span><%= failure?.message || "결제창을 닫았거나 승인 과정에서 문제가 발생했습니다." %></span>
+        <% if (failure?.code) { %><small class="payment-failure-code"><%= failure.code %></small><% } %>
+      <% } %>
+      <% if (mode === "TEST") { %><p class="payment-test-note">테스트 모드에서는 실제 금액이 청구되지 않습니다.</p><% } %>
+      <a class="checkout-back" href="<%= result.backLink.href %>"><%= result.backLink.label %></a>
+    </section>
+  </main>
+</body>
+</html>

@@ -3,6 +3,7 @@ const router = express.Router();
 const matthsController = require('../controllers/matthsController');
 const storeController = require('../controllers/storeController');
 const checkoutController = require('../controllers/checkoutController');
+const paymentController = require('../controllers/paymentController');
 const authMiddleware = require('../middleware/authMiddleware');
 const {
   adminArchiveUpload,
@@ -31,8 +32,8 @@ const {
   getAdminTodoSummary,
 } = require("../services/adminTodoService");
 const {
-  assertPaidPackageAccess,
-} = require("../services/paidFeatureAccessService");
+  assertPlacementExamAccess,
+} = require("../services/placementExamService");
 const {
   loginRateLimit,
   passwordResetRateLimit,
@@ -97,9 +98,12 @@ function handleCommunityUpload(
   );
 }
 
-async function requirePaidPlacementAccess(req, _res, next) {
+async function requirePlacementExamAccess(req, _res, next) {
   try {
-    await assertPaidPackageAccess(req.session?.user?.id);
+    await assertPlacementExamAccess({
+      userId: req.session?.user?.id,
+      attemptId: req.params?.attemptId || "",
+    });
     return next();
   } catch (error) {
     return next(error);
@@ -109,6 +113,8 @@ async function requirePaidPlacementAccess(req, _res, next) {
 router.get('/', matthsController.mainPage);
 router.get('/intro', matthsController.introPage);
 router.get('/pricing', matthsController.pricingPage);
+router.get('/payments/toss/success', paymentController.tossSuccess);
+router.get('/payments/toss/fail', paymentController.tossFailure);
 router.get('/visual-learning', matthsController.visualLearningPage);
 router.get('/learning-flow', matthsController.learningFlowPage);
 router.get("/curriculum", matthsController.curriculumPage);
@@ -1166,35 +1172,35 @@ router.post(
 router.post(
   "/war-of-masters/placement/start",
   authMiddleware.isLoggedIn,
-  requirePaidPlacementAccess,
+  requirePlacementExamAccess,
   matthsController.startPlacementExam
 );
 
 router.get(
   "/war-of-masters/placement/:attemptId",
   authMiddleware.isLoggedIn,
-  requirePaidPlacementAccess,
+  requirePlacementExamAccess,
   matthsController.placementExamPage
 );
 
 router.post(
   "/war-of-masters/placement/:attemptId/submit",
   authMiddleware.isLoggedIn,
-  requirePaidPlacementAccess,
+  requirePlacementExamAccess,
   matthsController.submitPlacementExam
 );
 
 router.post(
   "/api/war-of-masters/placement/:attemptId/draft",
   authMiddleware.isLoggedIn,
-  requirePaidPlacementAccess,
+  requirePlacementExamAccess,
   matthsController.savePlacementExamDraft
 );
 
 router.post(
   "/api/war-of-masters/placement/:attemptId/expire",
   authMiddleware.isLoggedIn,
-  requirePaidPlacementAccess,
+  requirePlacementExamAccess,
   matthsController.expirePlacementExam
 );
 

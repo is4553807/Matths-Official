@@ -34,7 +34,7 @@
         <article class="pricing-card pricing-card--free">
           <div class="pricing-card-heading">
             <span>부담 없이 시작</span>
-            <h2>무료</h2>
+            <h2>기본학습 패키지</h2>
             <p>수학 개념을 이해하고 유형별 문제로 바로 확인하는 Matths의 기본 학습 과정입니다.</p>
           </div>
           <div class="pricing-price"><strong>0</strong><span>원</span></div>
@@ -43,12 +43,13 @@
             <li>시각화 개념 학습</li>
             <li>평가센터 유형별 문제 풀이</li>
             <li>기본 학습 진도 저장</li>
+            <li>최초 배치고사 1회·티어 확인</li>
             <li class="is-disabled">Matths 주간 공식 모의고사 응시 불가</li>
-            <li class="is-disabled">배치고사·GOAT Arena 이용 불가</li>
+            <li class="is-disabled">GOAT Arena 공식 경기 이용 불가</li>
             <li class="is-disabled">최종 종합 랭킹 참여 불가</li>
           </ul>
           <div class="pricing-actions">
-            <a class="pricing-secondary pricing-secondary--strong" href="<%= user ? '/my-learning' : '/register' %>"><%= user ? "무료 학습 계속하기" : "지금 바로 시작하기" %></a>
+            <a class="pricing-secondary pricing-secondary--strong" href="<%= user ? '/my-learning' : '/register' %>"><%= user ? "기본학습 계속하기" : "지금 바로 시작하기" %></a>
           </div>
           <small class="pricing-note">결제 정보 없이 시작할 수 있으며, 유료 패키지는 나중에 선택할 수 있습니다.</small>
         </article>
@@ -60,12 +61,13 @@
             <p>Matths 주간 공식 모의고사만 꾸준히 응시하려는 사용자를 위한 월 이용권입니다.</p>
           </div>
           <div class="pricing-price"><strong><%= formatWon(mockPrice) %></strong><span>원 / 30일</span></div>
-          <p class="pricing-feature-title">무료 기능에 추가</p>
+          <p class="pricing-feature-title">기본학습 패키지 기능에 추가</p>
           <ul>
             <li>Matths 주간 공식 모의고사 응시</li>
             <li>응시 결과로 내부 실력 지표 계산·저장</li>
+            <li>최초 배치고사 1회·티어 확인</li>
             <li>시각화 개념·유형별 문제 이용</li>
-            <li class="is-disabled">배치고사 응시 불가</li>
+            <li class="is-disabled">시즌 배치·랭크 복귀전 이용 불가</li>
             <li class="is-disabled">GOAT Arena 및 랭크전 이용 불가</li>
             <li class="is-disabled">최종 종합 랭킹 참여 불가</li>
           </ul>
@@ -143,7 +145,7 @@
       <section class="pricing-guide" aria-labelledby="pricing-guide-title">
         <div><p>한눈에 비교</p><h2 id="pricing-guide-title">어떤 패키지가 맞을까요?</h2></div>
         <div class="pricing-guide-grid">
-          <article><b>개념과 유형 연습이 필요하다면</b><span>무료로 시작하세요.</span></article>
+          <article><b>개념과 유형 연습이 필요하다면</b><span>기본학습 패키지로 시작하세요.</span></article>
           <article><b>매주 실전 점검이 필요하다면</b><span>Matths 주간 공식 모의고사 이용권을 선택하세요.</span></article>
           <article><b>학습·모의고사·경쟁을 연결하려면</b><span>29일 학습권 패키지를 선택하세요.</span></article>
         </div>

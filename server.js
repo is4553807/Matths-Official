@@ -31,25 +31,31 @@ for (const warning of runtimeEnvironment.warnings) {
 }
 
 server.disable("x-powered-by");
-server.use((_req, res, next) => {
+server.use((req, res, next) => {
+    const paymentSurface = /^\/(?:pricing\/[^/]+\/self|parent\/checkout\/)/.test(
+        String(req.path || "")
+    );
     res.set({
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
         "Referrer-Policy": "strict-origin-when-cross-origin",
         "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Opener-Policy": paymentSurface
+            ? "same-origin-allow-popups"
+            : "same-origin",
         "Cross-Origin-Resource-Policy": "same-origin",
         "X-DNS-Prefetch-Control": "off",
         "Content-Security-Policy": [
             "default-src 'self'",
             "base-uri 'self'",
-            "connect-src 'self'",
-            "font-src 'self' data:",
+            "connect-src 'self' https://*.tosspayments.com",
+            "font-src 'self' data: https://static.toss.im",
             "form-action 'self'",
             "frame-ancestors 'none'",
+            "frame-src https://*.tosspayments.com",
             "img-src 'self' data: blob: https:",
             "object-src 'none'",
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.tosspayments.com",
             "style-src 'self' 'unsafe-inline'",
         ].join("; "),
     });
@@ -127,6 +133,16 @@ async function connectDB() {
                 process.env.NODE_ENV === "production" ? 15_000 : 5_000,
         });
         console.log("MongoDB Connected Successfully");
+
+        const {
+            ensureCheckoutIntentIndexes,
+        } = require("./services/checkoutService");
+        const checkoutIndexes = await ensureCheckoutIntentIndexes();
+        if (checkoutIndexes.removedLegacyTtlIndex) {
+            console.log(
+                `Removed legacy checkout TTL index: ${checkoutIndexes.removedLegacyTtlIndex}`
+            );
+        }
 
         const {
             ensureMatchmakingControl,

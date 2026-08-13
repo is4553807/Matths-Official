@@ -1,6 +1,7 @@
 const { randomUUID } = require("node:crypto");
 const mongoose = require("mongoose");
 const { RefundRequest } = require("../models/refundModel");
+const { CheckoutIntent } = require("../models/parentModel");
 const {
   AccessCycle,
   ArenaAccessState,
@@ -20,6 +21,10 @@ const { PaybackPayoutRecord } = require("../models/paybackModel");
 const { getActiveAdminSender } = require("./adminIdentityService");
 const { sendAdminUserEmail } = require("./emailService");
 const { calculateRefundQuote } = require("./refundPolicyService");
+const {
+  cancelPayment,
+  getTossConfig,
+} = require("./tossPaymentService");
 
 const ADMIN_PAGE_SIZE = 20;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -83,6 +88,8 @@ async function createRefundRequest({
   reasonType = "SIMPLE_CHANGE",
   reasonDetail,
   supportInquiryId = null,
+  requestedByType = "STUDENT",
+  parentAccountId = null,
   session = null,
 }) {
   if (!mongoose.isValidObjectId(paymentId)) {
@@ -102,12 +109,26 @@ async function createRefundRequest({
   }).session(session);
   if (active) throw statusError(409, "이미 처리 중인 환불 신청이 있습니다.");
 
+  const requesterType = String(requestedByType || "STUDENT").toUpperCase();
+  if (!["STUDENT", "PARENT"].includes(requesterType)) {
+    throw statusError(400, "환불 신청자 유형을 확인해주세요.");
+  }
+  if (requesterType === "PARENT" && !mongoose.isValidObjectId(parentAccountId)) {
+    throw statusError(400, "학부모 환불 신청 계정을 확인해주세요.");
+  }
+  const cleanReasonDetail = String(reasonDetail || "").trim().slice(0, 5000);
+  if (cleanReasonDetail.length < 10) {
+    throw statusError(400, "환불 사유를 10자 이상 작성해주세요.");
+  }
+
   const requestedAt = new Date();
   const [request] = await RefundRequest.create([{
     requestKey: `refund-request:${randomUUID()}`,
     userId,
     paymentId: payment._id,
     supportInquiryId,
+    requestedByType: requesterType,
+    parentAccountId: requesterType === "PARENT" ? parentAccountId : null,
     productCode: payment.productCode || "LEARNING_PACKAGE_29",
     productNameSnapshot: productName(payment),
     orderReferenceSnapshot: payment.orderReference,
@@ -115,7 +136,7 @@ async function createRefundRequest({
     reasonType: ["SIMPLE_CHANGE", "NOT_AS_DESCRIBED", "SERVICE_FAILURE", "OTHER"].includes(reasonType)
       ? reasonType
       : "OTHER",
-    reasonDetail: String(reasonDetail || "").trim().slice(0, 5000),
+    reasonDetail: cleanReasonDetail,
     requestedAt,
     processingDeadlineAt: addBusinessDaysKst(requestedAt, 3),
   }], { session });
@@ -129,10 +150,14 @@ async function createRefundRequest({
 
 async function resolveServiceWindow(payment, session) {
   if (payment.productCode === "MOCK_EXAM_ONLY") {
-    const subscription = await MockExamSubscription.findOne({
-      userId: payment.userId,
-      status: { $in: ["ACTIVE", "EXPIRED"] },
-    }).sort({ startsAt: -1 }).session(session).lean();
+    const subscription = payment.mockExamSubscriptionId
+      ? await MockExamSubscription.findById(payment.mockExamSubscriptionId)
+          .session(session)
+          .lean()
+      : await MockExamSubscription.findOne({
+          userId: payment.userId,
+          status: { $in: ["ACTIVE", "EXPIRED"] },
+        }).sort({ startsAt: -1 }).session(session).lean();
     const used = await PrivateMockExamAttempt.exists({
       userId: payment.userId,
       startedAt: { $gte: subscription?.startsAt || payment.approvedAt },
@@ -152,6 +177,12 @@ async function resolveServiceWindow(payment, session) {
     AssessmentAttempt.exists({
       userId: payment.userId,
       scopeType: "placement",
+      placementPurpose: {
+        $in: [
+          "SEASON",
+          "RENEWAL_RANK_ASSESSMENT",
+        ],
+      },
       createdAt: { $gte: serviceStartAt },
     }).session(session),
     PrivateMockExamAttempt.exists({
@@ -231,14 +262,81 @@ async function completeRefundRequest({
   const actor = await getActiveAdminSender(adminUserId);
   const requestedAmount = Math.floor(Number(approvedAmount));
   const mode = String(cancellationMode || "").toUpperCase();
-  const transactionKey = String(providerCancellationTransactionKey || "").trim();
-  const cancelTime = new Date(providerCancelledAt || new Date());
+  let transactionKey = String(providerCancellationTransactionKey || "").trim();
+  let cancelTime = new Date(providerCancelledAt || new Date());
   const requestReceivedAt = new Date();
   if (!Number.isSafeInteger(requestedAmount) || requestedAmount < 1) {
     throw statusError(400, "실제 취소 승인금액을 1원 이상의 정수로 입력해주세요.");
   }
   if (!["FULL", "PARTIAL"].includes(mode)) {
     throw statusError(400, "전체 또는 부분 취소를 선택해주세요.");
+  }
+  const preflightRequest = await RefundRequest.findById(refundRequestId).lean();
+  if (!preflightRequest) throw statusError(404, "환불 신청을 찾을 수 없습니다.");
+  if (preflightRequest.status === "COMPLETED") return preflightRequest;
+  if (preflightRequest.status !== "CALCULATED") {
+    throw statusError(409, "환불액 산정을 먼저 완료해주세요.");
+  }
+  const preflightPayment = await ArenaPackagePayment.findById(
+    preflightRequest.paymentId
+  ).lean();
+  if (!preflightPayment) throw statusError(404, "결제 원장을 찾을 수 없습니다.");
+  const preflightRemaining = Math.max(
+    0,
+    Number(preflightPayment.approvedAmount) - Number(preflightPayment.refundedAmount || 0)
+  );
+  if (requestedAmount > preflightRemaining) {
+    throw statusError(409, "남은 결제금액보다 많이 환불할 수 없습니다.");
+  }
+  if (mode === "FULL" && requestedAmount !== preflightRemaining) {
+    throw statusError(400, "전체 취소 승인금액은 남은 결제금액과 같아야 합니다.");
+  }
+  if (mode === "PARTIAL" && requestedAmount >= preflightRemaining) {
+    throw statusError(400, "남은 결제금액 전부를 취소했다면 전체 취소로 처리해주세요.");
+  }
+  const preflightPayoutExists = preflightPayment.accessCycleId
+    ? await PaybackPayoutRecord.exists({
+        cycleId: preflightPayment.accessCycleId,
+        status: "COMPLETED",
+      })
+    : null;
+  if (preflightPayoutExists) {
+    throw statusError(
+      409,
+      "이미 페이백 송금이 완료된 주기입니다. 중복 지급 조정 후 별도 처리해주세요.",
+      "PAYBACK_ALREADY_PAID"
+    );
+  }
+
+  if (preflightPayment.provider === "TOSS") {
+    const tossConfig = getTossConfig();
+    if (preflightPayment.providerMode !== tossConfig.mode) {
+      throw statusError(
+        409,
+        `${preflightPayment.providerMode || "확인 불가"} 결제는 현재 ${tossConfig.mode} 키로 취소할 수 없습니다.`,
+        "TOSS_REFUND_MODE_MISMATCH"
+      );
+    }
+    const cancellation = await cancelPayment({
+      paymentKey: preflightPayment.providerPaymentKey,
+      cancelReason: `Matths 환불 신청 ${preflightRequest.requestKey}`,
+      cancelAmount: requestedAmount,
+      idempotencyKey: `refund-${preflightRequest._id}`,
+    });
+    const providerCancellation = Array.isArray(cancellation.cancels)
+      ? [...cancellation.cancels]
+          .reverse()
+          .find((entry) => Number(entry.cancelAmount) === requestedAmount)
+      : null;
+    transactionKey = String(providerCancellation?.transactionKey || "").trim();
+    cancelTime = new Date(providerCancellation?.canceledAt || new Date());
+    if (!providerCancellation || transactionKey.length < 6) {
+      throw statusError(
+        502,
+        "토스페이먼츠 취소 응답의 거래 정보를 확인할 수 없습니다. 결제 상태를 운영자가 확인해주세요.",
+        "TOSS_CANCELLATION_RESULT_INVALID"
+      );
+    }
   }
   if (transactionKey.length < 6 || transactionKey.length > 200) {
     throw statusError(400, "결제사 취소 거래키를 정확히 입력해주세요.");
@@ -339,7 +437,9 @@ async function completeRefundRequest({
       }
       if (payment.productCode === "MOCK_EXAM_ONLY") {
         await MockExamSubscription.updateMany(
-          { userId: payment.userId, status: "ACTIVE" },
+          payment.mockExamSubscriptionId
+            ? { _id: payment.mockExamSubscriptionId, userId: payment.userId }
+            : { userId: payment.userId, status: "ACTIVE" },
           { $set: { status: "REFUNDED", endsAt: cancelTime, cancelledAt: cancelTime } },
           { session }
         );
@@ -365,6 +465,19 @@ async function completeRefundRequest({
         idempotencyKey,
       });
       await payment.save({ session });
+
+      await CheckoutIntent.updateOne(
+        { orderId: payment.orderReference, provider: payment.provider },
+        {
+          $set: {
+            status: "CANCELLED",
+            providerStatus: refundedAmount >= payment.approvedAmount
+              ? "CANCELED"
+              : "PARTIAL_CANCELED",
+          },
+        },
+        { session }
+      );
 
       request.status = "COMPLETED";
       request.decision = {
@@ -449,6 +562,7 @@ async function getAdminRefundData({ page = 1, status = "" } = {}) {
     .skip((currentPage - 1) * ADMIN_PAGE_SIZE)
     .limit(ADMIN_PAGE_SIZE)
     .populate("userId", "name realName email")
+    .populate("paymentId", "provider providerMode")
     .populate("calculation.calculatedBy", "name realName email")
     .populate("decision.processedBy", "name realName email")
     .lean();

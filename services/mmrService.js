@@ -65,6 +65,50 @@ const TIER_CONFIG = [
   },
 ];
 
+const ESTIMATED_RANK_POPULATION = 10000;
+const ACTUAL_COHORT_RANK_MIN_SIZE = 100;
+
+/*
+ * placementScore를 만들 때 사용하는 원점수 난이도 보정 곡선이다. 아래
+ * 교육부 9등급 티어 비율과 역할이 다르므로 별도 버전으로 고정한다.
+ */
+const PLACEMENT_RAW_SCORE_REFERENCE_POLICY = Object.freeze({
+  version: "PLACEMENT_RAW_SCORE_REFERENCE_V1",
+  bands: Object.freeze([
+    { minScore: 0, maxScore: 43, percentileLower: 0, percentileUpper: 0.2 },
+    { minScore: 44, maxScore: 53, percentileLower: 0.2, percentileUpper: 0.4 },
+    { minScore: 54, maxScore: 62, percentileLower: 0.4, percentileUpper: 0.58 },
+    { minScore: 63, maxScore: 70, percentileLower: 0.58, percentileUpper: 0.73 },
+    { minScore: 71, maxScore: 77, percentileLower: 0.73, percentileUpper: 0.83 },
+    { minScore: 78, maxScore: 84, percentileLower: 0.83, percentileUpper: 0.91 },
+    { minScore: 85, maxScore: 89, percentileLower: 0.91, percentileUpper: 0.96 },
+    { minScore: 90, maxScore: 94, percentileLower: 0.96, percentileUpper: 0.99 },
+    { minScore: 95, maxScore: 100, percentileLower: 0.99, percentileUpper: 1 },
+  ].map(Object.freeze)),
+});
+
+/*
+ * 실제 사용자를 가장한 더미 계정을 랭킹 모집단에 넣지 않는다. 최초
+ * 배치고사는 이 버전 고정 기준분포로 MMR·티어·예상 위치를 확정하고,
+ * 실제 응시자 순위는 별도 필드로만 집계한다. 이후 기준을 보정할 때는
+ * 새 버전을 추가하며 이미 확정된 배치 결과는 소급 재계산하지 않는다.
+ */
+const PLACEMENT_REFERENCE_POLICY = Object.freeze({
+  version: "PLACEMENT_REFERENCE_V2_MOE_NINE_GRADE",
+  referenceStandard: "MOE_NINE_GRADE_CUMULATIVE_RANK_RATIO",
+  bands: Object.freeze([
+    { tierCode: "BRONZE", referenceGrade: 9, minScore: 0, maxScore: 43, minMmr: 400, maxMmr: 799, percentileLower: 0, percentileUpper: 0.04 },
+    { tierCode: "SILVER", referenceGrade: 8, minScore: 44, maxScore: 53, minMmr: 800, maxMmr: 924, percentileLower: 0.04, percentileUpper: 0.11 },
+    { tierCode: "GOLD", referenceGrade: 7, minScore: 54, maxScore: 62, minMmr: 925, maxMmr: 1024, percentileLower: 0.11, percentileUpper: 0.23 },
+    { tierCode: "PLATINUM", referenceGrade: 6, minScore: 63, maxScore: 70, minMmr: 1025, maxMmr: 1119, percentileLower: 0.23, percentileUpper: 0.4 },
+    { tierCode: "EMERALD", referenceGrade: 5, minScore: 71, maxScore: 77, minMmr: 1120, maxMmr: 1209, percentileLower: 0.4, percentileUpper: 0.6 },
+    { tierCode: "DIAMOND", referenceGrade: 4, minScore: 78, maxScore: 84, minMmr: 1210, maxMmr: 1329, percentileLower: 0.6, percentileUpper: 0.77 },
+    { tierCode: "MASTER", referenceGrade: 3, minScore: 85, maxScore: 89, minMmr: 1330, maxMmr: 1439, percentileLower: 0.77, percentileUpper: 0.89 },
+    { tierCode: "GRANDMASTER", referenceGrade: 2, minScore: 90, maxScore: 94, minMmr: 1440, maxMmr: 1519, percentileLower: 0.89, percentileUpper: 0.96 },
+    { tierCode: "CHALLENGER", referenceGrade: 1, minScore: 95, maxScore: 100, minMmr: 1520, maxMmr: 1700, percentileLower: 0.96, percentileUpper: 1 },
+  ].map(Object.freeze)),
+});
+
 const TIER_INDEX = new Map(
   TIER_CONFIG.map((tier, index) => [
     tier.name,
@@ -104,6 +148,247 @@ function average(values) {
       0
     ) / normalized.length
   );
+}
+
+function interpolate(
+  minimum,
+  maximum,
+  progress
+) {
+  return (
+    Number(minimum) +
+    (
+      Number(maximum) -
+      Number(minimum)
+    ) * clamp(progress)
+  );
+}
+
+function estimatedRankForTopPercent(
+  topPercent,
+  population = ESTIMATED_RANK_POPULATION
+) {
+  const normalizedPopulation = Math.max(
+    1,
+    Math.round(Number(population) || ESTIMATED_RANK_POPULATION)
+  );
+  const normalizedTopPercent = clamp(
+    Number(topPercent) / 100,
+    0,
+    1
+  );
+
+  return Math.max(
+    1,
+    Math.min(
+      normalizedPopulation,
+      Math.ceil(normalizedTopPercent * normalizedPopulation)
+    )
+  );
+}
+
+function percentileFromScoreBands(
+  score,
+  bands
+) {
+  const normalizedScore = clamp(
+    Number(score),
+    0,
+    100
+  );
+  const band =
+    bands.find(
+      (candidate) =>
+        normalizedScore <= candidate.maxScore
+    ) || bands[bands.length - 1];
+  const width = Math.max(
+    1,
+    band.maxScore - band.minScore
+  );
+  const progress = clamp(
+    (normalizedScore - band.minScore) / width
+  );
+
+  return interpolate(
+    band.percentileLower,
+    band.percentileUpper,
+    progress
+  );
+}
+
+function placementReferenceForScore(
+  score
+) {
+  const normalizedScore = clamp(
+    Number(score),
+    0,
+    100
+  );
+  const band =
+    PLACEMENT_REFERENCE_POLICY
+      .bands.find(
+        (candidate) =>
+          normalizedScore <=
+          candidate.maxScore
+      ) ||
+    PLACEMENT_REFERENCE_POLICY
+      .bands[
+        PLACEMENT_REFERENCE_POLICY
+          .bands.length - 1
+      ];
+  const width = Math.max(
+    1,
+    band.maxScore -
+      band.minScore
+  );
+  const progress = clamp(
+    (
+      normalizedScore -
+      band.minScore
+    ) / width
+  );
+  const percentile = interpolate(
+    band.percentileLower,
+    band.percentileUpper,
+    progress
+  );
+  const estimatedTopPercent =
+    Math.round(
+      (1 - percentile) *
+      1000
+    ) / 10;
+  const estimatedRank =
+    estimatedRankForTopPercent(
+      estimatedTopPercent
+    );
+
+  return {
+    policyVersion:
+      PLACEMENT_REFERENCE_POLICY
+        .version,
+    positionBasis:
+      "MOE_NINE_GRADE_REFERENCE_DISTRIBUTION",
+    referenceStandard:
+      PLACEMENT_REFERENCE_POLICY
+        .referenceStandard,
+    referenceGrade:
+      band.referenceGrade,
+    score:
+      Math.round(
+        normalizedScore * 100
+      ) / 100,
+    tierCode: band.tierCode,
+    initialMmr: Math.round(
+      interpolate(
+        band.minMmr,
+        band.maxMmr,
+        progress
+      )
+    ),
+    estimatedPercentile:
+      Math.round(
+        percentile * 1000
+      ) / 10,
+    estimatedTopPercent,
+    estimatedRankPopulation:
+      ESTIMATED_RANK_POPULATION,
+    estimatedRank,
+    estimatedTopPercentMin:
+      Math.round(
+        (1 -
+          band.percentileUpper) *
+          1000
+      ) / 10,
+    estimatedTopPercentMax:
+      Math.round(
+        (1 -
+          band.percentileLower) *
+          1000
+      ) / 10,
+  };
+}
+
+function referencePercentileForScore(
+  score
+) {
+  return (
+    Math.round(
+      percentileFromScoreBands(
+        score,
+        PLACEMENT_RAW_SCORE_REFERENCE_POLICY
+          .bands
+      ) * 1000
+    ) / 1000
+  );
+}
+
+function actualCohortStanding({
+  placementScore,
+  scoreValues,
+}) {
+  const scores = (
+    Array.isArray(scoreValues)
+      ? scoreValues
+      : []
+  )
+    .map(Number)
+    .filter(Number.isFinite);
+  const stats = populationStats(
+    scores,
+    placementScore
+  );
+  const higherCount =
+    scores.filter(
+      (candidate) =>
+        candidate >
+        Number(placementScore)
+    ).length;
+  const equalCount =
+    scores.filter(
+      (candidate) =>
+        candidate ===
+        Number(placementScore)
+    ).length;
+  const lowerCount =
+    scores.length -
+    higherCount -
+    equalCount;
+  const actualPercentile =
+    scores.length
+      ? (
+          lowerCount +
+          equalCount * 0.5
+        ) / scores.length
+      : null;
+
+  return {
+    cohortSize: scores.length,
+    cohortRank:
+      scores.length
+        ? higherCount + 1
+        : null,
+    cohortAverage:
+      Math.round(
+        stats.mean * 10
+      ) / 10,
+    cohortStandardDeviation:
+      Math.round(
+        stats.standardDeviation *
+          100
+      ) / 100,
+    actualPercentile:
+      actualPercentile === null
+        ? null
+        : Math.round(
+            actualPercentile *
+              1000
+          ) / 10,
+    actualRankMinimumCohortSize:
+      ACTUAL_COHORT_RANK_MIN_SIZE,
+    actualRankPublished:
+      scores.length >=
+      ACTUAL_COHORT_RANK_MIN_SIZE,
+  };
 }
 
 function populationStats(
@@ -657,81 +942,77 @@ function initialStanding({
   placementScore,
   scoreValues,
 }) {
-  const scores = (
-    Array.isArray(scoreValues)
-      ? scoreValues
-      : []
-  )
-    .map(Number)
-    .filter(Number.isFinite);
-  const stats =
-    populationStats(
-      scores,
+  const reference =
+    placementReferenceForScore(
       placementScore
     );
-  const initialMmr =
-    calculateInitialMmr({
+  const actual =
+    actualCohortStanding({
       placementScore,
-      populationMean:
-        stats.mean,
-      populationStandardDeviation:
-        stats.standardDeviation,
+      scoreValues,
     });
-  const percentile =
-    percentileForValue(
-      placementScore,
-      scores
-    );
-  const tier =
-    resolveTier({
-      mmr: initialMmr,
-      topPercentile:
-        1 - percentile,
-      activeRankerCount:
-        scores.length,
-    });
+  const tier = tierByName(
+    reference.tierCode
+  );
   const rankPoint =
     calculateRankPoint({
-      mmr: initialMmr,
+      mmr:
+        reference.initialMmr,
       tier,
     });
 
   return {
-    cohortSize: scores.length,
-    cohortAverage:
-      Math.round(
-        stats.mean * 10
-      ) / 10,
-    cohortStandardDeviation:
-      Math.round(
-        stats.standardDeviation *
-          100
-      ) / 100,
+    ...actual,
+    calibrationPolicyVersion:
+      reference.policyVersion,
+    positionBasis:
+      reference.positionBasis,
+    referenceStandard:
+      reference.referenceStandard,
+    referenceGrade:
+      reference.referenceGrade,
+    estimatedPercentile:
+      reference.estimatedPercentile,
+    estimatedTopPercent:
+      reference.estimatedTopPercent,
+    estimatedRankPopulation:
+      reference.estimatedRankPopulation,
+    estimatedRank:
+      reference.estimatedRank,
+    estimatedTopPercentMin:
+      reference
+        .estimatedTopPercentMin,
+    estimatedTopPercentMax:
+      reference
+        .estimatedTopPercentMax,
     standardizedScore:
-      stats.standardDeviation >
+      actual
+        .cohortStandardDeviation >
       0.01
         ? Math.round(
             (
               (
                 placementScore -
-                stats.mean
+                actual.cohortAverage
               ) /
-              stats.standardDeviation
+              actual
+                .cohortStandardDeviation
             ) * 10000
           ) / 10000
         : 0,
+    /* 레거시 화면은 percentile을 읽으므로 기준분포 백분위를 유지한다. */
     percentile:
-      Math.round(
-        percentile * 1000
-      ) / 10,
-    initialMmr,
+      reference.estimatedPercentile,
+    initialMmr:
+      reference.initialMmr,
     tierCode: tier.name,
     tier: tier.label,
     rankPoint,
     rankingStatus:
       "provisional",
     matchesUntilConfirmed: 2,
-    initialRating: initialMmr,
+    initialRating:
+      reference.initialMmr,
     initialTier: tier.label,
   };
 }
@@ -1765,7 +2046,12 @@ function rankingProfileView(
 }
 
 module.exports = {
+  ACTUAL_COHORT_RANK_MIN_SIZE,
+  ESTIMATED_RANK_POPULATION,
+  PLACEMENT_REFERENCE_POLICY,
+  PLACEMENT_RAW_SCORE_REFERENCE_POLICY,
   TIER_CONFIG,
+  actualCohortStanding,
   calculateAbsencePenalty,
   calculateActualPerformance,
   calculateExpectedPerformance,
@@ -1774,6 +2060,7 @@ module.exports = {
   calculateMmrChange,
   calculateRankPoint,
   determineKFactor,
+  estimatedRankForTopPercent,
   ensureRankingProfile,
   evaluateDemotion,
   findBaseTier,
@@ -1781,9 +2068,11 @@ module.exports = {
   initialStanding,
   metricForAttempt,
   percentileForValue,
+  placementReferenceForScore,
   populationStats,
   processWeeklyExamMmr,
   processWeeklyMmr,
+  referencePercentileForScore,
   rankingProfileView,
   refreshOverallRanks,
   resolveTier,

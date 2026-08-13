@@ -420,6 +420,12 @@ const arenaPackagePaymentSchema = new Schema(
       uppercase: true,
       maxlength: 40,
     },
+    providerMode: {
+      type: String,
+      enum: ["TEST", "LIVE"],
+      default: undefined,
+      index: true,
+    },
     providerPaymentKey: {
       type: String,
       required: true,
@@ -524,6 +530,12 @@ const arenaPackagePaymentSchema = new Schema(
     accessCycleId: {
       type: Schema.Types.ObjectId,
       ref: "AccessCycle",
+      default: null,
+      index: true,
+    },
+    mockExamSubscriptionId: {
+      type: Schema.Types.ObjectId,
+      ref: "MockExamSubscription",
       default: null,
       index: true,
     },

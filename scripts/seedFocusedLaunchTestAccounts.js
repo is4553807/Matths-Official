@@ -176,7 +176,7 @@ async function activatePlacedAccount({ user, scenario, now, seasonKey, positions
     placementContextKey: "INITIAL",
     curriculumId: "kr-2022",
     courseId: "integrated-placement",
-    title: "War of GOAT 입단 배치고사",
+    title: "GOAT Arena 입단 배치고사",
     subtitle: "출시 전 목적형 검증 계정",
     passScore: 0,
     questions: [],

@@ -2002,6 +2002,73 @@ const placementResultSchema =
         default: null,
       },
 
+      calibrationPolicyVersion: {
+        type: String,
+        default: "",
+      },
+
+      calibratedAt: {
+        type: Date,
+        default: null,
+      },
+
+      positionBasis: {
+        type: String,
+        default: "",
+      },
+
+      referenceStandard: {
+        type: String,
+        default: "",
+      },
+
+      referenceGrade: {
+        type: Number,
+        min: 1,
+        max: 9,
+        default: null,
+      },
+
+      estimatedPercentile: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
+      },
+
+      estimatedTopPercent: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
+      },
+
+      estimatedTopPercentMin: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
+      },
+
+      estimatedTopPercentMax: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
+      },
+
+      estimatedRankPopulation: {
+        type: Number,
+        min: 1,
+        default: 10000,
+      },
+
+      estimatedRank: {
+        type: Number,
+        min: 1,
+        default: null,
+      },
+
       initialMmr: {
         type: Number,
         min: 0,
@@ -2032,6 +2099,30 @@ const placementResultSchema =
         type: Number,
         min: 0,
         default: 0,
+      },
+
+      cohortRank: {
+        type: Number,
+        min: 1,
+        default: null,
+      },
+
+      actualRankMinimumCohortSize: {
+        type: Number,
+        min: 1,
+        default: 100,
+      },
+
+      actualRankPublished: {
+        type: Boolean,
+        default: false,
+      },
+
+      actualPercentile: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
       },
 
       cohortAverage: {
@@ -2068,6 +2159,13 @@ const placementResultSchema =
       initialTier: {
         type: String,
         default: "",
+      },
+
+      rankPoint: {
+        type: Number,
+        min: 0,
+        max: 99,
+        default: 0,
       },
     },
     {

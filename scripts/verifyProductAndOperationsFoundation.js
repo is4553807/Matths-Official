@@ -24,6 +24,9 @@ const {
 const {
   getAdminProblemBankCatalog,
 } = require("../services/problemBankCatalogService");
+const {
+  _testing: placementTesting,
+} = require("../services/placementExamService");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) =>
@@ -55,6 +58,22 @@ assert.ok(MockExamPackagePolicyVersion.schema.path("placementExamAllowed"));
 assert.ok(MockExamSubscription.schema.path("endsAt"));
 assert.ok(User.schema.path("totalConnectedSeconds"));
 assert.ok(User.schema.path("lastConnectedAt"));
+assert.equal(
+  placementTesting.isInitialPlacementPurpose("INITIAL"),
+  true
+);
+assert.equal(
+  placementTesting.isInitialPlacementPurpose(null),
+  true
+);
+assert.equal(
+  placementTesting.isInitialPlacementPurpose("SEASON"),
+  false
+);
+assert.equal(
+  placementTesting.isInitialPlacementPurpose("RENEWAL_RANK_ASSESSMENT"),
+  false
+);
 
 const routes = read("routes/matths-routes.js");
 for (const required of [
@@ -78,10 +97,14 @@ assert.ok(pricing.includes('/pricing/mock-exam-only/parent-request'));
 assert.ok(pricing.includes('/pricing/learning-package/self'));
 assert.ok(pricing.includes('/pricing/learning-package/parent-request'));
 assert.ok(pricing.includes("지금 바로 시작하기"));
-assert.ok(pricing.includes("무료"));
+assert.ok(pricing.includes("기본학습 패키지"));
 assert.ok(pricing.includes("평가센터 유형별 문제 풀이"));
 assert.ok(pricing.includes("배치고사"));
+assert.ok(pricing.includes("최초 배치고사 1회"));
 assert.ok(pricing.includes("GOAT Arena"));
+const warOfMasters = read("views/war-of-masters.ejs");
+assert.ok(warOfMasters.includes("모든 회원 최초 1회 무료"));
+assert.ok(routes.includes("assertPlacementExamAccess"));
 assert.ok(dashboard.includes("data-access-renewal-dialog"));
 assert.ok(dashboard.includes("72시간 내 재구매 예상 위치"));
 assert.ok(dashboard.includes("기한 후 랭크 복귀전 최고 위치"));
@@ -108,7 +131,8 @@ assert.ok(parentPricing.includes("온라인 결제 준비 중"));
 assert.equal(parentPricing.includes("PG 연결 전"), false);
 const checkoutService = read("services/checkoutService.js");
 assert.ok(checkoutService.includes("PAID_CHECKOUT_UNAVAILABLE"));
-assert.ok(checkoutService.includes("implementedProviders"));
+assert.ok(checkoutService.includes('provider === "TOSS"'));
+assert.ok(checkoutService.includes("isTossConfigured"));
 
 const accessService = read("services/paidFeatureAccessService.js");
 const privateMockService = read("services/privateMockExamService.js");

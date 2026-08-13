@@ -172,13 +172,24 @@ function compareStandingForLayout(left, right) {
  * 전체 순위가 아니라 같은 티어 안의 순위입니다. 동점이면 배치 동점 원본과
  * 해당 GP 도달 시각을 차례로 사용합니다.
  */
-function computeArenaCohortLayout(standings = []) {
+function computeArenaCohortLayout(
+  standings = [],
+  { division = null } = {}
+) {
+  const cohortDivision = String(
+    division ||
+      standings.find(
+        (standing) => standing?.division
+      )?.division ||
+      "SUB"
+  ).toUpperCase();
   const canonicalOrder = [...standings].sort(
     compareStandingForLayout
   );
   const activeRankerCount = canonicalOrder.length;
   const resolved = canonicalOrder.map((standing, index) => {
     const tier = resolveArenaTier({
+      division: cohortDivision,
       rank: standing.arenaRank,
       gp: standing.arenaGp,
       topPercentile:
@@ -280,7 +291,10 @@ async function rebalanceArenaCohortInTransaction({
     .session(session)
     .lean();
   const layout =
-    computeArenaCohortLayout(standings);
+    computeArenaCohortLayout(
+      standings,
+      { division }
+    );
   const currentById = new Map(
     standings.map((standing) => [
       standingId(standing),
@@ -393,6 +407,23 @@ async function activateStandingForPaidPlacement({
       "ARENA_STANDING_NOT_FOUND"
     );
   }
+  const placementSeedTuple =
+    standing.status !== "ACTIVE" &&
+    standing.seedPolicyVersion ===
+      INITIAL_ARENA_SEED_POLICY_VERSION &&
+    Number.isFinite(
+      Number(standing.seedPlacementMmr)
+    )
+      ? arenaTupleFromLegacyGp(
+          Number(standing.seedPlacementMmr)
+        )
+      : null;
+  const activationArenaRank =
+    placementSeedTuple?.arenaRank ||
+    standing.arenaRank;
+  const activationArenaGp =
+    placementSeedTuple?.arenaGp ??
+    standing.arenaGp;
   if (standing.status !== "ACTIVE") {
     await lockArenaCohort({
       session,
@@ -404,7 +435,7 @@ async function activateStandingForPaidPlacement({
       await ArenaStanding.findOne({
         division: "SUB",
         seasonKey: standing.seasonKey,
-        arenaRank: standing.arenaRank,
+        arenaRank: activationArenaRank,
         status: "ACTIVE",
       })
         .sort({ arenaPosition: -1 })
@@ -416,6 +447,10 @@ async function activateStandingForPaidPlacement({
       {
         $set: {
           status: "ACTIVE",
+          arenaRank:
+            activationArenaRank,
+          arenaGp:
+            activationArenaGp,
           arenaPosition:
             Number(lastActiveStanding?.arenaPosition || 0) + 1,
           reachedCurrentGpAt:
@@ -733,13 +768,14 @@ async function runInitialPlacementTransaction({
           };
           return;
         }
+        /*
+         * 원본 배치 티어를 먼저 저장합니다. Unranked는 이 값을 그대로 쓰고,
+         * Ranked만 활성 코호트 재정렬에서 인원 제한을 적용합니다.
+         */
         const placeholderTier =
-          resolveArenaTier({
-            rank: initialArenaTuple.arenaRank,
-            gp: arenaGp,
-            topPercentile: 1,
-            activeRankerCount: 0,
-          });
+          arenaTierByValue(
+            initialArenaTuple.arenaRank
+          );
         /*
          * 티어 내부 순위는 고유 인덱스로 보호된다. 기존 인원이 있는 티어에
          * 새 사용자를 곧바로 1위로 삽입하면 재정렬 전에 중복 키가 발생하므로,

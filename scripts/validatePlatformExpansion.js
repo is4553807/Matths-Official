@@ -338,11 +338,8 @@ const introView =
     "utf8"
   );
 assert.ok(
-  introView.includes("War of GOAT") &&
-    introView.includes(
-      "War of GOAT"
-    ),
-  "서비스 소개에 War of GOAT 안내가 없습니다."
+  introView.includes("GOAT ARENA"),
+  "서비스 소개에 GOAT Arena 안내가 없습니다."
 );
 
 const warOfMastersView =
@@ -364,7 +361,7 @@ assert.ok(
     warOfMastersView.includes(
       "arenaUser.schoolName"
     ),
-  "War of GOAT 입단 화면 또는 로그인 사용자 정보 연결이 없습니다."
+  "GOAT Arena 입단 화면 또는 로그인 사용자 정보 연결이 없습니다."
 );
 
 for (const file of [

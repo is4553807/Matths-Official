@@ -114,7 +114,7 @@ async function main() {
     feedback: null,
     refundData: { requests: [], status: "", page: 1, total: 0, totalPages: 1 },
   });
-  assert.match(adminRefunds, /취소 거래키/);
+  assert.match(adminRefunds, /취소 API/);
   assert.match(adminRefunds, /환불 관리/);
 
   const refundService = read("services/refundService.js");

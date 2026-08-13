@@ -1170,14 +1170,14 @@ async function getDashboardData(userId) {
         }
         return {
             code: "FREE",
-            name: "무료 플랜",
+            name: "기본학습 패키지",
             division: null,
             remainingLearningDays: 0,
             availableLearningDays: 0,
             reservedLearningDays: 0,
             lockedLearningDays: 0,
             expiresAt: null,
-            statusLabel: "무료 이용",
+            statusLabel: "기본학습 이용",
         };
     })();
 

@@ -5,6 +5,9 @@ const {
   getProduct,
   MINOR_PAYMENT_NOTICE_VERSION,
 } = require("../services/checkoutService");
+const {
+  buildCheckoutClientConfig,
+} = require("../services/paymentService");
 const { User } = require("../models/matthsModel");
 
 const ROUTE_TO_PRODUCT = {
@@ -83,6 +86,13 @@ async function renderCheckout(req, res, { intent = null, status = 200 } = {}) {
     user: req.session.user,
     product,
     intent,
+    checkoutConfig: intent
+      ? buildCheckoutClientConfig(intent, {
+          baseUrl: publicBaseUrl(req),
+          customerEmail: req.session.user.email,
+          customerName: req.session.user.realName || req.session.user.name,
+        })
+      : null,
   });
 }
 

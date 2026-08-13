@@ -1,4 +1,4 @@
-const { randomBytes, createHash } = require("node:crypto");
+const { randomBytes, randomUUID, createHash } = require("node:crypto");
 const bcrypt = require("bcrypt");
 const {
   ParentAccount,
@@ -15,6 +15,10 @@ const {
   REFUND_POLICY_VERSION,
   getRefundDisclosure,
 } = require("./refundPolicyService");
+const {
+  getTossConfig,
+  isTossConfigured,
+} = require("./tossPaymentService");
 
 const INVITE_TTL_MS = 72 * 60 * 60 * 1000;
 const CHECKOUT_TTL_MS = 30 * 60 * 1000;
@@ -25,12 +29,8 @@ const MINOR_PAYMENT_NOTICE_VERSION = "MINOR_SELF_PAYMENT_NOTICE_V1";
 function isPaidCheckoutEnabled(environment = process.env) {
   const requested =
     String(environment.PAID_CHECKOUT_ENABLED || "").trim().toLowerCase() === "true";
-  // 결제 승인·웹훅·중복 승인 방지 어댑터가 구현된 공급자만 여기에 추가한다.
-  // 현재 릴리스는 무료 기능만 안전하게 공개하며 환경변수만으로 결제를 열 수 없다.
-  const implementedProviders = new Set();
-  return requested && implementedProviders.has(
-    String(environment.PAYMENT_PROVIDER || "").trim().toUpperCase()
-  );
+  const provider = String(environment.PAYMENT_PROVIDER || "").trim().toUpperCase();
+  return requested && provider === "TOSS" && isTossConfigured(environment);
 }
 
 function assertPaidCheckoutEnabled() {
@@ -138,6 +138,8 @@ async function createCheckoutIntent({
       "REFUND_POLICY_CONSENT_REQUIRED"
     );
   }
+  const { mode: providerMode } = getTossConfig();
+  const uniqueOrderPart = randomUUID().replace(/-/g, "");
   return CheckoutIntent.create({
     studentUserId: student._id,
     parentAccountId,
@@ -159,8 +161,32 @@ async function createCheckoutIntent({
         : "",
     refundPolicyAcceptedAt: new Date(),
     refundPolicyVersion: REFUND_POLICY_VERSION,
+    provider: "TOSS",
+    providerMode,
+    orderId: `matths-${uniqueOrderPart}`,
+    customerKey: `customer-${randomUUID()}`,
+    confirmIdempotencyKey: `confirm-${randomUUID()}`,
     expiresAt: new Date(Date.now() + CHECKOUT_TTL_MS),
   });
+}
+
+async function ensureCheckoutIntentIndexes() {
+  let indexes = [];
+  try {
+    indexes = await CheckoutIntent.collection.indexes();
+  } catch (error) {
+    if (error?.code !== 26 && error?.codeName !== "NamespaceNotFound") throw error;
+  }
+  const legacyTtlIndex = indexes.find((index) => (
+    index?.key?.expiresAt === 1 &&
+    Object.keys(index.key || {}).length === 1 &&
+    Number.isFinite(Number(index.expireAfterSeconds))
+  ));
+  if (legacyTtlIndex?.name) {
+    await CheckoutIntent.collection.dropIndex(legacyTtlIndex.name);
+  }
+  await CheckoutIntent.createIndexes();
+  return { removedLegacyTtlIndex: legacyTtlIndex?.name || "" };
 }
 
 async function createParentInvite({
@@ -342,6 +368,7 @@ module.exports = {
   getParentInvite,
   getProduct,
   getProductCatalog,
+  ensureCheckoutIntentIndexes,
   LEGAL_GUARDIAN_CONSENT_VERSION,
   MINOR_PAYMENT_NOTICE_VERSION,
   REFUND_POLICY_VERSION,

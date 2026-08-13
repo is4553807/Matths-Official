@@ -11,11 +11,18 @@ const {
   registerParent,
 } = require("../services/checkoutService");
 const {
+  buildCheckoutClientConfig,
+} = require("../services/paymentService");
+const {
   getParentFamily,
   updateParentNotificationSettings,
 } = require("../services/parentFamilyService");
 const { getDashboardData } = require("../services/dashboardService");
 const { getRankingData } = require("../services/rankingService");
+const {
+  getParentPaymentManagement,
+  requestParentPaymentRefund,
+} = require("../services/parentPaymentService");
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -266,6 +273,60 @@ exports.pricingPage = async (req, res, next) => {
   }
 };
 
+async function renderPaymentManagement(
+  req,
+  res,
+  { status = 200, error = "" } = {}
+) {
+  const context = await getRequestParentContext(req);
+  const { parent, child } = context;
+  res.set("Cache-Control", "no-store");
+  return res.status(status).render("parent-payments", {
+    parent,
+    child,
+    familyChildren: context.familyChildren,
+    selectedChildId: context.selectedChildId,
+    paymentData: await getParentPaymentManagement({
+      parentAccountId: parent._id,
+      studentUserId: child._id,
+    }),
+    feedback: req.query.refund === "requested"
+      ? "환불 신청을 접수했습니다. 운영자가 기준에 따라 금액을 산정한 뒤 처리 상태를 갱신합니다."
+      : "",
+    error,
+  });
+}
+
+exports.paymentManagementPage = async (req, res, next) => {
+  try {
+    return await renderPaymentManagement(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.requestPaymentRefund = async (req, res, next) => {
+  try {
+    const context = await getRequestParentContext(req);
+    await requestParentPaymentRefund({
+      parentAccountId: context.parent._id,
+      studentUserId: context.child._id,
+      paymentId: req.params.paymentId,
+      reasonType: req.body.reasonType,
+      reasonDetail: req.body.reasonDetail,
+    });
+    return res.redirect("/parent/payments?refund=requested");
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return renderPaymentManagement(req, res, {
+        status: Number(error.status),
+        error: error.message,
+      });
+    }
+    return next(error);
+  }
+};
+
 async function renderCheckout(req, res, { intent = null } = {}) {
   const context = await getRequestParentContext(req);
   const { parent, child } = context;
@@ -276,6 +337,15 @@ async function renderCheckout(req, res, { intent = null } = {}) {
     selectedChildId: context.selectedChildId,
     product: await getProduct(req.params.productCode),
     intent,
+    checkoutConfig: intent
+      ? buildCheckoutClientConfig(intent, {
+          baseUrl:
+            process.env.PUBLIC_BASE_URL ||
+            `${req.protocol}://${req.get("host")}`,
+          customerEmail: parent.email,
+          customerName: parent.username,
+        })
+      : null,
   });
 }
 

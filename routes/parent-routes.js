@@ -45,6 +45,16 @@ router.post(
 );
 router.get("/parent/pricing", isParentLoggedIn, parentController.pricingPage);
 router.get(
+  "/parent/payments",
+  isParentLoggedIn,
+  parentController.paymentManagementPage
+);
+router.post(
+  "/parent/payments/:paymentId/refund",
+  isParentLoggedIn,
+  parentController.requestPaymentRefund
+);
+router.get(
   "/parent/checkout/:productCode",
   isParentLoggedIn,
   parentController.checkoutPage

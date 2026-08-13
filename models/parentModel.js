@@ -343,9 +343,84 @@ const checkoutIntentSchema = new Schema(
       default: "KRW",
       enum: ["KRW"],
     },
+    provider: {
+      type: String,
+      enum: ["TOSS"],
+      default: "TOSS",
+      required: true,
+    },
+    providerMode: {
+      type: String,
+      enum: ["TEST", "LIVE"],
+      required: true,
+    },
+    orderId: {
+      type: String,
+      trim: true,
+      minlength: 6,
+      maxlength: 64,
+      required: true,
+    },
+    customerKey: {
+      type: String,
+      trim: true,
+      minlength: 2,
+      maxlength: 300,
+      required: true,
+      select: false,
+    },
+    confirmIdempotencyKey: {
+      type: String,
+      trim: true,
+      minlength: 6,
+      maxlength: 160,
+      required: true,
+      select: false,
+    },
+    providerPaymentKey: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: "",
+      select: false,
+    },
+    providerStatus: {
+      type: String,
+      trim: true,
+      maxlength: 60,
+      default: "",
+    },
+    paymentMethod: {
+      type: String,
+      trim: true,
+      maxlength: 80,
+      default: "",
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+    receiptUrl: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: "",
+    },
+    failureCode: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: "",
+    },
+    failureMessage: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: "",
+    },
     status: {
       type: String,
-      enum: ["AWAITING_PG", "CANCELLED", "EXPIRED", "PAID"],
+      enum: ["AWAITING_PG", "AWAITING_DEPOSIT", "CANCELLED", "EXPIRED", "PAID"],
       default: "AWAITING_PG",
       index: true,
     },
@@ -358,7 +433,18 @@ const checkoutIntentSchema = new Schema(
 );
 
 checkoutIntentSchema.index({ studentUserId: 1, status: 1, createdAt: -1 });
-checkoutIntentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+checkoutIntentSchema.index({ expiresAt: 1, status: 1 });
+checkoutIntentSchema.index(
+  { orderId: 1 },
+  { unique: true, partialFilterExpression: { orderId: { $type: "string" } } }
+);
+checkoutIntentSchema.index(
+  { confirmIdempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { confirmIdempotencyKey: { $type: "string" } },
+  }
+);
 
 const ParentAccount =
   mongoose.models.ParentAccount ||

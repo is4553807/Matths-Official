@@ -415,9 +415,9 @@ for (const file of [
   const source = read(file);
   assert.ok(
     source.includes(
-      "War of GOAT"
+      "GOAT Arena"
     ),
-    `${file}의 랭킹전 이름이 War of GOAT으로 통일되지 않았습니다.`
+    `${file}의 랭킹전 이름이 GOAT Arena로 통일되지 않았습니다.`
   );
   assert.ok(
     !/실수들의 전쟁|war of masters/i.test(

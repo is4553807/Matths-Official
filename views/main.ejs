@@ -14,7 +14,7 @@
   const averageStudyMinutes = Number(data.stats?.averageStudyMinutes) || 0;
   const weeklySolvedProblems = Number(data.stats?.weeklySolvedProblems) || 0;
   const weeklyCorrectRate = Number(data.stats?.correctRate) || 0;
-  const activePlan = data.activePlan || { code: "FREE", name: "무료 플랜" };
+  const activePlan = data.activePlan || { code: "FREE", name: "기본학습 패키지" };
   const accessRenewalNotice = data.accessRenewalNotice || null;
   const currentKoreanYear = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul",

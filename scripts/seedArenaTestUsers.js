@@ -430,7 +430,7 @@ async function main() {
         placementContextKey: "INITIAL",
         curriculumId: "kr-2022",
         courseId: "integrated-placement",
-        title: "War of GOAT 입단 배치고사",
+        title: "GOAT Arena 입단 배치고사",
         subtitle: "GOAT Arena 실전 검증용 테스트 응시 기록",
         passScore: 0,
         questions: [],

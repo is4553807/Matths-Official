@@ -4,7 +4,7 @@
     ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
     : "기록 없음";
   const gradeLabels = { 10: "고등학교 1학년", 11: "고등학교 2학년", 12: "고등학교 3학년", 13: "N수생", 14: "대학생", 15: "직장인" };
-  const checkoutStatuses = { AWAITING_PG: "결제 대기", CANCELLED: "취소", EXPIRED: "만료", PAID: "결제 완료" };
+  const checkoutStatuses = { AWAITING_PG: "결제 대기", AWAITING_DEPOSIT: "입금 대기", CANCELLED: "취소", EXPIRED: "만료", PAID: "결제 완료" };
   const alertStatuses = { PENDING: "발송 대기", SENT: "발송 완료", PREVIEW: "이전 미발송 기록", FAILED: "발송 실패" };
   const alertTypes = { LOW_LEARNING: "학습 저조", INACTIVITY: "장기 미접속" };
   const childNames = new Map((detail.links || []).filter((link) => link.childUserId).map((link) => [String(link.childUserId._id), link.childUserId.name]));
@@ -13,7 +13,7 @@
     return minutes >= 60 ? `${Math.floor(minutes / 60)}시간 ${minutes % 60}분` : `${minutes}분`;
   };
   const formatPackage = (access) => {
-    if (!access || access.packageType === "FREE") return "무료";
+    if (!access || access.packageType === "FREE") return "기본학습 패키지";
     if (access.packageType === "MOCK_EXAM_ONLY") return "Matths 주간 공식 모의고사 이용권";
     return "29일 학습권 패키지";
   };

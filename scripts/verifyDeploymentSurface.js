@@ -72,9 +72,18 @@ for (const relative of viewFiles) {
 }
 
 const checkoutService = read("services/checkoutService.js");
-assert.match(checkoutService, /implementedProviders = new Set\(\)/);
+assert.match(checkoutService, /provider === "TOSS"/);
+assert.match(checkoutService, /isTossConfigured/);
 assert.match(checkoutService, /PAID_CHECKOUT_UNAVAILABLE/);
 assert.doesNotMatch(cloudtype, /PAID_CHECKOUT_ENABLED[\s\S]*true/);
+
+const tossService = read("services/tossPaymentService.js");
+const paymentService = read("services/paymentService.js");
+assert.match(tossService, /\/v1\/payments\/confirm/);
+assert.match(tossService, /Idempotency-Key/);
+assert.match(paymentService, /PAYMENT_AMOUNT_MISMATCH/);
+assert.match(paymentService, /applyApprovedPackagePayment/);
+assert.match(paymentService, /applyApprovedMockExamPayment/);
 
 for (const [dependency, expected] of [
   ["js-yaml", "^5.2.3"],
