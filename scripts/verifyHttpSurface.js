@@ -51,6 +51,26 @@ async function main() {
     assert.equal(ready.status, 503);
     assert.equal((await ready.json()).status, "not_ready");
 
+    const providers = await fetch(
+      `${origin}/api/v1/auth/providers`,
+      { redirect: "manual" }
+    );
+    assert.equal(providers.status, 200);
+    assert.deepEqual(
+      (await providers.json()).providers.map((item) => item.key),
+      ["google"]
+    );
+
+    const invalidMobileStart = await fetch(
+      `${origin}/auth/google/app?code_challenge=short`,
+      { redirect: "manual" }
+    );
+    assert.equal(invalidMobileStart.status, 302);
+    assert.match(
+      invalidMobileStart.headers.get("location") || "",
+      /^matths:\/\/oauth\/google\?error=/
+    );
+
     for (const path of ["/login", "/faq", "/terms"]) {
       const response = await fetch(`${origin}${path}`, { redirect: "manual" });
       assert.equal(response.status, 200, `${path} 응답 상태가 200이 아닙니다.`);
@@ -124,6 +144,38 @@ async function verifyInProcess() {
   assert.match(
     ready.body,
     /"status":"not_ready"/
+  );
+
+  const providers =
+    await requestInProcess(
+      server,
+      {
+        path:
+          "/api/v1/auth/providers",
+      }
+    );
+  assert.equal(providers.status, 200);
+  assert.match(
+    providers.body,
+    /"key":"google"/
+  );
+
+  const invalidMobileStart =
+    await requestInProcess(
+      server,
+      {
+        path:
+          "/auth/google/app?code_challenge=short",
+      }
+    );
+  assert.equal(
+    invalidMobileStart.status,
+    302
+  );
+  assert.match(
+    invalidMobileStart.headers
+      .location || "",
+    /^matths:\/\/oauth\/google\?error=/
   );
 
   for (const path of [

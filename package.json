@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node server.js",
+    "oauth-mobile:verify": "node scripts/verifyMobileGoogleOAuth.js",
     "email:verify": "node scripts/verifyEmailConfig.js",
     "email-routing:verify": "node scripts/verifyOperatorEmailRouting.js",
     "support-email-routing:verify": "node scripts/verifySupportEmailRouting.js",

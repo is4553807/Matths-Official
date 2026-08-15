@@ -39,10 +39,20 @@ function sign(unsignedToken) {
     .digest("base64url");
 }
 
-function createAccessToken(user) {
-  const now = Math.floor(
-    Date.now() / 1000
-  );
+function createAccessToken(
+  user,
+  { issuedAtSeconds } = {}
+) {
+  const requestedIssuedAt =
+    Number(issuedAtSeconds);
+  const now =
+    Number.isInteger(
+      requestedIssuedAt
+    ) && requestedIssuedAt > 0
+      ? requestedIssuedAt
+      : Math.floor(
+          Date.now() / 1000
+        );
   const header = encode({
     alg: "HS256",
     typ: "MATTHS",

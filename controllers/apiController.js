@@ -20,6 +20,7 @@ const {
 } = require("../services/learningProgressService");
 const {
   createAccessToken,
+  verifyAccessToken,
   ACCESS_TOKEN_TTL_SECONDS,
 } = require("../services/mobileAuthService");
 const {
@@ -61,8 +62,28 @@ const {
   buildIdentityMatchHash,
   normalizeBirthDate,
 } = require("../services/identityRiskService");
+const {
+  consumeMobileAuthGrant,
+  resolveMobileAuthGrantResult,
+} = require(
+  "../services/mobileSocialAuthGrantService"
+);
+const {
+  publicProviderStatus,
+} = require(
+  "../services/socialAuthService"
+);
 
 const BCRYPT_ROUNDS = 12;
+
+exports.socialAuthProviders = (
+  _req,
+  res
+) =>
+  res.json({
+    providers:
+      publicProviderStatus(),
+  });
 
 function serializeUser(user) {
   return {
@@ -103,11 +124,16 @@ function serializeUser(user) {
   };
 }
 
-function authResponse(user) {
+function authResponse(
+  user,
+  { issuedAtSeconds } = {}
+) {
   return {
     tokenType: "Bearer",
     accessToken:
-      createAccessToken(user),
+      createAccessToken(user, {
+        issuedAtSeconds,
+      }),
     expiresIn:
       ACCESS_TOKEN_TTL_SECONDS,
     user: serializeUser(user),
@@ -550,6 +576,105 @@ exports.login = async (
     return res.json(
       authResponse(synchronized)
     );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.exchangeGoogleAuthCode = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const consumption =
+      await consumeMobileAuthGrant(
+        req.body?.code,
+        {
+          codeVerifier:
+            req.body?.codeVerifier,
+        }
+      );
+
+    if (!consumption) {
+      return res.status(401).json({
+        code:
+          "SOCIAL_AUTH_GRANT_INVALID",
+        message:
+          "Google 로그인 확인 코드가 만료되었거나 이미 사용되었습니다.",
+      });
+    }
+
+    const access =
+      await synchronizeAccountAccess(
+        consumption.grant.userId
+      );
+    if (!access?.allowed) {
+      return res.status(403).json({
+        code: "ACCOUNT_BLOCKED",
+        message:
+          accountBlockedMessage(
+            access?.status,
+            access?.user
+              ?.accountStatusReason
+          ),
+      });
+    }
+
+    const user =
+      await synchronizeUserLifecycle(
+        access.user._id
+      );
+    if (!consumption.replayed) {
+      user.lastLoginAt = new Date();
+      await user.save();
+    }
+
+    const candidateResponse =
+      authResponse(user, {
+        issuedAtSeconds:
+          consumption
+            .accessTokenIssuedAtSeconds,
+      });
+    const stableResponse =
+      await resolveMobileAuthGrantResult(
+        consumption.grant._id,
+        candidateResponse
+      );
+
+    if (!stableResponse) {
+      return res.status(401).json({
+        code:
+          "SOCIAL_AUTH_GRANT_INVALID",
+        message:
+          "Google 로그인 확인 코드가 만료되었습니다. 다시 로그인해주세요.",
+      });
+    }
+
+    const stableTokenPayload =
+      verifyAccessToken(
+        stableResponse.accessToken
+      );
+    if (
+      !stableTokenPayload ||
+      String(
+        stableTokenPayload.sub || ""
+      ) !== String(user._id) ||
+      Number(
+        stableTokenPayload.ver || 0
+      ) !==
+        Number(
+          user.tokenVersion || 0
+        )
+    ) {
+      return res.status(401).json({
+        code: "TOKEN_REVOKED",
+        message:
+          "로그인이 만료되었습니다. 다시 로그인해주세요.",
+      });
+    }
+
+    return res.json(stableResponse);
   } catch (error) {
     return next(error);
   }
