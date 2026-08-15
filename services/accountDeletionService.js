@@ -75,6 +75,9 @@ const {
 } = require("../models/parentModel");
 const { PaybackPayoutRecord } = require("../models/paybackModel");
 const {
+  PaybackDailyLearning,
+} = require("../models/paybackDailyLearningModel");
+const {
   discardCommunityUploads,
 } = require("./communityAttachmentService");
 const {
@@ -554,6 +557,9 @@ async function purgeArenaUserData(userId) {
     ArenaAchievementBadge.deleteMany({ userId }),
     ArenaStanding.deleteMany({ userId }),
     ArenaLearningDayLedger.deleteMany({
+      $or: [{ userId }, ...(cycleIds.length ? [{ accessCycleId: { $in: cycleIds } }] : [])],
+    }),
+    PaybackDailyLearning.deleteMany({
       $or: [{ userId }, ...(cycleIds.length ? [{ accessCycleId: { $in: cycleIds } }] : [])],
     }),
     ArenaMatchAttempt.deleteMany({

@@ -44,6 +44,22 @@ function statusError(status, message, code = "") {
   return error;
 }
 
+function holdSubAccessForPaybackWindow(
+  cycle,
+  now = new Date()
+) {
+  const evaluationAt = new Date(
+    cycle?.evaluationAt
+  );
+  const current = new Date(now);
+  return (
+    cycle?.division === "SUB" &&
+    !Number.isNaN(evaluationAt.getTime()) &&
+    !Number.isNaN(current.getTime()) &&
+    current < evaluationAt
+  );
+}
+
 function dateKeyToDayNumber(dateKey) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
     throw statusError(
@@ -822,7 +838,11 @@ async function consumeDueDailyLearningDays({
       if (!plan.consumptionDates.length) {
         if (
           Number(cycle.availableLearningDays) ===
-          0
+          0 &&
+          !holdSubAccessForPaybackWindow(
+            cycle,
+            processedAt
+          )
         ) {
           const expiration =
             await applyExpirationTransition({
@@ -926,7 +946,13 @@ async function consumeDueDailyLearningDays({
         expired: false,
         replayed: false,
       };
-      if (plan.availableAfter === 0) {
+      if (
+        plan.availableAfter === 0 &&
+        !holdSubAccessForPaybackWindow(
+          updatedCycle,
+          processedAt
+        )
+      ) {
         expiration =
           await applyExpirationTransition({
             cycle: updatedCycle,
@@ -1008,6 +1034,22 @@ async function finalizeExpiredAccessCycle({
             cycle.status === "EXPIRED",
           replayed: true,
           cycle,
+        };
+        return;
+      }
+      if (
+        Number(cycle.availableLearningDays) === 0 &&
+        holdSubAccessForPaybackWindow(
+          cycle,
+          processedAt
+        )
+      ) {
+        result = {
+          expired: false,
+          replayed: false,
+          cycle,
+          reason:
+            "PAYBACK_ATTACK_WINDOW_ACTIVE",
         };
         return;
       }
@@ -1107,6 +1149,10 @@ async function processDepletedAccessCycles({
     reservedLearningDays: { $in: [0, null] },
     lockedPaybackScoreDays: { $in: [0, null] },
     lockedLearningDays: 0,
+    $or: [
+      { division: { $ne: "SUB" } },
+      { evaluationAt: { $lte: new Date(now) } },
+    ],
   })
     .sort({ depletedAt: 1, _id: 1 })
     .limit(safeLimit)
@@ -1221,6 +1267,7 @@ function stopDailyAccessCycleScheduler() {
 module.exports = {
   buildDailyConsumptionPlan,
   buildDailyLedgerEntries,
+  holdSubAccessForPaybackWindow,
   buildExpiredAccessStateUpdate,
   consumeDueDailyLearningDays,
   finalizeExpiredAccessCycle,

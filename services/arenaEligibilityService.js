@@ -7,8 +7,12 @@ function packagePurchaseEligibility({
   lockedPaybackScoreDays = 0,
   lockedLearningDays,
   hasPendingSettlement,
+  activePaybackAttackWindow = false,
 }) {
   const reasons = [];
+  if (activePaybackAttackWindow === true) {
+    reasons.push("PAYBACK_ATTACK_WINDOW_ACTIVE");
+  }
   if (Number(availableLearningDays) !== 0) {
     reasons.push("AVAILABLE_BALANCE_REMAINS");
   }
@@ -37,6 +41,7 @@ function officialArenaEligibility({
   availableLearningDays,
   currentSeasonPlacementCompleted,
   sundayDivisionLock,
+  allowDepletedLearningDays = false,
 }) {
   const reasons = [];
   if (accountStatus !== "active") {
@@ -45,7 +50,10 @@ function officialArenaEligibility({
   if (accessState !== ACTIVE_ACCESS_STATE) {
     reasons.push("ACCESS_NOT_PAID_ACTIVE");
   }
-  if (Number(availableLearningDays) <= 0) {
+  if (
+    Number(availableLearningDays) <= 0 &&
+    allowDepletedLearningDays !== true
+  ) {
     reasons.push("LEARNING_DAYS_DEPLETED");
   }
   if (currentSeasonPlacementCompleted !== true) {

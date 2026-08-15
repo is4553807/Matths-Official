@@ -25,8 +25,15 @@ const {
 const {
   deliverModerationNotice,
 } = require("./moderationNoticeService");
+const {
+  PaybackDailyLearning,
+} = require("../models/paybackDailyLearningModel");
+const {
+  currentConsecutiveDays,
+} = require("./paybackDailyLearningService");
 
-const PAYBACK_EVALUATION_VERSION = "PAYBACK-EVALUATION-V1";
+const PAYBACK_EVALUATION_VERSION =
+  "PAYBACK-EVALUATION-GOAT-ATTACK-V2";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const UNRESOLVED_MATCH_STATUSES = [
   "REQUESTED",
@@ -119,6 +126,15 @@ function calculatePaybackDecision(cycle, { integrityClear = true } = {}) {
     inputs: {
       streakDays,
       paidNormalAttacksCompleted,
+      officialAttackSubmissionDays:
+        streakDays,
+      dailyAttackRecordCount: Math.max(
+        0,
+        numeric(
+          cycle?._dailyAttackRecordCount ??
+            streakDays
+        )
+      ),
       paybackScoreDays,
       integrityStatus: integrityClear ? "CLEAR" : "HELD",
       minimumStreakDays,
@@ -374,6 +390,37 @@ async function finalizePaybackReview({
         ],
         integrityStatus: { $in: ["SUSPICIOUS", "CONFIRMED", "INVALID"] },
       }).session(session);
+      const dailyAttackRows =
+        await PaybackDailyLearning.find({
+          accessCycleId: cycle._id,
+        })
+          .select("dateKeyKst")
+          .session(session)
+          .lean();
+      const officialAttackStreak =
+        currentConsecutiveDays(
+          dailyAttackRows.map(
+            (entry) => entry.dateKeyKst
+          )
+        );
+      cycle.streakDays =
+        officialAttackStreak.streakDays;
+      cycle.lastStreakDateKst =
+        officialAttackStreak.lastDateKeyKst;
+      cycle._dailyAttackRecordCount =
+        dailyAttackRows.length;
+      await AccessCycle.updateOne(
+        { _id: cycle._id, evaluatedAt: null },
+        {
+          $set: {
+            streakDays:
+              officialAttackStreak.streakDays,
+            lastStreakDateKst:
+              officialAttackStreak.lastDateKeyKst,
+          },
+        },
+        { session }
+      );
       const decision = calculatePaybackDecision(cycle, {
         integrityClear: !integrityIssue,
       });

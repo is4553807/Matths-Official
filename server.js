@@ -197,6 +197,19 @@ async function connectDB() {
         await ensureFullAttendanceLearningPackagePolicy();
 
         const {
+            ensurePaybackDailyLearningIndexes,
+            reconcileOpenPaybackDailyLearningStreaks,
+        } = require("./services/paybackDailyLearningService");
+        await ensurePaybackDailyLearningIndexes();
+        const paybackStreakReconciliation =
+            await reconcileOpenPaybackDailyLearningStreaks();
+        if (paybackStreakReconciliation.updated > 0) {
+            console.log(
+                `Reconciled ${paybackStreakReconciliation.updated} open payback attack streaks.`
+            );
+        }
+
+        const {
             ensureDefaultArenaProblemDataVersion,
             ensureArenaProblemDataIndexes,
             startArenaProblemDataVersionWatcher,

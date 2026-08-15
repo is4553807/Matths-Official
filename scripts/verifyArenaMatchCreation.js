@@ -11,15 +11,18 @@ const {
 const {
   NORMAL_MATCH_PROBLEM_PACK_PENDING,
   NORMAL_MATCH_SCORING_PENDING,
+  SUB_DEFENSE_FAIRNESS_WINDOW_MS,
   arenaTupleFromStanding,
   buildEligibleDefenseCandidates,
   eligibleSubDefenseCandidates,
   isEligibleSubDefenseDirection,
   isSundayDivisionLocked,
   isSundayMatchRequestLocked,
+  loadSubDefenseFairnessHistory,
   matchKeyForRequest,
   normalStakeDaysFromCycle,
   normalizeRequestId,
+  recentSubDefenseWindow,
   sameTestAccountCohort,
   selectRandomSubDefenseCandidate,
   subDailyEligibilityReasons,
@@ -33,6 +36,90 @@ const {
 
 async function run() {
   const root = path.resolve(__dirname, "..");
+
+  assert.equal(
+    SUB_DEFENSE_FAIRNESS_WINDOW_MS,
+    72 * 60 * 60 * 1000
+  );
+  assert.deepEqual(
+    recentSubDefenseWindow(
+      new Date("2026-08-15T12:00:00+09:00")
+    ),
+    {
+      start: new Date("2026-08-12T12:00:00+09:00"),
+      end: new Date("2026-08-15T12:00:00+09:00"),
+    }
+  );
+
+  const defenseFairnessIndexes =
+    ArenaMatch.schema.indexes();
+  assert.ok(
+    defenseFairnessIndexes.some(([fields]) =>
+      fields.division === 1 &&
+      fields.matchType === 1 &&
+      fields["defender.userId"] === 1 &&
+      fields.requestedAt === -1
+    ),
+    "72시간 일반 방어 집계를 위한 복합 인덱스가 있어야 합니다."
+  );
+
+  const historyUserId =
+    new mongoose.Types.ObjectId();
+  const noHistoryUserId =
+    new mongoose.Types.ObjectId();
+  const originalAggregate = ArenaMatch.aggregate;
+  let fairnessPipeline = null;
+  try {
+    ArenaMatch.aggregate = (pipeline) => {
+      fairnessPipeline = pipeline;
+      return Promise.resolve([
+        {
+          _id: historyUserId,
+          recentDefenseCount72h: 3,
+          lastDefenseAssignedAt:
+            new Date("2026-08-15T08:00:00+09:00"),
+        },
+      ]);
+    };
+    const historyByUser =
+      await loadSubDefenseFairnessHistory({
+        userIds: [historyUserId, noHistoryUserId],
+        now: new Date("2026-08-15T12:00:00+09:00"),
+      });
+    assert.deepEqual(
+      historyByUser.get(String(historyUserId)),
+      {
+        recentDefenseCount72h: 3,
+        lastDefenseAssignedAt:
+          new Date("2026-08-15T08:00:00+09:00"),
+      }
+    );
+    assert.deepEqual(
+      historyByUser.get(String(noHistoryUserId)),
+      {
+        recentDefenseCount72h: 0,
+        lastDefenseAssignedAt: null,
+      },
+      "방어 이력이 없는 사용자는 0회·미배정으로 유지되어야 합니다."
+    );
+  } finally {
+    ArenaMatch.aggregate = originalAggregate;
+  }
+  assert.equal(
+    fairnessPipeline[0].$match.division,
+    "SUB"
+  );
+  assert.equal(
+    fairnessPipeline[0].$match.matchType,
+    "NORMAL",
+    "복수전은 72시간 일반 방어 집계에서 제외해야 합니다."
+  );
+  assert.equal(
+    fairnessPipeline[1].$group.recentDefenseCount72h
+      .$sum.$cond[0].$gte[1].toISOString(),
+    new Date("2026-08-12T12:00:00+09:00").toISOString(),
+    "최근 72시간 경계부터 배정된 일반 방어를 포함해야 합니다."
+  );
 
   assert.equal(sameTestAccountCohort({}, {}), true);
   assert.equal(sameTestAccountCohort({ isTestAccount: true }, { isTestAccount: true }), true);
@@ -288,6 +375,16 @@ async function run() {
         },
       ],
       busyUserIds: [busyUserId],
+      defenseHistoryByUser: new Map([
+        [
+          String(eligibleUserId),
+          {
+            recentDefenseCount72h: 2,
+            lastDefenseAssignedAt:
+              new Date("2026-08-14T10:00:00+09:00"),
+          },
+        ],
+      ]),
       challengerArenaRank: "에메랄드",
       limit: 50,
     });
@@ -304,18 +401,72 @@ async function run() {
     candidateLayout.hasMore,
     false
   );
+  assert.equal(
+    candidateLayout.candidates[0]
+      .recentDefenseCount72h,
+    2
+  );
 
   const fairSelection = selectRandomSubDefenseCandidate({
     candidates: [
-      { userId: "already-defended", arenaRank: "실버", dailyDefenseCount: 1 },
-      { userId: "not-defended-a", arenaRank: "실버", dailyDefenseCount: 0 },
-      { userId: "not-defended-b", arenaRank: "실버", dailyDefenseCount: 0 },
+      {
+        userId: "few-recent-newer",
+        arenaRank: "실버",
+        dailyDefenseCount: 1,
+        recentDefenseCount72h: 1,
+        lastDefenseAssignedAt:
+          new Date("2026-08-15T10:00:00+09:00"),
+      },
+      {
+        userId: "few-recent-older",
+        arenaRank: "실버",
+        dailyDefenseCount: 0,
+        recentDefenseCount72h: 1,
+        lastDefenseAssignedAt:
+          new Date("2026-08-14T10:00:00+09:00"),
+      },
+      {
+        userId: "many-recent",
+        arenaRank: "실버",
+        dailyDefenseCount: 0,
+        recentDefenseCount72h: 2,
+        lastDefenseAssignedAt:
+          new Date("2026-08-12T10:00:00+09:00"),
+      },
     ],
     targetTier: "SILVER",
     randomSelectionSeed: "fair-defense-distribution",
   });
+  assert.equal(
+    fairSelection.userId,
+    "few-recent-older",
+    "당일 횟수보다 최근 72시간 횟수를 먼저 보고, 동률이면 마지막 방어가 오래된 후보를 골라야 합니다."
+  );
+
+  const randomTieSelection =
+    selectRandomSubDefenseCandidate({
+      candidates: [
+        {
+          userId: "never-defended-a",
+          arenaRank: "실버",
+          recentDefenseCount72h: 0,
+          lastDefenseAssignedAt: null,
+        },
+        {
+          userId: "never-defended-b",
+          arenaRank: "실버",
+          recentDefenseCount72h: 0,
+          lastDefenseAssignedAt: null,
+        },
+      ],
+      targetTier: "SILVER",
+      randomSelectionSeed:
+        "exact-defense-history-tie",
+    });
   assert.ok(
-    ["not-defended-a", "not-defended-b"].includes(fairSelection.userId)
+    ["never-defended-a", "never-defended-b"].includes(
+      randomTieSelection.userId
+    )
   );
 
   const bronzeChallenger = {
@@ -489,6 +640,13 @@ async function run() {
     ),
     "utf8"
   );
+  const rulebookSource = fs.readFileSync(
+    path.join(
+      root,
+      "services/arenaRulebookViewService.js"
+    ),
+    "utf8"
+  );
 
   assert.equal(
     /mmrService|LiveFinalRankingProfile|RankingProfile/.test(
@@ -541,9 +699,22 @@ async function run() {
       viewSource.includes(
         "같은 티어의 더 높은 순위"
       ) &&
+      viewSource.includes(
+        "최근 72시간"
+      ) &&
       !viewSource.includes(
         'name="defenderStandingId"'
       )
+  );
+  assert.ok(
+    rulebookSource.includes("최근 72시간") &&
+      rulebookSource.includes(
+        "마지막 방어 배정"
+      ) &&
+      rulebookSource.includes(
+        "복수전은 72시간 방어 횟수와 마지막 방어 배정 집계에서 제외"
+      ),
+    "공개 Unranked 규정도 실제 방어자 공정 배정 순서와 같아야 합니다."
   );
 
   console.log(

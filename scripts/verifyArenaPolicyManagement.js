@@ -28,7 +28,7 @@ async function run() {
     priceAmount: "0",
     initialLearningDays: "29",
     initialPaybackScoreDays: "29",
-    paymentDayCutoffKst: "20:00",
+    paymentDayCutoffKst: "00:00",
     renewalGraceHours: "72",
     lateRenewalTierPenalty: "1",
     normalStakeDays: "1",
@@ -157,9 +157,9 @@ async function run() {
         ...normalized,
         displayName: "오류 정책",
         effectiveFrom: "2026-08-01T00:00",
-        paymentDayCutoffKst: "25:00",
+        paymentDayCutoffKst: "20:00",
       }),
-    /첫날 차감 기준 시각/
+    /결제 다음 날 00:00/
   );
 
   const policy = new SubscriptionPolicyVersion({

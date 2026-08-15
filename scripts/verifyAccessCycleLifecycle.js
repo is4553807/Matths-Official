@@ -36,7 +36,7 @@ async function run() {
     timezone: "Asia/Seoul",
     initialLearningDays: 29,
     initialPaybackScoreDays: 29,
-    paymentDayCutoffKst: "20:00",
+    paymentDayCutoffKst: "00:00",
     renewalGraceHours: 72,
     packagePurchaseRequiresZeroBalance: true,
     packagePurchaseRequiresZeroLockedBalance: true,
@@ -70,7 +70,7 @@ async function run() {
   assert.equal(
     calculatePaybackDecision(paybackCandidate).qualified,
     false,
-    "29일 중 하루라도 학습 기록이 빠지면 페이백 자격을 얻을 수 없습니다."
+    "29일 중 하루라도 유효한 GOAT Arena 공격 제출 기록이 빠지면 페이백 자격을 얻을 수 없습니다."
   );
   assert.equal(
     calculatePaybackDecision({
@@ -79,39 +79,39 @@ async function run() {
       streakDays: 29,
     }).qualified,
     true,
-    "일반 쟁탈전 참여가 없어도 29일 전일 학습과 나머지 조건을 충족하면 페이백 자격을 얻어야 합니다."
+    "29일 연속 공식 공격 제출과 나머지 조건을 충족하면 페이백 자격을 얻어야 합니다."
   );
 
-  const beforeCutoff = new Date(
+  const eveningPurchase = new Date(
     "2026-08-01T19:59:59+09:00"
   );
-  const atCutoff = new Date(
+  const laterPurchase = new Date(
     "2026-08-01T20:00:00+09:00"
   );
-  const beforeWindow =
+  const eveningWindow =
     computeAccessCycleWindow({
-      purchasedAt: beforeCutoff,
+      purchasedAt: eveningPurchase,
       policy,
     });
-  const cutoffWindow =
+  const laterWindow =
     computeAccessCycleWindow({
-      purchasedAt: atCutoff,
+      purchasedAt: laterPurchase,
       policy,
     });
   assert.equal(
-    beforeWindow.firstDayMode,
-    "SAME_DAY"
-  );
-  assert.equal(
-    beforeWindow.firstConsumptionDateKst,
-    "2026-08-01"
-  );
-  assert.equal(
-    cutoffWindow.firstDayMode,
+    eveningWindow.firstDayMode,
     "NEXT_DAY"
   );
   assert.equal(
-    cutoffWindow.firstConsumptionDateKst,
+    eveningWindow.firstConsumptionDateKst,
+    "2026-08-02"
+  );
+  assert.equal(
+    laterWindow.firstDayMode,
+    "NEXT_DAY"
+  );
+  assert.equal(
+    laterWindow.firstConsumptionDateKst,
     "2026-08-02"
   );
   assert.equal(
@@ -121,59 +121,49 @@ async function run() {
     "2026-08-02"
   );
 
-  const sameDayDraft =
+  const eveningDraft =
     buildAccessCycleDraft({
       userId,
       policy,
-      purchasedAt: beforeCutoff,
+      purchasedAt: eveningPurchase,
       purchaseReference:
-        "ORDER-BEFORE-CUTOFF",
+        "ORDER-EVENING",
     });
-  const sameDayCycleId =
+  const eveningCycleId =
     new mongoose.Types.ObjectId();
-  const sameDayState =
+  const eveningState =
     buildApprovedCycleState({
-      cycleDraft: sameDayDraft,
-      cycleId: sameDayCycleId,
+      cycleDraft: eveningDraft,
+      cycleId: eveningCycleId,
       paymentId,
-      approvedAt: beforeCutoff,
+      approvedAt: eveningPurchase,
     });
   assert.equal(
-    sameDayState.cycle.status,
+    eveningState.cycle.status,
     "ACTIVE"
   );
   assert.equal(
-    sameDayState.cycle.availableLearningDays,
-    28
-  );
-  assert.equal(
-    sameDayState.cycle.paybackScoreDays,
+    eveningState.cycle.availableLearningDays,
     29
   );
   assert.equal(
-    sameDayState.ledgerEntries.length,
-    2
-  );
-  assert.deepEqual(
-    sameDayState.ledgerEntries.map(
-      (entry) => entry.eventType
-    ),
-    [
-      "PURCHASE_GRANTED",
-      "FIRST_DAY_CONSUMPTION",
-    ]
+    eveningState.cycle.paybackScoreDays,
+    29
   );
   assert.equal(
-    sameDayState.ledgerEntries[1]
-      .idempotencyKey,
-    `${sameDayCycleId}:2026-08-01:FIRST_DAY_CONSUMPTION`
+    eveningState.cycle.firstDayConsumedAt,
+    null
+  );
+  assert.equal(
+    eveningState.ledgerEntries.length,
+    1
   );
 
   const nextDayDraft =
     buildAccessCycleDraft({
       userId,
       policy,
-      purchasedAt: atCutoff,
+      purchasedAt: laterPurchase,
       purchaseReference:
         "ORDER-AT-CUTOFF",
     });
@@ -184,7 +174,7 @@ async function run() {
         new mongoose.Types.ObjectId(),
       paymentId:
         new mongoose.Types.ObjectId(),
-      approvedAt: atCutoff,
+      approvedAt: laterPurchase,
     });
   assert.equal(
     nextDayState.cycle.availableLearningDays,
@@ -209,7 +199,7 @@ async function run() {
       "PAYMENT-WEBHOOK-001",
     currency: "krw",
     approvedAmount: 29000,
-    approvedAt: atCutoff,
+    approvedAt: laterPurchase,
   });
   assert.equal(
     approval.provider,
@@ -252,7 +242,7 @@ async function run() {
     idempotencyKey:
       "IDEMPOTENCY-MODEL-001",
     status: "APPLIED",
-    approvedAt: atCutoff,
+    approvedAt: laterPurchase,
     currency: "krw",
     approvedAmount: 29000,
     policyVersionId: policyId,
@@ -274,7 +264,7 @@ async function run() {
     cycle.validate()
   );
   for (const entry of
-    sameDayState.ledgerEntries) {
+    eveningState.ledgerEntries) {
     await assert.doesNotReject(() =>
       new ArenaLearningDayLedger(
         entry
@@ -329,7 +319,7 @@ async function run() {
   );
 
   console.log(
-    "학습권 패키지 승인 멱등 처리·이용 주기 생성·20시 첫날 차감 검증 완료"
+    "학습권 패키지 승인 멱등 처리·결제 다음 날 00시 이용 주기 시작 검증 완료"
   );
 }
 

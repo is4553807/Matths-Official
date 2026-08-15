@@ -278,7 +278,7 @@ function buildArenaAccess(
         )
       )
   );
-  // 29일 연속 기록만 과거 값으로 남아 있는 경우 '달성'으로 잘못
+  // 29일 연속 공식 공격 제출 기록만 과거 값으로 남아 있는 경우 '달성'으로 잘못
   // 보이지 않도록 실제 이용 주기가 끝났거나 평가된 뒤에만 완료로 표시한다.
   const fullAttendanceQualified = Boolean(
     accessCycle &&
@@ -468,7 +468,7 @@ const DIVISION_FEATURES = {
         "subPaybackProgress",
       name: "페이백 진행",
       description:
-        "29일 전일 학습·페이백 점수·공정성 검토 상태를 확인합니다.",
+        "29일 공식 공격 제출·페이백 점수·공정성 검토 상태를 확인합니다.",
       group: "PROGRESS",
     },
   ],
@@ -1459,7 +1459,7 @@ async function getDivisionFeatureData({ userId, division, featureKey, context })
       title: "페이백 진행",
       description: "정기권 학습 가능 일수와 페이백 점수는 서로 다른 값입니다.",
       cards: [
-        { label: "연속 학습", value: `${rights.studyStreakDays || 0} / ${rights.minimumStudyStreakDays || 29}일` },
+        { label: "공식 공격 제출", value: `${rights.studyStreakDays || 0} / ${rights.minimumStudyStreakDays || 29}일` },
         { label: "페이백 점수", value: `${rights.paybackScoreDays ?? 0}점` },
         { label: "남은 이용일", value: `${rights.availableDays ?? 0}일` },
         { label: "최근 심사", value: review?.status || "심사 전" },

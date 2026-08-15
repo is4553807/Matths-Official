@@ -57,6 +57,8 @@ const NORMAL_MATCH_SCORING_PENDING =
 const DEFAULT_CANDIDATE_LIMIT = 50;
 const SERVER_SELECTION_CANDIDATE_LIMIT = 1000;
 const TRANSACTION_RETRY_LIMIT = 3;
+const SUB_DEFENSE_FAIRNESS_WINDOW_MS =
+  72 * 60 * 60 * 1000;
 const UNSETTLED_MATCH_STATUSES = [
   "REQUESTED",
   "MATCHED",
@@ -216,6 +218,92 @@ function emptySubDailyUsage() {
     defenseCount: 0,
     challengerWin: false,
   };
+}
+
+function recentSubDefenseWindow(
+  now = new Date()
+) {
+  const end = new Date(now);
+  if (Number.isNaN(end.getTime())) {
+    throw statusError(
+      400,
+      "방어 배정 기준 시각을 확인해주세요.",
+      "INVALID_DEFENSE_FAIRNESS_TIME"
+    );
+  }
+  return {
+    start: new Date(
+      end.getTime() -
+        SUB_DEFENSE_FAIRNESS_WINDOW_MS
+    ),
+    end,
+  };
+}
+
+async function loadSubDefenseFairnessHistory({
+  userIds = [],
+  now = new Date(),
+  session = null,
+}) {
+  const normalizedIds = [...new Set(userIds.map(String))]
+    .filter((userId) => mongoose.isValidObjectId(userId))
+    .map((userId) => new mongoose.Types.ObjectId(userId));
+  const historyByUser = new Map(
+    normalizedIds.map((userId) => [
+      String(userId),
+      {
+        recentDefenseCount72h: 0,
+        lastDefenseAssignedAt: null,
+      },
+    ])
+  );
+  if (!normalizedIds.length) return historyByUser;
+  const { start, end } = recentSubDefenseWindow(now);
+  const aggregation = ArenaMatch.aggregate([
+    {
+      $match: {
+        division: "SUB",
+        matchType: "NORMAL",
+        status: {
+          $in: DAILY_COUNTED_MATCH_STATUSES,
+        },
+        "defender.userId": {
+          $in: normalizedIds,
+        },
+        requestedAt: { $lte: end },
+      },
+    },
+    {
+      $group: {
+        _id: "$defender.userId",
+        recentDefenseCount72h: {
+          $sum: {
+            $cond: [
+              { $gte: ["$requestedAt", start] },
+              1,
+              0,
+            ],
+          },
+        },
+        lastDefenseAssignedAt: {
+          $max: "$requestedAt",
+        },
+      },
+    },
+  ]);
+  if (session) aggregation.session(session);
+  const rows = await aggregation;
+  for (const row of rows) {
+    historyByUser.set(String(row._id), {
+      recentDefenseCount72h: Math.max(
+        0,
+        Number(row.recentDefenseCount72h) || 0
+      ),
+      lastDefenseAssignedAt:
+        row.lastDefenseAssignedAt || null,
+    });
+  }
+  return historyByUser;
 }
 
 async function loadSubDailyUsage({
@@ -547,6 +635,12 @@ async function loadMatchActorContext({
         ?.currentSeasonPlacementCompleted,
     sundayDivisionLock:
       isSundayMatchRequestLocked(now, division),
+    allowDepletedLearningDays:
+      division === "SUB" &&
+      accessCycle?.status === "ACTIVE" &&
+      accessCycle?.evaluationAt &&
+      new Date(accessCycle.evaluationAt) >
+        new Date(now),
   }).reasons;
 
   if (
@@ -719,6 +813,7 @@ function buildEligibleDefenseCandidates({
   busyUserIds = [],
   challengerArenaRank = "",
   dailyUsageByUser = new Map(),
+  defenseHistoryByUser = new Map(),
   dailyPolicy = null,
   limit = DEFAULT_CANDIDATE_LIMIT,
 }) {
@@ -788,6 +883,10 @@ function buildEligibleDefenseCandidates({
       if (subDailyEligibilityReasons({ daily, role: "DEFENDER" }).length) {
         return null;
       }
+      const defenseHistory =
+        defenseHistoryByUser.get(
+          String(standing.userId)
+        ) || {};
       return {
         userId: String(standing.userId),
         standingId: String(
@@ -810,6 +909,14 @@ function buildEligibleDefenseCandidates({
         tierPairLabel: tierPair?.label || "",
         dailyDefenseCount: daily.defenseCount,
         dailyDefenseRemaining: daily.defenseRemaining,
+        recentDefenseCount72h: Math.max(
+          0,
+          Number(
+            defenseHistory.recentDefenseCount72h
+          ) || 0
+        ),
+        lastDefenseAssignedAt:
+          defenseHistory.lastDefenseAssignedAt || null,
       };
     })
     .filter(Boolean);
@@ -848,16 +955,47 @@ function selectRandomSubDefenseCandidate({
       tierCode(candidate.arenaRank) === normalizedTier
   );
   if (!pool.length) return null;
-  // 발생한 공격은 같은 대상 티어에서 오늘 방어 횟수가 가장 적은
-  // 후보에게 먼저 돌아간다. 같은 횟수의 후보끼리는 서버 시드로
-  // 무작위 선정해 특정 사용자를 직접 고르거나 고정 편향이 생기지 않게 한다.
+  // 발생한 공격은 같은 대상 티어에서 최근 72시간 방어 횟수가 가장 적은
+  // 후보에게 먼저 돌아간다. 횟수가 같으면 마지막 방어 배정이 가장 오래된
+  // 후보를 우선하고, 그 시각까지 같으면 서버 시드로 무작위 선정한다.
   const minimumDefenseCount = Math.min(
-    ...pool.map((candidate) => Number(candidate.dailyDefenseCount || 0))
+    ...pool.map((candidate) =>
+      Math.max(
+        0,
+        Number(candidate.recentDefenseCount72h) || 0
+      )
+    )
   );
-  const fairPool = pool.filter(
+  const minimumCountPool = pool.filter(
     (candidate) =>
-      Number(candidate.dailyDefenseCount || 0) === minimumDefenseCount
+      Math.max(
+        0,
+        Number(candidate.recentDefenseCount72h) || 0
+      ) === minimumDefenseCount
   );
+  const oldestDefenseTime = Math.min(
+    ...minimumCountPool.map((candidate) => {
+      const value = new Date(
+        candidate.lastDefenseAssignedAt || 0
+      ).getTime();
+      return Number.isNaN(value) ? 0 : value;
+    })
+  );
+  const fairPool = minimumCountPool
+    .filter((candidate) => {
+      const value = new Date(
+        candidate.lastDefenseAssignedAt || 0
+      ).getTime();
+      return (
+        (Number.isNaN(value) ? 0 : value) ===
+        oldestDefenseTime
+      );
+    })
+    .sort((left, right) =>
+      String(left.userId).localeCompare(
+        String(right.userId)
+      )
+    );
   const digest = createHash("sha256")
     .update(
       `${randomSelectionSeed}:${fairPool
@@ -893,6 +1031,26 @@ function eligibleSubDefenseCandidates({
   return candidates.filter((candidate) =>
     isEligibleSubDefenseDirection({ challengerStanding, candidate })
   );
+}
+
+function subOfficialMatchCycleAvailability(
+  now = new Date()
+) {
+  return {
+    $or: [
+      {
+        availableLearningDays: {
+          $gt: 0,
+        },
+      },
+      {
+        availableLearningDays: 0,
+        evaluationAt: {
+          $gt: new Date(now),
+        },
+      },
+    ],
+  };
 }
 
 async function listSubDefenseCandidates({
@@ -951,7 +1109,9 @@ async function listSubDefenseCandidates({
       },
       status: "ACTIVE",
       division: "SUB",
-      availableLearningDays: { $gt: 0 },
+      ...subOfficialMatchCycleAvailability(
+        now
+      ),
       lockedLearningDays: 0,
       lockedPaybackScoreDays: { $in: [0, null] },
     }).lean(),
@@ -1007,8 +1167,16 @@ async function listSubDefenseCandidates({
       unsettledMatches
     ).map(String),
   ];
-  const [dailyUsageByUser, dailyPolicy] = await Promise.all([
+  const [
+    dailyUsageByUser,
+    defenseHistoryByUser,
+    dailyPolicy,
+  ] = await Promise.all([
     loadSubDailyUsage({
+      userIds,
+      now,
+    }),
+    loadSubDefenseFairnessHistory({
       userIds,
       now,
     }),
@@ -1030,6 +1198,7 @@ async function listSubDefenseCandidates({
     busyUserIds,
     challengerArenaRank,
     dailyUsageByUser,
+    defenseHistoryByUser,
     dailyPolicy,
     limit,
   });
@@ -1959,6 +2128,7 @@ async function createSubNormalChallenge({
 module.exports = {
   DEFAULT_CANDIDATE_LIMIT,
   SERVER_SELECTION_CANDIDATE_LIMIT,
+  SUB_DEFENSE_FAIRNESS_WINDOW_MS,
   ELIGIBILITY_MESSAGES,
   MATCH_STATUS_LABELS,
   NORMAL_MATCH_PROBLEM_PACK_PENDING,
@@ -1977,6 +2147,7 @@ module.exports = {
   isSundayMatchRequestLocked,
   kstDayWindow,
   loadSubDailyUsage,
+  loadSubDefenseFairnessHistory,
   loadMatchActorContext,
   kstClockParts,
   listSubDefenseCandidates,
@@ -1985,10 +2156,12 @@ module.exports = {
   normalizeRequestId,
   nextSundayMatchCutoff,
   prepareSubAutoSelection,
+  recentSubDefenseWindow,
   selectRandomSubDefenseCandidate,
   eligibleSubDefenseCandidates,
   sameTestAccountCohort,
   subDailyEligibilityReasons,
   subDailyLimitState,
+  subOfficialMatchCycleAvailability,
   subMatchStartDeadline,
 };

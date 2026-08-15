@@ -1564,7 +1564,7 @@ function dimensionValueLabel(key, value) {
   if (key === "ratePercent") return `${value}% 구간`;
   if (key === "reasonCode") {
     return {
-      MINIMUM_STREAK_NOT_MET: "연속 학습일수 미달",
+      MINIMUM_STREAK_NOT_MET: "연속 공식 공격 제출일수 미달",
       MINIMUM_PAYBACK_SCORE_NOT_MET: "페이백 점수 미달",
       INTEGRITY_NOT_CLEAR: "경기 무결성 확인 필요",
     }[value] || (String(value || "").includes("_") ? "기타 사유" : value);

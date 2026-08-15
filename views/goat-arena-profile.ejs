@@ -156,7 +156,7 @@
           </div>
           <p>
             정기권 학습 가능 일수는 서비스 이용과 경기에 쓰는 권리이고, 페이백 점수는 페이백 구간을 판정하는 별도 값입니다.
-            Unranked 페이백은 점수 조건과 함께 29일 학습을 하루도 빠짐없이 완료해야 합니다.
+            Unranked 페이백은 점수·공정성 조건과 함께 결제 다음 날 00:00부터 29일 동안 매일 공격자로 답안과 필수 풀이 증거를 정상 제출해야 합니다.
           </p>
         </header>
 
@@ -194,15 +194,15 @@
               <span><%= arenaAccess.learningRights.paybackDisqualified ? "다음 유료 이용 주기에서는 자격이 새로 계산됩니다." : `최소 페이백 점수 ${arenaAccess.learningRights.minimumPaybackScore ?? 30}점까지 더 필요한 점수` %></span>
             </article>
             <article>
-              <small>29일 전일 학습</small>
+              <small>29일 공식 공격 제출</small>
               <strong class="arena-rights-streak">
                 <%= arenaAccess.learningRights.studyStreakDays ?? 0 %>
                 <span>/ <%= arenaAccess.learningRights.minimumStudyStreakDays ?? 29 %>일</span>
               </strong>
               <span>
                 <%= arenaAccess.learningRights.fullAttendanceQualified
-                  ? "전일 학습 조건을 달성했습니다."
-                  : `이번 이용 주기에서 매일 학습해야 하며, 현재 연속 기록에 ${arenaAccess.learningRights.studyDaysNeeded ?? 29}일이 더 필요합니다.` %>
+                  ? "29일 공식 공격 제출 조건을 달성했습니다."
+                  : `이번 이용 주기에서 매일 유효한 GOAT Arena 공격을 제출해야 하며, 현재 연속 기록에 ${arenaAccess.learningRights.studyDaysNeeded ?? 29}일이 더 필요합니다.` %>
               </span>
             </article>
           <% } else if (arenaAccess.activeDivision === "MAIN") { %>

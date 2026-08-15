@@ -210,7 +210,7 @@
           <span>페이백 점수 초깃값 <b><%= learningPackage.initialPaybackScoreDays %>점</b></span>
           <span>배치고사·GOAT Arena <b>허용</b></span>
           <span>페이백 최소 점수 <b><%= learningPackage.payback?.minimumScoreDays ?? 30 %>점</b></span>
-          <span>전일 학습 조건 <b>29일 모두</b></span>
+          <span>공식 공격 제출 조건 <b>29일 모두</b></span>
         </div>
         <form class="admin-form" action="/admin/arena-policies/learning-package/price" method="POST">
           <div class="admin-policy-field-grid">
@@ -324,7 +324,7 @@
             <label><span>학습권 패키지 가격 <small>원</small></span><input type="number" name="priceAmount" min="0" step="1" value="<%= numberValue("priceAmount", subBasePolicy.priceAmount ?? 29000) %>" required /></label>
             <label><span>정기권 학습 가능 일수 초깃값 <small>고정</small></span><input type="number" name="initialLearningDays" value="29" readonly required /></label>
             <label><span>페이백 점수 초깃값</span><input type="number" name="initialPaybackScoreDays" min="0" step="1" value="<%= numberValue("initialPaybackScoreDays", subBasePolicy.initialPaybackScoreDays ?? 29) %>" required /></label>
-            <label><span>첫날 차감 기준 시각</span><input type="time" name="paymentDayCutoffKst" value="<%= oldInput?.paymentDayCutoffKst || subBasePolicy.paymentDayCutoffKst || "20:00" %>" required /></label>
+            <label><span>이용 주기 시작 시각 <small>결제 다음 날 · 고정</small></span><input type="time" name="paymentDayCutoffKst" value="00:00" readonly required /></label>
             <label><span>재구매 유예 시간</span><input type="number" name="renewalGraceHours" min="0" step="1" value="<%= numberValue("renewalGraceHours", subBasePolicy.renewalGraceHours ?? 72) %>" required /></label>
             <label><span>랭크 복귀전 티어 하향 단계</span><input type="number" name="lateRenewalTierPenalty" min="1" step="1" value="<%= numberValue("lateRenewalTierPenalty", subBasePolicy.lateRenewalTierPenalty ?? 1) %>" required /></label>
             <label><span>일반 쟁탈전 적용 일수 <small>고정</small></span><input type="number" name="normalStakeDays" value="1" readonly required /></label>
@@ -348,10 +348,10 @@
           <fieldset class="admin-policy-fieldset">
             <legend>페이백 자격</legend>
             <div class="admin-policy-field-grid">
-              <label><span>최소 연속 학습일 <small>29일 전일 학습</small></span><input type="number" name="minimumStreakDays" value="29" readonly required /></label>
+              <label><span>최소 공식 공격 제출일 <small>29일 연속</small></span><input type="number" name="minimumStreakDays" value="29" readonly required /></label>
               <label><span>최소 페이백 점수</span><input type="number" name="minimumScoreDays" min="0" step="1" value="<%= numberValue("minimumScoreDays", subBasePolicy.payback?.minimumScoreDays ?? 30) %>" required /></label>
             </div>
-            <p>일반 쟁탈전 최소 참여 횟수는 페이백 자격 조건에 포함하지 않습니다.</p>
+            <p>결제 다음 날 00:00부터 한국시간 기준 매일 Unranked 일반 쟁탈전 또는 복수전의 공격자로 5개 답안과 필수 풀이 증거를 정상 제출해야 합니다. 승패는 관계없으며 하루 여러 번 제출해도 하루 1회만 인정됩니다.</p>
           </fieldset>
 
           <fieldset class="admin-policy-fieldset">
@@ -370,7 +370,7 @@
           </fieldset>
 
           <div class="admin-policy-checks">
-            <label class="admin-checkbox"><input type="hidden" name="packagePurchaseRequiresZeroBalance" value="false" /><input type="checkbox" name="packagePurchaseRequiresZeroBalance" value="true" <%= checkedValue("packagePurchaseRequiresZeroBalance", subBasePolicy.packagePurchaseRequiresZeroBalance ?? true) ? "checked" : "" %> /><span>정기권 학습 가능 일수가 0일일 때만 새 패키지 구매 허용</span></label>
+            <label class="admin-checkbox"><input type="hidden" name="packagePurchaseRequiresZeroBalance" value="false" /><input type="checkbox" name="packagePurchaseRequiresZeroBalance" value="true" <%= checkedValue("packagePurchaseRequiresZeroBalance", subBasePolicy.packagePurchaseRequiresZeroBalance ?? true) ? "checked" : "" %> /><span>정기권 학습 가능 일수가 0일이고 마지막 공식 공격 제출 기간이 끝났을 때만 새 패키지 구매 허용</span></label>
             <label class="admin-checkbox"><input type="hidden" name="packagePurchaseRequiresZeroLockedBalance" value="false" /><input type="checkbox" name="packagePurchaseRequiresZeroLockedBalance" value="true" <%= checkedValue("packagePurchaseRequiresZeroLockedBalance", subBasePolicy.packagePurchaseRequiresZeroLockedBalance ?? true) ? "checked" : "" %> /><span>경기 예치 학습일수가 0일일 때만 새 패키지 구매 허용</span></label>
           </div>
           <label><span>변경 사유·운영 메모</span><textarea name="changeSummary" rows="4" maxlength="1000" placeholder="이전 정책에서 바뀐 가격과 페이백 조건을 적어주세요."><%= oldInput?.changeSummary || "" %></textarea></label>
@@ -394,8 +394,8 @@
                 <span>페이백 점수 <b><%= policy.initialPaybackScoreDays %>점</b></span>
                 <span>일반 쟁탈전 <b><%= policy.matchStakeDays?.normal ?? 1 %>점 예치</b></span>
                 <span>복수전 <b><%= policy.matchStakeDays?.revenge ?? 2 %>점 예치</b></span>
-                <span>전일 학습 <b><%= policy.payback?.minimumStreakDays ?? 29 %>일 모두</b></span>
-                <span>일반 쟁탈전 참여 <b>최소 횟수 없음</b></span>
+                <span>공식 공격 제출 <b><%= policy.payback?.minimumStreakDays ?? 29 %>일 모두</b></span>
+                <span>승패 조건 <b>없음</b></span>
               </div>
               <div class="admin-policy-bands">
                 <% (policy.payback?.bands || []).forEach((band) => { %><span><%= band.maxScoreDays === null || band.maxScoreDays === undefined ? `${band.minScoreDays}점 이상` : `${band.minScoreDays}~${band.maxScoreDays}점` %> <b><%= band.ratePercent %>%</b></span><% }) %>
