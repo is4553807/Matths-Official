@@ -4,6 +4,7 @@ const matthsController = require('../controllers/matthsController');
 const storeController = require('../controllers/storeController');
 const checkoutController = require('../controllers/checkoutController');
 const paymentController = require('../controllers/paymentController');
+const appCommerceController = require('../controllers/appCommerceController');
 const authMiddleware = require('../middleware/authMiddleware');
 const {
   adminArchiveUpload,
@@ -116,6 +117,7 @@ async function requirePlacementExamAccess(req, _res, next) {
 router.get('/', matthsController.mainPage);
 router.get('/intro', matthsController.introPage);
 router.get('/pricing', matthsController.pricingPage);
+router.get('/app/commerce/:token', appCommerceController.consumeHandoff);
 router.get('/payments/toss/success', paymentController.tossSuccess);
 router.get('/payments/toss/fail', paymentController.tossFailure);
 router.get('/visual-learning', matthsController.visualLearningPage);
