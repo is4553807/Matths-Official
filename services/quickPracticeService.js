@@ -23,6 +23,9 @@ const {
 const {
   validateCalculatorFreeProblem,
 } = require("./problemGenerators/utils");
+const {
+  getCoachView,
+} = require("./coachMessageService");
 
 const QUICK_PRACTICE_LIMIT_MS = 40 * 1000;
 const MAX_GENERATION_ATTEMPTS = 40;
@@ -1748,6 +1751,7 @@ function getQuickPracticeCatalogSummary() {
 async function createQuickPracticeAttempt({
   userId,
   pointValue,
+  coachMode,
 }) {
   const allowedPoints = [2, 3];
   const normalizedPoints =
@@ -1854,13 +1858,21 @@ async function createQuickPracticeAttempt({
       ),
     });
 
-  return publicAttempt(attempt);
+  return {
+    ...publicAttempt(attempt),
+    coachPrompt: getCoachView({
+      mode: coachMode,
+      situation: "unanswered",
+      seed: attempt.instanceId,
+    }),
+  };
 }
 
 async function submitQuickPracticeAttempt({
   userId,
   instanceId,
   submittedAnswer,
+  coachMode,
 }) {
   const attempt =
     await QuickPracticeAttempt.findOne({
@@ -1916,6 +1928,11 @@ async function submitQuickPracticeAttempt({
       answer: attempt.answer,
       responseTimeMs:
         QUICK_PRACTICE_LIMIT_MS,
+      coachFeedback: getCoachView({
+        mode: coachMode,
+        situation: "unanswered",
+        seed: instanceId,
+      }),
     };
   }
 
@@ -1950,12 +1967,20 @@ async function submitQuickPracticeAttempt({
     solution: attempt.solution,
     answer: attempt.answer,
     responseTimeMs,
+    coachFeedback: getCoachView({
+      mode: coachMode,
+      situation: correct
+        ? "correct"
+        : "incorrect",
+      seed: instanceId,
+    }),
   };
 }
 
 async function expireQuickPracticeAttempt({
   userId,
   instanceId,
+  coachMode,
 }) {
   const now = new Date();
   const activeAttempt =
@@ -2003,6 +2028,11 @@ async function expireQuickPracticeAttempt({
     answer: activeAttempt.answer,
     responseTimeMs:
       QUICK_PRACTICE_LIMIT_MS,
+    coachFeedback: getCoachView({
+      mode: coachMode,
+      situation: "unanswered",
+      seed: instanceId,
+    }),
   };
 }
 

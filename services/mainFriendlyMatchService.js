@@ -499,6 +499,13 @@ async function respondToMainFriendlyInvitation({ invitationId, userId, response,
       await recordFeeBurn({ userId: inviter.user._id, cycle: inviter.accessCycle, state: inviterState, invitationId: invitation._id, now, session });
       await recordFeeBurn({ userId: invitee.user._id, cycle: invitee.accessCycle, state: inviteeState, invitationId: invitation._id, now, session });
       const policy = await getActiveMainDivisionPolicy(now);
+      if (!policy) {
+        throw statusError(
+          503,
+          "현재 적용 중인 Ranked 정책을 찾을 수 없습니다. 잠시 뒤 다시 시도해주세요.",
+          "MAIN_POLICY_NOT_ACTIVE"
+        );
+      }
       const match = await createFriendlyMatchArtifacts({ invitation, inviter, invitee, policy, now, session });
       invitation.status = "ACCEPTED";
       invitation.respondedAt = now;

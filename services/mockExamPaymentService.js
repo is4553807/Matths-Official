@@ -8,6 +8,7 @@ const { User } = require("../models/matthsModel");
 const {
   ensureDefaultMockExamPackagePolicy,
 } = require("./mockExamPackageService");
+const { getPaidPackageAccess } = require("./paidFeatureAccessService");
 
 const PRODUCT_CODE = "MOCK_EXAM_ONLY";
 const PRODUCT_NAME = "Matths 주간 공식 모의고사 이용권";
@@ -143,13 +144,24 @@ async function assertMockExamPurchaseEligible({
   userId,
   now = new Date(),
 }) {
-  const activeSubscription = await MockExamSubscription.findOne({
-    userId,
-    status: "ACTIVE",
-    endsAt: { $gt: now },
-  })
-    .select("endsAt")
-    .lean();
+  const [activeSubscription, learningPackage] = await Promise.all([
+    MockExamSubscription.findOne({
+      userId,
+      status: "ACTIVE",
+      startsAt: { $lte: now },
+      endsAt: { $gt: now },
+    })
+      .select("endsAt")
+      .lean(),
+    getPaidPackageAccess(userId),
+  ]);
+  if (learningPackage.active) {
+    throw statusError(
+      409,
+      "현재 학습권 패키지에 주간 공식 모의고사가 포함되어 있습니다.",
+      "LEARNING_PACKAGE_ALREADY_INCLUDES_MOCK"
+    );
+  }
   if (activeSubscription) {
     throw statusError(
       409,
@@ -175,7 +187,7 @@ async function applyApprovedMockExamPayment(input) {
         result = transactionReplay;
         return;
       }
-      const [user, policy, activeSubscription] = await Promise.all([
+      const [user, policy, activeSubscription, learningPackage] = await Promise.all([
         User.findById(approval.userId)
           .select("accountStatus isActive")
           .session(session)
@@ -187,12 +199,20 @@ async function applyApprovedMockExamPayment(input) {
         })
           .session(session)
           .lean(),
+        getPaidPackageAccess(approval.userId, { session }),
       ]);
       if (!user || user.accountStatus !== "active" || user.isActive === false) {
         throw statusError(403, "활성 상태인 계정만 이용권을 구매할 수 있습니다.", "ACCOUNT_NOT_ACTIVE");
       }
       if (!policy) {
         throw statusError(409, "결제 승인 시각에 적용되는 모의고사 정책이 없습니다.", "ACTIVE_POLICY_NOT_FOUND");
+      }
+      if (learningPackage.active) {
+        throw statusError(
+          409,
+          "현재 학습권 패키지에 주간 공식 모의고사가 포함되어 있습니다.",
+          "LEARNING_PACKAGE_ALREADY_INCLUDES_MOCK"
+        );
       }
       if (
         approval.currency !== String(policy.currency || "KRW").toUpperCase() ||

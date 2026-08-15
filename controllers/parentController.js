@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const { randomUUID } = require("node:crypto");
 const { ParentAccount } = require("../models/parentModel");
 const {
   acceptParentInvite,
@@ -7,6 +8,7 @@ const {
   getParentInvite,
   getProduct,
   getProductCatalog,
+  getPricingProductAccess,
   isPaidCheckoutEnabled,
   registerParent,
 } = require("../services/checkoutService");
@@ -264,12 +266,17 @@ exports.pricingPage = async (req, res, next) => {
   try {
     const context = await getRequestParentContext(req);
     const { parent, child } = context;
+    const [products, productAccess] = await Promise.all([
+      getProductCatalog(),
+      getPricingProductAccess(child._id),
+    ]);
     return res.render("parent-pricing", {
       parent,
       child,
       familyChildren: context.familyChildren,
       selectedChildId: context.selectedChildId,
-      products: await getProductCatalog(),
+      products,
+      productAccess,
       checkoutEnabled: isPaidCheckoutEnabled(),
     });
   } catch (error) {
@@ -353,11 +360,15 @@ async function renderParentInquiries(
     familyChildren: context.familyChildren,
     selectedChildId: context.selectedChildId,
     inquiryData,
+    inquiryRequestId:
+      String(oldInput.requestId || "") ||
+      randomUUID(),
     feedback: req.query.submitted === "1"
       ? `문의를 접수했습니다. 답변은 ${inquiryData.contactEmail} 이메일로 보내드립니다.`
       : "",
     error,
     oldInput: {
+      requestId: String(oldInput.requestId || ""),
       subject: String(oldInput.subject || ""),
       content: String(oldInput.content || ""),
     },
@@ -378,6 +389,7 @@ exports.submitInquiry = async (req, res, next) => {
     await createSupportInquiry({
       userId: context.child._id,
       parentAccountId: context.parent._id,
+      requestId: req.body.requestId,
       inquiryType: "GENERAL",
       subject: req.body.subject,
       content: req.body.content,

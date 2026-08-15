@@ -3,6 +3,8 @@
     typeof error !== "undefined" ? error : null;
   const formSuccess =
     typeof success !== "undefined" ? success : null;
+  const protectedPageNotice =
+    typeof loginNotice !== "undefined" ? loginNotice : null;
 
   const input =
     typeof oldInput !== "undefined" && oldInput
@@ -122,6 +124,13 @@
             </span>
           </div>
 
+          <% if (protectedPageNotice) { %>
+            <div class="form-alert form-alert-login" role="status">
+              <span aria-hidden="true">→</span>
+              <p><%= protectedPageNotice %></p>
+            </div>
+          <% } %>
+
           <% if (formError) { %>
             <div
               class="form-alert"
@@ -230,7 +239,7 @@
           </div>
 
           <p class="auth-notice">
-            로그인하면 이용약관과 개인정보처리방침에
+            로그인하면 <a href="/terms">이용약관</a>과 <a href="/privacy">개인정보처리방침</a>에
             동의한 것으로 간주됩니다.
           </p>
         </div>

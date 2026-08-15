@@ -121,6 +121,37 @@
   border-radius: 20px;
 }
 
+/*
+ * dashboard-navigation에서 뒤늦게 불러오는 공통 테마가 카드 배경만
+ * 흰색으로 덮으면 흰색 통계 글자가 사라져 보인다. 페이지 범위를
+ * 포함한 선택자로 카드와 글자 대비를 한 세트로 고정한다.
+ */
+.wrong-notes-main .review-summary {
+  color: #fff;
+  background: rgba(8, 12, 31, 0.58);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 18px 38px rgba(3, 7, 24, 0.22);
+}
+
+.wrong-notes-main .review-focus {
+  background: rgba(255, 255, 255, 0.075);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.wrong-notes-main .review-focus span,
+.wrong-notes-main .review-breakdown span {
+  color: #c9d1e8;
+}
+
+.wrong-notes-main .review-focus strong,
+.wrong-notes-main .review-breakdown strong {
+  color: #fff;
+}
+
+.wrong-notes-main .review-focus small {
+  color: #98a5c3;
+}
+
 .review-focus {
   display: flex;
   flex-direction: column;
@@ -852,7 +883,7 @@
 }
 
 @media (max-width: 560px) {
-  .dashboard-return {
+  .wrong-notes-main .dashboard-return {
     display: none;
   }
 

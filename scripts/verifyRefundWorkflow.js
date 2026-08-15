@@ -80,6 +80,7 @@ async function main() {
     mockExamPolicy: { monthlyPriceAmount: 5000 },
     learningPackagePolicy: { priceAmount: 29000 },
     products,
+    productAccess: null,
     checkoutEnabled: true,
   });
   assert.match(pricing, /환불 기준/);
@@ -104,6 +105,7 @@ async function main() {
       refundableOrders: [{ id: "payment", productName: "29일 학습권", orderReference: "ORDER-1", remainingAmount: 19000 }],
     },
     feedback: null,
+    inquiryRequestId: "5a8ebeb1-0b55-4d70-a200-8a1d58c85b2e",
     oldInput: { inquiryType: "REFUND", paymentId: "payment", refundReasonType: "SIMPLE_CHANGE", subject: "", content: "" },
   });
   assert.match(contact, /환불 신청/);

@@ -190,6 +190,15 @@
   transform: translateY(-2px);
 }
 
+.pricing-actions .pricing-entitlement-status {
+  min-height: 38px;
+  padding: 8px 14px;
+  color: #244688;
+  border: 1px solid #cddaff;
+  background: #edf3ff;
+  font-size: 0.75rem;
+}
+
 .pricing-primary {
   color: #fff;
   background: linear-gradient(120deg, var(--pricing-violet), var(--pricing-blue), var(--pricing-cyan));
@@ -312,6 +321,56 @@
 .pricing-refund-summary strong, .pricing-refund-summary b { color: #27388b; font-size: 0.78rem; }
 .pricing-refund-summary p { min-height: 0; margin: 0; color: #606a82; font-size: 0.7rem; line-height: 1.65; }
 .pricing-refund-summary code { overflow-wrap: anywhere; color: #394976; font-size: 0.68rem; }
+
+.pricing-footer {
+  margin-top: 72px;
+  color: #8a90a4;
+  background: #0e1120;
+}
+
+.pricing-footer-inner {
+  width: min(1180px, calc(100% - 48px));
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: auto;
+}
+
+.pricing-footer .brand {
+  color: #fff;
+  text-decoration: none;
+}
+
+.pricing-footer-inner > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.7rem;
+}
+
+.pricing-footer a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.pricing-footer a:hover {
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .pricing-footer-inner {
+    width: min(100% - 32px, 1180px);
+    align-items: flex-start;
+    flex-direction: column;
+    padding-block: 24px;
+  }
+
+  .pricing-footer-inner > div {
+    flex-wrap: wrap;
+  }
+}
 .pricing-payback-disclosure { margin-bottom: 24px; }
 
 @media (max-width: 1080px) {

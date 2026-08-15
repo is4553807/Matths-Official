@@ -4,19 +4,9 @@
   );
   if (!root) return;
 
-  // 원격 MathJax 초기화가 느린 환경에서도 현재 문제지의 TeX를 다시
-  // 조판한다. 문자열을 HTML로 실행하지 않고 MathJax가 텍스트 노드만
-  // 읽도록 문제지 루트로 범위를 제한한다.
-  const typesetProblemMath = () => {
-    if (!window.MathJax?.typesetPromise) return;
-    window.MathJax.typesetClear?.([root]);
-    window.MathJax.typesetPromise([root]).catch(() => {});
-  };
-  if (window.MathJax?.startup?.promise) {
-    window.MathJax.startup.promise.then(typesetProblemMath).catch(() => {});
-  } else {
-    window.addEventListener("load", typesetProblemMath, { once: true });
-  }
+  // 원격 MathJax 초기화가 느린 환경에서도 공통 대기열이 준비 완료 후
+  // 현재 문제지의 TeX만 안전하게 다시 조판한다.
+  window.MatthsMath?.render(root);
 
   const matchId = root.dataset.matchId;
   const serverNow = new Date(

@@ -35,8 +35,11 @@ const {
   assertPlacementExamAccess,
 } = require("../services/placementExamService");
 const {
+  loginIpRateLimit,
   loginRateLimit,
+  passwordResetIpRateLimit,
   passwordResetRateLimit,
+  registrationIpRateLimit,
   registrationRateLimit,
 } = require("../middleware/requestSecurity");
 const {
@@ -1117,16 +1120,19 @@ router.get(
 );
 router.post(
   "/forgot-password",
+  passwordResetIpRateLimit,
   passwordResetRateLimit,
   matthsController.requestPasswordReset
 );
 router.post(
   "/forgot-password/verify",
+  passwordResetIpRateLimit,
   passwordResetRateLimit,
   matthsController.verifyPasswordReset
 );
 router.post(
   "/forgot-password/reset",
+  passwordResetIpRateLimit,
   passwordResetRateLimit,
   matthsController.completePasswordReset
 );
@@ -1355,6 +1361,7 @@ router.get('/login', authMiddleware.isLoggedOut, matthsController.loginPage);
 router.post(
   '/login',
   authMiddleware.isLoggedOut,
+  loginIpRateLimit,
   loginRateLimit,
   matthsController.login
 );
@@ -1378,7 +1385,12 @@ router.get(
 
 router.get('/register', matthsController.registerPage);
 
-router.post('/register', registrationRateLimit, matthsController.register);
+router.post(
+  '/register',
+  registrationIpRateLimit,
+  registrationRateLimit,
+  matthsController.register
+);
 
 router.post('/logout', authMiddleware.isLoggedIn, matthsController.logout);
 

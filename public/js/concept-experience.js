@@ -14,32 +14,18 @@
       Array.isArray(elements) ? elements : [elements]
     ).filter(Boolean);
 
-    if (
-      !targets.length ||
-      !window.MathJax?.typesetPromise
-    ) {
-      return Promise.resolve();
-    }
-
-    return window.MathJax
-      .typesetPromise(targets)
-      .catch((error) => {
-        console.error(
-          "수식을 렌더링하지 못했습니다.",
-          error
-        );
-      });
+    return targets.length
+      ? window.MatthsMath?.render(targets) || Promise.resolve()
+      : Promise.resolve();
   }
 
   function setMath(element, tex) {
     if (!element) return;
-
-    if (window.MathJax?.typesetClear) {
-      window.MathJax.typesetClear([element]);
+    if (window.MatthsMath) {
+      window.MatthsMath.setText(element, tex);
+    } else {
+      element.textContent = tex;
     }
-
-    element.textContent = tex;
-    typesetMath(element);
   }
 
   function initNavigation() {
@@ -2855,11 +2841,18 @@
         : `${mastery.required - count}개의 새로운 유형을 더 맞혀야 합니다.`;
     }
 
-    function renderAnswerInput(problem) {
-      if (window.MathJax?.typesetClear) {
-        window.MathJax.typesetClear([answerArea]);
-      }
+    function renderLearningProgress(progress) {
+      if (!progress) return;
 
+      window.dispatchEvent(
+        new CustomEvent("matths:learning-progress", {
+          detail: progress,
+        })
+      );
+    }
+
+    function renderAnswerInput(problem) {
+      window.MatthsMath?.clear(answerArea);
       answerArea.innerHTML = "";
 
       if (problem.inputMode === "multiple-choice") {
@@ -2872,6 +2865,12 @@
           input.name = "answer";
           input.value = choice.key;
           input.required = true;
+          input.setAttribute(
+            "aria-label",
+            String(choice.text || "선택지")
+              .replace(/^\\\(|\\\)$/g, "")
+              .trim()
+          );
 
           const text = document.createElement("span");
           text.textContent = choice.text;
@@ -3015,6 +3014,7 @@
 
         setMath(feedback, feedbackText);
         renderMastery(result.mastery);
+        renderLearningProgress(result.progress);
         renderReview(result.review);
 
         nextButton.hidden = reviewCompleted;
@@ -3054,6 +3054,7 @@
         );
 
         renderMastery(result.mastery);
+        renderLearningProgress(result.progress);
       } catch (error) {
         checkbox.checked = previousValue;
         completionMessage.textContent = error.message;

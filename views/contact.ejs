@@ -177,6 +177,7 @@
               method="POST"
               data-inquiry-form
             >
+              <input type="hidden" name="requestId" value="<%= inquiryRequestId %>" />
               <fieldset class="inquiry-type-fieldset">
                 <legend>문의 유형 <b aria-hidden="true">*</b></legend>
                 <label><input type="radio" name="inquiryType" value="GENERAL" <%= oldInput.inquiryType !== "REFUND" ? "checked" : "" %> /> 일반 문의</label>

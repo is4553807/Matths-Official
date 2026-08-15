@@ -233,6 +233,22 @@
           </section>
         <% } %>
 
+        <% if (data.coach?.message) { %>
+          <section
+            class="dashboard-coach-card"
+            data-mode="<%= data.coach.mode %>"
+            aria-label="오늘의 Matths 코치 메시지"
+          >
+            <span class="dashboard-coach-avatar" aria-hidden="true">M</span>
+            <div>
+              <p>TODAY COACH · <%= data.coach.label %></p>
+              <strong><%= data.coach.message %></strong>
+              <small>학습 상황에 맞춰 정답·오답·미응답 피드백이 달라집니다.</small>
+            </div>
+            <a href="/profile#coach-mode-settings">말투 설정 <span aria-hidden="true">→</span></a>
+          </section>
+        <% } %>
+
         <section class="usage-plan-section" aria-labelledby="usage-plan-title">
           <article class="usage-plan-card usage-plan-card--<%= String(activePlan.code || 'FREE').toLowerCase() %>">
             <div class="usage-plan-copy">

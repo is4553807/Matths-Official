@@ -1177,20 +1177,21 @@
 
   function setMath(elementNode, value) {
     if (!elementNode) return;
-    if (window.MathJax?.typesetClear) {
-      window.MathJax.typesetClear([elementNode]);
+    const content = `\\(${value}\\)`;
+    if (window.MatthsMath) {
+      window.MatthsMath.setText(elementNode, content);
+    } else {
+      elementNode.textContent = content;
     }
-    elementNode.textContent = `\\(${value}\\)`;
-    window.MathJax?.typesetPromise?.([elementNode]).catch(() => {});
   }
 
   function setTypesetText(elementNode, value) {
     if (!elementNode) return;
-    if (window.MathJax?.typesetClear) {
-      window.MathJax.typesetClear([elementNode]);
+    if (window.MatthsMath) {
+      window.MatthsMath.setText(elementNode, value);
+    } else {
+      elementNode.textContent = value;
     }
-    elementNode.textContent = value;
-    window.MathJax?.typesetPromise?.([elementNode]).catch(() => {});
   }
 
   function controlValue(definition, input) {

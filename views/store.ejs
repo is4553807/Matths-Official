@@ -1,5 +1,13 @@
 <%
   const displayName = String(user.name || user.username || "회원");
+  const gradeLabel = ({
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+    13: "N수생",
+    14: "대학생",
+    15: "직장인",
+  })[Number(user.schoolGrade)] || "학년 미설정";
   const activeTab = storeData.tabs.find((tab) => tab.code === storeData.activeTab) || storeData.tabs[0];
   const grouped = storeData.items.reduce((groups, item) => {
     const key = item.contentType === "DAILY_HALF"
@@ -43,7 +51,7 @@
         <div class="sidebar-spacer"></div>
         <div class="sidebar-profile">
           <a class="profile-avatar" href="/profile" aria-label="프로필 설정"><%= displayName.slice(0, 1) %></a>
-          <div class="profile-copy"><strong><%= displayName %>님</strong><small>Matths 회원</small></div>
+          <div class="profile-copy"><strong><%= displayName %>님</strong><small><%= gradeLabel %></small></div>
           <form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form>
         </div>
       </aside>

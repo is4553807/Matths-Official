@@ -38,7 +38,7 @@
           <h1><%= notice.title %></h1>
           <div>
             <strong>Matths 운영팀</strong>
-            <small><%= formatDate(notice.updatedAt || notice.createdAt) %></small>
+            <small><%= formatDate(notice.publishedAt || notice.createdAt) %></small>
           </div>
         </header>
         <div class="community-post-content"><%= notice.content %></div>

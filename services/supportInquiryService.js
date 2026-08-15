@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const {
   SupportInquiry,
+  SupportInquirySubmissionGuard,
   User,
 } = require("../models/matthsModel");
 const {
@@ -24,6 +25,8 @@ const CONTENT_MIN_LENGTH = 10;
 const CONTENT_MAX_LENGTH = 5000;
 const SUBMISSION_COOLDOWN_MS =
   60 * 1000;
+const REQUEST_ID_PATTERN =
+  /^[A-Za-z0-9._:-]{16,100}$/;
 
 function createStatusError(
   status,
@@ -48,6 +51,17 @@ function normalizeContent(value) {
     .trim();
 }
 
+function normalizeRequestId(value) {
+  const requestId = String(value || "").trim();
+  if (!REQUEST_ID_PATTERN.test(requestId)) {
+    throw createStatusError(
+      400,
+      "문의 요청 정보를 확인할 수 없습니다. 페이지를 새로고침한 뒤 다시 시도해주세요."
+    );
+  }
+  return requestId;
+}
+
 function serializeInquiry(inquiry) {
   return {
     id: String(inquiry._id),
@@ -61,6 +75,57 @@ function serializeInquiry(inquiry) {
       inquiry.adminReply
         ?.repliedAt || null,
   };
+}
+
+function inquiryResult(inquiry) {
+  const emailStatus =
+    inquiry.emailNotification?.status ||
+    "pending";
+  return {
+    inquiry: serializeInquiry(inquiry),
+    emailDelivered:
+      emailStatus === "sent",
+    emailStatus,
+  };
+}
+
+async function ensureInquiryAdminTodo(
+  inquiry
+) {
+  if (
+    !inquiry ||
+    !["pending", "in_review"].includes(
+      inquiry.status
+    )
+  ) {
+    return null;
+  }
+
+  return createAdminTodo({
+    category: "inquiry",
+    title: `${
+      inquiry.inquiryType === "REFUND"
+        ? "환불 신청"
+        : "문의 확인"
+    } · ${inquiry.subject}`,
+    description: inquiry.content,
+    href: `/admin/inquiries#inquiry-${inquiry._id}`,
+    targetUserId: inquiry.userId,
+    actorUserId:
+      inquiry.submittedByType === "PARENT"
+        ? null
+        : inquiry.userId,
+    sourceType: "SupportInquiry",
+    sourceId: inquiry._id,
+  });
+}
+
+async function ensureSupportInquiryIndexes() {
+  await Promise.all([
+    SupportInquiry.createIndexes(),
+    SupportInquirySubmissionGuard.createIndexes(),
+  ]);
+  return true;
 }
 
 async function resolveParentInquiryContext({
@@ -206,12 +271,15 @@ async function getContactPageData(
 async function createSupportInquiry({
   userId,
   parentAccountId = null,
+  requestId,
   subject,
   content,
   inquiryType = "GENERAL",
   paymentId = "",
   refundReasonType = "SIMPLE_CHANGE",
 }) {
+  const cleanRequestId =
+    normalizeRequestId(requestId);
   const cleanSubject =
     normalizeSubject(subject);
   const cleanContent =
@@ -275,33 +343,29 @@ async function createSupportInquiry({
     );
   }
 
-  const recentInquiry =
-    await SupportInquiry.exists({
-      userId,
-      ...(parent
-        ? {
-            parentAccountId: parent._id,
-            submittedByType: "PARENT",
-          }
-        : {
-            $or: [
-              { submittedByType: "STUDENT" },
-              { submittedByType: { $exists: false } },
-            ],
-          }),
-      createdAt: {
-        $gte: new Date(
-          Date.now() -
-            SUBMISSION_COOLDOWN_MS
-        ),
-      },
-    });
 
-  if (recentInquiry) {
-    throw createStatusError(
-      429,
-      "문의가 이미 접수되었습니다. 잠시 후 다시 작성해주세요."
+  const actorQuery = parent
+    ? {
+        parentAccountId: parent._id,
+        submittedByType: "PARENT",
+      }
+    : {
+        $or: [
+          { submittedByType: "STUDENT" },
+          { submittedByType: { $exists: false } },
+        ],
+      };
+  const existingInquiry =
+    await SupportInquiry.findOne({
+      userId,
+      requestId: cleanRequestId,
+      ...actorQuery,
+    });
+  if (existingInquiry) {
+    await ensureInquiryAdminTodo(
+      existingInquiry
     );
+    return inquiryResult(existingInquiry);
   }
 
   const contactUser = parent
@@ -321,48 +385,106 @@ async function createSupportInquiry({
   const session = await mongoose.startSession();
   let inquiry;
   try {
-    await session.withTransaction(async () => {
-      [inquiry] = await SupportInquiry.create([{
-        userId: user._id,
-        submittedByType: parent ? "PARENT" : "STUDENT",
-        parentAccountId: parent?._id || null,
-        authorNickname: contactUser.nickname,
-        authorRealName: contactUser.realName,
-        contactEmail: contactUser.email,
-        schoolName: contactUser.schoolName,
-        inquiryType: normalizedType,
-        subject: cleanSubject,
-        content: cleanContent,
-      }], { session });
-      if (normalizedType === "REFUND") {
-        const refundRequest = await createRefundRequest({
+    try {
+      await session.withTransaction(async () => {
+        const now = new Date();
+        const guardId = parent
+          ? `PARENT:${parent._id}:${user._id}`
+          : `STUDENT:${user._id}`;
+        await SupportInquirySubmissionGuard.findOneAndUpdate(
+          {
+            _id: guardId,
+            $or: [
+              { nextAllowedAt: { $lte: now } },
+              { requestId: cleanRequestId },
+            ],
+          },
+          {
+            $set: {
+              requestId: cleanRequestId,
+              nextAllowedAt: new Date(
+                now.getTime() +
+                  SUBMISSION_COOLDOWN_MS
+              ),
+            },
+            $setOnInsert: {
+              userId: user._id,
+              parentAccountId:
+                parent?._id || null,
+            },
+          },
+          {
+            upsert: true,
+            returnDocument: "after",
+            setDefaultsOnInsert: true,
+            session,
+          }
+        );
+
+        [inquiry] = await SupportInquiry.create([{
           userId: user._id,
-          paymentId,
-          reasonType: refundReasonType,
-          reasonDetail: cleanContent,
-          supportInquiryId: inquiry._id,
-          session,
-        });
-        inquiry.paymentId = refundRequest.paymentId;
-        inquiry.refundRequestId = refundRequest._id;
-        inquiry.orderReferenceSnapshot = refundRequest.orderReferenceSnapshot;
-        await inquiry.save({ session });
+          requestId: cleanRequestId,
+          submittedByType: parent ? "PARENT" : "STUDENT",
+          parentAccountId: parent?._id || null,
+          authorNickname: contactUser.nickname,
+          authorRealName: contactUser.realName,
+          contactEmail: contactUser.email,
+          schoolName: contactUser.schoolName,
+          inquiryType: normalizedType,
+          subject: cleanSubject,
+          content: cleanContent,
+        }], { session });
+        if (normalizedType === "REFUND") {
+          const refundRequest = await createRefundRequest({
+            userId: user._id,
+            paymentId,
+            reasonType: refundReasonType,
+            reasonDetail: cleanContent,
+            supportInquiryId: inquiry._id,
+            session,
+          });
+          inquiry.paymentId = refundRequest.paymentId;
+          inquiry.refundRequestId = refundRequest._id;
+          inquiry.orderReferenceSnapshot = refundRequest.orderReferenceSnapshot;
+          await inquiry.save({ session });
+        }
+      });
+    } catch (error) {
+      if (error?.code === 11000) {
+        const duplicateInquiry =
+          await SupportInquiry.findOne({
+            userId,
+            requestId: cleanRequestId,
+            ...actorQuery,
+          });
+        if (duplicateInquiry) {
+          await ensureInquiryAdminTodo(
+            duplicateInquiry
+          );
+          return inquiryResult(
+            duplicateInquiry
+          );
+        }
+
+        if (
+          error.keyPattern?._id ||
+          /SupportInquirySubmissionGuard/.test(
+            String(error.message || "")
+          )
+        ) {
+          throw createStatusError(
+            429,
+            "문의가 이미 접수되었습니다. 잠시 후 다시 작성해주세요."
+          );
+        }
       }
-    });
+      throw error;
+    }
   } finally {
     await session.endSession();
   }
 
-  await createAdminTodo({
-    category: "inquiry",
-    title: `${normalizedType === "REFUND" ? "환불 신청" : "문의 확인"} · ${cleanSubject}`,
-    description: cleanContent,
-    href: `/admin/inquiries#inquiry-${inquiry._id}`,
-    targetUserId: user._id,
-    actorUserId: parent ? null : user._id,
-    sourceType: "SupportInquiry",
-    sourceId: inquiry._id,
-  });
+  await ensureInquiryAdminTodo(inquiry);
 
   let notification = {
     status: "pending",
@@ -443,11 +565,13 @@ module.exports = {
   SUBJECT_MIN_LENGTH,
   SUBMISSION_COOLDOWN_MS,
   createSupportInquiry,
+  ensureSupportInquiryIndexes,
   getContactPageData,
   getParentInquiryPageData,
   normalizeContent,
   normalizeSubject,
   _testing: {
     parentContactSnapshot,
+    normalizeRequestId,
   },
 };

@@ -25,7 +25,7 @@ const {
 } = require("../services/userLifecycleService");
 const {
   getRankingDisplayName,
-  normalizeRankingDisplayMode,
+  RANKING_DISPLAY_MODES,
   validateRealName,
 } = require("../services/userIdentityService");
 const {
@@ -151,15 +151,9 @@ assert.ok(
 assert.ok(
   !validateRealName("가123").valid
 );
-assert.strictEqual(
-  normalizeRankingDisplayMode(
-    "realName"
-  ),
-  "realName"
-);
-assert.strictEqual(
-  normalizeRankingDisplayMode("email"),
-  null
+assert.deepStrictEqual(
+  [...RANKING_DISPLAY_MODES],
+  ["nickname"]
 );
 assert.strictEqual(
   getRankingDisplayName({
@@ -179,7 +173,7 @@ assert.strictEqual(
       rankingDisplayMode: "realName",
     },
   }),
-  "홍길동"
+  "익명수학러"
 );
 assert.strictEqual(
   normalizeSubject(
@@ -269,7 +263,6 @@ const apiRoutes =
 for (const route of [
   "/auth/login",
   "/auth/password-reset/request",
-  "/me/ranking-identity",
   "/learning",
   "/quick-practice/start",
   "/coach-suggestions",
@@ -279,6 +272,12 @@ for (const route of [
     `${route} API가 없습니다.`
   );
 }
+assert.ok(
+  !apiRoutes.includes(
+    "/me/ranking-identity"
+  ),
+  "공개 랭킹은 닉네임 전용이므로 실명 표시 변경 API를 다시 노출하면 안 됩니다."
+);
 
 const webRoutes =
   fs.readFileSync(
@@ -291,10 +290,10 @@ const webRoutes =
   );
 
 assert.ok(
-  webRoutes.includes(
+  !webRoutes.includes(
     "/profile/ranking-identity"
   ),
-  "웹 랭킹 표시 설정 경로가 없습니다."
+  "공개 랭킹은 닉네임 전용이므로 실명 표시 변경 웹 경로를 다시 노출하면 안 됩니다."
 );
 assert.ok(
   webRoutes.includes(
@@ -359,7 +358,10 @@ assert.ok(
       "/war-of-masters/placement/start"
     ) &&
     warOfMastersView.includes(
-      "arenaUser.schoolName"
+      "arenaUser.nickname"
+    ) &&
+    warOfMastersView.includes(
+      "arenaUser.gradeLabel"
     ),
   "GOAT Arena 입단 화면 또는 로그인 사용자 정보 연결이 없습니다."
 );
@@ -408,5 +410,5 @@ for (const file of cssFiles) {
 }
 
 console.log(
-  `실명·랭킹 표시 설정, iPad 토큰 API, 평가원 첫 페이지 눈풀이 ${templates.length}유형·${catalogSummary.variantCount}변형, 학년 승급, 비밀번호·게시판·문의 모델, 법적 화면과 전역 폰트 검증 완료`
+  `실명 입력·닉네임 전용 공개 랭킹, iPad 토큰 API, 평가원 첫 페이지 눈풀이 ${templates.length}유형·${catalogSummary.variantCount}변형, 학년 승급, 비밀번호·게시판·문의 모델, 법적 화면과 전역 폰트 검증 완료`
 );

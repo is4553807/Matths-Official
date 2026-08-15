@@ -445,6 +445,16 @@ select:focus-visible {
   background: #20a078;
 }
 
+.form-alert-login {
+  color: #2947b8;
+  background: #eef2ff;
+  border-color: #cad5ff;
+}
+
+.form-alert-login > span {
+  background: var(--blue);
+}
+
 .form-alert-preview {
   color: #6f551b;
   background: #fff8e6;
@@ -838,6 +848,13 @@ select:focus-visible {
   font-size: 11px;
   line-height: 1.65;
   text-align: center;
+}
+
+.auth-notice a {
+  color: #5b657a;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 @media (max-width: 980px) {

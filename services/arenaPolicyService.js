@@ -65,6 +65,9 @@ const DEFAULT_MAIN_STAKE_BANDS = [
   { tierGap: 2, stakeDays: 2 },
   { tierGap: 3, stakeDays: 3 },
 ];
+const DEFAULT_MAIN_POLICY_CODE = "MAIN-DEFAULT-20260802";
+const DEFAULT_MAIN_POLICY_EFFECTIVE_FROM =
+  new Date("2026-08-02T00:00:00+09:00");
 
 const UNRANKED_DAILY_ATTACK_LIMIT = 3;
 
@@ -1034,6 +1037,60 @@ async function ensureDefaultLearningPackagePolicy(
   }
 }
 
+async function ensureDefaultMainDivisionPolicy(now = new Date()) {
+  const current = await MainDivisionPolicyVersion.findOne({
+    status: "ACTIVE",
+    effectiveFrom: { $lte: now },
+    $or: [
+      { effectiveUntil: null },
+      { effectiveUntil: { $gt: now } },
+    ],
+  })
+    .sort({ effectiveFrom: -1 })
+    .lean();
+  if (current) return current;
+
+  const existing = await MainDivisionPolicyVersion.findOne({
+    code: DEFAULT_MAIN_POLICY_CODE,
+  }).lean();
+  if (existing) return existing;
+
+  const effectiveFrom = new Date(
+    Math.min(
+      new Date(now).getTime(),
+      DEFAULT_MAIN_POLICY_EFFECTIVE_FROM.getTime()
+    )
+  );
+  const nextPolicy = await MainDivisionPolicyVersion.findOne({
+    status: "ACTIVE",
+    effectiveFrom: { $gt: effectiveFrom },
+  })
+    .sort({ effectiveFrom: 1 })
+    .lean();
+  const definition = normalizeMainPolicyDraftInput({
+    displayName: "기본 Ranked 정책",
+    effectiveFrom,
+    changeSummary: "Ranked 기본 티어 차이·예치·초대 정책",
+  });
+
+  try {
+    const created = await MainDivisionPolicyVersion.create({
+      ...definition,
+      code: DEFAULT_MAIN_POLICY_CODE,
+      status: "ACTIVE",
+      effectiveUntil: nextPolicy?.effectiveFrom || null,
+      activatedAt: new Date(now),
+    });
+    invalidateMainDivisionPolicyCache();
+    return created.toObject();
+  } catch (error) {
+    if (error?.code !== 11000) throw error;
+    return MainDivisionPolicyVersion.findOne({
+      code: DEFAULT_MAIN_POLICY_CODE,
+    }).lean();
+  }
+}
+
 async function ensureFullAttendanceLearningPackagePolicy(now = new Date()) {
   const effectiveFrom = new Date(now);
   const current = await SubscriptionPolicyVersion.findOne({
@@ -1687,6 +1744,7 @@ module.exports = {
   dailyMatchLimitForTier,
   defaultLearningPackagePolicyDefinition,
   ensureDefaultLearningPackagePolicy,
+  ensureDefaultMainDivisionPolicy,
   ensureFullAttendanceLearningPackagePolicy,
   getActiveArenaPolicy,
   getActiveMainDivisionPolicy,

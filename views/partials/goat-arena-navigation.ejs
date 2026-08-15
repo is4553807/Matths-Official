@@ -75,7 +75,7 @@
         href="<%= item.href %>"
         aria-label="<%= item.ariaLabel %>"
         <%= activeArenaPage === item.key ? 'aria-current="page"' : '' %>
-      ><%= item.label %><% if (item.alertCount) { %><span class="arena-nav-alert-dot" aria-label="확인할 방어 경기 <%= item.alertCount %>개"></span><% } %></a>
+      ><%= item.label %><% if (item.alertCount) { %><span class="arena-nav-alert-dot" aria-label="확인할 경기 <%= item.alertCount %>개"></span><% } %></a>
     <% }) %>
   </nav>
 

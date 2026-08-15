@@ -405,6 +405,14 @@ async function completeAdminTodo({
   todoId,
   adminUserId,
 }) {
+  if (
+    !mongoose.isValidObjectId(todoId)
+  ) {
+    throw statusError(
+      404,
+      "완료할 관리자 할 일을 찾을 수 없습니다."
+    );
+  }
   const todo = await AdminTodo.findOneAndUpdate(
     { _id: todoId, status: "pending" },
     {
@@ -429,6 +437,14 @@ async function reopenAdminTodo({
   todoId,
   adminUserId,
 }) {
+  if (
+    !mongoose.isValidObjectId(todoId)
+  ) {
+    throw statusError(
+      404,
+      "재검토할 관리자 할 일을 찾을 수 없습니다."
+    );
+  }
   const reopenedAt = new Date();
   const todo = await AdminTodo.findOneAndUpdate(
     { _id: todoId, status: "completed" },

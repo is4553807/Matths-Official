@@ -9,8 +9,11 @@ const {
   "../middleware/apiAuthMiddleware"
 );
 const {
+  loginIpRateLimit,
   loginRateLimit,
+  passwordResetIpRateLimit,
   passwordResetRateLimit,
+  registrationIpRateLimit,
   registrationRateLimit,
 } = require("../middleware/requestSecurity");
 
@@ -42,26 +45,31 @@ router.get(
 );
 router.post(
   "/auth/register",
+  registrationIpRateLimit,
   registrationRateLimit,
   apiController.register
 );
 router.post(
   "/auth/login",
+  loginIpRateLimit,
   loginRateLimit,
   apiController.login
 );
 router.post(
   "/auth/password-reset/request",
+  passwordResetIpRateLimit,
   passwordResetRateLimit,
   apiController.requestPasswordReset
 );
 router.post(
   "/auth/password-reset/verify",
+  passwordResetIpRateLimit,
   passwordResetRateLimit,
   apiController.verifyPasswordReset
 );
 router.post(
   "/auth/password-reset/complete",
+  passwordResetIpRateLimit,
   passwordResetRateLimit,
   apiController.resetPassword
 );

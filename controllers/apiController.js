@@ -667,6 +667,9 @@ exports.startQuickPractice =
           userId: req.apiUser._id,
           pointValue:
             req.body.pointValue,
+          coachMode:
+            req.apiUser.preferences
+              ?.coachMode,
         });
 
       return res
@@ -693,6 +696,9 @@ exports.submitQuickPractice =
                 req.params.instanceId,
               submittedAnswer:
                 req.body.answer,
+              coachMode:
+                req.apiUser.preferences
+                  ?.coachMode,
             }
           ),
       });
@@ -709,6 +715,9 @@ exports.expireQuickPractice =
           userId: req.apiUser._id,
           instanceId:
             req.params.instanceId,
+          coachMode:
+            req.apiUser.preferences
+              ?.coachMode,
         });
 
       return res.json({
@@ -757,6 +766,9 @@ exports.createSuggestion = async (
         situation:
           req.body.situation,
         message: req.body.message,
+        requestId:
+          req.get("idempotency-key") ||
+          req.body.requestId,
       });
 
     return res

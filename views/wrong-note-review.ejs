@@ -50,12 +50,18 @@
           displayMath: [["\\[", "\\]"]],
           processEscapes: true,
         },
+        options: {
+          enableSpeech: false,
+          enableBraille: false,
+          enableExplorer: false,
+        },
       };
     </script>
     <script
-      src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"
+      src="/vendor/mathjax/tex-svg.js"
       defer
     ></script>
+    <script src="/js/math-renderer.js" defer></script>
     <script src="/js/main.js" defer></script>
     <script src="/js/math-keyboard.js" defer></script>
     <script src="/js/wrong-note-review.js" defer></script>

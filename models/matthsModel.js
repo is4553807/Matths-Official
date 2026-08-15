@@ -2926,6 +2926,45 @@ passwordResetCodeSchema.index({
 });
 
 /* --------------------------------------------------
+ * 8-1. AuthRequestLimitBucket
+ * 다중 서버가 공유하는 인증 요청 제한 버킷
+ * -------------------------------------------------- */
+
+const authRequestLimitBucketSchema =
+    new Schema(
+        {
+            _id: {
+                type: String,
+                maxlength: 64,
+            },
+
+            count: {
+                type: Number,
+                min: 0,
+                required: true,
+            },
+
+            resetAt: {
+                type: Date,
+                required: true,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+authRequestLimitBucketSchema.index(
+    {
+        resetAt: 1,
+    },
+    {
+        expireAfterSeconds: 0,
+    }
+);
+
+/* --------------------------------------------------
  * 9. QuickPracticeAttempt
  * 40초 안에 푸는 2·3점 짧은 문제 기록
  * -------------------------------------------------- */
@@ -3089,6 +3128,12 @@ const coachMessageSuggestionSchema =
                 maxlength: 120,
             },
 
+            requestId: {
+                type: String,
+                maxlength: 100,
+                default: null,
+            },
+
             status: {
                 type: String,
                 enum: [
@@ -3134,6 +3179,56 @@ coachMessageSuggestionSchema.index({
     situation: 1,
     createdAt: -1,
 });
+coachMessageSuggestionSchema.index(
+    { userId: 1, requestId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            requestId: { $type: "string" },
+        },
+    }
+);
+
+const coachSuggestionQuotaSchema =
+    new Schema(
+        {
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            dayKey: {
+                type: String,
+                required: true,
+                match: /^\d{4}-\d{2}-\d{2}$/,
+            },
+            count: {
+                type: Number,
+                min: 0,
+                max: 10,
+                required: true,
+                default: 0,
+            },
+            expiresAt: {
+                type: Date,
+                required: true,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+coachSuggestionQuotaSchema.index(
+    { userId: 1, dayKey: 1 },
+    { unique: true }
+);
+coachSuggestionQuotaSchema.index(
+    { expiresAt: 1 },
+    { expireAfterSeconds: 0 }
+);
 
 /* --------------------------------------------------
  * 11. SupportInquiry
@@ -3148,6 +3243,13 @@ const supportInquirySchema =
                 ref: "User",
                 required: true,
                 index: true,
+            },
+
+            requestId: {
+                type: String,
+                trim: true,
+                maxlength: 100,
+                default: null,
             },
 
             submittedByType: {
@@ -3311,6 +3413,61 @@ supportInquirySchema.index({
     userId: 1,
     createdAt: -1,
 });
+
+supportInquirySchema.index(
+    {
+        userId: 1,
+        submittedByType: 1,
+        parentAccountId: 1,
+        requestId: 1,
+    },
+    {
+        unique: true,
+        partialFilterExpression: {
+            requestId: { $type: "string" },
+        },
+    }
+);
+
+const supportInquirySubmissionGuardSchema =
+    new Schema(
+        {
+            _id: {
+                type: String,
+                required: true,
+                maxlength: 180,
+            },
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            parentAccountId: {
+                type: Schema.Types.ObjectId,
+                ref: "ParentAccount",
+                default: null,
+            },
+            requestId: {
+                type: String,
+                required: true,
+                maxlength: 100,
+            },
+            nextAllowedAt: {
+                type: Date,
+                required: true,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+supportInquirySubmissionGuardSchema.index(
+    { nextAllowedAt: 1 },
+    { expireAfterSeconds: 0 }
+);
 
 /* --------------------------------------------------
  * 12. ArchiveItem
@@ -6275,6 +6432,13 @@ const PasswordResetCode =
         passwordResetCodeSchema
     );
 
+const AuthRequestLimitBucket =
+    mongoose.models.AuthRequestLimitBucket ||
+    mongoose.model(
+        "AuthRequestLimitBucket",
+        authRequestLimitBucketSchema
+    );
+
 const QuickPracticeAttempt =
     mongoose.models.QuickPracticeAttempt ||
     mongoose.model(
@@ -6289,11 +6453,25 @@ const CoachMessageSuggestion =
         coachMessageSuggestionSchema
     );
 
+const CoachSuggestionQuota =
+    mongoose.models.CoachSuggestionQuota ||
+    mongoose.model(
+        "CoachSuggestionQuota",
+        coachSuggestionQuotaSchema
+    );
+
 const SupportInquiry =
     mongoose.models.SupportInquiry ||
     mongoose.model(
         "SupportInquiry",
         supportInquirySchema
+    );
+
+const SupportInquirySubmissionGuard =
+    mongoose.models.SupportInquirySubmissionGuard ||
+    mongoose.model(
+        "SupportInquirySubmissionGuard",
+        supportInquirySubmissionGuardSchema
     );
 
 const ArchiveItem =
@@ -6469,9 +6647,12 @@ module.exports = {
     ConceptLesson,
     DailyPlan,
     PasswordResetCode,
+    AuthRequestLimitBucket,
     QuickPracticeAttempt,
     CoachMessageSuggestion,
+    CoachSuggestionQuota,
     SupportInquiry,
+    SupportInquirySubmissionGuard,
     ArchiveItem,
     Announcement,
     UserNotification,

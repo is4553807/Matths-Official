@@ -251,12 +251,30 @@
     selectMode(savedMode, false);
   }
 
+  function initProblemDemo() {
+    const screen = document.querySelector(".problem-screen");
+    const button = screen?.querySelector("[data-problem-check]");
+    const feedback = document.getElementById("problem-demo-feedback");
+    const correctAnswer = screen?.querySelector("[data-correct-answer]");
+
+    if (!screen || !button || !feedback || !correctAnswer) return;
+
+    button.addEventListener("click", () => {
+      screen.classList.add("is-checked");
+      correctAnswer.classList.add("is-correct");
+      feedback.hidden = false;
+      button.textContent = "정답입니다 ✓";
+      button.disabled = true;
+    });
+  }
+
   function init() {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     initFlowNavigation(reduceMotion);
     initJourneyAnimations();
     initReviewDemo(reduceMotion);
     initModeSelector();
+    initProblemDemo();
   }
 
   if (document.readyState === "loading") {

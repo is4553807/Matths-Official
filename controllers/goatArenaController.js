@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const {
   User,
 } = require("../models/matthsModel");
@@ -1639,13 +1640,13 @@ exports.arenaMailboxPage = async (req, res, next) => {
 
 exports.arenaMailboxDetailPage = async (req, res, next) => {
   try {
-    const [context, notification] = await Promise.all([
-      getArenaContext(req.session.user.id),
-      getNotificationDetail({
-        userId: req.session.user.id,
-        notificationId: req.params.notificationId,
-      }),
-    ]);
+    // 상세 조회가 읽음 시각을 기록하므로 헤더의 미확인 개수는 그 뒤에
+    // 계산해야 같은 응답 안에서도 즉시 감소한 값이 보인다.
+    const notification = await getNotificationDetail({
+      userId: req.session.user.id,
+      notificationId: req.params.notificationId,
+    });
+    const context = await getArenaContext(req.session.user.id);
     res.set("Cache-Control", "no-store");
     return res.render("goat-arena-mailbox-detail", {
       ...context,
@@ -2157,6 +2158,17 @@ exports.acknowledgeRankUpPresentation = async (
 
 exports.claimSubRevenge = async (req, res, next) => {
   try {
+    if (
+      !mongoose.isValidObjectId(
+        req.params.rightId
+      )
+    ) {
+      const error = new Error(
+        "사용할 수 있는 복수권을 찾을 수 없습니다."
+      );
+      error.status = 404;
+      throw error;
+    }
     const right = await ArenaRevengeRight.findById(
       req.params.rightId
     )
@@ -2178,6 +2190,17 @@ exports.claimSubRevenge = async (req, res, next) => {
 
 exports.forfeitSubRevenge = async (req, res, next) => {
   try {
+    if (
+      !mongoose.isValidObjectId(
+        req.params.rightId
+      )
+    ) {
+      const error = new Error(
+        "포기할 수 있는 복수권을 찾을 수 없습니다."
+      );
+      error.status = 404;
+      throw error;
+    }
     const right = await ArenaRevengeRight.findById(
       req.params.rightId
     )

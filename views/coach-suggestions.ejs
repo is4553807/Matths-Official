@@ -104,6 +104,7 @@
 
         <section class="suggestion-grid">
           <form class="suggestion-form" action="/coach-suggestions" method="POST">
+            <input type="hidden" name="requestId" value="<%= suggestionRequestId %>" />
             <div class="suggestion-heading">
               <p>새 문구 제안</p>
               <h3>어떤 상황에서 보여줄까요?</h3>

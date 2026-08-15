@@ -5,6 +5,8 @@
   const learningPrice = learningPackagePolicy?.priceAmount ?? 29000;
   const mockProduct = products?.find((product) => product.code === "MOCK_EXAM_ONLY");
   const learningProduct = products?.find((product) => product.code === "LEARNING_PACKAGE_29");
+  const mockAccess = productAccess?.MOCK_EXAM_ONLY || { purchaseAllowed: true };
+  const learningAccess = productAccess?.LEARNING_PACKAGE_29 || { purchaseAllowed: true };
 %>
 <!doctype html>
 <html lang="ko">
@@ -73,7 +75,10 @@
           </ul>
           <div class="pricing-actions">
             <% if (user) { %>
-              <% if (checkoutEnabled) { %>
+              <% if (!mockAccess.purchaseAllowed) { %>
+                <span class="pricing-entitlement-status"><%= mockAccess.includedByLearningPackage ? "학습권 패키지에 포함 · 이용 중" : "모의고사 이용권 사용 중" %></span>
+                <a class="pricing-primary" href="<%= mockAccess.continueHref %>"><%= mockAccess.continueLabel %></a>
+              <% } else if (checkoutEnabled) { %>
                 <a class="pricing-primary" href="/pricing/mock-exam-only/self">본인 결제</a>
                 <a class="pricing-secondary" href="/pricing/mock-exam-only/parent-request">부모님께 결제 요청하기</a>
               <% } else { %>
@@ -113,7 +118,10 @@
           </ul>
           <div class="pricing-actions">
             <% if (user) { %>
-              <% if (checkoutEnabled) { %>
+              <% if (!learningAccess.purchaseAllowed) { %>
+                <span class="pricing-entitlement-status"><%= learningAccess.active ? "학습권 패키지 이용 중" : "정리할 기존 학습권이 있습니다" %></span>
+                <a class="pricing-primary" href="<%= learningAccess.continueHref %>"><%= learningAccess.continueLabel %></a>
+              <% } else if (checkoutEnabled) { %>
                 <a class="pricing-primary" href="/pricing/learning-package/self">본인 결제</a>
                 <a class="pricing-secondary" href="/pricing/learning-package/parent-request">부모님께 결제 요청하기</a>
               <% } else { %>
@@ -151,5 +159,18 @@
         </div>
       </section>
     </main>
+    <footer class="pricing-footer">
+      <div class="pricing-footer-inner">
+        <a class="brand" href="/" aria-label="Matths 메인">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <span>Matths</span>
+        </a>
+        <div>
+          <a href="/terms">이용약관</a>
+          <a href="/privacy">개인정보처리방침</a>
+          <%- include("partials/social-footer-links") %>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>

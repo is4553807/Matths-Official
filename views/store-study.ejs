@@ -1,5 +1,20 @@
 <%
   const displayName = String(user.name || user.username || "회원");
+  const gradeLabel = ({
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+    13: "N수생",
+    14: "대학생",
+    15: "직장인",
+  })[Number(user.schoolGrade)] || "학년 미설정";
+  const directionParticle = (value) => {
+    const text = String(value || "").trim();
+    const code = text.charCodeAt(text.length - 1) - 0xac00;
+    if (code < 0 || code > 11171) return "로";
+    const finalConsonant = code % 28;
+    return finalConsonant === 0 || finalConsonant === 8 ? "로" : "으로";
+  };
   const answerMap = new Map(content.progress.answers.map((row) => [Number(row.number), String(row.answer || "")]));
   const questionMap = new Map(content.questions.map((row) => [Number(row.number), row]));
   const totalItems = Math.max(content.itemCount || 0, content.questions.length);
@@ -16,6 +31,22 @@
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/store.css" />
     <link rel="stylesheet" href="/css/brand.css" />
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
+        },
+        svg: { fontCache: "global" },
+        options: {
+          enableSpeech: false,
+          enableBraille: false,
+          enableExplorer: false,
+        },
+      };
+    </script>
+    <script src="/vendor/mathjax/tex-svg.js" defer></script>
+    <script src="/js/math-renderer.js" defer></script>
     <script src="/js/main.js" defer></script>
     <script src="/js/study-hall.js" defer></script>
   </head>
@@ -26,11 +57,11 @@
         <div class="sidebar-top"><a class="brand" href="/main"><span class="brand-mark">M</span><span>Matths</span></a><button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button></div>
         <%- include("partials/dashboard-navigation", { activePage: "store" }) %>
         <div class="sidebar-spacer"></div>
-        <div class="sidebar-profile"><a class="profile-avatar" href="/profile"><%= displayName.slice(0, 1) %></a><div class="profile-copy"><strong><%= displayName %>님</strong><small>Matths 회원</small></div></div>
+        <div class="sidebar-profile"><a class="profile-avatar" href="/profile"><%= displayName.slice(0, 1) %></a><div class="profile-copy"><strong><%= displayName %>님</strong><small><%= gradeLabel %></small></div></div>
       </aside>
       <main class="dashboard-main study-hall-main" id="study-hall-main">
         <header class="study-hall-mobile-header"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기"><span></span><span></span><span></span></button><strong><%= content.tabLabel %></strong><a href="/store?tab=<%= content.contentType %>">목록</a></header>
-        <a class="study-hall-back" href="/store?tab=<%= content.contentType %>">← <%= content.tabLabel %>으로 돌아가기</a>
+        <a class="study-hall-back" href="/store?tab=<%= content.contentType %>">← <%= content.tabLabel %><%= directionParticle(content.tabLabel) %> 돌아가기</a>
 
         <section class="study-content-heading">
           <div>

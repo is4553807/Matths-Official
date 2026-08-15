@@ -1,5 +1,13 @@
 <%
   const displayName = String(user.name || "회원");
+  const gradeLabel = ({
+    10: "고등학교 1학년",
+    11: "고등학교 2학년",
+    12: "고등학교 3학년",
+    13: "N수생",
+    14: "대학생",
+    15: "직장인",
+  })[Number(user.schoolGrade)] || "학년 미설정";
   const formatPrice = (value) => Number(value) === 0
     ? "무료"
     : `${new Intl.NumberFormat("ko-KR").format(Number(value) || 0)}원`;
@@ -24,7 +32,7 @@
         <div class="sidebar-top"><a class="brand" href="/main"><span class="brand-mark" aria-hidden="true">M</span><span>Matths</span></a><button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button></div>
         <%- include("partials/dashboard-navigation", { activePage: "store" }) %>
         <div class="sidebar-spacer"></div>
-        <div class="sidebar-profile"><a class="profile-avatar" href="/profile"><%= displayName.slice(0, 1) %></a><div class="profile-copy"><strong><%= displayName %>님</strong><small>Matths 회원</small></div><form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form></div>
+        <div class="sidebar-profile"><a class="profile-avatar" href="/profile"><%= displayName.slice(0, 1) %></a><div class="profile-copy"><strong><%= displayName %>님</strong><small><%= gradeLabel %></small></div><form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form></div>
       </aside>
 
       <main class="dashboard-main store-main" id="store-main">

@@ -100,9 +100,10 @@
           <div>
             <small>일반 쟁탈전 신청 불가</small>
             <h2>현재는 새 경기를 만들 수 없습니다.</h2>
-            <p><%= challengeData.unavailableMessage %></p>
             <% if (challengeData.reasons.includes("INTEGRITY_PENALTY_ACTIVE")) { %>
               <p class="arena-challenge-penalty-notice">부정행위가 확인되어 GOAT Arena 매치메이킹이 제한되었습니다.<br />제한 해제: <strong><%= formatMatchmakingRestriction(challengeData.matchmakingRestrictedUntil) %> (KST)</strong></p>
+            <% } else { %>
+              <p><%= challengeData.unavailableMessage %></p>
             <% } %>
             <p>오늘 공격 <%= challengeData.dailyUsage.attackCount %>/<%= challengeData.dailyUsage.attackLimit %>회 · 오늘 방어 <%= challengeData.dailyUsage.defenseCount %>/<%= challengeData.dailyUsage.defenseLimit %>회</p>
           </div>

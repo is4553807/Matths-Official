@@ -11,28 +11,30 @@ const {
   superAdminPackageAccess,
 } = require("./superAdminAccessService");
 
-async function getPaidPackageAccess(userId) {
+async function getPaidPackageAccess(userId, { session = null } = {}) {
   if (!mongoose.isValidObjectId(userId)) {
     return { active: false, reason: "INVALID_USER" };
   }
   if (await isSuperAdminUserId(userId)) {
     return superAdminPackageAccess();
   }
-  const state = await ArenaAccessState.findOne({ userId })
-    .select("state accessCycleId currentCompetitiveDivision")
-    .lean();
+  const stateQuery = ArenaAccessState.findOne({ userId }).select(
+    "state accessCycleId currentCompetitiveDivision"
+  );
+  if (session) stateQuery.session(session);
+  const state = await stateQuery.lean();
   if (!state?.accessCycleId) {
     return { active: false, reason: "PAYMENT_REQUIRED", state: state?.state || null };
   }
   const balanceFilter = { availableLearningDays: { $gt: 0 } };
-  const cycle = await AccessCycle.findOne({
+  const cycleQuery = AccessCycle.findOne({
     _id: state.accessCycleId,
     userId,
     status: "ACTIVE",
     ...balanceFilter,
-  })
-    .select("_id division availableLearningDays reservedLearningDays lockedLearningDays status")
-    .lean();
+  }).select("_id division availableLearningDays reservedLearningDays lockedLearningDays status");
+  if (session) cycleQuery.session(session);
+  const cycle = await cycleQuery.lean();
   return {
     active: Boolean(cycle),
     reason: cycle ? null : "PAYMENT_REQUIRED",

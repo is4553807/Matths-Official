@@ -43,6 +43,8 @@ document.addEventListener(
       );
     const prompt =
       document.getElementById(
+        "quick-prompt-content"
+      ) || document.getElementById(
         "quick-prompt"
       );
     const timer =
@@ -67,20 +69,13 @@ document.addEventListener(
     progress.style.strokeDasharray =
       String(circumference);
 
-    function renderMath(element) {
-      if (
-        !element ||
-        !window.MathJax
-          ?.typesetPromise
-      ) {
-        return;
+    function setMath(element, value) {
+      if (!element) return;
+      if (window.MatthsMath) {
+        window.MatthsMath.setText(element, value);
+      } else {
+        element.textContent = value || "";
       }
-
-      window.MathJax
-        .typesetClear?.([element]);
-      window.MathJax
-        .typesetPromise([element])
-        .catch(() => {});
     }
 
     function pointValue() {
@@ -199,6 +194,18 @@ document.addEventListener(
         document.getElementById(
           "quick-solution"
         );
+      const coachFeedback =
+        document.getElementById(
+          "quick-coach-feedback"
+        );
+      const coachLabel =
+        document.getElementById(
+          "quick-coach-label"
+        );
+      const coachMessage =
+        document.getElementById(
+          "quick-coach-message"
+        );
 
       if (payload.expired) {
         result.dataset.state =
@@ -227,9 +234,29 @@ document.addEventListener(
         copy.textContent = `정답은 ${payload.answer}입니다.`;
       }
 
-      solution.textContent =
-        payload.solution || "";
-      renderMath(solution);
+      setMath(
+        solution,
+        payload.solution || ""
+      );
+      const feedback =
+        payload.coachFeedback;
+      const feedbackMessage =
+        String(feedback?.message || "").trim();
+
+      if (coachFeedback) {
+        coachFeedback.hidden = !feedbackMessage;
+        coachFeedback.dataset.mode =
+          feedback?.mode || "spicy";
+      }
+      if (coachLabel) {
+        coachLabel.textContent =
+          feedback?.label
+            ? `Matths 코치 · ${feedback.label}`
+            : "Matths 코치";
+      }
+      if (coachMessage) {
+        coachMessage.textContent = feedbackMessage;
+      }
       updateStats(stats);
     }
 
@@ -358,14 +385,15 @@ document.addEventListener(
           currentAttempt.variantLabel
             ? `${currentAttempt.topicLabel} · ${currentAttempt.variantLabel}`
             : currentAttempt.topicLabel;
-        prompt.textContent =
-          currentAttempt.prompt;
+        setMath(
+          prompt,
+          currentAttempt.prompt
+        );
         answer.value = "";
         answer.disabled = false;
         form.querySelector(
           "button"
         ).disabled = false;
-        renderMath(prompt);
         answer.focus();
         tick();
         timerId =

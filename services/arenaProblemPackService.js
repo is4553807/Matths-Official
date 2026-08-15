@@ -910,11 +910,19 @@ function buildGeneratedArenaProblemPackDraft({
     );
   }
   const pairKey = String(generation?.pairKey || "").toUpperCase();
+  const normalizedMatchType = String(matchType || "NORMAL").toUpperCase();
   const [challengerTier, defenderTier] = pairKey.split("_");
   const normalizedDivision = String(division || "SUB").toUpperCase();
-  const pair = normalizedDivision === "MAIN"
-    ? getMainTierPair(challengerTier, defenderTier)
-    : getSubTierPair(challengerTier, defenderTier);
+  const pair = normalizedMatchType === "FRIENDLY"
+    ? pairKey.startsWith("FRIENDLY_") && String(generation?.pairLabel || "").trim()
+      ? {
+          key: pairKey,
+          label: String(generation.pairLabel).trim(),
+        }
+      : null
+    : normalizedDivision === "MAIN"
+      ? getMainTierPair(challengerTier, defenderTier)
+      : getSubTierPair(challengerTier, defenderTier);
   if (!pair || !matchKey) {
     throw statusError(
       400,
@@ -949,7 +957,7 @@ function buildGeneratedArenaProblemPackDraft({
     displayName: `${pair.label} 자동 생성 경기 문제`,
     status: "DRAFT",
     division: normalizedDivision,
-    matchType: String(matchType || "NORMAL").toUpperCase(),
+    matchType: normalizedMatchType,
     tierPairKey: pair.key,
     tierPairLabel: pair.label,
     generationMode: "AUTO_ON_CHALLENGE",

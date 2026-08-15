@@ -29,6 +29,26 @@ function unique(values) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
 }
 
+function finalConsonantIndex(value) {
+  const lastCharacter = Array.from(String(value || "").trim()).at(-1) || "";
+  const codePoint = lastCharacter.codePointAt(0);
+  if (codePoint < 0xac00 || codePoint > 0xd7a3) return 0;
+  return (codePoint - 0xac00) % 28;
+}
+
+function objectParticle(value) {
+  return finalConsonantIndex(value) ? "을" : "를";
+}
+
+function withObjectParticle(value) {
+  return `${value}${objectParticle(value)}`;
+}
+
+function withDirectionalParticle(value) {
+  const consonant = finalConsonantIndex(value);
+  return `${value}${consonant && consonant !== 8 ? "으로" : "로"}`;
+}
+
 function multipleChoice({ prompt, correct, distractors, solution, hintText, visualization }) {
   const candidates = unique([correct, ...distractors]).slice(0, 4);
   while (candidates.length < 4) candidates.push(`조건 ${candidates.length + 1}만 확인한다.`);
@@ -56,9 +76,6 @@ function makeProblem({ concept, unitConcepts, variant, detail }) {
   const visuals = concept.visualizationIdeas?.length
     ? concept.visualizationIdeas
     : [`${title}의 조건을 식과 그림으로 함께 나타내기`];
-  const scopes = concept.scopeNotes?.length
-    ? concept.scopeNotes
-    : [`${title}의 정의와 대표적인 적용을 중심으로 다룬다.`];
   const otherDetails = unitConcepts
     .filter((item) => item.id !== concept.id)
     .map((item) => CONCEPT_DETAILS[item.id])
@@ -84,7 +101,7 @@ function makeProblem({ concept, unitConcepts, variant, detail }) {
       });
     case 1:
       return multipleChoice({
-        prompt: `${title}을 설명하는 대표 관계식으로 가장 알맞은 것을 고르세요.`,
+        prompt: `${withObjectParticle(title)} 설명하는 대표 관계식으로 가장 알맞은 것을 고르세요.`,
         correct: formula,
         distractors: otherFormulas.concat(["x=0", "a+b=ab"]),
         solution: `대표 관계는 ${formula}입니다. 각 기호의 조건까지 함께 기억해야 합니다.`,
@@ -92,7 +109,7 @@ function makeProblem({ concept, unitConcepts, variant, detail }) {
       });
     case 2:
       return multipleChoice({
-        prompt: `${title} 문제에서 ‘${topic}’을 다룰 때 가장 먼저 할 일은 무엇인가요?`,
+        prompt: `${title} 문제에서 ‘${topic}’${objectParticle(topic)} 다룰 때 가장 먼저 할 일은 무엇인가요?`,
         correct: "주어진 대상의 범위와 성립 조건을 표시한다.",
         distractors: sharedDistractors,
         solution: "조건과 범위를 먼저 표시해야 이후의 식 변형과 계산이 허용되는지 판단할 수 있습니다.",
@@ -100,7 +117,7 @@ function makeProblem({ concept, unitConcepts, variant, detail }) {
       });
     case 3:
       return multipleChoice({
-        prompt: `${title}의 ‘${topic}’을 시각적으로 확인하는 방법으로 가장 적절한 것은 무엇인가요?`,
+        prompt: `${title}의 ‘${topic}’${objectParticle(topic)} 시각적으로 확인하는 방법으로 가장 적절한 것은 무엇인가요?`,
         correct: visuals[variant % visuals.length],
         distractors: ["조건과 무관한 장식용 그래프를 그린다.", "모든 값을 한 점에 겹쳐 표시한다.", "계산 결과만 적고 관계는 나타내지 않는다."],
         solution: `${visuals[variant % visuals.length]} 방식은 조건과 결과가 함께 변하는 모습을 보여줍니다.`,
@@ -141,7 +158,7 @@ function makeProblem({ concept, unitConcepts, variant, detail }) {
       });
     case 8:
       return multipleChoice({
-        prompt: `실제 상황을 ${title}으로 모델링할 때 가장 알맞은 첫 단계는 무엇인가요?`,
+        prompt: `실제 상황을 ${withDirectionalParticle(title)} 모델링할 때 가장 알맞은 첫 단계는 무엇인가요?`,
         correct: "상황의 대상과 조건을 변수·집합·좌표·경우 중 알맞은 수학적 대상으로 번역한다.",
         distractors: sharedDistractors,
         solution: "모델링은 문장 속 대상과 제한을 수학적 기호와 조건으로 정확히 번역하는 것에서 시작합니다.",
@@ -149,8 +166,8 @@ function makeProblem({ concept, unitConcepts, variant, detail }) {
       });
     default:
       return multipleChoice({
-        prompt: `${title}의 ‘${topic}’을 포함한 종합 문제를 해결할 때 반드시 지켜야 할 원칙을 고르세요.`,
-        correct: `${takeaway} 그리고 계산 결과가 ${scopes[0]}의 범위를 벗어나지 않는지 검산한다.`,
+        prompt: `${title}의 ‘${topic}’${objectParticle(topic)} 포함한 종합 문제를 해결할 때 반드시 지켜야 할 원칙을 고르세요.`,
+        correct: `${takeaway} 그리고 계산 결과가 원래 조건과 학습 범위를 모두 만족하는지 검산한다.`,
         distractors: sharedDistractors.concat(otherTakeaways),
         solution: `${title}의 핵심은 ${takeaway} 마지막에는 원래 조건과 학습 범위를 모두 만족하는지 확인합니다.`,
         hintText: "핵심 관계와 최종 검산 조건을 동시에 포함한 선택지를 찾으세요.",

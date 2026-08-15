@@ -212,6 +212,7 @@ app.get("/pricing", (req, res) => {
     mockExamPolicy: { monthlyPriceAmount: 5000 },
     learningPackagePolicy: { priceAmount: 29000 },
     products: previewProducts,
+    productAccess: null,
     checkoutEnabled: true,
   });
 });
@@ -424,6 +425,7 @@ app.get("/preview/refunds/contact", (_req, res) => {
       refundableOrders: [{ id: "64b000000000000000000091", productName: previewProducts[1].name, orderReference: "ORDER-PREVIEW-20260813", remainingAmount: 19000 }],
     },
     feedback: null,
+    inquiryRequestId: "5a8ebeb1-0b55-4d70-a200-8a1d58c85b2e",
     oldInput: { inquiryType: "REFUND", paymentId: "64b000000000000000000091", refundReasonType: "SIMPLE_CHANGE", subject: "환불을 신청합니다", content: "상품 환불 기준과 산정 금액을 확인해주세요." },
   });
 });

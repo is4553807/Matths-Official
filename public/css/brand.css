@@ -77,3 +77,18 @@ h6 {
   opacity: 1;
   transform: translateY(-1px);
 }
+
+@media (max-width: 640px) {
+  .footer-inner > div {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .footer-inner > div > a:first-child {
+    display: inline-flex;
+  }
+
+  .footer-inner > div > .footer-social-links > a:first-child {
+    display: inline-grid;
+  }
+}

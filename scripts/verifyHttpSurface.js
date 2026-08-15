@@ -1,4 +1,7 @@
 const assert = require("node:assert/strict");
+const {
+  requestInProcess,
+} = require("../audit/inProcessHttpRequest");
 
 process.env.NODE_ENV = "development";
 process.env.HOST = "127.0.0.1";
@@ -24,7 +27,16 @@ async function close(listener) {
 }
 
 async function main() {
-  const listener = await listenOnEphemeralPort();
+  let listener;
+  try {
+    listener =
+      await listenOnEphemeralPort();
+  } catch (error) {
+    if (error?.code !== "EPERM") {
+      throw error;
+    }
+    return verifyInProcess();
+  }
   const address = listener.address();
   const origin = `http://127.0.0.1:${address.port}`;
   try {
@@ -69,6 +81,112 @@ async function main() {
   } finally {
     await close(listener);
   }
+}
+
+async function verifyInProcess() {
+  const live =
+    await requestInProcess(
+      server,
+      {
+        path: "/api/v1/live",
+      }
+    );
+  assert.equal(live.status, 200);
+  assert.match(
+    live.body,
+    /"status":"ok"/
+  );
+  assert.equal(
+    live.headers[
+      "x-content-type-options"
+    ],
+    "nosniff"
+  );
+  assert.equal(
+    live.headers["x-frame-options"],
+    "DENY"
+  );
+  assert.match(
+    live.headers[
+      "content-security-policy"
+    ] || "",
+    /frame-ancestors 'none'/
+  );
+
+  const ready =
+    await requestInProcess(
+      server,
+      {
+        path: "/api/v1/ready",
+      }
+    );
+  assert.equal(ready.status, 503);
+  assert.match(
+    ready.body,
+    /"status":"not_ready"/
+  );
+
+  for (const path of [
+    "/login",
+    "/faq",
+    "/terms",
+  ]) {
+    const response =
+      await requestInProcess(
+        server,
+        { path }
+      );
+    assert.equal(
+      response.status,
+      200,
+      `${path} 응답 상태가 200이 아닙니다.`
+    );
+    assert.match(
+      response.headers[
+        "content-type"
+      ] || "",
+      /text\/html/
+    );
+    assert.match(
+      response.body,
+      /Matths/,
+      `${path} 화면이 렌더링되지 않았습니다.`
+    );
+  }
+
+  const rejected =
+    await requestInProcess(
+      server,
+      {
+        method: "POST",
+        path: "/login",
+        headers: {
+          "content-type":
+            "application/x-www-form-urlencoded",
+          origin:
+            "https://attacker.example",
+          "sec-fetch-site":
+            "cross-site",
+        },
+        body:
+          "identifier=test&password=test",
+      }
+    );
+  assert.equal(rejected.status, 403);
+
+  const missing =
+    await requestInProcess(
+      server,
+      {
+        path:
+          "/this-page-does-not-exist",
+      }
+    );
+  assert.equal(missing.status, 404);
+
+  console.log(
+    "HTTP surface verified in-process because this environment denied local port binding; the same Express middleware, routes, headers, and rendered views were exercised."
+  );
 }
 
 main().catch((error) => {

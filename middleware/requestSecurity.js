@@ -1,4 +1,7 @@
 const { createHash } = require("node:crypto");
+const {
+  consumeAuthRequestLimit,
+} = require("../services/authRequestLimitService");
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const DEFAULT_MAX_BUCKETS = 20_000;
@@ -117,6 +120,7 @@ function createRateLimit({
   windowMs,
   key = authRequestKey,
   maxBuckets = DEFAULT_MAX_BUCKETS,
+  consumer = null,
 }) {
   if (!name || !Number.isSafeInteger(limit) || limit < 1 || !Number.isFinite(windowMs)) {
     throw new TypeError("요청 제한 설정을 확인해주세요.");
@@ -135,29 +139,118 @@ function createRateLimit({
     }
   }
 
+  function applyHeaders(
+    res,
+    count,
+    resetAt
+  ) {
+    const resetAtMs = new Date(
+      resetAt
+    ).getTime();
+    const remaining = Math.max(
+      0,
+      limit - count
+    );
+    res.set?.(
+      "RateLimit-Limit",
+      String(limit)
+    );
+    res.set?.(
+      "RateLimit-Remaining",
+      String(remaining)
+    );
+    res.set?.(
+      "RateLimit-Reset",
+      String(
+        Math.ceil(
+          resetAtMs / 1000
+        )
+      )
+    );
+    return resetAtMs;
+  }
+
+  function blockedError(
+    res,
+    resetAtMs,
+    now
+  ) {
+    const retryAfterSeconds =
+      Math.max(
+        1,
+        Math.ceil(
+          (resetAtMs - now) /
+            1000
+        )
+      );
+    res.set?.(
+      "Retry-After",
+      String(retryAfterSeconds)
+    );
+    return statusError(
+      429,
+      "짧은 시간에 인증 요청이 너무 많이 발생했습니다. 잠시 후 다시 시도해주세요.",
+      "AUTH_RATE_LIMITED"
+    );
+  }
+
   const middleware = (req, res, next) => {
     const now = Date.now();
-    cleanup(now);
     const bucketKey = `${name}:${key(req)}`;
+
+    if (consumer) {
+      return Promise.resolve(
+        consumer({
+          bucketKey,
+          limit,
+          windowMs,
+          now: new Date(now),
+        })
+      )
+        .then((result) => {
+          const resetAtMs =
+            applyHeaders(
+              res,
+              Number(
+                result.count
+              ) || 0,
+              result.resetAt
+            );
+          if (result.limited) {
+            return next(
+              blockedError(
+                res,
+                resetAtMs,
+                now
+              )
+            );
+          }
+          return next();
+        })
+        .catch(next);
+    }
+
+    cleanup(now);
     let bucket = buckets.get(bucketKey);
     if (!bucket || bucket.resetAt <= now) {
       bucket = { count: 0, resetAt: now + windowMs };
       buckets.set(bucketKey, bucket);
     }
     bucket.count += 1;
-    const remaining = Math.max(0, limit - bucket.count);
-    res.set?.("RateLimit-Limit", String(limit));
-    res.set?.("RateLimit-Remaining", String(remaining));
-    res.set?.("RateLimit-Reset", String(Math.ceil(bucket.resetAt / 1000)));
+    const resetAtMs = applyHeaders(
+      res,
+      bucket.count,
+      bucket.resetAt
+    );
 
     if (bucket.count > limit) {
-      const retryAfterSeconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
-      res.set?.("Retry-After", String(retryAfterSeconds));
-      return next(statusError(
-        429,
-        "짧은 시간에 인증 요청이 너무 많이 발생했습니다. 잠시 후 다시 시도해주세요.",
-        "AUTH_RATE_LIMITED"
-      ));
+      return next(
+        blockedError(
+          res,
+          resetAtMs,
+          now
+        )
+      );
     }
     return next();
   };
@@ -171,24 +264,61 @@ const loginRateLimit = createRateLimit({
   name: "login",
   limit: 10,
   windowMs: 15 * 60 * 1000,
+  consumer:
+    consumeAuthRequestLimit,
+});
+const loginIpRateLimit = createRateLimit({
+  name: "login-ip",
+  limit: 60,
+  windowMs: 15 * 60 * 1000,
+  key: clientAddress,
+  consumer:
+    consumeAuthRequestLimit,
 });
 const registrationRateLimit = createRateLimit({
   name: "registration",
   limit: 5,
   windowMs: 60 * 60 * 1000,
+  consumer:
+    consumeAuthRequestLimit,
 });
+const registrationIpRateLimit =
+  createRateLimit({
+    name: "registration-ip",
+    limit: 20,
+    windowMs:
+      60 * 60 * 1000,
+    key: clientAddress,
+    consumer:
+      consumeAuthRequestLimit,
+  });
 const passwordResetRateLimit = createRateLimit({
   name: "password-reset",
   limit: 5,
   windowMs: 15 * 60 * 1000,
+  consumer:
+    consumeAuthRequestLimit,
 });
+const passwordResetIpRateLimit =
+  createRateLimit({
+    name: "password-reset-ip",
+    limit: 30,
+    windowMs:
+      15 * 60 * 1000,
+    key: clientAddress,
+    consumer:
+      consumeAuthRequestLimit,
+  });
 
 module.exports = {
   authRequestKey,
   configuredOrigins,
   createRateLimit,
+  loginIpRateLimit,
   loginRateLimit,
+  passwordResetIpRateLimit,
   passwordResetRateLimit,
+  registrationIpRateLimit,
   registrationRateLimit,
   sameOriginProtection,
 };

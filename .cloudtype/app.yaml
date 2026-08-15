@@ -12,6 +12,10 @@ options:
       value: https://www.matths.kr
     - name: PUBLIC_BASE_URL
       value: https://www.matths.kr
+    - name: CANONICAL_REDIRECT_SOURCE_HOST
+      value: matths.kr
+    - name: CANONICAL_HOST
+      value: www.matths.kr
   install: npm ci --omit=dev --no-audit
   ports: 8000/http
   start: npm start

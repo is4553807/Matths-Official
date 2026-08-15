@@ -130,10 +130,16 @@
           displayMath: [["\\[", "\\]"]],
           processEscapes: true,
         },
-        options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] },
+        options: {
+          enableSpeech: false,
+          enableBraille: false,
+          enableExplorer: false,
+          skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+        },
       };
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js" defer></script>
+    <script src="/vendor/mathjax/tex-svg.js" defer></script>
+    <script src="/js/math-renderer.js" defer></script>
   </head>
   <body class="admin-page">
     <%- include("partials/admin-navigation", { activePage: "users" }) %>

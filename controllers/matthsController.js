@@ -1,3 +1,4 @@
+const { randomUUID } = require("node:crypto");
 const {
   User,
   ConceptProgress,
@@ -109,7 +110,10 @@ const {
   createSupportInquiry,
   getContactPageData,
 } = require("../services/supportInquiryService");
-const { getProductCatalog } = require("../services/checkoutService");
+const {
+  getProductCatalog,
+  getPricingProductAccess,
+} = require("../services/checkoutService");
 const {
   createArchiveFolder,
   createArchiveItems,
@@ -384,10 +388,13 @@ exports.pricingPage = async (req, res, next) => {
       occurredAt: viewedAt,
       metadata: { path: "/pricing" },
     });
-    const [mockExamPolicy, learningPackagePolicy, products] = await Promise.all([
+    const [mockExamPolicy, learningPackagePolicy, products, productAccess] = await Promise.all([
       getActiveMockExamPackagePolicy(),
       getActiveArenaPolicy(),
       getProductCatalog(),
+      pricingUser?.id
+        ? getPricingProductAccess(pricingUser.id, viewedAt)
+        : Promise.resolve(null),
     ]);
     return res.render("pricing", {
       user: pricingUser,
@@ -395,6 +402,7 @@ exports.pricingPage = async (req, res, next) => {
       mockExamPolicy,
       learningPackagePolicy,
       products,
+      productAccess,
       checkoutEnabled: require("../services/checkoutService").isPaidCheckoutEnabled(),
     });
   } catch (error) {
@@ -428,6 +436,12 @@ exports.connectionHeartbeat = async (req, res, next) => {
   }
 };
 
+function protectedPageLoginNotice(req) {
+  return isSafeStudentReturnPath(req.session?.returnTo)
+    ? "로그인이 필요한 페이지입니다. 로그인하면 요청하신 페이지로 바로 이동합니다."
+    : null;
+}
+
 exports.loginPage = (req,res) => {
     const blockedStatus =
       String(
@@ -441,6 +455,7 @@ exports.loginPage = (req,res) => {
     }
     res.render('login', {
       socialAuthProviders: publicProviderStatus(),
+      loginNotice: protectedPageLoginNotice(req),
       success:
         req.query.reset === "1"
           ? "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요."
@@ -652,7 +667,12 @@ async function renderContactPage(
       user: req.session.user,
       contactData,
       feedback,
+      inquiryRequestId:
+        String(oldInput.requestId || "") ||
+        randomUUID(),
       oldInput: {
+        requestId:
+          String(oldInput.requestId || ""),
         inquiryType: String(oldInput.inquiryType || "GENERAL"),
         paymentId: String(oldInput.paymentId || ""),
         refundReasonType: String(oldInput.refundReasonType || "SIMPLE_CHANGE"),
@@ -705,6 +725,8 @@ exports.submitContactInquiry =
         await createSupportInquiry({
           userId:
             req.session.user.id,
+          requestId:
+            req.body.requestId,
           subject:
             req.body.subject,
           content:
@@ -743,6 +765,8 @@ exports.submitContactInquiry =
               message: error.message,
             },
             oldInput: {
+              requestId:
+                req.body.requestId,
               subject:
                 req.body.subject,
               content:
@@ -5304,6 +5328,7 @@ exports.login = async (req, res, next) => {
         if (!identifier || !password) {
             return res.status(400).render("login", {
                 error: "이메일 또는 닉네임과 비밀번호를 모두 입력해주세요.",
+                loginNotice: protectedPageLoginNotice(req),
                 oldInput: {
                     identifier,
                 },
@@ -5363,6 +5388,7 @@ exports.login = async (req, res, next) => {
         if (!user && !parentAccount) {
             return res.status(401).render("login", {
                 error: "이메일·닉네임 또는 비밀번호가 올바르지 않습니다.",
+                loginNotice: protectedPageLoginNotice(req),
                 oldInput: {
                     identifier,
                 },
@@ -5385,6 +5411,7 @@ exports.login = async (req, res, next) => {
         if (!userPasswordMatched && !parentPasswordMatched) {
             return res.status(401).render("login", {
                 error: "이메일·닉네임 또는 비밀번호가 올바르지 않습니다.",
+                loginNotice: protectedPageLoginNotice(req),
                 oldInput: {
                     identifier,
                 },
@@ -5428,6 +5455,7 @@ exports.login = async (req, res, next) => {
                             access?.user
                                 ?.accountStatusReason
                         ),
+                    loginNotice: protectedPageLoginNotice(req),
                     oldInput: {
                         identifier,
                     },
@@ -5786,13 +5814,13 @@ async function renderNicknameChangePage(
   const requestId =
     String(
       req.query.requestId ||
-        req.body.requestId ||
+        req.body?.requestId ||
         ""
     );
   const token =
     String(
       req.query.token ||
-        req.body.token ||
+        req.body?.token ||
         ""
     );
   const pageData =
@@ -6443,6 +6471,60 @@ exports.updateTopicCompletion = async (req, res, next) => {
   }
 };
 
+async function currentLearningProgress({
+  userId,
+  courseId,
+  unitId,
+  conceptId,
+}) {
+  const { learningData } = await getUserLearningData(userId);
+  const course = learningData.courses.find(
+    (item) => item.id === courseId
+  );
+  const unit = course?.units.find(
+    (item) => item.id === unitId
+  );
+  const concept = unit?.concepts.find(
+    (item) => item.id === conceptId
+  );
+
+  if (!course || !unit || !concept) {
+    const error = new Error(
+      "저장된 학습 진도 정보를 불러오지 못했습니다."
+    );
+    error.status = 404;
+    throw error;
+  }
+
+  return {
+    concept: {
+      id: concept.id,
+      progress: concept.progress,
+      status: concept.status,
+      completedTopics: concept.completedTopics,
+      topicCount: concept.topics.length,
+      completedTopicIndexes: concept.completedTopicIndexes,
+    },
+    unit: {
+      id: unit.id,
+      progress: unit.progress,
+      completedConcepts: unit.completedConcepts,
+      totalConcepts: unit.concepts.length,
+    },
+    course: {
+      id: course.id,
+      progress: course.progress,
+      completedConcepts: course.completedConcepts,
+      totalConcepts: course.totalConcepts,
+    },
+    overall: {
+      progress: learningData.overallProgress,
+      completedConcepts: learningData.completedConcepts,
+      totalConcepts: learningData.totalConcepts,
+    },
+  };
+}
+
 exports.nextPracticeProblem = async (
   req,
   res,
@@ -6501,6 +6583,13 @@ exports.submitPracticeProblem = async (
       lifecycleSessionView(activityUser)
     );
 
+    result.progress = await currentLearningProgress({
+      userId: req.session.user.id,
+      courseId: req.params.courseId,
+      unitId: req.params.unitId,
+      conceptId: req.params.conceptId,
+    });
+
     return res.json(result);
   } catch (error) {
     if (error.status) {
@@ -6544,7 +6633,14 @@ exports.changeConceptCompletion = async (
       lifecycleSessionView(activityUser)
     );
 
-    return res.json({ mastery });
+    const progress = await currentLearningProgress({
+      userId: req.session.user.id,
+      courseId: req.params.courseId,
+      unitId: req.params.unitId,
+      conceptId: req.params.conceptId,
+    });
+
+    return res.json({ mastery, progress });
   } catch (error) {
     if (error.status) {
       return res.status(error.status).json({
@@ -6591,6 +6687,9 @@ exports.startQuickPractice = async (
           req.session.user.id,
         pointValue:
           req.body.pointValue,
+        coachMode:
+          req.session.user.preferences
+            ?.coachMode,
       });
 
     res.set(
@@ -6620,6 +6719,9 @@ exports.submitQuickPractice = async (
           req.params.instanceId,
         submittedAnswer:
           req.body.answer,
+        coachMode:
+          req.session.user.preferences
+            ?.coachMode,
       });
     const activityUser =
       await synchronizeUserLifecycle(
@@ -6658,6 +6760,9 @@ exports.expireQuickPractice = async (
             req.session.user.id,
           instanceId:
             req.params.instanceId,
+          coachMode:
+            req.session.user.preferences
+              ?.coachMode,
         }),
       stats:
         await getQuickPracticeStats(
@@ -6686,6 +6791,8 @@ exports.coachSuggestionBoard =
           moderated:
             req.query.moderated ===
             "1",
+          suggestionRequestId:
+            randomUUID(),
         }
       );
     } catch (error) {
@@ -6702,6 +6809,8 @@ exports.submitCoachSuggestion =
         situation:
           req.body.situation,
         message: req.body.message,
+        requestId:
+          req.body.requestId,
       });
 
       return res.redirect(
@@ -6735,6 +6844,9 @@ exports.submitCoachSuggestion =
                 message:
                   req.body.message,
               },
+              suggestionRequestId:
+                req.body.requestId ||
+                randomUUID(),
             }
           );
       }
@@ -7365,6 +7477,10 @@ exports.communityPostPage =
             "1",
           commentError:
             null,
+          reportError:
+            null,
+          reportDraft:
+            "",
         }
       );
     } catch (error) {
@@ -7420,6 +7536,10 @@ exports.submitCommunityComment =
                 commentError:
                   error.message,
                 reported: false,
+                reportError:
+                  null,
+                reportDraft:
+                  "",
                 commentDraft:
                   req.body.content,
                 commentAnonymousDraft:
@@ -7486,6 +7606,46 @@ exports.submitCommunityReport =
         `/community/${req.params.postId}?reported=1`
       );
     } catch (error) {
+      if (error.status) {
+        try {
+          const detail =
+            await getCommunityPost(
+              req.params.postId,
+              req.session.user.id
+            );
+
+          return res
+            .status(error.status)
+            .render(
+              "community-post",
+              {
+                post:
+                  detail.post,
+                comments:
+                  detail.comments,
+                viewerVote:
+                  detail.viewerVote,
+                viewerReported:
+                  detail.viewerReported,
+                user:
+                  req.session.user,
+                created: false,
+                commentCreated:
+                  false,
+                commentError:
+                  null,
+                reported: false,
+                reportError:
+                  error.message,
+                reportDraft:
+                  req.body.reason,
+              }
+            );
+        } catch (renderError) {
+          return next(renderError);
+        }
+      }
+
       return next(error);
     }
   };

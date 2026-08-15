@@ -79,6 +79,7 @@ async function main() {
       },
       feedback: "",
       error: "",
+      inquiryRequestId: "5a8ebeb1-0b55-4d70-a200-8a1d58c85b2e",
       oldInput: { subject: "", content: "" },
     }
   );

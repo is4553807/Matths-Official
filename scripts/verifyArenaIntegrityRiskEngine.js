@@ -134,7 +134,7 @@ assert.match(source("views/admin-arena-matches.ejs"), /시스템 오류 확인/)
 assert.match(source("views/admin-arena-matches.ejs"), /arena-held-match-overview/);
 assert.match(source("views/admin-arena-matches.ejs"), /data-arena-question-details/);
 assert.match(source("views/admin-arena-matches.ejs"), /formatAdminMath\(question\.prompt\)/);
-assert.match(source("views/admin-arena-matches.ejs"), /mathjax@4\/tex-svg\.js/);
+assert.match(source("views/admin-arena-matches.ejs"), /\/vendor\/mathjax\/tex-svg\.js/);
 assert.match(source("services/arenaIntegrityRiskService.js"), /reviewHeldArenaMatch/);
 assert.match(source("services/arenaIntegrityRiskService.js"), /attemptsFinished/);
 assert.match(source("services/arenaIntegrityRiskService.js"), /cancelClearedUnscorableMatch/);

@@ -77,24 +77,13 @@
     return node;
   }
 
-  function typesetMath(target) {
-    if (!target || !window.MathJax?.typesetPromise) {
-      return;
-    }
-
-    if (window.MathJax.typesetClear) {
-      window.MathJax.typesetClear([target]);
-    }
-
-    window.MathJax
-      .typesetPromise([target])
-      .catch(() => {});
-  }
-
   function setMath(target, value) {
     if (!target) return;
-    target.textContent = value;
-    typesetMath(target);
+    if (window.MatthsMath) {
+      window.MatthsMath.setText(target, value);
+    } else {
+      target.textContent = value;
+    }
   }
 
   function niceStep(range, targetCount = 8) {

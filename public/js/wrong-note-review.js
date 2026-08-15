@@ -147,32 +147,18 @@
       Array.isArray(elements) ? elements : [elements]
     ).filter(Boolean);
 
-    if (
-      !targets.length ||
-      !window.MathJax?.typesetPromise
-    ) {
-      return Promise.resolve();
-    }
-
-    return window.MathJax
-      .typesetPromise(targets)
-      .catch((error) => {
-        console.error(
-          "수식을 렌더링하지 못했습니다.",
-          error
-        );
-      });
+    return targets.length
+      ? window.MatthsMath?.render(targets) || Promise.resolve()
+      : Promise.resolve();
   }
 
   function setMath(element, content) {
     if (!element) return;
-
-    if (window.MathJax?.typesetClear) {
-      window.MathJax.typesetClear([element]);
+    if (window.MatthsMath) {
+      window.MatthsMath.setText(element, content || "");
+    } else {
+      element.textContent = content || "";
     }
-
-    element.textContent = content || "";
-    typesetMath(element);
   }
 
   function setCompletedState(completed) {
@@ -314,10 +300,7 @@
       "같은 유형 다시 풀기";
     setMath(prompt, problem.prompt);
 
-    if (window.MathJax?.typesetClear) {
-      window.MathJax.typesetClear([answerArea]);
-    }
-
+    window.MatthsMath?.clear(answerArea);
     answerArea.replaceChildren();
 
     if (

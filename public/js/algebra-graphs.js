@@ -43,22 +43,10 @@
 
   function typesetMath(element, content) {
     if (!element) return;
-
-    if (window.MathJax?.typesetClear) {
-      window.MathJax.typesetClear([element]);
-    }
-
-    element.textContent = content || "";
-
-    if (window.MathJax?.typesetPromise) {
-      window.MathJax
-        .typesetPromise([element])
-        .catch((error) => {
-          console.error(
-            "그래프 수식을 렌더링하지 못했습니다.",
-            error
-          );
-        });
+    if (window.MatthsMath) {
+      window.MatthsMath.setText(element, content || "");
+    } else {
+      element.textContent = content || "";
     }
   }
 

@@ -31,6 +31,22 @@
     <link rel="stylesheet" href="/css/goat-arena.css" />
     <%- include("partials/rank-motion-head") %>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
+        },
+        svg: { fontCache: "global" },
+        options: {
+          enableSpeech: false,
+          enableBraille: false,
+          enableExplorer: false,
+        },
+      };
+    </script>
+    <script src="/vendor/mathjax/tex-svg.js" defer></script>
+    <script src="/js/math-renderer.js" defer></script>
   </head>
   <body class="goat-arena-page arena-inner-page arena-shop-page">
     <a class="arena-skip-link" href="#analysis-main">본문으로 바로가기</a>

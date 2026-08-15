@@ -2,6 +2,24 @@
   padding-bottom: 24px;
 }
 
+.learning-math-content mjx-container {
+  max-width: 100% !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.learning-math-content mjx-container:not([display="true"]) {
+  display: inline-block !important;
+  margin: 0 0.08em !important;
+  vertical-align: middle;
+}
+
+.learning-math-content mjx-container[display="true"] {
+  width: 100%;
+  margin: 0.45em 0 !important;
+}
+
 .learning-summary,
 .course-progress-section,
 .learning-empty {
@@ -688,7 +706,7 @@
 }
 
 @media (max-width: 640px) {
-  .topbar .back-dashboard {
+  .my-learning-main .topbar .back-dashboard {
     display: none;
   }
 

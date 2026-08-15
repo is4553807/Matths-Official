@@ -8,11 +8,16 @@ const {
 } = require("../models/parentModel");
 const { User } = require("../models/matthsModel");
 const { sendEmail, buildBrandedHtml } = require("./emailService");
-const { getActiveMockExamPackagePolicy } = require("./mockExamPackageService");
+const {
+  getActiveMockExamPackagePolicy,
+  getMockExamPackageAccess,
+} = require("./mockExamPackageService");
 const { getActiveArenaPolicy } = require("./arenaPolicyService");
 const {
   assertPackagePurchaseEligible,
+  getPackagePurchaseEligibilityForUser,
 } = require("./accessCycleService");
+const { getPaidPackageAccess } = require("./paidFeatureAccessService");
 const {
   assertMockExamPurchaseEligible,
 } = require("./mockExamPaymentService");
@@ -101,6 +106,53 @@ async function getProduct(code) {
   const productCode = normalizeProductCode(code);
   const catalog = await getProductCatalog();
   return catalog.find((product) => product.code === productCode);
+}
+
+function buildPricingProductAccess({
+  paidPackageAccess = {},
+  mockExamPackageAccess = {},
+  learningPackageEligibility = { eligible: true, reasons: [] },
+} = {}) {
+  const learningActive = paidPackageAccess.active === true;
+  const mockExamActive =
+    learningActive || mockExamPackageAccess.active === true;
+  const learningPurchaseAllowed =
+    !learningActive && learningPackageEligibility.eligible !== false;
+
+  return {
+    MOCK_EXAM_ONLY: {
+      active: mockExamActive,
+      purchaseAllowed: !mockExamActive,
+      includedByLearningPackage: learningActive,
+      continueHref: "/private-mock-exams",
+      continueLabel: "주간 모의고사 계속하기",
+    },
+    LEARNING_PACKAGE_29: {
+      active: learningActive,
+      purchaseAllowed: learningPurchaseAllowed,
+      requiresExistingPackageResolution:
+        !learningActive && !learningPurchaseAllowed,
+      reasons: learningPackageEligibility.reasons || [],
+      continueHref: "/war-of-masters",
+      continueLabel: learningActive
+        ? "GOAT Arena 계속하기"
+        : "기존 학습권 상태 확인하기",
+    },
+  };
+}
+
+async function getPricingProductAccess(userId, now = new Date()) {
+  const [paidPackageAccess, mockExamPackageAccess, learningPackageEligibility] =
+    await Promise.all([
+      getPaidPackageAccess(userId),
+      getMockExamPackageAccess(userId, now),
+      getPackagePurchaseEligibilityForUser({ userId }),
+    ]);
+  return buildPricingProductAccess({
+    paidPackageAccess,
+    mockExamPackageAccess,
+    learningPackageEligibility,
+  });
 }
 
 async function createCheckoutIntent({
@@ -388,6 +440,7 @@ module.exports = {
   getParentInvite,
   getProduct,
   getProductCatalog,
+  getPricingProductAccess,
   ensureCheckoutIntentIndexes,
   LEGAL_GUARDIAN_CONSENT_VERSION,
   MINOR_PAYMENT_NOTICE_VERSION,
@@ -395,4 +448,7 @@ module.exports = {
   assertPaidCheckoutEnabled,
   isPaidCheckoutEnabled,
   registerParent,
+  _testing: {
+    buildPricingProductAccess,
+  },
 };

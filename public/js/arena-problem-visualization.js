@@ -642,11 +642,7 @@
         const model = JSON.parse(decodeURIComponent(container.dataset.arenaVisualization || ""));
         if (!renderInto(container.querySelector("svg"), model)) {
           container.classList.add("is-invalid");
-        } else if (window.MathJax?.startup?.promise) {
-          window.MathJax.startup.promise
-            .then(() => window.MathJax.typesetPromise?.([container]))
-            .catch(() => container.classList.add("is-math-invalid"));
-        }
+        } else window.MatthsMath?.render(container);
       } catch (_error) {
         container.classList.add("is-invalid");
       }

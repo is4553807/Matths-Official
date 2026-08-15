@@ -18,11 +18,15 @@
           processEscapes: true,
         },
         options: {
+          enableSpeech: false,
+          enableBraille: false,
+          enableExplorer: false,
           skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"],
         },
       };
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js" defer></script>
+    <script src="/vendor/mathjax/tex-svg.js" defer></script>
+    <script src="/js/math-renderer.js" defer></script>
     <script src="/js/private-mock-exam.js" defer></script>
   </head>
   <body class="private-mock-exam-body">

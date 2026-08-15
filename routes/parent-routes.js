@@ -2,7 +2,9 @@ const express = require("express");
 const parentController = require("../controllers/parentController");
 const { isParentLoggedIn, isParentLoggedOut } = require("../middleware/parentAuthMiddleware");
 const {
+  loginIpRateLimit,
   loginRateLimit,
+  registrationIpRateLimit,
   registrationRateLimit,
 } = require("../middleware/requestSecurity");
 
@@ -11,6 +13,7 @@ const router = express.Router();
 router.get("/parent/invite/:token", parentController.inviteSignupPage);
 router.post(
   "/parent/invite/:token",
+  registrationIpRateLimit,
   registrationRateLimit,
   parentController.completeInviteSignup
 );
@@ -23,6 +26,7 @@ router.get("/parent/login", isParentLoggedOut, parentController.loginPage);
 router.post(
   "/parent/login",
   isParentLoggedOut,
+  loginIpRateLimit,
   loginRateLimit,
   parentController.login
 );

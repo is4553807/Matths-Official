@@ -122,10 +122,30 @@ try {
   );
 
   assert.match(serverSource, /server\.use\(sameOriginProtection\)/);
-  assert.match(webRoutes, /loginRateLimit[\s\S]*matthsController\.login/);
-  assert.match(webRoutes, /registrationRateLimit[\s\S]*matthsController\.register/);
-  assert.match(apiRoutes, /loginRateLimit[\s\S]*apiController\.login/);
-  assert.match(parentRoutes, /loginRateLimit[\s\S]*parentController\.login/);
+  assert.match(
+    webRoutes,
+    /loginIpRateLimit[\s\S]*loginRateLimit[\s\S]*matthsController\.login/
+  );
+  assert.match(
+    webRoutes,
+    /registrationIpRateLimit[\s\S]*registrationRateLimit[\s\S]*matthsController\.register/
+  );
+  assert.match(
+    webRoutes,
+    /passwordResetIpRateLimit[\s\S]*passwordResetRateLimit[\s\S]*matthsController\.requestPasswordReset/
+  );
+  assert.match(
+    apiRoutes,
+    /loginIpRateLimit[\s\S]*loginRateLimit[\s\S]*apiController\.login/
+  );
+  assert.match(
+    apiRoutes,
+    /passwordResetIpRateLimit[\s\S]*passwordResetRateLimit[\s\S]*apiController\.requestPasswordReset/
+  );
+  assert.match(
+    parentRoutes,
+    /loginIpRateLimit[\s\S]*loginRateLimit[\s\S]*parentController\.login/
+  );
   assert.match(
     parentController,
     /await regenerateSession\(req\);\s*req\.session\.parent = parentSession\(parent\);/

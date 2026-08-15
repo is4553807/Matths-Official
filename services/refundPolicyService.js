@@ -32,6 +32,17 @@ function formatWon(value) {
   return `${new Intl.NumberFormat("ko-KR").format(Math.max(0, Number(value) || 0))}원`;
 }
 
+function koreanObjectMarker(value) {
+  const text = String(value || "").trim();
+  const lastCode = text.charCodeAt(text.length - 1);
+  const hasFinalConsonant =
+    lastCode >= 0xac00 &&
+    lastCode <= 0xd7a3 &&
+    (lastCode - 0xac00) % 28 !== 0;
+
+  return hasFinalConsonant ? "을" : "를";
+}
+
 function getRefundDisclosure(product) {
   const rule = getRule(product?.code || product?.productCode);
   const amount = Math.max(0, Number(product?.amount) || 0);
@@ -40,7 +51,7 @@ function getRefundDisclosure(product) {
     version: REFUND_POLICY_VERSION,
     productCode: rule.code,
     periodDays: rule.periodDays,
-    fullRefund: `결제일과 이용 시작일 중 늦은 날부터 7일 이내이고 ${rule.fullRefundUnusedFeature}을(를) 한 번도 이용하지 않았다면 전액 환불합니다.`,
+    fullRefund: `결제일과 이용 시작일 중 늦은 날부터 7일 이내이고 ${rule.fullRefundUnusedFeature}${koreanObjectMarker(rule.fullRefundUnusedFeature)} 한 번도 이용하지 않았다면 전액 환불합니다.`,
     partialRefund: `유료 기능을 이용했거나 7일이 지난 뒤에도 이용 기간이 남아 있다면 다음과 같이 계산합니다. ${rule.partialFormula}. 계산 중 발생하는 1원 미만 금액은 버리며, 이용일수는 이용 시작일부터 환불 신청일까지 포함합니다.`,
     formula: rule.partialFormula,
     example: amount

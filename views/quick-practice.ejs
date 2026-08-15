@@ -31,12 +31,18 @@
           displayMath: [["\\[", "\\]"]],
         },
         svg: { fontCache: "global" },
+        options: {
+          enableSpeech: false,
+          enableBraille: false,
+          enableExplorer: false,
+        },
       };
     </script>
     <script
-      src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"
+      src="/vendor/mathjax/tex-svg.js"
       defer
     ></script>
+    <script src="/js/math-renderer.js" defer></script>
     <script src="/js/main.js" defer></script>
     <script src="/js/quick-practice.js" defer></script>
   </head>
@@ -148,7 +154,7 @@
                 <span id="quick-point-label">2점</span>
                 <strong id="quick-topic-label">기본 계산</strong>
               </div>
-              <div class="quick-prompt" id="quick-prompt"></div>
+              <div class="quick-prompt" id="quick-prompt"><span id="quick-prompt-content"></span></div>
               <form id="quick-answer-form">
                 <label for="quick-answer">정답</label>
                 <div>
@@ -161,6 +167,10 @@
               <span id="quick-result-icon" aria-hidden="true">✓</span>
               <h3 id="quick-result-title"></h3>
               <p id="quick-result-copy"></p>
+              <blockquote class="quick-coach-feedback" id="quick-coach-feedback" hidden>
+                <span id="quick-coach-label">Matths 코치</span>
+                <strong id="quick-coach-message"></strong>
+              </blockquote>
               <div id="quick-solution"></div>
               <button id="quick-next" type="button">다음 문제</button>
             </div>

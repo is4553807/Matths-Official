@@ -591,7 +591,7 @@
 .study-hall-empty > span { color: #7143e4; font-size: 32px; }.study-hall-empty h3 { margin: 14px 0 8px; }.study-hall-empty p { color: var(--hall-muted); }
 
 /* 콘텐츠 상세·답안마킹 */
-.study-hall-detail-page .study-hall-main { max-width: 1460px; width: 100%; margin: 0 auto; }
+.study-hall-detail-page .study-hall-main { max-width: 1460px; width: auto; margin-left: var(--sidebar-width); margin-right: auto; }
 .study-hall-back { display: inline-block; margin: 30px 0 18px; color: #5d48ce; text-decoration: none; font-weight: 900; }
 .study-content-heading { padding: clamp(28px, 4vw, 52px); border: 1px solid var(--hall-line); border-radius: 25px; display: grid; grid-template-columns: 1fr 280px; gap: 40px; background: #fff; }
 .study-content-heading h1 { margin: 0; font-size: clamp(34px, 4vw, 52px); letter-spacing: -.05em; }
@@ -629,6 +629,9 @@
   .study-hall-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .study-hall-form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .study-hall-upload-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 900px) {
+  .study-hall-detail-page .study-hall-main { margin-left:0; }
 }
 @media (max-width: 760px) {
   .study-hall-main { padding:0 14px 50px; }

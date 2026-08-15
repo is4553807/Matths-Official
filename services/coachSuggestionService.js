@@ -1,5 +1,7 @@
+const mongoose = require("mongoose");
 const {
   CoachMessageSuggestion,
+  CoachSuggestionQuota,
   UserNotification,
 } = require("../models/matthsModel");
 const {
@@ -22,6 +24,131 @@ function sanitizeMessage(value) {
     .trim();
 }
 
+const DAILY_SUGGESTION_LIMIT = 10;
+
+function getKoreanDayRange(
+  value = new Date()
+) {
+  const koreaOffsetMs =
+    9 * 60 * 60 * 1000;
+  const koreaTime = new Date(
+    value.getTime() + koreaOffsetMs
+  );
+  const start = new Date(
+    Date.UTC(
+      koreaTime.getUTCFullYear(),
+      koreaTime.getUTCMonth(),
+      koreaTime.getUTCDate()
+    ) - koreaOffsetMs
+  );
+  const year = String(
+    koreaTime.getUTCFullYear()
+  );
+  const month = String(
+    koreaTime.getUTCMonth() + 1
+  ).padStart(2, "0");
+  const day = String(
+    koreaTime.getUTCDate()
+  ).padStart(2, "0");
+  return {
+    start,
+    end: new Date(
+      start.getTime() +
+        24 * 60 * 60 * 1000
+    ),
+    dayKey: `${year}-${month}-${day}`,
+  };
+}
+
+function dailySuggestionLimitError() {
+  const error = new Error(
+    `하루에는 문구를 ${DAILY_SUGGESTION_LIMIT}개까지 제안할 수 있습니다.`
+  );
+  error.status = 429;
+  return error;
+}
+
+async function reserveSuggestionSlot(
+  userId
+) {
+  const { start, end, dayKey } =
+    getKoreanDayRange();
+  const expiresAt = new Date(
+    end.getTime() +
+      2 * 24 * 60 * 60 * 1000
+  );
+
+  for (
+    let attempt = 0;
+    attempt < 6;
+    attempt += 1
+  ) {
+    const quota =
+      await CoachSuggestionQuota.findOneAndUpdate(
+        {
+          userId,
+          dayKey,
+          count: {
+            $lt: DAILY_SUGGESTION_LIMIT,
+          },
+        },
+        {
+          $inc: { count: 1 },
+          $set: { expiresAt },
+        },
+        {
+          returnDocument: "after",
+          runValidators: true,
+        }
+      ).lean();
+    if (quota) return { dayKey };
+
+    const existingCount =
+      await CoachMessageSuggestion.countDocuments({
+        userId,
+        createdAt: {
+          $gte: start,
+          $lt: end,
+        },
+      });
+    if (
+      existingCount >=
+      DAILY_SUGGESTION_LIMIT
+    ) {
+      throw dailySuggestionLimitError();
+    }
+
+    try {
+      await CoachSuggestionQuota.create({
+        userId,
+        dayKey,
+        count: existingCount + 1,
+        expiresAt,
+      });
+      return { dayKey };
+    } catch (error) {
+      if (error?.code !== 11000) {
+        throw error;
+      }
+    }
+  }
+  throw dailySuggestionLimitError();
+}
+
+async function releaseSuggestionSlot({
+  userId,
+  dayKey,
+}) {
+  await CoachSuggestionQuota.updateOne(
+    {
+      userId,
+      dayKey,
+      count: { $gt: 0 },
+    },
+    { $inc: { count: -1 } }
+  );
+}
+
 function serializeSuggestion(item) {
   return {
     id: String(item._id),
@@ -37,6 +164,33 @@ function serializeSuggestion(item) {
   };
 }
 
+async function ensureSuggestionAdminTodo(
+  suggestion
+) {
+  if (
+    !suggestion ||
+    suggestion.status !== "pending"
+  ) {
+    return null;
+  }
+
+  return createAdminTodo({
+    category: "other",
+    title: "코치 문구 제안 검토",
+    description:
+      suggestion.message,
+    href: `/admin/coach-suggestions#suggestion-${suggestion._id}`,
+    targetUserId:
+      suggestion.userId,
+    actorUserId:
+      suggestion.userId,
+    sourceType:
+      "CoachMessageSuggestion",
+    sourceId:
+      suggestion._id,
+  });
+}
+
 async function refreshCommunityCoachMessages() {
   const approved =
     await CoachMessageSuggestion.find({
@@ -50,6 +204,14 @@ async function refreshCommunityCoachMessages() {
 
   setCommunityCoachMessages(approved);
   return approved.length;
+}
+
+async function ensureCoachSuggestionIndexes() {
+  await Promise.all([
+    CoachMessageSuggestion.createIndexes(),
+    CoachSuggestionQuota.createIndexes(),
+  ]);
+  return true;
 }
 
 async function getSuggestionBoardData(
@@ -161,9 +323,27 @@ async function createSuggestion({
   mode,
   situation,
   message,
+  requestId,
 }) {
   const cleanMessage =
     sanitizeMessage(message);
+  const cleanRequestId = String(
+    requestId || ""
+  ).trim().slice(0, 100);
+
+  if (cleanRequestId) {
+    const existing =
+      await CoachMessageSuggestion.findOne({
+        userId: user.id,
+        requestId: cleanRequestId,
+      });
+    if (existing) {
+      await ensureSuggestionAdminTodo(
+        existing
+      );
+      return serializeSuggestion(existing);
+    }
+  }
 
   if (!MODES.includes(mode)) {
     const error = new Error(
@@ -206,51 +386,48 @@ async function createSuggestion({
     throw error;
   }
 
-  const recentCount =
-    await CoachMessageSuggestion.countDocuments(
-      {
+  const reservation =
+    await reserveSuggestionSlot(user.id);
+  let suggestion;
+  try {
+    suggestion =
+      await CoachMessageSuggestion.create({
         userId: user.id,
-        createdAt: {
-          $gte: new Date(
-            Date.now() -
-              24 * 60 * 60 * 1000
-          ),
-        },
+        authorName:
+          user.name || "학생",
+        mode,
+        situation,
+        message: cleanMessage,
+        requestId:
+          cleanRequestId || null,
+      });
+  } catch (error) {
+    await releaseSuggestionSlot({
+      userId: user.id,
+      dayKey: reservation.dayKey,
+    });
+    if (
+      error?.code === 11000 &&
+      cleanRequestId
+    ) {
+      const existing =
+        await CoachMessageSuggestion.findOne({
+          userId: user.id,
+          requestId: cleanRequestId,
+        });
+      if (existing) {
+        await ensureSuggestionAdminTodo(
+          existing
+        );
+        return serializeSuggestion(existing);
       }
-    );
-
-  if (recentCount >= 10) {
-    const error = new Error(
-      "하루에는 문구를 10개까지 제안할 수 있습니다."
-    );
-    error.status = 429;
+    }
     throw error;
   }
 
-  const suggestion =
-    await CoachMessageSuggestion.create({
-      userId: user.id,
-      authorName:
-        user.name || "학생",
-      mode,
-      situation,
-      message: cleanMessage,
-    });
-
-  await createAdminTodo({
-    category: "other",
-    title: "코치 문구 제안 검토",
-    description: cleanMessage,
-    href: `/admin/coach-suggestions#suggestion-${suggestion._id}`,
-    targetUserId:
-      suggestion.userId,
-    actorUserId:
-      suggestion.userId,
-    sourceType:
-      "CoachMessageSuggestion",
-    sourceId:
-      suggestion._id,
-  });
+  await ensureSuggestionAdminTodo(
+    suggestion
+  );
 
   return serializeSuggestion(
     suggestion
@@ -268,6 +445,18 @@ async function moderateSuggestion({
       "운영자만 문구를 검수할 수 있습니다."
     );
     error.status = 403;
+    throw error;
+  }
+
+  if (
+    !mongoose.isValidObjectId(
+      suggestionId
+    )
+  ) {
+    const error = new Error(
+      "대기 중인 문구를 찾을 수 없습니다."
+    );
+    error.status = 404;
     throw error;
   }
 
@@ -366,10 +555,15 @@ async function moderateSuggestion({
 }
 
 module.exports = {
+  DAILY_SUGGESTION_LIMIT,
   createSuggestion,
+  ensureCoachSuggestionIndexes,
   getSuggestionBoardData,
   getAdminSuggestionData,
   isCoachAdmin,
   moderateSuggestion,
   refreshCommunityCoachMessages,
+  _testing: {
+    getKoreanDayRange,
+  },
 };

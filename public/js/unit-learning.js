@@ -60,7 +60,10 @@
       document.querySelectorAll(".topic-checkbox[data-topic-index]")
     );
 
-    if (!lesson || !checkboxes.length) return;
+    // 상세 개념 경험 화면에는 topic 체크박스가 없지만 문제풀이와
+    // 완료 토글이 같은 진도 표시를 갱신해야 하므로 lesson만 있으면
+    // 공통 진도 이벤트 수신기는 항상 등록합니다.
+    if (!lesson) return;
 
     const { courseId, unitId, conceptId } = lesson.dataset;
     const progressValue = document.getElementById("concept-progress-value");
@@ -153,6 +156,13 @@
       );
       setText(completedConceptBadge, progress.overall.completedConcepts);
     }
+
+    window.addEventListener(
+      "matths:learning-progress",
+      (event) => {
+        if (event.detail) renderProgress(event.detail);
+      }
+    );
 
     checkboxes.forEach((checkbox) => {
       syncTaskLabel(checkbox);

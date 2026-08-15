@@ -43,6 +43,7 @@
         </div>
 
         <form class="parent-inquiry-form" action="/parent/inquiries" method="post">
+          <input type="hidden" name="requestId" value="<%= inquiryRequestId %>" />
           <label>
             <span>문의 제목</span>
             <input type="text" name="subject" minlength="2" maxlength="120" required value="<%= oldInput.subject %>" placeholder="문의 내용을 간단히 적어주세요." />

@@ -24,6 +24,9 @@ const {
 const {
     assertRuntimeEnvironment,
 } = require("./services/runtimeEnvironmentService");
+const {
+    canonicalHostRedirect,
+} = require("./middleware/canonicalHost");
 
 const runtimeEnvironment = assertRuntimeEnvironment();
 for (const warning of runtimeEnvironment.warnings) {
@@ -31,6 +34,10 @@ for (const warning of runtimeEnvironment.warnings) {
 }
 
 server.disable("x-powered-by");
+if (process.env.NODE_ENV === "production") {
+    server.set("trust proxy", 1);
+}
+server.use(canonicalHostRedirect);
 server.use((req, res, next) => {
     const paymentSurface = /^\/(?:pricing\/[^/]+\/self|parent\/checkout\/)/.test(
         String(req.path || "")
@@ -70,14 +77,35 @@ server.use(express.static("public", {
     lastModified: true,
     maxAge: process.env.NODE_ENV === "production" ? "1d" : 0,
 }));
+server.use("/vendor/mathjax", express.static(
+    path.join(__dirname, "node_modules", "mathjax"),
+    {
+        dotfiles: "deny",
+        etag: true,
+        immutable: process.env.NODE_ENV === "production",
+        lastModified: true,
+        maxAge: process.env.NODE_ENV === "production" ? "30d" : 0,
+    }
+));
+server.use("/vendor/mathjax-fonts", express.static(
+    path.join(
+        __dirname,
+        "node_modules",
+        "@mathjax"
+    ),
+    {
+        dotfiles: "deny",
+        etag: true,
+        immutable: process.env.NODE_ENV === "production",
+        lastModified: true,
+        maxAge: process.env.NODE_ENV === "production" ? "30d" : 0,
+    }
+));
 server.set('view engine', 'ejs');
 server.use(express.urlencoded({extended:true}));
 server.use(express.json());
 
 const secret = process.env.SECRET || "matths-local-session-secret-change-before-production";
-if (process.env.NODE_ENV === "production") {
-    server.set("trust proxy", 1);
-}
 const sessionTtlSeconds = Math.max(
     300,
     Number(process.env.SESSION_TTL_SECONDS) || 7 * 24 * 60 * 60
@@ -145,6 +173,11 @@ async function connectDB() {
         }
 
         const {
+            ensureAuthRequestLimitIndexes,
+        } = require("./services/authRequestLimitService");
+        await ensureAuthRequestLimitIndexes();
+
+        const {
             ensureMatchmakingControl,
         } = require("./services/arenaMatchmakingControlService");
         await ensureMatchmakingControl();
@@ -156,9 +189,11 @@ async function connectDB() {
 
         const {
             ensureDefaultLearningPackagePolicy,
+            ensureDefaultMainDivisionPolicy,
             ensureFullAttendanceLearningPackagePolicy,
         } = require("./services/arenaPolicyService");
         await ensureDefaultLearningPackagePolicy();
+        await ensureDefaultMainDivisionPolicy();
         await ensureFullAttendanceLearningPackagePolicy();
 
         const {
@@ -186,9 +221,16 @@ async function connectDB() {
         startArenaTierCatalogWatcher();
 
         const {
+            ensureCoachSuggestionIndexes,
             refreshCommunityCoachMessages,
         } = require("./services/coachSuggestionService");
+        await ensureCoachSuggestionIndexes();
         await refreshCommunityCoachMessages();
+
+        const {
+            ensureSupportInquiryIndexes,
+        } = require("./services/supportInquiryService");
+        await ensureSupportInquiryIndexes();
 
         const {
             startPrivateMockExamScheduler,

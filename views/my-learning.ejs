@@ -56,6 +56,25 @@
     <title>내 학습 | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/my-learning.css" />
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
+          processEscapes: true,
+        },
+        options: {
+          enableSpeech: false,
+          enableBraille: false,
+          enableExplorer: false,
+        },
+      };
+    </script>
+    <script
+      src="/vendor/mathjax/tex-svg.js"
+      defer
+    ></script>
+    <script src="/js/math-renderer.js" defer></script>
     <script src="/js/main.js" defer></script>
     <script src="/js/my-learning.js" defer></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
@@ -120,7 +139,7 @@
           <div class="summary-copy">
             <p>MY LEARNING</p>
             <h2>
-              <%= featuredCourse?.officialTitle || "학습 과목" %>
+              <span class="learning-math-content"><%= featuredCourse?.officialTitle || "학습 과목" %></span>
               진도
             </h2>
             <span>체크한 학습 항목은 단원과 과목 진도에 바로 반영됩니다.</span>
@@ -170,7 +189,7 @@
                   <%= course.developmentLocked ? "" : `aria-controls=panel-${course.id}` %>
                   tabindex="<%= course.id === featuredCourse?.id ? 0 : -1 %>"
                 >
-                  <span><%= course.officialTitle %></span>
+                  <span class="learning-math-content"><%= course.officialTitle %></span>
                   <% if (course.developmentLocked) { %>
                     <b class="course-lock-label"><i aria-hidden="true">🔒</i> 준비 중</b>
                   <% } else { %>
@@ -195,7 +214,7 @@
                       <span><%= String(courseIndex + 1).padStart(2, "0") %></span>
                       <div>
                         <small>COMMON MATHEMATICS · 기본 순서 <%= course.defaultSemester %></small>
-                        <h3><%= course.officialTitle %></h3>
+                        <h3 class="learning-math-content"><%= course.officialTitle %></h3>
                       </div>
                     </div>
 
@@ -232,7 +251,7 @@
                         <summary>
                           <span class="unit-number"><%= String(unit.order).padStart(2, "0") %></span>
                           <div class="unit-title">
-                            <strong><%= unit.title %></strong>
+                            <strong class="learning-math-content"><%= unit.title %></strong>
                             <small><%= unit.completedConcepts %> / <%= unit.concepts.length %>개념 완료</small>
                           </div>
                           <div class="unit-bar">
@@ -244,7 +263,7 @@
 
                         <div class="unit-progress-body">
                           <div class="unit-action">
-                            <p><strong><%= unit.title %></strong>에서 배우는 개념을 순서대로 확인하세요.</p>
+                            <p><strong class="learning-math-content"><%= unit.title %></strong>에서 배우는 개념을 순서대로 확인하세요.</p>
                             <a href="<%= unit.assessmentRequired ? '/assessments' : unit.firstConceptHref %>">
                               <%= unit.assessmentRequired ? "기말평가 보기" : "단원 학습하기" %>
                               <span aria-hidden="true">→</span>
@@ -272,7 +291,7 @@
                               <a class="concept-progress-row <%= concept.status %>" href="<%= concept.href %>">
                                 <span class="concept-state" aria-hidden="true"><%= concept.progress >= 100 ? "✓" : String(conceptIndex + 1).padStart(2, "0") %></span>
                                 <div class="concept-info">
-                                  <strong><%= concept.title %></strong>
+                                  <strong class="learning-math-content"><%= concept.title %></strong>
                                   <small><%= concept.standardCode %> · <%= concept.completedTopics %>/<%= concept.topics.length %> 주제 완료</small>
                                 </div>
                                 <div class="concept-bar">

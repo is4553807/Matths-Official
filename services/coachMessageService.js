@@ -138,20 +138,30 @@ function getCoachView({
     loadCoachMessages().modes[
       normalizedMode
     ];
-  const messages = [
-    ...normalizeMessages(
+  const curatedMessages =
+    normalizeMessages(
       modeContent.messages[
         normalizedSituation
       ]
-    ),
-    ...normalizeMessages(
+    );
+  const approvedCommunityMessages =
+    normalizeMessages(
       communityMessages[
         normalizedMode
       ]?.[
         normalizedSituation
       ]
-    ),
-  ];
+    );
+  /*
+   * 운영자가 승인한 문구는 큰 기본 풀의 끝에만 섞지 않는다.
+   * 승인 문구가 있는 상황에서는 승인 풀을 실제 피드백 원본으로 쓰고,
+   * 없을 때만 검증된 기본 문구로 돌아간다.
+   */
+  const usesCommunity =
+    approvedCommunityMessages.length > 0;
+  const messages = usesCommunity
+    ? approvedCommunityMessages
+    : curatedMessages;
 
   return {
     mode: normalizedMode,
@@ -159,13 +169,19 @@ function getCoachView({
     title: modeContent.title,
     situation:
       normalizedSituation,
-    message:
-      messages[
-        stableIndex(
-          seed,
-          messages.length
-        )
-      ],
+    source: normalizedMode === "silent"
+      ? "silent"
+      : usesCommunity
+        ? "community"
+        : "curated",
+    message: normalizedMode === "silent"
+      ? ""
+      : messages[
+          stableIndex(
+            seed,
+            messages.length
+          )
+        ],
   };
 }
 

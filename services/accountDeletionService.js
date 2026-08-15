@@ -6,6 +6,7 @@ const {
   ArchiveItem,
   AssessmentAttempt,
   CoachMessageSuggestion,
+  CoachSuggestionQuota,
   CommunityComment,
   CommunityPost,
   CommunityPostingQuota,
@@ -25,6 +26,7 @@ const {
   QuickPracticeAttempt,
   RankingProfile,
   SupportInquiry,
+  SupportInquirySubmissionGuard,
   User,
   UserNotification,
   AdminTodo,
@@ -421,6 +423,12 @@ async function purgeUserOwnedData(
       userId,
     }),
     CoachMessageSuggestion.deleteMany({
+      userId,
+    }),
+    CoachSuggestionQuota.deleteMany({
+      userId,
+    }),
+    SupportInquirySubmissionGuard.deleteMany({
       userId,
     }),
     CommunityPost.deleteMany({

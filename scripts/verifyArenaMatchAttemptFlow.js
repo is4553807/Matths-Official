@@ -557,7 +557,7 @@ async function run() {
   );
   assert.ok(
     viewSource.includes(
-      "같은 검증·봉인 문제 팩"
+      "두 참가자에게 같은 주관식 5문항"
     ) &&
       viewSource.includes(
         "서비스 닉네임입니다."

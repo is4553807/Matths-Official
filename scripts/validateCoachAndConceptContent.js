@@ -25,7 +25,9 @@ const {
 const {
   MODES,
   SITUATIONS,
+  getCoachView,
   loadCoachMessages,
+  setCommunityCoachMessages,
 } = require(
   "../services/coachMessageService"
 );
@@ -46,6 +48,26 @@ for (const mode of MODES) {
     );
   }
 }
+
+const approvedMessageMarker =
+  "승인된 학생 문구 실사용 검증";
+setCommunityCoachMessages([
+  {
+    mode: "spicy",
+    situation: "incorrect",
+    message: approvedMessageMarker,
+  },
+]);
+assert.equal(
+  getCoachView({
+    mode: "spicy",
+    situation: "incorrect",
+    seed: "approved-message-check",
+  }).message,
+  approvedMessageMarker,
+  "승인된 학생 문구가 실제 코치 피드백보다 우선 사용되어야 합니다."
+);
+setCommunityCoachMessages([]);
 
 function proseOutsideMath(value) {
   return String(value || "")
