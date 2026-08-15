@@ -5,6 +5,7 @@ const ejs = require("ejs");
 
 const modelExports = require("../models/matthsModel");
 const adminTodoService = require("../services/adminTodoService");
+const moderationNoticeService = require("../services/moderationNoticeService");
 
 const servicePath = require.resolve(
   "../services/coachSuggestionService"
@@ -34,6 +35,15 @@ function loadServiceWithMocks({
   }),
   quotaCreate = async () => ({}),
   quotaUpdateOne = async () => ({}),
+  suggestionFind = modelExports.CoachMessageSuggestion.find,
+  suggestionFindOneAndUpdate =
+    modelExports.CoachMessageSuggestion.findOneAndUpdate,
+  userFindById = modelExports.User.findById,
+  createAdminActionLog = modelExports.AdminActionLog.create,
+  completeAdminTodoBySource =
+    adminTodoService.completeAdminTodoBySource,
+  deliverModerationNotice =
+    moderationNoticeService.deliverModerationNotice,
 }) {
   modelExports.CoachMessageSuggestion.findOne =
     findOne;
@@ -41,16 +51,53 @@ function loadServiceWithMocks({
     countDocuments;
   modelExports.CoachMessageSuggestion.create =
     create;
+  modelExports.CoachMessageSuggestion.find =
+    suggestionFind;
+  modelExports.CoachMessageSuggestion.findOneAndUpdate =
+    suggestionFindOneAndUpdate;
   modelExports.CoachSuggestionQuota.findOneAndUpdate =
     quotaFindOneAndUpdate;
   modelExports.CoachSuggestionQuota.create =
     quotaCreate;
   modelExports.CoachSuggestionQuota.updateOne =
     quotaUpdateOne;
+  modelExports.User.findById =
+    userFindById;
+  modelExports.AdminActionLog.create =
+    createAdminActionLog;
   adminTodoService.createAdminTodo =
     createAdminTodo;
+  adminTodoService.completeAdminTodoBySource =
+    completeAdminTodoBySource;
+  moderationNoticeService.deliverModerationNotice =
+    deliverModerationNotice;
   delete require.cache[servicePath];
   return require(servicePath);
+}
+
+function leanQuery(value) {
+  return {
+    select() {
+      return this;
+    },
+    async lean() {
+      return value;
+    },
+  };
+}
+
+function approvedSuggestionQuery(items = []) {
+  return {
+    sort() {
+      return this;
+    },
+    limit() {
+      return this;
+    },
+    async lean() {
+      return items;
+    },
+  };
 }
 
 async function renderForm() {
@@ -348,6 +395,231 @@ async function verifyConcurrentDailyQuota() {
   assert.equal(quota.count, 10);
 }
 
+async function verifySubmissionDoesNotSendEmail() {
+  let todoCalls = 0;
+  let moderationNoticeCalls = 0;
+  const service = loadServiceWithMocks({
+    findOne: async () => null,
+    countDocuments: async () => 0,
+    create: async (input) => ({
+      ...pendingSuggestion,
+      ...input,
+      _id: "64b000000000000000000301",
+      status: "pending",
+    }),
+    createAdminTodo: async () => {
+      todoCalls += 1;
+      return {};
+    },
+    deliverModerationNotice: async () => {
+      moderationNoticeCalls += 1;
+      throw new Error(
+        "제안 등록 단계에서는 이메일·알림을 보내면 안 됩니다."
+      );
+    },
+  });
+
+  const result =
+    await service.createSuggestion({
+      user: {
+        id: pendingSuggestion.userId,
+        name: "감사 학생",
+        email: "audit@example.com",
+      },
+      mode: pendingSuggestion.mode,
+      situation:
+        pendingSuggestion.situation,
+      message:
+        pendingSuggestion.message,
+      requestId:
+        "audit-no-email-request-001",
+    });
+
+  assert.equal(result.status, "pending");
+  assert.equal(todoCalls, 1);
+  assert.equal(
+    moderationNoticeCalls,
+    0
+  );
+}
+
+async function verifyModerationDeliveryAndAudit({
+  action,
+  delivered,
+}) {
+  const adminUserId =
+    "64b000000000000000000010";
+  const notificationId =
+    "64b000000000000000000020";
+  const moderationStatus =
+    action === "approve"
+      ? "approved"
+      : "rejected";
+  const moderatedSuggestion = {
+    ...pendingSuggestion,
+    status: moderationStatus,
+    rejectionReason:
+      action === "reject"
+        ? "서비스 기준에 맞지 않습니다."
+        : "",
+    moderatedBy: adminUserId,
+    moderatedAt: new Date(),
+  };
+  const targetUser = {
+    _id: pendingSuggestion.userId,
+    name: "감사 학생",
+    email: "audit@example.com",
+  };
+  const noticeCalls = [];
+  const auditCalls = [];
+  const completedTodos = [];
+
+  const service = loadServiceWithMocks({
+    findOne: async () => null,
+    countDocuments: async () => 0,
+    create: async () => {
+      throw new Error(
+        "검수 테스트에서 제안을 생성하면 안 됩니다."
+      );
+    },
+    createAdminTodo: async () => ({}),
+    suggestionFindOneAndUpdate: async (
+      query,
+      update
+    ) => {
+      assert.equal(
+        query.status,
+        "pending"
+      );
+      assert.equal(
+        update.$set.status,
+        moderationStatus
+      );
+      return moderatedSuggestion;
+    },
+    suggestionFind: (query) => {
+      assert.equal(
+        query.status,
+        "approved"
+      );
+      return approvedSuggestionQuery(
+        action === "approve"
+          ? [moderatedSuggestion]
+          : []
+      );
+    },
+    userFindById: (userId) => {
+      assert.equal(
+        String(userId),
+        pendingSuggestion.userId
+      );
+      return leanQuery(targetUser);
+    },
+    deliverModerationNotice: async (
+      input
+    ) => {
+      noticeCalls.push(input);
+      return {
+        notification: {
+          _id: notificationId,
+        },
+        delivery: delivered
+          ? {
+              delivered: true,
+              providerMessageId:
+                "smtp-message-id",
+            }
+          : {
+              delivered: false,
+              error:
+                "SMTP 테스트 실패",
+            },
+      };
+    },
+    createAdminActionLog: async (
+      input
+    ) => {
+      auditCalls.push(input);
+      return input;
+    },
+    completeAdminTodoBySource: async (
+      input
+    ) => {
+      completedTodos.push(input);
+      return input;
+    },
+  });
+
+  const rejectionReason =
+    "서비스 기준에 맞지 않습니다.";
+  const result =
+    await service.moderateSuggestion({
+      adminUser: {
+        id: adminUserId,
+        role: "admin",
+      },
+      suggestionId:
+        pendingSuggestion._id,
+      action,
+      rejectionReason,
+    });
+
+  assert.equal(
+    result.status,
+    moderationStatus
+  );
+  assert.equal(noticeCalls.length, 1);
+  assert.equal(
+    noticeCalls[0].user.email,
+    targetUser.email
+  );
+  assert.equal(
+    noticeCalls[0].href,
+    "/coach-suggestions"
+  );
+  assert.match(
+    noticeCalls[0].title,
+    action === "approve"
+      ? /승인/
+      : /반려/
+  );
+  assert.match(
+    noticeCalls[0].message,
+    action === "approve"
+      ? /코치 문구에 반영/
+      : new RegExp(
+          rejectionReason
+        )
+  );
+  assert.equal(auditCalls.length, 1);
+  assert.equal(
+    auditCalls[0].action,
+    `coach-suggestion.${action}`
+  );
+  assert.equal(
+    auditCalls[0].targetUserId,
+    pendingSuggestion.userId
+  );
+  assert.equal(
+    auditCalls[0].metadata
+      .siteNotificationId,
+    notificationId
+  );
+  assert.equal(
+    auditCalls[0].metadata
+      .emailStatus,
+    delivered ? "SENT" : "FAILED"
+  );
+  assert.equal(
+    auditCalls[0].metadata
+      .rejectionReason,
+    action === "approve"
+      ? ""
+      : rejectionReason
+  );
+  assert.equal(completedTodos.length, 1);
+}
+
 async function run() {
   verifyUniqueIndex();
   await renderForm();
@@ -355,6 +627,15 @@ async function run() {
   await verifyModeratedReplayDoesNotReopenTodo();
   await verifyConcurrentDuplicateRecovery();
   await verifyConcurrentDailyQuota();
+  await verifySubmissionDoesNotSendEmail();
+  await verifyModerationDeliveryAndAudit({
+    action: "approve",
+    delivered: true,
+  });
+  await verifyModerationDeliveryAndAudit({
+    action: "reject",
+    delivered: false,
+  });
   const serverSource =
     fs.readFileSync(
       path.join(
@@ -368,8 +649,22 @@ async function run() {
     serverSource,
     /await ensureCoachSuggestionIndexes\(\)/
   );
+  const adminTodoSource =
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "..",
+        "services",
+        "adminTodoService.js"
+      ),
+      "utf8"
+    );
+  assert.doesNotMatch(
+    adminTodoSource,
+    /emailService|send[A-Za-z]*Email/
+  );
   console.log(
-    "Coach suggestion idempotency verified: rendered request keys, unique storage, concurrent duplicate recovery, atomic 10-per-KST-day quota, and admin-todo repair all pass."
+    "Coach suggestion workflow verified: submission sends no user/admin email, while approve/reject notification-email-audit delivery, request idempotency, quota, and admin-todo behavior all pass."
   );
 }
 

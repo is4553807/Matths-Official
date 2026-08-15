@@ -134,6 +134,8 @@ function adminAuditActionLabel(action) {
     "user.package-access": "이용권·Division 권한 변경",
     "user.role": "회원 역할 변경",
     "inquiry.reply": "문의 답변",
+    "coach-suggestion.approve": "코치 문구 제안 승인",
+    "coach-suggestion.reject": "코치 문구 제안 반려",
   };
   if (exact[action]) return exact[action];
   const sanctionLabel = sanctionActionLabel(action);

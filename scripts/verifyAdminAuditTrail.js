@@ -16,6 +16,8 @@ assert.equal(isUserAppliedAdminAction("finance.payback-completed"), true);
 assert.equal(isUserAppliedAdminAction("community.post-warning"), true);
 assert.equal(isUserAppliedAdminAction("arena.integrity.match.cleared"), true);
 assert.equal(isUserAppliedAdminAction("private-mock.integrity-penalty"), true);
+assert.equal(isUserAppliedAdminAction("coach-suggestion.approve"), true);
+assert.equal(isUserAppliedAdminAction("coach-suggestion.reject"), true);
 
 assert.equal(isUserAppliedAdminAction("admin.request.get"), false);
 assert.equal(isUserAppliedAdminAction("admin.request.post"), false);

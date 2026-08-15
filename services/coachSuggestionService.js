@@ -1,8 +1,9 @@
 const mongoose = require("mongoose");
 const {
+  AdminActionLog,
   CoachMessageSuggestion,
   CoachSuggestionQuota,
-  UserNotification,
+  User,
 } = require("../models/matthsModel");
 const {
   completeAdminTodoBySource,
@@ -13,6 +14,9 @@ const {
   SITUATIONS,
   setCommunityCoachMessages,
 } = require("./coachMessageService");
+const {
+  deliverModerationNotice,
+} = require("./moderationNoticeService");
 
 function isCoachAdmin(user) {
   return user?.role === "admin";
@@ -522,21 +526,88 @@ async function moderateSuggestion({
     throw error;
   }
 
-  if (rejected) {
-    await UserNotification.create({
-      userId:
-        suggestion.userId,
-      title:
-        "제안한 문구가 반려되었습니다.",
-      message:
-        `제안 문구: ${suggestion.message}\n` +
-        `반려 사유: ${cleanRejectionReason}`,
-      href: "/coach-suggestions",
-      kind: "system",
-      createdBy:
-        adminUser.id,
-    });
+  const targetUser =
+    await User.findById(
+      suggestion.userId
+    )
+      .select(
+        "name realName email"
+      )
+      .lean();
+  const noticeTitle = approved
+    ? "제안한 코치 문구가 승인되었습니다."
+    : "제안한 코치 문구가 반려되었습니다.";
+  const noticeMessage = approved
+    ? `제안 문구: ${suggestion.message}\n운영자 검수를 통과해 코치 문구에 반영되었습니다.`
+    : `제안 문구: ${suggestion.message}\n반려 사유: ${cleanRejectionReason}`;
+  let noticeResult = {
+    notification: null,
+    delivery: {
+      delivered: false,
+      error:
+        "제안 사용자를 찾을 수 없습니다.",
+    },
+  };
+
+  if (targetUser) {
+    noticeResult =
+      await deliverModerationNotice({
+        user: targetUser,
+        title: noticeTitle,
+        message: noticeMessage,
+        kind: "admin",
+        href: "/coach-suggestions",
+        createdBy:
+          adminUser.id,
+        emailSubject:
+          noticeTitle,
+        emailMessage:
+          noticeMessage,
+      });
   }
+
+  await AdminActionLog.create({
+    adminUserId:
+      adminUser.id,
+    targetUserId:
+      suggestion.userId,
+    action: approved
+      ? "coach-suggestion.approve"
+      : "coach-suggestion.reject",
+    detail: approved
+      ? `코치 문구 승인: ${suggestion.message}`
+      : `코치 문구 반려: ${suggestion.message}`,
+    metadata: {
+      suggestionId:
+        String(suggestion._id),
+      mode: suggestion.mode,
+      situation:
+        suggestion.situation,
+      moderationStatus:
+        suggestion.status,
+      rejectionReason: approved
+        ? ""
+        : cleanRejectionReason,
+      siteNotificationId:
+        noticeResult.notification
+          ? String(
+              noticeResult.notification
+                ._id
+            )
+          : "",
+      emailStatus:
+        noticeResult.delivery
+          ?.delivered
+          ? "SENT"
+          : "FAILED",
+      emailProviderMessageId:
+        noticeResult.delivery
+          ?.providerMessageId || "",
+      emailLastError:
+        noticeResult.delivery
+          ?.error || "",
+    },
+  });
 
   await completeAdminTodoBySource({
     sourceType:
