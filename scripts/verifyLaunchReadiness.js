@@ -23,6 +23,7 @@ const checks = [
   "support-inquiry-concurrency:verify",
   "placement-story:verify",
   "payback-completion:verify",
+  "payback-daily-learning:verify",
   "product-foundation:verify",
   "launch-views:verify",
   "ui:verify",

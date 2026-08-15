@@ -330,12 +330,16 @@ function normalizePolicyDraftInput(input = {}) {
   if (displayName.length < 2) {
     throw statusError(400, "정책 이름을 2자 이상 입력해주세요.");
   }
-  const paymentDayCutoffKst = String(
-    input.paymentDayCutoffKst || "20:00"
+  const requestedCutoff = String(
+    input.paymentDayCutoffKst || "00:00"
   ).trim();
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(paymentDayCutoffKst)) {
-    throw statusError(400, "첫날 차감 기준 시각을 확인해주세요.");
+  if (requestedCutoff !== "00:00") {
+    throw statusError(
+      400,
+      "학습권과 페이백 공격 주기는 결제 다음 날 00:00에만 시작할 수 있습니다."
+    );
   }
+  const paymentDayCutoffKst = "00:00";
 
   const paybackBands = normalizePaybackBands(input);
   const initialLearningDays = integerValue(input.initialLearningDays, {
@@ -346,7 +350,7 @@ function normalizePolicyDraftInput(input = {}) {
   const minimumStreakDays = integerValue(
     input.minimumStreakDays ?? input.payback?.minimumStreakDays,
     {
-      label: "페이백 최소 연속 학습일",
+      label: "페이백 최소 연속 공식 공격 제출일",
       minimum: 1,
       fallback: initialLearningDays,
     }
@@ -354,7 +358,7 @@ function normalizePolicyDraftInput(input = {}) {
   if (minimumStreakDays !== initialLearningDays) {
     throw statusError(
       400,
-      "페이백 연속 학습일은 정기권 전체 학습일과 같아야 합니다. 29일 학습 패키지는 29일 모두 학습해야 합니다."
+      "페이백 공식 공격 제출일은 정기권 전체 이용일과 같아야 합니다. 29일 학습 패키지는 29일 모두 유효한 GOAT Arena 공격을 제출해야 합니다."
     );
   }
   const minimumScoreDays = integerValue(
@@ -608,7 +612,7 @@ function defaultLearningPackagePolicyDefinition({
     priceAmount: Number(priceAmount),
     initialLearningDays: DEFAULT_LEARNING_PACKAGE_DAYS,
     initialPaybackScoreDays: 29,
-    paymentDayCutoffKst: "20:00",
+    paymentDayCutoffKst: "00:00",
     renewalGraceHours: 72,
     packagePurchaseRequiresZeroBalance: true,
     packagePurchaseRequiresZeroLockedBalance: true,
@@ -1109,7 +1113,8 @@ async function ensureFullAttendanceLearningPackagePolicy(now = new Date()) {
   }
   if (
     Number(current.initialLearningDays) === DEFAULT_LEARNING_PACKAGE_DAYS &&
-    Number(current.payback?.minimumStreakDays) === DEFAULT_LEARNING_PACKAGE_DAYS
+    Number(current.payback?.minimumStreakDays) === DEFAULT_LEARNING_PACKAGE_DAYS &&
+    current.paymentDayCutoffKst === "00:00"
   ) {
     return learningPackagePolicyView(current);
   }
@@ -1151,7 +1156,8 @@ async function ensureFullAttendanceLearningPackagePolicy(now = new Date()) {
         Number(transactionCurrent.initialLearningDays) ===
           DEFAULT_LEARNING_PACKAGE_DAYS &&
         Number(transactionCurrent.payback?.minimumStreakDays) ===
-          DEFAULT_LEARNING_PACKAGE_DAYS
+          DEFAULT_LEARNING_PACKAGE_DAYS &&
+        transactionCurrent.paymentDayCutoffKst === "00:00"
       ) {
         created = transactionCurrent;
         return;
@@ -1169,12 +1175,13 @@ async function ensureFullAttendanceLearningPackagePolicy(now = new Date()) {
         effectiveFrom,
         effectiveUntil: nextPolicy?.effectiveFrom || null,
         initialLearningDays: DEFAULT_LEARNING_PACKAGE_DAYS,
+        paymentDayCutoffKst: "00:00",
         payback: {
           ...(base.payback || {}),
           minimumStreakDays: DEFAULT_LEARNING_PACKAGE_DAYS,
         },
         changeSummary:
-          "페이백 자격에 29일 전일 연속 학습 조건 적용",
+          "결제 다음 날 00:00 시작과 29일 연속 GOAT Arena 공식 공격 제출 조건 적용",
         activatedAt: now,
         activatedBy: null,
       });

@@ -269,7 +269,7 @@ assert.equal(
       "2026-08-01T19:59:59+09:00",
     policy,
   }).firstConsumptionDateKst,
-  "2026-08-01"
+  "2026-08-02"
 );
 assert.equal(
   computeAccessCycleWindow({

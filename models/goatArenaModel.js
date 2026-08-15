@@ -188,7 +188,7 @@ const subscriptionPolicyVersionSchema = new Schema(
     paymentDayCutoffKst: {
       type: String,
       match: /^([01]\d|2[0-3]):[0-5]\d$/,
-      default: "20:00",
+      default: "00:00",
     },
     renewalGraceHours: {
       type: Number,
@@ -5314,6 +5314,12 @@ arenaMatchSchema.index({
 arenaMatchSchema.index({
   status: 1,
   "defender.userId": 1,
+});
+arenaMatchSchema.index({
+  division: 1,
+  matchType: 1,
+  "defender.userId": 1,
+  requestedAt: -1,
 });
 
 const arenaMatchParticipantLockSchema =

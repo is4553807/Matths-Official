@@ -1,9 +1,6 @@
 const {
   User,
 } = require("../models/matthsModel");
-const {
-  AccessCycle,
-} = require("../models/goatArenaModel");
 
 const TIME_ZONE = "Asia/Seoul";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -92,66 +89,6 @@ function getDateGapInDays(
   }
 
   return laterDay - earlierDay;
-}
-
-async function recordAccessCycleStudyStreak(
-  userId,
-  now = new Date()
-) {
-  const todayKey = getKoreanDateKey(now);
-  const todayNumber = dateKeyToDayNumber(todayKey);
-
-  for (
-    let attempt = 0;
-    attempt < MAX_UPDATE_RETRIES;
-    attempt += 1
-  ) {
-    const cycle = await AccessCycle.findOne({
-      userId,
-      division: "SUB",
-      status: "ACTIVE",
-      evaluatedAt: null,
-      startsAt: { $lte: now },
-    })
-      .sort({ startsAt: -1, _id: -1 })
-      .select("_id streakDays lastStreakDateKst")
-      .lean();
-
-    if (!cycle || cycle.lastStreakDateKst === todayKey) {
-      return cycle;
-    }
-
-    const previousDayNumber = dateKeyToDayNumber(
-      cycle.lastStreakDateKst
-    );
-    const consecutive =
-      Number.isInteger(previousDayNumber) &&
-      todayNumber - previousDayNumber === 1;
-    const nextStreak = consecutive
-      ? Math.max(0, Number(cycle.streakDays) || 0) + 1
-      : 1;
-
-    const updated = await AccessCycle.findOneAndUpdate(
-      {
-        _id: cycle._id,
-        lastStreakDateKst: cycle.lastStreakDateKst || null,
-      },
-      {
-        $set: {
-          streakDays: nextStreak,
-          lastStreakDateKst: todayKey,
-        },
-      },
-      { returnDocument: "after" }
-    );
-    if (updated) return updated;
-  }
-
-  const error = new Error(
-    "이용 주기의 연속 학습일을 갱신하지 못했습니다. 잠시 후 다시 시도해주세요."
-  );
-  error.status = 409;
-  throw error;
 }
 
 function getAcademicYear(date = new Date()) {
@@ -402,13 +339,7 @@ async function recordStudyActivity(
         }
       );
 
-    if (updated) {
-      await recordAccessCycleStudyStreak(
-        userId,
-        now
-      );
-      return updated;
-    }
+    if (updated) return updated;
   }
 
   const error = new Error(
@@ -429,7 +360,6 @@ module.exports = {
   lifecycleSessionView,
   synchronizeUserLifecycle,
   recordStudyActivity,
-  recordAccessCycleStudyStreak,
   _testing: {
     promotedEducationState,
   },

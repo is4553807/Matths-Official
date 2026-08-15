@@ -3,6 +3,7 @@ require("dotenv").config({ path: "config.env" });
 const mongoose = require("mongoose");
 const matthsModels = require("../models/matthsModel");
 const arenaModels = require("../models/goatArenaModel");
+const paybackDailyLearningModels = require("../models/paybackDailyLearningModel");
 
 function keySignature(key = {}, index = null) {
   if (index?.weights && Object.keys(index.weights).length) {
@@ -20,7 +21,11 @@ function keySignature(key = {}, index = null) {
 
 function registeredModels() {
   const byCollection = new Map();
-  for (const model of Object.values({ ...matthsModels, ...arenaModels })) {
+  for (const model of Object.values({
+    ...matthsModels,
+    ...arenaModels,
+    ...paybackDailyLearningModels,
+  })) {
     if (!model?.modelName || !model?.schema || !model?.collection?.name) continue;
     byCollection.set(model.collection.name, model);
   }

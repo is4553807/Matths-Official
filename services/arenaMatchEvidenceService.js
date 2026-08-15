@@ -50,6 +50,9 @@ const {
   reconcileAutomaticDefenseNoShows,
   recordAutomaticDefenseNoShow,
 } = require("./arenaAutomaticDefenseService");
+const {
+  recordPaybackAttackLearningDay,
+} = require("./paybackDailyLearningService");
 
 const ARENA_EVIDENCE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 const ARENA_EVIDENCE_PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -366,7 +369,12 @@ async function submitArenaMatchEvidence({
         attemptId: attempt._id,
       }).session(session);
       if (existing) {
-        result = { evidence: existing, match, replayed: true };
+        result = {
+          evidence: existing,
+          match,
+          attempt,
+          replayed: true,
+        };
         return;
       }
       if (attempt.status !== "EVIDENCE_REQUIRED") {
@@ -414,7 +422,7 @@ async function submitArenaMatchEvidence({
             userId,
             files: evidenceFiles,
             deadlineAt: attempt.evidenceDeadlineAt,
-            submittedAt: now,
+            submittedAt: acceptedAt,
             retentionUntil: new Date(now.getTime() + ARENA_EVIDENCE_RETENTION_MS),
             status: "ON_TIME",
             anomalyFlags: [],
@@ -423,7 +431,7 @@ async function submitArenaMatchEvidence({
         { session, ordered: true }
       );
       attempt.status = "SUBMITTED";
-      attempt.evidenceSubmittedAt = now;
+      attempt.evidenceSubmittedAt = acceptedAt;
       attempt.score = scoring.score;
       attempt.correctCount = scoring.correctCount;
       await attempt.save({ session });
@@ -678,25 +686,43 @@ async function submitArenaMatchEvidence({
         session,
         ordered: true,
       });
-      result = { evidence, match, replayed: false };
+      result = {
+        evidence,
+        match,
+        attempt,
+        replayed: false,
+      };
     });
     if (result.replayed) {
       await discardArenaEvidenceFiles(
         evidenceFiles
       );
     }
+    const dailyLearning =
+      await recordPaybackAttackLearningDay({
+        match: result.match,
+        attempt: result.attempt,
+        evidence: result.evidence,
+        userId,
+        submittedAt:
+          result.evidence.submittedAt ||
+          acceptedAt,
+      });
     return {
       evidenceId: String(result.evidence._id),
       status: result.evidence.status,
       matchStatus: result.match.status,
       replayed: result.replayed,
+      dailyLearning,
     };
   } catch (error) {
-    await discardArenaEvidenceFiles(
-      evidenceFiles?.length
-        ? evidenceFiles
-        : files
-    );
+    if (!result) {
+      await discardArenaEvidenceFiles(
+        evidenceFiles?.length
+          ? evidenceFiles
+          : files
+      );
+    }
     throw error;
   }
 }

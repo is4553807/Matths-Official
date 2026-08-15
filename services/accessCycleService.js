@@ -141,24 +141,8 @@ function computeAccessCycleWindow({
   }
   const purchaseDateKey =
     kstDateKey(purchaseDate);
-  const parts = kstDateParts(purchaseDate);
-  const [cutoffHour, cutoffMinute] = String(
-    snapshot.paymentDayCutoffKst || "20:00"
-  )
-    .split(":")
-    .map(Number);
-  const purchaseMinuteOfDay =
-    parts.hour * 60 +
-    Number(parts.minute || 0);
-  const cutoffMinuteOfDay =
-    cutoffHour * 60 +
-    cutoffMinute;
-  const isNextDay =
-    purchaseMinuteOfDay >=
-    cutoffMinuteOfDay;
   const firstDayNumber =
-    dateKeyToUtcDay(purchaseDateKey) +
-    (isNextDay ? 1 : 0);
+    dateKeyToUtcDay(purchaseDateKey) + 1;
   const firstConsumptionDateKey =
     dateKeyFromUtcDay(firstDayNumber);
   const evaluationDayCount = Math.max(
@@ -178,9 +162,7 @@ function computeAccessCycleWindow({
     startsAt: purchaseDate,
     firstConsumptionDateKst:
       firstConsumptionDateKey,
-    firstDayMode: isNextDay
-      ? "NEXT_DAY"
-      : "SAME_DAY",
+    firstDayMode: "NEXT_DAY",
     baseExpiresAt:
       kstMidnight(expiresDateKey),
     expiresAt:
@@ -647,6 +629,8 @@ async function hasPendingMatchSettlement({
 
 function packagePurchaseBlockedMessage(reasons = []) {
   const reasonMessages = {
+    PAYBACK_ATTACK_WINDOW_ACTIVE:
+      "현재 이용 주기의 마지막 페이백 공식 공격 제출 기간이 아직 끝나지 않았습니다.",
     AVAILABLE_BALANCE_REMAINS:
       "현재 학습권의 사용 가능한 학습일이 남아 있습니다.",
     LOCKED_BALANCE_REMAINS:
@@ -667,15 +651,34 @@ function packagePurchaseBlockedMessage(reasons = []) {
   ].join(" ");
 }
 
+function activePaybackAttackWindow(
+  cycle,
+  now = new Date()
+) {
+  const evaluationAt = new Date(
+    cycle?.evaluationAt
+  );
+  const current = new Date(now);
+  return Boolean(
+    cycle?.division === "SUB" &&
+      cycle?.status === "ACTIVE" &&
+      Number(cycle?.availableLearningDays) === 0 &&
+      !Number.isNaN(evaluationAt.getTime()) &&
+      !Number.isNaN(current.getTime()) &&
+      current < evaluationAt
+  );
+}
+
 async function getPackagePurchaseEligibilityForUser({
   userId,
   session = null,
+  now = new Date(),
 }) {
   const cycleQuery = AccessCycle.findOne({
     userId,
     status: "ACTIVE",
   }).select(
-    "availableLearningDays reservedLearningDays lockedLearningDays lockedPaybackScoreDays"
+    "division status evaluationAt availableLearningDays reservedLearningDays lockedLearningDays lockedPaybackScoreDays"
   );
   if (session) cycleQuery.session(session);
   const [activeCycle, pendingSettlement] = await Promise.all([
@@ -692,6 +695,11 @@ async function getPackagePurchaseEligibilityForUser({
     lockedPaybackScoreDays:
       activeCycle?.lockedPaybackScoreDays || 0,
     hasPendingSettlement: pendingSettlement,
+    activePaybackAttackWindow:
+      activePaybackAttackWindow(
+        activeCycle,
+        now
+      ),
   });
   return { ...eligibility, activeCycle };
 }
@@ -892,6 +900,11 @@ async function applyApprovedPackagePayment(
                 ?.lockedPaybackScoreDays || 0,
             hasPendingSettlement:
               pendingSettlement,
+            activePaybackAttackWindow:
+              activePaybackAttackWindow(
+                activeCycle,
+                approval.approvedAt
+              ),
           });
         if (!eligibility.eligible) {
           throw statusError(
@@ -1509,6 +1522,7 @@ module.exports = {
   startAccessCycleScheduler,
   stopAccessCycleScheduler,
   _testing: {
+    activePaybackAttackWindow,
     assertPolicyPaymentMatches,
     assertSamePaymentApproval,
     kstDateKey,
