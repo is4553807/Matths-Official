@@ -124,6 +124,31 @@ exports.isLoggedOut = (req, res, next) => {
     );
 };
 
+// ASWebAuthenticationSession은 기존 Safari 로그인 쿠키를 재사용할 수 있다.
+// 앱이 시작한 OAuth state가 맞다면 웹 로그인 여부와 무관하게 callback을 끝내
+// matths://oauth/google 로 복귀시킨다. 일반 웹 OAuth는 기존 logged-out 계약을
+// 그대로 유지한다.
+exports.isSocialOAuthCallbackAllowed = (
+    req,
+    res,
+    next
+) => {
+    if (
+        req.session
+            ?.socialOAuthState
+            ?.context
+            ?.mobile === true
+    ) {
+        return next();
+    }
+
+    return exports.isLoggedOut(
+        req,
+        res,
+        next
+    );
+};
+
 exports.isAdmin = (
     req,
     res,

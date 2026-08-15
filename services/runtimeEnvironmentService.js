@@ -72,6 +72,38 @@ function runtimeEnvironmentReport(environment = process.env) {
     }
   }
 
+  for (const key of [
+    "GOOGLE_OAUTH_CLIENT_ID",
+    "GOOGLE_OAUTH_CLIENT_SECRET",
+    "GOOGLE_OAUTH_REDIRECT_URI",
+  ]) {
+    requireValue(
+      key,
+      `${key}를 Cloudtype 운영 환경에 등록해야 합니다.`
+    );
+  }
+  const expectedGoogleRedirect =
+    valueOf(
+      environment,
+      "PUBLIC_BASE_URL"
+    )
+      ? `${valueOf(environment, "PUBLIC_BASE_URL").replace(/\/$/, "")}/auth/google/callback`
+      : "";
+  if (
+    valueOf(
+      environment,
+      "GOOGLE_OAUTH_REDIRECT_URI"
+    ) &&
+    valueOf(
+      environment,
+      "GOOGLE_OAUTH_REDIRECT_URI"
+    ) !== expectedGoogleRedirect
+  ) {
+    errors.push(
+      `GOOGLE_OAUTH_REDIRECT_URI는 ${expectedGoogleRedirect || "PUBLIC_BASE_URL 기반 callback"}이어야 합니다.`
+    );
+  }
+
   if (!hasCloudinaryConfig(environment)) {
     errors.push("사용자 업로드를 위한 Cloudinary 운영 연결 정보가 필요합니다.");
   }

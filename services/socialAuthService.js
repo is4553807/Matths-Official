@@ -25,8 +25,30 @@ function providerConfig(provider) {
     error.code = "SOCIAL_AUTH_PROVIDER_NOT_FOUND";
     throw error;
   }
+  const testOverrides =
+    process.env.NODE_ENV === "test"
+      ? {
+          authorizeUrl: String(
+            process.env
+              .GOOGLE_OAUTH_TEST_AUTHORIZE_URL ||
+              definition.authorizeUrl
+          ),
+          tokenUrl: String(
+            process.env
+              .GOOGLE_OAUTH_TEST_TOKEN_URL ||
+              definition.tokenUrl
+          ),
+          profileUrl: String(
+            process.env
+              .GOOGLE_OAUTH_TEST_PROFILE_URL ||
+              definition.profileUrl
+          ),
+        }
+      : {};
+
   return {
     ...definition,
+    ...testOverrides,
     clientId: String(process.env[definition.clientIdEnv] || "").trim(),
     clientSecret: String(process.env[definition.clientSecretEnv] || "").trim(),
     redirectUri: String(process.env[definition.redirectUriEnv] || "").trim(),
@@ -39,22 +61,26 @@ function publicProviderStatus() {
     return {
       key: provider.key,
       label: provider.label,
-      configured: Boolean(config.clientId && config.redirectUri),
+      configured: Boolean(
+        config.clientId &&
+        config.clientSecret &&
+        config.redirectUri
+      ),
     };
   });
 }
 
 function assertConfigured(config) {
-  if (!config.clientId || !config.redirectUri) {
+  if (
+    !config.clientId ||
+    !config.clientSecret ||
+    !config.redirectUri
+  ) {
     const error = new Error(`${config.label} 로그인이 아직 설정되지 않았습니다.`);
     error.status = 503;
     error.code = "SOCIAL_AUTH_NOT_CONFIGURED";
     throw error;
   }
-}
-
-function randomToken(bytes = 32) {
-  return crypto.randomBytes(bytes).toString("base64url");
 }
 
 function safeEqual(left, right) {
@@ -66,14 +92,30 @@ function safeEqual(left, right) {
   );
 }
 
-function beginSocialAuthorization(req, provider) {
+function beginSocialAuthorization(
+  req,
+  provider,
+  context = {}
+) {
   const config = providerConfig(provider);
   assertConfigured(config);
-  const state = randomToken();
+  const state = crypto
+    .randomBytes(32)
+    .toString("base64url");
+  const mobileContext =
+    context.mobile === true
+      ? {
+          mobile: true,
+          codeChallenge: String(
+            context.codeChallenge || ""
+          ),
+        }
+      : { mobile: false };
   req.session.socialOAuthState = {
     provider: config.key,
     state,
     createdAt: Date.now(),
+    context: mobileContext,
   };
 
   const url = new URL(config.authorizeUrl);
@@ -91,7 +133,9 @@ function beginSocialAuthorization(req, provider) {
 
 function consumeAndVerifyState(req, provider, state) {
   const saved = req.session?.socialOAuthState;
-  delete req.session.socialOAuthState;
+  if (req.session) {
+    delete req.session.socialOAuthState;
+  }
   const valid =
     saved &&
     saved.provider === provider &&
@@ -101,8 +145,11 @@ function consumeAndVerifyState(req, provider, state) {
     const error = new Error("소셜 로그인 요청이 만료되었거나 올바르지 않습니다. 다시 시도해주세요.");
     error.status = 400;
     error.code = "SOCIAL_AUTH_STATE_INVALID";
+    error.context =
+      saved?.context || {};
     throw error;
   }
+  return saved.context || {};
 }
 
 async function responseJson(response, providerLabel, step) {
@@ -169,25 +216,51 @@ function assertVerifiedProfile(profile) {
 async function completeSocialAuthorization(req, provider, { code, state }, fetchImpl = fetch) {
   const config = providerConfig(provider);
   assertConfigured(config);
-  consumeAndVerifyState(req, config.key, state);
+  const context =
+    consumeAndVerifyState(
+      req,
+      config.key,
+      state
+    );
   if (!code) {
-    const error = new Error(`${config.label} 로그인이 취소되었거나 인증 코드가 없습니다.`);
+    const error = new Error(`${config.label} 로그인이 취소되었습니다.`);
     error.status = 400;
-    error.code = "SOCIAL_AUTH_CODE_MISSING";
+    error.code = "SOCIAL_AUTH_CANCELLED";
+    error.context = context;
     throw error;
   }
   const token = await exchangeCode(config, code, fetchImpl);
-  return assertVerifiedProfile(
-    await fetchProviderProfile(config, token.access_token, fetchImpl)
-  );
+  return {
+    profile: assertVerifiedProfile(
+      await fetchProviderProfile(
+        config,
+        token.access_token,
+        fetchImpl
+      )
+    ),
+    context,
+  };
 }
 
-function setPendingSocialRegistration(req, profile) {
+function setPendingSocialRegistration(
+  req,
+  profile,
+  context = {}
+) {
   req.session.pendingSocialRegistration = {
     provider: profile.provider,
     providerUserId: profile.providerUserId,
     email: profile.email,
     displayName: profile.displayName,
+    mobile:
+      context.mobile === true,
+    ...(context.codeChallenge
+      ? {
+          codeChallenge: String(
+            context.codeChallenge
+          ),
+        }
+      : {}),
     createdAt: Date.now(),
   };
 }

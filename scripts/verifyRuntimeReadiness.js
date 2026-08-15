@@ -12,6 +12,12 @@ const validProductionEnvironment = {
   SECRET: "s".repeat(64),
   APP_BASE_URL: "https://www.matths.kr",
   PUBLIC_BASE_URL: "https://www.matths.kr",
+  GOOGLE_OAUTH_CLIENT_ID:
+    "runtime-google-client",
+  GOOGLE_OAUTH_CLIENT_SECRET:
+    "runtime-google-secret",
+  GOOGLE_OAUTH_REDIRECT_URI:
+    "https://www.matths.kr/auth/google/callback",
   CLOUDINARY_URL: "cloudinary://key:secret@example",
   R2_ACCOUNT_ID: "account",
   R2_ACCESS_KEY_ID: "access",
@@ -37,6 +43,21 @@ async function main() {
     APP_BASE_URL: "http://www.matths.kr/path",
   });
   assert.ok(insecureUrlReport.errors.some((item) => item.includes("APP_BASE_URL")));
+
+  const invalidGoogleRedirectReport =
+    runtimeEnvironmentReport({
+      ...validProductionEnvironment,
+      GOOGLE_OAUTH_REDIRECT_URI:
+        "https://matths.kr/auth/google/callback",
+    });
+  assert.ok(
+    invalidGoogleRedirectReport.errors.some(
+      (item) =>
+        item.includes(
+          "GOOGLE_OAUTH_REDIRECT_URI"
+        )
+    )
+  );
 
   const missingTossKeysReport = runtimeEnvironmentReport({
     ...validProductionEnvironment,

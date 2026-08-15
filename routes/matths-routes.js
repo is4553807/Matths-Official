@@ -1366,6 +1366,13 @@ router.post(
   matthsController.login
 );
 
+// iPad ASWebAuthenticationSession의 공개 PKCE 진입점. API Bearer 경계와
+// 분리해 로그인 전에도 Google 왕복을 시작할 수 있게 한다.
+router.get(
+  "/auth/google/app",
+  matthsController.socialOAuthAppStart
+);
+
 router.get(
   "/auth/google",
   authMiddleware.isLoggedOut,
@@ -1376,7 +1383,8 @@ router.get(
 );
 router.get(
   "/auth/google/callback",
-  authMiddleware.isLoggedOut,
+  authMiddleware
+    .isSocialOAuthCallbackAllowed,
   (req, res) => {
     req.params.provider = "google";
     return matthsController.socialOAuthCallback(req, res);

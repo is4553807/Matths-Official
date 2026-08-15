@@ -55,6 +55,14 @@ router.post(
   loginRateLimit,
   apiController.login
 );
+router.get(
+  "/auth/providers",
+  apiController.socialAuthProviders
+);
+router.post(
+  "/auth/google/exchange",
+  apiController.exchangeGoogleAuthCode
+);
 router.post(
   "/auth/password-reset/request",
   passwordResetIpRateLimit,

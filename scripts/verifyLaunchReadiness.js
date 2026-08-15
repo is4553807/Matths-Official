@@ -1,6 +1,7 @@
 const { spawnSync } = require("node:child_process");
 
 const checks = [
+  "oauth-mobile:verify",
   "deployment-surface:verify",
   "runtime:verify",
   "http-surface:verify",

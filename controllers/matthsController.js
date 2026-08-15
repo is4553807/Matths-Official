@@ -348,6 +348,11 @@ const {
   setPendingSocialRegistration,
   socialIdPath,
 } = require("../services/socialAuthService");
+const {
+  issueMobileAuthGrant,
+} = require(
+  "../services/mobileSocialAuthGrantService"
+);
 const bcrypt = require('bcrypt');
 const crypto = require("crypto");
 const BCRYPT_ROUNDS = 12;
@@ -511,17 +516,73 @@ exports.socialOAuthStart = async (req, res) => {
   try {
     const authorizationUrl = beginSocialAuthorization(
       req,
-      req.params.provider
+      req.params.provider,
+      {
+        mobile:
+          req.socialOAuthMobile ===
+          true,
+        codeChallenge:
+          req.socialOAuthCodeChallenge ||
+          null,
+      }
     );
     // OAuth state를 공급자 페이지로 이동하기 전에 확실히 저장한다.
     await saveSession(req);
     return res.redirect(authorizationUrl);
   } catch (error) {
-    return redirectSocialAuthError(req, res, error);
+    return redirectSocialAuthError(
+      req,
+      res,
+      error,
+      req.socialOAuthMobile === true
+    );
   }
 };
 
-async function redirectSocialAuthError(req, res, error) {
+exports.socialOAuthAppStart = (
+  req,
+  res,
+  next
+) => {
+  const codeChallenge = String(
+    req.query?.code_challenge || ""
+  ).trim();
+
+  if (
+    !/^[A-Za-z0-9_-]{43}$/.test(
+      codeChallenge
+    )
+  ) {
+    const error = new Error(
+      "Google 로그인을 안전하게 시작하지 못했습니다. 앱에서 다시 시도해주세요."
+    );
+    error.code =
+      "SOCIAL_AUTH_PKCE_REQUIRED";
+    return redirectSocialAuthError(
+      req,
+      res,
+      error,
+      true
+    );
+  }
+
+  req.params.provider = "google";
+  req.socialOAuthMobile = true;
+  req.socialOAuthCodeChallenge =
+    codeChallenge;
+  return exports.socialOAuthStart(
+    req,
+    res,
+    next
+  );
+};
+
+async function redirectSocialAuthError(
+  req,
+  res,
+  error,
+  mobile = false
+) {
   const userSafeCodes = new Set([
     "SOCIAL_AUTH_NOT_CONFIGURED",
     "SOCIAL_AUTH_EMAIL_REQUIRED",
@@ -531,28 +592,84 @@ async function redirectSocialAuthError(req, res, error) {
     "SOCIAL_AUTH_CANCELLED",
     "SOCIAL_AUTH_STATE_INVALID",
   ]);
-  req.session.socialOAuthError = userSafeCodes.has(error?.code)
+  const message =
+    userSafeCodes.has(error?.code)
     ? error.message
     : "소셜 로그인을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.";
+
+  if (mobile) {
+    const url = new URL(
+      "matths://oauth/google"
+    );
+    url.searchParams.set(
+      "error",
+      message
+    );
+    return res.redirect(
+      url.toString()
+    );
+  }
+
+  req.session.socialOAuthError =
+    message;
   await saveSession(req);
   return res.redirect("/login");
 }
 
+async function finishSocialLogin(
+  req,
+  res,
+  user,
+  mobile,
+  codeChallenge = null
+) {
+  if (mobile) {
+    const code =
+      await issueMobileAuthGrant(
+        user._id,
+        { codeChallenge }
+      );
+    const url = new URL(
+      "matths://oauth/google"
+    );
+    url.searchParams.set(
+      "code",
+      code
+    );
+    return res.redirect(
+      url.toString()
+    );
+  }
+
+  await createLoginSession(req, user);
+  return res.redirect(
+    user.role === "admin"
+      ? "/admin"
+      : "/main"
+  );
+}
+
 exports.socialOAuthCallback = async (req, res) => {
+  let mobile =
+    req.session
+      ?.socialOAuthState
+      ?.context
+      ?.mobile === true;
   try {
-    if (req.query.error) {
-      const error = new Error("소셜 로그인이 취소되었습니다.");
-      error.code = "SOCIAL_AUTH_CANCELLED";
-      throw error;
-    }
-    const profile = await completeSocialAuthorization(
+    const completed = await completeSocialAuthorization(
       req,
       req.params.provider,
       {
-        code: req.query.code,
+        code: req.query.error
+          ? null
+          : req.query.code,
         state: req.query.state,
       }
     );
+    const { profile, context } =
+      completed;
+    mobile =
+      context.mobile === true;
     const idPath = socialIdPath(profile.provider);
     const [providerUser, emailUser, parentAccount] = await Promise.all([
       User.findOne({ [idPath]: profile.providerUserId })
@@ -596,12 +713,16 @@ exports.socialOAuthCallback = async (req, res) => {
       const synchronizedUser = await synchronizeUserLifecycle(access.user._id);
       synchronizedUser.lastLoginAt = new Date();
       await synchronizedUser.save();
-      await createLoginSession(req, synchronizedUser);
-
-      return res.redirect(
-        synchronizedUser.role === "admin"
-          ? "/admin"
-          : "/main"
+      clearPendingSocialRegistration(
+        req
+      );
+      return finishSocialLogin(
+        req,
+        res,
+        synchronizedUser,
+        mobile,
+        context.codeChallenge ||
+          null
       );
     }
 
@@ -613,11 +734,26 @@ exports.socialOAuthCallback = async (req, res) => {
       throw error;
     }
 
-    setPendingSocialRegistration(req, profile);
+    setPendingSocialRegistration(
+      req,
+      profile,
+      context
+    );
     await saveSession(req);
-    return res.redirect(`/register?social=${encodeURIComponent(profile.provider)}`);
+    return res.redirect(
+      "/register"
+    );
   } catch (error) {
-    return redirectSocialAuthError(req, res, error);
+    mobile =
+      mobile ||
+      error?.context?.mobile ===
+        true;
+    return redirectSocialAuthError(
+      req,
+      res,
+      error,
+      mobile
+    );
   }
 };
 
@@ -5144,11 +5280,22 @@ exports.register = async (req, res, next) => {
             );
         });
 
-        // 회원가입 완료 후 바로 로그인 처리
-        clearPendingSocialRegistration(req);
-        await createLoginSession(req, user);
-
-        return res.redirect("/main");
+        // 앱에서 시작한 소셜 가입은 웹 세션으로 끝내지 않고, 같은 PKCE
+        // challenge에 묶인 일회용 교환 코드로 앱에 돌아간다.
+        const mobileSocialRegistration =
+          socialRegistration
+            ?.mobile === true;
+        clearPendingSocialRegistration(
+          req
+        );
+        return finishSocialLogin(
+          req,
+          res,
+          user,
+          mobileSocialRegistration,
+          socialRegistration
+            ?.codeChallenge || null
+        );
     } catch (error) {
         const pendingSocialRegistration =
           getPendingSocialRegistration(req);

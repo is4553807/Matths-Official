@@ -18,6 +18,14 @@ assert.match(cloudtype, /app: node@24/);
 assert.match(cloudtype, /install: npm ci --omit=dev --no-audit/);
 assert.match(cloudtype, /APP_BASE_URL[\s\S]*https:\/\/www\.matths\.kr/);
 assert.match(cloudtype, /PUBLIC_BASE_URL[\s\S]*https:\/\/www\.matths\.kr/);
+assert.match(
+  cloudtype,
+  /GOOGLE_OAUTH_REDIRECT_URI[\s\S]*https:\/\/www\.matths\.kr\/auth\/google\/callback/
+);
+assert.doesNotMatch(
+  cloudtype,
+  /GOOGLE_OAUTH_CLIENT_(?:ID|SECRET)/
+);
 
 for (const required of [
   "config.env",
