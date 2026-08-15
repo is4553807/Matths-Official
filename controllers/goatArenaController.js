@@ -78,6 +78,13 @@ const {
   getArenaRulebook,
 } = require("../services/arenaRulebookViewService");
 const {
+  getGoatArenaReadModel,
+} = require("../services/goatArenaReadService");
+const {
+  getParticipantMatch,
+  listParticipantMatches,
+} = require("../services/goatArenaProductionMatchReadService");
+const {
   cancelMainInvitation,
   createMainLowerInvitation,
   createMainUpwardChallenge,
@@ -2263,6 +2270,83 @@ exports.submitArenaMatch = async (
     return res.json({
       ok: true,
       ...result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/** iPad는 웹과 같은 Arena 모델을 JSON 읽기 모델로만 소비한다. */
+exports.getGoatArena = async (req, res, next) => {
+  try {
+    const arena = await getGoatArenaReadModel(req.apiUser, new Date());
+    res.set("Cache-Control", "no-store");
+    return res.json({ arena });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getGoatArenaMatches = async (req, res, next) => {
+  try {
+    const result = await listParticipantMatches({
+      userId: req.apiUser._id,
+      cursor: req.query.cursor,
+      limit: req.query.limit,
+    });
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getGoatArenaMatch = async (req, res, next) => {
+  try {
+    const match = await getParticipantMatch({
+      userId: req.apiUser._id,
+      id: req.params.matchId,
+    });
+    return res.json({ match });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getGoatArenaRulebook = async (req, res, next) => {
+  try {
+    const now = new Date();
+    const [
+      paybackPolicy,
+      mainPolicy,
+      upcomingPaybackPolicy,
+      upcomingMainPolicy,
+    ] = await Promise.all([
+      getActiveArenaPolicy(now),
+      getActiveMainDivisionPolicy(now, { bypassCache: true }),
+      getUpcomingArenaPolicy(now),
+      getUpcomingMainDivisionPolicy(now),
+    ]);
+    const sub = getArenaRulebook("SUB", {
+      paybackPolicy,
+      mainPolicy,
+      upcomingPaybackPolicy,
+      upcomingMainPolicy,
+    });
+    const main = getArenaRulebook("MAIN", {
+      paybackPolicy,
+      mainPolicy,
+      upcomingPaybackPolicy,
+      upcomingMainPolicy,
+    });
+    res.set("Cache-Control", "no-store");
+    return res.json({
+      rulebook: {
+        schemaVersion: "GOAT_ARENA_RULEBOOK_V1",
+        revision: "FINAL_LOGIC_V1_4",
+        generatedAt: now.toISOString(),
+        source: "SERVER_ACTIVE_POLICY",
+        divisions: { sub, main },
+      },
     });
   } catch (error) {
     return next(error);

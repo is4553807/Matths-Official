@@ -3,6 +3,9 @@ const apiController = require(
   "../controllers/apiController"
 );
 const paymentController = require("../controllers/paymentController");
+const appCommerceController = require("../controllers/appCommerceController");
+const ipadReadController = require("../controllers/ipadReadController");
+const goatArenaController = require("../controllers/goatArenaController");
 const {
   requireApiAuth,
 } = require(
@@ -83,6 +86,41 @@ router.post(
 );
 
 router.use(requireApiAuth);
+
+router.get(
+  "/commerce/storefront",
+  appCommerceController.storefront
+);
+router.post(
+  "/commerce/handoffs",
+  appCommerceController.createHandoff
+);
+
+router.get(
+  "/learning/progress",
+  ipadReadController.getLearningProgress
+);
+router.get(
+  "/dashboard/activity",
+  ipadReadController.getDashboardActivity
+);
+
+router.get(
+  "/goat-arena",
+  goatArenaController.getGoatArena
+);
+router.get(
+  "/goat-arena/rulebook",
+  goatArenaController.getGoatArenaRulebook
+);
+router.get(
+  "/goat-arena/matches",
+  goatArenaController.getGoatArenaMatches
+);
+router.get(
+  "/goat-arena/matches/:matchId",
+  goatArenaController.getGoatArenaMatch
+);
 
 router.get(
   "/me",

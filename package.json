@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node server.js",
+    "ipad-server-surface:verify": "node scripts/verifyIpadServerSurface.js",
     "oauth-mobile:verify": "node scripts/verifyMobileGoogleOAuth.js",
     "email:verify": "node scripts/verifyEmailConfig.js",
     "email-routing:verify": "node scripts/verifyOperatorEmailRouting.js",
