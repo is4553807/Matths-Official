@@ -8,6 +8,7 @@ const {
   ConceptProgress,
   Problem,
   ProblemAttempt,
+  ensureAssessmentClientStartIndex,
 } = require("../models/matthsModel");
 const {
   loadCurriculum,
@@ -50,6 +51,24 @@ const TIME_LIMIT_MS = {
   unit: 30 * 60 * 1000,
   course: 60 * 60 * 1000,
 };
+const IPAD_ASSESSMENT_LIST_LIMIT = 100;
+const IPAD_ASSESSMENT_LIST_PROJECTION = [
+  "_id",
+  "scopeType",
+  "courseId",
+  "unitId",
+  "subunitId",
+  "title",
+  "status",
+  "questions",
+  "startedAt",
+  "submittedAt",
+  "scorePercent",
+  "passed",
+  "timeLimitMs",
+  "updatedAt",
+  "createdAt",
+].join(" ");
 
 function assessmentTimeLimitMs(
   scopeType
@@ -2345,13 +2364,78 @@ function findCenterTarget(
   );
 }
 
+async function createAssessmentRecordIdempotently({
+  model = AssessmentAttempt,
+  ensureClientStartIndex =
+    ensureAssessmentClientStartIndex,
+  userId,
+  clientStartId,
+  paper,
+}) {
+  await ensureClientStartIndex(model);
+
+  if (clientStartId) {
+    const replay = await model.findOne({
+      userId,
+      clientStartId,
+      scopeType: { $ne: "placement" },
+    });
+    if (replay) return replay;
+  }
+
+  try {
+    return await model.create({
+      userId,
+      ...(clientStartId
+        ? { clientStartId }
+        : {}),
+      ...paper,
+    });
+  } catch (error) {
+    if (
+      error?.code === 11000 &&
+      clientStartId
+    ) {
+      const winner =
+        await model.findOne({
+          userId,
+          clientStartId,
+          scopeType: {
+            $ne: "placement",
+          },
+        });
+      if (winner) return winner;
+    }
+    throw error;
+  }
+}
+
 async function createAssessmentAttempt({
   userId,
   scopeType,
   courseId,
   unitId,
   subunitId,
+  clientStartId = null,
+  resumeEmpty = false,
 }) {
+  const normalizedClientStartId =
+    String(clientStartId || "")
+      .trim()
+      .slice(0, 120);
+  // autoIndex=false인 운영에서도 멱등 키를 읽거나 쓰기 전에 MongoDB가
+  // 고유 부분 인덱스를 실제로 보유했는지 확인한다.
+  await ensureAssessmentClientStartIndex(
+    AssessmentAttempt
+  );
+  if (normalizedClientStartId) {
+    const replay = await AssessmentAttempt.findOne({
+      userId,
+      clientStartId: normalizedClientStartId,
+      scopeType: { $ne: "placement" },
+    });
+    if (replay) return replay;
+  }
   const center =
     await getAssessmentCenterData(
       userId
@@ -2400,6 +2484,7 @@ async function createAssessmentAttempt({
   const resumableAttempt =
     inProgressAttempts.find(
       (attempt) =>
+        resumeEmpty ||
         answeredQuestionCount(
           attempt
         ) > 0
@@ -2491,9 +2576,11 @@ async function createAssessmentAttempt({
       learnedConceptIds,
     });
 
-  return AssessmentAttempt.create({
+  return createAssessmentRecordIdempotently({
     userId,
-    ...paper,
+    clientStartId:
+      normalizedClientStartId,
+    paper,
   });
 }
 
@@ -3059,6 +3146,46 @@ async function submitAssessmentAttempt({
   return attempt;
 }
 
+function assessmentAttemptDocumentView(
+  source
+) {
+  const attempt = source?.toObject
+    ? source.toObject()
+    : { ...(source || {}) };
+  attempt.timeLimitMs =
+    attemptTimeLimitMs(
+      attempt
+    );
+  attempt.deadlineAt =
+    new Date(
+      attemptDeadlineMs(
+        attempt
+      )
+    );
+
+  attempt.questions = (
+    attempt.questions || []
+  ).map((question) => ({
+    ...question,
+    prompt: normalizeExamMath(
+      question.prompt
+    ),
+    choices: (
+      question.choices || []
+    ).map((choice) => ({
+      ...choice,
+      text: normalizeExamMath(
+        choice.text
+      ),
+    })),
+    solution: normalizeExamMath(
+      question.solution
+    ),
+  }));
+
+  return attempt;
+}
+
 async function getAssessmentAttempt({
   userId,
   attemptId,
@@ -3103,39 +3230,57 @@ async function getAssessmentAttempt({
       );
   }
 
-  attempt = attempt.toObject();
-  attempt.timeLimitMs =
-    attemptTimeLimitMs(
-      attempt
+  return assessmentAttemptDocumentView(
+    attempt
+  );
+}
+
+/**
+ * iPad 재설치·새 기기 복구용 계정 정본. 진행 중 답안과 통과 기록을
+ * 같은 AssessmentAttempt 문서에서 복구한다.
+ */
+async function listAssessmentAttemptsWithModel({
+  model = AssessmentAttempt,
+  userId,
+  limit = IPAD_ASSESSMENT_LIST_LIMIT,
+}) {
+  const attempts = await model.find({
+    userId,
+    scopeType: { $ne: "placement" },
+    status: { $in: ["in-progress", "submitted", "disqualified"] },
+  })
+    .sort({ updatedAt: -1, _id: -1 })
+    .limit(limit)
+    .select(
+      IPAD_ASSESSMENT_LIST_PROJECTION
     );
-  attempt.deadlineAt =
-    new Date(
-      attemptDeadlineMs(
+
+  const result = [];
+  // 최신 N개를 고른 뒤 기존 DTO 순서(오래된 항목 → 최신 항목)를 유지한다.
+  for (let attempt of [...attempts].reverse()) {
+    if (
+      assessmentIsOverdue(
+        attempt
+      )
+    ) {
+      attempt =
+        await disqualifyAssessmentDocument(
+          attempt
+        );
+    }
+    result.push(
+      assessmentAttemptDocumentView(
         attempt
       )
     );
+  }
+  return result;
+}
 
-  attempt.questions = (
-    attempt.questions || []
-  ).map((question) => ({
-    ...question,
-    prompt: normalizeExamMath(
-      question.prompt
-    ),
-    choices: (
-      question.choices || []
-    ).map((choice) => ({
-      ...choice,
-      text: normalizeExamMath(
-        choice.text
-      ),
-    })),
-    solution: normalizeExamMath(
-      question.solution
-    ),
-  }));
-
-  return attempt;
+async function listAssessmentAttempts({ userId }) {
+  return listAssessmentAttemptsWithModel({
+    userId,
+  });
 }
 
 function applyAssessmentGatesToLearningData(
@@ -3245,5 +3390,13 @@ module.exports = {
   submitAssessmentAttempt,
   saveAssessmentDraft,
   getAssessmentAttempt,
+  listAssessmentAttempts,
   applyAssessmentGatesToLearningData,
+  _testing: {
+    IPAD_ASSESSMENT_LIST_LIMIT,
+    IPAD_ASSESSMENT_LIST_PROJECTION,
+    assessmentAttemptDocumentView,
+    createAssessmentRecordIdempotently,
+    listAssessmentAttemptsWithModel,
+  },
 };

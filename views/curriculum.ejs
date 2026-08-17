@@ -56,13 +56,23 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
     <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/product-refresh.css" />
+    <link rel="stylesheet" href="/css/curriculum-atlas.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
 
-    <%- include("partials/public-navigation", { activePage: "curriculum" }) %>
+    <%- include("partials/public-navigation", { activePage: "curriculum", suppressGlobalSkipLink: true }) %>
 
     <main id="main-content">
+      <%- include("partials/curriculum-story-timeline", {
+        compact: true,
+        curriculumTimelinePreview:
+          typeof curriculumTimelinePreview !== "undefined"
+            ? curriculumTimelinePreview
+            : null,
+      }) %>
+
       <section class="curriculum-hero">
         <div class="hero-pattern" aria-hidden="true"></div>
         <div class="container hero-layout">

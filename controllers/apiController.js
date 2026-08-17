@@ -45,6 +45,7 @@ const {
   verifyPasswordResetCode,
 } = require("../services/passwordResetService");
 const {
+  normalizeRankingDisplayMode,
   validateRealName,
 } = require("../services/userIdentityService");
 const {
@@ -684,6 +685,123 @@ exports.me = (req, res) =>
   res.json({
     user: serializeUser(req.apiUser),
   });
+
+// 웹 프로필과 iPad가 같은 학교 정본을 사용하도록 서버 카탈로그에서
+// 선택값을 다시 검증한 뒤 인증된 사용자 문서만 갱신한다.
+exports.updateSchool = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const schoolRegion = String(
+      req.body?.schoolRegion || ""
+    ).trim();
+    const schoolCode = String(
+      req.body?.schoolCode || ""
+    ).trim();
+    const selectedSchool =
+      schoolRegion && schoolCode
+        ? findSchool(
+            schoolRegion,
+            schoolCode
+          )
+        : null;
+
+    if (!selectedSchool) {
+      return res.status(400).json({
+        code: "INVALID_SCHOOL",
+        message:
+          "학교 목록에서 올바른 고등학교를 선택해주세요.",
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.apiUser._id,
+      {
+        school: {
+          region: selectedSchool.region,
+          code: selectedSchool.code,
+          name: selectedSchool.name,
+          roadAddress:
+            selectedSchool.roadAddress || "",
+          establishment:
+            selectedSchool.establishment || "",
+          highSchoolType:
+            selectedSchool.highSchoolType || "",
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        code: "USER_NOT_FOUND",
+        message:
+          "사용자 정보를 찾을 수 없습니다.",
+      });
+    }
+
+    return res.json({
+      user: serializeUser(user),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 공개 랭킹 이름 정책은 웹과 앱에서 동일하다. 현재 허용되는 공개 모드는
+// nickname 하나뿐이며 realName은 이 API로 바꾸거나 공개하지 않는다.
+exports.updateRankingIdentity = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const rankingDisplayMode =
+      normalizeRankingDisplayMode(
+        req.body?.rankingDisplayMode
+      );
+
+    if (!rankingDisplayMode) {
+      return res.status(400).json({
+        code:
+          "INVALID_RANKING_DISPLAY_MODE",
+        message:
+          "공개 랭킹에는 닉네임만 사용할 수 있습니다.",
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.apiUser._id,
+      {
+        "preferences.rankingDisplayMode":
+          rankingDisplayMode,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        code: "USER_NOT_FOUND",
+        message:
+          "사용자 정보를 찾을 수 없습니다.",
+      });
+    }
+
+    return res.json({
+      user: serializeUser(user),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
 
 exports.withdrawMe = async (
   req,

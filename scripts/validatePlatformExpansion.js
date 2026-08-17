@@ -273,10 +273,28 @@ for (const route of [
   );
 }
 assert.ok(
-  !apiRoutes.includes(
+  apiRoutes.includes(
     "/me/ranking-identity"
   ),
-  "공개 랭킹은 닉네임 전용이므로 실명 표시 변경 API를 다시 노출하면 안 됩니다."
+  "iPad와 웹이 같은 닉네임 전용 공개 랭킹 정책을 사용해야 합니다."
+);
+const apiControllerSource =
+  fs.readFileSync(
+    path.join(
+      projectRoot,
+      "controllers",
+      "apiController.js"
+    ),
+    "utf8"
+  );
+assert.ok(
+  apiControllerSource.includes(
+    "normalizeRankingDisplayMode"
+  ) &&
+    apiControllerSource.includes(
+      '"preferences.rankingDisplayMode"'
+    ),
+  "랭킹 표시 API는 닉네임 전용 정규화 경계를 거쳐야 합니다."
 );
 
 const webRoutes =

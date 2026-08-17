@@ -61,6 +61,12 @@ const {
   getConceptTypeGuides,
 } = require("../services/conceptGuideService");
 const {
+  resolveStudentCurriculumStory,
+} = require("../services/curriculumStoryService");
+const {
+  buildCurriculumTimelinePreview,
+} = require("../services/curriculumTimelinePreviewService");
+const {
   getAcademicYear,
   lifecycleSessionView,
   recordStudyActivity,
@@ -3371,15 +3377,36 @@ exports.dismissDashboardNotification =
     }
   };
 
-exports.curriculumPage = (req, res, next) => {
+exports.curriculumPage = async (req, res, next) => {
   try {
     const curriculumData = loadCurriculum();
+    const sessionUser = req.session?.user || null;
+    let learningData = null;
+    let progressUnavailable = false;
+
+    if (sessionUser?.id) {
+      try {
+        ({ learningData } = await getUserLearningData(sessionUser.id));
+      } catch (error) {
+        progressUnavailable = true;
+        console.error(
+          "[curriculum-timeline] 사용자 진도 projection 실패:",
+          error.message
+        );
+      }
+    }
+
+    const curriculumTimelinePreview = buildCurriculumTimelinePreview({
+      curriculumData,
+      learningData,
+      loggedIn: Boolean(sessionUser),
+      progressUnavailable,
+    });
 
     res.render('curriculum', {
       curriculumData,
-      user:
-        req.session?.user ||
-        null,
+      curriculumTimelinePreview,
+      user: sessionUser,
     });
   } catch (error) {
     next(error);
@@ -4823,6 +4850,13 @@ exports.unitLearning = async (
 
     const renderedLesson =
       formatAlgebraLesson(lesson);
+    const curriculumStory =
+      resolveStudentCurriculumStory({
+        courseId: unitView.course.id,
+        unitId: unitView.unit.id,
+        conceptId,
+        visualizationIdeas: unitView.selectedConcept.visualizationIdeas,
+      });
     const conceptTypeGuides =
       getConceptTypeGuides({
         courseId: unitView.course.id,
@@ -4859,6 +4893,12 @@ exports.unitLearning = async (
       reviewContext,
       subunitAssessment,
       conceptTypeGuides,
+      curriculumStory,
+      curriculumNarrationScope: crypto
+        .createHash("sha256")
+        .update(`curriculum-narration:${String(req.session.user.id || "")}`, "utf8")
+        .digest("hex")
+        .slice(0, 16),
       user: req.session.user,
     });
   } catch (error) {

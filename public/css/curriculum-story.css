@@ -1,0 +1,1220 @@
+.curriculum-memory {
+  --memory-blue: #327ffa;
+  --memory-violet: #6f4ee8;
+  --memory-coral: #c54b45;
+  --memory-cyan: #087f8c;
+  margin-top: 28px;
+  padding: clamp(22px, 3vw, 34px);
+  color: #161a2b;
+  background: #f8f9fd;
+  border: 1px solid #dde2ee;
+  border-radius: 20px;
+}
+
+.curriculum-memory-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #dfe4ef;
+}
+
+.curriculum-memory-heading > div:first-child {
+  max-width: 640px;
+}
+
+.curriculum-memory-heading p,
+.curriculum-memory-beat article > p {
+  margin: 0;
+  color: var(--memory-blue);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.curriculum-memory-heading h3 {
+  margin: 7px 0 8px;
+  color: #111426;
+  font-size: clamp(22px, 2.3vw, 30px);
+  font-weight: 820;
+  letter-spacing: -0.045em;
+  line-height: 1.22;
+}
+
+.curriculum-memory-heading > div:first-child > span {
+  display: block;
+  color: #555f75;
+  font-size: 14px;
+  font-weight: 570;
+  line-height: 1.7;
+}
+
+.curriculum-narration-controls {
+  width: min(260px, 100%);
+  flex: 0 0 auto;
+}
+
+.curriculum-narration-toggle,
+.curriculum-narration-restart {
+  min-height: 46px;
+  border-radius: 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.curriculum-narration-toggle {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 16px;
+  color: #fff;
+  background: #246fe7;
+  border: 1px solid #246fe7;
+  box-shadow: 0 8px 18px rgba(36, 111, 231, 0.18);
+}
+
+.curriculum-narration-toggle:hover {
+  background: #185fcf;
+  border-color: #185fcf;
+}
+
+.curriculum-narration-toggle:focus-visible,
+.curriculum-narration-restart:focus-visible,
+.curriculum-memory-beat summary:focus-visible {
+  outline: 3px solid rgba(50, 127, 250, 0.35);
+  outline-offset: 3px;
+}
+
+.curriculum-narration-toggle span {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  color: #246fe7;
+  background: #fff;
+  border-radius: 50%;
+  font-size: 12px;
+}
+
+.curriculum-narration-toggle b {
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.curriculum-narration-restart {
+  width: 100%;
+  margin-top: 8px;
+  color: #35405a;
+  background: #fff;
+  border: 1px solid #cfd6e5;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.curriculum-narration-status {
+  margin-top: 9px !important;
+  color: #667086 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.5;
+}
+
+.curriculum-memory-line {
+  position: relative;
+  display: grid;
+  gap: 0;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.curriculum-memory-line::before {
+  position: absolute;
+  top: 17px;
+  bottom: 24px;
+  left: 17px;
+  width: 2px;
+  background: #cdd7ea;
+  content: "";
+}
+
+.curriculum-memory-beat {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 18px;
+  padding-bottom: 27px;
+}
+
+.curriculum-memory-beat:last-child {
+  padding-bottom: 0;
+}
+
+.curriculum-memory-node {
+  position: relative;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--memory-blue);
+  border: 4px solid #f8f9fd;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.curriculum-memory-beat[data-memory-kind="question"] .curriculum-memory-node {
+  background: var(--memory-violet);
+}
+
+.curriculum-memory-beat[data-memory-kind="misconception"] .curriculum-memory-node {
+  background: var(--memory-coral);
+}
+
+.curriculum-memory-beat[data-memory-kind="solution"] .curriculum-memory-node {
+  background: #365b9c;
+}
+
+.curriculum-memory-beat[data-memory-kind="recall"] .curriculum-memory-node {
+  background: var(--memory-cyan);
+}
+
+.curriculum-memory-beat article {
+  min-width: 0;
+  padding: 2px 0 0;
+}
+
+.curriculum-memory-beat[data-memory-kind="misconception"] article > p {
+  color: var(--memory-coral);
+}
+
+.curriculum-memory-beat[data-memory-kind="recall"] article > p {
+  color: var(--memory-cyan);
+}
+
+.curriculum-memory-beat h4 {
+  margin: 5px 0 5px;
+  color: #171b2d;
+  font-size: 17px;
+  font-weight: 790;
+  letter-spacing: -0.025em;
+}
+
+.curriculum-memory-beat strong {
+  display: block;
+  color: #4e5970;
+  font-size: 14px;
+  font-weight: 590;
+  line-height: 1.65;
+}
+
+.curriculum-memory-beat details {
+  margin-top: 10px;
+}
+
+.curriculum-memory-beat summary {
+  width: max-content;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: #3e4b65;
+  font-size: 12px;
+  font-weight: 740;
+  cursor: pointer;
+}
+
+.curriculum-memory-beat details p {
+  max-width: 760px;
+  margin: 2px 0 0;
+  padding: 14px 16px;
+  color: #3f485d;
+  background: #fff;
+  border-left: 3px solid #aabbe1;
+  font-size: 14px;
+  line-height: 1.85;
+}
+
+.curriculum-memory-beat.is-speaking .curriculum-memory-node {
+  box-shadow: 0 0 0 6px rgba(50, 127, 250, 0.15);
+}
+
+.curriculum-memory-beat.is-speaking article {
+  color: #111426;
+}
+
+.curriculum-memory-unavailable {
+  min-height: 96px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 22px;
+  padding: 18px;
+  color: #4c566d;
+  background: #fff;
+  border: 1px solid #dfe4ef;
+  border-radius: 14px;
+}
+
+.curriculum-memory-unavailable > span {
+  color: #8490a8;
+  font-size: 22px;
+}
+
+.curriculum-memory-unavailable strong {
+  color: #22283a;
+  font-size: 14px;
+}
+
+.curriculum-memory-unavailable p {
+  margin: 6px 0 0;
+  color: #687187;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+@media (max-width: 760px) {
+  .curriculum-memory-heading {
+    display: grid;
+  }
+
+  .curriculum-narration-controls {
+    width: 100%;
+  }
+
+  .curriculum-memory {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+
+  .curriculum-memory-beat {
+    gap: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .curriculum-memory *,
+  .curriculum-memory *::before,
+  .curriculum-memory *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* 한 장면, 한 지시, 한 확인. 기존 5개 원문 카드를 동시에 펼치지 않는다. */
+.curriculum-motion-lesson {
+  --motion-paper: #f7f8fc;
+  --motion-ink: #151929;
+  --motion-blue: #246fe7;
+  --motion-yellow: #ffe37a;
+  --motion-red: #c54b45;
+  --motion-teal: #087f8c;
+  /*
+   * 보드 SVG는 viewBox 800x360 을 그대로 쓰기 때문에, 렌더 배율은
+   * (보드 폭 / 800) 으로 고정된다. 좁은 폭에서는 배율이 0.3 아래로 떨어져
+   * viewBox 16px 글자가 5px 로 뭉개진다. 좁은 컨테이너에서만 이 값을 올려
+   * 실제 렌더 크기를 확보한다. 기본(데스크톱)은 1 이라 변화가 없다.
+   */
+  --motion-type-scale: 1;
+  /*
+   * .motion-formula 와 .motion-result 는 x=752 에 end 앵커로 붙는 우하단 캡션이고,
+   * 과목에 따라 40자 문장이 들어온다(기하, 인공지능수학, 경제수학 실측).
+   * 짧은 라벨과 같은 배율로 키우면 왼쪽으로 60px 넘게 밀려 잘리므로 따로 둔다.
+   */
+  --motion-caption-scale: 1;
+  /* 좁은 폭에서 보드를 섹션 안쪽 여백 밖으로 빼낼 때 쓰는 값. */
+  --motion-stage-bleed: clamp(20px, 3vw, 34px);
+  overflow: hidden;
+  container-type: inline-size;
+  padding: clamp(20px, 3vw, 34px);
+  background: var(--motion-paper);
+}
+
+.curriculum-motion-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 270px);
+  align-items: start;
+  gap: clamp(20px, 4vw, 44px);
+  padding-bottom: 24px;
+}
+
+.curriculum-motion-heading > div:first-child {
+  min-width: 0;
+  max-width: 680px;
+}
+
+.curriculum-motion-heading > div:first-child > p,
+.curriculum-stage-copy p,
+.curriculum-stage-toolbar span {
+  margin: 0;
+  color: var(--motion-blue);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.curriculum-motion-heading h3 {
+  margin: 7px 0 8px;
+  color: var(--motion-ink);
+  font-size: clamp(23px, 2.6vw, 34px);
+  font-weight: 850;
+  letter-spacing: -0.045em;
+  line-height: 1.2;
+}
+
+.curriculum-motion-heading > div:first-child > span {
+  display: block;
+  color: #535e74;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.65;
+}
+
+.curriculum-teacher-stage {
+  position: relative;
+  border-top: 1px solid #dce2ee;
+}
+
+.curriculum-stage-toolbar {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.curriculum-stage-toolbar strong {
+  color: #6b7488;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.curriculum-stage-board {
+  position: relative;
+  min-height: clamp(300px, 38vw, 430px);
+  overflow: hidden;
+  color: var(--motion-ink);
+  background: #fff;
+  border: 1px solid #d9dfeb;
+  border-radius: 18px;
+  box-shadow: 0 16px 44px rgba(31, 43, 76, 0.08);
+}
+
+.curriculum-stage-board > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.motion-grid {
+  fill: none;
+  opacity: 0.55;
+  stroke: #eef1f7;
+  stroke-width: 1;
+}
+
+.motion-shape,
+.motion-block,
+.motion-geometry {
+  fill: #f2f5fb;
+  stroke: #aeb9cc;
+  stroke-width: 2;
+}
+
+.motion-shape-focus,
+.motion-block-focus {
+  fill: var(--motion-yellow);
+  stroke: #b48b00;
+}
+
+.motion-block-result {
+  fill: #dff3f0;
+  stroke: var(--motion-teal);
+}
+
+.motion-label,
+.motion-operator {
+  fill: var(--motion-ink);
+  font-family: SUIT, Pretendard, sans-serif;
+  font-size: calc(22px * var(--motion-type-scale, 1));
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+.motion-operator {
+  font-size: calc(30px * var(--motion-type-scale, 1));
+}
+
+.motion-link,
+.motion-axis,
+.motion-geometry-line,
+.motion-radius {
+  fill: none;
+  stroke: #70809b;
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.motion-link {
+  marker-end: none;
+  stroke: var(--motion-blue);
+}
+
+.motion-curve {
+  fill: none;
+  stroke: var(--motion-blue);
+  stroke-linecap: round;
+  stroke-width: 7;
+}
+
+.motion-area-positive {
+  fill: rgba(38, 102, 214, 0.2);
+  stroke: none;
+}
+
+.motion-area-negative {
+  fill: rgba(184, 72, 62, 0.2);
+  stroke: none;
+}
+
+.motion-area-strip {
+  fill: rgba(255, 220, 85, 0.36);
+  stroke: rgba(180, 139, 0, 0.62);
+  stroke-width: 1.5;
+}
+
+.motion-probability-space {
+  fill: #f6f8fc;
+  stroke: #aeb9cc;
+  stroke-width: 2;
+}
+
+.motion-probability-event {
+  fill: rgba(38, 102, 214, 0.17);
+  stroke: var(--motion-blue);
+  stroke-width: 3;
+}
+
+.motion-probability-event-b {
+  fill: rgba(17, 137, 120, 0.18);
+  stroke: var(--motion-teal);
+}
+
+.motion-probability-muted {
+  fill: rgba(255, 220, 85, 0.32);
+  stroke: #b48b00;
+}
+
+.motion-probability-condition {
+  fill: rgba(38, 102, 214, 0.12);
+  stroke: var(--motion-blue);
+  stroke-width: 3;
+}
+
+.motion-probability-intersection {
+  fill: rgba(255, 220, 85, 0.72);
+  stroke: #b48b00;
+  stroke-width: 3;
+}
+
+.motion-probability-divider {
+  fill: rgba(255, 220, 85, 0.34);
+  stroke: #b48b00;
+  stroke-width: 2;
+}
+
+.motion-probability-path {
+  stroke: var(--motion-red);
+  stroke-width: 6;
+}
+
+.motion-probability-mass {
+  fill: #dce6f7;
+  stroke: #70809b;
+  stroke-width: 2;
+}
+
+.motion-probability-mass-focus {
+  fill: var(--motion-yellow);
+  stroke: #b48b00;
+}
+
+.motion-probability-normal {
+  stroke: var(--motion-teal);
+}
+
+.motion-sample-dot {
+  fill: var(--motion-blue);
+  stroke: #fff;
+  stroke-width: 3;
+}
+
+.motion-confidence-hit,
+.motion-confidence-miss {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 7;
+}
+
+.motion-confidence-hit {
+  stroke: var(--motion-teal);
+}
+
+.motion-confidence-miss {
+  stroke: var(--motion-red);
+}
+
+.motion-underline {
+  fill: none;
+  stroke: var(--motion-blue);
+  stroke-linecap: round;
+  stroke-width: 5;
+}
+
+.motion-point {
+  fill: #fff;
+  stroke: #65738e;
+  stroke-width: 4;
+}
+
+.motion-point-focus,
+.motion-bar-focus {
+  fill: var(--motion-yellow);
+  stroke: #b48b00;
+}
+
+.motion-axis-label,
+.motion-number-label {
+  fill: #4f5d75;
+  font-family: SUIT, Pretendard, sans-serif;
+  font-size: calc(16px * var(--motion-type-scale, 1));
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+.motion-number-label {
+  fill: var(--motion-blue);
+  font-size: calc(18px * var(--motion-type-scale, 1));
+}
+
+.motion-number-band {
+  fill: none;
+  stroke: var(--motion-blue);
+  stroke-linecap: round;
+  stroke-width: 12;
+}
+
+.motion-link-guide {
+  stroke-dasharray: 7 6;
+  stroke-width: 3;
+}
+
+.motion-bar {
+  fill: #dce6f7;
+}
+
+.motion-formula,
+.motion-result {
+  fill: #273149;
+  font-family: SUIT, Pretendard, sans-serif;
+  font-size: calc(18px * var(--motion-caption-scale, 1));
+  font-weight: 800;
+  text-anchor: end;
+}
+
+.motion-result {
+  fill: var(--motion-teal);
+  font-size: calc(20px * var(--motion-caption-scale, 1));
+}
+
+.motion-group-focus,
+.motion-target-ring {
+  fill: rgba(255, 227, 122, 0.12);
+  stroke: #d4a900;
+  stroke-dasharray: 9 7;
+  stroke-width: 3;
+}
+
+.motion-reference-line {
+  fill: none;
+  stroke: var(--motion-red);
+  stroke-dasharray: 8 6;
+  stroke-width: 3;
+}
+
+.curriculum-teacher-stage[data-motion-authored="true"] .curriculum-stage-board {
+  border-color: #cbd8ef;
+}
+
+.curriculum-teacher-stage.is-drawn :is(
+  .motion-shape,
+  .motion-block,
+  .motion-curve,
+  .motion-area-positive,
+  .motion-area-negative,
+  .motion-area-strip,
+  .motion-probability-event,
+  .motion-probability-condition,
+  .motion-probability-intersection,
+  .motion-probability-mass,
+  .motion-sample-dot,
+  .motion-confidence-hit,
+  .motion-confidence-miss,
+  .motion-geometry,
+  .motion-bar,
+  .motion-formula,
+  .motion-result,
+  .motion-group-focus,
+  .motion-target-ring
+) {
+  animation: curriculum-motion-beat-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes curriculum-motion-beat-in {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.curriculum-stage-focus {
+  position: absolute;
+  top: 28px;
+  left: clamp(20px, 5vw, 58px);
+  z-index: 2;
+  max-width: min(70%, 470px);
+  display: grid;
+  justify-items: start;
+  min-width: 0;
+}
+
+.curriculum-stage-focus > span {
+  margin-bottom: 7px;
+  color: #58647a;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.curriculum-stage-focus > strong {
+  position: relative;
+  z-index: 1;
+  padding: 4px 7px;
+  color: var(--motion-ink);
+  font-size: clamp(22px, 4vw, 42px);
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 1.18;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+
+.curriculum-stage-focus > strong::before {
+  position: absolute;
+  inset: 50% 0 -2px;
+  z-index: -1;
+  background: var(--motion-yellow);
+  border-radius: 3px;
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.curriculum-stage-focus > i {
+  width: 0;
+  height: 4px;
+  margin: 4px 0 0 6px;
+  background: var(--motion-blue);
+  border-radius: 99px;
+  transition: width 520ms 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.curriculum-teacher-stage.is-drawn .curriculum-stage-focus > strong::before {
+  transform: scaleX(1);
+}
+
+.curriculum-teacher-stage.is-drawn .curriculum-stage-focus > i {
+  width: min(calc(100% - 6px), 260px);
+}
+
+.curriculum-teacher-pen {
+  position: absolute;
+  top: 90px;
+  left: 42px;
+  z-index: 3;
+  color: var(--motion-blue);
+  font-size: 32px;
+  opacity: 0;
+  transform: translate(-12px, -10px) rotate(-22deg);
+  transition: opacity 180ms, transform 560ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.curriculum-teacher-stage.is-drawn .curriculum-teacher-pen {
+  opacity: 0.78;
+  transform: translate(min(32vw, 250px), 24px) rotate(-12deg);
+}
+
+.curriculum-stage-board > p {
+  position: absolute;
+  right: clamp(18px, 4vw, 42px);
+  bottom: 20px;
+  max-width: min(52%, 440px);
+  margin: 0;
+  padding: 10px 12px;
+  color: #465169;
+  background: rgba(255, 255, 255, 0.92);
+  border-left: 3px solid var(--motion-blue);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.curriculum-stage-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 20px;
+  padding: 20px 2px 0;
+}
+
+.curriculum-stage-copy h4 {
+  margin: 6px 0 6px;
+  color: var(--motion-ink);
+  font-size: clamp(20px, 2vw, 27px);
+  letter-spacing: -0.035em;
+}
+
+.curriculum-stage-copy strong {
+  display: block;
+  color: #4b566e;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.curriculum-stage-copy button,
+.curriculum-branch-actions button,
+.curriculum-scene-check button {
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid #cbd3e2;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 780;
+  cursor: pointer;
+}
+
+.curriculum-stage-copy button {
+  color: #334058;
+  background: #fff;
+}
+
+.curriculum-stage-source {
+  margin: 14px 0 0;
+  padding: 16px 18px;
+  color: #3f4960;
+  background: #fff;
+  border-left: 3px solid #a9badb;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.curriculum-understanding-branch {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid #dce2ee;
+}
+
+.curriculum-branch-support > p {
+  margin: 0 0 12px;
+  color: var(--motion-ink);
+  font-size: 16px;
+  font-weight: 820;
+}
+
+.curriculum-branch-support {
+  margin-top: 16px;
+}
+
+.curriculum-branch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.curriculum-branch-actions button {
+  color: #27334c;
+  background: #fff;
+}
+
+.curriculum-branch-actions [data-motion-explain="spicy"] {
+  color: #923934;
+  background: #fff6f4;
+  border-color: #e4b5b0;
+}
+
+.curriculum-reexplain-copy {
+  margin: 14px 0 0;
+  padding: 15px 17px;
+  color: #334058;
+  background: #fff;
+  border-left: 4px solid var(--motion-blue);
+  font-size: 15px;
+  font-weight: 620;
+  line-height: 1.7;
+}
+
+.curriculum-reexplain-copy[data-mode="spicy"] {
+  border-color: var(--motion-red);
+}
+
+.curriculum-scene-check {
+  margin-top: 0;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid #d7deea;
+  border-radius: 14px;
+}
+
+.curriculum-scene-check > strong {
+  display: block;
+  color: var(--motion-ink);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.curriculum-scene-check > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 13px;
+}
+
+.curriculum-scene-check > div button {
+  min-height: 54px;
+  color: #303b53;
+  background: #f8f9fc;
+}
+
+.curriculum-scene-check > div button:disabled {
+  opacity: 0.55;
+}
+
+.curriculum-scene-check > p {
+  margin: 12px 0 0;
+  color: #536078;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.curriculum-scene-check > p[data-result="correct"] {
+  color: var(--motion-teal);
+  font-weight: 760;
+}
+
+.curriculum-scene-check > p[data-result="retry"] {
+  color: var(--motion-red);
+  font-weight: 720;
+}
+
+.curriculum-motion-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.curriculum-motion-nav > div {
+  display: flex;
+  gap: 8px;
+}
+
+.curriculum-motion-nav button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.curriculum-motion-nav button span {
+  width: 9px;
+  height: 9px;
+  background: #aab4c6;
+  border-radius: 50%;
+}
+
+.curriculum-motion-nav button[aria-current="step"] span {
+  width: 24px;
+  background: var(--motion-blue);
+  border-radius: 99px;
+}
+
+.curriculum-motion-nav > span {
+  color: #6b758a;
+  font-size: 12px;
+}
+
+.curriculum-motion-lesson button:focus-visible {
+  outline: 3px solid rgba(36, 111, 231, 0.36);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .curriculum-motion-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .curriculum-stage-copy,
+  .curriculum-scene-check > div {
+    grid-template-columns: 1fr;
+  }
+
+  .curriculum-stage-copy button,
+  .curriculum-branch-actions button,
+  .curriculum-scene-check button {
+    width: 100%;
+  }
+
+  .curriculum-branch-actions {
+    display: grid;
+  }
+
+  .curriculum-motion-nav {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/*
+ * 1024px 화면에서도 왼쪽 개념 목록이 열리면 실제 보드 폭은 500px 안팎이다.
+ * viewport가 아니라 학습 카드의 가용 폭을 기준으로 정보 계층을 한 열로 접는다.
+ */
+@container (max-width: 700px) {
+  .curriculum-motion-heading {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .curriculum-narration-controls {
+    width: 100%;
+  }
+
+  .curriculum-motion-heading h3 {
+    font-size: clamp(22px, 7cqw, 30px);
+    overflow-wrap: anywhere;
+  }
+
+  .curriculum-stage-focus > strong {
+    font-size: clamp(20px, 6.4cqw, 30px);
+  }
+
+  /*
+   * 좁은 보드에서는 절대 배치를 걷어내고 흐름 배치로 세운다.
+   *
+   * 실측(변경 전):
+   *   320px 화면 - 보드 208x322 안에 800x360 그림이 0.26배로 들어가
+   *                그림은 208x94 뿐이고 세로 226px 가 빈 칸이었다.
+   *   768px 화면 - 보드 608x322 에서 왼쪽 아래 캡션이 오른쪽 아래
+   *                .motion-result("대상 고정") 위에 겹쳤다.
+   *
+   * viewBox 비율(800:360)대로 높이를 잡으면 빈 칸이 사라지고,
+   * 캡션을 그림 아래로 내리면 겹침도 사라진다.
+   */
+  .curriculum-stage-board {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-block: 18px 16px;
+  }
+
+  .curriculum-stage-focus {
+    position: static;
+    order: 1;
+    max-width: none;
+    margin-inline: 16px;
+  }
+
+  .curriculum-stage-board > svg {
+    position: static;
+    order: 2;
+    inset: auto;
+    width: 100%;
+    height: auto;
+    margin-top: 14px;
+  }
+
+  .curriculum-stage-board > p {
+    position: static;
+    order: 3;
+    inset: auto;
+    max-width: none;
+    margin: 14px 16px 0;
+  }
+
+  /*
+   * 장식용 펜은 절대 배치라 흐름 배치로 바뀐 보드 위에 겹친다.
+   * aria-hidden 요소이므로 이 폭에서는 감춘다.
+   */
+  .curriculum-teacher-pen {
+    display: none;
+  }
+
+  .curriculum-stage-copy,
+  .curriculum-scene-check > div {
+    grid-template-columns: 1fr;
+  }
+
+  .curriculum-stage-copy button,
+  .curriculum-branch-actions button,
+  .curriculum-scene-check button {
+    width: 100%;
+  }
+
+  .curriculum-branch-actions {
+    display: grid;
+  }
+}
+
+@media (max-width: 420px) {
+  .curriculum-motion-lesson {
+    --motion-stage-bleed: 14px;
+    /* 첫 화면에 시작 버튼을 올리기 위해 위쪽 여백만 줄인다. */
+    margin-top: 16px;
+    padding-block: 15px;
+    padding-inline: 14px;
+  }
+
+  .curriculum-motion-nav > div {
+    gap: 0;
+  }
+
+  .curriculum-motion-nav button {
+    margin-inline: -1px;
+  }
+}
+
+/*
+ * 아주 좁은 보드 전용 보정 (320px 화면에서 보드 폭 210px 실측)
+ *
+ * 1) 보드를 섹션 안쪽 여백 밖으로 빼 그림 폭을 208 -> 236 으로 넓힌다.
+ * 2) viewBox 글자를 키운다. 렌더 배율이 0.30 이라 viewBox 16px 라벨이
+ *    4.8px 로 나오던 것을 8.3px 로 올린다.
+ * 컨테이너 폭 기준이므로 1024px 화면에서 개념 목록이 열려 보드가 좁아질 때도
+ * 같은 규칙이 걸린다.
+ */
+@container (max-width: 560px) {
+  /*
+   * 320x568 실측: 모션 강의 시작 버튼이 675px 지점에 있어 첫 화면에서 안 보였다.
+   * 여는 질문(span)이 세 줄을 차지하며 버튼을 밀어냈으므로,
+   * 제목 -> 시작 버튼 -> 여는 질문 순서로 세우고 간격을 줄인다.
+   */
+  .curriculum-motion-heading {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding-bottom: 18px;
+  }
+
+  .curriculum-motion-heading > div:first-child {
+    display: contents;
+  }
+
+  .curriculum-motion-heading > div:first-child > p {
+    order: 1;
+  }
+
+  .curriculum-motion-heading h3 {
+    order: 2;
+    margin: 6px 0 0;
+  }
+
+  .curriculum-narration-controls {
+    order: 3;
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  .curriculum-motion-heading > div:first-child > span {
+    order: 4;
+    margin-top: 12px;
+  }
+
+  .curriculum-stage-board {
+    --motion-type-scale: 1.45;
+    --motion-caption-scale: 1.2;
+    border-inline-width: 0;
+    border-radius: 0;
+    margin-inline: calc(-1 * var(--motion-stage-bleed));
+  }
+
+  /*
+   * 글자를 키우면 곡선과 축 위에 얹히는 라벨이 생긴다. 위치를 옮기면
+   * 스크립트가 그리는 좌표와 어긋나므로, 흰 외곽선을 먼저 칠해
+   * 선 위에서도 글자가 끊겨 보이지 않게 한다.
+   */
+  .curriculum-stage-board :is(
+    .motion-label,
+    .motion-operator,
+    .motion-axis-label,
+    .motion-number-label,
+    .motion-formula,
+    .motion-result
+  ) {
+    paint-order: stroke fill;
+    stroke: #fff;
+    stroke-width: 5px;
+    stroke-linejoin: round;
+  }
+}
+
+@container (max-width: 380px) {
+  .curriculum-stage-board {
+    --motion-type-scale: 1.75;
+    --motion-caption-scale: 1.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .curriculum-teacher-stage.is-drawn :is(
+    .motion-shape,
+    .motion-block,
+    .motion-curve,
+    .motion-geometry,
+    .motion-bar,
+    .motion-formula,
+    .motion-result,
+    .motion-group-focus,
+    .motion-target-ring
+  ) {
+    animation: none;
+  }
+
+  .curriculum-stage-focus > strong::before {
+    transform: scaleX(1);
+  }
+
+  .curriculum-stage-focus > i {
+    width: min(calc(100% - 6px), 260px);
+  }
+
+  .curriculum-teacher-pen {
+    opacity: 0.78;
+    transform: translate(min(32vw, 250px), 24px) rotate(-12deg);
+  }
+}

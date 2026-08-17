@@ -1,0 +1,828 @@
+/*
+ * Matths 2026 product refresh
+ *
+ * 실제 학습 정보와 다음 행동이 장식보다 먼저 보이게 하는 공통 마감층이다.
+ * 기존 기능 CSS를 지우지 않고 마지막에 덮어써 차수 단위 롤백이 가능하다.
+ */
+
+:root {
+  --product-canvas: #f5f7fb;
+  --product-surface: #ffffff;
+  --product-surface-subtle: #f9faff;
+  --product-line: #dfe4ef;
+  --product-ink: #1b2235;
+  --product-muted: #5f687c;
+  --product-action: #7b4efc;
+  --product-action-hover: #6c3ff0;
+  --product-blue: #327ffa;
+  --product-radius: 12px;
+  --product-shadow: 0 12px 30px rgba(28, 36, 64, 0.07);
+}
+
+body {
+  color: var(--product-ink);
+  background: var(--product-canvas);
+}
+
+body :where(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(50, 127, 250, 0.42);
+  outline-offset: 3px;
+}
+
+/* 공개 교육과정: 소개 영상처럼 큰 영웅 영역 대신 실제 과목 구조를 앞당긴다. */
+.curriculum-hero {
+  min-height: 0;
+  padding: clamp(48px, 7vw, 82px) 0 clamp(32px, 5vw, 56px);
+  color: var(--product-ink);
+  background: var(--product-canvas);
+}
+
+.curriculum-hero .hero-pattern {
+  display: none;
+}
+
+.curriculum-hero .hero-layout {
+  align-items: center;
+  gap: clamp(28px, 5vw, 72px);
+}
+
+.curriculum-hero .hero-copy h1 {
+  max-width: 760px;
+  margin-top: 12px;
+  font-size: clamp(38px, 5vw, 62px);
+  line-height: 1.08;
+  letter-spacing: -0.055em;
+}
+
+.curriculum-hero .hero-copy h1 em {
+  color: var(--product-action);
+  font-style: normal;
+}
+
+.curriculum-hero .hero-copy > p:not(.eyebrow) {
+  max-width: 690px;
+  color: var(--product-muted);
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+.curriculum-hero .eyebrow,
+.section-kicker {
+  color: var(--product-blue);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.curriculum-hero .scope-card {
+  color: var(--product-ink);
+  background: var(--product-surface);
+  border: 1px solid var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: var(--product-shadow);
+}
+
+.curriculum-hero .scope-card :where(p, small, span) {
+  color: var(--product-muted);
+}
+
+.curriculum-hero .scope-note {
+  background: var(--product-surface-subtle);
+  border-color: var(--product-line);
+}
+
+/* 학생 도구 화면 공통: 상단 제목과 실제 작업 면의 계층을 단순화한다. */
+.assessment-main,
+.wrong-notes-main,
+.private-mock-main {
+  background: var(--product-canvas);
+}
+
+.assessment-page .topbar,
+.wrong-notes-main .topbar,
+.private-mock-main .topbar {
+  min-height: 74px;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--product-line);
+  box-shadow: none;
+}
+
+.assessment-page .topbar-left p,
+.wrong-notes-main .topbar-left p,
+.private-mock-main .topbar-left p {
+  color: var(--product-muted);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.assessment-page .topbar-left h1,
+.wrong-notes-main .topbar-left h1,
+.private-mock-main .topbar-left h1 {
+  font-size: 21px;
+  letter-spacing: -0.03em;
+}
+
+.assessment-hero,
+.wrong-hero,
+.private-mock-hero {
+  min-height: 0;
+  margin-top: 24px;
+  padding: clamp(24px, 4vw, 40px);
+  color: var(--product-ink);
+  background: var(--product-surface);
+  border: 1px solid var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: none;
+}
+
+.assessment-hero h1,
+.wrong-hero-copy h2,
+.private-mock-hero h2 {
+  margin-top: 8px;
+  color: var(--product-ink);
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1.16;
+  letter-spacing: -0.045em;
+}
+
+.assessment-hero > div > p:last-child,
+.wrong-hero-copy > p,
+.private-mock-hero > div > span {
+  color: var(--product-muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.assessment-hero .pass-rule,
+.wrong-hero .review-summary,
+.private-mock-countdown {
+  color: var(--product-ink);
+  background: var(--product-surface-subtle);
+  border: 1px solid var(--product-line);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.assessment-course,
+.wrong-content,
+.wrong-item,
+.private-mock-card {
+  background: var(--product-surface);
+  border-color: var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: none;
+}
+
+.review-tabs a,
+.community-board-tabs a,
+.profile-section-nav a {
+  border-radius: 8px;
+}
+
+.review-tabs a.active,
+.community-board-tabs a.active,
+.profile-section-nav a[aria-current="page"] {
+  color: var(--product-action);
+  background: #f0ebff;
+  border-color: rgba(123, 78, 252, 0.28);
+}
+
+.review-filter :where(label > span, input, select, button, a),
+.wrong-item :where(p, span, small, a),
+.assessment-course :where(p, span, small, button, a),
+.private-mock-main :where(p, span, small, button, a, dt, dd) {
+  font-size: max(14px, 1em);
+}
+
+.private-mock-start-link,
+.private-mock-selection-actions button,
+.filter-actions button,
+.save-button,
+.community-hero > a,
+.parent-hero > a,
+.admin-form button[type="submit"] {
+  color: #fff;
+  background: var(--product-action);
+  border-color: var(--product-action);
+  border-radius: 9px;
+  box-shadow: none;
+}
+
+.private-mock-start-link:hover,
+.private-mock-selection-actions button:hover,
+.filter-actions button:hover,
+.save-button:hover,
+.community-hero > a:hover,
+.parent-hero > a:hover,
+.admin-form button[type="submit"]:hover {
+  background: var(--product-action-hover);
+  transform: translateY(-1px);
+}
+
+/* 커뮤니티: 거대 홍보 문구보다 현재 게시판과 검색을 먼저 읽게 한다. */
+.community-main {
+  width: min(1180px, calc(100% - 40px));
+  margin-inline: auto;
+}
+
+.community-hero {
+  min-height: 0;
+  margin-top: 28px;
+  padding: clamp(26px, 4vw, 42px);
+  color: var(--product-ink);
+  background: var(--product-surface);
+  border: 1px solid var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: none;
+}
+
+.community-hero h1 {
+  margin: 10px 0;
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.15;
+  letter-spacing: -0.045em;
+}
+
+.community-hero h1 strong {
+  color: var(--product-action);
+}
+
+.community-hero p,
+.community-board-heading p,
+.school-board-membership span {
+  color: var(--product-blue);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.community-hero > div > span,
+.community-post-list p,
+.community-board :where(input, button, a, small, span) {
+  font-size: 14px;
+}
+
+.community-board,
+.community-popular-strip,
+.school-board-membership,
+.community-post-list > a {
+  border-color: var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: none;
+}
+
+/* 프로필·학부모·관리자: 신뢰가 필요한 화면은 흰 표면과 명시적 구분만 사용한다. */
+.profile-page-shell,
+.parent-page,
+.admin-page {
+  background: var(--product-canvas);
+}
+
+.profile-hero,
+.parent-hero,
+.admin-heading {
+  min-height: 0;
+  padding: clamp(26px, 4vw, 42px);
+  color: var(--product-ink);
+  background: var(--product-surface);
+  border: 1px solid var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: none;
+}
+
+.profile-hero h1,
+.parent-hero h1,
+.admin-heading h1 {
+  color: var(--product-ink);
+  font-size: clamp(30px, 4vw, 44px);
+  letter-spacing: -0.045em;
+}
+
+.profile-hero-copy > p,
+.settings-group-heading > p,
+.settings-card-heading p,
+.parent-hero p,
+.admin-heading p,
+.admin-panel-heading p {
+  color: var(--product-blue);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.profile-summary,
+.settings-card,
+.parent-family-strip,
+.parent-summary-grid article,
+.parent-ranking-grid article,
+.admin-panel,
+.admin-stat-grid article {
+  background: var(--product-surface);
+  border-color: var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: none;
+}
+
+.profile-main :where(p, span, small, label, input, select, button, a),
+.parent-main :where(p, span, small, a),
+.admin-main :where(p, span, small, label, input, select, textarea, button, a) {
+  font-size: max(14px, 1em);
+}
+
+/* 공개 서비스·도움말·자료실 */
+.pricing-main,
+.faq-section,
+.contact-page,
+.archive-public-main,
+.flow-hero,
+.visual-hero {
+  background-color: var(--product-canvas);
+}
+
+.pricing-hero,
+.faq-hero,
+.inquiry-hero,
+.archive-public-heading,
+.flow-hero,
+.visual-hero {
+  min-height: 0;
+  color: var(--product-ink);
+  background: var(--product-canvas);
+}
+
+.pricing-hero,
+.archive-public-heading {
+  padding-block: clamp(44px, 7vw, 76px) clamp(28px, 5vw, 50px);
+}
+
+.faq-hero,
+.inquiry-hero,
+.flow-hero,
+.visual-hero {
+  padding-block: clamp(48px, 7vw, 82px);
+}
+
+.faq-hero :where(.hero-grid, .hero-symbol),
+.flow-hero .hero-pattern,
+.visual-hero .hero-grid-bg {
+  display: none;
+}
+
+.pricing-hero h1,
+.faq-hero h1,
+.inquiry-hero h1,
+.archive-public-heading h1,
+.flow-hero h1,
+.visual-hero h1 {
+  color: var(--product-ink);
+  font-size: clamp(38px, 5vw, 60px);
+  line-height: 1.08;
+  letter-spacing: -0.055em;
+}
+
+.pricing-hero p,
+.faq-hero p,
+.inquiry-hero p,
+.archive-public-heading p,
+.flow-hero p,
+.visual-hero p {
+  color: var(--product-muted);
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.pricing-card,
+.pricing-guide,
+.popular-card,
+.faq-category,
+.inquiry-card,
+.support-process,
+.recent-inquiries,
+.archive-intro,
+.archive-list-section,
+.journey-card,
+.diagnosis-card,
+.guidance-card,
+.visual-principles article,
+.example-card,
+.difference-card {
+  background: var(--product-surface);
+  border-color: var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: none;
+}
+
+.pricing-main :where(p, span, small, li, a, button),
+.faq-section :where(p, span, small, summary, a, button),
+.contact-page :where(p, span, small, label, input, select, textarea, a, button),
+.archive-public-main :where(p, span, small, a, button),
+.journey-section :where(p, span, small, a),
+.diagnosis-section :where(p, span, small, a),
+.guidance-section :where(p, span, small, a),
+.visual-principles :where(p, span, small, a),
+.example-section :where(p, span, small, a),
+.difference-section :where(p, span, small, a) {
+  font-size: max(14px, 1em);
+}
+
+/* 학습 상세 화면: 경로·진도·현재 문제를 첫 화면에 유지한다. */
+.my-learning-main,
+.logged-curriculum-main,
+.unit-learning-main,
+.quick-main,
+.study-hall-main,
+.store-main {
+  background: var(--product-canvas);
+}
+
+.learning-summary,
+.curriculum-welcome,
+.unit-hero,
+.quick-hero,
+.study-hall-hero,
+.store-product-hero,
+.study-content-heading {
+  min-height: 0;
+  margin-top: 24px;
+  padding: clamp(24px, 4vw, 40px);
+  color: var(--product-ink);
+  background: var(--product-surface);
+  border: 1px solid var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: none;
+}
+
+.learning-summary h1,
+.curriculum-welcome h1,
+.unit-hero h1,
+.quick-hero h1,
+.study-hall-hero h1,
+.store-product-hero h1,
+.study-content-heading h1 {
+  color: var(--product-ink);
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1.15;
+  letter-spacing: -0.045em;
+}
+
+.course-progress-section,
+.curriculum-guide,
+.logged-curriculum-main .course-card,
+.unit-learning-main .lesson-card,
+.quick-workspace,
+.study-hall-catalog,
+.study-hall-series,
+.study-content-files,
+.study-answer-sheet,
+.store-free-downloads,
+.store-bundle-section,
+.store-long-detail {
+  background: var(--product-surface);
+  border-color: var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: none;
+}
+
+.my-learning-main :where(p, span, small, a, button),
+.logged-curriculum-main :where(p, span, small, a, button),
+.unit-learning-main :where(p, span, small, a, button),
+.quick-main :where(p, span, small, label, input, a, button),
+.study-hall-main :where(p, span, small, label, input, a, button),
+.store-main :where(p, span, small, label, input, a, button) {
+  font-size: max(14px, 1em);
+}
+
+.quick-main :where(button[type="submit"], .quick-primary-action),
+.unit-learning-main :where(button[type="submit"], .lesson-primary-action),
+.study-hall-main :where(button[type="submit"], .study-primary-action),
+.store-main :where(button[type="submit"], .store-primary-action) {
+  color: #fff;
+  background: var(--product-action);
+  border-color: var(--product-action);
+  border-radius: 9px;
+  box-shadow: none;
+}
+
+/* 세부 화면: 목록에서 상세로 들어간 뒤에도 같은 제품 문법을 유지한다. */
+.notification-main,
+.community-post-main,
+.community-compose-main,
+.community-detail-main,
+.suggestion-main,
+.nickname-change-main,
+.restriction-main,
+.objection-main,
+.wrong-review-main,
+.archive-main,
+.attempt-main {
+  background: var(--product-canvas);
+}
+
+.notification-hero,
+.notification-list-section,
+.community-post-detail,
+.community-comments,
+.community-compose-card,
+.community-rules-card,
+.suggestion-hero,
+.suggestion-list,
+.nickname-request-card,
+.restriction-card,
+.objection-hero,
+.objection-form-card,
+.review-intro,
+.original-problem-card,
+.retry-card,
+.archive-intro,
+.archive-upload,
+.archive-list-section,
+.attempt-heading,
+.attempt-progress-card,
+.placement-result-summary article,
+.placement-question-navigator,
+.assessment-question {
+  color: var(--product-ink);
+  background: var(--product-surface);
+  border-color: var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: none;
+}
+
+.notification-hero,
+.suggestion-hero,
+.attempt-heading {
+  min-height: 0;
+  margin-top: 24px;
+  padding: clamp(24px, 4vw, 40px);
+}
+
+.notification-hero h2,
+.community-post-detail h1,
+.community-compose-main h1,
+.community-detail-main h1,
+.suggestion-hero h2,
+.nickname-change-main h1,
+.restriction-main h1,
+.objection-main h1,
+.wrong-review-main h1,
+.archive-main h1,
+.attempt-main h1 {
+  color: var(--product-ink);
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.16;
+  letter-spacing: -0.045em;
+}
+
+/* 라이트 표면으로 전환된 히어로 안에 남은 다크 테마 전경색을 함께 전환한다. */
+.archive-intro > strong {
+  color: var(--product-ink);
+  background: var(--product-surface-subtle);
+  border-color: var(--product-line);
+}
+
+.archive-intro div > span,
+.archive-intro > strong small,
+.notification-hero dt,
+.suggestion-hero > div > span,
+.suggestion-hero ul {
+  color: var(--product-muted);
+}
+
+.notification-hero > div > p,
+.notification-hero h2 strong,
+.suggestion-hero > div > p {
+  color: var(--product-action);
+}
+
+.notification-hero dl div,
+.suggestion-hero aside {
+  color: var(--product-ink);
+  background: var(--product-surface-subtle);
+  border-color: var(--product-line);
+  backdrop-filter: none;
+}
+
+.notification-hero dd,
+.suggestion-hero aside strong {
+  color: var(--product-ink);
+}
+
+.notification-main :where(p, span, small, time, a, button),
+.community-post-main :where(p, span, small, time, label, input, textarea, a, button),
+.community-compose-main :where(p, span, small, label, input, select, textarea, a, button),
+.community-detail-main :where(p, span, small, label, a, button),
+.suggestion-main :where(p, span, small, a, button),
+.nickname-change-main :where(p, span, small, label, input, a, button),
+.restriction-main :where(p, span, small, a, button),
+.objection-main :where(p, span, small, label, input, textarea, a, button),
+.wrong-review-main :where(p, span, small, label, input, a, button),
+.archive-main :where(p, span, small, label, input, a, button),
+.attempt-main :where(p, span, small, label, input, a, button) {
+  font-size: max(14px, 1em);
+}
+
+/* 인증·결제·법적 고지는 화려한 홍보 면이 아니라 신뢰 가능한 작업 면으로 보인다. */
+.auth-page-login,
+.auth-page-register,
+.parent-auth-page,
+.checkout-page,
+.legal-page,
+.matths-error-page {
+  color: var(--product-ink);
+  background: var(--product-canvas);
+}
+
+.auth-card,
+.parent-auth-card,
+.student-checkout-card,
+.parent-checkout-card,
+.legal-document,
+.legal-layout > aside,
+.matths-error-card {
+  background: var(--product-surface);
+  border-color: var(--product-line);
+  border-radius: var(--product-radius);
+  box-shadow: none;
+}
+
+.auth-layout :where(p, span, small, label, input, a, button),
+.parent-auth-shell :where(p, span, small, label, input, select, a, button),
+.student-checkout-main :where(p, span, small, label, input, a, button, dt, dd),
+.parent-checkout-main :where(p, span, small, label, input, a, button, dt, dd),
+.legal-layout :where(p, span, small, li, a, button),
+.matths-error-main :where(p, span, small, a, button) {
+  font-size: max(14px, 1em);
+}
+
+:where(
+  .notification-main,
+  .community-post-main,
+  .community-compose-main,
+  .community-detail-main,
+  .suggestion-main,
+  .nickname-change-main,
+  .restriction-main,
+  .objection-main,
+  .wrong-review-main,
+  .archive-main,
+  .attempt-main,
+  .auth-layout,
+  .parent-auth-shell,
+  .student-checkout-main,
+  .parent-checkout-main,
+  .legal-layout,
+  .matths-error-main
+) :where(button, input, select, textarea) {
+  min-height: 44px;
+}
+
+/* 운영 화면은 작은 글자로 정보를 압축하지 않고 표 자체만 가로 스크롤한다. */
+.admin-main :where(table, .admin-table, .table-wrap) {
+  max-width: 100%;
+}
+
+.admin-main :where(.table-wrap, .admin-table-wrap) {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.admin-main :where(th, td, caption) {
+  font-size: max(13px, 1em);
+  line-height: 1.5;
+}
+
+/* 경쟁 콘텐츠는 별도 미술 방향을 유지하되 읽기 크기와 입력 표준은 공유한다. */
+.masters-page :where(p, span, small, label, input, select, textarea, a, button) {
+  font-size: max(13px, 1em);
+}
+
+.masters-page :where(button, input, select, textarea) {
+  min-height: 44px;
+}
+
+@media (max-width: 768px) {
+  .community-main {
+    width: min(100% - 24px, 1180px);
+  }
+
+  .curriculum-hero .hero-layout,
+  .assessment-hero,
+  .community-hero,
+  .profile-hero,
+  .parent-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .community-hero,
+  .parent-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .community-hero > a,
+  .parent-hero > a {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .notification-main,
+  .community-post-main,
+  .community-compose-main,
+  .community-detail-main,
+  .suggestion-main,
+  .nickname-change-main,
+  .restriction-main,
+  .objection-main,
+  .wrong-review-main,
+  .archive-main,
+  .attempt-main {
+    min-width: 0;
+  }
+
+  .notification-hero,
+  .community-post-detail,
+  .community-comments,
+  .community-compose-card,
+  .community-rules-card,
+  .student-checkout-card,
+  .parent-checkout-card,
+  .legal-document,
+  .matths-error-card {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .curriculum-hero,
+  .assessment-hero,
+  .wrong-hero,
+  .private-mock-hero,
+  .community-hero,
+  .profile-hero,
+  .parent-hero,
+  .admin-heading {
+    padding: 22px 18px;
+  }
+
+  .curriculum-hero .hero-copy h1,
+  .assessment-hero h1,
+  .wrong-hero-copy h2,
+  .private-mock-hero h2,
+  .community-hero h1,
+  .profile-hero h1,
+  .parent-hero h1,
+  .admin-heading h1 {
+    font-size: 30px;
+  }
+
+  .notification-hero,
+  .community-post-detail,
+  .community-comments,
+  .community-compose-card,
+  .community-rules-card,
+  .suggestion-hero,
+  .student-checkout-card,
+  .parent-checkout-card,
+  .legal-document,
+  .matths-error-card {
+    padding: 22px 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-refresh *,
+  .curriculum-hero *,
+  .assessment-main *,
+  .wrong-notes-main *,
+  .private-mock-main *,
+  .community-main *,
+  .profile-page-shell *,
+  .parent-page *,
+  .admin-page * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .notification-main *,
+  .community-post-main *,
+  .community-compose-main *,
+  .community-detail-main *,
+  .suggestion-main *,
+  .nickname-change-main *,
+  .restriction-main *,
+  .objection-main *,
+  .wrong-review-main *,
+  .archive-main *,
+  .attempt-main *,
+  .auth-layout *,
+  .parent-auth-shell *,
+  .student-checkout-main *,
+  .parent-checkout-main *,
+  .legal-layout *,
+  .matths-error-main * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

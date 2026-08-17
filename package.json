@@ -9,6 +9,12 @@
   "scripts": {
     "start": "node server.js",
     "ipad-server-surface:verify": "node scripts/verifyIpadServerSurface.js",
+    "ipad-learning-sync:verify": "node scripts/verifyIpadLearningSyncSurface.js",
+    "ipad-assessment-http:verify": "node audit/verifyIpadAssessmentHttpContract.js",
+    "ipad-assessment-safety:verify": "node audit/verifyAssessmentServiceSafety.js",
+    "ipad-placement-http:verify": "node audit/verifyIpadPlacementHttpContract.js",
+    "ipad-weekly-mock-evidence:verify": "node audit/verifyIpadWeeklyMockEvidenceContract.js",
+    "ipad-arena-shop:verify": "node scripts/verifyIpadArenaShopContract.js",
     "oauth-mobile:verify": "node scripts/verifyMobileGoogleOAuth.js",
     "email:verify": "node scripts/verifyEmailConfig.js",
     "email-routing:verify": "node scripts/verifyOperatorEmailRouting.js",

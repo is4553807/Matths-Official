@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const mongoose = require("mongoose");
 const {
+  createHash,
   randomUUID,
 } = require("crypto");
 
@@ -209,6 +210,97 @@ function cleanMultiline(
     .replace(/\r\n?/g, "\n")
     .trim()
     .slice(0, maxLength);
+}
+
+function privateMockEvidenceReceiptId({
+  userId,
+  caseId,
+  submissionId,
+}) {
+  const normalizedSubmissionId =
+    cleanSingleLine(
+      submissionId,
+      200
+    );
+  if (!normalizedSubmissionId) {
+    return null;
+  }
+
+  const bytes = createHash("sha256")
+    .update(
+      [
+        String(userId),
+        String(caseId),
+        normalizedSubmissionId,
+      ].join("\u0000")
+    )
+    .digest()
+    .subarray(0, 16);
+  bytes[6] =
+    (bytes[6] & 0x0f) | 0x50;
+  bytes[8] =
+    (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join("-");
+}
+
+function privateMockEvidenceResult(
+  submission,
+  { replayed }
+) {
+  return {
+    submitted: true,
+    replayed,
+    receiptId:
+      String(
+        submission.receiptId
+      ),
+    submittedAt:
+      new Date(
+        submission.submittedAt
+      ).toISOString(),
+  };
+}
+
+function findPrivateMockEvidenceSubmission(
+  integrityCase,
+  receiptId
+) {
+  return (
+    integrityCase
+      ?.evidenceSubmissions || []
+  ).find(
+    (submission) =>
+      String(
+        submission.receiptId
+      ) === receiptId
+  );
+}
+
+async function discardPrivateMockEvidenceArtifacts({
+  uploadFiles,
+  createdItems = [],
+}) {
+  await Promise.allSettled(
+    uploadFiles.map((file) =>
+      discardArchiveUpload(file)
+    )
+  );
+  if (createdItems.length) {
+    await ArchiveItem.deleteMany({
+      _id: {
+        $in: createdItems.map(
+          (item) => item._id
+        ),
+      },
+    }).catch(() => {});
+  }
 }
 
 function normalizeAnswer(value) {
@@ -6948,33 +7040,85 @@ async function getUserIntegrityCase({
   };
 }
 
+// iPad도 관리자 화면과 같은 풀이과정 소명 문서를 읽는다. 별도 앱 전용
+// 상태를 만들지 않고 인증 사용자 소유 범위와 최신순 정렬만 적용한다.
+async function getUserPrivateMockIntegrityCases({
+  userId,
+}) {
+  return PrivateMockIntegrityCase.find({
+    userId,
+  })
+    .sort({
+      createdAt: -1,
+    })
+    .populate(
+      "examId",
+      "title formCode releaseAt"
+    )
+    .lean();
+}
+
 async function submitPrivateMockIntegrityEvidence({
   userId,
   caseId,
   files,
   note,
+  submissionId = null,
   now = new Date(),
 }) {
-  const integrityCase =
-    await PrivateMockIntegrityCase.findOne({
-      _id: caseId,
-      userId,
-      status: {
-        $in: [
-          "EVIDENCE_REQUIRED",
-          "INSUFFICIENT_EVIDENCE",
-        ],
-      },
-      "evidenceRequest.deadlineAt": {
-        $gt: now,
-      },
-    });
   const uploadFiles =
     Array.isArray(files)
       ? files
       : [];
+  const idempotentReceiptId =
+    privateMockEvidenceReceiptId({
+      userId,
+      caseId,
+      submissionId,
+    });
+  const integrityCase =
+    await PrivateMockIntegrityCase.findOne({
+      _id: caseId,
+      userId,
+    });
 
-  if (!integrityCase) {
+  if (
+    integrityCase &&
+    idempotentReceiptId
+  ) {
+    const replay =
+      findPrivateMockEvidenceSubmission(
+        integrityCase,
+        idempotentReceiptId
+      );
+    if (replay) {
+      await discardPrivateMockEvidenceArtifacts({
+        uploadFiles,
+      });
+      return privateMockEvidenceResult(
+        replay,
+        { replayed: true }
+      );
+    }
+  }
+
+  if (
+    !integrityCase ||
+    ![
+      "EVIDENCE_REQUIRED",
+      "INSUFFICIENT_EVIDENCE",
+    ].includes(
+      integrityCase.status
+    ) ||
+    !integrityCase
+      .evidenceRequest
+      ?.deadlineAt ||
+    new Date(
+      integrityCase
+        .evidenceRequest
+        .deadlineAt
+    ) <= now
+  ) {
     throw statusError(
       409,
       "현재 제출할 수 있는 풀이과정 요청이 아닙니다."
@@ -7031,6 +7175,8 @@ async function submitPrivateMockIntegrityEvidence({
   }
 
   const createdItems = [];
+  let submissionPersisted =
+    false;
 
   try {
     for (const file of uploadFiles) {
@@ -7074,8 +7220,9 @@ async function submitPrivateMockIntegrityEvidence({
     }
 
     const receiptId =
+      idempotentReceiptId ||
       randomUUID();
-    integrityCase.evidenceSubmissions.push({
+    const submission = {
       receiptId,
       files:
         createdItems.map(
@@ -7097,12 +7244,84 @@ async function submitPrivateMockIntegrityEvidence({
           2000
         ),
       submittedAt: now,
-    });
-    integrityCase.status =
-      "SUBMITTED";
-    integrityCase.reviewStatus =
-      "unreviewed";
-    await integrityCase.save();
+    };
+
+    if (idempotentReceiptId) {
+      const claim =
+        await PrivateMockIntegrityCase.updateOne(
+          {
+            _id: integrityCase._id,
+            userId,
+            status: {
+              $in: [
+                "EVIDENCE_REQUIRED",
+                "INSUFFICIENT_EVIDENCE",
+              ],
+            },
+            "evidenceRequest.deadlineAt": {
+              $gt: now,
+            },
+            "evidenceSubmissions.receiptId": {
+              $ne: receiptId,
+            },
+          },
+          {
+            $push: {
+              evidenceSubmissions:
+                submission,
+            },
+            $set: {
+              status: "SUBMITTED",
+              reviewStatus:
+                "unreviewed",
+            },
+          }
+        );
+
+      if (
+        Number(
+          claim.modifiedCount || 0
+        ) !== 1
+      ) {
+        const winnerCase =
+          await PrivateMockIntegrityCase.findOne({
+            _id: integrityCase._id,
+            userId,
+            "evidenceSubmissions.receiptId":
+              receiptId,
+          });
+        const winner =
+          findPrivateMockEvidenceSubmission(
+            winnerCase,
+            receiptId
+          );
+        if (winner) {
+          await discardPrivateMockEvidenceArtifacts({
+            uploadFiles,
+            createdItems,
+          });
+          return privateMockEvidenceResult(
+            winner,
+            { replayed: true }
+          );
+        }
+        throw statusError(
+          409,
+          "현재 제출할 수 있는 풀이과정 요청이 아닙니다."
+        );
+      }
+    } else {
+      integrityCase
+        .evidenceSubmissions
+        .push(submission);
+      integrityCase.status =
+        "SUBMITTED";
+      integrityCase.reviewStatus =
+        "unreviewed";
+      await integrityCase.save();
+    }
+    submissionPersisted =
+      true;
 
     await createAdminTodo({
       category: "integrity",
@@ -7121,32 +7340,26 @@ async function submitPrivateMockIntegrityEvidence({
       metadata: {
         receiptId,
       },
+    }).catch((error) => {
+      // 제출 정본은 이미 커밋됐다. 관리자 할 일은 source reconciliation이
+      // 복구하므로, 보조 레코드 실패로 저장된 증빙을 오류 재시도에서 지우지 않는다.
+      console.error(
+        "Private mock evidence admin todo creation failed:",
+        error.message
+      );
     });
 
-    return {
-      submitted: true,
-      receiptId,
-      submittedAt:
-        now.toISOString(),
-    };
-  } catch (error) {
-    await Promise.all(
-      uploadFiles.map(
-        (file) =>
-          discardArchiveUpload(
-            file
-          )
-      )
+    return privateMockEvidenceResult(
+      submission,
+      { replayed: false }
     );
-    await ArchiveItem.deleteMany({
-      _id: {
-        $in:
-          createdItems.map(
-            (item) =>
-              item._id
-          ),
-      },
-    }).catch(() => {});
+  } catch (error) {
+    if (!submissionPersisted) {
+      await discardPrivateMockEvidenceArtifacts({
+        uploadFiles,
+        createdItems,
+      });
+    }
     throw error;
   }
 }
@@ -8448,6 +8661,19 @@ async function getPrivateMockObjectionFormData({
   };
 }
 
+// 학생 본인의 이의신청 이력도 기존 관리자 검토 문서를 정본으로 사용한다.
+async function getUserPrivateMockObjections({
+  userId,
+}) {
+  return PrivateMockObjection.find({
+    userId,
+  })
+    .sort({
+      createdAt: -1,
+    })
+    .lean();
+}
+
 async function createPrivateMockObjection({
   userId,
   examId,
@@ -9358,6 +9584,8 @@ module.exports = {
   getPrivateMockPhase,
   getIntegrityEvidenceDeadline,
   getUserIntegrityCase,
+  getUserPrivateMockIntegrityCases,
+  getUserPrivateMockObjections,
   getSundayReleaseAt,
   getWeekSelectionLockAt,
   getUploadReminderWindow,

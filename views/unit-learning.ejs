@@ -139,6 +139,10 @@
       rel="stylesheet"
       href="/css/concept-experience.css"
     />
+    <link
+      rel="stylesheet"
+      href="/css/curriculum-story.css"
+    />
 
     <script>
       window.MathJax = {
@@ -170,6 +174,14 @@
     <!-- 기본 개념 페이지의 Step 미리보기와 topic 진도 저장 -->
     <script
       src="/js/unit-learning.js"
+      defer
+    ></script>
+    <script
+      src="/js/curriculum-narration.js"
+      defer
+    ></script>
+    <script
+      src="/js/curriculum-motion-lesson.js"
       defer
     ></script>
 
@@ -543,6 +555,11 @@
                 </h3>
               </div>
             </section>
+
+            <%- include(
+              "partials/curriculum-story-timeline",
+              { curriculumStory, curriculumNarrationScope }
+            ) %>
 
             <% if (lessonData.playgroundKey) { %>
               <%- include(

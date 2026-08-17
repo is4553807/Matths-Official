@@ -3,6 +3,12 @@ const { spawnSync } = require("node:child_process");
 const checks = [
   "oauth-mobile:verify",
   "ipad-server-surface:verify",
+  "ipad-learning-sync:verify",
+  "ipad-assessment-http:verify",
+  "ipad-assessment-safety:verify",
+  "ipad-placement-http:verify",
+  "ipad-weekly-mock-evidence:verify",
+  "ipad-arena-shop:verify",
   "deployment-surface:verify",
   "runtime:verify",
   "http-surface:verify",

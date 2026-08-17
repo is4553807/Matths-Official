@@ -31,6 +31,12 @@
   text-decoration: none;
 }
 
+.site-header .brand-logo {
+  display: block;
+  width: clamp(116px, 10vw, 132px);
+  height: auto;
+}
+
 .site-header .brand-mark {
   width: 34px;
   height: 34px;

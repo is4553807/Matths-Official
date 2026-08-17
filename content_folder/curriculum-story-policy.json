@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "MATTHS_CURRICULUM_STORY_V1",
+  "curriculumId": "kr-2022",
+  "courseIds": [
+    "common-math-1",
+    "common-math-2",
+    "algebra",
+    "calculus-1",
+    "probability-statistics",
+    "calculus-2",
+    "geometry",
+    "economics-math",
+    "ai-math",
+    "vocational-math",
+    "math-and-culture",
+    "practical-statistics",
+    "math-research-project"
+  ],
+  "providerPolicy": {
+    "defaultProvider": "system",
+    "defaultLocale": "ko-KR",
+    "defaultVoiceGender": "female",
+    "studioProvider": "eleven_v3",
+    "studioTagAliases": {
+      "침착하게": "warmly",
+      "따뜻하게": "warmly",
+      "궁금한 듯": "curious",
+      "강조해서": "excited",
+      "낮은 목소리로": "whispers",
+      "아쉬운 듯": "sighs"
+    }
+  },
+  "qualityPolicy": {
+    "minimumScenes": 5,
+    "maximumScenes": 7,
+    "minimumNarrationCharacters": 1400,
+    "maximumNarrationCharacters": 2600,
+    "minimumEstimatedSeconds": 240,
+    "maximumEstimatedSeconds": 360,
+    "requiredSceneKinds": [
+      "intuition",
+      "question",
+      "misconception",
+      "solution",
+      "recall"
+    ],
+    "maximumSpeechChunkCharacters": 180
+  }
+}

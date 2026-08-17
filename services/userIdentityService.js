@@ -2,6 +2,14 @@ const RANKING_DISPLAY_MODES = Object.freeze([
   "nickname",
 ]);
 
+function normalizeRankingDisplayMode(value) {
+  const mode = String(value || "").trim();
+
+  return RANKING_DISPLAY_MODES.includes(mode)
+    ? mode
+    : null;
+}
+
 function normalizeRealName(value) {
   return String(value || "")
     .trim()
@@ -44,6 +52,7 @@ function getRankingDisplayName(user) {
 module.exports = {
   RANKING_DISPLAY_MODES,
   getRankingDisplayName,
+  normalizeRankingDisplayMode,
   normalizeRealName,
   validateRealName,
 };

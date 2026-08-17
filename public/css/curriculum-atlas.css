@@ -1,0 +1,1029 @@
+/*
+ * 공개 교육과정 — 13과목을 카드 모음이 아닌 실제 색인으로 보여 주는 표면.
+ * 색은 브랜드 역할 토큰만 사용하고, 강한 액션 바이올렛은 시작 버튼 한 곳에 둔다.
+ */
+
+.curriculum-atlas-hero {
+  padding: 42px 0 38px;
+  color: var(--matths-ink);
+  background: var(--matths-canvas);
+  border-bottom: 1px solid var(--matths-line);
+}
+
+.curriculum-atlas-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.curriculum-atlas-kicker {
+  margin: 0 0 18px;
+  color: var(--matths-progress-blue);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 20px;
+}
+
+.curriculum-atlas-copy h1 {
+  margin: 0;
+  max-width: 620px;
+  font-size: clamp(30px, 4vw, 48px);
+  font-weight: 880;
+  line-height: 1.08;
+  letter-spacing: -0.055em;
+}
+
+.curriculum-atlas-copy h1 em {
+  color: var(--matths-progress-blue);
+  font-style: normal;
+}
+
+.curriculum-atlas-copy > p:not(.curriculum-atlas-kicker) {
+  max-width: 590px;
+  margin: 14px 0 0;
+  color: var(--matths-muted);
+  font-size: 16px;
+  line-height: 1.72;
+}
+
+.curriculum-atlas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.curriculum-atlas-actions span {
+  color: var(--matths-muted);
+  font-size: 13px;
+  font-weight: 720;
+}
+
+/*
+ * 히어로에 주 행동이 없어서 방문자가 첫 화면에서 할 수 있는 일이 없었다.
+ * 페이지 정체(제목)와 같은 블록에 시작 버튼을 둬서 첫 2초 안에 붙인다.
+ */
+.curriculum-atlas-start {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 20px;
+  color: var(--matths-on-brand);
+  background: var(--matths-action-primary);
+  border-radius: var(--matths-radius-md);
+  font-size: 14px;
+  font-weight: 850;
+  transition: transform var(--motion-base) var(--motion-ease),
+    background var(--motion-base) var(--motion-ease);
+}
+
+.curriculum-atlas-start:hover {
+  background: var(--matths-action-primary-pressed);
+  transform: var(--motion-lift);
+}
+
+.curriculum-atlas-start svg {
+  flex: 0 0 auto;
+}
+
+.curriculum-category-nav {
+  position: sticky;
+  top: var(--nav);
+  z-index: 20;
+  background: var(--matths-surface);
+  background: color-mix(in srgb, var(--matths-surface) 94%, transparent);
+  border-bottom: 1px solid var(--matths-line);
+  backdrop-filter: blur(12px);
+}
+
+.curriculum-category-nav .container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.curriculum-category-nav button {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 10px;
+  color: var(--matths-muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.curriculum-category-nav button span {
+  font-size: 14px;
+  font-weight: 780;
+}
+
+.curriculum-category-nav button b {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.curriculum-category-nav button.current {
+  color: var(--matths-ink);
+  border-bottom-color: var(--matths-progress-blue);
+}
+
+.curriculum-section.section-pad {
+  padding-block: 78px;
+}
+
+.curriculum-section .section-heading {
+  align-items: start;
+  margin-bottom: 32px;
+}
+
+.curriculum-section .section-heading h2 {
+  font-size: clamp(34px, 4vw, 48px);
+  letter-spacing: -0.045em;
+}
+
+.curriculum-section .section-kicker {
+  margin-bottom: 8px;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.curriculum-section .section-heading > p {
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.curriculum-section .course-list {
+  gap: 18px;
+}
+
+.curriculum-section .course-block {
+  position: relative;
+  border-radius: var(--matths-radius);
+  box-shadow: var(--matths-shadow);
+}
+
+.curriculum-section .course-block::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 2;
+  width: 4px;
+  background: var(--matths-progress-blue);
+}
+
+.curriculum-section .course-header,
+.curriculum-section .course-block:nth-child(even) .course-header {
+  min-height: 112px;
+  padding: 24px 28px;
+  color: var(--matths-ink);
+  background: var(--matths-surface);
+  border-bottom: 1px solid var(--matths-line);
+}
+
+.curriculum-section .course-number {
+  width: 44px;
+  height: 44px;
+  color: var(--matths-progress-blue);
+  background: var(--matths-primary-soft);
+  border: 0;
+  border-radius: var(--matths-radius-md);
+  font-size: 14px;
+}
+
+.curriculum-section .course-identity small,
+.curriculum-section .course-summary > span {
+  color: var(--matths-muted);
+  font-size: 12px;
+}
+
+.curriculum-section .course-identity h3 {
+  margin-top: 3px;
+  font-size: 24px;
+  letter-spacing: -0.035em;
+}
+
+.curriculum-section .course-summary strong {
+  color: var(--matths-ink);
+  font-size: 20px;
+}
+
+.curriculum-section .course-summary .semester {
+  color: var(--matths-muted);
+  background: var(--matths-canvas);
+  border: 1px solid var(--matths-line);
+}
+
+.curriculum-section .unit-list {
+  padding: 4px 24px 20px;
+}
+
+.curriculum-section .unit > summary {
+  min-height: 76px;
+}
+
+.curriculum-section .unit > summary strong {
+  font-size: 16px;
+}
+
+.curriculum-section .unit > summary small,
+.curriculum-section .open-label i,
+.curriculum-section .unit[open] .open-label i::after {
+  font-size: 12px;
+}
+
+.curriculum-section .open-label b {
+  width: 20px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 20px;
+  overflow: hidden;
+  font-size: 0;
+  line-height: 1;
+  transform: none;
+  transition: none;
+}
+
+.curriculum-section .open-label {
+  min-width: 72px;
+  justify-content: flex-end;
+}
+
+.curriculum-section .open-label b::before {
+  content: "+";
+  font-size: 18px;
+}
+
+.curriculum-section .unit[open] .open-label b::before {
+  content: "−";
+}
+
+.curriculum-section .unit[open] .open-label b {
+  transform: none;
+}
+
+.curriculum-section .concept-list {
+  margin-bottom: 18px;
+  border-radius: var(--matths-radius-md);
+}
+
+.curriculum-section .concept-row {
+  grid-template-columns: 34px minmax(190px, 0.72fr) minmax(300px, 1.28fr) 24px;
+  min-height: 92px;
+  padding: 15px 18px;
+  background: var(--matths-surface);
+}
+
+.curriculum-section .concept-row:hover {
+  background: var(--matths-primary-soft);
+  transform: var(--motion-lift);
+}
+
+.curriculum-section .concept-main strong {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.curriculum-section .concept-main small,
+.curriculum-section .concept-order {
+  font-size: 12px;
+}
+
+.concept-copy {
+  min-width: 0;
+}
+
+.concept-copy > p {
+  margin: 0;
+  color: var(--matths-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.concept-copy > span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 7px;
+}
+
+.concept-copy > span b,
+.concept-copy > span i {
+  font-size: 12px;
+  font-style: normal;
+  line-height: 18px;
+}
+
+.concept-copy > span b {
+  color: var(--matths-progress-blue);
+}
+
+.concept-copy > span i {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--matths-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 980px) {
+  .curriculum-section .concept-row {
+    grid-template-columns: 32px 1fr 24px;
+  }
+
+  .curriculum-section .concept-copy {
+    grid-column: 2 / 3;
+  }
+}
+
+/*
+ * 좁은 화면에서는 상단 기억선 카드(390px 에서 539px)가 먼저 와서 h1 이 680px 아래로
+ * 밀렸다. 방문자가 첫 화면에서 "여기가 어디인지 + 무엇을 누르는지"를 못 본다.
+ * DOM 순서(기억선 다음 히어로)는 스크린리더 읽기 순서이자 계약 테스트라서 그대로 두고,
+ * 시각 순서만 order 로 뒤집어 히어로를 먼저 보여준다.
+ */
+@media (max-width: 959px) {
+  #main-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #main-content > .curriculum-atlas-hero {
+    order: -1;
+  }
+}
+
+/*
+ * 태블릿 폭(768px)도 데스크톱 여백을 그대로 쓰고 있어서 문서가 11,377px 이었다.
+ * 여백과 세로 스택 gap 만 줄인다. 정보는 그대로 둔다.
+ */
+@media (max-width: 900px) {
+  .curriculum-section.section-pad {
+    padding-block: 52px;
+  }
+
+  .curriculum-section .section-heading {
+    margin-bottom: 22px;
+  }
+
+  .curriculum-section .course-header,
+  .curriculum-section .course-block:nth-child(even) .course-header {
+    min-height: 0;
+    gap: 14px;
+    padding: 20px 22px;
+  }
+
+  .curriculum-track-section {
+    padding: 56px 0;
+  }
+
+  .how-to-read.section-pad {
+    padding-block: 60px;
+  }
+
+  .how-to-read .read-layout li {
+    min-height: 0;
+    padding: 16px;
+  }
+
+  .final-cta {
+    padding: 64px 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .curriculum-atlas-hero {
+    padding: 26px 0 24px;
+  }
+
+  .curriculum-atlas-kicker {
+    margin-bottom: 10px;
+  }
+
+  .curriculum-atlas-copy h1 {
+    font-size: 32px;
+  }
+
+  .curriculum-atlas-actions {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .curriculum-atlas-start {
+    width: 100%;
+  }
+
+  .curriculum-atlas-copy > p:not(.curriculum-atlas-kicker) {
+    margin-top: 10px;
+    font-size: 15px;
+  }
+
+  .curriculum-category-nav {
+    overflow-x: auto;
+  }
+
+  .curriculum-section .open-label {
+    min-width: 24px;
+  }
+
+  /* "8개 성취기준" 알약이 두 줄로 쪼개지지 않게 한다. 줄바꿈은 단원 이름이 받는다. */
+  .curriculum-section .unit > summary small {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /*
+   * 트랙 최소폭이 112px 이라 360~430px 에서 네 번째 과목군이 항상 화면 밖으로 잘려
+   * "융합 선택"이 반만 보였다. 80px 로 낮추면 360px 이상에서 네 개가 한 번에 들어오고,
+   * 320px 에서는 지금처럼 가로로 밀어서 볼 수 있다.
+   */
+  .curriculum-category-nav .container {
+    width: max-content;
+    min-width: 100%;
+    grid-template-columns: repeat(4, minmax(80px, 1fr));
+  }
+
+  .curriculum-category-nav button {
+    min-height: 54px;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .curriculum-category-nav button span {
+    font-size: 13px;
+  }
+
+  .curriculum-section.section-pad {
+    padding-block: 40px;
+  }
+
+  .curriculum-section .section-heading {
+    margin-bottom: 18px;
+  }
+
+  .curriculum-section .section-heading > p {
+    margin-top: 12px;
+  }
+
+  /*
+   * 기본 course-header 는 세로 스택 사이 gap 이 40px 이라 390px 에서 헤더 한 개가
+   * 160px 이었다(1440px 에서는 112px). 과목이 13개라 여기서만 600px 넘게 샜다.
+   */
+  .curriculum-section .course-header,
+  .curriculum-section .course-block:nth-child(even) .course-header {
+    min-height: 0;
+    gap: 12px;
+    padding: 18px 16px;
+  }
+
+  .how-to-read.section-pad {
+    padding-block: 48px;
+  }
+
+  .how-to-read .read-layout {
+    gap: 26px;
+  }
+
+  .how-to-read .read-layout li {
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .final-cta {
+    padding: 52px 0;
+  }
+
+  .final-cta .cta-inner .button {
+    margin-top: 22px;
+  }
+
+  .curriculum-section .course-identity {
+    gap: 12px;
+  }
+
+  .curriculum-section .course-identity h3 {
+    font-size: 21px;
+  }
+
+  .curriculum-section .course-summary {
+    gap: 10px 16px;
+  }
+
+  .curriculum-section .unit-list {
+    padding-inline: 14px;
+  }
+
+  .curriculum-section .concept-row {
+    grid-template-columns: 24px 1fr 18px;
+    gap: 10px;
+    padding: 14px 10px;
+  }
+
+  .curriculum-section .concept-copy > p {
+    display: block;
+    font-size: 13px;
+  }
+
+  .concept-copy > span i {
+    white-space: normal;
+  }
+}
+
+/* 추천 코스는 실제 개념 순서이므로 번호를 장식이 아닌 학습 순서로 쓴다. */
+.curriculum-track-section {
+  padding: 82px 0;
+  background: var(--matths-navy);
+}
+
+.curriculum-track-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(280px, 1.1fr);
+  align-items: end;
+  gap: 48px;
+  color: #f8f9ff;
+}
+
+.curriculum-track-heading p {
+  margin: 0;
+  color: #aeb8d5;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.curriculum-track-heading > div > p {
+  margin-bottom: 8px;
+  color: var(--matths-cyan);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.curriculum-track-heading h2 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 1.15;
+  letter-spacing: -0.045em;
+}
+
+.curriculum-track-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 38px;
+}
+
+.curriculum-track-card {
+  min-width: 0;
+  padding: 28px;
+  color: #f8f9ff;
+  background: #131a35;
+  border: 1px solid rgba(196, 207, 244, 0.16);
+  border-radius: 20px;
+}
+
+.curriculum-track-card > small {
+  color: var(--matths-cyan);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.curriculum-track-card h3 {
+  margin: 8px 0 0;
+  font-size: 24px;
+}
+
+.curriculum-track-card > p {
+  margin: 10px 0 20px;
+  color: #aeb8d5;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.curriculum-track-card ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: curriculum-track;
+}
+
+.curriculum-track-card li {
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid rgba(196, 207, 244, 0.12);
+  counter-increment: curriculum-track;
+}
+
+.curriculum-track-card li::before {
+  color: var(--matths-blue);
+  font-size: 12px;
+  font-weight: 900;
+  content: counter(curriculum-track, decimal-leading-zero);
+}
+
+.curriculum-track-card li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.curriculum-track-card li b {
+  color: #8e9abb;
+  font-size: 12px;
+}
+
+.curriculum-track-card footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.curriculum-track-card footer span {
+  color: #8e9abb;
+  font-size: 12px;
+}
+
+.curriculum-track-card footer a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  color: #fff;
+  background: var(--matths-violet);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+@media (max-width: 780px) {
+  .curriculum-track-heading,
+  .curriculum-track-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .curriculum-track-heading {
+    gap: 20px;
+  }
+
+  /* 한 칸으로 쌓이면 카드 6장이 그대로 세로 길이라 카드 안쪽 여백을 줄인다. */
+  .curriculum-track-card {
+    padding: 22px;
+  }
+
+  .curriculum-track-card h3 {
+    font-size: 21px;
+  }
+
+  .curriculum-track-card > p {
+    margin: 8px 0 14px;
+  }
+
+  .curriculum-track-card footer {
+    margin-top: 14px;
+  }
+
+  .curriculum-track-grid {
+    margin-top: 26px;
+  }
+}
+
+/*
+ * 추천 코스 6장을 세로로 쌓으면 390px 에서 2,736px, 즉 전체 지도에 닿기 전에
+ * 화면 세 개 반을 스크롤해야 했다. 카드를 지우거나 개수를 줄이지 않고,
+ * 가로 스냅 레일로 바꿔 한 번에 한 장씩 넘기게 한다.
+ * 스크롤은 레일 안에서만 일어나고 문서는 가로로 넘치지 않는다.
+ */
+@media (max-width: 640px) {
+  .curriculum-track-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 85%;
+    overflow-x: auto;
+    margin-top: 22px;
+    padding-bottom: 4px;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .curriculum-track-card {
+    scroll-snap-align: start;
+  }
+}
+
+@media (max-width: 520px) {
+  .curriculum-track-section {
+    padding: 44px 0;
+  }
+
+  .curriculum-track-heading {
+    gap: 14px;
+  }
+
+  .curriculum-track-card {
+    padding: 20px;
+  }
+
+  .curriculum-track-card footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/*
+ * 상단 풀이 기억선 — 개념 상세의 5장면 정본 중 짧은 제목·부제만 한 번 투영한다.
+ * 직관→질문→오개념→풀이→회상의 순서 자체가 정보라 노드와 선을 장식으로 쓰지 않는다.
+ */
+.curriculum-top-memory {
+  padding: 54px 0;
+  color: var(--matths-ink);
+  background: var(--matths-surface);
+  border-bottom: 1px solid var(--matths-line);
+}
+
+.curriculum-top-memory-shell {
+  padding: clamp(24px, 4vw, 38px);
+  background: var(--matths-canvas);
+  border: 1px solid var(--matths-line);
+  border-radius: var(--matths-radius-lg);
+}
+
+.curriculum-top-memory-heading,
+.curriculum-top-memory-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.curriculum-top-memory-heading > div {
+  min-width: 0;
+}
+
+.curriculum-top-memory-heading p {
+  margin: 0 0 7px;
+  color: var(--matths-progress-blue);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 18px;
+}
+
+.curriculum-top-memory-heading h2 {
+  margin: 0;
+  font-size: clamp(25px, 3vw, 34px);
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+
+.curriculum-top-memory-heading > div > span {
+  display: block;
+  margin-top: 8px;
+  color: var(--matths-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.curriculum-top-memory-status {
+  min-height: 32px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  color: var(--matths-primary-dark);
+  background: var(--matths-surface);
+  border: 1px solid var(--matths-line);
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.curriculum-top-memory-status span {
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+[data-curriculum-top-state="locked"] .curriculum-top-memory-status {
+  color: #8a5300;
+}
+
+[data-curriculum-top-state="completed"] .curriculum-top-memory-status {
+  color: #0b7457;
+}
+
+.curriculum-top-memory-resume {
+  max-width: 800px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 20px;
+  background: var(--matths-surface);
+  border-left: 4px solid var(--matths-progress-blue);
+  border-radius: var(--matths-radius-md);
+}
+
+.curriculum-top-memory-resume > span {
+  color: var(--matths-progress-blue);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.curriculum-top-memory-resume strong {
+  display: block;
+  color: var(--matths-ink);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.curriculum-top-memory-resume p {
+  margin: 7px 0 0;
+  color: var(--matths-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.curriculum-top-memory-empty {
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 26px;
+  padding: 22px;
+  background: var(--matths-surface);
+  border: 1px solid var(--matths-line);
+  border-radius: var(--matths-radius-md);
+}
+
+.curriculum-top-memory-empty > span {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  color: var(--matths-primary-dark);
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  font-weight: 900;
+}
+
+.curriculum-top-memory-empty p,
+.curriculum-top-memory-footer p {
+  margin: 0;
+  color: var(--matths-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.curriculum-top-memory-footer {
+  align-items: center;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--matths-line);
+}
+
+.curriculum-top-memory-footer p {
+  max-width: 680px;
+}
+
+.curriculum-top-memory-footer a {
+  min-height: 48px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 18px;
+  color: var(--matths-on-brand);
+  background: var(--matths-action-primary);
+  border-radius: var(--matths-radius-md);
+  font-size: 14px;
+  font-weight: 850;
+  transition: transform var(--motion-base) var(--motion-ease),
+    background var(--motion-base) var(--motion-ease);
+}
+
+.curriculum-top-memory-footer a:hover {
+  background: var(--matths-action-primary-pressed);
+  transform: var(--motion-lift);
+}
+
+/*
+ * 넓은 화면에서는 세 줄을 세로로 쌓지 않는다. 1,440px 에서 재보면 제목 블록이
+ * max-content(231px)로 쪼그라들고 카드 가운데가 통째로 비어, 정보는 적은데
+ * 자리만 크게 먹는 화면이 된다.
+ *
+ * 시선은 좌상단에서 우하단으로 흐른다. 그래서 개념 이름은 좌상단에, 지금 풀
+ * 질문은 그 아래 왼쪽에, 주 행동(이어서 학습)은 오른쪽 끝 아래에 둔다.
+ * 마크업 순서(제목 → 질문 → 행동)는 그대로 두고 grid-area 로만 배치해
+ * 스크린리더 읽기 순서를 바꾸지 않는다.
+ */
+@media (min-width: 960px) {
+  .curriculum-top-memory-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    grid-template-areas:
+      "head head"
+      "quiz side";
+    column-gap: 44px;
+    row-gap: 24px;
+    align-items: start;
+  }
+
+  .curriculum-top-memory-heading {
+    grid-area: head;
+  }
+
+  /* 제목 블록이 max-content 로 줄어들지 않게 남는 폭을 갖게 한다 */
+  .curriculum-top-memory-heading > div {
+    flex: 1 1 auto;
+  }
+
+  .curriculum-top-memory-resume,
+  .curriculum-top-memory-empty {
+    grid-area: quiz;
+    max-width: none;
+    margin-top: 0;
+  }
+
+  /* 행동 레일 — 세로 스택이라 위쪽 구분선은 오히려 흐름을 끊는다 */
+  .curriculum-top-memory-footer {
+    grid-area: side;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .curriculum-top-memory-footer p {
+    max-width: none;
+  }
+
+  .curriculum-top-memory-footer a {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .curriculum-top-memory {
+    padding: 26px 0;
+  }
+
+  .curriculum-top-memory-shell {
+    padding: 18px;
+  }
+
+  .curriculum-top-memory-resume {
+    gap: 12px;
+    margin-top: 16px;
+    padding: 16px;
+  }
+
+  .curriculum-top-memory-empty {
+    min-height: 0;
+    margin-top: 18px;
+    padding: 18px;
+  }
+
+  .curriculum-top-memory-footer {
+    margin-top: 18px;
+    padding-top: 16px;
+  }
+
+  .curriculum-top-memory-heading,
+  .curriculum-top-memory-footer {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .curriculum-top-memory-status {
+    align-self: flex-start;
+  }
+
+  .curriculum-top-memory-footer a {
+    width: 100%;
+  }
+}
