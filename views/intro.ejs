@@ -25,7 +25,7 @@
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
 
-    <%- include("partials/public-navigation", { activePage: "intro" }) %>
+    <%- include("partials/public-navigation", { activePage: "intro", suppressGlobalSkipLink: true }) %>
 
     <main id="main-content">
       <section class="intro-hero">
@@ -35,7 +35,7 @@
         <div class="hero-orb orb-three" aria-hidden="true">∑</div>
 
         <div class="container hero-inner">
-          <p class="eyebrow"><span></span>ABOUT MATTHS</p>
+          <p class="eyebrow"><span></span>Matths 소개</p>
           <h1>
             수학이 어려웠던 건,<br />
             <em>설명이 멈춰 있었기</em> 때문일지도 모릅니다.
@@ -50,17 +50,25 @@
             </a>
             <a class="button button-secondary button-large" href="#what-is-matths">Matths 알아보기</a>
           </div>
-          <p class="hero-note">2022 개정 교육과정 · 고등학교 1학년 공통수학부터 시작합니다.</p>
+          <p class="hero-note">2022 개정 교육과정 · 13과목 220개념을 한 학습 지도에서 연결합니다.</p>
         </div>
 
+        <%#
+          띠는 두 벌을 나란히 두고 정확히 절반만큼 밀어 이어 붙인다.
+          한 벌이 가장 넓은 화면보다 길어야 빈 구간이 안 생긴다.
+          구분 기호는 글리프(✦) 대신 CSS 로 그린 점을 쓴다.
+        %>
         <div class="hero-marquee" aria-hidden="true">
-          <div>
-            <span>SEE THE FORMULA</span><i>✦</i>
-            <span>UNDERSTAND THE WHY</span><i>✦</i>
-            <span>SOLVE IT YOURSELF</span><i>✦</i>
-            <span>SEE THE FORMULA</span><i>✦</i>
-            <span>UNDERSTAND THE WHY</span><i>✦</i>
-            <span>SOLVE IT YOURSELF</span><i>✦</i>
+          <div class="hero-marquee-track">
+            <% for (let run = 0; run < 2; run += 1) { %>
+              <ul class="hero-marquee-run">
+                <% for (let cycle = 0; cycle < 5; cycle += 1) { %>
+                  <li>공식을 보고</li>
+                  <li>원리를 이해하고</li>
+                  <li>직접 풀어보기</li>
+                <% } %>
+              </ul>
+            <% } %>
           </div>
         </div>
       </section>
@@ -69,7 +77,7 @@
         <div class="container manifesto-grid">
           <div class="section-index">
             <span>01</span>
-            <p>WHAT WE DO</p>
+            <p>Matths가 하는 일</p>
           </div>
 
           <div class="manifesto-copy">
@@ -97,7 +105,7 @@
           <div class="section-heading">
             <div class="section-index light-index">
               <span>02</span>
-              <p>THE PROBLEM</p>
+              <p>기존 학습의 문제</p>
             </div>
             <div>
               <p class="kicker">우리가 바꾸고 싶은 것</p>
@@ -138,57 +146,64 @@
           <div class="answer-copy">
             <div class="section-index">
               <span>03</span>
-              <p>OUR ANSWER</p>
+              <p>Matths의 해법</p>
             </div>
             <p class="kicker">수학을 장면으로</p>
             <h2>공식이 완성되는 순간을<br />직접 보여줍니다.</h2>
             <p>
-              하나의 개념을 생각의 기준에 따라 Step으로 나누고, 각 단계에서 식과 그림이 함께
+              하나의 개념을 생각의 기준에 따라 단계로 나누고, 각 단계에서 식과 그림이 함께
               변하도록 구성합니다. 학생은 설명을 읽는 동시에 변화의 이유를 확인할 수 있습니다.
             </p>
             <ul class="answer-points">
-              <li><span>✓</span> 개념을 도형·그래프·수직선·배열로 변환</li>
-              <li><span>✓</span> 한 화면에는 하나의 핵심 변화만 표시</li>
-              <li><span>✓</span> 매 단계에서 식과 시각 요소를 연결</li>
-              <li><span>✓</span> 마지막에는 원래 문제로 돌아가 직접 적용</li>
+              <li><span class="tick" aria-hidden="true"></span> 개념을 도형·그래프·수직선·배열로 변환</li>
+              <li><span class="tick" aria-hidden="true"></span> 한 화면에는 하나의 핵심 변화만 표시</li>
+              <li><span class="tick" aria-hidden="true"></span> 매 단계에서 식과 시각 요소를 연결</li>
+              <li><span class="tick" aria-hidden="true"></span> 마지막에는 원래 문제로 돌아가 직접 적용</li>
             </ul>
           </div>
 
-          <div class="visual-demo" data-demo-step="1" aria-label="원의 넓이 공식 4단계 시각화 예시">
+          <div class="visual-demo" data-demo-step="1" aria-label="곱셈공식 (a+b)² 4단계 시각화 예시">
             <div class="demo-header">
               <div>
-                <span class="demo-label">VISUAL CONCEPT</span>
-                <strong id="intro-demo-title">반지름이 r인 원에서 시작합니다.</strong>
+                <span class="demo-label">개념 시각화</span>
+                <strong id="intro-demo-title">한 변의 길이가 a+b인 정사각형입니다.</strong>
               </div>
-              <span class="demo-step" id="intro-demo-step">STEP 1 / 4</span>
+              <span class="demo-step" id="intro-demo-step">1 / 4단계</span>
             </div>
 
+            <%#
+              원의 넓이(πr²)를 쓰다가 바꿨다. 초·중등 내용인 데다 "조각을 무한히
+              잘게 쪼갠다"는 극한 논증을 애니메이션이 건너뛰어서, 보고 나도
+              결국 외우는 것과 다르지 않았다.
+
+              (a+b)² 는 고등학생이 실제로 a²+b² 으로 틀리는 곳이고,
+              넓이 모델이 "ab 가 왜 두 개인가" 를 그림 하나로 답한다.
+              공통수학1 다항식이라 앱이 첫 화면에 띄우는 단원과도 맞다.
+            %>
             <div class="demo-canvas">
-              <div class="circle-slices" aria-hidden="true">
-                <span></span><span></span><span></span><span></span>
-                <i>r</i>
-              </div>
-              <span class="demo-arrow" aria-hidden="true">→</span>
-              <div class="intro-area-wrap" aria-hidden="true">
-                <div class="rearranged-shape">
-                </div>
-                <span class="shape-top"><b>밑변 = πr</b><small>둘레 2πr ÷ 2</small></span>
-                <span class="shape-side"><b>높이 = r</b><small>원의 반지름</small></span>
+              <div class="identity-square" aria-hidden="true">
+                <span class="edge edge-top"><i class="seg-a">a</i><i class="seg-b">b</i></span>
+                <span class="edge edge-left"><i class="seg-a">a</i><i class="seg-b">b</i></span>
+                <span class="cell cell-aa"><b>a²</b></span>
+                <span class="cell cell-ab cell-ab-top"><b>ab</b></span>
+                <span class="cell cell-ab cell-ab-left"><b>ab</b></span>
+                <span class="cell cell-bb"><b>b²</b></span>
               </div>
             </div>
 
             <div class="formula-line">
-              <span>밑변 × 높이</span>
+              <span>(a+b)²</span>
               <i aria-hidden="true">=</i>
-              <strong>πr × r</strong>
+              <strong>a² + ab + ab + b²</strong>
               <i aria-hidden="true">=</i>
-              <em>πr²</em>
+              <em>a² + 2ab + b²</em>
             </div>
             <div class="demo-progress" role="group" aria-label="원의 넓이 시각화 단계 선택">
               <button class="intro-step-button active" type="button" data-step="1" aria-label="1단계 보기" aria-pressed="true">1</button>
               <button class="intro-step-button" type="button" data-step="2" aria-label="2단계 보기" aria-pressed="false">2</button>
               <button class="intro-step-button" type="button" data-step="3" aria-label="3단계 보기" aria-pressed="false">3</button>
               <button class="intro-step-button" type="button" data-step="4" aria-label="4단계 보기" aria-pressed="false">4</button>
+              <button class="intro-playback-button" type="button" aria-label="시각화 자동 진행 멈추기" aria-pressed="false"><span class="playback-icon" aria-hidden="true"></span><b>멈춤</b></button>
             </div>
           </div>
         </div>
@@ -199,7 +214,7 @@
           <div class="system-heading">
             <div class="section-index light-index">
               <span>04</span>
-              <p>LEARNING SYSTEM</p>
+              <p>학습 구조</p>
             </div>
             <h2>이해하고, 적용하고,<br />막힌 곳으로 정확히 돌아갑니다.</h2>
             <p>개념 설명과 문제 풀이를 따로 두지 않고 하나의 학습 흐름으로 연결합니다.</p>
@@ -208,31 +223,31 @@
           <ol class="system-flow">
             <li>
               <span class="flow-number">01</span>
-              <div class="flow-icon" aria-hidden="true">◫</div>
+              <div class="flow-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg></div>
               <h3>개념 시각화</h3>
               <p>공식이 만들어지는 과정을 움직이는 그림으로 이해합니다.</p>
             </li>
             <li>
               <span class="flow-number">02</span>
-              <div class="flow-icon" aria-hidden="true">✎</div>
+              <div class="flow-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M15 6l3 3"/></svg></div>
               <h3>문제 적용</h3>
               <p>교과 개념을 익힌 뒤 실제 모의고사 유형에서 사용해 봅니다.</p>
             </li>
             <li>
               <span class="flow-number">03</span>
-              <div class="flow-icon" aria-hidden="true">⌁</div>
+              <div class="flow-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15h5l-1 6 7-9h-5l1-6z"/></svg></div>
               <h3>막힌 지점 확인</h3>
               <p>개념, 조건 해석, 적용, 계산 중 어느 단계에서 막혔는지 구분합니다.</p>
             </li>
             <li>
               <span class="flow-number">04</span>
-              <div class="flow-icon" aria-hidden="true">▶</div>
+              <div class="flow-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5v15l13-7.5z"/></svg></div>
               <h3>모션그래픽 풀이</h3>
               <p>틀린 문제의 조건과 풀이 과정을 장면별로 다시 확인합니다.</p>
             </li>
             <li>
               <span class="flow-number">05</span>
-              <div class="flow-icon" aria-hidden="true">↻</div>
+              <div class="flow-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg></div>
               <h3>유사 문제 재도전</h3>
               <p>새로운 문제를 스스로 풀어 보며 정말 이해했는지 확인합니다.</p>
             </li>
@@ -246,13 +261,13 @@
           <div class="arena-copy">
             <div class="section-index arena-index">
               <span>05</span>
-              <p>GOAT ARENA</p>
+              <p>GOAT Arena</p>
             </div>
-            <p class="arena-kicker">LEARN · TEST · COMPETE</p>
+            <p class="arena-kicker">학습 · 평가 · 경쟁</p>
             <h2>공부한 실력을<br />경쟁으로 이어갑니다.</h2>
             <p class="arena-lead">
               GOAT Arena는 Matths에서 공부한 실력을 배치고사와 Matths 주간 공식 모의고사로 확인하고,
-              정기권 학습 가능 일수와 페이백 점수를 바탕으로 같은 Division의 학생들과 경쟁하는 <strong>수학 랭킹 시스템</strong>입니다.
+              정기권 학습 가능 일수와 페이백 점수를 바탕으로 같은 경쟁 모드의 학생들과 경쟁하는 <strong>수학 랭킹 시스템</strong>입니다.
               Unranked에서 페이백과 Ranked 진입에 도전하고, 1대1 승부로 더 높은 Arena 상태를 차지합니다.
             </p>
             <a class="arena-overview-cta" href="/goat-arena">
@@ -265,13 +280,13 @@
             <div class="arena-board-top">
               <div>
                 <span>GOAT ARENA</span>
-                <strong>MATTHS BATTLE GROUND</strong>
+                <strong>Matths 경쟁 학습장</strong>
               </div>
               <em>수학 실력 경쟁</em>
             </div>
 
             <div class="arena-overview-statement">
-              <small>WHAT YOU DO</small>
+              <small>학생이 하는 일</small>
               <h3>배우고, 시험하고,<br />더 높은 순위에 도전합니다.</h3>
               <p>
                 내부 실력 지표는 배치고사와 Matths 주간 공식 모의고사에서, 티어·티어 내 순위·GP는 1대1 경쟁에서 관리합니다.
@@ -306,7 +321,7 @@
           <div class="principles-heading">
             <div class="section-index">
               <span>06</span>
-              <p>OUR PRINCIPLES</p>
+              <p>설명 원칙</p>
             </div>
             <p class="kicker">Matths가 지키는 설명 원칙</p>
             <h2>갈구는 건 짧게.<br />설명은 끝까지 친절하게.</h2>
@@ -321,7 +336,7 @@
               <span>01</span>
               <div>
                 <h3>개념을 기준으로 나눕니다.</h3>
-                <p>영상 길이가 아니라 학생이 이해해야 할 생각의 단위를 기준으로 Step을 구성합니다.</p>
+                <p>영상 길이가 아니라 학생이 이해해야 할 생각의 단위를 기준으로 단계를 구성합니다.</p>
               </div>
             </article>
             <article>
@@ -352,13 +367,15 @@
       <section class="tone-banner">
         <div class="container tone-inner">
           <div class="tone-title">
-            <span class="tone-mark" aria-hidden="true">M</span>
+            <span class="tone-mark" aria-hidden="true">
+              <img src="/images/brand/matths-symbol.svg" alt="" />
+            </span>
             <div>
-              <small>MATTHS COACH</small>
-              <strong id="intro-coach-tone" aria-live="polite">공식만 외우면 숫자가 바뀌는 순간 막힙니다.</strong>
+              <small>학습 코치</small>
+              <strong id="intro-coach-tone" aria-live="polite">공식은 기억했지만 숫자가 바뀐 순간 막혔습니다.</strong>
             </div>
           </div>
-          <p id="intro-coach-helper">괜찮습니다. 막힌 Step부터 그림으로 다시 설명합니다.</p>
+          <p id="intro-coach-helper">막힌 단계부터 그림으로 다시 확인하세요.</p>
           <div class="tone-modes" role="group" aria-label="학습 코치 말투 선택">
             <button class="intro-coach-mode" type="button" data-coach-mode="mild" aria-pressed="false">순한맛</button>
             <button class="intro-coach-mode active" type="button" data-coach-mode="spicy" aria-pressed="true">매운맛</button>
@@ -370,9 +387,9 @@
       <section class="starting-point section-pad">
         <div class="container starting-grid">
           <div class="start-card">
-            <div class="curriculum-tag">2022 REVISED CURRICULUM</div>
-            <span class="big-number">39</span>
-            <p>고1 공통수학 핵심 개념부터 시작</p>
+            <div class="curriculum-tag">2022 개정 교육과정</div>
+            <span class="big-number">220</span>
+            <p>13과목 개념을 선수 관계로 연결</p>
             <div class="course-lines" aria-hidden="true">
               <span style="--width: 82%"></span>
               <span style="--width: 64%"></span>
@@ -384,17 +401,17 @@
           <div class="starting-copy">
             <div class="section-index">
               <span>07</span>
-              <p>WHERE WE START</p>
+              <p>시작 범위</p>
             </div>
-            <p class="kicker">작게 시작해서 제대로 만들기</p>
-            <h2>고등학교 1학년<br />공통수학부터 시작합니다.</h2>
+            <p class="kicker">현재 학습 범위</p>
+            <h2>13과목 220개념을<br />하나의 경로로 공부합니다.</h2>
             <p>
-              처음부터 모든 학년과 모든 문제를 다루기보다, 2022 개정 교육과정의 고1 공통수학
-              개념을 완성도 있게 시각화하는 것부터 시작합니다. 단원별 개념 학습이 완성되면
-              모의고사 문제와 시각적 오답 풀이를 순차적으로 연결합니다.
+              공통수학1, 공통수학2에서 대수, 미적분, 확률과 통계, 기하로 이어지는 선수 관계를 먼저
+              확인하고 학교 선택과목과 진로 수학까지 확장합니다. 각 개념은 설명에서 끝나지 않고
+              확인 문제, 오답 복습과 다음 학습으로 연결됩니다.
             </p>
             <div class="course-tags">
-              <span>공통수학1</span><span>공통수학2</span><span>개념 39개</span>
+              <span>13과목</span><span>개념 220개</span><span>학습·연습·복습 연결</span>
             </div>
           </div>
         </div>
@@ -405,7 +422,7 @@
         <span class="cta-symbol symbol-left" aria-hidden="true">π</span>
         <span class="cta-symbol symbol-right" aria-hidden="true">x+y</span>
         <div class="container cta-inner">
-          <p>SEE IT. UNDERSTAND IT. SOLVE IT.</p>
+          <p>보고, 이해하고, 직접 풀어보세요.</p>
           <h2>수학을 외우기 전에,<br />수학을 재밌게 만들겠습니다.</h2>
           <a class="button button-white button-large" href="<%= startHref %>">
             <%= startLabel %> <span aria-hidden="true">→</span>
@@ -419,10 +436,9 @@
       <div class="container footer-main">
         <div class="footer-brand-area">
           <a class="brand" href="/">
-            <span class="brand-mark" aria-hidden="true">M</span>
-            <span>Matths</span>
+            <%- include("partials/brand-primary-logo") %>
           </a>
-          <p>수학이 보이면, 풀이가 시작됩니다.</p>
+          <p>수학이 보이면, 풀이를 시작할 수 있습니다.</p>
         </div>
 
         <div class="footer-links">
@@ -447,7 +463,7 @@
 
       <div class="container footer-bottom">
         <span>© <%= new Date().getFullYear() %> Matths. All rights reserved.</span>
-        <span>Made for students who want to understand.</span>
+        <span>이해하고 직접 풀 수 있도록 설계했습니다.</span>
         <%- include("partials/social-footer-links") %>
       </div>
     </footer>

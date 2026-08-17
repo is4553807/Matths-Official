@@ -32,11 +32,11 @@ document.addEventListener("DOMContentLoaded", () => {
       coachBody: "x − 2는 그래프를 오른쪽으로 2만큼 옮깁니다.",
     },
     {
-      title: "+1은 그래프를 어디로 옮길까요?",
+      title: "+1이 그래프를 어디로 옮기는지 확인합니다.",
       formula: "y = (x − 2)² + 1",
       formulaHint: "그래프가 위로 1 이동",
       pointLabel: "(2, 1)",
-      coachTitle: "이제 식 전체에 +1이 붙습니다.",
+      coachTitle: "이제 식 전체에 +1이 붙었습니다.",
       coachBody: "그래프의 모든 점이 위로 1만큼 움직입니다.",
     },
     {
@@ -44,8 +44,8 @@ document.addEventListener("DOMContentLoaded", () => {
       formula: "y = (x − 2)² + 1",
       formulaHint: "최종 꼭짓점은 (2, 1)",
       pointLabel: "(2, 1)",
-      coachTitle: "식의 변화를 확인하세요.",
-      coachBody: "오른쪽으로 2, 위로 1만큼 이동하므로 꼭짓점은 (2, 1)입니다.",
+      coachTitle: "식의 변화를 다시 확인하세요.",
+      coachBody: "오른쪽으로 2, 위로 1만큼 이동해 꼭짓점은 (2, 1)입니다.",
     },
   ];
 
@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     currentStep = safeStep;
     lessonWindow.dataset.currentStep = String(safeStep);
-    stepLabel.textContent = `STEP ${safeStep} / ${steps.length}`;
+    stepLabel.textContent = `${safeStep} / ${steps.length}단계`;
     stepTitle.textContent = content.title;
     formula.textContent = content.formula;
     formulaHint.textContent = content.formulaHint;

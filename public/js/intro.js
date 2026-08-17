@@ -1,11 +1,13 @@
 (function () {
   "use strict";
 
+  // (a+b)² 넓이 모델. 4단계의 목적은 마지막 한 줄이다 —
+  // "ab 가 두 칸이라서 a²+b² 이 아니다" 를 그림으로 먼저 보여준다.
   const steps = [
-    "반지름이 r인 원에서 시작합니다.",
-    "원을 같은 크기의 부채꼴로 나눕니다.",
-    "조각을 번갈아 놓아 사각형에 가깝게 만듭니다.",
-    "둘레 2πr의 절반이 밑변 πr이 됩니다.",
+    "한 변의 길이가 a+b인 정사각형입니다.",
+    "가로와 세로를 각각 a와 b로 나눕니다.",
+    "네 칸의 넓이는 a², ab, ab, b²입니다.",
+    "ab가 두 칸이라서 a²+b²이 아닙니다.",
   ];
 
   function initCoachModeSelector() {
@@ -17,10 +19,10 @@
     const modes = {
       mild: {
         tone: "조금 헷갈렸습니다. 조건부터 다시 확인합니다.",
-        helper: "괜찮습니다. 막힌 Step부터 그림으로 다시 설명합니다.",
+        helper: "막힌 단계부터 그림으로 다시 안내합니다.",
       },
       spicy: {
-        tone: "공식만 외우면 숫자가 바뀌는 순간 막힙니다.",
+        tone: "공식은 기억했지만 숫자가 바뀐 순간 막혔습니다.",
         helper: "바로 다시 확인합니다. 원리까지 이해하면 다음 숫자 변화에도 흔들리지 않습니다.",
       },
       silent: {
@@ -68,10 +70,26 @@
     const title = document.getElementById("intro-demo-title");
     const stepLabel = document.getElementById("intro-demo-step");
     const buttons = Array.from(demo.querySelectorAll(".intro-step-button"));
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const playbackButton = demo.querySelector(".intro-playback-button");
+    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
     let currentStep = 1;
     let paused = false;
+    let manuallyPaused = motionPreference.matches;
     let timer;
+
+    function renderPlaybackControl() {
+      if (!playbackButton) return;
+      const label = playbackButton.querySelector("b");
+      const symbol = playbackButton.querySelector("span");
+      playbackButton.setAttribute("aria-pressed", String(manuallyPaused));
+      playbackButton.setAttribute(
+        "aria-label",
+        manuallyPaused ? "시각화 자동 진행 시작하기" : "시각화 자동 진행 멈추기",
+      );
+      if (label) label.textContent = manuallyPaused ? "재생" : "멈춤";
+      // 아이콘은 글리프(▶ / 로마숫자 Ⅱ) 대신 CSS 도형으로 그린다.
+      if (symbol) symbol.classList.toggle("is-play", manuallyPaused);
+    }
 
     function render(step) {
       currentStep = step;
@@ -80,7 +98,7 @@
       demo.dataset.demoStep = String(step);
       demo.classList.add("is-changing");
       title.textContent = steps[step - 1];
-      stepLabel.textContent = `STEP ${step} / ${steps.length}`;
+      stepLabel.textContent = `${step} / ${steps.length}단계`;
 
       buttons.forEach((button) => {
         const isActive = Number(button.dataset.step) === step;
@@ -91,7 +109,7 @@
 
     function schedule() {
       window.clearTimeout(timer);
-      if (reduceMotion || paused) return;
+      if (motionPreference.matches || manuallyPaused || paused) return;
       timer = window.setTimeout(() => {
         render((currentStep % steps.length) + 1);
         schedule();
@@ -103,6 +121,23 @@
         render(Number(button.dataset.step));
         schedule();
       });
+    });
+
+    playbackButton?.addEventListener("click", () => {
+      manuallyPaused = !manuallyPaused;
+      renderPlaybackControl();
+      if (manuallyPaused) {
+        window.clearTimeout(timer);
+        return;
+      }
+      schedule();
+    });
+
+    motionPreference.addEventListener?.("change", (event) => {
+      if (!event.matches) return;
+      manuallyPaused = true;
+      window.clearTimeout(timer);
+      renderPlaybackControl();
     });
 
     demo.addEventListener("pointerenter", () => {
@@ -127,6 +162,7 @@
     });
 
     render(1);
+    renderPlaybackControl();
     schedule();
   }
 

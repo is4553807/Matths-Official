@@ -1,0 +1,262 @@
+/* 프로필 — 일반 설정, 보안, 위험 행동의 역할을 분리한다. */
+
+.profile-page-shell {
+  color: var(--matths-ink);
+  background: var(--matths-canvas);
+}
+.profile-main {
+  padding-top: 32px;
+}
+
+.profile-hero {
+  min-height: 0;
+  align-items: center;
+  padding: 32px;
+  color: var(--matths-ink);
+  background: var(--matths-surface);
+  border: 1px solid var(--matths-line);
+  border-left: 4px solid var(--matths-progress-blue);
+  border-radius: var(--matths-radius-lg);
+  box-shadow: var(--matths-shadow);
+}
+
+.profile-hero-copy > p {
+  color: var(--matths-progress-blue);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.profile-hero-copy h1 {
+  color: var(--matths-ink);
+  font-size: clamp(30px, 4vw, 44px);
+  letter-spacing: -0.045em;
+}
+
+.profile-hero-copy > span {
+  color: var(--matths-muted);
+  font-size: 14px;
+}
+
+.profile-summary {
+  background: var(--matths-canvas);
+  border: 1px solid var(--matths-line);
+  border-radius: var(--matths-radius-md);
+  backdrop-filter: none;
+}
+
+.profile-summary-avatar {
+  color: var(--matths-progress-blue);
+  background: var(--matths-primary-soft);
+  border: 1px solid var(--matths-line);
+  border-radius: var(--matths-radius-md);
+  box-shadow: none;
+}
+
+.profile-summary strong {
+  color: var(--matths-ink);
+}
+
+.profile-summary small,
+.profile-summary p,
+.profile-summary i {
+  color: var(--matths-muted);
+  font-size: 13px;
+}
+
+.profile-summary small,
+.profile-summary p {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.profile-section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: 18px 0 24px;
+}
+
+.profile-section-nav > div {
+  background: var(--matths-surface);
+  border-color: var(--matths-line);
+  border-radius: var(--matths-radius-md);
+  box-shadow: none;
+}
+
+.profile-section-nav span,
+.profile-section-nav a {
+  font-size: 13px;
+}
+
+.profile-section-nav span {
+  color: var(--matths-muted);
+}
+
+.profile-section-nav a:hover {
+  color: var(--matths-ink);
+  background: var(--matths-primary-soft);
+}
+
+.settings-grid {
+  gap: 16px;
+}
+
+.settings-group-heading {
+  padding: 18px 4px 0;
+}
+
+.settings-group-heading p {
+  color: var(--matths-progress-blue);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.settings-group-heading h2 {
+  font-size: 24px;
+}
+
+.settings-group-heading span {
+  color: var(--matths-muted);
+  font-size: 13px;
+}
+
+.settings-card {
+  background: var(--matths-surface);
+  border-color: var(--matths-line);
+  border-radius: var(--matths-radius);
+  box-shadow: none;
+}
+
+.settings-card-heading {
+  gap: 0;
+}
+
+.settings-card-heading p {
+  color: var(--matths-progress-blue);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.settings-card-heading h2 {
+  font-size: 19px;
+}
+
+.settings-description,
+.settings-alert,
+.form-field label,
+.field-label,
+.field-guide,
+.identity-choices legend,
+.identity-choice-grid label > span b,
+.identity-choice-grid label > span small,
+.withdrawal-retention-note strong,
+.withdrawal-retention-note span,
+.withdrawal-consent {
+  font-size: 13px;
+}
+
+.form-field input,
+.form-field select {
+  min-height: 48px;
+  color: var(--matths-ink);
+  background: var(--matths-canvas);
+  border-color: var(--matths-line);
+}
+
+.identity-choice-grid label > span {
+  min-height: 78px;
+  background: var(--matths-canvas);
+  border-color: var(--matths-line);
+  border-radius: var(--matths-radius-md);
+}
+
+.identity-choice-grid input:checked + span {
+  color: var(--matths-progress-blue);
+  background: var(--matths-primary-soft);
+  border-color: var(--matths-progress-blue);
+  box-shadow: none;
+}
+
+.password-field button {
+  min-width: 48px;
+  min-height: 44px;
+  height: 44px;
+  color: var(--matths-muted);
+  font-size: 13px;
+}
+
+.save-button {
+  min-height: 48px;
+  color: var(--matths-on-brand);
+  background: var(--matths-action-primary);
+  border-radius: var(--matths-radius-md);
+  box-shadow: none;
+  font-size: 13px;
+}
+
+.save-button:hover {
+  background: var(--matths-action-primary-pressed);
+}
+
+.withdrawal-card {
+  background: var(--matths-surface);
+  border-color: var(--matths-line);
+  border-left: 4px solid var(--matths-danger);
+  box-shadow: none;
+}
+
+.withdrawal-retention-note {
+  color: var(--matths-muted);
+  background: var(--matths-canvas);
+  border-color: var(--matths-line);
+}
+
+.withdrawal-retention-note strong {
+  color: var(--matths-ink);
+}
+
+.withdrawal-consent {
+  background: var(--matths-canvas);
+  border-color: var(--matths-line);
+}
+
+.withdrawal-button {
+  min-height: 48px;
+  box-shadow: none;
+  font-size: 13px;
+}
+
+@media (max-width: 860px) {
+  .profile-section-nav {
+    position: static;
+  }
+}
+
+@media (max-width: 620px) {
+  .profile-main {
+    width: min(100% - 24px, 1120px);
+  }
+
+  .profile-hero {
+    padding: 24px 20px;
+  }
+
+  .profile-section-nav {
+    overflow-x: visible;
+  }
+
+  .profile-section-nav > div {
+    flex-wrap: wrap;
+  }
+
+  .profile-section-nav span {
+    width: 100%;
+    padding: 8px 10px 2px;
+  }
+
+  .profile-section-nav a {
+    min-width: 96px;
+  }
+}
