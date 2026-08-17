@@ -53,6 +53,9 @@ const {
   getAdminPackageAccessSummary,
 } = require("./adminPackageAccessService");
 const {
+  getWeeklyMockExamAccess,
+} = require("./paidFeatureAccessService");
+const {
   getUserArenaBadges,
 } = require("./arenaBadgeService");
 const {
@@ -1372,6 +1375,7 @@ async function getAdminUserDetail(
     actionLogs,
     communityPosts,
     packageAccess,
+    weeklyMockAccess,
     arenaBadges,
   ] = await Promise.all([
     isAdminProfile
@@ -1483,6 +1487,9 @@ async function getAdminUserDetail(
       ? Promise.resolve(null)
       : getAdminPackageAccessSummary(userId),
     isAdminProfile
+      ? Promise.resolve(null)
+      : getWeeklyMockExamAccess(userId),
+    isAdminProfile
       ? Promise.resolve([])
       : getUserArenaBadges(userId),
   ]);
@@ -1527,6 +1534,7 @@ async function getAdminUserDetail(
     communityPosts,
     identityMatches,
     packageAccess,
+    weeklyMockAccess,
     arenaBadges,
   };
 }

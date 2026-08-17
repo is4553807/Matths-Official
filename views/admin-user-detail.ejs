@@ -125,11 +125,7 @@
             <%= accountStatus === "withdrawn" ? ` · ${member.withdrawal?.dataRetention === "anonymous" ? "익명 데이터 보존" : "활동 데이터 삭제"}` : "" %>
           </small>
         </article>
-        <% if (!isAdminProfile) { %><article>
-          <span>Matths 주간 공식 모의고사 권한</span>
-          <strong><%= member.privateMockRestriction?.active ? "응시 제한" : "응시 가능" %></strong>
-          <small><%= member.privateMockRestriction?.active ? `남은 제한 ${member.privateMockRestriction.remainingWeekCount || member.privateMockRestriction.remainingExamCount || 0}회(${member.privateMockRestriction.remainingWeekCount || member.privateMockRestriction.remainingExamCount || 0}주) · ${member.privateMockRestriction.reason || "사유 기록 없음"}` : "적용 중인 제한 없음" %></small>
-        </article><% } %>
+        <% if (!isAdminProfile) { %><%- include("partials/admin-weekly-mock-access", { member, weeklyMockAccess: detail.weeklyMockAccess }) %><% } %>
       </section>
 
       <% if (!isAdminProfile && detail.identityMatches?.length) { %>

@@ -233,6 +233,84 @@ assert.ok(
 
 const adminUserDetail = read("views/admin-user-detail.ejs");
 assert.ok(adminUserDetail.includes('const isAdminProfile = member.role === "admin"'));
+assert.ok(adminUserDetail.includes('partials/admin-weekly-mock-access'));
+const adminServiceSource = read("services/adminService.js");
+assert.ok(adminServiceSource.includes("getWeeklyMockExamAccess(userId)"));
+assert.ok(adminServiceSource.includes("weeklyMockAccess"));
+const adminWeeklyMockAccess = read(
+  "views/partials/admin-weekly-mock-access.ejs"
+);
+const renderAdminWeeklyMockAccess = ({
+  weeklyMockAccess,
+  privateMockRestriction = {},
+}) => ejs.render(
+  adminWeeklyMockAccess,
+  {
+    weeklyMockAccess,
+    member: {
+      privateMockRestriction,
+    },
+  },
+  {
+    filename: path.join(
+      root,
+      "views/partials/admin-weekly-mock-access.ejs"
+    ),
+  }
+);
+const freeWeeklyMockHtml =
+  renderAdminWeeklyMockAccess({
+    weeklyMockAccess: {
+      active: false,
+      packageType: null,
+    },
+  });
+assert.ok(
+  freeWeeklyMockHtml.includes(
+    'data-weekly-mock-access-state="unavailable"'
+  )
+);
+assert.ok(freeWeeklyMockHtml.includes("권한 없음"));
+assert.ok(!freeWeeklyMockHtml.includes("응시 가능"));
+
+const paidWeeklyMockHtml =
+  renderAdminWeeklyMockAccess({
+    weeklyMockAccess: {
+      active: true,
+      packageType: "LEARNING_PACKAGE",
+    },
+  });
+assert.ok(
+  paidWeeklyMockHtml.includes(
+    'data-weekly-mock-access-state="available"'
+  )
+);
+assert.ok(paidWeeklyMockHtml.includes("응시 가능"));
+assert.ok(paidWeeklyMockHtml.includes("29일 학습권 패키지"));
+
+const restrictedWeeklyMockHtml =
+  renderAdminWeeklyMockAccess({
+    weeklyMockAccess: {
+      active: true,
+      packageType: "MOCK_EXAM_ONLY",
+    },
+    privateMockRestriction: {
+      active: true,
+      remainingWeekCount: 2,
+      reason: "무결성 제재",
+    },
+  });
+assert.ok(
+  restrictedWeeklyMockHtml.includes(
+    'data-weekly-mock-access-state="restricted"'
+  )
+);
+assert.ok(
+  restrictedWeeklyMockHtml.includes(
+    "권한 있음 · 응시 제한"
+  )
+);
+assert.ok(restrictedWeeklyMockHtml.includes("남은 제한 2회(2주)"));
 for (const hiddenAdminSection of [
   "학습 진행",
   "배치·랭킹",
