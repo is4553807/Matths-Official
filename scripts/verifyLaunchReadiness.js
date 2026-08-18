@@ -32,6 +32,8 @@ const checks = [
   "payback-daily-learning:verify",
   "product-foundation:verify",
   "launch-views:verify",
+  "community-mobile:verify",
+  "app-commerce-handoff:verify",
   "ui:verify",
   "math-rendering:verify",
   "navigation:verify",

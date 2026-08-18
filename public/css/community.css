@@ -102,10 +102,18 @@ a {
 .community-board-heading p,
 .community-compose-heading p {
   margin: 0 0 10px;
-  color: #8ea6ff;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 1.8px;
+}
+
+.community-hero p {
+  color: #aebcff;
+}
+
+.community-board-heading p,
+.community-compose-heading p {
+  color: #385cc4;
 }
 
 .community-hero h1 {
@@ -177,7 +185,7 @@ a {
 
 .community-board-tabs span {
   grid-row: 1 / 3;
-  color: #93a0cf;
+  color: #56638d;
   font-size: 11px;
   font-weight: 900;
 }
@@ -850,7 +858,7 @@ a {
 }
 
 .community-comment-list article time {
-  color: #9299ab;
+  color: #5f687b;
   font-size: 9px;
 }
 
@@ -929,6 +937,7 @@ a {
 }
 
 .community-popular-strip {
+  min-width: 0;
   display: grid;
   grid-template-columns:
     150px minmax(0, 1fr);
@@ -941,6 +950,7 @@ a {
 }
 
 .community-popular-strip > header {
+  min-width: 0;
   display: grid;
   align-content: center;
   gap: 5px;
@@ -958,11 +968,13 @@ a {
 }
 
 .community-popular-strip > div {
+  min-width: 0;
   display: grid;
   gap: 5px;
 }
 
 .community-popular-strip a {
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -973,6 +985,7 @@ a {
 }
 
 .community-popular-strip a strong {
+  min-width: 0;
   overflow: hidden;
   font-size: 9px;
   text-overflow: ellipsis;
@@ -1073,7 +1086,7 @@ a {
 }
 
 .community-vote-box > small {
-  color: #9299aa;
+  color: #5f687b;
   font-size: 9px;
 }
 
@@ -1719,5 +1732,338 @@ a {
 
   .community-file-list a b {
     display: none;
+  }
+}
+
+/* Phone webviews need a deliberately tighter information rhythm than tablets. */
+@media (max-width: 480px) {
+  .community-main,
+  .community-compose-main,
+  .community-post-main,
+  .community-detail-main {
+    width: calc(100% - 24px);
+    padding: 20px 0 48px;
+  }
+
+  .community-nav {
+    width: calc(100% - 24px);
+    min-height: 60px;
+    gap: 12px;
+  }
+
+  .community-account-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 13px;
+  }
+
+  .community-hero {
+    min-height: 0;
+    gap: 22px;
+    padding: 26px 20px;
+    border-radius: 20px;
+  }
+
+  .community-hero h1 {
+    margin-bottom: 12px;
+    font-size: 34px;
+    letter-spacing: -1.5px;
+  }
+
+  .community-hero > a {
+    width: 100%;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .community-board-tabs {
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .community-board-tabs a {
+    min-height: 64px;
+    align-items: center;
+    padding: 13px 15px;
+    border-radius: 13px;
+  }
+
+  .community-board {
+    margin-top: 12px;
+    padding: 20px 14px;
+    border-radius: 18px;
+  }
+
+  .community-board-heading {
+    gap: 16px;
+    padding-bottom: 17px;
+  }
+
+  .community-board-heading h2,
+  .community-compose-heading h1 {
+    font-size: 26px;
+    letter-spacing: -1px;
+  }
+
+  .community-board-heading form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .community-board-heading input,
+  .community-board-heading button,
+  .community-compose button {
+    min-height: 44px;
+  }
+
+  .school-board-membership,
+  .community-comment-form,
+  .community-comment-login,
+  .community-report-box,
+  .community-attachment-field {
+    padding: 16px;
+  }
+
+  .community-post-list > a {
+    gap: 12px;
+    padding: 18px 2px;
+  }
+
+  .community-post-list h3 {
+    font-size: 16px;
+    line-height: 1.45;
+  }
+
+  .community-sort-tabs {
+    gap: 6px;
+    margin-right: -2px;
+    margin-left: -2px;
+    padding: 0 2px 4px;
+  }
+
+  .community-sort-tabs a,
+  .community-operations-categories a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  .community-operations-categories {
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .community-popular-strip {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .community-popular-strip a {
+    min-height: 44px;
+  }
+
+  .community-compose,
+  .community-post-detail,
+  .community-comments,
+  .community-announcement-detail,
+  .community-rules-detail {
+    border-radius: 18px;
+  }
+
+  .community-comments,
+  .community-post-content {
+    padding: 20px;
+  }
+
+  .community-comments > header,
+  .community-comment-form > div,
+  .community-comment-options > div,
+  .school-board-login-guide {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .community-comment-form button,
+  .school-board-login-guide a {
+    width: 100%;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0;
+  }
+
+  .community-vote-box > div {
+    width: 100%;
+  }
+
+  .community-vote-box form,
+  .community-vote-box button {
+    flex: 1;
+  }
+
+  .community-vote-box button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .community-pagination a,
+  .community-pagination span {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .community-rules-grid {
+    padding: 20px;
+  }
+
+  .community-rules-grid article {
+    min-height: 0;
+    padding: 20px;
+  }
+}
+
+/* The app follows system appearance, so community webviews must do the same. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --community-ink: #f4f6ff;
+    --community-muted: #bcc5da;
+    --community-line: #30394f;
+    --community-paper: #090e1c;
+    --community-blue: #86a7ff;
+  }
+
+  body {
+    background: var(--community-paper);
+  }
+
+  .community-header {
+    background: rgba(9, 14, 28, 0.92);
+  }
+
+  .community-nav > div a,
+  .community-comment-login,
+  .school-board-login-guide,
+  .community-vote-box p,
+  .community-vote-readonly span,
+  .community-vote-readonly a {
+    color: #c0c8db;
+  }
+
+  .community-board-tabs a,
+  .community-board,
+  .community-compose,
+  .community-post-detail,
+  .community-comments,
+  .community-announcement-detail,
+  .community-rules-detail {
+    background: #12192b;
+    border-color: var(--community-line);
+  }
+
+  .community-board-tabs a.active {
+    background: #202b4d;
+    border-color: #536aa8;
+  }
+
+  .community-board-tabs span {
+    color: #c3cdf0;
+  }
+
+  .community-board-heading p,
+  .community-compose-heading p,
+  .community-comments > header p,
+  .community-post-attachments > header p {
+    color: #a9c0ff;
+  }
+
+  .community-board-heading input,
+  .community-compose input,
+  .community-compose textarea,
+  .community-compose select,
+  .community-comment-form textarea,
+  .community-report-box textarea {
+    color: var(--community-ink);
+    background: #0c1324;
+    border-color: #3a455f;
+  }
+
+  .community-post-list > a,
+  .community-comment-list article,
+  .community-comments > header,
+  .community-board-heading,
+  .community-post-attachments > header {
+    border-color: var(--community-line);
+  }
+
+  .community-post-list > a.is-pinned,
+  .community-post-list > a.community-rules-post {
+    background: linear-gradient(110deg, #17203a, #1b1733);
+    border-color: #465886;
+  }
+
+  .community-comment-form,
+  .community-comment-login,
+  .community-operations-categories,
+  .community-vote-box,
+  .community-vote-readonly span,
+  .community-vote-readonly a,
+  .school-board-login-guide,
+  .community-attachment-field,
+  .community-file-list a,
+  .community-rules-grid article {
+    background: #0d1426;
+    border-color: #303a52;
+  }
+
+  .community-anonymous-choice.compact,
+  .community-operations-categories a,
+  .community-compose .community-file-picker,
+  .community-vote-box button {
+    color: #dce3f4;
+    background: #151e34;
+    border-color: #3a4662;
+  }
+
+  .community-comment-list article time,
+  .community-vote-box > small,
+  .community-attachment-field small,
+  .community-attachment-field p,
+  .community-file-list a small,
+  .community-file-list a b {
+    color: #c2cadb;
+  }
+
+  .community-rules-detail > footer {
+    background: #19233c;
+  }
+
+  .community-rules-detail > footer p,
+  .community-rules-grid p {
+    color: #c3cbdd;
+  }
+
+  .community-report-box {
+    background: #25151e;
+    border-color: #633548;
+  }
+
+  .community-feedback {
+    color: #a6ecd3;
+    background: #10281f;
+    border-color: #285b47;
+  }
+
+  .community-error,
+  .community-posting-quota.is-exhausted {
+    color: #ffbac5;
+    background: #2c151d;
+    border-color: #653341;
   }
 }

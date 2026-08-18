@@ -34,6 +34,8 @@
     "payback-daily-learning:verify-db": "node audit/runInIsolatedAuditEnvironment.js audit/verifyPaybackDailyLearningDb.js",
     "admin-audit:verify": "node scripts/verifyAdminAuditTrail.js",
     "launch-views:verify": "node scripts/verifyLaunchViews.js",
+    "community-mobile:verify": "node scripts/verifyCommunityMobileSurface.js",
+    "app-commerce-handoff:verify": "node audit/verifyAppCommerceHandoffErrorContract.js",
     "admin:verify": "node scripts/validateCommunityAndAdmin.js",
     "admin:verify-db": "node scripts/verifyAdminActivityData.js",
     "account-deletion:verify": "node scripts/verifyAccountDeletionPolicy.js",

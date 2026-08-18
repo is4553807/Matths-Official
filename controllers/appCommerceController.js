@@ -50,6 +50,22 @@ function browserSessionUser(user) {
   };
 }
 
+function commerceFailureView({ heading, message, href, label }) {
+  return {
+    mode: "LIVE",
+    result: {
+      state: "FAILED",
+      heading,
+      intent: null,
+      backLink: { href, label },
+    },
+    failure: {
+      code: null,
+      message,
+    },
+  };
+}
+
 exports.storefront = async (req, res, next) => {
   try {
     res.set("Cache-Control", "no-store");
@@ -79,27 +95,21 @@ exports.consumeHandoff = async (req, res, next) => {
   try {
     const handoff = await consumeAppCommerceHandoff(req.params.token);
     if (!handoff) {
-      return res.status(410).render("payment-result", {
-        success: false,
-        uncertain: false,
+      return res.status(410).render("payment-result", commerceFailureView({
         heading: "결제 연결이 만료되었습니다",
         message: "iPad 앱에서 이용권 화면을 다시 열어주세요.",
-        primaryHref: "/pricing",
-        primaryLabel: "이용권 보기",
-        paymentSummary: null,
-      });
+        href: "/pricing",
+        label: "이용권 보기",
+      }));
     }
     const access = await synchronizeAccountAccess(handoff.userId);
     if (!access?.allowed) {
-      return res.status(403).render("payment-result", {
-        success: false,
-        uncertain: false,
+      return res.status(403).render("payment-result", commerceFailureView({
         heading: "계정 상태를 확인해 주세요",
         message: "현재 계정에서는 결제 페이지를 열 수 없습니다.",
-        primaryHref: "/login",
-        primaryLabel: "로그인 화면으로",
-        paymentSummary: null,
-      });
+        href: "/login",
+        label: "로그인 화면으로",
+      }));
     }
     const user = await synchronizeUserLifecycle(access.user._id);
     await regenerateSession(req);
@@ -113,3 +123,4 @@ exports.consumeHandoff = async (req, res, next) => {
 };
 
 exports._browserSessionUser = browserSessionUser;
+exports._commerceFailureView = commerceFailureView;
