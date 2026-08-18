@@ -6160,7 +6160,14 @@ const archiveFolderSchema =
             },
             accessLevel: {
                 type: String,
-                enum: ["AUTHENTICATED", "PAID_PACKAGE"],
+                enum: [
+                    "AUTHENTICATED",
+                    "MOCK_EXAM_PACKAGE",
+                    "LEARNING_PACKAGE",
+                    // 기존 운영 데이터 호환용입니다. 서비스 계층에서는
+                    // LEARNING_PACKAGE로 정규화하며 새로 저장하지 않습니다.
+                    "PAID_PACKAGE",
+                ],
                 default: "AUTHENTICATED",
                 index: true,
             },

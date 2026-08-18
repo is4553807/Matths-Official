@@ -1081,7 +1081,7 @@ exports.archiveAdminPage =
                   type:
                     "success",
                   message:
-                    "폴더 이름과 설명을 수정했습니다.",
+                    "폴더 이름·설명·접근 권한을 수정했습니다.",
                 }
               : req.query
                   .folderPinned ===

@@ -139,6 +139,7 @@
     "storage-r2:verify": "node scripts/verifyR2Storage.js",
     "storage-policy:verify": "node scripts/verifyStoragePolicySplit.js",
     "storage-lifecycle:verify-db": "node scripts/verifyStorageLifecycleDb.js",
+    "archive-access:verify": "node scripts/verifyArchivePackageAccess.js",
     "pdf-watermark:verify": "node scripts/verifyPdfWatermarkLocal.js",
     "pdf-watermark:verify-db": "node scripts/verifyPdfWatermark.js",
     "ranking-operations:verify-db": "node scripts/verifyRankingOperationsDb.js"
