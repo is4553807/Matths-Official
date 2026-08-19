@@ -9,6 +9,7 @@ const coverage = [
   ["services/accessCycleExpiryReminderService.js", "ACCESS_CYCLE_EXPIRY_REMINDERS"],
   ["services/policyChangeNotificationService.js", "POLICY_CHANGE_NOTIFICATION_DELIVERY"],
   ["services/privateMockExamService.js", "PRIVATE_MOCK_EXAM_STATE"],
+  ["services/placementExamService.js", "PLACEMENT_EXAM_EXPIRY"],
   ["services/arenaMatchAttemptService.js", "ARENA_MATCH_TIMERS"],
   ["services/arenaMatchEvidenceService.js", "ARENA_EVIDENCE_RETENTION"],
   ["services/archiveService.js", "ARCHIVE_TRASH_RETENTION"],

@@ -29,11 +29,15 @@ const {
   PaybackDailyLearning,
 } = require("../models/paybackDailyLearningModel");
 const {
-  currentConsecutiveDays,
+  attackParticipationSummary,
 } = require("./paybackDailyLearningService");
+const {
+  attackParticipationDays,
+  minimumAttackParticipationDays,
+} = require("../constants/paybackParticipation");
 
 const PAYBACK_EVALUATION_VERSION =
-  "PAYBACK-EVALUATION-GOAT-ATTACK-V2";
+  "PAYBACK-EVALUATION-GOAT-ATTACK-15-OF-29-V3";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const UNRESOLVED_MATCH_STATUSES = [
   "REQUESTED",
@@ -73,20 +77,14 @@ function paybackBandForScore(bands, scoreDays) {
 
 function calculatePaybackDecision(cycle, { integrityClear = true } = {}) {
   const paybackPolicy = cycle?.policySnapshot?.payback || {};
-  const streakDays = Math.max(0, numeric(cycle?.streakDays));
+  const participationDays = attackParticipationDays(cycle);
   const paidNormalAttacksCompleted = Math.max(
     0,
     numeric(cycle?.paidNormalAttacksCompleted)
   );
   const paybackScoreDays = Math.max(0, numeric(cycle?.paybackScoreDays));
-  const minimumStreakDays = Math.max(
-    0,
-    numeric(
-      paybackPolicy.minimumStreakDays ??
-        cycle?.policySnapshot?.initialLearningDays ??
-        29
-    )
-  );
+  const minimumParticipationDays =
+    minimumAttackParticipationDays(paybackPolicy);
   const minimumScoreDays = Math.max(
     0,
     numeric(paybackPolicy.minimumScoreDays ?? 30)
@@ -98,8 +96,10 @@ function calculatePaybackDecision(cycle, { integrityClear = true } = {}) {
       .map((value) => String(value || "").trim())
       .filter(Boolean)
   )];
-  if (streakDays < minimumStreakDays) {
-    disqualifiers.push("MINIMUM_STREAK_NOT_MET");
+  if (participationDays < minimumParticipationDays) {
+    disqualifiers.push(
+      "MINIMUM_ATTACK_PARTICIPATION_NOT_MET"
+    );
   }
   if (paybackScoreDays < minimumScoreDays) {
     disqualifiers.push("MINIMUM_PAYBACK_SCORE_NOT_MET");
@@ -124,20 +124,25 @@ function calculatePaybackDecision(cycle, { integrityClear = true } = {}) {
     paybackAmount,
     disqualifiers,
     inputs: {
-      streakDays,
+      attackParticipationDays: participationDays,
+      // 구버전 운영·앱 응답 호환용 별칭이다.
+      streakDays: participationDays,
       paidNormalAttacksCompleted,
       officialAttackSubmissionDays:
-        streakDays,
+        participationDays,
       dailyAttackRecordCount: Math.max(
         0,
         numeric(
           cycle?._dailyAttackRecordCount ??
-            streakDays
+            participationDays
         )
       ),
       paybackScoreDays,
       integrityStatus: integrityClear ? "CLEAR" : "HELD",
-      minimumStreakDays,
+      minimumAttackParticipationDays:
+        minimumParticipationDays,
+      minimumStreakDays:
+        minimumParticipationDays,
       minimumScoreDays,
     },
   };
@@ -252,6 +257,8 @@ function mainCycleDraft({
     lastConsumptionDateKst: entryDateKst,
     depletedAt: null,
     paidNormalAttacksCompleted: 0,
+    attackParticipationDays: 0,
+    lastAttackParticipationDateKst: null,
     streakDays: 0,
     lastStreakDateKst: null,
     cashbackQualified: false,
@@ -371,8 +378,8 @@ async function finalizePaybackReview({
       if (cycle.evaluatedAt) {
         const existing = await ArenaPaybackReview.findOne({
           cycleId: cycle._id,
-          evaluationVersion: PAYBACK_EVALUATION_VERSION,
         })
+          .sort({ evaluatedAt: -1, createdAt: -1 })
           .session(session)
           .lean();
         result = { review: existing, cycle, replayed: true };
@@ -397,26 +404,34 @@ async function finalizePaybackReview({
           .select("dateKeyKst")
           .session(session)
           .lean();
-      const officialAttackStreak =
-        currentConsecutiveDays(
+      const officialAttackParticipation =
+        attackParticipationSummary(
           dailyAttackRows.map(
             (entry) => entry.dateKeyKst
           )
         );
+      cycle.attackParticipationDays =
+        officialAttackParticipation.participationDays;
+      cycle.lastAttackParticipationDateKst =
+        officialAttackParticipation.lastDateKeyKst;
       cycle.streakDays =
-        officialAttackStreak.streakDays;
+        officialAttackParticipation.participationDays;
       cycle.lastStreakDateKst =
-        officialAttackStreak.lastDateKeyKst;
+        officialAttackParticipation.lastDateKeyKst;
       cycle._dailyAttackRecordCount =
         dailyAttackRows.length;
       await AccessCycle.updateOne(
         { _id: cycle._id, evaluatedAt: null },
         {
           $set: {
+            attackParticipationDays:
+              officialAttackParticipation.participationDays,
+            lastAttackParticipationDateKst:
+              officialAttackParticipation.lastDateKeyKst,
             streakDays:
-              officialAttackStreak.streakDays,
+              officialAttackParticipation.participationDays,
             lastStreakDateKst:
-              officialAttackStreak.lastDateKeyKst,
+              officialAttackParticipation.lastDateKeyKst,
           },
         },
         { session }

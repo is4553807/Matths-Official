@@ -25,9 +25,10 @@ const {
 } = require("../services/accessCycleDailyService");
 const {
   calculatePaybackDecision,
+  PAYBACK_EVALUATION_VERSION,
 } = require("../services/arenaPaybackReviewService");
 const {
-  currentConsecutiveDays,
+  attackParticipationSummary,
   evaluateAttackSubmission,
   kstDateKey,
   nextKstDateKey,
@@ -35,6 +36,10 @@ const {
 } = require("../services/paybackDailyLearningService");
 
 async function run() {
+assert.equal(
+  PAYBACK_EVALUATION_VERSION,
+  "PAYBACK-EVALUATION-GOAT-ATTACK-15-OF-29-V3"
+);
 const root = path.resolve(__dirname, "..");
 const userId = new mongoose.Types.ObjectId();
 const defenderId = new mongoose.Types.ObjectId();
@@ -135,7 +140,7 @@ const policy = {
   },
   dailyMatchLimitsByTier: [],
   payback: {
-    minimumStreakDays: 29,
+    minimumAttackParticipationDays: 15,
     minimumScoreDays: 30,
     bands: [
       {
@@ -306,42 +311,40 @@ for (const [label, input, reason] of [
 }
 
 assert.deepEqual(
-  currentConsecutiveDays([
+  attackParticipationSummary([
     "2026-08-02",
     "2026-08-02",
     "2026-08-03",
     "2026-08-04",
   ]),
   {
-    streakDays: 3,
+    participationDays: 3,
     lastDateKeyKst: "2026-08-04",
   }
 );
 assert.deepEqual(
-  currentConsecutiveDays([
+  attackParticipationSummary([
     "2026-08-02",
     "2026-08-03",
     "2026-08-05",
     "2026-08-06",
   ]),
   {
-    streakDays: 2,
+    participationDays: 4,
     lastDateKeyKst: "2026-08-06",
   },
-  "하루를 빠뜨리면 현재 연속 공격일은 다시 계산되어야 합니다."
+  "공격일 사이에 공백이 있어도 서로 다른 한국 날짜는 모두 누적되어야 합니다."
 );
 const allDates = Array.from(
-  { length: 29 },
+  { length: 15 },
   (_, index) => {
     const day = String(index + 2).padStart(2, "0");
-    return index < 29
-      ? `2026-08-${day}`
-      : "";
+    return `2026-08-${day}`;
   }
 );
 assert.equal(
-  currentConsecutiveDays(allDates).streakDays,
-  29
+  attackParticipationSummary(allDates).participationDays,
+  15
 );
 
 assert.equal(
@@ -440,7 +443,7 @@ assert.equal(
     policySnapshot: policy,
     pricePaid: 29000,
     paybackScoreDays: 30,
-    streakDays: 29,
+    attackParticipationDays: 15,
   }).qualified,
   true
 );
@@ -449,7 +452,7 @@ assert.equal(
     policySnapshot: policy,
     pricePaid: 29000,
     paybackScoreDays: 30,
-    streakDays: 28,
+    attackParticipationDays: 14,
   }).qualified,
   false
 );
@@ -517,8 +520,8 @@ assert.match(
 );
 assert.match(
   serverSource,
-  /reconcileOpenPaybackDailyLearningStreaks/,
-  "운영 서버 시작 시 과거 일반 학습 streak를 공식 공격 제출 장부 기준으로 교정해야 합니다."
+  /reconcileOpenPaybackAttackParticipation/,
+  "운영 서버 시작 시 공격 출석 요약을 일별 공식 공격 제출 장부 기준으로 교정해야 합니다."
 );
 const reviewSource = fs.readFileSync(
   path.join(root, "services/arenaPaybackReviewService.js"),
@@ -531,7 +534,7 @@ assert.match(
 );
 
 console.log(
-  "Payback daily GOAT Arena attack contract verified: next-day KST start, full answers and evidence, challenger-only official matches, one-day semantics, last-day access, and 29-day decision."
+  "Payback daily GOAT Arena attack contract verified: next-day KST start, full answers and evidence, challenger-only official matches, unique KST dates, last-day access, and 15-of-29 participation decision."
 );
 }
 

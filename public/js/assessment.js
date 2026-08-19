@@ -530,7 +530,9 @@ document.addEventListener(
       }
       if (saveState) {
         saveState.textContent =
-          "제한 시간 종료 · 실격 처리 중…";
+          config?.placement
+            ? "제한 시간 종료 · 자동 제출 중…"
+            : "제한 시간 종료 · 실격 처리 중…";
       }
 
       try {

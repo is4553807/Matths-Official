@@ -5,6 +5,9 @@ const {
 const {
   PaybackDailyLearning,
 } = require("../models/paybackDailyLearningModel");
+const {
+  PAYBACK_ATTACK_PARTICIPATION_DAYS,
+} = require("../constants/paybackParticipation");
 
 const KST_TIME_ZONE = "Asia/Seoul";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -156,7 +159,7 @@ function evaluateAttackSubmission({
   };
 }
 
-function currentConsecutiveDays(dateKeys = []) {
+function attackParticipationSummary(dateKeys = []) {
   const days = [...new Set(
     dateKeys
       .map(dateKeyToDayNumber)
@@ -164,18 +167,12 @@ function currentConsecutiveDays(dateKeys = []) {
   )].sort((left, right) => left - right);
   if (!days.length) {
     return {
-      streakDays: 0,
+      participationDays: 0,
       lastDateKeyKst: null,
     };
   }
-  let streakDays = 1;
-  for (let index = 1; index < days.length; index += 1) {
-    streakDays = days[index] - days[index - 1] === 1
-      ? streakDays + 1
-      : 1;
-  }
   return {
-    streakDays,
+    participationDays: days.length,
     lastDateKeyKst:
       dayNumberToDateKey(days.at(-1)),
   };
@@ -193,7 +190,7 @@ async function ensurePaybackDailyLearningIndexes() {
   await PaybackDailyLearning.createIndexes();
 }
 
-async function reconcileOpenPaybackDailyLearningStreaks({
+async function reconcileOpenPaybackAttackParticipation({
   cycleIds = null,
   batchSize = 500,
 } = {}) {
@@ -246,7 +243,7 @@ async function reconcileOpenPaybackDailyLearningStreaks({
       datesByCycle.set(key, dates);
     }
     const operations = cycles.map((cycle) => {
-      const streak = currentConsecutiveDays(
+      const participation = attackParticipationSummary(
         datesByCycle.get(String(cycle._id)) || []
       );
       return {
@@ -257,9 +254,19 @@ async function reconcileOpenPaybackDailyLearningStreaks({
           },
           update: {
             $set: {
-              streakDays: streak.streakDays,
+              attackParticipationDays:
+                participation.participationDays,
+              lastAttackParticipationDateKst:
+                participation.lastDateKeyKst,
+              // 구버전 앱·운영 화면이 읽는 필드에도 같은 값을 기록한다.
+              streakDays:
+                participation.participationDays,
               lastStreakDateKst:
-                streak.lastDateKeyKst,
+                participation.lastDateKeyKst,
+              "policySnapshot.payback.minimumAttackParticipationDays":
+                PAYBACK_ATTACK_PARTICIPATION_DAYS,
+              "policySnapshot.payback.minimumStreakDays":
+                PAYBACK_ATTACK_PARTICIPATION_DAYS,
             },
           },
         },
@@ -415,7 +422,7 @@ async function recordPaybackAttackLearningDay({
             .select("dateKeyKst")
             .session(session)
             .lean();
-        const streak = currentConsecutiveDays(
+        const participation = attackParticipationSummary(
           learningDays.map(
             (entry) => entry.dateKeyKst
           )
@@ -424,10 +431,14 @@ async function recordPaybackAttackLearningDay({
           { _id: cycle._id },
           {
             $set: {
+              attackParticipationDays:
+                participation.participationDays,
+              lastAttackParticipationDateKst:
+                participation.lastDateKeyKst,
               streakDays:
-                streak.streakDays,
+                participation.participationDays,
               lastStreakDateKst:
-                streak.lastDateKeyKst,
+                participation.lastDateKeyKst,
             },
           },
           { session }
@@ -439,7 +450,11 @@ async function recordPaybackAttackLearningDay({
             ? "DAILY_ATTACK_CREDITED"
             : "DAILY_ATTACK_ALREADY_CREDITED",
           dateKeyKst,
-          streakDays: streak.streakDays,
+          participationDays:
+            participation.participationDays,
+          // 구버전 클라이언트 응답 호환용 별칭이다.
+          streakDays:
+            participation.participationDays,
           learningDayId: String(record._id),
         };
       }, {
@@ -464,13 +479,13 @@ async function recordPaybackAttackLearningDay({
 }
 
 module.exports = {
-  currentConsecutiveDays,
+  attackParticipationSummary,
   ensurePaybackDailyLearningIndexes,
   evaluateAttackSubmission,
   kstDateKey,
   kstMidnight,
   nextKstDateKey,
-  reconcileOpenPaybackDailyLearningStreaks,
+  reconcileOpenPaybackAttackParticipation,
   recordPaybackAttackLearningDay,
   requiredAnswersSubmitted,
 };

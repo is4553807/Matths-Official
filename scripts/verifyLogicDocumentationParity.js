@@ -69,7 +69,7 @@ assert.equal(DEFAULT_LEARNING_PACKAGE_DAYS, 29);
 
 const learningPolicy = defaultLearningPackagePolicyDefinition();
 assert.equal(learningPolicy.initialPaybackScoreDays, 29);
-assert.equal(learningPolicy.payback.minimumStreakDays, 29);
+assert.equal(learningPolicy.payback.minimumAttackParticipationDays, 15);
 assert.deepEqual(
   learningPolicy.payback.bands.map((band) => [band.minScoreDays, band.maxScoreDays, band.ratePercent]),
   [[0, 29, 0], [30, 34, 50], [35, 39, 80], [40, null, 100]]
@@ -110,6 +110,7 @@ for (const requiredRule of [
   "정기권 학습 가능 일수",
   "학습권 패키지",
   "페이백 점수",
+  "공격 출석",
   "최종 종합 랭킹",
 ]) {
   assert.ok(logicText.includes(requiredRule), `권위 문서에서 핵심 규칙을 찾을 수 없습니다: ${requiredRule}`);

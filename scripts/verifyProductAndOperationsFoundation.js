@@ -179,7 +179,7 @@ const subRulebook = getArenaRulebook("SUB", {
     initialLearningDays: 29,
     initialPaybackScoreDays: 29,
     payback: {
-      minimumStreakDays: 29,
+      minimumAttackParticipationDays: 15,
       minimumScoreDays: 30,
       bands: [
         { minScoreDays: 0, maxScoreDays: 29, ratePercent: 0 },
@@ -191,6 +191,7 @@ const subRulebook = getArenaRulebook("SUB", {
   },
 });
 assert.equal(subRulebook.paybackPolicy.priceAmount, 29000);
+assert.equal(subRulebook.paybackPolicy.minimumAttackParticipationDays, 15);
 assert.equal("minimumPaidNormalAttacks" in subRulebook.paybackPolicy, false);
 assert.equal(subRulebook.paybackPolicy.bands[1].expectedPaybackAmount, 14500);
 assert.equal(

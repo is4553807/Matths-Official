@@ -1,0 +1,284 @@
+/*
+ * Readability guardrails
+ *
+ * This stylesheet is deliberately loaded after both the page stylesheet and
+ * matths-theme.css.  Page-level palettes may still choose their own accent,
+ * but readable copy and disabled controls must retain at least a clearly
+ * distinguishable foreground on light surfaces.
+ */
+
+:root {
+  --matths-readable-muted: #566074;
+  --matths-readable-green: #11684d;
+  --matths-readable-orange: #854b00;
+  --matths-readable-red: #a3293e;
+  --matths-readable-purple: #5938b8;
+}
+
+/* Admin */
+.admin-guide-empty,
+.admin-user-row.head,
+.ranking-history-row.is-head,
+.problem-type-table th,
+.admin-audit-filter > a,
+.admin-activity-tabs a {
+  color: var(--matths-readable-muted);
+}
+
+.status-closed,
+.data-analysis-metric.is-unavailable header > span {
+  color: #5f4a1d;
+}
+
+.admin-payback-row form button:disabled,
+.arena-held-review-form button:disabled {
+  color: #525b6d;
+}
+
+.admin-feedback > span,
+.arena-audit-empty > span {
+  color: #fff;
+  background: #11684d;
+}
+
+.ranking-operations-alerts span {
+  color: #fff;
+  background: #855000;
+}
+
+/* Archive */
+.archive-folder-parent-guide,
+.archive-empty {
+  color: var(--matths-readable-muted);
+}
+
+.archive-file-heading-actions form button.danger {
+  background: #ad2b42;
+}
+
+.archive-folder-grid > a.is-locked > span {
+  color: var(--matths-readable-purple);
+}
+
+.archive-folder-pin-badge {
+  color: #2548be;
+}
+
+/* Assessments and placement */
+.course-pass-state,
+.attempt-exit,
+.placement-question-map button {
+  color: var(--matths-readable-muted);
+}
+
+.course-pass-state.passed,
+.subassessment-card.passed .assessment-state-icon {
+  color: var(--matths-readable-green);
+}
+
+.subassessment-card button:disabled,
+.unit-final button:disabled,
+.course-final button:disabled,
+.placement-question-controls button:disabled {
+  color: #535c6e;
+}
+
+.difficulty-tag.applied {
+  color: var(--matths-readable-orange);
+}
+
+/* Authentication and profile */
+.form-alert-success > span {
+  background: #11684d;
+}
+
+.form-alert-preview > span {
+  background: #855000;
+}
+
+.form-field input:disabled,
+.form-field select:disabled,
+.locked-profile-value span,
+.identity-choice-grid input:disabled + span,
+.identity-preview {
+  color: #535c6e;
+}
+
+.settings-icon.orange {
+  color: var(--matths-readable-orange);
+}
+
+/* Community, suggestions, and inquiries */
+.moderation-list button.approve {
+  background: #11684d;
+}
+
+.suggestion-empty,
+.inquiry-empty,
+.community-sort-tabs a {
+  color: var(--matths-readable-muted);
+}
+
+.community-compose button:disabled {
+  color: #535c6e;
+}
+
+.contact-identity > header b {
+  color: var(--matths-readable-green);
+}
+
+/* Concept, curriculum, and learning flow */
+.review-mode-icon,
+.review-mode-banner button {
+  color: #fff;
+  background: #855000;
+}
+
+.mode-buttons button,
+.transformation-card,
+.mastery-dots i,
+.unit > summary small,
+.unit>summary small,
+.roadmap-list article > b,
+.roadmap-list article>b,
+.roadmap-list .course-category-button > b,
+.roadmap-list .course-category-button>b,
+.course-development-panel,
+.concept-state,
+.course-development-panel,
+.unit-open,
+.concept-status span,
+.concept-topics span,
+.concept-nav-item > span,
+.demo-footer,
+.card-formula,
+.demo-step-button,
+.intro-step-button,
+.review-step-button {
+  color: var(--matths-readable-muted);
+}
+
+.question-top span {
+  color: var(--matths-readable-orange);
+}
+
+.answers i {
+  color: #566074;
+}
+
+.topic-task > span {
+  color: var(--matths-readable-muted);
+}
+
+.topic-task.done > span {
+  color: #fff;
+  background: #11684d;
+  border-color: #11684d;
+}
+
+/* FAQ and public pages */
+.search-clear,
+.category-button b,
+.matths-error-help > span,
+.progress-dots button,
+.nav-icon,
+.side-nav a > b,
+.card-heading > span,
+.section-empty,
+.weak-rank,
+.weak-list em,
+.semester-badge.muted,
+.sidebar-close {
+  color: var(--matths-readable-muted);
+}
+
+.matths-error-help > span {
+  color: var(--matths-readable-purple);
+}
+
+.notification-button.urgent,
+.dashboard-announcements > article > span {
+  background: #ad2b42;
+}
+
+.area-model i.accent,
+.nine {
+  color: #44316f;
+}
+
+.wrong-list > a > span {
+  color: var(--matths-readable-red);
+}
+
+/* Preserve light metadata on dark dashboard hero cards after theme muting. */
+.dashboard-main .learning-summary .summary-numbers span,
+.dashboard-main .quick-hero .quick-timer small,
+.dashboard-main :is(
+    .assessment-hero,
+    .quick-hero,
+    .wrong-hero,
+    .unit-hero,
+    .learning-summary
+  ) :is(p, small) {
+  color: #c7cde0;
+}
+
+/* Mock exams and store */
+.private-mock-start-link.disabled,
+.private-mock-start-card > button[data-private-mock-start].disabled,
+.private-mock-start-card > button[data-private-mock-start]:disabled,
+.private-mock-result-card > a.disabled,
+.private-mock-review-omr span,
+.store-category-drag,
+.store-category-delete:disabled {
+  color: var(--matths-readable-muted);
+}
+
+.private-mock-delete-form button {
+  background: #ad2b42;
+}
+
+.private-mock-review-omr span.selected.correct {
+  background: #11684d;
+}
+
+.private-mock-review-omr span.selected.incorrect {
+  background: #ad2b42;
+}
+
+.private-mock-admin-integrity-request button {
+  background: #855000;
+}
+
+/* Practice, ranking, and review */
+.quick-control ul,
+.masters-action-card > button.private-mock-disabled-action,
+.ranking-empty,
+.original-problem-meta span,
+.answer-choice b,
+.graph-hint-panel > header button,
+.review-tabs a,
+.filter-actions a,
+.wrong-number,
+.problem-meta > span,
+.pagination a {
+  color: var(--matths-readable-muted);
+}
+
+.quick-result[data-state="wrong"] > span,
+.quick-result[data-state="expired"] > span,
+.review-state > span.pending,
+.attempt-details summary > span b {
+  color: var(--matths-readable-red);
+}
+
+.review-status,
+.review-state > span.scheduled,
+.private-mock-action-card > div > span {
+  color: var(--matths-readable-orange);
+}
+
+.review-state > span.completed,
+.identity-action-card > div > span {
+  color: var(--matths-readable-green);
+}

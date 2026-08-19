@@ -139,7 +139,7 @@ const scored = scoreArenaAttempt({
 assert.deepEqual({ score: scored.score, correctCount: scored.correctCount, correctAnswerSolveTimeMs: scored.correctAnswerSolveTimeMs }, { score: 40, correctCount: 1, correctAnswerSolveTimeMs: 1200 });
 
 // Every paid cycle starts at 00:00 KST on the day after payment.
-const policy = { initialLearningDays: 29, paymentDayCutoffKst: "00:00", payback: { minimumStreakDays: 29 } };
+const policy = { initialLearningDays: 29, paymentDayCutoffKst: "00:00", payback: { minimumAttackParticipationDays: 15 } };
 const beforeMidnight = computeAccessCycleWindow({ purchasedAt: "2026-08-15T23:59:59.999+09:00", policy });
 const afterMidnight = computeAccessCycleWindow({ purchasedAt: "2026-08-16T00:00:00.000+09:00", policy });
 assert.equal(beforeMidnight.firstConsumptionDateKst, "2026-08-16");

@@ -12,7 +12,7 @@ const {
 } = require("../services/accessCycleService");
 const {
   ensurePaybackDailyLearningIndexes,
-  reconcileOpenPaybackDailyLearningStreaks,
+  reconcileOpenPaybackAttackParticipation,
   recordPaybackAttackLearningDay,
 } = require("../services/paybackDailyLearningService");
 
@@ -39,7 +39,7 @@ const policy = {
   matchStakeDays: { normal: 1, revenge: 2 },
   dailyMatchLimitsByTier: [],
   payback: {
-    minimumStreakDays: 29,
+    minimumAttackParticipationDays: 15,
     minimumScoreDays: 30,
     bands: [
       { minScoreDays: 0, maxScoreDays: 29, ratePercent: 0 },
@@ -167,7 +167,7 @@ async function main() {
         })
       );
     assert.equal(first.credited, true);
-    assert.equal(first.streakDays, 1);
+    assert.equal(first.participationDays, 1);
 
     const sameDayResults = await Promise.all([
       recordPaybackAttackLearningDay(
@@ -198,7 +198,7 @@ async function main() {
       1
     );
 
-    for (let day = 3; day <= 30; day += 1) {
+    for (let day = 4; day <= 30; day += 2) {
       const date = `2026-08-${String(day).padStart(2, "0")}`;
       const result =
         await recordPaybackAttackLearningDay(
@@ -210,39 +210,39 @@ async function main() {
         `${date} 공격 제출이 인정되지 않았습니다: ${result.reason}`
       );
       assert.equal(
-        result.streakDays,
-        day - 1
+        result.participationDays,
+        day / 2
       );
     }
 
     let cycle = await AccessCycle.findById(
       ids.cycleId
     ).lean();
-    assert.equal(cycle.streakDays, 29);
+    assert.equal(cycle.attackParticipationDays, 15);
     assert.equal(
-      cycle.lastStreakDateKst,
+      cycle.lastAttackParticipationDateKst,
       "2026-08-30"
     );
     assert.equal(
       await PaybackDailyLearning.countDocuments({
         accessCycleId: ids.cycleId,
       }),
-      29
+      15
     );
     await AccessCycle.updateOne(
       { _id: ids.cycleId },
-      { $set: { streakDays: 99 } }
+      { $set: { attackParticipationDays: 99, streakDays: 99 } }
     );
-    await reconcileOpenPaybackDailyLearningStreaks({
+    await reconcileOpenPaybackAttackParticipation({
       cycleIds: [ids.cycleId],
     });
     cycle = await AccessCycle.findById(
       ids.cycleId
     ).lean();
     assert.equal(
-      cycle.streakDays,
-      29,
-      "운영 재시작 시 과거 일반 학습 streak 값은 공식 공격 제출 장부 기준으로 복구되어야 합니다."
+      cycle.attackParticipationDays,
+      15,
+      "운영 재시작 시 공격 출석 요약은 공식 공격 제출 장부의 고유 한국 날짜 수로 복구되어야 합니다."
     );
 
     const atEvaluation =
@@ -265,7 +265,7 @@ async function main() {
     );
 
     console.log(
-      "Isolated DB payback daily attack verification passed: next-day boundary, concurrent same-day idempotency, 29 distinct KST days, streak persistence, and evaluation cutoff."
+      "Isolated DB payback daily attack verification passed: next-day boundary, concurrent same-day idempotency, 15 non-consecutive KST dates, participation persistence, and evaluation cutoff."
     );
   } finally {
     await cleanup();

@@ -145,10 +145,8 @@ function computeAccessCycleWindow({
     dateKeyToUtcDay(purchaseDateKey) + 1;
   const firstConsumptionDateKey =
     dateKeyFromUtcDay(firstDayNumber);
-  const evaluationDayCount = Math.max(
-    Number(snapshot.initialLearningDays) || 0,
-    Number(snapshot.payback?.minimumStreakDays) || 0
-  );
+  const evaluationDayCount =
+    Number(snapshot.initialLearningDays) || 0;
   const expiresDateKey = dateKeyFromUtcDay(
     firstDayNumber +
       Number(snapshot.initialLearningDays)
@@ -261,7 +259,11 @@ function buildAccessCycleDraft({
     lastConsumptionDateKst: null,
     depletedAt: null,
     paidNormalAttacksCompleted: 0,
+    attackParticipationDays: 0,
+    lastAttackParticipationDateKst: null,
+    // 구버전 앱·운영 데이터 호환용 별칭이다.
     streakDays: 0,
+    lastStreakDateKst: null,
     cashbackQualified: false,
     paybackRate: 0,
     paybackAmount: 0,

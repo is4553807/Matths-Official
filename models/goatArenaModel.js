@@ -1,4 +1,7 @@
 const mongoose = require("mongoose");
+const {
+  PAYBACK_ATTACK_PARTICIPATION_DAYS,
+} = require("../constants/paybackParticipation");
 
 const { Schema } = mongoose;
 
@@ -225,10 +228,17 @@ const subscriptionPolicyVersionSchema = new Schema(
       default: () => [],
     },
     payback: {
+      minimumAttackParticipationDays: {
+        type: Number,
+        min: 1,
+        default: PAYBACK_ATTACK_PARTICIPATION_DAYS,
+      },
+      // 이전 정책 문서를 읽기 위한 호환 필드다. 새 정책과 심사는
+      // minimumAttackParticipationDays를 정본으로 사용한다.
       minimumStreakDays: {
         type: Number,
         min: 0,
-        default: 29,
+        default: undefined,
       },
       minimumScoreDays: {
         type: Number,
@@ -855,8 +865,21 @@ const accessCycleSchema = new Schema(
       type: Number,
       min: 0,
       default: 0,
+      // 구버전 앱·운영 데이터 호환용 별칭이다. 새 코드에서는
+      // attackParticipationDays와 같은 누적 참여일 값을 기록한다.
     },
     lastStreakDateKst: {
+      type: String,
+      match: /^\d{4}-\d{2}-\d{2}$/,
+      default: null,
+      index: true,
+    },
+    attackParticipationDays: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    lastAttackParticipationDateKst: {
       type: String,
       match: /^\d{4}-\d{2}-\d{2}$/,
       default: null,

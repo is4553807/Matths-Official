@@ -43,7 +43,7 @@ async function run() {
     lateRenewalTierPenalty: 1,
     matchStakeDays: { normal: 1, revenge: 2 },
     payback: {
-      minimumStreakDays: 29,
+      minimumAttackParticipationDays: 15,
       minimumScoreDays: 30,
       bands: [
         {
@@ -65,21 +65,21 @@ async function run() {
     pricePaid: 29000,
     paidNormalAttacksCompleted: 2,
     paybackScoreDays: 30,
-    streakDays: 28,
+    attackParticipationDays: 14,
   };
   assert.equal(
     calculatePaybackDecision(paybackCandidate).qualified,
     false,
-    "29일 중 하루라도 유효한 GOAT Arena 공격 제출 기록이 빠지면 페이백 자격을 얻을 수 없습니다."
+    "29일 이용 주기의 공격 출석이 15일보다 적으면 페이백 자격을 얻을 수 없습니다."
   );
   assert.equal(
     calculatePaybackDecision({
       ...paybackCandidate,
       paidNormalAttacksCompleted: 0,
-      streakDays: 29,
+      attackParticipationDays: 15,
     }).qualified,
     true,
-    "29일 연속 공식 공격 제출과 나머지 조건을 충족하면 페이백 자격을 얻어야 합니다."
+    "29일 중 공격 출석 15일과 나머지 조건을 충족하면 페이백 자격을 얻어야 합니다."
   );
 
   const eveningPurchase = new Date(

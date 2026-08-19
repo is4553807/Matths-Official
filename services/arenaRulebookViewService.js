@@ -11,6 +11,11 @@ const {
 const {
   difficultyRowsForDivision,
 } = require("./arenaMatchDifficultyPlan");
+const {
+  PAYBACK_ATTACK_PARTICIPATION_DAYS,
+  PAYBACK_CYCLE_DAYS,
+  minimumAttackParticipationDays,
+} = require("../constants/paybackParticipation");
 const ARENA_2028_MATH_ALIGNMENT = require("../dataAnalysis/arena2028MathAlignment.json");
 
 const PAYBACK_RULEBOOK_BASELINE_AT =
@@ -78,7 +83,7 @@ const RULEBOOKS = {
         title: "일요일 운영과 페이백",
         sections: [
           { title: "일요일 경기 마감", body: ["매주 일요일 14:00부터 신규 신청·수락·준비·시작을 차단합니다.", "14:00 전에 시작한 경기는 문항당 10분 규칙을 적용한 채 15:00까지 답안·풀이 증거 제출과 정산을 끝내야 합니다.", "15:00에 끝나지 않은 예외 경기는 보류 상태로 보내고 운영자 알림을 만듭니다."] },
-          { title: "페이백 자격", body: ["결제 다음 날 00:00부터 한국시간 기준 29일 동안 매일 Unranked 일반 쟁탈전 또는 복수전의 공격자로 모든 5개 답안과 필수 풀이 증거를 정상 제출해야 합니다.", "공격 시작만으로는 인정하지 않고 승패는 관계없으며, 하루 여러 번 제출해도 하루 1회만 인정합니다.", "페이백 점수와 공정성 검토 기준을 함께 충족해야 하며, 금액과 점수 구간은 결제할 때 안내된 기준으로 판정합니다."] },
+          { title: "페이백 자격", body: [`${PAYBACK_CYCLE_DAYS}일 이용 주기 중 서로 다른 한국 날짜 ${PAYBACK_ATTACK_PARTICIPATION_DAYS}일에 Unranked 일반 쟁탈전 또는 복수전의 공격자로 모든 5개 답안과 필수 풀이 증거를 정상 제출해야 합니다.`, `공격 시작만으로는 인정하지 않고 승패는 관계없으며, 같은 날 여러 번 정상 제출해도 공격 출석은 1일로 계산합니다. ${PAYBACK_ATTACK_PARTICIPATION_DAYS}일은 연속될 필요가 없습니다.`, "페이백 점수와 공정성 검토 기준을 함께 충족해야 하며, 금액과 점수 구간은 결제할 때 안내된 기준으로 판정합니다."] },
         ],
       },
       {
@@ -320,8 +325,8 @@ function paybackPolicyView(policy) {
         attackLimit: UNRANKED_DAILY_ATTACK_LIMIT,
         defenseLimit: Number(row.defenseLimit),
       })),
-    minimumStreakDays:
-      Number(source.payback?.minimumStreakDays) || 0,
+    minimumAttackParticipationDays:
+      minimumAttackParticipationDays(source.payback),
     minimumScoreDays:
       Number(source.payback?.minimumScoreDays) || 0,
     bands: (source.payback?.bands || []).map((band) => ({

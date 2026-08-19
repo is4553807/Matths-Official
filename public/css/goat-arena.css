@@ -8261,3 +8261,46 @@ html {
   .arena-supplemental-timer { width: 100%; }
   .arena-supplemental-card footer { flex-direction: column; }
 }
+
+/* White action labels must remain readable across every point of a gradient. */
+.arena-access-error-card > span,
+.arena-access-error-card > a,
+.arena-account-form button,
+.arena-account-confirm-card form button,
+.main-battle-action-grid button,
+.main-invitation-item button,
+.main-friendly-search button,
+.main-friendly-results button,
+.main-friendly-invitation-item button,
+.arena-live-item-meta a,
+.arena-live-action a,
+.arena-error-actions a,
+.arena-rights-grid .arena-rights-action,
+.arena-match-lobby-card button,
+.arena-match-submit-panel > button,
+.arena-evidence-card button,
+.arena-rulebook-switcher a.active,
+.arena-revenge-decision button,
+.arena-revenge-overlay__actions button,
+.arena-shop-card button,
+.arena-shop-card > a,
+.arena-protection-option button,
+.arena-mailbox-list-section > header button,
+.arena-mailbox-detail footer a.primary,
+.arena-profile-session-section button,
+.arena-supplemental-form button {
+  color: #fff;
+  background: linear-gradient(110deg, #5b2bbf, #2049bb 58%, #0d6887);
+}
+
+.arena-brand-mark {
+  background: linear-gradient(135deg, #7d1d91, #4a32b5 53%, #0d6887);
+}
+
+.arena-revenge-overlay__icon {
+  background: radial-gradient(circle at 40% 35%, #0d6887, #4a32b5 62%, #1a1242);
+}
+
+.arena-mailbox-button b {
+  background: linear-gradient(135deg, #ad2b42, #67258f);
+}

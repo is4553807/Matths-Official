@@ -282,11 +282,11 @@
           <dl>
             <div><dt>패키지 가격</dt><dd><%= formatWon(policy.priceAmount) %></dd></div>
             <div><dt>정기권 학습 가능 일수</dt><dd><%= policy.initialLearningDays %>일</dd></div>
-            <div><dt>공식 공격 제출</dt><dd><%= policy.minimumStreakDays %>일 모두</dd></div>
+            <div><dt>공격 출석</dt><dd><%= policy.minimumAttackParticipationDays %> / <%= policy.initialLearningDays %>일</dd></div>
             <div><dt>인정 기준</dt><dd>일반전·복수전 공격, 승패 무관</dd></div>
             <div><dt>최소 페이백 점수</dt><dd><%= policy.minimumScoreDays %>점</dd></div>
           </dl>
-          <p>결제 다음 날 00:00부터 한국시간 기준 매일 공격자로 모든 답안과 필수 풀이 증거를 정상 제출해야 하며, 공격 시작만으로는 인정되지 않습니다. 하루 여러 번 제출해도 하루 1회만 인정됩니다.</p>
+          <p>29일 이용 주기 중 서로 다른 한국 날짜 <%= policy.minimumAttackParticipationDays %>일에 공격자로 모든 답안과 필수 풀이 증거를 정상 제출해야 합니다. 공격 시작만으로는 인정하지 않고 승패는 관계없으며, 같은 날 여러 번 정상 제출해도 공격 출석은 1일로 계산합니다. 출석일은 연속될 필요가 없습니다.</p>
           <article class="arena-payback-disclosure">
             <span>제도 안내</span>
             <div>

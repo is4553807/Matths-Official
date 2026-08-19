@@ -2834,6 +2834,10 @@ exports.adminUpdateInquiryStatus =
 exports.adminUsersPage =
   async (req, res, next) => {
     try {
+      res.set(
+        "Cache-Control",
+        "no-store"
+      );
       return res.render(
         "admin-users",
         {
@@ -2898,6 +2902,10 @@ exports.adminAuditLogPage = async (req, res, next) => {
 exports.adminUserDetailPage =
   async (req, res, next) => {
     try {
+      res.set(
+        "Cache-Control",
+        "no-store"
+      );
       return res.render(
         "admin-user-detail",
         {
@@ -4589,11 +4597,31 @@ exports.expirePlacementExam =
             ) || 0,
         });
 
+      if (
+        !attempt.$locals
+          ?.wasAlreadyFinalized
+      ) {
+        const activityUser =
+          await recordStudyActivity(
+            req.session.user.id,
+            attempt.submittedAt ||
+              new Date(),
+            attempt.elapsedTimeMs
+          );
+        Object.assign(
+          req.session.user,
+          lifecycleSessionView(
+            activityUser
+          )
+        );
+      }
+
       return res.json({
         status: attempt.status,
-        expired:
+        expired: true,
+        autoSubmitted:
           attempt.status ===
-          "disqualified",
+          "submitted",
         redirectUrl:
           `/war-of-masters/placement/${attempt._id}`,
       });

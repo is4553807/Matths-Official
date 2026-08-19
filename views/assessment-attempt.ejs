@@ -268,7 +268,9 @@
             <p><%= isPlacement ? "GOAT Arena" : "평가 센터" %></p>
             <h1>
               <%= disqualified
-                ? "시간 초과 실격"
+                ? isPlacement
+                  ? "배치고사 처리 종료"
+                  : "시간 초과 실격"
                 : submitted
                   ? isPlacement
                     ? "배치고사 결과"
@@ -312,10 +314,14 @@
         ><%= formatCountdown(remainingTimeMs) %></strong>
         <small id="assessment-save-state">
           <%= disqualified
-            ? "제한 시간 초과 · 실격"
+            ? isPlacement
+              ? "배치고사 처리 종료"
+              : "제한 시간 초과 · 실격"
             : submitted
               ? "제출 완료 · 제출 시각 확정"
-              : "답안 자동 저장 · 0초에 자동 실격" %>
+              : isPlacement
+                ? "답안 자동 저장 · 0초에 자동 제출"
+                : "답안 자동 저장 · 0초에 자동 실격" %>
         </small>
       </div>
 
@@ -334,7 +340,9 @@
           <p><%= attempt.subtitle %></p>
           <p class="attempt-time-limit">
             제한 시간 <strong><%= timeLimitLabel %></strong>
-            · 시간이 끝나면 자동으로 실격 처리됩니다.
+            · <%= isPlacement
+              ? "시간이 끝나면 저장된 답안이 자동 제출·채점됩니다."
+              : "시간이 끝나면 자동으로 실격 처리됩니다." %>
           </p>
         </div>
 
