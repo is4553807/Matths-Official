@@ -540,7 +540,8 @@ exports.socialOAuthStart = async (req, res) => {
       req,
       res,
       error,
-      req.socialOAuthMobile === true
+      req.socialOAuthMobile === true,
+      req.params.provider
     );
   }
 };
@@ -583,11 +584,20 @@ exports.socialOAuthAppStart = (
   );
 };
 
+// 앱으로 되돌아가는 딥링크는 **provider 별로 다른 호스트 경로**를 쓴다.
+// matths://oauth/google 을 박아 두면 다른 provider 의 결과가 구글 콜백으로 돌아가
+// 앱이 어느 로그인을 끝낸 것인지 구분하지 못한다.
+function mobileCallbackURL(provider) {
+  const key = String(provider || "google").toLowerCase();
+  return new URL(`matths://oauth/${encodeURIComponent(key)}`);
+}
+
 async function redirectSocialAuthError(
   req,
   res,
   error,
-  mobile = false
+  mobile = false,
+  provider = "google"
 ) {
   const userSafeCodes = new Set([
     "SOCIAL_AUTH_NOT_CONFIGURED",
@@ -604,9 +614,7 @@ async function redirectSocialAuthError(
     : "소셜 로그인을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.";
 
   if (mobile) {
-    const url = new URL(
-      "matths://oauth/google"
-    );
+    const url = mobileCallbackURL(provider);
     url.searchParams.set(
       "error",
       message
@@ -627,7 +635,8 @@ async function finishSocialLogin(
   res,
   user,
   mobile,
-  codeChallenge = null
+  codeChallenge = null,
+  provider = "google"
 ) {
   if (mobile) {
     const code =
@@ -635,9 +644,7 @@ async function finishSocialLogin(
         user._id,
         { codeChallenge }
       );
-    const url = new URL(
-      "matths://oauth/google"
-    );
+    const url = mobileCallbackURL(provider);
     url.searchParams.set(
       "code",
       code
@@ -677,11 +684,15 @@ exports.socialOAuthCallback = async (req, res) => {
     mobile =
       context.mobile === true;
     const idPath = socialIdPath(profile.provider);
+    // select 를 googleId 로 박아 두면 안 된다. socialAuth 의 provider 필드는 전부
+    // select:false 라, 다른 provider 로 이 경로를 타면 아래 user.get(idPath) 가 항상
+    // undefined 가 되어 **"이미 다른 소셜 계정이 연결된 이메일" 가드가 조용히
+    // 무력화**되고 기존 연결을 덮어쓴다. 조회하는 필드와 select 하는 필드는 같아야 한다.
     const [providerUser, emailUser, parentAccount] = await Promise.all([
       User.findOne({ [idPath]: profile.providerUserId })
-        .select("+socialAuth.googleId"),
+        .select(`+${idPath}`),
       User.findOne({ email: profile.email })
-        .select("+socialAuth.googleId"),
+        .select(`+${idPath}`),
       ParentAccount.exists({ email: profile.email, isActive: true }),
     ]);
 
@@ -728,7 +739,8 @@ exports.socialOAuthCallback = async (req, res) => {
         synchronizedUser,
         mobile,
         context.codeChallenge ||
-          null
+          null,
+        profile.provider
       );
     }
 
@@ -758,7 +770,8 @@ exports.socialOAuthCallback = async (req, res) => {
       req,
       res,
       error,
-      mobile
+      mobile,
+      req.params.provider
     );
   }
 };
@@ -5250,8 +5263,12 @@ exports.register = async (req, res, next) => {
             passwordHash,
             ...(socialRegistration
               ? {
+                  // provider 와 무관하게 googleId 에 박으면 안 된다. 다른 provider 로
+                  // 가입한 사용자가 구글 자리에 저장되어, 다음 로그인 때 조회 키
+                  // (socialIdPath)와 어긋나 같은 사람이 매번 새 가입 흐름을 탄다.
                   socialAuth: {
-                    googleId: socialRegistration.providerUserId,
+                    [socialIdPath(socialRegistration.provider).split(".")[1]]:
+                      socialRegistration.providerUserId,
                   },
                   emailVerifiedAt: new Date(),
                 }
@@ -5334,7 +5351,8 @@ exports.register = async (req, res, next) => {
           user,
           mobileSocialRegistration,
           socialRegistration
-            ?.codeChallenge || null
+            ?.codeChallenge || null,
+          socialRegistration?.provider
         );
     } catch (error) {
         const pendingSocialRegistration =

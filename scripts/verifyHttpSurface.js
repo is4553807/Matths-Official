@@ -58,7 +58,10 @@ async function main() {
     assert.equal(providers.status, 200);
     assert.deepEqual(
       (await providers.json()).providers.map((item) => item.key),
-      ["google"]
+      // 심사지침 4.8 대응으로 Apple 이 추가됐다. 제3자 소셜 로그인만 있고
+      // 동등한 대안이 없으면 반려되므로, 이 목록에서 apple 이 사라지는 것은
+      // 기능 회귀가 아니라 **출시 차단 사유**다.
+      ["google", "apple"]
     );
 
     const invalidMobileStart = await fetch(

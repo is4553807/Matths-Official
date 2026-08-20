@@ -1,5 +1,9 @@
 const crypto = require("crypto");
 
+const {
+  appleProviderStatus,
+} = require("./appleAuthService");
+
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
 const SOCIAL_REGISTRATION_MAX_AGE_MS = 30 * 60 * 1000;
 
@@ -56,7 +60,7 @@ function providerConfig(provider) {
 }
 
 function publicProviderStatus() {
-  return Object.values(PROVIDERS).map((provider) => {
+  const oauthProviders = Object.values(PROVIDERS).map((provider) => {
     const config = providerConfig(provider.key);
     return {
       key: provider.key,
@@ -68,6 +72,18 @@ function publicProviderStatus() {
       ),
     };
   });
+
+  /*
+   * 애플은 PROVIDERS 에 넣지 않는다. 여기 있는 항목은 전부 "브라우저 왕복 +
+   * client_id/secret/redirect_uri" 를 전제로 하는데(providerConfig·beginSocialAuthorization),
+   * 애플 로그인은 앱의 네이티브 시트가 준 identityToken 을 서버가 검증하는 방식이라
+   * 그 셋 중 무엇도 쓰지 않는다. 같은 표에 넣으면 없는 웹 왕복 설정을 요구하게 되고
+   * configured 가 영원히 false 가 된다. 목록에만 합류시킨다.
+   */
+  return [
+    ...oauthProviders,
+    appleProviderStatus(),
+  ];
 }
 
 function assertConfigured(config) {
@@ -289,6 +305,9 @@ function clearPendingSocialRegistration(req) {
 
 function socialIdPath(provider) {
   if (provider === "google") return "socialAuth.googleId";
+  // 애플은 이 서비스의 웹 왕복 경로를 타지 않지만, provider → 사용자 필드 매핑은
+  // 한 곳에만 있어야 한다. 두 벌이 되면 한쪽만 고쳐진 채 조회 키가 갈린다.
+  if (provider === "apple") return "socialAuth.appleId";
   throw new Error("지원하지 않는 소셜 로그인 방식입니다.");
 }
 
