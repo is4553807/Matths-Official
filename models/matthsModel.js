@@ -145,6 +145,12 @@ const userSchema = new Schema(
         default: undefined,
         select: false,
       },
+      kakaoId: {
+        type: String,
+        trim: true,
+        default: undefined,
+        select: false,
+      },
     },
 
     emailVerifiedAt: {
@@ -540,6 +546,16 @@ userSchema.index(
     unique: true,
     partialFilterExpression: {
       "socialAuth.googleId": { $type: "string" },
+    },
+  }
+);
+userSchema.index(
+  { "socialAuth.kakaoId": 1 },
+  {
+    unique: true,
+    name: "socialAuth_kakaoId_unique_v1",
+    partialFilterExpression: {
+      "socialAuth.kakaoId": { $type: "string" },
     },
   }
 );

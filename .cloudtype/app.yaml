@@ -14,6 +14,8 @@ options:
       value: https://www.matths.kr
     - name: GOOGLE_OAUTH_REDIRECT_URI
       value: https://www.matths.kr/auth/google/callback
+    - name: KAKAO_OAUTH_REDIRECT_URI
+      value: https://www.matths.kr/auth/kakao/callback
     - name: CANONICAL_REDIRECT_SOURCE_HOST
       value: matths.kr
     - name: CANONICAL_HOST

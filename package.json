@@ -10,6 +10,7 @@
     "start": "node server.js",
     "ipad-server-surface:verify": "node scripts/verifyIpadServerSurface.js",
     "oauth-mobile:verify": "node scripts/verifyMobileGoogleOAuth.js",
+    "oauth-kakao:verify": "node scripts/verifyKakaoOAuth.js",
     "email:verify": "node scripts/verifyEmailConfig.js",
     "email-routing:verify": "node scripts/verifyOperatorEmailRouting.js",
     "support-email-routing:verify": "node scripts/verifySupportEmailRouting.js",

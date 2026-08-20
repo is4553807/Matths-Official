@@ -751,12 +751,39 @@ select:focus-visible {
   transform: translateY(-1px);
 }
 
+.social-auth-button.is-disabled,
+.social-auth-button.is-disabled:hover {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+  transform: none;
+}
+
 .social-auth-button.is-google {
   color: #303443;
   background: #fff;
 }
 
 .social-auth-google-mark {
+  width: 20px;
+  height: 20px;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.social-auth-button.is-kakao {
+  color: #191919;
+  background: #fee500;
+  border-color: #fee500;
+}
+
+.social-auth-button.is-kakao:hover {
+  background: #f4dc00;
+  border-color: #f4dc00;
+}
+
+.social-auth-kakao-mark {
   width: 20px;
   height: 20px;
   display: block;

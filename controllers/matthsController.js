@@ -356,6 +356,8 @@ const {
 const bcrypt = require('bcrypt');
 const crypto = require("crypto");
 const BCRYPT_ROUNDS = 12;
+const SOCIAL_AUTH_SELECT =
+  "+socialAuth.googleId +socialAuth.kakaoId";
 
 exports.mainPage = (req,res) => {
     res.render('index', {
@@ -673,9 +675,9 @@ exports.socialOAuthCallback = async (req, res) => {
     const idPath = socialIdPath(profile.provider);
     const [providerUser, emailUser, parentAccount] = await Promise.all([
       User.findOne({ [idPath]: profile.providerUserId })
-        .select("+socialAuth.googleId"),
+        .select(SOCIAL_AUTH_SELECT),
       User.findOne({ email: profile.email })
-        .select("+socialAuth.googleId"),
+        .select(SOCIAL_AUTH_SELECT),
       ParentAccount.exists({ email: profile.email, isActive: true }),
     ]);
 
@@ -5161,9 +5163,16 @@ exports.register = async (req, res, next) => {
             );
         }
 
+        const socialIdentityPath = socialRegistration
+          ? socialIdPath(socialRegistration.provider)
+          : "";
+        const socialIdentityField = socialIdentityPath.replace(
+          /^socialAuth\./,
+          ""
+        );
         const socialIdentityQuery = socialRegistration
           ? {
-              [socialIdPath(socialRegistration.provider)]:
+              [socialIdentityPath]:
                 socialRegistration.providerUserId,
             }
           : { _id: null };
@@ -5239,7 +5248,8 @@ exports.register = async (req, res, next) => {
             ...(socialRegistration
               ? {
                   socialAuth: {
-                    googleId: socialRegistration.providerUserId,
+                    [socialIdentityField]:
+                      socialRegistration.providerUserId,
                   },
                   emailVerifiedAt: new Date(),
                 }
@@ -5405,7 +5415,10 @@ exports.register = async (req, res, next) => {
 
         if (
           error.code === 11000 &&
-          error.keyPattern?.["socialAuth.googleId"]
+          (
+            error.keyPattern?.["socialAuth.googleId"] ||
+            error.keyPattern?.["socialAuth.kakaoId"]
+          )
         ) {
           return renderRegisterError(
             res,

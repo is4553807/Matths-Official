@@ -18,6 +18,12 @@ const validProductionEnvironment = {
     "runtime-google-secret",
   GOOGLE_OAUTH_REDIRECT_URI:
     "https://www.matths.kr/auth/google/callback",
+  KAKAO_OAUTH_REST_API_KEY:
+    "runtime-kakao-rest-api-key",
+  KAKAO_OAUTH_CLIENT_SECRET:
+    "runtime-kakao-client-secret",
+  KAKAO_OAUTH_REDIRECT_URI:
+    "https://www.matths.kr/auth/kakao/callback",
   CLOUDINARY_URL: "cloudinary://key:secret@example",
   R2_ACCOUNT_ID: "account",
   R2_ACCESS_KEY_ID: "access",
@@ -55,6 +61,21 @@ async function main() {
       (item) =>
         item.includes(
           "GOOGLE_OAUTH_REDIRECT_URI"
+        )
+    )
+  );
+
+  const invalidKakaoRedirectReport =
+    runtimeEnvironmentReport({
+      ...validProductionEnvironment,
+      KAKAO_OAUTH_REDIRECT_URI:
+        "https://matths.kr/auth/kakao/callback",
+    });
+  assert.ok(
+    invalidKakaoRedirectReport.errors.some(
+      (item) =>
+        item.includes(
+          "KAKAO_OAUTH_REDIRECT_URI"
         )
     )
   );

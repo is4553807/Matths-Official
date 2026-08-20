@@ -58,7 +58,7 @@ async function main() {
     assert.equal(providers.status, 200);
     assert.deepEqual(
       (await providers.json()).providers.map((item) => item.key),
-      ["google"]
+      ["google", "kakao"]
     );
 
     const invalidMobileStart = await fetch(
@@ -158,6 +158,10 @@ async function verifyInProcess() {
   assert.match(
     providers.body,
     /"key":"google"/
+  );
+  assert.match(
+    providers.body,
+    /"key":"kakao"/
   );
 
   const invalidMobileStart =

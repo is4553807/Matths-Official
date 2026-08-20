@@ -7,6 +7,8 @@ const PROVIDERS = Object.freeze({
   google: {
     key: "google",
     label: "Google",
+    idPath: "socialAuth.googleId",
+    testEnvPrefix: "GOOGLE_OAUTH",
     clientIdEnv: "GOOGLE_OAUTH_CLIENT_ID",
     clientSecretEnv: "GOOGLE_OAUTH_CLIENT_SECRET",
     redirectUriEnv: "GOOGLE_OAUTH_REDIRECT_URI",
@@ -14,6 +16,19 @@ const PROVIDERS = Object.freeze({
     tokenUrl: "https://oauth2.googleapis.com/token",
     profileUrl: "https://openidconnect.googleapis.com/v1/userinfo",
     scope: "openid email profile",
+  },
+  kakao: {
+    key: "kakao",
+    label: "카카오",
+    idPath: "socialAuth.kakaoId",
+    testEnvPrefix: "KAKAO_OAUTH",
+    clientIdEnv: "KAKAO_OAUTH_REST_API_KEY",
+    clientSecretEnv: "KAKAO_OAUTH_CLIENT_SECRET",
+    redirectUriEnv: "KAKAO_OAUTH_REDIRECT_URI",
+    authorizeUrl: "https://kauth.kakao.com/oauth/authorize",
+    tokenUrl: "https://kauth.kakao.com/oauth/token",
+    profileUrl: "https://kapi.kakao.com/v2/user/me",
+    scope: "account_email",
   },
 });
 
@@ -25,22 +40,22 @@ function providerConfig(provider) {
     error.code = "SOCIAL_AUTH_PROVIDER_NOT_FOUND";
     throw error;
   }
+  const testEnvPrefix =
+    definition.testEnvPrefix ||
+    `${definition.key.toUpperCase()}_OAUTH`;
   const testOverrides =
     process.env.NODE_ENV === "test"
       ? {
           authorizeUrl: String(
-            process.env
-              .GOOGLE_OAUTH_TEST_AUTHORIZE_URL ||
+            process.env[`${testEnvPrefix}_TEST_AUTHORIZE_URL`] ||
               definition.authorizeUrl
           ),
           tokenUrl: String(
-            process.env
-              .GOOGLE_OAUTH_TEST_TOKEN_URL ||
+            process.env[`${testEnvPrefix}_TEST_TOKEN_URL`] ||
               definition.tokenUrl
           ),
           profileUrl: String(
-            process.env
-              .GOOGLE_OAUTH_TEST_PROFILE_URL ||
+            process.env[`${testEnvPrefix}_TEST_PROFILE_URL`] ||
               definition.profileUrl
           ),
         }
@@ -192,6 +207,19 @@ async function fetchProviderProfile(config, accessToken, fetchImpl = fetch) {
     headers: { authorization: `Bearer ${accessToken}` },
   });
   const raw = await responseJson(response, config.label, "계정 조회");
+  if (config.key === "kakao") {
+    const account = raw.kakao_account || {};
+    return {
+      provider: config.key,
+      providerUserId: String(raw.id || ""),
+      email: String(account.email || "").trim().toLowerCase(),
+      emailVerified:
+        account.email_needs_agreement !== true &&
+        account.is_email_valid === true &&
+        account.is_email_verified === true,
+      displayName: String(account.profile?.nickname || "").trim(),
+    };
+  }
   return {
     provider: config.key,
     providerUserId: String(raw.sub || ""),
@@ -288,8 +316,11 @@ function clearPendingSocialRegistration(req) {
 }
 
 function socialIdPath(provider) {
-  if (provider === "google") return "socialAuth.googleId";
-  throw new Error("지원하지 않는 소셜 로그인 방식입니다.");
+  const definition = PROVIDERS[String(provider || "").toLowerCase()];
+  if (definition?.idPath) return definition.idPath;
+  const error = new Error("지원하지 않는 소셜 로그인 방식입니다.");
+  error.code = "SOCIAL_AUTH_PROVIDER_NOT_FOUND";
+  throw error;
 }
 
 module.exports = {
