@@ -18,6 +18,31 @@ options:
       value: matths.kr
     - name: CANONICAL_HOST
       value: www.matths.kr
+    # ── 애플 로그인 · 인앱 결제 ────────────────────────────────────────────
+    # 여기 있는 값은 전부 **비밀이 아니다.** Team ID 는 모든 앱 바이너리에 박혀
+    # 나가고, Key ID 는 개인키 없이는 아무 의미가 없는 식별자다.
+    #
+    # APPLE_PRIVATE_KEY(.p8 내용)만 비밀이라 여기 두지 않는다.
+    # 그 값은 Cloudtype 시크릿에 손으로 넣어야 한다 — 저장소에 들어가는 순간
+    # 커밋 이력에 영구히 남는다.
+    - name: APPLE_BUNDLE_ID
+      value: kr.matths.app
+    # 심사자는 샌드박스 계정으로 결제한다. false 면 심사자가 유료 기능을 하나도
+    # 보지 못하고 그대로 반려된다. 출시 승인 뒤에 false 로 내린다.
+    - name: APPLE_ALLOW_SANDBOX
+      value: "true"
+    - name: APPLE_TEAM_ID
+      value: 64U874RU4D
+    # Sign in with Apple 키. APNs 키(NVTXZ5XRN8)와 헷갈리지 말 것 —
+    # 이 값과 짝이 맞는 .p8 을 넣어야 하고, 어긋나면 로그인은 되는데
+    # 탈퇴 시 토큰 폐기만 조용히 실패한다.
+    - name: APPLE_KEY_ID
+      value: 9QKK29V5FQ
+    # 애플 수수료 유보율(bps). 3000 = 30%.
+    # Small Business Program 신청함(2026-08-21). 승인되면 1500 으로 내린다.
+    # 0 은 코드가 거부한다 — 애플 몫 전액이 출금가능액으로 새는 것을 막는 하한.
+    - name: FINANCE_APPLE_FEE_RESERVE_BPS
+      value: "3000"
   install: npm ci --omit=dev --no-audit
   ports: 8000/http
   start: npm start
