@@ -53,7 +53,37 @@ exports.redeem = async (req, res, next) => {
 exports.notifications = async (req, res) => {
   const signedPayload = req.body?.signedPayload;
   if (!signedPayload || typeof signedPayload !== "string") {
-    // 애플이 보낸 것이 아니다. 재시도 받을 이유가 없다.
+    /*
+     * V1 통지를 알아보고 **큰 소리로** 말한다.
+     *
+     * App Store Connect 의 통지 설정에는 버전 선택이 있고, 그 선택은 URL 을 처음
+     * 등록할 때(Set Up URL) 한 번만 묻는다. 나중에 Edit 로 열면 URL 만 보이고
+     * 버전은 안 나온다 — 즉 **잘못 고른 것을 화면에서 확인할 방법이 없다.**
+     *
+     * V1 은 서명 없는 평문 JSON 이라 signedPayload 가 아예 없다. 그대로 두면
+     * "본문 없음" 과 구분이 안 되는 400 으로 사라지고, 환불 통지가 며칠 재시도
+     * 끝에 조용히 버려진다. 그 사고는 로그를 뒤져도 원인이 안 보인다.
+     *
+     * 그래서 V1 의 표식을 직접 찾아 무엇이 잘못됐는지 이름을 붙여 남긴다.
+     */
+    const body = req.body || {};
+    const looksLikeV1 =
+      typeof body.notification_type === "string" ||
+      body.unified_receipt !== undefined ||
+      body.auto_renew_product_id !== undefined;
+
+    if (looksLikeV1) {
+      console.error(
+        "[apple] **V1 통지가 도착했습니다.** 서버는 V2 만 처리합니다. " +
+        "App Store Connect → 앱 정보 → App Store Server Notifications 에서 " +
+        "URL 을 지우고 Set Up URL 로 다시 등록하면서 Version 2 를 고르십시오. " +
+        "이 상태로 두면 환불·취소 통지가 전부 버려집니다. (type=%s)",
+        body.notification_type || "unknown"
+      );
+      // 400 을 준다. 재시도해도 우리가 V1 을 처리하게 되지는 않는다.
+      return res.status(400).json({ received: false, reason: "V2_REQUIRED" });
+    }
+
     return res.status(400).json({ received: false });
   }
 
