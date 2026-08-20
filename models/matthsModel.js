@@ -145,6 +145,12 @@ const userSchema = new Schema(
         default: undefined,
         select: false,
       },
+      kakaoId: {
+        type: String,
+        trim: true,
+        default: undefined,
+        select: false,
+      },
     },
 
     emailVerifiedAt: {
@@ -540,6 +546,16 @@ userSchema.index(
     unique: true,
     partialFilterExpression: {
       "socialAuth.googleId": { $type: "string" },
+    },
+  }
+);
+userSchema.index(
+  { "socialAuth.kakaoId": 1 },
+  {
+    unique: true,
+    name: "socialAuth_kakaoId_unique_v1",
+    partialFilterExpression: {
+      "socialAuth.kakaoId": { $type: "string" },
     },
   }
 );
@@ -6187,7 +6203,14 @@ const archiveFolderSchema =
             },
             accessLevel: {
                 type: String,
-                enum: ["AUTHENTICATED", "PAID_PACKAGE"],
+                enum: [
+                    "AUTHENTICATED",
+                    "MOCK_EXAM_PACKAGE",
+                    "LEARNING_PACKAGE",
+                    // 기존 운영 데이터 호환용입니다. 서비스 계층에서는
+                    // LEARNING_PACKAGE로 정규화하며 새로 저장하지 않습니다.
+                    "PAID_PACKAGE",
+                ],
                 default: "AUTHENTICATED",
                 index: true,
             },

@@ -76,6 +76,9 @@ function runtimeEnvironmentReport(environment = process.env) {
     "GOOGLE_OAUTH_CLIENT_ID",
     "GOOGLE_OAUTH_CLIENT_SECRET",
     "GOOGLE_OAUTH_REDIRECT_URI",
+    "KAKAO_OAUTH_REST_API_KEY",
+    "KAKAO_OAUTH_CLIENT_SECRET",
+    "KAKAO_OAUTH_REDIRECT_URI",
   ]) {
     requireValue(
       key,
@@ -101,6 +104,18 @@ function runtimeEnvironmentReport(environment = process.env) {
   ) {
     errors.push(
       `GOOGLE_OAUTH_REDIRECT_URI는 ${expectedGoogleRedirect || "PUBLIC_BASE_URL 기반 callback"}이어야 합니다.`
+    );
+  }
+  const expectedKakaoRedirect =
+    valueOf(environment, "PUBLIC_BASE_URL")
+      ? `${valueOf(environment, "PUBLIC_BASE_URL").replace(/\/$/, "")}/auth/kakao/callback`
+      : "";
+  if (
+    valueOf(environment, "KAKAO_OAUTH_REDIRECT_URI") &&
+    valueOf(environment, "KAKAO_OAUTH_REDIRECT_URI") !== expectedKakaoRedirect
+  ) {
+    errors.push(
+      `KAKAO_OAUTH_REDIRECT_URI는 ${expectedKakaoRedirect || "PUBLIC_BASE_URL 기반 callback"}이어야 합니다.`
     );
   }
 

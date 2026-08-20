@@ -1393,6 +1393,23 @@ router.get(
   }
 );
 
+router.get(
+  "/auth/kakao",
+  authMiddleware.isLoggedOut,
+  (req, res, next) => {
+    req.params.provider = "kakao";
+    return matthsController.socialOAuthStart(req, res, next);
+  }
+);
+router.get(
+  "/auth/kakao/callback",
+  authMiddleware.isSocialOAuthCallbackAllowed,
+  (req, res) => {
+    req.params.provider = "kakao";
+    return matthsController.socialOAuthCallback(req, res);
+  }
+);
+
 router.get('/register', matthsController.registerPage);
 
 router.post(

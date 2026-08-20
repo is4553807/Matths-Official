@@ -49,6 +49,8 @@ const PLACEMENT_TERMINAL_STATUSES = [
   "abandoned",
   "disqualified",
 ];
+let placementExpiryTimer = null;
+let placementExpiryRunning = false;
 
 async function placementAttemptContext(userId, now = new Date()) {
   const [accessState, initialAttemptExists] = await Promise.all([
@@ -662,123 +664,50 @@ function touchQuestionTiming(
     close ? null : now;
 }
 
-async function disqualify(
+async function autoSubmitExpiredPlacementAttempt(
   attempt,
   answers = {},
   timing = {}
 ) {
   if (
+    attempt.status ===
+      "disqualified" &&
+    attempt.disqualifiedReason ===
+      "time-limit"
+  ) {
+    /*
+     * 과거 버전은 제한시간 종료를 실격으로 저장했다. 현재 정책은
+     * 마감 시점까지 저장된 답안을 자동 제출·채점하므로, 해당 레거시
+     * 기록도 같은 제출 파이프라인으로 복구할 수 있게 한다.
+     */
+    attempt.status =
+      "in-progress";
+    attempt.disqualifiedReason =
+      null;
+  }
+
+  if (
     attempt.status !==
     "in-progress"
   ) {
+    attempt.$locals.wasAlreadyFinalized =
+      true;
     return attempt;
   }
 
-  const now = new Date();
-  applyAnswers(
+  return finalizePlacementSubmission({
     attempt,
     answers,
-    now
-  );
-  touchQuestionTiming(
-    attempt,
-    {
-      ...timing,
-      close: true,
-      now,
-    }
-  );
-  const limit =
-    Number(
-      attempt.timeLimitMs
-    ) ||
-    PLACEMENT_TIME_LIMIT_MS;
-
-  attempt.status =
-    "disqualified";
-  attempt.disqualifiedReason =
-    "time-limit";
-  attempt.earnedPoints = 0;
-  attempt.scorePercent = 0;
-  attempt.passed = false;
-  attempt.submittedAt = new Date(
-    deadlineMs(attempt)
-  );
-  attempt.elapsedTimeMs = limit;
-  attempt.lastSavedAt = new Date();
-  attempt.placementResult = {
-    threePoint:
-      scoreBreakdown(0, 20),
-    fourPoint:
-      scoreBreakdown(0, 10),
-    semiKiller:
-      scoreBreakdown(0, 2, {
-        question20: false,
-        question21: false,
-      }),
-    killer:
-      scoreBreakdown(0, 2, {
-        question28: false,
-        question30: false,
-      }),
-    keyQuestions:
-      KEY_QUESTION_NUMBERS.map(
-        (questionNumber) => ({
-          questionNumber,
-          answered: false,
-          correct: false,
-        })
-      ),
-    question20Correct: null,
-    question21Correct: null,
-    question28Correct: null,
-    question30Correct: null,
-    answeredCount:
-      answeredCount(attempt),
-    unansweredCount:
-      Math.max(
-        0,
-        30 -
-          answeredCount(attempt)
-      ),
-    totalScore: 0,
-    totalPercentile: null,
-    abilityProfile: {
-      coreAbility: 0,
-      advancedAbilityBeforeVerification:
-        0,
-      advancedAbilityAfterVerification:
-        null,
-      consistency: 0,
-      placementConfidence: 0,
-      basicStability: 0,
-      possibleMistakeCount: 0,
-      confirmedConceptGapCount:
-        0,
-    },
-    verification: {
-      required: false,
-      flagScore: 0,
-      reasons: [],
-      correct: 0,
-      total: 0,
-      result: "not-required",
-    },
-    placementScore: 0,
-    initialMmr: null,
-    tier: "",
-    rankingStatus:
-      "provisional",
-    matchesUntilConfirmed: 2,
-    cohortSize: 0,
-    cohortAverage: null,
-    percentile: null,
-    initialRating: null,
-    initialTier: "",
-  };
-
-  await attempt.save();
-  return attempt;
+    activeQuestionId:
+      timing.activeQuestionId || "",
+    currentQuestionIndex:
+      Number(
+        timing.currentQuestionIndex
+      ) || 0,
+    submittedAt: new Date(
+      deadlineMs(attempt)
+    ),
+  });
 }
 
 async function expireOverdueForUser(
@@ -788,14 +717,222 @@ async function expireOverdueForUser(
     await AssessmentAttempt.find({
       userId,
       scopeType: "placement",
-      status: "in-progress",
+      $or: [
+        {
+          status:
+            "in-progress",
+        },
+        {
+          status:
+            "disqualified",
+          disqualifiedReason:
+            "time-limit",
+        },
+      ],
     });
 
+  let expiredCount = 0;
+
   for (const attempt of active) {
-    if (isOverdue(attempt)) {
-      await disqualify(attempt);
+    if (
+      isOverdue(attempt) ||
+      (
+        attempt.status ===
+          "disqualified" &&
+        attempt.disqualifiedReason ===
+          "time-limit"
+      )
+    ) {
+      await autoSubmitExpiredPlacementAttempt(
+        attempt
+      );
+      expiredCount += 1;
     }
   }
+
+  const pendingVerifications =
+    await AssessmentAttempt.find({
+      userId,
+      scopeType: "placement",
+      status: "submitted",
+      "placementResult.verification.result":
+        "pending",
+      "placementResult.verification.startedAt": {
+        $ne: null,
+      },
+    });
+
+  for (const attempt of
+    pendingVerifications) {
+    if (
+      Date.now() >=
+      verificationDeadlineMs(
+        attempt
+      )
+    ) {
+      await finalizePlacementVerificationAttempt({
+        attempt,
+      });
+      expiredCount += 1;
+    }
+  }
+
+  return expiredCount;
+}
+
+async function expireAllOverduePlacementAttempts({
+  now = new Date(),
+} = {}) {
+  if (placementExpiryRunning) {
+    return {
+      skipped: true,
+      reason: "LOCAL_RUN_IN_PROGRESS",
+      finalizedCount: 0,
+    };
+  }
+
+  placementExpiryRunning = true;
+  try {
+    const candidates =
+      await AssessmentAttempt.find({
+        scopeType: "placement",
+        $or: [
+          {
+            status: "in-progress",
+            $expr: {
+              $lte: [
+                {
+                  $add: [
+                    "$startedAt",
+                    {
+                      $ifNull: [
+                        "$timeLimitMs",
+                        PLACEMENT_TIME_LIMIT_MS,
+                      ],
+                    },
+                  ],
+                },
+                now,
+              ],
+            },
+          },
+          {
+            status: "disqualified",
+            disqualifiedReason:
+              "time-limit",
+          },
+          {
+            status: "submitted",
+            "placementResult.verification.result":
+              "pending",
+            "placementResult.verification.startedAt": {
+              $ne: null,
+            },
+            $expr: {
+              $lte: [
+                {
+                  $add: [
+                    "$placementResult.verification.startedAt",
+                    {
+                      $ifNull: [
+                        "$placementResult.verification.timeLimitMs",
+                        40 * 60 * 1000,
+                      ],
+                    },
+                  ],
+                },
+                now,
+              ],
+            },
+          },
+        ],
+      });
+    let finalizedCount = 0;
+    const nowMs = new Date(now).getTime();
+
+    for (const attempt of candidates) {
+      if (
+        isOverdue(
+          attempt,
+          nowMs
+        ) ||
+        (
+          attempt.status ===
+            "disqualified" &&
+          attempt.disqualifiedReason ===
+            "time-limit"
+        )
+      ) {
+        await autoSubmitExpiredPlacementAttempt(
+          attempt
+        );
+        finalizedCount += 1;
+        continue;
+      }
+
+      if (
+        isVerificationPending(
+          attempt
+        ) &&
+        nowMs >=
+          verificationDeadlineMs(
+            attempt
+          )
+      ) {
+        await finalizePlacementVerificationAttempt({
+          attempt,
+        });
+        finalizedCount += 1;
+      }
+    }
+
+    return {
+      skipped: false,
+      finalizedCount,
+    };
+  } finally {
+    placementExpiryRunning = false;
+  }
+}
+
+function startPlacementExamExpiryScheduler({
+  intervalMs = 30 * 1000,
+} = {}) {
+  if (placementExpiryTimer) {
+    return placementExpiryTimer;
+  }
+
+  const run = () =>
+    require("./schedulerLeaseService")
+      .withSchedulerLease(
+        {
+          name:
+            "PLACEMENT_EXAM_EXPIRY",
+          leaseMs:
+            5 * 60 * 1000,
+        },
+        () =>
+          expireAllOverduePlacementAttempts()
+      );
+
+  run().catch((error) => {
+    console.error(
+      "배치고사 자동 제출 초기화 실패:",
+      error
+    );
+  });
+  placementExpiryTimer =
+    setInterval(() => {
+      run().catch((error) => {
+        console.error(
+          "배치고사 자동 제출 처리 실패:",
+          error
+        );
+      });
+    }, intervalMs);
+  placementExpiryTimer.unref?.();
+
+  return placementExpiryTimer;
 }
 
 function tierForRating(rating) {
@@ -2197,9 +2334,9 @@ async function savePlacementDraft({
   }
 
   if (isOverdue(attempt)) {
-    await disqualify(
+    await autoSubmitExpiredPlacementAttempt(
       attempt,
-      answers,
+      {},
       {
         activeQuestionId,
         currentQuestionIndex,
@@ -2289,6 +2426,8 @@ async function expirePlacementAttempt({
       attempt
     )
   ) {
+    attempt.$locals.wasAlreadyFinalized =
+      true;
     const remaining =
       verificationDeadlineMs(
         attempt
@@ -2316,6 +2455,8 @@ async function expirePlacementAttempt({
     attempt.status !==
     "in-progress"
   ) {
+    attempt.$locals.wasAlreadyFinalized =
+      true;
     return attempt;
   }
 
@@ -2333,9 +2474,9 @@ async function expirePlacementAttempt({
     throw error;
   }
 
-  return disqualify(
+  return autoSubmitExpiredPlacementAttempt(
     attempt,
-    answers,
+    {},
     {
       activeQuestionId,
       currentQuestionIndex,
@@ -2343,64 +2484,15 @@ async function expirePlacementAttempt({
   );
 }
 
-async function submitPlacementAttempt({
-  userId,
-  attemptId,
+async function finalizePlacementSubmission({
+  attempt,
   answers = {},
   activeQuestionId = "",
   currentQuestionIndex = 0,
+  submittedAt = new Date(),
 }) {
-  const attempt =
-    await findPlacementAttempt({
-      userId,
-      attemptId,
-    });
-
-  if (
-    isVerificationPending(
-      attempt
-    )
-  ) {
-    return finalizePlacementVerificationAttempt({
-      attempt,
-      answers,
-    });
-  }
-
-  if (
-    [
-      "submitted",
-      "disqualified",
-    ].includes(attempt.status)
-  ) {
-    if (
-      attempt.status === "submitted" &&
-      !isVerificationPending(attempt)
-    ) {
-      await ensureRankingProfile(
-        attempt.userId
-      );
-      await syncInitialArenaPlacement({
-        userId: attempt.userId,
-        attemptId: attempt._id,
-      });
-    }
-    return attempt;
-  }
-
-  if (isOverdue(attempt)) {
-    return disqualify(
-      attempt,
-      answers,
-      {
-        activeQuestionId,
-        currentQuestionIndex,
-      }
-    );
-  }
-
   const gradingStartedAt =
-    new Date();
+    new Date(submittedAt);
   applyAnswers(
     attempt,
     answers,
@@ -2507,15 +2599,14 @@ async function submitPlacementAttempt({
     }
   );
 
-  const submittedAt =
-    new Date();
-
   attempt.earnedPoints =
     earnedPoints;
   attempt.scorePercent =
     earnedPoints;
   attempt.passed = true;
   attempt.status = "submitted";
+  attempt.disqualifiedReason =
+    null;
   attempt.submittedAt =
     submittedAt;
   attempt.elapsedTimeMs =
@@ -2534,6 +2625,8 @@ async function submitPlacementAttempt({
     );
   attempt.lastSavedAt =
     submittedAt;
+  attempt.$locals.wasAlreadyFinalized =
+    false;
   const existingScoreRecords =
     await latestSubmittedScores(
       attempt.placementPurpose ||
@@ -2702,6 +2795,87 @@ async function submitPlacementAttempt({
   });
 
   return attempt;
+}
+
+async function submitPlacementAttempt({
+  userId,
+  attemptId,
+  answers = {},
+  activeQuestionId = "",
+  currentQuestionIndex = 0,
+}) {
+  const attempt =
+    await findPlacementAttempt({
+      userId,
+      attemptId,
+    });
+
+  if (
+    isVerificationPending(
+      attempt
+    )
+  ) {
+    return finalizePlacementVerificationAttempt({
+      attempt,
+      answers,
+    });
+  }
+
+  if (
+    attempt.status ===
+      "submitted"
+  ) {
+    attempt.$locals.wasAlreadyFinalized =
+      true;
+    await ensureRankingProfile(
+      attempt.userId
+    );
+    await syncInitialArenaPlacement({
+      userId: attempt.userId,
+      attemptId: attempt._id,
+    });
+    return attempt;
+  }
+
+  if (
+    attempt.status ===
+      "disqualified" &&
+    attempt.disqualifiedReason !==
+      "time-limit"
+  ) {
+    attempt.$locals.wasAlreadyFinalized =
+      true;
+    return attempt;
+  }
+
+  if (
+    attempt.status ===
+      "disqualified" &&
+    attempt.disqualifiedReason ===
+      "time-limit"
+  ) {
+    return autoSubmitExpiredPlacementAttempt(
+      attempt
+    );
+  }
+
+  if (isOverdue(attempt)) {
+    /*
+     * 마감 뒤 임의 POST로 답을 추가하지 못하게 수동 제출 본문의 신규
+     * 답안은 무시하고, 마감 전 서버에 자동 저장된 답안만 채점한다.
+     */
+    return autoSubmitExpiredPlacementAttempt(
+      attempt
+    );
+  }
+
+  return finalizePlacementSubmission({
+    attempt,
+    answers,
+    activeQuestionId,
+    currentQuestionIndex,
+    submittedAt: new Date(),
+  });
 }
 
 function normalizeAttempt(
@@ -2924,7 +3098,19 @@ async function getPlacementAttempt({
 
   if (isOverdue(attempt)) {
     attempt =
-      await disqualify(attempt);
+      await autoSubmitExpiredPlacementAttempt(
+        attempt
+      );
+  } else if (
+    attempt.status ===
+      "disqualified" &&
+    attempt.disqualifiedReason ===
+      "time-limit"
+  ) {
+    attempt =
+      await autoSubmitExpiredPlacementAttempt(
+        attempt
+      );
   }
 
   if (
@@ -3000,6 +3186,10 @@ module.exports = {
   assertPlacementExamAccess,
   getPlacementDashboardData,
   createPlacementAttempt,
+  expireOverduePlacementAttempts:
+    expireOverdueForUser,
+  expireAllOverduePlacementAttempts,
+  startPlacementExamExpiryScheduler,
   getPlacementAttempt,
   savePlacementDraft,
   expirePlacementAttempt,

@@ -58,10 +58,14 @@ async function main() {
     assert.equal(providers.status, 200);
     assert.deepEqual(
       (await providers.json()).providers.map((item) => item.key),
-      // 심사지침 4.8 대응으로 Apple 이 추가됐다. 제3자 소셜 로그인만 있고
-      // 동등한 대안이 없으면 반려되므로, 이 목록에서 apple 이 사라지는 것은
-      // 기능 회귀가 아니라 **출시 차단 사유**다.
-      ["google", "apple"]
+      // 순서는 publicProviderStatus() 가 만드는 순서다 — PROVIDERS 테이블
+      // (google, kakao) 뒤에 애플이 붙는다. 애플만 테이블 밖인 이유는
+      // socialAuthService 주석에 있다.
+      //
+      // apple 이 이 목록에서 사라지는 것은 기능 회귀가 아니라 **출시 차단 사유**다.
+      // 제3자 소셜 로그인만 있고 동등한 대안이 없으면 심사지침 4.8 로 반려된다.
+      // 카카오는 그 대안이 되지 못한다 — 이름·이메일 외 수집, 이메일 가리기 없음.
+      ["google", "kakao", "apple"]
     );
 
     const invalidMobileStart = await fetch(
@@ -161,6 +165,10 @@ async function verifyInProcess() {
   assert.match(
     providers.body,
     /"key":"google"/
+  );
+  assert.match(
+    providers.body,
+    /"key":"kakao"/
   );
 
   const invalidMobileStart =

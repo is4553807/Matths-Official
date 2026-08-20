@@ -536,7 +536,8 @@ async function main() {
           day: "2-digit",
         }).format(now),
         paidNormalAttacksCompleted: row.number % 3,
-        streakDays: row.division === "SUB" ? 29 : 0,
+        attackParticipationDays: row.division === "SUB" ? 15 : 0,
+        lastAttackParticipationDateKst: null,
       });
       initialLedgers.push({
         userId: user._id,

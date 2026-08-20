@@ -22,9 +22,13 @@ assert.match(
   cloudtype,
   /GOOGLE_OAUTH_REDIRECT_URI[\s\S]*https:\/\/www\.matths\.kr\/auth\/google\/callback/
 );
+assert.match(
+  cloudtype,
+  /KAKAO_OAUTH_REDIRECT_URI[\s\S]*https:\/\/www\.matths\.kr\/auth\/kakao\/callback/
+);
 assert.doesNotMatch(
   cloudtype,
-  /GOOGLE_OAUTH_CLIENT_(?:ID|SECRET)/
+  /GOOGLE_OAUTH_CLIENT_(?:ID|SECRET)|KAKAO_OAUTH_(?:REST_API_KEY|CLIENT_SECRET)/
 );
 
 for (const required of [

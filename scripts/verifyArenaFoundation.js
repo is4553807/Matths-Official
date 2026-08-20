@@ -483,6 +483,39 @@ assert.equal(
   ).canUseSub,
   true
 );
+const attackParticipationAccess = buildArenaAccess(
+  {
+    accountStatus: "active",
+    role: "student",
+  },
+  {
+    accessState: {
+      state: "PAID_ACTIVE",
+      currentCompetitiveDivision: "SUB",
+      currentSeasonPlacementCompleted: true,
+    },
+    accessCycle: {
+      availableLearningDays: 10,
+      attackParticipationDays: 15,
+      policySnapshot: {
+        initialLearningDays: 29,
+        payback: {
+          minimumAttackParticipationDays: 15,
+          minimumScoreDays: 30,
+        },
+      },
+    },
+  }
+);
+assert.equal(
+  attackParticipationAccess.learningRights.attackParticipationQualified,
+  true,
+  "공격 출석 15일은 이용 주기가 끝나기 전에도 달성으로 표시되어야 합니다."
+);
+assert.equal(
+  attackParticipationAccess.learningRights.attackParticipationDaysNeeded,
+  0
+);
 assert.equal(
   buildArenaAccess(
     {

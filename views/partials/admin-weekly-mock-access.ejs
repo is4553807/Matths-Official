@@ -1,0 +1,32 @@
+<%
+  const access = weeklyMockAccess || {};
+  const restriction = member.privateMockRestriction || {};
+  const entitled = access.active === true;
+  const restricted = entitled && restriction.active === true;
+  const state = !entitled ? "unavailable" : restricted ? "restricted" : "available";
+  const packageLabel = access.packageType === "MOCK_EXAM_ONLY"
+    ? "Matths 주간 공식 모의고사 이용권"
+    : access.packageType === "LEARNING_PACKAGE"
+      ? "29일 학습권 패키지"
+      : access.packageType === "SUPER_ADMIN"
+        ? "운영자 전체 권한"
+        : "활성 이용권";
+  const remainingWeeks = Number(
+    restriction.remainingWeekCount ||
+    restriction.remainingExamCount ||
+    0
+  );
+%>
+<article data-weekly-mock-access-state="<%= state %>">
+  <span>Matths 주간 공식 모의고사 권한</span>
+  <% if (!entitled) { %>
+    <strong>권한 없음</strong>
+    <small>모의고사 이용권 또는 29일 학습권 패키지가 필요합니다.</small>
+  <% } else if (restricted) { %>
+    <strong>권한 있음 · 응시 제한</strong>
+    <small><%= packageLabel %> · 남은 제한 <%= remainingWeeks %>회(<%= remainingWeeks %>주) · <%= restriction.reason || "사유 기록 없음" %></small>
+  <% } else { %>
+    <strong>응시 가능</strong>
+    <small><%= packageLabel %> · 적용 중인 제한 없음</small>
+  <% } %>
+</article>

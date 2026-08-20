@@ -14,8 +14,18 @@
     typeof socialAuthProviders !== "undefined" && Array.isArray(socialAuthProviders)
       ? socialAuthProviders
       : [];
-  const googleAuthReady =
-    socialProviders.some((provider) => provider.key === "google" && provider.configured);
+  const socialProviderConfigured = (key) =>
+    socialProviders.find((provider) => provider.key === key)?.configured === true;
+
+  /*
+   * 웹 로그인 화면에 버튼으로 노출하는 제공자만 추린다.
+   * 애플은 앱 네이티브 시트 전용이라 여기서 configured 를 따지면 안내문이 항상 뜬다.
+   */
+  const webSocialProviderKeys = ["google", "kakao"];
+  const googleAuthReady = socialProviderConfigured("google");
+  const kakaoAuthReady = socialProviderConfigured("kakao");
+  const socialAuthPending =
+    webSocialProviderKeys.some((key) => !socialProviderConfigured(key));
 %>
 
 <!doctype html>
@@ -44,6 +54,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
     <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
   </head>
 
   <body class="auth-page-login">
@@ -149,17 +160,43 @@
             </div>
           <% } %>
 
-          <% if (googleAuthReady) { %>
           <div class="social-auth" aria-label="간편 로그인">
             <div class="social-auth-buttons">
-              <a class="social-auth-button is-google" href="/auth/google">
+              <a
+                class="social-auth-button is-google<%= googleAuthReady ? '' : ' is-unavailable is-disabled' %>"
+                href="<%= googleAuthReady ? '/auth/google' : '#' %>"
+                aria-disabled="<%= googleAuthReady ? 'false' : 'true' %>"
+                <% if (!googleAuthReady) { %>tabindex="-1"<% } %>
+              >
                 <span class="social-auth-mark" aria-hidden="true"><%- include("partials/google-g-mark") %></span>
                 Google로 계속하기
               </a>
+
+              <a
+                class="social-auth-button is-kakao<%= kakaoAuthReady ? '' : ' is-unavailable is-disabled' %>"
+                href="<%= kakaoAuthReady ? '/auth/kakao' : '#' %>"
+                aria-disabled="<%= kakaoAuthReady ? 'false' : 'true' %>"
+                <% if (!kakaoAuthReady) { %>tabindex="-1"<% } %>
+              >
+                <span class="social-auth-mark" aria-hidden="true">
+                  <img
+                    class="social-auth-kakao-mark"
+                    src="/images/kakao-login-mark.svg"
+                    alt=""
+                    width="20"
+                    height="20"
+                  />
+                </span>
+                카카오로 계속하기
+              </a>
             </div>
+
+            <% if (socialAuthPending) { %>
+              <small class="social-auth-guide">운영 키가 설정되지 않은 로그인 방식은 아직 사용할 수 없습니다.</small>
+            <% } %>
+
             <div class="social-auth-divider"><span>이메일로 로그인</span></div>
           </div>
-          <% } %>
 
           <form
             class="auth-form"

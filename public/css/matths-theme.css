@@ -1125,12 +1125,36 @@ button.button-secondary {
 .admin-stat-card,
 .admin-user-card,
 .admin-inquiry-card,
-.admin-community-card,
-.admin-ranking-card {
+.admin-community-card {
   background: var(--matths-surface);
   border-color: var(--matths-line);
   border-radius: var(--matths-radius);
   box-shadow: var(--matths-shadow);
+}
+
+/* Ranking/current-learning cards are intentionally dark. Keep them out of the
+   generic light admin surface rule so white copy never becomes white-on-white. */
+.admin-page .admin-ranking-card {
+  color: #f8f9ff;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(64, 207, 255, 0.2), transparent 35%),
+    linear-gradient(135deg, #11172f 0%, #25205b 58%, #173b64 100%);
+  border: 1px solid rgba(108, 125, 222, 0.42);
+  border-radius: var(--matths-radius);
+  box-shadow: 0 18px 38px rgba(27, 34, 84, 0.2);
+}
+
+.admin-page .admin-ranking-card > strong,
+.admin-page .admin-ranking-card dd {
+  color: #fff;
+}
+
+.admin-page .admin-ranking-card > span {
+  color: #c8d1ff;
+}
+
+.admin-page .admin-ranking-card dt {
+  color: #b8c1df;
 }
 
 .admin-page :is(

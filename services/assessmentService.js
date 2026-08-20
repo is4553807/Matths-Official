@@ -2668,6 +2668,7 @@ async function expireOverdueAssessments(
       status: "in-progress",
     });
   const now = Date.now();
+  let expiredCount = 0;
 
   for (const attempt of
     attempts) {
@@ -2680,8 +2681,11 @@ async function expireOverdueAssessments(
       await disqualifyAssessmentDocument(
         attempt
       );
+      expiredCount += 1;
     }
   }
+
+  return expiredCount;
 }
 
 async function saveAssessmentDraft({
@@ -3386,6 +3390,8 @@ module.exports = {
   isCorrectAssessmentAnswer,
   getAssessmentCenterData,
   createAssessmentAttempt,
+  expireOverdueAssessmentAttempts:
+    expireOverdueAssessments,
   expireAssessmentAttempt,
   submitAssessmentAttempt,
   saveAssessmentDraft,

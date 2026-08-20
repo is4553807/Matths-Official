@@ -362,6 +362,12 @@ const {
 const bcrypt = require('bcrypt');
 const crypto = require("crypto");
 const BCRYPT_ROUNDS = 12;
+// 애플을 함께 넣는다. 지금은 AppleAuthCredential 컬렉션이 조회 정본이라 이 select
+// 없이도 로그인이 돌지만, socialAuth.appleId 로 사용자를 찾는 코드가 하나라도
+// 생기는 순간 select 에 빠진 필드는 **오류 없이 undefined** 로 온다. 그 버그는
+// 로그에도 안 남는다.
+const SOCIAL_AUTH_SELECT =
+  "+socialAuth.googleId +socialAuth.kakaoId +socialAuth.appleId";
 
 exports.mainPage = (req,res) => {
     res.render('index', {
@@ -690,9 +696,9 @@ exports.socialOAuthCallback = async (req, res) => {
     // 무력화**되고 기존 연결을 덮어쓴다. 조회하는 필드와 select 하는 필드는 같아야 한다.
     const [providerUser, emailUser, parentAccount] = await Promise.all([
       User.findOne({ [idPath]: profile.providerUserId })
-        .select(`+${idPath}`),
+        .select(SOCIAL_AUTH_SELECT),
       User.findOne({ email: profile.email })
-        .select(`+${idPath}`),
+        .select(SOCIAL_AUTH_SELECT),
       ParentAccount.exists({ email: profile.email, isActive: true }),
     ]);
 
@@ -1100,7 +1106,7 @@ exports.archiveAdminPage =
                   type:
                     "success",
                   message:
-                    "폴더 이름과 설명을 수정했습니다.",
+                    "폴더 이름·설명·접근 권한을 수정했습니다.",
                 }
               : req.query
                   .folderPinned ===
@@ -2853,6 +2859,10 @@ exports.adminUpdateInquiryStatus =
 exports.adminUsersPage =
   async (req, res, next) => {
     try {
+      res.set(
+        "Cache-Control",
+        "no-store"
+      );
       return res.render(
         "admin-users",
         {
@@ -2917,6 +2927,10 @@ exports.adminAuditLogPage = async (req, res, next) => {
 exports.adminUserDetailPage =
   async (req, res, next) => {
     try {
+      res.set(
+        "Cache-Control",
+        "no-store"
+      );
       return res.render(
         "admin-user-detail",
         {
@@ -4629,11 +4643,31 @@ exports.expirePlacementExam =
             ) || 0,
         });
 
+      if (
+        !attempt.$locals
+          ?.wasAlreadyFinalized
+      ) {
+        const activityUser =
+          await recordStudyActivity(
+            req.session.user.id,
+            attempt.submittedAt ||
+              new Date(),
+            attempt.elapsedTimeMs
+          );
+        Object.assign(
+          req.session.user,
+          lifecycleSessionView(
+            activityUser
+          )
+        );
+      }
+
       return res.json({
         status: attempt.status,
-        expired:
+        expired: true,
+        autoSubmitted:
           attempt.status ===
-          "disqualified",
+          "submitted",
         redirectUrl:
           `/war-of-masters/placement/${attempt._id}`,
       });
@@ -5186,9 +5220,16 @@ exports.register = async (req, res, next) => {
             );
         }
 
+        const socialIdentityPath = socialRegistration
+          ? socialIdPath(socialRegistration.provider)
+          : "";
+        const socialIdentityField = socialIdentityPath.replace(
+          /^socialAuth\./,
+          ""
+        );
         const socialIdentityQuery = socialRegistration
           ? {
-              [socialIdPath(socialRegistration.provider)]:
+              [socialIdentityPath]:
                 socialRegistration.providerUserId,
             }
           : { _id: null };
@@ -5267,7 +5308,7 @@ exports.register = async (req, res, next) => {
                   // 가입한 사용자가 구글 자리에 저장되어, 다음 로그인 때 조회 키
                   // (socialIdPath)와 어긋나 같은 사람이 매번 새 가입 흐름을 탄다.
                   socialAuth: {
-                    [socialIdPath(socialRegistration.provider).split(".")[1]]:
+                    [socialIdentityField]:
                       socialRegistration.providerUserId,
                   },
                   emailVerifiedAt: new Date(),
@@ -5435,7 +5476,10 @@ exports.register = async (req, res, next) => {
 
         if (
           error.code === 11000 &&
-          error.keyPattern?.["socialAuth.googleId"]
+          (
+            error.keyPattern?.["socialAuth.googleId"] ||
+            error.keyPattern?.["socialAuth.kakaoId"]
+          )
         ) {
           return renderRegisterError(
             res,

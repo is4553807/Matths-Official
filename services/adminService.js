@@ -53,6 +53,9 @@ const {
   getAdminPackageAccessSummary,
 } = require("./adminPackageAccessService");
 const {
+  getWeeklyMockExamAccess,
+} = require("./paidFeatureAccessService");
+const {
   getUserArenaBadges,
 } = require("./arenaBadgeService");
 const {
@@ -64,6 +67,16 @@ const {
 const {
   getFinanceDashboardData,
 } = require("./financeService");
+const {
+  findCurriculumConcept,
+  loadCurriculum,
+} = require("./curriculumService");
+const {
+  expireOverdueAssessmentAttempts,
+} = require("./assessmentService");
+const {
+  expireOverduePlacementAttempts,
+} = require("./placementExamService");
 const accountEmailCopy =
   require("../content/email/account");
 
@@ -990,6 +1003,7 @@ async function getAdminUsersData({
       "student",
       "teacher",
       "admin",
+      "test",
       "parent",
     ]);
 
@@ -1311,6 +1325,209 @@ async function getAdminAuditHistory({ page, adminUserId, query } = {}) {
   };
 }
 
+function adminLearningProgressView(item, curriculumData) {
+  if (!item) return null;
+  const curriculumConcept = findCurriculumConcept(
+    curriculumData,
+    item.courseId,
+    item.unitId,
+    item.conceptId
+  );
+
+  return {
+    ...item,
+    courseTitle:
+      curriculumConcept?.course?.officialTitle ||
+      curriculumConcept?.course?.title ||
+      item.courseId,
+    unitTitle:
+      curriculumConcept?.unit?.title || item.unitId,
+    conceptTitle:
+      curriculumConcept?.concept?.title || item.conceptId,
+    href: `/learn/${encodeURIComponent(item.courseId)}/${encodeURIComponent(item.unitId)}/${encodeURIComponent(item.conceptId)}`,
+  };
+}
+
+function selectCurrentLearningConcept({
+  currentProgressRecord = null,
+  progress = [],
+  curriculumData,
+}) {
+  const current = adminLearningProgressView(
+    currentProgressRecord,
+    curriculumData
+  );
+  if (current) return current;
+  const fallback =
+    progress.find((item) => item.status !== "completed") ||
+    progress[0] ||
+    null;
+  return adminLearningProgressView(fallback, curriculumData);
+}
+
+function assessmentAnsweredCount(attempt) {
+  const verification =
+    attempt?.placementResult
+      ?.verification;
+  const questions =
+    verification?.result ===
+      "pending"
+      ? verification.questions || []
+      : attempt?.questions || [];
+
+  return questions.filter(
+    (question) => {
+      const answer =
+        question?.submittedAnswer ??
+        question?.selectedAnswer;
+      return (
+        answer !== null &&
+        answer !== undefined &&
+        String(answer).trim() !== ""
+      );
+    }
+  ).length;
+}
+
+function adminAssessmentView(
+  attempt,
+  now = new Date()
+) {
+  if (!attempt) return null;
+  const verification =
+    attempt.placementResult
+      ?.verification;
+  const verificationPending =
+    attempt.scopeType ===
+      "placement" &&
+    attempt.status ===
+      "submitted" &&
+    verification?.result ===
+      "pending";
+  const startedAt =
+    verificationPending
+      ? verification.startedAt
+      : attempt.startedAt;
+  const timeLimitMs =
+    Number(
+      verificationPending
+        ? verification.timeLimitMs
+        : attempt.timeLimitMs
+    ) || 0;
+  const startedMs =
+    startedAt
+      ? new Date(
+          startedAt
+        ).getTime()
+      : 0;
+  const deadlineAt =
+    startedMs && timeLimitMs
+      ? new Date(
+          startedMs +
+            timeLimitMs
+        )
+      : null;
+  const remainingTimeMs =
+    deadlineAt
+      ? Math.max(
+          0,
+          deadlineAt.getTime() -
+            new Date(now).getTime()
+        )
+      : null;
+  const displayStatus =
+    verificationPending
+      ? "verification-required"
+      : attempt.status;
+  const disqualifiedReason =
+    attempt.disqualifiedReason ||
+    null;
+
+  return {
+    ...attempt,
+    displayStatus,
+    disqualifiedReason,
+    deadlineAt,
+    remainingTimeMs,
+    answeredCount:
+      assessmentAnsweredCount(
+        attempt
+      ),
+    hasFinalScore:
+      displayStatus ===
+      "submitted",
+  };
+}
+
+function buildAdminPlacementSummary({
+  assessments = [],
+  ranking = null,
+} = {}) {
+  const attempts =
+    assessments.filter(
+      (attempt) =>
+        attempt.scopeType ===
+        "placement"
+    );
+  const completed =
+    attempts.filter(
+      (attempt) =>
+        attempt.displayStatus ===
+        "submitted"
+    );
+  const active =
+    attempts.find((attempt) =>
+      [
+        "in-progress",
+        "verification-required",
+      ].includes(
+        attempt.displayStatus
+      )
+    ) || null;
+  const latestTerminal =
+    attempts.find((attempt) =>
+      [
+        "abandoned",
+        "disqualified",
+      ].includes(
+        attempt.displayStatus
+      )
+    ) || null;
+
+  return {
+    attemptCount:
+      attempts.length,
+    completedCount:
+      completed.length,
+    latestAttempt:
+      attempts[0] || null,
+    latestCompleted:
+      completed[0] || null,
+    active,
+    latestTerminal,
+    ranking,
+  };
+}
+
+async function synchronizeAdminAssessmentStatuses(
+  userId
+) {
+  const [assessmentExpired, placementExpired] =
+    await Promise.all([
+      expireOverdueAssessmentAttempts(
+        userId
+      ),
+      expireOverduePlacementAttempts(
+        userId
+      ),
+    ]);
+
+  return {
+    assessmentExpired,
+    placementExpired,
+  };
+}
+
 async function getAdminUserDetail(
   userId
 ) {
@@ -1340,6 +1557,11 @@ async function getAdminUserDetail(
     user.school?.code || ""
   ).trim();
   const isAdminProfile = user.role === "admin";
+  if (!isAdminProfile) {
+    await synchronizeAdminAssessmentStatuses(
+      userId
+    );
+  }
   const identityMatches =
     !isAdminProfile &&
     identityMatchHash &&
@@ -1362,6 +1584,7 @@ async function getAdminUserDetail(
 
   const [
     progress,
+    currentProgressRecord,
     progressCount,
     completedCount,
     problemStats,
@@ -1372,6 +1595,7 @@ async function getAdminUserDetail(
     actionLogs,
     communityPosts,
     packageAccess,
+    weeklyMockAccess,
     arenaBadges,
   ] = await Promise.all([
     isAdminProfile
@@ -1384,6 +1608,14 @@ async function getAdminUserDetail(
       })
       .limit(30)
       .lean(),
+    isAdminProfile
+      ? Promise.resolve(null)
+      : ConceptProgress.findOne({
+          userId,
+          status: "in-progress",
+        })
+          .sort({ lastStudiedAt: -1 })
+          .lean(),
     isAdminProfile
       ? Promise.resolve(0)
       : ConceptProgress.countDocuments({
@@ -1429,7 +1661,7 @@ async function getAdminUserDetail(
       userId,
     })
       .select(
-        "title scopeType status scorePercent elapsedTimeMs submittedAt createdAt placementResult.placementScore placementResult.initialMmr placementResult.tier"
+        "title scopeType placementPurpose status scorePercent earnedPoints totalPoints passed startedAt submittedAt elapsedTimeMs timeLimitMs disqualifiedReason questions.submittedAnswer questions.selectedAnswer createdAt placementResult"
       )
       .sort({
         createdAt: -1,
@@ -1483,6 +1715,9 @@ async function getAdminUserDetail(
       ? Promise.resolve(null)
       : getAdminPackageAccessSummary(userId),
     isAdminProfile
+      ? Promise.resolve(null)
+      : getWeeklyMockExamAccess(userId),
+    isAdminProfile
       ? Promise.resolve([])
       : getUserArenaBadges(userId),
   ]);
@@ -1492,11 +1727,34 @@ async function getAdminUserDetail(
       correct: 0,
       averageResponseTimeMs: 0,
     };
+  const curriculumData = isAdminProfile ? null : loadCurriculum();
+  const enrichedProgress = progress.map((item) =>
+    adminLearningProgressView(item, curriculumData)
+  );
+  const currentConcept = selectCurrentLearningConcept({
+    currentProgressRecord,
+    progress,
+    curriculumData,
+  });
+  const assessmentViews =
+    assessments.map((attempt) =>
+      adminAssessmentView(
+        attempt
+      )
+    );
+  const placement =
+    buildAdminPlacementSummary({
+      assessments:
+        assessmentViews,
+      ranking:
+        ranking.current,
+    });
 
   return {
     user,
     learning: {
-      progress,
+      progress: enrichedProgress,
+      currentConcept,
       progressCount,
       completedCount,
       totalAttempts:
@@ -1518,7 +1776,9 @@ async function getAdminUserDetail(
             0
         ),
     },
-    assessments,
+    assessments:
+      assessmentViews,
+    placement,
     inquiries,
     notifications,
     ranking:
@@ -1527,6 +1787,7 @@ async function getAdminUserDetail(
     communityPosts,
     identityMatches,
     packageAccess,
+    weeklyMockAccess,
     arenaBadges,
   };
 }
@@ -1677,6 +1938,10 @@ async function getAdminAssessmentDetail({
     );
   }
 
+  await synchronizeAdminAssessmentStatuses(
+    userId
+  );
+
   const [user, attempt] =
     await Promise.all([
       User.findById(userId)
@@ -1699,7 +1964,10 @@ async function getAdminAssessmentDetail({
 
   return {
     user,
-    attempt,
+    attempt:
+      adminAssessmentView(
+        attempt
+      ),
   };
 }
 
@@ -1744,6 +2012,14 @@ async function getAdminUserActivityData({
     allowedKinds.has(kind)
       ? kind
       : "learning";
+  if (
+    normalizedKind ===
+    "assessments"
+  ) {
+    await synchronizeAdminAssessmentStatuses(
+      user._id
+    );
+  }
   const currentPage = safePage(page);
   const filter = {
     userId: user._id,
@@ -2699,4 +2975,11 @@ module.exports = {
   updateUserNickname,
   updateUserRole,
   updateUserWarningCount,
+  _testing: {
+    adminAssessmentView,
+    adminLearningProgressView,
+    buildAdminPlacementSummary,
+    selectCurrentLearningConcept,
+    synchronizeAdminAssessmentStatuses,
+  },
 };

@@ -11,8 +11,6 @@ const {
   "../models/matthsModel"
 );
 const {
-  accessRightsAt,
-  cycleDayForDateKey,
   kstDateKey,
 } = require(
   "./accessCycleService"
@@ -39,9 +37,70 @@ const {
 } = require(
   "./goatArenaProductionMatchReadService"
 );
+const {
+  attackParticipationDays,
+  lastAttackParticipationDate,
+  minimumAttackParticipationDays,
+} = require(
+  "../constants/paybackParticipation"
+);
 
 const READ_MODEL_VERSION =
   "GOAT_ARENA_V1";
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function dateKeyDayNumber(dateKey) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey || ""))) {
+    return null;
+  }
+  const [year, month, day] = String(dateKey).split("-").map(Number);
+  const timestamp = Date.UTC(year, month - 1, day);
+  const date = new Date(timestamp);
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return Math.floor(timestamp / DAY_MS);
+}
+
+function cycleDayForDateKey(firstDateKey, targetDateKey) {
+  const firstDay = dateKeyDayNumber(firstDateKey);
+  const targetDay = dateKeyDayNumber(targetDateKey);
+  return firstDay === null || targetDay === null
+    ? null
+    : targetDay - firstDay + 1;
+}
+
+// GOAT_ARENA_V1의 이전 주기 모양도 읽을 수 있게 유지하는 변환기다.
+function accessRightsAt(cycle, now = new Date()) {
+  const startsAt = new Date(cycle?.paidAccessStartsOn);
+  const endsAt = new Date(cycle?.paidAccessEndsOn);
+  const target = new Date(now);
+  const cycleDay = Number.isFinite(startsAt.getTime())
+    ? cycleDayForDateKey(kstDateKey(startsAt), kstDateKey(target))
+    : null;
+  const paidAccessActive = Boolean(
+    Number.isFinite(startsAt.getTime()) &&
+      target >= startsAt &&
+      (!Number.isFinite(endsAt.getTime()) || target < endsAt)
+  );
+  const completionPassActive = cycleDay === 30;
+  const paidAccessDaysRemaining =
+    paidAccessActive && Number.isFinite(endsAt.getTime())
+      ? Math.max(0, cycleDayForDateKey(kstDateKey(target), kstDateKey(endsAt)) || 0)
+      : 0;
+  return {
+    cycleDay,
+    paidAccessActive,
+    completionPassActive,
+    learningAccessActive:
+      paidAccessActive || completionPassActive,
+    paidAccessDaysRemaining,
+  };
+}
 
 function asPlain(value) {
   if (!value) {
@@ -112,12 +171,14 @@ function cyclePhase(
 
 function conditionSnapshot({
   key,
+  semanticKey = null,
   current,
   required,
   met,
 }) {
   return {
     key,
+    ...(semanticKey ? { semanticKey } : {}),
     current:
       Number.isSafeInteger(current)
         ? current
@@ -142,7 +203,9 @@ function productionPolicyReadiness(policy) {
   const payback = source?.payback;
   const ready = Boolean(
     source &&
-      Number.isSafeInteger(payback?.minimumStreakDays) &&
+      Number.isSafeInteger(
+        minimumAttackParticipationDays(payback)
+      ) &&
       Number.isSafeInteger(payback?.minimumScoreDays) &&
       Array.isArray(payback?.bands) &&
       payback.bands.length > 0
@@ -241,8 +304,15 @@ function buildCycleSnapshot({
         source: "ACCESS_CYCLE_LEDGER_CACHE",
       },
       attendance: {
-        cycleStreakDays: Number(source.streakDays || 0),
-        lastRecognizedDate: source.lastStreakDateKst || null,
+        attackParticipationDays:
+          attackParticipationDays(source),
+        lastParticipationDate:
+          lastAttackParticipationDate(source),
+        // GOAT_ARENA_V1 wire 호환용 별칭이다.
+        cycleStreakDays:
+          attackParticipationDays(source),
+        lastRecognizedDate:
+          lastAttackParticipationDate(source),
       },
       challenges: {
         completed: challengeCount,
@@ -399,17 +469,19 @@ function buildPaybackProgress({
 
   if (isProductionCycle(source)) {
     const readiness = readinessForPolicy(policy);
-    const minimumStreakDays = Number(
-      policy?.payback?.minimumStreakDays ??
-        source.policySnapshot?.payback?.minimumStreakDays ??
-        29
-    );
+    const minimumParticipationDays =
+      minimumAttackParticipationDays(
+        policy?.payback ||
+          source.policySnapshot?.payback ||
+          {}
+      );
     const minimumScoreDays = Number(
       policy?.payback?.minimumScoreDays ??
         source.policySnapshot?.payback?.minimumScoreDays ??
         30
     );
-    const streakDays = Number(source.streakDays || 0);
+    const participationDays =
+      attackParticipationDays(source);
     const scoreDays = Number(source.paybackScoreDays || 0);
     const integrityBlocked = (
       source.paybackDisqualifiers || []
@@ -445,9 +517,10 @@ function buildPaybackProgress({
     const conditions = [
       conditionSnapshot({
         key: "CYCLE_ATTENDANCE",
-        current: streakDays,
-        required: minimumStreakDays,
-        met: streakDays >= minimumStreakDays,
+        semanticKey: "ATTACK_PARTICIPATION",
+        current: participationDays,
+        required: minimumParticipationDays,
+        met: participationDays >= minimumParticipationDays,
       }),
       conditionSnapshot({
         key: "PAYBACK_SCORE",

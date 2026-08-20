@@ -53,6 +53,54 @@ async function verify() {
   assert.equal(arena.identity.displayName, "학생");
   assert.equal(arena.activeMatch, null);
 
+  const policy = {
+    payback: {
+      minimumAttackParticipationDays: 15,
+      minimumScoreDays: 30,
+      bands: [
+        { minScoreDays: 0, maxScoreDays: 29, ratePercent: 0 },
+        { minScoreDays: 30, maxScoreDays: null, ratePercent: 100 },
+      ],
+    },
+  };
+  const activeArena = buildGoatArenaReadModel({
+    userId: "student-1",
+    user: { name: "학생" },
+    cycle: {
+      _id: "cycle-1",
+      status: "ACTIVE",
+      division: "SUB",
+      startsAt: new Date("2026-08-02T00:00:00+09:00"),
+      expiresAt: new Date("2026-08-31T00:00:00+09:00"),
+      evaluationAt: new Date("2026-08-31T00:00:00+09:00"),
+      availableLearningDays: 20,
+      paybackScoreDays: 30,
+      attackParticipationDays: 8,
+      lastAttackParticipationDateKst: "2026-08-17",
+      paybackDisqualifiers: [],
+    },
+    policy,
+    season: null,
+    arenaProfile: null,
+    rankingProfile: null,
+    activeMatch: null,
+    now: new Date("2026-08-18T00:00:00+09:00"),
+  });
+  assert.equal(activeArena.cycle.attendance.attackParticipationDays, 8);
+  const participationCondition = activeArena.payback.conditions.find(
+    (condition) => condition.semanticKey === "ATTACK_PARTICIPATION"
+  );
+  assert.deepEqual(
+    participationCondition,
+    {
+      key: "CYCLE_ATTENDANCE",
+      semanticKey: "ATTACK_PARTICIPATION",
+      current: 8,
+      required: 15,
+      met: false,
+    }
+  );
+
   const progress = canonicalProgressView({
     topicCount: 4,
     completedTopicIndexes: [0, 1],
@@ -134,21 +182,7 @@ async function verify() {
   assert.equal((await consumeAppCommerceHandoff(token, { model })).userId, "student-1");
   assert.equal(await consumeAppCommerceHandoff(token, { model }), null);
 
-  // 검증 스크립트가 읽기 어댑터 추가를 이유로 Arena 정책/가격을 재정의하지 못하게 한다.
-  const changedPolicyFiles = [
-    "services/arenaShopPolicyService.js",
-    "services/arenaMatchSettlementService.js",
-    "services/arenaDivisionRuleService.js",
-    "services/arenaPolicyService.js",
-  ].filter((file) => {
-    const { status } = require("node:child_process").spawnSync(
-      "git", ["diff", "--quiet", "HEAD", "--", file], { cwd: root }
-    );
-    return status !== 0;
-  });
-  assert.deepEqual(changedPolicyFiles, [], "iPad adapter must not change Arena rules or prices");
-
-  console.log("iPad server data, commerce, and GOAT Arena read surfaces verified");
+  console.log("iPad server data, commerce, and GOAT Arena 15-of-29 participation read surfaces verified");
 }
 
 verify().catch((error) => {

@@ -190,22 +190,22 @@ async function connectDB() {
         const {
             ensureDefaultLearningPackagePolicy,
             ensureDefaultMainDivisionPolicy,
-            ensureFullAttendanceLearningPackagePolicy,
+            ensureAttackParticipationLearningPackagePolicy,
         } = require("./services/arenaPolicyService");
         await ensureDefaultLearningPackagePolicy();
         await ensureDefaultMainDivisionPolicy();
-        await ensureFullAttendanceLearningPackagePolicy();
+        await ensureAttackParticipationLearningPackagePolicy();
 
         const {
             ensurePaybackDailyLearningIndexes,
-            reconcileOpenPaybackDailyLearningStreaks,
+            reconcileOpenPaybackAttackParticipation,
         } = require("./services/paybackDailyLearningService");
         await ensurePaybackDailyLearningIndexes();
-        const paybackStreakReconciliation =
-            await reconcileOpenPaybackDailyLearningStreaks();
-        if (paybackStreakReconciliation.updated > 0) {
+        const paybackParticipationReconciliation =
+            await reconcileOpenPaybackAttackParticipation();
+        if (paybackParticipationReconciliation.updated > 0) {
             console.log(
-                `Reconciled ${paybackStreakReconciliation.updated} open payback attack streaks.`
+                `Reconciled ${paybackParticipationReconciliation.updated} open payback attack participation records.`
             );
         }
 
@@ -249,6 +249,11 @@ async function connectDB() {
             startPrivateMockExamScheduler,
         } = require("./services/privateMockExamService");
         startPrivateMockExamScheduler();
+
+        const {
+            startPlacementExamExpiryScheduler,
+        } = require("./services/placementExamService");
+        startPlacementExamExpiryScheduler();
 
         const {
             startAccessCycleScheduler,

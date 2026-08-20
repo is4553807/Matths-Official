@@ -122,6 +122,12 @@ const {
   getNotificationInbox,
   markAllNotificationsRead,
 } = require("../services/notificationService");
+const {
+  PAYBACK_ATTACK_PARTICIPATION_DAYS,
+  PAYBACK_CYCLE_DAYS,
+  attackParticipationDays,
+  minimumAttackParticipationDays,
+} = require("../constants/paybackParticipation");
 
 const GRADE_LABELS = {
   10: "고등학교 1학년",
@@ -263,12 +269,10 @@ function buildArenaAccess(
   const minimumPaybackScore = Number(
     accessCycle?.policySnapshot?.payback?.minimumScoreDays ?? 30
   );
-  const minimumStudyStreakDays = Number(
-    accessCycle?.policySnapshot?.payback?.minimumStreakDays ??
-      accessCycle?.policySnapshot?.initialLearningDays ??
-      29
+  const minimumAttackDays = minimumAttackParticipationDays(
+    accessCycle?.policySnapshot?.payback
   );
-  const studyStreakDays = Number(accessCycle?.streakDays || 0);
+  const participationDays = attackParticipationDays(accessCycle);
   const paybackDisqualified = Boolean(
     activeDivision === "SUB" &&
       (
@@ -278,16 +282,12 @@ function buildArenaAccess(
         )
       )
   );
-  // 29일 연속 공식 공격 제출 기록만 과거 값으로 남아 있는 경우 '달성'으로 잘못
-  // 보이지 않도록 실제 이용 주기가 끝났거나 평가된 뒤에만 완료로 표시한다.
-  const fullAttendanceQualified = Boolean(
+  // 누적 공격 출석은 15일을 채운 뒤 줄어들지 않으므로 이용 주기 중에도
+  // 바로 달성 상태로 표시할 수 있다. 최종 페이백은 점수·공정성 심사를 별도로 본다.
+  const attackParticipationQualified = Boolean(
     accessCycle &&
       !paybackDisqualified &&
-      studyStreakDays >= minimumStudyStreakDays &&
-      (
-        accessCycle.evaluatedAt ||
-        (accessCycle.endsAt && new Date(accessCycle.endsAt).getTime() <= Date.now())
-      )
+      participationDays >= minimumAttackDays
   );
   const hasUsableCycleBalance =
     activeDivision === "MAIN"
@@ -401,16 +401,30 @@ function buildArenaAccess(
           : null,
       minimumPaybackScore:
         accessCycle ? minimumPaybackScore : null,
+      paybackCycleDays:
+        accessCycle
+          ? Number(accessCycle?.policySnapshot?.initialLearningDays) || PAYBACK_CYCLE_DAYS
+          : null,
+      attackParticipationDays:
+        accessCycle ? participationDays : null,
+      minimumAttackParticipationDays:
+        accessCycle ? minimumAttackDays : null,
+      attackParticipationDaysNeeded:
+        accessCycle
+          ? Math.max(0, minimumAttackDays - participationDays)
+          : null,
+      // 기존 클라이언트가 새 서버로 전환되는 동안 유지하는 응답 별칭입니다.
       studyStreakDays:
-        accessCycle ? studyStreakDays : null,
+        accessCycle ? participationDays : null,
       minimumStudyStreakDays:
-        accessCycle ? minimumStudyStreakDays : null,
+        accessCycle ? minimumAttackDays : null,
       studyDaysNeeded:
         accessCycle
-          ? Math.max(0, minimumStudyStreakDays - studyStreakDays)
+          ? Math.max(0, minimumAttackDays - participationDays)
           : null,
       paybackDisqualified,
-      fullAttendanceQualified,
+      attackParticipationQualified,
+      fullAttendanceQualified: attackParticipationQualified,
     },
     standing: standing
       ? {
@@ -468,7 +482,7 @@ const DIVISION_FEATURES = {
         "subPaybackProgress",
       name: "페이백 진행",
       description:
-        "29일 공식 공격 제출·페이백 점수·공정성 검토 상태를 확인합니다.",
+        "29일 중 공격 출석·페이백 점수·공정성 검토 상태를 확인합니다.",
       group: "PROGRESS",
     },
   ],
@@ -570,7 +584,7 @@ const DIVISION_FEATURE_GROUPS = Object.freeze({
   SUB: [
     { key: "BATTLE", eyebrow: "BATTLE CONTROL", title: "경기 지휘", description: "신청부터 진행 중 경기와 복수전까지 한곳에서 관리합니다." },
     { key: "RECORD", eyebrow: "RANK RECORD", title: "순위 기록", description: "정산이 끝난 Arena 상태 변동과 내 위치를 확인합니다." },
-    { key: "PROGRESS", eyebrow: "PAYBACK TRACK", title: "페이백 진행", description: "29일 학습과 페이백 점수 조건을 분리해 확인합니다." },
+    { key: "PROGRESS", eyebrow: "PAYBACK TRACK", title: "페이백 진행", description: "공격 출석과 페이백 점수 조건을 분리해 확인합니다." },
   ],
   MAIN: [
     { key: "BATTLE", eyebrow: "BATTLE CONTROL", title: "경기 지휘", description: "상향 쟁탈전·하위 티어 초대전·복수전·진행 경기를 관리합니다." },
@@ -1459,7 +1473,10 @@ async function getDivisionFeatureData({ userId, division, featureKey, context })
       title: "페이백 진행",
       description: "정기권 학습 가능 일수와 페이백 점수는 서로 다른 값입니다.",
       cards: [
-        { label: "공식 공격 제출", value: `${rights.studyStreakDays || 0} / ${rights.minimumStudyStreakDays || 29}일` },
+        {
+          label: "공격 출석",
+          value: `${rights.attackParticipationDays || 0} / ${rights.minimumAttackParticipationDays || PAYBACK_ATTACK_PARTICIPATION_DAYS}일`,
+        },
         { label: "페이백 점수", value: `${rights.paybackScoreDays ?? 0}점` },
         { label: "남은 이용일", value: `${rights.availableDays ?? 0}일` },
         { label: "최근 심사", value: review?.status || "심사 전" },
@@ -2342,7 +2359,7 @@ exports.getGoatArenaRulebook = async (req, res, next) => {
     return res.json({
       rulebook: {
         schemaVersion: "GOAT_ARENA_RULEBOOK_V1",
-        revision: "FINAL_LOGIC_V1_4",
+        revision: "FINAL_LOGIC_V1_5",
         generatedAt: now.toISOString(),
         source: "SERVER_ACTIVE_POLICY",
         divisions: { sub, main },

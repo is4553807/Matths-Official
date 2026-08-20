@@ -236,7 +236,7 @@ async function activatePlacedAccount({ user, scenario, now, seasonKey, positions
   cycle.division = scenario.division;
   cycle.availableLearningDays = scenario.division === "MAIN" ? 30 : 29;
   cycle.paybackScoreDays = scenario.division === "MAIN" ? 0 : scenario.paybackReady ? 30 : 20;
-  cycle.streakDays = scenario.paybackReady ? 29 : 5;
+  cycle.attackParticipationDays = scenario.paybackReady ? 15 : 5;
   cycle.learningDayBuckets = scenario.division === "MAIN"
     ? [{ sourceType: "ADMIN_GRANT", availableDays: 30, reservedDays: 0, lockedDays: 0 }]
     : [];

@@ -50,7 +50,7 @@
             <% } %>
             <label><span>폴더 이름</span><input name="folderName" minlength="2" maxlength="80" value="<%= oldInput.folderName %>" required /></label>
             <label><span>폴더 설명</span><textarea name="folderDescription" rows="4" maxlength="500"><%= oldInput.folderDescription %></textarea></label>
-            <label><span>접근 권한</span><select name="folderAccessLevel"><option value="AUTHENTICATED" <%= oldInput.folderAccessLevel === "AUTHENTICATED" ? "selected" : "" %>>로그인한 모든 회원</option><option value="PAID_PACKAGE" <%= oldInput.folderAccessLevel === "PAID_PACKAGE" ? "selected" : "" %>>활성 학습권 패키지 회원만</option></select></label>
+            <label><span>접근 권한</span><select name="folderAccessLevel"><option value="AUTHENTICATED" <%= oldInput.folderAccessLevel === "AUTHENTICATED" ? "selected" : "" %>>로그인한 모든 회원</option><option value="MOCK_EXAM_PACKAGE" <%= oldInput.folderAccessLevel === "MOCK_EXAM_PACKAGE" ? "selected" : "" %>>모의고사 이용권 이상 (29일 학습권 포함)</option><option value="LEARNING_PACKAGE" <%= ["LEARNING_PACKAGE", "PAID_PACKAGE"].includes(oldInput.folderAccessLevel) ? "selected" : "" %>>29일 학습권 패키지 회원만 (GOAT Arena 포함)</option></select><small>하위 폴더는 상위 폴더보다 넓은 권한으로 공개되지 않습니다.</small></label>
             <button type="submit">폴더 추가</button>
           </form>
         </section>
@@ -67,11 +67,12 @@
             </label>
             <label><span>저장할 폴더</span>
               <select name="folderId">
-                <option value="">루트 자료</option>
+                <option value="">루트 자료 · 로그인한 모든 회원</option>
                 <% archiveData.folderOptions.forEach((folder) => { %>
-                  <option value="<%= folder.id %>" <%= oldInput.folderId === folder.id ? "selected" : "" %>><%= "— ".repeat(folder.depth) %><%= folder.pathLabel %></option>
+                  <option value="<%= folder.id %>" <%= oldInput.folderId === folder.id ? "selected" : "" %>><%= "— ".repeat(folder.depth) %><%= folder.pathLabel %> · <%= folder.requiredAccessLevel === "LEARNING_PACKAGE" ? "29일 학습권" : folder.requiredAccessLevel === "MOCK_EXAM_PACKAGE" ? "모의고사 이용권 이상" : "로그인한 모든 회원" %></option>
                 <% }) %>
               </select>
+              <small>파일은 선택한 폴더와 상위 폴더의 접근 권한을 따릅니다.</small>
             </label>
             <label><span>자료 설명</span><textarea name="description" maxlength="1000" rows="4"><%= oldInput.description %></textarea></label>
             <label class="archive-admin-file-picker">
@@ -115,7 +116,7 @@
               </div>
               <label><span>폴더 이름</span><input name="editFolderName" minlength="2" maxlength="80" value="<%= oldInput.editFolderName %>" required /></label>
               <label><span>폴더 설명</span><textarea name="editFolderDescription" rows="3" maxlength="500"><%= oldInput.editFolderDescription %></textarea></label>
-              <label><span>접근 권한</span><select name="editFolderAccessLevel"><option value="AUTHENTICATED" <%= oldInput.editFolderAccessLevel === "AUTHENTICATED" ? "selected" : "" %>>로그인한 모든 회원</option><option value="PAID_PACKAGE" <%= oldInput.editFolderAccessLevel === "PAID_PACKAGE" ? "selected" : "" %>>활성 학습권 패키지 회원만</option></select></label>
+              <label><span>접근 권한</span><select name="editFolderAccessLevel"><option value="AUTHENTICATED" <%= oldInput.editFolderAccessLevel === "AUTHENTICATED" ? "selected" : "" %>>로그인한 모든 회원</option><option value="MOCK_EXAM_PACKAGE" <%= oldInput.editFolderAccessLevel === "MOCK_EXAM_PACKAGE" ? "selected" : "" %>>모의고사 이용권 이상 (29일 학습권 포함)</option><option value="LEARNING_PACKAGE" <%= ["LEARNING_PACKAGE", "PAID_PACKAGE"].includes(oldInput.editFolderAccessLevel) ? "selected" : "" %>>29일 학습권 패키지 회원만 (GOAT Arena 포함)</option></select><small>상위 폴더의 제한이 더 강하면 그 권한이 그대로 적용됩니다.</small></label>
               <button type="submit">변경 내용 저장</button>
             </form>
 

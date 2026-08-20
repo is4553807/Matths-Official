@@ -15,6 +15,11 @@ const {
 const {
   recordPolicyChangeScheduled,
 } = require("./policyChangeOutboxService");
+const {
+  PAYBACK_ATTACK_PARTICIPATION_DAYS,
+  PAYBACK_CYCLE_DAYS,
+  minimumAttackParticipationDays,
+} = require("../constants/paybackParticipation");
 
 const policyCache = new TtlCache({
   maxEntries: 5,
@@ -53,10 +58,10 @@ const DEFAULT_PAYBACK_BANDS = [
 ];
 
 const DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT = 29000;
-const DEFAULT_LEARNING_PACKAGE_DAYS = 29;
+const DEFAULT_LEARNING_PACKAGE_DAYS = PAYBACK_CYCLE_DAYS;
 const DEFAULT_LEARNING_POLICY_CODE = "ARENA-LEARNING-29D-20260802";
-const FULL_ATTENDANCE_POLICY_CODE =
-  "ARENA-LEARNING-29D-FULL-ATTENDANCE-20260803";
+const ATTACK_PARTICIPATION_POLICY_CODE =
+  "ARENA-LEARNING-29D-15-ATTACK-DAYS-20260819";
 const DEFAULT_LEARNING_POLICY_EFFECTIVE_FROM =
   new Date("2026-08-02T00:00:00+09:00");
 
@@ -347,18 +352,32 @@ function normalizePolicyDraftInput(input = {}) {
     minimum: 1,
     fallback: DEFAULT_LEARNING_PACKAGE_DAYS,
   });
-  const minimumStreakDays = integerValue(
-    input.minimumStreakDays ?? input.payback?.minimumStreakDays,
-    {
-      label: "페이백 최소 연속 공식 공격 제출일",
-      minimum: 1,
-      fallback: initialLearningDays,
-    }
-  );
-  if (minimumStreakDays !== initialLearningDays) {
+  if (initialLearningDays !== PAYBACK_CYCLE_DAYS) {
     throw statusError(
       400,
-      "페이백 공식 공격 제출일은 정기권 전체 이용일과 같아야 합니다. 29일 학습 패키지는 29일 모두 유효한 GOAT Arena 공격을 제출해야 합니다."
+      `학습권 이용 주기는 ${PAYBACK_CYCLE_DAYS}일로 고정됩니다.`
+    );
+  }
+  const minimumAttackDays = integerValue(
+    input.minimumAttackParticipationDays ??
+      input.payback?.minimumAttackParticipationDays ??
+      (input.minimumStreakDays !== undefined ||
+      input.payback?.minimumStreakDays !== undefined
+        ? PAYBACK_ATTACK_PARTICIPATION_DAYS
+        : undefined),
+    {
+      label: "페이백 공식 공격 참여일",
+      minimum: 1,
+      fallback: PAYBACK_ATTACK_PARTICIPATION_DAYS,
+    }
+  );
+  if (
+    minimumAttackDays !==
+      PAYBACK_ATTACK_PARTICIPATION_DAYS
+  ) {
+    throw statusError(
+      400,
+      `페이백 공격 출석 기준은 ${PAYBACK_CYCLE_DAYS}일 이용 주기 중 ${PAYBACK_ATTACK_PARTICIPATION_DAYS}일로 고정됩니다.`
     );
   }
   const minimumScoreDays = integerValue(
@@ -421,7 +440,9 @@ function normalizePolicyDraftInput(input = {}) {
     },
     dailyMatchLimitsByTier: normalizeDailyMatchLimits(input),
     payback: {
-      minimumStreakDays,
+      minimumAttackParticipationDays: minimumAttackDays,
+      // 구버전 앱이 읽는 정책 키도 같은 누적 참여일 값으로 유지한다.
+      minimumStreakDays: minimumAttackDays,
       minimumScoreDays,
       bands: paybackBands,
     },
@@ -623,7 +644,10 @@ function defaultLearningPackagePolicyDefinition({
     },
     dailyMatchLimitsByTier: DEFAULT_DAILY_MATCH_LIMITS_BY_TIER.map((row) => ({ ...row })),
     payback: {
-      minimumStreakDays: DEFAULT_LEARNING_PACKAGE_DAYS,
+      minimumAttackParticipationDays:
+        PAYBACK_ATTACK_PARTICIPATION_DAYS,
+      minimumStreakDays:
+        PAYBACK_ATTACK_PARTICIPATION_DAYS,
       minimumScoreDays: 30,
       bands: DEFAULT_PAYBACK_BANDS.map((band) => ({ ...band })),
     },
@@ -644,6 +668,14 @@ function learningPackagePolicyView(policy) {
         updatedAt: DEFAULT_LEARNING_POLICY_EFFECTIVE_FROM,
         activatedAt: DEFAULT_LEARNING_POLICY_EFFECTIVE_FROM,
       };
+  const payback = JSON.parse(
+    JSON.stringify(source.payback || {})
+  );
+  const minimumAttackDays =
+    minimumAttackParticipationDays(payback);
+  payback.minimumAttackParticipationDays =
+    minimumAttackDays;
+  payback.minimumStreakDays = minimumAttackDays;
   return {
     ...source,
     _id: source._id || null,
@@ -651,7 +683,7 @@ function learningPackagePolicyView(policy) {
     priceAmount: Number(source.priceAmount),
     initialLearningDays: Number(source.initialLearningDays),
     initialPaybackScoreDays: Number(source.initialPaybackScoreDays),
-    payback: JSON.parse(JSON.stringify(source.payback || {})),
+    payback,
     dailyMatchLimitsByTier: (source.dailyMatchLimitsByTier?.length
       ? source.dailyMatchLimitsByTier
       : DEFAULT_DAILY_MATCH_LIMITS_BY_TIER).map((row) => ({
@@ -668,6 +700,14 @@ function policySnapshot(policy) {
     ? policy.toObject()
     : policy;
 
+  const payback = JSON.parse(
+    JSON.stringify(source.payback || {})
+  );
+  const minimumAttackDays =
+    minimumAttackParticipationDays(payback);
+  payback.minimumAttackParticipationDays =
+    minimumAttackDays;
+  payback.minimumStreakDays = minimumAttackDays;
   return {
     code: source.code,
     displayName: source.displayName || "",
@@ -703,7 +743,7 @@ function policySnapshot(policy) {
         ...JSON.parse(JSON.stringify(row)),
         attackLimit: UNRANKED_DAILY_ATTACK_LIMIT,
       })),
-    payback: JSON.parse(JSON.stringify(source.payback || {})),
+    payback,
     effectiveFrom:
       source.effectiveFrom,
     effectiveUntil:
@@ -965,6 +1005,11 @@ async function getArenaPolicyAdminData(
     getUpcomingMainDivisionPolicy(now),
   ]);
   return {
+    paybackRules: {
+      cycleDays: PAYBACK_CYCLE_DAYS,
+      minimumAttackParticipationDays:
+        PAYBACK_ATTACK_PARTICIPATION_DAYS,
+    },
     policies,
     activePolicy,
     sub: {
@@ -1095,7 +1140,7 @@ async function ensureDefaultMainDivisionPolicy(now = new Date()) {
   }
 }
 
-async function ensureFullAttendanceLearningPackagePolicy(now = new Date()) {
+async function ensureAttackParticipationLearningPackagePolicy(now = new Date()) {
   const effectiveFrom = new Date(now);
   const current = await SubscriptionPolicyVersion.findOne({
     status: "ACTIVE",
@@ -1113,14 +1158,17 @@ async function ensureFullAttendanceLearningPackagePolicy(now = new Date()) {
   }
   if (
     Number(current.initialLearningDays) === DEFAULT_LEARNING_PACKAGE_DAYS &&
-    Number(current.payback?.minimumStreakDays) === DEFAULT_LEARNING_PACKAGE_DAYS &&
+    minimumAttackParticipationDays(current.payback) ===
+      PAYBACK_ATTACK_PARTICIPATION_DAYS &&
+    Number(current.payback?.minimumAttackParticipationDays) ===
+      PAYBACK_ATTACK_PARTICIPATION_DAYS &&
     current.paymentDayCutoffKst === "00:00"
   ) {
     return learningPackagePolicyView(current);
   }
 
   const migrationPolicyCode =
-    `${FULL_ATTENDANCE_POLICY_CODE}-${String(current._id).slice(-8).toUpperCase()}`;
+    `${ATTACK_PARTICIPATION_POLICY_CODE}-${String(current._id).slice(-8).toUpperCase()}`;
 
   const session = await mongoose.startSession();
   let created = null;
@@ -1155,8 +1203,10 @@ async function ensureFullAttendanceLearningPackagePolicy(now = new Date()) {
       if (
         Number(transactionCurrent.initialLearningDays) ===
           DEFAULT_LEARNING_PACKAGE_DAYS &&
-        Number(transactionCurrent.payback?.minimumStreakDays) ===
-          DEFAULT_LEARNING_PACKAGE_DAYS &&
+        Number(
+          transactionCurrent.payback
+            ?.minimumAttackParticipationDays
+        ) === PAYBACK_ATTACK_PARTICIPATION_DAYS &&
         transactionCurrent.paymentDayCutoffKst === "00:00"
       ) {
         created = transactionCurrent;
@@ -1178,10 +1228,13 @@ async function ensureFullAttendanceLearningPackagePolicy(now = new Date()) {
         paymentDayCutoffKst: "00:00",
         payback: {
           ...(base.payback || {}),
-          minimumStreakDays: DEFAULT_LEARNING_PACKAGE_DAYS,
+          minimumAttackParticipationDays:
+            PAYBACK_ATTACK_PARTICIPATION_DAYS,
+          minimumStreakDays:
+            PAYBACK_ATTACK_PARTICIPATION_DAYS,
         },
         changeSummary:
-          "결제 다음 날 00:00 시작과 29일 연속 GOAT Arena 공식 공격 제출 조건 적용",
+          "29일 동안 공격 출석 15일을 채우는 페이백 참여 기준 적용",
         activatedAt: now,
         activatedBy: null,
       });
@@ -1752,7 +1805,7 @@ module.exports = {
   defaultLearningPackagePolicyDefinition,
   ensureDefaultLearningPackagePolicy,
   ensureDefaultMainDivisionPolicy,
-  ensureFullAttendanceLearningPackagePolicy,
+  ensureAttackParticipationLearningPackagePolicy,
   getActiveArenaPolicy,
   getActiveMainDivisionPolicy,
   getUpcomingArenaPolicy,

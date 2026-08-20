@@ -63,6 +63,7 @@
     student: "학생",
     teacher: "교사",
     admin: "관리자",
+    test: "운영 테스트 계정",
   };
   const learningStatusLabels = {
     "not-started": "시작 전",
@@ -71,10 +72,27 @@
   };
   const assessmentStatusLabels = {
     "in-progress": "응시 중",
+    "verification-required": "추가 실력 확인 대기",
     submitted: "제출 완료",
     abandoned: "중단",
     disqualified: "실격",
   };
+  const placementPurposeLabels = {
+    INITIAL: "입단 배치고사",
+    SEASON: "시즌 배치고사",
+    RENEWAL_RANK_ASSESSMENT: "랭크 복귀전",
+  };
+  const formatDuration = (ms) => {
+    const totalSeconds = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    if (hours) return `${hours}시간 ${minutes}분`;
+    return `${minutes}분`;
+  };
+  const assessmentReason = (attempt) =>
+    attempt.disqualifiedReason === "time-limit"
+      ? "과거 버전 시간초과 기록"
+      : assessmentStatusLabels[attempt.displayStatus || attempt.status] || "상태 확인 필요";
 %>
 <!doctype html>
 <html lang="ko">
@@ -114,7 +132,7 @@
         <article><span>최근 로그인</span><strong><%= formatDate(member.lastLoginAt) %></strong></article>
         <% if (!isAdminProfile) { %><article><span>누적 학습</span><strong><%= Math.round((member.totalStudySeconds || 0) / 60) %>분</strong></article><% } %>
         <article><span>누적 접속</span><strong><%= ((Number(member.totalConnectedSeconds) || 0) / 3600).toFixed((Number(member.totalConnectedSeconds) || 0) >= 360000 ? 0 : 1) %>시간</strong><small>로그인 상태의 활성 탭 기준</small></article>
-        <% if (!isAdminProfile) { %><article><span>연속 학습</span><strong><%= member.currentStreak || 0 %>일</strong></article><% } %>
+        <% if (!isAdminProfile) { %><article><span>최근 학습</span><strong><%= formatDate(detail.learning.currentConcept?.lastStudiedAt || member.lastStudyDate) %></strong><small>개념 진도·학습 이벤트 기준</small></article><% } %>
         <article><span>역할</span><strong><%= roleLabels[member.role] || "역할 확인 필요" %></strong></article>
         <article>
           <span>계정 상태</span>
@@ -125,11 +143,7 @@
             <%= accountStatus === "withdrawn" ? ` · ${member.withdrawal?.dataRetention === "anonymous" ? "익명 데이터 보존" : "활동 데이터 삭제"}` : "" %>
           </small>
         </article>
-        <% if (!isAdminProfile) { %><article>
-          <span>Matths 주간 공식 모의고사 권한</span>
-          <strong><%= member.privateMockRestriction?.active ? "응시 제한" : "응시 가능" %></strong>
-          <small><%= member.privateMockRestriction?.active ? `남은 제한 ${member.privateMockRestriction.remainingWeekCount || member.privateMockRestriction.remainingExamCount || 0}회(${member.privateMockRestriction.remainingWeekCount || member.privateMockRestriction.remainingExamCount || 0}주) · ${member.privateMockRestriction.reason || "사유 기록 없음"}` : "적용 중인 제한 없음" %></small>
-        </article><% } %>
+        <% if (!isAdminProfile) { %><%- include("partials/admin-weekly-mock-access", { member, weeklyMockAccess: detail.weeklyMockAccess }) %><% } %>
       </section>
 
       <% if (!isAdminProfile && detail.identityMatches?.length) { %>
@@ -202,6 +216,16 @@
       <% if (!isAdminProfile) { %><div class="admin-detail-grid">
         <section class="admin-panel">
           <div class="admin-panel-heading"><div><p>LEARNING</p><h2>학습 진행</h2></div></div>
+          <% if (detail.learning.currentConcept) { %>
+            <div class="admin-ranking-card">
+              <strong><%= detail.learning.currentConcept.status === "in-progress" ? "현재 학습 개념" : "최근 학습 개념" %> · <%= detail.learning.currentConcept.conceptTitle %></strong>
+              <span><%= detail.learning.currentConcept.courseTitle %> · <%= detail.learning.currentConcept.unitTitle %></span>
+              <span><%= detail.learning.currentConcept.completionPercent %>% · <%= learningStatusLabels[detail.learning.currentConcept.status] || "상태 확인 필요" %> · 최근 학습 <%= formatDate(detail.learning.currentConcept.lastStudiedAt) %></span>
+            </div>
+          <% } else { %>
+            <p class="admin-empty">현재 학습 중인 개념이 없습니다.</p>
+          <% } %>
+          <br>
           <div class="admin-metric-row">
             <div><span>시작 개념</span><strong><%= detail.learning.progressCount %></strong></div>
             <div><span>완료 개념</span><strong><%= detail.learning.completedCount %></strong></div>
@@ -212,10 +236,10 @@
             <% if (!detail.learning.progress.length) { %><p class="admin-empty">학습 기록이 없습니다.</p><% } %>
             <% detail.learning.progress.forEach((progress) => { %>
               <div>
-                <span><%= progress.courseId %> · <%= progress.unitId %></span>
-                <strong><%= progress.conceptId %></strong>
+                <span><%= progress.courseTitle %> · <%= progress.unitTitle %></span>
+                <strong><%= progress.conceptTitle %></strong>
                 <div><i style="width:<%= progress.completionPercent %>%"></i></div>
-                <small><%= progress.completionPercent %>% · <%= learningStatusLabels[progress.status] || "상태 확인 필요" %></small>
+                <small><%= progress.completionPercent %>% · <%= learningStatusLabels[progress.status] || "상태 확인 필요" %> · <%= formatDate(progress.lastStudiedAt) %></small>
               </div>
             <% }) %>
           </div>
@@ -223,22 +247,47 @@
 
         <section class="admin-panel">
           <div class="admin-panel-heading"><div><p>RANKING</p><h2>배치·랭킹</h2></div></div>
-          <% if (detail.ranking) { %>
+          <% const placement = detail.placement || {}; %>
+          <% if (placement.ranking) { %>
             <div class="admin-ranking-card">
-              <strong>내부 실력 지표 · <%= detail.ranking.tier %></strong>
-              <span>내부 실력 지표 <%= detail.ranking.rating %></span>
-              <span><%= detail.ranking.gp !== null && detail.ranking.gp !== undefined ? `GOAT Arena · ${detail.ranking.arenaRank} ${detail.ranking.arenaDivision === "MAIN" ? "Ranked" : "Unranked"} · ${detail.ranking.arenaPosition}위 · ${detail.ranking.gp} GP` : "GOAT Arena · GP 미확정" %></span>
+              <strong>내부 실력 지표 · <%= placement.ranking.tier %></strong>
+              <span>내부 실력 지표 <%= placement.ranking.rating %></span>
+              <span><%= placement.ranking.gp !== null && placement.ranking.gp !== undefined ? `GOAT Arena · ${placement.ranking.arenaRank} ${placement.ranking.arenaDivision === "MAIN" ? "Ranked" : "Unranked"} · ${placement.ranking.arenaPosition}위 · ${placement.ranking.gp} GP` : "GOAT Arena · GP 미확정" %></span>
               <dl>
-                <div><dt>전체</dt><dd><%= detail.ranking.overallRank %>위</dd></div>
-                <div><dt>학교 내</dt><dd><%= detail.ranking.schoolStudentRank || "—" %><%= detail.ranking.schoolStudentRank ? "위" : "" %></dd></div>
-                <div><dt>학교</dt><dd><%= detail.ranking.schoolRank || "—" %><%= detail.ranking.schoolRank ? "위" : "" %></dd></div>
-                <div><dt>지역</dt><dd><%= detail.ranking.cityRank || "—" %><%= detail.ranking.cityRank ? "위" : "" %></dd></div>
+                <div><dt>전체</dt><dd><%= placement.ranking.overallRank %>위</dd></div>
+                <div><dt>학교 내</dt><dd><%= placement.ranking.schoolStudentRank || "—" %><%= placement.ranking.schoolStudentRank ? "위" : "" %></dd></div>
+                <div><dt>학교</dt><dd><%= placement.ranking.schoolRank || "—" %><%= placement.ranking.schoolRank ? "위" : "" %></dd></div>
+                <div><dt>지역</dt><dd><%= placement.ranking.cityRank || "—" %><%= placement.ranking.cityRank ? "위" : "" %></dd></div>
               </dl>
             </div>
-          <% } else { %><p class="admin-empty">완료한 배치고사가 없습니다.</p><% } %>
+          <% } else if (placement.latestCompleted) { %>
+            <div class="admin-placement-state-card is-completed">
+              <strong>배치고사 제출 완료 · 랭킹 정보 미생성</strong>
+              <span><%= placementPurposeLabels[placement.latestCompleted.placementPurpose] || "배치고사" %> · <%= placement.latestCompleted.scorePercent %>점 · <%= formatDate(placement.latestCompleted.submittedAt) %></span>
+              <small>제출 기록은 DB에 있지만 현재 랭킹 산정 데이터가 없습니다. 레거시 결과 또는 랭킹 동기화 상태를 확인해야 합니다.</small>
+            </div>
+          <% } else if (placement.active) { %>
+            <div class="admin-placement-state-card is-active">
+              <strong><%= assessmentStatusLabels[placement.active.displayStatus] %> · <%= placementPurposeLabels[placement.active.placementPurpose] || "배치고사" %></strong>
+              <span>시작 <%= formatDate(placement.active.startedAt) %> · 저장 답안 <%= placement.active.answeredCount %>문항</span>
+              <small><%= placement.active.remainingTimeMs === null ? "마감 시각을 계산할 수 없습니다." : `남은 시간 ${formatDuration(placement.active.remainingTimeMs)} · 마감 ${formatDate(placement.active.deadlineAt)}` %></small>
+            </div>
+          <% } else if (placement.latestTerminal) { %>
+            <div class="admin-placement-state-card is-terminal">
+              <strong>최근 배치고사 · <%= assessmentReason(placement.latestTerminal) %></strong>
+              <span>시작 <%= formatDate(placement.latestTerminal.startedAt) %> · 종료 <%= formatDate(placement.latestTerminal.submittedAt) %> · 저장 답안 <%= placement.latestTerminal.answeredCount %>문항</span>
+              <small>현재 배치고사는 제한시간 종료 시 저장 답안을 자동 제출·채점합니다. 이 기록은 중단·실격 등 별도 종료 사유를 확인해야 합니다.</small>
+            </div>
+          <% } else { %><p class="admin-empty">배치고사 응시 기록이 없습니다.</p><% } %>
           <div class="admin-assessment-list">
+            <% if (!detail.assessments.length) { %><p class="admin-empty">시험 응시 기록이 없습니다.</p><% } %>
             <% detail.assessments.forEach((attempt) => { %>
-              <a href="/admin/users/<%= member._id %>/assessments/<%= attempt._id %>"><strong><%= attempt.title %></strong><span><%= assessmentStatusLabels[attempt.status] || "상태 확인 필요" %> · <%= attempt.scorePercent ?? "—" %>점</span><small><%= formatDate(attempt.submittedAt || attempt.createdAt) %></small><b>문항·답안 보기 →</b></a>
+              <a href="/admin/users/<%= member._id %>/assessments/<%= attempt._id %>">
+                <strong><%= attempt.title %></strong>
+                <span><%= assessmentReason(attempt) %> · <%= attempt.hasFinalScore ? `${attempt.scorePercent ?? 0}점` : "미채점" %> · 저장 답안 <%= attempt.answeredCount %>문항</span>
+                <small>시작 <%= formatDate(attempt.startedAt || attempt.createdAt) %><%= attempt.submittedAt ? ` · 종료 ${formatDate(attempt.submittedAt)}` : attempt.deadlineAt ? ` · 마감 ${formatDate(attempt.deadlineAt)}` : "" %></small>
+                <b><%= attempt.hasFinalScore ? "문항·제출 답안 확인" : "문항·저장 답안 확인" %> →</b>
+              </a>
             <% }) %>
           </div>
         </section>
@@ -276,7 +325,7 @@
               <h3>역할 변경</h3>
               <label><span>역할</span>
                 <select name="role">
-                  <% Object.entries(roleLabels).forEach(([value, label]) => { %>
+                  <% Object.entries(roleLabels).filter(([value]) => value !== "test").forEach(([value, label]) => { %>
                     <option value="<%= value %>" <%= member.role === value ? "selected" : "" %>><%= label %></option>
                   <% }) %>
                 </select>

@@ -36,6 +36,8 @@
     return value === undefined || value === "" ? fallback : value;
   };
   const subBasePolicy = policyData.sub.upcomingPolicy || policyData.sub.activePolicy || {};
+  const attackParticipationDays = policyData.paybackRules.minimumAttackParticipationDays;
+  const paybackCycleDays = policyData.paybackRules.cycleDays;
   const mainBasePolicy = policyData.main.upcomingPolicy || policyData.main.activePolicy || {};
   const mainValue = (name, fallback) => {
     const value = oldInput?.policyDivision === "MAIN" ? oldInput?.[name] : undefined;
@@ -210,7 +212,7 @@
           <span>페이백 점수 초깃값 <b><%= learningPackage.initialPaybackScoreDays %>점</b></span>
           <span>배치고사·GOAT Arena <b>허용</b></span>
           <span>페이백 최소 점수 <b><%= learningPackage.payback?.minimumScoreDays ?? 30 %>점</b></span>
-          <span>공식 공격 제출 조건 <b>29일 모두</b></span>
+          <span>공격 출석 조건 <b><%= learningPackage.payback?.minimumAttackParticipationDays ?? attackParticipationDays %> / <%= learningPackage.initialLearningDays %>일</b></span>
         </div>
         <form class="admin-form" action="/admin/arena-policies/learning-package/price" method="POST">
           <div class="admin-policy-field-grid">
@@ -348,10 +350,10 @@
           <fieldset class="admin-policy-fieldset">
             <legend>페이백 자격</legend>
             <div class="admin-policy-field-grid">
-              <label><span>최소 공식 공격 제출일 <small>29일 연속</small></span><input type="number" name="minimumStreakDays" value="29" readonly required /></label>
+              <label><span>최소 공격 출석일 <small><%= paybackCycleDays %>일 중</small></span><input type="number" name="minimumAttackParticipationDays" value="<%= attackParticipationDays %>" readonly required /></label>
               <label><span>최소 페이백 점수</span><input type="number" name="minimumScoreDays" min="0" step="1" value="<%= numberValue("minimumScoreDays", subBasePolicy.payback?.minimumScoreDays ?? 30) %>" required /></label>
             </div>
-            <p>결제 다음 날 00:00부터 한국시간 기준 매일 Unranked 일반 쟁탈전 또는 복수전의 공격자로 5개 답안과 필수 풀이 증거를 정상 제출해야 합니다. 승패는 관계없으며 하루 여러 번 제출해도 하루 1회만 인정됩니다.</p>
+            <p><%= paybackCycleDays %>일 이용 주기 중 서로 다른 한국 날짜 <%= attackParticipationDays %>일에 Unranked 일반 쟁탈전 또는 복수전의 공격자로 5개 답안과 필수 풀이 증거를 정상 제출해야 합니다. 공격 시작만으로는 인정하지 않고 승패는 관계없으며, 같은 날 여러 번 정상 제출해도 공격 출석은 1일로 계산합니다. 출석일은 연속될 필요가 없습니다.</p>
           </fieldset>
 
           <fieldset class="admin-policy-fieldset">
@@ -394,7 +396,11 @@
                 <span>페이백 점수 <b><%= policy.initialPaybackScoreDays %>점</b></span>
                 <span>일반 쟁탈전 <b><%= policy.matchStakeDays?.normal ?? 1 %>점 예치</b></span>
                 <span>복수전 <b><%= policy.matchStakeDays?.revenge ?? 2 %>점 예치</b></span>
-                <span>공식 공격 제출 <b><%= policy.payback?.minimumStreakDays ?? 29 %>일 모두</b></span>
+                <% if (policy.payback?.minimumAttackParticipationDays !== undefined && policy.payback?.minimumAttackParticipationDays !== null) { %>
+                  <span>공격 출석 <b><%= policy.payback.minimumAttackParticipationDays %> / <%= policy.initialLearningDays %>일</b></span>
+                <% } else { %>
+                  <span>이전 공격 기준 <b>연속 <%= policy.payback?.minimumStreakDays ?? policy.initialLearningDays %>일</b></span>
+                <% } %>
                 <span>승패 조건 <b>없음</b></span>
               </div>
               <div class="admin-policy-bands">

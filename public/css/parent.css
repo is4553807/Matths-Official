@@ -16,3 +16,11 @@
 @media(max-width:900px){.parent-inquiry-layout{grid-template-columns:1fr}.parent-inquiry-history{order:2}}
 @media(max-width:520px){.parent-inquiry-form-card,.parent-inquiry-history{padding:21px}.parent-inquiry-refund-guide{align-items:flex-start;flex-direction:column}.parent-inquiry-refund-guide a{width:100%;justify-content:space-between}.parent-page-action{width:100%;justify-content:space-between}}
 .parent-product-grid .parent-product-status{min-height:0;margin:0 0 12px;padding:12px 14px;color:#244688;border:1px solid #cddaff;border-radius:12px;background:#edf3ff;font-size:11px;font-weight:850}
+.parent-pg-note,
+.parent-auth-form input[readonly] {
+  color: #566074;
+}
+
+.parent-pending-payment button {
+  color: #535c6e;
+}

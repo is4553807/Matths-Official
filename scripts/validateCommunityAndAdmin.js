@@ -43,6 +43,9 @@ const {
   getKoreanWeekTitle,
   getSundayReleaseAt,
 } = require("../services/privateMockExamService");
+const {
+  _testing: adminTesting,
+} = require("../services/adminService");
 
 const root = path.join(
   __dirname,
@@ -63,6 +66,8 @@ const read = (file) =>
 
 const adminServiceSource = read("services/adminService.js");
 const adminUsersView = read("views/admin-users.ejs");
+const adminUserDetailView = read("views/admin-user-detail.ejs");
+const adminThemeStyles = read("public/css/matths-theme.css");
 assert.match(
   adminServiceSource,
   /const includeParents = !normalizedRole && !hasEducationFilter/
@@ -72,6 +77,141 @@ assert.match(adminServiceSource, /adminParentRow\(parent, linkCountByParent\)/);
 assert.match(
   adminUsersView,
   /member\.adminEntityType === 'PARENT'/
+);
+assert.match(
+  adminServiceSource,
+  /findCurriculumConcept\(/
+);
+assert.match(
+  adminServiceSource,
+  /currentConcept/
+);
+assert.match(
+  adminUserDetailView,
+  /현재 학습 개념/
+);
+assert.match(
+  adminUserDetailView,
+  /progress\.conceptTitle/
+);
+assert.match(
+  adminUserDetailView,
+  /placement\.latestTerminal/
+);
+assert.match(
+  adminUserDetailView,
+  /제한시간 종료 시 저장 답안을 자동 제출·채점합니다/
+);
+assert.doesNotMatch(
+  adminUserDetailView,
+  /완료한 배치고사가 없습니다/
+);
+assert.match(
+  adminUsersView,
+  /value="test"/
+);
+assert.match(
+  adminThemeStyles,
+  /\.admin-page \.admin-ranking-card[\s\S]*linear-gradient/
+);
+const curriculumFixture = {
+  courses: [
+    {
+      id: "algebra",
+      officialTitle: "대수",
+      units: [
+        {
+          id: "sequences",
+          title: "수열",
+          concepts: [
+            { id: "arithmetic-sequences", title: "등차수열" },
+          ],
+        },
+      ],
+    },
+  ],
+};
+const currentConcept = adminTesting.selectCurrentLearningConcept({
+  currentProgressRecord: {
+    courseId: "algebra",
+    unitId: "sequences",
+    conceptId: "arithmetic-sequences",
+    status: "in-progress",
+    completionPercent: 42,
+  },
+  progress: [],
+  curriculumData: curriculumFixture,
+});
+assert.deepEqual(
+  {
+    courseTitle: currentConcept.courseTitle,
+    unitTitle: currentConcept.unitTitle,
+    conceptTitle: currentConcept.conceptTitle,
+    href: currentConcept.href,
+  },
+  {
+    courseTitle: "대수",
+    unitTitle: "수열",
+    conceptTitle: "등차수열",
+    href: "/learn/algebra/sequences/arithmetic-sequences",
+  }
+);
+const overdueAssessment =
+  adminTesting.adminAssessmentView(
+    {
+      scopeType: "placement",
+      status: "in-progress",
+      startedAt:
+        new Date(
+          "2026-08-18T01:42:00+09:00"
+        ),
+      timeLimitMs:
+        100 * 60 * 1000,
+      questions: [
+        {
+          submittedAnswer: "1",
+        },
+        {
+          submittedAnswer: "",
+        },
+      ],
+    },
+    new Date(
+      "2026-08-19T09:50:00+09:00"
+    )
+  );
+assert.equal(
+  overdueAssessment.displayStatus,
+  "in-progress"
+);
+assert.equal(
+  overdueAssessment.disqualifiedReason,
+  null
+);
+assert.equal(
+  overdueAssessment.answeredCount,
+  1
+);
+const completedWithoutRanking =
+  adminTesting.buildAdminPlacementSummary({
+    assessments: [
+      {
+        scopeType: "placement",
+        displayStatus: "submitted",
+      },
+    ],
+    ranking: null,
+  });
+assert.equal(
+  completedWithoutRanking.completedCount,
+  1
+);
+assert.ok(
+  completedWithoutRanking.latestCompleted
+);
+assert.equal(
+  completedWithoutRanking.ranking,
+  null
 );
 
 assert.deepEqual(
@@ -713,6 +853,7 @@ for (const file of [
   "views/notifications.ejs",
   "views/admin-assessment-detail.ejs",
   "views/admin-user-activity.ejs",
+  "views/admin-user-detail.ejs",
   "views/admin-archive.ejs",
   "views/admin-coach-suggestions.ejs",
   "views/notification-detail.ejs",

@@ -33,7 +33,7 @@ async function run() {
     lateRenewalTierPenalty: "1",
     normalStakeDays: "1",
     revengeStakeDays: "2",
-    minimumStreakDays: "29",
+    minimumAttackParticipationDays: "15",
     minimumScoreDays: "30",
     bandMinScores: ["0", "30", "35", "40"],
     bandMaxScores: ["29", "34", "39", ""],
@@ -50,6 +50,7 @@ async function run() {
   assert.equal(normalized.matchStakeDays.normal, 1);
   assert.equal(normalized.matchStakeDays.revenge, 2);
   assert.equal("minimumPaidNormalAttacks" in normalized.payback, false);
+  assert.equal(normalized.payback.minimumAttackParticipationDays, 15);
   assert.equal(normalized.payback.bands[3].maxScoreDays, null);
   assert.equal(normalized.packagePurchaseRequiresZeroBalance, true);
   assert.deepEqual(
@@ -160,6 +161,16 @@ async function run() {
         paymentDayCutoffKst: "20:00",
       }),
     /결제 다음 날 00:00/
+  );
+  assert.throws(
+    () =>
+      normalizePolicyDraftInput({
+        ...normalized,
+        displayName: "잘못된 공격 출석 기준",
+        effectiveFrom: "2026-08-01T00:00",
+        minimumAttackParticipationDays: "14",
+      }),
+    /29일 이용 주기 중 15일/
   );
 
   const policy = new SubscriptionPolicyVersion({

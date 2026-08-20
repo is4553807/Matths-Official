@@ -964,3 +964,8 @@
     font-size: 9px;
   }
 }
+.ranking-pool-tabs button[aria-selected="true"],
+.ranking-list-tools button {
+  color: #fff;
+  background: linear-gradient(115deg, #5b2bbf, #2049bb 58%, #0d6887);
+}

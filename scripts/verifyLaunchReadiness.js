@@ -2,6 +2,7 @@ const { spawnSync } = require("node:child_process");
 
 const checks = [
   "oauth-mobile:verify",
+  "oauth-kakao:verify",
   "ipad-server-surface:verify",
   "ipad-learning-sync:verify",
   "ipad-assessment-http:verify",

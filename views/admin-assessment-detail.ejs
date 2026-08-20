@@ -9,6 +9,7 @@
   };
   const statusLabels = {
     "in-progress": "응시 중",
+    "verification-required": "추가 실력 확인 대기",
     submitted: "제출 완료",
     abandoned: "중단",
     disqualified: "실격",
@@ -32,6 +33,12 @@
     if (typeof value === "object") return JSON.stringify(value);
     return String(value);
   };
+  const displayStatus = attempt.displayStatus || attempt.status;
+  const statusText = attempt.disqualifiedReason === "time-limit"
+    ? attempt.scopeType === "placement"
+      ? "과거 버전 배치고사 시간초과 기록"
+      : "제한시간 초과 실격"
+    : statusLabels[displayStatus] || "상태 확인 필요";
 %>
 <!doctype html>
 <html lang="ko">
@@ -70,7 +77,7 @@
           <h1><%= attempt.title %></h1>
           <span><%= member.name %> · <%= member.email %> · <%= formatDate(attempt.startedAt || attempt.createdAt) %></span>
         </div>
-        <strong><%= attempt.scorePercent ?? 0 %><small>점</small></strong>
+        <strong><%= attempt.hasFinalScore ? (attempt.scorePercent ?? 0) : "—" %><small><%= attempt.hasFinalScore ? "점" : "미채점" %></small></strong>
       </header>
 
       <% if (attempt.scopeType === "placement") { %>
@@ -79,11 +86,12 @@
 
       <section class="admin-user-summary assessment-admin-summary">
         <article><span>시험 종류</span><strong><%= scopeLabels[attempt.scopeType] || "평가" %></strong></article>
-        <article><span>상태</span><strong><%= statusLabels[attempt.status] || "상태 확인 필요" %></strong></article>
-        <article><span>점수</span><strong><%= attempt.earnedPoints || 0 %> / <%= attempt.totalPoints || 0 %></strong></article>
+        <article><span>상태</span><strong><%= statusText %></strong><small>DB 확정 상태</small></article>
+        <article><span>점수</span><strong><%= attempt.hasFinalScore ? `${attempt.earnedPoints || 0} / ${attempt.totalPoints || 0}` : "판정 전" %></strong></article>
         <article><span>소요 시간</span><strong><%= formatDuration(attempt.elapsedTimeMs) %></strong></article>
-        <article><span>합격 여부</span><strong><%= attempt.passed ? "합격" : "미합격" %></strong></article>
+        <article><span>합격 여부</span><strong><%= attempt.hasFinalScore ? (attempt.passed ? "합격" : "미합격") : "판정 전" %></strong></article>
         <article><span>제출 시각</span><strong><%= formatDate(attempt.submittedAt) %></strong></article>
+        <article><span>제한시간 마감</span><strong><%= formatDate(attempt.deadlineAt) %></strong><small><%= displayStatus === "in-progress" && attempt.remainingTimeMs !== null ? `남은 시간 ${formatDuration(attempt.remainingTimeMs)}` : `저장 답안 ${attempt.answeredCount || 0}문항` %></small></article>
       </section>
 
       <section class="admin-assessment-questions">

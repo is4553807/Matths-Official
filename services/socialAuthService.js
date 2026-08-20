@@ -11,6 +11,8 @@ const PROVIDERS = Object.freeze({
   google: {
     key: "google",
     label: "Google",
+    idPath: "socialAuth.googleId",
+    testEnvPrefix: "GOOGLE_OAUTH",
     clientIdEnv: "GOOGLE_OAUTH_CLIENT_ID",
     clientSecretEnv: "GOOGLE_OAUTH_CLIENT_SECRET",
     redirectUriEnv: "GOOGLE_OAUTH_REDIRECT_URI",
@@ -18,6 +20,19 @@ const PROVIDERS = Object.freeze({
     tokenUrl: "https://oauth2.googleapis.com/token",
     profileUrl: "https://openidconnect.googleapis.com/v1/userinfo",
     scope: "openid email profile",
+  },
+  kakao: {
+    key: "kakao",
+    label: "카카오",
+    idPath: "socialAuth.kakaoId",
+    testEnvPrefix: "KAKAO_OAUTH",
+    clientIdEnv: "KAKAO_OAUTH_REST_API_KEY",
+    clientSecretEnv: "KAKAO_OAUTH_CLIENT_SECRET",
+    redirectUriEnv: "KAKAO_OAUTH_REDIRECT_URI",
+    authorizeUrl: "https://kauth.kakao.com/oauth/authorize",
+    tokenUrl: "https://kauth.kakao.com/oauth/token",
+    profileUrl: "https://kapi.kakao.com/v2/user/me",
+    scope: "account_email",
   },
 });
 
@@ -29,22 +44,22 @@ function providerConfig(provider) {
     error.code = "SOCIAL_AUTH_PROVIDER_NOT_FOUND";
     throw error;
   }
+  const testEnvPrefix =
+    definition.testEnvPrefix ||
+    `${definition.key.toUpperCase()}_OAUTH`;
   const testOverrides =
     process.env.NODE_ENV === "test"
       ? {
           authorizeUrl: String(
-            process.env
-              .GOOGLE_OAUTH_TEST_AUTHORIZE_URL ||
+            process.env[`${testEnvPrefix}_TEST_AUTHORIZE_URL`] ||
               definition.authorizeUrl
           ),
           tokenUrl: String(
-            process.env
-              .GOOGLE_OAUTH_TEST_TOKEN_URL ||
+            process.env[`${testEnvPrefix}_TEST_TOKEN_URL`] ||
               definition.tokenUrl
           ),
           profileUrl: String(
-            process.env
-              .GOOGLE_OAUTH_TEST_PROFILE_URL ||
+            process.env[`${testEnvPrefix}_TEST_PROFILE_URL`] ||
               definition.profileUrl
           ),
         }
@@ -208,6 +223,19 @@ async function fetchProviderProfile(config, accessToken, fetchImpl = fetch) {
     headers: { authorization: `Bearer ${accessToken}` },
   });
   const raw = await responseJson(response, config.label, "계정 조회");
+  if (config.key === "kakao") {
+    const account = raw.kakao_account || {};
+    return {
+      provider: config.key,
+      providerUserId: String(raw.id || ""),
+      email: String(account.email || "").trim().toLowerCase(),
+      emailVerified:
+        account.email_needs_agreement !== true &&
+        account.is_email_valid === true &&
+        account.is_email_verified === true,
+      displayName: String(account.profile?.nickname || "").trim(),
+    };
+  }
   return {
     provider: config.key,
     providerUserId: String(raw.sub || ""),
@@ -304,11 +332,17 @@ function clearPendingSocialRegistration(req) {
 }
 
 function socialIdPath(provider) {
-  if (provider === "google") return "socialAuth.googleId";
-  // 애플은 이 서비스의 웹 왕복 경로를 타지 않지만, provider → 사용자 필드 매핑은
-  // 한 곳에만 있어야 한다. 두 벌이 되면 한쪽만 고쳐진 채 조회 키가 갈린다.
-  if (provider === "apple") return "socialAuth.appleId";
-  throw new Error("지원하지 않는 소셜 로그인 방식입니다.");
+  // 애플은 PROVIDERS 테이블에 없다. 그 테이블은 **웹 OAuth 왕복**을 위한 것이라
+  // clientId·clientSecret·redirectUri 삼종을 전제하는데, 애플은 네이티브 시트가
+  // 신원을 증명해 오므로 로그인에 그 셋이 필요 없다(탈퇴 시 폐기에만 쓴다).
+  // 그래도 provider → 사용자 필드 매핑은 한 곳에만 있어야 해서 여기서 함께 답한다.
+  // 두 벌이 되면 한쪽만 고쳐진 채 조회 키가 갈린다.
+  if (String(provider || "").toLowerCase() === "apple") return "socialAuth.appleId";
+  const definition = PROVIDERS[String(provider || "").toLowerCase()];
+  if (definition?.idPath) return definition.idPath;
+  const error = new Error("지원하지 않는 소셜 로그인 방식입니다.");
+  error.code = "SOCIAL_AUTH_PROVIDER_NOT_FOUND";
+  throw error;
 }
 
 module.exports = {

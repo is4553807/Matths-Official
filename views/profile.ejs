@@ -51,6 +51,35 @@
     [13, 15].includes(Number(learner.schoolGrade))
       ? "졸업"
       : "재학";
+  /*
+   * 소셜 연결 상태.
+   * models/matthsModel.js 의 socialAuth.googleId / socialAuth.kakaoId 는 select:false 라
+   * 컨트롤러가 명시적으로 조회한 경우에만 값이 들어온다.
+   * 값 자체가 없으면 "연결 안 됨" 으로 잘못 보여주지 않도록 카드를 통째로 감춘다.
+   */
+  const socialAuth =
+    learner.socialAuth && typeof learner.socialAuth === "object"
+      ? learner.socialAuth
+      : null;
+  const socialAccountLinks = socialAuth
+    ? [
+        {
+          key: "kakao",
+          label: "카카오",
+          mark: "/images/kakao-login-mark.svg",
+          linked: Boolean(socialAuth.kakaoId),
+        },
+        {
+          key: "google",
+          label: "구글",
+          mark: "/images/google-g-logo.svg",
+          linked: Boolean(socialAuth.googleId),
+        },
+      ]
+    : [];
+  const linkedSocialAccounts = socialAccountLinks.filter(
+    (account) => account.linked
+  );
   const safeSchoolJson =
     JSON.stringify(regionData)
       .replace(/</g, "\\u003c")
@@ -82,6 +111,8 @@
     <link rel="stylesheet" href="/css/matths-theme.css" />
     <link rel="stylesheet" href="/css/product-refresh.css" />
     <link rel="stylesheet" href="/css/profile-v2.css" />
+    <!-- 가독성 가드레일은 페이지 팔레트 뒤에 마지막으로 적용한다 -->
+    <link rel="stylesheet" href="/css/contrast.css" />
   </head>
   <body>
     <a class="skip-link" href="#profile-main">프로필 설정으로 바로가기</a>
@@ -137,6 +168,9 @@
           <div>
             <span>계정·보안</span>
             <a href="#password-settings">비밀번호</a>
+            <% if (socialAccountLinks.length) { %>
+              <a href="#social-link-settings">연결된 계정</a>
+            <% } %>
             <a href="#withdrawal-settings">계정 탈퇴</a>
           </div>
         </nav>
@@ -366,6 +400,44 @@
             <h2>계정과 보안</h2>
             <span>비밀번호를 변경하거나 계정과 보관 데이터의 처리를 확인합니다.</span>
           </header>
+          <% if (socialAccountLinks.length) { %>
+            <section
+              class="settings-card"
+              id="social-link-settings"
+              aria-labelledby="social-link-title"
+            >
+              <div class="settings-card-heading">
+                <div>
+                  <p>소셜 로그인</p>
+                  <h2 id="social-link-title">연결된 계정</h2>
+                </div>
+              </div>
+
+              <p class="settings-description">
+                이메일 로그인과 별개로 연결된 소셜 계정을 확인합니다.
+              </p>
+
+              <% if (linkedSocialAccounts.length) { %>
+                <% linkedSocialAccounts.forEach((account) => { %>
+                  <div class="settings-alert success" role="status">
+                    <img
+                      src="<%= account.mark %>"
+                      alt=""
+                      width="20"
+                      height="20"
+                      aria-hidden="true"
+                    />
+                    <%= account.label %> 계정이 연결되어 있습니다.
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <p class="settings-description">
+                  아직 연결된 소셜 계정이 없습니다.
+                  로그인 화면에서 카카오 또는 구글 계정으로 로그인하면 연결됩니다.
+                </p>
+              <% } %>
+            </section>
+          <% } %>
           <section
             class="settings-card password-card"
             id="password-settings"

@@ -1,5 +1,7 @@
 const path = require("node:path");
+const fs = require("node:fs");
 const express = require("express");
+const ejs = require("ejs");
 const { arenaTierGuide, arenaUpperTierPopulationGuide } = require("../services/arenaTierPolicy");
 const { getArenaRulebook } = require("../services/arenaRulebookViewService");
 const {
@@ -41,6 +43,110 @@ app.set("view engine", "ejs");
 app.set("views", path.join(root, "views"));
 app.use(express.json({ limit: "256kb" }));
 app.use(express.static(path.join(root, "public")));
+
+function universalPreviewValue() {
+  let value;
+  const callable = function previewValue() {
+    return value;
+  };
+  value = new Proxy(callable, {
+    get(_target, key) {
+      if (key === Symbol.toPrimitive) {
+        return (hint) =>
+          hint === "number"
+            ? 0
+            : "2026-08-19T00:00:00.000Z";
+      }
+      if (key === Symbol.iterator) {
+        return function* emptyIterator() {};
+      }
+      if (key === "length") return 0;
+      if (key === "toJSON") return () => null;
+      if (key === "toString") return () => "";
+      if (key === "valueOf") return () => 0;
+      if (["map", "filter", "flatMap", "slice", "sort"].includes(key)) {
+        return () => [];
+      }
+      if (key === "find") return () => value;
+      if (key === "findIndex") return () => -1;
+      if (key === "some") return () => false;
+      if (key === "every") return () => true;
+      if (key === "includes") return () => false;
+      if (key === "reduce") return (_callback, initial) => initial;
+      if (key === "join") return () => "";
+      return value;
+    },
+    apply() {
+      return value;
+    },
+    construct() {
+      return value;
+    },
+  });
+  return value;
+}
+
+async function renderGenericPreview(viewName) {
+  const previewValue = universalPreviewValue();
+  const locals = {
+    Math,
+    Date,
+    JSON,
+    Object,
+    Array,
+    Number,
+    String,
+    Boolean,
+    encodeURIComponent,
+    decodeURIComponent,
+    parseInt,
+    parseFloat,
+    Infinity,
+    NaN,
+  };
+  const filename = path.join(root, "views", `${viewName}.ejs`);
+
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    try {
+      return await ejs.renderFile(filename, locals);
+    } catch (error) {
+      const missing = String(error?.message || "").match(
+        /([A-Za-z_$][\w$]*) is not defined/
+      );
+      if (!missing) throw error;
+      locals[missing[1]] = previewValue;
+    }
+  }
+
+  throw new Error(`미리보기 변수를 준비하지 못했습니다: ${viewName}`);
+}
+
+const genericPreviewViews = fs
+  .readdirSync(path.join(root, "views"), { withFileTypes: true })
+  .filter((entry) => entry.isFile() && entry.name.endsWith(".ejs"))
+  .map((entry) => entry.name.replace(/\.ejs$/, ""))
+  .sort();
+
+app.get("/preview/views", (_req, res) => {
+  res.type("html").send(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>Views 미리보기 목록</title></head><body><h1>Views 미리보기</h1><ul>${genericPreviewViews
+    .map(
+      (viewName) =>
+        `<li><a href="/preview/view/${encodeURIComponent(viewName)}">${viewName}.ejs</a></li>`
+    )
+    .join("")}</ul></body></html>`);
+});
+
+app.get("/preview/view/:viewName", async (req, res, next) => {
+  const viewName = String(req.params.viewName || "");
+  if (!genericPreviewViews.includes(viewName)) {
+    return res.status(404).send("존재하지 않는 view입니다.");
+  }
+  try {
+    return res.type("html").send(await renderGenericPreview(viewName));
+  } catch (error) {
+    return next(error);
+  }
+});
 
 app.post("/api/goat-arena/matches/:matchId/activity", (req, res) => {
   const signals = Array.isArray(req.body?.signals) ? req.body.signals : [];
@@ -214,6 +320,167 @@ app.get("/pricing", (req, res) => {
     products: previewProducts,
     productAccess: null,
     checkoutEnabled: true,
+  });
+});
+
+app.get("/preview/admin/users", (_req, res) => {
+  res.render("admin-users", {
+    user: {
+      name: "preview-admin",
+      realName: "미리보기 운영자",
+      role: "admin",
+    },
+    feedback: null,
+    usersData: {
+      users: [
+        {
+          _id: "64b000000000000000000151",
+          name: "수학하는염소",
+          email: "preview-student@example.test",
+          role: "student",
+          school: {
+            code: "PREVIEW-HS",
+            name: "미리보기고등학교",
+            region: "서울특별시",
+          },
+          schoolGrade: 11,
+          isActive: true,
+          accountStatus: "active",
+          warningCount: 0,
+          totalStudySeconds: 754,
+          lastLoginAt: new Date(),
+        },
+        {
+          _id: "64b000000000000000000152",
+          name: "배치검증계정",
+          email: "preview-test@example.test",
+          role: "test",
+          schoolGrade: 10,
+          isActive: true,
+          accountStatus: "active",
+          warningCount: 0,
+          totalStudySeconds: 0,
+          lastLoginAt: null,
+        },
+      ],
+      schools: [
+        {
+          code: "PREVIEW-HS",
+          name: "미리보기고등학교",
+        },
+      ],
+      filters: {
+        query: "",
+        schoolCode: "",
+        grade: "",
+        state: "",
+        role: "",
+      },
+      page: 1,
+      total: 2,
+      totalPages: 1,
+      perPage: 20,
+    },
+  });
+});
+
+app.get("/preview/admin/users/detail", (_req, res) => {
+  const startedAt = new Date("2026-08-18T01:42:22+09:00");
+  const deadlineAt = new Date(startedAt.getTime() + 100 * 60 * 1000);
+  const placementAttempt = {
+    _id: "64b000000000000000000161",
+    title: "GOAT Arena 입단 배치고사",
+    scopeType: "placement",
+    placementPurpose: "INITIAL",
+    status: "submitted",
+    displayStatus: "submitted",
+    disqualifiedReason: null,
+    scorePercent: 67,
+    hasFinalScore: true,
+    answeredCount: 20,
+    startedAt,
+    submittedAt: deadlineAt,
+    deadlineAt,
+    elapsedTimeMs: 100 * 60 * 1000,
+    timeLimitMs: 100 * 60 * 1000,
+  };
+  const member = {
+    _id: "64b000000000000000000151",
+    name: "수학하는염소",
+    realName: "미리보기 사용자",
+    email: "preview-student@example.test",
+    role: "student",
+    school: {
+      code: "PREVIEW-HS",
+      name: "미리보기고등학교",
+      region: "서울특별시",
+    },
+    schoolGrade: 11,
+    educationStatus: "enrolled",
+    isActive: true,
+    accountStatus: "active",
+    warningCount: 0,
+    totalStudySeconds: 754,
+    totalConnectedSeconds: 2200,
+    createdAt: new Date("2026-08-16T20:00:00+09:00"),
+    lastLoginAt: new Date("2026-08-19T08:30:00+09:00"),
+    lastStudyDate: new Date("2026-08-16T01:08:00+09:00"),
+  };
+  const conceptProgress = {
+    _id: "64b000000000000000000171",
+    courseTitle: "공통수학1",
+    unitTitle: "다항식",
+    conceptTitle: "다항식의 사칙연산",
+    completionPercent: 30,
+    status: "in-progress",
+    lastStudiedAt: member.lastStudyDate,
+  };
+  res.render("admin-user-detail", {
+    user: {
+      id: "64b000000000000000000199",
+      name: "preview-admin",
+      realName: "미리보기 운영자",
+      role: "admin",
+    },
+    feedback: null,
+    detail: {
+      user: member,
+      identityMatches: [],
+      learning: {
+        progress: [conceptProgress],
+        currentConcept: conceptProgress,
+        progressCount: 1,
+        completedCount: 0,
+        totalAttempts: 12,
+        correctAttempts: 0,
+        correctRate: 0,
+        averageResponseTimeMs: 0,
+      },
+      assessments: [placementAttempt],
+      placement: {
+        attemptCount: 1,
+        completedCount: 1,
+        latestAttempt: placementAttempt,
+        latestCompleted: placementAttempt,
+        active: null,
+        latestTerminal: null,
+        ranking: null,
+      },
+      ranking: null,
+      packageAccess: {
+        packageType: "FREE",
+        label: "기본학습 패키지",
+      },
+      weeklyMockAccess: {
+        active: false,
+        packageType: "FREE",
+      },
+      arenaBadges: [],
+      inquiries: [],
+      notifications: [],
+      actionLogs: [],
+      communityPosts: [],
+    },
   });
 });
 
@@ -832,10 +1099,10 @@ app.get("/goat-arena/profile", (_req, res) => {
         paybackScoreDays: 32,
         neededForRefund: 0,
         minimumPaybackScore: 30,
-        studyStreakDays: 17,
-        minimumStudyStreakDays: 29,
-        studyDaysNeeded: 12,
-        fullAttendanceQualified: false,
+        attackParticipationDays: 8,
+        minimumAttackParticipationDays: 15,
+        attackParticipationDaysNeeded: 7,
+        attackParticipationQualified: false,
       },
     },
   });
@@ -1403,7 +1670,7 @@ app.get("/admin/arena-policies", (_req, res) => {
     initialPaybackScoreDays: 29,
     matchStakeDays: { normal: 1, revenge: 2 },
     payback: {
-      minimumStreakDays: 29,
+      minimumAttackParticipationDays: 15,
       minimumScoreDays: 30,
       bands: [
         { minScoreDays: 0, maxScoreDays: 29, ratePercent: 0 },
@@ -1466,6 +1733,7 @@ app.get("/admin/arena-policies", (_req, res) => {
     oldInput: null,
     policyData: {
       now,
+      paybackRules: { cycleDays: 29, minimumAttackParticipationDays: 15 },
       sub: { activePolicy: subPolicy, upcomingPolicy: null, policies: [subPolicy] },
       learningPackage: { activePolicy: subPolicy, policies: [subPolicy] },
       policies: [subPolicy],
@@ -1476,7 +1744,13 @@ app.get("/admin/arena-policies", (_req, res) => {
   });
 });
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Matths UI preview: http://127.0.0.1:${port}`);
-});
-setInterval(() => {}, 60_000);
+const server = require.main === module
+  ? app.listen(port, "0.0.0.0", () => {
+      console.log(`Matths UI preview: http://127.0.0.1:${port}`);
+    })
+  : null;
+
+module.exports = {
+  app,
+  server,
+};
