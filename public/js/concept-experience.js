@@ -3092,3 +3092,267 @@
     init();
   }
 })();
+
+/* ── 개념 모션 컴포지션 배선 ────────────────────────────────────────────
+   위 IIFE 는 #concept-experience-config 가 없으면 즉시 빠져나간다. 그런데
+   자리표시자만 있는 basic-concept-experience 화면에는 그 config 가 없다.
+   두 화면 모두에 모션을 붙여야 하므로 별도 IIFE 로 떼어 둔다.
+
+   ■ 시계가 하나여야 한다
+   컴포지션은 원래 나레이션 오디오의 currentTime 을 유일한 시계로 삼아
+   타임라인을 seek 한다(?live=1). 웹에는 음성을 올리지 않으므로 그 시계가
+   없다. 그래서 ?live=0 으로 열어 컴포지션이 스스로 돌지 않게 막고,
+   여기서 rAF 벽시계로 seek 한다. 앱의 wallClock() 과 같은 규약이다.
+
+   ■ seek 의 두 번째 인자
+   GSAP seek 의 suppressEvents 기본값이 true 다. 그대로 두면 onUpdate 가
+   안 불려 실시간 리드아웃이 0 에 얼어붙는다. 반드시 false 를 넘긴다.     */
+
+(function () {
+  "use strict";
+
+  var BASE = "/concept-motion/compositions/";
+  var STAGE_WIDTH = 1080;
+
+  function boot() {
+    var mount = document.querySelector("[data-concept-motion]");
+    if (!mount) return;
+
+    var conceptId = mount.getAttribute("data-concept-motion");
+    if (!conceptId) return;
+
+    var frame = mount.querySelector(".concept-motion-frame");
+    if (!frame) return;
+
+    // 컴포지션이 못 뜨는 경우(자산 미배포·경로 오타)에는 아무 일도 없었던 것처럼
+    // 기존 화면이 그대로 남아야 한다. 그래서 무대 전환은 성공한 뒤에만 한다.
+    function giveUp() {
+      mount.remove();
+    }
+
+    var iframe = document.createElement("iframe");
+    iframe.setAttribute("title", "개념 모션그래픽");
+    // loading="lazy" 를 쓰면 안 된다. 마운트는 컴포지션을 잡기 전까지 hidden
+    // (display:none) 인데, 레이아웃 상자가 없는 요소는 뷰포트에 영영 가까워지지
+    // 않아 지연 로딩이 **끝내 발동하지 않는다.** 그러면 iframe 이 안 뜨고,
+    // 안 떠서 마운트가 계속 hidden 인 교착이 된다(실제로 그렇게 멈췄다).
+    // 대신 아래에서 눈에 보이는 조상을 관찰해 직접 늦게 붙인다.
+    // 컴포지션은 스크롤·폼·팝업이 필요 없다. 최소 권한으로 묶는다.
+    // same-origin 은 남겨야 한다 — 부모가 __timelines 를 잡아 시계를 돌린다.
+    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
+    iframe.src = BASE + encodeURIComponent(conceptId) + ".html?live=0&voice=off";
+
+    // 무대 폭이 정해질 때마다 배율을 다시 잰다. 컴포지션 내부는 1080px 고정이라
+    // 이 값 하나로 데스크톱·모바일이 모두 맞는다.
+    function rescale() {
+      var width = frame.clientWidth;
+      if (!width) return;
+      frame.style.setProperty(
+        "--concept-motion-scale",
+        String(width / STAGE_WIDTH)
+      );
+    }
+
+    var settled = false;
+
+    iframe.addEventListener("load", function () {
+      if (settled) return;
+      settled = true;
+
+      var win = iframe.contentWindow;
+      var timeline = null;
+      var compositionId = conceptId;
+
+      try {
+        // 타임라인 키는 파일명이 아니라 문서가 갖고 있다. 둘이 갈라진
+        // 컴포지션이 실제로 있어서 앱도 문서 쪽을 믿는다.
+        var stage = win.document.querySelector("[data-composition-id]");
+        if (stage) {
+          compositionId = stage.getAttribute("data-composition-id") || conceptId;
+        }
+        timeline = (win.__timelines || {})[compositionId] || null;
+      } catch (error) {
+        timeline = null;
+      }
+
+      // 404 도 load 를 발생시킨다. gsap 과 타임라인이 둘 다 잡혀야 진짜다.
+      if (!win || !win.gsap || !timeline) {
+        giveUp();
+        return;
+      }
+
+      // 컴포지션은 기본적으로 prefers-color-scheme 을 따라 어두워진다. 그런데
+      // 이 사이트는 밝은 화면 하나뿐이라, 시스템이 다크면 밝은 학습 화면 한가운데
+      // 새까만 무대가 박힌다. 컴포지션이 제공하는 강제 지정으로 밝은 쪽에 고정한다.
+      try {
+        win.document.documentElement.setAttribute("data-theme", "light");
+      } catch (error) {
+        /* 고정에 실패해도 무대 자체는 뜬다 — 색만 시스템을 따른다. */
+      }
+
+      mount.hidden = false;
+      var stageBox = mount.closest(".motion-stage");
+      if (stageBox) stageBox.classList.add("has-concept-motion");
+      var playerBox = mount.closest(".motion-player");
+      if (playerBox) playerBox.classList.add("has-concept-motion");
+      var placeholder = document.querySelector(".motion-placeholder");
+      if (placeholder) placeholder.classList.add("has-concept-motion");
+
+      rescale();
+      if (window.ResizeObserver) {
+        new window.ResizeObserver(rescale).observe(frame);
+      } else {
+        window.addEventListener("resize", rescale);
+      }
+
+      var toggleButton = mount.querySelector("[data-concept-motion-toggle]");
+      var replayButton = mount.querySelector("[data-concept-motion-replay]");
+
+      var elapsed = 0;
+      var mark = null;
+      var desired = false;
+      var visible = false;
+      var pageVisible = document.visibilityState !== "hidden";
+      var finished = false;
+      var ticking = false;
+
+      function running() {
+        return desired && visible && pageVisible && !finished;
+      }
+
+      function label() {
+        if (!toggleButton) return;
+        toggleButton.textContent = running() ? "일시정지" : "재생";
+      }
+
+      function step(now) {
+        if (!running()) {
+          ticking = false;
+          mark = null;
+          return;
+        }
+        if (mark === null) mark = now;
+        // rAF 델타로 잰다. 탭이 가려지면 rAF 가 멈추므로 시간이 건너뛰지 않고
+        // 돌아온 자리에서 이어진다.
+        elapsed += (now - mark) / 1000;
+        mark = now;
+
+        var total = timeline.duration();
+        if (elapsed >= total) {
+          timeline.seek(total, false);
+          finished = true;
+          ticking = false;
+          mark = null;
+          label();
+          return;
+        }
+        timeline.seek(elapsed, false);
+        requestAnimationFrame(step);
+      }
+
+      function pump() {
+        label();
+        if (running() && !ticking) {
+          ticking = true;
+          mark = null;
+          requestAnimationFrame(step);
+        }
+      }
+
+      if (toggleButton) {
+        toggleButton.addEventListener("click", function () {
+          if (finished) {
+            finished = false;
+            elapsed = 0;
+            timeline.seek(0, false);
+            desired = true;
+          } else {
+            desired = !desired;
+          }
+          pump();
+        });
+      }
+
+      if (replayButton) {
+        replayButton.addEventListener("click", function () {
+          elapsed = 0;
+          finished = false;
+          desired = true;
+          timeline.seek(0, false);
+          pump();
+        });
+      }
+
+      // 탭이 가려지면 rAF 는 **취소되는 것이 아니라 미뤄진다.** 돌아왔을 때
+      // now - mark 가 가려져 있던 시간 전체가 되어, 한 프레임에 수십 초를 건너뛴다
+      // (짧은 개념은 그대로 끝까지 감긴다). 그래서 돌아온 순간 mark 를 버려
+      // 델타를 다시 재게 한다. 흐른 시간은 elapsed 에 그대로 남는다.
+      document.addEventListener("visibilitychange", function () {
+        pageVisible = document.visibilityState !== "hidden";
+        mark = null;
+        pump();
+      });
+
+      // 화면 밖에 있는 무대를 계속 돌리면 배터리만 태운다. 보일 때만 돈다.
+      if (window.IntersectionObserver) {
+        new window.IntersectionObserver(
+          function (entries) {
+            visible = entries[0].isIntersecting;
+            pump();
+          },
+          { threshold: 0.15 }
+        ).observe(frame);
+      } else {
+        visible = true;
+      }
+
+      // 모션을 줄여 달라고 설정한 사용자에게 자동재생은 그 자체가 위반이다.
+      // 첫 프레임만 세워 두고 재생은 버튼을 눌렀을 때만 시작한다.
+      var reduced =
+        window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      timeline.seek(0, false);
+      desired = !reduced;
+      pump();
+    });
+
+    // 컴포지션 한 편에 HTML 80KB + 폰트 348KB + gsap 72KB 가 붙는다. 개념 화면을
+    // 열자마자 전부 받을 이유는 없다 — 학생이 모션 근처까지 내려왔을 때 붙인다.
+    // 관찰 대상은 **눈에 보이는 조상**이다. hidden 인 마운트 자신을 관찰하면
+    // 교차가 영영 일어나지 않는다(위 loading="lazy" 주석과 같은 이유다).
+    function attach() {
+      // load 가 끝내 안 오는 경우에도 빈 무대를 남기면 안 된다.
+      window.setTimeout(function () {
+        if (!settled) {
+          settled = true;
+          giveUp();
+        }
+      }, 12000);
+
+      frame.appendChild(iframe);
+    }
+
+    var trigger = mount.parentElement || mount;
+    if (window.IntersectionObserver) {
+      var loader = new window.IntersectionObserver(
+        function (entries) {
+          if (!entries[0].isIntersecting) return;
+          loader.disconnect();
+          attach();
+        },
+        // 화면에 닿기 전에 미리 받아 둬야 내려왔을 때 이미 서 있다.
+        { rootMargin: "400px" }
+      );
+      loader.observe(trigger);
+    } else {
+      attach();
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  } else {
+    boot();
+  }
+})();

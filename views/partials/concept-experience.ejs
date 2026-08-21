@@ -1354,6 +1354,35 @@
       <div
         class="motion-stage <%= isCommonMathExperience ? 'common-math-motion-stage' : algebraGraphProfile || isProbabilityExperience || isAdvancedCalculusExperience ? 'algebra-motion-stage' : '' %>"
       >
+        <%
+          /* 개념 전용 모션 컴포지션 자리다. 실제로 뜨는지는 브라우저가 판단한다 —
+             concept-experience.js 가 iframe 을 올려 보고 타임라인을 잡았을 때만
+             hidden 을 풀고 아래 기존 무대를 감춘다. 자산이 배포되지 않았거나
+             해당 개념의 컴포지션이 없으면 이 블록은 스스로 사라지고 기존 화면이
+             그대로 남는다. 그래서 여기서 파일 존재를 미리 따지지 않는다. */
+        %>
+        <div
+          class="concept-motion-embed"
+          data-concept-motion="<%= concept.id %>"
+          hidden
+        >
+          <div class="concept-motion-frame"></div>
+
+          <div class="concept-motion-controls">
+            <button type="button" data-concept-motion-toggle>
+              재생
+            </button>
+
+            <button
+              type="button"
+              class="is-secondary"
+              data-concept-motion-replay
+            >
+              처음부터 다시 보기
+            </button>
+          </div>
+        </div>
+
         <% if (isCommonMathExperience) { %>
           <div class="common-math-motion-board" aria-label="<%= concept.title %>의 세 단계 학습 흐름">
             <div class="common-math-motion-formula">

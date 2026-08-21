@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, height=1920">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+    @font-face { font-family:"Matths KR"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-kr.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Math"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-math.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Math"; font-weight:400; font-style:italic; font-display:block;
+                 src:url("assets/fonts/matths-math-italic.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Mono"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-mono.woff2") format("woff2"); }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:1080px; height:1920px; overflow:hidden; background:#090C1B; }
+    #root { position:relative; width:1080px; height:1920px; overflow:hidden;
+            background:#090C1B; color:#EEF1FA; font-family:'Matths KR', sans-serif; }
+
+    .band { position:absolute; left:0; width:1080px; }
+
+    /* 타이틀 띠 — 50초 내내 고정. 학습자가 "무엇을 보고 있는지" 잃지 않게 한다. */
+    .band-title { top:134.4px; height:144px; text-align:center; }
+    .t-formula { font-family:'Matths Math', serif; font-size:58px; font-style:italic; letter-spacing:.01em; }
+    .t-sub { margin-top:10px; font-size:31px; color:#8A94AB; letter-spacing:.02em; }
+
+    /* 수식 패널 띠 — 지배 식이 항 단위로 조립되어 상주한다 */
+    .band-panel { top:297.6px; height:144px;
+                  display:flex; align-items:center; justify-content:center; }
+    .panel-row { position:relative; display:flex; align-items:center; gap:10px;
+                 font-family:'Matths Math', serif; font-size:52px; font-style:italic; }
+    .term { position:relative; padding:8px 14px; opacity:0; font-weight:500; }
+
+    /* 강조 = 색을 채운 박스. 테두리만 그리면 옆 항들과 무게가 비슷해 눈에 안 띈다.
+       currentColor 는 그 항의 의미색이므로, 채움도 라벨도 자동으로 같은 색이 된다.
+       색 하나가 "이 항이 무엇인가" 와 "지금 여기를 보라" 를 동시에 말한다. */
+    .term .boxline { position:absolute; inset:0; border:2.5px solid currentColor;
+                     border-radius:10px; opacity:0; }
+    /* 채움은 별도 레이어로 깔고 알파를 낮춘다. 같은 요소에 background 를 주면
+       테두리까지 옅어져 경계가 사라진다. */
+    .term .boxline::after { content:""; position:absolute; inset:0;
+                            background:currentColor; opacity:0.16; border-radius:8px; }
+    .term.on { font-weight:700; }
+
+    /* 라벨은 알약으로 채운다. 글자는 바탕색이라 대비가 가장 세다. */
+    .term .tag { position:absolute; left:50%; top:100%; transform:translateX(-50%);
+                 margin-top:10px; font-family:'Matths KR', sans-serif; font-style:normal;
+                 font-size:22px; font-weight:700; white-space:nowrap; opacity:0;
+                 padding:3px 12px; border-radius:999px;
+                 background:currentColor;
+                 letter-spacing:.01em; }
+    /* 글자색을 .tag 에 직접 주면 안 된다 — background:currentColor 가 그 색을
+       가리키게 되어 알약이 흰색으로 죽는다. 실제로 그렇게 됐다.
+       색은 안쪽 요소가 갖고, .tag 는 의미색을 그대로 물려받게 둔다. */
+    .term .tag i { font-style:normal; color:#090C1B; }
+
+    /* 무대 띠 — 좌표계와 도형이 사는 유일한 동적 영역 */
+    .band-stage { top:480px; height:825.6px; }
+
+    /* 자막 띠 — 최대 2줄, 무대와 겹치지 않는다 */
+    .band-caption { top:1401.6px; height:249.60000000000002px;
+                    display:flex; align-items:flex-start; justify-content:center; }
+    .cap { position:absolute; width:930px; text-align:center; font-size:37px;
+           line-height:1.46; color:#EEF1FA; word-break:keep-all; }
+
+    /* 결론 — 무대를 전부 걷어내고 명제 하나만 남긴다.
+       .band-stage 안에 들어가므로 top 은 0 이다. 여기에 다시 BAND.stage.top 을 주면
+       오프셋이 두 번 먹어 결론이 자막 띠까지 내려가 겹친다(1차 렌더에서 실제로 그랬다). */
+    .verdict { position:absolute; left:0; top:0; width:1080px;
+               height:825.6px; display:flex; flex-direction:column;
+               align-items:center; justify-content:center; gap:24px; opacity:0; }
+    .verdict-main { font-family:'Matths Math', serif; font-size:72px; font-style:italic; }
+    /* 한글 결론은 수식 폰트를 쓰면 안 된다 — 이탤릭 세리프에 한글을 얹으면
+       글자가 통째로 기울어져 조판이 무너진다(2차 렌더에서 실제로 그랬다). */
+    .verdict-kr { font-family:'Matths KR', sans-serif; font-style:normal; font-size:56px; line-height:1.3; }
+    .verdict-sub { font-size:34px; color:#8A94AB; }
+    .verdict-row { display:flex; align-items:baseline; gap:20px; font-size:44px; }
+    .verdict-row .vr-cond { font-family:'Matths Math', serif; font-style:italic; min-width:190px;
+                            text-align:right; }
+    .verdict-row .vr-arrow { color:#8A94AB; font-size:34px; }
+    .verdict-row .vr-out { font-family:'Matths KR', sans-serif; font-size:40px; }
+
+    .readout { font-family:'Matths Mono', monospace; font-size:30px; font-variant-numeric:tabular-nums; }
+  </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-st04" id="root" data-composition-id="90-set-operations" data-start="0" data-duration="30.067" data-width="1080" data-height="1920">
+
+      <!-- id 는 필수다. 없으면 렌더러가 미디어 요소를 못 찾아 무음으로 나갈 수 있다. -->
+      <audio data-hf-id="hf-m3jj" id="voice" class="clip" data-start="0" data-duration="30.067" data-track-index="0" data-volume="1" data-voice-src="assets/voice/90.mp3"></audio>
+
+      <div data-hf-id="hf-sv9m" id="band-title" class="clip band band-title" data-start="0" data-duration="30.067" data-track-index="1">
+        <div data-hf-id="hf-zeqx" class="t-formula"><span data-hf-id="hf-1bkx" style="font-size:58px">(A∪B)ᶜ = Aᶜ ∩ Bᶜ</span></div>
+        <div data-hf-id="hf-trjl" class="t-sub">집합의 연산과 벤 다이어그램</div>
+      </div>
+
+
+      <div data-hf-id="hf-vnax" id="band-panel" class="clip band band-panel" data-start="0" data-duration="30.067" data-track-index="2">
+        <div data-hf-id="hf-ohfl" class="panel-row" style="font-size:52px">
+          <span data-hf-id="hf-qs92" class="term" id="tm-0" style="color:#0CDCF1">(A∪B)ᶜ</span>
+          <span data-hf-id="hf-1xzz" class="term" id="tm-1" style="color:#EEF1FA">=</span>
+          <span data-hf-id="hf-ocp3" class="term" id="tm-2" style="color:#CA44E3">Aᶜ ∩ Bᶜ<span data-hf-id="hf-tp6u" class="boxline"></span><span data-hf-id="hf-o0o3" class="tag">드모르간</span></span>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-0p6g" id="band-stage" class="clip band band-stage" data-start="0" data-duration="30.067" data-track-index="3">
+        <svg data-hf-id="hf-hqcw" width="1080" height="825.6" viewBox="0 0 1080 825.6">
+          <defs data-hf-id="hf-mh0t">
+      <mask data-hf-id="hf-yq5q" id="mk-0" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-nj9r" x="0" y="0" width="1080" height="825.6" fill="black" /><g data-hf-id="hf-5nfh" mask="url(#mk-1)"><rect data-hf-id="hf-mo0h" x="0" y="0" width="1080" height="825.6" fill="white" /></g><g data-hf-id="hf-s4wc" mask="url(#mk-2)"><rect data-hf-id="hf-5b45" x="0" y="0" width="1080" height="825.6" fill="white" /></g></mask>
+      <mask data-hf-id="hf-wz4x" id="mk-1" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-dp4f" x="0" y="0" width="1080" height="825.6" fill="black" /><circle data-hf-id="hf-drvy" class="rgc rgc-A" fill="white" /></mask>
+      <mask data-hf-id="hf-p4ww" id="mk-2" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-date" x="0" y="0" width="1080" height="825.6" fill="black" /><circle data-hf-id="hf-zxy7" class="rgc rgc-B" fill="white" /></mask>
+      <mask data-hf-id="hf-13sr" id="mk-3" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-cwid" x="0" y="0" width="1080" height="825.6" fill="black" /><g data-hf-id="hf-20n6" mask="url(#mk-4)"><g data-hf-id="hf-mtcx" mask="url(#mk-5)"><rect data-hf-id="hf-6i18" x="0" y="0" width="1080" height="825.6" fill="white" /></g></g></mask>
+      <mask data-hf-id="hf-pigq" id="mk-4" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-jqmo" x="0" y="0" width="1080" height="825.6" fill="black" /><circle data-hf-id="hf-2bua" class="rgc rgc-A" fill="white" /></mask>
+      <mask data-hf-id="hf-7trh" id="mk-5" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-facj" x="0" y="0" width="1080" height="825.6" fill="black" /><circle data-hf-id="hf-mtr3" class="rgc rgc-B" fill="white" /></mask>
+      <mask data-hf-id="hf-37ks" id="mk-6" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-63q7" x="0" y="0" width="1080" height="825.6" fill="white" /><g data-hf-id="hf-cl5b" mask="url(#mk-7)"><rect data-hf-id="hf-ew1i" x="0" y="0" width="1080" height="825.6" fill="black" /></g></mask>
+      <mask data-hf-id="hf-9rlj" id="mk-7" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-ehqh" x="0" y="0" width="1080" height="825.6" fill="black" /><circle data-hf-id="hf-2q5b" class="rgc rgc-A" fill="white" /></mask>
+      <mask data-hf-id="hf-2icm" id="mk-8" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-awz8" x="0" y="0" width="1080" height="825.6" fill="black" /><g data-hf-id="hf-keed" mask="url(#mk-9)"><g data-hf-id="hf-o6f1" mask="url(#mk-10)"><rect data-hf-id="hf-7ana" x="0" y="0" width="1080" height="825.6" fill="white" /></g></g></mask>
+      <mask data-hf-id="hf-ldnd" id="mk-9" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-aio7" x="0" y="0" width="1080" height="825.6" fill="black" /><circle data-hf-id="hf-34gc" class="rgc rgc-A" fill="white" /></mask>
+      <mask data-hf-id="hf-skox" id="mk-10" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-6wc9" x="0" y="0" width="1080" height="825.6" fill="white" /><g data-hf-id="hf-b9pa" mask="url(#mk-11)"><rect data-hf-id="hf-h4zx" x="0" y="0" width="1080" height="825.6" fill="black" /></g></mask>
+      <mask data-hf-id="hf-70su" id="mk-11" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-hjay" x="0" y="0" width="1080" height="825.6" fill="black" /><circle data-hf-id="hf-mfg2" class="rgc rgc-B" fill="white" /></mask>
+      <mask data-hf-id="hf-u9nf" id="mk-12" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-839c" x="0" y="0" width="1080" height="825.6" fill="white" /><g data-hf-id="hf-cvho" mask="url(#mk-13)"><rect data-hf-id="hf-hxlz" x="0" y="0" width="1080" height="825.6" fill="black" /></g></mask>
+      <mask data-hf-id="hf-p37k" id="mk-13" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-ibx0" x="0" y="0" width="1080" height="825.6" fill="black" /><g data-hf-id="hf-9ebl" mask="url(#mk-14)"><rect data-hf-id="hf-7oyb" x="0" y="0" width="1080" height="825.6" fill="white" /></g><g data-hf-id="hf-y40y" mask="url(#mk-15)"><rect data-hf-id="hf-2iyy" x="0" y="0" width="1080" height="825.6" fill="white" /></g></mask>
+      <mask data-hf-id="hf-23il" id="mk-14" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-iq81" x="0" y="0" width="1080" height="825.6" fill="black" /><circle data-hf-id="hf-3ird" class="rgc rgc-A" fill="white" /></mask>
+      <mask data-hf-id="hf-7guy" id="mk-15" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-j4j2" x="0" y="0" width="1080" height="825.6" fill="black" /><circle data-hf-id="hf-m151" class="rgc rgc-B" fill="white" /></mask>
+      <mask data-hf-id="hf-tgif" id="mk-16" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-jiu3" x="0" y="0" width="1080" height="825.6" fill="black" /><g data-hf-id="hf-q3f4" mask="url(#mk-17)"><g data-hf-id="hf-vp2e" mask="url(#mk-19)"><rect data-hf-id="hf-24nx" x="0" y="0" width="1080" height="825.6" fill="white" /></g></g></mask>
+      <mask data-hf-id="hf-q8zg" id="mk-17" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-9azz" x="0" y="0" width="1080" height="825.6" fill="white" /><g data-hf-id="hf-kjr9" mask="url(#mk-18)"><rect data-hf-id="hf-jx54" x="0" y="0" width="1080" height="825.6" fill="black" /></g></mask>
+      <mask data-hf-id="hf-b2yh" id="mk-18" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-kbg5" x="0" y="0" width="1080" height="825.6" fill="black" /><circle data-hf-id="hf-3x2e" class="rgc rgc-A" fill="white" /></mask>
+      <mask data-hf-id="hf-k2bq" id="mk-19" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-9pb0" x="0" y="0" width="1080" height="825.6" fill="white" /><g data-hf-id="hf-pug6" mask="url(#mk-20)"><rect data-hf-id="hf-kpr6" x="0" y="0" width="1080" height="825.6" fill="black" /></g></mask>
+      <mask data-hf-id="hf-4ruu" id="mk-20" maskUnits="userSpaceOnUse"><rect data-hf-id="hf-fr92" x="0" y="0" width="1080" height="825.6" fill="black" /><circle data-hf-id="hf-ota8" class="rgc rgc-B" fill="white" /></mask>
+          </defs>
+
+          <!-- 배경 자 — 좌표축이 아니라 결 하나를 깔아 두는 용도라 굵은 축선은 접어 둔다.
+               (벤 다이어그램 위로 x·y축이 지나가면 좌표평면처럼 잘못 읽힌다.) -->
+          <g data-hf-id="hf-aj3b" id="grid" opacity="0">
+      <line data-hf-id="hf-r2t9" x1="105.5" y1="0" x2="105.5" y2="825.6" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-6t7v" x1="214.1" y1="0" x2="214.1" y2="825.6" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-ufer" x1="322.7" y1="0" x2="322.7" y2="825.6" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-t6m7" x1="431.4" y1="0" x2="431.4" y2="825.6" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-cnbp" x1="540.0" y1="0" x2="540.0" y2="825.6" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-asm7" x1="648.6" y1="0" x2="648.6" y2="825.6" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-yj0j" x1="757.3" y1="0" x2="757.3" y2="825.6" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-5l9r" x1="865.9" y1="0" x2="865.9" y2="825.6" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-g47d" x1="974.5" y1="0" x2="974.5" y2="825.6" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-egjj" x1="0" y1="738.7" x2="1080" y2="738.7" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-6ch9" x1="0" y1="630.1" x2="1080" y2="630.1" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-yt2h" x1="0" y1="521.4" x2="1080" y2="521.4" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-xp1n" x1="0" y1="412.8" x2="1080" y2="412.8" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-sxyz" x1="0" y1="304.2" x2="1080" y2="304.2" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-595x" x1="0" y1="195.5" x2="1080" y2="195.5" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-pgbt" x1="0" y1="86.9" x2="1080" y2="86.9" stroke="#327FFA" stroke-opacity="0.13" stroke-width="1.5" />
+      <line data-hf-id="hf-b7ff" x1="0" y1="412.8" x2="0" y2="412.8" stroke="#327FFA" stroke-opacity="0.75" stroke-width="3" />
+      <line data-hf-id="hf-8m79" x1="540" y1="825.6" x2="540" y2="825.6" stroke="#327FFA" stroke-opacity="0.75" stroke-width="3" />
+          </g>
+
+          <g data-hf-id="hf-jgfr" id="uni" opacity="0">
+            <rect data-hf-id="hf-ro3c" id="uniBox" x="56" y="64" width="968" height="657.6" rx="18" fill="none" stroke="#327FFA" stroke-width="4" />
+            <text data-hf-id="hf-v4oi" id="uniLabel" x="76" y="106" fill="#327FFA" font-size="32" font-family="'Matths KR', sans-serif">U</text>
+          </g>
+
+          <!-- 전체를 조건 영역으로 갈아 끼울 때 이 묶음이 통째로 확대된다(분모 교체). -->
+          <g data-hf-id="hf-p9s8" id="venn">
+            <g data-hf-id="hf-h126" id="cells" opacity="0">
+
+            </g>
+
+            <g data-hf-id="hf-ymyh" id="shades">
+          <g data-hf-id="hf-bjde" id="sh-0" opacity="0" mask="url(#mk-0)"><rect data-hf-id="hf-dycw" x="0" y="0" width="1080" height="825.6" fill="#CA44E3" fill-opacity="0.30" /></g>
+          <g data-hf-id="hf-b4ey" id="sh-1" opacity="0" mask="url(#mk-3)"><rect data-hf-id="hf-mt54" x="0" y="0" width="1080" height="825.6" fill="#CA44E3" fill-opacity="0.30" /></g>
+          <g data-hf-id="hf-t4q6" id="sh-2" opacity="0" mask="url(#mk-6)"><rect data-hf-id="hf-lm81" x="0" y="0" width="1080" height="825.6" fill="#CA44E3" fill-opacity="0.30" /></g>
+          <g data-hf-id="hf-99yp" id="sh-3" opacity="0" mask="url(#mk-8)"><rect data-hf-id="hf-m0j2" x="0" y="0" width="1080" height="825.6" fill="#CA44E3" fill-opacity="0.30" /></g>
+          <g data-hf-id="hf-omt3" id="sh-4" opacity="0" mask="url(#mk-12)"><rect data-hf-id="hf-ktlz" x="0" y="0" width="1080" height="825.6" fill="#CA44E3" fill-opacity="0.30" /></g>
+          <g data-hf-id="hf-53js" id="sh-5" opacity="0" mask="url(#mk-16)"><rect data-hf-id="hf-l7x0" x="0" y="0" width="1080" height="825.6" fill="#CA44E3" fill-opacity="0.30" /></g>
+            </g>
+
+            <g data-hf-id="hf-508e" id="regions" opacity="0">
+            <g data-hf-id="hf-vera"><circle data-hf-id="hf-da4j" id="rg-0" class="rgc rgc-A" fill="none" stroke="#0CDCF1" stroke-width="4.5" /><text data-hf-id="hf-u8qu" id="rgl-0" fill="#0CDCF1" font-size="30" font-family="'Matths KR', sans-serif" text-anchor="middle">A</text></g>
+            <g data-hf-id="hf-pwpm"><circle data-hf-id="hf-0hsh" id="rg-1" class="rgc rgc-B" opacity="0" fill="none" stroke="#7B4EFC" stroke-width="4.5" /><text data-hf-id="hf-fhsi" id="rgl-1" opacity="0" fill="#7B4EFC" font-size="30" font-family="'Matths KR', sans-serif" text-anchor="middle">B</text></g>
+            </g>
+
+            <g data-hf-id="hf-ny3p" id="elems" opacity="0">
+
+            </g>
+
+            <g data-hf-id="hf-qqet" id="counter" opacity="0">
+              <circle data-hf-id="hf-en74" id="counterRing" fill="none" stroke="#CA44E3" stroke-width="4" />
+              <circle data-hf-id="hf-bso8" id="counterDot" r="12" fill="#CA44E3" />
+              <text data-hf-id="hf-cqi5" id="counterTag" fill="#CA44E3" font-size="28" font-family="'Matths KR', sans-serif" text-anchor="middle">반례</text>
+            </g>
+
+            <g data-hf-id="hf-83j0" id="contra" opacity="0">
+              <circle data-hf-id="hf-ddq8" id="contraIn" fill="none" stroke="#CA44E3" stroke-width="4" stroke-dasharray="10 8" />
+              <circle data-hf-id="hf-jb64" id="contraDot" r="13" fill="#CA44E3" />
+              <text data-hf-id="hf-23d0" id="contraTag" fill="#CA44E3" font-size="28" font-family="'Matths KR', sans-serif" text-anchor="middle">안이면서 밖 — 모순</text>
+            </g>
+          </g>
+
+          <g data-hf-id="hf-s1t0" id="cards" opacity="0">
+
+          </g>
+
+          <!-- 리드아웃은 무대 아래 띠에 눕힌다. 벤 다이어그램과 절대 겹치지 않는다. -->
+          <g data-hf-id="hf-3ulm" id="hud" opacity="0">
+            <rect data-hf-id="hf-eydh" x="46" y="693.6" width="988" height="72" rx="14" fill="#090C1B" fill-opacity="0.9" stroke="#232A44" stroke-width="1.5" />
+            <text data-hf-id="hf-kanh" id="hudU" class="readout" x="72" y="739.6" fill="#327FFA" font-family="'Matths Mono', monospace" font-size="28" />
+            <text data-hf-id="hf-0xdb" id="hudA" class="readout" x="322" y="739.6" fill="#0CDCF1" font-family="'Matths Mono', monospace" font-size="28" />
+            <text data-hf-id="hf-2q04" id="hudB" class="readout" x="542" y="739.6" fill="#7B4EFC" font-family="'Matths Mono', monospace" font-size="28" />
+            <text data-hf-id="hf-avb7" id="hudOp" class="readout" x="1008" y="739.6" fill="#CA44E3" font-family="'Matths Mono', monospace" font-size="28" text-anchor="end" />
+          </g>
+        </svg>
+
+        <div data-hf-id="hf-6ykw" class="verdict" id="verdict">
+          <div data-hf-id="hf-z6z0" class="verdict-main" style="color:#CA44E3; font-size:72px;">(A∪B)ᶜ = Aᶜ ∩ Bᶜ</div>
+          <div data-hf-id="hf-zhbq" class="verdict-kr" style="color:#7B4EFC; font-size:56px">양변을 칠해 보면 같은 넓이가 남는다</div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-2ean" id="band-caption" class="clip band band-caption" data-start="0" data-duration="30.067" data-track-index="4">
+      <div data-hf-id="hf-eufk" class="cap" id="cap-0" style="opacity:0">전체집합을 하나의 틀로 놓고, 그 안에 두 집합을 원으로 그립니다.</div>
+      <div data-hf-id="hf-gtjf" class="cap" id="cap-1" style="opacity:0">두 원이 겹치는 부분이 A ∩ B 입니다.</div>
+      <div data-hf-id="hf-mcb3" class="cap" id="cap-2" style="opacity:0">두 원을 합쳐 덮은 부분이 A ∪ B 입니다.</div>
+      <div data-hf-id="hf-uvp2" class="cap" id="cap-3" style="opacity:0">틀 안에서 A 를 뺀 나머지가 Aᶜ 입니다.</div>
+      <div data-hf-id="hf-vww8" class="cap" id="cap-4" style="opacity:0">그러면 (A ∪ B)ᶜ 는 어디일까요.</div>
+      <div data-hf-id="hf-mmn0" class="cap" id="cap-5" style="opacity:0">두 원 바깥에 남는 영역, 딱 그만큼입니다.</div>
+      <div data-hf-id="hf-mpro" class="cap" id="cap-6" style="opacity:0">Aᶜ 와 Bᶜ 를 겹쳐도 같은 영역이 남습니다.</div>
+      <div data-hf-id="hf-j2na" class="cap" id="cap-7" style="opacity:0">양변을 칠해 보면 같은 넓이가 남는다 — 드모르간 법칙.</div>
+      </div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const PLAN = {"op":"union","uni":{"x0":-4.455426356589147,"x1":4.455426356589147,"y0":-2.8426356589147286,"y1":3.2108527131782947},"uniPx":{"l":56,"r":1024,"t":64,"b":721.6},"grid":null,"regions":[{"key":"A","r":1.7,"cx":-0.9,"cy":0,"role":"subject","band":null},{"key":"B","r":1.7,"cx":0.9,"cy":0,"role":"condition","band":null}],"shadeSrc":["A∪B","A∩B","Aᶜ","A−B","(A∪B)ᶜ","Aᶜ∩Bᶜ"],"roleColors":{"subject":"#0CDCF1","condition":"#7B4EFC","answer":"#CA44E3","structure":"#327FFA","neutral":"#EEF1FA"},"elements":[],"shades":[{"t":"or","a":{"t":"r","k":"A"},"b":{"t":"r","k":"B"}},{"t":"and","a":{"t":"r","k":"A"},"b":{"t":"r","k":"B"}},{"t":"not","a":{"t":"r","k":"A"}},{"t":"sub","a":{"t":"r","k":"A"},"b":{"t":"r","k":"B"}},{"t":"not","a":{"t":"or","a":{"t":"r","k":"A"},"b":{"t":"r","k":"B"}}},{"t":"and","a":{"t":"not","a":{"t":"r","k":"A"}},"b":{"t":"not","a":{"t":"r","k":"B"}}}],"counter":null,"contra":null,"zoomKey":null,"cards":null,"probability":false};
+      const PX = 108.6316, CX = 0, CY = 0;
+      const SW = 1080, SH = 825.6;
+      const X = (x) => (x - CX) * PX + SW / 2;
+      const Y = (y) => SH / 2 - (y - CY) * PX;
+      const $ = (s) => document.querySelector(s);
+      const $$ = (s) => Array.prototype.slice.call(document.querySelectorAll(s));
+
+      // 영역 기하는 전부 state 에 둔다 — 움직이면 원·마스크·칸·원소가 한꺼번에 따라온다.
+      const state = { shown: 0, lift: 0, zoom: 0, dim: 0, swap: 0, neg: 0 };
+      PLAN.regions.forEach((r, i) => {
+        state['rx' + i] = r.cx; state['ry' + i] = r.cy; state['rr' + i] = r.r;
+      });
+
+      const regAt = (i) => ({ x: state['rx' + i], y: state['ry' + i], r: state['rr' + i] });
+      const idxOf = (k) => PLAN.regions.findIndex((r) => r.key === k);
+      const bandOf = (i) => (PLAN.regions[i] ? PLAN.regions[i].band : null);
+
+      function inRegion(px, py, i) {
+        const bd = bandOf(i);
+        if (bd) {
+          const v = bd.axis === 'x' ? px : py;
+          return v >= bd.lo && v <= bd.hi;
+        }
+        const g = regAt(i);
+        return Math.hypot(px - g.x, py - g.y) <= g.r;
+      }
+      function evalNode(node, px, py) {
+        if (!node) return false;
+        if (node.t === 'r') { const i = idxOf(node.k); return i < 0 ? false : inRegion(px, py, i); }
+        if (node.t === 'not') return !evalNode(node.a, px, py);
+        if (node.t === 'and') return evalNode(node.a, px, py) && evalNode(node.b, px, py);
+        if (node.t === 'or') return evalNode(node.a, px, py) || evalNode(node.b, px, py);
+        if (node.t === 'sub') return evalNode(node.a, px, py) && !evalNode(node.b, px, py);
+        return false;
+      }
+
+      // 세는 대상 — 칸이 있으면 칸, 없으면 원소, 둘 다 없으면 세지 않는다.
+      const MEMBERS = (function () {
+        if (PLAN.grid) {
+          const out = [];
+          const w = (PLAN.uni.x1 - PLAN.uni.x0) / PLAN.grid.cols;
+          const h = (PLAN.uni.y1 - PLAN.uni.y0) / PLAN.grid.rows;
+          for (let r = 0; r < PLAN.grid.rows; r++) {
+            for (let c = 0; c < PLAN.grid.cols; c++) {
+              out.push({ x: PLAN.uni.x0 + w * (c + 0.5), y: PLAN.uni.y0 + h * (r + 0.5), r: r, c: c, w: w, h: h });
+            }
+          }
+          return out;
+        }
+        if (PLAN.elements.length) return PLAN.elements.map((e) => ({ x: e.x, y: e.y }));
+        return [];
+      })();
+
+      const countIn = (pred) => MEMBERS.reduce((n, m) => n + (pred(m.x, m.y) ? 1 : 0), 0);
+
+      // ── 그리기 ─────────────────────────────────────────────────────
+      const el = {
+        hudU: $('#hudU'), hudA: $('#hudA'), hudB: $('#hudB'), hudOp: $('#hudOp'),
+        venn: $('#venn'), counterRing: $('#counterRing'), counterDot: $('#counterDot'),
+        counterTag: $('#counterTag'), contraIn: $('#contraIn'), contraDot: $('#contraDot'),
+        contraTag: $('#contraTag'), cardArrow: $('#cardArrow'), cardArrowHead: $('#cardArrowHead'),
+      };
+
+      function draw() {
+        // 영역 — 보이는 도형과 마스크 안의 복제본을 같이 옮긴다(진실원이 하나여야 한다)
+        PLAN.regions.forEach((r, i) => {
+          const bd = bandOf(i);
+          const lbl = document.getElementById('rgl-' + i);
+          if (bd) {
+            const x0 = bd.axis === 'x' ? X(bd.lo) : PLAN.uniPx.l + 8;
+            const x1 = bd.axis === 'x' ? X(bd.hi) : PLAN.uniPx.r - 8;
+            const y0 = bd.axis === 'y' ? Y(bd.hi) : PLAN.uniPx.t + 8;
+            const y1 = bd.axis === 'y' ? Y(bd.lo) : PLAN.uniPx.b - 8;
+            $$('.rgc-' + r.key).forEach((c) => {
+              c.setAttribute('x', x0.toFixed(1));
+              c.setAttribute('y', y0.toFixed(1));
+              c.setAttribute('width', Math.max(2, x1 - x0).toFixed(1));
+              c.setAttribute('height', Math.max(2, y1 - y0).toFixed(1));
+            });
+            if (lbl) {
+              lbl.setAttribute('x', Math.max(160, Math.min(SW - 160, (x0 + x1) / 2)).toFixed(1));
+              lbl.setAttribute('y', (bd.axis === 'x' ? PLAN.uniPx.t + 40 : y0 - 12).toFixed(1));
+            }
+            return;
+          }
+          const g = regAt(i);
+          const cx = X(g.x), cy = Y(g.y), rr = g.r * PX;
+          $$('.rgc-' + r.key).forEach((c) => {
+            c.setAttribute('cx', cx.toFixed(1));
+            c.setAttribute('cy', cy.toFixed(1));
+            c.setAttribute('r', rr.toFixed(1));
+          });
+          if (lbl) {
+            lbl.setAttribute('x', Math.max(150, Math.min(SW - 150, cx)).toFixed(1));
+            lbl.setAttribute('y', Math.max(PLAN.uniPx.t + 34, cy - rr - 16).toFixed(1));
+          }
+        });
+
+        // 등확률 칸 — 겹친 칸은 한 번 떠올랐다 되돌아간다(이중계수 회수)
+        if (PLAN.grid) {
+          const both = PLAN.regions.length >= 2;
+          MEMBERS.forEach((m) => {
+            const cell = document.getElementById('cl-' + m.r + '-' + m.c);
+            if (!cell) return;
+            const inA = PLAN.regions.length > 0 && inRegion(m.x, m.y, 0);
+            const inB = both && inRegion(m.x, m.y, 1);
+            const lift = (inA && inB) ? state.lift * 0.22 : 0;
+            const x = X(m.x - m.w / 2) + 3;
+            const y = Y(m.y + m.h / 2) + 3 - lift * PX;
+            cell.setAttribute('x', x.toFixed(1));
+            cell.setAttribute('y', y.toFixed(1));
+            cell.setAttribute('width', Math.max(2, m.w * PX - 6).toFixed(1));
+            cell.setAttribute('height', Math.max(2, m.h * PX - 6).toFixed(1));
+            // 조건 영역 밖은 밝기를 잃는다(분모 교체)
+            let dim = 1;
+            if (PLAN.zoomKey) {
+              const zi = idxOf(PLAN.zoomKey);
+              if (zi >= 0 && !inRegion(m.x, m.y, zi)) dim = 1 - state.dim * 0.85;
+            }
+            cell.setAttribute('opacity', dim.toFixed(3));
+          });
+        }
+
+        // 원소 — 지금 어느 영역에 있는지에 따라 색이 바뀐다(포함이 깨지면 색으로 먼저 보인다)
+        PLAN.elements.forEach((e, i) => {
+          const dot = document.getElementById('el-' + i);
+          const txt = document.getElementById('elt-' + i);
+          const inA = PLAN.regions.length > 0 && inRegion(e.x, e.y, 0);
+          const inB = PLAN.regions.length > 1 && inRegion(e.x, e.y, 1);
+          const col = (inA && inB) ? PLAN.roleColors.answer
+            : inA ? PLAN.roleColors[PLAN.regions[0].role] || PLAN.roleColors.subject
+            : inB ? PLAN.roleColors[PLAN.regions[1].role] || PLAN.roleColors.condition
+            : PLAN.roleColors.neutral;
+          const x = X(e.x), y = Y(e.y);
+          if (dot) { dot.setAttribute('cx', x.toFixed(1)); dot.setAttribute('cy', y.toFixed(1)); dot.setAttribute('fill', col); }
+          if (txt) { txt.setAttribute('x', x.toFixed(1)); txt.setAttribute('y', (y - 20).toFixed(1)); txt.setAttribute('fill', col); }
+        });
+
+        // 반례 · 모순점
+        if (PLAN.counter) {
+          const x = X(PLAN.counter.x), y = Y(PLAN.counter.y);
+          el.counterDot.setAttribute('cx', x.toFixed(1)); el.counterDot.setAttribute('cy', y.toFixed(1));
+          el.counterRing.setAttribute('cx', x.toFixed(1)); el.counterRing.setAttribute('cy', y.toFixed(1));
+          el.counterRing.setAttribute('r', '30');
+          el.counterTag.setAttribute('x', x.toFixed(1)); el.counterTag.setAttribute('y', (y + 62).toFixed(1));
+        }
+        if (PLAN.contra) {
+          const x = X(PLAN.contra.x), y = Y(PLAN.contra.y);
+          el.contraDot.setAttribute('cx', x.toFixed(1)); el.contraDot.setAttribute('cy', y.toFixed(1));
+          el.contraIn.setAttribute('cx', x.toFixed(1)); el.contraIn.setAttribute('cy', y.toFixed(1));
+          el.contraIn.setAttribute('r', '34');
+          el.contraTag.setAttribute('x', Math.max(220, Math.min(SW - 220, x)).toFixed(1));
+          el.contraTag.setAttribute('y', (y + 68).toFixed(1));
+        }
+
+        // 명제 카드 — 자리를 맞바꾸면 역이 된다(지우지 않고 옮긴다)
+        if (PLAN.cards) {
+          const cw = PLAN.cards.w;
+          const xL = SW / 2 - cw - 110, xR = SW / 2 + 110;
+          const px = xL + (xR - xL) * state.swap;
+          const qx = xR + (xL - xR) * state.swap;
+          const setCard = (n, x) => {
+            const box = document.getElementById('card' + n + 'Box');
+            const t1 = document.getElementById('card' + n + 'T');
+            const t2 = document.getElementById('card' + n + 'N');
+            if (box) box.setAttribute('x', x.toFixed(1));
+            if (t1) t1.setAttribute('x', (x + cw / 2).toFixed(1));
+            if (t2) t2.setAttribute('x', (x + cw / 2).toFixed(1));
+          };
+          setCard('p', px); setCard('q', qx);
+          const y = PLAN.cards.top + PLAN.cards.h / 2;
+          const a = Math.min(px, qx) + cw + 18, b = Math.max(px, qx) - 18;
+          el.cardArrow.setAttribute('d', 'M' + a.toFixed(1) + ' ' + y + 'L' + b.toFixed(1) + ' ' + y);
+          const dir = px < qx ? 1 : -1;
+          const tip = dir > 0 ? b : a;
+          el.cardArrowHead.setAttribute('points',
+            [tip + ',' + y, (tip - dir * 20) + ',' + (y - 11), (tip - dir * 20) + ',' + (y + 11)].join(' '));
+        }
+
+        // 분모 교체 — 조건 영역이 무대 전체로 확대된다
+        if (PLAN.zoomKey && el.venn) {
+          const zi = idxOf(PLAN.zoomKey);
+          if (zi >= 0) {
+            const bd = bandOf(zi);
+            const g = bd
+              ? { x: bd.axis === 'x' ? (bd.lo + bd.hi) / 2 : 0, y: bd.axis === 'y' ? (bd.lo + bd.hi) / 2 : 0, r: (bd.hi - bd.lo) / 2 }
+              : regAt(zi);
+            const availW = (PLAN.uniPx.r - PLAN.uniPx.l) / 2, availH = (PLAN.uniPx.b - PLAN.uniPx.t) / 2;
+            const k = Math.max(1, Math.min(availW, availH) / Math.max(1, g.r * PX));
+            const s = 1 + (k - 1) * state.zoom;
+            const cx = X(g.x), cy = Y(g.y);
+            el.venn.setAttribute('transform',
+              'translate(' + ((1 - s) * cx).toFixed(2) + ' ' + ((1 - s) * cy).toFixed(2) + ') scale(' + s.toFixed(4) + ')');
+          }
+        }
+
+        // ── 리드아웃 — 지금 그려져 있는 것에서 센다
+        const N = MEMBERS.length;
+        const A = PLAN.regions[0], Bv = PLAN.regions[1];
+        const nA = A ? countIn((x, y) => inRegion(x, y, 0)) : 0;
+        const nB = Bv ? countIn((x, y) => inRegion(x, y, 1)) : 0;
+        const nAB = (A && Bv) ? countIn((x, y) => inRegion(x, y, 0) && inRegion(x, y, 1)) : 0;
+        const frac = (a, b) => b > 0 ? a + '/' + b : '—';
+        const pct = (a, b) => b > 0 ? (a / b).toFixed(3) : '—';
+
+        // 셀 수 있을 만큼 원소가 있을 때만 센다. 원소가 한둘뿐이면 세는 것이 거짓말이 된다.
+        const useCounts = N >= 3;
+        if (useCounts) {
+          el.hudU.textContent = '전체 ' + (PLAN.grid ? 'n(S)' : 'n(U)') + ' = ' + N;
+          el.hudA.textContent = A ? 'n(' + A.key + ') = ' + nA : '';
+          el.hudB.textContent = Bv ? 'n(' + Bv.key + ') = ' + nB : '';
+        } else {
+          el.hudU.textContent = '전체 ' + (PLAN.grid ? 'S' : 'U');
+          el.hudA.textContent = A ? A.key : '';
+          el.hudB.textContent = Bv ? Bv.key : '';
+        }
+
+        let opTxt = '';
+        if (!useCounts && PLAN.op !== 'inclusion' && PLAN.op !== 'contradiction' && PLAN.shadeSrc.length) {
+          const i = Math.max(0, Math.min(PLAN.shadeSrc.length - 1, Math.floor(state.shown + 1e-6)));
+          opTxt = '칠한 영역 : ' + PLAN.shadeSrc[i];
+        } else if (PLAN.op === 'union' && A && Bv && useCounts) {
+          opTxt = 'n(' + A.key + '∪' + Bv.key + ') = ' + nA + ' + ' + nB + ' − ' + nAB + ' = ' + (nA + nB - nAB);
+        } else if (PLAN.op === 'complement' && A && useCounts) {
+          opTxt = 'n(' + A.key + 'ᶜ) = ' + N + ' − ' + nA + ' = ' + (N - nA);
+        } else if (PLAN.op === 'conditional' && A && Bv && useCounts) {
+          opTxt = 'P(' + A.key + '|' + Bv.key + ') = ' + frac(nAB, nB) + ' = ' + pct(nAB, nB);
+        } else if (PLAN.op === 'independence' && A && Bv && useCounts) {
+          const l = pct(nA, N), r = pct(nAB, nB);
+          opTxt = 'P(' + A.key + ') = ' + l + ' · P(' + A.key + '|' + Bv.key + ') = ' + r
+            + ' → ' + (Math.abs((nA / Math.max(1, N)) - (nAB / Math.max(1, nB))) < 0.02 ? '독립' : '종속');
+        } else if (A && Bv) {
+          // 포함관계는 원끼리 직접 판정한다 — 원소가 없어도 참·거짓이 나온다
+          const ga = regAt(0), gb = regAt(1);
+          const inside = Math.hypot(ga.x - gb.x, ga.y - gb.y) + ga.r <= gb.r + 1e-6;
+          opTxt = A.key + ' ⊂ ' + Bv.key + ' : ' + (inside ? '참' : '거짓');
+        } else if (A && useCounts) {
+          opTxt = 'n(' + A.key + ') / ' + N + ' = ' + pct(nA, N);
+        }
+        el.hudOp.textContent = opTxt;
+      }
+      draw();
+      const re = { onUpdate: draw };
+
+      tl.to("#grid", { opacity: 0.55, duration: 0.6 }, 0.090);
+      tl.to("#uni", { opacity: 1, duration: 0.55 }, 0.678);
+      tl.to("#hud", { opacity: 1, duration: 0.45 }, 2.714);
+      tl.to("#tm-0", { opacity: 1, duration: 0.45 }, 4.662);
+      tl.to("#regions", { opacity: 1, duration: 0.55 }, 5.078);
+      tl.to("#rg-1", { opacity: 1, duration: 0.5 }, 7.444);
+      tl.to("#rgl-1", { opacity: 1, duration: 0.5 }, 7.733);
+      tl.to("#sh-0", { opacity: 1, duration: 0.500 }, 10.348);
+      tl.to("#sh-0", { opacity: 0, duration: 0.500 }, 11.864);
+      tl.to("#sh-1", { opacity: 1, duration: 0.500 }, 11.864);
+      tl.to("#sh-1", { opacity: 0, duration: 0.500 }, 13.380);
+      tl.to("#sh-2", { opacity: 1, duration: 0.500 }, 13.380);
+      tl.to("#sh-2", { opacity: 0, duration: 0.500 }, 14.896);
+      tl.to("#sh-3", { opacity: 1, duration: 0.500 }, 14.896);
+      tl.to("#sh-3", { opacity: 0, duration: 0.500 }, 16.411);
+      tl.to("#sh-4", { opacity: 1, duration: 0.500 }, 16.411);
+      tl.to("#sh-4", { opacity: 0, duration: 0.500 }, 17.927);
+      tl.to("#sh-5", { opacity: 1, duration: 0.500 }, 17.927);
+      tl.to(state, { shown: 5, duration: 7.579, ease: "none", ...re }, 10.348);
+      tl.to("#tm-1", { opacity: 1, duration: 0.35 }, 13.380);
+      tl.to("#tm-2", { opacity: 1, duration: 0.35 }, 16.411);
+      tl.to("#tm-2 .boxline", { opacity: 1, duration: 0.4 }, 21.834);
+      tl.to("#tm-2 .tag", { opacity: 1, duration: 0.35 }, 22.399);
+      tl.to(["#grid", "#uni", "#cells", "#shades", "#regions", "#elems", "#counter", "#contra", "#cards", "#hud"], { opacity: 0, duration: 0.7 }, 23.916);
+      tl.to("#verdict", { opacity: 1, duration: 0.7 }, 25.673);
+
+      tl.to("#cap-0", { opacity: 1, duration: 0.22 }, 0.000);
+      tl.to("#cap-0", { opacity: 0, duration: 0.18 }, 4.223);
+      tl.to("#cap-1", { opacity: 1, duration: 0.22 }, 4.223);
+      tl.to("#cap-1", { opacity: 0, duration: 0.18 }, 6.999);
+      tl.to("#cap-2", { opacity: 1, duration: 0.22 }, 6.999);
+      tl.to("#cap-2", { opacity: 0, duration: 0.18 }, 9.892);
+      tl.to("#cap-3", { opacity: 1, duration: 0.22 }, 9.892);
+      tl.to("#cap-3", { opacity: 0, duration: 0.18 }, 13.019);
+      tl.to("#cap-4", { opacity: 1, duration: 0.22 }, 13.019);
+      tl.to("#cap-4", { opacity: 0, duration: 0.18 }, 15.913);
+      tl.to("#cap-5", { opacity: 1, duration: 0.22 }, 15.913);
+      tl.to("#cap-5", { opacity: 0, duration: 0.18 }, 19.143);
+      tl.to("#cap-6", { opacity: 1, duration: 0.22 }, 19.143);
+      tl.to("#cap-6", { opacity: 0, duration: 0.18 }, 23.490);
+      tl.to("#cap-7", { opacity: 1, duration: 0.22 }, 23.490);
+      tl.to("#cap-7", { opacity: 0, duration: 0.18 }, 30.067);
+
+      window.__timelines["90-set-operations"] = tl;
+    </script>
+  </body>
+</html>

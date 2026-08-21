@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+    @font-face { font-family:"Matths KR"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-kr.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Math"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-math.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Math"; font-weight:400; font-style:italic; font-display:block;
+                 src:url("assets/fonts/matths-math-italic.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Mono"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-mono.woff2") format("woff2"); }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:1080px; height:1920px; overflow:hidden; background:#F3F6FF; }
+    #root { position:relative; width:1080px; height:1920px; overflow:hidden;
+            background:#F3F6FF; color:#111426; font-family:'Matths KR', sans-serif; }
+
+    .band { position:absolute; left:0; width:1080px; }
+
+    /* 타이틀 띠 — 50초 내내 고정. 학습자가 "무엇을 보고 있는지" 잃지 않게 한다. */
+    .band-title { top:134.4px; height:144px; text-align:center; }
+    .t-formula { font-family:'Matths Math', serif; font-size:58px; font-style:italic; letter-spacing:.01em; }
+    .t-sub { margin-top:10px; font-size:31px; color:#5C6478; letter-spacing:.02em; }
+
+    /* 수식 패널 띠 — 지배 식이 항 단위로 조립되어 상주한다 */
+    .band-panel { top:297.6px; height:144px;
+                  display:flex; align-items:center; justify-content:center; }
+    .panel-row { position:relative; display:flex; align-items:center; gap:10px;
+                 font-family:'Matths Math', serif; font-size:52px; font-style:italic; }
+    .term { position:relative; padding:8px 14px; opacity:0; font-weight:500; }
+
+    /* 강조 = 색을 채운 박스. 테두리만 그리면 옆 항들과 무게가 비슷해 눈에 안 띈다.
+       currentColor 는 그 항의 의미색이므로, 채움도 라벨도 자동으로 같은 색이 된다.
+       색 하나가 "이 항이 무엇인가" 와 "지금 여기를 보라" 를 동시에 말한다. */
+    .term .boxline { position:absolute; inset:0; border:2.5px solid currentColor;
+                     border-radius:10px; opacity:0; }
+    /* 채움은 별도 레이어로 깔고 알파를 낮춘다. 같은 요소에 background 를 주면
+       테두리까지 옅어져 경계가 사라진다. */
+    .term .boxline::after { content:""; position:absolute; inset:0;
+                            background:currentColor; opacity:0.16; border-radius:8px; }
+    .term.on { font-weight:700; }
+
+    /* 라벨은 알약으로 채운다. 글자는 바탕색이라 대비가 가장 세다. */
+    .term .tag { position:absolute; left:50%; top:100%; transform:translateX(-50%);
+                 margin-top:10px; font-family:'Matths KR', sans-serif; font-style:normal;
+                 font-size:22px; font-weight:700; white-space:nowrap; opacity:0;
+                 padding:3px 12px; border-radius:999px;
+                 background:currentColor;
+                 letter-spacing:.01em; }
+    /* 글자색을 .tag 에 직접 주면 안 된다 — background:currentColor 가 그 색을
+       가리키게 되어 알약이 흰색으로 죽는다. 실제로 그렇게 됐다.
+       색은 안쪽 요소가 갖고, .tag 는 의미색을 그대로 물려받게 둔다. */
+    .term .tag i { font-style:normal; color:#FCFDFF; }
+
+    /* 무대 띠 — 좌표계와 도형이 사는 유일한 동적 영역 */
+    .band-stage { top:480px; height:825.6px; }
+
+    /* 자막 띠 — 최대 2줄, 무대와 겹치지 않는다 */
+    .band-caption { top:1401.6px; height:249.60000000000002px;
+                    display:flex; align-items:flex-start; justify-content:center; }
+    .cap { position:absolute; width:930px; text-align:center; font-size:37px;
+           line-height:1.46; color:#111426; word-break:keep-all; }
+
+    /* 결론 — 무대를 전부 걷어내고 명제 하나만 남긴다.
+       .band-stage 안에 들어가므로 top 은 0 이다. 여기에 다시 BAND.stage.top 을 주면
+       오프셋이 두 번 먹어 결론이 자막 띠까지 내려가 겹친다(1차 렌더에서 실제로 그랬다). */
+    .verdict { position:absolute; left:0; top:0; width:1080px;
+               height:825.6px; display:flex; flex-direction:column;
+               align-items:center; justify-content:center; gap:24px; opacity:0; }
+    .verdict-main { font-family:'Matths Math', serif; font-size:72px; font-style:italic; }
+    /* 한글 결론은 수식 폰트를 쓰면 안 된다 — 이탤릭 세리프에 한글을 얹으면
+       글자가 통째로 기울어져 조판이 무너진다(2차 렌더에서 실제로 그랬다). */
+    .verdict-kr { font-family:'Matths KR', sans-serif; font-style:normal; font-size:56px; line-height:1.3; }
+    .verdict-sub { font-size:34px; color:#5C6478; }
+    .verdict-row { display:flex; align-items:baseline; gap:20px; font-size:44px; }
+    .verdict-row .vr-cond { font-family:'Matths Math', serif; font-style:italic; min-width:190px;
+                            text-align:right; }
+    .verdict-row .vr-arrow { color:#5C6478; font-size:34px; }
+    .verdict-row .vr-out { font-family:'Matths KR', sans-serif; font-size:40px; }
+
+    .readout { font-family:'Matths Mono', monospace; font-size:30px; font-variant-numeric:tabular-nums; }
+  </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="01f-discriminant" data-start="0" data-duration="46.994"
+         data-width="1080" data-height="1920">
+
+      <!-- id 는 필수다. 없으면 렌더러가 미디어 요소를 못 찾아 무음으로 나갈 수 있다. -->
+      <audio id="voice" class="clip" data-start="0" data-duration="46.994"
+             data-track-index="0" data-volume="1" data-voice-src="assets/voice/01f/full.mp3"></audio>
+
+      <div id="band-title" class="clip band band-title" data-start="0" data-duration="46.994" data-track-index="1">
+        <div class="t-formula">D = b<sup>2</sup> &minus; 4ac</div>
+        <div class="t-sub">실근의 개수를 부호 하나로 판정하기</div>
+      </div>
+
+
+      <div id="band-panel" class="clip band band-panel" data-start="0" data-duration="46.994" data-track-index="2">
+        <div class="panel-row">
+          <span class="term" id="tm-y"    style="color:#007D96">y = x<sup>2</sup> + c</span>
+          <span class="term" id="tm-gap"  style="color:#5C6478; opacity:0; padding:0 22px">|</span>
+          <span class="term" id="tm-D"    style="color:#5B34D8">D<span class="boxline"></span><span class="tag"><i>판별식</i></span></span>
+          <span class="term" id="tm-eq"   style="color:#5C6478">=</span>
+          <span class="term" id="tm-b2"   style="color:#5B34D8">b<sup>2</sup></span>
+          <span class="term" id="tm-minus" style="color:#5C6478">&minus;</span>
+          <span class="term" id="tm-4ac"  style="color:#5B34D8">4ac</span>
+        </div>
+      </div>
+
+      <div id="band-stage" class="clip band band-stage" data-start="0" data-duration="46.994" data-track-index="3">
+        <svg width="1080" height="825.6" viewBox="0 0 1080 825.6">
+          <g id="grid" opacity="0">
+      <line x1="105.5" y1="0" x2="105.5" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="214.1" y1="0" x2="214.1" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="322.7" y1="0" x2="322.7" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="431.4" y1="0" x2="431.4" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="540.0" y1="0" x2="540.0" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="648.6" y1="0" x2="648.6" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="757.3" y1="0" x2="757.3" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="865.9" y1="0" x2="865.9" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="974.5" y1="0" x2="974.5" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="803.9" x2="1080" y2="803.9" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="695.2" x2="1080" y2="695.2" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="586.6" x2="1080" y2="586.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="478.0" x2="1080" y2="478.0" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="369.3" x2="1080" y2="369.3" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="260.7" x2="1080" y2="260.7" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="152.1" x2="1080" y2="152.1" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="43.5" x2="1080" y2="43.5" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="32.58947368421053" y1="477.9789473684211" x2="1047.4105263157894" y2="477.9789473684211" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <line x1="540" y1="793.0105263157895" x2="540" y2="32.58947368421059" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <line x1="214.10526315789474" y1="468.9789473684211" x2="214.10526315789474" y2="486.9789473684211" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="214.10526315789474" y="521.9789473684211" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">-3</text>
+      <line x1="322.7368421052631" y1="468.9789473684211" x2="322.7368421052631" y2="486.9789473684211" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="322.7368421052631" y="521.9789473684211" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">-2</text>
+      <line x1="431.36842105263156" y1="468.9789473684211" x2="431.36842105263156" y2="486.9789473684211" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="431.36842105263156" y="521.9789473684211" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">-1</text>
+      <line x1="648.6315789473684" y1="468.9789473684211" x2="648.6315789473684" y2="486.9789473684211" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="648.6315789473684" y="521.9789473684211" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">1</text>
+      <line x1="757.2631578947369" y1="468.9789473684211" x2="757.2631578947369" y2="486.9789473684211" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="757.2631578947369" y="521.9789473684211" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">2</text>
+      <line x1="865.8947368421052" y1="468.9789473684211" x2="865.8947368421052" y2="486.9789473684211" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="865.8947368421052" y="521.9789473684211" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">3</text>
+      <line x1="531" y1="695.242105263158" x2="549" y2="695.242105263158" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="518" y="705.242105263158" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="end">-2</text>
+      <line x1="531" y1="260.71578947368425" x2="549" y2="260.71578947368425" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="518" y="270.71578947368425" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="end">2</text>
+          </g>
+
+          <!-- 초기 d 를 빌드 시점에 박는다. 비워 두면 getTotalLength() 가 0 을
+               돌려줘 dash 애니메이션이 조용히 죽는다(렌더 린터가 잡아낸 실수다). -->
+          <path id="curve" fill="none" stroke="#007D96" stroke-width="6"
+                stroke-linecap="round" opacity="0"
+                d="M248.4 -60.3 L251.1 -45.9 L253.8 -31.6 L256.5 -17.5 L259.2 -3.4 L261.9 10.5 L264.6 24.2 L267.3 37.8 L270.0 51.3 L272.7 64.7 L275.4 77.9 L278.1 91.0 L280.8 103.9 L283.5 116.8 L286.2 129.4 L288.9 142.0 L291.6 154.4 L294.3 166.7 L297.0 178.8 L299.7 190.8 L302.4 202.7 L305.1 214.5 L307.8 226.1 L310.5 237.5 L313.2 248.9 L315.9 260.1 L318.6 271.2 L321.3 282.1 L324.0 292.9 L326.7 303.6 L329.4 314.1 L332.1 324.5 L334.8 334.8 L337.5 344.9 L340.2 354.9 L342.9 364.8 L345.6 374.5 L348.3 384.1 L351.0 393.6 L353.7 402.9 L356.4 412.1 L359.1 421.2 L361.8 430.1 L364.5 438.9 L367.2 447.5 L369.9 456.1 L372.6 464.4 L375.3 472.7 L378.0 480.8 L380.7 488.8 L383.4 496.7 L386.1 504.4 L388.8 512.0 L391.5 519.4 L394.2 526.7 L396.9 533.9 L399.6 540.9 L402.3 547.9 L405.0 554.6 L407.7 561.3 L410.4 567.8 L413.1 574.2 L415.8 580.4 L418.5 586.5 L421.2 592.5 L423.9 598.3 L426.6 604.0 L429.3 609.6 L432.0 615.0 L434.7 620.3 L437.4 625.5 L440.1 630.5 L442.8 635.4 L445.5 640.2 L448.2 644.8 L450.9 649.3 L453.6 653.7 L456.3 657.9 L459.0 662.0 L461.7 666.0 L464.4 669.8 L467.1 673.5 L469.8 677.0 L472.5 680.5 L475.2 683.7 L477.9 686.9 L480.6 689.9 L483.3 692.8 L486.0 695.6 L488.7 698.2 L491.4 700.7 L494.1 703.0 L496.8 705.2 L499.5 707.3 L502.2 709.2 L504.9 711.1 L507.6 712.7 L510.3 714.3 L513.0 715.7 L515.7 717.0 L518.4 718.1 L521.1 719.1 L523.8 720.0 L526.5 720.7 L529.2 721.3 L531.9 721.8 L534.6 722.1 L537.3 722.3 L540.0 722.4 L542.7 722.3 L545.4 722.1 L548.1 721.8 L550.8 721.3 L553.5 720.7 L556.2 720.0 L558.9 719.1 L561.6 718.1 L564.3 717.0 L567.0 715.7 L569.7 714.3 L572.4 712.7 L575.1 711.1 L577.8 709.2 L580.5 707.3 L583.2 705.2 L585.9 703.0 L588.6 700.7 L591.3 698.2 L594.0 695.6 L596.7 692.8 L599.4 689.9 L602.1 686.9 L604.8 683.7 L607.5 680.5 L610.2 677.0 L612.9 673.5 L615.6 669.8 L618.3 666.0 L621.0 662.0 L623.7 657.9 L626.4 653.7 L629.1 649.3 L631.8 644.8 L634.5 640.2 L637.2 635.4 L639.9 630.5 L642.6 625.5 L645.3 620.3 L648.0 615.0 L650.7 609.6 L653.4 604.0 L656.1 598.3 L658.8 592.5 L661.5 586.5 L664.2 580.4 L666.9 574.2 L669.6 567.8 L672.3 561.3 L675.0 554.6 L677.7 547.9 L680.4 540.9 L683.1 533.9 L685.8 526.7 L688.5 519.4 L691.2 512.0 L693.9 504.4 L696.6 496.7 L699.3 488.8 L702.0 480.8 L704.7 472.7 L707.4 464.4 L710.1 456.1 L712.8 447.5 L715.5 438.9 L718.2 430.1 L720.9 421.2 L723.6 412.1 L726.3 402.9 L729.0 393.6 L731.7 384.1 L734.4 374.5 L737.1 364.8 L739.8 354.9 L742.5 344.9 L745.2 334.8 L747.9 324.5 L750.6 314.1 L753.3 303.6 L756.0 292.9 L758.7 282.1 L761.4 271.2 L764.1 260.1 L766.8 248.9 L769.5 237.5 L772.2 226.1 L774.9 214.5 L777.6 202.7 L780.3 190.8 L783.0 178.8 L785.7 166.7 L788.4 154.4 L791.1 142.0 L793.8 129.4 L796.5 116.8 L799.2 103.9 L801.9 91.0 L804.6 77.9 L807.3 64.7 L810.0 51.3 L812.7 37.8 L815.4 24.2 L818.1 10.5 L820.8 -3.4 L823.5 -17.5 L826.2 -31.6 L828.9 -45.9 L831.6 -60.3"/>
+
+          <g id="roots" opacity="0">
+            <circle id="rootA" r="15" fill="#A41BB5"/>
+            <circle id="rootB" r="15" fill="#A41BB5"/>
+          </g>
+
+          <!-- 실근 라벨은 오른쪽 근을 따라다닌다. 고정 위치에 두면 포물선이
+               내려올 때 곡선에 물린다(1차 렌더에서 실제로 겹쳤다). -->
+          <text id="rootTag" x="736.9473684210526" y="447.9789473684211" fill="#A41BB5"
+                font-size="30" font-family="'Matths KR', sans-serif" opacity="0">실근</text>
+
+          <!-- 리드아웃은 받침판 위에 올린다. 곡선이 지나가도 숫자가 읽혀야 한다. -->
+          <g id="hud" opacity="0">
+            <rect x="30" y="22" width="330" height="152" rx="14"
+                  fill="#F3F6FF" fill-opacity="0.88" stroke="#E3E8F4" stroke-width="1.5"/>
+            <text id="hudC" class="readout" x="52" y="62" fill="#007D96"
+                  font-family="'Matths Mono', monospace" font-size="30">c = -2.25</text>
+            <text id="hudD" class="readout" x="52" y="110" fill="#5B34D8"
+                  font-family="'Matths Mono', monospace" font-size="30">D = 9.00</text>
+            <text id="hudN" x="52" y="156" fill="#A41BB5"
+                  font-family="'Matths KR', sans-serif" font-size="30" opacity="0">실근 2개</text>
+          </g>
+        </svg>
+
+        <div class="verdict" id="verdict">
+          <div class="verdict-row"><span class="vr-cond" style="color:#5B34D8">D &gt; 0</span><span class="vr-arrow">&rarr;</span><span class="vr-out" style="color:#A41BB5">서로 다른 실근 2개</span></div>
+          <div class="verdict-row"><span class="vr-cond" style="color:#5B34D8">D = 0</span><span class="vr-arrow">&rarr;</span><span class="vr-out" style="color:#A41BB5">중근 1개</span></div>
+          <div class="verdict-row"><span class="vr-cond" style="color:#5B34D8">D &lt; 0</span><span class="vr-arrow">&rarr;</span><span class="vr-out" style="color:#A41BB5">실근 없음</span></div>
+          <div class="verdict-sub">그래프를 그리지 않아도 부호 하나면 된다</div>
+        </div>
+      </div>
+
+      <div id="band-caption" class="clip band band-caption" data-start="0" data-duration="46.994" data-track-index="4">
+      <div class="cap" id="cap-0" style="opacity:0">이차방정식의 해가 몇 개인지, 풀지 않고 알 수 있을까요?</div>
+      <div class="cap" id="cap-1" style="opacity:0">이차함수 그래프가 x축과 만나는 점이 곧 실근입니다.</div>
+      <div class="cap" id="cap-2" style="opacity:0">그래프를 위아래로 옮겨 보면 만나는 점의 개수가 바뀝니다.</div>
+      <div class="cap" id="cap-3" style="opacity:0">두 개에서 한 개로, 한 개에서 없음으로.</div>
+      <div class="cap" id="cap-4" style="opacity:0">이 셋을 가르는 값이 판별식입니다.</div>
+      <div class="cap" id="cap-5" style="opacity:0">D = b² − 4ac</div>
+      <div class="cap" id="cap-6" style="opacity:0">D &gt; 0 이면 x축을 뚫고 지나가 실근이 두 개,</div>
+      <div class="cap" id="cap-7" style="opacity:0">D = 0 이면 스치듯 닿아 중근 한 개,</div>
+      <div class="cap" id="cap-8" style="opacity:0">D &lt; 0 이면 x축에 닿지 못해 실근이 없습니다.</div>
+      <div class="cap" id="cap-9" style="opacity:0">그래프를 그리지 않아도, 부호 하나로 해의 개수가 정해집니다.</div>
+      </div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      // ── 실시간 재생 모드 (앱·웹) ────────────────────────────────────
+      // mp4 로 굽지 않고 이 HTML 을 그대로 앱·웹에서 돌린다.
+      // 그래도 소리와 그림이 어긋나지 않는 이유는 **시계가 하나이기 때문**이다:
+      // 나레이션 오디오의 currentTime 이 유일한 시계이고, 타임라인은 매 프레임
+      // 그 값으로 seek 될 뿐 스스로 흐르지 않는다. 렌더러가 하던 일과 같다.
+      //
+      // ?live=1 일 때만 켠다. 하이퍼프레임즈 렌더 중에는 렌더러가 타임라인을
+      // 직접 몰기 때문에, 여기서 또 몰면 두 시계가 싸운다.
+      function startLive() {
+        const audio = document.getElementById("voice");
+        if (!audio) return;
+        let raf = 0;
+        const tick = () => { tl.seek(audio.currentTime); raf = requestAnimationFrame(tick); };
+        const play = () => {
+          audio.play().catch(() => {
+            // 자동재생이 막히면(브라우저 정책) 첫 탭에서 시작한다.
+            document.addEventListener("pointerdown", () => audio.play(), { once: true });
+          });
+        };
+        audio.addEventListener("play", () => { cancelAnimationFrame(raf); tick(); });
+        audio.addEventListener("pause", () => cancelAnimationFrame(raf));
+        audio.addEventListener("ended", () => {
+          cancelAnimationFrame(raf);
+          tl.seek(tl.duration());
+          window.dispatchEvent(new CustomEvent("matths:lesson-finished"));
+        });
+        tl.seek(0);
+        play();
+      }
+      if (new URLSearchParams(location.search).get("live") === "1") {
+        window.addEventListener("load", startLive);
+      }
+
+      const PX = 108.6316, CX = 0, CY = 0.6;
+      const SW = 1080, SH = 825.6;
+      const X = (x) => (x - CX) * PX + SW / 2;
+      const Y = (y) => SH / 2 - (y - CY) * PX;
+
+      const $ = (s) => document.querySelector(s);
+      const curve = $("#curve"), rootA = $("#rootA"), rootB = $("#rootB");
+      const roots = $("#roots"), hudC = $("#hudC"), hudD = $("#hudD"), hudN = $("#hudN");
+      const rootTag = $("#rootTag");
+
+      const TOPY = 5.00, BOTY = -3.80;
+      const LEFTX = -4.971, RIGHTX = 4.971;
+      function curvePath(f) {
+        let d = "", pen = false;
+        for (let i = 0; i <= 400; i++) {
+          const x = LEFTX + (RIGHTX - LEFTX) * (i / 400);
+          const y = f(x);
+          if (!isFinite(y) || y > TOPY || y < BOTY) { pen = false; continue; }
+          d += (pen ? "L" : "M") + X(x).toFixed(1) + " " + Y(y).toFixed(1) + " ";
+          pen = true;
+        }
+        return d.trim();
+      }
+
+      const state = { c: -2.25 };
+
+      function draw() {
+        const c = state.c;
+        // 곡선은 무대에 보이는 구간만 그린다. 전 구간을 그리면 path 길이가
+        // 수천 px 를 넘어 dash 로 그릴 때 뒷부분이 잘린다(오른쪽 근에 안 닿았던 원인).
+        const d = curvePath((x) => x * x + c);
+        curve.setAttribute("d", d);
+
+        // 실근: c < 0 이면 ±sqrt(-c), c = 0 이면 중근 하나, c > 0 이면 없음
+        const D = -4 * c;
+        if (D > 0.0001) {
+          const r = Math.sqrt(-c);
+          rootA.setAttribute("cx", X(-r)); rootA.setAttribute("cy", Y(0));
+          rootB.setAttribute("cx", X(r));  rootB.setAttribute("cy", Y(0));
+          rootA.setAttribute("opacity", 1); rootB.setAttribute("opacity", 1);
+          rootTag.setAttribute("x", X(r) + 34);
+        } else if (D > -0.0001) {
+          rootA.setAttribute("cx", X(0)); rootA.setAttribute("cy", Y(0));
+          rootB.setAttribute("cx", X(0)); rootB.setAttribute("cy", Y(0));
+          rootA.setAttribute("opacity", 1); rootB.setAttribute("opacity", 0);
+        } else {
+          rootA.setAttribute("opacity", 0); rootB.setAttribute("opacity", 0);
+        }
+
+        hudC.textContent = "c = " + c.toFixed(2);
+        hudD.textContent = "D = " + D.toFixed(2) + (D > 0.0001 ? "  > 0" : D > -0.0001 ? "  = 0" : "  < 0");
+        hudN.textContent = D > 0.0001 ? "실근 2개" : D > -0.0001 ? "중근 1개" : "실근 없음";
+      }
+      draw();
+
+      (function initDash() {
+        const el = document.querySelector("#curve");
+        if (!el || typeof el.getTotalLength !== "function") return;
+        const len = Math.ceil(el.getTotalLength()) + 4;
+        el.style.strokeDasharray = len;
+        el.style.strokeDashoffset = len;
+        el.dataset.len = len;
+      })();
+
+      const reC = { onUpdate: draw };
+
+      // ── line01 · 문제 제기 — 무대는 축만, 패널은 함수식만
+      tl.to("#grid",  { opacity: 1, duration: 0.6 }, 0.15);
+      tl.to("#tm-y",  { opacity: 1, duration: 0.5 }, 0.35);
+
+      // ── line02 · 그래프와 x축 교점 = 실근
+      tl.to("#curve", { opacity: 1, duration: 0.25 }, 4.53);
+      tl.to("#curve", { strokeDashoffset: 0, duration: 1.25, ease: "power2.out" }, 4.53);
+      tl.to("#roots", { opacity: 1, duration: 0.35 }, 5.93);
+      tl.fromTo("#rootA", { attr: { r: 34 } }, { attr: { r: 15 }, duration: 0.45, ease: "back.out(3)" }, 5.93);
+      tl.fromTo("#rootB", { attr: { r: 34 } }, { attr: { r: 15 }, duration: 0.45, ease: "back.out(3)" }, 6.08);
+      tl.to("#rootTag", { opacity: 1, duration: 0.35 }, 6.38);
+
+      // ── line03 · 위아래로 옮기면 교점 개수가 바뀐다
+      tl.to(state, { c: -0.6, duration: 2.2, ease: "sine.inOut", ...reC }, 10.06);
+
+      // ── line04 · 둘 → 하나 → 없음
+      tl.to(state, { c: 0, duration: 1.15, ease: "sine.inOut", ...reC }, 15.14);
+      tl.to(state, { c: 1.2, duration: 1.15, ease: "sine.inOut", ...reC }, 16.39);
+      tl.to("#rootTag", { opacity: 0, duration: 0.3 }, 16.59);
+
+      // ── line05 · 셋을 가르는 값에 이름을 붙인다 (박스-라벨 주석)
+      tl.to("#tm-gap", { opacity: 1, duration: 0.3 }, 20.04);
+      tl.to("#tm-D",   { opacity: 1, duration: 0.4 }, 20.29);
+      tl.to("#tm-D .boxline", { opacity: 1, duration: 0.4 }, 20.59);
+      tl.to("#tm-D .tag",     { opacity: 1, duration: 0.35 }, 20.99);
+
+      // ── line06 · 항 단위 조립 (좌→우, 항당 0.45s, 사이 0.2s)
+      tl.to("#tm-eq",    { opacity: 1, duration: 0.35 }, 23.96);
+      tl.to("#tm-b2",    { opacity: 1, duration: 0.35 }, 24.38);
+      tl.to("#tm-minus", { opacity: 1, duration: 0.35 }, 24.80);
+      tl.to("#tm-4ac",   { opacity: 1, duration: 0.35 }, 25.06);
+
+      // ── line07~09 · 세 경우를 D 값과 함께 다시 훑는다 (실시간 리드아웃)
+      tl.to("#hud", { opacity: 1, duration: 0.4 }, 28.44);
+      tl.to("#hudN", { opacity: 1, duration: 0.3 }, 29.24);
+      tl.to(state, { c: -2.25, duration: 1.5, ease: "sine.inOut", ...reC }, 28.74);
+      tl.to(state, { c: 0, duration: 1.4, ease: "sine.inOut", ...reC }, 33.78);
+      tl.to(state, { c: 1.2, duration: 1.5, ease: "sine.inOut", ...reC }, 38.44);
+
+      // ── line10 · 무대를 걷어내고 명제 하나만 남긴다
+      tl.to(["#grid", "#curve", "#roots", "#hud"], { opacity: 0, duration: 0.7 }, 43.62);
+      tl.to("#verdict", { opacity: 1, duration: 0.7 }, 44.17);
+
+      tl.to("#cap-0", { opacity: 1, duration: 0.22 }, 0.000);
+      tl.to("#cap-0", { opacity: 0, duration: 0.18 }, 4.480);
+      tl.to("#cap-1", { opacity: 1, duration: 0.22 }, 4.480);
+      tl.to("#cap-1", { opacity: 0, duration: 0.18 }, 9.760);
+      tl.to("#cap-2", { opacity: 1, duration: 0.22 }, 9.760);
+      tl.to("#cap-2", { opacity: 0, duration: 0.18 }, 14.840);
+      tl.to("#cap-3", { opacity: 1, duration: 0.22 }, 14.840);
+      tl.to("#cap-3", { opacity: 0, duration: 0.18 }, 19.740);
+      tl.to("#cap-4", { opacity: 1, duration: 0.22 }, 19.740);
+      tl.to("#cap-4", { opacity: 0, duration: 0.18 }, 23.660);
+      tl.to("#cap-5", { opacity: 1, duration: 0.22 }, 23.660);
+      tl.to("#cap-5", { opacity: 0, duration: 0.18 }, 28.440);
+      tl.to("#cap-6", { opacity: 1, duration: 0.22 }, 28.440);
+      tl.to("#cap-6", { opacity: 0, duration: 0.18 }, 33.480);
+      tl.to("#cap-7", { opacity: 1, duration: 0.22 }, 33.480);
+      tl.to("#cap-7", { opacity: 0, duration: 0.18 }, 38.140);
+      tl.to("#cap-8", { opacity: 1, duration: 0.22 }, 38.140);
+      tl.to("#cap-8", { opacity: 0, duration: 0.18 }, 43.320);
+      tl.to("#cap-9", { opacity: 1, duration: 0.22 }, 43.320);
+      tl.to("#cap-9", { opacity: 0, duration: 0.18 }, 46.994);
+
+      window.__timelines["01f-discriminant"] = tl;
+    </script>
+  </body>
+</html>

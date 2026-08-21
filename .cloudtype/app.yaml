@@ -45,6 +45,11 @@ options:
     # 0 은 코드가 거부한다 — 애플 몫 전액이 출금가능액으로 새는 것을 막는 하한.
     - name: FINANCE_APPLE_FEE_RESERVE_BPS
       value: "3000"
+    # 공개 문의 주소. 개인정보처리방침·FAQ·App Store 지원 URL 에 노출된다.
+    # 미설정이면 코드 기본값 admin@lsbproduction.com(남의 도메인)이 그대로
+    # 공개 페이지에 찍힌다 — 심사자는 개인정보 URL 을 반드시 연다.
+    - name: PUBLIC_CONTACT_EMAIL
+      value: dltnqls7297@matths.kr
   install: npm ci --omit=dev --no-audit
   ports: 8000/http
   start: npm start

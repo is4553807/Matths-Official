@@ -305,7 +305,12 @@
       </section>
 
       <section class="contact-section">
-        <div class="container contact-card"><div><p>STILL CURIOUS?</p><h2>찾는 답변이 없나요?</h2><span>궁금한 내용을 알려주시면 서비스 개선에 반영하겠습니다.</span></div><a class="button button-white button-large" href="/contact">문의하기 <span aria-hidden="true">→</span></a></div>
+        <div class="container contact-card"><div><p>STILL CURIOUS?</p><h2>찾는 답변이 없나요?</h2><span>궁금한 내용을 알려주시면 서비스 개선에 반영하겠습니다.</span>
+          <%# 로그인 없이 닿는 문의 경로. /contact 는 isLoggedIn 뒤에 있어서
+              로그인하지 않은 사람은 문의 버튼을 눌러도 로그인 화면으로 튕긴다.
+              이 페이지는 App Store 심사의 지원 URL 로도 쓰이는데, 심사자는
+              로그인하지 않은 상태로 들어온다 — 그때 막다른 길이면 안 된다. %>
+          <span class="faq-contact-mail">계정 없이 문의하시려면 <a href="mailto:<%= publicContactEmail %>"><%= publicContactEmail %></a> 로 보내주세요.</span></div><a class="button button-white button-large" href="/contact">문의하기 <span aria-hidden="true">→</span></a></div>
       </section>
     </main>
 

@@ -805,6 +805,25 @@ summary:focus-visible {
   font-size: 12px;
 }
 
+/* 로그인 없이 닿는 문의 경로.
+   바로 위 "문의하기" 버튼은 /contact 로 가는데 그 페이지는 로그인 뒤에 있다.
+   이 페이지는 App Store 심사의 지원 URL 로도 쓰이고 심사자는 로그인하지
+   않은 상태로 들어온다 — 그때 막다른 길이면 안 된다.
+   보조 안내이므로 형제 span 보다 한 단 낮춘다. */
+.contact-card .faq-contact-mail {
+  display: block;
+  margin-top: 10px;
+  color: #b8c0e0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.contact-card .faq-contact-mail a {
+  color: #e8ecff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .site-footer {
   color: #8a90a4;
   background: #0e1120;

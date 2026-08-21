@@ -1,0 +1,1247 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <!-- 컴포지션은 compositions/ 안에 있지만 자산(폰트·음성)은 프로젝트 루트 기준이다.
+         하이퍼프레임즈 렌더러는 루트를 기준으로 풀어 주지만 평범한 정적 서버는
+         /compositions/assets/... 로 풀어 404 를 낸다 — 실제로 음성이 안 붙었다.
+         base 를 한 단계 올려 두 경우를 같게 만든다. -->
+    <base href="../" />
+    <!-- GSAP 은 로컬 vendor 를 먼저 쓴다. 파일을 더블클릭해 열거나(file://) 오프라인
+         교실에서 CDN 이 안 오면 무대가 통째로 서지 않는다. vendor 가 없을 때만 CDN. -->
+    <script src="vendor/gsap.min.js"></script>
+    <script>if (!window.gsap) document.write('<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"><\/script>');</script>
+    <style>
+
+    :root {
+      --m-ground: #F3F6FF;
+      --m-surface: #FCFDFF;
+      --m-line: #D6DDF0;
+      --m-ink: #111426;
+      --m-muted: #5C6478;
+      --m-cyan: #067A8C;
+      --m-magenta: #B81FD3;
+      --m-violet: #6D3DF5;
+      --m-blue: #1A66EE;
+      --m-tagInk: #FCFDFF;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+      --m-ground: #090C1B;
+      --m-surface: #141A2E;
+      --m-line: #232A44;
+      --m-ink: #EEF1FA;
+      --m-muted: #8A94AB;
+      --m-cyan: #0CDCF1;
+      --m-magenta: #CA44E3;
+      --m-violet: #7B4EFC;
+      --m-blue: #327FFA;
+      --m-tagInk: #090C1B;
+      }
+    }
+    /* 강제 지정 — mp4 렌더는 한쪽으로 굽는다. 앱에서 사용자가 앱 자체 외관을
+       시스템과 다르게 골랐을 때도 이 속성으로 맞출 수 있다. */
+    :root[data-theme="light"] {
+      --m-ground: #F3F6FF;
+      --m-surface: #FCFDFF;
+      --m-line: #D6DDF0;
+      --m-ink: #111426;
+      --m-muted: #5C6478;
+      --m-cyan: #067A8C;
+      --m-magenta: #B81FD3;
+      --m-violet: #6D3DF5;
+      --m-blue: #1A66EE;
+      --m-tagInk: #FCFDFF;
+    }
+    :root[data-theme="dark"] {
+      --m-ground: #090C1B;
+      --m-surface: #141A2E;
+      --m-line: #232A44;
+      --m-ink: #EEF1FA;
+      --m-muted: #8A94AB;
+      --m-cyan: #0CDCF1;
+      --m-magenta: #CA44E3;
+      --m-violet: #7B4EFC;
+      --m-blue: #327FFA;
+      --m-tagInk: #090C1B;
+    }
+
+    [fill="var(--m-ground)"] { fill: var(--m-ground); }
+    [stroke="var(--m-ground)"] { stroke: var(--m-ground); }
+    [fill="var(--m-surface)"] { fill: var(--m-surface); }
+    [stroke="var(--m-surface)"] { stroke: var(--m-surface); }
+    [fill="var(--m-line)"] { fill: var(--m-line); }
+    [stroke="var(--m-line)"] { stroke: var(--m-line); }
+    [fill="var(--m-ink)"] { fill: var(--m-ink); }
+    [stroke="var(--m-ink)"] { stroke: var(--m-ink); }
+    [fill="var(--m-muted)"] { fill: var(--m-muted); }
+    [stroke="var(--m-muted)"] { stroke: var(--m-muted); }
+    [fill="var(--m-cyan)"] { fill: var(--m-cyan); }
+    [stroke="var(--m-cyan)"] { stroke: var(--m-cyan); }
+    [fill="var(--m-magenta)"] { fill: var(--m-magenta); }
+    [stroke="var(--m-magenta)"] { stroke: var(--m-magenta); }
+    [fill="var(--m-violet)"] { fill: var(--m-violet); }
+    [stroke="var(--m-violet)"] { stroke: var(--m-violet); }
+    [fill="var(--m-blue)"] { fill: var(--m-blue); }
+    [stroke="var(--m-blue)"] { stroke: var(--m-blue); }
+    [fill="var(--m-tagInk)"] { fill: var(--m-tagInk); }
+    [stroke="var(--m-tagInk)"] { stroke: var(--m-tagInk); }
+
+    @font-face { font-family:"Matths KR"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-kr.woff2") format("woff2"); }
+    @font-face { font-family:"Matths KR"; font-weight:500; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-kr-500.woff2") format("woff2"); }
+    @font-face { font-family:"Matths KR"; font-weight:700; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-kr-700.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Math"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-math.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Math"; font-weight:400; font-style:italic; font-display:block;
+                 src:url("assets/fonts/matths-math-italic.woff2") format("woff2"); }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:1080px; height:1920px; overflow:hidden; background:var(--m-ground); }
+    #root { position:relative; width:1080px; height:1920px; overflow:hidden;
+            background:var(--m-ground); color:var(--m-ink); font-family:'Matths KR', 'Noto Sans KR', sans-serif; }
+
+    .band { position:absolute; left:0; width:1080px; }
+
+    /* 타이틀 띠 — 50초 내내 고정. 학습자가 "무엇을 보고 있는지" 잃지 않게 한다. */
+    .band-title { top:134.4px; height:144px; text-align:center; }
+    .t-formula { font-family:'Matths Math', serif; font-size:58px; font-style:italic; letter-spacing:.01em; }
+    .t-sub { margin-top:10px; font-size:31px; color:var(--m-muted); letter-spacing:.02em; }
+
+    /* 수식 패널 띠 — 지배 식이 항 단위로 조립되어 상주한다 */
+    .band-panel { top:297.6px; height:144px;
+                  display:flex; align-items:center; justify-content:center; }
+    .panel-row { position:relative; display:flex; align-items:center; gap:10px;
+                 font-family:'Matths Math', serif; font-size:52px; font-style:italic; }
+    .term { position:relative; padding:8px 14px; opacity:0; font-weight:500; }
+
+    /* 강조 = 색을 채운 박스. 테두리만 그리면 옆 항들과 무게가 비슷해 눈에 안 띈다.
+       currentColor 는 그 항의 의미색이므로, 채움도 라벨도 자동으로 같은 색이 된다.
+       색 하나가 "이 항이 무엇인가" 와 "지금 여기를 보라" 를 동시에 말한다. */
+    .term .boxline { position:absolute; inset:0; border:2.5px solid currentColor;
+                     border-radius:10px; opacity:0; }
+    /* 채움은 별도 레이어로 깔고 알파를 낮춘다. 같은 요소에 background 를 주면
+       테두리까지 옅어져 경계가 사라진다. */
+    .term .boxline::after { content:""; position:absolute; inset:0;
+                            background:currentColor; opacity:0.16; border-radius:8px; }
+    .term.on { font-weight:700; }
+
+    /* 라벨은 알약으로 채운다. 글자는 바탕색이라 대비가 가장 세다. */
+    .term .tag { position:absolute; left:50%; top:100%; transform:translateX(-50%);
+                 margin-top:10px; font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-style:normal;
+                 font-size:22px; font-weight:700; white-space:nowrap; opacity:0;
+                 padding:3px 12px; border-radius:999px;
+                 background:currentColor;
+                 letter-spacing:.01em; }
+    /* 글자색을 .tag 에 직접 주면 안 된다 — background:currentColor 가 그 색을
+       가리키게 되어 알약이 흰색으로 죽는다. 실제로 그렇게 됐다.
+       색은 안쪽 요소가 갖고, .tag 는 의미색을 그대로 물려받게 둔다. */
+    .term .tag i { font-style:normal; color:var(--m-tagInk); }
+
+    /* 무대 띠 — 좌표계와 도형이 사는 유일한 동적 영역 */
+    /* z-index:0 은 스태킹 컨텍스트를 만드는 장치다 — 이게 없으면 ::before(z-index:-1)가
+       #root 바탕 뒤로 떨어져 글로우가 통째로 안 보인다(음수 z-index 는 가장 가까운
+       스태킹 컨텍스트의 배경 바로 위에 깔린다). 아키타입은 z-index 를 안 쓰므로 안전. */
+    .band-stage { top:480px; height:825.6px; z-index:0; }
+    /* 무대 깊이 — 전부 COLOR 토큰 파생, 새 hex 없음.
+       ::before = 중앙의 아주 옅은 구조색 글로우(내용물 뒤). 무대가 "조명 아래" 로 보이게.
+       ::after  = 가장자리를 바탕색으로 살짝 눌러 주는 비네트(내용물 위). 시선을 중앙에.
+       둘 다 주인공(도형·수식)보다 눈에 띄면 실패다 — 불투명도를 올리지 마라. */
+    .band-stage::before { content:""; position:absolute; inset:0; z-index:-1;
+                          background:radial-gradient(64% 56% at 50% 45%, var(--m-blue), transparent 82%);
+                          opacity:0.045; }
+    .band-stage::after { content:""; position:absolute; inset:0; pointer-events:none;
+                         background:radial-gradient(120% 108% at 50% 46%, transparent 63%, var(--m-ground) 100%);
+                         opacity:0.5; }
+
+    /* 자막 띠 — 최대 2줄, 무대와 겹치지 않는다 */
+    .band-caption { top:1401.6px; height:249.60000000000002px;
+                    display:flex; align-items:flex-start; justify-content:center; }
+    /* 지금 말하는 라인은 이 한 줄뿐이다 — 본문(400)보다 반 단 굵게(500) 세워
+       "낭독 중" 임이 무게로 드러나게 한다. 500 서브셋은 @font-face 에 이미 실려 있다. */
+    .cap { position:absolute; width:930px; text-align:center; font-size:37px;
+           line-height:1.46; color:var(--m-ink); word-break:keep-all; font-weight:500; }
+
+    /* 결론 — 무대를 전부 걷어내고 명제 하나만 남긴다.
+       .band-stage 안에 들어가므로 top 은 0 이다. 여기에 다시 BAND.stage.top 을 주면
+       오프셋이 두 번 먹어 결론이 자막 띠까지 내려가 겹친다(1차 렌더에서 실제로 그랬다). */
+    .verdict { position:absolute; left:0; top:0; width:1080px;
+               height:825.6px; display:flex; flex-direction:column;
+               align-items:center; justify-content:center; gap:24px; opacity:0; }
+    .verdict-main { font-family:'Matths Math', serif; font-size:72px; font-style:italic; }
+    /* 한글 결론은 수식 폰트를 쓰면 안 된다 — 이탤릭 세리프에 한글을 얹으면
+       글자가 통째로 기울어져 조판이 무너진다(2차 렌더에서 실제로 그랬다). */
+    .verdict-kr { font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-style:normal; font-size:56px; line-height:1.3; }
+    .verdict-sub { font-size:34px; color:var(--m-muted); }
+    .verdict-row { display:flex; align-items:baseline; gap:20px; font-size:44px; }
+    .verdict-row .vr-cond { font-family:'Matths Math', serif; font-style:italic; min-width:190px;
+                            text-align:right; }
+    .verdict-row .vr-arrow { color:var(--m-muted); font-size:34px; }
+    .verdict-row .vr-out { font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-size:40px; }
+
+    .readout { font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-size:30px; font-weight:500; font-variant-numeric:tabular-nums; }
+
+    /* ── 세로 분수 (frac-runtime.js 가 런타임에 a/b 를 이렇게 바꾼다) ──────
+       가로 표기 dy/dx 는 컴퓨터 표기다. 학생이 보는 화면은 LaTeX rac 처럼 세로로. */
+    /* inline-flex 의 기준선은 첫 줄(분자)의 기준선이라 길이로 내리면 분자가 글줄에 걸린다.
+       middle 이면 상자 가운데(=분수 막대)가 x-높이 중간, 곧 LaTeX 의 수학 축에 놓인다. */
+    .mf { display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle;
+          line-height:1; margin:0 0.14em; font-size:0.84em; }
+    .mf-n { padding:0 0.18em 0.1em; border-bottom:0.07em solid currentColor; }
+    .mf-d { padding:0.1em 0.18em 0; }
+
+    /* ── 데스크톱 미리보기(파일 더블클릭) ─────────────────────────────
+       앱·렌더러는 ?live=1 을 붙여 열므로 이 블록을 타지 않는다. 쿼리 없이 file:// 로
+       열렸을 때만 body 에 mc-preview 가 붙는다. 무대를 창에 맞춰 축소하고,
+       브라우저가 소리 자동재생을 막으니(사파리·크롬 기본) 재생 버튼과 조작 줄을 준다. */
+    html.mc-preview, body.mc-preview { width:100vw; height:100vh; background:var(--m-ground); }
+    body.mc-preview #root { position:absolute; left:50%; top:50%;
+                            transform:translate(-50%,-50%) scale(var(--mc-scale, 1)); }
+    #mc-play { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+               background:rgba(9,12,27,0.35); cursor:pointer; z-index:20; }
+    #mc-play span { display:inline-flex; align-items:center; gap:14px; padding:18px 34px 18px 28px;
+                    border-radius:999px; background:var(--m-cyan); color:var(--m-tagInk);
+                    font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-size:22px; font-weight:700; letter-spacing:-0.01em;
+                    box-shadow:0 12px 40px rgba(0,0,0,0.35); }
+    #mc-play span::before { content:""; width:0; height:0; border-style:solid;
+                            border-width:11px 0 11px 19px; border-color:transparent transparent transparent currentColor; }
+    #mc-play small { display:block; margin-top:14px; text-align:center; color:var(--m-ink); opacity:0.75;
+                     font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-size:14px; }
+    #mc-ctl { position:fixed; left:0; right:0; bottom:0; height:56px; display:flex; align-items:center;
+              gap:14px; padding:0 18px; z-index:21; font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-size:13px; color:var(--m-ink);
+              background:var(--m-surface); border-top:1px solid var(--m-line); }
+    #mc-ctl button { width:36px; height:36px; border-radius:999px; border:0; cursor:pointer;
+                     background:var(--m-cyan); color:var(--m-tagInk); font-size:14px; display:grid; place-items:center; }
+    #mc-ctl .mc-bar { flex:1; height:8px; border-radius:999px; background:var(--m-line); position:relative; cursor:pointer; }
+    #mc-ctl .mc-fill { position:absolute; left:0; top:0; bottom:0; width:0; border-radius:999px; background:var(--m-cyan); }
+    #mc-ctl .mc-time { font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-variant-numeric:tabular-nums; opacity:0.85; min-width:96px; text-align:right; }
+    #mc-ctl .mc-meta { opacity:0.6; max-width:34vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #mc-ctl .mc-voice { padding:3px 9px; border-radius:999px; border:1px solid var(--m-line); opacity:0.85; }
+  </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="calculus-1-01-02" data-start="0" data-duration="71.36"
+         data-width="1080" data-height="1920">
+
+      <!-- id 는 필수다. 없으면 렌더러가 미디어 요소를 못 찾아 무음으로 나갈 수 있다. -->
+      <audio id="voice" class="clip" data-start="0" data-duration="71.36"
+             data-track-index="0" data-volume="1" data-voice-src="assets/voice-female/calculus-1-01-02/full.mp3"></audio>
+
+      <div id="band-title" class="clip band band-title" data-start="0" data-duration="71.36" data-track-index="1">
+        <div class="t-formula"><span style="font-size:58px">lim(f+g)</span></div>
+        <div class="t-sub">극한의 성질과 계산</div>
+      </div>
+
+
+      <div id="band-panel" class="clip band band-panel" data-start="0" data-duration="71.36" data-track-index="2">
+        <div class="panel-row" style="font-size:52px">
+          <span class="term" id="pt-0" style="color:var(--m-cyan)">lim(f+g)</span>
+          <span class="term" id="pt-1" style="color:var(--m-ink)">=</span>
+          <span class="term" id="pt-2" style="color:var(--m-magenta)">lim f + lim g<span class="boxline"></span><span class="tag"><i>따로 구해 합쳐도 된다</i></span></span>
+        </div>
+      </div>
+
+      <div id="band-stage" class="clip band band-stage" data-start="0" data-duration="71.36" data-track-index="3">
+        <svg width="1080" height="825.6" viewBox="0 0 1080 825.6">
+          <defs>
+            <clipPath id="dclip"><rect x="0" y="281" width="1080" height="488"/></clipPath>
+            
+          </defs>
+
+          <g id="grid" opacity="0" clip-path="url(#dclip)">
+      <line x1="24.0" y1="0" x2="24.0" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="75.6" y1="0" x2="75.6" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="127.2" y1="0" x2="127.2" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="178.8" y1="0" x2="178.8" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="230.4" y1="0" x2="230.4" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="282.0" y1="0" x2="282.0" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="333.6" y1="0" x2="333.6" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="385.2" y1="0" x2="385.2" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="436.8" y1="0" x2="436.8" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="488.4" y1="0" x2="488.4" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="540.0" y1="0" x2="540.0" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="591.6" y1="0" x2="591.6" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="643.2" y1="0" x2="643.2" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="694.8" y1="0" x2="694.8" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="746.4" y1="0" x2="746.4" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="798.0" y1="0" x2="798.0" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="849.6" y1="0" x2="849.6" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="901.2" y1="0" x2="901.2" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="952.8" y1="0" x2="952.8" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="1004.4" y1="0" x2="1004.4" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="1056.0" y1="0" x2="1056.0" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="793.3" x2="1080" y2="793.3" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="741.7" x2="1080" y2="741.7" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="690.1" x2="1080" y2="690.1" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="638.5" x2="1080" y2="638.5" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="586.9" x2="1080" y2="586.9" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="535.3" x2="1080" y2="535.3" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="483.7" x2="1080" y2="483.7" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="432.1" x2="1080" y2="432.1" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="380.5" x2="1080" y2="380.5" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="328.9" x2="1080" y2="328.9" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="277.3" x2="1080" y2="277.3" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="225.7" x2="1080" y2="225.7" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="174.1" x2="1080" y2="174.1" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="122.5" x2="1080" y2="122.5" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="70.9" x2="1080" y2="70.9" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="19.3" x2="1080" y2="19.3" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="15.480000000000018" y1="690.12" x2="1064.52" y2="690.12" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <line x1="540" y1="810.12" x2="540" y2="15.480000000000075" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <line x1="436.8" y1="681.12" x2="436.8" y2="699.12" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="436.8" y="734.12" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">-2</text>
+      <line x1="488.4" y1="681.12" x2="488.4" y2="699.12" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="488.4" y="734.12" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">-1</text>
+      <line x1="591.6" y1="681.12" x2="591.6" y2="699.12" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="591.6" y="734.12" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">1</text>
+      <line x1="643.2" y1="681.12" x2="643.2" y2="699.12" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="643.2" y="734.12" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">2</text>
+          </g>
+
+          <g id="diag" clip-path="url(#dclip)">
+            
+            
+            <path id="cF" d="M423.7 922.7 L424.8 920.4 L426.0 918.2 L427.1 916.0 L428.2 913.7 L429.3 911.5 L430.4 909.2 L431.6 907.0 L432.7 904.8 L433.8 902.5 L434.9 900.3 L436.0 898.1 L437.1 895.8 L438.3 893.6 L439.4 891.4 L440.5 889.1 L441.6 886.9 L442.7 884.7 L443.9 882.4 L445.0 880.2 L446.1 877.9 L447.2 875.7 L448.3 873.5 L449.4 871.2 L450.6 869.0 L451.7 866.8 L452.8 864.5 L453.9 862.3 L455.0 860.1 L456.1 857.8 L457.3 855.6 L458.4 853.3 L459.5 851.1 L460.6 848.9 L461.7 846.6 L462.9 844.4 L464.0 842.2 L465.1 839.9 L466.2 837.7 L467.3 835.5 L468.4 833.2 L469.6 831.0 L470.7 828.8 L471.8 826.5 L472.9 824.3 L474.0 822.0 L475.2 819.8 L476.3 817.6 L477.4 815.3 L478.5 813.1 L479.6 810.9 L480.7 808.6 L481.9 806.4 L483.0 804.2 L484.1 801.9 L485.2 799.7 L486.3 797.4 L487.5 795.2 L488.6 793.0 L489.7 790.7 L490.8 788.5 L491.9 786.3 L493.0 784.0 L494.2 781.8 L495.3 779.6 L496.4 777.3 L497.5 775.1 L498.6 772.9 L499.8 770.6 L500.9 768.4 L502.0 766.1 L503.1 763.9 L504.2 761.7 L505.3 759.4 L506.5 757.2 L507.6 755.0 L508.7 752.7 L509.8 750.5 L510.9 748.3 L512.0 746.0 L513.2 743.8 L514.3 741.5 L515.4 739.3 L516.5 737.1 L517.6 734.8 L518.8 732.6 L519.9 730.4 L521.0 728.1 L522.1 725.9 L523.2 723.7 L524.3 721.4 L525.5 719.2 L526.6 717.0 L527.7 714.7 L528.8 712.5 L529.9 710.2 L531.1 708.0 L532.2 705.8 L533.3 703.5 L534.4 701.3 L535.5 699.1 L536.6 696.8 L537.8 694.6 L538.9 692.4 L540.0 690.1 L541.1 687.9 L542.2 685.6 L543.4 683.4 L544.5 681.2 L545.6 678.9 L546.7 676.7 L547.8 674.5 L548.9 672.2 L550.1 670.0 L551.2 667.8 L552.3 665.5 L553.4 663.3 L554.5 661.1 L555.7 658.8 L556.8 656.6 L557.9 654.3 L559.0 652.1 L560.1 649.9 L561.2 647.6 L562.4 645.4 L563.5 643.2 L564.6 640.9 L565.7 638.7 L566.8 636.5 L568.0 634.2 L569.1 632.0 L570.2 629.7 L571.3 627.5 L572.4 625.3 L573.5 623.0 L574.7 620.8 L575.8 618.6 L576.9 616.3 L578.0 614.1 L579.1 611.9 L580.2 609.6 L581.4 607.4 L582.5 605.2 L583.6 602.9 L584.7 600.7 L585.8 598.4 L587.0 596.2 L588.1 594.0 L589.2 591.7 L590.3 589.5 L591.4 587.3 L592.5 585.0 L593.7 582.8 L594.8 580.6 L595.9 578.3 L597.0 576.1 L598.1 573.8 L599.3 571.6 L600.4 569.4 L601.5 567.1 L602.6 564.9 L603.7 562.7 L604.8 560.4 L606.0 558.2 L607.1 556.0 L608.2 553.7 L609.3 551.5 L610.4 549.3 L611.6 547.0 L612.7 544.8 L613.8 542.5 L614.9 540.3 L616.0 538.1 L617.1 535.8 L618.3 533.6 L619.4 531.4 L620.5 529.1 L621.6 526.9 L622.7 524.7 L623.9 522.4 L625.0 520.2 L626.1 517.9 L627.2 515.7 L628.3 513.5 L629.4 511.2 L630.6 509.0 L631.7 506.8 L632.8 504.5 L633.9 502.3 L635.0 500.1 L636.1 497.8 L637.3 495.6 L638.4 493.4 L639.5 491.1 L640.6 488.9 L641.7 486.6 L642.9 484.4 L644.0 482.2 L645.1 479.9 L646.2 477.7 L647.3 475.5 L648.4 473.2 L649.6 471.0 L650.7 468.8 L651.8 466.5 L652.9 464.3 L654.0 462.0 L655.2 459.8 L656.3 457.6 L657.4 455.3 L658.5 453.1 L659.6 450.9 L660.7 448.6 L661.9 446.4 L663.0 444.2 L664.1 441.9 L665.2 439.7 L666.3 437.5 L667.5 435.2 L668.6 433.0 L669.7 430.7 L670.8 428.5 L671.9 426.3 L673.0 424.0 L674.2 421.8 " fill="none" stroke="var(--m-cyan)" stroke-width="6" stroke-linecap="round" opacity="0" stroke-dasharray="3000" stroke-dashoffset="3000"/>
+            <path id="cG" d="M405.8 392.9 L407.0 398.7 L408.1 404.4 L409.2 410.1 L410.3 415.8 L411.4 421.4 L412.5 426.9 L413.7 432.4 L414.8 437.9 L415.9 443.3 L417.0 448.6 L418.1 453.9 L419.3 459.2 L420.4 464.4 L421.5 469.5 L422.6 474.7 L423.7 479.7 L424.8 484.7 L426.0 489.7 L427.1 494.6 L428.2 499.5 L429.3 504.3 L430.4 509.1 L431.6 513.8 L432.7 518.5 L433.8 523.1 L434.9 527.7 L436.0 532.2 L437.1 536.7 L438.3 541.1 L439.4 545.5 L440.5 549.8 L441.6 554.1 L442.7 558.4 L443.9 562.6 L445.0 566.7 L446.1 570.8 L447.2 574.8 L448.3 578.8 L449.4 582.8 L450.6 586.7 L451.7 590.5 L452.8 594.3 L453.9 598.1 L455.0 601.8 L456.1 605.5 L457.3 609.1 L458.4 612.6 L459.5 616.1 L460.6 619.6 L461.7 623.0 L462.9 626.4 L464.0 629.7 L465.1 633.0 L466.2 636.2 L467.3 639.4 L468.4 642.5 L469.6 645.6 L470.7 648.6 L471.8 651.6 L472.9 654.5 L474.0 657.4 L475.2 660.2 L476.3 663.0 L477.4 665.8 L478.5 668.4 L479.6 671.1 L480.7 673.7 L481.9 676.2 L483.0 678.7 L484.1 681.2 L485.2 683.6 L486.3 685.9 L487.5 688.2 L488.6 690.5 L489.7 692.7 L490.8 694.8 L491.9 696.9 L493.0 699.0 L494.2 701.0 L495.3 703.0 L496.4 704.9 L497.5 706.7 L498.6 708.6 L499.8 710.3 L500.9 712.0 L502.0 713.7 L503.1 715.3 L504.2 716.9 L505.3 718.4 L506.5 719.9 L507.6 721.3 L508.7 722.7 L509.8 724.1 L510.9 725.3 L512.0 726.6 L513.2 727.8 L514.3 728.9 L515.4 730.0 L516.5 731.0 L517.6 732.0 L518.8 733.0 L519.9 733.9 L521.0 734.7 L522.1 735.5 L523.2 736.3 L524.3 737.0 L525.5 737.6 L526.6 738.2 L527.7 738.8 L528.8 739.3 L529.9 739.8 L531.1 740.2 L532.2 740.5 L533.3 740.8 L534.4 741.1 L535.5 741.3 L536.6 741.5 L537.8 741.6 L538.9 741.7 L540.0 741.7 L541.1 741.7 L542.2 741.6 L543.4 741.5 L544.5 741.3 L545.6 741.1 L546.7 740.8 L547.8 740.5 L548.9 740.2 L550.1 739.8 L551.2 739.3 L552.3 738.8 L553.4 738.2 L554.5 737.6 L555.7 737.0 L556.8 736.3 L557.9 735.5 L559.0 734.7 L560.1 733.9 L561.2 733.0 L562.4 732.0 L563.5 731.0 L564.6 730.0 L565.7 728.9 L566.8 727.8 L568.0 726.6 L569.1 725.3 L570.2 724.1 L571.3 722.7 L572.4 721.3 L573.5 719.9 L574.7 718.4 L575.8 716.9 L576.9 715.3 L578.0 713.7 L579.1 712.0 L580.2 710.3 L581.4 708.6 L582.5 706.7 L583.6 704.9 L584.7 703.0 L585.8 701.0 L587.0 699.0 L588.1 696.9 L589.2 694.8 L590.3 692.7 L591.4 690.5 L592.5 688.2 L593.7 685.9 L594.8 683.6 L595.9 681.2 L597.0 678.7 L598.1 676.2 L599.3 673.7 L600.4 671.1 L601.5 668.4 L602.6 665.8 L603.7 663.0 L604.8 660.2 L606.0 657.4 L607.1 654.5 L608.2 651.6 L609.3 648.6 L610.4 645.6 L611.6 642.5 L612.7 639.4 L613.8 636.2 L614.9 633.0 L616.0 629.7 L617.1 626.4 L618.3 623.0 L619.4 619.6 L620.5 616.1 L621.6 612.6 L622.7 609.1 L623.9 605.5 L625.0 601.8 L626.1 598.1 L627.2 594.3 L628.3 590.5 L629.4 586.7 L630.6 582.8 L631.7 578.8 L632.8 574.8 L633.9 570.8 L635.0 566.7 L636.1 562.6 L637.3 558.4 L638.4 554.1 L639.5 549.8 L640.6 545.5 L641.7 541.1 L642.9 536.7 L644.0 532.2 L645.1 527.7 L646.2 523.1 L647.3 518.5 L648.4 513.8 L649.6 509.1 L650.7 504.3 L651.8 499.5 L652.9 494.6 L654.0 489.7 L655.2 484.7 L656.3 479.7 L657.4 474.7 L658.5 469.5 L659.6 464.4 L660.7 459.2 L661.9 453.9 L663.0 448.6 L664.1 443.3 L665.2 437.9 L666.3 432.4 L667.5 426.9 L668.6 421.4 L669.7 415.8 L670.8 410.1 L671.9 404.4 L673.0 398.7 L674.2 392.9 " fill="none" stroke="var(--m-blue)" stroke-width="6" stroke-linecap="round" opacity="0" stroke-dasharray="3000" stroke-dashoffset="3000"/>
+            <path id="cH" d="M405.8 661.2 L407.0 664.8 L408.1 668.3 L409.2 671.7 L410.3 675.1 L411.4 678.5 L412.5 681.8 L413.7 685.1 L414.8 688.3 L415.9 691.5 L417.0 694.6 L418.1 697.6 L419.3 700.7 L420.4 703.6 L421.5 706.6 L422.6 709.4 L423.7 712.3 L424.8 715.0 L426.0 717.8 L427.1 720.5 L428.2 723.1 L429.3 725.7 L430.4 728.2 L431.6 730.7 L432.7 733.1 L433.8 735.5 L434.9 737.9 L436.0 740.2 L437.1 742.4 L438.3 744.6 L439.4 746.8 L440.5 748.9 L441.6 750.9 L442.7 752.9 L443.9 754.9 L445.0 756.8 L446.1 758.6 L447.2 760.4 L448.3 762.2 L449.4 763.9 L450.6 765.6 L451.7 767.2 L452.8 768.8 L453.9 770.3 L455.0 771.7 L456.1 773.2 L457.3 774.5 L458.4 775.9 L459.5 777.1 L460.6 778.4 L461.7 779.5 L462.9 780.7 L464.0 781.8 L465.1 782.8 L466.2 783.8 L467.3 784.7 L468.4 785.6 L469.6 786.4 L470.7 787.2 L471.8 788.0 L472.9 788.7 L474.0 789.3 L475.2 789.9 L476.3 790.5 L477.4 791.0 L478.5 791.4 L479.6 791.8 L480.7 792.2 L481.9 792.5 L483.0 792.8 L484.1 793.0 L485.2 793.1 L486.3 793.2 L487.5 793.3 L488.6 793.3 L489.7 793.3 L490.8 793.2 L491.9 793.1 L493.0 792.9 L494.2 792.7 L495.3 792.4 L496.4 792.1 L497.5 791.7 L498.6 791.3 L499.8 790.8 L500.9 790.3 L502.0 789.7 L503.1 789.1 L504.2 788.5 L505.3 787.8 L506.5 787.0 L507.6 786.2 L508.7 785.3 L509.8 784.4 L510.9 783.5 L512.0 782.5 L513.2 781.4 L514.3 780.3 L515.4 779.2 L516.5 778.0 L517.6 776.8 L518.8 775.5 L519.9 774.1 L521.0 772.7 L522.1 771.3 L523.2 769.8 L524.3 768.3 L525.5 766.7 L526.6 765.1 L527.7 763.4 L528.8 761.7 L529.9 759.9 L531.1 758.1 L532.2 756.2 L533.3 754.3 L534.4 752.3 L535.5 750.3 L536.6 748.2 L537.8 746.1 L538.9 743.9 L540.0 741.7 L541.1 739.5 L542.2 737.2 L543.4 734.8 L544.5 732.4 L545.6 729.9 L546.7 727.4 L547.8 724.9 L548.9 722.3 L550.1 719.6 L551.2 716.9 L552.3 714.2 L553.4 711.4 L554.5 708.6 L555.7 705.7 L556.8 702.7 L557.9 699.7 L559.0 696.7 L560.1 693.6 L561.2 690.5 L562.4 687.3 L563.5 684.1 L564.6 680.8 L565.7 677.5 L566.8 674.1 L568.0 670.7 L569.1 667.2 L570.2 663.7 L571.3 660.1 L572.4 656.5 L573.5 652.8 L574.7 649.1 L575.8 645.4 L576.9 641.6 L578.0 637.7 L579.1 633.8 L580.2 629.8 L581.4 625.8 L582.5 621.8 L583.6 617.7 L584.7 613.5 L585.8 609.3 L587.0 605.1 L588.1 600.8 L589.2 596.4 L590.3 592.0 L591.4 587.6 L592.5 583.1 L593.7 578.6 L594.8 574.0 L595.9 569.4 L597.0 564.7 L598.1 559.9 L599.3 555.2 L600.4 550.3 L601.5 545.5 L602.6 540.5 L603.7 535.6 L604.8 530.5 L606.0 525.5 L607.1 520.4 L608.2 515.2 L609.3 510.0 L610.4 504.7 L611.6 499.4 L612.7 494.0 L613.8 488.6 L614.9 483.2 L616.0 477.7 L617.1 472.1 L618.3 466.5 L619.4 460.9 L620.5 455.2 L621.6 449.4 L622.7 443.6 L623.9 437.8 L625.0 431.9 L626.1 425.9 L627.2 419.9 L628.3 413.9 L629.4 407.8 L630.6 401.7 L631.7 395.5 L632.8 389.3 L633.9 383.0 L635.0 376.6 L636.1 370.3 L637.3 363.8 L638.4 357.4 L639.5 350.8 L640.6 344.3 L641.7 337.7 L642.9 331.0 L644.0 324.3 L645.1 317.5 L646.2 310.7 L647.3 303.8 L648.4 296.9 L649.6 290.0 L650.7 282.9 L651.8 275.9 L652.9 268.8 L654.0 261.6 L655.2 254.4 L656.3 247.2 L657.4 239.9 L658.5 232.5 L659.6 225.1 L660.7 217.7 L661.9 210.2 L663.0 202.7 L664.1 195.1 L665.2 187.4 L666.3 179.7 L667.5 172.0 L668.6 164.2 L669.7 156.4 L670.8 148.5 L671.9 140.6 L673.0 132.6 L674.2 124.6 " fill="none" stroke="var(--m-magenta)" stroke-width="6" stroke-linecap="round" opacity="0" stroke-dasharray="3000" stroke-dashoffset="3000"/>
+            <g id="rider" opacity="0">
+              <line id="tangent" stroke="var(--m-violet)" stroke-width="3.5" stroke-dasharray="10 8"/>
+              <line id="drop" stroke="var(--m-blue)" stroke-width="2.5" stroke-dasharray="7 7" opacity="0.7"/>
+              <circle id="rd-0" r="14" fill="var(--m-cyan)"/>
+              <circle id="rd-1" r="14" fill="var(--m-blue)"/>
+              <circle id="rd-2" r="14" fill="var(--m-magenta)"/>
+            </g>
+          </g>
+
+          <!-- 변환 극장 — 글자는 지워지지 않고 자리를 옮긴다 -->
+          <g id="theatre">
+            <rect id="tbox" x="303.4" y="62.8" width="216.5" height="61.4" rx="9" fill="none" stroke="var(--m-violet)" stroke-width="3" opacity="0"/>
+            <text id="atb-0" x="315.4" y="107" fill="var(--m-cyan)" font-size="48.0" font-family="'Matths Math', serif" font-style="italic" opacity="0">lim f(x)</text>
+            <text id="atb-1" x="529.9" y="107" fill="var(--m-ink)" font-size="48.0" font-family="'Matths Math', serif" font-style="italic" opacity="0">+</text>
+            <text id="atb-2" x="572.1" y="107" fill="var(--m-cyan)" font-size="48.0" font-family="'Matths Math', serif" font-style="italic" opacity="0">lim g(x)</text>
+            <text id="btb-0" x="380.2" y="223" fill="var(--m-magenta)" font-size="48.0" font-family="'Matths Math', serif" font-style="italic" opacity="0">lim (f + g)(x)</text>
+            
+            
+            <g id="mv-0" class="move-copy" opacity="0"><text x="315.4" y="107" fill="var(--m-violet)" font-size="48.0" font-family="'Matths Math', serif" font-style="italic">lim f(x)</text></g>
+            <g id="mv-1" class="move-copy" opacity="0"><text x="572.1" y="107" fill="var(--m-violet)" font-size="48.0" font-family="'Matths Math', serif" font-style="italic">lim g(x)</text></g>
+            <text id="tag-0" x="540.0" y="265" fill="var(--m-magenta)" font-size="25" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle" opacity="0">각 극한이 존재할 때만 쓸 수 있다</text>
+          </g>
+          
+          <g id="dirArrow" opacity="0">
+            <g id="dirArrowRot">
+              <line x1="410.0" y1="131" x2="410.0" y2="177.4" stroke="var(--m-blue)" stroke-width="4"/>
+              <polygon points="410.0,179.4 398.0,155.4 422.0,155.4" fill="var(--m-blue)"/>
+            </g>
+            <text id="dirArrowLabel" x="432.0" y="162.2" fill="var(--m-blue)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif">극한 법칙</text>
+          </g>
+
+          
+          <g id="notes" opacity="0">
+            <rect x="26" y="293" width="440" height="134" rx="14" fill="var(--m-ground)" fill-opacity="1" stroke="var(--m-line)" stroke-width="1.5"/>
+            <text id="note-0" x="48" y="329" fill="var(--m-muted)" font-family="'Matths KR', 'Noto Sans KR', sans-serif" font-size="25" opacity="0">lim f = 4</text>
+            <text id="note-1" x="48" y="365" fill="var(--m-muted)" font-family="'Matths KR', 'Noto Sans KR', sans-serif" font-size="25" opacity="0">lim g = 3</text>
+            <text id="note-2" x="48" y="401" fill="var(--m-muted)" font-family="'Matths KR', 'Noto Sans KR', sans-serif" font-size="25" opacity="0">lim(f+g) = 4 + 3 = 7</text>
+          </g>
+          
+          <g id="roRow" opacity="0">
+            <text id="roL" x="494" y="805.6" fill="var(--m-cyan)" font-family="'Matths KR', 'Noto Sans KR', sans-serif" font-size="31" text-anchor="end"></text>
+            <text id="roEq" x="540" y="805.6" fill="var(--m-muted)" font-family="'Matths KR', 'Noto Sans KR', sans-serif" font-size="31" text-anchor="middle">=</text>
+            <text id="roR" x="586" y="805.6" fill="var(--m-magenta)" font-family="'Matths KR', 'Noto Sans KR', sans-serif" font-size="31" text-anchor="start"></text>
+          </g>
+        </svg>
+
+        <div class="verdict" id="verdict">
+          <div class="verdict-kr" style="color:var(--m-magenta)">극한은 항별로 따로 계산해도 된다</div>
+          <div class="verdict-kr" style="color:var(--m-violet);font-size:44px">단, 각 극한이 먼저 있어야 한다</div>
+        </div>
+      </div>
+
+      <div id="band-caption" class="clip band band-caption" data-start="0" data-duration="71.36" data-track-index="4">
+      <div class="cap" id="cap-0" style="opacity:0">극한을 구할 때마다 그래프를 그려서 확인해야 할까요?</div>
+      <div class="cap" id="cap-1" style="opacity:0">다행히 극한에는 사칙연산 규칙이 있습니다.</div>
+      <div class="cap" id="cap-2" style="opacity:0">f(x) = 2x, g(x) = x² − 1</div>
+      <div class="cap" id="cap-3" style="opacity:0">x → 2 일 때 lim f(x) = 4, lim g(x) = 3</div>
+      <div class="cap" id="cap-4" style="opacity:0">그러면 두 함수를 더한 함수의 극한은 얼마일까요?</div>
+      <div class="cap" id="cap-5" style="opacity:0">lim (f + g) = lim f + lim g = 4 + 3 = 7</div>
+      <div class="cap" id="cap-6" style="opacity:0">lim (f · g) = lim f · lim g = 4 × 3 = 12</div>
+      <div class="cap" id="cap-7" style="opacity:0">실수배·뺄셈·나눗셈도 항별로 나눠 계산합니다.</div>
+      <div class="cap" id="cap-8" style="opacity:0">단, 나눗셈은 분모의 극한이 0 이 아닐 때만.</div>
+      <div class="cap" id="cap-9" style="opacity:0">이 규칙들은 각각의 극한이 먼저 존재할 때만 성립합니다.</div>
+      <div class="cap" id="cap-10" style="opacity:0">0/0 꼴이면 인수분해해 약분한 뒤에 값을 넣습니다.</div>
+      <div class="cap" id="cap-11" style="opacity:0">극한은 항별로 따로 구해 합쳐도 됩니다. 단, 각 극한이 먼저 있어야 합니다.</div>
+      </div>
+
+    </div>
+
+    <script>
+/* frac-runtime.js — inline fraction stacker for Matths concept motions.
+ * Plain browser JS (no modules). Defines window.MatthsFrac = { segments, stackHtml, stackSvg }.
+ * Inlined into composition <script> blocks: never emit a script close tag or template literals here.
+ */
+(function (window) {
+  'use strict';
+
+  var HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/;
+  // Hard boundaries: never part of an atom.
+  var OPS = '=±+−-,;:→⇒≈≠≤≥<>∝∈∉⊂⊃⊆⊇∪∩÷…[]{}';
+  // Product dots: atom-internal only when glued on both sides.
+  var DOTS = '·×';
+  var FUNC_NAMES = { sin: 1, cos: 1, tan: 1, det: 1, log: 1, ln: 1, exp: 1, sec: 1, csc: 1, cot: 1, sinh: 1, cosh: 1, tanh: 1, adj: 1 };
+  var TRAIL_PUNCT = '.?';
+
+  function isWs(ch) { return /\s/.test(ch); }
+  function isBoundaryChar(ch) {
+    return isWs(ch) || OPS.indexOf(ch) >= 0 || ch === '/' || ch === '(' || ch === ')' || ch === '|';
+  }
+
+  function matchParen(str, i) {
+    var depth = 0;
+    for (var j = i; j < str.length; j++) {
+      var c = str[j];
+      if (c === '(') depth++;
+      else if (c === ')') { depth--; if (depth === 0) return j; }
+    }
+    return -1;
+  }
+
+  function matchBar(str, i) {
+    var depth = 0;
+    for (var j = i + 1; j < str.length; j++) {
+      var c = str[j];
+      if (c === '(') depth++;
+      else if (c === ')') { if (depth === 0) return -1; depth--; }
+      else if (c === '|' && depth === 0) return j;
+    }
+    return -1;
+  }
+
+  // ---- tokenizer -------------------------------------------------------
+  // token: {k:'ws',v} | {k:'op',v} | {k:'slash'} | {k:'atom', parts:[part]}
+  // part:  {k:'text', v} | {k:'paren', open, close, segs, raw}
+  function tokenize(str) {
+    var toks = [];
+    var cur = null;
+    var n = str.length;
+    var i = 0;
+    function ensure() { if (!cur) cur = { k: 'atom', parts: [] }; }
+    function pushText(t) {
+      ensure();
+      var last = cur.parts[cur.parts.length - 1];
+      if (last && last.k === 'text') last.v += t;
+      else cur.parts.push({ k: 'text', v: t });
+    }
+    function pushPart(p) { ensure(); cur.parts.push(p); }
+    function flush() { if (cur) { toks.push(cur); cur = null; } }
+
+    while (i < n) {
+      var ch = str[i];
+      if (ch === '(') {
+        var close = matchParen(str, i);
+        if (close < 0) { flush(); toks.push({ k: 'op', v: ch }); i++; continue; }
+        var inner = str.slice(i + 1, close);
+        pushPart({ k: 'paren', open: '(', close: ')', segs: segments(inner), raw: inner });
+        i = close + 1;
+        continue;
+      }
+      if (ch === ')') { flush(); toks.push({ k: 'op', v: ch }); i++; continue; }
+      if (ch === '|') {
+        var close2 = matchBar(str, i);
+        if (close2 < 0) { flush(); toks.push({ k: 'op', v: ch }); i++; continue; }
+        var inner2 = str.slice(i + 1, close2);
+        pushPart({ k: 'paren', open: '|', close: '|', segs: segments(inner2), raw: inner2 });
+        i = close2 + 1;
+        continue;
+      }
+      if (ch === '/') { flush(); toks.push({ k: 'slash' }); i++; continue; }
+      if (isWs(ch)) {
+        flush();
+        var j = i;
+        while (j < n && isWs(str[j])) j++;
+        toks.push({ k: 'ws', v: str.slice(i, j) });
+        i = j;
+        continue;
+      }
+      if (DOTS.indexOf(ch) >= 0) {
+        var prevGlued = i > 0 && !isBoundaryChar(str[i - 1]);
+        var nextGlued = i + 1 < n && !isBoundaryChar(str[i + 1]);
+        if (prevGlued && nextGlued && cur) { pushText(ch); i++; continue; }
+        flush(); toks.push({ k: 'op', v: ch }); i++;
+        continue;
+      }
+      if (OPS.indexOf(ch) >= 0) { flush(); toks.push({ k: 'op', v: ch }); i++; continue; }
+      pushText(ch);
+      i++;
+    }
+    flush();
+    return toks;
+  }
+
+  // ---- helpers ---------------------------------------------------------
+  function partText(p) { return p.k === 'text' ? p.v : p.open + p.raw + p.close; }
+  function partsText(parts) { var s = ''; for (var i = 0; i < parts.length; i++) s += partText(parts[i]); return s; }
+  function atomText(tok) { return partsText(tok.parts); }
+  function isHangulish(s) { return HANGUL_RE.test(s); }
+  function isHangulOnly(s) { return /^[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]+$/.test(s); }
+  function isInt(parts) { return parts.length === 1 && parts[0].k === 'text' && /^\d+$/.test(parts[0].v); }
+  function cloneSegs(segs) {
+    var out = [];
+    for (var i = 0; i < segs.length; i++) {
+      var g = segs[i];
+      out.push(g.t === 's' ? { t: 's', v: g.v } : { t: 'f', num: cloneSegs(g.num), den: cloneSegs(g.den) });
+    }
+    return out;
+  }
+  function pushSeg(out, seg) {
+    if (seg.t === 's') {
+      if (!seg.v) return;
+      var last = out[out.length - 1];
+      if (last && last.t === 's') { last.v += seg.v; return; }
+    }
+    out.push(seg);
+  }
+  function pushSegs(out, segs) { for (var i = 0; i < segs.length; i++) pushSeg(out, segs[i]); }
+
+  function partsToSegs(parts, dropParens) {
+    var out = [];
+    if (dropParens && parts.length === 1 && parts[0].k === 'paren' && parts[0].open === '(') {
+      pushSegs(out, cloneSegs(parts[0].segs));
+      return out;
+    }
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      if (p.k === 'text') pushSeg(out, { t: 's', v: p.v });
+      else {
+        pushSeg(out, { t: 's', v: p.open });
+        pushSegs(out, cloneSegs(p.segs));
+        pushSeg(out, { t: 's', v: p.close });
+      }
+    }
+    return out;
+  }
+  function tokenToSegs(tok) {
+    if (tok.k === 'atom') return partsToSegs(tok.parts, false);
+    if (tok.k === 'slash') return [{ t: 's', v: '/' }];
+    return [{ t: 's', v: tok.v }];
+  }
+  function tokensToParts(toks, a, b) {
+    var parts = [];
+    for (var i = a; i <= b; i++) {
+      var t = toks[i];
+      if (t.k === 'atom') parts = parts.concat(t.parts);
+      else if (t.k === 'slash') parts.push({ k: 'text', v: '/' });
+      else parts.push({ k: 'text', v: t.v });
+    }
+    return parts;
+  }
+  function partsEmpty(parts) { return partsText(parts).replace(/\s+/g, '') === ''; }
+
+  // Strip trailing sentence punctuation from the last text part; returns stripped suffix parts.
+  function stripTrailingPunct(parts) {
+    var suffix = [];
+    if (!parts.length) return suffix;
+    var last = parts[parts.length - 1];
+    if (last.k !== 'text') return suffix;
+    var v = last.v, cut = v.length;
+    while (cut > 0 && TRAIL_PUNCT.indexOf(v[cut - 1]) >= 0) cut--;
+    if (cut === v.length) return suffix;
+    var tail = v.slice(cut);
+    if (cut === 0) parts.pop(); else parts[parts.length - 1] = { k: 'text', v: v.slice(0, cut) };
+    suffix.push({ k: 'text', v: tail });
+    return suffix;
+  }
+
+  // ---- candidate builder ---------------------------------------------
+  function candidate(toks, i) {
+    var L = toks[i - 1], R = toks[i + 1];
+    var spaced = !L || !R || L.k === 'ws' || R.k === 'ws';
+    var c = { start: 0, end: 0, numPrefix: [], numParts: [], denParts: [], denSuffix: [] };
+
+    if (!spaced) {
+      if (L.k !== 'atom' || R.k !== 'atom') return null;
+      // numerator: whole left atom, with two heuristics
+      var np = L.parts.length;
+      var numParts = L.parts.slice();
+      if (np >= 2 && L.parts[np - 1].k === 'paren' && L.parts[np - 2].k === 'paren') {
+        // lim(h→0)(e^h − 1)/h  → prefix lim(h→0), num (e^h − 1)
+        c.numPrefix = L.parts.slice(0, np - 1);
+        numParts = [L.parts[np - 1]];
+      } else if (np === 1 && L.parts[0].k === 'text') {
+        // 0·1/8  → 0· stays outside when every factor is a bare number
+        var m = L.parts[0].v.match(/^((?:[\d.]+[·×])+)([\d.]+)$/);
+        if (m) { c.numPrefix = [{ k: 'text', v: m[1] }]; numParts = [{ k: 'text', v: m[2] }]; }
+      }
+      c.numParts = numParts;
+      // denominator: right atom, cut at first product dot
+      var denParts = [], denSuffix = [], stopped = false;
+      for (var p = 0; p < R.parts.length; p++) {
+        var part = R.parts[p];
+        if (stopped) { denSuffix.push(part); continue; }
+        if (part.k === 'text') {
+          var idx = -1;
+          for (var q = 0; q < part.v.length; q++) if (DOTS.indexOf(part.v[q]) >= 0) { idx = q; break; }
+          if (idx >= 0) {
+            if (idx > 0) denParts.push({ k: 'text', v: part.v.slice(0, idx) });
+            denSuffix.push({ k: 'text', v: part.v.slice(idx) });
+            stopped = true;
+          } else denParts.push(part);
+        } else denParts.push(part);
+      }
+      c.start = i - 1;
+      c.end = i + 1;
+      // 1/det A → den "det A"
+      if (!stopped && denParts.length === 1 && denParts[0].k === 'text' && FUNC_NAMES[denParts[0].v] &&
+          toks[i + 2] && toks[i + 2].k === 'ws' && toks[i + 3] && toks[i + 3].k === 'atom') {
+        denParts = denParts.concat([{ k: 'text', v: toks[i + 2].v }], toks[i + 3].parts);
+        c.end = i + 3;
+      }
+      c.denParts = denParts;
+      c.denSuffix = stripTrailingPunct(c.denParts).concat(denSuffix);
+      if (partsEmpty(c.numParts) || partsEmpty(c.denParts)) return null;
+      return c;
+    }
+
+    // spaced: find adjacent atoms
+    var a = i - 1;
+    while (a >= 0 && toks[a].k === 'ws') a--;
+    var b = i + 1;
+    while (b < toks.length && toks[b].k === 'ws') b++;
+    if (a < 0 || b >= toks.length || toks[a].k !== 'atom' || toks[b].k !== 'atom') return null;
+
+    // extend numerator leftward
+    var start = a, modeL = isHangulish(atomText(toks[a])) ? 'h' : 'l', lastAcc = atomText(toks[a]);
+    var j = a - 1;
+    while (j >= 0) {
+      var tj = toks[j];
+      if (tj.k === 'ws') { j--; continue; }
+      if (tj.k !== 'atom') break;
+      var tx = atomText(tj), ok;
+      if (modeL === 'h') ok = isHangulish(tx) || lastAcc === '의';
+      else ok = !isHangulish(tx) && !/^lim/.test(tx);
+      if (!ok) break;
+      start = j; lastAcc = tx; j--;
+    }
+    // extend denominator rightward
+    var end = b, modeR = isHangulish(atomText(toks[b])) ? 'h' : 'l';
+    j = b + 1;
+    while (j < toks.length) {
+      var tk = toks[j];
+      if (tk.k === 'ws') { j++; continue; }
+      if (tk.k !== 'atom') break;
+      var ty = atomText(tk), ok2;
+      if (modeR === 'h') ok2 = isHangulish(ty);
+      else ok2 = !isHangulish(ty);
+      if (!ok2) break;
+      end = j; j++;
+    }
+    c.start = start;
+    c.end = end;
+    c.numParts = tokensToParts(toks, start, a);
+    c.denParts = tokensToParts(toks, b, end);
+    c.denSuffix = stripTrailingPunct(c.denParts);
+    if (partsEmpty(c.numParts) || partsEmpty(c.denParts)) return null;
+    // step counter: 「단계 2 / 4」
+    if (isInt(c.numParts) && isInt(c.denParts)) {
+      var pj = start - 1;
+      while (pj >= 0 && toks[pj].k === 'ws') pj--;
+      if (pj >= 0 && toks[pj].k === 'atom' && isHangulOnly(atomText(toks[pj]))) return null;
+    }
+    return c;
+  }
+
+  // ---- public: segments ------------------------------------------------
+  function segments(text) {
+    text = String(text == null ? '' : text);
+    if (text.indexOf('/') < 0) return [{ t: 's', v: text }];
+    var toks = tokenize(text);
+    var cands = [];
+    for (var i = 0; i < toks.length; i++) {
+      if (toks[i].k !== 'slash') continue;
+      var c = candidate(toks, i);
+      if (c) cands.push(c);
+    }
+    // overlapping claims (a/b/c chains) → none of them become fractions
+    for (var x = 1; x < cands.length; x++) {
+      if (cands[x].start <= cands[x - 1].end) { cands[x].bad = true; cands[x - 1].bad = true; }
+    }
+    var good = [];
+    for (var y = 0; y < cands.length; y++) if (!cands[y].bad) good.push(cands[y]);
+
+    var out = [];
+    var ci = 0;
+    for (var k = 0; k < toks.length;) {
+      var cc = good[ci];
+      if (cc && cc.start === k) {
+        pushSegs(out, partsToSegs(cc.numPrefix, false));
+        out.push({ t: 'f', num: partsToSegs(cc.numParts, true), den: partsToSegs(cc.denParts, true) });
+        pushSegs(out, partsToSegs(cc.denSuffix, false));
+        k = cc.end + 1;
+        ci++;
+      } else {
+        pushSegs(out, tokenToSegs(toks[k]));
+        k++;
+      }
+    }
+    if (!out.length) out.push({ t: 's', v: '' });
+    return out;
+  }
+
+  function hasFrac(segs) {
+    for (var i = 0; i < segs.length; i++) if (segs[i].t === 'f') return true;
+    return false;
+  }
+  function flatText(segs) {
+    var s = '';
+    for (var i = 0; i < segs.length; i++) {
+      var g = segs[i];
+      s += g.t === 's' ? g.v : flatText(g.num) + '/' + flatText(g.den);
+    }
+    return s;
+  }
+
+  // ---- public: stackHtml ------------------------------------------------
+  function underMc(el) {
+    while (el && el.nodeType === 1) {
+      if (el.id && el.id.indexOf('mc-') === 0) return true;
+      el = el.parentNode;
+    }
+    return false;
+  }
+  function skipEl(el) {
+    var tag = (el.tagName || '').toLowerCase();
+    if (tag === 'script' || tag === 'style' || tag === 'svg') return true;
+    if (el.id && el.id.indexOf('mc-') === 0) return true;
+    return false;
+  }
+  function segsToFragment(doc, segs) {
+    var frag = doc.createDocumentFragment();
+    for (var i = 0; i < segs.length; i++) {
+      var g = segs[i];
+      if (g.t === 's') { frag.appendChild(doc.createTextNode(g.v)); continue; }
+      var wrap = doc.createElement('span');
+      wrap.className = 'mf';
+      var num = doc.createElement('span');
+      num.className = 'mf-n';
+      num.appendChild(segsToFragment(doc, g.num));
+      var den = doc.createElement('span');
+      den.className = 'mf-d';
+      den.appendChild(segsToFragment(doc, g.den));
+      wrap.appendChild(num);
+      wrap.appendChild(den);
+      frag.appendChild(wrap);
+    }
+    return frag;
+  }
+  function stackHtml(rootEl) {
+    if (!rootEl) return 0;
+    var doc = rootEl.ownerDocument || rootEl;
+    if (rootEl.nodeType === 9) rootEl = rootEl.body || rootEl.documentElement;
+    if (!rootEl || underMc(rootEl.nodeType === 1 ? rootEl : rootEl.parentNode)) return 0;
+    var walker = doc.createTreeWalker(rootEl, 5 /* SHOW_ELEMENT | SHOW_TEXT */, {
+      acceptNode: function (node) {
+        if (node.nodeType === 1) return skipEl(node) ? 2 /* REJECT */ : 3 /* SKIP */;
+        return node.nodeValue && node.nodeValue.indexOf('/') >= 0 ? 1 /* ACCEPT */ : 3;
+      }
+    });
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    var count = 0;
+    for (var i = 0; i < nodes.length; i++) {
+      var tn = nodes[i];
+      if (!tn.parentNode) continue;
+      var segs = segments(tn.nodeValue);
+      if (!hasFrac(segs)) continue;
+      tn.parentNode.replaceChild(segsToFragment(doc, segs), tn);
+      count++;
+    }
+    return count;
+  }
+
+  // ---- public: stackSvg -------------------------------------------------
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+  function stackSvg(svgRoot) {
+    if (!svgRoot) return 0;
+    var doc = svgRoot.ownerDocument || svgRoot;
+    var texts = svgRoot.querySelectorAll ? svgRoot.querySelectorAll('text') : [];
+    var count = 0;
+    for (var i = 0; i < texts.length; i++) {
+      var el = texts[i];
+      if (el.querySelector('tspan')) continue;
+      if (underMc(el)) continue;
+      // 호출자가 data-mf-skip 을 붙인 글자(촘촘한 리드아웃 행)는 가로 표기 그대로 둔다 —
+      // 44px 간격 행에 세로 분수를 쌓으면 윗줄·아랫줄과 겹친다(실측 7개 개념).
+      if (el.getAttribute && el.getAttribute('data-mf-skip')) continue;
+      var raw = el.textContent;
+      if (!raw || raw.indexOf('/') < 0) continue;
+      var segs = segments(raw);
+      if (!hasFrac(segs)) continue;
+
+      var view = doc.defaultView || window;
+      var fs = 16;
+      try { fs = parseFloat(view.getComputedStyle(el).fontSize) || 16; } catch (e) { fs = 16; }
+      var sfs = fs * 0.8;
+      var upDy = round2(-0.55 * sfs);
+      var downDy = round2(1.15 * sfs);
+      var restoreDy = round2(-(upDy + downDy));
+
+      while (el.firstChild) el.removeChild(el.firstChild);
+      var pending = []; // {num, den, next}
+      var afterFrac = false;
+      var lastPlain = null;
+      function plainTspan(txt) {
+        var t = doc.createElementNS(SVG_NS, 'tspan');
+        if (afterFrac) { t.setAttribute('dy', String(restoreDy)); afterFrac = false; }
+        t.textContent = txt;
+        el.appendChild(t);
+        return t;
+      }
+      for (var s = 0; s < segs.length; s++) {
+        var g = segs[s];
+        if (g.t === 's') { lastPlain = plainTspan(g.v); continue; }
+        if (afterFrac) { plainTspan(''); }
+        var num = doc.createElementNS(SVG_NS, 'tspan');
+        num.setAttribute('class', 'mf-n');
+        num.setAttribute('font-size', '0.8em');
+        num.setAttribute('dy', String(upDy));
+        num.setAttribute('text-decoration', 'underline');
+        num.textContent = flatText(g.num);
+        var den = doc.createElementNS(SVG_NS, 'tspan');
+        den.setAttribute('class', 'mf-d');
+        den.setAttribute('font-size', '0.8em');
+        den.setAttribute('dy', String(downDy));
+        den.textContent = flatText(g.den);
+        el.appendChild(num);
+        el.appendChild(den);
+        pending.push({ num: num, den: den, next: null });
+        afterFrac = true;
+      }
+      if (afterFrac) plainTspan('');
+      // measure, then centre num/den on a shared axis and re-align the suffix
+      var kids = el.childNodes;
+      for (var p = 0; p < pending.length; p++) {
+        var pr = pending[p];
+        var nextT = pr.den.nextSibling;
+        var nw = 0, dw = 0;
+        try { nw = pr.num.getComputedTextLength(); dw = pr.den.getComputedTextLength(); } catch (e2) { nw = 0; dw = 0; }
+        var maxW = Math.max(nw, dw);
+        var numDx = (maxW - nw) / 2;
+        var denDx = -(numDx + nw) + (maxW - dw) / 2;
+        var sufDx = maxW - ((maxW - dw) / 2 + dw);
+        pr.num.setAttribute('dx', String(round2(numDx)));
+        pr.den.setAttribute('dx', String(round2(denDx)));
+        if (nextT && nextT.setAttribute) nextT.setAttribute('dx', String(round2(sufDx)));
+      }
+      void kids;
+      count++;
+    }
+    return count;
+  }
+  function round2(v) { return Math.round(v * 100) / 100; }
+
+  window.MatthsFrac = { segments: segments, stackHtml: stackHtml, stackSvg: stackSvg, flatText: flatText };
+})(typeof window !== 'undefined' ? window : this);
+
+    </script>
+    <script>
+      // 리드아웃 중복 제거 — **값까지 같을 때만** 숨긴다.
+      //
+      // 처음에는 라벨만 같으면 뒤엣것을 숨겼는데, 그러면 정보가 있는 쪽이 사라진다.
+      // 실제로 그랬다: "경우의 수 = 0"(아직 안 움직인 실시간 행)만 남고
+      // "경우의 수 = 3", "= 3 × 2 = 6"(설명이 담긴 행)이 지워졌다.
+      // 어느 쪽이 실시간인지는 정적으로 구분할 수 없으므로, 판단하지 않는다.
+      // 완전히 같은 줄만 지우고 나머지는 그대로 둔다.
+      (function dedupeReadout() {
+        const seen = new Set();
+        document.querySelectorAll(".readout").forEach((el) => {
+          const t = (el.textContent || "").replace(/\s+/g, " ").trim();
+          if (!t) return;
+          if (seen.has(t)) el.style.display = "none";
+          else seen.add(t);
+        });
+      })();
+
+      // 리드아웃 숫자 공통 포맷 — d 는 최대 소수 자릿수. 정수에 닿으면 끝자리 0 을 떼고
+      // (0.000 → 0, 168.100 → 168.1), 부호는 리드아웃 원문과 같은 −(U+2212).
+      // 아키타입 12개가 전부 이걸 부른다. 화면에 찍는 숫자만 다듬고 좌표 계산에는 안 쓴다.
+      function __fx(v, d) {
+        if (!isFinite(v)) return "—";
+        var s = (Math.abs(v) < 5e-9 ? 0 : v).toFixed(d);
+        if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+        if (s === "-0") s = "0";
+        return s.replace(/^-/, "−");
+      }
+      window.__fx = __fx;
+
+      // 세로 분수 — HTML(타이틀·패널·자막·결론)은 지금, SVG 라벨은 폰트가 실린 뒤
+      // (tspan 폭을 재야 분자·분모를 가운데 맞춘다). 실시간 리드아웃이 textContent 를
+      // 덮어쓰면 그 줄만 가로로 돌아간다 — 값 줄은 어차피 계산기 표기라 그대로 둔다.
+      (function stackFractions() {
+        if (!window.MatthsFrac) return;
+        const root = document.getElementById("root");
+        try { MatthsFrac.stackHtml(root); } catch (e) { console.warn("frac html", e); }
+        // 세로로 커진 글자를 감싸던 상자(<rect> 형제)는 빌드 때 가로 표기 크기로 그려졌다 —
+        // 실측 bbox 로 다시 맞춘다. 상자가 글자 앞 형제일 때만(생성기 관례).
+        const refitBoxes = () => root.querySelectorAll("svg text").forEach((t) => {
+          if (!t.querySelector("tspan.mf-n")) return;
+          const r = t.previousElementSibling;
+          if (!r || r.tagName.toLowerCase() !== "rect") return;
+          let b; try { b = t.getBBox(); } catch (e) { return; }
+          if (!b || !b.width) return;
+          const pad = 8;
+          const rx = parseFloat(r.getAttribute("x")), ry = parseFloat(r.getAttribute("y"));
+          if (![rx, ry].every(isFinite)) return;
+          // 가로 표기보다 세로 분수가 좁고 높다 — 상자를 글자에 딱 맞춘다(키우기만 하면 옆이 빈다).
+          r.setAttribute("x", b.x - pad); r.setAttribute("width", b.width + pad * 2);
+          r.setAttribute("y", b.y - pad); r.setAttribute("height", b.height + pad * 2);
+        });
+        // 리드아웃·메모 행(HUD)은 44px 간격으로 촘촘하다 — 세로 분수를 쌓으면 윗줄과 겹친다.
+        // 그 줄은 어차피 계산기 값 줄이라 가로 표기로 둔다. 무대의 수식 라벨만 쌓는다.
+        root.querySelectorAll("svg text.readout, svg text[id^='hud'], svg text[id^='ro'], svg text[id^='note'], svg #hud text")
+          .forEach((t) => t.setAttribute("data-mf-skip", "1"));
+        const svgPass = () => {
+          root.querySelectorAll("svg").forEach((s) => { try { MatthsFrac.stackSvg(s); } catch (e) { console.warn("frac svg", e); } });
+          try { refitBoxes(); } catch (e) { console.warn("frac box", e); }
+        };
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(svgPass); else svgPass();
+      })();
+
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      // 공통 이징 — ease 를 안 적은 트윈의 기본을 power1.out → power2.out 으로.
+      // 감속이 또렷해져 등장이 덜 밋밋하다. ease 를 명시한 트윈에는 영향이 없다.
+      gsap.defaults({ ease: "power2.out" });
+      // 타이틀 인트로 — 첫 0.7초만 내려앉고, 그 뒤로는 끝까지 고정이다.
+      // (타이틀이 계속 움직이면 "무엇을 보고 있는지" 의 닻이 흔들린다.)
+      tl.fromTo("#band-title", { opacity: 0, y: -26 },
+        { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 0);
+      // ── 실시간 재생 모드 (앱·웹) ────────────────────────────────────
+      // mp4 로 굽지 않고 이 HTML 을 그대로 앱·웹에서 돌린다.
+      // 그래도 소리와 그림이 어긋나지 않는 이유는 **시계가 하나이기 때문**이다:
+      // 나레이션 오디오의 currentTime 이 유일한 시계이고, 타임라인은 매 프레임
+      // 그 값으로 seek 될 뿐 스스로 흐르지 않는다. 렌더러가 하던 일과 같다.
+      //
+      // ?live=1 일 때만 켠다. 하이퍼프레임즈 렌더 중에는 렌더러가 타임라인을
+      // 직접 몰기 때문에, 여기서 또 몰면 두 시계가 싸운다.
+      function startLive() {
+        const audio = document.getElementById("voice");
+        if (!audio) return;
+        // 이벤트에 기대지 않고 매 프레임 오디오 시각을 그대로 따라간다.
+        // play/pause 이벤트로 rAF 를 켜고 끄면 순서가 어긋날 때 조용히 멈춘다
+        // (실제로 그렇게 멈췄다). 항상 돌면서 읽기만 하는 쪽이 단순하고 안전하다.
+        let last = -1;
+        const sync = () => {
+          const t = audio.currentTime;
+          // seek 의 두 번째 인자는 suppressEvents 이고 **기본값이 true** 다.
+          // 그대로 두면 onUpdate 가 안 불려서 실시간 리드아웃이 0 에 얼어붙는다
+          // (경우의 수·변위 같은 값이 안 움직이던 원인이 이것이었다).
+          if (t !== last) { tl.seek(t, false); last = t; }
+        };
+        // rAF 는 부드럽지만 **탭이 백그라운드로 가면 멈춘다.** 오디오는 계속
+        // 흐르므로 그동안 그림만 얼어붙고, 돌아오면 어긋난 채로 이어진다.
+        // timeupdate 는 백그라운드에서도 초당 4회쯤 오므로 이걸 보조 시계로 둔다.
+        // 둘 다 같은 sync 를 부르니 어느 쪽이 이겨도 결과가 같다.
+        (function raf() { sync(); requestAnimationFrame(raf); })();
+        audio.addEventListener("timeupdate", sync);
+        audio.addEventListener("seeked", sync);
+        document.addEventListener("visibilitychange", sync);
+        audio.addEventListener("ended", () => {
+          tl.seek(tl.duration(), false);
+          window.dispatchEvent(new CustomEvent("matths:lesson-finished"));
+        });
+        if (window.__mcPreview) { window.__mcPreview.mount(audio, tl); return; }
+        audio.play().catch(() => {
+          // 자동재생이 막히면 첫 탭에서 시작한다(브라우저 정책).
+          document.addEventListener("pointerdown", () => audio.play(), { once: true });
+        });
+      }
+
+      // ── 데스크톱 미리보기 — 파일을 더블클릭해 열었을 때 ─────────────────
+      // 앱과 렌더러는 ?live=1 을 붙여 연다. 쿼리 없이 file:// 로 열린 경우만이다.
+      // 사파리·크롬은 소리 있는 자동재생을 막는다. 오디오가 유일한 시계라서 그러면
+      // 첫 프레임에서 영영 멈춘 것처럼 보인다(실제로 그렇게 보였다). 그래서
+      // ① 무대를 창에 맞춰 축소하고 ② 재생 버튼을 크게 띄우고 ③ 조작 줄을 준다.
+      (function desktopPreview() {
+        if (location.protocol !== "file:" || location.search) return;
+        document.documentElement.classList.add("mc-preview");
+        document.body.classList.add("mc-preview");
+        const fit = () => {
+          const s = Math.min(window.innerWidth / 1080, (window.innerHeight - 56) / 1920);
+          document.documentElement.style.setProperty("--mc-scale", String(Math.max(0.05, s)));
+        };
+        fit(); window.addEventListener("resize", fit);
+        const fmt = (t) => { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); };
+        window.__mcPreview = {
+          mount(audio, tl) {
+            const dur = () => (isFinite(audio.duration) && audio.duration > 0) ? audio.duration : tl.duration();
+            const ctl = document.createElement("div"); ctl.id = "mc-ctl";
+            const meta = (document.title || document.querySelector(".t-sub") && document.querySelector(".t-sub").textContent || "").trim();
+            ctl.innerHTML = '<button id="mc-btn" aria-label="재생/일시정지">▶</button>'
+              + '<div class="mc-bar"><div class="mc-fill"></div></div>'
+              + '<span class="mc-time">0:00 / ' + fmt(dur()) + '</span>'
+              + '<span class="mc-voice">' + (audio.dataset.voice === "female" ? "여성 보이스" : "남성 보이스") + '</span>'
+              + '<span class="mc-meta">' + meta.replace(/</g, "&lt;") + '</span>';
+            document.body.appendChild(ctl);
+            const btn = ctl.querySelector("#mc-btn"), bar = ctl.querySelector(".mc-bar"),
+                  fill = ctl.querySelector(".mc-fill"), time = ctl.querySelector(".mc-time");
+            const overlay = document.createElement("div"); overlay.id = "mc-play";
+            overlay.innerHTML = '<div><span>재생</span><small>클릭 또는 스페이스 · ←/→ 5초 · 소리가 켜져 있어야 그림이 움직입니다</small></div>';
+            document.body.appendChild(overlay);
+            const hideOverlay = () => { overlay.style.display = "none"; };
+            const toggle = () => { if (audio.paused) audio.play().then(hideOverlay).catch(() => {}); else audio.pause(); };
+            overlay.addEventListener("click", toggle);
+            btn.addEventListener("click", toggle);
+            bar.addEventListener("click", (e) => {
+              const r = bar.getBoundingClientRect();
+              audio.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * dur();
+            });
+            document.addEventListener("keydown", (e) => {
+              if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+              if (e.code === "Space") { e.preventDefault(); toggle(); }
+              else if (e.key === "ArrowRight") audio.currentTime = Math.min(dur(), audio.currentTime + 5);
+              else if (e.key === "ArrowLeft") audio.currentTime = Math.max(0, audio.currentTime - 5);
+              else if (e.key === "Home") audio.currentTime = 0;
+            });
+            const paint = () => {
+              const d = dur(); const t = audio.currentTime || 0;
+              fill.style.width = (d ? (t / d) * 100 : 0) + "%";
+              time.textContent = fmt(t) + " / " + fmt(d);
+              btn.textContent = audio.paused ? "▶" : "❚❚";
+              requestAnimationFrame(paint);
+            };
+            paint();
+            audio.addEventListener("play", hideOverlay);
+            audio.addEventListener("ended", () => { overlay.style.display = ""; });
+            // 사파리는 file:// 문서가 자기 폴더 밖의 미디어를 못 읽는다(상위 폴더 → 
+            // MEDIA_ERR_SRC_NOT_SUPPORTED). 빌드가 compositions/assets/... 에 같은 파일을
+            // 하드링크로 걸어 두므로 미리보기에서는 그 경로를 먼저 읽고, 없으면 원경로.
+            const orig = audio.getAttribute("src") || "";
+            const mirror = orig && !orig.startsWith("compositions/") ? "compositions/" + orig : orig;
+            const note = overlay.querySelector("small");
+            audio.addEventListener("error", () => {
+              const cur = audio.getAttribute("src");
+              if (cur === mirror && mirror !== orig) { audio.setAttribute("src", orig); audio.load(); audio.play().then(hideOverlay).catch(() => {}); return; }
+              overlay.style.display = "";
+              if (note) note.textContent = "음성 파일을 찾을 수 없습니다 — assets/voice 폴더가 compositions 옆에 있어야 합니다 (" + cur + ")";
+            });
+            if (mirror !== orig) audio.setAttribute("src", mirror);
+            try { audio.load(); } catch (e) {}
+            // 자동재생이 허용되는 환경이면 그냥 시작한다. 막히면 오버레이가 남는다.
+            audio.play().then(hideOverlay).catch(() => {});
+          }
+        };
+      })();
+      // 해설 음성 기본값은 **표면마다 다르다.**
+      //   웹  = 꺼짐(효과음만) — 교실·독서실·공용 PC 에서 열린다. 들어가자마자
+      //         사람 목소리가 나면 사고다. 학생이 켜야 나온다.
+      //   앱  = 여성 목소리 — 개인 기기이고 이어폰을 낀 채 쓰는 게 보통이다.
+      // 앱은 ?voice=female 처럼 명시해 넘기고, 아무것도 안 넘기면 웹 기본을 따른다.
+      (function applyVoicePreference() {
+        const q = new URLSearchParams(location.search);
+        // 웹 기본은 효과음만이다. 다만 파일을 직접 열어 검수할 때(file://)는
+        // 소리가 나야 확인이 되므로 앱 기본(여성)을 쓴다. 명시하면 그것이 우선.
+        const isFileOpen = location.protocol === "file:";
+        const audio = document.getElementById("voice");
+        if (!audio) return;
+        // 성우 트랙은 파일에 구워져 있다(<id>.html 남성 · <id>.female.html 여성).
+        // 파일로 열 때는 이 파일이 실은 트랙을 그대로 켠다 — 라벨도 실제 트랙을 따른다.
+        const baked = (audio.getAttribute("src") || "").indexOf("voice-female/") >= 0 ? "female" : "male";
+        const voice = q.get("voice") || (isFileOpen ? baked : "off");
+        if (voice === "off") {
+          audio.muted = true;
+          audio.dataset.voice = "off";
+        } else {
+          audio.muted = false;
+          audio.dataset.voice = voice;
+        }
+      })();
+
+      // 더블클릭(file://)으로 열면 쿼리를 못 넘기니 그때는 live 로 본다.
+      // 렌더러는 http 로 열고 타임라인을 직접 몰므로 이 분기를 타지 않는다.
+      const q = new URLSearchParams(location.search);
+      const isFile = location.protocol === "file:";
+      if (q.get("live") === "1" || (isFile && q.get("live") !== "0")) {
+        // load 가 이미 지났으면 리스너를 달아 봤자 영영 안 불린다.
+        // 실제로 그래서 타임라인이 0 에 멈춰 있었다 — 오디오는 흐르는데
+        // seek 을 부르는 쪽이 없었다. 두 경우를 모두 챙긴다.
+        if (document.readyState === "complete") startLive();
+        else window.addEventListener("load", startLive, { once: true });
+      }
+
+      const PX = 51.6000, CX = 0, CY = 5.3744;
+      const SW = 1080, SH = 825.6;
+      const X = (x) => (x - CX) * PX + SW / 2;
+      const Y = (y) => SH / 2 - (y - CY) * PX;
+      const C = {"kind":"curve-pair","dir":"limit-law","X0":2.6,"SAMP":241,"probe":2,"px":51.6,"cx":0,"cy":5.374418604651162,"curves":[{"id":"cF","i":0,"label":"f","ys":[-5.2,-5.15667,-5.11333,-5.07,-5.02667,-4.98333,-4.94,-4.89667,-4.85333,-4.81,-4.76667,-4.72333,-4.68,-4.63667,-4.59333,-4.55,-4.50667,-4.46333,-4.42,-4.37667,-4.33333,-4.29,-4.24667,-4.20333,-4.16,-4.11667,-4.07333,-4.03,-3.98667,-3.94333,-3.9,-3.85667,-3.81333,-3.77,-3.72667,-3.68333,-3.64,-3.59667,-3.55333,-3.51,-3.46667,-3.42333,-3.38,-3.33667,-3.29333,-3.25,-3.20667,-3.16333,-3.12,-3.07667,-3.03333,-2.99,-2.94667,-2.90333,-2.86,-2.81667,-2.77333,-2.73,-2.68667,-2.64333,-2.6,-2.55667,-2.51333,-2.47,-2.42667,-2.38333,-2.34,-2.29667,-2.25333,-2.21,-2.16667,-2.12333,-2.08,-2.03667,-1.99333,-1.95,-1.90667,-1.86333,-1.82,-1.77667,-1.73333,-1.69,-1.64667,-1.60333,-1.56,-1.51667,-1.47333,-1.43,-1.38667,-1.34333,-1.3,-1.25667,-1.21333,-1.17,-1.12667,-1.08333,-1.04,-0.99667,-0.95333,-0.91,-0.86667,-0.82333,-0.78,-0.73667,-0.69333,-0.65,-0.60667,-0.56333,-0.52,-0.47667,-0.43333,-0.39,-0.34667,-0.30333,-0.26,-0.21667,-0.17333,-0.13,-0.08667,-0.04333,0,0.04333,0.08667,0.13,0.17333,0.21667,0.26,0.30333,0.34667,0.39,0.43333,0.47667,0.52,0.56333,0.60667,0.65,0.69333,0.73667,0.78,0.82333,0.86667,0.91,0.95333,0.99667,1.04,1.08333,1.12667,1.17,1.21333,1.25667,1.3,1.34333,1.38667,1.43,1.47333,1.51667,1.56,1.60333,1.64667,1.69,1.73333,1.77667,1.82,1.86333,1.90667,1.95,1.99333,2.03667,2.08,2.12333,2.16667,2.21,2.25333,2.29667,2.34,2.38333,2.42667,2.47,2.51333,2.55667,2.6,2.64333,2.68667,2.73,2.77333,2.81667,2.86,2.90333,2.94667,2.99,3.03333,3.07667,3.12,3.16333,3.20667,3.25,3.29333,3.33667,3.38,3.42333,3.46667,3.51,3.55333,3.59667,3.64,3.68333,3.72667,3.77,3.81333,3.85667,3.9,3.94333,3.98667,4.03,4.07333,4.11667,4.16,4.20333,4.24667,4.29,4.33333,4.37667,4.42,4.46333,4.50667,4.55,4.59333,4.63667,4.68,4.72333,4.76667,4.81,4.85333,4.89667,4.94,4.98333,5.02667,5.07,5.11333,5.15667,5.2],"ds":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]},{"id":"cG","i":1,"label":"g","ys":[5.76,5.6478,5.53654,5.42623,5.31684,5.2084,5.1009,4.99434,4.88871,4.78403,4.68028,4.57747,4.4756,4.37467,4.27468,4.17562,4.07751,3.98034,3.8841,3.7888,3.69444,3.60102,3.50854,3.417,3.3264,3.23674,3.14801,3.06023,2.97338,2.88747,2.8025,2.71847,2.63538,2.55323,2.47201,2.39174,2.3124,2.234,2.15654,2.08002,2.00444,1.9298,1.8561,1.78334,1.71151,1.64063,1.57068,1.50167,1.4336,1.36647,1.30028,1.23503,1.17071,1.10734,1.0449,0.9834,0.92284,0.86322,0.80454,0.7468,0.69,0.63414,0.57921,0.52523,0.47218,0.42007,0.3689,0.31867,0.26938,0.22103,0.17361,0.12714,0.0816,0.037,-0.00666,-0.04937,-0.09116,-0.132,-0.1719,-0.21086,-0.24889,-0.28597,-0.32212,-0.35733,-0.3916,-0.42493,-0.45732,-0.48878,-0.51929,-0.54886,-0.5775,-0.6052,-0.63196,-0.65777,-0.68266,-0.7066,-0.7296,-0.75166,-0.77279,-0.79298,-0.81222,-0.83053,-0.8479,-0.86433,-0.87982,-0.89437,-0.90799,-0.92066,-0.9324,-0.9432,-0.95306,-0.96198,-0.96996,-0.977,-0.9831,-0.98826,-0.99249,-0.99577,-0.99812,-0.99953,-1,-0.99953,-0.99812,-0.99577,-0.99249,-0.98826,-0.9831,-0.977,-0.96996,-0.96197,-0.95306,-0.9432,-0.9324,-0.92066,-0.90799,-0.89438,-0.87982,-0.86433,-0.8479,-0.83053,-0.81222,-0.79297,-0.77279,-0.75166,-0.7296,-0.7066,-0.68266,-0.65777,-0.63196,-0.6052,-0.5775,-0.54886,-0.51929,-0.48878,-0.45732,-0.42493,-0.3916,-0.35733,-0.32212,-0.28597,-0.24889,-0.21086,-0.1719,-0.132,-0.09116,-0.04937,-0.00666,0.037,0.0816,0.12714,0.17361,0.22103,0.26938,0.31867,0.3689,0.42007,0.47218,0.52522,0.57921,0.63414,0.69,0.7468,0.80454,0.86323,0.92284,0.9834,1.0449,1.10734,1.17071,1.23503,1.30028,1.36647,1.4336,1.50167,1.57068,1.64062,1.71151,1.78334,1.8561,1.9298,2.00444,2.08003,2.15654,2.234,2.3124,2.39174,2.47201,2.55323,2.63538,2.71847,2.8025,2.88747,2.97338,3.06023,3.14801,3.23674,3.3264,3.417,3.50854,3.60102,3.69444,3.7888,3.8841,3.98034,4.07751,4.17562,4.27468,4.37467,4.4756,4.57747,4.68028,4.78402,4.88871,4.99434,5.1009,5.2084,5.31684,5.42623,5.53654,5.6478,5.76],"ds":[-5.2,-5.15667,-5.11333,-5.07,-5.02667,-4.98333,-4.94,-4.89667,-4.85333,-4.81,-4.76667,-4.72333,-4.68,-4.63667,-4.59333,-4.55,-4.50667,-4.46333,-4.42,-4.37667,-4.33333,-4.29,-4.24667,-4.20333,-4.16,-4.11667,-4.07333,-4.03,-3.98667,-3.94333,-3.9,-3.85667,-3.81333,-3.77,-3.72667,-3.68333,-3.64,-3.59667,-3.55333,-3.51,-3.46667,-3.42333,-3.38,-3.33667,-3.29333,-3.25,-3.20667,-3.16333,-3.12,-3.07667,-3.03333,-2.99,-2.94667,-2.90333,-2.86,-2.81667,-2.77333,-2.73,-2.68667,-2.64333,-2.6,-2.55667,-2.51333,-2.47,-2.42667,-2.38333,-2.34,-2.29667,-2.25333,-2.21,-2.16667,-2.12333,-2.08,-2.03667,-1.99333,-1.95,-1.90667,-1.86333,-1.82,-1.77667,-1.73333,-1.69,-1.64667,-1.60333,-1.56,-1.51667,-1.47333,-1.43,-1.38667,-1.34333,-1.3,-1.25667,-1.21333,-1.17,-1.12667,-1.08333,-1.04,-0.99667,-0.95333,-0.91,-0.86667,-0.82333,-0.78,-0.73667,-0.69333,-0.65,-0.60667,-0.56333,-0.52,-0.47667,-0.43333,-0.39,-0.34667,-0.30333,-0.26,-0.21667,-0.17333,-0.13,-0.08667,-0.04333,0,0.04333,0.08667,0.13,0.17333,0.21667,0.26,0.30333,0.34667,0.39,0.43333,0.47667,0.52,0.56333,0.60667,0.65,0.69333,0.73667,0.78,0.82333,0.86667,0.91,0.95333,0.99667,1.04,1.08333,1.12667,1.17,1.21333,1.25667,1.3,1.34333,1.38667,1.43,1.47333,1.51667,1.56,1.60333,1.64667,1.69,1.73333,1.77667,1.82,1.86333,1.90667,1.95,1.99333,2.03667,2.08,2.12333,2.16667,2.21,2.25333,2.29667,2.34,2.38333,2.42667,2.47,2.51333,2.55667,2.6,2.64333,2.68667,2.73,2.77333,2.81667,2.86,2.90333,2.94667,2.99,3.03333,3.07667,3.12,3.16333,3.20667,3.25,3.29333,3.33667,3.38,3.42333,3.46667,3.51,3.55333,3.59667,3.64,3.68333,3.72667,3.77,3.81333,3.85667,3.9,3.94333,3.98667,4.03,4.07333,4.11667,4.16,4.20333,4.24667,4.29,4.33333,4.37667,4.42,4.46333,4.50667,4.55,4.59333,4.63667,4.68,4.72333,4.76667,4.81,4.85333,4.89667,4.94,4.98333,5.02667,5.07,5.11333,5.15667,5.2]},{"id":"cH","i":2,"label":"f + g","ys":[0.56,0.49114,0.42321,0.35623,0.29018,0.22507,0.1609,0.09767,0.03538,-0.02597,-0.08639,-0.14586,-0.2044,-0.262,-0.31866,-0.37438,-0.42916,-0.483,-0.5359,-0.58786,-0.63889,-0.68898,-0.73812,-0.78633,-0.8336,-0.87993,-0.92532,-0.96977,-1.01329,-1.05586,-1.0975,-1.1382,-1.17796,-1.21677,-1.25466,-1.2916,-1.3276,-1.36266,-1.39679,-1.42998,-1.46222,-1.49353,-1.5239,-1.55333,-1.58182,-1.60938,-1.63599,-1.66166,-1.6864,-1.7102,-1.73306,-1.75497,-1.77596,-1.796,-1.8151,-1.83326,-1.85049,-1.86678,-1.88212,-1.89653,-1.91,-1.92253,-1.93412,-1.94477,-1.95449,-1.96326,-1.9711,-1.978,-1.98396,-1.98897,-1.99306,-1.9962,-1.9984,-1.99966,-1.99999,-1.99938,-1.99782,-1.99533,-1.9919,-1.98753,-1.98222,-1.97598,-1.96879,-1.96066,-1.9516,-1.9416,-1.93066,-1.91877,-1.90596,-1.8922,-1.8775,-1.86186,-1.84529,-1.82777,-1.80932,-1.78993,-1.7696,-1.74833,-1.72612,-1.70297,-1.67889,-1.65386,-1.6279,-1.601,-1.57316,-1.54438,-1.51466,-1.484,-1.4524,-1.41986,-1.38639,-1.35197,-1.31662,-1.28033,-1.2431,-1.20493,-1.16582,-1.12578,-1.08479,-1.04286,-1,-0.9562,-0.91146,-0.86578,-0.81916,-0.7716,-0.7231,-0.67366,-0.62329,-0.57197,-0.51972,-0.46653,-0.4124,-0.35733,-0.30132,-0.24438,-0.18649,-0.12766,-0.0679,-0.0072,0.05444,0.11703,0.18054,0.245,0.3104,0.37674,0.44401,0.51222,0.58138,0.65147,0.7225,0.79447,0.86738,0.94122,1.01601,1.09174,1.1684,1.246,1.32454,1.40403,1.48444,1.5658,1.6481,1.73134,1.81551,1.90063,1.98668,2.07367,2.1616,2.25047,2.34028,2.43102,2.52271,2.61534,2.7089,2.8034,2.89884,2.99522,3.09254,3.1908,3.29,3.39014,3.49121,3.59323,3.69618,3.80007,3.9049,4.01067,4.11738,4.22503,4.33361,4.44314,4.5536,4.665,4.77734,4.89062,5.00484,5.12,5.2361,5.35314,5.47111,5.59003,5.70988,5.83067,5.9524,6.07507,6.19868,6.32323,6.44871,6.57514,6.7025,6.8308,6.96004,7.09023,7.22134,7.3534,7.4864,7.62034,7.75521,7.89102,8.02778,8.16547,8.3041,8.44367,8.58418,8.72562,8.86801,9.01134,9.1556,9.3008,9.44694,9.59402,9.74204,9.891,10.0409,10.19174,10.34351,10.49623,10.64988,10.80447,10.96],"ds":[-3.2,-3.15667,-3.11333,-3.07,-3.02667,-2.98333,-2.94,-2.89667,-2.85333,-2.81,-2.76667,-2.72333,-2.68,-2.63667,-2.59333,-2.55,-2.50667,-2.46333,-2.42,-2.37667,-2.33333,-2.29,-2.24667,-2.20333,-2.16,-2.11667,-2.07333,-2.03,-1.98667,-1.94333,-1.9,-1.85667,-1.81333,-1.77,-1.72667,-1.68333,-1.64,-1.59667,-1.55333,-1.51,-1.46667,-1.42333,-1.38,-1.33667,-1.29333,-1.25,-1.20667,-1.16333,-1.12,-1.07667,-1.03333,-0.99,-0.94667,-0.90333,-0.86,-0.81667,-0.77333,-0.73,-0.68667,-0.64333,-0.6,-0.55667,-0.51333,-0.47,-0.42667,-0.38333,-0.34,-0.29667,-0.25333,-0.21,-0.16667,-0.12333,-0.08,-0.03667,0.00667,0.05,0.09333,0.13667,0.18,0.22333,0.26667,0.31,0.35333,0.39667,0.44,0.48333,0.52667,0.57,0.61333,0.65667,0.7,0.74333,0.78667,0.83,0.87333,0.91667,0.96,1.00333,1.04667,1.09,1.13333,1.17667,1.22,1.26333,1.30667,1.35,1.39333,1.43667,1.48,1.52333,1.56667,1.61,1.65333,1.69667,1.74,1.78333,1.82667,1.87,1.91333,1.95667,2,2.04333,2.08667,2.13,2.17333,2.21667,2.26,2.30333,2.34667,2.39,2.43333,2.47667,2.52,2.56333,2.60667,2.65,2.69333,2.73667,2.78,2.82333,2.86667,2.91,2.95333,2.99667,3.04,3.08333,3.12667,3.17,3.21333,3.25667,3.3,3.34333,3.38667,3.43,3.47333,3.51667,3.56,3.60333,3.64667,3.69,3.73333,3.77667,3.82,3.86333,3.90667,3.95,3.99333,4.03667,4.08,4.12333,4.16667,4.21,4.25333,4.29667,4.34,4.38333,4.42667,4.47,4.51333,4.55667,4.6,4.64333,4.68667,4.73,4.77333,4.81667,4.86,4.90333,4.94667,4.99,5.03333,5.07667,5.12,5.16333,5.20667,5.25,5.29333,5.33667,5.38,5.42333,5.46667,5.51,5.55333,5.59667,5.64,5.68333,5.72667,5.77,5.81333,5.85667,5.9,5.94333,5.98667,6.03,6.07333,6.11667,6.16,6.20333,6.24667,6.29,6.33333,6.37667,6.42,6.46333,6.50667,6.55,6.59333,6.63667,6.68,6.72333,6.76667,6.81,6.85333,6.89667,6.94,6.98333,7.02667,7.07,7.11333,7.15667,7.2]}],"rail":null,"roL":"lim f = 4","roR":"lim g = 3"};
+      const $ = (s) => document.querySelector(s);
+
+      // 표본 보간 — 빌드 때 뜬 표를 그대로 읽는다
+      function look(arr, x) {
+        const t = (x + C.X0) / (2 * C.X0) * (C.SAMP - 1);
+        const i = Math.max(0, Math.min(C.SAMP - 2, Math.floor(t)));
+        const a = arr[i], b = arr[i + 1];
+        if (a === null || b === null) return NaN;
+        return a + (b - a) * (t - i);
+      }
+      function lookRange(arr, lo, hi, v) {
+        const n = arr.length;
+        const t = (v - lo) / (hi - lo) * (n - 1);
+        const i = Math.max(0, Math.min(n - 2, Math.floor(t)));
+        const a = arr[i], b = arr[i + 1];
+        if (a === null || b === null) return NaN;
+        return a + (b - a) * (t - i);
+      }
+      const f4 = (v) => __fx(v, Math.abs(v) >= 100 ? 1 : 3);   // 정수에 닿으면 0.000 이 아니라 0
+
+      const roL = $("#roL"), roR = $("#roR");
+      const tangent = $("#tangent"), drop = $("#drop");
+      const state = { px: -2.210 };
+
+      function draw() {
+        if (C.kind === "curve-pair" && C.curves.length) {
+          const x = state.px;
+          C.curves.forEach((cv, i) => {
+            const d = $("#rd-" + i);
+            if (!d) return;
+            const y = look(cv.ys, x);
+            if (!isFinite(y)) { d.setAttribute("opacity", 0); return; }
+            d.setAttribute("opacity", 1);
+            d.setAttribute("cx", X(x).toFixed(1));
+            d.setAttribute("cy", Y(y).toFixed(1));
+          });
+          const y0 = look(C.curves[0].ys, x), s0 = look(C.curves[0].ds, x);
+          if (isFinite(y0) && isFinite(s0)) {
+            const hw = 0.62;
+            tangent.setAttribute("x1", X(x - hw).toFixed(1));
+            tangent.setAttribute("y1", Y(y0 - s0 * hw).toFixed(1));
+            tangent.setAttribute("x2", X(x + hw).toFixed(1));
+            tangent.setAttribute("y2", Y(y0 + s0 * hw).toFixed(1));
+            drop.setAttribute("x1", X(x).toFixed(1)); drop.setAttribute("y1", Y(y0).toFixed(1));
+            drop.setAttribute("x2", X(x).toFixed(1)); drop.setAttribute("y2", Y(0).toFixed(1));
+          }
+          // 좌변 = 원함수의 기울기, 우변 = 결과함수의 값 (적분이면 뒤집어 읽는다)
+          const gy = C.curves.length > 1 ? look(C.curves[C.curves.length - 1].ys, x) : NaN;
+          const gs = C.curves.length > 1 ? look(C.curves[C.curves.length - 1].ds, x) : NaN;
+          if (C.dir === "integrate") {
+            roL.textContent = "결과의 기울기 " + f4(gs);
+            roR.textContent = f4(y0) + " 원함수";
+          } else if (C.dir === "limit-law") {
+            const sum = look(C.curves[0].ys, x) + look(C.curves[1].ys, x);
+            roL.textContent = "f + g " + f4(gy);
+            roR.textContent = f4(sum) + " f(x)+g(x)";
+          } else {
+            roL.textContent = "기울기 " + f4(s0);
+            roR.textContent = f4(gy) + " 결과함수";
+          }
+        } else if (C.kind === "two-rail" && C.rail) {
+          const t = state.px;
+          const x0 = C.rail.x0, x1 = x0 + C.rail.dx * t;
+          const u0 = lookRange(C.rail.us, -2, 2, x0);
+          const y0 = lookRange(C.rail.ys, -4, 4, u0);
+          const lin = C.rail.dudx !== null && C.rail.dydu !== null;
+          const u1 = lin ? u0 + C.rail.dudx * (x1 - x0) : lookRange(C.rail.us, -2, 2, x1);
+          const y1 = lin ? y0 + C.rail.dydu * (u1 - u0) : lookRange(C.rail.ys, -4, 4, u1);
+          const RG = C.rail.ranges || [[-2, 2], [-4, 4], [-30, 30]];
+          const map = [[x0, x1, RG[0][0], RG[0][1]], [u0, u1, RG[1][0], RG[1][1]], [y0, y1, RG[2][0], RG[2][1]]];
+          for (let i = 0; i < 3; i++) {
+            const mk = $("#mk-" + i), sg = $("#seg-" + i), mg = $("#mag-" + i);
+            if (!mk) continue;
+            const lo = map[i][2], hi = map[i][3];
+            const px0 = 120 + (SW - 240) * (map[i][0] - lo) / (hi - lo);
+            const px1 = 120 + (SW - 240) * (map[i][1] - lo) / (hi - lo);
+            mk.setAttribute("cx", px1.toFixed(1));
+            sg.setAttribute("x", Math.min(px0, px1).toFixed(1));
+            sg.setAttribute("width", Math.abs(px1 - px0).toFixed(1));
+            const dv = map[i][1] - map[i][0];
+            mg.textContent = (i === 0 ? "\u0394x = " : i === 1 ? "\u0394u = " : "\u0394y = ") + f4(dv);
+          }
+          const dx = x1 - x0, du = u1 - u0, dy = y1 - y0;
+          roL.textContent = "dy/dx " + f4(dx === 0 ? 0 : dy / dx);
+          roR.textContent = f4((dx === 0 ? 0 : du / dx) * (du === 0 ? 0 : dy / du)) + " (dy/du)(du/dx)";
+        } else {
+          roL.textContent = C.roL;
+          roR.textContent = C.roR;
+        }
+      }
+      draw();
+      const RE = { onUpdate: draw };
+
+      tl.to(["#atb-0"], { opacity: 1, duration: 0.4 }, 0.15);
+      tl.to(["#atb-1"], { opacity: 1, duration: 0.4 }, 0.49);
+      tl.to(["#atb-2"], { opacity: 1, duration: 0.4 }, 0.83);
+      tl.to("#tbox", { opacity: 1, duration: 0.4 }, 1.37);
+      tl.to("#grid", { opacity: 1, duration: 0.55 }, 2.43);
+      tl.to("#cF", { opacity: 1, duration: 0.25 }, 2.68);
+      tl.to("#cF", { strokeDashoffset: 0, duration: 1.3, ease: "power2.out" }, 2.68);
+      tl.to("#cG", { opacity: 1, duration: 0.25 }, 3.18);
+      tl.to("#cG", { strokeDashoffset: 0, duration: 1.3, ease: "power2.out" }, 3.18);
+      tl.to("#cH", { opacity: 1, duration: 0.25 }, 3.68);
+      tl.to("#cH", { strokeDashoffset: 0, duration: 1.3, ease: "power2.out" }, 3.68);
+      tl.to("#dirArrow", { opacity: 1, duration: 0.4 }, 2.58);
+      tl.set(["#atb-0"], { opacity: 0 }, 18.02);
+      tl.fromTo("#mv-0", { opacity: 0, x: 0, y: 0, scaleY: 1 }, { opacity: 0.85, duration: 0.18, immediateRender: false }, 18.02);
+      tl.to("#mv-0", { x: 0, y: 67.3, duration: 0.462, ease: "sine.in" }, 18.22);
+      tl.to("#mv-0", { x: -10.3, y: 116.0, duration: 0.638, ease: "sine.out" }, 18.682);
+      tl.to("#mv-0", { opacity: 0, duration: 0.22 }, 19.32);
+      tl.to(["#atb-0"], { opacity: 1, duration: 0.18 }, 19.56);
+      tl.to("#tag-0", { opacity: 1, duration: 0.35 }, 47.28);
+      tl.set(["#atb-2"], { opacity: 0 }, 24.28);
+      tl.fromTo("#mv-1", { opacity: 0, x: 0, y: 0, scaleY: 1 }, { opacity: 0.85, duration: 0.18, immediateRender: false }, 24.28);
+      tl.to("#mv-1", { x: 0, y: 67.3, duration: 0.399, ease: "sine.in" }, 24.48);
+      tl.to("#mv-1", { x: -116.9, y: 116.0, duration: 0.551, ease: "sine.out" }, 24.879);
+      tl.to("#mv-1", { opacity: 0, duration: 0.22 }, 25.43);
+      tl.to(["#atb-2"], { opacity: 1, duration: 0.18 }, 25.67);
+      tl.to([".move-copy", ".fly-copy", ".fly-path"], { opacity: 0, duration: 0.15, overwrite: "auto" }, 27.68);
+      tl.to(["#btb-0"], { opacity: 1, duration: 0.4 }, 27.88);
+      tl.to("#rider", { opacity: 1, duration: 0.35 }, 35.32);
+      tl.fromTo(state, { px: -0.200 }, { px: 2.000, duration: 1.9, ease: "sine.inOut", immediateRender: false, ...RE }, 35.52);
+      tl.to("#roRow", { opacity: 1, duration: 0.4 }, 35.42);
+      tl.to("#roEq", { fill: "var(--m-magenta)", scale: 1.35, transformOrigin: "50% 50%", duration: 0.5, ease: "back.out(2)" }, 37.42);
+      tl.to("#notes", { opacity: 1, duration: 0.4 }, 18.06);
+      tl.to("#note-0", { opacity: 1, duration: 0.35 }, 18.22);
+      tl.to("#note-1", { opacity: 1, duration: 0.35 }, 27.96);
+      tl.to("#note-2", { opacity: 1, duration: 0.35 }, 31.78);
+      tl.to("#pt-0", { opacity: 1, duration: 0.4 }, 10.03);
+      tl.to("#pt-1", { opacity: 1, duration: 0.4 }, 27.93);
+      tl.to("#pt-2", { opacity: 1, duration: 0.4 }, 51.85);
+      tl.to("#pt-2 .boxline", { opacity: 1, duration: 0.4 }, 52.3);
+      tl.to("#pt-2 .tag", { opacity: 1, duration: 0.35 }, 52.65);
+      tl.to("#atb-0", { scale: 1.07, transformOrigin: "50% 50%", duration: 0.3 }, 4.980);
+      tl.to("#atb-0", { scale: 1, transformOrigin: "50% 50%", duration: 0.35, ease: "power2.in" }, 5.300);
+      tl.to("#btb-0", { scale: 1.07, transformOrigin: "50% 50%", duration: 0.3 }, 41.040);
+      tl.to("#btb-0", { scale: 1, transformOrigin: "50% 50%", duration: 0.35, ease: "power2.in" }, 41.360);
+      tl.to("#btb-0", { scale: 1.07, transformOrigin: "50% 50%", duration: 0.3 }, 58.580);
+      tl.to("#btb-0", { scale: 1, transformOrigin: "50% 50%", duration: 0.35, ease: "power2.in" }, 58.900);
+      tl.to(["#grid","#diag","#theatre","#dirArrow","#roRow","#notes"], { opacity: 0, duration: 0.7 }, 65.26);
+      tl.to("#verdict", { opacity: 1, duration: 0.7 }, 65.81);
+
+      tl.fromTo("#cap-0", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 0.000);
+      tl.to("#cap-0", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 4.560);
+      tl.fromTo("#cap-1", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 4.560);
+      tl.to("#cap-1", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 9.580);
+      tl.fromTo("#cap-2", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 9.580);
+      tl.to("#cap-2", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 17.640);
+      tl.fromTo("#cap-3", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 17.640);
+      tl.to("#cap-3", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 23.900);
+      tl.fromTo("#cap-4", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 23.900);
+      tl.to("#cap-4", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 27.380);
+      tl.fromTo("#cap-5", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 27.380);
+      tl.to("#cap-5", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 35.020);
+      tl.fromTo("#cap-6", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 35.020);
+      tl.to("#cap-6", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 40.620);
+      tl.fromTo("#cap-7", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 40.620);
+      tl.to("#cap-7", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 46.680);
+      tl.fromTo("#cap-8", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 46.680);
+      tl.to("#cap-8", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 51.200);
+      tl.fromTo("#cap-9", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 51.200);
+      tl.to("#cap-9", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 58.160);
+      tl.fromTo("#cap-10", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 58.160);
+      tl.to("#cap-10", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 64.960);
+      tl.fromTo("#cap-11", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 64.960);
+      tl.to("#cap-11", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 71.360);
+
+      window.__timelines["calculus-1-01-02"] = tl;
+    </script>
+  </body>
+</html>
