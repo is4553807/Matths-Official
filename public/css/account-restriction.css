@@ -35,7 +35,7 @@
 .restriction-reason > div p {
   margin: 0 0 9px;
   color: #9bb0ff;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.4px;
 }
@@ -57,7 +57,7 @@
   max-width: 700px;
   margin-top: 14px;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
 }
 
@@ -72,7 +72,7 @@
 
 .restriction-hero > strong small {
   color: rgba(255, 255, 255, 0.65);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .restriction-grid {
@@ -117,14 +117,14 @@
 
 .restriction-card dt {
   color: #7b8499;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
 .restriction-card dd {
   margin: 0;
   color: #242a40;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   overflow-wrap: anywhere;
 }
@@ -148,7 +148,7 @@
 .restriction-reason > small {
   grid-column: 2;
   color: #7b8499;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -165,7 +165,7 @@
   background: #fff;
   border: 1px solid #dfe4ef;
   border-radius: 11px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   text-decoration: none;
 }

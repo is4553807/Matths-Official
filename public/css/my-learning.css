@@ -46,7 +46,7 @@
 .learning-section-head p {
   margin: 0 0 9px;
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.4px;
 }
@@ -66,7 +66,7 @@
   display: block;
   margin-top: 11px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -81,7 +81,7 @@
   background: var(--blue);
   border-radius: 11px;
   box-shadow: 0 10px 20px rgba(49, 87, 246, 0.2);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   transition: 0.18s ease;
 }
@@ -127,7 +127,7 @@
 
 .overall-ring small {
   color: #8f96aa;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -160,7 +160,7 @@
 
 .summary-numbers span {
   color: #8b92a6;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .course-progress-section {
@@ -182,7 +182,7 @@
 .learning-section-head > span {
   max-width: 420px;
   color: #8b92a6;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
   text-align: right;
 }
@@ -208,7 +208,7 @@
   background: transparent;
   border: 0;
   border-radius: 10px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -242,12 +242,12 @@
   align-items: center;
   gap: 5px;
   color: #7d859a;
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .course-tab.is-development-locked .course-lock-label i {
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
   filter: grayscale(1);
 }
@@ -301,7 +301,7 @@
 
 .course-overview small {
   color: #8b93a8;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.5px;
 }
@@ -324,7 +324,7 @@
   grid-column: 1 / -1;
   margin: 0;
   color: #8a91a5;
-  font-size: 9px;
+  font-size: 12px;
   text-align: right;
 }
 
@@ -411,7 +411,7 @@
   background: var(--blue-soft);
   border-radius: 10px;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .unit-title {
@@ -421,12 +421,12 @@
 }
 
 .unit-title strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .unit-title small {
   color: #9299aa;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .unit-bar {
@@ -443,7 +443,7 @@
 .unit-bar > strong {
   color: #687087;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .unit-toggle {
@@ -453,7 +453,7 @@
   justify-content: flex-end;
   gap: 10px;
   color: #8991a5;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .unit-toggle i {
@@ -496,7 +496,7 @@
 .unit-action p {
   margin: 0;
   color: #737b92;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .unit-action p strong {
@@ -513,7 +513,7 @@
   color: #fff;
   background: var(--blue);
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -559,7 +559,7 @@
   background: #f0f2f7;
   border-radius: 9px;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .concept-progress-row.completed .concept-state {
@@ -580,14 +580,14 @@
 
 .concept-info strong {
   overflow: hidden;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .concept-info small {
   color: #959bad;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .concept-bar {
@@ -604,13 +604,13 @@
 .concept-bar span {
   color: #747c92;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .concept-progress-row em {
   justify-self: end;
   color: #949bad;
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 750;
 }
@@ -625,7 +625,7 @@
 }
 
 .row-arrow {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .learning-empty {
@@ -656,7 +656,7 @@
 .learning-empty p {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 @media (max-width: 1180px) {
@@ -827,13 +827,13 @@
 }
 
 .assessment-gate-banner span {
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.2px;
 }
 
 .assessment-gate-banner strong {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -843,7 +843,7 @@
   color: inherit;
   background: rgba(255, 255, 255, 0.7);
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   text-decoration: none;
 }
@@ -854,7 +854,7 @@
   color: #765312;
   background: #fff8e9;
   border-radius: 10px;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 

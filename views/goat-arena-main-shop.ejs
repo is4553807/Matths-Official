@@ -50,6 +50,8 @@
     <title>Ranked 상점 | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
     <%- include("partials/rank-motion-head") %>
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
   </head>
   <body class="goat-arena-page arena-inner-page arena-shop-page">
@@ -91,7 +93,7 @@
             <div class="arena-shop-price"><strong><%= item.priceDays %></strong><span>학습일</span></div>
 
             <% if (item.itemCode === "DEFENSE_SCHEDULE_PROTECTION") { %>
-              <a href="/goat-arena/main/battle">적용 가능한 경기 확인 <span aria-hidden="true">→</span></a>
+              <a class="c-button c-button--primary" href="/goat-arena/main/battle">적용 가능한 경기 확인 <span aria-hidden="true">→</span></a>
             <% } else { %>
               <form action="/goat-arena/main/shop/purchases" method="post">
                 <input type="hidden" name="requestId" value="<%= requestId %>:<%= item.itemCode %>" />
@@ -112,7 +114,7 @@
                 <% } %>
                 <p class="arena-shop-terms">가격 <b><%= item.priceDays %>일</b> · <%= item.itemCode === "MATCH_ANALYSIS" ? "생성 실패 시 자동 반환" : "정상 적용 뒤 단순 변심 반환 불가" %> · 사용 기간은 위 기능 설명을 따릅니다.</p>
                 <label class="arena-shop-confirm"><input type="checkbox" name="purchaseConfirmed" value="1" required /><span>가격·효과·사용 기간·반환 조건을 확인했습니다.</span></label>
-                <button type="submit" <%= shopData.sundayLocked ? "disabled" : "" %>>사용하기</button>
+                <button class="c-button c-button--primary" type="submit" <%= shopData.sundayLocked ? "disabled" : "" %>>사용하기</button>
               </form>
             <% } %>
           </article>

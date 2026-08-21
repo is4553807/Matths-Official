@@ -86,15 +86,23 @@ for (const filename of communityViews) {
   const viewPath = path.join(root, "views", filename);
   const source = fs.readFileSync(viewPath, "utf8");
   ejs.compile(source, { filename: viewPath });
-  const tokenReference = "/css/matths-brand-tokens.css";
-  invariant(source.split(tokenReference).length === 2, `${filename} must load brand tokens exactly once`);
+  const styles = [...source.matchAll(/<link\b[^>]*href=["'](\/css\/[^"']+\.css)["'][^>]*>/gi)]
+    .map((match) => match[1]);
+  const brandReference = "/css/brand.css";
+  const contrastReference = "/css/contrast.css";
+  invariant(styles.filter((href) => href === brandReference).length === 1, `${filename} must load the brand base exactly once`);
+  invariant(styles.filter((href) => href === contrastReference).length === 1, `${filename} must load the contrast override exactly once`);
   invariant(
-    source.indexOf(tokenReference) < source.indexOf("/css/public-navigation.css"),
-    `${filename} must load brand tokens before navigation styles`
+    styles.indexOf(brandReference) < styles.indexOf("/css/public-navigation.css"),
+    `${filename} must load the brand base before navigation styles`
   );
   invariant(
-    source.indexOf(tokenReference) < source.indexOf("/css/community.css"),
-    `${filename} must load brand tokens before community styles`
+    styles.indexOf(brandReference) < styles.indexOf("/css/community.css"),
+    `${filename} must load the brand base before community styles`
+  );
+  invariant(
+    styles.indexOf(contrastReference) === styles.length - 1,
+    `${filename} must load the contrast override last`
   );
 }
 

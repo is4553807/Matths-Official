@@ -86,7 +86,7 @@
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 1.2px;
 }
@@ -140,7 +140,7 @@
 
 .review-rule span {
   color: #e9ecf8;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
   line-height: 1.5;
 }
@@ -180,7 +180,7 @@
 .retry-header > div > span,
 .graph-hint-panel > header span {
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.3px;
 }
@@ -202,7 +202,7 @@
   color: #a36a27;
   background: #fff4e7;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -228,7 +228,7 @@
   color: #71798e;
   background: #f4f6fb;
   border-radius: 7px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -283,14 +283,14 @@
 
 .original-answer dt {
   color: #959cad;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
 }
 
 .original-answer dd {
   margin: 0;
   color: #30364c;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   text-align: right;
 }
@@ -305,7 +305,7 @@
   color: var(--blue);
   background: var(--blue-soft);
   border-radius: 11px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -333,7 +333,7 @@
   color: var(--blue);
   background: var(--blue-soft);
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -349,7 +349,7 @@
   justify-items: center;
   gap: 15px;
   color: #7c8499;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -478,7 +478,7 @@
   background: #fff;
   border: 1px solid #d7dce8;
   border-radius: 8px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .answer-choice:has(input:checked) b {
@@ -489,7 +489,7 @@
 
 .answer-choice span {
   min-width: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
   overflow-wrap: anywhere;
 }
@@ -514,7 +514,7 @@
   padding: 0 17px;
   border-radius: 11px;
   border: 0;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -575,7 +575,7 @@
 #graph-hint-text {
   margin: 13px 0 0;
   color: #697187;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.75;
   white-space: pre-line;
 }
@@ -586,7 +586,7 @@
   color: #3447a7;
   background: #eef1ff;
   border-radius: 10px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
   line-height: 1.6;
 }
@@ -646,12 +646,12 @@
 
 .review-concept-guide summary b {
   color: #3157f6;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .review-concept-guide summary span {
   color: #30384e;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
 }
@@ -675,13 +675,13 @@
   display: block;
   margin: 11px 0 3px;
   color: #3157f6;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .review-concept-guide details > div p {
   margin: 0;
   color: #5f687e;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -699,7 +699,7 @@
   border: 1px solid #dfe4f1;
   border-radius: 999px;
   box-shadow: 0 5px 13px rgba(29, 42, 103, 0.08);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
   pointer-events: none;
 }
@@ -718,7 +718,7 @@
   background: #fff;
   border: 1px dashed #cfd6e8;
   border-radius: 11px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -726,7 +726,7 @@
   margin-top: 17px;
   padding: 17px;
   border-radius: 13px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -772,13 +772,13 @@
 
 .retry-error p {
   margin: 8px 0 15px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
 .retry-error a {
   color: var(--blue);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -860,7 +860,7 @@
   .review-back-link {
     min-height: 36px;
     padding-inline: 10px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .review-back-link span {

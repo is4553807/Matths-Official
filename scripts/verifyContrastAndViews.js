@@ -15,8 +15,19 @@ const {
 const root = path.resolve(__dirname, "..");
 const contrastFile = path.join(root, "public", "css", "contrast.css");
 const parentFile = path.join(root, "public", "css", "parent.css");
+const brandFile = path.join(root, "public", "css", "brand.css");
+const systemFile = path.join(root, "public", "css", "matths-system.css");
 const contrastCss = fs.readFileSync(contrastFile, "utf8");
 const parentCss = fs.readFileSync(parentFile, "utf8");
+const brandCss = fs.readFileSync(brandFile, "utf8");
+const systemCss = fs.readFileSync(systemFile, "utf8");
+
+assert.match(brandCss, /@import\s+url\(["']\/css\/matths-system\.css["']\)/);
+assert.doesNotMatch(
+  systemCss,
+  /@import\s+url\(["']\/css\/contrast\.css["']\)/,
+  "contrast.css는 페이지 CSS 뒤에서 문서가 직접 로드해야 합니다."
+);
 
 function normalizeSelector(selector) {
   return String(selector)
@@ -134,8 +145,8 @@ async function main() {
       ) {
         assert.match(
           html,
-          /\/css\/contrast\.css/,
-          `${viewName}에 최종 대비 보정 stylesheet가 없습니다.`
+          /\/css\/brand\.css/,
+          `${viewName}의 head에 Matths system entry stylesheet가 없습니다.`
         );
       }
     }

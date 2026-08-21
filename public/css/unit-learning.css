@@ -17,7 +17,7 @@
   align-items: center;
   gap: 9px;
   color: #99a0b2;
-  font-size: 9px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -41,7 +41,7 @@
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 10px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -94,7 +94,7 @@
 .learning-goal p {
   margin: 0 0 8px;
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.2px;
 }
@@ -110,7 +110,7 @@
   display: block;
   margin-top: 11px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -132,7 +132,7 @@
 
 .unit-hero-progress span {
   color: #747c91;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -168,7 +168,7 @@
   display: block;
   margin-top: 9px;
   color: #969daf;
-  font-size: 9px;
+  font-size: 12px;
   text-align: right;
 }
 
@@ -234,7 +234,7 @@
   background: #f0f2f7;
   border-radius: 8px;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .concept-nav-item.completed > span {
@@ -255,7 +255,7 @@
 
 .concept-nav-item strong {
   overflow: hidden;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -279,7 +279,7 @@
 .concept-nav-item em {
   color: #9198aa;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
 }
 
@@ -292,7 +292,7 @@
   color: var(--blue);
   background: #fafbfe;
   border-top: 1px solid var(--line);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -326,7 +326,7 @@
 
 .concept-completion > span {
   color: #8d94a7;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .concept-completion > strong {
@@ -375,7 +375,7 @@
 
 .learning-goal h3 {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -401,7 +401,7 @@
 
 .lesson-section-heading > span {
   color: #9299ab;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .basic-concept-overview-card {
@@ -423,14 +423,14 @@
 
 .basic-concept-overview-card p {
   color: #697188;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .basic-concept-overview-card strong {
   padding-left: 18px;
   color: #29345f;
   border-left: 2px solid var(--blue);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .visual-step-grid {
@@ -471,7 +471,7 @@
 
 .visual-step-card > div:first-child span {
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -529,14 +529,14 @@
 .visual-step-card h4 {
   min-height: 34px;
   margin: 0;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
 .visual-step-card p {
   margin: 7px 0 0;
   color: #8a92a6;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -560,7 +560,7 @@
   place-items: center;
   background: var(--blue);
   border-radius: 10px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .motion-placeholder > div {
@@ -568,13 +568,13 @@
 }
 
 .motion-placeholder strong {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .motion-placeholder p {
   margin: 5px 0 0;
   color: #949caf;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .motion-placeholder button {
@@ -584,7 +584,7 @@
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -646,16 +646,16 @@
   background: #fff;
   border: 1px solid #ccd2df;
   border-radius: 8px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .topic-task strong {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .topic-task small {
   color: #969daf;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .topic-task.done {
@@ -677,7 +677,7 @@
   min-height: 20px;
   margin: 11px 2px 0;
   color: #8b92a6;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .scope-note {
@@ -702,13 +702,13 @@
   background: #ffedcf;
   border-radius: 7px;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
 .scope-note h3 {
   margin: 0;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .scope-note ul {
@@ -717,7 +717,7 @@
   margin: 12px 0 0;
   padding-left: 18px;
   color: #7f776e;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -756,12 +756,12 @@
 
 .lesson-pagination a span {
   color: #8e95a8;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .lesson-pagination a strong {
   overflow: hidden;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -872,7 +872,7 @@
 
   .learning-home-link::after {
     content: "학습 홈";
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .exit-learning span {
@@ -1062,13 +1062,13 @@
 }
 
 .visual-empty strong {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .visual-empty p {
   margin: 5px 0 0;
   color: #9299ab;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -1123,7 +1123,7 @@
   > div
   > span {
   color: #b9c6ff;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.3px;
 }
@@ -1145,7 +1145,7 @@
 
 .subunit-assessment-callout p {
   color: rgba(255, 255, 255, 0.7);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -1157,7 +1157,7 @@
   border: 0;
   border-radius: 11px;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   white-space: nowrap;
   cursor: pointer;

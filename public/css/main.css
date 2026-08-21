@@ -1,15 +1,17 @@
+@import url("/css/matths-brand-tokens.css");
+
 :root {
-  --ink: #111426;
-  --muted: #6f778c;
-  --paper: #f5f7fc;
-  --white: #ffffff;
-  --line: #e1e5ef;
-  --blue: #3157f6;
-  --blue-dark: #203fc5;
-  --blue-soft: #e9edff;
+  --ink: var(--matths-ink);
+  --muted: var(--matths-muted);
+  --paper: var(--matths-canvas);
+  --white: var(--matths-surface);
+  --line: var(--matths-line);
+  --blue: var(--matths-progress-blue);
+  --blue-dark: var(--matths-primary-dark);
+  --blue-soft: var(--matths-primary-soft);
   --green: #20a078;
   --green-soft: #e7f7f1;
-  --violet: #704bd7;
+  --violet: var(--matths-violet);
   --violet-soft: #f0ebff;
   --orange: #e58a35;
   --orange-soft: #fff1e5;
@@ -79,6 +81,9 @@ button {
   top: 12px;
   left: 12px;
   z-index: 1000;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   padding: 12px 18px;
   color: #fff;
   background: var(--ink);
@@ -124,6 +129,7 @@ button:focus-visible {
 }
 
 .brand {
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -160,7 +166,7 @@ button:focus-visible {
 .side-nav > p {
   margin: 0 11px 12px;
   color: #a0a6b7;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 1.4px;
 }
@@ -215,7 +221,7 @@ button:focus-visible {
   color: #858da3;
   background: #f0f2f7;
   border-radius: 7px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .sidebar-spacer {
@@ -225,7 +231,7 @@ button:focus-visible {
 
 .sidebar-profile {
   display: grid;
-  grid-template-columns: 39px 1fr auto;
+  grid-template-columns: 44px 1fr auto;
   align-items: center;
   gap: 10px;
   margin-top: 14px;
@@ -234,8 +240,8 @@ button:focus-visible {
 }
 
 .profile-avatar {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   color: #fff;
@@ -260,14 +266,14 @@ a.profile-avatar:hover {
 
 .profile-copy strong {
   overflow: hidden;
-  font-size: 10px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .profile-copy small {
   color: #9299ab;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .sidebar-profile form {
@@ -275,8 +281,8 @@ a.profile-avatar:hover {
 }
 
 .sidebar-profile button {
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   color: #858da0;
@@ -320,7 +326,7 @@ a.profile-avatar:hover {
 .topbar-left p {
   margin: 0 0 5px;
   color: #858ca1;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .topbar-left h1 {
@@ -339,7 +345,7 @@ a.profile-avatar:hover {
 }
 
 .back-dashboard {
-  min-height: 39px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -348,7 +354,7 @@ a.profile-avatar:hover {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 11px;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 800;
   transition:
     color 0.18s ease,
@@ -370,7 +376,7 @@ a.profile-avatar:hover {
 }
 
 a.learning-home-button {
-  min-height: 40px !important;
+  min-height: 44px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -382,7 +388,7 @@ a.learning-home-button {
   border: 1px solid #d8def0 !important;
   border-radius: 11px !important;
   box-shadow: 0 7px 16px rgba(49, 87, 246, 0.07) !important;
-  font-size: 10px !important;
+  font-size: 13px !important;
   font-weight: 850 !important;
   line-height: 1 !important;
   text-decoration: none !important;
@@ -416,7 +422,7 @@ a.learning-home-button:focus-visible {
 }
 
 .streak-pill {
-  min-height: 38px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -425,12 +431,12 @@ a.learning-home-button:focus-visible {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 11px;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .streak-pill span {
   color: var(--orange);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .notification-wrap {
@@ -439,8 +445,8 @@ a.learning-home-button:focus-visible {
 
 .notification-button {
   position: relative;
-  width: 39px;
-  height: 39px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   color: #606a82;
@@ -498,7 +504,7 @@ a.learning-home-button:focus-visible {
   background: var(--red);
   border: 2px solid var(--paper);
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 850;
 }
@@ -525,12 +531,12 @@ a.learning-home-button:focus-visible {
 }
 
 .notification-panel-title strong {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .notification-panel-title button {
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   color: #858da1;
@@ -562,24 +568,25 @@ a.learning-home-button:focus-visible {
 }
 
 .notification-panel > a b {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .notification-panel > a small {
   color: #8a92a6;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
 .notification-panel
   > .notification-inbox-cta {
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   color: #fff;
   background: var(--blue);
   border-bottom: 0;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -592,7 +599,7 @@ a.learning-home-button:focus-visible {
   margin: 0;
   padding: 22px 15px;
   color: #8c94a7;
-  font-size: 9px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -641,6 +648,9 @@ a.learning-home-button:focus-visible {
   article
   > a {
   min-width: 0;
+  min-height: 44px;
+  display: grid;
+  align-content: center;
   color: inherit;
   text-decoration: none;
 }
@@ -648,8 +658,8 @@ a.learning-home-button:focus-visible {
 .dashboard-announcements
   article
   > button {
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   color: #a84b59;
   background: rgba(
@@ -667,13 +677,13 @@ a.learning-home-button:focus-visible {
 }
 
 .dashboard-announcements strong {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .dashboard-announcements p {
   margin: 4px 0 0;
   color: #a84b59;
-  font-size: 9px;
+  font-size: 13px;
   line-height: 1.55;
   white-space: pre-wrap;
 }
@@ -725,14 +735,14 @@ a.learning-home-button:focus-visible {
   color: var(--blue);
   background: var(--blue-soft);
   border-radius: 7px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
 .course-meta small {
   overflow: hidden;
   color: #858da2;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -747,7 +757,7 @@ a.learning-home-button:focus-visible {
   min-height: 22px;
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -788,29 +798,162 @@ a.learning-home-button:focus-visible {
 }
 
 .primary-action {
-  min-height: 43px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
   padding: 0 17px;
   color: #fff;
-  background: var(--blue);
+  background: var(--matths-action-primary);
   border-radius: 11px;
-  box-shadow: 0 10px 20px rgba(49, 87, 246, 0.21);
-  font-size: 11px;
+  box-shadow: none;
+  font-size: 12px;
   font-weight: 800;
   transition: background 0.18s ease, transform 0.18s ease;
 }
 
 .primary-action:hover {
-  background: var(--blue-dark);
+  background: var(--matths-action-primary-pressed);
   transform: translateY(-2px);
 }
 
 .continue-actions small {
   color: #969caf;
-  font-size: 9px;
+  font-size: 12px;
+}
+
+.continue-card.next-study-card {
+  position: relative;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 24px 0 18px;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.continue-card.next-study-card::after {
+  content: none;
+  display: none;
+}
+
+.next-study-card .continue-copy {
+  display: block;
+  padding: clamp(22px, 3vw, 32px);
+}
+
+.next-study-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 24px;
+}
+
+.next-study-copy {
+  min-width: 0;
+}
+
+.next-study-card .next-study-eyebrow {
+  min-height: 0;
+  margin: 0 0 8px;
+  color: var(--matths-action-primary);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.next-study-card .continue-copy h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(24px, 2.4vw, 32px);
+  line-height: 1.25;
+  letter-spacing: -0.04em;
+}
+
+.next-study-card .next-study-context {
+  min-height: 0;
+  margin: 10px 0 0;
+  color: #596277;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.next-study-card .next-study-step {
+  min-height: 0;
+  margin: 4px 0 0;
+  color: #687187;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.next-study-card .continue-actions {
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.next-study-card .primary-action {
+  min-height: 48px;
+  padding: 0 20px;
+  color: #fff;
+  background: var(--matths-action-primary);
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 800;
+  transition: background 0.18s ease;
+}
+
+.next-study-card .primary-action:hover {
+  background: var(--matths-action-primary-pressed);
+  box-shadow: none;
+  filter: none;
+  transform: none;
+}
+
+.next-study-card .continue-actions small {
+  color: #596277;
+  font-size: 12px;
+}
+
+.next-study-progress {
+  margin-top: 24px;
+}
+
+.next-study-progress-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: #687187;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.next-study-progress-copy strong {
+  color: var(--matths-progress-blue);
+  font-size: 13px;
+}
+
+.next-study-progress-track {
+  height: 4px;
+  overflow: hidden;
+  background: #e5e7ef;
+  border-radius: 999px;
+}
+
+.next-study-progress-track > span {
+  width: var(--next-study-progress);
+  height: 100%;
+  display: block;
+  background: var(--matths-progress-blue);
+  border-radius: inherit;
 }
 
 .concept-visual {
@@ -832,7 +975,7 @@ a.learning-home-button:focus-visible {
   justify-content: space-between;
   gap: 20px;
   color: #77809a;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.8px;
 }
@@ -906,7 +1049,7 @@ a.learning-home-button:focus-visible {
   margin: 0;
   color: #4a588a;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: clamp(11px, 1.05vw, 15px);
+  font-size: clamp(12px, 1.05vw, 15px);
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
@@ -915,7 +1058,7 @@ a.learning-home-button:focus-visible {
   width: 100%;
   color: var(--blue);
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: clamp(10px, 0.95vw, 14px);
+  font-size: clamp(12px, 0.95vw, 14px);
   line-height: 1.5;
   text-align: center;
   overflow-wrap: anywhere;
@@ -954,7 +1097,7 @@ a.learning-home-button:focus-visible {
 .section-title p {
   margin: 0 0 7px;
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 1.25px;
 }
@@ -967,8 +1110,11 @@ a.learning-home-button:focus-visible {
 }
 
 .card-heading > a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   color: var(--blue);
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -977,7 +1123,7 @@ a.learning-home-button:focus-visible {
   color: #777f93;
   background: #f0f2f7;
   border-radius: 8px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -1005,7 +1151,7 @@ a.learning-home-button:focus-visible {
   position: relative;
   z-index: 1;
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -1061,7 +1207,7 @@ a.learning-home-button:focus-visible {
   color: #fff;
   border: 1px solid #cfd4e1;
   border-radius: 8px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .plan-task.done .task-check {
@@ -1078,7 +1224,7 @@ a.learning-home-button:focus-visible {
 
 .plan-content strong {
   overflow: hidden;
-  font-size: 10px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1086,14 +1232,14 @@ a.learning-home-button:focus-visible {
 .plan-content small {
   overflow: hidden;
   color: #9198aa;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .plan-status {
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -1104,7 +1250,7 @@ a.learning-home-button:focus-visible {
 .plan-message {
   margin: 16px 0 0;
   color: #7c8499;
-  font-size: 9px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -1137,22 +1283,25 @@ a.learning-home-button:focus-visible {
 
 .section-empty strong {
   color: #555e74;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .section-empty p {
   margin: 0;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
 .section-empty a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   margin-top: 8px;
   padding: 10px 13px;
   color: #fff;
   background: var(--blue);
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -1235,7 +1384,7 @@ a.learning-home-button:focus-visible {
 
 .stats-row small {
   color: #8b92a6;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .stats-row strong {
@@ -1248,7 +1397,7 @@ a.learning-home-button:focus-visible {
   margin-left: 3px;
   color: #7f879b;
   font-family: inherit;
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
 }
 
@@ -1256,7 +1405,7 @@ a.learning-home-button:focus-visible {
   margin: 0;
   overflow: hidden;
   color: #999fb0;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1320,7 +1469,7 @@ a.learning-home-button:focus-visible {
 .learning-kpi-grid dt {
   overflow: hidden;
   color: #8a92a7;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1344,7 +1493,7 @@ a.learning-home-button:focus-visible {
 .learning-kpi-grid dd > strong span {
   margin-left: 3px;
   color: #7f879b;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
 }
@@ -1353,7 +1502,7 @@ a.learning-home-button:focus-visible {
   min-width: 0;
   overflow: hidden;
   color: #a0a6b7;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1390,7 +1539,7 @@ a.learning-home-button:focus-visible {
   align-items: center;
   gap: 6px;
   color: #8c93a6;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .chart-legend b {
@@ -1449,7 +1598,7 @@ a.learning-home-button:focus-visible {
   color: #fff;
   background: #212944;
   border-radius: 5px;
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   opacity: 0;
   pointer-events: none;
@@ -1465,7 +1614,7 @@ a.learning-home-button:focus-visible {
 
 .chart-day small {
   color: #8c94a7;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .chart-day.today small {
@@ -1511,7 +1660,7 @@ a.learning-home-button:focus-visible {
   background: #eff1f6;
   border-radius: 9px;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .weak-rank.urgent {
@@ -1527,7 +1676,7 @@ a.learning-home-button:focus-visible {
 
 .weak-list strong {
   overflow: hidden;
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1535,7 +1684,7 @@ a.learning-home-button:focus-visible {
 .weak-list small {
   overflow: hidden;
   color: #9097a9;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1562,7 +1711,7 @@ a.learning-home-button:focus-visible {
   color: #7d8498;
   background: #f0f2f7;
   border-radius: 7px;
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 750;
 }
@@ -1597,7 +1746,7 @@ a.learning-home-button:focus-visible {
   background: var(--blue);
   border-radius: 10px;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .semester-badge.muted {
@@ -1612,12 +1761,12 @@ a.learning-home-button:focus-visible {
 }
 
 .semester-list strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .semester-list small {
   color: #9097a9;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .semester-list i b {
@@ -1670,7 +1819,7 @@ a.learning-home-button:focus-visible {
   color: var(--red);
   background: #fff0f2;
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -1682,7 +1831,7 @@ a.learning-home-button:focus-visible {
 
 .wrong-list strong {
   overflow: hidden;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1691,14 +1840,14 @@ a.learning-home-button:focus-visible {
 .wrong-list small {
   overflow: hidden;
   color: #9299aa;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .wrong-list > a > b {
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 /* Quick start */
@@ -1754,13 +1903,13 @@ a.learning-home-button:focus-visible {
 }
 
 .quick-grid strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .quick-grid small {
   overflow: hidden;
   color: #9198aa;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1780,7 +1929,7 @@ a.learning-home-button:focus-visible {
   margin-top: 26px;
   color: #989eae;
   border-top: 1px solid var(--line);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .dashboard-home .dashboard-footer {
@@ -1795,6 +1944,14 @@ a.learning-home-button:focus-visible {
   display: flex;
   justify-content: flex-end;
   gap: 15px;
+}
+
+.dashboard-footer a {
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dashboard-footer a:hover {
@@ -1911,6 +2068,16 @@ a.learning-home-button:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .next-study-heading {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 20px;
+  }
+
+  .next-study-card .continue-actions {
+    align-items: flex-start;
+  }
+
   .concept-visual {
     min-height: 320px;
     border-top: 1px solid var(--line);
@@ -1966,6 +2133,10 @@ a.learning-home-button:focus-visible {
     right: 16px;
     left: 16px;
     width: auto;
+  }
+
+  .next-study-card .primary-action {
+    width: 100%;
   }
 
   .learning-record-section {
@@ -2064,20 +2235,20 @@ a.learning-home-button:focus-visible {
 .math-keyboard {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(10, minmax(34px, 1fr));
+  grid-template-columns: repeat(10, minmax(44px, 1fr));
   gap: 5px;
   margin-top: 8px;
 }
 
 .math-keyboard button {
-  min-height: 34px;
+  min-height: 44px;
   padding: 0 4px;
   color: #3d4b78;
   background: #f1f4ff;
   border: 1px solid #dbe2fa;
   border-radius: 8px;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -2127,7 +2298,7 @@ a.learning-home-button:focus-visible {
 .dashboard-coach-card p {
   margin: 0;
   color: #b9b1e7;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.8px;
 }
@@ -2140,11 +2311,11 @@ a.learning-home-button:focus-visible {
 
 .dashboard-coach-card small {
   color: #aaa8c2;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .dashboard-coach-card > a {
-  min-height: 38px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -2153,7 +2324,7 @@ a.learning-home-button:focus-visible {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 10px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   white-space: nowrap;
 }
@@ -2233,7 +2404,7 @@ a.learning-home-button:focus-visible {
 .access-renewal-dialog__body > p {
   margin: 0 0 10px;
   color: #8eeaff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.16em;
 }
@@ -2270,7 +2441,7 @@ a.learning-home-button:focus-visible {
 
 .access-renewal-preview dt {
   color: #8996c6;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -2289,6 +2460,7 @@ a.learning-home-button:focus-visible {
 .access-renewal-dialog__actions a,
 .access-renewal-dialog__actions button {
   flex: 1;
+  min-height: 44px;
   padding: 14px 16px;
   border-radius: 13px;
   font: inherit;
@@ -2300,7 +2472,7 @@ a.learning-home-button:focus-visible {
 
 .access-renewal-dialog__actions a {
   color: #fff;
-  background: linear-gradient(120deg, #a72dde, #207ed7);
+  background: var(--matths-action-primary);
 }
 
 .access-renewal-dialog__actions button {
@@ -2360,7 +2532,7 @@ a.learning-home-button:focus-visible {
 .usage-plan-copy p {
   margin: 0 0 7px;
   color: #8fe7ff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -2396,7 +2568,7 @@ a.learning-home-button:focus-visible {
 
 .usage-plan-metrics dt {
   color: #aeb9e4;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -2414,7 +2586,7 @@ a.learning-home-button:focus-visible {
 .usage-plan-metrics dd small,
 .usage-plan-metrics p {
   color: #aeb9e4;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .usage-plan-metrics p {
@@ -2426,6 +2598,7 @@ a.learning-home-button:focus-visible {
 }
 
 .usage-plan-card > a {
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -2472,6 +2645,6 @@ a.learning-home-button:focus-visible {
 
 @media (max-width: 620px) {
   .math-keyboard {
-    grid-template-columns: repeat(5, minmax(42px, 1fr));
+    grid-template-columns: repeat(5, minmax(44px, 1fr));
   }
 }

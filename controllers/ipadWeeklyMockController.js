@@ -39,6 +39,26 @@ function iso(value) {
     : date.toISOString();
 }
 
+function privateMockActivityDate(result) {
+  const acceptedAt =
+    new Date(
+      result?.acceptedAt
+    );
+  if (
+    Number.isNaN(
+      acceptedAt.getTime()
+    )
+  ) {
+    const error =
+      new Error(
+        "제출 접수 시각 영수증이 올바르지 않습니다."
+      );
+    error.status = 500;
+    throw error;
+  }
+  return acceptedAt;
+}
+
 function examSummaryView(exam, dashboard) {
   const raw = plain(exam);
   const examId = id(raw);
@@ -358,15 +378,33 @@ function createIpadWeeklyMockController({
         examId: req.params.examId,
         answers: req.body?.answers,
         telemetryEvents: req.body?.telemetryEvents,
+        requestId:
+          req.get?.("idempotency-key") ||
+          req.body?.requestId,
+        capturedAt:
+          req.body?.capturedAt,
       });
-      await recordActivity(req.apiUser._id, new Date(), result.elapsedMs);
+      await recordActivity(
+        req.apiUser._id,
+        privateMockActivityDate(
+          result
+        ),
+        result.elapsedMs,
+        {
+          idempotencyKey:
+            result.activityReceiptId,
+        }
+      );
       const data = await service.getPrivateMockAttemptData({
         userId: req.apiUser._id,
         examId: req.params.examId,
       });
       return res.json({
         submitted: true,
-        replayed: false,
+        replayed:
+          result.replayed,
+        receiptId:
+          result.receiptId,
         result,
         attempt: attemptView(data),
       });

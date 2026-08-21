@@ -20,7 +20,7 @@
 .objection-hero p {
   margin: 0 0 11px;
   color: #f08ba0;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.7px;
 }
@@ -37,7 +37,7 @@
   max-width: 760px;
   margin-top: 15px;
   color: #b8c1dd;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
 }
 
@@ -47,7 +47,7 @@
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 16px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.8;
 }
 
@@ -58,7 +58,7 @@
   background: #e8f8f1;
   border: 1px solid #bfe6d6;
   border-radius: 12px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -90,7 +90,7 @@
 
 .objection-form-card label > span {
   color: #606a80;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -105,7 +105,7 @@
   border: 1px solid #dce2ef;
   border-radius: 12px;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   resize: vertical;
 }
 
@@ -115,7 +115,7 @@
   background: #fff4f6;
   border: 1px solid #f3d7de;
   border-radius: 12px;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -130,7 +130,7 @@
   border: 0;
   border-radius: 13px;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   cursor: pointer;
 }
@@ -146,7 +146,7 @@
 
 .objection-empty p {
   color: #7e879c;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 @media (max-width: 800px) {

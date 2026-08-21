@@ -7,7 +7,9 @@
   --line: #e1e5ef;
   --paper: #f7f8fc;
   --white: #ffffff;
-  --primary: var(--matths-blue);
+  /* Compatibility alias for informational progress accents only.
+     Primary actions use .c-button--primary / --matths-action-primary. */
+  --primary: var(--matths-progress-blue);
   --primary-dark: var(--matths-primary-dark);
   --primary-soft: var(--matths-primary-soft);
   --violet: var(--matths-violet);
@@ -54,6 +56,9 @@ a {
   top: 12px;
   left: 12px;
   z-index: 1000;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   padding: 12px 18px;
   color: #fff;
   background: var(--ink);
@@ -109,7 +114,7 @@ summary:focus-visible {
 }
 
 .button-small {
-  min-height: 42px;
+  min-height: 44px;
   padding: 0 18px;
   font-size: 14px;
 }
@@ -121,14 +126,14 @@ summary:focus-visible {
 }
 
 .button-primary {
-  color: #fff;
-  background: var(--primary);
-  box-shadow: 0 6px 14px rgba(50, 127, 250, 0.2);
+  color: var(--matths-on-brand);
+  background: var(--matths-action-primary);
+  box-shadow: none;
 }
 
 .button-primary:hover {
-  background: var(--primary-dark);
-  box-shadow: 0 8px 18px rgba(50, 127, 250, 0.24);
+  background: var(--matths-action-primary-pressed);
+  box-shadow: var(--motion-hover-shadow);
 }
 
 .button-secondary {
@@ -222,6 +227,14 @@ summary:focus-visible {
   border-radius: 27px;
   box-shadow: var(--shadow-lg);
   transform: perspective(1300px) rotateY(-2.5deg) rotateX(1deg);
+}
+
+/* The lesson preview uses a slight 3D perspective; keep the projected step
+   controls at least 44px on screen, not merely 44px before transformation. */
+.step-button {
+  flex: 0 0 48px;
+  inline-size: 48px;
+  block-size: 48px;
 }
 
 .window-header {
@@ -860,7 +873,21 @@ summary:focus-visible {
   }
 
   .window-footer {
-    padding-inline: 15px;
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding: 10px 15px;
+  }
+
+  .window-footer a {
+    white-space: nowrap;
+  }
+
+  .arena-hero h1,
+  .arena-live-facts,
+  .learning-proof .hero-copy h2,
+  .hero-description,
+  .home-summary {
+    word-break: keep-all;
   }
 
   .home-summary {
@@ -989,6 +1016,15 @@ summary:focus-visible {
   gap: clamp(48px, 6vw, 88px);
 }
 
+/*
+ * 320px 컨테이너에서 window-footer의 최소 콘텐츠 폭이 grid track을
+ * 밀어내지 않게 한다. 반응형 소유권은 EJS가 아니라 이 파일에 둔다.
+ */
+.hero-layout > *,
+.arena-hero-layout > * {
+  min-width: 0;
+}
+
 .arena-hero-copy {
   position: relative;
   z-index: 2;
@@ -1023,8 +1059,8 @@ summary:focus-visible {
   margin: 0;
   font-size: clamp(48px, 5.2vw, 70px);
   font-weight: 480;
-  line-height: 1.02;
-  letter-spacing: -4.2px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
   white-space: nowrap;
 }
 
@@ -1038,6 +1074,52 @@ summary:focus-visible {
   font-weight: 880;
 }
 
+.arena-contract {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 700px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.arena-contract li {
+  min-width: 0;
+  padding: 16px;
+  background: var(--matths-navy-soft);
+  border: 1px solid color-mix(in srgb, var(--matths-arena-accent) 22%, transparent);
+  border-radius: var(--matths-radius-md);
+}
+
+.arena-contract b,
+.arena-contract strong,
+.arena-contract span {
+  display: block;
+}
+
+.arena-contract b {
+  color: var(--matths-arena-accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.arena-contract strong {
+  margin-top: 6px;
+  color: var(--matths-on-navy);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.arena-contract span {
+  margin-top: 5px;
+  color: var(--matths-on-navy);
+  font-size: 13px;
+  line-height: 1.6;
+  opacity: 0.78;
+}
+
 .arena-hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1045,16 +1127,32 @@ summary:focus-visible {
   margin-top: 36px;
 }
 
+.arena-hero-support-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px;
+  color: #d7def1;
+  border-bottom: 1px solid #56618e;
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.arena-hero-support-link:hover {
+  color: #fff;
+  border-color: #fff;
+}
+
 .button-arena-primary {
-  color: #07111d;
-  background: #2ce2f4;
-  border-color: #2ce2f4;
-  box-shadow: 0 9px 24px rgba(44, 226, 244, 0.2);
+  color: var(--matths-on-brand);
+  background: var(--matths-action-primary);
+  border-color: var(--matths-action-primary);
+  box-shadow: 0 4px 0 var(--matths-action-primary-pressed);
 }
 
 .button-arena-primary:hover {
-  background: #69edf7;
-  box-shadow: 0 12px 28px rgba(44, 226, 244, 0.26);
+  background: var(--matths-action-primary-pressed);
+  box-shadow: 0 2px 0 var(--matths-action-primary-pressed);
 }
 
 .button-arena-secondary {
@@ -1271,6 +1369,9 @@ summary:focus-visible {
 }
 
 .arena-ranking-unavailable a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   color: #72eaf5;
   font-size: 13px;
   font-weight: 680;
@@ -1306,7 +1407,7 @@ summary:focus-visible {
   font-size: clamp(44px, 5vw, 66px);
   font-weight: 480;
   line-height: 1.12;
-  letter-spacing: -3.6px;
+  letter-spacing: -0.04em;
 }
 
 .learning-proof .hero-copy h2 em {
@@ -1393,6 +1494,10 @@ summary:focus-visible {
 }
 
 @media (max-width: 640px) {
+  .arena-contract {
+    grid-template-columns: 1fr;
+  }
+
   .arena-hero {
     padding: 54px 0 58px;
   }
@@ -1405,7 +1510,8 @@ summary:focus-visible {
 
   .arena-hero h1 {
     font-size: 42px;
-    letter-spacing: -2.6px;
+    line-height: 1.12;
+    letter-spacing: -0.035em;
     white-space: normal;
   }
 
@@ -1426,6 +1532,10 @@ summary:focus-visible {
 
   .arena-hero-actions .button {
     width: 100%;
+  }
+
+  .arena-hero-support-link {
+    justify-self: start;
   }
 
   .arena-live-facts {

@@ -16,11 +16,14 @@
     <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>자녀 학습 현황 | Matths 학부모</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
-    <link rel="stylesheet" href="/css/brand.css" /><link rel="stylesheet" href="/css/parent.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/parent.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+
   </head>
   <body class="parent-page">
     <%- include('partials/parent-navigation', { activeParentPage: 'dashboard' }) %>
-    <main class="parent-main">
+    <main class="parent-main" id="parent-main-content" tabindex="-1">
       <% if (welcome) { %><div class="parent-form-message is-success">학부모 가입이 완료되었습니다. 자녀 계정이 안전하게 연결되었습니다.</div><% } %>
       <% if (linked) { %><div class="parent-form-message is-success">새 자녀 계정이 연결되었습니다. 상단의 자녀 선택 메뉴에서 언제든 전환할 수 있습니다.</div><% } %>
       <section class="parent-hero">

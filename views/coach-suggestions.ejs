@@ -33,9 +33,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="학생이 Matths 코치 문구를 제안하고 운영자가 검수하는 문구 제안소입니다." />
     <title>문구 제안소 | Matths</title>
+    <link rel="stylesheet" href="/css/brand.css" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/coach-suggestions.css" />
-    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <script src="/js/main.js" defer></script>
   </head>
@@ -176,7 +178,8 @@
                   </div>
                   <p><%= item.message %></p>
                   <form action="/coach-suggestions/<%= item.id %>/moderate" method="POST">
-                    <input name="rejectionReason" maxlength="200" placeholder="반려할 때만 사유 입력" />
+                    <label class="sr-only" for="rejection-reason-<%= item.id %>">반려 사유</label>
+                    <input id="rejection-reason-<%= item.id %>" name="rejectionReason" maxlength="200" placeholder="반려할 때만 사유 입력" />
                     <button name="action" value="reject" type="submit">반려</button>
                     <button class="approve" name="action" value="approve" type="submit">승인</button>
                   </form>

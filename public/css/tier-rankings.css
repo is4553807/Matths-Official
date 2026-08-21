@@ -56,12 +56,12 @@
 }
 
 .ranking-pool-tabs button span {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
 }
 
 .ranking-pool-tabs button small {
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -139,7 +139,7 @@
   > div
   > small {
   color: var(--tier-accent);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 950;
   letter-spacing: 1.5px;
 }
@@ -154,7 +154,7 @@
 .tier-my-ranking p {
   margin: 7px 0 0;
   color: var(--tier-muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -181,7 +181,7 @@
 
 .tier-my-ranking dt {
   color: var(--tier-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .tier-my-ranking dd {
@@ -194,13 +194,13 @@
 .tier-my-ranking dd small {
   margin-left: 3px;
   color: var(--tier-muted);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0;
 }
 
 .tier-my-ranking
   dd.ranking-pool-name {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .tier-ranking-unassigned {
@@ -241,7 +241,7 @@
   > p {
   margin: 7px 0 0;
   color: var(--tier-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .tier-ranking-board
@@ -250,7 +250,7 @@
   display: grid;
   gap: 6px;
   color: var(--tier-muted);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -265,7 +265,7 @@
     var(--tier-line);
   border-radius: 11px;
   font: inherit;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -283,7 +283,7 @@
   border: 1px solid
     var(--tier-line);
   border-radius: 11px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .tier-ranking-context strong {
@@ -330,7 +330,7 @@
   border: 1px solid
     var(--tier-line);
   border-radius: 12px;
-  font-size: 9px;
+  font-size: 12px;
   content-visibility: auto;
   contain-intrinsic-size: 72px;
 }
@@ -349,7 +349,7 @@
   display: block;
   margin-top: 3px;
   color: var(--tier-muted);
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 900;
 }
@@ -364,7 +364,7 @@
   gap: 10px;
   margin: 12px 0;
   color: var(--tier-muted, #778096);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .ranking-freshness b {
@@ -413,7 +413,7 @@
   display: grid;
   gap: 5px;
   color: var(--tier-muted, #778096);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -427,7 +427,7 @@
   border: 1px solid var(--tier-line, #e1e5ef);
   border-radius: 9px;
   font: inherit;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .goat-arena-page .ranking-list-tools {
@@ -468,7 +468,7 @@
   color: #fff;
   background: linear-gradient(115deg, #683fe0, #3157f6 58%, #1597b8);
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 
@@ -481,7 +481,7 @@
   grid-column: 1 / -1;
   min-height: 12px;
   color: var(--tier-muted, #778096);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .ranking-my-position {
@@ -517,11 +517,11 @@
 .ranking-sticky-me span,
 .ranking-sticky-me em {
   color: var(--tier-muted, #778096);
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
 }
 
-.ranking-sticky-me strong { font-size: 10px; }
+.ranking-sticky-me strong { font-size: 12px; }
 
 @keyframes ranking-target-pulse {
   0%, 100% { box-shadow: none; }
@@ -559,7 +559,7 @@
 .tier-ranking-row > strong {
   overflow: hidden;
   color: var(--tier-text);
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -577,7 +577,7 @@
   display: block;
   margin-top: 4px;
   color: var(--tier-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .tier-ranking-crest-cell {
@@ -596,7 +596,7 @@
   > small {
   margin: 0 !important;
   color: var(--tier-text) !important;
-  font-size: 9px !important;
+  font-size: 12px !important;
 }
 
 .tier-ranking-head {
@@ -611,7 +611,7 @@
   border-bottom-color:
     var(--tier-line);
   border-radius: 0;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 
@@ -635,7 +635,7 @@
 }
 
 .tier-ranking-empty span {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 @media (max-width: 920px) {
@@ -659,7 +659,7 @@
   .ranking-pool-tabs
     button
     span {
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .tier-my-ranking,
@@ -718,7 +718,7 @@
 .tier-ranking-row > span > small,
 .tier-ranking-crest-cell > small,
 .tier-ranking-head {
-  font-size: 10px !important;
+  font-size: 12px !important;
   line-height: 1.45;
 }
 
@@ -726,7 +726,7 @@
 .tier-ranking-board select,
 .tier-ranking-row,
 .tier-ranking-empty span {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -828,7 +828,7 @@
   display: block;
   margin-bottom: 7px;
   color: #8aa4ff;
-  font-size: 0.67rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -870,7 +870,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     0 5px 16px var(--decoration-glow);
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 900;
   line-height: 1;
@@ -888,7 +888,7 @@
   background: rgba(7, 10, 25, 0.28);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
   text-shadow: 0 1px 5px rgba(0, 0, 0, 0.38);
 }
@@ -955,13 +955,13 @@
     min-height: 21px;
     margin: 4px 0 0;
     padding: 2px 6px 2px 4px;
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .arena-rank-decoration i {
     width: 14px;
     height: 14px;
-    font-size: 9px;
+    font-size: 12px;
   }
 }
 .ranking-pool-tabs button[aria-selected="true"],

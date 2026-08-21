@@ -1,4 +1,7 @@
-<% const arenaMainPolicy = typeof activeMainPolicy !== "undefined" ? activeMainPolicy : null; %>
+<%
+  const arenaMainPolicy = typeof activeMainPolicy !== "undefined" ? activeMainPolicy : null;
+  const arenaContractView = typeof arenaContract !== "undefined" ? arenaContract : null;
+%>
 <!doctype html>
 <html lang="ko">
   <head>
@@ -9,6 +12,8 @@
     <title>GOAT Arena | Matths</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
     <%- include("partials/rank-motion-head") %>
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <script src="/js/goat-arena.js" defer></script>
   </head>
@@ -28,12 +33,12 @@
     <main id="arena-main">
       <section class="arena-hero arena-snap-section is-video-pending" id="arena-start" aria-labelledby="arena-title">
         <div class="arena-hero-art" aria-hidden="true"></div>
-        <video class="arena-hero-video" autoplay playsinline preload="auto" poster="/images/goat-arena/arena-hero.jpg" aria-hidden="true">
+        <video class="arena-hero-video" autoplay muted playsinline preload="metadata" poster="/images/goat-arena/arena-hero.jpg" aria-hidden="true">
           <source src="/videos/goatArena.mp4" type="video/mp4" />
         </video>
-        <button class="arena-sound-toggle" type="button" aria-label="GOAT Arena 영상 소리 끄기" aria-pressed="true" data-arena-sound-toggle>
+        <button class="arena-sound-toggle is-muted" type="button" aria-label="GOAT Arena 영상 소리 켜기" aria-pressed="false" data-arena-sound-toggle>
           <span class="arena-sound-bars" aria-hidden="true"><i></i><i></i><i></i></span>
-          <strong data-arena-sound-label>소리 끄기</strong>
+          <strong data-arena-sound-label>소리 켜기</strong>
         </button>
         <div class="arena-grid" aria-hidden="true"></div>
         <div class="arena-orbit arena-orbit-one" aria-hidden="true"></div>
@@ -45,8 +50,9 @@
             <p class="arena-kicker">1대1 Arena 경쟁</p>
             <h1 id="arena-title">차지하라.<br /><em>지켜내라.</em></h1>
             <p class="arena-lead">GOAT Arena는 수학 문제로 상대의 Arena 상태에 도전하는 Matths의 경쟁 공간입니다.<br />GP는 GOAT Point이며, 티어·티어 내 순위와 함께 움직입니다.</p>
+            <%- include("partials/arena-contract", { contract: arenaContractView }) %>
             <div class="arena-hero-actions">
-              <a class="arena-primary-action" href="#ranking-system"><span>GOAT Arena 알아보기</span><i aria-hidden="true">↘</i></a>
+              <a class="arena-primary-action c-button c-button--primary" href="#ranking-system"><span>GOAT Arena 알아보기</span><i aria-hidden="true">↘</i></a>
               <a class="arena-secondary-action" href="/main">Matths 대시보드로 돌아가기</a>
             </div>
             <dl class="arena-rule-strip">

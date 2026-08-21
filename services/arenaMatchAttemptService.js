@@ -52,6 +52,8 @@ const MAX_SIGNAL_EVENTS_PER_REQUEST = 200;
 const MATCH_START_INTRO_DELAY_MS = 3650;
 const QUESTION_INTRO_DELAY_MS = 1700;
 const ATTEMPT_SCHEDULER_INTERVAL_MS = 10 * 1000;
+const TIMEOUT_ADVANCE_RECONCILIATION_MS =
+  ATTEMPT_SCHEDULER_INTERVAL_MS + 5 * 1000;
 let attemptScheduleTimer = null;
 let attemptScheduleRunning = false;
 
@@ -107,6 +109,60 @@ function cleanAnswer(value) {
     );
   }
   return answer;
+}
+
+function timeoutAdvanceOperationId({
+  attemptId,
+  deadlineAt,
+}) {
+  const cleanAttemptId = String(
+    attemptId || ""
+  ).trim();
+  const deadlineMs = new Date(
+    deadlineAt
+  ).getTime();
+  if (
+    !cleanAttemptId ||
+    !Number.isFinite(deadlineMs)
+  ) {
+    throw statusError(
+      409,
+      "제한 시간 제출 정보를 확인할 수 없습니다.",
+      "ARENA_TIMEOUT_OPERATION_NOT_AVAILABLE"
+    );
+  }
+  return `QUESTION_TIME_LIMIT:${cleanAttemptId}:${deadlineMs}`;
+}
+
+function resolveAdvanceAnswer({
+  submissionMode = "MANUAL",
+  value,
+  savedAnswer = "",
+}) {
+  const timedOut =
+    submissionMode === "TIME_LIMIT";
+  const hasLatestAnswer =
+    value !== undefined && value !== null;
+  const normalizedSavedAnswer =
+    cleanAnswer(savedAnswer);
+  const finalAnswer = cleanAnswer(
+    timedOut && !hasLatestAnswer
+      ? normalizedSavedAnswer
+      : value
+  );
+  return {
+    timedOut,
+    finalAnswer,
+    // 스케줄러처럼 value를 보내지 않는 기존 TIME_LIMIT 호출은 이미 저장된
+    // 답을 그대로 사용한다. 웹이 value(빈 문자열 포함)를 명시한 경우에만
+    // 현재 문항 답을 advance 트랜잭션 안에서 원자적으로 갱신한다.
+    shouldApplyAnswer:
+      !timedOut ||
+      (
+        hasLatestAnswer &&
+        finalAnswer !== normalizedSavedAnswer
+      ),
+  };
 }
 
 function safeClientDate(value) {
@@ -766,6 +822,156 @@ function normalizeAnswerChanges(
   });
 }
 
+function resolveTimeoutReplayReconciliation({
+  attempt,
+  pack,
+  replay,
+  operationId,
+  submissionMode,
+  value,
+  now,
+}) {
+  const metadata =
+    replay?.metadata || {};
+  const hasLatestAnswer =
+    value !== undefined &&
+    value !== null;
+  if (
+    submissionMode !== "TIME_LIMIT" ||
+    metadata.submissionMode !==
+      "TIME_LIMIT" ||
+    metadata.latestValueProvided ===
+      true ||
+    !hasLatestAnswer
+  ) {
+    return null;
+  }
+
+  let expectedOperationId;
+  try {
+    expectedOperationId =
+      timeoutAdvanceOperationId({
+        attemptId: attempt?._id,
+        deadlineAt:
+          metadata.questionDeadlineAt,
+      });
+  } catch (_error) {
+    return null;
+  }
+  if (
+    operationId !==
+      expectedOperationId ||
+    metadata.timeoutOperationId !==
+      expectedOperationId
+  ) {
+    return null;
+  }
+
+  const eventAt = new Date(
+    replay.serverAt
+  ).getTime();
+  const requestAt = new Date(
+    now
+  ).getTime();
+  // A client transaction can start first, lose the Mongo write race, and then
+  // be retried after the scheduler event commits. Its captured server `now`
+  // is then slightly earlier than replay.serverAt, so compare the bounded
+  // distance rather than requiring one commit order.
+  const distanceFromFallback =
+    Math.abs(requestAt - eventAt);
+  if (
+    !Number.isFinite(eventAt) ||
+    !Number.isFinite(requestAt) ||
+    distanceFromFallback >
+      TIMEOUT_ADVANCE_RECONCILIATION_MS
+  ) {
+    return null;
+  }
+
+  const completedQuestionNumber =
+    Number(
+      metadata.completedQuestionNumber
+    );
+  const questionCount = Number(
+    pack?.questions?.length || 0
+  );
+  const completedFinalQuestion =
+    completedQuestionNumber ===
+    questionCount;
+  const attemptStillAtReplayBoundary =
+    completedFinalQuestion
+      ? attempt?.status ===
+          "EVIDENCE_REQUIRED" &&
+        Number(
+          attempt.currentQuestionIndex
+        ) === questionCount &&
+        !attempt.evidenceSubmittedAt
+      : attempt?.status ===
+          "IN_PROGRESS" &&
+        Number(
+          attempt.currentQuestionIndex
+        ) === completedQuestionNumber;
+  if (
+    !completedQuestionNumber ||
+    !questionCount ||
+    !attemptStillAtReplayBoundary
+  ) {
+    return null;
+  }
+
+  const questionKey = String(
+    replay.answerChanges?.[0]
+      ?.questionKey || ""
+  ).trim();
+  const question =
+    pack.questions[
+      completedQuestionNumber - 1
+    ];
+  if (
+    !questionKey ||
+    question?.questionKey !==
+      questionKey
+  ) {
+    return null;
+  }
+
+  const savedAnswer =
+    attempt.answers.find(
+      (answer) =>
+        answer.questionKey ===
+        questionKey
+    )?.value || "";
+  const {
+    finalAnswer,
+    shouldApplyAnswer,
+  } = resolveAdvanceAnswer({
+    submissionMode,
+    value,
+    savedAnswer,
+  });
+  if (finalAnswer) {
+    assertNaturalNumberMaxThreeDigits(
+      finalAnswer
+    );
+  }
+  const change =
+    normalizeAnswerChanges(
+      [
+        {
+          questionKey,
+          value: finalAnswer,
+          clientAt: now,
+        },
+      ],
+      [questionKey]
+    );
+  return {
+    change,
+    finalAnswer,
+    shouldApplyAnswer,
+  };
+}
+
 function applyAnswerChanges({
   attempt,
   changes,
@@ -976,14 +1182,58 @@ async function advanceArenaMatchQuestion({
           idempotencyKey: eventKey,
         }),
         session
-      ).lean();
+      );
       if (replay) {
+        const reconciliation =
+          resolveTimeoutReplayReconciliation({
+            attempt,
+            pack,
+            replay,
+            operationId,
+            submissionMode,
+            value,
+            now,
+          });
+        if (reconciliation) {
+          if (
+            reconciliation.shouldApplyAnswer
+          ) {
+            applyAnswerChanges({
+              attempt,
+              changes:
+                reconciliation.change,
+              now,
+            });
+            await attempt.save({
+              session,
+            });
+          }
+          replay.answerChanges =
+            reconciliation.change;
+          replay.metadata = {
+            ...(replay.metadata || {}),
+            latestValueProvided: true,
+            latestValueReconciled: true,
+            latestValueReconciledAt:
+              now,
+          };
+          replay.markModified(
+            "answerChanges"
+          );
+          replay.markModified("metadata");
+          await replay.save({ session });
+        }
         result = {
           finalQuestion:
             Number(replay.metadata?.completedQuestionNumber) ===
             pack.questions.length,
           currentQuestionIndex: Number(attempt.currentQuestionIndex || 0),
+          evidenceDeadlineAt:
+            attempt.evidenceDeadlineAt ||
+            null,
           replayed: true,
+          latestValueReconciled:
+            Boolean(reconciliation),
         };
         return;
       }
@@ -1010,6 +1260,27 @@ async function advanceArenaMatchQuestion({
           "ARENA_QUESTION_TIME_REMAINS"
         );
       }
+      const completedQuestionDeadlineAt =
+        attempt.deadlineAt
+          ? new Date(
+              attempt.deadlineAt
+            )
+          : null;
+      if (
+        timedOut &&
+        operationId !==
+          timeoutAdvanceOperationId({
+            attemptId: attempt._id,
+            deadlineAt:
+              completedQuestionDeadlineAt,
+          })
+      ) {
+        throw statusError(
+          409,
+          "제한 시간 제출 번호가 현재 문항과 일치하지 않습니다.",
+          "ARENA_TIMEOUT_OPERATION_MISMATCH"
+        );
+      }
 
       const currentIndex = Number(attempt.currentQuestionIndex || 0);
       const question = pack.questions[currentIndex];
@@ -1026,9 +1297,17 @@ async function advanceArenaMatchQuestion({
             answer.questionKey ===
             question.questionKey
         )?.value || "";
-      const finalAnswer = timedOut
-        ? cleanAnswer(savedAnswer)
-        : cleanAnswer(value);
+      const {
+        finalAnswer,
+        shouldApplyAnswer,
+      } = resolveAdvanceAnswer({
+        submissionMode,
+        value,
+        savedAnswer,
+      });
+      const latestValueProvided =
+        value !== undefined &&
+        value !== null;
       if (finalAnswer) {
         assertNaturalNumberMaxThreeDigits(finalAnswer);
       }
@@ -1042,7 +1321,7 @@ async function advanceArenaMatchQuestion({
         ],
         [question.questionKey]
       );
-      if (!timedOut) {
+      if (shouldApplyAnswer) {
         applyAnswerChanges({
           attempt,
           changes: change,
@@ -1133,6 +1412,13 @@ async function advanceArenaMatchQuestion({
                 timedOut
                   ? "TIME_LIMIT"
                   : "MANUAL",
+              latestValueProvided,
+              questionDeadlineAt:
+                completedQuestionDeadlineAt,
+              timeoutOperationId:
+                timedOut
+                  ? operationId
+                  : null,
               evidenceDeadlineAt: attempt.evidenceDeadlineAt || null,
             },
           },
@@ -1530,9 +1816,11 @@ async function getArenaMatchPageData({
       matchId: match._id,
       userId,
       requestId:
-        `QUESTION_TIME_LIMIT:${attempt._id}:${new Date(
-          attempt.deadlineAt
-        ).getTime()}`,
+        timeoutAdvanceOperationId({
+          attemptId: attempt._id,
+          deadlineAt:
+            attempt.deadlineAt,
+        }),
       submissionMode: "TIME_LIMIT",
       now,
     });
@@ -1653,6 +1941,17 @@ async function getArenaMatchPageData({
             attempt.submittedAt,
           currentQuestionIndex:
             attempt.currentQuestionIndex,
+          timeoutOperationId:
+            attempt.status ===
+              "IN_PROGRESS" &&
+            attempt.deadlineAt
+              ? timeoutAdvanceOperationId({
+                  attemptId:
+                    attempt._id,
+                  deadlineAt:
+                    attempt.deadlineAt,
+                })
+              : null,
           evidenceDeadlineAt:
             attempt.evidenceDeadlineAt,
           evidenceSubmittedAt:
@@ -1751,9 +2050,11 @@ async function submitExpiredArenaAttempts({
         matchId: attempt.matchId,
         userId: attempt.userId,
         requestId:
-          `QUESTION_TIME_LIMIT:${attempt._id}:${new Date(
-            attempt.deadlineAt
-          ).getTime()}`,
+          timeoutAdvanceOperationId({
+            attemptId: attempt._id,
+            deadlineAt:
+              attempt.deadlineAt,
+          }),
         submissionMode: "TIME_LIMIT",
         now,
       });
@@ -1808,6 +2109,7 @@ module.exports = {
   ATTEMPT_SCHEDULER_INTERVAL_MS,
   MATCH_START_INTRO_DELAY_MS,
   QUESTION_INTRO_DELAY_MS,
+  TIMEOUT_ADVANCE_RECONCILIATION_MS,
   advanceArenaMatchQuestion,
   applyAnswerChanges,
   chooseSealedProblemPack,
@@ -1824,10 +2126,13 @@ module.exports = {
   publicCategoryLabelForQuestion,
   publicQuestionsForAttempt,
   publicSourceAccuracyForQuestion,
+  resolveAdvanceAnswer,
+  resolveTimeoutReplayReconciliation,
   recordArenaMatchActivity,
   saveArenaMatchAnswers,
   startArenaMatchAttempt,
   startArenaMatchAttemptScheduler,
   submitArenaMatchAttempt,
   submitExpiredArenaAttempts,
+  timeoutAdvanceOperationId,
 };

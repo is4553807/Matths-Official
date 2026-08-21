@@ -146,6 +146,61 @@
   min-block-size: 44px !important;
 }
 
+/* Shared action API. Role names keep action, progress, Arena and danger
+   semantics distinct; new surfaces should not invent a page-local `primary`. */
+.c-button {
+  min-inline-size: 44px;
+  min-block-size: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-inline: 20px;
+  border: 1px solid transparent;
+  border-radius: var(--matths-radius-md);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.c-button--primary {
+  color: var(--matths-on-brand);
+  background: var(--matths-action-primary);
+}
+
+.c-button--secondary {
+  color: var(--matths-ink);
+  background: var(--matths-surface);
+  border-color: var(--matths-line);
+}
+
+.c-button--danger {
+  color: #fff;
+  background: var(--matths-danger);
+}
+
+.c-button--arena {
+  color: var(--matths-navy);
+  background: var(--matths-arena-accent);
+}
+
+/* Accessible names stay available to assistive technology without creating
+   a second visual label. This utility is system-owned so public, parent,
+   dashboard and Arena pages do not each reinvent clipping rules. */
+.sr-only {
+  position: absolute !important;
+  inline-size: 1px !important;
+  block-size: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 /* 전역 모션 가드 — prefers-reduced-motion 이면 transform 트랜지션을 포함한
    모든 트랜지션·애니메이션을 즉시 완료시킨다. 이 파일은 모든 페이지에
    (직접 또는 matths-theme/main/brand/index/assessment 경유) 로드되므로

@@ -38,6 +38,8 @@
     <title>내 프로필 | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
     <%- include("partials/rank-motion-head") %>
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <link
       rel="icon"
       type="image/png"
@@ -275,7 +277,7 @@
           <datalist id="payback-bank-list"><option value="국민은행"></option><option value="신한은행"></option><option value="우리은행"></option><option value="하나은행"></option><option value="농협은행"></option><option value="기업은행"></option><option value="카카오뱅크"></option><option value="토스뱅크"></option><option value="케이뱅크"></option></datalist>
           <label><span>예금주</span><input name="accountHolderName" maxlength="40" autocomplete="name" required placeholder="계좌의 예금주 이름" /></label>
           <label><span>계좌번호</span><input name="accountNumber" inputmode="numeric" autocomplete="off" minlength="8" maxlength="24" required placeholder="하이픈 없이 숫자로 입력" /></label>
-          <button type="submit"><%= paybackAccount.confirmed ? "새 계좌 확인하기" : "계좌 정보 확인하기" %></button>
+          <button class="c-button c-button--primary" type="submit"><%= paybackAccount.confirmed ? "새 계좌 확인하기" : "계좌 정보 확인하기" %></button>
         </form>
         <p class="arena-account-security">계좌번호는 암호화해 저장하며, 사용자 화면에는 마지막 4자리만 표시합니다.</p>
       </section>
@@ -287,7 +289,7 @@
           <p>공용 기기에서는 이용을 마친 뒤 반드시 로그아웃해 주세요.</p>
         </div>
         <form action="/logout" method="post">
-          <button type="submit">GOAT Arena 로그아웃</button>
+          <button class="c-button c-button--secondary" type="submit">GOAT Arena 로그아웃</button>
         </form>
       </section>
     </main>

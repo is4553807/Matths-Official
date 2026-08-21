@@ -8,6 +8,8 @@
     <title><%= feature.name %> | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
     <%- include("partials/rank-motion-head") %>
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <script src="/js/goat-arena.js" defer></script>
   </head>
@@ -77,7 +79,7 @@
                       <time datetime="<%= new Date(item.occurredAt).toISOString() %>"><%= new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(item.occurredAt)) %></time>
                     <% } %>
                     <% if (item.href) { %>
-                      <a href="<%= item.href %>"><%= item.hrefLabel || "확인" %></a>
+                      <a class="c-button c-button--primary" href="<%= item.href %>"><%= item.hrefLabel || "확인" %></a>
                     <% } %>
                   </div>
                 </article>
@@ -92,7 +94,7 @@
           <% } %>
 
           <% if (featureData?.action) { %>
-            <p class="arena-live-action"><a href="<%= featureData.action.href %>"><%= featureData.action.label %> <span aria-hidden="true">→</span></a></p>
+            <p class="arena-live-action"><a class="c-button c-button--primary" href="<%= featureData.action.href %>"><%= featureData.action.label %> <span aria-hidden="true">→</span></a></p>
           <% } %>
         </section>
       <% } else { %>

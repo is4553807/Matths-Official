@@ -25,6 +25,7 @@ const {
 const {
     loadCurriculum,
     buildLearningViewModel,
+    isCourseAvailable,
 } = require("./curriculumService");
 const {
     formatDashboardFormula,
@@ -442,6 +443,98 @@ function createCurriculumIndex(curriculumData) {
     return index;
 }
 
+function learningItemKey(item) {
+    return [
+        item?.courseId,
+        item?.unitId,
+        item?.conceptId,
+    ].join("/");
+}
+
+function selectCurrentLearningCandidate({
+    progressDocuments,
+    learningData,
+    curriculumIndex,
+    lessonMap,
+}) {
+    const progressItems = Array.isArray(
+        progressDocuments
+    )
+        ? progressDocuments
+        : [];
+    const progressByKey = new Map(
+        progressItems.map((progress) => [
+            learningItemKey(progress),
+            progress,
+        ])
+    );
+
+    const isUsableKey = (key) => {
+        const metadata = curriculumIndex.get(key);
+
+        return Boolean(
+            metadata &&
+                !metadata.course.developmentLocked &&
+                isCourseAvailable(metadata.course.id) &&
+                lessonMap.has(key)
+        );
+    };
+
+    /*
+     * 쿼리가 lastStudiedAt 내림차순이므로 유효한 최근 학습을 먼저 고른다.
+     * 삭제된 교육과정 키, 준비 중인 과목, 비공개 강의, 완료한 개념은
+     * 홈의 주 행동이 될 수 없다.
+     */
+    for (const progress of progressItems) {
+        const key = learningItemKey(progress);
+        const isComplete =
+            progress.status === "completed" ||
+            Number(progress.completionPercent) >= 100;
+
+        if (!isComplete && isUsableKey(key)) {
+            return { key, progress };
+        }
+    }
+
+    /*
+     * 학습 이력이 없거나 최근 기록이 더 이상 유효하지 않으면
+     * 정렬된 교육과정 순서에서 첫 공개 미완료 개념을 선택한다.
+     */
+    for (const course of learningData?.courses || []) {
+        if (
+            course.developmentLocked ||
+            !isCourseAvailable(course.id)
+        ) {
+            continue;
+        }
+
+        for (const unit of course.units || []) {
+            for (const concept of unit.concepts || []) {
+                if (Number(concept.progress) >= 100) {
+                    continue;
+                }
+
+                const key = [
+                    course.id,
+                    unit.id,
+                    concept.id,
+                ].join("/");
+
+                if (isUsableKey(key)) {
+                    return {
+                        key,
+                        progress:
+                            progressByKey.get(key) ||
+                            null,
+                    };
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
 function createProgressMap(progressDocuments) {
     const concepts = {};
 
@@ -753,32 +846,17 @@ async function getDashboardData(userId) {
             assessmentAttempts
         );
 
+    const currentCandidate =
+        selectCurrentLearningCandidate({
+            progressDocuments,
+            learningData,
+            curriculumIndex,
+            lessonMap,
+        });
     const currentProgress =
-        progressDocuments.find(
-            (progress) =>
-                progress.status === "in-progress"
-        ) ||
-        progressDocuments.find(
-            (progress) =>
-                progress.status !== "completed"
-        ) ||
-        progressDocuments[0];
-
-    let currentKey = currentProgress
-        ? [
-              currentProgress.courseId,
-              currentProgress.unitId,
-              currentProgress.conceptId,
-          ].join("/")
-        : null;
-
-    if (!currentKey && lessons.length) {
-        currentKey = [
-            lessons[0].courseId,
-            lessons[0].unitId,
-            lessons[0].conceptId,
-        ].join("/");
-    }
+        currentCandidate?.progress || null;
+    const currentKey =
+        currentCandidate?.key || null;
 
     const currentMetadata = currentKey
         ? curriculumIndex.get(currentKey)
@@ -1447,4 +1525,7 @@ module.exports = {
     getDashboardData,
     toggleDailyPlanTask,
     updateCoachMode,
+    _testing: {
+        selectCurrentLearningCandidate,
+    },
 };

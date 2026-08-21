@@ -43,12 +43,6 @@
         activate(index, true);
         schedule();
       });
-      step.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        activate(index, true);
-        schedule();
-      });
     });
 
     flow.addEventListener("pointerenter", () => {

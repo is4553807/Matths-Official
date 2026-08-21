@@ -1834,7 +1834,7 @@
 .problem-prompt mjx-container[display="true"] {
   display: block !important;
   margin: 0.5em 0 !important;
-  font-size: clamp(0.72em, 1.4vw, 0.9em);
+  font-size: clamp(0.75rem, 1.4vw, 0.9em);
 }
 
 .solution-drawing {
@@ -2349,7 +2349,7 @@
   }
 
   .concept-intro-card > span mjx-container {
-    font-size: 0.58em !important;
+    font-size: 0.75rem !important;
   }
 
   .lab-controls {

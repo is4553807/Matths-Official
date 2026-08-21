@@ -256,12 +256,30 @@ async function synchronizeUserLifecycle(
 async function recordStudyActivity(
   userId,
   now = new Date(),
-  durationMs = 0
+  durationMs = 0,
+  {
+    idempotencyKey = "",
+  } = {}
 ) {
   const studySeconds = Math.max(
     0,
     Number(durationMs) || 0
   ) / 1000;
+  const activityReceiptId =
+    String(
+      idempotencyKey || ""
+    ).trim();
+
+  if (
+    activityReceiptId.length >
+    200
+  ) {
+    const error = new Error(
+      "학습 활동 영수증 식별자가 너무 깁니다."
+    );
+    error.status = 400;
+    throw error;
+  }
 
   for (
     let attempt = 0;
@@ -270,7 +288,11 @@ async function recordStudyActivity(
   ) {
     const user = await User.findById(
       userId
-    ).lean();
+    )
+      .select(
+        "+studyActivityReceiptIds"
+      )
+      .lean();
 
     if (!user) {
       const error = new Error(
@@ -278,6 +300,18 @@ async function recordStudyActivity(
       );
       error.status = 404;
       throw error;
+    }
+
+    if (
+      activityReceiptId &&
+      user.studyActivityReceiptIds
+        ?.includes(
+          activityReceiptId
+        )
+    ) {
+      return User.findById(
+        userId
+      );
     }
 
     const gap = getDateGapInDays(
@@ -303,9 +337,16 @@ async function recordStudyActivity(
 
     const previousLastStudyDate =
       user.lastStudyDate || null;
+    const isHistoricalActivity =
+      previousLastStudyDate &&
+      new Date(now).getTime() <
+        new Date(
+          previousLastStudyDate
+        ).getTime();
 
-    const update = {
-      $set: {
+    const update = {};
+    if (!isHistoricalActivity) {
+      update.$set = {
         currentStreak:
           nextStreak,
         longestStreak: Math.max(
@@ -315,8 +356,8 @@ async function recordStudyActivity(
           nextStreak
         ),
         lastStudyDate: now,
-      },
-    };
+      };
+    }
 
     if (studySeconds > 0) {
       update.$inc = {
@@ -324,13 +365,40 @@ async function recordStudyActivity(
           studySeconds,
       };
     }
+    if (activityReceiptId) {
+      update.$addToSet = {
+        studyActivityReceiptIds:
+          activityReceiptId,
+      };
+    }
+    if (!Object.keys(update).length) {
+      return User.findById(
+        userId
+      );
+    }
 
     const updated =
       await User.findOneAndUpdate(
         {
           _id: user._id,
-          lastStudyDate:
-            previousLastStudyDate,
+          ...(
+            isHistoricalActivity
+              ? {}
+              : {
+                  lastStudyDate:
+                    previousLastStudyDate,
+                }
+          ),
+          ...(
+            activityReceiptId
+              ? {
+                  studyActivityReceiptIds: {
+                    $ne:
+                      activityReceiptId,
+                  },
+                }
+              : {}
+          ),
         },
         update,
         {
@@ -340,6 +408,16 @@ async function recordStudyActivity(
       );
 
     if (updated) return updated;
+
+    if (activityReceiptId) {
+      const replayed =
+        await User.findOne({
+          _id: user._id,
+          studyActivityReceiptIds:
+            activityReceiptId,
+        });
+      if (replayed) return replayed;
+    }
   }
 
   const error = new Error(

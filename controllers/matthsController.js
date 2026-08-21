@@ -263,6 +263,9 @@ const {
   updateLearningPackagePrice,
 } = require("../services/arenaPolicyService");
 const {
+  arenaPublicContractView,
+} = require("../services/arenaPublicContractViewService");
+const {
   alertPotentialDuplicateIdentity,
   buildIdentityMatchHash,
   normalizeBirthDate,
@@ -369,11 +372,21 @@ const BCRYPT_ROUNDS = 12;
 const SOCIAL_AUTH_SELECT =
   "+socialAuth.googleId +socialAuth.kakaoId +socialAuth.appleId";
 
-exports.mainPage = (req,res) => {
+exports.mainPage = async (req, res) => {
+    let activeArenaPolicy = null;
+    try {
+      activeArenaPolicy = await getActiveArenaPolicy();
+    } catch (error) {
+      // 공개 랜딩은 정책 DB를 잠시 읽지 못해도 공식 기본 정책으로 렌더한다.
+      console.error("랜딩 Arena 계약 정책 조회 실패:", error);
+    }
+
     res.render('index', {
       user:
         req.session?.user ||
         null,
+      arenaContract:
+        arenaPublicContractView(activeArenaPolicy),
     });
 }
 
@@ -457,6 +470,26 @@ function protectedPageLoginNotice(req) {
   return isSafeStudentReturnPath(req.session?.returnTo)
     ? "로그인이 필요한 페이지입니다. 로그인하면 요청하신 페이지로 바로 이동합니다."
     : null;
+}
+
+function privateMockActivityDate(result) {
+  const acceptedAt =
+    new Date(
+      result?.acceptedAt
+    );
+  if (
+    Number.isNaN(
+      acceptedAt.getTime()
+    )
+  ) {
+    const error =
+      new Error(
+        "제출 접수 시각 영수증이 올바르지 않습니다."
+      );
+    error.status = 500;
+    throw error;
+  }
+  return acceptedAt;
 }
 
 exports.loginPage = (req,res) => {
@@ -3695,12 +3728,25 @@ exports.submitPrivateMockExam =
           telemetryEvents:
             req.body
               .telemetryEvents,
+          requestId:
+            req.get(
+              "idempotency-key"
+            ) ||
+            req.body.requestId,
+          capturedAt:
+            req.body.capturedAt,
         });
       const activityUser =
         await recordStudyActivity(
           req.session.user.id,
-          new Date(),
-          result.elapsedMs
+          privateMockActivityDate(
+            result
+          ),
+          result.elapsedMs,
+          {
+            idempotencyKey:
+              result.activityReceiptId,
+          }
         );
       Object.assign(
         req.session.user,
@@ -3711,6 +3757,10 @@ exports.submitPrivateMockExam =
 
       return res.json({
         submitted: true,
+        replayed:
+          result.replayed,
+        receiptId:
+          result.receiptId,
         result,
       });
     } catch (error) {

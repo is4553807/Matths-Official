@@ -162,14 +162,11 @@
       content="<%= attempt.title %> 응시 화면"
     />
     <title><%= attempt.title %> | Matths</title>
-    <link
-      rel="stylesheet"
-      href="/css/main.css"
-    />
-    <link
-      rel="stylesheet"
-      href="/css/assessment.css"
-    />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/assessment.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <script>
       window.MathJax = {
         tex: {
@@ -208,7 +205,7 @@
     <% } %>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
-    <link rel="stylesheet" href="/css/brand.css" />
+
   </head>
   <body class="assessment-page attempt-page <%= isPlacement ? 'placement-attempt-page' : '' %>">
     <a
@@ -336,7 +333,7 @@
                 ? "대단원 평가"
                 : "과목 평가" %>
           </p>
-          <h1><%= attempt.title %></h1>
+          <h2><%= attempt.title %></h2>
           <p><%= attempt.subtitle %></p>
           <p class="attempt-time-limit">
             제한 시간 <strong><%= timeLimitLabel %></strong>

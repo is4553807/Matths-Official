@@ -1,0 +1,8 @@
+/*
+ * Matths interface system entry point.
+ *
+ * Views load /css/brand.css from <head>; brand.css imports this file before
+ * its logo-specific rules. Navigation partials stay markup-only, page styles
+ * follow the base, and contrast.css is linked last by each complete document.
+ */
+@import url("/css/matths-theme.css");
