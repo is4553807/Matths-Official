@@ -16,6 +16,7 @@
     "ipad-weekly-mock-evidence:verify": "node audit/verifyIpadWeeklyMockEvidenceContract.js",
     "ipad-arena-command-http:verify": "node audit/verifyIpadArenaCommandHttpContract.js",
     "ipad-notification-http:verify": "node audit/verifyIpadNotificationHttpContract.js",
+    "apple-signin:verify": "node scripts/verifyAppleSignIn.js",
     "apple-commerce-http:verify": "node audit/verifyAppleCommerceHttpContract.js",
     "ipad-arena-shop:verify": "node scripts/verifyIpadArenaShopContract.js",
     "app-commerce-handoff:verify": "node audit/verifyAppCommerceHandoffErrorContract.js",

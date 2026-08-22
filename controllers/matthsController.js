@@ -5367,7 +5367,8 @@ exports.register = async (req, res, next) => {
           user,
           mobileSocialRegistration,
           socialRegistration
-            ?.codeChallenge || null
+            ?.codeChallenge || null,
+          socialRegistration?.provider
         );
     } catch (error) {
         const pendingSocialRegistration =

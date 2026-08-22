@@ -174,6 +174,10 @@ async function main() {
     /"\/auth\/kakao\/callback"/
   );
   assert.match(read("models/matthsModel.js"), /socialAuth\.kakaoId/);
+  assert.match(
+    read("controllers/matthsController.js"),
+    /socialRegistration\s*\?\.codeChallenge\s*\|\|\s*null,\s*socialRegistration\?\.provider/
+  );
   assert.match(read("views/login.ejs"), /카카오로 계속하기/);
   assert.match(read("public/css/auth.css"), /\.social-auth-button\.is-kakao/);
   // .env.example 은 .gitignore 의 `.env.*` 에 막혀 저장소에 추적되지 않는다.
