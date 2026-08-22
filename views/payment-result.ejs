@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
   <link rel="stylesheet" href="/css/brand.css" />
   <link rel="stylesheet" href="/css/parent.css" />
+  <link rel="stylesheet" href="/css/contrast.css" />
 </head>
 <body class="checkout-page">
   <main class="student-checkout-main">
@@ -28,7 +29,7 @@
         <span>입금 완료 웹훅을 확인한 뒤 이용 권한이 자동으로 적용됩니다.</span>
       <% } else { %>
         <p>PAYMENT NOT COMPLETED</p>
-        <h1>결제가 완료되지 않았습니다.</h1>
+        <h1><%= result.heading || "결제가 완료되지 않았습니다." %></h1>
         <span><%= failure?.message || "결제창을 닫았거나 승인 과정에서 문제가 발생했습니다." %></span>
         <% if (failure?.code) { %><small class="payment-failure-code"><%= failure.code %></small><% } %>
       <% } %>

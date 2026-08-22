@@ -20,6 +20,20 @@ options:
       value: matths.kr
     - name: CANONICAL_HOST
       value: www.matths.kr
+    # Apple 로그인은 Bundle ID만 있으면 활성화된다. 아래 Team/Key ID는
+    # 계정 탈퇴 시 Apple 토큰 폐기에 쓰며, PRIVATE KEY는 Cloudtype 시크릿으로 둔다.
+    - name: APPLE_BUNDLE_ID
+      value: kr.matths.app
+    - name: APPLE_ALLOW_SANDBOX
+      value: "true"
+    - name: APPLE_TEAM_ID
+      value: 64U874RU4D
+    - name: APPLE_KEY_ID
+      value: 9QKK29V5FQ
+    - name: FINANCE_APPLE_FEE_RESERVE_BPS
+      value: "3000"
+    - name: PUBLIC_CONTACT_EMAIL
+      value: dltnqls7297@matths.kr
   install: npm ci --omit=dev --no-audit
   ports: 8000/http
   start: npm start

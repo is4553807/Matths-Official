@@ -1393,6 +1393,16 @@ router.get(
   }
 );
 
+// 카카오 앱도 Google과 같은 PKCE 왕복을 사용하되 결과는
+// matths://oauth/kakao 로 돌려보낸다. 앱 경로에는 웹 세션 가드를 걸지 않는다.
+router.get(
+  "/auth/kakao/app",
+  (req, res, next) => {
+    req.params.provider = "kakao";
+    return matthsController.socialOAuthAppStart(req, res, next);
+  }
+);
+
 router.get(
   "/auth/kakao",
   authMiddleware.isLoggedOut,

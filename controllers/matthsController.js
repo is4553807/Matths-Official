@@ -257,6 +257,9 @@ const {
   updateLearningPackagePrice,
 } = require("../services/arenaPolicyService");
 const {
+  arenaPublicContractView,
+} = require("../services/arenaPublicContractViewService");
+const {
   alertPotentialDuplicateIdentity,
   buildIdentityMatchHash,
   normalizeBirthDate,
@@ -357,13 +360,23 @@ const bcrypt = require('bcrypt');
 const crypto = require("crypto");
 const BCRYPT_ROUNDS = 12;
 const SOCIAL_AUTH_SELECT =
-  "+socialAuth.googleId +socialAuth.kakaoId";
+  "+socialAuth.googleId +socialAuth.kakaoId +socialAuth.appleId";
 
-exports.mainPage = (req,res) => {
+exports.mainPage = async (req, res) => {
+    let activeArenaPolicy = null;
+    try {
+      activeArenaPolicy = await getActiveArenaPolicy();
+    } catch (error) {
+      // 공개 랜딩은 정책 DB를 잠시 읽지 못해도 공식 기본 정책으로 렌더한다.
+      console.error("랜딩 Arena 계약 정책 조회 실패:", error);
+    }
+
     res.render('index', {
       user:
         req.session?.user ||
         null,
+      arenaContract:
+        arenaPublicContractView(activeArenaPolicy),
     });
 }
 
@@ -536,16 +549,21 @@ exports.socialOAuthStart = async (req, res) => {
       req,
       res,
       error,
-      req.socialOAuthMobile === true
+      req.socialOAuthMobile === true,
+      req.params.provider
     );
   }
 };
 
+/* 앱(ASWebAuthenticationSession)이 여는 provider 공통 PKCE 진입점. */
 exports.socialOAuthAppStart = (
   req,
   res,
   next
 ) => {
+  const provider = String(
+    req.params?.provider || "google"
+  ).toLowerCase();
   const codeChallenge = String(
     req.query?.code_challenge || ""
   ).trim();
@@ -556,7 +574,7 @@ exports.socialOAuthAppStart = (
     )
   ) {
     const error = new Error(
-      "Google 로그인을 안전하게 시작하지 못했습니다. 앱에서 다시 시도해주세요."
+      `${socialProviderLabel(provider)} 로그인을 안전하게 시작하지 못했습니다. 앱에서 다시 시도해주세요.`
     );
     error.code =
       "SOCIAL_AUTH_PKCE_REQUIRED";
@@ -564,11 +582,12 @@ exports.socialOAuthAppStart = (
       req,
       res,
       error,
-      true
+      true,
+      provider
     );
   }
 
-  req.params.provider = "google";
+  req.params.provider = provider;
   req.socialOAuthMobile = true;
   req.socialOAuthCodeChallenge =
     codeChallenge;
@@ -579,11 +598,28 @@ exports.socialOAuthAppStart = (
   );
 };
 
+function socialProviderLabel(provider) {
+  switch (String(provider || "").toLowerCase()) {
+    case "kakao":
+      return "카카오";
+    case "apple":
+      return "Apple";
+    default:
+      return "Google";
+  }
+}
+
+function mobileCallbackURL(provider) {
+  const key = String(provider || "google").toLowerCase();
+  return new URL(`matths://oauth/${encodeURIComponent(key)}`);
+}
+
 async function redirectSocialAuthError(
   req,
   res,
   error,
-  mobile = false
+  mobile = false,
+  provider = "google"
 ) {
   const userSafeCodes = new Set([
     "SOCIAL_AUTH_NOT_CONFIGURED",
@@ -600,9 +636,7 @@ async function redirectSocialAuthError(
     : "소셜 로그인을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.";
 
   if (mobile) {
-    const url = new URL(
-      "matths://oauth/google"
-    );
+    const url = mobileCallbackURL(provider);
     url.searchParams.set(
       "error",
       message
@@ -623,7 +657,8 @@ async function finishSocialLogin(
   res,
   user,
   mobile,
-  codeChallenge = null
+  codeChallenge = null,
+  provider = "google"
 ) {
   if (mobile) {
     const code =
@@ -631,9 +666,7 @@ async function finishSocialLogin(
         user._id,
         { codeChallenge }
       );
-    const url = new URL(
-      "matths://oauth/google"
-    );
+    const url = mobileCallbackURL(provider);
     url.searchParams.set(
       "code",
       code
@@ -724,7 +757,8 @@ exports.socialOAuthCallback = async (req, res) => {
         synchronizedUser,
         mobile,
         context.codeChallenge ||
-          null
+          null,
+        profile.provider
       );
     }
 
@@ -754,7 +788,8 @@ exports.socialOAuthCallback = async (req, res) => {
       req,
       res,
       error,
-      mobile
+      mobile,
+      req.params.provider
     );
   }
 };

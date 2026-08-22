@@ -1,0 +1,219 @@
+/*
+ * Matths 브랜드 토큰 — CI 최신본(팔레트 v4)
+ * 정본: ipad-app/Matths/DesignTokens.swift (CI 가이드북 2026.08 p.11-12).
+ * 앱 토큰을 고치면 이 파일을 같이 고친다 — 한쪽만 고치면 웹과 앱이 갈라진다.
+ *
+ * 규율:
+ *   · 4-stop 그라데이션(0/35/70/100 고정)은 로고·티어·완료 모먼트 전용, 뷰포트당 1회.
+ *   · CTA·내비 활성·진행바·아바타는 단색 — 액션은 바이올렛, 진행/기능 포인트는 블루.
+ *   · 네이비 면은 화면당 1개, 그 안의 액센트는 시안 단독.
+ */
+
+/* 배포 번들에 별도 웹폰트를 강제하지 않는다. matths-theme.css의
+   SUIT/Pretendard/시스템 폰트 스택을 사용해 첫 화면을 즉시 렌더한다. */
+
+:root {
+  /* CI 원색 — p.11 Color System */
+  --matths-magenta: #ca44e3;
+  --matths-violet: #7b4efc;
+  --matths-blue: #327ffa;
+  --matths-cyan: #0cdcf1;
+  --matths-navy: #090c1b;
+
+  /* 네이비 면 구성 — 깊이는 그림자 대신 승격 레이어로 */
+  --matths-navy-soft: #12162b;
+  --matths-navy-elevated: #131730;
+  --matths-on-navy: #f4f6ff;
+
+  /* 브랜드 면 위 글자 · 주 버튼 압출(밑판) */
+  --matths-on-brand: #fdfcff;
+  --matths-violet-deep: #6340ca;
+
+  /* 시맨틱 — 웹은 라이트 단일 외관이라 앱의 라이트 값을 쓴다 */
+  --matths-ink: #111426;
+  --matths-muted: #5c6478; /* 종전 #747d93 은 surface 위 AA 미달 — 앱과 같은 보정값 */
+  --matths-canvas: #f3f6ff;
+  --matths-surface: #fcfdff;
+  --matths-line: #e3e8f4;
+
+  /* 역할 이름이 곧 사용법이다. `primary`는 호환 별칭으로만 남긴다. */
+  --matths-action-primary: var(--matths-violet);
+  --matths-action-primary-pressed: var(--matths-violet-deep);
+  --matths-progress-blue: var(--matths-blue);
+  --matths-arena-accent: var(--matths-cyan);
+  --matths-primary: var(--matths-progress-blue);
+  --matths-primary-dark: #2563d6;
+  --matths-primary-soft: #e8edff;
+
+  /* 보상 모먼트 전용 — 상태(경고) 표시로 오용하지 않는다 */
+  --matths-reward-gold: #f59e0b;
+
+  /* 위험 행동 전용 — iPad Tokens.danger / dangerSoft 와 같은 정본 값. */
+  --matths-danger: #e0344a;
+  --matths-danger-soft: #fde8eb;
+
+  /* CI 4-stop 그라데이션 — p.12 Gradient System.
+     임의 색상 추가·역방향·불연속 밴딩 금지, 스톱 4개 고정. */
+  --matths-gradient: linear-gradient(
+    90deg,
+    var(--matths-magenta) 0%,
+    var(--matths-violet) 35%,
+    var(--matths-blue) 70%,
+    var(--matths-cyan) 100%
+  );
+  /* 같은 4-스톱의 135° 대각 변형(M stroke) — 티어 배지 등 대각 브랜드 면 전용 */
+  --matths-gradient-diagonal: linear-gradient(
+    135deg,
+    var(--matths-magenta) 0%,
+    var(--matths-violet) 35%,
+    var(--matths-blue) 70%,
+    var(--matths-cyan) 100%
+  );
+
+  /* 반경 — 앱 Radius 와 동일 (md 12 · lg 18 · xl 24) */
+  --matths-radius-sm: 8px;
+  --matths-radius-md: 12px;
+  --matths-radius: 18px;
+  --matths-radius-lg: 24px;
+
+  /* 모션 계약 — 사이트 전역 공통(여기가 정의, 전 파일 준수).
+     · hover 는 카드 translateY(-1px) + 보더/섀도 미세 변화 또는 배경 틴트만.
+     · scale(1 초과) 금지, 컬러 글로우(blur 20px+ 유채색 섀도) 금지.
+     · 인터랙션 트랜지션은 240ms 를 넘지 않는다(콘텐츠 전환 연출만 예외).
+     · prefers-reduced-motion 은 파일별 블록 대신 아래 전역 가드 1개로 처리. */
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
+  --motion-slow: 240ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  /* hover 공통 리프트·미세 섀도 — 컬러 글로우 대체용 중립 섀도 */
+  --motion-lift: translateY(-1px);
+  --motion-hover-shadow: 0 2px 8px rgba(9, 12, 27, 0.08);
+
+  /* 로고 마크 — brand/logo-mark.svg 와 동일 지오메트리·v4 색.
+     CSS 도형(사각형+회전 문자)으로 로고를 그리지 않는다. 네이비 바탕 위에 얹는다. */
+  --matths-logo-mark: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='p' x1='118' y1='150' x2='262' y2='428' gradientUnits='userSpaceOnUse'><stop offset='0' stop-color='%23CA44E3'/><stop offset='1' stop-color='%237B4EFC'/></linearGradient><linearGradient id='b' x1='394' y1='150' x2='250' y2='428' gradientUnits='userSpaceOnUse'><stop offset='0' stop-color='%230CDCF1'/><stop offset='1' stop-color='%23327FFA'/></linearGradient></defs><path d='M118 428 L118 150 L243 320' fill='none' stroke='url(%23p)' stroke-width='88' stroke-linecap='round' stroke-linejoin='round'/><path d='M394 428 L394 150 L258 360' fill='none' stroke='url(%23b)' stroke-width='88' stroke-linecap='round' stroke-linejoin='round'/><path d='M256 44C261 74 266 79 296 84C266 89 261 94 256 124C251 94 246 89 216 84C246 79 251 74 256 44Z' fill='%23F8F9FF'/></svg>");
+}
+
+/* 반투명 포커스 링은 밝은 surface에서 3:1 경계를 놓친다.
+   모든 키보드 조작 요소에 불투명 브랜드 바이올렛 링을 강제한다. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--matths-violet) !important;
+  outline-offset: 3px !important;
+}
+
+/* 공통 내비게이션을 매번 통과하지 않고 본문으로 이동하는 키보드 경로. */
+.matths-skip-link {
+  position: fixed;
+  inset-block-start: 12px;
+  inset-inline-start: 12px;
+  z-index: 10000;
+  min-block-size: 44px;
+  padding: 11px 18px;
+  color: #fff;
+  background: var(--matths-navy);
+  border-radius: var(--matths-radius-md);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 22px;
+  text-decoration: none;
+  transform: translateY(calc(-100% - 24px));
+}
+
+.matths-skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.matths-skip-target {
+  display: block;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+}
+
+/* iPad·모바일에서 실제로 누르는 네이티브 조작부는 시각 크기와 무관하게
+   최소 44px 조작 영역을 갖는다. 페이지별 구형 25~43px 선언보다 이 계약이
+   우선하며, 문장 안의 일반 링크에는 적용하지 않는다. */
+:where(button, [role="button"]) {
+  min-inline-size: 44px !important;
+  min-block-size: 44px !important;
+}
+
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  select,
+  summary
+) {
+  min-block-size: 44px !important;
+}
+
+/* Shared action API. Role names keep action, progress, Arena and danger
+   semantics distinct; new surfaces should not invent a page-local `primary`. */
+.c-button {
+  min-inline-size: 44px;
+  min-block-size: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-inline: 20px;
+  border: 1px solid transparent;
+  border-radius: var(--matths-radius-md);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.c-button--primary {
+  color: var(--matths-on-brand);
+  background: var(--matths-action-primary);
+}
+
+.c-button--secondary {
+  color: var(--matths-ink);
+  background: var(--matths-surface);
+  border-color: var(--matths-line);
+}
+
+.c-button--danger {
+  color: #fff;
+  background: var(--matths-danger);
+}
+
+.c-button--arena {
+  color: var(--matths-navy);
+  background: var(--matths-arena-accent);
+}
+
+/* Accessible names stay available to assistive technology without creating
+   a second visual label. This utility is system-owned so public, parent,
+   dashboard and Arena pages do not each reinvent clipping rules. */
+.sr-only {
+  position: absolute !important;
+  inline-size: 1px !important;
+  block-size: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* 전역 모션 가드 — prefers-reduced-motion 이면 transform 트랜지션을 포함한
+   모든 트랜지션·애니메이션을 즉시 완료시킨다. 이 파일은 모든 페이지에
+   (직접 또는 matths-theme/main/brand/index/assessment 경유) 로드되므로
+   개별 파일에 가드를 중복 배치하지 않는다. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

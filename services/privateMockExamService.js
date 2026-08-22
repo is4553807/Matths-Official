@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const mongoose = require("mongoose");
 const {
+  createHash,
   randomUUID,
 } = require("crypto");
 
@@ -14,6 +15,8 @@ const {
   PrivateMockExam,
   PrivateMockExamAttempt,
   PrivateMockExamEvent,
+  ensurePrivateMockSubmissionEventIndex,
+  ensurePrivateMockIntegrityCaseAttemptIndex,
   PrivateMockAnswerCorrection,
   PrivateMockIntegrityCase,
   PrivateMockObjection,
@@ -115,6 +118,10 @@ const DEFAULT_DURATION_MINUTES =
   100;
 const PRIVATE_MOCK_LOBBY_MS =
   10 * MINUTE_MS;
+const PRIVATE_MOCK_SUBMISSION_CLAIM_LEASE_MS =
+  2 * MINUTE_MS;
+const PRIVATE_MOCK_SUBMISSION_SETTLEMENT_MS =
+  PRIVATE_MOCK_SUBMISSION_CLAIM_LEASE_MS;
 const PRIVATE_MOCK_FORM_SCHEDULES =
   Object.freeze({
     A: {
@@ -173,6 +180,17 @@ function rankableIntegrityFilter() {
   };
 }
 
+function completedPrivateMockFinalizationFilter() {
+  return {
+    "submissionFinalization.status": {
+      $nin: [
+        "pending",
+        "processing",
+      ],
+    },
+  };
+}
+
 function statusError(
   status,
   message
@@ -209,6 +227,97 @@ function cleanMultiline(
     .replace(/\r\n?/g, "\n")
     .trim()
     .slice(0, maxLength);
+}
+
+function privateMockEvidenceReceiptId({
+  userId,
+  caseId,
+  submissionId,
+}) {
+  const normalizedSubmissionId =
+    cleanSingleLine(
+      submissionId,
+      200
+    );
+  if (!normalizedSubmissionId) {
+    return null;
+  }
+
+  const bytes = createHash("sha256")
+    .update(
+      [
+        String(userId),
+        String(caseId),
+        normalizedSubmissionId,
+      ].join("\u0000")
+    )
+    .digest()
+    .subarray(0, 16);
+  bytes[6] =
+    (bytes[6] & 0x0f) | 0x50;
+  bytes[8] =
+    (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join("-");
+}
+
+function privateMockEvidenceResult(
+  submission,
+  { replayed }
+) {
+  return {
+    submitted: true,
+    replayed,
+    receiptId:
+      String(
+        submission.receiptId
+      ),
+    submittedAt:
+      new Date(
+        submission.submittedAt
+      ).toISOString(),
+  };
+}
+
+function findPrivateMockEvidenceSubmission(
+  integrityCase,
+  receiptId
+) {
+  return (
+    integrityCase
+      ?.evidenceSubmissions || []
+  ).find(
+    (submission) =>
+      String(
+        submission.receiptId
+      ) === receiptId
+  );
+}
+
+async function discardPrivateMockEvidenceArtifacts({
+  uploadFiles,
+  createdItems = [],
+}) {
+  await Promise.allSettled(
+    uploadFiles.map((file) =>
+      discardArchiveUpload(file)
+    )
+  );
+  if (createdItems.length) {
+    await ArchiveItem.deleteMany({
+      _id: {
+        $in: createdItems.map(
+          (item) => item._id
+        ),
+      },
+    }).catch(() => {});
+  }
 }
 
 function normalizeAnswer(value) {
@@ -2066,6 +2175,7 @@ async function refreshExamStandardMetrics(
     await PrivateMockExamAttempt.find({
       examId: exam._id,
       status: "submitted",
+      ...completedPrivateMockFinalizationFilter(),
     }).lean();
   const attempts =
     await withoutExpiredArenaAttempts(
@@ -2233,6 +2343,7 @@ async function syncPrivateMockWeeklyResult({
       userId,
       weekKey,
       status: "submitted",
+      ...completedPrivateMockFinalizationFilter(),
       ...rankableIntegrityFilter(),
       "standardMetrics.calculatedAt": {
         $ne: null,
@@ -2406,6 +2517,7 @@ async function getPrivateMockSelectionView({
       userId,
       weekKey,
       status: "submitted",
+      ...completedPrivateMockFinalizationFilter(),
       ...rankableIntegrityFilter(),
       "standardMetrics.calculatedAt": {
         $ne: null,
@@ -2506,6 +2618,92 @@ async function getPrivateMockSelectionView({
   };
 }
 
+function inactivePrivateMockSubmissionClaimFilter(
+  now
+) {
+  return {
+    $or: [
+      {
+        "submissionClaim.requestId": {
+          $in: [
+            "",
+            null,
+          ],
+        },
+      },
+      {
+        "submissionClaim.requestId": {
+          $exists: false,
+        },
+      },
+      {
+        "submissionClaim.expiresAt": {
+          $lt: now,
+        },
+      },
+    ],
+  };
+}
+
+async function finalizePendingPrivateMockSubmissions(
+  exam,
+  now
+) {
+  const pendingAttempts =
+    await PrivateMockExamAttempt.find({
+      examId:
+        exam._id,
+      status:
+        "submitted",
+      "submissionFinalization.status": {
+        $in: [
+          "pending",
+          "processing",
+        ],
+      },
+    }).lean();
+
+  for (const attempt of
+    pendingAttempts) {
+    try {
+      await finalizePrivateMockSubmission({
+        exam,
+        attempt,
+        userId:
+          attempt.userId,
+        requestId:
+          attempt
+            .submissionFinalization
+            ?.requestId,
+        clientCapturedAt:
+          attempt
+            .submissionFinalization
+            ?.clientCapturedAt,
+        now:
+          attempt
+            .submissionReceipt
+            ?.acceptedAt ||
+          now,
+      });
+    } catch (error) {
+      // Durable outbox remains pending; the next scheduler pass retries it.
+    }
+  }
+
+  return PrivateMockExamAttempt.countDocuments({
+    examId:
+      exam._id,
+    status:
+      "submitted",
+    "submissionFinalization.status": {
+      $in: [
+        "pending",
+        "processing",
+      ],
+    },
+  });
+}
+
 async function lockPrivateMockExam(
   exam,
   now
@@ -2515,6 +2713,9 @@ async function lockPrivateMockExam(
       examId: exam._id,
       status:
         "in_progress",
+      ...inactivePrivateMockSubmissionClaimFilter(
+        now
+      ),
     },
     {
       $set: {
@@ -2523,9 +2724,56 @@ async function lockPrivateMockExam(
           exam.durationMinutes *
           60 *
           1000,
+        expiredAt:
+          now,
+      },
+      $unset: {
+        submissionClaim: "",
       },
     }
   );
+  const activeSubmissionClaims =
+    await PrivateMockExamAttempt.countDocuments(
+      {
+        examId: exam._id,
+        status:
+          "in_progress",
+        "submissionClaim.requestId": {
+          $nin: [
+            "",
+            null,
+          ],
+        },
+        "submissionClaim.receivedAt": {
+          $lt:
+            new Date(
+              exam.closeAt
+            ),
+        },
+        "submissionClaim.expiresAt": {
+          $gte: now,
+        },
+      }
+    );
+  if (activeSubmissionClaims) {
+    return {
+      pendingSubmissionClaims:
+        activeSubmissionClaims,
+      pendingSubmissionFinalizations:
+        0,
+    };
+  }
+  const pendingSubmissionFinalizations =
+    await finalizePendingPrivateMockSubmissions(
+      exam,
+      now
+    );
+  if (pendingSubmissionFinalizations) {
+    return {
+      pendingSubmissionClaims: 0,
+      pendingSubmissionFinalizations,
+    };
+  }
   await refreshExamStandardMetrics(
     exam,
     now
@@ -2566,6 +2814,64 @@ async function lockPrivateMockExam(
       }
     );
   }
+  return {
+    pendingSubmissionClaims: 0,
+    pendingSubmissionFinalizations: 0,
+  };
+}
+
+async function prepareLockedPrivateMockExam(
+  exam,
+  now
+) {
+  const lockResult =
+    await lockPrivateMockExam(
+      exam,
+      now
+    );
+  if (
+    lockResult
+      .pendingSubmissionClaims ||
+    lockResult
+      .pendingSubmissionFinalizations
+  ) {
+    await PrivateMockExam.updateOne(
+      {
+        _id:
+          exam._id,
+        status:
+          "locked",
+      },
+      {
+        $set: {
+          status: "open",
+          settlementCompletedAt:
+            null,
+        },
+      }
+    );
+    return false;
+  }
+
+  const settled =
+    await PrivateMockExam.updateOne(
+      {
+        _id:
+          exam._id,
+        status:
+          "locked",
+      },
+      {
+        $set: {
+          settlementCompletedAt:
+            now,
+        },
+      }
+    );
+  return Boolean(
+    settled.matchedCount ??
+      settled.n
+  );
 }
 
 async function withoutExpiredArenaAttempts(
@@ -2652,6 +2958,7 @@ async function lockPrivateMockWeekSelections(
     await PrivateMockExamAttempt.find({
       weekKey,
       status: "submitted",
+      ...completedPrivateMockFinalizationFilter(),
       ...rankableIntegrityFilter(),
     })
       .sort({
@@ -3031,6 +3338,7 @@ async function analyzePrivateMockExam(
     await PrivateMockExamAttempt.find({
       examId: exam._id,
       status: "submitted",
+      ...completedPrivateMockFinalizationFilter(),
       ...rankableIntegrityFilter(),
     })
       .sort({
@@ -3541,6 +3849,11 @@ async function processPrivateMockSchedule(
       );
     }
 
+    const submissionSettlementCutoff =
+      new Date(
+        now.getTime() -
+          PRIVATE_MOCK_SUBMISSION_SETTLEMENT_MS
+      );
     const due =
       await PrivateMockExam.find({
         status: {
@@ -3550,7 +3863,8 @@ async function processPrivateMockSchedule(
           ],
         },
         closeAt: {
-          $lte: now,
+          $lte:
+            submissionSettlementCutoff,
         },
       }).lean();
 
@@ -3570,6 +3884,8 @@ async function processPrivateMockSchedule(
             $set: {
               status:
                 "locked",
+              settlementCompletedAt:
+                null,
             },
           },
           {
@@ -3585,7 +3901,7 @@ async function processPrivateMockSchedule(
       }
 
       try {
-        await lockPrivateMockExam(
+        await prepareLockedPrivateMockExam(
           claimed,
           now
         );
@@ -3605,11 +3921,43 @@ async function processPrivateMockSchedule(
                   now
                   ? "open"
                   : "scheduled",
+              settlementCompletedAt:
+                null,
             },
           }
         );
         throw error;
       }
+    }
+
+    const unsettledLocked =
+      await PrivateMockExam.find({
+        status: "locked",
+        closeAt: {
+          $lte:
+            submissionSettlementCutoff,
+        },
+        $or: [
+          {
+            settlementCompletedAt:
+              null,
+          },
+          {
+            settlementCompletedAt: {
+              $exists: false,
+            },
+          },
+        ],
+      })
+        .select("+points")
+        .lean();
+
+    for (const exam of
+      unsettledLocked) {
+      await prepareLockedPrivateMockExam(
+        exam,
+        now
+      );
     }
 
     const aggregationDue =
@@ -3621,6 +3969,9 @@ async function processPrivateMockSchedule(
         aggregationStartsAt: {
           $lte: now,
         },
+        settlementCompletedAt: {
+          $ne: null,
+        },
       }).lean();
 
     for (const exam of
@@ -3630,6 +3981,9 @@ async function processPrivateMockSchedule(
           {
             _id: exam._id,
             status: "locked",
+            settlementCompletedAt: {
+              $ne: null,
+            },
           },
           {
             $set: {
@@ -5141,13 +5495,28 @@ async function getPrivateMockAttemptData({
     deadline.getTime() <=
     now.getTime()
   ) {
-    attempt.status =
-      "expired";
-    attempt.elapsedMs =
-      exam.durationMinutes *
-      60 *
-      1000;
-    await attempt.save();
+    await PrivateMockExamAttempt.updateOne(
+      {
+        _id: attempt._id,
+        status:
+          "in_progress",
+        ...inactivePrivateMockSubmissionClaimFilter(
+          now
+        ),
+      },
+      {
+        $set: {
+          status:
+            "expired",
+          elapsedMs:
+            exam.durationMinutes *
+            60 *
+            1000,
+          expiredAt:
+            now,
+        },
+      }
+    );
     throw statusError(
       410,
       "제한 시간이 지나 이번 회차 응시가 종료되었습니다."
@@ -5645,14 +6014,76 @@ async function recordPrivateMockEvents({
   userId,
   events,
   now,
+  submissionRequestId = "",
+  normalizedEvents = null,
 }) {
   const normalized =
-    normalizeTelemetryEvents(
-      events
-    );
+    Array.isArray(
+      normalizedEvents
+    )
+      ? normalizedEvents
+      : normalizeTelemetryEvents(
+          events
+        );
 
   if (!normalized.length) {
     return 0;
+  }
+
+  if (submissionRequestId) {
+    try {
+      await PrivateMockExamEvent.bulkWrite(
+        normalized.map(
+          (event, index) => ({
+            updateOne: {
+              filter: {
+                attemptId:
+                  attempt._id,
+                submissionRequestId,
+                submissionEventIndex:
+                  index,
+              },
+              update: {
+                $setOnInsert: {
+                  examId:
+                    exam._id,
+                  attemptId:
+                    attempt._id,
+                  userId,
+                  ...event,
+                  serverAt: now,
+                  submissionRequestId,
+                  submissionEventIndex:
+                    index,
+                },
+              },
+              upsert: true,
+            },
+          })
+        ),
+        {
+          ordered: false,
+        }
+      );
+    } catch (error) {
+      const writeErrors =
+        error?.writeErrors ||
+        error?.result
+          ?.getWriteErrors?.() ||
+        [];
+      const duplicateOnly =
+        writeErrors.length > 0
+          ? writeErrors.every(
+              (item) =>
+                item?.code === 11000
+            )
+          : error?.code === 11000;
+      if (!duplicateOnly) {
+        throw error;
+      }
+    }
+
+    return normalized.length;
   }
 
   await PrivateMockExamEvent.insertMany(
@@ -5878,124 +6309,216 @@ async function createPrivateMockIntegrityRequest({
   source = "automatic",
   now = new Date(),
 }) {
-  const existing =
+  /*
+   * `autoIndex` is disabled in production.  This path can be reached by the
+   * scheduler, so the one-case-per-attempt invariant must exist before the
+   * first create, not merely in the Mongoose schema.
+   */
+  await ensurePrivateMockIntegrityCaseAttemptIndex(
+    PrivateMockIntegrityCase
+  );
+
+  let integrityCase =
     await PrivateMockIntegrityCase.findOne({
       attemptId:
         attempt._id,
     });
+  let created = false;
 
-  if (existing) {
-    return {
-      integrityCase:
-        existing,
-      created: false,
-    };
-  }
+  if (!integrityCase) {
+    const cleanInstructions =
+      cleanMultiline(
+        instructions,
+        1000
+      ) ||
+      "지정 문항의 전체 풀이과정을 사진 또는 PDF로 제출해주세요.";
+    const questionNumbers =
+      normalizeIntegrityQuestionNumbers(
+        requestedQuestionNumbers,
+        [28, 30]
+      );
 
-  const cleanInstructions =
-    cleanMultiline(
-      instructions,
-      1000
-    ) ||
-    "지정 문항의 전체 풀이과정을 사진 또는 PDF로 제출해주세요.";
-  const questionNumbers =
-    normalizeIntegrityQuestionNumbers(
-      requestedQuestionNumbers,
-      [28, 30]
-    );
-  let integrityCase;
-
-  try {
-    integrityCase =
-      await PrivateMockIntegrityCase.create({
-        userId:
-          attempt.userId,
-        examId:
-          exam._id,
-        attemptId:
-          attempt._id,
-        weekKey:
-          attempt.weekKey ||
-          exam.weekKey,
-        riskScore:
-          Math.max(
-            0,
-            Number(
-              riskScore
-            ) || 0
-          ),
-        suspicionSignals,
-        requestedQuestionNumbers:
-          questionNumbers,
-        evidenceRequest: {
-          requestedAt: now,
-          requestedBy:
-            requestedBy?._id ||
-            requestedBy ||
-            null,
-          deadlineAt:
-            getIntegrityEvidenceDeadline(
-              {
-                releaseAt:
-                  exam.releaseAt,
-                requestedAt:
-                  now,
-                source,
-              }
+    try {
+      integrityCase =
+        await PrivateMockIntegrityCase.create({
+          userId:
+            attempt.userId,
+          examId:
+            exam._id,
+          attemptId:
+            attempt._id,
+          weekKey:
+            attempt.weekKey ||
+            exam.weekKey,
+          riskScore:
+            Math.max(
+              0,
+              Number(
+                riskScore
+              ) || 0
             ),
-          instructions:
-            cleanInstructions,
-        },
-      });
-  } catch (error) {
-    if (error.code === 11000) {
-      return {
-        integrityCase:
-          await PrivateMockIntegrityCase.findOne({
-            attemptId:
-              attempt._id,
-          }),
-        created: false,
-      };
+          suspicionSignals,
+          requestedQuestionNumbers:
+            questionNumbers,
+          evidenceRequest: {
+            requestedAt: now,
+            requestedBy:
+              requestedBy?._id ||
+              requestedBy ||
+              null,
+            deadlineAt:
+              getIntegrityEvidenceDeadline(
+                {
+                  releaseAt:
+                    exam.releaseAt,
+                  requestedAt:
+                    now,
+                  source,
+                }
+              ),
+            instructions:
+              cleanInstructions,
+          },
+        });
+      created = true;
+    } catch (error) {
+      if (error.code !== 11000) {
+        throw error;
+      }
+      integrityCase =
+        await PrivateMockIntegrityCase.findOne({
+          attemptId:
+            attempt._id,
+        });
+      if (!integrityCase) {
+        throw error;
+      }
     }
-    throw error;
   }
 
-  await Promise.all([
-    PrivateMockExamAttempt.updateOne(
-      {
-        _id: attempt._id,
+  integrityCase =
+    await resumePrivateMockIntegrityRequest({
+      exam,
+      attempt,
+      integrityCase,
+      source,
+      requestedBy,
+      now,
+    });
+
+  return {
+    integrityCase,
+    created,
+  };
+}
+
+function integrityEvidenceRequestEventReceiptId(
+  integrityCaseId
+) {
+  return `integrity-evidence-request:${String(
+    integrityCaseId
+  )}`;
+}
+
+function integrityEvidenceRequestNoticeDedupeKey(
+  integrityCaseId
+) {
+  return `private-mock-integrity-evidence-request:${String(
+    integrityCaseId
+  )}`;
+}
+
+async function resumePrivateMockIntegrityRequest({
+  exam,
+  attempt,
+  integrityCase,
+  source,
+  requestedBy,
+  now,
+}) {
+  /*
+   * Case creation and the side effects below cannot share a transaction with
+   * email delivery.  Re-running this converges every durable step instead:
+   * the attempt is a set, the event has a receipt-backed upsert, and the
+   * inbox notice has a case-reserved identifier.
+   */
+  await PrivateMockExamAttempt.updateOne(
+    {
+      _id: attempt._id,
+    },
+    {
+      $set: {
+        integrityStatus:
+          "PENDING_INTEGRITY_REVIEW",
+        integrityCaseId:
+          integrityCase._id,
+        usedForWeeklyRanking:
+          false,
+        usedForMmrStability:
+          false,
       },
-      {
-        $set: {
-          integrityStatus:
-            "PENDING_INTEGRITY_REVIEW",
-          integrityCaseId:
-            integrityCase._id,
-          usedForWeeklyRanking:
-            false,
-          usedForMmrStability:
-            false,
-        },
-      }
-    ),
-    PrivateMockExamEvent.create({
-      examId:
-        exam._id,
+    }
+  );
+
+  await ensurePrivateMockSubmissionEventIndex(
+    PrivateMockExamEvent
+  );
+  const eventReceiptId =
+    integrityEvidenceRequestEventReceiptId(
+      integrityCase._id
+    );
+  const existingEvent =
+    await PrivateMockExamEvent.findOne({
       attemptId:
         attempt._id,
-      userId:
-        attempt.userId,
       eventType:
         "INTEGRITY_EVIDENCE_REQUESTED",
-      serverAt: now,
-      metadata: {
-        source,
-        requestedQuestionNumbers:
-          questionNumbers,
-      },
-    }),
-  ]);
+    });
+  if (!existingEvent) {
+    try {
+      await PrivateMockExamEvent.updateOne(
+        {
+          attemptId:
+            attempt._id,
+          submissionRequestId:
+            eventReceiptId,
+          submissionEventIndex: 0,
+        },
+        {
+          $setOnInsert: {
+            examId:
+              exam._id,
+            attemptId:
+              attempt._id,
+            userId:
+              attempt.userId,
+            eventType:
+              "INTEGRITY_EVIDENCE_REQUESTED",
+            serverAt: now,
+            metadata: {
+              source,
+              requestedQuestionNumbers:
+                integrityCase.requestedQuestionNumbers ||
+                [],
+            },
+            submissionRequestId:
+              eventReceiptId,
+            submissionEventIndex: 0,
+          },
+        },
+        {
+          upsert: true,
+        }
+      );
+    } catch (error) {
+      // A simultaneous recovery may win the receipt upsert.  Its event is
+      // exactly the same logical side effect, so no second event is needed.
+      if (error?.code !== 11000) {
+        throw error;
+      }
+    }
+  }
+
   const user =
     await User.findById(
       attempt.userId
@@ -6018,39 +6541,160 @@ async function createPrivateMockIntegrityRequest({
       );
     const notice =
       evidenceRequestEmail({
-        questionNumbers,
+        questionNumbers:
+          integrityCase.requestedQuestionNumbers ||
+          [],
         deadlineLabel,
         instructions:
-          cleanInstructions,
+          integrityCase
+            .evidenceRequest
+            ?.instructions ||
+          "지정 문항의 전체 풀이과정을 사진 또는 PDF로 제출해주세요.",
       });
-    const delivery =
-      await deliverModerationNotice({
-        user,
-        title:
-          notice.title,
-        message:
-          notice.inboxMessage,
-        kind: "integrity",
-        href:
-          `/integrity/cases/${integrityCase._id}`,
-        createdBy:
-          requestedBy?._id ||
-          requestedBy ||
-          null,
-        emailSubject:
-          notice.emailSubject,
-        emailMessage:
-          notice.emailMessage,
-      });
-    integrityCase.notificationId =
-      delivery.notification._id;
-    await integrityCase.save();
+    const noticeDedupeKey =
+      integrityEvidenceRequestNoticeDedupeKey(
+        integrityCase._id
+      );
+    /*
+     * Reserve the notification id on the case before inserting the inbox
+     * record.  This remains safe even where the historical `dedupeKey` index
+     * has not yet been created: a crash after reservation simply retries the
+     * same notification `_id`, so it cannot create a second notice.
+     */
+    if (!integrityCase.notificationId) {
+      const reservedNotificationId =
+        new mongoose.Types.ObjectId();
+      const updatedCase =
+        await PrivateMockIntegrityCase.findOneAndUpdate(
+          {
+            _id:
+              integrityCase._id,
+            notificationId:
+              null,
+          },
+          {
+            $set: {
+              notificationId:
+                reservedNotificationId,
+            },
+          },
+          {
+            new: true,
+          }
+        );
+      if (updatedCase) {
+        integrityCase = updatedCase;
+      } else {
+        const latestCase =
+          await PrivateMockIntegrityCase.findById(
+            integrityCase._id
+          );
+        if (latestCase) {
+          integrityCase = latestCase;
+        }
+      }
+    }
+    if (!integrityCase.notificationId) {
+      throw new Error(
+        "소명 요청 알림 식별자를 예약하지 못했습니다."
+      );
+    }
+
+    let notification =
+      await UserNotification.findById(
+        integrityCase.notificationId
+      ).lean();
+    let notificationCreated = false;
+
+    if (!notification) {
+      try {
+        notification =
+          await UserNotification.create({
+            _id:
+              integrityCase.notificationId,
+            userId:
+              user._id,
+            title:
+              notice.title,
+            message:
+              notice.inboxMessage,
+            href:
+              `/integrity/cases/${integrityCase._id}`,
+            kind: "integrity",
+            createdBy:
+              integrityCase
+                .evidenceRequest
+                ?.requestedBy ||
+              requestedBy?._id ||
+              requestedBy ||
+              null,
+            dedupeKey:
+              noticeDedupeKey,
+            sourceType:
+              "private_mock_integrity_evidence_request",
+            sourceId:
+              integrityCase._id,
+          });
+        notificationCreated = true;
+      } catch (error) {
+        if (error?.code !== 11000) {
+          throw error;
+        }
+        notification =
+          await UserNotification.findById(
+            integrityCase.notificationId
+          ).lean();
+        if (!notification) {
+          throw error;
+        }
+      }
+    }
+
+    if (notificationCreated) {
+      try {
+        const sender =
+          integrityCase
+            .evidenceRequest
+            ?.requestedBy
+            ? await getActiveAdminSender(
+                integrityCase
+                  .evidenceRequest
+                  .requestedBy
+              )
+            : null;
+        await sendAdminUserEmail({
+          to:
+            user.email,
+          subject:
+            notice.emailSubject,
+          message:
+            notice.emailMessage,
+          idempotencyKey:
+            noticeDedupeKey,
+          fromAddress:
+            sender?.email ||
+            "",
+        });
+      } catch (error) {
+        // The inbox notice is already durable.  SMTP delivery remains
+        // best-effort, matching the existing moderation-notice contract.
+        console.error(
+          "[private-mock-integrity] 이메일 발송 실패",
+          {
+            userId:
+              String(user._id),
+            integrityCaseId:
+              String(integrityCase._id),
+            error:
+              error?.message ||
+              "",
+          }
+        );
+      }
+    }
   }
 
-  return {
-    integrityCase,
-    created: true,
-  };
+  return integrityCase;
 }
 
 async function evaluatePrivateMockIntegrity({
@@ -6387,12 +7031,31 @@ async function requestPrivateMockIntegrityEvidenceByAdmin({
     );
   }
 
-  if (
-    await PrivateMockIntegrityCase.exists({
+  const existingIntegrityCase =
+    await PrivateMockIntegrityCase.findOne({
       attemptId:
         attempt._id,
-    })
-  ) {
+    }).lean();
+  if (existingIntegrityCase) {
+    /*
+     * Keep the public 409 contract, but first resume a case that may have
+     * survived a process stop between its create and its durable side effects.
+     */
+    await createPrivateMockIntegrityRequest({
+      exam,
+      attempt,
+      requestedBy:
+        admin,
+      requestedQuestionNumbers:
+        existingIntegrityCase.requestedQuestionNumbers,
+      instructions:
+        existingIntegrityCase
+          .evidenceRequest
+          ?.instructions,
+      source:
+        "admin-manual",
+      now,
+    });
     throw statusError(
       409,
       "이미 이 응시 기록에 소명 자료를 요청했습니다."
@@ -6524,13 +7187,28 @@ async function getWritableAttempt({
   if (
     now.getTime() >= deadline
   ) {
-    attempt.status =
-      "expired";
-    attempt.elapsedMs =
-      exam.durationMinutes *
-      60 *
-      1000;
-    await attempt.save();
+    await PrivateMockExamAttempt.updateOne(
+      {
+        _id: attempt._id,
+        status:
+          "in_progress",
+        ...inactivePrivateMockSubmissionClaimFilter(
+          now
+        ),
+      },
+      {
+        $set: {
+          status:
+            "expired",
+          elapsedMs:
+            exam.durationMinutes *
+            60 *
+            1000,
+          expiredAt:
+            now,
+        },
+      }
+    );
     throw statusError(
       410,
       "제한 시간이 지나 응시가 종료되었습니다."
@@ -6563,123 +7241,185 @@ async function savePrivateMockDraft({
       answers,
       exam.questionCount
     );
-
-  attempt.answers =
-    normalized;
-  attempt.answeredCount =
+  const answeredCount =
     normalized.filter(Boolean)
       .length;
-  attempt.lastSavedAt =
-    now;
-  await Promise.all([
-    attempt.save(),
-    recordPrivateMockEvents({
-      exam,
-      attempt,
-      userId,
-      events:
-        telemetryEvents,
-      now,
-    }),
-  ]);
+  const saved =
+    await PrivateMockExamAttempt.updateOne(
+      {
+        _id: attempt._id,
+        status:
+          "in_progress",
+      },
+      {
+        $set: {
+          answers:
+            normalized,
+          answeredCount,
+          lastSavedAt:
+            now,
+        },
+      },
+      {
+        runValidators: true,
+      }
+    );
+
+  if (
+    !(
+      saved.matchedCount ??
+      saved.modifiedCount
+    )
+  ) {
+    throw statusError(
+      409,
+      "이미 제출하거나 종료된 응시 기록에는 답안을 저장할 수 없습니다."
+    );
+  }
+
+  await recordPrivateMockEvents({
+    exam,
+    attempt,
+    userId,
+    events:
+      telemetryEvents,
+    now,
+  });
 
   return {
     answeredCount:
-      attempt.answeredCount,
+      answeredCount,
     savedAt:
       now.toISOString(),
   };
 }
 
-async function submitPrivateMockAttempt({
-  userId,
-  examId,
+function normalizePrivateMockSubmissionRequestId(
+  value,
+  payloadHash
+) {
+  const requestId =
+    cleanSingleLine(
+      value,
+      200
+    );
+
+  if (!requestId) {
+    return `legacy-${payloadHash}`;
+  }
+
+  if (
+    requestId.length < 16 ||
+    !/^[A-Za-z0-9._:-]+$/.test(
+      requestId
+    )
+  ) {
+    throw statusError(
+      400,
+      "제출 요청 식별자가 올바르지 않습니다."
+    );
+  }
+
+  return requestId;
+}
+
+function normalizePrivateMockCapturedAt(
+  value
+) {
+  if (!value) return null;
+  const capturedAt =
+    new Date(value);
+  return Number.isNaN(
+    capturedAt.getTime()
+  )
+    ? null
+    : capturedAt;
+}
+
+function privateMockSubmissionPayload({
   answers,
   telemetryEvents,
-  now = new Date(),
+  questionCount,
+  clientCapturedAt,
 }) {
-  const {
-    exam,
-    attempt,
-  } = await getWritableAttempt({
-    userId,
-    examId,
-    now,
-    includeAnswerKey:
-      true,
-  });
-  const grading =
-    gradePrivateMockAnswers({
+  const normalizedAnswers =
+    normalizeDraftAnswers(
       answers,
-      answerKey:
-        exam.answerKey,
-      points:
-        exam.points,
-      questionCount:
-        exam.questionCount,
-    });
-
-  attempt.answers =
-    grading.answers;
-  attempt.answeredCount =
-    grading.answeredCount;
-  attempt.score =
-    grading.score;
-  attempt.correctCount =
-    grading.correctCount;
-  attempt.correctByQuestion =
-    grading.correctByQuestion;
-  attempt.scoreBreakdown =
-    grading.scoreBreakdown;
-  attempt.elapsedMs =
-    Math.max(
-      0,
-      now.getTime() -
-        attempt.startedAt.getTime()
+      questionCount
     );
-  attempt.status =
-    "submitted";
-  attempt.submittedAt =
-    now;
-  attempt.lastSavedAt =
-    now;
-  await Promise.all([
-    attempt.save(),
-    recordPrivateMockEvents({
-      exam,
-      attempt,
-      userId,
-      events:
-        [
-          ...(
-            Array.isArray(
-              telemetryEvents
-            )
-              ? telemetryEvents
-              : []
-          ),
-          {
-            eventType:
-              "EXAM_SUBMITTED",
-            clientAt:
-              now.toISOString(),
-          },
-        ],
-      now,
-    }),
-  ]);
+  const normalizedEvents =
+    normalizeTelemetryEvents(
+      telemetryEvents
+    );
+  const payloadHash =
+    createHash("sha256")
+      .update(
+        JSON.stringify({
+          answers:
+            normalizedAnswers,
+          telemetryEvents:
+            normalizedEvents.map(
+              (event) => ({
+                eventType:
+                  event.eventType,
+                questionNumber:
+                  event.questionNumber,
+                clientAt:
+                  event.clientAt
+                    ? event.clientAt.toISOString()
+                    : null,
+                metadata:
+                  event.metadata,
+              })
+            ),
+          clientCapturedAt:
+            clientCapturedAt
+              ? clientCapturedAt.toISOString()
+              : null,
+        })
+      )
+      .digest("hex");
+
+  return {
+    normalizedAnswers,
+    normalizedEvents,
+    payloadHash,
+  };
+}
+
+function privateMockSubmissionResult({
+  exam,
+  attempt,
+  replayed,
+}) {
   const weekKey =
     attempt.weekKey ||
     exam.weekKey ||
     privateMockWeekKey(
       exam.releaseAt
     );
-  await evaluatePrivateMockIntegrity({
-    exam,
-    attempt,
-    now,
-  });
+  const acceptedAt =
+    attempt.submissionReceipt
+      ?.acceptedAt ||
+    attempt.submittedAt;
+  const activityReceiptId =
+    privateMockActivityReceiptId(
+      attempt
+    );
+
   return {
+    replayed:
+      Boolean(replayed),
+    receiptId:
+      attempt.submissionReceipt
+        ?.requestId || "",
+    acceptedAt:
+      acceptedAt
+        ? new Date(
+            acceptedAt
+          ).toISOString()
+        : null,
+    activityReceiptId,
     elapsedMs:
       attempt.elapsedMs,
     elapsedLabel:
@@ -6693,7 +7433,10 @@ async function submitPrivateMockAttempt({
       true,
     resultsAvailableAt:
       new Date(
-        exam.closeAt
+        new Date(
+          exam.closeAt
+        ).getTime() +
+          PRIVATE_MOCK_SUBMISSION_SETTLEMENT_MS
       ).toISOString(),
     attemptNumber:
       attempt.attemptNumber,
@@ -6708,6 +7451,872 @@ async function submitPrivateMockAttempt({
     canSelectRepresentative:
       false,
   };
+}
+
+function privateMockActivityReceiptId(
+  attempt
+) {
+  return `private-mock:${createHash("sha256")
+    .update(
+      `${attempt._id}:${attempt.submissionReceipt?.requestId || ""}`
+    )
+    .digest("hex")}`;
+}
+
+function replayPrivateMockSubmission({
+  exam,
+  attempt,
+  requestId,
+  payloadHash,
+}) {
+  if (
+    attempt?.status !==
+    "submitted"
+  ) {
+    return null;
+  }
+
+  const receipt =
+    attempt.submissionReceipt;
+  if (
+    !receipt?.requestId ||
+    receipt.requestId !==
+      requestId
+  ) {
+    throw statusError(
+      409,
+      "다른 제출 요청으로 이미 응시가 종료되었습니다."
+    );
+  }
+  if (
+    receipt.payloadHash !==
+    payloadHash
+  ) {
+    throw statusError(
+      409,
+      "같은 제출 요청 식별자에 다른 답안을 사용할 수 없습니다."
+    );
+  }
+
+  return privateMockSubmissionResult({
+    exam,
+    attempt,
+    replayed: true,
+  });
+}
+
+function activePrivateMockSubmissionClaim({
+  attempt,
+  requestId,
+  payloadHash,
+  releaseAt,
+  deadline,
+  now,
+}) {
+  const claim =
+    attempt?.submissionClaim;
+  if (
+    attempt?.status !==
+      "in_progress" ||
+    !claim?.requestId
+  ) {
+    return null;
+  }
+
+  const receivedAt =
+    new Date(
+      claim.receivedAt
+    );
+  const expiresAt =
+    new Date(
+      claim.expiresAt
+    );
+  if (
+    Number.isNaN(
+      receivedAt.getTime()
+    ) ||
+    Number.isNaN(
+      expiresAt.getTime()
+    ) ||
+    receivedAt < releaseAt ||
+    receivedAt >= deadline ||
+    expiresAt < now
+  ) {
+    return null;
+  }
+  if (
+    claim.requestId !==
+      requestId
+  ) {
+    throw statusError(
+      409,
+      "다른 제출 요청을 처리하고 있습니다."
+    );
+  }
+  if (
+    claim.payloadHash !==
+      payloadHash
+  ) {
+    throw statusError(
+      409,
+      "같은 제출 요청 식별자에 다른 답안을 사용할 수 없습니다."
+    );
+  }
+
+  return {
+    attempt,
+    receivedAt,
+    expiresAt,
+  };
+}
+
+async function establishPrivateMockSubmissionClaim({
+  exam,
+  initialAttempt,
+  userId,
+  requestId,
+  payloadHash,
+  releaseAt,
+  deadline,
+  now,
+}) {
+  const existing =
+    activePrivateMockSubmissionClaim({
+      attempt:
+        initialAttempt,
+      requestId,
+      payloadHash,
+      releaseAt,
+      deadline,
+      now,
+    });
+  if (existing) return existing;
+
+  const expiresAt =
+    new Date(
+      deadline.getTime() +
+        PRIVATE_MOCK_SUBMISSION_CLAIM_LEASE_MS
+    );
+  const claimed =
+    await PrivateMockExamAttempt.findOneAndUpdate(
+      {
+        _id:
+          initialAttempt._id,
+        examId:
+          exam._id,
+        userId,
+        $or: [
+          {
+            status:
+              "in_progress",
+          },
+          {
+            status:
+              "expired",
+            expiredAt: {
+              $gt: now,
+              $lte:
+                new Date(
+                  now.getTime() +
+                    PRIVATE_MOCK_SUBMISSION_SETTLEMENT_MS
+                ),
+            },
+          },
+        ],
+        "submissionClaim.expiresAt": {
+          $not: {
+            $gte: now,
+          },
+        },
+      },
+      {
+        $set: {
+          status:
+            "in_progress",
+          expiredAt:
+            null,
+          submissionClaim: {
+            requestId,
+            payloadHash,
+            receivedAt:
+              now,
+            expiresAt,
+          },
+        },
+      },
+      {
+        returnDocument:
+          "after",
+        runValidators: true,
+      }
+    );
+  if (claimed) {
+    return {
+      attempt:
+        claimed,
+      receivedAt:
+        now,
+      expiresAt,
+    };
+  }
+
+  const current =
+    await PrivateMockExamAttempt.findOne({
+      _id:
+        initialAttempt._id,
+    });
+  const replay =
+    replayPrivateMockSubmission({
+      exam,
+      attempt:
+        current,
+      requestId,
+      payloadHash,
+    });
+  if (replay) {
+    return {
+      replay,
+      attempt:
+        current,
+    };
+  }
+  const concurrentClaim =
+    activePrivateMockSubmissionClaim({
+      attempt:
+        current,
+      requestId,
+      payloadHash,
+      releaseAt,
+      deadline,
+      now,
+    });
+  if (concurrentClaim) {
+    return concurrentClaim;
+  }
+  throw statusError(
+    current?.status ===
+      "expired"
+      ? 410
+      : 409,
+    current?.status ===
+      "expired"
+      ? "제한 시간이 지나 응시가 종료되었습니다."
+      : "다른 제출 요청으로 이미 응시가 종료되었습니다."
+  );
+}
+
+async function finalizePrivateMockSubmission({
+  exam,
+  attempt,
+  userId,
+  submissionPayload = null,
+  requestId,
+  clientCapturedAt,
+  now,
+}) {
+  await ensurePrivateMockSubmissionEventIndex(
+    PrivateMockExamEvent
+  );
+  const durableFinalization =
+    attempt
+      .submissionFinalization;
+  const durableRequestId =
+    durableFinalization
+      ?.requestId ||
+    requestId;
+  let ownedAttempt =
+    attempt;
+  let processingToken = "";
+
+  if (
+    durableFinalization
+      ?.status ===
+    "completed"
+  ) {
+    return true;
+  }
+  if (
+    durableFinalization
+      ?.status
+  ) {
+    const processingNow =
+      new Date();
+    processingToken =
+      randomUUID();
+    ownedAttempt =
+      await PrivateMockExamAttempt.findOneAndUpdate(
+        {
+          _id:
+            attempt._id,
+          status:
+            "submitted",
+          "submissionFinalization.requestId":
+            durableRequestId,
+          $or: [
+            {
+              "submissionFinalization.status":
+                "pending",
+            },
+            {
+              "submissionFinalization.status":
+                "processing",
+              "submissionFinalization.leaseExpiresAt": {
+                $lte:
+                  processingNow,
+              },
+            },
+          ],
+        },
+        {
+          $set: {
+            "submissionFinalization.status":
+              "processing",
+            "submissionFinalization.processingToken":
+              processingToken,
+            "submissionFinalization.leaseExpiresAt":
+              new Date(
+                processingNow.getTime() +
+                  PRIVATE_MOCK_SUBMISSION_CLAIM_LEASE_MS
+              ),
+            "submissionFinalization.lastAttemptAt":
+              processingNow,
+            "submissionFinalization.lastError":
+              "",
+          },
+        },
+        {
+          returnDocument:
+            "after",
+          runValidators: true,
+        }
+      );
+    if (!ownedAttempt) {
+      const current =
+        await PrivateMockExamAttempt.findOne({
+          _id:
+            attempt._id,
+        });
+      return current
+        ?.submissionFinalization
+        ?.status ===
+        "completed";
+    }
+  }
+
+  const finalization =
+    ownedAttempt
+      .submissionFinalization;
+  const normalizedEvents =
+    Array.isArray(
+      finalization
+        ?.normalizedEvents
+    )
+      ? finalization
+          .normalizedEvents
+      : submissionPayload
+          ?.normalizedEvents ||
+        [];
+  const durableCapturedAt =
+    finalization
+      ?.clientCapturedAt ??
+    clientCapturedAt;
+  const acceptedAt =
+    ownedAttempt
+      .submissionReceipt
+      ?.acceptedAt ||
+    ownedAttempt.submittedAt ||
+    now;
+  try {
+    await recordPrivateMockEvents({
+      exam,
+      attempt:
+        ownedAttempt,
+      userId,
+      normalizedEvents: [
+        ...normalizedEvents,
+        {
+          eventType:
+            "EXAM_SUBMITTED",
+          questionNumber:
+            null,
+          clientAt:
+            durableCapturedAt,
+          metadata: {
+            visibility: "",
+            answerLength: 0,
+          },
+        },
+      ],
+      now:
+        new Date(acceptedAt),
+      submissionRequestId:
+        durableRequestId,
+    });
+    await evaluatePrivateMockIntegrity({
+      exam,
+      attempt:
+        ownedAttempt,
+      now:
+        new Date(acceptedAt),
+    });
+    const {
+      recordStudyActivity,
+    } = require("./userLifecycleService");
+    await recordStudyActivity(
+      userId,
+      new Date(acceptedAt),
+      ownedAttempt.elapsedMs,
+      {
+        idempotencyKey:
+          privateMockActivityReceiptId(
+            ownedAttempt
+          ),
+      }
+    );
+  } catch (error) {
+    if (processingToken) {
+      await PrivateMockExamAttempt.updateOne(
+        {
+          _id:
+            ownedAttempt._id,
+          "submissionFinalization.processingToken":
+            processingToken,
+        },
+        {
+          $set: {
+            "submissionFinalization.status":
+              "pending",
+            "submissionFinalization.processingToken":
+              "",
+            "submissionFinalization.leaseExpiresAt":
+              null,
+            "submissionFinalization.lastError":
+              String(
+                error.message ||
+                  error
+              ).slice(
+                0,
+                500
+              ),
+          },
+        }
+      );
+    }
+    throw error;
+  }
+
+  if (processingToken) {
+    await PrivateMockExamAttempt.updateOne(
+      {
+        _id:
+          ownedAttempt._id,
+        "submissionFinalization.processingToken":
+          processingToken,
+      },
+      {
+        $set: {
+          "submissionFinalization.status":
+            "completed",
+          "submissionFinalization.processingToken":
+            "",
+          "submissionFinalization.leaseExpiresAt":
+            null,
+          "submissionFinalization.completedAt":
+            new Date(),
+          "submissionFinalization.lastError":
+            "",
+        },
+      }
+    );
+  }
+  return true;
+}
+
+async function submitPrivateMockAttempt({
+  userId,
+  examId,
+  answers,
+  telemetryEvents,
+  requestId: requestIdInput,
+  capturedAt,
+  now = new Date(),
+}) {
+  const [exam, initialAttempt] =
+    await Promise.all([
+      PrivateMockExam.findOne({
+        _id: examId,
+      }).select(
+        "+answerKey +points"
+      ),
+      PrivateMockExamAttempt.findOne({
+        examId,
+        userId,
+      }),
+    ]);
+
+  if (!exam || !initialAttempt) {
+    throw statusError(
+      409,
+      "제출할 수 있는 응시 기록이 없습니다."
+    );
+  }
+
+  const clientCapturedAt =
+    normalizePrivateMockCapturedAt(
+      capturedAt
+    );
+  const submissionPayload =
+    privateMockSubmissionPayload({
+      answers,
+      telemetryEvents,
+      questionCount:
+        exam.questionCount,
+      clientCapturedAt,
+    });
+  const requestId =
+    normalizePrivateMockSubmissionRequestId(
+      requestIdInput,
+      submissionPayload.payloadHash
+    );
+  const initialReplay =
+    replayPrivateMockSubmission({
+      exam,
+      attempt:
+        initialAttempt,
+      requestId,
+      payloadHash:
+        submissionPayload.payloadHash,
+    });
+  if (initialReplay) {
+    await finalizePrivateMockSubmission({
+      exam,
+      attempt:
+        initialAttempt,
+      userId,
+      submissionPayload,
+      requestId,
+      clientCapturedAt,
+      now,
+    });
+    return initialReplay;
+  }
+
+  const releaseAt =
+    new Date(
+      exam.releaseAt
+    );
+  const deadline =
+    new Date(
+      Math.min(
+        new Date(
+          exam.closeAt
+        ).getTime(),
+        new Date(
+          initialAttempt.startedAt
+        ).getTime() +
+          exam.durationMinutes *
+            MINUTE_MS
+      )
+    );
+
+  const existingClaim =
+    activePrivateMockSubmissionClaim({
+      attempt:
+        initialAttempt,
+      requestId,
+      payloadHash:
+        submissionPayload.payloadHash,
+      releaseAt,
+      deadline,
+      now,
+    });
+
+  if (
+    !existingClaim &&
+    exam.status !==
+      "open"
+  ) {
+    throw statusError(
+      409,
+      "현재 제출할 수 없는 회차입니다."
+    );
+  }
+  if (
+    !existingClaim &&
+    (
+      now < releaseAt ||
+      now >= deadline
+    )
+  ) {
+    await PrivateMockExamAttempt.updateOne(
+      {
+        _id:
+          initialAttempt._id,
+        status:
+          "in_progress",
+        ...inactivePrivateMockSubmissionClaimFilter(
+          now
+        ),
+      },
+      {
+        $set: {
+          status:
+            "expired",
+          elapsedMs:
+            Math.max(
+              0,
+              deadline.getTime() -
+                new Date(
+                  initialAttempt.startedAt
+                ).getTime()
+            ),
+          expiredAt:
+            now,
+        },
+      }
+    );
+    const current =
+      await PrivateMockExamAttempt.findOne({
+        _id:
+          initialAttempt._id,
+      });
+    const replay =
+      replayPrivateMockSubmission({
+        exam,
+        attempt:
+          current,
+        requestId,
+        payloadHash:
+          submissionPayload.payloadHash,
+      });
+    if (replay) {
+      await finalizePrivateMockSubmission({
+        exam,
+        attempt:
+          current,
+        userId,
+        submissionPayload,
+        requestId,
+        clientCapturedAt,
+        now,
+      });
+      return replay;
+    }
+    throw statusError(
+      410,
+      "제한 시간이 지나 응시가 종료되었습니다."
+    );
+  }
+
+  const claim =
+    existingClaim ||
+    await establishPrivateMockSubmissionClaim({
+      exam,
+      initialAttempt,
+      userId,
+      requestId,
+      payloadHash:
+        submissionPayload.payloadHash,
+      releaseAt,
+      deadline,
+      now,
+    });
+  if (claim.replay) {
+    await finalizePrivateMockSubmission({
+      exam,
+      attempt:
+        claim.attempt,
+      userId,
+      submissionPayload,
+      requestId,
+      clientCapturedAt,
+      now,
+    });
+    return claim.replay;
+  }
+
+  try {
+    await assertPrivateMockEligibility(
+      userId
+    );
+  } catch (error) {
+    await PrivateMockExamAttempt.updateOne(
+      {
+        _id:
+          initialAttempt._id,
+        status:
+          "in_progress",
+        "submissionClaim.requestId":
+          requestId,
+        "submissionClaim.payloadHash":
+          submissionPayload.payloadHash,
+      },
+      {
+        $unset: {
+          submissionClaim: "",
+        },
+      }
+    );
+    throw error;
+  }
+
+  await ensurePrivateMockSubmissionEventIndex(
+    PrivateMockExamEvent
+  );
+
+  const grading =
+    gradePrivateMockAnswers({
+      answers:
+        submissionPayload
+          .normalizedAnswers,
+      answerKey:
+        exam.answerKey,
+      points:
+        exam.points,
+      questionCount:
+        exam.questionCount,
+    });
+  const elapsedMs =
+    Math.max(
+      0,
+      claim.receivedAt.getTime() -
+        new Date(
+          initialAttempt.startedAt
+        ).getTime()
+    );
+  const attempt =
+    await PrivateMockExamAttempt.findOneAndUpdate(
+      {
+        _id:
+          initialAttempt._id,
+        examId:
+          exam._id,
+        userId,
+        status:
+          "in_progress",
+        "submissionClaim.requestId":
+          requestId,
+        "submissionClaim.payloadHash":
+          submissionPayload.payloadHash,
+      },
+      {
+        $set: {
+          answers:
+            grading.answers,
+          answeredCount:
+            grading.answeredCount,
+          score:
+            grading.score,
+          correctCount:
+            grading.correctCount,
+          correctByQuestion:
+            grading.correctByQuestion,
+          scoreBreakdown:
+            grading.scoreBreakdown,
+          elapsedMs,
+          status:
+            "submitted",
+          submittedAt:
+            claim.receivedAt,
+          lastSavedAt:
+            claim.receivedAt,
+          expiredAt:
+            null,
+          submissionReceipt: {
+            requestId,
+            payloadHash:
+              submissionPayload.payloadHash,
+            acceptedAt:
+              claim.receivedAt,
+            clientCapturedAt,
+          },
+          submissionFinalization: {
+            status:
+              "pending",
+            requestId,
+            normalizedEvents:
+              submissionPayload
+                .normalizedEvents,
+            clientCapturedAt,
+            processingToken:
+              "",
+            leaseExpiresAt:
+              null,
+            lastAttemptAt:
+              null,
+            completedAt:
+              null,
+            lastError:
+              "",
+          },
+        },
+        $unset: {
+          submissionClaim: "",
+        },
+      },
+      {
+        returnDocument:
+          "after",
+        runValidators: true,
+      }
+    );
+
+  if (!attempt) {
+    const current =
+      await PrivateMockExamAttempt.findOne({
+        _id:
+          initialAttempt._id,
+      });
+    const replay =
+      replayPrivateMockSubmission({
+        exam,
+        attempt:
+          current,
+        requestId,
+        payloadHash:
+          submissionPayload.payloadHash,
+      });
+    if (replay) {
+      await finalizePrivateMockSubmission({
+        exam,
+        attempt:
+          current,
+        userId,
+        submissionPayload,
+        requestId,
+        clientCapturedAt,
+        now,
+      });
+      return replay;
+    }
+    throw statusError(
+      current?.status ===
+        "expired"
+        ? 410
+        : 409,
+      current?.status ===
+        "expired"
+        ? "제한 시간이 지나 응시가 종료되었습니다."
+        : "다른 제출 요청으로 이미 응시가 종료되었습니다."
+    );
+  }
+
+  await finalizePrivateMockSubmission({
+    exam,
+    attempt,
+    userId,
+    submissionPayload,
+    requestId,
+    clientCapturedAt,
+    now:
+      claim.receivedAt,
+  });
+
+  return privateMockSubmissionResult({
+    exam,
+    attempt,
+    replayed: false,
+  });
 }
 
 async function createPrivateMockFormulaResource({
@@ -6948,33 +8557,85 @@ async function getUserIntegrityCase({
   };
 }
 
+// iPad도 관리자 화면과 같은 풀이과정 소명 문서를 읽는다. 별도 앱 전용
+// 상태를 만들지 않고 인증 사용자 소유 범위와 최신순 정렬만 적용한다.
+async function getUserPrivateMockIntegrityCases({
+  userId,
+}) {
+  return PrivateMockIntegrityCase.find({
+    userId,
+  })
+    .sort({
+      createdAt: -1,
+    })
+    .populate(
+      "examId",
+      "title formCode releaseAt"
+    )
+    .lean();
+}
+
 async function submitPrivateMockIntegrityEvidence({
   userId,
   caseId,
   files,
   note,
+  submissionId = null,
   now = new Date(),
 }) {
-  const integrityCase =
-    await PrivateMockIntegrityCase.findOne({
-      _id: caseId,
-      userId,
-      status: {
-        $in: [
-          "EVIDENCE_REQUIRED",
-          "INSUFFICIENT_EVIDENCE",
-        ],
-      },
-      "evidenceRequest.deadlineAt": {
-        $gt: now,
-      },
-    });
   const uploadFiles =
     Array.isArray(files)
       ? files
       : [];
+  const idempotentReceiptId =
+    privateMockEvidenceReceiptId({
+      userId,
+      caseId,
+      submissionId,
+    });
+  const integrityCase =
+    await PrivateMockIntegrityCase.findOne({
+      _id: caseId,
+      userId,
+    });
 
-  if (!integrityCase) {
+  if (
+    integrityCase &&
+    idempotentReceiptId
+  ) {
+    const replay =
+      findPrivateMockEvidenceSubmission(
+        integrityCase,
+        idempotentReceiptId
+      );
+    if (replay) {
+      await discardPrivateMockEvidenceArtifacts({
+        uploadFiles,
+      });
+      return privateMockEvidenceResult(
+        replay,
+        { replayed: true }
+      );
+    }
+  }
+
+  if (
+    !integrityCase ||
+    ![
+      "EVIDENCE_REQUIRED",
+      "INSUFFICIENT_EVIDENCE",
+    ].includes(
+      integrityCase.status
+    ) ||
+    !integrityCase
+      .evidenceRequest
+      ?.deadlineAt ||
+    new Date(
+      integrityCase
+        .evidenceRequest
+        .deadlineAt
+    ) <= now
+  ) {
     throw statusError(
       409,
       "현재 제출할 수 있는 풀이과정 요청이 아닙니다."
@@ -7031,6 +8692,8 @@ async function submitPrivateMockIntegrityEvidence({
   }
 
   const createdItems = [];
+  let submissionPersisted =
+    false;
 
   try {
     for (const file of uploadFiles) {
@@ -7074,8 +8737,9 @@ async function submitPrivateMockIntegrityEvidence({
     }
 
     const receiptId =
+      idempotentReceiptId ||
       randomUUID();
-    integrityCase.evidenceSubmissions.push({
+    const submission = {
       receiptId,
       files:
         createdItems.map(
@@ -7097,12 +8761,84 @@ async function submitPrivateMockIntegrityEvidence({
           2000
         ),
       submittedAt: now,
-    });
-    integrityCase.status =
-      "SUBMITTED";
-    integrityCase.reviewStatus =
-      "unreviewed";
-    await integrityCase.save();
+    };
+
+    if (idempotentReceiptId) {
+      const claim =
+        await PrivateMockIntegrityCase.updateOne(
+          {
+            _id: integrityCase._id,
+            userId,
+            status: {
+              $in: [
+                "EVIDENCE_REQUIRED",
+                "INSUFFICIENT_EVIDENCE",
+              ],
+            },
+            "evidenceRequest.deadlineAt": {
+              $gt: now,
+            },
+            "evidenceSubmissions.receiptId": {
+              $ne: receiptId,
+            },
+          },
+          {
+            $push: {
+              evidenceSubmissions:
+                submission,
+            },
+            $set: {
+              status: "SUBMITTED",
+              reviewStatus:
+                "unreviewed",
+            },
+          }
+        );
+
+      if (
+        Number(
+          claim.modifiedCount || 0
+        ) !== 1
+      ) {
+        const winnerCase =
+          await PrivateMockIntegrityCase.findOne({
+            _id: integrityCase._id,
+            userId,
+            "evidenceSubmissions.receiptId":
+              receiptId,
+          });
+        const winner =
+          findPrivateMockEvidenceSubmission(
+            winnerCase,
+            receiptId
+          );
+        if (winner) {
+          await discardPrivateMockEvidenceArtifacts({
+            uploadFiles,
+            createdItems,
+          });
+          return privateMockEvidenceResult(
+            winner,
+            { replayed: true }
+          );
+        }
+        throw statusError(
+          409,
+          "현재 제출할 수 있는 풀이과정 요청이 아닙니다."
+        );
+      }
+    } else {
+      integrityCase
+        .evidenceSubmissions
+        .push(submission);
+      integrityCase.status =
+        "SUBMITTED";
+      integrityCase.reviewStatus =
+        "unreviewed";
+      await integrityCase.save();
+    }
+    submissionPersisted =
+      true;
 
     await createAdminTodo({
       category: "integrity",
@@ -7121,32 +8857,26 @@ async function submitPrivateMockIntegrityEvidence({
       metadata: {
         receiptId,
       },
+    }).catch((error) => {
+      // 제출 정본은 이미 커밋됐다. 관리자 할 일은 source reconciliation이
+      // 복구하므로, 보조 레코드 실패로 저장된 증빙을 오류 재시도에서 지우지 않는다.
+      console.error(
+        "Private mock evidence admin todo creation failed:",
+        error.message
+      );
     });
 
-    return {
-      submitted: true,
-      receiptId,
-      submittedAt:
-        now.toISOString(),
-    };
-  } catch (error) {
-    await Promise.all(
-      uploadFiles.map(
-        (file) =>
-          discardArchiveUpload(
-            file
-          )
-      )
+    return privateMockEvidenceResult(
+      submission,
+      { replayed: false }
     );
-    await ArchiveItem.deleteMany({
-      _id: {
-        $in:
-          createdItems.map(
-            (item) =>
-              item._id
-          ),
-      },
-    }).catch(() => {});
+  } catch (error) {
+    if (!submissionPersisted) {
+      await discardPrivateMockEvidenceArtifacts({
+        uploadFiles,
+        createdItems,
+      });
+    }
     throw error;
   }
 }
@@ -8448,6 +10178,19 @@ async function getPrivateMockObjectionFormData({
   };
 }
 
+// 학생 본인의 이의신청 이력도 기존 관리자 검토 문서를 정본으로 사용한다.
+async function getUserPrivateMockObjections({
+  userId,
+}) {
+  return PrivateMockObjection.find({
+    userId,
+  })
+    .sort({
+      createdAt: -1,
+    })
+    .lean();
+}
+
 async function createPrivateMockObjection({
   userId,
   examId,
@@ -9335,6 +11078,7 @@ module.exports = {
   buildPrivateMockSchedule,
   calculateWeeklyMmrPerformance,
   acceptPrivateMockObjection,
+  createPrivateMockIntegrityRequest,
   createPrivateMockExam,
   createPrivateMockExamBatch,
   createPrivateMockFormulaResource,
@@ -9358,6 +11102,8 @@ module.exports = {
   getPrivateMockPhase,
   getIntegrityEvidenceDeadline,
   getUserIntegrityCase,
+  getUserPrivateMockIntegrityCases,
+  getUserPrivateMockObjections,
   getSundayReleaseAt,
   getWeekSelectionLockAt,
   getUploadReminderWindow,

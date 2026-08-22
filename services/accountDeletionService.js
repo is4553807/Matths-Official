@@ -87,6 +87,11 @@ const {
   ARENA_EVIDENCE_STORAGE_DIR,
 } = require("../middleware/arenaEvidenceUpload");
 
+const {
+  revokeAppleTokens,
+  forgetAppleCredential,
+} = require("./appleAuthService");
+
 function statusError(status, message) {
   const error = new Error(message);
   error.status = status;
@@ -671,6 +676,8 @@ async function withdrawUserAccount({
       await removePrivateAccountData(user._id);
       await removeUserUploadedFiles(user._id);
       await purgeUserOwnedData(user._id);
+      // 애플 자격 증명을 남기면 유니크 인덱스가 같은 애플 ID 의 재가입을 막는다.
+      await forgetAppleCredential(user._id);
       await User.deleteOne({ _id: user._id });
       return {
         user: { _id: user._id },
@@ -686,6 +693,20 @@ async function withdrawUserAccount({
   const keepAnonymousData =
     Boolean(retainAnonymousData);
 
+  /*
+   * 애플 토큰 폐기. **심사 요구사항 5.1.1(v)** 이다 — Sign in with Apple 로 가입한
+   * 계정을 지울 때 애플 쪽 토큰도 함께 폐기해야 한다. 하지 않으면 반려된다.
+   *
+   * 삭제보다 **먼저** 부른다. 자격 증명이 지워진 뒤에는 폐기에 쓸 refresh_token 이
+   * 없다. 실패해도 탈퇴는 계속한다 — 사용자의 탈퇴 권리가 외부 API 가용성에
+   * 매이면 안 된다. 실패 사유는 revokeAppleTokens 가 로그로 남긴다.
+   */
+  await revokeAppleTokens(user._id).catch((error) => {
+    console.warn(
+      `[account-deletion] 애플 토큰 폐기 실패 user=${user._id}: ${error?.message || error}`
+    );
+  });
+
   await removePrivateAccountData(
     user._id
   );
@@ -699,6 +720,7 @@ async function withdrawUserAccount({
     await purgeUserOwnedData(
       user._id
     );
+    await forgetAppleCredential(user._id);
     await User.deleteOne({ _id: user._id });
     return {
       user: { _id: user._id },
