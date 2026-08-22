@@ -11,12 +11,15 @@
     <meta name="description" content="Matths의 시각화 학습, 교육과정과 GOAT Arena 이용 방법에 관한 자주 묻는 질문입니다." />
     <meta name="theme-color" content="#f7f8fc" />
     <title>자주 묻는 질문 | Matths</title>
+    <link rel="stylesheet" href="/css/brand.css" />
     <link rel="stylesheet" href="/css/faq.css" />
     <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <script src="/js/faq.js" defer></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
-    <link rel="stylesheet" href="/css/brand.css" />
+
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -305,7 +308,12 @@
       </section>
 
       <section class="contact-section">
-        <div class="container contact-card"><div><p>STILL CURIOUS?</p><h2>찾는 답변이 없나요?</h2><span>궁금한 내용을 알려주시면 서비스 개선에 반영하겠습니다.</span></div><a class="button button-white button-large" href="/contact">문의하기 <span aria-hidden="true">→</span></a></div>
+        <div class="container contact-card"><div><p>STILL CURIOUS?</p><h2>찾는 답변이 없나요?</h2><span>궁금한 내용을 알려주시면 서비스 개선에 반영하겠습니다.</span>
+          <%# 로그인 없이 닿는 문의 경로. /contact 는 isLoggedIn 뒤에 있어서
+              로그인하지 않은 사람은 문의 버튼을 눌러도 로그인 화면으로 튕긴다.
+              이 페이지는 App Store 심사의 지원 URL 로도 쓰이는데, 심사자는
+              로그인하지 않은 상태로 들어온다 — 그때 막다른 길이면 안 된다. %>
+          <span class="faq-contact-mail">계정 없이 문의하시려면 <a href="mailto:<%= publicContactEmail %>"><%= publicContactEmail %></a> 로 보내주세요.</span></div><a class="button button-white button-large" href="/contact">문의하기 <span aria-hidden="true">→</span></a></div>
       </section>
     </main>
 

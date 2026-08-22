@@ -147,7 +147,7 @@ html:has(.matths-error-page) {
 .matths-error-copy > p {
   margin: 0 0 15px;
   color: #6c53e4;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.16em;
 }
@@ -187,13 +187,13 @@ html:has(.matths-error-page) {
 
 .matths-error-code small {
   color: #7d859a;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
 .matths-error-code code {
   color: #6248d3;
-  font: 850 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 850 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .matths-error-actions {
@@ -263,7 +263,7 @@ html:has(.matths-error-page) {
 .matths-error-help p {
   margin: 0;
   color: #7a8296;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
 }
 

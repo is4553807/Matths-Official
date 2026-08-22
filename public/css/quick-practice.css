@@ -30,7 +30,7 @@
 .quick-kicker {
   margin: 0 0 14px;
   color: #aebcff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -71,7 +71,7 @@
   width: 100%;
   margin-bottom: 9px;
   color: #aeb6d1;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .quick-stats strong {
@@ -83,7 +83,7 @@
   align-self: flex-end;
   margin: 0 0 5px 4px;
   color: #aeb6d1;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .quick-workspace {
@@ -138,7 +138,7 @@
   color: #737b91;
   background: #f8f9fc;
   border-radius: 15px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 2;
 }
 
@@ -158,7 +158,7 @@
   color: #26304a;
   cursor: pointer;
   list-style: none;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -195,7 +195,7 @@
 .quick-catalog h3 {
   margin: 14px 0 8px;
   color: #3157f6;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .quick-catalog article {
@@ -208,13 +208,13 @@
 
 .quick-catalog article strong {
   color: #252c40;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .quick-catalog article p {
   margin: 4px 0 0;
   color: #7d8499;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -287,7 +287,7 @@
 .quick-timer small {
   margin-top: 3px;
   color: #8b92a6;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .quick-timer.warning {
@@ -347,13 +347,13 @@
   color: #3157f6;
   background: #e8edff;
   border-radius: 9px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
 }
 
 .question-meta strong {
   color: #687087;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .quick-prompt {
@@ -383,7 +383,7 @@
   display: block;
   margin-bottom: 9px;
   color: #697188;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -446,7 +446,7 @@
 
 .quick-coach-feedback span {
   color: #aab6ef;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 

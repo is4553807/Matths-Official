@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -36,6 +37,81 @@ const validProductionEnvironment = {
   PASSWORD_RESET_SECRET: "p".repeat(32),
   FINANCE_PG_FEE_RESERVE_BPS: "350",
 };
+
+function verifyHealthHandlersInIsolatedProcess() {
+  const controllerPath = path.resolve(
+    __dirname,
+    "../controllers/apiController.js"
+  );
+  const probe = String.raw`
+    const apiController = require(process.argv[1]);
+
+    function responseRecorder() {
+      return {
+        statusCode: 200,
+        body: null,
+        status(code) {
+          this.statusCode = code;
+          return this;
+        },
+        json(body) {
+          this.body = body;
+          return this;
+        },
+      };
+    }
+
+    async function main() {
+      const liveResponse = responseRecorder();
+      apiController.liveness({}, liveResponse);
+
+      const readyResponse = responseRecorder();
+      await apiController.readiness({}, readyResponse);
+
+      process.stdout.write(JSON.stringify({
+        live: liveResponse,
+        ready: readyResponse,
+      }));
+    }
+
+    main().catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    });
+  `;
+  const result = spawnSync(
+    process.execPath,
+    ["-e", probe, controllerPath],
+    {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        DISABLE_SCHEDULERS: "1",
+        NODE_ENV: "development",
+      },
+      timeout: 20_000,
+    }
+  );
+
+  if (result.error?.code === "ETIMEDOUT") {
+    throw new Error(
+      "Health handler probe timed out while loading local dependencies. " +
+        "Reinstall or hydrate node_modules (npm ci) and retry."
+    );
+  }
+  if (result.error) throw result.error;
+  assert.equal(
+    result.status,
+    0,
+    result.stderr || "Health handler probe failed."
+  );
+
+  const health = JSON.parse(result.stdout);
+  assert.equal(health.live.statusCode, 200);
+  assert.equal(health.live.body.status, "ok");
+  assert.equal(health.ready.statusCode, 503);
+  assert.equal(health.ready.body.status, "not_ready");
+}
 
 async function main() {
   const validReport = runtimeEnvironmentReport(validProductionEnvironment);
@@ -98,31 +174,7 @@ async function main() {
   assert.deepEqual(testPaymentsReport.errors, []);
   assert.ok(testPaymentsReport.warnings.some((item) => item.includes("TEST 모드")));
 
-  const apiController = require("../controllers/apiController");
-  function responseRecorder() {
-    return {
-      statusCode: 200,
-      body: null,
-      status(code) {
-        this.statusCode = code;
-        return this;
-      },
-      json(body) {
-        this.body = body;
-        return this;
-      },
-    };
-  }
-
-  const liveResponse = responseRecorder();
-  apiController.liveness({}, liveResponse);
-  assert.equal(liveResponse.statusCode, 200);
-  assert.equal(liveResponse.body.status, "ok");
-
-  const readyResponse = responseRecorder();
-  await apiController.readiness({}, readyResponse);
-  assert.equal(readyResponse.statusCode, 503);
-  assert.equal(readyResponse.body.status, "not_ready");
+  verifyHealthHandlersInIsolatedProcess();
 
   const serverSource = fs.readFileSync(path.resolve(__dirname, "../server.js"), "utf8");
   assert.match(serverSource, /frame-ancestors 'none'/);

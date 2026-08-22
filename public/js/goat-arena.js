@@ -112,23 +112,14 @@ async function startArenaIntroVideo() {
   } catch (_error) {
     // 메타데이터가 아직 준비되지 않은 브라우저는 기본 시작점(0초)을 사용한다.
   }
-  arenaVideo.volume = 1;
-  arenaVideo.muted = false;
+  // 자동재생은 항상 무음으로 시작한다. 소리는 아래의 사용자 클릭 경로에서만 켠다.
+  arenaVideo.muted = true;
   updateArenaSoundControl();
 
   try {
     await arenaVideo.play();
   } catch (_error) {
-    // 소리가 있는 자동재생을 막는 브라우저에서는 영상은 계속 보여주고,
-    // 사용자가 버튼을 눌러 소리를 켤 수 있게 한다.
-    arenaVideo.muted = true;
-    updateArenaSoundControl();
-
-    try {
-      await arenaVideo.play();
-    } catch (_mutedError) {
-      finishArenaIntroVideo();
-    }
+    finishArenaIntroVideo();
   }
 }
 

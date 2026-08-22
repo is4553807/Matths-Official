@@ -72,6 +72,33 @@
     </span>
   </div>
 
+  <%
+    /* 자리표시자("전용 애니메이션은 준비되는 순서대로 연결됩니다")가 가리키던
+       바로 그 모션이다. visualSteps 유무와 무관하게 붙어야 하므로 분기 밖에 둔다.
+       컴포지션을 못 잡으면 이 블록이 스스로 사라져 기존 화면만 남는다. */
+  %>
+  <div
+    class="concept-motion-embed"
+    data-concept-motion="<%= concept.id %>"
+    hidden
+  >
+    <div class="concept-motion-frame"></div>
+
+    <div class="concept-motion-controls">
+      <button type="button" data-concept-motion-toggle>
+        재생
+      </button>
+
+      <button
+        type="button"
+        class="is-secondary"
+        data-concept-motion-replay
+      >
+        처음부터 다시 보기
+      </button>
+    </div>
+  </div>
+
   <% if (visualSteps.length) { %>
     <div class="visual-step-grid">
       <%

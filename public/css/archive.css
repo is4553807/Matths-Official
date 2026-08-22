@@ -20,7 +20,7 @@
 .archive-public-heading p {
   margin: 0 0 8px;
   color: #3157f6;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.7px;
 }
@@ -33,7 +33,7 @@
 
 .archive-public-heading > div > span {
   color: #7e879b;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .archive-main {
@@ -56,7 +56,7 @@
   background: #10172f;
   border: 1px solid #202b51;
   border-radius: 12px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -109,12 +109,12 @@
 
 .archive-root-summary > strong {
   color: #3157f6;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .archive-root-summary > small {
   color: #7d879b;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -158,7 +158,7 @@
 .archive-intro p,
 .archive-section-heading p {
   margin: 0 0 8px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.7px;
 }
@@ -174,7 +174,7 @@
   display: block;
   margin-top: 15px;
   color: #adb7da;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .archive-intro > strong {
@@ -191,7 +191,7 @@
 
 .archive-intro > strong small {
   color: #9da9cf;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .archive-feedback {
@@ -199,7 +199,7 @@
   padding: 14px 17px;
   border: 1px solid;
   border-radius: 13px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -241,7 +241,7 @@
   border: 0;
   border-radius: 9px;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -253,7 +253,7 @@
 .archive-admin-file-picker small,
 .archive-notify-choice small {
   color: #7b849a;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -282,7 +282,7 @@
 
 .admin-form .archive-notify-choice b {
   color: #202740;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .archive-admin-item-actions {
@@ -301,7 +301,7 @@
   padding: 0 12px;
   border-radius: 9px;
   font: inherit;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -312,7 +312,7 @@
   color: #68728a;
   background: #f1f4fc;
   border-radius: 10px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .archive-breadcrumbs {
@@ -322,7 +322,7 @@
   gap: 7px;
   margin: 0 0 18px;
   color: #8a93a7;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .archive-breadcrumbs a {
@@ -361,7 +361,7 @@
 .archive-folder-delete-form p {
   margin: 0 0 5px;
   color: #3157f6;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.4px;
 }
@@ -376,7 +376,7 @@
 .archive-folder-management-heading > span,
 .archive-folder-delete-form div > span {
   color: #7b8498;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -400,7 +400,7 @@
   border: 0;
   border-radius: 10px;
   font: inherit;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -429,7 +429,7 @@
 
 .archive-folder-pin-form p {
   color: #3157f6;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.4px;
 }
@@ -441,7 +441,7 @@
 
 .archive-folder-pin-form span {
   color: #6f7890;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -454,7 +454,7 @@
   border: 0;
   border-radius: 10px;
   font: inherit;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -478,7 +478,7 @@
   border: 1px solid #d5ddff;
   border-radius: 9px;
   font: inherit;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -577,7 +577,7 @@
 
 .archive-section-heading > span {
   color: #8991a6;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .archive-upload form {
@@ -595,7 +595,7 @@
 
 .archive-upload label > span {
   color: #697187;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -610,7 +610,7 @@
   border: 1px solid #dfe4ef;
   border-radius: 11px;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .archive-description-field,
@@ -634,7 +634,7 @@
   border: 0;
   border-radius: 12px;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -730,7 +730,7 @@
   color: #3157f6;
   background: #dfe6ff;
   border-radius: 6px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 
@@ -741,14 +741,14 @@
   color: #5a43c8;
   background: #e9e4ff;
   border-radius: 6px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 
 .archive-folder-grid p {
   margin: 0;
   color: #798196;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -769,19 +769,19 @@
 
 .archive-folder-grid strong em {
   color: #654bd2;
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   white-space: nowrap;
 }
 
 .archive-folder-grid small {
   margin-left: 2px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .archive-folder-back {
   color: #3157f6;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   text-decoration: none;
 }
@@ -809,7 +809,7 @@
 }
 
 .archive-file-icon span {
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 950;
 }
 
@@ -825,7 +825,7 @@
 .archive-file-copy > div span,
 .archive-file-copy > div b {
   color: #3157f6;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -842,7 +842,7 @@
   max-width: 760px;
   margin: 0 0 7px;
   color: #727b90;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -850,7 +850,7 @@
   display: block;
   overflow: hidden;
   color: #9aa2b4;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -865,7 +865,7 @@
   background: #fff;
   border: 1px solid #d9e0f2;
   border-radius: 11px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -890,7 +890,7 @@
 
 .archive-empty p {
   margin: 0;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .archive-file-heading-actions
@@ -912,7 +912,7 @@
   background: #f7f8fc;
   border: 1px solid #dfe4ef;
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .archive-select-all input {
@@ -927,7 +927,7 @@
   border: 1px solid #dce1ec;
   border-radius: 7px;
   font: inherit;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 @media (max-width: 760px) {

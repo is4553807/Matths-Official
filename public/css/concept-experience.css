@@ -1,4 +1,6 @@
 .concept-experience {
+  min-width: 0;
+  max-width: 100%;
   display: grid;
   gap: 18px;
   padding-top: 18px;
@@ -52,7 +54,7 @@
 
 .review-mode-banner p {
   margin: 0 0 4px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.2px;
 }
@@ -69,7 +71,7 @@
 .review-mode-banner small {
   margin-top: 4px;
   color: #8e7a52;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -78,13 +80,13 @@
 }
 
 .review-mode-banner button {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 14px;
   color: #fff;
   background: #bd7915;
   border: 0;
   border-radius: 10px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
   white-space: nowrap;
@@ -98,7 +100,10 @@
   position: sticky;
   top: 12px;
   z-index: 30;
+  width: 100%;
+  min-width: 0;
   display: grid;
+  box-sizing: border-box;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   padding: 7px;
@@ -130,20 +135,82 @@
 
 .experience-nav b {
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .experience-nav span {
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
 .experience-section {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   scroll-margin-top: 90px;
   padding: clamp(22px, 4vw, 42px);
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 21px;
+}
+
+.experience-section[hidden] {
+  display: none !important;
+}
+
+.experience-section.active {
+  animation: experience-panel-enter 220ms ease-out both;
+}
+
+.basic-reference-notes {
+  margin-top: 24px;
+  overflow: hidden;
+  border: 1px solid #d9dfeb;
+  border-radius: 16px;
+  background: #f8f9fc;
+}
+
+.basic-reference-notes > summary {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: #4b556d;
+  cursor: pointer;
+}
+
+.basic-reference-notes > summary::marker {
+  color: #246fe7;
+}
+
+.basic-reference-notes > summary span {
+  flex: 0 0 auto;
+  color: #246fe7;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.basic-reference-notes > summary strong {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.basic-reference-notes-content {
+  padding: 0 16px 18px;
+  border-top: 1px solid #e0e5ef;
+}
+
+@keyframes experience-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .experience-heading {
@@ -157,7 +224,7 @@
 .experience-heading p {
   margin: 0 0 8px;
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.3px;
 }
@@ -170,7 +237,7 @@
 
 .experience-heading > span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .concept-intro-card {
@@ -179,9 +246,7 @@
   align-items: center;
   gap: 25px;
   padding: 25px;
-  background:
-    radial-gradient(circle at 92% 0, rgba(49, 87, 246, 0.13), transparent 34%),
-    #f7f9ff;
+  background: #f7f9ff;
   border: 1px solid #dfe5fb;
   border-radius: 17px;
 }
@@ -201,8 +266,8 @@
   font-weight: 800;
   line-height: 1;
   text-align: center;
-  transform: none;
-  box-shadow: 0 13px 25px rgba(49, 87, 246, 0.22);
+  transform: rotate(-3deg);
+  box-shadow: 0 13px 25px rgba(50, 127, 250, 0.22);
 }
 
 .concept-intro-card > span mjx-container {
@@ -215,7 +280,7 @@
 .concept-intro-card p {
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
 }
 
@@ -232,11 +297,37 @@
 }
 
 .concept-type-guide {
+  /*
+   * 유형 안내의 좁은 폭 규칙은 780px 뷰포트 기준이었다. 1024px 화면에서
+   * 왼쪽 개념 목록이 열리면 이 카드가 139px 로 줄어드는데 그때는 규칙이
+   * 걸리지 않아 설명이 카드 밖으로 나갔다. 카드 자기 폭을 기준으로 삼는다.
+   */
+  container-type: inline-size;
   margin-top: 28px;
   padding: clamp(22px, 4vw, 34px);
   background: #fff;
   border: 1px solid #dfe4f1;
   border-radius: 24px;
+}
+
+@container (max-width: 430px) {
+  .guide-process p {
+    grid-template-columns: 23px minmax(0, 1fr);
+  }
+
+  .guide-process span {
+    grid-row: 1 / span 2;
+  }
+
+  .guide-process strong,
+  .guide-process em {
+    grid-column: 2;
+    overflow-wrap: anywhere;
+  }
+
+  .concept-type-guide-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .concept-type-guide > header {
@@ -249,8 +340,8 @@
 
 .concept-type-guide > header p {
   margin: 0 0 7px;
-  color: #3157f6;
-  font-size: 9px;
+  color: var(--matths-blue);
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.6px;
 }
@@ -263,13 +354,51 @@
 
 .concept-type-guide > header > span {
   color: #7b8499;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .concept-type-guide-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.concept-type-guide > .concept-type-guide-disclosure {
+  overflow: hidden;
+  background: #f7f9fd;
+  border: 1px solid #dbe2ef;
+  border-radius: 14px;
+}
+
+.concept-type-guide > .concept-type-guide-disclosure > summary {
+  min-height: 52px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: 10px 14px;
+}
+
+.concept-type-guide > .concept-type-guide-disclosure > summary > strong {
+  font-size: 13px;
+}
+
+.concept-type-guide > .concept-type-guide-disclosure > summary > span {
+  color: #6d768b;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.concept-type-guide > .concept-type-guide-disclosure > summary > b {
+  color: var(--matths-blue);
+  font-size: 20px;
+  transition: transform var(--motion-base) var(--motion-ease);
+}
+
+.concept-type-guide > .concept-type-guide-disclosure[open] > summary > b {
+  transform: rotate(45deg);
+}
+
+.concept-type-guide > .concept-type-guide-disclosure > .concept-type-guide-disclosure-body {
+  padding: 12px;
+  border-top: 1px solid #e0e5ef;
 }
 
 .concept-type-guide details {
@@ -294,8 +423,8 @@
 }
 
 .concept-type-guide summary b {
-  color: #3157f6;
-  font-size: 9px;
+  color: var(--matths-blue);
+  font-size: 12px;
 }
 
 .concept-type-guide summary strong {
@@ -303,9 +432,9 @@
 }
 
 .concept-type-guide summary span {
-  color: #3157f6;
+  color: var(--matths-blue);
   font-size: 20px;
-  transition: transform 0.2s ease;
+  transition: transform var(--motion-base) var(--motion-ease);
 }
 
 .concept-type-guide details[open] summary span {
@@ -320,15 +449,27 @@
 .concept-type-guide .guide-label {
   margin: 15px 0 7px;
   color: #8b93a7;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
 .concept-type-guide .guide-math,
 .concept-type-guide li {
+  min-width: 0;
   color: #262d43;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.75;
+}
+
+/*
+ * 수식은 폭에 맞춰 줄이 나뉘지 않는다. 780px 이하에서만 막아두었더니
+ * 1024px 화면에서 왼쪽 개념 목록이 열려 본문이 139px 로 좁아질 때
+ * 227px 짜리 수식이 카드 밖으로 나갔다(실측). 폭과 무관하게 막는다.
+ */
+.concept-type-guide .guide-math mjx-container {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .concept-type-guide ol {
@@ -344,7 +485,11 @@
 
 .guide-process p {
   display: grid;
-  grid-template-columns: 23px auto 1fr;
+  /*
+   * 1fr 은 최소 크기가 auto 라 긴 한국어 설명이 트랙을 밀어낸다.
+   * 1024px 화면에서 개념 목록이 열려 본문이 139px 가 되면 155px 로 넘쳤다(실측).
+   */
+  grid-template-columns: 23px auto minmax(0, 1fr);
   align-items: start;
   gap: 8px;
   margin: 0;
@@ -359,22 +504,26 @@
   display: grid;
   place-items: center;
   color: #fff;
-  background: #3157f6;
+  background: var(--matths-blue);
   border-radius: 6px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .guide-process strong {
+  min-width: 0;
   padding-top: 3px;
-  font-size: 9px;
+  font-size: 12px;
+  word-break: keep-all;
 }
 
 .guide-process em {
+  min-width: 0;
   padding-top: 2px;
   color: #646e88;
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   line-height: 1.65;
+  overflow-wrap: anywhere;
 }
 
 .midterm-pagination button {
@@ -397,6 +546,46 @@
   .concept-type-guide > header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .concept-type-guide > .concept-type-guide-disclosure > summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .concept-type-guide > .concept-type-guide-disclosure > summary > span {
+    display: none;
+  }
+
+  .concept-type-guide details > div,
+  .concept-type-guide .guide-math,
+  .concept-type-guide ol,
+  .concept-type-guide li,
+  .guide-process,
+  .guide-process p,
+  .guide-process strong,
+  .guide-process em {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .guide-process p {
+    grid-template-columns: 23px minmax(0, 1fr);
+  }
+
+  .guide-process span {
+    grid-row: 1 / span 2;
+  }
+
+  .guide-process strong,
+  .guide-process em {
+    grid-column: 2;
+    overflow-wrap: anywhere;
+  }
+
+  .concept-type-guide .guide-math mjx-container {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 }
 
@@ -527,7 +716,7 @@
 }
 
 .algebra-graph-area {
-  fill: rgba(49, 87, 246, 0.09);
+  fill: rgba(50, 127, 250, 0.09);
 }
 
 .algebra-graph-label,
@@ -621,15 +810,15 @@
 }
 
 .common-math-step-grid p {
-  font-size: 10px;
-  line-height: 1.8;
+  font-size: 16px;
+  line-height: 1.625;
   overflow-wrap: anywhere;
   word-break: keep-all;
 }
 
 .concept-step-grid span {
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -642,8 +831,8 @@
 .concept-step-grid p {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
-  line-height: 1.75;
+  font-size: 16px;
+  line-height: 1.625;
 }
 
 .motion-player {
@@ -659,117 +848,96 @@
   min-height: 430px;
   display: grid;
   place-items: center;
-  background:
-    linear-gradient(rgba(49, 87, 246, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(49, 87, 246, 0.035) 1px, transparent 1px),
-    #f9faff;
-  background-size: 28px 28px;
-  overflow: hidden;
+  background: #f9faff;
+}
+
+.algebra-motion-stage {
+  min-height: 430px;
 }
 
 .common-math-motion-stage {
-  min-height: 340px;
-  padding: clamp(24px, 4vw, 44px);
+  min-height: 430px;
+  padding: 32px;
 }
 
 .common-math-motion-board {
-  width: min(100%, 960px);
-  min-width: 0;
+  width: min(100%, 980px);
   display: grid;
   gap: 24px;
 }
 
 .common-math-motion-formula {
-  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 19px 22px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #dce3f3;
+  padding: 20px 24px;
+  background: #fff;
+  border: 1px solid #dfe4f2;
   border-radius: 16px;
-  box-shadow: 0 14px 32px rgba(31, 45, 91, 0.07);
 }
 
 .common-math-motion-formula span {
-  flex: 0 0 auto;
-  color: #7c869d;
-  font-size: 10px;
-  font-weight: 850;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
 }
 
 .common-math-motion-formula strong {
   min-width: 0;
-  color: var(--blue);
+  color: var(--ink);
   font-size: clamp(17px, 2vw, 25px);
-  line-height: 1.45;
-  text-align: right;
   overflow-wrap: anywhere;
-}
-
-.common-math-motion-formula strong mjx-container {
-  max-width: 100%;
-  margin: 0 !important;
-  overflow-x: auto;
-  overflow-y: hidden;
+  text-align: right;
 }
 
 .common-math-motion-flow {
-  min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: stretch;
-  gap: 12px;
+  gap: 14px;
 }
 
 .common-math-motion-flow article {
   min-width: 0;
-  padding: 19px;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid #dfe5f3;
-  border-radius: 15px;
+  min-height: 178px;
+  padding: 22px;
+  background: #fff;
+  border: 1px solid #dfe4f2;
+  border-radius: 16px;
 }
 
 .common-math-motion-flow article b {
-  display: block;
-  margin-bottom: 12px;
   color: var(--blue);
-  font-size: 9px;
-  letter-spacing: 1.2px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
 }
 
 .common-math-motion-flow article strong {
   display: block;
-  margin-bottom: 8px;
-  font-size: 13px;
+  margin-top: 14px;
+  color: var(--ink);
+  font-size: 17px;
 }
 
 .common-math-motion-flow article p {
-  margin: 0;
+  margin: 10px 0 0;
   color: var(--muted);
-  font-size: 9px;
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-  word-break: keep-all;
+  font-size: 14px;
+  line-height: 1.65;
 }
 
 .common-math-motion-flow > span {
   align-self: center;
-  color: #9ba7c0;
-  font-size: 22px;
-  font-weight: 800;
+  color: var(--blue);
+  font-size: 24px;
 }
 
 .common-math-motion-caption {
-  flex: 0 0 auto;
-  color: #7b8499;
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-.algebra-motion-stage {
-  min-height: 430px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .motion-stage canvas,
@@ -811,7 +979,7 @@
   min-width: 0;
   color: var(--ink);
   font-family: inherit;
-  font-size: clamp(11px, 1.15vw, 14px);
+  font-size: clamp(12px, 1.15vw, 14px);
   line-height: 1.45;
   overflow-wrap: anywhere;
   word-break: keep-all;
@@ -825,7 +993,7 @@
 
 .probability-playground-section .experience-heading > span {
   max-width: 280px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -875,13 +1043,13 @@
   display: block;
   margin-bottom: 5px;
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.2px;
 }
 
 .motion-caption strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .motion-caption button,
@@ -894,13 +1062,13 @@
 #rerun-common-math,
 .submit-answer,
 .next-problem {
-  min-height: 42px;
+  min-height: 44px;
   padding: 0 17px;
   color: #fff;
   background: var(--blue);
   border: 0;
   border-radius: 10px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -988,7 +1156,7 @@
 
 .common-math-formula-visual article b {
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 1.2px;
 }
 
@@ -1004,7 +1172,7 @@
 
 .common-math-formula-visual article p {
   color: #5f6980;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .common-math-formula-visual > span {
@@ -1021,7 +1189,7 @@
 .probability-lab .lab-controls p,
 .probability-lab .lab-controls label > span,
 .probability-lab .mode-buttons button {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .probability-lab .lab-controls label > span b {
@@ -1037,11 +1205,11 @@
 }
 
 .probability-lab .lab-tip b {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .probability-lab .lab-tip p {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .probability-lab .lab-formula {
@@ -1079,7 +1247,7 @@
 .lab-controls p {
   margin: 0 0 10px;
   color: #747d92;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -1089,13 +1257,13 @@
 }
 
 .mode-buttons button {
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 12px;
   color: #70788c;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
   text-align: left;
   cursor: pointer;
@@ -1116,7 +1284,7 @@
   display: flex;
   justify-content: space-between;
   color: #596176;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -1128,6 +1296,11 @@
 
 .lab-controls input[type="range"] {
   width: 100%;
+  /*
+   * 브라우저 기본 margin 2px 이 width:100% 와 겹쳐 라벨이 항상 2px 넘쳤다
+   * (실측 sw=168 / cw=166, 320~768 모든 폭에서 동일).
+   */
+  margin-inline: 0;
   accent-color: var(--blue);
 }
 
@@ -1139,7 +1312,7 @@
 
 .lab-tip b {
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .lab-tip p {
@@ -1168,7 +1341,7 @@
 .lab-formula span {
   flex: 0 0 auto;
   color: #949bad;
-  font-size: 9px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -1211,7 +1384,7 @@
   right: 12px;
   z-index: 5;
   display: grid;
-  grid-template-columns: 34px minmax(52px, auto) 34px 34px;
+  grid-template-columns: 44px minmax(52px, auto) 44px 44px;
   align-items: center;
   gap: 4px;
   padding: 5px;
@@ -1223,8 +1396,8 @@
 }
 
 .calculus-graph-toolbar button {
-  width: 34px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -1248,7 +1421,7 @@
 .calculus-graph-toolbar output {
   min-width: 52px;
   color: var(--blue);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -1261,7 +1434,7 @@
 }
 
 #calculus-playground-visual:focus-visible {
-  outline: 3px solid rgba(49, 87, 246, 0.24);
+  outline: 3px solid rgba(50, 127, 250, 0.24);
   outline-offset: -3px;
 }
 
@@ -1295,13 +1468,7 @@
   align-content: center;
   gap: 7px;
   padding: 24px;
-  background:
-    radial-gradient(
-      circle at 50% 15%,
-      rgba(49, 87, 246, 0.08),
-      transparent 35%
-    ),
-    #fbfcff;
+  background: #fbfcff;
 }
 
 .transformation-stage > span {
@@ -1326,19 +1493,19 @@
   border-radius: 16px;
   opacity: 0.55;
   transition:
-    opacity 0.25s ease,
-    transform 0.25s ease,
-    border-color 0.25s ease,
-    background 0.25s ease;
+    opacity var(--motion-base) var(--motion-ease),
+    transform var(--motion-base) var(--motion-ease),
+    border-color var(--motion-base) var(--motion-ease),
+    background var(--motion-base) var(--motion-ease);
 }
 
 .transformation-card.active {
   color: var(--ink);
   background: #fff;
   border-color: #aebdfc;
-  box-shadow: 0 13px 30px rgba(49, 87, 246, 0.12);
+  box-shadow: 0 10px 18px rgba(50, 127, 250, 0.12);
   opacity: 1;
-  transform: translateY(-4px);
+  transform: var(--motion-lift);
 }
 
 .transformation-card.done {
@@ -1350,7 +1517,7 @@
 
 .transformation-card small {
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1px;
   line-height: 1.55;
@@ -1377,7 +1544,7 @@
 
 .transformation-card p {
   margin: 0;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
   text-align: center;
 }
@@ -1386,7 +1553,7 @@
 .continuity-readout strong,
 .property-readout strong {
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .secondary-playground-empty {
@@ -1405,7 +1572,117 @@
 
 .secondary-playground-empty p {
   margin: 8px 0 0;
-  font-size: 9px;
+  font-size: 12px;
+}
+
+.secondary-concept-board {
+  padding: clamp(22px, 4vw, 34px);
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid #dfe4f1;
+  border-left: 4px solid var(--blue);
+  border-radius: 17px;
+}
+
+.secondary-concept-board > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.secondary-concept-board > header p {
+  margin: 0 0 5px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.secondary-concept-board h4 {
+  margin: 0;
+  font-size: clamp(21px, 3vw, 28px);
+}
+
+.secondary-concept-board > header > span {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  color: #4e5a73;
+  background: #f3f6fc;
+  font-size: 13px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.secondary-concept-board-summary {
+  max-width: 820px;
+  margin: 18px 0 22px;
+  color: #5f6980;
+  line-height: 1.7;
+}
+
+.secondary-concept-board ol {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  list-style: none;
+}
+
+.secondary-concept-board li {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e1e6f1;
+  border-radius: 13px;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 12px;
+  background: #f8f9fd;
+}
+
+.secondary-concept-board li > b {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--blue);
+  font-size: 12px;
+}
+
+.secondary-concept-board li div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.secondary-concept-board li strong {
+  font-size: 14px;
+}
+
+.secondary-concept-board li span,
+.secondary-concept-board footer span {
+  color: #667087;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.secondary-concept-board footer {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e1e6f1;
+  display: grid;
+  gap: 5px;
+}
+
+@media (max-width: 700px) {
+  .secondary-concept-board ol {
+    grid-template-columns: 1fr;
+  }
 }
 
 .graph-zoom-status {
@@ -1422,7 +1699,7 @@
   border: 1px solid #dfe4f1;
   border-radius: 999px;
   box-shadow: 0 5px 13px rgba(29, 42, 103, 0.08);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
   pointer-events: none;
 }
@@ -1456,7 +1733,7 @@
 
 .limit-readout span {
   color: #969daf;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .limit-readout strong {
@@ -1467,7 +1744,7 @@
 .limit-verdict strong {
   color: var(--blue);
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .probability-readout {
@@ -1484,7 +1761,7 @@
 }
 
 .probability-readout span {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .probability-readout strong {
@@ -1499,7 +1776,7 @@
 
 .probability-readout .limit-verdict strong {
   color: var(--blue);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .practice-layout {
@@ -1510,6 +1787,8 @@
 
 .practice-card,
 .mastery-card {
+  min-width: 0;
+  box-sizing: border-box;
   padding: 23px;
   border: 1px solid var(--line);
   border-radius: 17px;
@@ -1519,7 +1798,7 @@
   display: flex;
   justify-content: space-between;
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -1555,11 +1834,196 @@
 .problem-prompt mjx-container[display="true"] {
   display: block !important;
   margin: 0.5em 0 !important;
-  font-size: clamp(0.72em, 1.4vw, 0.9em);
+  font-size: clamp(0.75rem, 1.4vw, 0.9em);
+}
+
+.solution-drawing {
+  min-width: 0;
+  margin: 0 0 16px;
+  padding: 14px;
+  background: #f8f9fd;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+}
+
+.solution-drawing-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 11px;
+}
+
+.solution-drawing-heading h5 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.solution-drawing-heading h5 span {
+  padding: 3px 7px;
+  color: #5d6780;
+  background: #e9edf5;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.solution-drawing-heading p {
+  max-width: 620px;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.clear-solution-drawing,
+.solution-floating-heading button {
+  min-width: 88px;
+  min-height: 44px;
+  flex: 0 0 auto;
+  padding: 0 13px;
+  color: #34405a;
+  background: #fff;
+  border: 1px solid #cbd2e1;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.clear-solution-drawing:disabled {
+  color: #939bac;
+  background: #f1f3f7;
+  cursor: not-allowed;
+}
+
+.clear-solution-drawing:focus-visible,
+.solution-floating-heading button:focus-visible,
+#solution-drawing-canvas:focus-visible {
+  outline: 3px solid rgba(49, 87, 246, 0.32);
+  outline-offset: 2px;
+}
+
+.solution-canvas-frame {
+  min-width: 0;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #cbd2e1;
+  border-radius: 10px;
+}
+
+#solution-drawing-canvas {
+  width: 100%;
+  height: clamp(210px, 24vw, 280px);
+  display: block;
+  background: #fff;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+#solution-drawing-canvas[aria-disabled="true"] {
+  cursor: default;
+}
+
+.solution-drawing-status {
+  min-height: 19px;
+  margin: 8px 2px 0;
+  color: #68738b;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.solution-floating-preview {
+  position: fixed;
+  right: clamp(12px, 2.4vw, 34px);
+  bottom: clamp(12px, 2.4vw, 30px);
+  z-index: 60;
+  width: min(390px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  padding: 15px;
+  background: #fff;
+  border: 1px solid #cbd2e1;
+  border-radius: 15px;
+  box-shadow: 0 18px 50px rgba(23, 32, 51, 0.22);
+}
+
+.solution-floating-preview[hidden] {
+  display: none;
+}
+
+.solution-floating-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+
+.solution-floating-heading p {
+  margin: 0 0 4px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.solution-floating-heading h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.solution-floating-preview img {
+  width: 100%;
+  height: clamp(150px, 26vh, 230px);
+  display: block;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.solution-analysis-state {
+  margin: 10px 0 0;
+  padding: 10px 11px;
+  color: #34405a;
+  background: #f3f5fa;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.solution-analysis-state[data-status="unavailable"] {
+  color: #72591c;
+  background: #fff8df;
+}
+
+.solution-analysis-state[data-status="failed"] {
+  color: #9d3e4a;
+  background: #fff0f2;
+}
+
+.solution-floating-preview > small {
+  display: block;
+  margin-top: 9px;
+  color: #737d92;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 #problem-answer-area {
   display: grid;
+  /*
+   * 기본 auto 트랙은 가장 넓은 자식(수식 키보드의 min-content = 230px)에 맞춰
+   * 늘어난다. 320px 폭에서는 답안 영역이 168px 뿐이라 입력창과 키보드가
+   * 카드 밖으로 62px 흘러나왔다(실측). 트랙을 컨테이너 폭으로 고정한다.
+   */
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -1580,7 +2044,7 @@
   background: #fafbfe;
   border: 1px solid var(--line);
   border-radius: 10px;
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -1606,7 +2070,7 @@
   color: #525b70;
   background: #f5f7fc;
   border-radius: 11px;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.7;
   white-space: pre-line;
 }
@@ -1627,7 +2091,7 @@
 }
 
 .review-return {
-  min-height: 42px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1636,7 +2100,7 @@
   color: #fff;
   background: var(--green);
   border-radius: 10px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -1647,7 +2111,7 @@
 .mastery-card > p {
   margin: 0;
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.2px;
 }
@@ -1658,7 +2122,7 @@
 }
 
 .mastery-card > strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .mastery-card em {
@@ -1683,7 +2147,7 @@
   background: #f0f2f7;
   border-radius: 10px;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
 }
 
@@ -1753,20 +2217,20 @@
 }
 
 .concept-complete-toggle strong {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .concept-complete-toggle small {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
 .mastery-notice {
   margin: 12px 0 0;
   color: #9299aa;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -1832,13 +2296,47 @@
   }
 
   .experience-nav {
-    position: static;
-    grid-template-columns: repeat(2, 1fr);
+    position: sticky;
+    top: 6px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+    padding: 5px;
+  }
+
+  .experience-nav button {
+    min-width: 0;
+    min-height: 54px;
+    flex-direction: column;
+    gap: 1px;
+    padding: 4px 2px;
+  }
+
+  /*
+   * 320px 폭에서 칸 하나는 55.5px 인데 "모션 따라보기"는 nowrap 으로 60px 를
+   * 요구해 옆 칸 글자와 겹쳤다(실측 sw=60 / cw=56). 한국어 정서법대로
+   * 어절 단위로만 줄바꿈시켜 칸 안에 넣는다.
+   */
+  .experience-nav span {
+    font-size: 12px;
+    white-space: normal;
+    word-break: keep-all;
+    line-height: 1.25;
+    text-align: center;
   }
 
   .experience-heading {
     align-items: start;
     flex-direction: column;
+  }
+
+  .experience-section {
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .practice-card,
+  .mastery-card {
+    padding: 16px;
   }
 
   .concept-intro-card {
@@ -1851,7 +2349,7 @@
   }
 
   .concept-intro-card > span mjx-container {
-    font-size: 0.58em !important;
+    font-size: 0.75rem !important;
   }
 
   .lab-controls {
@@ -1919,21 +2417,43 @@
   .calculus-graph-toolbar {
     top: 8px;
     right: 8px;
-    grid-template-columns: 32px 46px 32px 32px;
+    grid-template-columns: 44px 46px 44px 44px;
   }
 
   .calculus-graph-toolbar button {
-    width: 32px;
-    height: 30px;
+    width: 44px;
+    height: 44px;
   }
 
   .calculus-graph-toolbar output {
     min-width: 46px;
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .problem-prompt {
     font-size: 16px;
+  }
+
+  .solution-drawing {
+    padding: 12px;
+  }
+
+  .solution-drawing-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .clear-solution-drawing {
+    width: 100%;
+  }
+
+  #solution-drawing-canvas {
+    height: 220px;
+  }
+
+  .solution-floating-preview {
+    right: 12px;
+    bottom: 12px;
   }
 
   .limit-readout {
@@ -1952,11 +2472,49 @@
   }
 
   .transformation-card.active {
-    transform: translateY(-3px);
+    transform: var(--motion-lift);
   }
 
   .transformation-card p {
     text-align: center;
+  }
+}
+
+/*
+ * 좁은 폭 답안 영역 실측 정리 (320px 기준)
+ *
+ * 카드 안쪽 폭은 화면 320 - 본문 여백 36 - 학습 패널 여백 42 - 섹션 여백 36
+ * - 카드 여백 32 = 168px 뿐이다. 공용 수식 키보드는 5열 x 최소 42px + 간격으로
+ * 230px 를 요구해 카드 밖으로 62px 흘러나왔다(실측 sw=232 / cw=168).
+ * 열 수를 줄여 폭 안에 넣되, 키 하나가 44px 아래로 내려가지 않게 단계를 나눈다.
+ *   420px 이하 -> 4열 (360px 화면에서 키 47px, 390px 화면에서 55px)
+ *   344px 이하 -> 3열 (320px 화면에서 키 55px)
+ * 개념 학습 화면 안에서만 적용해 평가 화면의 키보드는 건드리지 않는다.
+ */
+@media (max-width: 420px) {
+  .concept-experience .math-keyboard {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .concept-experience .practice-card,
+  .concept-experience .mastery-card {
+    padding: 14px;
+  }
+
+  .concept-experience .experience-section {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 344px) {
+  .concept-experience .math-keyboard {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .experience-section.active {
+    animation: none;
   }
 }
 
@@ -1965,5 +2523,107 @@
   .algebra-motion-graph.is-replaying .algebra-graph-curve.series-2,
   .algebra-motion-graph.is-replaying .algebra-graph-point {
     animation: none;
+  }
+}
+
+/* ── 개념 모션 컴포지션 ────────────────────────────────────────────────
+   public/concept-motion/compositions/<개념id>.html 을 iframe 으로 올린다.
+   컴포지션은 1080x1920 고정 픽셀로 짜여 있고 내부에서 overflow:hidden 이라
+   반응형으로 늘어나지 않는다. 그래서 iframe 은 원래 크기 그대로 두고
+   바깥에서 transform:scale 로 줄인다 — 앱 무대와 같은 방식이다.
+   (iframe 폭을 % 로 주면 내부 1080px 레이아웃이 잘려 나간다.)                */
+
+.concept-motion-embed {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: 18px 0;
+}
+
+/* 세로 9:16 무대다. 높이를 먼저 잡고 폭을 비율로 받는다 —
+   가로를 먼저 잡으면 데스크톱에서 화면 세 배 높이로 자란다.
+   좁은 화면에서는 max-width 가 이겨서 높이가 비율대로 줄어든다. */
+.concept-motion-frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1080 / 1920;
+  height: clamp(420px, 68vh, 760px);
+  max-width: 100%;
+  border-radius: 16px;
+  background: #f3f6ff;
+  /* 테두리를 border 로 주면 안 된다. aspect-ratio 는 테두리를 포함한 상자에
+     걸리는데 iframe 배율은 안쪽 폭(clientWidth)으로 재므로, 1px 테두리만큼
+     아래에 빈 띠가 남는다. 그림자로 그리면 안팎 크기가 같아져 딱 맞는다. */
+  box-shadow: inset 0 0 0 1px #dfe4f2;
+}
+
+/* 원래 크기로 두고 스케일만 준다. 좌상단 기준이라야 계산이 폭 하나로 끝난다. */
+.concept-motion-frame iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1080px;
+  height: 1920px;
+  border: 0;
+  transform-origin: 0 0;
+  transform: scale(var(--concept-motion-scale, 1));
+}
+
+.concept-motion-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.concept-motion-controls button {
+  min-height: 44px;
+  padding: 0 17px;
+  color: #fff;
+  background: var(--blue);
+  border: 0;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.concept-motion-controls button.is-secondary {
+  color: var(--blue);
+  background: #fff;
+  border: 1px solid #dfe4f2;
+}
+
+/* 컴포지션이 붙으면 같은 무대에 있던 기존 캔버스·SVG 를 숨긴다.
+   DOM 을 들어내지 않고 감추기만 하는 이유는, 컴포지션이 못 뜨는 경우
+   (자산 미배포 등) 그대로 되돌아갈 자리가 남아야 하기 때문이다. */
+.motion-stage.has-concept-motion > :not(.concept-motion-embed),
+.motion-player.has-concept-motion .motion-caption {
+  display: none;
+}
+
+/* 모션 없이도 화면이 성립해야 하므로 기본은 감춤이 아니라 노출이다.
+   자리표시자는 컴포지션이 붙은 뒤에만 사라진다. */
+.motion-placeholder.has-concept-motion {
+  display: none;
+}
+
+@media (max-width: 620px) {
+  .concept-motion-frame {
+    /* 390px 화면에서는 폭이 먼저 막힌다. 높이 상한을 낮춰 두지 않으면
+       비율 계산이 뷰포트를 넘겨 무대가 화면 밖으로 밀린다. */
+    height: clamp(360px, 62vh, 620px);
+  }
+
+  .concept-motion-embed {
+    padding: 12px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 모션을 줄여 달라고 한 사용자에게 자동재생은 그 자체가 위반이다.
+     무대는 첫 프레임으로 세워 두고 재생은 버튼으로만 시작한다. */
+  .concept-motion-frame {
+    scroll-behavior: auto;
   }
 }

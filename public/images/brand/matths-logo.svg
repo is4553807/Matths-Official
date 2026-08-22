@@ -1,0 +1,40 @@
+  <svg xmlns="http://www.w3.org/2000/svg" width="2400" height="729" viewBox="285 160 790 240" preserveAspectRatio="xMidYMid meet" shape-rendering="geometricPrecision">
+
+  <defs>
+    <linearGradient id="mGradient" gradientUnits="userSpaceOnUse" x1="343.514" y1="219.822" x2="426.748" y2="351.087">
+      <stop offset="0" stop-color="#E649D2"/>
+      <stop offset="1" stop-color="#674DFF"/>
+    </linearGradient>
+    <linearGradient id="iGradient" gradientUnits="userSpaceOnUse" x1="506.386" y1="397.065" x2="502.53" y2="301.857">
+      <stop offset="0" stop-color="#07EAF0"/>
+      <stop offset="1" stop-color="#229DF8"/>
+    </linearGradient>
+    <linearGradient id="starAccent" gradientUnits="userSpaceOnUse" x1="487" y1="201" x2="516" y2="201">
+      <stop offset="0" stop-color="#AD91E7" stop-opacity="0.95"/>
+      <stop offset="0.78" stop-color="#924AF6" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#7B4EFC" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="starClip"><path d="M 512 175.4 C 513.5 190 518.5 198.5 537 201 C 518.5 203.5 513.5 212 512 227 C 510.5 212 505.5 203.5 487 201 C 505.5 198.5 510.5 190 512 175.4 Z"/></clipPath>
+  </defs>
+
+
+
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 327 377.5 L 327 255 L 409 332.5 L 484 255" stroke="url(#mGradient)" stroke-width="44"/>
+      <rect x="482.6" y="299.5" width="43.8" height="100" rx="21.9" fill="url(#iGradient)" stroke="none"/>
+      <path d="M 512 175.4 C 513.5 190 518.5 198.5 537 201 C 518.5 203.5 513.5 212 512 227 C 510.5 212 505.5 203.5 487 201 C 505.5 198.5 510.5 190 512 175.4 Z" fill="#7B4EFC" stroke="none"/><rect x="487" y="175" width="31" height="53" fill="url(#starAccent)" clip-path="url(#starClip)" stroke="none"/>
+    </g>
+
+  <g fill="none" stroke="#0C0F1A" stroke-width="13.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 590 344 L 590 263 L 634 330.5 L 678 263 L 678 344"/>
+    <path d="M 801 265 L 801 327 C 801 339 807 344.7 817.5 344.7 C 821.5 344.7 825 343.7 827.5 342.2" stroke-width="12.4"/>
+    <path d="M 787.2 282 L 828.7 282" stroke-width="11.2"/>
+    <path d="M 860 265 L 860 327 C 860 339 866 344.7 875.5 344.7 C 880 344.7 883.5 343.7 886 342.2" stroke-width="13"/>
+    <path d="M 845.5 282 L 882.4 282" stroke-width="11.2"/>
+    <path d="M 915 255 L 915 344"/>
+    <path d="M 915 307 C 921 290 934 281 949 281 C 964 281 972 292 972 309 L 972 344"/>
+  </g>
+  <path fill="#0C0F1A" fill-rule="evenodd" clip-rule="evenodd" stroke="none" d="M 727.973 276.266 C 771.933 272.788 768.608 295.767 768.289 329.572 C 768.258 332.889 768.999 346.921 767.06 348.412 C 755.942 356.963 755.21 341.03 755.495 341.555 C 755.077 341.551 754.251 342.117 753.952 342.407 C 741.77 354.239 723.581 353.264 710.608 343.642 C 707.364 339.486 705.176 335.8 704.944 330.506 C 703.818 304.855 715 308.3 728 308.3 L 752.037 308.3 C 752.465 308.383 754.432 307.827 754.508 307.395 C 758.751 283.283 731.345 282.302 716.548 292.17 C 714.677 293.415 711.014 293.248 709.779 291.18 C 703.797 281.167 722.794 277.411 727.973 276.266 Z M 725.5 318 L 746.8 318 C 752.5 318 755.5 320 754 324 C 751.5 331.5 745.5 337.5 735.5 339 C 724 340.5 716 336 716 329 C 716 323 719.5 319.5 725.5 318 Z"/>
+  <path fill="#0C0F1A" stroke="none" d="M 1019.24 275.24 C 1024.96 274.755 1052.65 274.672 1050.51 286.292 C 1049.37 293.501 1040.1 289.334 1035.53 287.154 C 1022.38 280.869 996.127 291.923 1013.61 304.674 C 1022.11 310.872 1053.35 305.655 1054.07 327.006 C 1054.71 346.037 1040.13 349.418 1025.34 350.697 C 1016.7 350.484 1013.55 349.589 1004.56 347.749 C 996.067 346.012 987.904 336.396 999.519 333.647 C 1002.19 334.504 1005.84 336.483 1008.39 337.54 C 1035.38 348.761 1060.95 323.562 1021.5 318.054 C 1002.87 315.454 987.49 305.968 998.175 286.022 C 1001.95 278.97 1012.21 276.505 1019.24 275.24 Z"/>
+
+  </svg>

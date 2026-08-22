@@ -79,7 +79,7 @@ a {
   display: flex;
   gap: 20px;
   color: #687087;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -104,7 +104,7 @@ a {
 .legal-hero p {
   margin: 0 0 13px;
   color: #aebcff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -123,7 +123,7 @@ a {
   display: block;
   margin-top: 22px;
   color: #b7bfd7;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .legal-layout {
@@ -154,14 +154,14 @@ a {
 
 .legal-layout > aside strong {
   margin: 0 0 10px 10px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .legal-layout > aside a {
   padding: 10px;
   color: #70788d;
   border-radius: 8px;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -213,7 +213,7 @@ a {
 .article-number {
   margin: 0 0 9px !important;
   color: var(--legal-blue) !important;
-  font-size: 9px !important;
+  font-size: 12px !important;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -257,7 +257,7 @@ a {
   padding: 20px;
   background: #f6f8fc;
   border-radius: 14px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .legal-contact strong {
@@ -292,7 +292,7 @@ a {
   width: 100%;
   min-width: 680px;
   border-collapse: collapse;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -325,7 +325,7 @@ a {
   gap: 24px;
   color: #858da1;
   background: #111426;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .legal-footer a {
@@ -372,5 +372,12 @@ a {
 
   .legal-hero {
     padding: 60px 24px;
+  }
+
+  .legal-hero h1 {
+    max-inline-size: 100%;
+    font-size: clamp(28px, 9vw, 38px);
+    letter-spacing: -0.04em;
+    overflow-wrap: anywhere;
   }
 }

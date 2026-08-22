@@ -51,6 +51,35 @@
     [13, 15].includes(Number(learner.schoolGrade))
       ? "졸업"
       : "재학";
+  /*
+   * 소셜 연결 상태.
+   * models/matthsModel.js 의 socialAuth.googleId / socialAuth.kakaoId 는 select:false 라
+   * 컨트롤러가 명시적으로 조회한 경우에만 값이 들어온다.
+   * 값 자체가 없으면 "연결 안 됨" 으로 잘못 보여주지 않도록 카드를 통째로 감춘다.
+   */
+  const socialAuth =
+    learner.socialAuth && typeof learner.socialAuth === "object"
+      ? learner.socialAuth
+      : null;
+  const socialAccountLinks = socialAuth
+    ? [
+        {
+          key: "kakao",
+          label: "카카오",
+          mark: "/images/kakao-login-mark.svg",
+          linked: Boolean(socialAuth.kakaoId),
+        },
+        {
+          key: "google",
+          label: "구글",
+          mark: "/images/google-g-logo.svg",
+          linked: Boolean(socialAuth.googleId),
+        },
+      ]
+    : [];
+  const linkedSocialAccounts = socialAccountLinks.filter(
+    (account) => account.linked
+  );
   const safeSchoolJson =
     JSON.stringify(regionData)
       .replace(/</g, "\\u003c")
@@ -72,15 +101,16 @@
     />
     <meta name="theme-color" content="#f5f7fc" />
     <title>프로필 설정 | Matths</title>
+    <link rel="stylesheet" href="/css/brand.css" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/profile.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <script src="/js/auth.js" defer></script>
     <script src="/js/profile.js" defer></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
-    <link rel="stylesheet" href="/css/brand.css" />
-    <link rel="stylesheet" href="/css/matths-theme.css" />
-    <link rel="stylesheet" href="/css/contrast.css" />
+
   </head>
   <body>
     <a class="skip-link" href="#profile-main">프로필 설정으로 바로가기</a>
@@ -88,8 +118,7 @@
     <div class="profile-page-shell">
       <header class="profile-header">
         <a class="brand" href="/" aria-label="Matths 학습 홈">
-          <span class="brand-mark" aria-hidden="true">M</span>
-          <span>Matths</span>
+          <%- include("partials/brand-primary-logo") %>
         </a>
 
         <a class="back-link learning-home-button" href="/main">
@@ -101,10 +130,10 @@
       <main class="profile-main" id="profile-main">
         <section class="profile-hero" aria-labelledby="profile-title">
           <div class="profile-hero-copy">
-            <p>MY PROFILE</p>
+            <p>내 정보</p>
             <h1 id="profile-title">프로필 설정</h1>
             <span>
-              학습 화면에 표시되는 정보와 계정 보안을 관리할 수 있습니다.
+              학습 화면의 표시 정보와 로그인 보안을 구분해 관리합니다.
             </span>
           </div>
 
@@ -128,29 +157,42 @@
         </section>
 
         <nav class="profile-section-nav" aria-label="프로필 설정 항목">
-          <a href="#nickname-settings">닉네임</a>
-          <a href="#coach-mode-settings">학습 모드</a>
-          <a href="#school-settings">고등학교</a>
-          <a href="#password-settings">비밀번호</a>
-          <a href="#withdrawal-settings">계정 탈퇴</a>
+          <div>
+            <span>학습 프로필</span>
+            <a href="#nickname-settings">닉네임</a>
+            <a href="#coach-mode-settings">학습 모드</a>
+            <a href="#school-settings">고등학교</a>
+          </div>
+          <div>
+            <span>계정·보안</span>
+            <a href="#password-settings">비밀번호</a>
+            <% if (socialAccountLinks.length) { %>
+              <a href="#social-link-settings">연결된 계정</a>
+            <% } %>
+            <a href="#withdrawal-settings">계정 탈퇴</a>
+          </div>
         </nav>
 
         <div class="settings-grid">
+          <header class="settings-group-heading" id="learning-profile-group">
+            <p>학습 화면 설정</p>
+            <h2>학습 프로필</h2>
+            <span>학습 화면에서 사용하는 이름, 코치 말투와 학교 정보를 관리합니다.</span>
+          </header>
           <section
             class="settings-card"
             id="nickname-settings"
             aria-labelledby="nickname-title"
           >
             <div class="settings-card-heading">
-              <span class="settings-icon blue" aria-hidden="true">Aa</span>
               <div>
-                <p>DISPLAY NAME</p>
+                <p>화면에 표시할 이름</p>
                 <h2 id="nickname-title">닉네임 변경</h2>
               </div>
             </div>
 
             <p class="settings-description">
-              대시보드와 학습 화면에서 불러드릴 이름입니다.
+              대시보드와 학습 화면에서 사용하는 이름입니다.
             </p>
 
             <% if (message && message.section === "nickname") { %>
@@ -185,7 +227,7 @@
                   required
                 />
                 <small class="field-guide">
-                  2자 이상 30자 이하로 입력해 주세요.
+                  2자 이상 30자 이하로 입력하세요.
                 </small>
               </div>
 
@@ -202,9 +244,8 @@
             aria-labelledby="coach-mode-title"
           >
             <div class="settings-card-heading">
-              <span class="settings-icon violet" aria-hidden="true">M</span>
               <div>
-                <p>LEARNING MODE</p>
+                <p>학습 안내 방식</p>
                 <h2 id="coach-mode-title">학습 코치 말투</h2>
               </div>
             </div>
@@ -270,9 +311,8 @@
             aria-labelledby="school-title"
           >
             <div class="settings-card-heading">
-              <span class="settings-icon green" aria-hidden="true">校</span>
               <div>
-                <p>SCHOOL</p>
+                <p>학교 정보</p>
                 <h2 id="school-title">고등학교 변경</h2>
               </div>
             </div>
@@ -353,15 +393,57 @@
             </form>
           </section>
 
+          <header class="settings-group-heading" id="account-security-group">
+            <p>로그인과 데이터</p>
+            <h2>계정과 보안</h2>
+            <span>비밀번호를 변경하거나 계정과 보관 데이터의 처리를 확인합니다.</span>
+          </header>
+          <% if (socialAccountLinks.length) { %>
+            <section
+              class="settings-card"
+              id="social-link-settings"
+              aria-labelledby="social-link-title"
+            >
+              <div class="settings-card-heading">
+                <div>
+                  <p>소셜 로그인</p>
+                  <h2 id="social-link-title">연결된 계정</h2>
+                </div>
+              </div>
+
+              <p class="settings-description">
+                이메일 로그인과 별개로 연결된 소셜 계정을 확인합니다.
+              </p>
+
+              <% if (linkedSocialAccounts.length) { %>
+                <% linkedSocialAccounts.forEach((account) => { %>
+                  <div class="settings-alert success" role="status">
+                    <img
+                      src="<%= account.mark %>"
+                      alt=""
+                      width="20"
+                      height="20"
+                      aria-hidden="true"
+                    />
+                    <%= account.label %> 계정이 연결되어 있습니다.
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <p class="settings-description">
+                  아직 연결된 소셜 계정이 없습니다.
+                  로그인 화면에서 카카오 또는 구글 계정으로 로그인하면 연결됩니다.
+                </p>
+              <% } %>
+            </section>
+          <% } %>
           <section
             class="settings-card password-card"
             id="password-settings"
             aria-labelledby="password-title"
           >
             <div class="settings-card-heading">
-              <span class="settings-icon violet" aria-hidden="true">●</span>
               <div>
-                <p>SECURITY</p>
+                <p>비밀번호</p>
                 <h2 id="password-title">비밀번호 변경</h2>
               </div>
             </div>
@@ -477,9 +559,8 @@
             aria-labelledby="withdrawal-title"
           >
             <div class="settings-card-heading">
-              <span class="settings-icon red" aria-hidden="true">!</span>
               <div>
-                <p>ACCOUNT WITHDRAWAL</p>
+                <p>계정 관리</p>
                 <h2 id="withdrawal-title">계정 탈퇴</h2>
               </div>
             </div>
@@ -547,7 +628,7 @@
                       required
                     />
                     <small class="field-guide">
-                      확인란에 ‘탈퇴’를 정확히 입력해 주세요.
+                      확인란에 ‘탈퇴’를 정확히 입력하세요.
                     </small>
                   </div>
                 </div>

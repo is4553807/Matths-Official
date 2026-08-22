@@ -114,6 +114,13 @@ function baseLocals(previewValue) {
       scope: { truncated: false },
       issues: [],
     },
+    arenaContract: {
+      learningCycleDays: 29,
+      minimumAttackParticipationDays: 15,
+      maximumPaybackRatePercent: 100,
+    },
+    pendingRevengeRight: null,
+    pendingRevengeRequestId: null,
     previewValue,
   };
 }

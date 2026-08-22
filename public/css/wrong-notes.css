@@ -70,7 +70,7 @@
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -104,7 +104,7 @@
   border: 1px solid
     rgba(255, 255, 255, 0.09);
   border-radius: 12px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .review-status-guide strong {
@@ -165,7 +165,7 @@
 
 .review-focus span {
   color: #aeb7d1;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -180,7 +180,7 @@
 .review-focus small {
   margin-top: 9px;
   color: #79849f;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .review-breakdown {
@@ -207,7 +207,7 @@
 
 .review-breakdown span {
   color: #9aa3ba;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .review-tabs {
@@ -228,7 +228,7 @@
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 15px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   transition: 0.18s ease;
 }
@@ -255,7 +255,7 @@
   background: var(--blue-soft);
   border-radius: 8px;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .review-tabs a.active b {
@@ -295,7 +295,7 @@
 
 .review-filter label > span {
   color: #838b9f;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -309,7 +309,7 @@
   border: 1px solid #dfe3ed;
   border-radius: 10px;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   outline: none;
 }
 
@@ -349,7 +349,7 @@
   justify-content: center;
   padding: 0 13px;
   border-radius: 10px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   white-space: nowrap;
 }
@@ -378,7 +378,7 @@
 .result-heading > div > p {
   margin: 0 0 7px;
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.3px;
 }
@@ -397,7 +397,7 @@
 .result-heading > p {
   margin: 0;
   color: #9299ab;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .wrong-list-full {
@@ -451,12 +451,12 @@
   background: #303954;
   border-radius: 10px;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .wrong-number small {
   margin-top: 7px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -479,13 +479,13 @@
 
 .problem-origin span {
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
 .problem-origin small {
   color: #969daf;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .review-state {
@@ -497,7 +497,7 @@
 .review-state > span {
   padding: 6px 9px;
   border-radius: 8px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -518,7 +518,7 @@
 
 .review-state small {
   color: #969daf;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .wrong-item-body > h3 {
@@ -562,7 +562,7 @@
   color: #687086;
   background: #eff2f7;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .problem-meta .difficulty {
@@ -624,11 +624,11 @@
   background: #fff0f2;
   border-radius: 7px;
   font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .attempt-details summary strong {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .attempt-details summary small {
@@ -636,7 +636,7 @@
   align-items: center;
   gap: 8px;
   color: #8e95a8;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .attempt-details summary i {
@@ -669,13 +669,13 @@
 
 .attempt-details > div span {
   color: #969daf;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .attempt-details > div strong {
   overflow-x: auto;
   overflow-y: hidden;
-  font-size: 9px;
+  font-size: 12px;
   white-space: nowrap;
   scrollbar-width: thin;
 }
@@ -696,7 +696,7 @@
   gap: 8px;
   margin: 0;
   color: #778096;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .wrong-item-actions > p span {
@@ -723,7 +723,7 @@
   gap: 8px;
   padding: 0 12px;
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   white-space: nowrap;
 }
@@ -763,7 +763,7 @@
   background: #fff;
   border: 1px solid #dfe3ec;
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -810,13 +810,13 @@
 .wrong-empty p {
   margin: 9px 0 0;
   color: #9097a9;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .wrong-empty a {
   margin-top: 18px;
   color: var(--blue);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -916,7 +916,7 @@
   .review-tabs a {
     min-height: 52px;
     padding: 0 11px;
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .wrong-content {

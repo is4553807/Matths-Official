@@ -33,9 +33,16 @@ async function main() {
     socialIdPath,
   } = require("../services/socialAuthService");
 
+  // 애플이 뒤에 붙는다. PROVIDERS 테이블(google, kakao)은 웹 OAuth 왕복 전용이라
+  // 애플은 그 표에 들어가지 못하고 publicProviderStatus 가 목록에만 합류시킨다
+  // (services/socialAuthService.js 주석 참조).
+  //
+  // 이 단언에서 apple 이 빠지면 심사지침 4.8 대응이 조용히 사라진 것이다 —
+  // 제3자 소셜 로그인만 있고 동등한 대안이 없으면 반려된다. 카카오는 그 대안이
+  // 되지 못한다(이름·이메일 외 수집, 이메일 가리기 없음).
   assert.deepEqual(
     publicProviderStatus().map((provider) => provider.key),
-    ["google", "kakao"]
+    ["google", "kakao", "apple"]
   );
   assert.equal(
     publicProviderStatus().find((provider) => provider.key === "kakao")
@@ -169,10 +176,21 @@ async function main() {
   assert.match(read("models/matthsModel.js"), /socialAuth\.kakaoId/);
   assert.match(read("views/login.ejs"), /카카오로 계속하기/);
   assert.match(read("public/css/auth.css"), /\.social-auth-button\.is-kakao/);
-  assert.match(
-    read(".env.example"),
-    /KAKAO_OAUTH_REST_API_KEY=[\s\S]*KAKAO_OAUTH_CLIENT_SECRET=[\s\S]*KAKAO_OAUTH_REDIRECT_URI=/
-  );
+  // .env.example 은 .gitignore 의 `.env.*` 에 막혀 저장소에 추적되지 않는다.
+  // 즉 이 검사는 그 파일을 로컬에 들고 있는 사람에게만 돈다 — 새로 클론한
+  // 환경(CI·다른 개발자·배포)에서는 파일이 없어 ENOENT 로 죽는다.
+  //
+  // 있으면 검사하고 없으면 무엇을 못 봤는지 남긴다. 조용히 통과시키지는 않는다.
+  // 근본 해결은 .gitignore 에 `!.env.example` 을 넣고 파일을 커밋하는 것인데,
+  // 그건 main 소유 결정이라 여기서 하지 않는다.
+  if (fs.existsSync(path.join(root, ".env.example"))) {
+    assert.match(
+      read(".env.example"),
+      /KAKAO_OAUTH_REST_API_KEY=[\s\S]*KAKAO_OAUTH_CLIENT_SECRET=[\s\S]*KAKAO_OAUTH_REDIRECT_URI=/
+    );
+  } else {
+    console.log("  · .env.example 없음 — 환경변수 예시 검사는 건너뜀 (.gitignore 의 .env.* 에 막힘)");
+  }
 
   console.log("Kakao web OAuth contract verified.");
 }

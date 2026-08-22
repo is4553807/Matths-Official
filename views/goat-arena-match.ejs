@@ -38,6 +38,8 @@
     <title>1대1 <%= matchData.matchTitle %> | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
     <%- include("partials/rank-motion-head") %>
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <script>
       window.MathJax = {
@@ -58,6 +60,7 @@
     <script src="/js/math-renderer.js" defer></script>
     <% if (matchData.inProgress) { %>
       <script src="/js/arena-problem-visualization.js" defer></script>
+      <script src="/js/timed-attempt-network.js" defer></script>
       <script src="/js/goat-arena-match.js" defer></script>
     <% } %>
   </head>
@@ -118,7 +121,7 @@
             <input type="hidden" name="itemCode" value="DEFENSE_SCHEDULE_PROTECTION" />
             <input type="hidden" name="relatedMatchId" value="<%= matchData.id %>" />
             <label class="arena-shop-confirm"><input type="checkbox" name="purchaseConfirmed" value="1" required /><span>2일 정산·경기 종료·반환 조건을 확인했습니다.</span></label>
-            <button type="submit">방어 일정 보호권 사용</button>
+            <button class="c-button c-button--primary" type="submit">방어 일정 보호권 사용</button>
           </form>
         </section>
       <% } %>
@@ -191,7 +194,7 @@
             <p>두 참가자에게 같은 주관식 5문항을 배정합니다. Unranked는 U1~U9 단계에 따라 기초 일반부터 준킬러 입문까지 출제하며 킬러는 사용하지 않습니다. Ranked는 R1~R9 단계에 따라 일반 문제에서 시작해 상위 단계에서 준킬러와 킬러를 함께 출제합니다. 답은 1~999 자연수로 입력합니다.</p>
           </div>
           <form action="/goat-arena/matches/<%= matchData.id %>/prepare" method="post">
-            <button type="submit">경기 문제 준비 <span aria-hidden="true">→</span></button>
+            <button class="c-button c-button--primary" type="submit">경기 문제 준비 <span aria-hidden="true">→</span></button>
           </form>
         </section>
       <% } else if (matchData.problemPack && matchData.attempt?.status === "READY") { %>
@@ -208,7 +211,7 @@
           </dl>
           <form action="/goat-arena/matches/<%= matchData.id %>/start" method="post">
             <input type="hidden" name="requestId" value="<%= startRequestId %>" />
-            <button type="submit" <%= matchData.canStart ? "" : "disabled" %>>경기 시작 <span aria-hidden="true">→</span></button>
+            <button class="c-button c-button--primary" type="submit" <%= matchData.canStart ? "" : "disabled" %>>경기 시작 <span aria-hidden="true">→</span></button>
           </form>
         </section>
       <% } else if (matchData.inProgress) { %>
@@ -218,11 +221,13 @@
           data-match-id="<%= matchData.id %>"
           data-server-now="<%= matchData.serverNow %>"
           data-deadline="<%= matchData.attempt.deadlineAt.toISOString() %>"
+          data-timeout-operation-id="<%= matchData.attempt.timeoutOperationId %>"
           data-solve-start="<%= matchData.attempt.startedAt.toISOString() %>"
           data-final-question="<%= Number(matchData.attempt.currentQuestionIndex) === 4 ? 'true' : 'false' %>"
           data-question-number="<%= Number(matchData.attempt.currentQuestionIndex) + 1 %>"
           data-question-time-limit-ms="<%= matchData.problemPack.timeLimitMs %>"
         >
+          <%- include("partials/timed-attempt-network-state") %>
           <% if (matchStarted && Number(matchData.attempt.currentQuestionIndex) === 0) { %>
             <div class="arena-fight-overlay is-match-start" aria-hidden="true">
               <span>READY</span>
@@ -243,7 +248,12 @@
             </div>
             <div>
               <small>답안 저장</small>
-              <strong data-arena-match-save-state>자동 저장 준비</strong>
+              <strong
+                data-arena-match-save-state
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >자동 저장 준비</strong>
             </div>
             <div>
               <small>진행</small>
@@ -306,8 +316,14 @@
               <strong><%= Number(matchData.attempt.currentQuestionIndex) === 4 ? "마지막 답안을 확정하시겠습니까?" : "현재 답안을 확정하고 다음 문제로 이동하시겠습니까?" %></strong>
               <span>다음 버튼을 누르면 현재 답이 확정되며 이전 문제를 다시 보거나 수정할 수 없습니다.</span>
             </div>
-            <button type="button" data-arena-match-submit><%= Number(matchData.attempt.currentQuestionIndex) === 4 ? "5번 완료 · 증거 제출로" : "다음 문제" %></button>
-            <p data-arena-match-error hidden></p>
+            <button class="c-button c-button--primary" type="button" data-arena-match-submit><%= Number(matchData.attempt.currentQuestionIndex) === 4 ? "5번 완료 · 증거 제출로" : "다음 문제" %></button>
+            <p
+              data-arena-match-error
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+              hidden
+            ></p>
           </footer>
         </section>
       <% } else if (matchData.evidenceRequired) { %>
@@ -333,7 +349,7 @@
               <input type="file" name="evidenceFiles" accept=".jpg,.jpeg,.png,.webp,.heic,image/*" capture="environment" multiple required data-arena-evidence-input />
             </label>
             <div class="arena-evidence-selection" data-arena-evidence-selection>아직 선택한 사진이 없습니다.</div>
-            <button type="submit" data-arena-evidence-submit>풀이 증거 제출</button>
+            <button class="c-button c-button--primary" type="submit" data-arena-evidence-submit>풀이 증거 제출</button>
             <p class="arena-evidence-submit-state" data-arena-evidence-state role="status" hidden></p>
           </form>
         </section>

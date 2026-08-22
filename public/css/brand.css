@@ -1,3 +1,8 @@
+/* Head-loaded base ownership: canonical tokens and the shared theme resolve
+   before logo rules. Each document loads contrast.css after its page CSS so
+   accessibility guardrails remain the final author-level override. */
+@import url("/css/matths-system.css");
+
 .brand-mark,
 body,
 button,
@@ -60,8 +65,8 @@ h6 {
 }
 
 .footer-social-links > a {
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   display: inline-grid;
   place-items: center;
   color: inherit;

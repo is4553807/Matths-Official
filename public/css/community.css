@@ -102,10 +102,18 @@ a {
 .community-board-heading p,
 .community-compose-heading p {
   margin: 0 0 10px;
-  color: #8ea6ff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.8px;
+}
+
+.community-hero p {
+  color: #aebcff;
+}
+
+.community-board-heading p,
+.community-compose-heading p {
+  color: #385cc4;
 }
 
 .community-hero h1 {
@@ -142,7 +150,7 @@ a {
   background: #e9f8f1;
   border: 1px solid #c3e8d8;
   border-radius: 12px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -177,8 +185,8 @@ a {
 
 .community-board-tabs span {
   grid-row: 1 / 3;
-  color: #93a0cf;
-  font-size: 11px;
+  color: #56638d;
+  font-size: 12px;
   font-weight: 900;
 }
 
@@ -188,7 +196,7 @@ a {
 
 .community-board-tabs small {
   color: var(--community-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-board {
@@ -216,7 +224,7 @@ a {
 
 .community-board-heading div > span {
   color: var(--community-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-board-heading form {
@@ -235,7 +243,7 @@ a {
   border: 1px solid #dde2ed;
   border-radius: 10px;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .community-board-heading button,
@@ -247,7 +255,7 @@ a {
   border: 0;
   border-radius: 10px;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -283,7 +291,7 @@ a {
 
 .school-board-membership span {
   color: #91a6ff;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -295,7 +303,7 @@ a {
 .school-board-membership p {
   margin: 0;
   color: #bbc3dd;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.75;
 }
 
@@ -357,7 +365,7 @@ a {
 
 .community-post-list span {
   color: var(--community-blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -369,7 +377,7 @@ a {
 .community-post-list p {
   margin: 0;
   color: var(--community-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.65;
   white-space: pre-line;
 }
@@ -383,12 +391,12 @@ a {
 }
 
 .community-post-list aside strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .community-post-list aside small {
   color: #8a91a5;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-empty {
@@ -410,7 +418,7 @@ a {
 
 .community-empty p {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .community-pagination {
@@ -419,7 +427,7 @@ a {
   align-items: center;
   gap: 18px;
   margin-top: 25px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .community-pagination a,
@@ -453,7 +461,7 @@ a {
   color: #fff;
   background: #11172d;
   border-radius: 8px;
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.7px;
 }
 
@@ -479,12 +487,12 @@ a {
 
 .community-announcement-link span {
   color: var(--community-blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 
 .community-announcement-link strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .community-announcement-link a {
@@ -493,7 +501,7 @@ a {
   color: #fff;
   background: var(--community-blue);
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   text-decoration: none;
 }
@@ -507,7 +515,7 @@ a {
   padding: 0 max(20px, calc((100% - 1120px) / 2));
   color: #8e95aa;
   background: #111528;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-footer div {
@@ -519,7 +527,7 @@ a {
   display: inline-block;
   margin-bottom: 18px;
   color: var(--community-blue);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -539,7 +547,7 @@ a {
 
 .community-compose-heading span {
   color: var(--community-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .community-compose form {
@@ -555,7 +563,7 @@ a {
 
 .community-compose label > span {
   color: #667086;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -596,12 +604,12 @@ a {
 }
 
 .community-anonymous-choice b {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .community-anonymous-choice small {
   color: var(--community-muted);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.5;
 }
@@ -620,7 +628,7 @@ a {
   color: #7b6240;
   background: #fff8e8;
   border-radius: 10px;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -642,7 +650,7 @@ a {
 
 .community-post-detail header > span {
   color: var(--community-blue);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -661,12 +669,12 @@ a {
 }
 
 .community-post-detail header strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .community-post-detail header small {
   color: var(--community-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-post-detail
@@ -675,7 +683,7 @@ a {
   color: #3157f6;
   background: #eef2ff;
   border-radius: 7px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -718,7 +726,7 @@ a {
 .community-comments > header p {
   margin: 0 0 7px;
   color: var(--community-blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -730,7 +738,7 @@ a {
 
 .community-comments > header > span {
   color: var(--community-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-comment-form {
@@ -743,7 +751,7 @@ a {
 }
 
 .community-comment-form label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -756,7 +764,7 @@ a {
   border: 1px solid #dfe4ef;
   border-radius: 11px;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
   resize: vertical;
 }
@@ -791,7 +799,7 @@ a {
 
 .community-comment-form small {
   color: var(--community-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-comment-form button {
@@ -802,7 +810,7 @@ a {
   border: 0;
   border-radius: 9px;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -817,7 +825,7 @@ a {
   color: #667086;
   background: #f7f8fc;
   border-radius: 12px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .community-comment-login p {
@@ -846,17 +854,17 @@ a {
 }
 
 .community-comment-list article strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .community-comment-list article time {
-  color: #9299ab;
-  font-size: 9px;
+  color: #5f687b;
+  font-size: 12px;
 }
 
 .community-comment-list article p {
   margin: 10px 0 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   white-space: pre-wrap;
 }
@@ -864,7 +872,7 @@ a {
 .community-comment-empty {
   padding: 45px 10px;
   color: var(--community-muted);
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -884,7 +892,7 @@ a {
   background: #f5f7fb;
   border: 1px solid #e1e5ee;
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -896,7 +904,7 @@ a {
 
 .community-sort-tabs small {
   opacity: 0.76;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-operations-categories {
@@ -916,7 +924,7 @@ a {
   background: #fff;
   border: 1px solid #e1e5ee;
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   text-decoration: none;
 }
@@ -929,6 +937,7 @@ a {
 }
 
 .community-popular-strip {
+  min-width: 0;
   display: grid;
   grid-template-columns:
     150px minmax(0, 1fr);
@@ -941,6 +950,7 @@ a {
 }
 
 .community-popular-strip > header {
+  min-width: 0;
   display: grid;
   align-content: center;
   gap: 5px;
@@ -948,7 +958,7 @@ a {
 
 .community-popular-strip > header span {
   color: #ff8194;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.4px;
 }
@@ -958,11 +968,13 @@ a {
 }
 
 .community-popular-strip > div {
+  min-width: 0;
   display: grid;
   gap: 5px;
 }
 
 .community-popular-strip a {
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -973,8 +985,9 @@ a {
 }
 
 .community-popular-strip a strong {
+  min-width: 0;
   overflow: hidden;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -982,7 +995,7 @@ a {
 .community-popular-strip a span {
   flex: 0 0 auto;
   color: #ff9cab;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-popular-badge {
@@ -992,7 +1005,7 @@ a {
   color: #b8243f;
   background: #fff0f2;
   border-radius: 6px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   vertical-align: middle;
 }
@@ -1004,7 +1017,7 @@ a {
   color: #3157f6;
   background: #e9edff;
   border-radius: 6px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   vertical-align: middle;
 }
@@ -1026,7 +1039,7 @@ a {
 .community-vote-box p {
   margin: 0;
   color: #505a70;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -1047,7 +1060,7 @@ a {
   border: 1px solid #cad4fb;
   border-radius: 10px;
   font: inherit;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -1073,8 +1086,8 @@ a {
 }
 
 .community-vote-box > small {
-  color: #9299aa;
-  font-size: 9px;
+  color: #5f687b;
+  font-size: 12px;
 }
 
 .community-vote-readonly {
@@ -1088,7 +1101,7 @@ a {
   background: #fff;
   border: 1px solid #e0e4ed;
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-vote-readonly a {
@@ -1106,7 +1119,7 @@ a {
   background: #f4f6fb;
   border: 1px solid #dfe4ee;
   border-radius: 12px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .school-board-login-guide strong {
@@ -1169,6 +1182,16 @@ a {
   .community-sort-tabs {
     overflow-x: auto;
   }
+
+  .community-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-block: 16px;
+  }
+
+  .community-footer div {
+    flex-wrap: wrap;
+  }
 }
 .community-report-box {
   margin: 18px 0 0;
@@ -1192,7 +1215,7 @@ a {
 }
 
 .community-report-box label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -1272,13 +1295,13 @@ a {
 
 .community-posting-quota span,
 .community-posting-quota strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .community-posting-quota small {
   justify-self: end;
   color: #6e7790;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-posting-quota.is-exhausted {
@@ -1308,14 +1331,14 @@ a {
   > div:first-child
   span {
   color: #667086;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
 .community-attachment-field small,
 .community-attachment-field p {
   color: #7b8397;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-attachment-field p {
@@ -1340,13 +1363,13 @@ a {
 
 .community-file-picker strong {
   flex: 0 0 auto;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .community-file-picker span {
   overflow: hidden;
   color: #7a8398 !important;
-  font-size: 9px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1370,7 +1393,7 @@ a {
 .community-attachment-field.is-restricted
   > strong {
   color: #a42c40;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .community-compose button:disabled {
@@ -1399,7 +1422,7 @@ a {
   p {
   margin: 0 0 6px;
   color: #3157f6;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.3px;
 }
@@ -1415,7 +1438,7 @@ a {
   > header
   > span {
   color: #7b8397;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-image-grid {
@@ -1456,7 +1479,7 @@ a {
   color: #fff;
   background: rgba(17, 21, 40, 0.78);
   border-radius: 8px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1487,7 +1510,7 @@ a {
   color: #3157f6;
   background: #e9edff;
   border-radius: 7px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 
@@ -1499,7 +1522,7 @@ a {
 
 .community-file-list a strong {
   overflow: hidden;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1507,7 +1530,7 @@ a {
 .community-file-list a small,
 .community-file-list a b {
   color: #7d8599;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .community-file-list a b {
@@ -1555,14 +1578,14 @@ a {
   color: #152052;
   background: #fff;
   border-radius: 7px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 
 .community-rules-kicker p {
   margin: 0;
   color: #9fb0ff;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.5px;
 }
@@ -1583,7 +1606,7 @@ a {
   max-width: 720px;
   margin: 0;
   color: #bdc5dd;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
 }
 
@@ -1604,13 +1627,13 @@ a {
 
 .community-rules-detail dt {
   color: #8fa1de;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
 .community-rules-detail dd {
   margin: 5px 0 0;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -1634,7 +1657,7 @@ a {
 
 .community-rules-grid article span {
   color: #7188f5;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1px;
 }
@@ -1647,7 +1670,7 @@ a {
 .community-rules-grid p {
   margin: 0;
   color: #697187;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.8;
 }
 
@@ -1663,7 +1686,7 @@ a {
 .community-rules-detail
   > footer
   strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .community-rules-detail
@@ -1671,7 +1694,7 @@ a {
   p {
   margin: 8px 0 18px;
   color: #687289;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -1683,7 +1706,7 @@ a {
   color: #fff;
   background: #3157f6;
   border-radius: 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -1719,5 +1742,338 @@ a {
 
   .community-file-list a b {
     display: none;
+  }
+}
+
+/* Phone webviews need a deliberately tighter information rhythm than tablets. */
+@media (max-width: 480px) {
+  .community-main,
+  .community-compose-main,
+  .community-post-main,
+  .community-detail-main {
+    width: calc(100% - 24px);
+    padding: 20px 0 48px;
+  }
+
+  .community-nav {
+    width: calc(100% - 24px);
+    min-height: 60px;
+    gap: 12px;
+  }
+
+  .community-account-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 13px;
+  }
+
+  .community-hero {
+    min-height: 0;
+    gap: 22px;
+    padding: 26px 20px;
+    border-radius: 20px;
+  }
+
+  .community-hero h1 {
+    margin-bottom: 12px;
+    font-size: 34px;
+    letter-spacing: -1.5px;
+  }
+
+  .community-hero > a {
+    width: 100%;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .community-board-tabs {
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .community-board-tabs a {
+    min-height: 64px;
+    align-items: center;
+    padding: 13px 15px;
+    border-radius: 13px;
+  }
+
+  .community-board {
+    margin-top: 12px;
+    padding: 20px 14px;
+    border-radius: 18px;
+  }
+
+  .community-board-heading {
+    gap: 16px;
+    padding-bottom: 17px;
+  }
+
+  .community-board-heading h2,
+  .community-compose-heading h1 {
+    font-size: 26px;
+    letter-spacing: -1px;
+  }
+
+  .community-board-heading form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .community-board-heading input,
+  .community-board-heading button,
+  .community-compose button {
+    min-height: 44px;
+  }
+
+  .school-board-membership,
+  .community-comment-form,
+  .community-comment-login,
+  .community-report-box,
+  .community-attachment-field {
+    padding: 16px;
+  }
+
+  .community-post-list > a {
+    gap: 12px;
+    padding: 18px 2px;
+  }
+
+  .community-post-list h3 {
+    font-size: 16px;
+    line-height: 1.45;
+  }
+
+  .community-sort-tabs {
+    gap: 6px;
+    margin-right: -2px;
+    margin-left: -2px;
+    padding: 0 2px 4px;
+  }
+
+  .community-sort-tabs a,
+  .community-operations-categories a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  .community-operations-categories {
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .community-popular-strip {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .community-popular-strip a {
+    min-height: 44px;
+  }
+
+  .community-compose,
+  .community-post-detail,
+  .community-comments,
+  .community-announcement-detail,
+  .community-rules-detail {
+    border-radius: 18px;
+  }
+
+  .community-comments,
+  .community-post-content {
+    padding: 20px;
+  }
+
+  .community-comments > header,
+  .community-comment-form > div,
+  .community-comment-options > div,
+  .school-board-login-guide {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .community-comment-form button,
+  .school-board-login-guide a {
+    width: 100%;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0;
+  }
+
+  .community-vote-box > div {
+    width: 100%;
+  }
+
+  .community-vote-box form,
+  .community-vote-box button {
+    flex: 1;
+  }
+
+  .community-vote-box button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .community-pagination a,
+  .community-pagination span {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .community-rules-grid {
+    padding: 20px;
+  }
+
+  .community-rules-grid article {
+    min-height: 0;
+    padding: 20px;
+  }
+}
+
+/* The app follows system appearance, so community webviews must do the same. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --community-ink: #f4f6ff;
+    --community-muted: #bcc5da;
+    --community-line: #30394f;
+    --community-paper: #090e1c;
+    --community-blue: #86a7ff;
+  }
+
+  body {
+    background: var(--community-paper);
+  }
+
+  .community-header {
+    background: rgba(9, 14, 28, 0.92);
+  }
+
+  .community-nav > div a,
+  .community-comment-login,
+  .school-board-login-guide,
+  .community-vote-box p,
+  .community-vote-readonly span,
+  .community-vote-readonly a {
+    color: #c0c8db;
+  }
+
+  .community-board-tabs a,
+  .community-board,
+  .community-compose,
+  .community-post-detail,
+  .community-comments,
+  .community-announcement-detail,
+  .community-rules-detail {
+    background: #12192b;
+    border-color: var(--community-line);
+  }
+
+  .community-board-tabs a.active {
+    background: #202b4d;
+    border-color: #536aa8;
+  }
+
+  .community-board-tabs span {
+    color: #c3cdf0;
+  }
+
+  .community-board-heading p,
+  .community-compose-heading p,
+  .community-comments > header p,
+  .community-post-attachments > header p {
+    color: #a9c0ff;
+  }
+
+  .community-board-heading input,
+  .community-compose input,
+  .community-compose textarea,
+  .community-compose select,
+  .community-comment-form textarea,
+  .community-report-box textarea {
+    color: var(--community-ink);
+    background: #0c1324;
+    border-color: #3a455f;
+  }
+
+  .community-post-list > a,
+  .community-comment-list article,
+  .community-comments > header,
+  .community-board-heading,
+  .community-post-attachments > header {
+    border-color: var(--community-line);
+  }
+
+  .community-post-list > a.is-pinned,
+  .community-post-list > a.community-rules-post {
+    background: linear-gradient(110deg, #17203a, #1b1733);
+    border-color: #465886;
+  }
+
+  .community-comment-form,
+  .community-comment-login,
+  .community-operations-categories,
+  .community-vote-box,
+  .community-vote-readonly span,
+  .community-vote-readonly a,
+  .school-board-login-guide,
+  .community-attachment-field,
+  .community-file-list a,
+  .community-rules-grid article {
+    background: #0d1426;
+    border-color: #303a52;
+  }
+
+  .community-anonymous-choice.compact,
+  .community-operations-categories a,
+  .community-compose .community-file-picker,
+  .community-vote-box button {
+    color: #dce3f4;
+    background: #151e34;
+    border-color: #3a4662;
+  }
+
+  .community-comment-list article time,
+  .community-vote-box > small,
+  .community-attachment-field small,
+  .community-attachment-field p,
+  .community-file-list a small,
+  .community-file-list a b {
+    color: #c2cadb;
+  }
+
+  .community-rules-detail > footer {
+    background: #19233c;
+  }
+
+  .community-rules-detail > footer p,
+  .community-rules-grid p {
+    color: #c3cbdd;
+  }
+
+  .community-report-box {
+    background: #25151e;
+    border-color: #633548;
+  }
+
+  .community-feedback {
+    color: #a6ecd3;
+    background: #10281f;
+    border-color: #285b47;
+  }
+
+  .community-error,
+  .community-posting-quota.is-exhausted {
+    color: #ffbac5;
+    background: #2c151d;
+    border-color: #653341;
   }
 }

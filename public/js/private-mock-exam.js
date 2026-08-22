@@ -471,9 +471,30 @@
     );
   let saveTimer = null;
   let saving = false;
+  let saveRequested = false;
+  let answerRevision = 0;
+  let saveFailed = false;
+  let draftRetryAllowed = true;
   let submitting = false;
+  let automaticSubmitRequested = false;
   let dirty = false;
   let telemetryEvents = [];
+  let errorKind = "";
+  let networkController = null;
+  const automaticSubmitRetryDelays = [
+    180,
+    360,
+  ];
+  const automaticSubmitLeadMs =
+    5 * 1000;
+  let pendingSubmissionSnapshot =
+    null;
+
+  const hasPendingSave = () =>
+    dirty ||
+    saving ||
+    saveFailed ||
+    telemetryEvents.length > 0;
 
   const trackEvent = (
     eventType,
@@ -494,6 +515,9 @@
           -200
         );
     }
+    if (saving) {
+      saveRequested = true;
+    }
   };
 
   const getAnswers = () =>
@@ -510,29 +534,65 @@
       );
   };
 
-  const showError = (message) => {
+  const submissionRequestId = () =>
+    window.crypto
+      ?.randomUUID?.() ||
+    `private-mock-submit-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+  const showError = (
+    message,
+    kind = "request"
+  ) => {
+    errorKind = kind;
     errorBox.textContent =
       message;
     errorBox.hidden = false;
   };
 
+  const clearError = (kind) => {
+    if (errorKind !== kind) return;
+    errorKind = "";
+    errorBox.textContent = "";
+    errorBox.hidden = true;
+  };
+
   const save = async ({
     keepalive = false,
   } = {}) => {
+    if (saving) {
+      saveRequested = true;
+      return false;
+    }
+    if (submitting) {
+      return false;
+    }
     if (
-      saving ||
-      submitting ||
-      (
-        !dirty &&
-        !telemetryEvents.length
-      )
+      !dirty &&
+      !telemetryEvents.length &&
+      !saveFailed
     ) {
-      return;
+      return true;
+    }
+    if (navigator.onLine === false) {
+      saveFailed = true;
+      draftRetryAllowed = true;
+      saveState.textContent =
+        "연결 대기 · 미저장";
+      networkController?.showOffline();
+      return false;
     }
 
     saving = true;
+    saveRequested = false;
     saveState.textContent =
       "저장 중";
+    const revisionAtStart =
+      answerRevision;
+    const answersAtStart =
+      getAnswers();
+    const eventBatch =
+      telemetryEvents.slice();
+    let requestSucceeded = false;
 
     try {
       const response =
@@ -546,8 +606,9 @@
             },
             body: JSON.stringify({
               answers:
-                getAnswers(),
-              telemetryEvents,
+                answersAtStart,
+              telemetryEvents:
+                eventBatch,
             }),
             keepalive,
           }
@@ -558,26 +619,103 @@
           await response
             .json()
             .catch(() => ({}));
-        throw new Error(
+        const requestError = new Error(
           payload.message ||
             "답안을 저장하지 못했습니다."
         );
+        requestError.status =
+          response.status;
+        throw requestError;
       }
 
-      dirty = false;
-      telemetryEvents = [];
+      const acknowledgedEvents =
+        new Set(eventBatch);
+      telemetryEvents =
+        telemetryEvents.filter(
+          (event) =>
+            !acknowledgedEvents.has(
+              event
+            )
+        );
+      dirty =
+        answerRevision !==
+        revisionAtStart;
+      saveFailed = false;
+      draftRetryAllowed = true;
+      requestSucceeded = true;
       saveState.textContent =
-        "자동 저장 완료";
-    } catch (error) {
-      saveState.textContent =
-        "저장 실패";
-      if (!keepalive) {
-        showError(error.message);
+        dirty ||
+        telemetryEvents.length
+          ? "새 변경 저장 대기"
+          : "자동 저장 완료";
+      clearError("save");
+      if (
+        dirty ||
+        telemetryEvents.length
+      ) {
+        saveRequested = true;
       }
+      return true;
+    } catch (error) {
+      saveFailed = true;
+      const status =
+        Number(error.status) || 0;
+      draftRetryAllowed =
+        !status ||
+        status === 408 ||
+        status === 425 ||
+        status === 429 ||
+        status >= 500;
+      saveState.textContent =
+        draftRetryAllowed
+          ? "저장 실패 · 다시 시도 필요"
+          : "저장할 수 없음";
+      if (!keepalive) {
+        showError(
+          draftRetryAllowed
+            ? `${error.message} 입력은 이 화면에 남아 있습니다.`
+            : error.message,
+          "save"
+        );
+        networkController?.showRetryable(
+          draftRetryAllowed
+            ? "입력은 이 화면에 남아 있습니다. 저장 다시 시도를 눌러 서버에 반영해 주세요."
+            : "현재 응시 상태에서는 다시 저장할 수 없습니다. 페이지를 새로고침해 상태를 확인해 주세요."
+        );
+      }
+      return false;
     } finally {
       saving = false;
+      if (
+        requestSucceeded &&
+        !hasPendingSave()
+      ) {
+        networkController?.markSaved();
+      }
+      if (
+        saveRequested &&
+        !keepalive &&
+        !submitting &&
+        navigator.onLine !== false
+      ) {
+        queueMicrotask(
+          () => void save()
+        );
+      }
     }
   };
+
+  networkController =
+    window.MatthsTimedAttemptNetwork
+      ?.create({
+        root,
+        onRetry: () => save(),
+        hasPending:
+          hasPendingSave,
+        canRetry: () =>
+          draftRetryAllowed &&
+          !submitting,
+      }) || null;
 
   const submit = async (
     automatic = false
@@ -594,50 +732,166 @@
     }
 
     submitting = true;
+    inputs.forEach((input) => {
+      input.disabled = true;
+    });
+    root
+      .querySelectorAll(
+        "[data-private-mock-choice], [data-private-mock-key]"
+      )
+      .forEach((control) => {
+        control.disabled = true;
+      });
     submitButton.disabled = true;
     submitButton.textContent =
       automatic
-        ? "시간 종료 · 자동 제출 중"
+        ? "마감 보호 · 자동 제출 중"
         : "제출 중";
     errorBox.hidden = true;
+    if (!pendingSubmissionSnapshot) {
+      pendingSubmissionSnapshot = {
+        requestId:
+          submissionRequestId(),
+        capturedAt:
+          new Date(
+            Date.now() +
+              clockOffset
+          ).toISOString(),
+        answers: getAnswers(),
+        telemetryEvents:
+          telemetryEvents.slice(),
+      };
+    }
+    const submissionBody =
+      JSON.stringify(
+        pendingSubmissionSnapshot
+      );
+    const maximumAttempts =
+      automatic
+        ? automaticSubmitRetryDelays.length +
+          1
+        : 1;
+    let attempt = 0;
 
     try {
-      const response =
-        await fetch(
-          `/api/private-mock-exams/${examId}/submit`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              answers:
-                getAnswers(),
-              telemetryEvents,
-            }),
+      while (
+        attempt <
+        maximumAttempts
+      ) {
+        attempt += 1;
+        if (
+          automatic &&
+          attempt > 1
+        ) {
+          submitButton.textContent =
+            `마감 보호 · 자동 제출 재시도 ${attempt}/${maximumAttempts}`;
+        }
+
+        try {
+          const response =
+            await fetch(
+              `/api/private-mock-exams/${examId}/submit`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                  "Idempotency-Key":
+                    pendingSubmissionSnapshot
+                      .requestId,
+                },
+                body:
+                  submissionBody,
+              }
+            );
+          const payload =
+            await response
+              .json()
+              .catch(
+                () => ({})
+              );
+
+          if (!response.ok) {
+            if (
+              (
+                response.status ===
+                  409 ||
+                response.status ===
+                  410
+              )
+            ) {
+              window.location.reload();
+              return true;
+            }
+
+            const requestError =
+              new Error(
+                payload.message ||
+                  "답안을 제출하지 못했습니다."
+              );
+            requestError.status =
+              response.status;
+            throw requestError;
           }
-        );
-      const payload =
-        await response
-          .json()
-          .catch(() => ({}));
 
-      if (!response.ok) {
-        throw new Error(
-          payload.message ||
-            "답안을 제출하지 못했습니다."
-        );
+          window.location.reload();
+          return true;
+        } catch (error) {
+          const status =
+            Number(
+              error.status
+            ) || 0;
+          const transient =
+            !status ||
+            status === 408 ||
+            status === 425 ||
+            status === 429 ||
+            status >= 500;
+          const retryDelay =
+            automaticSubmitRetryDelays[
+              attempt - 1
+            ];
+
+          if (
+            !automatic ||
+            !transient ||
+            retryDelay ===
+              undefined
+          ) {
+            throw error;
+          }
+
+          await new Promise(
+            (resolve) =>
+              window.setTimeout(
+                resolve,
+                retryDelay
+              )
+          );
+        }
       }
-
-      window.location.reload();
     } catch (error) {
       submitting = false;
-      submitButton.disabled =
-        false;
-      submitButton.textContent =
-        "답안 최종 제출";
-      showError(error.message);
+      if (automatic) {
+        submitButton.disabled =
+          false;
+        submitButton.textContent =
+          "자동 제출 다시 시도";
+        showError(
+          `${error.message} 자동 제출을 ${attempt}회 시도했습니다. 답안은 이 화면에 남아 있습니다. 연결을 확인한 뒤 버튼을 눌러 제출 상태를 다시 확인해 주세요.`,
+          "submit"
+        );
+      } else {
+        submitButton.disabled =
+          false;
+        submitButton.textContent =
+          "답안 최종 제출";
+        showError(
+          `${error.message} 답안은 이 화면에 남아 있습니다.`,
+          "submit"
+        );
+      }
+      return false;
     }
   };
 
@@ -661,6 +915,9 @@
       "input",
       () => {
         dirty = true;
+        saveFailed = false;
+        draftRetryAllowed = true;
+        answerRevision += 1;
         trackEvent(
           "ANSWER_CHANGED",
           {
@@ -856,13 +1113,29 @@
         clockOffset
       );
 
-    if (remaining <= 750) {
+    if (
+      remaining <=
+      automaticSubmitLeadMs
+    ) {
+      const protectedSeconds =
+        Math.max(
+          0,
+          Math.ceil(
+            remaining / 1000
+          )
+        );
       timer.textContent =
-        "00:00";
+        `00:${String(protectedSeconds).padStart(2, "0")}`;
       root.classList.add(
         "time-critical"
       );
-      submit(true);
+      if (!automaticSubmitRequested) {
+        automaticSubmitRequested =
+          true;
+        saveState.textContent =
+          "마감 5초 전 · 최신 답안 전송 보호";
+        void submit(true);
+      }
       return;
     }
 
@@ -891,6 +1164,19 @@
   window.setInterval(
     () => save(),
     15 * 1000
+  );
+  window.addEventListener(
+    "beforeunload",
+    (event) => {
+      if (
+        !submitting &&
+        hasPendingSave()
+      ) {
+        event.preventDefault();
+        event.returnValue = true;
+        return true;
+      }
+    }
   );
   window.addEventListener(
     "pagehide",

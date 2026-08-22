@@ -94,3 +94,12 @@ __pycache__/
 *.swp
 *.swo
 *~
+# Local student UI preview and review artifacts (never deploy)
+public/preview/
+public/css/student-ui-preview.css
+public/js/student-ui-preview.js
+views/student-ui-preview.ejs
+scripts/verifyStudentUiPreview.js
+public/images/brand/matths-logo-on-dark.svg
+public/images/brand/matths-symbol-color.png
+review-packages/

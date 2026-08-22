@@ -6,6 +6,8 @@
     <title>페이백 계좌 확인 | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
     <%- include("partials/rank-motion-head") %>
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
   </head>
   <body class="goat-arena-page arena-inner-page">
@@ -26,7 +28,7 @@
           <input type="hidden" name="accountHolderName" value="<%= account.accountHolderName %>" />
           <input type="hidden" name="accountNumber" value="<%= account.accountNumber %>" />
           <label><input type="checkbox" name="accountConfirmed" value="1" /> <span>예금주와 계좌번호를 직접 확인했습니다.</span></label>
-          <div><a href="/goat-arena/profile#payback-account">다시 입력</a><button type="submit">확인했습니다</button></div>
+          <div><a class="c-button c-button--secondary" href="/goat-arena/profile#payback-account">다시 입력</a><button class="c-button c-button--primary" type="submit">확인했습니다</button></div>
         </form>
       </section>
     </main>

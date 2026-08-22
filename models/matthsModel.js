@@ -252,6 +252,18 @@ const userSchema = new Schema(
       default: 0,
     },
 
+    studyActivityReceiptIds: {
+      type: [
+        {
+          type: String,
+          trim: true,
+          maxlength: 200,
+        },
+      ],
+      default: [],
+      select: false,
+    },
+
     /*
      * 사이트 접속 시간은 요청 로그를 계속 쌓지 않고 사용자별 누적값만
      * 저장합니다. 브라우저 heartbeat 간격을 서버에서 검증해 여러 탭이나
@@ -2189,6 +2201,14 @@ const placementResultSchema =
     }
   );
 
+const ASSESSMENT_CLIENT_START_INDEX = {
+  name: "userId_1_clientStartId_1",
+  key: { userId: 1, clientStartId: 1 },
+  partialFilterExpression: {
+    clientStartId: { $type: "string" },
+  },
+};
+
 const assessmentAttemptSchema =
   new Schema(
     {
@@ -2197,6 +2217,15 @@ const assessmentAttemptSchema =
         ref: "User",
         required: true,
         index: true,
+      },
+
+      // iPad 시작 요청의 멱등 키. 응답 유실 뒤 같은 시작 요청이
+      // 재전송돼도 새 시험지를 만들지 않는다.
+      clientStartId: {
+        type: String,
+        trim: true,
+        maxlength: 120,
+        default: null,
       },
 
       paperId: {
@@ -2393,6 +2422,16 @@ assessmentAttemptSchema.index({
   passed: 1,
   submittedAt: -1,
 });
+
+assessmentAttemptSchema.index(
+  ASSESSMENT_CLIENT_START_INDEX.key,
+  {
+    name: ASSESSMENT_CLIENT_START_INDEX.name,
+    unique: true,
+    partialFilterExpression:
+      ASSESSMENT_CLIENT_START_INDEX.partialFilterExpression,
+  }
+);
 
 /*
  * 배치고사는 INITIAL·시즌·랭크 복귀처럼 서버가 정한 동일 응시 구간에서
@@ -4690,6 +4729,10 @@ const privateMockExamSchema =
                 type: Date,
                 default: null,
             },
+            settlementCompletedAt: {
+                type: Date,
+                default: null,
+            },
             aggregationCompletedAt: {
                 type: Date,
                 default: null,
@@ -5103,6 +5146,103 @@ const privateMockExamAttemptSchema =
                 type: Date,
                 default: null,
             },
+            expiredAt: {
+                type: Date,
+                default: null,
+            },
+            submissionReceipt: {
+                requestId: {
+                    type: String,
+                    trim: true,
+                    maxlength: 200,
+                    default: "",
+                },
+                payloadHash: {
+                    type: String,
+                    trim: true,
+                    maxlength: 64,
+                    default: "",
+                },
+                acceptedAt: {
+                    type: Date,
+                    default: null,
+                },
+                clientCapturedAt: {
+                    type: Date,
+                    default: null,
+                },
+            },
+            submissionClaim: {
+                requestId: {
+                    type: String,
+                    trim: true,
+                    maxlength: 200,
+                    default: "",
+                },
+                payloadHash: {
+                    type: String,
+                    trim: true,
+                    maxlength: 64,
+                    default: "",
+                },
+                receivedAt: {
+                    type: Date,
+                    default: null,
+                },
+                expiresAt: {
+                    type: Date,
+                    default: null,
+                },
+            },
+            submissionFinalization: {
+                status: {
+                    type: String,
+                    enum: [
+                        "",
+                        "pending",
+                        "processing",
+                        "completed",
+                    ],
+                    default: "",
+                },
+                requestId: {
+                    type: String,
+                    trim: true,
+                    maxlength: 200,
+                    default: "",
+                },
+                normalizedEvents: {
+                    type: [Schema.Types.Mixed],
+                    default: [],
+                },
+                clientCapturedAt: {
+                    type: Date,
+                    default: null,
+                },
+                processingToken: {
+                    type: String,
+                    trim: true,
+                    maxlength: 100,
+                    default: "",
+                },
+                leaseExpiresAt: {
+                    type: Date,
+                    default: null,
+                },
+                lastAttemptAt: {
+                    type: Date,
+                    default: null,
+                },
+                completedAt: {
+                    type: Date,
+                    default: null,
+                },
+                lastError: {
+                    type: String,
+                    maxlength: 500,
+                    default: "",
+                },
+            },
         },
         {
             timestamps: true,
@@ -5177,6 +5317,17 @@ const privateMockExamEventSchema =
                 type: Schema.Types.Mixed,
                 default: {},
             },
+            submissionRequestId: {
+                type: String,
+                trim: true,
+                maxlength: 200,
+                default: undefined,
+            },
+            submissionEventIndex: {
+                type: Number,
+                min: 0,
+                default: undefined,
+            },
         },
         {
             timestamps: true,
@@ -5184,10 +5335,35 @@ const privateMockExamEventSchema =
         }
     );
 
+const PRIVATE_MOCK_SUBMISSION_EVENT_INDEX =
+    Object.freeze({
+        key: Object.freeze({
+            attemptId: 1,
+            submissionRequestId: 1,
+            submissionEventIndex: 1,
+        }),
+        name: "private_mock_submission_event_receipt_unique",
+        partialFilterExpression: Object.freeze({
+            submissionRequestId: Object.freeze({
+                $type: "string",
+            }),
+        }),
+    });
+
 privateMockExamEventSchema.index({
     attemptId: 1,
     serverAt: 1,
 });
+privateMockExamEventSchema.index(
+    PRIVATE_MOCK_SUBMISSION_EVENT_INDEX.key,
+    {
+        name: PRIVATE_MOCK_SUBMISSION_EVENT_INDEX.name,
+        unique: true,
+        partialFilterExpression:
+            PRIVATE_MOCK_SUBMISSION_EVENT_INDEX
+                .partialFilterExpression,
+    }
+);
 
 const privateMockResourceSchema =
     new Schema(
@@ -5416,6 +5592,21 @@ privateMockIntegrityCaseSchema.index({
     status: 1,
     createdAt: -1,
 });
+
+/*
+ * `unique: true` above declares this index for fresh databases, but this
+ * service also creates integrity cases from scheduler/finalizer paths where
+ * autoIndex is disabled in production.  Keep the default Mongo index name so
+ * deployments that already have Mongoose's `attemptId_1` index converge
+ * without an IndexOptionsConflict.
+ */
+const PRIVATE_MOCK_INTEGRITY_CASE_ATTEMPT_INDEX =
+    Object.freeze({
+        key: Object.freeze({
+            attemptId: 1,
+        }),
+        name: "attemptId_1",
+    });
 
 const privateMockAnswerCorrectionSchema =
     new Schema(
@@ -6427,6 +6618,64 @@ const AssessmentAttempt =
     assessmentAttemptSchema
   );
 
+/*
+ * Production may run with autoIndex disabled. Assessment starts rely on this
+ * unique partial index for cross-process idempotency, so the first start in a
+ * process must wait for MongoDB to confirm the index instead of assuming the
+ * schema declaration has already been applied.
+ */
+const assessmentClientStartIndexPromises =
+  new WeakMap();
+
+function ensureAssessmentClientStartIndex(
+  model = AssessmentAttempt
+) {
+  const pending =
+    assessmentClientStartIndexPromises.get(
+      model
+    );
+  if (pending) return pending;
+
+  let promise;
+  promise = Promise.resolve()
+    .then(() =>
+      model.collection.createIndex(
+        {
+          ...ASSESSMENT_CLIENT_START_INDEX.key,
+        },
+        {
+          name: ASSESSMENT_CLIENT_START_INDEX.name,
+          unique: true,
+          partialFilterExpression: {
+            clientStartId: {
+              ...ASSESSMENT_CLIENT_START_INDEX
+                .partialFilterExpression
+                .clientStartId,
+            },
+          },
+        }
+      )
+    )
+    .catch((error) => {
+      if (
+        assessmentClientStartIndexPromises.get(
+          model
+        ) === promise
+      ) {
+        assessmentClientStartIndexPromises.delete(
+          model
+        );
+      }
+      throw error;
+    });
+
+  assessmentClientStartIndexPromises.set(
+    model,
+    promise
+  );
+  return promise;
+}
+
 const LearningEvent =
   mongoose.models.LearningEvent ||
   mongoose.model(
@@ -6589,6 +6838,58 @@ const PrivateMockExamEvent =
         privateMockExamEventSchema
     );
 
+const privateMockSubmissionEventIndexPromises =
+    new WeakMap();
+
+function ensurePrivateMockSubmissionEventIndex(
+    model = PrivateMockExamEvent
+) {
+    const pending =
+        privateMockSubmissionEventIndexPromises.get(
+            model
+        );
+    if (pending) return pending;
+
+    let promise;
+    promise = Promise.resolve()
+        .then(() =>
+            model.collection.createIndex(
+                {
+                    ...PRIVATE_MOCK_SUBMISSION_EVENT_INDEX.key,
+                },
+                {
+                    name: PRIVATE_MOCK_SUBMISSION_EVENT_INDEX.name,
+                    unique: true,
+                    partialFilterExpression: {
+                        submissionRequestId: {
+                            ...PRIVATE_MOCK_SUBMISSION_EVENT_INDEX
+                                .partialFilterExpression
+                                .submissionRequestId,
+                        },
+                    },
+                }
+            )
+        )
+        .catch((error) => {
+            if (
+                privateMockSubmissionEventIndexPromises.get(
+                    model
+                ) === promise
+            ) {
+                privateMockSubmissionEventIndexPromises.delete(
+                    model
+                );
+            }
+            throw error;
+        });
+
+    privateMockSubmissionEventIndexPromises.set(
+        model,
+        promise
+    );
+    return promise;
+}
+
 const PrivateMockResource =
     mongoose.models.PrivateMockResource ||
     mongoose.model(
@@ -6602,6 +6903,51 @@ const PrivateMockIntegrityCase =
         "PrivateMockIntegrityCase",
         privateMockIntegrityCaseSchema
     );
+
+const privateMockIntegrityCaseAttemptIndexPromises =
+    new WeakMap();
+
+function ensurePrivateMockIntegrityCaseAttemptIndex(
+    model = PrivateMockIntegrityCase
+) {
+    const pending =
+        privateMockIntegrityCaseAttemptIndexPromises.get(
+            model
+        );
+    if (pending) return pending;
+
+    let promise;
+    promise = Promise.resolve()
+        .then(() =>
+            model.collection.createIndex(
+                {
+                    ...PRIVATE_MOCK_INTEGRITY_CASE_ATTEMPT_INDEX.key,
+                },
+                {
+                    name: PRIVATE_MOCK_INTEGRITY_CASE_ATTEMPT_INDEX.name,
+                    unique: true,
+                }
+            )
+        )
+        .catch((error) => {
+            if (
+                privateMockIntegrityCaseAttemptIndexPromises.get(
+                    model
+                ) === promise
+            ) {
+                privateMockIntegrityCaseAttemptIndexPromises.delete(
+                    model
+                );
+            }
+            throw error;
+        });
+
+    privateMockIntegrityCaseAttemptIndexPromises.set(
+        model,
+        promise
+    );
+    return promise;
+}
 
 const PrivateMockAnswerCorrection =
     mongoose.models
@@ -6661,11 +7007,15 @@ const AdminTodo =
     );
 
 module.exports = {
+    ASSESSMENT_CLIENT_START_INDEX,
+    PRIVATE_MOCK_SUBMISSION_EVENT_INDEX,
+    PRIVATE_MOCK_INTEGRITY_CASE_ATTEMPT_INDEX,
     User,
     ConceptProgress,
     Problem,
     ProblemAttempt,
     AssessmentAttempt,
+    ensureAssessmentClientStartIndex,
     LearningEvent,
     ConceptLesson,
     DailyPlan,
@@ -6689,8 +7039,10 @@ module.exports = {
     PrivateMockUploadReminder,
     PrivateMockExamAttempt,
     PrivateMockExamEvent,
+    ensurePrivateMockSubmissionEventIndex,
     PrivateMockResource,
     PrivateMockIntegrityCase,
+    ensurePrivateMockIntegrityCaseAttemptIndex,
     PrivateMockAnswerCorrection,
     PrivateMockObjection,
     PrivateMockWeeklyResult,

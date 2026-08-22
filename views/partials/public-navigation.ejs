@@ -1,5 +1,3 @@
-<link rel="stylesheet" href="/css/matths-theme.css" />
-<link rel="stylesheet" href="/css/contrast.css" />
 <%
   const publicUser =
     typeof user !== "undefined" && user
@@ -17,36 +15,89 @@
     publicUser
       ? "학습 계속하기"
       : "무료로 시작하기";
-  const publicLinks = [
-    ["intro", "/intro", "서비스 소개"],
-    ["visual-learning", "/visual-learning", "시각화 학습"],
-    ["learning-flow", "/learning-flow", "학습 과정"],
-    ["curriculum", "/curriculum", "교육과정"],
-    ["pricing", "/pricing", "이용권"],
-    ["community", "/community", "게시판"],
-    ["faq", "/faq", "FAQ"],
-    ["archive", "/archive", "아카이브"],
+  const publicArenaHref = publicUser
+    ? "/war-of-masters"
+    : "/#goat-arena";
+  const publicNavigationGroups = [
+    {
+      id: "arena",
+      label: "GOAT Arena",
+      href: publicArenaHref,
+      items: [],
+    },
+    {
+      id: "learning",
+      label: "학습",
+      items: [
+        ["visual-learning", "/visual-learning", "시각화 학습"],
+        ["learning-flow", "/learning-flow", "학습 과정"],
+        ["curriculum", "/curriculum", "교육과정"],
+      ],
+    },
+    {
+      id: "service",
+      label: "서비스",
+      items: [
+        ["intro", "/intro", "서비스 소개"],
+        ["pricing", "/pricing", "이용권"],
+        ["faq", "/faq", "자주 묻는 질문"],
+        ["community", "/community", "커뮤니티"],
+        ["archive", "/archive", "아카이브"],
+      ],
+    },
   ];
 %>
+<% if (typeof suppressGlobalSkipLink === "undefined" || !suppressGlobalSkipLink) { %>
+  <a class="matths-skip-link" href="#public-navigation-end">본문으로 바로가기</a>
+<% } %>
 <header class="site-header">
   <nav class="navbar container" aria-label="주요 메뉴">
     <a
       class="brand"
       href="/"
       aria-label="Matths 메인"
-      <%- publicActivePage === "home" ? 'aria-current="page"' : "" %>
+      <% if (publicActivePage === "home") { %>aria-current="page"<% } %>
     >
-      <span class="brand-mark" aria-hidden="true">M</span>
-      <span>Matths</span>
+      <img
+        class="brand-logo"
+        src="/images/brand/matths-logo.svg"
+        alt=""
+        aria-hidden="true"
+        width="132"
+        height="41"
+      />
     </a>
 
     <div class="nav-links">
-      <% publicLinks.forEach(([id, href, label]) => { %>
-        <a
-          class="<%= publicActivePage === id ? 'active' : '' %>"
-          href="<%= href %>"
-          <%- publicActivePage === id ? 'aria-current="page"' : "" %>
-        ><%= label %></a>
+      <% publicNavigationGroups.forEach((group) => { %>
+        <% const groupActive = group.items.some(([id]) => id === publicActivePage); %>
+        <% if (group.href) { %>
+          <a class="nav-arena-link" href="<%= group.href %>"><%= group.label %></a>
+        <% } else { %>
+          <details
+            class="nav-cluster <%= groupActive ? 'active' : '' %>"
+            data-public-nav-cluster
+          >
+            <summary
+              aria-controls="public-nav-<%= group.id %>-menu"
+              aria-expanded="false"
+              aria-haspopup="true"
+              data-public-nav-toggle
+            ><%= group.label %></summary>
+            <div
+              class="nav-cluster-menu"
+              id="public-nav-<%= group.id %>-menu"
+            >
+              <% group.items.forEach(([id, href, label]) => { %>
+                <a
+                  class="<%= publicActivePage === id ? 'active' : '' %>"
+                  href="<%= href %>"
+                  <% if (publicActivePage === id) { %>aria-current="page"<% } %>
+                ><%= label %></a>
+              <% }) %>
+            </div>
+          </details>
+        <% } %>
       <% }) %>
     </div>
 
@@ -59,22 +110,35 @@
       </a>
     </div>
 
-    <details class="mobile-menu">
-      <summary aria-label="메뉴 열기">
+    <details class="mobile-menu" data-public-mobile-menu>
+      <summary aria-expanded="false" aria-label="메뉴 열기" data-public-mobile-toggle>
         <span></span><span></span><span></span>
       </summary>
       <div>
-        <% publicLinks.forEach(([id, href, label]) => { %>
-          <a
-            class="<%= publicActivePage === id ? 'active' : '' %>"
-            href="<%= href %>"
-          ><%= label %></a>
+        <% publicNavigationGroups.forEach((group) => { %>
+          <% if (group.href) { %>
+            <a class="mobile-arena-link" href="<%= group.href %>"><%= group.label %></a>
+          <% } else { %>
+            <p><%= group.label %></p>
+            <% group.items.forEach(([id, href, label]) => { %>
+              <a
+                class="<%= publicActivePage === id ? 'active' : '' %>"
+                href="<%= href %>"
+                <% if (publicActivePage === id) { %>aria-current="page"<% } %>
+              ><%= label %></a>
+            <% }) %>
+          <% } %>
         <% }) %>
         <a href="<%= publicUser ? '/main' : '/login' %>">
           <%= publicUser ? "대시보드" : "로그인" %>
+        </a>
+        <a class="mobile-primary-action" href="<%= publicStartHref %>">
+          <%= publicStartLabel %>
         </a>
       </div>
     </details>
   </nav>
 </header>
+<span class="matths-skip-target" id="public-navigation-end" tabindex="-1"></span>
+<script src="/js/public-navigation.js" defer></script>
 <% if (publicUser) { %><script src="/js/session-usage.js" defer></script><% } %>

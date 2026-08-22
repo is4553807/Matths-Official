@@ -61,6 +61,12 @@ const {
   getConceptTypeGuides,
 } = require("../services/conceptGuideService");
 const {
+  resolveStudentCurriculumStory,
+} = require("../services/curriculumStoryService");
+const {
+  buildCurriculumTimelinePreview,
+} = require("../services/curriculumTimelinePreviewService");
+const {
   getAcademicYear,
   lifecycleSessionView,
   recordStudyActivity,
@@ -257,6 +263,9 @@ const {
   updateLearningPackagePrice,
 } = require("../services/arenaPolicyService");
 const {
+  arenaPublicContractView,
+} = require("../services/arenaPublicContractViewService");
+const {
   alertPotentialDuplicateIdentity,
   buildIdentityMatchHash,
   normalizeBirthDate,
@@ -356,14 +365,28 @@ const {
 const bcrypt = require('bcrypt');
 const crypto = require("crypto");
 const BCRYPT_ROUNDS = 12;
+// 애플을 함께 넣는다. 지금은 AppleAuthCredential 컬렉션이 조회 정본이라 이 select
+// 없이도 로그인이 돌지만, socialAuth.appleId 로 사용자를 찾는 코드가 하나라도
+// 생기는 순간 select 에 빠진 필드는 **오류 없이 undefined** 로 온다. 그 버그는
+// 로그에도 안 남는다.
 const SOCIAL_AUTH_SELECT =
-  "+socialAuth.googleId +socialAuth.kakaoId";
+  "+socialAuth.googleId +socialAuth.kakaoId +socialAuth.appleId";
 
-exports.mainPage = (req,res) => {
+exports.mainPage = async (req, res) => {
+    let activeArenaPolicy = null;
+    try {
+      activeArenaPolicy = await getActiveArenaPolicy();
+    } catch (error) {
+      // 공개 랜딩은 정책 DB를 잠시 읽지 못해도 공식 기본 정책으로 렌더한다.
+      console.error("랜딩 Arena 계약 정책 조회 실패:", error);
+    }
+
     res.render('index', {
       user:
         req.session?.user ||
         null,
+      arenaContract:
+        arenaPublicContractView(activeArenaPolicy),
     });
 }
 
@@ -447,6 +470,26 @@ function protectedPageLoginNotice(req) {
   return isSafeStudentReturnPath(req.session?.returnTo)
     ? "로그인이 필요한 페이지입니다. 로그인하면 요청하신 페이지로 바로 이동합니다."
     : null;
+}
+
+function privateMockActivityDate(result) {
+  const acceptedAt =
+    new Date(
+      result?.acceptedAt
+    );
+  if (
+    Number.isNaN(
+      acceptedAt.getTime()
+    )
+  ) {
+    const error =
+      new Error(
+        "제출 접수 시각 영수증이 올바르지 않습니다."
+      );
+    error.status = 500;
+    throw error;
+  }
+  return acceptedAt;
 }
 
 exports.loginPage = (req,res) => {
@@ -536,16 +579,31 @@ exports.socialOAuthStart = async (req, res) => {
       req,
       res,
       error,
-      req.socialOAuthMobile === true
+      req.socialOAuthMobile === true,
+      req.params.provider
     );
   }
 };
 
+/*
+ * 앱(ASWebAuthenticationSession)이 여는 공개 PKCE 진입점.
+ *
+ * provider 는 **라우트가 정한다.** 예전에는 여기서 "google" 을 박아 두었는데,
+ * 그러면 /auth/kakao/app 을 붙여도 구글 동의 화면이 열린다. 아래 왕복
+ * (mobileCallbackURL·finishSocialLogin·redirectSocialAuthError)은 이미 전부
+ * provider 를 받게 되어 있었고, 하드코딩은 이 한 줄뿐이었다.
+ *
+ * 기본값을 google 로 남겨 두는 이유: /auth/google/app 은 provider 를 세팅하지
+ * 않고 이 함수를 바로 부른다. 그 라우트를 건드리지 않고 카카오를 더하기 위한 것이다.
+ */
 exports.socialOAuthAppStart = (
   req,
   res,
   next
 ) => {
+  const provider = String(
+    req.params?.provider || "google"
+  ).toLowerCase();
   const codeChallenge = String(
     req.query?.code_challenge || ""
   ).trim();
@@ -556,19 +614,22 @@ exports.socialOAuthAppStart = (
     )
   ) {
     const error = new Error(
-      "Google 로그인을 안전하게 시작하지 못했습니다. 앱에서 다시 시도해주세요."
+      `${socialProviderLabel(provider)} 로그인을 안전하게 시작하지 못했습니다. 앱에서 다시 시도해주세요.`
     );
     error.code =
       "SOCIAL_AUTH_PKCE_REQUIRED";
+    // provider 를 넘겨야 오류도 그 provider 의 딥링크로 돌아간다.
+    // 안 넘기면 카카오 실패가 matths://oauth/google 로 떨어져 앱이 못 받는다.
     return redirectSocialAuthError(
       req,
       res,
       error,
-      true
+      true,
+      provider
     );
   }
 
-  req.params.provider = "google";
+  req.params.provider = provider;
   req.socialOAuthMobile = true;
   req.socialOAuthCodeChallenge =
     codeChallenge;
@@ -579,11 +640,29 @@ exports.socialOAuthAppStart = (
   );
 };
 
+/** 학생에게 보일 provider 이름. 오류 문구가 "google 로그인" 처럼 나가지 않게 한다. */
+function socialProviderLabel(provider) {
+  switch (String(provider || "").toLowerCase()) {
+    case "kakao": return "카카오";
+    case "apple": return "Apple";
+    default:      return "Google";
+  }
+}
+
+// 앱으로 되돌아가는 딥링크는 **provider 별로 다른 호스트 경로**를 쓴다.
+// matths://oauth/google 을 박아 두면 다른 provider 의 결과가 구글 콜백으로 돌아가
+// 앱이 어느 로그인을 끝낸 것인지 구분하지 못한다.
+function mobileCallbackURL(provider) {
+  const key = String(provider || "google").toLowerCase();
+  return new URL(`matths://oauth/${encodeURIComponent(key)}`);
+}
+
 async function redirectSocialAuthError(
   req,
   res,
   error,
-  mobile = false
+  mobile = false,
+  provider = "google"
 ) {
   const userSafeCodes = new Set([
     "SOCIAL_AUTH_NOT_CONFIGURED",
@@ -600,9 +679,7 @@ async function redirectSocialAuthError(
     : "소셜 로그인을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.";
 
   if (mobile) {
-    const url = new URL(
-      "matths://oauth/google"
-    );
+    const url = mobileCallbackURL(provider);
     url.searchParams.set(
       "error",
       message
@@ -623,7 +700,8 @@ async function finishSocialLogin(
   res,
   user,
   mobile,
-  codeChallenge = null
+  codeChallenge = null,
+  provider = "google"
 ) {
   if (mobile) {
     const code =
@@ -631,9 +709,7 @@ async function finishSocialLogin(
         user._id,
         { codeChallenge }
       );
-    const url = new URL(
-      "matths://oauth/google"
-    );
+    const url = mobileCallbackURL(provider);
     url.searchParams.set(
       "code",
       code
@@ -673,6 +749,10 @@ exports.socialOAuthCallback = async (req, res) => {
     mobile =
       context.mobile === true;
     const idPath = socialIdPath(profile.provider);
+    // select 를 googleId 로 박아 두면 안 된다. socialAuth 의 provider 필드는 전부
+    // select:false 라, 다른 provider 로 이 경로를 타면 아래 user.get(idPath) 가 항상
+    // undefined 가 되어 **"이미 다른 소셜 계정이 연결된 이메일" 가드가 조용히
+    // 무력화**되고 기존 연결을 덮어쓴다. 조회하는 필드와 select 하는 필드는 같아야 한다.
     const [providerUser, emailUser, parentAccount] = await Promise.all([
       User.findOne({ [idPath]: profile.providerUserId })
         .select(SOCIAL_AUTH_SELECT),
@@ -724,7 +804,8 @@ exports.socialOAuthCallback = async (req, res) => {
         synchronizedUser,
         mobile,
         context.codeChallenge ||
-          null
+          null,
+        profile.provider
       );
     }
 
@@ -754,7 +835,8 @@ exports.socialOAuthCallback = async (req, res) => {
       req,
       res,
       error,
-      mobile
+      mobile,
+      req.params.provider
     );
   }
 };
@@ -3381,15 +3463,36 @@ exports.dismissDashboardNotification =
     }
   };
 
-exports.curriculumPage = (req, res, next) => {
+exports.curriculumPage = async (req, res, next) => {
   try {
     const curriculumData = loadCurriculum();
+    const sessionUser = req.session?.user || null;
+    let learningData = null;
+    let progressUnavailable = false;
+
+    if (sessionUser?.id) {
+      try {
+        ({ learningData } = await getUserLearningData(sessionUser.id));
+      } catch (error) {
+        progressUnavailable = true;
+        console.error(
+          "[curriculum-timeline] 사용자 진도 projection 실패:",
+          error.message
+        );
+      }
+    }
+
+    const curriculumTimelinePreview = buildCurriculumTimelinePreview({
+      curriculumData,
+      learningData,
+      loggedIn: Boolean(sessionUser),
+      progressUnavailable,
+    });
 
     res.render('curriculum', {
       curriculumData,
-      user:
-        req.session?.user ||
-        null,
+      curriculumTimelinePreview,
+      user: sessionUser,
     });
   } catch (error) {
     next(error);
@@ -3651,12 +3754,25 @@ exports.submitPrivateMockExam =
           telemetryEvents:
             req.body
               .telemetryEvents,
+          requestId:
+            req.get(
+              "idempotency-key"
+            ) ||
+            req.body.requestId,
+          capturedAt:
+            req.body.capturedAt,
         });
       const activityUser =
         await recordStudyActivity(
           req.session.user.id,
-          new Date(),
-          result.elapsedMs
+          privateMockActivityDate(
+            result
+          ),
+          result.elapsedMs,
+          {
+            idempotencyKey:
+              result.activityReceiptId,
+          }
         );
       Object.assign(
         req.session.user,
@@ -3667,6 +3783,10 @@ exports.submitPrivateMockExam =
 
       return res.json({
         submitted: true,
+        replayed:
+          result.replayed,
+        receiptId:
+          result.receiptId,
         result,
       });
     } catch (error) {
@@ -4853,6 +4973,13 @@ exports.unitLearning = async (
 
     const renderedLesson =
       formatAlgebraLesson(lesson);
+    const curriculumStory =
+      resolveStudentCurriculumStory({
+        courseId: unitView.course.id,
+        unitId: unitView.unit.id,
+        conceptId,
+        visualizationIdeas: unitView.selectedConcept.visualizationIdeas,
+      });
     const conceptTypeGuides =
       getConceptTypeGuides({
         courseId: unitView.course.id,
@@ -4889,6 +5016,12 @@ exports.unitLearning = async (
       reviewContext,
       subunitAssessment,
       conceptTypeGuides,
+      curriculumStory,
+      curriculumNarrationScope: crypto
+        .createHash("sha256")
+        .update(`curriculum-narration:${String(req.session.user.id || "")}`, "utf8")
+        .digest("hex")
+        .slice(0, 16),
       user: req.session.user,
     });
   } catch (error) {
@@ -5247,6 +5380,9 @@ exports.register = async (req, res, next) => {
             passwordHash,
             ...(socialRegistration
               ? {
+                  // provider 와 무관하게 googleId 에 박으면 안 된다. 다른 provider 로
+                  // 가입한 사용자가 구글 자리에 저장되어, 다음 로그인 때 조회 키
+                  // (socialIdPath)와 어긋나 같은 사람이 매번 새 가입 흐름을 탄다.
                   socialAuth: {
                     [socialIdentityField]:
                       socialRegistration.providerUserId,
@@ -5332,7 +5468,8 @@ exports.register = async (req, res, next) => {
           user,
           mobileSocialRegistration,
           socialRegistration
-            ?.codeChallenge || null
+            ?.codeChallenge || null,
+          socialRegistration?.provider
         );
     } catch (error) {
         const pendingSocialRegistration =

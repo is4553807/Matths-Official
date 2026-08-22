@@ -232,7 +232,7 @@
   border-radius: 999px;
   color: #fff;
   background: linear-gradient(120deg, var(--pricing-violet), var(--pricing-blue));
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 900;
 }
 
@@ -267,7 +267,7 @@
 .pricing-guide p {
   margin: 0 0 7px;
   color: var(--pricing-blue);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 900;
   letter-spacing: 0.16em;
 }
@@ -319,8 +319,8 @@
 
 .pricing-refund-summary { display: grid; gap: 8px; margin-top: 18px; padding: 16px; border: 1px solid rgba(49, 87, 246, 0.16); border-radius: 14px; background: #f7f8ff; }
 .pricing-refund-summary strong, .pricing-refund-summary b { color: #27388b; font-size: 0.78rem; }
-.pricing-refund-summary p { min-height: 0; margin: 0; color: #606a82; font-size: 0.7rem; line-height: 1.65; }
-.pricing-refund-summary code { overflow-wrap: anywhere; color: #394976; font-size: 0.68rem; }
+.pricing-refund-summary p { min-height: 0; margin: 0; color: #606a82; font-size: 0.75rem; line-height: 1.65; }
+.pricing-refund-summary code { overflow-wrap: anywhere; color: #394976; font-size: 0.75rem; }
 
 .pricing-footer {
   margin-top: 72px;
@@ -347,7 +347,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 
 .pricing-footer a {

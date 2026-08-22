@@ -123,22 +123,16 @@
     </title>
 
     <!-- 대시보드 공통 디자인 -->
-    <link
-      rel="stylesheet"
-      href="/css/main.css"
-    />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/unit-learning.css" />
+    <link rel="stylesheet" href="/css/concept-experience.css" />
+    <link rel="stylesheet" href="/css/curriculum-story.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
 
     <!-- 기존 단원 학습 페이지 디자인 -->
-    <link
-      rel="stylesheet"
-      href="/css/unit-learning.css"
-    />
 
     <!-- 새 개념 학습 영역 디자인 -->
-    <link
-      rel="stylesheet"
-      href="/css/concept-experience.css"
-    />
 
     <script>
       window.MathJax = {
@@ -170,6 +164,14 @@
     <!-- 기본 개념 페이지의 Step 미리보기와 topic 진도 저장 -->
     <script
       src="/js/unit-learning.js"
+      defer
+    ></script>
+    <script
+      src="/js/curriculum-narration.js"
+      defer
+    ></script>
+    <script
+      src="/js/curriculum-motion-lesson.js"
       defer
     ></script>
 
@@ -204,7 +206,7 @@
     <script src="/js/common-math.js" defer></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
-    <link rel="stylesheet" href="/css/brand.css" />
+
   </head>
 
   <body>
@@ -543,6 +545,11 @@
                 </h3>
               </div>
             </section>
+
+            <%- include(
+              "partials/curriculum-story-timeline",
+              { curriculumStory, curriculumNarrationScope }
+            ) %>
 
             <% if (lessonData.playgroundKey) { %>
               <%- include(

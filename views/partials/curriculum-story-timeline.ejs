@@ -1,0 +1,246 @@
+<%
+  const storyState =
+    typeof curriculumStory !== "undefined" && curriculumStory
+      ? curriculumStory
+      : { story: null, status: "unavailable" };
+  const story = storyState.story;
+  const kindLabels = {
+    intuition: "직관",
+    question: "질문",
+    misconception: "오개념",
+    solution: "풀이 리듬",
+    recall: "회상",
+  };
+  const kindSymbols = {
+    intuition: "●",
+    question: "?",
+    misconception: "!",
+    solution: "→",
+    recall: "↺",
+  };
+  const studentStoryJson = story
+    ? JSON.stringify(story)
+        .replace(/</g, "\\u003c")
+        .replace(/>/g, "\\u003e")
+        .replace(/&/g, "\\u0026")
+    : "";
+  const motionLesson = storyState.motionLesson || null;
+  const motionLessonJson = motionLesson
+    ? JSON.stringify(motionLesson)
+        .replace(/</g, "\\u003c")
+        .replace(/>/g, "\\u003e")
+        .replace(/&/g, "\\u0026")
+    : "";
+  const narrationScope = String(
+    typeof curriculumNarrationScope === "string"
+      ? curriculumNarrationScope
+      : "anonymous"
+  );
+  const compactMode = typeof compact !== "undefined" && compact === true;
+  const topPreview =
+    typeof curriculumTimelinePreview !== "undefined" && curriculumTimelinePreview
+      ? curriculumTimelinePreview
+      : {
+          state: "empty",
+          statusLabel: "프리뷰 없음",
+          target: null,
+          story: null,
+          message: "지금 보여드릴 학습 기억선이 없습니다.",
+          ctaHref: "/curriculum",
+          ctaLabel: "교육과정 보기",
+        };
+%>
+
+<% if (compactMode) { %>
+<section
+  class="curriculum-top-memory"
+  data-curriculum-top-timeline
+  data-curriculum-top-state="<%= topPreview.state %>"
+  aria-labelledby="curriculum-top-memory-title"
+>
+  <div class="container curriculum-top-memory-shell">
+    <header class="curriculum-top-memory-heading">
+      <div>
+        <p>오늘 이어갈 개념</p>
+        <h2 id="curriculum-top-memory-title">
+          <%= topPreview.target
+            ? topPreview.target.conceptTitle
+            : topPreview.state === "completed"
+              ? "현재 학습 범위를 모두 마쳤습니다"
+              : "다음 기억선을 준비하고 있습니다"
+          %>
+        </h2>
+        <% if (topPreview.target) { %>
+          <span>
+            <%= topPreview.target.courseTitle %> · <%= topPreview.target.unitTitle %>
+            · 예상 <%= topPreview.target.estimatedMinutes %>분
+          </span>
+        <% } %>
+      </div>
+      <strong class="curriculum-top-memory-status">
+        <span aria-hidden="true"></span><%= topPreview.statusLabel %>
+      </strong>
+    </header>
+
+    <% if (topPreview.target) { %>
+      <div class="curriculum-top-memory-resume">
+        <span aria-hidden="true">→</span>
+        <div>
+          <strong><%= topPreview.story ? topPreview.story.openingQuestion : "이 개념부터 바로 시작할 수 있습니다." %></strong>
+          <p>5장면 모션 해설과 확인 문제는 개념 화면에서 한 단계씩 보여줍니다.</p>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="curriculum-top-memory-empty" role="status">
+        <span aria-hidden="true"><%= topPreview.state === "completed" ? "✓" : "◇" %></span>
+        <p><%= topPreview.message || topPreview.lockReason %></p>
+      </div>
+    <% } %>
+
+    <footer class="curriculum-top-memory-footer">
+      <p>
+        <%= topPreview.lockReason ||
+          (topPreview.target
+            ? "현재 학습은 이 카드 하나로 시작합니다. 학습 경로와 전체 지도는 아래에서 확인할 수 있습니다."
+            : "완료한 개념은 언제든 다시 볼 수 있습니다.")
+        %>
+      </p>
+      <a href="<%= topPreview.ctaHref %>">
+        <%= topPreview.ctaLabel %><span aria-hidden="true">→</span>
+      </a>
+    </footer>
+  </div>
+</section>
+<% } else { %>
+<section
+  class="curriculum-memory curriculum-motion-lesson"
+  aria-labelledby="curriculum-memory-title"
+  data-curriculum-story-status="<%= storyState.status %>"
+  data-curriculum-motion-lesson
+  <% if (story) { %>data-curriculum-story-id="<%= story.id %>"<% } %>
+>
+  <header class="curriculum-motion-heading">
+    <div>
+      <p>선생님 보드</p>
+      <h3 id="curriculum-memory-title">
+        <%= story ? story.title : "모션 해설은 편집 중입니다" %>
+      </h3>
+      <span>
+        <%= story
+          ? story.openingQuestion
+          : "검수된 수학 설명과 시각 지시가 준비되기 전에는 자동으로 만든 해설을 보여주지 않습니다."
+        %>
+      </span>
+    </div>
+
+    <% if (story) { %>
+      <div class="curriculum-narration-controls">
+        <button
+          type="button"
+          class="curriculum-narration-toggle"
+          data-curriculum-narration-toggle
+          aria-describedby="curriculum-narration-status"
+        >
+          <span aria-hidden="true">▶</span>
+          <b>모션 강의 시작</b>
+        </button>
+        <button
+          type="button"
+          class="curriculum-narration-restart"
+          data-curriculum-narration-restart
+          hidden
+        >
+          처음부터
+        </button>
+        <p
+          id="curriculum-narration-status"
+          class="curriculum-narration-status"
+          data-curriculum-narration-status
+          aria-live="polite"
+        >
+          음성과 화면의 포인터가 같은 장면을 설명합니다.
+        </p>
+      </div>
+    <% } %>
+  </header>
+
+  <% if (story && motionLesson) { const firstMotionScene = motionLesson.scenes[0]; const firstMotionBeat = firstMotionScene.beats?.[0] || null; %>
+    <div class="curriculum-teacher-stage" data-curriculum-teacher-stage data-visual-mode="<%= firstMotionScene.visualMode %>" data-motion-authored="<%= firstMotionScene.authored ? 'true' : 'false' %>" tabindex="-1">
+      <div class="curriculum-stage-toolbar">
+        <span data-motion-kind><%= kindLabels[firstMotionScene.kind] || "장면" %></span>
+        <strong data-motion-progress>1 / <%= motionLesson.scenes.length %></strong>
+      </div>
+
+      <div class="curriculum-stage-board" aria-live="polite">
+        <svg data-motion-visual viewBox="0 0 800 360" role="img" aria-label="<%= firstMotionBeat?.caption || firstMotionScene.visualIdea %>"></svg>
+        <div class="curriculum-stage-focus">
+          <span>지금 볼 곳</span>
+          <strong data-motion-focus><%= firstMotionBeat?.target || firstMotionScene.focusToken %></strong>
+          <i aria-hidden="true"></i>
+        </div>
+        <span class="curriculum-teacher-pen" aria-hidden="true">✎</span>
+        <p data-motion-visual-idea><%= firstMotionBeat?.caption || firstMotionScene.visualIdea %></p>
+      </div>
+
+      <div class="curriculum-stage-copy">
+        <div>
+          <p data-motion-kind-copy><%= kindLabels[firstMotionScene.kind] || "장면" %></p>
+          <h4 data-motion-title><%= firstMotionScene.title %></h4>
+          <strong data-motion-subtitle><%= firstMotionScene.subtitle %></strong>
+        </div>
+        <button type="button" data-motion-source-toggle aria-expanded="false">설명 원문</button>
+      </div>
+      <p class="curriculum-stage-source" data-motion-source hidden><%= story.scenes[0].narration %></p>
+    </div>
+
+    <div class="curriculum-understanding-branch" data-motion-branch>
+      <div class="curriculum-scene-check" data-motion-check>
+        <strong data-motion-check-prompt><%= firstMotionScene.check.prompt %></strong>
+        <div data-motion-check-choices></div>
+        <p data-motion-check-feedback aria-live="polite"></p>
+      </div>
+
+      <div class="curriculum-branch-support">
+        <p>답이 막히면 설명 방식을 바꿔보세요.</p>
+        <div class="curriculum-branch-actions">
+          <button type="button" data-motion-explain="mild">순한맛으로 다시</button>
+          <button type="button" data-motion-explain="spicy">매운맛 핵심</button>
+        </div>
+      </div>
+      <p class="curriculum-reexplain-copy" data-motion-reexplain aria-live="polite" hidden></p>
+    </div>
+
+    <nav class="curriculum-motion-nav" aria-label="모션 강의 장면">
+      <div data-motion-dots>
+        <% motionLesson.scenes.forEach((scene, index) => { %>
+          <button
+            type="button"
+            data-motion-scene-index="<%= index %>"
+            aria-label="<%= index + 1 %>번째 장면, <%= scene.title %>"
+            <% if (index === 0) { %>aria-current="step"<% } %>
+          ><span></span></button>
+        <% }) %>
+      </div>
+      <span>한 번에 한 장면만 봅니다.</span>
+    </nav>
+
+    <script
+      type="application/json"
+      id="curriculum-narration-data"
+      data-checkpoint-scope="<%= narrationScope %>"
+    ><%- studentStoryJson %></script>
+    <script type="application/json" id="curriculum-motion-data"><%- motionLessonJson %></script>
+  <% } else { %>
+    <div class="curriculum-memory-unavailable" role="status">
+      <span aria-hidden="true">◇</span>
+      <div>
+        <strong>기존 개념 학습은 그대로 이어갈 수 있습니다.</strong>
+        <p>
+          아래 핵심 설명과 시각 학습, 연습 문제를 이용해 주세요.
+          검수를 마친 모션 해설만 선생님 보드에 추가됩니다.
+        </p>
+      </div>
+    </div>
+  <% } %>
+</section>
+<% } %>

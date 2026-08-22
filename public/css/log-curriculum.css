@@ -1,7 +1,7 @@
 .logged-curriculum-main {
     padding-bottom: 24px;
 }
-.course-shortcuts a.is-development-locked{filter:grayscale(.7);opacity:.68}.curriculum-course.is-development-locked{border-style:dashed;box-shadow:none}.curriculum-course.is-development-locked .course-heading{background:linear-gradient(135deg,#4a5065,#697086)}.course-development-badge{display:inline-flex;vertical-align:middle;margin-left:8px;padding:5px 8px;color:#3d4661;background:#eef1f7;border-radius:999px;font-size:9px;letter-spacing:0}.course-development-panel{display:grid;gap:7px;margin:20px;padding:27px;color:#75809b;background:#f5f7fb;border:1px dashed #cfd6e4;border-radius:15px}.course-development-panel strong{color:#252c43;font-size:15px}.course-development-panel span{font-size:10px;line-height:1.65}
+.course-shortcuts a.is-development-locked{filter:grayscale(.7);opacity:.68}.curriculum-course.is-development-locked{border-style:dashed;box-shadow:none}.curriculum-course.is-development-locked .course-heading{background:#4a5065}.course-development-badge{display:inline-flex;vertical-align:middle;margin-left:8px;padding:5px 8px;color:#3d4661;background:#eef1f7;border-radius:999px;font-size:12px;letter-spacing:0}.course-development-panel{display:grid;gap:7px;margin:20px;padding:27px;color:#75809b;background:#f5f7fb;border:1px dashed #cfd6e4;border-radius:15px}.course-development-panel strong{color:#252c43;font-size:15px}.course-development-panel span{font-size:12px;line-height:1.65}
 
 .dashboard-return {
     min-height: 40px;
@@ -15,32 +15,28 @@
     border-radius: 11px;
     font-size: 12px;
     font-weight: 800;
-    transition: 0.18s ease;
+    transition: color var(--motion-base) var(--motion-ease), border-color var(--motion-base) var(--motion-ease), transform var(--motion-base) var(--motion-ease);
 }
 
 .dashboard-return:hover {
     color: var(--blue);
     border-color: #bdc8f8;
-    transform: translateX(2px);
+    transform: var(--motion-lift);
 }
 
 .curriculum-welcome {
     display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
-    gap: 45px;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+    align-items: start;
+    gap: 28px;
     margin-top: 27px;
     padding: 38px;
     overflow: hidden;
-    color: #fff;
-    background:
-        radial-gradient(
-            circle at 90% 10%,
-            rgba(112, 139, 255, 0.38),
-            transparent 32%
-        ),
-        #111629;
+    color: var(--matths-ink);
+    background: var(--matths-surface);
+    border: 1px solid var(--matths-line);
     border-radius: 24px;
-    box-shadow: 0 20px 50px rgba(19, 26, 65, 0.16);
+    box-shadow: none;
 }
 
 .welcome-copy {
@@ -52,51 +48,51 @@
 .welcome-label {
     display: inline-flex;
     padding: 7px 11px;
-    color: #bdc8ff;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--matths-action-primary);
+    background: var(--matths-primary-soft);
+    border: 1px solid transparent;
     border-radius: 999px;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
 }
 
 .welcome-copy h2 {
     max-width: 660px;
-    margin: 22px 0 0;
-    font-size: clamp(30px, 3.3vw, 48px);
+    margin: 14px 0 0;
+    font-size: clamp(27px, 3vw, 42px);
     line-height: 1.25;
     letter-spacing: -2px;
 }
 
 .welcome-copy h2 strong {
-    color: #91a6ff;
+    color: var(--matths-action-primary);
 }
 
 .welcome-copy > p {
     max-width: 650px;
-    margin: 18px 0 0;
-    color: #aab1c5;
+    margin: 10px 0 0;
+    color: var(--matths-muted);
     font-size: 13px;
     line-height: 1.8;
 }
 
 .continue-button {
-    min-width: min(100%, 420px);
+    width: min(100%, 520px);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 30px;
-    margin-top: 27px;
-    padding: 15px 18px;
-    color: var(--ink);
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 15px 32px rgba(0, 0, 0, 0.18);
-    transition: 0.18s ease;
+    margin-top: 20px;
+    padding: 17px 18px;
+    color: #fff;
+    background: var(--matths-action-primary);
+    border: 1px solid var(--matths-action-primary);
+    border-radius: 15px;
+    transition: transform var(--motion-base) var(--motion-ease), box-shadow var(--motion-base) var(--motion-ease);
 }
 
 .continue-button:hover {
-    transform: translateY(-2px);
+    transform: var(--motion-lift);
 }
 
 .continue-button > span {
@@ -106,14 +102,14 @@
 }
 
 .continue-button small {
-    color: var(--blue);
-    font-size: 9px;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 12px;
     font-weight: 850;
 }
 
 .continue-button strong {
     overflow: hidden;
-    font-size: 13px;
+    font-size: 16px;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -124,78 +120,77 @@
     display: grid;
     place-items: center;
     flex: 0 0 auto;
-    color: #fff;
-    background: var(--blue);
+    color: var(--matths-action-primary);
+    background: #fff;
     border-radius: 10px;
 }
 
 .welcome-progress {
-    display: grid;
-    grid-template-columns: auto 1fr;
+    padding: 0;
+    background: var(--matths-canvas);
+    border: 1px solid var(--matths-line);
+    border-radius: 16px;
+}
+
+.welcome-progress > summary {
+    min-height: 54px;
+    display: flex;
     align-items: center;
-    gap: 28px;
-    padding: 24px;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 0 17px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 800;
 }
 
-.progress-ring {
-    --progress-angle: 0deg;
-    position: relative;
-    width: 145px;
-    height: 145px;
+.welcome-progress > summary::marker {
+    color: var(--matths-muted);
+}
+
+.welcome-progress > summary strong {
+    color: var(--matths-action-primary);
+    font-size: 18px;
+}
+
+.welcome-progress-body {
     display: grid;
-    place-items: center;
-    background:
-        conic-gradient(
-            #8399ff var(--progress-angle),
-            rgba(255, 255, 255, 0.1) 0
-        );
-    border-radius: 50%;
+    gap: 16px;
+    padding: 0 17px 17px;
+    border-top: 1px solid var(--matths-line);
 }
 
-.progress-ring::before {
-    content: "";
-    position: absolute;
-    inset: 12px;
-    background: #171d34;
+.welcome-progress-body > p {
+    margin: 15px 0 0;
+    color: var(--matths-muted);
+    font-size: 12px;
+    line-height: 1.65;
+}
+
+.progress-line i {
+    height: 7px;
+    display: block;
+    overflow: hidden;
+    background: var(--matths-line);
+    border-radius: 999px;
+}
+
+.progress-line b {
+    width: var(--progress);
+    height: 100%;
+    display: block;
+    background: var(--matths-progress-blue);
     border-radius: inherit;
 }
 
-.progress-ring > div {
-    position: relative;
-    display: grid;
-    gap: 5px;
-    text-align: center;
-}
-
-.progress-ring strong {
-    font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-    font-size: 27px;
-}
-
-.progress-ring small {
-    color: #8f98b2;
-    font-size: 9px;
-}
-
 .progress-stats {
-    display: grid;
-    gap: 5px;
+    display: flex;
+    gap: 18px;
 }
 
 .progress-stats > div {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 15px;
-    padding: 12px 4px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-}
-
-.progress-stats > div:last-child {
-    border-bottom: 0;
+    display: grid;
+    gap: 3px;
 }
 
 .progress-stats strong {
@@ -204,8 +199,8 @@
 }
 
 .progress-stats span {
-    color: #9aa3ba;
-    font-size: 10px;
+    color: var(--matths-muted);
+    font-size: 12px;
 }
 
 .curriculum-guide {
@@ -219,7 +214,7 @@
 .curriculum-guide p {
     margin: 0 0 8px;
     color: var(--blue);
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 900;
     letter-spacing: 1.4px;
 }
@@ -230,11 +225,46 @@
     letter-spacing: -1px;
 }
 
+.curriculum-guide span {
+  display: block;
+  margin-top: 10px;
+  color: #737b91;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.curriculum-guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.curriculum-guide-actions a {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  color: var(--blue);
+  background: #fff;
+  border: 1px solid #dfe4f0;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  transition: transform var(--motion-base) var(--motion-ease),
+    border-color var(--motion-base) var(--motion-ease);
+}
+
+.curriculum-guide-actions a:hover {
+  border-color: var(--blue);
+  transform: translateY(-1px);
+}
+
 .status-legend {
     display: flex;
     gap: 18px;
     color: #747c90;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .status-legend span {
@@ -274,17 +304,17 @@
     border: 1px solid var(--line);
     border-radius: 17px;
     box-shadow: 0 10px 25px rgba(29, 42, 103, 0.04);
-    transition: 0.18s ease;
+    transition: border-color var(--motion-base) var(--motion-ease), transform var(--motion-base) var(--motion-ease);
 }
 
 .course-shortcuts > a:hover {
     border-color: #bbc7fa;
-    transform: translateY(-2px);
+    transform: var(--motion-lift);
 }
 
 .course-shortcuts span {
     color: #9097a9;
-    font-size: 9px;
+    font-size: 12px;
 }
 
 .course-shortcuts strong {
@@ -350,13 +380,7 @@
     justify-content: space-between;
     gap: 40px;
     padding: 26px 30px;
-    background:
-        linear-gradient(
-            105deg,
-            rgba(49, 87, 246, 0.08),
-            rgba(255, 255, 255, 0)
-        ),
-        #fbfcff;
+    background: #fbfcff;
     border-bottom: 1px solid var(--line);
 }
 
@@ -381,7 +405,7 @@
 
 .course-heading-title small {
     color: var(--blue);
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 850;
     letter-spacing: 0.8px;
 }
@@ -395,7 +419,7 @@
 .course-heading-title p {
     margin: 0;
     color: #858da1;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .course-heading-progress {
@@ -409,7 +433,7 @@
     justify-content: space-between;
     gap: 20px;
     color: #737b90;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .course-heading-progress strong {
@@ -447,10 +471,11 @@
 .unit-number {
     color: #98a0b3;
     font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .unit-name {
+    min-width: 0;
     display: grid;
     gap: 5px;
 }
@@ -461,7 +486,7 @@
 
 .unit-name small {
     color: #9299ab;
-    font-size: 9px;
+    font-size: 12px;
 }
 
 .unit-progress {
@@ -486,13 +511,21 @@
     color: #7d8598;
     background: #f1f3f8;
     border-radius: 8px;
-    transition: transform 0.18s ease;
+    font-size: 0;
+}
+
+.unit-open::before {
+    content: "+";
+    font-size: 15px;
 }
 
 .curriculum-unit[open] .unit-open {
     color: var(--blue);
     background: var(--blue-soft);
-    transform: rotate(45deg);
+}
+
+.curriculum-unit[open] .unit-open::before {
+    content: "−";
 }
 
 .unit-content {
@@ -518,14 +551,14 @@
 
 .unit-introduction > div > span {
     color: var(--blue);
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 850;
 }
 
 .unit-introduction p {
     margin: 0;
     color: #747c90;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .unit-introduction > a {
@@ -538,7 +571,7 @@
     color: #fff;
     background: var(--blue);
     border-radius: 10px;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
 }
 
@@ -558,7 +591,7 @@
 
 .concept-card.in-progress {
     border-color: #adbaf8;
-    box-shadow: 0 8px 22px rgba(49, 87, 246, 0.07);
+    box-shadow: 0 8px 22px rgba(50, 127, 250, 0.07);
 }
 
 .concept-card.completed {
@@ -585,12 +618,12 @@
     border: 1px solid #dfe3ec;
     border-radius: 9px;
     font-family: "SUIT Variable", "Pretendard Variable", Pretendard, sans-serif;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .concept-status em {
     color: #939aad;
-    font-size: 9px;
+    font-size: 12px;
     font-style: normal;
     font-weight: 800;
 }
@@ -629,13 +662,13 @@
 
 .concept-title small {
     color: var(--blue);
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 800;
 }
 
 .concept-title h3 {
-    margin: 5px 0 0;
-    font-size: 14px;
+    margin: 0;
+    font-size: 16px;
 }
 
 .concept-title > strong {
@@ -644,10 +677,48 @@
     font-size: 15px;
 }
 
+.concept-details {
+    margin-top: 8px;
+}
+
+.concept-details > summary {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--matths-muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.concept-details > summary::after {
+    content: "+";
+    color: var(--matths-action-primary);
+    font-size: 16px;
+}
+
+.concept-details[open] > summary::after {
+    content: "−";
+}
+
+.concept-details-body {
+    padding: 12px 14px;
+    background: var(--matths-canvas);
+    border: 1px solid var(--matths-line);
+    border-radius: 11px;
+}
+
+.concept-standard {
+    color: var(--matths-action-primary);
+    font-size: 12px;
+    font-weight: 800;
+}
+
 .achievement {
-    margin: 10px 0 0;
+    margin: 7px 0 0;
     color: #70788d;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.65;
 }
 
@@ -663,7 +734,7 @@
     color: #687086;
     background: #f0f2f7;
     border-radius: 999px;
-    font-size: 9px;
+    font-size: 12px;
 }
 
 .visualization-note {
@@ -696,12 +767,12 @@
 
 .visualization-note small {
     color: #8190d3;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 800;
 }
 
 .visualization-note strong {
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
 }
 
@@ -724,7 +795,7 @@
 
 .concept-footer > div span {
     color: #8d94a7;
-    font-size: 9px;
+    font-size: 12px;
 }
 
 .concept-footer > a {
@@ -736,9 +807,9 @@
     color: var(--blue);
     background: var(--blue-soft);
     border-radius: 9px;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 850;
-    transition: 0.18s ease;
+    transition: color var(--motion-base) var(--motion-ease), background var(--motion-base) var(--motion-ease);
 }
 
 .concept-footer > a:hover {
@@ -752,7 +823,7 @@
     }
 
     .welcome-progress {
-        max-width: 620px;
+        max-width: 520px;
     }
 
     .course-heading {
@@ -767,41 +838,95 @@
 
 @media (max-width: 760px) {
     .curriculum-welcome {
-        padding: 27px 22px;
+        gap: 18px;
+        margin-top: 18px;
+        padding: 24px 20px;
     }
 
-    .welcome-progress {
-        grid-template-columns: 1fr;
-    }
-
-    .progress-ring {
-        margin: auto;
-    }
-
+    /*
+     * 세로로 쌓이는데도 gap 이 40px 이라 제목과 설명 사이가 통째로 비었다.
+     * 다섯 개 과목군 머리글에서 같은 구멍이 반복돼 380px 을 먹었다.
+     */
     .curriculum-guide {
         align-items: flex-start;
         flex-direction: column;
+        gap: 10px;
+        margin-top: 26px;
     }
 
+    .curriculum-guide span {
+        margin-top: 0;
+    }
+
+    /*
+     * 과목 바로가기는 한 칸씩 전체 폭을 먹으며 390px 에서 1,963px 을 차지했다.
+     * 카드를 지우지 않고 두 칸으로 접는다. 320px 처럼 두 칸이 좁아지는 폭에서는
+     * auto-fit 이 알아서 한 칸으로 되돌린다.
+     */
     .course-shortcuts {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .course-shortcuts > a {
+        gap: 6px;
+        padding: 14px;
+    }
+
+    .course-shortcuts strong {
+        font-size: 15px;
+        overflow-wrap: anywhere;
     }
 
     .course-heading {
-        padding: 22px 19px;
+        gap: 14px;
+        min-height: 0;
+        padding: 18px 18px;
+    }
+
+    .course-heading-title {
+        gap: 14px;
+    }
+
+    .course-heading-title h2 {
+        margin: 3px 0;
+        font-size: 21px;
+    }
+
+    .course-heading-progress {
+        gap: 7px;
+    }
+
+    .curriculum-course-list {
+        gap: 18px;
+        margin-top: 16px;
     }
 
     .curriculum-unit-list {
-        padding: 8px 16px 20px;
+        padding: 4px 14px 16px;
     }
 
     .curriculum-unit > summary {
-        grid-template-columns: 32px 1fr 28px;
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 0;
+        grid-template-columns: 30px 1fr 28px;
+        gap: 4px 12px;
+        padding: 13px 0;
+        overflow: hidden;
     }
 
+    .unit-name strong,
+    .unit-name small {
+        overflow-wrap: anywhere;
+    }
+
+    /* 진도 막대가 자기 줄을 통째로 쓰면서 요약 한 줄이 78px 이었다. */
     .unit-progress {
-        grid-column: 2 / 3;
-        padding-bottom: 15px;
+        grid-column: 2 / 4;
+        gap: 8px;
+        padding-bottom: 0;
     }
 
     .unit-open {
@@ -810,12 +935,15 @@
     }
 
     .unit-content {
-        padding-left: 0;
+        padding: 0 0 18px;
     }
 
     .unit-introduction {
         align-items: flex-start;
         flex-direction: column;
+        gap: 10px;
+        margin-bottom: 10px;
+        padding: 13px 14px;
     }
 
     .concept-card {
@@ -824,8 +952,15 @@
 }
 
 @media (max-width: 520px) {
-    .dashboard-return {
-        display: none;
+    /*
+     * 이 화면은 좁은 폭에서 "학습 홈으로"를 숨기기로 이미 선언돼 있었지만,
+     * main.css 의 a.learning-home-button { display: inline-flex !important } 에 져서
+     * 실제로는 계속 보였고 390px 에서 버튼과 h1 이 각각 두 줄로 깨졌다.
+     * 사이드바에 같은 "학습 홈" 항목이 있으니 선언된 의도대로 되돌린다.
+     */
+    .topbar .dashboard-return,
+    .topbar a.dashboard-return.learning-home-button {
+        display: none !important;
     }
 
     .welcome-copy h2 {
@@ -852,17 +987,40 @@
     .concept-status {
         flex-direction: row;
         justify-content: flex-start;
+        gap: 10px;
+        padding: 8px 12px;
+    }
+
+    .concept-copy {
+        padding: 14px 14px 16px;
     }
 
     .concept-footer {
         grid-template-columns: 1fr;
+        gap: 12px;
+        margin-top: 12px;
+        padding-top: 12px;
     }
 
     .concept-footer > a {
         justify-content: center;
     }
 
+    .concept-details > summary {
+        width: 100%;
+    }
+
     .visualization-note {
         align-items: flex-start;
     }
+}
+
+/* 커리큘럼 진입 동작은 포인터·터치 환경에서 같은 목표 크기를 쓴다. */
+.dashboard-return,
+.continue-button,
+.curriculum-guide-actions a,
+.course-shortcuts > a,
+.unit-introduction > a,
+.concept-footer > a {
+    min-height: 44px;
 }

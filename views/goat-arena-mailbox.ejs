@@ -28,6 +28,8 @@
     <title>우편함 | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
     <%- include("partials/rank-motion-head") %>
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <script src="/js/goat-arena.js" defer></script>
   </head>
@@ -54,7 +56,7 @@
           <div><p>INBOX</p><h2 id="arena-inbox-title">도착한 우편</h2></div>
           <% if (inbox.stats.unread) { %>
             <form action="/goat-arena/mailbox/read-all" method="POST">
-              <button type="submit">모두 읽음 처리</button>
+              <button class="c-button c-button--primary" type="submit">모두 읽음 처리</button>
             </form>
           <% } %>
         </header>

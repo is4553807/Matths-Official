@@ -30,15 +30,20 @@ const {
 
 const root = path.resolve(__dirname, "..");
 const logicDirectory = path.join(root, "docs", "logic");
-const logicFiles = fs
-  .readdirSync(logicDirectory)
-  .filter((filename) => /^\d{2}_.+\.md$/.test(filename))
-  .sort();
-assert.deepEqual(
-  logicFiles.map((filename) => filename.slice(0, 2)),
-  Array.from({ length: 13 }, (_, index) => String(index + 1).padStart(2, "0")),
-  "권위 규칙 문서는 01~13이 빠짐없이 한 번씩 존재해야 합니다."
-);
+const hasPrivateLogicDocs = fs.existsSync(logicDirectory);
+const logicFiles = hasPrivateLogicDocs
+  ? fs
+      .readdirSync(logicDirectory)
+      .filter((filename) => /^\d{2}_.+\.md$/.test(filename))
+      .sort()
+  : [];
+if (hasPrivateLogicDocs) {
+  assert.deepEqual(
+    logicFiles.map((filename) => filename.slice(0, 2)),
+    Array.from({ length: 13 }, (_, index) => String(index + 1).padStart(2, "0")),
+    "권위 규칙 문서는 01~13이 빠짐없이 한 번씩 존재해야 합니다."
+  );
+}
 
 const logicText = logicFiles
   .map((filename) => fs.readFileSync(path.join(logicDirectory, filename), "utf8"))
@@ -61,7 +66,9 @@ for (const retiredName of ["모의고사 전용 패키지", "Sub Ranking", "Main
   assert.ok(!logicText.includes(retiredName), `규칙 문서에 폐기한 명칭이 남아 있습니다: ${retiredName}`);
   assert.ok(!userFacingText.includes(retiredName), `웹 코드에 폐기한 명칭이 남아 있습니다: ${retiredName}`);
 }
-assert.ok(logicText.includes(MOCK_EXAM_PRODUCT_NAME));
+if (hasPrivateLogicDocs) {
+  assert.ok(logicText.includes(MOCK_EXAM_PRODUCT_NAME));
+}
 assert.equal(DEFAULT_MONTHLY_PRICE_AMOUNT, 5000);
 assert.equal(DEFAULT_CALIBRATION_WEEKLY_EXAMS, 4);
 assert.equal(DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT, 29000);
@@ -103,19 +110,31 @@ for (const retiredDormancyRule of [
   );
 }
 
-for (const requiredRule of [
-  "일요일 14:00",
-  "일요일 15:00",
-  "점수 높은 순 → 정답 수 많은 순 → 정답 문항 풀이시간 짧은 순 → 전체 풀이시간 짧은 순",
-  "정기권 학습 가능 일수",
-  "학습권 패키지",
-  "페이백 점수",
-  "공격 출석",
-  "최종 종합 랭킹",
-]) {
-  assert.ok(logicText.includes(requiredRule), `권위 문서에서 핵심 규칙을 찾을 수 없습니다: ${requiredRule}`);
+// 가드(HEAD)와 규칙 목록(main) 둘 다 살린다.
+//
+// hasPrivateLogicDocs 검사가 필요한 이유: 사설 규칙 문서는 배포 표면에서 빠지는데,
+// 가드 없이 돌리면 문서가 없는 환경에서 "핵심 규칙을 찾을 수 없습니다" 로 죽는다.
+// 아래 로그가 이미 두 경우를 나눠 찍고 있다.
+//
+// "공격 출석" 은 main 이 추가한 규칙이다. 목록에서 빼면 그 규칙이 문서에서
+// 사라져도 아무도 모른다.
+if (hasPrivateLogicDocs) {
+  for (const requiredRule of [
+    "일요일 14:00",
+    "일요일 15:00",
+    "점수 높은 순 → 정답 수 많은 순 → 정답 문항 풀이시간 짧은 순 → 전체 풀이시간 짧은 순",
+    "정기권 학습 가능 일수",
+    "학습권 패키지",
+    "페이백 점수",
+    "공격 출석",
+    "최종 종합 랭킹",
+  ]) {
+    assert.ok(logicText.includes(requiredRule), `권위 문서에서 핵심 규칙을 찾을 수 없습니다: ${requiredRule}`);
+  }
 }
 
 console.log(
-  `규칙 문서 13개·상품·페이백·1대1·시즌 핵심 상수와 웹 용어 정합성 검증 완료`
+  hasPrivateLogicDocs
+    ? "규칙 문서 13개·상품·페이백·1대1·시즌 핵심 상수와 웹 용어 정합성 검증 완료"
+    : "사설 규칙 문서 제외 상태에서 상품·페이백·1대1·시즌 핵심 상수와 웹 용어 정합성 검증 완료"
 );

@@ -75,6 +75,9 @@ const {
   policySnapshot,
 } = require("../services/arenaPolicyService");
 const {
+  arenaPublicContractView,
+} = require("../services/arenaPublicContractViewService");
+const {
   getArenaRulebook,
 } = require("../services/arenaRulebookViewService");
 const {
@@ -770,6 +773,8 @@ async function getArenaContext(
       mainPolicySnapshot(activeMainPolicy),
     activeArenaPolicy:
       policySnapshot(activeArenaPolicy),
+    arenaContract:
+      arenaPublicContractView(activeArenaPolicy),
     rankUpPresentation,
     arenaNotifications,
     pendingRevengeRight: pendingRevengeRight

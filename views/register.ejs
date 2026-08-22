@@ -72,10 +72,9 @@
 
     <title>회원가입 | Matths</title>
 
-    <link
-      rel="stylesheet"
-      href="/css/auth.css"
-    />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/auth.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
 
     <script
       src="/js/auth.js"
@@ -83,12 +82,12 @@
     ></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
-    <link rel="stylesheet" href="/css/brand.css" />
-    <link rel="stylesheet" href="/css/matths-theme.css" />
-    <link rel="stylesheet" href="/css/contrast.css" />
+
+    <!-- 가독성 가드레일: 페이지 스타일시트와 테마 뒤에 와야 한다 -->
+
   </head>
 
-  <body>
+  <body class="auth-page-register">
     <a
       class="skip-link"
       href="#register-form"
@@ -102,8 +101,7 @@
         href="/"
         aria-label="Matths 메인 페이지"
       >
-        <span class="brand-mark" aria-hidden="true">M</span>
-        <strong>Matths</strong>
+        <%- include("partials/brand-primary-logo") %>
       </a>
 
       <nav aria-label="회원가입 페이지 메뉴">
@@ -119,7 +117,7 @@
         aria-labelledby="visual-title"
       >
         <div class="visual-copy">
-          <p>START MATTHS</p>
+          <p>학습 시작</p>
 
           <h1 id="visual-title">
             수학이 보이면,<br />
@@ -141,7 +139,7 @@
             <span>01</span>
 
             <div>
-              <small>CONCEPT</small>
+              <small>개념</small>
               <strong>개념을 그림으로</strong>
             </div>
 
@@ -152,7 +150,7 @@
             <span>02</span>
 
             <div>
-              <small>VISUAL</small>
+              <small>시각화</small>
               <strong>공식을 움직임으로</strong>
             </div>
 
@@ -163,7 +161,7 @@
             <span>03</span>
 
             <div>
-              <small>PRACTICE</small>
+              <small>연습</small>
               <strong>문제로 이해 확인</strong>
             </div>
 
@@ -174,7 +172,7 @@
             <span>04</span>
 
             <div>
-              <small>REVIEW</small>
+              <small>복습</small>
               <strong>오답은 막힌 장면부터</strong>
             </div>
 
@@ -184,17 +182,17 @@
 
         <div class="visual-points">
           <span>
-            <b>39</b>
-            고1 핵심 개념
+            <b>220</b>
+            13과목 핵심 개념
           </span>
 
           <span>
-            <b>STEP</b>
+            <b>단계</b>
             단계별 시각화
           </span>
 
           <span>
-            <b>START</b>
+            <b>시작</b>
             가입하고 시작
           </span>
         </div>
@@ -208,7 +206,7 @@
       >
         <div class="auth-panel-inner">
           <div class="auth-heading">
-            <p>CREATE ACCOUNT</p>
+            <p>계정 만들기</p>
 
             <h2 id="register-title">
               Matths 학습을 시작하세요.
@@ -227,10 +225,23 @@
 
           <% if (social) { %>
             <div class="social-registration-banner" role="status">
-              <span class="social-auth-mark" aria-hidden="true"><%= social.provider === "google" ? "G" : "K" %></span>
+              <span class="social-auth-mark" aria-hidden="true">
+                <% if (social.provider === "kakao") { %>
+                  <img
+                    class="social-auth-kakao-mark"
+                    src="/images/kakao-login-mark.svg"
+                    alt=""
+                    width="20"
+                    height="20"
+                    aria-hidden="true"
+                  />
+                <% } else { %>
+                  <%- include("partials/google-g-mark") %>
+                <% } %>
+              </span>
               <div>
                 <strong><%= social.providerLabel %> 계정 확인 완료</strong>
-                <p>검증된 이메일은 바꿀 수 없습니다. 나머지 필수 정보만 입력해 주세요.</p>
+                <p>확인된 이메일은 바꿀 수 없습니다. 나머지 필수 정보만 입력해 주세요.</p>
               </div>
             </div>
           <% } %>
@@ -309,14 +320,12 @@
                 name="email"
                 type="email"
                 value="<%= input.email || '' %>"
-                placeholder="가입에 사용할 이메일 주소"
+                placeholder="student@example.com"
                 autocomplete="email"
                 <% if (social) { %>readonly aria-readonly="true"<% } %>
                 required
               />
-              <% if (social) { %>
-                <small class="field-guide social-email-guide">소셜 계정에서 확인된 이메일입니다.</small>
-              <% } %>
+              <% if (social) { %><small class="field-guide"><%= social.providerLabel %> 계정에서 확인된 이메일입니다.</small><% } %>
             </div>
 
             <!-- 학년 -->

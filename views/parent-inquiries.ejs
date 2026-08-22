@@ -20,12 +20,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>문의하기 | Matths 학부모</title>
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+
   <link rel="stylesheet" href="/css/brand.css" />
   <link rel="stylesheet" href="/css/parent.css" />
+  <link rel="stylesheet" href="/css/contrast.css" />
+
 </head>
 <body class="parent-page">
   <%- include('partials/parent-navigation', { activeParentPage: 'inquiries' }) %>
-  <main class="parent-main">
+  <main class="parent-main" id="parent-main-content" tabindex="-1">
     <header class="parent-page-heading">
       <p>문의하기</p>
       <h1><%= child.realName || child.name %> 학생의<br />이용 문의를 남겨주세요.</h1>

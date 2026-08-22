@@ -6,6 +6,8 @@
     <title><%= errorTitle %> | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
     <%- include("partials/rank-motion-head") %>
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
   </head>
   <body class="goat-arena-page arena-inner-page">
@@ -18,8 +20,8 @@
         <div><%= errorMessage %></div>
         <small class="arena-error-code">오류 코드 <strong><%= typeof errorCode !== "undefined" && errorCode ? errorCode : `HTTP_${errorStatus}` %></strong></small>
         <div class="arena-error-actions">
-          <a href="<%= returnHref %>"><%= returnLabel %></a>
-          <a href="<%= typeof errorFaqHref !== "undefined" && errorFaqHref ? errorFaqHref : `/faq?code=${errorStatus}#faq-error-${errorStatus}` %>">FAQ에서 코드 확인</a>
+          <a class="c-button c-button--primary" href="<%= returnHref %>"><%= returnLabel %></a>
+          <a class="c-button c-button--secondary" href="<%= typeof errorFaqHref !== "undefined" && errorFaqHref ? errorFaqHref : `/faq?code=${errorStatus}#faq-error-${errorStatus}` %>">FAQ에서 코드 확인</a>
         </div>
       </section>
     </main>

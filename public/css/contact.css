@@ -65,7 +65,7 @@
   background: #fff;
   border: 1px solid #dfe3ef;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 1.2px;
 }
@@ -117,7 +117,7 @@
 
 .contact-identity > header span {
   color: #7b8399;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -126,7 +126,7 @@
   color: #168361;
   background: #e5f7f0;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .contact-identity > div {
@@ -164,7 +164,7 @@
 .contact-identity > div small {
   overflow: hidden;
   color: #858da2;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -178,14 +178,14 @@
 
 .contact-identity dt {
   color: #8d94a7;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .contact-identity dd {
   overflow-wrap: anywhere;
   margin: 7px 0 0;
   color: #31384e;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -220,7 +220,7 @@
 .recent-inquiries > div:first-child > p {
   margin: 0 0 9px;
   color: #3157f6;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 1.6px;
 }
@@ -237,7 +237,7 @@
   display: block;
   margin-top: 13px;
   color: #727a90;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -271,13 +271,13 @@
 }
 
 .reply-notice strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .reply-notice p {
   margin: 0;
   color: #657092;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -298,13 +298,13 @@
   display: grid;
   place-items: center;
   border-radius: 8px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
 }
 
 .form-feedback p {
   margin: 0;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -350,7 +350,7 @@
   gap: 18px;
   margin-bottom: 9px;
   color: #343b4f;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -364,7 +364,7 @@
 
 .inquiry-form label small {
   color: #999fb0;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -422,7 +422,7 @@
   max-width: 410px;
   margin: 0;
   color: #8a91a4;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -438,7 +438,7 @@
   border: 0;
   border-radius: 12px;
   box-shadow: 0 12px 25px rgba(49, 87, 246, 0.22);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
   transition:
@@ -494,7 +494,7 @@
   color: #3157f6;
   background: #e8edff;
   border-radius: 10px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 
@@ -504,13 +504,13 @@
 }
 
 .support-process strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .support-process li p {
   margin: 0;
   color: #858c9f;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -539,14 +539,14 @@
 
 .recent-inquiries li strong {
   overflow: hidden;
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .recent-inquiries li small {
   color: #9aa0b0;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .recent-inquiries li > span {
@@ -554,7 +554,7 @@
   color: #3157f6;
   background: #e9edff;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -590,7 +590,7 @@
 
 .inquiry-empty p {
   margin: 10px 0 0;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .faq-return {
@@ -628,13 +628,13 @@
 }
 
 .faq-return strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .faq-return p {
   margin: 0;
   color: #8994b5;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -716,4 +716,4 @@
 .refund-request-fields { display: grid; gap: 10px; padding: 18px; background: #f5f7ff; border: 1px solid #dce3fb; border-radius: 14px; }
 .refund-request-fields[hidden] { display: none; }
 .refund-request-fields select { width: 100%; min-height: 48px; padding: 0 13px; color: #222b43; background: #fff; border: 1px solid #d9dfed; border-radius: 11px; font: inherit; }
-.refund-request-fields p { margin: 0; color: #69748d; font-size: 11px; line-height: 1.65; }
+.refund-request-fields p { margin: 0; color: #69748d; font-size: 12px; line-height: 1.65; }

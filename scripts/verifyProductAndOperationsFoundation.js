@@ -414,6 +414,8 @@ const goatArenaController = read("controllers/goatArenaController.js");
 assert.ok(goatArenaController.includes("bypassCache: true"));
 assert.ok(goatArenaController.includes("mainPolicy,"));
 
+// Private logic documents are intentionally excluded from this public
+// deployment repository. Verify the terminology only in shipped sources.
 for (const terminologyFile of [
   "services/arenaRulebookViewService.js",
   "views/goat-arena.ejs",
@@ -423,9 +425,6 @@ for (const terminologyFile of [
   "views/faq.ejs",
   "views/terms.ejs",
   "views/privacy.ejs",
-  "docs/logic/02_GOAT_ARENA_COMMON_MATCH_RULES.md",
-  "docs/logic/03_SUB_DIVISION_RANKING_SYSTEM_PAYBACK.md",
-  "docs/logic/04_MAIN_DIVISION_RANKING_SYSTEM.md",
 ]) {
   const terminologySource = read(terminologyFile);
   const disallowedWagerTerm = ["배", "팅"].join("");

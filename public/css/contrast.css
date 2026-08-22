@@ -123,6 +123,26 @@
   color: #535c6e;
 }
 
+.community-board-tabs a.active {
+  color: #fff;
+  background: #6240cf;
+}
+
+.community-board-heading input,
+.community-compose input,
+.community-compose textarea,
+.community-compose select,
+.community-comment-form textarea {
+  color: #111426;
+  background: #fff;
+}
+
+.community-pagination a,
+.community-post-actions a {
+  color: #111426;
+  background: #e8edff;
+}
+
 .contact-identity > header b {
   color: var(--matths-readable-green);
 }
@@ -174,6 +194,17 @@
   color: #fff;
   background: #11684d;
   border-color: #11684d;
+}
+
+.clear-solution-drawing:disabled {
+  color: #535c6e;
+  background: #f1f3f7;
+}
+
+.review-tabs a.active,
+.profile-section-nav a[aria-current="page"] {
+  color: #5938b8;
+  background: #f0ebff;
 }
 
 /* FAQ and public pages */

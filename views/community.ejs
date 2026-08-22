@@ -65,9 +65,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="고등학생·N수생·대학생·직장인이 소속별로 학습 이야기를 나누는 Matths 커뮤니티" />
     <title><%= boardData.boardLabel %> | Matths</title>
-    <link rel="stylesheet" href="/css/community.css" />
-    <link rel="stylesheet" href="/css/public-navigation.css" />
+
     <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/community.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
   </head>
   <body>
@@ -96,7 +99,8 @@
             <input type="hidden" name="board" value="<%= boardData.board %>" />
             <% if (boardData.sort === "popular") { %><input type="hidden" name="sort" value="popular" /><% } %>
             <% if (boardData.selectedOperationsCategory) { %><input type="hidden" name="category" value="<%= boardData.selectedOperationsCategory %>" /><% } %>
-            <input type="search" name="search" value="<%= boardData.search %>" placeholder="제목·내용 검색" />
+            <label class="sr-only" for="community-search">게시글 제목과 내용 검색</label>
+            <input id="community-search" type="search" name="search" value="<%= boardData.search %>" placeholder="제목·내용 검색" />
             <button type="submit">검색</button>
           </form>
         </header>

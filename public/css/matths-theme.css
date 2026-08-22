@@ -1,3 +1,5 @@
+@import url("/css/matths-brand-tokens.css");
+
 /*
  * Matths unified interface theme
  * Reference: dark navy navigation, luminous violet-to-cyan accents,
@@ -5,41 +7,23 @@
  */
 
 :root {
-  --matths-navy: #090c1b;
-  --matths-navy-soft: #12162b;
-  --matths-ink: #111426;
-  --matths-muted: #596277;
+  /* Component aliases only. CI raw colors and the approved four-stop
+     gradient live in matths-brand-tokens.css and are never redefined here. */
+  --matths-muted: #5c6478;
   --matths-subtle: #687187;
   --matths-violet-text: #6240cf;
-  --matths-canvas: #f3f6ff;
   --matths-surface: rgba(255, 255, 255, 0.96);
-  --matths-line: #e3e8f4;
-  --matths-magenta: #d842ee;
-  --matths-violet: #7654f7;
-  --matths-blue: #3157f6;
-  --matths-cyan: #19c7e9;
-  --matths-gradient: linear-gradient(
-    100deg,
-    var(--matths-magenta) 0%,
-    var(--matths-violet) 48%,
-    var(--matths-cyan) 100%
-  );
-  --matths-gradient-deep: linear-gradient(
-    135deg,
-    #af27c6 0%,
-    #5d3fd2 52%,
-    #087c9f 100%
-  );
+  /* Migration alias: older components ask for a "deep gradient". Keeping
+     the name avoids a broad rewrite, but the rendered action is a solid
+     semantic violet as required by the CI action hierarchy. */
+  --matths-gradient-deep: var(--matths-action-primary);
   --matths-dark-gradient:
-    radial-gradient(circle at 92% 15%, rgba(24, 199, 233, 0.19), transparent 31%),
-    radial-gradient(circle at 27% 12%, rgba(216, 66, 238, 0.2), transparent 36%),
+    radial-gradient(circle at 92% 15%, rgba(12, 220, 241, 0.13), transparent 31%),
     linear-gradient(135deg, #171129 0%, #12172d 49%, #08121e 100%);
-  --matths-radius: 18px;
-  --matths-radius-lg: 24px;
   --matths-shadow: 0 18px 46px rgba(54, 55, 132, 0.09);
-  --matths-shadow-hover: 0 22px 54px rgba(83, 57, 188, 0.15);
-  --blue: var(--matths-blue);
-  --blue-dark: #6044dc;
+  --matths-shadow-hover: 0 4px 14px rgba(9, 12, 27, 0.1);
+  --blue: var(--matths-action-primary);
+  --blue-dark: var(--matths-action-primary-pressed);
   --blue-soft: #eeeaff;
   --paper: var(--matths-canvas);
   --line: var(--matths-line);
@@ -87,7 +71,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible {
-  outline: 3px solid rgba(118, 84, 247, 0.24);
+  outline: 3px solid var(--matths-violet);
   outline-offset: 3px;
 }
 
@@ -899,53 +883,6 @@ button.button-secondary {
   box-shadow: var(--matths-shadow);
 }
 
-/* Profile */
-
-.profile-page-shell {
-  background:
-    radial-gradient(circle at 86% 0%, rgba(49, 87, 246, 0.08), transparent 28rem),
-    radial-gradient(circle at 15% 40%, rgba(216, 66, 238, 0.04), transparent 24rem),
-    var(--matths-canvas);
-}
-
-.profile-hero {
-  background: var(--matths-dark-gradient);
-  border: 1px solid rgba(138, 116, 223, 0.18);
-  box-shadow:
-    0 24px 58px rgba(15, 17, 47, 0.18),
-    0 0 36px rgba(118, 84, 247, 0.07);
-}
-
-.profile-hero-copy > p {
-  color: #b4a2ff;
-}
-
-.profile-summary {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.13);
-}
-
-.profile-summary-avatar {
-  color: #fff;
-  background: var(--matths-gradient-deep);
-}
-
-.profile-section-nav a:hover,
-.profile-section-nav a.active {
-  color: #fff;
-  background: var(--matths-gradient-deep);
-}
-
-.settings-card {
-  border-color: var(--matths-line);
-  border-radius: var(--matths-radius);
-  box-shadow: var(--matths-shadow);
-}
-
-.settings-card-heading p {
-  color: var(--matths-violet-text);
-}
-
 /* Admin */
 
 .admin-page {
@@ -1308,5 +1245,5 @@ button.button-secondary {
 
 /* Keep supporting copy legible even when a browser applies the default <small> shrink. */
 body small {
-  font-size: max(9px, 0.75em);
+  font-size: max(12px, 0.75em);
 }

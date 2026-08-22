@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+    @font-face { font-family:"Matths KR"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-kr.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Math"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-math.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Math"; font-weight:400; font-style:italic; font-display:block;
+                 src:url("assets/fonts/matths-math-italic.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Mono"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-mono.woff2") format("woff2"); }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:1080px; height:1920px; overflow:hidden; background:#F3F6FF; }
+    #root { position:relative; width:1080px; height:1920px; overflow:hidden;
+            background:#F3F6FF; color:#111426; font-family:'Matths KR', sans-serif; }
+
+    .band { position:absolute; left:0; width:1080px; }
+
+    /* 타이틀 띠 — 50초 내내 고정. 학습자가 "무엇을 보고 있는지" 잃지 않게 한다. */
+    .band-title { top:134.4px; height:144px; text-align:center; }
+    .t-formula { font-family:'Matths Math', serif; font-size:58px; font-style:italic; letter-spacing:.01em; }
+    .t-sub { margin-top:10px; font-size:31px; color:#5C6478; letter-spacing:.02em; }
+
+    /* 수식 패널 띠 — 지배 식이 항 단위로 조립되어 상주한다 */
+    .band-panel { top:297.6px; height:144px;
+                  display:flex; align-items:center; justify-content:center; }
+    .panel-row { position:relative; display:flex; align-items:center; gap:10px;
+                 font-family:'Matths Math', serif; font-size:52px; font-style:italic; }
+    .term { position:relative; padding:8px 14px; opacity:0; font-weight:500; }
+
+    /* 강조 = 색을 채운 박스. 테두리만 그리면 옆 항들과 무게가 비슷해 눈에 안 띈다.
+       currentColor 는 그 항의 의미색이므로, 채움도 라벨도 자동으로 같은 색이 된다.
+       색 하나가 "이 항이 무엇인가" 와 "지금 여기를 보라" 를 동시에 말한다. */
+    .term .boxline { position:absolute; inset:0; border:2.5px solid currentColor;
+                     border-radius:10px; opacity:0; }
+    /* 채움은 별도 레이어로 깔고 알파를 낮춘다. 같은 요소에 background 를 주면
+       테두리까지 옅어져 경계가 사라진다. */
+    .term .boxline::after { content:""; position:absolute; inset:0;
+                            background:currentColor; opacity:0.16; border-radius:8px; }
+    .term.on { font-weight:700; }
+
+    /* 라벨은 알약으로 채운다. 글자는 바탕색이라 대비가 가장 세다. */
+    .term .tag { position:absolute; left:50%; top:100%; transform:translateX(-50%);
+                 margin-top:10px; font-family:'Matths KR', sans-serif; font-style:normal;
+                 font-size:22px; font-weight:700; white-space:nowrap; opacity:0;
+                 padding:3px 12px; border-radius:999px;
+                 background:currentColor;
+                 letter-spacing:.01em; }
+    /* 글자색을 .tag 에 직접 주면 안 된다 — background:currentColor 가 그 색을
+       가리키게 되어 알약이 흰색으로 죽는다. 실제로 그렇게 됐다.
+       색은 안쪽 요소가 갖고, .tag 는 의미색을 그대로 물려받게 둔다. */
+    .term .tag i { font-style:normal; color:#FCFDFF; }
+
+    /* 무대 띠 — 좌표계와 도형이 사는 유일한 동적 영역 */
+    .band-stage { top:480px; height:825.6px; }
+
+    /* 자막 띠 — 최대 2줄, 무대와 겹치지 않는다 */
+    .band-caption { top:1401.6px; height:249.60000000000002px;
+                    display:flex; align-items:flex-start; justify-content:center; }
+    .cap { position:absolute; width:930px; text-align:center; font-size:37px;
+           line-height:1.46; color:#111426; word-break:keep-all; }
+
+    /* 결론 — 무대를 전부 걷어내고 명제 하나만 남긴다.
+       .band-stage 안에 들어가므로 top 은 0 이다. 여기에 다시 BAND.stage.top 을 주면
+       오프셋이 두 번 먹어 결론이 자막 띠까지 내려가 겹친다(1차 렌더에서 실제로 그랬다). */
+    .verdict { position:absolute; left:0; top:0; width:1080px;
+               height:825.6px; display:flex; flex-direction:column;
+               align-items:center; justify-content:center; gap:24px; opacity:0; }
+    .verdict-main { font-family:'Matths Math', serif; font-size:72px; font-style:italic; }
+    /* 한글 결론은 수식 폰트를 쓰면 안 된다 — 이탤릭 세리프에 한글을 얹으면
+       글자가 통째로 기울어져 조판이 무너진다(2차 렌더에서 실제로 그랬다). */
+    .verdict-kr { font-family:'Matths KR', sans-serif; font-style:normal; font-size:56px; line-height:1.3; }
+    .verdict-sub { font-size:34px; color:#5C6478; }
+    .verdict-row { display:flex; align-items:baseline; gap:20px; font-size:44px; }
+    .verdict-row .vr-cond { font-family:'Matths Math', serif; font-style:italic; min-width:190px;
+                            text-align:right; }
+    .verdict-row .vr-arrow { color:#5C6478; font-size:34px; }
+    .verdict-row .vr-out { font-family:'Matths KR', sans-serif; font-size:40px; }
+
+    .readout { font-family:'Matths Mono', monospace; font-size:30px; font-variant-numeric:tabular-nums; }
+  </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="02-quadratic-max-min" data-start="0" data-duration="46.519"
+         data-width="1080" data-height="1920">
+
+      <!-- id 는 필수다. 없으면 렌더러가 미디어 요소를 못 찾아 무음으로 나갈 수 있다. -->
+      <audio id="voice" class="clip" data-start="0" data-duration="46.519"
+             data-track-index="0" data-volume="1" data-voice-src="assets/voice/02.mp3"></audio>
+
+      <div id="band-title" class="clip band band-title" data-start="0" data-duration="46.519" data-track-index="1">
+        <div class="t-formula">y = (x &minus; 2)<sup>2</sup> &minus; 3</div>
+        <div class="t-sub">범위가 있으면 최대·최소는 어디에 있나</div>
+      </div>
+
+
+      <div id="band-panel" class="clip band band-panel" data-start="0" data-duration="46.519" data-track-index="2">
+        <div class="panel-row">
+          <span class="term" id="tm-y"  style="color:#007D96">y = x<sup>2</sup> &minus; 4x + 1</span>
+          <span class="term" id="tm-ar" style="color:#5C6478; padding:0 18px">&rarr;</span>
+          <span class="term" id="tm-sq" style="color:#007D96">(x &minus; 2)<sup>2</sup><span class="boxline"></span><span class="tag"><i>0보다 작아질 수 없다</i></span></span>
+          <span class="term" id="tm-mn" style="color:#5C6478">&minus;</span>
+          <span class="term" id="tm-3"  style="color:#A41BB5">3</span>
+        </div>
+      </div>
+
+      <div id="band-stage" class="clip band band-stage" data-start="0" data-duration="46.519" data-track-index="3">
+        <svg width="1080" height="825.6" viewBox="0 0 1080 825.6">
+          <g id="grid" opacity="0">
+      <line x1="105.5" y1="0" x2="105.5" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="214.1" y1="0" x2="214.1" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="322.7" y1="0" x2="322.7" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="431.4" y1="0" x2="431.4" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="540.0" y1="0" x2="540.0" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="648.6" y1="0" x2="648.6" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="757.3" y1="0" x2="757.3" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="865.9" y1="0" x2="865.9" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="974.5" y1="0" x2="974.5" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="825.6" x2="1080" y2="825.6" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="717.0" x2="1080" y2="717.0" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="608.3" x2="1080" y2="608.3" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="499.7" x2="1080" y2="499.7" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="391.1" x2="1080" y2="391.1" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="282.4" x2="1080" y2="282.4" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="173.8" x2="1080" y2="173.8" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="0" y1="65.2" x2="1080" y2="65.2" stroke="#1F5FD0" stroke-opacity="0.22" stroke-width="1.5"/>
+      <line x1="32.58947368421053" y1="391.0736842105263" x2="1047.4105263157894" y2="391.0736842105263" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <line x1="322.7368421052631" y1="793.0105263157895" x2="322.7368421052631" y2="32.58947368421053" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <line x1="214.10526315789474" y1="382.0736842105263" x2="214.10526315789474" y2="400.0736842105263" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="214.10526315789474" y="435.0736842105263" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">-1</text>
+      <line x1="431.36842105263156" y1="382.0736842105263" x2="431.36842105263156" y2="400.0736842105263" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="431.36842105263156" y="435.0736842105263" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">1</text>
+      <line x1="540" y1="382.0736842105263" x2="540" y2="400.0736842105263" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="540" y="435.0736842105263" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">2</text>
+      <line x1="648.6315789473684" y1="382.0736842105263" x2="648.6315789473684" y2="400.0736842105263" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="648.6315789473684" y="435.0736842105263" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">3</text>
+      <line x1="757.2631578947369" y1="382.0736842105263" x2="757.2631578947369" y2="400.0736842105263" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="757.2631578947369" y="435.0736842105263" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">4</text>
+      <line x1="865.8947368421052" y1="382.0736842105263" x2="865.8947368421052" y2="400.0736842105263" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="865.8947368421052" y="435.0736842105263" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="middle">5</text>
+      <line x1="313.7368421052631" y1="716.9684210526316" x2="331.7368421052631" y2="716.9684210526316" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="300.7368421052631" y="726.9684210526316" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="end">-3</text>
+      <line x1="313.7368421052631" y1="608.3368421052631" x2="331.7368421052631" y2="608.3368421052631" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="300.7368421052631" y="618.3368421052631" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="end">-2</text>
+      <line x1="313.7368421052631" y1="499.70526315789476" x2="331.7368421052631" y2="499.70526315789476" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="300.7368421052631" y="509.70526315789476" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="end">-1</text>
+      <line x1="313.7368421052631" y1="282.44210526315794" x2="331.7368421052631" y2="282.44210526315794" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="300.7368421052631" y="292.44210526315794" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="end">1</text>
+      <line x1="313.7368421052631" y1="173.81052631578945" x2="331.7368421052631" y2="173.81052631578945" stroke="#1F5FD0" stroke-opacity="0.85" stroke-width="3"/>
+      <text x="300.7368421052631" y="183.81052631578945" fill="#5C6478" font-size="26" font-family="'Matths Mono', monospace" text-anchor="end">2</text>
+          </g>
+
+          <!-- 제한 범위 0 ≤ x ≤ 1 — 조건은 바이올렛 -->
+          <rect id="rangeBand" x="322.7368421052631" y="0" width="108.6" height="825.6"
+                fill="#5B34D8" fill-opacity="0.16" opacity="0"/>
+          <line id="rangeL" x1="322.7368421052631" y1="0" x2="322.7368421052631" y2="825.6"
+                stroke="#5B34D8" stroke-width="3" stroke-dasharray="10 8" opacity="0"/>
+          <line id="rangeR" x1="431.36842105263156" y1="0" x2="431.36842105263156" y2="825.6"
+                stroke="#5B34D8" stroke-width="3" stroke-dasharray="10 8" opacity="0"/>
+          <!-- 범위 라벨은 무대 아래쪽에 둔다. 위에 두면 왼쪽 위 리드아웃 판에
+               앞글자가 가린다(2차 렌더에서 "0" 이 잘렸다). -->
+          <text id="rangeTag" x="377.1" y="803.6"
+                fill="#5B34D8" font-size="30" font-family="'Matths Mono', monospace"
+                text-anchor="middle" opacity="0">0 &#8804; x &#8804; 1</text>
+
+          <!-- 초기 d 를 빌드 시점에 박는다(getTotalLength() 가 0 이 되지 않게). -->
+          <path id="curve" fill="none" stroke="#007D96" stroke-width="6"
+                stroke-linecap="round" opacity="0"
+                d="M251.1 -51.3 L253.8 -37.1 L256.5 -22.9 L259.2 -8.9 L261.9 5.0 L264.6 18.8 L267.3 32.4 L270.0 45.9 L272.7 59.2 L275.4 72.5 L278.1 85.6 L280.8 98.5 L283.5 111.3 L286.2 124.0 L288.9 136.6 L291.6 149.0 L294.3 161.3 L297.0 173.4 L299.7 185.4 L302.4 197.3 L305.1 209.0 L307.8 220.6 L310.5 232.1 L313.2 243.5 L315.9 254.7 L318.6 265.7 L321.3 276.7 L324.0 287.5 L326.7 298.2 L329.4 308.7 L332.1 319.1 L334.8 329.4 L337.5 339.5 L340.2 349.5 L342.9 359.4 L345.6 369.1 L348.3 378.7 L351.0 388.1 L353.7 397.5 L356.4 406.7 L359.1 415.7 L361.8 424.6 L364.5 433.4 L367.2 442.1 L369.9 450.6 L372.6 459.0 L375.3 467.3 L378.0 475.4 L380.7 483.4 L383.4 491.2 L386.1 498.9 L388.8 506.5 L391.5 514.0 L394.2 521.3 L396.9 528.5 L399.6 535.5 L402.3 542.4 L405.0 549.2 L407.7 555.8 L410.4 562.4 L413.1 568.7 L415.8 575.0 L418.5 581.1 L421.2 587.0 L423.9 592.9 L426.6 598.6 L429.3 604.2 L432.0 609.6 L434.7 614.9 L437.4 620.1 L440.1 625.1 L442.8 630.0 L445.5 634.8 L448.2 639.4 L450.9 643.9 L453.6 648.3 L456.3 652.5 L459.0 656.6 L461.7 660.5 L464.4 664.4 L467.1 668.0 L469.8 671.6 L472.5 675.0 L475.2 678.3 L477.9 681.5 L480.6 684.5 L483.3 687.4 L486.0 690.1 L488.7 692.7 L491.4 695.2 L494.1 697.6 L496.8 699.8 L499.5 701.9 L502.2 703.8 L504.9 705.6 L507.6 707.3 L510.3 708.8 L513.0 710.3 L515.7 711.5 L518.4 712.7 L521.1 713.7 L523.8 714.6 L526.5 715.3 L529.2 715.9 L531.9 716.4 L534.6 716.7 L537.3 716.9 L540.0 717.0 L542.7 716.9 L545.4 716.7 L548.1 716.4 L550.8 715.9 L553.5 715.3 L556.2 714.6 L558.9 713.7 L561.6 712.7 L564.3 711.5 L567.0 710.3 L569.7 708.8 L572.4 707.3 L575.1 705.6 L577.8 703.8 L580.5 701.9 L583.2 699.8 L585.9 697.6 L588.6 695.2 L591.3 692.7 L594.0 690.1 L596.7 687.4 L599.4 684.5 L602.1 681.5 L604.8 678.3 L607.5 675.0 L610.2 671.6 L612.9 668.0 L615.6 664.4 L618.3 660.5 L621.0 656.6 L623.7 652.5 L626.4 648.3 L629.1 643.9 L631.8 639.4 L634.5 634.8 L637.2 630.0 L639.9 625.1 L642.6 620.1 L645.3 614.9 L648.0 609.6 L650.7 604.2 L653.4 598.6 L656.1 592.9 L658.8 587.0 L661.5 581.1 L664.2 575.0 L666.9 568.7 L669.6 562.4 L672.3 555.8 L675.0 549.2 L677.7 542.4 L680.4 535.5 L683.1 528.5 L685.8 521.3 L688.5 514.0 L691.2 506.5 L693.9 498.9 L696.6 491.2 L699.3 483.4 L702.0 475.4 L704.7 467.3 L707.4 459.0 L710.1 450.6 L712.8 442.1 L715.5 433.4 L718.2 424.6 L720.9 415.7 L723.6 406.7 L726.3 397.5 L729.0 388.1 L731.7 378.7 L734.4 369.1 L737.1 359.4 L739.8 349.5 L742.5 339.5 L745.2 329.4 L747.9 319.1 L750.6 308.7 L753.3 298.2 L756.0 287.5 L758.7 276.7 L761.4 265.7 L764.1 254.7 L766.8 243.5 L769.5 232.1 L772.2 220.6 L774.9 209.0 L777.6 197.3 L780.3 185.4 L783.0 173.4 L785.7 161.3 L788.4 149.0 L791.1 136.6 L793.8 124.0 L796.5 111.3 L799.2 98.5 L801.9 85.6 L804.6 72.5 L807.3 59.2 L810.0 45.9 L812.7 32.4 L815.4 18.8 L818.1 5.0 L820.8 -8.9 L823.5 -22.9 L826.2 -37.1 L828.9 -51.3"/>
+
+          <!-- 꼭짓점 -->
+          <g id="vtx" opacity="0">
+            <line x1="540" y1="716.9684210526316" x2="540" y2="391.0736842105263"
+                  stroke="#A41BB5" stroke-width="2.5" stroke-dasharray="8 7" opacity="0.75"/>
+            <circle cx="540" cy="716.9684210526316" r="15" fill="#A41BB5"/>
+            <text x="570" y="762.9684210526316" fill="#A41BB5"
+                  font-size="29" font-family="'Matths KR', sans-serif">꼭짓점 (2, &minus;3)</text>
+          </g>
+
+          <!-- 곡선 위를 굴러가는 점 + 실시간 리드아웃 -->
+          <g id="rider" opacity="0">
+            <line id="riderDrop" stroke="#007D96" stroke-width="2.5"
+                  stroke-dasharray="7 7" opacity="0.6"/>
+            <circle id="riderDot" r="16" fill="#007D96"/>
+          </g>
+
+          <!-- 구간 양 끝의 답 -->
+          <g id="ends" opacity="0">
+            <circle cx="322.7368421052631" cy="282.44210526315794" r="15" fill="#A41BB5"/>
+            <circle cx="431.36842105263156" cy="608.3368421052631" r="15" fill="#A41BB5"/>
+            <text x="296.7368421052631" y="256.44210526315794" fill="#A41BB5"
+                  font-size="29" font-family="'Matths KR', sans-serif" text-anchor="end">최댓값 1</text>
+            <text x="471.36842105263156" y="670.3368421052631" fill="#A41BB5"
+                  font-size="29" font-family="'Matths KR', sans-serif">최솟값 &minus;2</text>
+          </g>
+
+          <!-- 리드아웃은 받침판 위에 올린다. 곡선·범위대가 지나가도 숫자가 읽혀야 한다. -->
+          <g id="hud" opacity="0">
+            <rect x="30" y="22" width="286" height="106" rx="14"
+                  fill="#F3F6FF" fill-opacity="0.88" stroke="#E3E8F4" stroke-width="1.5"/>
+            <text id="hudX" class="readout" x="52" y="62" fill="#007D96"
+                  font-family="'Matths Mono', monospace" font-size="30">x = 0.00</text>
+            <text id="hudY" class="readout" x="52" y="110" fill="#A41BB5"
+                  font-family="'Matths Mono', monospace" font-size="30">y = 1.00</text>
+          </g>
+        </svg>
+
+        <div class="verdict" id="verdict">
+          <div class="verdict-kr" style="color:#A41BB5">꼭짓점이 범위 안이면 꼭짓점</div>
+          <div class="verdict-kr" style="color:#5B34D8">밖이면 양 끝</div>
+          <div class="verdict-sub">최대·최소는 이 두 곳에서만 나온다</div>
+        </div>
+      </div>
+
+      <div id="band-caption" class="clip band band-caption" data-start="0" data-duration="46.519" data-track-index="4">
+      <div class="cap" id="cap-0" style="opacity:0">이 함수의 최솟값은 얼마일까요?</div>
+      <div class="cap" id="cap-1" style="opacity:0">식만 봐서는 보이지 않습니다. 모양을 바꿔 봅시다.</div>
+      <div class="cap" id="cap-2" style="opacity:0">x² − 4x 를 (x − 2)² − 4 로 묶습니다.</div>
+      <div class="cap" id="cap-3" style="opacity:0">정리하면 y = (x − 2)² − 3.</div>
+      <div class="cap" id="cap-4" style="opacity:0">제곱은 절대 음수가 될 수 없습니다. 가장 작을 때가 0이죠.</div>
+      <div class="cap" id="cap-5" style="opacity:0">그래서 x = 2 일 때 최솟값 −3. 그 점이 꼭짓점입니다.</div>
+      <div class="cap" id="cap-6" style="opacity:0">그런데 x의 범위가 0 ≤ x ≤ 1 로 묶이면 어떻게 될까요?</div>
+      <div class="cap" id="cap-7" style="opacity:0">꼭짓점이 범위 밖으로 밀려납니다.</div>
+      <div class="cap" id="cap-8" style="opacity:0">이때는 구간 안에서만 보면 되고, 답은 양 끝에 있습니다.</div>
+      <div class="cap" id="cap-9" style="opacity:0">최댓값은 x = 0 일 때 1, 최솟값은 x = 1 일 때 −2.</div>
+      <div class="cap" id="cap-10" style="opacity:0">꼭짓점이 범위 안이면 꼭짓점, 밖이면 양 끝. 이것만 기억하면 됩니다.</div>
+      </div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      // ── 실시간 재생 모드 (앱·웹) ────────────────────────────────────
+      // mp4 로 굽지 않고 이 HTML 을 그대로 앱·웹에서 돌린다.
+      // 그래도 소리와 그림이 어긋나지 않는 이유는 **시계가 하나이기 때문**이다:
+      // 나레이션 오디오의 currentTime 이 유일한 시계이고, 타임라인은 매 프레임
+      // 그 값으로 seek 될 뿐 스스로 흐르지 않는다. 렌더러가 하던 일과 같다.
+      //
+      // ?live=1 일 때만 켠다. 하이퍼프레임즈 렌더 중에는 렌더러가 타임라인을
+      // 직접 몰기 때문에, 여기서 또 몰면 두 시계가 싸운다.
+      function startLive() {
+        const audio = document.getElementById("voice");
+        if (!audio) return;
+        let raf = 0;
+        const tick = () => { tl.seek(audio.currentTime); raf = requestAnimationFrame(tick); };
+        const play = () => {
+          audio.play().catch(() => {
+            // 자동재생이 막히면(브라우저 정책) 첫 탭에서 시작한다.
+            document.addEventListener("pointerdown", () => audio.play(), { once: true });
+          });
+        };
+        audio.addEventListener("play", () => { cancelAnimationFrame(raf); tick(); });
+        audio.addEventListener("pause", () => cancelAnimationFrame(raf));
+        audio.addEventListener("ended", () => {
+          cancelAnimationFrame(raf);
+          tl.seek(tl.duration());
+          window.dispatchEvent(new CustomEvent("matths:lesson-finished"));
+        });
+        tl.seek(0);
+        play();
+      }
+      if (new URLSearchParams(location.search).get("live") === "1") {
+        window.addEventListener("load", startLive);
+      }
+
+      const PX = 108.6316, CX = 2, CY = -0.2;
+      const SW = 1080, SH = 825.6;
+      const X = (x) => (x - CX) * PX + SW / 2;
+      const Y = (y) => SH / 2 - (y - CY) * PX;
+      const f = (x) => x * x - 4 * x + 1;
+
+      const $ = (s) => document.querySelector(s);
+      const curve = $("#curve"), riderDot = $("#riderDot"), riderDrop = $("#riderDrop");
+      const hudX = $("#hudX"), hudY = $("#hudY");
+
+      // 곡선은 고정이다 — 이 장면에서 움직이는 건 점과 범위지 함수가 아니다.
+      // 무대에 보이는 구간만 그린다. 전 구간을 그리면 path 길이가 수천 px 를 넘어
+      // dash 로 그릴 때 뒷부분이 잘린다.
+      const TOPY = 4.20, BOTY = -4.60;
+      const LEFTX = -2.971, RIGHTX = 6.971;
+      (function drawCurve() {
+        let d = "", pen = false;
+        for (let i = 0; i <= 400; i++) {
+          const x = LEFTX + (RIGHTX - LEFTX) * (i / 400);
+          const y = f(x);
+          if (!isFinite(y) || y > TOPY || y < BOTY) { pen = false; continue; }
+          d += (pen ? "L" : "M") + X(x).toFixed(1) + " " + Y(y).toFixed(1) + " ";
+          pen = true;
+        }
+        curve.setAttribute("d", d.trim());
+      })();
+
+      (function initDash() {
+        const el = document.querySelector("#curve");
+        if (!el || typeof el.getTotalLength !== "function") return;
+        const len = Math.ceil(el.getTotalLength()) + 4;
+        el.style.strokeDasharray = len;
+        el.style.strokeDashoffset = len;
+        el.dataset.len = len;
+      })();
+
+      const state = { x: -0.4 };
+      function moveRider() {
+        const x = state.x, y = f(x);
+        riderDot.setAttribute("cx", X(x)); riderDot.setAttribute("cy", Y(y));
+        riderDrop.setAttribute("x1", X(x)); riderDrop.setAttribute("y1", Y(y));
+        riderDrop.setAttribute("x2", X(x)); riderDrop.setAttribute("y2", Y(0));
+        hudX.textContent = "x = " + x.toFixed(2);
+        hudY.textContent = "y = " + y.toFixed(2);
+      }
+      moveRider();
+      const reX = { onUpdate: moveRider };
+
+      // ── line01 · 문제 제기 — 식만 있고 답은 안 보인다
+      tl.to("#grid", { opacity: 1, duration: 0.6 }, 0.15);
+      tl.to("#tm-y", { opacity: 1, duration: 0.5 }, 0.3);
+
+      // ── line02 · 모양을 바꿔 보자 + 그래프 등장
+      tl.to("#curve", { opacity: 1, duration: 0.25 }, 2.71);
+      tl.to("#curve", { strokeDashoffset: 0, duration: 1.5, ease: "power2.out" }, 2.71);
+      tl.to("#tm-ar", { opacity: 1, duration: 0.3 }, 4.61);
+
+      // ── line03~04 · 평방완성 항 단위 조립
+      tl.to("#tm-sq", { opacity: 1, duration: 0.4 }, 6.28);
+      tl.to("#tm-mn", { opacity: 1, duration: 0.3 }, 11.17);
+      tl.to("#tm-3",  { opacity: 1, duration: 0.35 }, 11.49);
+
+      // ── line05 · 박스-라벨: 제곱은 음수가 될 수 없다
+      tl.to("#tm-sq .boxline", { opacity: 1, duration: 0.4 }, 14.27);
+      tl.to("#tm-sq .tag",     { opacity: 1, duration: 0.35 }, 14.67);
+
+      // ── line06 · 점을 굴려 최솟값 지점을 직접 찾는다 (실시간 리드아웃)
+      tl.to("#rider", { opacity: 1, duration: 0.3 }, 18.30);
+      tl.to("#hud",   { opacity: 1, duration: 0.3 }, 18.30);
+      tl.to(state, { x: 2, duration: 2.0, ease: "sine.inOut", ...reX }, 18.70);
+      tl.to("#vtx", { opacity: 1, duration: 0.45 }, 20.75);
+
+      // ── line07 · 범위를 씌운다 (조건 = 바이올렛)
+      tl.to("#rangeL",   { opacity: 1, duration: 0.4 }, 23.74);
+      tl.to("#rangeR",   { opacity: 1, duration: 0.4 }, 23.94);
+      tl.to("#rangeBand",{ opacity: 1, duration: 0.5 }, 24.09);
+      tl.to("#rangeTag", { opacity: 1, duration: 0.4 }, 24.34);
+
+      // ── line08 · 꼭짓점이 범위 밖이라는 걸 눈으로 — 점을 범위 안으로 되돌린다
+      tl.to("#vtx", { opacity: 0.28, duration: 0.5 }, 28.12);
+      tl.to(state, { x: 0, duration: 1.3, ease: "sine.inOut", ...reX }, 28.42);
+
+      // ── line09~10 · 답은 양 끝에 있다
+      tl.to(state, { x: 1, duration: 1.4, ease: "sine.inOut", ...reX }, 30.60);
+      tl.to(state, { x: 0, duration: 1.2, ease: "sine.inOut", ...reX }, 32.20);
+      tl.to("#ends", { opacity: 1, duration: 0.5 }, 34.66);
+      tl.to("#rider", { opacity: 0, duration: 0.4 }, 35.16);
+
+      // ── line11 · 무대를 걷어내고 규칙만 남긴다
+      tl.to(["#grid", "#curve", "#vtx", "#ends", "#hud", "#rangeBand", "#rangeL", "#rangeR", "#rangeTag"],
+            { opacity: 0, duration: 0.7 }, 39.65);
+      tl.to("#verdict", { opacity: 1, duration: 0.7 }, 40.20);
+
+      tl.to("#cap-0", { opacity: 1, duration: 0.22 }, 0.000);
+      tl.to("#cap-0", { opacity: 0, duration: 0.18 }, 2.213);
+      tl.to("#cap-1", { opacity: 1, duration: 0.22 }, 2.213);
+      tl.to("#cap-1", { opacity: 0, duration: 0.18 }, 5.979);
+      tl.to("#cap-2", { opacity: 1, duration: 0.22 }, 5.979);
+      tl.to("#cap-2", { opacity: 0, duration: 0.18 }, 10.872);
+      tl.to("#cap-3", { opacity: 1, duration: 0.22 }, 10.872);
+      tl.to("#cap-3", { opacity: 0, duration: 0.18 }, 13.967);
+      tl.to("#cap-4", { opacity: 1, duration: 0.22 }, 13.967);
+      tl.to("#cap-4", { opacity: 0, duration: 0.18 }, 18.396);
+      tl.to("#cap-5", { opacity: 1, duration: 0.22 }, 18.396);
+      tl.to("#cap-5", { opacity: 0, duration: 0.18 }, 23.438);
+      tl.to("#cap-6", { opacity: 1, duration: 0.22 }, 23.438);
+      tl.to("#cap-6", { opacity: 0, duration: 0.18 }, 27.818);
+      tl.to("#cap-7", { opacity: 1, duration: 0.22 }, 27.818);
+      tl.to("#cap-7", { opacity: 0, duration: 0.18 }, 30.298);
+      tl.to("#cap-8", { opacity: 1, duration: 0.22 }, 30.298);
+      tl.to("#cap-8", { opacity: 0, duration: 0.18 }, 34.355);
+      tl.to("#cap-9", { opacity: 1, duration: 0.22 }, 34.355);
+      tl.to("#cap-9", { opacity: 0, duration: 0.18 }, 39.347);
+      tl.to("#cap-10", { opacity: 1, duration: 0.22 }, 39.347);
+      tl.to("#cap-10", { opacity: 0, duration: 0.18 }, 46.519);
+
+      window.__timelines["02-quadratic-max-min"] = tl;
+    </script>
+  </body>
+</html>

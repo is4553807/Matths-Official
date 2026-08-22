@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="2343" viewBox="273 144.8 296 289" preserveAspectRatio="xMidYMid meet" shape-rendering="geometricPrecision">
+  <defs>
+    <linearGradient id="mGradient" gradientUnits="userSpaceOnUse" x1="343.514" y1="219.822" x2="426.748" y2="351.087">
+      <stop offset="0" stop-color="#E649D2"/>
+      <stop offset="1" stop-color="#674DFF"/>
+    </linearGradient>
+    <linearGradient id="iGradient" gradientUnits="userSpaceOnUse" x1="506.386" y1="397.065" x2="502.53" y2="301.857">
+      <stop offset="0" stop-color="#07EAF0"/>
+      <stop offset="1" stop-color="#229DF8"/>
+    </linearGradient>
+    <linearGradient id="starAccent" gradientUnits="userSpaceOnUse" x1="487" y1="201" x2="516" y2="201">
+      <stop offset="0" stop-color="#AD91E7" stop-opacity="0.95"/>
+      <stop offset="0.78" stop-color="#924AF6" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#7B4EFC" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="starClip"><path d="M 512 175.4 C 513.5 190 518.5 198.5 537 201 C 518.5 203.5 513.5 212 512 227 C 510.5 212 505.5 203.5 487 201 C 505.5 198.5 510.5 190 512 175.4 Z"/></clipPath>
+    <mask id="aCounterMask" maskUnits="userSpaceOnUse" x="698" y="268" width="78" height="90">
+      <rect x="698" y="268" width="78" height="90" fill="#FFFFFF"/>
+      <path d="M 725.5 318 L 746.8 318 C 752.5 318 755.5 320 754 324 C 751.5 331.5 745.5 337.5 735.5 339 C 724 340.5 716 336 716 329 C 716 323 719.5 319.5 725.5 318 Z" fill="#000000"/>
+    </mask>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 327 377.5 L 327 255 L 409 332.5 L 484 255" stroke="url(#mGradient)" stroke-width="44"/>
+    <rect x="482.6" y="299.5" width="43.8" height="100" rx="21.9" fill="url(#iGradient)" stroke="none"/>
+    <path d="M 512 175.4 C 513.5 190 518.5 198.5 537 201 C 518.5 203.5 513.5 212 512 227 C 510.5 212 505.5 203.5 487 201 C 505.5 198.5 510.5 190 512 175.4 Z" fill="#7B4EFC" stroke="none"/><rect x="487" y="175" width="31" height="53" fill="url(#starAccent)" clip-path="url(#starClip)" stroke="none"/>
+  </g>
+</svg>

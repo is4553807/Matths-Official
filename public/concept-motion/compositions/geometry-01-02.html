@@ -1,0 +1,1778 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <!-- 컴포지션은 compositions/ 안에 있지만 자산(폰트·음성)은 프로젝트 루트 기준이다.
+         하이퍼프레임즈 렌더러는 루트를 기준으로 풀어 주지만 평범한 정적 서버는
+         /compositions/assets/... 로 풀어 404 를 낸다 — 실제로 음성이 안 붙었다.
+         base 를 한 단계 올려 두 경우를 같게 만든다. -->
+    <base href="../" />
+    <!-- GSAP 은 로컬 vendor 를 먼저 쓴다. 파일을 더블클릭해 열거나(file://) 오프라인
+         교실에서 CDN 이 안 오면 무대가 통째로 서지 않는다. vendor 가 없을 때만 CDN. -->
+    <script src="vendor/gsap.min.js"></script>
+    <script>if (!window.gsap) document.write('<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"><\/script>');</script>
+    <style>
+
+    :root {
+      --m-ground: #F3F6FF;
+      --m-surface: #FCFDFF;
+      --m-line: #D6DDF0;
+      --m-ink: #111426;
+      --m-muted: #5C6478;
+      --m-cyan: #067A8C;
+      --m-magenta: #B81FD3;
+      --m-violet: #6D3DF5;
+      --m-blue: #1A66EE;
+      --m-tagInk: #FCFDFF;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+      --m-ground: #090C1B;
+      --m-surface: #141A2E;
+      --m-line: #232A44;
+      --m-ink: #EEF1FA;
+      --m-muted: #8A94AB;
+      --m-cyan: #0CDCF1;
+      --m-magenta: #CA44E3;
+      --m-violet: #7B4EFC;
+      --m-blue: #327FFA;
+      --m-tagInk: #090C1B;
+      }
+    }
+    /* 강제 지정 — mp4 렌더는 한쪽으로 굽는다. 앱에서 사용자가 앱 자체 외관을
+       시스템과 다르게 골랐을 때도 이 속성으로 맞출 수 있다. */
+    :root[data-theme="light"] {
+      --m-ground: #F3F6FF;
+      --m-surface: #FCFDFF;
+      --m-line: #D6DDF0;
+      --m-ink: #111426;
+      --m-muted: #5C6478;
+      --m-cyan: #067A8C;
+      --m-magenta: #B81FD3;
+      --m-violet: #6D3DF5;
+      --m-blue: #1A66EE;
+      --m-tagInk: #FCFDFF;
+    }
+    :root[data-theme="dark"] {
+      --m-ground: #090C1B;
+      --m-surface: #141A2E;
+      --m-line: #232A44;
+      --m-ink: #EEF1FA;
+      --m-muted: #8A94AB;
+      --m-cyan: #0CDCF1;
+      --m-magenta: #CA44E3;
+      --m-violet: #7B4EFC;
+      --m-blue: #327FFA;
+      --m-tagInk: #090C1B;
+    }
+
+    [fill="var(--m-ground)"] { fill: var(--m-ground); }
+    [stroke="var(--m-ground)"] { stroke: var(--m-ground); }
+    [fill="var(--m-surface)"] { fill: var(--m-surface); }
+    [stroke="var(--m-surface)"] { stroke: var(--m-surface); }
+    [fill="var(--m-line)"] { fill: var(--m-line); }
+    [stroke="var(--m-line)"] { stroke: var(--m-line); }
+    [fill="var(--m-ink)"] { fill: var(--m-ink); }
+    [stroke="var(--m-ink)"] { stroke: var(--m-ink); }
+    [fill="var(--m-muted)"] { fill: var(--m-muted); }
+    [stroke="var(--m-muted)"] { stroke: var(--m-muted); }
+    [fill="var(--m-cyan)"] { fill: var(--m-cyan); }
+    [stroke="var(--m-cyan)"] { stroke: var(--m-cyan); }
+    [fill="var(--m-magenta)"] { fill: var(--m-magenta); }
+    [stroke="var(--m-magenta)"] { stroke: var(--m-magenta); }
+    [fill="var(--m-violet)"] { fill: var(--m-violet); }
+    [stroke="var(--m-violet)"] { stroke: var(--m-violet); }
+    [fill="var(--m-blue)"] { fill: var(--m-blue); }
+    [stroke="var(--m-blue)"] { stroke: var(--m-blue); }
+    [fill="var(--m-tagInk)"] { fill: var(--m-tagInk); }
+    [stroke="var(--m-tagInk)"] { stroke: var(--m-tagInk); }
+
+    @font-face { font-family:"Matths KR"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-kr.woff2") format("woff2"); }
+    @font-face { font-family:"Matths KR"; font-weight:500; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-kr-500.woff2") format("woff2"); }
+    @font-face { font-family:"Matths KR"; font-weight:700; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-kr-700.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Math"; font-weight:400; font-style:normal; font-display:block;
+                 src:url("assets/fonts/matths-math.woff2") format("woff2"); }
+    @font-face { font-family:"Matths Math"; font-weight:400; font-style:italic; font-display:block;
+                 src:url("assets/fonts/matths-math-italic.woff2") format("woff2"); }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:1080px; height:1920px; overflow:hidden; background:var(--m-ground); }
+    #root { position:relative; width:1080px; height:1920px; overflow:hidden;
+            background:var(--m-ground); color:var(--m-ink); font-family:'Matths KR', 'Noto Sans KR', sans-serif; }
+
+    .band { position:absolute; left:0; width:1080px; }
+
+    /* 타이틀 띠 — 50초 내내 고정. 학습자가 "무엇을 보고 있는지" 잃지 않게 한다. */
+    .band-title { top:134.4px; height:144px; text-align:center; }
+    .t-formula { font-family:'Matths Math', serif; font-size:58px; font-style:italic; letter-spacing:.01em; }
+    .t-sub { margin-top:10px; font-size:31px; color:var(--m-muted); letter-spacing:.02em; }
+
+    /* 수식 패널 띠 — 지배 식이 항 단위로 조립되어 상주한다 */
+    .band-panel { top:297.6px; height:144px;
+                  display:flex; align-items:center; justify-content:center; }
+    .panel-row { position:relative; display:flex; align-items:center; gap:10px;
+                 font-family:'Matths Math', serif; font-size:52px; font-style:italic; }
+    .term { position:relative; padding:8px 14px; opacity:0; font-weight:500; }
+
+    /* 강조 = 색을 채운 박스. 테두리만 그리면 옆 항들과 무게가 비슷해 눈에 안 띈다.
+       currentColor 는 그 항의 의미색이므로, 채움도 라벨도 자동으로 같은 색이 된다.
+       색 하나가 "이 항이 무엇인가" 와 "지금 여기를 보라" 를 동시에 말한다. */
+    .term .boxline { position:absolute; inset:0; border:2.5px solid currentColor;
+                     border-radius:10px; opacity:0; }
+    /* 채움은 별도 레이어로 깔고 알파를 낮춘다. 같은 요소에 background 를 주면
+       테두리까지 옅어져 경계가 사라진다. */
+    .term .boxline::after { content:""; position:absolute; inset:0;
+                            background:currentColor; opacity:0.16; border-radius:8px; }
+    .term.on { font-weight:700; }
+
+    /* 라벨은 알약으로 채운다. 글자는 바탕색이라 대비가 가장 세다. */
+    .term .tag { position:absolute; left:50%; top:100%; transform:translateX(-50%);
+                 margin-top:10px; font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-style:normal;
+                 font-size:22px; font-weight:700; white-space:nowrap; opacity:0;
+                 padding:3px 12px; border-radius:999px;
+                 background:currentColor;
+                 letter-spacing:.01em; }
+    /* 글자색을 .tag 에 직접 주면 안 된다 — background:currentColor 가 그 색을
+       가리키게 되어 알약이 흰색으로 죽는다. 실제로 그렇게 됐다.
+       색은 안쪽 요소가 갖고, .tag 는 의미색을 그대로 물려받게 둔다. */
+    .term .tag i { font-style:normal; color:var(--m-tagInk); }
+
+    /* 무대 띠 — 좌표계와 도형이 사는 유일한 동적 영역 */
+    /* z-index:0 은 스태킹 컨텍스트를 만드는 장치다 — 이게 없으면 ::before(z-index:-1)가
+       #root 바탕 뒤로 떨어져 글로우가 통째로 안 보인다(음수 z-index 는 가장 가까운
+       스태킹 컨텍스트의 배경 바로 위에 깔린다). 아키타입은 z-index 를 안 쓰므로 안전. */
+    .band-stage { top:480px; height:825.6px; z-index:0; }
+    /* 무대 깊이 — 전부 COLOR 토큰 파생, 새 hex 없음.
+       ::before = 중앙의 아주 옅은 구조색 글로우(내용물 뒤). 무대가 "조명 아래" 로 보이게.
+       ::after  = 가장자리를 바탕색으로 살짝 눌러 주는 비네트(내용물 위). 시선을 중앙에.
+       둘 다 주인공(도형·수식)보다 눈에 띄면 실패다 — 불투명도를 올리지 마라. */
+    .band-stage::before { content:""; position:absolute; inset:0; z-index:-1;
+                          background:radial-gradient(64% 56% at 50% 45%, var(--m-blue), transparent 82%);
+                          opacity:0.045; }
+    .band-stage::after { content:""; position:absolute; inset:0; pointer-events:none;
+                         background:radial-gradient(120% 108% at 50% 46%, transparent 63%, var(--m-ground) 100%);
+                         opacity:0.5; }
+
+    /* 자막 띠 — 최대 2줄, 무대와 겹치지 않는다 */
+    .band-caption { top:1401.6px; height:249.60000000000002px;
+                    display:flex; align-items:flex-start; justify-content:center; }
+    /* 지금 말하는 라인은 이 한 줄뿐이다 — 본문(400)보다 반 단 굵게(500) 세워
+       "낭독 중" 임이 무게로 드러나게 한다. 500 서브셋은 @font-face 에 이미 실려 있다. */
+    .cap { position:absolute; width:930px; text-align:center; font-size:37px;
+           line-height:1.46; color:var(--m-ink); word-break:keep-all; font-weight:500; }
+
+    /* 결론 — 무대를 전부 걷어내고 명제 하나만 남긴다.
+       .band-stage 안에 들어가므로 top 은 0 이다. 여기에 다시 BAND.stage.top 을 주면
+       오프셋이 두 번 먹어 결론이 자막 띠까지 내려가 겹친다(1차 렌더에서 실제로 그랬다). */
+    .verdict { position:absolute; left:0; top:0; width:1080px;
+               height:825.6px; display:flex; flex-direction:column;
+               align-items:center; justify-content:center; gap:24px; opacity:0; }
+    .verdict-main { font-family:'Matths Math', serif; font-size:72px; font-style:italic; }
+    /* 한글 결론은 수식 폰트를 쓰면 안 된다 — 이탤릭 세리프에 한글을 얹으면
+       글자가 통째로 기울어져 조판이 무너진다(2차 렌더에서 실제로 그랬다). */
+    .verdict-kr { font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-style:normal; font-size:56px; line-height:1.3; }
+    .verdict-sub { font-size:34px; color:var(--m-muted); }
+    .verdict-row { display:flex; align-items:baseline; gap:20px; font-size:44px; }
+    .verdict-row .vr-cond { font-family:'Matths Math', serif; font-style:italic; min-width:190px;
+                            text-align:right; }
+    .verdict-row .vr-arrow { color:var(--m-muted); font-size:34px; }
+    .verdict-row .vr-out { font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-size:40px; }
+
+    .readout { font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-size:30px; font-weight:500; font-variant-numeric:tabular-nums; }
+
+    /* ── 세로 분수 (frac-runtime.js 가 런타임에 a/b 를 이렇게 바꾼다) ──────
+       가로 표기 dy/dx 는 컴퓨터 표기다. 학생이 보는 화면은 LaTeX rac 처럼 세로로. */
+    /* inline-flex 의 기준선은 첫 줄(분자)의 기준선이라 길이로 내리면 분자가 글줄에 걸린다.
+       middle 이면 상자 가운데(=분수 막대)가 x-높이 중간, 곧 LaTeX 의 수학 축에 놓인다. */
+    .mf { display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle;
+          line-height:1; margin:0 0.14em; font-size:0.84em; }
+    .mf-n { padding:0 0.18em 0.1em; border-bottom:0.07em solid currentColor; }
+    .mf-d { padding:0.1em 0.18em 0; }
+
+    /* ── 데스크톱 미리보기(파일 더블클릭) ─────────────────────────────
+       앱·렌더러는 ?live=1 을 붙여 열므로 이 블록을 타지 않는다. 쿼리 없이 file:// 로
+       열렸을 때만 body 에 mc-preview 가 붙는다. 무대를 창에 맞춰 축소하고,
+       브라우저가 소리 자동재생을 막으니(사파리·크롬 기본) 재생 버튼과 조작 줄을 준다. */
+    html.mc-preview, body.mc-preview { width:100vw; height:100vh; background:var(--m-ground); }
+    body.mc-preview #root { position:absolute; left:50%; top:50%;
+                            transform:translate(-50%,-50%) scale(var(--mc-scale, 1)); }
+    #mc-play { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+               background:rgba(9,12,27,0.35); cursor:pointer; z-index:20; }
+    #mc-play span { display:inline-flex; align-items:center; gap:14px; padding:18px 34px 18px 28px;
+                    border-radius:999px; background:var(--m-cyan); color:var(--m-tagInk);
+                    font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-size:22px; font-weight:700; letter-spacing:-0.01em;
+                    box-shadow:0 12px 40px rgba(0,0,0,0.35); }
+    #mc-play span::before { content:""; width:0; height:0; border-style:solid;
+                            border-width:11px 0 11px 19px; border-color:transparent transparent transparent currentColor; }
+    #mc-play small { display:block; margin-top:14px; text-align:center; color:var(--m-ink); opacity:0.75;
+                     font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-size:14px; }
+    #mc-ctl { position:fixed; left:0; right:0; bottom:0; height:56px; display:flex; align-items:center;
+              gap:14px; padding:0 18px; z-index:21; font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-size:13px; color:var(--m-ink);
+              background:var(--m-surface); border-top:1px solid var(--m-line); }
+    #mc-ctl button { width:36px; height:36px; border-radius:999px; border:0; cursor:pointer;
+                     background:var(--m-cyan); color:var(--m-tagInk); font-size:14px; display:grid; place-items:center; }
+    #mc-ctl .mc-bar { flex:1; height:8px; border-radius:999px; background:var(--m-line); position:relative; cursor:pointer; }
+    #mc-ctl .mc-fill { position:absolute; left:0; top:0; bottom:0; width:0; border-radius:999px; background:var(--m-cyan); }
+    #mc-ctl .mc-time { font-family:'Matths KR', 'Noto Sans KR', sans-serif; font-variant-numeric:tabular-nums; opacity:0.85; min-width:96px; text-align:right; }
+    #mc-ctl .mc-meta { opacity:0.6; max-width:34vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #mc-ctl .mc-voice { padding:3px 9px; border-radius:999px; border:1px solid var(--m-line); opacity:0.85; }
+  </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="geometry-01-02" data-start="0" data-duration="61.28"
+         data-width="1080" data-height="1920">
+
+      <!-- id 는 필수다. 없으면 렌더러가 미디어 요소를 못 찾아 무음으로 나갈 수 있다. -->
+      <audio id="voice" class="clip" data-start="0" data-duration="61.28"
+             data-track-index="0" data-volume="1" data-voice-src="assets/voice/geometry-01-02/full.mp3"></audio>
+
+      <div id="band-title" class="clip band band-title" data-start="0" data-duration="61.28" data-track-index="1">
+        <div class="t-formula"><span style="font-size:58px">x²/9 + y²/5 = 1</span></div>
+        <div class="t-sub">타원</div>
+      </div>
+
+
+      <div id="band-panel" class="clip band band-panel" data-start="0" data-duration="61.28" data-track-index="2">
+        <div class="panel-row" style="font-size:52px">
+          <span class="term" id="tm-0" style="color:var(--m-cyan)">x²/9</span>
+          <span class="term" id="tm-1" style="color:var(--m-ink)">+</span>
+          <span class="term" id="tm-2" style="color:var(--m-cyan)">y²/5</span>
+          <span class="term" id="tm-3" style="color:var(--m-ink)">=</span>
+          <span class="term" id="tm-4" style="color:var(--m-magenta)">1</span>
+          <span class="term" id="tm-5" style="color:var(--m-violet)">a² − b² = c²<span class="boxline"></span><span class="tag"><i>장축·단축·초점거리의 관계</i></span></span>
+        </div>
+      </div>
+
+      <div id="band-stage" class="clip band band-stage" data-start="0" data-duration="61.28" data-track-index="3">
+        <svg width="1080" height="825.6" viewBox="0 0 1080 825.6">
+          <g id="grid" opacity="0">
+      <line x1="105.5" y1="0" x2="105.5" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="214.1" y1="0" x2="214.1" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="322.7" y1="0" x2="322.7" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="431.4" y1="0" x2="431.4" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="540.0" y1="0" x2="540.0" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="648.6" y1="0" x2="648.6" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="757.3" y1="0" x2="757.3" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="865.9" y1="0" x2="865.9" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="974.5" y1="0" x2="974.5" y2="825.6" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="738.7" x2="1080" y2="738.7" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="630.1" x2="1080" y2="630.1" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="521.4" x2="1080" y2="521.4" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="412.8" x2="1080" y2="412.8" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="304.2" x2="1080" y2="304.2" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="195.5" x2="1080" y2="195.5" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="0" y1="86.9" x2="1080" y2="86.9" stroke="var(--m-blue)" stroke-opacity="0.17" stroke-width="1.5"/>
+      <line x1="32.58947368421053" y1="412.8" x2="1047.4105263157894" y2="412.8" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <line x1="540" y1="793.0105263157895" x2="540" y2="32.58947368421053" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <line x1="105.4736842105263" y1="403.8" x2="105.4736842105263" y2="421.8" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="105.4736842105263" y="456.8" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">-4</text>
+      <line x1="214.10526315789474" y1="403.8" x2="214.10526315789474" y2="421.8" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="214.10526315789474" y="456.8" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">-3</text>
+      <line x1="322.7368421052631" y1="403.8" x2="322.7368421052631" y2="421.8" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="322.7368421052631" y="456.8" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">-2</text>
+      <line x1="431.36842105263156" y1="403.8" x2="431.36842105263156" y2="421.8" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="431.36842105263156" y="456.8" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">-1</text>
+      <line x1="648.6315789473684" y1="403.8" x2="648.6315789473684" y2="421.8" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="648.6315789473684" y="456.8" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">1</text>
+      <line x1="757.2631578947369" y1="403.8" x2="757.2631578947369" y2="421.8" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="757.2631578947369" y="456.8" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">2</text>
+      <line x1="865.8947368421052" y1="403.8" x2="865.8947368421052" y2="421.8" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="865.8947368421052" y="456.8" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">3</text>
+      <line x1="974.5263157894738" y1="403.8" x2="974.5263157894738" y2="421.8" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="974.5263157894738" y="456.8" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">4</text>
+      <line x1="531" y1="738.6947368421053" x2="549" y2="738.6947368421053" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="518" y="748.6947368421053" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="end">-3</text>
+      <line x1="531" y1="630.0631578947368" x2="549" y2="630.0631578947368" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="518" y="640.0631578947368" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="end">-2</text>
+      <line x1="531" y1="521.4315789473684" x2="549" y2="521.4315789473684" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="518" y="531.4315789473684" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="end">-1</text>
+      <line x1="531" y1="304.1684210526316" x2="549" y2="304.1684210526316" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="518" y="314.1684210526316" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="end">1</text>
+      <line x1="531" y1="195.53684210526316" x2="549" y2="195.53684210526316" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="518" y="205.53684210526316" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="end">2</text>
+      <line x1="531" y1="86.90526315789475" x2="549" y2="86.90526315789475" stroke="var(--m-blue)" stroke-opacity="0.8" stroke-width="3"/>
+      <text x="518" y="96.90526315789475" fill="var(--m-muted)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="end">3</text>
+          </g>
+
+          <g id="anchors" opacity="0">
+            <g><circle id="an-0" r="13" fill="var(--m-blue)"/><text id="lbl-0" fill="var(--m-ink)" font-size="27" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">F₁(−2, 0)</text></g>
+            <g><circle id="an-1" r="13" fill="var(--m-blue)"/><text id="lbl-1" fill="var(--m-ink)" font-size="27" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle">F₂(2, 0)</text></g>
+          </g>
+
+          <!-- 자취 — 조건을 만족하는 자리를 모은 것. 굳는 순간이 이 장면의 답이다. -->
+          <path id="locus" fill="none" stroke="var(--m-magenta)" stroke-width="6"
+                stroke-linecap="round" stroke-linejoin="round" opacity="0"/>
+
+          <g id="ghost" opacity="0">
+            <polyline id="ghostShape" fill="none" stroke="var(--m-cyan)" stroke-width="4"
+                      stroke-dasharray="9 8" stroke-linejoin="round"/>
+            <circle id="ghostDot" r="11" fill="var(--m-cyan)"/>
+          </g>
+
+          <g id="proj" opacity="0">
+            <polyline id="projLegs" fill="none" stroke="var(--m-blue)" stroke-width="3"
+                      stroke-dasharray="9 8" stroke-linejoin="round"/>
+            <polygon id="projShadow" fill="var(--m-magenta)" fill-opacity="0.20"
+                     stroke="var(--m-magenta)" stroke-width="3" stroke-opacity="0.8"/>
+            <polygon id="projShadow2" fill="var(--m-magenta)" fill-opacity="0.12"
+                     stroke="var(--m-magenta)" stroke-width="2" stroke-opacity="0.5"/>
+            <circle id="projFoot" r="11" fill="var(--m-blue)"/>
+            <path id="rightAngle" fill="none" stroke="var(--m-violet)" stroke-width="3"/>
+            <path id="angleArc" fill="none" stroke="var(--m-violet)" stroke-width="4"/>
+            <text id="angleTag" fill="var(--m-violet)" font-size="27" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle"></text>
+          </g>
+
+          <g id="vecops" opacity="0">
+            <polyline id="vopPara" fill="var(--m-violet)" fill-opacity="0.12"
+                      stroke="var(--m-violet)" stroke-width="3" stroke-dasharray="9 8"/>
+            <line id="vopB" stroke="var(--m-violet)" stroke-width="5" stroke-linecap="round"/>
+            <line id="vopSum" stroke="var(--m-magenta)" stroke-width="6" stroke-linecap="round"/>
+            <polygon id="vopHead" fill="var(--m-magenta)"/>
+          </g>
+
+          <g id="gauges" opacity="0">
+            <g><line id="gg-0" stroke="var(--m-cyan)" stroke-width="4.5" stroke-linecap="round" stroke-opacity="0.9"/><text id="ggt-0" fill="var(--m-cyan)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle"></text></g>
+            <g><line id="gg-1" stroke="var(--m-cyan)" stroke-width="4.5" stroke-linecap="round" stroke-opacity="0.9"/><text id="ggt-1" fill="var(--m-cyan)" font-size="26" font-family="'Matths KR', 'Noto Sans KR', sans-serif" text-anchor="middle"></text></g>
+          </g>
+
+          <g id="mover" opacity="0">
+            <polyline id="mvShape" fill="none" stroke="var(--m-cyan)" stroke-width="5.5" stroke-linejoin="round"/>
+            <polygon id="mvHead" fill="var(--m-cyan)"/>
+            <circle id="mvDot" r="15" fill="var(--m-cyan)"/>
+          </g>
+
+          <g id="unwind" opacity="0">
+            <line id="uwAxis" stroke="var(--m-blue)" stroke-opacity="0.7" stroke-width="3"/>
+            <path id="uwCurve" fill="none" stroke="var(--m-magenta)" stroke-width="5" stroke-linecap="round"/>
+            <line id="uwLink" stroke="var(--m-magenta)" stroke-width="2.5" stroke-dasharray="7 7" stroke-opacity="0.7"/>
+          </g>
+
+          <!-- 리드아웃은 받침판 위에 올린다. 도형이 지나가도 숫자가 읽혀야 한다.
+               WHY 완전 불투명: 0.88 로 반투명했을 때 뒤에 깔린 축 눈금 라벨·게이지 라벨·
+               자취 곡선이 12% 만큼 비쳐 보여 숫자와 겹친 잔상(ghosting)으로 읽혔다(QA
+               전수검수 최다 유형). 판 뒤 요소는 다른 라벨이 hudBox() 를 피해 가도록
+               이미 설계돼 있으니(layoutStageLabels), 판 자체도 완전히 불투명해야 그
+               "여기는 판 자리" 라는 전제가 실제로 성립한다. -->
+          <g id="hud" opacity="0">
+            <rect id="hudBg" x="30" y="22" width="350" height="168" rx="14"
+                  fill="var(--m-ground)" fill-opacity="1" stroke="var(--m-line)" stroke-width="1.5"/>
+            <text id="hudG-0" class="readout" x="52" y="62" fill="var(--m-cyan)" font-family="'Matths KR', 'Noto Sans KR', sans-serif" font-size="29"></text>
+            <text id="hudG-1" class="readout" x="52" y="108" fill="var(--m-cyan)" font-family="'Matths KR', 'Noto Sans KR', sans-serif" font-size="29"></text>
+            <text id="hudInv" class="readout" x="52" y="154" fill="var(--m-violet)" font-family="'Matths KR', 'Noto Sans KR', sans-serif" font-size="29"></text>
+          </g>
+        </svg>
+
+        <div class="verdict" id="verdict">
+          <div class="verdict-main" style="color:var(--m-magenta); font-size:72px;">x²/9 + y²/5 = 1</div>
+          <div class="verdict-kr" style="color:var(--m-violet); font-size:51px">두 초점까지 거리의 합이 일정한 자취다</div>
+        </div>
+      </div>
+
+      <div id="band-caption" class="clip band band-caption" data-start="0" data-duration="61.28" data-track-index="4">
+      <div class="cap" id="cap-0" style="opacity:0">압정 두 개에 실을 걸고 팽팽하게 당겨 돌리면 어떤 곡선이 그려질까요?</div>
+      <div class="cap" id="cap-1" style="opacity:0">점 두 개를 고정합니다. F₁ 과 F₂ 입니다.</div>
+      <div class="cap" id="cap-2" style="opacity:0">그 위에 점 P 를 놓고 PF₁, PF₂ 를 각각 잽니다.</div>
+      <div class="cap" id="cap-3" style="opacity:0">P 를 옮기면 한쪽이 길어질 때 다른 쪽은 짧아집니다.</div>
+      <div class="cap" id="cap-4" style="opacity:0">그런데 두 거리를 더한 값만은 PF₁ + PF₂ = 6 에 멈춰 있습니다.</div>
+      <div class="cap" id="cap-5" style="opacity:0">합이 일정한 자리를 모두 찍으면 닫힌 곡선이 그려집니다.</div>
+      <div class="cap" id="cap-6" style="opacity:0">이 곡선이 타원이고, 고정했던 두 점을 초점이라고 부릅니다.</div>
+      <div class="cap" id="cap-7" style="opacity:0">거리의 합이 그대로 긴 지름, 장축의 길이가 됩니다.</div>
+      <div class="cap" id="cap-8" style="opacity:0">좌표로 옮기면 x²/9 + y²/5 = 1.</div>
+      <div class="cap" id="cap-9" style="opacity:0">장반경 a, 단반경 b, 초점까지의 거리 c 사이에는 관계가 하나 있습니다.</div>
+      <div class="cap" id="cap-10" style="opacity:0">a² − b² = c².</div>
+      <div class="cap" id="cap-11" style="opacity:0">타원은 두 초점까지 거리의 합이 일정한 점들의 자취입니다.</div>
+      </div>
+
+    </div>
+
+    <script>
+/* frac-runtime.js — inline fraction stacker for Matths concept motions.
+ * Plain browser JS (no modules). Defines window.MatthsFrac = { segments, stackHtml, stackSvg }.
+ * Inlined into composition <script> blocks: never emit a script close tag or template literals here.
+ */
+(function (window) {
+  'use strict';
+
+  var HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/;
+  // Hard boundaries: never part of an atom.
+  var OPS = '=±+−-,;:→⇒≈≠≤≥<>∝∈∉⊂⊃⊆⊇∪∩÷…[]{}';
+  // Product dots: atom-internal only when glued on both sides.
+  var DOTS = '·×';
+  var FUNC_NAMES = { sin: 1, cos: 1, tan: 1, det: 1, log: 1, ln: 1, exp: 1, sec: 1, csc: 1, cot: 1, sinh: 1, cosh: 1, tanh: 1, adj: 1 };
+  var TRAIL_PUNCT = '.?';
+
+  function isWs(ch) { return /\s/.test(ch); }
+  function isBoundaryChar(ch) {
+    return isWs(ch) || OPS.indexOf(ch) >= 0 || ch === '/' || ch === '(' || ch === ')' || ch === '|';
+  }
+
+  function matchParen(str, i) {
+    var depth = 0;
+    for (var j = i; j < str.length; j++) {
+      var c = str[j];
+      if (c === '(') depth++;
+      else if (c === ')') { depth--; if (depth === 0) return j; }
+    }
+    return -1;
+  }
+
+  function matchBar(str, i) {
+    var depth = 0;
+    for (var j = i + 1; j < str.length; j++) {
+      var c = str[j];
+      if (c === '(') depth++;
+      else if (c === ')') { if (depth === 0) return -1; depth--; }
+      else if (c === '|' && depth === 0) return j;
+    }
+    return -1;
+  }
+
+  // ---- tokenizer -------------------------------------------------------
+  // token: {k:'ws',v} | {k:'op',v} | {k:'slash'} | {k:'atom', parts:[part]}
+  // part:  {k:'text', v} | {k:'paren', open, close, segs, raw}
+  function tokenize(str) {
+    var toks = [];
+    var cur = null;
+    var n = str.length;
+    var i = 0;
+    function ensure() { if (!cur) cur = { k: 'atom', parts: [] }; }
+    function pushText(t) {
+      ensure();
+      var last = cur.parts[cur.parts.length - 1];
+      if (last && last.k === 'text') last.v += t;
+      else cur.parts.push({ k: 'text', v: t });
+    }
+    function pushPart(p) { ensure(); cur.parts.push(p); }
+    function flush() { if (cur) { toks.push(cur); cur = null; } }
+
+    while (i < n) {
+      var ch = str[i];
+      if (ch === '(') {
+        var close = matchParen(str, i);
+        if (close < 0) { flush(); toks.push({ k: 'op', v: ch }); i++; continue; }
+        var inner = str.slice(i + 1, close);
+        pushPart({ k: 'paren', open: '(', close: ')', segs: segments(inner), raw: inner });
+        i = close + 1;
+        continue;
+      }
+      if (ch === ')') { flush(); toks.push({ k: 'op', v: ch }); i++; continue; }
+      if (ch === '|') {
+        var close2 = matchBar(str, i);
+        if (close2 < 0) { flush(); toks.push({ k: 'op', v: ch }); i++; continue; }
+        var inner2 = str.slice(i + 1, close2);
+        pushPart({ k: 'paren', open: '|', close: '|', segs: segments(inner2), raw: inner2 });
+        i = close2 + 1;
+        continue;
+      }
+      if (ch === '/') { flush(); toks.push({ k: 'slash' }); i++; continue; }
+      if (isWs(ch)) {
+        flush();
+        var j = i;
+        while (j < n && isWs(str[j])) j++;
+        toks.push({ k: 'ws', v: str.slice(i, j) });
+        i = j;
+        continue;
+      }
+      if (DOTS.indexOf(ch) >= 0) {
+        var prevGlued = i > 0 && !isBoundaryChar(str[i - 1]);
+        var nextGlued = i + 1 < n && !isBoundaryChar(str[i + 1]);
+        if (prevGlued && nextGlued && cur) { pushText(ch); i++; continue; }
+        flush(); toks.push({ k: 'op', v: ch }); i++;
+        continue;
+      }
+      if (OPS.indexOf(ch) >= 0) { flush(); toks.push({ k: 'op', v: ch }); i++; continue; }
+      pushText(ch);
+      i++;
+    }
+    flush();
+    return toks;
+  }
+
+  // ---- helpers ---------------------------------------------------------
+  function partText(p) { return p.k === 'text' ? p.v : p.open + p.raw + p.close; }
+  function partsText(parts) { var s = ''; for (var i = 0; i < parts.length; i++) s += partText(parts[i]); return s; }
+  function atomText(tok) { return partsText(tok.parts); }
+  function isHangulish(s) { return HANGUL_RE.test(s); }
+  function isHangulOnly(s) { return /^[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]+$/.test(s); }
+  function isInt(parts) { return parts.length === 1 && parts[0].k === 'text' && /^\d+$/.test(parts[0].v); }
+  function cloneSegs(segs) {
+    var out = [];
+    for (var i = 0; i < segs.length; i++) {
+      var g = segs[i];
+      out.push(g.t === 's' ? { t: 's', v: g.v } : { t: 'f', num: cloneSegs(g.num), den: cloneSegs(g.den) });
+    }
+    return out;
+  }
+  function pushSeg(out, seg) {
+    if (seg.t === 's') {
+      if (!seg.v) return;
+      var last = out[out.length - 1];
+      if (last && last.t === 's') { last.v += seg.v; return; }
+    }
+    out.push(seg);
+  }
+  function pushSegs(out, segs) { for (var i = 0; i < segs.length; i++) pushSeg(out, segs[i]); }
+
+  function partsToSegs(parts, dropParens) {
+    var out = [];
+    if (dropParens && parts.length === 1 && parts[0].k === 'paren' && parts[0].open === '(') {
+      pushSegs(out, cloneSegs(parts[0].segs));
+      return out;
+    }
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      if (p.k === 'text') pushSeg(out, { t: 's', v: p.v });
+      else {
+        pushSeg(out, { t: 's', v: p.open });
+        pushSegs(out, cloneSegs(p.segs));
+        pushSeg(out, { t: 's', v: p.close });
+      }
+    }
+    return out;
+  }
+  function tokenToSegs(tok) {
+    if (tok.k === 'atom') return partsToSegs(tok.parts, false);
+    if (tok.k === 'slash') return [{ t: 's', v: '/' }];
+    return [{ t: 's', v: tok.v }];
+  }
+  function tokensToParts(toks, a, b) {
+    var parts = [];
+    for (var i = a; i <= b; i++) {
+      var t = toks[i];
+      if (t.k === 'atom') parts = parts.concat(t.parts);
+      else if (t.k === 'slash') parts.push({ k: 'text', v: '/' });
+      else parts.push({ k: 'text', v: t.v });
+    }
+    return parts;
+  }
+  function partsEmpty(parts) { return partsText(parts).replace(/\s+/g, '') === ''; }
+
+  // Strip trailing sentence punctuation from the last text part; returns stripped suffix parts.
+  function stripTrailingPunct(parts) {
+    var suffix = [];
+    if (!parts.length) return suffix;
+    var last = parts[parts.length - 1];
+    if (last.k !== 'text') return suffix;
+    var v = last.v, cut = v.length;
+    while (cut > 0 && TRAIL_PUNCT.indexOf(v[cut - 1]) >= 0) cut--;
+    if (cut === v.length) return suffix;
+    var tail = v.slice(cut);
+    if (cut === 0) parts.pop(); else parts[parts.length - 1] = { k: 'text', v: v.slice(0, cut) };
+    suffix.push({ k: 'text', v: tail });
+    return suffix;
+  }
+
+  // ---- candidate builder ---------------------------------------------
+  function candidate(toks, i) {
+    var L = toks[i - 1], R = toks[i + 1];
+    var spaced = !L || !R || L.k === 'ws' || R.k === 'ws';
+    var c = { start: 0, end: 0, numPrefix: [], numParts: [], denParts: [], denSuffix: [] };
+
+    if (!spaced) {
+      if (L.k !== 'atom' || R.k !== 'atom') return null;
+      // numerator: whole left atom, with two heuristics
+      var np = L.parts.length;
+      var numParts = L.parts.slice();
+      if (np >= 2 && L.parts[np - 1].k === 'paren' && L.parts[np - 2].k === 'paren') {
+        // lim(h→0)(e^h − 1)/h  → prefix lim(h→0), num (e^h − 1)
+        c.numPrefix = L.parts.slice(0, np - 1);
+        numParts = [L.parts[np - 1]];
+      } else if (np === 1 && L.parts[0].k === 'text') {
+        // 0·1/8  → 0· stays outside when every factor is a bare number
+        var m = L.parts[0].v.match(/^((?:[\d.]+[·×])+)([\d.]+)$/);
+        if (m) { c.numPrefix = [{ k: 'text', v: m[1] }]; numParts = [{ k: 'text', v: m[2] }]; }
+      }
+      c.numParts = numParts;
+      // denominator: right atom, cut at first product dot
+      var denParts = [], denSuffix = [], stopped = false;
+      for (var p = 0; p < R.parts.length; p++) {
+        var part = R.parts[p];
+        if (stopped) { denSuffix.push(part); continue; }
+        if (part.k === 'text') {
+          var idx = -1;
+          for (var q = 0; q < part.v.length; q++) if (DOTS.indexOf(part.v[q]) >= 0) { idx = q; break; }
+          if (idx >= 0) {
+            if (idx > 0) denParts.push({ k: 'text', v: part.v.slice(0, idx) });
+            denSuffix.push({ k: 'text', v: part.v.slice(idx) });
+            stopped = true;
+          } else denParts.push(part);
+        } else denParts.push(part);
+      }
+      c.start = i - 1;
+      c.end = i + 1;
+      // 1/det A → den "det A"
+      if (!stopped && denParts.length === 1 && denParts[0].k === 'text' && FUNC_NAMES[denParts[0].v] &&
+          toks[i + 2] && toks[i + 2].k === 'ws' && toks[i + 3] && toks[i + 3].k === 'atom') {
+        denParts = denParts.concat([{ k: 'text', v: toks[i + 2].v }], toks[i + 3].parts);
+        c.end = i + 3;
+      }
+      c.denParts = denParts;
+      c.denSuffix = stripTrailingPunct(c.denParts).concat(denSuffix);
+      if (partsEmpty(c.numParts) || partsEmpty(c.denParts)) return null;
+      return c;
+    }
+
+    // spaced: find adjacent atoms
+    var a = i - 1;
+    while (a >= 0 && toks[a].k === 'ws') a--;
+    var b = i + 1;
+    while (b < toks.length && toks[b].k === 'ws') b++;
+    if (a < 0 || b >= toks.length || toks[a].k !== 'atom' || toks[b].k !== 'atom') return null;
+
+    // extend numerator leftward
+    var start = a, modeL = isHangulish(atomText(toks[a])) ? 'h' : 'l', lastAcc = atomText(toks[a]);
+    var j = a - 1;
+    while (j >= 0) {
+      var tj = toks[j];
+      if (tj.k === 'ws') { j--; continue; }
+      if (tj.k !== 'atom') break;
+      var tx = atomText(tj), ok;
+      if (modeL === 'h') ok = isHangulish(tx) || lastAcc === '의';
+      else ok = !isHangulish(tx) && !/^lim/.test(tx);
+      if (!ok) break;
+      start = j; lastAcc = tx; j--;
+    }
+    // extend denominator rightward
+    var end = b, modeR = isHangulish(atomText(toks[b])) ? 'h' : 'l';
+    j = b + 1;
+    while (j < toks.length) {
+      var tk = toks[j];
+      if (tk.k === 'ws') { j++; continue; }
+      if (tk.k !== 'atom') break;
+      var ty = atomText(tk), ok2;
+      if (modeR === 'h') ok2 = isHangulish(ty);
+      else ok2 = !isHangulish(ty);
+      if (!ok2) break;
+      end = j; j++;
+    }
+    c.start = start;
+    c.end = end;
+    c.numParts = tokensToParts(toks, start, a);
+    c.denParts = tokensToParts(toks, b, end);
+    c.denSuffix = stripTrailingPunct(c.denParts);
+    if (partsEmpty(c.numParts) || partsEmpty(c.denParts)) return null;
+    // step counter: 「단계 2 / 4」
+    if (isInt(c.numParts) && isInt(c.denParts)) {
+      var pj = start - 1;
+      while (pj >= 0 && toks[pj].k === 'ws') pj--;
+      if (pj >= 0 && toks[pj].k === 'atom' && isHangulOnly(atomText(toks[pj]))) return null;
+    }
+    return c;
+  }
+
+  // ---- public: segments ------------------------------------------------
+  function segments(text) {
+    text = String(text == null ? '' : text);
+    if (text.indexOf('/') < 0) return [{ t: 's', v: text }];
+    var toks = tokenize(text);
+    var cands = [];
+    for (var i = 0; i < toks.length; i++) {
+      if (toks[i].k !== 'slash') continue;
+      var c = candidate(toks, i);
+      if (c) cands.push(c);
+    }
+    // overlapping claims (a/b/c chains) → none of them become fractions
+    for (var x = 1; x < cands.length; x++) {
+      if (cands[x].start <= cands[x - 1].end) { cands[x].bad = true; cands[x - 1].bad = true; }
+    }
+    var good = [];
+    for (var y = 0; y < cands.length; y++) if (!cands[y].bad) good.push(cands[y]);
+
+    var out = [];
+    var ci = 0;
+    for (var k = 0; k < toks.length;) {
+      var cc = good[ci];
+      if (cc && cc.start === k) {
+        pushSegs(out, partsToSegs(cc.numPrefix, false));
+        out.push({ t: 'f', num: partsToSegs(cc.numParts, true), den: partsToSegs(cc.denParts, true) });
+        pushSegs(out, partsToSegs(cc.denSuffix, false));
+        k = cc.end + 1;
+        ci++;
+      } else {
+        pushSegs(out, tokenToSegs(toks[k]));
+        k++;
+      }
+    }
+    if (!out.length) out.push({ t: 's', v: '' });
+    return out;
+  }
+
+  function hasFrac(segs) {
+    for (var i = 0; i < segs.length; i++) if (segs[i].t === 'f') return true;
+    return false;
+  }
+  function flatText(segs) {
+    var s = '';
+    for (var i = 0; i < segs.length; i++) {
+      var g = segs[i];
+      s += g.t === 's' ? g.v : flatText(g.num) + '/' + flatText(g.den);
+    }
+    return s;
+  }
+
+  // ---- public: stackHtml ------------------------------------------------
+  function underMc(el) {
+    while (el && el.nodeType === 1) {
+      if (el.id && el.id.indexOf('mc-') === 0) return true;
+      el = el.parentNode;
+    }
+    return false;
+  }
+  function skipEl(el) {
+    var tag = (el.tagName || '').toLowerCase();
+    if (tag === 'script' || tag === 'style' || tag === 'svg') return true;
+    if (el.id && el.id.indexOf('mc-') === 0) return true;
+    return false;
+  }
+  function segsToFragment(doc, segs) {
+    var frag = doc.createDocumentFragment();
+    for (var i = 0; i < segs.length; i++) {
+      var g = segs[i];
+      if (g.t === 's') { frag.appendChild(doc.createTextNode(g.v)); continue; }
+      var wrap = doc.createElement('span');
+      wrap.className = 'mf';
+      var num = doc.createElement('span');
+      num.className = 'mf-n';
+      num.appendChild(segsToFragment(doc, g.num));
+      var den = doc.createElement('span');
+      den.className = 'mf-d';
+      den.appendChild(segsToFragment(doc, g.den));
+      wrap.appendChild(num);
+      wrap.appendChild(den);
+      frag.appendChild(wrap);
+    }
+    return frag;
+  }
+  function stackHtml(rootEl) {
+    if (!rootEl) return 0;
+    var doc = rootEl.ownerDocument || rootEl;
+    if (rootEl.nodeType === 9) rootEl = rootEl.body || rootEl.documentElement;
+    if (!rootEl || underMc(rootEl.nodeType === 1 ? rootEl : rootEl.parentNode)) return 0;
+    var walker = doc.createTreeWalker(rootEl, 5 /* SHOW_ELEMENT | SHOW_TEXT */, {
+      acceptNode: function (node) {
+        if (node.nodeType === 1) return skipEl(node) ? 2 /* REJECT */ : 3 /* SKIP */;
+        return node.nodeValue && node.nodeValue.indexOf('/') >= 0 ? 1 /* ACCEPT */ : 3;
+      }
+    });
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    var count = 0;
+    for (var i = 0; i < nodes.length; i++) {
+      var tn = nodes[i];
+      if (!tn.parentNode) continue;
+      var segs = segments(tn.nodeValue);
+      if (!hasFrac(segs)) continue;
+      tn.parentNode.replaceChild(segsToFragment(doc, segs), tn);
+      count++;
+    }
+    return count;
+  }
+
+  // ---- public: stackSvg -------------------------------------------------
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+  function stackSvg(svgRoot) {
+    if (!svgRoot) return 0;
+    var doc = svgRoot.ownerDocument || svgRoot;
+    var texts = svgRoot.querySelectorAll ? svgRoot.querySelectorAll('text') : [];
+    var count = 0;
+    for (var i = 0; i < texts.length; i++) {
+      var el = texts[i];
+      if (el.querySelector('tspan')) continue;
+      if (underMc(el)) continue;
+      // 호출자가 data-mf-skip 을 붙인 글자(촘촘한 리드아웃 행)는 가로 표기 그대로 둔다 —
+      // 44px 간격 행에 세로 분수를 쌓으면 윗줄·아랫줄과 겹친다(실측 7개 개념).
+      if (el.getAttribute && el.getAttribute('data-mf-skip')) continue;
+      var raw = el.textContent;
+      if (!raw || raw.indexOf('/') < 0) continue;
+      var segs = segments(raw);
+      if (!hasFrac(segs)) continue;
+
+      var view = doc.defaultView || window;
+      var fs = 16;
+      try { fs = parseFloat(view.getComputedStyle(el).fontSize) || 16; } catch (e) { fs = 16; }
+      var sfs = fs * 0.8;
+      var upDy = round2(-0.55 * sfs);
+      var downDy = round2(1.15 * sfs);
+      var restoreDy = round2(-(upDy + downDy));
+
+      while (el.firstChild) el.removeChild(el.firstChild);
+      var pending = []; // {num, den, next}
+      var afterFrac = false;
+      var lastPlain = null;
+      function plainTspan(txt) {
+        var t = doc.createElementNS(SVG_NS, 'tspan');
+        if (afterFrac) { t.setAttribute('dy', String(restoreDy)); afterFrac = false; }
+        t.textContent = txt;
+        el.appendChild(t);
+        return t;
+      }
+      for (var s = 0; s < segs.length; s++) {
+        var g = segs[s];
+        if (g.t === 's') { lastPlain = plainTspan(g.v); continue; }
+        if (afterFrac) { plainTspan(''); }
+        var num = doc.createElementNS(SVG_NS, 'tspan');
+        num.setAttribute('class', 'mf-n');
+        num.setAttribute('font-size', '0.8em');
+        num.setAttribute('dy', String(upDy));
+        num.setAttribute('text-decoration', 'underline');
+        num.textContent = flatText(g.num);
+        var den = doc.createElementNS(SVG_NS, 'tspan');
+        den.setAttribute('class', 'mf-d');
+        den.setAttribute('font-size', '0.8em');
+        den.setAttribute('dy', String(downDy));
+        den.textContent = flatText(g.den);
+        el.appendChild(num);
+        el.appendChild(den);
+        pending.push({ num: num, den: den, next: null });
+        afterFrac = true;
+      }
+      if (afterFrac) plainTspan('');
+      // measure, then centre num/den on a shared axis and re-align the suffix
+      var kids = el.childNodes;
+      for (var p = 0; p < pending.length; p++) {
+        var pr = pending[p];
+        var nextT = pr.den.nextSibling;
+        var nw = 0, dw = 0;
+        try { nw = pr.num.getComputedTextLength(); dw = pr.den.getComputedTextLength(); } catch (e2) { nw = 0; dw = 0; }
+        var maxW = Math.max(nw, dw);
+        var numDx = (maxW - nw) / 2;
+        var denDx = -(numDx + nw) + (maxW - dw) / 2;
+        var sufDx = maxW - ((maxW - dw) / 2 + dw);
+        pr.num.setAttribute('dx', String(round2(numDx)));
+        pr.den.setAttribute('dx', String(round2(denDx)));
+        if (nextT && nextT.setAttribute) nextT.setAttribute('dx', String(round2(sufDx)));
+      }
+      void kids;
+      count++;
+    }
+    return count;
+  }
+  function round2(v) { return Math.round(v * 100) / 100; }
+
+  window.MatthsFrac = { segments: segments, stackHtml: stackHtml, stackSvg: stackSvg, flatText: flatText };
+})(typeof window !== 'undefined' ? window : this);
+
+    </script>
+    <script>
+      // 리드아웃 중복 제거 — **값까지 같을 때만** 숨긴다.
+      //
+      // 처음에는 라벨만 같으면 뒤엣것을 숨겼는데, 그러면 정보가 있는 쪽이 사라진다.
+      // 실제로 그랬다: "경우의 수 = 0"(아직 안 움직인 실시간 행)만 남고
+      // "경우의 수 = 3", "= 3 × 2 = 6"(설명이 담긴 행)이 지워졌다.
+      // 어느 쪽이 실시간인지는 정적으로 구분할 수 없으므로, 판단하지 않는다.
+      // 완전히 같은 줄만 지우고 나머지는 그대로 둔다.
+      (function dedupeReadout() {
+        const seen = new Set();
+        document.querySelectorAll(".readout").forEach((el) => {
+          const t = (el.textContent || "").replace(/\s+/g, " ").trim();
+          if (!t) return;
+          if (seen.has(t)) el.style.display = "none";
+          else seen.add(t);
+        });
+      })();
+
+      // 리드아웃 숫자 공통 포맷 — d 는 최대 소수 자릿수. 정수에 닿으면 끝자리 0 을 떼고
+      // (0.000 → 0, 168.100 → 168.1), 부호는 리드아웃 원문과 같은 −(U+2212).
+      // 아키타입 12개가 전부 이걸 부른다. 화면에 찍는 숫자만 다듬고 좌표 계산에는 안 쓴다.
+      function __fx(v, d) {
+        if (!isFinite(v)) return "—";
+        var s = (Math.abs(v) < 5e-9 ? 0 : v).toFixed(d);
+        if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+        if (s === "-0") s = "0";
+        return s.replace(/^-/, "−");
+      }
+      window.__fx = __fx;
+
+      // 세로 분수 — HTML(타이틀·패널·자막·결론)은 지금, SVG 라벨은 폰트가 실린 뒤
+      // (tspan 폭을 재야 분자·분모를 가운데 맞춘다). 실시간 리드아웃이 textContent 를
+      // 덮어쓰면 그 줄만 가로로 돌아간다 — 값 줄은 어차피 계산기 표기라 그대로 둔다.
+      (function stackFractions() {
+        if (!window.MatthsFrac) return;
+        const root = document.getElementById("root");
+        try { MatthsFrac.stackHtml(root); } catch (e) { console.warn("frac html", e); }
+        // 세로로 커진 글자를 감싸던 상자(<rect> 형제)는 빌드 때 가로 표기 크기로 그려졌다 —
+        // 실측 bbox 로 다시 맞춘다. 상자가 글자 앞 형제일 때만(생성기 관례).
+        const refitBoxes = () => root.querySelectorAll("svg text").forEach((t) => {
+          if (!t.querySelector("tspan.mf-n")) return;
+          const r = t.previousElementSibling;
+          if (!r || r.tagName.toLowerCase() !== "rect") return;
+          let b; try { b = t.getBBox(); } catch (e) { return; }
+          if (!b || !b.width) return;
+          const pad = 8;
+          const rx = parseFloat(r.getAttribute("x")), ry = parseFloat(r.getAttribute("y"));
+          if (![rx, ry].every(isFinite)) return;
+          // 가로 표기보다 세로 분수가 좁고 높다 — 상자를 글자에 딱 맞춘다(키우기만 하면 옆이 빈다).
+          r.setAttribute("x", b.x - pad); r.setAttribute("width", b.width + pad * 2);
+          r.setAttribute("y", b.y - pad); r.setAttribute("height", b.height + pad * 2);
+        });
+        // 리드아웃·메모 행(HUD)은 44px 간격으로 촘촘하다 — 세로 분수를 쌓으면 윗줄과 겹친다.
+        // 그 줄은 어차피 계산기 값 줄이라 가로 표기로 둔다. 무대의 수식 라벨만 쌓는다.
+        root.querySelectorAll("svg text.readout, svg text[id^='hud'], svg text[id^='ro'], svg text[id^='note'], svg #hud text")
+          .forEach((t) => t.setAttribute("data-mf-skip", "1"));
+        const svgPass = () => {
+          root.querySelectorAll("svg").forEach((s) => { try { MatthsFrac.stackSvg(s); } catch (e) { console.warn("frac svg", e); } });
+          try { refitBoxes(); } catch (e) { console.warn("frac box", e); }
+        };
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(svgPass); else svgPass();
+      })();
+
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      // 공통 이징 — ease 를 안 적은 트윈의 기본을 power1.out → power2.out 으로.
+      // 감속이 또렷해져 등장이 덜 밋밋하다. ease 를 명시한 트윈에는 영향이 없다.
+      gsap.defaults({ ease: "power2.out" });
+      // 타이틀 인트로 — 첫 0.7초만 내려앉고, 그 뒤로는 끝까지 고정이다.
+      // (타이틀이 계속 움직이면 "무엇을 보고 있는지" 의 닻이 흔들린다.)
+      tl.fromTo("#band-title", { opacity: 0, y: -26 },
+        { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 0);
+      // ── 실시간 재생 모드 (앱·웹) ────────────────────────────────────
+      // mp4 로 굽지 않고 이 HTML 을 그대로 앱·웹에서 돌린다.
+      // 그래도 소리와 그림이 어긋나지 않는 이유는 **시계가 하나이기 때문**이다:
+      // 나레이션 오디오의 currentTime 이 유일한 시계이고, 타임라인은 매 프레임
+      // 그 값으로 seek 될 뿐 스스로 흐르지 않는다. 렌더러가 하던 일과 같다.
+      //
+      // ?live=1 일 때만 켠다. 하이퍼프레임즈 렌더 중에는 렌더러가 타임라인을
+      // 직접 몰기 때문에, 여기서 또 몰면 두 시계가 싸운다.
+      function startLive() {
+        const audio = document.getElementById("voice");
+        if (!audio) return;
+        // 이벤트에 기대지 않고 매 프레임 오디오 시각을 그대로 따라간다.
+        // play/pause 이벤트로 rAF 를 켜고 끄면 순서가 어긋날 때 조용히 멈춘다
+        // (실제로 그렇게 멈췄다). 항상 돌면서 읽기만 하는 쪽이 단순하고 안전하다.
+        let last = -1;
+        const sync = () => {
+          const t = audio.currentTime;
+          // seek 의 두 번째 인자는 suppressEvents 이고 **기본값이 true** 다.
+          // 그대로 두면 onUpdate 가 안 불려서 실시간 리드아웃이 0 에 얼어붙는다
+          // (경우의 수·변위 같은 값이 안 움직이던 원인이 이것이었다).
+          if (t !== last) { tl.seek(t, false); last = t; }
+        };
+        // rAF 는 부드럽지만 **탭이 백그라운드로 가면 멈춘다.** 오디오는 계속
+        // 흐르므로 그동안 그림만 얼어붙고, 돌아오면 어긋난 채로 이어진다.
+        // timeupdate 는 백그라운드에서도 초당 4회쯤 오므로 이걸 보조 시계로 둔다.
+        // 둘 다 같은 sync 를 부르니 어느 쪽이 이겨도 결과가 같다.
+        (function raf() { sync(); requestAnimationFrame(raf); })();
+        audio.addEventListener("timeupdate", sync);
+        audio.addEventListener("seeked", sync);
+        document.addEventListener("visibilitychange", sync);
+        audio.addEventListener("ended", () => {
+          tl.seek(tl.duration(), false);
+          window.dispatchEvent(new CustomEvent("matths:lesson-finished"));
+        });
+        if (window.__mcPreview) { window.__mcPreview.mount(audio, tl); return; }
+        audio.play().catch(() => {
+          // 자동재생이 막히면 첫 탭에서 시작한다(브라우저 정책).
+          document.addEventListener("pointerdown", () => audio.play(), { once: true });
+        });
+      }
+
+      // ── 데스크톱 미리보기 — 파일을 더블클릭해 열었을 때 ─────────────────
+      // 앱과 렌더러는 ?live=1 을 붙여 연다. 쿼리 없이 file:// 로 열린 경우만이다.
+      // 사파리·크롬은 소리 있는 자동재생을 막는다. 오디오가 유일한 시계라서 그러면
+      // 첫 프레임에서 영영 멈춘 것처럼 보인다(실제로 그렇게 보였다). 그래서
+      // ① 무대를 창에 맞춰 축소하고 ② 재생 버튼을 크게 띄우고 ③ 조작 줄을 준다.
+      (function desktopPreview() {
+        if (location.protocol !== "file:" || location.search) return;
+        document.documentElement.classList.add("mc-preview");
+        document.body.classList.add("mc-preview");
+        const fit = () => {
+          const s = Math.min(window.innerWidth / 1080, (window.innerHeight - 56) / 1920);
+          document.documentElement.style.setProperty("--mc-scale", String(Math.max(0.05, s)));
+        };
+        fit(); window.addEventListener("resize", fit);
+        const fmt = (t) => { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); };
+        window.__mcPreview = {
+          mount(audio, tl) {
+            const dur = () => (isFinite(audio.duration) && audio.duration > 0) ? audio.duration : tl.duration();
+            const ctl = document.createElement("div"); ctl.id = "mc-ctl";
+            const meta = (document.title || document.querySelector(".t-sub") && document.querySelector(".t-sub").textContent || "").trim();
+            ctl.innerHTML = '<button id="mc-btn" aria-label="재생/일시정지">▶</button>'
+              + '<div class="mc-bar"><div class="mc-fill"></div></div>'
+              + '<span class="mc-time">0:00 / ' + fmt(dur()) + '</span>'
+              + '<span class="mc-voice">' + (audio.dataset.voice === "female" ? "여성 보이스" : "남성 보이스") + '</span>'
+              + '<span class="mc-meta">' + meta.replace(/</g, "&lt;") + '</span>';
+            document.body.appendChild(ctl);
+            const btn = ctl.querySelector("#mc-btn"), bar = ctl.querySelector(".mc-bar"),
+                  fill = ctl.querySelector(".mc-fill"), time = ctl.querySelector(".mc-time");
+            const overlay = document.createElement("div"); overlay.id = "mc-play";
+            overlay.innerHTML = '<div><span>재생</span><small>클릭 또는 스페이스 · ←/→ 5초 · 소리가 켜져 있어야 그림이 움직입니다</small></div>';
+            document.body.appendChild(overlay);
+            const hideOverlay = () => { overlay.style.display = "none"; };
+            const toggle = () => { if (audio.paused) audio.play().then(hideOverlay).catch(() => {}); else audio.pause(); };
+            overlay.addEventListener("click", toggle);
+            btn.addEventListener("click", toggle);
+            bar.addEventListener("click", (e) => {
+              const r = bar.getBoundingClientRect();
+              audio.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * dur();
+            });
+            document.addEventListener("keydown", (e) => {
+              if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+              if (e.code === "Space") { e.preventDefault(); toggle(); }
+              else if (e.key === "ArrowRight") audio.currentTime = Math.min(dur(), audio.currentTime + 5);
+              else if (e.key === "ArrowLeft") audio.currentTime = Math.max(0, audio.currentTime - 5);
+              else if (e.key === "Home") audio.currentTime = 0;
+            });
+            const paint = () => {
+              const d = dur(); const t = audio.currentTime || 0;
+              fill.style.width = (d ? (t / d) * 100 : 0) + "%";
+              time.textContent = fmt(t) + " / " + fmt(d);
+              btn.textContent = audio.paused ? "▶" : "❚❚";
+              requestAnimationFrame(paint);
+            };
+            paint();
+            audio.addEventListener("play", hideOverlay);
+            audio.addEventListener("ended", () => { overlay.style.display = ""; });
+            // 사파리는 file:// 문서가 자기 폴더 밖의 미디어를 못 읽는다(상위 폴더 → 
+            // MEDIA_ERR_SRC_NOT_SUPPORTED). 빌드가 compositions/assets/... 에 같은 파일을
+            // 하드링크로 걸어 두므로 미리보기에서는 그 경로를 먼저 읽고, 없으면 원경로.
+            const orig = audio.getAttribute("src") || "";
+            const mirror = orig && !orig.startsWith("compositions/") ? "compositions/" + orig : orig;
+            const note = overlay.querySelector("small");
+            audio.addEventListener("error", () => {
+              const cur = audio.getAttribute("src");
+              if (cur === mirror && mirror !== orig) { audio.setAttribute("src", orig); audio.load(); audio.play().then(hideOverlay).catch(() => {}); return; }
+              overlay.style.display = "";
+              if (note) note.textContent = "음성 파일을 찾을 수 없습니다 — assets/voice 폴더가 compositions 옆에 있어야 합니다 (" + cur + ")";
+            });
+            if (mirror !== orig) audio.setAttribute("src", mirror);
+            try { audio.load(); } catch (e) {}
+            // 자동재생이 허용되는 환경이면 그냥 시작한다. 막히면 오버레이가 남는다.
+            audio.play().then(hideOverlay).catch(() => {});
+          }
+        };
+      })();
+      // 해설 음성 기본값은 **표면마다 다르다.**
+      //   웹  = 꺼짐(효과음만) — 교실·독서실·공용 PC 에서 열린다. 들어가자마자
+      //         사람 목소리가 나면 사고다. 학생이 켜야 나온다.
+      //   앱  = 여성 목소리 — 개인 기기이고 이어폰을 낀 채 쓰는 게 보통이다.
+      // 앱은 ?voice=female 처럼 명시해 넘기고, 아무것도 안 넘기면 웹 기본을 따른다.
+      (function applyVoicePreference() {
+        const q = new URLSearchParams(location.search);
+        // 웹 기본은 효과음만이다. 다만 파일을 직접 열어 검수할 때(file://)는
+        // 소리가 나야 확인이 되므로 앱 기본(여성)을 쓴다. 명시하면 그것이 우선.
+        const isFileOpen = location.protocol === "file:";
+        const audio = document.getElementById("voice");
+        if (!audio) return;
+        // 성우 트랙은 파일에 구워져 있다(<id>.html 남성 · <id>.female.html 여성).
+        // 파일로 열 때는 이 파일이 실은 트랙을 그대로 켠다 — 라벨도 실제 트랙을 따른다.
+        const baked = (audio.getAttribute("src") || "").indexOf("voice-female/") >= 0 ? "female" : "male";
+        const voice = q.get("voice") || (isFileOpen ? baked : "off");
+        if (voice === "off") {
+          audio.muted = true;
+          audio.dataset.voice = "off";
+        } else {
+          audio.muted = false;
+          audio.dataset.voice = voice;
+        }
+      })();
+
+      // 더블클릭(file://)으로 열면 쿼리를 못 넘기니 그때는 live 로 본다.
+      // 렌더러는 http 로 열고 타임라인을 직접 몰므로 이 분기를 타지 않는다.
+      const q = new URLSearchParams(location.search);
+      const isFile = location.protocol === "file:";
+      if (q.get("live") === "1" || (isFile && q.get("live") !== "0")) {
+        // load 가 이미 지났으면 리스너를 달아 봤자 영영 안 불린다.
+        // 실제로 그래서 타임라인이 0 에 멈춰 있었다 — 오디오는 흐르는데
+        // seek 을 부르는 쪽이 없었다. 두 경우를 모두 챙긴다.
+        if (document.readyState === "complete") startLive();
+        else window.addEventListener("load", startLive, { once: true });
+      }
+
+      const PLAN = {"is3d":false,"pitch":0.3141592653589793,"yaw0":-0.4886921905584123,"yaw1":0.4886921905584123,"anchors":[{"kind":"point","at":[-2,0,0],"seg":null,"quad":null,"label":"F₁(−2, 0)"},{"kind":"point","at":[2,0,0],"seg":null,"quad":null,"label":"F₂(2, 0)"}],"locus":{"type":"ellipse","c":[0,0,0],"a":3,"b":2.23606797749979,"ux":[1,0,0],"uy":[0,1,0],"u0":0,"u1":6.283185307179586},"mover":{"kind":"point","lerp":null,"shape":null,"tail":null},"gauges":[{"label":"PF₁","from":{"kind":"anchor","i":0},"to":{"kind":"mover"},"arc":false},{"label":"PF₂","from":{"kind":"anchor","i":1},"to":{"kind":"mover"},"arc":false}],"inv":{"type":"sum","label":"PF₁ + PF₂ = 6 (고정)","shown":"6","value":6},"proj":null,"unwind":null,"vecB":null,"showAreas":false,"ratioSwap":false,"cam":{"left":-4.970930232558139,"right":4.970930232558139,"bottom":-3.8,"top":3.8}};
+      const PX = 108.6316, CX = 0, CY = 0;
+      const SW = 1080, SH = 825.6;
+      const X = (x) => (x - CX) * PX + SW / 2;
+      const Y = (y) => SH / 2 - (y - CY) * PX;
+      const $ = (s) => document.querySelector(s);
+
+      const IS3D = PLAN.is3d;
+      const CP = Math.cos(PLAN.pitch), SP = Math.sin(PLAN.pitch);
+      const state = { t: 0, yaw: PLAN.yaw0, reveal: 0, tilt: 0, uw: 0, vop: 0, rk: 1 };
+
+      const sub = (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+      const add = (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
+      const mul = (a, k) => [a[0]*k, a[1]*k, a[2]*k];
+      const vlen = (a) => Math.hypot(a[0], a[1], a[2]);
+      const dot3 = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+      const lerp3 = (a, b, t) => [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+
+      // 3D 는 하드컷 없이 프레임 yaw 만 돌려 깊이를 만든다(바닥면 = xy, 위 = z).
+      function proj(p) {
+        const x = p[0], y = p[1] || 0, z = p[2] || 0;
+        if (!IS3D) return [X(x), Y(y)];
+        const cy = Math.cos(state.yaw), sy = Math.sin(state.yaw);
+        const u = x * cy - y * sy;
+        const v = x * sy + y * cy;
+        return [X(u), Y(z * CP - v * SP)];
+      }
+      const ptsAttr = (arr) => arr.map((p) => { const q = proj(p); return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' ');
+      const attrOf2 = (arr) => arr.map((q) => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ');
+      // 그림자(정사영) 외곽선 — 상자처럼 꼭짓점이 8개면 원래 배열 순서(모서리 순서)가
+      // 화면에 그대로 이어질 때 나비넥타이 모양으로 자기교차한다. 볼록체(상자)의 평행투영은
+      // 반드시 볼록다각형이므로, 화면좌표로 옮긴 뒤 볼록 껍질(convex hull) 순서로 다시 잇는다.
+      function hull2(points) {
+        const uniq = [];
+        for (const p of points) {
+          if (!uniq.some((u) => Math.abs(u[0] - p[0]) < 0.5 && Math.abs(u[1] - p[1]) < 0.5)) uniq.push(p);
+        }
+        if (uniq.length < 3) return uniq;
+        uniq.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+        const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+        const lower = [];
+        for (const p of uniq) {
+          while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+          lower.push(p);
+        }
+        const upper = [];
+        for (let i = uniq.length - 1; i >= 0; i--) {
+          const p = uniq[i];
+          while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+          upper.push(p);
+        }
+        lower.pop(); upper.pop();
+        return lower.concat(upper);
+      }
+
+      // ── 자취 위의 점 ────────────────────────────────────────────────
+      function locusAt(t) {
+        const L = PLAN.locus;
+        if (!L) return [0, 0, 0];
+        if (L.type === 'segment') return lerp3(L.p0, L.p1, t);
+        if (L.type === 'circle') {
+          const u = L.u0 + (L.u1 - L.u0) * t;
+          const r = L.r * state.rk;                 // 반지름 스윕 — 비는 그대로여야 한다
+          return add(L.c, add(mul(L.ux, r * Math.cos(u)), mul(L.uy, r * Math.sin(u))));
+        }
+        if (L.type === 'ellipse') {
+          const u = L.u0 + (L.u1 - L.u0) * t;
+          return add(L.c, add(mul(L.ux, L.a * Math.cos(u)), mul(L.uy, L.b * Math.sin(u))));
+        }
+        if (L.type === 'hyperbola') {
+          const u = L.u0 + (L.u1 - L.u0) * t;
+          return add(L.c, add(mul(L.ux, L.a * Math.cosh(u)), mul(L.uy, L.b * Math.sinh(u))));
+        }
+        if (L.type === 'parabola') {
+          // 준선 위 좌표 k, 초점까지 거리 s → 준선에서 s/2 + k²/(2s) 만큼 떨어진 자리
+          const k = L.k0 + (L.k1 - L.k0) * t;
+          const h = L.s / 2 + (k * k) / (2 * L.s);
+          return add(L.o, add(mul(L.u, k), mul(L.n, h)));
+        }
+        return [0, 0, 0];
+      }
+
+      // ── 대상의 꼭짓점들 ────────────────────────────────────────────
+      function baseShape() {
+        const s = PLAN.mover.shape;
+        if (!s) return null;
+        const a = s.size[0], b = s.size[1], c = s.size[2];
+        if (s.form === 'segment') return { pts: [[-a/2, 0, 0.9], [a/2, 0, 0.9]], edges: [[0,1]] };
+        if (s.form === 'box') {
+          const P = [];
+          for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [0, 1])
+            P.push([sx*a/2, sy*b/2, sz*c]);
+          return { pts: P, edges: [[0,1],[0,2],[1,3],[2,3],[4,5],[4,6],[5,7],[6,7],[0,4],[1,5],[2,6],[3,7]] };
+        }
+        return { pts: [[-a/2, -b/2, 0.9], [a/2, -b/2, 0.9], [0, b/2, 0.9]], edges: null };
+      }
+      const SHAPE = baseShape();
+
+      function moverPts(t) {
+        const M = PLAN.mover;
+        if (M.lerp) return M.lerp.from.map((p, i) => lerp3(p, M.lerp.to[i], t));
+        if (SHAPE) {
+          // 기울이기 — 정사영의 각이 있으면 그 범위로, 없으면 0 → 40°
+          const s0 = PLAN.proj && PLAN.proj.sweep ? PLAN.proj.sweep[0] : 0;
+          const s1 = PLAN.proj && PLAN.proj.sweep ? PLAN.proj.sweep[1] : 40;
+          const th = (s0 + (s1 - s0) * t) * Math.PI / 180;
+          const c = Math.cos(th), s = Math.sin(th);
+          return SHAPE.pts.map((p) => [p[0], p[1]*c - p[2]*s, p[1]*s + p[2]*c]);
+        }
+        const P = locusAt(t);
+        if (M.kind === 'vector') return [M.tail || [0,0,0], P];
+        return [P];
+      }
+      function primary(pts) {
+        if (PLAN.mover.kind === 'vector') return pts[pts.length - 1];
+        if (pts.length === 1) return pts[0];
+        let s = [0, 0, 0];
+        for (const q of pts) s = add(s, q);
+        return mul(s, 1 / pts.length);
+      }
+
+      // ── 수선의 발 ──────────────────────────────────────────────────
+      function planeAnchor() { return PLAN.anchors.find((a) => a.quad); }
+      function lineAnchor() { return PLAN.anchors.find((a) => a.seg); }
+      function footOnSeg(p, seg) {
+        const d = sub(seg[1], seg[0]);
+        const dd = dot3(d, d);
+        if (dd < 1e-9) return seg[0].slice();
+        const k = dot3(sub(p, seg[0]), d) / dd;
+        return add(seg[0], mul(d, k));
+      }
+      function footOf(p, hint) {
+        const pl = planeAnchor(), ln = lineAnchor();
+        if (hint && /평면|그림자|투영/.test(hint) && pl) return [p[0], p[1], 0];
+        if (hint && /^y축|^허수축/.test(hint)) return [0, p[1], 0];
+        if (hint && /준선/.test(hint) && ln) return footOnSeg(p, ln.seg);
+        if (hint && /^x축|^실수축|^축$/.test(hint)) return [p[0], 0, 0];
+        if (hint && /축/.test(hint) && ln) return footOnSeg(p, ln.seg);
+        if (IS3D && pl) return [p[0], p[1], 0];
+        if (ln) return footOnSeg(p, ln.seg);
+        return [p[0], 0, 0];
+      }
+
+      // 수선을 어디에서 내릴 것인가 — 대상이 이미 투영면 위에 붙어 있으면
+      // (공간의 삼수선처럼) 출발점은 대상이 아니라 면 밖의 앵커다. 한 번만 정한다.
+      const FOOTSRC = (function () {
+        let on = 0; const n = 41;
+        for (let i = 0; i < n; i++) {
+          const P = primary(moverPts(i / (n - 1)));
+          if (vlen(sub(P, footOf(P, null))) < 0.06) on += 1;
+        }
+        if (on <= n * 0.9) return null;
+        const a = PLAN.anchors.find((an) => an.at && vlen(sub(an.at, footOf(an.at, null))) > 0.06);
+        return a ? a.at : null;
+      })();
+
+      function endPoint(spec, pts) {
+        const P = primary(pts);
+        if (spec.kind === 'anchor') {
+          const a = PLAN.anchors[spec.i];
+          if (!a) return P;
+          if (a.at) return a.at;
+          if (a.seg) return footOnSeg(P, a.seg);
+          if (a.quad) return [P[0], P[1], 0];
+          return P;
+        }
+        if (spec.kind === 'tail') return pts[0];
+        if (spec.kind === 'head') return pts[pts.length - 1];
+        if (spec.kind === 'start') return primary(moverPts(0));
+        if (spec.kind === 'foot') return footOf(FOOTSRC || P, spec.hint);
+        return P;
+      }
+
+      // 자취를 따라 잰 호의 길이(라벨에 '호' 가 붙은 게이지용)
+      const ARC = (function () {
+        const acc = [0];
+        let prev = locusAt(0);
+        for (let i = 1; i <= 240; i++) {
+          const q = locusAt(i / 240);
+          acc.push(acc[i - 1] + vlen(sub(q, prev)));
+          prev = q;
+        }
+        return acc;
+      })();
+      // 호 길이도 반지름과 같은 배로 늘어난다(같은 중심의 닮음).
+      const arcAt = (t) => ARC[Math.max(0, Math.min(240, Math.round(t * 240)))] * state.rk;
+
+      function gaugeLen(g, pts) {
+        if (g.arc) return arcAt(state.t);
+        return vlen(sub(endPoint(g.to, pts), endPoint(g.from, pts)));
+      }
+
+      // 'min' 불변량은 경로 전체를 미리 훑어 최솟값을 잡아 둔다(되감아도 같은 값).
+      const MINLEN = (function () {
+        if (PLAN.inv.type !== 'min' || !PLAN.gauges.length) return null;
+        let m = Infinity;
+        for (let i = 0; i <= 240; i++) {
+          const pts = moverPts(i / 240);
+          m = Math.min(m, gaugeLen(PLAN.gauges[0], pts));
+        }
+        return m;
+      })();
+
+      function polyArea(pts) {
+        if (pts.length < 3) return 0;
+        // 3D 다각형 넓이 — 삼각형 분할 후 외적 크기의 합
+        let s = 0;
+        for (let i = 1; i + 1 < pts.length; i++) {
+          const u = sub(pts[i], pts[0]), v = sub(pts[i + 1], pts[0]);
+          s += vlen([u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]]) / 2;
+        }
+        return s;
+      }
+
+      function invText(lens, pts) {
+        const T = PLAN.inv.type;
+        if (T === 'sum' && lens.length >= 2) return (lens[0] + lens[1]).toFixed(2);
+        // "PF − PH = 0" 처럼 차가 0 인 불변량은 선언값 대신 실제 차를 보여 준다.
+        if (T === 'const' && lens.length >= 2 && PLAN.inv.value !== null && Math.abs(PLAN.inv.value) < 1e-6) {
+          return Math.abs(lens[0] - lens[1]).toFixed(2);
+        }
+        if (T === 'absdiff' && lens.length >= 2) return Math.abs(lens[0] - lens[1]).toFixed(2);
+        if (T === 'min' && MINLEN !== null) return MINLEN.toFixed(2);
+        if (T === 'ratio') {
+          if (PLAN.showAreas) {
+            const S = polyArea(pts), Sp = polyArea(pts.map((q) => [q[0], q[1], 0]));
+            return S > 1e-6 ? (Sp / S).toFixed(3) : '0.000';
+          }
+          if (lens.length >= 2) {
+            const a = PLAN.ratioSwap ? lens[1] : lens[0];
+            const b = PLAN.ratioSwap ? lens[0] : lens[1];
+            return b > 1e-6 ? (a / b).toFixed(3) + ' : 1' : '— : 1';
+          }
+        }
+        if (T === 'dot' && PLAN.gauges.length) {
+          const g0 = PLAN.gauges[0];
+          const v1 = sub(endPoint(g0.to, pts), endPoint(g0.from, pts));
+          const g1 = PLAN.gauges[1] || g0;
+          const v2 = sub(endPoint(g1.to, pts), endPoint(g1.from, pts));
+          return dot3(v1, v2).toFixed(2);
+        }
+        if (T === 'right-angle') return '90.0°';
+        if (PLAN.inv.value !== null) return PLAN.inv.value.toFixed(2);
+        return PLAN.inv.shown;
+      }
+
+      // ── 그리기 ─────────────────────────────────────────────────────
+      const el = {
+        locus: $('#locus'), mvShape: $('#mvShape'), mvDot: $('#mvDot'), mvHead: $('#mvHead'),
+        ghostShape: $('#ghostShape'), ghostDot: $('#ghostDot'),
+        projLegs: $('#projLegs'), projShadow: $('#projShadow'), projShadow2: $('#projShadow2'),
+        projFoot: $('#projFoot'), rightAngle: $('#rightAngle'), angleArc: $('#angleArc'), angleTag: $('#angleTag'),
+        uwAxis: $('#uwAxis'), uwCurve: $('#uwCurve'), uwLink: $('#uwLink'),
+        vopB: $('#vopB'), vopSum: $('#vopSum'), vopPara: $('#vopPara'), vopHead: $('#vopHead'),
+        hudBg: $('#hudBg'), hudInv: $('#hudInv'), hudS: $('#hudS'), hudSp: $('#hudSp'),
+      };
+
+      // 수학 도형의 좌표는 그대로 두고, 글자만 빈자리로 옮긴다. 라벨을 단순히
+      // midpoint 에 박으면 축 눈금·앵커·다른 게이지와 같은 자리를 쓰게 된다.
+      // 후보군과 점수는 현재 프레임만으로 정해져 임의 seek 에도 같은 결과가 난다.
+      function labelSize(node) {
+        let width = 18;
+        try { width = Math.max(width, node.getComputedTextLength()); } catch (_) {}
+        const font = parseFloat(getComputedStyle(node).fontSize) || 27;
+        return { w: width + 10, h: font * 1.28 };
+      }
+      function labelBox(x, y, size) {
+        return {
+          left: x - size.w / 2, right: x + size.w / 2,
+          top: y - size.h * 0.82, bottom: y + size.h * 0.18,
+        };
+      }
+      function padded(box, amount) {
+        return {
+          left: box.left - amount, right: box.right + amount,
+          top: box.top - amount, bottom: box.bottom + amount,
+        };
+      }
+      function overlapArea(a, b) {
+        return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+          * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+      }
+      function gridLabelBoxes() {
+        return Array.from(document.querySelectorAll('#grid text')).map((node) => {
+          const b = node.getBBox();
+          return padded({ left: b.x, right: b.x + b.width, top: b.y, bottom: b.y + b.height }, 9);
+        });
+      }
+      function hudBox() {
+        if (!el.hudBg) return null;
+        const x = Number(el.hudBg.getAttribute('x')) || 0;
+        const y = Number(el.hudBg.getAttribute('y')) || 0;
+        const width = Number(el.hudBg.getAttribute('width')) || 0;
+        const height = Number(el.hudBg.getAttribute('height')) || 0;
+        return padded({ left: x, right: x + width, top: y, bottom: y + height }, 14);
+      }
+      function fitHudBackdrop() {
+        if (!el.hudBg) return;
+        // 직전 프레임의 width를 시작값으로 쓰면 역방향 seek 결과가 달라진다.
+        let right = 30 + 350;
+        document.querySelectorAll('#hud text').forEach((node) => {
+          const b = node.getBBox();
+          right = Math.max(right, b.x + b.width + 22);
+        });
+        el.hudBg.setAttribute('width', Math.min(SW - 60, Math.ceil(right - 30)));
+      }
+      function candidatesFor(item, size) {
+        if (item.kind === 'axis') {
+          return [[item.x, item.y], [item.x, item.y - 42], [item.x, item.y + 42]];
+        }
+        if (item.kind === 'anchor-point') {
+          const side = size.w / 2 + 28;
+          return [
+            [item.x, item.y - 38], [item.x, item.y + 50],
+            [item.x + side, item.y + 8], [item.x - side, item.y + 8],
+            [item.x + side, item.y - 38], [item.x - side, item.y - 38],
+          ];
+        }
+        if (item.kind === 'gauge') {
+          const dx = item.b[0] - item.a[0], dy = item.b[1] - item.a[1];
+          const length = Math.hypot(dx, dy);
+          if (length < 12) {
+            const start = -Math.PI / 2 + item.index * (Math.PI * 2 / Math.max(2, item.count));
+            return [44, 72, 104].flatMap((radius) => [0, Math.PI, Math.PI / 2, -Math.PI / 2]
+              .map((turn) => [item.x + Math.cos(start + turn) * radius, item.y + Math.sin(start + turn) * radius]));
+          }
+          const nx = -dy / length, ny = dx / length;
+          const tx = dx / length, ty = dy / length;
+          const first = item.index % 2 === 0 ? -1 : 1;
+          const out = [];
+          for (const distance of [34, 58, 86]) {
+            for (const side of [first, -first]) {
+              out.push([item.x + nx * distance * side, item.y + ny * distance * side]);
+              out.push([item.x + nx * distance * side + tx * 42, item.y + ny * distance * side + ty * 42]);
+              out.push([item.x + nx * distance * side - tx * 42, item.y + ny * distance * side - ty * 42]);
+            }
+          }
+          return out;
+        }
+        if (item.kind === 'angle') {
+          const dx = Math.cos(item.angle), dy = Math.sin(item.angle);
+          const turns = [0, 0.42, -0.42, 0.82, -0.82];
+          return [96, 126, 158].flatMap((radius) => turns.map((turn) => {
+            const c = Math.cos(item.angle + turn), s = Math.sin(item.angle + turn);
+            return [item.x + c * radius, item.y + s * radius];
+          })).concat([[item.x + dx * 188, item.y + dy * 188]]);
+        }
+        return [[item.x, item.y], [item.x, item.y - 42], [item.x, item.y + 42], [item.x + 56, item.y], [item.x - 56, item.y]];
+      }
+      function layoutStageLabels(items) {
+        const occupied = gridLabelBoxes();
+        const hud = hudBox();
+        if (hud) occupied.push(hud);
+        for (const item of items) {
+          if (!item.node || !(item.node.textContent || '').trim()) continue;
+          const size = labelSize(item.node);
+          let best = null;
+          for (const raw of candidatesFor(item, size)) {
+            const x = Math.max(18 + size.w / 2, Math.min(SW - 18 - size.w / 2, raw[0]));
+            const y = Math.max(18 + size.h * 0.82, Math.min(SH - 18 - size.h * 0.18, raw[1]));
+            const box = labelBox(x, y, size);
+            const overlap = occupied.reduce((sum, other) => sum + overlapArea(box, other), 0);
+            const travel = Math.hypot(x - raw[0], y - raw[1]);
+            const score = overlap * 1000 + travel;
+            if (!best || score < best.score) best = { x, y, box, score };
+            if (overlap === 0 && travel < 0.01) break;
+          }
+          item.node.setAttribute('x', best.x.toFixed(1));
+          item.node.setAttribute('y', best.y.toFixed(1));
+          occupied.push(padded(best.box, 10));
+        }
+      }
+
+      function arrowHead(tail, head, w) {
+        const a = proj(tail), b = proj(head);
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const L = Math.hypot(dx, dy) || 1;
+        const ux = dx / L, uy = dy / L;
+        const bx = b[0] - ux * w * 1.7, by = b[1] - uy * w * 1.7;
+        return [b[0] + ',' + b[1], (bx - uy * w) + ',' + (by + ux * w), (bx + uy * w) + ',' + (by - ux * w)].join(' ');
+      }
+
+      function draw() {
+        const t = state.t;
+        const pts = moverPts(t);
+        const P = primary(pts);
+        const labelItems = [];
+
+        // 앵커 — yaw 가 돌면 자리도 같이 돈다
+        PLAN.anchors.forEach((a, i) => {
+          const shape = document.getElementById('an-' + i);
+          const lbl = document.getElementById('lbl-' + i);
+          let anchorScreen = null;
+          let anchorKind = 'anchor';
+          if (a.quad && shape) {
+            shape.setAttribute('points', ptsAttr(a.quad));
+            anchorScreen = proj(a.quad[3]);
+            anchorScreen = [anchorScreen[0], anchorScreen[1] - 16];
+          } else if (a.seg && shape) {
+            const q0 = proj(a.seg[0]), q1 = proj(a.seg[1]);
+            shape.setAttribute('x1', q0[0]); shape.setAttribute('y1', q0[1]);
+            shape.setAttribute('x2', q1[0]); shape.setAttribute('y2', q1[1]);
+            anchorScreen = [q1[0] - 60, q1[1] - 18];
+          } else if (a.at && shape) {
+            const q = proj(a.at);
+            shape.setAttribute('cx', q[0]); shape.setAttribute('cy', q[1]);
+            anchorScreen = q;
+            anchorKind = 'anchor-point';
+          } else if (a.at) {
+            const q = proj(a.at);
+            anchorScreen = q;
+            anchorKind = 'anchor-point';
+          } else if (a.kind === 'axis') {
+            const vertical = /y축|허수/.test(a.label || '');
+            anchorScreen = vertical ? [X(0) + 62, 50] : [SW - 92, Y(0) - 22];
+            anchorKind = 'axis';
+          }
+          if (lbl && anchorScreen) {
+            labelItems.push({ node: lbl, kind: anchorKind, x: anchorScreen[0], y: anchorScreen[1], index: i });
+          }
+        });
+
+        // 대상
+        if (pts.length > 1) {
+          if (SHAPE && SHAPE.edges) {
+            let d = '';
+            for (const e of SHAPE.edges) {
+              const q0 = proj(pts[e[0]]), q1 = proj(pts[e[1]]);
+              d += 'M' + q0[0].toFixed(1) + ' ' + q0[1].toFixed(1) + 'L' + q1[0].toFixed(1) + ' ' + q1[1].toFixed(1) + ' ';
+            }
+            el.mvShape.setAttribute('points', '');
+            el.mvShape.setAttribute('stroke', 'none');
+            let wire = document.getElementById('mvWire');
+            if (!wire) {
+              wire = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              wire.setAttribute('id', 'mvWire');
+              wire.setAttribute('fill', 'none');
+              wire.setAttribute('stroke', el.mvDot.getAttribute('fill'));
+              wire.setAttribute('stroke-width', '5');
+              wire.setAttribute('stroke-linejoin', 'round');
+              el.mvShape.parentNode.insertBefore(wire, el.mvShape);
+            }
+            wire.setAttribute('d', d);
+          } else {
+            const closed = PLAN.mover.kind !== 'vector' && pts.length > 2;
+            el.mvShape.setAttribute('points', ptsAttr(closed ? pts.concat([pts[0]]) : pts));
+          }
+        } else {
+          el.mvShape.setAttribute('points', '');
+        }
+        if (PLAN.mover.kind === 'vector' && pts.length > 1) {
+          el.mvHead.setAttribute('points', arrowHead(pts[0], pts[1], 13));
+        } else {
+          el.mvHead.setAttribute('points', '');
+        }
+        const qp = proj(P);
+        el.mvDot.setAttribute('cx', qp[0]); el.mvDot.setAttribute('cy', qp[1]);
+        el.mvDot.setAttribute('opacity', pts.length > 2 ? 0 : 1);
+
+        // 잔상(변환 전 모습)
+        const g0 = moverPts(0);
+        if (g0.length > 1) el.ghostShape.setAttribute('points', ptsAttr(g0.length > 2 ? g0.concat([g0[0]]) : g0));
+        const gq = proj(primary(g0));
+        el.ghostDot.setAttribute('cx', gq[0]); el.ghostDot.setAttribute('cy', gq[1]);
+        el.ghostDot.setAttribute('opacity', g0.length > 2 ? 0 : 1);
+
+        // 게이지 — 앵커에서 대상까지, 숫자는 계속 변한다
+        const lens = [];
+        PLAN.gauges.forEach((g, i) => {
+          const A = endPoint(g.from, pts), Bp = endPoint(g.to, pts);
+          const L = gaugeLen(g, pts);
+          lens.push(L);
+          const qa = proj(A), qb = proj(Bp);
+          const line = document.getElementById('gg-' + i);
+          const txt = document.getElementById('ggt-' + i);
+          if (line) {
+            line.setAttribute('x1', qa[0]); line.setAttribute('y1', qa[1]);
+            line.setAttribute('x2', qb[0]); line.setAttribute('y2', qb[1]);
+          }
+          if (txt) {
+            txt.textContent = g.label;
+            labelItems.push({
+              node: txt, kind: 'gauge', index: i, count: PLAN.gauges.length,
+              x: (qa[0] + qb[0]) / 2, y: (qa[1] + qb[1]) / 2, a: qa, b: qb,
+            });
+          }
+          const hg = document.getElementById('hudG-' + i);
+          if (hg) hg.textContent = (g.label || ('길이' + (i + 1))) + ' = ' + __fx(L, 2);
+        });
+        if (el.hudInv) el.hudInv.textContent = (PLAN.inv.label || '불변량') + ' → ' + invText(lens, pts);
+
+        if (PLAN.showAreas && el.hudS) {
+          const S = polyArea(pts), Sp = polyArea(pts.map((q) => [q[0], q[1], 0]));
+          el.hudS.textContent = 'S = ' + __fx(S, 2);
+          el.hudSp.textContent = "S' = " + __fx(Sp, 2);
+        }
+
+        // 정사영 · 직각 · 사잇각
+        const fh = PLAN.proj ? (PLAN.proj.onto === 'plane' ? '평면' : PLAN.proj.onto === 'line' ? '준선' : null) : null;
+        const src = FOOTSRC || P;
+        const F = footOf(src, fh);
+        const qf = proj(F);
+        el.projFoot.setAttribute('cx', qf[0]); el.projFoot.setAttribute('cy', qf[1]);
+        if (PLAN.proj && PLAN.proj.onto === 'axes3') {
+          const A0 = PLAN.anchors.find((a) => a.at) ? PLAN.anchors.find((a) => a.at).at : [0, 0, 0];
+          el.projLegs.setAttribute('points', ptsAttr([A0, [P[0], A0[1], A0[2]], P]));
+          el.projShadow.setAttribute('points', '');
+          el.projShadow2.setAttribute('points', '');
+        } else {
+          el.projLegs.setAttribute('points', ptsAttr([src, F]));
+          if (pts.length > 2) {
+            // 상자는 꼭짓점이 모서리 순서(육면체 인덱스)로 나열돼 있어 그대로 이으면
+            // 자기교차한다 — 화면좌표의 볼록 껍질로 다시 이어야 진짜 그림자 윤곽이 된다.
+            el.projShadow.setAttribute('points', attrOf2(hull2(pts.map((q) => proj([q[0], q[1], 0])))));
+            const wall = PLAN.proj && PLAN.proj.show.some((s) => /front|앞/.test(s));
+            el.projShadow2.setAttribute('points', wall
+              ? attrOf2(hull2(pts.map((q) => proj([q[0], PLAN.cam.top * 0.9, q[2]]))))
+              : '');
+          } else {
+            el.projShadow.setAttribute('points', '');
+            el.projShadow2.setAttribute('points', '');
+          }
+        }
+        // 직각 표시 — 발에서 두 방향으로 작은 ㄱ자
+        (function () {
+          const u = sub(src, F);
+          const ln = lineAnchor();
+          const v = ln ? sub(ln.seg[1], ln.seg[0]) : [1, 0, 0];
+          if (vlen(u) < 1e-6) { el.rightAngle.setAttribute('d', ''); return; }
+          const a = proj(F), b = proj(add(F, mul(u, 1 / vlen(u))));
+          const c = proj(add(F, mul(v, 1 / (vlen(v) || 1))));
+          const k = 24;
+          const n1 = [(b[0]-a[0]), (b[1]-a[1])], n2 = [(c[0]-a[0]), (c[1]-a[1])];
+          const L1 = Math.hypot(n1[0], n1[1]) || 1, L2 = Math.hypot(n2[0], n2[1]) || 1;
+          const p1 = [a[0] + n1[0]/L1*k, a[1] + n1[1]/L1*k];
+          const p2 = [a[0] + n2[0]/L2*k, a[1] + n2[1]/L2*k];
+          const p3 = [p1[0] + n2[0]/L2*k, p1[1] + n2[1]/L2*k];
+          el.rightAngle.setAttribute('d', 'M' + p1[0].toFixed(1) + ' ' + p1[1].toFixed(1)
+            + 'L' + p3[0].toFixed(1) + ' ' + p3[1].toFixed(1)
+            + 'L' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1));
+        })();
+
+        // 사잇각 호 — 게이지 두 개가 이루는 각
+        (function () {
+          if (PLAN.gauges.length < 1) { el.angleArc.setAttribute('d', ''); el.angleTag.textContent = ''; return; }
+          const g0 = PLAN.gauges[0];
+          const V = endPoint(g0.from, pts);
+          const R1 = endPoint(g0.to, pts);
+          const R2 = PLAN.gauges[1] ? endPoint(PLAN.gauges[1].to, pts) : add(V, [1, 0, 0]);
+          const qv = proj(V), q1 = proj(R1), q2 = proj(R2);
+          const a1 = Math.atan2(q1[1] - qv[1], q1[0] - qv[0]);
+          const a2 = Math.atan2(q2[1] - qv[1], q2[0] - qv[0]);
+          const r = 56;
+          let da = a2 - a1;
+          while (da > Math.PI) da -= Math.PI * 2;
+          while (da < -Math.PI) da += Math.PI * 2;
+          const large = 0, sweepF = da > 0 ? 1 : 0;
+          const s = [qv[0] + r * Math.cos(a1), qv[1] + r * Math.sin(a1)];
+          const e = [qv[0] + r * Math.cos(a1 + da), qv[1] + r * Math.sin(a1 + da)];
+          el.angleArc.setAttribute('d', 'M' + s[0].toFixed(1) + ' ' + s[1].toFixed(1)
+            + 'A' + r + ' ' + r + ' 0 ' + large + ' ' + sweepF + ' ' + e[0].toFixed(1) + ' ' + e[1].toFixed(1));
+          const mid = a1 + da / 2;
+          const deg = Math.abs(da * 180 / Math.PI);
+          el.angleTag.textContent = (PLAN.proj && PLAN.proj.angleLabel ? PLAN.proj.angleLabel + ' ' : '')
+            + deg.toFixed(1) + '°';
+          if (PLAN.proj) labelItems.push({ node: el.angleTag, kind: 'angle', x: qv[0], y: qv[1], angle: mid });
+        })();
+
+        fitHudBackdrop();
+        layoutStageLabels(labelItems);
+
+        // 벡터 합 — 삼각형법과 평행사변형법이 한 점에서 만난다
+        if (PLAN.vecB) {
+          const tail = pts[0], head = pts[pts.length - 1];
+          const b = mul(PLAN.vecB, state.vop);
+          const sum = add(head, b);
+          const qh = proj(head), qs = proj(sum), qt = proj(tail), qb = proj(add(tail, b));
+          el.vopB.setAttribute('x1', qh[0]); el.vopB.setAttribute('y1', qh[1]);
+          el.vopB.setAttribute('x2', qs[0]); el.vopB.setAttribute('y2', qs[1]);
+          el.vopSum.setAttribute('x1', qt[0]); el.vopSum.setAttribute('y1', qt[1]);
+          el.vopSum.setAttribute('x2', qs[0]); el.vopSum.setAttribute('y2', qs[1]);
+          el.vopPara.setAttribute('points', ptsAttr([tail, head, sum, add(tail, b), tail]));
+          el.vopHead.setAttribute('points', arrowHead(tail, sum, 13));
+        }
+
+        // 자취 — t 까지 지나온 자리를 모은 선
+        (function () {
+          const n = 220;
+          const upto = Math.max(0.001, state.reveal > 0 ? Math.max(state.reveal, t) : t);
+          let d = '';
+          for (let i = 0; i <= n; i++) {
+            const tt = (i / n) * upto;
+            const q = proj(locusAt(tt));
+            d += (i === 0 ? 'M' : 'L') + q[0].toFixed(1) + ' ' + q[1].toFixed(1) + ' ';
+          }
+          el.locus.setAttribute('d', d);
+        })();
+
+        // 회전을 오른쪽으로 풀어 그래프로 전개
+        if (PLAN.unwind) {
+          const L = PLAN.locus;
+          const cx = L && L.c ? L.c[0] : 0, cy = L && L.c ? L.c[1] : 0;
+          const r = L && L.r ? L.r : 1;
+          const x0 = cx + r + 0.35;
+          const span = PLAN.unwind.span || Math.PI * 2;
+          const sc = Math.max(0.2, (PLAN.cam.right - 0.4 - x0) / span);
+          const y0 = proj([x0, cy, 0]);
+          const y1 = proj([x0 + span * sc, cy, 0]);
+          el.uwAxis.setAttribute('x1', y0[0]); el.uwAxis.setAttribute('y1', y0[1]);
+          el.uwAxis.setAttribute('x2', y1[0]); el.uwAxis.setAttribute('y2', y1[1]);
+          const upto = state.uw;
+          let d = '';
+          const n = 160;
+          for (let i = 0; i <= n; i++) {
+            const th = span * (i / n) * upto;
+            const q = proj([x0 + th * sc, cy + r * Math.sin(th), 0]);
+            d += (i === 0 ? 'M' : 'L') + q[0].toFixed(1) + ' ' + q[1].toFixed(1) + ' ';
+          }
+          el.uwCurve.setAttribute('d', d);
+          const thNow = span * upto;
+          const qa = proj([cx + r * Math.cos(thNow), cy + r * Math.sin(thNow), 0]);
+          const qb2 = proj([x0 + thNow * sc, cy + r * Math.sin(thNow), 0]);
+          el.uwLink.setAttribute('x1', qa[0]); el.uwLink.setAttribute('y1', qa[1]);
+          el.uwLink.setAttribute('x2', qb2[0]); el.uwLink.setAttribute('y2', qb2[1]);
+        }
+      }
+      draw();
+      const re = { onUpdate: draw };
+
+      tl.to("#grid", { opacity: 1, duration: 0.6 }, 0.10);
+      tl.fromTo("#tm-0", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.6)" }, 1.400);
+      tl.to("#anchors", { opacity: 1, duration: 0.5 }, 0.150);
+      tl.fromTo("#anchors circle", { attr: { r: 0 } }, { attr: { r: 13 }, duration: 0.55, ease: "back.out(2)", stagger: 0.09 }, 0.150);
+      tl.to("#mover", { opacity: 1, duration: 0.4 }, 11.046);
+      tl.fromTo("#mvDot", { attr: { r: 0 } }, { attr: { r: 15 }, duration: 0.5, ease: "back.out(2)" }, 11.046);
+      tl.to("#gauges", { opacity: 1, duration: 0.4 }, 12.388);
+      tl.fromTo("#hud", { opacity: 0, x: -26 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, 13.420);
+      tl.to(state, { t: 0.500, duration: 4.086, ease: "sine.inOut", ...re }, 16.136);
+      tl.to("#gg-0", { attr: { "stroke-width": 7 }, duration: 0.3 }, 20.898);
+      tl.to("#gg-0", { attr: { "stroke-width": 4.5 }, duration: 0.35, ease: "power2.in" }, 22.422);
+      tl.to(state, { t: 0.680, duration: 3.584, ease: "sine.inOut", ...re }, 20.988);
+      tl.to("#locus", { opacity: 1, duration: 0.5 }, 25.090);
+      tl.to(state, { t: 1.000, reveal: 1.000, duration: 2.975, ease: "sine.inOut", ...re }, 25.195);
+      tl.to("#locus", { attr: { "stroke-width": 9 }, duration: 0.25 }, 28.030);
+      tl.to("#locus", { attr: { "stroke-width": 6 }, duration: 0.4, ease: "power2.in" }, 28.345);
+      tl.to("#lbl-0", { attr: { fill: "var(--m-blue)" }, duration: 0.5 }, 27.645);
+      tl.to("#lbl-1", { attr: { fill: "var(--m-blue)" }, duration: 0.5 }, 27.750);
+      tl.to("#gauges", { opacity: 0.55, duration: 0.4 }, 40.778);
+      tl.to("#gauges", { opacity: 1, duration: 0.4 }, 42.205);
+      tl.fromTo("#tm-1", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.5)" }, 45.797);
+      tl.fromTo("#tm-2", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.5)" }, 47.678);
+      tl.fromTo("#tm-3", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.5)" }, 49.558);
+      tl.fromTo("#tm-4", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.5)" }, 51.439);
+      tl.fromTo("#tm-5", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.5)" }, 53.319);
+      tl.to("#tm-5 .boxline", { opacity: 1, duration: 0.4 }, 53.846);
+      tl.to("#tm-5 .tag", { opacity: 1, duration: 0.35 }, 54.196);
+      tl.to("#tm-0", { scale: 1.07, duration: 0.3 }, 6.180);
+      tl.to("#tm-0", { scale: 1, duration: 0.35, ease: "power2.in" }, 6.500);
+      tl.to("#locus", { attr: { "stroke-width": 8 }, duration: 0.3 }, 28.640);
+      tl.to("#locus", { attr: { "stroke-width": 6 }, duration: 0.35, ease: "power2.in" }, 28.960);
+      tl.to("#locus", { attr: { "stroke-width": 8 }, duration: 0.3 }, 34.940);
+      tl.to("#locus", { attr: { "stroke-width": 6 }, duration: 0.35, ease: "power2.in" }, 35.260);
+      tl.to(["#grid", "#anchors", "#gauges", "#mover", "#locus", "#proj", "#hud", "#ghost", "#unwind", "#vecops"], { opacity: 0, duration: 0.7 }, 55.812);
+      tl.fromTo("#verdict", { opacity: 0, scale: 0.94, y: 12 }, { opacity: 1, scale: 1, y: 0, duration: 0.8, ease: "back.out(1.3)" }, 57.262);
+
+      tl.fromTo("#cap-0", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 0.000);
+      tl.to("#cap-0", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 5.760);
+      tl.fromTo("#cap-1", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 5.760);
+      tl.to("#cap-1", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 10.540);
+      tl.fromTo("#cap-2", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 10.540);
+      tl.to("#cap-2", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 15.700);
+      tl.fromTo("#cap-3", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 15.700);
+      tl.to("#cap-3", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 20.240);
+      tl.fromTo("#cap-4", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 20.240);
+      tl.to("#cap-4", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 24.720);
+      tl.fromTo("#cap-5", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 24.720);
+      tl.to("#cap-5", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 28.220);
+      tl.fromTo("#cap-6", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 28.220);
+      tl.to("#cap-6", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 34.520);
+      tl.fromTo("#cap-7", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 34.520);
+      tl.to("#cap-7", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 40.320);
+      tl.fromTo("#cap-8", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 40.320);
+      tl.to("#cap-8", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 46.660);
+      tl.fromTo("#cap-9", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 46.660);
+      tl.to("#cap-9", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 53.080);
+      tl.fromTo("#cap-10", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 53.080);
+      tl.to("#cap-10", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 55.400);
+      tl.fromTo("#cap-11", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 55.400);
+      tl.to("#cap-11", { opacity: 0, y: -12, duration: 0.24, ease: "power2.in" }, 61.280);
+
+      window.__timelines["geometry-01-02"] = tl;
+    </script>
+  </body>
+</html>

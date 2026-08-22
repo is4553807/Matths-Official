@@ -27,7 +27,11 @@ const {
   participantRole,
   publicQuestionsForAttempt,
   questionDeadlineAt,
+  resolveAdvanceAnswer,
+  resolveTimeoutReplayReconciliation,
   submitExpiredArenaAttempts,
+  timeoutAdvanceOperationId,
+  TIMEOUT_ADVANCE_RECONCILIATION_MS,
 } = require("../services/arenaMatchAttemptService");
 const {
   compareArenaAttemptScores,
@@ -333,6 +337,242 @@ async function run() {
     /문항 정보/
   );
 
+  assert.deepEqual(
+    resolveAdvanceAnswer({
+      submissionMode: "TIME_LIMIT",
+      value: " 23 ",
+      savedAnswer: "17",
+    }),
+    {
+      timedOut: true,
+      finalAnswer: "23",
+      shouldApplyAnswer: true,
+    },
+    "TIME_LIMIT advance must prefer the explicit latest answer"
+  );
+  assert.deepEqual(
+    resolveAdvanceAnswer({
+      submissionMode: "TIME_LIMIT",
+      value: "",
+      savedAnswer: "17",
+    }),
+    {
+      timedOut: true,
+      finalAnswer: "",
+      shouldApplyAnswer: true,
+    },
+    "an explicit empty TIME_LIMIT answer must clear an older saved value"
+  );
+  assert.deepEqual(
+    resolveAdvanceAnswer({
+      submissionMode: "TIME_LIMIT",
+      savedAnswer: "17",
+    }),
+    {
+      timedOut: true,
+      finalAnswer: "17",
+      shouldApplyAnswer: false,
+    },
+    "scheduler TIME_LIMIT calls without value must preserve the saved answer"
+  );
+  assert.equal(
+    resolveAdvanceAnswer({
+      submissionMode: "TIME_LIMIT",
+      value: "17",
+      savedAnswer: "17",
+    }).shouldApplyAnswer,
+    false,
+    "an already-durable TIME_LIMIT value must not increment answer revision twice"
+  );
+  assert.throws(
+    () =>
+      resolveAdvanceAnswer({
+        submissionMode: "TIME_LIMIT",
+        value: "1000",
+        savedAnswer: "17",
+      }),
+    /3자리 이하 자연수/
+  );
+
+  const timeoutDeadline = new Date(
+    "2026-08-01T01:00:00.000Z"
+  );
+  const timeoutOperationId =
+    timeoutAdvanceOperationId({
+      attemptId:
+        "507f1f77bcf86cd799439011",
+      deadlineAt:
+        timeoutDeadline,
+    });
+  assert.equal(
+    timeoutOperationId,
+    `QUESTION_TIME_LIMIT:507f1f77bcf86cd799439011:${timeoutDeadline.getTime()}`,
+    "browser and scheduler must share one server-derived timeout operation"
+  );
+  const fallbackEventAt = new Date(
+    timeoutDeadline.getTime() + 1000
+  );
+  const timeoutReplayAttempt = {
+    _id: "507f1f77bcf86cd799439011",
+    status: "IN_PROGRESS",
+    currentQuestionIndex: 1,
+    evidenceSubmittedAt: null,
+    answers: [
+      {
+        questionKey: "TIMEOUT-Q1",
+        value: "17",
+      },
+      {
+        questionKey: "TIMEOUT-Q2",
+        value: "",
+      },
+    ],
+  };
+  const timeoutReplayPack = {
+    questions: [
+      { questionKey: "TIMEOUT-Q1" },
+      { questionKey: "TIMEOUT-Q2" },
+    ],
+  };
+  const timeoutFallbackReplay = {
+    serverAt: fallbackEventAt,
+    answerChanges: [
+      {
+        questionKey: "TIMEOUT-Q1",
+        value: "17",
+      },
+    ],
+    metadata: {
+      completedQuestionNumber: 1,
+      submissionMode: "TIME_LIMIT",
+      latestValueProvided: false,
+      questionDeadlineAt:
+        timeoutDeadline,
+      timeoutOperationId,
+    },
+  };
+  const reconciledTimeout =
+    resolveTimeoutReplayReconciliation({
+      attempt:
+        timeoutReplayAttempt,
+      pack: timeoutReplayPack,
+      replay: timeoutFallbackReplay,
+      operationId:
+        timeoutOperationId,
+      submissionMode: "TIME_LIMIT",
+      value: "23",
+      now: new Date(
+        fallbackEventAt.getTime() +
+          1000
+      ),
+    });
+  assert.equal(
+    reconciledTimeout?.finalAnswer,
+    "23",
+    "a scheduler-first timeout replay must reconcile the browser's atomic latest value"
+  );
+  assert.equal(
+    reconciledTimeout?.shouldApplyAnswer,
+    true
+  );
+  assert.equal(
+    resolveTimeoutReplayReconciliation({
+      attempt:
+        timeoutReplayAttempt,
+      pack: timeoutReplayPack,
+      replay: timeoutFallbackReplay,
+      operationId:
+        timeoutOperationId,
+      submissionMode: "TIME_LIMIT",
+      value: "29",
+      now: new Date(
+        fallbackEventAt.getTime() -
+          1000
+      ),
+    })?.finalAnswer,
+    "29",
+    "a client transaction that started first must reconcile after losing the scheduler commit race"
+  );
+  assert.equal(
+    resolveTimeoutReplayReconciliation({
+      attempt:
+        timeoutReplayAttempt,
+      pack: timeoutReplayPack,
+      replay: timeoutFallbackReplay,
+      operationId:
+        timeoutOperationId,
+      submissionMode: "TIME_LIMIT",
+      value: "",
+      now: new Date(
+        fallbackEventAt.getTime() +
+          1000
+      ),
+    })?.finalAnswer,
+    "",
+    "the reconciled latest value must preserve an explicit empty answer"
+  );
+  assert.equal(
+    resolveTimeoutReplayReconciliation({
+      attempt:
+        timeoutReplayAttempt,
+      pack: timeoutReplayPack,
+      replay: {
+        ...timeoutFallbackReplay,
+        metadata: {
+          ...timeoutFallbackReplay.metadata,
+          latestValueProvided: true,
+        },
+      },
+      operationId:
+        timeoutOperationId,
+      submissionMode: "TIME_LIMIT",
+      value: "23",
+      now: new Date(
+        fallbackEventAt.getTime() +
+          1000
+      ),
+    }),
+    null,
+    "a logical timeout operation may consume an explicit latest value only once"
+  );
+  assert.equal(
+    resolveTimeoutReplayReconciliation({
+      attempt:
+        timeoutReplayAttempt,
+      pack: timeoutReplayPack,
+      replay: timeoutFallbackReplay,
+      operationId:
+        `${timeoutOperationId}:other`,
+      submissionMode: "TIME_LIMIT",
+      value: "23",
+      now: new Date(
+        fallbackEventAt.getTime() +
+          1000
+      ),
+    }),
+    null,
+    "a different logical operation must not rewrite a scheduler fallback"
+  );
+  assert.equal(
+    resolveTimeoutReplayReconciliation({
+      attempt:
+        timeoutReplayAttempt,
+      pack: timeoutReplayPack,
+      replay: timeoutFallbackReplay,
+      operationId:
+        timeoutOperationId,
+      submissionMode: "TIME_LIMIT",
+      value: "23",
+      now: new Date(
+        fallbackEventAt.getTime() +
+          TIMEOUT_ADVANCE_RECONCILIATION_MS +
+          1
+      ),
+    }),
+    null,
+    "a stale page must not rewrite an answer after the bounded scheduler race window"
+  );
+
   const publicQuestions =
     publicQuestionsForAttempt(
       sealed,
@@ -502,6 +742,13 @@ async function run() {
     ),
     "utf8"
   );
+  const controllerSource = fs.readFileSync(
+    path.join(
+      root,
+      "controllers/goatArenaController.js"
+    ),
+    "utf8"
+  );
   const viewSource = fs.readFileSync(
     path.join(
       root,
@@ -515,6 +762,14 @@ async function run() {
       "public/js/goat-arena-match.js"
     ),
     "utf8"
+  );
+  const advanceServiceSource = serviceSource.slice(
+    serviceSource.indexOf(
+      "async function advanceArenaMatchQuestion"
+    ),
+    serviceSource.indexOf(
+      "function normalizeSignals"
+    )
   );
 
   assert.equal(
@@ -554,6 +809,26 @@ async function run() {
       routeSource.includes(
         '"/goat-arena/matches/:matchId/evidence"'
       )
+  );
+  assert.match(
+    controllerSource,
+    /advanceArenaMatchQuestion\(\{[\s\S]*?value:\s*req\.body\.value,[\s\S]*?req\.body\.submissionMode\s*===\s*"TIME_LIMIT"[\s\S]*?\?\s*"TIME_LIMIT"[\s\S]*?:\s*"MANUAL"/,
+    "the HTTP adapter must forward the exact latest answer and explicit TIME_LIMIT mode"
+  );
+  assert.ok(
+    advanceServiceSource.indexOf("if (replay)") <
+      advanceServiceSource.indexOf("resolveAdvanceAnswer({"),
+    "advance idempotency replay must win before a retried body is interpreted"
+  );
+  assert.match(
+    viewSource,
+    /data-timeout-operation-id="<%= matchData\.attempt\.timeoutOperationId %>"/,
+    "the server-issued timeout operation must be rendered for the browser"
+  );
+  assert.match(
+    clientSource,
+    /effectiveMode\s*===\s*"TIME_LIMIT"[\s\S]*?timeoutOperationId[\s\S]*?\?\s*timeoutOperationId/,
+    "the browser must reuse the scheduler's logical timeout operation"
   );
   assert.ok(
     viewSource.includes(
