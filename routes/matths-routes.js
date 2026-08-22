@@ -1393,6 +1393,18 @@ router.get(
   }
 );
 
+// 카카오의 앱 진입점. 구글과 같은 PKCE 왕복을 타고, 결과는
+// matths://oauth/kakao 로 돌아간다(mobileCallbackURL 이 provider 별로 나눈다).
+// isLoggedOut 을 걸지 않는 것도 구글과 같다 — 앱은 세션이 아니라 Bearer 로 살고,
+// 여기에 세션 가드를 걸면 웹에 로그인된 상태에서 앱 로그인이 막힌다.
+router.get(
+  "/auth/kakao/app",
+  (req, res, next) => {
+    req.params.provider = "kakao";
+    return matthsController.socialOAuthAppStart(req, res, next);
+  }
+);
+
 router.get(
   "/auth/kakao",
   authMiddleware.isLoggedOut,

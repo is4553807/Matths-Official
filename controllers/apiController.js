@@ -582,7 +582,16 @@ exports.login = async (
   }
 };
 
-exports.exchangeGoogleAuthCode = async (
+/*
+ * 앱이 소셜 왕복을 끝내고 받은 1회용 코드를 토큰으로 바꾼다.
+ *
+ * **provider 를 받지 않는다.** 그랜트가 발급될 때 이미 어느 사용자인지 확정돼
+ * 있고, 여기서는 code + codeVerifier(PKCE) 만 검증하면 된다. 구글·카카오가
+ * 같은 처리기를 쓰는 이유이고, 그래서 문구도 provider 이름을 넣지 않는다.
+ *
+ * 이름은 exchangeGoogleAuthCode 였다. 카카오가 붙으면서 거짓말이 되어 고쳤다.
+ */
+exports.exchangeSocialAuthCode = async (
   req,
   res,
   next
@@ -602,7 +611,7 @@ exports.exchangeGoogleAuthCode = async (
         code:
           "SOCIAL_AUTH_GRANT_INVALID",
         message:
-          "Google 로그인 확인 코드가 만료되었거나 이미 사용되었습니다.",
+          "로그인 확인 코드가 만료되었거나 이미 사용되었습니다. 다시 시도해주세요.",
       });
     }
 

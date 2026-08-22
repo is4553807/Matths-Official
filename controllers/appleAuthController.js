@@ -19,7 +19,7 @@ const {
  * Sign in with Apple 교환 경계 — POST /api/v1/auth/apple/exchange (인증 없음).
  *
  * 왜 별도 컨트롤러인가. 구글은 브라우저 왕복 뒤 grant 코드를 교환하지만
- * (apiController.exchangeGoogleAuthCode), 애플은 네이티브 시트가 준 identityToken
+ * (apiController.exchangeSocialAuthCode), 애플은 네이티브 시트가 준 identityToken
  * 하나로 끝난다. 앞 단계가 완전히 다르고 뒷 단계(계정 상태 확인 → 생애주기 동기화
  * → AuthResponse)는 같다. 그래서 **앞 단계만** 여기서 처리하고 뒷 단계는 구글과
  * 같은 함수들을 그대로 부른다. 응답 타입을 새로 만들지 않는 것이 핵심이다 —

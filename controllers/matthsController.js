@@ -585,11 +585,25 @@ exports.socialOAuthStart = async (req, res) => {
   }
 };
 
+/*
+ * 앱(ASWebAuthenticationSession)이 여는 공개 PKCE 진입점.
+ *
+ * provider 는 **라우트가 정한다.** 예전에는 여기서 "google" 을 박아 두었는데,
+ * 그러면 /auth/kakao/app 을 붙여도 구글 동의 화면이 열린다. 아래 왕복
+ * (mobileCallbackURL·finishSocialLogin·redirectSocialAuthError)은 이미 전부
+ * provider 를 받게 되어 있었고, 하드코딩은 이 한 줄뿐이었다.
+ *
+ * 기본값을 google 로 남겨 두는 이유: /auth/google/app 은 provider 를 세팅하지
+ * 않고 이 함수를 바로 부른다. 그 라우트를 건드리지 않고 카카오를 더하기 위한 것이다.
+ */
 exports.socialOAuthAppStart = (
   req,
   res,
   next
 ) => {
+  const provider = String(
+    req.params?.provider || "google"
+  ).toLowerCase();
   const codeChallenge = String(
     req.query?.code_challenge || ""
   ).trim();
@@ -600,19 +614,22 @@ exports.socialOAuthAppStart = (
     )
   ) {
     const error = new Error(
-      "Google 로그인을 안전하게 시작하지 못했습니다. 앱에서 다시 시도해주세요."
+      `${socialProviderLabel(provider)} 로그인을 안전하게 시작하지 못했습니다. 앱에서 다시 시도해주세요.`
     );
     error.code =
       "SOCIAL_AUTH_PKCE_REQUIRED";
+    // provider 를 넘겨야 오류도 그 provider 의 딥링크로 돌아간다.
+    // 안 넘기면 카카오 실패가 matths://oauth/google 로 떨어져 앱이 못 받는다.
     return redirectSocialAuthError(
       req,
       res,
       error,
-      true
+      true,
+      provider
     );
   }
 
-  req.params.provider = "google";
+  req.params.provider = provider;
   req.socialOAuthMobile = true;
   req.socialOAuthCodeChallenge =
     codeChallenge;
@@ -622,6 +639,15 @@ exports.socialOAuthAppStart = (
     next
   );
 };
+
+/** 학생에게 보일 provider 이름. 오류 문구가 "google 로그인" 처럼 나가지 않게 한다. */
+function socialProviderLabel(provider) {
+  switch (String(provider || "").toLowerCase()) {
+    case "kakao": return "카카오";
+    case "apple": return "Apple";
+    default:      return "Google";
+  }
+}
 
 // 앱으로 되돌아가는 딥링크는 **provider 별로 다른 호스트 경로**를 쓴다.
 // matths://oauth/google 을 박아 두면 다른 provider 의 결과가 구글 콜백으로 돌아가

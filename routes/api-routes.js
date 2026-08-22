@@ -82,9 +82,19 @@ router.get(
   "/auth/providers",
   apiController.socialAuthProviders
 );
+// 모바일 그랜트 교환은 **provider 를 보지 않는다.** consumeMobileAuthGrant 는
+// code + codeVerifier 만 소비하고, 누가 발급했는지는 그랜트 안에 이미 들어 있다.
+// 그래서 카카오도 같은 처리기를 쓴다 — 다만 카카오가 /auth/google/exchange 를
+// 부르면 읽는 사람이 반드시 헷갈리므로 provider 중립 이름을 정본으로 둔다.
+router.post(
+  "/auth/social/exchange",
+  apiController.exchangeSocialAuthCode
+);
+// 기존 앱 빌드가 이 주소를 쓴다. TestFlight 에 이미 나간 1.0(1) 이 여기로 오므로
+// 지우면 그 빌드의 구글 로그인이 끊긴다.
 router.post(
   "/auth/google/exchange",
-  apiController.exchangeGoogleAuthCode
+  apiController.exchangeSocialAuthCode
 );
 router.post(
   "/auth/password-reset/request",
