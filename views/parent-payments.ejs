@@ -99,10 +99,11 @@
 
           <% if (order.refund) { %>
             <section class="parent-refund-status">
-              <div><small>최근 환불 신청</small><strong><%= refundStatusLabels[order.refund.status] || order.refund.status %></strong></div>
+              <div><small>최근 환불 신청</small><strong><%= order.refund.status === "REJECTED" && order.refund.calculation?.calculatedAt && Number(order.refund.calculation?.calculatedAmount) === 0 ? "환불액 0원 종결" : refundStatusLabels[order.refund.status] || order.refund.status %></strong></div>
               <p>신청 <%= formatDate(order.refund.requestedAt) %> · 처리기한 <%= formatDate(order.refund.processingDeadlineAt) %></p>
               <% if (order.refund.status === "CALCULATED") { %><p>산정 환불액 <strong><%= formatWon(order.refund.calculation?.calculatedAmount) %></strong></p><% } %>
               <% if (order.refund.status === "COMPLETED") { %><p>완료 환불액 <strong><%= formatWon(order.refund.decision?.approvedAmount) %></strong></p><% } %>
+              <% if (order.refund.status === "REJECTED") { %><p>처리 사유 <strong><%= order.refund.decision?.operatorNote || "이메일 안내를 확인해주세요." %></strong></p><% } %>
             </section>
           <% } %>
 
@@ -132,5 +133,6 @@
       <% }) %>
     </section>
   </main>
+<%- include("partials/business-footer") %>
 </body>
 </html>

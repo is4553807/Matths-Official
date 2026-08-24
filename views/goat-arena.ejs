@@ -84,17 +84,17 @@
         <div class="arena-system-inner">
           <header class="arena-section-heading">
             <div><p>GOAT Arena란?</p><h2 id="arena-onboarding-title">공부한 결과가<br />경쟁으로 이어집니다.</h2></div>
-            <p>학습권 패키지 사용자는 배치고사로 Unranked에 들어가고, 같은 문제를 푼 1대1 결과로 Arena 상태를 지키거나 교환합니다. 내부 실력 지표는 배치고사와 주간 공식 모의고사에서만 갱신되며 1대1 결과와 분리됩니다.</p>
+            <p>학습권 패키지 사용자는 배치고사로 첫 티어를 받고 Unranked 경쟁을 시작합니다. 이후에는 주간 공식 모의고사의 티어 경계 경쟁과 같은 문제를 푸는 1대1 경기, 두 경로로 승급할 수 있습니다.</p>
           </header>
           <ol class="arena-stage-grid arena-stage-grid--compact">
-            <li><b>01</b><small>시작</small><strong>배치고사와 Unranked</strong><p>배치고사로 내부 실력 지표와 첫 Arena 상태를 확정하고 Unranked 경쟁을 시작합니다.</p></li>
+            <li><b>01</b><small>시작</small><strong>배치고사와 Unranked</strong><p>배치고사로 첫 티어·티어 내 순위·GP를 확정하고 Unranked 경쟁을 시작합니다.</p></li>
             <li><b>02</b><small>대결</small><strong><%= arenaMatchRules.questionCount %>문항 · 문항당 <%= arenaMatchRules.timeLimitMinutes %>분 · 1대1</strong><p>두 사용자가 같은 문제를 풀고, 도전자가 이기면 티어·티어 내 순위·GP를 함께 교환합니다.</p></li>
             <li><b>03</b><small>성취</small><strong>페이백과 Ranked</strong><p>Unranked의 페이백 조건을 달성하면 학습일수를 직접 운용하는 Ranked로 올라갑니다.</p></li>
           </ol>
           <div class="arena-definition-grid" aria-label="GOAT Arena 핵심 용어">
             <article><span>GP</span><p>GOAT POINT</p><h3>티어 내부 점수</h3><small>경기에서 Arena 상태가 교환되면 티어와 GP도 함께 움직입니다.</small></article>
             <article><span>순위</span><p>TIER POSITION</p><h3>티어 안에서의 순위</h3><small>화면의 순위는 전체 사용자를 한 줄로 세운 순위가 아니라 현재 티어 안에서 몇 위인지를 의미합니다.</small></article>
-            <article><span>실력</span><p>SKILL SIGNAL</p><h3>내부 실력 지표</h3><small>배치고사와 주간 공식 모의고사로만 갱신되며, 1대1 경기에서 직접 교환되는 점수가 아닙니다.</small></article>
+            <article><span>시험</span><p>WEEKLY COMPETITION</p><h3>티어별 주간 경쟁</h3><small>주간 상위 20% 또는 2주 연속 승급 준비도를 충족한 후보가 바로 위 티어 하위권과 승급을 두고 비교됩니다. 티어별 후보는 최소 1명, 최대 5명입니다.</small></article>
             <article><span>Final</span><p>FINAL RANKING</p><h3>최종 종합 랭킹</h3><small>Arena 성과와 주간 공식 모의고사 결과를 정해진 시각에 합산해 Matths 대시보드에서 공개합니다.</small></article>
           </div>
           <div class="arena-final-actions">
@@ -131,7 +131,7 @@
           <div class="arena-system-summary">
             <span><b>티어가 먼저</b>전체 정렬은 티어 순서 다음 티어 내부 GP를 사용합니다.</span>
             <span><b>순위는 티어 안에서</b>같은 티어에서는 GP와 공식 동점 기준으로 순위를 정합니다.</span>
-            <span><b>내부 실력 지표와 분리</b>Arena 경기 결과로 내부 실력 지표를 직접 올리거나 내리지 않습니다.</span>
+            <span><b>두 가지 승급 경로</b>주간 공식 모의고사 티어 경쟁과 GOAT Arena 1대1 모두 공개 Arena 상태를 바꿀 수 있습니다.</span>
           </div>
         </div>
       </section>
@@ -155,5 +155,6 @@
         </div>
       </section>
     </main>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

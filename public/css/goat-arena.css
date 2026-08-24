@@ -1,3 +1,6 @@
+@import url("/css/business-footer.css");
+@import url("/css/matths-logo.css");
+
 :root {
   --arena-night: #070913;
   --arena-navy: #0a1022;
@@ -4207,12 +4210,11 @@ html {
 
 .arena-access-gate img {
   width: 150px;
-  height: 150px;
-  object-fit: cover;
-  border-radius: 22px;
-  box-shadow:
-    0 20px 55px
-    rgba(4, 6, 20, 0.48);
+  height: auto;
+  object-fit: contain;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .arena-access-gate h2 {
@@ -4471,7 +4473,7 @@ html {
 
   .arena-access-gate img {
     width: 120px;
-    height: 120px;
+    height: auto;
   }
 
   .arena-access-gate > a {

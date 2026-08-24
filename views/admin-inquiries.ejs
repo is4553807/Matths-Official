@@ -68,21 +68,25 @@
               <div><strong><%= inquiry.contactEmail %></strong><small><%= formatDate(inquiry.createdAt) %></small></div>
             </header>
             <div class="admin-inquiry-content"><%= inquiry.content %></div>
-            <div class="admin-inquiry-actions">
-              <form action="/admin/inquiries/<%= inquiry._id %>/status" method="POST">
-                <select name="status">
-                  <option value="pending">접수</option>
-                  <option value="in_review" <%= inquiry.status === "in_review" ? "selected" : "" %>>확인 중</option>
-                  <option value="replied" <%= inquiry.status === "replied" ? "selected" : "" %>>답변 완료</option>
-                  <option value="closed" <%= inquiry.status === "closed" ? "selected" : "" %>>종료</option>
-                </select>
-                <button type="submit">상태 저장</button>
-              </form>
-              <form action="/admin/inquiries/<%= inquiry._id %>/reply" method="POST">
-                <textarea name="message" rows="4" minlength="5" maxlength="5000" placeholder="가입 이메일로 보낼 답변을 작성하세요." required><%= inquiry.adminReply?.message || "" %></textarea>
-                <button type="submit">답변 이메일 전송</button>
-              </form>
-            </div>
+            <% if (inquiry.inquiryType === "REFUND" && inquiry.refundRequestId) { %>
+              <a class="admin-refund-management-link" href="/admin/refunds#refund-<%= inquiry.refundRequestId %>">환불 관리에서 산정·완료·반려 처리 <span aria-hidden="true">→</span></a>
+            <% } else { %>
+              <div class="admin-inquiry-actions">
+                <form action="/admin/inquiries/<%= inquiry._id %>/status" method="POST">
+                  <select name="status">
+                    <option value="pending">접수</option>
+                    <option value="in_review" <%= inquiry.status === "in_review" ? "selected" : "" %>>확인 중</option>
+                    <option value="replied" <%= inquiry.status === "replied" ? "selected" : "" %>>답변 완료</option>
+                    <option value="closed" <%= inquiry.status === "closed" ? "selected" : "" %>>종료</option>
+                  </select>
+                  <button type="submit">상태 저장</button>
+                </form>
+                <form action="/admin/inquiries/<%= inquiry._id %>/reply" method="POST">
+                  <textarea name="message" rows="4" minlength="5" maxlength="5000" placeholder="가입 이메일로 보낼 답변을 작성하세요." required><%= inquiry.adminReply?.message || "" %></textarea>
+                  <button type="submit">답변 이메일 전송</button>
+                </form>
+              </div>
+            <% } %>
           </article>
         <% }) %>
       </section>

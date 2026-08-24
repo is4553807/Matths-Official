@@ -5842,6 +5842,80 @@ const privateMockWeeklyAttemptSchema =
         }
     );
 
+const weeklyTierCompetitionSchema =
+    new Schema(
+        {
+            division: {
+                type: String,
+                enum: ["SUB", "MAIN"],
+                default: null,
+            },
+            tierAtStart: {
+                type: String,
+                trim: true,
+                maxlength: 40,
+                default: "",
+            },
+            tierRank: {
+                type: Number,
+                min: 1,
+                default: null,
+            },
+            participantCount: {
+                type: Number,
+                min: 0,
+                default: 0,
+            },
+            promotionCandidate: {
+                type: Boolean,
+                default: false,
+            },
+            candidateReason: {
+                type: String,
+                enum: ["", "WEEKLY_TOP_PERCENT", "SKILL_INDEX_STREAK"],
+                default: "",
+            },
+            boundarySlot: {
+                type: Number,
+                min: 1,
+                default: null,
+            },
+            outcome: {
+                type: String,
+                enum: [
+                    "",
+                    "STAYED",
+                    "PROMOTED",
+                    "DEFENDED",
+                    "DEMOTED",
+                    "CHALLENGE_LOST",
+                ],
+                default: "",
+            },
+            opponentUserId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
+            },
+            opponentTier: {
+                type: String,
+                trim: true,
+                maxlength: 40,
+                default: "",
+            },
+            settlementId: {
+                type: Schema.Types.ObjectId,
+                ref: "WeeklyTierBoundarySettlement",
+                default: null,
+            },
+            settledAt: {
+                type: Date,
+                default: null,
+            },
+        },
+        { _id: false }
+    );
+
 const privateMockWeeklyResultSchema =
     new Schema(
         {
@@ -5927,6 +6001,10 @@ const privateMockWeeklyResultSchema =
                 min: 1,
                 default: null,
             },
+            tierCompetition: {
+                type: weeklyTierCompetitionSchema,
+                default: () => ({}),
+            },
             status: {
                 type: String,
                 enum: [
@@ -6007,6 +6085,158 @@ privateMockWeeklyResultSchema.index({
     status: 1,
     representativePerformance: -1,
 });
+privateMockWeeklyResultSchema.index({
+    weekKey: 1,
+    "tierCompetition.division": 1,
+    "tierCompetition.tierAtStart": 1,
+    "tierCompetition.tierRank": 1,
+});
+
+const weeklyTierBoundaryScoreSchema =
+    new Schema(
+        {
+            performance: {
+                type: Number,
+                min: 0,
+                max: 1,
+                required: true,
+            },
+            rawScore: {
+                type: Number,
+                min: 0,
+                max: 100,
+                required: true,
+            },
+            elapsedMs: {
+                type: Number,
+                min: 0,
+                required: true,
+            },
+            tierRank: {
+                type: Number,
+                min: 1,
+                required: true,
+            },
+        },
+        { _id: false }
+    );
+
+const weeklyTierBoundarySettlementSchema =
+    new Schema(
+        {
+            weekKey: {
+                type: String,
+                required: true,
+                trim: true,
+                index: true,
+            },
+            seasonKey: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: 80,
+            },
+            division: {
+                type: String,
+                enum: ["SUB", "MAIN"],
+                required: true,
+            },
+            lowerTier: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: 40,
+            },
+            upperTier: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: 40,
+            },
+            slotNumber: {
+                type: Number,
+                min: 1,
+                required: true,
+                default: 1,
+            },
+            candidateReason: {
+                type: String,
+                enum: ["WEEKLY_TOP_PERCENT", "SKILL_INDEX_STREAK"],
+                required: true,
+                default: "WEEKLY_TOP_PERCENT",
+            },
+            challengerUserId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            defenderUserId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            challengerWeeklyResultId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockWeeklyResult",
+                required: true,
+            },
+            defenderWeeklyResultId: {
+                type: Schema.Types.ObjectId,
+                ref: "PrivateMockWeeklyResult",
+                required: true,
+            },
+            challengerScore: {
+                type: weeklyTierBoundaryScoreSchema,
+                required: true,
+            },
+            defenderScore: {
+                type: weeklyTierBoundaryScoreSchema,
+                required: true,
+            },
+            outcome: {
+                type: String,
+                enum: ["PROMOTED", "DEFENDED", "STANDING_CHANGED"],
+                required: true,
+                index: true,
+            },
+            challengerTupleBefore: {
+                type: Schema.Types.Mixed,
+                required: true,
+            },
+            challengerTupleAfter: {
+                type: Schema.Types.Mixed,
+                required: true,
+            },
+            defenderTupleBefore: {
+                type: Schema.Types.Mixed,
+                required: true,
+            },
+            defenderTupleAfter: {
+                type: Schema.Types.Mixed,
+                required: true,
+            },
+            settledAt: {
+                type: Date,
+                required: true,
+                default: Date.now,
+            },
+        },
+        { timestamps: true, versionKey: false }
+    );
+
+weeklyTierBoundarySettlementSchema.index(
+    {
+        weekKey: 1,
+        seasonKey: 1,
+        division: 1,
+        lowerTier: 1,
+        upperTier: 1,
+        slotNumber: 1,
+    },
+    { unique: true }
+);
 
 const rankingMmrHistorySchema =
     new Schema(
@@ -6971,6 +7201,13 @@ const PrivateMockWeeklyResult =
         privateMockWeeklyResultSchema
     );
 
+const WeeklyTierBoundarySettlement =
+    mongoose.models.WeeklyTierBoundarySettlement ||
+    mongoose.model(
+        "WeeklyTierBoundarySettlement",
+        weeklyTierBoundarySettlementSchema
+    );
+
 const RankingProfile =
     mongoose.models.RankingProfile ||
     mongoose.model(
@@ -7046,6 +7283,7 @@ module.exports = {
     PrivateMockAnswerCorrection,
     PrivateMockObjection,
     PrivateMockWeeklyResult,
+    WeeklyTierBoundarySettlement,
     RankingProfile,
     NicknameChangeRequest,
     ArchiveFolder,

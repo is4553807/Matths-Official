@@ -97,7 +97,7 @@
         </section>
       <% } else { %>
         <section class="arena-access-gate">
-          <img src="/images/matths-mark.png" alt="" />
+          <img src="/images/brand/matths-logo-light.svg" alt="" />
           <div><small><%= divisionLabel %> 이용 권한 필요</small><h2>현재는 이 기능을 사용할 수 없습니다.</h2><p>소속 Division과 활성 학습권 조건이 충족되면 실행 버튼이 표시됩니다.</p></div>
           <a href="/goat-arena/profile">Arena 프로필 확인</a>
         </section>
@@ -105,5 +105,6 @@
 
       <p><a class="arena-back-link" href="/goat-arena/<%= division.toLowerCase() %>">← <%= divisionLabel %>로 돌아가기</a></p>
     </main>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

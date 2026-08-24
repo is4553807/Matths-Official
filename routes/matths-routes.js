@@ -472,6 +472,12 @@ router.post(
   matthsController.adminCompleteRefund
 );
 router.post(
+  "/admin/refunds/:refundRequestId/reject",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRejectRefund
+);
+router.post(
   "/admin/paybacks/:cycleId/complete",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,

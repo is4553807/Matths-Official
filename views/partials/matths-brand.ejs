@@ -1,0 +1,37 @@
+<%
+  const matthsBrandHref = typeof href === "string" && href ? href : "/";
+  const matthsBrandAriaLabel =
+    typeof ariaLabel === "string" && ariaLabel ? ariaLabel : "Matths 메인";
+  const matthsBrandClassName =
+    typeof className === "string" && className.trim() ? ` ${className.trim()}` : "";
+  const matthsBrandSuffix =
+    typeof suffix === "string" && suffix.trim() ? suffix.trim() : "";
+  const matthsBrandTone =
+    typeof tone === "string" && tone.trim().toLowerCase() === "light"
+      ? "light"
+      : "dark";
+  const matthsBrandLogoSrc =
+    matthsBrandTone === "light"
+      ? "/images/brand/matths-logo-light.svg"
+      : "/images/brand/matths-logo.svg";
+  const matthsBrandCompact = typeof compact !== "undefined" && Boolean(compact);
+  const matthsBrandCurrent = typeof current !== "undefined" && Boolean(current);
+%>
+<a
+  class="matths-brand-lockup matths-brand-lockup--<%= matthsBrandTone %><%= matthsBrandCompact ? ' matths-brand-lockup--compact' : '' %><%= matthsBrandClassName %>"
+  href="<%= matthsBrandHref %>"
+  aria-label="<%= matthsBrandAriaLabel %>"
+  <% if (matthsBrandCurrent) { %>aria-current="page"<% } %>
+>
+  <img
+    class="brand-logo matths-brand-lockup__image"
+    src="<%= matthsBrandLogoSrc %>"
+    alt=""
+    aria-hidden="true"
+    width="132"
+    height="41"
+  />
+  <% if (matthsBrandSuffix) { %>
+    <span class="matths-brand-lockup__suffix"><%= matthsBrandSuffix %></span>
+  <% } %>
+</a>

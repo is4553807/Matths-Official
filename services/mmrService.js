@@ -1653,84 +1653,27 @@ async function processWeeklyExamMmr({
       right.score -
         left.score
   );
-  const activeCount =
-    Math.max(
-      await RankingProfile.countDocuments(),
-      ordered.length
-    );
-
-  for (
-    let index = 0;
-    index < ordered.length;
-    index += 1
-  ) {
-    const calculation =
-      ordered[index];
+  for (const calculation of ordered) {
     const {
       profile,
       result,
     } = calculation;
-    const topPercentile =
-      (
-        index + 1
-      ) /
-      Math.max(
-        1,
-        activeCount
-      );
-    let tier =
-      resolveTier({
-        mmr: result.newMmr,
-        topPercentile,
-        activeRankerCount:
-          activeCount,
-      });
     const previousTier =
       tierByName(
         profile.tier
       );
-    const isDemotion =
-      TIER_INDEX.get(tier.name) <
-      TIER_INDEX.get(
-        previousTier.name
-      );
-    let protection = {
+    /*
+     * 주간 성과 레이팅은 분석과 2주 연속 승급 준비도 후보 판정에 사용한다.
+     * 숫자의 임계값만으로 티어를 바꾸지는 않으며, 실제 승급·강등은 주간
+     * 대표 성적의 티어 경계 정산이 ArenaStanding에 반영한다.
+     */
+    const tier = previousTier;
+    const protection = {
       active: false,
       consecutiveBelowThreshold:
         0,
       thresholdMmr: null,
     };
-
-    if (isDemotion) {
-      const evaluation =
-        evaluateDemotion({
-          previousTier:
-            previousTier.name,
-          newMmr:
-            result.newMmr,
-          consecutiveBelowThreshold:
-            profile
-              .demotionProtection
-              ?.consecutiveBelowThreshold ||
-            0,
-        });
-
-      protection = {
-        active:
-          !evaluation.shouldDemote,
-        consecutiveBelowThreshold:
-          evaluation
-            .consecutiveBelowThreshold,
-        thresholdMmr:
-          evaluation.thresholdMmr,
-      };
-
-      if (
-        !evaluation.shouldDemote
-      ) {
-        tier = previousTier;
-      }
-    }
 
     const nextWeeklyCount =
       calculation.weeklyExamCount +
@@ -2020,6 +1963,8 @@ function rankingProfileView(
 
   return {
     mmr:
+      Number(profile.mmr),
+    rating:
       Number(profile.mmr),
     tier:
       profile.tier,

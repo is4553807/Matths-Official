@@ -14,10 +14,12 @@ const {
   AssessmentAttempt,
   AdminActionLog,
   PrivateMockExamAttempt,
+  SupportInquiry,
   User,
   UserNotification,
 } = require("../models/matthsModel");
 const { PaybackPayoutRecord } = require("../models/paybackModel");
+const { completeAdminTodoBySource } = require("./adminTodoService");
 const { getActiveAdminSender } = require("./adminIdentityService");
 const { sendAdminUserEmail } = require("./emailService");
 const { calculateRefundQuote } = require("./refundPolicyService");
@@ -71,15 +73,55 @@ async function listRefundableOrders(userId) {
     .sort({ approvedAt: -1 })
     .select("productCode productName orderReference approvedAt approvedAmount refundedAmount status")
     .lean();
-  return payments.map((payment) => ({
-    id: String(payment._id),
-    productCode: payment.productCode || "LEARNING_PACKAGE_29",
-    productName: productName(payment),
-    orderReference: payment.orderReference,
-    approvedAt: payment.approvedAt,
-    approvedAmount: payment.approvedAmount,
-    remainingAmount: Math.max(0, payment.approvedAmount - (payment.refundedAmount || 0)),
-  }));
+  const activeRequests = payments.length
+    ? await RefundRequest.find({
+        paymentId: { $in: payments.map((payment) => payment._id) },
+        status: { $in: ["REQUESTED", "CALCULATED"] },
+      })
+        .select("paymentId")
+        .lean()
+    : [];
+  const activePaymentIds = new Set(
+    activeRequests.map((request) => String(request.paymentId))
+  );
+  return payments
+    .filter((payment) => !activePaymentIds.has(String(payment._id)))
+    .map((payment) => ({
+      id: String(payment._id),
+      productCode: payment.productCode || "LEARNING_PACKAGE_29",
+      productName: productName(payment),
+      orderReference: payment.orderReference,
+      approvedAt: payment.approvedAt,
+      approvedAmount: payment.approvedAmount,
+      remainingAmount: Math.max(0, payment.approvedAmount - (payment.refundedAmount || 0)),
+    }));
+}
+
+async function closeRefundWorkflowRecords({ request, adminUserId, session }) {
+  const operations = [
+    completeAdminTodoBySource({
+      sourceType: "RefundRequest",
+      sourceId: request._id,
+      adminUserId,
+      session,
+    }),
+  ];
+  if (request.supportInquiryId) {
+    operations.push(
+      SupportInquiry.updateOne(
+        { _id: request.supportInquiryId },
+        { $set: { status: "closed" } },
+        { session }
+      ),
+      completeAdminTodoBySource({
+        sourceType: "SupportInquiry",
+        sourceId: request.supportInquiryId,
+        adminUserId,
+        session,
+      })
+    );
+  }
+  await Promise.all(operations);
 }
 
 async function createRefundRequest({
@@ -235,6 +277,12 @@ async function calculateRefundRequest({ adminUserId, refundRequestId, paidFeatur
     { _id: payment._id },
     { $set: { refundStatus: "CALCULATED", latestRefundRequestId: request._id } }
   );
+  if (request.supportInquiryId) {
+    await SupportInquiry.updateOne(
+      { _id: request.supportInquiryId, status: { $in: ["pending", "in_review"] } },
+      { $set: { status: "in_review" } }
+    );
+  }
   await AdminActionLog.create({
     adminUserId,
     targetUserId: request.userId,
@@ -248,6 +296,126 @@ async function calculateRefundRequest({ adminUserId, refundRequestId, paidFeatur
     },
   });
   return request;
+}
+
+async function rejectRefundRequest({
+  adminUserId,
+  refundRequestId,
+  operatorNote,
+}) {
+  const note = String(operatorNote || "").trim().slice(0, 1000);
+  if (note.length < 5) {
+    throw statusError(400, "환불 반려 또는 0원 종결 사유를 5자 이상 입력해주세요.");
+  }
+  const actor = await getActiveAdminSender(adminUserId);
+  const session = await mongoose.startSession();
+  let rejected;
+  let recipient;
+  let zeroAmountClosure = false;
+  try {
+    await session.withTransaction(async () => {
+      const request = await RefundRequest.findById(refundRequestId).session(session);
+      if (!request) throw statusError(404, "환불 신청을 찾을 수 없습니다.");
+      const idempotencyKey = `refund-reject:${request._id}`;
+      if (request.status === "REJECTED") {
+        if (request.decision.idempotencyKey === idempotencyKey) {
+          rejected = request;
+          zeroAmountClosure = Number(request.calculation?.calculatedAmount) === 0;
+          return;
+        }
+        throw statusError(409, "이미 반려된 환불 신청입니다.");
+      }
+      if (!["REQUESTED", "CALCULATED"].includes(request.status)) {
+        throw statusError(409, "이미 종료된 환불 신청입니다.");
+      }
+
+      const payment = await ArenaPackagePayment.findById(request.paymentId).session(session);
+      if (!payment) throw statusError(404, "결제 원장을 찾을 수 없습니다.");
+      zeroAmountClosure = request.status === "CALCULATED" &&
+        Number(request.calculation?.calculatedAmount) === 0;
+      const processedAt = new Date();
+
+      request.status = "REJECTED";
+      request.decision = {
+        approvedAmount: 0,
+        cancellationMode: "",
+        processedAt,
+        processedBy: adminUserId,
+        processedBySnapshot: actor,
+        idempotencyKey,
+        operatorNote: note,
+      };
+      await request.save({ session });
+
+      payment.refundStatus = Number(payment.refundedAmount || 0) > 0
+        ? "PARTIAL"
+        : "REJECTED";
+      payment.latestRefundRequestId = request._id;
+      await payment.save({ session });
+
+      const outcomeLabel = zeroAmountClosure ? "0원으로 종결" : "반려";
+      const notificationKey = `refund-rejected:${request._id}`;
+      await UserNotification.updateOne(
+        { dedupeKey: notificationKey },
+        {
+          $setOnInsert: {
+            userId: request.userId,
+            title: zeroAmountClosure
+              ? "환불 산정이 0원으로 종결되었습니다"
+              : "환불 신청이 반려되었습니다",
+            message: `${request.productNameSnapshot} 환불 신청이 ${outcomeLabel}되었습니다. 사유: ${note}`,
+            href: "/contact",
+            dedupeKey: notificationKey,
+            sourceType: "RefundRequest",
+            sourceId: request._id,
+            kind: "account",
+          },
+        },
+        { upsert: true, session }
+      );
+      await AdminActionLog.create([{
+        adminUserId,
+        targetUserId: request.userId,
+        action: zeroAmountClosure ? "refund.close-zero" : "refund.reject",
+        detail: request.orderReferenceSnapshot,
+        metadata: {
+          refundRequestId: String(request._id),
+          zeroAmountClosure,
+          operatorNote: note,
+          actorSnapshot: actor,
+        },
+      }], { session });
+      await closeRefundWorkflowRecords({ request, adminUserId, session });
+      recipient = await User.findById(request.userId).select("email").session(session).lean();
+      rejected = request;
+    });
+  } catch (error) {
+    if (Number(error?.code) === 11000) {
+      throw statusError(409, "다른 운영자가 먼저 환불 신청을 종결했습니다.");
+    }
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+
+  if (recipient?.email && rejected) {
+    try {
+      await sendAdminUserEmail({
+        to: recipient.email,
+        subject: zeroAmountClosure
+          ? "환불 산정 결과 안내"
+          : "환불 신청 처리 결과 안내",
+        message: `${rejected.productNameSnapshot} 환불 신청이 ${zeroAmountClosure ? "환불액 0원으로 종결" : "반려"}되었습니다.\n\n사유: ${note}`,
+        idempotencyKey: `refund-rejected:${rejected._id}`,
+      });
+    } catch (error) {
+      console.error("[refund] 반려 이메일 발송 실패", {
+        refundRequestId,
+        message: error?.message || "",
+      });
+    }
+  }
+  return { request: rejected, zeroAmountClosure };
 }
 
 async function completeRefundRequest({
@@ -492,6 +660,7 @@ async function completeRefundRequest({
         operatorNote: String(operatorNote || "").trim().slice(0, 1000),
       };
       await request.save({ session });
+      await closeRefundWorkflowRecords({ request, adminUserId, session });
 
       const notificationKey = `refund-completed:${request._id}`;
       await UserNotification.updateOne(
@@ -577,4 +746,5 @@ module.exports = {
   createRefundRequest,
   getAdminRefundData,
   listRefundableOrders,
+  rejectRefundRequest,
 };

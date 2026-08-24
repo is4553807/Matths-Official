@@ -42,7 +42,7 @@
       <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
       <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
         <div class="sidebar-top">
-          <a class="brand" href="/" aria-label="Matths 메인"><span class="brand-mark" aria-hidden="true">M</span><span>Matths</span></a>
+          <%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 메인", className: "brand", tone: "light" }) %>
           <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
         </div>
         <%- include("partials/dashboard-navigation", { activePage: "notifications" }) %>
@@ -116,5 +116,6 @@
         </section>
       </main>
     </div>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

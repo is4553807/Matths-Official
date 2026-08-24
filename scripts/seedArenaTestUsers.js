@@ -11,6 +11,7 @@ const {
   RankingProfile,
   User,
   UserNotification,
+  WeeklyTierBoundarySettlement,
 } = require("../models/matthsModel");
 const {
   AccessCycle,
@@ -33,13 +34,15 @@ const {
 } = require("../services/arenaPolicyService");
 const { kstSeasonKey } = require("../services/arenaStandingService");
 
-const TEST_BATCH_KEY = "GOAT-ARENA-VIRTUAL-USERS-20260808";
+const TEST_BATCH_KEY = "GOAT-ARENA-VIRTUAL-USERS-100-20260824";
 const LEGACY_TEST_BATCH_KEYS = [
   TEST_BATCH_KEY,
+  "GOAT-ARENA-VIRTUAL-USERS-20260808",
   "GOAT-ARENA-E2E-200-20260803",
 ];
 const TEST_PASSWORD = String(process.env.TEST_ACCOUNT_PASSWORD || "");
-const TEST_COUNT_PER_DIVISION = 100;
+const TEST_COUNT_PER_DIVISION = 50;
+const TEST_TOTAL_COUNT = TEST_COUNT_PER_DIVISION * 2;
 const TEST_MATCH_ACTOR_USERNAME = String(
   process.env.ARENA_TEST_ACTOR_USERNAME || ""
 ).trim().toLowerCase();
@@ -47,8 +50,8 @@ const OUTPUT_PATH = path.resolve(
   __dirname,
   "..",
   "outputs",
-  "arena-virtual-users-20260808",
-  "GOAT_Arena_가상유저_200명_로그인목록.json"
+  "arena-virtual-users-100-20260824",
+  "GOAT_Arena_가상유저_100명_로그인목록.json"
 );
 const TIER_LABELS = {
   BRONZE: "브론즈",
@@ -61,17 +64,17 @@ const TIER_LABELS = {
   GRANDMASTER: "그랜드마스터",
   CHALLENGER: "챌린저",
 };
-const TEST_DATASET_VERSION = "GOAT-ARENA-VIRTUAL-USERS-REALISTIC-V3";
+const TEST_DATASET_VERSION = "GOAT-ARENA-VIRTUAL-USERS-REALISTIC-V5-WEEKLY-PROMOTION";
 const TIER_DISTRIBUTION = [
-  { key: "BRONZE", count: 20, scoreMin: 28, scoreMax: 43, mmrMin: 620, mmrMax: 790 },
-  { key: "SILVER", count: 18, scoreMin: 44, scoreMax: 53, mmrMin: 805, mmrMax: 915 },
-  { key: "GOLD", count: 15, scoreMin: 54, scoreMax: 62, mmrMin: 930, mmrMax: 1015 },
-  { key: "PLATINUM", count: 13, scoreMin: 63, scoreMax: 70, mmrMin: 1030, mmrMax: 1110 },
-  { key: "EMERALD", count: 10, scoreMin: 71, scoreMax: 77, mmrMin: 1125, mmrMax: 1200 },
-  { key: "DIAMOND", count: 8, scoreMin: 78, scoreMax: 84, mmrMin: 1215, mmrMax: 1320 },
-  { key: "MASTER", count: 6, scoreMin: 85, scoreMax: 89, mmrMin: 1335, mmrMax: 1435 },
-  { key: "GRANDMASTER", count: 5, scoreMin: 90, scoreMax: 94, mmrMin: 1445, mmrMax: 1510 },
-  { key: "CHALLENGER", count: 5, scoreMin: 95, scoreMax: 99, mmrMin: 1530, mmrMax: 1600 },
+  { key: "BRONZE", count: 10, scoreMin: 28, scoreMax: 43, mmrMin: 620, mmrMax: 790 },
+  { key: "SILVER", count: 9, scoreMin: 44, scoreMax: 53, mmrMin: 805, mmrMax: 915 },
+  { key: "GOLD", count: 8, scoreMin: 54, scoreMax: 62, mmrMin: 930, mmrMax: 1015 },
+  { key: "PLATINUM", count: 7, scoreMin: 63, scoreMax: 70, mmrMin: 1030, mmrMax: 1110 },
+  { key: "EMERALD", count: 5, scoreMin: 71, scoreMax: 77, mmrMin: 1125, mmrMax: 1200 },
+  { key: "DIAMOND", count: 4, scoreMin: 78, scoreMax: 84, mmrMin: 1215, mmrMax: 1320 },
+  { key: "MASTER", count: 3, scoreMin: 85, scoreMax: 89, mmrMin: 1335, mmrMax: 1435 },
+  { key: "GRANDMASTER", count: 2, scoreMin: 90, scoreMax: 94, mmrMin: 1445, mmrMax: 1510 },
+  { key: "CHALLENGER", count: 2, scoreMin: 95, scoreMax: 99, mmrMin: 1530, mmrMax: 1600 },
 ];
 const SCHOOLS = Array.from({ length: 10 }, (_, index) => ({
   code: `TEST-HS-${String(index + 1).padStart(2, "0")}`,
@@ -137,7 +140,8 @@ function interpolate(minimum, maximum, offset, count) {
 
 function placementProfileForIndex(localIndex) {
   let cursor = 0;
-  for (const tier of TIER_DISTRIBUTION) {
+  for (let tierIndex = 0; tierIndex < TIER_DISTRIBUTION.length; tierIndex += 1) {
+    const tier = TIER_DISTRIBUTION[tierIndex];
     const nextCursor = cursor + tier.count;
     if (localIndex < nextCursor) {
       const offset = localIndex - cursor;
@@ -149,6 +153,8 @@ function placementProfileForIndex(localIndex) {
         tierCount: tier.count,
         placementScore: interpolate(tier.scoreMin, tier.scoreMax, offset, tier.count),
         placementMmr: interpolate(tier.mmrMin, tier.mmrMax, offset, tier.count),
+        nextTierSkillThreshold:
+          TIER_DISTRIBUTION[tierIndex + 1]?.mmrMin || null,
         placementPercentile: percentile,
         arenaGp: interpolate(0, 99, offset, tier.count),
       };
@@ -159,7 +165,7 @@ function placementProfileForIndex(localIndex) {
 }
 
 async function assertNoRealAccountCollision() {
-  const identities = Array.from({ length: 200 }, (_, index) =>
+  const identities = Array.from({ length: TEST_TOTAL_COUNT }, (_, index) =>
     virtualIdentityForNumber(index + 1)
   );
   const names = identities.map((identity) => identity.username);
@@ -210,6 +216,12 @@ async function cleanupTaggedTestAccounts() {
     AssessmentAttempt.deleteMany({ userId: { $in: userIds }, scopeType: "placement" }),
     RankingProfile.deleteMany({ userId: { $in: userIds } }),
     UserNotification.deleteMany({ userId: { $in: userIds } }),
+    WeeklyTierBoundarySettlement.deleteMany({
+      $or: [
+        { challengerUserId: { $in: userIds } },
+        { defenderUserId: { $in: userIds } },
+      ],
+    }),
     AccessCycle.deleteMany({ userId: { $in: userIds } }),
     ArenaAccessState.deleteMany({ userId: { $in: userIds } }),
     ArenaAchievementBadge.deleteMany({ userId: { $in: userIds } }),
@@ -306,13 +318,20 @@ async function main() {
     const users = [];
     const manifest = [];
 
-    for (let index = 0; index < 200; index += 1) {
+    for (let index = 0; index < TEST_TOTAL_COUNT; index += 1) {
       const number = index + 1;
       const division = index < TEST_COUNT_PER_DIVISION ? "SUB" : "MAIN";
       const localIndex = index % TEST_COUNT_PER_DIVISION;
       const placementProfile = placementProfileForIndex(localIndex);
       const tierKey = placementProfile.tierKey;
       const tierLabel = placementProfile.tierLabel;
+      const skillStreakEligible = Boolean(
+        placementProfile.nextTierSkillThreshold &&
+        placementProfile.tierOffset === Math.min(2, placementProfile.tierCount - 1)
+      );
+      const currentSkillMmr = skillStreakEligible
+        ? placementProfile.nextTierSkillThreshold + 8
+        : placementProfile.placementMmr;
       const tierCounterKey = `${division}:${tierLabel}`;
       const arenaPosition = Number(positionBase.get(tierCounterKey) || 0) +
         (placementProfile.tierCount - placementProfile.tierOffset);
@@ -323,6 +342,8 @@ async function main() {
       const school = SCHOOLS[localIndex % SCHOOLS.length];
       const { username, email, realName } = virtualIdentityForNumber(number);
       const userId = new mongoose.Types.ObjectId();
+      const currentStreak = (localIndex % 29) + 1;
+      const longestStreak = currentStreak + (localIndex % 12);
       users.push({
         _id: userId,
         name: username,
@@ -352,6 +373,9 @@ async function main() {
         lastLoginAt: now,
         lastConnectedAt: now,
         totalConnectedSeconds: (localIndex + 1) * 180,
+        currentStreak,
+        longestStreak,
+        lastStudyDate: now,
         isActive: true,
         accountStatus: "active",
         accountStatusReason: "",
@@ -370,6 +394,8 @@ async function main() {
         gp: arenaGp,
         placementScore: placementProfile.placementScore,
         initialMmr: placementProfile.placementMmr,
+        currentSkillMmr,
+        skillStreakEligible,
         placementPercentile: placementProfile.placementPercentile,
         finalRankOffset,
         package: "29일 학습권 패키지",
@@ -378,6 +404,8 @@ async function main() {
         school: school.name,
         grade: [10, 11, 12][localIndex % 3],
         remark: "virtual-user",
+        currentStreak,
+        longestStreak,
         scenario: [
           "기본 활성",
           "빠른 정답 검증",
@@ -496,7 +524,7 @@ async function main() {
           tier: row.tier,
           rankingStatus: "confirmed",
           matchesUntilConfirmed: 0,
-          cohortSize: 200,
+          cohortSize: TEST_TOTAL_COUNT,
           cohortAverage: 66,
           cohortStandardDeviation: 19,
           standardizedScore: Math.round(((row.placementScore - 66) / 19) * 1000) / 1000,
@@ -601,7 +629,7 @@ async function main() {
         userId: user._id,
         placementScore: row.placementScore,
         placementExpectedPerformance: Math.min(0.99, row.placementScore / 100),
-        mmr: row.initialMmr,
+        mmr: row.currentSkillMmr,
         tier: row.tierCode,
         rankPoint: row.gp,
         overallRank: row.finalRankOffset,
@@ -610,21 +638,52 @@ async function main() {
         weeklyExamsUntilConfirmed: 0,
         seasonId: seasonKey,
         reachedCurrentMmrAt: now,
+        participation: {
+          weeklyExamCount: row.skillStreakEligible ? 2 : 0,
+          consecutiveAbsences: 0,
+          lastExamAt: row.skillStreakEligible
+            ? new Date(now.getTime() - 7 * 86_400_000)
+            : null,
+        },
+        mmrHistory: row.skillStreakEligible
+          ? [
+              {
+                eventType: "weekly-exam",
+                previousMmr: row.initialMmr,
+                newMmr: row.currentSkillMmr - 5,
+                deltaMmr: row.currentSkillMmr - 5 - row.initialMmr,
+                rawScore: Math.min(100, row.placementScore + 4),
+                actualPerformance: Math.min(0.99, (row.placementScore + 4) / 100),
+                expectedPerformance: Math.min(0.99, row.placementScore / 100),
+                createdAt: new Date(now.getTime() - 14 * 86_400_000),
+              },
+              {
+                eventType: "weekly-exam",
+                previousMmr: row.currentSkillMmr - 5,
+                newMmr: row.currentSkillMmr,
+                deltaMmr: 5,
+                rawScore: Math.min(100, row.placementScore + 6),
+                actualPerformance: Math.min(0.99, (row.placementScore + 6) / 100),
+                expectedPerformance: Math.min(0.99, (row.placementScore + 1) / 100),
+                createdAt: new Date(now.getTime() - 7 * 86_400_000),
+              },
+            ]
+          : [],
       });
       finalProfiles.push({
         seasonId: seasonKey,
         userId: user._id,
         accessState: "PAID_ACTIVE",
         currentCompetitiveDivision: row.division,
-        skillMmr: row.initialMmr,
+        skillMmr: row.currentSkillMmr,
         weeklyMockBonus: (row.number % 4) * 10,
         publishedWeeklyMockBonus: (row.number % 4) * 10,
         seasonSubCurrentPercentile: row.division === "SUB" ? row.placementPercentile : null,
         seasonMainCurrentPercentile: row.division === "MAIN" ? row.placementPercentile : null,
         seasonSettledNormalAttackCount: row.number % 6,
-        finalRating: row.initialMmr + (row.division === "MAIN" ? 1 : 0),
+        finalRating: row.currentSkillMmr + (row.division === "MAIN" ? 1 : 0),
         finalRank: currentMaximumFinalRank + row.finalRankOffset,
-        publishedFinalRating: row.initialMmr + (row.division === "MAIN" ? 1 : 0),
+        publishedFinalRating: row.currentSkillMmr + (row.division === "MAIN" ? 1 : 0),
         publishedFinalRank: currentMaximumFinalRank + row.finalRankOffset,
         lastPublishedAt: now,
         status: "ACTIVE",

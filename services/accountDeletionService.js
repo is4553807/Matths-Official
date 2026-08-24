@@ -29,6 +29,7 @@ const {
   SupportInquirySubmissionGuard,
   User,
   UserNotification,
+  WeeklyTierBoundarySettlement,
   AdminTodo,
 } = require("../models/matthsModel");
 const {
@@ -426,6 +427,12 @@ async function purgeUserOwnedData(
     PrivateMockObjection.deleteMany({ userId }),
     PrivateMockWeeklyResult.deleteMany({
       userId,
+    }),
+    WeeklyTierBoundarySettlement.deleteMany({
+      $or: [
+        { challengerUserId: userId },
+        { defenderUserId: userId },
+      ],
     }),
     RankingProfile.deleteMany({
       userId,

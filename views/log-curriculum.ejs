@@ -90,10 +90,7 @@
         aria-label="학습 메뉴"
       >
         <div class="sidebar-top">
-          <a class="brand" href="/" aria-label="Matths 메인">
-            <span class="brand-mark" aria-hidden="true">M</span>
-            <span>Matths</span>
-          </a>
+          <%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 메인", className: "brand", tone: "light" }) %>
           <button
             class="sidebar-close"
             id="sidebar-close"
@@ -472,20 +469,8 @@
           </section>
         <% } %>
 
-        <footer class="dashboard-footer">
-          <span>© <%= new Date().getFullYear() %> Matths</span>
-          <p>
-            전체 <%= totalCatalogCourses %>과목 ·
-            <%= totalCatalogUnits %>대단원 ·
-            <%= totalCatalogConcepts %>성취기준
-          </p>
-          <div>
-            <a href="/terms">이용약관</a>
-            <a href="/privacy">개인정보처리방침</a>
-            <%- include("partials/social-footer-links") %>
-          </div>
-        </footer>
       </main>
     </div>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

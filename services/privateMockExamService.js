@@ -74,6 +74,10 @@ const {
   getWeeklyMockExamAccess,
 } = require("./paidFeatureAccessService");
 const {
+  isWeeklyTierCompetitionWeek,
+  processWeeklyTierCompetition,
+} = require("./weeklyTierCompetitionService");
+const {
   recordOperationalMetricEvent,
 } = require("./operationalMetricEventService");
 const {
@@ -3322,12 +3326,19 @@ async function processPrivateMockWeekMmr(
       })
       .filter(Boolean);
 
-  return processWeeklyExamMmr({
+  const ratingResult = await processWeeklyExamMmr({
     exam: anchorExam,
     attempts: [],
     seriesEntries,
     now,
   });
+  if (isWeeklyTierCompetitionWeek(anchorExam.releaseAt)) {
+    await processWeeklyTierCompetition({
+      weekKey,
+      now,
+    });
+  }
+  return ratingResult;
 }
 
 async function analyzePrivateMockExam(
@@ -4215,17 +4226,39 @@ function startPrivateMockExamScheduler({
 
 async function getWeeklyRankingEntries(
   weekKey,
-  limit = 100
+  {
+    currentUserId = null,
+    limit = 100,
+  } = {}
 ) {
+  const currentResult = currentUserId
+    ? await PrivateMockWeeklyResult.findOne({
+        weekKey,
+        userId: currentUserId,
+        status: "published",
+      })
+        .select("tierCompetition")
+        .lean()
+    : null;
+  const tierCompetition = currentResult?.tierCompetition;
+  const tierScoped = Boolean(
+    tierCompetition?.division && tierCompetition?.tierAtStart
+  );
+  const filter = {
+    weekKey,
+    status: "published",
+    representativeAttemptId: {
+      $ne: null,
+    },
+  };
+  if (tierScoped) {
+    filter["tierCompetition.division"] = tierCompetition.division;
+    filter["tierCompetition.tierAtStart"] = tierCompetition.tierAtStart;
+  }
   const results =
-    await PrivateMockWeeklyResult.find({
-      weekKey,
-      status: "published",
-      representativeAttemptId: {
-        $ne: null,
-      },
-    })
+    await PrivateMockWeeklyResult.find(filter)
       .sort({
+        "tierCompetition.tierRank": 1,
         rank: 1,
         representativePerformance:
           -1,
@@ -4244,8 +4277,10 @@ async function getWeeklyRankingEntries(
   return results.map(
     (result, index) => ({
       rank:
+        result.tierCompetition?.tierRank ||
         result.rank ||
         index + 1,
+      overallRank: result.rank || null,
       userId:
         String(
           result.userId?._id ||
@@ -4269,6 +4304,17 @@ async function getWeeklyRankingEntries(
         ) / 10,
       attemptCount:
         result.attemptCount,
+      division: result.tierCompetition?.division || null,
+      tierLabel: result.tierCompetition?.tierAtStart || null,
+      tierParticipantCount:
+        Number(result.tierCompetition?.participantCount) || 0,
+      promotionCandidate:
+        result.tierCompetition?.promotionCandidate === true,
+      candidateReason:
+        result.tierCompetition?.candidateReason || "",
+      boundarySlot:
+        Number(result.tierCompetition?.boundarySlot) || null,
+      tierOutcome: result.tierCompetition?.outcome || "STAYED",
       elapsedMs:
         result
           .representativeAttemptId
@@ -4362,19 +4408,6 @@ async function getPrivateMockEligibility(
     };
   }
 
-  if (packageAccess.packageType === "MOCK_EXAM_ONLY") {
-    return {
-      allowed: true,
-      status: "mock-exam-only-ready",
-      title: "Matths 주간 공식 모의고사 응시 가능",
-      message:
-        "Matths 주간 공식 모의고사 이용권에서도 최초 배치고사 1회는 무료로 응시할 수 있습니다. GOAT Arena는 이용할 수 없지만, 공식 모의고사 결과로 내부 실력 지표를 계속 계산해 저장합니다.",
-      ctaLabel: "Matths 주간 공식 모의고사 입장",
-      ctaHref: "/private-mock-exams",
-      packageType: "MOCK_EXAM_ONLY",
-    };
-  }
-
   const placement =
     await AssessmentAttempt.findOne({
       userId,
@@ -4447,15 +4480,21 @@ async function getPrivateMockEligibility(
 
   return {
     allowed: true,
-    status: "ready",
+    status:
+      packageAccess.packageType === "MOCK_EXAM_ONLY"
+        ? "mock-exam-only-ready"
+        : "ready",
     title:
       "Matths 주간 공식 모의고사 응시 가능",
     message:
-      "배치고사와 초기 GP 확정이 완료되었습니다.",
+      packageAccess.packageType === "MOCK_EXAM_ONLY"
+        ? "배치고사로 최초 티어가 확정되었습니다. GOAT Arena 경기를 이용하지 않아도 매주 공식 모의고사 정산을 통해 티어 승급에 도전할 수 있습니다."
+        : "배치고사와 초기 GP 확정이 완료되었습니다. 매주 공식 모의고사 정산에서도 티어 승급에 도전할 수 있습니다.",
     ctaLabel:
       "Matths 주간 공식 모의고사 입장",
     ctaHref:
       "/private-mock-exams",
+    packageType: packageAccess.packageType,
   };
 }
 
@@ -4908,7 +4947,8 @@ async function getPrivateMockExamPageData(
             privateMockWeekKey(
               latestRanked
                 .releaseAt
-            )
+            ),
+          { currentUserId: userId }
         )
       : [],
   ]);
@@ -5129,7 +5169,7 @@ async function getPrivateMockExamPageData(
     selection,
     rankingTitle:
       latestRanked
-        ? `${getKoreanWeekTitle(latestRanked.releaseAt)} 대표 성적`
+        ? `${getKoreanWeekTitle(latestRanked.releaseAt)} ${weeklyRanking[0]?.tierLabel ? `${weeklyRanking[0].tierLabel} 티어 ` : ""}대표 성적`
         :
       "이번 주 랭킹",
     rankingFinalized:
@@ -5160,9 +5200,12 @@ async function getPrivateMockExamPageData(
         : null,
     weeklyRanking,
     rankingRules: [
-      "A·B·C형 가운데 학생이 선택한 표준화 성적을 최종 종합 랭킹에 반영합니다.",
-      "선택을 미루고 3회차 종료까지 확정하지 않으면 완료한 시험 중 최고 표준화 성적을 자동 선택합니다.",
-      "장기 GP는 최고 성적 중심에 약한 안정성 보정을 적용합니다. 세 시험 모두 미응시하면 연속 1·2주는 GP가 -5, 3주째부터 GP가 -10 적용됩니다.",
+      "배치고사에서 받은 현재 티어 안에서 주간 대표 성적으로 순위를 정합니다.",
+      "티어별 주간 상위 20%와 다음 티어 기준의 승급 준비도를 2주 연속 충족한 학생이 승급 후보가 됩니다. 후보는 최소 1명, 최대 5명입니다.",
+      "아래 티어 후보 순서대로 바로 위 티어의 주간 하위 순서와 대표 성적을 비교하며, 더 좋은 성적이면 두 Arena 상태를 교환해 승급합니다. 완전 동점이면 위 티어 학생이 자리를 지킵니다.",
+      "한 학생은 주간 정산에서 최대 한 티어만 이동합니다. 모의고사 이용권만 있어도 같은 승급 규칙을 적용받습니다.",
+      "GOAT Arena 1대1 승리와 주간 모의고사 경계 경쟁은 모두 같은 공개 티어에 반영됩니다.",
+      "A·B·C형 가운데 직접 선택한 성적을 사용하며, 선택하지 않으면 완료한 시험 중 최고 표준화 성적을 자동 선택합니다.",
     ],
   };
 }
@@ -10040,7 +10083,7 @@ async function correctPrivateMockAnswers({
       title:
         "Matths 주간 공식 모의고사 정답 정정 및 재채점 안내",
       message:
-        `${exam.title}의 ${finalized.map((item) => `${item.questionNumber}번`).join(", ")} 정답이 정정되어 성적·랭킹·GP를 다시 계산했습니다.`,
+        `${exam.title}의 ${finalized.map((item) => `${item.questionNumber}번`).join(", ")} 정답이 정정되어 성적·티어별 주간 순위·시험 레이팅을 다시 계산했습니다.`,
       href:
         `/private-mock-exams/${exam._id}`,
       kind: "system",
@@ -10585,7 +10628,7 @@ async function acceptPrivateMockObjection({
       title:
         "Matths 주간 공식 모의고사 정답 정정 안내",
       content:
-        `${objection.examTitle} ${objection.questionNumber}번 문항의 정답을 정정했습니다. 해당 시험의 성적·랭킹·GP를 다시 계산했으니 결과를 확인해주세요.`,
+        `${objection.examTitle} ${objection.questionNumber}번 문항의 정답을 정정했습니다. 해당 시험의 성적·티어별 주간 순위·시험 레이팅을 다시 계산했으니 결과를 확인해주세요.`,
       publishNow: true,
       href:
         "/private-mock-exams",

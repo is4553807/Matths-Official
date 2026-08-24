@@ -157,6 +157,7 @@ const {
   calculateRefundRequest,
   completeRefundRequest,
   getAdminRefundData,
+  rejectRefundRequest,
 } = require("../services/refundService");
 const {
   getAdminArenaEvidenceData,
@@ -490,7 +491,7 @@ exports.loginPage = (req,res) => {
             )
           : null),
       oldInput: {
-        identifier: "",
+        email: "",
       },
     });
 }
@@ -1783,17 +1784,22 @@ exports.adminPaybacksPage = async (req, res, next) => {
 
 exports.adminRefundsPage = async (req, res, next) => {
   try {
+    const feedback = req.query.completed === "1"
+      ? "환불 취소 거래와 권한 종료가 완료되었습니다."
+      : req.query.rejected === "1"
+        ? req.query.zero === "1"
+          ? "환불 예정액 0원 건을 결제사 취소 없이 종결했습니다."
+          : "환불 신청을 반려하고 사용자에게 처리 결과를 알렸습니다."
+        : req.query.calculated === "1"
+          ? "환불 예정액을 산정해 원장에 저장했습니다."
+          : null;
     return res.render("admin-refunds", {
       user: req.session.user,
       refundData: await getAdminRefundData({
         page: req.query.page,
         status: req.query.status,
       }),
-      feedback: req.query.completed === "1"
-        ? "환불 취소 거래와 권한 종료가 완료되었습니다."
-        : req.query.calculated === "1"
-          ? "환불 예정액을 산정해 원장에 저장했습니다."
-          : null,
+      feedback,
     });
   } catch (error) {
     return next(error);
@@ -1825,6 +1831,21 @@ exports.adminCompleteRefund = async (req, res, next) => {
       operatorNote: req.body.operatorNote,
     });
     return res.redirect("/admin/refunds?completed=1");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminRejectRefund = async (req, res, next) => {
+  try {
+    const result = await rejectRefundRequest({
+      adminUserId: req.session.user.id,
+      refundRequestId: req.params.refundRequestId,
+      operatorNote: req.body.operatorNote,
+    });
+    return res.redirect(
+      `/admin/refunds?rejected=1${result.zeroAmountClosure ? "&zero=1" : ""}`
+    );
   } catch (error) {
     return next(error);
   }
@@ -3897,7 +3918,7 @@ exports.adminPrivateMockExamDetailPage =
                         type:
                           "success",
                         message:
-                          `정답을 정정하고 ${Number(req.query.answerCorrected) || 0}개 응시 기록의 성적·랭킹·MMR을 다시 계산했습니다.`,
+                          `정답을 정정하고 ${Number(req.query.answerCorrected) || 0}개 응시 기록의 성적·랭킹·시험 레이팅을 다시 계산했습니다.`,
                       }
                 : null,
         }
@@ -5551,10 +5572,10 @@ exports.login = async (req, res, next) => {
 
         if (!identifier || !password) {
             return res.status(400).render("login", {
-                error: "이메일 또는 닉네임과 비밀번호를 모두 입력해주세요.",
+                error: "이메일과 비밀번호를 모두 입력해주세요.",
                 loginNotice: protectedPageLoginNotice(req),
                 oldInput: {
-                    identifier,
+                    email: identifier,
                 },
             });
         }
@@ -5563,47 +5584,16 @@ exports.login = async (req, res, next) => {
          * passwordHash가 Schema에서 select: false라면
          * 반드시 select("+passwordHash")를 사용해야 한다.
          */
-        const escapedIdentifier =
-            identifier.replace(
-                /[.*+?^${}()|[\]\\]/g,
-                "\\$&"
-            );
-        let user = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-            identifier
-        )
-            ? await User.findOne({ email })
-                  .select("+passwordHash")
-                  .lean()
-            : null;
-        if (!user) {
-            user = await User.findOne({
-                $or: [
-                    {
-                        nameNormalized:
-                            nicknameKey(identifier),
-                    },
-                    {
-                        name: {
-                            $regex:
-                                `^${escapedIdentifier}$`,
-                            $options: "i",
-                        },
-                    },
-                ],
-            })
-                .select("+passwordHash")
-                .lean();
-        }
+        let user = await User.findOne({ email })
+            .select("+passwordHash")
+            .lean();
 
         /*
          * 이메일 존재 여부와 비밀번호 오류를 같은 문구로 처리한다.
          * 어떤 이메일이 가입되어 있는지 외부에 노출하지 않기 위해서다.
          */
         const parentAccount = await ParentAccount.findOne({
-            $or: [
-                { email },
-                { usernameNormalized: nicknameKey(identifier) },
-            ],
+            email,
             isActive: true,
         })
             .select("+passwordHash")
@@ -5611,10 +5601,10 @@ exports.login = async (req, res, next) => {
 
         if (!user && !parentAccount) {
             return res.status(401).render("login", {
-                error: "이메일·닉네임 또는 비밀번호가 올바르지 않습니다.",
+                error: "이메일 또는 비밀번호가 올바르지 않습니다.",
                 loginNotice: protectedPageLoginNotice(req),
                 oldInput: {
-                    identifier,
+                    email: identifier,
                 },
             });
         }
@@ -5634,10 +5624,10 @@ exports.login = async (req, res, next) => {
 
         if (!userPasswordMatched && !parentPasswordMatched) {
             return res.status(401).render("login", {
-                error: "이메일·닉네임 또는 비밀번호가 올바르지 않습니다.",
+                error: "이메일 또는 비밀번호가 올바르지 않습니다.",
                 loginNotice: protectedPageLoginNotice(req),
                 oldInput: {
-                    identifier,
+                    email: identifier,
                 },
             });
         }
@@ -5681,7 +5671,7 @@ exports.login = async (req, res, next) => {
                         ),
                     loginNotice: protectedPageLoginNotice(req),
                     oldInput: {
-                        identifier,
+                        email: identifier,
                     },
                 }
             );

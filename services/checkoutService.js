@@ -84,7 +84,7 @@ async function getProductCatalog() {
       name: "Matths 주간 공식 모의고사 이용권",
       amount: Number(mockPolicy?.monthlyPriceAmount ?? 5000),
       periodLabel: "30일",
-      description: "주간 공식 모의고사 응시에 집중하는 이용권",
+      description: "배치고사 첫 티어와 매주 티어 승급 경쟁을 포함한 모의고사 이용권",
       policyAvailable: Boolean(mockPolicy),
     },
     {

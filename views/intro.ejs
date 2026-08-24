@@ -274,8 +274,8 @@
               <small>WHAT YOU DO</small>
               <h3>배우고, 시험하고,<br />더 높은 순위에 도전합니다.</h3>
               <p>
-                내부 실력 지표는 배치고사와 Matths 주간 공식 모의고사에서, 티어·티어 내 순위·GP는 1대1 경쟁에서 관리합니다.
-                서로 다른 두 시스템을 섞지 않고 학습과 경쟁의 목표를 연결합니다.
+                배치고사로 첫 티어를 정하고, 이후에는 Matths 주간 공식 모의고사의 티어 경계 경쟁과 GOAT Arena 1대1로 승급할 수 있습니다.
+                시험과 경기라는 두 도전 경로를 하나의 공개 Arena 상태로 연결합니다.
               </p>
             </div>
 
@@ -283,7 +283,7 @@
               <article>
                 <span>01</span>
                 <strong>Matths 주간 공식 모의고사</strong>
-                <p>내부 실력 지표와 Matths 주간 공식 모의고사 성과를 확인합니다.</p>
+                <p>현재 티어 안의 주간 순위를 확인하고 바로 위 티어 승급에 도전합니다.</p>
               </article>
               <article>
                 <span>02</span>
@@ -415,41 +415,6 @@
       </section>
     </main>
 
-    <footer class="site-footer">
-      <div class="container footer-main">
-        <div class="footer-brand-area">
-          <a class="brand" href="/">
-            <span class="brand-mark" aria-hidden="true">M</span>
-            <span>Matths</span>
-          </a>
-          <p>수학이 보이면, 풀이가 시작됩니다.</p>
-        </div>
-
-        <div class="footer-links">
-          <div>
-            <strong>서비스</strong>
-            <a href="/intro">서비스 소개</a>
-            <a href="/visual-learning">시각화 학습</a>
-            <a href="/curriculum">교육과정</a>
-          </div>
-          <div>
-            <strong>지원</strong>
-            <a href="/faq">자주 묻는 질문</a>
-            <a href="/contact">문의하기</a>
-          </div>
-          <div>
-            <strong>정책</strong>
-            <a href="/terms">이용약관</a>
-            <a href="/privacy">개인정보처리방침</a>
-          </div>
-        </div>
-      </div>
-
-      <div class="container footer-bottom">
-        <span>© <%= new Date().getFullYear() %> Matths. All rights reserved.</span>
-        <span>Made for students who want to understand.</span>
-        <%- include("partials/social-footer-links") %>
-      </div>
-    </footer>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

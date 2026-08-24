@@ -40,8 +40,8 @@
       items: [
         ["intro", "/intro", "서비스 소개"],
         ["pricing", "/pricing", "이용권"],
-        ["faq", "/faq", "자주 묻는 질문"],
-        ["community", "/community", "커뮤니티"],
+        ["faq", "/faq", "FAQ"],
+        ["community", "/community", "게시판"],
         ["archive", "/archive", "아카이브"],
       ],
     },
@@ -52,21 +52,12 @@
 <% } %>
 <header class="site-header">
   <nav class="navbar container" aria-label="주요 메뉴">
-    <a
-      class="brand"
-      href="/"
-      aria-label="Matths 메인"
-      <% if (publicActivePage === "home") { %>aria-current="page"<% } %>
-    >
-      <img
-        class="brand-logo"
-        src="/images/brand/matths-logo.svg"
-        alt=""
-        aria-hidden="true"
-        width="132"
-        height="41"
-      />
-    </a>
+    <%- include("matths-brand", {
+      href: "/",
+      ariaLabel: "Matths 메인",
+      className: "brand",
+      current: publicActivePage === "home",
+    }) %>
 
     <div class="nav-links">
       <% publicNavigationGroups.forEach((group) => { %>

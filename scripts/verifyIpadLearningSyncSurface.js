@@ -10,7 +10,7 @@ const routesPath = path.join(ROOT, "routes", "api-routes.js");
 const controllerSource = fs.readFileSync(controllerPath, "utf8");
 const routeSource = fs.readFileSync(routesPath, "utf8");
 const controller = require(controllerPath);
-const { LearningEvent, ProblemAttempt } = require(path.join(ROOT, "models", "matthsModel.js"));
+const { LearningEvent, ProblemAttempt, User } = require(path.join(ROOT, "models", "matthsModel.js"));
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -396,6 +396,9 @@ async function verifyReviewRetryKeepsLatestClaim() {
   const originalAttemptFindOne = ProblemAttempt.findOne;
   const originalEventUpdateOne = LearningEvent.updateOne;
   const originalEventFindOne = LearningEvent.findOne;
+  const originalUserFindById = User.findById;
+  const originalUserFindOneAndUpdate = User.findOneAndUpdate;
+  const originalUserFindOne = User.findOne;
   const attemptId = objectIdAt(900);
   const clientIdTag = Buffer.from(clientAttemptId).toString("base64url");
   const problem = {
@@ -422,6 +425,14 @@ async function verifyReviewRetryKeepsLatestClaim() {
     async save() {},
   };
   const claims = [];
+  const userState = {
+    _id: userA,
+    currentStreak: 0,
+    longestStreak: 0,
+    lastStudyDate: null,
+    totalStudySeconds: 0,
+    studyActivityReceiptIds: [],
+  };
   try {
     ProblemAttempt.findOne = () => ({
       async populate() {
@@ -471,6 +482,22 @@ async function verifyReviewRetryKeepsLatestClaim() {
         },
       };
     };
+    User.findById = () => ({
+      select() {
+        return this;
+      },
+      async lean() {
+        return { ...userState };
+      },
+    });
+    User.findOneAndUpdate = async (_filter, update) => {
+      if (update.$set) Object.assign(userState, update.$set);
+      if (update.$inc?.totalStudySeconds) {
+        userState.totalStudySeconds += Number(update.$inc.totalStudySeconds) || 0;
+      }
+      return { ...userState };
+    };
+    User.findOne = async () => ({ ...userState });
 
     const request = (clientEventId, values) =>
       capture(controller.postReviewResult, {
@@ -505,10 +532,14 @@ async function verifyReviewRetryKeepsLatestClaim() {
     assert.strictEqual(privateApi.wrongNoteState(problem).wrongCount, 2);
     assert.strictEqual(attempt.review.correctedAfterReview, false);
     assert.strictEqual(claims.length, 2, "A retry must not create a third review claim");
+    assert.strictEqual(userState.currentStreak, 1, "iPad review must record the general study streak");
   } finally {
     ProblemAttempt.findOne = originalAttemptFindOne;
     LearningEvent.updateOne = originalEventUpdateOne;
     LearningEvent.findOne = originalEventFindOne;
+    User.findById = originalUserFindById;
+    User.findOneAndUpdate = originalUserFindOneAndUpdate;
+    User.findOne = originalUserFindOne;
   }
 }
 
@@ -538,6 +569,7 @@ Promise.all([
             "stuck-point response shape",
             "301 identical-timestamp wrong notes across composite-cursor pages",
             "A to B to A retry preserves the latest SRS claim",
+            "iPad learning and wrong-note review record the general study streak",
           ],
         },
         null,

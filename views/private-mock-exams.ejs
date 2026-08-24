@@ -35,10 +35,7 @@
       <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
       <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
         <div class="sidebar-top">
-          <a class="brand" href="/" aria-label="Matths 메인">
-            <span class="brand-mark" aria-hidden="true">M</span>
-            <span>Matths</span>
-          </a>
+          <%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 메인", className: "brand", tone: "light" }) %>
           <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
         </div>
         <%- include("partials/dashboard-navigation", {
@@ -143,7 +140,7 @@
                 data-private-mock-selection
                 data-week-key="<%= examData.selection.weekKey %>"
               >
-                <h3>최종 종합 랭킹 대표 성적 선택</h3>
+                <h3>이번 주 티어 경쟁 대표 성적 선택</h3>
                 <div class="private-mock-selection-options">
                   <% examData.selection.attempts.forEach((attempt) => { %>
                     <label>
@@ -180,7 +177,7 @@
 
           <section class="private-mock-card rules">
             <header>
-              <div><p>랭킹 반영 기준</p><h2>최종 종합 랭킹 기준</h2></div>
+              <div><p>티어 경쟁 기준</p><h2>주간 승급 기준</h2></div>
             </header>
             <ol>
               <% examData.rankingRules.forEach((rule, index) => { %>
@@ -193,10 +190,10 @@
         <section class="private-mock-card weekly-ranking">
           <header>
             <div>
-              <p>최종 종합 랭킹</p>
+              <p>현재 티어 주간 경쟁</p>
               <h2><%= examData.rankingTitle %></h2>
             </div>
-            <span><%= examData.rankingFinalized ? "최종 종합 랭킹 확정" : examData.rankingPending ? "최종 종합 랭킹 집계 중" : "최종 종합 랭킹 공개 대기" %> · 대표 표준화 성적</span>
+            <span><%= examData.rankingFinalized ? "티어별 주간 순위 확정" : examData.rankingPending ? "티어별 주간 순위 집계 중" : "티어별 주간 순위 공개 대기" %> · 대표 표준화 성적</span>
           </header>
           <% if (examData.rankingSummary) { %>
             <dl class="private-mock-ranking-summary">
@@ -211,8 +208,8 @@
                 <h3>평균과 성적 데이터를 분석하고 있습니다.</h3>
                 <p><%= formatRelease(examData.rankingPending.publishesAt) %>에 이번 주 랭킹이 공개됩니다.</p>
               <% } else { %>
-                <h3>아직 공개된 최종 종합 랭킹이 없습니다.</h3>
-                <p>시험 종료 후 집계가 끝나면 최종 종합 랭킹이 표시됩니다.</p>
+                <h3>아직 공개된 티어별 주간 순위가 없습니다.</h3>
+                <p>시험 종료 후 집계가 끝나면 현재 티어의 주간 순위가 표시됩니다.</p>
               <% } %>
             </div>
           <% } else { %>
@@ -222,7 +219,7 @@
                   <strong><%= entry.rank || index + 1 %></strong>
                   <span><%= entry.displayName %></span>
                   <b><%= entry.standardizedPerformance %></b>
-                  <small><%= entry.attemptCount %>회 응시 · <%= entry.elapsedLabel %></small>
+                  <small><%= entry.tierLabel || "티어 집계 중" %> · <%= entry.attemptCount %>회 응시 · <%= entry.elapsedLabel %><%= entry.promotionCandidate ? " · 승급 후보" : "" %><%= entry.tierOutcome === "PROMOTED" ? " · 승급" : entry.tierOutcome === "DEFENDED" ? " · 방어 성공" : "" %></small>
                 </li>
               <% }) %>
             </ol>
@@ -231,5 +228,6 @@
         <% } %>
       </main>
     </div>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

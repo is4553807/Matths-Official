@@ -138,7 +138,12 @@ const accessService = read("services/paidFeatureAccessService.js");
 const privateMockService = read("services/privateMockExamService.js");
 const mmrService = read("services/mmrService.js");
 assert.ok(accessService.includes("getMockExamPackageAccess"));
-assert.ok(privateMockService.includes('status: "mock-exam-only-ready"'));
+assert.ok(privateMockService.includes('"mock-exam-only-ready"'));
+assert.ok(
+  accessService.includes('packageType: "MOCK_EXAM_ONLY"') &&
+    accessService.includes("placementRequired: true"),
+  "모의고사 전용 이용권도 배치고사로 첫 티어를 확정해야 합니다."
+);
 assert.ok(mmrService.includes("weeklyExamCount >= 4"));
 assert.ok(mmrService.includes('eventType: "placement-calibration"'));
 

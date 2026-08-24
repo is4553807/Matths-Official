@@ -29,7 +29,7 @@
     <div class="dashboard-shell store-shell">
       <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
       <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
-        <div class="sidebar-top"><a class="brand" href="/main"><span class="brand-mark" aria-hidden="true">M</span><span>Matths</span></a><button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button></div>
+        <div class="sidebar-top"><%- include("partials/matths-brand", { href: "/main", ariaLabel: "Matths 학습 홈", className: "brand", tone: "light" }) %><button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button></div>
         <%- include("partials/dashboard-navigation", { activePage: "store" }) %>
         <div class="sidebar-spacer"></div>
         <div class="sidebar-profile"><a class="profile-avatar" href="/profile"><%= displayName.slice(0, 1) %></a><div class="profile-copy"><strong><%= displayName %>님</strong><small><%= gradeLabel %></small></div><form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form></div>
@@ -89,5 +89,6 @@
         </section>
       </main>
     </div>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

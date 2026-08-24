@@ -104,5 +104,6 @@
         <section class="arena-analysis-checklist"><header><small>추천 복습 순서</small><h2>다음 학습에서 확인하세요.</h2></header><ol><% (analysis.checklist.length ? analysis.checklist : ["정답 문항의 풀이시간을 다시 확인하기"]).forEach((item) => { %><li><%= item %></li><% }) %></ol><p>분석 생성: <%= formatDateTime(analysis.generatedAt) %></p></section>
       <% } %>
     </main>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

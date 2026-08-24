@@ -79,7 +79,11 @@ async function getWeeklyMockExamAccess(userId) {
       packageType: "MOCK_EXAM_ONLY",
       learningPackage,
       mockExamOnlyPackage,
-      placementRequired: false,
+      /*
+       * 모의고사 전용 이용권도 최초 티어는 무료 배치고사에서 받는다.
+       * Arena 경기 권한과 배치 기반 티어 참여 자격은 서로 다른 개념이다.
+       */
+      placementRequired: true,
       arenaAllowed: false,
     };
   }

@@ -33,10 +33,7 @@
   <body class="private-mock-exam-body">
     <main class="private-mock-exam-shell">
       <header class="private-mock-exam-header">
-        <a class="brand" href="/" aria-label="Matths 메인">
-          <span class="brand-mark" aria-hidden="true">M</span>
-          <span>Matths</span>
-        </a>
+        <%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 메인", className: "brand" }) %>
         <div>
           <p>Matths 주간 공식 모의고사</p>
           <h1><%= examData.exam.title %></h1>
@@ -287,5 +284,6 @@
         </section>
       <% } %>
     </main>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

@@ -17,7 +17,7 @@
   height: 100%;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
 }
 
 .site-header .brand {
@@ -38,7 +38,7 @@
 .site-header .nav-links {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 8px;
   margin-left: auto;
 }
 
@@ -55,6 +55,16 @@
   text-decoration: none;
 }
 
+.site-header .nav-arena-link,
+.site-header .nav-cluster summary,
+.site-header .login-link {
+  padding-inline: 10px;
+  border-radius: 11px;
+  transition:
+    color var(--motion-fast, 120ms) var(--motion-ease, ease),
+    background-color var(--motion-fast, 120ms) var(--motion-ease, ease);
+}
+
 .site-header .login-link {
   min-width: 44px;
   justify-content: center;
@@ -62,21 +72,28 @@
 
 .site-header .nav-links a:hover,
 .site-header .nav-links a.active,
-.site-header .nav-cluster summary:hover,
-.site-header .nav-cluster.active summary,
 .site-header .login-link:hover {
   color: var(--matths-ink);
 }
 
-.site-header .nav-links a.active::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: -12px;
-  left: 0;
-  height: 2px;
-  background: var(--matths-action-primary);
-  border-radius: 99px;
+.site-header .nav-cluster summary:hover,
+.site-header .nav-cluster[open] summary {
+  color: var(--matths-ink);
+  background: #f2f4fa;
+}
+
+.site-header .nav-cluster.active summary {
+  color: var(--matths-violet-text, #6240cf);
+  background: var(--matths-primary-soft, #edf1ff);
+}
+
+/*
+ * 각 페이지의 기존 내비 CSS가 `.active::after` 밑줄을 만든다.
+ * 활성 상태는 관리자 내비처럼 옅은 면으로 표현하므로 공통 내비 안에서는 제거한다.
+ */
+.site-header .nav-links a.active::after,
+.site-header .nav-links > .nav-cluster.active::after {
+  content: none;
 }
 
 .site-header .nav-arena-link {
@@ -136,34 +153,38 @@
 
 .site-header .nav-cluster-menu {
   position: absolute;
-  top: calc(100% + 18px);
+  top: calc(100% + 14px);
   left: 50%;
-  width: 190px;
+  width: 198px;
   display: grid;
-  gap: 3px;
-  padding: 9px;
+  gap: 5px;
+  padding: 10px;
   background: var(--matths-surface);
   border: 1px solid var(--matths-line);
-  border-radius: var(--matths-radius-md);
-  box-shadow: 0 16px 38px rgba(17, 20, 38, 0.12);
+  border-radius: 18px;
+  box-shadow: 0 14px 32px rgba(17, 20, 38, 0.1);
   transform: translateX(-50%);
 }
 
 .site-header .nav-cluster-menu a {
-  padding: 11px 12px;
-  border-radius: 9px;
+  min-height: 42px;
+  padding: 10px 13px;
+  border-radius: 12px;
+  transition:
+    color var(--motion-fast, 120ms) var(--motion-ease, ease),
+    background-color var(--motion-fast, 120ms) var(--motion-ease, ease);
 }
 
 .site-header .nav-cluster-menu a:hover,
 .site-header .nav-cluster-menu a.active {
-  color: var(--matths-action-primary);
-  background: var(--matths-primary-soft);
+  color: var(--matths-violet-text, #6240cf);
+  background: var(--matths-primary-soft, #edf1ff);
 }
 
 .site-header .nav-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .site-header .button {

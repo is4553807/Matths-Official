@@ -10,7 +10,7 @@
   </head>
   <body class="parent-auth-page">
     <main class="parent-auth-shell">
-      <a class="parent-auth-brand" href="/parent" aria-label="학부모 대시보드"><span class="brand-mark">M</span><strong>Matths</strong></a>
+      <%- include("partials/matths-brand", { href: "/parent", ariaLabel: "Matths 학부모 대시보드", className: "parent-auth-brand", suffix: "학부모" }) %>
       <section class="parent-auth-card">
         <p>MATTHS PARENT</p>
         <h1>학부모 계정을 만들어주세요.</h1>
@@ -26,5 +26,6 @@
         <small class="parent-auth-meta">초대 이메일 <b><%= invite.parentEmail %></b> · 요청 상품 <b><%= invite.productCode === 'LEARNING_PACKAGE_29' ? '29일 학습권 패키지' : 'Matths 주간 공식 모의고사 이용권' %></b></small>
       </section>
     </main>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

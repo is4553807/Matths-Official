@@ -97,14 +97,11 @@
     </a>
 
     <header class="auth-header">
-      <a
-        class="auth-brand"
-        href="/"
-        aria-label="Matths 메인 페이지"
-      >
-        <span class="brand-mark" aria-hidden="true">M</span>
-        <strong>Matths</strong>
-      </a>
+      <%- include("partials/matths-brand", {
+        href: "/",
+        ariaLabel: "Matths 메인 페이지",
+        className: "auth-brand",
+      }) %>
 
       <nav aria-label="회원가입 페이지 메뉴">
         <span>이미 계정이 있나요?</span>
@@ -603,5 +600,6 @@
       type="application/json"
     ><%- safeSchoolJson %></script>
     <script id="university-data" type="application/json"><%- safeUniversityJson %></script>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

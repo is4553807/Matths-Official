@@ -30,6 +30,7 @@ function arenaRow(entry, currentUserId) {
     name: String(entry.displayName || "학생"),
     rank: Number(entry.overallRank ?? entry.rank) || 0,
     mmr: Number(entry.rating) || 0,
+    rating: Number(entry.rating) || 0,
     tier: tier?.name || null,
     tierLabel: tier?.label || String(entry.tier || "") || null,
     rankPoint: Number(entry.rankPoint) || 0,
@@ -57,6 +58,7 @@ exports.getArena = async (req, res, next) => {
         : {
             locked: true,
             mmr: null,
+            rating: null,
             tier: null,
             tierLabel: null,
             rankPoint: 0,
@@ -72,6 +74,8 @@ exports.getArena = async (req, res, next) => {
         label: tier.label,
         minMmr: tier.minMmr,
         maxMmr: Number.isFinite(tier.maxMmr) ? tier.maxMmr : null,
+        minRating: tier.minMmr,
+        maxRating: Number.isFinite(tier.maxMmr) ? tier.maxMmr : null,
         maxTopPercentile: tier.maxTopPercentile ?? null,
       })),
       identity: {

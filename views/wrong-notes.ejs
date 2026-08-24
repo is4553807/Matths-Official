@@ -138,10 +138,7 @@
         aria-label="학습 메뉴"
       >
         <div class="sidebar-top">
-          <a class="brand" href="/" aria-label="Matths 메인">
-            <span class="brand-mark" aria-hidden="true">M</span>
-            <span>Matths</span>
-          </a>
+          <%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 메인", className: "brand", tone: "light" }) %>
           <button
             class="sidebar-close"
             id="sidebar-close"
@@ -491,16 +488,6 @@
           <% } %>
         </section>
 
-        <footer class="dashboard-footer">
-          <span>© <%= new Date().getFullYear() %> Matths</span>
-          <p>틀린 날짜와 복습 상태를 남겨 학습 변화를 확인합니다.</p>
-          <div>
-            <a href="/terms">이용약관</a>
-            <a href="/privacy">개인정보처리방침</a>
-            <%- include("partials/social-footer-links") %>
-          </div>
-        </footer>
-
         <p
           class="sr-only"
           id="dashboard-status"
@@ -509,5 +496,6 @@
         ></p>
       </main>
     </div>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

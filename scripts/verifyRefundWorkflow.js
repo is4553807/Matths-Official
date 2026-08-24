@@ -102,7 +102,7 @@ async function main() {
     contactData: {
       user: { nickname: "학생", schoolName: "학교", email: "user@example.com" },
       inquiries: [],
-      refundableOrders: [{ id: "payment", productName: "29일 학습권", orderReference: "ORDER-1", remainingAmount: 19000 }],
+      refundableOrders: [{ id: "payment", productName: "29일 학습권", orderReference: "ORDER-1", approvedAt: new Date("2026-08-13T10:00:00+09:00"), remainingAmount: 19000 }],
     },
     feedback: null,
     inquiryRequestId: "5a8ebeb1-0b55-4d70-a200-8a1d58c85b2e",
@@ -110,20 +110,58 @@ async function main() {
   });
   assert.match(contact, /환불 신청/);
   assert.match(contact, /ORDER-1/);
+  assert.match(contact, /ORDER-1 - 2026년 8월 13일/);
 
   const adminRefunds = await render("admin-refunds.ejs", {
     user: { id: "admin", role: "admin", realName: "홍길동" },
     feedback: null,
-    refundData: { requests: [], status: "", page: 1, total: 0, totalPages: 1 },
+    refundData: {
+      requests: [{
+        _id: "refund-positive",
+        userId: { realName: "학생", email: "student@example.com" },
+        paymentId: { provider: "TOSS", providerMode: "TEST" },
+        productNameSnapshot: "29일 학습권",
+        orderReferenceSnapshot: "ORDER-1",
+        reasonDetail: "환불 요청 사유입니다.",
+        requestedAt: new Date("2026-08-13T10:00:00+09:00"),
+        processingDeadlineAt: new Date("2026-08-18T10:00:00+09:00"),
+        status: "CALCULATED",
+        calculation: { approvedAmount: 29000, calculatedAmount: 19000, usedDays: 10, calculationType: "PARTIAL", formula: "부분 환불 산식", calculatedBy: { realName: "관리자" } },
+      }, {
+        _id: "refund-zero",
+        userId: { realName: "학생", email: "student@example.com" },
+        paymentId: { provider: "TOSS", providerMode: "TEST" },
+        productNameSnapshot: "주간 모의고사 이용권",
+        orderReferenceSnapshot: "ORDER-0",
+        reasonDetail: "환불 요청 사유입니다.",
+        requestedAt: new Date("2026-08-13T10:00:00+09:00"),
+        processingDeadlineAt: new Date("2026-08-18T10:00:00+09:00"),
+        status: "CALCULATED",
+        calculation: { approvedAmount: 5000, calculatedAmount: 0, usedDays: 30, calculationType: "NONE", formula: "잔여 환불액 0원", calculatedBy: { realName: "관리자" } },
+      }],
+      status: "",
+      page: 1,
+      total: 2,
+      totalPages: 1,
+    },
   });
   assert.match(adminRefunds, /취소 API/);
   assert.match(adminRefunds, /환불 관리/);
+  assert.match(adminRefunds, /환불 신청 반려/);
+  assert.match(adminRefunds, /환불액 0원으로 종결/);
+  assert.match(adminRefunds, /\/admin\/refunds\/refund-zero\/reject/);
 
   const refundService = read("services/refundService.js");
   assert.match(refundService, /withTransaction/);
   assert.match(refundService, /refund-complete:/);
   assert.match(refundService, /state: "PAYMENT_REQUIRED"/);
   assert.match(refundService, /paybackPayoutStatus: "CANCELLED"/);
+  assert.match(refundService, /async function rejectRefundRequest/);
+  assert.match(refundService, /refund\.close-zero/);
+  assert.match(refundService, /status: \{ \$in: \["REQUESTED", "CALCULATED"\] \}/);
+  assert.match(read("routes/matths-routes.js"), /"\/admin\/refunds\/:refundRequestId\/reject"/);
+  assert.match(read("services/supportInquiryService.js"), /\/admin\/refunds#refund-/);
+  assert.match(read("views/admin-inquiries.ejs"), /환불 관리에서 산정·완료·반려 처리/);
   assert.match(read("services/emailService.js"), /return getSupportSmtpAccount\(\)/);
   assert.doesNotMatch(read("services/emailService.js"), /OPERATOR_SMTP_ACCOUNTS_JSON/);
 

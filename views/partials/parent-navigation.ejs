@@ -17,10 +17,12 @@
         : "/parent";
 %>
 <header class="parent-nav">
-  <a class="parent-brand" href="/parent" aria-label="학부모 대시보드">
-    <span class="brand-mark" aria-hidden="true">M</span>
-    <span><strong>Matths</strong><small>학부모</small></span>
-  </a>
+  <%- include("matths-brand", {
+    href: "/parent",
+    ariaLabel: "Matths 학부모 대시보드",
+    className: "parent-brand",
+    suffix: "학부모",
+  }) %>
   <% if (connectedChildren.length) { %>
     <form class="parent-child-switcher" action="/parent/children/select" method="post">
       <input type="hidden" name="returnTo" value="<%= returnPath %>" />

@@ -149,7 +149,7 @@
 
               <details class="faq-item" id="faq-goat-arena" data-category="arena" data-search="GOAT Point GP 내부 실력 지표 티어 랭킹 순위 Arena 차이 점수">
                 <summary><span class="question-meta"><b>GOAT Arena</b><i>15</i></span><strong>GP, 티어와 랭킹은 어떻게 연결되나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
-                <div class="faq-answer"><p><strong>GP</strong>는 GOAT Point의 약자입니다. 공개 Arena 상태는 티어·티어 내 순위·GP 세 값으로 구성되며, 화면의 “랭킹”은 전체 통합 순위가 아니라 현재 티어 안에서 몇 위인지를 뜻합니다. 공격자가 이기면 세 값이 통째로 교환됩니다. <strong>내부 실력 지표</strong>는 배치고사와 Matths 주간 공식 모의고사에서만 변경되며 1대1에는 사용하지 않습니다.</p></div>
+                <div class="faq-answer"><p><strong>GP</strong>는 GOAT Point의 약자입니다. 공개 Arena 상태는 티어·티어 내 순위·GP 세 값으로 구성됩니다. 배치고사로 첫 상태를 받고, GOAT Arena에서 공격자가 이기거나 주간 모의고사 승급 후보가 바로 위 티어 학생보다 더 좋은 대표 성적을 기록하면 세 값이 통째로 교환됩니다. 주간 승급 후보는 티어별 상위 20% 또는 다음 티어 기준의 승급 준비도를 2주 연속 충족한 학생 가운데 최소 1명, 최대 5명입니다.</p></div>
               </details>
 
               <details class="faq-item" data-category="arena" data-search="랭킹 순위 전체 다른 티어 상위 20명 Unranked Ranked">
@@ -169,7 +169,7 @@
 
               <details class="faq-item" data-category="arena" data-search="일반 쟁탈전 GP 점수 변동 Arena 순위 시험">
                 <summary><span class="question-meta"><b>GOAT Arena</b><i>19</i></span><strong>일반 쟁탈전에서 이기면 GP도 오르나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
-                <div class="faq-answer"><p>공격자가 이기면 공격자와 방어자의 <strong>티어·티어 내 순위·GP가 한 묶음으로 교환</strong>됩니다. 공격자는 방어자의 이전 세 값을 받고, 방어자는 공격자의 이전 세 값을 받습니다. 방어자가 이기거나 최종 완전 동점이면 세 값은 그대로 유지되며 내부 실력 지표는 사용하거나 변경하지 않습니다.</p></div>
+                <div class="faq-answer"><p>공격자가 이기면 공격자와 방어자의 <strong>티어·티어 내 순위·GP가 한 묶음으로 교환</strong>됩니다. 공격자는 방어자의 이전 세 값을 받고, 방어자는 공격자의 이전 세 값을 받습니다. 주간 모의고사에서는 아래 티어 승급 후보 순서대로 바로 위 티어의 하위 순서와 대표 성적을 비교해 같은 방식으로 승급 여부를 정합니다. 완전 동점이면 위 티어 학생이 자리를 지키며, 한 학생은 한 주에 최대 한 티어만 이동합니다.</p></div>
               </details>
 
               <details class="faq-item" data-category="arena" data-search="29일 정기권 학습 가능 일수 차감 보호 환불 학습일">
@@ -198,8 +198,8 @@
               </details>
 
               <details class="faq-item" data-category="usage" data-search="로그인 이메일 닉네임 유저네임 아이디">
-                <summary><span class="question-meta"><b>이용</b><i>25</i></span><strong>닉네임으로도 로그인할 수 있나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
-                <div class="faq-answer"><p>네. 로그인 화면에서 가입 이메일 또는 닉네임 중 하나와 비밀번호를 입력할 수 있습니다. 비밀번호 재설정과 운영 알림은 계속 가입 이메일을 기준으로 진행됩니다.</p></div>
+                <summary><span class="question-meta"><b>이용</b><i>25</i></span><strong>어떤 정보로 로그인하나요?</strong><span class="toggle-icon" aria-hidden="true"></span></summary>
+                <div class="faq-answer"><p>가입 이메일과 비밀번호로 로그인합니다. 닉네임은 공개 랭킹과 커뮤니티 표시용이며 로그인 식별자로 사용하지 않습니다.</p></div>
               </details>
 
               <details class="faq-item" data-category="usage" data-search="회원가입 생년월일 본인확인 중복 계정 N수생 학교 졸업">
@@ -309,6 +309,6 @@
       </section>
     </main>
 
-    <footer class="site-footer"><div class="container footer-inner"><a class="brand footer-brand" href="/"><span class="brand-mark" aria-hidden="true">M</span><span>Matths</span></a><p>수학이 보이면, 풀이가 시작됩니다.</p><div><a href="/terms">이용약관</a><a href="/privacy">개인정보처리방침</a><%- include("partials/social-footer-links") %></div></div></footer>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

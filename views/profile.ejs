@@ -87,10 +87,7 @@
 
     <div class="profile-page-shell">
       <header class="profile-header">
-        <a class="brand" href="/" aria-label="Matths 학습 홈">
-          <span class="brand-mark" aria-hidden="true">M</span>
-          <span>Matths</span>
-        </a>
+        <%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 학습 홈", className: "brand" }) %>
 
         <a class="back-link learning-home-button" href="/main">
           <span aria-hidden="true">←</span>
@@ -576,5 +573,6 @@
     </div>
 
     <script id="school-data" type="application/json"><%- safeSchoolJson %></script>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

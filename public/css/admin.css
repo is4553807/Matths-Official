@@ -2407,6 +2407,90 @@
   gap: 8px;
 }
 
+.admin-refund-zero-note {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 15px 17px;
+  color: #66501d;
+  background: #fff8e5;
+  border: 1px solid #eedb9d;
+  border-radius: 12px;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.admin-refund-management-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 43px;
+  padding: 0 16px;
+  color: #fff;
+  background: var(--admin-blue);
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.admin-refund-reject-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 15px;
+  background: #fff7f7;
+  border: 1px solid #f0d4d7;
+  border-radius: 13px;
+}
+
+.admin-refund-reject-form.is-zero {
+  background: #fffaf0;
+  border-color: #eedb9d;
+}
+
+.admin-refund-reject-form label {
+  display: grid;
+  gap: 7px;
+  color: #6c4350;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.admin-refund-reject-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 11px 12px;
+  color: var(--admin-ink);
+  background: #fff;
+  border: 1px solid #e4cdd2;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.admin-refund-reject-form button {
+  min-height: 43px;
+  padding: 0 16px;
+  color: #fff;
+  background: #b3384d;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.admin-refund-reject-form.is-zero button {
+  background: #8b6714;
+}
+
 .admin-pagination {
   display: flex;
   justify-content: center;
@@ -2449,7 +2533,7 @@
   grid-template-columns:
     minmax(180px, 1.35fr)
     minmax(140px, 1fr)
-    55px 62px 86px 78px
+    55px 62px 86px 78px 132px
     105px 64px;
   align-items: center;
   gap: 12px;
@@ -3289,7 +3373,7 @@
   }
 
   .admin-user-row {
-    min-width: 1060px;
+    min-width: 1200px;
   }
 }
 
@@ -3361,6 +3445,7 @@
   .admin-user-summary,
   .admin-metric-row,
   .admin-inquiry-actions,
+  .admin-refund-reject-form,
   .admin-filter-bar {
     grid-template-columns: 1fr;
   }

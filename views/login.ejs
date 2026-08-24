@@ -9,7 +9,7 @@
   const input =
     typeof oldInput !== "undefined" && oldInput
       ? oldInput
-      : { identifier: "" };
+      : { email: "" };
   const socialProviders =
     typeof socialAuthProviders !== "undefined" && Array.isArray(socialAuthProviders)
       ? socialAuthProviders
@@ -59,14 +59,11 @@
     </a>
 
     <header class="auth-header">
-      <a
-        class="auth-brand"
-        href="/"
-        aria-label="Matths 메인 페이지"
-      >
-        <span class="brand-mark" aria-hidden="true">M</span>
-        <strong>Matths</strong>
-      </a>
+      <%- include("partials/matths-brand", {
+        href: "/",
+        ariaLabel: "Matths 메인 페이지",
+        className: "auth-brand",
+      }) %>
 
       <nav aria-label="인증 페이지 메뉴">
         <span>아직 계정이 없나요?</span>
@@ -160,14 +157,14 @@
             method="POST"
           >
             <div class="form-field">
-              <label for="identifier">이메일 또는 닉네임</label>
+              <label for="email">이메일</label>
 
               <input
-                id="identifier"
-                name="identifier"
-                type="text"
-                value="<%= input.identifier || input.email || '' %>"
-                placeholder="이메일 또는 닉네임"
+                id="email"
+                name="email"
+                type="email"
+                value="<%= input.email || '' %>"
+                placeholder="가입 이메일"
                 autocomplete="username"
                 required
               />
@@ -267,5 +264,6 @@
         </div>
       </section>
     </main>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

@@ -191,7 +191,7 @@ function buildSeedState(
       code: "PROFILE_PENDING",
       label: "Arena 프로필 생성 대기",
       detail:
-        "배치고사 결과는 내부 실력 지표와 첫 Unranked 배치에 반영됩니다. 시험 점수를 Arena GP로 직접 표시하지 않습니다.",
+        "배치고사 결과로 첫 Unranked 티어·티어 내 순위·GP를 만들고 있습니다.",
       ready: false,
     };
   }
@@ -204,7 +204,7 @@ function buildSeedState(
       code: "VERIFY",
       label: "추가 확인 진행 중",
       detail:
-        "4문항 확인을 마치면 최초 내부 실력 지표와 Unranked 배치가 확정됩니다.",
+        "4문항 확인을 마치면 첫 Unranked 티어·티어 내 순위·GP가 확정됩니다.",
       ready: false,
     };
   }
@@ -225,7 +225,7 @@ function buildSeedState(
     code: "PLACEMENT",
     label: "배치고사 필요",
     detail:
-      "배치고사를 완료해야 최초 내부 실력 지표와 Unranked 배치 절차를 시작할 수 있습니다.",
+      "배치고사를 완료해야 첫 Unranked 티어 배치를 시작할 수 있습니다.",
     ready: false,
   };
 }
@@ -410,15 +410,6 @@ function buildArenaAccess(
       minimumAttackParticipationDays:
         accessCycle ? minimumAttackDays : null,
       attackParticipationDaysNeeded:
-        accessCycle
-          ? Math.max(0, minimumAttackDays - participationDays)
-          : null,
-      // 기존 클라이언트가 새 서버로 전환되는 동안 유지하는 응답 별칭입니다.
-      studyStreakDays:
-        accessCycle ? participationDays : null,
-      minimumStudyStreakDays:
-        accessCycle ? minimumAttackDays : null,
-      studyDaysNeeded:
         accessCycle
           ? Math.max(0, minimumAttackDays - participationDays)
           : null,

@@ -40,10 +40,7 @@
         aria-label="학습 메뉴"
       >
         <div class="sidebar-top">
-          <a class="brand" href="/" aria-label="Matths 메인">
-            <span class="brand-mark" aria-hidden="true">M</span>
-            <span>Matths</span>
-          </a>
+          <%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 메인", className: "brand", tone: "light" }) %>
           <button
             class="sidebar-close"
             id="sidebar-close"
@@ -270,5 +267,6 @@
         hidden
       ></form>
     </dialog>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

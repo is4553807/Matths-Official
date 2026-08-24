@@ -175,5 +175,6 @@
       </section>
       <div class="community-post-actions"><a href="<%= backHref %>">목록으로</a><a class="primary" href="/community/new?board=<%= ["school", "retaker", "university", "worker"].includes(post.boardType) ? post.boardType : "high-school" %>">새 글 쓰기</a></div>
     </main>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

@@ -82,6 +82,8 @@ async function resultView(doc) {
   const three = placementResult.threePoint || {};
   const four = placementResult.fourPoint || {};
   const profile = rankingProfileView(await ensureRankingProfile(doc.userId));
+  const initialRating =
+    placementResult.initialMmr ?? profile?.rating ?? profile?.mmr ?? null;
 
   return {
     attemptId: String(doc._id),
@@ -89,8 +91,9 @@ async function resultView(doc) {
     totalCorrect:
       (Number(three.correct) || 0) + (Number(four.correct) || 0),
     placementScore: Number(placementResult.placementScore) || 0,
-    initialMmr:
-      placementResult.initialMmr ?? profile?.mmr ?? null,
+    /* TestFlight 하위 호환 필드는 유지하고 새 중립 명칭을 함께 제공한다. */
+    initialMmr: initialRating,
+    initialRating,
     tierCode: profile?.tier || "BRONZE",
     tierLabel: profile?.tierLabel || placementResult.initialTier || "브론즈",
     rankPoint: profile?.rankPoint ?? null,

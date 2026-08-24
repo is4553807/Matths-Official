@@ -701,10 +701,10 @@ for (const file of [
   "views/contact.ejs",
   "views/archive-public.ejs",
 ]) {
+  const publicViewSource = read(file);
   assert.ok(
-    read(file).includes(
-      'partials/public-navigation'
-    ),
+    publicViewSource.includes('partials/public-navigation') ||
+      publicViewSource.includes('partials/home-public-navigation'),
     `${file}에 공용 메인 메뉴가 연결되지 않았습니다.`
   );
 }

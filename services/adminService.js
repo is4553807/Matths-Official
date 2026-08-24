@@ -77,6 +77,9 @@ const {
 const {
   expireOverduePlacementAttempts,
 } = require("./placementExamService");
+const {
+  getEffectiveStreak,
+} = require("./userLifecycleService");
 const accountEmailCopy =
   require("../content/email/account");
 
@@ -1112,7 +1115,7 @@ async function getAdminUsersData({
   const mergeLimit = safeCurrentPage * USERS_PER_PAGE;
   const studentQuery = User.find(filter)
     .select(
-      "name realName email role school university schoolGrade isActive accountStatus accountStatusReason suspendedUntil warningCount totalStudySeconds currentStreak lastLoginAt createdAt"
+      "name realName email role school university schoolGrade isActive accountStatus accountStatusReason suspendedUntil warningCount totalStudySeconds currentStreak longestStreak lastStudyDate lastLoginAt createdAt"
     )
     .sort({ createdAt: -1, _id: -1 });
   if (includeParents) {
@@ -1153,16 +1156,22 @@ async function getAdminUsersData({
       Number(entry.count) || 0,
     ])
   );
+  const studentUsers = studentRows.map((student) => ({
+    ...student,
+    currentStreak: getEffectiveStreak(student),
+    longestStreak: Math.max(0, Number(student.longestStreak) || 0),
+    lastStudyDate: student.lastStudyDate || null,
+  }));
   const users = includeParents
     ? [
-        ...studentRows,
+        ...studentUsers,
         ...parentRows.map((parent) =>
           adminParentRow(parent, linkCountByParent)
         ),
       ]
         .sort(compareAdminUsersByCreatedAt)
         .slice(pageOffset, pageOffset + USERS_PER_PAGE)
-    : studentRows;
+    : studentUsers;
 
   return {
     users,
@@ -1752,6 +1761,13 @@ async function getAdminUserDetail(
 
   return {
     user,
+    streak: isAdminProfile
+      ? null
+      : {
+          current: getEffectiveStreak(user),
+          longest: Math.max(0, Number(user.longestStreak) || 0),
+          lastStudyDate: user.lastStudyDate || null,
+        },
     learning: {
       progress: enrichedProgress,
       currentConcept,

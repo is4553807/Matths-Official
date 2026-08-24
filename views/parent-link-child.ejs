@@ -10,7 +10,7 @@
   </head>
   <body class="parent-auth-page">
     <main class="parent-auth-shell">
-      <a class="parent-auth-brand" href="/parent" aria-label="학부모 대시보드"><span class="brand-mark">M</span><strong>Matths</strong></a>
+      <%- include("partials/matths-brand", { href: "/parent", ariaLabel: "Matths 학부모 대시보드", className: "parent-auth-brand", suffix: "학부모" }) %>
       <section class="parent-auth-card parent-link-card">
         <p>CHILD ACCOUNT LINK</p>
         <h1>새 자녀 계정을 연결할까요?</h1>
@@ -26,5 +26,6 @@
         <a class="parent-link-cancel" href="/parent">지금은 연결하지 않기</a>
       </section>
     </main>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

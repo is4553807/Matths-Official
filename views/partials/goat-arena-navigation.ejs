@@ -49,21 +49,14 @@
   ];
 %>
 <header class="arena-hud">
-  <a
-    class="arena-brand"
-    href="/goat-arena"
-    aria-label="GOAT Arena 홈"
-  >
-    <img
-      class="arena-brand-logo"
-      src="/images/matths-mark.png"
-      alt=""
-    />
-    <span>
-      <strong class="arena-brand-title">GOAT ARENA</strong>
-      <small>POWERED BY MATTHS</small>
-    </span>
-  </a>
+  <%- include("matths-brand", {
+    href: "/goat-arena",
+    ariaLabel: "GOAT Arena 홈",
+    className: "arena-brand",
+    suffix: "GOAT ARENA",
+    tone: "light",
+    compact: true,
+  }) %>
 
   <nav
     class="arena-main-navigation"

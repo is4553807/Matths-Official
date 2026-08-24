@@ -101,15 +101,18 @@ async function ensureInquiryAdminTodo(
     return null;
   }
 
+  const isRefund = inquiry.inquiryType === "REFUND" && inquiry.refundRequestId;
   return createAdminTodo({
     category: "inquiry",
     title: `${
-      inquiry.inquiryType === "REFUND"
+      isRefund
         ? "환불 신청"
         : "문의 확인"
     } · ${inquiry.subject}`,
     description: inquiry.content,
-    href: `/admin/inquiries#inquiry-${inquiry._id}`,
+    href: isRefund
+      ? `/admin/refunds#refund-${inquiry.refundRequestId}`
+      : `/admin/inquiries#inquiry-${inquiry._id}`,
     targetUserId: inquiry.userId,
     actorUserId:
       inquiry.submittedByType === "PARENT"
@@ -117,6 +120,13 @@ async function ensureInquiryAdminTodo(
         : inquiry.userId,
     sourceType: "SupportInquiry",
     sourceId: inquiry._id,
+    metadata: isRefund
+      ? {
+          refundRequestId: String(inquiry.refundRequestId),
+          orderReference: String(inquiry.orderReferenceSnapshot || ""),
+        }
+      : {},
+    refreshExisting: isRefund,
   });
 }
 

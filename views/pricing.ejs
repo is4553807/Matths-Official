@@ -66,8 +66,9 @@
           <p class="pricing-feature-title">기본학습 패키지 기능에 추가</p>
           <ul>
             <li>Matths 주간 공식 모의고사 응시</li>
+            <li>최초 배치고사 1회로 첫 티어 결정</li>
+            <li>매주 티어별 경쟁·경계 승급</li>
             <li>응시 결과로 내부 실력 지표 계산·저장</li>
-            <li>최초 배치고사 1회·티어 확인</li>
             <li>시각화 개념·유형별 문제 이용</li>
             <li class="is-disabled">시즌 배치·랭크 복귀전 이용 불가</li>
             <li class="is-disabled">GOAT Arena 및 랭크전 이용 불가</li>
@@ -88,7 +89,7 @@
               <a class="pricing-primary" href="/register">지금 바로 시작하기</a>
             <% } %>
           </div>
-          <small class="pricing-note">주간 공식 모의고사를 4회 이상 응시한 뒤 학습권 패키지로 변경하면, 배치고사 결과와 기존 기록을 함께 사용해 내부 실력 지표를 갱신합니다.</small>
+          <small class="pricing-note">GOAT Arena 경기를 이용하지 않아도 주간 공식 모의고사 정산만으로 티어를 올릴 수 있습니다. 4회 이상 응시한 뒤 학습권 패키지로 변경하면 배치고사 결과와 기존 기록을 함께 사용해 내부 실력 지표를 갱신합니다.</small>
           <section class="pricing-refund-summary" aria-label="주간 공식 모의고사 이용권 환불 기준">
             <strong>환불 기준</strong>
             <p><%= mockProduct.refundPolicy.fullRefund %></p>
@@ -159,18 +160,6 @@
         </div>
       </section>
     </main>
-    <footer class="pricing-footer">
-      <div class="pricing-footer-inner">
-        <a class="brand" href="/" aria-label="Matths 메인">
-          <span class="brand-mark" aria-hidden="true">M</span>
-          <span>Matths</span>
-        </a>
-        <div>
-          <a href="/terms">이용약관</a>
-          <a href="/privacy">개인정보처리방침</a>
-          <%- include("partials/social-footer-links") %>
-        </div>
-      </div>
-    </footer>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

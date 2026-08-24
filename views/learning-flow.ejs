@@ -122,9 +122,9 @@
             <h2 id="arena-bridge-title">배운 뒤에는,<br /><em>내 자리를 확인합니다.</em></h2>
             <p>
               Matths의 학습과 GOAT Arena는 따로 놀지 않습니다. 배치고사와 Matths 주간 공식 모의고사로
-              실력을 확인하고, Arena 1대1 경기에서 티어·티어 내부 순위·GP가 함께 움직입니다.
+              실력을 확인하고, 주간 티어 경쟁과 Arena 1대1 경기에서 티어·티어 내부 순위·GP가 함께 움직입니다.
             </p>
-            <p class="arena-bridge-note">MMR은 배치와 공식 모의고사 결과를 바탕으로 이후 점수 변동을 조정하는 내부 지표이며, 화면의 순위 점수는 GP입니다.</p>
+            <p class="arena-bridge-note">배치고사로 첫 티어가 정해지고, 이후에는 주간 공식 모의고사 티어 경쟁과 GOAT Arena 1대1 결과로 승급할 수 있습니다. 주간 상위 20% 또는 2주 연속 승급 준비도 기준을 충족하면 모의고사만으로도 승급 후보가 됩니다. 화면의 순위 점수는 GP입니다.</p>
             <a class="button button-white button-large" href="/goat-arena">GOAT Arena 알아보기 <span>→</span></a>
           </div>
           <div class="arena-bridge-card" aria-label="GOAT Arena 학습 연결 예시">
@@ -132,7 +132,7 @@
             <div class="arena-bridge-track">
               <article><b>01</b><div><strong>배치고사</strong><span>시작 위치 확인</span></div></article>
               <i aria-hidden="true">↓</i>
-              <article><b>02</b><div><strong>주간 공식 모의고사</strong><span>실력 흐름 반영</span></div></article>
+              <article><b>02</b><div><strong>주간 공식 모의고사</strong><span>현재 티어 순위 · 승급 도전</span></div></article>
               <i aria-hidden="true">↓</i>
               <article class="is-highlight"><b>03</b><div><strong>1대1 Arena 경기</strong><span>티어 · 티어 내부 순위 · GP 변동</span></div></article>
             </div>
@@ -143,6 +143,6 @@
 
       <section class="final-cta"><div class="container cta-inner"><p>UNDERSTAND → APPLY → RETRY</p><h2>배웠다는 느낌보다,<br />풀 수 있다는 자신감까지.</h2><a class="button button-white button-large" href="<%= startHref %>"><%= startLabel %> <span>→</span></a></div></section>
     </main>
-    <footer class="site-footer"><div class="container footer-inner"><a class="brand footer-brand" href="/"><span class="brand-mark" aria-hidden="true">M</span><span>Matths</span></a><p>수학이 보이면, 풀이가 시작됩니다.</p><div><a href="/terms">이용약관</a><a href="/privacy">개인정보처리방침</a><%- include("partials/social-footer-links") %></div></div></footer>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

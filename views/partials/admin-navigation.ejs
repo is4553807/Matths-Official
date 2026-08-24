@@ -65,13 +65,14 @@
   ];
 %>
 <header class="admin-topbar">
-  <a class="admin-brand" href="/admin" aria-label="Matths 운영센터 홈">
-    <span class="brand-mark" aria-hidden="true">M</span>
-    <strong>
-      Matths
-      <small>운영센터</small>
-    </strong>
-  </a>
+  <%- include("matths-brand", {
+    href: "/admin",
+    ariaLabel: "Matths 운영센터 홈",
+    className: "admin-brand",
+    suffix: "운영센터",
+    tone: "light",
+    compact: true,
+  }) %>
   <nav class="admin-main-nav" aria-label="관리자 메뉴">
     <a
       class="admin-nav-home <%= currentAdminPage === 'dashboard' ? 'active' : '' %>"

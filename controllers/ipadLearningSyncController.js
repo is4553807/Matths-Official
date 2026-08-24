@@ -17,6 +17,10 @@ const {
   canonicalProgressTypeIds,
   canonicalProgressView,
 } = require("../services/progressTypeIdService");
+const {
+  getKoreanDateKey,
+  recordStudyActivity,
+} = require("../services/userLifecycleService");
 
 const CURRICULUM_ID = "kr-2022";
 const IPAD_SYNC_COURSE = "ipad-sync";
@@ -27,6 +31,21 @@ const PROTECTED_EVENT_TYPES = new Set([
   "protected-screen-screenshot",
   "protected-screen-capture-started",
   "protected-screen-capture-ended",
+]);
+const STREAK_LEARNING_EVENT_TYPES = new Set([
+  "concept-opened",
+  "concept-closed",
+  "step-viewed",
+  "step-replayed",
+  "hint-used",
+  "problem-opened",
+  "problem-attempted",
+  "problem-correct",
+  "problem-wrong",
+  "topic-completed",
+  "concept-completed",
+  "review-started",
+  "review-completed",
 ]);
 const ERROR_TYPES = new Set([
   "calculation-error",
@@ -277,6 +296,50 @@ function normalizeEvent(raw, { userId, sessionId, occurredAtFallback = new Date(
   if (mongoose.isValidObjectId(raw.problemId)) document.problemId = raw.problemId;
   if (mongoose.isValidObjectId(raw.attemptId)) document.attemptId = raw.attemptId;
   return document;
+}
+
+function isStreakLearningEvent(document) {
+  return Boolean(
+    document &&
+      document.metadata?.analyticsExcluded !== true &&
+      STREAK_LEARNING_EVENT_TYPES.has(document.eventType)
+  );
+}
+
+function groupIpadLearningEvents(documents, acceptedClientEventIds) {
+  const accepted = acceptedClientEventIds || new Set();
+  const days = new Map();
+  for (const document of documents || []) {
+    if (!isStreakLearningEvent(document)) continue;
+    const dateKey = getKoreanDateKey(document.occurredAt);
+    const current = days.get(dateKey) || {
+      userId: document.userId,
+      occurredAt: document.occurredAt,
+      durationMs: 0,
+    };
+    if (new Date(document.occurredAt) > new Date(current.occurredAt)) {
+      current.occurredAt = document.occurredAt;
+    }
+    if (accepted.has(document.clientEventId)) {
+      current.durationMs += Math.max(0, Number(document.durationMs) || 0);
+    }
+    days.set(dateKey, current);
+  }
+
+  return [...days.values()].sort(
+    (left, right) => new Date(left.occurredAt) - new Date(right.occurredAt)
+  );
+}
+
+async function recordIpadLearningEvents(documents, acceptedClientEventIds) {
+  for (const day of groupIpadLearningEvents(
+    documents,
+    acceptedClientEventIds
+  )) {
+    /* LearningEvent의 unique insert가 시간 중복 집계를 막고, 0ms 재호출은
+     * 중간 실패 뒤 재시도에서도 streak 날짜만 안전하게 복구한다. */
+    await recordStudyActivity(day.userId, day.occurredAt, day.durationMs);
+  }
 }
 
 async function insertEventOnce(document) {
@@ -683,7 +746,7 @@ exports.updateTopic = async (req, res, next) => {
       },
     };
     await ConceptProgress.updateOne(progressFilter(req.apiUser._id, contract), update);
-    await insertEventOnce({
+    const activityEvent = {
       userId: req.apiUser._id,
       clientEventId,
       sessionId: "ipad-topic-sync",
@@ -695,7 +758,12 @@ exports.updateTopic = async (req, res, next) => {
       topicIndex,
       metadata: { source: req.body?.clientEventId ? "ipad" : "web" },
       occurredAt,
-    });
+    };
+    const inserted = await insertEventOnce(activityEvent);
+    await recordIpadLearningEvents(
+      [activityEvent],
+      inserted ? new Set([activityEvent.clientEventId]) : new Set()
+    );
     const progress = await refreshProgress(req.apiUser._id, contract);
     return res.json({ progress: serializeProgress(progress) });
   } catch (error) {
@@ -789,10 +857,16 @@ exports.postEvents = async (req, res, next) => {
       documents.push(document);
     }
     let accepted = 0;
+    const acceptedClientEventIds = new Set();
     for (const document of documents) {
-      if (await insertEventOnce(document)) accepted += 1;
-      else duplicates += 1;
+      if (await insertEventOnce(document)) {
+        accepted += 1;
+        acceptedClientEventIds.add(document.clientEventId);
+      } else {
+        duplicates += 1;
+      }
     }
+    await recordIpadLearningEvents(documents, acceptedClientEventIds);
     return res.json({ accepted, duplicates, rejected: 0 });
   } catch (error) {
     return next(error);
@@ -880,7 +954,7 @@ exports.postReviewResult = async (req, res, next) => {
       throw httpError(400, "INVALID_REVIEW_RESULT", "복습 단계 값이 올바르지 않습니다.");
     }
     const requestedNextReviewAt = parseDate(req.body?.nextReviewAt);
-    const inserted = await insertEventOnce({
+    const reviewEvent = {
       userId: req.apiUser._id,
       clientEventId: eventKey,
       sessionId: "ipad-wrong-note-review",
@@ -898,7 +972,12 @@ exports.postReviewResult = async (req, res, next) => {
         nextReviewAt: requestedNextReviewAt,
       },
       occurredAt: new Date(),
-    });
+    };
+    const inserted = await insertEventOnce(reviewEvent);
+    await recordIpadLearningEvents(
+      [reviewEvent],
+      inserted ? new Set([reviewEvent.clientEventId]) : new Set()
+    );
     // 이벤트를 먼저 유일키로 claim하고, 승리한 payload를 매 재시도마다 적용한다.
     // 저장 중간에 프로세스가 죽어도 같은 요청이 winner를 다시 적용해 복구한다.
     const claimedEvent = await LearningEvent.findOne({
@@ -1086,8 +1165,10 @@ exports._private = {
   canonicalTypeIdsExpression,
   decodeWrongNoteCursor,
   encodeWrongNoteCursor,
+  groupIpadLearningEvents,
   integerInRange,
   normalizeEvent,
+  isStreakLearningEvent,
   serializeProgress,
   serializeStuckPoint,
   serializeWrongNote,

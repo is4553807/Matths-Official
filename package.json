@@ -8,6 +8,9 @@
   },
   "scripts": {
     "start": "node server.js",
+    "auth-email-only:verify": "node scripts/verifyEmailOnlyLogin.js",
+    "study-streak:verify": "node scripts/verifyStudyStreakBoundary.js",
+    "weekly-tier-competition:verify": "node scripts/verifyWeeklyTierCompetition.js",
     "ipad-server-surface:verify": "node scripts/verifyIpadServerSurface.js",
     "ipad-learning-sync:verify": "node scripts/verifyIpadLearningSyncSurface.js",
     "ipad-assessment-http:verify": "node audit/verifyIpadAssessmentHttpContract.js",
@@ -27,6 +30,7 @@
     "support-email-routing:verify": "node scripts/verifySupportEmailRouting.js",
     "finance:verify": "node scripts/verifyFinanceLedger.js",
     "refund:verify": "node scripts/verifyRefundWorkflow.js",
+    "refund-rejection:verify-db": "node audit/runInIsolatedAuditEnvironment.js audit/verifyRefundRejectionDb.js",
     "payments:toss:verify": "node scripts/verifyTossPaymentsIntegration.js",
     "pricing-entitlements:verify": "node scripts/verifyPricingEntitlementCtas.js",
     "pricing-entitlements:verify-db": "node audit/runInIsolatedAuditEnvironment.js audit/verifyPricingEntitlementDb.js",

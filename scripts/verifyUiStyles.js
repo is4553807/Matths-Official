@@ -111,9 +111,49 @@ const publicNavigationCss = fs.readFileSync(
 );
 assert.match(
   publicNavigationCss,
+  /@import\s+url\(["']\/css\/home-public-navigation\.css["']\)/,
+  "공개 페이지 Navbar는 index.ejs와 같은 스타일 원본을 사용해야 합니다."
+);
+
+const homePublicNavigationCss = fs.readFileSync(
+  path.join(cssRoot, "home-public-navigation.css"),
+  "utf8"
+);
+assert.match(
+  homePublicNavigationCss,
   /@media\s*\(max-width:\s*1100px\)/,
   "공개 Navbar는 중간 화면 폭에서 메뉴 버튼이 삐져나오기 전에 축소 메뉴로 전환해야 합니다."
 );
+
+const publicNavigationPartial = fs.readFileSync(
+  path.join(viewRoot, "partials", "public-navigation.ejs"),
+  "utf8"
+);
+assert.match(
+  publicNavigationPartial,
+  /include\(["']home-public-navigation["']/,
+  "공개 페이지 Navbar는 index.ejs와 같은 partial을 사용해야 합니다."
+);
+
+const homePublicNavigationPartial = fs.readFileSync(
+  path.join(viewRoot, "partials", "home-public-navigation.ejs"),
+  "utf8"
+);
+for (const label of [
+  "시각화 학습",
+  "학습 과정",
+  "교육과정",
+  "이용권",
+  "게시판",
+  "FAQ",
+  "아카이브",
+]) {
+  assert.match(
+    homePublicNavigationPartial,
+    new RegExp(`[,\"]${label}[\"]\\]`),
+    `공개 Navbar 메뉴명이 누락되었습니다: ${label}`
+  );
+}
 
 const adminCss = fs.readFileSync(
   path.join(cssRoot, "admin.css"),

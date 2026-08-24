@@ -10,8 +10,8 @@ if (!manifestPath || !outputPath) {
 
 const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
 const accounts = Array.isArray(manifest.accounts) ? manifest.accounts : [];
-if (accounts.length !== 200) {
-  throw new Error(`가상 유저 200명 명세가 필요합니다. 현재 ${accounts.length}명입니다.`);
+if (accounts.length !== 100) {
+  throw new Error(`가상 유저 100명 명세가 필요합니다. 현재 ${accounts.length}명입니다.`);
 }
 
 const divisionName = (division) => (division === "SUB" ? "UNRANKED" : "RANKED");
@@ -24,7 +24,7 @@ for (const target of [summary, sheet]) target.showGridLines = false;
 summary.getRange("A1:F1").merge();
 summary.getRange("A1").values = [["GOAT Arena 가상 유저 · 운영 테스트 계정"]];
 summary.getRange("A2:F2").merge();
-summary.getRange("A2").values = [["Unranked 100명 · Ranked 100명 | 실제 학생 데이터가 아닌 가상 테스트 계정입니다."]];
+summary.getRange("A2").values = [["Unranked 50명 · Ranked 50명 | 실제 학생 데이터가 아닌 가상 테스트 계정입니다."]];
 summary.getRange("A4:F4").values = [["생성 일시", "배치 키", "공통 비밀번호", "Unranked", "Ranked", "총계"]];
 summary.getRange("A5:F5").values = [[
   new Date(manifest.generatedAt),
@@ -34,9 +34,9 @@ summary.getRange("A5:F5").values = [[
   null,
   null,
 ]];
-summary.getRange("D5").formulas = [["=COUNTIF('로그인 계정'!$B$8:$B$207,\"UNRANKED\")"]];
-summary.getRange("E5").formulas = [["=COUNTIF('로그인 계정'!$B$8:$B$207,\"RANKED\")"]];
-summary.getRange("F5").formulas = [["=COUNTA('로그인 계정'!$A$8:$A$207)"]];
+summary.getRange("D5").formulas = [["=COUNTIF('로그인 계정'!$B$8:$B$107,\"UNRANKED\")"]];
+summary.getRange("E5").formulas = [["=COUNTIF('로그인 계정'!$B$8:$B$107,\"RANKED\")"]];
+summary.getRange("F5").formulas = [["=COUNTA('로그인 계정'!$A$8:$A$107)"]];
 summary.getRange("A7:F7").merge();
 summary.getRange("A7").values = [["보안 안내 · 이 파일에는 테스트 로그인 비밀번호가 포함되어 있습니다. 테스트 완료 후 보관·공유 범위를 제한하세요."]];
 
@@ -103,7 +103,7 @@ const headers = [[
 sheet.getRange("A1:R1").merge();
 sheet.getRange("A1").values = [["GOAT Arena 가상 유저 로그인 목록"]];
 sheet.getRange("A2:R2").merge();
-sheet.getRange("A2").values = [["공통 비밀번호는 생성 명세에서 불러옵니다. | 계정은 Unranked 100명, Ranked 100명으로 균등 배치되어 있습니다."]];
+sheet.getRange("A2").values = [["공통 비밀번호는 생성 명세에서 불러옵니다. | 계정은 Unranked 50명, Ranked 50명으로 균등 배치되어 있습니다."]];
 sheet.getRange("A4:R5").merge();
 sheet.getRange("A4").values = [["로그인 방법: 닉네임 또는 이메일과 공통 비밀번호를 사용합니다. 실제 서비스 회원과 구분되는 가상 계정이며, 운영 테스트 전용입니다."]];
 sheet.getRange("A7:R7").values = headers;

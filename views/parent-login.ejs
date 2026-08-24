@@ -10,7 +10,7 @@
   </head>
   <body class="parent-auth-page">
     <main class="parent-auth-shell">
-      <a class="parent-auth-brand" href="/" aria-label="학부모 대시보드"><span class="brand-mark">M</span><strong>Matths</strong></a>
+      <%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 학부모 로그인", className: "parent-auth-brand", suffix: "학부모" }) %>
       <section class="parent-auth-card parent-login-card">
         <p>MATTHS PARENT</p><h1>학부모 로그인</h1><span>자녀의 학습 현황과 패키지 이용 상태를 한 화면에서 확인하세요.</span>
         <% if (error) { %><div class="parent-form-message is-error" role="alert"><%= error %></div><% } %>
@@ -23,5 +23,6 @@
         <small class="parent-auth-meta">학부모 계정은 자녀가 보낸 결제 요청 이메일의 링크에서 만들 수 있습니다.</small>
       </section>
     </main>
+  <%- include("partials/business-footer") %>
   </body>
 </html>

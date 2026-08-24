@@ -1,80 +1,15 @@
 <link rel="stylesheet" href="/css/matths-theme.css" />
 <link rel="stylesheet" href="/css/contrast.css" />
 <%
-  const publicUser =
-    typeof user !== "undefined" && user
-      ? user
-      : null;
-  const publicActivePage =
+  const sharedPublicUser =
+    typeof user !== "undefined" ? user : null;
+  const sharedPublicActivePage =
     typeof activePage === "string"
       ? activePage
       : "";
-  const publicStartHref =
-    publicUser
-      ? "/my-learning"
-      : "/register";
-  const publicStartLabel =
-    publicUser
-      ? "학습 계속하기"
-      : "무료로 시작하기";
-  const publicLinks = [
-    ["intro", "/intro", "서비스 소개"],
-    ["visual-learning", "/visual-learning", "시각화 학습"],
-    ["learning-flow", "/learning-flow", "학습 과정"],
-    ["curriculum", "/curriculum", "교육과정"],
-    ["pricing", "/pricing", "이용권"],
-    ["community", "/community", "게시판"],
-    ["faq", "/faq", "FAQ"],
-    ["archive", "/archive", "아카이브"],
-  ];
 %>
-<header class="site-header">
-  <nav class="navbar container" aria-label="주요 메뉴">
-    <a
-      class="brand"
-      href="/"
-      aria-label="Matths 메인"
-      <%- publicActivePage === "home" ? 'aria-current="page"' : "" %>
-    >
-      <span class="brand-mark" aria-hidden="true">M</span>
-      <span>Matths</span>
-    </a>
-
-    <div class="nav-links">
-      <% publicLinks.forEach(([id, href, label]) => { %>
-        <a
-          class="<%= publicActivePage === id ? 'active' : '' %>"
-          href="<%= href %>"
-          <%- publicActivePage === id ? 'aria-current="page"' : "" %>
-        ><%= label %></a>
-      <% }) %>
-    </div>
-
-    <div class="nav-actions">
-      <a class="login-link" href="<%= publicUser ? '/main' : '/login' %>">
-        <%= publicUser ? "대시보드" : "로그인" %>
-      </a>
-      <a class="button button-primary button-small" href="<%= publicStartHref %>">
-        <%= publicStartLabel %>
-      </a>
-    </div>
-
-    <details class="mobile-menu">
-      <summary aria-label="메뉴 열기">
-        <span></span><span></span><span></span>
-      </summary>
-      <div>
-        <% publicLinks.forEach(([id, href, label]) => { %>
-          <a
-            class="<%= publicActivePage === id ? 'active' : '' %>"
-            href="<%= href %>"
-          ><%= label %></a>
-        <% }) %>
-        <a href="<%= publicUser ? '/main' : '/login' %>">
-          <%= publicUser ? "대시보드" : "로그인" %>
-        </a>
-      </div>
-    </details>
-  </nav>
-</header>
-<% if (publicUser) { %><script src="/js/session-usage.js" defer></script><% } %>
+<%- include("home-public-navigation", {
+  activePage: sharedPublicActivePage,
+  user: sharedPublicUser,
+  suppressGlobalSkipLink: true,
+}) %>

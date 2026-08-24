@@ -36,21 +36,34 @@
           <% } %>
           <% if (request.status === "CALCULATED") { %>
             <div class="admin-inquiry-content"><strong>자동 산정액 <%= formatWon(request.calculation?.calculatedAmount) %></strong><br />이용일수 <%= request.calculation?.usedDays %>일 · <%= request.calculation?.formula %><br />산정 관리자 <%= request.calculation?.calculatedBy?.realName || request.calculation?.calculatedBy?.name || "확인 필요" %></div>
-            <form class="admin-inquiry-actions" action="/admin/refunds/<%= request._id %>/complete" method="post">
-              <label>실제 승인금액<input name="approvedAmount" type="number" min="1" max="<%= request.calculation?.approvedAmount %>" value="<%= request.calculation?.calculatedAmount %>" required /></label>
-              <label>취소 유형<select name="cancellationMode" required><option value="FULL" <%= request.calculation?.calculationType === "FULL" ? "selected" : "" %>>전체 취소</option><option value="PARTIAL" <%= request.calculation?.calculationType !== "FULL" ? "selected" : "" %>>부분 취소</option></select></label>
-              <% if (request.paymentId?.provider !== "TOSS") { %>
-                <label>결제사 취소 거래키<input name="providerCancellationTransactionKey" minlength="6" maxlength="200" required /></label>
-                <label>결제사 취소 처리시각<input name="providerCancelledAt" type="datetime-local" required /></label>
-              <% } else { %>
-                <div class="admin-inquiry-content">토스 <%= request.paymentId.providerMode %> 취소 API가 승인금액을 원 결제수단으로 자동 취소합니다.</div>
-              <% } %>
-              <label>운영 메모<textarea name="operatorNote" maxlength="1000" rows="3" required></textarea></label>
-              <button type="submit">결제 취소 및 환불 완료</button>
+            <% if (Number(request.calculation?.calculatedAmount || 0) > 0) { %>
+              <form class="admin-inquiry-actions" action="/admin/refunds/<%= request._id %>/complete" method="post">
+                <label>실제 승인금액<input name="approvedAmount" type="number" min="1" max="<%= request.calculation?.approvedAmount %>" value="<%= request.calculation?.calculatedAmount %>" required /></label>
+                <label>취소 유형<select name="cancellationMode" required><option value="FULL" <%= request.calculation?.calculationType === "FULL" ? "selected" : "" %>>전체 취소</option><option value="PARTIAL" <%= request.calculation?.calculationType !== "FULL" ? "selected" : "" %>>부분 취소</option></select></label>
+                <% if (request.paymentId?.provider !== "TOSS") { %>
+                  <label>결제사 취소 거래키<input name="providerCancellationTransactionKey" minlength="6" maxlength="200" required /></label>
+                  <label>결제사 취소 처리시각<input name="providerCancelledAt" type="datetime-local" required /></label>
+                <% } else { %>
+                  <div class="admin-inquiry-content">토스 <%= request.paymentId.providerMode %> 취소 API가 승인금액을 원 결제수단으로 자동 취소합니다.</div>
+                <% } %>
+                <label>운영 메모<textarea name="operatorNote" minlength="5" maxlength="1000" rows="3" required></textarea></label>
+                <button type="submit">결제 취소 및 환불 완료</button>
+              </form>
+            <% } else { %>
+              <div class="admin-refund-zero-note"><strong>결제사 취소 금액이 없습니다.</strong><span>사유를 기록하고 0원으로 종결하면 사용자 알림·이메일과 문의 상태가 함께 처리됩니다.</span></div>
+            <% } %>
+          <% } %>
+          <% if (["REQUESTED", "CALCULATED"].includes(request.status)) { const zeroAmountClosure = request.status === "CALCULATED" && Number(request.calculation?.calculatedAmount || 0) === 0; %>
+            <form class="admin-refund-reject-form <%= zeroAmountClosure ? 'is-zero' : '' %>" action="/admin/refunds/<%= request._id %>/reject" method="post">
+              <label><%= zeroAmountClosure ? "0원 종결 사유" : "환불 반려 사유" %><textarea name="operatorNote" minlength="5" maxlength="1000" rows="3" placeholder="사용자에게 전달할 구체적인 사유를 입력하세요." required></textarea></label>
+              <button type="submit"><%= zeroAmountClosure ? "환불액 0원으로 종결" : "환불 신청 반려" %></button>
             </form>
           <% } %>
           <% if (request.status === "COMPLETED") { %>
             <div class="admin-inquiry-content"><strong><%= formatWon(request.decision?.approvedAmount) %> <%= request.decision?.cancellationMode === "FULL" ? "전체" : "부분" %> 취소 완료</strong><br />거래키 <%= request.decision?.providerCancellationTransactionKey %> · 처리 <%= formatDate(request.decision?.processedAt) %><br />처리 관리자 <%= request.decision?.processedBySnapshot?.name || request.decision?.processedBy?.realName || request.decision?.processedBy?.name || "확인 필요" %></div>
+          <% } %>
+          <% if (request.status === "REJECTED") { const wasZeroAmount = Number(request.calculation?.calculatedAmount) === 0 && request.calculation?.calculatedAt; %>
+            <div class="admin-inquiry-content"><strong><%= wasZeroAmount ? "환불액 0원 종결" : "환불 신청 반려" %></strong><br />사유 <%= request.decision?.operatorNote || "사유 확인 필요" %><br />처리 <%= formatDate(request.decision?.processedAt) %> · 관리자 <%= request.decision?.processedBySnapshot?.name || request.decision?.processedBy?.realName || request.decision?.processedBy?.name || "확인 필요" %></div>
           <% } %>
         </article>
       <% }) %>

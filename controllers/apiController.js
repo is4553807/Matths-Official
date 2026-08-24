@@ -500,35 +500,9 @@ exports.login = async (
     const password = String(
       req.body.password || ""
     );
-    const escapedIdentifier =
-      identifier.replace(
-        /[.*+?^${}()|[\]\\]/g,
-        "\\$&"
-      );
-    let user = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-      identifier
-    )
-      ? await User.findOne({ email }).select(
-          "+passwordHash"
-        )
-      : null;
-    if (!user) {
-      user = await User.findOne({
-        $or: [
-          {
-            nameNormalized:
-              nicknameKey(identifier),
-          },
-          {
-            name: {
-              $regex:
-                `^${escapedIdentifier}$`,
-              $options: "i",
-            },
-          },
-        ],
-      }).select("+passwordHash");
-    }
+    const user = await User.findOne({ email }).select(
+      "+passwordHash"
+    );
 
     if (
       !user ||
@@ -540,7 +514,7 @@ exports.login = async (
       return res.status(401).json({
         code: "INVALID_CREDENTIALS",
         message:
-          "이메일·닉네임 또는 비밀번호가 올바르지 않습니다.",
+          "이메일 또는 비밀번호가 올바르지 않습니다.",
       });
     }
 

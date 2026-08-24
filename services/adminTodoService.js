@@ -61,6 +61,7 @@ async function createAdminTodo({
   sourceId,
   metadata = {},
   createdAt = null,
+  refreshExisting = false,
 }) {
   if (!mongoose.isValidObjectId(sourceId)) {
     throw statusError(
@@ -69,25 +70,32 @@ async function createAdminTodo({
     );
   }
 
+  const mutableFields = {
+    category,
+    title: String(title || "").trim().slice(0, 160),
+    description: String(description || "").trim().slice(0, 1000),
+    href: safeInternalHref(href),
+    targetUserId,
+    actorUserId,
+    metadata,
+  };
   const update = {
     $setOnInsert: {
-      category,
-      title: String(title || "").trim().slice(0, 160),
-      description: String(description || "").trim().slice(0, 1000),
-      href: safeInternalHref(href),
-      targetUserId,
-      actorUserId,
       sourceType,
       sourceId,
       status: "pending",
-      metadata,
       ...(createdAt
         ? {
             createdAt,
           }
-        : {}),
+      : {}),
     },
   };
+  if (refreshExisting) {
+    update.$set = mutableFields;
+  } else {
+    Object.assign(update.$setOnInsert, mutableFields);
+  }
 
   return AdminTodo.findOneAndUpdate(
     { sourceType, sourceId },
@@ -115,7 +123,7 @@ async function ensureAdminTodosFromSources() {
       SupportInquiry.find({
         status: { $in: ["pending", "in_review"] },
       })
-        .select("_id userId subject content createdAt")
+        .select("_id userId subject content inquiryType refundRequestId createdAt")
         .lean(),
       CommunityReport.find({
         status: { $in: ["pending", "reviewing"] },
@@ -154,19 +162,26 @@ async function ensureAdminTodosFromSources() {
     ]);
 
   await Promise.all([
-    ...inquiries.map((inquiry) =>
-      createAdminTodo({
+    ...inquiries.map((inquiry) => {
+      const isRefund = inquiry.inquiryType === "REFUND" && inquiry.refundRequestId;
+      return createAdminTodo({
         category: "inquiry",
-        title: `문의 확인 · ${inquiry.subject}`,
+        title: `${isRefund ? "환불 신청" : "문의 확인"} · ${inquiry.subject}`,
         description: inquiry.content,
-        href: `/admin/inquiries#inquiry-${inquiry._id}`,
+        href: isRefund
+          ? `/admin/refunds#refund-${inquiry.refundRequestId}`
+          : `/admin/inquiries#inquiry-${inquiry._id}`,
         targetUserId: inquiry.userId,
         actorUserId: inquiry.userId,
         sourceType: "SupportInquiry",
         sourceId: inquiry._id,
+        metadata: isRefund
+          ? { refundRequestId: String(inquiry.refundRequestId) }
+          : {},
         createdAt: inquiry.createdAt,
-      })
-    ),
+        refreshExisting: isRefund,
+      });
+    }),
     ...reports.map((report) =>
       createAdminTodo({
         category: "community-report",
@@ -474,7 +489,9 @@ async function completeAdminTodoBySource({
   sourceType,
   sourceId,
   adminUserId,
+  session = null,
 }) {
+  const options = session ? { session } : {};
   return AdminTodo.findOneAndUpdate(
     { sourceType, sourceId, status: "pending" },
     {
@@ -483,7 +500,8 @@ async function completeAdminTodoBySource({
         completedAt: new Date(),
         completedBy: adminUserId,
       },
-    }
+    },
+    options
   );
 }
 

@@ -1,6 +1,9 @@
 const { spawnSync } = require("node:child_process");
 
 const checks = [
+  "auth-email-only:verify",
+  "study-streak:verify",
+  "weekly-tier-competition:verify",
   "oauth-mobile:verify",
   "oauth-kakao:verify",
   "ipad-server-surface:verify",

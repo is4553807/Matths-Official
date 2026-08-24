@@ -1,0 +1,89 @@
+.matths-brand-lockup {
+  --matths-brand-width: 132px;
+  min-width: 0;
+  min-height: 41px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  color: inherit;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.matths-brand-lockup__image,
+.matths-brand-lockup > .brand-logo.matths-brand-lockup__image {
+  width: var(--matths-brand-width) !important;
+  height: auto !important;
+  max-width: none;
+  display: block;
+  flex: 0 0 var(--matths-brand-width);
+  object-fit: contain;
+}
+
+.matths-brand-lockup--compact {
+  --matths-brand-width: 116px;
+}
+
+.matths-brand-lockup > .matths-brand-lockup__suffix {
+  width: auto !important;
+  height: auto !important;
+  min-width: 0;
+  display: inline-flex !important;
+  align-items: center;
+  margin: 0;
+  padding: 2px 0 2px 10px !important;
+  color: #747d94;
+  background: transparent !important;
+  border: 0 !important;
+  border-left: 1px solid rgba(117, 126, 151, 0.28) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-family:
+    "SUIT Variable",
+    "Pretendard Variable",
+    Pretendard,
+    "Avenir Next",
+    "Segoe UI",
+    "Noto Sans KR",
+    sans-serif;
+  font-size: 9px;
+  font-weight: 850;
+  font-style: normal;
+  line-height: 1.25;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  transform: none !important;
+}
+
+.matths-brand-lockup--light > .matths-brand-lockup__suffix {
+  color: rgba(247, 248, 255, 0.72);
+  border-left-color: rgba(247, 248, 255, 0.24) !important;
+}
+
+.arena-brand.matths-brand-lockup,
+.admin-brand.matths-brand-lockup {
+  --matths-brand-width: 112px;
+}
+
+.parent-brand.matths-brand-lockup,
+.parent-auth-brand.matths-brand-lockup {
+  --matths-brand-width: 122px;
+}
+
+@media (max-width: 600px) {
+  .matths-brand-lockup {
+    --matths-brand-width: 120px;
+  }
+
+  .matths-brand-lockup--compact,
+  .arena-brand.matths-brand-lockup,
+  .admin-brand.matths-brand-lockup {
+    --matths-brand-width: 104px;
+  }
+
+  .matths-brand-lockup > .matths-brand-lockup__suffix {
+    padding-left: 8px !important;
+    font-size: 9px;
+  }
+}
