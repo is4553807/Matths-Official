@@ -9,7 +9,7 @@ const pdfWatermarkIssuanceSchema = new mongoose.Schema(
     examId: { type: String, required: true, index: true, maxlength: 180 },
     sourceType: {
       type: String,
-      enum: ["ARCHIVE", "WEEKLY_MOCK", "STORE"],
+      enum: ["ARCHIVE", "WEEKLY_MOCK", "STORE", "STUDY_HALL", "FORMULA"],
       required: true,
       index: true,
     },

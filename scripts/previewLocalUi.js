@@ -32,6 +32,9 @@ const {
   buildArenaMatchPreStartContract,
 } = require("../services/arenaMatchPreStartContractService");
 const { getRefundDisclosure } = require("../services/refundPolicyService");
+const {
+  buildArenaMatchIntegrityWatermark,
+} = require("../services/contentProtectionWatermarkPolicy");
 
 const app = express();
 const root = path.resolve(__dirname, "..");
@@ -47,6 +50,8 @@ app.set("view engine", "ejs");
 app.set("views", path.join(root, "views"));
 app.use(express.json({ limit: "256kb" }));
 app.use(express.static(path.join(root, "public")));
+app.use("/vendor/mathjax", express.static(path.join(root, "node_modules", "mathjax")));
+app.use("/vendor/mathjax-fonts", express.static(path.join(root, "node_modules", "@mathjax")));
 
 function universalPreviewValue() {
   let value;
@@ -313,6 +318,13 @@ app.get("/preview/goat-arena/match-pdf-pool", (req, res) => {
         curriculumCoverage: [...new Set(questions.map((question) => question.courseId))],
       },
       questions,
+      integrityWatermark: buildArenaMatchIntegrityWatermark({
+        matchId: "preview-pdf-pool-match",
+        userId: "preview-user",
+        attemptId: "preview-attempt",
+        matchType: "NORMAL",
+        role: "CHALLENGER",
+      }),
       settled: false,
       result: null,
       divisionLocked: false,

@@ -22,6 +22,9 @@ const {
   rgb,
 } = require("pdf-lib");
 const { PdfWatermarkIssuance } = require("../models/documentSecurityModel");
+const {
+  DOWNLOAD_AI_WATERMARK,
+} = require("./contentProtectionWatermarkPolicy");
 const { downloadR2ObjectToFile } = require("./r2ObjectStorageService");
 const { signedStoredAssetUrl } = require("./fileStorageService");
 
@@ -178,6 +181,15 @@ function runImageOcr(imageBytes) {
   return job;
 }
 
+async function closeForensicImageOcrWorker() {
+  const pendingWorker = imageOcrWorkerPromise;
+  imageOcrWorkerPromise = null;
+  imageOcrQueue = Promise.resolve();
+  if (!pendingWorker) return;
+  const worker = await pendingWorker.catch(() => null);
+  if (worker) await worker.terminate();
+}
+
 function normalizeOcrHex(value) {
   return String(value || "")
     .toUpperCase()
@@ -321,6 +333,7 @@ function drawForensicLayer({ pdfDoc, traceCode, token, downloadedAt }) {
   return pdfDoc.embedFont(StandardFonts.Helvetica).then((font) => {
     const kstTime = formatKstCompact(downloadedAt);
     const visible = `MATTHS  ${traceCode}  ${kstTime}`;
+    const aiVisible = `${DOWNLOAD_AI_WATERMARK.shortText}  ${traceCode}`;
     const pages = pdfDoc.getPages();
     pages.forEach((page, pageIndex) => {
       const { width, height } = page.getSize();
@@ -345,8 +358,40 @@ function drawForensicLayer({ pdfDoc, traceCode, token, downloadedAt }) {
             color: rgb(0.28, 0.18, 0.42),
             opacity: 0.045,
           });
+          page.drawText(aiVisible, {
+            x: x + 18,
+            y: y + 16,
+            size: Math.max(7, fontSize * 0.92),
+            font,
+            rotate: degrees(31),
+            color: rgb(0.58, 0.08, 0.2),
+            opacity: 0.075,
+          });
         }
       }
+
+      const footerText = `${DOWNLOAD_AI_WATERMARK.detailedText}  |  ${traceCode}`;
+      const footerSize = Math.max(
+        4.8,
+        Math.min(7.2, ((width - 18) * 7.2) / font.widthOfTextAtSize(footerText, 7.2))
+      );
+      const footerWidth = font.widthOfTextAtSize(footerText, footerSize);
+      page.drawRectangle({
+        x: 0,
+        y: 0,
+        width,
+        height: Math.max(12, footerSize + 6),
+        color: rgb(0.58, 0.08, 0.2),
+        opacity: 0.035,
+      });
+      page.drawText(footerText, {
+        x: Math.max(9, (width - footerWidth) / 2),
+        y: 4,
+        size: footerSize,
+        font,
+        color: rgb(0.46, 0.04, 0.14),
+        opacity: 0.34,
+      });
 
       const micro = `MTHS-P${String(pageNumber).padStart(3, "0")}-${traceCode}-${pageToken}`;
       const xSeed = parseInt(pageToken.slice(0, 6), 16);
@@ -388,7 +433,7 @@ function buildForensicIdentity({
   downloadedAt = new Date(),
 }) {
   if (!mongoose.isValidObjectId(userId)) throw statusError(401, "PDF 발급 사용자를 확인할 수 없습니다.");
-  if (!["ARCHIVE", "WEEKLY_MOCK", "STORE"].includes(sourceType)) {
+  if (!["ARCHIVE", "WEEKLY_MOCK", "STORE", "STUDY_HALL", "FORMULA"].includes(sourceType)) {
     throw statusError(400, "PDF 발급 자료 유형을 확인할 수 없습니다.");
   }
   const normalizedDownloadedAt = new Date(downloadedAt);
@@ -434,10 +479,14 @@ async function createPersonalizedPdfBytes({
   pdfDoc.setTitle(path.basename(String(originalName || "Matths protected document")));
   pdfDoc.setAuthor("MATTHS");
   pdfDoc.setCreator("MATTHS Personalized Document Issuer");
-  pdfDoc.setProducer("MATTHS Forensic PDF Layer v1");
-  pdfDoc.setSubject(`MATTHS protected copy | ${identity.traceCode} | ${identity.documentIssueId}`);
+  pdfDoc.setProducer(`MATTHS Dual Protection PDF Layer v${DOWNLOAD_AI_WATERMARK.version}`);
+  pdfDoc.setSubject(
+    `MATTHS protected copy | ${identity.traceCode} | ${identity.documentIssueId} | ${DOWNLOAD_AI_WATERMARK.metadataText}`
+  );
   pdfDoc.setKeywords([
     "MATTHS",
+    DOWNLOAD_AI_WATERMARK.shortText,
+    DOWNLOAD_AI_WATERMARK.detailedText,
     `TRACE=${identity.traceCode}`,
     `ISSUE=${identity.documentIssueId}`,
     `TOKEN=${identity.token}`,
@@ -446,6 +495,10 @@ async function createPersonalizedPdfBytes({
   pdfDoc.catalog.set(PDFName.of("MatthsForensicPayload"), PDFHexString.fromText(identity.token));
   pdfDoc.catalog.set(PDFName.of("MatthsTraceCode"), PDFHexString.fromText(identity.traceCode));
   pdfDoc.catalog.set(PDFName.of("MatthsDocumentIssueId"), PDFHexString.fromText(identity.documentIssueId));
+  pdfDoc.catalog.set(
+    PDFName.of("MatthsAiUsePolicy"),
+    PDFHexString.fromText(DOWNLOAD_AI_WATERMARK.metadataText)
+  );
   const pageCount = await drawForensicLayer({
     pdfDoc,
     traceCode: identity.traceCode,
@@ -457,7 +510,11 @@ async function createPersonalizedPdfBytes({
     addDefaultPage: false,
     objectsPerTick: 40,
   });
-  return { outputBytes, pageCount };
+  return {
+    outputBytes,
+    pageCount,
+    protectionWatermarkVersion: DOWNLOAD_AI_WATERMARK.version,
+  };
 }
 
 async function issuePersonalizedPdf({
@@ -777,9 +834,11 @@ module.exports = {
   analyzeForensicUpload,
   buildForensicIdentity,
   cleanupStalePdfTemporaryFiles,
+  closeForensicImageOcrWorker,
   createPersonalizedPdfBytes,
   decodeSignedPayload,
   isPdfDownload,
   issuePersonalizedPdf,
   scoreOcrCandidate,
+  DOWNLOAD_AI_WATERMARK,
 };

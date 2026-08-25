@@ -3652,6 +3652,35 @@ exports.privateMockFormulaFile =
             req.session.user.id,
         });
 
+      if (isPdfDownload({ mimeType: file.mimeType, name: file.name })) {
+        const issued = await issuePersonalizedPdf({
+          userId: req.session.user.id,
+          examId: file.examId,
+          sourceType: "FORMULA",
+          sourceId: file.sourceId,
+          assetId: file.assetId,
+          originalName: file.name,
+          storageRecord: file.sourceRecord,
+          localPath: file.path,
+        });
+        const cleanup = () => issued.cleanup().catch(() => {});
+        res.once("finish", cleanup);
+        res.once("close", cleanup);
+        return res.sendFile(issued.filePath, {
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition":
+              `inline; filename*=UTF-8''${encodeURIComponent(issued.downloadName)}`,
+            "Cache-Control": "private, no-store",
+            "X-Matths-Trace": issued.traceCode,
+          },
+        }, (error) => {
+          cleanup();
+          if (error && !res.headersSent) return next(error);
+          return undefined;
+        });
+      }
+
       if (file.cloudUrl) {
         res.set("Cache-Control", "private, no-store");
         res.set("Referrer-Policy", "no-referrer");

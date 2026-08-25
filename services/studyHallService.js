@@ -586,6 +586,10 @@ async function getStudyHallAsset({ contentId, assetId, userId, admin = false }) 
   }
   return {
     asset: { ...asset.toObject(), id: String(asset._id) },
+    examId: `STUDY-HALL-${String(content._id)}`,
+    sourceId: String(content._id),
+    assetId: String(asset._id),
+    storageRecord: asset.toObject(),
     signedUrl: await signedR2Url(asset, { download: asset.kind !== "THUMBNAIL", originalName: asset.originalName }),
   };
 }

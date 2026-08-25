@@ -8537,6 +8537,10 @@ async function getPrivateMockFormulaFile({
   return {
     path: null,
     cloudUrl,
+    examId: `FORMULA-${String(resource._id)}`,
+    sourceId: String(resource._id),
+    assetId: String(item._id),
+    sourceRecord: item,
     name:
       repairUploadFilename(
         item.originalName

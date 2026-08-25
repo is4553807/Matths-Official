@@ -11,7 +11,9 @@ const {
   analyzeForensicPdf,
   buildForensicIdentity,
   cleanupStalePdfTemporaryFiles,
+  closeForensicImageOcrWorker,
   createPersonalizedPdfBytes,
+  DOWNLOAD_AI_WATERMARK,
   scoreOcrCandidate,
 } = require("../services/pdfWatermarkService");
 
@@ -69,6 +71,16 @@ async function main() {
     identity,
   });
   await fs.promises.writeFile(outputPath, generated.outputBytes);
+  const issuedDocument = await PDFDocument.load(generated.outputBytes);
+  assert(
+    generated.protectionWatermarkVersion === DOWNLOAD_AI_WATERMARK.version,
+    "이중 보호 워터마크 버전이 기록되지 않았습니다."
+  );
+  assert(
+    String(issuedDocument.getKeywords() || "").includes("AI ASSISTANCE PROHIBITED") &&
+      String(issuedDocument.getKeywords() || "").includes(identity.traceCode),
+    "PDF 보호 메타데이터에 AI 사용 금지 문구와 사용자 추적 코드가 함께 기록되지 않았습니다."
+  );
   const analysis = await analyzeForensicPdf(outputPath, { lookupIssuances: false });
   const verified = analysis.validPayloads.find(
     (payload) => payload.issuance_id === identity.issuanceId
@@ -113,6 +125,8 @@ async function main() {
         signatureVerified: true,
         staleTemporaryFilesRemoved: true,
         screenshotTraceRecognized: true,
+        dualWatermarkTextEmbedded: true,
+        protectionWatermarkVersion: generated.protectionWatermarkVersion,
         screenshotTraceConfidence: Number(bestScreenshotScore.toFixed(3)),
         traceCode: identity.traceCode,
       },
@@ -122,7 +136,9 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(() => closeForensicImageOcrWorker().catch(() => {}));

@@ -94,6 +94,34 @@ exports.downloadStudyHallAsset = async (req, res, next) => {
       userId: req.session.user.id,
       admin: req.session.user.role === "admin",
     });
+    if (
+      result.asset.kind !== "THUMBNAIL" &&
+      isPdfDownload({
+        mimeType: result.asset.mimeType,
+        name: result.asset.originalName,
+      })
+    ) {
+      const issued = await issuePersonalizedPdf({
+        userId: req.session.user.id,
+        examId: result.examId,
+        sourceType: "STUDY_HALL",
+        sourceId: result.sourceId,
+        assetId: result.assetId,
+        originalName: result.asset.originalName,
+        storageRecord: result.storageRecord,
+      });
+      const cleanup = () => issued.cleanup().catch(() => {});
+      res.once("finish", cleanup);
+      res.once("close", cleanup);
+      res.type("application/pdf");
+      res.set("Cache-Control", "private, no-store");
+      res.set("X-Matths-Trace", issued.traceCode);
+      return res.download(issued.filePath, issued.downloadName, (error) => {
+        cleanup();
+        if (error && !res.headersSent) return next(error);
+        return undefined;
+      });
+    }
     return res.redirect(302, result.signedUrl);
   } catch (error) { return next(error); }
 };

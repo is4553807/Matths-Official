@@ -48,6 +48,9 @@ const {
 const {
   buildArenaMatchPreStartContract,
 } = require("./arenaMatchPreStartContractService");
+const {
+  buildArenaMatchIntegrityWatermark,
+} = require("./contentProtectionWatermarkPolicy");
 const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const MAX_CHANGE_EVENTS_PER_REQUEST = 200;
@@ -1879,6 +1882,15 @@ async function getArenaMatchPageData({
         eligibleUserId: userId,
       }).lean()
     : null;
+  const integrityWatermark = showQuestions
+    ? buildArenaMatchIntegrityWatermark({
+        matchId: match._id,
+        userId,
+        attemptId: attempt?._id,
+        matchType: match.matchType,
+        role,
+      })
+    : null;
   return {
     id: String(match._id),
     matchStatus: match.status,
@@ -1976,6 +1988,7 @@ async function getArenaMatchPageData({
           attempt
         )
       : [],
+    integrityWatermark,
     serverNow: now.toISOString(),
     remainingMs,
     autoAdvancedQuestionNumber,

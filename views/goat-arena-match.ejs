@@ -287,6 +287,15 @@
               <i></i>
             </div>
           <% } %>
+          <aside class="arena-match-integrity-notice" role="note" aria-label="경기 AI 사용 금지 및 화면 식별 안내">
+            <div aria-hidden="true">AI</div>
+            <section>
+              <small>ACTIVE MATCH · AI USE PROHIBITED</small>
+              <strong><%= matchData.integrityWatermark.title %> · <%= matchData.integrityWatermark.shortText %></strong>
+              <p><%= matchData.integrityWatermark.notice %></p>
+            </section>
+            <span><%= arenaUser.nickname %> · <%= matchData.integrityWatermark.traceCode %> · MATCH <%= matchData.integrityWatermark.matchReference %> · <%= matchData.integrityWatermark.role %></span>
+          </aside>
           <header class="arena-match-timer-bar">
             <div>
               <small>남은 시간</small>
@@ -305,6 +314,14 @@
           <div class="arena-match-question-list">
             <% matchData.questions.forEach((question) => { %>
               <article class="arena-match-question arena-match-problem-paper" data-arena-question="<%= question.questionKey %>">
+                <div class="arena-match-integrity-watermark" aria-hidden="true">
+                  <% for (let watermarkRow = 0; watermarkRow < 7; watermarkRow += 1) { %>
+                    <span>
+                      <b><%= matchData.integrityWatermark.shortText %> · <%= matchData.integrityWatermark.traceCode %></b>
+                      <small><%= arenaUser.nickname %> · <%= matchData.integrityWatermark.englishText %></small>
+                    </span>
+                  <% } %>
+                </div>
                 <header>
                   <span><%= String(question.number).padStart(2, "0") %></span>
                   <div>
