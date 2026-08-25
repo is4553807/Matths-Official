@@ -608,11 +608,20 @@ function arenaUserView(user, activeCosmetics = []) {
   };
 }
 
-async function getArenaNavigationContext(userId) {
+async function getArenaNavigationContext(
+  userId,
+  authenticatedUser = null
+) {
   const now = new Date();
   const [user, activeCosmetics, rankUpPresentation, arenaNotifications] =
     await Promise.all([
-      User.findById(userId).lean(),
+      authenticatedUser
+        ? Promise.resolve(
+            typeof authenticatedUser.toObject === "function"
+              ? authenticatedUser.toObject()
+              : authenticatedUser
+          )
+        : User.findById(userId).lean(),
       MainShopEffect.find({
         userId,
         itemCode: { $in: ["MAIN_PROFILE_BORDER", "STYLE_ENTRANCE"] },
@@ -640,7 +649,10 @@ async function getArenaNavigationContext(userId) {
 
 async function getArenaContext(
   userId,
-  { includeFullRanking = false } = {}
+  {
+    includeFullRanking = false,
+    user: authenticatedUser = null,
+  } = {}
 ) {
   const [
     user,
@@ -654,9 +666,15 @@ async function getArenaContext(
     arenaNotifications,
     pendingRevengeRight,
   ] = await Promise.all([
-    User.findById(
-      userId
-    ).lean(),
+    authenticatedUser
+      ? Promise.resolve(
+          typeof authenticatedUser.toObject === "function"
+            ? authenticatedUser.toObject()
+            : authenticatedUser
+        )
+      : User.findById(
+          userId
+        ).lean(),
     getPlacementDashboardData(
       userId
     ),
@@ -775,6 +793,20 @@ async function getArenaContext(
   };
 }
 
+function getArenaContextForRequest(
+  req,
+  options = {}
+) {
+  return getArenaContext(
+    req.session.user.id,
+    {
+      ...options,
+      user:
+        req.authenticatedUser,
+    }
+  );
+}
+
 function renderArenaPage(
   view,
   extra = {},
@@ -787,8 +819,8 @@ function renderArenaPage(
   ) => {
     try {
       const context =
-        await getArenaContext(
-          req.session.user.id,
+        await getArenaContextForRequest(
+          req,
           { includeFullRanking }
         );
 
@@ -995,7 +1027,7 @@ async function renderMainBattlePage(
   { status = 200, actionError = "", actionMessage = "" } = {}
 ) {
   const [context, battleData, friendlyData] = await Promise.all([
-    getArenaContext(req.session.user.id),
+    getArenaContextForRequest(req),
     getMainArenaActionData({ userId: req.session.user.id }),
     getMainFriendlyMatchData({
       userId: req.session.user.id,
@@ -1190,7 +1222,7 @@ async function renderMainShopPage(
   { status = 200, shopError = "", shopMessage = "" } = {}
 ) {
   const [context, shopData] = await Promise.all([
-    getArenaContext(req.session.user.id),
+    getArenaContextForRequest(req),
     getMainShopPageData({ userId: req.session.user.id }),
   ]);
   res.set("Cache-Control", "no-store");
@@ -1212,7 +1244,7 @@ exports.mainShopPage = async (req, res, next) => {
   } catch (error) {
     if ([403, 423].includes(Number(error.status))) {
       try {
-        const context = await getArenaContext(req.session.user.id);
+        const context = await getArenaContextForRequest(req);
         return res.status(Number(error.status)).render("goat-arena-error", {
           ...context,
           activeArenaPage: "shop",
@@ -1270,7 +1302,7 @@ exports.purchaseMainShopItem = async (req, res, next) => {
 exports.mainShopAnalysisResultPage = async (req, res, next) => {
   try {
     const [context, analysis] = await Promise.all([
-      getArenaContext(req.session.user.id),
+      getArenaContextForRequest(req),
       getMainShopAnalysisResult({
         userId: req.session.user.id,
         effectId: req.params.effectId,
@@ -1291,7 +1323,7 @@ function rulesPage(division) {
   return async (req, res, next) => {
     try {
       const [context, paybackPolicy, mainPolicy, upcomingPaybackPolicy, upcomingMainPolicy] = await Promise.all([
-        getArenaContext(req.session.user.id),
+        getArenaContextForRequest(req),
         division === "SUB" ? getActiveArenaPolicy() : null,
         division === "MAIN"
           ? getActiveMainDivisionPolicy(new Date(), { bypassCache: true })
@@ -1563,8 +1595,8 @@ exports.divisionFeaturePage = async (
       error.status = 404;
       throw error;
     }
-    const context = await getArenaContext(
-      req.session.user.id
+    const context = await getArenaContextForRequest(
+      req
     );
     const hasDivisionAccess =
       division === "SUB"
@@ -1600,7 +1632,7 @@ exports.divisionFeaturePage = async (
 exports.profilePage = async (req, res, next) => {
   try {
     const [context, paybackAccount, payoutEligible] = await Promise.all([
-      getArenaContext(req.session.user.id),
+      getArenaContextForRequest(req),
       getPaybackAccountSummary(req.session.user.id),
       AccessCycle.exists({
         userId: req.session.user.id,
@@ -1635,7 +1667,7 @@ function arenaMailboxInbox(inbox) {
 exports.arenaMailboxPage = async (req, res, next) => {
   try {
     const [context, inbox] = await Promise.all([
-      getArenaContext(req.session.user.id),
+      getArenaContextForRequest(req),
       getNotificationInbox({
         userId: req.session.user.id,
         page: req.query.page,
@@ -1661,7 +1693,7 @@ exports.arenaMailboxDetailPage = async (req, res, next) => {
       userId: req.session.user.id,
       notificationId: req.params.notificationId,
     });
-    const context = await getArenaContext(req.session.user.id);
+    const context = await getArenaContextForRequest(req);
     res.set("Cache-Control", "no-store");
     return res.render("goat-arena-mailbox-detail", {
       ...context,
@@ -1685,7 +1717,7 @@ exports.markAllArenaMailboxRead = async (req, res, next) => {
 exports.reviewPaybackAccount = async (req, res, next) => {
   try {
     const [context, account] = await Promise.all([
-      getArenaContext(req.session.user.id),
+      getArenaContextForRequest(req),
       Promise.resolve(validatePaybackAccountInput(req.body)),
     ]);
     res.set("Cache-Control", "no-store");
@@ -1699,7 +1731,7 @@ exports.reviewPaybackAccount = async (req, res, next) => {
     if (Number(error.status) === 400) {
       try {
         const [context, paybackAccount, payoutEligible] = await Promise.all([
-          getArenaContext(req.session.user.id),
+          getArenaContextForRequest(req),
           getPaybackAccountSummary(req.session.user.id),
           AccessCycle.exists({
             userId: req.session.user.id,
@@ -1735,7 +1767,7 @@ exports.confirmPaybackAccount = async (req, res, next) => {
   } catch (error) {
     if (Number(error.status) === 400) {
       try {
-        const context = await getArenaContext(req.session.user.id);
+        const context = await getArenaContextForRequest(req);
         return res.status(400).render("goat-arena-payback-account-confirm", {
           ...context,
           activeArenaPage: "profile",
@@ -1759,7 +1791,10 @@ async function renderSubChallengePage(
   } = {}
 ) {
   const [context, challengeData] = await Promise.all([
-    getArenaNavigationContext(req.session.user.id),
+    getArenaNavigationContext(
+      req.session.user.id,
+      req.authenticatedUser
+    ),
     getSubChallengeData({
       userId:
         req.session.user.id,
@@ -1856,9 +1891,7 @@ async function renderArenaMatchPage(
 ) {
   const [context, matchData] =
     await Promise.all([
-      getArenaContext(
-        req.session.user.id
-      ),
+      getArenaContextForRequest(req),
       getArenaMatchPageData({
         matchId: req.params.matchId,
         userId: req.session.user.id,
@@ -2093,7 +2126,7 @@ async function renderArenaSupplementalEvidencePage(
   { status = 200, uploadError = "" } = {}
 ) {
   const [context, requestData] = await Promise.all([
-    getArenaContext(req.session.user.id),
+    getArenaContextForRequest(req),
     getArenaSupplementalEvidenceRequest({
       matchId: req.params.matchId,
       userId: req.session.user.id,

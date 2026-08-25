@@ -147,9 +147,26 @@ if (arenaVideo) {
     finishArenaIntroVideo,
     { once: true }
   );
-  startArenaIntroVideo().catch(
-    finishArenaIntroVideo
-  );
+  const beginArenaIntro = () => {
+    startArenaIntroVideo().catch(
+      finishArenaIntroVideo
+    );
+  };
+
+  if (
+    typeof window.requestIdleCallback ===
+    "function"
+  ) {
+    window.requestIdleCallback(
+      beginArenaIntro,
+      { timeout: 700 }
+    );
+  } else {
+    window.setTimeout(
+      beginArenaIntro,
+      180
+    );
+  }
 }
 
 if (

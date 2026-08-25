@@ -1,6 +1,9 @@
-<link rel="stylesheet" href="/css/matths-theme.css" />
-<link rel="stylesheet" href="/css/contrast.css" />
 <%
+  const sharedAdminAssetVersion = encodeURIComponent(
+    typeof assetVersion === "string" && assetVersion
+      ? assetVersion
+      : "admin-layout-20260825"
+  );
   const currentAdminPage =
     typeof activePage === "string"
       ? activePage
@@ -64,6 +67,10 @@
     },
   ];
 %>
+<link rel="stylesheet" href="/css/admin.css?v=<%= sharedAdminAssetVersion %>" />
+<link rel="stylesheet" href="/css/matths-logo.css?v=<%= sharedAdminAssetVersion %>" />
+<link rel="stylesheet" href="/css/matths-theme.css?v=<%= sharedAdminAssetVersion %>" />
+<link rel="stylesheet" href="/css/contrast.css?v=<%= sharedAdminAssetVersion %>" />
 <header class="admin-topbar">
   <%- include("matths-brand", {
     href: "/admin",
@@ -144,5 +151,6 @@
       </section>
   </div>
 </div>
-<script src="/js/admin-navigation.js" defer></script>
-<script src="/js/session-usage.js" defer></script>
+<script src="/js/navigation-performance.js?v=<%= sharedAdminAssetVersion %>" defer></script>
+<script src="/js/admin-navigation.js?v=<%= sharedAdminAssetVersion %>" defer></script>
+<script src="/js/session-usage.js?v=<%= sharedAdminAssetVersion %>" defer></script>

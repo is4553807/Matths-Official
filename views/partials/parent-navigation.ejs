@@ -1,4 +1,9 @@
 <%
+  const parentAssetVersion = encodeURIComponent(
+    typeof assetVersion === "string" && assetVersion
+      ? assetVersion
+      : "dev"
+  );
   const connectedChildren =
     typeof familyChildren !== "undefined" && Array.isArray(familyChildren)
       ? familyChildren
@@ -46,3 +51,4 @@
   </nav>
   <form action="/parent/logout" method="post"><button type="submit">로그아웃</button></form>
 </header>
+<script src="/js/navigation-performance.js?v=<%= parentAssetVersion %>" defer></script>

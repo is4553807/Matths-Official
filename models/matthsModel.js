@@ -2423,6 +2423,13 @@ assessmentAttemptSchema.index({
   submittedAt: -1,
 });
 
+assessmentAttemptSchema.index({
+  userId: 1,
+  status: 1,
+  updatedAt: -1,
+  submittedAt: -1,
+});
+
 assessmentAttemptSchema.index(
   ASSESSMENT_CLIENT_START_INDEX.key,
   {
@@ -3133,6 +3140,12 @@ const quickPracticeAttemptSchema =
 quickPracticeAttemptSchema.index({
     userId: 1,
     createdAt: -1,
+});
+
+quickPracticeAttemptSchema.index({
+    userId: 1,
+    status: 1,
+    submittedAt: -1,
 });
 
 /* --------------------------------------------------

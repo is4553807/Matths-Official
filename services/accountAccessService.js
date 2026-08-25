@@ -8,6 +8,12 @@ const ACCOUNT_STATUS_LABELS = {
   suspended: "정지",
   withdrawn: "탈퇴",
 };
+const ACCOUNT_ACCESS_SELECT = [
+  "name realName email role",
+  "tokenVersion school schoolGrade educationStatus university preferences",
+  "currentStreak lastStudyDate totalConnectedSeconds",
+  "isActive accountStatus accountStatusReason accountStatusChangedAt suspendedUntil",
+].join(" ");
 
 function normalizedAccountStatus(
   user
@@ -36,7 +42,10 @@ async function synchronizeAccountAccess(
   userId
 ) {
   const user =
-    await User.findById(userId);
+    await User.findById(userId)
+      .select(
+        ACCOUNT_ACCESS_SELECT
+      );
 
   if (!user) {
     return null;

@@ -1,6 +1,10 @@
 const express = require('express');
 const server = express();
 const path = require('path');
+const fs = require("fs");
+const crypto = require("crypto");
+const compression = require("compression");
+const ejs = require("ejs");
 const session = require('express-session');
 const {
     MongoSessionStore,
@@ -32,6 +36,67 @@ const runtimeEnvironment = assertRuntimeEnvironment();
 for (const warning of runtimeEnvironment.warnings) {
     console.warn(`[startup warning] ${warning}`);
 }
+
+function staticAssetFingerprint() {
+    const publicDirectory = path.join(__dirname, "public");
+    const files = [];
+    const collectFiles = (directory) => {
+        for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+            const filePath = path.join(directory, entry.name);
+            if (entry.isDirectory()) {
+                collectFiles(filePath);
+            } else if (/\.(?:css|js|svg)$/i.test(entry.name)) {
+                files.push(filePath);
+            }
+        }
+    };
+    collectFiles(publicDirectory);
+    const hash = crypto.createHash("sha256");
+    for (const filePath of files.sort()) {
+        hash.update(path.relative(publicDirectory, filePath));
+        hash.update(fs.readFileSync(filePath));
+    }
+    return hash.digest("hex").slice(0, 16);
+}
+
+/*
+ * CSS·JS·SVG 내용이 바뀔 때만 URL을 갱신한다. 여러 서버 프로세스에서도 같은
+ * 배포본은 같은 버전을 사용하므로 장기 캐시와 화면/자산 정합성을 함께 지킨다.
+ */
+server.locals.assetVersion = String(
+    process.env.MATTHS_ASSET_VERSION || staticAssetFingerprint()
+);
+
+function versionStaticAssetReferences(
+    html,
+    assetVersion = server.locals.assetVersion
+) {
+    const encodedVersion = encodeURIComponent(
+        String(assetVersion || "")
+    );
+    if (!encodedVersion) return html;
+    return String(html)
+        .replace(
+            /(<link\b[^>]*?\bhref\s*=\s*)(["'])(\/css\/[^"'?<>\s]+\.css)\2/gi,
+            (match, prefix, quote, assetPath) =>
+                `${prefix}${quote}${assetPath}?v=${encodedVersion}${quote}`
+        )
+        .replace(
+            /(<script\b[^>]*?\bsrc\s*=\s*)(["'])(\/js\/[^"'?<>\s]+\.js)\2/gi,
+            (match, prefix, quote, assetPath) =>
+                `${prefix}${quote}${assetPath}?v=${encodedVersion}${quote}`
+        );
+}
+
+server.engine("ejs", (filePath, options, callback) => {
+    ejs.renderFile(filePath, options, (error, html) => {
+        if (error) return callback(error);
+        return callback(
+            null,
+            versionStaticAssetReferences(html)
+        );
+    });
+});
 
 server.disable("x-powered-by");
 if (process.env.NODE_ENV === "production") {
@@ -72,10 +137,35 @@ server.use((req, res, next) => {
     next();
 });
 
+server.use(compression({
+    threshold: 1024,
+}));
+
 server.use(express.static("public", {
     etag: true,
     lastModified: true,
     maxAge: process.env.NODE_ENV === "production" ? "1d" : 0,
+    setHeaders(res, filePath) {
+        if (/\.(?:css|js|svg)$/i.test(filePath)) {
+            const requestedVersion = String(
+                res.req?.query?.v || ""
+            );
+            if (
+                process.env.NODE_ENV === "production" &&
+                requestedVersion === server.locals.assetVersion
+            ) {
+                res.setHeader(
+                    "Cache-Control",
+                    "public, max-age=31536000, immutable"
+                );
+            } else {
+                res.setHeader(
+                    "Cache-Control",
+                    "public, max-age=0, must-revalidate"
+                );
+            }
+        }
+    },
 }));
 server.use("/vendor/mathjax", express.static(
     path.join(__dirname, "node_modules", "mathjax"),

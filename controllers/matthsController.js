@@ -3456,7 +3456,11 @@ exports.main = async (req, res, next) => {
     try {
         const dashboardData =
             await getDashboardData(
-                req.session.user.id
+                req.session.user.id,
+                {
+                    user:
+                        req.authenticatedUser,
+                }
             );
 
         return res.render("main", {
@@ -4263,9 +4267,15 @@ exports.warOfMastersPage = async (
       placement,
       paidPackageAccess,
     ] = await Promise.all([
-      User.findById(
-        req.session.user.id
-      ).lean(),
+      req.authenticatedUser
+        ? Promise.resolve(
+            typeof req.authenticatedUser.toObject === "function"
+              ? req.authenticatedUser.toObject()
+              : req.authenticatedUser
+          )
+        : User.findById(
+            req.session.user.id
+          ).lean(),
       getPlacementDashboardData(
         req.session.user.id
       ),
@@ -4464,9 +4474,15 @@ exports.warOfMastersRankingsPage =
     try {
       const [user, ranking] =
         await Promise.all([
-          User.findById(
-            req.session.user.id
-          ).lean(),
+          req.authenticatedUser
+            ? Promise.resolve(
+                typeof req.authenticatedUser.toObject === "function"
+                  ? req.authenticatedUser.toObject()
+                  : req.authenticatedUser
+              )
+            : User.findById(
+                req.session.user.id
+              ).lean(),
           getRankingData(
             req.session.user.id
           ),

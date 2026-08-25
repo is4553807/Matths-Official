@@ -26,6 +26,9 @@ const {
 const {
   getCoachView,
 } = require("./coachMessageService");
+const {
+  TtlCache,
+} = require("./ttlCacheService");
 
 const QUICK_PRACTICE_LIMIT_MS = 40 * 1000;
 const MAX_GENERATION_ATTEMPTS = 40;
@@ -35,6 +38,11 @@ const CATALOG_PATH = path.join(
   "content_folder",
   "quick-practice-types.yaml"
 );
+const WRONG_NOTE_SYNC_TTL_MS = 5 * 60 * 1000;
+const wrongNoteSyncCache = new TtlCache({
+  maxEntries: 2_000,
+});
+const wrongNoteSyncInFlight = new Map();
 
 async function recordQuickPracticeWrongNote(
   attempt
@@ -203,7 +211,7 @@ async function recordQuickPracticeWrongNote(
   return problem;
 }
 
-async function syncQuickPracticeWrongNotes(
+async function runQuickPracticeWrongNoteSync(
   userId
 ) {
   const attempts =
@@ -215,12 +223,13 @@ async function syncQuickPracticeWrongNotes(
           "expired",
         ],
       },
-    })
+      })
       .sort({
         submittedAt: -1,
       })
       .limit(500)
-      .select("+answer");
+      .select("+answer")
+      .lean();
   const externalIds =
     attempts.map(
       (attempt) =>
@@ -287,13 +296,71 @@ async function syncQuickPracticeWrongNotes(
         )
     );
 
-  for (const attempt of missingAttempts) {
-    await recordQuickPracticeWrongNote(
-      attempt
+  for (
+    let offset = 0;
+    offset < missingAttempts.length;
+    offset += 8
+  ) {
+    await Promise.all(
+      missingAttempts
+        .slice(offset, offset + 8)
+        .map((attempt) =>
+          recordQuickPracticeWrongNote(
+            attempt
+          )
+        )
     );
   }
 
   return missingAttempts.length;
+}
+
+async function syncQuickPracticeWrongNotes(
+  userId
+) {
+  const cacheKey = String(userId);
+  const cached =
+    wrongNoteSyncCache.get(
+      cacheKey
+    );
+
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  if (
+    wrongNoteSyncInFlight.has(
+      cacheKey
+    )
+  ) {
+    return wrongNoteSyncInFlight.get(
+      cacheKey
+    );
+  }
+
+  const synchronization =
+    runQuickPracticeWrongNoteSync(
+      userId
+    );
+  wrongNoteSyncInFlight.set(
+    cacheKey,
+    synchronization
+  );
+
+  try {
+    const synchronizedCount =
+      await synchronization;
+    wrongNoteSyncCache.set(
+      cacheKey,
+      synchronizedCount,
+      WRONG_NOTE_SYNC_TTL_MS
+    );
+    return synchronizedCount;
+  } finally {
+    wrongNoteSyncInFlight.delete(
+      cacheKey
+    );
+  }
 }
 
 function pick(values) {

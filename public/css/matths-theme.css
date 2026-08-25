@@ -701,7 +701,7 @@ a.learning-home-button,
 /* Shared tier artwork, mapped from Bronze through Challenger. */
 .rank-crest {
   --rank-crest-width: 82px;
-  --rank-crest-image: url("/images/ranks/bronze.png");
+  --rank-crest-image: url("/images/ranks/bronze.webp");
   width: var(--rank-crest-width);
   height: calc(var(--rank-crest-width) * 1.75);
   display: inline-block;
@@ -732,15 +732,15 @@ a.learning-home-button,
   --rank-crest-width: 104px;
 }
 
-.rank-crest--bronze { --rank-crest-image: url("/images/ranks/bronze.png"); }
-.rank-crest--silver { --rank-crest-image: url("/images/ranks/silver.png"); }
-.rank-crest--gold { --rank-crest-image: url("/images/ranks/gold.png"); }
-.rank-crest--platinum { --rank-crest-image: url("/images/ranks/platinum.png"); }
-.rank-crest--emerald { --rank-crest-image: url("/images/ranks/emerald.png"); }
-.rank-crest--diamond { --rank-crest-image: url("/images/ranks/diamond.png"); }
-.rank-crest--master { --rank-crest-image: url("/images/ranks/master.png"); }
-.rank-crest--grandmaster { --rank-crest-image: url("/images/ranks/grandmaster.png"); }
-.rank-crest--challenger { --rank-crest-image: url("/images/ranks/challenger.png"); }
+.rank-crest--bronze { --rank-crest-image: url("/images/ranks/bronze.webp"); }
+.rank-crest--silver { --rank-crest-image: url("/images/ranks/silver.webp"); }
+.rank-crest--gold { --rank-crest-image: url("/images/ranks/gold.webp"); }
+.rank-crest--platinum { --rank-crest-image: url("/images/ranks/platinum.webp"); }
+.rank-crest--emerald { --rank-crest-image: url("/images/ranks/emerald.webp"); }
+.rank-crest--diamond { --rank-crest-image: url("/images/ranks/diamond.webp"); }
+.rank-crest--master { --rank-crest-image: url("/images/ranks/master.webp"); }
+.rank-crest--grandmaster { --rank-crest-image: url("/images/ranks/grandmaster.webp"); }
+.rank-crest--challenger { --rank-crest-image: url("/images/ranks/challenger.webp"); }
 
 /* Public navigation and public pages */
 

@@ -10,22 +10,22 @@ const cssRoot = path.join(root, "public", "css");
 const publicRoot = path.join(root, "public");
 
 const officialRankCrestHashes = Object.freeze({
-  bronze: "96e177bc1317ee44409c61f0956811675450311636d897b5316af968b746a1f6",
-  silver: "08802d38246d2bb80484295a5bc07c534935954d271935942b551ac8bff1b5dd",
-  gold: "b03d92aac1a398248c1bbece7faa60aa4a0244bb9e1ca346686c851b8d1e8eba",
-  platinum: "032c6514f91adaeedc2cbe14f9616438f0722a4f5d9782ac62d50dfe9e51ea50",
-  emerald: "35e1d8c27b70ad58e4bb7e17e472e2890e555b26088fac34e362e98368628283",
-  diamond: "98f25ea0ef8f7f0e4cd85deffe44853a4be7bf76a40d93133d7c64dab90133f9",
-  master: "f5c89e651812c5ec5e0d3ebfff02c1dd8eb3f5c1bb7477638cd271ee79b6e68b",
-  grandmaster: "f19eb7621ab45846e0eec9b97e18ad117d3a0cfb75a007e9557411a4581cb492",
-  challenger: "85248170c874e6d3dd49bd91e0be1e7a132b6c14e0466fb5f619b23a68c45a4a",
+  bronze: "a14a17eefd0ac571d457f3c423c07b6deeaf429c30dcaa05cf4b151413ec23d5",
+  silver: "ba3560970f1af5e4b2e29450d66769f066b893081416d9fc913c1bde31ba831f",
+  gold: "6654d11b680b008a2dba02bccc0a32940f257650452421cf47ebc30d3ccae38a",
+  platinum: "d919f76d695f42e29756a06db22c1c62fd1a0c00f56c7772fc9811d5f0c721fb",
+  emerald: "3df266adf7a441d606d80231cca90f77be2dd53608a31830dd5e316a2434c79a",
+  diamond: "a6b37e97af64f557fde698c50d7b462b05e2052087c60a4abc1b425fa95d97ad",
+  master: "e117e7f9afdb00f3ab57e6f2b67083b92b94b98ca0b7c6dc8bb94e69b57e9ab6",
+  grandmaster: "e7543310a16b6ade1b0fd787b676bb5ededc06ace0e16e7ba487cd767ef6098c",
+  challenger: "139444e653a3c910b6126fbd1c6092aac7f6e18e9acf5fbc986e7738bb2cc8d3",
 });
 
 for (const [tier, expectedHash] of Object.entries(officialRankCrestHashes)) {
-  const asset = path.join(publicRoot, "images", "ranks", `${tier}.png`);
+  const asset = path.join(publicRoot, "images", "ranks", `${tier}.webp`);
   assert.ok(fs.existsSync(asset), `${tier} 공식 휘장 파일이 없습니다.`);
   const actualHash = createHash("sha256").update(fs.readFileSync(asset)).digest("hex");
-  assert.equal(actualHash, expectedHash, `${tier} 휘장은 제공받은 원본 PNG여야 합니다.`);
+  assert.equal(actualHash, expectedHash, `${tier} 휘장은 승인된 최적화 WebP여야 합니다.`);
 }
 
 function filesIn(directory, extension) {

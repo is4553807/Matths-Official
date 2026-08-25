@@ -149,7 +149,7 @@ a:focus-visible {
   z-index: -3;
   inset: 0;
   background:
-    url("/images/goat-arena/arena-hero.jpg")
+    url("/images/goat-arena/arena-hero.webp")
     68% center / cover no-repeat;
   filter: saturate(0.96) contrast(1.04);
   transform: scale(1.015);
@@ -1034,7 +1034,7 @@ a:focus-visible {
 .rank-crest {
   --rank-crest-width: 104px;
   --rank-crest-image:
-    url("/images/ranks/bronze.png");
+    url("/images/ranks/bronze.webp");
   width: var(--rank-crest-width);
   height:
     calc(
@@ -1064,47 +1064,47 @@ a:focus-visible {
 
 .rank-crest--bronze {
   --rank-crest-image:
-    url("/images/ranks/bronze.png");
+    url("/images/ranks/bronze.webp");
 }
 
 .rank-crest--silver {
   --rank-crest-image:
-    url("/images/ranks/silver.png");
+    url("/images/ranks/silver.webp");
 }
 
 .rank-crest--gold {
   --rank-crest-image:
-    url("/images/ranks/gold.png");
+    url("/images/ranks/gold.webp");
 }
 
 .rank-crest--platinum {
   --rank-crest-image:
-    url("/images/ranks/platinum.png");
+    url("/images/ranks/platinum.webp");
 }
 
 .rank-crest--emerald {
   --rank-crest-image:
-    url("/images/ranks/emerald.png");
+    url("/images/ranks/emerald.webp");
 }
 
 .rank-crest--diamond {
   --rank-crest-image:
-    url("/images/ranks/diamond.png");
+    url("/images/ranks/diamond.webp");
 }
 
 .rank-crest--master {
   --rank-crest-image:
-    url("/images/ranks/master.png");
+    url("/images/ranks/master.webp");
 }
 
 .rank-crest--grandmaster {
   --rank-crest-image:
-    url("/images/ranks/grandmaster.png");
+    url("/images/ranks/grandmaster.webp");
 }
 
 .rank-crest--challenger {
   --rank-crest-image:
-    url("/images/ranks/challenger.png");
+    url("/images/ranks/challenger.webp");
 }
 
 .arena-seed-pending {

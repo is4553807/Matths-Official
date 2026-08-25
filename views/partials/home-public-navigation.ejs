@@ -1,4 +1,9 @@
 <%
+  const publicAssetVersion = encodeURIComponent(
+    typeof assetVersion === "string" && assetVersion
+      ? assetVersion
+      : "dev"
+  );
   const publicUser =
     typeof user !== "undefined" && user
       ? user
@@ -131,5 +136,6 @@
   </nav>
 </header>
 <span class="matths-skip-target" id="public-navigation-end" tabindex="-1"></span>
-<script src="/js/home-public-navigation.js" defer></script>
-<% if (publicUser) { %><script src="/js/session-usage.js" defer></script><% } %>
+<script src="/js/navigation-performance.js?v=<%= publicAssetVersion %>" defer></script>
+<script src="/js/home-public-navigation.js?v=<%= publicAssetVersion %>" defer></script>
+<% if (publicUser) { %><script src="/js/session-usage.js?v=<%= publicAssetVersion %>" defer></script><% } %>

@@ -1342,7 +1342,7 @@
   text-decoration: none;
 }
 
-.admin-brand > span {
+.admin-brand > .brand-mark {
   width: 36px;
   height: 36px;
   display: grid;

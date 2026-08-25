@@ -19,13 +19,14 @@ class MongoSessionStore extends session.Store {
 
   get(sid, callback) {
     WebSession.findOne({ sid, expiresAt: { $gt: new Date() } })
+      .select("session")
       .lean()
       .then((record) => callback(null, record?.session || null))
       .catch((error) => callback(error));
   }
 
   set(sid, sessionData, callback = () => {}) {
-    WebSession.findOneAndUpdate(
+    WebSession.updateOne(
       { sid },
       {
         $set: {
@@ -44,7 +45,6 @@ class MongoSessionStore extends session.Store {
       { sid },
       {
         $set: {
-          session: sessionData,
           expiresAt: sessionExpiry(sessionData, this.ttlSeconds),
         },
       }

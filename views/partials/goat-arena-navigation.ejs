@@ -1,4 +1,9 @@
 <%
+  const arenaAssetVersion = encodeURIComponent(
+    typeof assetVersion === "string" && assetVersion
+      ? assetVersion
+      : "dev"
+  );
   const pendingRankUpPresentation =
     typeof rankUpPresentation !== "undefined"
       ? rankUpPresentation
@@ -124,5 +129,6 @@
   }) %>
   <script type="application/json" data-rank-up-presentation-payload><%- JSON.stringify(pendingRankUpPresentation).replace(/</g, "\\u003c") %></script>
 <% } %>
-<script src="/js/session-usage.js" defer></script>
-<script src="/js/goat-arena-navigation.js" defer></script>
+<script src="/js/navigation-performance.js?v=<%= arenaAssetVersion %>" defer></script>
+<script src="/js/session-usage.js?v=<%= arenaAssetVersion %>" defer></script>
+<script src="/js/goat-arena-navigation.js?v=<%= arenaAssetVersion %>" defer></script>

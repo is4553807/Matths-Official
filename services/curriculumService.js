@@ -7,6 +7,8 @@ const CURRICULUM_DIRECTORY = path.resolve(
   "..",
   "curriculum_folder"
 );
+let cachedCurriculum = null;
+let cachedCurriculumSignature = null;
 
 const CATEGORY_DEFINITIONS = [
   {
@@ -73,7 +75,7 @@ function isCourseAvailable(courseId) {
   return AVAILABLE_COURSE_IDS.has(String(courseId || ""));
 }
 
-function readCurriculumDocuments() {
+function curriculumFileNames() {
   if (!fs.existsSync(CURRICULUM_DIRECTORY)) {
     throw new Error(
       `교육과정 폴더를 찾을 수 없습니다: ${CURRICULUM_DIRECTORY}`
@@ -89,6 +91,21 @@ function readCurriculumDocuments() {
     throw new Error("불러올 2022 개정 수학과 교육과정 YAML이 없습니다.");
   }
 
+  return fileNames;
+}
+
+function curriculumSignature(fileNames) {
+  return fileNames
+    .map((fileName) => {
+      const stats = fs.statSync(
+        path.join(CURRICULUM_DIRECTORY, fileName)
+      );
+      return `${fileName}:${stats.size}:${stats.mtimeMs}`;
+    })
+    .join("|");
+}
+
+function readCurriculumDocuments(fileNames = curriculumFileNames()) {
   return fileNames.map((fileName) => {
     const filePath = path.join(CURRICULUM_DIRECTORY, fileName);
 
@@ -185,7 +202,24 @@ function groupCoursesByCategory(courses) {
 }
 
 function loadCurriculum() {
-  const documents = readCurriculumDocuments();
+  if (
+    cachedCurriculum &&
+    process.env.NODE_ENV === "production"
+  ) {
+    return cachedCurriculum;
+  }
+
+  const fileNames = curriculumFileNames();
+  const signature = curriculumSignature(fileNames);
+
+  if (
+    cachedCurriculum &&
+    cachedCurriculumSignature === signature
+  ) {
+    return cachedCurriculum;
+  }
+
+  const documents = readCurriculumDocuments(fileNames);
   const courseIds = new Set();
   const courses = [];
 
@@ -229,7 +263,7 @@ function loadCurriculum() {
     0
   );
 
-  return {
+  cachedCurriculum = {
     schemaVersion: 1,
     curriculum: {
       ...(baseDocument.curriculum || {}),
@@ -261,6 +295,14 @@ function loadCurriculum() {
     },
     sourceFiles: documents.map(({ fileName }) => fileName),
   };
+  cachedCurriculumSignature = signature;
+
+  return cachedCurriculum;
+}
+
+function clearCurriculumCache() {
+  cachedCurriculum = null;
+  cachedCurriculumSignature = null;
 }
 
 function conceptKey(courseId, unitId, conceptId) {
@@ -492,6 +534,7 @@ function findUnitView(learningData, courseId, unitId, conceptId) {
 
 module.exports = {
   loadCurriculum,
+  clearCurriculumCache,
   conceptKey,
   buildLearningViewModel,
   findCurriculumConcept,

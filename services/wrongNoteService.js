@@ -379,6 +379,9 @@ async function getWrongNoteData(userId, query = {}) {
   })
     .sort({ submittedAt: -1 })
     .limit(MAX_RECENT_ATTEMPTS)
+    .select(
+      "problemId courseId unitId conceptId problemSnapshot submittedAnswer score maxScore review submittedAt createdAt"
+    )
     .populate({
       path: "problemId",
       select: "externalId stem source difficulty score tags",

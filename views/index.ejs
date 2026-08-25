@@ -120,11 +120,13 @@
                   <li>
                     <span class="arena-rank-number"><%= String(index + 1).padStart(2, "0") %></span>
                     <img
-                      src="/images/ranks/<%= tierSlug(entry.tierLabel) %>.png"
+                      src="/images/ranks/<%= tierSlug(entry.tierLabel) %>.webp"
                       alt=""
                       width="64"
                       height="64"
-                      loading="eager"
+                      loading="lazy"
+                      decoding="async"
+                      fetchpriority="low"
                     />
                     <span class="arena-player">
                       <strong><%= entry.displayName %></strong>

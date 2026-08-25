@@ -3,6 +3,7 @@ const {
     ConceptProgress,
     ConceptLesson,
     DailyPlan,
+    Problem,
     ProblemAttempt,
     AssessmentAttempt,
     QuickPracticeAttempt,
@@ -43,6 +44,26 @@ const {
 } = require("./coachMessageService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const PUBLISHED_LESSON_CACHE_TTL_MS = Math.max(
+    5_000,
+    Number(
+        process.env
+            .DASHBOARD_LESSON_CACHE_TTL_MS
+    ) || 60_000
+);
+let publishedLessonCache = null;
+let publishedLessonCacheExpiresAt = 0;
+let publishedLessonQuery = null;
+const DASHBOARD_ANNOUNCEMENT_CACHE_TTL_MS = Math.max(
+    5_000,
+    Number(
+        process.env
+            .DASHBOARD_ANNOUNCEMENT_CACHE_TTL_MS
+    ) || 30_000
+);
+let dashboardAnnouncementCache = null;
+let dashboardAnnouncementCacheExpiresAt = 0;
+let dashboardAnnouncementQuery = null;
 
 const ERROR_LABELS = {
     "calculation-error": "계산 과정에서 실수",
@@ -53,6 +74,299 @@ const ERROR_LABELS = {
     "prerequisite-missing": "선행 개념 복습이 필요함",
     unknown: "풀이 과정을 다시 확인해야 함",
 };
+
+async function getPublishedLessons(
+    curriculumId
+) {
+    if (
+        publishedLessonCache &&
+        publishedLessonCacheExpiresAt >
+            Date.now()
+    ) {
+        return publishedLessonCache;
+    }
+
+    if (publishedLessonQuery) {
+        return publishedLessonQuery;
+    }
+
+    publishedLessonQuery =
+        ConceptLesson.find({
+            curriculumId,
+            isPublished: true,
+        })
+            .select(
+                "courseId unitId conceptId estimatedMinutes steps.title dashboardPreview"
+            )
+            .lean()
+            .then((lessons) => {
+                publishedLessonCache =
+                    lessons;
+                publishedLessonCacheExpiresAt =
+                    Date.now() +
+                    PUBLISHED_LESSON_CACHE_TTL_MS;
+                return lessons;
+            })
+            .finally(() => {
+                publishedLessonQuery =
+                    null;
+            });
+
+    return publishedLessonQuery;
+}
+
+async function getDashboardAnnouncements(
+    now = new Date()
+) {
+    if (
+        dashboardAnnouncementCache &&
+        dashboardAnnouncementCacheExpiresAt >
+            now.getTime()
+    ) {
+        return dashboardAnnouncementCache;
+    }
+
+    if (dashboardAnnouncementQuery) {
+        return dashboardAnnouncementQuery;
+    }
+
+    dashboardAnnouncementQuery =
+        Announcement.find({
+            isPublished: true,
+            publishedAt: {
+                $ne: null,
+            },
+            $or: [
+                {
+                    dashboardEndsAt: null,
+                },
+                {
+                    dashboardEndsAt: {
+                        $gte: now,
+                    },
+                },
+            ],
+        })
+            .sort({ publishedAt: -1 })
+            .limit(3)
+            .select(
+                "title content href publishedAt"
+            )
+            .lean()
+            .then((announcements) => {
+                dashboardAnnouncementCache =
+                    announcements;
+                dashboardAnnouncementCacheExpiresAt =
+                    Date.now() +
+                    DASHBOARD_ANNOUNCEMENT_CACHE_TTL_MS;
+                return announcements;
+            })
+            .finally(() => {
+                dashboardAnnouncementQuery =
+                    null;
+            });
+
+    return dashboardAnnouncementQuery;
+}
+
+async function getDashboardNotificationData(
+    userId
+) {
+    const [result = {}] =
+        await UserNotification.aggregate([
+            {
+                $match: {
+                    userId,
+                },
+            },
+            {
+                $facet: {
+                    directNotifications: [
+                        {
+                            $match: {
+                                readAt: null,
+                            },
+                        },
+                        {
+                            $sort: {
+                                createdAt: -1,
+                            },
+                        },
+                        { $limit: 8 },
+                        {
+                            $project: {
+                                title: 1,
+                                message: 1,
+                                kind: 1,
+                            },
+                        },
+                    ],
+                    dashboardUrgentNotifications: [
+                        {
+                            $match: {
+                                kind: {
+                                    $in: [
+                                        "warning",
+                                        "account",
+                                        "nickname",
+                                        "integrity",
+                                    ],
+                                },
+                                dashboardDismissedAt:
+                                    null,
+                            },
+                        },
+                        {
+                            $sort: {
+                                createdAt: -1,
+                            },
+                        },
+                        { $limit: 5 },
+                        {
+                            $project: {
+                                title: 1,
+                                message: 1,
+                                kind: 1,
+                                createdAt: 1,
+                            },
+                        },
+                    ],
+                    dismissedAnnouncements: [
+                        {
+                            $match: {
+                                announcementId: {
+                                    $ne: null,
+                                },
+                            },
+                        },
+                        {
+                            $project: {
+                                announcementId: 1,
+                                dashboardDismissedAt: 1,
+                            },
+                        },
+                    ],
+                },
+            },
+        ]);
+
+    return {
+        directNotifications:
+            result.directNotifications || [],
+        dashboardUrgentNotifications:
+            result.dashboardUrgentNotifications || [],
+        dismissedAnnouncements:
+            result.dismissedAnnouncements || [],
+    };
+}
+
+async function getDashboardWrongAttemptData(
+    userId
+) {
+    const [result = {}] =
+        await ProblemAttempt.aggregate([
+            {
+                $match: {
+                    userId,
+                    isCorrect: false,
+                },
+            },
+            {
+                $sort: {
+                    submittedAt: -1,
+                },
+            },
+            {
+                $facet: {
+                    pendingReview: [
+                        {
+                            $match: {
+                                "review.status": {
+                                    $in: [
+                                        "pending",
+                                        "scheduled",
+                                    ],
+                                },
+                            },
+                        },
+                        { $count: "count" },
+                    ],
+                    recentWrongAttempts: [
+                        { $limit: 3 },
+                        {
+                            $project: {
+                                problemId: 1,
+                                maxScore: 1,
+                                errorAnalysis: 1,
+                                courseId: 1,
+                                unitId: 1,
+                                conceptId: 1,
+                            },
+                        },
+                        {
+                            $lookup: {
+                                from:
+                                    Problem.collection.name,
+                                let: {
+                                    problemId:
+                                        "$problemId",
+                                },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $eq: [
+                                                    "$_id",
+                                                    "$$problemId",
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    {
+                                        $project: {
+                                            stem: 1,
+                                            score: 1,
+                                        },
+                                    },
+                                ],
+                                as: "problem",
+                            },
+                        },
+                        {
+                            $set: {
+                                problemId: {
+                                    $ifNull: [
+                                        {
+                                            $arrayElemAt: [
+                                                "$problem",
+                                                0,
+                                            ],
+                                        },
+                                        null,
+                                    ],
+                                },
+                            },
+                        },
+                        {
+                            $project: {
+                                problem: 0,
+                            },
+                        },
+                    ],
+                },
+            },
+        ]);
+
+    return {
+        pendingReviewCount:
+            Number(
+                result.pendingReview?.[0]
+                    ?.count
+            ) || 0,
+        recentWrongAttempts:
+            result.recentWrongAttempts || [],
+    };
+}
 
 function createDateSeries(length = 14) {
     return Array.from(
@@ -543,8 +857,15 @@ function signedText(value, unit) {
     return "지난 기간과 동일";
 }
 
-async function getDashboardData(userId) {
-    const user = await User.findById(userId).lean();
+async function getDashboardData(
+    userId,
+    { user: authenticatedUser = null } = {}
+) {
+    const user = authenticatedUser
+        ? typeof authenticatedUser.toObject === "function"
+            ? authenticatedUser.toObject()
+            : authenticatedUser
+        : await User.findById(userId).lean();
 
     if (!user) {
         const error = new Error(
@@ -577,13 +898,10 @@ async function getDashboardData(userId) {
         lessons,
         dailyPlan,
         activityByDate,
-        pendingReviewCount,
-        recentWrongAttempts,
+        wrongAttemptData,
         assessmentAttempts,
-        directNotifications,
-        dashboardUrgentNotifications,
+        notificationData,
         announcements,
-        dismissedAnnouncements,
         activeAccessCycle,
         arenaAccessState,
         latestMainToSubReference,
@@ -598,12 +916,10 @@ async function getDashboardData(userId) {
             .sort({ lastStudiedAt: -1 })
             .lean(),
 
-        ConceptLesson.find({
-            curriculumId:
-                curriculumData.curriculum?.id ||
-                "kr-2022",
-            isPublished: true,
-        }).lean(),
+        getPublishedLessons(
+            curriculumData.curriculum?.id ||
+                "kr-2022"
+        ),
 
         DailyPlan.findOne({
             userId: user._id,
@@ -619,25 +935,9 @@ async function getDashboardData(userId) {
             ),
         }),
 
-        ProblemAttempt.countDocuments({
-            userId: user._id,
-            isCorrect: false,
-            "review.status": {
-                $in: ["pending", "scheduled"],
-            },
-        }),
-
-        ProblemAttempt.find({
-            userId: user._id,
-            isCorrect: false,
-        })
-            .sort({ submittedAt: -1 })
-            .limit(3)
-            .populate({
-                path: "problemId",
-                select: "stem score",
-            })
-            .lean(),
+        getDashboardWrongAttemptData(
+            user._id
+        ),
 
         AssessmentAttempt.find({
             userId: user._id,
@@ -649,69 +949,28 @@ async function getDashboardData(userId) {
             )
             .lean(),
 
-        UserNotification.find({
-            userId: user._id,
-            readAt: null,
-        })
-            .sort({ createdAt: -1 })
-            .limit(8)
-            .lean(),
+        getDashboardNotificationData(
+            user._id
+        ),
 
-        UserNotification.find({
-            userId: user._id,
-            kind: {
-                $in: [
-                    "warning",
-                    "account",
-                    "nickname",
-                    "integrity",
-                ],
-            },
-            dashboardDismissedAt: null,
-        })
-            .sort({ createdAt: -1 })
-            .limit(5)
-            .lean(),
-
-        Announcement.find({
-            isPublished: true,
-            publishedAt: {
-                $ne: null,
-            },
-            $or: [
-                {
-                    dashboardEndsAt: null,
-                },
-                {
-                    dashboardEndsAt: {
-                        $gte: new Date(),
-                    },
-                },
-            ],
-        })
-            .sort({ publishedAt: -1 })
-            .limit(3)
-            .lean(),
-
-        UserNotification.find({
-            userId: user._id,
-            announcementId: {
-                $ne: null,
-            },
-        })
-            .select(
-                "announcementId dashboardDismissedAt"
-            )
-            .lean(),
+        getDashboardAnnouncements(),
 
         AccessCycle.findOne({
             userId: user._id,
             status: "ACTIVE",
-        }).lean(),
+        })
+            .select(
+                "availableLearningDays reservedLearningDays lockedLearningDays expiresAt"
+            )
+            .lean(),
 
         ArenaAccessState.findOne({
             userId: user._id,
-        }).lean(),
+        })
+            .select(
+                "currentCompetitiveDivision state lastMainSnapshotId renewalGraceDeadline"
+            )
+            .lean(),
 
         MainToSubConversionResult.findOne({
             userId: user._id,
@@ -719,6 +978,9 @@ async function getDashboardData(userId) {
             integrityStatus: "CLEAR",
         })
             .sort({ createdAt: -1 })
+            .select(
+                "renewalGraceDeadline referenceSubRank referenceSubGp referenceSubOverallPosition"
+            )
             .lean(),
 
         MockExamSubscription.findOne({
@@ -727,8 +989,18 @@ async function getDashboardData(userId) {
             endsAt: { $gt: new Date() },
         })
             .sort({ endsAt: -1 })
+            .select("endsAt")
             .lean(),
     ]);
+    const {
+        directNotifications,
+        dashboardUrgentNotifications,
+        dismissedAnnouncements,
+    } = notificationData;
+    const {
+        pendingReviewCount,
+        recentWrongAttempts,
+    } = wrongAttemptData;
 
     const lessonMap = new Map(
         lessons.map((lesson) => [

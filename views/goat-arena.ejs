@@ -28,8 +28,9 @@
     <main id="arena-main">
       <section class="arena-hero arena-snap-section is-video-pending" id="arena-start" aria-labelledby="arena-title">
         <div class="arena-hero-art" aria-hidden="true"></div>
-        <video class="arena-hero-video" autoplay playsinline preload="auto" poster="/images/goat-arena/arena-hero.jpg" aria-hidden="true">
-          <source src="/videos/goatArena.mp4" type="video/mp4" />
+        <video class="arena-hero-video" playsinline preload="metadata" poster="/images/goat-arena/arena-hero.webp" aria-hidden="true">
+          <source src="/videos/goatArena-mobile.mp4" type="video/mp4" media="(max-width: 640px)" />
+          <source src="/videos/goatArena-desktop.mp4" type="video/mp4" />
         </video>
         <button class="arena-sound-toggle" type="button" aria-label="GOAT Arena 영상 소리 끄기" aria-pressed="true" data-arena-sound-toggle>
           <span class="arena-sound-bars" aria-hidden="true"><i></i><i></i><i></i></span>

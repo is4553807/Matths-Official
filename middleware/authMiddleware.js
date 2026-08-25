@@ -78,6 +78,8 @@ exports.isLoggedIn = async (req, res, next) => {
                         account.preferences,
                 }
             );
+            req.authenticatedUser =
+                account;
             const todayKey =
                 getKoreanDateKey();
 
@@ -95,6 +97,8 @@ exports.isLoggedIn = async (req, res, next) => {
                     req.session.user,
                     lifecycleSessionView(user)
                 );
+                req.authenticatedUser =
+                    user;
             }
 
             return next();

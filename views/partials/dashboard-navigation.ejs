@@ -1,6 +1,9 @@
-<link rel="stylesheet" href="/css/matths-theme.css" />
-<link rel="stylesheet" href="/css/contrast.css" />
 <%
+  const dashboardAssetVersion = encodeURIComponent(
+    typeof assetVersion === "string" && assetVersion
+      ? assetVersion
+      : "dev"
+  );
   const currentDashboardPage =
     typeof activePage === "string"
       ? activePage
@@ -103,6 +106,8 @@
     });
   }
 %>
+<link rel="stylesheet" href="/css/matths-theme.css?v=<%= dashboardAssetVersion %>" />
+<link rel="stylesheet" href="/css/contrast.css?v=<%= dashboardAssetVersion %>" />
 
 <nav class="side-nav" aria-label="대시보드 메뉴">
   <p>LEARNING</p>
@@ -125,4 +130,5 @@
     </a>
   <% }) %>
 </nav>
-<script src="/js/session-usage.js" defer></script>
+<script src="/js/navigation-performance.js?v=<%= dashboardAssetVersion %>" defer></script>
+<script src="/js/session-usage.js?v=<%= dashboardAssetVersion %>" defer></script>

@@ -34,6 +34,7 @@ function routeInventory() {
 
 function normalizeTarget(rawValue) {
   const value = String(rawValue || "")
+    .replace(/\?v=<%=[\s\S]*?%>$/, "")
     .replace(/<%[=-]?\s*(?:queryString|query)\b[\s\S]*?%>/g, "")
     .trim();
   if (!value.startsWith("/") || value.startsWith("//")) return null;

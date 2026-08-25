@@ -33,6 +33,7 @@ const { getRefundDisclosure } = require("../services/refundPolicyService");
 const app = express();
 const root = path.resolve(__dirname, "..");
 const port = Number(process.env.MATTHS_PREVIEW_PORT) || 8011;
+app.locals.assetVersion = "local-preview";
 const previewArenaActivityAudit = [];
 const previewProducts = [
   { code: "MOCK_EXAM_ONLY", name: "Matths 주간 공식 모의고사 이용권", amount: 5000, periodLabel: "30일", description: "주간 공식 모의고사 응시에 집중하는 이용권" },

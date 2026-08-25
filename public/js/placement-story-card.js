@@ -120,7 +120,7 @@
 
   async function render() {
     await document.fonts.ready;
-    const crest = await loadImage(`/images/ranks/${config.tierAsset}.png`);
+    const crest = await loadImage(`/images/ranks/${config.tierAsset}.webp`);
     drawBackground();
 
     context.textAlign = "center";
