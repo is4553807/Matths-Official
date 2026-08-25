@@ -304,6 +304,10 @@ const {
   setMatchmakingPaused,
 } = require("../services/arenaMatchmakingControlService");
 const {
+  getAdminActiveArenaMatchesData,
+} = require("../services/adminActiveArenaMatchesService");
+const {
+  analyzeForensicTraceCode,
   analyzeForensicUpload,
   isPdfDownload,
   issuePersonalizedPdf,
@@ -1935,6 +1939,18 @@ exports.adminArenaMatchesPage = async (req, res, next) => {
   }
 };
 
+exports.adminActiveArenaMatchesPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    return res.render("admin-arena-live-matches", {
+      user: req.session.user,
+      liveMatches: await getAdminActiveArenaMatchesData(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.adminReviewArenaIntegrityCase = async (req, res, next) => {
   try {
     await reviewArenaIntegrityCase({
@@ -2208,6 +2224,7 @@ exports.adminPdfForensicsPage = async (req, res, next) => {
       user: req.session.user,
       analysis: null,
       error: null,
+      oldTraceCode: "",
     });
   } catch (error) {
     return next(error);
@@ -2216,21 +2233,32 @@ exports.adminPdfForensicsPage = async (req, res, next) => {
 
 exports.adminAnalyzeForensicPdf = async (req, res, next) => {
   const uploadedPath = req.file?.path || "";
+  const requestedTraceCode = String(req.body?.traceCode || "").trim();
   try {
-    if (!uploadedPath) {
-      const error = new Error("분석할 PDF 또는 스크린샷 파일을 선택해주세요.");
+    if (!uploadedPath && !requestedTraceCode) {
+      const error = new Error("분석할 파일을 선택하거나 추적 코드를 입력해주세요.");
       error.status = 400;
       throw error;
     }
-    const analysis = await analyzeForensicUpload(uploadedPath);
+    if (uploadedPath && requestedTraceCode) {
+      const error = new Error("파일과 추적 코드 중 한 가지만 선택해주세요.");
+      error.status = 400;
+      throw error;
+    }
+    const analysis = requestedTraceCode
+      ? await analyzeForensicTraceCode(requestedTraceCode)
+      : await analyzeForensicUpload(uploadedPath);
     return res.render("admin-pdf-forensics", {
       user: req.session.user,
       analysis,
+      oldTraceCode: requestedTraceCode,
       error: analysis.matches.length
         ? null
         : analysis.validPayloads.length
           ? "PDF 안의 MATTHS 서명은 유효하지만 현재 DB의 사용자 발급 원장과 연결되지 않습니다. 계정 전체 삭제 또는 원장 보존 상태를 확인해주세요."
-          : analysis.inputType === "IMAGE"
+          : analysis.inputType === "TRACE_CODE"
+            ? `입력한 추적 코드 ${analysis.manualTraceCode}와 일치하는 발급·경기 기록을 찾지 못했습니다.`
+            : analysis.inputType === "IMAGE"
             ? analysis.traceCodes.length
               ? "스크린샷의 추적 코드는 읽었지만 현재 PDF 발급 또는 GOAT Arena 경기 기록과 연결되지 않습니다. 오래된 기록 보존 상태를 확인해주세요."
               : "스크린샷에서 PDF·GOAT Arena 추적 코드를 식별하지 못했습니다. 원본 해상도·자르기·덧칠·압축 상태를 확인하고, 가능하면 워터마크가 여러 번 보이는 넓은 영역을 다시 올려주세요."
@@ -2242,6 +2270,7 @@ exports.adminAnalyzeForensicPdf = async (req, res, next) => {
         user: req.session.user,
         analysis: null,
         error: error.message,
+        oldTraceCode: requestedTraceCode,
       });
     }
     return next(error);
@@ -3465,6 +3494,14 @@ exports.curriculumPage = (req, res, next) => {
   }
 };
 
+function getRequestProfileAvatar(req) {
+  return resolveArenaProfileAvatar(
+    req.authenticatedUser?.preferences ||
+      req.session?.user?.preferences ||
+      {}
+  );
+}
+
 exports.main = async (req, res, next) => {
     try {
         const [dashboardData, arenaActivityLevel] =
@@ -3481,14 +3518,12 @@ exports.main = async (req, res, next) => {
             ),
           ]);
 
+        res.set("Cache-Control", "private, no-store");
         return res.render("main", {
             user: dashboardData.user,
             dashboardData,
             arenaActivityLevel,
-            arenaProfileAvatar: resolveArenaProfileAvatar(
-              req.authenticatedUser?.preferences ||
-                req.session.user.preferences
-            ),
+            arenaProfileAvatar: getRequestProfileAvatar(req),
         });
     } catch (error) {
         return next(error);
@@ -4876,9 +4911,11 @@ exports.myLearning = async (req, res, next) => {
       req.session.user.id
     );
 
+    res.set("Cache-Control", "private, no-store");
     return res.render("my-learning", {
       learningData,
       user: req.session.user,
+      arenaProfileAvatar: getRequestProfileAvatar(req),
     });
   } catch (error) {
     return next(error);
@@ -5005,6 +5042,7 @@ exports.unitLearning = async (
           )
       ) || null;
 
+    res.set("Cache-Control", "private, no-store");
     return res.render("unit-learning", {
       learningData,
       unitView,
@@ -5014,6 +5052,7 @@ exports.unitLearning = async (
       subunitAssessment,
       conceptTypeGuides,
       user: req.session.user,
+      arenaProfileAvatar: getRequestProfileAvatar(req),
     });
   } catch (error) {
     return next(error);

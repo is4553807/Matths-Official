@@ -567,6 +567,12 @@ router.post(
   matthsController.adminActivateArenaProblemData
 );
 router.get(
+  "/admin/arena-live-matches",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminActiveArenaMatchesPage
+);
+router.get(
   "/admin/arena-matches",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,

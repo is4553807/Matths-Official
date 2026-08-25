@@ -180,6 +180,16 @@ assert.match(
   "유출 자료 분석 요청은 중복 제출을 막는 상태 전환이 필요합니다."
 );
 assert.match(
+  forensicMarkup,
+  /name="traceCode"[\s\S]*?data-forensic-trace-code/,
+  "유출 자료 분석 화면에는 추적 코드 직접 입력 기능이 필요합니다."
+);
+assert.match(
+  forensicMarkup,
+  /hasFile === hasTraceCode[\s\S]*?파일과 추적 코드 중 한 가지만 선택해야 합니다/,
+  "유출 자료 분석은 파일과 추적 코드의 동시 제출을 막아야 합니다."
+);
+assert.match(
   adminCss,
   /\.forensic-analysis-spinner[\s\S]*?animation:\s*forensic-analysis-spin/,
   "유출 자료 분석 진행 상태에는 로딩 애니메이션이 필요합니다."

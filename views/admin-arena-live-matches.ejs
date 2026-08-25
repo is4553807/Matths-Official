@@ -1,0 +1,157 @@
+<%
+  const formatDateTime = (value) => value
+    ? new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        dateStyle: "medium",
+        timeStyle: "medium",
+      }).format(new Date(value))
+    : "기록 없음";
+  const elapsedLabel = (value) => {
+    if (!value) return "기록 없음";
+    const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+    if (seconds < 60) return `${seconds}초 전`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}분 전`;
+    return `${Math.floor(seconds / 3600)}시간 전`;
+  };
+  const remainingLabel = (value) => {
+    if (!value) return "기한 없음";
+    const seconds = Math.floor((new Date(value).getTime() - Date.now()) / 1000);
+    if (seconds <= 0) return `${Math.max(1, Math.ceil(Math.abs(seconds) / 60))}분 지남`;
+    if (seconds < 60) return `${seconds}초 남음`;
+    if (seconds < 3600) return `${Math.ceil(seconds / 60)}분 남음`;
+    return `${Math.ceil(seconds / 3600)}시간 남음`;
+  };
+  const matchTypeLabel = (value) => ({
+    NORMAL: "일반 쟁탈전",
+    REVENGE: "복수전",
+    FRIENDLY: "친선 경기",
+  })[value] || value;
+  const attemptTone = (attempt) => attempt.isLive
+    ? "live"
+    : attempt.status === "READY" || attempt.status === "NOT_PREPARED"
+      ? "waiting"
+      : attempt.status === "EVIDENCE_REQUIRED"
+        ? "evidence"
+        : attempt.status === "SUBMITTED"
+          ? "submitted"
+          : "stale";
+  const participantName = (participant) =>
+    participant.nickname || participant.realName || participant.email || participant.id;
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="GOAT Arena에서 현재 진행 중인 경기와 방어자 응시 상태" />
+    <title>진행 중인 경기 | Matths 운영센터</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "arena-live-matches" }) %>
+    <main class="admin-main admin-arena-live-matches">
+      <header class="admin-heading">
+        <div>
+          <p>LIVE MATCH MONITOR</p>
+          <h1>진행 중인 경기</h1>
+          <span>방어자가 아직 시작하지 않았거나 문제를 풀고 있는 1대1 경기를 확인합니다. 최근 45초 안에 활동 신호가 있으면 현재 접속으로 표시합니다.</span>
+        </div>
+        <strong><%= liveMatches.stats.total %><small>진행 경기</small></strong>
+      </header>
+
+      <section class="arena-live-toolbar" aria-label="갱신 정보">
+        <div>
+          <span class="arena-live-pulse" aria-hidden="true"></span>
+          <strong>15초마다 자동 갱신</strong>
+          <small>마지막 조회 <time datetime="<%= new Date(liveMatches.generatedAt).toISOString() %>"><%= formatDateTime(liveMatches.generatedAt) %></time></small>
+        </div>
+        <a href="/admin/arena-live-matches">지금 새로고침</a>
+      </section>
+
+      <section class="admin-stat-grid arena-live-stats" aria-label="진행 경기 요약">
+        <article><span>현재 풀이 중</span><strong><%= liveMatches.stats.live %><small>건</small></strong></article>
+        <article><span>방어자 응답 대기</span><strong><%= liveMatches.stats.waiting %><small>건</small></strong></article>
+        <article><span>연결 확인 필요</span><strong><%= liveMatches.stats.stale %><small>건</small></strong></article>
+        <article><span>증거 제출 대기</span><strong><%= liveMatches.stats.evidence %><small>건</small></strong></article>
+      </section>
+
+      <% if (liveMatches.truncated) { %>
+        <div class="admin-feedback admin-feedback--info" role="status"><span aria-hidden="true">i</span>최근 <%= liveMatches.limit %>개 경기까지만 표시합니다.</div>
+      <% } %>
+
+      <% if (!liveMatches.matches.length) { %>
+        <section class="admin-panel arena-live-empty">
+          <span aria-hidden="true">✓</span>
+          <h2>현재 방어자가 진행 중인 경기가 없습니다.</h2>
+          <p>새 경기가 시작되면 이 화면에 자동으로 나타납니다.</p>
+        </section>
+      <% } %>
+
+      <section class="arena-live-grid" aria-label="진행 중인 경기 목록">
+        <% liveMatches.matches.forEach((match) => { %>
+          <article class="admin-panel arena-live-card is-<%= match.stage.key.toLowerCase() %>">
+            <header>
+              <div>
+                <span><%= match.division === "MAIN" ? "RANKED" : "UNRANKED" %> · <%= matchTypeLabel(match.matchType) %></span>
+                <h2><%= match.tierPairLabel || "티어 조합 확인 필요" %></h2>
+                <small>경기 ID <%= match.id %></small>
+              </div>
+              <b class="arena-live-status is-<%= match.stage.key.toLowerCase() %>">
+                <% if (match.stage.key === "LIVE") { %><i aria-hidden="true"></i><% } %>
+                <%= match.stage.label %>
+              </b>
+            </header>
+
+            <div class="arena-live-participants">
+              <section>
+                <span>공격자</span>
+                <strong><%= participantName(match.challenger) %></strong>
+                <small><%= match.challenger.email || "이메일 미등록" %></small>
+                <b class="arena-live-attempt is-<%= attemptTone(match.challengerAttempt) %>"><%= match.challengerAttempt.statusLabel %></b>
+              </section>
+              <span class="arena-live-versus" aria-hidden="true">VS</span>
+              <section>
+                <span>방어자</span>
+                <strong><%= participantName(match.defender) %></strong>
+                <small><%= match.defender.email || "이메일 미등록" %></small>
+                <b class="arena-live-attempt is-<%= attemptTone(match.defenderAttempt) %>"><%= match.defenderAttempt.statusLabel %></b>
+              </section>
+            </div>
+
+            <div class="arena-live-progress">
+              <div>
+                <span>방어자 진행</span>
+                <strong><%= match.defenderAttempt.currentQuestion ? `${match.defenderAttempt.currentQuestion}/5번 문제` : "아직 시작하지 않음" %></strong>
+                <small>입력 답안 <%= match.defenderAttempt.answeredCount %>개 · 화면 상태 <%= match.defenderAttempt.focusState === "FOCUSED" ? "활성" : match.defenderAttempt.focusState === "BLURRED" ? "이탈" : "확인 전" %></small>
+              </div>
+              <div>
+                <span>최근 활동</span>
+                <strong><%= match.defenderAttempt.lastHeartbeatAt ? elapsedLabel(match.defenderAttempt.lastHeartbeatAt) : "활동 기록 없음" %></strong>
+                <small><%= match.defenderAttempt.lastHeartbeatAt ? formatDateTime(match.defenderAttempt.lastHeartbeatAt) : "방어자가 경기 화면을 열지 않았습니다." %></small>
+              </div>
+              <div class="<%= match.deadlineOverdue ? 'is-overdue' : '' %>">
+                <span>현재 단계 기한</span>
+                <strong><%= remainingLabel(match.deadlineAt) %></strong>
+                <small><%= formatDateTime(match.deadlineAt) %></small>
+              </div>
+            </div>
+
+            <footer>
+              <span>경기 상태 <b><%= match.status %></b></span>
+              <span>성립 <%= formatDateTime(match.requestedAt) %></span>
+              <span>경기 시작 <%= formatDateTime(match.startedAt) %></span>
+            </footer>
+          </article>
+        <% }) %>
+      </section>
+    </main>
+    <script>
+      window.setInterval(() => {
+        if (document.visibilityState === "visible") window.location.reload();
+      }, <%= Number(liveMatches.refreshIntervalSeconds || 15) * 1000 %>);
+    </script>
+  </body>
+</html>

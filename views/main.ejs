@@ -244,7 +244,25 @@
             data-mode="<%= data.coach.mode %>"
             aria-label="오늘의 Matths 코치 메시지"
           >
-            <span class="dashboard-coach-avatar" aria-hidden="true">M</span>
+            <% if (["mild", "spicy"].includes(data.coach.mode)) { %>
+              <figure
+                class="dashboard-coach-character"
+                data-dashboard-coach-character
+                data-character-tone="<%= data.coach.mode %>"
+                aria-hidden="true"
+              >
+                <img
+                  data-dashboard-coach-character-image
+                  src="/images/coach-characters/<%= data.coach.mode === 'spicy' ? 'spicy' : 'mild' %>-goat-1.webp"
+                  alt=""
+                  width="360"
+                  height="<%= data.coach.mode === 'spicy' ? 528 : 610 %>"
+                  decoding="async"
+                />
+              </figure>
+            <% } else { %>
+              <span class="dashboard-coach-avatar" aria-hidden="true">M</span>
+            <% } %>
             <div>
               <p>TODAY COACH · <%= data.coach.label %></p>
               <strong><%= data.coach.message %></strong>

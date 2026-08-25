@@ -307,6 +307,99 @@
     }, 30000);
   }
 
+  function initDashboardCoachCharacter() {
+    const stage = document.querySelector(
+      "[data-dashboard-coach-character]"
+    );
+    const image = stage?.querySelector(
+      "[data-dashboard-coach-character-image]"
+    );
+
+    if (!stage || !image) return;
+
+    const characterTone =
+      stage.dataset.characterTone === "spicy" ? "spicy" : "mild";
+    const assetPrefix = `/images/coach-characters/${characterTone}`;
+    const coachCharacters = [
+      {
+        id: "goat",
+        frames: [
+          `${assetPrefix}-goat-1.webp`,
+          `${assetPrefix}-goat-2.webp`,
+          `${assetPrefix}-goat-3.webp`,
+        ],
+      },
+      {
+        id: "pigeon",
+        frames: [
+          `${assetPrefix}-pigeon-1.webp`,
+          `${assetPrefix}-pigeon-2.webp`,
+          `${assetPrefix}-pigeon-3.webp`,
+        ],
+      },
+      {
+        id: "llama",
+        frames: [
+          `${assetPrefix}-llama-1.webp`,
+          `${assetPrefix}-llama-2.webp`,
+          `${assetPrefix}-llama-3.webp`,
+        ],
+      },
+    ];
+    const character =
+      coachCharacters[Math.floor(Math.random() * coachCharacters.length)];
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    let frameIndex = 0;
+    let frameTimer = null;
+    let swapTimer = null;
+
+    const revealCharacter = () => {
+      stage.dataset.character = character.id;
+    };
+    image.addEventListener("load", revealCharacter, { once: true });
+    image.src = character.frames[frameIndex];
+    if (image.complete) revealCharacter();
+
+    character.frames.forEach((frameSource) => {
+      const preloadImage = new Image();
+      preloadImage.src = frameSource;
+    });
+
+    function showNextFrame() {
+      frameIndex = (frameIndex + 1) % character.frames.length;
+      stage.classList.add("is-switching");
+      window.clearTimeout(swapTimer);
+      swapTimer = window.setTimeout(() => {
+        image.src = character.frames[frameIndex];
+        window.requestAnimationFrame(() => {
+          stage.classList.remove("is-switching");
+        });
+      }, 120);
+    }
+
+    function stopFrameRotation() {
+      if (frameTimer) window.clearInterval(frameTimer);
+      frameTimer = null;
+    }
+
+    function startFrameRotation() {
+      if (reducedMotion || frameTimer || document.hidden) return;
+      frameTimer = window.setInterval(showNextFrame, 2000);
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopFrameRotation();
+      } else {
+        startFrameRotation();
+      }
+    });
+
+    startFrameRotation();
+  }
+
   function init() {
     initSidebar();
     initDate();
@@ -314,6 +407,7 @@
     initAnnouncementDismiss();
     initCharts();
     initAccessRenewalDialog();
+    initDashboardCoachCharacter();
   }
 
   if (document.readyState === "loading") {

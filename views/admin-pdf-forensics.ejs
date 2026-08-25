@@ -20,13 +20,16 @@
     EVIDENCE_REQUIRED: "풀이 증거 제출 대기",
     SUBMITTED: "제출 완료",
   };
+  const traceCodeInput = typeof oldTraceCode === "undefined"
+    ? ""
+    : String(oldTraceCode || "");
 %>
 <!doctype html>
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PDF·스크린샷 유출 추적 | Matths 운영센터</title>
+    <title>PDF·스크린샷·코드 유출 추적 | Matths 운영센터</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
@@ -38,8 +41,8 @@
       <header class="admin-heading">
         <div>
           <p>DOCUMENT &amp; SCREENSHOT FORENSICS</p>
-          <h1>PDF·스크린샷 유출 추적</h1>
-          <span>PDF 내부 서명과 다운로드·GOAT Arena 화면에 남은 반복 추적 코드를 외부 API 전송 없이 서버에서 분석합니다.</span>
+          <h1>PDF·스크린샷·코드 유출 추적</h1>
+          <span>파일의 숨김 정보·화면 워터마크를 분석하거나 보이는 추적 코드를 직접 입력해 발급·경기 기록을 조회합니다.</span>
         </div>
         <strong>3<small>중 식별 계층</small></strong>
       </header>
@@ -50,14 +53,21 @@
 
       <section class="admin-panel forensic-upload-panel">
         <div class="admin-panel-heading">
-          <div><p>LEAKED FILE INPUT</p><h2>유출 의심 PDF·스크린샷 분석</h2></div>
-          <span>PDF와 이미지는 분석 요청 동안 서버 임시 폴더에만 존재하며 결과 생성 직후 삭제됩니다.</span>
+          <div><p>LEAKED MATERIAL INPUT</p><h2>유출 의심 파일·추적 코드 분석</h2></div>
+          <span>파일과 추적 코드 중 한 가지만 선택하세요. 업로드 파일은 결과 생성 직후 삭제됩니다.</span>
         </div>
         <form action="/admin/pdf-forensics/analyze" method="POST" enctype="multipart/form-data" class="forensic-upload-form" data-forensic-analysis-form>
-          <label>
-            <span>파일 선택 <small>최대 150MB · PDF 또는 PNG·JPG·WEBP·HEIC 스크린샷</small></span>
-            <input type="file" name="forensicFile" accept="application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif,.pdf,.png,.jpg,.jpeg,.webp,.heic,.heif" required data-forensic-analysis-file />
-          </label>
+          <div class="forensic-input-options">
+            <label>
+              <span>파일 선택 <small>최대 50MB · PDF 또는 PNG·JPG·WEBP·HEIC</small></span>
+              <input type="file" name="forensicFile" accept="application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif,.pdf,.png,.jpg,.jpeg,.webp,.heic,.heif" data-forensic-analysis-file />
+            </label>
+            <span class="forensic-input-or" aria-hidden="true">또는</span>
+            <label>
+              <span>추적 코드 직접 입력 <small>ARM-12자리 · MTH-16자리</small></span>
+              <input type="text" name="traceCode" value="<%= traceCodeInput %>" maxlength="24" placeholder="ARM-8A73787C399A" autocomplete="off" autocapitalize="characters" spellcheck="false" data-forensic-trace-code />
+            </label>
+          </div>
           <button type="submit" data-forensic-analysis-submit>
             <span data-forensic-analysis-label>식별 정보 분석</span>
           </button>
@@ -69,16 +79,32 @@
       </section>
 
       <% if (analysis) { %>
+        <% const isImageAnalysis = analysis.inputType === "IMAGE"; %>
+        <% const isTraceCodeAnalysis = analysis.inputType === "TRACE_CODE"; %>
         <% if (analysis.inputType === "IMAGE" && analysis.imageMetadata) { %>
           <div class="admin-feedback admin-feedback--info" role="status">
             <span aria-hidden="true">i</span>
             <%= analysis.imageMetadata.format %> · <%= analysis.imageMetadata.width %>×<%= analysis.imageMetadata.height %>px · OCR 보정 <%= analysis.imageMetadata.ocrAttempts %>회
           </div>
         <% } %>
+        <% if (isTraceCodeAnalysis) { %>
+          <div class="admin-feedback admin-feedback--info" role="status">
+            <span aria-hidden="true">i</span>
+            <%= analysis.manualTraceCode %> · OCR 없이 발급·경기 원장을 정확 조회했습니다.
+          </div>
+        <% } %>
         <section class="admin-stat-grid forensic-summary" aria-label="분석 요약">
-          <article><span><%= analysis.inputType === "IMAGE" ? "분석 이미지" : "분석 페이지" %></span><strong><%= analysis.inputType === "IMAGE" ? analysis.imageCount : analysis.pageCount %><small><%= analysis.inputType === "IMAGE" ? "장" : "쪽" %></small></strong></article>
+          <% if (isTraceCodeAnalysis) { %>
+            <article><span>입력 방식</span><strong>직접 코드</strong></article>
+          <% } else { %>
+            <article><span><%= isImageAnalysis ? "분석 이미지" : "분석 페이지" %></span><strong><%= isImageAnalysis ? analysis.imageCount : analysis.pageCount %><small><%= isImageAnalysis ? "장" : "쪽" %></small></strong></article>
+          <% } %>
           <article><span>추적 코드</span><strong><%= analysis.traceCodes.length %><small>개</small></strong></article>
-          <article><span><%= analysis.inputType === "IMAGE" ? "OCR 후보" : "페이지별 코드" %></span><strong><%= analysis.inputType === "IMAGE" ? analysis.ocrCandidateCount : analysis.pageTraceCount %><small>개</small></strong></article>
+          <% if (isTraceCodeAnalysis) { %>
+            <article><span>조회 방식</span><strong>정확 일치</strong></article>
+          <% } else { %>
+            <article><span><%= isImageAnalysis ? "OCR 후보" : "페이지별 코드" %></span><strong><%= isImageAnalysis ? analysis.ocrCandidateCount : analysis.pageTraceCount %><small>개</small></strong></article>
+          <% } %>
           <article><span>일치 식별 기록</span><strong><%= analysis.matches.length %><small>건</small></strong></article>
         </section>
 
@@ -88,7 +114,7 @@
               <article class="admin-panel forensic-result-card">
                 <header>
                   <div><span>일치 결과 <%= String(index + 1).padStart(2, "0") %></span><h2><%= match.username || match.email || match.userId %></h2></div>
-                  <b class="<%= match.signatureVerified ? 'verified' : 'trace-only' %>"><%= match.signatureVerified ? "서명 검증 완료" : `스크린샷 일치 ${Math.round((match.ocrConfidence || 0) * 100)}%` %></b>
+                  <b class="<%= match.signatureVerified ? 'verified' : 'trace-only' %>"><%= match.signatureVerified ? "서명 검증 완료" : match.recognitionMethod === "MANUAL_TRACE_CODE" ? "직접 입력 코드 일치" : `스크린샷 일치 ${Math.round((match.ocrConfidence || 0) * 100)}%` %></b>
                 </header>
                 <dl>
                   <div><dt>사용자 ID</dt><dd><%= match.userId %></dd></div>
@@ -105,6 +131,9 @@
                   <% } %>
                   <% if (["IMAGE_OCR", "ARENA_IMAGE_OCR"].includes(match.recognitionMethod)) { %>
                     <div><dt>OCR 인식값</dt><dd><%= match.matchedCandidate %></dd></div>
+                  <% } %>
+                  <% if (match.recognitionMethod === "MANUAL_TRACE_CODE") { %>
+                    <div><dt>직접 입력값</dt><dd><%= match.matchedCandidate %></dd></div>
                   <% } %>
                   <div class="wide"><dt>원본 파일명</dt><dd><%= match.originalName %></dd></div>
                 </dl>
@@ -148,15 +177,35 @@
         const form = document.querySelector("[data-forensic-analysis-form]");
         const submitButton = form?.querySelector("[data-forensic-analysis-submit]");
         const fileInput = form?.querySelector("[data-forensic-analysis-file]");
+        const traceCodeInput = form?.querySelector("[data-forensic-trace-code]");
         const status = form?.querySelector("[data-forensic-analysis-status]");
         const label = form?.querySelector("[data-forensic-analysis-label]");
+
+        const validateInputChoice = () => {
+          const hasFile = Boolean(fileInput?.files?.length);
+          const hasTraceCode = Boolean(traceCodeInput?.value?.trim());
+          const message = hasFile === hasTraceCode
+            ? hasFile
+              ? "파일과 추적 코드 중 한 가지만 선택해야 합니다."
+              : "파일을 선택하거나 추적 코드를 입력해야 합니다."
+            : "";
+          traceCodeInput?.setCustomValidity(message);
+          return !message;
+        };
+
+        fileInput?.addEventListener("change", validateInputChoice);
+        traceCodeInput?.addEventListener("input", validateInputChoice);
 
         form?.addEventListener("submit", (event) => {
           if (form.dataset.submitting === "true") {
             event.preventDefault();
             return;
           }
-          if (!form.checkValidity() || !fileInput?.files?.length) return;
+          if (!validateInputChoice() || !form.checkValidity()) {
+            event.preventDefault();
+            form.reportValidity();
+            return;
+          }
 
           form.dataset.submitting = "true";
           form.classList.add("is-submitting");

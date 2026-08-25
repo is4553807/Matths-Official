@@ -2713,6 +2713,18 @@
       "problem-feedback"
     );
 
+    const feedbackCopy = feedback?.querySelector(
+      "[data-problem-feedback-copy]"
+    );
+
+    const coachCharacterStage = feedback?.querySelector(
+      "[data-problem-coach-character]"
+    );
+
+    const coachCharacterImage = feedback?.querySelector(
+      "[data-problem-coach-character-image]"
+    );
+
     const submitButton = document.getElementById(
       "submit-answer"
     );
@@ -2774,6 +2786,183 @@
 
     let currentProblem = null;
     let answerSubmitted = false;
+    let coachCharacterTimer = null;
+    let coachCharacterSwapTimer = null;
+    let coachCharacterName = "";
+    let coachCharacterTone = "";
+    let coachCharacterFrame = 0;
+
+    const coachCharacterNames = [
+      "goat",
+      "pigeon",
+      "llama",
+    ];
+
+    const reduceCoachMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    );
+
+    function coachCharacterSource(frame) {
+      return `/images/coach-characters/${coachCharacterTone}-${coachCharacterName}-${frame}.webp`;
+    }
+
+    function stopCoachCharacter() {
+      if (coachCharacterTimer) {
+        window.clearInterval(coachCharacterTimer);
+      }
+      if (coachCharacterSwapTimer) {
+        window.clearTimeout(coachCharacterSwapTimer);
+      }
+      coachCharacterTimer = null;
+      coachCharacterSwapTimer = null;
+      coachCharacterStage?.classList.remove("is-switching");
+    }
+
+    function startCoachCharacter() {
+      stopCoachCharacter();
+
+      if (
+        !coachCharacterImage ||
+        !coachCharacterName ||
+        !coachCharacterTone ||
+        reduceCoachMotion.matches ||
+        document.hidden ||
+        feedback?.hidden
+      ) {
+        return;
+      }
+
+      coachCharacterTimer = window.setInterval(() => {
+        coachCharacterStage?.classList.add("is-switching");
+        window.clearTimeout(coachCharacterSwapTimer);
+        coachCharacterSwapTimer = window.setTimeout(() => {
+          coachCharacterFrame =
+            (coachCharacterFrame % 3) + 1;
+          coachCharacterImage.src =
+            coachCharacterSource(coachCharacterFrame);
+          window.requestAnimationFrame(() => {
+            coachCharacterStage?.classList.remove("is-switching");
+          });
+        }, 120);
+      }, 2000);
+    }
+
+    function showCoachCharacter(mode) {
+      const tone = ["mild", "spicy"].includes(mode)
+        ? mode
+        : "";
+
+      if (
+        !tone ||
+        !coachCharacterStage ||
+        !coachCharacterImage
+      ) {
+        stopCoachCharacter();
+        coachCharacterStage?.setAttribute("hidden", "");
+        feedback?.classList.add("without-coach-character");
+        return;
+      }
+
+      if (!coachCharacterName || coachCharacterTone !== tone) {
+        coachCharacterName =
+          coachCharacterNames[
+            Math.floor(
+              Math.random() * coachCharacterNames.length
+            )
+          ];
+        coachCharacterFrame = 1;
+      }
+
+      coachCharacterTone = tone;
+      coachCharacterFrame = 1;
+      coachCharacterStage.dataset.characterTone = tone;
+      coachCharacterImage.src = coachCharacterSource(1);
+      coachCharacterStage.removeAttribute("hidden");
+      feedback?.classList.remove("without-coach-character");
+
+      for (let frame = 2; frame <= 3; frame += 1) {
+        const image = new Image();
+        image.src = coachCharacterSource(frame);
+      }
+
+      startCoachCharacter();
+    }
+
+    function hideProblemFeedback({ resetCharacter = false } = {}) {
+      if (feedback) feedback.hidden = true;
+      stopCoachCharacter();
+
+      if (resetCharacter) {
+        coachCharacterName = "";
+        coachCharacterTone = "";
+        coachCharacterFrame = 0;
+      }
+    }
+
+    function appendFeedbackText(
+      className,
+      text,
+      tagName = "p",
+      renderMath = false
+    ) {
+      if (!feedbackCopy || !text) return null;
+
+      const element = document.createElement(tagName);
+      element.className = className;
+      feedbackCopy.appendChild(element);
+
+      if (renderMath) {
+        setMath(element, text);
+      } else {
+        element.textContent = text;
+      }
+
+      return element;
+    }
+
+    function renderProblemFeedback({
+      state = "wrong",
+      title = "",
+      coach = null,
+      solution = "",
+      message = "",
+    } = {}) {
+      if (!feedback || !feedbackCopy) return;
+
+      window.MatthsMath?.clear(feedbackCopy);
+      feedbackCopy.replaceChildren();
+      feedback.className = `problem-feedback ${state}`;
+
+      appendFeedbackText(
+        "problem-feedback-status",
+        title,
+        "strong"
+      );
+      appendFeedbackText(
+        "problem-coach-message",
+        coach?.message || message,
+        "blockquote"
+      );
+      appendFeedbackText(
+        "problem-feedback-solution",
+        solution,
+        "div",
+        true
+      );
+
+      feedback.hidden = false;
+      showCoachCharacter(
+        coach?.message ? coach.mode : "silent"
+      );
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopCoachCharacter();
+      } else {
+        startCoachCharacter();
+      }
+    });
 
     function renderReview(review) {
       if (!isReviewMode || !review) return;
@@ -2904,7 +3093,7 @@
       submitButton.textContent =
         "정답 확인";
       nextButton.hidden = true;
-      feedback.hidden = true;
+      hideProblemFeedback({ resetCharacter: true });
 
       prompt.textContent = "문제를 준비하고 있습니다.";
       typeLabel.textContent = "LOADING";
@@ -2955,13 +3144,12 @@
         answer === null ||
         String(answer).trim() === ""
       ) {
-        feedback.hidden = false;
-        feedback.className =
-          "problem-feedback wrong";
-        feedback.textContent =
-          currentProblem.coachPrompt
-            ?.message ||
-          "정답을 먼저 입력해 주세요.";
+        renderProblemFeedback({
+          state: "wrong",
+          title: "답안이 비어 있습니다.",
+          coach: currentProblem.coachPrompt,
+          message: "정답을 먼저 입력해 주세요.",
+        });
         answerArea
           .querySelector("input")
           ?.focus();
@@ -2992,27 +3180,26 @@
             input.disabled = true;
           });
 
-        feedback.hidden = false;
-        feedback.className =
-          `problem-feedback ${
-            result.correct ? "correct" : "wrong"
-          }`;
-
         const reviewCompleted = Boolean(
           isReviewMode &&
           result.correct &&
           result.review?.completed
         );
 
-        const feedbackText = reviewCompleted
-          ? `정답입니다. 오답 복습이 완료되었습니다.\n${result.coachFeedback?.message || ""}\n${result.solution}`
+        const feedbackTitle = reviewCompleted
+          ? "정답입니다. 오답 복습이 완료되었습니다."
           : result.correct
-            ? `정답입니다.\n${result.coachFeedback?.message || ""}\n${result.solution}`
+            ? "정답입니다."
             : isReviewMode
-              ? `아쉽습니다. 내일 복습 예정으로 예약했습니다.\n${result.coachFeedback?.message || ""}\n${result.solution}`
-              : `아쉽습니다.\n${result.coachFeedback?.message || ""}\n${result.solution}`;
+              ? "아쉽습니다. 내일 복습 예정으로 예약했습니다."
+              : "아쉽습니다.";
 
-        setMath(feedback, feedbackText);
+        renderProblemFeedback({
+          state: result.correct ? "correct" : "wrong",
+          title: feedbackTitle,
+          coach: result.coachFeedback,
+          solution: result.solution,
+        });
         renderMastery(result.mastery);
         renderLearningProgress(result.progress);
         renderReview(result.review);
@@ -3024,10 +3211,11 @@
         }
       } catch (error) {
         answerSubmitted = false;
-        feedback.hidden = false;
-        feedback.className =
-          "problem-feedback wrong";
-        feedback.textContent = error.message;
+        renderProblemFeedback({
+          state: "wrong",
+          title: "채점하지 못했습니다.",
+          message: error.message,
+        });
         submitButton.disabled = false;
       }
     });

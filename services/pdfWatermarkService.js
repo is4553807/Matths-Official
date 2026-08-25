@@ -207,6 +207,23 @@ function normalizeOcrHex(value) {
     .slice(0, 20);
 }
 
+function normalizeManualTraceCode(value) {
+  const compact = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[‐‑‒–—]/g, "-")
+    .replace(/[^A-Z0-9]/g, "");
+  const arenaMatch = compact.match(/^ARM([A-F0-9]{12})$/);
+  if (arenaMatch) return `ARM-${arenaMatch[1]}`;
+  const documentMatch = compact.match(/^MTH([A-F0-9]{16})$/);
+  if (documentMatch) return `MTH-${documentMatch[1]}`;
+  throw statusError(
+    400,
+    "추적 코드는 ARM- 뒤 12자리 또는 MTH- 뒤 16자리의 영문 대문자·숫자 형식으로 입력해주세요.",
+    "PDF_FORENSICS_TRACE_CODE_INVALID"
+  );
+}
+
 function extractOcrTraceCandidates(text) {
   const candidates = new Map();
   for (const rawLine of String(text || "").toUpperCase().split(/\r?\n/)) {
@@ -989,6 +1006,63 @@ async function analyzeForensicImage(filePath, { lookupIssuances = true } = {}) {
   };
 }
 
+async function analyzeForensicTraceCode(value) {
+  const traceCode = normalizeManualTraceCode(value);
+  let matches;
+
+  if (traceCode.startsWith("ARM-")) {
+    const attempts = await ArenaMatchAttempt.find({
+      integrityWatermarkTraceCode: traceCode,
+    })
+      .populate("userId", "username email name")
+      .lean();
+    const candidate = {
+      rawCode: traceCode,
+      normalizedCode: traceCode.slice(4),
+      occurrences: 1,
+    };
+    matches = attempts.map((attempt) => ({
+      ...mapArenaAttemptForAdmin(
+        attempt,
+        { candidate, score: 1 },
+        traceCode
+      ),
+      originalName: "직접 입력한 GOAT Arena 추적 코드",
+      recognitionMethod: "MANUAL_TRACE_CODE",
+      matchedCandidate: traceCode,
+    }));
+  } else {
+    const issuances = await PdfWatermarkIssuance.find({ traceCode })
+      .populate("userId", "username email name")
+      .sort({ downloadedAt: -1 })
+      .lean();
+    matches = issuances.map((issuance) =>
+      mapIssuanceForAdmin(issuance, {
+        originalName: "직접 입력한 PDF 추적 코드",
+        signatureVerified: false,
+        recognitionMethod: "MANUAL_TRACE_CODE",
+        ocrConfidence: 1,
+        matchedCandidate: traceCode,
+      })
+    );
+  }
+
+  return {
+    inputType: "TRACE_CODE",
+    codeType: traceCode.startsWith("ARM-") ? "ARENA" : "DOCUMENT",
+    manualTraceCode: traceCode,
+    pageCount: 0,
+    imageCount: 0,
+    traceCodes: [traceCode],
+    validPayloads: [],
+    pageTraceCount: 0,
+    ocrCandidateCount: 0,
+    ocrCandidates: [],
+    arenaOcrCandidates: [],
+    matches,
+  };
+}
+
 async function analyzeForensicUpload(filePath, options = {}) {
   const handle = await fs.promises.open(filePath, "r");
   let head;
@@ -1012,6 +1086,7 @@ function isPdfDownload(file = {}) {
 module.exports = {
   analyzeForensicImage,
   analyzeForensicPdf,
+  analyzeForensicTraceCode,
   analyzeForensicUpload,
   buildForensicIdentity,
   cleanupStalePdfTemporaryFiles,
@@ -1021,6 +1096,7 @@ module.exports = {
   isPdfDownload,
   issuePersonalizedPdf,
   matchArenaCandidatesToAttempts,
+  normalizeManualTraceCode,
   scoreArenaOcrCandidate,
   scoreOcrCandidate,
   shouldScanRecentArenaAttempts,

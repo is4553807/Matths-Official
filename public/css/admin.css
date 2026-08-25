@@ -6777,6 +6777,22 @@
   margin-top: 22px;
 }
 
+.forensic-input-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.forensic-input-or {
+  align-self: center;
+  padding-top: 22px;
+  color: #8a93a9;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .forensic-upload-form input[type="file"] {
   padding: 10px 12px;
 }
@@ -6972,13 +6988,311 @@
 
   .admin-matchmaking-form,
   .forensic-upload-form,
+  .forensic-input-options,
   .forensic-guide > div:nth-of-type(2),
   .forensic-result-card dl {
     grid-template-columns: 1fr;
   }
 
+  .forensic-input-or {
+    padding: 0;
+    text-align: center;
+  }
+
   .forensic-result-card dl div.wide {
     grid-column: auto;
+  }
+}
+
+.admin-arena-live-matches {
+  max-width: 1480px;
+}
+
+.arena-live-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+  padding: 15px 18px;
+  color: #273453;
+  background: #fff;
+  border: 1px solid #e1e6f1;
+  border-radius: 14px;
+}
+
+.arena-live-toolbar > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.arena-live-toolbar small {
+  color: #78839b;
+}
+
+.arena-live-toolbar a {
+  flex: 0 0 auto;
+  padding: 9px 13px;
+  color: #4e46bf;
+  background: #efefff;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.arena-live-pulse {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  background: #24bd7b;
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px rgba(36, 189, 123, .13);
+  animation: arena-live-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes arena-live-pulse {
+  50% { box-shadow: 0 0 0 9px rgba(36, 189, 123, 0); }
+}
+
+.arena-live-stats {
+  margin-bottom: 22px;
+}
+
+.arena-live-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.arena-live-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.arena-live-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: #a5adbf;
+  content: "";
+}
+
+.arena-live-card.is-live::before { background: #22b77a; }
+.arena-live-card.is-waiting::before,
+.arena-live-card.is-preparing::before { background: #d99a2f; }
+.arena-live-card.is-stale::before { background: #df5b62; }
+.arena-live-card.is-evidence::before { background: #7959da; }
+
+.arena-live-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.arena-live-card > header span {
+  color: #6e56d7;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .1em;
+}
+
+.arena-live-card > header h2 {
+  margin: 6px 0 4px;
+}
+
+.arena-live-card > header small,
+.arena-live-card footer,
+.arena-live-participants small,
+.arena-live-progress small {
+  color: #7c879f;
+}
+
+.arena-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  color: #5e667a;
+  background: #edf0f5;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.arena-live-status.is-live { color: #087a4b; background: #dff8eb; }
+.arena-live-status.is-waiting,
+.arena-live-status.is-preparing { color: #93630b; background: #fff2d8; }
+.arena-live-status.is-stale { color: #aa3039; background: #ffe5e7; }
+.arena-live-status.is-evidence { color: #5d42bd; background: #eee8ff; }
+
+.arena-live-status i {
+  width: 8px;
+  height: 8px;
+  background: #22b77a;
+  border-radius: 50%;
+  animation: arena-live-status-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes arena-live-status-blink {
+  50% { opacity: .25; }
+}
+
+.arena-live-participants {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.arena-live-participants section {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  min-width: 0;
+  padding: 15px 17px;
+  background: #f6f8fc;
+  border-radius: 13px;
+}
+
+.arena-live-participants section > span,
+.arena-live-progress span {
+  color: #7a849b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.arena-live-participants section > strong,
+.arena-live-participants section > small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.arena-live-participants section > small {
+  grid-column: 1;
+}
+
+.arena-live-attempt {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  padding: 7px 10px;
+  color: #535d72;
+  background: #e9edf4;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.arena-live-attempt.is-live { color: #087a4b; background: #dff8eb; }
+.arena-live-attempt.is-waiting { color: #93630b; background: #fff2d8; }
+.arena-live-attempt.is-stale { color: #aa3039; background: #ffe5e7; }
+.arena-live-attempt.is-evidence { color: #5d42bd; background: #eee8ff; }
+.arena-live-attempt.is-submitted { color: #236a8a; background: #e0f3fb; }
+
+.arena-live-versus {
+  color: #a0a8ba;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.arena-live-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.arena-live-progress > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 13px 15px;
+  border: 1px solid #e4e8f1;
+  border-radius: 12px;
+}
+
+.arena-live-progress > div.is-overdue {
+  background: #fff2f3;
+  border-color: #f2c3c8;
+}
+
+.arena-live-progress > div.is-overdue strong {
+  color: #b43742;
+}
+
+.arena-live-card footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid #e7eaf1;
+  font-size: 11px;
+}
+
+.arena-live-card footer b {
+  color: #4d5972;
+}
+
+.arena-live-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 50px 24px;
+  text-align: center;
+}
+
+.arena-live-empty > span {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  color: #06653e;
+  background: #dff8eb;
+  border-radius: 50%;
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.arena-live-empty h2,
+.arena-live-empty p {
+  margin: 0;
+}
+
+.arena-live-empty p {
+  color: #778198;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena-live-pulse,
+  .arena-live-status i {
+    animation: none;
+  }
+}
+
+@media (max-width: 850px) {
+  .arena-live-toolbar,
+  .arena-live-card > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .arena-live-toolbar > div {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .arena-live-participants,
+  .arena-live-progress {
+    grid-template-columns: 1fr;
+  }
+
+  .arena-live-versus {
+    text-align: center;
   }
 }
 

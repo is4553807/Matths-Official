@@ -248,12 +248,12 @@
 
         <div class="sidebar-profile">
           <a
-            class="profile-avatar"
+            class="profile-avatar profile-avatar-image"
             href="/profile"
             aria-label="<%= displayName %>님의 프로필 설정으로 이동"
             title="프로필 설정"
           >
-            <%= displayName.slice(0, 1) %>
+            <img src="<%= arenaProfileAvatar.imageSrc %>" alt="" aria-hidden="true" />
           </a>
 
           <div class="profile-copy">

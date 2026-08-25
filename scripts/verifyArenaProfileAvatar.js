@@ -50,6 +50,8 @@ const navigationView = read("views/partials/goat-arena-navigation.ejs");
 const profileView = read("views/goat-arena-profile.ejs");
 const learningProfileView = read("views/profile.ejs");
 const dashboardView = read("views/main.ejs");
+const myLearningView = read("views/my-learning.ejs");
+const unitLearningView = read("views/unit-learning.ejs");
 const rankingService = read("services/rankingService.js");
 const rankingPlayerView = read("views/partials/ranking-player.ejs");
 const tierRankingView = read("views/partials/tier-ranking-pools.ejs");
@@ -85,11 +87,19 @@ assert.match(learningRouteSource, /handleProfileAvatarUpload/);
 assert.match(learningControllerSource, /exports\.changeProfileAvatar/);
 assert.match(
   learningControllerSource,
-  /arenaProfileAvatar:\s*resolveArenaProfileAvatar\(\s*req\.authenticatedUser\?\.preferences/
+  /function getRequestProfileAvatar\(req\)[\s\S]*resolveArenaProfileAvatar\(\s*req\.authenticatedUser\?\.preferences/
 );
 assert.doesNotMatch(
   learningControllerSource,
   /resolveArenaProfileAvatar\(\s*dashboardData\.user\.preferences/
+);
+assert.equal(
+  (
+    learningControllerSource.match(
+      /arenaProfileAvatar:\s*getRequestProfileAvatar\(req\)/g
+    ) || []
+  ).length,
+  3
 );
 assert.match(learningProfileView, /action="\/profile\/avatar"/);
 assert.match(learningProfileView, /enctype="multipart\/form-data"/);
@@ -111,7 +121,12 @@ assert.match(accountDeletionService, /preferences\.profileAvatarAsset/);
 assert.match(dashboardView, /profile-avatar-with-level/);
 assert.match(dashboardView, /arenaActivityLevel\.level/);
 assert.match(dashboardView, /arenaProfileAvatar\.imageSrc/);
+assert.match(myLearningView, /profile-avatar-image/);
+assert.match(myLearningView, /arenaProfileAvatar\.imageSrc/);
+assert.match(unitLearningView, /profile-avatar-image/);
+assert.match(unitLearningView, /arenaProfileAvatar\.imageSrc/);
 assert.match(dashboardCss, /\.profile-avatar-with-level/);
+assert.match(dashboardCss, /\.profile-avatar\.profile-avatar-image/);
 assert.match(rankingService, /resolveArenaProfileAvatar/);
 assert.match(rankingService, /profileAvatarByUserId/);
 assert.match(rankingService, /warningCount preferences/);

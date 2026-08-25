@@ -14,6 +14,7 @@ const {
   closeForensicImageOcrWorker,
   createPersonalizedPdfBytes,
   DOWNLOAD_AI_WATERMARK,
+  normalizeManualTraceCode,
   scoreOcrCandidate,
   shouldScanRecentArenaAttempts,
 } = require("../services/pdfWatermarkService");
@@ -48,6 +49,26 @@ async function createVerificationSourcePdf(destinationPath) {
 }
 
 async function main() {
+  assert(
+    normalizeManualTraceCode(" arm–8a73787c399a ") === "ARM-8A73787C399A",
+    "GOAT Arena 직접 입력 추적 코드를 정규화하지 못했습니다."
+  );
+  assert(
+    normalizeManualTraceCode("mth-53e6f503eea49f3c") === "MTH-53E6F503EEA49F3C",
+    "PDF 직접 입력 추적 코드를 정규화하지 못했습니다."
+  );
+  assert(
+    (() => {
+      try {
+        normalizeManualTraceCode("ARM-INVALID");
+        return false;
+      } catch (error) {
+        return error.status === 400;
+      }
+    })(),
+    "잘못된 직접 입력 추적 코드가 거부되지 않았습니다."
+  );
+
   const exactArenaCode = "ARM-8A73787C399A";
   assert(
     !shouldScanRecentArenaAttempts(
