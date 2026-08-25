@@ -59,6 +59,8 @@ const SERVER_SELECTION_CANDIDATE_LIMIT = 1000;
 const TRANSACTION_RETRY_LIMIT = 3;
 const SUB_DEFENSE_FAIRNESS_WINDOW_MS =
   72 * 60 * 60 * 1000;
+const SUB_RECENT_DEFENSE_DEPRIORITY_MS =
+  60 * 60 * 1000;
 const UNSETTLED_MATCH_STATUSES = [
   "REQUESTED",
   "MATCHED",
@@ -111,7 +113,7 @@ const ELIGIBILITY_MESSAGES = {
   SUB_DAILY_DEFENSE_LIMIT_REACHED:
     "현재 티어의 오늘 일반 방어 횟수를 모두 사용했습니다.",
   SUB_DAILY_LOCK_AFTER_CHALLENGER_WIN:
-    "오늘 일반 쟁탈전에서 도전자로 승리해 남은 일반 공격·방어가 잠겼습니다.",
+    "오늘 일반 쟁탈전에서 도전자로 승리해 남은 일반 공격이 잠겼습니다.",
 };
 
 const DAILY_COUNTED_MATCH_STATUSES = [
@@ -254,6 +256,7 @@ async function loadSubDefenseFairnessHistory({
       {
         recentDefenseCount72h: 0,
         lastDefenseAssignedAt: null,
+        lastDefenseSettledAt: null,
       },
     ])
   );
@@ -288,6 +291,9 @@ async function loadSubDefenseFairnessHistory({
         lastDefenseAssignedAt: {
           $max: "$requestedAt",
         },
+        lastDefenseSettledAt: {
+          $max: "$settledAt",
+        },
       },
     },
   ]);
@@ -301,6 +307,8 @@ async function loadSubDefenseFairnessHistory({
       ),
       lastDefenseAssignedAt:
         row.lastDefenseAssignedAt || null,
+      lastDefenseSettledAt:
+        row.lastDefenseSettledAt || null,
     });
   }
   return historyByUser;
@@ -370,7 +378,7 @@ function subDailyLimitState({ policy = null, cycle, standing, usage }) {
 }
 
 function subDailyEligibilityReasons({ daily, role }) {
-  if (daily.challengerWin) {
+  if (role === "CHALLENGER" && daily.challengerWin) {
     return ["SUB_DAILY_LOCK_AFTER_CHALLENGER_WIN"];
   }
   if (role === "DEFENDER" && daily.defenseCount >= daily.defenseLimit) {
@@ -917,6 +925,8 @@ function buildEligibleDefenseCandidates({
         ),
         lastDefenseAssignedAt:
           defenseHistory.lastDefenseAssignedAt || null,
+        lastDefenseSettledAt:
+          defenseHistory.lastDefenseSettledAt || null,
       };
     })
     .filter(Boolean);
@@ -946,6 +956,7 @@ function selectRandomSubDefenseCandidate({
   candidates = [],
   targetTier,
   randomSelectionSeed = randomBytes(24).toString("hex"),
+  now = new Date(),
 }) {
   const normalizedTier = String(targetTier || "")
     .trim()
@@ -955,18 +966,37 @@ function selectRandomSubDefenseCandidate({
       tierCode(candidate.arenaRank) === normalizedTier
   );
   if (!pool.length) return null;
+  const observedAt = new Date(now).getTime();
+  const recentDefenseCutoff =
+    (Number.isNaN(observedAt) ? Date.now() : observedAt) -
+    SUB_RECENT_DEFENSE_DEPRIORITY_MS;
+  const restedPool = pool.filter((candidate) => {
+    const settledAt = new Date(
+      candidate.lastDefenseSettledAt || 0
+    ).getTime();
+    return (
+      Number.isNaN(settledAt) ||
+      settledAt <= recentDefenseCutoff
+    );
+  });
+  // 최근 1시간 안에 방어전을 정산한 사용자는 다른 후보가 있을 때만
+  // 후순위로 돌린다. 모든 후보가 같은 상태라면 하드 차단하지 않고
+  // 기존 72시간 공정 배정 순서로 다시 선택한다.
+  const rotationPool = restedPool.length
+    ? restedPool
+    : pool;
   // 발생한 공격은 같은 대상 티어에서 최근 72시간 방어 횟수가 가장 적은
   // 후보에게 먼저 돌아간다. 횟수가 같으면 마지막 방어 배정이 가장 오래된
   // 후보를 우선하고, 그 시각까지 같으면 서버 시드로 무작위 선정한다.
   const minimumDefenseCount = Math.min(
-    ...pool.map((candidate) =>
+    ...rotationPool.map((candidate) =>
       Math.max(
         0,
         Number(candidate.recentDefenseCount72h) || 0
       )
     )
   );
-  const minimumCountPool = pool.filter(
+  const minimumCountPool = rotationPool.filter(
     (candidate) =>
       Math.max(
         0,
@@ -1254,6 +1284,7 @@ async function prepareSubAutoSelection({
       candidates: eligibleCandidates,
       targetTier: selectedTargetTier,
       randomSelectionSeed,
+      now,
     });
     if (!candidate) continue;
     selected = candidate;
@@ -2129,6 +2160,7 @@ module.exports = {
   DEFAULT_CANDIDATE_LIMIT,
   SERVER_SELECTION_CANDIDATE_LIMIT,
   SUB_DEFENSE_FAIRNESS_WINDOW_MS,
+  SUB_RECENT_DEFENSE_DEPRIORITY_MS,
   ELIGIBILITY_MESSAGES,
   MATCH_STATUS_LABELS,
   NORMAL_MATCH_PROBLEM_PACK_PENDING,

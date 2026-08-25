@@ -12,6 +12,7 @@ const {
   NORMAL_MATCH_PROBLEM_PACK_PENDING,
   NORMAL_MATCH_SCORING_PENDING,
   SUB_DEFENSE_FAIRNESS_WINDOW_MS,
+  SUB_RECENT_DEFENSE_DEPRIORITY_MS,
   arenaTupleFromStanding,
   buildEligibleDefenseCandidates,
   eligibleSubDefenseCandidates,
@@ -40,6 +41,10 @@ async function run() {
   assert.equal(
     SUB_DEFENSE_FAIRNESS_WINDOW_MS,
     72 * 60 * 60 * 1000
+  );
+  assert.equal(
+    SUB_RECENT_DEFENSE_DEPRIORITY_MS,
+    60 * 60 * 1000
   );
   assert.deepEqual(
     recentSubDefenseWindow(
@@ -78,6 +83,8 @@ async function run() {
           recentDefenseCount72h: 3,
           lastDefenseAssignedAt:
             new Date("2026-08-15T08:00:00+09:00"),
+          lastDefenseSettledAt:
+            new Date("2026-08-15T08:30:00+09:00"),
         },
       ]);
     };
@@ -92,6 +99,8 @@ async function run() {
         recentDefenseCount72h: 3,
         lastDefenseAssignedAt:
           new Date("2026-08-15T08:00:00+09:00"),
+        lastDefenseSettledAt:
+          new Date("2026-08-15T08:30:00+09:00"),
       }
     );
     assert.deepEqual(
@@ -99,6 +108,7 @@ async function run() {
       {
         recentDefenseCount72h: 0,
         lastDefenseAssignedAt: null,
+        lastDefenseSettledAt: null,
       },
       "방어 이력이 없는 사용자는 0회·미배정으로 유지되어야 합니다."
     );
@@ -294,6 +304,14 @@ async function run() {
       daily: { ...bronzeDaily, challengerWin: true },
       role: "DEFENDER",
     }),
+    [],
+    "도전자로 승리해도 현재 티어의 남은 방어 슬롯은 유지해야 합니다."
+  );
+  assert.deepEqual(
+    subDailyEligibilityReasons({
+      daily: { ...bronzeDaily, challengerWin: true },
+      role: "CHALLENGER",
+    }),
     ["SUB_DAILY_LOCK_AFTER_CHALLENGER_WIN"]
   );
   assert.deepEqual(
@@ -382,6 +400,8 @@ async function run() {
             recentDefenseCount72h: 2,
             lastDefenseAssignedAt:
               new Date("2026-08-14T10:00:00+09:00"),
+            lastDefenseSettledAt:
+              new Date("2026-08-14T10:30:00+09:00"),
           },
         ],
       ]),
@@ -416,6 +436,8 @@ async function run() {
         recentDefenseCount72h: 1,
         lastDefenseAssignedAt:
           new Date("2026-08-15T10:00:00+09:00"),
+        lastDefenseSettledAt:
+          new Date("2026-08-15T10:30:00+09:00"),
       },
       {
         userId: "few-recent-older",
@@ -424,6 +446,8 @@ async function run() {
         recentDefenseCount72h: 1,
         lastDefenseAssignedAt:
           new Date("2026-08-14T10:00:00+09:00"),
+        lastDefenseSettledAt:
+          new Date("2026-08-14T10:30:00+09:00"),
       },
       {
         userId: "many-recent",
@@ -432,15 +456,80 @@ async function run() {
         recentDefenseCount72h: 2,
         lastDefenseAssignedAt:
           new Date("2026-08-12T10:00:00+09:00"),
+        lastDefenseSettledAt:
+          new Date("2026-08-12T10:30:00+09:00"),
       },
     ],
     targetTier: "SILVER",
     randomSelectionSeed: "fair-defense-distribution",
+    now: new Date("2026-08-15T12:00:00+09:00"),
   });
   assert.equal(
     fairSelection.userId,
     "few-recent-older",
     "당일 횟수보다 최근 72시간 횟수를 먼저 보고, 동률이면 마지막 방어가 오래된 후보를 골라야 합니다."
+  );
+
+  const restedSelection = selectRandomSubDefenseCandidate({
+    candidates: [
+      {
+        userId: "recently-settled",
+        arenaRank: "실버",
+        recentDefenseCount72h: 0,
+        lastDefenseAssignedAt:
+          new Date("2026-08-15T11:20:00+09:00"),
+        lastDefenseSettledAt:
+          new Date("2026-08-15T11:30:01+09:00"),
+      },
+      {
+        userId: "rested-defender",
+        arenaRank: "실버",
+        recentDefenseCount72h: 2,
+        lastDefenseAssignedAt:
+          new Date("2026-08-14T09:00:00+09:00"),
+        lastDefenseSettledAt:
+          new Date("2026-08-14T09:30:00+09:00"),
+      },
+    ],
+    targetTier: "SILVER",
+    randomSelectionSeed: "recent-defense-soft-priority",
+    now: new Date("2026-08-15T12:00:00+09:00"),
+  });
+  assert.equal(
+    restedSelection.userId,
+    "rested-defender",
+    "최근 정산한 방어자는 다른 후보가 있으면 1시간 동안 후순위여야 합니다."
+  );
+
+  const allRecentFallback = selectRandomSubDefenseCandidate({
+    candidates: [
+      {
+        userId: "recent-fewer",
+        arenaRank: "실버",
+        recentDefenseCount72h: 1,
+        lastDefenseAssignedAt:
+          new Date("2026-08-15T11:20:00+09:00"),
+        lastDefenseSettledAt:
+          new Date("2026-08-15T11:40:00+09:00"),
+      },
+      {
+        userId: "recent-more",
+        arenaRank: "실버",
+        recentDefenseCount72h: 2,
+        lastDefenseAssignedAt:
+          new Date("2026-08-15T11:10:00+09:00"),
+        lastDefenseSettledAt:
+          new Date("2026-08-15T11:35:00+09:00"),
+      },
+    ],
+    targetTier: "SILVER",
+    randomSelectionSeed: "all-recent-defense-fallback",
+    now: new Date("2026-08-15T12:00:00+09:00"),
+  });
+  assert.equal(
+    allRecentFallback.userId,
+    "recent-fewer",
+    "모든 후보가 최근 정산 상태면 하드 차단 없이 72시간 공정 순서로 선택해야 합니다."
   );
 
   const randomTieSelection =
@@ -708,6 +797,15 @@ async function run() {
   );
   assert.ok(
     rulebookSource.includes("최근 72시간") &&
+      rulebookSource.includes(
+        "방어전 정산 후 1시간"
+      ) &&
+      rulebookSource.includes(
+        "남은 일반 공격만 잠기고 방어 자격"
+      ) &&
+      rulebookSource.includes(
+        "6시간 하드 쿨다운을 적용하지 않습니다"
+      ) &&
       rulebookSource.includes(
         "마지막 방어 배정"
       ) &&

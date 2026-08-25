@@ -28,6 +28,9 @@ const {
 const {
   publicSourceAccuracyForQuestion,
 } = require("../services/arenaMatchAttemptService");
+const {
+  buildArenaMatchPreStartContract,
+} = require("../services/arenaMatchPreStartContractService");
 const { getRefundDisclosure } = require("../services/refundPolicyService");
 
 const app = express();
@@ -176,6 +179,71 @@ app.get("/preview/goat-arena/match-pdf-pool-mobile", (_req, res) => {
     <html lang="ko"><head><meta charset="utf-8"><title>Arena mobile QA</title>
     <style>html,body{margin:0;min-height:100%;background:#050711;display:grid;place-items:start center}iframe{width:390px;height:844px;border:0;background:#050711}</style>
     </head><body><iframe title="GOAT Arena 모바일 매치 검수" src="/preview/goat-arena/match-pdf-pool?difficulty=R9&amp;seed=0"></iframe></body></html>`);
+});
+
+app.get("/preview/goat-arena/match-ready", (req, res) => {
+  const role = String(req.query.role || "CHALLENGER").toUpperCase() === "DEFENDER"
+    ? "DEFENDER"
+    : "CHALLENGER";
+  const match = {
+    division: "SUB",
+    matchType: "NORMAL",
+    startDeadlineAt: new Date("2026-08-26T06:00:00.000Z"),
+    challenger: { stakeDays: 1 },
+    defender: { stakeDays: 0 },
+    economySnapshot: {
+      challengerStakeDays: 1,
+      defenderStakeDays: 0,
+    },
+  };
+  res.render("goat-arena-match", {
+    activeArenaPage: "sub",
+    arenaUser: {
+      nickname: "preview-user",
+      hasStyleEntrance: false,
+      hasMainProfileBorder: false,
+    },
+    arenaNotifications: { unreadCount: 0, notifications: [], defenseByDivision: {} },
+    rankUpPresentation: null,
+    matchPrepared: false,
+    matchStarted: false,
+    evidenceSubmitted: false,
+    matchError: "",
+    questionIntroduced: 0,
+    startRequestId: "preview-start",
+    revengeRequestId: "preview-revenge",
+    matchData: {
+      id: "preview-ready-match",
+      division: "SUB",
+      divisionLabel: "Unranked",
+      matchType: "NORMAL",
+      matchTitle: "일반 쟁탈전",
+      matchStatus: "READY",
+      matchStatusLabel: "경기 준비 완료",
+      role,
+      roleLabel: role === "CHALLENGER" ? "공격자" : "방어자",
+      opponentName: role === "CHALLENGER" ? "상위 수학러" : "도전 수학러",
+      preStartContract: buildArenaMatchPreStartContract(match, role),
+      problemPack: {
+        questionCount: 5,
+        timeLimitMs: 10 * 60 * 1000,
+        timeLimitLabel: "10분",
+        curriculumCoverage: ["algebra", "calculus-1", "probability-statistics"],
+      },
+      attempt: { status: "READY" },
+      settled: false,
+      result: null,
+      divisionLocked: false,
+      matchRequestLocked: false,
+      canPrepare: false,
+      canStart: true,
+      inProgress: false,
+      evidenceRequired: false,
+      submitted: false,
+      canUseDefenseScheduleProtection: false,
+      serverNow: new Date().toISOString(),
+    },
+  });
 });
 
 app.get("/preview/goat-arena/match-pdf-pool", (req, res) => {

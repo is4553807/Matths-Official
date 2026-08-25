@@ -4859,6 +4859,119 @@ html {
   line-height: 1.65;
 }
 
+.arena-prestart-contract {
+  display: grid;
+  gap: 22px;
+  margin-bottom: 18px;
+  padding: clamp(24px, 3vw, 38px);
+  border: 1px solid rgba(91, 209, 255, 0.28);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(21, 187, 231, 0.14), transparent 34%),
+    linear-gradient(145deg, rgba(13, 22, 48, 0.98), rgba(8, 11, 27, 0.98));
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.24);
+}
+
+.arena-prestart-contract > header {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(260px, 1.2fr);
+  align-items: end;
+  gap: 26px;
+}
+
+.arena-prestart-contract > header small {
+  color: #66dcff;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 1.8px;
+}
+
+.arena-prestart-contract > header h2 {
+  margin: 7px 0 0;
+  color: #f5fbff;
+  font-size: clamp(23px, 2.5vw, 36px);
+  line-height: 1.14;
+  letter-spacing: -1px;
+}
+
+.arena-prestart-contract > header p,
+.arena-prestart-contract > footer p {
+  margin: 0;
+  color: #aeb9d8;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.arena-prestart-contract dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.arena-prestart-contract dl > div {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 132px;
+  padding: 20px;
+  border: 1px solid rgba(132, 151, 226, 0.18);
+  border-radius: 15px;
+  background: rgba(5, 9, 24, 0.7);
+}
+
+.arena-prestart-contract dl > div::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: #7d8cff;
+}
+
+.arena-prestart-contract dl > .is-win::before {
+  background: #47e4b0;
+}
+
+.arena-prestart-contract dl > .is-loss::before {
+  background: #ef78ca;
+}
+
+.arena-prestart-contract dl > .is-deadline::before {
+  background: #ffc96b;
+}
+
+.arena-prestart-contract dt {
+  color: #8491bb;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.arena-prestart-contract dd {
+  margin: 0;
+  color: #f0f4ff;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.65;
+}
+
+.arena-prestart-contract > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 2px;
+}
+
+.arena-prestart-contract > footer a {
+  flex: 0 0 auto;
+  color: #74dcff;
+  font-size: 11px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
 .arena-match-lobby-card,
 .arena-match-wait-card {
   position: relative;
@@ -5915,6 +6028,20 @@ html {
   .arena-match-lobby-card dl,
   .arena-match-timer-bar {
     grid-template-columns: 1fr;
+  }
+
+  .arena-prestart-contract > header,
+  .arena-prestart-contract dl {
+    grid-template-columns: 1fr;
+  }
+
+  .arena-prestart-contract dl > div {
+    min-height: auto;
+  }
+
+  .arena-prestart-contract > footer {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .arena-match-timer-bar {

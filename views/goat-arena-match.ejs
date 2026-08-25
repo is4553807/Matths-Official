@@ -27,6 +27,23 @@
   const arenaReturnLabel = matchData.matchType === "FRIENDLY"
     ? "Ranked 전장으로"
     : `${matchData.divisionLabel} 전장으로`;
+  const formatKstDeadline = (value) => {
+    if (!value || Number.isNaN(new Date(value).getTime())) return "확인 중";
+    return `${new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      dateStyle: "long",
+      timeStyle: "short",
+    }).format(new Date(value))} KST`;
+  };
+  const showPreStartContract = Boolean(
+    matchData.preStartContract &&
+    !matchData.settled &&
+    !matchData.inProgress &&
+    (
+      matchData.canPrepare ||
+      matchData.attempt?.status === "READY"
+    )
+  );
 %>
 <!doctype html>
 <html lang="ko">
@@ -140,6 +157,40 @@
           <span>매치가 성립한 뒤 확인되는 서비스 닉네임입니다.</span>
         </article>
       </section>
+
+      <% if (showPreStartContract) { %>
+        <section class="arena-prestart-contract" aria-labelledby="arena-prestart-contract-title">
+          <header>
+            <div>
+              <small>BEFORE YOU START</small>
+              <h2 id="arena-prestart-contract-title"><%= matchData.preStartContract.title %></h2>
+            </div>
+            <p><%= matchData.preStartContract.description %></p>
+          </header>
+          <dl>
+            <div>
+              <dt>내가 걸게 되는 것</dt>
+              <dd><%= matchData.preStartContract.stake %></dd>
+            </div>
+            <div class="is-win">
+              <dt>내가 이기면</dt>
+              <dd><%= matchData.preStartContract.win %></dd>
+            </div>
+            <div class="is-loss">
+              <dt>내가 지면</dt>
+              <dd><%= matchData.preStartContract.loss %></dd>
+            </div>
+            <div class="is-deadline">
+              <dt><%= matchData.preStartContract.deadlineLabel %></dt>
+              <dd><time datetime="<%= matchData.preStartContract.deadlineAt ? new Date(matchData.preStartContract.deadlineAt).toISOString() : '' %>"><%= formatKstDeadline(matchData.preStartContract.deadlineAt) %></time></dd>
+            </div>
+          </dl>
+          <footer>
+            <p><%= matchData.preStartContract.deadlineNotice %></p>
+            <a href="<%= matchData.preStartContract.rulesHref %>">전체 경기 규정 보기 <span aria-hidden="true">→</span></a>
+          </footer>
+        </section>
+      <% } %>
 
       <% if (matchData.settled && matchData.result) { %>
         <section class="arena-match-result-card <%= matchData.didWin ? 'is-win' : 'is-loss' %> <%= arenaUser.hasMainProfileBorder ? 'has-main-shop-border' : '' %>">

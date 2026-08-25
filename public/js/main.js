@@ -42,8 +42,63 @@
     const overlay = document.getElementById("sidebar-overlay");
     const openButton = document.getElementById("sidebar-open");
     const closeButton = document.getElementById("sidebar-close");
+    const desktopViewport = window.matchMedia("(min-width: 901px)");
+    const collapsedStorageKey = "matths-dashboard-sidebar-collapsed";
 
     if (!sidebar || !overlay || !openButton || !closeButton) return;
+
+    let collapsedPreference = false;
+    try {
+      collapsedPreference =
+        window.localStorage.getItem(collapsedStorageKey) === "true";
+    } catch (error) {
+      collapsedPreference = false;
+    }
+
+    function persistCollapsedPreference() {
+      try {
+        window.localStorage.setItem(
+          collapsedStorageKey,
+          String(collapsedPreference)
+        );
+      } catch (error) {
+        // 저장소를 사용할 수 없어도 현재 화면의 메뉴 축소는 유지합니다.
+      }
+    }
+
+    function renderCloseButton() {
+      if (!desktopViewport.matches) {
+        closeButton.textContent = "×";
+        closeButton.classList.remove("sidebar-toggle-collapsed");
+        closeButton.setAttribute("aria-label", "메뉴 닫기");
+        closeButton.title = "메뉴 닫기";
+        return;
+      }
+
+      closeButton.textContent = "";
+      closeButton.classList.toggle(
+        "sidebar-toggle-collapsed",
+        collapsedPreference
+      );
+      closeButton.setAttribute(
+        "aria-label",
+        collapsedPreference ? "왼쪽 메뉴 펼치기" : "왼쪽 메뉴 숨기기"
+      );
+      closeButton.title = collapsedPreference ? "메뉴 펼치기" : "메뉴 숨기기";
+    }
+
+    function applyCollapsedPreference({ persist = false } = {}) {
+      document.body.classList.toggle(
+        "dashboard-sidebar-collapsed",
+        desktopViewport.matches && collapsedPreference
+      );
+      sidebar.classList.toggle(
+        "collapsed",
+        desktopViewport.matches && collapsedPreference
+      );
+      renderCloseButton();
+      if (persist) persistCollapsedPreference();
+    }
 
     function setOpen(open) {
       sidebar.classList.toggle("open", open);
@@ -59,7 +114,14 @@
     }
 
     openButton.addEventListener("click", () => setOpen(true));
-    closeButton.addEventListener("click", () => setOpen(false));
+    closeButton.addEventListener("click", () => {
+      if (!desktopViewport.matches) {
+        setOpen(false);
+        return;
+      }
+      collapsedPreference = !collapsedPreference;
+      applyCollapsedPreference({ persist: true });
+    });
     overlay.addEventListener("click", () => setOpen(false));
 
     sidebar.addEventListener("click", (event) => {
@@ -72,6 +134,17 @@
         setOpen(false);
       }
     });
+
+    const syncViewport = () => {
+      if (desktopViewport.matches) setOpen(false);
+      applyCollapsedPreference();
+    };
+    if (typeof desktopViewport.addEventListener === "function") {
+      desktopViewport.addEventListener("change", syncViewport);
+    } else if (typeof desktopViewport.addListener === "function") {
+      desktopViewport.addListener(syncViewport);
+    }
+    applyCollapsedPreference();
   }
 
   function initDate() {

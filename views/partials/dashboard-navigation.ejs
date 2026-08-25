@@ -116,6 +116,8 @@
     <a
       class="<%= isActive ? 'active' : '' %>"
       href="<%= item.href %>"
+      aria-label="<%= item.label %>"
+      title="<%= item.label %>"
       <%- isActive ? 'aria-current="page"' : "" %>
     >
       <span class="nav-icon" aria-hidden="true"><%= item.icon %></span>

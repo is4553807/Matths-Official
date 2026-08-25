@@ -37,7 +37,7 @@
           <p>UNRANKED · 1대1</p>
           <h1>순위를 <span>탈취할</span> 시간</h1>
         </div>
-        <div class="arena-command-hero-copy"><p>먼저 같은 티어에서 나보다 순위가 높은 후보를 찾습니다. 후보가 없을 때만 바로 위 티어로 범위를 한 단계 넓히며, 그보다 높은 티어로는 넘어가지 않습니다. 후보군 안에서는 최근 72시간 일반 쟁탈전 방어 횟수가 가장 적은 사용자를 우선하고, 동률이면 마지막 방어 배정이 가장 오래된 사용자를 먼저 연결합니다. 그 시각까지 같을 때만 무작위로 정합니다.</p><div class="arena-command-tags"><span><i></i>공정 자동 매칭</span><span>최대 한 티어 상향</span><span>동일 5문항 · 문항당 10분</span></div></div>
+        <div class="arena-command-hero-copy"><p>먼저 같은 티어에서 나보다 순위가 높은 후보를 찾습니다. 후보가 없을 때만 바로 위 티어로 범위를 한 단계 넓히며, 그보다 높은 티어로는 넘어가지 않습니다. 최근 1시간 안에 방어전을 정산한 사용자는 다른 후보가 있을 때 후순위로 두고, 이후 최근 72시간 일반 방어 횟수와 마지막 방어 배정 시각을 기준으로 공정하게 연결합니다.</p><div class="arena-command-tags"><span><i></i>공정 자동 매칭</span><span>최대 한 티어 상향</span><span>동일 5문항 · 문항당 10분</span></div></div>
       </header>
 
       <section class="arena-division-status arena-challenge-status arena-command-status">
@@ -122,9 +122,9 @@
             <span>현재 티어 기준 · 남은 방어 <%= challengeData.dailyUsage.defenseRemaining %>회</span>
           </article>
           <article>
-            <small>당일 승리 잠금</small>
+            <small>당일 공격 잠금</small>
             <strong><%= challengeData.dailyUsage.challengerWin ? "적용 중" : "없음" %></strong>
-            <span>도전자로 승리하면 그날 남은 일반 공격·방어가 잠깁니다.</span>
+            <span>도전자로 승리하면 그날 남은 일반 공격만 잠기고 방어 슬롯은 유지됩니다.</span>
           </article>
         </section>
         <section class="arena-candidate-section arena-battle-console" aria-labelledby="candidate-title">

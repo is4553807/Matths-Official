@@ -103,7 +103,7 @@
               <p>신청 <%= formatDate(order.refund.requestedAt) %> · 처리기한 <%= formatDate(order.refund.processingDeadlineAt) %></p>
               <% if (order.refund.status === "CALCULATED") { %><p>산정 환불액 <strong><%= formatWon(order.refund.calculation?.calculatedAmount) %></strong></p><% } %>
               <% if (order.refund.status === "COMPLETED") { %><p>완료 환불액 <strong><%= formatWon(order.refund.decision?.approvedAmount) %></strong></p><% } %>
-              <% if (order.refund.status === "REJECTED") { %><p>처리 사유 <strong><%= order.refund.decision?.operatorNote || "이메일 안내를 확인해주세요." %></strong></p><% } %>
+              <% if (order.refund.status === "REJECTED") { %><p>처리 사유 <strong><%= order.refund.decision?.operatorNote || "이메일 안내를 확인해 주세요." %></strong></p><% } %>
             </section>
           <% } %>
 

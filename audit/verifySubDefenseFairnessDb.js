@@ -25,6 +25,8 @@ function fairnessMatch({
     status,
     defender: { userId: defenderUserId },
     requestedAt,
+    settledAt:
+      status === "SETTLED" ? requestedAt : null,
   };
 }
 
@@ -119,21 +121,26 @@ async function run() {
     assert.deepEqual(history.get(String(defenderA)), {
       recentDefenseCount72h: 2,
       lastDefenseAssignedAt: now,
+      lastDefenseSettledAt: boundary,
     });
     assert.deepEqual(history.get(String(defenderB)), {
       recentDefenseCount72h: 1,
       lastDefenseAssignedAt:
         new Date("2026-08-13T09:00:00+09:00"),
+      lastDefenseSettledAt:
+        new Date("2026-08-01T09:00:00+09:00"),
     });
     assert.deepEqual(history.get(String(defenderC)), {
       recentDefenseCount72h: 0,
       lastDefenseAssignedAt: null,
+      lastDefenseSettledAt: null,
     });
     assert.deepEqual(
       history.get(String(defenderNoHistory)),
       {
         recentDefenseCount72h: 0,
         lastDefenseAssignedAt: null,
+        lastDefenseSettledAt: null,
       }
     );
 

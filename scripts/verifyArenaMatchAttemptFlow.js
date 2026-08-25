@@ -33,9 +33,98 @@ const {
   compareArenaAttemptScores,
   scoreArenaAttempt,
 } = require("../services/arenaMatchScoringService");
+const {
+  buildArenaMatchPreStartContract,
+} = require("../services/arenaMatchPreStartContractService");
 
 async function run() {
   const root = path.resolve(__dirname, "..");
+  const startDeadlineAt = new Date("2026-08-26T06:00:00.000Z");
+  const subNormalMatch = {
+    division: "SUB",
+    matchType: "NORMAL",
+    startDeadlineAt,
+    challenger: { stakeDays: 1 },
+    defender: { stakeDays: 0 },
+    economySnapshot: {
+      challengerStakeDays: 1,
+      defenderStakeDays: 0,
+    },
+  };
+  const subChallengerContract = buildArenaMatchPreStartContract(
+    subNormalMatch,
+    "CHALLENGER"
+  );
+  assert.equal(
+    subChallengerContract.stake,
+    "페이백 점수 1점 · 매치 성립 시 예치 완료"
+  );
+  assert.match(subChallengerContract.win, /1점 반환.*상대 Arena 자리 획득/);
+  assert.match(subChallengerContract.loss, /1점 상대에게 이전.*현재 Arena 자리 유지/);
+  assert.equal(subChallengerContract.deadlineAt, startDeadlineAt);
+
+  const subDefenderContract = buildArenaMatchPreStartContract(
+    subNormalMatch,
+    "DEFENDER"
+  );
+  assert.match(subDefenderContract.stake, /없음.*별도 예치하지 않음/);
+  assert.match(subDefenderContract.win, /페이백 점수 1점 획득.*현재 Arena 자리 유지/);
+  assert.match(subDefenderContract.loss, /예치 변동 없음.*Arena 자리 교환/);
+
+  const mainInvitationDefenderContract = buildArenaMatchPreStartContract(
+    {
+      division: "MAIN",
+      matchType: "NORMAL",
+      startDeadlineAt,
+      challenger: { stakeDays: 3 },
+      defender: { stakeDays: 3 },
+      economySnapshot: {
+        challengerStakeDays: 3,
+        defenderStakeDays: 3,
+      },
+    },
+    "DEFENDER"
+  );
+  assert.match(mainInvitationDefenderContract.stake, /학습일수 3일/);
+  assert.match(mainInvitationDefenderContract.win, /3일 반환.*3일 획득/);
+  assert.match(mainInvitationDefenderContract.loss, /3일 상대에게 이전.*Arena 자리 교환/);
+  const mainInvitationChallengerContract = buildArenaMatchPreStartContract(
+    {
+      division: "MAIN",
+      matchType: "NORMAL",
+      startDeadlineAt,
+      challenger: { stakeDays: 3 },
+      defender: { stakeDays: 3 },
+      economySnapshot: {
+        challengerStakeDays: 3,
+        defenderStakeDays: 3,
+      },
+    },
+    "CHALLENGER"
+  );
+  assert.match(mainInvitationChallengerContract.win, /3일 반환.*3일 획득.*Arena 자리 획득/);
+
+  const revengeDeadlineAt = new Date("2026-08-27T06:00:00.000Z");
+  const revengeContract = buildArenaMatchPreStartContract(
+    {
+      division: "MAIN",
+      matchType: "REVENGE",
+      startDeadlineAt: revengeDeadlineAt,
+      completionDeadlineAt: revengeDeadlineAt,
+      challenger: { stakeDays: 4 },
+      defender: { stakeDays: 0 },
+      economySnapshot: {
+        challengerStakeDays: 4,
+        defenderStakeDays: 0,
+        feeDays: 1,
+      },
+    },
+    "CHALLENGER"
+  );
+  assert.equal(revengeContract.deadlineLabel, "경기 완료 기한");
+  assert.match(revengeContract.win, /학습일수 3일 반환.*1일 수수료/);
+  assert.match(revengeContract.loss, /학습일수 3일 상대에게 이전.*1일 수수료/);
+
   const generatedAt = new Date("2026-08-01T00:00:00+09:00");
   const draft = buildGeneratedArenaProblemPackDraft({
     matchKey: "SUB:NORMAL:VERIFY-ATTEMPT-FLOW",
@@ -571,6 +660,14 @@ async function run() {
       !viewSource.includes(
         "question.solution"
       )
+  );
+  assert.ok(
+    viewSource.includes("arena-prestart-contract") &&
+      viewSource.includes("내가 걸게 되는 것") &&
+      viewSource.includes("내가 이기면") &&
+      viewSource.includes("내가 지면") &&
+      viewSource.includes("formatKstDeadline"),
+    "경기 시작 전 역할별 예치·승패·기한 요약을 렌더링해야 합니다."
   );
   assert.ok(
     clientSource.includes("/advance") &&

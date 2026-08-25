@@ -86,6 +86,30 @@ function main() {
     "메뉴 이동 피드백이 필요합니다."
   );
 
+  const dashboardRuntime = read("public/js/main.js");
+  new vm.Script(dashboardRuntime);
+  assert.match(
+    dashboardRuntime,
+    /matths-dashboard-sidebar-collapsed/,
+    "대시보드 왼쪽 메뉴의 아이콘 축소 상태를 저장해야 합니다."
+  );
+  assert.match(
+    dashboardRuntime,
+    /dashboard-sidebar-collapsed/,
+    "대시보드 왼쪽 메뉴를 아이콘 전용 상태로 전환해야 합니다."
+  );
+  const dashboardCss = read("public/css/main.css");
+  assert.match(
+    dashboardCss,
+    /--sidebar-collapsed-width/,
+    "대시보드 아이콘 전용 메뉴 폭이 필요합니다."
+  );
+  assert.match(
+    dashboardCss,
+    /\.dashboard-shell\s*~\s*\.business-site-footer/,
+    "대시보드 푸터는 왼쪽 메뉴를 제외한 본문 폭에 맞춰야 합니다."
+  );
+
   for (const partial of [
     "views/partials/home-public-navigation.ejs",
     "views/partials/dashboard-navigation.ejs",

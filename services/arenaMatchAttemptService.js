@@ -45,6 +45,9 @@ const {
 const {
   settleExpiredMainRevengeMatches,
 } = require("./mainArenaRevengeService");
+const {
+  buildArenaMatchPreStartContract,
+} = require("./arenaMatchPreStartContractService");
 const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const MAX_CHANGE_EVENTS_PER_REQUEST = 200;
@@ -1903,6 +1906,11 @@ async function getArenaMatchPageData({
           ? "Ranked"
           : "Unranked",
     division: match.division,
+    preStartContract:
+      buildArenaMatchPreStartContract(
+        match,
+        role
+      ),
     canUseDefenseScheduleProtection:
       match.division === "MAIN" &&
       match.matchType === "NORMAL" &&
