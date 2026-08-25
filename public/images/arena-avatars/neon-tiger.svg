@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">네온 타이거</title>
+  <defs>
+    <linearGradient id="bg" x1="9" y1="4" x2="120" y2="123" gradientUnits="userSpaceOnUse"><stop stop-color="#FD2E83"/><stop offset=".5" stop-color="#7336C7"/><stop offset="1" stop-color="#151E58"/></linearGradient>
+    <linearGradient id="fur" x1="39" y1="29" x2="86" y2="112" gradientUnits="userSpaceOnUse"><stop stop-color="#FFD25E"/><stop offset="1" stop-color="#FF6E34"/></linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <path d="M12 19h33M83 109h33" stroke="#61F4FF" stroke-width="4" stroke-linecap="round" opacity=".55"/>
+  <path d="m39 48-17-15 5 29m62-14 17-15-5 29" fill="#F7823E" stroke="#FFC86A" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M33 60c0-24 13-37 31-37s31 13 31 37v24c0 20-13 32-31 32S33 104 33 84z" fill="url(#fur)"/>
+  <path d="m50 31 8 16m20-16-8 16M37 56l18 8m36-8-18 8M35 80l18 1m40-1-18 1" fill="none" stroke="#5D2450" stroke-width="5" stroke-linecap="round"/>
+  <path d="M48 69c5-4 10-4 14 0m4 0c4-4 9-4 14 0" fill="none" stroke="#2C1E49" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="55" cy="73" r="3" fill="#13224A"/><circle cx="73" cy="73" r="3" fill="#13224A"/>
+  <path d="m58 84 6 4 6-4" fill="#442044"/>
+  <path d="M50 96c9 9 19 9 28 0" fill="#FFF0D0"/><path d="M58 97v7m12-7v7" stroke="#6F2944" stroke-width="2"/>
+</svg>

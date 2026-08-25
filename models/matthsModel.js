@@ -1,6 +1,56 @@
 const mongoose = require("mongoose");
+const {
+  ARENA_PROFILE_AVATAR_CODES,
+  DEFAULT_ARENA_PROFILE_AVATAR_CODE,
+} = require("../constants/arenaProfileAvatars");
 
 const { Schema } = mongoose;
+
+const profileAvatarAssetSchema = new Schema(
+  {
+    storageProvider: {
+      type: String,
+      enum: ["CLOUDINARY"],
+      required: true,
+    },
+    storagePurpose: {
+      type: String,
+      enum: ["USER_PROFILE_AVATAR"],
+      required: true,
+    },
+    cloudPublicId: {
+      type: String,
+      maxlength: 500,
+      required: true,
+    },
+    cloudResourceType: {
+      type: String,
+      enum: ["image"],
+      default: "image",
+    },
+    cloudDeliveryType: {
+      type: String,
+      enum: ["authenticated", "private", "upload"],
+      default: "authenticated",
+    },
+    cloudVersion: {
+      type: Number,
+      default: null,
+    },
+    cloudFormat: {
+      type: String,
+      enum: ["webp"],
+      default: "webp",
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    _id: false,
+  }
+);
 
 /* --------------------------------------------------
  * 1. User
@@ -38,6 +88,23 @@ const preferenceSchema = new Schema(
       type: String,
       enum: ["nickname", "realName"],
       default: "nickname",
+    },
+
+    arenaAvatarCode: {
+      type: String,
+      enum: ARENA_PROFILE_AVATAR_CODES,
+      default: DEFAULT_ARENA_PROFILE_AVATAR_CODE,
+    },
+
+    profileAvatarMode: {
+      type: String,
+      enum: ["PRESET", "CUSTOM"],
+      default: "PRESET",
+    },
+
+    profileAvatarAsset: {
+      type: profileAvatarAssetSchema,
+      default: undefined,
     },
   },
   {

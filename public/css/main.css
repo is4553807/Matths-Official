@@ -241,11 +241,11 @@ button:focus-visible {
 
 .sidebar-profile {
   display: grid;
-  grid-template-columns: 39px 1fr auto;
+  grid-template-columns: 44px 1fr auto;
   align-items: center;
   gap: 10px;
   margin-top: 14px;
-  padding: 13px 7px 0;
+  padding: 13px 7px 4px;
   border-top: 1px solid var(--line);
 }
 
@@ -265,6 +265,69 @@ button:focus-visible {
 a.profile-avatar:hover {
   box-shadow: 0 9px 18px rgba(49, 87, 246, 0.25);
   transform: translateY(-2px);
+}
+
+.profile-avatar.profile-avatar-with-level {
+  position: relative;
+  width: 42px;
+  height: 49px;
+  display: block;
+  overflow: visible;
+  color: #fff;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.profile-avatar-with-level > span {
+  width: 40px;
+  height: 40px;
+  display: block;
+  overflow: hidden;
+  background: #151a3a;
+  border: 1px solid rgba(162, 185, 255, 0.68);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(19, 26, 76, 0.28);
+}
+
+.profile-avatar-with-level img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.profile-avatar-with-level > b {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  min-width: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 7px;
+  color: #fff;
+  background: linear-gradient(180deg, #3a477f, #11162f);
+  border: 1px solid #6fe6ff;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.2), 0 5px 12px rgba(5, 11, 45, 0.36);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 6px 100%, 0 50%);
+}
+
+.profile-avatar-with-level > b small {
+  color: #70edff;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+a.profile-avatar-with-level:hover {
+  box-shadow: none;
 }
 
 .profile-copy {

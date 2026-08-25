@@ -14,6 +14,7 @@ const STORAGE_PURPOSES = Object.freeze({
   ADMIN_ARCHIVE: "ADMIN_ARCHIVE",
   ADMIN_WEEKLY_MOCK: "ADMIN_WEEKLY_MOCK",
   USER_COMMUNITY: "USER_COMMUNITY",
+  USER_PROFILE_AVATAR: "USER_PROFILE_AVATAR",
   USER_ARENA_EVIDENCE: "USER_ARENA_EVIDENCE",
   USER_PRIVATE_MOCK_INTEGRITY: "USER_PRIVATE_MOCK_INTEGRITY",
 });
@@ -28,6 +29,10 @@ const STORAGE_POLICIES = Object.freeze({
     requiresR2: true,
   },
   [STORAGE_PURPOSES.USER_COMMUNITY]: {
+    provider: "cloudinary",
+    requiresCloudinary: true,
+  },
+  [STORAGE_PURPOSES.USER_PROFILE_AVATAR]: {
     provider: "cloudinary",
     requiresCloudinary: true,
   },

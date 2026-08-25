@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">오비트 아울</title>
+  <defs>
+    <linearGradient id="bg" x1="12" y1="8" x2="116" y2="122" gradientUnits="userSpaceOnUse"><stop stop-color="#11255B"/><stop offset=".5" stop-color="#3556C7"/><stop offset="1" stop-color="#17B5C9"/></linearGradient>
+    <linearGradient id="feather" x1="42" y1="30" x2="85" y2="111" gradientUnits="userSpaceOnUse"><stop stop-color="#DFF9FF"/><stop offset="1" stop-color="#7A8CD5"/></linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <ellipse cx="64" cy="63" rx="54" ry="27" fill="none" stroke="#88F3FF" stroke-width="3" opacity=".24" transform="rotate(-18 64 63)"/>
+  <circle cx="103" cy="31" r="6" fill="#FFE48B"/><circle cx="103" cy="31" r="12" fill="none" stroke="#FFE48B" opacity=".25"/>
+  <path d="M31 57 42 27l22 13 22-13 11 30-6 44-27 17-27-17z" fill="url(#feather)" stroke="#C9F4FF" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="49" cy="64" r="17" fill="#F3FBFF" stroke="#5E73C0" stroke-width="4"/><circle cx="79" cy="64" r="17" fill="#F3FBFF" stroke="#5E73C0" stroke-width="4"/>
+  <circle cx="51" cy="65" r="7" fill="#172457"/><circle cx="77" cy="65" r="7" fill="#172457"/>
+  <circle cx="53" cy="62" r="2" fill="#82F6FF"/><circle cx="79" cy="62" r="2" fill="#82F6FF"/>
+  <path d="m64 73-8 9 8 6 8-6z" fill="#FFCC63"/>
+  <path d="m50 96 14 10 14-10M44 40l20 11 20-11" fill="none" stroke="#5366AE" stroke-width="3" stroke-linecap="round"/>
+</svg>

@@ -10,6 +10,15 @@
     ARCHIVE: "Matths 아카이브",
     WEEKLY_MOCK: "Matths 주간 공식 모의고사",
     STORE: "Matths 상점",
+    STUDY_HALL: "Matths 수험관",
+    FORMULA: "Matths 공식집",
+    ARENA_MATCH: "GOAT Arena 1대1 경기 화면",
+  };
+  const attemptStatusLabels = {
+    READY: "시작 대기",
+    IN_PROGRESS: "문제 풀이 중",
+    EVIDENCE_REQUIRED: "풀이 증거 제출 대기",
+    SUBMITTED: "제출 완료",
   };
 %>
 <!doctype html>
@@ -30,7 +39,7 @@
         <div>
           <p>DOCUMENT &amp; SCREENSHOT FORENSICS</p>
           <h1>PDF·스크린샷 유출 추적</h1>
-          <span>PDF 내부 서명과 스크린샷에 남은 반복 추적 코드를 외부 API 전송 없이 서버에서 분석합니다.</span>
+          <span>PDF 내부 서명과 다운로드·GOAT Arena 화면에 남은 반복 추적 코드를 외부 API 전송 없이 서버에서 분석합니다.</span>
         </div>
         <strong>3<small>중 식별 계층</small></strong>
       </header>
@@ -44,12 +53,18 @@
           <div><p>LEAKED FILE INPUT</p><h2>유출 의심 PDF·스크린샷 분석</h2></div>
           <span>PDF와 이미지는 분석 요청 동안 서버 임시 폴더에만 존재하며 결과 생성 직후 삭제됩니다.</span>
         </div>
-        <form action="/admin/pdf-forensics/analyze" method="POST" enctype="multipart/form-data" class="forensic-upload-form">
+        <form action="/admin/pdf-forensics/analyze" method="POST" enctype="multipart/form-data" class="forensic-upload-form" data-forensic-analysis-form>
           <label>
             <span>파일 선택 <small>최대 150MB · PDF 또는 PNG·JPG·WEBP·HEIC 스크린샷</small></span>
-            <input type="file" name="forensicFile" accept="application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif,.pdf,.png,.jpg,.jpeg,.webp,.heic,.heif" required />
+            <input type="file" name="forensicFile" accept="application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif,.pdf,.png,.jpg,.jpeg,.webp,.heic,.heif" required data-forensic-analysis-file />
           </label>
-          <button type="submit">식별 정보 분석</button>
+          <button type="submit" data-forensic-analysis-submit>
+            <span data-forensic-analysis-label>식별 정보 분석</span>
+          </button>
+          <p class="forensic-analysis-status" data-forensic-analysis-status hidden role="status" aria-live="polite">
+            <span class="forensic-analysis-spinner" aria-hidden="true"></span>
+            <span><strong>유출 자료 추적중</strong><small>워터마크와 사용자 식별 기록을 안전하게 대조하고 있습니다.</small></span>
+          </p>
         </form>
       </section>
 
@@ -64,11 +79,11 @@
           <article><span><%= analysis.inputType === "IMAGE" ? "분석 이미지" : "분석 페이지" %></span><strong><%= analysis.inputType === "IMAGE" ? analysis.imageCount : analysis.pageCount %><small><%= analysis.inputType === "IMAGE" ? "장" : "쪽" %></small></strong></article>
           <article><span>추적 코드</span><strong><%= analysis.traceCodes.length %><small>개</small></strong></article>
           <article><span><%= analysis.inputType === "IMAGE" ? "OCR 후보" : "페이지별 코드" %></span><strong><%= analysis.inputType === "IMAGE" ? analysis.ocrCandidateCount : analysis.pageTraceCount %><small>개</small></strong></article>
-          <article><span>일치 발급 기록</span><strong><%= analysis.matches.length %><small>건</small></strong></article>
+          <article><span>일치 식별 기록</span><strong><%= analysis.matches.length %><small>건</small></strong></article>
         </section>
 
         <% if (analysis.matches.length) { %>
-          <section class="forensic-result-list" aria-label="발급자 분석 결과">
+          <section class="forensic-result-list" aria-label="사용자 식별 분석 결과">
             <% analysis.matches.forEach((match, index) => { %>
               <article class="admin-panel forensic-result-card">
                 <header>
@@ -80,11 +95,15 @@
                   <div><dt>닉네임</dt><dd><%= match.username || "미등록" %></dd></div>
                   <div><dt>가입 이메일</dt><dd><%= match.email || "미등록" %></dd></div>
                   <div><dt>자료 출처</dt><dd><%= sourceLabels[match.sourceType] || match.sourceType %></dd></div>
-                  <div><dt>시험·상품 식별값</dt><dd><%= match.examId %></dd></div>
-                  <div><dt>발급 시각</dt><dd><%= formatDateTime(match.downloadedAt) %></dd></div>
+                  <div><dt><%= match.sourceType === "ARENA_MATCH" ? "경기 ID" : "시험·상품 식별값" %></dt><dd><%= match.examId %></dd></div>
+                  <div><dt><%= match.sourceType === "ARENA_MATCH" ? "경기 시작 시각" : "발급 시각" %></dt><dd><%= formatDateTime(match.downloadedAt) %></dd></div>
                   <div><dt>추적 코드</dt><dd><%= match.traceCode %></dd></div>
-                  <div><dt>문서 발급 ID</dt><dd><%= match.documentIssueId %></dd></div>
-                  <% if (match.recognitionMethod === "IMAGE_OCR") { %>
+                  <div><dt><%= match.sourceType === "ARENA_MATCH" ? "경기 응시 ID" : "문서 발급 ID" %></dt><dd><%= match.sourceType === "ARENA_MATCH" ? match.attemptId : match.documentIssueId %></dd></div>
+                  <% if (match.sourceType === "ARENA_MATCH") { %>
+                    <div><dt>참가 역할</dt><dd><%= match.role === "CHALLENGER" ? "공격자" : "방어자" %></dd></div>
+                    <div><dt>응시 상태</dt><dd><%= attemptStatusLabels[match.attemptStatus] || match.attemptStatus %></dd></div>
+                  <% } %>
+                  <% if (["IMAGE_OCR", "ARENA_IMAGE_OCR"].includes(match.recognitionMethod)) { %>
                     <div><dt>OCR 인식값</dt><dd><%= match.matchedCandidate %></dd></div>
                   <% } %>
                   <div class="wide"><dt>원본 파일명</dt><dd><%= match.originalName %></dd></div>
@@ -117,12 +136,36 @@
       <section class="admin-panel forensic-guide">
         <div class="admin-panel-heading"><div><p>HOW IT WORKS</p><h2>식별 계층과 판정 한계</h2></div></div>
         <div>
-          <article><b>01</b><strong>가시 추적 무늬·이미지 OCR</strong><span>각 페이지에 반복된 서비스명·추적 코드·발급 시각을 기울기·명암 보정해 스크린샷에서도 찾습니다.</span></article>
+          <article><b>01</b><strong>가시 추적 무늬·이미지 OCR</strong><span>PDF의 MTH 코드와 GOAT Arena 화면의 ARM 코드를 기울기·명암 보정해 스크린샷에서도 찾습니다.</span></article>
           <article><b>02</b><strong>서명된 문서 정보</strong><span>사용자 ID, 시험·상품 ID, 다운로드 시각을 위·변조 확인이 가능한 서버 서명과 PDF 메타데이터에 기록합니다.</span></article>
           <article><b>03</b><strong>페이지별 식별 코드</strong><span>일부 페이지만 유출되어도 찾을 수 있도록 페이지마다 서로 다른 미세 문자와 좌표 패턴을 삽입합니다.</span></article>
         </div>
         <p>PDF를 이미지로 바꿔도 반복 추적 코드가 남아 있으면 대조할 수 있습니다. 다만 워터마크를 심하게 잘라내거나 덧칠하고, 매우 낮은 해상도·강한 압축·과도한 회전이 적용된 이미지는 인식률이 낮아질 수 있습니다. 이미지 OCR 결과는 유사도와 원본 발급 기록을 함께 확인하고 단독으로 제재를 확정하는 자료로 사용하지 마세요.</p>
       </section>
     </main>
+    <script>
+      (() => {
+        const form = document.querySelector("[data-forensic-analysis-form]");
+        const submitButton = form?.querySelector("[data-forensic-analysis-submit]");
+        const fileInput = form?.querySelector("[data-forensic-analysis-file]");
+        const status = form?.querySelector("[data-forensic-analysis-status]");
+        const label = form?.querySelector("[data-forensic-analysis-label]");
+
+        form?.addEventListener("submit", (event) => {
+          if (form.dataset.submitting === "true") {
+            event.preventDefault();
+            return;
+          }
+          if (!form.checkValidity() || !fileInput?.files?.length) return;
+
+          form.dataset.submitting = "true";
+          form.classList.add("is-submitting");
+          form.setAttribute("aria-busy", "true");
+          if (submitButton) submitButton.disabled = true;
+          if (label) label.textContent = "유출 자료 추적중";
+          if (status) status.hidden = false;
+        });
+      })();
+    </script>
   </body>
 </html>

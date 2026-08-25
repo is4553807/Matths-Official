@@ -30,6 +30,9 @@ const {
 const {
   buildArenaRankingDecorations,
 } = require("./arenaRankingDecorationService");
+const {
+  resolveArenaProfileAvatar,
+} = require("./arenaProfileAvatarService");
 
 function numberValue(
   value,
@@ -631,7 +634,7 @@ async function getRankingData(
       isActive: true,
     })
       .select(
-        "name school university schoolGrade educationStatus accountStatus warningCount"
+        "name school university schoolGrade educationStatus accountStatus warningCount preferences"
       )
       .lean(),
       MainShopEffect.find({
@@ -675,12 +678,19 @@ async function getRankingData(
       user,
     ])
   );
+  const profileAvatarByUserId = new Map(
+    users.map((user) => [
+      String(user._id),
+      resolveArenaProfileAvatar(user.preferences),
+    ])
+  );
   const finalOverall = liveFinalProfiles
     .map((profile) => {
       const user = userById.get(String(profile.userId));
       if (!user || user.accountStatus !== "active") return null;
       return {
         userId: String(user._id),
+        profileAvatar: profileAvatarByUserId.get(String(user._id)),
         displayName: getRankingDisplayName(user),
         schoolCode: String(user.school?.code || ""),
         schoolName: String(user.school?.name || ""),
@@ -805,6 +815,7 @@ async function getRankingData(
           userId: String(
             user._id
           ),
+          profileAvatar: profileAvatarByUserId.get(String(user._id)),
           hasMainProfileBorder: mainProfileBorderUserIds.has(String(user._id)),
           displayName:
             getRankingDisplayName(
@@ -1001,6 +1012,7 @@ async function getRankingData(
         );
       const rankingIdentity = base || {
         userId: String(user._id),
+        profileAvatar: profileAvatarByUserId.get(String(user._id)),
         hasMainProfileBorder: mainProfileBorderUserIds.has(String(user._id)),
         displayName: getRankingDisplayName(user),
         schoolCode: String(user.school?.code || ""),

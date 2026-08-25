@@ -564,6 +564,54 @@
   white-space: nowrap;
 }
 
+.ranking-player-cell {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.ranking-profile-avatar {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: block;
+  overflow: hidden;
+  background: #171b38;
+  border: 1px solid color-mix(in srgb, var(--tier-accent, #5368e8) 42%, #fff);
+  border-radius: 50%;
+  box-shadow: 0 5px 13px rgba(20, 28, 75, 0.2);
+}
+
+.ranking-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.ranking-player-copy {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.ranking-player-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-theme-arena .ranking-profile-avatar,
+.goat-arena-page .ranking-profile-avatar {
+  border-color: rgba(120, 220, 255, 0.7);
+  box-shadow: 0 0 0 2px rgba(85, 74, 208, 0.18), 0 7px 17px rgba(2, 5, 20, 0.38);
+}
+
 .tier-ranking-row > em {
   color: var(--tier-accent);
   font-size: 12px;

@@ -137,6 +137,8 @@ function buildAnonymousAccountUpdate({
       role: "student",
       "preferences.rankingDisplayMode":
         "nickname",
+      "preferences.profileAvatarMode":
+        "PRESET",
       termsAcceptedAt: null,
       termsVersion: "",
       privacyVersion: "",
@@ -182,6 +184,7 @@ function buildAnonymousAccountUpdate({
       identityMatchVersion: 1,
       identityDuplicateAlertedAt: 1,
       paybackAccount: 1,
+      "preferences.profileAvatarAsset": 1,
     },
   };
 }
@@ -289,11 +292,14 @@ async function removePrivateAccountData(
 }
 
 async function removeUserUploadedFiles(userId) {
-  const [posts, evidence, archiveItems] = await Promise.all([
+  const [posts, evidence, archiveItems, profileUser] = await Promise.all([
     CommunityPost.find({ authorId: userId }).select("attachments").lean(),
     ArenaMatchEvidence.find({ userId }).select("files").lean(),
     ArchiveItem.find({ uploadedBy: userId })
       .select("storedName storageProvider cloudPublicId cloudResourceType cloudDeliveryType r2ObjectKey r2Sha256 r2ETag")
+      .lean(),
+    User.findById(userId)
+      .select("preferences.profileAvatarAsset")
       .lean(),
   ]);
   await discardCommunityUploads(posts.flatMap((post) => post.attachments || []));
@@ -311,10 +317,22 @@ async function removeUserUploadedFiles(userId) {
       await destroyStoredAsset(item).catch(() => {});
     })
   );
+  if (profileUser?.preferences?.profileAvatarAsset?.cloudPublicId) {
+    await destroyStoredAsset(
+      profileUser.preferences.profileAvatarAsset
+    ).catch(() => {});
+  }
   await Promise.all([
     CommunityPost.updateMany({ authorId: userId }, { $set: { attachments: [] } }),
     ArenaMatchEvidence.deleteMany({ userId }),
     ArchiveItem.deleteMany({ uploadedBy: userId }),
+    User.updateOne(
+      { _id: userId },
+      {
+        $set: { "preferences.profileAvatarMode": "PRESET" },
+        $unset: { "preferences.profileAvatarAsset": 1 },
+      }
+    ),
   ]);
 }
 

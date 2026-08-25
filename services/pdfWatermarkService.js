@@ -22,8 +22,10 @@ const {
   rgb,
 } = require("pdf-lib");
 const { PdfWatermarkIssuance } = require("../models/documentSecurityModel");
+const { ArenaMatchAttempt } = require("../models/goatArenaModel");
 const {
   DOWNLOAD_AI_WATERMARK,
+  buildArenaMatchIntegrityWatermark,
 } = require("./contentProtectionWatermarkPolicy");
 const { downloadR2ObjectToFile } = require("./r2ObjectStorageService");
 const { signedStoredAssetUrl } = require("./fileStorageService");
@@ -36,8 +38,9 @@ const GENERATED_TEMP_PREFIX = "matths-pdf-";
 const FORENSICS_TEMP_DIRECTORY = path.join(os.tmpdir(), "matths-pdf-forensics");
 const DEFAULT_TEMP_RETENTION_MS = 24 * 60 * 60 * 1000;
 const MAX_IMAGE_PIXELS = 40 * 1000 * 1000;
-const IMAGE_OCR_ROTATIONS = [31, 0, -31];
-const IMAGE_OCR_THRESHOLDS = [248, 245, 251];
+const IMAGE_OCR_ROTATIONS = [0, 7, -7, 31, -31];
+const IMAGE_OCR_THRESHOLDS = [245, 248, 248, 248, 251];
+const MAX_ARENA_ATTEMPT_FORENSIC_SCAN = 20000;
 let imageOcrWorkerPromise = null;
 let imageOcrQueue = Promise.resolve();
 
@@ -228,6 +231,32 @@ function extractOcrTraceCandidates(text) {
   );
 }
 
+function extractOcrArenaTraceCandidates(text) {
+  const candidates = new Map();
+  for (const rawLine of String(text || "").toUpperCase().split(/\r?\n/)) {
+    const line = rawLine.replace(/\s+/g, " ").trim();
+    const markerAt = line.lastIndexOf("ARM");
+    if (markerAt < 0) continue;
+    const tail = line.slice(markerAt + 3).replace(/^[\s:-]+/, "");
+    const beforeContext = tail.split(
+      /\b(?:MATCH|ACTIVE|CHALLENGER|DEFENDER|GOAT|ARENA|PROHIBITED)\b/
+    )[0];
+    const rawCode = beforeContext.replace(/[^A-Z0-9]/g, "").slice(0, 18);
+    const normalizedCode = normalizeOcrHex(rawCode).slice(0, 12);
+    if (normalizedCode.length < 6) continue;
+    const existing = candidates.get(normalizedCode);
+    candidates.set(normalizedCode, {
+      rawCode,
+      normalizedCode,
+      occurrences: Number(existing?.occurrences || 0) + 1,
+    });
+  }
+  return [...candidates.values()].sort((left, right) =>
+    right.normalizedCode.length - left.normalizedCode.length ||
+    right.occurrences - left.occurrences
+  );
+}
+
 function levenshteinDistance(left, right) {
   const a = String(left || "");
   const b = String(right || "");
@@ -261,6 +290,101 @@ function scoreOcrCandidate(candidateCode, traceCode) {
   const prefixLength = commonPrefix < 0 ? Math.min(candidate.length, target.length) : commonPrefix;
   if (prefixLength < 3 || distance > Math.max(3, Math.ceil(target.length * 0.25))) return 0;
   return Math.max(0, 1 - distance / Math.max(candidate.length, target.length));
+}
+
+function scoreArenaOcrCandidate(candidateCode, traceCode) {
+  const candidate = normalizeOcrHex(candidateCode).slice(0, 12);
+  const target = normalizeOcrHex(String(traceCode || "").replace(/^ARM-?/i, "")).slice(0, 12);
+  if (candidate.length < 6 || target.length !== 12) return 0;
+  if (candidate === target) return 1;
+  if (target.includes(candidate) || candidate.includes(target)) {
+    return Math.max(0.74, 1 - Math.abs(target.length - candidate.length) * 0.045);
+  }
+  const distance = levenshteinDistance(candidate, target);
+  const commonPrefix = [...candidate].findIndex((character, index) => target[index] !== character);
+  const prefixLength = commonPrefix < 0 ? Math.min(candidate.length, target.length) : commonPrefix;
+  if (prefixLength < 3 || distance > 3) return 0;
+  return Math.max(0, 1 - distance / Math.max(candidate.length, target.length));
+}
+
+function mapArenaAttemptForAdmin(attempt, ranked, traceCode) {
+  const user = attempt.userId || {};
+  const userId = String(user?._id || user || "");
+  const matchId = String(attempt.matchId?._id || attempt.matchId || "");
+  return {
+    issuanceId: "",
+    documentIssueId: `ARENA-ATTEMPT-${String(attempt._id)}`,
+    traceCode,
+    userId,
+    username: user?.name || user?.username || "",
+    email: user?.email || "",
+    name: user?.name || "",
+    examId: matchId,
+    sourceType: "ARENA_MATCH",
+    sourceId: matchId,
+    originalName: "GOAT Arena 1대1 경기 화면",
+    downloadedAt: attempt.startedAt || attempt.createdAt || null,
+    signatureVerified: false,
+    recognitionMethod: "ARENA_IMAGE_OCR",
+    ocrConfidence: ranked.score,
+    matchedCandidate: ranked.candidate.rawCode,
+    matchId,
+    attemptId: String(attempt._id),
+    role: attempt.role,
+    attemptStatus: attempt.status,
+  };
+}
+
+function matchArenaCandidatesToAttempts(candidates, attempts) {
+  return attempts
+    .map((attempt) => {
+      const traceCode = attempt.integrityWatermarkTraceCode ||
+        buildArenaMatchIntegrityWatermark({
+          matchId: attempt.matchId,
+          userId: attempt.userId?._id || attempt.userId,
+          attemptId: attempt._id,
+          role: attempt.role,
+        }).traceCode;
+      const ranked = candidates
+        .map((candidate) => ({
+          candidate,
+          score: scoreArenaOcrCandidate(candidate.normalizedCode, traceCode),
+        }))
+        .sort((left, right) => right.score - left.score)[0];
+      if (!ranked || ranked.score < 0.74) return null;
+      return mapArenaAttemptForAdmin(attempt, ranked, traceCode);
+    })
+    .filter(Boolean)
+    .sort((left, right) => right.ocrConfidence - left.ocrConfidence)
+    .slice(0, 20);
+}
+
+async function lookupArenaScreenshotAttempts(candidates) {
+  if (!candidates.length) return [];
+  const exactCodes = candidates
+    .filter((candidate) => candidate.normalizedCode.length === 12)
+    .map((candidate) => `ARM-${candidate.normalizedCode}`);
+  const attemptsById = new Map();
+  if (exactCodes.length) {
+    const directMatches = await ArenaMatchAttempt.find({
+      integrityWatermarkTraceCode: { $in: exactCodes },
+    })
+      .populate("userId", "username email name")
+      .lean();
+    directMatches.forEach((attempt) => attemptsById.set(String(attempt._id), attempt));
+  }
+
+  if (attemptsById.size < candidates.length) {
+    const recentAttempts = await ArenaMatchAttempt.find({})
+      .select("_id matchId userId role status startedAt createdAt integrityWatermarkTraceCode")
+      .populate("userId", "username email name")
+      .sort({ createdAt: -1 })
+      .limit(MAX_ARENA_ATTEMPT_FORENSIC_SCAN)
+      .lean();
+    recentAttempts.forEach((attempt) => attemptsById.set(String(attempt._id), attempt));
+  }
+
+  return matchArenaCandidatesToAttempts(candidates, [...attemptsById.values()]);
 }
 
 async function lookupScreenshotIssuances(candidates) {
@@ -738,6 +862,7 @@ async function analyzeForensicImage(filePath, { lookupIssuances = true } = {}) {
   }
 
   const allCandidates = new Map();
+  const allArenaCandidates = new Map();
   let attempts = 0;
   for (let index = 0; index < IMAGE_OCR_ROTATIONS.length; index += 1) {
     const rotation = IMAGE_OCR_ROTATIONS[index];
@@ -779,16 +904,41 @@ async function analyzeForensicImage(filePath, { lookupIssuances = true } = {}) {
         occurrences: Number(existing?.occurrences || 0) + candidate.occurrences,
       });
     }
-    const strongCandidate = [...allCandidates.values()].some(
-      (candidate) => candidate.normalizedCode.length >= 12
-    );
+    for (const candidate of extractOcrArenaTraceCandidates(ocrText)) {
+      const existing = allArenaCandidates.get(candidate.normalizedCode);
+      allArenaCandidates.set(candidate.normalizedCode, {
+        ...candidate,
+        occurrences: Number(existing?.occurrences || 0) + candidate.occurrences,
+      });
+    }
+    const strongCandidate =
+      [...allCandidates.values()].some(
+        (candidate) => candidate.normalizedCode.length >= 16
+      ) ||
+      [...allArenaCandidates.values()].some(
+        (candidate) => candidate.normalizedCode.length >= 12
+      );
     if (strongCandidate) break;
   }
   const candidates = [...allCandidates.values()].sort((left, right) =>
     right.normalizedCode.length - left.normalizedCode.length ||
     right.occurrences - left.occurrences
   );
-  const matches = lookupIssuances ? await lookupScreenshotIssuances(candidates) : [];
+  const arenaCandidates = [...allArenaCandidates.values()].sort((left, right) =>
+    right.normalizedCode.length - left.normalizedCode.length ||
+    right.occurrences - left.occurrences
+  );
+  const [documentMatches, arenaMatches] = lookupIssuances
+    ? await Promise.all([
+        lookupScreenshotIssuances(candidates),
+        lookupArenaScreenshotAttempts(arenaCandidates),
+      ])
+    : [[], []];
+  const matches = [...documentMatches, ...arenaMatches];
+  const recognizedTraceCodes = [
+    ...candidates.map((candidate) => `MTH-${candidate.normalizedCode}`),
+    ...arenaCandidates.map((candidate) => `ARM-${candidate.normalizedCode}`),
+  ];
   return {
     inputType: "IMAGE",
     pageCount: 0,
@@ -799,11 +949,19 @@ async function analyzeForensicImage(filePath, { lookupIssuances = true } = {}) {
       height,
       ocrAttempts: attempts,
     },
-    traceCodes: matches.map((match) => match.traceCode),
+    traceCodes: [...new Set(
+      matches.length
+        ? matches.map((match) => match.traceCode)
+        : recognizedTraceCodes
+    )],
     validPayloads: [],
     pageTraceCount: 0,
-    ocrCandidateCount: candidates.length,
-    ocrCandidates: candidates.map((candidate) => candidate.normalizedCode),
+    ocrCandidateCount: candidates.length + arenaCandidates.length,
+    ocrCandidates: [
+      ...candidates.map((candidate) => candidate.normalizedCode),
+      ...arenaCandidates.map((candidate) => candidate.normalizedCode),
+    ],
+    arenaOcrCandidates: arenaCandidates.map((candidate) => candidate.normalizedCode),
     matches,
   };
 }
@@ -839,6 +997,8 @@ module.exports = {
   decodeSignedPayload,
   isPdfDownload,
   issuePersonalizedPdf,
+  matchArenaCandidatesToAttempts,
+  scoreArenaOcrCandidate,
   scoreOcrCandidate,
   DOWNLOAD_AI_WATERMARK,
 };

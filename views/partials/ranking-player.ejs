@@ -1,0 +1,26 @@
+<%
+  const ranker = entry || {};
+  const rankerAvatar = ranker.profileAvatar || {};
+  const rankerIsCurrent = Boolean(isCurrentRanker);
+  const rankerDecoration = typeof decoration !== "undefined"
+    ? decoration
+    : ranker.rankingDecoration;
+%>
+<strong class="ranking-player-cell">
+  <span class="ranking-profile-avatar" aria-hidden="true">
+    <img
+      src="<%= rankerAvatar.imageSrc || '/images/arena-avatars/nova-goat.svg' %>"
+      alt=""
+      loading="lazy"
+      decoding="async"
+    />
+  </span>
+  <span class="ranking-player-copy">
+    <span class="ranking-player-name">
+      <%= ranker.displayName || "사용자" %><%= rankerIsCurrent ? " · 나" : "" %>
+    </span>
+    <% if (rankerDecoration) { %>
+      <%- include("arena-ranking-decoration", { decoration: rankerDecoration }) %>
+    <% } %>
+  </span>
+</strong>

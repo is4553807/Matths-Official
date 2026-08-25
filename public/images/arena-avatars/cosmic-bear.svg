@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">코스믹 베어</title>
+  <defs>
+    <linearGradient id="bg" x1="11" y1="8" x2="118" y2="120" gradientUnits="userSpaceOnUse"><stop stop-color="#00A47B"/><stop offset=".48" stop-color="#245297"/><stop offset="1" stop-color="#542878"/></linearGradient>
+    <linearGradient id="fur" x1="40" y1="31" x2="88" y2="112" gradientUnits="userSpaceOnUse"><stop stop-color="#D1B892"/><stop offset="1" stop-color="#70527D"/></linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <path d="m17 82 18-51 39-19 36 32" fill="none" stroke="#89FFE2" stroke-width="2" opacity=".22"/>
+  <circle cx="34" cy="42" r="17" fill="#8F7392" stroke="#D8C4B2" stroke-width="4"/><circle cx="94" cy="42" r="17" fill="#8F7392" stroke="#D8C4B2" stroke-width="4"/>
+  <path d="M32 68c0-28 13-43 32-43s32 15 32 43v18c0 20-13 31-32 31S32 106 32 86z" fill="url(#fur)"/>
+  <path d="M39 61c7-7 15-8 22-2m28 2c-7-7-15-8-22-2" fill="none" stroke="#3C304E" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="52" cy="68" r="4" fill="#101A34"/><circle cx="76" cy="68" r="4" fill="#101A34"/>
+  <ellipse cx="64" cy="87" rx="17" ry="14" fill="#E6CFB5"/>
+  <path d="m57 82 7-4 7 4-7 6z" fill="#33263D"/>
+  <path d="M56 96c6 4 10 4 16 0" fill="none" stroke="#61425D" stroke-width="3" stroke-linecap="round"/>
+  <path d="M19 106c32-8 60-6 90 5" fill="none" stroke="#93FFE3" stroke-width="4" stroke-linecap="round" opacity=".38"/>
+</svg>

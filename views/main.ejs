@@ -125,11 +125,18 @@
 
         <div class="sidebar-profile">
           <a
-            class="profile-avatar"
+            class="profile-avatar profile-avatar-with-level"
             href="/profile"
-            aria-label="<%= displayName %>님의 프로필 설정으로 이동"
+            aria-label="<%= displayName %>님의 프로필 설정으로 이동, Arena 활동 레벨 <%= arenaActivityLevel.level %>"
             title="프로필 설정"
-          ><%= displayName.slice(0, 1) %></a>
+          >
+            <span aria-hidden="true">
+              <img src="<%= arenaProfileAvatar.imageSrc %>" alt="" />
+            </span>
+            <b aria-hidden="true">
+              <small>LV</small><%= String(arenaActivityLevel.level).padStart(2, "0") %>
+            </b>
+          </a>
 
           <div class="profile-copy">
             <strong><%= displayName %>님</strong>

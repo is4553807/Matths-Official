@@ -107,7 +107,8 @@
 
           <div class="profile-summary">
             <span class="profile-summary-avatar" aria-hidden="true">
-              <%= displayName.slice(0, 1) %>
+              <span><img src="<%= arenaProfileAvatar.imageSrc %>" alt="" /></span>
+              <b><small>LV</small><%= String(arenaActivityLevel.level).padStart(2, "0") %></b>
             </span>
             <div>
               <strong><%= displayName %>님</strong>
@@ -120,11 +121,13 @@
                 <%= educationStatusLabel %>
               </p>
               <p>누적 접속 <strong><%= connectedHoursLabel %></strong></p>
+              <p>Arena 활동 <strong>Lv.<%= arenaActivityLevel.level %> · <%= arenaActivityLevel.totalMatches %>판</strong></p>
             </div>
           </div>
         </section>
 
         <nav class="profile-section-nav" aria-label="프로필 설정 항목">
+          <a href="#avatar-settings">프로필 이미지</a>
           <a href="#nickname-settings">닉네임</a>
           <a href="#coach-mode-settings">학습 모드</a>
           <a href="#school-settings">고등학교</a>
@@ -133,6 +136,154 @@
         </nav>
 
         <div class="settings-grid">
+          <section
+            class="settings-card profile-avatar-settings-card"
+            id="avatar-settings"
+            aria-labelledby="avatar-title"
+          >
+            <div class="settings-card-heading">
+              <span class="settings-icon avatar" aria-hidden="true">✦</span>
+              <div>
+                <p>PROFILE AVATAR</p>
+                <h2 id="avatar-title">프로필 이미지 선택</h2>
+              </div>
+            </div>
+
+            <p class="settings-description">
+              기기의 사진을 선택한 뒤 위치, 확대 비율과 회전을 조정할 수 있습니다. 자르기를 적용하고 저장하면 학습 대시보드와 GOAT Arena에 함께 반영됩니다.
+            </p>
+
+            <% if (message && message.section === "avatar") { %>
+              <div
+                class="settings-alert <%= message.type %>"
+                role="<%= message.type === 'error' ? 'alert' : 'status' %>"
+              >
+                <span aria-hidden="true">
+                  <%= message.type === "error" ? "!" : "✓" %>
+                </span>
+                <%= message.message %>
+              </div>
+            <% } %>
+
+            <form
+              class="settings-form profile-avatar-form"
+              action="/profile/avatar"
+              method="POST"
+              enctype="multipart/form-data"
+              data-settings-form
+              data-profile-avatar-form
+            >
+              <section
+                class="custom-profile-avatar-upload"
+                data-profile-avatar-uploader
+                data-current-custom="<%= arenaProfileAvatar.isCustom ? 'true' : 'false' %>"
+              >
+                <span class="custom-profile-avatar-preview" aria-hidden="true">
+                  <img
+                    src="<%= arenaProfileAvatar.imageSrc %>"
+                    alt=""
+                    data-profile-avatar-preview
+                  />
+                </span>
+                <div class="custom-profile-avatar-copy">
+                  <p>CUSTOM PHOTO</p>
+                  <h3>내 프로필 사진</h3>
+                  <small data-profile-avatar-filename>
+                    <%= arenaProfileAvatar.isCustom ? "현재 업로드한 사진" : "아직 직접 올린 사진이 없습니다." %>
+                  </small>
+                  <span id="profile-avatar-upload-guide">
+                    JPG, PNG, WEBP · 최대 5MB
+                  </span>
+                </div>
+                <label
+                  class="profile-avatar-custom-file-trigger"
+                  for="custom-profile-avatar-file"
+                >사진 선택</label>
+                <input
+                  type="hidden"
+                  name="avatarChoice"
+                  value="CUSTOM"
+                />
+                <input
+                  id="custom-profile-avatar-file"
+                  class="custom-profile-avatar-file"
+                  type="file"
+                  name="profileImage"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                  aria-describedby="profile-avatar-upload-guide"
+                  data-profile-avatar-file
+                />
+              </section>
+
+              <p class="profile-avatar-arena-link">
+                기본 Arena 아바타는
+                <a href="/goat-arena/profile#arena-avatar">GOAT Arena 프로필</a>에서 변경할 수 있습니다.
+              </p>
+
+              <button
+                class="save-button profile-avatar-save"
+                type="submit"
+                <%= arenaProfileAvatar.isCustom ? "" : "disabled" %>
+                data-profile-avatar-save
+              >
+                선택한 프로필 사진 저장
+                <span aria-hidden="true">→</span>
+              </button>
+            </form>
+
+            <dialog
+              class="profile-avatar-crop-dialog"
+              aria-labelledby="profile-avatar-crop-title"
+              data-profile-avatar-crop-dialog
+            >
+              <header>
+                <button type="button" aria-label="사진 자르기 취소" data-profile-avatar-crop-cancel>←</button>
+                <h3 id="profile-avatar-crop-title">사진 자르기 및 회전</h3>
+                <span aria-hidden="true"></span>
+              </header>
+
+              <div class="profile-avatar-crop-stage">
+                <div class="profile-avatar-crop-canvas-wrap">
+                  <canvas
+                    width="720"
+                    height="720"
+                    tabindex="0"
+                    aria-label="프로필 사진 자르기 영역. 사진을 드래그해 위치를 조정하세요."
+                    data-profile-avatar-crop-canvas
+                  ></canvas>
+                  <span class="profile-avatar-crop-grid" aria-hidden="true"></span>
+                  <span class="profile-avatar-crop-corners" aria-hidden="true">
+                    <i></i><i></i><i></i><i></i>
+                  </span>
+                </div>
+              </div>
+
+              <div class="profile-avatar-crop-controls">
+                <label>
+                  <span>확대</span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="3"
+                    step="0.01"
+                    value="1"
+                    aria-label="사진 확대 비율"
+                    data-profile-avatar-crop-zoom
+                  />
+                </label>
+                <button type="button" data-profile-avatar-crop-rotate>
+                  <span aria-hidden="true">↻</span>
+                  90° 회전
+                </button>
+              </div>
+
+              <footer>
+                <button type="button" data-profile-avatar-crop-cancel>취소</button>
+                <button type="button" data-profile-avatar-crop-apply>자르기 적용</button>
+              </footer>
+            </dialog>
+          </section>
+
           <section
             class="settings-card"
             id="nickname-settings"

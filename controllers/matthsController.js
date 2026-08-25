@@ -344,6 +344,17 @@ const {
   recordOperationalMetricEvent,
 } = require("../services/operationalMetricEventService");
 const {
+  getArenaActivityLevel,
+} = require("../services/arenaActivityLevelService");
+const {
+  ARENA_PROFILE_AVATARS,
+} = require("../constants/arenaProfileAvatars");
+const {
+  resolveArenaProfileAvatar,
+  updateArenaProfileAvatar,
+  updateCustomProfileAvatar,
+} = require("../services/arenaProfileAvatarService");
+const {
   beginSocialAuthorization,
   clearPendingSocialRegistration,
   completeSocialAuthorization,
@@ -2220,7 +2231,9 @@ exports.adminAnalyzeForensicPdf = async (req, res, next) => {
         : analysis.validPayloads.length
           ? "PDF 안의 MATTHS 서명은 유효하지만 현재 DB의 사용자 발급 원장과 연결되지 않습니다. 계정 전체 삭제 또는 원장 보존 상태를 확인해주세요."
           : analysis.inputType === "IMAGE"
-            ? "스크린샷에서 발급 추적 코드를 식별하지 못했습니다. 원본 해상도·자르기·덧칠·압축 상태를 확인하고, 가능하면 워터마크가 여러 번 보이는 넓은 영역을 다시 올려주세요."
+            ? analysis.traceCodes.length
+              ? "스크린샷의 추적 코드는 읽었지만 현재 PDF 발급 또는 GOAT Arena 경기 기록과 연결되지 않습니다. 오래된 기록 보존 상태를 확인해주세요."
+              : "스크린샷에서 PDF·GOAT Arena 추적 코드를 식별하지 못했습니다. 원본 해상도·자르기·덧칠·압축 상태를 확인하고, 가능하면 워터마크가 여러 번 보이는 넓은 영역을 다시 올려주세요."
             : "MATTHS 발급 기록을 찾지 못했습니다. 메타데이터 제거·전체 이미지화·과도한 편집 여부를 확인해주세요.",
     });
   } catch (error) {
@@ -3454,18 +3467,28 @@ exports.curriculumPage = (req, res, next) => {
 
 exports.main = async (req, res, next) => {
     try {
-        const dashboardData =
-            await getDashboardData(
+        const [dashboardData, arenaActivityLevel] =
+          await Promise.all([
+            getDashboardData(
                 req.session.user.id,
                 {
                     user:
                         req.authenticatedUser,
                 }
-            );
+            ),
+            getArenaActivityLevel(
+              req.session.user.id
+            ),
+          ]);
 
         return res.render("main", {
             user: dashboardData.user,
             dashboardData,
+            arenaActivityLevel,
+            arenaProfileAvatar: resolveArenaProfileAvatar(
+              req.authenticatedUser?.preferences ||
+                req.session.user.preferences
+            ),
         });
     } catch (error) {
         return next(error);
@@ -5830,9 +5853,14 @@ async function renderProfile(
         formValues = {},
     } = {}
 ) {
-    const profileUser = await User.findById(
+    const [profileUser, arenaActivityLevel] = await Promise.all([
+      User.findById(
         req.session.user.id
-    ).lean();
+      ).lean(),
+      getArenaActivityLevel(
+        req.session.user.id
+      ),
+    ]);
 
     if (!profileUser) {
         throw createNotFoundError(
@@ -5842,6 +5870,11 @@ async function renderProfile(
 
     return res.status(status).render("profile", {
         profileUser,
+        arenaActivityLevel,
+        arenaProfileAvatar: resolveArenaProfileAvatar(
+          profileUser.preferences
+        ),
+        arenaProfileAvatars: ARENA_PROFILE_AVATARS,
         schoolRegions: getSchoolSelectData(),
         feedback,
         formValues,
@@ -5862,6 +5895,17 @@ exports.profilePage = async (req, res, next) => {
             type: "success",
             message:
               "닉네임을 변경했습니다.",
+          };
+        } else if (
+          req.query
+            .avatarUpdated ===
+          "1"
+        ) {
+          feedback = {
+            section: "avatar",
+            type: "success",
+            message:
+              "프로필 이미지를 변경했습니다.",
           };
         } else if (
           req.query
@@ -5897,6 +5941,78 @@ exports.profilePage = async (req, res, next) => {
     } catch (error) {
         return next(error);
     }
+};
+
+exports.changeProfileAvatar = async (req, res, next) => {
+  try {
+    if (req.profileAvatarUploadError) {
+      throw req.profileAvatarUploadError;
+    }
+
+    const avatarChoice = String(
+      req.body.avatarChoice || req.body.avatarCode || ""
+    ).trim().toUpperCase();
+    let avatar;
+    if (avatarChoice === "CUSTOM") {
+      if (req.file) {
+        avatar = await updateCustomProfileAvatar({
+          userId: req.session.user.id,
+          file: req.file,
+        });
+        req.file = undefined;
+      } else {
+        const currentUser = await User.findById(req.session.user.id)
+          .select("preferences")
+          .lean();
+        avatar = resolveArenaProfileAvatar(currentUser?.preferences);
+        if (!avatar.isCustom) {
+          const selectionError = new Error("기기에서 사용할 프로필 사진을 먼저 선택해 주세요.");
+          selectionError.status = 400;
+          throw selectionError;
+        }
+      }
+    } else {
+      if (req.file?.path) {
+        await require("node:fs").promises.unlink(req.file.path).catch(() => {});
+        req.file = undefined;
+      }
+      avatar = await updateArenaProfileAvatar({
+        userId: req.session.user.id,
+        avatarCode: avatarChoice,
+      });
+    }
+
+    req.session.user.preferences = {
+      ...(req.session.user.preferences || {}),
+      arenaAvatarCode:
+        avatar.isCustom
+          ? req.session.user.preferences?.arenaAvatarCode
+          : avatar.code,
+      profileAvatarMode: avatar.isCustom ? "CUSTOM" : "PRESET",
+    };
+    await saveSession(req);
+    return res.redirect("/profile?avatarUpdated=1#avatar-settings");
+  } catch (error) {
+    if (req.file?.path) {
+      await require("node:fs").promises.unlink(req.file.path).catch(() => {});
+      req.file = undefined;
+    }
+    if ([400, 413, 422, 503].includes(Number(error.status))) {
+      try {
+        return await renderProfile(req, res, {
+          status: Number(error.status),
+          feedback: {
+            section: "avatar",
+            type: "error",
+            message: error.message,
+          },
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    return next(error);
+  }
 };
 
 exports.withdrawOwnAccount = async (

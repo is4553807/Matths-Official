@@ -2533,7 +2533,7 @@
   grid-template-columns:
     minmax(180px, 1.35fr)
     minmax(140px, 1fr)
-    55px 62px 86px 78px 132px
+    55px 62px 78px 86px 78px 132px
     105px 64px;
   align-items: center;
   gap: 12px;
@@ -3373,7 +3373,7 @@
   }
 
   .admin-user-row {
-    min-width: 1200px;
+    min-width: 1300px;
   }
 }
 
@@ -6779,6 +6779,74 @@
 
 .forensic-upload-form input[type="file"] {
   padding: 10px 12px;
+}
+
+.forensic-upload-form.is-submitting label {
+  opacity: .62;
+  pointer-events: none;
+}
+
+.forensic-upload-form button:disabled {
+  cursor: wait;
+  opacity: .9;
+}
+
+.forensic-analysis-status {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin: 2px 0 0;
+  padding: 14px 16px;
+  color: #244172;
+  background: linear-gradient(105deg, #edf5ff, #f5eeff);
+  border: 1px solid #d2d9ff;
+  border-radius: 12px;
+}
+
+.forensic-analysis-status[hidden] {
+  display: none;
+}
+
+.forensic-analysis-status > span:last-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.forensic-analysis-status strong {
+  color: #293d76;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.forensic-analysis-status small {
+  color: #66779c;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.forensic-analysis-spinner {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(83, 91, 208, .2);
+  border-top-color: #6153d7;
+  border-radius: 50%;
+  animation: forensic-analysis-spin .8s linear infinite;
+}
+
+@keyframes forensic-analysis-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forensic-analysis-spinner {
+    animation: none;
+    border-right-color: #6153d7;
+  }
 }
 
 .forensic-summary {

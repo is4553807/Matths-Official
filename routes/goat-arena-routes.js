@@ -273,6 +273,12 @@ router.get(
 );
 
 router.post(
+  "/goat-arena/profile/avatar",
+  authMiddleware.isLoggedIn,
+  goatArenaController.updateProfileAvatar
+);
+
+router.post(
   "/goat-arena/profile/payback-account/review",
   authMiddleware.isLoggedIn,
   goatArenaController.reviewPaybackAccount

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">노바 고트</title>
+  <defs>
+    <linearGradient id="bg" x1="16" y1="12" x2="112" y2="116" gradientUnits="userSpaceOnUse"><stop stop-color="#803DFF"/><stop offset=".52" stop-color="#3348C9"/><stop offset="1" stop-color="#12CDE2"/></linearGradient>
+    <linearGradient id="fur" x1="42" y1="39" x2="87" y2="103" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF"/><stop offset="1" stop-color="#BFD3FF"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <circle cx="103" cy="25" r="25" fill="#7CF5FF" opacity=".16"/>
+  <path d="M10 91c24-15 83-14 108 2v35H10z" fill="#080D2A" opacity=".42"/>
+  <path d="M44 51C25 44 28 23 48 17c-8 11-4 23 7 28m29 6c19-7 16-28-4-34 8 11 4 23-7 28" fill="none" stroke="#D7E5FF" stroke-width="7" stroke-linecap="round"/>
+  <path d="M37 59c0-20 12-31 27-31s27 11 27 31v22c0 19-12 30-27 30S37 100 37 81z" fill="url(#fur)"/>
+  <path d="M38 59 25 53l5 25 10-8m50-11 13-6-5 25-10-8" fill="#B9CFFF" stroke="#EAF1FF" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M49 62c5-4 10-4 14 0m2 0c4-4 9-4 14 0" fill="none" stroke="#293278" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="55" cy="67" r="3" fill="#101747"/><circle cx="73" cy="67" r="3" fill="#101747"/>
+  <path d="M53 87c7 7 15 7 22 0" fill="none" stroke="#6650C8" stroke-width="4" stroke-linecap="round"/>
+  <path d="m58 102 6 13 6-13" fill="#F4F7FF"/>
+  <path d="M64 8v10M59 13h10" stroke="#91FAFF" stroke-width="3" stroke-linecap="round" filter="url(#glow)"/>
+</svg>

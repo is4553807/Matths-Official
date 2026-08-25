@@ -165,6 +165,26 @@ assert.match(
   "관리자 Navbar는 1180px 이하에서 두 줄 레이아웃을 사용해야 합니다."
 );
 
+const forensicMarkup = fs.readFileSync(
+  path.join(viewRoot, "admin-pdf-forensics.ejs"),
+  "utf8"
+);
+assert.match(
+  forensicMarkup,
+  /data-forensic-analysis-form[\s\S]*?유출 자료 추적중/,
+  "유출 자료 분석 요청에는 즉시 표시되는 진행 상태가 필요합니다."
+);
+assert.match(
+  forensicMarkup,
+  /form\.classList\.add\("is-submitting"\)/,
+  "유출 자료 분석 요청은 중복 제출을 막는 상태 전환이 필요합니다."
+);
+assert.match(
+  adminCss,
+  /\.forensic-analysis-spinner[\s\S]*?animation:\s*forensic-analysis-spin/,
+  "유출 자료 분석 진행 상태에는 로딩 애니메이션이 필요합니다."
+);
+
 for (const filename of cssFiles) {
   const source = fs.readFileSync(
     filename,

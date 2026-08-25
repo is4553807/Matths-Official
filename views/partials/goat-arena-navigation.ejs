@@ -109,10 +109,18 @@
     <a
       class="arena-player <%= activeArenaPage === 'profile' ? 'active' : '' %> <%= arenaUser.hasMainProfileBorder ? 'has-main-shop-border' : '' %>"
       href="/goat-arena/profile"
-      aria-label="<%= arenaUser.nickname %>님의 GOAT Arena 프로필"
+      aria-label="<%= arenaUser.nickname %>님의 GOAT Arena 프로필, 활동 레벨 <%= arenaUser.activityLevel?.level || 1 %>"
       <%= activeArenaPage === "profile" ? 'aria-current="page"' : '' %>
     >
-      <span aria-hidden="true"><%= arenaUser.nickname.slice(0, 1) %></span>
+      <span class="arena-avatar-unit arena-avatar-unit--nav" aria-hidden="true">
+        <span class="arena-avatar-frame">
+          <img src="<%= arenaUser.avatar?.imageSrc || '/images/arena-avatars/nova-goat.svg' %>" alt="" />
+        </span>
+        <span class="arena-level-plate">
+          <small>LV</small>
+          <b><%= String(arenaUser.activityLevel?.level || 1).padStart(2, "0") %></b>
+        </span>
+      </span>
       <strong>
         <%= arenaUser.nickname %>
         <% if (arenaUser.hasStyleEntrance) { %><small>ARENA CONTENDER</small><% } %>

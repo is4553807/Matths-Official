@@ -188,13 +188,11 @@
                         }) %>
                         <small><%= entry.tier %></small>
                       </span>
-                      <strong>
-                        <%= entry.displayName %>
-                        <%= entry.userId === rankingUserId ? " · 나" : "" %>
-                        <%- include("arena-ranking-decoration", {
-                          decoration: entry.rankingDecoration,
-                        }) %>
-                      </strong>
+                      <%- include("ranking-player", {
+                        entry,
+                        isCurrentRanker: entry.userId === rankingUserId,
+                        decoration: entry.rankingDecoration,
+                      }) %>
                       <span>
                         <%= entry.schoolName %>
                         <small><%= entry.region %></small>

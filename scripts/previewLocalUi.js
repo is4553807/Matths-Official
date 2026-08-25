@@ -35,6 +35,10 @@ const { getRefundDisclosure } = require("../services/refundPolicyService");
 const {
   buildArenaMatchIntegrityWatermark,
 } = require("../services/contentProtectionWatermarkPolicy");
+const {
+  ARENA_PROFILE_AVATARS,
+  getArenaProfileAvatar,
+} = require("../constants/arenaProfileAvatars");
 
 const app = express();
 const root = path.resolve(__dirname, "..");
@@ -391,6 +395,52 @@ app.get("/preview/goat-arena/evidence", (_req, res) => {
   });
 });
 
+app.get("/preview/admin/pdf-forensics/arena-match", (_req, res) => {
+  res.render("admin-pdf-forensics", {
+    user: {
+      name: "preview-admin",
+      realName: "미리보기 운영자",
+      role: "admin",
+    },
+    error: null,
+    analysis: {
+      inputType: "IMAGE",
+      imageCount: 1,
+      pageCount: 0,
+      traceCodes: ["ARM-8725C4165A65"],
+      validPayloads: [],
+      pageTraceCount: 0,
+      ocrCandidateCount: 1,
+      imageMetadata: {
+        format: "PNG",
+        width: 3024,
+        height: 1964,
+        ocrAttempts: 2,
+      },
+      matches: [
+        {
+          sourceType: "ARENA_MATCH",
+          userId: "64b000000000000000000151",
+          username: "eunwoopark8498",
+          email: "preview-student@example.test",
+          examId: "6a8d5f3b59588e8f16948314",
+          downloadedAt: new Date("2026-08-25T08:14:00.000Z"),
+          traceCode: "ARM-8725C4165A65",
+          documentIssueId: "ARENA-ATTEMPT-6a8d5f3b59588e8f16948315",
+          attemptId: "6a8d5f3b59588e8f16948315",
+          role: "CHALLENGER",
+          attemptStatus: "IN_PROGRESS",
+          recognitionMethod: "ARENA_IMAGE_OCR",
+          ocrConfidence: 1,
+          matchedCandidate: "8725C4165A65",
+          signatureVerified: false,
+          originalName: "GOAT Arena 1대1 경기 화면",
+        },
+      ],
+    },
+  });
+});
+
 app.get("/pricing", (req, res) => {
   const user = req.query.logged === "1" ? { name: "preview-user" } : null;
   res.render("pricing", {
@@ -429,6 +479,12 @@ app.get("/preview/admin/users", (_req, res) => {
           accountStatus: "active",
           warningCount: 0,
           totalStudySeconds: 754,
+          arenaActivityLevel: {
+            level: 4,
+            totalMatches: 38,
+            matchesToNext: 12,
+            isMaxLevel: false,
+          },
           lastLoginAt: new Date(),
         },
         {
@@ -441,6 +497,12 @@ app.get("/preview/admin/users", (_req, res) => {
           accountStatus: "active",
           warningCount: 0,
           totalStudySeconds: 0,
+          arenaActivityLevel: {
+            level: 1,
+            totalMatches: 0,
+            matchesToNext: 5,
+            isMaxLevel: false,
+          },
           lastLoginAt: null,
         },
       ],
@@ -557,6 +619,12 @@ app.get("/preview/admin/users/detail", (_req, res) => {
         packageType: "FREE",
       },
       arenaBadges: [],
+      arenaActivityLevel: {
+        level: 4,
+        totalMatches: 38,
+        matchesToNext: 12,
+        isMaxLevel: false,
+      },
       inquiries: [],
       notifications: [],
       actionLogs: [],
@@ -1158,7 +1226,9 @@ app.get("/goat-arena/profile", (_req, res) => {
   res.render("goat-arena-profile", {
     activeArenaPage: "profile",
     accountUpdated: false,
+    avatarUpdated: false,
     accountError: null,
+    arenaProfileAvatars: ARENA_PROFILE_AVATARS,
     payoutEligible: false,
     paybackAccount: {
       confirmed: false,
@@ -1172,6 +1242,21 @@ app.get("/goat-arena/profile", (_req, res) => {
       gradeLabel: "2학년",
       hasMainProfileBorder: false,
       hasStyleEntrance: false,
+      activityLevel: {
+        level: 4,
+        totalMatches: 38,
+      },
+      avatar: getArenaProfileAvatar("COMET_FOX"),
+    },
+    arenaActivityLevel: {
+      level: 4,
+      maxLevel: 10,
+      totalMatches: 38,
+      currentLevelStart: 30,
+      nextLevelThreshold: 50,
+      matchesToNext: 12,
+      levelProgress: 40,
+      isMaxLevel: false,
     },
     user: { totalConnectedSeconds: 372_640 },
     seedState: { gp: 73 },
@@ -1198,6 +1283,40 @@ app.get("/goat-arena/profile", (_req, res) => {
         attackParticipationQualified: false,
       },
     },
+  });
+});
+
+app.get("/preview/profile", (_req, res) => {
+  res.render("profile", {
+    profileUser: {
+      name: "수학하는염소",
+      email: "preview-student@example.test",
+      role: "student",
+      school: {
+        code: "PREVIEW-HS",
+        name: "미리보기고등학교",
+        region: "서울특별시",
+      },
+      schoolGrade: 11,
+      educationStatus: "enrolled",
+      totalConnectedSeconds: 372_640,
+      preferences: { coachMode: "spicy" },
+    },
+    arenaActivityLevel: {
+      level: 4,
+      totalMatches: 38,
+      matchesToNext: 12,
+      isMaxLevel: false,
+    },
+    arenaProfileAvatar: getArenaProfileAvatar("COMET_FOX"),
+    arenaProfileAvatars: ARENA_PROFILE_AVATARS,
+    schoolRegions: {
+      서울특별시: [
+        { code: "PREVIEW-HS", name: "미리보기고등학교" },
+      ],
+    },
+    feedback: null,
+    formValues: {},
   });
 });
 

@@ -80,6 +80,10 @@ const {
 const {
   getEffectiveStreak,
 } = require("./userLifecycleService");
+const {
+  getArenaActivityLevel,
+  getArenaActivityLevels,
+} = require("./arenaActivityLevelService");
 const accountEmailCopy =
   require("../content/email/account");
 
@@ -1134,22 +1138,25 @@ async function getAdminUsersData({
       : Promise.resolve([]),
   ]);
   const parentIds = parentRows.map((parent) => parent._id);
-  const parentLinkCounts = parentIds.length
-    ? await ParentChildLink.aggregate([
-        {
-          $match: {
-            parentAccountId: { $in: parentIds },
-            status: "ACTIVE",
+  const [parentLinkCounts, arenaActivityLevels] = await Promise.all([
+    parentIds.length
+      ? ParentChildLink.aggregate([
+          {
+            $match: {
+              parentAccountId: { $in: parentIds },
+              status: "ACTIVE",
+            },
           },
-        },
-        {
-          $group: {
-            _id: "$parentAccountId",
-            count: { $sum: 1 },
+          {
+            $group: {
+              _id: "$parentAccountId",
+              count: { $sum: 1 },
+            },
           },
-        },
-      ])
-    : [];
+        ])
+      : Promise.resolve([]),
+    getArenaActivityLevels(studentRows.map((student) => student._id)),
+  ]);
   const linkCountByParent = new Map(
     parentLinkCounts.map((entry) => [
       String(entry._id),
@@ -1161,6 +1168,9 @@ async function getAdminUsersData({
     currentStreak: getEffectiveStreak(student),
     longestStreak: Math.max(0, Number(student.longestStreak) || 0),
     lastStudyDate: student.lastStudyDate || null,
+    arenaActivityLevel:
+      arenaActivityLevels.get(String(student._id)) ||
+      null,
   }));
   const users = includeParents
     ? [
@@ -1606,6 +1616,7 @@ async function getAdminUserDetail(
     packageAccess,
     weeklyMockAccess,
     arenaBadges,
+    arenaActivityLevel,
   ] = await Promise.all([
     isAdminProfile
       ? Promise.resolve([])
@@ -1729,6 +1740,9 @@ async function getAdminUserDetail(
     isAdminProfile
       ? Promise.resolve([])
       : getUserArenaBadges(userId),
+    isAdminProfile
+      ? Promise.resolve(null)
+      : getArenaActivityLevel(userId),
   ]);
   const stats =
     problemStats[0] || {
@@ -1805,6 +1819,7 @@ async function getAdminUserDetail(
     packageAccess,
     weeklyMockAccess,
     arenaBadges,
+    arenaActivityLevel,
   };
 }
 

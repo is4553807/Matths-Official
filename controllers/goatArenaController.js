@@ -118,6 +118,16 @@ const {
   getArenaNotificationSummary,
 } = require("../services/arenaNotificationService");
 const {
+  getArenaActivityLevel,
+} = require("../services/arenaActivityLevelService");
+const {
+  resolveArenaProfileAvatar,
+  updateArenaProfileAvatar,
+} = require("../services/arenaProfileAvatarService");
+const {
+  ARENA_PROFILE_AVATARS,
+} = require("../constants/arenaProfileAvatars");
+const {
   getNotificationDetail,
   getNotificationInbox,
   markAllNotificationsRead,
@@ -585,7 +595,14 @@ const DIVISION_FEATURE_GROUPS = Object.freeze({
   ],
 });
 
-function arenaUserView(user, activeCosmetics = []) {
+function arenaUserView(
+  user,
+  activeCosmetics = [],
+  activityLevel = null
+) {
+  const avatar = resolveArenaProfileAvatar(
+    user?.preferences
+  );
   return {
     nickname: String(user?.name || "학생"),
     displayName: getRankingDisplayName(user),
@@ -605,6 +622,8 @@ function arenaUserView(user, activeCosmetics = []) {
     hasStyleEntrance: activeCosmetics.some(
       (effect) => effect.itemCode === "STYLE_ENTRANCE"
     ),
+    activityLevel,
+    avatar,
   };
 }
 
@@ -613,7 +632,13 @@ async function getArenaNavigationContext(
   authenticatedUser = null
 ) {
   const now = new Date();
-  const [user, activeCosmetics, rankUpPresentation, arenaNotifications] =
+  const [
+    user,
+    activeCosmetics,
+    rankUpPresentation,
+    arenaNotifications,
+    arenaActivityLevel,
+  ] =
     await Promise.all([
       authenticatedUser
         ? Promise.resolve(
@@ -633,6 +658,7 @@ async function getArenaNavigationContext(
         userId,
         hrefBase: "/goat-arena/mailbox",
       }),
+      getArenaActivityLevel(userId),
     ]);
   if (!user) {
     const error = new Error("사용자 정보를 찾을 수 없습니다.");
@@ -641,7 +667,12 @@ async function getArenaNavigationContext(
   }
   return {
     user,
-    arenaUser: arenaUserView(user, activeCosmetics),
+    arenaUser: arenaUserView(
+      user,
+      activeCosmetics,
+      arenaActivityLevel
+    ),
+    arenaActivityLevel,
     rankUpPresentation,
     arenaNotifications,
   };
@@ -665,6 +696,7 @@ async function getArenaContext(
     rankUpPresentation,
     arenaNotifications,
     pendingRevengeRight,
+    arenaActivityLevel,
   ] = await Promise.all([
     authenticatedUser
       ? Promise.resolve(
@@ -701,6 +733,7 @@ async function getArenaContext(
       eligibleUserId: userId,
       status: "AVAILABLE",
     }).sort({ createdAt: -1 }).lean(),
+    getArenaActivityLevel(userId),
   ]);
 
   if (!user) {
@@ -760,7 +793,12 @@ async function getArenaContext(
   return {
     user,
     ranking,
-    arenaUser: arenaUserView(user, activeCosmetics),
+    arenaUser: arenaUserView(
+      user,
+      activeCosmetics,
+      arenaActivityLevel
+    ),
+    arenaActivityLevel,
     seedState:
       buildSeedState(
         placement,
@@ -1647,8 +1685,22 @@ exports.profilePage = async (req, res, next) => {
       paybackAccount,
       payoutEligible: Boolean(payoutEligible),
       accountUpdated: req.query.accountUpdated === "1",
+      avatarUpdated: req.query.avatarUpdated === "1",
+      arenaProfileAvatars: ARENA_PROFILE_AVATARS,
       accountError: "",
     });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.updateProfileAvatar = async (req, res, next) => {
+  try {
+    await updateArenaProfileAvatar({
+      userId: req.session.user.id,
+      avatarCode: req.body.avatarCode,
+    });
+    return res.redirect("/goat-arena/profile?avatarUpdated=1#arena-avatar");
   } catch (error) {
     return next(error);
   }
@@ -1745,6 +1797,8 @@ exports.reviewPaybackAccount = async (req, res, next) => {
           paybackAccount,
           payoutEligible: Boolean(payoutEligible),
           accountUpdated: false,
+          avatarUpdated: false,
+          arenaProfileAvatars: ARENA_PROFILE_AVATARS,
           accountError: error.message,
         });
       } catch (renderError) {

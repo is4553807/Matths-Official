@@ -921,13 +921,13 @@ button.button-secondary {
 }
 
 .profile-summary {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.13);
+  background: transparent;
+  border-color: transparent;
 }
 
 .profile-summary-avatar {
   color: #fff;
-  background: var(--matths-gradient-deep);
+  background: transparent;
 }
 
 .profile-section-nav a:hover,

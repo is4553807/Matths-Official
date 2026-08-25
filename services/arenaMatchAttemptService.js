@@ -723,6 +723,14 @@ async function startArenaMatchAttempt({
           MATCH_START_INTRO_DELAY_MS
       );
       attempt.status = "IN_PROGRESS";
+      attempt.integrityWatermarkTraceCode =
+        buildArenaMatchIntegrityWatermark({
+          matchId: match._id,
+          userId,
+          attemptId: attempt._id,
+          matchType: match.matchType,
+          role: attempt.role,
+        }).traceCode;
       attempt.startIdempotencyKey = startKey;
       attempt.startedAt = solveStartedAt;
       attempt.deadlineAt =
@@ -1891,6 +1899,16 @@ async function getArenaMatchPageData({
         role,
       })
     : null;
+  if (
+    integrityWatermark &&
+    attempt?._id &&
+    attempt.integrityWatermarkTraceCode !== integrityWatermark.traceCode
+  ) {
+    await ArenaMatchAttempt.updateOne(
+      { _id: attempt._id },
+      { $set: { integrityWatermarkTraceCode: integrityWatermark.traceCode } }
+    );
+  }
   return {
     id: String(match._id),
     matchStatus: match.status,

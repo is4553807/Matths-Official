@@ -23,6 +23,9 @@ const {
   loadCommunityUploadAccess,
 } = require("../middleware/communityUpload");
 const {
+  handleProfileAvatarUpload,
+} = require("../middleware/profileAvatarUpload");
+const {
   COMMUNITY_ATTACHMENT_LIMIT,
   discardCommunityUploads,
 } = require("../services/communityAttachmentService");
@@ -1338,6 +1341,13 @@ router.post(
   '/profile/nickname',
   authMiddleware.isLoggedIn,
   matthsController.changeNickname
+);
+
+router.post(
+  "/profile/avatar",
+  authMiddleware.isLoggedIn,
+  handleProfileAvatarUpload,
+  matthsController.changeProfileAvatar
 );
 
 router.post(

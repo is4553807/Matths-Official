@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">코멧 폭스</title>
+  <defs>
+    <linearGradient id="bg" x1="10" y1="6" x2="119" y2="120" gradientUnits="userSpaceOnUse"><stop stop-color="#FF5C39"/><stop offset=".48" stop-color="#B52989"/><stop offset="1" stop-color="#24266C"/></linearGradient>
+    <linearGradient id="fur" x1="38" y1="31" x2="83" y2="107" gradientUnits="userSpaceOnUse"><stop stop-color="#FFCA7A"/><stop offset="1" stop-color="#F15A45"/></linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <path d="M5 32C36 13 80 9 119 28" fill="none" stroke="#FFD78E" stroke-width="3" stroke-linecap="round" opacity=".35"/>
+  <circle cx="105" cy="23" r="5" fill="#FFF0B8"/><path d="m100 23-13 5" stroke="#FFF0B8" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+  <path d="m38 51-17-28 31 13m38 15 17-28-31 13" fill="#FF924E" stroke="#FFD493" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M32 61c4-24 16-35 32-35s28 11 32 35l-7 31c-7 16-17 23-25 23s-18-7-25-23z" fill="url(#fur)"/>
+  <path d="M33 61c7 8 16 13 28 15-10 6-15 15-18 25-9-10-12-24-10-40m62 0c-7 8-16 13-28 15 10 6 15 15 18 25 9-10 12-24 10-40" fill="#FFF0D0"/>
+  <path d="m56 78 8 6 8-6" fill="#29204A"/>
+  <path d="M47 62c5-4 9-4 13 0m8 0c4-4 8-4 13 0" fill="none" stroke="#31214D" stroke-width="4" stroke-linecap="round"/>
+  <path d="M55 91c6 5 12 5 18 0" fill="none" stroke="#6D2551" stroke-width="3" stroke-linecap="round"/>
+  <path d="M13 104c30-10 70-8 102 6" fill="none" stroke="#75F5FF" stroke-width="4" stroke-linecap="round" opacity=".5"/>
+</svg>

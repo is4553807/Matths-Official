@@ -4766,6 +4766,14 @@ const arenaMatchAttemptSchema = new Schema(
       enum: ["CHALLENGER", "DEFENDER"],
       required: true,
     },
+    integrityWatermarkTraceCode: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      match: /^ARM-[A-F0-9]{12}$/,
+      default: undefined,
+      index: true,
+    },
     problemPackId: {
       type: Schema.Types.ObjectId,
       ref: "ArenaProblemPack",
