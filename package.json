@@ -73,6 +73,7 @@
     "arena-placement:verify": "node scripts/verifyInitialArenaPlacement.js",
     "arena-ranked-cap:verify-db": "node scripts/verifyRankedPopulationCapDb.js",
     "arena-match:verify": "node scripts/verifyArenaMatchCreation.js",
+    "arena-defense-email:verify": "node scripts/verifyArenaDefenseEmailNotification.js",
     "arena-defense-fairness:verify-db": "node audit/runInIsolatedAuditEnvironment.js audit/verifySubDefenseFairnessDb.js",
     "arena-matchmaking-control:verify": "node scripts/verifyArenaMatchmakingControl.js",
     "arena-match-attempt:verify": "node scripts/verifyArenaMatchAttemptFlow.js",

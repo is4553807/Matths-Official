@@ -122,6 +122,8 @@ async function notifyArenaMatchDefender({ matchId }) {
   if (!defenderId) return null;
   const user = await User.findById(defenderId).select("email name").lean();
   if (!user) return null;
+  const matchHref = `/goat-arena/matches/${match._id}`;
+  const isAutomaticDefense = match.matchType !== "FRIENDLY";
   return ensureArenaNotification({
     user,
     dedupeKey: `arena-defense-assigned:${match._id}`,
@@ -129,10 +131,14 @@ async function notifyArenaMatchDefender({ matchId }) {
     message: match.matchType === "FRIENDLY"
       ? "친선 경기 수락이 완료되었습니다. 양측의 이용 수수료 1일이 차감되었으며, 티어·순위·학습일수 이전 없이 경기를 진행합니다."
       : `${match.division === "MAIN" ? "Ranked" : "Unranked"} ${match.matchType === "REVENGE" ? "복수전" : "쟁탈전"}이 자동 배정되었습니다. 제한시간 안에 경기를 확인해주세요.`,
-    href: `/goat-arena/matches/${match._id}`,
+    href: matchHref,
     sourceType: "ArenaMatch",
     sourceId: match._id,
     kind: "system",
+    // 친선전은 수신자가 직접 수락해 성립하므로 자동 방어 알림 메일에서 제외한다.
+    email: isAutomaticDefense,
+    emailActionLabel: isAutomaticDefense ? "방어 경기 확인" : "",
+    emailActionUrl: isAutomaticDefense ? absoluteAppUrl(matchHref) : "",
   });
 }
 
