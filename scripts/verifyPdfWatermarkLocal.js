@@ -15,6 +15,7 @@ const {
   createPersonalizedPdfBytes,
   DOWNLOAD_AI_WATERMARK,
   scoreOcrCandidate,
+  shouldScanRecentArenaAttempts,
 } = require("../services/pdfWatermarkService");
 
 function assert(condition, message) {
@@ -47,6 +48,23 @@ async function createVerificationSourcePdf(destinationPath) {
 }
 
 async function main() {
+  const exactArenaCode = "ARM-8A73787C399A";
+  assert(
+    !shouldScanRecentArenaAttempts(
+      [exactArenaCode],
+      [{ integrityWatermarkTraceCode: exactArenaCode }]
+    ),
+    "정확한 Arena 추적 코드를 찾은 뒤에도 대량 응시 기록 스캔이 실행됩니다."
+  );
+  assert(
+    shouldScanRecentArenaAttempts([exactArenaCode], []),
+    "정확한 Arena 추적 코드가 DB에 없을 때 보조 검색이 실행되지 않습니다."
+  );
+  assert(
+    shouldScanRecentArenaAttempts([], []),
+    "부분 Arena 추적 코드만 인식됐을 때 보조 검색이 실행되지 않습니다."
+  );
+
   const requestedSourcePath = String(process.argv[2] || "").trim();
   const sourcePath = requestedSourcePath
     ? path.resolve(requestedSourcePath)
@@ -125,6 +143,7 @@ async function main() {
         signatureVerified: true,
         staleTemporaryFilesRemoved: true,
         screenshotTraceRecognized: true,
+        arenaExactMatchSkipsBroadScan: true,
         dualWatermarkTextEmbedded: true,
         protectionWatermarkVersion: generated.protectionWatermarkVersion,
         screenshotTraceConfidence: Number(bestScreenshotScore.toFixed(3)),

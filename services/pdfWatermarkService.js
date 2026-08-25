@@ -359,14 +359,37 @@ function matchArenaCandidatesToAttempts(candidates, attempts) {
     .slice(0, 20);
 }
 
+function shouldScanRecentArenaAttempts(exactCodes, directMatches) {
+  const expectedCodes = new Set(
+    (exactCodes || [])
+      .map((code) => String(code || "").trim().toUpperCase())
+      .filter(Boolean)
+  );
+  if (!expectedCodes.size) return true;
+
+  const matchedCodes = new Set(
+    (directMatches || [])
+      .map((attempt) =>
+        String(attempt?.integrityWatermarkTraceCode || "")
+          .trim()
+          .toUpperCase()
+      )
+      .filter(Boolean)
+  );
+  return [...expectedCodes].some((code) => !matchedCodes.has(code));
+}
+
 async function lookupArenaScreenshotAttempts(candidates) {
   if (!candidates.length) return [];
-  const exactCodes = candidates
-    .filter((candidate) => candidate.normalizedCode.length === 12)
-    .map((candidate) => `ARM-${candidate.normalizedCode}`);
+  const exactCodes = [...new Set(
+    candidates
+      .filter((candidate) => candidate.normalizedCode.length === 12)
+      .map((candidate) => `ARM-${candidate.normalizedCode}`)
+  )];
   const attemptsById = new Map();
+  let directMatches = [];
   if (exactCodes.length) {
-    const directMatches = await ArenaMatchAttempt.find({
+    directMatches = await ArenaMatchAttempt.find({
       integrityWatermarkTraceCode: { $in: exactCodes },
     })
       .populate("userId", "username email name")
@@ -374,7 +397,7 @@ async function lookupArenaScreenshotAttempts(candidates) {
     directMatches.forEach((attempt) => attemptsById.set(String(attempt._id), attempt));
   }
 
-  if (attemptsById.size < candidates.length) {
+  if (shouldScanRecentArenaAttempts(exactCodes, directMatches)) {
     const recentAttempts = await ArenaMatchAttempt.find({})
       .select("_id matchId userId role status startedAt createdAt integrityWatermarkTraceCode")
       .populate("userId", "username email name")
@@ -1000,5 +1023,6 @@ module.exports = {
   matchArenaCandidatesToAttempts,
   scoreArenaOcrCandidate,
   scoreOcrCandidate,
+  shouldScanRecentArenaAttempts,
   DOWNLOAD_AI_WATERMARK,
 };
