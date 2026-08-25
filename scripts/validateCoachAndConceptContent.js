@@ -34,6 +34,7 @@ const {
 
 const coachContent =
   loadCoachMessages();
+let validatedCoachMessages = 0;
 
 for (const mode of MODES) {
   for (const situation of
@@ -42,10 +43,24 @@ for (const mode of MODES) {
       coachContent.modes[mode]
         .messages[situation];
 
-    assert.ok(
-      messages.length >= 10,
-      `${mode}/${situation} 코치 문구는 10개 이상이어야 합니다.`
-    );
+    if (
+      mode === "silent" &&
+      situation === "study_prompt"
+    ) {
+      assert.equal(
+        messages.length,
+        0,
+        "무음 모드의 학습 독려 문구는 비어 있어야 합니다."
+      );
+    } else {
+      assert.ok(
+        messages.length >= 10,
+        `${mode}/${situation} 코치 문구는 10개 이상이어야 합니다.`
+      );
+    }
+
+    validatedCoachMessages +=
+      messages.length;
   }
 }
 
@@ -68,6 +83,49 @@ assert.equal(
   "승인된 학생 문구가 실제 코치 피드백보다 우선 사용되어야 합니다."
 );
 setCommunityCoachMessages([]);
+
+const officialStudyPrompt =
+  getCoachView({
+    mode: "spicy",
+    situation: "study_prompt",
+    seed: "official-study-prompt-check",
+  });
+assert.equal(
+  officialStudyPrompt.source,
+  "curated",
+  "대시보드 학습 독려 문구는 공식 YAML 문구만 사용해야 합니다."
+);
+assert.ok(
+  officialStudyPrompt.message,
+  "대시보드 학습 독려 문구가 비어 있습니다."
+);
+
+const originalRandom = Math.random;
+let firstRandomStudyPrompt;
+let lastRandomStudyPrompt;
+try {
+  Math.random = () => 0;
+  firstRandomStudyPrompt =
+    getCoachView({
+      mode: "spicy",
+      situation: "study_prompt",
+      random: true,
+    }).message;
+  Math.random = () => 0.999999;
+  lastRandomStudyPrompt =
+    getCoachView({
+      mode: "spicy",
+      situation: "study_prompt",
+      random: true,
+    }).message;
+} finally {
+  Math.random = originalRandom;
+}
+assert.notEqual(
+  firstRandomStudyPrompt,
+  lastRandomStudyPrompt,
+  "대시보드 학습 독려 문구의 무작위 선택이 작동하지 않습니다."
+);
 
 function proseOutsideMath(value) {
   return String(value || "")
@@ -146,5 +204,5 @@ for (const course of
 }
 
 console.log(
-  `코치 문구 90개와 한국어 개념·유형 설명 ${validatedGuides}개 검증 완료`
+  `코치 문구 ${validatedCoachMessages}개와 한국어 개념·유형 설명 ${validatedGuides}개 검증 완료`
 );

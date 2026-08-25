@@ -13,10 +13,14 @@ const MODES = [
   "spicy",
   "silent",
 ];
-const SITUATIONS = [
+const FEEDBACK_SITUATIONS = [
   "correct",
   "incorrect",
   "unanswered",
+];
+const SITUATIONS = [
+  ...FEEDBACK_SITUATIONS,
+  "study_prompt",
 ];
 
 let cachedContent = null;
@@ -53,7 +57,13 @@ function validateContent(content) {
           ]
         );
 
-      if (!messages.length) {
+      if (
+        !messages.length &&
+        !(
+          mode === "silent" &&
+          situation === "study_prompt"
+        )
+      ) {
         throw new Error(
           `코치 문구의 ${mode}/${situation} 목록이 비어 있습니다.`
         );
@@ -127,6 +137,7 @@ function getCoachView({
   mode,
   situation,
   seed,
+  random = false,
 } = {}) {
   const normalizedMode =
     normalizeMode(mode);
@@ -158,6 +169,8 @@ function getCoachView({
    * 없을 때만 검증된 기본 문구로 돌아간다.
    */
   const usesCommunity =
+    normalizedSituation !==
+      "study_prompt" &&
     approvedCommunityMessages.length > 0;
   const messages = usesCommunity
     ? approvedCommunityMessages
@@ -177,10 +190,15 @@ function getCoachView({
     message: normalizedMode === "silent"
       ? ""
       : messages[
-          stableIndex(
-            seed,
-            messages.length
-          )
+          random
+            ? Math.floor(
+                Math.random() *
+                  messages.length
+              )
+            : stableIndex(
+                seed,
+                messages.length
+              )
         ],
   };
 }
@@ -204,7 +222,7 @@ function setCommunityCoachMessages(
   for (const record of records) {
     if (
       !MODES.includes(record?.mode) ||
-      !SITUATIONS.includes(
+      !FEEDBACK_SITUATIONS.includes(
         record?.situation
       )
     ) {
@@ -227,6 +245,7 @@ function setCommunityCoachMessages(
 
 module.exports = {
   COACH_MESSAGE_PATH,
+  FEEDBACK_SITUATIONS,
   MODES,
   SITUATIONS,
   getCoachView,

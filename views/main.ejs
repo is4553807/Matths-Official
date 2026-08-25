@@ -238,6 +238,7 @@
         <% } %>
 
         <% if (data.coach?.message) { %>
+          <br>
           <section
             class="dashboard-coach-card"
             data-mode="<%= data.coach.mode %>"
@@ -247,7 +248,7 @@
             <div>
               <p>TODAY COACH · <%= data.coach.label %></p>
               <strong><%= data.coach.message %></strong>
-              <small>학습 상황에 맞춰 정답·오답·미응답 피드백이 달라집니다.</small>
+              <small>오늘의 학습을 시작하도록 코치가 한마디를 건넵니다.</small>
             </div>
             <a href="/profile#coach-mode-settings">말투 설정 <span aria-hidden="true">→</span></a>
           </section>

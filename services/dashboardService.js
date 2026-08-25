@@ -1341,19 +1341,11 @@ async function getDashboardData(
         "spicy";
 
     const coachSituation =
-        pendingReviewCount > 0
-            ? "incorrect"
-            : currentLearning
-                ? "unanswered"
-                : "correct";
+        "study_prompt";
     const coach = getCoachView({
         mode: coachMode,
         situation: coachSituation,
-        seed: [
-            userId,
-            getKoreanDateKey(),
-            coachSituation,
-        ].join(":"),
+        random: true,
     });
 
     const notifications = [
