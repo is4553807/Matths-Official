@@ -13,6 +13,7 @@ const {
 } = require("../services/universityService");
 const {
   injectLocalization,
+  supportsLocalization,
 } = require("../middleware/localizationMiddleware");
 
 const root = path.resolve(__dirname, "..");
@@ -40,7 +41,11 @@ const university = buildOverseasUniversity("National University of Singapore").u
 assert.equal(university.region, "해외");
 assert.equal(university.isOverseas, true);
 
-const request = { originalUrl: "/register?source=test", url: "/register" };
+const request = {
+  originalUrl: "/visual-learning?source=test",
+  path: "/visual-learning",
+  url: "/visual-learning",
+};
 const response = { app: { locals: { assetVersion: "test" } } };
 const localized = injectLocalization(
   '<!doctype html><html lang="ko"><head><title>회원가입</title></head><body><main>회원가입</main></body></html>',
@@ -50,8 +55,40 @@ const localized = injectLocalization(
 );
 assert.match(localized, /<html lang="en"/);
 assert.match(localized, /language-switcher\.css\?v=test/);
-assert.match(localized, /href="\/register\?source=test&amp;lang=ko"/);
+assert.match(localized, /href="\/visual-learning\?source=test&amp;lang=ko"/);
 assert.match(localized, /data-locale="en"/);
+
+[
+  "/visual-learning",
+  "/learning-flow",
+  "/curriculum",
+  "/intro",
+  "/pricing",
+  "/faq",
+  "/goat-arena/rules/sub",
+  "/goat-arena/rules/main",
+].forEach((pathName) => {
+  assert.equal(
+    supportsLocalization({ path: pathName }),
+    true,
+    `Localization should be enabled for ${pathName}`
+  );
+});
+[
+  "/",
+  "/register",
+  "/main",
+  "/my-learning",
+  "/goat-arena",
+  "/goat-arena/ranked",
+  "/goat-arena/shop",
+].forEach((pathName) => {
+  assert.equal(
+    supportsLocalization({ path: pathName }),
+    false,
+    `Localization should be disabled for ${pathName}`
+  );
+});
 
 [
   "회원가입",

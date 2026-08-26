@@ -5,6 +5,33 @@ const {
 
 const LANGUAGE_COOKIE = "matths_language";
 const LANGUAGE_COOKIE_MAX_AGE = 365 * 24 * 60 * 60 * 1000;
+const LOCALIZED_PAGE_PATHS = new Set([
+  "/visual-learning",
+  "/learning-flow",
+  "/curriculum",
+  "/intro",
+  "/pricing",
+  "/faq",
+  "/goat-arena/rules/sub",
+  "/goat-arena/rules/main",
+]);
+
+function normalizedRequestPath(req) {
+  const rawPath = String(
+    req.path ||
+      new URL(
+        String(req.originalUrl || req.url || "/"),
+        "https://matths.local"
+      ).pathname
+  );
+  return rawPath.length > 1
+    ? rawPath.replace(/\/+$/, "")
+    : rawPath;
+}
+
+function supportsLocalization(req) {
+  return LOCALIZED_PAGE_PATHS.has(normalizedRequestPath(req));
+}
 
 function parseCookieHeader(header) {
   return String(header || "")
@@ -95,11 +122,14 @@ function injectLocalization(html, req, res, locale) {
 }
 
 function localizationMiddleware(req, res, next) {
-  const locale = requestedLocale(req);
+  const localizedPage = supportsLocalization(req);
+  const locale = localizedPage ? requestedLocale(req) : "ko";
   const explicitLocale = String(req.query?.lang || "").trim();
 
-  if (req.session && explicitLocale) req.session.locale = locale;
-  if (explicitLocale) {
+  if (localizedPage && req.session && explicitLocale) {
+    req.session.locale = locale;
+  }
+  if (localizedPage && explicitLocale) {
     res.cookie(LANGUAGE_COOKIE, locale, {
       httpOnly: false,
       sameSite: "lax",
@@ -121,7 +151,7 @@ function localizationMiddleware(req, res, next) {
       res.vary("Accept-Language");
       res.vary("Cookie");
     }
-    const localizedBody = isHtml
+    const localizedBody = isHtml && localizedPage
       ? injectLocalization(body, req, res, locale)
       : body;
     return originalSend(localizedBody);
@@ -132,7 +162,9 @@ function localizationMiddleware(req, res, next) {
 
 module.exports = {
   LANGUAGE_COOKIE,
+  LOCALIZED_PAGE_PATHS,
   injectLocalization,
   localizationMiddleware,
   requestedLocale,
+  supportsLocalization,
 };

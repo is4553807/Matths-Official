@@ -39,6 +39,9 @@ const {
   ARENA_PROFILE_AVATARS,
   getArenaProfileAvatar,
 } = require("../constants/arenaProfileAvatars");
+const {
+  localizationMiddleware,
+} = require("../middleware/localizationMiddleware");
 
 const app = express();
 const root = path.resolve(__dirname, "..");
@@ -53,6 +56,7 @@ const previewProducts = [
 app.set("view engine", "ejs");
 app.set("views", path.join(root, "views"));
 app.use(express.json({ limit: "256kb" }));
+app.use(localizationMiddleware);
 app.use(express.static(path.join(root, "public")));
 app.use("/vendor/mathjax", express.static(path.join(root, "node_modules", "mathjax")));
 app.use("/vendor/mathjax-fonts", express.static(path.join(root, "node_modules", "@mathjax")));
@@ -123,6 +127,9 @@ app.get("/preview/home-arena-tier", (_req, res) => {
         tierLabel: "에메랄드",
         tierPosition: 12,
         rankPoint: 64,
+        overallRank: 27,
+        cohortLabel: "고등학교 순위",
+        cohortRank: 4,
       },
     },
   });

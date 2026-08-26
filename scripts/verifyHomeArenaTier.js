@@ -31,6 +31,8 @@ async function run() {
 
   const service = read("services/arenaLandingSpotlightService.js");
   assert.match(controller, /getArenaLandingSpotlight/);
+  assert.match(controller, /getRankingData/);
+  assert.match(controller, /getLandingRankingSummary/);
   assert.match(service, /ArenaAccessState\.findOne/);
   assert.match(service, /ArenaStanding\.findOne/);
   assert.match(service, /currentEntry:/);
@@ -50,12 +52,19 @@ async function run() {
       tierLabel: "다이아몬드",
       tierPosition: 7,
       rankPoint: 83,
+      overallRank: 21,
+      cohortLabel: "대학교 순위",
+      cohortRank: 3,
     },
   });
   assert.match(connected, /현재 내 티어/);
   assert.match(connected, /다이아몬드/);
   assert.match(connected, /7위/);
   assert.match(connected, />83</);
+  assert.match(connected, /종합랭킹 순위/);
+  assert.match(connected, /21위/);
+  assert.match(connected, /대학교 순위/);
+  assert.match(connected, /3위/);
   assert.match(connected, /공식 Arena Standing과 실시간으로 연결됩니다/);
 
   const pending = await renderHome({

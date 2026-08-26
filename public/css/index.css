@@ -1348,7 +1348,7 @@ summary:focus-visible {
 .arena-my-standing {
   position: relative;
   z-index: 1;
-  min-height: 285px;
+  min-height: 330px;
   display: grid;
   align-content: center;
   gap: 18px;
@@ -1421,6 +1421,7 @@ summary:focus-visible {
   color: #7783a5;
   font-size: 11px;
   font-weight: 620;
+  overflow-wrap: anywhere;
 }
 
 .arena-my-standing-stats dd {
@@ -1428,6 +1429,7 @@ summary:focus-visible {
   color: #f4f7ff;
   font-size: 17px;
   font-weight: 790;
+  overflow-wrap: anywhere;
 }
 
 .arena-my-standing > a {

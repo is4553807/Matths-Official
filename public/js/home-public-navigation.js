@@ -8,6 +8,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const mobileToggle = mobileMenu?.querySelector(
     "[data-public-mobile-toggle]"
   );
+  const desktopHover = window.matchMedia(
+    "(hover: hover) and (pointer: fine) and (min-width: 1101px)"
+  );
+  let hoverCloseTimer = null;
 
   const syncCluster = (cluster) => {
     const toggle = cluster.querySelector(
@@ -28,6 +32,14 @@ document.addEventListener("DOMContentLoaded", () => {
     clusters.forEach((cluster) => {
       if (cluster !== except) closeCluster(cluster);
     });
+  };
+
+  const openCluster = (cluster) => {
+    window.clearTimeout(hoverCloseTimer);
+    closeClusters(cluster);
+    cluster.open = true;
+    syncCluster(cluster);
+    closeMobileMenu();
   };
 
   const syncMobileMenu = () => {
@@ -61,7 +73,29 @@ document.addEventListener("DOMContentLoaded", () => {
       "[data-public-nav-toggle]"
     );
 
-    toggle?.addEventListener("click", () => {
+    cluster.addEventListener("pointerenter", () => {
+      if (desktopHover.matches) openCluster(cluster);
+    });
+
+    cluster.addEventListener("pointerleave", () => {
+      if (!desktopHover.matches) return;
+      window.clearTimeout(hoverCloseTimer);
+      hoverCloseTimer = window.setTimeout(
+        () => closeCluster(cluster),
+        100
+      );
+    });
+
+    cluster.addEventListener("focusin", () => {
+      openCluster(cluster);
+    });
+
+    toggle?.addEventListener("click", (event) => {
+      if (desktopHover.matches && event.detail > 0) {
+        event.preventDefault();
+        openCluster(cluster);
+        return;
+      }
       if (!cluster.open) closeClusters(cluster);
       closeMobileMenu();
     });

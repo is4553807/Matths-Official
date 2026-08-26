@@ -396,14 +396,72 @@ const BCRYPT_ROUNDS = 12;
 const SOCIAL_AUTH_SELECT =
   "+socialAuth.googleId +socialAuth.kakaoId +socialAuth.appleId";
 
+function getLandingRankingSummary(ranking, sessionUser) {
+  const currentFinal = ranking?.currentFinal || null;
+  const current = ranking?.current || null;
+  const userId = String(
+    currentFinal?.userId || current?.userId || sessionUser?._id || sessionUser?.id || ""
+  );
+  const grade = Number(
+    currentFinal?.grade ?? current?.grade ?? sessionUser?.schoolGrade
+  );
+  const overallRank = Number(
+    currentFinal?.finalRank ?? current?.overallRank
+  );
+  let cohortLabel = "고등학교 순위";
+  let cohortRank = null;
+
+  if (grade === 13) {
+    cohortLabel = "N수생 순위";
+    cohortRank = ranking?.retakerRankings?.find(
+      (entry) => String(entry.userId) === userId
+    )?.retakerRank;
+  } else if (grade === 14) {
+    cohortLabel = "대학교 순위";
+    const universityCode = String(
+      currentFinal?.universityCode || sessionUser?.university?.code || ""
+    );
+    cohortRank = ranking?.universityRankings?.find(
+      (entry) => String(entry.id) === universityCode
+    )?.rank;
+  } else if (grade === 15) {
+    cohortLabel = "직장인 순위";
+    cohortRank = ranking?.workerRankings?.find(
+      (entry) => String(entry.userId) === userId
+    )?.workerRank;
+  } else {
+    const schoolCode = String(
+      currentFinal?.schoolCode || current?.schoolCode || sessionUser?.school?.code || ""
+    );
+    cohortRank = ranking?.schoolRankings?.find(
+      (entry) => String(entry.id) === schoolCode
+    )?.rank ?? current?.schoolRank;
+  }
+
+  return {
+    overallRank:
+      Number.isSafeInteger(overallRank) && overallRank > 0
+        ? overallRank
+        : null,
+    cohortLabel,
+    cohortRank:
+      Number.isSafeInteger(Number(cohortRank)) && Number(cohortRank) > 0
+        ? Number(cohortRank)
+        : null,
+  };
+}
+
 exports.mainPage = async (req, res) => {
   const user = req.session?.user || null;
   const userId = user?._id || user?.id || null;
-  const [policyResult, arenaResult] = await Promise.allSettled([
+  const [policyResult, arenaResult, rankingResult] = await Promise.allSettled([
     getActiveArenaPolicy(),
     userId
       ? getArenaLandingSpotlight(user)
       : Promise.resolve(emptyArenaLandingSpotlight()),
+    userId
+      ? getRankingData(userId)
+      : Promise.resolve(null),
   ]);
 
   if (policyResult.status === "rejected") {
@@ -414,10 +472,25 @@ exports.mainPage = async (req, res) => {
     // 개인 Arena 조회 실패가 메인 화면 전체 장애로 이어지지 않게 한다.
     console.error("랜딩 사용자 Arena 티어 조회 실패:", arenaResult.reason);
   }
+  if (rankingResult.status === "rejected") {
+    console.error("랜딩 사용자 종합 랭킹 조회 실패:", rankingResult.reason);
+  }
 
-  const arenaSpotlight = arenaResult.status === "fulfilled"
+  const arenaSpotlightBase = arenaResult.status === "fulfilled"
     ? arenaResult.value
     : emptyArenaLandingSpotlight();
+  const arenaSpotlight = arenaSpotlightBase.currentEntry
+    ? {
+        ...arenaSpotlightBase,
+        currentEntry: {
+          ...arenaSpotlightBase.currentEntry,
+          ...getLandingRankingSummary(
+            rankingResult.status === "fulfilled" ? rankingResult.value : null,
+            user
+          ),
+        },
+      }
+    : arenaSpotlightBase;
 
   res.render("index", {
     user,

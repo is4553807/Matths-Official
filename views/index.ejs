@@ -39,6 +39,18 @@
             Number.isFinite(Number(arenaCurrentRaw.rankPoint))
             ? Number(arenaCurrentRaw.rankPoint)
             : null,
+          overallRank:
+            Number.isSafeInteger(Number(arenaCurrentRaw.overallRank)) &&
+            Number(arenaCurrentRaw.overallRank) > 0
+              ? Number(arenaCurrentRaw.overallRank)
+              : null,
+          cohortLabel:
+            String(arenaCurrentRaw.cohortLabel || "사용자군 순위"),
+          cohortRank:
+            Number.isSafeInteger(Number(arenaCurrentRaw.cohortRank)) &&
+            Number(arenaCurrentRaw.cohortRank) > 0
+              ? Number(arenaCurrentRaw.cohortRank)
+              : null,
         }
       : null;
   const arena = {
@@ -166,6 +178,14 @@
                   <div>
                     <dt>현재 GP</dt>
                     <dd><%= arenaCurrentEntry.rankPoint !== null ? arenaCurrentEntry.rankPoint.toLocaleString("ko-KR") : "집계 중" %></dd>
+                  </div>
+                  <div>
+                    <dt>종합랭킹 순위</dt>
+                    <dd><%= arenaCurrentEntry.overallRank ? `${arenaCurrentEntry.overallRank}위` : "집계 중" %></dd>
+                  </div>
+                  <div>
+                    <dt><%= arenaCurrentEntry.cohortLabel %></dt>
+                    <dd><%= arenaCurrentEntry.cohortRank ? `${arenaCurrentEntry.cohortRank}위` : "집계 중" %></dd>
                   </div>
                 </dl>
                 <a href="/goat-arena">내 Arena로 이동 <span aria-hidden="true">→</span></a>
