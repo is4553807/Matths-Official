@@ -1,0 +1,39 @@
+<%
+  const arenaTutorialState =
+    typeof arenaTutorial !== "undefined" && arenaTutorial
+      ? arenaTutorial
+      : {
+          chapters: {},
+          eligibleChapters: [],
+          availableChapters: [],
+          autoChapter: null,
+          shouldAutoStart: false,
+          suspended: false,
+        };
+  const arenaTutorialConfig = {
+    page: typeof activeArenaPage === "string" ? activeArenaPage : "",
+    ...arenaTutorialState,
+  };
+%>
+<div class="arena-tour" data-arena-tour hidden>
+  <div class="arena-tour-shade arena-tour-shade--top" data-arena-tour-shade="top"></div>
+  <div class="arena-tour-shade arena-tour-shade--right" data-arena-tour-shade="right"></div>
+  <div class="arena-tour-shade arena-tour-shade--bottom" data-arena-tour-shade="bottom"></div>
+  <div class="arena-tour-shade arena-tour-shade--left" data-arena-tour-shade="left"></div>
+  <div class="arena-tour-spotlight" data-arena-tour-spotlight hidden></div>
+
+  <section class="arena-tour-dialog" data-arena-tour-dialog role="dialog" aria-modal="true" aria-labelledby="arena-tour-title">
+    <button class="arena-tour-close" type="button" aria-label="GOAT Arena 튜토리얼 건너뛰기" data-arena-tour-close>×</button>
+    <div class="arena-tour-character" aria-hidden="true" data-arena-tour-character>
+      <img src="/images/coach-characters/mild-goat-1.webp" alt="" data-arena-tour-character-image />
+    </div>
+    <div class="arena-tour-copy">
+      <p data-arena-tour-progress>GOAT ARENA TOUR</p>
+      <h2 id="arena-tour-title" data-arena-tour-title>GOAT Arena를 둘러봅니다.</h2>
+      <div data-arena-tour-message></div>
+      <small data-arena-tour-status aria-live="polite"></small>
+      <button class="arena-tour-next" type="button" data-arena-tour-next>다음 <span aria-hidden="true">→</span></button>
+    </div>
+  </section>
+</div>
+<script id="arena-tutorial-config" type="application/json"><%- JSON.stringify(arenaTutorialConfig).replace(/</g, "\\u003c") %></script>

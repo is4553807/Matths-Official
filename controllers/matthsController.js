@@ -137,6 +137,10 @@ const {
   getRankingData,
 } = require("../services/rankingService");
 const {
+  emptyArenaLandingSpotlight,
+  getArenaLandingSpotlight,
+} = require("../services/arenaLandingSpotlightService");
+const {
   ERROR_HELP_ITEMS,
 } = require("../services/errorHelpService");
 const {
@@ -383,21 +387,35 @@ const SOCIAL_AUTH_SELECT =
   "+socialAuth.googleId +socialAuth.kakaoId +socialAuth.appleId";
 
 exports.mainPage = async (req, res) => {
-    let activeArenaPolicy = null;
-    try {
-      activeArenaPolicy = await getActiveArenaPolicy();
-    } catch (error) {
-      // 공개 랜딩은 정책 DB를 잠시 읽지 못해도 공식 기본 정책으로 렌더한다.
-      console.error("랜딩 Arena 계약 정책 조회 실패:", error);
-    }
+  const user = req.session?.user || null;
+  const userId = user?._id || user?.id || null;
+  const [policyResult, arenaResult] = await Promise.allSettled([
+    getActiveArenaPolicy(),
+    userId
+      ? getArenaLandingSpotlight(user)
+      : Promise.resolve(emptyArenaLandingSpotlight()),
+  ]);
 
-    res.render('index', {
-      user:
-        req.session?.user ||
-        null,
-      arenaContract:
-        arenaPublicContractView(activeArenaPolicy),
-    });
+  if (policyResult.status === "rejected") {
+    // 공개 랜딩은 정책 DB를 잠시 읽지 못해도 공식 기본 정책으로 렌더한다.
+    console.error("랜딩 Arena 계약 정책 조회 실패:", policyResult.reason);
+  }
+  if (arenaResult.status === "rejected") {
+    // 개인 Arena 조회 실패가 메인 화면 전체 장애로 이어지지 않게 한다.
+    console.error("랜딩 사용자 Arena 티어 조회 실패:", arenaResult.reason);
+  }
+
+  const arenaSpotlight = arenaResult.status === "fulfilled"
+    ? arenaResult.value
+    : emptyArenaLandingSpotlight();
+
+  res.render("index", {
+    user,
+    arenaContract: arenaPublicContractView(
+      policyResult.status === "fulfilled" ? policyResult.value : null
+    ),
+    arenaSpotlight,
+  });
 }
 
 exports.introPage = (req,res) => {

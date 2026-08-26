@@ -66,12 +66,14 @@
   <nav
     class="arena-main-navigation"
     aria-label="GOAT Arena 메뉴"
+    data-arena-tutorial-target="navigation"
   >
     <% arenaNavigationItems.forEach((item) => { %>
       <a
         class="<%= activeArenaPage === item.key ? 'active' : '' %>"
         href="<%= item.href %>"
         aria-label="<%= item.ariaLabel %>"
+        data-arena-tutorial-nav="<%= item.key %>"
         <%= activeArenaPage === item.key ? 'aria-current="page"' : '' %>
       ><%= item.label %><% if (item.alertCount) { %><span class="arena-nav-alert-dot" aria-label="확인할 경기 <%= item.alertCount %>개"></span><% } %></a>
     <% }) %>
@@ -109,6 +111,7 @@
     <a
       class="arena-player <%= activeArenaPage === 'profile' ? 'active' : '' %> <%= arenaUser.hasMainProfileBorder ? 'has-main-shop-border' : '' %>"
       href="/goat-arena/profile"
+      data-arena-tutorial-nav="profile"
       aria-label="<%= arenaUser.nickname %>님의 GOAT Arena 프로필, 활동 레벨 <%= arenaUser.activityLevel?.level || 1 %>"
       <%= activeArenaPage === "profile" ? 'aria-current="page"' : '' %>
     >
@@ -137,6 +140,8 @@
   }) %>
   <script type="application/json" data-rank-up-presentation-payload><%- JSON.stringify(pendingRankUpPresentation).replace(/</g, "\\u003c") %></script>
 <% } %>
+<%- include("arena-tutorial") %>
 <script src="/js/navigation-performance.js?v=<%= arenaAssetVersion %>" defer></script>
 <script src="/js/session-usage.js?v=<%= arenaAssetVersion %>" defer></script>
 <script src="/js/goat-arena-navigation.js?v=<%= arenaAssetVersion %>" defer></script>
+<script src="/js/arena-tutorial.js?v=<%= arenaAssetVersion %>" defer></script>

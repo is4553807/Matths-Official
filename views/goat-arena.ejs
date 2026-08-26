@@ -26,7 +26,7 @@
     </nav>
 
     <main id="arena-main">
-      <section class="arena-hero arena-snap-section is-video-pending" id="arena-start" aria-labelledby="arena-title">
+      <section class="arena-hero arena-snap-section is-video-pending" id="arena-start" aria-labelledby="arena-title" data-arena-tutorial-target="arena-home-hero">
         <div class="arena-hero-art" aria-hidden="true"></div>
         <video class="arena-hero-video" playsinline preload="metadata" poster="/images/goat-arena/arena-hero.webp" aria-hidden="true">
           <source src="/videos/goatArena-mobile.mp4" type="video/mp4" media="(max-width: 640px)" />
@@ -57,7 +57,7 @@
             </dl>
           </div>
 
-          <aside class="arena-seed-card" aria-labelledby="seed-card-title">
+          <aside class="arena-seed-card" aria-labelledby="seed-card-title" data-arena-tutorial-target="arena-seed-card">
             <div class="arena-card-scanline"></div>
             <header><span>내 랭킹 프로필</span><i><%= seedState.ready ? "확정" : "준비 중" %></i></header>
             <div class="arena-seed-identity">
@@ -81,7 +81,7 @@
         <div class="arena-scroll-cue" aria-hidden="true"><span></span>아래에서 핵심만 확인</div>
       </section>
 
-      <section class="arena-onboarding-section arena-snap-section" id="ranking-system" aria-labelledby="arena-onboarding-title">
+      <section class="arena-onboarding-section arena-snap-section" id="ranking-system" aria-labelledby="arena-onboarding-title" data-arena-tutorial-target="arena-ranking-system">
         <div class="arena-system-inner">
           <header class="arena-section-heading">
             <div><p>GOAT Arena란?</p><h2 id="arena-onboarding-title">공부한 결과가<br />경쟁으로 이어집니다.</h2></div>
@@ -105,7 +105,7 @@
         </div>
       </section>
 
-      <section class="arena-tier-guide-section arena-snap-section" id="arena-tiers" aria-labelledby="arena-tier-guide-title">
+      <section class="arena-tier-guide-section arena-snap-section" id="arena-tiers" aria-labelledby="arena-tier-guide-title" data-arena-tutorial-target="arena-tier-guide">
         <div class="arena-system-inner">
           <header class="arena-section-heading">
             <div><p>아홉 개 티어</p><h2 id="arena-tier-guide-title">내가 서 있는 구간을<br />랭크로 확인하세요.</h2></div>
@@ -137,7 +137,7 @@
         </div>
       </section>
 
-      <section class="arena-division-overview arena-snap-section" id="arena-divisions" aria-labelledby="division-overview-title">
+      <section class="arena-division-overview arena-snap-section" id="arena-divisions" aria-labelledby="division-overview-title" data-arena-tutorial-target="arena-division-guide">
         <div class="arena-system-inner">
           <header class="arena-section-heading">
             <div><p>규정은 Division별로</p><h2 id="division-overview-title">핵심은 짧게,<br />세부 규정은 정확하게.</h2></div>

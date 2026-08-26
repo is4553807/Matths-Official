@@ -45,7 +45,7 @@
     }) %>
 
     <main class="arena-page-main arena-division-command-main" id="arena-division-main">
-      <header class="arena-page-heading arena-command-hero">
+      <header class="arena-page-heading arena-command-hero" data-arena-tutorial-target="division-hero">
         <div>
           <p><%= divisionLabel %> · COMMAND DECK</p>
           <h1><span><%= division === "SUB" ? "첫 번째" : "상위" %></span> 전장</h1>
@@ -58,7 +58,7 @@
         </div>
       </header>
 
-      <section class="arena-division-status arena-command-status">
+      <section class="arena-division-status arena-command-status" data-arena-tutorial-target="division-status">
         <article>
           <small>이용 권한</small>
           <strong>
@@ -119,7 +119,7 @@
 
           <div class="arena-command-groups">
             <% let commandIndex = 0; featureGroups.forEach((group) => { %>
-              <section class="arena-command-group" aria-labelledby="feature-group-<%= group.key.toLowerCase() %>">
+              <section class="arena-command-group" aria-labelledby="feature-group-<%= group.key.toLowerCase() %>" data-arena-tutorial-target="division-group-<%= group.key.toLowerCase() %>">
                 <header>
                   <div><small><%= group.eyebrow %></small><h3 id="feature-group-<%= group.key.toLowerCase() %>"><%= group.title %></h3></div>
                   <p><%= group.description %></p>

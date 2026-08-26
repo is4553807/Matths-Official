@@ -128,6 +128,11 @@ const {
   ARENA_PROFILE_AVATARS,
 } = require("../constants/arenaProfileAvatars");
 const {
+  ARENA_TUTORIAL_FIRST_PATH,
+  arenaTutorialView,
+  updateArenaTutorial,
+} = require("../services/arenaTutorialService");
+const {
   getNotificationDetail,
   getNotificationInbox,
   markAllNotificationsRead,
@@ -638,6 +643,7 @@ async function getArenaNavigationContext(
     rankUpPresentation,
     arenaNotifications,
     arenaActivityLevel,
+    accessState,
   ] =
     await Promise.all([
       authenticatedUser
@@ -659,6 +665,9 @@ async function getArenaNavigationContext(
         hrefBase: "/goat-arena/mailbox",
       }),
       getArenaActivityLevel(userId),
+      ArenaAccessState.findOne({ userId })
+        .select("currentCompetitiveDivision")
+        .lean(),
     ]);
   if (!user) {
     const error = new Error("사용자 정보를 찾을 수 없습니다.");
@@ -675,6 +684,11 @@ async function getArenaNavigationContext(
     arenaActivityLevel,
     rankUpPresentation,
     arenaNotifications,
+    arenaTutorial: arenaTutorialView(user.preferences, {
+      activeDivision: accessState?.currentCompetitiveDivision,
+      isAdminPreview: user.role === "admin",
+      suspendAutoStart: Boolean(rankUpPresentation),
+    }),
   };
 }
 
@@ -789,6 +803,14 @@ async function getArenaContext(
     },
   };
   const currentRanking = ranking.current || lightweightCurrent;
+  const arenaAccess = buildArenaAccess(
+    user,
+    {
+      accessState,
+      accessCycle,
+      standing,
+    }
+  );
 
   return {
     user,
@@ -804,15 +826,12 @@ async function getArenaContext(
         placement,
         currentRanking
       ),
-    arenaAccess:
-      buildArenaAccess(
-        user,
-        {
-          accessState,
-          accessCycle,
-          standing,
-        }
-      ),
+    arenaAccess,
+    arenaTutorial: arenaTutorialView(user.preferences, {
+      activeDivision: arenaAccess.activeDivision,
+      isAdminPreview: arenaAccess.isAdminPreview,
+      suspendAutoStart: Boolean(rankUpPresentation),
+    }),
     activeMainPolicy:
       mainPolicySnapshot(activeMainPolicy),
     activeArenaPolicy:
@@ -1689,6 +1708,48 @@ exports.profilePage = async (req, res, next) => {
       arenaProfileAvatars: ARENA_PROFILE_AVATARS,
       accountError: "",
     });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.updateArenaTutorial = async (req, res, next) => {
+  try {
+    const context = await getArenaContextForRequest(req);
+    const tutorial = await updateArenaTutorial({
+      userId: req.session.user.id,
+      chapter: req.body.chapter,
+      action: req.body.action,
+      activeDivision: context.arenaAccess.activeDivision,
+      isAdminPreview: context.arenaAccess.isAdminPreview,
+    });
+    res.set("Cache-Control", "no-store");
+    return res.json({ tutorial });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.restartArenaTutorial = async (req, res, next) => {
+  try {
+    const context = await getArenaContextForRequest(req);
+    const chapter = String(req.body.chapter || "").trim().toLowerCase();
+    await updateArenaTutorial({
+      userId: req.session.user.id,
+      chapter,
+      action: "RESTART",
+      activeDivision: context.arenaAccess.activeDivision,
+      isAdminPreview: context.arenaAccess.isAdminPreview,
+    });
+    const firstPath = ARENA_TUTORIAL_FIRST_PATH[chapter];
+    if (!firstPath) {
+      const error = new Error("다시 볼 튜토리얼 편을 선택해주세요.");
+      error.status = 400;
+      throw error;
+    }
+    return res.redirect(
+      `${firstPath}?arenaTutorial=${encodeURIComponent(chapter)}&arenaTutorialStep=0`
+    );
   } catch (error) {
     return next(error);
   }

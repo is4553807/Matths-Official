@@ -116,6 +116,8 @@
     "coach-content:verify": "node scripts/validateCoachAndConceptContent.js",
     "coach-character:verify": "node scripts/verifyDashboardCoachCharacter.js",
     "dashboard-tutorial:verify": "node scripts/verifyDashboardTutorial.js",
+    "arena-tutorial:verify": "node scripts/verifyArenaTutorial.js",
+    "home-arena-tier:verify": "node scripts/verifyHomeArenaTier.js",
     "coach-idempotency:verify": "node audit/verifyCoachSuggestionIdempotency.js",
     "dynamic-id-errors:verify": "node audit/verifyMalformedDynamicIds.js",
     "platform-expansion:verify": "node scripts/validatePlatformExpansion.js",

@@ -99,6 +99,35 @@ function universalPreviewValue() {
   return value;
 }
 
+app.get("/preview/home-arena-tier", (_req, res) => {
+  res.render("index", {
+    user: {
+      id: "64b000000000000000000151",
+      name: "preview-student",
+      role: "student",
+    },
+    arenaContract: {
+      learningCycleDays: 29,
+      minimumAttackParticipationDays: 15,
+      maximumPaybackRatePercent: 100,
+    },
+    arenaSpotlight: {
+      available: true,
+      seasonLabel: "2026 S3",
+      activeCount: null,
+      topEntries: [],
+      currentEntry: {
+        displayName: "preview-student",
+        division: "SUB",
+        divisionLabel: "Unranked",
+        tierLabel: "에메랄드",
+        tierPosition: 12,
+        rankPoint: 64,
+      },
+    },
+  });
+});
+
 async function renderGenericPreview(viewName) {
   const previewValue = universalPreviewValue();
   const locals = {
@@ -1086,7 +1115,34 @@ app.get("/admin/problem-banks", (_req, res) => {
   });
 });
 
-app.get("/goat-arena", (_req, res) => {
+function previewArenaTutorial(activeDivision, requestedChapter = "") {
+  const divisionChapters = activeDivision === "MAIN"
+    ? ["ranked", "ranked_battle", "ranked_shop"]
+    : activeDivision === "SUB"
+      ? ["unranked", "unranked_match"]
+      : [];
+  const eligibleChapters = ["common", ...divisionChapters];
+  const autoChapter = eligibleChapters.includes(requestedChapter) ? requestedChapter : null;
+  return {
+    version: 1,
+    activeDivision,
+    eligibleChapters,
+    availableChapters: eligibleChapters,
+    chapters: {
+      common: { status: "PENDING", completedAt: null, skippedAt: null },
+      unranked: { status: activeDivision === "SUB" ? "PENDING" : "NOT_REQUIRED", completedAt: null, skippedAt: null },
+      unranked_match: { status: activeDivision === "SUB" ? "PENDING" : "NOT_REQUIRED", completedAt: null, skippedAt: null },
+      ranked: { status: activeDivision === "MAIN" ? "PENDING" : "NOT_REQUIRED", completedAt: null, skippedAt: null },
+      ranked_battle: { status: activeDivision === "MAIN" ? "PENDING" : "NOT_REQUIRED", completedAt: null, skippedAt: null },
+      ranked_shop: { status: activeDivision === "MAIN" ? "PENDING" : "NOT_REQUIRED", completedAt: null, skippedAt: null },
+    },
+    autoChapter,
+    shouldAutoStart: false,
+    suspended: false,
+  };
+}
+
+app.get("/goat-arena", (req, res) => {
   res.render("goat-arena", {
     activeArenaPage: "home",
     arenaUser: { nickname: "preview", displayName: "preview" },
@@ -1102,6 +1158,7 @@ app.get("/goat-arena", (_req, res) => {
       detail: "배치고사 결과가 현재 시즌 Unranked에 반영되었습니다.",
     },
     arenaAccess: { activeDivision: "SUB" },
+    arenaTutorial: previewArenaTutorial("SUB", String(req.query.tour || "")),
     arenaTierGuide: arenaTierGuide(),
     arenaUpperTierGuide: arenaUpperTierPopulationGuide(),
     activeArenaPolicy: { matchStakeDays: { normal: 1, revenge: 2 } },
@@ -1283,6 +1340,7 @@ app.get("/goat-arena/profile", (_req, res) => {
         attackParticipationQualified: false,
       },
     },
+    arenaTutorial: previewArenaTutorial("SUB"),
   });
 });
 
@@ -1333,7 +1391,7 @@ function previewArenaAccess(division = "SUB") {
   };
 }
 
-function previewDivisionPage(res, division) {
+function previewDivisionPage(req, res, division) {
   const isSub = division === "SUB";
   const features = [
     [isSub ? "subChallengeRequest" : "mainArenaStatus", isSub ? "일반 쟁탈전 신청" : "Ranked 상태", "현재 전장 상태와 다음 작전을 확인합니다.", isSub ? "BATTLE" : "OPERATIONS"],
@@ -1365,6 +1423,7 @@ function previewDivisionPage(res, division) {
     divisionLabel: isSub ? "Unranked" : "Ranked",
     divisionKoreanLabel: isSub ? "Unranked 전장" : "Ranked 전장",
     arenaAccess: previewArenaAccess(division),
+    arenaTutorial: previewArenaTutorial(division, String(req.query.tour || "")),
     ranking: {
       pools: {
         sub: { current: { tier: "에메랄드", tierRank: 12 } },
@@ -1389,13 +1448,14 @@ function previewDivisionPage(res, division) {
   });
 }
 
-app.get("/goat-arena/sub", (_req, res) => previewDivisionPage(res, "SUB"));
-app.get("/goat-arena/main", (_req, res) => previewDivisionPage(res, "MAIN"));
+app.get("/goat-arena/sub", (req, res) => previewDivisionPage(req, res, "SUB"));
+app.get("/goat-arena/main", (req, res) => previewDivisionPage(req, res, "MAIN"));
 
 app.get("/goat-arena/sub/challenge", (_req, res) => {
   res.render("goat-arena-sub-challenge", {
     activeArenaPage: "sub",
     arenaUser: { nickname: "preview" },
+    arenaTutorial: previewArenaTutorial("SUB"),
     requestId: "preview-sub-challenge",
     matchCreated: false,
     matchError: "",
@@ -1426,6 +1486,7 @@ app.get("/goat-arena/main/battle", (_req, res) => {
   res.render("goat-arena-main-battle", {
     activeArenaPage: "main",
     arenaUser: { nickname: "preview" },
+    arenaTutorial: previewArenaTutorial("MAIN"),
     requestId: "preview-main-battle",
     actionError: "",
     actionMessage: "",
@@ -1463,6 +1524,7 @@ app.get("/goat-arena/main/shop", (_req, res) => {
       hasMainProfileBorder: true,
       hasStyleEntrance: false,
     },
+    arenaTutorial: previewArenaTutorial("MAIN"),
     requestId: "preview-shop-request",
     shopMessage: null,
     shopError: null,

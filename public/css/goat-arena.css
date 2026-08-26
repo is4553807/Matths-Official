@@ -8948,3 +8948,340 @@ html {
 .arena-mailbox-button b {
   background: linear-gradient(135deg, #ad2b42, #67258f);
 }
+
+/* GOAT Arena guided tutorial */
+.arena-tour[hidden],
+.arena-tour-spotlight[hidden] {
+  display: none;
+}
+
+.arena-tour-shade {
+  position: fixed;
+  z-index: 9900;
+  background: rgba(2, 4, 15, 0.84);
+  pointer-events: auto;
+  transition: opacity 140ms ease;
+}
+
+.arena-tour-spotlight {
+  position: fixed;
+  z-index: 9901;
+  box-sizing: border-box;
+  border: 2px solid rgba(116, 231, 255, 0.88);
+  pointer-events: auto;
+  box-shadow:
+    0 0 0 3px rgba(88, 83, 255, 0.28),
+    0 0 32px rgba(66, 205, 255, 0.46),
+    inset 0 0 22px rgba(112, 83, 255, 0.12);
+  transition: left 180ms ease, top 180ms ease, width 180ms ease, height 180ms ease;
+}
+
+.arena-tour-spotlight.is-pulsing::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 2px solid rgba(157, 104, 255, 0.8);
+  border-radius: inherit;
+  animation: arena-tour-pulse 1.7s ease-in-out infinite;
+}
+
+.arena-tour-dialog {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  z-index: 9903;
+  width: min(600px, calc(100vw - 52px));
+  min-height: 238px;
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  align-items: end;
+  gap: 6px;
+  padding: 26px 28px 24px 8px;
+  color: #f7f8ff;
+  background:
+    radial-gradient(circle at 3% 110%, rgba(37, 218, 232, 0.2), transparent 39%),
+    linear-gradient(135deg, rgba(22, 15, 57, 0.98), rgba(12, 25, 61, 0.98));
+  border: 1px solid rgba(125, 108, 255, 0.62);
+  border-radius: 28px;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.55);
+  transition: opacity 140ms ease;
+}
+
+.arena-tour.is-positioning .arena-tour-shade,
+.arena-tour.is-positioning .arena-tour-spotlight,
+.arena-tour.is-positioning .arena-tour-dialog {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.arena-tour-dialog.is-left {
+  right: auto;
+  left: 26px;
+}
+
+.arena-tour-dialog.is-top {
+  top: 92px;
+  bottom: auto;
+}
+
+.arena-tour-close {
+  position: absolute;
+  top: 14px;
+  right: 15px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #d9dcff;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(178, 187, 255, 0.24);
+  border-radius: 50%;
+  font: inherit;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.arena-tour-character {
+  width: 185px;
+  height: 270px;
+  align-self: end;
+  margin: -76px -8px -35px -36px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.arena-tour-character img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.38));
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.arena-tour-character.is-switching img {
+  opacity: 0.76;
+  transform: translateY(2px) scale(0.985);
+}
+
+.arena-tour-copy {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 9px;
+}
+
+.arena-tour-copy > p {
+  margin: 0;
+  color: #74e6ff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+
+.arena-tour-copy h2 {
+  margin: 0;
+  padding-right: 32px;
+  color: #fff;
+  font-size: clamp(22px, 2vw, 28px);
+  line-height: 1.23;
+  letter-spacing: -0.04em;
+}
+
+.arena-tour-copy [data-arena-tour-message] {
+  color: #c3c9e9;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.66;
+  overflow-wrap: anywhere;
+}
+
+.arena-tour-copy [data-arena-tour-status] {
+  min-height: 17px;
+  color: #ff97aa;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.arena-tour-next {
+  min-height: 47px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 22px;
+  color: #fff;
+  background: linear-gradient(120deg, #6738ef, #1b83d5 62%, #0c7286);
+  border: 0;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(27, 89, 202, 0.3);
+}
+
+.arena-tour-next:disabled,
+.arena-tour-close:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+body.arena-tour-active {
+  overscroll-behavior: none;
+}
+
+.arena-profile-tutorial-section {
+  margin-top: 28px;
+  padding: 28px 30px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(59, 190, 238, 0.1), transparent 34%),
+    linear-gradient(135deg, rgba(20, 27, 61, 0.96), rgba(9, 13, 31, 0.98));
+  border: 1px solid rgba(133, 153, 232, 0.17);
+  border-radius: 22px;
+}
+
+.arena-profile-tutorial-section > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 20px;
+}
+
+.arena-profile-tutorial-section > header small,
+.arena-profile-tutorial-grid article > div > small {
+  color: #78dff5;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.arena-profile-tutorial-section > header h2 {
+  margin: 7px 0 0;
+  color: #fff;
+  font-size: 22px;
+}
+
+.arena-profile-tutorial-section > header p {
+  max-width: 580px;
+  margin: 0;
+  color: #98a4c8;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.arena-profile-tutorial-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.arena-profile-tutorial-grid article {
+  display: grid;
+  align-content: start;
+  padding: 20px;
+  background: rgba(7, 11, 29, 0.7);
+  border: 1px solid rgba(116, 137, 222, 0.16);
+  border-radius: 18px;
+}
+
+.arena-profile-tutorial-grid article > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.arena-profile-tutorial-grid article > div > span {
+  padding: 5px 8px;
+  color: #aab3d4;
+  background: rgba(116, 129, 190, 0.12);
+  border: 1px solid rgba(134, 151, 225, 0.16);
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.arena-profile-tutorial-grid article > div > span.is-completed { color: #85f0d1; background: rgba(40, 201, 155, 0.1); border-color: rgba(55, 221, 173, 0.22); }
+.arena-profile-tutorial-grid article > div > span.is-pending { color: #93dfff; background: rgba(46, 158, 230, 0.11); border-color: rgba(70, 183, 246, 0.24); }
+.arena-profile-tutorial-grid article > div > span.is-skipped { color: #d3b8ff; background: rgba(132, 82, 232, 0.12); border-color: rgba(154, 106, 255, 0.24); }
+
+.arena-profile-tutorial-grid h3 {
+  margin: 17px 0 7px;
+  color: #fff;
+  font-size: 18px;
+}
+
+.arena-profile-tutorial-grid p {
+  min-height: 54px;
+  margin: 0 0 18px;
+  color: #98a4c8;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.arena-profile-tutorial-grid form {
+  align-self: end;
+  margin-top: auto;
+}
+
+.arena-profile-tutorial-grid button {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  color: #fff;
+  background: linear-gradient(110deg, #5b2bbf, #2049bb 58%, #0d6887);
+  border: 0;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+@keyframes arena-tour-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.018); box-shadow: 0 0 24px rgba(141, 89, 255, 0.72); }
+}
+
+@media (max-width: 720px) {
+  .arena-tour-dialog,
+  .arena-tour-dialog.is-left,
+  .arena-tour-dialog.is-top {
+    top: auto;
+    right: 12px;
+    bottom: 12px;
+    left: auto;
+    width: calc(100vw - 24px);
+    min-height: 218px;
+    grid-template-columns: 100px minmax(0, 1fr);
+    gap: 5px;
+    padding: 20px 17px 16px 5px;
+    border-radius: 22px;
+  }
+
+  .arena-tour-character {
+    width: 120px;
+    height: 176px;
+    margin: -35px -7px -22px -22px;
+  }
+
+  .arena-tour-copy { gap: 6px; }
+  .arena-tour-copy h2 { font-size: 19px; }
+  .arena-tour-copy [data-arena-tour-message] { font-size: 12px; line-height: 1.55; }
+  .arena-tour-next { min-height: 43px; }
+  .arena-profile-tutorial-section { padding: 23px 18px; }
+  .arena-profile-tutorial-section > header { align-items: start; flex-direction: column; gap: 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena-tour-spotlight,
+  .arena-tour-character img { transition: none; }
+  .arena-tour-spotlight.is-pulsing::after { animation: none; opacity: 0.7; }
+}

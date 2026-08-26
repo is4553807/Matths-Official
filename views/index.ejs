@@ -13,6 +13,34 @@
         .filter((entry) => entry && entry.displayName && entry.tierLabel)
         .slice(0, 3)
     : [];
+  const arenaCurrentRaw = loggedIn && arenaRaw && arenaRaw.currentEntry
+    ? arenaRaw.currentEntry
+    : null;
+  const arenaCurrentEntry =
+    arenaCurrentRaw && arenaCurrentRaw.tierLabel
+      ? {
+          displayName: arenaCurrentRaw.displayName || "Matths 학생",
+          division: String(arenaCurrentRaw.division || "").toUpperCase(),
+          divisionLabel:
+            arenaCurrentRaw.divisionLabel ||
+            (String(arenaCurrentRaw.division || "").toUpperCase() === "MAIN"
+              ? "Ranked"
+              : "Unranked"),
+          tierLabel: arenaCurrentRaw.tierLabel,
+          tierPosition:
+            arenaCurrentRaw.tierPosition !== null &&
+            arenaCurrentRaw.tierPosition !== undefined &&
+            Number.isSafeInteger(Number(arenaCurrentRaw.tierPosition))
+            ? Number(arenaCurrentRaw.tierPosition)
+            : null,
+          rankPoint:
+            arenaCurrentRaw.rankPoint !== null &&
+            arenaCurrentRaw.rankPoint !== undefined &&
+            Number.isFinite(Number(arenaCurrentRaw.rankPoint))
+            ? Number(arenaCurrentRaw.rankPoint)
+            : null,
+        }
+      : null;
   const arena = {
     available: Boolean(arenaRaw && arenaRaw.available),
     seasonLabel: (arenaRaw && arenaRaw.seasonLabel) || null,
@@ -22,6 +50,7 @@
         : null,
     topEntries: arenaTopEntries,
   };
+  const arenaShowCurrent = Boolean(arenaCurrentEntry);
   const arenaShowRanking = arena.available && arena.topEntries.length > 0;
   const arenaCtaHref = loggedIn ? "/war-of-masters" : "/register";
   const arenaCtaLabel = loggedIn ? "GOAT Arena 입장" : "무료로 배치 시작";
@@ -103,18 +132,45 @@
             </dl>
           </div>
 
-          <div class="arena-console" aria-label="이번 시즌 상위 랭킹">
+          <div class="arena-console" aria-label="<%= arenaShowCurrent ? '내 GOAT Arena 티어' : '이번 시즌 상위 랭킹' %>">
             <div class="arena-console-head">
               <div>
-                <span>이번 시즌</span>
-                <strong>현재 상위 순위</strong>
+                <span><%= arenaShowCurrent ? "내 GOAT Arena" : "이번 시즌" %></span>
+                <strong><%= arenaShowCurrent ? "현재 내 티어" : "현재 상위 순위" %></strong>
               </div>
-              <% if (arenaShowRanking) { %>
-                <i><span aria-hidden="true"></span> 갱신 중</i>
+              <% if (arenaShowCurrent || arenaShowRanking) { %>
+                <i><span aria-hidden="true"></span> <%= arenaShowCurrent ? "연결됨" : "갱신 중" %></i>
               <% } %>
             </div>
 
-            <% if (arenaShowRanking) { %>
+            <% if (arenaShowCurrent) { %>
+              <section class="arena-my-standing" aria-label="내 GOAT Arena 티어">
+                <div class="arena-my-standing-main">
+                  <img
+                    src="/images/ranks/<%= tierSlug(arenaCurrentEntry.tierLabel) %>.webp"
+                    alt=""
+                    width="150"
+                    height="150"
+                  />
+                  <div>
+                    <span><%= arenaCurrentEntry.divisionLabel %></span>
+                    <strong><%= arenaCurrentEntry.tierLabel %></strong>
+                    <small><%= arenaCurrentEntry.displayName %></small>
+                  </div>
+                </div>
+                <dl class="arena-my-standing-stats">
+                  <div>
+                    <dt>티어 내 순위</dt>
+                    <dd><%= arenaCurrentEntry.tierPosition ? `${arenaCurrentEntry.tierPosition}위` : "집계 중" %></dd>
+                  </div>
+                  <div>
+                    <dt>현재 GP</dt>
+                    <dd><%= arenaCurrentEntry.rankPoint !== null ? arenaCurrentEntry.rankPoint.toLocaleString("ko-KR") : "집계 중" %></dd>
+                  </div>
+                </dl>
+                <a href="/goat-arena">내 Arena로 이동 <span aria-hidden="true">→</span></a>
+              </section>
+            <% } else if (arenaShowRanking) { %>
               <ol class="arena-ranking-board">
                 <% arena.topEntries.forEach((entry, index) => { %>
                   <li>
@@ -140,15 +196,15 @@
               </ol>
             <% } else { %>
               <div class="arena-ranking-unavailable" role="status">
-                <strong>이번 시즌 랭킹은 준비 중입니다.</strong>
-                <p>순위가 공개되면 이곳에서 상위 기록을 확인할 수 있습니다.</p>
+                <strong><%= loggedIn ? "Arena 티어가 아직 연결되지 않았습니다." : "이번 시즌 랭킹은 준비 중입니다." %></strong>
+                <p><%= loggedIn ? "배치고사를 완료해 첫 Arena 티어를 받은 뒤 이곳에서 바로 확인할 수 있습니다." : "순위가 공개되면 이곳에서 상위 기록을 확인할 수 있습니다." %></p>
                 <a href="<%= arenaCtaHref %>">내 아레나 확인 <span aria-hidden="true">→</span></a>
               </div>
             <% } %>
 
             <div class="arena-console-foot">
-              <span>Ranked</span>
-              <p>같은 규칙에서 결과로 증명합니다.</p>
+              <span><%= arenaShowCurrent ? arenaCurrentEntry.divisionLabel : "Ranked" %></span>
+              <p><%= arenaShowCurrent ? "공식 Arena Standing과 실시간으로 연결됩니다." : "같은 규칙에서 결과로 증명합니다." %></p>
               <span>1 : 1</span>
             </div>
           </div>

@@ -1345,6 +1345,117 @@ summary:focus-visible {
   white-space: nowrap;
 }
 
+.arena-my-standing {
+  position: relative;
+  z-index: 1;
+  min-height: 285px;
+  display: grid;
+  align-content: center;
+  gap: 18px;
+  padding: 22px 8px 18px;
+}
+
+.arena-my-standing-main {
+  display: grid;
+  grid-template-columns: 142px minmax(0, 1fr);
+  align-items: center;
+  gap: 22px;
+}
+
+.arena-my-standing-main img {
+  width: 142px;
+  height: 142px;
+  object-fit: contain;
+  filter: drop-shadow(0 18px 28px rgba(39, 226, 244, 0.16));
+}
+
+.arena-my-standing-main > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.arena-my-standing-main span {
+  color: #6deaf5;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+
+.arena-my-standing-main strong {
+  overflow: hidden;
+  color: #f8f9ff;
+  font-size: clamp(28px, 3vw, 40px);
+  font-weight: 820;
+  letter-spacing: -0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arena-my-standing-main small {
+  overflow: hidden;
+  color: #8d98b7;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arena-my-standing-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.arena-my-standing-stats div {
+  min-width: 0;
+  padding: 12px 14px;
+  background: rgba(18, 25, 54, 0.88);
+  border: 1px solid #2b365c;
+  border-radius: 14px;
+}
+
+.arena-my-standing-stats dt {
+  margin-bottom: 5px;
+  color: #7783a5;
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.arena-my-standing-stats dd {
+  margin: 0;
+  color: #f4f7ff;
+  font-size: 17px;
+  font-weight: 790;
+}
+
+.arena-my-standing > a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #071021;
+  background: linear-gradient(135deg, #79edf7, #56cadc);
+  border-radius: 13px;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 13px 30px rgba(44, 226, 244, 0.14);
+  transition: transform var(--motion-fast) var(--motion-ease),
+    filter var(--motion-fast) var(--motion-ease);
+}
+
+.arena-my-standing > a:hover {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+}
+
+.arena-my-standing > a:focus-visible {
+  outline: 3px solid rgba(121, 237, 247, 0.42);
+  outline-offset: 4px;
+}
+
 .arena-ranking-unavailable {
   position: relative;
   z-index: 1;
@@ -1566,6 +1677,20 @@ summary:focus-visible {
 
   .arena-ranking-board li > b {
     display: none;
+  }
+
+  .arena-my-standing-main {
+    grid-template-columns: 108px minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .arena-my-standing-main img {
+    width: 108px;
+    height: 108px;
+  }
+
+  .arena-my-standing-main strong {
+    font-size: 30px;
   }
 
   .arena-console-foot p {

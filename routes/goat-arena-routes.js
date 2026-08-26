@@ -165,6 +165,12 @@ router.post(
 );
 
 router.post(
+  "/api/goat-arena/tutorial",
+  authMiddleware.isLoggedIn,
+  goatArenaController.updateArenaTutorial
+);
+
+router.post(
   "/goat-arena/revenge-rights/:rightId/claim",
   authMiddleware.isLoggedIn,
   goatArenaController.claimSubRevenge
@@ -276,6 +282,12 @@ router.post(
   "/goat-arena/profile/avatar",
   authMiddleware.isLoggedIn,
   goatArenaController.updateProfileAvatar
+);
+
+router.post(
+  "/goat-arena/profile/tutorial/restart",
+  authMiddleware.isLoggedIn,
+  goatArenaController.restartArenaTutorial
 );
 
 router.post(

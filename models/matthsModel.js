@@ -122,6 +122,109 @@ const preferenceSchema = new Schema(
       type: Date,
       default: null,
     },
+
+    arenaTutorial: {
+      type: new Schema(
+        {
+          version: {
+            type: Number,
+            default: 1,
+          },
+          common: {
+            type: new Schema(
+              {
+                status: {
+                  type: String,
+                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
+                  default: "PENDING",
+                },
+                completedAt: { type: Date, default: null },
+                skippedAt: { type: Date, default: null },
+              },
+              { _id: false }
+            ),
+            default: undefined,
+          },
+          unranked: {
+            type: new Schema(
+              {
+                status: {
+                  type: String,
+                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
+                  default: "PENDING",
+                },
+                completedAt: { type: Date, default: null },
+                skippedAt: { type: Date, default: null },
+              },
+              { _id: false }
+            ),
+            default: undefined,
+          },
+          unranked_match: {
+            type: new Schema(
+              {
+                status: {
+                  type: String,
+                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
+                  default: "PENDING",
+                },
+                completedAt: { type: Date, default: null },
+                skippedAt: { type: Date, default: null },
+              },
+              { _id: false }
+            ),
+            default: undefined,
+          },
+          ranked: {
+            type: new Schema(
+              {
+                status: {
+                  type: String,
+                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
+                  default: "PENDING",
+                },
+                completedAt: { type: Date, default: null },
+                skippedAt: { type: Date, default: null },
+              },
+              { _id: false }
+            ),
+            default: undefined,
+          },
+          ranked_battle: {
+            type: new Schema(
+              {
+                status: {
+                  type: String,
+                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
+                  default: "PENDING",
+                },
+                completedAt: { type: Date, default: null },
+                skippedAt: { type: Date, default: null },
+              },
+              { _id: false }
+            ),
+            default: undefined,
+          },
+          ranked_shop: {
+            type: new Schema(
+              {
+                status: {
+                  type: String,
+                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
+                  default: "PENDING",
+                },
+                completedAt: { type: Date, default: null },
+                skippedAt: { type: Date, default: null },
+              },
+              { _id: false }
+            ),
+            default: undefined,
+          },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
   },
   {
     _id: false,
