@@ -14,6 +14,7 @@
     <title>GOAT Arena | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/war-of-masters.css" />
+    <link rel="stylesheet" href="/css/onboarding-tutorial.css" />
     <link rel="stylesheet" href="/css/brand.css" />
     <link
       rel="icon"
@@ -23,6 +24,7 @@
     />
     <script src="/js/main.js" defer></script>
     <script src="/js/war-of-masters.js" defer></script>
+    <script src="/js/onboarding-tutorial.js" defer></script>
   </head>
   <body class="masters-page">
     <a class="skip-link" href="#masters-main">본문으로 바로가기</a>
@@ -94,7 +96,7 @@
         </header>
 
         <section class="masters-actions" aria-label="GOAT Arena 메뉴">
-          <article class="masters-action-card goat-arena-action-card">
+          <article class="masters-action-card goat-arena-action-card" data-tutorial-target="arena-match">
             <div>
               <p>일반 쟁탈전</p>
               <h2>GOAT Arena</h2>
@@ -114,7 +116,7 @@
             </a>
           </article>
 
-          <article class="masters-action-card placement-action-card">
+          <article class="masters-action-card placement-action-card" data-tutorial-target="arena-placement">
             <div>
               <span aria-hidden="true">01</span>
               <p>배치고사</p>
@@ -152,7 +154,7 @@
             <% } %>
           </article>
 
-          <article class="masters-action-card private-mock-action-card">
+          <article class="masters-action-card private-mock-action-card" data-tutorial-target="arena-official-mock">
             <div>
               <span aria-hidden="true">02</span>
               <p>매주 일요일 3회 제공</p>
@@ -181,7 +183,7 @@
             <% } %>
           </article>
 
-          <article class="masters-action-card ranking-action-card">
+          <article class="masters-action-card ranking-action-card" data-tutorial-target="arena-ranking">
             <div>
               <span aria-hidden="true">03</span>
               <p>랭킹</p>
@@ -194,7 +196,7 @@
             </a>
           </article>
 
-          <article class="masters-action-card identity-action-card">
+          <article class="masters-action-card identity-action-card" data-tutorial-target="arena-identity">
             <div>
               <span aria-hidden="true">04</span>
               <p>프로필</p>
@@ -207,7 +209,7 @@
             </a>
           </article>
 
-          <article class="masters-action-card objection-action-card">
+          <article class="masters-action-card objection-action-card" data-tutorial-target="arena-objection">
             <div>
               <span aria-hidden="true">05</span>
               <p>문제 검토</p>
@@ -267,6 +269,7 @@
         hidden
       ></form>
     </dialog>
+  <%- include("partials/onboarding-tutorial", { page: "war-of-masters" }) %>
   <%- include("partials/business-footer") %>
   </body>
 </html>

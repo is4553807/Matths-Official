@@ -35,11 +35,13 @@
       rel="stylesheet"
       href="/css/assessment.css"
     />
+    <link rel="stylesheet" href="/css/onboarding-tutorial.css" />
     <script src="/js/main.js" defer></script>
     <script
       src="/js/assessment-center.js"
       defer
     ></script>
+    <script src="/js/onboarding-tutorial.js" defer></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -103,7 +105,7 @@
           <a class="back-dashboard learning-home-button" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a>
         </header>
 
-      <section class="assessment-hero">
+      <section class="assessment-hero" data-tutorial-target="assessment-overview">
         <div>
           <p class="eyebrow">
             평가 센터
@@ -119,7 +121,7 @@
           </p>
         </div>
 
-        <div class="pass-rule">
+        <div class="pass-rule" data-tutorial-target="assessment-rules">
           <span>통과 기준</span>
           <strong>
             <%= assessmentData.passScore %>
@@ -138,7 +140,7 @@
           aria-labelledby="course-<%= course.id %>"
           <%= course.available ? "open" : "" %>
         >
-          <summary class="course-heading">
+          <summary class="course-heading" <%- courseIndex === 0 ? 'data-tutorial-target="assessment-course"' : '' %>>
             <div>
               <span>
                 과목
@@ -411,6 +413,7 @@
       <% }) %>
       </main>
     </div>
+  <%- include("partials/onboarding-tutorial", { page: "assessments" }) %>
   <%- include("partials/business-footer") %>
   </body>
 </html>

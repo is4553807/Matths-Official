@@ -67,7 +67,9 @@
     <meta name="theme-color" content="#f5f7fc" />
     <title>학습 홈 | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/onboarding-tutorial.css" />
     <script src="/js/main.js" defer></script>
+    <script src="/js/onboarding-tutorial.js" defer></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -123,7 +125,7 @@
 
         <div class="sidebar-spacer"></div>
 
-        <div class="sidebar-profile">
+        <div class="sidebar-profile" data-tutorial-target="dashboard-profile">
           <a
             class="profile-avatar profile-avatar-with-level"
             href="/profile"
@@ -150,7 +152,7 @@
       </aside>
 
       <main class="dashboard-main" id="dashboard-main">
-        <header class="topbar">
+        <header class="topbar" data-tutorial-target="dashboard-welcome">
           <div class="topbar-left">
             <button
               class="sidebar-open"
@@ -243,6 +245,7 @@
             class="dashboard-coach-card"
             data-mode="<%= data.coach.mode %>"
             aria-label="오늘의 Matths 코치 메시지"
+            data-tutorial-target="dashboard-coach"
           >
             <% if (["mild", "spicy"].includes(data.coach.mode)) { %>
               <figure
@@ -272,7 +275,7 @@
           </section>
         <% } %>
 
-        <section class="usage-plan-section" aria-labelledby="usage-plan-title">
+        <section class="usage-plan-section" aria-labelledby="usage-plan-title" data-tutorial-target="usage-plan">
           <article class="usage-plan-card usage-plan-card--<%= String(activePlan.code || 'FREE').toLowerCase() %>">
             <div class="usage-plan-copy">
               <p>이용 플랜</p>
@@ -308,6 +311,7 @@
           class="learning-record-section"
           id="learning-record"
           aria-labelledby="learning-record-title"
+          data-tutorial-target="weekly-record"
         >
           <article class="activity-card">
             <div class="card-heading">
@@ -395,6 +399,7 @@
         <p class="sr-only" id="dashboard-status" role="status" aria-live="polite"></p>
       </main>
     </div>
+  <%- include("partials/onboarding-tutorial", { page: "main" }) %>
   <%- include("partials/business-footer") %>
   </body>
 </html>

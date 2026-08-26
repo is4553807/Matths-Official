@@ -22,6 +22,8 @@
     unitId: item.unitId,
     conceptId: item.conceptId,
     retryAvailable: Boolean(item.retryAvailable),
+    reviewStatus: item.reviewStatus || "pending",
+    scheduledAt: item.scheduledAt || null,
     completed: item.reviewStatus === "completed",
   };
 %>
@@ -182,7 +184,7 @@
             </li>
             <li>
               <b>03</b>
-              <span>정답이면 복습 완료</span>
+              <span>정답이면 완료 · 오답이면 내일 예약</span>
             </li>
           </ol>
         </section>
@@ -194,7 +196,10 @@
                 <span>ORIGINAL WRONG ANSWER</span>
                 <h2>내가 틀린 문제</h2>
               </div>
-              <span class="review-status <%= item.reviewStatus %>">
+              <span
+                class="review-status <%= item.reviewStatus %>"
+                id="original-review-status"
+              >
                 <%= item.reviewLabel %>
               </span>
             </header>

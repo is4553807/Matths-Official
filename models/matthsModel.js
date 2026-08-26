@@ -106,6 +106,22 @@ const preferenceSchema = new Schema(
       type: profileAvatarAssetSchema,
       default: undefined,
     },
+
+    dashboardTutorialStatus: {
+      type: String,
+      enum: ["NOT_REQUIRED", "PENDING", "COMPLETED", "SKIPPED"],
+      default: "NOT_REQUIRED",
+    },
+
+    dashboardTutorialCompletedAt: {
+      type: Date,
+      default: null,
+    },
+
+    dashboardTutorialSkippedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     _id: false,

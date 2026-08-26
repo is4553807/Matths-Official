@@ -190,11 +190,29 @@ function reviewView(attempt) {
   };
 }
 
-function nextReviewDate() {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  date.setHours(0, 0, 0, 0);
-  return date;
+function nextReviewDate(now = new Date()) {
+  const koreanDateParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  })
+    .formatToParts(now)
+    .reduce((parts, part) => {
+      if (part.type !== "literal") {
+        parts[part.type] = Number(part.value);
+      }
+      return parts;
+    }, {});
+
+  return new Date(
+    Date.UTC(
+      koreanDateParts.year,
+      koreanDateParts.month - 1,
+      koreanDateParts.day + 1,
+      -9
+    )
+  );
 }
 
 async function requireReviewAttempt({
@@ -1088,4 +1106,5 @@ module.exports = {
   getPreviousReviewProblem,
   rememberReviewProblem,
   clearReviewProblem,
+  nextReviewDate,
 };

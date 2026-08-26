@@ -70,7 +70,9 @@
     <title>내 교육과정 | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/log-curriculum.css" />
+    <link rel="stylesheet" href="/css/onboarding-tutorial.css" />
     <script src="/js/main.js" defer></script>
+    <script src="/js/onboarding-tutorial.js" defer></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -152,7 +154,7 @@
           </a>
         </header>
 
-        <section class="curriculum-welcome">
+        <section class="curriculum-welcome" data-tutorial-target="curriculum-overview">
           <div class="welcome-copy">
             <span class="welcome-label">
               <%= data.curriculum.title || "2022 개정 교육과정" %>
@@ -227,7 +229,7 @@
           </div>
         </section>
 
-        <nav class="course-shortcuts" aria-label="과목 유형 바로가기">
+        <nav class="course-shortcuts" aria-label="과목 유형 바로가기" data-tutorial-target="curriculum-categories">
           <% categoryList.forEach((category) => { %>
             <a href="#category-<%= category.id %>">
               <span><%= category.englishTitle || "COURSE TYPE" %></span>
@@ -280,7 +282,7 @@
             aria-label="<%= category.title %> 교육과정"
           >
             <% category.courses.forEach((course, courseIndex) => { %>
-                <article class="curriculum-course <%= course.developmentLocked ? 'is-development-locked' : '' %>" id="<%= course.id %>">
+                <article class="curriculum-course <%= course.developmentLocked ? 'is-development-locked' : '' %>" id="<%= course.id %>" <%- categoryIndex === 0 && courseIndex === 0 ? 'data-tutorial-target="curriculum-course"' : '' %>>
                 <header class="course-heading">
                   <div class="course-heading-title">
                     <span>
@@ -471,6 +473,7 @@
 
       </main>
     </div>
+  <%- include("partials/onboarding-tutorial", { page: "log-curriculum" }) %>
   <%- include("partials/business-footer") %>
   </body>
 </html>

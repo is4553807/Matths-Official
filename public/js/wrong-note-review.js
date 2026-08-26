@@ -93,6 +93,9 @@
   const stateBadge = document.getElementById(
     "retry-state-badge"
   );
+  const originalStatusBadge = document.getElementById(
+    "original-review-status"
+  );
 
   let currentProblem = null;
   let hintWasDrawn = false;
@@ -161,16 +164,55 @@
     }
   }
 
-  function setCompletedState(completed) {
-    stateBadge?.classList.toggle(
-      "completed",
-      Boolean(completed)
-    );
+  function formatScheduledDate(value) {
+    if (!value) return "";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+
+    return new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      month: "long",
+      day: "numeric",
+    }).format(date);
+  }
+
+  function setReviewState(review = {}) {
+    const status = review.status ||
+      (review.completed ? "completed" : "") ||
+      (review.scheduled ? "scheduled" : "") ||
+      config.reviewStatus ||
+      (config.completed ? "completed" : "pending");
+    const scheduledAt = review.scheduledAt || config.scheduledAt || null;
+    const scheduledDate = formatScheduledDate(scheduledAt);
+
+    config.reviewStatus = status;
+    config.completed = status === "completed";
+    config.scheduledAt = status === "scheduled" ? scheduledAt : null;
+
+    [stateBadge, originalStatusBadge].forEach((badge) => {
+      if (!badge) return;
+      badge.classList.toggle("completed", status === "completed");
+      badge.classList.toggle("scheduled", status === "scheduled");
+    });
 
     if (stateBadge) {
-      stateBadge.textContent = completed
+      stateBadge.textContent = status === "completed"
         ? "복습 완료"
-        : "1문제 정답 시 완료";
+        : status === "scheduled"
+          ? `${scheduledDate || "내일"} 복습 예정`
+          : "1문제 정답 시 완료";
+    }
+
+    if (originalStatusBadge) {
+      originalStatusBadge.textContent = status === "completed"
+        ? "복습 완료"
+        : status === "scheduled"
+          ? "복습 예정"
+          : "복습 대기";
+      originalStatusBadge.title = status === "scheduled" && scheduledDate
+        ? `${scheduledDate}에 다시 복습합니다.`
+        : "";
     }
   }
 
@@ -320,12 +362,11 @@
     feedback.className = "retry-feedback";
     feedback.replaceChildren();
     anotherButton.hidden = true;
+    anotherButton.textContent = "같은 유형 다시 풀기";
     completeLink.hidden = true;
     submitButton.disabled = false;
     answerArea.disabled = false;
-    setCompletedState(
-      Boolean(review?.completed || config.completed)
-    );
+    setReviewState(review);
 
     loading.hidden = true;
     errorPanel.hidden = true;
@@ -387,8 +428,13 @@
     const strong = document.createElement("strong");
     const body = document.createElement("div");
     body.className = "math-content";
+    const coachMessage = String(
+      result.coachFeedback?.message || ""
+    ).trim();
 
-    if (result.correct) {
+    if (coachMessage) {
+      strong.textContent = coachMessage;
+    } else if (result.correct) {
       strong.textContent = result.review?.completed
         ? "정답입니다. 이 오답의 복습이 완료됐습니다."
         : "정답입니다.";
@@ -398,13 +444,6 @@
     }
 
     body.textContent = result.solution || "";
-    const coachMessage =
-      result.coachFeedback?.message;
-
-    if (coachMessage) {
-      strong.textContent +=
-        ` ${coachMessage}`;
-    }
     feedback.replaceChildren(strong, body);
     feedback.hidden = false;
     feedback.className = `retry-feedback ${
@@ -450,14 +489,16 @@
       answerArea.disabled = true;
       hintButton.disabled = false;
       feedbackContent(result);
+      setReviewState(result.review);
+      completeLink.hidden = !result.review?.completed;
 
       if (result.correct && result.review?.completed) {
-        config.completed = true;
-        setCompletedState(true);
-        completeLink.hidden = false;
         anotherButton.hidden = true;
       } else {
         anotherButton.hidden = false;
+        anotherButton.textContent = result.review?.scheduled
+          ? "지금 한 번 더 풀기"
+          : "같은 유형 다시 풀기";
       }
     } catch (error) {
       submitButton.disabled = false;
@@ -2898,6 +2939,6 @@
     loadProblem
   );
 
-  setCompletedState(Boolean(config.completed));
+  setReviewState(config);
   loadProblem();
 })();

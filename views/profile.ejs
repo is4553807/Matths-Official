@@ -32,6 +32,10 @@
       ? values.coachMode
       : learner.preferences?.coachMode ||
         "spicy";
+  const tutorialState =
+    typeof onboardingTutorial !== "undefined" && onboardingTutorial
+      ? onboardingTutorial
+      : { status: "NOT_REQUIRED" };
   const gradeLabel =
     Number(learner.schoolGrade) === 10
       ? "고등학교 1학년"
@@ -130,6 +134,7 @@
           <a href="#avatar-settings">프로필 이미지</a>
           <a href="#nickname-settings">닉네임</a>
           <a href="#coach-mode-settings">학습 모드</a>
+          <a href="#tutorial-settings">튜토리얼</a>
           <a href="#school-settings">고등학교</a>
           <a href="#password-settings">비밀번호</a>
           <a href="#withdrawal-settings">계정 탈퇴</a>
@@ -282,6 +287,33 @@
                 <button type="button" data-profile-avatar-crop-apply>자르기 적용</button>
               </footer>
             </dialog>
+          </section>
+
+          <section
+            class="settings-card tutorial-settings-card"
+            id="tutorial-settings"
+            aria-labelledby="tutorial-settings-title"
+          >
+            <div class="settings-card-heading">
+              <span class="settings-icon green" aria-hidden="true">▶</span>
+              <div>
+                <p>MATTHS TOUR</p>
+                <h2 id="tutorial-settings-title">기능 튜토리얼</h2>
+              </div>
+            </div>
+
+            <p class="settings-description">
+              학습 홈과 내 학습의 주요 기능을 순한맛 캐릭터와 함께 다시 둘러볼 수 있습니다.
+              현재 상태는
+              <strong><%= tutorialState.status === "COMPLETED" ? "완료" : tutorialState.status === "SKIPPED" ? "건너뜀" : tutorialState.status === "PENDING" ? "진행 대기" : "미시작" %></strong>입니다.
+            </p>
+
+            <form class="tutorial-restart-form" action="/profile/tutorial/restart" method="POST">
+              <button class="save-button" type="submit">
+                튜토리얼 시작하기
+                <span aria-hidden="true">→</span>
+              </button>
+            </form>
           </section>
 
           <section

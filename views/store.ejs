@@ -35,8 +35,10 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/store.css" />
+    <link rel="stylesheet" href="/css/onboarding-tutorial.css" />
     <link rel="stylesheet" href="/css/brand.css" />
     <script src="/js/main.js" defer></script>
+    <script src="/js/onboarding-tutorial.js" defer></script>
   </head>
   <body class="study-hall-page">
     <a class="skip-link" href="#study-hall-main">본문으로 바로가기</a>
@@ -63,7 +65,7 @@
           <a href="/main">학습 홈</a>
         </header>
 
-        <section class="study-hall-hero" aria-labelledby="study-hall-title">
+        <section class="study-hall-hero" aria-labelledby="study-hall-title" data-tutorial-target="store-overview">
           <div>
             <p>MATTHS EXAM PREP</p>
             <h1 id="study-hall-title">오늘 풀 문제부터<br />수능 직전 파이널까지.</h1>
@@ -76,7 +78,7 @@
           </aside>
         </section>
 
-        <nav class="study-hall-tabs" aria-label="수험관 콘텐츠">
+        <nav class="study-hall-tabs" aria-label="수험관 콘텐츠" data-tutorial-target="store-tabs">
           <% storeData.tabs.forEach((tab) => { %>
             <a href="/store?tab=<%= tab.code %>" class="<%= tab.code === storeData.activeTab ? 'is-active' : '' %>" <%= tab.code === storeData.activeTab ? 'aria-current="page"' : '' %>>
               <span><%= tab.label %></span><small><%= tab.summary %></small>
@@ -85,13 +87,13 @@
         </nav>
 
         <% if (storeData.continuing) { %>
-          <a class="study-hall-continue" href="/store/content/<%= storeData.continuing.id %>">
+          <a class="study-hall-continue" href="/store/content/<%= storeData.continuing.id %>" data-tutorial-target="store-continue">
             <div><small>최근 학습 이어서 하기</small><strong><%= storeData.continuing.title %></strong><span>마지막 문항 <%= storeData.continuing.progress.lastQuestionNumber || 1 %>번 · <%= storeData.continuing.progress.percent %>% 진행</span></div>
             <b>이어 하기 <i aria-hidden="true">→</i></b>
           </a>
         <% } %>
 
-        <section class="study-hall-catalog" aria-labelledby="hall-catalog-title">
+        <section class="study-hall-catalog" aria-labelledby="hall-catalog-title" data-tutorial-target="store-catalog">
           <header><div><p><%= storeData.activeTab %></p><h2 id="hall-catalog-title"><%= activeTab.label %></h2><span><%= activeTab.summary %></span></div><strong><%= storeData.items.length %><small>개 콘텐츠</small></strong></header>
 
           <% if (!storeData.items.length) { %>
@@ -130,6 +132,7 @@
         </section>
       </main>
     </div>
+  <%- include("partials/onboarding-tutorial", { page: "store" }) %>
   <%- include("partials/business-footer") %>
   </body>
 </html>

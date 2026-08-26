@@ -26,6 +26,9 @@ const {
   isPdfDownload,
   issuePersonalizedPdf,
 } = require("../services/pdfWatermarkService");
+const {
+  dashboardTutorialView,
+} = require("../services/dashboardTutorialService");
 
 function feedbackFromQuery(query = {}) {
   if (query.created === "1") return { type: "success", message: "새 묶음 상품을 등록했습니다." };
@@ -54,7 +57,15 @@ exports.storePage = async (req, res, next) => {
       userId: req.session.user.id,
       tab: req.query.tab,
     });
-    return res.render("store", { user: req.session.user, storeData });
+    return res.render("store", {
+      user: req.session.user,
+      storeData,
+      onboardingTutorial: dashboardTutorialView(
+        req.authenticatedUser?.preferences ||
+          req.session.user?.preferences ||
+          {}
+      ),
+    });
   } catch (error) { return next(error); }
 };
 

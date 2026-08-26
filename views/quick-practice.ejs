@@ -22,6 +22,7 @@
     <title>40초 눈풀이 | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/quick-practice.css" />
+    <link rel="stylesheet" href="/css/onboarding-tutorial.css" />
     <link rel="stylesheet" href="/css/brand.css" />
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <script>
@@ -45,6 +46,7 @@
     <script src="/js/math-renderer.js" defer></script>
     <script src="/js/main.js" defer></script>
     <script src="/js/quick-practice.js" defer></script>
+    <script src="/js/onboarding-tutorial.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#quick-main">본문으로 바로가기</a>
@@ -85,7 +87,7 @@
           <a class="quick-back learning-home-button" href="/main">학습 홈으로 →</a>
         </header>
 
-        <section class="quick-hero">
+        <section class="quick-hero" data-tutorial-target="quick-overview">
           <div>
             <p class="quick-kicker">2·3점 기본기 속도 훈련</p>
             <h2>식을 길게 쓰기 전에,<br />머릿속에서 먼저 끝내세요.</h2>
@@ -99,7 +101,7 @@
         </section>
 
         <section class="quick-workspace" data-quick-practice>
-          <div class="quick-control">
+          <div class="quick-control" data-tutorial-target="quick-controls">
             <p>난이도 선택</p>
             <div class="quick-points" role="group" aria-label="배점 선택">
               <button class="active" type="button" data-point-value="2" aria-pressed="true">2점</button>
@@ -133,7 +135,7 @@
             <button class="quick-start" id="quick-start" type="button">문제 시작</button>
           </div>
 
-          <div class="quick-problem" id="quick-problem" aria-live="polite">
+          <div class="quick-problem" id="quick-problem" aria-live="polite" data-tutorial-target="quick-problem">
             <div class="quick-timer" id="quick-timer" aria-label="남은 시간">
               <svg viewBox="0 0 120 120" aria-hidden="true">
                 <circle class="timer-track" cx="60" cy="60" r="52"></circle>
@@ -175,6 +177,7 @@
         </section>
       </main>
     </div>
+  <%- include("partials/onboarding-tutorial", { page: "quick-practice" }) %>
   <%- include("partials/business-footer") %>
   </body>
 </html>

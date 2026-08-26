@@ -580,6 +580,18 @@
   grid-column: auto;
 }
 
+.tutorial-settings-card {
+  background:
+    radial-gradient(circle at 100% 0, rgba(72, 194, 151, 0.13), transparent 42%),
+    #fff;
+}
+
+.tutorial-restart-form {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
 .settings-card-heading {
   display: flex;
   align-items: center;

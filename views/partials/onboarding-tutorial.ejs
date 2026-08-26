@@ -1,0 +1,59 @@
+<%
+  const tutorialData =
+    typeof onboardingTutorial !== "undefined" && onboardingTutorial
+      ? onboardingTutorial
+      : { status: "NOT_REQUIRED", shouldAutoStart: false };
+  const tutorialPage = typeof page === "string" ? page : "";
+  const tutorialConfigJson = JSON.stringify({
+    status: tutorialData.status,
+    shouldAutoStart: Boolean(tutorialData.shouldAutoStart),
+    page: tutorialPage,
+  })
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+%>
+<% if (tutorialData.shouldAutoStart) { %>
+  <div class="matths-tutorial" data-onboarding-tutorial hidden>
+    <div class="matths-tutorial-backdrop" aria-hidden="true"></div>
+    <div
+      class="matths-tutorial-spotlight"
+      data-tutorial-spotlight
+      aria-hidden="true"
+      hidden
+    ></div>
+    <section
+      class="matths-tutorial-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="matths-tutorial-title"
+      aria-describedby="matths-tutorial-message"
+    >
+      <button
+        class="matths-tutorial-close"
+        type="button"
+        data-tutorial-skip
+        aria-label="튜토리얼 건너뛰기"
+        title="튜토리얼 건너뛰기"
+      >×</button>
+      <figure class="matths-tutorial-character" aria-hidden="true" data-tutorial-character>
+        <img
+          src="/images/coach-characters/mild-goat-1.webp"
+          alt=""
+          draggable="false"
+          data-tutorial-character-image
+        />
+      </figure>
+      <div class="matths-tutorial-copy">
+        <p data-tutorial-progress>MATTHS TOUR</p>
+        <h2 id="matths-tutorial-title" data-tutorial-title>Matths 둘러보기</h2>
+        <div id="matths-tutorial-message" data-tutorial-message></div>
+        <small data-tutorial-status aria-live="polite"></small>
+        <button class="matths-tutorial-next" type="button" data-tutorial-next>
+          다음 <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </section>
+  </div>
+  <script id="onboarding-tutorial-config" type="application/json"><%- tutorialConfigJson %></script>
+<% } %>

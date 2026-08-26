@@ -11,6 +11,10 @@ const {getSchoolSelectData,findSchool,} = require('../services/schoolService');
 const { getUniversitySelectData, findUniversity } = require('../services/universityService');
 const {getDashboardData, toggleDailyPlanTask, updateCoachMode,} = require('../services/dashboardService');
 const {
+  dashboardTutorialView,
+  updateDashboardTutorial,
+} = require("../services/dashboardTutorialService");
+const {
   createPrivateMockExamBatch,
   createPrivateMockFormulaResource,
   createPrivateMockObjection,
@@ -3502,6 +3506,14 @@ function getRequestProfileAvatar(req) {
   );
 }
 
+function getRequestDashboardTutorial(req) {
+  return dashboardTutorialView(
+    req.authenticatedUser?.preferences ||
+      req.session?.user?.preferences ||
+      {}
+  );
+}
+
 exports.main = async (req, res, next) => {
     try {
         const [dashboardData, arenaActivityLevel] =
@@ -3524,6 +3536,7 @@ exports.main = async (req, res, next) => {
             dashboardData,
             arenaActivityLevel,
             arenaProfileAvatar: getRequestProfileAvatar(req),
+            onboardingTutorial: getRequestDashboardTutorial(req),
         });
     } catch (error) {
         return next(error);
@@ -4429,6 +4442,7 @@ exports.warOfMastersPage = async (
         placement,
         paidPackageAccess,
         privateMockEligibility,
+        onboardingTutorial: getRequestDashboardTutorial(req),
       }
     );
   } catch (error) {
@@ -4916,6 +4930,7 @@ exports.myLearning = async (req, res, next) => {
       learningData,
       user: req.session.user,
       arenaProfileAvatar: getRequestProfileAvatar(req),
+      onboardingTutorial: getRequestDashboardTutorial(req),
     });
   } catch (error) {
     return next(error);
@@ -5470,6 +5485,9 @@ exports.register = async (req, res, next) => {
             termsAcceptedAt: new Date(),
             termsVersion: "2026-08-13",
             privacyVersion: "2026-08-13",
+            preferences: {
+              dashboardTutorialStatus: "PENDING",
+            },
         });
 
         await alertPotentialDuplicateIdentity(
@@ -5907,6 +5925,7 @@ async function renderProfile(
         );
     }
 
+    res.set("Cache-Control", "private, no-store");
     return res.status(status).render("profile", {
         profileUser,
         arenaActivityLevel,
@@ -5914,6 +5933,9 @@ async function renderProfile(
           profileUser.preferences
         ),
         arenaProfileAvatars: ARENA_PROFILE_AVATARS,
+        onboardingTutorial: dashboardTutorialView(
+          profileUser.preferences
+        ),
         schoolRegions: getSchoolSelectData(),
         feedback,
         formValues,
@@ -5980,6 +6002,63 @@ exports.profilePage = async (req, res, next) => {
     } catch (error) {
         return next(error);
     }
+};
+
+function syncDashboardTutorialSession(req, tutorial) {
+  const preferences = {
+    ...(req.session.user.preferences || {}),
+    dashboardTutorialStatus: tutorial.status,
+  };
+
+  if (tutorial.completedAt) {
+    preferences.dashboardTutorialCompletedAt = tutorial.completedAt;
+  } else {
+    delete preferences.dashboardTutorialCompletedAt;
+  }
+
+  if (tutorial.skippedAt) {
+    preferences.dashboardTutorialSkippedAt = tutorial.skippedAt;
+  } else {
+    delete preferences.dashboardTutorialSkippedAt;
+  }
+
+  req.session.user.preferences = preferences;
+}
+
+exports.restartDashboardTutorial = async (req, res, next) => {
+  try {
+    const tutorial = await updateDashboardTutorial({
+      userId: req.session.user.id,
+      action: "RESTART",
+    });
+    syncDashboardTutorialSession(req, tutorial);
+    await saveSession(req);
+    return res.redirect("/main?tutorialStep=0");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.updateDashboardTutorial = async (req, res, next) => {
+  try {
+    const action = String(req.body?.action || "").trim().toUpperCase();
+    if (!["COMPLETE", "SKIP"].includes(action)) {
+      const error = new Error("올바른 튜토리얼 동작이 아닙니다.");
+      error.status = 400;
+      throw error;
+    }
+
+    const tutorial = await updateDashboardTutorial({
+      userId: req.session.user.id,
+      action,
+    });
+    syncDashboardTutorialSession(req, tutorial);
+    await saveSession(req);
+    res.set("Cache-Control", "private, no-store");
+    return res.json({ tutorial });
+  } catch (error) {
+    return next(error);
+  }
 };
 
 exports.changeProfileAvatar = async (req, res, next) => {
@@ -6591,6 +6670,7 @@ exports.loggedCurriculumPage = async (req, res, next) => {
     return res.render("log-curriculum", {
       user: req.session.user,
       learningData,
+      onboardingTutorial: getRequestDashboardTutorial(req),
     });
   } catch (error) {
     return next(error);
@@ -6618,6 +6698,7 @@ exports.assessmentCenterPage = async (
       {
         user: req.session.user,
         assessmentData,
+        onboardingTutorial: getRequestDashboardTutorial(req),
       }
     );
   } catch (error) {
@@ -6825,6 +6906,7 @@ exports.wrongNotesPage = async (req, res, next) => {
     return res.render("wrong-notes", {
       user: req.session.user,
       wrongNoteData,
+      onboardingTutorial: getRequestDashboardTutorial(req),
     });
   } catch (error) {
     return next(error);
@@ -7082,6 +7164,7 @@ exports.quickPracticePage = async (
           await getQuickPracticeStats(
             req.session.user.id
           ),
+        onboardingTutorial: getRequestDashboardTutorial(req),
       }
     );
   } catch (error) {
@@ -7207,6 +7290,7 @@ exports.coachSuggestionBoard =
             "1",
           suggestionRequestId:
             randomUUID(),
+          onboardingTutorial: getRequestDashboardTutorial(req),
         }
       );
     } catch (error) {

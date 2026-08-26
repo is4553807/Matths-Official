@@ -35,9 +35,11 @@
     <title>문구 제안소 | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/coach-suggestions.css" />
+    <link rel="stylesheet" href="/css/onboarding-tutorial.css" />
     <link rel="stylesheet" href="/css/brand.css" />
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <script src="/js/main.js" defer></script>
+    <script src="/js/onboarding-tutorial.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#suggestion-main">본문으로 바로가기</a>
@@ -73,7 +75,7 @@
           <a class="learning-home-button" href="/main">학습 홈으로 →</a>
         </header>
 
-        <section class="suggestion-hero">
+        <section class="suggestion-hero" data-tutorial-target="suggestion-overview">
           <div>
             <p>학생이 만드는 코치</p>
             <h2>공부할 때 정신이 번쩍 드는<br />한마디를 제안해 주세요.</h2>
@@ -100,7 +102,7 @@
         <% } %>
 
         <section class="suggestion-grid">
-          <form class="suggestion-form" action="/coach-suggestions" method="POST">
+          <form class="suggestion-form" action="/coach-suggestions" method="POST" data-tutorial-target="suggestion-form">
             <input type="hidden" name="requestId" value="<%= suggestionRequestId %>" />
             <div class="suggestion-heading">
               <p>새 문구 제안</p>
@@ -131,7 +133,7 @@
             <button type="submit">검수 요청하기 →</button>
           </form>
 
-          <section class="my-suggestions">
+          <section class="my-suggestions" data-tutorial-target="suggestion-status">
             <div class="suggestion-heading">
               <p>내 제안</p>
               <h3>검수 상태</h3>
@@ -183,7 +185,7 @@
           </section>
         <% } %>
 
-        <section class="approved-section">
+        <section class="approved-section" data-tutorial-target="suggestion-approved">
           <div class="suggestion-heading">
             <p>현재 사용 중</p>
             <h3>학생이 만든 코치 문구</h3>
@@ -203,6 +205,7 @@
         </section>
       </main>
     </div>
+  <%- include("partials/onboarding-tutorial", { page: "coach-suggestions" }) %>
   <%- include("partials/business-footer") %>
   </body>
 </html>

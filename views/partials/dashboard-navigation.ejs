@@ -109,7 +109,7 @@
 <link rel="stylesheet" href="/css/matths-theme.css?v=<%= dashboardAssetVersion %>" />
 <link rel="stylesheet" href="/css/contrast.css?v=<%= dashboardAssetVersion %>" />
 
-<nav class="side-nav" aria-label="대시보드 메뉴">
+<nav class="side-nav" aria-label="대시보드 메뉴" data-tutorial-target="dashboard-navigation">
   <p>LEARNING</p>
   <% dashboardNavigationItems.forEach((item) => { %>
     <% const isActive = item.id === currentDashboardPage; %>
@@ -118,6 +118,7 @@
       href="<%= item.href %>"
       aria-label="<%= item.label %>"
       title="<%= item.label %>"
+      data-tutorial-nav="<%= item.id %>"
       <%- isActive ? 'aria-current="page"' : "" %>
     >
       <span class="nav-icon" aria-hidden="true"><%= item.icon %></span>

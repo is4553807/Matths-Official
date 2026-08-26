@@ -1170,6 +1170,12 @@ router.get(
 
 router.get('/main', authMiddleware.isLoggedIn, matthsController.main);
 
+router.post(
+  "/api/dashboard-tutorial",
+  authMiddleware.isLoggedIn,
+  matthsController.updateDashboardTutorial
+);
+
 router.get(
   "/war-of-masters",
   authMiddleware.isLoggedIn,
@@ -1360,6 +1366,12 @@ router.post(
   "/profile/coach-mode",
   authMiddleware.isLoggedIn,
   matthsController.changeProfileCoachMode
+);
+
+router.post(
+  "/profile/tutorial/restart",
+  authMiddleware.isLoggedIn,
+  matthsController.restartDashboardTutorial
 );
 
 router.post(

@@ -98,6 +98,7 @@
     <title>오답노트 | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/wrong-notes.css" />
+    <link rel="stylesheet" href="/css/onboarding-tutorial.css" />
 
     <script>
       window.MathJax = {
@@ -121,6 +122,7 @@
     <script src="/js/math-renderer.js" defer></script>
 
     <script src="/js/main.js" defer></script>
+    <script src="/js/onboarding-tutorial.js" defer></script>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon-64.png" />
     <link rel="stylesheet" href="/css/brand.css" />
@@ -202,7 +204,7 @@
           </a>
         </header>
 
-        <section class="wrong-hero">
+        <section class="wrong-hero" data-tutorial-target="wrong-overview">
           <div class="wrong-hero-copy">
             <span>틀린 문제는 자동 저장됩니다.</span>
             <h2>
@@ -215,7 +217,8 @@
             </p>
             <p class="review-status-guide">
               <strong>복습 대기</strong>는 지금 바로 다시 풀 수 있는 새 오답이고,
-              <strong>복습 예정</strong>은 재도전에서 다시 틀려 다음 날로 예약된 오답입니다.
+              <strong>복습 예정</strong>은 ‘비슷한 유형으로 복습’에서 다시 틀려
+              다음 날로 자동 예약된 오답입니다.
             </p>
           </div>
 
@@ -242,7 +245,7 @@
           </div>
         </section>
 
-        <section class="review-tabs" aria-label="오답 상태별 보기">
+        <section class="review-tabs" aria-label="오답 상태별 보기" data-tutorial-target="wrong-status-tabs">
           <% [
             ["all", "전체", stats.total],
             ["pending", "복습 대기", stats.pending],
@@ -261,7 +264,7 @@
         </section>
 
         <section class="wrong-content">
-          <form class="review-filter" action="/wrong-notes" method="GET">
+          <form class="review-filter" action="/wrong-notes" method="GET" data-tutorial-target="wrong-filter">
             <input type="hidden" name="status" value="<%= filters.status %>" />
 
             <label class="search-field">
@@ -330,7 +333,7 @@
           </div>
 
           <% if (items.length) { %>
-            <div class="wrong-list-full">
+            <div class="wrong-list-full" data-tutorial-target="wrong-results">
               <% items.forEach((item, index) => { %>
                 <article class="wrong-item <%= item.reviewStatus %>">
                   <div class="wrong-number">
@@ -403,7 +406,13 @@
                     <footer class="wrong-item-actions">
                       <p>
                         <span aria-hidden="true">◈</span>
-                        막힌 개념을 움직이는 설명으로 다시 확인합니다.
+                        <% if (item.retryAvailable) { %>
+                          재도전에서 다시 틀리면 다음 날 복습 예정으로 자동 예약됩니다.
+                        <% } else if (item.isQuickPractice) { %>
+                          40초 눈풀이 오답은 눈풀이에서 새 문제로 다시 연습합니다.
+                        <% } else { %>
+                          이전 형식 오답은 연결된 개념 페이지에서 다시 연습합니다.
+                        <% } %>
                       </p>
                       <div>
                         <a class="secondary" href="<%= item.conceptHref %>">
@@ -471,7 +480,7 @@
               </nav>
             <% } %>
           <% } else { %>
-            <div class="wrong-empty">
+            <div class="wrong-empty" data-tutorial-target="wrong-results">
               <span aria-hidden="true">✓</span>
               <% if (Number(stats.total) === 0) { %>
                 <h3>아직 저장된 오답이 없습니다.</h3>
@@ -496,6 +505,7 @@
         ></p>
       </main>
     </div>
+  <%- include("partials/onboarding-tutorial", { page: "wrong-notes" }) %>
   <%- include("partials/business-footer") %>
   </body>
 </html>

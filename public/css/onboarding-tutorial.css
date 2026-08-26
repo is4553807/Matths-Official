@@ -1,0 +1,245 @@
+.matths-tutorial[hidden] {
+  display: none;
+}
+
+.matths-tutorial-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: transparent;
+}
+
+.matths-tutorial-spotlight[hidden] {
+  display: none;
+}
+
+.matths-tutorial-spotlight {
+  position: fixed;
+  z-index: 9001;
+  border-radius: var(--matths-spotlight-radius, 24px);
+  pointer-events: none;
+  box-shadow:
+    0 0 0 3px rgba(125, 230, 196, 0.14),
+    0 0 0 9999px rgba(3, 6, 20, 0.82);
+}
+
+.matths-tutorial-spotlight--reveal {
+  animation: matths-tutorial-spotlight-reveal 160ms ease-out both;
+}
+
+.matths-tutorial-dialog {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 9002;
+  width: min(560px, calc(100vw - 56px));
+  min-height: 224px;
+  display: grid;
+  grid-template-columns: 142px minmax(0, 1fr);
+  align-items: end;
+  gap: 10px;
+  padding: 24px 26px 22px 12px;
+  color: #173a31;
+  background:
+    radial-gradient(circle at 8% 105%, rgba(62, 191, 143, 0.2), transparent 36%),
+    linear-gradient(135deg, #f4fff9, #dff6ec);
+  border: 1px solid rgba(107, 198, 164, 0.7);
+  border-radius: 26px;
+  box-shadow: 0 28px 80px rgba(5, 17, 38, 0.34);
+  overflow: visible;
+}
+
+.matths-tutorial-close {
+  position: absolute;
+  top: 13px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #376c5e;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(74, 151, 126, 0.32);
+  border-radius: 50%;
+  font-size: 23px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.matths-tutorial-character {
+  width: 154px;
+  height: 210px;
+  align-self: end;
+  margin: -42px -8px -28px -26px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.matths-tutorial-character img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 16px 15px rgba(42, 62, 86, 0.2));
+  transition: opacity 120ms ease, transform 120ms ease;
+  will-change: opacity, transform;
+}
+
+.matths-tutorial-character.is-switching img {
+  opacity: 0.78;
+  transform: translateY(1px) scale(0.985);
+}
+
+.matths-tutorial-copy {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 7px 0 0;
+}
+
+.matths-tutorial-copy > p {
+  margin: 0;
+  color: #3b8e73;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+}
+
+.matths-tutorial-copy h2 {
+  margin: 0;
+  padding-right: 30px;
+  color: #143c32;
+  font-size: clamp(21px, 2vw, 27px);
+  line-height: 1.25;
+  letter-spacing: -0.04em;
+}
+
+.matths-tutorial-copy [data-tutorial-message] {
+  color: #31584d;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.matths-tutorial-copy [data-tutorial-status] {
+  min-height: 18px;
+  color: #b34251;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.matths-tutorial-next {
+  min-height: 45px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 2px;
+  padding: 0 20px;
+  color: #fff;
+  background: linear-gradient(135deg, #1e9d78, #3377d7);
+  border: 0;
+  border-radius: 13px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(27, 116, 100, 0.23);
+}
+
+.matths-tutorial-next:disabled,
+.matths-tutorial-close:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.matths-tutorial-target {
+  position: relative !important;
+  z-index: 9001 !important;
+  pointer-events: none !important;
+}
+
+.matths-tutorial-spotlight--pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: matths-tutorial-attention 1.8s ease-in-out infinite;
+}
+
+body.matths-tutorial-active {
+  overflow: hidden;
+}
+
+@keyframes matths-tutorial-attention {
+  0%, 100% {
+    opacity: 0.28;
+    box-shadow: 0 0 0 3px rgba(125, 230, 196, 0.28);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 0 12px rgba(125, 230, 196, 0.24);
+  }
+}
+
+@keyframes matths-tutorial-spotlight-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 700px) {
+  .matths-tutorial-dialog {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+    min-height: 198px;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 8px;
+    padding: 20px 17px 16px 8px;
+    border-radius: 21px;
+  }
+
+  .matths-tutorial-character {
+    width: 108px;
+    height: 154px;
+    margin: -25px -8px -19px -18px;
+  }
+
+  .matths-tutorial-copy {
+    gap: 6px;
+  }
+
+  .matths-tutorial-copy h2 {
+    font-size: 20px;
+  }
+
+  .matths-tutorial-copy [data-tutorial-message] {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .matths-tutorial-next {
+    min-height: 42px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matths-tutorial-character img {
+    transition: none;
+  }
+
+  .matths-tutorial-spotlight--pulse::after {
+    animation: none;
+    opacity: 0.4;
+    box-shadow: 0 0 0 3px rgba(125, 230, 196, 0.24);
+  }
+}

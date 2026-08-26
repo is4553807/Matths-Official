@@ -342,6 +342,11 @@
   background: var(--green-soft);
 }
 
+.retry-badge.scheduled {
+  color: #5c46a8;
+  background: var(--violet-soft);
+}
+
 .retry-loading {
   min-height: 530px;
   display: grid;

@@ -125,10 +125,15 @@ function createSourceLabel(source = {}) {
 function isSameOrBeforeToday(value) {
   if (!value) return false;
 
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
+  const dateKey = (date) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(date));
 
-  return new Date(value) <= todayEnd;
+  return dateKey(value) <= dateKey(new Date());
 }
 
 function getAttemptIdentity(attempt) {
