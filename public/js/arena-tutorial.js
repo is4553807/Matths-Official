@@ -214,6 +214,8 @@
   if (!document.querySelector(steps[stepIndex]?.selector)) return;
   let activeTarget = null;
   let frameTimer = null;
+  let spotlightTrackingFrame = null;
+  let lastTrackedRect = null;
   let characterFrame = 0;
   let busy = false;
 
@@ -260,6 +262,7 @@
   function clearTarget() {
     if (activeTarget) activeTarget.classList.remove("arena-tour-target");
     activeTarget = null;
+    lastTrackedRect = null;
   }
 
   function setShade(element, values) {
@@ -304,6 +307,42 @@
     spotlight.classList.toggle("is-pulsing", Boolean(attention));
     spotlight.hidden = false;
     positionDialog({ left, top, right, bottom });
+  }
+
+  function trackedRect(target) {
+    const rect = target.getBoundingClientRect();
+    return {
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+    };
+  }
+
+  function rectChanged(previous, current) {
+    if (!previous) return true;
+    return ["left", "top", "right", "bottom"].some(
+      (key) => Math.abs(previous[key] - current[key]) >= 0.5
+    );
+  }
+
+  function trackSpotlight() {
+    if (
+      activeTarget &&
+      !root.hidden &&
+      !spotlight.hidden &&
+      !root.classList.contains("is-positioning")
+    ) {
+      const currentRect = trackedRect(activeTarget);
+      if (rectChanged(lastTrackedRect, currentRect)) {
+        lastTrackedRect = currentRect;
+        positionSpotlight(
+          activeTarget,
+          steps[stepIndex]?.attention !== false
+        );
+      }
+    }
+    spotlightTrackingFrame = window.requestAnimationFrame(trackSpotlight);
   }
 
   function waitForScroll() {
@@ -359,6 +398,7 @@
 
     activeTarget = target;
     target.classList.add("arena-tour-target");
+    lastTrackedRect = trackedRect(target);
     progress.textContent = `GOAT ARENA TOUR · ${chapterLabels[chapter]} · ${stepIndex + 1} / ${steps.length}`;
     title.textContent = step.title;
     message.textContent = step.message;
@@ -386,6 +426,10 @@
   function closeTutorial() {
     clearTarget();
     if (frameTimer) window.clearInterval(frameTimer);
+    if (spotlightTrackingFrame) {
+      window.cancelAnimationFrame(spotlightTrackingFrame);
+      spotlightTrackingFrame = null;
+    }
     root.hidden = true;
     root.classList.remove("is-positioning");
     document.body.classList.remove("arena-tour-active");
@@ -453,5 +497,6 @@
   root.classList.add("is-positioning");
   document.body.classList.add("arena-tour-active");
   startCharacter();
+  spotlightTrackingFrame = window.requestAnimationFrame(trackSpotlight);
   revealStep();
 })();

@@ -84,6 +84,8 @@ assert.match(client, /ranked_shop:/);
 assert.match(client, /setInterval/);
 assert.match(client, /2000/);
 assert.match(client, /waitForScroll/);
+assert.match(client, /requestAnimationFrame\(trackSpotlight\)/);
+assert.match(client, /rectChanged\(lastTrackedRect, currentRect\)/);
 assert.match(client, /postTutorial\("SKIP", chapter\)/);
 assert.match(client, /root\.classList\.add\("is-positioning"\)/);
 assert.match(client, /window\.requestAnimationFrame\(\(\) => root\.classList\.remove\("is-positioning"\)\)/);
