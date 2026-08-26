@@ -7,8 +7,18 @@ const {
 const {
   ParentAccount,
 } = require("../models/parentModel");
-const {getSchoolSelectData,findSchool,} = require('../services/schoolService');
-const { getUniversitySelectData, findUniversity } = require('../services/universityService');
+const {
+  OVERSEAS_HIGH_SCHOOL_OPTION_CODE,
+  buildOverseasSchool,
+  getSchoolSelectData,
+  findSchool,
+} = require('../services/schoolService');
+const {
+  OVERSEAS_UNIVERSITY_OPTION_CODE,
+  buildOverseasUniversity,
+  getUniversitySelectData,
+  findUniversity,
+} = require('../services/universityService');
 const {getDashboardData, toggleDailyPlanTask, updateCoachMode,} = require('../services/dashboardService');
 const {
   dashboardTutorialView,
@@ -557,7 +567,9 @@ exports.registerPage = (
         schoolGrade: 10,
         schoolRegion: "",
         schoolCode: "",
+        overseasSchoolName: "",
         universityCode: "",
+        overseasUniversityName: "",
       },
     });
   } catch (error) {
@@ -5107,7 +5119,9 @@ function renderRegisterError(res, status, error, oldInput = {}) {
             schoolGrade: 10,
             schoolRegion: "",
             schoolCode: "",
+            overseasSchoolName: "",
             universityCode: "",
+            overseasUniversityName: "",
             ...oldInput,
         },
     });
@@ -5151,6 +5165,7 @@ function createLoginSession(req, user) {
                           region: user.school.region,
                           code: user.school.code,
                           name: user.school.name,
+                          isOverseas: user.school.isOverseas === true,
                       }
                     : null,
                 university: user.university?.code
@@ -5159,6 +5174,7 @@ function createLoginSession(req, user) {
                           name: user.university.name,
                           campus: user.university.campus,
                           region: user.university.region,
+                          isOverseas: user.university.isOverseas === true,
                       }
                     : null,
             };
@@ -5197,7 +5213,13 @@ exports.register = async (req, res, next) => {
         const schoolGrade = Number(req.body.schoolGrade);
         const schoolRegion = String(req.body.schoolRegion || "").trim();
         const schoolCode = String(req.body.schoolCode || "").trim();
+        const overseasSchoolName = String(
+            req.body.overseasSchoolName || ""
+        );
         const universityCode = String(req.body.universityCode || "").trim();
+        const overseasUniversityName = String(
+            req.body.overseasUniversityName || ""
+        );
 
         const password = String(req.body.password || "");
         const passwordConfirm = String(req.body.passwordConfirm || "");
@@ -5215,7 +5237,9 @@ exports.register = async (req, res, next) => {
             schoolGrade,
             schoolRegion,
             schoolCode,
+            overseasSchoolName,
             universityCode,
+            overseasUniversityName,
         };
 
         if (
@@ -5331,16 +5355,45 @@ exports.register = async (req, res, next) => {
          */
         const selectedSchool =
             [10, 11, 12].includes(schoolGrade)
-                ? findSchool(
-                      schoolRegion,
-                      schoolCode
-                  )
+                ? schoolCode === OVERSEAS_HIGH_SCHOOL_OPTION_CODE
+                    ? buildOverseasSchool(overseasSchoolName).school
+                    : findSchool(
+                          schoolRegion,
+                          schoolCode
+                      )
                 : null;
 
         const selectedUniversity =
             schoolGrade === 14
-                ? findUniversity(universityCode)
+                ? universityCode === OVERSEAS_UNIVERSITY_OPTION_CODE
+                    ? buildOverseasUniversity(overseasUniversityName).university
+                    : findUniversity(universityCode)
                 : null;
+
+        if (
+            [10, 11, 12].includes(schoolGrade) &&
+            schoolCode === OVERSEAS_HIGH_SCHOOL_OPTION_CODE &&
+            !selectedSchool
+        ) {
+            return renderRegisterError(
+                res,
+                400,
+                buildOverseasSchool(overseasSchoolName).error,
+                oldInput
+            );
+        }
+        if (
+            schoolGrade === 14 &&
+            universityCode === OVERSEAS_UNIVERSITY_OPTION_CODE &&
+            !selectedUniversity
+        ) {
+            return renderRegisterError(
+                res,
+                400,
+                buildOverseasUniversity(overseasUniversityName).error,
+                oldInput
+            );
+        }
 
         if ([10, 11, 12].includes(schoolGrade) && !selectedSchool) {
             return renderRegisterError(
@@ -5493,6 +5546,8 @@ exports.register = async (req, res, next) => {
                               selectedSchool.establishment || "",
                           highSchoolType:
                               selectedSchool.highSchoolType || "",
+                          isOverseas:
+                              selectedSchool.isOverseas === true,
                       },
                   }
                 : {}),
@@ -5872,6 +5927,7 @@ exports.login = async (req, res, next) => {
                       region: user.school.region,
                       code: user.school.code,
                       name: user.school.name,
+                      isOverseas: user.school.isOverseas === true,
                   }
                 : null,
             university: user.university?.code
@@ -5880,6 +5936,7 @@ exports.login = async (req, res, next) => {
                       name: user.university.name,
                       campus: user.university.campus,
                       region: user.university.region,
+                      isOverseas: user.university.isOverseas === true,
                   }
                 : null,
         };

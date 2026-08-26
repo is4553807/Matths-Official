@@ -31,6 +31,9 @@ const {
 const {
     canonicalHostRedirect,
 } = require("./middleware/canonicalHost");
+const {
+    localizationMiddleware,
+} = require("./middleware/localizationMiddleware");
 
 const runtimeEnvironment = assertRuntimeEnvironment();
 for (const warning of runtimeEnvironment.warnings) {
@@ -45,7 +48,7 @@ function staticAssetFingerprint() {
             const filePath = path.join(directory, entry.name);
             if (entry.isDirectory()) {
                 collectFiles(filePath);
-            } else if (/\.(?:css|js|svg)$/i.test(entry.name)) {
+            } else if (/\.(?:css|js|svg|json)$/i.test(entry.name)) {
                 files.push(filePath);
             }
         }
@@ -146,7 +149,7 @@ server.use(express.static("public", {
     lastModified: true,
     maxAge: process.env.NODE_ENV === "production" ? "1d" : 0,
     setHeaders(res, filePath) {
-        if (/\.(?:css|js|svg)$/i.test(filePath)) {
+        if (/\.(?:css|js|svg|json)$/i.test(filePath)) {
             const requestedVersion = String(
                 res.req?.query?.v || ""
             );
@@ -215,6 +218,7 @@ server.use(session({
     },
 }));
 server.use(sameOriginProtection);
+server.use(localizationMiddleware);
 server.use((req, res, next) => {
     res.locals.user = req.session?.user || null;
     res.locals.arenaPublicText = arenaPublicText;

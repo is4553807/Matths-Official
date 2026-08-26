@@ -660,6 +660,11 @@ const userSchema = new Schema(
         type: String,
         default: "",
       },
+
+      isOverseas: {
+        type: Boolean,
+        default: false,
+      },
     },
 
     university: {
@@ -670,6 +675,7 @@ const userSchema = new Schema(
       institutionLevel: { type: String, default: "" },
       institutionType: { type: String, default: "" },
       establishment: { type: String, default: "" },
+      isOverseas: { type: Boolean, default: false },
     },
 
     /*

@@ -4,10 +4,14 @@ const {
   User,
 } = require("../models/matthsModel");
 const {
+  OVERSEAS_HIGH_SCHOOL_OPTION_CODE,
+  buildOverseasSchool,
   findSchool,
   getSchoolSelectData,
 } = require("../services/schoolService");
 const {
+  OVERSEAS_UNIVERSITY_OPTION_CODE,
+  buildOverseasUniversity,
   findUniversity,
   getUniversitySelectData,
 } = require("../services/universityService");
@@ -107,6 +111,7 @@ function serializeUser(user) {
           region: user.school.region,
           code: user.school.code,
           name: user.school.name,
+          isOverseas: user.school.isOverseas === true,
         }
       : null,
     university: user.university?.code
@@ -115,6 +120,7 @@ function serializeUser(user) {
           name: user.university.name,
           campus: user.university.campus,
           region: user.university.region,
+          isOverseas: user.university.isOverseas === true,
         }
       : null,
     currentStreak:
@@ -219,9 +225,15 @@ exports.register = async (
     const schoolCode = String(
       req.body.schoolCode || ""
     ).trim();
+    const overseasSchoolName = String(
+      req.body.overseasSchoolName || ""
+    );
     const universityCode = String(
       req.body.universityCode || ""
     ).trim();
+    const overseasUniversityName = String(
+      req.body.overseasUniversityName || ""
+    );
     const termsAccepted =
       req.body.termsAccepted === true;
 
@@ -319,15 +331,40 @@ exports.register = async (
 
     const school =
       [10, 11, 12].includes(schoolGrade)
-        ? findSchool(
-            schoolRegion,
-            schoolCode
-          )
+        ? schoolCode === OVERSEAS_HIGH_SCHOOL_OPTION_CODE
+          ? buildOverseasSchool(overseasSchoolName).school
+          : findSchool(
+              schoolRegion,
+              schoolCode
+            )
         : null;
     const university =
       schoolGrade === 14
-        ? findUniversity(universityCode)
+        ? universityCode === OVERSEAS_UNIVERSITY_OPTION_CODE
+          ? buildOverseasUniversity(overseasUniversityName).university
+          : findUniversity(universityCode)
         : null;
+
+    if (
+      [10, 11, 12].includes(schoolGrade) &&
+      schoolCode === OVERSEAS_HIGH_SCHOOL_OPTION_CODE &&
+      !school
+    ) {
+      return res.status(400).json({
+        code: "INVALID_OVERSEAS_SCHOOL_NAME",
+        message: buildOverseasSchool(overseasSchoolName).error,
+      });
+    }
+    if (
+      schoolGrade === 14 &&
+      universityCode === OVERSEAS_UNIVERSITY_OPTION_CODE &&
+      !university
+    ) {
+      return res.status(400).json({
+        code: "INVALID_OVERSEAS_UNIVERSITY_NAME",
+        message: buildOverseasUniversity(overseasUniversityName).error,
+      });
+    }
 
     if ([10, 11, 12].includes(schoolGrade) && !school) {
       return res.status(400).json({
@@ -440,6 +477,8 @@ exports.register = async (
                 school.establishment || "",
               highSchoolType:
                 school.highSchoolType || "",
+              isOverseas:
+                school.isOverseas === true,
             },
           }
         : {}),

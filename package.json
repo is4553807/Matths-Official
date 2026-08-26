@@ -8,6 +8,8 @@
   },
   "scripts": {
     "start": "node server.js",
+    "i18n:build-en": "node scripts/buildEnglishTranslations.js",
+    "i18n:verify": "node scripts/buildEnglishTranslations.js --check && node scripts/verifyLocalizationAndOverseasSchools.js",
     "auth-email-only:verify": "node scripts/verifyEmailOnlyLogin.js",
     "study-streak:verify": "node scripts/verifyStudyStreakBoundary.js",
     "weekly-tier-competition:verify": "node scripts/verifyWeeklyTierCompetition.js",

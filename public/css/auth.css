@@ -979,6 +979,18 @@ select:focus-visible {
   font-weight: 750;
 }
 
+.custom-institution-field {
+  padding: 16px;
+  background: #fff;
+  border: 1px solid rgba(49, 87, 246, 0.22);
+  border-radius: 12px;
+  box-shadow: 0 8px 22px rgba(28, 49, 128, 0.07);
+}
+
+.custom-institution-field[hidden] {
+  display: none !important;
+}
+
 #schoolCode {
   text-overflow: ellipsis;
 }

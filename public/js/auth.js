@@ -151,7 +151,46 @@
   }
 })();
 
+function usesEnglishInterface() {
+  return String(document.documentElement.lang || "")
+    .toLowerCase()
+    .startsWith("en");
+}
+
+function localizedInstitutionRegion(region) {
+  if (!usesEnglishInterface()) return region;
+  const regions = {
+    서울: "Seoul",
+    부산: "Busan",
+    대구: "Daegu",
+    인천: "Incheon",
+    광주: "Gwangju",
+    대전: "Daejeon",
+    울산: "Ulsan",
+    세종: "Sejong",
+    경기: "Gyeonggi",
+    강원: "Gangwon",
+    충북: "North Chungcheong",
+    충남: "South Chungcheong",
+    전북: "North Jeolla",
+    전남: "South Jeolla",
+    경북: "North Gyeongsang",
+    경남: "South Gyeongsang",
+    제주: "Jeju",
+    해외: "Overseas",
+  };
+  return regions[region] || region;
+}
+
+function localizedCampus(campus) {
+  if (!usesEnglishInterface()) return campus;
+  if (campus === "본교") return "Main Campus";
+  const numberedCampus = String(campus || "").match(/^제(\d+)캠퍼스$/u);
+  return numberedCampus ? `Campus ${numberedCampus[1]}` : campus;
+}
+
 function initSchoolSelector() {
+  const overseasOptionCode = "OVERSEAS_HIGH_SCHOOL";
   const dataElement =
     document.getElementById(
       "school-data"
@@ -166,6 +205,10 @@ function initSchoolSelector() {
     document.getElementById(
       "schoolSearch"
     );
+
+  const schoolSearchField = document.querySelector(
+    "[data-school-search-field]"
+  );
 
   const schoolSelect =
     document.getElementById(
@@ -186,6 +229,13 @@ function initSchoolSelector() {
     document.querySelector(
       "[data-school-selector]"
     );
+
+  const overseasField = document.querySelector(
+    "[data-overseas-school-field]"
+  );
+  const overseasNameInput = document.getElementById(
+    "overseasSchoolName"
+  );
 
   if (
     !dataElement ||
@@ -242,6 +292,9 @@ function initSchoolSelector() {
   }
 
   function createSchoolLabel(school) {
+    if (school.code === overseasOptionCode && usesEnglishInterface()) {
+      return "High school outside Korea";
+    }
     if (school.roadAddress) {
       return [
         school.name,
@@ -313,6 +366,8 @@ function initSchoolSelector() {
             school.code
           );
 
+        option.setAttribute("data-i18n-skip", "");
+
         if (
           school.code ===
           selectedSchoolCode
@@ -324,6 +379,14 @@ function initSchoolSelector() {
       }
     );
 
+    if (
+      regionSelect.value === "해외" &&
+      filteredSchools.some((school) => school.code === overseasOptionCode)
+    ) {
+      selectedSchoolCode = overseasOptionCode;
+      schoolSelect.value = overseasOptionCode;
+    }
+
     schoolSelect.disabled =
       !regionSelect.value ||
       filteredSchools.length === 0;
@@ -334,18 +397,31 @@ function initSchoolSelector() {
           ? `${filteredSchools.length}개 학교`
           : "";
     }
+
+    applyOverseasMode();
+  }
+
+  function applyOverseasMode() {
+    const active =
+      usesHighSchool() && schoolSelect.value === overseasOptionCode;
+    if (overseasField) overseasField.hidden = !active;
+    if (overseasNameInput) {
+      overseasNameInput.required = active;
+      overseasNameInput.disabled = !active;
+    }
   }
 
   function handleRegionChange() {
     selectedSchoolCode = "";
     schoolSearch.value = "";
 
-    schoolSearch.disabled =
-      !regionSelect.value;
+    const overseasRegion = regionSelect.value === "해외";
+    schoolSearch.disabled = !regionSelect.value || overseasRegion;
+    if (schoolSearchField) schoolSearchField.hidden = overseasRegion;
 
     renderSchools();
 
-    if (regionSelect.value) {
+    if (regionSelect.value && !overseasRegion) {
       schoolSearch.focus();
     }
   }
@@ -367,11 +443,15 @@ function initSchoolSelector() {
       if (resultCount) {
         resultCount.textContent = "";
       }
+      applyOverseasMode();
       return;
     }
 
     schoolSearch.disabled =
-      !regionSelect.value;
+      !regionSelect.value || regionSelect.value === "해외";
+    if (schoolSearchField) {
+      schoolSearchField.hidden = regionSelect.value === "해외";
+    }
     renderSchools();
   }
 
@@ -393,6 +473,7 @@ function initSchoolSelector() {
     () => {
       selectedSchoolCode =
         schoolSelect.value;
+      applyOverseasMode();
     }
   );
 
@@ -413,12 +494,15 @@ function initSchoolSelector() {
 }
 
 function initUniversitySelector() {
+  const overseasOptionCode = "OVERSEAS_UNIVERSITY";
   const dataElement = document.getElementById("university-data");
   const gradeSelect = document.getElementById("schoolGrade");
   const fieldset = document.querySelector("[data-university-selector]");
   const searchInput = document.getElementById("universitySearch");
   const universitySelect = document.getElementById("universityCode");
   const resultCount = document.getElementById("universityResultCount");
+  const overseasField = document.querySelector("[data-overseas-university-field]");
+  const overseasNameInput = document.getElementById("overseasUniversityName");
   if (!dataElement || !gradeSelect || !fieldset || !searchInput || !universitySelect) return;
 
   let universities = [];
@@ -435,6 +519,15 @@ function initUniversitySelector() {
     .replace(/\s+/g, "");
   const isUniversity = () => Number(gradeSelect.value) === 14;
 
+  function applyOverseasMode() {
+    const active = isUniversity() && universitySelect.value === overseasOptionCode;
+    if (overseasField) overseasField.hidden = !active;
+    if (overseasNameInput) {
+      overseasNameInput.required = active;
+      overseasNameInput.disabled = !active;
+    }
+  }
+
   function render() {
     const query = normalize(searchInput.value);
     const rows = universities.filter((university) =>
@@ -448,13 +541,21 @@ function initUniversitySelector() {
       ""
     ));
     rows.forEach((university) => {
-      const suffix = [university.campus, university.region]
+      const suffix = [
+        localizedCampus(university.campus),
+        localizedInstitutionRegion(university.region),
+      ]
         .filter(Boolean)
         .join(" · ");
+      const universityName =
+        university.code === overseasOptionCode && usesEnglishInterface()
+          ? "University outside Korea"
+          : university.name;
       const option = new Option(
-        `${university.name}${suffix ? ` · ${suffix}` : ""}`,
+        `${universityName}${suffix ? ` · ${suffix}` : ""}`,
         university.code
       );
+      option.setAttribute("data-i18n-skip", "");
       option.selected = String(university.code) === String(selectedCode);
       universitySelect.add(option);
     });
@@ -464,6 +565,7 @@ function initUniversitySelector() {
         ? `${rows.length}개 공시대상 대학·캠퍼스`
         : "";
     }
+    applyOverseasMode();
   }
 
   function applyMode() {
@@ -473,6 +575,7 @@ function initUniversitySelector() {
     universitySelect.required = active;
     universitySelect.disabled = !active;
     if (active) render();
+    else applyOverseasMode();
   }
   searchInput.addEventListener("input", () => {
     selectedCode = "";
@@ -480,6 +583,7 @@ function initUniversitySelector() {
   });
   universitySelect.addEventListener("change", () => {
     selectedCode = universitySelect.value;
+    applyOverseasMode();
   });
   gradeSelect.addEventListener("change", applyMode);
   render();

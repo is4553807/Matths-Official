@@ -16,7 +16,9 @@
           schoolGrade: 10,
           schoolRegion: "",
           schoolCode: "",
-          universityCode: ""
+          overseasSchoolName: "",
+          universityCode: "",
+          overseasUniversityName: ""
         };
   const social =
     typeof socialRegistration !== "undefined" && socialRegistration
@@ -407,7 +409,7 @@
               </div>
 
               <!-- 학교 검색 -->
-              <div class="form-field">
+              <div class="form-field" data-school-search-field>
                 <label for="schoolSearch">
                   학교 검색
                 </label>
@@ -450,6 +452,29 @@
                   aria-live="polite"
                 ></small>
               </div>
+
+              <div
+                class="form-field custom-institution-field"
+                data-overseas-school-field
+                <%= input.schoolCode !== "OVERSEAS_HIGH_SCHOOL" ? "hidden" : "" %>
+              >
+                <label for="overseasSchoolName">
+                  해외 고등학교 이름
+                </label>
+                <input
+                  id="overseasSchoolName"
+                  name="overseasSchoolName"
+                  type="text"
+                  value="<%= input.overseasSchoolName || '' %>"
+                  placeholder="학교의 공식 이름을 입력하세요"
+                  autocomplete="organization"
+                  minlength="2"
+                  maxlength="120"
+                />
+                <small class="field-guide">
+                  국가명은 선택 사항이며, 학교가 사용하는 공식 이름을 입력해 주세요.
+                </small>
+              </div>
             </fieldset>
 
             <fieldset
@@ -469,6 +494,26 @@
                   <option value="">대학교를 선택해 주세요</option>
                 </select>
                 <small class="field-guide" id="universityResultCount" aria-live="polite"></small>
+              </div>
+              <div
+                class="form-field custom-institution-field"
+                data-overseas-university-field
+                <%= input.universityCode !== "OVERSEAS_UNIVERSITY" ? "hidden" : "" %>
+              >
+                <label for="overseasUniversityName">해외 대학교 이름</label>
+                <input
+                  id="overseasUniversityName"
+                  name="overseasUniversityName"
+                  type="text"
+                  value="<%= input.overseasUniversityName || '' %>"
+                  placeholder="대학교의 공식 이름을 입력하세요"
+                  autocomplete="organization"
+                  minlength="2"
+                  maxlength="120"
+                />
+                <small class="field-guide">
+                  캠퍼스명이 있다면 학교 이름과 함께 입력해 주세요.
+                </small>
               </div>
             </fieldset>
 

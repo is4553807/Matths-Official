@@ -57,6 +57,7 @@ function fallbackAuthResponse(user, { issuedAtSeconds } = {}) {
             region: user.school.region,
             code: user.school.code,
             name: user.school.name,
+            isOverseas: user.school.isOverseas === true,
           }
         : null,
       university: user.university?.code
@@ -65,6 +66,7 @@ function fallbackAuthResponse(user, { issuedAtSeconds } = {}) {
             name: user.university.name,
             campus: user.university.campus,
             region: user.university.region,
+            isOverseas: user.university.isOverseas === true,
           }
         : null,
       currentStreak: Number(user.currentStreak) || 0,
