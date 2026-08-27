@@ -16,7 +16,7 @@ const admin = {
 async function render(name, locals) {
   return ejs.renderFile(path.join(views, name), {
     adminTodoSummary: { pendingCount: 0, items: [] },
-    publicContactEmail: "dltnqls7297@matths.kr",
+    publicContactEmail: "dltkddbs4553@matths.kr",
     ...locals,
   });
 }
@@ -192,7 +192,8 @@ async function main() {
 
   for (const legalView of ["terms.ejs", "privacy.ejs"]) {
     const html = await render(legalView, { user: null });
-    assert.match(html, /dltnqls7297@matths\.kr/);
+    assert.match(html, /dltkddbs4553@matths\.kr/);
+    assert.doesNotMatch(html, /dltnqls7297@matths\.kr/);
     assert.doesNotMatch(html, /admin@lsbproduction\.com/);
     assert.doesNotMatch(html, /support@matths\.kr|운영 전 확인 사항/);
   }
