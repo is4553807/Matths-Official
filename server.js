@@ -223,7 +223,7 @@ server.use((req, res, next) => {
     res.locals.user = req.session?.user || null;
     res.locals.arenaPublicText = arenaPublicText;
     res.locals.publicContactEmail =
-        String(process.env.PUBLIC_CONTACT_EMAIL || "dltnqls7297@matths.kr").trim();
+        String(process.env.PUBLIC_CONTACT_EMAIL || "dltkddbs4553@matths.kr").trim();
     res.locals.coach = getCoachView({
         mode:
             req.session?.user?.preferences

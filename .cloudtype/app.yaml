@@ -33,7 +33,7 @@ options:
     - name: FINANCE_APPLE_FEE_RESERVE_BPS
       value: "3000"
     - name: PUBLIC_CONTACT_EMAIL
-      value: dltnqls7297@matths.kr
+      value: dltkddbs4553@matths.kr
   install: npm ci --omit=dev --no-audit
   ports: 8000/http
   start: npm start
