@@ -58,6 +58,7 @@ API key, OAuth token, Apple private key는 이 문서·이슈·PR·workflow inpu
 3. confirmation에 정확히 `DEPLOY_PRODUCTION`을 입력한다.
 4. production Environment 승인자가 source SHA와 Cloudtype target을 확인하고 승인한다.
 5. workflow가 다음 순서를 자동 실행한다.
+   - workflow 실행 ref가 `main`이 아니면 job 자체를 건너뜀
    - 원격 `main` tip 일치 검사
    - Node.js 24에서 `npm ci --no-audit`
    - `npm run launch:verify`

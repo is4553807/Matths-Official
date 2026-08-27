@@ -18,6 +18,7 @@ concurrency:
 jobs:
   deploy:
     name: Verify, deploy, and smoke test
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment: production
