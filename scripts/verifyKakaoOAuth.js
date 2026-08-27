@@ -32,6 +32,9 @@ async function main() {
     publicProviderStatus,
     socialIdPath,
   } = require("../services/socialAuthService");
+  const {
+    _testing: { verifierChallenge },
+  } = require("../services/mobileSocialAuthGrantService");
 
   // 애플이 뒤에 붙는다. PROVIDERS 테이블(google, kakao)은 웹 OAuth 왕복 전용이라
   // 애플은 그 표에 들어가지 못하고 publicProviderStatus 가 목록에만 합류시킨다
@@ -134,6 +137,37 @@ async function main() {
     "Bearer kakao-access-token"
   );
 
+  const mobileVerifier =
+    "kakao-mobile-pkce-verifier-that-is-long-enough-for-contract";
+  const mobileChallenge = verifierChallenge(mobileVerifier);
+  const mobileRequest = { session: {} };
+  const mobileAuthorizationUrl = new URL(
+    beginSocialAuthorization(mobileRequest, "kakao", {
+      mobile: true,
+      codeChallenge: mobileChallenge,
+    })
+  );
+  assert.equal(
+    mobileRequest.session.socialOAuthState.context.mobile,
+    true
+  );
+  assert.equal(
+    mobileRequest.session.socialOAuthState.context.codeChallenge,
+    mobileChallenge
+  );
+  const mobileCompleted = await completeSocialAuthorization(
+    mobileRequest,
+    "kakao",
+    {
+      code: "mobile-authorization-code",
+      state: mobileAuthorizationUrl.searchParams.get("state"),
+    },
+    fetchImpl
+  );
+  assert.equal(mobileCompleted.context.mobile, true);
+  assert.equal(mobileCompleted.context.codeChallenge, mobileChallenge);
+  assert.equal(mobileCompleted.profile.provider, "kakao");
+
   const unverifiedRequest = { session: {} };
   const unverifiedUrl = new URL(
     beginSocialAuthorization(unverifiedRequest, "kakao")
@@ -168,15 +202,49 @@ async function main() {
 
   const root = path.resolve(__dirname, "..");
   const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
-  assert.match(read("routes/matths-routes.js"), /"\/auth\/kakao"/);
+  const webRoutes = read("routes/matths-routes.js");
+  const apiRoutes = read("routes/api-routes.js");
+  const apiAuthBoundary = apiRoutes.indexOf("router.use(requireApiAuth)");
+  const apiController = read("controllers/apiController.js");
+  const matthsController = read("controllers/matthsController.js");
+
+  assert.match(webRoutes, /"\/auth\/kakao"/);
   assert.match(
-    read("routes/matths-routes.js"),
+    webRoutes,
     /"\/auth\/kakao\/callback"/
   );
+  assert.match(
+    webRoutes,
+    /router\.get\(\s*"\/auth\/kakao\/app",[\s\S]{0,240}req\.params\.provider\s*=\s*"kakao";[\s\S]{0,240}matthsController\.socialOAuthAppStart/
+  );
+  for (const route of ["/auth/social/exchange", "/auth/google/exchange"]) {
+    const marker = `"${route}"`;
+    const position = apiRoutes.indexOf(marker);
+    assert.ok(
+      position >= 0 && position < apiAuthBoundary,
+      `${route} must remain public before requireApiAuth`
+    );
+    const routePattern = new RegExp(
+      `router\\.post\\(\\s*"${route.replaceAll("/", "\\/")}",\\s*apiController\\.exchangeSocialAuthCode\\s*\\)`
+    );
+    assert.match(apiRoutes, routePattern);
+  }
   assert.match(read("models/matthsModel.js"), /socialAuth\.kakaoId/);
   assert.match(
-    read("controllers/matthsController.js"),
+    matthsController,
     /socialRegistration\s*\?\.codeChallenge\s*\|\|\s*null,\s*socialRegistration\?\.provider/
+  );
+  assert.match(
+    matthsController,
+    /new URL\(`matths:\/\/oauth\/\$\{encodeURIComponent\(key\)\}`\)/
+  );
+  assert.match(
+    matthsController,
+    /\^\[A-Za-z0-9_-\]\{43\}\$/
+  );
+  assert.doesNotMatch(
+    apiController,
+    /Google 로그인 확인 코드가 만료되었습니다/
   );
   assert.match(read("views/login.ejs"), /카카오로 계속하기/);
   assert.match(read("public/css/auth.css"), /\.social-auth-button\.is-kakao/);
@@ -196,7 +264,7 @@ async function main() {
     console.log("  · .env.example 없음 — 환경변수 예시 검사는 건너뜀 (.gitignore 의 .env.* 에 막힘)");
   }
 
-  console.log("Kakao web OAuth contract verified.");
+  console.log("Kakao web and mobile PKCE OAuth contracts verified.");
 }
 
 main()

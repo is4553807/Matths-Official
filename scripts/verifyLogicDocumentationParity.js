@@ -30,15 +30,21 @@ const {
 
 const root = path.resolve(__dirname, "..");
 const logicDirectory = path.join(root, "docs", "logic");
-const logicFiles = fs
-  .readdirSync(logicDirectory)
-  .filter((filename) => /^\d{2}_.+\.md$/.test(filename))
-  .sort();
-assert.deepEqual(
-  logicFiles.map((filename) => filename.slice(0, 2)),
-  Array.from({ length: 13 }, (_, index) => String(index + 1).padStart(2, "0")),
-  "권위 규칙 문서는 01~13이 빠짐없이 한 번씩 존재해야 합니다."
-);
+const hasPrivateLogicDocs = fs.existsSync(logicDirectory);
+const logicFiles = hasPrivateLogicDocs
+  ? fs
+      .readdirSync(logicDirectory)
+      .filter((filename) => /^\d{2}_.+\.md$/.test(filename))
+      .sort()
+  : [];
+
+if (hasPrivateLogicDocs) {
+  assert.deepEqual(
+    logicFiles.map((filename) => filename.slice(0, 2)),
+    Array.from({ length: 13 }, (_, index) => String(index + 1).padStart(2, "0")),
+    "권위 규칙 문서는 01~13이 빠짐없이 한 번씩 존재해야 합니다."
+  );
+}
 
 const logicText = logicFiles
   .map((filename) => fs.readFileSync(path.join(logicDirectory, filename), "utf8"))
@@ -58,10 +64,14 @@ const userFacingText = ["views", "controllers", "services", "routes"]
   .join("\n");
 
 for (const retiredName of ["모의고사 전용 패키지", "Sub Ranking", "Main Ranking"]) {
-  assert.ok(!logicText.includes(retiredName), `규칙 문서에 폐기한 명칭이 남아 있습니다: ${retiredName}`);
+  if (hasPrivateLogicDocs) {
+    assert.ok(!logicText.includes(retiredName), `규칙 문서에 폐기한 명칭이 남아 있습니다: ${retiredName}`);
+  }
   assert.ok(!userFacingText.includes(retiredName), `웹 코드에 폐기한 명칭이 남아 있습니다: ${retiredName}`);
 }
-assert.ok(logicText.includes(MOCK_EXAM_PRODUCT_NAME));
+if (hasPrivateLogicDocs) {
+  assert.ok(logicText.includes(MOCK_EXAM_PRODUCT_NAME));
+}
 assert.equal(DEFAULT_MONTHLY_PRICE_AMOUNT, 5000);
 assert.equal(DEFAULT_CALIBRATION_WEEKLY_EXAMS, 4);
 assert.equal(DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT, 29000);
@@ -97,25 +107,31 @@ for (const retiredDormancyRule of [
   "Ranked 휴면 평가",
   "휴면 강등 예치분",
 ]) {
-  assert.ok(
-    !logicText.includes(retiredDormancyRule),
-    `권위 문서에 폐기한 Ranked 휴면 규칙이 남아 있습니다: ${retiredDormancyRule}`
-  );
+  if (hasPrivateLogicDocs) {
+    assert.ok(
+      !logicText.includes(retiredDormancyRule),
+      `권위 문서에 폐기한 Ranked 휴면 규칙이 남아 있습니다: ${retiredDormancyRule}`
+    );
+  }
 }
 
-for (const requiredRule of [
-  "일요일 14:00",
-  "일요일 15:00",
-  "점수 높은 순 → 정답 수 많은 순 → 정답 문항 풀이시간 짧은 순 → 전체 풀이시간 짧은 순",
-  "정기권 학습 가능 일수",
-  "학습권 패키지",
-  "페이백 점수",
-  "공격 출석",
-  "최종 종합 랭킹",
-]) {
-  assert.ok(logicText.includes(requiredRule), `권위 문서에서 핵심 규칙을 찾을 수 없습니다: ${requiredRule}`);
+if (hasPrivateLogicDocs) {
+  for (const requiredRule of [
+    "일요일 14:00",
+    "일요일 15:00",
+    "점수 높은 순 → 정답 수 많은 순 → 정답 문항 풀이시간 짧은 순 → 전체 풀이시간 짧은 순",
+    "정기권 학습 가능 일수",
+    "학습권 패키지",
+    "페이백 점수",
+    "공격 출석",
+    "최종 종합 랭킹",
+  ]) {
+    assert.ok(logicText.includes(requiredRule), `권위 문서에서 핵심 규칙을 찾을 수 없습니다: ${requiredRule}`);
+  }
 }
 
 console.log(
-  `규칙 문서 13개·상품·페이백·1대1·시즌 핵심 상수와 웹 용어 정합성 검증 완료`
+  hasPrivateLogicDocs
+    ? "규칙 문서 13개·상품·페이백·1대1·시즌 핵심 상수와 웹 용어 정합성 검증 완료"
+    : "비공개 규칙 문서 제외 checkout: 상품·페이백·1대1·시즌 핵심 상수와 웹 용어 검증 완료"
 );

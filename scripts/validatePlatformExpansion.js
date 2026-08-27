@@ -9,6 +9,14 @@ require("dotenv").config({
   ),
 });
 
+// This verifier must also run from a clean checkout where deployment secrets
+// are intentionally absent. Runtime readiness validates the real environment;
+// this process-local key only exercises the mobile token contract below.
+if (!process.env.API_TOKEN_SECRET && !process.env.SECRET) {
+  process.env.API_TOKEN_SECRET =
+    "matths-platform-expansion-contract-test-secret";
+}
+
 const {
   createAccessToken,
   verifyAccessToken,

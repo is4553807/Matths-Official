@@ -670,7 +670,7 @@ exports.exchangeSocialAuthCode = async (
         code:
           "SOCIAL_AUTH_GRANT_INVALID",
         message:
-          "Google 로그인 확인 코드가 만료되었습니다. 다시 로그인해주세요.",
+          "소셜 로그인 확인 코드가 만료되었습니다. 다시 로그인해주세요.",
       });
     }
 
