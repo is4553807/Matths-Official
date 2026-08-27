@@ -13,19 +13,32 @@
 }
 
 .learning-breadcrumb {
+  max-width: min(100%, 680px);
+  min-height: 36px;
   display: flex;
   align-items: center;
   gap: 9px;
-  color: #778197;
-  font-size: 11px;
-  font-weight: 700;
+  padding: 0 13px;
+  overflow: hidden;
+  color: #5e6a82;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid #dfe4ef;
+  border-radius: 11px;
+  box-shadow: 0 7px 18px rgba(29, 42, 103, 0.055);
+  font-size: 12px;
+  font-weight: 750;
   line-height: 1.4;
   white-space: nowrap;
 }
 
 .learning-breadcrumb a {
-  color: #657089;
+  color: #4d5972;
   transition: color 0.18s ease;
+}
+
+.learning-breadcrumb a:first-child {
+  color: #5d45e8;
+  font-weight: 850;
 }
 
 .learning-breadcrumb a:hover {
@@ -33,12 +46,12 @@
 }
 
 .learning-breadcrumb span {
-  color: #a3abbd;
+  color: #929caf;
 }
 
 .learning-breadcrumb strong {
   overflow: hidden;
-  color: #29344d;
+  color: #171e31;
   font-weight: 850;
   text-overflow: ellipsis;
 }
