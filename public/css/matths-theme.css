@@ -578,9 +578,38 @@ a.learning-home-button,
     .unit-bar b,
     .timer-progress,
     .attempt-progress-card i,
-    .unit-hero-progress i
+    .unit-hero-progress > i b
   ) {
   background: var(--matths-gradient);
+}
+
+/* The unit progress card sits inside a dark hero, but it is a light surface.
+   Keep its labels and track out of the hero's generic light-text treatment. */
+.unit-hero .unit-hero-progress {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(222, 228, 241, 0.94);
+  box-shadow: 0 14px 30px rgba(4, 10, 32, 0.16);
+}
+
+.unit-hero .unit-hero-progress span {
+  color: #4f5b73;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.unit-hero .unit-hero-progress strong {
+  color: var(--matths-blue);
+  font-size: 22px;
+}
+
+.unit-hero .unit-hero-progress > i {
+  background: #dfe5f0;
+}
+
+.unit-hero .unit-hero-progress small {
+  color: #68748b;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .eyebrow,
