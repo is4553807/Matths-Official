@@ -25,6 +25,7 @@ assert.equal(workflow.concurrency?.["cancel-in-progress"], false);
 const job = workflow.jobs?.deploy;
 assert.ok(job, "deploy job이 없습니다.");
 assert.equal(job.environment, "production");
+assert.equal(job.if, "github.ref == 'refs/heads/main'");
 assert.ok(Number(job["timeout-minutes"]) <= 30);
 assert.equal(
   job.env?.EXPECTED_PUBLIC_CONTACT_EMAIL,
