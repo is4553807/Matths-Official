@@ -10,7 +10,12 @@ if (!sourceDatabaseUri) {
   throw new Error("config.env의 DB 연결 문자열이 필요합니다.");
 }
 
-const auditDatabaseName = "matths_audit_zero_assumption_20260815";
+const auditDatabaseName = String(
+  process.env.AUDIT_DATABASE_NAME || "matths_audit_zero_assumption_20260815"
+);
+if (!/^matths_audit_[a-z0-9_]{4,80}$/.test(auditDatabaseName)) {
+  throw new Error("격리 감사 DB 이름은 matths_audit_ 접두사를 사용해야 합니다.");
+}
 const queryIndex = sourceDatabaseUri.indexOf("?");
 const base = queryIndex >= 0 ? sourceDatabaseUri.slice(0, queryIndex) : sourceDatabaseUri;
 const query = queryIndex >= 0 ? sourceDatabaseUri.slice(queryIndex) : "";
@@ -48,6 +53,17 @@ for (const name of [
   "SUPPORT_SMTP_USER",
   "SUPPORT_SMTP_PASSWORD",
   "GMAIL_APP_PASSWORD",
+  "GOOGLE_OAUTH_CLIENT_ID",
+  "GOOGLE_OAUTH_CLIENT_SECRET",
+  "KAKAO_OAUTH_REST_API_KEY",
+  "KAKAO_OAUTH_CLIENT_SECRET",
+  "APPLE_TEAM_ID",
+  "APPLE_KEY_ID",
+  "APPLE_PRIVATE_KEY",
+  "TOSS_TEST_CLIENT_KEY",
+  "TOSS_TEST_SECRET_KEY",
+  "TOSS_LIVE_CLIENT_KEY",
+  "TOSS_LIVE_SECRET_KEY",
 ]) {
   process.env[name] = "";
 }

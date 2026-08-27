@@ -170,7 +170,9 @@ async function main() {
   }
 
   console.log("iPad 알림함 HTTP 계약 통과");
-  console.log("  ⚠️ 실제 Mongo 문서 흐름(목록·페이지·읽음 반영)은 별도 확인 필요");
+  console.log(
+    "  · 실제 Mongo 문서 흐름은 npm run ipad-notification-db:verify-memory 로 별도 검증"
+  );
 }
 
 main()

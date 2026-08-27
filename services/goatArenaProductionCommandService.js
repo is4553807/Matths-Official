@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const {
   ArenaMatch,
   ArenaMatchAttempt,
+  ArenaMatchAttemptEvent,
   ArenaProblemPack,
 } = require("../models/goatArenaModel");
 const {
@@ -141,6 +142,8 @@ function createGoatArenaProductionCommandService(options = {}) {
   const models = {
     ArenaMatch: options.models?.ArenaMatch || ArenaMatch,
     ArenaMatchAttempt: options.models?.ArenaMatchAttempt || ArenaMatchAttempt,
+    ArenaMatchAttemptEvent:
+      options.models?.ArenaMatchAttemptEvent || ArenaMatchAttemptEvent,
     ArenaProblemPack: options.models?.ArenaProblemPack || ArenaProblemPack,
   };
   // 정본 함수를 주입 가능하게 열어 두는 이유는 검증 스크립트가 Mongo 없이
@@ -606,6 +609,22 @@ function createGoatArenaProductionCommandService(options = {}) {
     const expectedSlot =
       Number(authority.attempt?.currentQuestionIndex || 0) + 1;
     if (Number(input.questionSlot) !== expectedSlot) {
+      // 앱이 advance 응답을 받기 전에 연결이 끊기면 같은 멱등키와 직전 slot을
+      // 재전송한다. 이미 다음 문항으로 넘어간 상태에서 slot만 먼저 검사하면 정본의
+      // 멱등 재생까지 도달하지 못하고 409가 된다. 참가자 소유권을 확인한 뒤 정확히
+      // 같은 attempt·operation 이벤트가 존재할 때만 현재 확정 상태를 재응답한다.
+      const replay =
+        Number(input.questionSlot) === expectedSlot - 1 && authority.attempt
+        ? await models.ArenaMatchAttemptEvent.findOne({
+            attemptId: authority.attempt._id,
+            idempotencyKey:
+              `ARENA_ADVANCE:${authority.attempt._id}:${input.idempotencyKey}`,
+            eventType: "QUESTION_ADVANCED",
+          })
+            .select("_id")
+            .lean()
+        : null;
+      if (replay) return serializeStart(authority);
       fail(
         "GOAT_ARENA_QUESTION_SEQUENCE_REQUIRED",
         "current question is required",

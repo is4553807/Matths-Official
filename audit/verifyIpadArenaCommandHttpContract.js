@@ -20,7 +20,7 @@ const path = require("node:path");
  *   · 7개 경로가 등록돼 있고 전부 requireApiAuth **뒤**에 있다
  *     (Bearer 없이 404 가 아니라 401).
  *
- * 증명하지 않는다(Mongo 없이는 확인 불가):
+ * 이 파일은 증명하지 않는다(Mongo 없이는 확인 불가):
  *   · 실제 경기 진행 — 문제팩 배정, 문항 공개 순서, 문항별 마감 계산,
  *     자동 진행(만료 문항 확정), answerRevision 증가, 마지막 문항 advance 가
  *     EVIDENCE_REQUIRED 로 넘어가는지.
@@ -28,7 +28,8 @@ const path = require("node:path");
  *     레코드가 Mongo 에 있다).
  *   · 남의 경기 id 로 접근할 때 404 가 나오는지(ArenaMatch 조회가 필요하다).
  *   이 검증기가 통과했다고 "Arena 앱 경기 검증 완료" 라고 쓰지 마라.
- *   위 항목은 격리 DB 나 테스트 계정으로 따로 확인해야 한다.
+ *   위 항목은 audit/verifyIpadArenaCommandDb.js 가 실제 단일 노드 replica set에서
+ *   따로 확인한다. 둘 중 하나만 통과한 상태를 전체 완료로 기록하면 안 된다.
  */
 
 process.env.NODE_ENV = "development";
@@ -528,8 +529,7 @@ async function main() {
 
   console.log("iPad GOAT Arena 경기 명령 HTTP 계약 통과");
   console.log(
-    "  ⚠️ 실제 경기 흐름(문제팩 배정·자동 진행·멱등 재전송·최종 문항 제출)은 " +
-      "Mongo 가 필요해 확인하지 않았습니다 — 격리 DB 로 따로 확인하세요"
+    "  · 실제 Mongo 경기 흐름은 npm run ipad-arena-command-db:verify-memory 로 별도 검증"
   );
 }
 
