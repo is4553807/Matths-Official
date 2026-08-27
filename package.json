@@ -132,7 +132,13 @@
     "runtime:verify": "node scripts/verifyRuntimeReadiness.js",
     "http-surface:verify": "node scripts/verifyHttpSurface.js",
     "deployment-surface:verify": "node scripts/verifyDeploymentSurface.js",
+    "cloudtype-workflow:verify": "node scripts/verifyCloudtypeDeploymentWorkflow.js",
+    "production-smoke-contract:verify": "node scripts/verifyProductionLaunchContract.js",
+    "production:verify": "node scripts/verifyProductionLaunch.js",
     "launch:verify": "node scripts/verifyLaunchReadiness.js",
+    "launch-db:verify-memory": "node audit/runMemoryMongoSuite.js",
+    "ipad-notification-db:verify-memory": "node audit/runMemoryMongoSuite.js audit/verifyIpadNotificationDb.js",
+    "ipad-arena-command-db:verify-memory": "node audit/runMemoryMongoSuite.js audit/verifyIpadArenaCommandDb.js",
     "scheduler-lease:verify-db": "node scripts/verifySchedulerLeaseDb.js",
     "scheduler-coverage:verify": "node scripts/verifySchedulerCoverage.js",
     "scheduler-multiprocess:verify-db": "node audit/runInIsolatedAuditEnvironment.js audit/verifyMultiProcessSchedulerLease.js",
@@ -196,6 +202,7 @@
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
+    "mongodb-memory-server-core": "^11.2.0",
     "nodemon": "^3.1.14"
   }
 }

@@ -36,12 +36,14 @@ const {
 
 const BATCH_KEY = "GOAT-ARENA-FOCUSED-LAUNCH-E2E-20260807";
 const TEST_PASSWORD = String(process.env.TEST_ACCOUNT_PASSWORD || "");
-const OUTPUT_PATH = path.resolve(
-  __dirname,
-  "..",
-  "outputs",
-  "launch-focused-test-accounts.json"
-);
+const OUTPUT_PATH = process.env.TEST_ACCOUNT_OUTPUT_PATH
+  ? path.resolve(process.env.TEST_ACCOUNT_OUTPUT_PATH)
+  : path.resolve(
+      __dirname,
+      "..",
+      "outputs",
+      "launch-focused-test-accounts.json"
+    );
 const DAY_MS = 86_400_000;
 
 const SCHOOL = {
@@ -335,9 +337,26 @@ async function main() {
   const now = new Date();
   try {
     const removedPrevious = await removePreviousBatch();
-    const admin = await User.findOne({ role: "admin", isActive: { $ne: false }, accountStatus: { $ne: "withdrawn" } })
+    let admin = await User.findOne({ role: "admin", isActive: { $ne: false }, accountStatus: { $ne: "withdrawn" } })
       .select("_id")
       .lean();
+    if (!admin?._id && /matths_audit_/.test(String(process.env.DB || ""))) {
+      admin = await User.create({
+        name: "memoryauditadmin",
+        nameNormalized: "memoryauditadmin",
+        realName: "격리감사관리자",
+        email: "memory-audit-admin@test.invalid",
+        passwordHash: "non-loginable-isolated-audit-hash",
+        role: "admin",
+        isTestAccount: true,
+        testBatchKey: BATCH_KEY,
+        learnerType: "WORKER",
+        schoolGrade: 15,
+        educationStatus: "enrolled",
+        accountStatus: "active",
+        isActive: true,
+      });
+    }
     if (!admin?._id) throw new Error("패키지 부여 이력을 기록할 관리자 계정을 찾을 수 없습니다.");
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 12);
     const seasonKey = kstSeasonKey(now);

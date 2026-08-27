@@ -19,6 +19,8 @@ const checks = [
   "apple-commerce-http:verify",
   "app-commerce-handoff:verify",
   "deployment-surface:verify",
+  "cloudtype-workflow:verify",
+  "production-smoke-contract:verify",
   "runtime:verify",
   "http-surface:verify",
   "request-security:verify",

@@ -1,0 +1,138 @@
+name: Deploy Cloudtype production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type DEPLOY_PRODUCTION to deploy the current main tip
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudtype-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Verify, deploy, and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+    env:
+      CLOUDTYPE_PROJECT: ${{ vars.CLOUDTYPE_PROJECT }}
+      CLOUDTYPE_STAGE: ${{ vars.CLOUDTYPE_STAGE }}
+      CLOUDTYPE_APP: ${{ vars.CLOUDTYPE_APP }}
+      CLOUDTYPE_SOURCE_BRANCH: ${{ vars.CLOUDTYPE_SOURCE_BRANCH }}
+      EXPECTED_PUBLIC_CONTACT_EMAIL: dltkddbs4553@matths.kr
+      PRODUCTION_BASE_URL: https://www.matths.kr
+
+    steps:
+      - name: Check operator confirmation and deployment configuration
+        shell: bash
+        env:
+          CLOUDTYPE_API_KEY: ${{ secrets.CLOUDTYPE_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.confirmation }}" != "DEPLOY_PRODUCTION" ]]; then
+            echo "confirmation must be DEPLOY_PRODUCTION" >&2
+            exit 1
+          fi
+          for variable_name in CLOUDTYPE_API_KEY CLOUDTYPE_PROJECT CLOUDTYPE_STAGE CLOUDTYPE_APP CLOUDTYPE_SOURCE_BRANCH; do
+            if [[ -z "${!variable_name:-}" ]]; then
+              echo "missing required GitHub secret/variable: ${variable_name}" >&2
+              exit 1
+            fi
+          done
+          if [[ "${CLOUDTYPE_SOURCE_BRANCH}" != "main" ]]; then
+            echo "Cloudtype source branch must be confirmed as main before deployment" >&2
+            exit 1
+          fi
+          echo "::add-mask::${CLOUDTYPE_API_KEY}"
+
+      - name: Check out the current production source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Use the repository runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Prove checkout is the remote main tip
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          checked_out_sha="$(git rev-parse HEAD)"
+          remote_main_sha="$(git rev-parse origin/main)"
+          if [[ "${checked_out_sha}" != "${remote_main_sha}" ]]; then
+            echo "checkout is not the current origin/main tip" >&2
+            exit 1
+          fi
+          echo "DEPLOYED_SOURCE_SHA=${checked_out_sha}" >> "${GITHUB_ENV}"
+
+      - name: Install verification dependencies
+        run: npm ci --no-audit
+
+      - name: Run complete launch verification
+        run: npm run launch:verify
+
+      - name: Run isolated transactional database verification
+        run: npm run launch-db:verify-memory
+
+      - name: Request Cloudtype deployment
+        shell: bash
+        env:
+          CLOUDTYPE_API_KEY: ${{ secrets.CLOUDTYPE_API_KEY }}
+        run: |
+          set -euo pipefail
+          payload="$(jq -n \
+            --arg project "${CLOUDTYPE_PROJECT}" \
+            --arg app "${CLOUDTYPE_APP}" \
+            --arg stage "${CLOUDTYPE_STAGE}" \
+            '{project: $project, app: $app, stage: $stage}')"
+          status_code="$(curl \
+            --silent \
+            --show-error \
+            --output "${RUNNER_TEMP}/cloudtype-deploy-response.json" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --header "Authorization: Bearer ${CLOUDTYPE_API_KEY}" \
+            --data "${payload}" \
+            https://api.cloudtype.io/webhooks/deploy)"
+          if [[ "${status_code}" -lt 200 || "${status_code}" -ge 300 ]]; then
+            echo "Cloudtype deployment request failed with HTTP ${status_code}" >&2
+            exit 1
+          fi
+          echo "Cloudtype accepted the deployment request (HTTP ${status_code})."
+
+      - name: Wait for production and verify the complete public contract
+        run: >-
+          npm run production:verify --
+          --wait-seconds 600
+          --interval-seconds 15
+          --expected-contact "${EXPECTED_PUBLIC_CONTACT_EMAIL}"
+
+      - name: Record release evidence
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo "## Cloudtype production release"
+            echo ""
+            echo "- Source SHA: \`${DEPLOYED_SOURCE_SHA}\`"
+            echo "- Cloudtype target: \`${CLOUDTYPE_PROJECT}:${CLOUDTYPE_STAGE}/${CLOUDTYPE_APP}\`"
+            echo "- Source branch confirmed by operator: \`${CLOUDTYPE_SOURCE_BRANCH}\`"
+            echo "- Public contact: \`${EXPECTED_PUBLIC_CONTACT_EMAIL}\`"
+            echo "- Production launch verification: passed"
+            echo "- Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo ""
+            echo "Cloudtype release ID and rollback release ID must be copied from the Cloudtype console into the runbook evidence table."
+          } >> "${GITHUB_STEP_SUMMARY}"
