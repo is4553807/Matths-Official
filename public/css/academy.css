@@ -178,11 +178,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .academy-two-column { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); align-items: start; gap: 17px; }
 .academy-panel-count { color: var(--academy-blue); font-size: 25px; }
 .academy-class-list { display: grid; gap: 9px; margin-top: 21px; }
-.academy-class-list article { display: grid; grid-template-columns: 39px minmax(0, 1fr); align-items: center; gap: 12px; padding: 13px; background: #f7f8fb; border: 1px solid #e5e8ef; border-radius: 12px; }
-.academy-class-list article > span { width: 39px; height: 39px; display: grid; place-items: center; color: #5f50bd; background: #ece9ff; border-radius: 11px; font-size: 12px; font-weight: 950; }
-.academy-class-list article > div { display: grid; gap: 4px; }
-.academy-class-list article strong { font-size: 11px; }
-.academy-class-list article small { color: #8d95a7; font-size: 9px; }
+.academy-class-list > a { display: grid; grid-template-columns: 39px minmax(0, 1fr) 28px; align-items: center; gap: 12px; padding: 13px; background: #f7f8fb; border: 1px solid #e5e8ef; border-radius: 12px; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.academy-class-list > a:hover { border-color: #aebcf8; box-shadow: 0 9px 22px rgba(49,87,246,.09); transform: translateY(-1px); }
+.academy-class-list > a > span { width: 39px; height: 39px; display: grid; place-items: center; color: #5f50bd; background: #ece9ff; border-radius: 11px; font-size: 12px; font-weight: 950; }
+.academy-class-list > a > div { display: grid; gap: 4px; }
+.academy-class-list > a strong { font-size: 11px; }
+.academy-class-list > a small { color: #6e778b; font-size: 9px; }
+.academy-class-list > a > b { width: 28px; height: 28px; display: grid; place-items: center; color: var(--academy-blue); background: #edf1ff; border-radius: 8px; font-size: 10px; }
 .academy-create-panel form { display: grid; gap: 16px; margin-top: 22px; }
 .academy-create-panel label { display: grid; gap: 8px; }
 .academy-create-panel label > span { color: #4f586d; font-size: 9px; font-weight: 850; }

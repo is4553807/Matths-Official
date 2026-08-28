@@ -29,6 +29,7 @@ const {
   createAcademyClass,
   createAcademyForTeacher,
   createAcademyInvite,
+  getAcademyClassDetail,
   getAcademyInvitePresentation,
   getAcademyPortalData,
   getAcademyStudentPage,
@@ -464,7 +465,11 @@ async function main() {
         assert.match(html, /50%/);
       }
       if (tab === "students") assert.match(html, /이학생/);
-      if (tab === "classes") assert.match(html, /고1 월수반/);
+      if (tab === "classes") {
+        assert.match(html, /고1 월수반/);
+        assert.match(html, new RegExp(`/academy/classes/${academyClass._id}`));
+        assert.match(html, /반 통계 보기/);
+      }
       if (tab === "invites") assert.match(html, new RegExp(invite.code));
       if (tab === "teachers") {
         assert.match(html, /선생님 관리/);
@@ -473,6 +478,66 @@ async function main() {
         assert.match(html, /원장/);
       }
     }
+
+    const classDetail = await getAcademyClassDetail({
+      teacherUserId: teacher._id,
+      classId: academyClass._id,
+    });
+    assert.equal(classDetail.academyClass.name, "고1 월수반");
+    assert.equal(classDetail.students.length, 1);
+    assert.equal(classDetail.students[0].studentUserId.realName, "이학생");
+    assert.equal(
+      (await getAcademyClassDetail({ teacherUserId: secondTeacher._id, classId: academyClass._id })).students.length,
+      1
+    );
+    await assert.rejects(
+      getAcademyClassDetail({ teacherUserId: teacher._id, classId: new mongoose.Types.ObjectId() }),
+      (error) => Number(error.status) === 404 && /현재 학원에서 사용하는 반/.test(error.message)
+    );
+    const classStatistics = await getAcademyMonthlyStatistics({
+      studentUserIds: classDetail.students.map((membership) => membership.studentUserId._id),
+      periodKey: "2026-08",
+      now: new Date("2026-08-28T03:00:00.000Z"),
+      scopeLabel: "반",
+    });
+    assert.equal(classStatistics.cards[0].label, "반 학생");
+    assert.equal(classStatistics.values.totalStudents, 1);
+    assert.match(classStatistics.summary.bullets[2].text, /평균 정답률/);
+    const classMembershipsByStudentId = new Map(
+      classDetail.students.map((membership) => [String(membership.studentUserId._id), membership])
+    );
+    classStatistics.attentionStudents = classStatistics.attentionStudents
+      .map((item) => ({ ...item, membership: classMembershipsByStudentId.get(item.studentUserId) }))
+      .filter((item) => item.membership);
+    const classDetailHtml = await render("academy-class-detail", {
+      user: teacherUser,
+      detail: { ...classDetail, profileImageSrc: "" },
+      statistics: classStatistics,
+      activeAcademyPage: "classes",
+    });
+    assert.match(classDetailHtml, /CLASS LEARNING REPORT/);
+    assert.match(classDetailHtml, /고1 월수반 Summary/);
+    assert.match(classDetailHtml, /반 평균 통계입니다/);
+    assert.match(classDetailHtml, /이학생/);
+    assert.match(classDetailHtml, /\/academy\/students\//);
+
+    const emptyAcademyClass = await createAcademyClass({
+      teacherUserId: teacher._id,
+      name: "빈 반 검증",
+    });
+    const emptyClassDetail = await getAcademyClassDetail({
+      teacherUserId: teacher._id,
+      classId: emptyAcademyClass._id,
+    });
+    const emptyClassStatistics = await getAcademyMonthlyStatistics({
+      studentUserIds: [],
+      periodKey: "2026-08",
+      now: new Date("2026-08-28T03:00:00.000Z"),
+      scopeLabel: "반",
+    });
+    assert.equal(emptyClassDetail.students.length, 0);
+    assert.equal(emptyClassStatistics.cards[0].value, "0명");
+    assert.match(emptyClassStatistics.summary.bullets[0].text, /반에 배정된 학생이 없어/);
 
     const detailHtml = await render("academy-student-detail", {
       user: teacherUser,
@@ -708,6 +773,7 @@ async function main() {
     const academyFeatureRoutes = fs.readFileSync(path.join(root, "routes", "academy-routes.js"), "utf8");
     assert.match(academyFeatureRoutes, /"\/academy\/students\/bulk"/);
     assert.match(academyFeatureRoutes, /"\/academy\/profile-image"/);
+    assert.match(academyFeatureRoutes, /"\/academy\/classes\/:classId"/);
     assert.match(academyRoutes, /"\/admin\/academies\/:academyId\/profile-image"/);
     await assert.rejects(
       approveAcademyStaff({ teacherUserId: secondTeacher._id, staffId: new mongoose.Types.ObjectId() }),

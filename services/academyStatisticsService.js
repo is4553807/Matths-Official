@@ -314,16 +314,20 @@ async function getStudentMonthlyStatistics({ studentUserId, periodKey, now = new
   };
 }
 
-function buildAcademySummary({ period, values, samples, attentionCount }) {
+function buildAcademySummary({ period, values, samples, attentionCount, scopeLabel = "학원" }) {
   if (!values.totalStudents) {
     return {
       bullets: [
         {
           label: "데이터 안내",
-          text: "승인된 학생이 없어 학원 평균을 계산하지 않았습니다.",
+          text: scopeLabel === "반"
+            ? "반에 배정된 학생이 없어 반 평균을 계산하지 않았습니다."
+            : "승인된 학생이 없어 학원 평균을 계산하지 않았습니다.",
         },
       ],
-      nextDirection: "학생 소속을 승인한 뒤 학원 전체 학습 흐름을 확인할 수 있습니다.",
+      nextDirection: scopeLabel === "반"
+        ? "학생을 이 반에 배정한 뒤 반의 학습 흐름을 확인할 수 있습니다."
+        : "학생 소속을 승인한 뒤 학원 전체 학습 흐름을 확인할 수 있습니다.",
     };
   }
 
@@ -340,13 +344,13 @@ function buildAcademySummary({ period, values, samples, attentionCount }) {
     {
       label: "첫 시도 정답률",
       text: values.firstAttemptAccuracy === null
-        ? "첫 제출 기록이 없어 학원 평균 정답률을 계산하지 않았습니다."
+        ? `첫 제출 기록이 없어 ${scopeLabel} 평균 정답률을 계산하지 않았습니다.`
         : `전체 첫 제출 ${samples.firstAttempts}문제 중 ${samples.firstAttemptCorrect}문제를 맞혀 평균 정답률은 ${values.firstAttemptAccuracy}%입니다.`,
     },
     {
       label: "오답 복습",
       text: values.wrongAnswerReviewRate === null
-        ? "새로 발생한 오답이 없어 학원 평균 복습률을 계산하지 않았습니다."
+        ? `새로 발생한 오답이 없어 ${scopeLabel} 평균 복습률을 계산하지 않았습니다.`
         : `오답 ${samples.wrongAnswers}개 중 ${samples.reviewedWrongAnswers}개를 복습해 평균 복습률은 ${values.wrongAnswerReviewRate}%입니다.`,
     },
     {
@@ -367,7 +371,7 @@ function buildAcademySummary({ period, values, samples, attentionCount }) {
   if (values.participationRate < 70) {
     nextDirection = "학습 기록이 없는 학생부터 확인해 주간 학습 참여율을 높이는 것이 좋습니다.";
   } else if (values.wrongAnswerReviewRate !== null && values.wrongAnswerReviewRate < 70) {
-    nextDirection = "학원 공통 목표로 미복습 오답을 먼저 정리해 오답 복습률을 높이는 것이 좋습니다.";
+    nextDirection = `${scopeLabel} 공통 목표로 미복습 오답을 먼저 정리해 오답 복습률을 높이는 것이 좋습니다.`;
   } else if (values.firstAttemptAccuracy !== null && samples.firstAttempts >= 5 && values.firstAttemptAccuracy < 70) {
     nextDirection = "첫 시도 정답률을 높이도록 풀이 전 핵심 개념과 문제 조건을 다시 확인하게 지도하는 것이 좋습니다.";
   }
@@ -376,7 +380,7 @@ function buildAcademySummary({ period, values, samples, attentionCount }) {
   return { bullets, nextDirection };
 }
 
-async function getAcademyMonthlyStatistics({ studentUserIds, periodKey, now = new Date() }) {
+async function getAcademyMonthlyStatistics({ studentUserIds, periodKey, now = new Date(), scopeLabel = "학원" }) {
   const userIds = asObjectIds(studentUserIds);
   const period = resolvePeriod(periodKey, now);
   const range = { $gte: period.start, $lt: period.reportCutoff };
@@ -597,6 +601,7 @@ async function getAcademyMonthlyStatistics({ studentUserIds, periodKey, now = ne
     values,
     samples,
     attentionCount: attentionStudents.length,
+    scopeLabel,
   });
 
   return {
@@ -610,7 +615,11 @@ async function getAcademyMonthlyStatistics({ studentUserIds, periodKey, now = ne
     values,
     samples,
     cards: [
-      { label: "승인 학생", value: `${totalStudents}명`, detail: "현재 승인된 전체 학생" },
+      {
+        label: scopeLabel === "반" ? "반 학생" : "승인 학생",
+        value: `${totalStudents}명`,
+        detail: scopeLabel === "반" ? "현재 반에 배정된 승인 학생" : "현재 승인된 전체 학생",
+      },
       { label: "학습 참여 학생", value: `${activeStudents}명`, detail: totalStudents ? `${values.participationRate}% 참여` : "승인 학생 없음" },
       { label: "평균 학습일", value: formatAverage(values.averageLearningDays, "일"), detail: "학생 1인당 · 미학습 0일 포함" },
       { label: "오답 복습률", value: formatMetric(values.wrongAnswerReviewRate, "%"), detail: samples.wrongAnswers ? `전체 오답 ${samples.wrongAnswers}개 기준` : "새 오답 없음" },

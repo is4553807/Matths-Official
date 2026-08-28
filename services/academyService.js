@@ -720,6 +720,42 @@ async function getAcademyStudentPage({ teacherUserId, page = 1 }) {
   };
 }
 
+async function getAcademyClassDetail({ teacherUserId, classId }) {
+  const context = await getTeacherAcademyContext(teacherUserId);
+  if (!mongoose.isValidObjectId(classId)) {
+    throw statusError(404, "반을 찾을 수 없습니다.");
+  }
+  const academyClass = await AcademyClass.findOne({
+    _id: classId,
+    academyId: context.academyId,
+    isActive: true,
+  }).lean();
+  if (!academyClass) throw statusError(404, "현재 학원에서 사용하는 반을 찾을 수 없습니다.");
+
+  const [students, pendingCount] = await Promise.all([
+    AcademyStudentMembership.find({
+      academyId: context.academyId,
+      classId: academyClass._id,
+      status: "APPROVED",
+    })
+      .sort({ approvedAt: -1, _id: 1 })
+      .populate("studentUserId", STUDENT_FIELDS)
+      .lean(),
+    AcademyStudentMembership.countDocuments({
+      academyId: context.academyId,
+      status: "PENDING",
+    }),
+  ]);
+
+  return {
+    academy: context.academy,
+    academyClass,
+    students: students.filter((entry) => entry.studentUserId),
+    isOwner: context.staff.role === "OWNER",
+    pendingCount,
+  };
+}
+
 async function approveMembership({ teacherUserId, membershipId }) {
   const context = await getTeacherAcademyContext(teacherUserId);
   if (!mongoose.isValidObjectId(membershipId)) throw statusError(404, "승인 요청을 찾을 수 없습니다.");
@@ -979,6 +1015,7 @@ module.exports = {
   ensureAcademyIndexes,
   getAcademyInvitePresentation,
   getAcademyPortalData,
+  getAcademyClassDetail,
   getAcademyOwnerContext,
   getAcademyStudentPage,
   getAcademyStudentDetail,

@@ -7,6 +7,7 @@ const {
   createAcademyClass,
   createAcademyForTeacher,
   createAcademyInvite,
+  getAcademyClassDetail,
   getAcademyInvitePresentation,
   getAcademyPortalData,
   getAcademyStudentPage,
@@ -354,6 +355,37 @@ exports.createClass = async (req, res, next) => {
     return res.redirect("/academy?tab=classes");
   } catch (error) {
     return handleExpectedError(req, res, next, error, "/academy?tab=classes");
+  }
+};
+
+exports.classDetailPage = async (req, res, next) => {
+  try {
+    const detail = await getAcademyClassDetail({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+    });
+    const statistics = await getAcademyMonthlyStatistics({
+      studentUserIds: detail.students.map((membership) => membership.studentUserId._id),
+      periodKey: req.query.period,
+      scopeLabel: "반",
+    });
+    const membershipsByStudentId = new Map(
+      detail.students.map((membership) => [String(membership.studentUserId._id), membership])
+    );
+    statistics.attentionStudents = statistics.attentionStudents
+      .map((item) => ({ ...item, membership: membershipsByStudentId.get(item.studentUserId) }))
+      .filter((item) => item.membership);
+    detail.profileImageSrc = resolveAcademyProfileImage(detail.academy.profileImageAsset);
+
+    res.set("Cache-Control", "private, no-store");
+    return res.render("academy-class-detail", {
+      user: req.session.user,
+      detail,
+      statistics,
+      activeAcademyPage: "classes",
+    });
+  } catch (error) {
+    return next(error);
   }
 };
 

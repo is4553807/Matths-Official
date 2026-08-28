@@ -246,7 +246,7 @@
                 <% (portal.classes || []).forEach((academyClass) => {
                   const classStudentCount = (portal.students || []).filter((membership) => String(membership.classId?._id || '') === String(academyClass._id)).length;
                 %>
-                  <article><span><%= academyClass.name.slice(0, 1) %></span><div><strong><%= academyClass.name %></strong><small>배정 학생 <%= classStudentCount %>명</small></div></article>
+                  <a href="/academy/classes/<%= academyClass._id %>" aria-label="<%= academyClass.name %> 반 통계 보기"><span><%= academyClass.name.slice(0, 1) %></span><div><strong><%= academyClass.name %></strong><small>배정 학생 <%= classStudentCount %>명 · 반 통계 보기</small></div><b aria-hidden="true">→</b></a>
                 <% }) %>
               </div>
             </section>

@@ -45,6 +45,12 @@ router.post(
   authMiddleware.isTeacher,
   academyController.bulkManageStudents
 );
+router.get(
+  "/academy/classes/:classId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.classDetailPage
+);
 router.post("/academy/classes", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createClass);
 router.post("/academy/invites", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createInvite);
 router.post(
