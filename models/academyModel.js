@@ -2,6 +2,50 @@ const mongoose = require("mongoose");
 
 const { Schema } = mongoose;
 
+const academyProfileImageAssetSchema = new Schema(
+  {
+    storageProvider: {
+      type: String,
+      enum: ["CLOUDINARY"],
+      required: true,
+    },
+    storagePurpose: {
+      type: String,
+      enum: ["ACADEMY_PROFILE_IMAGE"],
+      required: true,
+    },
+    cloudPublicId: {
+      type: String,
+      maxlength: 500,
+      required: true,
+    },
+    cloudResourceType: {
+      type: String,
+      enum: ["image"],
+      default: "image",
+    },
+    cloudDeliveryType: {
+      type: String,
+      enum: ["authenticated", "private", "upload"],
+      default: "authenticated",
+    },
+    cloudVersion: {
+      type: Number,
+      default: null,
+    },
+    cloudFormat: {
+      type: String,
+      enum: ["webp"],
+      default: "webp",
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
 const academySchema = new Schema(
   {
     name: {
@@ -46,6 +90,10 @@ const academySchema = new Schema(
     rejectedAt: {
       type: Date,
       default: null,
+    },
+    profileImageAsset: {
+      type: academyProfileImageAssetSchema,
+      default: undefined,
     },
   },
   { timestamps: true, versionKey: false }

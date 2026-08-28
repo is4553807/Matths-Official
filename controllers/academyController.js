@@ -2,12 +2,14 @@ const {
   approveAcademyStaff,
   approveMembership,
   assignMembershipClass,
+  bulkManageAcademyStudents,
   cancelAcademyStaffJoin,
   createAcademyClass,
   createAcademyForTeacher,
   createAcademyInvite,
   getAcademyInvitePresentation,
   getAcademyPortalData,
+  getAcademyStudentPage,
   getAcademyStudentDetail,
   getTeacherAcademySetupData,
   getTeacherAcademyContext,
@@ -22,11 +24,19 @@ const {
   revokeAcademyInvite,
 } = require("../services/academyService");
 const {
+  removeAcademyProfileImage,
+  resolveAcademyProfileImage,
+  updateAcademyProfileImage,
+} = require("../services/academyProfileImageService");
+const {
+  discardRequestUploads,
+} = require("../middleware/uploadContentValidation");
+const {
   getAcademyMonthlyStatistics,
   getStudentMonthlyStatistics,
 } = require("../services/academyStatisticsService");
 
-const ACADEMY_TABS = new Set(["dashboard", "students", "requests", "classes", "invites", "teachers"]);
+const ACADEMY_TABS = new Set(["dashboard", "students", "requests", "classes", "invites", "teachers", "settings"]);
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -49,7 +59,7 @@ function consumeFlash(req) {
 }
 
 async function handleExpectedError(req, res, next, error, redirectTo) {
-  if ([400, 404, 409, 410, 422].includes(Number(error.status))) {
+  if ([400, 403, 404, 409, 410, 413, 422].includes(Number(error.status))) {
     try {
       await setFlash(req, "error", error.message);
       return res.redirect(redirectTo);
@@ -60,13 +70,29 @@ async function handleExpectedError(req, res, next, error, redirectTo) {
   return next(error);
 }
 
+function studentListPath(page) {
+  const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
+  return `/academy?tab=students&page=${safePage}`;
+}
+
 exports.portalPage = async (req, res, next) => {
   try {
     const context = await getTeacherAcademyContext(req.session.user.id, { allowMissing: true });
     if (!context) return res.redirect("/academy/setup");
     const requestedTab = String(req.query.tab || "dashboard");
-    const activeAcademyPage = ACADEMY_TABS.has(requestedTab) ? requestedTab : "dashboard";
-    const portal = await getAcademyPortalData(req.session.user.id);
+    let activeAcademyPage = ACADEMY_TABS.has(requestedTab) ? requestedTab : "dashboard";
+    if (activeAcademyPage === "settings" && context.staff.role !== "OWNER") {
+      activeAcademyPage = "dashboard";
+    }
+    const includeStudents = activeAcademyPage === "dashboard" || activeAcademyPage === "classes";
+    const portal = await getAcademyPortalData(req.session.user.id, { includeStudents });
+    portal.profileImageSrc = resolveAcademyProfileImage(portal.academy.profileImageAsset);
+    const studentPage = activeAcademyPage === "students"
+      ? await getAcademyStudentPage({
+          teacherUserId: req.session.user.id,
+          page: req.query.page,
+        })
+      : null;
     let statistics = null;
     if (activeAcademyPage === "dashboard") {
       statistics = await getAcademyMonthlyStatistics({
@@ -84,6 +110,7 @@ exports.portalPage = async (req, res, next) => {
     return res.render("academy", {
       user: req.session.user,
       portal,
+      studentPage,
       statistics,
       activeAcademyPage,
       feedback: consumeFlash(req),
@@ -259,6 +286,7 @@ exports.rejectStudent = async (req, res, next) => {
 };
 
 exports.assignClass = async (req, res, next) => {
+  const redirectTo = studentListPath(req.body.page);
   try {
     await assignMembershipClass({
       teacherUserId: req.session.user.id,
@@ -266,9 +294,56 @@ exports.assignClass = async (req, res, next) => {
       classId: String(req.body.classId || ""),
     });
     await setFlash(req, "success", "학생의 반을 저장했습니다.");
-    return res.redirect("/academy?tab=students");
+    return res.redirect(redirectTo);
   } catch (error) {
-    return handleExpectedError(req, res, next, error, "/academy?tab=students");
+    return handleExpectedError(req, res, next, error, redirectTo);
+  }
+};
+
+exports.bulkManageStudents = async (req, res, next) => {
+  const redirectTo = studentListPath(req.body.page);
+  try {
+    const result = await bulkManageAcademyStudents({
+      teacherUserId: req.session.user.id,
+      membershipIds: req.body.membershipIds,
+      action: req.body.action,
+      classId: req.body.classId,
+    });
+    const actionLabel = {
+      ASSIGN_CLASS: "반 배정",
+      UNASSIGN_CLASS: "반 배정 해제",
+      REMOVE: "학원 소속 해제",
+    }[result.action];
+    await setFlash(req, "success", `선택한 학생 ${result.count}명의 ${actionLabel} 작업을 완료했습니다.`);
+    return res.redirect(redirectTo);
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, redirectTo);
+  }
+};
+
+exports.changeAcademyProfileImage = async (req, res, next) => {
+  try {
+    if (req.profileAvatarUploadError) throw req.profileAvatarUploadError;
+    await updateAcademyProfileImage({
+      teacherUserId: req.session.user.id,
+      file: req.file,
+    });
+    await setFlash(req, "success", "학원 프로필 사진을 변경했습니다.");
+    return res.redirect("/academy?tab=settings");
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, "/academy?tab=settings");
+  } finally {
+    await discardRequestUploads(req);
+  }
+};
+
+exports.removeAcademyProfileImage = async (req, res, next) => {
+  try {
+    await removeAcademyProfileImage({ teacherUserId: req.session.user.id });
+    await setFlash(req, "success", "학원 프로필 사진을 기본 이미지로 되돌렸습니다.");
+    return res.redirect("/academy?tab=settings");
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, "/academy?tab=settings");
   }
 };
 

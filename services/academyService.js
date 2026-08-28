@@ -19,6 +19,8 @@ const STUDENT_FIELDS = [
   "accountStatus",
 ].join(" ");
 const STAFF_FIELDS = "name realName role isActive accountStatus";
+const ACADEMY_STUDENT_PAGE_SIZE = 20;
+const ACADEMY_STUDENT_BULK_LIMIT = 20;
 
 function statusError(status, message, code = "") {
   const error = new Error(message);
@@ -644,16 +646,18 @@ async function leaveAcademy({ studentUserId }) {
   return membership;
 }
 
-async function getAcademyPortalData(teacherUserId) {
+async function getAcademyPortalData(teacherUserId, { includeStudents = true } = {}) {
   const context = await getTeacherAcademyContext(teacherUserId);
   const academyId = context.academyId;
   const [classes, students, requests, invites, activeStaff, staffRequests] = await Promise.all([
     AcademyClass.find({ academyId, isActive: true }).sort({ name: 1, _id: 1 }).lean(),
-    AcademyStudentMembership.find({ academyId, status: "APPROVED" })
-      .sort({ approvedAt: -1, _id: 1 })
-      .populate("studentUserId", STUDENT_FIELDS)
-      .populate("classId", "name isActive")
-      .lean(),
+    includeStudents
+      ? AcademyStudentMembership.find({ academyId, status: "APPROVED" })
+          .sort({ approvedAt: -1, _id: 1 })
+          .populate("studentUserId", STUDENT_FIELDS)
+          .populate("classId", "name isActive")
+          .lean()
+      : Promise.resolve([]),
     AcademyStudentMembership.find({ academyId, status: "PENDING" })
       .sort({ requestedAt: 1, _id: 1 })
       .populate("studentUserId", STUDENT_FIELDS)
@@ -689,6 +693,30 @@ async function getAcademyPortalData(teacherUserId) {
     isOwner: context.staff.role === "OWNER",
     staffPendingCount: staffRequests.filter((entry) => entry.userId).length,
     pendingCount: requests.length,
+  };
+}
+
+async function getAcademyStudentPage({ teacherUserId, page = 1 }) {
+  const context = await getTeacherAcademyContext(teacherUserId);
+  const query = { academyId: context.academyId, status: "APPROVED" };
+  const total = await AcademyStudentMembership.countDocuments(query);
+  const totalPages = Math.max(1, Math.ceil(total / ACADEMY_STUDENT_PAGE_SIZE));
+  const requestedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const safePage = Math.min(requestedPage, totalPages);
+  const students = await AcademyStudentMembership.find(query)
+    .sort({ approvedAt: -1, _id: 1 })
+    .skip((safePage - 1) * ACADEMY_STUDENT_PAGE_SIZE)
+    .limit(ACADEMY_STUDENT_PAGE_SIZE)
+    .populate("studentUserId", STUDENT_FIELDS)
+    .populate("classId", "name isActive")
+    .lean();
+
+  return {
+    students: students.filter((entry) => entry.studentUserId),
+    page: safePage,
+    pageSize: ACADEMY_STUDENT_PAGE_SIZE,
+    total,
+    totalPages,
   };
 }
 
@@ -757,6 +785,80 @@ async function assignMembershipClass({ teacherUserId, membershipId, classId }) {
   ).lean();
   if (!membership) throw statusError(404, "반을 배정할 학생을 찾을 수 없습니다.");
   return membership;
+}
+
+async function bulkManageAcademyStudents({
+  teacherUserId,
+  membershipIds,
+  action,
+  classId,
+}) {
+  const context = await getTeacherAcademyContext(teacherUserId);
+  const rawIds = Array.isArray(membershipIds) ? membershipIds : [membershipIds];
+  const normalizedIds = [...new Set(rawIds.map((value) => String(value || "").trim()).filter(Boolean))];
+  if (!normalizedIds.length) {
+    throw statusError(400, "관리할 학생을 한 명 이상 선택해 주세요.");
+  }
+  if (normalizedIds.length > ACADEMY_STUDENT_BULK_LIMIT) {
+    throw statusError(400, `학생은 한 번에 최대 ${ACADEMY_STUDENT_BULK_LIMIT}명까지 관리할 수 있습니다.`);
+  }
+  if (normalizedIds.some((id) => !mongoose.isValidObjectId(id))) {
+    throw statusError(400, "올바르지 않은 학생 선택이 포함되어 있습니다.");
+  }
+
+  const normalizedAction = String(action || "").trim().toUpperCase();
+  if (!["ASSIGN_CLASS", "UNASSIGN_CLASS", "REMOVE"].includes(normalizedAction)) {
+    throw statusError(400, "일괄 작업을 선택해 주세요.");
+  }
+
+  const membershipObjectIds = normalizedIds.map((id) => new mongoose.Types.ObjectId(id));
+  const membershipFilter = {
+    _id: { $in: membershipObjectIds },
+    academyId: context.academyId,
+    status: "APPROVED",
+  };
+  const matchedMemberships = await AcademyStudentMembership.countDocuments(membershipFilter);
+  if (matchedMemberships !== membershipObjectIds.length) {
+    throw statusError(409, "선택한 학생 중 현재 학원에서 관리할 수 없는 학생이 있습니다. 목록을 새로고침해 주세요.");
+  }
+
+  let update;
+  if (normalizedAction === "ASSIGN_CLASS") {
+    if (!mongoose.isValidObjectId(classId)) {
+      throw statusError(400, "배정할 반을 선택해 주세요.");
+    }
+    const academyClass = await AcademyClass.findOne({
+      _id: classId,
+      academyId: context.academyId,
+      isActive: true,
+    }).lean();
+    if (!academyClass) throw statusError(404, "선택한 반을 찾을 수 없습니다.");
+    update = { $set: { classId: academyClass._id } };
+  } else if (normalizedAction === "UNASSIGN_CLASS") {
+    update = { $set: { classId: null } };
+  } else {
+    const now = new Date();
+    update = {
+      $set: {
+        status: "LEFT",
+        classId: null,
+        leftAt: now,
+        reviewedAt: now,
+        reviewedByUserId: teacherUserId,
+      },
+      $unset: { activeStudentKey: 1 },
+    };
+  }
+
+  const result = await AcademyStudentMembership.updateMany(membershipFilter, update);
+  if (Number(result.matchedCount) !== membershipObjectIds.length) {
+    throw statusError(409, "학생 소속이 변경되어 일괄 작업을 완료하지 못했습니다. 목록을 새로고침해 주세요.");
+  }
+  return {
+    action: normalizedAction,
+    count: membershipObjectIds.length,
+    modifiedCount: Number(result.modifiedCount),
+  };
 }
 
 async function createAcademyClass({ teacherUserId, name }) {
@@ -861,12 +963,15 @@ async function getAcademyStudentDetail({ teacherUserId, membershipId }) {
 }
 
 module.exports = {
+  ACADEMY_STUDENT_BULK_LIMIT,
+  ACADEMY_STUDENT_PAGE_SIZE,
   STAFF_FIELDS,
   STUDENT_FIELDS,
   approveAcademyApplication,
   approveAcademyStaff,
   approveMembership,
   assignMembershipClass,
+  bulkManageAcademyStudents,
   cancelAcademyStaffJoin,
   createAcademyClass,
   createAcademyForTeacher,
@@ -874,6 +979,8 @@ module.exports = {
   ensureAcademyIndexes,
   getAcademyInvitePresentation,
   getAcademyPortalData,
+  getAcademyOwnerContext,
+  getAcademyStudentPage,
   getAcademyStudentDetail,
   getStudentAcademyProfile,
   getTeacherAcademySetupData,

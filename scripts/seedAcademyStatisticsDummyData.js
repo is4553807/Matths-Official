@@ -1,4 +1,4 @@
-const { createHash } = require("node:crypto");
+const { createHash, randomBytes } = require("node:crypto");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
 
@@ -29,11 +29,37 @@ const CONFIRMED = process.argv.includes(`--confirm=${CONFIRMATION}`);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const BULK_CHUNK_SIZE = 500;
+const MAX_FIRST_ATTEMPTS = 18;
+const PROVIDED_RUN_SEED = String(
+  process.argv.find((argument) => argument.startsWith("--seed=")) || ""
+).replace(/^--seed=/, "").trim();
 
 function deterministicObjectId(value) {
   return new mongoose.Types.ObjectId(
     createHash("sha256").update(String(value)).digest("hex").slice(0, 24)
   );
+}
+
+function createSeededRandom(seed) {
+  let state = Number.parseInt(
+    createHash("sha256").update(String(seed)).digest("hex").slice(0, 8),
+    16
+  ) >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randomInteger(random, minimum, maximum) {
+  return minimum + Math.floor(random() * (maximum - minimum + 1));
+}
+
+function randomChance(random, probability) {
+  return random() < probability;
 }
 
 function testUserFilter(userIds) {
@@ -63,7 +89,7 @@ async function findExactTargetAcademy() {
   return matches[0];
 }
 
-function periodActivityTimes(period, requestedCount, seed) {
+function periodActivityTimes(period, requestedCount, random) {
   const candidates = [];
   for (
     let timestamp = period.start.getTime() + 12 * HOUR_MS;
@@ -78,8 +104,11 @@ function periodActivityTimes(period, requestedCount, seed) {
   }
   const count = Math.min(Math.max(0, requestedCount), candidates.length);
   if (!count) return [];
-  const rotated = candidates.map((_, index) => candidates[(index + seed) % candidates.length]);
-  return rotated.slice(0, count).sort((left, right) => left - right);
+  for (let index = candidates.length - 1; index > 0; index -= 1) {
+    const target = randomInteger(random, 0, index);
+    [candidates[index], candidates[target]] = [candidates[target], candidates[index]];
+  }
+  return candidates.slice(0, count).sort((left, right) => left - right);
 }
 
 function boundedAfter(timestamp, hours, period) {
@@ -89,10 +118,10 @@ function boundedAfter(timestamp, hours, period) {
   ));
 }
 
-function buildDataset(users, now = new Date(), problems = []) {
+function buildDataset(users, now = new Date(), problems = [], runSeed = randomBytes(16).toString("hex")) {
   const currentPeriod = resolvePeriod("", now);
   const periods = currentPeriod.options.map((option) => resolvePeriod(option.key, now));
-  const requiredProblemCount = periods.length * 12;
+  const requiredProblemCount = periods.length * MAX_FIRST_ATTEMPTS;
   if (problems.length < requiredProblemCount) {
     throw new Error(`학원 지표 더미 데이터에는 사용 가능한 실제 문제 ${requiredProblemCount}개가 필요합니다.`);
   }
@@ -107,15 +136,20 @@ function buildDataset(users, now = new Date(), problems = []) {
     let plannedRetries = 0;
     let plannedCompletedConcepts = 0;
 
-    users.forEach((user, userIndex) => {
-      const active = (userIndex + periodIndex * 2) % (periodIndex === 0 ? 6 : 5) !== 0;
-      const requestedLearningDays = active ? 3 + ((userIndex * 3 + periodIndex) % 10) : 0;
-      const activityTimes = periodActivityTimes(period, requestedLearningDays, userIndex * 2 + periodIndex);
+    users.forEach((user) => {
+      const random = createSeededRandom(`${runSeed}:${period.key}:${user._id}`);
+      const requestedLearningDays = randomInteger(random, 1, 15);
+      const activityTimes = periodActivityTimes(period, requestedLearningDays, random);
       if (!activityTimes.length) return;
       activeStudents += 1;
 
+      const firstAttemptAccuracy = 0.35 + random() * 0.6;
+      const wrongAnswerReviewProbability = 0.25 + random() * 0.7;
+      const retryProbability = 0.2 + random() * 0.65;
+      const retrySuccessProbability = 0.35 + random() * 0.6;
+
       activityTimes.forEach((occurredAt, dayIndex) => {
-        const clientEventId = `${DATASET_KEY}:${period.key}:${user._id}:day:${dayIndex}`;
+        const clientEventId = `${DATASET_KEY}:${runSeed}:${period.key}:${user._id}:day:${dayIndex}`;
         learningEventOperations.push({
           updateOne: {
             filter: { userId: user._id, clientEventId },
@@ -128,9 +162,10 @@ function buildDataset(users, now = new Date(), problems = []) {
                 courseId: COURSE_ID,
                 unitId: period.key,
                 conceptId: `${DATASET_KEY}-${period.key}-${dayIndex % 4}`,
-                durationMs: (20 + ((userIndex + dayIndex) % 35)) * 60 * 1000,
+                durationMs: randomInteger(random, 12, 75) * 60 * 1000,
                 metadata: {
                   datasetKey: DATASET_KEY,
+                  runSeed,
                   academyId: String(user.academyId),
                   generatedFor: "academy-dashboard",
                 },
@@ -143,19 +178,16 @@ function buildDataset(users, now = new Date(), problems = []) {
         });
       });
 
-      const firstAttemptCount = 5 + ((userIndex + periodIndex) % 8);
+      const firstAttemptCount = randomInteger(random, 3, MAX_FIRST_ATTEMPTS);
       plannedFirstAttempts += firstAttemptCount;
       for (let attemptIndex = 0; attemptIndex < firstAttemptCount; attemptIndex += 1) {
-        const problemKey = `${DATASET_KEY}:${period.key}:${user._id}:problem:${attemptIndex}`;
-        const problem = problems[periodIndex * 12 + attemptIndex];
+        const problemKey = `${DATASET_KEY}:${runSeed}:${period.key}:${user._id}:problem:${attemptIndex}`;
+        const problem = problems[periodIndex * MAX_FIRST_ATTEMPTS + attemptIndex];
         const problemId = problem._id;
         const attemptId = deterministicObjectId(`${problemKey}:attempt:1`);
-        const submittedAt = activityTimes[(attemptIndex + userIndex) % activityTimes.length];
-        const lowAccuracyProfile = userIndex % 7 === 0;
-        const isCorrect = lowAccuracyProfile
-          ? (attemptIndex + userIndex) % 3 === 0
-          : (attemptIndex + userIndex + periodIndex) % 5 !== 0;
-        const reviewed = !isCorrect && (attemptIndex + userIndex + periodIndex) % 3 !== 0;
+        const submittedAt = activityTimes[randomInteger(random, 0, activityTimes.length - 1)];
+        const isCorrect = randomChance(random, firstAttemptAccuracy);
+        const reviewed = !isCorrect && randomChance(random, wrongAnswerReviewProbability);
         const reviewedAt = reviewed ? boundedAfter(submittedAt, 2, period) : null;
         problemAttemptOperations.push({
           updateOne: {
@@ -176,13 +208,13 @@ function buildDataset(users, now = new Date(), problems = []) {
                   stem: "학원 통계 검증용 더미 문제",
                   choices: [],
                   solution: "통계 집계 검증용 데이터",
-                  difficulty: 1 + ((userIndex + attemptIndex) % 5),
+                  difficulty: randomInteger(random, 1, 5),
                 },
                 isCorrect,
                 score: isCorrect ? 1 : 0,
                 maxScore: 1,
-                responseTimeMs: 25_000 + ((userIndex + attemptIndex) % 80) * 1_000,
-                hintsUsed: (userIndex + attemptIndex) % 4 === 0 ? 1 : 0,
+                responseTimeMs: randomInteger(random, 18, 140) * 1_000,
+                hintsUsed: randomChance(random, 0.22) ? randomInteger(random, 1, 2) : 0,
                 review: {
                   status: isCorrect ? "not-required" : reviewed ? "completed" : "pending",
                   scheduledAt: isCorrect ? null : boundedAfter(submittedAt, 1, period),
@@ -196,10 +228,10 @@ function buildDataset(users, now = new Date(), problems = []) {
           },
         });
 
-        const shouldRetry = !isCorrect && (attemptIndex + userIndex) % 2 === 0;
+        const shouldRetry = !isCorrect && randomChance(random, retryProbability);
         if (shouldRetry) {
           plannedRetries += 1;
-          const retryCorrect = (attemptIndex + userIndex + periodIndex) % 4 !== 0;
+          const retryCorrect = randomChance(random, retrySuccessProbability);
           problemAttemptOperations.push({
             updateOne: {
               filter: { _id: deterministicObjectId(`${problemKey}:attempt:2`) },
@@ -219,12 +251,12 @@ function buildDataset(users, now = new Date(), problems = []) {
                     stem: "학원 통계 검증용 오답 재도전",
                     choices: [],
                     solution: "통계 집계 검증용 데이터",
-                    difficulty: 1 + ((userIndex + attemptIndex) % 5),
+                    difficulty: randomInteger(random, 1, 5),
                   },
                   isCorrect: retryCorrect,
                   score: retryCorrect ? 1 : 0,
                   maxScore: 1,
-                  responseTimeMs: 20_000 + ((userIndex + attemptIndex) % 55) * 1_000,
+                  responseTimeMs: randomInteger(random, 15, 105) * 1_000,
                   hintsUsed: 0,
                   review: {
                     status: "not-required",
@@ -241,11 +273,11 @@ function buildDataset(users, now = new Date(), problems = []) {
         }
       }
 
-      const completedConceptCount = 1 + ((userIndex + periodIndex) % 4);
+      const completedConceptCount = randomInteger(random, 0, 6);
       plannedCompletedConcepts += completedConceptCount;
       for (let conceptIndex = 0; conceptIndex < completedConceptCount; conceptIndex += 1) {
         const conceptId = `${DATASET_KEY}-${period.key}-${conceptIndex}`;
-        const completedAt = activityTimes[(conceptIndex + userIndex) % activityTimes.length];
+        const completedAt = activityTimes[randomInteger(random, 0, activityTimes.length - 1)];
         conceptProgressOperations.push({
           updateOne: {
             filter: {
@@ -261,14 +293,14 @@ function buildDataset(users, now = new Date(), problems = []) {
                 completedTopicIndexes: [0, 1, 2, 3],
                 completedTopics: 4,
                 completionPercent: 100,
-                masteryProbability: Number((0.62 + ((userIndex + conceptIndex) % 34) / 100).toFixed(2)),
+                masteryProbability: Number((0.45 + random() * 0.5).toFixed(2)),
                 status: "completed",
                 signals: {
-                  totalAttempts: 5 + ((userIndex + conceptIndex) % 8),
-                  correctAttempts: 3 + ((userIndex + conceptIndex) % 5),
-                  totalResponseTimeMs: 180_000,
-                  hintsUsed: (userIndex + conceptIndex) % 3,
-                  visualizationReplays: 0,
+                  totalAttempts: randomInteger(random, 4, 16),
+                  correctAttempts: randomInteger(random, 2, 4),
+                  totalResponseTimeMs: randomInteger(random, 120, 720) * 1_000,
+                  hintsUsed: randomInteger(random, 0, 4),
+                  visualizationReplays: randomInteger(random, 0, 2),
                 },
                 lastStudiedAt: completedAt,
                 completedAt,
@@ -307,6 +339,7 @@ function buildDataset(users, now = new Date(), problems = []) {
   });
 
   return {
+    runSeed,
     periods,
     periodPlans,
     operations: {
@@ -317,20 +350,55 @@ function buildDataset(users, now = new Date(), problems = []) {
   };
 }
 
-async function runBulkOperations(Model, operations) {
+async function runBulkOperations(Model, operations, session = null) {
   let matched = 0;
   let modified = 0;
   let upserted = 0;
   for (let index = 0; index < operations.length; index += BULK_CHUNK_SIZE) {
     const result = await Model.bulkWrite(
       operations.slice(index, index + BULK_CHUNK_SIZE),
-      { ordered: false }
+      { ordered: false, ...(session ? { session } : {}) }
     );
     matched += Number(result.matchedCount || 0);
     modified += Number(result.modifiedCount || 0);
     upserted += Number(result.upsertedCount || 0);
   }
   return { planned: operations.length, matched, modified, upserted };
+}
+
+async function replaceExistingDummyDataset({ userIds, operations }) {
+  const session = await mongoose.startSession();
+  let cleanupResults;
+  let writeResults;
+  try {
+    await session.withTransaction(async () => {
+      const learningEvents = await LearningEvent.deleteMany(
+        { userId: { $in: userIds }, "metadata.datasetKey": DATASET_KEY },
+        { session }
+      );
+      const problemAttempts = await ProblemAttempt.deleteMany(
+        { userId: { $in: userIds }, "problemSnapshot.typeId": DATASET_KEY },
+        { session }
+      );
+      const conceptProgress = await ConceptProgress.deleteMany(
+        { userId: { $in: userIds }, curriculumId: DATASET_KEY, courseId: COURSE_ID },
+        { session }
+      );
+      cleanupResults = {
+        learningEvents: Number(learningEvents.deletedCount || 0),
+        problemAttempts: Number(problemAttempts.deletedCount || 0),
+        conceptProgress: Number(conceptProgress.deletedCount || 0),
+      };
+      writeResults = {
+        learningEvents: await runBulkOperations(LearningEvent, operations.learningEvents, session),
+        problemAttempts: await runBulkOperations(ProblemAttempt, operations.problemAttempts, session),
+        conceptProgress: await runBulkOperations(ConceptProgress, operations.conceptProgress, session),
+      };
+    });
+  } finally {
+    await session.endSession();
+  }
+  return { cleanupResults, writeResults };
 }
 
 async function verifyAcademyUserConnection({ academy, period, now = new Date() }) {
@@ -347,11 +415,21 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date() }
   const dummyMembers = connectedMemberships.filter((membership) =>
     membership.studentUserId.isTestAccount === true || membership.studentUserId.role === "test"
   );
+  const dummyUserIds = dummyMembers.map((membership) => membership.studentUserId._id);
   const nonDummyMembers = connectedMemberships.filter((membership) =>
     membership.studentUserId.isTestAccount !== true && membership.studentUserId.role !== "test"
   );
   const periodRange = { $gte: period.start, $lt: period.reportCutoff };
-  const [learningUsers, attemptUsers, conceptUsers, datasetProblemIds, statistics] = await Promise.all([
+  const [
+    learningUsers,
+    attemptUsers,
+    conceptUsers,
+    datasetProblemIds,
+    studentLearningRows,
+    studentAttemptRows,
+    studentConceptRows,
+    statistics,
+  ] = await Promise.all([
     LearningEvent.distinct("userId", { userId: { $in: userIds }, occurredAt: periodRange }),
     ProblemAttempt.distinct("userId", { userId: { $in: userIds }, submittedAt: periodRange }),
     ConceptProgress.distinct("userId", { userId: { $in: userIds }, completedAt: periodRange }),
@@ -360,6 +438,63 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date() }
       submittedAt: periodRange,
       "problemSnapshot.typeId": DATASET_KEY,
     }),
+    LearningEvent.aggregate([
+      {
+        $match: {
+          userId: { $in: dummyUserIds },
+          occurredAt: periodRange,
+          "metadata.datasetKey": DATASET_KEY,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            userId: "$userId",
+            day: { $dateToString: { date: "$occurredAt", format: "%Y-%m-%d", timezone: "Asia/Seoul" } },
+          },
+        },
+      },
+      { $group: { _id: "$_id.userId", learningDays: { $sum: 1 } } },
+    ]),
+    ProblemAttempt.aggregate([
+      {
+        $match: {
+          userId: { $in: dummyUserIds },
+          submittedAt: periodRange,
+          "problemSnapshot.typeId": DATASET_KEY,
+          reviewSourceAttemptId: null,
+          attemptNumber: 1,
+        },
+      },
+      {
+        $group: {
+          _id: "$userId",
+          firstAttempts: { $sum: 1 },
+          correct: { $sum: { $cond: ["$isCorrect", 1, 0] } },
+          reviewedWrong: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ["$isCorrect", false] }, { $eq: ["$review.status", "completed"] }] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]),
+    ConceptProgress.aggregate([
+      {
+        $match: {
+          userId: { $in: dummyUserIds },
+          curriculumId: DATASET_KEY,
+          courseId: COURSE_ID,
+          status: "completed",
+          completedAt: periodRange,
+        },
+      },
+      { $group: { _id: "$userId", completedConcepts: { $sum: 1 } } },
+    ]),
     getAcademyMonthlyStatistics({ studentUserIds: userIds, periodKey: period.key, now }),
   ]);
   const linkedProblemCount = await Problem.countDocuments({ _id: { $in: datasetProblemIds } });
@@ -369,6 +504,46 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date() }
   const nonDummyWithRecords = nonDummyMembers.filter((membership) =>
     usersWithRecords.has(String(membership.studentUserId._id))
   ).length;
+  const studentProfiles = new Map(dummyUserIds.map((userId) => [String(userId), {
+    learningDays: 0,
+    firstAttempts: 0,
+    correct: 0,
+    reviewedWrong: 0,
+    completedConcepts: 0,
+  }]));
+  studentLearningRows.forEach((row) => {
+    const profile = studentProfiles.get(String(row._id));
+    if (profile) profile.learningDays = Number(row.learningDays || 0);
+  });
+  studentAttemptRows.forEach((row) => {
+    const profile = studentProfiles.get(String(row._id));
+    if (profile) {
+      profile.firstAttempts = Number(row.firstAttempts || 0);
+      profile.correct = Number(row.correct || 0);
+      profile.reviewedWrong = Number(row.reviewedWrong || 0);
+    }
+  });
+  studentConceptRows.forEach((row) => {
+    const profile = studentProfiles.get(String(row._id));
+    if (profile) profile.completedConcepts = Number(row.completedConcepts || 0);
+  });
+  const profileValues = [...studentProfiles.values()];
+  const profilesWithRecords = profileValues.filter((profile) =>
+    profile.learningDays > 0 && profile.firstAttempts > 0
+  );
+  const profileSignatures = new Set(profileValues.map((profile) =>
+    [
+      profile.learningDays,
+      profile.firstAttempts,
+      profile.correct,
+      profile.reviewedWrong,
+      profile.completedConcepts,
+    ].join(":")
+  ));
+  const rangeFor = (field) => ({
+    minimum: profileValues.length ? Math.min(...profileValues.map((profile) => profile[field])) : 0,
+    maximum: profileValues.length ? Math.max(...profileValues.map((profile) => profile[field])) : 0,
+  });
 
   if (orphanMemberships) {
     throw new Error(`실제 User 문서가 없는 승인 소속 ${orphanMemberships}건을 발견했습니다.`);
@@ -392,6 +567,17 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date() }
     nonDummyMembersWithLearningRecords: nonDummyWithRecords,
     dummyDatasetProblemReferences: datasetProblemIds.length,
     linkedProblemReferences: linkedProblemCount,
+    perStudentRandomData: {
+      students: profileValues.length,
+      studentsWithRecords: profilesWithRecords.length,
+      distinctMetricProfiles: profileSignatures.size,
+      learningDays: rangeFor("learningDays"),
+      firstAttempts: rangeFor("firstAttempts"),
+      correctAnswers: rangeFor("correct"),
+      reviewedWrongAnswers: rangeFor("reviewedWrong"),
+      completedConcepts: rangeFor("completedConcepts"),
+      allDummyStudentsHaveRecords: profilesWithRecords.length === profileValues.length,
+    },
     statistics: statistics.values,
     samples: statistics.samples,
     connectionVerified:
@@ -422,9 +608,10 @@ async function main() {
       .lean();
     if (!users.length) throw new Error("학원에 승인된 활성 테스트 계정을 찾을 수 없습니다.");
     users.forEach((user) => { user.academyId = academy._id; });
+    const userIds = users.map((user) => user._id);
 
     const nonDatasetUsedProblemIds = await ProblemAttempt.distinct("problemId", {
-      userId: { $in: users.map((user) => user._id) },
+      userId: { $in: userIds },
       "problemSnapshot.typeId": { $ne: DATASET_KEY },
     });
     const problems = await Problem.find({
@@ -436,10 +623,26 @@ async function main() {
     })
       .select("_id curriculumId courseId unitId primaryConceptId")
       .sort({ _id: 1 })
-      .limit(24)
+      .limit(resolvePeriod("", now).options.length * MAX_FIRST_ATTEMPTS)
       .lean();
 
-    const dataset = buildDataset(users, now, problems);
+    const runSeed = PROVIDED_RUN_SEED || randomBytes(16).toString("hex");
+    const dataset = buildDataset(users, now, problems, runSeed);
+    const existingDatasetCounts = {
+      learningEvents: await LearningEvent.countDocuments({
+        userId: { $in: userIds },
+        "metadata.datasetKey": DATASET_KEY,
+      }),
+      problemAttempts: await ProblemAttempt.countDocuments({
+        userId: { $in: userIds },
+        "problemSnapshot.typeId": DATASET_KEY,
+      }),
+      conceptProgress: await ConceptProgress.countDocuments({
+        userId: { $in: userIds },
+        curriculumId: DATASET_KEY,
+        courseId: COURSE_ID,
+      }),
+    };
     const preview = {
       apply: APPLY,
       database: mongoose.connection.name,
@@ -448,7 +651,9 @@ async function main() {
       targetedTestUsers: users.length,
       excludedNonTestMemberships: approvedMemberships.length - users.length,
       datasetKey: DATASET_KEY,
+      runSeed: dataset.runSeed,
       actualProblemDocumentsUsed: problems.length,
+      existingDatasetCounts,
       periodPlans: dataset.periodPlans,
       totalOperations: {
         learningEvents: dataset.operations.learningEvents.length,
@@ -470,20 +675,24 @@ async function main() {
       throw new Error(`실행하려면 --confirm=${CONFIRMATION}를 함께 지정해야 합니다.`);
     }
 
-    const writeResults = {
-      learningEvents: await runBulkOperations(LearningEvent, dataset.operations.learningEvents),
-      problemAttempts: await runBulkOperations(ProblemAttempt, dataset.operations.problemAttempts),
-      conceptProgress: await runBulkOperations(ConceptProgress, dataset.operations.conceptProgress),
-    };
+    const { cleanupResults, writeResults } = await replaceExistingDummyDataset({
+      userIds,
+      operations: dataset.operations,
+    });
     const verification = [];
     for (const period of dataset.periods) {
       verification.push(await verifyAcademyUserConnection({ academy, period, now }));
     }
     console.log(JSON.stringify({
       ...preview,
+      cleanupResults,
       writeResults,
       verification,
-      completed: verification.every((item) => item.connectionVerified),
+      completed: verification.every((item) =>
+        item.connectionVerified &&
+        item.problemReferencesVerified &&
+        item.perStudentRandomData.allDummyStudentsHaveRecords
+      ),
     }, null, 2));
   } finally {
     await mongoose.disconnect();
@@ -501,5 +710,6 @@ if (require.main === module) {
 module.exports = {
   DATASET_KEY,
   buildDataset,
+  createSeededRandom,
   deterministicObjectId,
 };

@@ -44,7 +44,7 @@
       <a class="admin-back" href="/admin/academies">← 학원 목록</a>
       <header class="admin-academy-detail-hero">
         <div class="admin-academy-detail-title">
-          <span aria-hidden="true"><%= academy.name.slice(0, 1) %></span>
+          <% if (academy.profileImageSrc) { %><img src="<%= academy.profileImageSrc %>" alt="<%= academy.name %> 프로필 사진" /><% } else { %><span aria-hidden="true"><%= academy.name.slice(0, 1) %></span><% } %>
           <div><p>SUPER ADMIN · FULL ACCESS</p><h1><%= academy.name %></h1><b class="admin-academy-status is-<%= String(academy.status).toLowerCase() %>"><%= statusLabels[academy.status] || academy.status %></b></div>
         </div>
         <nav aria-label="학원 상세 영역">
@@ -70,6 +70,12 @@
             <input type="hidden" name="action" value="RENAME" />
             <label><span>학원 이름</span><input type="text" name="name" value="<%= academy.name %>" minlength="2" maxlength="80" required /></label>
             <button type="submit">이름 저장</button>
+          </form>
+          <form class="admin-form admin-academy-profile-control" action="/admin/academies/<%= academy._id %>/profile-image" method="POST" enctype="multipart/form-data">
+            <h3>학원 프로필 사진</h3><p>원장과 동일하게 대표 사진을 변경하거나 기본 이미지로 되돌릴 수 있습니다.</p>
+            <label><span>새 사진</span><input type="file" name="profileImage" accept="image/jpeg,image/png,image/webp" /></label>
+            <small>JPG, PNG, WEBP · 최대 5MB · 정사각형 자동 맞춤</small>
+            <div class="admin-academy-action-row"><button type="submit" name="action" value="UPDATE">사진 저장</button><% if (academy.profileImageAsset?.cloudPublicId) { %><button class="is-danger" type="submit" name="action" value="REMOVE" formnovalidate onclick="return confirm('학원 프로필 사진을 기본 이미지로 되돌릴까요?')">기본 이미지</button><% } %></div>
           </form>
           <div class="admin-academy-state-control">
             <h3>운영 상태</h3><p>학원 승인은 신규 생성 요청에만 가능하며, 승인 후 운영을 일시 중지하거나 재개할 수 있습니다.</p>

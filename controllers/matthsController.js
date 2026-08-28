@@ -398,6 +398,10 @@ const {
   updateCustomProfileAvatar,
 } = require("../services/arenaProfileAvatarService");
 const {
+  removeAcademyProfileImageAsAdmin,
+  updateAcademyProfileImageAsAdmin,
+} = require("../services/academyProfileImageService");
+const {
   beginSocialAuthorization,
   clearPendingSocialRegistration,
   completeSocialAuthorization,
@@ -1854,6 +1858,8 @@ function adminAcademyFeedback(query) {
     classUpdated: "반 사용 상태를 변경했습니다.",
     inviteUpdated: "초대 사용 상태를 변경했습니다.",
     ownerTransferred: "학원 원장 권한을 이전했습니다.",
+    academyProfileImageUpdated: "학원 프로필 사진을 변경했습니다.",
+    academyProfileImageRemoved: "학원 프로필 사진을 기본 이미지로 되돌렸습니다.",
   };
   const error = String(query.error || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 240);
   return {
@@ -1931,6 +1937,42 @@ exports.adminUpdateAcademyProfile = async (req, res, next) => {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-control");
     }
     return next(error);
+  }
+};
+
+exports.adminUpdateAcademyProfileImage = async (req, res, next) => {
+  try {
+    if (req.profileAvatarUploadError) throw req.profileAvatarUploadError;
+    const action = String(req.body.action || "UPDATE").trim().toUpperCase();
+    if (action === "REMOVE") {
+      await removeAcademyProfileImageAsAdmin({
+        adminUserId: req.session.user.id,
+        academyId: req.params.academyId,
+      });
+      return res.redirect(303, `/admin/academies/${req.params.academyId}?done=academyProfileImageRemoved#academy-control`);
+    }
+    if (action !== "UPDATE") {
+      const actionError = new Error("올바른 학원 프로필 사진 작업이 아닙니다.");
+      actionError.status = 400;
+      throw actionError;
+    }
+    await updateAcademyProfileImageAsAdmin({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      file: req.file,
+    });
+    req.file = undefined;
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=academyProfileImageUpdated#academy-control`);
+  } catch (error) {
+    if ([400, 403, 404, 409, 413, 422, 503].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-control");
+    }
+    return next(error);
+  } finally {
+    if (req.file?.path) {
+      await require("node:fs").promises.unlink(req.file.path).catch(() => {});
+      req.file = undefined;
+    }
   }
 };
 

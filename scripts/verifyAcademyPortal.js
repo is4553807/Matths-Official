@@ -1,8 +1,10 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const mongoose = require("mongoose");
 const ejs = require("ejs");
+const sharp = require("sharp");
 const { MongoMemoryServer } = require("mongodb-memory-server-core");
 const {
   ConceptProgress,
@@ -22,12 +24,14 @@ const {
   approveAcademyStaff,
   approveMembership,
   assignMembershipClass,
+  bulkManageAcademyStudents,
   cancelAcademyStaffJoin,
   createAcademyClass,
   createAcademyForTeacher,
   createAcademyInvite,
   getAcademyInvitePresentation,
   getAcademyPortalData,
+  getAcademyStudentPage,
   getAcademyStudentDetail,
   getStudentAcademyProfile,
   getTeacherAcademyContext,
@@ -38,6 +42,13 @@ const {
   rejectAcademyApplication,
   revokeAcademyStaff,
 } = require("../services/academyService");
+const {
+  createSquareAcademyProfileImageFile,
+  removeAcademyProfileImage,
+  removeAcademyProfileImageAsAdmin,
+  updateAcademyProfileImage,
+  updateAcademyProfileImageAsAdmin,
+} = require("../services/academyProfileImageService");
 const {
   getAcademyMonthlyStatistics,
   getStudentMonthlyStatistics,
@@ -416,6 +427,8 @@ async function main() {
     assert.match(adminDetailHtml, /승인 학생 전체 평균 통계/);
     assert.match(adminDetailHtml, /선생님 전체 정보/);
     assert.match(adminDetailHtml, /학생 전체 정보·소속 제어/);
+    assert.match(adminDetailHtml, /학원 프로필 사진/);
+    assert.match(adminDetailHtml, /\/admin\/academies\/.+\/profile-image/);
     assert.match(adminDetailHtml, /고1 월수반/);
     assert.match(adminDetailHtml, new RegExp(invite.code));
 
@@ -505,6 +518,197 @@ async function main() {
 
     const mainView = fs.readFileSync(path.join(root, "views", "main.ejs"), "utf8");
     assert.match(mainView, /const displayName = String\(learner\.realName \|\| "학생"\)/);
+
+    const extraStudents = await User.create(
+      Array.from({ length: 24 }, (_, index) => ({
+        name: `academy-page-student-${index + 1}`,
+        realName: `페이지학생${String(index + 1).padStart(2, "0")}`,
+        email: `academy-page-student-${index + 1}@example.test`,
+        passwordHash: "not-used-in-verification",
+        role: "student",
+        schoolGrade: 10 + (index % 3),
+        school: { region: "경기도", code: `PAGE-HS-${index + 1}`, name: "페이지검증고" },
+      }))
+    );
+    const extraMemberships = await AcademyStudentMembership.create(
+      extraStudents.map((extraStudent, index) => ({
+        academyId: academy._id,
+        studentUserId: extraStudent._id,
+        activeStudentKey: String(extraStudent._id),
+        status: "APPROVED",
+        classId: index % 2 ? academyClass._id : null,
+        joinSource: "ADMIN_ASSIGNMENT",
+        requestedAt: new Date(Date.now() + index),
+        dataConsentAt: new Date(Date.now() + index),
+        reviewedAt: new Date(Date.now() + index),
+        reviewedByUserId: teacher._id,
+        approvedAt: new Date(Date.now() + index),
+      }))
+    );
+    const firstStudentPage = await getAcademyStudentPage({ teacherUserId: teacher._id, page: 1 });
+    const secondStudentPage = await getAcademyStudentPage({ teacherUserId: teacher._id, page: 2 });
+    assert.equal(firstStudentPage.total, 25);
+    assert.equal(firstStudentPage.totalPages, 2);
+    assert.equal(firstStudentPage.students.length, 20);
+    assert.equal(secondStudentPage.students.length, 5);
+    assert.equal(secondStudentPage.page, 2);
+
+    const paginatedPortal = await getAcademyPortalData(teacher._id, { includeStudents: false });
+    assert.equal(paginatedPortal.students.length, 0);
+    const paginatedStudentHtml = await render("academy", {
+      user: teacherUser,
+      portal: paginatedPortal,
+      studentPage: firstStudentPage,
+      statistics: null,
+      feedback: null,
+      createdInviteId: "",
+      activeAcademyPage: "students",
+    });
+    assert.equal((paginatedStudentHtml.match(/data-student-checkbox/g) || []).length, 20);
+    assert.match(paginatedStudentHtml, /\/academy\?tab=students&amp;page=2/);
+    assert.match(paginatedStudentHtml, /일괄 작업 선택/);
+    assert.match(paginatedStudentHtml, /학원 소속 해제/);
+
+    const bulkIds = extraMemberships.slice(0, 2).map((membership) => membership._id);
+    let bulkResult = await bulkManageAcademyStudents({
+      teacherUserId: secondTeacher._id,
+      membershipIds: bulkIds,
+      action: "ASSIGN_CLASS",
+      classId: academyClass._id,
+    });
+    assert.equal(bulkResult.count, 2);
+    assert.equal(
+      await AcademyStudentMembership.countDocuments({ _id: { $in: bulkIds }, classId: academyClass._id }),
+      2
+    );
+    bulkResult = await bulkManageAcademyStudents({
+      teacherUserId: teacher._id,
+      membershipIds: bulkIds,
+      action: "UNASSIGN_CLASS",
+    });
+    assert.equal(bulkResult.count, 2);
+    assert.equal(
+      await AcademyStudentMembership.countDocuments({ _id: { $in: bulkIds }, classId: null }),
+      2
+    );
+    const foreignStudent = await User.create({
+      name: "academy-foreign-student",
+      realName: "타학원학생",
+      email: "academy-foreign-student@example.test",
+      passwordHash: "not-used-in-verification",
+      role: "student",
+      schoolGrade: 11,
+    });
+    const foreignMembership = await AcademyStudentMembership.create({
+      academyId: rejectedAcademy._id,
+      studentUserId: foreignStudent._id,
+      activeStudentKey: String(foreignStudent._id),
+      status: "APPROVED",
+      joinSource: "ADMIN_ASSIGNMENT",
+      requestedAt: new Date(),
+      dataConsentAt: new Date(),
+      approvedAt: new Date(),
+    });
+    await assert.rejects(
+      bulkManageAcademyStudents({
+        teacherUserId: teacher._id,
+        membershipIds: [bulkIds[0], foreignMembership._id],
+        action: "UNASSIGN_CLASS",
+      }),
+      (error) => Number(error.status) === 409 && /현재 학원에서 관리할 수 없는/.test(error.message)
+    );
+    await assert.rejects(
+      bulkManageAcademyStudents({
+        teacherUserId: teacher._id,
+        membershipIds: [...extraMemberships.slice(0, 21).map((membership) => membership._id)],
+        action: "UNASSIGN_CLASS",
+      }),
+      (error) => Number(error.status) === 400 && /최대 20명/.test(error.message)
+    );
+    bulkResult = await bulkManageAcademyStudents({
+      teacherUserId: teacher._id,
+      membershipIds: bulkIds,
+      action: "REMOVE",
+    });
+    assert.equal(bulkResult.count, 2);
+    assert.equal(
+      await AcademyStudentMembership.countDocuments({ _id: { $in: bulkIds }, status: "LEFT", classId: null }),
+      2
+    );
+    assert.equal((await getAcademyStudentPage({ teacherUserId: teacher._id, page: 2 })).total, 23);
+
+    assert.ok(Academy.schema.path("profileImageAsset.cloudPublicId"));
+    await assert.rejects(
+      updateAcademyProfileImage({ teacherUserId: secondTeacher._id, file: null }),
+      (error) => Number(error.status) === 403 && /원장 계정만/.test(error.message)
+    );
+    await assert.rejects(
+      updateAcademyProfileImage({ teacherUserId: teacher._id, file: null }),
+      (error) => Number(error.status) === 400 && /사진을 선택/.test(error.message)
+    );
+    await assert.rejects(
+      removeAcademyProfileImage({ teacherUserId: teacher._id }),
+      (error) => Number(error.status) === 404 && /삭제할 학원 프로필 사진/.test(error.message)
+    );
+    await assert.rejects(
+      updateAcademyProfileImageAsAdmin({ adminUserId: teacher._id, academyId: academy._id, file: null }),
+      (error) => Number(error.status) === 403 && /활성 운영자/.test(error.message)
+    );
+    await assert.rejects(
+      updateAcademyProfileImageAsAdmin({ adminUserId: admin._id, academyId: academy._id, file: null }),
+      (error) => Number(error.status) === 400 && /사진을 선택/.test(error.message)
+    );
+    await assert.rejects(
+      removeAcademyProfileImageAsAdmin({ adminUserId: admin._id, academyId: academy._id }),
+      (error) => Number(error.status) === 404 && /삭제할 학원 프로필 사진/.test(error.message)
+    );
+    const imageTestDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), "matths-academy-image-"));
+    const sourceImagePath = path.join(imageTestDirectory, "source.png");
+    let preparedAcademyImage = null;
+    try {
+      await sharp({ create: { width: 900, height: 600, channels: 3, background: "#3157f6" } })
+        .png()
+        .toFile(sourceImagePath);
+      preparedAcademyImage = await createSquareAcademyProfileImageFile({
+        path: sourceImagePath,
+        mimetype: "image/png",
+        originalname: "academy.png",
+        contentValidated: true,
+      });
+      const preparedMetadata = await sharp(preparedAcademyImage.path).metadata();
+      assert.equal(preparedMetadata.width, 512);
+      assert.equal(preparedMetadata.height, 512);
+      assert.equal(preparedMetadata.format, "webp");
+    } finally {
+      if (preparedAcademyImage?.path) await fs.promises.unlink(preparedAcademyImage.path).catch(() => {});
+      await fs.promises.rm(imageTestDirectory, { recursive: true, force: true });
+    }
+
+    const settingsHtml = await render("academy", {
+      user: teacherUser,
+      portal: {
+        ...paginatedPortal,
+        isOwner: true,
+        profileImageSrc: "https://images.example.test/academy.webp",
+        academy: {
+          ...paginatedPortal.academy,
+          profileImageAsset: { cloudPublicId: "matths/academy-profile-images/test" },
+        },
+      },
+      studentPage: null,
+      statistics: null,
+      feedback: null,
+      createdInviteId: "",
+      activeAcademyPage: "settings",
+    });
+    assert.match(settingsHtml, /학원 설정/);
+    assert.match(settingsHtml, /action="\/academy\/profile-image"/);
+    assert.match(settingsHtml, /기본 이미지로 되돌리기/);
+
+    const academyFeatureRoutes = fs.readFileSync(path.join(root, "routes", "academy-routes.js"), "utf8");
+    assert.match(academyFeatureRoutes, /"\/academy\/students\/bulk"/);
+    assert.match(academyFeatureRoutes, /"\/academy\/profile-image"/);
+    assert.match(academyRoutes, /"\/admin\/academies\/:academyId\/profile-image"/);
     await assert.rejects(
       approveAcademyStaff({ teacherUserId: secondTeacher._id, staffId: new mongoose.Types.ObjectId() }),
       (error) => Number(error.status) === 403 && /원장 계정만/.test(error.message)

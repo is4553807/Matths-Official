@@ -8189,7 +8189,7 @@
 
 .admin-academy-list-row.head {
   min-height: 42px;
-  color: #737d95;
+  color: #5f6a82;
   background: #f8f9fc;
   border-top: 0;
   font-size: 9px;
@@ -8217,15 +8217,26 @@
 }
 
 .admin-academy-list-identity > span,
-.admin-academy-detail-title > span {
+.admin-academy-detail-title > span,
+.admin-academy-list-identity > img,
+.admin-academy-detail-title > img {
   flex: 0 0 auto;
   width: 42px;
   height: 42px;
+  border-radius: 13px;
+}
+
+.admin-academy-list-identity > img,
+.admin-academy-detail-title > img {
+  object-fit: cover;
+}
+
+.admin-academy-list-identity > span,
+.admin-academy-detail-title > span {
   display: grid;
   place-items: center;
   color: #fff;
   background: linear-gradient(145deg, #6a4cff, #3157f6);
-  border-radius: 13px;
   font-size: 17px;
   font-weight: 900;
 }
@@ -8347,10 +8358,14 @@
   gap: 17px;
 }
 
-.admin-academy-detail-title > span {
+.admin-academy-detail-title > span,
+.admin-academy-detail-title > img {
   width: 58px;
   height: 58px;
   border-radius: 17px;
+}
+
+.admin-academy-detail-title > span {
   font-size: 22px;
 }
 
@@ -8484,6 +8499,12 @@
 
 .admin-academy-meta div {
   min-width: 0;
+}
+
+.admin-academy-profile-control > small {
+  color: var(--admin-muted);
+  font-size: 9px;
+  line-height: 1.55;
 }
 
 .admin-academy-meta dt {
@@ -8643,7 +8664,7 @@
 }
 
 .admin-academy-data-table th {
-  color: #707b94;
+  color: #5f6a82;
   background: #f8f9fc;
   font-size: 9px;
   font-weight: 850;

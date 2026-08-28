@@ -4,16 +4,28 @@
   const pendingCount = Number(portal.pendingCount) || 0;
   const staffPendingCount = Number(portal.staffPendingCount) || 0;
   const isOwner = portal.isOwner === true;
+  const studentListing = typeof studentPage !== "undefined" && studentPage ? studentPage : {
+    students: portal.students || [],
+    page: 1,
+    pageSize: 20,
+    total: (portal.students || []).length,
+    totalPages: 1,
+  };
+  const listedStudents = studentListing.students || [];
+  const studentPaginationItems = [];
+  let previousStudentPageItem = 0;
+  for (let pageNumber = 1; pageNumber <= studentListing.totalPages; pageNumber += 1) {
+    if (pageNumber === 1 || pageNumber === studentListing.totalPages || Math.abs(pageNumber - studentListing.page) <= 2) {
+      if (previousStudentPageItem && pageNumber - previousStudentPageItem > 1) studentPaginationItems.push(null);
+      studentPaginationItems.push(pageNumber);
+      previousStudentPageItem = pageNumber;
+    }
+  }
   const viewFeedback = typeof feedback !== "undefined" ? feedback : null;
   const highlightedInviteId = typeof createdInviteId === "string" ? createdInviteId : "";
   const dashboardStatistics = typeof statistics !== "undefined" && statistics ? statistics : {
     period: { key: "current", label: "이번 달", options: [{ key: "current", label: "이번 달" }] },
-    cards: [
-      { label: "승인 학생", value: `${(portal.students || []).length}명`, detail: "현재 승인된 전체 학생" },
-      { label: "학습 참여 학생", value: "0명", detail: "학습 기록 없음" },
-      { label: "평균 학습일", value: "—", detail: "학생 1인당 · 미학습 0일 포함" },
-      { label: "오답 복습률", value: "—", detail: "새 오답 없음" },
-    ],
+    cards: [],
     summary: { bullets: [{ label: "데이터 안내", text: "확인할 수 있는 학습 기록이 아직 없습니다." }] },
     attentionStudents: [],
   };
@@ -67,7 +79,7 @@
     <div class="academy-layout">
       <aside class="academy-sidebar">
         <div class="academy-identity">
-          <span aria-hidden="true"><%= academyName.slice(0, 1) %></span>
+          <% if (portal.profileImageSrc) { %><img src="<%= portal.profileImageSrc %>" alt="<%= academyName %> 프로필 사진" /><% } else { %><span aria-hidden="true"><%= academyName.slice(0, 1) %></span><% } %>
           <div><small>ACADEMY</small><strong><%= academyName %></strong></div>
         </div>
         <nav aria-label="학원 관리 메뉴">
@@ -77,6 +89,7 @@
           <a class="<%= currentTab === 'classes' ? 'active' : '' %>" href="/academy?tab=classes">반 관리</a>
           <a class="<%= currentTab === 'invites' ? 'active' : '' %>" href="/academy?tab=invites">초대 관리</a>
           <a class="<%= currentTab === 'teachers' ? 'active' : '' %>" href="/academy?tab=teachers">선생님 관리 <% if (isOwner && staffPendingCount) { %><b><%= staffPendingCount %></b><% } %></a>
+          <% if (isOwner) { %><a class="<%= currentTab === 'settings' ? 'active' : '' %>" href="/academy?tab=settings">학원 설정</a><% } %>
         </nav>
         <p>학생의 학습 기록은 승인된 소속 관계 안에서만 조회됩니다.</p>
       </aside>
@@ -140,25 +153,34 @@
         <% if (currentTab === "students") { %>
           <header class="academy-heading academy-list-heading">
             <div><p>STUDENTS</p><h1>학생 관리</h1><span>학생의 가입 학년은 자동으로 변경되며, 반만 선생님이 직접 배정합니다.</span></div>
-            <strong class="academy-heading-count"><%= (portal.students || []).length %><small>명</small></strong>
+            <strong class="academy-heading-count"><%= studentListing.total %><small>명</small></strong>
           </header>
           <div class="academy-privacy-note"><strong>보이는 정보</strong><span>이름·학년·학교·학원 반·학습 통계</span><i></i><strong>보이지 않는 정보</strong><span>이메일·연락처·결제·커뮤니티 활동</span></div>
           <section class="academy-panel academy-table-panel">
             <header><div><p>APPROVED MEMBERS</p><h2>승인된 학생</h2></div><a href="/academy?tab=classes">반 먼저 만들기 →</a></header>
-            <% if (!(portal.students || []).length) { %>
+            <% if (!listedStudents.length) { %>
               <div class="academy-empty-state"><span aria-hidden="true">＋</span><strong>승인된 학생이 없습니다</strong><p>초대 링크를 보내거나 들어온 승인 요청을 처리해 주세요.</p></div>
             <% } else { %>
+              <form class="academy-bulk-toolbar" id="academy-student-bulk-form" action="/academy/students/bulk" method="POST" data-student-bulk-form>
+                <input type="hidden" name="page" value="<%= studentListing.page %>" />
+                <div><strong><span data-student-selected-count>0</span>명 선택</strong><small>현재 페이지의 학생을 최대 20명까지 함께 관리할 수 있습니다.</small></div>
+                <label><span class="sr-only">일괄 작업</span><select name="action" data-student-bulk-action required><option value="">일괄 작업 선택</option><option value="ASSIGN_CLASS">반 배정</option><option value="UNASSIGN_CLASS">반 배정 해제</option><option value="REMOVE">학원 소속 해제</option></select></label>
+                <label data-student-bulk-class-wrap hidden><span class="sr-only">배정할 반</span><select name="classId" data-student-bulk-class disabled><option value="">배정할 반 선택</option><% (portal.classes || []).forEach((academyClass) => { %><option value="<%= academyClass._id %>"><%= academyClass.name %></option><% }) %></select></label>
+                <button type="submit" data-student-bulk-submit disabled>적용</button>
+              </form>
               <div class="academy-table-wrap">
                 <table>
-                  <thead><tr><th>학생</th><th>가입 학년</th><th>학교</th><th>학원 반</th><th>통계</th></tr></thead>
+                  <thead><tr><th class="academy-selection-cell"><input type="checkbox" data-student-select-all aria-label="현재 페이지 학생 전체 선택" /></th><th>학생</th><th>가입 학년</th><th>학교</th><th>학원 반</th><th>통계</th></tr></thead>
                   <tbody>
-                    <% portal.students.forEach((membership) => { const student = membership.studentUserId; %>
+                    <% listedStudents.forEach((membership) => { const student = membership.studentUserId; %>
                       <tr>
+                        <td class="academy-selection-cell"><input type="checkbox" name="membershipIds" value="<%= membership._id %>" form="academy-student-bulk-form" data-student-checkbox aria-label="<%= displayStudentName(student) %> 선택" /></td>
                         <td><strong><%= displayStudentName(student) %></strong><small><%= student.name !== student.realName && student.realName ? `닉네임 ${student.name}` : "승인 학생" %></small></td>
                         <td><span class="academy-grade-chip"><%= gradeLabelFor(student.schoolGrade) %></span><small>자동 변경</small></td>
                         <td><strong><%= student.school?.name || "학교 미설정" %></strong><small><%= student.school?.region || "" %></small></td>
                         <td>
                           <form class="academy-inline-form" action="/academy/students/<%= membership._id %>/class" method="POST">
+                            <input type="hidden" name="page" value="<%= studentListing.page %>" />
                             <select name="classId" aria-label="<%= displayStudentName(student) %> 반 배정">
                               <option value="">미배정</option>
                               <% (portal.classes || []).forEach((academyClass) => { %><option value="<%= academyClass._id %>" <%= String(membership.classId?._id || '') === String(academyClass._id) ? 'selected' : '' %>><%= academyClass.name %></option><% }) %>
@@ -172,6 +194,15 @@
                   </tbody>
                 </table>
               </div>
+              <nav class="academy-pagination" aria-label="학생 목록 페이지">
+                <a class="academy-pagination-direction <%= studentListing.page <= 1 ? 'is-disabled' : '' %>" href="<%= studentListing.page > 1 ? `/academy?tab=students&page=${studentListing.page - 1}` : '#' %>" <% if (studentListing.page <= 1) { %>aria-disabled="true" tabindex="-1"<% } %>>← 이전</a>
+                <div>
+                  <% studentPaginationItems.forEach((pageNumber) => { %>
+                    <% if (pageNumber === null) { %><span aria-hidden="true">…</span><% } else { %><a class="<%= pageNumber === studentListing.page ? 'is-current' : '' %>" href="/academy?tab=students&page=<%= pageNumber %>" <% if (pageNumber === studentListing.page) { %>aria-current="page"<% } %>><%= pageNumber %></a><% } %>
+                  <% }) %>
+                </div>
+                <a class="academy-pagination-direction <%= studentListing.page >= studentListing.totalPages ? 'is-disabled' : '' %>" href="<%= studentListing.page < studentListing.totalPages ? `/academy?tab=students&page=${studentListing.page + 1}` : '#' %>" <% if (studentListing.page >= studentListing.totalPages) { %>aria-disabled="true" tabindex="-1"<% } %>>다음 →</a>
+              </nav>
             <% } %>
           </section>
         <% } %>
@@ -307,6 +338,27 @@
           <% } else { %>
             <div class="academy-integration-notice" role="status"><span aria-hidden="true">i</span><p><strong>선생님 소속 관리는 원장 계정 전용입니다.</strong> 참여 승인이나 접근 해제가 필요하면 학원 원장에게 요청해 주세요.</p></div>
           <% } %>
+        <% } %>
+
+        <% if (currentTab === "settings" && isOwner) { %>
+          <header class="academy-heading">
+            <div><p>ACADEMY SETTINGS</p><h1>학원 설정</h1><span>학원 프로필 사진은 학원 목록과 관리 화면에서 학원을 구분하는 대표 이미지로 사용됩니다.</span></div>
+          </header>
+          <section class="academy-panel academy-profile-settings">
+            <div class="academy-profile-preview">
+              <% if (portal.profileImageSrc) { %><img src="<%= portal.profileImageSrc %>" alt="현재 <%= academyName %> 프로필 사진" data-academy-profile-preview /><% } else { %><span aria-hidden="true" data-academy-profile-fallback><%= academyName.slice(0, 1) %></span><img alt="선택한 학원 프로필 사진 미리보기" data-academy-profile-preview hidden /><% } %>
+              <div><small>ACADEMY PROFILE</small><strong><%= academyName %></strong><p>정사각형으로 자동 맞춤되며 JPG, PNG, WEBP 형식을 지원합니다.</p></div>
+            </div>
+            <div class="academy-profile-actions">
+              <form action="/academy/profile-image" method="POST" enctype="multipart/form-data" data-academy-profile-form>
+                <label><span>새 프로필 사진</span><input type="file" name="profileImage" accept="image/jpeg,image/png,image/webp" data-academy-profile-input required /></label>
+                <small>5MB 이하 이미지를 선택해 주세요. 저장하면 기존 사진은 교체됩니다.</small>
+                <button type="submit">사진 저장</button>
+              </form>
+              <% if (portal.academy.profileImageAsset?.cloudPublicId) { %><form action="/academy/profile-image/remove" method="POST" onsubmit="return confirm('학원 프로필 사진을 기본 이미지로 되돌릴까요?')"><button class="is-danger" type="submit">기본 이미지로 되돌리기</button></form><% } %>
+            </div>
+          </section>
+          <div class="academy-integration-notice" role="status"><span aria-hidden="true">i</span><p><strong>프로필 사진 변경은 원장 계정만 가능합니다.</strong> 일반 교사는 학생·반·통계 업무를 사용할 수 있지만 학원의 대표 이미지는 변경할 수 없습니다.</p></div>
         <% } %>
       </main>
     </div>

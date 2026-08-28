@@ -1,6 +1,9 @@
 const express = require("express");
 const academyController = require("../controllers/academyController");
 const authMiddleware = require("../middleware/authMiddleware");
+const {
+  handleProfileAvatarUpload,
+} = require("../middleware/profileAvatarUpload");
 
 const router = express.Router();
 
@@ -36,6 +39,12 @@ router.post(
   authMiddleware.isTeacher,
   academyController.assignClass
 );
+router.post(
+  "/academy/students/bulk",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.bulkManageStudents
+);
 router.post("/academy/classes", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createClass);
 router.post("/academy/invites", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createInvite);
 router.post(
@@ -61,6 +70,19 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isTeacher,
   academyController.revokeTeacher
+);
+router.post(
+  "/academy/profile-image",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  handleProfileAvatarUpload,
+  academyController.changeAcademyProfileImage
+);
+router.post(
+  "/academy/profile-image/remove",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.removeAcademyProfileImage
 );
 
 router.post("/profile/academy/request", authMiddleware.isLoggedIn, academyController.requestFromProfile);

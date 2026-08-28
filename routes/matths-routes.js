@@ -463,6 +463,13 @@ router.post(
   matthsController.adminUpdateAcademyProfile
 );
 router.post(
+  "/admin/academies/:academyId/profile-image",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  handleProfileAvatarUpload,
+  matthsController.adminUpdateAcademyProfileImage
+);
+router.post(
   "/admin/academies/:academyId/staff/:staffId",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,

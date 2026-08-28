@@ -8,6 +8,7 @@ const {
   AcademyStudentMembership,
 } = require("../models/academyModel");
 const { getAcademyMonthlyStatistics } = require("./academyStatisticsService");
+const { signedCloudinaryUrl } = require("./fileStorageService");
 
 const ACADEMY_STATUSES = ["PENDING", "ACTIVE", "PAUSED", "REJECTED"];
 const PAGE_SIZE = 50;
@@ -115,6 +116,7 @@ async function getAdminAcademyList({ adminUserId, search = "", status = "ALL", p
       const id = String(academy._id);
       return {
         ...academy,
+        profileImageSrc: signedCloudinaryUrl(academy.profileImageAsset) || "",
         counts: {
           activeStaff: staffCounts.get(`${id}:ACTIVE`) || 0,
           pendingStaff: staffCounts.get(`${id}:PENDING`) || 0,
@@ -143,6 +145,7 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey }) {
     .populate("reviewedByUserId", "name realName email")
     .lean();
   if (!academy) throw statusError(404, "학원을 찾을 수 없습니다.");
+  academy.profileImageSrc = signedCloudinaryUrl(academy.profileImageAsset) || "";
 
   const [staff, memberships, classes, invites] = await Promise.all([
     AcademyStaff.find({ academyId: academy._id })
