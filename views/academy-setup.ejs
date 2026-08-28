@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#f4f6fb" />
+    <title>학원 페이지 시작 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/academy.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+  </head>
+  <body class="academy-auth-page">
+    <main class="academy-auth-shell">
+      <div class="academy-auth-brand"><%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 홈", suffix: "학원 관리", compact: true }) %></div>
+      <section class="academy-auth-card">
+        <p>ACADEMY SETUP</p>
+        <h1>학원 관리 페이지를 시작합니다.</h1>
+        <span>별도 미팅을 통해 선생님 계정으로 전환된 경우에만 이 설정을 사용할 수 있습니다. 공개 패키지나 학생용 가격에는 학원 상품이 추가되지 않습니다.</span>
+        <% if (feedback) { %><div class="academy-auth-error" role="alert"><%= feedback.message %></div><% } %>
+        <form action="/academy/setup" method="POST">
+          <label><span>학원 이름</span><input name="academyName" type="text" minlength="2" maxlength="80" value="<%= academyName || '' %>" placeholder="예: 평촌 하이수학" autocomplete="organization" required /></label>
+          <div class="academy-auth-note">이 이름은 학생이 프로필에서 학원을 선택할 때 표시됩니다. 학원 페이지에서는 승인, 반 배정, 초대와 읽기 전용 학습 통계만 관리합니다.</div>
+          <button type="submit">학원 페이지 만들기</button>
+        </form>
+        <a class="academy-auth-back" href="/contact">학원 정보가 다르거나 계정 연결이 필요하면 문의하기</a>
+      </section>
+    </main>
+  </body>
+</html>

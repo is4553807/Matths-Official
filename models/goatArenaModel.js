@@ -5352,6 +5352,9 @@ arenaMatchSchema.index({
   "defender.userId": 1,
   requestedAt: -1,
 });
+arenaMatchSchema.index({ status: 1, createdAt: -1 });
+arenaMatchSchema.index({ "challenger.userId": 1, createdAt: -1 });
+arenaMatchSchema.index({ "defender.userId": 1, createdAt: -1 });
 
 const arenaMatchParticipantLockSchema =
   new Schema(

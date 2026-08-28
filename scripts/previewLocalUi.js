@@ -661,6 +661,28 @@ app.get("/preview/admin/users/detail", (_req, res) => {
         matchesToNext: 12,
         isMaxLevel: false,
       },
+      arenaRecentMatches: [
+        {
+          id: "64b000000000000000000701",
+          division: "MAIN",
+          matchType: "NORMAL",
+          status: "SETTLED",
+          tierPairLabel: "R3 → R2",
+          completedAt: new Date("2026-08-18T18:10:00+09:00"),
+          focusedParticipant: { role: "CHALLENGER", result: "WIN", score: 80 },
+          opponent: { id: "64b000000000000000000702", nickname: "함수마스터", score: 60 },
+        },
+        {
+          id: "64b000000000000000000703",
+          division: "SUB",
+          matchType: "REVENGE",
+          status: "SETTLED",
+          tierPairLabel: "U2 → U1",
+          completedAt: new Date("2026-08-16T14:20:00+09:00"),
+          focusedParticipant: { role: "DEFENDER", result: "LOSE", score: 40 },
+          opponent: { id: "64b000000000000000000704", nickname: "미적분비둘기", score: 100 },
+        },
+      ],
       inquiries: [],
       notifications: [],
       actionLogs: [],
@@ -2021,6 +2043,82 @@ app.get("/admin/arena-policies", (_req, res) => {
       main: { activePolicy: mainPolicy, upcomingPolicy: null, policies: [mainPolicy] },
       mockExamOnly: { now, activePolicy: mockPolicy, policies: [mockPolicy] },
       mainShop: { activePolicy: shopPolicy, policies: [shopPolicy] },
+    },
+  });
+});
+
+app.get("/preview/admin/arena-match-history", (_req, res) => {
+  const users = [
+    { id: "64b000000000000000000711", nickname: "수학하는염소", realName: "공격 사용자", email: "goat@example.test" },
+    { id: "64b000000000000000000712", nickname: "미적분비둘기", realName: "방어 사용자", email: "pigeon@example.test" },
+  ];
+  const records = [
+    {
+      id: "64b000000000000000000721",
+      matchKey: "MAIN:NORMAL:20260828:001",
+      seasonKey: "2026-S3",
+      division: "MAIN",
+      matchType: "NORMAL",
+      tierPairLabel: "R3 → R2",
+      status: "SETTLED",
+      integrityStatus: "CLEAR",
+      challenger: { ...users[0], role: "CHALLENGER", result: "WIN", score: 80, correctCount: 4 },
+      defender: { ...users[1], role: "DEFENDER", result: "LOSE", score: 60, correctCount: 3 },
+      requestedAt: new Date("2026-08-28T17:20:00+09:00"),
+      startedAt: new Date("2026-08-28T17:30:00+09:00"),
+      completedAt: new Date("2026-08-28T18:22:00+09:00"),
+    },
+    {
+      id: "64b000000000000000000722",
+      matchKey: "SUB:REVENGE:20260827:004",
+      seasonKey: "2026-S3",
+      division: "SUB",
+      matchType: "REVENGE",
+      tierPairLabel: "U2 → U1",
+      status: "HELD",
+      integrityStatus: "SUSPICIOUS",
+      challenger: { ...users[1], role: "CHALLENGER", result: "NO_RESULT", score: 100, correctCount: 5 },
+      defender: { ...users[0], role: "DEFENDER", result: "NO_RESULT", score: 80, correctCount: 4 },
+      requestedAt: new Date("2026-08-27T20:10:00+09:00"),
+      startedAt: new Date("2026-08-27T20:15:00+09:00"),
+      completedAt: new Date("2026-08-27T21:04:00+09:00"),
+    },
+  ];
+  res.render("admin-arena-match-history", {
+    user: { id: "64b000000000000000000799", name: "preview-admin", role: "admin" },
+    history: {
+      filters: {
+        query: "",
+        dateFrom: "",
+        dateTo: "",
+        division: "",
+        matchType: "",
+        status: "",
+        integrityStatus: "",
+        participantId: "",
+      },
+      total: records.length,
+      page: 1,
+      pageSize: 30,
+      totalPages: 1,
+      records,
+      filterParticipant: null,
+    },
+  });
+});
+
+app.get("/preview/academy", (_req, res) => {
+  res.render("academy", {
+    user: {
+      id: "64b000000000000000000801",
+      name: "평촌수학선생님",
+      realName: "김선생",
+      role: "teacher",
+    },
+    activeAcademyPage: "dashboard",
+    portal: {
+      academy: { name: "평촌 하이수학" },
+      pendingCount: 3,
     },
   });
 });

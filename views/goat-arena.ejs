@@ -28,13 +28,13 @@
     <main id="arena-main">
       <section class="arena-hero arena-snap-section is-video-pending" id="arena-start" aria-labelledby="arena-title" data-arena-tutorial-target="arena-home-hero">
         <div class="arena-hero-art" aria-hidden="true"></div>
-        <video class="arena-hero-video" playsinline preload="metadata" poster="/images/goat-arena/arena-hero.webp" aria-hidden="true">
+        <video class="arena-hero-video" playsinline muted preload="auto" poster="/images/goat-arena/arena-hero.webp" aria-hidden="true">
           <source src="/videos/goatArena-mobile.mp4" type="video/mp4" media="(max-width: 640px)" />
           <source src="/videos/goatArena-desktop.mp4" type="video/mp4" />
         </video>
-        <button class="arena-sound-toggle" type="button" aria-label="GOAT Arena 영상 소리 끄기" aria-pressed="true" data-arena-sound-toggle>
+        <button class="arena-sound-toggle is-muted" type="button" aria-label="GOAT Arena 영상 소리 켜기" aria-pressed="false" data-arena-sound-toggle>
           <span class="arena-sound-bars" aria-hidden="true"><i></i><i></i><i></i></span>
-          <strong data-arena-sound-label>소리 끄기</strong>
+          <strong data-arena-sound-label>소리 켜기</strong>
         </button>
         <div class="arena-grid" aria-hidden="true"></div>
         <div class="arena-orbit arena-orbit-one" aria-hidden="true"></div>

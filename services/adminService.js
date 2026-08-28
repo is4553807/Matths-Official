@@ -84,6 +84,9 @@ const {
   getArenaActivityLevel,
   getArenaActivityLevels,
 } = require("./arenaActivityLevelService");
+const {
+  getAdminUserRecentArenaMatches,
+} = require("./adminArenaMatchHistoryService");
 const accountEmailCopy =
   require("../content/email/account");
 
@@ -1617,6 +1620,7 @@ async function getAdminUserDetail(
     weeklyMockAccess,
     arenaBadges,
     arenaActivityLevel,
+    arenaRecentMatches,
   ] = await Promise.all([
     isAdminProfile
       ? Promise.resolve([])
@@ -1743,6 +1747,9 @@ async function getAdminUserDetail(
     isAdminProfile
       ? Promise.resolve(null)
       : getArenaActivityLevel(userId),
+    isAdminProfile
+      ? Promise.resolve([])
+      : getAdminUserRecentArenaMatches(userId, 5),
   ]);
   const stats =
     problemStats[0] || {
@@ -1820,6 +1827,7 @@ async function getAdminUserDetail(
     weeklyMockAccess,
     arenaBadges,
     arenaActivityLevel,
+    arenaRecentMatches,
   };
 }
 

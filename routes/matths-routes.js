@@ -573,6 +573,12 @@ router.get(
   matthsController.adminActiveArenaMatchesPage
 );
 router.get(
+  "/admin/arena-match-history",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminArenaMatchHistoryPage
+);
+router.get(
   "/admin/arena-matches",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,

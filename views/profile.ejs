@@ -64,6 +64,14 @@
   const connectedHoursLabel = connectedHours < 0.1
     ? "0시간"
     : `${connectedHours.toFixed(connectedHours >= 100 ? 0 : 1)}시간`;
+  const academyData =
+    typeof academyProfile !== "undefined" && academyProfile
+      ? academyProfile
+      : { membership: null, academies: [] };
+  const academyMembership = academyData.membership || null;
+  const academyName = academyMembership?.academyId?.name || "";
+  const academyClassName = academyMembership?.classId?.name || "미배정";
+  const showAcademySettings = ["student", "test"].includes(learner.role);
 %>
 <!doctype html>
 <html lang="ko">
@@ -136,6 +144,7 @@
           <a href="#coach-mode-settings">학습 모드</a>
           <a href="#tutorial-settings">튜토리얼</a>
           <a href="#school-settings">고등학교</a>
+          <% if (showAcademySettings) { %><a href="#academy-settings">소속 학원</a><% } %>
           <a href="#password-settings">비밀번호</a>
           <a href="#withdrawal-settings">계정 탈퇴</a>
         </nav>
@@ -532,6 +541,111 @@
               </button>
             </form>
           </section>
+
+          <% if (showAcademySettings) { %>
+            <section
+              class="settings-card academy-settings-card"
+              id="academy-settings"
+              aria-labelledby="academy-title"
+            >
+              <div class="settings-card-heading">
+                <span class="settings-icon academy" aria-hidden="true">A</span>
+                <div>
+                  <p>ACADEMY</p>
+                  <h2 id="academy-title">소속 학원</h2>
+                </div>
+              </div>
+
+              <p class="settings-description">
+                학원을 등록하면 승인 후 선생님이 학습 통계를 확인할 수 있습니다. 학년은 가입 시 등록한 정보를 기준으로 매년 자동 변경되며, 반은 학원 선생님이 배정합니다.
+              </p>
+
+              <% if (message && message.section === "academy") { %>
+                <div
+                  class="settings-alert <%= message.type %>"
+                  role="<%= message.type === 'error' ? 'alert' : 'status' %>"
+                >
+                  <span aria-hidden="true"><%= message.type === "error" ? "!" : "✓" %></span>
+                  <%= message.message %>
+                </div>
+              <% } %>
+
+              <% if (academyMembership) { %>
+                <div class="academy-membership-card <%= academyMembership.status === 'APPROVED' ? 'is-approved' : 'is-pending' %>">
+                  <header>
+                    <div>
+                      <small><%= academyMembership.status === "APPROVED" ? "소속 승인 완료" : "학원 승인 대기" %></small>
+                      <strong><%= academyName %></strong>
+                    </div>
+                    <span><%= academyMembership.status === "APPROVED" ? "연결됨" : "승인 대기" %></span>
+                  </header>
+                  <dl>
+                    <div><dt>학년</dt><dd><%= gradeLabel %><small>자동 변경</small></dd></div>
+                    <div><dt>반</dt><dd><%= academyMembership.status === "APPROVED" ? academyClassName : "승인 후 선생님 배정" %></dd></div>
+                    <div><dt>공유 범위</dt><dd>학습 현황·통계<small>연락처·결제 정보 제외</small></dd></div>
+                  </dl>
+                  <p>
+                    <%= academyMembership.status === "APPROVED"
+                      ? "소속을 해제하면 학원에서 더 이상 새로운 학습 현황을 확인할 수 없습니다."
+                      : "선생님이 학생 정보를 확인한 뒤 승인하면 소속 연결이 완료됩니다." %>
+                  </p>
+                  <form
+                    action="/profile/academy/leave"
+                    method="POST"
+                    onsubmit="return confirm('<%= academyMembership.status === 'APPROVED' ? '학원 소속을 해제할까요?' : '학원 승인 요청을 취소할까요?' %>')"
+                  >
+                    <button type="submit" class="academy-leave-button">
+                      <%= academyMembership.status === "APPROVED" ? "소속 해제" : "요청 취소" %>
+                    </button>
+                  </form>
+                </div>
+              <% } else { %>
+                <div class="academy-join-grid">
+                  <form class="academy-join-option" action="/profile/academy/request" method="POST" data-settings-form>
+                    <div>
+                      <small>직접 선택</small>
+                      <h3>학원 목록에서 등록</h3>
+                      <p>다니는 학원을 선택하면 해당 학원에 승인 요청이 전달됩니다.</p>
+                    </div>
+                    <label class="form-field" for="academyId">
+                      <span>학원 선택</span>
+                      <select id="academyId" name="academyId" required>
+                        <option value="">학원을 선택해 주세요</option>
+                        <% (academyData.academies || []).forEach((academy) => { %>
+                          <option value="<%= academy._id %>"><%= academy.name %></option>
+                        <% }) %>
+                      </select>
+                    </label>
+                    <% if (!(academyData.academies || []).length) { %>
+                      <p class="academy-no-option">현재 직접 선택할 수 있는 학원이 없습니다. 학원에서 받은 초대 코드를 이용해 주세요.</p>
+                    <% } %>
+                    <label class="academy-consent-check">
+                      <input type="checkbox" name="academyDataConsent" value="1" required />
+                      <span>소속 승인 후 학원 선생님에게 내 학습 현황과 통계를 제공하는 데 동의합니다.</span>
+                    </label>
+                    <button class="save-button" type="submit" <%= !(academyData.academies || []).length ? "disabled" : "" %>>승인 요청 보내기 <span aria-hidden="true">→</span></button>
+                  </form>
+
+                  <form class="academy-join-option" action="/profile/academy/code" method="POST" data-settings-form>
+                    <div>
+                      <small>초대 코드</small>
+                      <h3>선생님에게 받은 코드로 등록</h3>
+                      <p>반 정보가 포함된 초대라면 승인 후 해당 반으로 자동 배정됩니다.</p>
+                    </div>
+                    <label class="form-field" for="inviteCode">
+                      <span>초대 코드</span>
+                      <input id="inviteCode" name="inviteCode" type="text" inputmode="text" autocomplete="off" maxlength="10" pattern="[Mm][Tt][Hh]-[A-Za-z2-9]{6}" placeholder="MTH-XXXXXX" required />
+                    </label>
+                    <label class="academy-consent-check">
+                      <input type="checkbox" name="academyDataConsent" value="1" required />
+                      <span>소속 승인 후 학원 선생님에게 내 학습 현황과 통계를 제공하는 데 동의합니다.</span>
+                    </label>
+                    <button class="save-button" type="submit">초대 코드 확인 <span aria-hidden="true">→</span></button>
+                  </form>
+                </div>
+              <% } %>
+            </section>
+          <% } %>
 
           <section
             class="settings-card password-card"

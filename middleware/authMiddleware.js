@@ -11,6 +11,10 @@ function isAdminSessionUser(user) {
     return user?.role === "admin";
 }
 
+function isTeacherSessionUser(user) {
+    return user?.role === "teacher";
+}
+
 exports.isLoggedIn = async (req, res, next) => {
     if (req.session?.user) {
         try {
@@ -124,7 +128,9 @@ exports.isLoggedOut = (req, res, next) => {
             req.session.user
         )
             ? "/admin"
-            : "/main"
+            : isTeacherSessionUser(req.session.user)
+                ? "/academy"
+                : "/main"
     );
 };
 
@@ -172,5 +178,18 @@ exports.isAdmin = (
     );
     error.status = 403;
     error.code = "ADMIN_ACCESS_REQUIRED";
+    return next(error);
+};
+
+exports.isTeacher = (req, res, next) => {
+    if (isTeacherSessionUser(req.session?.user)) {
+        return next();
+    }
+
+    const error = new Error(
+        "학원 선생님 계정만 접근할 수 있습니다."
+    );
+    error.status = 403;
+    error.code = "TEACHER_ACCESS_REQUIRED";
     return next(error);
 };

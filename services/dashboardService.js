@@ -1499,6 +1499,8 @@ async function getDashboardData(
             name: user.name,
             realName:
                 user.realName || "",
+            role:
+                user.role || "student",
             schoolGrade: user.schoolGrade,
             school: user.school,
             currentStreak:

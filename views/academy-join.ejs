@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#f4f6fb" />
+    <title><%= invite.academyId.name %> 초대 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/academy.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+  </head>
+  <body class="academy-auth-page">
+    <main class="academy-auth-shell">
+      <div class="academy-auth-brand"><%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 홈", suffix: "학원 초대", compact: true }) %></div>
+      <section class="academy-auth-card">
+        <p>ACADEMY INVITATION</p>
+        <h1><%= invite.academyId.name %>에서<br />소속 확인을 요청했습니다.</h1>
+        <span>초대를 수락해도 즉시 연결되지는 않습니다. 요청을 보낸 뒤 학원 선생님이 실제 재원생인지 확인하고 승인합니다.</span>
+        <div class="academy-join-meta">
+          <div><small>로그인 학생</small><strong><%= user.realName || user.name %></strong></div>
+          <div><small>배정 예정 반</small><strong><%= invite.classId?.name || "승인 후 선생님 배정" %></strong></div>
+        </div>
+        <% if (error) { %><div class="academy-auth-error" role="alert"><%= error %></div><% } %>
+        <form action="/academy/join/<%= invite.token %>" method="POST">
+          <label class="academy-consent-box">
+            <input type="checkbox" name="academyDataConsent" value="1" required />
+            <span>소속 승인 후 이 학원 선생님에게 내 학습 현황과 통계를 제공하는 데 동의합니다. 이메일, 연락처, 결제 정보와 커뮤니티 활동은 공유되지 않습니다.</span>
+          </label>
+          <button type="submit">승인 요청 보내기</button>
+        </form>
+        <a class="academy-auth-back" href="/profile#academy-settings">초대를 수락하지 않고 프로필로 돌아가기</a>
+      </section>
+    </main>
+  </body>
+</html>

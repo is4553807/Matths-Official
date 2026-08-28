@@ -1,0 +1,67 @@
+<%
+  const membership = detail.membership;
+  const student = membership.studentUserId;
+  const academyName = detail.academy?.name || "학원";
+  const studentName = student.realName || student.name || "학생";
+  const gradeLabel = ({ 10: "고1", 11: "고2", 12: "고3", 13: "N수생", 14: "대학생", 15: "직장인" })[Number(student.schoolGrade)] || "학년 미설정";
+  const statCards = [
+    ["학습일", "—", "월간 활성 학습일"],
+    ["마지막 학습", "—", "최근 학습 시각"],
+    ["완료 개념", "—", "이번 달 완료"],
+    ["문제 풀이", "—", "총 풀이 문제"],
+    ["첫 시도 정답률", "—", "첫 제출 기준"],
+    ["재도전 정답률", "—", "오답 재도전 기준"],
+    ["오답 복습률", "—", "복습 완료 비율"],
+    ["평가 결과", "—", "평가 센터 연동"],
+  ];
+  const detailCards = [
+    ["STRENGTH", "강점 개념", "충분한 풀이 데이터가 쌓이면 강점 개념과 근거 수치가 표시됩니다."],
+    ["REVIEW", "보완 개념", "반복 오답이나 낮은 첫 시도 정답률이 확인된 개념이 표시됩니다."],
+    ["NEXT ACTION", "다음 학습 방향", "이번 달 기록을 바탕으로 다음 달 권장 학습 방향이 표시됩니다."],
+  ];
+  const summaryRows = ["학습 참여", "개념 진도", "문제 풀이", "정답률", "오답 복습", "강점", "보완 개념", "평가·Arena", "다음 달 방향"];
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title><%= studentName %> 학생 통계 | <%= academyName %> · Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/academy.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+  </head>
+  <body class="academy-page">
+    <header class="academy-topbar">
+      <%- include("partials/matths-brand", { href: "/academy", ariaLabel: "Matths 학원 관리 홈", className: "academy-brand", suffix: "학원 관리", compact: true }) %>
+      <div class="academy-account"><span><strong><%= user.realName || user.name %></strong> 선생님</span><form action="/logout" method="POST"><button type="submit">로그아웃</button></form></div>
+    </header>
+    <div class="academy-layout">
+      <aside class="academy-sidebar">
+        <div class="academy-identity"><span aria-hidden="true"><%= academyName.slice(0, 1) %></span><div><small>ACADEMY</small><strong><%= academyName %></strong></div></div>
+        <nav aria-label="학원 관리 메뉴"><a href="/academy?tab=dashboard">대시보드</a><a class="active" href="/academy?tab=students">학생 관리</a><a href="/academy?tab=requests">승인 요청 <% if (detail.pendingCount) { %><b><%= detail.pendingCount %></b><% } %></a><a href="/academy?tab=classes">반 관리</a><a href="/academy?tab=invites">초대 관리</a></nav>
+        <p>학생의 학습 기록은 승인된 소속 관계 안에서만 조회됩니다.</p>
+      </aside>
+      <main class="academy-main">
+        <section class="academy-student-hero">
+          <div><span class="academy-student-avatar" aria-hidden="true"><%= studentName.slice(0, 1) %></span><div><small>STUDENT LEARNING REPORT</small><h1><%= studentName %> 학생</h1><p><%= student.school?.name || "학교 미설정" %> · <%= gradeLabel %> · <%= membership.classId?.name || "반 미배정" %></p></div></div>
+          <a href="/academy?tab=students">학생 목록 <span>→</span></a>
+        </section>
+        <div class="academy-integration-notice" role="status"><span aria-hidden="true">i</span><p><strong>통계 로직은 아직 연결하지 않았습니다.</strong> 아래 수치와 Summary는 항목 구조만 확인할 수 있습니다.</p></div>
+        <section class="academy-stat-grid academy-student-stat-grid" aria-label="학생 학습 통계">
+          <% statCards.forEach((card) => { %><article><small><%= card[0] %></small><strong><%= card[1] %></strong><span><%= card[2] %> · 연동 예정</span></article><% }) %>
+        </section>
+        <section class="academy-placeholder-detail">
+          <% detailCards.forEach((card) => { %><article><small><%= card[0] %></small><h2><%= card[1] %></h2><p><%= card[2] %></p></article><% }) %>
+        </section>
+        <section class="academy-panel academy-summary-panel academy-student-section">
+          <header><div><p>MONTHLY SUMMARY</p><h2>학부모 공유용 Summary</h2></div><span class="academy-status-chip">연동 전</span></header>
+          <ul><% summaryRows.forEach((row) => { %><li><span aria-hidden="true"></span><p><strong><%= row %></strong><small>통계 데이터 연결 후 근거가 포함된 불릿 포인트가 표시됩니다.</small></p></li><% }) %></ul>
+          <footer><p>통계 원본은 수정하지 않고, 선생님 메모와 최종 공유 문구를 별도로 관리하도록 연결할 예정입니다.</p><div><button type="button" disabled>요약 복사</button><button type="button" disabled>학부모 미리보기</button></div></footer>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

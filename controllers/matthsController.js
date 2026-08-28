@@ -8,6 +8,9 @@ const {
   ParentAccount,
 } = require("../models/parentModel");
 const {
+  getStudentAcademyProfile,
+} = require("../services/academyService");
+const {
   OVERSEAS_HIGH_SCHOOL_OPTION_CODE,
   buildOverseasSchool,
   getSchoolSelectData,
@@ -324,6 +327,9 @@ const {
 const {
   getAdminActiveArenaMatchesData,
 } = require("../services/adminActiveArenaMatchesService");
+const {
+  getAdminArenaMatchHistoryData,
+} = require("../services/adminArenaMatchHistoryService");
 const {
   analyzeForensicTraceCode,
   analyzeForensicUpload,
@@ -803,7 +809,9 @@ async function finishSocialLogin(
   return res.redirect(
     user.role === "admin"
       ? "/admin"
-      : "/main"
+      : user.role === "teacher"
+        ? "/academy"
+        : "/main"
   );
 }
 
@@ -2052,6 +2060,28 @@ exports.adminActiveArenaMatchesPage = async (req, res, next) => {
     return res.render("admin-arena-live-matches", {
       user: req.session.user,
       liveMatches: await getAdminActiveArenaMatchesData(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminArenaMatchHistoryPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    return res.render("admin-arena-match-history", {
+      user: req.session.user,
+      history: await getAdminArenaMatchHistoryData({
+        query: req.query.query,
+        dateFrom: req.query.dateFrom,
+        dateTo: req.query.dateTo,
+        division: req.query.division,
+        matchType: req.query.matchType,
+        status: req.query.status,
+        integrityStatus: req.query.integrityStatus,
+        participantId: req.query.participant,
+        page: req.query.page,
+      }),
     });
   } catch (error) {
     return next(error);
@@ -6022,6 +6052,10 @@ exports.login = async (req, res, next) => {
             return res.redirect("/admin");
         }
 
+        if (user.role === "teacher") {
+            return res.redirect("/academy");
+        }
+
         if (isSafeStudentReturnPath(returnTo)) {
             return res.redirect(returnTo);
         }
@@ -6058,11 +6092,14 @@ async function renderProfile(
         formValues = {},
     } = {}
 ) {
-    const [profileUser, arenaActivityLevel] = await Promise.all([
+    const [profileUser, arenaActivityLevel, academyProfile] = await Promise.all([
       User.findById(
         req.session.user.id
       ).lean(),
       getArenaActivityLevel(
+        req.session.user.id
+      ),
+      getStudentAcademyProfile(
         req.session.user.id
       ),
     ]);
@@ -6085,6 +6122,7 @@ async function renderProfile(
           profileUser.preferences
         ),
         schoolRegions: getSchoolSelectData(),
+        academyProfile,
         feedback,
         formValues,
     });
@@ -6092,9 +6130,17 @@ async function renderProfile(
 
 exports.profilePage = async (req, res, next) => {
     try {
-        let feedback = null;
+        const academyFlash = req.session.academyFlash || null;
+        delete req.session.academyFlash;
+        let feedback = academyFlash
+          ? {
+              section: "academy",
+              type: academyFlash.type === "error" ? "error" : "success",
+              message: academyFlash.message,
+            }
+          : null;
 
-        if (
+        if (!feedback &&
           req.query
             .nicknameUpdated ===
           "1"
@@ -6105,7 +6151,7 @@ exports.profilePage = async (req, res, next) => {
             message:
               "닉네임을 변경했습니다.",
           };
-        } else if (
+        } else if (!feedback &&
           req.query
             .avatarUpdated ===
           "1"
@@ -6116,7 +6162,7 @@ exports.profilePage = async (req, res, next) => {
             message:
               "프로필 이미지를 변경했습니다.",
           };
-        } else if (
+        } else if (!feedback &&
           req.query
             .coachModeUpdated ===
           "1"
@@ -6127,7 +6173,7 @@ exports.profilePage = async (req, res, next) => {
             message:
               "학습 모드를 변경했습니다.",
           };
-        } else if (
+        } else if (!feedback &&
           req.query
             .nicknameChanged ===
           "1"

@@ -1,0 +1,50 @@
+const express = require("express");
+const academyController = require("../controllers/academyController");
+const authMiddleware = require("../middleware/authMiddleware");
+
+const router = express.Router();
+
+router.get("/academy/join/:token", authMiddleware.isLoggedIn, academyController.inviteJoinPage);
+router.post("/academy/join/:token", authMiddleware.isLoggedIn, academyController.acceptInvite);
+
+router.get("/academy/setup", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.setupPage);
+router.post("/academy/setup", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createAcademy);
+router.get("/academy", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.portalPage);
+router.get(
+  "/academy/students/:membershipId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.studentDetailPage
+);
+router.post(
+  "/academy/requests/:membershipId/approve",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.approveStudent
+);
+router.post(
+  "/academy/requests/:membershipId/reject",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.rejectStudent
+);
+router.post(
+  "/academy/students/:membershipId/class",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.assignClass
+);
+router.post("/academy/classes", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createClass);
+router.post("/academy/invites", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createInvite);
+router.post(
+  "/academy/invites/:inviteId/revoke",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.revokeInvite
+);
+
+router.post("/profile/academy/request", authMiddleware.isLoggedIn, academyController.requestFromProfile);
+router.post("/profile/academy/code", authMiddleware.isLoggedIn, academyController.requestByCodeFromProfile);
+router.post("/profile/academy/leave", authMiddleware.isLoggedIn, academyController.leaveFromProfile);
+
+module.exports = router;
