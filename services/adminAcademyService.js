@@ -8,6 +8,7 @@ const {
   AcademyStudentMembership,
 } = require("../models/academyModel");
 const { getAcademyMonthlyStatistics } = require("./academyStatisticsService");
+const { getClassMathMap } = require("./mathMapService");
 const { signedCloudinaryUrl } = require("./fileStorageService");
 
 const ACADEMY_STATUSES = ["PENDING", "ACTIVE", "PAUSED", "REJECTED"];
@@ -170,10 +171,11 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey }) {
       .lean(),
   ]);
   const approvedMemberships = memberships.filter((membership) => membership.status === "APPROVED" && membership.studentUserId);
-  const statistics = await getAcademyMonthlyStatistics({
-    studentUserIds: approvedMemberships.map((membership) => membership.studentUserId._id),
-    periodKey,
-  });
+  const studentUserIds = approvedMemberships.map((membership) => membership.studentUserId._id);
+  const [statistics, mathMap] = await Promise.all([
+    getAcademyMonthlyStatistics({ studentUserIds, periodKey }),
+    getClassMathMap({ studentUserIds }),
+  ]);
   const membershipByStudentId = new Map(
     approvedMemberships.map((membership) => [String(membership.studentUserId._id), membership])
   );
@@ -188,6 +190,7 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey }) {
     classes,
     invites,
     statistics,
+    mathMap,
     counts: {
       activeStaff: staff.filter((entry) => entry.status === "ACTIVE").length,
       pendingStaff: staff.filter((entry) => entry.status === "PENDING").length,

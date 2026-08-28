@@ -5,11 +5,21 @@
   const studentName = student.realName || student.name || "학생";
   const gradeLabel = ({ 10: "고1", 11: "고2", 12: "고3", 13: "N수생", 14: "대학생", 15: "직장인" })[Number(student.schoolGrade)] || "학년 미설정";
   const statCards = statistics.cards;
+  const studentMathMap = typeof mathMap !== "undefined" && mathMap ? mathMap : {
+    graphVersion: "kr-2022-math-graph-v1.0", modelVersion: "v1.0", overallMastery: null,
+    analyzedConceptCount: 0, unknownConceptCount: 0, concepts: [], bottlenecks: [],
+    topStrength: null, topPriority: null, recommendation: null, courses: [],
+  };
+  const topStrength = studentMathMap.topStrength;
+  const topPriority = studentMathMap.topPriority;
+  const topBottleneck = studentMathMap.bottlenecks?.[0] || null;
   const detailCards = [
-    ["STRENGTH", "강점 개념", "개념별 표본 기준을 정한 뒤 2차 통계에서 연결합니다."],
-    ["REVIEW", "보완 개념", "반복 오답과 개념별 정답률 분석은 2차 통계에서 연결합니다."],
-    ["NEXT ACTION", "다음 학습 방향", statistics.summary.nextDirection],
+    ["STRENGTH", "강점 개념", topStrength ? `${topStrength.title} · 숙달도 ${topStrength.mastery}% (${topStrength.confidenceLabel} 신뢰도)` : "분석 가능한 개념 표본이 아직 없습니다."],
+    ["PRIORITY", "우선 보완 개념", topPriority ? `${topPriority.title} · 숙달도 ${topPriority.mastery}% (${topPriority.evidence.attemptCount}개 풀이)` : "개념별 풀이가 5개 이상 쌓이면 표시됩니다."],
+    ["BOTTLENECK", "잠재 병목 개념", topBottleneck ? `${topBottleneck.conceptTitle} · 연결된 ${topBottleneck.affectedConcepts.length}개 후속 개념을 함께 확인하세요.` : "현재 규칙으로 식별된 잠재 병목이 없습니다."],
   ];
+  const mathMapJson = JSON.stringify({ concepts: studentMathMap.concepts }).replace(/</g, "\\u003c");
+  const formatMapDate = (date) => date ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(date)) : "—";
   const summaryRows = statistics.summary.bullets;
   const summaryCopyText = [
     `[Matths ${statistics.period.label.replace(/ \(.+\)$/, "")} 학습 요약]`,
@@ -37,7 +47,7 @@
     <div class="academy-layout">
       <aside class="academy-sidebar">
         <div class="academy-identity"><span aria-hidden="true"><%= academyName.slice(0, 1) %></span><div><small>ACADEMY</small><strong><%= academyName %></strong></div></div>
-        <nav aria-label="학원 관리 메뉴"><a href="/academy?tab=dashboard">대시보드</a><a class="active" href="/academy?tab=students">학생 관리</a><a href="/academy?tab=requests">승인 요청 <% if (detail.pendingCount) { %><b><%= detail.pendingCount %></b><% } %></a><a href="/academy?tab=classes">반 관리</a><a href="/academy?tab=invites">초대 관리</a><a href="/academy?tab=teachers">선생님 관리</a></nav>
+        <nav aria-label="학원 관리 메뉴"><a href="/academy?tab=dashboard">대시보드</a><a href="/academy?tab=attendance">출결 관리</a><a class="active" href="/academy?tab=students">학생 관리</a><a href="/academy?tab=requests">승인 요청 <% if (detail.pendingCount) { %><b><%= detail.pendingCount %></b><% } %></a><a href="/academy?tab=classes">반 관리</a><a href="/academy?tab=invites">초대 관리</a><a href="/academy?tab=teachers">선생님 관리</a></nav>
         <p>학생의 학습 기록은 승인된 소속 관계 안에서만 조회됩니다.</p>
       </aside>
       <main class="academy-main">
@@ -59,6 +69,42 @@
         <section class="academy-placeholder-detail">
           <% detailCards.forEach((card) => { %><article><small><%= card[0] %></small><h2><%= card[1] %></h2><p><%= card[2] %></p></article><% }) %>
         </section>
+        <section class="academy-panel academy-math-map-panel academy-student-section">
+          <header><div><p>RULE-BASED MATH MAP</p><h2>학생 수학 능력 지도</h2></div><span class="academy-status-chip"><%= studentMathMap.overallMastery === null ? "분석 전" : `평균 ${studentMathMap.overallMastery}%` %></span></header>
+          <div class="academy-math-map-meta">
+            <div><small>분석 개념</small><strong><%= studentMathMap.analyzedConceptCount %>개</strong></div>
+            <div><small>데이터 부족</small><strong><%= studentMathMap.unknownConceptCount %>개</strong></div>
+            <div><small>그래프</small><strong><%= studentMathMap.graphVersion %></strong></div>
+            <div><small>계산 모델</small><strong><%= studentMathMap.modelVersion %></strong></div>
+          </div>
+          <div class="academy-math-map-legend" aria-label="숙달 상태 범례"><span class="is-mastered">숙달 80 이상</span><span class="is-developing">성장 중 50–79</span><span class="is-weak">보완 필요 50 미만</span><span class="is-unknown">Unknown 5문제 미만</span></div>
+          <div class="academy-student-map-chart" data-student-math-map-chart role="img" aria-label="공식 교육과정 개념과 검수된 선수 관계를 표시한 학생 수학 능력 지도"></div>
+          <p class="academy-chart-note">각 개념의 원은 규칙 기반 숙달 상태를, 선은 검수된 선수 관계를 뜻합니다. 선수 개념 점수가 후속 개념 점수를 직접 변경하지 않으며, 병목 표시는 수업 확인 우선순위를 위한 규칙 기반 신호입니다.</p>
+          <% if (studentMathMap.recommendation) { const recommendation = studentMathMap.recommendation; %>
+            <div class="academy-math-map-recommendation"><div><small>RULE-BASED RECOMMENDATION</small><h3><%= recommendation.conceptTitle %> 우선 학습</h3><ul><% recommendation.reasons.forEach((reason) => { %><li><%= reason %></li><% }) %></ul></div><div><strong><%= recommendation.problemMix.diagnostic ? "진단" : "복습" %> <%= recommendation.problemMix.total %>문제</strong><p><% recommendation.problemMix.difficulties.forEach((item, index) => { %><%= index ? " · " : "" %>난이도 <%= item.level %> <%= item.count %>개<% }) %><% if (recommendation.problemMix.retryCount) { %> · 이전 오답 <%= recommendation.problemMix.retryCount %>개<% } %></p><span>문제은행 자동 선택·배정은 아직 연결하지 않았습니다.</span></div></div>
+          <% } %>
+          <% if (studentMathMap.concepts.length) { %>
+            <div class="academy-math-map-evidence">
+              <% studentMathMap.concepts.forEach((concept) => { %>
+                <details class="is-<%= concept.status.toLowerCase() %>">
+                  <summary><span><strong><%= concept.title %></strong><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small></span><b><%= concept.mastery === null ? "Unknown" : `${concept.mastery}%` %></b></summary>
+                  <dl>
+                    <div><dt>상태 / 신뢰도</dt><dd><%= concept.statusLabel %> / <%= concept.confidenceLabel %></dd></div>
+                    <div><dt>최근 유효 풀이</dt><dd><%= concept.evidence.attemptCount %>개 (정답 <%= concept.evidence.correctCount %>개)</dd></div>
+                    <div><dt>난이도 1–2</dt><dd><%= concept.evidence.lowDifficulty.correct %>/<%= concept.evidence.lowDifficulty.total %> 정답</dd></div>
+                    <div><dt>난이도 3–5</dt><dd><%= concept.evidence.highDifficulty.correct %>/<%= concept.evidence.highDifficulty.total %> 정답</dd></div>
+                    <div><dt>재도전 회복</dt><dd><%= concept.evidence.retryRecoveredCount %>/<%= concept.evidence.retryAttemptedCount %>개</dd></div>
+                    <div><dt>문제 유형</dt><dd><%= concept.evidence.problemTypeCount %>종</dd></div>
+                    <div><dt>평균 풀이 시간</dt><dd><%= concept.evidence.averageResponseTimeMs === null ? "—" : `${Math.round(concept.evidence.averageResponseTimeMs / 1000)}초` %></dd></div>
+                    <div><dt>마지막 학습일</dt><dd><%= formatMapDate(concept.evidence.lastStudiedAt) %></dd></div>
+                  </dl>
+                  <% if (concept.prerequisites.length || concept.unlocks.length) { %><p>선수 개념 <%= concept.prerequisites.length %>개 · 연결된 후속 개념 <%= concept.unlocks.length %>개</p><% } %>
+                </details>
+              <% }) %>
+            </div>
+          <% } else { %><div class="academy-chart-empty">개념별 문제 풀이 기록이 쌓이면 수학 능력 지도가 표시됩니다.</div><% } %>
+        </section>
+        <script type="application/json" data-student-math-map-data><%- mathMapJson %></script>
         <section class="academy-panel academy-summary-panel academy-student-section">
           <header><div><p>MONTHLY SUMMARY</p><h2>학부모 공유용 Summary</h2></div><span class="academy-status-chip">자동 생성</span></header>
           <ul><% summaryRows.forEach((row) => { %><li><span aria-hidden="true"></span><p><strong><%= row.label %></strong><small><%= row.text %></small></p></li><% }) %></ul>

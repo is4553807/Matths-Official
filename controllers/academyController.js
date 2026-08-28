@@ -36,8 +36,16 @@ const {
   getAcademyMonthlyStatistics,
   getStudentMonthlyStatistics,
 } = require("../services/academyStatisticsService");
+const {
+  getAcademyAttendanceRoster,
+  saveAcademyAttendanceRoster,
+} = require("../services/academyAttendanceService");
+const {
+  getClassMathMap,
+  getStudentMathMap,
+} = require("../services/mathMapService");
 
-const ACADEMY_TABS = new Set(["dashboard", "students", "requests", "classes", "invites", "teachers", "settings"]);
+const ACADEMY_TABS = new Set(["dashboard", "attendance", "students", "requests", "classes", "invites", "teachers", "settings"]);
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -95,11 +103,22 @@ exports.portalPage = async (req, res, next) => {
         })
       : null;
     let statistics = null;
+    let attendance = null;
     if (activeAcademyPage === "dashboard") {
-      statistics = await getAcademyMonthlyStatistics({
-        studentUserIds: portal.students.map((membership) => membership.studentUserId._id),
-        periodKey: req.query.period,
-      });
+      const studentUserIds = portal.students.map((membership) => membership.studentUserId._id);
+      const [monthlyStatistics, mathMap] = await Promise.all([
+        getAcademyMonthlyStatistics({
+          studentUserIds,
+          periodKey: req.query.period,
+        }),
+        getClassMathMap({ studentUserIds }),
+      ]);
+      statistics = monthlyStatistics;
+      statistics.mathMap = mathMap;
+      statistics.analytics.heatmap = {
+        items: mathMap.heatmap.slice(0, 18),
+        measuredConcepts: mathMap.analyzedConceptCount,
+      };
       const membershipsByStudentId = new Map(
         portal.students.map((membership) => [String(membership.studentUserId._id), membership])
       );
@@ -107,18 +126,51 @@ exports.portalPage = async (req, res, next) => {
         .map((item) => ({ ...item, membership: membershipsByStudentId.get(item.studentUserId) }))
         .filter((item) => item.membership);
     }
+    if (activeAcademyPage === "attendance") {
+      attendance = await getAcademyAttendanceRoster({
+        teacherUserId: req.session.user.id,
+        dateKey: req.query.date,
+        classId: req.query.classId,
+      });
+    }
     res.set("Cache-Control", "private, no-store");
     return res.render("academy", {
       user: req.session.user,
       portal,
       studentPage,
       statistics,
+      attendance,
       activeAcademyPage,
       feedback: consumeFlash(req),
       createdInviteId: String(req.query.createdInvite || ""),
     });
   } catch (error) {
     return next(error);
+  }
+};
+
+exports.saveAttendance = async (req, res, next) => {
+  const query = new URLSearchParams({ tab: "attendance" });
+  if (req.body.date) query.set("date", String(req.body.date));
+  if (req.body.classId) query.set("classId", String(req.body.classId));
+  const redirectTo = `/academy?${query.toString()}`;
+  try {
+    const result = await saveAcademyAttendanceRoster({
+      teacherUserId: req.session.user.id,
+      dateKey: req.body.date,
+      classId: req.body.classId,
+      studentUserIds: req.body.studentUserIds,
+      statuses: req.body.statuses,
+      notes: req.body.notes,
+    });
+    await setFlash(
+      req,
+      "success",
+      `${result.dateKey} 출결을 저장했습니다. ${result.recordedCount}명의 상태가 기록되었습니다.`
+    );
+    return res.redirect(redirectTo);
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, redirectTo);
   }
 };
 
@@ -364,11 +416,15 @@ exports.classDetailPage = async (req, res, next) => {
       teacherUserId: req.session.user.id,
       classId: req.params.classId,
     });
-    const statistics = await getAcademyMonthlyStatistics({
-      studentUserIds: detail.students.map((membership) => membership.studentUserId._id),
-      periodKey: req.query.period,
-      scopeLabel: "반",
-    });
+    const studentUserIds = detail.students.map((membership) => membership.studentUserId._id);
+    const [statistics, mathMap] = await Promise.all([
+      getAcademyMonthlyStatistics({
+        studentUserIds,
+        periodKey: req.query.period,
+        scopeLabel: "반",
+      }),
+      getClassMathMap({ studentUserIds }),
+    ]);
     const membershipsByStudentId = new Map(
       detail.students.map((membership) => [String(membership.studentUserId._id), membership])
     );
@@ -382,6 +438,7 @@ exports.classDetailPage = async (req, res, next) => {
       user: req.session.user,
       detail,
       statistics,
+      mathMap,
       activeAcademyPage: "classes",
     });
   } catch (error) {
@@ -460,15 +517,20 @@ exports.studentDetailPage = async (req, res, next) => {
       teacherUserId: req.session.user.id,
       membershipId: req.params.membershipId,
     });
-    const statistics = await getStudentMonthlyStatistics({
-      studentUserId: detail.membership.studentUserId._id,
-      periodKey: req.query.period,
-    });
+    const studentUserId = detail.membership.studentUserId._id;
+    const [statistics, mathMap] = await Promise.all([
+      getStudentMonthlyStatistics({
+        studentUserId,
+        periodKey: req.query.period,
+      }),
+      getStudentMathMap({ studentUserId }),
+    ]);
     res.set("Cache-Control", "private, no-store");
     return res.render("academy-student-detail", {
       user: req.session.user,
       detail,
       statistics,
+      mathMap,
       activeAcademyPage: "students",
     });
   } catch (error) {

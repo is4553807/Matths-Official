@@ -5,6 +5,7 @@ const {
   Academy,
   AcademyStaff,
   AcademyClass,
+  AcademyAttendance,
   AcademyStudentMembership,
   AcademyInvite,
 } = require("../models/academyModel");
@@ -79,6 +80,7 @@ async function ensureAcademyIndexes() {
     Academy.createIndexes(),
     AcademyStaff.createIndexes(),
     AcademyClass.createIndexes(),
+    AcademyAttendance.createIndexes(),
     AcademyStudentMembership.createIndexes(),
     AcademyInvite.createIndexes(),
   ]);

@@ -9,11 +9,13 @@ const { MongoMemoryServer } = require("mongodb-memory-server-core");
 const {
   ConceptProgress,
   LearningEvent,
+  Problem,
   ProblemAttempt,
   User,
 } = require("../models/matthsModel");
 const {
   Academy,
+  AcademyAttendance,
   AcademyStaff,
   AcademyClass,
   AcademyStudentMembership,
@@ -55,6 +57,17 @@ const {
   getStudentMonthlyStatistics,
 } = require("../services/academyStatisticsService");
 const {
+  getAcademyAttendanceRoster,
+  saveAcademyAttendanceRoster,
+} = require("../services/academyAttendanceService");
+const {
+  calculateConceptMastery,
+  getClassMathMap,
+  getStudentMathMap,
+  getStudentMathMaps,
+  validateMathMapGraph,
+} = require("../services/mathMapService");
+const {
   assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,
   getAdminAcademyList,
@@ -65,6 +78,11 @@ const {
   updateAdminAcademyProfile,
   updateAdminAcademyStaff,
 } = require("../services/adminAcademyService");
+const {
+  DATASET_KEY: ACADEMY_DUMMY_DATASET_KEY,
+  MATH_MAP_CONCEPTS: ACADEMY_DUMMY_MATH_MAP_CONCEPTS,
+  buildDataset: buildAcademyDummyDataset,
+} = require("./seedAcademyStatisticsDummyData");
 
 const root = path.resolve(__dirname, "..");
 
@@ -77,8 +95,77 @@ async function main() {
   await mongoose.connect(memoryServer.getUri(), { dbName: "matths-academy-verify" });
 
   try {
+    const graphValidation = validateMathMapGraph();
+    assert.equal(graphValidation.valid, true, graphValidation.errors.join("\n"));
+    assert.ok(graphValidation.nodeCount >= 200);
+    assert.equal(graphValidation.verifiedEdgeCount, 24);
+    const formulaResult = calculateConceptMastery(
+      Array.from({ length: 5 }, (_, index) => ({
+        problemId: new mongoose.Types.ObjectId(),
+        problemSnapshot: { typeId: `formula-type-${index % 2}`, difficulty: 3 },
+        isCorrect: true,
+        retryAttempted: false,
+        retrySucceeded: false,
+        submittedAt: new Date(Date.UTC(2026, 7, 20 - index)),
+      })),
+      new Map()
+    );
+    assert.equal(formulaResult.evidence.positiveEvidence, 4.13);
+    assert.equal(formulaResult.mastery, 75.4);
+    assert.equal(formulaResult.confidence, "LOW");
+    assert.equal(formulaResult.status, "DEVELOPING");
+
+    const dummySeedAcademyId = new mongoose.Types.ObjectId();
+    const dummySeedTeacherId = new mongoose.Types.ObjectId();
+    const dummySeedUsers = Array.from({ length: 5 }, () => ({
+      _id: new mongoose.Types.ObjectId(),
+      academyId: dummySeedAcademyId,
+      classId: null,
+      recordedByUserId: dummySeedTeacherId,
+    }));
+    const dummySeedDataset = buildAcademyDummyDataset(
+      dummySeedUsers,
+      new Date("2026-08-28T03:00:00.000Z"),
+      "academy-portal-memory-verification"
+    );
+    assert.equal(dummySeedDataset.operations.problems.length, 80);
+    assert.ok(dummySeedDataset.operations.problemAttempts.length > 200);
+    await Problem.bulkWrite(dummySeedDataset.operations.problems, { ordered: false });
+    await ProblemAttempt.bulkWrite(dummySeedDataset.operations.problemAttempts, { ordered: false });
+
+    const dummySeedMathMaps = await getStudentMathMaps({
+      studentUserIds: dummySeedUsers.map((user) => user._id),
+    });
+    const dummySeedStatusCounts = { MASTERED: 0, DEVELOPING: 0, WEAK: 0, UNKNOWN: 0 };
+    dummySeedMathMaps.forEach((map) => {
+      assert.equal(map.attemptedConceptCount, ACADEMY_DUMMY_MATH_MAP_CONCEPTS.length);
+      map.concepts.forEach((concept) => {
+        dummySeedStatusCounts[concept.status] += 1;
+        if (concept.status !== "UNKNOWN") {
+          assert.ok(concept.evidence.attemptCount >= 5);
+          assert.ok(concept.evidence.problemTypeCount >= 3);
+        }
+      });
+    });
+    assert.ok(dummySeedStatusCounts.MASTERED > 0);
+    assert.ok(dummySeedStatusCounts.DEVELOPING > 0);
+    assert.ok(dummySeedStatusCounts.WEAK > 0);
+    assert.ok(dummySeedStatusCounts.UNKNOWN > 0);
+    const dummySeedClassMathMap = await getClassMathMap({
+      studentUserIds: dummySeedUsers.map((user) => user._id),
+    });
+    assert.equal(dummySeedClassMathMap.totalStudents, dummySeedUsers.length);
+    assert.ok(
+      dummySeedClassMathMap.bottlenecks.some((item) => item.conceptId === "calculus-1-02-07")
+    );
+    assert.equal(
+      await Problem.countDocuments({ tags: { $all: ["academy-dummy", ACADEMY_DUMMY_DATASET_KEY] } }),
+      80
+    );
+
     await Promise.all([
       Academy.syncIndexes(),
+      AcademyAttendance.syncIndexes(),
       AcademyStaff.syncIndexes(),
       AcademyClass.syncIndexes(),
       AcademyStudentMembership.syncIndexes(),
@@ -280,6 +367,54 @@ async function main() {
       { _id: new mongoose.Types.ObjectId(), userId: student._id, problemId: problemIds[2], attemptNumber: 2, reviewSourceAttemptId: secondWrongAttemptId, isCorrect: false, submittedAt: new Date("2026-08-07T03:00:00.000Z"), review: { status: "not-required", reviewedAt: null } },
       { _id: new mongoose.Types.ObjectId(), userId: student._id, problemId: problemIds[3], attemptNumber: 1, reviewSourceAttemptId: null, isCorrect: true, submittedAt: new Date("2026-08-08T03:00:00.000Z"), review: { status: "not-required", reviewedAt: null } },
     ]);
+    const mathMapProblemIds = Array.from({ length: 15 }, () => new mongoose.Types.ObjectId());
+    await Problem.collection.insertMany(mathMapProblemIds.map((problemId, index) => {
+      const isDownstream = index >= 10;
+      return {
+        _id: problemId,
+        externalId: `academy-math-map-${index + 1}`,
+        curriculumId: "kr-2022",
+        courseId: "calculus-1",
+        unitId: "calculus-1-02",
+        conceptIds: [isDownstream ? "calculus-1-02-08" : "calculus-1-02-07"],
+        primaryConceptId: isDownstream ? "calculus-1-02-08" : "calculus-1-02-07",
+        difficulty: (index % 5) + 1,
+        tags: [`type-${(index % 3) + 1}`],
+        questionType: "short-answer",
+      };
+    }));
+    const masterySourceAttempts = mathMapProblemIds.map((problemId, index) => ({
+      _id: new mongoose.Types.ObjectId(),
+      userId: student._id,
+      problemId,
+      reviewSourceAttemptId: null,
+      curriculumId: "kr-2022",
+      courseId: "calculus-1",
+      unitId: "calculus-1-02",
+      conceptId: index >= 10 ? "calculus-1-02-08" : "calculus-1-02-07",
+      attemptNumber: 1,
+      problemSnapshot: { typeId: `type-${(index % 3) + 1}`, difficulty: (index % 5) + 1 },
+      isCorrect: index >= 10 ? index < 12 : index < 4,
+      submittedAt: new Date(Date.UTC(2026, 5, index + 1, 3, 0, 0)),
+    }));
+    const firstMasteryWrong = masterySourceAttempts[4];
+    await ProblemAttempt.collection.insertMany([
+      ...masterySourceAttempts,
+      {
+        _id: new mongoose.Types.ObjectId(),
+        userId: student._id,
+        problemId: firstMasteryWrong.problemId,
+        reviewSourceAttemptId: firstMasteryWrong._id,
+        curriculumId: "kr-2022",
+        courseId: "calculus-1",
+        unitId: "calculus-1-02",
+        conceptId: "calculus-1-02-07",
+        attemptNumber: 2,
+        problemSnapshot: { typeId: "type-2", difficulty: 5 },
+        isCorrect: true,
+        submittedAt: new Date("2026-06-20T03:00:00.000Z"),
+      },
+    ]);
     await LearningEvent.collection.insertOne({
       _id: new mongoose.Types.ObjectId(),
       userId: student._id,
@@ -339,6 +474,78 @@ async function main() {
     assert.equal(averagedStatistics.values.averageLearningDays, 4);
     assert.equal(averagedStatistics.values.averageUniqueProblems, 2);
     assert.equal(averagedStatistics.values.averageCompletedConcepts, 0.5);
+    assert.equal(academyStatistics.health.score, 55);
+    assert.equal(academyStatistics.health.distribution.RISK, 1);
+    assert.equal(academyStatistics.analytics.growth.points.length, 4);
+    assert.ok(academyStatistics.analytics.growth.points.some((point) => point.attempts > 0));
+
+    const studentMathMap = await getStudentMathMap({ studentUserId: student._id });
+    const prerequisiteMastery = studentMathMap.concepts.find((concept) => concept.id === "calculus-1-02-07");
+    assert.equal(studentMathMap.graphVersion, "kr-2022-math-graph-v1.0");
+    assert.equal(studentMathMap.modelVersion, "v1.0");
+    assert.equal(prerequisiteMastery.evidence.attemptCount, 10);
+    assert.equal(prerequisiteMastery.evidence.retryAttemptedCount, 1);
+    assert.equal(prerequisiteMastery.evidence.retryRecoveredCount, 1);
+    assert.equal(prerequisiteMastery.confidence, "MEDIUM");
+    assert.equal(prerequisiteMastery.status, "WEAK");
+    assert.equal(studentMathMap.bottlenecks[0].conceptId, "calculus-1-02-07");
+    assert.equal(studentMathMap.recommendation.conceptId, "calculus-1-02-07");
+    assert.equal(studentMathMap.recommendation.problemMix.total, 15);
+    const classMathMap = await getClassMathMap({ studentUserIds: [student._id] });
+    assert.equal(classMathMap.totalStudents, 1);
+    assert.equal(classMathMap.concepts.find((concept) => concept.id === "calculus-1-02-08").analyzedCount, 1);
+    assert.equal(classMathMap.concepts.find((concept) => concept.id === "calculus-1-02-08").unknownCount, 0);
+    academyStatistics.mathMap = classMathMap;
+    academyStatistics.analytics.heatmap = {
+      items: classMathMap.heatmap.slice(0, 18),
+      measuredConcepts: classMathMap.analyzedConceptCount,
+    };
+
+    const attendanceSave = await saveAcademyAttendanceRoster({
+      teacherUserId: teacher._id,
+      dateKey: "2026-08-28",
+      classId: academyClass._id,
+      studentUserIds: [student._id],
+      statuses: ["PRESENT"],
+      notes: ["정상 등원"],
+      now: new Date("2026-08-28T08:30:00.000Z"),
+    });
+    assert.equal(attendanceSave.recordedCount, 1);
+    let attendanceRoster = await getAcademyAttendanceRoster({
+      teacherUserId: secondTeacher._id,
+      dateKey: "2026-08-28",
+      classId: academyClass._id,
+      now: new Date("2026-08-28T09:00:00.000Z"),
+    });
+    assert.equal(attendanceRoster.roster.length, 1);
+    assert.equal(attendanceRoster.counts.PRESENT, 1);
+    assert.equal(attendanceRoster.roster[0].attendance.note, "정상 등원");
+    await saveAcademyAttendanceRoster({
+      teacherUserId: secondTeacher._id,
+      dateKey: "2026-08-28",
+      classId: academyClass._id,
+      studentUserIds: student._id,
+      statuses: "LATE",
+      notes: "교통 지연",
+      now: new Date("2026-08-28T09:10:00.000Z"),
+    });
+    attendanceRoster = await getAcademyAttendanceRoster({
+      teacherUserId: teacher._id,
+      dateKey: "2026-08-28",
+      classId: academyClass._id,
+    });
+    assert.equal(attendanceRoster.counts.LATE, 1);
+    assert.equal(attendanceRoster.roster[0].attendance.note, "교통 지연");
+    await assert.rejects(
+      saveAcademyAttendanceRoster({
+        teacherUserId: teacher._id,
+        dateKey: "2026-08-28",
+        studentUserIds: [new mongoose.Types.ObjectId()],
+        statuses: ["PRESENT"],
+        notes: [""],
+      }),
+      (error) => Number(error.status) === 403 && /승인 학생/.test(error.message)
+    );
     academyStatistics.attentionStudents = academyStatistics.attentionStudents.map((item) => ({
       ...item,
       membership: portal.students[0],
@@ -448,11 +655,12 @@ async function main() {
       user: teacherUser,
       portal,
       statistics: academyStatistics,
+      attendance: attendanceRoster,
       feedback: null,
       createdInviteId: String(invite._id),
     };
 
-    for (const tab of ["dashboard", "students", "requests", "classes", "invites", "teachers"]) {
+    for (const tab of ["dashboard", "attendance", "students", "requests", "classes", "invites", "teachers"]) {
       const html = await render("academy", { ...academyLocals, activeAcademyPage: tab });
       assert.match(html, /학원 관리/);
       if (tab === "dashboard") {
@@ -463,6 +671,15 @@ async function main() {
         assert.match(html, /오답 복습률/);
         assert.match(html, /이학생/);
         assert.match(html, /50%/);
+        assert.match(html, /학습 건강도/);
+        assert.match(html, /data-academy-growth-chart/);
+        assert.match(html, /data-academy-heatmap-chart/);
+      }
+      if (tab === "attendance") {
+        assert.match(html, /학원 출결 관리/);
+        assert.match(html, /교통 지연/);
+        assert.match(html, /data-attendance-form/);
+        assert.match(html, /\/academy\/attendance/);
       }
       if (tab === "students") assert.match(html, /이학생/);
       if (tab === "classes") {
@@ -500,7 +717,7 @@ async function main() {
       now: new Date("2026-08-28T03:00:00.000Z"),
       scopeLabel: "반",
     });
-    assert.equal(classStatistics.cards[0].label, "반 학생");
+    assert.equal(classStatistics.cards[0].label, "학습 건강도");
     assert.equal(classStatistics.values.totalStudents, 1);
     assert.match(classStatistics.summary.bullets[2].text, /평균 정답률/);
     const classMembershipsByStudentId = new Map(
@@ -513,6 +730,7 @@ async function main() {
       user: teacherUser,
       detail: { ...classDetail, profileImageSrc: "" },
       statistics: classStatistics,
+      mathMap: classMathMap,
       activeAcademyPage: "classes",
     });
     assert.match(classDetailHtml, /CLASS LEARNING REPORT/);
@@ -520,6 +738,8 @@ async function main() {
     assert.match(classDetailHtml, /반 평균 통계입니다/);
     assert.match(classDetailHtml, /이학생/);
     assert.match(classDetailHtml, /\/academy\/students\//);
+    assert.match(classDetailHtml, /CLASS MATH MAP/);
+    assert.match(classDetailHtml, /calculus-1-02-07|함수의 증가·감소와 극값/);
 
     const emptyAcademyClass = await createAcademyClass({
       teacherUserId: teacher._id,
@@ -536,13 +756,14 @@ async function main() {
       scopeLabel: "반",
     });
     assert.equal(emptyClassDetail.students.length, 0);
-    assert.equal(emptyClassStatistics.cards[0].value, "0명");
+    assert.equal(emptyClassStatistics.cards[0].value, "—");
     assert.match(emptyClassStatistics.summary.bullets[0].text, /반에 배정된 학생이 없어/);
 
     const detailHtml = await render("academy-student-detail", {
       user: teacherUser,
       detail,
       statistics,
+      mathMap: studentMathMap,
       activeAcademyPage: "students",
     });
     assert.match(detailHtml, /첫 시도 정답률/);
@@ -552,6 +773,10 @@ async function main() {
     assert.match(detailHtml, /50%/);
     assert.match(detailHtml, /서로 다른 문제 4개/);
     assert.match(detailHtml, /자동 생성/);
+    assert.match(detailHtml, /학생 수학 능력 지도/);
+    assert.match(detailHtml, /data-student-math-map-chart/);
+    assert.match(detailHtml, /최근 유효 풀이/);
+    assert.match(detailHtml, /RULE-BASED RECOMMENDATION/);
     assert.doesNotMatch(detailHtml, /통계 로직은 아직 연결하지 않았습니다/);
 
     const joinHtml = await render("academy-join", {

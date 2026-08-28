@@ -94,6 +94,50 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .academy-empty-state p { margin: 8px 0 0; color: #8d95a6; font-size: 9px; line-height: 1.7; }
 .academy-attention-panel > a { min-height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 13px; color: var(--academy-blue); background: #edf1ff; border-radius: 10px; font-size: 10px; font-weight: 850; }
 
+.academy-analytics-grid { display: grid; grid-template-columns: minmax(330px, .8fr) minmax(0, 1.2fr); align-items: stretch; gap: 17px; margin-top: 17px; }
+.academy-health-panel, .academy-chart-panel { height: 100%; }
+.academy-status-chip.is-health-healthy { color: #176e54; background: #e4f7f0; }
+.academy-status-chip.is-health-watch { color: #88631d; background: #fff2cf; }
+.academy-status-chip.is-health-risk { color: #a14050; background: #ffe9ed; }
+.academy-health-overview { display: grid; grid-template-columns: 132px minmax(0, 1fr); align-items: center; gap: 22px; margin-top: 24px; }
+.academy-health-ring { width: 132px; height: 132px; display: grid; place-content: center; position: relative; background: conic-gradient(var(--academy-blue) calc(var(--health-score) * 1%), #edf0f6 0); border-radius: 50%; text-align: center; }
+.academy-health-ring::after { content: ""; position: absolute; inset: 12px; background: #fff; border-radius: 50%; }
+.academy-health-ring strong, .academy-health-ring small { position: relative; z-index: 1; }
+.academy-health-ring strong { font-size: 32px; letter-spacing: -.05em; }
+.academy-health-ring small { margin-top: 2px; color: #9aa2b2; font-size: 9px; font-weight: 800; }
+.academy-health-distribution { display: grid; gap: 8px; }
+.academy-health-distribution > div { display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 10px; background: #f7f8fb; border-radius: 9px; }
+.academy-health-distribution span { width: 8px; height: 8px; border-radius: 50%; }
+.academy-health-distribution span.is-healthy { background: #2ea47f; }
+.academy-health-distribution span.is-watch { background: #e0ab42; }
+.academy-health-distribution span.is-risk { background: #df6677; }
+.academy-health-distribution small { color: #7f8798; font-size: 9px; font-weight: 750; }
+.academy-health-distribution strong { font-size: 10px; }
+.academy-health-components { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 20px 0 0; }
+.academy-health-components > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 11px; background: #f8f9fc; border: 1px solid #e7eaf0; border-radius: 9px; }
+.academy-health-components dt { color: #7a8397; font-size: 9px; }
+.academy-health-components dd { margin: 0; font-size: 10px; font-weight: 900; }
+.academy-health-note, .academy-chart-note { margin: 14px 0 0; color: #8b93a4; font-size: 9px; line-height: 1.65; }
+.academy-health-note strong { color: #56617a; }
+.academy-chart-legend { display: flex; justify-content: flex-end; gap: 15px; margin-top: 18px; color: #778095; font-size: 9px; font-weight: 750; }
+.academy-chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.academy-chart-legend span::before { content: ""; width: 18px; height: 3px; border-radius: 99px; }
+.academy-chart-legend .is-accuracy::before { background: #3157f6; }
+.academy-chart-legend .is-volume::before { height: 9px; background: #dfe5ff; }
+.academy-growth-chart { min-height: 300px; margin-top: 8px; }
+.academy-growth-chart svg, .academy-heatmap-chart svg { display: block; width: 100%; height: auto; overflow: visible; font-family: inherit; }
+.academy-chart-empty { min-height: 250px; display: grid; place-items: center; color: #626b7e; background: #f8f9fc; border: 1px dashed #dfe4ed; border-radius: 13px; font-size: 10px; text-align: center; }
+.academy-heatmap-panel { margin-top: 17px; }
+.academy-heatmap-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 20px; color: #7f8798; font-size: 9px; }
+.academy-heatmap-legend i { width: 24px; height: 9px; }
+.academy-heatmap-legend .level-1 { margin-left: 5px; background: #ffe2e7; border-radius: 5px 0 0 5px; }
+.academy-heatmap-legend .level-2 { background: #ffeadb; }
+.academy-heatmap-legend .level-3 { background: #fff2c9; }
+.academy-heatmap-legend .level-4 { background: #dff4eb; }
+.academy-heatmap-legend .level-5 { margin-right: 5px; background: #c9eddf; border-radius: 0 5px 5px 0; }
+.academy-heatmap-chart { min-height: 170px; margin-top: 12px; }
+.academy-heatmap-chart .academy-chart-empty { min-height: 170px; }
+
 .academy-feedback { min-height: 44px; display: flex; align-items: center; gap: 10px; margin-bottom: 22px; padding: 10px 13px; border: 1px solid; border-radius: 12px; font-size: 10px; font-weight: 800; }
 .academy-feedback > span { width: 24px; height: 24px; display: grid; place-items: center; flex: 0 0 24px; color: #fff; border-radius: 7px; font-weight: 950; }
 .academy-feedback.is-success { color: #176e54; background: #ebf9f4; border-color: #cceade; }
@@ -134,6 +178,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .academy-inline-form button, .academy-detail-link { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0 10px; border-radius: 9px; font-size: 9px; font-weight: 850; white-space: nowrap; }
 .academy-inline-form button { color: #fff; background: var(--academy-blue); border: 0; cursor: pointer; }
 .academy-detail-link { gap: 12px; color: var(--academy-blue); background: #edf1ff; }
+.academy-attendance-filter > div { flex-wrap: wrap; }
+.academy-attendance-filter input, .academy-attendance-filter select { min-height: 42px; padding: 0 11px; color: #555f75; background: #fff; border: 1px solid var(--academy-line); border-radius: 10px; font-size: 10px; }
+.academy-attendance-filter select { min-width: 135px; }
+.academy-attendance-stats article:nth-child(2) strong { color: #168264; }
+.academy-attendance-stats article:nth-child(3) strong { color: #c45162; }
+.academy-attendance-stats article:nth-child(4) strong { color: #9a741f; }
+.academy-attendance-panel > form { margin-top: 20px; }
+.academy-attendance-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 9px; padding: 14px; background: #f4f6fb; border: 1px solid #e1e5ee; border-radius: 12px; }
+.academy-attendance-toolbar > div { display: grid; gap: 4px; }
+.academy-attendance-toolbar strong { color: #3e4860; font-size: 11px; }
+.academy-attendance-toolbar small { color: #8a92a4; font-size: 9px; line-height: 1.45; }
+.academy-attendance-toolbar button { min-height: 38px; padding: 0 12px; color: #fff; background: var(--academy-blue); border: 0; border-radius: 9px; cursor: pointer; font-size: 9px; font-weight: 900; }
+.academy-attendance-toolbar button[type="button"] { color: #4459b5; background: #e7ecff; }
+.academy-attendance-table select, .academy-attendance-table input[type="text"] { width: 100%; min-height: 37px; padding: 0 10px; color: #505a70; background: #fff; border: 1px solid #dce1eb; border-radius: 9px; font-size: 9px; }
+.academy-attendance-table select { min-width: 112px; }
+.academy-attendance-table input[type="text"] { min-width: 170px; }
+.academy-attendance-table tbody tr td:first-child { border-left: 3px solid transparent; }
+.academy-attendance-table tbody tr.is-present td:first-child { border-left-color: #2ea47f; }
+.academy-attendance-table tbody tr.is-late td:first-child { border-left-color: #e0ab42; }
+.academy-attendance-table tbody tr.is-absent td:first-child { border-left-color: #df6677; }
+.academy-attendance-table tbody tr.is-excused td:first-child { border-left-color: #8a78ca; }
+.academy-attendance-table tbody tr.is-unrecorded td:first-child { border-left-color: #d6dbe5; }
 .academy-pagination { display: grid; grid-template-columns: 84px minmax(0, 1fr) 84px; align-items: center; gap: 12px; margin-top: 22px; padding-top: 19px; border-top: 1px solid #edf0f5; }
 .academy-pagination > div { display: flex; align-items: center; justify-content: center; gap: 5px; }
 .academy-pagination a, .academy-pagination > div > span { min-width: 33px; min-height: 33px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 9px; font-weight: 850; }
@@ -276,15 +342,63 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .academy-placeholder-detail small { color: #8170cf; font-size: 9px; font-weight: 900; }
 .academy-placeholder-detail h2 { margin: 9px 0 8px; font-size: 15px; }
 .academy-placeholder-detail p { margin: 0; color: #8b93a4; font-size: 9px; line-height: 1.65; }
+.academy-math-map-panel { overflow: hidden; }
+.academy-math-map-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin: 20px 0 16px; }
+.academy-math-map-meta > div { min-width: 0; display: grid; gap: 6px; padding: 13px 14px; background: #f7f8fb; border: 1px solid #e6e9f0; border-radius: 11px; }
+.academy-math-map-meta small { color: #858da0; font-size: 9px; font-weight: 750; }
+.academy-math-map-meta strong { overflow: hidden; color: #31394d; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.academy-math-map-legend { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+.academy-math-map-legend span, .academy-mastery-chip { padding: 6px 9px; border-radius: 999px; font-size: 9px; font-weight: 850; }
+.academy-math-map-legend .is-mastered, .academy-mastery-chip.is-mastered { color: #17634f; background: #dff4eb; }
+.academy-math-map-legend .is-developing, .academy-mastery-chip.is-developing { color: #725817; background: #fff2c9; }
+.academy-math-map-legend .is-weak, .academy-mastery-chip.is-weak { color: #913146; background: #ffe2e7; }
+.academy-math-map-legend .is-unknown, .academy-mastery-chip.is-unknown { color: #5f6779; background: #f0f2f6; }
+.academy-student-map-chart { min-height: 150px; overflow-x: auto; padding: 15px; background: #fbfcfe; border: 1px solid #e9ecf2; border-radius: 14px; }
+.academy-student-map-chart svg { display: block; max-width: none; }
+.academy-math-map-evidence { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 17px; }
+.academy-math-map-evidence details { min-width: 0; padding: 0 14px; background: #fafbfc; border: 1px solid #e4e7ed; border-left: 3px solid #b3bac8; border-radius: 11px; }
+.academy-math-map-evidence details.is-mastered { border-left-color: #25846a; }
+.academy-math-map-evidence details.is-developing { border-left-color: #c89b2d; }
+.academy-math-map-evidence details.is-weak { border-left-color: #d15b70; }
+.academy-math-map-evidence summary { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 13px; cursor: pointer; list-style: none; }
+.academy-math-map-evidence summary::-webkit-details-marker { display: none; }
+.academy-math-map-evidence summary > span { min-width: 0; display: grid; gap: 4px; }
+.academy-math-map-evidence summary strong, .academy-math-map-evidence summary small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.academy-math-map-evidence summary strong { font-size: 10px; }
+.academy-math-map-evidence summary small { color: #858da0; font-size: 9px; }
+.academy-math-map-evidence summary b { flex: 0 0 auto; color: #45516e; font-size: 11px; }
+.academy-math-map-evidence dl { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 0; padding: 12px 0 14px; border-top: 1px solid #e7eaf0; }
+.academy-math-map-evidence dl div { display: grid; gap: 3px; }
+.academy-math-map-evidence dt { color: #8b93a5; font-size: 9px; }
+.academy-math-map-evidence dd { margin: 0; color: #3f485c; font-size: 9px; font-weight: 800; }
+.academy-math-map-evidence details > p { margin: 0; padding: 0 0 14px; color: #778095; font-size: 9px; }
+.academy-math-map-alert { margin-top: 16px; padding: 14px 16px; color: #773247; background: #fff1f3; border: 1px solid #f0cbd2; border-radius: 11px; }
+.academy-math-map-alert strong { font-size: 9px; }
+.academy-math-map-alert p { margin: 5px 0 0; font-size: 9px; line-height: 1.6; }
+.academy-math-map-recommendation { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); gap: 14px; margin-top: 16px; padding: 17px; background: #f4f6ff; border: 1px solid #dfe5ff; border-radius: 13px; }
+.academy-math-map-recommendation > div { min-width: 0; }
+.academy-math-map-recommendation > div + div { padding-left: 15px; border-left: 1px solid #dce2fa; }
+.academy-math-map-recommendation small { color: var(--academy-blue); font-size: 9px; font-weight: 900; letter-spacing: .08em; }
+.academy-math-map-recommendation h3 { margin: 6px 0 8px; font-size: 14px; }
+.academy-math-map-recommendation ul { display: grid; gap: 4px; margin: 0; padding-left: 17px; color: #606a80; font-size: 9px; line-height: 1.55; }
+.academy-math-map-recommendation strong { color: #35405a; font-size: 11px; }
+.academy-math-map-recommendation p { margin: 7px 0 0; color: #5f6980; font-size: 9px; line-height: 1.6; }
+.academy-math-map-recommendation span { display: block; margin-top: 8px; color: #8a92a4; font-size: 9px; }
+.academy-math-map-table { margin-top: 17px; }
+.academy-math-map-table table { min-width: 810px; }
 
 @media (max-width: 1000px) {
   .academy-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .academy-dashboard-grid { grid-template-columns: 1fr; }
+  .academy-analytics-grid { grid-template-columns: 1fr; }
   .academy-two-column, .academy-invite-layout { grid-template-columns: 1fr; }
   .academy-placeholder-detail { grid-template-columns: 1fr 1fr; }
   .academy-bulk-toolbar { grid-template-columns: 1fr 1fr 1fr; }
   .academy-bulk-toolbar > div { grid-column: 1 / -1; }
   .academy-profile-settings { grid-template-columns: 1fr; }
+  .academy-math-map-evidence { grid-template-columns: 1fr; }
+  .academy-math-map-recommendation { grid-template-columns: 1fr; }
+  .academy-math-map-recommendation > div + div { padding: 13px 0 0; border-top: 1px solid #dce2fa; border-left: 0; }
 }
 @media (max-width: 760px) {
   .academy-topbar { position: static; }
@@ -297,6 +411,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .academy-main { padding: 32px 18px 60px; }
   .academy-heading { align-items: flex-start; flex-direction: column; }
   .academy-period { width: 100%; }
+  .academy-attendance-filter > div { width: 100%; }
+  .academy-attendance-filter input, .academy-attendance-filter select { flex: 1; min-width: 120px; }
   .academy-period button { width: 100%; }
   .academy-summary-panel footer { align-items: stretch; flex-direction: column; }
   .academy-privacy-note { align-items: flex-start; flex-wrap: wrap; }
@@ -313,6 +429,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .academy-bulk-toolbar { grid-template-columns: 1fr; align-items: stretch; }
   .academy-bulk-toolbar > div { grid-column: auto; }
   .academy-bulk-toolbar select, .academy-bulk-toolbar button { width: 100%; }
+  .academy-attendance-toolbar { grid-template-columns: 1fr 1fr; }
+  .academy-attendance-toolbar > div { grid-column: 1 / -1; }
   .academy-pagination { grid-template-columns: 1fr 1fr; }
   .academy-pagination > div { grid-column: 1 / -1; grid-row: 1; flex-wrap: wrap; }
   .academy-pagination .academy-pagination-direction { width: 100%; }
@@ -330,4 +448,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .academy-student-hero > div:first-child { align-items: flex-start; }
   .academy-setup-choice-grid { grid-template-columns: 1fr; }
   .academy-profile-preview { align-items: flex-start; flex-direction: column; }
+  .academy-health-overview { grid-template-columns: 1fr; justify-items: center; }
+  .academy-health-distribution { width: 100%; }
+  .academy-health-components { grid-template-columns: 1fr; }
+  .academy-attendance-toolbar { grid-template-columns: 1fr; }
+  .academy-attendance-toolbar > div { grid-column: auto; }
+  .academy-math-map-meta { grid-template-columns: 1fr 1fr; }
 }

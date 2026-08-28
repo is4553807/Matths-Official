@@ -13,6 +13,11 @@
   })[Number(grade)] || "학년 미설정";
   const displayStudentName = (student) => String(student?.realName || student?.name || "학생");
   const summaryRows = statistics.summary?.bullets || [];
+  const classMathMap = typeof mathMap !== "undefined" && mathMap ? mathMap : {
+    graphVersion: "kr-2022-math-graph-v1.0", modelVersion: "v1.0", overallMastery: null,
+    analyzedConceptCount: 0, concepts: [], bottlenecks: [], heatmap: [], totalStudents: classStudents.length,
+  };
+  const classMathMapJson = JSON.stringify({ heatmap: { items: classMathMap.heatmap.slice(0, 18) } }).replace(/</g, "\\u003c");
   const summaryCopyText = [
     `[Matths ${statistics.period.label.replace(/ \(.+\)$/, "")} 반 학습 요약]`,
     `${academyName} · ${className}`,
@@ -46,6 +51,7 @@
         </div>
         <nav aria-label="학원 관리 메뉴">
           <a href="/academy?tab=dashboard">대시보드</a>
+          <a href="/academy?tab=attendance">출결 관리</a>
           <a href="/academy?tab=students">학생 관리</a>
           <a href="/academy?tab=requests">승인 요청 <% if (detail.pendingCount) { %><b><%= detail.pendingCount %></b><% } %></a>
           <a class="active" href="/academy?tab=classes">반 관리</a>
@@ -75,6 +81,27 @@
         <section class="academy-stat-grid" aria-label="반 주요 통계">
           <% statistics.cards.forEach((card) => { %><article><small><%= card.label %></small><strong><%= card.value %></strong><span><%= card.detail %></span></article><% }) %>
         </section>
+
+        <section class="academy-panel academy-math-map-panel academy-student-section">
+          <header><div><p>CLASS MATH MAP</p><h2><%= className %> 규칙 기반 숙달도</h2></div><span class="academy-status-chip"><%= classMathMap.overallMastery === null ? "분석 전" : `평균 ${classMathMap.overallMastery}%` %></span></header>
+          <div class="academy-math-map-meta">
+            <div><small>반 학생</small><strong><%= classMathMap.totalStudents %>명</strong></div>
+            <div><small>분석 개념</small><strong><%= classMathMap.analyzedConceptCount %>개</strong></div>
+            <div><small>그래프</small><strong><%= classMathMap.graphVersion %></strong></div>
+            <div><small>계산 모델</small><strong><%= classMathMap.modelVersion %></strong></div>
+          </div>
+          <div class="academy-heatmap-legend" aria-hidden="true"><span>취약</span><i class="level-1"></i><i class="level-2"></i><i class="level-3"></i><i class="level-4"></i><i class="level-5"></i><span>안정</span></div>
+          <div class="academy-heatmap-chart" data-class-math-map-chart role="img" aria-label="반 학생의 개념별 평균 숙달도 히트맵"></div>
+          <p class="academy-chart-note">개념별 평균은 해당 개념 풀이가 5개 이상인 학생만 계산합니다. 각 칸에 분석 인원/반 전체 인원을 표시해 적은 표본의 평균이 과도하게 해석되지 않도록 했습니다.</p>
+          <% if (classMathMap.bottlenecks.length) { const bottleneck = classMathMap.bottlenecks[0]; %><div class="academy-math-map-alert"><strong>수업 확인 우선순위</strong><p><%= bottleneck.conceptTitle %>: 분석 <%= bottleneck.analyzedCount %>명 중 <%= bottleneck.weakCount %>명이 보완 필요이며, <%= bottleneck.affectedConceptCount %>개 후속 개념과 연결됩니다.</p></div><% } %>
+          <% if (classMathMap.recommendation) { const recommendation = classMathMap.recommendation; %><div class="academy-math-map-recommendation"><div><small>CLASS RECOMMENDATION</small><h3><%= recommendation.conceptTitle %> 복습</h3><p><%= recommendation.reason %></p></div><div><strong>학생별 <%= recommendation.problemMix.total %>문제 구성안</strong><p><% recommendation.problemMix.difficulties.forEach((item, index) => { %><%= index ? " · " : "" %>난이도 <%= item.level %> <%= item.count %>개<% }) %><% if (recommendation.problemMix.retryCount) { %> · 이전 오답 <%= recommendation.problemMix.retryCount %>개<% } %></p><span>선생님 검토용 규칙 제안이며 자동 배정하지 않습니다.</span></div></div><% } %>
+          <% if (classMathMap.concepts.length) { %>
+            <div class="academy-table-wrap academy-math-map-table"><table><thead><tr><th>개념</th><th>평균 숙달도</th><th>분석 표본</th><th>숙달</th><th>성장 중</th><th>보완 필요</th><th>Unknown</th></tr></thead><tbody>
+              <% classMathMap.concepts.forEach((concept) => { %><tr><td><strong><%= concept.title %></strong><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small></td><td><span class="academy-mastery-chip is-<%= concept.status.toLowerCase() %>"><%= concept.mastery === null ? "Unknown" : `${concept.mastery}%` %></span></td><td><%= concept.analyzedCount %>/<%= concept.totalStudents %>명</td><td><%= concept.statusCounts.MASTERED %>명</td><td><%= concept.statusCounts.DEVELOPING %>명</td><td><%= concept.statusCounts.WEAK %>명</td><td><%= concept.statusCounts.UNKNOWN %>명</td></tr><% }) %>
+            </tbody></table></div>
+          <% } %>
+        </section>
+        <script type="application/json" data-class-math-map-data><%- classMathMapJson %></script>
 
         <div class="academy-dashboard-grid">
           <section class="academy-panel academy-summary-panel">

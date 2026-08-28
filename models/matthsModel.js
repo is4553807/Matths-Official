@@ -1587,6 +1587,14 @@ problemAttemptSchema.index({
   submittedAt: -1,
 });
 
+problemAttemptSchema.index({
+  userId: 1,
+  reviewSourceAttemptId: 1,
+  attemptNumber: 1,
+  conceptId: 1,
+  submittedAt: -1,
+});
+
 /* --------------------------------------------------
  * 5. AssessmentAttempt
  * 소단원 중간평가 · 대단원 기말평가 · 과목 종합평가

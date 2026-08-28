@@ -13,15 +13,24 @@ const {
 } = require("../models/matthsModel");
 const {
   Academy,
+  AcademyAttendance,
   AcademyStudentMembership,
 } = require("../models/academyModel");
 const {
   getAcademyMonthlyStatistics,
   _private: { resolvePeriod },
 } = require("../services/academyStatisticsService");
+const {
+  getClassMathMap,
+  getStudentMathMaps,
+} = require("../services/mathMapService");
+const {
+  _private: { getKstDateKey },
+} = require("../services/academyAttendanceService");
 
 const TARGET_ACADEMY_NAME = "테스트 수학학원";
-const DATASET_KEY = "academy-metrics-v1";
+const DATASET_KEY = "academy-metrics-v2";
+const LEGACY_DATASET_KEYS = ["academy-metrics-v1"];
 const COURSE_ID = "academy-dashboard-dummy";
 const CONFIRMATION = "SEED_TEST_ACADEMY_METRICS";
 const APPLY = process.argv.includes("--apply");
@@ -29,7 +38,37 @@ const CONFIRMED = process.argv.includes(`--confirm=${CONFIRMATION}`);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const BULK_CHUNK_SIZE = 500;
-const MAX_FIRST_ATTEMPTS = 18;
+const MATH_MAP_PROBLEMS_PER_CONCEPT = 20;
+const MATH_MAP_CONCEPTS = Object.freeze([
+  {
+    conceptId: "calculus-1-02-07",
+    curriculumId: "kr-2022",
+    courseId: "calculus-1",
+    unitId: "calculus-1-02",
+    title: "함수의 증가·감소와 극값",
+  },
+  {
+    conceptId: "calculus-1-02-08",
+    curriculumId: "kr-2022",
+    courseId: "calculus-1",
+    unitId: "calculus-1-02",
+    title: "함수 그래프의 개형",
+  },
+  {
+    conceptId: "calculus-1-02-04",
+    curriculumId: "kr-2022",
+    courseId: "calculus-1",
+    unitId: "calculus-1-02",
+    title: "다항함수의 미분법",
+  },
+  {
+    conceptId: "calculus-1-02-09",
+    curriculumId: "kr-2022",
+    courseId: "calculus-1",
+    unitId: "calculus-1-02",
+    title: "미분과 방정식·부등식",
+  },
+]);
 const PROVIDED_RUN_SEED = String(
   process.argv.find((argument) => argument.startsWith("--seed=")) || ""
 ).replace(/^--seed=/, "").trim();
@@ -77,7 +116,7 @@ async function findExactTargetAcademy() {
     nameNormalized: TARGET_ACADEMY_NAME.toLocaleLowerCase("ko-KR"),
     status: "ACTIVE",
   })
-    .select("_id name status")
+    .select("_id name status createdByUserId")
     .lean();
   if (matches.length !== 1) {
     throw new Error(
@@ -118,16 +157,139 @@ function boundedAfter(timestamp, hours, period) {
   ));
 }
 
-function buildDataset(users, now = new Date(), problems = [], runSeed = randomBytes(16).toString("hex")) {
+function allDatasetKeys() {
+  return [DATASET_KEY, ...LEGACY_DATASET_KEYS];
+}
+
+function dummyAttemptFilter(userIds) {
+  return {
+    userId: { $in: userIds },
+    $or: [
+      { "errorAnalysis.modelVersion": DATASET_KEY },
+      { "problemSnapshot.typeId": { $in: allDatasetKeys() } },
+    ],
+  };
+}
+
+function buildMathMapProblemCatalog() {
+  const operations = [];
+  const pools = MATH_MAP_CONCEPTS.map((concept) => ({
+    ...concept,
+    problems: Array.from({ length: MATH_MAP_PROBLEMS_PER_CONCEPT }, (_, index) => {
+      const number = index + 1;
+      const typeNumber = (index % 4) + 1;
+      const difficulty = (index % 5) + 1;
+      const externalId = `${DATASET_KEY}:${concept.conceptId}:problem-${String(number).padStart(2, "0")}`;
+      const problem = {
+        _id: deterministicObjectId(externalId),
+        externalId,
+        curriculumId: concept.curriculumId,
+        courseId: concept.courseId,
+        unitId: concept.unitId,
+        conceptIds: [concept.conceptId],
+        primaryConceptId: concept.conceptId,
+        source: { type: "custom" },
+        questionType: number % 3 === 0 ? "multiple-choice" : "short-answer",
+        stem: `[더미] ${concept.title} 유형 ${typeNumber} · 난이도 ${difficulty}`,
+        correctAnswer: "__academy_dummy__",
+        solutionSteps: [],
+        difficulty,
+        estimatedTimeSeconds: 60 + difficulty * 25,
+        score: 1,
+        tags: ["academy-dummy", DATASET_KEY, `math-map-type-${typeNumber}`],
+        isPublished: false,
+      };
+      operations.push({
+        updateOne: {
+          filter: { externalId },
+          update: {
+            $set: Object.fromEntries(Object.entries(problem).filter(([key]) => key !== "_id")),
+            $setOnInsert: { _id: problem._id },
+          },
+          upsert: true,
+        },
+      });
+      return problem;
+    }),
+  }));
+  return { operations, pools };
+}
+
+function shuffledCorrectFlags(total, correctCount, random) {
+  const flags = Array.from({ length: total }, (_, index) => index < correctCount);
+  for (let index = flags.length - 1; index > 0; index -= 1) {
+    const target = randomInteger(random, 0, index);
+    [flags[index], flags[target]] = [flags[target], flags[index]];
+  }
+  return flags;
+}
+
+function targetMathMapStatus(userIndex, conceptIndex) {
+  const residue = userIndex % 5;
+  if (conceptIndex === 0) return residue < 3 ? "WEAK" : "DEVELOPING";
+  if (conceptIndex === 1) {
+    if (residue === 0 || residue === 2) return "WEAK";
+    if (residue === 4) return "MASTERED";
+    return "DEVELOPING";
+  }
+  return ["UNKNOWN", "WEAK", "DEVELOPING", "MASTERED"][(userIndex + conceptIndex) % 4];
+}
+
+function targetAttemptProfile(status, random) {
+  if (status === "UNKNOWN") {
+    const total = randomInteger(random, 3, 4);
+    return { total, correct: randomInteger(random, 1, Math.max(1, total - 1)) };
+  }
+  if (status === "WEAK") {
+    const total = randomInteger(random, 10, 14);
+    return { total, correct: Math.max(1, Math.floor(total * 0.25)) };
+  }
+  if (status === "MASTERED") {
+    return { total: MATH_MAP_PROBLEMS_PER_CONCEPT, correct: MATH_MAP_PROBLEMS_PER_CONCEPT - 1 };
+  }
+  const total = randomInteger(random, 14, 18);
+  return { total, correct: Math.floor(total * 0.68) };
+}
+
+function buildStudentMathMapPlans(users, periods, pools, runSeed) {
+  return new Map(users.map((user, userIndex) => {
+    const conceptPlans = pools.map((pool, conceptIndex) => {
+      const random = createSeededRandom(`${runSeed}:math-map:${user._id}:${pool.conceptId}`);
+      const targetStatus = targetMathMapStatus(userIndex, conceptIndex);
+      const profile = targetAttemptProfile(targetStatus, random);
+      const correctFlags = shuffledCorrectFlags(profile.total, profile.correct, random);
+      const previousPeriodCount = periods.length > 1 ? Math.max(1, Math.floor(profile.total * 0.45)) : 0;
+      const currentPeriodCount = profile.total - previousPeriodCount;
+      const records = pool.problems.slice(0, profile.total).map((problem, attemptIndex) => ({
+        attemptIndex,
+        problem,
+        isCorrect: correctFlags[attemptIndex],
+      }));
+      return {
+        concept: pool,
+        targetStatus,
+        total: profile.total,
+        correct: profile.correct,
+        byPeriod: periods.map((_period, periodIndex) => {
+          if (periodIndex === 0) return records.slice(previousPeriodCount, previousPeriodCount + currentPeriodCount);
+          if (periodIndex === 1) return records.slice(0, previousPeriodCount);
+          return [];
+        }),
+      };
+    });
+    return [String(user._id), conceptPlans];
+  }));
+}
+
+function buildDataset(users, now = new Date(), runSeed = randomBytes(16).toString("hex")) {
   const currentPeriod = resolvePeriod("", now);
   const periods = currentPeriod.options.map((option) => resolvePeriod(option.key, now));
-  const requiredProblemCount = periods.length * MAX_FIRST_ATTEMPTS;
-  if (problems.length < requiredProblemCount) {
-    throw new Error(`학원 지표 더미 데이터에는 사용 가능한 실제 문제 ${requiredProblemCount}개가 필요합니다.`);
-  }
+  const problemCatalog = buildMathMapProblemCatalog();
+  const mathMapPlans = buildStudentMathMapPlans(users, periods, problemCatalog.pools, runSeed);
   const learningEventOperations = [];
   const problemAttemptOperations = [];
   const conceptProgressOperations = [];
+  const attendanceOperations = [];
   const periodPlans = [];
 
   periods.forEach((period, periodIndex) => {
@@ -143,10 +305,7 @@ function buildDataset(users, now = new Date(), problems = [], runSeed = randomBy
       if (!activityTimes.length) return;
       activeStudents += 1;
 
-      const firstAttemptAccuracy = 0.35 + random() * 0.6;
       const wrongAnswerReviewProbability = 0.25 + random() * 0.7;
-      const retryProbability = 0.2 + random() * 0.65;
-      const retrySuccessProbability = 0.35 + random() * 0.6;
 
       activityTimes.forEach((occurredAt, dayIndex) => {
         const clientEventId = `${DATASET_KEY}:${runSeed}:${period.key}:${user._id}:day:${dayIndex}`;
@@ -178,100 +337,116 @@ function buildDataset(users, now = new Date(), problems = [], runSeed = randomBy
         });
       });
 
-      const firstAttemptCount = randomInteger(random, 3, MAX_FIRST_ATTEMPTS);
-      plannedFirstAttempts += firstAttemptCount;
-      for (let attemptIndex = 0; attemptIndex < firstAttemptCount; attemptIndex += 1) {
-        const problemKey = `${DATASET_KEY}:${runSeed}:${period.key}:${user._id}:problem:${attemptIndex}`;
-        const problem = problems[periodIndex * MAX_FIRST_ATTEMPTS + attemptIndex];
-        const problemId = problem._id;
-        const attemptId = deterministicObjectId(`${problemKey}:attempt:1`);
-        const submittedAt = activityTimes[randomInteger(random, 0, activityTimes.length - 1)];
-        const isCorrect = randomChance(random, firstAttemptAccuracy);
-        const reviewed = !isCorrect && randomChance(random, wrongAnswerReviewProbability);
-        const reviewedAt = reviewed ? boundedAfter(submittedAt, 2, period) : null;
-        problemAttemptOperations.push({
-          updateOne: {
-            filter: { _id: attemptId },
-            update: {
-              $set: {
-                userId: user._id,
-                problemId,
-                reviewSourceAttemptId: null,
-                curriculumId: problem.curriculumId,
-                courseId: problem.courseId,
-                unitId: problem.unitId,
-                conceptId: problem.primaryConceptId,
-                attemptNumber: 1,
-                submittedAnswer: isCorrect ? "dummy-correct" : "dummy-wrong",
-                problemSnapshot: {
-                  typeId: DATASET_KEY,
-                  stem: "학원 통계 검증용 더미 문제",
-                  choices: [],
-                  solution: "통계 집계 검증용 데이터",
-                  difficulty: randomInteger(random, 1, 5),
-                },
-                isCorrect,
-                score: isCorrect ? 1 : 0,
-                maxScore: 1,
-                responseTimeMs: randomInteger(random, 18, 140) * 1_000,
-                hintsUsed: randomChance(random, 0.22) ? randomInteger(random, 1, 2) : 0,
-                review: {
-                  status: isCorrect ? "not-required" : reviewed ? "completed" : "pending",
-                  scheduledAt: isCorrect ? null : boundedAfter(submittedAt, 1, period),
-                  reviewedAt,
-                  correctedAfterReview: false,
-                },
-                submittedAt,
-              },
-            },
-            upsert: true,
-          },
-        });
-
-        const shouldRetry = !isCorrect && randomChance(random, retryProbability);
-        if (shouldRetry) {
-          plannedRetries += 1;
-          const retryCorrect = randomChance(random, retrySuccessProbability);
+      const conceptPlans = mathMapPlans.get(String(user._id)) || [];
+      conceptPlans.forEach((conceptPlan) => {
+        const periodRecords = conceptPlan.byPeriod[periodIndex] || [];
+        plannedFirstAttempts += periodRecords.length;
+        periodRecords.forEach(({ problem, attemptIndex, isCorrect }) => {
+          const problemKey = `${DATASET_KEY}:${runSeed}:${user._id}:${problem.primaryConceptId}:${attemptIndex}`;
+          const attemptId = deterministicObjectId(`${problemKey}:attempt:1`);
+          const submittedAt = activityTimes[randomInteger(random, 0, activityTimes.length - 1)];
+          const reviewed = !isCorrect && randomChance(random, wrongAnswerReviewProbability);
+          const reviewedAt = reviewed ? boundedAfter(submittedAt, 2, period) : null;
+          const typeId = `${DATASET_KEY}:type-${(attemptIndex % 4) + 1}`;
           problemAttemptOperations.push({
             updateOne: {
-              filter: { _id: deterministicObjectId(`${problemKey}:attempt:2`) },
+              filter: { _id: attemptId },
               update: {
                 $set: {
                   userId: user._id,
-                  problemId,
-                  reviewSourceAttemptId: attemptId,
+                  problemId: problem._id,
+                  reviewSourceAttemptId: null,
                   curriculumId: problem.curriculumId,
                   courseId: problem.courseId,
                   unitId: problem.unitId,
                   conceptId: problem.primaryConceptId,
-                  attemptNumber: 2,
-                  submittedAnswer: retryCorrect ? "dummy-retry-correct" : "dummy-retry-wrong",
+                  attemptNumber: 1,
+                  submittedAnswer: isCorrect ? "dummy-correct" : "dummy-wrong",
                   problemSnapshot: {
-                    typeId: DATASET_KEY,
-                    stem: "학원 통계 검증용 오답 재도전",
+                    typeId,
+                    stem: problem.stem,
                     choices: [],
-                    solution: "통계 집계 검증용 데이터",
-                    difficulty: randomInteger(random, 1, 5),
+                    solution: "학원 Math Map 계산 검증용 더미 데이터",
+                    difficulty: problem.difficulty,
                   },
-                  isCorrect: retryCorrect,
-                  score: retryCorrect ? 1 : 0,
+                  isCorrect,
+                  score: isCorrect ? 1 : 0,
                   maxScore: 1,
-                  responseTimeMs: randomInteger(random, 15, 105) * 1_000,
-                  hintsUsed: 0,
+                  responseTimeMs: randomInteger(random, 18, 140) * 1_000,
+                  hintsUsed: randomChance(random, 0.22) ? randomInteger(random, 1, 2) : 0,
+                  errorAnalysis: {
+                    errorType: null,
+                    relatedConceptId: problem.primaryConceptId,
+                    confidence: null,
+                    modelVersion: DATASET_KEY,
+                    analyzedAt: null,
+                  },
                   review: {
-                    status: "not-required",
-                    scheduledAt: null,
-                    reviewedAt: null,
+                    status: isCorrect ? "not-required" : reviewed ? "completed" : "pending",
+                    scheduledAt: isCorrect ? null : boundedAfter(submittedAt, 1, period),
+                    reviewedAt,
                     correctedAfterReview: false,
                   },
-                  submittedAt: boundedAfter(submittedAt, 3, period),
+                  submittedAt,
                 },
               },
               upsert: true,
             },
           });
-        }
-      }
+
+          const retryProbability = conceptPlan.targetStatus === "WEAK" ? 0.72 : 0.45;
+          if (!isCorrect && randomChance(random, retryProbability)) {
+            plannedRetries += 1;
+            const retrySuccessProbability = conceptPlan.targetStatus === "WEAK" ? 0.45 : 0.72;
+            const retryCorrect = randomChance(random, retrySuccessProbability);
+            problemAttemptOperations.push({
+              updateOne: {
+                filter: { _id: deterministicObjectId(`${problemKey}:attempt:2`) },
+                update: {
+                  $set: {
+                    userId: user._id,
+                    problemId: problem._id,
+                    reviewSourceAttemptId: attemptId,
+                    curriculumId: problem.curriculumId,
+                    courseId: problem.courseId,
+                    unitId: problem.unitId,
+                    conceptId: problem.primaryConceptId,
+                    attemptNumber: 2,
+                    submittedAnswer: retryCorrect ? "dummy-retry-correct" : "dummy-retry-wrong",
+                    problemSnapshot: {
+                      typeId,
+                      stem: problem.stem,
+                      choices: [],
+                      solution: "학원 Math Map 재도전 검증용 더미 데이터",
+                      difficulty: problem.difficulty,
+                    },
+                    isCorrect: retryCorrect,
+                    score: retryCorrect ? 1 : 0,
+                    maxScore: 1,
+                    responseTimeMs: randomInteger(random, 15, 105) * 1_000,
+                    hintsUsed: 0,
+                    errorAnalysis: {
+                      errorType: null,
+                      relatedConceptId: problem.primaryConceptId,
+                      confidence: null,
+                      modelVersion: DATASET_KEY,
+                      analyzedAt: null,
+                    },
+                    review: {
+                      status: "not-required",
+                      scheduledAt: null,
+                      reviewedAt: null,
+                      correctedAfterReview: false,
+                    },
+                    submittedAt: boundedAfter(submittedAt, 3, period),
+                  },
+                },
+                upsert: true,
+              },
+            });
+          }
+        });
+      });
 
       const completedConceptCount = randomInteger(random, 0, 6);
       plannedCompletedConcepts += completedConceptCount;
@@ -338,14 +513,54 @@ function buildDataset(users, now = new Date(), problems = [], runSeed = randomBy
     });
   });
 
+  const attendanceDateKey = getKstDateKey(now);
+  users.forEach((user) => {
+    const random = createSeededRandom(`${runSeed}:attendance:${attendanceDateKey}:${user._id}`);
+    const roll = random();
+    const status = roll < 0.72 ? "PRESENT" : roll < 0.84 ? "LATE" : roll < 0.94 ? "ABSENT" : "EXCUSED";
+    const isArrival = status === "PRESENT" || status === "LATE";
+    const checkedInAt = isArrival
+      ? new Date(now.getTime() - randomInteger(random, 5, 180) * 60 * 1000)
+      : null;
+    attendanceOperations.push({
+      updateOne: {
+        filter: {
+          academyId: user.academyId,
+          studentUserId: user._id,
+          dateKey: attendanceDateKey,
+        },
+        update: {
+          $set: {
+            classId: user.classId || null,
+            status,
+            checkedInAt,
+            checkedOutAt: null,
+            note: status === "LATE" ? "더미 데이터 · 지각" : status === "EXCUSED" ? "더미 데이터 · 사유 결석" : "",
+            recordedByUserId: user.recordedByUserId,
+            source: "SEED",
+            seedRunId: runSeed,
+          },
+          $setOnInsert: {
+            academyId: user.academyId,
+            studentUserId: user._id,
+            dateKey: attendanceDateKey,
+          },
+        },
+        upsert: true,
+      },
+    });
+  });
+
   return {
     runSeed,
     periods,
     periodPlans,
     operations: {
+      problems: problemCatalog.operations,
       learningEvents: learningEventOperations,
       problemAttempts: problemAttemptOperations,
       conceptProgress: conceptProgressOperations,
+      attendance: attendanceOperations,
     },
   };
 }
@@ -373,26 +588,33 @@ async function replaceExistingDummyDataset({ userIds, operations }) {
   try {
     await session.withTransaction(async () => {
       const learningEvents = await LearningEvent.deleteMany(
-        { userId: { $in: userIds }, "metadata.datasetKey": DATASET_KEY },
+        { userId: { $in: userIds }, "metadata.datasetKey": { $in: allDatasetKeys() } },
         { session }
       );
       const problemAttempts = await ProblemAttempt.deleteMany(
-        { userId: { $in: userIds }, "problemSnapshot.typeId": DATASET_KEY },
+        dummyAttemptFilter(userIds),
         { session }
       );
       const conceptProgress = await ConceptProgress.deleteMany(
-        { userId: { $in: userIds }, curriculumId: DATASET_KEY, courseId: COURSE_ID },
+        { userId: { $in: userIds }, curriculumId: { $in: allDatasetKeys() }, courseId: COURSE_ID },
+        { session }
+      );
+      const attendance = await AcademyAttendance.deleteMany(
+        { studentUserId: { $in: userIds }, source: "SEED" },
         { session }
       );
       cleanupResults = {
         learningEvents: Number(learningEvents.deletedCount || 0),
         problemAttempts: Number(problemAttempts.deletedCount || 0),
         conceptProgress: Number(conceptProgress.deletedCount || 0),
+        attendance: Number(attendance.deletedCount || 0),
       };
       writeResults = {
+        problems: await runBulkOperations(Problem, operations.problems, session),
         learningEvents: await runBulkOperations(LearningEvent, operations.learningEvents, session),
         problemAttempts: await runBulkOperations(ProblemAttempt, operations.problemAttempts, session),
         conceptProgress: await runBulkOperations(ConceptProgress, operations.conceptProgress, session),
+        attendance: await runBulkOperations(AcademyAttendance, operations.attendance, session),
       };
     });
   } finally {
@@ -401,7 +623,7 @@ async function replaceExistingDummyDataset({ userIds, operations }) {
   return { cleanupResults, writeResults };
 }
 
-async function verifyAcademyUserConnection({ academy, period, now = new Date() }) {
+async function verifyAcademyUserConnection({ academy, period, now = new Date(), requireMathMap = false }) {
   const memberships = await AcademyStudentMembership.find({
     academyId: academy._id,
     status: "APPROVED",
@@ -429,14 +651,15 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date() }
     studentAttemptRows,
     studentConceptRows,
     statistics,
+    studentMathMaps,
+    classMathMap,
   ] = await Promise.all([
     LearningEvent.distinct("userId", { userId: { $in: userIds }, occurredAt: periodRange }),
     ProblemAttempt.distinct("userId", { userId: { $in: userIds }, submittedAt: periodRange }),
     ConceptProgress.distinct("userId", { userId: { $in: userIds }, completedAt: periodRange }),
     ProblemAttempt.distinct("problemId", {
-      userId: { $in: userIds },
+      ...dummyAttemptFilter(userIds),
       submittedAt: periodRange,
-      "problemSnapshot.typeId": DATASET_KEY,
     }),
     LearningEvent.aggregate([
       {
@@ -459,9 +682,8 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date() }
     ProblemAttempt.aggregate([
       {
         $match: {
-          userId: { $in: dummyUserIds },
+          ...dummyAttemptFilter(dummyUserIds),
           submittedAt: periodRange,
-          "problemSnapshot.typeId": DATASET_KEY,
           reviewSourceAttemptId: null,
           attemptNumber: 1,
         },
@@ -496,6 +718,8 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date() }
       { $group: { _id: "$userId", completedConcepts: { $sum: 1 } } },
     ]),
     getAcademyMonthlyStatistics({ studentUserIds: userIds, periodKey: period.key, now }),
+    getStudentMathMaps({ studentUserIds: dummyUserIds }),
+    getClassMathMap({ studentUserIds: dummyUserIds }),
   ]);
   const linkedProblemCount = await Problem.countDocuments({ _id: { $in: datasetProblemIds } });
   const usersWithRecords = new Set(
@@ -554,6 +778,46 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date() }
   if (linkedProblemCount !== datasetProblemIds.length) {
     throw new Error("학원 지표용 더미 풀이 중 실제 Problem 문서와 연결되지 않은 기록이 있습니다.");
   }
+  const targetMathMapConceptIds = new Set(MATH_MAP_CONCEPTS.map((concept) => concept.conceptId));
+  const mathMapProfiles = dummyUserIds.map((userId) => studentMathMaps.get(String(userId)));
+  const targetMathMapConcepts = new Map(mathMapProfiles.map((map) => [
+    map.userId,
+    map.concepts.filter((concept) => targetMathMapConceptIds.has(concept.id)),
+  ]));
+  const mathMapStatusCounts = mathMapProfiles.reduce(
+    (counts, map) => {
+      (targetMathMapConcepts.get(map.userId) || []).forEach((concept) => {
+        counts[concept.status] += 1;
+      });
+      return counts;
+    },
+    { MASTERED: 0, DEVELOPING: 0, WEAK: 0, UNKNOWN: 0 }
+  );
+  const allStudentsHaveMathMap = mathMapProfiles.every((map) => {
+    const targetConcepts = targetMathMapConcepts.get(map.userId) || [];
+    return targetConcepts.length === MATH_MAP_CONCEPTS.length &&
+    targetConcepts.filter((concept) => concept.status !== "UNKNOWN").length >= 2 &&
+    targetConcepts
+      .filter((concept) => concept.status !== "UNKNOWN")
+      .every((concept) => concept.evidence.attemptCount >= 5 && concept.evidence.problemTypeCount >= 3);
+  });
+  const mathMapHasStatusVariety =
+    mathMapStatusCounts.DEVELOPING > 0 &&
+    mathMapStatusCounts.WEAK > 0 &&
+    (dummyUserIds.length < 2 || mathMapStatusCounts.MASTERED > 0) &&
+    (dummyUserIds.length < 3 || mathMapStatusCounts.UNKNOWN > 0);
+  const mathMapHasClassBottleneck = classMathMap.bottlenecks.some(
+    (item) => targetMathMapConceptIds.has(item.conceptId)
+  );
+  if (requireMathMap && !allStudentsHaveMathMap) {
+    throw new Error("학생별 Math Map 표본 수 또는 문제 유형 다양성 검증에 실패했습니다.");
+  }
+  if (requireMathMap && !mathMapHasStatusVariety) {
+    throw new Error("Math Map 더미 상태 분포가 Weak/Developing/Mastered/Unknown 다양성 기준을 충족하지 못했습니다.");
+  }
+  if (requireMathMap && !mathMapHasClassBottleneck) {
+    throw new Error("Math Map 더미 데이터에서 검증 대상 반 병목이 계산되지 않았습니다.");
+  }
 
   return {
     academyId: String(academy._id),
@@ -578,6 +842,28 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date() }
       completedConcepts: rangeFor("completedConcepts"),
       allDummyStudentsHaveRecords: profilesWithRecords.length === profileValues.length,
     },
+    mathMap: {
+      graphVersion: classMathMap.graphVersion,
+      modelVersion: classMathMap.modelVersion,
+      analyzedConcepts: classMathMap.analyzedConceptCount,
+      overallMastery: classMathMap.overallMastery,
+      classBottlenecks: classMathMap.bottlenecks.length,
+      statusCounts: mathMapStatusCounts,
+      allStudentsHaveMathMap,
+      statusVarietyVerified: mathMapHasStatusVariety,
+      classBottleneckVerified: mathMapHasClassBottleneck,
+      perStudent: mathMapProfiles.map((map) => ({
+        userId: map.userId,
+        overallMastery: map.overallMastery,
+        seededConcepts: (targetMathMapConcepts.get(map.userId) || []).length,
+        analyzedSeededConcepts: (targetMathMapConcepts.get(map.userId) || [])
+          .filter((concept) => concept.status !== "UNKNOWN").length,
+        unknownSeededConcepts: (targetMathMapConcepts.get(map.userId) || [])
+          .filter((concept) => concept.status === "UNKNOWN").length,
+        bottlenecks: map.bottlenecks.length,
+        recommendation: map.recommendation?.conceptTitle || null,
+      })),
+    },
     statistics: statistics.values,
     samples: statistics.samples,
     connectionVerified:
@@ -600,47 +886,39 @@ async function main() {
     const approvedMemberships = await AcademyStudentMembership.find({
       academyId: academy._id,
       status: "APPROVED",
-    }).select("studentUserId").lean();
+    }).select("studentUserId classId").lean();
     const approvedUserIds = approvedMemberships.map((membership) => membership.studentUserId);
     const users = await User.find(testUserFilter(approvedUserIds))
       .select("_id name realName role isTestAccount testBatchKey")
       .sort({ testBatchKey: 1, name: 1, _id: 1 })
       .lean();
     if (!users.length) throw new Error("학원에 승인된 활성 테스트 계정을 찾을 수 없습니다.");
-    users.forEach((user) => { user.academyId = academy._id; });
+    const membershipByUserId = new Map(
+      approvedMemberships.map((membership) => [String(membership.studentUserId), membership])
+    );
+    users.forEach((user) => {
+      user.academyId = academy._id;
+      user.classId = membershipByUserId.get(String(user._id))?.classId || null;
+      user.recordedByUserId = academy.createdByUserId;
+    });
     const userIds = users.map((user) => user._id);
 
-    const nonDatasetUsedProblemIds = await ProblemAttempt.distinct("problemId", {
-      userId: { $in: userIds },
-      "problemSnapshot.typeId": { $ne: DATASET_KEY },
-    });
-    const problems = await Problem.find({
-      _id: { $nin: nonDatasetUsedProblemIds },
-      curriculumId: { $type: "string", $ne: "" },
-      courseId: { $type: "string", $ne: "" },
-      unitId: { $type: "string", $ne: "" },
-      primaryConceptId: { $type: "string", $ne: "" },
-    })
-      .select("_id curriculumId courseId unitId primaryConceptId")
-      .sort({ _id: 1 })
-      .limit(resolvePeriod("", now).options.length * MAX_FIRST_ATTEMPTS)
-      .lean();
-
     const runSeed = PROVIDED_RUN_SEED || randomBytes(16).toString("hex");
-    const dataset = buildDataset(users, now, problems, runSeed);
+    const dataset = buildDataset(users, now, runSeed);
     const existingDatasetCounts = {
       learningEvents: await LearningEvent.countDocuments({
         userId: { $in: userIds },
-        "metadata.datasetKey": DATASET_KEY,
+        "metadata.datasetKey": { $in: allDatasetKeys() },
       }),
-      problemAttempts: await ProblemAttempt.countDocuments({
-        userId: { $in: userIds },
-        "problemSnapshot.typeId": DATASET_KEY,
-      }),
+      problemAttempts: await ProblemAttempt.countDocuments(dummyAttemptFilter(userIds)),
       conceptProgress: await ConceptProgress.countDocuments({
         userId: { $in: userIds },
-        curriculumId: DATASET_KEY,
+        curriculumId: { $in: allDatasetKeys() },
         courseId: COURSE_ID,
+      }),
+      attendance: await AcademyAttendance.countDocuments({
+        studentUserId: { $in: userIds },
+        source: "SEED",
       }),
     };
     const preview = {
@@ -652,13 +930,16 @@ async function main() {
       excludedNonTestMemberships: approvedMemberships.length - users.length,
       datasetKey: DATASET_KEY,
       runSeed: dataset.runSeed,
-      actualProblemDocumentsUsed: problems.length,
+      privateMathMapProblemDocuments: dataset.operations.problems.length,
+      mathMapConcepts: MATH_MAP_CONCEPTS.map((concept) => concept.conceptId),
       existingDatasetCounts,
       periodPlans: dataset.periodPlans,
       totalOperations: {
+        problems: dataset.operations.problems.length,
         learningEvents: dataset.operations.learningEvents.length,
         problemAttempts: dataset.operations.problemAttempts.length,
         conceptProgress: dataset.operations.conceptProgress.length,
+        attendance: dataset.operations.attendance.length,
       },
     };
 
@@ -681,7 +962,7 @@ async function main() {
     });
     const verification = [];
     for (const period of dataset.periods) {
-      verification.push(await verifyAcademyUserConnection({ academy, period, now }));
+      verification.push(await verifyAcademyUserConnection({ academy, period, now, requireMathMap: true }));
     }
     console.log(JSON.stringify({
       ...preview,
@@ -691,7 +972,10 @@ async function main() {
       completed: verification.every((item) =>
         item.connectionVerified &&
         item.problemReferencesVerified &&
-        item.perStudentRandomData.allDummyStudentsHaveRecords
+        item.perStudentRandomData.allDummyStudentsHaveRecords &&
+        item.mathMap.allStudentsHaveMathMap &&
+        item.mathMap.statusVarietyVerified &&
+        item.mathMap.classBottleneckVerified
       ),
     }, null, 2));
   } finally {
@@ -709,7 +993,9 @@ if (require.main === module) {
 
 module.exports = {
   DATASET_KEY,
+  MATH_MAP_CONCEPTS,
   buildDataset,
+  buildMathMapProblemCatalog,
   createSeededRandom,
   deterministicObjectId,
 };

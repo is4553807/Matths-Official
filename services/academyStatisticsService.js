@@ -4,10 +4,13 @@ const {
   LearningEvent,
   ProblemAttempt,
 } = require("../models/matthsModel");
+const { loadCurriculum } = require("./curriculumService");
 
 const KST_TIME_ZONE = "Asia/Seoul";
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const VISIBLE_PERIOD_COUNT = 2;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
 const DEFINITIVE_ACTIVITY_EVENT_TYPES = [
   "problem-attempted",
   "problem-correct",
@@ -109,6 +112,111 @@ function average(total, denominator) {
 function formatAverage(value, suffix) {
   if (value === null || value === undefined) return "—";
   return `${Number.isInteger(value) ? value : value.toFixed(1)}${suffix}`;
+}
+
+let conceptMetadataCache = null;
+
+function conceptMetadataIndex() {
+  if (conceptMetadataCache) return conceptMetadataCache;
+  const curriculum = loadCurriculum();
+  const index = new Map();
+  (curriculum.courses || []).forEach((course) => {
+    (course.units || []).forEach((unit) => {
+      (unit.concepts || []).forEach((concept) => {
+        index.set(`${course.id}/${unit.id}/${concept.id}`, {
+          courseTitle: course.officialTitle || course.title || course.id,
+          unitTitle: unit.title || unit.id,
+          conceptTitle: concept.title || concept.id,
+        });
+      });
+    });
+  });
+  conceptMetadataCache = index;
+  return conceptMetadataCache;
+}
+
+function readableIdentifier(value) {
+  return String(value || "개념")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function metadataForConcept({ courseId, unitId, conceptId }) {
+  const metadata = conceptMetadataIndex().get(`${courseId}/${unitId}/${conceptId}`);
+  return metadata || {
+    courseTitle: readableIdentifier(courseId),
+    unitTitle: readableIdentifier(unitId),
+    conceptTitle: readableIdentifier(conceptId),
+  };
+}
+
+function expectedLearningDays(period) {
+  const elapsedDays = Math.max(
+    1,
+    Math.ceil((period.reportCutoff.getTime() - period.start.getTime()) / DAY_MS)
+  );
+  return Math.min(12, Math.max(2, Math.ceil((elapsedDays / 7) * 3)));
+}
+
+function weightedScore(parts) {
+  const available = parts.filter((part) => Number.isFinite(part.value));
+  const totalWeight = available.reduce((sum, part) => sum + part.weight, 0);
+  if (!totalWeight) return 0;
+  return Math.round(
+    available.reduce((sum, part) => sum + part.value * part.weight, 0) / totalWeight
+  );
+}
+
+function healthState(score) {
+  if (score >= 80) return { key: "HEALTHY", label: "건강" };
+  if (score >= 60) return { key: "WATCH", label: "관찰" };
+  return { key: "RISK", label: "주의" };
+}
+
+function calculateLearningHealth(record, targetLearningDays) {
+  if (!record.hasActivity) {
+    return {
+      score: 0,
+      ...healthState(0),
+      confidence: 0,
+      components: { engagement: 0, accuracy: null, review: null, recovery: null },
+    };
+  }
+  const engagement = Math.min(
+    100,
+    Math.round((record.activeLearningDays / Math.max(1, targetLearningDays)) * 100)
+  );
+  const accuracy = percentage(record.firstAttemptCorrect, record.firstAttempts);
+  const review = record.wrongAnswers
+    ? percentage(record.reviewedWrongAnswers, record.wrongAnswers)
+    : record.firstAttempts
+      ? 100
+      : null;
+  const recovery = percentage(record.successfulRetries, record.retriedWrongAnswers);
+  const score = weightedScore([
+    { value: engagement, weight: 30 },
+    { value: accuracy, weight: 35 },
+    { value: review, weight: 20 },
+    { value: recovery, weight: 15 },
+  ]);
+  const confidence = Math.round(
+    Math.min(1, record.firstAttempts / 10) * 70 +
+    Math.min(1, record.activeLearningDays / 4) * 30
+  );
+  return {
+    score,
+    ...healthState(score),
+    confidence,
+    components: { engagement, accuracy, review, recovery },
+  };
+}
+
+function averageAvailable(values) {
+  const available = values.filter((value) => Number.isFinite(value));
+  return available.length
+    ? Math.round(available.reduce((sum, value) => sum + value, 0) / available.length)
+    : null;
 }
 
 function buildSummary({ period, values, samples, hasActivity }) {
@@ -290,6 +398,19 @@ async function getStudentMonthlyStatistics({ studentUserId, periodKey, now = new
     retriedWrongAnswers: Number(retries.total || 0),
     successfulRetries: Number(retries.correct || 0),
   };
+  const health = calculateLearningHealth(
+    {
+      hasActivity,
+      activeLearningDays: activityDayKeys.size,
+      firstAttempts: samples.firstAttempts,
+      firstAttemptCorrect: samples.firstAttemptCorrect,
+      wrongAnswers: samples.wrongAnswers,
+      reviewedWrongAnswers: samples.reviewedWrongAnswers,
+      retriedWrongAnswers: samples.retriedWrongAnswers,
+      successfulRetries: samples.successfulRetries,
+    },
+    expectedLearningDays(period)
+  );
   const summary = buildSummary({ period, values, samples, hasActivity });
 
   return {
@@ -302,6 +423,7 @@ async function getStudentMonthlyStatistics({ studentUserId, periodKey, now = new
     hasActivity,
     values,
     samples,
+    health,
     cards: [
       { label: "학습일", value: formatMetric(values.activeLearningDays, "일"), detail: "의미 있는 월간 학습일" },
       { label: "완료 개념", value: formatMetric(values.completedConcepts, "개"), detail: "기간 안에 완료 처리" },
@@ -309,6 +431,7 @@ async function getStudentMonthlyStatistics({ studentUserId, periodKey, now = new
       { label: "첫 시도 정답률", value: formatMetric(values.firstAttemptAccuracy, "%"), detail: metricDetail("첫 제출 기준", samples.firstAttempts) },
       { label: "오답 복습률", value: formatMetric(values.wrongAnswerReviewRate, "%"), detail: metricDetail("새로 발생한 오답", samples.wrongAnswers) },
       { label: "재도전 성공률", value: formatMetric(values.retrySuccessRate, "%"), detail: metricDetail("재도전한 오답", samples.retriedWrongAnswers) },
+      { label: "학습 건강도", value: hasActivity ? `${health.score}점` : "—", detail: hasActivity ? `${health.label} · 데이터 신뢰도 ${health.confidence}%` : "학습 기록 필요" },
     ],
     summary,
   };
@@ -447,6 +570,48 @@ async function getAcademyMonthlyStatistics({ studentUserIds, periodKey, now = ne
                 { $group: { _id: { userId: "$userId", sourceId: "$reviewSourceAttemptId" }, succeeded: { $max: { $cond: ["$isCorrect", 1, 0] } } } },
                 { $group: { _id: "$_id.userId", total: { $sum: 1 }, correct: { $sum: "$succeeded" } } },
               ],
+              heatmap: [
+                { $match: { reviewSourceAttemptId: null, attemptNumber: 1 } },
+                {
+                  $match: {
+                    conceptId: { $type: "string", $ne: "" },
+                    courseId: { $type: "string", $ne: "" },
+                    unitId: { $type: "string", $ne: "" },
+                  },
+                },
+                {
+                  $group: {
+                    _id: {
+                      courseId: "$courseId",
+                      unitId: "$unitId",
+                      conceptId: "$conceptId",
+                    },
+                    attempts: { $sum: 1 },
+                    correct: { $sum: { $cond: ["$isCorrect", 1, 0] } },
+                    studentIds: { $addToSet: "$userId" },
+                  },
+                },
+              ],
+              growth: [
+                { $match: { reviewSourceAttemptId: null, attemptNumber: 1 } },
+                {
+                  $group: {
+                    _id: {
+                      $floor: {
+                        $divide: [
+                          { $subtract: ["$submittedAt", period.start] },
+                          WEEK_MS,
+                        ],
+                      },
+                    },
+                    attempts: { $sum: 1 },
+                    correct: { $sum: { $cond: ["$isCorrect", 1, 0] } },
+                    problemIds: { $addToSet: "$problemId" },
+                    studentIds: { $addToSet: "$userId" },
+                  },
+                },
+                { $sort: { _id: 1 } },
+              ],
             },
           },
         ]),
@@ -526,10 +691,11 @@ async function getAcademyMonthlyStatistics({ studentUserIds, periodKey, now = ne
     if (record) record.completedConcepts = Number(row.total || 0);
   });
 
+  const healthTargetLearningDays = expectedLearningDays(period);
   const students = [...records.values()].map((record) => {
     const activeLearningDays = record.activityDays.size;
     const hasActivity = activeLearningDays > 0 || record.uniqueProblems > 0 || record.completedConcepts > 0;
-    return {
+    const student = {
       ...record,
       activityDays: undefined,
       activeLearningDays,
@@ -538,6 +704,8 @@ async function getAcademyMonthlyStatistics({ studentUserIds, periodKey, now = ne
       wrongAnswerReviewRate: percentage(record.reviewedWrongAnswers, record.wrongAnswers),
       retrySuccessRate: percentage(record.successfulRetries, record.retriedWrongAnswers),
     };
+    student.health = calculateLearningHealth(student, healthTargetLearningDays);
+    return student;
   });
   const samples = students.reduce(
     (totals, student) => {
@@ -560,6 +728,28 @@ async function getAcademyMonthlyStatistics({ studentUserIds, periodKey, now = ne
   );
   const totalStudents = students.length;
   const activeStudents = students.filter((student) => student.hasActivity).length;
+  const healthDistribution = students.reduce(
+    (distribution, student) => {
+      distribution[student.health.key] += 1;
+      return distribution;
+    },
+    { HEALTHY: 0, WATCH: 0, RISK: 0 }
+  );
+  const health = {
+    score: totalStudents
+      ? Math.round(students.reduce((sum, student) => sum + student.health.score, 0) / totalStudents)
+      : null,
+    distribution: healthDistribution,
+    components: {
+      engagement: averageAvailable(students.map((student) => student.health.components.engagement)),
+      accuracy: averageAvailable(students.map((student) => student.health.components.accuracy)),
+      review: averageAvailable(students.map((student) => student.health.components.review)),
+      recovery: averageAvailable(students.map((student) => student.health.components.recovery)),
+    },
+    dataCoverage: totalStudents ? percentage(activeStudents, totalStudents) : 0,
+    targetLearningDays: healthTargetLearningDays,
+  };
+  Object.assign(health, healthState(health.score || 0));
   const values = {
     totalStudents,
     activeStudents,
@@ -603,6 +793,54 @@ async function getAcademyMonthlyStatistics({ studentUserIds, periodKey, now = ne
     attentionCount: attentionStudents.length,
     scopeLabel,
   });
+  if (totalStudents) {
+    summary.bullets.splice(Math.max(0, summary.bullets.length - 1), 0, {
+      label: "학습 건강도",
+      text: `${scopeLabel} 평균은 ${health.score}점(${health.label})이며 건강 ${health.distribution.HEALTHY}명, 관찰 ${health.distribution.WATCH}명, 주의 ${health.distribution.RISK}명입니다.`,
+    });
+  }
+
+  const analyticsFacets = attemptFacets;
+  const heatmapItems = (analyticsFacets.heatmap || [])
+    .map((row) => {
+      const attempts = Number(row.attempts || 0);
+      const accuracy = percentage(row.correct, attempts);
+      const metadata = metadataForConcept(row._id || {});
+      return {
+        key: `${row._id?.courseId || ""}/${row._id?.unitId || ""}/${row._id?.conceptId || ""}`,
+        ...metadata,
+        attempts,
+        correct: Number(row.correct || 0),
+        accuracy,
+        weakness: accuracy === null ? null : 100 - accuracy,
+        studentCount: Array.isArray(row.studentIds) ? row.studentIds.length : 0,
+      };
+    })
+    .sort((left, right) =>
+      (left.accuracy ?? 101) - (right.accuracy ?? 101) ||
+      right.attempts - left.attempts ||
+      left.conceptTitle.localeCompare(right.conceptTitle, "ko")
+    )
+    .slice(0, 18);
+  const visibleWeekCount = Math.max(
+    1,
+    Math.min(5, Math.ceil((period.reportCutoff.getTime() - period.start.getTime()) / WEEK_MS))
+  );
+  const growthByWeek = new Map(
+    (analyticsFacets.growth || []).map((row) => [Number(row._id), row])
+  );
+  const growthPoints = Array.from({ length: visibleWeekCount }, (_, index) => {
+    const row = growthByWeek.get(index);
+    const attempts = Number(row?.attempts || 0);
+    return {
+      week: index + 1,
+      label: `${index + 1}주`,
+      attempts,
+      uniqueProblems: Array.isArray(row?.problemIds) ? row.problemIds.length : 0,
+      activeStudents: Array.isArray(row?.studentIds) ? row.studentIds.length : 0,
+      accuracy: percentage(row?.correct, attempts),
+    };
+  });
 
   return {
     period: {
@@ -614,12 +852,18 @@ async function getAcademyMonthlyStatistics({ studentUserIds, periodKey, now = ne
     hasActivity: activeStudents > 0,
     values,
     samples,
-    cards: [
-      {
-        label: scopeLabel === "반" ? "반 학생" : "승인 학생",
-        value: `${totalStudents}명`,
-        detail: scopeLabel === "반" ? "현재 반에 배정된 승인 학생" : "현재 승인된 전체 학생",
+    health,
+    analytics: {
+      heatmap: {
+        items: heatmapItems,
+        measuredConcepts: (analyticsFacets.heatmap || []).length,
       },
+      growth: {
+        points: growthPoints,
+      },
+    },
+    cards: [
+      { label: "학습 건강도", value: health.score === null ? "—" : `${health.score}점`, detail: totalStudents ? `${health.label} · 데이터 반영 ${health.dataCoverage}%` : "승인 학생 없음" },
       { label: "학습 참여 학생", value: `${activeStudents}명`, detail: totalStudents ? `${values.participationRate}% 참여` : "승인 학생 없음" },
       { label: "평균 학습일", value: formatAverage(values.averageLearningDays, "일"), detail: "학생 1인당 · 미학습 0일 포함" },
       { label: "오답 복습률", value: formatMetric(values.wrongAnswerReviewRate, "%"), detail: samples.wrongAnswers ? `전체 오답 ${samples.wrongAnswers}개 기준` : "새 오답 없음" },
@@ -635,7 +879,9 @@ module.exports = {
   _private: {
     buildAcademySummary,
     buildSummary,
+    calculateLearningHealth,
     createPeriodOptions,
+    expectedLearningDays,
     getKstMonthKey,
     resolvePeriod,
   },

@@ -1,6 +1,7 @@
 <%
   const academy = detail.academy;
   const statistics = detail.statistics;
+  const mathMap = detail.mathMap || { overallMastery: null, analyzedConceptCount: 0, totalStudents: 0, concepts: [], graphVersion: "—", modelVersion: "—" };
   const statusLabels = { PENDING: "승인 대기", ACTIVE: "운영 중", PAUSED: "운영 중지", REJECTED: "승인 거절" };
   const staffRoleLabels = { OWNER: "원장", TEACHER: "교사" };
   const staffStatusLabels = { PENDING: "승인 대기", ACTIVE: "활성", REJECTED: "승인 거절", REVOKED: "소속 해제" };
@@ -48,7 +49,7 @@
           <div><p>SUPER ADMIN · FULL ACCESS</p><h1><%= academy.name %></h1><b class="admin-academy-status is-<%= String(academy.status).toLowerCase() %>"><%= statusLabels[academy.status] || academy.status %></b></div>
         </div>
         <nav aria-label="학원 상세 영역">
-          <a href="#academy-control">기본·운영</a><a href="#academy-statistics">평균 통계</a><a href="#academy-staff">선생님</a><a href="#academy-students">학생</a><a href="#academy-classes">반</a><a href="#academy-invites">초대</a>
+          <a href="#academy-control">기본·운영</a><a href="#academy-statistics">평균·Math Map</a><a href="#academy-staff">선생님</a><a href="#academy-students">학생</a><a href="#academy-classes">반</a><a href="#academy-invites">초대</a>
         </nav>
       </header>
 
@@ -121,6 +122,11 @@
             <% statistics.attentionStudents.slice(0, 10).forEach((item) => { const student = item.membership?.studentUserId; %><a href="/admin/users/<%= student?._id %>"><strong><%= personName(student) %></strong><span><%= (item.reasons || []).join(" · ") %></span></a><% }) %>
             <% if (statistics.attentionStudents.length > 10) { %><small>외 <%= statistics.attentionStudents.length - 10 %>명은 아래 학생 목록에서 확인할 수 있습니다.</small><% } %>
           </article>
+        </div>
+        <div class="admin-academy-math-map">
+          <header><div><h3>규칙 기반 Math Map</h3><p>Unknown을 제외한 학원 평균 숙달도와 학생 분석 표본입니다.</p></div><strong><%= mathMap.overallMastery === null ? "분석 전" : `${mathMap.overallMastery}%` %></strong></header>
+          <p>그래프 <%= mathMap.graphVersion %> · 계산 모델 <%= mathMap.modelVersion %> · 승인 학생 <%= mathMap.totalStudents %>명 · 분석 개념 <%= mathMap.analyzedConceptCount %>개</p>
+          <% if (mathMap.concepts.length) { %><div class="admin-academy-table-wrap"><table class="admin-academy-data-table"><thead><tr><th>개념</th><th>평균 숙달도</th><th>분석 표본</th><th>숙달</th><th>성장 중</th><th>보완 필요</th><th>Unknown</th></tr></thead><tbody><% mathMap.concepts.forEach((concept) => { %><tr><td><strong><%= concept.title %></strong><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small></td><td><%= concept.mastery === null ? "Unknown" : `${concept.mastery}%` %></td><td><%= concept.analyzedCount %>/<%= concept.totalStudents %>명</td><td><%= concept.statusCounts.MASTERED %>명</td><td><%= concept.statusCounts.DEVELOPING %>명</td><td><%= concept.statusCounts.WEAK %>명</td><td><%= concept.statusCounts.UNKNOWN %>명</td></tr><% }) %></tbody></table></div><% } else { %><div class="admin-empty">개념별 풀이 데이터가 없습니다.</div><% } %>
         </div>
       </section>
 

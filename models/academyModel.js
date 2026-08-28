@@ -357,6 +357,78 @@ const academyInviteSchema = new Schema(
   { timestamps: true, versionKey: false }
 );
 
+const academyAttendanceSchema = new Schema(
+  {
+    academyId: {
+      type: Schema.Types.ObjectId,
+      ref: "Academy",
+      required: true,
+      index: true,
+    },
+    studentUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    classId: {
+      type: Schema.Types.ObjectId,
+      ref: "AcademyClass",
+      default: null,
+      index: true,
+    },
+    dateKey: {
+      type: String,
+      required: true,
+      match: /^\d{4}-\d{2}-\d{2}$/,
+      index: true,
+    },
+    status: {
+      type: String,
+      enum: ["PRESENT", "LATE", "ABSENT", "EXCUSED"],
+      required: true,
+      index: true,
+    },
+    checkedInAt: {
+      type: Date,
+      default: null,
+    },
+    checkedOutAt: {
+      type: Date,
+      default: null,
+    },
+    note: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: "",
+    },
+    recordedByUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    source: {
+      type: String,
+      enum: ["MANUAL", "SEED"],
+      default: "MANUAL",
+    },
+    seedRunId: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+      default: null,
+    },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+academyAttendanceSchema.index(
+  { academyId: 1, studentUserId: 1, dateKey: 1 },
+  { unique: true }
+);
+academyAttendanceSchema.index({ academyId: 1, dateKey: 1, classId: 1, status: 1 });
+
 const Academy = mongoose.models.Academy || mongoose.model("Academy", academySchema);
 const AcademyStaff = mongoose.models.AcademyStaff || mongoose.model("AcademyStaff", academyStaffSchema);
 const AcademyClass = mongoose.models.AcademyClass || mongoose.model("AcademyClass", academyClassSchema);
@@ -364,6 +436,9 @@ const AcademyStudentMembership =
   mongoose.models.AcademyStudentMembership ||
   mongoose.model("AcademyStudentMembership", academyStudentMembershipSchema);
 const AcademyInvite = mongoose.models.AcademyInvite || mongoose.model("AcademyInvite", academyInviteSchema);
+const AcademyAttendance =
+  mongoose.models.AcademyAttendance ||
+  mongoose.model("AcademyAttendance", academyAttendanceSchema);
 
 module.exports = {
   Academy,
@@ -371,4 +446,5 @@ module.exports = {
   AcademyClass,
   AcademyStudentMembership,
   AcademyInvite,
+  AcademyAttendance,
 };

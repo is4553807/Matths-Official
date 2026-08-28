@@ -2107,7 +2107,36 @@ app.get("/preview/admin/arena-match-history", (_req, res) => {
   });
 });
 
-app.get("/preview/academy", (_req, res) => {
+app.get("/preview/academy", (req, res) => {
+  const academyClass = { _id: "64b000000000000000000811", name: "고1 월수반" };
+  const previewStudents = [
+    ["64b000000000000000000821", "이민준", 10, "평촌고등학교", "PRESENT", ""],
+    ["64b000000000000000000822", "박서연", 10, "경기외국어고등학교", "LATE", "교통 지연"],
+    ["64b000000000000000000823", "김도윤", 11, "백영고등학교", "ABSENT", "연락 확인 중"],
+    ["64b000000000000000000824", "최지우", 10, "동안고등학교", "PRESENT", ""],
+    ["64b000000000000000000825", "정하준", 12, "평촌고등학교", null, ""],
+    ["64b000000000000000000826", "한예린", 11, "경기외국어고등학교", "EXCUSED", "학교 행사"],
+  ].map(([id, realName, schoolGrade, schoolName, status, note], index) => ({
+    membership: {
+      _id: `64b00000000000000000083${index}`,
+      classId: academyClass,
+      studentUserId: {
+        _id: id,
+        name: `preview-student-${index + 1}`,
+        realName,
+        schoolGrade,
+        school: { name: schoolName, region: "경기도" },
+      },
+    },
+    attendance: status
+      ? {
+          status,
+          note,
+          checkedInAt: status === "PRESENT" || status === "LATE" ? new Date(`2026-08-29T0${index + 1}:20:00+09:00`) : null,
+        }
+      : null,
+  }));
+  const activeAcademyPage = req.query.tab === "attendance" ? "attendance" : "dashboard";
   res.render("academy", {
     user: {
       id: "64b000000000000000000801",
@@ -2115,11 +2144,98 @@ app.get("/preview/academy", (_req, res) => {
       realName: "김선생",
       role: "teacher",
     },
-    activeAcademyPage: "dashboard",
+    activeAcademyPage,
     portal: {
-      academy: { name: "평촌 하이수학" },
+      academy: { _id: "64b000000000000000000810", name: "평촌 하이수학" },
       pendingCount: 3,
+      staffPendingCount: 0,
+      isOwner: true,
+      classes: [academyClass],
+      students: previewStudents.map((item) => item.membership),
+      requests: [],
+      invites: [],
+      activeStaff: [],
+      staffRequests: [],
     },
+    statistics: {
+      period: {
+        key: "2026-08",
+        label: "2026년 8월 (이번 달)",
+        options: [{ key: "2026-08", label: "2026년 8월 (이번 달)" }],
+      },
+      cards: [
+        { label: "학습 건강도", value: "72점", detail: "관찰 · 데이터 반영 92%" },
+        { label: "학습 참여 학생", value: "23명", detail: "92% 참여" },
+        { label: "평균 학습일", value: "8.4일", detail: "학생 1인당 · 미학습 0일 포함" },
+        { label: "오답 복습률", value: "76%", detail: "전체 오답 184개 기준" },
+      ],
+      health: {
+        score: 72,
+        key: "WATCH",
+        label: "관찰",
+        dataCoverage: 92,
+        targetLearningDays: 12,
+        distribution: { HEALTHY: 12, WATCH: 8, RISK: 5 },
+        components: { engagement: 78, accuracy: 71, review: 76, recovery: 62 },
+      },
+      analytics: {
+        growth: {
+          points: [
+            { label: "1주", attempts: 118, uniqueProblems: 91, activeStudents: 18, accuracy: 64 },
+            { label: "2주", attempts: 146, uniqueProblems: 108, activeStudents: 21, accuracy: 69 },
+            { label: "3주", attempts: 171, uniqueProblems: 126, activeStudents: 23, accuracy: 74 },
+            { label: "4주", attempts: 158, uniqueProblems: 119, activeStudents: 22, accuracy: 79 },
+            { label: "5주", attempts: 62, uniqueProblems: 48, activeStudents: 15, accuracy: 82 },
+          ],
+        },
+        heatmap: {
+          measuredConcepts: 12,
+          items: [
+            ["공통수학1", "방정식과 부등식", "이차함수와 직선의 위치 관계", 42, 31, 12],
+            ["공통수학1", "경우의 수", "순열과 조합", 49, 28, 11],
+            ["대수", "지수함수와 로그함수", "로그의 뜻과 성질", 55, 34, 14],
+            ["공통수학1", "다항식", "항등식과 나머지정리", 61, 41, 17],
+            ["확률과 통계", "확률", "조건부확률", 66, 29, 10],
+            ["대수", "수열", "수열의 귀납적 정의", 70, 37, 15],
+            ["공통수학1", "행렬", "행렬의 곱셈", 73, 45, 19],
+            ["미적분Ⅰ", "미분", "함수의 증가와 감소", 78, 33, 13],
+            ["공통수학1", "다항식", "다항식의 사칙연산", 82, 52, 21],
+            ["대수", "수열", "등차수열", 86, 48, 20],
+            ["확률과 통계", "통계", "정규분포", 91, 36, 15],
+            ["미적분Ⅰ", "적분", "정적분의 활용", 94, 31, 12],
+          ].map(([courseTitle, unitTitle, conceptTitle, accuracy, attempts, studentCount], index) => ({
+            key: `preview-${index}`,
+            courseTitle,
+            unitTitle,
+            conceptTitle,
+            accuracy,
+            weakness: 100 - accuracy,
+            attempts,
+            correct: Math.round((accuracy / 100) * attempts),
+            studentCount,
+          })),
+        },
+      },
+      summary: {
+        bullets: [
+          { label: "학습 참여", text: "승인 학생 25명 중 23명이 학습해 참여율은 92%입니다." },
+          { label: "학습 건강도", text: "학원 평균은 72점이며 주의 학생은 5명입니다." },
+          { label: "다음 운영 방향", text: "이차함수와 순열·조합 취약 학생을 먼저 확인하는 것이 좋습니다." },
+        ],
+      },
+      attentionStudents: [],
+    },
+    attendance: {
+      dateKey: "2026-08-29",
+      todayKey: "2026-08-29",
+      classes: [academyClass],
+      selectedClass: academyClass,
+      roster: previewStudents,
+      counts: { TOTAL: 6, PRESENT: 2, LATE: 1, ABSENT: 1, EXCUSED: 1, UNRECORDED: 1 },
+    },
+    studentPage: null,
+    feedback: null,
+    createdInviteId: "",
   });
 });
 

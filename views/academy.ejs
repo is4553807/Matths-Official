@@ -31,6 +31,33 @@
   };
   const overviewCards = dashboardStatistics?.cards || [];
   const summaryRows = dashboardStatistics?.summary?.bullets || [];
+  const dashboardAnalytics = dashboardStatistics?.analytics || {
+    heatmap: { items: [], measuredConcepts: 0 },
+    growth: { points: [] },
+  };
+  const dashboardAnalyticsJson = JSON.stringify(dashboardAnalytics).replace(/</g, "\\u003c");
+  const dashboardMathMap = dashboardStatistics?.mathMap || {
+    graphVersion: "kr-2022-math-graph-v1.0",
+    modelVersion: "v1.0",
+    analyzedConceptCount: 0,
+    totalStudents: 0,
+  };
+  const learningHealth = dashboardStatistics?.health || {
+    score: null,
+    label: "데이터 없음",
+    dataCoverage: 0,
+    targetLearningDays: 0,
+    distribution: { HEALTHY: 0, WATCH: 0, RISK: 0 },
+    components: { engagement: null, accuracy: null, review: null, recovery: null },
+  };
+  const attendanceData = typeof attendance !== "undefined" && attendance ? attendance : {
+    dateKey: "",
+    todayKey: "",
+    classes: [],
+    selectedClass: null,
+    roster: [],
+    counts: { TOTAL: 0, PRESENT: 0, LATE: 0, ABSENT: 0, EXCUSED: 0, UNRECORDED: 0 },
+  };
   const gradeLabelFor = (grade) => ({
     10: "고1",
     11: "고2",
@@ -43,6 +70,10 @@
   const formatDate = (date) => date
     ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(date))
     : "—";
+  const formatTime = (date) => date
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(date))
+    : "—";
+  const attendanceStatusLabel = { PRESENT: "출석", LATE: "지각", ABSENT: "결석", EXCUSED: "사유 결석" };
   const sourceLabel = { PROFILE: "프로필 선택", INVITE_CODE: "초대 코드", INVITE_LINK: "초대 링크" };
   const inviteStateLabel = { ACTIVE: "사용 가능", REVOKED: "비활성", EXPIRED: "기간 만료", EXHAUSTED: "사용 완료" };
 %>
@@ -84,6 +115,7 @@
         </div>
         <nav aria-label="학원 관리 메뉴">
           <a class="<%= currentTab === 'dashboard' ? 'active' : '' %>" href="/academy?tab=dashboard">대시보드</a>
+          <a class="<%= currentTab === 'attendance' ? 'active' : '' %>" href="/academy?tab=attendance">출결 관리</a>
           <a class="<%= currentTab === 'students' ? 'active' : '' %>" href="/academy?tab=students">학생 관리</a>
           <a class="<%= currentTab === 'requests' ? 'active' : '' %>" href="/academy?tab=requests">승인 요청 <% if (pendingCount) { %><b><%= pendingCount %></b><% } %></a>
           <a class="<%= currentTab === 'classes' ? 'active' : '' %>" href="/academy?tab=classes">반 관리</a>
@@ -122,6 +154,45 @@
             <% }) %>
           </section>
 
+          <section class="academy-analytics-grid" aria-label="학원 학습 분석">
+            <article class="academy-panel academy-health-panel">
+              <header><div><p>LEARNING HEALTH</p><h2>학습 건강도</h2></div><span class="academy-status-chip is-health-<%= String(learningHealth.key || 'RISK').toLowerCase() %>"><%= learningHealth.label %></span></header>
+              <div class="academy-health-overview">
+                <div class="academy-health-ring" style="--health-score: <%= Number(learningHealth.score) || 0 %>" role="img" aria-label="학습 건강도 <%= learningHealth.score === null ? '데이터 없음' : `${learningHealth.score}점` %>">
+                  <strong><%= learningHealth.score === null ? "—" : learningHealth.score %></strong><small>/ 100</small>
+                </div>
+                <div class="academy-health-distribution">
+                  <div><span class="is-healthy"></span><small>건강</small><strong><%= learningHealth.distribution.HEALTHY %>명</strong></div>
+                  <div><span class="is-watch"></span><small>관찰</small><strong><%= learningHealth.distribution.WATCH %>명</strong></div>
+                  <div><span class="is-risk"></span><small>주의</small><strong><%= learningHealth.distribution.RISK %>명</strong></div>
+                </div>
+              </div>
+              <dl class="academy-health-components">
+                <div><dt>학습 참여</dt><dd><%= learningHealth.components.engagement ?? "—" %><%= learningHealth.components.engagement === null ? "" : "%" %></dd></div>
+                <div><dt>첫 시도 정확도</dt><dd><%= learningHealth.components.accuracy ?? "—" %><%= learningHealth.components.accuracy === null ? "" : "%" %></dd></div>
+                <div><dt>오답 복습</dt><dd><%= learningHealth.components.review ?? "—" %><%= learningHealth.components.review === null ? "" : "%" %></dd></div>
+                <div><dt>재도전 회복</dt><dd><%= learningHealth.components.recovery ?? "—" %><%= learningHealth.components.recovery === null ? "" : "%" %></dd></div>
+              </dl>
+              <p class="academy-health-note">선택 기간 목표 학습일 <strong><%= learningHealth.targetLearningDays %>일</strong>을 기준으로 참여 30%, 정확도 35%, 복습 20%, 재도전 15%를 가중 계산합니다. 기록이 없는 학생은 0점으로 평균에 포함됩니다.</p>
+            </article>
+
+            <article class="academy-panel academy-chart-panel">
+              <header><div><p>GROWTH TREND</p><h2>주차별 성장 그래프</h2></div><span class="academy-status-chip"><%= dashboardStatistics.period.label %></span></header>
+              <div class="academy-chart-legend" aria-hidden="true"><span class="is-accuracy">첫 시도 정답률</span><span class="is-volume">풀이 문제 수</span></div>
+              <div class="academy-growth-chart" data-academy-growth-chart role="img" aria-label="주차별 첫 시도 정답률과 문제 풀이량 성장 그래프"></div>
+              <p class="academy-chart-note">선은 첫 시도 정답률, 막대는 중복을 제외한 문제 수입니다. 기록이 없는 주차는 0문제로 표시합니다.</p>
+            </article>
+          </section>
+
+          <section class="academy-panel academy-heatmap-panel">
+            <header><div><p>RULE-BASED MATH MAP</p><h2>학습 약점 Heat Map</h2></div><span class="academy-status-chip"><%= dashboardAnalytics.heatmap.measuredConcepts %>개 개념 분석</span></header>
+            <div class="academy-heatmap-legend" aria-hidden="true"><span>취약</span><i class="level-1"></i><i class="level-2"></i><i class="level-3"></i><i class="level-4"></i><i class="level-5"></i><span>안정</span></div>
+            <div class="academy-heatmap-chart" data-academy-heatmap-chart role="img" aria-label="개념별 규칙 기반 숙달도 학습 약점 히트맵"></div>
+            <p class="academy-chart-note">학생별 최근 유효 풀이 최대 20개에서 난이도·최신성·재도전 회복을 반영한 숙달도 평균입니다. 풀이 5개 미만인 학생은 Unknown으로 평균에서 제외합니다. <%= dashboardMathMap.graphVersion %> · <%= dashboardMathMap.modelVersion %></p>
+          </section>
+
+          <script type="application/json" data-academy-analytics-data><%- dashboardAnalyticsJson %></script>
+
           <div class="academy-dashboard-grid">
             <section class="academy-panel academy-summary-panel">
               <header><div><p>MONTHLY SUMMARY</p><h2>학원 전체 Summary</h2></div><span class="academy-status-chip"><%= dashboardStatistics.period.label %></span></header>
@@ -148,6 +219,69 @@
               <a href="/academy?tab=students">전체 학생 목록 보기 <span>→</span></a>
             </aside>
           </div>
+        <% } %>
+
+        <% if (currentTab === "attendance") { %>
+          <header class="academy-heading">
+            <div><p>ATTENDANCE</p><h1>학원 출결 관리</h1><span>날짜와 반을 선택하고 학생별 출석·지각·결석 상태를 한 번에 기록합니다.</span></div>
+            <form class="academy-period academy-attendance-filter" action="/academy" method="GET">
+              <input type="hidden" name="tab" value="attendance" />
+              <label for="academy-attendance-date">출결 날짜</label>
+              <div>
+                <input id="academy-attendance-date" type="date" name="date" value="<%= attendanceData.dateKey %>" required />
+                <select name="classId" aria-label="출결 반 선택">
+                  <option value="">전체 반</option>
+                  <% attendanceData.classes.forEach((academyClass) => { %><option value="<%= academyClass._id %>" <%= String(attendanceData.selectedClass?._id || '') === String(academyClass._id) ? 'selected' : '' %>><%= academyClass.name %></option><% }) %>
+                </select>
+                <button type="submit">조회</button>
+              </div>
+            </form>
+          </header>
+
+          <section class="academy-stat-grid academy-attendance-stats" aria-label="선택 날짜 출결 요약">
+            <article><small>전체 학생</small><strong><%= attendanceData.counts.TOTAL %>명</strong><span><%= attendanceData.selectedClass?.name || "전체 반" %> 기준</span></article>
+            <article><small>출석·지각</small><strong><%= attendanceData.counts.PRESENT + attendanceData.counts.LATE %>명</strong><span>출석 <%= attendanceData.counts.PRESENT %> · 지각 <%= attendanceData.counts.LATE %></span></article>
+            <article><small>결석</small><strong><%= attendanceData.counts.ABSENT + attendanceData.counts.EXCUSED %>명</strong><span>결석 <%= attendanceData.counts.ABSENT %> · 사유 <%= attendanceData.counts.EXCUSED %></span></article>
+            <article><small>미기록</small><strong><%= attendanceData.counts.UNRECORDED %>명</strong><span>아직 상태를 저장하지 않은 학생</span></article>
+          </section>
+
+          <section class="academy-panel academy-table-panel academy-attendance-panel">
+            <header><div><p>DAILY ROSTER</p><h2><%= attendanceData.dateKey %> 출결표</h2></div><span class="academy-status-chip"><%= attendanceData.dateKey === attendanceData.todayKey ? "오늘" : "과거 기록" %></span></header>
+            <% if (!attendanceData.roster.length) { %>
+              <div class="academy-empty-state"><span aria-hidden="true">✓</span><strong>표시할 학생이 없습니다</strong><p>선택한 반에 승인된 학생이 있는지 확인해 주세요.</p></div>
+            <% } else { %>
+              <form action="/academy/attendance" method="POST" data-attendance-form>
+                <input type="hidden" name="date" value="<%= attendanceData.dateKey %>" />
+                <input type="hidden" name="classId" value="<%= attendanceData.selectedClass?._id || '' %>" />
+                <div class="academy-attendance-toolbar">
+                  <div><strong>빠른 입력</strong><small>미기록 학생만 출석으로 채운 뒤 필요한 학생의 상태를 수정할 수 있습니다.</small></div>
+                  <button type="button" data-attendance-mark-unrecorded>미기록 전체 출석</button>
+                  <button type="submit">출결 저장</button>
+                </div>
+                <div class="academy-table-wrap">
+                  <table class="academy-attendance-table">
+                    <thead><tr><th>학생</th><th>반</th><th>현재 기록</th><th>출결 상태</th><th>메모</th></tr></thead>
+                    <tbody>
+                      <% attendanceData.roster.forEach((item) => { const membership = item.membership; const student = membership.studentUserId; const record = item.attendance; %>
+                        <tr class="<%= record ? `is-${String(record.status).toLowerCase()}` : 'is-unrecorded' %>">
+                          <td><strong><%= displayStudentName(student) %></strong><small><%= gradeLabelFor(student.schoolGrade) %> · <%= student.school?.name || "학교 미설정" %></small><input type="hidden" name="studentUserIds" value="<%= student._id %>" /></td>
+                          <td><span class="academy-grade-chip"><%= membership.classId?.name || "미배정" %></span></td>
+                          <td><strong><%= record ? attendanceStatusLabel[record.status] : "미기록" %></strong><small><%= record?.checkedInAt ? `${formatTime(record.checkedInAt)} 체크인` : "체크인 없음" %></small></td>
+                          <td>
+                            <select name="statuses" data-attendance-status aria-label="<%= displayStudentName(student) %> 출결 상태">
+                              <option value="" <%= !record ? "selected" : "" %>>미기록</option>
+                              <% Object.entries(attendanceStatusLabel).forEach(([value, label]) => { %><option value="<%= value %>" <%= record?.status === value ? "selected" : "" %>><%= label %></option><% }) %>
+                            </select>
+                          </td>
+                          <td><input type="text" name="notes" value="<%= record?.note || '' %>" maxlength="200" placeholder="선택 사항" aria-label="<%= displayStudentName(student) %> 출결 메모" /></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </form>
+            <% } %>
+          </section>
         <% } %>
 
         <% if (currentTab === "students") { %>

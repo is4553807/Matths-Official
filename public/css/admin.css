@@ -8741,6 +8741,40 @@
   border-radius: 8px;
 }
 
+.admin-academy-math-map {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #e5e8ef;
+}
+
+.admin-academy-math-map > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-academy-math-map h3,
+.admin-academy-math-map p {
+  margin: 0;
+}
+
+.admin-academy-math-map header p,
+.admin-academy-math-map > p {
+  margin-top: 6px;
+  color: #7c8598;
+  font-size: 9px;
+}
+
+.admin-academy-math-map header > strong {
+  color: var(--admin-blue);
+  font-size: 22px;
+}
+
+.admin-academy-math-map .admin-academy-table-wrap {
+  margin-top: 14px;
+}
+
 @media (max-width: 1120px) {
   .admin-academy-list {
     overflow-x: auto;
