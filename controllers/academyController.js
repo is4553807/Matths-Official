@@ -21,7 +21,10 @@ const {
   revokeAcademyStaff,
   revokeAcademyInvite,
 } = require("../services/academyService");
-const { getStudentMonthlyStatistics } = require("../services/academyStatisticsService");
+const {
+  getAcademyMonthlyStatistics,
+  getStudentMonthlyStatistics,
+} = require("../services/academyStatisticsService");
 
 const ACADEMY_TABS = new Set(["dashboard", "students", "requests", "classes", "invites", "teachers"]);
 
@@ -64,10 +67,24 @@ exports.portalPage = async (req, res, next) => {
     const requestedTab = String(req.query.tab || "dashboard");
     const activeAcademyPage = ACADEMY_TABS.has(requestedTab) ? requestedTab : "dashboard";
     const portal = await getAcademyPortalData(req.session.user.id);
+    let statistics = null;
+    if (activeAcademyPage === "dashboard") {
+      statistics = await getAcademyMonthlyStatistics({
+        studentUserIds: portal.students.map((membership) => membership.studentUserId._id),
+        periodKey: req.query.period,
+      });
+      const membershipsByStudentId = new Map(
+        portal.students.map((membership) => [String(membership.studentUserId._id), membership])
+      );
+      statistics.attentionStudents = statistics.attentionStudents
+        .map((item) => ({ ...item, membership: membershipsByStudentId.get(item.studentUserId) }))
+        .filter((item) => item.membership);
+    }
     res.set("Cache-Control", "private, no-store");
     return res.render("academy", {
       user: req.session.user,
       portal,
+      statistics,
       activeAcademyPage,
       feedback: consumeFlash(req),
       createdInviteId: String(req.query.createdInvite || ""),
@@ -123,8 +140,8 @@ exports.createAcademy = async (req, res, next) => {
       teacherUserId: req.session.user.id,
       name: req.body.academyName,
     });
-    await setFlash(req, "success", "학원 관리 페이지를 준비했습니다.");
-    return res.redirect("/academy");
+    await setFlash(req, "success", "학원 등록 요청을 보냈습니다. 운영자 승인 후 학원 관리 페이지가 열립니다.");
+    return res.redirect("/academy/setup");
   } catch (error) {
     if ([400, 409].includes(Number(error.status))) {
       try {

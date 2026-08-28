@@ -1,6 +1,6 @@
 const { randomBytes } = require("node:crypto");
 const mongoose = require("mongoose");
-const { User } = require("../models/matthsModel");
+const { AdminActionLog, User } = require("../models/matthsModel");
 const {
   Academy,
   AcademyStaff,
@@ -51,6 +51,10 @@ function inviteState(invite, now = new Date()) {
 }
 
 async function ensureAcademyIndexes() {
+  await Academy.updateMany(
+    { status: { $exists: false } },
+    { $set: { status: "ACTIVE" } }
+  );
   await AcademyStaff.updateMany(
     {
       status: "ACTIVE",
@@ -88,6 +92,16 @@ async function assertTeacherAccount(teacherUserId) {
   return teacher;
 }
 
+async function assertAdminAccount(adminUserId) {
+  const admin = await User.findById(adminUserId)
+    .select("role isActive accountStatus")
+    .lean();
+  if (!admin || admin.role !== "admin" || admin.isActive === false || admin.accountStatus === "withdrawn") {
+    throw statusError(403, "활성 운영자 계정만 학원 등록 요청을 검토할 수 있습니다.");
+  }
+  return admin;
+}
+
 async function getTeacherAcademyContext(userId, { allowMissing = false } = {}) {
   const staff = await AcademyStaff.findOne({ userId, status: "ACTIVE" })
     .populate("academyId")
@@ -113,15 +127,23 @@ async function createAcademyForTeacher({ teacherUserId, name }) {
 
   const [, existingStaff] = await Promise.all([
     assertTeacherAccount(teacherUserId),
-    AcademyStaff.findOne({ userId: teacherUserId, status: { $in: ["PENDING", "ACTIVE"] } }).lean(),
+    AcademyStaff.findOne({ userId: teacherUserId, status: { $in: ["PENDING", "ACTIVE"] } })
+      .populate("academyId", "name status")
+      .lean(),
   ]);
   if (existingStaff) {
-    throw statusError(409, existingStaff.status === "PENDING" ? "기존 학원 참여 승인을 기다리고 있습니다." : "이미 연결된 학원이 있습니다.");
+    const message = existingStaff.status === "PENDING"
+      ? "기존 학원 참여 승인을 기다리고 있습니다."
+      : existingStaff.academyId?.status === "PENDING"
+        ? "새 학원의 운영자 검토를 기다리고 있습니다."
+        : "이미 연결된 학원이 있습니다.";
+    throw statusError(409, message);
   }
 
   const academy = await Academy.create({
     name: academyName,
     nameNormalized: academyName.toLocaleLowerCase("ko-KR"),
+    status: "PENDING",
     createdByUserId: teacherUserId,
   });
 
@@ -133,7 +155,7 @@ async function createAcademyForTeacher({ teacherUserId, name }) {
       status: "ACTIVE",
       currentStaffKey: String(teacherUserId),
       requestedAt: new Date(),
-      joinedAt: new Date(),
+      joinedAt: null,
     });
   } catch (error) {
     await Academy.deleteOne({ _id: academy._id }).catch(() => {});
@@ -144,9 +166,16 @@ async function createAcademyForTeacher({ teacherUserId, name }) {
 
 async function getTeacherAcademySetupData(teacherUserId) {
   await assertTeacherAccount(teacherUserId);
-  const [pendingRequest, academies] = await Promise.all([
-    AcademyStaff.findOne({ userId: teacherUserId, status: "PENDING" })
+  const [pendingRequest, ownerStaff, rejectedAcademy, academies] = await Promise.all([
+    AcademyStaff.findOne({ userId: teacherUserId, role: "TEACHER", status: "PENDING" })
       .populate("academyId", "name status")
+      .lean(),
+    AcademyStaff.findOne({ userId: teacherUserId, role: "OWNER", status: "ACTIVE" })
+      .populate("academyId", "name status createdAt")
+      .lean(),
+    Academy.findOne({ createdByUserId: teacherUserId, status: "REJECTED" })
+      .sort({ reviewedAt: -1, createdAt: -1 })
+      .select("name status reviewedAt")
       .lean(),
     Academy.find({ status: "ACTIVE" })
       .sort({ name: 1, _id: 1 })
@@ -154,9 +183,117 @@ async function getTeacherAcademySetupData(teacherUserId) {
       .lean(),
   ]);
   return {
+    pendingAcademy: ownerStaff?.academyId?.status === "PENDING" ? ownerStaff.academyId : null,
     pendingRequest: pendingRequest?.academyId ? pendingRequest : null,
+    rejectedAcademy,
     academies,
   };
+}
+
+async function approveAcademyApplication({ adminUserId, academyId }) {
+  await assertAdminAccount(adminUserId);
+  if (!mongoose.isValidObjectId(academyId)) throw statusError(404, "학원 등록 요청을 찾을 수 없습니다.");
+  const application = await Academy.findById(academyId)
+    .select("status createdByUserId")
+    .lean();
+  if (!application) throw statusError(404, "학원 등록 요청을 찾을 수 없습니다.");
+  if (application.status !== "PENDING") throw statusError(409, "이미 처리된 학원 등록 요청입니다.");
+  try {
+    await assertTeacherAccount(application.createdByUserId);
+  } catch (error) {
+    if (Number(error.status) === 403) {
+      throw statusError(409, "신청자의 교사 역할 또는 계정 상태를 다시 확인해 주세요.");
+    }
+    throw error;
+  }
+  const now = new Date();
+  const academy = await Academy.findOneAndUpdate(
+    { _id: academyId, status: "PENDING" },
+    {
+      $set: {
+        status: "ACTIVE",
+        reviewedAt: now,
+        reviewedByUserId: adminUserId,
+        approvedAt: now,
+        rejectedAt: null,
+      },
+    },
+    { returnDocument: "after" }
+  ).lean();
+  if (!academy) {
+    throw statusError(409, "이미 처리된 학원 등록 요청입니다.");
+  }
+
+  const owner = await AcademyStaff.findOneAndUpdate(
+    { academyId: academy._id, role: "OWNER", status: "ACTIVE" },
+    { $set: { joinedAt: now } },
+    { returnDocument: "after" }
+  ).lean();
+  if (!owner) {
+    await Academy.updateOne(
+      { _id: academy._id, status: "ACTIVE", reviewedAt: now },
+      { $set: { status: "PENDING", reviewedAt: null, reviewedByUserId: null, approvedAt: null } }
+    );
+    throw statusError(409, "학원 원장 계정을 확인할 수 없어 승인하지 않았습니다.");
+  }
+
+  await AdminActionLog.create({
+    adminUserId,
+    targetUserId: academy.createdByUserId,
+    action: "academy.application-approved",
+    detail: `${academy.name} 학원 등록 승인`,
+    metadata: { academyId: String(academy._id), academyName: academy.name },
+  });
+  return academy;
+}
+
+async function rejectAcademyApplication({ adminUserId, academyId }) {
+  await assertAdminAccount(adminUserId);
+  if (!mongoose.isValidObjectId(academyId)) throw statusError(404, "학원 등록 요청을 찾을 수 없습니다.");
+  const now = new Date();
+  const academy = await Academy.findOneAndUpdate(
+    { _id: academyId, status: "PENDING" },
+    {
+      $set: {
+        status: "REJECTED",
+        reviewedAt: now,
+        reviewedByUserId: adminUserId,
+        rejectedAt: now,
+        approvedAt: null,
+      },
+    },
+    { returnDocument: "after" }
+  ).lean();
+  if (!academy) {
+    const existing = await Academy.findById(academyId).select("status").lean();
+    if (!existing) throw statusError(404, "학원 등록 요청을 찾을 수 없습니다.");
+    throw statusError(409, "이미 처리된 학원 등록 요청입니다.");
+  }
+
+  const owner = await AcademyStaff.findOneAndUpdate(
+    { academyId: academy._id, role: "OWNER", status: "ACTIVE" },
+    {
+      $set: { status: "REJECTED", rejectedAt: now, reviewedAt: now, reviewedByUserId: adminUserId },
+      $unset: { currentStaffKey: 1 },
+    },
+    { returnDocument: "after" }
+  ).lean();
+  if (!owner) {
+    await Academy.updateOne(
+      { _id: academy._id, status: "REJECTED", reviewedAt: now },
+      { $set: { status: "PENDING", reviewedAt: null, reviewedByUserId: null, rejectedAt: null } }
+    );
+    throw statusError(409, "학원 원장 계정을 확인할 수 없어 거절 처리하지 않았습니다.");
+  }
+
+  await AdminActionLog.create({
+    adminUserId,
+    targetUserId: academy.createdByUserId,
+    action: "academy.application-rejected",
+    detail: `${academy.name} 학원 등록 거절`,
+    metadata: { academyId: String(academy._id), academyName: academy.name },
+  });
+  return academy;
 }
 
 async function requestAcademyStaffJoin({ teacherUserId, academyId }) {
@@ -726,6 +863,7 @@ async function getAcademyStudentDetail({ teacherUserId, membershipId }) {
 module.exports = {
   STAFF_FIELDS,
   STUDENT_FIELDS,
+  approveAcademyApplication,
   approveAcademyStaff,
   approveMembership,
   assignMembershipClass,
@@ -742,6 +880,7 @@ module.exports = {
   getTeacherAcademyContext,
   leaveAcademy,
   rejectAcademyStaff,
+  rejectAcademyApplication,
   rejectMembership,
   requestAcademyStaffJoin,
   requestAcademyByCode,

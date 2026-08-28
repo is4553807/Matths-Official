@@ -78,8 +78,35 @@
         <article><span>활성 학생</span><strong><%= adminData.stats.activeUsers %></strong></article>
         <article><span>활성 학부모</span><strong><%= adminData.stats.activeParents %></strong></article>
         <article><span>미처리 문의</span><strong><%= adminData.stats.pendingInquiries %></strong></article>
+        <article><span>학원 승인 대기</span><strong><%= adminData.stats.pendingAcademies || 0 %></strong></article>
         <article><span>공개 공지</span><strong><%= adminData.stats.publishedAnnouncements %></strong></article>
         <article><span>아카이브</span><strong><%= adminData.stats.archiveItems %><small>개 · 폴더 <%= adminData.stats.archiveFolders %></small></strong></article>
+      </section>
+
+      <section class="admin-panel admin-academy-review-panel" id="academy-applications">
+        <div class="admin-panel-heading">
+          <div><p>ACADEMY REVIEW</p><h2>학원 등록 승인</h2></div>
+          <div class="admin-academy-review-heading-action"><span>교사 역할 확인 후 승인된 학원만 사용자 선택 목록에 공개됩니다.</span><a href="/admin/academies">전체 학원 관리 →</a></div>
+        </div>
+        <div class="admin-academy-review-list">
+          <% if (!(adminData.academyApplications || []).length) { %>
+            <p class="admin-empty">검토 대기 중인 학원 등록 요청이 없습니다.</p>
+          <% } %>
+          <% (adminData.academyApplications || []).forEach((academy) => { const applicant = academy.createdByUserId; %>
+            <article>
+              <div>
+                <span>검토 대기</span>
+                <h3><%= academy.name %></h3>
+                <p><strong><%= applicant.realName || applicant.name || "신청자" %></strong> · <%= applicant.email || "이메일 미확인" %></p>
+                <small>계정 역할 <%= applicant.role === "teacher" ? "교사" : applicant.role %> · 요청 <%= formatDate(academy.createdAt) %></small>
+              </div>
+              <div class="admin-academy-review-actions">
+                <form action="/admin/academies/<%= academy._id %>/approve" method="POST" onsubmit="return confirm('이 학원을 승인하고 사용자 목록에 공개할까요?')"><button type="submit">승인</button></form>
+                <form action="/admin/academies/<%= academy._id %>/reject" method="POST" onsubmit="return confirm('이 학원 등록 요청을 거절할까요?')"><button class="is-danger" type="submit">거절</button></form>
+              </div>
+            </article>
+          <% }) %>
+        </div>
       </section>
 
       <section class="admin-panel admin-revenue-panel" data-admin-revenue>

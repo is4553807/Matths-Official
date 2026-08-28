@@ -14,6 +14,7 @@ const {
   UserNotification,
 } = require("../models/matthsModel");
 const mongoose = require("mongoose");
+const { Academy } = require("../models/academyModel");
 const {
   CheckoutIntent,
   ParentAccount,
@@ -156,6 +157,8 @@ function adminAuditActionLabel(action) {
     "user.notification": "우편함 알림 발송",
     "user.package-access": "이용권·Division 권한 변경",
     "user.role": "회원 역할 변경",
+    "academy.application-approved": "학원 등록 승인",
+    "academy.application-rejected": "학원 등록 거절",
     "inquiry.reply": "문의 답변",
     "coach-suggestion.approve": "코치 문구 제안 승인",
     "coach-suggestion.reject": "코치 문구 제안 반려",
@@ -164,6 +167,7 @@ function adminAuditActionLabel(action) {
   const sanctionLabel = sanctionActionLabel(action);
   if (sanctionLabel !== action) return sanctionLabel;
   if (/^user\./.test(action)) return "사용자 관리";
+  if (/^academy\./.test(action)) return "학원 관리";
   if (/^community\./.test(action)) return "게시판 관리";
   if (/^arena\./.test(action)) return "GOAT Arena 관리";
   if (/^private-mock\./.test(action)) return "공식 모의고사 관리";
@@ -360,6 +364,8 @@ async function getAdminDashboardData() {
     inquiries,
     announcements,
     revenue,
+    pendingAcademyCount,
+    academyApplications,
   ] = await Promise.all([
     User.countDocuments({
       isActive: true,
@@ -388,6 +394,12 @@ async function getAdminDashboardData() {
       .limit(8)
       .lean(),
     getAdminRevenueMetrics(),
+    Academy.countDocuments({ status: "PENDING" }),
+    Academy.find({ status: "PENDING" })
+      .sort({ createdAt: 1, _id: 1 })
+      .limit(25)
+      .populate("createdByUserId", "name realName email role isActive accountStatus")
+      .lean(),
   ]);
 
   return {
@@ -398,7 +410,9 @@ async function getAdminDashboardData() {
       publishedAnnouncements,
       archiveItems,
       archiveFolders,
+      pendingAcademies: pendingAcademyCount,
     },
+    academyApplications: academyApplications.filter((academy) => academy.createdByUserId),
     inquiries,
     announcements,
     revenue,

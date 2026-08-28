@@ -1,0 +1,178 @@
+<%
+  const academy = detail.academy;
+  const statistics = detail.statistics;
+  const statusLabels = { PENDING: "승인 대기", ACTIVE: "운영 중", PAUSED: "운영 중지", REJECTED: "승인 거절" };
+  const staffRoleLabels = { OWNER: "원장", TEACHER: "교사" };
+  const staffStatusLabels = { PENDING: "승인 대기", ACTIVE: "활성", REJECTED: "승인 거절", REVOKED: "소속 해제" };
+  const studentStatusLabels = { PENDING: "승인 대기", APPROVED: "소속 승인", REJECTED: "승인 거절", LEFT: "소속 해제" };
+  const joinSourceLabels = { PROFILE: "프로필 선택", INVITE_CODE: "초대 코드", INVITE_LINK: "초대 링크", ADMIN_ASSIGNMENT: "운영자 배정" };
+  const gradeLabels = { 10: "고1", 11: "고2", 12: "고3", 13: "N수생", 14: "대학생", 15: "직장인" };
+  const accountStatusLabels = { active: "계정 활성", inactive: "계정 비활성", suspended: "계정 정지", withdrawn: "탈퇴" };
+  const formatDateTime = (date) => date
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(date))
+    : "—";
+  const personName = (person) => String(person?.realName || person?.name || "정보 없음");
+  const academyReturn = `/admin/academies/${academy._id}`;
+  const activeClasses = detail.classes.filter((academyClass) => academyClass.isActive);
+  const ownerCandidates = detail.staff.filter((staff) => staff.role === "TEACHER" && staff.status === "ACTIVE");
+  const classStudentCounts = new Map();
+  detail.memberships.forEach((membership) => {
+    if (membership.classId?._id) classStudentCounts.set(String(membership.classId._id), (classStudentCounts.get(String(membership.classId._id)) || 0) + 1);
+  });
+  const inviteState = (invite) => {
+    if (invite.status === "REVOKED") return { key: "REVOKED", label: "비활성" };
+    if (new Date(invite.expiresAt) <= new Date()) return { key: "EXPIRED", label: "기간 만료" };
+    if (invite.useCount >= invite.maxUses) return { key: "EXHAUSTED", label: "사용 완료" };
+    return { key: "ACTIVE", label: "사용 가능" };
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title><%= academy.name %> 전체 관리 | Matths 운영센터</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "academies" }) %>
+    <main class="admin-main">
+      <a class="admin-back" href="/admin/academies">← 학원 목록</a>
+      <header class="admin-academy-detail-hero">
+        <div class="admin-academy-detail-title">
+          <span aria-hidden="true"><%= academy.name.slice(0, 1) %></span>
+          <div><p>SUPER ADMIN · FULL ACCESS</p><h1><%= academy.name %></h1><b class="admin-academy-status is-<%= String(academy.status).toLowerCase() %>"><%= statusLabels[academy.status] || academy.status %></b></div>
+        </div>
+        <nav aria-label="학원 상세 영역">
+          <a href="#academy-control">기본·운영</a><a href="#academy-statistics">평균 통계</a><a href="#academy-staff">선생님</a><a href="#academy-students">학생</a><a href="#academy-classes">반</a><a href="#academy-invites">초대</a>
+        </nav>
+      </header>
+
+      <% if (feedback?.message) { %><div class="admin-feedback" role="status"><span aria-hidden="true">✓</span><%= feedback.message %></div><% } %>
+      <% if (feedback?.error) { %><div class="admin-feedback admin-feedback--error" role="alert"><span aria-hidden="true">!</span><%= feedback.error %></div><% } %>
+
+      <section class="admin-stat-grid admin-academy-count-grid" aria-label="학원 구성 현황">
+        <article><span>활성 선생님</span><strong><%= detail.counts.activeStaff %>명</strong><small>승인 대기 <%= detail.counts.pendingStaff %>명</small></article>
+        <article><span>승인 학생</span><strong><%= detail.counts.approvedStudents %>명</strong><small>승인 대기 <%= detail.counts.pendingStudents %>명</small></article>
+        <article><span>활성 반</span><strong><%= detail.counts.activeClasses %>개</strong><small>전체 <%= detail.classes.length %>개</small></article>
+        <article><span>사용 가능한 초대</span><strong><%= detail.counts.activeInvites %>개</strong><small>전체 <%= detail.invites.length %>개</small></article>
+      </section>
+
+      <section class="admin-panel" id="academy-control">
+        <header class="admin-panel-heading"><div><p>ACADEMY CONTROL</p><h2>기본 정보·운영 제어</h2></div><span class="admin-academy-critical-note">모든 변경은 감사 로그에 기록됩니다.</span></header>
+        <div class="admin-academy-control-grid">
+          <form class="admin-form" action="/admin/academies/<%= academy._id %>/profile" method="POST">
+            <h3>학원 이름 변경</h3><p>선생님·학생 화면에 표시되는 학원 이름을 즉시 변경합니다.</p>
+            <input type="hidden" name="action" value="RENAME" />
+            <label><span>학원 이름</span><input type="text" name="name" value="<%= academy.name %>" minlength="2" maxlength="80" required /></label>
+            <button type="submit">이름 저장</button>
+          </form>
+          <div class="admin-academy-state-control">
+            <h3>운영 상태</h3><p>학원 승인은 신규 생성 요청에만 가능하며, 승인 후 운영을 일시 중지하거나 재개할 수 있습니다.</p>
+            <div class="admin-academy-action-row">
+              <% if (academy.status === "PENDING") { %>
+                <form action="/admin/academies/<%= academy._id %>/approve" method="POST"><input type="hidden" name="returnTo" value="<%= academyReturn %>?done=academyApproved#academy-control" /><button type="submit">학원 승인</button></form>
+                <form action="/admin/academies/<%= academy._id %>/reject" method="POST"><input type="hidden" name="returnTo" value="<%= academyReturn %>?done=academyRejected#academy-control" /><button class="is-danger" type="submit">등록 거절</button></form>
+              <% } else if (academy.status === "ACTIVE") { %>
+                <form action="/admin/academies/<%= academy._id %>/profile" method="POST"><input type="hidden" name="action" value="PAUSE" /><button class="is-danger" type="submit">학원 운영 중지</button></form>
+              <% } else if (academy.status === "PAUSED") { %>
+                <form action="/admin/academies/<%= academy._id %>/profile" method="POST"><input type="hidden" name="action" value="ACTIVATE" /><button type="submit">학원 운영 재개</button></form>
+              <% } else { %><form action="/admin/academies/<%= academy._id %>/profile" method="POST"><input type="hidden" name="action" value="REOPEN" /><button type="submit">재검토 대기로 복구</button></form><span>원장이 다른 학원에 연결되어 있으면 복구되지 않습니다.</span><% } %>
+            </div>
+            <form class="admin-academy-owner-transfer" action="/admin/academies/<%= academy._id %>/owner" method="POST">
+              <label><span>원장 권한 이전</span><select name="newOwnerStaffId" required><option value="">새 원장 선택</option><% ownerCandidates.forEach((staff) => { %><option value="<%= staff._id %>"><%= personName(staff.userId) %> · <%= staff.userId.email %></option><% }) %></select></label>
+              <button type="submit" <%= ownerCandidates.length ? "" : "disabled" %>>원장 이전</button>
+              <% if (!ownerCandidates.length) { %><small>먼저 다른 교사의 학원 소속을 승인해야 합니다.</small><% } else { %><small>기존 원장은 활성 일반 교사로 전환됩니다.</small><% } %>
+            </form>
+          </div>
+          <dl class="admin-academy-meta">
+            <div><dt>학원 ID</dt><dd><%= academy._id %></dd></div>
+            <div><dt>검색용 이름</dt><dd><%= academy.nameNormalized || "—" %></dd></div>
+            <div><dt>생성자</dt><dd><%= personName(academy.createdByUserId) %><small><%= academy.createdByUserId?.email || "—" %></small></dd></div>
+            <div><dt>계정 역할</dt><dd><%= academy.createdByUserId?.role || "—" %><small><%= accountStatusLabels[academy.createdByUserId?.accountStatus] || "상태 미확인" %></small></dd></div>
+            <div><dt>등록 요청</dt><dd><%= formatDateTime(academy.createdAt) %></dd></div>
+            <div><dt>검토자</dt><dd><%= personName(academy.reviewedByUserId) %><small><%= academy.reviewedByUserId?.email || "—" %></small></dd></div>
+            <div><dt>최종 검토</dt><dd><%= formatDateTime(academy.reviewedAt) %><small>승인 <%= formatDateTime(academy.approvedAt) %> · 거절 <%= formatDateTime(academy.rejectedAt) %></small></dd></div>
+            <div><dt>마지막 수정</dt><dd><%= formatDateTime(academy.updatedAt) %></dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="admin-panel" id="academy-statistics">
+        <header class="admin-panel-heading"><div><p>ACADEMY AVERAGE</p><h2>승인 학생 전체 평균 통계</h2></div>
+          <form class="admin-academy-period" action="/admin/academies/<%= academy._id %>" method="GET"><label><span>조회 기간</span><select name="period"><% statistics.period.options.forEach((option) => { %><option value="<%= option.key %>" <%= option.key === statistics.period.key ? "selected" : "" %>><%= option.label %></option><% }) %></select></label><button type="submit">조회</button></form>
+        </header>
+        <p class="admin-academy-stat-note">학습하지 않은 승인 학생도 0일·0문제로 평균에 포함되며, 정답률·복습률·재도전 성공률은 해당 기록이 존재하는 전체 문제를 합산해 계산합니다.</p>
+        <div class="admin-stat-grid admin-academy-average-grid"><% statistics.cards.forEach((card) => { %><article><span><%= card.label %></span><strong><%= card.value %></strong><small><%= card.detail %></small></article><% }) %></div>
+        <div class="admin-academy-summary-grid">
+          <article><h3>학원 전체 Summary</h3><ul><% statistics.summary.bullets.forEach((bullet) => { %><li><strong><%= bullet.label %></strong><span><%= bullet.text %></span></li><% }) %></ul></article>
+          <article><h3>확인이 필요한 학생 <b><%= statistics.attentionStudents.length %>명</b></h3>
+            <% if (!statistics.attentionStudents.length) { %><div class="admin-empty">현재 기준에서 별도 확인이 필요한 학생이 없습니다.</div><% } %>
+            <% statistics.attentionStudents.slice(0, 10).forEach((item) => { const student = item.membership?.studentUserId; %><a href="/admin/users/<%= student?._id %>"><strong><%= personName(student) %></strong><span><%= (item.reasons || []).join(" · ") %></span></a><% }) %>
+            <% if (statistics.attentionStudents.length > 10) { %><small>외 <%= statistics.attentionStudents.length - 10 %>명은 아래 학생 목록에서 확인할 수 있습니다.</small><% } %>
+          </article>
+        </div>
+      </section>
+
+      <section class="admin-panel" id="academy-staff">
+        <header class="admin-panel-heading"><div><p>ALL STAFF</p><h2>선생님 전체 정보</h2></div><span>전체 <%= detail.staff.length %>명 · 활성 <%= detail.counts.activeStaff %>명</span></header>
+        <div class="admin-academy-table-wrap"><table class="admin-academy-data-table"><thead><tr><th>선생님</th><th>학원 역할</th><th>소속 상태</th><th>계정</th><th>요청·검토</th><th>운영</th></tr></thead><tbody>
+          <% detail.staff.forEach((staff) => { const member = staff.userId; %><tr>
+            <td><strong><%= personName(member) %></strong><small><%= member.email %></small><a href="/admin/users/<%= member._id %>">계정 전체 보기 →</a></td>
+            <td><%= staffRoleLabels[staff.role] || staff.role %></td><td><b class="admin-academy-status is-<%= String(staff.status).toLowerCase() %>"><%= staffStatusLabels[staff.status] || staff.status %></b></td>
+            <td><%= member.role %><small><%= accountStatusLabels[member.accountStatus] || (member.isActive === false ? "비활성" : "계정 활성") %></small></td>
+            <td><%= formatDateTime(staff.requestedAt) %><small>검토 <%= formatDateTime(staff.reviewedAt) %></small><details class="admin-academy-record"><summary>전체 기록</summary><small>소속 ID <%= staff._id %></small><small>합류 <%= formatDateTime(staff.joinedAt) %></small><small>거절 <%= formatDateTime(staff.rejectedAt) %></small><small>해제 <%= formatDateTime(staff.revokedAt) %></small><small>검토자 <%= personName(staff.reviewedByUserId) %></small></details></td>
+            <td><div class="admin-academy-action-row">
+              <% if (staff.role === "OWNER") { %><span>원장 계정 · 직접 해제 불가</span>
+              <% } else if (staff.status === "PENDING") { %><form action="/admin/academies/<%= academy._id %>/staff/<%= staff._id %>" method="POST"><input type="hidden" name="action" value="APPROVE" /><button type="submit">승인</button></form><form action="/admin/academies/<%= academy._id %>/staff/<%= staff._id %>" method="POST"><input type="hidden" name="action" value="REJECT" /><button class="is-danger" type="submit">거절</button></form>
+              <% } else if (staff.status === "ACTIVE") { %><form action="/admin/academies/<%= academy._id %>/staff/<%= staff._id %>" method="POST"><input type="hidden" name="action" value="REVOKE" /><button class="is-danger" type="submit">소속 해제</button></form>
+              <% } else { %><form action="/admin/academies/<%= academy._id %>/staff/<%= staff._id %>" method="POST"><input type="hidden" name="action" value="RESTORE" /><button type="submit">소속 복구</button></form><% } %>
+            </div></td>
+          </tr><% }) %>
+          <% if (!detail.staff.length) { %><tr><td colspan="6"><div class="admin-empty">등록된 선생님 정보가 없습니다.</div></td></tr><% } %>
+        </tbody></table></div>
+      </section>
+
+      <section class="admin-panel" id="academy-students">
+        <header class="admin-panel-heading"><div><p>ALL STUDENTS</p><h2>학생 전체 정보·소속 제어</h2></div><span>전체 기록 <%= detail.memberships.length %>명 · 승인 <%= detail.counts.approvedStudents %>명</span></header>
+        <div class="admin-academy-table-wrap"><table class="admin-academy-data-table admin-academy-student-table"><thead><tr><th>학생</th><th>학년·학교</th><th>소속</th><th>반 배정</th><th>유입·신청</th><th>운영</th></tr></thead><tbody>
+          <% detail.memberships.forEach((membership) => { const student = membership.studentUserId; %><tr>
+            <td><strong><%= personName(student) %></strong><small><%= student.email %></small><a href="/admin/users/<%= student._id %>">계정 전체 보기 →</a></td>
+            <td><%= gradeLabels[student.schoolGrade] || "학년 미설정" %><small><%= student.school?.name || "학교 미설정" %></small></td>
+            <td><b class="admin-academy-status is-<%= String(membership.status).toLowerCase() %>"><%= studentStatusLabels[membership.status] || membership.status %></b><small>검토 <%= formatDateTime(membership.reviewedAt) %></small></td>
+            <td><form class="admin-academy-inline-form" action="/admin/academies/<%= academy._id %>/students/<%= membership._id %>/class" method="POST"><select name="classId"><option value="">미배정</option><% activeClasses.forEach((academyClass) => { %><option value="<%= academyClass._id %>" <%= String(membership.classId?._id || '') === String(academyClass._id) ? "selected" : "" %>><%= academyClass.name %></option><% }) %></select><button type="submit">저장</button></form></td>
+            <td><%= joinSourceLabels[membership.joinSource] || membership.joinSource %><small><%= formatDateTime(membership.requestedAt) %></small><details class="admin-academy-record"><summary>전체 기록</summary><small>소속 ID <%= membership._id %></small><small>데이터 동의 <%= formatDateTime(membership.dataConsentAt) %></small><small>승인 <%= formatDateTime(membership.approvedAt) %></small><small>거절 <%= formatDateTime(membership.rejectedAt) %></small><small>해제 <%= formatDateTime(membership.leftAt) %></small><small>검토자 <%= personName(membership.reviewedByUserId) %></small><small>초대 ID <%= membership.inviteId || "—" %></small></details></td>
+            <td><div class="admin-academy-action-row">
+              <% if (membership.status === "PENDING") { %><form action="/admin/academies/<%= academy._id %>/students/<%= membership._id %>" method="POST"><input type="hidden" name="action" value="APPROVE" /><button type="submit">승인</button></form><form action="/admin/academies/<%= academy._id %>/students/<%= membership._id %>" method="POST"><input type="hidden" name="action" value="REJECT" /><button class="is-danger" type="submit">거절</button></form>
+              <% } else if (membership.status === "APPROVED") { %><form action="/admin/academies/<%= academy._id %>/students/<%= membership._id %>" method="POST"><input type="hidden" name="action" value="REMOVE" /><button class="is-danger" type="submit">소속 해제</button></form>
+              <% } else { %><form action="/admin/academies/<%= academy._id %>/students/<%= membership._id %>" method="POST"><input type="hidden" name="action" value="RESTORE" /><button type="submit">소속 복구</button></form><% } %>
+            </div></td>
+          </tr><% }) %>
+          <% if (!detail.memberships.length) { %><tr><td colspan="6"><div class="admin-empty">학원 소속 요청 또는 승인 기록이 없습니다.</div></td></tr><% } %>
+        </tbody></table></div>
+      </section>
+
+      <section class="admin-panel" id="academy-classes">
+        <header class="admin-panel-heading"><div><p>ALL CLASSES</p><h2>반 전체 정보</h2></div><span>전체 <%= detail.classes.length %>개 · 활성 <%= detail.counts.activeClasses %>개</span></header>
+        <div class="admin-academy-card-list"><% detail.classes.forEach((academyClass) => { %><article><div><strong><%= academyClass.name %></strong><span><%= academyClass.isActive ? "활성 반" : "비활성 반" %> · 배정 학생 <%= classStudentCounts.get(String(academyClass._id)) || 0 %>명</span><small>반 ID <%= academyClass._id %></small><small>검색용 이름 <%= academyClass.nameNormalized %> · 생성자 <%= personName(academyClass.createdByUserId) %> · <%= formatDateTime(academyClass.createdAt) %> · 수정 <%= formatDateTime(academyClass.updatedAt) %></small></div><form action="/admin/academies/<%= academy._id %>/classes/<%= academyClass._id %>" method="POST"><input type="hidden" name="action" value="<%= academyClass.isActive ? 'DEACTIVATE' : 'ACTIVATE' %>" /><button class="<%= academyClass.isActive ? 'is-danger' : '' %>" type="submit"><%= academyClass.isActive ? "비활성화" : "활성화" %></button></form></article><% }) %><% if (!detail.classes.length) { %><div class="admin-empty">등록된 반이 없습니다.</div><% } %></div>
+      </section>
+
+      <section class="admin-panel" id="academy-invites">
+        <header class="admin-panel-heading"><div><p>ALL INVITES</p><h2>초대 링크·코드 전체 정보</h2></div><span>전체 <%= detail.invites.length %>개 · 사용 가능 <%= detail.counts.activeInvites %>개</span></header>
+        <div class="admin-academy-table-wrap"><table class="admin-academy-data-table"><thead><tr><th>라벨·코드</th><th>초대 링크 토큰</th><th>배정 반</th><th>사용량</th><th>생성·만료</th><th>운영</th></tr></thead><tbody>
+          <% detail.invites.forEach((invite) => { const state = inviteState(invite); %><tr>
+            <td><strong><%= invite.label %></strong><small><%= invite.code %></small><small>ID <%= invite._id %></small><b class="admin-academy-status is-<%= state.key.toLowerCase() %>"><%= state.label %></b></td>
+            <td class="admin-academy-token"><%= invite.token %><small>/academy/join?token=<%= invite.token %></small></td><td><%= invite.classId?.name || "미배정" %></td><td><%= invite.useCount %> / <%= invite.maxUses %>회</td>
+            <td><%= formatDateTime(invite.createdAt) %><small>만료 <%= formatDateTime(invite.expiresAt) %></small><small>생성자 <%= personName(invite.createdByUserId) %></small></td>
+            <td><div class="admin-academy-action-row"><% if (state.key === "ACTIVE") { %><form action="/admin/academies/<%= academy._id %>/invites/<%= invite._id %>" method="POST"><input type="hidden" name="action" value="REVOKE" /><button class="is-danger" type="submit">비활성화</button></form><% } else if (state.key === "REVOKED" && new Date(invite.expiresAt) > new Date() && invite.useCount < invite.maxUses) { %><form action="/admin/academies/<%= academy._id %>/invites/<%= invite._id %>" method="POST"><input type="hidden" name="action" value="RESTORE" /><button type="submit">다시 활성화</button></form><% } else { %><span>변경할 수 없음</span><% } %></div></td>
+          </tr><% }) %>
+          <% if (!detail.invites.length) { %><tr><td colspan="6"><div class="admin-empty">생성된 초대가 없습니다.</div></td></tr><% } %>
+        </tbody></table></div>
+      </section>
+    </main>
+  </body>
+</html>

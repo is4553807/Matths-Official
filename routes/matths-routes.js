@@ -433,6 +433,72 @@ router.get(
   matthsController.adminDashboardPage
 );
 router.get(
+  "/admin/academies",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminAcademiesPage
+);
+router.get(
+  "/admin/academies/:academyId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminAcademyDetailPage
+);
+router.post(
+  "/admin/academies/:academyId/approve",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminApproveAcademy
+);
+router.post(
+  "/admin/academies/:academyId/reject",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRejectAcademy
+);
+router.post(
+  "/admin/academies/:academyId/profile",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateAcademyProfile
+);
+router.post(
+  "/admin/academies/:academyId/staff/:staffId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateAcademyStaff
+);
+router.post(
+  "/admin/academies/:academyId/owner",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminTransferAcademyOwner
+);
+router.post(
+  "/admin/academies/:academyId/students/:membershipId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateAcademyStudent
+);
+router.post(
+  "/admin/academies/:academyId/students/:membershipId/class",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminAssignAcademyStudentClass
+);
+router.post(
+  "/admin/academies/:academyId/classes/:classId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateAcademyClass
+);
+router.post(
+  "/admin/academies/:academyId/invites/:inviteId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateAcademyInvite
+);
+router.get(
   "/api/admin/revenue",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,

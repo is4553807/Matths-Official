@@ -213,6 +213,21 @@ const {
   revokeAdminParentChildLink,
 } = require("../services/adminService");
 const {
+  approveAcademyApplication,
+  rejectAcademyApplication,
+} = require("../services/academyService");
+const {
+  assignAdminAcademyMembershipClass,
+  getAdminAcademyDetail,
+  getAdminAcademyList,
+  transferAdminAcademyOwner,
+  updateAdminAcademyClass,
+  updateAdminAcademyInvite,
+  updateAdminAcademyMembership,
+  updateAdminAcademyProfile,
+  updateAdminAcademyStaff,
+} = require("../services/adminAcademyService");
+const {
   dismissDashboardAnnouncement,
   dismissDashboardNotification,
   getNotificationDetail,
@@ -1791,6 +1806,10 @@ function adminFeedbackFromQuery(
       "사업자 출금 기록을 저장했습니다.",
     financeReserve:
       "기타 미지급 비용 준비금을 저장했습니다.",
+    academyApproved:
+      "학원 등록 요청을 승인했습니다. 이제 교사와 학생에게 학원이 표시됩니다.",
+    academyRejected:
+      "학원 등록 요청을 거절했습니다.",
   };
 
   return messages[
@@ -1820,6 +1839,257 @@ exports.adminDashboardPage =
       return next(error);
     }
   };
+
+function adminAcademyFeedback(query) {
+  const messages = {
+    academyApproved: "학원 등록 요청을 승인했습니다.",
+    academyRejected: "학원 등록 요청을 거절했습니다.",
+    academyRenamed: "학원 이름을 변경했습니다.",
+    academyPaused: "학원 운영을 중지했습니다.",
+    academyActivated: "학원 운영을 재개했습니다.",
+    academyReopened: "거절된 학원을 재검토 대기로 복구했습니다.",
+    staffUpdated: "교사 소속 상태를 변경했습니다.",
+    studentUpdated: "학생 소속 상태를 변경했습니다.",
+    studentClassUpdated: "학생의 반 배정을 변경했습니다.",
+    classUpdated: "반 사용 상태를 변경했습니다.",
+    inviteUpdated: "초대 사용 상태를 변경했습니다.",
+    ownerTransferred: "학원 원장 권한을 이전했습니다.",
+  };
+  const error = String(query.error || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 240);
+  return {
+    message: messages[String(query.done || "")] || null,
+    error: error || null,
+  };
+}
+
+function safeAdminAcademyReturnPath(value, fallback) {
+  const candidate = String(value || "").trim();
+  return /^\/admin\/academies(?:\/[a-f\d]{24})?(?:\?[^\s#]*)?(?:#[a-z0-9-]+)?$/i.test(candidate)
+    ? candidate
+    : fallback;
+}
+
+function adminAcademyErrorRedirect(res, academyId, error, anchor = "") {
+  const suffix = anchor ? `#${anchor}` : "";
+  const message = encodeURIComponent(String(error.message || "학원 관리 작업을 처리하지 못했습니다.").slice(0, 240));
+  return res.redirect(303, `/admin/academies/${academyId}?error=${message}${suffix}`);
+}
+
+exports.adminAcademiesPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    return res.render("admin-academies", {
+      user: req.session.user,
+      academyData: await getAdminAcademyList({
+        adminUserId: req.session.user.id,
+        search: req.query.search,
+        status: req.query.status,
+        page: req.query.page,
+      }),
+      feedback: adminAcademyFeedback(req.query),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminAcademyDetailPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    return res.render("admin-academy-detail", {
+      user: req.session.user,
+      detail: await getAdminAcademyDetail({
+        adminUserId: req.session.user.id,
+        academyId: req.params.academyId,
+        periodKey: req.query.period,
+      }),
+      feedback: adminAcademyFeedback(req.query),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyProfile = async (req, res, next) => {
+  try {
+    const result = await updateAdminAcademyProfile({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      action: req.body.action,
+      name: req.body.name,
+    });
+    const action = String(req.body.action).toUpperCase();
+    const done = {
+      RENAME: "academyRenamed",
+      PAUSE: "academyPaused",
+      ACTIVATE: "academyActivated",
+      REOPEN: "academyReopened",
+    }[action] || (result.status === "PAUSED" ? "academyPaused" : "academyActivated");
+    return res.redirect(303, `/admin/academies/${result._id}?done=${done}`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-control");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyStaff = async (req, res, next) => {
+  try {
+    await updateAdminAcademyStaff({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      staffId: req.params.staffId,
+      action: req.body.action,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=staffUpdated#academy-staff`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-staff");
+    }
+    return next(error);
+  }
+};
+
+exports.adminTransferAcademyOwner = async (req, res, next) => {
+  try {
+    await transferAdminAcademyOwner({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      newOwnerStaffId: req.body.newOwnerStaffId,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=ownerTransferred#academy-staff`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-staff");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyStudent = async (req, res, next) => {
+  try {
+    await updateAdminAcademyMembership({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      membershipId: req.params.membershipId,
+      action: req.body.action,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=studentUpdated#academy-students`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-students");
+    }
+    return next(error);
+  }
+};
+
+exports.adminAssignAcademyStudentClass = async (req, res, next) => {
+  try {
+    await assignAdminAcademyMembershipClass({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      membershipId: req.params.membershipId,
+      classId: String(req.body.classId || ""),
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=studentClassUpdated#academy-students`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-students");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyClass = async (req, res, next) => {
+  try {
+    await updateAdminAcademyClass({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      classId: req.params.classId,
+      action: req.body.action,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=classUpdated#academy-classes`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-classes");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyInvite = async (req, res, next) => {
+  try {
+    await updateAdminAcademyInvite({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      inviteId: req.params.inviteId,
+      action: req.body.action,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=inviteUpdated#academy-invites`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-invites");
+    }
+    return next(error);
+  }
+};
+
+async function renderAdminAcademyReviewError(req, res, error) {
+  return res.status(Number(error.status) || 400).render("admin-dashboard", {
+    user: req.session.user,
+    adminData: await getAdminDashboardData(),
+    feedback: null,
+    error: error.message,
+    oldInput: null,
+  });
+}
+
+exports.adminApproveAcademy = async (req, res, next) => {
+  try {
+    await approveAcademyApplication({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+    });
+    return res.redirect(303, safeAdminAcademyReturnPath(
+      req.body.returnTo,
+      "/admin?done=academyApproved#academy-applications"
+    ));
+  } catch (error) {
+    if ([403, 404, 409].includes(Number(error.status))) {
+      const returnTo = safeAdminAcademyReturnPath(req.body.returnTo, "");
+      if (returnTo) {
+        const basePath = returnTo.split(/[?#]/)[0];
+        return res.redirect(303, `${basePath}?error=${encodeURIComponent(error.message)}#academy-control`);
+      }
+      return renderAdminAcademyReviewError(req, res, error);
+    }
+    return next(error);
+  }
+};
+
+exports.adminRejectAcademy = async (req, res, next) => {
+  try {
+    await rejectAcademyApplication({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+    });
+    return res.redirect(303, safeAdminAcademyReturnPath(
+      req.body.returnTo,
+      "/admin?done=academyRejected#academy-applications"
+    ));
+  } catch (error) {
+    if ([403, 404, 409].includes(Number(error.status))) {
+      const returnTo = safeAdminAcademyReturnPath(req.body.returnTo, "");
+      if (returnTo) {
+        const basePath = returnTo.split(/[?#]/)[0];
+        return res.redirect(303, `${basePath}?error=${encodeURIComponent(error.message)}#academy-control`);
+      }
+      return renderAdminAcademyReviewError(req, res, error);
+    }
+    return next(error);
+  }
+};
 
 exports.adminRevenueMetrics = async (_req, res, next) => {
   try {

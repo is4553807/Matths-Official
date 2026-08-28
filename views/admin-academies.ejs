@@ -1,0 +1,106 @@
+<%
+  const statusLabels = { PENDING: "승인 대기", ACTIVE: "운영 중", PAUSED: "운영 중지", REJECTED: "승인 거절" };
+  const formatDate = (date) => date
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium" }).format(new Date(date))
+    : "—";
+  const totalAcademies = Object.values(academyData.statusCounts || {}).reduce((sum, count) => sum + Number(count || 0), 0);
+  const pageHref = (page) => {
+    const params = new URLSearchParams();
+    if (academyData.filters.search) params.set("search", academyData.filters.search);
+    if (academyData.filters.status !== "ALL") params.set("status", academyData.filters.status);
+    params.set("page", page);
+    return `/admin/academies?${params.toString()}`;
+  };
+  const currentListReturn = `/admin/academies?done=`;
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>학원 관리 | Matths 운영센터</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "academies" }) %>
+    <main class="admin-main">
+      <header class="admin-heading admin-academy-heading">
+        <div>
+          <p>SUPER ADMIN · ACADEMY MANAGEMENT</p>
+          <h1>학원 관리</h1>
+          <span>등록 요청부터 운영 중인 학원의 교사·학생·반·초대·학습 통계까지 전체 상태를 확인하고 제어합니다.</span>
+        </div>
+        <strong><%= totalAcademies %><small>전체 학원</small></strong>
+      </header>
+
+      <div class="admin-superadmin-note">
+        <strong>SUPER ADMIN 전용</strong>
+        <span>이 화면의 작업은 즉시 실제 학원 운영 상태에 반영되고 운영 감사 로그에 기록됩니다.</span>
+      </div>
+
+      <% if (feedback?.message) { %>
+        <div class="admin-feedback" role="status"><span aria-hidden="true">✓</span><%= feedback.message %></div>
+      <% } %>
+      <% if (feedback?.error) { %>
+        <div class="admin-feedback admin-feedback--error" role="alert"><span aria-hidden="true">!</span><%= feedback.error %></div>
+      <% } %>
+
+      <nav class="admin-academy-status-tabs" aria-label="학원 상태 필터">
+        <a class="<%= academyData.filters.status === 'ALL' ? 'active' : '' %>" href="/admin/academies">전체 <b><%= totalAcademies %></b></a>
+        <% ["PENDING", "ACTIVE", "PAUSED", "REJECTED"].forEach((status) => { %>
+          <a class="<%= academyData.filters.status === status ? 'active' : '' %>" href="/admin/academies?status=<%= status %>"><%= statusLabels[status] %> <b><%= academyData.statusCounts[status] || 0 %></b></a>
+        <% }) %>
+      </nav>
+
+      <form class="admin-filter-bar admin-academy-filter" action="/admin/academies" method="GET">
+        <label class="wide"><span>학원명 검색</span><input type="search" name="search" value="<%= academyData.filters.search %>" placeholder="학원 이름 입력" /></label>
+        <label><span>운영 상태</span>
+          <select name="status">
+            <option value="ALL">전체 상태</option>
+            <% ["PENDING", "ACTIVE", "PAUSED", "REJECTED"].forEach((status) => { %>
+              <option value="<%= status %>" <%= academyData.filters.status === status ? "selected" : "" %>><%= statusLabels[status] %></option>
+            <% }) %>
+          </select>
+        </label>
+        <button type="submit">조회</button>
+      </form>
+
+      <section class="admin-academy-list" aria-label="학원 목록">
+        <div class="admin-academy-list-row head">
+          <span>학원·생성자</span><span>상태</span><span>선생님</span><span>학생</span><span>반</span><span>등록일</span><span>관리</span>
+        </div>
+        <% if (!academyData.academies.length) { %><div class="admin-empty">조건에 맞는 학원이 없습니다.</div><% } %>
+        <% academyData.academies.forEach((academy) => { const creator = academy.createdByUserId || {}; %>
+          <article class="admin-academy-list-row">
+            <div class="admin-academy-list-identity">
+              <span aria-hidden="true"><%= academy.name.slice(0, 1) %></span>
+              <div><strong><%= academy.name %></strong><small><%= creator.realName || creator.name || "생성자 정보 없음" %> · <%= creator.email || "이메일 없음" %></small></div>
+            </div>
+            <span><b class="admin-academy-status is-<%= String(academy.status).toLowerCase() %>"><%= statusLabels[academy.status] || academy.status %></b></span>
+            <span><strong><%= academy.counts.activeStaff %>명</strong><small>대기 <%= academy.counts.pendingStaff %>명</small></span>
+            <span><strong><%= academy.counts.approvedStudents %>명</strong><small>대기 <%= academy.counts.pendingStudents %>명</small></span>
+            <span><strong><%= academy.counts.activeClasses %>개</strong><small>활성 반</small></span>
+            <span><%= formatDate(academy.createdAt) %></span>
+            <div class="admin-academy-list-actions">
+              <% if (academy.status === "PENDING") { %>
+                <form action="/admin/academies/<%= academy._id %>/approve" method="POST"><input type="hidden" name="returnTo" value="<%= currentListReturn %>academyApproved" /><button type="submit">승인</button></form>
+                <form action="/admin/academies/<%= academy._id %>/reject" method="POST"><input type="hidden" name="returnTo" value="<%= currentListReturn %>academyRejected" /><button class="is-danger" type="submit">거절</button></form>
+              <% } %>
+              <a href="/admin/academies/<%= academy._id %>">전체 정보 →</a>
+            </div>
+          </article>
+        <% }) %>
+      </section>
+
+      <nav class="admin-pagination" aria-label="학원 목록 페이지">
+        <a class="<%= academyData.pagination.page <= 1 ? 'disabled' : '' %>" href="<%= pageHref(Math.max(1, academyData.pagination.page - 1)) %>">← 이전</a>
+        <span><strong><%= academyData.pagination.page %></strong> / <%= academyData.pagination.totalPages %> · 페이지당 <%= academyData.pagination.pageSize %>개</span>
+        <a class="<%= academyData.pagination.page >= academyData.pagination.totalPages ? 'disabled' : '' %>" href="<%= pageHref(Math.min(academyData.pagination.totalPages, academyData.pagination.page + 1)) %>">다음 →</a>
+      </nav>
+    </main>
+  </body>
+</html>

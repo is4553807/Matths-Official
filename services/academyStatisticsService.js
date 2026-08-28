@@ -82,6 +82,11 @@ function asObjectId(value) {
   return new mongoose.Types.ObjectId(String(value));
 }
 
+function asObjectIds(values) {
+  const uniqueIds = [...new Set((Array.isArray(values) ? values : []).map((value) => String(value)))];
+  return uniqueIds.map((value) => asObjectId(value));
+}
+
 function percentage(numerator, denominator) {
   if (!denominator) return null;
   return Math.round((Number(numerator || 0) / Number(denominator)) * 100);
@@ -94,6 +99,16 @@ function formatMetric(value, suffix) {
 function metricDetail(label, sampleSize) {
   if (!sampleSize) return `${label} · 데이터 부족`;
   return `${label} · ${sampleSize}문제 기준`;
+}
+
+function average(total, denominator) {
+  if (!denominator) return null;
+  return Number((Number(total || 0) / Number(denominator)).toFixed(1));
+}
+
+function formatAverage(value, suffix) {
+  if (value === null || value === undefined) return "—";
+  return `${Number.isInteger(value) ? value : value.toFixed(1)}${suffix}`;
 }
 
 function buildSummary({ period, values, samples, hasActivity }) {
@@ -299,9 +314,317 @@ async function getStudentMonthlyStatistics({ studentUserId, periodKey, now = new
   };
 }
 
+function buildAcademySummary({ period, values, samples, attentionCount }) {
+  if (!values.totalStudents) {
+    return {
+      bullets: [
+        {
+          label: "데이터 안내",
+          text: "승인된 학생이 없어 학원 평균을 계산하지 않았습니다.",
+        },
+      ],
+      nextDirection: "학생 소속을 승인한 뒤 학원 전체 학습 흐름을 확인할 수 있습니다.",
+    };
+  }
+
+  const periodName = period.label.replace(/ \(.+\)$/, "");
+  const bullets = [
+    {
+      label: "학습 참여",
+      text: `${periodName} 승인 학생 ${values.totalStudents}명 중 ${values.activeStudents}명이 학습해 참여율은 ${values.participationRate}%입니다.`,
+    },
+    {
+      label: "학생 1인당 평균",
+      text: `학습일 ${formatAverage(values.averageLearningDays, "")}일, 서로 다른 문제 ${formatAverage(values.averageUniqueProblems, "")}개, 완료 개념 ${formatAverage(values.averageCompletedConcepts, "")}개입니다.`,
+    },
+    {
+      label: "첫 시도 정답률",
+      text: values.firstAttemptAccuracy === null
+        ? "첫 제출 기록이 없어 학원 평균 정답률을 계산하지 않았습니다."
+        : `전체 첫 제출 ${samples.firstAttempts}문제 중 ${samples.firstAttemptCorrect}문제를 맞혀 평균 정답률은 ${values.firstAttemptAccuracy}%입니다.`,
+    },
+    {
+      label: "오답 복습",
+      text: values.wrongAnswerReviewRate === null
+        ? "새로 발생한 오답이 없어 학원 평균 복습률을 계산하지 않았습니다."
+        : `오답 ${samples.wrongAnswers}개 중 ${samples.reviewedWrongAnswers}개를 복습해 평균 복습률은 ${values.wrongAnswerReviewRate}%입니다.`,
+    },
+    {
+      label: "재도전",
+      text: values.retrySuccessRate === null
+        ? "오답 재도전 기록이 없어 성공률을 계산하지 않았습니다."
+        : `재도전한 오답 ${samples.retriedWrongAnswers}개 중 ${samples.successfulRetries}개를 맞혀 성공률은 ${values.retrySuccessRate}%입니다.`,
+    },
+    {
+      label: "확인 필요",
+      text: attentionCount
+        ? `미학습·낮은 학습 빈도·정답률·복습률 기준으로 확인이 필요한 학생은 ${attentionCount}명입니다.`
+        : "현재 기준에서 별도 확인이 필요한 학생은 없습니다.",
+    },
+  ];
+
+  let nextDirection = "현재 학습 참여 흐름을 유지하면서 학생별 완료 개념과 문제 풀이량을 꾸준히 확인하는 것이 좋습니다.";
+  if (values.participationRate < 70) {
+    nextDirection = "학습 기록이 없는 학생부터 확인해 주간 학습 참여율을 높이는 것이 좋습니다.";
+  } else if (values.wrongAnswerReviewRate !== null && values.wrongAnswerReviewRate < 70) {
+    nextDirection = "학원 공통 목표로 미복습 오답을 먼저 정리해 오답 복습률을 높이는 것이 좋습니다.";
+  } else if (values.firstAttemptAccuracy !== null && samples.firstAttempts >= 5 && values.firstAttemptAccuracy < 70) {
+    nextDirection = "첫 시도 정답률을 높이도록 풀이 전 핵심 개념과 문제 조건을 다시 확인하게 지도하는 것이 좋습니다.";
+  }
+
+  bullets.push({ label: "다음 운영 방향", text: nextDirection });
+  return { bullets, nextDirection };
+}
+
+async function getAcademyMonthlyStatistics({ studentUserIds, periodKey, now = new Date() }) {
+  const userIds = asObjectIds(studentUserIds);
+  const period = resolvePeriod(periodKey, now);
+  const range = { $gte: period.start, $lt: period.reportCutoff };
+  const kstDayExpression = (field) => ({
+    $dateToString: { date: field, format: "%Y-%m-%d", timezone: KST_TIME_ZONE },
+  });
+
+  const [learningDays, attemptResult, completionResult] = userIds.length
+    ? await Promise.all([
+        LearningEvent.aggregate([
+          {
+            $match: {
+              userId: { $in: userIds },
+              occurredAt: range,
+              $or: [
+                { eventType: { $in: DEFINITIVE_ACTIVITY_EVENT_TYPES } },
+                { durationMs: { $gt: 0 } },
+              ],
+            },
+          },
+          { $group: { _id: { userId: "$userId", day: kstDayExpression("$occurredAt") } } },
+        ]),
+        ProblemAttempt.aggregate([
+          { $match: { userId: { $in: userIds }, submittedAt: range } },
+          {
+            $facet: {
+              days: [
+                { $group: { _id: { userId: "$userId", day: kstDayExpression("$submittedAt") } } },
+              ],
+              uniqueProblems: [
+                { $group: { _id: { userId: "$userId", problemId: "$problemId" } } },
+                { $group: { _id: "$_id.userId", total: { $sum: 1 } } },
+              ],
+              firstAttempts: [
+                { $match: { reviewSourceAttemptId: null, attemptNumber: 1 } },
+                { $group: { _id: "$userId", total: { $sum: 1 }, correct: { $sum: { $cond: ["$isCorrect", 1, 0] } } } },
+              ],
+              wrongAnswers: [
+                { $match: { reviewSourceAttemptId: null, isCorrect: false } },
+                {
+                  $group: {
+                    _id: "$userId",
+                    total: { $sum: 1 },
+                    reviewed: {
+                      $sum: {
+                        $cond: [
+                          {
+                            $and: [
+                              { $eq: ["$review.status", "completed"] },
+                              { $ne: ["$review.reviewedAt", null] },
+                              { $lt: ["$review.reviewedAt", period.reportCutoff] },
+                            ],
+                          },
+                          1,
+                          0,
+                        ],
+                      },
+                    },
+                  },
+                },
+              ],
+              retries: [
+                { $match: { reviewSourceAttemptId: { $ne: null } } },
+                { $group: { _id: { userId: "$userId", sourceId: "$reviewSourceAttemptId" }, succeeded: { $max: { $cond: ["$isCorrect", 1, 0] } } } },
+                { $group: { _id: "$_id.userId", total: { $sum: 1 }, correct: { $sum: "$succeeded" } } },
+              ],
+            },
+          },
+        ]),
+        ConceptProgress.aggregate([
+          { $match: { userId: { $in: userIds }, status: "completed", completedAt: range } },
+          {
+            $facet: {
+              days: [
+                { $group: { _id: { userId: "$userId", day: kstDayExpression("$completedAt") } } },
+              ],
+              totals: [
+                { $group: { _id: "$userId", total: { $sum: 1 } } },
+              ],
+            },
+          },
+        ]),
+      ])
+    : [[], [], []];
+
+  const records = new Map(
+    userIds.map((userId) => [
+      String(userId),
+      {
+        studentUserId: String(userId),
+        activityDays: new Set(),
+        completedConcepts: 0,
+        uniqueProblems: 0,
+        firstAttempts: 0,
+        firstAttemptCorrect: 0,
+        wrongAnswers: 0,
+        reviewedWrongAnswers: 0,
+        retriedWrongAnswers: 0,
+        successfulRetries: 0,
+      },
+    ])
+  );
+  const recordFor = (value) => records.get(String(value));
+  const addDays = (rows) => {
+    (rows || []).forEach((row) => {
+      const record = recordFor(row?._id?.userId);
+      if (record && row?._id?.day) record.activityDays.add(row._id.day);
+    });
+  };
+
+  addDays(learningDays);
+  const attemptFacets = attemptResult[0] || {};
+  const completionFacets = completionResult[0] || {};
+  addDays(attemptFacets.days);
+  addDays(completionFacets.days);
+  (attemptFacets.uniqueProblems || []).forEach((row) => {
+    const record = recordFor(row._id);
+    if (record) record.uniqueProblems = Number(row.total || 0);
+  });
+  (attemptFacets.firstAttempts || []).forEach((row) => {
+    const record = recordFor(row._id);
+    if (record) {
+      record.firstAttempts = Number(row.total || 0);
+      record.firstAttemptCorrect = Number(row.correct || 0);
+    }
+  });
+  (attemptFacets.wrongAnswers || []).forEach((row) => {
+    const record = recordFor(row._id);
+    if (record) {
+      record.wrongAnswers = Number(row.total || 0);
+      record.reviewedWrongAnswers = Number(row.reviewed || 0);
+    }
+  });
+  (attemptFacets.retries || []).forEach((row) => {
+    const record = recordFor(row._id);
+    if (record) {
+      record.retriedWrongAnswers = Number(row.total || 0);
+      record.successfulRetries = Number(row.correct || 0);
+    }
+  });
+  (completionFacets.totals || []).forEach((row) => {
+    const record = recordFor(row._id);
+    if (record) record.completedConcepts = Number(row.total || 0);
+  });
+
+  const students = [...records.values()].map((record) => {
+    const activeLearningDays = record.activityDays.size;
+    const hasActivity = activeLearningDays > 0 || record.uniqueProblems > 0 || record.completedConcepts > 0;
+    return {
+      ...record,
+      activityDays: undefined,
+      activeLearningDays,
+      hasActivity,
+      firstAttemptAccuracy: percentage(record.firstAttemptCorrect, record.firstAttempts),
+      wrongAnswerReviewRate: percentage(record.reviewedWrongAnswers, record.wrongAnswers),
+      retrySuccessRate: percentage(record.successfulRetries, record.retriedWrongAnswers),
+    };
+  });
+  const samples = students.reduce(
+    (totals, student) => {
+      totals.firstAttempts += student.firstAttempts;
+      totals.firstAttemptCorrect += student.firstAttemptCorrect;
+      totals.wrongAnswers += student.wrongAnswers;
+      totals.reviewedWrongAnswers += student.reviewedWrongAnswers;
+      totals.retriedWrongAnswers += student.retriedWrongAnswers;
+      totals.successfulRetries += student.successfulRetries;
+      return totals;
+    },
+    {
+      firstAttempts: 0,
+      firstAttemptCorrect: 0,
+      wrongAnswers: 0,
+      reviewedWrongAnswers: 0,
+      retriedWrongAnswers: 0,
+      successfulRetries: 0,
+    }
+  );
+  const totalStudents = students.length;
+  const activeStudents = students.filter((student) => student.hasActivity).length;
+  const values = {
+    totalStudents,
+    activeStudents,
+    participationRate: totalStudents ? percentage(activeStudents, totalStudents) : null,
+    averageLearningDays: average(students.reduce((sum, student) => sum + student.activeLearningDays, 0), totalStudents),
+    averageCompletedConcepts: average(students.reduce((sum, student) => sum + student.completedConcepts, 0), totalStudents),
+    averageUniqueProblems: average(students.reduce((sum, student) => sum + student.uniqueProblems, 0), totalStudents),
+    firstAttemptAccuracy: percentage(samples.firstAttemptCorrect, samples.firstAttempts),
+    wrongAnswerReviewRate: percentage(samples.reviewedWrongAnswers, samples.wrongAnswers),
+    retrySuccessRate: percentage(samples.successfulRetries, samples.retriedWrongAnswers),
+  };
+  const attentionStudents = students
+    .map((student) => {
+      const reasons = [];
+      let priority = 0;
+      if (!student.hasActivity) {
+        reasons.push("선택 기간 학습 기록 없음");
+        priority += 100;
+      } else {
+        if (student.activeLearningDays <= 2) {
+          reasons.push(`학습일 ${student.activeLearningDays}일`);
+          priority += 10;
+        }
+        if (student.firstAttempts >= 3 && student.firstAttemptAccuracy < 60) {
+          reasons.push(`첫 시도 정답률 ${student.firstAttemptAccuracy}%`);
+          priority += 20;
+        }
+        if (student.wrongAnswers >= 2 && student.wrongAnswerReviewRate < 50) {
+          reasons.push(`오답 복습률 ${student.wrongAnswerReviewRate}%`);
+          priority += 30;
+        }
+      }
+      return { studentUserId: student.studentUserId, reasons, priority };
+    })
+    .filter((student) => student.reasons.length)
+    .sort((left, right) => right.priority - left.priority || left.studentUserId.localeCompare(right.studentUserId));
+  const summary = buildAcademySummary({
+    period,
+    values,
+    samples,
+    attentionCount: attentionStudents.length,
+  });
+
+  return {
+    period: {
+      key: period.key,
+      label: period.label,
+      options: period.options,
+      isCurrent: period.isCurrent,
+    },
+    hasActivity: activeStudents > 0,
+    values,
+    samples,
+    cards: [
+      { label: "승인 학생", value: `${totalStudents}명`, detail: "현재 승인된 전체 학생" },
+      { label: "학습 참여 학생", value: `${activeStudents}명`, detail: totalStudents ? `${values.participationRate}% 참여` : "승인 학생 없음" },
+      { label: "평균 학습일", value: formatAverage(values.averageLearningDays, "일"), detail: "학생 1인당 · 미학습 0일 포함" },
+      { label: "오답 복습률", value: formatMetric(values.wrongAnswerReviewRate, "%"), detail: samples.wrongAnswers ? `전체 오답 ${samples.wrongAnswers}개 기준` : "새 오답 없음" },
+    ],
+    summary,
+    attentionStudents,
+  };
+}
+
 module.exports = {
+  getAcademyMonthlyStatistics,
   getStudentMonthlyStatistics,
   _private: {
+    buildAcademySummary,
     buildSummary,
     createPeriodOptions,
     getKstMonthKey,

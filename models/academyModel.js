@@ -20,8 +20,8 @@ const academySchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["ACTIVE", "PAUSED"],
-      default: "ACTIVE",
+      enum: ["PENDING", "ACTIVE", "REJECTED", "PAUSED"],
+      default: "PENDING",
       index: true,
     },
     createdByUserId: {
@@ -29,6 +29,23 @@ const academySchema = new Schema(
       ref: "User",
       required: true,
       index: true,
+    },
+    reviewedAt: {
+      type: Date,
+      default: null,
+    },
+    reviewedByUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+    rejectedAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true, versionKey: false }
