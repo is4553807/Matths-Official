@@ -66,7 +66,8 @@ async function ensureAcademyIndexes() {
           joinedAt: { $ifNull: ["$joinedAt", "$createdAt"] },
         },
       },
-    ]
+    ],
+    { updatePipeline: true }
   );
   await Promise.all([
     Academy.createIndexes(),
