@@ -6,6 +6,9 @@ const {
   AcademyStaff,
   AcademyClass,
   AcademyAttendance,
+  AcademyAttendanceAudit,
+  AcademyAttendanceCodeAttempt,
+  AcademyAttendanceSession,
   AcademyStudentMembership,
   AcademyInvite,
 } = require("../models/academyModel");
@@ -32,6 +35,93 @@ function statusError(status, message, code = "") {
 
 function normalizeName(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function currentKstDateKey(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+function normalizeWeekdays(value) {
+  const values = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
+  return [...new Set(values.map((item) => Number.parseInt(item, 10)))]
+    .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6)
+    .sort((left, right) => left - right);
+}
+
+function normalizeClockTime(value, fieldLabel) {
+  const normalized = String(value || "").trim();
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(normalized)) {
+    throw statusError(400, `${fieldLabel}을 다시 확인해 주세요.`);
+  }
+  return normalized;
+}
+
+function clockMinutes(value) {
+  const [hour, minute] = String(value).split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function normalizeClassSchedule({ weekdays, startTime, endTime, effectiveFrom }) {
+  const normalizedWeekdays = normalizeWeekdays(weekdays);
+  if (!normalizedWeekdays.length) throw statusError(400, "수업 요일을 한 개 이상 선택해 주세요.");
+  const normalizedStartTime = normalizeClockTime(startTime, "수업 시작 시간");
+  const normalizedEndTime = normalizeClockTime(endTime, "수업 종료 시간");
+  if (clockMinutes(normalizedEndTime) <= clockMinutes(normalizedStartTime)) {
+    throw statusError(400, "수업 종료 시간은 시작 시간보다 늦어야 합니다.");
+  }
+  const normalizedEffectiveFrom = String(effectiveFrom || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedEffectiveFrom)) {
+    throw statusError(400, "수업 일정 시작일을 다시 확인해 주세요.");
+  }
+  const [year, month, day] = normalizedEffectiveFrom.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    throw statusError(400, "존재하지 않는 수업 일정 시작일입니다.");
+  }
+  return {
+    weekdays: normalizedWeekdays,
+    startTime: normalizedStartTime,
+    endTime: normalizedEndTime,
+    effectiveFrom: normalizedEffectiveFrom,
+    timezone: "Asia/Seoul",
+  };
+}
+
+function boundedInteger(value, minimum, maximum, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(maximum, Math.max(minimum, parsed));
+}
+
+function normalizeAttendancePolicy({
+  attendanceMode,
+  opensBeforeMinutes,
+  lateAfterMinutes,
+  closesAfterMinutes,
+}) {
+  const mode = String(attendanceMode || "MANUAL").trim().toUpperCase();
+  if (!["MANUAL", "SELF_CODE"].includes(mode)) {
+    throw statusError(400, "출결 방식을 다시 선택해 주세요.");
+  }
+  const policy = {
+    mode,
+    opensBeforeMinutes: boundedInteger(opensBeforeMinutes, 0, 120, 10),
+    lateAfterMinutes: boundedInteger(lateAfterMinutes, 0, 120, 5),
+    closesAfterMinutes: boundedInteger(closesAfterMinutes, 1, 240, 20),
+  };
+  if (policy.closesAfterMinutes <= policy.lateAfterMinutes) {
+    throw statusError(400, "출석 마감 시간은 지각 기준보다 늦어야 합니다.");
+  }
+  return policy;
 }
 
 function normalizedInviteCode(value) {
@@ -76,11 +166,32 @@ async function ensureAcademyIndexes() {
     ],
     { updatePipeline: true }
   );
+  await AcademyClass.updateMany(
+    { homeroomTeacherUserId: null },
+    [{ $set: { homeroomTeacherUserId: "$createdByUserId" } }],
+    { updatePipeline: true }
+  );
+  try {
+    const attendanceIndexes = await AcademyAttendance.collection.indexes();
+    const legacyUniqueIndex = attendanceIndexes.find((index) =>
+      index.unique === true &&
+      index.key?.academyId === 1 &&
+      index.key?.studentUserId === 1 &&
+      index.key?.dateKey === 1 &&
+      Object.keys(index.key).length === 3
+    );
+    if (legacyUniqueIndex) await AcademyAttendance.collection.dropIndex(legacyUniqueIndex.name);
+  } catch (error) {
+    if (![26, 27].includes(Number(error?.code))) throw error;
+  }
   await Promise.all([
     Academy.createIndexes(),
     AcademyStaff.createIndexes(),
     AcademyClass.createIndexes(),
     AcademyAttendance.createIndexes(),
+    AcademyAttendanceSession.createIndexes(),
+    AcademyAttendanceAudit.createIndexes(),
+    AcademyAttendanceCodeAttempt.createIndexes(),
     AcademyStudentMembership.createIndexes(),
     AcademyInvite.createIndexes(),
   ]);
@@ -433,6 +544,21 @@ async function rejectAcademyStaff({ teacherUserId, staffId }) {
 async function revokeAcademyStaff({ teacherUserId, staffId }) {
   const context = await getAcademyOwnerContext(teacherUserId);
   if (!mongoose.isValidObjectId(staffId)) throw statusError(404, "선생님 소속을 찾을 수 없습니다.");
+  const candidate = await AcademyStaff.findOne({
+    _id: staffId,
+    academyId: context.academyId,
+    status: "ACTIVE",
+    role: "TEACHER",
+  }).lean();
+  if (!candidate) throw statusError(404, "해제할 선생님 소속을 찾을 수 없습니다.");
+  const homeroomClass = await AcademyClass.findOne({
+    academyId: context.academyId,
+    isActive: true,
+    homeroomTeacherUserId: candidate.userId,
+  }).select("name").lean();
+  if (homeroomClass) {
+    throw statusError(409, `${homeroomClass.name}의 담임을 다른 선생님에게 이전한 뒤 접근 권한을 해제해 주세요.`);
+  }
   const staff = await AcademyStaff.findOneAndUpdate(
     {
       _id: staffId,
@@ -447,6 +573,10 @@ async function revokeAcademyStaff({ teacherUserId, staffId }) {
     { returnDocument: "after" }
   ).lean();
   if (!staff) throw statusError(404, "해제할 선생님 소속을 찾을 수 없습니다.");
+  await AcademyClass.updateMany(
+    { academyId: context.academyId, coTeacherUserIds: staff.userId },
+    { $pull: { coTeacherUserIds: staff.userId } }
+  );
   return staff;
 }
 
@@ -652,7 +782,11 @@ async function getAcademyPortalData(teacherUserId, { includeStudents = true } = 
   const context = await getTeacherAcademyContext(teacherUserId);
   const academyId = context.academyId;
   const [classes, students, requests, invites, activeStaff, staffRequests] = await Promise.all([
-    AcademyClass.find({ academyId, isActive: true }).sort({ name: 1, _id: 1 }).lean(),
+    AcademyClass.find({ academyId, isActive: true })
+      .sort({ name: 1, _id: 1 })
+      .populate("homeroomTeacherUserId", STAFF_FIELDS)
+      .populate("coTeacherUserIds", STAFF_FIELDS)
+      .lean(),
     includeStudents
       ? AcademyStudentMembership.find({ academyId, status: "APPROVED" })
           .sort({ approvedAt: -1, _id: 1 })
@@ -731,10 +865,16 @@ async function getAcademyClassDetail({ teacherUserId, classId }) {
     _id: classId,
     academyId: context.academyId,
     isActive: true,
-  }).lean();
+  })
+    .populate("homeroomTeacherUserId", STAFF_FIELDS)
+    .populate("coTeacherUserIds", STAFF_FIELDS)
+    .populate("teacherHistory.previousTeacherUserId", STAFF_FIELDS)
+    .populate("teacherHistory.nextTeacherUserId", STAFF_FIELDS)
+    .populate("teacherHistory.changedByUserId", STAFF_FIELDS)
+    .lean();
   if (!academyClass) throw statusError(404, "현재 학원에서 사용하는 반을 찾을 수 없습니다.");
 
-  const [students, pendingCount] = await Promise.all([
+  const [students, pendingCount, activeStaff] = await Promise.all([
     AcademyStudentMembership.find({
       academyId: context.academyId,
       classId: academyClass._id,
@@ -747,12 +887,21 @@ async function getAcademyClassDetail({ teacherUserId, classId }) {
       academyId: context.academyId,
       status: "PENDING",
     }),
+    AcademyStaff.find({ academyId: context.academyId, status: "ACTIVE" })
+      .sort({ role: 1, joinedAt: 1, createdAt: 1 })
+      .populate("userId", STAFF_FIELDS)
+      .lean(),
   ]);
 
   return {
     academy: context.academy,
     academyClass,
     students: students.filter((entry) => entry.studentUserId),
+    activeStaff: activeStaff.filter((entry) => entry.userId),
+    canManageClass:
+      context.staff.role === "OWNER" ||
+      String(academyClass.homeroomTeacherUserId?._id || academyClass.homeroomTeacherUserId) === String(teacherUserId) ||
+      academyClass.coTeacherUserIds.some((user) => String(user?._id || user) === String(teacherUserId)),
     isOwner: context.staff.role === "OWNER",
     pendingCount,
   };
@@ -899,18 +1048,50 @@ async function bulkManageAcademyStudents({
   };
 }
 
-async function createAcademyClass({ teacherUserId, name }) {
+async function createAcademyClass({
+  teacherUserId,
+  name,
+  weekdays,
+  startTime,
+  endTime,
+  effectiveFrom,
+  attendanceMode,
+  opensBeforeMinutes,
+  lateAfterMinutes,
+  closesAfterMinutes,
+}) {
   const context = await getTeacherAcademyContext(teacherUserId);
   const className = normalizeName(name);
   if (className.length < 1 || className.length > 40) {
     throw statusError(400, "반 이름은 1자 이상 40자 이하로 입력해주세요.");
   }
   const nameNormalized = className.toLocaleLowerCase("ko-KR");
+  const hasScheduleInput = [weekdays, startTime, endTime, effectiveFrom]
+    .some((value) => Array.isArray(value) ? value.length > 0 : String(value || "").trim());
+  const schedule = normalizeClassSchedule(hasScheduleInput
+    ? { weekdays, startTime, endTime, effectiveFrom }
+    : { weekdays: [1], startTime: "18:00", endTime: "20:00", effectiveFrom: currentKstDateKey() });
+  const attendancePolicy = normalizeAttendancePolicy({
+    attendanceMode,
+    opensBeforeMinutes,
+    lateAfterMinutes,
+    closesAfterMinutes,
+  });
   const existing = await AcademyClass.findOne({ academyId: context.academyId, nameNormalized });
   if (existing) {
     if (existing.isActive) throw statusError(409, "같은 이름의 반이 이미 있습니다.");
     existing.name = className;
     existing.isActive = true;
+    existing.homeroomTeacherUserId = teacherUserId;
+    existing.coTeacherUserIds = [];
+    existing.schedule = schedule;
+    existing.attendancePolicy = attendancePolicy;
+    existing.teacherHistory.push({
+      previousTeacherUserId: null,
+      nextTeacherUserId: teacherUserId,
+      changedByUserId: teacherUserId,
+      changedAt: new Date(),
+    });
     await existing.save();
     return existing.toObject();
   }
@@ -920,8 +1101,130 @@ async function createAcademyClass({ teacherUserId, name }) {
       name: className,
       nameNormalized,
       createdByUserId: teacherUserId,
+      homeroomTeacherUserId: teacherUserId,
+      schedule,
+      attendancePolicy,
+      teacherHistory: [{
+        previousTeacherUserId: null,
+        nextTeacherUserId: teacherUserId,
+        changedByUserId: teacherUserId,
+        changedAt: new Date(),
+      }],
     })
   ).toObject();
+}
+
+async function getAcademyClassForManagement({ teacherUserId, classId, ownerOnly = false }) {
+  const context = await getTeacherAcademyContext(teacherUserId);
+  if (!mongoose.isValidObjectId(classId)) throw statusError(404, "반을 찾을 수 없습니다.");
+  const academyClass = await AcademyClass.findOne({
+    _id: classId,
+    academyId: context.academyId,
+    isActive: true,
+  });
+  if (!academyClass) throw statusError(404, "현재 학원에서 사용하는 반을 찾을 수 없습니다.");
+  const assigned =
+    String(academyClass.homeroomTeacherUserId || "") === String(teacherUserId) ||
+    academyClass.coTeacherUserIds.some((userId) => String(userId) === String(teacherUserId));
+  if (ownerOnly ? context.staff.role !== "OWNER" : context.staff.role !== "OWNER" && !assigned) {
+    throw statusError(403, ownerOnly ? "원장만 담임 선생님을 이전할 수 있습니다." : "이 반을 관리하는 선생님만 변경할 수 있습니다.");
+  }
+  return { context, academyClass };
+}
+
+async function assertActiveAcademyTeacher(academyId, teacherUserId) {
+  if (!mongoose.isValidObjectId(teacherUserId)) throw statusError(400, "선생님을 다시 선택해 주세요.");
+  const staff = await AcademyStaff.findOne({ academyId, userId: teacherUserId, status: "ACTIVE" }).lean();
+  if (!staff) throw statusError(404, "현재 학원의 활성 선생님을 찾을 수 없습니다.");
+  return staff;
+}
+
+async function updateAcademyClassSettings({
+  teacherUserId,
+  classId,
+  weekdays,
+  startTime,
+  endTime,
+  effectiveFrom,
+  attendanceMode,
+  opensBeforeMinutes,
+  lateAfterMinutes,
+  closesAfterMinutes,
+}) {
+  const { academyClass } = await getAcademyClassForManagement({ teacherUserId, classId });
+  const now = new Date();
+  academyClass.schedule = normalizeClassSchedule({ weekdays, startTime, endTime, effectiveFrom });
+  academyClass.attendancePolicy = normalizeAttendancePolicy({
+    attendanceMode,
+    opensBeforeMinutes,
+    lateAfterMinutes,
+    closesAfterMinutes,
+  });
+  await academyClass.save();
+  await AcademyAttendanceSession.updateMany(
+    {
+      academyId: academyClass.academyId,
+      classId: academyClass._id,
+      startsAt: { $gt: now },
+      status: { $ne: "CANCELED" },
+    },
+    { $set: { status: "CANCELED", closedAt: now } }
+  );
+  return academyClass.toObject();
+}
+
+async function addAcademyClassCoTeacher({ teacherUserId, classId, coTeacherUserId }) {
+  const { context, academyClass } = await getAcademyClassForManagement({ teacherUserId, classId });
+  await assertActiveAcademyTeacher(context.academyId, coTeacherUserId);
+  if (String(academyClass.homeroomTeacherUserId || "") === String(coTeacherUserId)) {
+    throw statusError(409, "담임 선생님은 공동 담당자로 추가할 필요가 없습니다.");
+  }
+  if (!academyClass.coTeacherUserIds.some((userId) => String(userId) === String(coTeacherUserId))) {
+    academyClass.coTeacherUserIds.push(coTeacherUserId);
+    await academyClass.save();
+  }
+  return academyClass.toObject();
+}
+
+async function removeAcademyClassCoTeacher({ teacherUserId, classId, coTeacherUserId }) {
+  const { academyClass } = await getAcademyClassForManagement({ teacherUserId, classId });
+  academyClass.coTeacherUserIds = academyClass.coTeacherUserIds.filter(
+    (userId) => String(userId) !== String(coTeacherUserId)
+  );
+  await academyClass.save();
+  return academyClass.toObject();
+}
+
+async function transferAcademyClassHomeroom({ teacherUserId, classId, nextTeacherUserId, keepPreviousAsCoTeacher }) {
+  const { context, academyClass } = await getAcademyClassForManagement({
+    teacherUserId,
+    classId,
+    ownerOnly: true,
+  });
+  await assertActiveAcademyTeacher(context.academyId, nextTeacherUserId);
+  const previousTeacherUserId = academyClass.homeroomTeacherUserId || null;
+  if (String(previousTeacherUserId || "") === String(nextTeacherUserId)) {
+    throw statusError(409, "이미 이 반의 담임 선생님입니다.");
+  }
+  academyClass.homeroomTeacherUserId = nextTeacherUserId;
+  academyClass.coTeacherUserIds = academyClass.coTeacherUserIds.filter(
+    (userId) => String(userId) !== String(nextTeacherUserId)
+  );
+  if (
+    keepPreviousAsCoTeacher &&
+    previousTeacherUserId &&
+    !academyClass.coTeacherUserIds.some((userId) => String(userId) === String(previousTeacherUserId))
+  ) {
+    academyClass.coTeacherUserIds.push(previousTeacherUserId);
+  }
+  academyClass.teacherHistory.push({
+    previousTeacherUserId,
+    nextTeacherUserId,
+    changedByUserId: teacherUserId,
+    changedAt: new Date(),
+  });
+  await academyClass.save();
+  return academyClass.toObject();
 }
 
 function randomInviteCode() {
@@ -1014,6 +1317,7 @@ module.exports = {
   createAcademyClass,
   createAcademyForTeacher,
   createAcademyInvite,
+  addAcademyClassCoTeacher,
   ensureAcademyIndexes,
   getAcademyInvitePresentation,
   getAcademyPortalData,
@@ -1028,10 +1332,13 @@ module.exports = {
   rejectAcademyStaff,
   rejectAcademyApplication,
   rejectMembership,
+  removeAcademyClassCoTeacher,
   requestAcademyStaffJoin,
   requestAcademyByCode,
   requestAcademyByToken,
   requestAcademyFromProfile,
   revokeAcademyStaff,
   revokeAcademyInvite,
+  transferAcademyClassHomeroom,
+  updateAcademyClassSettings,
 };

@@ -6,6 +6,7 @@ dotenv.config({ path: "./config.env" });
 const { User } = require("../models/matthsModel");
 const {
   Academy,
+  AcademyClass,
   AcademyStudentMembership,
 } = require("../models/academyModel");
 
@@ -59,18 +60,28 @@ async function main() {
     if (!users.length) throw new Error("소속 처리할 활성 테스트 계정을 찾을 수 없습니다.");
 
     const userIds = users.map((user) => user._id);
-    const [alreadyAssigned, otherCurrentMemberships] = await Promise.all([
-      AcademyStudentMembership.countDocuments({
+    const [existingTargetMemberships, otherCurrentMemberships, activeClasses] = await Promise.all([
+      AcademyStudentMembership.find({
         academyId: academy._id,
         studentUserId: { $in: userIds },
-        status: "APPROVED",
-      }),
+      }).select("studentUserId classId status").lean(),
       AcademyStudentMembership.countDocuments({
         academyId: { $ne: academy._id },
         studentUserId: { $in: userIds },
         status: { $in: ["PENDING", "APPROVED"] },
       }),
+      AcademyClass.find({ academyId: academy._id, isActive: true }).select("_id name").sort({ name: 1, _id: 1 }).lean(),
     ]);
+    if (!activeClasses.length) throw new Error("테스트 학원에 활성 반이 없어 테스트 학생을 반에 배정할 수 없습니다.");
+    const alreadyAssigned = existingTargetMemberships.filter((membership) => membership.status === "APPROVED").length;
+    const activeClassIds = new Set(activeClasses.map((academyClass) => String(academyClass._id)));
+    const membershipByUserId = new Map(existingTargetMemberships.map((membership) => [String(membership.studentUserId), membership]));
+    const classByUserId = new Map(users.map((user, index) => {
+      const currentClassId = membershipByUserId.get(String(user._id))?.classId || null;
+      return [String(user._id), currentClassId && activeClassIds.has(String(currentClassId))
+        ? currentClassId
+        : activeClasses[index % activeClasses.length]._id];
+    }));
     const batches = users.reduce((result, user) => {
       const key = String(user.testBatchKey || "UNSPECIFIED");
       result[key] = (result[key] || 0) + 1;
@@ -83,6 +94,7 @@ async function main() {
       targetUsers: users.length,
       alreadyAssigned,
       otherCurrentMemberships,
+      activeClasses: activeClasses.map((academyClass) => ({ id: String(academyClass._id), name: academyClass.name })),
       batches,
       sample: users.slice(0, 10).map((user) => ({
         name: user.name,
@@ -134,11 +146,11 @@ async function main() {
                   approvedAt: now,
                   rejectedAt: null,
                   leftAt: null,
+                  classId: classByUserId.get(String(user._id)),
                 },
                 $setOnInsert: {
                   academyId: academy._id,
                   studentUserId: user._id,
-                  classId: null,
                 },
               },
               upsert: true,
@@ -156,8 +168,14 @@ async function main() {
       studentUserId: { $in: userIds },
       status: "APPROVED",
     });
-    console.log(JSON.stringify({ ...preview, assigned, completed: assigned === users.length }, null, 2));
-    if (assigned !== users.length) process.exitCode = 1;
+    const assignedToClass = await AcademyStudentMembership.countDocuments({
+      academyId: academy._id,
+      studentUserId: { $in: userIds },
+      status: "APPROVED",
+      classId: { $in: activeClasses.map((academyClass) => academyClass._id) },
+    });
+    console.log(JSON.stringify({ ...preview, assigned, assignedToClass, completed: assigned === users.length && assignedToClass === users.length }, null, 2));
+    if (assigned !== users.length || assignedToClass !== users.length) process.exitCode = 1;
   } finally {
     await mongoose.disconnect();
   }

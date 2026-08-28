@@ -16,6 +16,11 @@
   const weeklyCorrectRate = Number(data.stats?.correctRate) || 0;
   const activePlan = data.activePlan || { code: "FREE", name: "기본학습 패키지" };
   const accessRenewalNotice = data.accessRenewalNotice || null;
+  const attendance = data.attendance || null;
+  const attendanceStatusLabel = { PRESENT: "출석", LATE: "지각", ABSENT: "결석", EXCUSED: "사유 결석" };
+  const formatAcademyTime = (value) => value
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value))
+    : "";
   const currentKoreanYear = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul",
     year: "numeric",
@@ -218,6 +223,41 @@
             </div>
           </div>
         </header>
+
+        <% if (attendance?.session) { %>
+          <section
+            class="dashboard-attendance-card is-<%= String(attendance.session.state).toLowerCase() %>"
+            data-student-attendance-card
+            data-session-id="<%= attendance.session.id %>"
+            data-attendance-mode="<%= attendance.session.attendanceMode %>"
+            data-opens-at="<%= new Date(attendance.session.checkInOpensAt).toISOString() %>"
+            data-late-at="<%= new Date(attendance.session.lateAfterAt).toISOString() %>"
+            data-closes-at="<%= new Date(attendance.session.checkInClosesAt).toISOString() %>"
+            data-server-now="<%= new Date(attendance.serverNow).toISOString() %>"
+          >
+            <div class="dashboard-attendance-copy">
+              <span aria-hidden="true">✓</span>
+              <div><small>ACADEMY ATTENDANCE</small><h2><%= attendance.academyClass.name %></h2><p><%= attendance.academy.name %> · <%= formatAcademyTime(attendance.session.startsAt) %> 수업</p></div>
+            </div>
+            <div class="dashboard-attendance-action">
+              <% if (attendance.attendance) { %>
+                <strong data-attendance-result><%= attendanceStatusLabel[attendance.attendance.status] || attendance.attendance.status %> 완료</strong>
+                <small><%= attendance.attendance.checkedInAt ? `${formatAcademyTime(attendance.attendance.checkedInAt)} 체크인` : "선생님이 출결을 기록했습니다." %></small>
+              <% } else if (attendance.session.attendanceMode === "MANUAL") { %>
+                <strong>선생님 수동 출결</strong><small>담당 선생님이 수업 출결을 기록합니다.</small>
+              <% } else { %>
+                <strong data-attendance-window-label><%= attendance.session.state === "OPEN" ? (attendance.session.isLateWindow ? "지각 출석 입력 중" : "출석 입력 중") : attendance.session.state === "CLOSED" ? "출석 입력 종료" : "출석 시작 전" %></strong>
+                <small data-attendance-countdown><%= formatAcademyTime(attendance.session.checkInOpensAt) %>부터 코드 입력 가능</small>
+                <form data-student-attendance-form <%= attendance.canCheckIn ? "" : "hidden" %>>
+                  <label><span class="sr-only">6자리 출석 코드</span><input name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" placeholder="6자리 코드" required /></label>
+                  <button type="submit">출석하기</button>
+                </form>
+                <button type="button" class="dashboard-attendance-alert-button" data-enable-attendance-alerts>수업 알림 켜기</button>
+                <p data-attendance-feedback role="status" aria-live="polite"></p>
+              <% } %>
+            </div>
+          </section>
+        <% } %>
 
         <% if (activeDashboardNotices.length) { %>
           <section class="dashboard-announcements" aria-label="운영 공지">

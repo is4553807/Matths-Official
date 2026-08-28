@@ -8715,6 +8715,156 @@
   font-size: 13px;
 }
 
+.admin-academy-class-control-list,
+.admin-academy-session-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-academy-class-control-list > article,
+.admin-academy-session-grid > article {
+  padding: 18px;
+  border: 1px solid #e2e6f0;
+  border-radius: 14px;
+  background: #f8f9fc;
+}
+
+.admin-academy-class-control-list > article > header,
+.admin-academy-session-grid > article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-academy-class-control-list header strong,
+.admin-academy-session-grid strong {
+  display: block;
+  color: #161d35;
+  font-size: 13px;
+}
+
+.admin-academy-class-control-list header span,
+.admin-academy-class-control-list small,
+.admin-academy-session-grid span,
+.admin-academy-session-grid small {
+  display: block;
+  margin-top: 5px;
+  color: #7a849a;
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.admin-academy-class-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.75fr);
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.admin-academy-class-controls .admin-form {
+  margin: 0;
+  padding: 15px;
+  background: #fff;
+}
+
+.admin-academy-class-controls fieldset {
+  margin: 12px 0;
+  padding: 0;
+  border: 0;
+}
+
+.admin-academy-class-controls legend,
+.admin-academy-class-controls label > span {
+  margin-bottom: 5px;
+  color: #626c87;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.admin-academy-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-academy-weekdays label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid #dce2ef;
+  border-radius: 9px;
+  background: #f9faff;
+}
+
+.admin-academy-weekdays label > span {
+  margin: 0;
+}
+
+.admin-academy-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-academy-checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 7px;
+}
+
+.admin-academy-checkbox span {
+  margin: 0 !important;
+}
+
+.admin-academy-subtitle {
+  margin: 22px 0 10px;
+  color: #252d48;
+  font-size: 13px;
+}
+
+.admin-academy-session-code {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-academy-session-code > b {
+  color: #3f55d8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 20px;
+  letter-spacing: 0.12em;
+}
+
+.admin-academy-attendance-form {
+  display: grid;
+  grid-template-columns: 90px minmax(120px, 1fr) auto;
+  gap: 6px;
+  min-width: 320px;
+}
+
+.admin-academy-attendance-form input,
+.admin-academy-attendance-form select {
+  min-width: 0;
+}
+
+.admin-academy-audit {
+  margin-top: 18px;
+}
+
+.admin-academy-audit > summary {
+  color: var(--admin-blue);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.admin-academy-audit[open] > summary {
+  margin-bottom: 12px;
+}
+
 .admin-academy-token {
   max-width: 250px;
   overflow-wrap: anywhere;
@@ -8788,6 +8938,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .admin-academy-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .admin-academy-meta {
     grid-column: 1 / -1;
   }
@@ -8803,8 +8957,15 @@
 
   .admin-academy-filter,
   .admin-academy-control-grid,
-  .admin-academy-summary-grid {
+  .admin-academy-summary-grid,
+  .admin-academy-class-controls {
     grid-template-columns: 1fr;
+  }
+
+  .admin-academy-session-grid > article,
+  .admin-academy-class-control-list > article > header {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .admin-academy-detail-hero > nav {

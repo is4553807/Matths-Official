@@ -16,6 +16,9 @@ const {
 const {
   Academy,
   AcademyAttendance,
+  AcademyAttendanceAudit,
+  AcademyAttendanceCodeAttempt,
+  AcademyAttendanceSession,
   AcademyStaff,
   AcademyClass,
   AcademyStudentMembership,
@@ -25,6 +28,7 @@ const {
   approveAcademyApplication,
   approveAcademyStaff,
   approveMembership,
+  addAcademyClassCoTeacher,
   assignMembershipClass,
   bulkManageAcademyStudents,
   cancelAcademyStaffJoin,
@@ -43,7 +47,10 @@ const {
   requestAcademyStaffJoin,
   requestAcademyByCode,
   rejectAcademyApplication,
+  removeAcademyClassCoTeacher,
   revokeAcademyStaff,
+  transferAcademyClassHomeroom,
+  updateAcademyClassSettings,
 } = require("../services/academyService");
 const {
   createSquareAcademyProfileImageFile,
@@ -57,7 +64,10 @@ const {
   getStudentMonthlyStatistics,
 } = require("../services/academyStatisticsService");
 const {
+  checkInStudentAttendance,
   getAcademyAttendanceRoster,
+  getStudentAttendanceDashboard,
+  regenerateAttendanceSessionCode,
   saveAcademyAttendanceRoster,
 } = require("../services/academyAttendanceService");
 const {
@@ -71,8 +81,12 @@ const {
   assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,
   getAdminAcademyList,
+  regenerateAdminAcademyAttendanceCode,
+  transferAdminAcademyClassHomeroom,
   transferAdminAcademyOwner,
+  updateAdminAcademyAttendance,
   updateAdminAcademyClass,
+  updateAdminAcademyClassOperations,
   updateAdminAcademyInvite,
   updateAdminAcademyMembership,
   updateAdminAcademyProfile,
@@ -117,10 +131,11 @@ async function main() {
 
     const dummySeedAcademyId = new mongoose.Types.ObjectId();
     const dummySeedTeacherId = new mongoose.Types.ObjectId();
+    const dummySeedClassId = new mongoose.Types.ObjectId();
     const dummySeedUsers = Array.from({ length: 5 }, () => ({
       _id: new mongoose.Types.ObjectId(),
       academyId: dummySeedAcademyId,
-      classId: null,
+      classId: dummySeedClassId,
       recordedByUserId: dummySeedTeacherId,
     }));
     const dummySeedDataset = buildAcademyDummyDataset(
@@ -130,8 +145,17 @@ async function main() {
     );
     assert.equal(dummySeedDataset.operations.problems.length, 80);
     assert.ok(dummySeedDataset.operations.problemAttempts.length > 200);
+    assert.equal(dummySeedDataset.operations.attendanceSessions.length, 1);
+    assert.equal(dummySeedDataset.operations.attendance.length, dummySeedUsers.length);
+    assert.equal(dummySeedDataset.operations.attendanceAudits.length, dummySeedUsers.length);
     await Problem.bulkWrite(dummySeedDataset.operations.problems, { ordered: false });
     await ProblemAttempt.bulkWrite(dummySeedDataset.operations.problemAttempts, { ordered: false });
+    await AcademyAttendanceSession.bulkWrite(dummySeedDataset.operations.attendanceSessions, { ordered: false });
+    await AcademyAttendance.bulkWrite(dummySeedDataset.operations.attendance, { ordered: false });
+    await AcademyAttendanceAudit.bulkWrite(dummySeedDataset.operations.attendanceAudits, { ordered: false });
+    assert.equal(await AcademyAttendanceSession.countDocuments({ academyId: dummySeedAcademyId }), 1);
+    assert.equal(await AcademyAttendance.countDocuments({ academyId: dummySeedAcademyId, sessionId: { $ne: null } }), dummySeedUsers.length);
+    assert.equal(await AcademyAttendanceAudit.countDocuments({ academyId: dummySeedAcademyId, actorType: "SYSTEM" }), dummySeedUsers.length);
 
     const dummySeedMathMaps = await getStudentMathMaps({
       studentUserIds: dummySeedUsers.map((user) => user._id),
@@ -304,6 +328,22 @@ async function main() {
     const academyClass = await createAcademyClass({
       teacherUserId: teacher._id,
       name: "고1 월수반",
+      weekdays: [5],
+      startTime: "17:30",
+      endTime: "19:30",
+      effectiveFrom: "2026-08-01",
+      attendanceMode: "SELF_CODE",
+      opensBeforeMinutes: 10,
+      lateAfterMinutes: 5,
+      closesAfterMinutes: 20,
+    });
+    assert.equal(String(academyClass.homeroomTeacherUserId), String(teacher._id));
+    assert.deepEqual(academyClass.schedule.weekdays, [5]);
+    assert.equal(academyClass.attendancePolicy.mode, "SELF_CODE");
+    await addAcademyClassCoTeacher({
+      teacherUserId: teacher._id,
+      classId: academyClass._id,
+      coTeacherUserId: secondTeacher._id,
     });
     const invite = await createAcademyInvite({
       teacherUserId: teacher._id,
@@ -501,21 +541,67 @@ async function main() {
       measuredConcepts: classMathMap.analyzedConceptCount,
     };
 
-    const attendanceSave = await saveAcademyAttendanceRoster({
-      teacherUserId: teacher._id,
-      dateKey: "2026-08-28",
-      classId: academyClass._id,
-      studentUserIds: [student._id],
-      statuses: ["PRESENT"],
-      notes: ["정상 등원"],
-      now: new Date("2026-08-28T08:30:00.000Z"),
-    });
-    assert.equal(attendanceSave.recordedCount, 1);
     let attendanceRoster = await getAcademyAttendanceRoster({
       teacherUserId: secondTeacher._id,
       dateKey: "2026-08-28",
       classId: academyClass._id,
-      now: new Date("2026-08-28T09:00:00.000Z"),
+      now: new Date("2026-08-28T08:25:00.000Z"),
+    });
+    assert.equal(attendanceRoster.session.attendanceMode, "SELF_CODE");
+    assert.match(attendanceRoster.session.code, /^\d{6}$/);
+    const firstAttendanceCode = attendanceRoster.session.code;
+    const regeneratedSession = await regenerateAttendanceSessionCode({
+      teacherUserId: teacher._id,
+      sessionId: attendanceRoster.session.id,
+      now: new Date("2026-08-28T08:26:00.000Z"),
+    });
+    assert.notEqual(regeneratedSession.code, firstAttendanceCode);
+    await assert.rejects(
+      checkInStudentAttendance({
+        studentUserId: student._id,
+        sessionId: attendanceRoster.session.id,
+        code: firstAttendanceCode,
+        now: new Date("2026-08-28T08:30:00.000Z"),
+      }),
+      (error) => Number(error.status) === 400 && /올바르지/.test(error.message)
+    );
+    const attendanceDashboard = await getStudentAttendanceDashboard({
+      studentUserId: student._id,
+      now: new Date("2026-08-28T08:30:00.000Z"),
+    });
+    assert.equal(attendanceDashboard.canCheckIn, true);
+    assert.equal(attendanceDashboard.academyClass.name, academyClass.name);
+    const studentCheckIn = await checkInStudentAttendance({
+      studentUserId: student._id,
+      sessionId: attendanceRoster.session.id,
+      code: regeneratedSession.code,
+      now: new Date("2026-08-28T08:30:00.000Z"),
+    });
+    assert.equal(studentCheckIn.status, "PRESENT");
+    assert.equal(
+      (await AcademyAttendance.findOne({ sessionId: attendanceRoster.session.id, studentUserId: student._id }).lean()).source,
+      "SELF_CODE"
+    );
+    assert.equal(
+      await AcademyAttendanceAudit.countDocuments({ sessionId: attendanceRoster.session.id, actorType: "STUDENT" }),
+      1
+    );
+    const attendanceSave = await saveAcademyAttendanceRoster({
+      teacherUserId: teacher._id,
+      dateKey: "2026-08-28",
+      classId: academyClass._id,
+      sessionId: attendanceRoster.session.id,
+      studentUserIds: [student._id],
+      statuses: ["PRESENT"],
+      notes: ["정상 등원"],
+      now: new Date("2026-08-28T08:31:00.000Z"),
+    });
+    assert.equal(attendanceSave.recordedCount, 1);
+    attendanceRoster = await getAcademyAttendanceRoster({
+      teacherUserId: secondTeacher._id,
+      dateKey: "2026-08-28",
+      classId: academyClass._id,
+      now: new Date("2026-08-28T08:32:00.000Z"),
     });
     assert.equal(attendanceRoster.roster.length, 1);
     assert.equal(attendanceRoster.counts.PRESENT, 1);
@@ -524,6 +610,7 @@ async function main() {
       teacherUserId: secondTeacher._id,
       dateKey: "2026-08-28",
       classId: academyClass._id,
+      sessionId: attendanceRoster.session.id,
       studentUserIds: student._id,
       statuses: "LATE",
       notes: "교통 지연",
@@ -533,9 +620,13 @@ async function main() {
       teacherUserId: teacher._id,
       dateKey: "2026-08-28",
       classId: academyClass._id,
+      now: new Date("2026-08-28T08:40:00.000Z"),
     });
     assert.equal(attendanceRoster.counts.LATE, 1);
     assert.equal(attendanceRoster.roster[0].attendance.note, "교통 지연");
+    assert.ok(await AcademyAttendanceSession.findById(attendanceRoster.session.id).lean());
+    assert.equal(await AcademyAttendanceCodeAttempt.countDocuments({ sessionId: attendanceRoster.session.id }), 0);
+    assert.ok(await AcademyAttendanceAudit.countDocuments({ sessionId: attendanceRoster.session.id, actorType: "TEACHER" }) >= 2);
     await assert.rejects(
       saveAcademyAttendanceRoster({
         teacherUserId: teacher._id,
@@ -602,6 +693,67 @@ async function main() {
     await updateAdminAcademyClass({ adminUserId: admin._id, academyId: academy._id, classId: academyClass._id, action: "DEACTIVATE" });
     assert.equal((await AcademyClass.findById(academyClass._id).lean()).isActive, false);
     await updateAdminAcademyClass({ adminUserId: admin._id, academyId: academy._id, classId: academyClass._id, action: "ACTIVATE" });
+    await updateAdminAcademyClassOperations({
+      adminUserId: admin._id,
+      academyId: academy._id,
+      classId: academyClass._id,
+      weekdays: [1, 3, 5],
+      startTime: "17:45",
+      endTime: "19:45",
+      effectiveFrom: "2026-08-01",
+      attendanceMode: "SELF_CODE",
+      opensBeforeMinutes: 15,
+      lateAfterMinutes: 7,
+      closesAfterMinutes: 35,
+    });
+    assert.deepEqual((await AcademyClass.findById(academyClass._id).lean()).schedule.weekdays, [1, 3, 5]);
+    await transferAdminAcademyClassHomeroom({
+      adminUserId: admin._id,
+      academyId: academy._id,
+      classId: academyClass._id,
+      nextTeacherUserId: secondTeacher._id,
+      retainPreviousAsCoTeacher: true,
+    });
+    assert.equal(String((await AcademyClass.findById(academyClass._id).lean()).homeroomTeacherUserId), String(secondTeacher._id));
+    await transferAdminAcademyClassHomeroom({
+      adminUserId: admin._id,
+      academyId: academy._id,
+      classId: academyClass._id,
+      nextTeacherUserId: teacher._id,
+      retainPreviousAsCoTeacher: false,
+    });
+    const attendanceBeforeAdminOverride = await AcademyAttendance.findOne({
+      sessionId: attendanceRoster.session.id,
+      studentUserId: student._id,
+    }).lean();
+    await updateAdminAcademyAttendance({
+      adminUserId: admin._id,
+      academyId: academy._id,
+      attendanceId: attendanceBeforeAdminOverride._id,
+      status: "EXCUSED",
+      note: "운영자 검증 보정",
+    });
+    const attendanceAfterAdminOverride = await AcademyAttendance.findById(attendanceBeforeAdminOverride._id).lean();
+    assert.equal(attendanceAfterAdminOverride.status, "EXCUSED");
+    assert.equal(attendanceAfterAdminOverride.source, "ADMIN");
+    assert.ok(await AcademyAttendanceAudit.findOne({ attendanceId: attendanceBeforeAdminOverride._id, actorType: "ADMIN" }).lean());
+    await assert.rejects(
+      checkInStudentAttendance({
+        studentUserId: student._id,
+        sessionId: attendanceRoster.session.id,
+        code: regeneratedSession.code,
+        now: new Date("2026-08-28T08:32:00.000Z"),
+      }),
+      (error) => Number(error.status) === 409 && /운영자가 이미/.test(error.message)
+    );
+    const adminRegeneratedCode = await regenerateAdminAcademyAttendanceCode({
+      adminUserId: admin._id,
+      academyId: academy._id,
+      sessionId: attendanceRoster.session.id,
+      now: new Date("2026-08-28T08:32:00.000Z"),
+    });
+    assert.match(adminRegeneratedCode.code, /^\d{6}$/);
+    assert.notEqual(adminRegeneratedCode.code, regeneratedSession.code);
     await updateAdminAcademyInvite({ adminUserId: admin._id, academyId: academy._id, inviteId: invite._id, action: "REVOKE" });
     assert.equal((await AcademyInvite.findById(invite._id).lean()).status, "REVOKED");
     await updateAdminAcademyInvite({ adminUserId: admin._id, academyId: academy._id, inviteId: invite._id, action: "RESTORE" });
@@ -610,11 +762,15 @@ async function main() {
       adminUserId: admin._id,
       academyId: academy._id,
       periodKey: "2026-08",
+      now: new Date("2026-08-28T08:32:00.000Z"),
     });
     assert.equal(adminAcademyDetail.staff.length, 2);
     assert.equal(adminAcademyDetail.memberships.length, 1);
     assert.equal(adminAcademyDetail.classes.length, 1);
     assert.equal(adminAcademyDetail.invites.length, 1);
+    assert.ok(adminAcademyDetail.attendanceSessions.length >= 1);
+    assert.ok(adminAcademyDetail.attendanceRecords.length >= 1);
+    assert.ok(adminAcademyDetail.attendanceAudits.some((audit) => audit.actorType === "ADMIN"));
     assert.equal(adminAcademyDetail.statistics.values.averageLearningDays, 8);
     assert.equal(adminAcademyDetail.statistics.attentionStudents[0].membership.studentUserId.realName, "이학생");
 
@@ -638,6 +794,10 @@ async function main() {
     assert.match(adminDetailHtml, /학원 프로필 사진/);
     assert.match(adminDetailHtml, /\/admin\/academies\/.+\/profile-image/);
     assert.match(adminDetailHtml, /고1 월수반/);
+    assert.match(adminDetailHtml, /수업 일정·출석 방식/);
+    assert.match(adminDetailHtml, /수업 회차·학생 출결·감사 이력/);
+    assert.match(adminDetailHtml, /운영자 검증 보정/);
+    assert.match(adminDetailHtml, /코드 재발급/);
     assert.match(adminDetailHtml, new RegExp(invite.code));
 
     const emptyStatistics = await getStudentMonthlyStatistics({
@@ -740,6 +900,9 @@ async function main() {
     assert.match(classDetailHtml, /\/academy\/students\//);
     assert.match(classDetailHtml, /CLASS MATH MAP/);
     assert.match(classDetailHtml, /calculus-1-02-07|함수의 증가·감소와 극값/);
+    assert.match(classDetailHtml, /수업 일정·출결 방식/);
+    assert.match(classDetailHtml, /담임·공동 담당/);
+    assert.match(classDetailHtml, /학생 코드 출결/);
 
     const emptyAcademyClass = await createAcademyClass({
       teacherUserId: teacher._id,
@@ -1000,6 +1163,8 @@ async function main() {
     assert.match(academyFeatureRoutes, /"\/academy\/profile-image"/);
     assert.match(academyFeatureRoutes, /"\/academy\/classes\/:classId"/);
     assert.match(academyRoutes, /"\/admin\/academies\/:academyId\/profile-image"/);
+    assert.match(academyRoutes, /"\/admin\/academies\/:academyId\/classes\/:classId\/operations"/);
+    assert.match(academyRoutes, /"\/admin\/academies\/:academyId\/attendance\/:attendanceId"/);
     await assert.rejects(
       approveAcademyStaff({ teacherUserId: secondTeacher._id, staffId: new mongoose.Types.ObjectId() }),
       (error) => Number(error.status) === 403 && /원장 계정만/.test(error.message)
@@ -1010,6 +1175,96 @@ async function main() {
       userId: secondTeacher._id,
       status: "ACTIVE",
     }).lean();
+    await addAcademyClassCoTeacher({
+      teacherUserId: teacher._id,
+      classId: academyClass._id,
+      coTeacherUserId: secondTeacher._id,
+    });
+    await updateAcademyClassSettings({
+      teacherUserId: secondTeacher._id,
+      classId: academyClass._id,
+      weekdays: [1, 3, 5],
+      startTime: "17:30",
+      endTime: "19:30",
+      effectiveFrom: "2026-08-01",
+      attendanceMode: "SELF_CODE",
+      opensBeforeMinutes: 10,
+      lateAfterMinutes: 5,
+      closesAfterMinutes: 30,
+    });
+    assert.deepEqual((await AcademyClass.findById(academyClass._id).lean()).schedule.weekdays, [1, 3, 5]);
+    const futureAttendanceRoster = await getAcademyAttendanceRoster({
+      teacherUserId: secondTeacher._id,
+      dateKey: "2026-09-04",
+      classId: academyClass._id,
+      now: new Date("2026-09-01T03:00:00.000Z"),
+    });
+    assert.equal(futureAttendanceRoster.session.state, "SCHEDULED");
+    const futureSessionId = futureAttendanceRoster.session.id;
+    const futureCodeVersion = futureAttendanceRoster.session.codeVersion;
+    await updateAcademyClassSettings({
+      teacherUserId: secondTeacher._id,
+      classId: academyClass._id,
+      weekdays: [1, 3, 5],
+      startTime: "17:30",
+      endTime: "19:30",
+      effectiveFrom: "2026-08-01",
+      attendanceMode: "SELF_CODE",
+      opensBeforeMinutes: 10,
+      lateAfterMinutes: 5,
+      closesAfterMinutes: 30,
+    });
+    assert.equal((await AcademyAttendanceSession.findById(futureSessionId).lean()).status, "CANCELED");
+    const revivedFutureRoster = await getAcademyAttendanceRoster({
+      teacherUserId: secondTeacher._id,
+      dateKey: "2026-09-04",
+      classId: academyClass._id,
+      now: new Date("2026-09-01T03:01:00.000Z"),
+    });
+    assert.equal(revivedFutureRoster.session.id, futureSessionId);
+    assert.equal(revivedFutureRoster.session.state, "SCHEDULED");
+    assert.equal(revivedFutureRoster.session.codeVersion, futureCodeVersion + 1);
+    const closedAttendanceRoster = await getAcademyAttendanceRoster({
+      teacherUserId: secondTeacher._id,
+      dateKey: "2026-08-31",
+      classId: academyClass._id,
+      now: new Date("2026-08-31T09:01:00.000Z"),
+    });
+    assert.equal(closedAttendanceRoster.session.state, "CLOSED");
+    assert.ok(closedAttendanceRoster.counts.ABSENT > 0);
+    assert.ok(
+      await AcademyAttendanceAudit.countDocuments({
+        sessionId: closedAttendanceRoster.session.id,
+        action: "AUTO_ABSENT",
+      }) > 0
+    );
+    await transferAcademyClassHomeroom({
+      teacherUserId: teacher._id,
+      classId: academyClass._id,
+      nextTeacherUserId: secondTeacher._id,
+      keepPreviousAsCoTeacher: true,
+    });
+    assert.equal(String((await AcademyClass.findById(academyClass._id).lean()).homeroomTeacherUserId), String(secondTeacher._id));
+    await transferAcademyClassHomeroom({
+      teacherUserId: teacher._id,
+      classId: academyClass._id,
+      nextTeacherUserId: teacher._id,
+      keepPreviousAsCoTeacher: true,
+    });
+    assert.equal((await AcademyClass.findById(academyClass._id).lean()).teacherHistory.length, 5);
+    await removeAcademyClassCoTeacher({
+      teacherUserId: teacher._id,
+      classId: academyClass._id,
+      coTeacherUserId: secondTeacher._id,
+    });
+    await assert.rejects(
+      getAcademyAttendanceRoster({
+        teacherUserId: secondTeacher._id,
+        dateKey: "2026-08-31",
+        classId: academyClass._id,
+      }),
+      (error) => Number(error.status) === 403 && /담당하는 선생님/.test(error.message)
+    );
     await revokeAcademyStaff({ teacherUserId: teacher._id, staffId: secondStaff._id });
     assert.equal(await getTeacherAcademyContext(secondTeacher._id, { allowMissing: true }), null);
     await requestAcademyStaffJoin({ teacherUserId: secondTeacher._id, academyId: academy._id });

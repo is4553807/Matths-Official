@@ -220,8 +220,12 @@ const {
   assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,
   getAdminAcademyList,
+  regenerateAdminAcademyAttendanceCode,
+  transferAdminAcademyClassHomeroom,
   transferAdminAcademyOwner,
+  updateAdminAcademyAttendance,
   updateAdminAcademyClass,
+  updateAdminAcademyClassOperations,
   updateAdminAcademyInvite,
   updateAdminAcademyMembership,
   updateAdminAcademyProfile,
@@ -1856,6 +1860,10 @@ function adminAcademyFeedback(query) {
     studentUpdated: "학생 소속 상태를 변경했습니다.",
     studentClassUpdated: "학생의 반 배정을 변경했습니다.",
     classUpdated: "반 사용 상태를 변경했습니다.",
+    classOperationsUpdated: "반 일정과 출석 방식을 변경했습니다.",
+    classHomeroomTransferred: "반 담임 선생님을 이전했습니다.",
+    attendanceUpdated: "학생 출결 기록을 보정했습니다.",
+    attendanceCodeRegenerated: "수업 회차의 출석 코드를 재발급했습니다.",
     inviteUpdated: "초대 사용 상태를 변경했습니다.",
     ownerTransferred: "학원 원장 권한을 이전했습니다.",
     academyProfileImageUpdated: "학원 프로필 사진을 변경했습니다.",
@@ -2055,6 +2063,82 @@ exports.adminUpdateAcademyClass = async (req, res, next) => {
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-classes");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyClassOperations = async (req, res, next) => {
+  try {
+    await updateAdminAcademyClassOperations({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      classId: req.params.classId,
+      weekdays: req.body.weekdays,
+      startTime: req.body.startTime,
+      endTime: req.body.endTime,
+      effectiveFrom: req.body.effectiveFrom,
+      attendanceMode: req.body.attendanceMode,
+      opensBeforeMinutes: req.body.opensBeforeMinutes,
+      lateAfterMinutes: req.body.lateAfterMinutes,
+      closesAfterMinutes: req.body.closesAfterMinutes,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=classOperationsUpdated#academy-classes`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-classes");
+    }
+    return next(error);
+  }
+};
+
+exports.adminTransferAcademyClassHomeroom = async (req, res, next) => {
+  try {
+    await transferAdminAcademyClassHomeroom({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      classId: req.params.classId,
+      nextTeacherUserId: req.body.nextTeacherUserId,
+      retainPreviousAsCoTeacher: req.body.retainPreviousAsCoTeacher === "true",
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=classHomeroomTransferred#academy-classes`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-classes");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyAttendance = async (req, res, next) => {
+  try {
+    await updateAdminAcademyAttendance({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      attendanceId: req.params.attendanceId,
+      status: req.body.status,
+      note: req.body.note,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=attendanceUpdated#academy-attendance`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-attendance");
+    }
+    return next(error);
+  }
+};
+
+exports.adminRegenerateAcademyAttendanceCode = async (req, res, next) => {
+  try {
+    await regenerateAdminAcademyAttendanceCode({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      sessionId: req.params.sessionId,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=attendanceCodeRegenerated#academy-attendance`);
+  } catch (error) {
+    if ([400, 403, 404, 409, 503].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-attendance");
     }
     return next(error);
   }

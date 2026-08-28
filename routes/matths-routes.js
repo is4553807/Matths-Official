@@ -500,6 +500,30 @@ router.post(
   matthsController.adminUpdateAcademyClass
 );
 router.post(
+  "/admin/academies/:academyId/classes/:classId/operations",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateAcademyClassOperations
+);
+router.post(
+  "/admin/academies/:academyId/classes/:classId/homeroom",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminTransferAcademyClassHomeroom
+);
+router.post(
+  "/admin/academies/:academyId/attendance/:attendanceId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateAcademyAttendance
+);
+router.post(
+  "/admin/academies/:academyId/attendance/sessions/:sessionId/regenerate-code",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminRegenerateAcademyAttendanceCode
+);
+router.post(
   "/admin/academies/:academyId/invites/:inviteId",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,

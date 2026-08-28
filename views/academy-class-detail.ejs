@@ -3,6 +3,17 @@
   const academyName = String(detail.academy?.name || "학원");
   const className = String(academyClass?.name || "반");
   const classStudents = detail.students || [];
+  const viewFeedback = typeof feedback !== "undefined" ? feedback : null;
+  const classSchedule = academyClass?.schedule || { weekdays: [], startTime: "", endTime: "", effectiveFrom: "" };
+  const attendancePolicy = academyClass?.attendancePolicy || { mode: "MANUAL", opensBeforeMinutes: 10, lateAfterMinutes: 5, closesAfterMinutes: 20 };
+  const weekdayLabels = ["일", "월", "화", "수", "목", "금", "토"];
+  const homeroomTeacher = academyClass?.homeroomTeacherUserId || null;
+  const coTeachers = academyClass?.coTeacherUserIds || [];
+  const activeStaff = detail.activeStaff || [];
+  const availableCoTeachers = activeStaff.filter((staff) => {
+    const staffUserId = String(staff.userId?._id || "");
+    return staffUserId && staffUserId !== String(homeroomTeacher?._id || homeroomTeacher || "") && !coTeachers.some((teacher) => String(teacher?._id || teacher) === staffUserId);
+  });
   const gradeLabelFor = (grade) => ({
     10: "고1",
     11: "고2",
@@ -63,10 +74,46 @@
       </aside>
 
       <main class="academy-main">
+        <% if (viewFeedback?.message) { %><div class="academy-feedback <%= viewFeedback.type === 'error' ? 'is-error' : 'is-success' %>" role="<%= viewFeedback.type === 'error' ? 'alert' : 'status' %>"><span aria-hidden="true"><%= viewFeedback.type === 'error' ? '!' : '✓' %></span><%= viewFeedback.message %></div><% } %>
         <section class="academy-student-hero">
           <div><span class="academy-student-avatar" aria-hidden="true"><%= className.slice(0, 1) %></span><div><small>CLASS LEARNING REPORT</small><h1><%= className %></h1><p><%= academyName %> · 배정 학생 <%= classStudents.length %>명</p></div></div>
           <a href="/academy?tab=classes">반 목록 <span>→</span></a>
         </section>
+
+        <div class="academy-class-management-grid">
+          <section class="academy-panel academy-class-settings-panel">
+            <header><div><p>CLASS SCHEDULE</p><h2>수업 일정·출결 방식</h2></div><span class="academy-status-chip"><%= attendancePolicy.mode === "SELF_CODE" ? "학생 코드 출결" : "선생님 수동 출결" %></span></header>
+            <% if (detail.canManageClass) { %>
+              <form action="/academy/classes/<%= academyClass._id %>/settings" method="POST" class="academy-class-settings-form">
+                <fieldset class="academy-weekday-fieldset"><legend>수업 요일</legend><div><% weekdayLabels.forEach((label, day) => { %><label><input type="checkbox" name="weekdays" value="<%= day %>" <%= classSchedule.weekdays?.includes(day) ? "checked" : "" %> /><span><%= label %></span></label><% }) %></div></fieldset>
+                <div class="academy-form-row"><label><span>시작 시간</span><input type="time" name="startTime" value="<%= classSchedule.startTime || '18:00' %>" required /></label><label><span>종료 시간</span><input type="time" name="endTime" value="<%= classSchedule.endTime || '20:00' %>" required /></label></div>
+                <label><span>일정 적용 시작일</span><input type="date" name="effectiveFrom" value="<%= classSchedule.effectiveFrom || '' %>" required /></label>
+                <label><span>기본 출결 방식</span><select name="attendanceMode"><option value="SELF_CODE" <%= attendancePolicy.mode === "SELF_CODE" ? "selected" : "" %>>학생 코드 출결</option><option value="MANUAL" <%= attendancePolicy.mode === "MANUAL" ? "selected" : "" %>>선생님 수동 출결</option></select></label>
+                <div class="academy-form-row"><label><span>출석 오픈</span><input type="number" name="opensBeforeMinutes" min="0" max="120" value="<%= attendancePolicy.opensBeforeMinutes %>" required /><small>수업 시작 전 분</small></label><label><span>지각 기준</span><input type="number" name="lateAfterMinutes" min="0" max="120" value="<%= attendancePolicy.lateAfterMinutes %>" required /><small>수업 시작 후 분</small></label></div>
+                <label><span>입력 마감</span><input type="number" name="closesAfterMinutes" min="1" max="240" value="<%= attendancePolicy.closesAfterMinutes %>" required /><small>수업 시작 후 분</small></label>
+                <button type="submit">일정·출결 방식 저장</button>
+              </form>
+            <% } else { %>
+              <div class="academy-empty-state"><span aria-hidden="true">i</span><strong><%= classSchedule.weekdays?.map((day) => weekdayLabels[day]).join('·') || '일정 미설정' %> <%= classSchedule.startTime || '' %>–<%= classSchedule.endTime || '' %></strong><p>담임 또는 공동 담당 선생님만 일정을 변경할 수 있습니다.</p></div>
+            <% } %>
+          </section>
+
+          <section class="academy-panel academy-class-teachers-panel">
+            <header><div><p>CLASS TEACHERS</p><h2>담임·공동 담당</h2></div><span class="academy-status-chip"><%= 1 + coTeachers.length %>명</span></header>
+            <div class="academy-class-teacher-list">
+              <article><span>담임</span><div><strong><%= homeroomTeacher?.realName || homeroomTeacher?.name || "미지정" %></strong><small>반 일정과 출결 관리</small></div></article>
+              <% coTeachers.forEach((teacher) => { %><article><span>공동</span><div><strong><%= teacher.realName || teacher.name %></strong><small>반 통계와 출결 관리</small></div><% if (detail.canManageClass) { %><form action="/academy/classes/<%= academyClass._id %>/co-teachers/<%= teacher._id %>/remove" method="POST"><button type="submit">해제</button></form><% } %></article><% }) %>
+            </div>
+            <% if (detail.canManageClass && availableCoTeachers.length) { %><form action="/academy/classes/<%= academyClass._id %>/co-teachers" method="POST" class="academy-inline-management-form"><select name="teacherUserId" required><option value="">공동 담당 선택</option><% availableCoTeachers.forEach((staff) => { %><option value="<%= staff.userId._id %>"><%= staff.userId.realName || staff.userId.name %><%= staff.role === 'OWNER' ? ' · 원장' : '' %></option><% }) %></select><button type="submit">추가</button></form><% } %>
+            <% if (detail.isOwner) { %>
+              <form action="/academy/classes/<%= academyClass._id %>/homeroom-transfer" method="POST" class="academy-homeroom-transfer-form" onsubmit="return confirm('새 선생님에게 이 반의 담임 권한을 이전할까요?')">
+                <label><span>담임 이전</span><select name="nextTeacherUserId" required><option value="">새 담임 선택</option><% activeStaff.forEach((staff) => { if (String(staff.userId?._id || '') !== String(homeroomTeacher?._id || homeroomTeacher || '')) { %><option value="<%= staff.userId._id %>"><%= staff.userId.realName || staff.userId.name %></option><% } }) %></select></label>
+                <label class="academy-check-label"><input type="checkbox" name="keepPreviousAsCoTeacher" value="1" checked /><span>이전 담임을 공동 담당으로 유지</span></label>
+                <button type="submit">담임 이전</button>
+              </form>
+            <% } %>
+          </section>
+        </div>
 
         <section class="academy-report-toolbar" aria-label="반 통계 기간 선택">
           <div><small>CLASS MONTHLY REPORT</small><strong><%= statistics.period.label %> 반 학습 기록</strong><p>현재 이 반에 배정된 승인 학생 전체를 기준으로 평균을 계산합니다.</p></div>

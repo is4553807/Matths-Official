@@ -208,6 +208,80 @@ const academyClassSchema = new Schema(
       ref: "User",
       required: true,
     },
+    homeroomTeacherUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+    coTeacherUserIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
+      default: [],
+    },
+    schedule: {
+      weekdays: {
+        type: [Number],
+        default: [],
+        validate: {
+          validator: (values) => values.every((value) => Number.isInteger(value) && value >= 0 && value <= 6),
+          message: "수업 요일이 올바르지 않습니다.",
+        },
+      },
+      startTime: {
+        type: String,
+        match: /^([01]\d|2[0-3]):[0-5]\d$/,
+        default: "",
+      },
+      endTime: {
+        type: String,
+        match: /^([01]\d|2[0-3]):[0-5]\d$/,
+        default: "",
+      },
+      effectiveFrom: {
+        type: String,
+        match: /^\d{4}-\d{2}-\d{2}$/,
+        default: "",
+      },
+      timezone: {
+        type: String,
+        enum: ["Asia/Seoul"],
+        default: "Asia/Seoul",
+      },
+    },
+    attendancePolicy: {
+      mode: {
+        type: String,
+        enum: ["MANUAL", "SELF_CODE"],
+        default: "MANUAL",
+      },
+      opensBeforeMinutes: {
+        type: Number,
+        min: 0,
+        max: 120,
+        default: 10,
+      },
+      lateAfterMinutes: {
+        type: Number,
+        min: 0,
+        max: 120,
+        default: 5,
+      },
+      closesAfterMinutes: {
+        type: Number,
+        min: 1,
+        max: 240,
+        default: 20,
+      },
+    },
+    teacherHistory: {
+      type: [new Schema({
+        previousTeacherUserId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+        nextTeacherUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        changedByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        changedAt: { type: Date, default: Date.now },
+      }, { _id: false })],
+      default: [],
+    },
   },
   { timestamps: true, versionKey: false }
 );
@@ -377,6 +451,12 @@ const academyAttendanceSchema = new Schema(
       default: null,
       index: true,
     },
+    sessionId: {
+      type: Schema.Types.ObjectId,
+      ref: "AcademyAttendanceSession",
+      default: null,
+      index: true,
+    },
     dateKey: {
       type: String,
       required: true,
@@ -410,7 +490,7 @@ const academyAttendanceSchema = new Schema(
     },
     source: {
       type: String,
-      enum: ["MANUAL", "SEED"],
+      enum: ["MANUAL", "SELF_CODE", "AUTO_ABSENT", "ADMIN", "SEED"],
       default: "MANUAL",
     },
     seedRunId: {
@@ -424,10 +504,84 @@ const academyAttendanceSchema = new Schema(
 );
 
 academyAttendanceSchema.index(
+  { sessionId: 1, studentUserId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { sessionId: { $type: "objectId" } },
+    name: "academy_attendance_session_student_unique",
+  }
+);
+academyAttendanceSchema.index(
   { academyId: 1, studentUserId: 1, dateKey: 1 },
-  { unique: true }
+  { name: "academy_attendance_legacy_date_lookup" }
 );
 academyAttendanceSchema.index({ academyId: 1, dateKey: 1, classId: 1, status: 1 });
+
+const academyAttendanceSessionSchema = new Schema(
+  {
+    academyId: { type: Schema.Types.ObjectId, ref: "Academy", required: true, index: true },
+    classId: { type: Schema.Types.ObjectId, ref: "AcademyClass", required: true, index: true },
+    sessionKey: { type: String, required: true, trim: true, maxlength: 180, unique: true },
+    dateKey: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/, index: true },
+    startsAt: { type: Date, required: true, index: true },
+    endsAt: { type: Date, required: true },
+    checkInOpensAt: { type: Date, required: true },
+    lateAfterAt: { type: Date, required: true },
+    checkInClosesAt: { type: Date, required: true, index: true },
+    attendanceMode: { type: String, enum: ["MANUAL", "SELF_CODE"], required: true },
+    codeVersion: { type: Number, min: 1, default: 1 },
+    codeIssuedAt: { type: Date, default: Date.now },
+    rosterStudentUserIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
+      default: [],
+    },
+    status: {
+      type: String,
+      enum: ["SCHEDULED", "OPEN", "CLOSED", "CANCELED"],
+      default: "SCHEDULED",
+      index: true,
+    },
+    createdByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    closedAt: { type: Date, default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+academyAttendanceSessionSchema.index({ academyId: 1, classId: 1, dateKey: 1, startsAt: 1 });
+
+const academyAttendanceAuditSchema = new Schema(
+  {
+    academyId: { type: Schema.Types.ObjectId, ref: "Academy", required: true, index: true },
+    classId: { type: Schema.Types.ObjectId, ref: "AcademyClass", default: null, index: true },
+    sessionId: { type: Schema.Types.ObjectId, ref: "AcademyAttendanceSession", default: null, index: true },
+    attendanceId: { type: Schema.Types.ObjectId, ref: "AcademyAttendance", default: null },
+    studentUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    actorUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    actorType: { type: String, enum: ["TEACHER", "STUDENT", "SYSTEM", "ADMIN"], required: true },
+    action: { type: String, enum: ["CREATED", "UPDATED", "CLEARED", "AUTO_ABSENT"], required: true },
+    previousStatus: { type: String, enum: ["PRESENT", "LATE", "ABSENT", "EXCUSED", null], default: null },
+    nextStatus: { type: String, enum: ["PRESENT", "LATE", "ABSENT", "EXCUSED", null], default: null },
+    note: { type: String, trim: true, maxlength: 200, default: "" },
+    occurredAt: { type: Date, default: Date.now, index: true },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+const academyAttendanceCodeAttemptSchema = new Schema(
+  {
+    sessionId: { type: Schema.Types.ObjectId, ref: "AcademyAttendanceSession", required: true, index: true },
+    studentUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    failedAttempts: { type: Number, min: 0, default: 0 },
+    lastFailedAt: { type: Date, default: null },
+    lockedAt: { type: Date, default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+academyAttendanceCodeAttemptSchema.index(
+  { sessionId: 1, studentUserId: 1 },
+  { unique: true, name: "academy_attendance_code_attempt_unique" }
+);
 
 const Academy = mongoose.models.Academy || mongoose.model("Academy", academySchema);
 const AcademyStaff = mongoose.models.AcademyStaff || mongoose.model("AcademyStaff", academyStaffSchema);
@@ -439,6 +593,15 @@ const AcademyInvite = mongoose.models.AcademyInvite || mongoose.model("AcademyIn
 const AcademyAttendance =
   mongoose.models.AcademyAttendance ||
   mongoose.model("AcademyAttendance", academyAttendanceSchema);
+const AcademyAttendanceSession =
+  mongoose.models.AcademyAttendanceSession ||
+  mongoose.model("AcademyAttendanceSession", academyAttendanceSessionSchema);
+const AcademyAttendanceAudit =
+  mongoose.models.AcademyAttendanceAudit ||
+  mongoose.model("AcademyAttendanceAudit", academyAttendanceAuditSchema);
+const AcademyAttendanceCodeAttempt =
+  mongoose.models.AcademyAttendanceCodeAttempt ||
+  mongoose.model("AcademyAttendanceCodeAttempt", academyAttendanceCodeAttemptSchema);
 
 module.exports = {
   Academy,
@@ -447,4 +610,7 @@ module.exports = {
   AcademyStudentMembership,
   AcademyInvite,
   AcademyAttendance,
+  AcademyAttendanceSession,
+  AcademyAttendanceAudit,
+  AcademyAttendanceCodeAttempt,
 };

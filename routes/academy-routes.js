@@ -21,6 +21,17 @@ router.post(
   authMiddleware.isTeacher,
   academyController.saveAttendance
 );
+router.post(
+  "/academy/attendance/sessions/:sessionId/regenerate-code",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.regenerateAttendanceCode
+);
+router.post(
+  "/api/academy/attendance/check-in",
+  authMiddleware.isLoggedIn,
+  academyController.studentAttendanceCheckIn
+);
 router.get(
   "/academy/students/:membershipId",
   authMiddleware.isLoggedIn,
@@ -58,6 +69,30 @@ router.get(
   academyController.classDetailPage
 );
 router.post("/academy/classes", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createClass);
+router.post(
+  "/academy/classes/:classId/settings",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.updateClassSettings
+);
+router.post(
+  "/academy/classes/:classId/co-teachers",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.addClassCoTeacher
+);
+router.post(
+  "/academy/classes/:classId/co-teachers/:teacherUserId/remove",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.removeClassCoTeacher
+);
+router.post(
+  "/academy/classes/:classId/homeroom-transfer",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.transferClassHomeroom
+);
 router.post("/academy/invites", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createInvite);
 router.post(
   "/academy/invites/:inviteId/revoke",

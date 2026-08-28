@@ -14,6 +14,9 @@ const {
 const {
   Academy,
   AcademyAttendance,
+  AcademyAttendanceAudit,
+  AcademyAttendanceSession,
+  AcademyClass,
   AcademyStudentMembership,
 } = require("../models/academyModel");
 const {
@@ -290,6 +293,8 @@ function buildDataset(users, now = new Date(), runSeed = randomBytes(16).toStrin
   const problemAttemptOperations = [];
   const conceptProgressOperations = [];
   const attendanceOperations = [];
+  const attendanceAuditOperations = [];
+  const attendanceSessionOperations = [];
   const periodPlans = [];
 
   periods.forEach((period, periodIndex) => {
@@ -513,25 +518,71 @@ function buildDataset(users, now = new Date(), runSeed = randomBytes(16).toStrin
     });
   });
 
-  const attendanceDateKey = getKstDateKey(now);
+  const attendanceStartsAt = new Date(now.getTime() - 2 * HOUR_MS);
+  const attendanceEndsAt = new Date(now.getTime() - HOUR_MS);
+  const attendanceDateKey = getKstDateKey(attendanceStartsAt);
+  const studentsByClassId = new Map();
+  users.forEach((user) => {
+    if (!user.classId) return;
+    const classId = String(user.classId);
+    if (!studentsByClassId.has(classId)) studentsByClassId.set(classId, []);
+    studentsByClassId.get(classId).push(user._id);
+  });
+  const attendanceSessionIdByClassId = new Map();
+  studentsByClassId.forEach((studentUserIds, classId) => {
+    const sessionKey = `${DATASET_KEY}:${runSeed}:${users[0].academyId}:${classId}:${attendanceDateKey}`;
+    const sessionId = deterministicObjectId(`${sessionKey}:session`);
+    attendanceSessionIdByClassId.set(classId, sessionId);
+    attendanceSessionOperations.push({
+      updateOne: {
+        filter: { sessionKey },
+        update: {
+          $set: {
+            academyId: users[0].academyId,
+            classId,
+            dateKey: attendanceDateKey,
+            startsAt: attendanceStartsAt,
+            endsAt: attendanceEndsAt,
+            checkInOpensAt: new Date(attendanceStartsAt.getTime() - 10 * 60 * 1000),
+            lateAfterAt: new Date(attendanceStartsAt.getTime() + 5 * 60 * 1000),
+            checkInClosesAt: new Date(attendanceStartsAt.getTime() + 20 * 60 * 1000),
+            attendanceMode: "MANUAL",
+            codeVersion: 1,
+            codeIssuedAt: attendanceStartsAt,
+            rosterStudentUserIds: studentUserIds,
+            status: "CLOSED",
+            createdByUserId: users[0].recordedByUserId,
+            closedAt: attendanceEndsAt,
+          },
+          $setOnInsert: { _id: sessionId, sessionKey },
+        },
+        upsert: true,
+      },
+    });
+  });
   users.forEach((user) => {
     const random = createSeededRandom(`${runSeed}:attendance:${attendanceDateKey}:${user._id}`);
     const roll = random();
     const status = roll < 0.72 ? "PRESENT" : roll < 0.84 ? "LATE" : roll < 0.94 ? "ABSENT" : "EXCUSED";
     const isArrival = status === "PRESENT" || status === "LATE";
     const checkedInAt = isArrival
-      ? new Date(now.getTime() - randomInteger(random, 5, 180) * 60 * 1000)
+      ? new Date(attendanceStartsAt.getTime() + randomInteger(random, -5, 15) * 60 * 1000)
       : null;
+    const sessionId = user.classId ? attendanceSessionIdByClassId.get(String(user.classId)) || null : null;
+    const attendanceId = deterministicObjectId(
+      `${DATASET_KEY}:${runSeed}:attendance:${attendanceDateKey}:${user._id}`
+    );
     attendanceOperations.push({
       updateOne: {
         filter: {
-          academyId: user.academyId,
+          ...(sessionId ? { sessionId } : { academyId: user.academyId, sessionId: null }),
           studentUserId: user._id,
           dateKey: attendanceDateKey,
         },
         update: {
           $set: {
             classId: user.classId || null,
+            sessionId,
             status,
             checkedInAt,
             checkedOutAt: null,
@@ -541,9 +592,32 @@ function buildDataset(users, now = new Date(), runSeed = randomBytes(16).toStrin
             seedRunId: runSeed,
           },
           $setOnInsert: {
+            _id: attendanceId,
             academyId: user.academyId,
             studentUserId: user._id,
             dateKey: attendanceDateKey,
+          },
+        },
+        upsert: true,
+      },
+    });
+    attendanceAuditOperations.push({
+      updateOne: {
+        filter: { _id: deterministicObjectId(`${attendanceId}:audit`) },
+        update: {
+          $set: {
+            academyId: user.academyId,
+            classId: user.classId || null,
+            sessionId,
+            attendanceId,
+            studentUserId: user._id,
+            actorUserId: user.recordedByUserId,
+            actorType: "SYSTEM",
+            action: "CREATED",
+            previousStatus: null,
+            nextStatus: status,
+            note: `${DATASET_KEY} 출결 더미`,
+            occurredAt: attendanceEndsAt,
           },
         },
         upsert: true,
@@ -561,6 +635,8 @@ function buildDataset(users, now = new Date(), runSeed = randomBytes(16).toStrin
       problemAttempts: problemAttemptOperations,
       conceptProgress: conceptProgressOperations,
       attendance: attendanceOperations,
+      attendanceAudits: attendanceAuditOperations,
+      attendanceSessions: attendanceSessionOperations,
     },
   };
 }
@@ -587,6 +663,13 @@ async function replaceExistingDummyDataset({ userIds, operations }) {
   let writeResults;
   try {
     await session.withTransaction(async () => {
+      const oldSeedAttendanceIds = await AcademyAttendance.distinct("_id", {
+        studentUserId: { $in: userIds },
+        source: "SEED",
+      }).session(session);
+      const oldSeedSessionIds = await AcademyAttendanceSession.distinct("_id", {
+        sessionKey: new RegExp(`^${DATASET_KEY.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`),
+      }).session(session);
       const learningEvents = await LearningEvent.deleteMany(
         { userId: { $in: userIds }, "metadata.datasetKey": { $in: allDatasetKeys() } },
         { session }
@@ -603,18 +686,32 @@ async function replaceExistingDummyDataset({ userIds, operations }) {
         { studentUserId: { $in: userIds }, source: "SEED" },
         { session }
       );
+      const attendanceAudits = await AcademyAttendanceAudit.deleteMany(
+        { $or: [{ attendanceId: { $in: oldSeedAttendanceIds } }, { sessionId: { $in: oldSeedSessionIds } }] },
+        { session }
+      );
+      const attendanceSessions = await AcademyAttendanceSession.deleteMany(
+        { _id: { $in: oldSeedSessionIds } },
+        { session }
+      );
       cleanupResults = {
         learningEvents: Number(learningEvents.deletedCount || 0),
         problemAttempts: Number(problemAttempts.deletedCount || 0),
         conceptProgress: Number(conceptProgress.deletedCount || 0),
         attendance: Number(attendance.deletedCount || 0),
+        attendanceAudits: Number(attendanceAudits.deletedCount || 0),
+        attendanceSessions: Number(attendanceSessions.deletedCount || 0),
       };
       writeResults = {
+        membershipAssignments: await runBulkOperations(AcademyStudentMembership, operations.membershipAssignments || [], session),
+        classSetup: await runBulkOperations(AcademyClass, operations.classSetup || [], session),
         problems: await runBulkOperations(Problem, operations.problems, session),
         learningEvents: await runBulkOperations(LearningEvent, operations.learningEvents, session),
         problemAttempts: await runBulkOperations(ProblemAttempt, operations.problemAttempts, session),
         conceptProgress: await runBulkOperations(ConceptProgress, operations.conceptProgress, session),
+        attendanceSessions: await runBulkOperations(AcademyAttendanceSession, operations.attendanceSessions, session),
         attendance: await runBulkOperations(AcademyAttendance, operations.attendance, session),
+        attendanceAudits: await runBulkOperations(AcademyAttendanceAudit, operations.attendanceAudits, session),
       };
     });
   } finally {
@@ -628,7 +725,7 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date(), 
     academyId: academy._id,
     status: "APPROVED",
   })
-    .select("studentUserId")
+    .select("studentUserId classId")
     .populate("studentUserId", "name realName role isTestAccount testBatchKey accountStatus isActive")
     .lean();
   const connectedMemberships = memberships.filter((membership) => membership.studentUserId);
@@ -638,6 +735,7 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date(), 
     membership.studentUserId.isTestAccount === true || membership.studentUserId.role === "test"
   );
   const dummyUserIds = dummyMembers.map((membership) => membership.studentUserId._id);
+  const dummyMembershipsWithClass = dummyMembers.filter((membership) => membership.classId).length;
   const nonDummyMembers = connectedMemberships.filter((membership) =>
     membership.studentUserId.isTestAccount !== true && membership.studentUserId.role !== "test"
   );
@@ -722,6 +820,17 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date(), 
     getClassMathMap({ studentUserIds: dummyUserIds }),
   ]);
   const linkedProblemCount = await Problem.countDocuments({ _id: { $in: datasetProblemIds } });
+  const seedAttendanceRecords = await AcademyAttendance.find({
+    studentUserId: { $in: dummyUserIds },
+    source: "SEED",
+  }).select("_id sessionId").lean();
+  const seedAttendanceIds = seedAttendanceRecords.map((record) => record._id);
+  const seedSessionIds = [...new Set(seedAttendanceRecords.map((record) => String(record.sessionId || "")).filter(Boolean))]
+    .map((id) => new mongoose.Types.ObjectId(id));
+  const [linkedSeedSessions, linkedSeedAudits] = await Promise.all([
+    AcademyAttendanceSession.countDocuments({ _id: { $in: seedSessionIds }, academyId: academy._id }),
+    AcademyAttendanceAudit.countDocuments({ attendanceId: { $in: seedAttendanceIds }, actorType: "SYSTEM" }),
+  ]);
   const usersWithRecords = new Set(
     [...learningUsers, ...attemptUsers, ...conceptUsers].map(String)
   );
@@ -818,6 +927,12 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date(), 
   if (requireMathMap && !mathMapHasClassBottleneck) {
     throw new Error("Math Map 더미 데이터에서 검증 대상 반 병목이 계산되지 않았습니다.");
   }
+  if (requireMathMap && dummyMembershipsWithClass !== dummyMembers.length) {
+    throw new Error("반에 배정되지 않은 테스트 학생이 있어 회차 기반 출결을 만들 수 없습니다.");
+  }
+  if (requireMathMap && (linkedSeedSessions !== seedSessionIds.length || linkedSeedAudits !== seedAttendanceRecords.length)) {
+    throw new Error("더미 출결 기록과 실제 수업 회차 또는 감사 이력 연결이 일치하지 않습니다.");
+  }
 
   return {
     academyId: String(academy._id),
@@ -827,6 +942,7 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date(), 
     orphanMemberships,
     dummyMembers: dummyMembers.length,
     nonDummyMembers: nonDummyMembers.length,
+    dummyMembershipsWithClass,
     usersWithActualLearningRecords: usersWithRecords.size,
     nonDummyMembersWithLearningRecords: nonDummyWithRecords,
     dummyDatasetProblemReferences: datasetProblemIds.length,
@@ -870,6 +986,16 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date(), 
       orphanMemberships === 0 &&
       statistics.values.totalStudents === connectedMemberships.length,
     problemReferencesVerified: linkedProblemCount === datasetProblemIds.length,
+    attendanceSessionConnection: {
+      records: seedAttendanceRecords.length,
+      distinctSessions: seedSessionIds.length,
+      linkedSessions: linkedSeedSessions,
+      linkedAudits: linkedSeedAudits,
+      verified:
+        dummyMembershipsWithClass === dummyMembers.length &&
+        linkedSeedSessions === seedSessionIds.length &&
+        linkedSeedAudits === seedAttendanceRecords.length,
+    },
   };
 }
 
@@ -887,6 +1013,11 @@ async function main() {
       academyId: academy._id,
       status: "APPROVED",
     }).select("studentUserId classId").lean();
+    const activeClasses = await AcademyClass.find({ academyId: academy._id, isActive: true })
+      .select("_id createdByUserId homeroomTeacherUserId schedule attendancePolicy")
+      .sort({ name: 1, _id: 1 })
+      .lean();
+    if (!activeClasses.length) throw new Error("테스트 학원에 활성 반이 없어 더미 학생과 출결 회차를 연결할 수 없습니다.");
     const approvedUserIds = approvedMemberships.map((membership) => membership.studentUserId);
     const users = await User.find(testUserFilter(approvedUserIds))
       .select("_id name realName role isTestAccount testBatchKey")
@@ -896,15 +1027,60 @@ async function main() {
     const membershipByUserId = new Map(
       approvedMemberships.map((membership) => [String(membership.studentUserId), membership])
     );
-    users.forEach((user) => {
+    const activeClassIds = new Set(activeClasses.map((academyClass) => String(academyClass._id)));
+    users.forEach((user, index) => {
       user.academyId = academy._id;
-      user.classId = membershipByUserId.get(String(user._id))?.classId || null;
+      const currentClassId = membershipByUserId.get(String(user._id))?.classId || null;
+      user.classId = currentClassId && activeClassIds.has(String(currentClassId))
+        ? currentClassId
+        : activeClasses[index % activeClasses.length]._id;
       user.recordedByUserId = academy.createdByUserId;
     });
     const userIds = users.map((user) => user._id);
 
     const runSeed = PROVIDED_RUN_SEED || randomBytes(16).toString("hex");
     const dataset = buildDataset(users, now, runSeed);
+    const currentWeekday = new Date(`${getKstDateKey(now)}T00:00:00Z`).getUTCDay();
+    dataset.operations.membershipAssignments = users.map((user) => ({
+      updateOne: {
+        filter: { academyId: academy._id, studentUserId: user._id, status: "APPROVED" },
+        update: { $set: { classId: user.classId } },
+      },
+    }));
+    dataset.operations.classSetup = activeClasses.map((academyClass, index) => {
+      const hasSchedule = Boolean(
+        academyClass.schedule?.weekdays?.length &&
+        academyClass.schedule?.startTime &&
+        academyClass.schedule?.endTime &&
+        academyClass.schedule?.effectiveFrom
+      );
+      const startHour = 17 + (index % 3);
+      return {
+        updateOne: {
+          filter: { _id: academyClass._id, academyId: academy._id },
+          update: {
+            $set: {
+              homeroomTeacherUserId: academyClass.homeroomTeacherUserId || academyClass.createdByUserId || academy.createdByUserId,
+              ...(hasSchedule ? {} : {
+                schedule: {
+                  weekdays: [currentWeekday, (currentWeekday + 3) % 7].sort((left, right) => left - right),
+                  startTime: `${String(startHour).padStart(2, "0")}:00`,
+                  endTime: `${String(startHour + 2).padStart(2, "0")}:00`,
+                  effectiveFrom: getKstDateKey(now),
+                  timezone: "Asia/Seoul",
+                },
+                attendancePolicy: {
+                  mode: index % 2 === 0 ? "SELF_CODE" : "MANUAL",
+                  opensBeforeMinutes: 10,
+                  lateAfterMinutes: 5,
+                  closesAfterMinutes: 20,
+                },
+              }),
+            },
+          },
+        },
+      };
+    });
     const existingDatasetCounts = {
       learningEvents: await LearningEvent.countDocuments({
         userId: { $in: userIds },
@@ -935,11 +1111,15 @@ async function main() {
       existingDatasetCounts,
       periodPlans: dataset.periodPlans,
       totalOperations: {
+        membershipAssignments: dataset.operations.membershipAssignments.length,
+        classSetup: dataset.operations.classSetup.length,
         problems: dataset.operations.problems.length,
         learningEvents: dataset.operations.learningEvents.length,
         problemAttempts: dataset.operations.problemAttempts.length,
         conceptProgress: dataset.operations.conceptProgress.length,
         attendance: dataset.operations.attendance.length,
+        attendanceSessions: dataset.operations.attendanceSessions.length,
+        attendanceAudits: dataset.operations.attendanceAudits.length,
       },
     };
 
@@ -972,6 +1152,7 @@ async function main() {
       completed: verification.every((item) =>
         item.connectionVerified &&
         item.problemReferencesVerified &&
+        item.attendanceSessionConnection.verified &&
         item.perStudentRandomData.allDummyStudentsHaveRecords &&
         item.mathMap.allStudentsHaveMathMap &&
         item.mathMap.statusVarietyVerified &&

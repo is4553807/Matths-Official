@@ -1,6 +1,7 @@
 const {
   approveAcademyStaff,
   approveMembership,
+  addAcademyClassCoTeacher,
   assignMembershipClass,
   bulkManageAcademyStudents,
   cancelAcademyStaffJoin,
@@ -17,12 +18,15 @@ const {
   leaveAcademy,
   rejectAcademyStaff,
   rejectMembership,
+  removeAcademyClassCoTeacher,
   requestAcademyStaffJoin,
   requestAcademyByCode,
   requestAcademyByToken,
   requestAcademyFromProfile,
   revokeAcademyStaff,
   revokeAcademyInvite,
+  transferAcademyClassHomeroom,
+  updateAcademyClassSettings,
 } = require("../services/academyService");
 const {
   removeAcademyProfileImage,
@@ -37,7 +41,9 @@ const {
   getStudentMonthlyStatistics,
 } = require("../services/academyStatisticsService");
 const {
+  checkInStudentAttendance,
   getAcademyAttendanceRoster,
+  regenerateAttendanceSessionCode,
   saveAcademyAttendanceRoster,
 } = require("../services/academyAttendanceService");
 const {
@@ -159,6 +165,7 @@ exports.saveAttendance = async (req, res, next) => {
       teacherUserId: req.session.user.id,
       dateKey: req.body.date,
       classId: req.body.classId,
+      sessionId: req.body.sessionId,
       studentUserIds: req.body.studentUserIds,
       statuses: req.body.statuses,
       notes: req.body.notes,
@@ -402,11 +409,127 @@ exports.removeAcademyProfileImage = async (req, res, next) => {
 
 exports.createClass = async (req, res, next) => {
   try {
-    await createAcademyClass({ teacherUserId: req.session.user.id, name: req.body.className });
+    await createAcademyClass({
+      teacherUserId: req.session.user.id,
+      name: req.body.className,
+      weekdays: req.body.weekdays,
+      startTime: req.body.startTime,
+      endTime: req.body.endTime,
+      effectiveFrom: req.body.effectiveFrom,
+      attendanceMode: req.body.attendanceMode,
+      opensBeforeMinutes: req.body.opensBeforeMinutes,
+      lateAfterMinutes: req.body.lateAfterMinutes,
+      closesAfterMinutes: req.body.closesAfterMinutes,
+    });
     await setFlash(req, "success", "새 반을 추가했습니다.");
     return res.redirect("/academy?tab=classes");
   } catch (error) {
     return handleExpectedError(req, res, next, error, "/academy?tab=classes");
+  }
+};
+
+exports.updateClassSettings = async (req, res, next) => {
+  const redirectTo = `/academy/classes/${req.params.classId}`;
+  try {
+    await updateAcademyClassSettings({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+      weekdays: req.body.weekdays,
+      startTime: req.body.startTime,
+      endTime: req.body.endTime,
+      effectiveFrom: req.body.effectiveFrom,
+      attendanceMode: req.body.attendanceMode,
+      opensBeforeMinutes: req.body.opensBeforeMinutes,
+      lateAfterMinutes: req.body.lateAfterMinutes,
+      closesAfterMinutes: req.body.closesAfterMinutes,
+    });
+    await setFlash(req, "success", "반 일정과 출결 방식을 저장했습니다.");
+    return res.redirect(redirectTo);
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, redirectTo);
+  }
+};
+
+exports.addClassCoTeacher = async (req, res, next) => {
+  const redirectTo = `/academy/classes/${req.params.classId}`;
+  try {
+    await addAcademyClassCoTeacher({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+      coTeacherUserId: req.body.teacherUserId,
+    });
+    await setFlash(req, "success", "공동 담당 선생님을 추가했습니다.");
+    return res.redirect(redirectTo);
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, redirectTo);
+  }
+};
+
+exports.removeClassCoTeacher = async (req, res, next) => {
+  const redirectTo = `/academy/classes/${req.params.classId}`;
+  try {
+    await removeAcademyClassCoTeacher({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+      coTeacherUserId: req.params.teacherUserId,
+    });
+    await setFlash(req, "success", "공동 담당 선생님을 해제했습니다.");
+    return res.redirect(redirectTo);
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, redirectTo);
+  }
+};
+
+exports.transferClassHomeroom = async (req, res, next) => {
+  const redirectTo = `/academy/classes/${req.params.classId}`;
+  try {
+    await transferAcademyClassHomeroom({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+      nextTeacherUserId: req.body.nextTeacherUserId,
+      keepPreviousAsCoTeacher: req.body.keepPreviousAsCoTeacher === "1",
+    });
+    await setFlash(req, "success", "반 담임 선생님을 이전했습니다.");
+    return res.redirect(redirectTo);
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, redirectTo);
+  }
+};
+
+exports.regenerateAttendanceCode = async (req, res, next) => {
+  const query = new URLSearchParams({ tab: "attendance" });
+  if (req.body.date) query.set("date", String(req.body.date));
+  if (req.body.classId) query.set("classId", String(req.body.classId));
+  const redirectTo = `/academy?${query.toString()}`;
+  try {
+    await regenerateAttendanceSessionCode({
+      teacherUserId: req.session.user.id,
+      sessionId: req.params.sessionId,
+    });
+    await setFlash(req, "success", "새 출석 코드를 발급했습니다. 이전 코드는 즉시 만료되었습니다.");
+    return res.redirect(redirectTo);
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, redirectTo);
+  }
+};
+
+exports.studentAttendanceCheckIn = async (req, res, next) => {
+  try {
+    const result = await checkInStudentAttendance({
+      studentUserId: req.session.user.id,
+      sessionId: req.body.sessionId,
+      code: req.body.code,
+    });
+    return res.json({
+      ok: true,
+      message: result.status === "LATE" ? "지각으로 출석 처리되었습니다." : "출석이 완료되었습니다.",
+      attendance: result,
+    });
+  } catch (error) {
+    if ([400, 403, 404, 409, 410, 429].includes(Number(error.status))) {
+      return res.status(Number(error.status)).json({ ok: false, message: error.message, code: error.code || "" });
+    }
+    return next(error);
   }
 };
 
@@ -440,6 +563,7 @@ exports.classDetailPage = async (req, res, next) => {
       statistics,
       mathMap,
       activeAcademyPage: "classes",
+      feedback: consumeFlash(req),
     });
   } catch (error) {
     return next(error);

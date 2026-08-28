@@ -74,6 +74,13 @@
     ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(date))
     : "—";
   const attendanceStatusLabel = { PRESENT: "출석", LATE: "지각", ABSENT: "결석", EXCUSED: "사유 결석" };
+  const weekdayLabels = ["일", "월", "화", "수", "목", "금", "토"];
+  const currentKstDateKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const classScheduleText = (academyClass) => {
+    const schedule = academyClass?.schedule;
+    if (!schedule?.weekdays?.length || !schedule.startTime || !schedule.endTime) return "일정 미설정";
+    return `${schedule.weekdays.map((day) => weekdayLabels[day]).join("·")} ${schedule.startTime}–${schedule.endTime}`;
+  };
   const sourceLabel = { PROFILE: "프로필 선택", INVITE_CODE: "초대 코드", INVITE_LINK: "초대 링크" };
   const inviteStateLabel = { ACTIVE: "사용 가능", REVOKED: "비활성", EXPIRED: "기간 만료", EXHAUSTED: "사용 완료" };
 %>
@@ -230,13 +237,26 @@
               <div>
                 <input id="academy-attendance-date" type="date" name="date" value="<%= attendanceData.dateKey %>" required />
                 <select name="classId" aria-label="출결 반 선택">
-                  <option value="">전체 반</option>
+                  <% if (!attendanceData.classes.length) { %><option value="">담당 반 없음</option><% } %>
                   <% attendanceData.classes.forEach((academyClass) => { %><option value="<%= academyClass._id %>" <%= String(attendanceData.selectedClass?._id || '') === String(academyClass._id) ? 'selected' : '' %>><%= academyClass.name %></option><% }) %>
                 </select>
                 <button type="submit">조회</button>
               </div>
             </form>
           </header>
+
+          <% if (attendanceData.session?.attendanceMode === "SELF_CODE") { %>
+            <section class="academy-attendance-code-card is-<%= String(attendanceData.session.state).toLowerCase() %>">
+              <div><small>SESSION ATTENDANCE CODE</small><strong><%= attendanceData.session.code %></strong><p><%= attendanceData.selectedClass?.name %> · <%= formatTime(attendanceData.session.startsAt) %> 수업 · <%= formatTime(attendanceData.session.checkInClosesAt) %> 입력 마감</p></div>
+              <form action="/academy/attendance/sessions/<%= attendanceData.session.id %>/regenerate-code" method="POST" onsubmit="return confirm('기존 코드는 즉시 만료됩니다. 새 코드를 발급할까요?')">
+                <input type="hidden" name="date" value="<%= attendanceData.dateKey %>" />
+                <input type="hidden" name="classId" value="<%= attendanceData.selectedClass?._id || '' %>" />
+                <button type="submit" <%= ["CLOSED", "CANCELED"].includes(attendanceData.session.state) ? "disabled" : "" %>>코드 재발급</button>
+              </form>
+            </section>
+          <% } else if (attendanceData.selectedClass && !attendanceData.session) { %>
+            <div class="academy-integration-notice" role="status"><span aria-hidden="true">i</span><p><strong>선택한 날짜에는 예정된 수업이 없습니다.</strong> 필요하면 선생님이 임시 수동 출결을 저장할 수 있습니다.</p></div>
+          <% } %>
 
           <section class="academy-stat-grid academy-attendance-stats" aria-label="선택 날짜 출결 요약">
             <article><small>전체 학생</small><strong><%= attendanceData.counts.TOTAL %>명</strong><span><%= attendanceData.selectedClass?.name || "전체 반" %> 기준</span></article>
@@ -253,6 +273,7 @@
               <form action="/academy/attendance" method="POST" data-attendance-form>
                 <input type="hidden" name="date" value="<%= attendanceData.dateKey %>" />
                 <input type="hidden" name="classId" value="<%= attendanceData.selectedClass?._id || '' %>" />
+                <input type="hidden" name="sessionId" value="<%= attendanceData.session?.id || '' %>" />
                 <div class="academy-attendance-toolbar">
                   <div><strong>빠른 입력</strong><small>미기록 학생만 출석으로 채운 뒤 필요한 학생의 상태를 수정할 수 있습니다.</small></div>
                   <button type="button" data-attendance-mark-unrecorded>미기록 전체 출석</button>
@@ -380,7 +401,7 @@
                 <% (portal.classes || []).forEach((academyClass) => {
                   const classStudentCount = (portal.students || []).filter((membership) => String(membership.classId?._id || '') === String(academyClass._id)).length;
                 %>
-                  <a href="/academy/classes/<%= academyClass._id %>" aria-label="<%= academyClass.name %> 반 통계 보기"><span><%= academyClass.name.slice(0, 1) %></span><div><strong><%= academyClass.name %></strong><small>배정 학생 <%= classStudentCount %>명 · 반 통계 보기</small></div><b aria-hidden="true">→</b></a>
+                  <a href="/academy/classes/<%= academyClass._id %>" aria-label="<%= academyClass.name %> 반 통계 보기"><span><%= academyClass.name.slice(0, 1) %></span><div><strong><%= academyClass.name %></strong><small><%= classScheduleText(academyClass) %> · 담임 <%= academyClass.homeroomTeacherUserId?.realName || academyClass.homeroomTeacherUserId?.name || "미지정" %> · <%= classStudentCount %>명</small></div><b aria-hidden="true">→</b></a>
                 <% }) %>
               </div>
             </section>
@@ -388,7 +409,13 @@
               <header><div><p>NEW CLASS</p><h2>새 반 추가</h2></div></header>
               <form action="/academy/classes" method="POST">
                 <label><span>반 이름</span><input name="className" type="text" minlength="1" maxlength="40" placeholder="예: 고1 월수 심화반" required /></label>
-                <p>학생의 학년과 반은 별개입니다. 학년은 학생 가입 정보를 그대로 보여주고 반만 이곳에서 관리합니다.</p>
+                <fieldset class="academy-weekday-fieldset"><legend>수업 요일</legend><div><% weekdayLabels.forEach((label, day) => { %><label><input type="checkbox" name="weekdays" value="<%= day %>" <%= [1, 3].includes(day) ? "checked" : "" %> /><span><%= label %></span></label><% }) %></div></fieldset>
+                <div class="academy-form-row"><label><span>시작 시간</span><input name="startTime" type="time" value="18:00" required /></label><label><span>종료 시간</span><input name="endTime" type="time" value="20:00" required /></label></div>
+                <label><span>일정 시작일</span><input name="effectiveFrom" type="date" value="<%= currentKstDateKey %>" required /></label>
+                <label><span>출결 방식</span><select name="attendanceMode"><option value="SELF_CODE">학생 코드 출결</option><option value="MANUAL">선생님 수동 출결</option></select></label>
+                <div class="academy-form-row"><label><span>출석 오픈</span><select name="opensBeforeMinutes"><option value="10">10분 전</option><option value="5">5분 전</option><option value="0">시작 시간</option></select></label><label><span>지각 기준</span><select name="lateAfterMinutes"><option value="5">5분 후</option><option value="10">10분 후</option><option value="0">시작 직후</option></select></label></div>
+                <label><span>입력 마감</span><select name="closesAfterMinutes"><option value="20">시작 20분 후</option><option value="30">시작 30분 후</option><option value="60">시작 60분 후</option></select></label>
+                <p>새 반을 만든 선생님이 자동으로 담임이 됩니다. 학생 코드 출결도 담당 선생님이 언제든 수동으로 수정할 수 있습니다.</p>
                 <button type="submit">반 추가하기</button>
               </form>
             </section>

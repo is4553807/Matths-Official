@@ -2,11 +2,18 @@ const mongoose = require("mongoose");
 const { AdminActionLog, User } = require("../models/matthsModel");
 const {
   Academy,
+  AcademyAttendance,
+  AcademyAttendanceAudit,
+  AcademyAttendanceCodeAttempt,
+  AcademyAttendanceSession,
   AcademyClass,
   AcademyInvite,
   AcademyStaff,
   AcademyStudentMembership,
 } = require("../models/academyModel");
+const {
+  _private: { attendanceCodeForSession, sessionState },
+} = require("./academyAttendanceService");
 const { getAcademyMonthlyStatistics } = require("./academyStatisticsService");
 const { getClassMathMap } = require("./mathMapService");
 const { signedCloudinaryUrl } = require("./fileStorageService");
@@ -14,6 +21,9 @@ const { signedCloudinaryUrl } = require("./fileStorageService");
 const ACADEMY_STATUSES = ["PENDING", "ACTIVE", "PAUSED", "REJECTED"];
 const PAGE_SIZE = 50;
 const ADMIN_USER_FIELDS = "name realName email role isActive accountStatus schoolGrade school";
+const ATTENDANCE_STATUSES = new Set(["PRESENT", "LATE", "ABSENT", "EXCUSED"]);
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function statusError(status, message) {
   const error = new Error(message);
@@ -27,6 +37,50 @@ function escapeRegex(value) {
 
 function cleanName(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
+}
+
+function normalizeClassOperationsInput(input = {}) {
+  const weekdays = [...new Set(asArray(input.weekdays).map(Number))]
+    .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6)
+    .sort((left, right) => left - right);
+  const startTime = String(input.startTime || "").trim();
+  const endTime = String(input.endTime || "").trim();
+  const effectiveFrom = String(input.effectiveFrom || "").trim();
+  if (!weekdays.length) throw statusError(400, "수업 요일을 하나 이상 선택해 주세요.");
+  if (!TIME_PATTERN.test(startTime) || !TIME_PATTERN.test(endTime)) {
+    throw statusError(400, "수업 시작·종료 시간을 올바르게 입력해 주세요.");
+  }
+  if (endTime <= startTime) throw statusError(400, "수업 종료 시간은 시작 시간보다 늦어야 합니다.");
+  if (!DATE_KEY_PATTERN.test(effectiveFrom)) throw statusError(400, "일정 적용 시작일을 올바르게 입력해 주세요.");
+  const [year, month, day] = effectiveFrom.split("-").map(Number);
+  const parsedDate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsedDate.getUTCFullYear() !== year ||
+    parsedDate.getUTCMonth() !== month - 1 ||
+    parsedDate.getUTCDate() !== day
+  ) {
+    throw statusError(400, "존재하지 않는 일정 적용 시작일입니다.");
+  }
+  const mode = String(input.attendanceMode || "MANUAL").toUpperCase();
+  if (!["MANUAL", "SELF_CODE"].includes(mode)) throw statusError(400, "지원하지 않는 출석 방식입니다.");
+  const boundedInteger = (value, fallback, minimum, maximum, label) => {
+    const parsed = Number.parseInt(value, 10);
+    const result = Number.isFinite(parsed) ? parsed : fallback;
+    if (result < minimum || result > maximum) throw statusError(400, `${label} 설정 범위를 확인해 주세요.`);
+    return result;
+  };
+  const opensBeforeMinutes = boundedInteger(input.opensBeforeMinutes, 10, 0, 120, "출석 시작");
+  const lateAfterMinutes = boundedInteger(input.lateAfterMinutes, 5, 0, 120, "지각 기준");
+  const closesAfterMinutes = boundedInteger(input.closesAfterMinutes, 20, 1, 240, "출석 마감");
+  if (lateAfterMinutes > closesAfterMinutes) throw statusError(400, "지각 기준은 출석 마감보다 빠르거나 같아야 합니다.");
+  return {
+    schedule: { weekdays, startTime, endTime, effectiveFrom, timezone: "Asia/Seoul" },
+    attendancePolicy: { mode, opensBeforeMinutes, lateAfterMinutes, closesAfterMinutes },
+  };
 }
 
 function validObjectId(value, label = "항목") {
@@ -138,7 +192,7 @@ async function getAdminAcademyList({ adminUserId, search = "", status = "ALL", p
   };
 }
 
-async function getAdminAcademyDetail({ adminUserId, academyId, periodKey }) {
+async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, now = new Date() }) {
   await assertSuperAdmin(adminUserId);
   validObjectId(academyId, "학원");
   const academy = await Academy.findById(academyId)
@@ -148,7 +202,7 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey }) {
   if (!academy) throw statusError(404, "학원을 찾을 수 없습니다.");
   academy.profileImageSrc = signedCloudinaryUrl(academy.profileImageAsset) || "";
 
-  const [staff, memberships, classes, invites] = await Promise.all([
+  const [staff, memberships, classes, invites, attendanceSessions, attendanceRecords, attendanceAudits] = await Promise.all([
     AcademyStaff.find({ academyId: academy._id })
       .sort({ role: 1, status: 1, createdAt: 1 })
       .populate("userId", ADMIN_USER_FIELDS)
@@ -163,11 +217,37 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey }) {
     AcademyClass.find({ academyId: academy._id })
       .sort({ isActive: -1, name: 1 })
       .populate("createdByUserId", "name realName email")
+      .populate("homeroomTeacherUserId", "name realName email")
+      .populate("coTeacherUserIds", "name realName email")
+      .populate("teacherHistory.previousTeacherUserId", "name realName email")
+      .populate("teacherHistory.nextTeacherUserId", "name realName email")
+      .populate("teacherHistory.changedByUserId", "name realName email")
       .lean(),
     AcademyInvite.find({ academyId: academy._id })
       .sort({ createdAt: -1 })
       .populate("createdByUserId", "name realName email")
       .populate("classId", "name isActive")
+      .lean(),
+    AcademyAttendanceSession.find({ academyId: academy._id })
+      .sort({ startsAt: -1, _id: -1 })
+      .limit(40)
+      .populate("classId", "name isActive")
+      .populate("createdByUserId", "name realName email")
+      .lean(),
+    AcademyAttendance.find({ academyId: academy._id })
+      .sort({ dateKey: -1, updatedAt: -1, _id: -1 })
+      .limit(120)
+      .populate("studentUserId", ADMIN_USER_FIELDS)
+      .populate("classId", "name isActive")
+      .populate("sessionId", "dateKey startsAt attendanceMode status")
+      .populate("recordedByUserId", "name realName email role")
+      .lean(),
+    AcademyAttendanceAudit.find({ academyId: academy._id })
+      .sort({ occurredAt: -1, _id: -1 })
+      .limit(120)
+      .populate("studentUserId", ADMIN_USER_FIELDS)
+      .populate("classId", "name isActive")
+      .populate("actorUserId", "name realName email role")
       .lean(),
   ]);
   const approvedMemberships = memberships.filter((membership) => membership.status === "APPROVED" && membership.studentUserId);
@@ -189,6 +269,15 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey }) {
     memberships: memberships.filter((entry) => entry.studentUserId),
     classes,
     invites,
+    attendanceSessions: attendanceSessions.map((session) => ({
+      ...session,
+      computedState: sessionState(session, now),
+      code: session.attendanceMode === "SELF_CODE" && !["CLOSED", "CANCELED"].includes(sessionState(session, now))
+        ? attendanceCodeForSession(session)
+        : "",
+    })),
+    attendanceRecords: attendanceRecords.filter((record) => record.studentUserId),
+    attendanceAudits: attendanceAudits.filter((audit) => audit.studentUserId && audit.actorUserId),
     statistics,
     mathMap,
     counts: {
@@ -328,6 +417,7 @@ async function updateAdminAcademyStaff({ adminUserId, academyId, staffId, action
 
   const normalizedAction = String(action || "").toUpperCase();
   const now = new Date();
+  let homeroomFallbackUserId = null;
   let update;
   let allowedStatuses;
   if (["APPROVE", "RESTORE"].includes(normalizedAction)) {
@@ -359,6 +449,11 @@ async function updateAdminAcademyStaff({ adminUserId, academyId, staffId, action
     };
   } else if (normalizedAction === "REVOKE") {
     allowedStatuses = ["ACTIVE"];
+    const owner = await AcademyStaff.findOne({ academyId: academy._id, role: "OWNER", status: "ACTIVE" })
+      .select("userId")
+      .lean();
+    homeroomFallbackUserId = owner?.userId || null;
+    if (!homeroomFallbackUserId) throw statusError(409, "학원 원장 계정을 확인할 수 없어 교사 권한을 해제하지 않았습니다.");
     update = {
       $set: { status: "REVOKED", revokedAt: now, reviewedAt: now, reviewedByUserId: adminUserId },
       $unset: { currentStaffKey: 1 },
@@ -376,6 +471,27 @@ async function updateAdminAcademyStaff({ adminUserId, academyId, staffId, action
     throw error;
   });
   if (!updated) throw statusError(409, "현재 교사 소속 상태에서는 해당 작업을 수행할 수 없습니다.");
+  if (normalizedAction === "REVOKE") {
+    await AcademyClass.updateMany(
+      { academyId: academy._id, coTeacherUserIds: staff.userId },
+      { $pull: { coTeacherUserIds: staff.userId } }
+    );
+    await AcademyClass.updateMany(
+      { academyId: academy._id, isActive: true, homeroomTeacherUserId: staff.userId },
+      {
+        $set: { homeroomTeacherUserId: homeroomFallbackUserId },
+        $pull: { coTeacherUserIds: homeroomFallbackUserId },
+        $push: {
+          teacherHistory: {
+            previousTeacherUserId: staff.userId,
+            nextTeacherUserId: homeroomFallbackUserId,
+            changedByUserId: adminUserId,
+            changedAt: now,
+          },
+        },
+      }
+    );
+  }
   await logAction({
     adminUserId,
     targetUserId: staff.userId,
@@ -572,6 +688,229 @@ async function updateAdminAcademyClass({ adminUserId, academyId, classId, action
   return updated;
 }
 
+async function updateAdminAcademyClassOperations({
+  adminUserId,
+  academyId,
+  classId,
+  weekdays,
+  startTime,
+  endTime,
+  effectiveFrom,
+  attendanceMode,
+  opensBeforeMinutes,
+  lateAfterMinutes,
+  closesAfterMinutes,
+}) {
+  await assertSuperAdmin(adminUserId);
+  validObjectId(academyId, "학원");
+  validObjectId(classId, "반");
+  const [academy, academyClass] = await Promise.all([
+    Academy.findById(academyId).lean(),
+    AcademyClass.findOne({ _id: classId, academyId }).lean(),
+  ]);
+  if (!academy) throw statusError(404, "학원을 찾을 수 없습니다.");
+  if (!academyClass) throw statusError(404, "반을 찾을 수 없습니다.");
+  const normalized = normalizeClassOperationsInput({
+    weekdays,
+    startTime,
+    endTime,
+    effectiveFrom,
+    attendanceMode,
+    opensBeforeMinutes,
+    lateAfterMinutes,
+    closesAfterMinutes,
+  });
+  const now = new Date();
+  const updated = await AcademyClass.findOneAndUpdate(
+    { _id: academyClass._id, academyId: academy._id },
+    { $set: normalized },
+    { returnDocument: "after", runValidators: true }
+  ).lean();
+  await AcademyAttendanceSession.updateMany(
+    {
+      academyId: academy._id,
+      classId: academyClass._id,
+      startsAt: { $gt: now },
+      status: { $ne: "CANCELED" },
+    },
+    { $set: { status: "CANCELED", closedAt: now } }
+  );
+  await logAction({
+    adminUserId,
+    action: "academy.class-operations-update",
+    detail: `${academy.name} ${academyClass.name} 반 수업 일정·출석 방식 변경`,
+    academy,
+    metadata: {
+      classId: String(academyClass._id),
+      previousSchedule: academyClass.schedule,
+      nextSchedule: normalized.schedule,
+      previousAttendancePolicy: academyClass.attendancePolicy,
+      nextAttendancePolicy: normalized.attendancePolicy,
+    },
+  });
+  return updated;
+}
+
+async function transferAdminAcademyClassHomeroom({
+  adminUserId,
+  academyId,
+  classId,
+  nextTeacherUserId,
+  retainPreviousAsCoTeacher = false,
+}) {
+  await assertSuperAdmin(adminUserId);
+  validObjectId(academyId, "학원");
+  validObjectId(classId, "반");
+  validObjectId(nextTeacherUserId, "새 담임 선생님");
+  const [academy, academyClass, nextStaff] = await Promise.all([
+    Academy.findById(academyId).lean(),
+    AcademyClass.findOne({ _id: classId, academyId }).lean(),
+    AcademyStaff.findOne({ academyId, userId: nextTeacherUserId, status: "ACTIVE" }).lean(),
+  ]);
+  if (!academy) throw statusError(404, "학원을 찾을 수 없습니다.");
+  if (!academyClass) throw statusError(404, "반을 찾을 수 없습니다.");
+  if (!nextStaff) throw statusError(409, "새 담임은 이 학원의 활성 선생님이어야 합니다.");
+  const previousTeacherUserId = academyClass.homeroomTeacherUserId || academyClass.createdByUserId;
+  if (String(previousTeacherUserId) === String(nextTeacherUserId)) {
+    throw statusError(409, "이미 이 반의 담임 선생님입니다.");
+  }
+  const now = new Date();
+  const nextCoTeacherUserIds = (academyClass.coTeacherUserIds || [])
+    .filter((userId) => String(userId) !== String(nextStaff.userId));
+  if (
+    retainPreviousAsCoTeacher &&
+    previousTeacherUserId &&
+    !nextCoTeacherUserIds.some((userId) => String(userId) === String(previousTeacherUserId))
+  ) {
+    nextCoTeacherUserIds.push(previousTeacherUserId);
+  }
+  const updated = await AcademyClass.findOneAndUpdate(
+    { _id: academyClass._id, academyId: academy._id },
+    {
+      $set: {
+        homeroomTeacherUserId: nextStaff.userId,
+        coTeacherUserIds: nextCoTeacherUserIds,
+      },
+      $push: {
+        teacherHistory: {
+          previousTeacherUserId,
+          nextTeacherUserId: nextStaff.userId,
+          changedByUserId: adminUserId,
+          changedAt: now,
+        },
+      },
+    },
+    { returnDocument: "after", runValidators: true }
+  ).lean();
+  await logAction({
+    adminUserId,
+    targetUserId: nextStaff.userId,
+    action: "academy.class-homeroom-transfer",
+    detail: `${academy.name} ${academyClass.name} 반 담임 이전`,
+    academy,
+    metadata: {
+      classId: String(academyClass._id),
+      previousTeacherUserId: String(previousTeacherUserId),
+      nextTeacherUserId: String(nextStaff.userId),
+      retainPreviousAsCoTeacher: Boolean(retainPreviousAsCoTeacher),
+    },
+  });
+  return updated;
+}
+
+async function updateAdminAcademyAttendance({ adminUserId, academyId, attendanceId, status, note = "" }) {
+  await assertSuperAdmin(adminUserId);
+  validObjectId(academyId, "학원");
+  validObjectId(attendanceId, "출결 기록");
+  const normalizedStatus = String(status || "").toUpperCase();
+  if (!ATTENDANCE_STATUSES.has(normalizedStatus)) throw statusError(400, "지원하지 않는 출결 상태입니다.");
+  const normalizedNote = String(note || "").replace(/\s+/g, " ").trim().slice(0, 200);
+  const [academy, attendance] = await Promise.all([
+    Academy.findById(academyId).lean(),
+    AcademyAttendance.findOne({ _id: attendanceId, academyId }).lean(),
+  ]);
+  if (!academy) throw statusError(404, "학원을 찾을 수 없습니다.");
+  if (!attendance) throw statusError(404, "출결 기록을 찾을 수 없습니다.");
+  const now = new Date();
+  const isArrival = normalizedStatus === "PRESENT" || normalizedStatus === "LATE";
+  const updated = await AcademyAttendance.findOneAndUpdate(
+    { _id: attendance._id, academyId: academy._id },
+    {
+      $set: {
+        status: normalizedStatus,
+        checkedInAt: isArrival ? attendance.checkedInAt || now : null,
+        checkedOutAt: isArrival ? attendance.checkedOutAt || null : null,
+        note: normalizedNote,
+        recordedByUserId: adminUserId,
+        source: "ADMIN",
+        seedRunId: null,
+      },
+    },
+    { returnDocument: "after", runValidators: true }
+  ).lean();
+  await Promise.all([
+    AcademyAttendanceAudit.create({
+      academyId: academy._id,
+      classId: attendance.classId,
+      sessionId: attendance.sessionId,
+      attendanceId: attendance._id,
+      studentUserId: attendance.studentUserId,
+      actorUserId: adminUserId,
+      actorType: "ADMIN",
+      action: "UPDATED",
+      previousStatus: attendance.status,
+      nextStatus: normalizedStatus,
+      note: normalizedNote,
+      occurredAt: now,
+    }),
+    logAction({
+      adminUserId,
+      targetUserId: attendance.studentUserId,
+      action: "academy.attendance-override",
+      detail: `${academy.name} 학생 출결 운영자 보정`,
+      academy,
+      metadata: {
+        attendanceId: String(attendance._id),
+        sessionId: attendance.sessionId ? String(attendance.sessionId) : null,
+        previousStatus: attendance.status,
+        nextStatus: normalizedStatus,
+      },
+    }),
+  ]);
+  return updated;
+}
+
+async function regenerateAdminAcademyAttendanceCode({ adminUserId, academyId, sessionId, now = new Date() }) {
+  await assertSuperAdmin(adminUserId);
+  validObjectId(academyId, "학원");
+  validObjectId(sessionId, "수업 회차");
+  const [academy, session] = await Promise.all([
+    Academy.findById(academyId).lean(),
+    AcademyAttendanceSession.findOne({ _id: sessionId, academyId }).populate("classId", "name").lean(),
+  ]);
+  if (!academy) throw statusError(404, "학원을 찾을 수 없습니다.");
+  if (!session) throw statusError(404, "수업 회차를 찾을 수 없습니다.");
+  if (session.attendanceMode !== "SELF_CODE" || ["CLOSED", "CANCELED"].includes(sessionState(session, now))) {
+    throw statusError(409, "학생 코드 출석을 사용하는 유효한 수업만 코드를 재발급할 수 있습니다.");
+  }
+  const updated = await AcademyAttendanceSession.findOneAndUpdate(
+    { _id: session._id, academyId: academy._id },
+    { $inc: { codeVersion: 1 }, $set: { codeIssuedAt: now } },
+    { returnDocument: "after", runValidators: true }
+  ).lean();
+  await Promise.all([
+    AcademyAttendanceCodeAttempt.deleteMany({ sessionId: session._id }),
+    logAction({
+      adminUserId,
+      action: "academy.attendance-code-regenerated",
+      detail: `${academy.name} ${session.classId?.name || "반"} 출석 코드 재발급`,
+      academy,
+      metadata: { sessionId: String(session._id), codeVersion: updated.codeVersion },
+    }),
+  ]);
+  return { session: updated, code: attendanceCodeForSession(updated) };
+}
+
 async function updateAdminAcademyInvite({ adminUserId, academyId, inviteId, action }) {
   await assertSuperAdmin(adminUserId);
   validObjectId(academyId, "학원");
@@ -610,8 +949,12 @@ module.exports = {
   assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,
   getAdminAcademyList,
+  regenerateAdminAcademyAttendanceCode,
+  transferAdminAcademyClassHomeroom,
   transferAdminAcademyOwner,
+  updateAdminAcademyAttendance,
   updateAdminAcademyClass,
+  updateAdminAcademyClassOperations,
   updateAdminAcademyInvite,
   updateAdminAcademyMembership,
   updateAdminAcademyProfile,
