@@ -55,15 +55,54 @@ const academyStaffSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["ACTIVE", "REVOKED"],
+      enum: ["PENDING", "ACTIVE", "REJECTED", "REVOKED"],
       default: "ACTIVE",
       index: true,
+    },
+    currentStaffKey: {
+      type: String,
+      trim: true,
+      default: undefined,
+      select: false,
+    },
+    requestedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    reviewedAt: {
+      type: Date,
+      default: null,
+    },
+    reviewedByUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    joinedAt: {
+      type: Date,
+      default: null,
+    },
+    rejectedAt: {
+      type: Date,
+      default: null,
+    },
+    revokedAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true, versionKey: false }
 );
 
 academyStaffSchema.index({ academyId: 1, userId: 1 }, { unique: true });
+academyStaffSchema.index(
+  { currentStaffKey: 1 },
+  {
+    unique: true,
+    sparse: true,
+    name: "current_academy_staff_user_unique",
+  }
+);
 academyStaffSchema.index(
   { userId: 1 },
   {
@@ -148,7 +187,7 @@ const academyStudentMembershipSchema = new Schema(
     },
     joinSource: {
       type: String,
-      enum: ["PROFILE", "INVITE_CODE", "INVITE_LINK"],
+      enum: ["PROFILE", "INVITE_CODE", "INVITE_LINK", "ADMIN_ASSIGNMENT"],
       default: "PROFILE",
     },
     inviteId: {

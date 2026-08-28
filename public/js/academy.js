@@ -43,7 +43,10 @@
 
     try {
       await copyText(value);
-      showToast(rawValue ? "초대 코드를 복사했습니다." : "초대 링크를 복사했습니다.");
+      showToast(
+        button.dataset.copySuccess ||
+          (rawValue ? "초대 코드를 복사했습니다." : "초대 링크를 복사했습니다.")
+      );
     } catch (_error) {
       showToast("복사하지 못했습니다. 다시 시도해 주세요.");
     }

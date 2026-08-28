@@ -2,6 +2,8 @@
   const currentTab = typeof activeAcademyPage === "string" ? activeAcademyPage : "dashboard";
   const academyName = String(portal.academy?.name || "학원");
   const pendingCount = Number(portal.pendingCount) || 0;
+  const staffPendingCount = Number(portal.staffPendingCount) || 0;
+  const isOwner = portal.isOwner === true;
   const viewFeedback = typeof feedback !== "undefined" ? feedback : null;
   const highlightedInviteId = typeof createdInviteId === "string" ? createdInviteId : "";
   const overviewCards = [
@@ -75,6 +77,7 @@
           <a class="<%= currentTab === 'requests' ? 'active' : '' %>" href="/academy?tab=requests">승인 요청 <% if (pendingCount) { %><b><%= pendingCount %></b><% } %></a>
           <a class="<%= currentTab === 'classes' ? 'active' : '' %>" href="/academy?tab=classes">반 관리</a>
           <a class="<%= currentTab === 'invites' ? 'active' : '' %>" href="/academy?tab=invites">초대 관리</a>
+          <a class="<%= currentTab === 'teachers' ? 'active' : '' %>" href="/academy?tab=teachers">선생님 관리 <% if (isOwner && staffPendingCount) { %><b><%= staffPendingCount %></b><% } %></a>
         </nav>
         <p>학생의 학습 기록은 승인된 소속 관계 안에서만 조회됩니다.</p>
       </aside>
@@ -94,7 +97,7 @@
 
           <div class="academy-integration-notice" role="status">
             <span aria-hidden="true">i</span>
-            <p><strong>통계 화면 준비 단계입니다.</strong> 현재는 항목 구성만 표시하며 실제 학습 수치는 추후 연결됩니다.</p>
+            <p><strong>학원 전체 통계는 준비 단계입니다.</strong> 학생별 이번 달·지난달 통계와 Summary는 학생 관리에서 승인된 학생의 통계를 열어 확인할 수 있습니다.</p>
           </div>
 
           <section class="academy-stat-grid" aria-label="학원 주요 통계">
@@ -116,7 +119,7 @@
 
             <aside class="academy-panel academy-attention-panel">
               <header><div><p>NEEDS ATTENTION</p><h2>확인이 필요한 학생</h2></div><strong>—</strong></header>
-              <div class="academy-empty-state"><span aria-hidden="true">✓</span><strong>통계 연동 전입니다</strong><p>미학습, 오답 누적, 학습 빈도 하락 등 확인 항목이 여기에 표시됩니다.</p></div>
+              <div class="academy-empty-state"><span aria-hidden="true">✓</span><strong>학원 전체 통계 연동 전입니다</strong><p>미학습, 오답 누적, 학습 빈도 하락 등 확인 항목이 여기에 표시됩니다.</p></div>
               <a href="/academy?tab=requests">승인 대기 학생 <%= pendingCount %>명 확인 <span>→</span></a>
             </aside>
           </div>
@@ -249,6 +252,49 @@
             </section>
           </div>
           <div class="academy-copy-toast" data-copy-toast role="status" aria-live="polite" hidden>복사했습니다.</div>
+        <% } %>
+
+        <% if (currentTab === "teachers") { %>
+          <header class="academy-heading academy-list-heading">
+            <div><p>ACADEMY STAFF</p><h1>선생님 관리</h1><span>운영자가 교사로 전환한 계정만 참여를 요청할 수 있으며, 원장 승인 후 학원 정보에 접근합니다.</span></div>
+            <strong class="academy-heading-count"><%= (portal.activeStaff || []).length %><small>명</small></strong>
+          </header>
+          <div class="academy-privacy-note"><strong>권한 구분</strong><span>원장: 선생님 승인·해제 가능</span><i></i><span>교사: 학생·반·통계 업무 가능</span></div>
+
+          <section class="academy-panel academy-table-panel">
+            <header><div><p>ACTIVE STAFF</p><h2>소속 선생님</h2></div><span class="academy-status-chip"><%= isOwner ? "원장 관리" : "조회 전용" %></span></header>
+            <div class="academy-table-wrap">
+              <table>
+                <thead><tr><th>선생님</th><th>학원 역할</th><th>참여일</th><th>관리</th></tr></thead>
+                <tbody>
+                  <% (portal.activeStaff || []).forEach((staff) => { const staffUser = staff.userId; %>
+                    <tr>
+                      <td><strong><%= staffUser.realName || staffUser.name || "선생님" %></strong><small>교사 계정 확인 완료</small></td>
+                      <td><span class="academy-grade-chip"><%= staff.role === "OWNER" ? "원장" : "교사" %></span></td>
+                      <td><strong><%= formatDate(staff.joinedAt || staff.createdAt) %></strong><small><%= staff.role === "OWNER" ? "학원 생성자" : "원장 승인" %></small></td>
+                      <td><% if (isOwner && staff.role === "TEACHER") { %><form class="academy-inline-form" action="/academy/staff/<%= staff._id %>/revoke" method="POST" onsubmit="return confirm('이 선생님의 학원 접근 권한을 해제할까요?')"><button type="submit">접근 해제</button></form><% } else { %><small><%= staff.role === "OWNER" ? "원장 계정" : "원장만 관리 가능" %></small><% } %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <% if (isOwner) { %>
+            <section class="academy-request-list academy-staff-request-list" aria-label="선생님 참여 승인 요청">
+              <header class="academy-heading academy-list-heading"><div><p>STAFF REQUESTS</p><h1>참여 승인 요청</h1><span>실제 근무 중인 선생님인지 확인한 뒤 승인해 주세요.</span></div><strong class="academy-heading-count"><%= staffPendingCount %><small>건</small></strong></header>
+              <% if (!(portal.staffRequests || []).length) { %><div class="academy-panel academy-empty-state"><span aria-hidden="true">✓</span><strong>대기 중인 선생님 요청이 없습니다</strong><p>새 요청이 들어오면 이 메뉴에 표시됩니다.</p></div><% } %>
+              <% (portal.staffRequests || []).forEach((staff) => { const staffUser = staff.userId; %>
+                <article class="academy-panel academy-request-card">
+                  <div class="academy-student-avatar" aria-hidden="true"><%= String(staffUser.realName || staffUser.name || "선").slice(0, 1) %></div>
+                  <div class="academy-request-copy"><small>교사 참여 요청 · <%= formatDate(staff.requestedAt) %></small><h2><%= staffUser.realName || staffUser.name || "선생님" %></h2><p>운영자 교사 역할 전환 확인됨</p><span>승인 전에는 학생 정보와 학습 통계를 볼 수 없습니다.</span></div>
+                  <div class="academy-request-actions"><form action="/academy/staff/<%= staff._id %>/approve" method="POST"><button class="is-primary" type="submit">승인</button></form><form action="/academy/staff/<%= staff._id %>/reject" method="POST" onsubmit="return confirm('이 선생님의 참여 요청을 거절할까요?')"><button type="submit">거절</button></form></div>
+                </article>
+              <% }) %>
+            </section>
+          <% } else { %>
+            <div class="academy-integration-notice" role="status"><span aria-hidden="true">i</span><p><strong>선생님 소속 관리는 원장 계정 전용입니다.</strong> 참여 승인이나 접근 해제가 필요하면 학원 원장에게 요청해 주세요.</p></div>
+          <% } %>
         <% } %>
       </main>
     </div>

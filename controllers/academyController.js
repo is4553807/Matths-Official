@@ -1,22 +1,29 @@
 const {
+  approveAcademyStaff,
   approveMembership,
   assignMembershipClass,
+  cancelAcademyStaffJoin,
   createAcademyClass,
   createAcademyForTeacher,
   createAcademyInvite,
   getAcademyInvitePresentation,
   getAcademyPortalData,
   getAcademyStudentDetail,
+  getTeacherAcademySetupData,
   getTeacherAcademyContext,
   leaveAcademy,
+  rejectAcademyStaff,
   rejectMembership,
+  requestAcademyStaffJoin,
   requestAcademyByCode,
   requestAcademyByToken,
   requestAcademyFromProfile,
+  revokeAcademyStaff,
   revokeAcademyInvite,
 } = require("../services/academyService");
+const { getStudentMonthlyStatistics } = require("../services/academyStatisticsService");
 
-const ACADEMY_TABS = new Set(["dashboard", "students", "requests", "classes", "invites"]);
+const ACADEMY_TABS = new Set(["dashboard", "students", "requests", "classes", "invites", "teachers"]);
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -74,14 +81,39 @@ exports.setupPage = async (req, res, next) => {
   try {
     const context = await getTeacherAcademyContext(req.session.user.id, { allowMissing: true });
     if (context) return res.redirect("/academy");
+    const setup = await getTeacherAcademySetupData(req.session.user.id);
     res.set("Cache-Control", "private, no-store");
     return res.render("academy-setup", {
       user: req.session.user,
       feedback: consumeFlash(req),
       academyName: "",
+      setup,
     });
   } catch (error) {
     return next(error);
+  }
+};
+
+exports.requestAcademyJoin = async (req, res, next) => {
+  try {
+    await requestAcademyStaffJoin({
+      teacherUserId: req.session.user.id,
+      academyId: req.body.academyId,
+    });
+    await setFlash(req, "success", "학원 참여 요청을 보냈습니다. 원장 선생님의 승인을 기다려주세요.");
+    return res.redirect("/academy/setup");
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, "/academy/setup");
+  }
+};
+
+exports.cancelAcademyJoin = async (req, res, next) => {
+  try {
+    await cancelAcademyStaffJoin({ teacherUserId: req.session.user.id });
+    await setFlash(req, "success", "학원 참여 요청을 취소했습니다.");
+    return res.redirect("/academy/setup");
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, "/academy/setup");
   }
 };
 
@@ -259,16 +291,60 @@ exports.revokeInvite = async (req, res, next) => {
   }
 };
 
+exports.approveTeacher = async (req, res, next) => {
+  try {
+    await approveAcademyStaff({
+      teacherUserId: req.session.user.id,
+      staffId: req.params.staffId,
+    });
+    await setFlash(req, "success", "선생님의 학원 참여를 승인했습니다.");
+    return res.redirect("/academy?tab=teachers");
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, "/academy?tab=teachers");
+  }
+};
+
+exports.rejectTeacher = async (req, res, next) => {
+  try {
+    await rejectAcademyStaff({
+      teacherUserId: req.session.user.id,
+      staffId: req.params.staffId,
+    });
+    await setFlash(req, "success", "선생님의 학원 참여 요청을 거절했습니다.");
+    return res.redirect("/academy?tab=teachers");
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, "/academy?tab=teachers");
+  }
+};
+
+exports.revokeTeacher = async (req, res, next) => {
+  try {
+    await revokeAcademyStaff({
+      teacherUserId: req.session.user.id,
+      staffId: req.params.staffId,
+    });
+    await setFlash(req, "success", "선생님의 학원 접근 권한을 해제했습니다.");
+    return res.redirect("/academy?tab=teachers");
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, "/academy?tab=teachers");
+  }
+};
+
 exports.studentDetailPage = async (req, res, next) => {
   try {
     const detail = await getAcademyStudentDetail({
       teacherUserId: req.session.user.id,
       membershipId: req.params.membershipId,
     });
+    const statistics = await getStudentMonthlyStatistics({
+      studentUserId: detail.membership.studentUserId._id,
+      periodKey: req.query.period,
+    });
     res.set("Cache-Control", "private, no-store");
     return res.render("academy-student-detail", {
       user: req.session.user,
       detail,
+      statistics,
       activeAcademyPage: "students",
     });
   } catch (error) {

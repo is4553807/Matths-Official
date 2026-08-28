@@ -2,7 +2,7 @@
   const learner = user;
   const data = dashboardData;
 
-  const displayName = String(learner.name || "학생");
+  const displayName = String(learner.realName || "학생");
   const greetingName = String(learner.realName || learner.name || "학생");
   const notifications = Array.isArray(data.notifications) ? data.notifications : [];
   const hasUrgentNotification = Boolean(data.hasUrgentNotification);

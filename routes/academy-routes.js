@@ -9,6 +9,8 @@ router.post("/academy/join/:token", authMiddleware.isLoggedIn, academyController
 
 router.get("/academy/setup", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.setupPage);
 router.post("/academy/setup", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createAcademy);
+router.post("/academy/setup/join", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.requestAcademyJoin);
+router.post("/academy/setup/join/cancel", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.cancelAcademyJoin);
 router.get("/academy", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.portalPage);
 router.get(
   "/academy/students/:membershipId",
@@ -41,6 +43,24 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isTeacher,
   academyController.revokeInvite
+);
+router.post(
+  "/academy/staff/:staffId/approve",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.approveTeacher
+);
+router.post(
+  "/academy/staff/:staffId/reject",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.rejectTeacher
+);
+router.post(
+  "/academy/staff/:staffId/revoke",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.revokeTeacher
 );
 
 router.post("/profile/academy/request", authMiddleware.isLoggedIn, academyController.requestFromProfile);

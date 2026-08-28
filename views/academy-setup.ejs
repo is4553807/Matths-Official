@@ -1,3 +1,8 @@
+<%
+  const setupData = typeof setup !== "undefined" && setup ? setup : {};
+  const pendingRequest = setupData.pendingRequest || null;
+  const academies = Array.isArray(setupData.academies) ? setupData.academies : [];
+%>
 <!doctype html>
 <html lang="ko">
   <head>
@@ -12,19 +17,41 @@
     <link rel="stylesheet" href="/css/contrast.css" />
   </head>
   <body class="academy-auth-page">
-    <main class="academy-auth-shell">
+    <main class="academy-auth-shell academy-auth-shell--wide">
       <div class="academy-auth-brand"><%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 홈", suffix: "학원 관리", compact: true }) %></div>
       <section class="academy-auth-card">
         <p>ACADEMY SETUP</p>
         <h1>학원 관리 페이지를 시작합니다.</h1>
-        <span>별도 미팅을 통해 선생님 계정으로 전환된 경우에만 이 설정을 사용할 수 있습니다. 공개 패키지나 학생용 가격에는 학원 상품이 추가되지 않습니다.</span>
-        <% if (feedback) { %><div class="academy-auth-error" role="alert"><%= feedback.message %></div><% } %>
-        <form action="/academy/setup" method="POST">
-          <label><span>학원 이름</span><input name="academyName" type="text" minlength="2" maxlength="80" value="<%= academyName || '' %>" placeholder="예: 평촌 하이수학" autocomplete="organization" required /></label>
-          <div class="academy-auth-note">이 이름은 학생이 프로필에서 학원을 선택할 때 표시됩니다. 학원 페이지에서는 승인, 반 배정, 초대와 읽기 전용 학습 통계만 관리합니다.</div>
-          <button type="submit">학원 페이지 만들기</button>
-        </form>
-        <a class="academy-auth-back" href="/contact">학원 정보가 다르거나 계정 연결이 필요하면 문의하기</a>
+        <span>운영자가 교사 역할로 전환한 계정만 이용할 수 있습니다. 새 학원을 만들거나, 이미 등록된 학원에 참여를 요청하세요.</span>
+        <% if (feedback) { %><div class="academy-feedback <%= feedback.type === 'error' ? 'is-error' : 'is-success' %>" role="<%= feedback.type === 'error' ? 'alert' : 'status' %>"><span aria-hidden="true"><%= feedback.type === 'error' ? '!' : '✓' %></span><%= feedback.message %></div><% } %>
+
+        <% if (pendingRequest) { %>
+          <section class="academy-setup-pending" aria-labelledby="academy-pending-title">
+            <span aria-hidden="true">⌛</span>
+            <div><small>APPROVAL PENDING</small><h2 id="academy-pending-title"><%= pendingRequest.academyId.name %> 참여 승인 대기 중</h2><p>원장 선생님이 승인하면 다음 로그인부터 해당 학원의 학생 현황과 통계를 볼 수 있습니다.</p></div>
+          </section>
+          <form class="academy-cancel-join-form" action="/academy/setup/join/cancel" method="POST" onsubmit="return confirm('학원 참여 요청을 취소할까요?')"><button type="submit">참여 요청 취소</button></form>
+        <% } else { %>
+          <div class="academy-setup-choice-grid">
+            <form class="academy-setup-option" action="/academy/setup" method="POST">
+              <header><span aria-hidden="true">＋</span><div><small>CREATE</small><h2>학원 만들기</h2></div></header>
+              <p>원장 계정으로 새 학원을 만들고 학생·선생님 승인 권한을 관리합니다.</p>
+              <label><span>학원 이름</span><input name="academyName" type="text" minlength="2" maxlength="80" value="<%= academyName || '' %>" placeholder="예: 평촌 하이수학" autocomplete="organization" required /></label>
+              <button type="submit">새 학원 만들기</button>
+            </form>
+
+            <form class="academy-setup-option" action="/academy/setup/join" method="POST">
+              <header><span aria-hidden="true">→</span><div><small>JOIN</small><h2>기존 학원 들어가기</h2></div></header>
+              <p>등록된 학원을 선택해 참여를 요청합니다. 원장 승인 전에는 학생 정보가 공개되지 않습니다.</p>
+              <label><span>학원 선택</span><select name="academyId" required <%= academies.length ? '' : 'disabled' %>><option value="">학원을 선택해 주세요</option><% academies.forEach((academy) => { %><option value="<%= academy._id %>"><%= academy.name %></option><% }) %></select></label>
+              <% if (!academies.length) { %><div class="academy-auth-note">현재 참여할 수 있는 학원이 없습니다. 학원을 새로 만들거나 운영자에게 등록 상태를 확인해 주세요.</div><% } %>
+              <button type="submit" <%= academies.length ? '' : 'disabled' %>>학원 참여 요청</button>
+            </form>
+          </div>
+        <% } %>
+
+        <div class="academy-auth-note academy-setup-policy-note"><strong>권한 기준</strong> 교사 역할은 Matths 운영자만 부여합니다. 기존 학원 참여는 해당 학원 원장 계정이 다시 승인하며, 승인된 교사만 학원 내부 정보를 볼 수 있습니다.</div>
+        <a class="academy-auth-back" href="/contact">학원 정보가 다르거나 교사 역할 전환이 필요하면 문의하기</a>
       </section>
     </main>
   </body>

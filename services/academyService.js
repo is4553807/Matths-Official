@@ -18,6 +18,7 @@ const STUDENT_FIELDS = [
   "isActive",
   "accountStatus",
 ].join(" ");
+const STAFF_FIELDS = "name realName role isActive accountStatus";
 
 function statusError(status, message, code = "") {
   const error = new Error(message);
@@ -50,6 +51,23 @@ function inviteState(invite, now = new Date()) {
 }
 
 async function ensureAcademyIndexes() {
+  await AcademyStaff.updateMany(
+    {
+      status: "ACTIVE",
+      $or: [
+        { currentStaffKey: { $exists: false } },
+        { currentStaffKey: "" },
+      ],
+    },
+    [
+      {
+        $set: {
+          currentStaffKey: { $toString: "$userId" },
+          joinedAt: { $ifNull: ["$joinedAt", "$createdAt"] },
+        },
+      },
+    ]
+  );
   await Promise.all([
     Academy.createIndexes(),
     AcademyStaff.createIndexes(),
@@ -57,6 +75,16 @@ async function ensureAcademyIndexes() {
     AcademyStudentMembership.createIndexes(),
     AcademyInvite.createIndexes(),
   ]);
+}
+
+async function assertTeacherAccount(teacherUserId) {
+  const teacher = await User.findById(teacherUserId)
+    .select("role isActive accountStatus")
+    .lean();
+  if (!teacher || teacher.role !== "teacher" || teacher.isActive === false || teacher.accountStatus === "withdrawn") {
+    throw statusError(403, "운영자가 교사로 전환한 활성 계정만 학원에 연결할 수 있습니다.");
+  }
+  return teacher;
 }
 
 async function getTeacherAcademyContext(userId, { allowMissing = false } = {}) {
@@ -82,15 +110,12 @@ async function createAcademyForTeacher({ teacherUserId, name }) {
     throw statusError(400, "학원 이름은 2자 이상 80자 이하로 입력해주세요.");
   }
 
-  const [teacher, existingStaff] = await Promise.all([
-    User.findById(teacherUserId).select("role isActive accountStatus").lean(),
-    AcademyStaff.findOne({ userId: teacherUserId, status: "ACTIVE" }).lean(),
+  const [, existingStaff] = await Promise.all([
+    assertTeacherAccount(teacherUserId),
+    AcademyStaff.findOne({ userId: teacherUserId, status: { $in: ["PENDING", "ACTIVE"] } }).lean(),
   ]);
-  if (!teacher || teacher.role !== "teacher" || teacher.isActive === false || teacher.accountStatus === "withdrawn") {
-    throw statusError(403, "선생님 계정만 학원 페이지를 설정할 수 있습니다.");
-  }
   if (existingStaff) {
-    throw statusError(409, "이미 연결된 학원이 있습니다.");
+    throw statusError(409, existingStaff.status === "PENDING" ? "기존 학원 참여 승인을 기다리고 있습니다." : "이미 연결된 학원이 있습니다.");
   }
 
   const academy = await Academy.create({
@@ -104,12 +129,183 @@ async function createAcademyForTeacher({ teacherUserId, name }) {
       academyId: academy._id,
       userId: teacherUserId,
       role: "OWNER",
+      status: "ACTIVE",
+      currentStaffKey: String(teacherUserId),
+      requestedAt: new Date(),
+      joinedAt: new Date(),
     });
   } catch (error) {
     await Academy.deleteOne({ _id: academy._id }).catch(() => {});
     throw error;
   }
   return academy.toObject();
+}
+
+async function getTeacherAcademySetupData(teacherUserId) {
+  await assertTeacherAccount(teacherUserId);
+  const [pendingRequest, academies] = await Promise.all([
+    AcademyStaff.findOne({ userId: teacherUserId, status: "PENDING" })
+      .populate("academyId", "name status")
+      .lean(),
+    Academy.find({ status: "ACTIVE" })
+      .sort({ name: 1, _id: 1 })
+      .select("name")
+      .lean(),
+  ]);
+  return {
+    pendingRequest: pendingRequest?.academyId ? pendingRequest : null,
+    academies,
+  };
+}
+
+async function requestAcademyStaffJoin({ teacherUserId, academyId }) {
+  if (!mongoose.isValidObjectId(academyId)) {
+    throw statusError(400, "참여할 학원을 선택해주세요.");
+  }
+  await assertTeacherAccount(teacherUserId);
+  const currentStaff = await AcademyStaff.findOne({
+    userId: teacherUserId,
+    status: { $in: ["PENDING", "ACTIVE"] },
+  })
+    .populate("academyId", "name")
+    .lean();
+  if (currentStaff) {
+    const academyName = currentStaff.academyId?.name || "현재 학원";
+    throw statusError(
+      409,
+      currentStaff.status === "PENDING"
+        ? `${academyName} 참여 승인을 기다리고 있습니다.`
+        : `${academyName}에 이미 소속되어 있습니다.`
+    );
+  }
+
+  const academy = await Academy.findOne({ _id: academyId, status: "ACTIVE" }).lean();
+  if (!academy) throw statusError(404, "선택한 학원을 찾을 수 없습니다.");
+  const now = new Date();
+  return AcademyStaff.findOneAndUpdate(
+    { academyId: academy._id, userId: teacherUserId },
+    {
+      $set: {
+        role: "TEACHER",
+        status: "PENDING",
+        currentStaffKey: String(teacherUserId),
+        requestedAt: now,
+        reviewedAt: null,
+        reviewedByUserId: null,
+        joinedAt: null,
+        rejectedAt: null,
+        revokedAt: null,
+      },
+      $setOnInsert: { academyId: academy._id, userId: teacherUserId },
+    },
+    { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true }
+  )
+    .lean()
+    .catch((error) => {
+      if (error?.code === 11000) {
+        throw statusError(409, "이미 다른 학원에 연결되었거나 참여 승인을 기다리고 있습니다.");
+      }
+      throw error;
+    });
+}
+
+async function cancelAcademyStaffJoin({ teacherUserId }) {
+  const request = await AcademyStaff.findOneAndUpdate(
+    { userId: teacherUserId, status: "PENDING" },
+    {
+      $set: { status: "REVOKED", revokedAt: new Date() },
+      $unset: { currentStaffKey: 1 },
+    },
+    { returnDocument: "before" }
+  )
+    .populate("academyId", "name")
+    .lean();
+  if (!request) throw statusError(404, "취소할 학원 참여 요청이 없습니다.");
+  return request;
+}
+
+async function getAcademyOwnerContext(teacherUserId) {
+  const context = await getTeacherAcademyContext(teacherUserId);
+  if (context.staff.role !== "OWNER") {
+    throw statusError(403, "학원 원장 계정만 선생님 소속을 관리할 수 있습니다.");
+  }
+  return context;
+}
+
+async function approveAcademyStaff({ teacherUserId, staffId }) {
+  const context = await getAcademyOwnerContext(teacherUserId);
+  if (!mongoose.isValidObjectId(staffId)) throw statusError(404, "선생님 참여 요청을 찾을 수 없습니다.");
+  const request = await AcademyStaff.findOne({
+    _id: staffId,
+    academyId: context.academyId,
+    status: "PENDING",
+  }).lean();
+  if (!request) throw statusError(404, "처리할 선생님 참여 요청을 찾을 수 없습니다.");
+  try {
+    await assertTeacherAccount(request.userId);
+  } catch (error) {
+    if (Number(error.status) === 403) {
+      throw statusError(409, "이 계정은 현재 교사 역할이 아닙니다. 운영자에게 역할 상태를 확인해 주세요.");
+    }
+    throw error;
+  }
+  const now = new Date();
+  return AcademyStaff.findOneAndUpdate(
+    { _id: request._id, status: "PENDING" },
+    {
+      $set: {
+        status: "ACTIVE",
+        role: "TEACHER",
+        joinedAt: now,
+        reviewedAt: now,
+        reviewedByUserId: teacherUserId,
+        rejectedAt: null,
+        revokedAt: null,
+      },
+    },
+    { returnDocument: "after" }
+  ).lean();
+}
+
+async function rejectAcademyStaff({ teacherUserId, staffId }) {
+  const context = await getAcademyOwnerContext(teacherUserId);
+  if (!mongoose.isValidObjectId(staffId)) throw statusError(404, "선생님 참여 요청을 찾을 수 없습니다.");
+  const now = new Date();
+  const request = await AcademyStaff.findOneAndUpdate(
+    { _id: staffId, academyId: context.academyId, status: "PENDING" },
+    {
+      $set: {
+        status: "REJECTED",
+        rejectedAt: now,
+        reviewedAt: now,
+        reviewedByUserId: teacherUserId,
+      },
+      $unset: { currentStaffKey: 1 },
+    },
+    { returnDocument: "after" }
+  ).lean();
+  if (!request) throw statusError(404, "처리할 선생님 참여 요청을 찾을 수 없습니다.");
+  return request;
+}
+
+async function revokeAcademyStaff({ teacherUserId, staffId }) {
+  const context = await getAcademyOwnerContext(teacherUserId);
+  if (!mongoose.isValidObjectId(staffId)) throw statusError(404, "선생님 소속을 찾을 수 없습니다.");
+  const staff = await AcademyStaff.findOneAndUpdate(
+    {
+      _id: staffId,
+      academyId: context.academyId,
+      status: "ACTIVE",
+      role: "TEACHER",
+    },
+    {
+      $set: { status: "REVOKED", revokedAt: new Date() },
+      $unset: { currentStaffKey: 1 },
+    },
+    { returnDocument: "after" }
+  ).lean();
+  if (!staff) throw statusError(404, "해제할 선생님 소속을 찾을 수 없습니다.");
+  return staff;
 }
 
 async function getStudentAcademyProfile(studentUserId) {
@@ -313,7 +509,7 @@ async function leaveAcademy({ studentUserId }) {
 async function getAcademyPortalData(teacherUserId) {
   const context = await getTeacherAcademyContext(teacherUserId);
   const academyId = context.academyId;
-  const [classes, students, requests, invites] = await Promise.all([
+  const [classes, students, requests, invites, activeStaff, staffRequests] = await Promise.all([
     AcademyClass.find({ academyId, isActive: true }).sort({ name: 1, _id: 1 }).lean(),
     AcademyStudentMembership.find({ academyId, status: "APPROVED" })
       .sort({ approvedAt: -1, _id: 1 })
@@ -330,6 +526,16 @@ async function getAcademyPortalData(teacherUserId) {
       .limit(50)
       .populate("classId", "name isActive")
       .lean(),
+    AcademyStaff.find({ academyId, status: "ACTIVE" })
+      .sort({ role: 1, joinedAt: 1, createdAt: 1 })
+      .populate("userId", STAFF_FIELDS)
+      .lean(),
+    context.staff.role === "OWNER"
+      ? AcademyStaff.find({ academyId, status: "PENDING" })
+          .sort({ requestedAt: 1, _id: 1 })
+          .populate("userId", STAFF_FIELDS)
+          .lean()
+      : Promise.resolve([]),
   ]);
 
   const now = new Date();
@@ -340,6 +546,10 @@ async function getAcademyPortalData(teacherUserId) {
     students: students.filter((entry) => entry.studentUserId),
     requests: requests.filter((entry) => entry.studentUserId),
     invites: invites.map((invite) => ({ ...invite, displayState: inviteState(invite, now) })),
+    activeStaff: activeStaff.filter((entry) => entry.userId),
+    staffRequests: staffRequests.filter((entry) => entry.userId),
+    isOwner: context.staff.role === "OWNER",
+    staffPendingCount: staffRequests.filter((entry) => entry.userId).length,
     pendingCount: requests.length,
   };
 }
@@ -513,9 +723,12 @@ async function getAcademyStudentDetail({ teacherUserId, membershipId }) {
 }
 
 module.exports = {
+  STAFF_FIELDS,
   STUDENT_FIELDS,
+  approveAcademyStaff,
   approveMembership,
   assignMembershipClass,
+  cancelAcademyStaffJoin,
   createAcademyClass,
   createAcademyForTeacher,
   createAcademyInvite,
@@ -524,11 +737,15 @@ module.exports = {
   getAcademyPortalData,
   getAcademyStudentDetail,
   getStudentAcademyProfile,
+  getTeacherAcademySetupData,
   getTeacherAcademyContext,
   leaveAcademy,
+  rejectAcademyStaff,
   rejectMembership,
+  requestAcademyStaffJoin,
   requestAcademyByCode,
   requestAcademyByToken,
   requestAcademyFromProfile,
+  revokeAcademyStaff,
   revokeAcademyInvite,
 };
