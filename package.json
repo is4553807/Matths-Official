@@ -51,6 +51,7 @@
     "launch-views:verify": "node scripts/verifyLaunchViews.js",
     "admin:verify": "node scripts/validateCommunityAndAdmin.js",
     "admin:verify-db": "node scripts/verifyAdminActivityData.js",
+    "community-author-delete:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyCommunityAuthorSoftDeleteDb.js",
     "admin-users:verify-db": "node audit/runInIsolatedAuditEnvironment.js audit/verifyAdminUserDataDb.js",
     "account-deletion:verify": "node scripts/verifyAccountDeletionPolicy.js",
     "account-deletion:verify-db": "node scripts/verifyAccountDeletionDb.js",

@@ -276,6 +276,7 @@ for (const field of [
   "boardType",
   "schoolCode",
   "status",
+  "authorDeletedAt",
   "warningIssued",
   "moderationReason",
   "isAnonymous",
@@ -469,7 +470,7 @@ assert.deepEqual(
     "worker",
     "operations",
   ].sort(),
-  "게시판은 통합 고등학교·학교별·N수생·대학교별·직장인·운영 게시판을 제공해야 합니다."
+  "게시판은 통합·학교별·N수생·대학교별·직장인·운영 게시판을 제공해야 합니다."
 );
 assert.equal(
   COMMUNITY_PAGE_SIZE,
@@ -656,6 +657,27 @@ assert.ok(
       "CommunityComment.deleteMany"
     ),
   "관리자 게시글 삭제가 DB 실제 삭제로 연결되지 않았습니다."
+);
+assert.ok(
+  communityService.includes(
+    "deleteCommunityPostByAuthor"
+  ) &&
+    communityService.includes(
+      'status: "deleted"'
+    ) &&
+    communityService.includes(
+      "authorDeletedAt"
+    ) &&
+    routes.includes(
+      '"/community/:postId/delete"'
+    ) &&
+    read("views/community-post.ejs").includes(
+      "isAuthor"
+    ) &&
+    adminUserDetailView.includes(
+      "작성자 삭제"
+    ),
+  "작성자 전용 게시글 소프트 삭제와 관리자 삭제 태그가 연결되지 않았습니다."
 );
 
 const adminService = read(

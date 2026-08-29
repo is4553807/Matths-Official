@@ -4336,6 +4336,10 @@ const communityPostSchema =
                 default: "published",
                 index: true,
             },
+            authorDeletedAt: {
+                type: Date,
+                default: null,
+            },
             isPinned: {
                 type: Boolean,
                 default: false,

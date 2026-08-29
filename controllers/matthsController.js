@@ -257,6 +257,7 @@ const {
   createCommunityNotice,
   createCommunityComment,
   createCommunityPost,
+  deleteCommunityPostByAuthor,
   getAdminCommunityData,
   getCommunityAnnouncement,
   getCommunityAttachment,
@@ -8265,6 +8266,9 @@ exports.communityPage =
             req.query.created ===
             "1"
               ? "게시글을 등록했습니다."
+              : req.query.deleted ===
+                  "1"
+                ? "게시글을 삭제했습니다. 운영 확인을 위한 기록은 안전하게 보관됩니다."
               : null,
         }
       );
@@ -8600,6 +8604,35 @@ exports.communityPostPage =
           reportDraft:
             "",
         }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.deleteOwnCommunityPost =
+  async (req, res, next) => {
+    try {
+      const post =
+        await deleteCommunityPostByAuthor(
+          {
+            userId:
+              req.session.user.id,
+            postId:
+              req.params.postId,
+          }
+        );
+      const board = [
+        "school",
+        "retaker",
+        "university",
+        "worker",
+      ].includes(post.boardType)
+        ? post.boardType
+        : "high-school";
+
+      return res.redirect(
+        `/community?board=${board}&deleted=1`
       );
     } catch (error) {
       return next(error);

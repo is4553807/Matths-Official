@@ -460,10 +460,10 @@
             <% } %>
             <% detail.communityPosts.forEach((post) => { %>
               <div>
-                <span class="<%= post.status === 'published' ? 'status-replied' : post.status === 'hidden' ? 'status-pending' : 'status-closed' %>"><%= { published: "공개", hidden: "숨김", deleted: "삭제" }[post.status] %><%= post.warningIssued ? " · 경고" : "" %></span>
+                <span class="<%= post.status === 'published' ? 'status-replied' : post.status === 'hidden' ? 'status-pending' : 'status-closed' %>"><%= post.authorDeletedAt ? "작성자 삭제" : { published: "공개", hidden: "숨김", deleted: "삭제" }[post.status] %><%= post.warningIssued ? " · 경고" : "" %></span>
                 <strong><%= post.title %></strong>
                 <p><%= post.content.length > 120 ? `${post.content.slice(0, 120)}…` : post.content %></p>
-                <small><%= formatDate(post.createdAt) %></small>
+                <small><%= formatDate(post.createdAt) %><%= post.authorDeletedAt ? ` · 삭제 ${formatDate(post.authorDeletedAt)}` : "" %></small>
               </div>
             <% }) %>
           </div>

@@ -176,6 +176,11 @@ router.get(
   matthsController.communityPostPage
 );
 router.post(
+  "/community/:postId/delete",
+  authMiddleware.isLoggedIn,
+  matthsController.deleteOwnCommunityPost
+);
+router.post(
   "/community/:postId/comments",
   authMiddleware.isLoggedIn,
   matthsController.submitCommunityComment
