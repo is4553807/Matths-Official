@@ -9,9 +9,14 @@ const {
   AcademyAttendanceAudit,
   AcademyAttendanceCodeAttempt,
   AcademyAttendanceSession,
+  AcademyClassWeek,
   AcademyStudentMembership,
   AcademyInvite,
 } = require("../models/academyModel");
+const {
+  archiveAcademyClassRecord,
+  restoreAcademyClassRecord,
+} = require("./academyClassLifecycleService");
 
 const STUDENT_FIELDS = [
   "name",
@@ -192,6 +197,7 @@ async function ensureAcademyIndexes() {
     AcademyAttendanceSession.createIndexes(),
     AcademyAttendanceAudit.createIndexes(),
     AcademyAttendanceCodeAttempt.createIndexes(),
+    AcademyClassWeek.createIndexes(),
     AcademyStudentMembership.createIndexes(),
     AcademyInvite.createIndexes(),
   ]);
@@ -704,6 +710,14 @@ async function requestAcademyWithInvite({ studentUserId, inviteFilter, joinSourc
   if (!candidate || inviteState(candidate) !== "ACTIVE") {
     throw statusError(410, "초대가 만료되었거나 더 이상 사용할 수 없습니다.");
   }
+  if (candidate.classId) {
+    const activeClass = await AcademyClass.exists({
+      _id: candidate.classId,
+      academyId: candidate.academyId,
+      isActive: true,
+    });
+    if (!activeClass) throw statusError(410, "초대에 연결된 반이 종료되어 더 이상 사용할 수 없습니다.");
+  }
   await assertStudent(studentUserId);
   await assertNoCurrentMembership(studentUserId, candidate.academyId);
 
@@ -711,6 +725,14 @@ async function requestAcademyWithInvite({ studentUserId, inviteFilter, joinSourc
   if (!invite) throw statusError(410, "초대 사용 가능 횟수가 모두 소진되었습니다.");
 
   try {
+    if (invite.classId) {
+      const activeClass = await AcademyClass.exists({
+        _id: invite.classId,
+        academyId: invite.academyId,
+        isActive: true,
+      });
+      if (!activeClass) throw statusError(410, "초대에 연결된 반이 종료되어 더 이상 사용할 수 없습니다.");
+    }
     return await saveMembershipRequest({
       studentUserId,
       academyId: invite.academyId,
@@ -746,7 +768,13 @@ async function getAcademyInvitePresentation(token) {
     .populate("academyId", "name status")
     .populate("classId", "name isActive")
     .lean();
-  if (!invite || !invite.academyId || invite.academyId.status !== "ACTIVE" || inviteState(invite) !== "ACTIVE") {
+  if (
+    !invite ||
+    !invite.academyId ||
+    invite.academyId.status !== "ACTIVE" ||
+    inviteState(invite) !== "ACTIVE" ||
+    (invite.classId && invite.classId.isActive === false)
+  ) {
     throw statusError(410, "초대가 만료되었거나 더 이상 사용할 수 없습니다.");
   }
   return invite;
@@ -781,12 +809,20 @@ async function leaveAcademy({ studentUserId }) {
 async function getAcademyPortalData(teacherUserId, { includeStudents = true } = {}) {
   const context = await getTeacherAcademyContext(teacherUserId);
   const academyId = context.academyId;
-  const [classes, students, requests, invites, activeStaff, staffRequests] = await Promise.all([
+  const [classes, archivedClasses, students, requests, invites, activeStaff, staffRequests] = await Promise.all([
     AcademyClass.find({ academyId, isActive: true })
       .sort({ name: 1, _id: 1 })
       .populate("homeroomTeacherUserId", STAFF_FIELDS)
       .populate("coTeacherUserIds", STAFF_FIELDS)
       .lean(),
+    context.staff.role === "OWNER"
+      ? AcademyClass.find({ academyId, isActive: false })
+          .sort({ archivedAt: -1, name: 1, _id: 1 })
+          .populate("archivedByUserId", STAFF_FIELDS)
+          .populate("homeroomTeacherUserId", STAFF_FIELDS)
+          .populate("lifecycleHistory.actedByUserId", STAFF_FIELDS)
+          .lean()
+      : Promise.resolve([]),
     includeStudents
       ? AcademyStudentMembership.find({ academyId, status: "APPROVED" })
           .sort({ approvedAt: -1, _id: 1 })
@@ -821,6 +857,7 @@ async function getAcademyPortalData(teacherUserId, { includeStudents = true } = 
     academy: context.academy,
     staff: context.staff,
     classes,
+    archivedClasses,
     students: students.filter((entry) => entry.studentUserId),
     requests: requests.filter((entry) => entry.studentUserId),
     invites: invites.map((invite) => ({ ...invite, displayState: inviteState(invite, now) })),
@@ -1080,20 +1117,7 @@ async function createAcademyClass({
   const existing = await AcademyClass.findOne({ academyId: context.academyId, nameNormalized });
   if (existing) {
     if (existing.isActive) throw statusError(409, "같은 이름의 반이 이미 있습니다.");
-    existing.name = className;
-    existing.isActive = true;
-    existing.homeroomTeacherUserId = teacherUserId;
-    existing.coTeacherUserIds = [];
-    existing.schedule = schedule;
-    existing.attendancePolicy = attendancePolicy;
-    existing.teacherHistory.push({
-      previousTeacherUserId: null,
-      nextTeacherUserId: teacherUserId,
-      changedByUserId: teacherUserId,
-      changedAt: new Date(),
-    });
-    await existing.save();
-    return existing.toObject();
+    throw statusError(409, "같은 이름의 보관된 반이 있습니다. 보관된 반 목록에서 복구해 주세요.");
   }
   return (
     await AcademyClass.create({
@@ -1127,7 +1151,7 @@ async function getAcademyClassForManagement({ teacherUserId, classId, ownerOnly 
     String(academyClass.homeroomTeacherUserId || "") === String(teacherUserId) ||
     academyClass.coTeacherUserIds.some((userId) => String(userId) === String(teacherUserId));
   if (ownerOnly ? context.staff.role !== "OWNER" : context.staff.role !== "OWNER" && !assigned) {
-    throw statusError(403, ownerOnly ? "원장만 담임 선생님을 이전할 수 있습니다." : "이 반을 관리하는 선생님만 변경할 수 있습니다.");
+    throw statusError(403, ownerOnly ? "원장만 이 작업을 수행할 수 있습니다." : "이 반을 관리하는 선생님만 변경할 수 있습니다.");
   }
   return { context, academyClass };
 }
@@ -1168,9 +1192,42 @@ async function updateAcademyClassSettings({
       startsAt: { $gt: now },
       status: { $ne: "CANCELED" },
     },
-    { $set: { status: "CANCELED", closedAt: now } }
+    {
+      $set: {
+        status: "CANCELED",
+        cancellationReason: "SCHEDULE_CHANGED",
+        canceledAt: now,
+        closedAt: now,
+      },
+    }
   );
   return academyClass.toObject();
+}
+
+async function archiveAcademyClass({ teacherUserId, classId, now = new Date() }) {
+  const { context, academyClass } = await getAcademyClassForManagement({
+    teacherUserId,
+    classId,
+    ownerOnly: true,
+  });
+  return archiveAcademyClassRecord({
+    academyId: context.academyId,
+    classId: academyClass._id,
+    actorUserId: teacherUserId,
+    actorType: "OWNER",
+    now,
+  });
+}
+
+async function restoreAcademyClass({ teacherUserId, classId, now = new Date() }) {
+  const context = await getAcademyOwnerContext(teacherUserId);
+  return restoreAcademyClassRecord({
+    academyId: context.academyId,
+    classId,
+    actorUserId: teacherUserId,
+    actorType: "OWNER",
+    now,
+  });
 }
 
 async function addAcademyClassCoTeacher({ teacherUserId, classId, coTeacherUserId }) {
@@ -1311,6 +1368,7 @@ module.exports = {
   approveAcademyApplication,
   approveAcademyStaff,
   approveMembership,
+  archiveAcademyClass,
   assignMembershipClass,
   bulkManageAcademyStudents,
   cancelAcademyStaffJoin,
@@ -1339,6 +1397,7 @@ module.exports = {
   requestAcademyFromProfile,
   revokeAcademyStaff,
   revokeAcademyInvite,
+  restoreAcademyClass,
   transferAcademyClassHomeroom,
   updateAcademyClassSettings,
 };

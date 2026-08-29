@@ -2,6 +2,7 @@ const {
   approveAcademyStaff,
   approveMembership,
   addAcademyClassCoTeacher,
+  archiveAcademyClass,
   assignMembershipClass,
   bulkManageAcademyStudents,
   cancelAcademyStaffJoin,
@@ -25,6 +26,7 @@ const {
   requestAcademyFromProfile,
   revokeAcademyStaff,
   revokeAcademyInvite,
+  restoreAcademyClass,
   transferAcademyClassHomeroom,
   updateAcademyClassSettings,
 } = require("../services/academyService");
@@ -50,8 +52,43 @@ const {
   getClassMathMap,
   getStudentMathMap,
 } = require("../services/mathMapService");
+const {
+  getAcademyClassworkTeacherView,
+  getStudentAcademyClassroom,
+  getStudentAcademyWeek,
+  getStudentAcademyWeekFileDownload,
+  getTeacherAcademyWeekFileDownload,
+  removeAcademyClassWeekFile,
+  saveAcademyClassWeek,
+} = require("../services/academyClassworkService");
+const {
+  resolveArenaProfileAvatar,
+} = require("../services/arenaProfileAvatarService");
+const {
+  analyzeAcademyForensicEvidence,
+  getAcademyForensicsPageData,
+} = require("../services/academyForensicsService");
 
 const ACADEMY_TABS = new Set(["dashboard", "attendance", "students", "requests", "classes", "invites", "teachers", "settings"]);
+
+function sendAcademyAssignmentDownload(res, next, download) {
+  if (download.type === "REDIRECT") {
+    res.set("Cache-Control", "private, no-store");
+    return res.redirect(302, download.url);
+  }
+  const issued = download.issued;
+  const cleanup = () => issued.cleanup().catch(() => {});
+  res.once("finish", cleanup);
+  res.once("close", cleanup);
+  res.type("application/pdf");
+  res.set("Cache-Control", "private, no-store");
+  res.set("X-Matths-Trace", issued.traceCode);
+  return res.download(issued.filePath, issued.downloadName, (error) => {
+    cleanup();
+    if (error && !res.headersSent) return next(error);
+    return undefined;
+  });
+}
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -74,7 +111,7 @@ function consumeFlash(req) {
 }
 
 async function handleExpectedError(req, res, next, error, redirectTo) {
-  if ([400, 403, 404, 409, 410, 413, 422].includes(Number(error.status))) {
+  if ([400, 403, 404, 409, 410, 413, 422, 503].includes(Number(error.status))) {
     try {
       await setFlash(req, "error", error.message);
       return res.redirect(redirectTo);
@@ -450,6 +487,36 @@ exports.updateClassSettings = async (req, res, next) => {
   }
 };
 
+exports.archiveClass = async (req, res, next) => {
+  try {
+    const result = await archiveAcademyClass({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+    });
+    await setFlash(
+      req,
+      "success",
+      `반을 보관했습니다. 학생 ${result.unassignedStudentCount}명 배정 해제, 예정 회차 ${result.canceledSessionCount}개 취소, 초대 ${result.revokedInviteCount}개 회수`
+    );
+    return res.redirect("/academy?tab=classes");
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, "/academy?tab=classes");
+  }
+};
+
+exports.restoreClass = async (req, res, next) => {
+  try {
+    await restoreAcademyClass({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+    });
+    await setFlash(req, "success", "반을 복구했습니다. 학생 배정과 기존 초대는 필요에 따라 다시 설정해 주세요.");
+    return res.redirect("/academy?tab=classes");
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, "/academy?tab=classes");
+  }
+};
+
 exports.addClassCoTeacher = async (req, res, next) => {
   const redirectTo = `/academy/classes/${req.params.classId}`;
   try {
@@ -540,13 +607,18 @@ exports.classDetailPage = async (req, res, next) => {
       classId: req.params.classId,
     });
     const studentUserIds = detail.students.map((membership) => membership.studentUserId._id);
-    const [statistics, mathMap] = await Promise.all([
+    const [statistics, mathMap, classwork] = await Promise.all([
       getAcademyMonthlyStatistics({
         studentUserIds,
         periodKey: req.query.period,
         scopeLabel: "반",
       }),
       getClassMathMap({ studentUserIds }),
+      getAcademyClassworkTeacherView({
+        teacherUserId: req.session.user.id,
+        classId: req.params.classId,
+        editWeekId: req.query.editWeek,
+      }),
     ]);
     const membershipsByStudentId = new Map(
       detail.students.map((membership) => [String(membership.studentUserId._id), membership])
@@ -562,11 +634,191 @@ exports.classDetailPage = async (req, res, next) => {
       detail,
       statistics,
       mathMap,
+      classwork,
       activeAcademyPage: "classes",
       feedback: consumeFlash(req),
     });
   } catch (error) {
     return next(error);
+  }
+};
+
+exports.saveClassWeek = async (req, res, next) => {
+  const redirectTo = `/academy/classes/${req.params.classId}#class-weekly-work`;
+  try {
+    if (req.academyAssignmentUploadError) throw req.academyAssignmentUploadError;
+    const week = await saveAcademyClassWeek({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+      weekId: req.body.weekId,
+      academicYear: req.body.academicYear,
+      weekNumber: req.body.weekNumber,
+      title: req.body.title,
+      lessonSummary: req.body.lessonSummary,
+      conceptKeys: req.body.conceptKeys,
+      assignmentTitle: req.body.assignmentTitle,
+      assignmentInstructions: req.body.assignmentInstructions,
+      dueAt: req.body.dueAt,
+      files: req.files || [],
+    });
+    await setFlash(req, "success", `${week.academicYear}년 ${week.weekNumber}주차 수업과 과제를 저장했습니다.`);
+    return res.redirect(redirectTo);
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, redirectTo);
+  } finally {
+    await discardRequestUploads(req);
+  }
+};
+
+exports.removeClassWeekFile = async (req, res, next) => {
+  const redirectTo = `/academy/classes/${req.params.classId}?editWeek=${req.params.weekId}#class-weekly-work`;
+  try {
+    await removeAcademyClassWeekFile({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+      weekId: req.params.weekId,
+      fileId: req.params.fileId,
+    });
+    await setFlash(req, "success", "과제 파일을 삭제했습니다.");
+    return res.redirect(redirectTo);
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, redirectTo);
+  }
+};
+
+exports.downloadClassWeekFile = async (req, res, next) => {
+  try {
+    const download = await getTeacherAcademyWeekFileDownload({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+      weekId: req.params.weekId,
+      fileId: req.params.fileId,
+    });
+    return sendAcademyAssignmentDownload(res, next, download);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.studentAcademyPage = async (req, res, next) => {
+  try {
+    const classroom = await getStudentAcademyClassroom({ studentUserId: req.session.user.id });
+    classroom.profileImageSrc = resolveAcademyProfileImage(classroom.academy.profileImageAsset);
+    res.set("Cache-Control", "private, no-store");
+    return res.render("student-academy", {
+      user: req.session.user,
+      classroom,
+      arenaProfileAvatar: resolveArenaProfileAvatar(req.session.user.preferences || {}),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.studentAcademyWeekPage = async (req, res, next) => {
+  try {
+    const classroom = await getStudentAcademyWeek({
+      studentUserId: req.session.user.id,
+      weekId: req.params.weekId,
+    });
+    classroom.profileImageSrc = resolveAcademyProfileImage(classroom.academy.profileImageAsset);
+    res.set("Cache-Control", "private, no-store");
+    return res.render("student-academy-week", {
+      user: req.session.user,
+      classroom,
+      arenaProfileAvatar: resolveArenaProfileAvatar(req.session.user.preferences || {}),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.downloadStudentAcademyWeekFile = async (req, res, next) => {
+  try {
+    const download = await getStudentAcademyWeekFileDownload({
+      studentUserId: req.session.user.id,
+      studentRole: req.session.user.role,
+      weekId: req.params.weekId,
+      fileId: req.params.fileId,
+    });
+    return sendAcademyAssignmentDownload(res, next, download);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.academyForensicsPage = async (req, res, next) => {
+  try {
+    const forensics = await getAcademyForensicsPageData({
+      teacherUserId: req.session.user.id,
+      classId: req.query.classId,
+    });
+    forensics.profileImageSrc = resolveAcademyProfileImage(forensics.academy.profileImageAsset);
+    res.set("Cache-Control", "private, no-store");
+    return res.render("academy-forensics", {
+      user: req.session.user,
+      forensics,
+      analysis: null,
+      error: null,
+      oldTraceCode: "",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.analyzeAcademyForensics = async (req, res, next) => {
+  const uploadedPath = req.file?.path || "";
+  const requestedTraceCode = String(req.body?.traceCode || "").trim();
+  const selectedClassId = String(req.body?.classId || "").trim();
+  try {
+    if (req.academyForensicsUploadError) throw req.academyForensicsUploadError;
+    const result = await analyzeAcademyForensicEvidence({
+      teacherUserId: req.session.user.id,
+      classId: selectedClassId,
+      filePath: uploadedPath,
+      traceCode: requestedTraceCode,
+    });
+    result.pageData.profileImageSrc = resolveAcademyProfileImage(result.pageData.academy.profileImageAsset);
+    res.set("Cache-Control", "private, no-store");
+    return res.render("academy-forensics", {
+      user: req.session.user,
+      forensics: result.pageData,
+      analysis: result.analysis,
+      error: result.analysis.matches.length
+        ? null
+        : result.analysis.inputType === "TRACE_CODE"
+          ? "이 반에서 발급된 PDF 중 해당 추적 코드와 일치하는 기록이 없습니다."
+          : result.analysis.traceCodes.length
+            ? "식별 코드는 감지했지만 이 반의 과제 발급 기록과 일치하지 않습니다. 반 선택과 원본 상태를 확인해 주세요."
+            : "파일에서 식별 코드를 읽지 못했습니다. 잘림·덧칠·압축 상태를 확인하고 더 넓은 영역을 다시 올려 주세요.",
+      oldTraceCode: requestedTraceCode,
+    });
+  } catch (error) {
+    if ([400, 403, 404, 413, 422, 503].includes(Number(error.status))) {
+      try {
+        const forensics = await getAcademyForensicsPageData({
+          teacherUserId: req.session.user.id,
+          classId: selectedClassId,
+        });
+        forensics.profileImageSrc = resolveAcademyProfileImage(forensics.academy.profileImageAsset);
+        res.set("Cache-Control", "private, no-store");
+        return res.status(Number(error.status)).render("academy-forensics", {
+          user: req.session.user,
+          forensics,
+          analysis: null,
+          error: error.message,
+          oldTraceCode: requestedTraceCode,
+        });
+      } catch (contextError) {
+        return next(contextError);
+      }
+    }
+    return next(error);
+  } finally {
+    if (uploadedPath) {
+      await require("node:fs").promises.unlink(uploadedPath).catch(() => {});
+    }
   }
 };
 

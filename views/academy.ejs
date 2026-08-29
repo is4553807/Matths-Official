@@ -4,6 +4,7 @@
   const pendingCount = Number(portal.pendingCount) || 0;
   const staffPendingCount = Number(portal.staffPendingCount) || 0;
   const isOwner = portal.isOwner === true;
+  const archivedClasses = portal.archivedClasses || [];
   const studentListing = typeof studentPage !== "undefined" && studentPage ? studentPage : {
     students: portal.students || [],
     page: 1,
@@ -127,6 +128,7 @@
           <a class="<%= currentTab === 'requests' ? 'active' : '' %>" href="/academy?tab=requests">승인 요청 <% if (pendingCount) { %><b><%= pendingCount %></b><% } %></a>
           <a class="<%= currentTab === 'classes' ? 'active' : '' %>" href="/academy?tab=classes">반 관리</a>
           <a class="<%= currentTab === 'invites' ? 'active' : '' %>" href="/academy?tab=invites">초대 관리</a>
+          <a href="/academy/forensics">유출 자료 추적</a>
           <a class="<%= currentTab === 'teachers' ? 'active' : '' %>" href="/academy?tab=teachers">선생님 관리 <% if (isOwner && staffPendingCount) { %><b><%= staffPendingCount %></b><% } %></a>
           <% if (isOwner) { %><a class="<%= currentTab === 'settings' ? 'active' : '' %>" href="/academy?tab=settings">학원 설정</a><% } %>
         </nav>
@@ -391,7 +393,7 @@
 
         <% if (currentTab === "classes") { %>
           <header class="academy-heading">
-            <div><p>CLASS MANAGEMENT</p><h1>반 관리</h1><span>반을 한 번 만들어두면 학생별로 빠르게 선택해 배정할 수 있습니다.</span></div>
+            <div><p>CLASS MANAGEMENT</p><h1>반 관리</h1><span>반을 만들고 운영하거나, 종료한 반을 기록을 유지한 채 보관할 수 있습니다.</span></div>
           </header>
           <div class="academy-two-column">
             <section class="academy-panel">
@@ -420,6 +422,21 @@
               </form>
             </section>
           </div>
+          <% if (isOwner) { %>
+            <section class="academy-panel academy-archived-class-panel">
+              <header><div><p>ARCHIVED CLASSES</p><h2>보관된 반</h2></div><strong class="academy-panel-count"><%= archivedClasses.length %></strong></header>
+              <p class="academy-archived-class-guide">반 보관은 영구 삭제가 아닙니다. 과거 출결·통계는 유지되고, 학생 배정·예정 회차·반 전용 초대만 정리됩니다.</p>
+              <div class="academy-archived-class-list">
+                <% if (!archivedClasses.length) { %><div class="academy-empty-state"><span aria-hidden="true">✓</span><strong>보관된 반이 없습니다</strong><p>종료한 반이 생기면 원장 계정에서 이곳에 표시됩니다.</p></div><% } %>
+                <% archivedClasses.forEach((academyClass) => { const lastLifecycle = (academyClass.lifecycleHistory || []).slice(-1)[0] || {}; %>
+                  <article>
+                    <div><span aria-hidden="true"><%= academyClass.name.slice(0, 1) %></span><p><strong><%= academyClass.name %></strong><small><%= classScheduleText(academyClass) %> · <%= formatDate(academyClass.archivedAt) %> 보관</small><em>학생 <%= lastLifecycle.unassignedStudentCount || 0 %>명 해제 · 회차 <%= lastLifecycle.canceledSessionCount || 0 %>개 취소 · 초대 <%= lastLifecycle.revokedInviteCount || 0 %>개 회수</em></p></div>
+                    <form action="/academy/classes/<%= academyClass._id %>/restore" method="POST" onsubmit="return confirm('이 반을 다시 사용할까요? 학생 배정과 회수된 초대는 자동 복구되지 않습니다.')"><button type="submit">반 복구</button></form>
+                  </article>
+                <% }) %>
+              </div>
+            </section>
+          <% } %>
         <% } %>
 
         <% if (currentTab === "invites") { %>

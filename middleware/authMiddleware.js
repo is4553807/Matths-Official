@@ -6,6 +6,9 @@ const {
 const {
     synchronizeAccountAccess,
 } = require("../services/accountAccessService");
+const {
+    AcademyStudentMembership,
+} = require("../models/academyModel");
 
 function isAdminSessionUser(user) {
     return user?.role === "admin";
@@ -84,6 +87,28 @@ exports.isLoggedIn = async (req, res, next) => {
             );
             req.authenticatedUser =
                 account;
+
+            let academyMembershipAvailable = false;
+            if (["student", "test"].includes(account.role)) {
+                const academyMembership =
+                    await AcademyStudentMembership.findOne({
+                        studentUserId: account._id,
+                        status: "APPROVED",
+                    })
+                        .select("academyId")
+                        .populate({
+                            path: "academyId",
+                            match: { status: "ACTIVE" },
+                            select: "_id",
+                        })
+                        .lean();
+                academyMembershipAvailable =
+                    Boolean(academyMembership?.academyId);
+            }
+            req.session.user.hasAcademyMembership =
+                academyMembershipAvailable;
+            res.locals.academyMembershipAvailable =
+                academyMembershipAvailable;
             const todayKey =
                 getKoreanDateKey();
 

@@ -4,17 +4,47 @@ const authMiddleware = require("../middleware/authMiddleware");
 const {
   handleProfileAvatarUpload,
 } = require("../middleware/profileAvatarUpload");
+const {
+  handleAcademyAssignmentUpload,
+} = require("../middleware/academyAssignmentUpload");
+const {
+  handleAcademyForensicsUpload,
+} = require("../middleware/pdfForensicsUpload");
 
 const router = express.Router();
 
 router.get("/academy/join/:token", authMiddleware.isLoggedIn, academyController.inviteJoinPage);
 router.post("/academy/join/:token", authMiddleware.isLoggedIn, academyController.acceptInvite);
+router.get("/my-academy", authMiddleware.isLoggedIn, academyController.studentAcademyPage);
+router.get(
+  "/my-academy/weeks/:weekId",
+  authMiddleware.isLoggedIn,
+  academyController.studentAcademyWeekPage
+);
+router.get(
+  "/my-academy/weeks/:weekId/files/:fileId",
+  authMiddleware.isLoggedIn,
+  academyController.downloadStudentAcademyWeekFile
+);
 
 router.get("/academy/setup", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.setupPage);
 router.post("/academy/setup", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createAcademy);
 router.post("/academy/setup/join", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.requestAcademyJoin);
 router.post("/academy/setup/join/cancel", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.cancelAcademyJoin);
 router.get("/academy", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.portalPage);
+router.get(
+  "/academy/forensics",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.academyForensicsPage
+);
+router.post(
+  "/academy/forensics/analyze",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  handleAcademyForensicsUpload,
+  academyController.analyzeAcademyForensics
+);
 router.post(
   "/academy/attendance",
   authMiddleware.isLoggedIn,
@@ -74,6 +104,37 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isTeacher,
   academyController.updateClassSettings
+);
+router.post(
+  "/academy/classes/:classId/weeks",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  handleAcademyAssignmentUpload,
+  academyController.saveClassWeek
+);
+router.post(
+  "/academy/classes/:classId/weeks/:weekId/files/:fileId/remove",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.removeClassWeekFile
+);
+router.get(
+  "/academy/classes/:classId/weeks/:weekId/files/:fileId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.downloadClassWeekFile
+);
+router.post(
+  "/academy/classes/:classId/archive",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.archiveClass
+);
+router.post(
+  "/academy/classes/:classId/restore",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.restoreClass
 );
 router.post(
   "/academy/classes/:classId/co-teachers",

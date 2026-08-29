@@ -1,0 +1,60 @@
+<%
+  const academy = classroom.academy;
+  const academyClass = classroom.academyClass;
+  const week = classroom.week;
+  const displayName = String(user.realName || user.name || "학생");
+  const gradeLabel = ({ 10: "고등학교 1학년", 11: "고등학교 2학년", 12: "고등학교 3학년", 13: "N수생", 14: "대학생", 15: "직장인" })[Number(user.schoolGrade)] || "학년 미설정";
+  const formatDueAt = (date) => date
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(date))
+    : "마감일 없음";
+  const formatBytes = (bytes) => {
+    const value = Number(bytes) || 0;
+    if (value < 1024) return `${value} B`;
+    if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+    return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title><%= week.weekNumber %>주차 | <%= academyClass.name %> · Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/student-academy.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script src="/js/main.js" defer></script>
+  </head>
+  <body class="student-academy-page">
+    <a class="skip-link" href="#student-academy-main">본문으로 바로가기</a>
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top"><%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 학습 홈", className: "brand", tone: "light" }) %><button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button></div>
+        <%- include("partials/dashboard-navigation", { activePage: "my-academy" }) %>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile"><a class="profile-avatar profile-avatar-image" href="/profile" aria-label="<%= displayName %>님의 프로필 설정"><img src="<%= arenaProfileAvatar.imageSrc %>" alt="" aria-hidden="true" /></a><div class="profile-copy"><strong><%= displayName %>님</strong><small><%= gradeLabel %></small></div><form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form></div>
+      </aside>
+
+      <main class="dashboard-main student-academy-main" id="student-academy-main">
+        <header class="topbar"><div class="topbar-left"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button><div><p><%= academy.name %> · <%= academyClass.name %></p><h1><%= week.weekNumber %>주차</h1></div></div><a class="learning-home-button" href="/my-academy">주차 목록 <span aria-hidden="true">→</span></a></header>
+
+        <section class="student-academy-week-hero"><span><%= week.weekNumber %></span><div><small><%= week.academicYear %> · WEEK <%= week.weekNumber %></small><h2><%= week.title %></h2><p><%= week.lessonSummary || "선생님이 등록한 이번 주 학습 개념과 과제를 확인하세요." %></p></div></section>
+
+        <section class="student-academy-content-panel">
+          <header><div><small>LEARNED CONCEPTS</small><h2>이번 주에 배운 개념</h2><p>개념을 누르면 Matths 내 학습의 해당 개념으로 바로 이동합니다.</p></div><strong><%= week.concepts.length %><small>개념</small></strong></header>
+          <div class="student-academy-concept-grid"><% week.concepts.forEach((concept) => { %><a href="<%= concept.href %>"><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small><strong><%= concept.conceptTitle %></strong><span>내 학습에서 보기 →</span></a><% }) %></div>
+        </section>
+
+        <section class="student-academy-content-panel student-academy-assignment-panel">
+          <header><div><small>WEEKLY ASSIGNMENT</small><h2><%= week.assignmentTitle %></h2><p><%= formatDueAt(week.dueAt) %></p></div><strong><%= week.files.length %><small>파일</small></strong></header>
+          <% if (week.assignmentInstructions) { %><div class="student-academy-instructions"><%= week.assignmentInstructions %></div><% } %>
+          <% if (week.files.some((file) => String(file.mimeType || "").toLowerCase() === "application/pdf" || /\.pdf$/i.test(String(file.originalName || "")))) { %><p class="student-academy-file-protection">PDF는 내려받을 때 이 계정의 개인 식별 워터마크와 추적 코드가 삽입됩니다.</p><% } %>
+          <div class="student-academy-file-list"><% week.files.forEach((file) => { %><a href="/my-academy/weeks/<%= week._id %>/files/<%= file._id %>"><span aria-hidden="true">↓</span><div><strong><%= file.originalName %></strong><small><%= formatBytes(file.sizeBytes) %></small></div><b>내려받기</b></a><% }) %><% if (!week.files.length) { %><div class="student-academy-file-empty"><strong>첨부 파일이 없는 과제입니다</strong><p>위의 과제 안내에 따라 학습해 주세요.</p></div><% } %></div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

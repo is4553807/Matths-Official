@@ -8768,6 +8768,25 @@
   background: #fff;
 }
 
+.admin-academy-classwork-list { display: grid; gap: 12px; }
+.admin-academy-classwork-list > article { padding: 18px; background: #f8f9fc; border: 1px solid #e2e6f0; border-radius: 14px; }
+.admin-academy-classwork-list > article > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.admin-academy-classwork-list h3 { margin: 4px 0; color: #161d35; font-size: 13px; }
+.admin-academy-classwork-list small, .admin-academy-classwork-list header p, .admin-academy-classwork-list footer { color: #747f96; font-size: 9px; line-height: 1.6; }
+.admin-academy-classwork-list header p { margin: 0; }
+.admin-academy-classwork-list header b { padding: 7px 9px; color: #3359d8; background: #eaf0ff; border-radius: 8px; font-size: 9px; white-space: nowrap; }
+.admin-academy-classwork-summary { color: #4f596f; font-size: 10px; line-height: 1.65; white-space: pre-line; }
+.admin-academy-classwork-concepts { display: flex; flex-wrap: wrap; gap: 7px; margin: 12px 0; }
+.admin-academy-classwork-concepts span { display: grid; gap: 3px; padding: 8px 9px; background: #eef2ff; border-radius: 8px; }
+.admin-academy-classwork-concepts strong { color: #294ab8; font-size: 9px; }
+.admin-academy-classwork-list article > section { display: grid; gap: 6px; padding: 13px; background: #fff; border: 1px solid #e6e9f0; border-radius: 10px; }
+.admin-academy-classwork-list article > section > strong { color: #202940; font-size: 11px; }
+.admin-academy-classwork-list article > section > p { margin: 2px 0; color: #555f75; font-size: 9px; line-height: 1.65; white-space: pre-line; }
+.admin-academy-classwork-list article > section > div { display: grid; gap: 6px; }
+.admin-academy-classwork-list article > section a { display: flex; justify-content: space-between; gap: 10px; padding: 8px 9px; color: #3156cf; background: #f8f9fc; border-radius: 7px; font-size: 9px; font-weight: 750; text-decoration: none; }
+.admin-academy-classwork-list article > section a span { color: #798298; font-size: 9px; }
+.admin-academy-classwork-list footer { margin-top: 11px; }
+
 .admin-academy-class-controls fieldset {
   margin: 12px 0;
   padding: 0;

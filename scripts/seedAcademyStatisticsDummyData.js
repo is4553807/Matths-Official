@@ -17,6 +17,7 @@ const {
   AcademyAttendanceAudit,
   AcademyAttendanceSession,
   AcademyClass,
+  AcademyClassWeek,
   AcademyStudentMembership,
 } = require("../models/academyModel");
 const {
@@ -30,6 +31,7 @@ const {
 const {
   _private: { getKstDateKey },
 } = require("../services/academyAttendanceService");
+const { curriculumConceptCatalog } = require("../services/academyClassworkService");
 
 const TARGET_ACADEMY_NAME = "테스트 수학학원";
 const DATASET_KEY = "academy-metrics-v2";
@@ -162,6 +164,92 @@ function boundedAfter(timestamp, hours, period) {
 
 function allDatasetKeys() {
   return [DATASET_KEY, ...LEGACY_DATASET_KEYS];
+}
+
+function buildClassWeekOperations({ academy, activeClasses, now }) {
+  const academicYear = Number(new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+  }).format(now));
+  const { lookup } = curriculumConceptCatalog();
+  const weekPlans = [
+    {
+      title: "다항식의 연산",
+      lessonSummary: "다항식의 사칙연산과 항등식의 기본 원리를 학습했습니다.",
+      assignmentTitle: "다항식 기본 연산 과제",
+      assignmentInstructions: "내 학습에서 연결된 개념을 복습하고 수업 교재의 기본 문제를 풀어오세요.",
+      conceptKeys: [
+        "common-math-1/polynomials/polynomial-arithmetic",
+        "common-math-1/polynomials/identity-remainder-theorem",
+      ],
+    },
+    {
+      title: "인수분해와 복소수",
+      lessonSummary: "다항식의 인수분해를 정리하고 복소수의 뜻과 연산으로 확장했습니다.",
+      assignmentTitle: "인수분해·복소수 복습",
+      assignmentInstructions: "오답은 풀이 과정을 다시 적고, 연결된 두 개념을 내 학습에서 확인하세요.",
+      conceptKeys: [
+        "common-math-1/polynomials/polynomial-factorization",
+        "common-math-1/equations-and-inequalities/complex-numbers",
+      ],
+    },
+    {
+      title: "이차방정식의 판별식",
+      lessonSummary: "실근과 허근을 구분하고 판별식을 이용해 근의 성질을 판단했습니다.",
+      assignmentTitle: "판별식 유형 과제",
+      assignmentInstructions: "판별식의 부호별 조건을 정리한 뒤 유형 문제를 풀어오세요.",
+      conceptKeys: [
+        "common-math-1/equations-and-inequalities/quadratic-discriminant",
+        "common-math-1/equations-and-inequalities/quadratic-roots-and-coefficients",
+      ],
+    },
+    {
+      title: "이차방정식과 이차함수",
+      lessonSummary: "방정식의 근과 이차함수 그래프의 교점 관계를 연결해 학습했습니다.",
+      assignmentTitle: "이차함수 그래프 연결 과제",
+      assignmentInstructions: "그래프를 직접 그려 교점의 개수와 판별식의 관계를 설명하세요.",
+      conceptKeys: [
+        "common-math-1/equations-and-inequalities/quadratic-equation-and-function",
+        "common-math-1/equations-and-inequalities/parabola-and-line",
+      ],
+    },
+  ];
+  return activeClasses.flatMap((academyClass) => weekPlans.map((plan, index) => {
+    const concepts = plan.conceptKeys.map((key) => {
+      const concept = lookup.get(key);
+      if (!concept) throw new Error(`주차 더미 개념이 현재 YAML에 없습니다: ${key}`);
+      const { key: _key, ...snapshot } = concept;
+      return snapshot;
+    });
+    const weekNumber = index + 1;
+    const dueAt = new Date(now.getTime() + (weekNumber * 7 + 2) * DAY_MS);
+    return {
+      updateOne: {
+        filter: {
+          academyId: academy._id,
+          classId: academyClass._id,
+          academicYear,
+          weekNumber,
+        },
+        update: {
+          $setOnInsert: {
+            title: plan.title,
+            lessonSummary: `[${DATASET_KEY}] ${plan.lessonSummary}`,
+            concepts,
+            assignmentTitle: plan.assignmentTitle,
+            assignmentInstructions: plan.assignmentInstructions,
+            dueAt,
+            files: [],
+            status: "PUBLISHED",
+            publishedAt: now,
+            createdByUserId: academyClass.homeroomTeacherUserId || academyClass.createdByUserId || academy.createdByUserId,
+            updatedByUserId: academyClass.homeroomTeacherUserId || academyClass.createdByUserId || academy.createdByUserId,
+          },
+        },
+        upsert: true,
+      },
+    };
+  }));
 }
 
 function dummyAttemptFilter(userIds) {
@@ -705,6 +793,7 @@ async function replaceExistingDummyDataset({ userIds, operations }) {
       writeResults = {
         membershipAssignments: await runBulkOperations(AcademyStudentMembership, operations.membershipAssignments || [], session),
         classSetup: await runBulkOperations(AcademyClass, operations.classSetup || [], session),
+        classWeeks: await runBulkOperations(AcademyClassWeek, operations.classWeeks || [], session),
         problems: await runBulkOperations(Problem, operations.problems, session),
         learningEvents: await runBulkOperations(LearningEvent, operations.learningEvents, session),
         problemAttempts: await runBulkOperations(ProblemAttempt, operations.problemAttempts, session),
@@ -831,6 +920,13 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date(), 
     AcademyAttendanceSession.countDocuments({ _id: { $in: seedSessionIds }, academyId: academy._id }),
     AcademyAttendanceAudit.countDocuments({ attendanceId: { $in: seedAttendanceIds }, actorType: "SYSTEM" }),
   ]);
+  const assignedClassIds = [...new Set(dummyMembers.map((membership) => String(membership.classId || "")).filter(Boolean))]
+    .map((id) => new mongoose.Types.ObjectId(id));
+  const seededClassWeekCount = await AcademyClassWeek.countDocuments({
+    academyId: academy._id,
+    classId: { $in: assignedClassIds },
+    lessonSummary: new RegExp(`^\\[${DATASET_KEY.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\]`),
+  });
   const usersWithRecords = new Set(
     [...learningUsers, ...attemptUsers, ...conceptUsers].map(String)
   );
@@ -996,6 +1092,11 @@ async function verifyAcademyUserConnection({ academy, period, now = new Date(), 
         linkedSeedSessions === seedSessionIds.length &&
         linkedSeedAudits === seedAttendanceRecords.length,
     },
+    classWeeks: {
+      records: seededClassWeekCount,
+      assignedClasses: assignedClassIds.length,
+      verified: assignedClassIds.length > 0 && seededClassWeekCount >= assignedClassIds.length * 4,
+    },
   };
 }
 
@@ -1081,6 +1182,7 @@ async function main() {
         },
       };
     });
+    dataset.operations.classWeeks = buildClassWeekOperations({ academy, activeClasses, now });
     const existingDatasetCounts = {
       learningEvents: await LearningEvent.countDocuments({
         userId: { $in: userIds },
@@ -1113,6 +1215,7 @@ async function main() {
       totalOperations: {
         membershipAssignments: dataset.operations.membershipAssignments.length,
         classSetup: dataset.operations.classSetup.length,
+        classWeeks: dataset.operations.classWeeks.length,
         problems: dataset.operations.problems.length,
         learningEvents: dataset.operations.learningEvents.length,
         problemAttempts: dataset.operations.problemAttempts.length,
@@ -1153,6 +1256,7 @@ async function main() {
         item.connectionVerified &&
         item.problemReferencesVerified &&
         item.attendanceSessionConnection.verified &&
+        item.classWeeks.verified &&
         item.perStudentRandomData.allDummyStudentsHaveRecords &&
         item.mathMap.allStudentsHaveMathMap &&
         item.mathMap.statusVarietyVerified &&
@@ -1175,6 +1279,7 @@ if (require.main === module) {
 module.exports = {
   DATASET_KEY,
   MATH_MAP_CONCEPTS,
+  buildClassWeekOperations,
   buildDataset,
   buildMathMapProblemCatalog,
   createSeededRandom,

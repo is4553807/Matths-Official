@@ -94,6 +94,10 @@
     typeof user !== "undefined"
       ? user
       : null;
+  const showAcademyNavigation =
+    typeof academyMembershipAvailable !== "undefined"
+      ? academyMembershipAvailable === true
+      : navigationUser?.hasAcademyMembership === true;
 
   if (
     navigationUser?.role === "admin"
@@ -103,6 +107,15 @@
       href: "/admin",
       icon: "⚙",
       label: "관리자",
+    });
+  }
+
+  if (showAcademyNavigation) {
+    dashboardNavigationItems.splice(2, 0, {
+      id: "my-academy",
+      href: "/my-academy",
+      icon: "A",
+      label: "학원",
     });
   }
 %>

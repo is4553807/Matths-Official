@@ -203,6 +203,15 @@ const academyClassSchema = new Schema(
       default: true,
       index: true,
     },
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
+    archivedByUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     createdByUserId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -279,6 +288,18 @@ const academyClassSchema = new Schema(
         nextTeacherUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
         changedByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
         changedAt: { type: Date, default: Date.now },
+      }, { _id: false })],
+      default: [],
+    },
+    lifecycleHistory: {
+      type: [new Schema({
+        action: { type: String, enum: ["ARCHIVED", "RESTORED"], required: true },
+        actedByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        actorType: { type: String, enum: ["OWNER", "ADMIN"], required: true },
+        occurredAt: { type: Date, default: Date.now },
+        unassignedStudentCount: { type: Number, min: 0, default: 0 },
+        canceledSessionCount: { type: Number, min: 0, default: 0 },
+        revokedInviteCount: { type: Number, min: 0, default: 0 },
       }, { _id: false })],
       default: [],
     },
@@ -543,6 +564,12 @@ const academyAttendanceSessionSchema = new Schema(
     },
     createdByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     closedAt: { type: Date, default: null },
+    canceledAt: { type: Date, default: null },
+    cancellationReason: {
+      type: String,
+      enum: ["SCHEDULE_CHANGED", "CLASS_ARCHIVED", null],
+      default: null,
+    },
   },
   { timestamps: true, versionKey: false }
 );
@@ -583,6 +610,68 @@ academyAttendanceCodeAttemptSchema.index(
   { unique: true, name: "academy_attendance_code_attempt_unique" }
 );
 
+const academyClassWeekFileSchema = new Schema(
+  {
+    originalName: { type: String, required: true, trim: true, maxlength: 240 },
+    mimeType: { type: String, required: true, trim: true, maxlength: 160 },
+    sizeBytes: { type: Number, required: true, min: 0 },
+    storageProvider: { type: String, enum: ["R2", "CLOUDINARY"], required: true },
+    storagePurpose: { type: String, enum: ["ACADEMY_ASSIGNMENT"], required: true },
+    storedName: { type: String, trim: true, maxlength: 500, default: "" },
+    r2ObjectKey: { type: String, trim: true, maxlength: 1000, default: "" },
+    r2Sha256: { type: String, trim: true, maxlength: 128, default: "" },
+    r2ETag: { type: String, trim: true, maxlength: 300, default: "" },
+    cloudPublicId: { type: String, trim: true, maxlength: 500, default: "" },
+    cloudResourceType: { type: String, trim: true, maxlength: 30, default: "" },
+    cloudDeliveryType: { type: String, trim: true, maxlength: 30, default: "" },
+    cloudVersion: { type: Number, default: null },
+    cloudFormat: { type: String, trim: true, maxlength: 30, default: "" },
+    uploadedAt: { type: Date, default: Date.now },
+  },
+  { versionKey: false }
+);
+
+const academyClassWeekSchema = new Schema(
+  {
+    academyId: { type: Schema.Types.ObjectId, ref: "Academy", required: true, index: true },
+    classId: { type: Schema.Types.ObjectId, ref: "AcademyClass", required: true, index: true },
+    academicYear: { type: Number, required: true, min: 2022, max: 2100 },
+    weekNumber: { type: Number, required: true, min: 1, max: 60 },
+    title: { type: String, required: true, trim: true, maxlength: 100 },
+    lessonSummary: { type: String, trim: true, maxlength: 2000, default: "" },
+    concepts: {
+      type: [new Schema({
+        curriculumId: { type: String, required: true, trim: true, maxlength: 80 },
+        courseId: { type: String, required: true, trim: true, maxlength: 100 },
+        courseTitle: { type: String, required: true, trim: true, maxlength: 120 },
+        unitId: { type: String, required: true, trim: true, maxlength: 100 },
+        unitTitle: { type: String, required: true, trim: true, maxlength: 160 },
+        conceptId: { type: String, required: true, trim: true, maxlength: 140 },
+        conceptTitle: { type: String, required: true, trim: true, maxlength: 180 },
+      }, { _id: false })],
+      validate: {
+        validator: (items) => Array.isArray(items) && items.length >= 1 && items.length <= 30,
+        message: "주차별 개념은 1개 이상 30개 이하로 선택해야 합니다.",
+      },
+    },
+    assignmentTitle: { type: String, required: true, trim: true, maxlength: 120 },
+    assignmentInstructions: { type: String, trim: true, maxlength: 3000, default: "" },
+    dueAt: { type: Date, default: null },
+    files: { type: [academyClassWeekFileSchema], default: [] },
+    status: { type: String, enum: ["PUBLISHED", "ARCHIVED"], default: "PUBLISHED", index: true },
+    publishedAt: { type: Date, default: Date.now },
+    createdByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    updatedByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+academyClassWeekSchema.index(
+  { academyId: 1, classId: 1, academicYear: 1, weekNumber: 1 },
+  { unique: true, name: "academy_class_week_unique" }
+);
+academyClassWeekSchema.index({ classId: 1, status: 1, academicYear: -1, weekNumber: -1 });
+
 const Academy = mongoose.models.Academy || mongoose.model("Academy", academySchema);
 const AcademyStaff = mongoose.models.AcademyStaff || mongoose.model("AcademyStaff", academyStaffSchema);
 const AcademyClass = mongoose.models.AcademyClass || mongoose.model("AcademyClass", academyClassSchema);
@@ -602,6 +691,9 @@ const AcademyAttendanceAudit =
 const AcademyAttendanceCodeAttempt =
   mongoose.models.AcademyAttendanceCodeAttempt ||
   mongoose.model("AcademyAttendanceCodeAttempt", academyAttendanceCodeAttemptSchema);
+const AcademyClassWeek =
+  mongoose.models.AcademyClassWeek ||
+  mongoose.model("AcademyClassWeek", academyClassWeekSchema);
 
 module.exports = {
   Academy,
@@ -613,4 +705,5 @@ module.exports = {
   AcademyAttendanceSession,
   AcademyAttendanceAudit,
   AcademyAttendanceCodeAttempt,
+  AcademyClassWeek,
 };

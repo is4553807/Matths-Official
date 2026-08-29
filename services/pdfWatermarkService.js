@@ -140,12 +140,19 @@ function mapIssuanceForAdmin(issuance, extra = {}) {
     username: issuance.userId?.name || issuance.userId?.username || "",
     email: issuance.userId?.email || "",
     name: issuance.userId?.name || "",
+    realName: issuance.userId?.realName || "",
+    userRole: issuance.downloaderRole || issuance.userId?.role || "",
+    schoolGrade: issuance.userId?.schoolGrade ?? null,
     examId: issuance.examId,
     sourceType: issuance.sourceType,
     sourceId: issuance.sourceId,
     originalName: issuance.originalName,
     downloadedAt: issuance.downloadedAt,
     pageCount: issuance.pageCount,
+    academyId: String(issuance.academyId || ""),
+    academyClassId: String(issuance.academyClassId || ""),
+    academyClassWeekId: String(issuance.academyClassWeekId || ""),
+    academyAssignmentFileId: issuance.academyAssignmentFileId || "",
     ...extra,
   };
 }
@@ -427,25 +434,35 @@ async function lookupArenaScreenshotAttempts(candidates) {
   return matchArenaCandidatesToAttempts(candidates, [...attemptsById.values()]);
 }
 
-async function lookupScreenshotIssuances(candidates) {
-  const exactCodes = candidates
+async function lookupScreenshotIssuances(candidates, issuanceFilter = {}) {
+  const exactCodes = [...new Set(candidates
     .filter((candidate) => candidate.normalizedCode.length === 16)
-    .map((candidate) => `MTH-${candidate.normalizedCode}`);
+    .map((candidate) => `MTH-${candidate.normalizedCode}`))];
   const prefixes = [...new Set(
     candidates
       .filter((candidate) => candidate.normalizedCode.length >= 6)
       .map((candidate) => candidate.normalizedCode.slice(0, 3))
   )].slice(0, 24);
-  const clauses = [
-    ...(exactCodes.length ? [{ traceCode: { $in: exactCodes } }] : []),
-    ...prefixes.map((prefix) => ({ traceCode: new RegExp(`^MTH-${prefix}`) })),
-  ];
-  if (!clauses.length) return [];
-  const issuances = await PdfWatermarkIssuance.find({ $or: clauses })
-    .populate("userId", "username email name")
-    .sort({ downloadedAt: -1 })
-    .limit(500)
-    .lean();
+  if (!exactCodes.length && !prefixes.length) return [];
+
+  // 온전한 16자리 코드가 있으면 복합 인덱스로 정확 일치를 먼저 찾는다.
+  // 정확 일치가 없을 때만 최대 500건의 같은 prefix 후보를 OCR 유사 대조한다.
+  let issuances = exactCodes.length
+    ? await PdfWatermarkIssuance.find({ ...issuanceFilter, traceCode: { $in: exactCodes } })
+        .populate("userId", "username email name realName role schoolGrade")
+        .sort({ downloadedAt: -1 })
+        .lean()
+    : [];
+  if (!issuances.length && prefixes.length) {
+    issuances = await PdfWatermarkIssuance.find({
+      ...issuanceFilter,
+      $or: prefixes.map((prefix) => ({ traceCode: new RegExp(`^MTH-${prefix}`) })),
+    })
+      .populate("userId", "username email name realName role schoolGrade")
+      .sort({ downloadedAt: -1 })
+      .limit(500)
+      .lean();
+  }
   return issuances
     .map((issuance) => {
       const ranked = candidates
@@ -594,11 +611,26 @@ function buildForensicIdentity({
   examId,
   sourceType,
   sourceId,
+  academyId = null,
+  academyClassId = null,
+  academyClassWeekId = null,
+  academyAssignmentFileId = "",
   downloadedAt = new Date(),
 }) {
   if (!mongoose.isValidObjectId(userId)) throw statusError(401, "PDF 발급 사용자를 확인할 수 없습니다.");
-  if (!["ARCHIVE", "WEEKLY_MOCK", "STORE", "STUDY_HALL", "FORMULA"].includes(sourceType)) {
+  if (!["ARCHIVE", "WEEKLY_MOCK", "STORE", "STUDY_HALL", "FORMULA", "ACADEMY_ASSIGNMENT"].includes(sourceType)) {
     throw statusError(400, "PDF 발급 자료 유형을 확인할 수 없습니다.");
+  }
+  if (
+    sourceType === "ACADEMY_ASSIGNMENT" &&
+    (
+      !mongoose.isValidObjectId(academyId) ||
+      !mongoose.isValidObjectId(academyClassId) ||
+      !mongoose.isValidObjectId(academyClassWeekId) ||
+      !mongoose.isValidObjectId(academyAssignmentFileId)
+    )
+  ) {
+    throw statusError(400, "학원 과제 PDF의 학원·반·주차·파일 범위를 확인할 수 없습니다.");
   }
   const normalizedDownloadedAt = new Date(downloadedAt);
   const issuanceId = randomUUID();
@@ -617,6 +649,10 @@ function buildForensicIdentity({
     downloaded_at: normalizedDownloadedAt.toISOString(),
     source_type: sourceType,
     source_id: String(sourceId),
+    ...(academyId ? { academy_id: String(academyId) } : {}),
+    ...(academyClassId ? { academy_class_id: String(academyClassId) } : {}),
+    ...(academyClassWeekId ? { academy_class_week_id: String(academyClassWeekId) } : {}),
+    ...(academyAssignmentFileId ? { academy_assignment_file_id: String(academyAssignmentFileId) } : {}),
   };
   const token = signedPayload(payload);
   return {
@@ -687,16 +723,31 @@ async function issuePersonalizedPdf({
   sourceType,
   sourceId,
   assetId = "",
+  academyId = null,
+  academyClassId = null,
+  academyClassWeekId = null,
+  academyAssignmentFileId = "",
+  downloaderRole = "",
   originalName,
   storageRecord = null,
   localPath = null,
   downloadedAt = new Date(),
 }) {
+  if (
+    sourceType === "ACADEMY_ASSIGNMENT" &&
+    !["student", "test", "teacher", "admin"].includes(String(downloaderRole || ""))
+  ) {
+    throw statusError(400, "학원 과제 PDF 다운로드 역할을 확인할 수 없습니다.");
+  }
   const identity = buildForensicIdentity({
     userId,
     examId,
     sourceType,
     sourceId,
+    academyId,
+    academyClassId,
+    academyClassWeekId,
+    academyAssignmentFileId,
     downloadedAt,
   });
   const { issuanceId, documentIssueId, traceCode, payloadHash } = identity;
@@ -712,6 +763,11 @@ async function issuePersonalizedPdf({
     sourceType,
     sourceId: String(sourceId),
     assetId: String(assetId || ""),
+    academyId: academyId || null,
+    academyClassId: academyClassId || null,
+    academyClassWeekId: academyClassWeekId || null,
+    academyAssignmentFileId: String(academyAssignmentFileId || ""),
+    downloaderRole: String(downloaderRole || ""),
     originalName: path.basename(String(originalName || "matths-document.pdf")),
     downloadedAt: identity.downloadedAt,
     forensicPayloadHash: payloadHash,
@@ -816,7 +872,10 @@ async function extractPageText(bytes, candidateSet) {
   }
 }
 
-async function analyzeForensicPdf(filePath, { lookupIssuances = true } = {}) {
+async function analyzeForensicPdf(
+  filePath,
+  { lookupIssuances = true, issuanceFilter = {}, exposeUnmatchedPayloads = true } = {}
+) {
   const stat = await fs.promises.stat(filePath);
   const maxBytes = Math.max(1024 * 1024, Number(process.env.PDF_FORENSICS_MAX_BYTES) || DEFAULT_MAX_PDF_BYTES);
   if (!stat.isFile() || stat.size > maxBytes) {
@@ -858,17 +917,22 @@ async function analyzeForensicPdf(filePath, { lookupIssuances = true } = {}) {
     ...(candidates.traceCodes.size ? [{ traceCode: { $in: [...candidates.traceCodes] } }] : []),
   ];
   const issuances = lookupIssuances && lookupClauses.length
-    ? await PdfWatermarkIssuance.find({ $or: lookupClauses })
-        .populate("userId", "username email name")
+    ? await PdfWatermarkIssuance.find({ ...issuanceFilter, $or: lookupClauses })
+        .populate("userId", "username email name realName role schoolGrade")
         .sort({ downloadedAt: -1 })
         .lean()
     : [];
+  const visiblePayloads = exposeUnmatchedPayloads
+    ? validPayloads
+    : validPayloads.filter((payload) =>
+        issuances.some((issuance) => issuance.issuanceId === payload.issuance_id)
+      );
   return {
     inputType: "PDF",
     pageCount,
     imageCount: 0,
     traceCodes: [...candidates.traceCodes],
-    validPayloads,
+    validPayloads: visiblePayloads,
     pageTraceCount: candidates.pageCodes.size,
     ocrCandidateCount: 0,
     matches: issuances.map((issuance) => mapIssuanceForAdmin(issuance, {
@@ -880,7 +944,10 @@ async function analyzeForensicPdf(filePath, { lookupIssuances = true } = {}) {
   };
 }
 
-async function analyzeForensicImage(filePath, { lookupIssuances = true } = {}) {
+async function analyzeForensicImage(
+  filePath,
+  { lookupIssuances = true, issuanceFilter = {}, includeArena = true } = {}
+) {
   let metadata;
   try {
     metadata = await sharp(filePath, {
@@ -970,14 +1037,14 @@ async function analyzeForensicImage(filePath, { lookupIssuances = true } = {}) {
   );
   const [documentMatches, arenaMatches] = lookupIssuances
     ? await Promise.all([
-        lookupScreenshotIssuances(candidates),
-        lookupArenaScreenshotAttempts(arenaCandidates),
+        lookupScreenshotIssuances(candidates, issuanceFilter),
+        includeArena ? lookupArenaScreenshotAttempts(arenaCandidates) : Promise.resolve([]),
       ])
     : [[], []];
   const matches = [...documentMatches, ...arenaMatches];
   const recognizedTraceCodes = [
     ...candidates.map((candidate) => `MTH-${candidate.normalizedCode}`),
-    ...arenaCandidates.map((candidate) => `ARM-${candidate.normalizedCode}`),
+    ...(includeArena ? arenaCandidates.map((candidate) => `ARM-${candidate.normalizedCode}`) : []),
   ];
   return {
     inputType: "IMAGE",
@@ -1001,21 +1068,23 @@ async function analyzeForensicImage(filePath, { lookupIssuances = true } = {}) {
       ...candidates.map((candidate) => candidate.normalizedCode),
       ...arenaCandidates.map((candidate) => candidate.normalizedCode),
     ],
-    arenaOcrCandidates: arenaCandidates.map((candidate) => candidate.normalizedCode),
+    arenaOcrCandidates: includeArena
+      ? arenaCandidates.map((candidate) => candidate.normalizedCode)
+      : [],
     matches,
   };
 }
 
-async function analyzeForensicTraceCode(value) {
+async function analyzeForensicTraceCode(value, { issuanceFilter = {}, includeArena = true } = {}) {
   const traceCode = normalizeManualTraceCode(value);
   let matches;
 
   if (traceCode.startsWith("ARM-")) {
-    const attempts = await ArenaMatchAttempt.find({
+    const attempts = includeArena ? await ArenaMatchAttempt.find({
       integrityWatermarkTraceCode: traceCode,
     })
       .populate("userId", "username email name")
-      .lean();
+      .lean() : [];
     const candidate = {
       rawCode: traceCode,
       normalizedCode: traceCode.slice(4),
@@ -1032,8 +1101,8 @@ async function analyzeForensicTraceCode(value) {
       matchedCandidate: traceCode,
     }));
   } else {
-    const issuances = await PdfWatermarkIssuance.find({ traceCode })
-      .populate("userId", "username email name")
+    const issuances = await PdfWatermarkIssuance.find({ ...issuanceFilter, traceCode })
+      .populate("userId", "username email name realName role schoolGrade")
       .sort({ downloadedAt: -1 })
       .lean();
     matches = issuances.map((issuance) =>

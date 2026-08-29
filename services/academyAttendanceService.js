@@ -244,7 +244,7 @@ async function ensureAttendanceSessionForClassDate({ academyClass, dateKey, acto
     },
     { upsert: true, returnDocument: "after" }
   ).lean();
-  if (session.status === "CANCELED" && now < window.startsAt) {
+  if (session.status === "CANCELED" && now <= window.checkInClosesAt) {
     session = await AcademyAttendanceSession.findOneAndUpdate(
       { _id: session._id, status: "CANCELED" },
       {
@@ -256,6 +256,8 @@ async function ensureAttendanceSessionForClassDate({ academyClass, dateKey, acto
           createdByUserId: actorUserId,
           codeIssuedAt: now,
           closedAt: null,
+          canceledAt: null,
+          cancellationReason: null,
         },
         $inc: { codeVersion: 1 },
       },

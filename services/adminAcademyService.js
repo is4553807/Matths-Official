@@ -7,6 +7,7 @@ const {
   AcademyAttendanceCodeAttempt,
   AcademyAttendanceSession,
   AcademyClass,
+  AcademyClassWeek,
   AcademyInvite,
   AcademyStaff,
   AcademyStudentMembership,
@@ -14,9 +15,14 @@ const {
 const {
   _private: { attendanceCodeForSession, sessionState },
 } = require("./academyAttendanceService");
+const {
+  archiveAcademyClassRecord,
+  restoreAcademyClassRecord,
+} = require("./academyClassLifecycleService");
 const { getAcademyMonthlyStatistics } = require("./academyStatisticsService");
 const { getClassMathMap } = require("./mathMapService");
 const { signedCloudinaryUrl } = require("./fileStorageService");
+const { createAcademyWeekFileDownload } = require("./academyClassworkService");
 
 const ACADEMY_STATUSES = ["PENDING", "ACTIVE", "PAUSED", "REJECTED"];
 const PAGE_SIZE = 50;
@@ -202,7 +208,7 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, now = 
   if (!academy) throw statusError(404, "학원을 찾을 수 없습니다.");
   academy.profileImageSrc = signedCloudinaryUrl(academy.profileImageAsset) || "";
 
-  const [staff, memberships, classes, invites, attendanceSessions, attendanceRecords, attendanceAudits] = await Promise.all([
+  const [staff, memberships, classes, classWeeks, invites, attendanceSessions, attendanceRecords, attendanceAudits] = await Promise.all([
     AcademyStaff.find({ academyId: academy._id })
       .sort({ role: 1, status: 1, createdAt: 1 })
       .populate("userId", ADMIN_USER_FIELDS)
@@ -222,6 +228,14 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, now = 
       .populate("teacherHistory.previousTeacherUserId", "name realName email")
       .populate("teacherHistory.nextTeacherUserId", "name realName email")
       .populate("teacherHistory.changedByUserId", "name realName email")
+      .populate("archivedByUserId", "name realName email")
+      .populate("lifecycleHistory.actedByUserId", "name realName email")
+      .lean(),
+    AcademyClassWeek.find({ academyId: academy._id })
+      .sort({ academicYear: -1, weekNumber: -1, _id: -1 })
+      .populate("classId", "name isActive")
+      .populate("createdByUserId", "name realName email")
+      .populate("updatedByUserId", "name realName email")
       .lean(),
     AcademyInvite.find({ academyId: academy._id })
       .sort({ createdAt: -1 })
@@ -268,6 +282,7 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, now = 
     staff: staff.filter((entry) => entry.userId),
     memberships: memberships.filter((entry) => entry.studentUserId),
     classes,
+    classWeeks,
     invites,
     attendanceSessions: attendanceSessions.map((session) => ({
       ...session,
@@ -289,6 +304,22 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, now = 
       activeInvites: invites.filter((entry) => entry.status === "ACTIVE" && new Date(entry.expiresAt) > new Date() && entry.useCount < entry.maxUses).length,
     },
   };
+}
+
+async function getAdminAcademyWeekFileDownload({ adminUserId, academyId, weekId, fileId }) {
+  await assertSuperAdmin(adminUserId);
+  validObjectId(academyId, "학원");
+  validObjectId(weekId, "주차 수업");
+  validObjectId(fileId, "과제 파일");
+  const week = await AcademyClassWeek.findOne({ _id: weekId, academyId });
+  const file = week?.files?.id(fileId);
+  if (!week || !file) throw statusError(404, "과제 파일을 찾을 수 없습니다.");
+  return createAcademyWeekFileDownload({
+    userId: adminUserId,
+    downloaderRole: "admin",
+    week,
+    fileId,
+  });
 }
 
 async function updateAdminAcademyProfile({ adminUserId, academyId, action, name }) {
@@ -672,18 +703,31 @@ async function updateAdminAcademyClass({ adminUserId, academyId, classId, action
   if (!["ACTIVATE", "DEACTIVATE"].includes(normalizedAction)) {
     throw statusError(400, "지원하지 않는 반 관리 작업입니다.");
   }
-  const updated = await AcademyClass.findOneAndUpdate(
-    { _id: classId, academyId },
-    { $set: { isActive: normalizedAction === "ACTIVATE" } },
-    { returnDocument: "after" }
-  ).lean();
-  if (!updated) throw statusError(404, "반을 찾을 수 없습니다.");
+  const result = normalizedAction === "ACTIVATE"
+    ? await restoreAcademyClassRecord({
+        academyId,
+        classId,
+        actorUserId: adminUserId,
+        actorType: "ADMIN",
+      })
+    : await archiveAcademyClassRecord({
+        academyId,
+        classId,
+        actorUserId: adminUserId,
+        actorType: "ADMIN",
+      });
+  const updated = result.academyClass;
   await logAction({
     adminUserId,
     action: `academy.class-${normalizedAction.toLowerCase()}`,
-    detail: `${academy.name} ${updated.name} 반 ${normalizedAction === "ACTIVATE" ? "활성화" : "비활성화"}`,
+    detail: `${academy.name} ${updated.name} 반 ${normalizedAction === "ACTIVATE" ? "복구" : "보관"}`,
     academy,
-    metadata: { classId: String(updated._id) },
+    metadata: {
+      classId: String(updated._id),
+      unassignedStudentCount: Number(result.unassignedStudentCount || 0),
+      canceledSessionCount: Number(result.canceledSessionCount || 0),
+      revokedInviteCount: Number(result.revokedInviteCount || 0),
+    },
   });
   return updated;
 }
@@ -733,7 +777,14 @@ async function updateAdminAcademyClassOperations({
       startsAt: { $gt: now },
       status: { $ne: "CANCELED" },
     },
-    { $set: { status: "CANCELED", closedAt: now } }
+    {
+      $set: {
+        status: "CANCELED",
+        cancellationReason: "SCHEDULE_CHANGED",
+        canceledAt: now,
+        closedAt: now,
+      },
+    }
   );
   await logAction({
     adminUserId,
@@ -928,6 +979,14 @@ async function updateAdminAcademyInvite({ adminUserId, academyId, inviteId, acti
   if (normalizedAction === "RESTORE" && (new Date(invite.expiresAt) <= new Date() || invite.useCount >= invite.maxUses)) {
     throw statusError(409, "만료되었거나 사용 횟수를 모두 소진한 초대는 다시 활성화할 수 없습니다.");
   }
+  if (normalizedAction === "RESTORE" && invite.classId) {
+    const activeClass = await AcademyClass.exists({
+      _id: invite.classId,
+      academyId: academy._id,
+      isActive: true,
+    });
+    if (!activeClass) throw statusError(409, "보관된 반에 연결된 초대는 반을 복구한 뒤 활성화할 수 있습니다.");
+  }
   const updated = await AcademyInvite.findOneAndUpdate(
     { _id: invite._id, academyId: academy._id },
     { $set: { status: normalizedAction === "RESTORE" ? "ACTIVE" : "REVOKED" } },
@@ -948,6 +1007,7 @@ module.exports = {
   ACADEMY_STATUSES,
   assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,
+  getAdminAcademyWeekFileDownload,
   getAdminAcademyList,
   regenerateAdminAcademyAttendanceCode,
   transferAdminAcademyClassHomeroom,

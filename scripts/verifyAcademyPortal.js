@@ -21,14 +21,17 @@ const {
   AcademyAttendanceSession,
   AcademyStaff,
   AcademyClass,
+  AcademyClassWeek,
   AcademyStudentMembership,
   AcademyInvite,
 } = require("../models/academyModel");
+const { PdfWatermarkIssuance } = require("../models/documentSecurityModel");
 const {
   approveAcademyApplication,
   approveAcademyStaff,
   approveMembership,
   addAcademyClassCoTeacher,
+  archiveAcademyClass,
   assignMembershipClass,
   bulkManageAcademyStudents,
   cancelAcademyStaffJoin,
@@ -48,6 +51,7 @@ const {
   requestAcademyByCode,
   rejectAcademyApplication,
   removeAcademyClassCoTeacher,
+  restoreAcademyClass,
   revokeAcademyStaff,
   transferAcademyClassHomeroom,
   updateAcademyClassSettings,
@@ -78,6 +82,17 @@ const {
   validateMathMapGraph,
 } = require("../services/mathMapService");
 const {
+  getAcademyClassworkTeacherView,
+  getStudentAcademyClassroom,
+  getStudentAcademyWeek,
+  saveAcademyClassWeek,
+} = require("../services/academyClassworkService");
+const {
+  analyzeAcademyForensicEvidence,
+  getAcademyForensicsPageData,
+} = require("../services/academyForensicsService");
+const { buildForensicIdentity } = require("../services/pdfWatermarkService");
+const {
   assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,
   getAdminAcademyList,
@@ -95,6 +110,7 @@ const {
 const {
   DATASET_KEY: ACADEMY_DUMMY_DATASET_KEY,
   MATH_MAP_CONCEPTS: ACADEMY_DUMMY_MATH_MAP_CONCEPTS,
+  buildClassWeekOperations: buildAcademyDummyClassWeekOperations,
   buildDataset: buildAcademyDummyDataset,
 } = require("./seedAcademyStatisticsDummyData");
 
@@ -148,6 +164,20 @@ async function main() {
     assert.equal(dummySeedDataset.operations.attendanceSessions.length, 1);
     assert.equal(dummySeedDataset.operations.attendance.length, dummySeedUsers.length);
     assert.equal(dummySeedDataset.operations.attendanceAudits.length, dummySeedUsers.length);
+    const dummyClassWeekOperations = buildAcademyDummyClassWeekOperations({
+      academy: { _id: dummySeedAcademyId, createdByUserId: dummySeedTeacherId },
+      activeClasses: [{
+        _id: dummySeedClassId,
+        createdByUserId: dummySeedTeacherId,
+        homeroomTeacherUserId: dummySeedTeacherId,
+      }],
+      now: new Date("2026-08-28T03:00:00.000Z"),
+    });
+    assert.equal(dummyClassWeekOperations.length, 4);
+    assert.equal(
+      dummyClassWeekOperations[0].updateOne.update.$setOnInsert.concepts[0].conceptTitle,
+      "다항식의 사칙연산"
+    );
     await Problem.bulkWrite(dummySeedDataset.operations.problems, { ordered: false });
     await ProblemAttempt.bulkWrite(dummySeedDataset.operations.problemAttempts, { ordered: false });
     await AcademyAttendanceSession.bulkWrite(dummySeedDataset.operations.attendanceSessions, { ordered: false });
@@ -192,8 +222,10 @@ async function main() {
       AcademyAttendance.syncIndexes(),
       AcademyStaff.syncIndexes(),
       AcademyClass.syncIndexes(),
+      AcademyClassWeek.syncIndexes(),
       AcademyStudentMembership.syncIndexes(),
       AcademyInvite.syncIndexes(),
+      PdfWatermarkIssuance.syncIndexes(),
     ]);
 
     const [admin, teacher, secondTeacher, rejectedTeacher, student] = await User.create([
@@ -385,6 +417,192 @@ async function main() {
     const profile = await getStudentAcademyProfile(student._id);
     assert.equal(profile.membership.status, "APPROVED");
     assert.equal(profile.membership.academyId.name, academy.name);
+
+    const selectedConceptKeys = [
+      "common-math-1/polynomials/polynomial-arithmetic",
+      "common-math-1/polynomials/identity-remainder-theorem",
+    ];
+    const publishedWeek = await saveAcademyClassWeek({
+      teacherUserId: teacher._id,
+      classId: academyClass._id,
+      academicYear: 2026,
+      weekNumber: 1,
+      title: "다항식 첫 수업",
+      lessonSummary: "다항식의 사칙연산과 항등식의 기본 원리를 학습했습니다.",
+      conceptKeys: selectedConceptKeys,
+      assignmentTitle: "다항식 기본 과제",
+      assignmentInstructions: "교재 10쪽부터 13쪽까지 풀어오세요.",
+      dueAt: "2026-09-04T18:00",
+      files: [],
+    });
+    assert.equal(publishedWeek.concepts.length, 2);
+    assert.equal(publishedWeek.concepts[0].conceptTitle, "다항식의 사칙연산");
+    assert.equal(
+      publishedWeek.concepts[0].href,
+      "/learn/common-math-1/polynomials/polynomial-arithmetic"
+    );
+    assert.equal((await AcademyClassWeek.findById(publishedWeek._id).lean()).assignmentTitle, "다항식 기본 과제");
+    await assert.rejects(
+      saveAcademyClassWeek({
+        teacherUserId: teacher._id,
+        classId: academyClass._id,
+        academicYear: 2026,
+        weekNumber: 2,
+        title: "잘못된 개념",
+        conceptKeys: ["common-math-1/polynomials/not-in-yaml"],
+        assignmentTitle: "검증 과제",
+      }),
+      (error) => Number(error.status) === 400 && /YAML 교육과정/.test(error.message)
+    );
+    await assert.rejects(
+      saveAcademyClassWeek({
+        teacherUserId: teacher._id,
+        classId: academyClass._id,
+        academicYear: 2026,
+        weekNumber: 1,
+        title: "중복 주차",
+        conceptKeys: selectedConceptKeys,
+        assignmentTitle: "중복 과제",
+      }),
+      (error) => Number(error.status) === 409 && /같은 학년도와 주차/.test(error.message)
+    );
+    const teacherClasswork = await getAcademyClassworkTeacherView({
+      teacherUserId: secondTeacher._id,
+      classId: academyClass._id,
+      editWeekId: publishedWeek._id,
+    });
+    assert.equal(teacherClasswork.weeks.length, 1);
+    assert.equal(teacherClasswork.editingWeek.assignmentTitle, "다항식 기본 과제");
+    assert.ok(teacherClasswork.catalog.some((course) => course.id === "common-math-1"));
+    const studentClassroom = await getStudentAcademyClassroom({ studentUserId: student._id });
+    assert.equal(studentClassroom.academy.name, academy.name);
+    assert.equal(studentClassroom.academyClass.name, academyClass.name);
+    assert.equal(studentClassroom.weeks.length, 1);
+    const studentWeek = await getStudentAcademyWeek({
+      studentUserId: student._id,
+      weekId: publishedWeek._id,
+    });
+    assert.equal(studentWeek.week.concepts[1].conceptTitle, "항등식과 나머지정리");
+
+    const academyAssignmentFileId = new mongoose.Types.ObjectId();
+    const scopedIdentity = buildForensicIdentity({
+      userId: student._id,
+      examId: publishedWeek._id,
+      sourceType: "ACADEMY_ASSIGNMENT",
+      sourceId: `${publishedWeek._id}:${academyAssignmentFileId}`,
+      academyId: academy._id,
+      academyClassId: academyClass._id,
+      academyClassWeekId: publishedWeek._id,
+      academyAssignmentFileId,
+      downloadedAt: new Date("2026-08-28T09:00:00.000Z"),
+    });
+    const otherClassIdentity = buildForensicIdentity({
+      userId: student._id,
+      examId: publishedWeek._id,
+      sourceType: "ACADEMY_ASSIGNMENT",
+      sourceId: `${publishedWeek._id}:other-class-file`,
+      academyId: academy._id,
+      academyClassId: new mongoose.Types.ObjectId(),
+      academyClassWeekId: publishedWeek._id,
+      academyAssignmentFileId: new mongoose.Types.ObjectId(),
+      downloadedAt: new Date("2026-08-28T09:01:00.000Z"),
+    });
+    const otherAcademyIdentity = buildForensicIdentity({
+      userId: student._id,
+      examId: publishedWeek._id,
+      sourceType: "ACADEMY_ASSIGNMENT",
+      sourceId: `${publishedWeek._id}:other-academy-file`,
+      academyId: new mongoose.Types.ObjectId(),
+      academyClassId: academyClass._id,
+      academyClassWeekId: publishedWeek._id,
+      academyAssignmentFileId: new mongoose.Types.ObjectId(),
+      downloadedAt: new Date("2026-08-28T09:02:00.000Z"),
+    });
+    const adminDownloadIdentity = buildForensicIdentity({
+      userId: admin._id,
+      examId: publishedWeek._id,
+      sourceType: "ACADEMY_ASSIGNMENT",
+      sourceId: `${publishedWeek._id}:admin-file`,
+      academyId: academy._id,
+      academyClassId: academyClass._id,
+      academyClassWeekId: publishedWeek._id,
+      academyAssignmentFileId: new mongoose.Types.ObjectId(),
+      downloadedAt: new Date("2026-08-28T09:03:00.000Z"),
+    });
+    await PdfWatermarkIssuance.create([
+      {
+        issuanceId: scopedIdentity.issuanceId,
+        documentIssueId: scopedIdentity.documentIssueId,
+        traceCode: scopedIdentity.traceCode,
+        userId: student._id,
+        examId: String(publishedWeek._id),
+        sourceType: "ACADEMY_ASSIGNMENT",
+        sourceId: `${publishedWeek._id}:${academyAssignmentFileId}`,
+        assetId: String(academyAssignmentFileId),
+        academyId: academy._id,
+        academyClassId: academyClass._id,
+        academyClassWeekId: publishedWeek._id,
+        academyAssignmentFileId: String(academyAssignmentFileId),
+        downloaderRole: "student",
+        originalName: "고1-다항식-과제.pdf",
+        downloadedAt: scopedIdentity.downloadedAt,
+        pageCount: 3,
+        forensicPayloadHash: scopedIdentity.payloadHash,
+        status: "READY",
+      },
+      ...[
+        { identity: otherClassIdentity, academyId: academy._id, academyClassId: otherClassIdentity.payload.academy_class_id, downloaderRole: "student" },
+        { identity: otherAcademyIdentity, academyId: otherAcademyIdentity.payload.academy_id, academyClassId: academyClass._id, downloaderRole: "student" },
+        { identity: adminDownloadIdentity, academyId: academy._id, academyClassId: academyClass._id, downloaderRole: "admin" },
+      ].map(({ identity, academyId, academyClassId, downloaderRole }) => ({
+        issuanceId: identity.issuanceId,
+        documentIssueId: identity.documentIssueId,
+        traceCode: identity.traceCode,
+        userId: student._id,
+        examId: String(publishedWeek._id),
+        sourceType: "ACADEMY_ASSIGNMENT",
+        sourceId: identity.payload.source_id,
+        academyId,
+        academyClassId,
+        academyClassWeekId: publishedWeek._id,
+        academyAssignmentFileId: identity.payload.academy_assignment_file_id,
+        downloaderRole,
+        originalName: "범위밖-과제.pdf",
+        downloadedAt: identity.downloadedAt,
+        pageCount: 2,
+        forensicPayloadHash: identity.payloadHash,
+        status: "READY",
+      })),
+    ]);
+    const forensicsPage = await getAcademyForensicsPageData({
+      teacherUserId: secondTeacher._id,
+      classId: academyClass._id,
+    });
+    assert.equal(forensicsPage.scope.approvedStudents, 1);
+    assert.equal(forensicsPage.scope.issuedCopies, 1);
+    assert.equal(forensicsPage.scope.distinctDownloaders, 1);
+    const scopedForensics = await analyzeAcademyForensicEvidence({
+      teacherUserId: secondTeacher._id,
+      classId: academyClass._id,
+      traceCode: scopedIdentity.traceCode,
+    });
+    assert.equal(scopedForensics.analysis.matches.length, 1);
+    assert.equal(scopedForensics.analysis.matches[0].displayName, "이학생");
+    assert.equal(scopedForensics.analysis.matches[0].className, academyClass.name);
+    assert.equal("email" in scopedForensics.analysis.matches[0], false);
+    assert.equal("userId" in scopedForensics.analysis.matches[0], false);
+    for (const outsideTraceCode of [
+      otherClassIdentity.traceCode,
+      otherAcademyIdentity.traceCode,
+      adminDownloadIdentity.traceCode,
+    ]) {
+      const outsideForensics = await analyzeAcademyForensicEvidence({
+        teacherUserId: secondTeacher._id,
+        classId: academyClass._id,
+        traceCode: outsideTraceCode,
+      });
+      assert.equal(outsideForensics.analysis.matches.length, 0);
+    }
 
     const detail = await getAcademyStudentDetail({
       teacherUserId: teacher._id,
@@ -693,6 +911,8 @@ async function main() {
     await updateAdminAcademyClass({ adminUserId: admin._id, academyId: academy._id, classId: academyClass._id, action: "DEACTIVATE" });
     assert.equal((await AcademyClass.findById(academyClass._id).lean()).isActive, false);
     await updateAdminAcademyClass({ adminUserId: admin._id, academyId: academy._id, classId: academyClass._id, action: "ACTIVATE" });
+    await assignAdminAcademyMembershipClass({ adminUserId: admin._id, academyId: academy._id, membershipId: pendingMembership._id, classId: academyClass._id });
+    await updateAdminAcademyInvite({ adminUserId: admin._id, academyId: academy._id, inviteId: invite._id, action: "RESTORE" });
     await updateAdminAcademyClassOperations({
       adminUserId: admin._id,
       academyId: academy._id,
@@ -767,6 +987,8 @@ async function main() {
     assert.equal(adminAcademyDetail.staff.length, 2);
     assert.equal(adminAcademyDetail.memberships.length, 1);
     assert.equal(adminAcademyDetail.classes.length, 1);
+    assert.equal(adminAcademyDetail.classWeeks.length, 1);
+    assert.equal(adminAcademyDetail.classWeeks[0].assignmentTitle, "다항식 기본 과제");
     assert.equal(adminAcademyDetail.invites.length, 1);
     assert.ok(adminAcademyDetail.attendanceSessions.length >= 1);
     assert.ok(adminAcademyDetail.attendanceRecords.length >= 1);
@@ -795,6 +1017,8 @@ async function main() {
     assert.match(adminDetailHtml, /\/admin\/academies\/.+\/profile-image/);
     assert.match(adminDetailHtml, /고1 월수반/);
     assert.match(adminDetailHtml, /수업 일정·출석 방식/);
+    assert.match(adminDetailHtml, /주차별 수업·과제 전체 정보/);
+    assert.match(adminDetailHtml, /다항식 기본 과제/);
     assert.match(adminDetailHtml, /수업 회차·학생 출결·감사 이력/);
     assert.match(adminDetailHtml, /운영자 검증 보정/);
     assert.match(adminDetailHtml, /코드 재발급/);
@@ -811,6 +1035,18 @@ async function main() {
     assert.match(emptyStatistics.summary.bullets[0].text, /학습 기록이 아직 없습니다/);
 
     const teacherUser = { id: String(teacher._id), name: teacher.name, realName: teacher.realName, role: "teacher" };
+    const academyForensicsHtml = await render("academy-forensics", {
+      user: teacherUser,
+      forensics: { ...forensicsPage, profileImageSrc: "" },
+      analysis: scopedForensics.analysis,
+      error: null,
+      oldTraceCode: scopedIdentity.traceCode,
+    });
+    assert.match(academyForensicsHtml, /반 단위 후보 범위/);
+    assert.match(academyForensicsHtml, /선택 반 안에서 추적/);
+    assert.match(academyForensicsHtml, /이학생/);
+    assert.match(academyForensicsHtml, new RegExp(scopedIdentity.traceCode));
+    assert.doesNotMatch(academyForensicsHtml, /academy-student@example\.test/);
     const academyLocals = {
       user: teacherUser,
       portal,
@@ -891,6 +1127,7 @@ async function main() {
       detail: { ...classDetail, profileImageSrc: "" },
       statistics: classStatistics,
       mathMap: classMathMap,
+      classwork: teacherClasswork,
       activeAcademyPage: "classes",
     });
     assert.match(classDetailHtml, /CLASS LEARNING REPORT/);
@@ -903,6 +1140,34 @@ async function main() {
     assert.match(classDetailHtml, /수업 일정·출결 방식/);
     assert.match(classDetailHtml, /담임·공동 담당/);
     assert.match(classDetailHtml, /학생 코드 출결/);
+    assert.match(classDetailHtml, /반 종료·보관/);
+    assert.match(classDetailHtml, new RegExp(`/academy/classes/${academyClass._id}/archive`));
+    assert.match(classDetailHtml, /주차별 수업·과제/);
+    assert.match(classDetailHtml, /YAML 교육과정/);
+    assert.match(classDetailHtml, /다항식 첫 수업/);
+    assert.match(classDetailHtml, /다항식의 사칙연산/);
+    assert.match(classDetailHtml, new RegExp(`editWeek=${publishedWeek._id}`));
+
+    const studentDashboardHtml = await render("student-academy", {
+      user: { ...student.toObject(), hasAcademyMembership: true },
+      classroom: { ...studentClassroom, profileImageSrc: "" },
+      arenaProfileAvatar: { imageSrc: "/images/profile/default-avatar.png" },
+      academyMembershipAvailable: true,
+    });
+    assert.match(studentDashboardHtml, /ACADEMY CLASSROOM/);
+    assert.match(studentDashboardHtml, /다항식 첫 수업/);
+    assert.match(studentDashboardHtml, new RegExp(`/my-academy/weeks/${publishedWeek._id}`));
+    assert.match(studentDashboardHtml, /href="\/my-academy"[^>]*aria-current="page"/);
+    const studentWeekHtml = await render("student-academy-week", {
+      user: { ...student.toObject(), hasAcademyMembership: true },
+      classroom: { ...studentWeek, profileImageSrc: "" },
+      arenaProfileAvatar: { imageSrc: "/images/profile/default-avatar.png" },
+      academyMembershipAvailable: true,
+    });
+    assert.match(studentWeekHtml, /이번 주에 배운 개념/);
+    assert.match(studentWeekHtml, /다항식 기본 과제/);
+    assert.match(studentWeekHtml, /교재 10쪽부터 13쪽까지/);
+    assert.match(studentWeekHtml, /\/learn\/common-math-1\/polynomials\/polynomial-arithmetic/);
 
     const emptyAcademyClass = await createAcademyClass({
       teacherUserId: teacher._id,
@@ -968,6 +1233,12 @@ async function main() {
     const academyRoutes = fs.readFileSync(path.join(root, "routes", "matths-routes.js"), "utf8");
     assert.match(academyRoutes, /"\/admin\/academies"[\s\S]+adminAcademiesPage/);
     assert.match(academyRoutes, /"\/admin\/academies\/:academyId"[\s\S]+adminAcademyDetailPage/);
+    const academyPortalRoutes = fs.readFileSync(path.join(root, "routes", "academy-routes.js"), "utf8");
+    assert.match(academyPortalRoutes, /"\/my-academy"/);
+    assert.match(academyPortalRoutes, /"\/academy\/classes\/:classId\/weeks"/);
+    const dashboardNavigation = fs.readFileSync(path.join(root, "views", "partials", "dashboard-navigation.ejs"), "utf8");
+    assert.match(dashboardNavigation, /hasAcademyMembership/);
+    assert.match(dashboardNavigation, /label: "학원"/);
 
     const mainView = fs.readFileSync(path.join(root, "views", "main.ejs"), "utf8");
     assert.match(mainView, /const displayName = String\(learner\.realName \|\| "학생"\)/);
@@ -1090,6 +1361,129 @@ async function main() {
     );
     assert.equal((await getAcademyStudentPage({ teacherUserId: teacher._id, page: 2 })).total, 23);
 
+    const lifecycleMembership = extraMemberships[4];
+    await assignMembershipClass({
+      teacherUserId: teacher._id,
+      membershipId: lifecycleMembership._id,
+      classId: emptyAcademyClass._id,
+    });
+    const lifecycleRoster = await getAcademyAttendanceRoster({
+      teacherUserId: teacher._id,
+      dateKey: "2026-09-07",
+      classId: emptyAcademyClass._id,
+      now: new Date("2026-09-01T03:00:00.000Z"),
+    });
+    const lifecycleInvite = await createAcademyInvite({
+      teacherUserId: teacher._id,
+      label: "보관 검증 초대",
+      classId: emptyAcademyClass._id,
+      expiryDays: 14,
+      maxUses: 10,
+    });
+    await assert.rejects(
+      archiveAcademyClass({
+        teacherUserId: secondTeacher._id,
+        classId: emptyAcademyClass._id,
+        now: new Date("2026-09-01T03:01:00.000Z"),
+      }),
+      (error) => Number(error.status) === 403 && /원장만/.test(error.message)
+    );
+    const archivedLifecycle = await archiveAcademyClass({
+      teacherUserId: teacher._id,
+      classId: emptyAcademyClass._id,
+      now: new Date("2026-09-01T03:02:00.000Z"),
+    });
+    assert.equal(archivedLifecycle.unassignedStudentCount, 1);
+    assert.equal(archivedLifecycle.canceledSessionCount, 1);
+    assert.equal(archivedLifecycle.revokedInviteCount, 1);
+    assert.equal((await AcademyStudentMembership.findById(lifecycleMembership._id).lean()).classId, null);
+    const canceledLifecycleSession = await AcademyAttendanceSession.findById(lifecycleRoster.session.id).lean();
+    assert.equal(canceledLifecycleSession.status, "CANCELED");
+    assert.equal(canceledLifecycleSession.cancellationReason, "CLASS_ARCHIVED");
+    assert.equal((await AcademyInvite.findById(lifecycleInvite._id).lean()).status, "REVOKED");
+    await assert.rejects(
+      updateAdminAcademyInvite({
+        adminUserId: admin._id,
+        academyId: academy._id,
+        inviteId: lifecycleInvite._id,
+        action: "RESTORE",
+      }),
+      (error) => Number(error.status) === 409 && /보관된 반/.test(error.message)
+    );
+    await assert.rejects(
+      getAcademyInvitePresentation(lifecycleInvite.token),
+      (error) => Number(error.status) === 410
+    );
+    const archivedClassRecord = await AcademyClass.findById(emptyAcademyClass._id).lean();
+    assert.equal(archivedClassRecord.isActive, false);
+    assert.equal(archivedClassRecord.lifecycleHistory.length, 1);
+    const archivedForensicsPage = await getAcademyForensicsPageData({
+      teacherUserId: teacher._id,
+      classId: emptyAcademyClass._id,
+    });
+    assert.equal(archivedForensicsPage.selectedClass.isActive, false);
+    const unassignedForensicsTeacher = await User.create({
+      name: "academy-unassigned-teacher",
+      realName: "미배정선생님",
+      email: "academy-unassigned-forensics-teacher@example.test",
+      passwordHash: "not-used-in-verification",
+      role: "teacher",
+    });
+    await AcademyStaff.create({
+      academyId: academy._id,
+      userId: unassignedForensicsTeacher._id,
+      role: "TEACHER",
+      status: "ACTIVE",
+      currentStaffKey: String(unassignedForensicsTeacher._id),
+      requestedAt: new Date(),
+      joinedAt: new Date(),
+    });
+    await assert.rejects(
+      getAcademyForensicsPageData({
+        teacherUserId: unassignedForensicsTeacher._id,
+        classId: emptyAcademyClass._id,
+      }),
+      (error) => Number(error.status) === 403
+    );
+    await assert.rejects(
+      getAcademyClassDetail({ teacherUserId: teacher._id, classId: emptyAcademyClass._id }),
+      (error) => Number(error.status) === 404
+    );
+    await assert.rejects(
+      createAcademyClass({ teacherUserId: teacher._id, name: "빈 반 검증" }),
+      (error) => Number(error.status) === 409 && /보관된 반/.test(error.message)
+    );
+    const ownerArchivePortal = await getAcademyPortalData(teacher._id);
+    assert.ok(ownerArchivePortal.archivedClasses.some((item) => String(item._id) === String(emptyAcademyClass._id)));
+    assert.equal((await getAcademyPortalData(secondTeacher._id)).archivedClasses.length, 0);
+    const archivedClassHtml = await render("academy", {
+      ...academyLocals,
+      portal: ownerArchivePortal,
+      activeAcademyPage: "classes",
+    });
+    assert.match(archivedClassHtml, /보관된 반/);
+    assert.match(archivedClassHtml, new RegExp(`/academy/classes/${emptyAcademyClass._id}/restore`));
+    await restoreAcademyClass({
+      teacherUserId: teacher._id,
+      classId: emptyAcademyClass._id,
+      now: new Date("2026-09-01T03:03:00.000Z"),
+    });
+    const restoredClassRecord = await AcademyClass.findById(emptyAcademyClass._id).lean();
+    assert.equal(restoredClassRecord.isActive, true);
+    assert.equal(restoredClassRecord.lifecycleHistory.length, 2);
+    assert.equal((await AcademyStudentMembership.findById(lifecycleMembership._id).lean()).classId, null);
+    assert.equal((await AcademyInvite.findById(lifecycleInvite._id).lean()).status, "REVOKED");
+    const revivedLifecycleRoster = await getAcademyAttendanceRoster({
+      teacherUserId: teacher._id,
+      dateKey: "2026-09-07",
+      classId: emptyAcademyClass._id,
+      now: new Date("2026-09-01T03:04:00.000Z"),
+    });
+    assert.equal(revivedLifecycleRoster.session.id, lifecycleRoster.session.id);
+    assert.equal(revivedLifecycleRoster.session.state, "SCHEDULED");
+    assert.equal(revivedLifecycleRoster.roster.length, 0);
+    assert.equal((await AcademyAttendanceSession.findById(lifecycleRoster.session.id).lean()).cancellationReason, null);
+
     assert.ok(Academy.schema.path("profileImageAsset.cloudPublicId"));
     await assert.rejects(
       updateAcademyProfileImage({ teacherUserId: secondTeacher._id, file: null }),
@@ -1162,6 +1556,8 @@ async function main() {
     assert.match(academyFeatureRoutes, /"\/academy\/students\/bulk"/);
     assert.match(academyFeatureRoutes, /"\/academy\/profile-image"/);
     assert.match(academyFeatureRoutes, /"\/academy\/classes\/:classId"/);
+    assert.match(academyFeatureRoutes, /"\/academy\/classes\/:classId\/archive"/);
+    assert.match(academyFeatureRoutes, /"\/academy\/classes\/:classId\/restore"/);
     assert.match(academyRoutes, /"\/admin\/academies\/:academyId\/profile-image"/);
     assert.match(academyRoutes, /"\/admin\/academies\/:academyId\/classes\/:classId\/operations"/);
     assert.match(academyRoutes, /"\/admin\/academies\/:academyId\/attendance\/:attendanceId"/);

@@ -220,6 +220,7 @@ const {
   assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,
   getAdminAcademyList,
+  getAdminAcademyWeekFileDownload,
   regenerateAdminAcademyAttendanceCode,
   transferAdminAcademyClassHomeroom,
   transferAdminAcademyOwner,
@@ -1918,6 +1919,35 @@ exports.adminAcademyDetailPage = async (req, res, next) => {
         periodKey: req.query.period,
       }),
       feedback: adminAcademyFeedback(req.query),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminDownloadAcademyWeekFile = async (req, res, next) => {
+  try {
+    const download = await getAdminAcademyWeekFileDownload({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      weekId: req.params.weekId,
+      fileId: req.params.fileId,
+    });
+    if (download.type === "REDIRECT") {
+      res.set("Cache-Control", "private, no-store");
+      return res.redirect(302, download.url);
+    }
+    const issued = download.issued;
+    const cleanup = () => issued.cleanup().catch(() => {});
+    res.once("finish", cleanup);
+    res.once("close", cleanup);
+    res.type("application/pdf");
+    res.set("Cache-Control", "private, no-store");
+    res.set("X-Matths-Trace", issued.traceCode);
+    return res.download(issued.filePath, issued.downloadName, (error) => {
+      cleanup();
+      if (error && !res.headersSent) return next(error);
+      return undefined;
     });
   } catch (error) {
     return next(error);

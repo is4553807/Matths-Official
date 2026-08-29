@@ -12,6 +12,12 @@
   const formatDateTime = (date) => date
     ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(date))
     : "—";
+  const formatBytes = (bytes) => {
+    const value = Number(bytes) || 0;
+    if (value < 1024) return `${value} B`;
+    if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+    return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  };
   const personName = (person) => String(person?.realName || person?.name || "정보 없음");
   const academyReturn = `/admin/academies/${academy._id}`;
   const activeClasses = detail.classes.filter((academyClass) => academyClass.isActive);
@@ -60,7 +66,7 @@
           <div><p>SUPER ADMIN · FULL ACCESS</p><h1><%= academy.name %></h1><b class="admin-academy-status is-<%= String(academy.status).toLowerCase() %>"><%= statusLabels[academy.status] || academy.status %></b></div>
         </div>
         <nav aria-label="학원 상세 영역">
-          <a href="#academy-control">기본·운영</a><a href="#academy-statistics">평균·Math Map</a><a href="#academy-staff">선생님</a><a href="#academy-students">학생</a><a href="#academy-classes">반</a><a href="#academy-attendance">출결</a><a href="#academy-invites">초대</a>
+          <a href="#academy-control">기본·운영</a><a href="#academy-statistics">평균·Math Map</a><a href="#academy-staff">선생님</a><a href="#academy-students">학생</a><a href="#academy-classes">반</a><a href="#academy-classwork">주차·과제</a><a href="#academy-attendance">출결</a><a href="#academy-invites">초대</a>
         </nav>
       </header>
 
@@ -184,7 +190,7 @@
         <div class="admin-academy-class-control-list">
           <% detail.classes.forEach((academyClass) => { const schedule = academyClass.schedule || {}; const policy = academyClass.attendancePolicy || {}; %>
             <article>
-              <header><div><strong><%= academyClass.name %></strong><span><%= academyClass.isActive ? "활성 반" : "비활성 반" %> · 배정 학생 <%= classStudentCounts.get(String(academyClass._id)) || 0 %>명 · <%= scheduleLabel(academyClass) %></span><small>담임 <%= personName(academyClass.homeroomTeacherUserId) %> · 보조 <%= (academyClass.coTeacherUserIds || []).map(personName).join(", ") || "없음" %></small></div><form action="/admin/academies/<%= academy._id %>/classes/<%= academyClass._id %>" method="POST"><input type="hidden" name="action" value="<%= academyClass.isActive ? 'DEACTIVATE' : 'ACTIVATE' %>" /><button class="<%= academyClass.isActive ? 'is-danger' : '' %>" type="submit"><%= academyClass.isActive ? "비활성화" : "활성화" %></button></form></header>
+              <header><div><strong><%= academyClass.name %></strong><span><%= academyClass.isActive ? "활성 반" : "보관된 반" %> · 배정 학생 <%= classStudentCounts.get(String(academyClass._id)) || 0 %>명 · <%= scheduleLabel(academyClass) %></span><small>담임 <%= personName(academyClass.homeroomTeacherUserId) %> · 보조 <%= (academyClass.coTeacherUserIds || []).map(personName).join(", ") || "없음" %></small><% if (!academyClass.isActive) { %><small>보관 <%= formatDateTime(academyClass.archivedAt) %> · 처리 <%= personName(academyClass.archivedByUserId) %></small><% } %></div><form action="/admin/academies/<%= academy._id %>/classes/<%= academyClass._id %>" method="POST" onsubmit="return confirm('<%= academyClass.isActive ? '학생 배정 해제·예정 회차 취소·반 전용 초대 회수 후 이 반을 보관할까요?' : '이 반을 복구할까요? 학생과 초대는 자동 복구되지 않습니다.' %>')"><input type="hidden" name="action" value="<%= academyClass.isActive ? 'DEACTIVATE' : 'ACTIVATE' %>" /><button class="<%= academyClass.isActive ? 'is-danger' : '' %>" type="submit"><%= academyClass.isActive ? "종료·보관" : "반 복구" %></button></form></header>
               <div class="admin-academy-class-controls">
                 <form class="admin-form" action="/admin/academies/<%= academy._id %>/classes/<%= academyClass._id %>/operations" method="POST">
                   <h3>수업 일정·출석 방식</h3>
@@ -197,12 +203,28 @@
                   <label><span>새 담임</span><select name="nextTeacherUserId" required><option value="">활성 선생님 선택</option><% activeTeacherStaff.forEach((staff) => { if (String(staff.userId._id) !== String(academyClass.homeroomTeacherUserId?._id || academyClass.homeroomTeacherUserId)) { %><option value="<%= staff.userId._id %>"><%= personName(staff.userId) %> · <%= staffRoleLabels[staff.role] %></option><% } }) %></select></label>
                   <label class="admin-academy-checkbox"><input type="checkbox" name="retainPreviousAsCoTeacher" value="true" checked /><span>기존 담임을 보조 선생님으로 유지</span></label><button type="submit">담임 이전</button>
                   <details class="admin-academy-record"><summary>담임 변경 이력 <%= academyClass.teacherHistory?.length || 0 %>건</summary><% (academyClass.teacherHistory || []).slice().reverse().forEach((history) => { %><small><%= formatDateTime(history.changedAt) %> · <%= personName(history.previousTeacherUserId) %> → <%= personName(history.nextTeacherUserId) %> · 변경 <%= personName(history.changedByUserId) %></small><% }) %></details>
+                  <details class="admin-academy-record"><summary>반 생명주기 이력 <%= academyClass.lifecycleHistory?.length || 0 %>건</summary><% (academyClass.lifecycleHistory || []).slice().reverse().forEach((history) => { %><small><%= formatDateTime(history.occurredAt) %> · <%= history.action === 'ARCHIVED' ? '보관' : '복구' %> · <%= personName(history.actedByUserId) %> (<%= history.actorType %>) · 학생 <%= history.unassignedStudentCount || 0 %>명 / 회차 <%= history.canceledSessionCount || 0 %>개 / 초대 <%= history.revokedInviteCount || 0 %>개</small><% }) %></details>
                 </form>
               </div>
               <small>반 ID <%= academyClass._id %> · 생성자 <%= personName(academyClass.createdByUserId) %> · 생성 <%= formatDateTime(academyClass.createdAt) %> · 수정 <%= formatDateTime(academyClass.updatedAt) %></small>
             </article>
           <% }) %>
           <% if (!detail.classes.length) { %><div class="admin-empty">등록된 반이 없습니다.</div><% } %>
+        </div>
+      </section>
+
+      <section class="admin-panel" id="academy-classwork">
+        <header class="admin-panel-heading"><div><p>ALL WEEKLY CLASSWORK</p><h2>주차별 수업·과제 전체 정보</h2></div><span>전체 <%= detail.classWeeks.length %>주</span></header>
+        <p class="admin-academy-stat-note">운영자는 활성·보관 상태와 관계없이 모든 반의 주차별 개념 스냅샷, 과제 정보와 첨부 파일을 확인할 수 있습니다.</p>
+        <div class="admin-academy-classwork-list">
+          <% detail.classWeeks.forEach((week) => { %><article>
+            <header><div><small><%= week.academicYear %> · WEEK <%= week.weekNumber %> · <%= week.status %></small><h3><%= week.classId?.name || "삭제된 반" %> · <%= week.title %></h3><p>등록 <%= personName(week.createdByUserId) %> · 최근 수정 <%= personName(week.updatedByUserId) %> · <%= formatDateTime(week.updatedAt) %></p></div><b><%= week.concepts.length %>개념</b></header>
+            <% if (week.lessonSummary) { %><p class="admin-academy-classwork-summary"><%= week.lessonSummary %></p><% } %>
+            <div class="admin-academy-classwork-concepts"><% week.concepts.forEach((concept) => { %><span><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small><strong><%= concept.conceptTitle %></strong></span><% }) %></div>
+            <section><strong><%= week.assignmentTitle %></strong><small>마감 <%= formatDateTime(week.dueAt) %></small><% if (week.assignmentInstructions) { %><p><%= week.assignmentInstructions %></p><% } %><div><% week.files.forEach((file) => { %><a href="/admin/academies/<%= academy._id %>/weeks/<%= week._id %>/files/<%= file._id %>"><%= file.originalName %><span><%= formatBytes(file.sizeBytes) %> · <%= file.storageProvider %></span></a><% }) %><% if (!week.files.length) { %><small>첨부 파일 없음</small><% } %></div></section>
+            <footer>주차 ID <%= week._id %> · 반 ID <%= week.classId?._id || "—" %> · 생성 <%= formatDateTime(week.createdAt) %></footer>
+          </article><% }) %>
+          <% if (!detail.classWeeks.length) { %><div class="admin-empty">등록된 주차 수업과 과제가 없습니다.</div><% } %>
         </div>
       </section>
 

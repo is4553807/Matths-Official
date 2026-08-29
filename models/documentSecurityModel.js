@@ -9,12 +9,21 @@ const pdfWatermarkIssuanceSchema = new mongoose.Schema(
     examId: { type: String, required: true, index: true, maxlength: 180 },
     sourceType: {
       type: String,
-      enum: ["ARCHIVE", "WEEKLY_MOCK", "STORE", "STUDY_HALL", "FORMULA"],
+      enum: ["ARCHIVE", "WEEKLY_MOCK", "STORE", "STUDY_HALL", "FORMULA", "ACADEMY_ASSIGNMENT"],
       required: true,
       index: true,
     },
     sourceId: { type: String, required: true, index: true, maxlength: 180 },
     assetId: { type: String, default: "", maxlength: 180 },
+    academyId: { type: mongoose.Schema.Types.ObjectId, ref: "Academy", default: null, index: true },
+    academyClassId: { type: mongoose.Schema.Types.ObjectId, ref: "AcademyClass", default: null, index: true },
+    academyClassWeekId: { type: mongoose.Schema.Types.ObjectId, ref: "AcademyClassWeek", default: null },
+    academyAssignmentFileId: { type: String, default: "", maxlength: 80 },
+    downloaderRole: {
+      type: String,
+      enum: ["student", "test", "teacher", "admin", ""],
+      default: "",
+    },
     originalName: { type: String, required: true, maxlength: 300 },
     downloadedAt: { type: Date, required: true, index: true },
     pageCount: { type: Number, min: 0, default: 0 },
@@ -32,6 +41,15 @@ const pdfWatermarkIssuanceSchema = new mongoose.Schema(
 
 pdfWatermarkIssuanceSchema.index({ userId: 1, downloadedAt: -1 });
 pdfWatermarkIssuanceSchema.index({ sourceType: 1, sourceId: 1, downloadedAt: -1 });
+pdfWatermarkIssuanceSchema.index({ academyId: 1, academyClassId: 1, sourceType: 1, downloadedAt: -1 });
+pdfWatermarkIssuanceSchema.index({
+  academyId: 1,
+  academyClassId: 1,
+  sourceType: 1,
+  status: 1,
+  downloaderRole: 1,
+  traceCode: 1,
+});
 
 const PdfWatermarkIssuance =
   mongoose.models.PdfWatermarkIssuance ||

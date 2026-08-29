@@ -444,6 +444,12 @@ router.get(
   authMiddleware.isAdmin,
   matthsController.adminAcademyDetailPage
 );
+router.get(
+  "/admin/academies/:academyId/weeks/:weekId/files/:fileId",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminDownloadAcademyWeekFile
+);
 router.post(
   "/admin/academies/:academyId/approve",
   authMiddleware.isLoggedIn,

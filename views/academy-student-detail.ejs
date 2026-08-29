@@ -47,7 +47,7 @@
     <div class="academy-layout">
       <aside class="academy-sidebar">
         <div class="academy-identity"><span aria-hidden="true"><%= academyName.slice(0, 1) %></span><div><small>ACADEMY</small><strong><%= academyName %></strong></div></div>
-        <nav aria-label="학원 관리 메뉴"><a href="/academy?tab=dashboard">대시보드</a><a href="/academy?tab=attendance">출결 관리</a><a class="active" href="/academy?tab=students">학생 관리</a><a href="/academy?tab=requests">승인 요청 <% if (detail.pendingCount) { %><b><%= detail.pendingCount %></b><% } %></a><a href="/academy?tab=classes">반 관리</a><a href="/academy?tab=invites">초대 관리</a><a href="/academy?tab=teachers">선생님 관리</a></nav>
+        <nav aria-label="학원 관리 메뉴"><a href="/academy?tab=dashboard">대시보드</a><a href="/academy?tab=attendance">출결 관리</a><a class="active" href="/academy?tab=students">학생 관리</a><a href="/academy?tab=requests">승인 요청 <% if (detail.pendingCount) { %><b><%= detail.pendingCount %></b><% } %></a><a href="/academy?tab=classes">반 관리</a><a href="/academy?tab=invites">초대 관리</a><a href="/academy/forensics">유출 자료 추적</a><a href="/academy?tab=teachers">선생님 관리</a></nav>
         <p>학생의 학습 기록은 승인된 소속 관계 안에서만 조회됩니다.</p>
       </aside>
       <main class="academy-main">
