@@ -83,6 +83,7 @@ const {
   validateMathMapGraph,
 } = require("../services/mathMapService");
 const {
+  deleteAcademyClassWeek,
   getAcademyClassworkTeacherView,
   getStudentAcademyClassroom,
   getStudentAcademyWeek,
@@ -503,6 +504,22 @@ async function main() {
     assert.equal(teacherClasswork.weeks.length, 1);
     assert.equal(teacherClasswork.editingWeek.assignmentTitle, "다항식 기본 과제");
     assert.ok(teacherClasswork.catalog.some((course) => course.id === "common-math-1"));
+    const deletableWeek = await saveAcademyClassWeek({
+      teacherUserId: secondTeacher._id,
+      classId: academyClass._id,
+      academicYear: 2026,
+      weekNumber: 2,
+      title: "삭제 검증 주차",
+      conceptKeys: selectedConceptKeys,
+      assignmentTitle: "삭제 검증 과제",
+    });
+    const deletedWeek = await deleteAcademyClassWeek({
+      teacherUserId: secondTeacher._id,
+      classId: academyClass._id,
+      weekId: deletableWeek._id,
+    });
+    assert.equal(deletedWeek.weekNumber, 2);
+    assert.equal(await AcademyClassWeek.findById(deletableWeek._id).lean(), null);
     const studentClassroom = await getStudentAcademyClassroom({ studentUserId: student._id });
     assert.equal(studentClassroom.academy.name, academy.name);
     assert.equal(studentClassroom.academyClass.name, academyClass.name);
@@ -1128,9 +1145,9 @@ async function main() {
     assert.equal(classDetail.academyClass.name, "고1 월수반");
     assert.equal(classDetail.students.length, 1);
     assert.equal(classDetail.students[0].studentUserId.realName, "이학생");
-    assert.equal(
-      (await getAcademyClassDetail({ teacherUserId: secondTeacher._id, classId: academyClass._id })).students.length,
-      1
+    await assert.rejects(
+      getAcademyClassDetail({ teacherUserId: secondTeacher._id, classId: academyClass._id }),
+      (error) => Number(error.status) === 403 && error.message === "권한이 없습니다."
     );
     await assert.rejects(
       getAcademyClassDetail({ teacherUserId: teacher._id, classId: new mongoose.Types.ObjectId() }),
@@ -1151,14 +1168,18 @@ async function main() {
     classStatistics.attentionStudents = classStatistics.attentionStudents
       .map((item) => ({ ...item, membership: classMembershipsByStudentId.get(item.studentUserId) }))
       .filter((item) => item.membership);
-    const classDetailHtml = await render("academy-class-detail", {
+    const classDetailLocals = {
       user: teacherUser,
       detail: { ...classDetail, profileImageSrc: "" },
       statistics: classStatistics,
       mathMap: classMathMap,
       classwork: teacherClasswork,
       activeAcademyPage: "classes",
-    });
+    };
+    const classDetailHtml = await render("academy-class-detail", { ...classDetailLocals, activeClassSection: "statistics" });
+    const classAttendanceHtml = await render("academy-class-detail", { ...classDetailLocals, activeClassSection: "attendance" });
+    const classworkHtml = await render("academy-class-detail", { ...classDetailLocals, activeClassSection: "classwork" });
+    const classSettingsHtml = await render("academy-class-detail", { ...classDetailLocals, activeClassSection: "settings" });
     assert.match(classDetailHtml, /CLASS LEARNING REPORT/);
     assert.match(classDetailHtml, /고1 월수반 Summary/);
     assert.match(classDetailHtml, /반 평균 통계입니다/);
@@ -1166,16 +1187,21 @@ async function main() {
     assert.match(classDetailHtml, /\/academy\/students\//);
     assert.match(classDetailHtml, /CLASS MATH MAP/);
     assert.match(classDetailHtml, /calculus-1-02-07|함수의 증가·감소와 극값/);
-    assert.match(classDetailHtml, /수업 일정·출결 방식/);
-    assert.match(classDetailHtml, /담임·공동 담당/);
-    assert.match(classDetailHtml, /학생 코드 출결/);
-    assert.match(classDetailHtml, /반 종료·보관/);
-    assert.match(classDetailHtml, new RegExp(`/academy/classes/${academyClass._id}/archive`));
-    assert.match(classDetailHtml, /주차별 수업·과제/);
-    assert.match(classDetailHtml, /YAML 교육과정/);
-    assert.match(classDetailHtml, /다항식 첫 수업/);
-    assert.match(classDetailHtml, /다항식의 사칙연산/);
-    assert.match(classDetailHtml, new RegExp(`editWeek=${publishedWeek._id}`));
+    assert.match(classDetailHtml, /반 상세 메뉴/);
+    assert.doesNotMatch(classDetailHtml, /수업 일정·출결 방식/);
+    assert.match(classAttendanceHtml, /수업 일정·출결 방식/);
+    assert.match(classAttendanceHtml, /학생 코드 출결/);
+    assert.doesNotMatch(classAttendanceHtml, /CLASS MATH MAP/);
+    assert.match(classSettingsHtml, /담임·공동 담당/);
+    assert.match(classSettingsHtml, /반 종료·보관/);
+    assert.match(classSettingsHtml, new RegExp(`/academy/classes/${academyClass._id}/archive`));
+    assert.match(classworkHtml, /주차별 수업·과제/);
+    assert.match(classworkHtml, /YAML 교육과정/);
+    assert.match(classworkHtml, /다항식 첫 수업/);
+    assert.match(classworkHtml, /다항식의 사칙연산/);
+    assert.match(classworkHtml, new RegExp(`editWeek=${publishedWeek._id}`));
+    assert.match(classworkHtml, new RegExp(`/academy/classes/${academyClass._id}/weeks/${publishedWeek._id}/delete`));
+    assert.match(classworkHtml, /academy-classwork-layout is-editing/);
 
     const studentDashboardHtml = await render("student-academy", {
       user: { ...student.toObject(), hasAcademyMembership: true },
@@ -1451,25 +1477,9 @@ async function main() {
       classId: emptyAcademyClass._id,
     });
     assert.equal(archivedForensicsPage.selectedClass.isActive, false);
-    const unassignedForensicsTeacher = await User.create({
-      name: "academy-unassigned-teacher",
-      realName: "미배정선생님",
-      email: "academy-unassigned-forensics-teacher@example.test",
-      passwordHash: "not-used-in-verification",
-      role: "teacher",
-    });
-    await AcademyStaff.create({
-      academyId: academy._id,
-      userId: unassignedForensicsTeacher._id,
-      role: "TEACHER",
-      status: "ACTIVE",
-      currentStaffKey: String(unassignedForensicsTeacher._id),
-      requestedAt: new Date(),
-      joinedAt: new Date(),
-    });
     await assert.rejects(
       getAcademyForensicsPageData({
-        teacherUserId: unassignedForensicsTeacher._id,
+        teacherUserId: secondTeacher._id,
         classId: emptyAcademyClass._id,
       }),
       (error) => Number(error.status) === 403

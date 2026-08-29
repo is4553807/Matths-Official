@@ -53,6 +53,7 @@ const {
   getStudentMathMap,
 } = require("../services/mathMapService");
 const {
+  deleteAcademyClassWeek,
   getAcademyClassworkTeacherView,
   getStudentAcademyClassroom,
   getStudentAcademyWeek,
@@ -466,7 +467,7 @@ exports.createClass = async (req, res, next) => {
 };
 
 exports.updateClassSettings = async (req, res, next) => {
-  const redirectTo = `/academy/classes/${req.params.classId}`;
+  const redirectTo = `/academy/classes/${req.params.classId}?section=attendance`;
   try {
     await updateAcademyClassSettings({
       teacherUserId: req.session.user.id,
@@ -518,7 +519,7 @@ exports.restoreClass = async (req, res, next) => {
 };
 
 exports.addClassCoTeacher = async (req, res, next) => {
-  const redirectTo = `/academy/classes/${req.params.classId}`;
+  const redirectTo = `/academy/classes/${req.params.classId}?section=settings`;
   try {
     await addAcademyClassCoTeacher({
       teacherUserId: req.session.user.id,
@@ -533,7 +534,7 @@ exports.addClassCoTeacher = async (req, res, next) => {
 };
 
 exports.removeClassCoTeacher = async (req, res, next) => {
-  const redirectTo = `/academy/classes/${req.params.classId}`;
+  const redirectTo = `/academy/classes/${req.params.classId}?section=settings`;
   try {
     await removeAcademyClassCoTeacher({
       teacherUserId: req.session.user.id,
@@ -548,7 +549,7 @@ exports.removeClassCoTeacher = async (req, res, next) => {
 };
 
 exports.transferClassHomeroom = async (req, res, next) => {
-  const redirectTo = `/academy/classes/${req.params.classId}`;
+  const redirectTo = `/academy/classes/${req.params.classId}?section=settings`;
   try {
     await transferAcademyClassHomeroom({
       teacherUserId: req.session.user.id,
@@ -602,6 +603,11 @@ exports.studentAttendanceCheckIn = async (req, res, next) => {
 
 exports.classDetailPage = async (req, res, next) => {
   try {
+    const allowedSections = new Set(["statistics", "attendance", "classwork", "settings"]);
+    const requestedSection = String(req.query.section || "").trim().toLowerCase();
+    const activeClassSection = req.query.editWeek
+      ? "classwork"
+      : allowedSections.has(requestedSection) ? requestedSection : "statistics";
     const detail = await getAcademyClassDetail({
       teacherUserId: req.session.user.id,
       classId: req.params.classId,
@@ -635,6 +641,7 @@ exports.classDetailPage = async (req, res, next) => {
       statistics,
       mathMap,
       classwork,
+      activeClassSection,
       activeAcademyPage: "classes",
       feedback: consumeFlash(req),
     });
@@ -644,7 +651,7 @@ exports.classDetailPage = async (req, res, next) => {
 };
 
 exports.saveClassWeek = async (req, res, next) => {
-  const redirectTo = `/academy/classes/${req.params.classId}#class-weekly-work`;
+  const redirectTo = `/academy/classes/${req.params.classId}?section=classwork#class-weekly-work`;
   try {
     if (req.academyAssignmentUploadError) throw req.academyAssignmentUploadError;
     const week = await saveAcademyClassWeek({
@@ -671,7 +678,7 @@ exports.saveClassWeek = async (req, res, next) => {
 };
 
 exports.removeClassWeekFile = async (req, res, next) => {
-  const redirectTo = `/academy/classes/${req.params.classId}?editWeek=${req.params.weekId}#class-weekly-work`;
+  const redirectTo = `/academy/classes/${req.params.classId}?section=classwork&editWeek=${req.params.weekId}#class-weekly-work`;
   try {
     await removeAcademyClassWeekFile({
       teacherUserId: req.session.user.id,
@@ -680,6 +687,21 @@ exports.removeClassWeekFile = async (req, res, next) => {
       fileId: req.params.fileId,
     });
     await setFlash(req, "success", "과제 파일을 삭제했습니다.");
+    return res.redirect(redirectTo);
+  } catch (error) {
+    return handleExpectedError(req, res, next, error, redirectTo);
+  }
+};
+
+exports.deleteClassWeek = async (req, res, next) => {
+  const redirectTo = `/academy/classes/${req.params.classId}?section=classwork#class-weekly-work`;
+  try {
+    const deleted = await deleteAcademyClassWeek({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+      weekId: req.params.weekId,
+    });
+    await setFlash(req, "success", `${deleted.academicYear}년 ${deleted.weekNumber}주차 수업과 과제를 삭제했습니다.`);
     return res.redirect(redirectTo);
   } catch (error) {
     return handleExpectedError(req, res, next, error, redirectTo);

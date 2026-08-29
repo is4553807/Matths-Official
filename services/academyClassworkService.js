@@ -289,6 +289,31 @@ async function removeAcademyClassWeekFile({ teacherUserId, classId, weekId, file
   return { weekId: week._id, fileId };
 }
 
+async function deleteAcademyClassWeek({ teacherUserId, classId, weekId }) {
+  const { context, academyClass } = await getManagedClass({ teacherUserId, classId });
+  if (!mongoose.isValidObjectId(weekId)) {
+    throw statusError(404, "삭제할 주차를 찾을 수 없습니다.");
+  }
+  const week = await AcademyClassWeek.findOne({
+    _id: weekId,
+    academyId: context.academyId,
+    classId: academyClass._id,
+  }).lean();
+  if (!week) throw statusError(404, "삭제할 주차를 찾을 수 없습니다.");
+
+  const deletion = await AcademyClassWeek.deleteOne({
+    _id: week._id,
+    academyId: context.academyId,
+    classId: academyClass._id,
+  });
+  if (deletion.deletedCount !== 1) throw statusError(409, "주차 삭제 상태가 변경되었습니다. 다시 확인해 주세요.");
+
+  await Promise.all((week.files || []).map((file) => destroyStoredAsset(file).catch((error) => {
+    console.error("학원 주차 삭제 후 과제 파일 원본 정리 실패:", error.message);
+  })));
+  return { weekId: week._id, academicYear: week.academicYear, weekNumber: week.weekNumber };
+}
+
 async function getStudentAcademyContext(studentUserId) {
   const membership = await AcademyStudentMembership.findOne({
     studentUserId,
@@ -408,6 +433,7 @@ module.exports = {
   currentKstYear,
   curriculumConceptCatalog,
   createAcademyWeekFileDownload,
+  deleteAcademyClassWeek,
   getAcademyClassworkTeacherView,
   getStudentAcademyClassroom,
   getStudentAcademyWeek,

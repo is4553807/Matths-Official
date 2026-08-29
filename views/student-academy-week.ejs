@@ -39,7 +39,7 @@
       </aside>
 
       <main class="dashboard-main student-academy-main" id="student-academy-main">
-        <header class="topbar"><div class="topbar-left"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button><div><p><%= academy.name %> · <%= academyClass.name %></p><h1><%= week.weekNumber %>주차</h1></div></div><a class="learning-home-button" href="/my-academy">주차 목록 <span aria-hidden="true">→</span></a></header>
+        <header class="topbar student-academy-topbar"><div class="topbar-left"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button><div><p><%= academy.name %> · <%= academyClass.name %></p><h1><%= week.weekNumber %>주차</h1></div></div><a class="learning-home-button" href="/my-academy">주차 목록 <span aria-hidden="true">→</span></a></header>
 
         <section class="student-academy-week-hero"><span><%= week.weekNumber %></span><div><small><%= week.academicYear %> · WEEK <%= week.weekNumber %></small><h2><%= week.title %></h2><p><%= week.lessonSummary || "선생님이 등록한 이번 주 학습 개념과 과제를 확인하세요." %></p></div></section>
 

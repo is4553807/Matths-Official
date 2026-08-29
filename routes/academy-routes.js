@@ -118,6 +118,12 @@ router.post(
   authMiddleware.isTeacher,
   academyController.removeClassWeekFile
 );
+router.post(
+  "/academy/classes/:classId/weeks/:weekId/delete",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.deleteClassWeek
+);
 router.get(
   "/academy/classes/:classId/weeks/:weekId/files/:fileId",
   authMiddleware.isLoggedIn,

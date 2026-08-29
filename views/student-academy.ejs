@@ -33,7 +33,7 @@
       </aside>
 
       <main class="dashboard-main student-academy-main" id="student-academy-main">
-        <header class="topbar"><div class="topbar-left"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button><div><p>ACADEMY CLASSROOM</p><h1>학원</h1></div></div><a class="learning-home-button" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a></header>
+        <header class="topbar student-academy-topbar"><div class="topbar-left"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button><div><p>ACADEMY CLASSROOM</p><h1>학원</h1></div></div><a class="learning-home-button" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a></header>
 
         <section class="student-academy-hero">
           <div class="student-academy-mark"><% if (classroom.profileImageSrc) { %><img src="<%= classroom.profileImageSrc %>" alt="<%= academy.name %> 프로필" /><% } else { %><span aria-hidden="true"><%= String(academy.name || "학").slice(0, 1) %></span><% } %></div>

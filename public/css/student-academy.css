@@ -8,7 +8,7 @@
 
 .student-academy-page { background: #f5f7fb; }
 .student-academy-main { min-width: 0; padding-bottom: 64px; }
-.student-academy-main .topbar { background: rgb(255 255 255 / 86%); backdrop-filter: blur(16px); }
+.student-academy-main .student-academy-topbar { position: sticky; top: 0; margin-inline: -38px; padding-inline: 38px; background: rgb(255 255 255 / 94%); box-shadow: 0 1px 0 rgb(225 229 239 / 90%); backdrop-filter: blur(16px); }
 .learning-home-button { display: inline-flex; align-items: center; gap: 9px; padding: 11px 14px; color: #294fc9; background: #edf1ff; border: 1px solid #dce4ff; border-radius: 11px; font-size: 12px; font-weight: 800; text-decoration: none; }
 
 .student-academy-hero, .student-academy-week-hero, .student-academy-heading, .student-academy-week-grid, .student-academy-content-panel, .student-academy-empty { width: min(1120px, calc(100% - 64px)); margin-right: auto; margin-left: auto; }
@@ -79,6 +79,10 @@
   .student-academy-concept-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (max-width: 1180px) {
+  .student-academy-main .student-academy-topbar { margin-inline: -25px; padding-inline: 25px; }
+}
+
 @media (max-width: 720px) {
   .student-academy-hero, .student-academy-week-hero, .student-academy-heading, .student-academy-week-grid, .student-academy-content-panel, .student-academy-empty { width: min(100% - 28px, 1120px); }
   .student-academy-hero { grid-template-columns: auto 1fr; padding: 22px; }
@@ -95,4 +99,8 @@
   .student-academy-hero h2 { font-size: 23px; }
   .student-academy-week-hero { align-items: flex-start; padding: 21px; }
   .student-academy-week-hero > span { flex-basis: 48px; width: 48px; height: 48px; }
+}
+
+@media (max-width: 560px) {
+  .student-academy-main .student-academy-topbar { margin-inline: -16px; padding-inline: 16px; }
 }

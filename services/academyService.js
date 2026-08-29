@@ -911,6 +911,14 @@ async function getAcademyClassDetail({ teacherUserId, classId }) {
     .lean();
   if (!academyClass) throw statusError(404, "현재 학원에서 사용하는 반을 찾을 수 없습니다.");
 
+  const assignedToClass =
+    context.staff.role === "OWNER" ||
+    String(academyClass.homeroomTeacherUserId?._id || academyClass.homeroomTeacherUserId) === String(teacherUserId) ||
+    academyClass.coTeacherUserIds.some((user) => String(user?._id || user) === String(teacherUserId));
+  if (!assignedToClass) {
+    throw statusError(403, "권한이 없습니다.");
+  }
+
   const [students, pendingCount, activeStaff] = await Promise.all([
     AcademyStudentMembership.find({
       academyId: context.academyId,
@@ -935,10 +943,7 @@ async function getAcademyClassDetail({ teacherUserId, classId }) {
     academyClass,
     students: students.filter((entry) => entry.studentUserId),
     activeStaff: activeStaff.filter((entry) => entry.userId),
-    canManageClass:
-      context.staff.role === "OWNER" ||
-      String(academyClass.homeroomTeacherUserId?._id || academyClass.homeroomTeacherUserId) === String(teacherUserId) ||
-      academyClass.coTeacherUserIds.some((user) => String(user?._id || user) === String(teacherUserId)),
+    canManageClass: assignedToClass,
     isOwner: context.staff.role === "OWNER",
     pendingCount,
   };
