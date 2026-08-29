@@ -73,6 +73,7 @@ const {
   getStudentAttendanceDashboard,
   regenerateAttendanceSessionCode,
   saveAcademyAttendanceRoster,
+  _private: academyAttendancePrivate,
 } = require("../services/academyAttendanceService");
 const {
   calculateConceptMastery,
@@ -129,6 +130,34 @@ async function main() {
     assert.equal(graphValidation.valid, true, graphValidation.errors.join("\n"));
     assert.ok(graphValidation.nodeCount >= 200);
     assert.equal(graphValidation.verifiedEdgeCount, 24);
+    const attendanceSecretEnvironment = Object.fromEntries(
+      ["NODE_ENV", "ATTENDANCE_CODE_SECRET"]
+        .map((key) => [key, process.env[key]])
+    );
+    try {
+      process.env.NODE_ENV = "production";
+      process.env.ATTENDANCE_CODE_SECRET = "academy-attendance-production-secret-1234567890";
+      const productionAttendanceCode = academyAttendancePrivate.attendanceCodeForSession({
+        _id: new mongoose.Types.ObjectId(),
+        codeVersion: 1,
+        sessionKey: "attendance-production-secret-verification",
+      });
+      assert.match(productionAttendanceCode, /^\d{6}$/);
+      delete process.env.ATTENDANCE_CODE_SECRET;
+      assert.throws(
+        () => academyAttendancePrivate.attendanceCodeForSession({
+          _id: new mongoose.Types.ObjectId(),
+          codeVersion: 1,
+          sessionKey: "attendance-missing-secret-verification",
+        }),
+        (error) => Number(error.status) === 503 && /보안.*설정/.test(error.message)
+      );
+    } finally {
+      Object.entries(attendanceSecretEnvironment).forEach(([key, value]) => {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      });
+    }
     const formulaResult = calculateConceptMastery(
       Array.from({ length: 5 }, (_, index) => ({
         problemId: new mongoose.Types.ObjectId(),

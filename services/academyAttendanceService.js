@@ -118,16 +118,14 @@ function sessionState(session, now = new Date()) {
 }
 
 function attendanceCodeSecret() {
-  const secret = String(
-    process.env.ATTENDANCE_CODE_SECRET ||
-    process.env.SESSION_SECRET ||
-    process.env.SESSION_KEY ||
-    ""
-  );
-  if (secret) return secret;
+  const secret = String(process.env.ATTENDANCE_CODE_SECRET || "");
   if (process.env.NODE_ENV === "production") {
-    throw statusError(503, "출석 코드 보안 설정이 완료되지 않았습니다.");
+    if (secret.length < 32) {
+      throw statusError(503, "32자 이상의 출석 코드 보안키 설정이 필요합니다.");
+    }
+    return secret;
   }
+  if (secret) return secret;
   return "matths-local-attendance-code-secret";
 }
 

@@ -33,6 +33,7 @@ const validProductionEnvironment = {
   SUPPORT_SMTP_USER: "support@gmail.com",
   GMAIL_APP_PASSWORD: "app-password",
   DOCUMENT_WATERMARK_SECRET: "w".repeat(32),
+  ATTENDANCE_CODE_SECRET: "a".repeat(32),
   PASSWORD_RESET_SECRET: "p".repeat(32),
   FINANCE_PG_FEE_RESERVE_BPS: "350",
 };
@@ -43,6 +44,14 @@ async function main() {
 
   const invalidReport = runtimeEnvironmentReport({ NODE_ENV: "production" });
   assert.ok(invalidReport.errors.length >= 8);
+
+  const missingAttendanceSecretReport = runtimeEnvironmentReport({
+    ...validProductionEnvironment,
+    ATTENDANCE_CODE_SECRET: "",
+  });
+  assert.ok(
+    missingAttendanceSecretReport.errors.some((item) => item.includes("ATTENDANCE_CODE_SECRET"))
+  );
 
   const insecureUrlReport = runtimeEnvironmentReport({
     ...validProductionEnvironment,

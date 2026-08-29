@@ -132,6 +132,9 @@ function runtimeEnvironmentReport(environment = process.env) {
   if (valueOf(environment, "DOCUMENT_WATERMARK_SECRET").length < 16) {
     errors.push("DOCUMENT_WATERMARK_SECRET은 16자 이상의 별도 무작위 값이어야 합니다.");
   }
+  if (valueOf(environment, "ATTENDANCE_CODE_SECRET").length < MIN_SECRET_LENGTH) {
+    errors.push(`ATTENDANCE_CODE_SECRET은 ${MIN_SECRET_LENGTH}자 이상의 별도 무작위 값이어야 합니다.`);
+  }
   if (valueOf(environment, "PASSWORD_RESET_SECRET").length < 24) {
     errors.push("PASSWORD_RESET_SECRET은 24자 이상의 별도 무작위 값이어야 합니다.");
   }
