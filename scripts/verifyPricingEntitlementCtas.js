@@ -58,7 +58,7 @@ async function renderPricing(productAccess) {
     products,
     productAccess,
     checkoutEnabled: true,
-    publicContactEmail: "admin@lsbproduction.com",
+    publicContactEmail: "dltkddbs4553@matths.kr",
   });
 }
 

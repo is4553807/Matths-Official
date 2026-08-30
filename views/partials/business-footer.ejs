@@ -1,3 +1,6 @@
+<% const footerContactEmail = typeof publicContactEmail !== "undefined" && publicContactEmail
+  ? publicContactEmail
+  : "dltkddbs4553@matths.kr"; %>
 <footer class="business-site-footer">
   <div class="business-site-footer__inner">
     <div class="business-site-footer__top">
@@ -36,7 +39,7 @@
       </div>
       <div>
         <dt>고객센터</dt>
-        <dd><a href="mailto:dltkddbs4553@matths.kr">dltkddbs4553@matths.kr</a></dd>
+        <dd><a href="mailto:<%= footerContactEmail %>"><%= footerContactEmail %></a></dd>
       </div>
       <div>
         <dt>호스팅 서비스 제공자</dt>

@@ -28,7 +28,7 @@ function product(code, amount, periodLabel) {
 
 async function render(name, locals) {
   return ejs.renderFile(path.join(views, name), {
-    publicContactEmail: "admin@lsbproduction.com",
+    publicContactEmail: "dltkddbs4553@matths.kr",
     adminTodoSummary: { pendingCount: 0, items: [] },
     ...locals,
   });
