@@ -498,6 +498,24 @@ const arenaPackagePaymentSchema = new Schema(
       maxlength: 140,
       default: "29일 학습권 패키지",
     },
+    // App Store Server Notifications V2는 로그인 세션 없이 도착한다. 최초 결제 때
+    // 이 세 값을 원장에 남겨야 갱신·환불 통지를 사용자와 다시 연결할 수 있다.
+    appleOriginalTransactionId: {
+      type: String,
+      trim: true,
+      maxlength: 160,
+      default: undefined,
+    },
+    appleAppAccountToken: {
+      type: String,
+      trim: true,
+      maxlength: 64,
+      default: undefined,
+    },
+    appleExpiresAt: {
+      type: Date,
+      default: undefined,
+    },
     refundedAmount: { type: Number, min: 0, default: 0 },
     refundStatus: {
       type: String,
@@ -563,6 +581,14 @@ const arenaPackagePaymentSchema = new Schema(
 arenaPackagePaymentSchema.index(
   { provider: 1, providerPaymentKey: 1 },
   { unique: true }
+);
+arenaPackagePaymentSchema.index(
+  { provider: 1, appleOriginalTransactionId: 1 },
+  { partialFilterExpression: { appleOriginalTransactionId: { $type: "string" } } }
+);
+arenaPackagePaymentSchema.index(
+  { provider: 1, appleAppAccountToken: 1 },
+  { partialFilterExpression: { appleAppAccountToken: { $type: "string" } } }
 );
 
 /*

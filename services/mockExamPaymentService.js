@@ -29,15 +29,46 @@ function statusError(status, message, code = "") {
   return error;
 }
 
+function subscriptionEndsAt(approval, policy) {
+  if (approval.provider === "APPLE") {
+    const expiresAt = new Date(approval.appleExpiresAt);
+    if (
+      Number.isNaN(expiresAt.getTime()) ||
+      expiresAt.getTime() <= new Date(approval.approvedAt).getTime()
+    ) {
+      throw statusError(
+        400,
+        "App Store 구독 만료 시각을 확인해주세요.",
+        "APPLE_SUBSCRIPTION_EXPIRY_INVALID"
+      );
+    }
+    return expiresAt;
+  }
+  return new Date(
+    new Date(approval.approvedAt).getTime() +
+      Number(policy.billingPeriodDays || 30) * DAY_MS
+  );
+}
+
 function normalizeApproval(input = {}) {
   const userId = clean(input.userId, 40);
   const approvedAt = new Date(input.approvedAt);
   const approvedAmount = Number(input.approvedAmount);
   const currency = clean(input.currency || "KRW", 3).toUpperCase();
   const purchaseMode = clean(input.purchaseMode || "SELF", 30).toUpperCase();
+  const provider = clean(input.provider, 40).toUpperCase();
+  const appleOriginalTransactionId = provider === "APPLE"
+    ? clean(input.appleOriginalTransactionId, 160)
+    : undefined;
+  const appleAppAccountToken = provider === "APPLE"
+    ? clean(input.appleAppAccountToken, 64) || undefined
+    : undefined;
+  const appleExpiresAt = provider === "APPLE" && input.appleExpiresAt
+    ? new Date(input.appleExpiresAt)
+    : undefined;
   const approval = {
     userId,
-    provider: clean(input.provider, 40).toUpperCase(),
+    provider,
     providerMode: clean(input.providerMode, 10).toUpperCase(),
     providerPaymentKey: clean(input.providerPaymentKey, 160),
     orderReference: clean(input.orderReference, 160),
@@ -48,6 +79,9 @@ function normalizeApproval(input = {}) {
     productCode: PRODUCT_CODE,
     productName: clean(input.productName || PRODUCT_NAME, 140),
     purchaseMode,
+    appleOriginalTransactionId,
+    appleAppAccountToken,
+    appleExpiresAt,
   };
   if (!mongoose.isValidObjectId(userId)) {
     throw statusError(400, "결제 대상 사용자를 확인해주세요.", "INVALID_USER_ID");
@@ -60,8 +94,8 @@ function normalizeApproval(input = {}) {
   ) {
     throw statusError(400, "결제 승인 식별자가 누락되었습니다.", "PAYMENT_IDENTIFIER_REQUIRED");
   }
-  if (approval.provider === "TOSS" && !["TEST", "LIVE"].includes(approval.providerMode)) {
-    throw statusError(400, "토스페이먼츠 결제 실행 모드를 확인해주세요.", "PAYMENT_PROVIDER_MODE_REQUIRED");
+  if (["TOSS", "APPLE"].includes(approval.provider) && !["TEST", "LIVE"].includes(approval.providerMode)) {
+    throw statusError(400, "결제 실행 모드를 확인해주세요.", "PAYMENT_PROVIDER_MODE_REQUIRED");
   }
   if (!Number.isSafeInteger(approvedAmount) || approvedAmount < 0) {
     throw statusError(400, "결제 승인 금액을 확인해주세요.", "INVALID_APPROVED_AMOUNT");
@@ -71,6 +105,21 @@ function normalizeApproval(input = {}) {
   }
   if (!["SELF", "PARENT_REQUEST"].includes(purchaseMode)) {
     throw statusError(400, "결제 요청 유형을 확인해주세요.", "INVALID_PURCHASE_MODE");
+  }
+  if (
+    approval.provider === "APPLE" &&
+    (
+      !appleOriginalTransactionId ||
+      !appleExpiresAt ||
+      Number.isNaN(appleExpiresAt.getTime()) ||
+      appleExpiresAt.getTime() <= approvedAt.getTime()
+    )
+  ) {
+    throw statusError(
+      400,
+      "App Store 구독 식별자 또는 만료 시각을 확인해주세요.",
+      "APPLE_SUBSCRIPTION_METADATA_REQUIRED"
+    );
   }
   approval.userId = new mongoose.Types.ObjectId(userId);
   return approval;
@@ -99,7 +148,13 @@ function assertSameApproval(existing, approval) {
     existing.idempotencyKey !== approval.idempotencyKey ||
     existing.currency !== approval.currency ||
     Number(existing.approvedAmount) !== approval.approvedAmount ||
-    existing.productCode !== PRODUCT_CODE
+    existing.productCode !== PRODUCT_CODE ||
+    String(existing.appleOriginalTransactionId || "") !==
+      String(approval.appleOriginalTransactionId || "") ||
+    String(existing.appleAppAccountToken || "") !==
+      String(approval.appleAppAccountToken || "") ||
+    String(existing.appleExpiresAt ? new Date(existing.appleExpiresAt).toISOString() : "") !==
+      String(approval.appleExpiresAt ? new Date(approval.appleExpiresAt).toISOString() : "")
   ) {
     throw statusError(
       409,
@@ -241,9 +296,9 @@ async function applyApprovedMockExamPayment(input) {
       const paymentId = new mongoose.Types.ObjectId();
       const subscriptionId = new mongoose.Types.ObjectId();
       const startsAt = new Date(approval.approvedAt);
-      const endsAt = new Date(
-        startsAt.getTime() + Number(policy.billingPeriodDays || 30) * DAY_MS
-      );
+      // 자동갱신 구독의 달 길이는 28~31일이다. 고정 30일을 더하면 Apple의
+      // 실제 권한보다 일찍 닫히거나 늦게 남으므로 JWS의 expiresDate를 따른다.
+      const endsAt = subscriptionEndsAt(approval, policy);
       const [subscription] = await MockExamSubscription.create(
         [
           {
@@ -284,6 +339,9 @@ async function applyApprovedMockExamPayment(input) {
             approvedAmount: approval.approvedAmount,
             productCode: PRODUCT_CODE,
             productName: approval.productName,
+            appleOriginalTransactionId: approval.appleOriginalTransactionId,
+            appleAppAccountToken: approval.appleAppAccountToken,
+            appleExpiresAt: approval.appleExpiresAt,
             mockExamSubscriptionId: subscriptionId,
             processedAt: new Date(),
           },
@@ -311,5 +369,6 @@ module.exports = {
     assertSameApproval,
     normalizeApproval,
     replayFilter,
+    subscriptionEndsAt,
   },
 };

@@ -339,7 +339,9 @@ async function revokeForAppleRefund(transaction) {
   if (payment.productCode === "MOCK_EXAM_ONLY" && payment.mockExamSubscriptionId) {
     await MockExamSubscription.updateMany(
       { _id: payment.mockExamSubscriptionId },
-      { $set: { status: "CANCELLED", expiresAt: cancelTime } }
+      // MockExamSubscription의 진실 필드는 endsAt이다. expiresAt을 쓰면 Mongoose가
+      // 알 수 없는 필드를 버리고 환불 뒤에도 기존 endsAt까지 권한이 열린다.
+      { $set: { status: "CANCELLED", endsAt: cancelTime } }
     );
   }
 
