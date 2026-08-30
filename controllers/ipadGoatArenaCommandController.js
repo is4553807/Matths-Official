@@ -1,6 +1,10 @@
 const {
   createGoatArenaProductionCommandService,
 } = require("../services/goatArenaProductionCommandService");
+const {
+  getInlineSolutionBoards,
+  saveInlineSolutionBoard,
+} = require("../services/arenaInlineSolutionBoardService");
 
 /**
  * iPad GOAT Arena 경기 명령 HTTP 경계.
@@ -209,17 +213,85 @@ function createIpadGoatArenaCommandController({
 
   async function advanceQuestion(req, res, next) {
     try {
-      const body = strictBody(req, ["questionSlot", "answer"]);
+      const body = strictBody(req, [
+        "questionSlot",
+        "answer",
+        "boardRevision",
+        "boardSha256",
+      ]);
       const result = await commandService.advanceParticipantQuestion(
         commandContext(req),
         {
           ...commandInput(req),
           questionSlot: body.questionSlot,
           answer: body.answer,
+          boardRevision: body.boardRevision,
+          boardSha256: body.boardSha256,
+          evidenceMode: req.get("X-Matths-Evidence-Mode") || undefined,
         }
       );
       noStore(res);
       return res.json(result);
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async function listSolutionBoards(req, res, next) {
+    try {
+      const boards = await getInlineSolutionBoards({
+        matchId: req.params.matchId,
+        userId: commandContext(req).userId,
+      });
+      noStore(res);
+      return res.json({ boards });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async function saveSolutionBoard(req, res, next) {
+    try {
+      if (!req.file) {
+        fail("ARENA_INLINE_BOARD_FILE_REQUIRED", "풀이판 이미지를 확인해주세요.", 400);
+      }
+      requiredHeader(req, "Idempotency-Key", MAX_COMMAND_KEY_LENGTH);
+      requiredHeader(req, "X-Matths-Client-Version", MAX_CLIENT_BUILD_LENGTH);
+      const body = strictBody(req, [
+        "questionSlot",
+        "revision",
+        "strokeCount",
+        "drawingDataBase64",
+      ]);
+      const board = await saveInlineSolutionBoard({
+        matchId: req.params.matchId,
+        userId: commandContext(req).userId,
+        questionSlot: body.questionSlot,
+        revision: body.revision,
+        strokeCount: body.strokeCount,
+        drawingDataBase64: body.drawingDataBase64,
+        file: req.file,
+      });
+      req.file = undefined;
+      noStore(res);
+      return res.json({ board });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async function finalizeSolutionBoards(req, res, next) {
+    try {
+      strictBody(req, []);
+      requiredHeader(req, "Idempotency-Key", MAX_COMMAND_KEY_LENGTH);
+      requiredHeader(req, "X-Matths-Client-Version", MAX_CLIENT_BUILD_LENGTH);
+      const result = await require("../services/arenaInlineSolutionBoardService")
+        .promoteInlineSolutionBoards({
+          matchId: req.params.matchId,
+          userId: commandContext(req).userId,
+        });
+      noStore(res);
+      return res.json({ finalized: true, replayed: result.replayed === true });
     } catch (error) {
       return next(error);
     }
@@ -247,11 +319,14 @@ function createIpadGoatArenaCommandController({
 
   return Object.freeze({
     advanceQuestion,
+    finalizeSolutionBoards,
     getQuestions,
     heartbeat,
+    listSolutionBoards,
     recordNetworkState,
     recordQuestionFocus,
     saveAnswer,
+    saveSolutionBoard,
     startMatch,
     submitAttempt,
   });

@@ -226,7 +226,7 @@
             </div>
           </header>
           <div class="arena-ranked-economy-table-wrap">
-            <table>
+            <table class="arena-mobile-card-table">
               <thead>
                 <tr>
                   <th scope="col">경기 방식</th>
@@ -238,15 +238,15 @@
               <tbody>
                 <tr>
                   <th scope="row">상향 쟁탈전<br /><small>하위 티어 → 상위 티어 · 자동 방어</small></th>
-                  <td>공격자만 S일 예치</td>
-                  <td>공격자 S일 반환<br />Arena 상태 교환</td>
-                  <td>공격자 S일이 방어자에게 이전<br />Arena 상태 유지</td>
+                  <td data-label="예치 방식">공격자만 S일 예치</td>
+                  <td data-label="공격자 승리">공격자 S일 반환<br />Arena 상태 교환</td>
+                  <td data-label="방어자 승리">공격자 S일이 방어자에게 이전<br />Arena 상태 유지</td>
                 </tr>
                 <tr>
                   <th scope="row">수락형 초대전<br /><small>상위 티어 → 하위 티어 · 수락 뒤 성립</small></th>
-                  <td>수락 후 양쪽이 S일씩 예치</td>
-                  <td>공격자 S일 반환 + 방어자 S일 이전<br />Arena 상태 교환</td>
-                  <td>방어자 S일 반환 + 공격자 S일 이전<br />Arena 상태 유지</td>
+                  <td data-label="예치 방식">수락 후 양쪽이 S일씩 예치</td>
+                  <td data-label="공격자 승리">공격자 S일 반환 + 방어자 S일 이전<br />Arena 상태 교환</td>
+                  <td data-label="방어자 승리">방어자 S일 반환 + 공격자 S일 이전<br />Arena 상태 유지</td>
                 </tr>
               </tbody>
             </table>
@@ -266,13 +266,13 @@
           </div>
         </header>
         <div class="arena-ranked-economy-table-wrap">
-          <table>
+          <table class="arena-mobile-card-table">
             <thead><tr><th scope="col">초대 전</th><th scope="col">수락 시</th><th scope="col">문제 난이도</th><th scope="col">경기 결과</th></tr></thead>
             <tbody><tr>
-              <td>학습일수 차감 없이 초대·거절·취소 가능</td>
-              <td>양쪽에서 이용 수수료 1일씩 차감</td>
-              <td>두 참가자 중 더 높은 Ranked 티어에 맞춘 동일 5문항</td>
-              <td>티어·GP·순위·학습일수 이전 없음</td>
+              <td data-label="초대 전">학습일수 차감 없이 초대·거절·취소 가능</td>
+              <td data-label="수락 시">양쪽에서 이용 수수료 1일씩 차감</td>
+              <td data-label="문제 난이도">두 참가자 중 더 높은 Ranked 티어에 맞춘 동일 5문항</td>
+              <td data-label="경기 결과">티어·GP·순위·학습일수 이전 없음</td>
             </tr></tbody>
           </table>
         </div>

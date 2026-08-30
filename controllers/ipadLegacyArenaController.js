@@ -11,6 +11,9 @@ const {
 const {
   getRankingDisplayName,
 } = require("../services/userIdentityService");
+const {
+  getArenaActivityLevels,
+} = require("../services/arenaActivityLevelService");
 
 function tierForEntry(entry) {
   const value = String(entry?.tier || "");
@@ -21,13 +24,16 @@ function tierForEntry(entry) {
   );
 }
 
-function arenaRow(entry, currentUserId) {
+function arenaRow(entry, currentUserId, activityLevels = new Map()) {
   if (!entry) return null;
   const tier = tierForEntry(entry);
   const division = Number(entry.division);
   return {
     userId: String(entry.userId),
     name: String(entry.displayName || "학생"),
+    profileAvatar: entry.profileAvatar || null,
+    arenaActivityLevel:
+      activityLevels.get(String(entry.userId)) || null,
     rank: Number(entry.overallRank ?? entry.rank) || 0,
     mmr: Number(entry.rating) || 0,
     rating: Number(entry.rating) || 0,
@@ -93,13 +99,18 @@ exports.getArenaLeaderboard = async (req, res, next) => {
   try {
     const currentUserId = req.apiUser._id;
     const rankingData = await getRankingData(currentUserId);
-    const top = (rankingData?.overall || [])
-      .slice(0, 20)
-      .map((entry) => arenaRow(entry, currentUserId));
+    const topEntries = (rankingData?.overall || []).slice(0, 20);
+    const activityLevels = await getArenaActivityLevels([
+      ...topEntries.map((entry) => entry.userId),
+      rankingData?.current?.userId,
+    ]);
+    const top = topEntries.map((entry) =>
+      arenaRow(entry, currentUserId, activityLevels)
+    );
     return res.json({
       total: Number(rankingData?.cohortSize) || 0,
       top,
-      me: arenaRow(rankingData?.current, currentUserId),
+      me: arenaRow(rankingData?.current, currentUserId, activityLevels),
     });
   } catch (error) {
     return next(error);

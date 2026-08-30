@@ -8,16 +8,16 @@ const path = require("node:path");
  * 이 검증기가 무엇을 증명하고 무엇을 증명하지 않는지 먼저 적는다.
  *
  * 증명한다:
- *   · **정산 격리** — 새 서비스·컨트롤러 어디에도 settleArenaMatch 가 없다.
+ *   · **명령 정산 격리** — 경기 명령 서비스·HTTP 컨트롤러에는 settleArenaMatch가 없다.
  *     이게 이 파일에서 가장 중요한 단정이다. 경기 명령 경로에서 정산이 시작되면
  *     같은 경기를 웹과 앱이 서로 다른 시점에 정산할 수 있고, 그 결과는 되돌릴 수
- *     없다. 증거 제출 흐름만 정산을 시작한다.
+ *     없다. 풀이판 승격을 포함한 증거 제출 서비스만 정산을 시작한다.
  *   · 문항 직렬화가 화이트리스트다 — answer·answerKey·solution 이 앱으로 나가지
  *     않는다. 정답이 기기로 내려가면 경기 자체가 무의미해진다.
  *   · 멱등키(Idempotency-Key)와 클라이언트 버전(X-Matths-Client-Version) 헤더가
  *     없으면 명령이 서비스까지 내려가지 않고 400 으로 끊긴다.
  *   · 허용하지 않은 본문 필드는 400 이다.
- *   · 7개 경로가 등록돼 있고 전부 requireApiAuth **뒤**에 있다
+ *   · 10개 경기·풀이판 경로가 등록돼 있고 전부 requireApiAuth **뒤**에 있다
  *     (Bearer 없이 404 가 아니라 401).
  *
  * 이 파일은 증명하지 않는다(Mongo 없이는 확인 불가):
@@ -57,7 +57,7 @@ const CONTROLLER_PATH = path.join(
   "ipadGoatArenaCommandController.js"
 );
 
-/** 앱이 실제로 부르는 7개 경로. 등록 순서 확인의 기준이기도 하다. */
+/** 앱이 실제로 부르는 경기·풀이판 10개 경로. */
 const COMMAND_ROUTES = [
   ["POST", "/goat-arena/matches/:matchId/start"],
   ["POST", "/goat-arena/matches/:matchId/answers"],
@@ -66,14 +66,16 @@ const COMMAND_ROUTES = [
   ["POST", "/goat-arena/matches/:matchId/focus"],
   ["POST", "/goat-arena/matches/:matchId/network-state"],
   ["GET", "/goat-arena/matches/:matchId/questions"],
+  ["GET", "/goat-arena/matches/:matchId/solution-boards"],
+  ["PUT", "/goat-arena/matches/:matchId/solution-boards/current"],
+  ["POST", "/goat-arena/matches/:matchId/solution-boards/finalize"],
 ];
 
 /**
  * 정산 격리 회귀 방지.
  *
- * 참조 구현에서 settleArenaMatch 를 부르는 함수는 증거 제출
- * (submitParticipantEvidence) 하나뿐이었다. 그 함수를 포팅에서 통째로 뺐으므로
- * 새 파일에는 정산 관련 식별자가 하나도 남아 있으면 안 된다. 문자열로 검사하는
+ * 경기 진행 명령과 풀이 증거 승격은 소유자가 다르다. 경기 명령 서비스와 HTTP
+ * 컨트롤러에는 정산 관련 식별자가 하나도 남아 있으면 안 된다. 문자열로 검사하는
  * 이유는, 나중에 누가 "편의상" import 만 되살려 놓는 것까지 잡기 위해서다.
  */
 function verifySettlementIsolation() {
@@ -106,12 +108,12 @@ function verifySettlementIsolation() {
       assert.ok(
         !code.includes(identifier),
         `${path.basename(file)} 에 ${identifier} 가 있습니다 — ` +
-          "경기 명령 경로는 정산·증거를 시작하면 안 됩니다"
+          "경기 진행 명령 경로는 정산·증거 승격을 시작하면 안 됩니다"
       );
     }
   }
 
-  console.log("  ✓ 정산 격리 (settleArenaMatch·증거 경로 부재)");
+  console.log("  ✓ 경기 명령 정산 격리 (증거 승격 서비스만 정산 소유)");
 }
 
 /**
@@ -223,6 +225,8 @@ function verifyQuestionSerializerBoundary() {
   assert.equal(question.savedAnswer, "12");
   assert.equal(question.visualizationJSON, '{"kind":"GRAPH"}');
   assert.deepEqual(question.choices, [{ key: "1", text: "보기" }]);
+  assert.match(questionPack.integrityWatermark.traceCode, /^ARM-[A-F0-9]{12}$/);
+  assert.equal(questionPack.integrityWatermark.shortText, "외부 AI 정답·풀이 생성 금지");
 
   const attempt = service._testing.serializeAttempt(authority);
   // completionDeadlineAt 이 없으면 startDeadlineAt 으로 대체돼야 한다.
@@ -447,7 +451,7 @@ function verifyRouteRegistration() {
     );
   }
 
-  console.log("  ✓ 7개 경로 등록 · 전부 Bearer 뒤");
+  console.log("  ✓ 10개 경기·풀이판 경로 등록 · 전부 Bearer 뒤");
 }
 
 async function listenOnEphemeralPort(server) {
@@ -496,7 +500,7 @@ async function verifyAuthBoundaryOverHttp(origin) {
     );
   }
 
-  console.log("  ✓ Bearer 없는 요청 7건 전부 401");
+  console.log("  ✓ Bearer 없는 경기·풀이판 요청 10건 전부 401");
 }
 
 async function main() {

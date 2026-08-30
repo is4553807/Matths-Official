@@ -5,6 +5,9 @@ const {
   ArenaMatchAttempt,
   MainInvitationOffer,
 } = require("../models/goatArenaModel");
+const {
+  buildArenaMatchPreStartContract,
+} = require("./arenaMatchPreStartContractService");
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
@@ -137,6 +140,7 @@ function serializeParticipantMatch(source, userId, participantAttempt = null) {
     role,
     activeRanking: match.division,
     matchType: match.matchType,
+    preStartContract: buildArenaMatchPreStartContract(match, role),
     myPositionBefore: mine.tupleBefore?.arenaPosition ?? null,
     opponentPositionBefore: opponent.tupleBefore?.arenaPosition ?? null,
     myPositionAfter:

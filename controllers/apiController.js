@@ -78,6 +78,28 @@ const {
 } = require(
   "../services/socialAuthService"
 );
+const {
+  ArenaAccessState,
+} = require("../models/goatArenaModel");
+const {
+  resolveArenaProfileAvatar,
+  updateArenaProfileAvatar,
+  updateCustomProfileAvatar,
+} = require("../services/arenaProfileAvatarService");
+const {
+  getArenaActivityLevel,
+} = require("../services/arenaActivityLevelService");
+const {
+  dashboardTutorialView,
+  updateDashboardTutorial,
+} = require("../services/dashboardTutorialService");
+const {
+  arenaTutorialView,
+  updateArenaTutorial,
+} = require("../services/arenaTutorialService");
+const {
+  updateCoachMode,
+} = require("../services/dashboardService");
 
 const BCRYPT_ROUNDS = 12;
 
@@ -128,6 +150,33 @@ function serializeUser(user) {
     longestStreak:
       Number(user.longestStreak) || 0,
     rankingDisplayMode: "nickname",
+  };
+}
+
+async function serializeIpadUser(user) {
+  const [activityLevel, accessState] = await Promise.all([
+    getArenaActivityLevel(user._id),
+    ArenaAccessState.findOne({ userId: user._id })
+      .select("currentCompetitiveDivision")
+      .lean(),
+  ]);
+  const activeDivision = ["SUB", "MAIN"].includes(
+    String(accessState?.currentCompetitiveDivision || "").toUpperCase()
+  )
+    ? String(accessState.currentCompetitiveDivision).toUpperCase()
+    : null;
+
+  return {
+    ...serializeUser(user),
+    coachMode: user.preferences?.coachMode || "spicy",
+    reducedMotion: user.preferences?.reducedMotion === true,
+    profileAvatar: resolveArenaProfileAvatar(user.preferences),
+    arenaActivityLevel: activityLevel,
+    dashboardTutorial: dashboardTutorialView(user.preferences),
+    arenaTutorial: arenaTutorialView(user.preferences, {
+      activeDivision,
+      isAdminPreview: user.role === "admin",
+    }),
   };
 }
 
@@ -703,10 +752,106 @@ exports.exchangeSocialAuthCode = async (
   }
 };
 
-exports.me = (req, res) =>
-  res.json({
-    user: serializeUser(req.apiUser),
-  });
+exports.me = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    return res.json({
+      user: await serializeIpadUser(req.apiUser),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.updateProfileAvatarPreset = async (req, res, next) => {
+  try {
+    const profileAvatar = await updateArenaProfileAvatar({
+      userId: req.apiUser._id,
+      avatarCode: req.body?.avatarCode,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json({ profileAvatar });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.updateProfileAvatarCustom = async (req, res, next) => {
+  try {
+    if (req.profileAvatarUploadError) throw req.profileAvatarUploadError;
+    if (!req.file) {
+      const error = new Error("프로필 사진을 선택해 주세요.");
+      error.status = 400;
+      error.code = "PROFILE_AVATAR_FILE_REQUIRED";
+      throw error;
+    }
+    const profileAvatar = await updateCustomProfileAvatar({
+      userId: req.apiUser._id,
+      file: req.file,
+    });
+    req.file = undefined;
+    res.set("Cache-Control", "private, no-store");
+    return res.json({ profileAvatar });
+  } catch (error) {
+    if (req.file?.path) {
+      await require("node:fs").promises.unlink(req.file.path).catch(() => {});
+      req.file = undefined;
+    }
+    return next(error);
+  }
+};
+
+exports.updateCoachMode = async (req, res, next) => {
+  try {
+    const coach = await updateCoachMode(
+      req.apiUser._id,
+      req.body?.mode,
+      req.body?.situation || "unanswered"
+    );
+    if (!coach) {
+      const error = new Error("올바른 코치 모드를 선택해주세요.");
+      error.status = 400;
+      throw error;
+    }
+    return res.json({ coach });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.updateDashboardTutorial = async (req, res, next) => {
+  try {
+    const tutorial = await updateDashboardTutorial({
+      userId: req.apiUser._id,
+      action: req.body?.action,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json({ tutorial });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.updateArenaTutorial = async (req, res, next) => {
+  try {
+    const accessState = await ArenaAccessState.findOne({
+      userId: req.apiUser._id,
+    })
+      .select("currentCompetitiveDivision")
+      .lean();
+    const tutorial = await updateArenaTutorial({
+      userId: req.apiUser._id,
+      chapter: req.body?.chapter,
+      action: req.body?.action,
+      activeDivision: accessState?.currentCompetitiveDivision || null,
+      isAdminPreview: req.apiUser.role === "admin",
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json({ tutorial });
+  } catch (error) {
+    return next(error);
+  }
+};
 
 // 웹 프로필과 iPad가 같은 학교 정본을 사용하도록 서버 카탈로그에서
 // 선택값을 다시 검증한 뒤 인증된 사용자 문서만 갱신한다.

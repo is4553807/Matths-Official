@@ -47,6 +47,15 @@
   const errorBox = root.querySelector(
     "[data-arena-match-error]"
   );
+  const connectivity = root.querySelector(
+    "[data-arena-connectivity]"
+  );
+  const connectivityMessage = root.querySelector(
+    "[data-arena-connectivity-message]"
+  );
+  const connectivityRetry = root.querySelector(
+    "[data-arena-connectivity-retry]"
+  );
   const inputs = [
     ...root.querySelectorAll(
       "[data-arena-answer]"
@@ -122,6 +131,17 @@
     errorBox.hidden = false;
   };
 
+  const updateConnectivity = () => {
+    if (!connectivity || !connectivityMessage) return;
+    const offline = !navigator.onLine;
+    connectivity.hidden = !offline && !pendingChanges.length;
+    connectivityMessage.textContent = offline
+      ? "인터넷 연결이 끊겼습니다. 답안은 이 화면에 대기 중입니다. 새로고침하거나 앱을 닫지 말고 연결 후 다시 저장하세요."
+      : pendingChanges.length
+        ? `저장되지 않은 답안 ${pendingChanges.length}개가 남아 있습니다.`
+        : "연결이 복구됐고 답안이 서버에 저장됐습니다.";
+  };
+
   const refreshAnswered = () => {
     if (!answered) return;
   };
@@ -164,12 +184,14 @@
           );
           saveState.textContent =
             "자동 저장 완료";
+          updateConnectivity();
         } catch (error) {
           pendingChanges = [
             ...batch,
             ...pendingChanges,
           ].slice(-200);
           saveState.textContent = "저장 실패";
+          updateConnectivity();
           if (!keepalive) {
             showError(error.message);
           }
@@ -182,6 +204,16 @@
     );
     return saveChain;
   };
+
+  connectivityRetry?.addEventListener("click", () => {
+    flushChanges().catch(() => {});
+  });
+  window.addEventListener("offline", updateConnectivity);
+  window.addEventListener("online", () => {
+    updateConnectivity();
+    flushChanges().catch(() => {});
+  });
+  updateConnectivity();
 
   const enqueueSignal = (
     type,

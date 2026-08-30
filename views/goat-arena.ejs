@@ -55,6 +55,20 @@
               <div><dt>제한시간</dt><dd>문항당 <%= arenaMatchRules.timeLimitMinutes %>분</dd></div>
               <div><dt>경기 방식</dt><dd>1대1</dd></div>
             </dl>
+            <div class="arena-hero-contract-grid" aria-label="Unranked와 Ranked 핵심 계약">
+              <article>
+                <small>UNRANKED</small>
+                <strong>페이백 점수로 도전</strong>
+                <span><%= activeArenaPolicy ? `일반전 ${activeArenaPolicy.matchStakeDays.normal}점 · 복수전 ${activeArenaPolicy.matchStakeDays.revenge}점 예치` : "현재 정책 준비 중" %></span>
+                <a href="/goat-arena/rules/sub">승패·페이백 계약 보기</a>
+              </article>
+              <article>
+                <small>RANKED</small>
+                <strong>학습일수로 도전</strong>
+                <span><%= arenaMainPolicy ? `최대 ${arenaMainPolicy.maximumTargetTierGap}단계 상향 · 승패에 따라 예치 일수 반환 또는 이전` : "현재 정책 준비 중" %></span>
+                <a href="/goat-arena/rules/main">예치·승패 계약 보기</a>
+              </article>
+            </div>
           </div>
 
           <aside class="arena-seed-card" aria-labelledby="seed-card-title" data-arena-tutorial-target="arena-seed-card">

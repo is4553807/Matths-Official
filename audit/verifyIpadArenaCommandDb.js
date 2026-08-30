@@ -7,6 +7,8 @@ const {
   ArenaMatch,
   ArenaMatchAttempt,
   ArenaMatchAttemptEvent,
+  ArenaMatchEvidence,
+  ArenaInlineSolutionBoard,
   ArenaOutboxEvent,
   ArenaProblemPack,
 } = require("../models/goatArenaModel");
@@ -284,10 +286,36 @@ async function run() {
     );
 
     for (let slot = 1; slot <= 5; slot += 1) {
+      await ArenaInlineSolutionBoard.create({
+        attemptId: started.attempt.attemptId,
+        matchId,
+        userId: challengerUserId,
+        questionSlot: slot,
+        revision: 1,
+        strokeCount: slot === 1 ? 0 : slot,
+        drawingData: Buffer.from(`audit-drawing-${slot}`),
+        file: {
+          originalName: `arena-question-${slot}.png`,
+          storedName: `arena-question-${slot}.png`,
+          mimeType: "image/png",
+          sizeBytes: 32 * 1024,
+          sha256: String(slot).padStart(64, "0"),
+          storageProvider: "CLOUDINARY",
+          storagePurpose: "USER_ARENA_EVIDENCE",
+          cloudPublicId: `audit/arena-question-${slot}-${suffix}`,
+          cloudResourceType: "image",
+          cloudDeliveryType: "authenticated",
+          cloudVersion: 1,
+          cloudFormat: "png",
+        },
+      });
       const advanceKey = `ipad-advance-${slot}-${suffix}`;
       const input = commandInput(matchId, advanceKey, {
         questionSlot: slot,
         answer: String(slot + 1),
+        boardRevision: 1,
+        boardSha256: String(slot).padStart(64, "0"),
+        evidenceMode: "INLINE_BOARD_V1",
       });
       const advanced = await service.advanceParticipantQuestion(auth, input);
       const replayedAdvance = await service.advanceParticipantQuestion(auth, input);
@@ -304,8 +332,8 @@ async function run() {
         assert.equal(advanced.attempt.status, "IN_PROGRESS");
         assert.equal(advanced.questionPack.questions[0].slot, slot + 1);
       } else {
-        assert.equal(advanced.attempt.status, "EVIDENCE_REQUIRED");
-        assert.equal(advanced.attempt.evidenceRequired, true);
+        assert.equal(advanced.attempt.status, "SUBMITTED");
+        assert.equal(advanced.attempt.evidenceRequired, false);
         assert.equal(advanced.questionPack.questions.length, 0);
       }
     }
@@ -326,14 +354,39 @@ async function run() {
       }),
       5
     );
+    const promotedEvidence = await ArenaMatchEvidence.findOne({
+      attemptId: finalAttempt._id,
+    }).lean();
+    assert.equal(promotedEvidence.originalEvidenceSubmitted, true);
+    assert.equal(promotedEvidence.files.length, 5);
+    assert.deepEqual(promotedEvidence.sourceRiskFlags, [
+      "INSUFFICIENT_INLINE_EVIDENCE",
+    ]);
+    assert.deepEqual(promotedEvidence.anomalyFlags, [
+      "INSUFFICIENT_INLINE_EVIDENCE",
+    ]);
+    assert.equal(promotedEvidence.files[0].questionSlot, 1);
+    assert.equal(promotedEvidence.files[0].revision, 1);
+    assert.equal(promotedEvidence.files[0].strokeCount, 0);
+    assert.ok(promotedEvidence.files[0].firstSavedAt);
+    assert.ok(promotedEvidence.files[0].lastSavedAt);
+    assert.equal(
+      await ArenaInlineSolutionBoard.countDocuments({
+        attemptId: finalAttempt._id,
+        finalizedAt: { $ne: null },
+      }),
+      5
+    );
 
     console.log(
       "iPad Arena DB verified: ownership, one-question disclosure, answer/activity/" +
-        "advance idempotency, five-slot progression, and evidence-required transition."
+        "advance idempotency, five-slot progression, inline-board promotion, metadata, and blank-board risk."
     );
   } finally {
     await Promise.all([
       ArenaMatchAttemptEvent.deleteMany({ matchId }),
+      ArenaInlineSolutionBoard.deleteMany({ matchId }),
+      ArenaMatchEvidence.deleteMany({ matchId }),
       ArenaOutboxEvent.deleteMany({ aggregateId: { $in: [matchId] } }),
       ArenaMatchAttempt.deleteMany({ matchId }),
       ArenaMatch.deleteOne({ _id: matchId }),

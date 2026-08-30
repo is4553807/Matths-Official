@@ -353,14 +353,14 @@ a.profile-avatar-with-level:hover {
 
 .profile-copy strong {
   overflow: hidden;
-  font-size: 10px;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .profile-copy small {
   color: #9299ab;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .sidebar-profile form {
@@ -368,8 +368,8 @@ a.profile-avatar-with-level:hover {
 }
 
 .sidebar-profile button {
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   color: #858da0;
@@ -421,6 +421,17 @@ a.profile-avatar-with-level:hover {
   margin: 0;
   overflow: hidden;
   font-size: 20px;
+  letter-spacing: -0.8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-left .topbar-title {
+  margin: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: 20px;
+  font-weight: 850;
   letter-spacing: -0.8px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -533,8 +544,8 @@ a.learning-home-button:focus-visible {
 
 .notification-button {
   position: relative;
-  width: 39px;
-  height: 39px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   color: #606a82;
@@ -619,12 +630,12 @@ a.learning-home-button:focus-visible {
 }
 
 .notification-panel-title strong {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .notification-panel-title button {
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   color: #858da1;
@@ -661,7 +672,7 @@ a.learning-home-button:focus-visible {
 
 .notification-panel > a small {
   color: #8a92a6;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -686,7 +697,7 @@ a.learning-home-button:focus-visible {
   margin: 0;
   padding: 22px 15px;
   color: #8c94a7;
-  font-size: 9px;
+  font-size: 13px;
   text-align: center;
 }
 
@@ -773,8 +784,8 @@ a.learning-home-button:focus-visible {
 .dashboard-announcements
   article
   > button {
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   color: #a84b59;
   background: rgba(
@@ -792,13 +803,13 @@ a.learning-home-button:focus-visible {
 }
 
 .dashboard-announcements strong {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .dashboard-announcements p {
   margin: 4px 0 0;
   color: #a84b59;
-  font-size: 9px;
+  font-size: 13px;
   line-height: 1.55;
   white-space: pre-wrap;
 }
@@ -1102,7 +1113,7 @@ a.learning-home-button:focus-visible {
   color: #777f93;
   background: #f0f2f7;
   border-radius: 8px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -1130,7 +1141,7 @@ a.learning-home-button:focus-visible {
   position: relative;
   z-index: 1;
   color: var(--blue);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -1229,7 +1240,7 @@ a.learning-home-button:focus-visible {
 .plan-message {
   margin: 16px 0 0;
   color: #7c8499;
-  font-size: 9px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -2223,6 +2234,11 @@ a.learning-home-button:focus-visible {
     font-size: 16px;
   }
 
+  .topbar-left .topbar-title {
+    max-width: 180px;
+    font-size: 16px;
+  }
+
   .streak-pill {
     display: none;
   }
@@ -2810,3 +2826,13 @@ a.learning-home-button:focus-visible {
     grid-template-columns: repeat(5, minmax(42px, 1fr));
   }
 }
+.next-study-section { margin-top: 20px; }
+.next-study-card { display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:24px;padding:24px 28px;border:1px solid #d9e0ef;border-radius:18px;background:linear-gradient(120deg,#fff,#f3f6ff);box-shadow:0 14px 34px rgba(35,52,108,.08) }
+.next-study-card p { margin:0 0 7px;color:#3157f6;font-size:12px;font-weight:850;letter-spacing:.08em }
+.next-study-card h2 { margin:0;color:#171b2e;font-size:22px;line-height:1.35;letter-spacing:-.02em }
+.next-study-card div>span,.next-study-card small { display:block;margin-top:5px;color:#626c84;font-size:13px;line-height:1.55 }
+.next-study-card a { display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:0 18px;border-radius:12px;color:#fff;background:#3157f6;font-size:14px;font-weight:800;text-decoration:none }
+.next-study-progress { display:grid;place-items:center;gap:5px;min-width:92px }
+.next-study-progress>span { width:86px;height:8px;overflow:hidden;border-radius:99px;background:linear-gradient(90deg,#3157f6 var(--progress),#dfe5f4 var(--progress)) }
+.next-study-progress strong { color:#3157f6;font-size:13px }
+@media(max-width:720px){.next-study-card{grid-template-columns:1fr;gap:16px;padding:21px}.next-study-progress{justify-items:start}.next-study-card a{width:100%}}

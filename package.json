@@ -14,6 +14,7 @@
     "study-streak:verify": "node scripts/verifyStudyStreakBoundary.js",
     "weekly-tier-competition:verify": "node scripts/verifyWeeklyTierCompetition.js",
     "ipad-server-surface:verify": "node scripts/verifyIpadServerSurface.js",
+    "ipad-profile-http:verify": "node audit/verifyIpadProfileHttpContract.js",
     "ipad-learning-sync:verify": "node scripts/verifyIpadLearningSyncSurface.js",
     "ipad-assessment-http:verify": "node audit/verifyIpadAssessmentHttpContract.js",
     "ipad-assessment-safety:verify": "node audit/verifyAssessmentServiceSafety.js",

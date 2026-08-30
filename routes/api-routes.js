@@ -28,6 +28,15 @@ const {
   userIntegrityEvidenceUpload,
 } = require("../middleware/archiveUpload");
 const {
+  handleProfileAvatarUpload,
+} = require("../middleware/profileAvatarUpload");
+const {
+  arenaEvidenceUpload,
+} = require("../middleware/arenaEvidenceUpload");
+const {
+  createUploadContentValidator,
+} = require("../middleware/uploadContentValidation");
+const {
   requireApiAuth,
 } = require(
   "../middleware/apiAuthMiddleware"
@@ -42,6 +51,9 @@ const {
 } = require("../middleware/requestSecurity");
 
 const router = express.Router();
+const validateInlineSolutionBoard = createUploadContentValidator({
+  maxTotalBytes: 10 * 1024 * 1024,
+});
 
 router.get(
   "/health",
@@ -323,12 +335,12 @@ router.get(
 // 경기 규칙은 웹과 **같은 arenaMatchAttemptService 정본**을 쓰고 이 경로들은 Bearer +
 // JSON 계약만 번역한다. 아레나 룰·정산식·MMR·티어 정의를 여기서 재정의하지 않는다.
 //
-// **정산은 이 경로에 없다.** settleArenaMatch 는 증거 제출 흐름에서만 시작되고,
-// 증거 제출은 이 묶음에 넣지 않았다. 앱 명령이 정산을 부를 수 있게 되면 웹과 앱이
-// 같은 경기를 서로 다른 시점에 정산할 수 있고 그건 되돌릴 수 없다.
+// 경기 진행 명령은 정산을 부르지 않는다. 마지막 문항 뒤 풀이판 finalize 경로만
+// 저장된 5개 판을 원본 증거로 승격하고, 양쪽 증거가 갖춰졌을 때 기존 정산 정본을 부른다.
+// 진행 명령과 증거 승격의 소유자를 섞으면 웹과 앱이 서로 다른 시점에 정산할 수 있다.
 // (arenaMatchAttemptService.js 파일 전체에 정산·잠금·원장 참조가 0건임을 실측했다.)
 //
-// 7개끼리의 상대 순서는 무관하다 — 전부 :matchId 뒤에 고유한 정적 세그먼트가 붙어
+// 경로끼리의 상대 순서는 무관하다 — 전부 :matchId 뒤에 고유한 정적 세그먼트가 붙어
 // 서로 삼키지 않는다. 다만 위 GET /matches/:matchId 뒤에 두어 "정적 → 동적" 관례를 지킨다.
 router.post(
   "/goat-arena/matches/:matchId/start",
@@ -362,10 +374,45 @@ router.get(
   "/goat-arena/matches/:matchId/questions",
   ipadGoatArenaCommandController.getQuestions
 );
+router.get(
+  "/goat-arena/matches/:matchId/solution-boards",
+  ipadGoatArenaCommandController.listSolutionBoards
+);
+router.put(
+  "/goat-arena/matches/:matchId/solution-boards/current",
+  arenaEvidenceUpload.single("solutionBoard"),
+  validateInlineSolutionBoard,
+  ipadGoatArenaCommandController.saveSolutionBoard
+);
+router.post(
+  "/goat-arena/matches/:matchId/solution-boards/finalize",
+  ipadGoatArenaCommandController.finalizeSolutionBoards
+);
 
 router.get(
   "/me",
   apiController.me
+);
+router.patch(
+  "/me/avatar/preset",
+  apiController.updateProfileAvatarPreset
+);
+router.post(
+  "/me/avatar/custom",
+  handleProfileAvatarUpload,
+  apiController.updateProfileAvatarCustom
+);
+router.patch(
+  "/me/coach-mode",
+  apiController.updateCoachMode
+);
+router.patch(
+  "/me/tutorials/dashboard",
+  apiController.updateDashboardTutorial
+);
+router.patch(
+  "/me/tutorials/arena",
+  apiController.updateArenaTutorial
 );
 router.patch(
   "/me/school",

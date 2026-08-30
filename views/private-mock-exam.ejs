@@ -225,8 +225,12 @@
                 <strong data-private-mock-timer>--:--</strong>
                 <span><%= examData.exam.durationMinutes %>분 제한</span>
               </div>
-              <div class="private-mock-save-state" data-private-mock-save-state>자동 저장 준비</div>
+              <div class="private-mock-save-state" data-private-mock-save-state role="status" aria-live="polite">자동 저장 준비</div>
             </header>
+            <div class="timed-connectivity-status" data-private-mock-connectivity role="status" aria-live="polite" hidden>
+              <span data-private-mock-connectivity-message></span>
+              <button type="button" data-private-mock-connectivity-retry>지금 다시 저장</button>
+            </div>
             <div class="private-mock-answer-progress">
               <span>답안 작성</span>
               <strong><b data-private-mock-answered><%= examData.attempt.answeredCount %></b> / <%= examData.exam.questionCount %></strong>
@@ -278,7 +282,7 @@
               </div>
               <p class="private-mock-submit-note">제출 후에는 답을 수정하거나 정답을 확인할 수 없습니다.</p>
               <button type="submit" data-private-mock-submit>답안 최종 제출</button>
-              <div class="private-mock-submit-error" data-private-mock-error hidden></div>
+              <div class="private-mock-submit-error" data-private-mock-error role="alert" aria-live="assertive" hidden></div>
             </form>
           </aside>
         </section>

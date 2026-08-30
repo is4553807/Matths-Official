@@ -986,7 +986,7 @@
 
 .private-mock-answer-item > strong {
   color: #68738d;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 850;
   text-align: center;
 }
@@ -995,14 +995,14 @@
   > input[type="text"] {
   box-sizing: border-box;
   width: 100%;
-  min-height: 35px;
-  padding: 0 8px;
+  min-height: 48px;
+  padding: 0 12px;
   background: #fff;
   border: 1px solid #e1e5ed;
   border-radius: 7px;
   outline: 0;
   font: inherit;
-  font-size: 10px;
+  font-size: 16px;
 }
 
 .private-mock-omr {
@@ -1014,15 +1014,15 @@
 
 .private-mock-omr button,
 .private-mock-keyboard button {
-  min-width: 0;
-  min-height: 30px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border: 1px solid #dce2ef;
   border-radius: 999px;
   color: #4f5b75;
   background: #fff;
   font: inherit;
-  font-size: 9px;
+  font-size: 14px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -1038,21 +1038,51 @@
   grid-column: 2;
   display: grid;
   grid-template-columns:
-    repeat(8, minmax(0, 1fr));
-  gap: 4px;
+    repeat(4, minmax(44px, 1fr));
+  gap: 6px;
 }
 
 .private-mock-keyboard button {
-  min-height: 25px;
+  min-height: 44px;
   border-radius: 6px;
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .private-mock-submit-note {
   margin: 14px 0 9px;
   color: #8991a4;
-  font-size: 9px;
+  font-size: 13px;
   line-height: 1.5;
+}
+
+.timed-connectivity-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px;
+  padding: 12px 14px;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  color: #78350f;
+  background: #fffbeb;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.55;
+}
+
+.timed-connectivity-status[hidden] { display: none; }
+
+.timed-connectivity-status button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #d97706;
+  border-radius: 8px;
+  color: #78350f;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
 }
 
 .private-mock-answer-panel
