@@ -99,7 +99,7 @@ exports.consumeHandoff = async (req, res, next) => {
     if (!handoff) {
       return res.status(410).render("payment-result", commerceFailureView({
         heading: "결제 연결이 만료되었습니다",
-        message: "iPad 앱에서 이용권 화면을 다시 열어주세요.",
+        message: "Matths 앱에서 이용권 화면을 다시 열어주세요.",
         href: "/pricing",
         label: "이용권 보기",
       }));
