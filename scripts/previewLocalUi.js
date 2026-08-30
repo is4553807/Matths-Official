@@ -135,6 +135,140 @@ app.get("/preview/home-arena-tier", (_req, res) => {
   });
 });
 
+app.get("/preview/main-dashboard", (_req, res) => {
+  const now = new Date();
+  const relativeDate = (minutes) => new Date(now.getTime() + minutes * 60 * 1000);
+  const previewUser = {
+    id: "64b000000000000000000711",
+    name: "hong-gildong",
+    realName: "홍길동",
+    role: "admin",
+    schoolGrade: 11,
+    currentStreak: 12,
+    hasAcademyMembership: true,
+  };
+
+  res.render("main", {
+    user: previewUser,
+    arenaActivityLevel: {
+      level: 7,
+      totalMatches: 84,
+      matchesToNext: 16,
+      isMaxLevel: false,
+    },
+    arenaProfileAvatar: getArenaProfileAvatar("ORBIT_OWL"),
+    onboardingTutorial: { status: "NOT_REQUIRED", shouldAutoStart: false },
+    dashboardData: {
+      user: previewUser,
+      completedConcepts: 24,
+      notifications: [
+        {
+          title: "오늘의 학원 수업",
+          description: "오후 7시부터 출석 코드를 입력할 수 있습니다.",
+          href: "/my-academy",
+          urgent: true,
+        },
+        {
+          title: "복습할 오답이 있어요",
+          description: "오늘 복습 예정인 오답 5개를 확인해 주세요.",
+          href: "/wrong-notes",
+          urgent: false,
+        },
+        {
+          title: "GOAT Arena 결과",
+          description: "최근 경기가 정산되었습니다.",
+          href: "/war-of-masters",
+          urgent: false,
+        },
+      ],
+      hasUrgentNotification: false,
+      activeDashboardNotices: [
+        {
+          id: "preview-integrity-notice",
+          kind: "integrity",
+          title: "9월 전국 모의고사 응시 규정 안내",
+          content: "부정행위 방지를 위해 시험 중 화면 이탈이 감지되며 자동 제출됩니다. 응시 전 반드시 유의사항을 확인하세요.",
+          href: "/notifications",
+          dismissUrl: "/preview/announcements/preview-integrity-notice/dismiss",
+        },
+      ],
+      attendance: {
+        serverNow: now,
+        canCheckIn: true,
+        academy: { id: "preview-academy", name: "미래엔 수학학원" },
+        academyClass: { id: "preview-class", name: "고2 심화 A반" },
+        attendance: null,
+        session: {
+          id: "preview-session",
+          attendanceMode: "SELF_CODE",
+          state: "OPEN",
+          isLateWindow: false,
+          startsAt: relativeDate(-15),
+          endsAt: relativeDate(105),
+          checkInOpensAt: relativeDate(-20),
+          lateAfterAt: relativeDate(35),
+          checkInClosesAt: relativeDate(115),
+        },
+      },
+      coach: {
+        mode: "mild",
+        label: "순한맛",
+        message: "어제보다 20분 더 집중했어요. 오늘은 오답 노트 5문제만 정리하면 이번 주 목표에 딱 도착합니다. 천천히, 그러나 확실하게 가볼까요?",
+      },
+      activePlan: {
+        code: "LEARNING_PACKAGE",
+        name: "프리미엄 학습권",
+        division: "Ranked",
+        remainingLearningDays: 128,
+        availableLearningDays: 96,
+        reservedLearningDays: 24,
+        lockedLearningDays: 8,
+        expiresAt: new Date("2027-01-05T14:59:59.000Z"),
+        unlimited: false,
+        statusLabel: "이용 중",
+      },
+      accessRenewalNotice: null,
+      stats: {
+        weeklyStudyMinutes: 342,
+        weeklyStudyDetail: "+48분",
+        todayStudyMinutes: 54,
+        activeStudyDays: 6,
+        averageStudyMinutes: 57,
+        weeklySolvedProblems: 214,
+        correctRate: 82,
+        correctRateDetail: "+3%p",
+        pendingReviewCount: 5,
+      },
+      weeklyActivity: {
+        maxMinutes: 71,
+        days: [
+          { label: "월", minutes: 42, isToday: false },
+          { label: "화", minutes: 58, isToday: false },
+          { label: "수", minutes: 37, isToday: false },
+          { label: "목", minutes: 71, isToday: false },
+          { label: "금", minutes: 49, isToday: false },
+          { label: "토", minutes: 31, isToday: false },
+          { label: "일", minutes: 54, isToday: true },
+        ],
+      },
+    },
+  });
+});
+
+app.post("/preview/announcements/:noticeId/dismiss", (_req, res) => {
+  res.json({ dismissed: true });
+});
+
+app.post("/api/academy/attendance/check-in", (req, res) => {
+  if (!/^\d{6}$/.test(String(req.body?.code || ""))) {
+    return res.status(400).json({ message: "6자리 출석 코드를 입력해 주세요." });
+  }
+  return res.json({
+    message: "출석 처리가 완료되었습니다.",
+    attendance: { status: "PRESENT" },
+  });
+});
+
 async function renderGenericPreview(viewName) {
   const previewValue = universalPreviewValue();
   const locals = {

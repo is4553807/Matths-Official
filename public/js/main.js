@@ -412,6 +412,9 @@
     const clockOffset = Number.isFinite(serverNow) ? serverNow - Date.now() : 0;
     const form = card.querySelector("[data-student-attendance-form]");
     const input = form?.querySelector("input[name='code']");
+    const digitInputs = Array.from(
+      form?.querySelectorAll("[data-attendance-digit]") || []
+    );
     const label = card.querySelector("[data-attendance-window-label]");
     const countdown = card.querySelector("[data-attendance-countdown]");
     const feedback = card.querySelector("[data-attendance-feedback]");
@@ -484,16 +487,65 @@
       if (permission === "granted") alertButton.textContent = "수업 알림 설정됨";
     });
 
-    input?.addEventListener("input", () => {
-      input.value = input.value.replace(/\D/g, "").slice(0, 6);
-    });
+    function syncAttendanceCode() {
+      if (!input || !digitInputs.length) return;
+      input.value = digitInputs.map((digitInput) => digitInput.value).join("");
+    }
+
+    function focusAttendanceCode() {
+      const firstEmptyInput = digitInputs.find((digitInput) => !digitInput.value);
+      (firstEmptyInput || digitInputs[0] || input)?.focus();
+    }
+
+    if (digitInputs.length) {
+      digitInputs.forEach((digitInput, index) => {
+        digitInput.addEventListener("input", () => {
+          digitInput.value = digitInput.value.replace(/\D/g, "").slice(-1);
+          syncAttendanceCode();
+          if (digitInput.value && digitInputs[index + 1]) {
+            window.setTimeout(() => digitInputs[index + 1].focus(), 0);
+          }
+        });
+
+        digitInput.addEventListener("keydown", (event) => {
+          if (event.key === "Backspace" && !digitInput.value && digitInputs[index - 1]) {
+            digitInputs[index - 1].focus();
+          }
+          if (event.key === "ArrowLeft" && digitInputs[index - 1]) {
+            event.preventDefault();
+            digitInputs[index - 1].focus();
+          }
+          if (event.key === "ArrowRight" && digitInputs[index + 1]) {
+            event.preventDefault();
+            digitInputs[index + 1].focus();
+          }
+        });
+
+        digitInput.addEventListener("paste", (event) => {
+          const digits = String(event.clipboardData?.getData("text") || "")
+            .replace(/\D/g, "")
+            .slice(0, 6);
+          if (!digits) return;
+          event.preventDefault();
+          digits.split("").forEach((digit, digitIndex) => {
+            if (digitInputs[digitIndex]) digitInputs[digitIndex].value = digit;
+          });
+          syncAttendanceCode();
+          (digitInputs[Math.min(digits.length, 6) - 1] || digitInputs[0]).focus();
+        });
+      });
+    } else {
+      input?.addEventListener("input", () => {
+        input.value = input.value.replace(/\D/g, "").slice(0, 6);
+      });
+    }
 
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const submitButton = form.querySelector("button[type='submit']");
       if (!input || input.value.length !== 6) {
         if (feedback) feedback.textContent = "6자리 출석 코드를 입력해 주세요.";
-        input?.focus();
+        focusAttendanceCode();
         return;
       }
       if (submitButton) submitButton.disabled = true;
@@ -512,7 +564,12 @@
       } catch (error) {
         if (feedback) feedback.textContent = error.message;
         if (submitButton) submitButton.disabled = false;
-        input.select();
+        if (digitInputs.length) {
+          digitInputs.forEach((digitInput) => digitInput.select());
+          digitInputs[0].focus();
+        } else {
+          input.select();
+        }
       }
     });
 

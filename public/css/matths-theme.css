@@ -198,6 +198,12 @@ textarea:focus {
   border: 1px solid rgba(255, 255, 255, 0.055);
 }
 
+.nav-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
 .side-nav a:hover .nav-icon,
 .side-nav a.active .nav-icon {
   color: #fff;

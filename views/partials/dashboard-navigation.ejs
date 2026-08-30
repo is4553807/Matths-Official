@@ -25,17 +25,33 @@
       wrongNoteStats.due ??
         navigationStats.pendingReviewCount
     );
+  const dashboardNavIcon = (name) => {
+    const paths = {
+      home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h5v-6h4v6h5v-9.5"/>',
+      book: '<path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v18H7.5A3.5 3.5 0 0 0 4 23.5Z"/><path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H13v18h3.5a3.5 3.5 0 0 1 3.5 3.5Z"/>',
+      school: '<path d="M3 21h18"/><path d="M5 21V9l7-4 7 4v12"/><path d="M9 21v-5h6v5"/><path d="M8 11h.01M12 11h.01M16 11h.01"/>',
+      graduation: '<path d="m2 10 10-5 10 5-10 5Z"/><path d="M6 12.5V17c3.5 2.5 8.5 2.5 12 0v-4.5"/><path d="M22 10v6"/>',
+      timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9 2h6"/>',
+      clipboard: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M8.5 13l2 2 5-5"/>',
+      notebook: '<path d="M6 3h12a2 2 0 0 1 2 2v16H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M8 3v18M12 8h5M12 12h3M16.5 17.5l3-3"/>',
+      swords: '<path d="m14.5 5.5 4-4 1 3 3 1-4 4M13 7l4 4"/><path d="m9.5 5.5-4-4-1 3-3 1 4 4M11 7l-7 7 3 3 7-7M15 14l2 2-3 3-2-2"/>',
+      store: '<path d="M4 10v11h16V10"/><path d="M3 10h18l-2-6H5Z"/><path d="M8 14h8v7"/>',
+      message: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M12 7v8M8 11h8"/>',
+      shield: '<path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/><path d="M12 8v8M8 12h8"/>',
+    };
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.home}</svg>`;
+  };
   const dashboardNavigationItems = [
     {
       id: "main",
       href: "/main",
-      icon: "⌂",
+      icon: dashboardNavIcon("home"),
       label: "학습 홈",
     },
     {
       id: "my-learning",
       href: "/my-learning",
-      icon: "▦",
+      icon: dashboardNavIcon("book"),
       label: "내 학습",
       badge:
         Number.isFinite(completedConceptCount)
@@ -45,25 +61,25 @@
     {
       id: "curriculum",
       href: "/log-curriculum",
-      icon: "◫",
+      icon: dashboardNavIcon("graduation"),
       label: "교육과정",
     },
     {
       id: "quick-practice",
       href: "/quick-practice",
-      icon: "⚡",
+      icon: dashboardNavIcon("timer"),
       label: "40초 눈풀이",
     },
     {
       id: "assessments",
       href: "/assessments",
-      icon: "✓",
+      icon: dashboardNavIcon("clipboard"),
       label: "평가 센터",
     },
     {
       id: "wrong-notes",
       href: "/wrong-notes",
-      icon: "↻",
+      icon: dashboardNavIcon("notebook"),
       label: "오답 노트",
       badge:
         Number.isFinite(pendingReviewCount) &&
@@ -74,19 +90,19 @@
     {
       id: "war-of-masters",
       href: "/war-of-masters",
-      icon: "♜",
+      icon: dashboardNavIcon("swords"),
       label: "GOAT Arena",
     },
     {
       id: "store",
       href: "/store",
-      icon: "◆",
+      icon: dashboardNavIcon("store"),
       label: "고2·고3 수험관",
     },
     {
       id: "coach-suggestions",
       href: "/coach-suggestions",
-      icon: "✦",
+      icon: dashboardNavIcon("message"),
       label: "문구 제안소",
     },
   ];
@@ -105,7 +121,7 @@
     dashboardNavigationItems.push({
       id: "admin",
       href: "/admin",
-      icon: "⚙",
+      icon: dashboardNavIcon("shield"),
       label: "관리자",
     });
   }
@@ -114,7 +130,7 @@
     dashboardNavigationItems.splice(2, 0, {
       id: "my-academy",
       href: "/my-academy",
-      icon: "A",
+      icon: dashboardNavIcon("school"),
       label: "학원",
     });
   }
@@ -134,7 +150,7 @@
       data-tutorial-nav="<%= item.id %>"
       <%- isActive ? 'aria-current="page"' : "" %>
     >
-      <span class="nav-icon" aria-hidden="true"><%= item.icon %></span>
+      <span class="nav-icon" aria-hidden="true"><%- item.icon %></span>
       <span><%= item.label %></span>
       <% if (item.badge !== null && item.badge !== undefined) { %>
         <b
