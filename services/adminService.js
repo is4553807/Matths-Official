@@ -1703,6 +1703,9 @@ async function getAdminUserDetail(
       )
       .sort({
         createdAt: -1,
+        // insertMany나 동시 요청은 같은 밀리초 createdAt을 가질 수 있다. 보조 정렬이
+        // 없으면 관리자 화면의 "최근 배치고사"가 조회마다 뒤집힌다.
+        _id: -1,
       })
       .limit(100)
       .lean(),

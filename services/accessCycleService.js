@@ -309,6 +309,18 @@ function normalizePaymentApproval(input = {}) {
   const approvedAt = new Date(
     input.approvedAt
   );
+  const appleOriginalTransactionId =
+    provider === "APPLE"
+      ? cleanSingleLine(input.appleOriginalTransactionId, 160)
+      : undefined;
+  const appleAppAccountToken =
+    provider === "APPLE"
+      ? cleanSingleLine(input.appleAppAccountToken, 64) || undefined
+      : undefined;
+  const appleExpiresAt =
+    provider === "APPLE" && input.appleExpiresAt
+      ? new Date(input.appleExpiresAt)
+      : undefined;
 
   if (!mongoose.isValidObjectId(userId)) {
     throw statusError(
@@ -329,10 +341,10 @@ function normalizePaymentApproval(input = {}) {
       "PAYMENT_IDENTIFIER_REQUIRED"
     );
   }
-  if (provider === "TOSS" && !["TEST", "LIVE"].includes(providerMode)) {
+  if (["TOSS", "APPLE"].includes(provider) && !["TEST", "LIVE"].includes(providerMode)) {
     throw statusError(
       400,
-      "토스페이먼츠 결제 실행 모드를 확인해주세요.",
+      "결제 실행 모드를 확인해주세요.",
       "PAYMENT_PROVIDER_MODE_REQUIRED"
     );
   }
@@ -360,6 +372,21 @@ function normalizePaymentApproval(input = {}) {
       "INVALID_APPROVED_AT"
     );
   }
+  if (
+    provider === "APPLE" &&
+    (
+      !appleOriginalTransactionId ||
+      !appleExpiresAt ||
+      Number.isNaN(appleExpiresAt.getTime()) ||
+      appleExpiresAt.getTime() <= approvedAt.getTime()
+    )
+  ) {
+    throw statusError(
+      400,
+      "App Store 구독 식별자 또는 만료 시각을 확인해주세요.",
+      "APPLE_SUBSCRIPTION_METADATA_REQUIRED"
+    );
+  }
 
   return {
     userId: new mongoose.Types.ObjectId(
@@ -373,6 +400,9 @@ function normalizePaymentApproval(input = {}) {
     currency,
     approvedAmount,
     approvedAt,
+    appleOriginalTransactionId,
+    appleAppAccountToken,
+    appleExpiresAt,
   };
 }
 
@@ -416,7 +446,13 @@ function assertSamePaymentApproval(
     existing.currency ===
       approval.currency &&
     Number(existing.approvedAmount) ===
-      approval.approvedAmount;
+      approval.approvedAmount &&
+    String(existing.appleOriginalTransactionId || "") ===
+      String(approval.appleOriginalTransactionId || "") &&
+    String(existing.appleAppAccountToken || "") ===
+      String(approval.appleAppAccountToken || "") &&
+    String(existing.appleExpiresAt ? new Date(existing.appleExpiresAt).toISOString() : "") ===
+      String(approval.appleExpiresAt ? new Date(approval.appleExpiresAt).toISOString() : "");
 
   if (!same) {
     throw statusError(

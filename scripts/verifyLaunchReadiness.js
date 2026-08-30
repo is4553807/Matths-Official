@@ -18,6 +18,7 @@ const checks = [
   "ipad-arena-shop:verify",
   "apple-signin:verify",
   "apple-commerce-http:verify",
+  "apple-subscription-lifecycle:verify",
   "app-commerce-handoff:verify",
   "deployment-surface:verify",
   "cloudtype-workflow:verify",

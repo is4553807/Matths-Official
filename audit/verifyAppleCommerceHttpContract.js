@@ -122,6 +122,45 @@ function verifyClientInputNotTrusted() {
   console.log("  ✓ 앱 입력 불신 (productId·bundleId·revocation)");
 }
 
+/** 갱신·환불 통지가 세션 없이도 최초 결제와 다시 이어지는지. */
+function verifySubscriptionLifecyclePersistence() {
+  const model = read("models/goatArenaModel.js");
+  const apple = read("services/appleCommerceService.js");
+  const cycle = read("services/accessCycleService.js");
+  const mock = read("services/mockExamPaymentService.js");
+
+  for (const field of [
+    "appleOriginalTransactionId",
+    "appleAppAccountToken",
+    "appleExpiresAt",
+  ]) {
+    assert.match(model, new RegExp(`${field}\\s*:`), `결제 원장에 ${field} 필드가 없습니다`);
+    assert.match(cycle, new RegExp(`${field}`), `학습권 승인 경계가 ${field}를 버립니다`);
+    assert.match(mock, new RegExp(`${field}`), `모의고사 승인 경계가 ${field}를 버립니다`);
+  }
+  assert.match(
+    apple,
+    /appleOriginalTransactionId:\s*String\(transaction\.originalTransactionId\)/,
+    "최초 거래 ID를 결제 승인에 전달하지 않습니다"
+  );
+  assert.match(
+    apple,
+    /provider:\s*"APPLE",\s*appleOriginalTransactionId:/,
+    "DID_RENEW가 최초 Apple 결제 원장을 찾지 않습니다"
+  );
+  assert.match(
+    mock,
+    /approval\.provider\s*===\s*"APPLE"[\s\S]*?new Date\(approval\.appleExpiresAt\)/,
+    "모의고사 구독이 Apple의 실제 expiresDate 대신 고정 일수를 씁니다"
+  );
+  assert.match(
+    apple,
+    /status:\s*"CANCELLED",\s*endsAt:\s*cancelTime/,
+    "모의고사 환불이 실제 endsAt을 닫지 않습니다"
+  );
+  console.log("  ✓ Apple 구독 갱신 식별자·실제 만료·환불 회수 영속성");
+}
+
 /**
  * 애플 로그인이 body 의 이메일을 계정 연결 키로 쓰지 않는지.
  *
@@ -234,6 +273,7 @@ async function main() {
   verifyAuthBoundary();
   verifyLeafOidGate();
   verifyClientInputNotTrusted();
+  verifySubscriptionLifecyclePersistence();
   verifyAppleAuthEmailBoundary();
   verifyRevokeWired();
   verifyAppleFeeFloor();
