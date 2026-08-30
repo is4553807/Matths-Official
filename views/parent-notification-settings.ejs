@@ -19,7 +19,7 @@
   </head>
   <body class="parent-page">
     <%- include("partials/parent-navigation", { activeParentPage: "notifications" }) %>
-    <main class="parent-main">
+    <main class="parent-main" id="parent-main">
       <% if (saved) { %><div class="parent-form-message is-success">자녀별 학습 알림 설정을 저장했습니다.</div><% } %>
       <header class="parent-page-heading">
         <p>학습 알림</p>

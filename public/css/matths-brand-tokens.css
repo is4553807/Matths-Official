@@ -99,6 +99,7 @@
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 3px solid var(--matths-violet) !important;
   outline-offset: 3px !important;
+  box-shadow: 0 0 0 2px #fff !important;
 }
 
 /* 공통 내비게이션을 매번 통과하지 않고 본문으로 이동하는 키보드 경로. */

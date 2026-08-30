@@ -96,7 +96,8 @@
             <input type="hidden" name="board" value="<%= boardData.board %>" />
             <% if (boardData.sort === "popular") { %><input type="hidden" name="sort" value="popular" /><% } %>
             <% if (boardData.selectedOperationsCategory) { %><input type="hidden" name="category" value="<%= boardData.selectedOperationsCategory %>" /><% } %>
-            <input type="search" name="search" value="<%= boardData.search %>" placeholder="제목·내용 검색" />
+            <label class="sr-only" for="community-search">게시글 제목과 내용 검색</label>
+            <input id="community-search" type="search" name="search" value="<%= boardData.search %>" placeholder="제목·내용 검색" />
             <button type="submit">검색</button>
           </form>
         </header>

@@ -465,6 +465,18 @@
     root.querySelector(
       "[data-private-mock-error]"
     );
+  const connectivity =
+    root.querySelector(
+      "[data-private-mock-connectivity]"
+    );
+  const connectivityMessage =
+    root.querySelector(
+      "[data-private-mock-connectivity-message]"
+    );
+  const connectivityRetry =
+    root.querySelector(
+      "[data-private-mock-connectivity-retry]"
+    );
   const submitButton =
     root.querySelector(
       "[data-private-mock-submit]"
@@ -514,6 +526,17 @@
     errorBox.textContent =
       message;
     errorBox.hidden = false;
+  };
+
+  const updateConnectivity = () => {
+    if (!connectivity || !connectivityMessage) return;
+    const offline = !navigator.onLine;
+    connectivity.hidden = !offline && !dirty;
+    connectivityMessage.textContent = offline
+      ? "인터넷 연결이 끊겼습니다. 현재 답안은 이 화면에만 있습니다. 새로고침하거나 창을 닫지 말고 연결 후 다시 저장하세요."
+      : dirty
+        ? "서버에 저장되지 않은 답안이 남아 있습니다."
+        : "연결이 복구됐고 답안이 서버에 저장됐습니다.";
   };
 
   const save = async ({
@@ -568,9 +591,11 @@
       telemetryEvents = [];
       saveState.textContent =
         "자동 저장 완료";
+      updateConnectivity();
     } catch (error) {
       saveState.textContent =
         "저장 실패";
+      updateConnectivity();
       if (!keepalive) {
         showError(error.message);
       }
@@ -578,6 +603,16 @@
       saving = false;
     }
   };
+
+  connectivityRetry?.addEventListener("click", () => {
+    save();
+  });
+  window.addEventListener("offline", updateConnectivity);
+  window.addEventListener("online", () => {
+    updateConnectivity();
+    save();
+  });
+  updateConnectivity();
 
   const submit = async (
     automatic = false

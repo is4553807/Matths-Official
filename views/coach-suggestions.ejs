@@ -175,7 +175,8 @@
                   </div>
                   <p><%= item.message %></p>
                   <form action="/coach-suggestions/<%= item.id %>/moderate" method="POST">
-                    <input name="rejectionReason" maxlength="200" placeholder="반려할 때만 사유 입력" />
+                    <label class="sr-only" for="rejection-reason-<%= item.id %>">반려할 때만 사유 입력</label>
+                    <input id="rejection-reason-<%= item.id %>" name="rejectionReason" maxlength="200" placeholder="반려할 때만 사유 입력" />
                     <button name="action" value="reject" type="submit">반려</button>
                     <button class="approve" name="action" value="approve" type="submit">승인</button>
                   </form>

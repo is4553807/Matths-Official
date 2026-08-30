@@ -7,6 +7,7 @@ const checks = [
   "oauth-mobile:verify",
   "oauth-kakao:verify",
   "ipad-server-surface:verify",
+  "ipad-profile-http:verify",
   "ipad-learning-sync:verify",
   "ipad-assessment-http:verify",
   "ipad-assessment-safety:verify",

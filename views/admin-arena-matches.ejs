@@ -39,6 +39,7 @@
         REPEATED_FOCUS_LOSS: "화면 이탈 5회 이상",
         MATCH_PAGE_EXITED: "경기 중 문제 화면 이탈",
         SAME_EVIDENCE_AS_OPPONENT: "상대와 동일한 증거 파일",
+        INSUFFICIENT_INLINE_EVIDENCE: "빈 인앱 풀이판 포함",
       }[value] || value);
     %>
     <%- include("partials/admin-navigation", { activePage: "arena-matches" }) %>
@@ -197,7 +198,8 @@
                       <% if (!attempt.evidence?.files?.length) { %><span class="arena-evidence-missing">업로드된 풀이 증거가 없습니다.</span><% } %>
                       <% attempt.evidence?.files?.forEach((file, index) => { %>
                         <a href="/admin/arena-matches/evidence/<%= attempt.evidence._id %>/<%= encodeURIComponent(file.storedName) %>" target="_blank" rel="noopener">
-                          <span>풀이 증거 <%= index + 1 %> 열기</span><small><%= file.originalName %></small>
+                          <span>문항 <%= index + 1 %> 풀이판 열기</span><small><%= file.originalName %></small>
+                          <% if (file.questionSlot) { %><small>revision <%= file.revision %> · stroke <%= file.strokeCount %> · 최초 <%= arenaDate(file.firstSavedAt) %> · 최종 <%= arenaDate(file.lastSavedAt) %></small><% } %>
                         </a>
                       <% }) %>
                     </div>
@@ -338,8 +340,9 @@
               <div class="arena-admin-evidence-files">
                 <% entry.files.forEach((file, index) => { %>
                   <a href="/admin/arena-matches/evidence/<%= entry.id %>/<%= encodeURIComponent(file.storedName) %>" target="_blank" rel="noopener">
-                    <span>풀이 <%= index + 1 %></span>
+                    <span><%= file.questionSlot ? `문항 ${file.questionSlot} 풀이판` : `풀이 ${index + 1}` %></span>
                     <small><%= file.originalName %></small>
+                    <% if (file.questionSlot) { %><small>revision <%= file.revision %> · stroke <%= file.strokeCount %></small><small>최초 <%= arenaDate(file.firstSavedAt) %> · 최종 <%= arenaDate(file.lastSavedAt) %></small><% } %>
                   </a>
                 <% }) %>
               </div>

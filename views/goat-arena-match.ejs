@@ -310,6 +310,10 @@
               <strong><b data-arena-match-answered><%= Number(matchData.attempt.currentQuestionIndex) + 1 %></b> / 5</strong>
             </div>
           </header>
+          <div class="timed-connectivity-status" data-arena-connectivity role="status" aria-live="polite" hidden>
+            <span data-arena-connectivity-message></span>
+            <button type="button" data-arena-connectivity-retry>지금 다시 저장</button>
+          </div>
 
           <div class="arena-match-question-list">
             <% matchData.questions.forEach((question) => { %>
@@ -375,7 +379,7 @@
               <span>다음 버튼을 누르면 현재 답이 확정되며 이전 문제를 다시 보거나 수정할 수 없습니다.</span>
             </div>
             <button type="button" data-arena-match-submit><%= Number(matchData.attempt.currentQuestionIndex) === 4 ? "5번 완료 · 증거 제출로" : "다음 문제" %></button>
-            <p data-arena-match-error hidden></p>
+            <p data-arena-match-error role="alert" aria-live="assertive" hidden></p>
           </footer>
         </section>
       <% } else if (matchData.evidenceRequired) { %>

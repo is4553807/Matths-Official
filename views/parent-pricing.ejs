@@ -3,7 +3,7 @@
   <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>패키지 구매 | Matths 학부모</title><link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" /><link rel="stylesheet" href="/css/brand.css" /><link rel="stylesheet" href="/css/parent.css" /></head>
   <body class="parent-page">
     <%- include('partials/parent-navigation', { activeParentPage: 'pricing' }) %>
-    <main class="parent-main">
+    <main class="parent-main" id="parent-main">
       <header class="parent-page-heading"><p>패키지 구매하기</p><h1><%= child.realName || child.name %> 학생에게 필요한<br />이용권을 확인해 주세요.</h1><span>표시 금액과 이용 기간을 한눈에 비교할 수 있습니다.</span></header>
       <section class="parent-product-grid">
         <% products.forEach((product) => { const access = productAccess?.[product.code] || { purchaseAllowed: true }; %><article>

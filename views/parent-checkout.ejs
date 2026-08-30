@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>결제 준비 | Matths 학부모</title><link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" /><link rel="stylesheet" href="/css/brand.css" /><link rel="stylesheet" href="/css/parent.css" /></head>
-<body class="parent-page"><%- include('partials/parent-navigation', { activeParentPage: 'pricing' }) %><main class="parent-main parent-checkout-main"><section class="parent-checkout-card"><p>결제 대상</p><h1><%= child.realName || child.name %> 학생</h1><dl><div><dt>상품</dt><dd><%= product.name %></dd></div><div><dt>이용 기간</dt><dd><%= product.periodLabel %></dd></div><div><dt>결제 예정 금액</dt><dd><strong><%= new Intl.NumberFormat('ko-KR').format(product.amount) %>원</strong></dd></div></dl>
+<body class="parent-page"><%- include('partials/parent-navigation', { activeParentPage: 'pricing' }) %><main class="parent-main parent-checkout-main" id="parent-main"><section class="parent-checkout-card"><p>결제 대상</p><h1><%= child.realName || child.name %> 학생</h1><dl><div><dt>상품</dt><dd><%= product.name %></dd></div><div><dt>이용 기간</dt><dd><%= product.periodLabel %></dd></div><div><dt>결제 예정 금액</dt><dd><strong><%= new Intl.NumberFormat('ko-KR').format(product.amount) %>원</strong></dd></div></dl>
 <% if (!intent) { %>
   <section class="checkout-refund-table" aria-labelledby="parent-refund-title"><h2 id="parent-refund-title">결제 전 환불 기준</h2><table><tbody>
     <tr><th>전액 환불</th><td><%= product.refundPolicy.fullRefund %></td></tr>

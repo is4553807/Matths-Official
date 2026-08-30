@@ -314,6 +314,8 @@ async function submitArenaMatchEvidence({
   matchId,
   userId,
   files,
+  preparedEvidenceFiles = null,
+  preparedEvidenceRiskFlags = [],
   receivedAt = new Date(),
   now = new Date(),
 }) {
@@ -336,12 +338,27 @@ async function submitArenaMatchEvidence({
     await discardArenaEvidenceFiles(files);
     throw statusError(400, "경기 정보를 확인해주세요.", "INVALID_ARENA_EVIDENCE_TARGET");
   }
+  const usesPreparedEvidence = Array.isArray(preparedEvidenceFiles);
+  const sourceRiskFlags = usesPreparedEvidence
+    ? [...new Set((preparedEvidenceRiskFlags || []).map(String).filter(Boolean))]
+    : [];
   let evidenceFiles;
-  try {
-    evidenceFiles = await buildEvidenceFiles(files);
-  } catch (error) {
-    await discardArenaEvidenceFiles(files);
-    throw error;
+  if (usesPreparedEvidence) {
+    if (preparedEvidenceFiles.length !== 5) {
+      throw statusError(
+        409,
+        "다섯 문항의 풀이판이 모두 저장되어야 경기를 제출할 수 있습니다.",
+        "ARENA_INLINE_EVIDENCE_INCOMPLETE"
+      );
+    }
+    evidenceFiles = preparedEvidenceFiles;
+  } else {
+    try {
+      evidenceFiles = await buildEvidenceFiles(files);
+    } catch (error) {
+      await discardArenaEvidenceFiles(files);
+      throw error;
+    }
   }
 
   let result = null;
@@ -425,7 +442,8 @@ async function submitArenaMatchEvidence({
             submittedAt: acceptedAt,
             retentionUntil: new Date(now.getTime() + ARENA_EVIDENCE_RETENTION_MS),
             status: "ON_TIME",
-            anomalyFlags: [],
+            anomalyFlags: sourceRiskFlags,
+            sourceRiskFlags,
           },
         ],
         { session, ordered: true }
@@ -480,7 +498,7 @@ async function submitArenaMatchEvidence({
         }
         // 친선 경기는 수수료 외에는 순위·티어·학습일수 이전이 없는 비공식 경기다.
         // 증거는 제출받되, 공식 경기용 자동 무결성 보류와 제재 흐름에는 넣지 않는다.
-        matchIntegrityFlags = match.matchType === "FRIENDLY"
+        const winnerDetectionFlags = match.matchType === "FRIENDLY"
           ? []
           : await detectEvidenceAnomalies({
               attempt: screenedAttempt,
@@ -488,44 +506,40 @@ async function submitArenaMatchEvidence({
               files: screenedEvidence.files || [],
               session,
             });
-        await ArenaMatchEvidence.updateMany(
-          { matchId: match._id },
-          {
-            $set: {
-              screenedAsWinner: false,
-              anomalyFlags: [],
-              status: "ON_TIME",
-            },
-          },
-          { session }
-        );
-        await ArenaMatchEvidence.updateOne(
-          { _id: screenedEvidence._id },
-          {
-            $set: {
-              screenedAsWinner: true,
-              anomalyFlags: matchIntegrityFlags,
-              status: matchIntegrityFlags.length
-                ? "ANOMALY_FLAGGED"
-                : "ON_TIME",
-            },
-          },
-          { session }
-        );
-        if (String(screenedEvidence._id) === String(evidence._id)) {
-          evidence.screenedAsWinner = true;
-          evidence.anomalyFlags = matchIntegrityFlags;
-          evidence.status = matchIntegrityFlags.length
-            ? "ANOMALY_FLAGGED"
-            : "ON_TIME";
+        for (const role of ["CHALLENGER", "DEFENDER"]) {
+          const roleAttempt = attemptByRole.get(role);
+          const roleEvidence = evidenceByAttemptId.get(String(roleAttempt?._id || ""));
+          const roleFlags = [
+            ...(roleEvidence?.sourceRiskFlags || []),
+            ...(role === screenedRole ? winnerDetectionFlags : []),
+          ];
+          evidenceByRole[role] = [...new Set(roleFlags)];
+          if (roleEvidence) {
+            await ArenaMatchEvidence.updateOne(
+              { _id: roleEvidence._id },
+              {
+                $set: {
+                  screenedAsWinner: role === screenedRole,
+                  anomalyFlags: evidenceByRole[role],
+                  status: evidenceByRole[role].length
+                    ? "ANOMALY_FLAGGED"
+                    : "ON_TIME",
+                },
+              },
+              { session }
+            );
+          }
         }
-        flags = screenedRole === attempt.role ? matchIntegrityFlags : [];
-        evidenceByRole = {
-          CHALLENGER:
-            screenedRole === "CHALLENGER" ? matchIntegrityFlags : [],
-          DEFENDER:
-            screenedRole === "DEFENDER" ? matchIntegrityFlags : [],
-        };
+        matchIntegrityFlags = [...new Set([
+          ...evidenceByRole.CHALLENGER,
+          ...evidenceByRole.DEFENDER,
+        ])];
+        evidence.screenedAsWinner = screenedRole === attempt.role;
+        evidence.anomalyFlags = evidenceByRole[attempt.role] || [];
+        evidence.status = evidence.anomalyFlags.length
+          ? "ANOMALY_FLAGGED"
+          : "ON_TIME";
+        flags = evidence.anomalyFlags;
         match.status = matchIntegrityFlags.length ? "HELD" : "SUBMITTED";
         match.integrityStatus = matchIntegrityFlags.length
           ? "SUSPICIOUS"
@@ -693,7 +707,7 @@ async function submitArenaMatchEvidence({
         replayed: false,
       };
     });
-    if (result.replayed) {
+    if (result.replayed && !usesPreparedEvidence) {
       await discardArenaEvidenceFiles(
         evidenceFiles
       );
@@ -716,7 +730,7 @@ async function submitArenaMatchEvidence({
       dailyLearning,
     };
   } catch (error) {
-    if (!result) {
+    if (!result && !usesPreparedEvidence) {
       await discardArenaEvidenceFiles(
         evidenceFiles?.length
           ? evidenceFiles

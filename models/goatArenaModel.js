@@ -5410,6 +5410,11 @@ const arenaMatchEvidenceFileSchema = new Schema(
     },
     cloudVersion: { type: Number, default: null },
     cloudFormat: { type: String, maxlength: 40, default: "" },
+    questionSlot: { type: Number, min: 1, max: 5, default: null },
+    revision: { type: Number, min: 1, default: null },
+    strokeCount: { type: Number, min: 0, default: null },
+    firstSavedAt: { type: Date, default: null },
+    lastSavedAt: { type: Date, default: null },
   },
   { _id: false }
 );
@@ -5459,6 +5464,7 @@ const arenaMatchEvidenceSchema = new Schema(
       index: true,
     },
     anomalyFlags: { type: [String], default: [] },
+    sourceRiskFlags: { type: [String], default: [] },
     screenedAsWinner: { type: Boolean, default: false },
     supplementalRequest: {
       status: {
@@ -5502,6 +5508,44 @@ arenaMatchEvidenceSchema.index({
   contentPurgedAt: 1,
   status: 1,
 });
+
+const arenaInlineSolutionBoardSchema = new Schema(
+  {
+    attemptId: {
+      type: Schema.Types.ObjectId,
+      ref: "ArenaMatchAttempt",
+      required: true,
+      index: true,
+    },
+    matchId: {
+      type: Schema.Types.ObjectId,
+      ref: "ArenaMatch",
+      required: true,
+      index: true,
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    questionSlot: { type: Number, min: 1, max: 5, required: true },
+    revision: { type: Number, min: 1, required: true },
+    strokeCount: { type: Number, min: 0, required: true },
+    drawingData: {
+      type: Buffer,
+      required: true,
+      select: false,
+    },
+    file: { type: arenaMatchEvidenceFileSchema, required: true },
+    finalizedAt: { type: Date, default: null, index: true },
+  },
+  { timestamps: true, versionKey: false }
+);
+arenaInlineSolutionBoardSchema.index(
+  { attemptId: 1, questionSlot: 1 },
+  { unique: true }
+);
 
 const arenaStandingChangeLedgerSchema =
   new Schema(
@@ -6059,6 +6103,12 @@ const ArenaMatchEvidence =
     "ArenaMatchEvidence",
     arenaMatchEvidenceSchema
   );
+const ArenaInlineSolutionBoard =
+  mongoose.models.ArenaInlineSolutionBoard ||
+  mongoose.model(
+    "ArenaInlineSolutionBoard",
+    arenaInlineSolutionBoardSchema
+  );
 const ArenaStandingChangeLedger =
   mongoose.models.ArenaStandingChangeLedger ||
   mongoose.model(
@@ -6104,6 +6154,7 @@ module.exports = {
   ArenaMatchAttempt,
   ArenaMatchAttemptEvent,
   ArenaMatchEvidence,
+  ArenaInlineSolutionBoard,
   ArenaMatchParticipantLock,
   ArenaOutboxEvent,
   ArenaOpponentSelectionAudit,

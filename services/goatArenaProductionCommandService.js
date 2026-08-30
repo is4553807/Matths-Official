@@ -15,6 +15,13 @@ const {
   startArenaMatchAttempt,
   submitArenaMatchAttempt,
 } = require("./arenaMatchAttemptService");
+const {
+  buildArenaMatchIntegrityWatermark,
+} = require("./contentProtectionWatermarkPolicy");
+const {
+  assertInlineSolutionBoard,
+  promoteInlineSolutionBoards,
+} = require("./arenaInlineSolutionBoardService");
 
 /**
  * iPad GOAT Arena 경기 명령 어댑터.
@@ -162,6 +169,10 @@ function createGoatArenaProductionCommandService(options = {}) {
       options.commands?.startArenaMatchAttempt || startArenaMatchAttempt,
     submitArenaMatchAttempt:
       options.commands?.submitArenaMatchAttempt || submitArenaMatchAttempt,
+    assertInlineSolutionBoard:
+      options.commands?.assertInlineSolutionBoard || assertInlineSolutionBoard,
+    promoteInlineSolutionBoards:
+      options.commands?.promoteInlineSolutionBoards || promoteInlineSolutionBoards,
   };
   const now = typeof options.now === "function" ? options.now : () => new Date();
 
@@ -271,6 +282,15 @@ function createGoatArenaProductionCommandService(options = {}) {
           (answer) => answer.questionKey === question.questionKey
         )?.value || ""
       : "";
+    const integrityWatermark = attempt
+      ? buildArenaMatchIntegrityWatermark({
+          matchId: match._id,
+          userId: attempt.userId,
+          attemptId: attempt._id,
+          matchType: match.matchType,
+          role,
+        })
+      : null;
     return {
       questionPackId: String(pack._id),
       matchId: String(match._id),
@@ -287,6 +307,7 @@ function createGoatArenaProductionCommandService(options = {}) {
       timeLimitSeconds: Math.round(
         Number(pack.timeLimitMs || match.timeLimitMs) / 1000
       ),
+      integrityWatermark,
       questions: question
         ? [
             {
@@ -604,6 +625,9 @@ function createGoatArenaProductionCommandService(options = {}) {
       "clientBuildVersion",
       "questionSlot",
       "answer",
+      "boardRevision",
+      "boardSha256",
+      "evidenceMode",
     ]);
     const authority = await loadParticipantAuthority(input.matchId, userId);
     const expectedSlot =
@@ -624,12 +648,36 @@ function createGoatArenaProductionCommandService(options = {}) {
             .select("_id")
             .lean()
         : null;
-      if (replay) return serializeStart(authority);
+      if (replay) {
+        if (
+          input.evidenceMode === "INLINE_BOARD_V1" &&
+          authority.attempt?.status === "EVIDENCE_REQUIRED"
+        ) {
+          await commands.promoteInlineSolutionBoards({
+            matchId: input.matchId,
+            userId,
+            now: new Date(now()),
+          });
+          return serializeStart(
+            await loadParticipantAuthority(input.matchId, userId)
+          );
+        }
+        return serializeStart(authority);
+      }
       fail(
         "GOAT_ARENA_QUESTION_SEQUENCE_REQUIRED",
         "current question is required",
         { statusCode: 409 }
       );
+    }
+    if (input.evidenceMode === "INLINE_BOARD_V1") {
+      await commands.assertInlineSolutionBoard({
+        matchId: input.matchId,
+        userId,
+        questionSlot: input.questionSlot,
+        expectedRevision: input.boardRevision,
+        expectedSha256: input.boardSha256,
+      });
     }
     await commands.advanceArenaMatchQuestion({
       matchId: input.matchId,
@@ -639,7 +687,18 @@ function createGoatArenaProductionCommandService(options = {}) {
       submissionMode: "MANUAL",
       now: new Date(now()),
     });
-    const refreshed = await loadParticipantAuthority(input.matchId, userId);
+    let refreshed = await loadParticipantAuthority(input.matchId, userId);
+    if (
+      input.evidenceMode === "INLINE_BOARD_V1" &&
+      refreshed.attempt?.status === "EVIDENCE_REQUIRED"
+    ) {
+      await commands.promoteInlineSolutionBoards({
+        matchId: input.matchId,
+        userId,
+        now: new Date(now()),
+      });
+      refreshed = await loadParticipantAuthority(input.matchId, userId);
+    }
     return serializeStart(refreshed);
   }
 

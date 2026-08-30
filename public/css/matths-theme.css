@@ -1,3 +1,5 @@
+@import url("/css/matths-brand-tokens.css");
+
 /*
  * Matths unified interface theme
  * Reference: dark navy navigation, luminous violet-to-cyan accents,
@@ -14,14 +16,15 @@
   --matths-canvas: #f3f6ff;
   --matths-surface: rgba(255, 255, 255, 0.96);
   --matths-line: #e3e8f4;
-  --matths-magenta: #d842ee;
-  --matths-violet: #7654f7;
-  --matths-blue: #3157f6;
-  --matths-cyan: #19c7e9;
+  --matths-magenta: #ca44e3;
+  --matths-violet: #7b4efc;
+  --matths-blue: #327ffa;
+  --matths-cyan: #0cdcf1;
   --matths-gradient: linear-gradient(
-    100deg,
+    90deg,
     var(--matths-magenta) 0%,
-    var(--matths-violet) 48%,
+    var(--matths-violet) 35%,
+    var(--matths-blue) 70%,
     var(--matths-cyan) 100%
   );
   --matths-gradient-deep: linear-gradient(
@@ -87,8 +90,9 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible {
-  outline: 3px solid rgba(118, 84, 247, 0.24);
+  outline: 3px solid var(--matths-violet);
   outline-offset: 3px;
+  box-shadow: 0 0 0 2px #fff;
 }
 
 button,
