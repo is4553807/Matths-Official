@@ -136,8 +136,7 @@ app.get("/preview/home-arena-tier", (_req, res) => {
 });
 
 app.get("/preview/main-dashboard", (_req, res) => {
-  const now = new Date();
-  const relativeDate = (minutes) => new Date(now.getTime() + minutes * 60 * 1000);
+  const now = new Date("2026-08-30T10:05:00.000Z");
   const previewUser = {
     id: "64b000000000000000000711",
     name: "hong-gildong",
@@ -203,11 +202,11 @@ app.get("/preview/main-dashboard", (_req, res) => {
           attendanceMode: "SELF_CODE",
           state: "OPEN",
           isLateWindow: false,
-          startsAt: relativeDate(-15),
-          endsAt: relativeDate(105),
-          checkInOpensAt: relativeDate(-20),
-          lateAfterAt: relativeDate(35),
-          checkInClosesAt: relativeDate(115),
+          startsAt: new Date("2026-08-30T10:00:00.000Z"),
+          endsAt: new Date("2026-08-30T12:00:00.000Z"),
+          checkInOpensAt: new Date("2026-08-30T09:55:00.000Z"),
+          lateAfterAt: new Date("2026-08-30T10:30:00.000Z"),
+          checkInClosesAt: new Date("2026-08-30T12:10:00.000Z"),
         },
       },
       coach: {
@@ -223,7 +222,7 @@ app.get("/preview/main-dashboard", (_req, res) => {
         availableLearningDays: 96,
         reservedLearningDays: 24,
         lockedLearningDays: 8,
-        expiresAt: new Date("2027-01-05T14:59:59.000Z"),
+        expiresAt: new Date("2026-01-05T14:59:59.000Z"),
         unlimited: false,
         statusLabel: "이용 중",
       },

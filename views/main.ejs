@@ -1,24 +1,50 @@
 <%
   const learner = user;
   const data = dashboardData;
-
   const displayName = String(learner.realName || "학생");
-  const greetingName = String(learner.realName || learner.name || "학생");
   const notifications = Array.isArray(data.notifications) ? data.notifications : [];
   const hasUrgentNotification = Boolean(data.hasUrgentNotification);
   const activeDashboardNotices = Array.isArray(data.activeDashboardNotices) ? data.activeDashboardNotices : [];
   const activityDays = Array.isArray(data.weeklyActivity?.days) ? data.weeklyActivity.days : [];
+  const activePlan = data.activePlan || { code: "FREE", name: "기본학습 패키지" };
+  const accessRenewalNotice = data.accessRenewalNotice || null;
+  const attendance = data.attendance || null;
   const weeklyStudyMinutes = Number(data.stats?.weeklyStudyMinutes) || 0;
   const todayStudyMinutes = Number(data.stats?.todayStudyMinutes) || 0;
   const activeStudyDays = Number(data.stats?.activeStudyDays) || 0;
   const averageStudyMinutes = Number(data.stats?.averageStudyMinutes) || 0;
   const weeklySolvedProblems = Number(data.stats?.weeklySolvedProblems) || 0;
   const weeklyCorrectRate = Number(data.stats?.correctRate) || 0;
-  const activePlan = data.activePlan || { code: "FREE", name: "기본학습 패키지" };
-  const accessRenewalNotice = data.accessRenewalNotice || null;
-  const attendance = data.attendance || null;
   const attendanceStatusLabel = { PRESENT: "출석 완료", LATE: "지각 완료", ABSENT: "결석", EXCUSED: "사유 결석" };
   const coachModeLabel = { mild: "순한맛", spicy: "매운맛", silent: "조용한 모드" }[data.coach?.mode] || "코치 모드";
+
+  const icons = {
+    panelClose: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
+    menu: '<line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
+    flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+    bell: '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
+    bellRing: '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M22 8c0-2.3-.8-4.3-2-6"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/><path d="M4 2C2.8 3.7 2 5.7 2 8"/>',
+    mapPin: '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    checkCircle: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+    info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+    sparkles: '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>',
+    crown: '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
+    arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+    timer: '<line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/>',
+    calendarCheck: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>',
+    gauge: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+    listChecks: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+    percent: '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+    trendUp: '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+    trendDown: '<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',
+    minus: '<path d="M5 12h14"/>',
+  };
+  const icon = (name, className = "") => `<svg class="${className}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || ""}</svg>`;
 
   const formatAcademyDate = (value) => value
     ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short" }).format(new Date(value))
@@ -34,21 +60,13 @@
     if (!remainingMinutes) return `${hours}시간`;
     return `${hours}시간 ${remainingMinutes}분`;
   };
-
-  const gradeLabel = learner.schoolGrade === 10
-    ? "고등학교 1학년"
-    : learner.schoolGrade === 11
-      ? "고등학교 2학년"
-      : learner.schoolGrade === 12
-        ? "고등학교 3학년"
-        : learner.schoolGrade === 13
-          ? "N수생"
-          : learner.schoolGrade === 14
-            ? "대학생"
-            : learner.schoolGrade === 15
-              ? "직장인"
+  const gradeLabel = learner.schoolGrade === 10 ? "고등학교 1학년"
+    : learner.schoolGrade === 11 ? "고등학교 2학년"
+      : learner.schoolGrade === 12 ? "고등학교 3학년"
+        : learner.schoolGrade === 13 ? "N수생"
+          : learner.schoolGrade === 14 ? "대학생"
+            : learner.schoolGrade === 15 ? "직장인"
               : "학년 미설정";
-
   const chartMaximum = Math.max(1, Number(data.weeklyActivity?.maxMinutes) || 0);
   const planExpiryLabel = activePlan.expiresAt
     ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "long", day: "numeric" }).format(new Date(activePlan.expiresAt))
@@ -57,16 +75,20 @@
     ? String(attendance.attendance.status || "PRESENT").toLowerCase()
     : attendance?.session?.state === "OPEN"
       ? (attendance.session.isLateWindow ? "late" : "open")
-      : attendance?.session?.state === "CLOSED"
-        ? "closed"
-        : "scheduled";
+      : attendance?.session?.state === "CLOSED" ? "closed" : "scheduled";
   const attendanceStateLabel = attendance?.attendance
     ? attendanceStatusLabel[attendance.attendance.status] || attendance.attendance.status
     : attendance?.session?.state === "OPEN"
       ? (attendance.session.isLateWindow ? "지각 입력 중" : "출석 입력 중")
-      : attendance?.session?.state === "CLOSED"
-        ? "입력 종료"
-        : "출석 시작 전";
+      : attendance?.session?.state === "CLOSED" ? "입력 종료" : "출석 시작 전";
+  const kpiStats = [
+    { label: "최근 7일 총 학습", value: formatStudyTime(weeklyStudyMinutes), icon: "clock", detail: data.stats?.weeklyStudyDetail || "비교 기록 없음", highlight: true },
+    { label: "오늘 학습", value: formatStudyTime(todayStudyMinutes), icon: "timer", detail: "" },
+    { label: "7일 중 학습한 날", value: `${activeStudyDays}일`, icon: "calendarCheck", detail: "비교 기록 없음" },
+    { label: "학습일 평균", value: formatStudyTime(averageStudyMinutes), icon: "gauge", detail: "" },
+    { label: "7일 풀이 문제", value: `${weeklySolvedProblems}문제`, icon: "listChecks", detail: "" },
+    { label: "7일 정답률", value: `${weeklyCorrectRate}%`, icon: "percent", detail: data.stats?.correctRateDetail || "비교 기록 없음" },
+  ];
 %>
 <!doctype html>
 <html lang="ko">
@@ -89,139 +111,153 @@
 
     <% if (accessRenewalNotice) { %>
       <dialog class="access-renewal-dialog" id="access-renewal-dialog" data-access-renewal-dialog <%= accessRenewalNotice.graceDeadline ? `data-grace-deadline="${new Date(accessRenewalNotice.graceDeadline).toISOString()}"` : "" %>>
-        <div class="access-renewal-dialog__glow" aria-hidden="true"></div>
         <form method="dialog" class="access-renewal-dialog__body">
-          <span class="access-renewal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h12v4l-3 3 3 3v4H6v-4l3-3-3-3Z"/><path d="M9 22h6M12 16v6"/></svg></span>
           <p><%= accessRenewalNotice.kind === "MAIN_DEMOTION" ? "RANKED 이용 종료" : "학습권 이용 종료" %></p>
-          <h2>정기권 학습 가능 일수를 모두 사용했습니다.</h2>
+          <h2>학습권이 종료되었어요</h2>
           <% if (accessRenewalNotice.kind === "MAIN_DEMOTION") { %>
             <span>Ranked 이용이 종료되어 Unranked로 전환됐습니다. 다시 이용하려면 29일 학습권 패키지를 구매해 주세요.</span>
             <dl class="access-renewal-preview">
-              <div><dt>72시간 내 재구매 예상 위치</dt><dd><strong><%= accessRenewalNotice.referenceTier %></strong> · <%= accessRenewalNotice.referenceGp %> GP<% if (accessRenewalNotice.referenceOverallPosition) { %> · 전체 <%= accessRenewalNotice.referenceOverallPosition %>위<% } %></dd></div>
+              <div><dt>72시간 내 재구매 예상 위치</dt><dd><strong><%= accessRenewalNotice.referenceTier %></strong> · <%= accessRenewalNotice.referenceGp %> GP</dd></div>
               <div><dt>72시간 종료까지</dt><dd data-renewal-countdown><%= accessRenewalNotice.withinGrace ? "계산 중" : "종료됨" %></dd></div>
-              <div><dt>기한 후 랭크 복귀전 최고 위치</dt><dd><strong><%= accessRenewalNotice.lateTier %></strong> · <%= accessRenewalNotice.lateGp %> GP</dd></div>
             </dl>
-            <small>72시간은 무료 이용 기간이 아닙니다. 기한이 지나면 결제 후 랭크 복귀전을 완료해야 합니다.</small>
           <% } else { %>
-            <span>GOAT Arena와 Matths 주간 공식 모의고사 이용이 중단됐습니다. 새 학습권 패키지의 가격과 이용 범위를 확인해 주세요.</span>
+            <span>이용 가능한 학습일이 모두 소진되었습니다. 학습을 이어가려면 학습권 패키지를 확인해 주세요.</span>
           <% } %>
-          <div class="access-renewal-dialog__actions"><a href="/pricing">학습권 패키지 확인 <span aria-hidden="true">→</span></a><button type="submit">대시보드 먼저 보기</button></div>
+          <div class="access-renewal-dialog__actions"><button type="submit">나중에</button><a href="/pricing">학습권 확인 <%- icon("arrowRight") %></a></div>
         </form>
       </dialog>
     <% } %>
 
     <div class="dashboard-shell">
-      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
-      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+      <button class="sidebar-overlay" id="sidebar-overlay" type="button" aria-label="메뉴 닫기" hidden></button>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="주요 메뉴">
         <div class="sidebar-top">
-          <%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 학습 홈", className: "brand", tone: "dark" }) %>
-          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
+          <a class="dashboard-logo" href="/" aria-label="Matths 홈으로 이동">
+            <img src="/images/dashboard/matths-logo.png" alt="" width="36" height="36" />
+            <span>Matths</span>
+          </a>
+          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기"><%- icon("panelClose") %></button>
         </div>
-        <%- include("partials/dashboard-navigation", { activePage: "main" }) %>
+        <%- include("partials/dashboard-navigation", {
+          activePage: "main",
+          data,
+          stats: { due: Number(data.stats?.pendingReviewCount) || 0 },
+          user: learner,
+          academyMembershipAvailable: Boolean(learner.hasAcademyMembership),
+        }) %>
         <div class="sidebar-spacer"></div>
         <div class="sidebar-profile" data-tutorial-target="dashboard-profile">
-          <a class="profile-avatar profile-avatar-with-level" href="/profile" aria-label="<%= displayName %>님의 프로필 설정으로 이동, Arena 활동 레벨 <%= arenaActivityLevel.level %>" title="프로필 설정"><span aria-hidden="true"><img src="<%= arenaProfileAvatar.imageSrc %>" alt="" /></span><b aria-hidden="true"><%= arenaActivityLevel.level %></b></a>
-          <div class="profile-copy"><strong><%= displayName %></strong><small><%= gradeLabel %> · Lv.<%= arenaActivityLevel.level %></small></div>
-          <form action="/logout" method="POST"><button type="submit" aria-label="로그아웃" title="로그아웃"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 4H5v16h5M14 8l4 4-4 4M8 12h10"/></svg></button></form>
+          <a class="profile-link" href="/profile" aria-label="<%= displayName %> 프로필로 이동">
+            <span class="profile-initial"><%= displayName.slice(0, 1) %><b><%= arenaActivityLevel.level %></b></span>
+            <span class="profile-copy"><strong><%= displayName %></strong><small><%= gradeLabel %> · Lv.<%= arenaActivityLevel.level %></small></span>
+          </a>
+          <form action="/logout" method="POST"><button type="submit" aria-label="로그아웃"><%- icon("logout") %></button></form>
         </div>
       </aside>
 
-      <main class="dashboard-main" id="dashboard-main">
+      <div class="dashboard-content-shell">
         <header class="topbar" data-tutorial-target="dashboard-welcome">
-          <div class="topbar-left">
-            <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
-            <div><p id="today-label">오늘의 학습</p><h1><%= greetingName %>님, 반갑습니다.</h1></div>
-          </div>
+          <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><%- icon("menu") %></button>
+          <div class="topbar-title"><p id="today-label">오늘의 학습</p><h1><%= displayName %>님, 반갑습니다.</h1></div>
           <div class="topbar-actions">
-            <div class="streak-pill" title="연속 학습일"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12.5 2.5c.5 3-1.5 4.5-3 6.5-1.3 1.8-1.6 4.2-.2 6a4.5 4.5 0 0 0 7.8-1c1.2-3.5-1-7.5-4.6-11.5Z"/><path d="M12 13c-1.4 1.4-1.8 2.5-1.2 3.8a2 2 0 0 0 3.6-.1c.5-1.2-.2-2.5-1.4-4"/></svg><strong><%= learner.currentStreak %>일 연속</strong></div>
+            <div class="streak-pill" title="연속 학습일"><%- icon("flame") %><strong><%= Number(learner.currentStreak) || 0 %>일 연속</strong></div>
             <div class="notification-wrap">
-              <button class="notification-button <%= hasUrgentNotification ? 'urgent shake' : '' %>" id="notification-button" type="button" aria-label="알림 <%= notifications.length %>개 보기" aria-expanded="false" aria-controls="notification-panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><% if (notifications.length > 0) { %><i><%= notifications.length %></i><% } %></button>
-              <div class="notification-panel" id="notification-panel" hidden>
-                <div class="notification-panel-title"><strong>알림 <b><%= notifications.length %></b></strong><button id="notification-close" type="button" aria-label="알림 닫기">×</button></div>
+              <button class="notification-button <%= hasUrgentNotification ? 'urgent shake' : '' %>" id="notification-button" type="button" aria-label="알림 <%= notifications.length %>개 보기" aria-expanded="false" aria-controls="notification-panel"><%- icon("bell") %><% if (notifications.length) { %><i><%= notifications.length %></i><% } %></button>
+              <div class="notification-panel" id="notification-panel" role="dialog" aria-label="알림" hidden>
+                <div class="notification-panel-title"><strong>알림 <b><%= notifications.length %></b></strong><button id="notification-close" type="button" aria-label="알림 닫기"><%- icon("x") %></button></div>
                 <div class="notification-panel-list">
                   <% if (notifications.length) { notifications.forEach((notification) => { %><a class="<%= notification.urgent ? 'urgent' : '' %>" href="<%= notification.href %>"><i aria-hidden="true"></i><span><b><%= notification.title %></b><small><%= notification.description %></small></span></a><% }); } else { %><p class="panel-empty">새로운 알림이 없습니다.</p><% } %>
                 </div>
-                <div class="notification-panel-footer"><a href="/notifications">알림 우편함</a><a class="notification-inbox-cta" href="/notifications">알림 우편함 전체 보기 <span aria-hidden="true">→</span></a></div>
+                <div class="notification-panel-footer"><a href="/notifications">알림 우편함</a><a href="/notifications">알림 우편함 전체 보기 <%- icon("arrowRight") %></a></div>
               </div>
             </div>
           </div>
         </header>
 
-        <div class="dashboard-page-content">
-          <% if (attendance?.session) { %>
-            <section class="dashboard-attendance-card is-<%= attendanceState %>" data-student-attendance-card data-session-id="<%= attendance.session.id %>" data-attendance-mode="<%= attendance.session.attendanceMode %>" data-opens-at="<%= new Date(attendance.session.checkInOpensAt).toISOString() %>" data-late-at="<%= new Date(attendance.session.lateAfterAt).toISOString() %>" data-closes-at="<%= new Date(attendance.session.checkInClosesAt).toISOString() %>" data-server-now="<%= new Date(attendance.serverNow).toISOString() %>">
-              <div class="dashboard-attendance-copy">
-                <div class="attendance-heading"><h2>오늘의 학원 수업</h2><span data-attendance-window-label><%= attendanceStateLabel %></span></div>
-                <p><strong><%= attendance.academy.name %></strong><b><%= attendance.academyClass.name %></b></p>
-                <div class="attendance-schedule"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-5 7-12a7 7 0 1 0-14 0c0 7 7 12 7 12Z"/><circle cx="12" cy="9" r="2"/></svg><%= formatAcademyDate(attendance.session.startsAt) %></span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><%= formatAcademyTime(attendance.session.startsAt) %> - <%= formatAcademyTime(attendance.session.endsAt) %></span></div>
+        <main class="dashboard-main" id="dashboard-main">
+          <div class="dashboard-grid">
+            <% if (attendance?.session) { %>
+              <div class="dashboard-grid-full">
+                <section class="dashboard-attendance-card is-<%= attendanceState %>" aria-labelledby="attendance-heading" data-student-attendance-card data-session-id="<%= attendance.session.id %>" data-attendance-mode="<%= attendance.session.attendanceMode %>" data-opens-at="<%= new Date(attendance.session.checkInOpensAt).toISOString() %>" data-late-at="<%= new Date(attendance.session.lateAfterAt).toISOString() %>" data-closes-at="<%= new Date(attendance.session.checkInClosesAt).toISOString() %>" data-server-now="<%= new Date(attendance.serverNow).toISOString() %>">
+                  <div class="attendance-top">
+                    <div class="attendance-copy">
+                      <div class="attendance-heading"><h2 id="attendance-heading">오늘의 학원 수업</h2><span data-attendance-window-label><%= attendanceStateLabel %></span></div>
+                      <p><strong><%= attendance.academy.name %></strong><b><%= attendance.academyClass.name %></b></p>
+                      <div class="attendance-schedule"><span><%- icon("mapPin") %><%= formatAcademyDate(attendance.session.startsAt) %></span><span><%- icon("clock") %><%= formatAcademyTime(attendance.session.startsAt) %> - <%= formatAcademyTime(attendance.session.endsAt) %></span></div>
+                    </div>
+                    <% if (!attendance.attendance && attendance.session.attendanceMode !== "MANUAL") { %><button type="button" class="attendance-alert-button" data-enable-attendance-alerts aria-pressed="false"><%- icon("bellRing") %>수업 알림 켜기</button><% } %>
+                  </div>
+                  <div class="dashboard-attendance-action">
+                    <% if (attendance.attendance) { %>
+                      <div class="attendance-complete"><%- icon("checkCircle") %><span>오늘 수업 <strong data-attendance-result><%= attendanceStatusLabel[attendance.attendance.status] || attendance.attendance.status %></strong>되었어요.</span></div>
+                    <% } else if (attendance.session.attendanceMode === "MANUAL") { %>
+                      <div class="attendance-manual"><%- icon("info") %><span>선생님이 직접 출결을 확인하는 반입니다. 코드 입력 없이 수업에 참여하세요.</span></div>
+                    <% } else { %>
+                      <small class="sr-only" data-attendance-countdown><%= formatAcademyTime(attendance.session.checkInOpensAt) %>부터 코드 입력 가능</small>
+                      <form data-student-attendance-form <%= attendance.canCheckIn ? "" : "hidden" %>>
+                        <div class="attendance-code-inputs" role="group" aria-label="6자리 출석 코드 입력"><% for (let digitIndex = 0; digitIndex < 6; digitIndex += 1) { %><input data-attendance-digit type="text" inputmode="numeric" maxlength="1" aria-label="출석 코드 <%= digitIndex + 1 %>번째 자리" /><% } %><input name="code" type="hidden" /></div>
+                        <button type="submit" disabled>출석하기</button>
+                      </form>
+                      <p data-attendance-feedback role="status" aria-live="polite"></p>
+                    <% } %>
+                  </div>
+                </section>
               </div>
-              <div class="dashboard-attendance-action">
-                <% if (attendance.attendance) { %>
-                  <div class="attendance-complete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg><strong data-attendance-result><%= attendanceStatusLabel[attendance.attendance.status] || attendance.attendance.status %></strong><small><%= attendance.attendance.checkedInAt ? `${formatAcademyTime(attendance.attendance.checkedInAt)} 체크인` : "선생님이 출결을 기록했습니다." %></small></div>
-                <% } else if (attendance.session.attendanceMode === "MANUAL") { %>
-                  <div class="attendance-manual"><strong>선생님 수동 출결</strong><small>담당 선생님이 수업 출결을 기록합니다.</small></div>
-                <% } else { %>
-                  <button type="button" class="dashboard-attendance-alert-button" data-enable-attendance-alerts><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>수업 알림 켜기</button>
-                  <small data-attendance-countdown><%= formatAcademyTime(attendance.session.checkInOpensAt) %>부터 코드 입력 가능</small>
-                  <form data-student-attendance-form <%= attendance.canCheckIn ? "" : "hidden" %>><div class="attendance-code-inputs" role="group" aria-label="6자리 출석 코드"><% for (let digitIndex = 0; digitIndex < 6; digitIndex += 1) { %><input data-attendance-digit type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" autocomplete="<%= digitIndex === 0 ? 'one-time-code' : 'off' %>" aria-label="출석 코드 <%= digitIndex + 1 %>번째 자리" /><% } %><input name="code" type="hidden" /></div><button type="submit">출석하기</button></form>
-                  <p data-attendance-feedback role="status" aria-live="polite"></p>
-                <% } %>
-              </div>
-            </section>
-          <% } %>
-
-          <% if (activeDashboardNotices.length) { %>
-            <section class="dashboard-announcements" aria-label="운영 공지">
-              <% activeDashboardNotices.forEach((notice) => { %>
-                <article class="<%= notice.kind === 'integrity' ? 'integrity' : '' %>" data-dashboard-notice="<%= notice.id %>">
-                  <span class="notice-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 2.8 19h18.4Z"/><path d="M12 9v4M12 16h.01"/></svg></span>
-                  <div><div class="notice-title-row"><% if (notice.kind === "integrity") { %><span>시험 · 무결성</span><% } %><strong><%= notice.title %></strong></div><p><%= notice.content %></p><a href="<%= notice.href %>">공지 자세히 보기 <span aria-hidden="true">→</span></a></div>
-                  <button type="button" data-dismiss-dashboard-notice="<%= notice.dismissUrl %>" aria-label="<%= notice.title %> 알림 닫기" title="대시보드에서 닫기">×</button>
-                </article>
-              <% }) %>
-            </section>
-          <% } %>
-
-          <div class="dashboard-primary-grid <%= data.coach?.message ? '' : 'single' %>">
-            <% if (data.coach?.message) { %>
-              <section class="dashboard-coach-card" data-mode="<%= data.coach.mode %>" aria-label="오늘의 Matths 코치 메시지" data-tutorial-target="dashboard-coach">
-                <% if (["mild", "spicy"].includes(data.coach.mode)) { %><figure class="dashboard-coach-character" data-dashboard-coach-character data-character-tone="<%= data.coach.mode %>" aria-hidden="true"><img data-dashboard-coach-character-image src="/images/coach-characters/<%= data.coach.mode === 'spicy' ? 'spicy' : 'mild' %>-goat-1.webp" alt="" width="120" height="120" decoding="async" /></figure><% } else { %><span class="dashboard-coach-avatar" aria-hidden="true">M</span><% } %>
-                <div class="dashboard-coach-copy"><div><h2>오늘의 Matths 코치</h2><span class="coach-mode-badge"><%= coachModeLabel %></span></div><p><%= data.coach.message %></p></div>
-                <a href="/profile#coach-mode-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.55V21h-4v-.08A1.7 1.7 0 0 0 8.95 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.58 15 1.7 1.7 0 0 0 3 14H3v-4h.08A1.7 1.7 0 0 0 4.6 8.95a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.08V3h4v.08A1.7 1.7 0 0 0 15.05 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>말투 설정</a>
-              </section>
             <% } %>
 
-            <section class="usage-plan-card usage-plan-card--<%= String(activePlan.code || 'FREE').toLowerCase() %>" aria-labelledby="usage-plan-title" data-tutorial-target="usage-plan">
-              <div class="usage-plan-heading"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m4 8 3 3 5-7 5 7 3-3-2 10H6Z"/><path d="M6 21h12"/></svg></span><h2 id="usage-plan-title">현재 이용 플랜</h2><b><%= activePlan.statusLabel %></b></div>
-              <h3><%= activePlan.name %></h3>
-              <div class="usage-plan-total"><span>남은 학습일</span><strong><%= activePlan.unlimited ? "무제한" : `${Number(activePlan.remainingLearningDays) || 0}일` %></strong></div>
-              <dl class="usage-plan-metrics"><div><dt>사용 가능</dt><dd><%= activePlan.unlimited ? "∞" : Number(activePlan.availableLearningDays) || 0 %><small>일</small></dd></div><div><dt>예약됨</dt><dd><%= Number(activePlan.reservedLearningDays) || 0 %><small>일</small></dd></div><div><dt>Arena 예치</dt><dd><%= Number(activePlan.lockedLearningDays) || 0 %><small>일</small></dd></div></dl>
-              <p>이용 만료일 · <strong><%= planExpiryLabel %></strong></p>
-              <a href="/pricing"><%= activePlan.code === "FREE" ? "플랜 비교하기" : "이용 범위 확인" %><span aria-hidden="true">→</span></a>
-            </section>
-          </div>
+            <% if (activeDashboardNotices.length) { %>
+              <div class="dashboard-grid-full dashboard-announcements" aria-label="운영 공지">
+                <% activeDashboardNotices.forEach((notice) => { %>
+                  <section class="notice-card <%= notice.kind === 'integrity' ? 'integrity' : '' %>" data-dashboard-notice="<%= notice.id %>">
+                    <span class="notice-icon" aria-hidden="true"><%- icon("alert") %></span>
+                    <div class="notice-copy"><div><% if (notice.kind === "integrity") { %><span>시험 · 무결성</span><% } %><h2><%= notice.title %></h2></div><p><%= notice.content %></p><a href="<%= notice.href %>">공지 자세히 보기 <%- icon("arrowRight") %></a></div>
+                    <button type="button" data-dismiss-dashboard-notice="<%= notice.dismissUrl %>" aria-label="공지 닫기"><%- icon("x") %></button>
+                  </section>
+                <% }) %>
+              </div>
+            <% } %>
 
-          <div class="dashboard-analytics-grid" data-tutorial-target="weekly-record">
-            <section class="learning-kpi-section" aria-labelledby="learning-record-title">
-              <header><h2 id="learning-record-title">최근 7일 학습 지표</h2><span>이전 기간 대비</span></header>
-              <dl class="learning-kpi-grid">
-                <div class="highlight"><dt><span>◷</span><small><%= data.stats?.weeklyStudyDetail || "비교 기록 없음" %></small></dt><dd><strong><%= formatStudyTime(weeklyStudyMinutes) %></strong><small>최근 7일 총 학습</small></dd></div>
-                <div><dt><span>◴</span><small>한국 시간</small></dt><dd><strong><%= formatStudyTime(todayStudyMinutes) %></strong><small>오늘 학습</small></dd></div>
-                <div><dt><span>✓</span><small>최근 7일 중</small></dt><dd><strong><%= activeStudyDays %>일</strong><small>7일 중 학습한 날</small></dd></div>
-                <div><dt><span>⌁</span><small>학습한 날 기준</small></dt><dd><strong><%= formatStudyTime(averageStudyMinutes) %></strong><small>학습일 평균</small></dd></div>
-                <div><dt><span>☷</span><small>개념·복습·평가</small></dt><dd><strong><%= weeklySolvedProblems %>문제</strong><small>7일 풀이 문제</small></dd></div>
-                <div><dt><span>%</span><small><%= data.stats?.correctRateDetail || "비교 기록 없음" %></small></dt><dd><strong><%= weeklyCorrectRate %>%</strong><small>7일 정답률</small></dd></div>
-              </dl>
-            </section>
+            <% if (data.coach?.message && ["mild", "spicy"].includes(data.coach.mode)) { %>
+              <div class="dashboard-grid-wide">
+                <section class="coach-card" aria-labelledby="coach-heading" data-mode="<%= data.coach.mode %>" data-tutorial-target="dashboard-coach">
+                  <div class="coach-content">
+                    <figure class="dashboard-coach-character" data-dashboard-coach-character data-character-static="true" data-character-tone="<%= data.coach.mode %>"><img data-dashboard-coach-character-image src="/images/dashboard/coach-mascot.png" alt="Matths 코치 캐릭터" width="72" height="72" /></figure>
+                    <div class="coach-copy"><div><h2 id="coach-heading">오늘의 Matths 코치</h2><span><%- icon("sparkles") %><%= coachModeLabel %></span></div><p><%= data.coach.message %></p></div>
+                  </div>
+                  <div class="coach-footer"><a href="/profile#coach-mode-settings"><%- icon("settings") %>말투 설정</a></div>
+                </section>
+              </div>
+            <% } %>
 
-            <section class="weekly-activity-card" aria-labelledby="weekly-chart-title">
-              <header><h2 id="weekly-chart-title">요일별 학습 시간</h2><span>오늘 강조</span></header>
-              <% if (activityDays.length) { %><div class="weekly-chart" aria-label="요일별 학습 시간"><% activityDays.forEach((day) => { const rawHeight = Math.round((Number(day.minutes) || 0) / chartMaximum * 100); const barHeight = day.minutes > 0 ? Math.max(7, rawHeight) : 4; %><div class="chart-day <%= day.isToday ? 'today' : '' %>"><div class="bar-track"><i style="--height:<%= barHeight %>%" tabindex="0" aria-label="<%= day.label %> <%= day.minutes %>분"><span><%= formatStudyTime(day.minutes) %></span></i></div><small><%= day.label %></small></div><% }) %></div><% } else { %><div class="section-empty chart-empty"><strong>아직 학습 기록이 없습니다.</strong><p>개념을 학습하면 요일별 학습 시간이 표시됩니다.</p></div><% } %>
-            </section>
+            <div class="dashboard-grid-narrow">
+              <section class="plan-card" aria-labelledby="plan-heading" data-tutorial-target="usage-plan">
+                <div class="plan-heading"><div><div><span><%- icon("crown") %></span><h2 id="plan-heading">현재 이용 플랜</h2></div><h3><%= activePlan.name %></h3></div><b><%= activePlan.statusLabel %></b></div>
+                <div class="plan-total"><span>남은 학습일</span><strong><%= activePlan.unlimited ? "무제한" : `${Number(activePlan.remainingLearningDays) || 0}일` %></strong></div>
+                <dl class="plan-stats"><div><dt>사용 가능</dt><dd><%= activePlan.unlimited ? "∞" : Number(activePlan.availableLearningDays) || 0 %><small>일</small></dd></div><div><dt>예약됨</dt><dd><%= Number(activePlan.reservedLearningDays) || 0 %><small>일</small></dd></div><div><dt>Arena 예치</dt><dd><%= Number(activePlan.lockedLearningDays) || 0 %><small>일</small></dd></div></dl>
+                <p>이용 만료일 · <strong><%= planExpiryLabel %></strong></p>
+                <a href="/pricing"><%= activePlan.code === "FREE" ? "플랜 비교하기" : "이용 범위 확인" %><%- icon("arrowRight") %></a>
+              </section>
+            </div>
+
+            <div class="dashboard-grid-wide" data-tutorial-target="weekly-record">
+              <section class="kpi-section" aria-labelledby="kpi-heading">
+                <header><h2 id="kpi-heading">최근 7일 학습 지표</h2><span>이전 기간 대비</span></header>
+                <dl class="kpi-grid">
+                  <% kpiStats.forEach((stat) => { const trendDown = String(stat.detail || "").trim().startsWith("-"); %><div class="<%= stat.highlight ? 'highlight' : '' %>"><dt><span><%- icon(stat.icon) %></span><small class="<%= stat.detail && stat.detail !== '비교 기록 없음' ? (trendDown ? 'negative' : 'positive') : '' %>"><% if (stat.detail && stat.detail !== "비교 기록 없음") { %><%- icon(trendDown ? "trendDown" : "trendUp") %><% } %><%= stat.detail %></small></dt><dd><strong><%= stat.value %></strong><small><%= stat.label %></small></dd></div><% }) %>
+                </dl>
+              </section>
+            </div>
+
+            <div class="dashboard-grid-narrow">
+              <section class="weekly-card" aria-labelledby="chart-heading">
+                <header><h2 id="chart-heading">요일별 학습 시간</h2><span>오늘 강조</span></header>
+                <% if (activityDays.length) { %><div class="weekly-chart" aria-label="요일별 학습 시간"><% activityDays.forEach((day) => { const rawHeight = Math.round((Number(day.minutes) || 0) / chartMaximum * 100); const barHeight = Math.max(rawHeight, 6); %><div class="chart-day <%= day.isToday ? 'today' : '' %>"><div><span><%= formatStudyTime(day.minutes) %></span><i style="--height:<%= barHeight %>%" tabindex="0" role="img" aria-label="<%= day.label %>요일 <%= formatStudyTime(day.minutes) %><%= day.isToday ? ', 오늘' : '' %>"></i></div><small><%= day.label %></small></div><% }) %></div><% } else { %><div class="chart-empty"><strong>아직 학습 기록이 없습니다</strong></div><% } %>
+              </section>
+            </div>
           </div>
-        </div>
-        <p class="sr-only" id="dashboard-status" role="status" aria-live="polite"></p>
-      </main>
+          <p class="sr-only" id="dashboard-status" role="status" aria-live="polite"></p>
+        </main>
+      </div>
     </div>
     <%- include("partials/onboarding-tutorial", { page: "main" }) %>
     <%- include("partials/business-footer") %>

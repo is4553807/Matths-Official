@@ -316,6 +316,7 @@
     );
 
     if (!stage || !image) return;
+    if (stage.dataset.characterStatic === "true") return;
 
     const characterTone =
       stage.dataset.characterTone === "spicy" ? "spicy" : "mild";
@@ -412,6 +413,7 @@
     const clockOffset = Number.isFinite(serverNow) ? serverNow - Date.now() : 0;
     const form = card.querySelector("[data-student-attendance-form]");
     const input = form?.querySelector("input[name='code']");
+    const submitButton = form?.querySelector("button[type='submit']");
     const digitInputs = Array.from(
       form?.querySelectorAll("[data-attendance-digit]") || []
     );
@@ -463,7 +465,6 @@
         if (label) label.textContent = now > lateAt ? "지각 출석 입력 중" : "출석 입력 중";
         if (countdown) countdown.textContent = `${durationLabel(closesAt - now)} 후 입력이 마감됩니다.`;
         if (form) form.hidden = false;
-        if (alertButton) alertButton.hidden = true;
         showAttendanceNotification();
         return true;
       }
@@ -490,6 +491,7 @@
     function syncAttendanceCode() {
       if (!input || !digitInputs.length) return;
       input.value = digitInputs.map((digitInput) => digitInput.value).join("");
+      if (submitButton) submitButton.disabled = input.value.length !== 6;
     }
 
     function focusAttendanceCode() {
@@ -542,7 +544,6 @@
 
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const submitButton = form.querySelector("button[type='submit']");
       if (!input || input.value.length !== 6) {
         if (feedback) feedback.textContent = "6자리 출석 코드를 입력해 주세요.";
         focusAttendanceCode();
