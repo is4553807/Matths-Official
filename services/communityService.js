@@ -42,7 +42,7 @@ const POPULAR_POST_UPVOTES =
   100;
 const BOARD_LABELS = {
   "high-school":
-    "통합 고등학교 게시판",
+    "통합 게시판",
   school: "학교 게시판",
   retaker: "N수생 게시판",
   university: "대학교 게시판",
@@ -61,9 +61,9 @@ const COMMUNITY_BOARD_RULES = {
   "high-school": {
     eyebrow: "COMMUNITY RULES",
     title:
-      "통합 고등학교 게시판 운영 규칙",
+      "통합 게시판 운영 규칙",
     introduction:
-      "학교와 지역을 넘어 고등학생이 수학, 학습, 학교생활에 관한 정보를 안전하게 나누는 공간입니다.",
+      "소속과 이용자 유형을 넘어 누구나 수학과 학습에 관한 정보를 안전하게 나누는 공간입니다.",
     sections: [
       {
         title: "서로를 존중해주세요",
@@ -107,7 +107,7 @@ const COMMUNITY_BOARD_RULES = {
       {
         title: "게시글은 하루 최대 5개입니다",
         content:
-          "통합 고등학교 게시판을 포함한 전체 게시판에서 한국 시간 기준 하루에 게시글을 최대 5개까지 작성할 수 있습니다.",
+          "통합 게시판을 포함한 전체 게시판에서 한국 시간 기준 하루에 게시글을 최대 5개까지 작성할 수 있습니다.",
       },
       {
         title: "사진·파일 첨부 기준",
@@ -1155,6 +1155,7 @@ async function getCommunityBoardData({
     );
   const filter = {
     status: "published",
+    authorDeletedAt: null,
     boardType:
       normalizedBoard ===
       "high-school"
@@ -2142,6 +2143,8 @@ async function getCommunityPost(
         _id: postId,
         status:
           "published",
+        authorDeletedAt:
+          null,
       }).lean(),
       getCommunityViewer(
         viewerId
@@ -2225,6 +2228,103 @@ async function getCommunityPost(
   };
 }
 
+async function deleteCommunityPostByAuthor({
+  userId,
+  postId,
+}) {
+  if (
+    !mongoose.isValidObjectId(
+      postId
+    )
+  ) {
+    throw statusError(
+      404,
+      "삭제할 게시글을 찾을 수 없습니다."
+    );
+  }
+  if (
+    !mongoose.isValidObjectId(
+      userId
+    )
+  ) {
+    throw statusError(
+      403,
+      "로그인한 사용자만 게시글을 삭제할 수 있습니다."
+    );
+  }
+
+  const deletedAt =
+    new Date();
+  const post =
+    await CommunityPost.findOneAndUpdate(
+      {
+        _id: postId,
+        authorId: userId,
+        status: "published",
+      },
+      {
+        $set: {
+          status: "deleted",
+          authorDeletedAt:
+            deletedAt,
+          isPinned: false,
+          pinnedAt: null,
+          pinnedBy: null,
+        },
+      },
+      {
+        returnDocument:
+          "after",
+        runValidators: true,
+      }
+    )
+      .select(
+        "_id authorId boardType status authorDeletedAt"
+      )
+      .lean();
+
+  if (post) {
+    return post;
+  }
+
+  const existing =
+    await CommunityPost.findById(
+      postId
+    )
+      .select(
+        "_id authorId boardType status authorDeletedAt"
+      )
+      .lean();
+
+  if (!existing) {
+    throw statusError(
+      404,
+      "삭제할 게시글을 찾을 수 없습니다."
+    );
+  }
+  if (
+    String(existing.authorId) !==
+    String(userId)
+  ) {
+    throw statusError(
+      403,
+      "본인이 작성한 게시글만 삭제할 수 있습니다."
+    );
+  }
+  if (
+    existing.status ===
+      "deleted" &&
+    existing.authorDeletedAt
+  ) {
+    return existing;
+  }
+
+  throw statusError(
+    409,
+    "운영 검토 중이거나 이미 처리된 게시글은 직접 삭제할 수 없습니다."
+  );
+}
+
 async function getCommunityAttachment({
   postId,
   attachmentId,
@@ -2249,6 +2349,8 @@ async function getCommunityAttachment({
       CommunityPost.findOne({
         _id: postId,
         status: "published",
+        authorDeletedAt:
+          null,
       })
         .select(
           "attachments boardType schoolCode universityCode"
@@ -2324,6 +2426,8 @@ async function reportCommunityPost({
       CommunityPost.findOne({
         _id: postId,
         status: "published",
+        authorDeletedAt:
+          null,
       }).lean(),
       User.findOne({
         _id: userId,
@@ -2425,6 +2529,8 @@ async function voteCommunityPost({
     CommunityPost.findOne({
       _id: postId,
       status: "published",
+      authorDeletedAt:
+        null,
     })
       .select(
         "_id boardType schoolCode universityCode"
@@ -2582,6 +2688,8 @@ async function createCommunityComment({
       CommunityPost.findOne({
         _id: postId,
         status: "published",
+        authorDeletedAt:
+          null,
       }).lean(),
       User.findOne({
         _id: userId,
@@ -3192,6 +3300,13 @@ async function moderateCommunityPost({
   post.status = nextStatus;
   if (
     normalizedAction ===
+    "restore"
+  ) {
+    post.authorDeletedAt =
+      null;
+  }
+  if (
+    normalizedAction ===
     "hide"
   ) {
     post.isPinned = false;
@@ -3664,6 +3779,7 @@ module.exports = {
   createCommunityComment,
   createCommunityNotice,
   createCommunityPost,
+  deleteCommunityPostByAuthor,
   reportCommunityPost,
   getAdminCommunityData,
   getCommunityAnnouncement,

@@ -1,0 +1,273 @@
+<%
+  const academyClass = detail.academyClass;
+  const currentClassSection = ["statistics", "attendance", "classwork", "settings"].includes(String(typeof activeClassSection !== "undefined" ? activeClassSection : ""))
+    ? String(activeClassSection)
+    : "statistics";
+  const academyName = String(detail.academy?.name || "학원");
+  const className = String(academyClass?.name || "반");
+  const classStudents = detail.students || [];
+  const viewFeedback = typeof feedback !== "undefined" ? feedback : null;
+  const classSchedule = academyClass?.schedule || { weekdays: [], startTime: "", endTime: "", effectiveFrom: "" };
+  const attendancePolicy = academyClass?.attendancePolicy || { mode: "MANUAL", opensBeforeMinutes: 10, lateAfterMinutes: 5, closesAfterMinutes: 20 };
+  const weekdayLabels = ["일", "월", "화", "수", "목", "금", "토"];
+  const homeroomTeacher = academyClass?.homeroomTeacherUserId || null;
+  const coTeachers = academyClass?.coTeacherUserIds || [];
+  const activeStaff = detail.activeStaff || [];
+  const availableCoTeachers = activeStaff.filter((staff) => {
+    const staffUserId = String(staff.userId?._id || "");
+    return staffUserId && staffUserId !== String(homeroomTeacher?._id || homeroomTeacher || "") && !coTeachers.some((teacher) => String(teacher?._id || teacher) === staffUserId);
+  });
+  const gradeLabelFor = (grade) => ({
+    10: "고1",
+    11: "고2",
+    12: "고3",
+    13: "N수생",
+    14: "대학생",
+    15: "직장인",
+  })[Number(grade)] || "학년 미설정";
+  const displayStudentName = (student) => String(student?.realName || student?.name || "학생");
+  const summaryRows = statistics.summary?.bullets || [];
+  const weeklyClasswork = typeof classwork !== "undefined" && classwork ? classwork : {
+    catalog: [], currentAcademicYear: new Date().getFullYear(), weeks: [], editingWeek: null,
+  };
+  const editingWeek = weeklyClasswork.editingWeek || null;
+  const selectedConceptKeys = new Set((editingWeek?.concepts || []).map((concept) => `${concept.courseId}/${concept.unitId}/${concept.conceptId}`));
+  const suggestedWeekNumber = Math.min(60, Math.max(1, ...weeklyClasswork.weeks.filter((week) => Number(week.academicYear) === Number(weeklyClasswork.currentAcademicYear)).map((week) => Number(week.weekNumber) + 1)));
+  const formatBytes = (bytes) => {
+    const value = Number(bytes) || 0;
+    if (value < 1024) return `${value} B`;
+    if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+    return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  };
+  const dateTimeInputValue = (date) => date
+    ? new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(date)).replace(" ", "T")
+    : "";
+  const formatClassworkDate = (date) => date
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(date))
+    : "마감일 없음";
+  const classMathMap = typeof mathMap !== "undefined" && mathMap ? mathMap : {
+    graphVersion: "kr-2022-math-graph-v1.0", modelVersion: "v1.0", overallMastery: null,
+    analyzedConceptCount: 0, concepts: [], bottlenecks: [], heatmap: [], totalStudents: classStudents.length,
+  };
+  const classMathMapJson = JSON.stringify({ heatmap: { items: classMathMap.heatmap.slice(0, 18) } }).replace(/</g, "\\u003c");
+  const summaryCopyText = [
+    `[Matths ${statistics.period.label.replace(/ \(.+\)$/, "")} 반 학습 요약]`,
+    `${academyName} · ${className}`,
+    ...summaryRows.map((row) => `• ${row.label}: ${row.text}`),
+  ].join("\n");
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title><%= className %> 반 통계 | <%= academyName %> · Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/academy.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+    <script src="/js/academy.js" defer></script>
+  </head>
+  <body class="academy-page">
+    <header class="academy-topbar">
+      <%- include("partials/matths-brand", { href: "/academy", ariaLabel: "Matths 학원 관리 홈", className: "academy-brand", suffix: "학원 관리", compact: true }) %>
+      <div class="academy-account"><span><strong><%= user.realName || user.name %></strong> 선생님</span><form action="/logout" method="POST"><button type="submit">로그아웃</button></form></div>
+    </header>
+
+    <div class="academy-layout">
+      <aside class="academy-sidebar">
+        <div class="academy-identity">
+          <% if (detail.profileImageSrc) { %><img src="<%= detail.profileImageSrc %>" alt="<%= academyName %> 프로필 사진" /><% } else { %><span aria-hidden="true"><%= academyName.slice(0, 1) %></span><% } %>
+          <div><small>ACADEMY</small><strong><%= academyName %></strong></div>
+        </div>
+        <nav aria-label="학원 관리 메뉴">
+          <a href="/academy?tab=dashboard">대시보드</a>
+          <a href="/academy?tab=attendance">출결 관리</a>
+          <a href="/academy?tab=students">학생 관리</a>
+          <a href="/academy?tab=requests">승인 요청 <% if (detail.pendingCount) { %><b><%= detail.pendingCount %></b><% } %></a>
+          <a class="active" href="/academy?tab=classes">반 관리</a>
+          <a href="/academy?tab=invites">초대 관리</a>
+          <a href="/academy/forensics">유출 자료 추적</a>
+          <a href="/academy?tab=teachers">선생님 관리</a>
+          <% if (detail.isOwner) { %><a href="/academy?tab=settings">학원 설정</a><% } %>
+        </nav>
+        <p>반 통계는 현재 해당 반에 배정된 승인 학생의 기록만 집계합니다.</p>
+      </aside>
+
+      <main class="academy-main">
+        <% if (viewFeedback?.message) { %><div class="academy-feedback <%= viewFeedback.type === 'error' ? 'is-error' : 'is-success' %>" role="<%= viewFeedback.type === 'error' ? 'alert' : 'status' %>"><span aria-hidden="true"><%= viewFeedback.type === 'error' ? '!' : '✓' %></span><%= viewFeedback.message %></div><% } %>
+        <section class="academy-student-hero">
+          <div><span class="academy-student-avatar" aria-hidden="true"><%= className.slice(0, 1) %></span><div><small>CLASS LEARNING REPORT</small><h1><%= className %></h1><p><%= academyName %> · 배정 학생 <%= classStudents.length %>명</p></div></div>
+          <a href="/academy?tab=classes">반 목록 <span>→</span></a>
+        </section>
+
+        <nav class="academy-class-tabs" aria-label="반 상세 메뉴">
+          <a href="/academy/classes/<%= academyClass._id %>?section=statistics" class="<%= currentClassSection === 'statistics' ? 'active' : '' %>" <% if (currentClassSection === "statistics") { %>aria-current="page"<% } %>><span aria-hidden="true">▦</span><strong>통계</strong><small>평균·Math Map</small></a>
+          <a href="/academy/classes/<%= academyClass._id %>?section=attendance" class="<%= currentClassSection === 'attendance' ? 'active' : '' %>" <% if (currentClassSection === "attendance") { %>aria-current="page"<% } %>><span aria-hidden="true">✓</span><strong>출결</strong><small>일정·출석 방식</small></a>
+          <a href="/academy/classes/<%= academyClass._id %>?section=classwork" class="<%= currentClassSection === 'classwork' ? 'active' : '' %>" <% if (currentClassSection === "classwork") { %>aria-current="page"<% } %>><span aria-hidden="true">□</span><strong>과제</strong><small>주차별 수업</small></a>
+          <a href="/academy/classes/<%= academyClass._id %>?section=settings" class="<%= currentClassSection === 'settings' ? 'active' : '' %>" <% if (currentClassSection === "settings") { %>aria-current="page"<% } %>><span aria-hidden="true">⚙</span><strong>반 설정</strong><small>담임·공동 담당</small></a>
+        </nav>
+
+        <% if (currentClassSection === "attendance" || currentClassSection === "settings") { %>
+        <div class="academy-class-management-grid is-single">
+          <% if (currentClassSection === "attendance") { %>
+          <section class="academy-panel academy-class-settings-panel">
+            <header><div><p>CLASS SCHEDULE</p><h2>수업 일정·출결 방식</h2></div><span class="academy-status-chip"><%= attendancePolicy.mode === "SELF_CODE" ? "학생 코드 출결" : "선생님 수동 출결" %></span></header>
+            <% if (detail.canManageClass) { %>
+              <form action="/academy/classes/<%= academyClass._id %>/settings" method="POST" class="academy-class-settings-form">
+                <fieldset class="academy-weekday-fieldset"><legend>수업 요일</legend><div><% weekdayLabels.forEach((label, day) => { %><label><input type="checkbox" name="weekdays" value="<%= day %>" <%= classSchedule.weekdays?.includes(day) ? "checked" : "" %> /><span><%= label %></span></label><% }) %></div></fieldset>
+                <div class="academy-form-row"><label><span>시작 시간</span><input type="time" name="startTime" value="<%= classSchedule.startTime || '18:00' %>" required /></label><label><span>종료 시간</span><input type="time" name="endTime" value="<%= classSchedule.endTime || '20:00' %>" required /></label></div>
+                <label><span>일정 적용 시작일</span><input type="date" name="effectiveFrom" value="<%= classSchedule.effectiveFrom || '' %>" required /></label>
+                <label><span>기본 출결 방식</span><select name="attendanceMode"><option value="SELF_CODE" <%= attendancePolicy.mode === "SELF_CODE" ? "selected" : "" %>>학생 코드 출결</option><option value="MANUAL" <%= attendancePolicy.mode === "MANUAL" ? "selected" : "" %>>선생님 수동 출결</option></select></label>
+                <div class="academy-form-row"><label><span>출석 오픈</span><input type="number" name="opensBeforeMinutes" min="0" max="120" value="<%= attendancePolicy.opensBeforeMinutes %>" required /><small>수업 시작 전 분</small></label><label><span>지각 기준</span><input type="number" name="lateAfterMinutes" min="0" max="120" value="<%= attendancePolicy.lateAfterMinutes %>" required /><small>수업 시작 후 분</small></label></div>
+                <label><span>입력 마감</span><input type="number" name="closesAfterMinutes" min="1" max="240" value="<%= attendancePolicy.closesAfterMinutes %>" required /><small>수업 시작 후 분</small></label>
+                <button type="submit">일정·출결 방식 저장</button>
+              </form>
+            <% } else { %>
+              <div class="academy-empty-state"><span aria-hidden="true">i</span><strong><%= classSchedule.weekdays?.map((day) => weekdayLabels[day]).join('·') || '일정 미설정' %> <%= classSchedule.startTime || '' %>–<%= classSchedule.endTime || '' %></strong><p>담임 또는 공동 담당 선생님만 일정을 변경할 수 있습니다.</p></div>
+            <% } %>
+          </section>
+          <% } %>
+
+          <% if (currentClassSection === "settings") { %>
+          <section class="academy-panel academy-class-teachers-panel">
+            <header><div><p>CLASS TEACHERS</p><h2>담임·공동 담당</h2></div><span class="academy-status-chip"><%= 1 + coTeachers.length %>명</span></header>
+            <div class="academy-class-teacher-list">
+              <article><span>담임</span><div><strong><%= homeroomTeacher?.realName || homeroomTeacher?.name || "미지정" %></strong><small>반 일정과 출결 관리</small></div></article>
+              <% coTeachers.forEach((teacher) => { %><article><span>공동</span><div><strong><%= teacher.realName || teacher.name %></strong><small>반 통계와 출결 관리</small></div><% if (detail.canManageClass) { %><form action="/academy/classes/<%= academyClass._id %>/co-teachers/<%= teacher._id %>/remove" method="POST"><button type="submit">해제</button></form><% } %></article><% }) %>
+            </div>
+            <% if (detail.canManageClass && availableCoTeachers.length) { %><form action="/academy/classes/<%= academyClass._id %>/co-teachers" method="POST" class="academy-inline-management-form"><select name="teacherUserId" required><option value="">공동 담당 선택</option><% availableCoTeachers.forEach((staff) => { %><option value="<%= staff.userId._id %>"><%= staff.userId.realName || staff.userId.name %><%= staff.role === 'OWNER' ? ' · 원장' : '' %></option><% }) %></select><button type="submit">추가</button></form><% } %>
+            <% if (detail.isOwner) { %>
+              <form action="/academy/classes/<%= academyClass._id %>/homeroom-transfer" method="POST" class="academy-homeroom-transfer-form" onsubmit="return confirm('새 선생님에게 이 반의 담임 권한을 이전할까요?')">
+                <label><span>담임 이전</span><select name="nextTeacherUserId" required><option value="">새 담임 선택</option><% activeStaff.forEach((staff) => { if (String(staff.userId?._id || '') !== String(homeroomTeacher?._id || homeroomTeacher || '')) { %><option value="<%= staff.userId._id %>"><%= staff.userId.realName || staff.userId.name %></option><% } }) %></select></label>
+                <label class="academy-check-label"><input type="checkbox" name="keepPreviousAsCoTeacher" value="1" checked /><span>이전 담임을 공동 담당으로 유지</span></label>
+                <button type="submit">담임 이전</button>
+              </form>
+            <% } %>
+          </section>
+          <% } %>
+        </div>
+        <% } %>
+
+        <% if (currentClassSection === "settings" && detail.isOwner) { %>
+          <section class="academy-panel academy-class-archive-panel">
+            <div><small>CLASS LIFECYCLE</small><h2>반 종료·보관</h2><p>반을 보관하면 현재 학생 <%= classStudents.length %>명의 반 배정이 해제되고, 아직 끝나지 않은 출석 회차와 이 반에 연결된 활성 초대가 취소됩니다. 과거 출결·학습 통계와 담당 이력은 그대로 유지됩니다.</p></div>
+            <form action="/academy/classes/<%= academyClass._id %>/archive" method="POST" onsubmit="return confirm('이 반을 종료하고 보관할까요? 학생 배정이 해제되며 자동으로 되돌릴 수 없습니다.')"><button type="submit">반 종료·보관</button></form>
+          </section>
+        <% } %>
+
+        <% if (currentClassSection === "classwork") { %>
+        <section class="academy-panel academy-classwork-panel" id="class-weekly-work">
+          <header><div><p>WEEKLY CLASSROOM</p><h2>주차별 수업·과제</h2></div><span class="academy-status-chip"><%= weeklyClasswork.weeks.length %>주 등록</span></header>
+          <div class="academy-classwork-layout <%= editingWeek ? 'is-editing' : '' %>">
+            <form action="/academy/classes/<%= academyClass._id %>/weeks" method="POST" enctype="multipart/form-data" class="academy-classwork-form">
+              <input type="hidden" name="weekId" value="<%= editingWeek?._id || '' %>" />
+              <div class="academy-classwork-form-heading"><div><small><%= editingWeek ? "EDIT WEEK" : "NEW WEEK" %></small><h3><%= editingWeek ? `${editingWeek.weekNumber}주차 수정` : "새 주차 등록" %></h3></div><% if (editingWeek) { %><a href="/academy/classes/<%= academyClass._id %>?section=classwork#class-weekly-work">새로 등록</a><% } %></div>
+              <div class="academy-form-row"><label><span>학년도</span><input type="number" name="academicYear" min="2022" max="2100" value="<%= editingWeek?.academicYear || weeklyClasswork.currentAcademicYear %>" required /></label><label><span>주차</span><input type="number" name="weekNumber" min="1" max="60" value="<%= editingWeek?.weekNumber || suggestedWeekNumber %>" required /></label></div>
+              <label><span>주차 제목</span><input type="text" name="title" maxlength="100" value="<%= editingWeek?.title || '' %>" placeholder="예: 함수의 극한과 연속" /></label>
+              <label><span>수업 요약</span><textarea name="lessonSummary" maxlength="2000" rows="4" placeholder="이번 주에 다룬 내용과 다음 수업 전 확인할 부분"><%= editingWeek?.lessonSummary || '' %></textarea></label>
+              <label><span>이번 주에 배운 개념</span><select name="conceptKeys" multiple size="12" required><% weeklyClasswork.catalog.forEach((course) => { course.units.forEach((unit) => { %><optgroup label="<%= course.title %> · <%= unit.title %>"><% unit.concepts.forEach((concept) => { %><option value="<%= concept.key %>" <%= selectedConceptKeys.has(concept.key) ? "selected" : "" %>><%= concept.conceptTitle %></option><% }) %></optgroup><% }) }) %></select><small>YAML 교육과정에서 실제 제공 중인 개념을 여러 개 선택할 수 있습니다.</small></label>
+              <label><span>과제 제목</span><input type="text" name="assignmentTitle" maxlength="120" value="<%= editingWeek?.assignmentTitle || '' %>" placeholder="예: 극한 기본문제 1–20번" required /></label>
+              <label><span>과제 안내</span><textarea name="assignmentInstructions" maxlength="3000" rows="4" placeholder="풀이 범위, 제출 방법, 준비물 등을 입력하세요."><%= editingWeek?.assignmentInstructions || '' %></textarea></label>
+              <label><span>마감일</span><input type="datetime-local" name="dueAt" value="<%= dateTimeInputValue(editingWeek?.dueAt) %>" /></label>
+              <label class="academy-classwork-file-field"><span>과제 파일</span><input type="file" name="assignmentFiles" multiple accept=".pdf,.doc,.docx,.hwp,.hwpx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp" /><small>파일당 30MB, 한 주차 최대 10개입니다. PDF는 다운로드 사용자별 워터마크와 추적 코드가 자동 삽입됩니다.</small></label>
+              <% if (editingWeek?.files?.length) { %><div class="academy-classwork-edit-files"><strong>등록된 파일</strong><% editingWeek.files.forEach((file) => { %><div><a href="/academy/classes/<%= academyClass._id %>/weeks/<%= editingWeek._id %>/files/<%= file._id %>"><%= file.originalName %></a><button type="submit" formaction="/academy/classes/<%= academyClass._id %>/weeks/<%= editingWeek._id %>/files/<%= file._id %>/remove" formmethod="POST" formnovalidate onclick="return confirm('이 과제 파일을 삭제할까요?')">삭제</button></div><% }) %></div><% } %>
+              <button type="submit"><%= editingWeek ? "주차 수업·과제 수정" : "학생에게 주차 수업·과제 공개" %></button>
+            </form>
+
+            <div class="academy-classwork-week-list">
+              <% if (!weeklyClasswork.weeks.length) { %><div class="academy-empty-state"><span aria-hidden="true">1</span><strong>아직 등록한 주차가 없습니다</strong><p>YAML 개념을 선택하고 첫 수업과 과제를 등록해 주세요.</p></div><% } %>
+              <% weeklyClasswork.weeks.forEach((week) => { %><article>
+                <header><div><small><%= week.academicYear %> · WEEK <%= week.weekNumber %></small><h3><%= week.title %></h3></div><div class="academy-classwork-week-actions"><a href="/academy/classes/<%= academyClass._id %>?section=classwork&amp;editWeek=<%= week._id %>#class-weekly-work">수정</a><form action="/academy/classes/<%= academyClass._id %>/weeks/<%= week._id %>/delete" method="POST" onsubmit="return confirm('<%= week.academicYear %>년 <%= week.weekNumber %>주차 수업과 과제를 삭제할까요? 등록된 과제 파일도 함께 삭제됩니다.')"><button type="submit">삭제</button></form></div></header>
+                <% if (week.lessonSummary) { %><p><%= week.lessonSummary %></p><% } %>
+                <div class="academy-classwork-concepts"><% week.concepts.forEach((concept) => { %><a href="<%= concept.href %>" target="_blank" rel="noopener"><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small><strong><%= concept.conceptTitle %></strong></a><% }) %></div>
+                <section><div><small>ASSIGNMENT</small><strong><%= week.assignmentTitle %></strong><span><%= formatClassworkDate(week.dueAt) %></span></div><% if (week.assignmentInstructions) { %><p><%= week.assignmentInstructions %></p><% } %><ul><% week.files.forEach((file) => { %><li><a href="/academy/classes/<%= academyClass._id %>/weeks/<%= week._id %>/files/<%= file._id %>"><%= file.originalName %><span><%= formatBytes(file.sizeBytes) %></span></a></li><% }) %></ul></section>
+              </article><% }) %>
+            </div>
+          </div>
+        </section>
+        <% } %>
+
+        <% if (currentClassSection === "statistics") { %>
+        <section class="academy-report-toolbar" aria-label="반 통계 기간 선택">
+          <div><small>CLASS MONTHLY REPORT</small><strong><%= statistics.period.label %> 반 학습 기록</strong><p>현재 이 반에 배정된 승인 학생 전체를 기준으로 평균을 계산합니다.</p></div>
+          <form class="academy-period" action="/academy/classes/<%= academyClass._id %>" method="GET">
+            <input type="hidden" name="section" value="statistics" />
+            <label for="academy-class-period">조회 기간</label>
+            <div><select id="academy-class-period" name="period"><% statistics.period.options.forEach((option) => { %><option value="<%= option.key %>" <%= option.key === statistics.period.key ? "selected" : "" %>><%= option.label %></option><% }) %></select><button type="submit">조회</button></div>
+          </form>
+        </section>
+
+        <div class="academy-integration-notice" role="status"><span aria-hidden="true">i</span><p><strong>반 평균 통계입니다.</strong> 학습하지 않은 반 학생도 0일·0문제로 포함하며, 정답률과 복습률은 해당 기록이 있는 전체 문제를 합산해 계산합니다.</p></div>
+
+        <section class="academy-stat-grid" aria-label="반 주요 통계">
+          <% statistics.cards.forEach((card) => { %><article><small><%= card.label %></small><strong><%= card.value %></strong><span><%= card.detail %></span></article><% }) %>
+        </section>
+
+        <section class="academy-panel academy-math-map-panel academy-student-section">
+          <header><div><p>CLASS MATH MAP</p><h2><%= className %> 규칙 기반 숙달도</h2></div><span class="academy-status-chip"><%= classMathMap.overallMastery === null ? "분석 전" : `평균 ${classMathMap.overallMastery}%` %></span></header>
+          <div class="academy-math-map-meta">
+            <div><small>반 학생</small><strong><%= classMathMap.totalStudents %>명</strong></div>
+            <div><small>분석 개념</small><strong><%= classMathMap.analyzedConceptCount %>개</strong></div>
+            <div><small>그래프</small><strong><%= classMathMap.graphVersion %></strong></div>
+            <div><small>계산 모델</small><strong><%= classMathMap.modelVersion %></strong></div>
+          </div>
+          <div class="academy-heatmap-legend" aria-hidden="true"><span>취약</span><i class="level-1"></i><i class="level-2"></i><i class="level-3"></i><i class="level-4"></i><i class="level-5"></i><span>안정</span></div>
+          <div class="academy-heatmap-chart" data-class-math-map-chart role="img" aria-label="반 학생의 개념별 평균 숙달도 히트맵"></div>
+          <p class="academy-chart-note">개념별 평균은 해당 개념 풀이가 5개 이상인 학생만 계산합니다. 각 칸에 분석 인원/반 전체 인원을 표시해 적은 표본의 평균이 과도하게 해석되지 않도록 했습니다.</p>
+          <% if (classMathMap.bottlenecks.length) { const bottleneck = classMathMap.bottlenecks[0]; %><div class="academy-math-map-alert"><strong>수업 확인 우선순위</strong><p><%= bottleneck.conceptTitle %>: 분석 <%= bottleneck.analyzedCount %>명 중 <%= bottleneck.weakCount %>명이 보완 필요이며, <%= bottleneck.affectedConceptCount %>개 후속 개념과 연결됩니다.</p></div><% } %>
+          <% if (classMathMap.recommendation) { const recommendation = classMathMap.recommendation; %><div class="academy-math-map-recommendation"><div><small>CLASS RECOMMENDATION</small><h3><%= recommendation.conceptTitle %> 복습</h3><p><%= recommendation.reason %></p></div><div><strong>학생별 <%= recommendation.problemMix.total %>문제 구성안</strong><p><% recommendation.problemMix.difficulties.forEach((item, index) => { %><%= index ? " · " : "" %>난이도 <%= item.level %> <%= item.count %>개<% }) %><% if (recommendation.problemMix.retryCount) { %> · 이전 오답 <%= recommendation.problemMix.retryCount %>개<% } %></p><span>선생님 검토용 규칙 제안이며 자동 배정하지 않습니다.</span></div></div><% } %>
+          <% if (classMathMap.concepts.length) { %>
+            <div class="academy-table-wrap academy-math-map-table"><table><thead><tr><th>개념</th><th>평균 숙달도</th><th>분석 표본</th><th>숙달</th><th>성장 중</th><th>보완 필요</th><th>Unknown</th></tr></thead><tbody>
+              <% classMathMap.concepts.forEach((concept) => { %><tr><td><strong><%= concept.title %></strong><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small></td><td><span class="academy-mastery-chip is-<%= concept.status.toLowerCase() %>"><%= concept.mastery === null ? "Unknown" : `${concept.mastery}%` %></span></td><td><%= concept.analyzedCount %>/<%= concept.totalStudents %>명</td><td><%= concept.statusCounts.MASTERED %>명</td><td><%= concept.statusCounts.DEVELOPING %>명</td><td><%= concept.statusCounts.WEAK %>명</td><td><%= concept.statusCounts.UNKNOWN %>명</td></tr><% }) %>
+            </tbody></table></div>
+          <% } %>
+        </section>
+        <script type="application/json" data-class-math-map-data><%- classMathMapJson %></script>
+
+        <div class="academy-dashboard-grid">
+          <section class="academy-panel academy-summary-panel">
+            <header><div><p>CLASS SUMMARY</p><h2><%= className %> Summary</h2></div><span class="academy-status-chip"><%= statistics.period.label %></span></header>
+            <ul><% summaryRows.forEach((row) => { %><li><span aria-hidden="true"></span><p><strong><%= row.label %></strong><small><%= row.text %></small></p></li><% }) %></ul>
+            <footer><p>반 전체 평균은 수업 운영 방향을 확인하는 용도입니다. 개별 상담에는 아래 학생의 상세 통계를 확인해 주세요.</p><div><button type="button" data-copy-value="<%= summaryCopyText %>" data-copy-success="반 요약을 복사했습니다.">요약 복사</button></div></footer>
+          </section>
+
+          <aside class="academy-panel academy-attention-panel">
+            <header><div><p>NEEDS ATTENTION</p><h2>확인이 필요한 학생</h2></div><strong><%= statistics.attentionStudents.length %></strong></header>
+            <% if (!statistics.attentionStudents.length) { %>
+              <div class="academy-empty-state"><span aria-hidden="true">✓</span><strong>현재 확인 항목이 없습니다</strong><p>미학습, 낮은 학습 빈도, 정답률과 오답 복습률을 기준으로 확인합니다.</p></div>
+            <% } else { %>
+              <div class="academy-attention-list">
+                <% statistics.attentionStudents.slice(0, 8).forEach((item) => { const membership = item.membership; const student = membership.studentUserId; %>
+                  <a href="/academy/students/<%= membership._id %>"><span><strong><%= displayStudentName(student) %></strong><small><%= item.reasons.join(" · ") %></small></span><b>→</b></a>
+                <% }) %>
+                <% if (statistics.attentionStudents.length > 8) { %><p>외 <%= statistics.attentionStudents.length - 8 %>명은 아래 반 학생 목록에서 확인할 수 있습니다.</p><% } %>
+              </div>
+            <% } %>
+          </aside>
+        </div>
+
+        <section class="academy-panel academy-table-panel academy-student-section">
+          <header><div><p>CLASS MEMBERS</p><h2>반 학생 목록</h2></div><strong class="academy-panel-count"><%= classStudents.length %></strong></header>
+          <% if (!classStudents.length) { %>
+            <div class="academy-empty-state"><span aria-hidden="true">＋</span><strong>이 반에 배정된 학생이 없습니다</strong><p>학생 관리에서 학생을 선택해 이 반에 배정해 주세요.</p></div>
+          <% } else { %>
+            <div class="academy-table-wrap">
+              <table>
+                <thead><tr><th>학생</th><th>가입 학년</th><th>학교</th><th>개별 통계</th></tr></thead>
+                <tbody>
+                  <% classStudents.forEach((membership) => { const student = membership.studentUserId; %>
+                    <tr><td><strong><%= displayStudentName(student) %></strong><small><%= student.name !== student.realName && student.realName ? `닉네임 ${student.name}` : "승인 학생" %></small></td><td><span class="academy-grade-chip"><%= gradeLabelFor(student.schoolGrade) %></span></td><td><strong><%= student.school?.name || "학교 미설정" %></strong><small><%= student.school?.region || "" %></small></td><td><a class="academy-detail-link" href="/academy/students/<%= membership._id %>">학생 통계 보기 <span>→</span></a></td></tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </section>
+        <% } %>
+        <div class="academy-copy-toast" data-copy-toast role="status" aria-live="polite" hidden>복사했습니다.</div>
+      </main>
+    </div>
+  </body>
+</html>

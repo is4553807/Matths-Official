@@ -1,0 +1,544 @@
+<%
+  const currentTab = typeof activeAcademyPage === "string" ? activeAcademyPage : "dashboard";
+  const academyName = String(portal.academy?.name || "학원");
+  const pendingCount = Number(portal.pendingCount) || 0;
+  const staffPendingCount = Number(portal.staffPendingCount) || 0;
+  const isOwner = portal.isOwner === true;
+  const archivedClasses = portal.archivedClasses || [];
+  const studentListing = typeof studentPage !== "undefined" && studentPage ? studentPage : {
+    students: portal.students || [],
+    page: 1,
+    pageSize: 20,
+    total: (portal.students || []).length,
+    totalPages: 1,
+  };
+  const listedStudents = studentListing.students || [];
+  const studentPaginationItems = [];
+  let previousStudentPageItem = 0;
+  for (let pageNumber = 1; pageNumber <= studentListing.totalPages; pageNumber += 1) {
+    if (pageNumber === 1 || pageNumber === studentListing.totalPages || Math.abs(pageNumber - studentListing.page) <= 2) {
+      if (previousStudentPageItem && pageNumber - previousStudentPageItem > 1) studentPaginationItems.push(null);
+      studentPaginationItems.push(pageNumber);
+      previousStudentPageItem = pageNumber;
+    }
+  }
+  const viewFeedback = typeof feedback !== "undefined" ? feedback : null;
+  const highlightedInviteId = typeof createdInviteId === "string" ? createdInviteId : "";
+  const dashboardStatistics = typeof statistics !== "undefined" && statistics ? statistics : {
+    period: { key: "current", label: "이번 달", options: [{ key: "current", label: "이번 달" }] },
+    cards: [],
+    summary: { bullets: [{ label: "데이터 안내", text: "확인할 수 있는 학습 기록이 아직 없습니다." }] },
+    attentionStudents: [],
+  };
+  const overviewCards = dashboardStatistics?.cards || [];
+  const summaryRows = dashboardStatistics?.summary?.bullets || [];
+  const dashboardAnalytics = dashboardStatistics?.analytics || {
+    heatmap: { items: [], measuredConcepts: 0 },
+    growth: { points: [] },
+  };
+  const dashboardAnalyticsJson = JSON.stringify(dashboardAnalytics).replace(/</g, "\\u003c");
+  const dashboardMathMap = dashboardStatistics?.mathMap || {
+    graphVersion: "kr-2022-math-graph-v1.0",
+    modelVersion: "v1.0",
+    analyzedConceptCount: 0,
+    totalStudents: 0,
+  };
+  const learningHealth = dashboardStatistics?.health || {
+    score: null,
+    label: "데이터 없음",
+    dataCoverage: 0,
+    targetLearningDays: 0,
+    distribution: { HEALTHY: 0, WATCH: 0, RISK: 0 },
+    components: { engagement: null, accuracy: null, review: null, recovery: null },
+  };
+  const attendanceData = typeof attendance !== "undefined" && attendance ? attendance : {
+    dateKey: "",
+    todayKey: "",
+    classes: [],
+    selectedClass: null,
+    roster: [],
+    counts: { TOTAL: 0, PRESENT: 0, LATE: 0, ABSENT: 0, EXCUSED: 0, UNRECORDED: 0 },
+  };
+  const gradeLabelFor = (grade) => ({
+    10: "고1",
+    11: "고2",
+    12: "고3",
+    13: "N수생",
+    14: "대학생",
+    15: "직장인",
+  })[Number(grade)] || "학년 미설정";
+  const displayStudentName = (student) => String(student?.realName || student?.name || "학생");
+  const formatDate = (date) => date
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(date))
+    : "—";
+  const formatTime = (date) => date
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(date))
+    : "—";
+  const attendanceStatusLabel = { PRESENT: "출석", LATE: "지각", ABSENT: "결석", EXCUSED: "사유 결석" };
+  const weekdayLabels = ["일", "월", "화", "수", "목", "금", "토"];
+  const currentKstDateKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const classScheduleText = (academyClass) => {
+    const schedule = academyClass?.schedule;
+    if (!schedule?.weekdays?.length || !schedule.startTime || !schedule.endTime) return "일정 미설정";
+    return `${schedule.weekdays.map((day) => weekdayLabels[day]).join("·")} ${schedule.startTime}–${schedule.endTime}`;
+  };
+  const sourceLabel = { PROFILE: "프로필 선택", INVITE_CODE: "초대 코드", INVITE_LINK: "초대 링크" };
+  const inviteStateLabel = { ACTIVE: "사용 가능", REVOKED: "비활성", EXPIRED: "기간 만료", EXHAUSTED: "사용 완료" };
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Matths 학원 학습 현황과 학생 소속을 관리하는 선생님 전용 페이지입니다." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#f4f6fb" />
+    <title><%= academyName %> 학원 관리 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/academy.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+    <script src="/js/academy.js" defer></script>
+  </head>
+  <body class="academy-page">
+    <header class="academy-topbar">
+      <%- include("partials/matths-brand", {
+        href: "/academy",
+        ariaLabel: "Matths 학원 관리 홈",
+        className: "academy-brand",
+        suffix: "학원 관리",
+        compact: true,
+      }) %>
+      <div class="academy-account">
+        <span><strong><%= user.realName || user.name %></strong> 선생님</span>
+        <form action="/logout" method="POST"><button type="submit">로그아웃</button></form>
+      </div>
+    </header>
+
+    <div class="academy-layout">
+      <aside class="academy-sidebar">
+        <div class="academy-identity">
+          <% if (portal.profileImageSrc) { %><img src="<%= portal.profileImageSrc %>" alt="<%= academyName %> 프로필 사진" /><% } else { %><span aria-hidden="true"><%= academyName.slice(0, 1) %></span><% } %>
+          <div><small>ACADEMY</small><strong><%= academyName %></strong></div>
+        </div>
+        <nav aria-label="학원 관리 메뉴">
+          <a class="<%= currentTab === 'dashboard' ? 'active' : '' %>" href="/academy?tab=dashboard">대시보드</a>
+          <a class="<%= currentTab === 'attendance' ? 'active' : '' %>" href="/academy?tab=attendance">출결 관리</a>
+          <a class="<%= currentTab === 'students' ? 'active' : '' %>" href="/academy?tab=students">학생 관리</a>
+          <a class="<%= currentTab === 'requests' ? 'active' : '' %>" href="/academy?tab=requests">승인 요청 <% if (pendingCount) { %><b><%= pendingCount %></b><% } %></a>
+          <a class="<%= currentTab === 'classes' ? 'active' : '' %>" href="/academy?tab=classes">반 관리</a>
+          <a class="<%= currentTab === 'invites' ? 'active' : '' %>" href="/academy?tab=invites">초대 관리</a>
+          <a href="/academy/forensics">유출 자료 추적</a>
+          <a class="<%= currentTab === 'teachers' ? 'active' : '' %>" href="/academy?tab=teachers">선생님 관리 <% if (isOwner && staffPendingCount) { %><b><%= staffPendingCount %></b><% } %></a>
+          <% if (isOwner) { %><a class="<%= currentTab === 'settings' ? 'active' : '' %>" href="/academy?tab=settings">학원 설정</a><% } %>
+        </nav>
+        <p>학생의 학습 기록은 승인된 소속 관계 안에서만 조회됩니다.</p>
+      </aside>
+
+      <main class="academy-main" id="academy-main">
+        <% if (viewFeedback) { %>
+          <div class="academy-feedback <%= viewFeedback.type === 'error' ? 'is-error' : 'is-success' %>" role="<%= viewFeedback.type === 'error' ? 'alert' : 'status' %>">
+            <span aria-hidden="true"><%= viewFeedback.type === "error" ? "!" : "✓" %></span><%= viewFeedback.message %>
+          </div>
+        <% } %>
+
+        <% if (currentTab === "dashboard") { %>
+          <header class="academy-heading">
+            <div><p>LEARNING OVERVIEW</p><h1><%= academyName %> 학습 현황</h1><span>학생의 학습 흐름을 확인하고 학부모에게 전달할 월간 요약을 준비합니다.</span></div>
+            <form class="academy-period" action="/academy" method="GET">
+              <input type="hidden" name="tab" value="dashboard" />
+              <label for="academy-dashboard-period">조회 기간</label>
+              <div><select id="academy-dashboard-period" name="period"><% dashboardStatistics.period.options.forEach((option) => { %><option value="<%= option.key %>" <%= option.key === dashboardStatistics.period.key ? "selected" : "" %>><%= option.label %></option><% }) %></select><button type="submit">조회</button></div>
+            </form>
+          </header>
+
+          <div class="academy-integration-notice" role="status">
+            <span aria-hidden="true">i</span>
+            <p><strong>승인 학생 전체의 평균입니다.</strong> 학습하지 않은 학생도 0일·0문제로 포함하며, 정답률과 복습률은 해당 기록이 있는 전체 문제를 합산해 계산합니다.</p>
+          </div>
+
+          <section class="academy-stat-grid" aria-label="학원 주요 통계">
+            <% overviewCards.forEach((card) => { %>
+              <article><small><%= card.label %></small><strong><%= card.value %></strong><span><%= card.detail %></span></article>
+            <% }) %>
+          </section>
+
+          <section class="academy-analytics-grid" aria-label="학원 학습 분석">
+            <article class="academy-panel academy-health-panel">
+              <header><div><p>LEARNING HEALTH</p><h2>학습 건강도</h2></div><span class="academy-status-chip is-health-<%= String(learningHealth.key || 'RISK').toLowerCase() %>"><%= learningHealth.label %></span></header>
+              <div class="academy-health-overview">
+                <div class="academy-health-ring" style="--health-score: <%= Number(learningHealth.score) || 0 %>" role="img" aria-label="학습 건강도 <%= learningHealth.score === null ? '데이터 없음' : `${learningHealth.score}점` %>">
+                  <strong><%= learningHealth.score === null ? "—" : learningHealth.score %></strong><small>/ 100</small>
+                </div>
+                <div class="academy-health-distribution">
+                  <div><span class="is-healthy"></span><small>건강</small><strong><%= learningHealth.distribution.HEALTHY %>명</strong></div>
+                  <div><span class="is-watch"></span><small>관찰</small><strong><%= learningHealth.distribution.WATCH %>명</strong></div>
+                  <div><span class="is-risk"></span><small>주의</small><strong><%= learningHealth.distribution.RISK %>명</strong></div>
+                </div>
+              </div>
+              <dl class="academy-health-components">
+                <div><dt>학습 참여</dt><dd><%= learningHealth.components.engagement ?? "—" %><%= learningHealth.components.engagement === null ? "" : "%" %></dd></div>
+                <div><dt>첫 시도 정확도</dt><dd><%= learningHealth.components.accuracy ?? "—" %><%= learningHealth.components.accuracy === null ? "" : "%" %></dd></div>
+                <div><dt>오답 복습</dt><dd><%= learningHealth.components.review ?? "—" %><%= learningHealth.components.review === null ? "" : "%" %></dd></div>
+                <div><dt>재도전 회복</dt><dd><%= learningHealth.components.recovery ?? "—" %><%= learningHealth.components.recovery === null ? "" : "%" %></dd></div>
+              </dl>
+              <p class="academy-health-note">선택 기간 목표 학습일 <strong><%= learningHealth.targetLearningDays %>일</strong>을 기준으로 참여 30%, 정확도 35%, 복습 20%, 재도전 15%를 가중 계산합니다. 기록이 없는 학생은 0점으로 평균에 포함됩니다.</p>
+            </article>
+
+            <article class="academy-panel academy-chart-panel">
+              <header><div><p>GROWTH TREND</p><h2>주차별 성장 그래프</h2></div><span class="academy-status-chip"><%= dashboardStatistics.period.label %></span></header>
+              <div class="academy-chart-legend" aria-hidden="true"><span class="is-accuracy">첫 시도 정답률</span><span class="is-volume">풀이 문제 수</span></div>
+              <div class="academy-growth-chart" data-academy-growth-chart role="img" aria-label="주차별 첫 시도 정답률과 문제 풀이량 성장 그래프"></div>
+              <p class="academy-chart-note">선은 첫 시도 정답률, 막대는 중복을 제외한 문제 수입니다. 기록이 없는 주차는 0문제로 표시합니다.</p>
+            </article>
+          </section>
+
+          <section class="academy-panel academy-heatmap-panel">
+            <header><div><p>RULE-BASED MATH MAP</p><h2>학습 약점 Heat Map</h2></div><span class="academy-status-chip"><%= dashboardAnalytics.heatmap.measuredConcepts %>개 개념 분석</span></header>
+            <div class="academy-heatmap-legend" aria-hidden="true"><span>취약</span><i class="level-1"></i><i class="level-2"></i><i class="level-3"></i><i class="level-4"></i><i class="level-5"></i><span>안정</span></div>
+            <div class="academy-heatmap-chart" data-academy-heatmap-chart role="img" aria-label="개념별 규칙 기반 숙달도 학습 약점 히트맵"></div>
+            <p class="academy-chart-note">학생별 최근 유효 풀이 최대 20개에서 난이도·최신성·재도전 회복을 반영한 숙달도 평균입니다. 풀이 5개 미만인 학생은 Unknown으로 평균에서 제외합니다. <%= dashboardMathMap.graphVersion %> · <%= dashboardMathMap.modelVersion %></p>
+          </section>
+
+          <script type="application/json" data-academy-analytics-data><%- dashboardAnalyticsJson %></script>
+
+          <div class="academy-dashboard-grid">
+            <section class="academy-panel academy-summary-panel">
+              <header><div><p>MONTHLY SUMMARY</p><h2>학원 전체 Summary</h2></div><span class="academy-status-chip"><%= dashboardStatistics.period.label %></span></header>
+              <ul>
+                <% summaryRows.forEach((row) => { %>
+                  <li><span aria-hidden="true"></span><p><strong><%= row.label %></strong><small><%= row.text %></small></p></li>
+                <% }) %>
+              </ul>
+              <footer><p>학원 전체 평균은 운영 흐름을 파악하는 용도입니다. 학부모 상담에는 학생 관리에서 해당 학생의 개별 Summary를 사용해 주세요.</p></footer>
+            </section>
+
+            <aside class="academy-panel academy-attention-panel">
+              <header><div><p>NEEDS ATTENTION</p><h2>확인이 필요한 학생</h2></div><strong><%= dashboardStatistics.attentionStudents.length %></strong></header>
+              <% if (!dashboardStatistics.attentionStudents.length) { %>
+                <div class="academy-empty-state"><span aria-hidden="true">✓</span><strong>현재 확인 항목이 없습니다</strong><p>미학습, 낮은 학습 빈도, 정답률과 오답 복습률을 기준으로 확인합니다.</p></div>
+              <% } else { %>
+                <div class="academy-attention-list">
+                  <% dashboardStatistics.attentionStudents.slice(0, 5).forEach((item) => { const membership = item.membership; const student = membership.studentUserId; %>
+                    <a href="/academy/students/<%= membership._id %>"><span><strong><%= displayStudentName(student) %></strong><small><%= item.reasons.join(" · ") %></small></span><b>→</b></a>
+                  <% }) %>
+                  <% if (dashboardStatistics.attentionStudents.length > 5) { %><p>외 <%= dashboardStatistics.attentionStudents.length - 5 %>명은 학생 관리에서 확인할 수 있습니다.</p><% } %>
+                </div>
+              <% } %>
+              <a href="/academy?tab=students">전체 학생 목록 보기 <span>→</span></a>
+            </aside>
+          </div>
+        <% } %>
+
+        <% if (currentTab === "attendance") { %>
+          <header class="academy-heading">
+            <div><p>ATTENDANCE</p><h1>학원 출결 관리</h1><span>날짜와 반을 선택하고 학생별 출석·지각·결석 상태를 한 번에 기록합니다.</span></div>
+            <form class="academy-period academy-attendance-filter" action="/academy" method="GET">
+              <input type="hidden" name="tab" value="attendance" />
+              <label for="academy-attendance-date">출결 날짜</label>
+              <div>
+                <input id="academy-attendance-date" type="date" name="date" value="<%= attendanceData.dateKey %>" required />
+                <select name="classId" aria-label="출결 반 선택">
+                  <% if (!attendanceData.classes.length) { %><option value="">담당 반 없음</option><% } %>
+                  <% attendanceData.classes.forEach((academyClass) => { %><option value="<%= academyClass._id %>" <%= String(attendanceData.selectedClass?._id || '') === String(academyClass._id) ? 'selected' : '' %>><%= academyClass.name %></option><% }) %>
+                </select>
+                <button type="submit">조회</button>
+              </div>
+            </form>
+          </header>
+
+          <% if (attendanceData.session?.attendanceMode === "SELF_CODE") { %>
+            <section class="academy-attendance-code-card is-<%= String(attendanceData.session.state).toLowerCase() %>">
+              <div><small>SESSION ATTENDANCE CODE</small><strong><%= attendanceData.session.code %></strong><p><%= attendanceData.selectedClass?.name %> · <%= formatTime(attendanceData.session.startsAt) %> 수업 · <%= formatTime(attendanceData.session.checkInClosesAt) %> 입력 마감</p></div>
+              <form action="/academy/attendance/sessions/<%= attendanceData.session.id %>/regenerate-code" method="POST" onsubmit="return confirm('기존 코드는 즉시 만료됩니다. 새 코드를 발급할까요?')">
+                <input type="hidden" name="date" value="<%= attendanceData.dateKey %>" />
+                <input type="hidden" name="classId" value="<%= attendanceData.selectedClass?._id || '' %>" />
+                <button type="submit" <%= ["CLOSED", "CANCELED"].includes(attendanceData.session.state) ? "disabled" : "" %>>코드 재발급</button>
+              </form>
+            </section>
+          <% } else if (attendanceData.selectedClass && !attendanceData.session) { %>
+            <div class="academy-integration-notice" role="status"><span aria-hidden="true">i</span><p><strong>선택한 날짜에는 예정된 수업이 없습니다.</strong> 필요하면 선생님이 임시 수동 출결을 저장할 수 있습니다.</p></div>
+          <% } %>
+
+          <section class="academy-stat-grid academy-attendance-stats" aria-label="선택 날짜 출결 요약">
+            <article><small>전체 학생</small><strong><%= attendanceData.counts.TOTAL %>명</strong><span><%= attendanceData.selectedClass?.name || "전체 반" %> 기준</span></article>
+            <article><small>출석·지각</small><strong><%= attendanceData.counts.PRESENT + attendanceData.counts.LATE %>명</strong><span>출석 <%= attendanceData.counts.PRESENT %> · 지각 <%= attendanceData.counts.LATE %></span></article>
+            <article><small>결석</small><strong><%= attendanceData.counts.ABSENT + attendanceData.counts.EXCUSED %>명</strong><span>결석 <%= attendanceData.counts.ABSENT %> · 사유 <%= attendanceData.counts.EXCUSED %></span></article>
+            <article><small>미기록</small><strong><%= attendanceData.counts.UNRECORDED %>명</strong><span>아직 상태를 저장하지 않은 학생</span></article>
+          </section>
+
+          <section class="academy-panel academy-table-panel academy-attendance-panel">
+            <header><div><p>DAILY ROSTER</p><h2><%= attendanceData.dateKey %> 출결표</h2></div><span class="academy-status-chip"><%= attendanceData.dateKey === attendanceData.todayKey ? "오늘" : "과거 기록" %></span></header>
+            <% if (!attendanceData.roster.length) { %>
+              <div class="academy-empty-state"><span aria-hidden="true">✓</span><strong>표시할 학생이 없습니다</strong><p>선택한 반에 승인된 학생이 있는지 확인해 주세요.</p></div>
+            <% } else { %>
+              <form action="/academy/attendance" method="POST" data-attendance-form>
+                <input type="hidden" name="date" value="<%= attendanceData.dateKey %>" />
+                <input type="hidden" name="classId" value="<%= attendanceData.selectedClass?._id || '' %>" />
+                <input type="hidden" name="sessionId" value="<%= attendanceData.session?.id || '' %>" />
+                <div class="academy-attendance-toolbar">
+                  <div><strong>빠른 입력</strong><small>미기록 학생만 출석으로 채운 뒤 필요한 학생의 상태를 수정할 수 있습니다.</small></div>
+                  <button type="button" data-attendance-mark-unrecorded>미기록 전체 출석</button>
+                  <button type="submit">출결 저장</button>
+                </div>
+                <div class="academy-table-wrap">
+                  <table class="academy-attendance-table">
+                    <thead><tr><th>학생</th><th>반</th><th>현재 기록</th><th>출결 상태</th><th>메모</th></tr></thead>
+                    <tbody>
+                      <% attendanceData.roster.forEach((item) => { const membership = item.membership; const student = membership.studentUserId; const record = item.attendance; %>
+                        <tr class="<%= record ? `is-${String(record.status).toLowerCase()}` : 'is-unrecorded' %>">
+                          <td><strong><%= displayStudentName(student) %></strong><small><%= gradeLabelFor(student.schoolGrade) %> · <%= student.school?.name || "학교 미설정" %></small><input type="hidden" name="studentUserIds" value="<%= student._id %>" /></td>
+                          <td><span class="academy-grade-chip"><%= membership.classId?.name || "미배정" %></span></td>
+                          <td><strong><%= record ? attendanceStatusLabel[record.status] : "미기록" %></strong><small><%= record?.checkedInAt ? `${formatTime(record.checkedInAt)} 체크인` : "체크인 없음" %></small></td>
+                          <td>
+                            <select name="statuses" data-attendance-status aria-label="<%= displayStudentName(student) %> 출결 상태">
+                              <option value="" <%= !record ? "selected" : "" %>>미기록</option>
+                              <% Object.entries(attendanceStatusLabel).forEach(([value, label]) => { %><option value="<%= value %>" <%= record?.status === value ? "selected" : "" %>><%= label %></option><% }) %>
+                            </select>
+                          </td>
+                          <td><input type="text" name="notes" value="<%= record?.note || '' %>" maxlength="200" placeholder="선택 사항" aria-label="<%= displayStudentName(student) %> 출결 메모" /></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </form>
+            <% } %>
+          </section>
+        <% } %>
+
+        <% if (currentTab === "students") { %>
+          <header class="academy-heading academy-list-heading">
+            <div><p>STUDENTS</p><h1>학생 관리</h1><span>학생의 가입 학년은 자동으로 변경되며, 반만 선생님이 직접 배정합니다.</span></div>
+            <strong class="academy-heading-count"><%= studentListing.total %><small>명</small></strong>
+          </header>
+          <div class="academy-privacy-note"><strong>보이는 정보</strong><span>이름·학년·학교·학원 반·학습 통계</span><i></i><strong>보이지 않는 정보</strong><span>이메일·연락처·결제·커뮤니티 활동</span></div>
+          <section class="academy-panel academy-table-panel">
+            <header><div><p>APPROVED MEMBERS</p><h2>승인된 학생</h2></div><a href="/academy?tab=classes">반 먼저 만들기 →</a></header>
+            <% if (!listedStudents.length) { %>
+              <div class="academy-empty-state"><span aria-hidden="true">＋</span><strong>승인된 학생이 없습니다</strong><p>초대 링크를 보내거나 들어온 승인 요청을 처리해 주세요.</p></div>
+            <% } else { %>
+              <form class="academy-bulk-toolbar" id="academy-student-bulk-form" action="/academy/students/bulk" method="POST" data-student-bulk-form>
+                <input type="hidden" name="page" value="<%= studentListing.page %>" />
+                <div><strong><span data-student-selected-count>0</span>명 선택</strong><small>현재 페이지의 학생을 최대 20명까지 함께 관리할 수 있습니다.</small></div>
+                <label><span class="sr-only">일괄 작업</span><select name="action" data-student-bulk-action required><option value="">일괄 작업 선택</option><option value="ASSIGN_CLASS">반 배정</option><option value="UNASSIGN_CLASS">반 배정 해제</option><option value="REMOVE">학원 소속 해제</option></select></label>
+                <label data-student-bulk-class-wrap hidden><span class="sr-only">배정할 반</span><select name="classId" data-student-bulk-class disabled><option value="">배정할 반 선택</option><% (portal.classes || []).forEach((academyClass) => { %><option value="<%= academyClass._id %>"><%= academyClass.name %></option><% }) %></select></label>
+                <button type="submit" data-student-bulk-submit disabled>적용</button>
+              </form>
+              <div class="academy-table-wrap">
+                <table>
+                  <thead><tr><th class="academy-selection-cell"><input type="checkbox" data-student-select-all aria-label="현재 페이지 학생 전체 선택" /></th><th>학생</th><th>가입 학년</th><th>학교</th><th>학원 반</th><th>통계</th></tr></thead>
+                  <tbody>
+                    <% listedStudents.forEach((membership) => { const student = membership.studentUserId; %>
+                      <tr>
+                        <td class="academy-selection-cell"><input type="checkbox" name="membershipIds" value="<%= membership._id %>" form="academy-student-bulk-form" data-student-checkbox aria-label="<%= displayStudentName(student) %> 선택" /></td>
+                        <td><strong><%= displayStudentName(student) %></strong><small><%= student.name !== student.realName && student.realName ? `닉네임 ${student.name}` : "승인 학생" %></small></td>
+                        <td><span class="academy-grade-chip"><%= gradeLabelFor(student.schoolGrade) %></span><small>자동 변경</small></td>
+                        <td><strong><%= student.school?.name || "학교 미설정" %></strong><small><%= student.school?.region || "" %></small></td>
+                        <td>
+                          <form class="academy-inline-form" action="/academy/students/<%= membership._id %>/class" method="POST">
+                            <input type="hidden" name="page" value="<%= studentListing.page %>" />
+                            <select name="classId" aria-label="<%= displayStudentName(student) %> 반 배정">
+                              <option value="">미배정</option>
+                              <% (portal.classes || []).forEach((academyClass) => { %><option value="<%= academyClass._id %>" <%= String(membership.classId?._id || '') === String(academyClass._id) ? 'selected' : '' %>><%= academyClass.name %></option><% }) %>
+                            </select>
+                            <button type="submit">저장</button>
+                          </form>
+                        </td>
+                        <td><a class="academy-detail-link" href="/academy/students/<%= membership._id %>">통계 칸 보기 <span>→</span></a></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+              <nav class="academy-pagination" aria-label="학생 목록 페이지">
+                <a class="academy-pagination-direction <%= studentListing.page <= 1 ? 'is-disabled' : '' %>" href="<%= studentListing.page > 1 ? `/academy?tab=students&page=${studentListing.page - 1}` : '#' %>" <% if (studentListing.page <= 1) { %>aria-disabled="true" tabindex="-1"<% } %>>← 이전</a>
+                <div>
+                  <% studentPaginationItems.forEach((pageNumber) => { %>
+                    <% if (pageNumber === null) { %><span aria-hidden="true">…</span><% } else { %><a class="<%= pageNumber === studentListing.page ? 'is-current' : '' %>" href="/academy?tab=students&page=<%= pageNumber %>" <% if (pageNumber === studentListing.page) { %>aria-current="page"<% } %>><%= pageNumber %></a><% } %>
+                  <% }) %>
+                </div>
+                <a class="academy-pagination-direction <%= studentListing.page >= studentListing.totalPages ? 'is-disabled' : '' %>" href="<%= studentListing.page < studentListing.totalPages ? `/academy?tab=students&page=${studentListing.page + 1}` : '#' %>" <% if (studentListing.page >= studentListing.totalPages) { %>aria-disabled="true" tabindex="-1"<% } %>>다음 →</a>
+              </nav>
+            <% } %>
+          </section>
+        <% } %>
+
+        <% if (currentTab === "requests") { %>
+          <header class="academy-heading academy-list-heading">
+            <div><p>APPROVAL REQUESTS</p><h1>소속 승인 요청</h1><span>학생 이름·학교·학년을 확인한 뒤 실제 재원생만 승인해 주세요.</span></div>
+            <strong class="academy-heading-count"><%= pendingCount %><small>건</small></strong>
+          </header>
+          <section class="academy-request-list" aria-label="승인 대기 목록">
+            <% if (!(portal.requests || []).length) { %>
+              <div class="academy-panel academy-empty-state"><span aria-hidden="true">✓</span><strong>대기 중인 요청이 없습니다</strong><p>새 요청이 들어오면 이 메뉴와 대시보드에 표시됩니다.</p></div>
+            <% } %>
+            <% (portal.requests || []).forEach((membership) => { const student = membership.studentUserId; %>
+              <article class="academy-panel academy-request-card">
+                <div class="academy-student-avatar" aria-hidden="true"><%= displayStudentName(student).slice(0, 1) %></div>
+                <div class="academy-request-copy">
+                  <small><%= sourceLabel[membership.joinSource] || "소속 요청" %> · <%= formatDate(membership.requestedAt) %></small>
+                  <h2><%= displayStudentName(student) %></h2>
+                  <p><%= student.school?.name || "학교 미설정" %> · <%= gradeLabelFor(student.schoolGrade) %><% if (membership.classId?.name) { %> · 초대 반 <strong><%= membership.classId.name %></strong><% } %></p>
+                  <span>학생이 승인 후 학습 현황을 학원에 공유하는 데 동의했습니다.</span>
+                </div>
+                <div class="academy-request-actions">
+                  <form action="/academy/requests/<%= membership._id %>/approve" method="POST"><button class="is-primary" type="submit">승인</button></form>
+                  <form action="/academy/requests/<%= membership._id %>/reject" method="POST" onsubmit="return confirm('이 학생의 소속 요청을 거절할까요?')"><button type="submit">거절</button></form>
+                </div>
+              </article>
+            <% }) %>
+          </section>
+        <% } %>
+
+        <% if (currentTab === "classes") { %>
+          <header class="academy-heading">
+            <div><p>CLASS MANAGEMENT</p><h1>반 관리</h1><span>반을 만들고 운영하거나, 종료한 반을 기록을 유지한 채 보관할 수 있습니다.</span></div>
+          </header>
+          <div class="academy-two-column">
+            <section class="academy-panel">
+              <header><div><p>ACTIVE CLASSES</p><h2>사용 중인 반</h2></div><strong class="academy-panel-count"><%= (portal.classes || []).length %></strong></header>
+              <div class="academy-class-list">
+                <% if (!(portal.classes || []).length) { %><div class="academy-empty-state"><span aria-hidden="true">＋</span><strong>등록된 반이 없습니다</strong><p>오른쪽에서 첫 반을 만들어주세요.</p></div><% } %>
+                <% (portal.classes || []).forEach((academyClass) => {
+                  const classStudentCount = (portal.students || []).filter((membership) => String(membership.classId?._id || '') === String(academyClass._id)).length;
+                %>
+                  <a href="/academy/classes/<%= academyClass._id %>" aria-label="<%= academyClass.name %> 반 통계 보기"><span><%= academyClass.name.slice(0, 1) %></span><div><strong><%= academyClass.name %></strong><small><%= classScheduleText(academyClass) %> · 담임 <%= academyClass.homeroomTeacherUserId?.realName || academyClass.homeroomTeacherUserId?.name || "미지정" %> · <%= classStudentCount %>명</small></div><b aria-hidden="true">→</b></a>
+                <% }) %>
+              </div>
+            </section>
+            <section class="academy-panel academy-create-panel">
+              <header><div><p>NEW CLASS</p><h2>새 반 추가</h2></div></header>
+              <form action="/academy/classes" method="POST">
+                <label><span>반 이름</span><input name="className" type="text" minlength="1" maxlength="40" placeholder="예: 고1 월수 심화반" required /></label>
+                <fieldset class="academy-weekday-fieldset"><legend>수업 요일</legend><div><% weekdayLabels.forEach((label, day) => { %><label><input type="checkbox" name="weekdays" value="<%= day %>" <%= [1, 3].includes(day) ? "checked" : "" %> /><span><%= label %></span></label><% }) %></div></fieldset>
+                <div class="academy-form-row"><label><span>시작 시간</span><input name="startTime" type="time" value="18:00" required /></label><label><span>종료 시간</span><input name="endTime" type="time" value="20:00" required /></label></div>
+                <label><span>일정 시작일</span><input name="effectiveFrom" type="date" value="<%= currentKstDateKey %>" required /></label>
+                <label><span>출결 방식</span><select name="attendanceMode"><option value="SELF_CODE">학생 코드 출결</option><option value="MANUAL">선생님 수동 출결</option></select></label>
+                <div class="academy-form-row"><label><span>출석 오픈</span><select name="opensBeforeMinutes"><option value="10">10분 전</option><option value="5">5분 전</option><option value="0">시작 시간</option></select></label><label><span>지각 기준</span><select name="lateAfterMinutes"><option value="5">5분 후</option><option value="10">10분 후</option><option value="0">시작 직후</option></select></label></div>
+                <label><span>입력 마감</span><select name="closesAfterMinutes"><option value="20">시작 20분 후</option><option value="30">시작 30분 후</option><option value="60">시작 60분 후</option></select></label>
+                <p>새 반을 만든 선생님이 자동으로 담임이 됩니다. 학생 코드 출결도 담당 선생님이 언제든 수동으로 수정할 수 있습니다.</p>
+                <button type="submit">반 추가하기</button>
+              </form>
+            </section>
+          </div>
+          <% if (isOwner) { %>
+            <section class="academy-panel academy-archived-class-panel">
+              <header><div><p>ARCHIVED CLASSES</p><h2>보관된 반</h2></div><strong class="academy-panel-count"><%= archivedClasses.length %></strong></header>
+              <p class="academy-archived-class-guide">반 보관은 영구 삭제가 아닙니다. 과거 출결·통계는 유지되고, 학생 배정·예정 회차·반 전용 초대만 정리됩니다.</p>
+              <div class="academy-archived-class-list">
+                <% if (!archivedClasses.length) { %><div class="academy-empty-state"><span aria-hidden="true">✓</span><strong>보관된 반이 없습니다</strong><p>종료한 반이 생기면 원장 계정에서 이곳에 표시됩니다.</p></div><% } %>
+                <% archivedClasses.forEach((academyClass) => { const lastLifecycle = (academyClass.lifecycleHistory || []).slice(-1)[0] || {}; %>
+                  <article>
+                    <div><span aria-hidden="true"><%= academyClass.name.slice(0, 1) %></span><p><strong><%= academyClass.name %></strong><small><%= classScheduleText(academyClass) %> · <%= formatDate(academyClass.archivedAt) %> 보관</small><em>학생 <%= lastLifecycle.unassignedStudentCount || 0 %>명 해제 · 회차 <%= lastLifecycle.canceledSessionCount || 0 %>개 취소 · 초대 <%= lastLifecycle.revokedInviteCount || 0 %>개 회수</em></p></div>
+                    <form action="/academy/classes/<%= academyClass._id %>/restore" method="POST" onsubmit="return confirm('이 반을 다시 사용할까요? 학생 배정과 회수된 초대는 자동 복구되지 않습니다.')"><button type="submit">반 복구</button></form>
+                  </article>
+                <% }) %>
+              </div>
+            </section>
+          <% } %>
+        <% } %>
+
+        <% if (currentTab === "invites") { %>
+          <header class="academy-heading">
+            <div><p>INVITATIONS</p><h1>초대 링크·코드</h1><span>QR 없이 링크를 보내거나 짧은 코드를 전달하세요. 학생 요청은 바로 승인되지 않고 승인 대기 목록으로 들어옵니다.</span></div>
+          </header>
+          <div class="academy-two-column academy-invite-layout">
+            <section class="academy-panel academy-invite-list-panel">
+              <header><div><p>INVITE HISTORY</p><h2>만든 초대</h2></div><strong class="academy-panel-count"><%= (portal.invites || []).length %></strong></header>
+              <div class="academy-invite-list">
+                <% if (!(portal.invites || []).length) { %><div class="academy-empty-state"><span aria-hidden="true">↗</span><strong>아직 만든 초대가 없습니다</strong><p>오른쪽에서 링크와 코드를 함께 만들어보세요.</p></div><% } %>
+                <% (portal.invites || []).forEach((invite) => { const isActive = invite.displayState === 'ACTIVE'; %>
+                  <article class="<%= String(highlightedInviteId) === String(invite._id) ? 'is-new' : '' %>">
+                    <header><div><strong><%= invite.label %></strong><small><%= invite.classId?.name || "반 미지정" %> · <%= formatDate(invite.expiresAt) %>까지</small></div><span class="state-<%= String(invite.displayState).toLowerCase() %>"><%= inviteStateLabel[invite.displayState] || invite.displayState %></span></header>
+                    <div class="academy-invite-code"><code><%= invite.code %></code><button type="button" data-copy-value="<%= invite.code %>">코드 복사</button></div>
+                    <div class="academy-invite-link"><span>/academy/join/<%= invite.token %></span><button type="button" data-copy-link="/academy/join/<%= invite.token %>">링크 복사</button></div>
+                    <footer><small><%= invite.useCount %> / <%= invite.maxUses %>회 사용</small><% if (isActive) { %><form action="/academy/invites/<%= invite._id %>/revoke" method="POST" onsubmit="return confirm('이 초대를 비활성화할까요?')"><button type="submit">비활성화</button></form><% } %></footer>
+                  </article>
+                <% }) %>
+              </div>
+            </section>
+            <section class="academy-panel academy-create-panel">
+              <header><div><p>NEW INVITE</p><h2>새 초대 만들기</h2></div></header>
+              <form action="/academy/invites" method="POST">
+                <label><span>초대 이름</span><input name="label" type="text" maxlength="60" placeholder="예: 고1 월수반 9월 초대" /></label>
+                <label><span>자동 배정할 반</span><select name="classId"><option value="">승인 후 직접 배정</option><% (portal.classes || []).forEach((academyClass) => { %><option value="<%= academyClass._id %>"><%= academyClass.name %></option><% }) %></select></label>
+                <div class="academy-form-row">
+                  <label><span>유효 기간</span><select name="expiryDays"><option value="7">7일</option><option value="14" selected>14일</option><option value="30">30일</option></select></label>
+                  <label><span>최대 사용</span><input name="maxUses" type="number" min="1" max="200" value="30" required /></label>
+                </div>
+                <p>링크와 코드 중 어느 쪽을 써도 같은 승인 대기 흐름으로 연결됩니다. 필요하면 언제든 비활성화할 수 있습니다.</p>
+                <button type="submit">링크·코드 만들기</button>
+              </form>
+            </section>
+          </div>
+          <div class="academy-copy-toast" data-copy-toast role="status" aria-live="polite" hidden>복사했습니다.</div>
+        <% } %>
+
+        <% if (currentTab === "teachers") { %>
+          <header class="academy-heading academy-list-heading">
+            <div><p>ACADEMY STAFF</p><h1>선생님 관리</h1><span>운영자가 교사로 전환한 계정만 참여를 요청할 수 있으며, 원장 승인 후 학원 정보에 접근합니다.</span></div>
+            <strong class="academy-heading-count"><%= (portal.activeStaff || []).length %><small>명</small></strong>
+          </header>
+          <div class="academy-privacy-note"><strong>권한 구분</strong><span>원장: 선생님 승인·해제 가능</span><i></i><span>교사: 학생·반·통계 업무 가능</span></div>
+
+          <section class="academy-panel academy-table-panel">
+            <header><div><p>ACTIVE STAFF</p><h2>소속 선생님</h2></div><span class="academy-status-chip"><%= isOwner ? "원장 관리" : "조회 전용" %></span></header>
+            <div class="academy-table-wrap">
+              <table>
+                <thead><tr><th>선생님</th><th>학원 역할</th><th>참여일</th><th>관리</th></tr></thead>
+                <tbody>
+                  <% (portal.activeStaff || []).forEach((staff) => { const staffUser = staff.userId; %>
+                    <tr>
+                      <td><strong><%= staffUser.realName || staffUser.name || "선생님" %></strong><small>교사 계정 확인 완료</small></td>
+                      <td><span class="academy-grade-chip"><%= staff.role === "OWNER" ? "원장" : "교사" %></span></td>
+                      <td><strong><%= formatDate(staff.joinedAt || staff.createdAt) %></strong><small><%= staff.role === "OWNER" ? "학원 생성자" : "원장 승인" %></small></td>
+                      <td><% if (isOwner && staff.role === "TEACHER") { %><form class="academy-inline-form" action="/academy/staff/<%= staff._id %>/revoke" method="POST" onsubmit="return confirm('이 선생님의 학원 접근 권한을 해제할까요?')"><button type="submit">접근 해제</button></form><% } else { %><small><%= staff.role === "OWNER" ? "원장 계정" : "원장만 관리 가능" %></small><% } %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <% if (isOwner) { %>
+            <section class="academy-request-list academy-staff-request-list" aria-label="선생님 참여 승인 요청">
+              <header class="academy-heading academy-list-heading"><div><p>STAFF REQUESTS</p><h1>참여 승인 요청</h1><span>실제 근무 중인 선생님인지 확인한 뒤 승인해 주세요.</span></div><strong class="academy-heading-count"><%= staffPendingCount %><small>건</small></strong></header>
+              <% if (!(portal.staffRequests || []).length) { %><div class="academy-panel academy-empty-state"><span aria-hidden="true">✓</span><strong>대기 중인 선생님 요청이 없습니다</strong><p>새 요청이 들어오면 이 메뉴에 표시됩니다.</p></div><% } %>
+              <% (portal.staffRequests || []).forEach((staff) => { const staffUser = staff.userId; %>
+                <article class="academy-panel academy-request-card">
+                  <div class="academy-student-avatar" aria-hidden="true"><%= String(staffUser.realName || staffUser.name || "선").slice(0, 1) %></div>
+                  <div class="academy-request-copy"><small>교사 참여 요청 · <%= formatDate(staff.requestedAt) %></small><h2><%= staffUser.realName || staffUser.name || "선생님" %></h2><p>운영자 교사 역할 전환 확인됨</p><span>승인 전에는 학생 정보와 학습 통계를 볼 수 없습니다.</span></div>
+                  <div class="academy-request-actions"><form action="/academy/staff/<%= staff._id %>/approve" method="POST"><button class="is-primary" type="submit">승인</button></form><form action="/academy/staff/<%= staff._id %>/reject" method="POST" onsubmit="return confirm('이 선생님의 참여 요청을 거절할까요?')"><button type="submit">거절</button></form></div>
+                </article>
+              <% }) %>
+            </section>
+          <% } else { %>
+            <div class="academy-integration-notice" role="status"><span aria-hidden="true">i</span><p><strong>선생님 소속 관리는 원장 계정 전용입니다.</strong> 참여 승인이나 접근 해제가 필요하면 학원 원장에게 요청해 주세요.</p></div>
+          <% } %>
+        <% } %>
+
+        <% if (currentTab === "settings" && isOwner) { %>
+          <header class="academy-heading">
+            <div><p>ACADEMY SETTINGS</p><h1>학원 설정</h1><span>학원 프로필 사진은 학원 목록과 관리 화면에서 학원을 구분하는 대표 이미지로 사용됩니다.</span></div>
+          </header>
+          <section class="academy-panel academy-profile-settings">
+            <div class="academy-profile-preview">
+              <% if (portal.profileImageSrc) { %><img src="<%= portal.profileImageSrc %>" alt="현재 <%= academyName %> 프로필 사진" data-academy-profile-preview /><% } else { %><span aria-hidden="true" data-academy-profile-fallback><%= academyName.slice(0, 1) %></span><img alt="선택한 학원 프로필 사진 미리보기" data-academy-profile-preview hidden /><% } %>
+              <div><small>ACADEMY PROFILE</small><strong><%= academyName %></strong><p>정사각형으로 자동 맞춤되며 JPG, PNG, WEBP 형식을 지원합니다.</p></div>
+            </div>
+            <div class="academy-profile-actions">
+              <form action="/academy/profile-image" method="POST" enctype="multipart/form-data" data-academy-profile-form>
+                <label><span>새 프로필 사진</span><input type="file" name="profileImage" accept="image/jpeg,image/png,image/webp" data-academy-profile-input required /></label>
+                <small>5MB 이하 이미지를 선택해 주세요. 저장하면 기존 사진은 교체됩니다.</small>
+                <button type="submit">사진 저장</button>
+              </form>
+              <% if (portal.academy.profileImageAsset?.cloudPublicId) { %><form action="/academy/profile-image/remove" method="POST" onsubmit="return confirm('학원 프로필 사진을 기본 이미지로 되돌릴까요?')"><button class="is-danger" type="submit">기본 이미지로 되돌리기</button></form><% } %>
+            </div>
+          </section>
+          <div class="academy-integration-notice" role="status"><span aria-hidden="true">i</span><p><strong>프로필 사진 변경은 원장 계정만 가능합니다.</strong> 일반 교사는 학생·반·통계 업무를 사용할 수 있지만 학원의 대표 이미지는 변경할 수 없습니다.</p></div>
+        <% } %>
+      </main>
+    </div>
+  </body>
+</html>

@@ -42,6 +42,9 @@ const {
     getCoachView,
     MODES: COACH_MODES,
 } = require("./coachMessageService");
+const {
+    getStudentAttendanceDashboard,
+} = require("./academyAttendanceService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PUBLISHED_LESSON_CACHE_TTL_MS = Math.max(
@@ -906,6 +909,7 @@ async function getDashboardData(
         arenaAccessState,
         latestMainToSubReference,
         activeMockExamSubscription,
+        attendanceDashboard,
     ] = await Promise.all([
         ConceptProgress.find({
             userId: user._id,
@@ -991,6 +995,10 @@ async function getDashboardData(
             .sort({ endsAt: -1 })
             .select("endsAt")
             .lean(),
+
+        getStudentAttendanceDashboard({
+            studentUserId: user._id,
+        }),
     ]);
     const {
         directNotifications,
@@ -1499,6 +1507,8 @@ async function getDashboardData(
             name: user.name,
             realName:
                 user.realName || "",
+            role:
+                user.role || "student",
             schoolGrade: user.schoolGrade,
             school: user.school,
             currentStreak:
@@ -1508,6 +1518,7 @@ async function getDashboardData(
         currentLearning,
         todayPlan,
         coach,
+        attendance: attendanceDashboard,
         notifications,
         activeDashboardNotices: [
             ...dashboardUrgentNotifications.map(

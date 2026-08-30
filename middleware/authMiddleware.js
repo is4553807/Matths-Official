@@ -6,9 +6,16 @@ const {
 const {
     synchronizeAccountAccess,
 } = require("../services/accountAccessService");
+const {
+    AcademyStudentMembership,
+} = require("../models/academyModel");
 
 function isAdminSessionUser(user) {
     return user?.role === "admin";
+}
+
+function isTeacherSessionUser(user) {
+    return user?.role === "teacher";
 }
 
 exports.isLoggedIn = async (req, res, next) => {
@@ -80,6 +87,28 @@ exports.isLoggedIn = async (req, res, next) => {
             );
             req.authenticatedUser =
                 account;
+
+            let academyMembershipAvailable = false;
+            if (["student", "test"].includes(account.role)) {
+                const academyMembership =
+                    await AcademyStudentMembership.findOne({
+                        studentUserId: account._id,
+                        status: "APPROVED",
+                    })
+                        .select("academyId")
+                        .populate({
+                            path: "academyId",
+                            match: { status: "ACTIVE" },
+                            select: "_id",
+                        })
+                        .lean();
+                academyMembershipAvailable =
+                    Boolean(academyMembership?.academyId);
+            }
+            req.session.user.hasAcademyMembership =
+                academyMembershipAvailable;
+            res.locals.academyMembershipAvailable =
+                academyMembershipAvailable;
             const todayKey =
                 getKoreanDateKey();
 
@@ -124,7 +153,9 @@ exports.isLoggedOut = (req, res, next) => {
             req.session.user
         )
             ? "/admin"
-            : "/main"
+            : isTeacherSessionUser(req.session.user)
+                ? "/academy"
+                : "/main"
     );
 };
 
@@ -172,5 +203,18 @@ exports.isAdmin = (
     );
     error.status = 403;
     error.code = "ADMIN_ACCESS_REQUIRED";
+    return next(error);
+};
+
+exports.isTeacher = (req, res, next) => {
+    if (isTeacherSessionUser(req.session?.user)) {
+        return next();
+    }
+
+    const error = new Error(
+        "학원 선생님 계정만 접근할 수 있습니다."
+    );
+    error.status = 403;
+    error.code = "TEACHER_ACCESS_REQUIRED";
     return next(error);
 };

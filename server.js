@@ -240,10 +240,12 @@ const maathsRoutes = require('./routes/matths-routes');
 const goatArenaRoutes = require("./routes/goat-arena-routes");
 const apiRoutes = require("./routes/api-routes");
 const parentRoutes = require("./routes/parent-routes");
+const academyRoutes = require("./routes/academy-routes");
 
 server.use("/api/v1", apiRoutes);
 server.use("/", parentRoutes);
 server.use("/", goatArenaRoutes);
+server.use("/", academyRoutes);
 server.use("/", maathsRoutes);
 server.use(notFoundHandler);
 server.use(errorHandler);
@@ -270,6 +272,11 @@ async function connectDB() {
             ensureAuthRequestLimitIndexes,
         } = require("./services/authRequestLimitService");
         await ensureAuthRequestLimitIndexes();
+
+        const {
+            ensureAcademyIndexes,
+        } = require("./services/academyService");
+        await ensureAcademyIndexes();
 
         const {
             ensureMatchmakingControl,

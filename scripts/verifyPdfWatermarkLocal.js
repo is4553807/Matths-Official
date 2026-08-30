@@ -68,6 +68,22 @@ async function main() {
     })(),
     "잘못된 직접 입력 추적 코드가 거부되지 않았습니다."
   );
+  assert(
+    (() => {
+      try {
+        buildForensicIdentity({
+          userId: new mongoose.Types.ObjectId(),
+          examId: "ACADEMY-SCOPE-MISSING",
+          sourceType: "ACADEMY_ASSIGNMENT",
+          sourceId: "ACADEMY-SCOPE-MISSING",
+        });
+        return false;
+      } catch (error) {
+        return error.status === 400 && /학원·반·주차·파일/.test(error.message);
+      }
+    })(),
+    "범위 없는 학원 과제 PDF 발급이 거부되지 않았습니다."
+  );
 
   const exactArenaCode = "ARM-8A73787C399A";
   assert(
@@ -96,11 +112,19 @@ async function main() {
   const outputPath = path.resolve(__dirname, "..", "tmp", "pdfs", "watermark-qa.pdf");
   await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
   const userId = new mongoose.Types.ObjectId();
+  const academyId = new mongoose.Types.ObjectId();
+  const academyClassId = new mongoose.Types.ObjectId();
+  const academyClassWeekId = new mongoose.Types.ObjectId();
+  const academyAssignmentFileId = new mongoose.Types.ObjectId();
   const identity = buildForensicIdentity({
     userId,
     examId: "PDF-WATERMARK-QA",
-    sourceType: "STORE",
+    sourceType: "ACADEMY_ASSIGNMENT",
     sourceId: "PDF-WATERMARK-QA",
+    academyId,
+    academyClassId,
+    academyClassWeekId,
+    academyAssignmentFileId,
     downloadedAt: new Date("2026-08-07T03:04:05.000Z"),
   });
   const sourceBytes = await fs.promises.readFile(sourcePath);
@@ -130,6 +154,11 @@ async function main() {
   assert(verified.user_id === String(userId), "숨김 사용자 ID가 발급 사용자와 다릅니다.");
   assert(verified.exam_id === "PDF-WATERMARK-QA", "숨김 시험 ID가 다릅니다.");
   assert(verified.downloaded_at === "2026-08-07T03:04:05.000Z", "숨김 다운로드 시각이 다릅니다.");
+  assert(verified.source_type === "ACADEMY_ASSIGNMENT", "학원 과제 발급 유형이 숨김 payload에 없습니다.");
+  assert(verified.academy_id === String(academyId), "숨김 학원 범위가 발급 학원과 다릅니다.");
+  assert(verified.academy_class_id === String(academyClassId), "숨김 반 범위가 발급 반과 다릅니다.");
+  assert(verified.academy_class_week_id === String(academyClassWeekId), "숨김 주차 범위가 발급 주차와 다릅니다.");
+  assert(verified.academy_assignment_file_id === String(academyAssignmentFileId), "숨김 과제 파일 범위가 다릅니다.");
   const screenshotPrefix = path.resolve(__dirname, "..", "tmp", "pdfs", "screenshot-qa");
   execFileSync("pdftoppm", [
     "-f", "4",
@@ -164,6 +193,7 @@ async function main() {
         signatureVerified: true,
         staleTemporaryFilesRemoved: true,
         screenshotTraceRecognized: true,
+        academyAssignmentScopeEmbedded: true,
         arenaExactMatchSkipsBroadScan: true,
         dualWatermarkTextEmbedded: true,
         protectionWatermarkVersion: generated.protectionWatermarkVersion,

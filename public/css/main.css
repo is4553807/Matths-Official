@@ -715,6 +715,37 @@ a.learning-home-button:focus-visible {
   margin-top: 18px;
 }
 
+.dashboard-attendance-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, auto);
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 18px;
+  padding: 22px 24px;
+  border: 1px solid #ccd5ff;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #eef2ff 0%, #fff 70%);
+  box-shadow: 0 14px 30px rgba(49, 87, 246, .08);
+}
+.dashboard-attendance-copy { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.dashboard-attendance-copy > span { display: grid; width: 48px; height: 48px; flex: 0 0 48px; place-items: center; border-radius: 15px; background: #3157f6; color: #fff; font-size: 22px; font-weight: 900; }
+.dashboard-attendance-copy small { color: #3157f6; font-size: 11px; font-weight: 900; letter-spacing: .13em; }
+.dashboard-attendance-copy h2 { margin: 4px 0 3px; color: #17213b; font-size: 20px; }
+.dashboard-attendance-copy p { margin: 0; color: #657087; font-size: 13px; }
+.dashboard-attendance-action { display: grid; justify-items: end; gap: 6px; text-align: right; }
+.dashboard-attendance-action > strong { color: #17213b; font-size: 16px; }
+.dashboard-attendance-action > small, .dashboard-attendance-action > p { margin: 0; color: #657087; font-size: 12px; }
+.dashboard-attendance-action form { display: flex; gap: 8px; }
+.dashboard-attendance-action input { width: 132px; min-height: 42px; padding: 0 12px; border: 1px solid #bdc8f7; border-radius: 11px; background: #fff; color: #17213b; font-size: 17px; font-weight: 800; letter-spacing: .12em; text-align: center; }
+.dashboard-attendance-action button { min-height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: #3157f6; color: #fff; font-weight: 800; cursor: pointer; }
+.dashboard-attendance-action button:disabled { opacity: .58; cursor: wait; }
+.dashboard-attendance-alert-button { background: transparent !important; color: #3157f6 !important; font-size: 12px; }
+.dashboard-attendance-card.is-late { border-color: #f0c27a; background: linear-gradient(135deg, #fff6e8, #fff); }
+.dashboard-attendance-card.is-closed { border-color: #dde1ea; background: #f7f8fb; box-shadow: none; }
+.dashboard-attendance-card.is-present .dashboard-attendance-copy > span { background: #168768; }
+.dashboard-attendance-card.is-late .dashboard-attendance-copy > span { background: #b36a13; }
+@media (max-width: 760px) { .dashboard-attendance-card { grid-template-columns: 1fr; } .dashboard-attendance-action { justify-items: start; text-align: left; } }
+
 .dashboard-announcements > article {
   display: grid;
   grid-template-columns:

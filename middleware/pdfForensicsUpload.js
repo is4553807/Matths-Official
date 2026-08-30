@@ -3,6 +3,10 @@ const os = require("node:os");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const multer = require("multer");
+const {
+  discardRequestUploads,
+  validateRequestUploads,
+} = require("./uploadContentValidation");
 
 const PDF_FORENSICS_UPLOAD_DIR = path.join(os.tmpdir(), "matths-pdf-forensics");
 fs.mkdirSync(PDF_FORENSICS_UPLOAD_DIR, { recursive: true });
@@ -49,4 +53,33 @@ const pdfForensicsUpload = multer({
   },
 });
 
-module.exports = { ALLOWED_FORENSIC_TYPES, PDF_FORENSICS_UPLOAD_DIR, pdfForensicsUpload };
+function normalizeForensicsUploadError(error) {
+  if (error?.code === "LIMIT_FILE_SIZE") {
+    const sizeError = new Error("유출 추적 파일은 50MB 이하로 올려 주세요.");
+    sizeError.status = 413;
+    return sizeError;
+  }
+  if (error) error.status = Number(error.status) || 422;
+  return error;
+}
+
+function handleAcademyForensicsUpload(req, res, next) {
+  pdfForensicsUpload.single("forensicFile")(req, res, async (uploadError) => {
+    try {
+      if (uploadError) throw uploadError;
+      await validateRequestUploads(req, { maxTotalBytes: 50 * 1024 * 1024 });
+    } catch (error) {
+      await discardRequestUploads(req);
+      req.file = undefined;
+      req.academyForensicsUploadError = normalizeForensicsUploadError(error);
+    }
+    return next();
+  });
+}
+
+module.exports = {
+  ALLOWED_FORENSIC_TYPES,
+  PDF_FORENSICS_UPLOAD_DIR,
+  handleAcademyForensicsUpload,
+  pdfForensicsUpload,
+};

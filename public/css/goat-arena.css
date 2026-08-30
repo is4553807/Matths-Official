@@ -837,11 +837,13 @@ a:focus-visible {
 
 .arena-hero-copy h1 {
   margin: 0;
+  padding: 0 0 0.08em;
+  overflow: visible;
   color: #fff;
   font-size:
     clamp(58px, 7.2vw, 112px);
   font-weight: 950;
-  line-height: 0.9;
+  line-height: 0.96;
   letter-spacing:
     clamp(-6px, -0.45vw, -3px);
   text-shadow:
@@ -850,6 +852,9 @@ a:focus-visible {
 }
 
 .arena-hero-copy h1 em {
+  display: inline-block;
+  padding: 0 0.08em 0.1em 0;
+  margin: 0 -0.08em -0.1em 0;
   color: transparent;
   background: var(--arena-gradient);
   background-clip: text;

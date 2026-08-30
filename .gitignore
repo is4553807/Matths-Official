@@ -51,6 +51,8 @@ output/
 outputs/
 video/
 work/
+# Generated business-card concepts and editable exports
+design/business-card/
 # Marketing/video production source is maintained outside the deployable app.
 social/
 backup/

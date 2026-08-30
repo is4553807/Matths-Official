@@ -648,6 +648,213 @@
   background: #fff0f2;
 }
 
+.settings-icon.academy {
+  color: #fff;
+  background: linear-gradient(145deg, #3157f6, #704bd7);
+  box-shadow: 0 8px 20px rgba(67, 70, 198, 0.2);
+}
+
+.academy-settings-card {
+  background:
+    radial-gradient(circle at 96% 0, rgba(49, 87, 246, 0.09), transparent 31%),
+    #fff;
+}
+
+.academy-membership-card {
+  margin-top: 22px;
+  padding: 23px;
+  background: #f8f9fd;
+  border: 1px solid #dfe4ef;
+  border-radius: 17px;
+}
+
+.academy-membership-card.is-approved {
+  background: linear-gradient(135deg, #f1fbf7, #f5f8ff);
+  border-color: #cfe8df;
+}
+
+.academy-membership-card.is-pending {
+  background: linear-gradient(135deg, #fff9ee, #f7f8ff);
+  border-color: #eadfca;
+}
+
+.academy-membership-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.academy-membership-card > header > div {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.academy-membership-card header small {
+  color: #768097;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.academy-membership-card header strong {
+  overflow: hidden;
+  font-size: 19px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.academy-membership-card header > span {
+  flex: none;
+  padding: 7px 10px;
+  color: #176f54;
+  background: #def4eb;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.academy-membership-card.is-pending header > span {
+  color: #90601d;
+  background: #fff0d5;
+}
+
+.academy-membership-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 20px 0 0;
+}
+
+.academy-membership-card dl > div {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(220, 225, 237, 0.9);
+  border-radius: 12px;
+}
+
+.academy-membership-card dt {
+  color: #858da0;
+  font-size: 9px;
+}
+
+.academy-membership-card dd {
+  min-width: 0;
+  margin: 0;
+  color: #3c455b;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.5;
+}
+
+.academy-membership-card dd small {
+  display: block;
+  margin-top: 3px;
+  color: #9299a9;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.academy-membership-card > p {
+  margin: 17px 0 0;
+  color: #778095;
+  font-size: 9px;
+  line-height: 1.65;
+}
+
+.academy-membership-card > form {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 15px;
+}
+
+.academy-leave-button {
+  min-height: 36px;
+  padding: 0 12px;
+  color: #8a5360;
+  background: #fff;
+  border: 1px solid #e3cfd4;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.academy-join-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.academy-join-option {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+  margin: 0;
+  padding: 22px;
+  background: #f8f9fd;
+  border: 1px solid #dfe4ef;
+  border-radius: 16px;
+}
+
+.academy-join-option > div > small {
+  color: #6650d7;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.academy-join-option h3 {
+  margin: 7px 0 0;
+  font-size: 15px;
+  letter-spacing: -0.3px;
+}
+
+.academy-join-option > div > p,
+.academy-no-option {
+  margin: 8px 0 0;
+  color: #7b8498;
+  font-size: 9px;
+  line-height: 1.65;
+}
+
+.academy-no-option {
+  margin: -7px 0 0;
+  color: #9a6a36;
+}
+
+.academy-consent-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px;
+  color: #596278;
+  background: #fff;
+  border: 1px solid #dfe3ed;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.academy-consent-check input {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  margin: 0;
+  accent-color: var(--blue);
+}
+
+.academy-join-option .save-button {
+  width: 100%;
+  margin-top: auto;
+}
+
 .settings-description {
   margin: 18px 0 0;
   color: #7b8396;
@@ -1149,6 +1356,10 @@
   .withdrawal-fields {
     grid-template-columns: 1fr;
   }
+
+  .academy-join-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 620px) {
@@ -1276,5 +1487,13 @@
   .password-save {
     width: 100%;
     justify-self: stretch;
+  }
+
+  .academy-membership-card dl {
+    grid-template-columns: 1fr;
+  }
+
+  .academy-membership-card > header {
+    align-items: flex-start;
   }
 }

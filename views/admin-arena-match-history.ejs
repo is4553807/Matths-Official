@@ -1,0 +1,223 @@
+<%
+  const formatDateTime = (value) => value
+    ? new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(value))
+    : "기록 없음";
+  const matchTypeLabels = {
+    NORMAL: "일반 쟁탈전",
+    REVENGE: "복수전",
+    FRIENDLY: "친선 경기",
+  };
+  const statusLabels = {
+    SUBMITTED: "제출 완료",
+    RESOLVED: "결과 확정",
+    HELD: "검토 보류",
+    INVALID: "무효 경기",
+    SETTLED: "정산 완료",
+    CANCELLED: "취소",
+    INSURED_CANCELLED: "보호권 취소",
+  };
+  const integrityLabels = {
+    PENDING: "자동 검토 대기",
+    CLEAR: "이상 없음",
+    SUSPICIOUS: "확인 필요",
+    CONFIRMED: "부정행위 확정",
+    INVALID: "무효 처리",
+  };
+  const resultLabels = {
+    WIN: "승리",
+    LOSE: "패배",
+    DRAW: "무승부",
+    NO_RESULT: "결과 없음",
+  };
+  const participantName = (participant) =>
+    participant.nickname || participant.realName || participant.email || participant.id || "사용자 확인 필요";
+  const filterPairs = [
+    ["query", history.filters.query],
+    ["dateFrom", history.filters.dateFrom],
+    ["dateTo", history.filters.dateTo],
+    ["division", history.filters.division],
+    ["matchType", history.filters.matchType],
+    ["status", history.filters.status],
+    ["integrityStatus", history.filters.integrityStatus],
+    ["participant", history.filters.participantId],
+  ].filter(([, value]) => value);
+  const pageHref = (page) => {
+    const pairs = filterPairs
+      .concat([["page", String(page)]])
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+    return `/admin/arena-match-history?${pairs.join("&")}`;
+  };
+  const hasFilters = filterPairs.length > 0;
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="GOAT Arena에서 치러진 모든 1대1 경기 기록" />
+    <title>전체 경기 기록 | Matths 운영센터</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+  </head>
+  <body class="admin-page">
+    <%- include("partials/admin-navigation", { activePage: "arena-match-history" }) %>
+    <main class="admin-main admin-arena-match-history">
+      <header class="admin-heading">
+        <div>
+          <p>MATCH ARCHIVE</p>
+          <h1>전체 경기 기록</h1>
+          <span>부정행위 검토 여부와 관계없이 종료·취소·보류된 GOAT Arena 경기 원장을 확인합니다.</span>
+        </div>
+        <strong><%= history.total.toLocaleString("ko-KR") %><small>검색된 경기</small></strong>
+      </header>
+
+      <form class="admin-panel arena-history-filter" method="GET" action="/admin/arena-match-history">
+        <% if (history.filters.participantId) { %>
+          <input type="hidden" name="participant" value="<%= history.filters.participantId %>" />
+        <% } %>
+        <label class="wide">
+          <span>닉네임·실명·이메일·경기 ID</span>
+          <input
+            type="search"
+            name="query"
+            maxlength="120"
+            value="<%= history.filters.query %>"
+            placeholder="유저 또는 경기 식별 정보 검색"
+          />
+        </label>
+        <label>
+          <span>시작 날짜</span>
+          <input type="date" name="dateFrom" value="<%= history.filters.dateFrom %>" />
+        </label>
+        <label>
+          <span>종료 날짜</span>
+          <input type="date" name="dateTo" value="<%= history.filters.dateTo %>" />
+        </label>
+        <label>
+          <span>Division</span>
+          <select name="division">
+            <option value="">전체</option>
+            <option value="SUB" <%= history.filters.division === "SUB" ? "selected" : "" %>>Unranked</option>
+            <option value="MAIN" <%= history.filters.division === "MAIN" ? "selected" : "" %>>Ranked</option>
+          </select>
+        </label>
+        <label>
+          <span>경기 종류</span>
+          <select name="matchType">
+            <option value="">전체</option>
+            <% Object.entries(matchTypeLabels).forEach(([value, label]) => { %>
+              <option value="<%= value %>" <%= history.filters.matchType === value ? "selected" : "" %>><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>
+          <span>경기 상태</span>
+          <select name="status">
+            <option value="">전체</option>
+            <% Object.entries(statusLabels).forEach(([value, label]) => { %>
+              <option value="<%= value %>" <%= history.filters.status === value ? "selected" : "" %>><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>
+          <span>무결성 상태</span>
+          <select name="integrityStatus">
+            <option value="">전체</option>
+            <% Object.entries(integrityLabels).forEach(([value, label]) => { %>
+              <option value="<%= value %>" <%= history.filters.integrityStatus === value ? "selected" : "" %>><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
+        <div class="arena-history-filter-actions">
+          <button type="submit">필터 적용</button>
+          <% if (hasFilters) { %><a href="/admin/arena-match-history">전체 초기화</a><% } %>
+        </div>
+      </form>
+
+      <% if (history.filterParticipant) { %>
+        <div class="arena-history-participant-filter" role="status">
+          <span>사용자 상세에서 연결됨</span>
+          <strong><%= participantName(history.filterParticipant) %></strong>
+          <a href="/admin/arena-match-history">사용자 필터 해제</a>
+        </div>
+      <% } %>
+
+      <section class="arena-history-summary" aria-label="검색 결과 범위">
+        <strong>총 <%= history.total.toLocaleString("ko-KR") %>건</strong>
+        <span><%= history.page %> / <%= history.totalPages %> 페이지 · 최신 경기순</span>
+      </section>
+
+      <% if (!history.records.length) { %>
+        <section class="admin-panel arena-live-empty">
+          <span aria-hidden="true">⌕</span>
+          <h2>조건에 맞는 경기 기록이 없습니다.</h2>
+          <p>날짜 범위를 넓히거나 닉네임·상태 필터를 초기화하면 결과를 다시 확인할 수 있습니다.</p>
+        </section>
+      <% } %>
+
+      <section class="arena-history-list" aria-label="전체 경기 기록 목록">
+        <% history.records.forEach((match) => { %>
+          <article class="admin-panel arena-history-card">
+            <header>
+              <div>
+                <span><%= match.division === "MAIN" ? "RANKED" : "UNRANKED" %> · <%= matchTypeLabels[match.matchType] || match.matchType %></span>
+                <h2><%= match.tierPairLabel || "티어 조합 기록 없음" %></h2>
+                <small><%= match.matchKey || match.id %></small>
+              </div>
+              <b class="arena-history-state is-<%= match.status.toLowerCase().replace(/_/g, "-") %>"><%= statusLabels[match.status] || match.status %></b>
+            </header>
+
+            <div class="arena-history-versus">
+              <% [match.challenger, match.defender].forEach((participant, index) => { %>
+                <section class="<%= participant.result === 'WIN' ? 'is-winner' : '' %>">
+                  <span><%= index === 0 ? "공격자" : "방어자" %><%= participant.result === "WIN" ? " · 승자" : "" %></span>
+                  <% if (participant.id) { %>
+                    <a href="/admin/users/<%= participant.id %>"><%= participantName(participant) %></a>
+                  <% } else { %>
+                    <strong><%= participantName(participant) %></strong>
+                  <% } %>
+                  <small><%= participant.email || participant.realName || "계정 정보 없음" %></small>
+                  <div>
+                    <b><%= participant.score !== null ? `${participant.score}점` : "점수 없음" %></b>
+                    <span><%= participant.correctCount !== null ? `${participant.correctCount}/5 정답` : "채점 기록 없음" %></span>
+                    <em><%= resultLabels[participant.result] || participant.result %></em>
+                  </div>
+                </section>
+                <% if (index === 0) { %><i aria-hidden="true">VS</i><% } %>
+              <% }) %>
+            </div>
+
+            <dl class="arena-history-meta">
+              <div><dt>경기 성립</dt><dd><%= formatDateTime(match.requestedAt) %></dd></div>
+              <div><dt>경기 시작</dt><dd><%= formatDateTime(match.startedAt) %></dd></div>
+              <div><dt>기록 완료</dt><dd><%= formatDateTime(match.completedAt) %></dd></div>
+              <div><dt>시즌</dt><dd><%= match.seasonKey || "시즌 기록 없음" %></dd></div>
+            </dl>
+
+            <footer>
+              <span class="arena-integrity-state is-<%= match.integrityStatus.toLowerCase() %>"><%= integrityLabels[match.integrityStatus] || match.integrityStatus %></span>
+              <span>경기 ID <b><%= match.id %></b></span>
+              <% if (match.status === "HELD" || ["SUSPICIOUS", "CONFIRMED"].includes(match.integrityStatus)) { %>
+                <a href="/admin/arena-matches?reviewStatus=pending#match-<%= match.id %>">부정행위 검토 열기 →</a>
+              <% } %>
+            </footer>
+          </article>
+        <% }) %>
+      </section>
+
+      <% if (history.totalPages > 1) { %>
+        <nav class="admin-pagination" aria-label="경기 기록 페이지">
+          <% if (history.page > 1) { %><a href="<%= pageHref(history.page - 1) %>">← 이전</a><% } else { %><span>← 이전</span><% } %>
+          <strong><%= history.page %> / <%= history.totalPages %></strong>
+          <% if (history.page < history.totalPages) { %><a href="<%= pageHref(history.page + 1) %>">다음 →</a><% } else { %><span>다음 →</span><% } %>
+        </nav>
+      <% } %>
+    </main>
+  </body>
+</html>

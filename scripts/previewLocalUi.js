@@ -135,6 +135,222 @@ app.get("/preview/home-arena-tier", (_req, res) => {
   });
 });
 
+app.get("/preview/my-learning", (_req, res) => {
+  const previewUser = {
+    id: "64b000000000000000000710",
+    name: "홍길동",
+    role: "student",
+    schoolGrade: 11,
+    hasAcademyMembership: true,
+  };
+  const concept = (id, title, progress, completedTopics = 0) => ({
+    id,
+    title,
+    progress,
+    completedTopics,
+    topics: [{ id: `${id}-1` }, { id: `${id}-2` }, { id: `${id}-3` }],
+    standardCode: "10공수1-01",
+    status: progress >= 100 ? "completed" : progress > 0 ? "in-progress" : "not-started",
+    href: `/learning/common-math-1/polynomials/${id}`,
+  });
+  const units = [
+    {
+      id: "polynomials",
+      order: 1,
+      title: "다항식",
+      progress: 67,
+      completedConcepts: 1,
+      firstConceptHref: "/learning/common-math-1/polynomials/operations",
+      assessmentRequired: false,
+      assessmentPassed: false,
+      concepts: [
+        concept("operations", "다항식의 연산", 100, 3),
+        concept("identities", "항등식과 나머지정리", 67, 2),
+        concept("factorization", "인수분해", 0),
+      ],
+    },
+    {
+      id: "equations",
+      order: 2,
+      title: "방정식과 부등식",
+      progress: 33,
+      completedConcepts: 0,
+      firstConceptHref: "/learning/common-math-1/equations/complex-numbers",
+      assessmentRequired: false,
+      assessmentPassed: false,
+      concepts: [
+        concept("complex-numbers", "복소수와 이차방정식", 67, 2),
+        concept("quadratic-equations", "이차방정식과 이차함수", 33, 1),
+        concept("inequalities", "여러 가지 방정식과 부등식", 0),
+      ],
+    },
+  ];
+  const totalConcepts = units.reduce((sum, unit) => sum + unit.concepts.length, 0);
+  const completedConcepts = units.reduce(
+    (sum, unit) => sum + unit.concepts.filter((item) => item.progress >= 100).length,
+    0
+  );
+
+  res.render("my-learning", {
+    user: previewUser,
+    arenaProfileAvatar: getArenaProfileAvatar("ORBIT_OWL"),
+    onboardingTutorial: { status: "NOT_REQUIRED", shouldAutoStart: false },
+    learningData: {
+      completedConcepts,
+      totalConcepts,
+      continueHref: units[0].firstConceptHref,
+      courses: [
+        {
+          id: "common-math-1",
+          officialTitle: "공통수학 1",
+          defaultSemester: "1학기",
+          progress: 50,
+          completedConcepts,
+          totalConcepts,
+          developmentLocked: false,
+          assessmentRequired: false,
+          assessmentPassed: false,
+          hasActivity: true,
+          units,
+        },
+      ],
+    },
+  });
+});
+
+app.get("/preview/main-dashboard", (_req, res) => {
+  const now = new Date("2026-08-30T10:05:00.000Z");
+  const previewUser = {
+    id: "64b000000000000000000711",
+    name: "hong-gildong",
+    realName: "홍길동",
+    role: "admin",
+    schoolGrade: 11,
+    currentStreak: 12,
+    hasAcademyMembership: true,
+  };
+
+  res.render("main", {
+    user: previewUser,
+    arenaActivityLevel: {
+      level: 7,
+      totalMatches: 84,
+      matchesToNext: 16,
+      isMaxLevel: false,
+    },
+    arenaProfileAvatar: getArenaProfileAvatar("ORBIT_OWL"),
+    onboardingTutorial: { status: "NOT_REQUIRED", shouldAutoStart: false },
+    dashboardData: {
+      user: previewUser,
+      completedConcepts: 24,
+      notifications: [
+        {
+          title: "오늘의 학원 수업",
+          description: "오후 7시부터 출석 코드를 입력할 수 있습니다.",
+          href: "/my-academy",
+          urgent: true,
+        },
+        {
+          title: "복습할 오답이 있어요",
+          description: "오늘 복습 예정인 오답 5개를 확인해 주세요.",
+          href: "/wrong-notes",
+          urgent: false,
+        },
+        {
+          title: "GOAT Arena 결과",
+          description: "최근 경기가 정산되었습니다.",
+          href: "/war-of-masters",
+          urgent: false,
+        },
+      ],
+      hasUrgentNotification: false,
+      activeDashboardNotices: [
+        {
+          id: "preview-integrity-notice",
+          kind: "integrity",
+          title: "9월 전국 모의고사 응시 규정 안내",
+          content: "부정행위 방지를 위해 시험 중 화면 이탈이 감지되며 자동 제출됩니다. 응시 전 반드시 유의사항을 확인하세요.",
+          href: "/notifications",
+          dismissUrl: "/preview/announcements/preview-integrity-notice/dismiss",
+        },
+      ],
+      attendance: {
+        serverNow: now,
+        canCheckIn: true,
+        academy: { id: "preview-academy", name: "미래엔 수학학원" },
+        academyClass: { id: "preview-class", name: "고2 심화 A반" },
+        attendance: null,
+        session: {
+          id: "preview-session",
+          attendanceMode: "SELF_CODE",
+          state: "OPEN",
+          isLateWindow: false,
+          startsAt: new Date("2026-08-30T10:00:00.000Z"),
+          endsAt: new Date("2026-08-30T12:00:00.000Z"),
+          checkInOpensAt: new Date("2026-08-30T09:55:00.000Z"),
+          lateAfterAt: new Date("2026-08-30T10:30:00.000Z"),
+          checkInClosesAt: new Date("2026-08-30T12:10:00.000Z"),
+        },
+      },
+      coach: {
+        mode: "mild",
+        label: "순한맛",
+        message: "어제보다 20분 더 집중했어요. 오늘은 오답 노트 5문제만 정리하면 이번 주 목표에 딱 도착합니다. 천천히, 그러나 확실하게 가볼까요?",
+      },
+      activePlan: {
+        code: "LEARNING_PACKAGE",
+        name: "프리미엄 학습권",
+        division: "Ranked",
+        remainingLearningDays: 128,
+        availableLearningDays: 96,
+        reservedLearningDays: 24,
+        lockedLearningDays: 8,
+        expiresAt: new Date("2026-01-05T14:59:59.000Z"),
+        unlimited: false,
+        statusLabel: "이용 중",
+      },
+      accessRenewalNotice: null,
+      stats: {
+        weeklyStudyMinutes: 342,
+        weeklyStudyDetail: "+48분",
+        todayStudyMinutes: 54,
+        activeStudyDays: 6,
+        averageStudyMinutes: 57,
+        weeklySolvedProblems: 214,
+        correctRate: 82,
+        correctRateDetail: "+3%p",
+        pendingReviewCount: 5,
+      },
+      weeklyActivity: {
+        maxMinutes: 71,
+        days: [
+          { label: "월", minutes: 42, isToday: false },
+          { label: "화", minutes: 58, isToday: false },
+          { label: "수", minutes: 37, isToday: false },
+          { label: "목", minutes: 71, isToday: false },
+          { label: "금", minutes: 49, isToday: false },
+          { label: "토", minutes: 31, isToday: false },
+          { label: "일", minutes: 54, isToday: true },
+        ],
+      },
+    },
+  });
+});
+
+app.post("/preview/announcements/:noticeId/dismiss", (_req, res) => {
+  res.json({ dismissed: true });
+});
+
+app.post("/api/academy/attendance/check-in", (req, res) => {
+  if (!/^\d{6}$/.test(String(req.body?.code || ""))) {
+    return res.status(400).json({ message: "6자리 출석 코드를 입력해 주세요." });
+  }
+  return res.json({
+    message: "출석 처리가 완료되었습니다.",
+    attendance: { status: "PRESENT" },
+  });
+});
+
 async function renderGenericPreview(viewName) {
   const previewValue = universalPreviewValue();
   const locals = {
@@ -661,6 +877,28 @@ app.get("/preview/admin/users/detail", (_req, res) => {
         matchesToNext: 12,
         isMaxLevel: false,
       },
+      arenaRecentMatches: [
+        {
+          id: "64b000000000000000000701",
+          division: "MAIN",
+          matchType: "NORMAL",
+          status: "SETTLED",
+          tierPairLabel: "R3 → R2",
+          completedAt: new Date("2026-08-18T18:10:00+09:00"),
+          focusedParticipant: { role: "CHALLENGER", result: "WIN", score: 80 },
+          opponent: { id: "64b000000000000000000702", nickname: "함수마스터", score: 60 },
+        },
+        {
+          id: "64b000000000000000000703",
+          division: "SUB",
+          matchType: "REVENGE",
+          status: "SETTLED",
+          tierPairLabel: "U2 → U1",
+          completedAt: new Date("2026-08-16T14:20:00+09:00"),
+          focusedParticipant: { role: "DEFENDER", result: "LOSE", score: 40 },
+          opponent: { id: "64b000000000000000000704", nickname: "미적분비둘기", score: 100 },
+        },
+      ],
       inquiries: [],
       notifications: [],
       actionLogs: [],
@@ -2022,6 +2260,198 @@ app.get("/admin/arena-policies", (_req, res) => {
       mockExamOnly: { now, activePolicy: mockPolicy, policies: [mockPolicy] },
       mainShop: { activePolicy: shopPolicy, policies: [shopPolicy] },
     },
+  });
+});
+
+app.get("/preview/admin/arena-match-history", (_req, res) => {
+  const users = [
+    { id: "64b000000000000000000711", nickname: "수학하는염소", realName: "공격 사용자", email: "goat@example.test" },
+    { id: "64b000000000000000000712", nickname: "미적분비둘기", realName: "방어 사용자", email: "pigeon@example.test" },
+  ];
+  const records = [
+    {
+      id: "64b000000000000000000721",
+      matchKey: "MAIN:NORMAL:20260828:001",
+      seasonKey: "2026-S3",
+      division: "MAIN",
+      matchType: "NORMAL",
+      tierPairLabel: "R3 → R2",
+      status: "SETTLED",
+      integrityStatus: "CLEAR",
+      challenger: { ...users[0], role: "CHALLENGER", result: "WIN", score: 80, correctCount: 4 },
+      defender: { ...users[1], role: "DEFENDER", result: "LOSE", score: 60, correctCount: 3 },
+      requestedAt: new Date("2026-08-28T17:20:00+09:00"),
+      startedAt: new Date("2026-08-28T17:30:00+09:00"),
+      completedAt: new Date("2026-08-28T18:22:00+09:00"),
+    },
+    {
+      id: "64b000000000000000000722",
+      matchKey: "SUB:REVENGE:20260827:004",
+      seasonKey: "2026-S3",
+      division: "SUB",
+      matchType: "REVENGE",
+      tierPairLabel: "U2 → U1",
+      status: "HELD",
+      integrityStatus: "SUSPICIOUS",
+      challenger: { ...users[1], role: "CHALLENGER", result: "NO_RESULT", score: 100, correctCount: 5 },
+      defender: { ...users[0], role: "DEFENDER", result: "NO_RESULT", score: 80, correctCount: 4 },
+      requestedAt: new Date("2026-08-27T20:10:00+09:00"),
+      startedAt: new Date("2026-08-27T20:15:00+09:00"),
+      completedAt: new Date("2026-08-27T21:04:00+09:00"),
+    },
+  ];
+  res.render("admin-arena-match-history", {
+    user: { id: "64b000000000000000000799", name: "preview-admin", role: "admin" },
+    history: {
+      filters: {
+        query: "",
+        dateFrom: "",
+        dateTo: "",
+        division: "",
+        matchType: "",
+        status: "",
+        integrityStatus: "",
+        participantId: "",
+      },
+      total: records.length,
+      page: 1,
+      pageSize: 30,
+      totalPages: 1,
+      records,
+      filterParticipant: null,
+    },
+  });
+});
+
+app.get("/preview/academy", (req, res) => {
+  const academyClass = { _id: "64b000000000000000000811", name: "고1 월수반" };
+  const previewStudents = [
+    ["64b000000000000000000821", "이민준", 10, "평촌고등학교", "PRESENT", ""],
+    ["64b000000000000000000822", "박서연", 10, "경기외국어고등학교", "LATE", "교통 지연"],
+    ["64b000000000000000000823", "김도윤", 11, "백영고등학교", "ABSENT", "연락 확인 중"],
+    ["64b000000000000000000824", "최지우", 10, "동안고등학교", "PRESENT", ""],
+    ["64b000000000000000000825", "정하준", 12, "평촌고등학교", null, ""],
+    ["64b000000000000000000826", "한예린", 11, "경기외국어고등학교", "EXCUSED", "학교 행사"],
+  ].map(([id, realName, schoolGrade, schoolName, status, note], index) => ({
+    membership: {
+      _id: `64b00000000000000000083${index}`,
+      classId: academyClass,
+      studentUserId: {
+        _id: id,
+        name: `preview-student-${index + 1}`,
+        realName,
+        schoolGrade,
+        school: { name: schoolName, region: "경기도" },
+      },
+    },
+    attendance: status
+      ? {
+          status,
+          note,
+          checkedInAt: status === "PRESENT" || status === "LATE" ? new Date(`2026-08-29T0${index + 1}:20:00+09:00`) : null,
+        }
+      : null,
+  }));
+  const activeAcademyPage = req.query.tab === "attendance" ? "attendance" : "dashboard";
+  res.render("academy", {
+    user: {
+      id: "64b000000000000000000801",
+      name: "평촌수학선생님",
+      realName: "김선생",
+      role: "teacher",
+    },
+    activeAcademyPage,
+    portal: {
+      academy: { _id: "64b000000000000000000810", name: "평촌 하이수학" },
+      pendingCount: 3,
+      staffPendingCount: 0,
+      isOwner: true,
+      classes: [academyClass],
+      students: previewStudents.map((item) => item.membership),
+      requests: [],
+      invites: [],
+      activeStaff: [],
+      staffRequests: [],
+    },
+    statistics: {
+      period: {
+        key: "2026-08",
+        label: "2026년 8월 (이번 달)",
+        options: [{ key: "2026-08", label: "2026년 8월 (이번 달)" }],
+      },
+      cards: [
+        { label: "학습 건강도", value: "72점", detail: "관찰 · 데이터 반영 92%" },
+        { label: "학습 참여 학생", value: "23명", detail: "92% 참여" },
+        { label: "평균 학습일", value: "8.4일", detail: "학생 1인당 · 미학습 0일 포함" },
+        { label: "오답 복습률", value: "76%", detail: "전체 오답 184개 기준" },
+      ],
+      health: {
+        score: 72,
+        key: "WATCH",
+        label: "관찰",
+        dataCoverage: 92,
+        targetLearningDays: 12,
+        distribution: { HEALTHY: 12, WATCH: 8, RISK: 5 },
+        components: { engagement: 78, accuracy: 71, review: 76, recovery: 62 },
+      },
+      analytics: {
+        growth: {
+          points: [
+            { label: "1주", attempts: 118, uniqueProblems: 91, activeStudents: 18, accuracy: 64 },
+            { label: "2주", attempts: 146, uniqueProblems: 108, activeStudents: 21, accuracy: 69 },
+            { label: "3주", attempts: 171, uniqueProblems: 126, activeStudents: 23, accuracy: 74 },
+            { label: "4주", attempts: 158, uniqueProblems: 119, activeStudents: 22, accuracy: 79 },
+            { label: "5주", attempts: 62, uniqueProblems: 48, activeStudents: 15, accuracy: 82 },
+          ],
+        },
+        heatmap: {
+          measuredConcepts: 12,
+          items: [
+            ["공통수학1", "방정식과 부등식", "이차함수와 직선의 위치 관계", 42, 31, 12],
+            ["공통수학1", "경우의 수", "순열과 조합", 49, 28, 11],
+            ["대수", "지수함수와 로그함수", "로그의 뜻과 성질", 55, 34, 14],
+            ["공통수학1", "다항식", "항등식과 나머지정리", 61, 41, 17],
+            ["확률과 통계", "확률", "조건부확률", 66, 29, 10],
+            ["대수", "수열", "수열의 귀납적 정의", 70, 37, 15],
+            ["공통수학1", "행렬", "행렬의 곱셈", 73, 45, 19],
+            ["미적분Ⅰ", "미분", "함수의 증가와 감소", 78, 33, 13],
+            ["공통수학1", "다항식", "다항식의 사칙연산", 82, 52, 21],
+            ["대수", "수열", "등차수열", 86, 48, 20],
+            ["확률과 통계", "통계", "정규분포", 91, 36, 15],
+            ["미적분Ⅰ", "적분", "정적분의 활용", 94, 31, 12],
+          ].map(([courseTitle, unitTitle, conceptTitle, accuracy, attempts, studentCount], index) => ({
+            key: `preview-${index}`,
+            courseTitle,
+            unitTitle,
+            conceptTitle,
+            accuracy,
+            weakness: 100 - accuracy,
+            attempts,
+            correct: Math.round((accuracy / 100) * attempts),
+            studentCount,
+          })),
+        },
+      },
+      summary: {
+        bullets: [
+          { label: "학습 참여", text: "승인 학생 25명 중 23명이 학습해 참여율은 92%입니다." },
+          { label: "학습 건강도", text: "학원 평균은 72점이며 주의 학생은 5명입니다." },
+          { label: "다음 운영 방향", text: "이차함수와 순열·조합 취약 학생을 먼저 확인하는 것이 좋습니다." },
+        ],
+      },
+      attentionStudents: [],
+    },
+    attendance: {
+      dateKey: "2026-08-29",
+      todayKey: "2026-08-29",
+      classes: [academyClass],
+      selectedClass: academyClass,
+      roster: previewStudents,
+      counts: { TOTAL: 6, PRESENT: 2, LATE: 1, ABSENT: 1, EXCUSED: 1, UNRECORDED: 1 },
+    },
+    studentPage: null,
+    feedback: null,
+    createdInviteId: "",
   });
 });
 

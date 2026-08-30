@@ -223,6 +223,15 @@
   color: #c7cde0;
 }
 
+/* The progress summary is a light card nested inside the dark unit hero. */
+.dashboard-main .unit-hero .unit-hero-progress > div > span {
+  color: #4f5b73;
+}
+
+.dashboard-main .unit-hero .unit-hero-progress > small {
+  color: #68748b;
+}
+
 /* Mock exams and store */
 .private-mock-start-link.disabled,
 .private-mock-start-card > button[data-private-mock-start].disabled,

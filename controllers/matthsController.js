@@ -8,6 +8,9 @@ const {
   ParentAccount,
 } = require("../models/parentModel");
 const {
+  getStudentAcademyProfile,
+} = require("../services/academyService");
+const {
   OVERSEAS_HIGH_SCHOOL_OPTION_CODE,
   buildOverseasSchool,
   getSchoolSelectData,
@@ -210,6 +213,26 @@ const {
   revokeAdminParentChildLink,
 } = require("../services/adminService");
 const {
+  approveAcademyApplication,
+  rejectAcademyApplication,
+} = require("../services/academyService");
+const {
+  assignAdminAcademyMembershipClass,
+  getAdminAcademyDetail,
+  getAdminAcademyList,
+  getAdminAcademyWeekFileDownload,
+  regenerateAdminAcademyAttendanceCode,
+  transferAdminAcademyClassHomeroom,
+  transferAdminAcademyOwner,
+  updateAdminAcademyAttendance,
+  updateAdminAcademyClass,
+  updateAdminAcademyClassOperations,
+  updateAdminAcademyInvite,
+  updateAdminAcademyMembership,
+  updateAdminAcademyProfile,
+  updateAdminAcademyStaff,
+} = require("../services/adminAcademyService");
+const {
   dismissDashboardAnnouncement,
   dismissDashboardNotification,
   getNotificationDetail,
@@ -234,6 +257,7 @@ const {
   createCommunityNotice,
   createCommunityComment,
   createCommunityPost,
+  deleteCommunityPostByAuthor,
   getAdminCommunityData,
   getCommunityAnnouncement,
   getCommunityAttachment,
@@ -325,6 +349,9 @@ const {
   getAdminActiveArenaMatchesData,
 } = require("../services/adminActiveArenaMatchesService");
 const {
+  getAdminArenaMatchHistoryData,
+} = require("../services/adminArenaMatchHistoryService");
+const {
   analyzeForensicTraceCode,
   analyzeForensicUpload,
   isPdfDownload,
@@ -376,6 +403,10 @@ const {
   updateArenaProfileAvatar,
   updateCustomProfileAvatar,
 } = require("../services/arenaProfileAvatarService");
+const {
+  removeAcademyProfileImageAsAdmin,
+  updateAcademyProfileImageAsAdmin,
+} = require("../services/academyProfileImageService");
 const {
   beginSocialAuthorization,
   clearPendingSocialRegistration,
@@ -803,7 +834,9 @@ async function finishSocialLogin(
   return res.redirect(
     user.role === "admin"
       ? "/admin"
-      : "/main"
+      : user.role === "teacher"
+        ? "/academy"
+        : "/main"
   );
 }
 
@@ -1783,6 +1816,10 @@ function adminFeedbackFromQuery(
       "사업자 출금 기록을 저장했습니다.",
     financeReserve:
       "기타 미지급 비용 준비금을 저장했습니다.",
+    academyApproved:
+      "학원 등록 요청을 승인했습니다. 이제 교사와 학생에게 학원이 표시됩니다.",
+    academyRejected:
+      "학원 등록 요청을 거절했습니다.",
   };
 
   return messages[
@@ -1812,6 +1849,404 @@ exports.adminDashboardPage =
       return next(error);
     }
   };
+
+function adminAcademyFeedback(query) {
+  const messages = {
+    academyApproved: "학원 등록 요청을 승인했습니다.",
+    academyRejected: "학원 등록 요청을 거절했습니다.",
+    academyRenamed: "학원 이름을 변경했습니다.",
+    academyPaused: "학원 운영을 중지했습니다.",
+    academyActivated: "학원 운영을 재개했습니다.",
+    academyReopened: "거절된 학원을 재검토 대기로 복구했습니다.",
+    staffUpdated: "교사 소속 상태를 변경했습니다.",
+    studentUpdated: "학생 소속 상태를 변경했습니다.",
+    studentClassUpdated: "학생의 반 배정을 변경했습니다.",
+    classUpdated: "반 사용 상태를 변경했습니다.",
+    classOperationsUpdated: "반 일정과 출석 방식을 변경했습니다.",
+    classHomeroomTransferred: "반 담임 선생님을 이전했습니다.",
+    attendanceUpdated: "학생 출결 기록을 보정했습니다.",
+    attendanceCodeRegenerated: "수업 회차의 출석 코드를 재발급했습니다.",
+    inviteUpdated: "초대 사용 상태를 변경했습니다.",
+    ownerTransferred: "학원 원장 권한을 이전했습니다.",
+    academyProfileImageUpdated: "학원 프로필 사진을 변경했습니다.",
+    academyProfileImageRemoved: "학원 프로필 사진을 기본 이미지로 되돌렸습니다.",
+  };
+  const error = String(query.error || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 240);
+  return {
+    message: messages[String(query.done || "")] || null,
+    error: error || null,
+  };
+}
+
+function safeAdminAcademyReturnPath(value, fallback) {
+  const candidate = String(value || "").trim();
+  return /^\/admin\/academies(?:\/[a-f\d]{24})?(?:\?[^\s#]*)?(?:#[a-z0-9-]+)?$/i.test(candidate)
+    ? candidate
+    : fallback;
+}
+
+function adminAcademyErrorRedirect(res, academyId, error, anchor = "") {
+  const suffix = anchor ? `#${anchor}` : "";
+  const message = encodeURIComponent(String(error.message || "학원 관리 작업을 처리하지 못했습니다.").slice(0, 240));
+  return res.redirect(303, `/admin/academies/${academyId}?error=${message}${suffix}`);
+}
+
+exports.adminAcademiesPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    return res.render("admin-academies", {
+      user: req.session.user,
+      academyData: await getAdminAcademyList({
+        adminUserId: req.session.user.id,
+        search: req.query.search,
+        status: req.query.status,
+        page: req.query.page,
+      }),
+      feedback: adminAcademyFeedback(req.query),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminAcademyDetailPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    return res.render("admin-academy-detail", {
+      user: req.session.user,
+      detail: await getAdminAcademyDetail({
+        adminUserId: req.session.user.id,
+        academyId: req.params.academyId,
+        periodKey: req.query.period,
+      }),
+      feedback: adminAcademyFeedback(req.query),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminDownloadAcademyWeekFile = async (req, res, next) => {
+  try {
+    const download = await getAdminAcademyWeekFileDownload({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      weekId: req.params.weekId,
+      fileId: req.params.fileId,
+    });
+    if (download.type === "REDIRECT") {
+      res.set("Cache-Control", "private, no-store");
+      return res.redirect(302, download.url);
+    }
+    const issued = download.issued;
+    const cleanup = () => issued.cleanup().catch(() => {});
+    res.once("finish", cleanup);
+    res.once("close", cleanup);
+    res.type("application/pdf");
+    res.set("Cache-Control", "private, no-store");
+    res.set("X-Matths-Trace", issued.traceCode);
+    return res.download(issued.filePath, issued.downloadName, (error) => {
+      cleanup();
+      if (error && !res.headersSent) return next(error);
+      return undefined;
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyProfile = async (req, res, next) => {
+  try {
+    const result = await updateAdminAcademyProfile({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      action: req.body.action,
+      name: req.body.name,
+    });
+    const action = String(req.body.action).toUpperCase();
+    const done = {
+      RENAME: "academyRenamed",
+      PAUSE: "academyPaused",
+      ACTIVATE: "academyActivated",
+      REOPEN: "academyReopened",
+    }[action] || (result.status === "PAUSED" ? "academyPaused" : "academyActivated");
+    return res.redirect(303, `/admin/academies/${result._id}?done=${done}`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-control");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyProfileImage = async (req, res, next) => {
+  try {
+    if (req.profileAvatarUploadError) throw req.profileAvatarUploadError;
+    const action = String(req.body.action || "UPDATE").trim().toUpperCase();
+    if (action === "REMOVE") {
+      await removeAcademyProfileImageAsAdmin({
+        adminUserId: req.session.user.id,
+        academyId: req.params.academyId,
+      });
+      return res.redirect(303, `/admin/academies/${req.params.academyId}?done=academyProfileImageRemoved#academy-control`);
+    }
+    if (action !== "UPDATE") {
+      const actionError = new Error("올바른 학원 프로필 사진 작업이 아닙니다.");
+      actionError.status = 400;
+      throw actionError;
+    }
+    await updateAcademyProfileImageAsAdmin({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      file: req.file,
+    });
+    req.file = undefined;
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=academyProfileImageUpdated#academy-control`);
+  } catch (error) {
+    if ([400, 403, 404, 409, 413, 422, 503].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-control");
+    }
+    return next(error);
+  } finally {
+    if (req.file?.path) {
+      await require("node:fs").promises.unlink(req.file.path).catch(() => {});
+      req.file = undefined;
+    }
+  }
+};
+
+exports.adminUpdateAcademyStaff = async (req, res, next) => {
+  try {
+    await updateAdminAcademyStaff({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      staffId: req.params.staffId,
+      action: req.body.action,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=staffUpdated#academy-staff`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-staff");
+    }
+    return next(error);
+  }
+};
+
+exports.adminTransferAcademyOwner = async (req, res, next) => {
+  try {
+    await transferAdminAcademyOwner({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      newOwnerStaffId: req.body.newOwnerStaffId,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=ownerTransferred#academy-staff`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-staff");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyStudent = async (req, res, next) => {
+  try {
+    await updateAdminAcademyMembership({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      membershipId: req.params.membershipId,
+      action: req.body.action,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=studentUpdated#academy-students`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-students");
+    }
+    return next(error);
+  }
+};
+
+exports.adminAssignAcademyStudentClass = async (req, res, next) => {
+  try {
+    await assignAdminAcademyMembershipClass({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      membershipId: req.params.membershipId,
+      classId: String(req.body.classId || ""),
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=studentClassUpdated#academy-students`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-students");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyClass = async (req, res, next) => {
+  try {
+    await updateAdminAcademyClass({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      classId: req.params.classId,
+      action: req.body.action,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=classUpdated#academy-classes`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-classes");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyClassOperations = async (req, res, next) => {
+  try {
+    await updateAdminAcademyClassOperations({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      classId: req.params.classId,
+      weekdays: req.body.weekdays,
+      startTime: req.body.startTime,
+      endTime: req.body.endTime,
+      effectiveFrom: req.body.effectiveFrom,
+      attendanceMode: req.body.attendanceMode,
+      opensBeforeMinutes: req.body.opensBeforeMinutes,
+      lateAfterMinutes: req.body.lateAfterMinutes,
+      closesAfterMinutes: req.body.closesAfterMinutes,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=classOperationsUpdated#academy-classes`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-classes");
+    }
+    return next(error);
+  }
+};
+
+exports.adminTransferAcademyClassHomeroom = async (req, res, next) => {
+  try {
+    await transferAdminAcademyClassHomeroom({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      classId: req.params.classId,
+      nextTeacherUserId: req.body.nextTeacherUserId,
+      retainPreviousAsCoTeacher: req.body.retainPreviousAsCoTeacher === "true",
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=classHomeroomTransferred#academy-classes`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-classes");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyAttendance = async (req, res, next) => {
+  try {
+    await updateAdminAcademyAttendance({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      attendanceId: req.params.attendanceId,
+      status: req.body.status,
+      note: req.body.note,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=attendanceUpdated#academy-attendance`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-attendance");
+    }
+    return next(error);
+  }
+};
+
+exports.adminRegenerateAcademyAttendanceCode = async (req, res, next) => {
+  try {
+    await regenerateAdminAcademyAttendanceCode({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      sessionId: req.params.sessionId,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=attendanceCodeRegenerated#academy-attendance`);
+  } catch (error) {
+    if ([400, 403, 404, 409, 503].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-attendance");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyInvite = async (req, res, next) => {
+  try {
+    await updateAdminAcademyInvite({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      inviteId: req.params.inviteId,
+      action: req.body.action,
+    });
+    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=inviteUpdated#academy-invites`);
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-invites");
+    }
+    return next(error);
+  }
+};
+
+async function renderAdminAcademyReviewError(req, res, error) {
+  return res.status(Number(error.status) || 400).render("admin-dashboard", {
+    user: req.session.user,
+    adminData: await getAdminDashboardData(),
+    feedback: null,
+    error: error.message,
+    oldInput: null,
+  });
+}
+
+exports.adminApproveAcademy = async (req, res, next) => {
+  try {
+    await approveAcademyApplication({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+    });
+    return res.redirect(303, safeAdminAcademyReturnPath(
+      req.body.returnTo,
+      "/admin?done=academyApproved#academy-applications"
+    ));
+  } catch (error) {
+    if ([403, 404, 409].includes(Number(error.status))) {
+      const returnTo = safeAdminAcademyReturnPath(req.body.returnTo, "");
+      if (returnTo) {
+        const basePath = returnTo.split(/[?#]/)[0];
+        return res.redirect(303, `${basePath}?error=${encodeURIComponent(error.message)}#academy-control`);
+      }
+      return renderAdminAcademyReviewError(req, res, error);
+    }
+    return next(error);
+  }
+};
+
+exports.adminRejectAcademy = async (req, res, next) => {
+  try {
+    await rejectAcademyApplication({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+    });
+    return res.redirect(303, safeAdminAcademyReturnPath(
+      req.body.returnTo,
+      "/admin?done=academyRejected#academy-applications"
+    ));
+  } catch (error) {
+    if ([403, 404, 409].includes(Number(error.status))) {
+      const returnTo = safeAdminAcademyReturnPath(req.body.returnTo, "");
+      if (returnTo) {
+        const basePath = returnTo.split(/[?#]/)[0];
+        return res.redirect(303, `${basePath}?error=${encodeURIComponent(error.message)}#academy-control`);
+      }
+      return renderAdminAcademyReviewError(req, res, error);
+    }
+    return next(error);
+  }
+};
 
 exports.adminRevenueMetrics = async (_req, res, next) => {
   try {
@@ -2052,6 +2487,28 @@ exports.adminActiveArenaMatchesPage = async (req, res, next) => {
     return res.render("admin-arena-live-matches", {
       user: req.session.user,
       liveMatches: await getAdminActiveArenaMatchesData(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminArenaMatchHistoryPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    return res.render("admin-arena-match-history", {
+      user: req.session.user,
+      history: await getAdminArenaMatchHistoryData({
+        query: req.query.query,
+        dateFrom: req.query.dateFrom,
+        dateTo: req.query.dateTo,
+        division: req.query.division,
+        matchType: req.query.matchType,
+        status: req.query.status,
+        integrityStatus: req.query.integrityStatus,
+        participantId: req.query.participant,
+        page: req.query.page,
+      }),
     });
   } catch (error) {
     return next(error);
@@ -6022,6 +6479,10 @@ exports.login = async (req, res, next) => {
             return res.redirect("/admin");
         }
 
+        if (user.role === "teacher") {
+            return res.redirect("/academy");
+        }
+
         if (isSafeStudentReturnPath(returnTo)) {
             return res.redirect(returnTo);
         }
@@ -6058,11 +6519,14 @@ async function renderProfile(
         formValues = {},
     } = {}
 ) {
-    const [profileUser, arenaActivityLevel] = await Promise.all([
+    const [profileUser, arenaActivityLevel, academyProfile] = await Promise.all([
       User.findById(
         req.session.user.id
       ).lean(),
       getArenaActivityLevel(
+        req.session.user.id
+      ),
+      getStudentAcademyProfile(
         req.session.user.id
       ),
     ]);
@@ -6085,6 +6549,7 @@ async function renderProfile(
           profileUser.preferences
         ),
         schoolRegions: getSchoolSelectData(),
+        academyProfile,
         feedback,
         formValues,
     });
@@ -6092,9 +6557,17 @@ async function renderProfile(
 
 exports.profilePage = async (req, res, next) => {
     try {
-        let feedback = null;
+        const academyFlash = req.session.academyFlash || null;
+        delete req.session.academyFlash;
+        let feedback = academyFlash
+          ? {
+              section: "academy",
+              type: academyFlash.type === "error" ? "error" : "success",
+              message: academyFlash.message,
+            }
+          : null;
 
-        if (
+        if (!feedback &&
           req.query
             .nicknameUpdated ===
           "1"
@@ -6105,7 +6578,7 @@ exports.profilePage = async (req, res, next) => {
             message:
               "닉네임을 변경했습니다.",
           };
-        } else if (
+        } else if (!feedback &&
           req.query
             .avatarUpdated ===
           "1"
@@ -6116,7 +6589,7 @@ exports.profilePage = async (req, res, next) => {
             message:
               "프로필 이미지를 변경했습니다.",
           };
-        } else if (
+        } else if (!feedback &&
           req.query
             .coachModeUpdated ===
           "1"
@@ -6127,7 +6600,7 @@ exports.profilePage = async (req, res, next) => {
             message:
               "학습 모드를 변경했습니다.",
           };
-        } else if (
+        } else if (!feedback &&
           req.query
             .nicknameChanged ===
           "1"
@@ -7793,6 +8266,9 @@ exports.communityPage =
             req.query.created ===
             "1"
               ? "게시글을 등록했습니다."
+              : req.query.deleted ===
+                  "1"
+                ? "게시글을 삭제했습니다. 운영 확인을 위한 기록은 안전하게 보관됩니다."
               : null,
         }
       );
@@ -8128,6 +8604,35 @@ exports.communityPostPage =
           reportDraft:
             "",
         }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.deleteOwnCommunityPost =
+  async (req, res, next) => {
+    try {
+      const post =
+        await deleteCommunityPostByAuthor(
+          {
+            userId:
+              req.session.user.id,
+            postId:
+              req.params.postId,
+          }
+        );
+      const board = [
+        "school",
+        "retaker",
+        "university",
+        "worker",
+      ].includes(post.boardType)
+        ? post.boardType
+        : "high-school";
+
+      return res.redirect(
+        `/community?board=${board}&deleted=1`
       );
     } catch (error) {
       return next(error);

@@ -62,10 +62,12 @@
         : null,
     topEntries: arenaTopEntries,
   };
-  const arenaShowCurrent = Boolean(arenaCurrentEntry);
-  const arenaShowRanking = arena.available && arena.topEntries.length > 0;
+  const arenaShowCurrent = loggedIn && Boolean(arenaCurrentEntry);
+  const arenaShowRanking = loggedIn && arena.available && arena.topEntries.length > 0;
   const arenaCtaHref = loggedIn ? "/war-of-masters" : "/register";
   const arenaCtaLabel = loggedIn ? "GOAT Arena 입장" : "무료로 배치 시작";
+  const arenaRankingHref = loggedIn ? "/war-of-masters" : "/login";
+  const arenaRankingLabel = loggedIn ? "내 아레나 확인" : "로그인하고 확인";
   const tierSlugMap = {
     브론즈: "bronze",
     실버: "silver",
@@ -144,11 +146,14 @@
             </dl>
           </div>
 
-          <div class="arena-console" aria-label="<%= arenaShowCurrent ? '내 GOAT Arena 티어' : '이번 시즌 상위 랭킹' %>">
+          <div
+            class="arena-console"
+            aria-label="<%= arenaShowCurrent ? '내 GOAT Arena 티어' : loggedIn ? '이번 시즌 상위 랭킹' : '로그인 후 확인 가능한 GOAT Arena 랭킹' %>"
+          >
             <div class="arena-console-head">
               <div>
-                <span><%= arenaShowCurrent ? "내 GOAT Arena" : "이번 시즌" %></span>
-                <strong><%= arenaShowCurrent ? "현재 내 티어" : "현재 상위 순위" %></strong>
+                <span><%= arenaShowCurrent ? "내 GOAT Arena" : loggedIn ? "이번 시즌" : "GOAT Arena" %></span>
+                <strong><%= arenaShowCurrent ? "현재 내 티어" : loggedIn ? "현재 상위 순위" : "랭킹 확인" %></strong>
               </div>
               <% if (arenaShowCurrent || arenaShowRanking) { %>
                 <i><span aria-hidden="true"></span> <%= arenaShowCurrent ? "연결됨" : "갱신 중" %></i>
@@ -216,9 +221,9 @@
               </ol>
             <% } else { %>
               <div class="arena-ranking-unavailable" role="status">
-                <strong><%= loggedIn ? "Arena 티어가 아직 연결되지 않았습니다." : "이번 시즌 랭킹은 준비 중입니다." %></strong>
-                <p><%= loggedIn ? "배치고사를 완료해 첫 Arena 티어를 받은 뒤 이곳에서 바로 확인할 수 있습니다." : "순위가 공개되면 이곳에서 상위 기록을 확인할 수 있습니다." %></p>
-                <a href="<%= arenaCtaHref %>">내 아레나 확인 <span aria-hidden="true">→</span></a>
+                <strong><%= loggedIn ? "Arena 티어가 아직 연결되지 않았습니다." : "로그인 후 Arena 순위를 확인할 수 있습니다." %></strong>
+                <p><%= loggedIn ? "배치고사를 완료해 첫 Arena 티어를 받은 뒤 이곳에서 바로 확인할 수 있습니다." : "로그인하면 현재 티어와 종합랭킹, 사용자군 순위를 확인할 수 있습니다." %></p>
+                <a href="<%= arenaRankingHref %>"><%= arenaRankingLabel %> <span aria-hidden="true">→</span></a>
               </div>
             <% } %>
 

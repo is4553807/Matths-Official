@@ -1,0 +1,56 @@
+<%
+  const academy = classroom.academy;
+  const academyClass = classroom.academyClass;
+  const weeks = classroom.weeks || [];
+  const displayName = String(user.realName || user.name || "학생");
+  const gradeLabel = ({ 10: "고등학교 1학년", 11: "고등학교 2학년", 12: "고등학교 3학년", 13: "N수생", 14: "대학생", 15: "직장인" })[Number(user.schoolGrade)] || "학년 미설정";
+  const formatDueAt = (date) => date
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(date))
+    : "마감일 없음";
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>내 학원 | Matths</title>
+    <link rel="stylesheet" href="/css/main.css" />
+    <link rel="stylesheet" href="/css/student-academy.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script src="/js/main.js" defer></script>
+  </head>
+  <body class="student-academy-page">
+    <a class="skip-link" href="#student-academy-main">본문으로 바로가기</a>
+    <div class="dashboard-shell">
+      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
+        <div class="sidebar-top"><%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 학습 홈", className: "brand", tone: "light" }) %><button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button></div>
+        <%- include("partials/dashboard-navigation", { activePage: "my-academy" }) %>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-profile"><a class="profile-avatar profile-avatar-image" href="/profile" aria-label="<%= displayName %>님의 프로필 설정"><img src="<%= arenaProfileAvatar.imageSrc %>" alt="" aria-hidden="true" /></a><div class="profile-copy"><strong><%= displayName %>님</strong><small><%= gradeLabel %></small></div><form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form></div>
+      </aside>
+
+      <main class="dashboard-main student-academy-main" id="student-academy-main">
+        <header class="topbar student-academy-topbar"><div class="topbar-left"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button><div><p>ACADEMY CLASSROOM</p><h1>학원</h1></div></div><a class="learning-home-button" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a></header>
+
+        <section class="student-academy-hero">
+          <div class="student-academy-mark"><% if (classroom.profileImageSrc) { %><img src="<%= classroom.profileImageSrc %>" alt="<%= academy.name %> 프로필" /><% } else { %><span aria-hidden="true"><%= String(academy.name || "학").slice(0, 1) %></span><% } %></div>
+          <div><small>MY ACADEMY</small><h2><%= academy.name %></h2><p><%= academyClass ? `${academyClass.name} · 주차별 수업과 과제` : "반 배정을 기다리고 있습니다." %></p></div>
+          <% if (academyClass) { %><strong><%= weeks.length %><small>주 등록</small></strong><% } %>
+        </section>
+
+        <% if (!academyClass) { %>
+          <section class="student-academy-empty"><span aria-hidden="true">A</span><h2>아직 배정된 반이 없습니다</h2><p>학원 연결은 완료되었습니다. 선생님이 반을 배정하면 이곳에서 주차별 수업 개념과 과제를 볼 수 있습니다.</p></section>
+        <% } else { %>
+          <section class="student-academy-heading"><div><small>WEEKLY LEARNING</small><h2><%= academyClass.name %> 주차별 기록</h2><p>수업에서 배운 개념은 Matths 내 학습 페이지와 바로 연결됩니다.</p></div></section>
+          <div class="student-academy-week-grid">
+            <% weeks.forEach((week) => { %><a href="/my-academy/weeks/<%= week._id %>" class="student-academy-week-card"><header><span><%= week.weekNumber %></span><div><small><%= week.academicYear %> · WEEK <%= week.weekNumber %></small><h3><%= week.title %></h3></div><b aria-hidden="true">→</b></header><div class="student-academy-week-concepts"><% week.concepts.slice(0, 4).forEach((concept) => { %><span><%= concept.conceptTitle %></span><% }) %><% if (week.concepts.length > 4) { %><span>+<%= week.concepts.length - 4 %></span><% } %></div><footer><span><%= week.assignmentTitle %></span><small><%= formatDueAt(week.dueAt) %> · 파일 <%= week.files.length %>개</small></footer></a><% }) %>
+            <% if (!weeks.length) { %><section class="student-academy-empty"><span aria-hidden="true">1</span><h2>아직 공개된 주차가 없습니다</h2><p>선생님이 첫 수업과 과제를 등록하면 이곳에 표시됩니다.</p></section><% } %>
+          </div>
+        <% } %>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,127 @@
+<%
+  const academy = forensics.academy;
+  const classes = forensics.classes || [];
+  const selectedClass = forensics.selectedClass || null;
+  const scope = forensics.scope || { approvedStudents: 0, issuedCopies: 0, distinctDownloaders: 0 };
+  const roleLabels = { student: "학생", test: "테스트 학생", teacher: "선생님", admin: "Matths 운영자" };
+  const formatDateTime = (date) => date
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long", timeStyle: "medium" }).format(new Date(date))
+    : "—";
+  const traceCodeInput = String(typeof oldTraceCode !== "undefined" ? oldTraceCode || "" : "");
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>유출 자료 추적 | <%= academy.name %> · Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/academy.css" />
+    <link rel="stylesheet" href="/css/contrast.css" />
+  </head>
+  <body class="academy-page">
+    <header class="academy-topbar">
+      <%- include("partials/matths-brand", { href: "/academy", ariaLabel: "Matths 학원 관리 홈", className: "academy-brand", suffix: "학원 관리", compact: true }) %>
+      <div class="academy-account"><span><strong><%= user.realName || user.name %></strong> 선생님</span><form action="/logout" method="POST"><button type="submit">로그아웃</button></form></div>
+    </header>
+
+    <div class="academy-layout">
+      <aside class="academy-sidebar">
+        <div class="academy-identity">
+          <% if (forensics.profileImageSrc) { %><img src="<%= forensics.profileImageSrc %>" alt="<%= academy.name %> 프로필 사진" /><% } else { %><span aria-hidden="true"><%= String(academy.name || "학").slice(0, 1) %></span><% } %>
+          <div><small>ACADEMY</small><strong><%= academy.name %></strong></div>
+        </div>
+        <nav aria-label="학원 관리 메뉴"><a href="/academy?tab=dashboard">대시보드</a><a href="/academy?tab=attendance">출결 관리</a><a href="/academy?tab=students">학생 관리</a><a href="/academy?tab=requests">승인 요청</a><a href="/academy?tab=classes">반 관리</a><a href="/academy?tab=invites">초대 관리</a><a class="active" href="/academy/forensics">유출 자료 추적</a><a href="/academy?tab=teachers">선생님 관리</a><% if (forensics.isOwner) { %><a href="/academy?tab=settings">학원 설정</a><% } %></nav>
+        <p>검색 후보는 선택한 반의 학원 과제 PDF 발급 기록으로만 제한됩니다.</p>
+      </aside>
+
+      <main class="academy-main">
+        <section class="academy-heading academy-forensics-heading">
+          <div><p>CLASS-SCOPED FORENSICS</p><h1>유출 자료 추적</h1><span>PDF 또는 스크린샷의 개인 식별 워터마크를 선택한 반의 발급 기록과만 대조합니다.</span></div>
+          <strong>3<small>중 식별 계층</small></strong>
+        </section>
+
+        <% if (error) { %><div class="academy-feedback is-error" role="alert"><span aria-hidden="true">!</span><%= error %></div><% } %>
+
+        <% if (!classes.length) { %>
+          <section class="academy-panel academy-forensics-empty"><span aria-hidden="true">i</span><h2>추적할 수 있는 담당 반이 없습니다</h2><p>원장은 학원의 모든 반을, 일반 선생님은 본인이 담임 또는 공동 담당인 반만 선택할 수 있습니다.</p></section>
+        <% } else { %>
+          <section class="academy-panel academy-forensics-scope-panel">
+            <header><div><p>SEARCH BOUNDARY</p><h2>반 단위 후보 범위</h2></div><span class="academy-status-chip"><%= selectedClass?.name || "반 선택" %></span></header>
+            <div class="academy-forensics-scope-grid">
+              <article><small>현재 승인 학생</small><strong><%= scope.approvedStudents %>명</strong><span>현재 선택 반 소속</span></article>
+              <article><small>개인 발급 PDF</small><strong><%= scope.issuedCopies %>건</strong><span>이 반 과제만 집계</span></article>
+              <article><small>실제 발급 사용자</small><strong><%= scope.distinctDownloaders %>명</strong><span>전체 Matths 회원은 제외</span></article>
+            </div>
+            <p>추적 시 전체 회원 DB나 다른 학원·다른 반의 기록은 검색하지 않습니다. 과거에 이 반의 PDF를 정상 발급받은 사용자 기록은 학생이 이후 반을 옮겨도 발급 당시 범위에 남습니다.</p>
+          </section>
+
+          <section class="academy-panel academy-forensics-upload-panel">
+            <header><div><p>LEAKED MATERIAL INPUT</p><h2>유출 의심 파일·코드 분석</h2></div><span>파일은 분석 직후 삭제</span></header>
+            <form action="/academy/forensics/analyze" method="POST" enctype="multipart/form-data" class="academy-forensics-form" data-academy-forensics-form>
+              <label><span>추적할 반</span><select name="classId" required><% classes.forEach((academyClass) => { %><option value="<%= academyClass._id %>" <%= String(selectedClass?._id || '') === String(academyClass._id) ? 'selected' : '' %>><%= academyClass.name %><%= academyClass.isActive === false ? " · 보관됨" : "" %></option><% }) %></select><small>원장은 모든 반, 일반 선생님은 담당 반만 선택할 수 있습니다. 보관된 반의 과거 발급 기록도 추적할 수 있습니다.</small></label>
+              <div class="academy-forensics-input-grid">
+                <label><span>PDF 또는 스크린샷</span><input type="file" name="forensicFile" accept="application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif,.pdf,.png,.jpg,.jpeg,.webp,.heic,.heif" data-academy-forensics-file /><small>최대 50MB · PDF, PNG, JPG, WEBP, HEIC</small></label>
+                <b aria-hidden="true">또는</b>
+                <label><span>MTH 추적 코드</span><input type="text" name="traceCode" value="<%= traceCodeInput %>" maxlength="24" placeholder="MTH-0123ABCD4567EF89" autocomplete="off" autocapitalize="characters" spellcheck="false" data-academy-forensics-trace /><small>PDF에 보이는 MTH-16자리 코드를 입력합니다.</small></label>
+              </div>
+              <button type="submit" data-academy-forensics-submit>선택 반 안에서 추적</button>
+              <p class="academy-forensics-progress" data-academy-forensics-progress hidden role="status" aria-live="polite"><span aria-hidden="true"></span><strong>유출 자료 추적중</strong><small>선택한 반의 개인 발급 기록만 안전하게 대조하고 있습니다.</small></p>
+            </form>
+          </section>
+        <% } %>
+
+        <% if (analysis) { %>
+          <section class="academy-stat-grid academy-forensics-result-stats" aria-label="유출 자료 분석 요약">
+            <article><small>분석 유형</small><strong><%= analysis.inputType === "TRACE_CODE" ? "직접 코드" : analysis.inputType === "IMAGE" ? "이미지" : "PDF" %></strong><span><%= selectedClass.name %> 범위</span></article>
+            <article><small>감지 추적 코드</small><strong><%= analysis.traceCodes.length %>개</strong><span>OCR·서명 포함</span></article>
+            <article><small>후보 발급 기록</small><strong><%= scope.issuedCopies %>건</strong><span>전체 회원 검색 안 함</span></article>
+            <article><small>일치 결과</small><strong><%= analysis.matches.length %>건</strong><span>선택 반 발급 원장</span></article>
+          </section>
+
+          <% if (analysis.matches.length) { %>
+            <section class="academy-forensics-result-list" aria-label="반 범위 유출 추적 결과">
+              <% analysis.matches.forEach((match, index) => { %><article class="academy-panel academy-forensics-result-card">
+                <header><div><p>MATCH <%= String(index + 1).padStart(2, "0") %></p><h2><%= match.displayName %></h2></div><b class="<%= match.signatureVerified ? 'is-verified' : '' %>"><%= match.signatureVerified ? "서명 검증 완료" : match.recognitionMethod === "MANUAL_TRACE_CODE" ? "추적 코드 정확 일치" : `OCR 일치 ${Math.round((match.ocrConfidence || 0) * 100)}%` %></b></header>
+                <dl><div><dt>사용자 구분</dt><dd><%= roleLabels[match.userRole] || "학원 자료 사용자" %></dd></div><div><dt>발급 당시 반</dt><dd><%= match.className %></dd></div><div><dt>발급 시각</dt><dd><%= formatDateTime(match.downloadedAt) %></dd></div><div><dt>추적 코드</dt><dd><%= match.traceCode %></dd></div><div><dt>문서 발급 ID</dt><dd><%= match.documentIssueId %></dd></div><div><dt>원본 파일명</dt><dd><%= match.originalName %></dd></div></dl>
+                <% if (match.recognitionMethod === "IMAGE_OCR") { %><p>OCR 인식값 <strong><%= match.matchedCandidate %></strong></p><% } %>
+              </article><% }) %>
+            </section>
+          <% } %>
+          <section class="academy-integration-notice academy-forensics-caution" role="note"><span aria-hidden="true">i</span><p><strong>추적 결과는 확인 단서입니다.</strong> 스크린샷 OCR 유사 일치만으로 유출자를 확정하지 말고, 서명 검증 여부·발급 시각·자료 전달 경로를 함께 확인하세요.</p></section>
+        <% } %>
+      </main>
+    </div>
+    <script>
+      (() => {
+        const form = document.querySelector("[data-academy-forensics-form]");
+        const file = form?.querySelector("[data-academy-forensics-file]");
+        const trace = form?.querySelector("[data-academy-forensics-trace]");
+        const submit = form?.querySelector("[data-academy-forensics-submit]");
+        const progress = form?.querySelector("[data-academy-forensics-progress]");
+        const validateChoice = () => {
+          const hasFile = Boolean(file?.files?.length);
+          const hasTrace = Boolean(trace?.value?.trim());
+          const message = hasFile === hasTrace ? (hasFile ? "파일과 추적 코드 중 하나만 선택해 주세요." : "파일 또는 추적 코드를 입력해 주세요.") : "";
+          trace?.setCustomValidity(message);
+          return !message;
+        };
+        file?.addEventListener("change", validateChoice);
+        trace?.addEventListener("input", validateChoice);
+        form?.addEventListener("submit", (event) => {
+          if (form.dataset.submitting === "true" || !validateChoice() || !form.checkValidity()) {
+            event.preventDefault();
+            form.reportValidity();
+            return;
+          }
+          form.dataset.submitting = "true";
+          form.setAttribute("aria-busy", "true");
+          if (submit) submit.disabled = true;
+          if (progress) progress.hidden = false;
+        });
+      })();
+    </script>
+  </body>
+</html>

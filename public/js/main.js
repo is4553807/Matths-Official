@@ -316,6 +316,7 @@
     );
 
     if (!stage || !image) return;
+    if (stage.dataset.characterStatic === "true") return;
 
     const characterTone =
       stage.dataset.characterTone === "spicy" ? "spicy" : "mild";
@@ -400,6 +401,185 @@
     startFrameRotation();
   }
 
+  function initStudentAttendance() {
+    const card = document.querySelector("[data-student-attendance-card]");
+    if (!card) return;
+    const sessionId = String(card.dataset.sessionId || "");
+    const attendanceMode = String(card.dataset.attendanceMode || "");
+    const opensAt = new Date(card.dataset.opensAt || "").getTime();
+    const lateAt = new Date(card.dataset.lateAt || "").getTime();
+    const closesAt = new Date(card.dataset.closesAt || "").getTime();
+    const serverNow = new Date(card.dataset.serverNow || "").getTime();
+    const clockOffset = Number.isFinite(serverNow) ? serverNow - Date.now() : 0;
+    const form = card.querySelector("[data-student-attendance-form]");
+    const input = form?.querySelector("input[name='code']");
+    const submitButton = form?.querySelector("button[type='submit']");
+    const digitInputs = Array.from(
+      form?.querySelectorAll("[data-attendance-digit]") || []
+    );
+    const label = card.querySelector("[data-attendance-window-label]");
+    const countdown = card.querySelector("[data-attendance-countdown]");
+    const feedback = card.querySelector("[data-attendance-feedback]");
+    const alertButton = card.querySelector("[data-enable-attendance-alerts]");
+    const notificationKey = `matths-attendance-notified:${sessionId}`;
+
+    function currentTime() {
+      return Date.now() + clockOffset;
+    }
+
+    function durationLabel(milliseconds) {
+      const minutes = Math.max(0, Math.ceil(milliseconds / 60000));
+      if (minutes < 60) return `${minutes}분`;
+      const hours = Math.floor(minutes / 60);
+      const remainder = minutes % 60;
+      return remainder ? `${hours}시간 ${remainder}분` : `${hours}시간`;
+    }
+
+    function showAttendanceNotification() {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+      try {
+        if (window.localStorage.getItem(notificationKey) === "1") return;
+        new Notification("Matths 출석 체크", {
+          body: "수업 출석 코드 입력 시간이 시작되었습니다.",
+          icon: "/images/favicon-64.png",
+          tag: `matths-attendance-${sessionId}`,
+        });
+        window.localStorage.setItem(notificationKey, "1");
+      } catch (_error) {
+        // 알림 또는 로컬 저장소를 사용할 수 없어도 화면 출석은 계속 동작합니다.
+      }
+    }
+
+    function renderWindow() {
+      if (attendanceMode !== "SELF_CODE" || !Number.isFinite(opensAt) || !Number.isFinite(closesAt)) return false;
+      const now = currentTime();
+      if (now < opensAt) {
+        card.className = "dashboard-attendance-card is-scheduled";
+        if (label) label.textContent = "출석 시작 전";
+        if (countdown) countdown.textContent = `${durationLabel(opensAt - now)} 후 코드 입력이 시작됩니다.`;
+        if (form) form.hidden = true;
+        return true;
+      }
+      if (now <= closesAt) {
+        card.className = `dashboard-attendance-card ${now > lateAt ? "is-late" : "is-open"}`;
+        if (label) label.textContent = now > lateAt ? "지각 출석 입력 중" : "출석 입력 중";
+        if (countdown) countdown.textContent = `${durationLabel(closesAt - now)} 후 입력이 마감됩니다.`;
+        if (form) form.hidden = false;
+        showAttendanceNotification();
+        return true;
+      }
+      card.className = "dashboard-attendance-card is-closed";
+      if (label) label.textContent = "출석 입력 종료";
+      if (countdown) countdown.textContent = "담당 선생님에게 출결 상태를 확인해 주세요.";
+      if (form) form.hidden = true;
+      if (alertButton) alertButton.hidden = true;
+      return false;
+    }
+
+    alertButton?.addEventListener("click", async () => {
+      if (!("Notification" in window)) {
+        if (feedback) feedback.textContent = "이 브라우저는 알림을 지원하지 않습니다.";
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (feedback) feedback.textContent = permission === "granted"
+        ? "이 화면이 열려 있으면 출석 시작 시간에 알림을 보냅니다."
+        : "브라우저 알림 권한이 허용되지 않았습니다.";
+      if (permission === "granted") alertButton.textContent = "수업 알림 설정됨";
+    });
+
+    function syncAttendanceCode() {
+      if (!input || !digitInputs.length) return;
+      input.value = digitInputs.map((digitInput) => digitInput.value).join("");
+      if (submitButton) submitButton.disabled = input.value.length !== 6;
+    }
+
+    function focusAttendanceCode() {
+      const firstEmptyInput = digitInputs.find((digitInput) => !digitInput.value);
+      (firstEmptyInput || digitInputs[0] || input)?.focus();
+    }
+
+    if (digitInputs.length) {
+      digitInputs.forEach((digitInput, index) => {
+        digitInput.addEventListener("input", () => {
+          digitInput.value = digitInput.value.replace(/\D/g, "").slice(-1);
+          syncAttendanceCode();
+          if (digitInput.value && digitInputs[index + 1]) {
+            window.setTimeout(() => digitInputs[index + 1].focus(), 0);
+          }
+        });
+
+        digitInput.addEventListener("keydown", (event) => {
+          if (event.key === "Backspace" && !digitInput.value && digitInputs[index - 1]) {
+            digitInputs[index - 1].focus();
+          }
+          if (event.key === "ArrowLeft" && digitInputs[index - 1]) {
+            event.preventDefault();
+            digitInputs[index - 1].focus();
+          }
+          if (event.key === "ArrowRight" && digitInputs[index + 1]) {
+            event.preventDefault();
+            digitInputs[index + 1].focus();
+          }
+        });
+
+        digitInput.addEventListener("paste", (event) => {
+          const digits = String(event.clipboardData?.getData("text") || "")
+            .replace(/\D/g, "")
+            .slice(0, 6);
+          if (!digits) return;
+          event.preventDefault();
+          digits.split("").forEach((digit, digitIndex) => {
+            if (digitInputs[digitIndex]) digitInputs[digitIndex].value = digit;
+          });
+          syncAttendanceCode();
+          (digitInputs[Math.min(digits.length, 6) - 1] || digitInputs[0]).focus();
+        });
+      });
+    } else {
+      input?.addEventListener("input", () => {
+        input.value = input.value.replace(/\D/g, "").slice(0, 6);
+      });
+    }
+
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!input || input.value.length !== 6) {
+        if (feedback) feedback.textContent = "6자리 출석 코드를 입력해 주세요.";
+        focusAttendanceCode();
+        return;
+      }
+      if (submitButton) submitButton.disabled = true;
+      if (feedback) feedback.textContent = "출석을 확인하고 있습니다.";
+      try {
+        const result = await requestJson("/api/academy/attendance/check-in", {
+          method: "POST",
+          body: JSON.stringify({ sessionId, code: input.value }),
+        });
+        const action = card.querySelector(".dashboard-attendance-action");
+        if (action) {
+          action.innerHTML = `<strong data-attendance-result>${result.attendance.status === "LATE" ? "지각" : "출석"} 완료</strong><small>${result.message}</small>`;
+        }
+        card.className = `dashboard-attendance-card is-${String(result.attendance.status || "present").toLowerCase()}`;
+        announce(result.message);
+      } catch (error) {
+        if (feedback) feedback.textContent = error.message;
+        if (submitButton) submitButton.disabled = false;
+        if (digitInputs.length) {
+          digitInputs.forEach((digitInput) => digitInput.select());
+          digitInputs[0].focus();
+        } else {
+          input.select();
+        }
+      }
+    });
+
+    if (!renderWindow()) return;
+    const timer = window.setInterval(() => {
+      if (!renderWindow()) window.clearInterval(timer);
+    }, 1000);
+  }
+
   function init() {
     initSidebar();
     initDate();
@@ -408,6 +588,7 @@
     initCharts();
     initAccessRenewalDialog();
     initDashboardCoachCharacter();
+    initStudentAttendance();
   }
 
   if (document.readyState === "loading") {

@@ -1,7 +1,10 @@
 <%
   const loggedIn = typeof user !== "undefined" && Boolean(user);
-  const boardLabels = { "high-school": "통합 고등학교 게시판", school: post.schoolName ? `${post.schoolName} 게시판` : "학교 게시판", retaker: "N수생 게시판", university: post.universityName ? `${post.universityName} 게시판` : "대학교 게시판", worker: "직장인 게시판" };
-  const boardLabel = boardLabels[post.boardType] || "통합 고등학교 게시판";
+  const viewerId = loggedIn ? (user.id || user._id) : "";
+  const postAuthorId = post.authorId && post.authorId._id ? post.authorId._id : post.authorId;
+  const isAuthor = loggedIn && String(viewerId) === String(postAuthorId);
+  const boardLabels = { "high-school": "통합 게시판", school: post.schoolName ? `${post.schoolName} 게시판` : "학교 게시판", retaker: "N수생 게시판", university: post.universityName ? `${post.universityName} 게시판` : "대학교 게시판", worker: "직장인 게시판" };
+  const boardLabel = boardLabels[post.boardType] || "통합 게시판";
   const formatDate = (date) => new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long", timeStyle: "short" }).format(new Date(date));
   const backHref = ["school", "retaker", "university", "worker"].includes(post.boardType) ? `/community?board=${post.boardType}` : "/community?board=high-school";
   const gradeLabel = { 10: "1학년", 11: "2학년", 12: "3학년", 13: "N수생", 14: "대학생", 15: "직장인" }[Number(post.authorSchoolGrade)] || "";
@@ -100,7 +103,7 @@
           <% } %>
           <small>같은 버튼을 다시 누르면 선택이 취소됩니다.</small>
         </section>
-        <% if (loggedIn && String(user.id) !== String(post.authorId)) { %>
+        <% if (loggedIn && !isAuthor) { %>
           <details class="community-report-box" <%= reportError ? "open" : "" %>>
             <summary><%= viewerReported ? "신고 접수 완료" : "게시글 신고" %></summary>
             <% if (viewerReported) { %>
@@ -114,6 +117,17 @@
               </form>
             <% } %>
           </details>
+        <% } %>
+        <% if (isAuthor) { %>
+          <section class="community-author-delete" aria-label="내 게시글 관리">
+            <div>
+              <strong>내 게시글 관리</strong>
+              <span>삭제하면 게시판에서는 즉시 보이지 않으며, 운영 확인을 위한 기록은 보관됩니다.</span>
+            </div>
+            <form action="/community/<%= post._id %>/delete" method="POST" onsubmit="return confirm('이 게시글을 삭제할까요? 삭제 후에는 게시판에서 다시 볼 수 없습니다.');">
+              <button type="submit">게시글 삭제</button>
+            </form>
+          </section>
         <% } %>
       </article>
       <section class="community-comments" id="comments">
