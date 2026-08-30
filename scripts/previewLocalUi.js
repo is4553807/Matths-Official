@@ -135,6 +135,89 @@ app.get("/preview/home-arena-tier", (_req, res) => {
   });
 });
 
+app.get("/preview/my-learning", (_req, res) => {
+  const previewUser = {
+    id: "64b000000000000000000710",
+    name: "홍길동",
+    role: "student",
+    schoolGrade: 11,
+    hasAcademyMembership: true,
+  };
+  const concept = (id, title, progress, completedTopics = 0) => ({
+    id,
+    title,
+    progress,
+    completedTopics,
+    topics: [{ id: `${id}-1` }, { id: `${id}-2` }, { id: `${id}-3` }],
+    standardCode: "10공수1-01",
+    status: progress >= 100 ? "completed" : progress > 0 ? "in-progress" : "not-started",
+    href: `/learning/common-math-1/polynomials/${id}`,
+  });
+  const units = [
+    {
+      id: "polynomials",
+      order: 1,
+      title: "다항식",
+      progress: 67,
+      completedConcepts: 1,
+      firstConceptHref: "/learning/common-math-1/polynomials/operations",
+      assessmentRequired: false,
+      assessmentPassed: false,
+      concepts: [
+        concept("operations", "다항식의 연산", 100, 3),
+        concept("identities", "항등식과 나머지정리", 67, 2),
+        concept("factorization", "인수분해", 0),
+      ],
+    },
+    {
+      id: "equations",
+      order: 2,
+      title: "방정식과 부등식",
+      progress: 33,
+      completedConcepts: 0,
+      firstConceptHref: "/learning/common-math-1/equations/complex-numbers",
+      assessmentRequired: false,
+      assessmentPassed: false,
+      concepts: [
+        concept("complex-numbers", "복소수와 이차방정식", 67, 2),
+        concept("quadratic-equations", "이차방정식과 이차함수", 33, 1),
+        concept("inequalities", "여러 가지 방정식과 부등식", 0),
+      ],
+    },
+  ];
+  const totalConcepts = units.reduce((sum, unit) => sum + unit.concepts.length, 0);
+  const completedConcepts = units.reduce(
+    (sum, unit) => sum + unit.concepts.filter((item) => item.progress >= 100).length,
+    0
+  );
+
+  res.render("my-learning", {
+    user: previewUser,
+    arenaProfileAvatar: getArenaProfileAvatar("ORBIT_OWL"),
+    onboardingTutorial: { status: "NOT_REQUIRED", shouldAutoStart: false },
+    learningData: {
+      completedConcepts,
+      totalConcepts,
+      continueHref: units[0].firstConceptHref,
+      courses: [
+        {
+          id: "common-math-1",
+          officialTitle: "공통수학 1",
+          defaultSemester: "1학기",
+          progress: 50,
+          completedConcepts,
+          totalConcepts,
+          developmentLocked: false,
+          assessmentRequired: false,
+          assessmentPassed: false,
+          hasActivity: true,
+          units,
+        },
+      ],
+    },
+  });
+});
+
 app.get("/preview/main-dashboard", (_req, res) => {
   const now = new Date("2026-08-30T10:05:00.000Z");
   const previewUser = {
