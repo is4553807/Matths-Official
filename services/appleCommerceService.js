@@ -18,6 +18,10 @@ const {
   verifySignedNotification,
   isAppleStoreConfigured,
 } = require("./appleStoreVerifyService");
+const {
+  issueAppleCommerceAccountToken,
+  assertAppleCommerceAccountTokenOwner,
+} = require("./appleCommerceAccountTokenService");
 
 /**
  * App Store 인앱 결제 경계.
@@ -164,6 +168,26 @@ async function redeemAppleTransaction({ userId, jws, productCode: productCodeHin
   const transaction = await verifySignedTransaction(jws);
   assertTransactionUsable(transaction);
   const productCode = resolveProduct(transaction, productCodeHint);
+  const originalTransactionId = String(transaction.originalTransactionId);
+
+  // appAccountToken은 구매 시트가 열리기 전에 Bearer 사용자에게 귀속된다. 지연 승인
+  // 도착 전에 앱 로그인이 바뀌어도 "지금 로그인한 사람"에게 권한을 주지 않는다.
+  // 구버전 거래에 토큰 원장이 없으면 기존 최초 거래의 userId를 정본으로 삼는다.
+  const existingOrigin = await ArenaPackagePayment.findOne({
+    provider: "APPLE",
+    appleOriginalTransactionId: originalTransactionId,
+  }).select("userId").lean();
+  if (existingOrigin && String(existingOrigin.userId) !== String(userId)) {
+    throw statusError(
+      409,
+      "이 App Store 결제는 다른 Matths 계정에 연결되어 있습니다.",
+      "APPLE_TRANSACTION_OWNER_CONFLICT"
+    );
+  }
+  await assertAppleCommerceAccountTokenOwner({
+    userId,
+    token: transaction.appAccountToken,
+  });
 
   // 애플의 거래 식별자는 두 가지다. originalTransactionId 는 갱신을 거쳐도 유지되는
   // "구독의 정체성"이고, transactionId 는 갱신마다 새로 발급된다. 사이클은 갱신마다
@@ -176,6 +200,13 @@ async function redeemAppleTransaction({ userId, jws, productCode: productCodeHin
     providerPaymentKey,
   }).lean();
   if (existing) {
+    if (String(existing.userId) !== String(userId)) {
+      throw statusError(
+        409,
+        "이 App Store 결제는 다른 Matths 계정에 연결되어 있습니다.",
+        "APPLE_TRANSACTION_OWNER_CONFLICT"
+      );
+    }
     // 같은 거래를 다시 보낸 것이다. 오류가 아니다 — 앱이 finish() 할 수 있게 성공으로 답한다.
     const cycle = existing.accessCycleId
       ? await AccessCycle.findById(existing.accessCycleId).select("expiresAt").lean()
@@ -193,7 +224,7 @@ async function redeemAppleTransaction({ userId, jws, productCode: productCodeHin
     providerMode: providerModeOf(transaction.environment),
     providerPaymentKey,
     // 주문 참조는 사람이 읽고 애플 거래를 찾아갈 수 있어야 한다.
-    orderReference: `apple-${transaction.originalTransactionId}-${providerPaymentKey}`,
+    orderReference: `apple-${originalTransactionId}-${providerPaymentKey}`,
     idempotencyKey: `apple-entitlement-${providerPaymentKey}`,
     currency: String(transaction.currency || "KRW").toUpperCase(),
     // 애플이 준 실제 청구액(price)은 1/1000 단위 정수다. 없으면 0 으로 두고
@@ -206,7 +237,7 @@ async function redeemAppleTransaction({ userId, jws, productCode: productCodeHin
     productCode,
     productName: PRODUCT_NAME[productCode],
     // ASSN 은 세션 없이 온다. 그때 누구 거래인지 찾는 열쇠를 지금 남겨 둔다.
-    appleOriginalTransactionId: String(transaction.originalTransactionId),
+    appleOriginalTransactionId: originalTransactionId,
     appleAppAccountToken: transaction.appAccountToken || null,
     // 자동갱신 구독이면 애플이 만료를 정한다. 서버가 30일을 세면 달마다 어긋난다.
     appleExpiresAt: transaction.expiresDate ? new Date(transaction.expiresDate) : null,
@@ -477,6 +508,7 @@ async function redeemAppleTransactionFromNotification(userId, transaction) {
 }
 
 module.exports = {
+  issueAppleCommerceAccountToken,
   redeemAppleTransaction,
   handleAppleNotification,
   isAppleStoreConfigured,

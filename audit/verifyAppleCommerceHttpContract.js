@@ -56,12 +56,17 @@ function verifyAuthBoundary() {
     "/commerce/apple/redeem 이 requireApiAuth 앞에 있습니다 — 아무나 남의 계정에 학습권을 열 수 있습니다"
   );
   assert.equal(
+    seen.get("/commerce/apple/account-token"),
+    true,
+    "/commerce/apple/account-token 이 requireApiAuth 앞에 있습니다 — 결제 계정 UUID를 아무나 선점할 수 있습니다"
+  );
+  assert.equal(
     seen.get("/commerce/apple/notifications"),
     false,
     "/commerce/apple/notifications 가 requireApiAuth 뒤에 있습니다 — 애플 서버는 우리 Bearer 토큰을 모르므로 모든 환불 통지가 401 로 사라집니다"
   );
 
-  console.log("  ✓ 인증 경계 (redeem=뒤, notifications=앞)");
+  console.log("  ✓ 인증 경계 (account-token·redeem=뒤, notifications=앞)");
 }
 
 /**
@@ -161,6 +166,35 @@ function verifySubscriptionLifecyclePersistence() {
   console.log("  ✓ Apple 구독 갱신 식별자·실제 만료·환불 회수 영속성");
 }
 
+/** 구매 시점의 Matths 계정과 StoreKit 거래가 서버 원장으로 고정되는지. */
+function verifyAppAccountOwnershipBoundary() {
+  const model = read("models/goatArenaModel.js");
+  const apple = read("services/appleCommerceService.js");
+  const ownership = read("services/appleCommerceAccountTokenService.js");
+
+  assert.match(
+    model,
+    /appleCommerceAccountTokenSchema\.index\(\{ token: 1 \}, \{ unique: true \}\)/,
+    "appAccountToken 소유권 원장에 UUID 고유 인덱스가 없습니다"
+  );
+  assert.match(
+    apple,
+    /assertAppleCommerceAccountTokenOwner\(\{/,
+    "JWS appAccountToken의 Matths 계정 소유권을 확인하지 않습니다"
+  );
+  assert.match(
+    apple,
+    /String\(existing\.userId\) !== String\(userId\)/,
+    "중복 거래가 다른 Bearer 사용자에게 성공으로 응답할 수 있습니다"
+  );
+  assert.match(
+    ownership,
+    /APPLE_APP_ACCOUNT_OWNER_CONFLICT/,
+    "다른 Matths 계정이 같은 appAccountToken을 소비하는 거부 경로가 없습니다"
+  );
+  console.log("  ✓ appAccountToken ↔ Matths 계정 소유권 경계");
+}
+
 /**
  * 애플 로그인이 body 의 이메일을 계정 연결 키로 쓰지 않는지.
  *
@@ -201,6 +235,11 @@ function verifyRevokeWired() {
     /forgetAppleCredential\(/,
     "완전 삭제 시 애플 자격 증명을 지우지 않습니다 — 같은 애플 ID 의 재가입이 막힙니다"
   );
+  assert.match(
+    source,
+    /AppleCommerceAccountToken\.deleteMany\(\{ userId \}\)/,
+    "탈퇴 시 App Store 결제 계정 UUID 원장이 남습니다"
+  );
   console.log("  ✓ 탈퇴 시 애플 토큰 폐기 배선");
 }
 
@@ -231,6 +270,23 @@ function verifyAppleFeeFloor() {
 }
 
 async function verifyOverHttp(origin) {
+  const accountToken = await fetch(`${origin}/api/v1/commerce/apple/account-token`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ proposedToken: "9a11c6bd-43cc-4f54-981f-758fcd5fbf33" }),
+    redirect: "manual",
+  });
+  assert.notEqual(
+    accountToken.status,
+    404,
+    "/commerce/apple/account-token 이 등록되지 않았습니다"
+  );
+  assert.equal(
+    accountToken.status,
+    401,
+    `account-token 은 Bearer 없이 401 이어야 합니다 (받은 값 ${accountToken.status})`
+  );
+
   // redeem 은 Bearer 없이 401.
   const redeem = await fetch(`${origin}/api/v1/commerce/apple/redeem`, {
     method: "POST",
@@ -264,7 +320,7 @@ async function verifyOverHttp(origin) {
     `signedPayload 없는 요청은 400 이어야 합니다 (받은 값 ${notify.status})`
   );
 
-  console.log("  ✓ HTTP 경계 (redeem 401 · notifications 400)");
+  console.log("  ✓ HTTP 경계 (account-token·redeem 401 · notifications 400)");
 }
 
 async function main() {
@@ -274,6 +330,7 @@ async function main() {
   verifyLeafOidGate();
   verifyClientInputNotTrusted();
   verifySubscriptionLifecyclePersistence();
+  verifyAppAccountOwnershipBoundary();
   verifyAppleAuthEmailBoundary();
   verifyRevokeWired();
   verifyAppleFeeFloor();

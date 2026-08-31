@@ -156,6 +156,10 @@ router.post(
 // 앱이 애플 결제를 마치고 서명된 거래를 제출한다. 이 응답이 성공해야 앱이
 // 애플에 거래 완료를 알리므로, 실패를 성공처럼 답하면 학생이 돈만 낸다.
 router.post(
+  "/commerce/apple/account-token",
+  appleCommerceController.accountToken
+);
+router.post(
   "/commerce/apple/redeem",
   appleCommerceController.redeem
 );

@@ -19,6 +19,7 @@ const checks = [
   "apple-signin:verify",
   "apple-web-signin:verify",
   "apple-commerce-http:verify",
+  "apple-commerce-ownership:verify",
   "apple-subscription-lifecycle:verify",
   "app-commerce-handoff:verify",
   "deployment-surface:verify",

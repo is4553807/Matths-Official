@@ -1,4 +1,5 @@
 const {
+  issueAppleCommerceAccountToken,
   redeemAppleTransaction,
   handleAppleNotification,
 } = require("../services/appleCommerceService");
@@ -9,12 +10,32 @@ const {
  * 경로가 둘이고 **인증 성격이 정반대**라 한 파일에 두되 분명히 갈라 둔다.
  *
  *   POST /api/v1/commerce/apple/redeem         ← 앱이 부른다. Bearer 필수.
+ *   POST /api/v1/commerce/apple/account-token  ← 구매 전에 계정 UUID를 고정한다.
  *   POST /api/v1/commerce/apple/notifications  ← 애플 서버가 부른다. Bearer 없음.
  *
  * 통지 경로에 인증을 걸 수 없는 이유는 애플이 우리 토큰을 모르기 때문이다.
  * 대신 **signedPayload 의 서명이 유일한 방어선**이다. 검증 전에는 payload 의 어떤
  * 값도 믿지 않는다 — 서비스 계층이 그 순서를 지킨다.
  */
+
+/**
+ * POST /api/v1/commerce/apple/account-token
+ *
+ * 구매 시트가 열리기 전에 UUID를 현재 사용자에게 귀속한다. 지연 승인이나 계정 전환이
+ * 일어나도 JWS 안 UUID를 보고 원래 Matths 계정을 찾는 서버측 기준점이다.
+ */
+exports.accountToken = async (req, res, next) => {
+  try {
+    const result = await issueAppleCommerceAccountToken({
+      userId: req.apiUser._id,
+      proposedToken: req.body?.proposedToken,
+    });
+    res.set("Cache-Control", "no-store");
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+};
 
 /**
  * POST /api/v1/commerce/apple/redeem

@@ -48,6 +48,7 @@ const {
   ArenaMatchParticipantLock,
   ArenaOutboxEvent,
   ArenaOpponentSelectionAudit,
+  AppleCommerceAccountToken,
   ArenaPackagePayment,
   ArenaPaybackReview,
   ArenaProblemPack,
@@ -245,6 +246,9 @@ async function removePrivateAccountData(
     PolicyChangeDelivery.deleteMany({
       userId,
     }),
+    // appAccountToken은 결제 보안 식별자다. 익명 학습 데이터 보존 탈퇴에서도
+    // 남겨 두면 삭제된 계정과 Apple 결제가 계속 연결되고 재가입도 막힌다.
+    AppleCommerceAccountToken.deleteMany({ userId }),
     NicknameChangeRequest.deleteMany({
       $or: [
         { userId },

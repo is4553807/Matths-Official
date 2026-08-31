@@ -578,6 +578,38 @@ const arenaPackagePaymentSchema = new Schema(
   }
 );
 
+/*
+ * StoreKit appAccountToken의 Matths 계정 소유권 원장.
+ *
+ * 구매 시트는 앱 밖에서 끝나고 Ask to Buy 승인은 며칠 뒤 도착할 수 있다. 그 사이
+ * Matths 로그인이 바뀌어도 거래를 "지금 로그인한 사람"에게 주면 안 되므로, 결제
+ * 시작 전에 UUID를 Bearer 사용자에게 묶는다. 한 사용자가 여러 기기를 쓸 수 있어
+ * userId는 비고유이고, 하나의 UUID만 두 계정에 붙지 못하도록 token만 고유다.
+ */
+const appleCommerceAccountTokenSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    token: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      maxlength: 36,
+    },
+  },
+  {
+    timestamps: true,
+    versionKey: false,
+  }
+);
+appleCommerceAccountTokenSchema.index({ token: 1 }, { unique: true });
+appleCommerceAccountTokenSchema.index({ userId: 1, updatedAt: -1 });
+
 arenaPackagePaymentSchema.index(
   { provider: 1, providerPaymentKey: 1 },
   { unique: true }
@@ -5928,6 +5960,12 @@ const ArenaPackagePayment =
     "ArenaPackagePayment",
     arenaPackagePaymentSchema
   );
+const AppleCommerceAccountToken =
+  mongoose.models.AppleCommerceAccountToken ||
+  mongoose.model(
+    "AppleCommerceAccountToken",
+    appleCommerceAccountTokenSchema
+  );
 const MockExamPackagePolicyVersion =
   mongoose.models.MockExamPackagePolicyVersion ||
   mongoose.model(
@@ -6187,6 +6225,7 @@ module.exports = {
   ArenaMatchParticipantLock,
   ArenaOutboxEvent,
   ArenaOpponentSelectionAudit,
+  AppleCommerceAccountToken,
   ArenaPackagePayment,
   ArenaPaybackReview,
   ArenaAchievementBadge,

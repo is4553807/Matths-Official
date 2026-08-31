@@ -25,6 +25,8 @@
     "apple-signin:verify": "node scripts/verifyAppleSignIn.js",
     "apple-web-signin:verify": "node scripts/verifyAppleWebSignIn.js",
     "apple-commerce-http:verify": "node audit/verifyAppleCommerceHttpContract.js",
+    "apple-commerce-ownership:verify": "node audit/verifyAppleCommerceAccountOwnership.js",
+    "apple-commerce-ownership:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyAppleCommerceAccountOwnershipDb.js",
     "apple-subscription-lifecycle:verify": "node audit/verifyAppleSubscriptionLifecycle.js",
     "ipad-arena-shop:verify": "node scripts/verifyIpadArenaShopContract.js",
     "app-commerce-handoff:verify": "node audit/verifyAppCommerceHandoffErrorContract.js",
