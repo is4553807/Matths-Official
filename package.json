@@ -59,6 +59,7 @@
     "admin:verify": "node scripts/validateCommunityAndAdmin.js",
     "admin:verify-db": "node scripts/verifyAdminActivityData.js",
     "community-author-delete:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyCommunityAuthorSoftDeleteDb.js",
+    "community-user-block:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyCommunityUserBlockDb.js",
     "admin-users:verify-db": "node audit/runInIsolatedAuditEnvironment.js audit/verifyAdminUserDataDb.js",
     "account-deletion:verify": "node scripts/verifyAccountDeletionPolicy.js",
     "account-reauthentication:verify": "node scripts/verifyAccountReauthentication.js",

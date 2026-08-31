@@ -121,6 +121,86 @@ app.get("/preview/login", (_req, res) => {
   });
 });
 
+app.get("/preview/community-post-safety", (_req, res) => {
+  res.locals.publicContactEmail = "dltkddbs4553@matths.kr";
+  res.render("community-post", {
+    user: {
+      id: "64b000000000000000000181",
+      name: "미리보기 사용자",
+      role: "student",
+    },
+    post: {
+      _id: "64b000000000000000000182",
+      authorId: "64b000000000000000000183",
+      authorName: "익명(042)",
+      isAnonymous: true,
+      authorRegion: "서울",
+      authorSchoolGrade: 10,
+      boardType: "high-school",
+      title: "차단·신고 동선 미리보기",
+      content: "게시글을 읽은 자리에서 신고하거나 작성자를 차단할 수 있습니다. 차단 뒤에는 서로의 게시글과 댓글이 즉시 숨겨집니다.",
+      attachments: [],
+      upvoteCount: 12,
+      downvoteCount: 1,
+      viewCount: 54,
+      createdAt: new Date("2026-09-01T10:00:00+09:00"),
+    },
+    comments: [
+      {
+        _id: "64b000000000000000000184",
+        authorId: "64b000000000000000000185",
+        authorName: "익명(017)",
+        content: "댓글 작성자도 같은 화면에서 바로 차단할 수 있습니다.",
+        createdAt: new Date("2026-09-01T10:05:00+09:00"),
+      },
+      {
+        _id: "64b000000000000000000186",
+        authorId: "64b000000000000000000181",
+        authorName: "미리보기 사용자",
+        content: "본인이 작성한 댓글에는 차단 버튼이 표시되지 않습니다.",
+        createdAt: new Date("2026-09-01T10:06:00+09:00"),
+      },
+    ],
+    viewerVote: 0,
+    viewerReported: false,
+    created: false,
+    commentCreated: false,
+    commentAuthorBlocked: false,
+    reported: false,
+    commentError: null,
+    reportError: null,
+    reportDraft: "",
+  });
+});
+
+app.get("/preview/community-blocked-users", (_req, res) => {
+  res.locals.publicContactEmail = "dltkddbs4553@matths.kr";
+  res.render("community-blocked-users", {
+    user: {
+      id: "64b000000000000000000181",
+      name: "미리보기 사용자",
+      role: "student",
+    },
+    unblocked: false,
+    blocks: [
+      {
+        id: "64b000000000000000000183",
+        displayName: "익명(042)",
+        anonymous: true,
+        sourceType: "post",
+        createdAt: new Date("2026-09-01T10:00:00+09:00"),
+      },
+      {
+        id: "64b000000000000000000185",
+        displayName: "학습메이트",
+        anonymous: false,
+        sourceType: "comment",
+        createdAt: new Date("2026-08-31T18:00:00+09:00"),
+      },
+    ],
+  });
+});
+
 app.get("/preview/home-arena-tier", (_req, res) => {
   res.render("index", {
     user: {

@@ -37,6 +37,7 @@
       <a class="community-back" href="<%= backHref %>">← <%= boardLabel %></a>
       <% if (created) { %><div class="community-feedback">게시글을 등록했습니다.</div><% } %>
       <% if (reported) { %><div class="community-feedback">신고가 접수되었습니다. 운영자가 확인하겠습니다.</div><% } %>
+      <% if (typeof commentAuthorBlocked !== "undefined" && commentAuthorBlocked) { %><div class="community-feedback" role="status">댓글 작성자를 차단했습니다. 서로의 게시글과 댓글은 즉시 숨겨집니다.</div><% } %>
       <article class="community-post-detail">
         <header>
           <span><%= boardLabel %></span>
@@ -117,6 +118,15 @@
               </form>
             <% } %>
           </details>
+          <section class="community-block-box" aria-label="작성자 차단">
+            <div>
+              <strong>이 작성자의 콘텐츠 숨기기</strong>
+              <span>차단하면 서로의 게시글과 댓글이 즉시 숨겨지며 차단 관리에서 언제든 해제할 수 있습니다.</span>
+            </div>
+            <form action="/community/<%= post._id %>/block-author" method="POST" onsubmit="return confirm('이 작성자를 차단할까요? 서로의 게시글과 댓글이 즉시 숨겨집니다.');">
+              <button type="submit">작성자 차단</button>
+            </form>
+          </section>
         <% } %>
         <% if (isAuthor) { %>
           <section class="community-author-delete" aria-label="내 게시글 관리">
@@ -177,10 +187,17 @@
             <div class="community-comment-empty">첫 댓글을 남겨 대화를 시작해 보세요.</div>
           <% } %>
           <% comments.forEach((comment) => { %>
+            <% const commentAuthorId = comment.authorId && comment.authorId._id ? comment.authorId._id : comment.authorId; %>
+            <% const isViewerComment = loggedIn && String(viewerId) === String(commentAuthorId); %>
             <article>
               <header>
                 <strong><%= comment.authorName %></strong>
                 <time><%= formatDate(comment.createdAt) %></time>
+                <% if (loggedIn && !isViewerComment) { %>
+                  <form class="community-comment-block" action="/community/<%= post._id %>/comments/<%= comment._id %>/block-author" method="POST" onsubmit="return confirm('이 댓글 작성자를 차단할까요? 서로의 게시글과 댓글이 즉시 숨겨집니다.');">
+                    <button type="submit">작성자 차단</button>
+                  </form>
+                <% } %>
               </header>
               <p><%= comment.content %></p>
             </article>

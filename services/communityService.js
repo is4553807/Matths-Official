@@ -9,6 +9,7 @@ const {
   CommunityPost,
   CommunityPostingQuota,
   CommunityReport,
+  CommunityUserBlock,
   CommunityVote,
   User,
   UserNotification,
@@ -640,6 +641,69 @@ async function getCommunityViewer(
     .lean();
 }
 
+async function getCommunityHiddenUserIds(
+  viewerId
+) {
+  if (
+    !viewerId ||
+    !mongoose.isValidObjectId(viewerId)
+  ) {
+    return [];
+  }
+
+  const relationships =
+    await CommunityUserBlock.find({
+      $or: [
+        { blockerUserId: viewerId },
+        { blockedUserId: viewerId },
+      ],
+    })
+      .select("blockerUserId blockedUserId")
+      .lean();
+
+  const hiddenIds = new Map();
+  for (const relationship of relationships) {
+    const blockerId = String(relationship.blockerUserId);
+    const otherId = blockerId === String(viewerId)
+      ? relationship.blockedUserId
+      : relationship.blockerUserId;
+    hiddenIds.set(String(otherId), otherId);
+  }
+  return [...hiddenIds.values()];
+}
+
+async function assertNoCommunityBlockBetween(
+  firstUserId,
+  secondUserId
+) {
+  if (
+    !firstUserId ||
+    !secondUserId ||
+    String(firstUserId) === String(secondUserId)
+  ) {
+    return;
+  }
+  const relationship =
+    await CommunityUserBlock.exists({
+      $or: [
+        {
+          blockerUserId: firstUserId,
+          blockedUserId: secondUserId,
+        },
+        {
+          blockerUserId: secondUserId,
+          blockedUserId: firstUserId,
+        },
+      ],
+    });
+  if (relationship) {
+    throw statusError(
+      404,
+      "차단 관계에 있는 사용자의 커뮤니티 콘텐츠는 표시하지 않습니다."
+    );
+  }
+}
+
 function privateBoardForViewer(viewer) {
   return {
     13: "retaker",
@@ -749,6 +813,58 @@ function cleanMultiline(
     .replace(/\r\n?/g, "\n")
     .trim()
     .slice(0, maxLength);
+}
+
+const COMMUNITY_OBJECTIONABLE_PATTERNS = [
+  /(?:씨|시)[\s._-]*발/i,
+  /ㅅ[\s._-]*ㅂ/i,
+  /개[\s._-]*새[\s._-]*끼/i,
+  /병[\s._-]*신/i,
+  /지[\s._-]*랄/i,
+  /느[\s._-]*금/i,
+  /한[\s._-]*남[\s._-]*충/i,
+  /한[\s._-]*녀[\s._-]*충/i,
+  /김[\s._-]*치[\s._-]*녀/i,
+  /맘[\s._-]*충/i,
+  /틀[\s._-]*딱/i,
+  /짱[\s._-]*깨/i,
+  /쪽[\s._-]*바[\s._-]*리/i,
+  /자[\s._-]*살[\s._-]*(?:해|하라)/i,
+  /죽[\s._-]*(?:어라|여버|여 버)/i,
+];
+const COMMUNITY_PERSONAL_CONTACT_PATTERNS = [
+  /(?:^|\D)01[016789][\s.-]*\d{3,4}[\s.-]*\d{4}(?:\D|$)/,
+  /[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+/i,
+];
+
+function assertCommunityUserContentSafe(
+  ...values
+) {
+  const content = values
+    .map((value) =>
+      String(value || "").normalize("NFKC")
+    )
+    .join("\n");
+  if (
+    COMMUNITY_OBJECTIONABLE_PATTERNS.some(
+      (pattern) => pattern.test(content)
+    )
+  ) {
+    throw statusError(
+      422,
+      "욕설, 혐오 표현, 괴롭힘 또는 위해를 조장하는 내용은 게시할 수 없습니다. 표현을 수정해주세요."
+    );
+  }
+  if (
+    COMMUNITY_PERSONAL_CONTACT_PATTERNS.some(
+      (pattern) => pattern.test(content)
+    )
+  ) {
+    throw statusError(
+      422,
+      "개인정보 보호를 위해 전화번호와 이메일 주소는 커뮤니티에 게시할 수 없습니다."
+    );
+  }
 }
 
 function escapeRegex(value) {
@@ -1153,6 +1269,13 @@ async function getCommunityBoardData({
       Date.now() -
         POPULAR_POST_WINDOW_MS
     );
+  const hiddenUserIds =
+    await getCommunityHiddenUserIds(
+      authorizedViewer?._id ||
+        viewer?.id ||
+        viewer?._id ||
+        null
+    );
   const filter = {
     status: "published",
     authorDeletedAt: null,
@@ -1168,6 +1291,11 @@ async function getCommunityBoardData({
         : normalizedBoard,
     ...searchData.filter,
   };
+  if (hiddenUserIds.length) {
+    filter.authorId = {
+      $nin: hiddenUserIds,
+    };
+  }
 
   if (
     normalizedBoard ===
@@ -1966,6 +2094,10 @@ async function createCommunityPost({
       "제목과 내용을 2자 이상 입력해주세요."
     );
   }
+  assertCommunityUserContentSafe(
+    cleanTitle,
+    cleanContent
+  );
 
   const uploads = Array.isArray(
     files
@@ -2161,6 +2293,10 @@ async function getCommunityPost(
     post,
     viewer
   );
+  await assertNoCommunityBlockBetween(
+    viewerId,
+    post.authorId
+  );
   await CommunityPost.updateOne(
     {
       _id: post._id,
@@ -2175,6 +2311,10 @@ async function getCommunityPost(
     Number(post.viewCount || 0) +
     1;
 
+  const hiddenUserIds =
+    await getCommunityHiddenUserIds(
+      viewerId
+    );
   const [
     comments,
     viewerVote,
@@ -2183,6 +2323,13 @@ async function getCommunityPost(
     CommunityComment.find({
       postId: post._id,
       status: "published",
+      ...(hiddenUserIds.length
+        ? {
+            authorId: {
+              $nin: hiddenUserIds,
+            },
+          }
+        : {}),
     })
       .sort({ createdAt: 1 })
       .lean(),
@@ -2353,7 +2500,7 @@ async function getCommunityAttachment({
           null,
       })
         .select(
-          "attachments boardType schoolCode universityCode"
+          "attachments authorId boardType schoolCode universityCode"
         )
         .lean(),
       getCommunityViewer(
@@ -2364,6 +2511,10 @@ async function getCommunityAttachment({
     assertCommunityBoardAccess(
       post,
       viewer
+    );
+    await assertNoCommunityBlockBetween(
+      viewerId,
+      post.authorId
     );
   }
   const attachment =
@@ -2452,6 +2603,10 @@ async function reportCommunityPost({
     post,
     reporter
   );
+  await assertNoCommunityBlockBetween(
+    userId,
+    post.authorId
+  );
   if (
     String(post.authorId) ===
     String(userId)
@@ -2533,7 +2688,7 @@ async function voteCommunityPost({
         null,
     })
       .select(
-        "_id boardType schoolCode universityCode"
+        "_id authorId boardType schoolCode universityCode"
       )
       .lean(),
     User.findOne({
@@ -2566,6 +2721,10 @@ async function voteCommunityPost({
   assertCommunityBoardAccess(
     post,
     user
+  );
+  await assertNoCommunityBlockBetween(
+    userId,
+    post.authorId
   );
 
   const current =
@@ -2671,6 +2830,9 @@ async function createCommunityComment({
       "댓글 내용을 입력해주세요."
     );
   }
+  assertCommunityUserContentSafe(
+    cleanContent
+  );
 
   if (
     !mongoose.isValidObjectId(
@@ -2720,6 +2882,10 @@ async function createCommunityComment({
     post,
     user
   );
+  await assertNoCommunityBlockBetween(
+    userId,
+    post.authorId
+  );
 
   const anonymous =
     wantsAnonymousIdentity(
@@ -2743,6 +2909,161 @@ async function createCommunityComment({
     anonymousNumber,
     content: cleanContent,
   });
+}
+
+async function blockCommunityUser({
+  userId,
+  postId,
+  commentId = null,
+}) {
+  if (
+    !mongoose.isValidObjectId(postId) ||
+    (commentId && !mongoose.isValidObjectId(commentId))
+  ) {
+    throw statusError(
+      404,
+      "차단할 커뮤니티 사용자를 찾을 수 없습니다."
+    );
+  }
+
+  const [post, blocker, comment] =
+    await Promise.all([
+      CommunityPost.findOne({
+        _id: postId,
+        status: "published",
+        authorDeletedAt: null,
+      })
+        .select(
+          "_id authorId authorName isAnonymous boardType schoolCode universityCode"
+        )
+        .lean(),
+      getCommunityViewer(userId),
+      commentId
+        ? CommunityComment.findOne({
+            _id: commentId,
+            postId,
+            status: "published",
+          })
+            .select(
+              "_id authorId authorName isAnonymous"
+            )
+            .lean()
+        : null,
+    ]);
+
+  if (!post || (commentId && !comment)) {
+    throw statusError(
+      404,
+      "차단할 커뮤니티 사용자를 찾을 수 없습니다."
+    );
+  }
+  if (!blocker) {
+    throw statusError(
+      403,
+      "로그인한 활성 계정만 사용자를 차단할 수 있습니다."
+    );
+  }
+  assertCommunityBoardAccess(post, blocker);
+
+  const source = comment || post;
+  if (String(source.authorId) === String(userId)) {
+    throw statusError(
+      400,
+      "본인 계정은 차단할 수 없습니다."
+    );
+  }
+
+  await CommunityUserBlock.updateOne(
+    {
+      blockerUserId: userId,
+      blockedUserId: source.authorId,
+    },
+    {
+      $setOnInsert: {
+        displayNameSnapshot:
+          cleanSingleLine(source.authorName, 30) ||
+          "차단한 사용자",
+        anonymousSnapshot:
+          Boolean(source.isAnonymous),
+        sourceType:
+          comment ? "comment" : "post",
+        sourceId: source._id,
+      },
+    },
+    {
+      upsert: true,
+      runValidators: true,
+    }
+  );
+
+  return CommunityUserBlock.findOne({
+    blockerUserId: userId,
+    blockedUserId: source.authorId,
+  }).lean();
+}
+
+async function getCommunityBlockedUsers({
+  userId,
+}) {
+  const viewer =
+    await getCommunityViewer(userId);
+  if (!viewer) {
+    throw statusError(
+      403,
+      "로그인한 활성 계정만 차단 목록을 확인할 수 있습니다."
+    );
+  }
+  const blocks =
+    await CommunityUserBlock.find({
+      blockerUserId: userId,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+  return blocks.map((block) => ({
+    id: String(block.blockedUserId),
+    displayName:
+      block.displayNameSnapshot ||
+      "차단한 사용자",
+    anonymous:
+      Boolean(block.anonymousSnapshot),
+    sourceType: block.sourceType,
+    createdAt: block.createdAt,
+  }));
+}
+
+async function unblockCommunityUser({
+  userId,
+  blockedUserId,
+}) {
+  if (
+    !mongoose.isValidObjectId(userId) ||
+    !mongoose.isValidObjectId(blockedUserId)
+  ) {
+    throw statusError(
+      404,
+      "차단한 사용자를 찾을 수 없습니다."
+    );
+  }
+  const viewer =
+    await getCommunityViewer(userId);
+  if (!viewer) {
+    throw statusError(
+      403,
+      "로그인한 활성 계정만 차단을 해제할 수 있습니다."
+    );
+  }
+  const result =
+    await CommunityUserBlock.deleteOne({
+      blockerUserId: userId,
+      blockedUserId,
+    });
+  if (!result.deletedCount) {
+    throw statusError(
+      404,
+      "차단한 사용자를 찾을 수 없습니다."
+    );
+  }
 }
 
 async function getAdminCommunityData({
@@ -3776,6 +4097,7 @@ module.exports = {
   OPERATIONS_CATEGORY_LABELS,
   POPULAR_POST_UPVOTES,
   POPULAR_POST_WINDOW_MS,
+  blockCommunityUser,
   createCommunityComment,
   createCommunityNotice,
   createCommunityPost,
@@ -3785,6 +4107,7 @@ module.exports = {
   getCommunityAnnouncement,
   getCommunityAttachment,
   getCommunityBoardData,
+  getCommunityBlockedUsers,
   getCommunityBoardRules,
   getCommunityNotice,
   getCommunityPost,
@@ -3799,6 +4122,7 @@ module.exports = {
   setCommunityNoticePinned,
   updateCommunityNotice,
   updateCommunityPostByAdmin,
+  unblockCommunityUser,
   voteCommunityPost,
   warnCommunityComment,
   warnCommunityPost,

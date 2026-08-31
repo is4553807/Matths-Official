@@ -170,12 +170,32 @@ router.get(
   matthsController.communityRulesPage
 );
 router.get(
+  "/community/blocked-users",
+  authMiddleware.isLoggedIn,
+  matthsController.communityBlockedUsersPage
+);
+router.post(
+  "/community/blocked-users/:userId/unblock",
+  authMiddleware.isLoggedIn,
+  matthsController.unblockCommunityUser
+);
+router.get(
   "/community/:postId/attachments/:attachmentId",
   matthsController.communityAttachmentFile
 );
 router.get(
   "/community/:postId",
   matthsController.communityPostPage
+);
+router.post(
+  "/community/:postId/block-author",
+  authMiddleware.isLoggedIn,
+  matthsController.blockCommunityPostAuthor
+);
+router.post(
+  "/community/:postId/comments/:commentId/block-author",
+  authMiddleware.isLoggedIn,
+  matthsController.blockCommunityCommentAuthor
 );
 router.post(
   "/community/:postId/delete",

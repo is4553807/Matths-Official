@@ -76,9 +76,12 @@
     <main class="community-main">
       <section class="community-hero">
         <div><p><%= boardData.board === "operations" ? "MATTHS OPERATIONS" : "MATTHS COMMUNITY" %></p><h1><%= boardData.board === "operations" ? "Matths 이용을 위한" : boardData.board === "retaker" ? "다시 도전하는 수험생을 위한" : boardData.board === "university" ? "같은 대학교 학생을 위한" : boardData.board === "worker" ? "배움이 계속되는 직장인을 위한" : boardData.board === "school" ? "같은 고등학교 학생을 위한" : "모두를 위한" %><br /><strong><%= boardData.board === "operations" ? "운영 안내" : "학습 커뮤니티" %></strong></h1><span><%= boardData.board === "operations" ? "Matths의 공지, 규칙, 방침과 이용 설명을 확인합니다." : boardData.board === "school" ? "가입 정보에 등록된 같은 고등학교 소속 학생만 열람하고 작성할 수 있습니다." : boardData.board === "retaker" ? "현재 N수생으로 등록된 회원만 열람하고 작성할 수 있습니다." : boardData.board === "university" ? "가입 정보에 등록된 같은 대학교 소속 대학생만 열람하고 작성할 수 있습니다." : boardData.board === "worker" ? "직장인으로 등록된 회원만 열람하고 작성할 수 있습니다." : "글은 누구나 읽을 수 있고, 작성은 로그인한 회원만 가능합니다." %></span></div>
-        <% if (boardData.board !== "operations" && (boardData.board !== "school" || boardData.selectedSchool) && (boardData.board !== "university" || boardData.selectedUniversity)) { %>
-          <a href="/community/new?board=<%= boardData.board %>">새 글 쓰기 <span aria-hidden="true">→</span></a>
-        <% } %>
+        <div class="community-hero-actions">
+          <% if (loggedIn) { %><a class="secondary" href="/community/blocked-users">차단 관리</a><% } %>
+          <% if (boardData.board !== "operations" && (boardData.board !== "school" || boardData.selectedSchool) && (boardData.board !== "university" || boardData.selectedUniversity)) { %>
+            <a href="/community/new?board=<%= boardData.board %>">새 글 쓰기 <span aria-hidden="true">→</span></a>
+          <% } %>
+        </div>
       </section>
 
       <% if (feedback) { %><div class="community-feedback"><%= feedback %></div><% } %>

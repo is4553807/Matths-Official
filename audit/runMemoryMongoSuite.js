@@ -17,6 +17,7 @@ const defaultTargets = [
   { target: "audit/verifyPaybackDailyLearningDb.js", dropAfter: true },
   { target: "audit/verifyAdminUserDataDb.js", dropAfter: true },
   { target: "audit/verifyCommunityAuthorSoftDeleteDb.js", dropAfter: true },
+  { target: "audit/verifyCommunityUserBlockDb.js", dropAfter: true },
   { target: "audit/verifySubDefenseFairnessDb.js", dropAfter: true },
   { target: "audit/verifyMultiProcessSchedulerLease.js", dropAfter: true },
 ];

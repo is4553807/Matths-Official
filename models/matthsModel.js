@@ -4804,6 +4804,58 @@ communityReportSchema.index(
 );
 
 /* --------------------------------------------------
+ * 16.5 CommunityUserBlock
+ * 공개 커뮤니티에서 사용자가 다른 작성자의 글·댓글과 상호작용을 즉시 숨기는 관계
+ * -------------------------------------------------- */
+
+const communityUserBlockSchema =
+    new Schema(
+        {
+            blockerUserId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            blockedUserId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
+            displayNameSnapshot: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: 30,
+            },
+            anonymousSnapshot: {
+                type: Boolean,
+                default: false,
+            },
+            sourceType: {
+                type: String,
+                enum: ["post", "comment"],
+                required: true,
+            },
+            sourceId: {
+                type: Schema.Types.ObjectId,
+                required: true,
+            },
+        },
+        {
+            timestamps: true,
+            versionKey: false,
+        }
+    );
+
+communityUserBlockSchema.index(
+    { blockerUserId: 1, blockedUserId: 1 },
+    { unique: true }
+);
+communityUserBlockSchema.index({ blockedUserId: 1, createdAt: -1 });
+
+/* --------------------------------------------------
  * 17. PrivateMockExam
  * 매주 일요일 3회 공개되는 Matths 주간 공식 모의고사 회차
  * -------------------------------------------------- */
@@ -7267,6 +7319,13 @@ const CommunityReport =
         communityReportSchema
     );
 
+const CommunityUserBlock =
+    mongoose.models.CommunityUserBlock ||
+    mongoose.model(
+        "CommunityUserBlock",
+        communityUserBlockSchema
+    );
+
 const PrivateMockExam =
     mongoose.models.PrivateMockExam ||
     mongoose.model(
@@ -7500,6 +7559,7 @@ module.exports = {
     CommunityComment,
     CommunityVote,
     CommunityReport,
+    CommunityUserBlock,
     PrivateMockExam,
     PrivateMockUploadReminder,
     PrivateMockExamAttempt,

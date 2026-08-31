@@ -35,6 +35,7 @@ const checks = [
   "email-routing:verify",
   "support-email-routing:verify",
   "admin-audit:verify",
+  "admin:verify",
   "account-deletion:verify",
   "account-reauthentication:verify",
   "finance:verify",

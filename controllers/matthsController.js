@@ -255,6 +255,7 @@ const {
   validateNickname,
 } = require("../services/nicknameService");
 const {
+  blockCommunityUser,
   createCommunityNotice,
   createCommunityComment,
   createCommunityPost,
@@ -263,6 +264,7 @@ const {
   getCommunityAnnouncement,
   getCommunityAttachment,
   getCommunityBoardData,
+  getCommunityBlockedUsers,
   getCommunityBoardRules,
   getCommunityNotice,
   getCommunityPost,
@@ -275,6 +277,7 @@ const {
   setCommunityNoticePinned,
   updateCommunityNotice,
   updateCommunityPostByAdmin,
+  unblockCommunityUser,
   warnCommunityComment,
   warnCommunityPost,
   voteCommunityPost,
@@ -8424,13 +8427,38 @@ exports.communityPage =
             req.session?.user ||
             null,
           feedback:
-            req.query.created ===
+            req.query.blocked ===
+            "1"
+              ? "사용자를 차단했습니다. 서로의 게시글과 댓글은 즉시 숨겨집니다."
+              : req.query.created ===
             "1"
               ? "게시글을 등록했습니다."
               : req.query.deleted ===
                   "1"
                 ? "게시글을 삭제했습니다. 운영 확인을 위한 기록은 안전하게 보관됩니다."
               : null,
+        }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.communityBlockedUsersPage =
+  async (req, res, next) => {
+    try {
+      return res.render(
+        "community-blocked-users",
+        {
+          user: req.session.user,
+          blocks:
+            await getCommunityBlockedUsers({
+              userId:
+                req.session.user.id,
+            }),
+          unblocked:
+            req.query.unblocked ===
+            "1",
         }
       );
     } catch (error) {
@@ -8755,6 +8783,9 @@ exports.communityPostPage =
           commentCreated:
             req.query.comment ===
             "created",
+          commentAuthorBlocked:
+            req.query.commentAuthorBlocked ===
+            "1",
           reported:
             req.query.reported ===
             "1",
@@ -8765,6 +8796,94 @@ exports.communityPostPage =
           reportDraft:
             "",
         }
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.blockCommunityPostAuthor =
+  async (req, res, next) => {
+    try {
+      const detail =
+        await getCommunityPost(
+          req.params.postId,
+          req.session.user.id
+        );
+      await blockCommunityUser({
+        userId:
+          req.session.user.id,
+        postId:
+          req.params.postId,
+      });
+      const board = [
+        "school",
+        "retaker",
+        "university",
+        "worker",
+      ].includes(detail.post.boardType)
+        ? detail.post.boardType
+        : "high-school";
+      return res.redirect(
+        `/community?board=${board}&blocked=1`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.blockCommunityCommentAuthor =
+  async (req, res, next) => {
+    try {
+      const detail =
+        await getCommunityPost(
+          req.params.postId,
+          req.session.user.id
+        );
+      const block =
+        await blockCommunityUser({
+          userId:
+            req.session.user.id,
+          postId:
+            req.params.postId,
+          commentId:
+            req.params.commentId,
+        });
+      if (
+        String(block.blockedUserId) ===
+        String(detail.post.authorId)
+      ) {
+        const board = [
+          "school",
+          "retaker",
+          "university",
+          "worker",
+        ].includes(detail.post.boardType)
+          ? detail.post.boardType
+          : "high-school";
+        return res.redirect(
+          `/community?board=${board}&blocked=1`
+        );
+      }
+      return res.redirect(
+        `/community/${req.params.postId}?commentAuthorBlocked=1#comments`
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+exports.unblockCommunityUser =
+  async (req, res, next) => {
+    try {
+      await unblockCommunityUser({
+        userId:
+          req.session.user.id,
+        blockedUserId:
+          req.params.userId,
+      });
+      return res.redirect(
+        "/community/blocked-users?unblocked=1"
       );
     } catch (error) {
       return next(error);

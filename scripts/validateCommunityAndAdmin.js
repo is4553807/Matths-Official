@@ -6,6 +6,7 @@ const path =
 const {
   CommunityComment,
   CommunityPost,
+  CommunityUserBlock,
   CommunityVote,
   ArchiveFolder,
   NicknameChangeRequest,
@@ -68,6 +69,10 @@ const adminServiceSource = read("services/adminService.js");
 const adminUsersView = read("views/admin-users.ejs");
 const adminUserDetailView = read("views/admin-user-detail.ejs");
 const adminThemeStyles = read("public/css/matths-theme.css");
+const communityPostView = read("views/community-post.ejs");
+const communityBlockedUsersView = read("views/community-blocked-users.ejs");
+const communityRoutes = read("routes/matths-routes.js");
+const communitySafetyServiceSource = read("services/communityService.js");
 assert.match(
   adminServiceSource,
   /const includeParents = !normalizedRole && !hasEducationFilter/
@@ -114,6 +119,14 @@ assert.match(
   adminThemeStyles,
   /\.admin-page \.admin-ranking-card[\s\S]*linear-gradient/
 );
+assert.match(communityPostView, /작성자 차단/);
+assert.match(communityPostView, /comments\/<%= comment\._id %>\/block-author/);
+assert.match(communityBlockedUsersView, /차단 당시 익명 콘텐츠였다면 실제 계정 이름을 표시하지 않습니다/);
+assert.match(communityRoutes, /community\/blocked-users/);
+assert.match(communityRoutes, /blockCommunityCommentAuthor/);
+assert.match(communitySafetyServiceSource, /assertCommunityUserContentSafe/);
+assert.match(communitySafetyServiceSource, /COMMUNITY_OBJECTIONABLE_PATTERNS/);
+assert.match(communitySafetyServiceSource, /COMMUNITY_PERSONAL_CONTACT_PATTERNS/);
 const curriculumFixture = {
   courses: [
     {
@@ -304,6 +317,19 @@ for (const field of [
       field
     ),
     `CommunityVote.${field} 필드가 없습니다.`
+  );
+}
+for (const field of [
+  "blockerUserId",
+  "blockedUserId",
+  "displayNameSnapshot",
+  "anonymousSnapshot",
+  "sourceType",
+  "sourceId",
+]) {
+  assert.ok(
+    CommunityUserBlock.schema.path(field),
+    `CommunityUserBlock.${field} 필드가 없습니다.`
   );
 }
 for (const field of [

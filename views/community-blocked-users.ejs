@@ -1,0 +1,50 @@
+<%
+  const formatDate = (date) => new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    dateStyle: "long",
+  }).format(new Date(date));
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Matths 커뮤니티에서 차단한 사용자를 확인하고 관리합니다." />
+    <title>차단 관리 | Matths</title>
+    <link rel="stylesheet" href="/css/community.css" />
+    <link rel="stylesheet" href="/css/public-navigation.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  </head>
+  <body>
+    <%- include("partials/public-navigation", { activePage: "community" }) %>
+    <main class="community-post-main community-blocks-main">
+      <a class="community-back" href="/community">← 커뮤니티로 돌아가기</a>
+      <section class="community-blocks-heading">
+        <div><p>COMMUNITY SAFETY</p><h1>차단 관리</h1></div>
+        <p>차단 관계에 있는 사용자는 서로의 게시글과 댓글을 볼 수 없고 평가하거나 댓글을 남길 수도 없습니다. 차단 당시 익명 콘텐츠였다면 실제 계정 이름을 표시하지 않습니다.</p>
+      </section>
+
+      <% if (unblocked) { %><div class="community-feedback" role="status">차단을 해제했습니다. 새로고침한 게시판부터 해당 사용자의 콘텐츠가 다시 표시됩니다.</div><% } %>
+
+      <section class="community-blocks-list" aria-labelledby="blocked-users-title">
+        <header><div><p>BLOCKED USERS</p><h2 id="blocked-users-title">차단한 사용자 <%= blocks.length %>명</h2></div></header>
+        <% if (!blocks.length) { %>
+          <div class="community-comment-empty">차단한 사용자가 없습니다.</div>
+        <% } %>
+        <% blocks.forEach((block) => { %>
+          <article>
+            <div>
+              <strong><%= block.displayName %></strong>
+              <span><%= block.anonymous ? "익명 콘텐츠에서 차단" : "커뮤니티 작성자 차단" %> · <%= formatDate(block.createdAt) %></span>
+            </div>
+            <form action="/community/blocked-users/<%= block.id %>/unblock" method="POST" onsubmit="return confirm('이 사용자의 차단을 해제할까요? 서로의 게시글과 댓글이 다시 표시될 수 있습니다.');">
+              <button type="submit">차단 해제</button>
+            </form>
+          </article>
+        <% }) %>
+      </section>
+    </main>
+    <%- include("partials/business-footer") %>
+  </body>
+</html>

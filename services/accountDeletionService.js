@@ -11,6 +11,7 @@ const {
   CommunityPost,
   CommunityPostingQuota,
   CommunityReport,
+  CommunityUserBlock,
   CommunityVote,
   ConceptProgress,
   DailyPlan,
@@ -267,6 +268,9 @@ async function removePrivateAccountData(
     CommunityReport.deleteMany({
       $or: [{ reporterUserId: userId }, { reportedUserId: userId }],
     }),
+    CommunityUserBlock.deleteMany({
+      $or: [{ blockerUserId: userId }, { blockedUserId: userId }],
+    }),
     ParentInvite.deleteMany({ childUserId: userId }),
     CheckoutIntent.deleteMany({ studentUserId: userId }),
     /*
@@ -512,6 +516,9 @@ async function purgeUserOwnedData(
             ],
           }
     ),
+    CommunityUserBlock.deleteMany({
+      $or: [{ blockerUserId: userId }, { blockedUserId: userId }],
+    }),
     AdminTodo.deleteMany({
       $or: [{ targetUserId: userId }, { actorUserId: userId }],
     }),
