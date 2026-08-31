@@ -14,8 +14,12 @@
     typeof socialAuthProviders !== "undefined" && Array.isArray(socialAuthProviders)
       ? socialAuthProviders
       : [];
-  const socialProviderConfigured = (key) =>
-    socialProviders.find((provider) => provider.key === key)?.configured === true;
+  const socialProviderConfigured = (key) => {
+    const provider = socialProviders.find((candidate) => candidate.key === key);
+    return key === "apple"
+      ? provider?.webConfigured === true
+      : provider?.configured === true;
+  };
 %>
 
 <!doctype html>
@@ -215,9 +219,19 @@
             <div class="social-auth-divider"><span>또는</span></div>
             <div class="social-auth-buttons">
               <a
+                class="social-auth-button is-apple<%= socialProviderConfigured('apple') ? '' : ' is-disabled' %>"
+                href="<%= socialProviderConfigured('apple') ? '/auth/apple' : '#' %>"
+                aria-disabled="<%= socialProviderConfigured('apple') ? 'false' : 'true' %>"
+                tabindex="<%= socialProviderConfigured('apple') ? '0' : '-1' %>"
+              >
+                <span class="social-auth-apple-mark" aria-hidden="true"></span>
+                Apple로 계속하기
+              </a>
+              <a
                 class="social-auth-button is-google<%= socialProviderConfigured('google') ? '' : ' is-disabled' %>"
                 href="<%= socialProviderConfigured('google') ? '/auth/google' : '#' %>"
                 aria-disabled="<%= socialProviderConfigured('google') ? 'false' : 'true' %>"
+                tabindex="<%= socialProviderConfigured('google') ? '0' : '-1' %>"
               >
                 <img
                   class="social-auth-google-mark"
@@ -233,6 +247,7 @@
                 class="social-auth-button is-kakao<%= socialProviderConfigured('kakao') ? '' : ' is-disabled' %>"
                 href="<%= socialProviderConfigured('kakao') ? '/auth/kakao' : '#' %>"
                 aria-disabled="<%= socialProviderConfigured('kakao') ? 'false' : 'true' %>"
+                tabindex="<%= socialProviderConfigured('kakao') ? '0' : '-1' %>"
               >
                 <img
                   class="social-auth-kakao-mark"
@@ -245,7 +260,13 @@
                 카카오로 계속하기
               </a>
             </div>
-            <% if (socialProviders.some((provider) => !provider.configured)) { %>
+            <% if (
+              socialProviders.some((provider) =>
+                provider.key === "apple"
+                  ? provider.webConfigured !== true
+                  : provider.configured !== true
+              )
+            ) { %>
               <small class="social-auth-guide">운영 키가 설정되지 않은 로그인 방식은 아직 사용할 수 없습니다.</small>
             <% } %>
           </div>

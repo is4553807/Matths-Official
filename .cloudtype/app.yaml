@@ -20,10 +20,15 @@ options:
       value: matths.kr
     - name: CANONICAL_HOST
       value: www.matths.kr
-    # Apple 로그인은 Bundle ID만 있으면 활성화된다. 아래 Team/Key ID는
-    # 계정 탈퇴 시 Apple 토큰 폐기에 쓰며, PRIVATE KEY는 Cloudtype 시크릿으로 둔다.
+    # 네이티브는 Bundle ID, 웹은 Services ID를 client_id로 사용한다.
+    # Team/Key ID와 PRIVATE KEY는 코드 교환·계정 탈퇴 토큰 폐기에 쓰며,
+    # PRIVATE KEY는 Cloudtype 시크릿으로만 둔다.
     - name: APPLE_BUNDLE_ID
       value: kr.matths.app
+    - name: APPLE_SERVICES_ID
+      value: kr.matths.web
+    - name: APPLE_OAUTH_REDIRECT_URI
+      value: https://www.matths.kr/auth/apple/callback
     - name: APPLE_ALLOW_SANDBOX
       value: "true"
     - name: APPLE_TEAM_ID

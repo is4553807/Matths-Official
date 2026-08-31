@@ -47,6 +47,21 @@ const appleAuthCredentialSchema =
         default: null,
       },
 
+      /*
+       * authorization code 를 발급한 client_id 입니다. 네이티브 앱은 Bundle ID,
+       * 웹은 Services ID 를 사용합니다. 둘을 구분하지 않으면 웹 로그인을 켠 순간
+       * 기존 앱 사용자의 refresh token 교환·탈퇴 revoke 까지 Services ID 로 보내
+       * invalid_client 가 됩니다. 레거시 문서는 값이 없으므로 서비스에서 Bundle ID
+       * 로 폴백합니다.
+       */
+      appleClientId: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: 255,
+        select: false,
+      },
+
       refreshToken: {
         type: String,
         default: null,

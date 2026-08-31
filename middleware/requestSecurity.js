@@ -48,8 +48,22 @@ function isApiRequest(req) {
   return String(req.originalUrl || req.url || "").startsWith("/api/v1/");
 }
 
+function isAppleOAuthCallback(req) {
+  return (
+    String(req.method || "").toUpperCase() === "POST" &&
+    String(req.path || "") === "/auth/apple/callback" &&
+    String(req.get?.("content-type") || "")
+      .toLowerCase()
+      .startsWith("application/x-www-form-urlencoded")
+  );
+}
+
 function sameOriginProtection(req, _res, next) {
-  if (SAFE_METHODS.has(String(req.method || "GET").toUpperCase()) || isApiRequest(req)) {
+  if (
+    SAFE_METHODS.has(String(req.method || "GET").toUpperCase()) ||
+    isApiRequest(req) ||
+    isAppleOAuthCallback(req)
+  ) {
     return next();
   }
 

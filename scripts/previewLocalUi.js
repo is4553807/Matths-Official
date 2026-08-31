@@ -103,6 +103,21 @@ function universalPreviewValue() {
   return value;
 }
 
+app.get("/preview/login", (_req, res) => {
+  res.locals.publicContactEmail = "dltkddbs4553@matths.kr";
+  res.render("login", {
+    socialAuthProviders: [
+      { key: "google", configured: true },
+      { key: "kakao", configured: true },
+      { key: "apple", configured: true, webConfigured: true },
+    ],
+    loginNotice: null,
+    success: null,
+    error: null,
+    oldInput: { email: "" },
+  });
+});
+
 app.get("/preview/home-arena-tier", (_req, res) => {
   res.render("index", {
     user: {

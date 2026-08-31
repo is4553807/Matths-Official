@@ -27,6 +27,7 @@ const manualTranslations = {
   "프로필": "Profile",
   "프로필 설정": "Profile Settings",
   "로그인": "Sign In",
+  "Apple로 계속하기": "Continue with Apple",
   "로그아웃": "Sign Out",
   "회원가입": "Create Account",
   "회원가입 | Matths": "Create Account | Matths",

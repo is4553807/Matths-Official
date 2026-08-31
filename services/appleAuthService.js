@@ -74,22 +74,39 @@ function appleLoginConfig() {
    * 그 순서가 최악입니다 — 학생이 Face ID 까지 통과한 **뒤에** 교환에서 실패합니다.
    * 그래서 운영자가 값을 넣기 전까지는 꺼진 상태로 둡니다.
    */
-  const audiences = envValue("APPLE_BUNDLE_ID")
+  const nativeAudiences = envValue("APPLE_BUNDLE_ID")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
-  return { audiences };
+  const audiences = [
+    ...nativeAudiences,
+    envValue("APPLE_SERVICES_ID"),
+  ]
+    .map((value) => value.trim())
+    .filter((value, index, values) =>
+      Boolean(value) && values.indexOf(value) === index
+    );
+  return { audiences, nativeAudiences };
 }
 
-function appleRevokeConfig() {
-  const bundleIds = appleLoginConfig().audiences;
+function appleRevokeConfig(requestedClientId = "") {
+  const bundleIds = envValue("APPLE_BUNDLE_ID")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const servicesId = envValue("APPLE_SERVICES_ID");
+  const allowedClientIds = new Set([...bundleIds, servicesId].filter(Boolean));
   /*
    * 폐기 대상 client_id 는 **그 토큰을 발급한 주체**여야 합니다. 우리 코드는
-   * 네이티브 앱이 받아 온 것이므로 기본값은 번들 ID 이고, 웹(Services ID)으로
-   * 발급한 코드까지 폐기해야 할 때만 APPLE_SERVICES_ID 가 앞섭니다.
+   * 네이티브 앱은 Bundle ID, 웹은 Services ID를 쓰므로 자격 증명에 기록한 값을
+   * 우선합니다. 레거시 자격 증명에는 값이 없어 기존 동작대로 Bundle ID가 기본입니다.
    */
+  const requested = String(requestedClientId || "").trim();
   const clientId =
-    envValue("APPLE_SERVICES_ID") || bundleIds[0] || "";
+    (allowedClientIds.has(requested) ? requested : "") ||
+    bundleIds[0] ||
+    servicesId ||
+    "";
   const privateKey = envValue("APPLE_PRIVATE_KEY").replace(
     /\\n/g,
     "\n"
@@ -103,7 +120,9 @@ function appleRevokeConfig() {
 }
 
 function isAppleLoginConfigured() {
-  return appleLoginConfig().audiences.length > 0;
+  // 이 값은 /auth/providers를 읽는 네이티브 앱의 버튼 게이트다. 웹 Services ID만
+  // 있다고 true를 돌리면 앱은 Apple 시트를 띄운 뒤 Bundle ID aud 검증에서 실패한다.
+  return appleLoginConfig().nativeAudiences.length > 0;
 }
 
 function isAppleRevokeConfigured() {
@@ -317,7 +336,10 @@ async function verifyAppleIdentityToken(
   const audiences = Array.isArray(claims?.aud)
     ? claims.aud.map((value) => String(value))
     : [String(claims?.aud || "")];
-  if (!audiences.some((value) => config.audiences.includes(value))) {
+  const matchedAudience = audiences.find((value) =>
+    config.audiences.includes(value)
+  );
+  if (!matchedAudience) {
     throw statusError(
       401,
       "Apple 로그인 정보를 확인하지 못했습니다.",
@@ -368,6 +390,7 @@ async function verifyAppleIdentityToken(
 
   return {
     subject,
+    audience: matchedAudience,
     email: String(claims?.email || "").trim().toLowerCase(),
     // 애플은 email_verified 를 불린으로도 문자열로도 보낸다.
     emailVerified:
@@ -689,20 +712,24 @@ function appleClientSecret(config, now = Date.now()) {
 
 async function exchangeAuthorizationCode(
   authorizationCode,
-  { fetchImpl = fetch } = {}
+  { fetchImpl = fetch, clientId = "", redirectUri = "" } = {}
 ) {
-  const config = appleRevokeConfig();
+  const config = appleRevokeConfig(clientId);
+  const parameters = {
+    grant_type: "authorization_code",
+    code: String(authorizationCode),
+    client_id: config.clientId,
+    client_secret: appleClientSecret(config),
+  };
+  if (String(redirectUri || "").trim()) {
+    parameters.redirect_uri = String(redirectUri).trim();
+  }
   const response = await fetchImpl(APPLE_TOKEN_URL, {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded;charset=utf-8",
     },
-    body: new URLSearchParams({
-      grant_type: "authorization_code",
-      code: String(authorizationCode),
-      client_id: config.clientId,
-      client_secret: appleClientSecret(config),
-    }),
+    body: new URLSearchParams(parameters),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok || !body?.refresh_token) {
@@ -721,7 +748,7 @@ async function exchangeAuthorizationCode(
  * 폐기 설정이 없는 배포에서는 교환을 건너뛰고 코드만 남깁니다(로그인은 계속 된다).
  */
 async function rememberAppleAuthorization(
-  { userId, subject, authorizationCode },
+  { userId, subject, authorizationCode, clientId, redirectUri },
   { fetchImpl = fetch } = {}
 ) {
   const code = String(authorizationCode || "").trim();
@@ -731,6 +758,7 @@ async function rememberAppleAuthorization(
     userId,
     authorizationCode: seal(code),
     authorizationCodeIssuedAt: new Date(),
+    appleClientId: String(clientId || "").trim() || null,
   };
 
   let exchanged = false;
@@ -738,6 +766,8 @@ async function rememberAppleAuthorization(
     try {
       const { refreshToken } = await exchangeAuthorizationCode(code, {
         fetchImpl,
+        clientId,
+        redirectUri,
       });
       if (refreshToken) {
         update.refreshToken = seal(refreshToken);
@@ -769,7 +799,7 @@ async function exchangeAppleIdentity(
   // body 의 email 은 **의도적으로 받지 않는다.** 이메일은 오직 검증된 토큰
   // 클레임에서만 온다(linkAppleIdentity 주석 참조 — 계정 탈취 경로였다).
   // 앱이 보내더라도 여기서 버려진다.
-  { identityToken, authorizationCode, nonce, fullName } = {},
+  { identityToken, authorizationCode, nonce, fullName, redirectUri } = {},
   { fetchImpl = fetch, now = Date.now() } = {}
 ) {
   const claims = await verifyAppleIdentityToken(
@@ -787,6 +817,8 @@ async function exchangeAppleIdentity(
         userId: user._id,
         subject: claims.subject,
         authorizationCode,
+        clientId: claims.audience,
+        redirectUri,
       },
       { fetchImpl }
     );
@@ -812,7 +844,7 @@ async function exchangeAppleIdentity(
 async function revokeAppleTokens(userId, { fetchImpl = fetch } = {}) {
   try {
     const credential = await AppleAuthCredential.findOne({ userId })
-      .select("+appleSubject +refreshToken +authorizationCode");
+      .select("+appleSubject +refreshToken +authorizationCode +appleClientId");
     if (!credential) return { revoked: false, reason: "NO_CREDENTIAL" };
     if (credential.revokedAt) {
       return { revoked: true, reason: "ALREADY_REVOKED" };
@@ -842,14 +874,17 @@ async function revokeAppleTokens(userId, { fetchImpl = fetch } = {}) {
       // 5분이 지났으면 실패하지만, 가입 직후 탈퇴 같은 경우는 이쪽으로 살아난다.
       const code = open(credential.authorizationCode);
       if (!code) return noteFailure("NO_TOKEN");
-      const exchange = await exchangeAuthorizationCode(code, { fetchImpl });
+      const exchange = await exchangeAuthorizationCode(code, {
+        fetchImpl,
+        clientId: credential.appleClientId,
+      });
       if (!exchange.refreshToken) {
         return noteFailure(`CODE_EXCHANGE_FAILED:${exchange.error}`);
       }
       token = exchange.refreshToken;
     }
 
-    const config = appleRevokeConfig();
+    const config = appleRevokeConfig(credential.appleClientId);
     const response = await fetchImpl(APPLE_REVOKE_URL, {
       method: "POST",
       headers: {
@@ -914,6 +949,8 @@ module.exports = {
   _testing: {
     APPLE_JWKS_URL,
     appleClientSecret,
+    appleRevokeConfig,
+    exchangeAuthorizationCode,
     linkAppleIdentity,
     placeholderEmail,
     rememberAppleAuthorization,

@@ -24,6 +24,13 @@ const validProductionEnvironment = {
     "runtime-kakao-client-secret",
   KAKAO_OAUTH_REDIRECT_URI:
     "https://www.matths.kr/auth/kakao/callback",
+  APPLE_BUNDLE_ID: "kr.matths.app",
+  APPLE_SERVICES_ID: "kr.matths.web",
+  APPLE_TEAM_ID: "64U874RU4D",
+  APPLE_KEY_ID: "TESTKEY123",
+  APPLE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----",
+  APPLE_OAUTH_REDIRECT_URI:
+    "https://www.matths.kr/auth/apple/callback",
   CLOUDINARY_URL: "cloudinary://key:secret@example",
   R2_ACCOUNT_ID: "account",
   R2_ACCESS_KEY_ID: "access",
@@ -86,6 +93,18 @@ async function main() {
         item.includes(
           "KAKAO_OAUTH_REDIRECT_URI"
         )
+    )
+  );
+
+  const invalidAppleRedirectReport =
+    runtimeEnvironmentReport({
+      ...validProductionEnvironment,
+      APPLE_OAUTH_REDIRECT_URI:
+        "https://matths.kr/auth/apple/callback",
+    });
+  assert.ok(
+    invalidAppleRedirectReport.errors.some(
+      (item) => item.includes("APPLE_OAUTH_REDIRECT_URI")
     )
   );
 

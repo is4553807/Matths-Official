@@ -119,6 +119,31 @@ function runtimeEnvironmentReport(environment = process.env) {
     );
   }
 
+  for (const key of [
+    "APPLE_BUNDLE_ID",
+    "APPLE_SERVICES_ID",
+    "APPLE_TEAM_ID",
+    "APPLE_KEY_ID",
+    "APPLE_PRIVATE_KEY",
+  ]) {
+    requireValue(
+      key,
+      `${key}를 Cloudtype 운영 환경에 등록해야 합니다.`
+    );
+  }
+  const expectedAppleRedirect =
+    valueOf(environment, "PUBLIC_BASE_URL")
+      ? `${valueOf(environment, "PUBLIC_BASE_URL").replace(/\/$/, "")}/auth/apple/callback`
+      : "";
+  if (
+    valueOf(environment, "APPLE_OAUTH_REDIRECT_URI") &&
+    valueOf(environment, "APPLE_OAUTH_REDIRECT_URI") !== expectedAppleRedirect
+  ) {
+    errors.push(
+      `APPLE_OAUTH_REDIRECT_URI는 ${expectedAppleRedirect || "PUBLIC_BASE_URL 기반 callback"}이어야 합니다.`
+    );
+  }
+
   if (!hasCloudinaryConfig(environment)) {
     errors.push("사용자 업로드를 위한 Cloudinary 운영 연결 정보가 필요합니다.");
   }

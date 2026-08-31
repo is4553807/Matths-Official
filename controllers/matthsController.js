@@ -417,6 +417,10 @@ const {
   socialIdPath,
 } = require("../services/socialAuthService");
 const {
+  beginAppleWebAuthorization,
+  completeAppleWebAuthorization,
+} = require("../services/appleWebAuthService");
+const {
   issueMobileAuthGrant,
 } = require(
   "../services/mobileSocialAuthGrantService"
@@ -946,6 +950,67 @@ exports.socialOAuthCallback = async (req, res) => {
       error,
       mobile,
       req.params.provider
+    );
+  }
+};
+
+exports.appleWebOAuthStart = (req, res) => {
+  try {
+    return res.redirect(
+      beginAppleWebAuthorization()
+    );
+  } catch (error) {
+    return redirectSocialAuthError(
+      req,
+      res,
+      error,
+      false,
+      "apple"
+    );
+  }
+};
+
+exports.appleWebOAuthCallback = async (req, res) => {
+  try {
+    const { user } = await completeAppleWebAuthorization({
+      code: req.body?.code,
+      identityToken: req.body?.id_token,
+      state: req.body?.state,
+      user: req.body?.user,
+      error: req.body?.error,
+    });
+
+    const access = await synchronizeAccountAccess(user._id);
+    if (!access?.allowed) {
+      const error = new Error(
+        accountBlockedMessage(
+          access?.status,
+          access?.user?.accountStatusReason
+        )
+      );
+      error.code = "SOCIAL_AUTH_ACCOUNT_BLOCKED";
+      throw error;
+    }
+
+    const synchronizedUser = await synchronizeUserLifecycle(access.user._id);
+    synchronizedUser.lastLoginAt = new Date();
+    await synchronizedUser.save();
+    clearPendingSocialRegistration(req);
+    await createLoginSession(req, synchronizedUser);
+    return res.redirect(
+      synchronizedUser.role === "admin"
+        ? "/admin"
+        : synchronizedUser.role === "teacher"
+          ? "/academy"
+          : "/main"
+    );
+  } catch (error) {
+    return redirectSocialAuthError(
+      req,
+      res,
+      error,
+      false,
+      "apple"
     );
   }
 };

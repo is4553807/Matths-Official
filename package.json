@@ -23,6 +23,7 @@
     "ipad-arena-command-http:verify": "node audit/verifyIpadArenaCommandHttpContract.js",
     "ipad-notification-http:verify": "node audit/verifyIpadNotificationHttpContract.js",
     "apple-signin:verify": "node scripts/verifyAppleSignIn.js",
+    "apple-web-signin:verify": "node scripts/verifyAppleWebSignIn.js",
     "apple-commerce-http:verify": "node audit/verifyAppleCommerceHttpContract.js",
     "apple-subscription-lifecycle:verify": "node audit/verifyAppleSubscriptionLifecycle.js",
     "ipad-arena-shop:verify": "node scripts/verifyIpadArenaShopContract.js",

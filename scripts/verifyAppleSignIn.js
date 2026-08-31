@@ -322,6 +322,39 @@ function line(result) {
   );
   expect(secretValid, "client_secret 은 P-256 R||S 서명이어야 한다");
 
+  console.log("[7-b] 네이티브 Bundle ID와 웹 Services ID 코드 교환 분리");
+  process.env.APPLE_SERVICES_ID = "kr.matths.web";
+  const nativeConfig = appleAuth._testing.appleRevokeConfig("kr.matths.app");
+  const webConfig = appleAuth._testing.appleRevokeConfig("kr.matths.web");
+  expect(nativeConfig.clientId === "kr.matths.app", "앱 코드는 Bundle ID로 교환해야 한다");
+  expect(webConfig.clientId === "kr.matths.web", "웹 코드는 Services ID로 교환해야 한다");
+  let tokenRequestBody;
+  const exchanged = await appleAuth._testing.exchangeAuthorizationCode(
+    "web-authorization-code",
+    {
+      clientId: "kr.matths.web",
+      redirectUri: "https://www.matths.kr/auth/apple/callback",
+      fetchImpl: async (_url, options) => {
+        tokenRequestBody = new URLSearchParams(options.body);
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ refresh_token: "web-refresh-token" }),
+        };
+      },
+    }
+  );
+  console.log(
+    `  native=${nativeConfig.clientId} web=${webConfig.clientId} redirect=${tokenRequestBody.get("redirect_uri")}`
+  );
+  expect(exchanged.refreshToken === "web-refresh-token", "웹 코드는 refresh token으로 교환해야 한다");
+  expect(tokenRequestBody.get("client_id") === "kr.matths.web", "웹 token 요청 client_id가 달라지면 안 된다");
+  expect(
+    tokenRequestBody.get("redirect_uri") ===
+      "https://www.matths.kr/auth/apple/callback",
+    "웹 token 요청은 등록한 redirect_uri를 포함해야 한다"
+  );
+
   console.log("[8] 자격 증명 봉인/해제 왕복");
   const sealed = appleAuth._testing.seal("c-auth-code-0001");
   console.log(

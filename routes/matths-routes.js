@@ -1568,6 +1568,18 @@ router.get(
   }
 );
 
+// Apple 웹 로그인은 scope(name/email)를 요청하므로 Apple이 form_post 로 콜백한다.
+// SameSite=Lax 세션 쿠키에 의존하지 않고 서명된 state + nonce를 컨트롤러에서 검증한다.
+router.get(
+  "/auth/apple",
+  authMiddleware.isLoggedOut,
+  matthsController.appleWebOAuthStart
+);
+router.post(
+  "/auth/apple/callback",
+  matthsController.appleWebOAuthCallback
+);
+
 router.get('/register', matthsController.registerPage);
 
 router.post(

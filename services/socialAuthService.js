@@ -3,6 +3,9 @@ const crypto = require("crypto");
 const {
   appleProviderStatus,
 } = require("./appleAuthService");
+const {
+  appleWebProviderStatus,
+} = require("./appleWebAuthService");
 
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
 const SOCIAL_REGISTRATION_MAX_AGE_MS = 30 * 60 * 1000;
@@ -97,7 +100,10 @@ function publicProviderStatus() {
    */
   return [
     ...oauthProviders,
-    appleProviderStatus(),
+    {
+      ...appleProviderStatus(),
+      ...appleWebProviderStatus(),
+    },
   ];
 }
 
