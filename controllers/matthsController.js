@@ -421,6 +421,10 @@ const {
 } = require(
   "../services/mobileSocialAuthGrantService"
 );
+const {
+  issueSocialProof,
+  verifyStartTicket,
+} = require("../services/accountReauthenticationService");
 const bcrypt = require('bcrypt');
 const crypto = require("crypto");
 const BCRYPT_ROUNDS = 12;
@@ -752,6 +756,33 @@ exports.socialOAuthAppStart = (
   );
 };
 
+/*
+ * Bearer 토큰을 브라우저 주소에 싣지 않고 탈퇴 전용 Google 왕복을 시작한다.
+ * API가 발급한 5분짜리 서명 ticket만 받아 세션 context로 옮긴다.
+ */
+exports.socialWithdrawalReauthenticationStart = async (req, res) => {
+  const provider = String(req.params?.provider || "google").toLowerCase();
+  try {
+    const ticket = verifyStartTicket(req.query?.ticket);
+    if (!ticket || ticket.provider !== provider) {
+      const error = new Error("소셜 계정 본인 확인 요청이 만료되었습니다. 앱에서 다시 시도해주세요.");
+      error.status = 400;
+      error.code = "ACCOUNT_REAUTHENTICATION_TICKET_INVALID";
+      throw error;
+    }
+    const authorizationUrl = beginSocialAuthorization(req, provider, {
+      mobile: true,
+      codeChallenge: ticket.codeChallenge,
+      purpose: "account-withdrawal",
+      userId: ticket.userId,
+    });
+    await saveSession(req);
+    return res.redirect(authorizationUrl);
+  } catch (error) {
+    return redirectSocialAuthError(req, res, error, true, provider, true);
+  }
+};
+
 function socialProviderLabel(provider) {
   switch (String(provider || "").toLowerCase()) {
     case "kakao":
@@ -763,8 +794,11 @@ function socialProviderLabel(provider) {
   }
 }
 
-function mobileCallbackURL(provider) {
+function mobileCallbackURL(provider, accountWithdrawal = false) {
   const key = String(provider || "google").toLowerCase();
+  if (accountWithdrawal) {
+    return new URL(`matths://oauth/${encodeURIComponent(`${key}-reauth`)}`);
+  }
   return new URL(`matths://oauth/${encodeURIComponent(key)}`);
 }
 
@@ -773,7 +807,8 @@ async function redirectSocialAuthError(
   res,
   error,
   mobile = false,
-  provider = "google"
+  provider = "google",
+  accountWithdrawal = false
 ) {
   const userSafeCodes = new Set([
     "SOCIAL_AUTH_NOT_CONFIGURED",
@@ -783,6 +818,8 @@ async function redirectSocialAuthError(
     "SOCIAL_AUTH_ACCOUNT_BLOCKED",
     "SOCIAL_AUTH_CANCELLED",
     "SOCIAL_AUTH_STATE_INVALID",
+    "ACCOUNT_REAUTHENTICATION_TICKET_INVALID",
+    "ACCOUNT_REAUTHENTICATION_ACCOUNT_MISMATCH",
   ]);
   const message =
     userSafeCodes.has(error?.code)
@@ -790,7 +827,7 @@ async function redirectSocialAuthError(
     : "소셜 로그인을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.";
 
   if (mobile) {
-    const url = mobileCallbackURL(provider);
+    const url = mobileCallbackURL(provider, accountWithdrawal);
     url.searchParams.set(
       "error",
       message
@@ -846,6 +883,8 @@ exports.socialOAuthCallback = async (req, res) => {
       ?.socialOAuthState
       ?.context
       ?.mobile === true;
+  let accountWithdrawal =
+    req.session?.socialOAuthState?.context?.purpose === "account-withdrawal";
   try {
     const completed = await completeSocialAuthorization(
       req,
@@ -862,6 +901,34 @@ exports.socialOAuthCallback = async (req, res) => {
     mobile =
       context.mobile === true;
     const idPath = socialIdPath(profile.provider);
+
+    if (context.purpose === "account-withdrawal") {
+      accountWithdrawal = true;
+      const providerUser = await User.findOne({
+        [idPath]: profile.providerUserId,
+      }).select(SOCIAL_AUTH_SELECT);
+      if (
+        !providerUser ||
+        String(providerUser._id) !== String(context.userId || "")
+      ) {
+        const error = new Error(
+          `현재 Matths 계정에 연결된 ${profile.provider === "kakao" ? "카카오" : "Google"} 계정으로 확인해주세요.`
+        );
+        error.status = 403;
+        error.code = "ACCOUNT_REAUTHENTICATION_ACCOUNT_MISMATCH";
+        error.context = context;
+        throw error;
+      }
+      const proof = await issueSocialProof({
+        userId: providerUser._id,
+        codeChallenge: context.codeChallenge,
+        provider: profile.provider,
+      });
+      const url = mobileCallbackURL(profile.provider, true);
+      url.searchParams.set("code", proof);
+      return res.redirect(url.toString());
+    }
+
     const [providerUser, emailUser, parentAccount] = await Promise.all([
       User.findOne({ [idPath]: profile.providerUserId })
         .select(SOCIAL_AUTH_SELECT),
@@ -945,7 +1012,8 @@ exports.socialOAuthCallback = async (req, res) => {
       res,
       error,
       mobile,
-      req.params.provider
+      req.params.provider,
+      accountWithdrawal
     );
   }
 };

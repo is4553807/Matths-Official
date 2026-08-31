@@ -1523,6 +1523,16 @@ router.get(
   matthsController.socialOAuthAppStart
 );
 
+// 앱 API가 발급한 서명 ticket으로만 여는 탈퇴 전용 Google 본인 확인.
+// Bearer 토큰은 브라우저 주소나 쿠키로 넘기지 않는다.
+router.get(
+  "/auth/google/reauth",
+  (req, res) => {
+    req.params.provider = "google";
+    return matthsController.socialWithdrawalReauthenticationStart(req, res);
+  }
+);
+
 router.get(
   "/auth/google",
   authMiddleware.isLoggedOut,
@@ -1548,6 +1558,14 @@ router.get(
   (req, res, next) => {
     req.params.provider = "kakao";
     return matthsController.socialOAuthAppStart(req, res, next);
+  }
+);
+
+router.get(
+  "/auth/kakao/reauth",
+  (req, res) => {
+    req.params.provider = "kakao";
+    return matthsController.socialWithdrawalReauthenticationStart(req, res);
   }
 );
 

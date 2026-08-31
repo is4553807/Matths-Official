@@ -790,6 +790,7 @@ async function withdrawUserAccount({
 async function withdrawOwnAccount({
   userId,
   password,
+  reauthenticated = false,
   confirmation,
   acknowledgeAnonymousRetention,
 }) {
@@ -827,12 +828,13 @@ async function withdrawOwnAccount({
     );
   }
 
-  const passwordMatches =
+  const passwordMatches = reauthenticated === true || (
     Boolean(password) &&
     await bcrypt.compare(
       String(password),
       String(user.passwordHash || "")
-    );
+    )
+  );
 
   if (!passwordMatches) {
     throw statusError(

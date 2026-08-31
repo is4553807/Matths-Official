@@ -140,6 +140,12 @@ function beginSocialAuthorization(
           codeChallenge: String(
             context.codeChallenge || ""
           ),
+          ...(context.purpose === "account-withdrawal" && context.userId
+            ? {
+                purpose: "account-withdrawal",
+                userId: String(context.userId),
+              }
+            : {}),
         }
       : { mobile: false };
   req.session.socialOAuthState = {
