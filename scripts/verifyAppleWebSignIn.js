@@ -178,8 +178,17 @@ async function main() {
   const css = source("public/css/auth.css");
   const cloudtype = source(".cloudtype/app.yaml");
   const preview = source("scripts/previewLocalUi.js");
-  assert.match(routes, /router\.get\(\s*"\/auth\/apple"/);
-  assert.match(routes, /router\.post\(\s*"\/auth\/apple\/callback"/);
+  assert.match(
+    routes,
+    /router\.get\(\s*"\/auth\/apple",\s*authMiddleware\.isLoggedOut,\s*appleWebOAuthStartIpRateLimit,/
+  );
+  assert.match(
+    routes,
+    /router\.post\(\s*"\/auth\/apple\/callback",\s*appleWebOAuthCallbackIpRateLimit,/
+  );
+  const requestSecurity = source("middleware/requestSecurity.js");
+  assert.match(requestSecurity, /name: "apple-web-oauth-start-ip"/);
+  assert.match(requestSecurity, /name: "apple-web-oauth-callback-ip"/);
   assert.match(controller, /completeAppleWebAuthorization/);
   assert.match(login, /Apple로 계속하기/);
   assert.match(login, /href="<%= socialProviderConfigured\('apple'\) \? '\/auth\/apple'/);

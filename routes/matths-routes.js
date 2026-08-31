@@ -39,6 +39,8 @@ const {
   assertPlacementExamAccess,
 } = require("../services/placementExamService");
 const {
+  appleWebOAuthCallbackIpRateLimit,
+  appleWebOAuthStartIpRateLimit,
   loginIpRateLimit,
   loginRateLimit,
   passwordResetIpRateLimit,
@@ -1597,10 +1599,12 @@ router.get(
 router.get(
   "/auth/apple",
   authMiddleware.isLoggedOut,
+  appleWebOAuthStartIpRateLimit,
   matthsController.appleWebOAuthStart
 );
 router.post(
   "/auth/apple/callback",
+  appleWebOAuthCallbackIpRateLimit,
   matthsController.appleWebOAuthCallback
 );
 

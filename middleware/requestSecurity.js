@@ -291,6 +291,26 @@ const loginIpRateLimit = createRateLimit({
   consumer:
     consumeAuthRequestLimit,
 });
+const appleWebOAuthStartIpRateLimit =
+  createRateLimit({
+    name: "apple-web-oauth-start-ip",
+    limit: 30,
+    windowMs:
+      15 * 60 * 1000,
+    key: clientAddress,
+    consumer:
+      consumeAuthRequestLimit,
+  });
+const appleWebOAuthCallbackIpRateLimit =
+  createRateLimit({
+    name: "apple-web-oauth-callback-ip",
+    limit: 60,
+    windowMs:
+      15 * 60 * 1000,
+    key: clientAddress,
+    consumer:
+      consumeAuthRequestLimit,
+  });
 const registrationRateLimit = createRateLimit({
   name: "registration",
   limit: 5,
@@ -327,6 +347,8 @@ const passwordResetIpRateLimit =
   });
 
 module.exports = {
+  appleWebOAuthCallbackIpRateLimit,
+  appleWebOAuthStartIpRateLimit,
   authRequestKey,
   configuredOrigins,
   createRateLimit,
