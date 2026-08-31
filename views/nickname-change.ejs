@@ -21,19 +21,12 @@
   <body>
     <div class="dashboard-shell">
       <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
-      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
-        <div class="sidebar-top">
-          <%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 메인", className: "brand", tone: "light" }) %>
-          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
-        </div>
-        <%- include("partials/dashboard-navigation", { activePage: "" }) %>
-        <div class="sidebar-spacer"></div>
-        <div class="sidebar-profile">
-          <a class="profile-avatar" href="/profile" aria-label="<%= user.name %>님의 프로필 설정으로 이동" title="프로필 설정"><%= String(user.name || "M").slice(0, 1) %></a>
-          <div class="profile-copy"><strong><%= user.name %>님</strong><small><%= user.email %></small></div>
-          <form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form>
-        </div>
-      </aside>
+      <%- include("partials/dashboard-sidebar", {
+  activePage: "",
+  profileName: String(user.name || "학생"),
+  profileSubtitle: String(user.email || "학생"),
+  navigationUser: user,
+}) %>
 
       <main class="dashboard-main nickname-change-main">
         <header class="topbar">

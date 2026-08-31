@@ -424,17 +424,18 @@ body.dashboard-home.sidebar-visible { overflow: hidden; }
 .dashboard-home .notice-card > button { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 8px; }
 .dashboard-home .notice-card > button:hover { color: var(--foreground); background: var(--muted); }
 
-.dashboard-home .coach-card { position: relative; overflow: hidden; padding: 20px; }
-.dashboard-home .coach-content { display: flex; align-items: flex-start; gap: 16px; }
-.dashboard-coach-character { width: 80px; height: 80px; flex: 0 0 80px; display: flex; align-items: center; justify-content: center; margin: 0; background: var(--brand-soft); border-radius: 16px; }
-.dashboard-home .dashboard-coach-character img { width: 68px; height: 68px; object-fit: contain; }
+.dashboard-home .coach-card { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; overflow: visible; padding: 20px; }
+.dashboard-home .coach-content { min-height: 82px; display: flex; align-items: center; gap: 18px; }
+.dashboard-home .dashboard-coach-character { position: relative; z-index: 1; width: 98px; height: 82px; flex: 0 0 98px; display: flex; align-items: flex-end; justify-content: center; margin: -34px 0 -10px -8px; padding: 0; overflow: visible; background: transparent; border: 0; border-radius: 0; pointer-events: none; }
+.dashboard-home .dashboard-coach-character img { width: 112px; height: 122px; max-width: none; object-fit: contain; object-position: center bottom; filter: drop-shadow(0 14px 10px rgba(38, 31, 82, 0.24)) drop-shadow(0 3px 2px rgba(38, 31, 82, 0.18)); transform: translateY(16px); transition: opacity 0.16s ease, transform 0.16s ease; }
+.dashboard-home .dashboard-coach-character.is-switching img { opacity: 0.58; transform: translateY(16px) scale(0.96); }
 .dashboard-home .coach-copy { min-width: 0; flex: 1 1 auto; }
 .dashboard-home .coach-copy > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .dashboard-home .coach-copy h2 { margin: 0; color: var(--foreground); font-size: 14px; font-weight: 700; line-height: 20px; }
 .dashboard-home .coach-copy > div > span { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; color: var(--accent-foreground); background: var(--accent); border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 16px; }
 .dashboard-home .coach-copy > div > span svg { width: 14px; height: 14px; }
 .dashboard-home .coach-copy p { margin: 8px 0 0; color: color-mix(in oklch, var(--foreground) 90%, transparent); font-size: 14px; line-height: 1.625; }
-.dashboard-home .coach-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
+.dashboard-home .coach-footer { display: flex; justify-content: flex-end; align-self: start; margin: 0; }
 .dashboard-home .coach-footer a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; color: var(--muted-foreground); background: var(--card); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; font-weight: 600; line-height: 16px; }
 .dashboard-home .coach-footer a:hover { color: var(--foreground); }
 .dashboard-home .coach-footer svg { width: 16px; height: 16px; }
@@ -447,9 +448,14 @@ body.dashboard-home.sidebar-visible { overflow: hidden; }
 .dashboard-home .plan-heading h2 { margin: 0; color: var(--foreground); font-size: 14px; font-weight: 700; line-height: 20px; }
 .dashboard-home .plan-heading h3 { margin: 8px 0 0; color: var(--foreground); font-size: 18px; font-weight: 800; line-height: 28px; }
 .dashboard-home .plan-heading > b { padding: 4px 10px; color: var(--success); background: color-mix(in oklch, var(--success) 12%, transparent); border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 16px; white-space: nowrap; }
+.dashboard-home .academy-plan-inclusion { display: grid; gap: 3px; margin-top: 12px; padding: 11px 12px; color: var(--accent-foreground); background: var(--brand-soft); border: 1px solid color-mix(in oklch, var(--primary) 18%, transparent); border-radius: 12px; }
+.dashboard-home .academy-plan-inclusion strong { font-size: 13px; line-height: 18px; }
+.dashboard-home .academy-plan-inclusion span { font-size: 12px; font-weight: 650; line-height: 18px; }
+.dashboard-home .academy-plan-inclusion small { color: var(--muted-foreground); font-size: 11px; line-height: 16px; }
 .dashboard-home .plan-total { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; padding: 10px 12px; color: var(--accent-foreground); background: var(--brand-soft); border-radius: 12px; }
 .dashboard-home .plan-total span { font-size: 14px; font-weight: 500; line-height: 20px; }
 .dashboard-home .plan-total strong { margin-left: auto; color: transparent; background: linear-gradient(100deg, var(--brand-purple), var(--brand-blue) 55%, var(--brand-teal)); background-clip: text; -webkit-background-clip: text; font-size: 24px; font-weight: 800; line-height: 32px; }
+.dashboard-home .plan-total.is-academy strong { font-size: 20px; }
 .dashboard-home .plan-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; }
 .dashboard-home .plan-stats > div { padding: 10px 12px; background: var(--muted); border-radius: 12px; }
 .dashboard-home .plan-stats dt, .dashboard-home .plan-stats dd { margin: 0; }
@@ -542,8 +548,12 @@ body.dashboard-home.dashboard-sidebar-collapsed .business-site-footer { width: c
   .dashboard-home .topbar-title h1 { font-size: 16px; line-height: 24px; }
   .dashboard-home .dashboard-main { padding: 20px 16px; }
   .dashboard-home .dashboard-attendance-card, .dashboard-home .coach-card, .dashboard-home .plan-card, .dashboard-home .weekly-card { padding: 16px; }
-  .dashboard-coach-character { width: 64px; height: 64px; flex-basis: 64px; }
-  .dashboard-home .dashboard-coach-character img { width: 56px; height: 56px; }
+  .dashboard-home .coach-card { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-home .coach-content { min-height: 72px; gap: 12px; }
+  .dashboard-home .coach-footer { justify-content: flex-end; margin-top: -4px; }
+  .dashboard-home .dashboard-coach-character { width: 78px; height: 68px; flex-basis: 78px; margin: -28px 0 -8px -8px; }
+  .dashboard-home .dashboard-coach-character img { width: 88px; height: 102px; transform: translateY(12px); }
+  .dashboard-home .dashboard-coach-character.is-switching img { transform: translateY(12px) scale(0.96); }
   .dashboard-home .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

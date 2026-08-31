@@ -88,6 +88,9 @@ const {
 const {
   getAdminUserRecentArenaMatches,
 } = require("./adminArenaMatchHistoryService");
+const {
+  synchronizeOwnedAcademyContract,
+} = require("./academyContractService");
 const accountEmailCopy =
   require("../content/email/account");
 
@@ -2358,6 +2361,7 @@ async function updateUserRole({
   userId,
   role,
   reason,
+  teacherAccessExpiresAt,
 }) {
   const allowedRoles =
     new Set([
@@ -2372,6 +2376,26 @@ async function updateUserRole({
       reason,
       300
     );
+  let normalizedTeacherExpiry = null;
+  if (normalizedRole === "teacher") {
+    const dateKey = String(teacherAccessExpiresAt || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      throw statusError(
+        400,
+        "교사 역할의 학원 기능 유효기간을 선택해주세요."
+      );
+    }
+    normalizedTeacherExpiry = new Date(`${dateKey}T23:59:59.999+09:00`);
+    if (
+      Number.isNaN(normalizedTeacherExpiry.getTime()) ||
+      normalizedTeacherExpiry.getTime() <= Date.now()
+    ) {
+      throw statusError(
+        400,
+        "교사 역할의 유효기간은 오늘 이후 날짜여야 합니다."
+      );
+    }
+  }
 
   if (
     !allowedRoles.has(
@@ -2407,11 +2431,20 @@ async function updateUserRole({
 
   const previousRole =
     user.role;
+  const previousTeacherAccessExpiresAt =
+    user.teacherAccessExpiresAt || null;
   user.role = normalizedRole;
+  user.teacherAccessExpiresAt = normalizedTeacherExpiry;
   user.tokenVersion =
     (Number(user.tokenVersion) ||
       0) + 1;
   await user.save();
+
+  await synchronizeOwnedAcademyContract({
+    teacherUserId: user._id,
+    role: normalizedRole,
+    contractEndsAt: normalizedTeacherExpiry,
+  });
 
   await logAdminAction({
     adminUserId,
@@ -2422,6 +2455,9 @@ async function updateUserRole({
       previousRole,
       nextRole:
         normalizedRole,
+      previousTeacherAccessExpiresAt,
+      nextTeacherAccessExpiresAt:
+        normalizedTeacherExpiry,
     },
   });
 

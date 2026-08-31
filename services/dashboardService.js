@@ -45,6 +45,9 @@ const {
 const {
     getStudentAttendanceDashboard,
 } = require("./academyAttendanceService");
+const {
+    getActiveAcademyPlan,
+} = require("./academyPlanService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PUBLISHED_LESSON_CACHE_TTL_MS = Math.max(
@@ -895,6 +898,7 @@ async function getDashboardData(
         currentWeekSeries[
             currentWeekSeries.length - 1
         ].dateKey;
+    const dashboardNow = new Date();
 
     const [
         progressDocuments,
@@ -910,6 +914,7 @@ async function getDashboardData(
         latestMainToSubReference,
         activeMockExamSubscription,
         attendanceDashboard,
+        academyPlan,
     ] = await Promise.all([
         ConceptProgress.find({
             userId: user._id,
@@ -990,7 +995,7 @@ async function getDashboardData(
         MockExamSubscription.findOne({
             userId: user._id,
             status: "ACTIVE",
-            endsAt: { $gt: new Date() },
+            endsAt: { $gt: dashboardNow },
         })
             .sort({ endsAt: -1 })
             .select("endsAt")
@@ -998,6 +1003,10 @@ async function getDashboardData(
 
         getStudentAttendanceDashboard({
             studentUserId: user._id,
+        }),
+
+        getActiveAcademyPlan(user._id, {
+            now: dashboardNow,
         }),
     ]);
     const {
@@ -1440,6 +1449,19 @@ async function getDashboardData(
                 statusLabel: "이용 중",
             };
         }
+        if (academyPlan.active) {
+            return {
+                code: "ACADEMY_PLAN",
+                name: "학원 플랜",
+                division: null,
+                remainingLearningDays: 0,
+                availableLearningDays: 0,
+                reservedLearningDays: 0,
+                lockedLearningDays: 0,
+                expiresAt: academyPlan.endsAt,
+                statusLabel: "학원 이용 중",
+            };
+        }
         return {
             code: "FREE",
             name: "기본학습 패키지",
@@ -1513,6 +1535,8 @@ async function getDashboardData(
             school: user.school,
             currentStreak:
                 getEffectiveStreak(user),
+            hasAcademyMembership:
+                academyPlan.active,
         },
 
         currentLearning,
@@ -1594,6 +1618,7 @@ async function getDashboardData(
             ),
 
         activePlan,
+        academyPlan,
         accessRenewalNotice,
 
         stats: {

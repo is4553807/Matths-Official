@@ -765,31 +765,6 @@ select:focus-visible {
   background: #fff;
 }
 
-.social-auth-button.is-apple {
-  color: #fff;
-  background: #000;
-  border-color: #000;
-}
-
-.social-auth-button.is-apple:hover {
-  color: #fff;
-  background: #191919;
-  border-color: #191919;
-}
-
-.social-auth-apple-mark {
-  width: 20px;
-  height: 24px;
-  display: inline-grid;
-  flex: 0 0 auto;
-  place-items: center;
-  color: currentColor;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Symbol", sans-serif;
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 1;
-}
-
 .social-auth-google-mark {
   width: 20px;
   height: 20px;
@@ -813,6 +788,28 @@ select:focus-visible {
   height: 20px;
   display: block;
   flex: 0 0 auto;
+}
+
+.social-auth-button.is-apple {
+  color: #fff;
+  background: #000;
+  border-color: #000;
+}
+
+.social-auth-button.is-apple:hover {
+  background: #1b1b1d;
+  border-color: #1b1b1d;
+}
+
+.social-auth-apple-mark {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .social-auth-mark {

@@ -877,6 +877,15 @@ async function revokeAppleTokens(userId, { fetchImpl = fetch } = {}) {
       const exchange = await exchangeAuthorizationCode(code, {
         fetchImpl,
         clientId: credential.appleClientId,
+        redirectUri:
+          credential.appleClientId === envValue("APPLE_SERVICES_ID")
+            ? (
+                envValue("APPLE_OAUTH_REDIRECT_URI") ||
+                (envValue("PUBLIC_BASE_URL")
+                  ? `${envValue("PUBLIC_BASE_URL").replace(/\/$/, "")}/auth/apple/callback`
+                  : "")
+              )
+            : "",
       });
       if (!exchange.refreshToken) {
         return noteFailure(`CODE_EXCHANGE_FAILED:${exchange.error}`);
@@ -948,6 +957,7 @@ module.exports = {
   verifyAppleIdentityToken,
   _testing: {
     APPLE_JWKS_URL,
+    APPLE_TOKEN_URL,
     appleClientSecret,
     appleRevokeConfig,
     exchangeAuthorizationCode,

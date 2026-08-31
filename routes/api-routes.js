@@ -422,6 +422,18 @@ router.patch(
   "/me/ranking-identity",
   apiController.updateRankingIdentity
 );
+router.get(
+  "/me/withdrawal/options",
+  apiController.withdrawalOptions
+);
+router.post(
+  "/me/withdrawal/google/start",
+  apiController.startGoogleWithdrawalReauthentication
+);
+router.post(
+  "/me/withdrawal/kakao/start",
+  apiController.startKakaoWithdrawalReauthentication
+);
 router.delete(
   "/me",
   apiController.withdrawMe

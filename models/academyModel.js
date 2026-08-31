@@ -64,9 +64,53 @@ const academySchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["PENDING", "ACTIVE", "REJECTED", "PAUSED"],
+      enum: ["PENDING", "ACTIVE", "REJECTED", "PAUSED", "ARCHIVED"],
       default: "PENDING",
       index: true,
+    },
+    contractStartsAt: {
+      type: Date,
+      default: null,
+    },
+    contractEndsAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    contractReminderSentAt: {
+      type: Date,
+      default: null,
+    },
+    contractReminderForEndsAt: {
+      type: Date,
+      default: null,
+    },
+    contractExpiredAt: {
+      type: Date,
+      default: null,
+    },
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
+    archiveReason: {
+      type: String,
+      enum: ["CONTRACT_EXPIRED", "TEACHER_ACCESS_REVOKED", null],
+      default: null,
+    },
+    statusBeforeArchive: {
+      type: String,
+      enum: ["PENDING", "ACTIVE", "PAUSED", null],
+      default: null,
+    },
+    planCode: {
+      type: String,
+      enum: ["ACADEMY_MOCK_INCLUDED"],
+      default: "ACADEMY_MOCK_INCLUDED",
+    },
+    includesMockExam: {
+      type: Boolean,
+      default: true,
     },
     createdByUserId: {
       type: Schema.Types.ObjectId,
@@ -567,12 +611,14 @@ const academyAttendanceSessionSchema = new Schema(
     canceledAt: { type: Date, default: null },
     cancellationReason: {
       type: String,
-      enum: ["SCHEDULE_CHANGED", "CLASS_ARCHIVED", null],
+      enum: ["SCHEDULE_CHANGED", "CLASS_ARCHIVED", "CONTRACT_EXPIRED", "TEACHER_ACCESS_REVOKED", null],
       default: null,
     },
   },
   { timestamps: true, versionKey: false }
 );
+
+academySchema.index({ status: 1, contractEndsAt: 1 });
 
 academyAttendanceSessionSchema.index({ academyId: 1, classId: 1, dateKey: 1, startsAt: 1 });
 

@@ -22,6 +22,14 @@ async function render(name, locals) {
 }
 
 async function main() {
+  const serverSource = fs.readFileSync(path.join(root, "server.js"), "utf8");
+  assert.match(
+    serverSource,
+    /const CANONICAL_PUBLIC_CONTACT_EMAIL = "dltkddbs4553@matths\.kr";/,
+  );
+  assert.match(serverSource, /res\.locals\.publicContactEmail = CANONICAL_PUBLIC_CONTACT_EMAIL;/);
+  assert.doesNotMatch(serverSource, /process\.env\.PUBLIC_CONTACT_EMAIL/);
+
   const userFacingViews = fs
     .readdirSync(views, { recursive: true })
     .filter((viewName) => viewName.endsWith(".ejs"))
@@ -197,6 +205,13 @@ async function main() {
     assert.doesNotMatch(html, /admin@lsbproduction\.com/);
     assert.doesNotMatch(html, /support@matths\.kr|운영 전 확인 사항/);
   }
+
+  const privacy = await render("privacy.ejs", { user: null });
+  assert.match(privacy, /iPhone·iPad 앱 사진 기능/);
+  assert.match(privacy, /AI 튜터 질문에만 첨부한 사진/);
+  assert.match(privacy, /Matths 서버로 전송하지 않습니다/);
+  assert.match(privacy, /기기별로 최대 30일|계정별로 최대 30일/);
+  assert.match(privacy, /대화 삭제 기능을 사용하거나 회원 탈퇴 시 즉시 삭제/);
 
   console.log("Launch view rendering verification passed");
 }

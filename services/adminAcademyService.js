@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { AdminActionLog, User } = require("../models/matthsModel");
+const { AdminActionLog, AdminTodo, User } = require("../models/matthsModel");
 const {
   Academy,
   AcademyAttendance,
@@ -24,7 +24,7 @@ const { getClassMathMap } = require("./mathMapService");
 const { signedCloudinaryUrl } = require("./fileStorageService");
 const { createAcademyWeekFileDownload } = require("./academyClassworkService");
 
-const ACADEMY_STATUSES = ["PENDING", "ACTIVE", "PAUSED", "REJECTED"];
+const ACADEMY_STATUSES = ["PENDING", "ACTIVE", "PAUSED", "REJECTED", "ARCHIVED"];
 const PAGE_SIZE = 50;
 const ADMIN_USER_FIELDS = "name realName email role isActive accountStatus schoolGrade school";
 const ATTENDANCE_STATUSES = new Set(["PRESENT", "LATE", "ABSENT", "EXCUSED"]);
@@ -426,9 +426,115 @@ async function updateAdminAcademyProfile({ adminUserId, academyId, action, name 
   return updated;
 }
 
+async function updateAdminAcademyContract({
+  adminUserId,
+  academyId,
+  contractEndsAt,
+}) {
+  await assertSuperAdmin(adminUserId);
+  validObjectId(academyId, "학원");
+  const dateKey = String(contractEndsAt || "").trim();
+  if (!DATE_KEY_PATTERN.test(dateKey)) {
+    throw statusError(400, "학원 계약 만료일을 선택해 주세요.");
+  }
+  const endsAt = new Date(`${dateKey}T23:59:59.999+09:00`);
+  if (Number.isNaN(endsAt.getTime()) || endsAt.getTime() <= Date.now()) {
+    throw statusError(400, "학원 계약 만료일은 오늘 이후여야 합니다.");
+  }
+
+  const academy = await Academy.findById(academyId).lean();
+  if (!academy) throw statusError(404, "학원을 찾을 수 없습니다.");
+  const ownerStaff = await AcademyStaff.findOne({
+    academyId: academy._id,
+    role: "OWNER",
+    status: "ACTIVE",
+  }).lean();
+  const owner = ownerStaff
+    ? await User.findById(ownerStaff.userId)
+    : null;
+  if (!owner || owner.role !== "teacher") {
+    throw statusError(409, "활성 교사 역할의 원장 계정을 먼저 확인해 주세요.");
+  }
+
+  const restoreStatus =
+    academy.status === "ARCHIVED" &&
+    ["CONTRACT_EXPIRED", "TEACHER_ACCESS_REVOKED"].includes(academy.archiveReason)
+      ? academy.statusBeforeArchive === "PAUSED"
+        ? "PAUSED"
+        : academy.statusBeforeArchive === "PENDING"
+          ? "PENDING"
+          : "ACTIVE"
+      : academy.status;
+  const now = new Date();
+  const updated = await Academy.findByIdAndUpdate(
+    academy._id,
+    {
+      $set: {
+        status: restoreStatus,
+        contractStartsAt: academy.contractStartsAt || now,
+        contractEndsAt: endsAt,
+        contractReminderSentAt: null,
+        contractReminderForEndsAt: null,
+        contractExpiredAt: null,
+        archivedAt: null,
+        archiveReason: null,
+        statusBeforeArchive: null,
+        planCode: "ACADEMY_MOCK_INCLUDED",
+        includesMockExam: true,
+      },
+    },
+    { returnDocument: "after", runValidators: true }
+  ).lean();
+  owner.teacherAccessExpiresAt = endsAt;
+  owner.tokenVersion = (Number(owner.tokenVersion) || 0) + 1;
+  await owner.save();
+
+  await Promise.all([
+    AdminTodo.updateMany(
+      {
+        sourceId: academy._id,
+        sourceType: /^AcademyContractExpiry-/,
+        status: "pending",
+      },
+      {
+        $set: {
+          status: "completed",
+          completedAt: now,
+          completedBy: adminUserId,
+        },
+      }
+    ),
+    logAction({
+      adminUserId,
+      targetUserId: owner._id,
+      action: "academy.contract-update",
+      detail: `${academy.name} 계약 만료일 변경`,
+      academy,
+      metadata: {
+        previousContractEndsAt: academy.contractEndsAt || null,
+        nextContractEndsAt: endsAt,
+        previousStatus: academy.status,
+        nextStatus: updated.status,
+      },
+    }),
+  ]);
+  return updated;
+}
+
 async function assertActiveTeacher(userId) {
-  const user = await User.findById(userId).select("role isActive accountStatus").lean();
-  if (!user || user.role !== "teacher" || user.isActive === false || user.accountStatus === "withdrawn") {
+  const user = await User.findById(userId)
+    .select("role isActive accountStatus teacherAccessExpiresAt")
+    .lean();
+  const expiry = user?.teacherAccessExpiresAt
+    ? new Date(user.teacherAccessExpiresAt)
+    : null;
+  if (
+    !user ||
+    user.role !== "teacher" ||
+    user.isActive === false ||
+    user.accountStatus === "withdrawn" ||
+    (expiry && expiry.getTime() <= Date.now())
+  ) {
     throw statusError(409, "대상 계정이 현재 활성 교사 계정이 아닙니다.");
   }
   return user;
@@ -1018,5 +1124,6 @@ module.exports = {
   updateAdminAcademyInvite,
   updateAdminAcademyMembership,
   updateAdminAcademyProfile,
+  updateAdminAcademyContract,
   updateAdminAcademyStaff,
 };

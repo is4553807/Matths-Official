@@ -12,6 +12,7 @@ const {
   getUniversitySelectData,
 } = require("../services/universityService");
 const {
+  KOREAN_ONLY_PAGE_PATHS,
   injectLocalization,
   supportsLocalization,
 } = require("../middleware/localizationMiddleware");
@@ -74,6 +75,11 @@ assert.match(localized, /data-locale="en"/);
     `Localization should be enabled for ${pathName}`
   );
 });
+assert.deepEqual(
+  [...KOREAN_ONLY_PAGE_PATHS].sort(),
+  ["/", "/main"],
+  "메인 화면의 영어 버전이 다시 활성화되면 안 됩니다."
+);
 [
   "/",
   "/register",

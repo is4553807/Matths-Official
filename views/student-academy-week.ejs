@@ -31,12 +31,15 @@
     <a class="skip-link" href="#student-academy-main">본문으로 바로가기</a>
     <div class="dashboard-shell">
       <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
-      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
-        <div class="sidebar-top"><%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 학습 홈", className: "brand", tone: "light" }) %><button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button></div>
-        <%- include("partials/dashboard-navigation", { activePage: "my-academy" }) %>
-        <div class="sidebar-spacer"></div>
-        <div class="sidebar-profile"><a class="profile-avatar profile-avatar-image" href="/profile" aria-label="<%= displayName %>님의 프로필 설정"><img src="<%= arenaProfileAvatar.imageSrc %>" alt="" aria-hidden="true" /></a><div class="profile-copy"><strong><%= displayName %>님</strong><small><%= gradeLabel %></small></div><form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form></div>
-      </aside>
+      <%- include("partials/dashboard-sidebar", {
+  activePage: "my-academy",
+  profileName: displayName,
+  profileSubtitle: gradeLabel,
+  profileAvatarClass: "profile-avatar profile-avatar-image",
+  profileImageSrc: arenaProfileAvatar.imageSrc,
+  navigationUser: user,
+  academyMembershipAvailable: true,
+}) %>
 
       <main class="dashboard-main student-academy-main" id="student-academy-main">
         <header class="topbar student-academy-topbar"><div class="topbar-left"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button><div><p><%= academy.name %> · <%= academyClass.name %></p><h1><%= week.weekNumber %>주차</h1></div></div><a class="learning-home-button" href="/my-academy">주차 목록 <span aria-hidden="true">→</span></a></header>

@@ -362,6 +362,17 @@ const userSchema = new Schema(
       default: "student",
     },
 
+    /*
+     * 운영자가 교사 역할을 부여할 때 함께 정하는 계약상 학원 기능 만료 시각입니다.
+     * 역할 자체와 분리해 기록하므로 계약 종료 뒤에도 감사 이력은 보존하면서
+     * 학원 화면 접근만 즉시 차단할 수 있습니다.
+     */
+    teacherAccessExpiresAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
     isTestAccount: {
       type: Boolean,
       default: false,

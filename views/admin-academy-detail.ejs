@@ -2,7 +2,7 @@
   const academy = detail.academy;
   const statistics = detail.statistics;
   const mathMap = detail.mathMap || { overallMastery: null, analyzedConceptCount: 0, totalStudents: 0, concepts: [], graphVersion: "—", modelVersion: "—" };
-  const statusLabels = { PENDING: "승인 대기", ACTIVE: "운영 중", PAUSED: "운영 중지", REJECTED: "승인 거절" };
+  const statusLabels = { PENDING: "승인 대기", ACTIVE: "운영 중", PAUSED: "운영 중지", REJECTED: "승인 거절", ARCHIVED: "계약 종료 보관" };
   const staffRoleLabels = { OWNER: "원장", TEACHER: "교사" };
   const staffStatusLabels = { PENDING: "승인 대기", ACTIVE: "활성", REJECTED: "승인 거절", REVOKED: "소속 해제" };
   const studentStatusLabels = { PENDING: "승인 대기", APPROVED: "소속 승인", REJECTED: "승인 거절", LEFT: "소속 해제" };
@@ -28,6 +28,9 @@
   const attendanceSourceLabels = { MANUAL: "선생님", SELF_CODE: "학생 코드", AUTO_ABSENT: "자동 결석", ADMIN: "운영자", SEED: "더미" };
   const sessionStateLabels = { SCHEDULED: "예정", OPEN: "출석 가능", CLOSED: "마감", CANCELED: "취소" };
   const todayKst = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const dateInputValue = (date) => date
+    ? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(date))
+    : "";
   const scheduleLabel = (academyClass) => {
     const schedule = academyClass.schedule || {};
     if (!schedule.weekdays?.length || !schedule.startTime || !schedule.endTime) return "일정 미설정";
@@ -66,7 +69,7 @@
           <div><p>SUPER ADMIN · FULL ACCESS</p><h1><%= academy.name %></h1><b class="admin-academy-status is-<%= String(academy.status).toLowerCase() %>"><%= statusLabels[academy.status] || academy.status %></b></div>
         </div>
         <nav aria-label="학원 상세 영역">
-          <a href="#academy-control">기본·운영</a><a href="#academy-statistics">평균·Math Map</a><a href="#academy-staff">선생님</a><a href="#academy-students">학생</a><a href="#academy-classes">반</a><a href="#academy-classwork">주차·과제</a><a href="#academy-attendance">출결</a><a href="#academy-invites">초대</a>
+          <a href="#academy-control">기본·운영</a><a href="#academy-contract">계약·플랜</a><a href="#academy-statistics">평균·Math Map</a><a href="#academy-staff">선생님</a><a href="#academy-students">학생</a><a href="#academy-classes">반</a><a href="#academy-classwork">주차·과제</a><a href="#academy-attendance">출결</a><a href="#academy-invites">초대</a>
         </nav>
       </header>
 
@@ -105,7 +108,8 @@
                 <form action="/admin/academies/<%= academy._id %>/profile" method="POST"><input type="hidden" name="action" value="PAUSE" /><button class="is-danger" type="submit">학원 운영 중지</button></form>
               <% } else if (academy.status === "PAUSED") { %>
                 <form action="/admin/academies/<%= academy._id %>/profile" method="POST"><input type="hidden" name="action" value="ACTIVATE" /><button type="submit">학원 운영 재개</button></form>
-              <% } else { %><form action="/admin/academies/<%= academy._id %>/profile" method="POST"><input type="hidden" name="action" value="REOPEN" /><button type="submit">재검토 대기로 복구</button></form><span>원장이 다른 학원에 연결되어 있으면 복구되지 않습니다.</span><% } %>
+              <% } else if (academy.status === "REJECTED") { %><form action="/admin/academies/<%= academy._id %>/profile" method="POST"><input type="hidden" name="action" value="REOPEN" /><button type="submit">재검토 대기로 복구</button></form><span>원장이 다른 학원에 연결되어 있으면 복구되지 않습니다.</span>
+              <% } else if (academy.status === "ARCHIVED") { %><span class="admin-academy-archive-notice">계약이 종료되어 운영자 전용으로 보관 중입니다. 아래 계약 만료일을 갱신하면 기존 데이터 그대로 복구됩니다.</span><% } %>
             </div>
             <form class="admin-academy-owner-transfer" action="/admin/academies/<%= academy._id %>/owner" method="POST">
               <label><span>원장 권한 이전</span><select name="newOwnerStaffId" required><option value="">새 원장 선택</option><% ownerCandidates.forEach((staff) => { %><option value="<%= staff._id %>"><%= personName(staff.userId) %> · <%= staff.userId.email %></option><% }) %></select></label>
@@ -122,6 +126,25 @@
             <div><dt>검토자</dt><dd><%= personName(academy.reviewedByUserId) %><small><%= academy.reviewedByUserId?.email || "—" %></small></dd></div>
             <div><dt>최종 검토</dt><dd><%= formatDateTime(academy.reviewedAt) %><small>승인 <%= formatDateTime(academy.approvedAt) %> · 거절 <%= formatDateTime(academy.rejectedAt) %></small></dd></div>
             <div><dt>마지막 수정</dt><dd><%= formatDateTime(academy.updatedAt) %></dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="admin-panel" id="academy-contract">
+        <header class="admin-panel-heading"><div><p>ACADEMY CONTRACT</p><h2>계약 기간·학원 플랜</h2></div><span class="admin-academy-critical-note">만료 2주 전 자동 알림 · 만료 시 운영자 전용 보관</span></header>
+        <div class="admin-academy-control-grid">
+          <form class="admin-form" action="/admin/academies/<%= academy._id %>/contract" method="POST">
+            <h3>계약 만료일 변경</h3>
+            <p>원장 교사 권한의 유효기간도 같은 날짜로 갱신됩니다. 만료된 학원은 계약 갱신 시 기존 데이터 그대로 복구됩니다.</p>
+            <label><span>계약 만료일</span><input type="date" name="contractEndsAt" value="<%= dateInputValue(academy.contractEndsAt) %>" required /></label>
+            <button type="submit">계약 기간 저장</button>
+          </form>
+          <dl class="admin-academy-meta">
+            <div><dt>계약 시작</dt><dd><%= formatDateTime(academy.contractStartsAt) %></dd></div>
+            <div><dt>계약 만료</dt><dd><%= formatDateTime(academy.contractEndsAt) %></dd></div>
+            <div><dt>학원 플랜</dt><dd>학원 플랜<small>주간 공식 모의고사 자동 포함</small></dd></div>
+            <div><dt>사전 안내</dt><dd><%= formatDateTime(academy.contractReminderSentAt) %><small>계약 만료 14일 이내 원장 이메일·운영자 할 일 생성</small></dd></div>
+            <div><dt>보관 일시</dt><dd><%= formatDateTime(academy.archivedAt) %><small><%= academy.archiveReason === "CONTRACT_EXPIRED" ? "계약 기간 만료" : academy.archiveReason === "TEACHER_ACCESS_REVOKED" ? "원장 교사 권한 해제" : "활성 계약" %></small></dd></div>
           </dl>
         </div>
       </section>

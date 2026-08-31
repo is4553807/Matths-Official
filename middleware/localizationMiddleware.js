@@ -5,6 +5,9 @@ const {
 
 const LANGUAGE_COOKIE = "matths_language";
 const LANGUAGE_COOKIE_MAX_AGE = 365 * 24 * 60 * 60 * 1000;
+// 공개 메인과 로그인 후 학습 홈은 한국어 단일 버전이다. 영어 사전이 커져도
+// 이 두 화면에 언어 스위처나 번역 런타임을 다시 붙이지 않는다.
+const KOREAN_ONLY_PAGE_PATHS = new Set(["/", "/main"]);
 const LOCALIZED_PAGE_PATHS = new Set([
   "/visual-learning",
   "/learning-flow",
@@ -161,6 +164,7 @@ function localizationMiddleware(req, res, next) {
 }
 
 module.exports = {
+  KOREAN_ONLY_PAGE_PATHS,
   LANGUAGE_COOKIE,
   LOCALIZED_PAGE_PATHS,
   injectLocalization,

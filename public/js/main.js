@@ -316,7 +316,6 @@
     );
 
     if (!stage || !image) return;
-    if (stage.dataset.characterStatic === "true") return;
 
     const characterTone =
       stage.dataset.characterTone === "spicy" ? "spicy" : "mild";

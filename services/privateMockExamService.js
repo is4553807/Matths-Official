@@ -4483,13 +4483,17 @@ async function getPrivateMockEligibility(
     status:
       packageAccess.packageType === "MOCK_EXAM_ONLY"
         ? "mock-exam-only-ready"
-        : "ready",
+        : packageAccess.packageType === "ACADEMY_PLAN"
+          ? "academy-plan-ready"
+          : "ready",
     title:
       "Matths 주간 공식 모의고사 응시 가능",
     message:
       packageAccess.packageType === "MOCK_EXAM_ONLY"
         ? "배치고사로 최초 티어가 확정되었습니다. GOAT Arena 경기를 이용하지 않아도 매주 공식 모의고사 정산을 통해 티어 승급에 도전할 수 있습니다."
-        : "배치고사와 초기 GP 확정이 완료되었습니다. 매주 공식 모의고사 정산에서도 티어 승급에 도전할 수 있습니다.",
+        : packageAccess.packageType === "ACADEMY_PLAN"
+          ? "학원 플랜에 주간 공식 모의고사가 포함되어 있습니다. 배치고사로 최초 티어를 확정한 뒤 매주 모의고사 정산으로 승급에 도전할 수 있습니다."
+          : "배치고사와 초기 GP 확정이 완료되었습니다. 매주 공식 모의고사 정산에서도 티어 승급에 도전할 수 있습니다.",
     ctaLabel:
       "Matths 주간 공식 모의고사 입장",
     ctaHref:

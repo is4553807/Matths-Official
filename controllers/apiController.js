@@ -57,6 +57,7 @@ const {
   synchronizeAccountAccess,
 } = require("../services/accountAccessService");
 const {
+  normalizeRetentionChoice,
   withdrawOwnAccount,
 } = require("../services/accountDeletionService");
 const {
@@ -78,6 +79,16 @@ const {
 } = require(
   "../services/socialAuthService"
 );
+const AppleAuthCredential = require("../models/appleAuthCredentialModel");
+const {
+  verifyAppleIdentityToken,
+} = require("../services/appleAuthService");
+const {
+  REAUTHENTICATION_TTL_MS,
+  assertCodeChallenge,
+  consumeSocialProof,
+  issueStartTicket,
+} = require("../services/accountReauthenticationService");
 const {
   ArenaAccessState,
 } = require("../models/goatArenaModel");
@@ -976,10 +987,61 @@ exports.withdrawMe = async (
   next
 ) => {
   try {
+    // 1회용 소셜 proof를 잘못된 확인 문구 때문에 먼저 소모하지 않는다.
+    if (String(req.body?.confirmation || "").trim() !== "탈퇴") {
+      return res.status(400).json({
+        code: "ACCOUNT_WITHDRAWAL_CONFIRMATION_REQUIRED",
+        message: "확인란에 ‘탈퇴’를 정확히 입력해주세요.",
+      });
+    }
+    if (!normalizeRetentionChoice(req.body?.acknowledgeAnonymousRetention)) {
+      return res.status(400).json({
+        code: "ACCOUNT_WITHDRAWAL_RETENTION_ACK_REQUIRED",
+        message: "익명 학습 데이터 보존 안내를 확인해주세요.",
+      });
+    }
+
+    let reauthenticated = false;
+
+    if (req.body?.reauthenticationProof || req.body?.codeVerifier) {
+      const reauthenticationProvider = String(
+        req.body?.reauthenticationProvider || "google"
+      ).toLowerCase();
+      reauthenticated = await consumeSocialProof({
+        proof: req.body?.reauthenticationProof,
+        codeVerifier: req.body?.codeVerifier,
+        userId: req.apiUser._id,
+        provider: reauthenticationProvider,
+      });
+      if (!reauthenticated) {
+        return res.status(401).json({
+          code: "ACCOUNT_REAUTHENTICATION_INVALID",
+          message: "소셜 계정 본인 확인이 만료되었거나 올바르지 않습니다. 다시 확인해주세요.",
+        });
+      }
+    } else if (req.body?.appleIdentityToken || req.body?.appleNonce) {
+      const claims = await verifyAppleIdentityToken({
+        identityToken: req.body?.appleIdentityToken,
+        nonce: req.body?.appleNonce,
+      });
+      const credential = await AppleAuthCredential.findOne({
+        appleSubject: claims.subject,
+        userId: req.apiUser._id,
+      }).select("+appleSubject");
+      if (!credential) {
+        return res.status(403).json({
+          code: "ACCOUNT_REAUTHENTICATION_ACCOUNT_MISMATCH",
+          message: "현재 Matths 계정에 연결된 Apple 계정으로 확인해주세요.",
+        });
+      }
+      reauthenticated = true;
+    }
+
     await withdrawOwnAccount({
       userId: req.apiUser._id,
       password:
         req.body.password,
+      reauthenticated,
       confirmation:
         req.body.confirmation,
       acknowledgeAnonymousRetention:
@@ -997,6 +1059,99 @@ exports.withdrawMe = async (
     return next(error);
   }
 };
+
+exports.withdrawalOptions = async (req, res, next) => {
+  try {
+    const [user, appleCredential] = await Promise.all([
+      User.findById(req.apiUser._id).select(
+        "+socialAuth.googleId +socialAuth.kakaoId"
+      ),
+      AppleAuthCredential.exists({ userId: req.apiUser._id }),
+    ]);
+    if (!user) {
+      return res.status(404).json({
+        code: "USER_NOT_FOUND",
+        message: "사용자 정보를 찾을 수 없습니다.",
+      });
+    }
+    const providers = publicProviderStatus();
+    const googleConfigured = providers.some(
+      (provider) => provider.key === "google" && provider.configured === true
+    );
+    const appleConfigured = providers.some(
+      (provider) => provider.key === "apple" && provider.configured === true
+    );
+    res.set("Cache-Control", "private, no-store");
+    return res.json({
+      passwordAccepted: true,
+      googleReauthentication: {
+        linked: Boolean(user.socialAuth?.googleId),
+        available: Boolean(user.socialAuth?.googleId) && googleConfigured,
+      },
+      kakaoReauthentication: {
+        linked: Boolean(user.socialAuth?.kakaoId),
+        available:
+          Boolean(user.socialAuth?.kakaoId) &&
+          providers.some(
+            (provider) => provider.key === "kakao" && provider.configured === true
+          ),
+      },
+      appleReauthentication: {
+        linked: Boolean(appleCredential),
+        available: Boolean(appleCredential) && appleConfigured,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+async function startSocialWithdrawalReauthentication(req, res, next, provider) {
+  try {
+    const codeChallenge = assertCodeChallenge(req.body?.codeChallenge);
+    const user = await User.findById(req.apiUser._id).select(
+      `+socialAuth.${provider}Id`
+    );
+    if (!user?.socialAuth?.[`${provider}Id`]) {
+      return res.status(409).json({
+        code: "ACCOUNT_REAUTHENTICATION_NOT_LINKED",
+        message: `현재 계정에 연결된 ${provider === "kakao" ? "카카오" : "Google"} 계정이 없습니다.`,
+      });
+    }
+    const configured = publicProviderStatus().some(
+      (entry) => entry.key === provider && entry.configured === true
+    );
+    if (!configured) {
+      return res.status(503).json({
+        code: "SOCIAL_AUTH_NOT_CONFIGURED",
+        message: `${provider === "kakao" ? "카카오" : "Google"} 본인 확인이 아직 설정되지 않았습니다.`,
+      });
+    }
+    const ticket = issueStartTicket({
+      userId: user._id,
+      codeChallenge,
+      provider,
+    });
+    const authorizationUrl = new URL(
+      `/auth/${provider}/reauth`,
+      `${req.protocol}://${req.get("host")}`
+    );
+    authorizationUrl.searchParams.set("ticket", ticket);
+    res.set("Cache-Control", "private, no-store");
+    return res.json({
+      authorizationUrl: authorizationUrl.toString(),
+      expiresAt: new Date(Date.now() + REAUTHENTICATION_TTL_MS).toISOString(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+exports.startGoogleWithdrawalReauthentication = (req, res, next) =>
+  startSocialWithdrawalReauthentication(req, res, next, "google");
+
+exports.startKakaoWithdrawalReauthentication = (req, res, next) =>
+  startSocialWithdrawalReauthentication(req, res, next, "kakao");
 
 exports.curriculum = (
   req,

@@ -20,6 +20,15 @@
           timeStyle: "short",
         }).format(new Date(date))
       : "기록 없음";
+  const formatDateInput = (date) =>
+    date
+      ? new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Seoul",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date(date))
+      : "";
   const inquiryStatusLabels = {
     pending: "접수",
     in_review: "확인 중",
@@ -375,15 +384,16 @@
             <button type="submit" <%= !member.isActive ? "disabled" : "" %>>재설정 이메일 보내기</button>
           </form>
           <% if (String(member._id) !== String(user.id)) { %>
-            <form class="admin-form" action="/admin/users/<%= member._id %>/role" method="POST">
+            <form class="admin-form" action="/admin/users/<%= member._id %>/role" method="POST" data-role-form>
               <h3>역할 변경</h3>
               <label><span>역할</span>
-                <select name="role">
+                <select name="role" data-role-select>
                   <% Object.entries(roleLabels).filter(([value]) => value !== "test").forEach(([value, label]) => { %>
                     <option value="<%= value %>" <%= member.role === value ? "selected" : "" %>><%= label %></option>
                   <% }) %>
                 </select>
               </label>
+              <label data-teacher-expiry-field <%- member.role === "teacher" ? "" : "hidden" %>><span>학원 기능 유효기간</span><input type="date" name="teacherAccessExpiresAt" value="<%= formatDateInput(member.teacherAccessExpiresAt) %>" data-teacher-expiry-input /><small>선택한 날짜의 23:59(KST)까지 이용하며, 만료 2주 전에 원장과 운영자에게 알립니다.</small></label>
               <label><span>변경 사유</span><input name="reason" maxlength="300" required /></label>
               <button type="submit">역할 변경</button>
             </form>

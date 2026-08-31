@@ -42,6 +42,9 @@ const {
 const {
   localizationMiddleware,
 } = require("../middleware/localizationMiddleware");
+const {
+  getCoachView,
+} = require("../services/coachMessageService");
 
 const app = express();
 const root = path.resolve(__dirname, "..");
@@ -233,8 +236,15 @@ app.get("/preview/my-learning", (_req, res) => {
   });
 });
 
-app.get("/preview/main-dashboard", (_req, res) => {
+app.get("/preview/main-dashboard", (req, res) => {
   const now = new Date("2026-08-30T10:05:00.000Z");
+  const previewCoachMode =
+    req.query.coachMode === "spicy" ? "spicy" : "mild";
+  const previewCoach = getCoachView({
+    mode: previewCoachMode,
+    situation: "study_prompt",
+    seed: `dashboard-preview:${previewCoachMode}`,
+  });
   const previewUser = {
     id: "64b000000000000000000711",
     name: "hong-gildong",
@@ -257,7 +267,7 @@ app.get("/preview/main-dashboard", (_req, res) => {
     onboardingTutorial: { status: "NOT_REQUIRED", shouldAutoStart: false },
     dashboardData: {
       user: previewUser,
-      completedConcepts: 24,
+      completedConcepts: req.query.completedConcepts === "0" ? 0 : 24,
       notifications: [
         {
           title: "오늘의 학원 수업",
@@ -307,11 +317,7 @@ app.get("/preview/main-dashboard", (_req, res) => {
           checkInClosesAt: new Date("2026-08-30T12:10:00.000Z"),
         },
       },
-      coach: {
-        mode: "mild",
-        label: "순한맛",
-        message: "어제보다 20분 더 집중했어요. 오늘은 오답 노트 5문제만 정리하면 이번 주 목표에 딱 도착합니다. 천천히, 그러나 확실하게 가볼까요?",
-      },
+      coach: previewCoach,
       activePlan: {
         code: "LEARNING_PACKAGE",
         name: "프리미엄 학습권",

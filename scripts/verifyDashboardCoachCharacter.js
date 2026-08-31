@@ -9,6 +9,18 @@ const root = path.resolve(__dirname, "..");
 const view = fs.readFileSync(path.join(root, "views/main.ejs"), "utf8");
 const script = fs.readFileSync(path.join(root, "public/js/main.js"), "utf8");
 const styles = fs.readFileSync(path.join(root, "public/css/main.css"), "utf8");
+const dashboardStyles = fs.readFileSync(
+  path.join(root, "public/css/main-dashboard-v0.css"),
+  "utf8"
+);
+const dashboardService = fs.readFileSync(
+  path.join(root, "services/dashboardService.js"),
+  "utf8"
+);
+const coachService = fs.readFileSync(
+  path.join(root, "services/coachMessageService.js"),
+  "utf8"
+);
 const learningView = fs.readFileSync(
   path.join(root, "views/partials/concept-experience.ejs"),
   "utf8"
@@ -48,6 +60,16 @@ async function main() {
     /data-dashboard-coach-character-image/,
     "대시보드 코치 캐릭터 이미지 훅이 필요합니다."
   );
+  assert.doesNotMatch(
+    view,
+    /data-character-static|\/images\/dashboard\/coach-mascot\.png/,
+    "학습 홈에서 맛별 캐릭터 로직을 막는 정적 대체 이미지를 사용하면 안 됩니다."
+  );
+  assert.match(
+    view,
+    /\/images\/coach-characters\/<%= data\.coach\.mode === 'spicy' \? 'spicy' : 'mild' %>-goat-1\.webp/,
+    "첫 화면부터 사용자 말투에 맞는 캐릭터 자산을 사용해야 합니다."
+  );
   assert.match(
     script,
     /Math\.floor\(Math\.random\(\) \* coachCharacters\.length\)/,
@@ -77,6 +99,54 @@ async function main() {
     styles,
     /\.dashboard-coach-character\s*\{/,
     "캐릭터 스테이지 스타일이 필요합니다."
+  );
+  const dashboardCharacterRule = dashboardStyles.match(
+    /\.dashboard-home \.dashboard-coach-character\s*\{([\s\S]*?)\}/
+  )?.[1] || "";
+  assert.match(
+    dashboardCharacterRule,
+    /overflow:\s*visible/,
+    "학습 홈 캐릭터는 카드 밖으로 자연스럽게 돌출될 수 있어야 합니다."
+  );
+  assert.match(
+    dashboardCharacterRule,
+    /background:\s*transparent/,
+    "학습 홈 캐릭터에 별도 배경 프레임을 넣으면 안 됩니다."
+  );
+  assert.doesNotMatch(
+    dashboardCharacterRule,
+    /brand-soft/,
+    "학습 홈 캐릭터에 색상 프레임을 넣으면 안 됩니다."
+  );
+  assert.match(
+    dashboardCharacterRule,
+    /border-radius:\s*0(?:;|\s|$)/,
+    "학습 홈 캐릭터에 둥근 사각형 프레임을 넣으면 안 됩니다."
+  );
+  assert.match(
+    dashboardStyles,
+    /\.dashboard-home \.dashboard-coach-character img\s*\{[\s\S]*?drop-shadow/,
+    "투명 캐릭터에는 입체감을 위한 그림자가 필요합니다."
+  );
+  assert.match(
+    coachService,
+    /content_folder[\s\S]*coach-messages\.yaml[\s\S]*yaml\.load/,
+    "코치 문구 서비스는 YAML 원본을 읽어야 합니다."
+  );
+  assert.match(
+    dashboardService,
+    /getCoachView\(\{[\s\S]*?situation:\s*coachSituation[\s\S]*?random:\s*true/,
+    "학습 홈 문구는 코치 문구 서비스에서 무작위로 받아야 합니다."
+  );
+  assert.match(
+    view,
+    /<%= data\.coach\.message %>/,
+    "학습 홈은 서비스가 전달한 코치 문구를 렌더링해야 합니다."
+  );
+  assert.doesNotMatch(
+    `${view}\n${dashboardService}`,
+    /공식만 외우면 숫자가 바뀌는 순간 막힙니다\.|또 화면만 켜놓고 공부한 척이냐/,
+    "실제 학습 홈 경로에 코치 문구를 하드코딩하면 안 됩니다."
   );
   assert.match(
     learningView,

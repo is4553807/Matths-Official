@@ -92,11 +92,10 @@ function publicProviderStatus() {
   });
 
   /*
-   * 애플은 PROVIDERS 에 넣지 않는다. 여기 있는 항목은 전부 "브라우저 왕복 +
-   * client_id/secret/redirect_uri" 를 전제로 하는데(providerConfig·beginSocialAuthorization),
-   * 애플 로그인은 앱의 네이티브 시트가 준 identityToken 을 서버가 검증하는 방식이라
-   * 그 셋 중 무엇도 쓰지 않는다. 같은 표에 넣으면 없는 웹 왕복 설정을 요구하게 되고
-   * configured 가 영원히 false 가 된다. 목록에만 합류시킨다.
+   * 애플은 네이티브 identityToken 교환과 웹 form_post 왕복을 같은 서비스에서
+   * 제공하지만, Google/Kakao의 providerConfig 계약과 환경변수 모양이 다르다.
+   * 따라서 PROVIDERS에는 섞지 않고 네이티브 configured와 웹 webConfigured를
+   * appleProviderStatus에서 따로 노출한다.
    */
   return [
     ...oauthProviders,
@@ -146,6 +145,12 @@ function beginSocialAuthorization(
           codeChallenge: String(
             context.codeChallenge || ""
           ),
+          ...(context.purpose === "account-withdrawal" && context.userId
+            ? {
+                purpose: "account-withdrawal",
+                userId: String(context.userId),
+              }
+            : {}),
         }
       : { mobile: false };
   req.session.socialOAuthState = {

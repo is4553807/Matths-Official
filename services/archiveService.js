@@ -84,7 +84,7 @@ function archivePackageAccessAllows(packageAccess, requiredAccessLevel) {
   if (
     requirement === ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE &&
     packageAccess?.active === true &&
-    ["MOCK_EXAM_ONLY", "LEARNING_PACKAGE", "SUPER_ADMIN"].includes(packageType)
+    ["MOCK_EXAM_ONLY", "ACADEMY_PLAN", "LEARNING_PACKAGE", "SUPER_ADMIN"].includes(packageType)
   ) {
     return true;
   }
@@ -98,7 +98,7 @@ function archivePackageAccessAllows(packageAccess, requiredAccessLevel) {
 function archiveAccessDeniedMessage(requiredAccessLevel, action = "볼") {
   const requirement = normalizeArchiveAccessLevel(requiredAccessLevel);
   if (requirement === ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE) {
-    return `이 자료는 Matths 주간 공식 모의고사 이용권 또는 29일 학습권 패키지를 이용 중인 회원만 ${action} 수 있습니다.`;
+    return `이 자료는 학원 플랜, Matths 주간 공식 모의고사 이용권 또는 29일 학습권 패키지를 이용 중인 회원만 ${action} 수 있습니다.`;
   }
   return `이 자료는 활성 29일 학습권 패키지(GOAT Arena 포함)를 이용 중인 회원만 ${action} 수 있습니다.`;
 }

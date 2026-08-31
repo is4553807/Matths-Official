@@ -365,6 +365,15 @@ function line(result) {
     "봉인한 값은 그대로 복원되어야 한다"
   );
 
+  console.log("[9] 웹 Services ID audience 검증");
+  appleAuth._testing.resetJwksCache();
+  jwk.kid = "test-kid";
+  r = await attempt("web-audience", {
+    identityToken: makeToken({ claims: { aud: "kr.matths.web" } }),
+    nonce: RAW_NONCE,
+  });
+  expect(r.ok, "Services ID audience로 서명된 웹 identity token도 검증해야 한다");
+
   console.log(
     failures === 0 ? "\n결과: 전부 기대대로" : `\n결과: ${failures}건 기대 어긋남`
   );

@@ -49,9 +49,11 @@ function isApiRequest(req) {
 }
 
 function isAppleOAuthCallback(req) {
+  const pathname = String(req.path || req.originalUrl || req.url || "")
+    .split("?")[0];
   return (
     String(req.method || "").toUpperCase() === "POST" &&
-    String(req.path || "") === "/auth/apple/callback" &&
+    pathname === "/auth/apple/callback" &&
     String(req.get?.("content-type") || "")
       .toLowerCase()
       .startsWith("application/x-www-form-urlencoded")

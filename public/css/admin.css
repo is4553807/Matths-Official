@@ -8274,12 +8274,21 @@
 }
 
 .admin-academy-status.is-paused,
+.admin-academy-status.is-archived,
 .admin-academy-status.is-revoked,
 .admin-academy-status.is-left,
 .admin-academy-status.is-exhausted,
 .admin-academy-status.is-expired {
   color: #596176;
   background: #eceff5;
+}
+
+.admin-academy-archive-notice {
+  max-width: 440px;
+  color: #596176;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.6;
 }
 
 .admin-academy-status.is-rejected {

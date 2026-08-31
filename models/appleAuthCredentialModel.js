@@ -46,7 +46,6 @@ const appleAuthCredentialSchema =
         type: Date,
         default: null,
       },
-
       /*
        * authorization code 를 발급한 client_id 입니다. 네이티브 앱은 Bundle ID,
        * 웹은 Services ID 를 사용합니다. 둘을 구분하지 않으면 웹 로그인을 켠 순간
