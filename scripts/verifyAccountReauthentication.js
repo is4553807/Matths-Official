@@ -100,7 +100,10 @@ async function main() {
       await consumeSocialProof(
         {
           proof,
-          codeVerifier: `${verifier.slice(0, -1)}A`,
+          // verifier 마지막 글자가 이미 A이면 종전 변형은 원본과 같아져
+          // 1/64 확률로 정상 승인을 보안 실패로 오판했다. 반드시 다른 글자로
+          // 바꿔 출시 게이트가 무작위로 실패하지 않게 한다.
+          codeVerifier: `${verifier.slice(0, -1)}${verifier.endsWith("A") ? "B" : "A"}`,
           userId: "64b000000000000000000001",
           provider: "google",
         },
