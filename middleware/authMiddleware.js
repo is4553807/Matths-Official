@@ -7,8 +7,8 @@ const {
     synchronizeAccountAccess,
 } = require("../services/accountAccessService");
 const {
-    AcademyStudentMembership,
-} = require("../models/academyModel");
+    getActiveAcademyPlan,
+} = require("../services/academyPlanService");
 
 function isAdminSessionUser(user) {
     return user?.role === "admin";
@@ -90,20 +90,9 @@ exports.isLoggedIn = async (req, res, next) => {
 
             let academyMembershipAvailable = false;
             if (["student", "test"].includes(account.role)) {
-                const academyMembership =
-                    await AcademyStudentMembership.findOne({
-                        studentUserId: account._id,
-                        status: "APPROVED",
-                    })
-                        .select("academyId")
-                        .populate({
-                            path: "academyId",
-                            match: { status: "ACTIVE" },
-                            select: "_id",
-                        })
-                        .lean();
-                academyMembershipAvailable =
-                    Boolean(academyMembership?.academyId);
+                const academyPlan =
+                    await getActiveAcademyPlan(account._id);
+                academyMembershipAvailable = academyPlan.active;
             }
             req.session.user.hasAcademyMembership =
                 academyMembershipAvailable;
@@ -207,12 +196,20 @@ exports.isAdmin = (
 };
 
 exports.isTeacher = (req, res, next) => {
-    if (isTeacherSessionUser(req.session?.user)) {
+    const account = req.authenticatedUser;
+    const expiresAt = account?.teacherAccessExpiresAt
+        ? new Date(account.teacherAccessExpiresAt)
+        : null;
+    const accessActive =
+        !expiresAt || expiresAt.getTime() > Date.now();
+    if (isTeacherSessionUser(req.session?.user) && accessActive) {
         return next();
     }
 
     const error = new Error(
-        "학원 선생님 계정만 접근할 수 있습니다."
+        isTeacherSessionUser(req.session?.user) && !accessActive
+            ? "학원 기능 계약이 만료되었습니다. 운영자에게 계약 갱신을 요청해주세요."
+            : "학원 선생님 계정만 접근할 수 있습니다."
     );
     error.status = 403;
     error.code = "TEACHER_ACCESS_REQUIRED";

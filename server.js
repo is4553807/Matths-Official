@@ -213,7 +213,10 @@ server.use(session({
     }),
     cookie: {
         httpOnly: true,
-        sameSite: "lax",
+        // Apple 웹 로그인은 인증 결과를 cross-site form_post 로 돌려준다.
+        // 운영 HTTPS에서만 None을 사용하고, 모든 상태 변경 요청은 아래의
+        // sameOriginProtection + OAuth state 검증으로 계속 보호한다.
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         secure: process.env.NODE_ENV === "production",
         maxAge: sessionTtlSeconds * 1000,
     },
@@ -372,6 +375,11 @@ async function connectDB() {
             startAccessCycleExpiryReminderScheduler,
         } = require("./services/accessCycleExpiryReminderService");
         startAccessCycleExpiryReminderScheduler();
+
+        const {
+            startAcademyContractScheduler,
+        } = require("./services/academyContractService");
+        startAcademyContractScheduler();
 
         const {
             registerPolicyChangeOutboxHandler,

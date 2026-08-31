@@ -30,19 +30,12 @@
   <body>
     <div class="dashboard-shell">
       <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
-      <aside class="sidebar" id="dashboard-sidebar" aria-label="학습 메뉴">
-        <div class="sidebar-top">
-          <%- include("partials/matths-brand", { href: "/", ariaLabel: "Matths 메인", className: "brand", tone: "light" }) %>
-          <button class="sidebar-close" id="sidebar-close" type="button" aria-label="메뉴 닫기">×</button>
-        </div>
-        <%- include("partials/dashboard-navigation", { activePage: "war-of-masters" }) %>
-        <div class="sidebar-spacer"></div>
-        <div class="sidebar-profile">
-          <a class="profile-avatar" href="/profile" aria-label="<%= member.name %>님의 프로필 설정으로 이동"><%= String(member.name || "M").slice(0, 1) %></a>
-          <div class="profile-copy"><strong><%= member.name %>님</strong><small><%= member.email %></small></div>
-          <form action="/logout" method="POST"><button type="submit" aria-label="로그아웃">↗</button></form>
-        </div>
-      </aside>
+      <%- include("partials/dashboard-sidebar", {
+  activePage: "war-of-masters",
+  profileName: String(member.name || "학생"),
+  profileSubtitle: String(member.email || "GOAT Arena"),
+  navigationUser: member,
+}) %>
 
       <main class="dashboard-main restriction-main">
         <header class="topbar">

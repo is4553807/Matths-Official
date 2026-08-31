@@ -474,6 +474,12 @@ router.post(
   matthsController.adminUpdateAcademyProfile
 );
 router.post(
+  "/admin/academies/:academyId/contract",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminUpdateAcademyContract
+);
+router.post(
   "/admin/academies/:academyId/profile-image",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
@@ -1514,6 +1520,16 @@ router.post(
   loginIpRateLimit,
   loginRateLimit,
   matthsController.login
+);
+
+router.get(
+  "/auth/apple",
+  authMiddleware.isLoggedOut,
+  matthsController.appleWebOAuthStart
+);
+router.post(
+  "/auth/apple/callback",
+  matthsController.appleWebOAuthCallback
 );
 
 // iPad ASWebAuthenticationSession의 공개 PKCE 진입점. API Bearer 경계와

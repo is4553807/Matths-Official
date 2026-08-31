@@ -205,9 +205,18 @@ async function ensureAcademyIndexes() {
 
 async function assertTeacherAccount(teacherUserId) {
   const teacher = await User.findById(teacherUserId)
-    .select("role isActive accountStatus")
+    .select("role isActive accountStatus teacherAccessExpiresAt")
     .lean();
-  if (!teacher || teacher.role !== "teacher" || teacher.isActive === false || teacher.accountStatus === "withdrawn") {
+  const expiry = teacher?.teacherAccessExpiresAt
+    ? new Date(teacher.teacherAccessExpiresAt)
+    : null;
+  if (
+    !teacher ||
+    teacher.role !== "teacher" ||
+    teacher.isActive === false ||
+    teacher.accountStatus === "withdrawn" ||
+    (expiry && expiry.getTime() <= Date.now())
+  ) {
     throw statusError(403, "운영자가 교사로 전환한 활성 계정만 학원에 연결할 수 있습니다.");
   }
   return teacher;
@@ -246,12 +255,18 @@ async function createAcademyForTeacher({ teacherUserId, name }) {
     throw statusError(400, "학원 이름은 2자 이상 80자 이하로 입력해주세요.");
   }
 
-  const [, existingStaff] = await Promise.all([
+  const [teacher, existingStaff] = await Promise.all([
     assertTeacherAccount(teacherUserId),
     AcademyStaff.findOne({ userId: teacherUserId, status: { $in: ["PENDING", "ACTIVE"] } })
       .populate("academyId", "name status")
       .lean(),
   ]);
+  if (!teacher.teacherAccessExpiresAt) {
+    throw statusError(
+      409,
+      "운영자가 교사 계정의 학원 기능 유효기간을 설정한 뒤 학원을 만들 수 있습니다."
+    );
+  }
   if (existingStaff) {
     const message = existingStaff.status === "PENDING"
       ? "기존 학원 참여 승인을 기다리고 있습니다."
@@ -266,6 +281,10 @@ async function createAcademyForTeacher({ teacherUserId, name }) {
     nameNormalized: academyName.toLocaleLowerCase("ko-KR"),
     status: "PENDING",
     createdByUserId: teacherUserId,
+    contractStartsAt: new Date(),
+    contractEndsAt: teacher.teacherAccessExpiresAt,
+    planCode: "ACADEMY_MOCK_INCLUDED",
+    includesMockExam: true,
   });
 
   try {
@@ -315,7 +334,7 @@ async function approveAcademyApplication({ adminUserId, academyId }) {
   await assertAdminAccount(adminUserId);
   if (!mongoose.isValidObjectId(academyId)) throw statusError(404, "학원 등록 요청을 찾을 수 없습니다.");
   const application = await Academy.findById(academyId)
-    .select("status createdByUserId")
+    .select("status createdByUserId contractEndsAt")
     .lean();
   if (!application) throw statusError(404, "학원 등록 요청을 찾을 수 없습니다.");
   if (application.status !== "PENDING") throw statusError(409, "이미 처리된 학원 등록 요청입니다.");
@@ -326,6 +345,12 @@ async function approveAcademyApplication({ adminUserId, academyId }) {
       throw statusError(409, "신청자의 교사 역할 또는 계정 상태를 다시 확인해 주세요.");
     }
     throw error;
+  }
+  if (
+    !application.contractEndsAt ||
+    new Date(application.contractEndsAt).getTime() <= Date.now()
+  ) {
+    throw statusError(409, "신청자의 학원 기능 계약이 만료되었습니다. 교사 유효기간을 갱신한 뒤 승인해 주세요.");
   }
   const now = new Date();
   const academy = await Academy.findOneAndUpdate(

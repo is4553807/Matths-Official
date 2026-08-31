@@ -31,6 +31,7 @@ const APPLE_ISSUER = "https://appleid.apple.com";
 const APPLE_JWKS_URL = `${APPLE_ISSUER}/auth/keys`;
 const APPLE_TOKEN_URL = `${APPLE_ISSUER}/auth/token`;
 const APPLE_REVOKE_URL = `${APPLE_ISSUER}/auth/revoke`;
+const APPLE_WEB_STATE_MAX_AGE_MS = 10 * 60 * 1000;
 
 /*
  * 사용자 문서에 애플 식별자를 남기는 경로입니다. 구글(socialAuth.googleId)과 같은
@@ -74,22 +75,38 @@ function appleLoginConfig() {
    * 그 순서가 최악입니다 — 학생이 Face ID 까지 통과한 **뒤에** 교환에서 실패합니다.
    * 그래서 운영자가 값을 넣기 전까지는 꺼진 상태로 둡니다.
    */
-  const audiences = envValue("APPLE_BUNDLE_ID")
-    .split(",")
+  const audiences = [
+    ...envValue("APPLE_BUNDLE_ID").split(","),
+    envValue("APPLE_SERVICES_ID"),
+  ]
     .map((value) => value.trim())
     .filter(Boolean);
-  return { audiences };
+  return { audiences: [...new Set(audiences)] };
+}
+
+function appleWebConfig() {
+  const privateKey = envValue("APPLE_PRIVATE_KEY").replace(/\\n/g, "\n");
+  return {
+    clientId: envValue("APPLE_SERVICES_ID"),
+    redirectUri: envValue("APPLE_REDIRECT_URI"),
+    teamId: envValue("APPLE_TEAM_ID"),
+    keyId: envValue("APPLE_KEY_ID"),
+    privateKey,
+  };
 }
 
 function appleRevokeConfig() {
-  const bundleIds = appleLoginConfig().audiences;
+  const bundleIds = envValue("APPLE_BUNDLE_ID")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
   /*
    * 폐기 대상 client_id 는 **그 토큰을 발급한 주체**여야 합니다. 우리 코드는
    * 네이티브 앱이 받아 온 것이므로 기본값은 번들 ID 이고, 웹(Services ID)으로
    * 발급한 코드까지 폐기해야 할 때만 APPLE_SERVICES_ID 가 앞섭니다.
    */
   const clientId =
-    envValue("APPLE_SERVICES_ID") || bundleIds[0] || "";
+    bundleIds[0] || envValue("APPLE_SERVICES_ID") || "";
   const privateKey = envValue("APPLE_PRIVATE_KEY").replace(
     /\\n/g,
     "\n"
@@ -103,7 +120,21 @@ function appleRevokeConfig() {
 }
 
 function isAppleLoginConfigured() {
-  return appleLoginConfig().audiences.length > 0;
+  return envValue("APPLE_BUNDLE_ID")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean).length > 0;
+}
+
+function isAppleWebLoginConfigured() {
+  const config = appleWebConfig();
+  return Boolean(
+    config.clientId &&
+      config.redirectUri &&
+      config.teamId &&
+      config.keyId &&
+      config.privateKey
+  );
 }
 
 function isAppleRevokeConfigured() {
@@ -126,6 +157,7 @@ function appleProviderStatus() {
     key: "apple",
     label: "Apple",
     configured: isAppleLoginConfigured(),
+    webConfigured: isAppleWebLoginConfigured(),
     revocable: isAppleRevokeConfigured(),
   };
 }
@@ -227,6 +259,65 @@ function safeEqual(left, right) {
     leftBuffer.length === rightBuffer.length &&
     crypto.timingSafeEqual(leftBuffer, rightBuffer)
   );
+}
+
+function beginAppleWebAuthorization(req) {
+  const config = appleWebConfig();
+  if (!isAppleWebLoginConfigured()) {
+    throw statusError(
+      503,
+      "Apple 로그인이 아직 설정되지 않았습니다.",
+      "SOCIAL_AUTH_NOT_CONFIGURED"
+    );
+  }
+  const state = crypto.randomBytes(32).toString("base64url");
+  const nonce = crypto.randomBytes(32).toString("base64url");
+  req.session.appleWebOAuthState = {
+    state,
+    nonce,
+    createdAt: Date.now(),
+  };
+  const url = new URL(`${APPLE_ISSUER}/auth/authorize`);
+  url.searchParams.set("client_id", config.clientId);
+  url.searchParams.set("redirect_uri", config.redirectUri);
+  url.searchParams.set("response_type", "code id_token");
+  url.searchParams.set("response_mode", "form_post");
+  url.searchParams.set("scope", "name email");
+  url.searchParams.set("state", state);
+  url.searchParams.set("nonce", sha256Hex(nonce));
+  return url.toString();
+}
+
+function consumeAppleWebState(req, state) {
+  const saved = req.session?.appleWebOAuthState;
+  if (req.session) delete req.session.appleWebOAuthState;
+  const valid =
+    saved &&
+    Date.now() - Number(saved.createdAt || 0) <= APPLE_WEB_STATE_MAX_AGE_MS &&
+    safeEqual(saved.state, state);
+  if (!valid) {
+    throw statusError(
+      400,
+      "Apple 로그인 요청이 만료되었거나 올바르지 않습니다. 다시 시도해주세요.",
+      "SOCIAL_AUTH_STATE_INVALID"
+    );
+  }
+  return saved;
+}
+
+function appleFullName(value) {
+  if (!value) return "";
+  let parsed = value;
+  if (typeof value === "string") {
+    try {
+      parsed = JSON.parse(value);
+    } catch (_error) {
+      return "";
+    }
+  }
+  const firstName = String(parsed?.name?.firstName || "").trim();
+  const lastName = String(parsed?.name?.lastName || "").trim();
+  return [firstName, lastName].filter(Boolean).join(" ").slice(0, 40);
 }
 
 /*
@@ -689,20 +780,26 @@ function appleClientSecret(config, now = Date.now()) {
 
 async function exchangeAuthorizationCode(
   authorizationCode,
-  { fetchImpl = fetch } = {}
+  { fetchImpl = fetch, clientId = "", redirectUri = "" } = {}
 ) {
-  const config = appleRevokeConfig();
+  const baseConfig = appleRevokeConfig();
+  const config = {
+    ...baseConfig,
+    clientId: String(clientId || baseConfig.clientId).trim(),
+  };
+  const requestBody = new URLSearchParams({
+    grant_type: "authorization_code",
+    code: String(authorizationCode),
+    client_id: config.clientId,
+    client_secret: appleClientSecret(config),
+  });
+  if (redirectUri) requestBody.set("redirect_uri", String(redirectUri));
   const response = await fetchImpl(APPLE_TOKEN_URL, {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded;charset=utf-8",
     },
-    body: new URLSearchParams({
-      grant_type: "authorization_code",
-      code: String(authorizationCode),
-      client_id: config.clientId,
-      client_secret: appleClientSecret(config),
-    }),
+    body: requestBody,
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok || !body?.refresh_token) {
@@ -721,7 +818,7 @@ async function exchangeAuthorizationCode(
  * 폐기 설정이 없는 배포에서는 교환을 건너뛰고 코드만 남깁니다(로그인은 계속 된다).
  */
 async function rememberAppleAuthorization(
-  { userId, subject, authorizationCode },
+  { userId, subject, authorizationCode, clientId = "", redirectUri = "" },
   { fetchImpl = fetch } = {}
 ) {
   const code = String(authorizationCode || "").trim();
@@ -731,6 +828,7 @@ async function rememberAppleAuthorization(
     userId,
     authorizationCode: seal(code),
     authorizationCodeIssuedAt: new Date(),
+    appleClientId: clientId || appleRevokeConfig().clientId,
   };
 
   let exchanged = false;
@@ -738,6 +836,8 @@ async function rememberAppleAuthorization(
     try {
       const { refreshToken } = await exchangeAuthorizationCode(code, {
         fetchImpl,
+        clientId,
+        redirectUri,
       });
       if (refreshToken) {
         update.refreshToken = seal(refreshToken);
@@ -770,7 +870,12 @@ async function exchangeAppleIdentity(
   // 클레임에서만 온다(linkAppleIdentity 주석 참조 — 계정 탈취 경로였다).
   // 앱이 보내더라도 여기서 버려진다.
   { identityToken, authorizationCode, nonce, fullName } = {},
-  { fetchImpl = fetch, now = Date.now() } = {}
+  {
+    fetchImpl = fetch,
+    now = Date.now(),
+    clientId = "",
+    redirectUri = "",
+  } = {}
 ) {
   const claims = await verifyAppleIdentityToken(
     { identityToken, nonce },
@@ -787,6 +892,8 @@ async function exchangeAppleIdentity(
         userId: user._id,
         subject: claims.subject,
         authorizationCode,
+        clientId,
+        redirectUri,
       },
       { fetchImpl }
     );
@@ -801,6 +908,47 @@ async function exchangeAppleIdentity(
   return { user, created, claims };
 }
 
+async function completeAppleWebAuthorization(
+  req,
+  { code, id_token: identityToken, state, user, error } = {},
+  { fetchImpl = fetch, now = Date.now() } = {}
+) {
+  const saved = consumeAppleWebState(req, state);
+  if (error) {
+    throw statusError(
+      400,
+      error === "user_cancelled_authorize"
+        ? "Apple 로그인이 취소되었습니다."
+        : "Apple 로그인을 완료하지 못했습니다.",
+      error === "user_cancelled_authorize"
+        ? "SOCIAL_AUTH_CANCELLED"
+        : "SOCIAL_AUTH_PROVIDER_ERROR"
+    );
+  }
+  if (!code || !identityToken) {
+    throw statusError(
+      400,
+      "Apple 로그인 응답을 확인하지 못했습니다. 다시 시도해주세요.",
+      "APPLE_AUTH_RESPONSE_INCOMPLETE"
+    );
+  }
+  const config = appleWebConfig();
+  return exchangeAppleIdentity(
+    {
+      identityToken,
+      authorizationCode: code,
+      nonce: saved.nonce,
+      fullName: appleFullName(user),
+    },
+    {
+      fetchImpl,
+      now,
+      clientId: config.clientId,
+      redirectUri: config.redirectUri,
+    }
+  );
+}
+
 /*
  * 탈퇴 시 애플 토큰 폐기. **심사 요구사항**이라 탈퇴 흐름에서 반드시 불려야 합니다
  * (services/accountDeletionService.js 의 withdrawUserAccount 진입부 — 사용자 문서를
@@ -812,7 +960,7 @@ async function exchangeAppleIdentity(
 async function revokeAppleTokens(userId, { fetchImpl = fetch } = {}) {
   try {
     const credential = await AppleAuthCredential.findOne({ userId })
-      .select("+appleSubject +refreshToken +authorizationCode");
+      .select("+appleSubject +refreshToken +authorizationCode +appleClientId");
     if (!credential) return { revoked: false, reason: "NO_CREDENTIAL" };
     if (credential.revokedAt) {
       return { revoked: true, reason: "ALREADY_REVOKED" };
@@ -842,14 +990,25 @@ async function revokeAppleTokens(userId, { fetchImpl = fetch } = {}) {
       // 5분이 지났으면 실패하지만, 가입 직후 탈퇴 같은 경우는 이쪽으로 살아난다.
       const code = open(credential.authorizationCode);
       if (!code) return noteFailure("NO_TOKEN");
-      const exchange = await exchangeAuthorizationCode(code, { fetchImpl });
+      const exchange = await exchangeAuthorizationCode(code, {
+        fetchImpl,
+        clientId: credential.appleClientId || "",
+        redirectUri:
+          credential.appleClientId === envValue("APPLE_SERVICES_ID")
+            ? envValue("APPLE_REDIRECT_URI")
+            : "",
+      });
       if (!exchange.refreshToken) {
         return noteFailure(`CODE_EXCHANGE_FAILED:${exchange.error}`);
       }
       token = exchange.refreshToken;
     }
 
-    const config = appleRevokeConfig();
+    const config = {
+      ...appleRevokeConfig(),
+      clientId:
+        credential.appleClientId || appleRevokeConfig().clientId,
+    };
     const response = await fetchImpl(APPLE_REVOKE_URL, {
       method: "POST",
       headers: {
@@ -905,14 +1064,20 @@ async function forgetAppleCredential(userId) {
 module.exports = {
   APPLE_ID_PATH,
   appleProviderStatus,
+  beginAppleWebAuthorization,
+  completeAppleWebAuthorization,
   exchangeAppleIdentity,
   forgetAppleCredential,
   isAppleLoginConfigured,
+  isAppleWebLoginConfigured,
   isAppleRevokeConfigured,
   revokeAppleTokens,
   verifyAppleIdentityToken,
   _testing: {
     APPLE_JWKS_URL,
+    APPLE_TOKEN_URL,
+    appleFullName,
+    appleWebConfig,
     appleClientSecret,
     linkAppleIdentity,
     placeholderEmail,

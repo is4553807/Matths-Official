@@ -77,7 +77,7 @@
           <div class="pricing-actions">
             <% if (user) { %>
               <% if (!mockAccess.purchaseAllowed) { %>
-                <span class="pricing-entitlement-status"><%= mockAccess.includedByLearningPackage ? "학습권 패키지에 포함 · 이용 중" : "모의고사 이용권 사용 중" %></span>
+                <span class="pricing-entitlement-status"><%= mockAccess.includedByLearningPackage ? "학습권 패키지에 포함 · 이용 중" : (mockAccess.includedByAcademyPlan ? "학원 플랜에 포함 · 이용 중" : "모의고사 이용권 사용 중") %></span>
                 <a class="pricing-primary" href="<%= mockAccess.continueHref %>"><%= mockAccess.continueLabel %></a>
               <% } else if (checkoutEnabled) { %>
                 <a class="pricing-primary" href="/pricing/mock-exam-only/self">본인 결제</a>

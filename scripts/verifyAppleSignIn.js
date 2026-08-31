@@ -332,6 +332,54 @@ function line(result) {
     "봉인한 값은 그대로 복원되어야 한다"
   );
 
+  console.log("[9] 웹 Sign in with Apple 시작 URL과 form_post state");
+  process.env.APPLE_SERVICES_ID = "kr.matths.web";
+  process.env.APPLE_REDIRECT_URI = "https://www.matths.kr/auth/apple/callback";
+  expect(appleAuth.isAppleWebLoginConfigured(), "Services ID와 키가 있으면 웹 Apple 로그인이 켜져야 한다");
+  const webRequest = { session: {} };
+  const webAuthorization = new URL(
+    appleAuth.beginAppleWebAuthorization(webRequest)
+  );
+  console.log(
+    `  client_id=${webAuthorization.searchParams.get("client_id")} response_mode=${webAuthorization.searchParams.get("response_mode")}`
+  );
+  expect(webAuthorization.origin === "https://appleid.apple.com", "Apple 공식 authorize 호스트를 사용해야 한다");
+  expect(webAuthorization.searchParams.get("client_id") === "kr.matths.web", "웹 Services ID를 사용해야 한다");
+  expect(webAuthorization.searchParams.get("response_mode") === "form_post", "웹 결과는 form_post로 받아야 한다");
+  expect(webAuthorization.searchParams.get("state") === webRequest.session.appleWebOAuthState.state, "세션 state와 요청 state가 같아야 한다");
+  expect(webAuthorization.searchParams.get("nonce") === appleAuth._testing.sha256Hex(webRequest.session.appleWebOAuthState.nonce), "원본 nonce 대신 해시를 Apple에 보내야 한다");
+
+  let cancelError = null;
+  try {
+    await appleAuth.completeAppleWebAuthorization(webRequest, {
+      state: webRequest.session.appleWebOAuthState.state,
+      error: "user_cancelled_authorize",
+    });
+  } catch (error) {
+    cancelError = error;
+  }
+  expect(cancelError?.code === "SOCIAL_AUTH_CANCELLED", "사용자 취소를 안전한 로그인 취소로 처리해야 한다");
+  expect(!webRequest.session.appleWebOAuthState, "form_post state는 한 번 소비한 뒤 세션에서 제거해야 한다");
+
+  let replayError = null;
+  try {
+    await appleAuth.completeAppleWebAuthorization(webRequest, {
+      state: webAuthorization.searchParams.get("state"),
+      error: "user_cancelled_authorize",
+    });
+  } catch (error) {
+    replayError = error;
+  }
+  expect(replayError?.code === "SOCIAL_AUTH_STATE_INVALID", "소비한 Apple state 재사용은 거부해야 한다");
+
+  appleAuth._testing.resetJwksCache();
+  jwk.kid = "test-kid";
+  r = await attempt("web-audience", {
+    identityToken: makeToken({ claims: { aud: "kr.matths.web" } }),
+    nonce: RAW_NONCE,
+  });
+  expect(r.ok, "Services ID audience로 서명된 웹 identity token도 검증해야 한다");
+
   console.log(
     failures === 0 ? "\n결과: 전부 기대대로" : `\n결과: ${failures}건 기대 어긋남`
   );

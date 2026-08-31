@@ -1,5 +1,5 @@
 <%
-  const statusLabels = { PENDING: "승인 대기", ACTIVE: "운영 중", PAUSED: "운영 중지", REJECTED: "승인 거절" };
+  const statusLabels = { PENDING: "승인 대기", ACTIVE: "운영 중", PAUSED: "운영 중지", REJECTED: "승인 거절", ARCHIVED: "계약 종료 보관" };
   const formatDate = (date) => date
     ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium" }).format(new Date(date))
     : "—";
@@ -51,7 +51,7 @@
 
       <nav class="admin-academy-status-tabs" aria-label="학원 상태 필터">
         <a class="<%= academyData.filters.status === 'ALL' ? 'active' : '' %>" href="/admin/academies">전체 <b><%= totalAcademies %></b></a>
-        <% ["PENDING", "ACTIVE", "PAUSED", "REJECTED"].forEach((status) => { %>
+        <% ["PENDING", "ACTIVE", "PAUSED", "REJECTED", "ARCHIVED"].forEach((status) => { %>
           <a class="<%= academyData.filters.status === status ? 'active' : '' %>" href="/admin/academies?status=<%= status %>"><%= statusLabels[status] %> <b><%= academyData.statusCounts[status] || 0 %></b></a>
         <% }) %>
       </nav>
@@ -61,7 +61,7 @@
         <label><span>운영 상태</span>
           <select name="status">
             <option value="ALL">전체 상태</option>
-            <% ["PENDING", "ACTIVE", "PAUSED", "REJECTED"].forEach((status) => { %>
+            <% ["PENDING", "ACTIVE", "PAUSED", "REJECTED", "ARCHIVED"].forEach((status) => { %>
               <option value="<%= status %>" <%= academyData.filters.status === status ? "selected" : "" %>><%= statusLabels[status] %></option>
             <% }) %>
           </select>
@@ -71,7 +71,7 @@
 
       <section class="admin-academy-list" aria-label="학원 목록">
         <div class="admin-academy-list-row head">
-          <span>학원·생성자</span><span>상태</span><span>선생님</span><span>학생</span><span>반</span><span>등록일</span><span>관리</span>
+          <span>학원·생성자</span><span>상태</span><span>선생님</span><span>학생</span><span>반</span><span>계약 기간</span><span>관리</span>
         </div>
         <% if (!academyData.academies.length) { %><div class="admin-empty">조건에 맞는 학원이 없습니다.</div><% } %>
         <% academyData.academies.forEach((academy) => { const creator = academy.createdByUserId || {}; %>
@@ -84,7 +84,7 @@
             <span><strong><%= academy.counts.activeStaff %>명</strong><small>대기 <%= academy.counts.pendingStaff %>명</small></span>
             <span><strong><%= academy.counts.approvedStudents %>명</strong><small>대기 <%= academy.counts.pendingStudents %>명</small></span>
             <span><strong><%= academy.counts.activeClasses %>개</strong><small>활성 반</small></span>
-            <span><%= formatDate(academy.createdAt) %></span>
+            <span><strong><%= formatDate(academy.contractEndsAt) %></strong><small>등록 <%= formatDate(academy.createdAt) %></small></span>
             <div class="admin-academy-list-actions">
               <% if (academy.status === "PENDING") { %>
                 <form action="/admin/academies/<%= academy._id %>/approve" method="POST"><input type="hidden" name="returnTo" value="<%= currentListReturn %>academyApproved" /><button type="submit">승인</button></form>

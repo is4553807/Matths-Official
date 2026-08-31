@@ -9,6 +9,7 @@ const {
   ensureDefaultMockExamPackagePolicy,
 } = require("./mockExamPackageService");
 const { getPaidPackageAccess } = require("./paidFeatureAccessService");
+const { getActiveAcademyPlan } = require("./academyPlanService");
 
 const PRODUCT_CODE = "MOCK_EXAM_ONLY";
 const PRODUCT_NAME = "Matths 주간 공식 모의고사 이용권";
@@ -199,7 +200,7 @@ async function assertMockExamPurchaseEligible({
   userId,
   now = new Date(),
 }) {
-  const [activeSubscription, learningPackage] = await Promise.all([
+  const [activeSubscription, learningPackage, academyPlan] = await Promise.all([
     MockExamSubscription.findOne({
       userId,
       status: "ACTIVE",
@@ -209,12 +210,20 @@ async function assertMockExamPurchaseEligible({
       .select("endsAt")
       .lean(),
     getPaidPackageAccess(userId),
+    getActiveAcademyPlan(userId, { now }),
   ]);
   if (learningPackage.active) {
     throw statusError(
       409,
       "현재 학습권 패키지에 주간 공식 모의고사가 포함되어 있습니다.",
       "LEARNING_PACKAGE_ALREADY_INCLUDES_MOCK"
+    );
+  }
+  if (academyPlan.active && academyPlan.includesMockExam) {
+    throw statusError(
+      409,
+      "현재 학원 플랜에 주간 공식 모의고사가 포함되어 있습니다.",
+      "ACADEMY_PLAN_ALREADY_INCLUDES_MOCK"
     );
   }
   if (activeSubscription) {
@@ -242,7 +251,13 @@ async function applyApprovedMockExamPayment(input) {
         result = transactionReplay;
         return;
       }
-      const [user, policy, activeSubscription, learningPackage] = await Promise.all([
+      const [
+        user,
+        policy,
+        activeSubscription,
+        learningPackage,
+        academyPlan,
+      ] = await Promise.all([
         User.findById(approval.userId)
           .select("accountStatus isActive")
           .session(session)
@@ -255,6 +270,10 @@ async function applyApprovedMockExamPayment(input) {
           .session(session)
           .lean(),
         getPaidPackageAccess(approval.userId, { session }),
+        getActiveAcademyPlan(approval.userId, {
+          now: approval.approvedAt,
+          session,
+        }),
       ]);
       if (!user || user.accountStatus !== "active" || user.isActive === false) {
         throw statusError(403, "활성 상태인 계정만 이용권을 구매할 수 있습니다.", "ACCOUNT_NOT_ACTIVE");
@@ -267,6 +286,13 @@ async function applyApprovedMockExamPayment(input) {
           409,
           "현재 학습권 패키지에 주간 공식 모의고사가 포함되어 있습니다.",
           "LEARNING_PACKAGE_ALREADY_INCLUDES_MOCK"
+        );
+      }
+      if (academyPlan.active && academyPlan.includesMockExam) {
+        throw statusError(
+          409,
+          "현재 학원 플랜에 주간 공식 모의고사가 포함되어 있습니다.",
+          "ACADEMY_PLAN_ALREADY_INCLUDES_MOCK"
         );
       }
       if (

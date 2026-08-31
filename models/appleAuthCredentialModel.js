@@ -46,6 +46,12 @@ const appleAuthCredentialSchema =
         type: Date,
         default: null,
       },
+      appleClientId: {
+        type: String,
+        trim: true,
+        default: null,
+        select: false,
+      },
 
       refreshToken: {
         type: String,

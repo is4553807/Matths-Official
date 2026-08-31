@@ -54,7 +54,8 @@
       icon: dashboardNavIcon("book"),
       label: "내 학습",
       badge:
-        Number.isFinite(completedConceptCount)
+        Number.isFinite(completedConceptCount) &&
+        completedConceptCount > 0
           ? completedConceptCount
           : null,
     },
@@ -135,9 +136,6 @@
     });
   }
 %>
-<link rel="stylesheet" href="/css/matths-theme.css?v=<%= dashboardAssetVersion %>" />
-<link rel="stylesheet" href="/css/contrast.css?v=<%= dashboardAssetVersion %>" />
-
 <nav class="side-nav" aria-label="대시보드 메뉴" data-tutorial-target="dashboard-navigation">
   <p>LEARNING</p>
   <% dashboardNavigationItems.forEach((item) => { %>

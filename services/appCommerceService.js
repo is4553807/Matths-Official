@@ -71,6 +71,11 @@ async function getAppStorefront(userId, {
       packageType: access.packageType || null,
       learningPackageActive: access.learningPackage?.active === true,
       mockExamPackageActive: access.mockExamOnlyPackage?.active === true,
+      academyPlanActive: access.academyPlan?.active === true,
+      academyMockIncluded:
+        access.academyPlan?.active === true &&
+        access.academyPlan?.includesMockExam === true,
+      academyPlanEndsAt: access.academyPlan?.endsAt || null,
       arenaAllowed: access.arenaAllowed === true,
       rankedShopAvailable:
         access.learningPackage?.active === true &&
@@ -86,7 +91,10 @@ async function getAppStorefront(userId, {
       features: PRODUCT_FEATURES[product.code] || [],
       current:
         (product.code === "LEARNING_PACKAGE_29" && access.learningPackage?.active === true) ||
-        (product.code === "MOCK_EXAM_ONLY" && access.mockExamOnlyPackage?.active === true),
+        (product.code === "MOCK_EXAM_ONLY" &&
+          (access.mockExamOnlyPackage?.active === true ||
+            (access.academyPlan?.active === true &&
+              access.academyPlan?.includesMockExam === true))),
     })),
   };
 }

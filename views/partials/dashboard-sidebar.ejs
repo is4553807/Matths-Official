@@ -1,0 +1,131 @@
+<%
+  const sidebarAssetVersion = encodeURIComponent(
+    typeof assetVersion === "string" && assetVersion
+      ? assetVersion
+      : "dev"
+  );
+  const sidebarActivePage =
+    typeof activePage === "string" ? activePage : "";
+  const sidebarNavigationData =
+    typeof navigationData !== "undefined" && navigationData
+      ? navigationData
+      : typeof data !== "undefined" && data
+        ? data
+        : {};
+  const sidebarNavigationStats =
+    typeof navigationStats !== "undefined" && navigationStats
+      ? navigationStats
+      : typeof stats !== "undefined" && stats
+        ? stats
+        : {};
+  const sidebarNavigationUser =
+    typeof navigationUser !== "undefined" && navigationUser
+      ? navigationUser
+      : typeof user !== "undefined" && user
+        ? user
+        : null;
+  const sidebarAcademyMembershipAvailable =
+    typeof academyMembershipAvailable !== "undefined"
+      ? academyMembershipAvailable === true
+      : sidebarNavigationUser?.hasAcademyMembership === true;
+  const sidebarProfileName = String(
+    typeof profileName === "string" && profileName.trim()
+      ? profileName.trim()
+      : sidebarNavigationUser?.realName ||
+        sidebarNavigationUser?.name ||
+        "학생"
+  );
+  const sidebarProfileSubtitle = String(
+    typeof profileSubtitle === "string" && profileSubtitle.trim()
+      ? profileSubtitle.trim()
+      : "학생"
+  );
+  const sidebarProfileImageSrc =
+    typeof profileImageSrc === "string" && profileImageSrc.trim()
+      ? profileImageSrc.trim()
+      : "";
+  const sidebarProfileLevelNumber = Number(
+    typeof profileLevel !== "undefined" ? profileLevel : NaN
+  );
+  const sidebarHasProfileLevel =
+    Number.isFinite(sidebarProfileLevelNumber) &&
+    sidebarProfileLevelNumber > 0;
+  const sidebarProfileAvatarClass = [
+    "profile-avatar",
+    sidebarProfileImageSrc ? "profile-avatar-image" : "",
+    sidebarHasProfileLevel ? "profile-avatar-with-level" : "",
+    typeof profileAvatarClass === "string" ? profileAvatarClass : "",
+  ].filter(Boolean).join(" ");
+  const sidebarShowLogout =
+    typeof showLogout === "undefined" ? true : Boolean(showLogout);
+%>
+<link rel="stylesheet" href="/css/matths-theme.css?v=<%= sidebarAssetVersion %>" />
+<link rel="stylesheet" href="/css/contrast.css?v=<%= sidebarAssetVersion %>" />
+<link rel="stylesheet" href="/css/matths-logo.css?v=<%= sidebarAssetVersion %>" />
+<link rel="stylesheet" href="/css/dashboard-sidebar.css?v=<%= sidebarAssetVersion %>" />
+
+<aside
+  class="sidebar dashboard-sidebar-shared"
+  id="dashboard-sidebar"
+  aria-label="학습 메뉴"
+>
+  <div class="sidebar-top">
+    <%- include("matths-brand", {
+      href: "/",
+      ariaLabel: "Matths 학습 홈",
+      className: "dashboard-logo",
+      tone: "light",
+    }) %>
+    <button
+      class="sidebar-close"
+      id="sidebar-close"
+      type="button"
+      aria-label="메뉴 닫기"
+      title="메뉴 닫기"
+    >×</button>
+  </div>
+
+  <%- include("dashboard-navigation", {
+    activePage: sidebarActivePage,
+    data: sidebarNavigationData,
+    stats: sidebarNavigationStats,
+    user: sidebarNavigationUser,
+    academyMembershipAvailable: sidebarAcademyMembershipAvailable,
+  }) %>
+
+  <div class="sidebar-spacer"></div>
+  <div class="sidebar-profile" data-tutorial-target="dashboard-profile">
+    <a
+      class="<%= sidebarProfileAvatarClass %>"
+      href="/profile"
+      aria-label="<%= sidebarProfileName %>님의 프로필 설정으로 이동"
+      title="프로필 설정"
+    >
+      <% if (sidebarProfileImageSrc) { %>
+        <img src="<%= sidebarProfileImageSrc %>" alt="" aria-hidden="true" />
+      <% } else { %>
+        <span aria-hidden="true"><%= sidebarProfileName.slice(0, 1) %></span>
+      <% } %>
+      <% if (sidebarHasProfileLevel) { %>
+        <b aria-label="레벨 <%= sidebarProfileLevelNumber %>">
+          <small>Lv.</small><%= sidebarProfileLevelNumber %>
+        </b>
+      <% } %>
+    </a>
+    <div class="profile-copy">
+      <strong><%= sidebarProfileName %></strong>
+      <small><%= sidebarProfileSubtitle %></small>
+    </div>
+    <% if (sidebarShowLogout) { %>
+      <form action="/logout" method="POST">
+        <button type="submit" aria-label="로그아웃" title="로그아웃">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10 17l5-5-5-5" />
+            <path d="M15 12H3" />
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+          </svg>
+        </button>
+      </form>
+    <% } %>
+  </div>
+</aside>

@@ -273,6 +273,7 @@ async function main() {
         email: "academy-teacher@example.test",
         passwordHash: "not-used-in-verification",
         role: "teacher",
+        teacherAccessExpiresAt: new Date("2030-12-31T14:59:59.999Z"),
       },
       {
         name: "academy-second-teacher",
@@ -280,6 +281,7 @@ async function main() {
         email: "academy-second-teacher@example.test",
         passwordHash: "not-used-in-verification",
         role: "teacher",
+        teacherAccessExpiresAt: new Date("2030-12-31T14:59:59.999Z"),
       },
       {
         name: "academy-rejected-teacher",
@@ -287,6 +289,7 @@ async function main() {
         email: "academy-rejected-teacher@example.test",
         passwordHash: "not-used-in-verification",
         role: "teacher",
+        teacherAccessExpiresAt: new Date("2030-12-31T14:59:59.999Z"),
       },
       {
         name: "academy-student",
@@ -482,7 +485,7 @@ async function main() {
         conceptKeys: ["common-math-1/polynomials/not-in-yaml"],
         assignmentTitle: "검증 과제",
       }),
-      (error) => Number(error.status) === 400 && /YAML 교육과정/.test(error.message)
+      (error) => Number(error.status) === 400 && /교육과정/.test(error.message)
     );
     await assert.rejects(
       saveAcademyClassWeek({
@@ -1196,7 +1199,7 @@ async function main() {
     assert.match(classSettingsHtml, /반 종료·보관/);
     assert.match(classSettingsHtml, new RegExp(`/academy/classes/${academyClass._id}/archive`));
     assert.match(classworkHtml, /주차별 수업·과제/);
-    assert.match(classworkHtml, /YAML 교육과정/);
+    assert.match(classworkHtml, /현재 제공 중인 교육과정 개념/);
     assert.match(classworkHtml, /다항식 첫 수업/);
     assert.match(classworkHtml, /다항식의 사칙연산/);
     assert.match(classworkHtml, new RegExp(`editWeek=${publishedWeek._id}`));

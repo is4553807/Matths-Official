@@ -85,6 +85,20 @@ try {
   assert.equal(crossSite.status, 403);
   assert.equal(crossSite.code, "CROSS_SITE_REQUEST_BLOCKED");
 
+  assert.equal(
+    invoke(sameOriginProtection, request({
+      url: "/auth/apple/callback",
+      headers: { origin: "https://appleid.apple.com", "sec-fetch-site": "cross-site" },
+    })).error,
+    null,
+    "Apple의 정확한 form_post callback만 cross-site 예외여야 합니다."
+  );
+  const appleCallbackLookalike = invoke(sameOriginProtection, request({
+    url: "/auth/apple/callback/extra",
+    headers: { origin: "https://attacker.example", "sec-fetch-site": "cross-site" },
+  })).error;
+  assert.equal(appleCallbackLookalike.code, "CROSS_SITE_REQUEST_BLOCKED");
+
   const missingOrigin = invoke(sameOriginProtection, request()).error;
   assert.equal(missingOrigin.status, 403);
   assert.equal(missingOrigin.code, "REQUEST_ORIGIN_REQUIRED");

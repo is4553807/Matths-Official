@@ -18,6 +18,7 @@ const {
   getPackagePurchaseEligibilityForUser,
 } = require("./accessCycleService");
 const { getPaidPackageAccess } = require("./paidFeatureAccessService");
+const { getActiveAcademyPlan } = require("./academyPlanService");
 const {
   assertMockExamPurchaseEligible,
 } = require("./mockExamPaymentService");
@@ -111,11 +112,14 @@ async function getProduct(code) {
 function buildPricingProductAccess({
   paidPackageAccess = {},
   mockExamPackageAccess = {},
+  academyPlanAccess = {},
   learningPackageEligibility = { eligible: true, reasons: [] },
 } = {}) {
   const learningActive = paidPackageAccess.active === true;
+  const academyMockIncluded =
+    academyPlanAccess.active === true && academyPlanAccess.includesMockExam === true;
   const mockExamActive =
-    learningActive || mockExamPackageAccess.active === true;
+    learningActive || academyMockIncluded || mockExamPackageAccess.active === true;
   const learningPurchaseAllowed =
     !learningActive && learningPackageEligibility.eligible !== false;
 
@@ -124,6 +128,7 @@ function buildPricingProductAccess({
       active: mockExamActive,
       purchaseAllowed: !mockExamActive,
       includedByLearningPackage: learningActive,
+      includedByAcademyPlan: academyMockIncluded,
       continueHref: "/private-mock-exams",
       continueLabel: "주간 모의고사 계속하기",
     },
@@ -142,15 +147,22 @@ function buildPricingProductAccess({
 }
 
 async function getPricingProductAccess(userId, now = new Date()) {
-  const [paidPackageAccess, mockExamPackageAccess, learningPackageEligibility] =
+  const [
+    paidPackageAccess,
+    mockExamPackageAccess,
+    academyPlanAccess,
+    learningPackageEligibility,
+  ] =
     await Promise.all([
       getPaidPackageAccess(userId),
       getMockExamPackageAccess(userId, now),
+      getActiveAcademyPlan(userId, { now }),
       getPackagePurchaseEligibilityForUser({ userId }),
     ]);
   return buildPricingProductAccess({
     paidPackageAccess,
     mockExamPackageAccess,
+    academyPlanAccess,
     learningPackageEligibility,
   });
 }

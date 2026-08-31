@@ -790,6 +790,28 @@ select:focus-visible {
   flex: 0 0 auto;
 }
 
+.social-auth-button.is-apple {
+  color: #fff;
+  background: #000;
+  border-color: #000;
+}
+
+.social-auth-button.is-apple:hover {
+  background: #1b1b1d;
+  border-color: #1b1b1d;
+}
+
+.social-auth-apple-mark {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+}
+
 .social-auth-mark {
   width: 26px;
   height: 26px;

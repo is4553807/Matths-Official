@@ -230,6 +230,7 @@ const {
   updateAdminAcademyInvite,
   updateAdminAcademyMembership,
   updateAdminAcademyProfile,
+  updateAdminAcademyContract,
   updateAdminAcademyStaff,
 } = require("../services/adminAcademyService");
 const {
@@ -416,6 +417,10 @@ const {
   setPendingSocialRegistration,
   socialIdPath,
 } = require("../services/socialAuthService");
+const {
+  beginAppleWebAuthorization,
+  completeAppleWebAuthorization,
+} = require("../services/appleAuthService");
 const {
   issueMobileAuthGrant,
 } = require(
@@ -710,6 +715,37 @@ exports.socialOAuthStart = async (req, res) => {
       req.socialOAuthMobile === true,
       req.params.provider
     );
+  }
+};
+
+exports.appleWebOAuthStart = async (req, res) => {
+  try {
+    const authorizationUrl = beginAppleWebAuthorization(req);
+    await saveSession(req);
+    return res.redirect(authorizationUrl);
+  } catch (error) {
+    return redirectSocialAuthError(req, res, error, false, "apple");
+  }
+};
+
+exports.appleWebOAuthCallback = async (req, res) => {
+  try {
+    const completed = await completeAppleWebAuthorization(req, req.body);
+    const access = await synchronizeAccountAccess(completed.user._id);
+    if (!access?.allowed) {
+      const error = new Error(
+        accountBlockedMessage(access?.status, access?.user?.accountStatusReason)
+      );
+      error.code = "SOCIAL_AUTH_ACCOUNT_BLOCKED";
+      throw error;
+    }
+    const user = await synchronizeUserLifecycle(access.user._id);
+    user.lastLoginAt = new Date();
+    await user.save();
+    clearPendingSocialRegistration(req);
+    return finishSocialLogin(req, res, user, false, null, "apple");
+  } catch (error) {
+    return redirectSocialAuthError(req, res, error, false, "apple");
   }
 };
 
@@ -1938,6 +1974,7 @@ function adminAcademyFeedback(query) {
     ownerTransferred: "학원 원장 권한을 이전했습니다.",
     academyProfileImageUpdated: "학원 프로필 사진을 변경했습니다.",
     academyProfileImageRemoved: "학원 프로필 사진을 기본 이미지로 되돌렸습니다.",
+    academyContractUpdated: "학원 계약 만료일과 원장 교사 권한을 갱신했습니다.",
   };
   const error = String(query.error || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 240);
   return {
@@ -2042,6 +2079,30 @@ exports.adminUpdateAcademyProfile = async (req, res, next) => {
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-control");
+    }
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyContract = async (req, res, next) => {
+  try {
+    const academy = await updateAdminAcademyContract({
+      adminUserId: req.session.user.id,
+      academyId: req.params.academyId,
+      contractEndsAt: req.body.contractEndsAt,
+    });
+    return res.redirect(
+      303,
+      `/admin/academies/${academy._id}?done=academyContractUpdated#academy-contract`
+    );
+  } catch (error) {
+    if ([400, 403, 404, 409].includes(Number(error.status))) {
+      return adminAcademyErrorRedirect(
+        res,
+        req.params.academyId,
+        error,
+        "academy-contract"
+      );
     }
     return next(error);
   }
@@ -3893,6 +3954,8 @@ exports.adminUpdateUserRole =
         userId:
           req.params.userId,
         role: req.body.role,
+        teacherAccessExpiresAt:
+          req.body.teacherAccessExpiresAt,
         reason:
           req.body.reason,
       });

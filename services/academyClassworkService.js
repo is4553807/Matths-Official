@@ -111,7 +111,7 @@ function normalizeConceptSelection(values) {
   const { lookup } = curriculumConceptCatalog();
   return uniqueKeys.map((key) => {
     const concept = lookup.get(key);
-    if (!concept) throw statusError(400, "YAML 교육과정에 없거나 아직 제공되지 않는 개념이 포함되어 있습니다.");
+    if (!concept) throw statusError(400, "교육과정에 없거나 아직 제공되지 않는 개념이 포함되어 있습니다.");
     const { key: _key, ...snapshot } = concept;
     return snapshot;
   });

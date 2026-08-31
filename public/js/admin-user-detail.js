@@ -13,15 +13,35 @@
     });
   }
 
+  function initTeacherExpiryField() {
+    const form = document.querySelector("[data-role-form]");
+    const select = form?.querySelector("[data-role-select]");
+    const field = form?.querySelector("[data-teacher-expiry-field]");
+    const input = form?.querySelector("[data-teacher-expiry-input]");
+    if (!form || !select || !field || !input) return;
+    const synchronize = () => {
+      const teacherSelected = select.value === "teacher";
+      field.hidden = !teacherSelected;
+      input.required = teacherSelected;
+    };
+    select.addEventListener("change", synchronize);
+    synchronize();
+  }
+
+  function initPage() {
+    initAccountDeletionGuard();
+    initTeacherExpiryField();
+  }
+
   if (
     document.readyState === "loading"
   ) {
     document.addEventListener(
       "DOMContentLoaded",
-      initAccountDeletionGuard,
+      initPage,
       { once: true }
     );
   } else {
-    initAccountDeletionGuard();
+    initPage();
   }
 })();
