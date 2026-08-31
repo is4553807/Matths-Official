@@ -13,6 +13,7 @@ const tokenModel = {
   async createIndexes() {},
   findOne({ token }) {
     return {
+      select() { return this; },
       async lean() {
         return owners.get(token) || null;
       },
@@ -69,6 +70,17 @@ async function run() {
       proposedToken: tokenA,
     }),
     "APPLE_APP_ACCOUNT_OWNER_CONFLICT"
+  );
+
+  assert.equal(
+    await service.findAppleCommerceAccountTokenOwner(tokenA.toUpperCase()),
+    String(userA),
+    "Apple 서버 통지는 사전 귀속 UUID로 Matths 계정을 역조회해야 합니다."
+  );
+  assert.equal(
+    await service.findAppleCommerceAccountTokenOwner("not-a-uuid"),
+    null,
+    "잘못된 통지 UUID를 새 소유권으로 만들면 안 됩니다."
   );
 
   await expectCode(

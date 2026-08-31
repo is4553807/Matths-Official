@@ -106,9 +106,25 @@ async function assertAppleCommerceAccountTokenOwner({ userId, token }) {
   return normalized;
 }
 
+/**
+ * Apple 서버 통지는 Matths Bearer 없이 도착한다. 구매 전에 이미 귀속된 UUID만
+ * 역조회하며, 통지 값만 보고 새 소유자를 만들지는 않는다. 그러면 앱이 꺼진 동안
+ * SUBSCRIBED가 와도 원래 계정을 찾을 수 있고, 미등록 UUID를 공격자가 선점할 수 없다.
+ */
+async function findAppleCommerceAccountTokenOwner(token) {
+  const normalized = normalizeToken(token);
+  if (!normalized) return null;
+  await ensureIndexes();
+  const existing = await AppleCommerceAccountToken.findOne({ token: normalized })
+    .select("userId")
+    .lean();
+  return existing?.userId ? String(existing.userId) : null;
+}
+
 module.exports = {
   issueAppleCommerceAccountToken,
   assertAppleCommerceAccountTokenOwner,
+  findAppleCommerceAccountTokenOwner,
   _testing: {
     normalizeToken,
   },

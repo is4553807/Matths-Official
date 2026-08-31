@@ -154,6 +154,21 @@ function verifySubscriptionLifecyclePersistence() {
     "DID_RENEW가 최초 Apple 결제 원장을 찾지 않습니다"
   );
   assert.match(
+    apple,
+    /case\s+"SUBSCRIBED":[\s\S]*?case\s+"DID_RENEW":/,
+    "앱 종료 중 도착한 최초 SUBSCRIBED 통지를 처리하지 않습니다"
+  );
+  assert.match(
+    apple,
+    /findAppleCommerceAccountTokenOwner\([\s\S]*?transaction\.appAccountToken/,
+    "Apple 서버 통지가 구매 전 사전 귀속 계정을 역조회하지 않습니다"
+  );
+  assert.match(
+    apple,
+    /origin\?\.userId\s*\|\|\s*tokenOwnerId/,
+    "원거래가 없는 최초 결제를 appAccountToken 소유자에게 복구하지 않습니다"
+  );
+  assert.match(
     mock,
     /approval\.provider\s*===\s*"APPLE"[\s\S]*?new Date\(approval\.appleExpiresAt\)/,
     "모의고사 구독이 Apple의 실제 expiresDate 대신 고정 일수를 씁니다"

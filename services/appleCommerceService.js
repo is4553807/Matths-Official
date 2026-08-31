@@ -21,6 +21,7 @@ const {
 const {
   issueAppleCommerceAccountToken,
   assertAppleCommerceAccountTokenOwner,
+  findAppleCommerceAccountTokenOwner,
 } = require("./appleCommerceAccountTokenService");
 
 /**
@@ -424,8 +425,11 @@ async function handleAppleNotification(signedPayload) {
       return { handled: true, type, ...result };
     }
 
+    case "SUBSCRIBED":
     case "DID_RENEW": {
-      // 자동갱신. 새 거래가 생겼으므로 새 사이클을 연다. 사용자 식별은 원거래로 한다.
+      // 최초 결제 또는 자동갱신. 앱이 StoreKit 성공 직후 종료되어 redeem하지 못해도,
+      // 구매 시트 전에 저장한 appAccountToken 원장으로 원래 Matths 계정을 찾는다.
+      // 구버전 거래는 기존 원거래 userId를 그대로 쓴다.
       if (!transaction) return { handled: false, reason: "NO_TRANSACTION" };
       const origin = await ArenaPackagePayment.findOne({
         provider: "APPLE",
@@ -433,16 +437,38 @@ async function handleAppleNotification(signedPayload) {
       })
         .sort({ createdAt: -1 })
         .lean();
-      if (!origin) {
+      const tokenOwnerId = await findAppleCommerceAccountTokenOwner(
+        transaction.appAccountToken
+      );
+      if (origin && tokenOwnerId && String(origin.userId) !== tokenOwnerId) {
+        throw statusError(
+          409,
+          "App Store 거래의 계정 소유권이 일치하지 않습니다.",
+          "APPLE_TRANSACTION_OWNER_CONFLICT"
+        );
+      }
+      const ownerId = origin?.userId || tokenOwnerId;
+      if (!ownerId) {
         console.warn(
-          "[apple] 갱신 통지에 대응하는 최초 결제 없음 original=%s",
+          "[apple] %s 통지의 계정 소유자를 찾지 못함 original=%s token=%s",
+          type,
+          transaction.originalTransactionId,
+          transaction.appAccountToken || "none"
+        );
+        return {
+          handled: false,
+          reason: "OWNER_NOT_FOUND",
+        };
+      }
+      if (type === "DID_RENEW" && !origin) {
+        console.warn(
+          "[apple] 원거래 없이 사전 귀속 토큰으로 갱신 복구 original=%s",
           transaction.originalTransactionId
         );
-        return { handled: false, reason: "ORIGIN_NOT_FOUND" };
       }
       // redeem 과 같은 경로를 탄다. 앱이 리스너로 같은 거래를 보낼 수도 있는데,
       // 그때는 멱등 조회에 걸려 duplicate 로 끝난다.
-      const applied = await redeemAppleTransactionFromNotification(origin.userId, transaction);
+      const applied = await redeemAppleTransactionFromNotification(ownerId, transaction);
       return { handled: true, type, ...applied };
     }
 
@@ -478,7 +504,16 @@ async function redeemAppleTransactionFromNotification(userId, transaction) {
     provider: "APPLE",
     providerPaymentKey,
   }).lean();
-  if (existing) return { granted: true, duplicate: true };
+  if (existing) {
+    if (String(existing.userId) !== String(userId)) {
+      throw statusError(
+        409,
+        "이 App Store 결제는 다른 Matths 계정에 연결되어 있습니다.",
+        "APPLE_TRANSACTION_OWNER_CONFLICT"
+      );
+    }
+    return { granted: true, duplicate: true };
+  }
 
   const approval = {
     userId: String(userId),
