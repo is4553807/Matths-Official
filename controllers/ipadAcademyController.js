@@ -22,7 +22,10 @@ const {
 } = require("../services/academyClassworkService");
 const {
   checkInStudentAttendance,
+  getAcademyAttendanceRoster,
   getStudentAttendanceDashboard,
+  regenerateAttendanceSessionCode,
+  saveAcademyAttendanceRoster,
 } = require("../services/academyAttendanceService");
 
 function identifier(value) {
@@ -115,6 +118,30 @@ function serializeInvite(invite) {
     useCount: Number(invite.useCount || 0),
     maxUses: Number(invite.maxUses || 0),
     expiresAt: invite.expiresAt || null,
+  };
+}
+
+function serializeTeacherAttendance(roster) {
+  return {
+    dateKey: roster.dateKey,
+    todayKey: roster.todayKey,
+    classes: (roster.classes || []).map(serializeClass),
+    selectedClass: serializeClass(roster.selectedClass),
+    session: roster.session || null,
+    roster: (roster.roster || []).map((item) => ({
+      id: identifier(item.membership),
+      student: serializePerson(item.membership?.studentUserId),
+      attendance: item.attendance
+        ? {
+            status: String(item.attendance.status || ""),
+            checkedInAt: item.attendance.checkedInAt || null,
+            source: item.attendance.source || null,
+            note: String(item.attendance.note || ""),
+          }
+        : null,
+    })),
+    counts: roster.counts,
+    truncated: roster.truncated === true,
   };
 }
 
@@ -321,6 +348,57 @@ exports.revokeInvite = async (req, res, next) => {
     });
     res.set("Cache-Control", "private, no-store");
     return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.teacherAttendance = async (req, res, next) => {
+  try {
+    const roster = await getAcademyAttendanceRoster({
+      teacherUserId: req.apiUser._id,
+      dateKey: req.query.dateKey,
+      classId: req.query.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeTeacherAttendance(roster));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.saveTeacherAttendance = async (req, res, next) => {
+  try {
+    const records = Array.isArray(req.body.records) ? req.body.records : [];
+    await saveAcademyAttendanceRoster({
+      teacherUserId: req.apiUser._id,
+      dateKey: req.body.dateKey,
+      classId: req.body.classId,
+      sessionId: req.body.sessionId,
+      studentUserIds: records.map((record) => record?.studentUserId),
+      statuses: records.map((record) => record?.status),
+      notes: records.map((record) => record?.note),
+    });
+    const roster = await getAcademyAttendanceRoster({
+      teacherUserId: req.apiUser._id,
+      dateKey: req.body.dateKey,
+      classId: req.body.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeTeacherAttendance(roster));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.regenerateTeacherAttendanceCode = async (req, res, next) => {
+  try {
+    const session = await regenerateAttendanceSessionCode({
+      teacherUserId: req.apiUser._id,
+      sessionId: req.params.sessionId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json({ session });
   } catch (error) {
     return next(error);
   }

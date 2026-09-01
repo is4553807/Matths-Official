@@ -365,6 +365,18 @@ async function getAcademyAttendanceRoster({ teacherUserId, dateKey, classId, now
   const selectedDateKey = normalizeDateKey(dateKey, now);
   const classes = await getManageableClasses(context, teacherUserId);
   const selectedClass = await resolveClassFilter(context, teacherUserId, classId, classes, { defaultFirst: true });
+  if (!selectedClass && context.staff.role !== "OWNER") {
+    return {
+      dateKey: selectedDateKey,
+      todayKey: getKstDateKey(now),
+      classes,
+      selectedClass: null,
+      session: null,
+      roster: [],
+      counts: { TOTAL: 0, PRESENT: 0, LATE: 0, ABSENT: 0, EXCUSED: 0, UNRECORDED: 0 },
+      truncated: false,
+    };
+  }
   const membershipFilter = {
     academyId: context.academyId,
     status: "APPROVED",
@@ -438,6 +450,9 @@ async function saveAcademyAttendanceRoster({
   const selectedDateKey = normalizeDateKey(dateKey, now);
   const classes = await getManageableClasses(context, teacherUserId);
   const selectedClass = await resolveClassFilter(context, teacherUserId, classId, classes, { defaultFirst: false });
+  if (!selectedClass && context.staff.role !== "OWNER") {
+    throw statusError(403, "담당 반이 지정된 선생님만 출결을 기록할 수 있습니다.");
+  }
   const rawUserIds = asArray(studentUserIds).map((value) => String(value || "").trim());
   const rawStatuses = asArray(statuses).map((value) => String(value || "").trim().toUpperCase());
   const rawNotes = asArray(notes).map((value) => String(value || "").replace(/\s+/g, " ").trim().slice(0, 200));

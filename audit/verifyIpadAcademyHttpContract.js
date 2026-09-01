@@ -25,6 +25,7 @@ function verifyRouteRegistration() {
     '"/academy/teacher/students/:membershipId/class"',
     'router.post("/academy/teacher/invites", ipadAcademyController.createInvite)',
     '"/academy/teacher/invites/:inviteId/revoke"',
+    '"/academy/teacher/attendance/sessions/:sessionId/regenerate-code"',
     'router.get("/academy/admin", ipadAcademyController.adminDashboard)',
     '"/academy/admin/applications/:academyId/approve"',
     '"/academy/admin/applications/:academyId/reject"',
@@ -32,6 +33,21 @@ function verifyRouteRegistration() {
     const position = source.indexOf(route);
     assert.ok(position > authBoundary, `${route}가 requireApiAuth 뒤에 등록되어야 합니다`);
   }
+  assert.match(
+    source.slice(authBoundary),
+    /router\.get\(\s*"\/academy\/teacher\/attendance",\s*ipadAcademyController\.teacherAttendance\s*\)/,
+    "교사 출결 조회 GET 경로가 인증 경계 뒤에 등록되어야 합니다"
+  );
+  assert.match(
+    source.slice(authBoundary),
+    /router\.post\(\s*"\/academy\/teacher\/attendance",\s*ipadAcademyController\.saveTeacherAttendance\s*\)/,
+    "교사 출결 저장 POST 경로가 인증 경계 뒤에 등록되어야 합니다"
+  );
+  assert.match(
+    source.slice(authBoundary),
+    /router\.post\(\s*"\/academy\/teacher\/attendance\/sessions\/:sessionId\/regenerate-code",\s*ipadAcademyController\.regenerateTeacherAttendanceCode\s*\)/,
+    "교사 출결 코드 재발급 경로가 인증 경계 뒤에 등록되어야 합니다"
+  );
 }
 
 function verifySerializationBoundary() {
@@ -44,6 +60,14 @@ function verifySerializationBoundary() {
   assert.match(source, /getStudentAcademyWeekFileDownload/);
   assert.match(source, /teacherDashboardPayload/);
   assert.match(source, /portal\.students\.slice\(0, 50\)\.map\(serializeTeacherMembership\)/);
+  assert.match(source, /getAcademyAttendanceRoster/);
+  assert.match(source, /saveAcademyAttendanceRoster/);
+  assert.match(source, /regenerateAttendanceSessionCode/);
+  assert.match(source, /function serializeTeacherAttendance\(roster\)/);
+  assert.match(source, /studentUserIds: records\.map/);
+  const attendanceService = read("services/academyAttendanceService.js");
+  assert.match(attendanceService, /!selectedClass && context\.staff\.role !== "OWNER"/);
+  assert.match(attendanceService, /담당 반이 지정된 선생님만 출결을 기록할 수 있습니다/);
   assert.match(source, /adminDashboardPayload/);
   assert.match(source, /getAdminAcademyList/);
   assert.match(source, /approveAcademyApplication/);

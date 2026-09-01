@@ -1695,6 +1695,23 @@ async function main() {
       classId: academyClass._id,
       coTeacherUserId: secondTeacher._id,
     });
+    const unassignedTeacherRoster = await getAcademyAttendanceRoster({
+      teacherUserId: secondTeacher._id,
+      dateKey: "2026-08-31",
+    });
+    assert.equal(unassignedTeacherRoster.selectedClass, null);
+    assert.equal(unassignedTeacherRoster.roster.length, 0);
+    assert.equal(unassignedTeacherRoster.counts.TOTAL, 0);
+    await assert.rejects(
+      saveAcademyAttendanceRoster({
+        teacherUserId: secondTeacher._id,
+        dateKey: "2026-08-31",
+        studentUserIds: [student._id],
+        statuses: ["PRESENT"],
+        notes: [""],
+      }),
+      (error) => Number(error.status) === 403 && /담당 반/.test(error.message)
+    );
     await assert.rejects(
       getAcademyAttendanceRoster({
         teacherUserId: secondTeacher._id,
