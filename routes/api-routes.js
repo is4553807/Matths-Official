@@ -309,6 +309,14 @@ router.get("/academy/admin", ipadAcademyController.adminDashboard);
 router.get("/academy/admin/list", ipadAcademyController.adminAcademyList);
 router.get("/academy/admin/:academyId", ipadAcademyController.adminAcademyDetail);
 router.post(
+  "/academy/admin/:academyId/profile",
+  ipadAcademyController.adminUpdateAcademyProfile
+);
+router.post(
+  "/academy/admin/:academyId/contract",
+  ipadAcademyController.adminUpdateAcademyContract
+);
+router.post(
   "/academy/admin/applications/:academyId/approve",
   ipadAcademyController.approveAcademy
 );

@@ -42,6 +42,8 @@ const {
 const {
   getAdminAcademyDetail,
   getAdminAcademyList,
+  updateAdminAcademyContract,
+  updateAdminAcademyProfile,
 } = require("../services/adminAcademyService");
 const {
   deleteAcademyClassWeek,
@@ -863,6 +865,43 @@ exports.adminAcademyDetail = async (req, res, next) => {
       adminUserId: req.apiUser._id,
       academyId: req.params.academyId,
       periodKey: req.query.period,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeAdminAcademyDetail(detail));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyProfile = async (req, res, next) => {
+  try {
+    await updateAdminAcademyProfile({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      action: req.body.action,
+      name: req.body.name,
+    });
+    const detail = await getAdminAcademyDetail({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeAdminAcademyDetail(detail));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyContract = async (req, res, next) => {
+  try {
+    await updateAdminAcademyContract({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      contractEndsAt: req.body.contractEndsAt,
+    });
+    const detail = await getAdminAcademyDetail({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
     });
     res.set("Cache-Control", "private, no-store");
     return res.json(serializeAdminAcademyDetail(detail));

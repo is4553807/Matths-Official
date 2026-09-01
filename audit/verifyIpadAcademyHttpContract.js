@@ -58,6 +58,8 @@ function verifyRouteRegistration() {
     'router.get("/academy/admin", ipadAcademyController.adminDashboard)',
     'router.get("/academy/admin/list", ipadAcademyController.adminAcademyList)',
     'router.get("/academy/admin/:academyId", ipadAcademyController.adminAcademyDetail)',
+    '"/academy/admin/:academyId/profile"',
+    '"/academy/admin/:academyId/contract"',
     '"/academy/admin/applications/:academyId/approve"',
     '"/academy/admin/applications/:academyId/reject"',
   ]) {
@@ -150,6 +152,8 @@ function verifySerializationBoundary() {
   assert.match(source, /getAdminAcademyDetail/);
   assert.match(source, /serializeAdminAcademyListItem/);
   assert.match(source, /serializeAdminAcademyDetail/);
+  assert.match(source, /updateAdminAcademyProfile/);
+  assert.match(source, /updateAdminAcademyContract/);
   assert.match(source, /approveAcademyApplication/);
   assert.match(source, /rejectAcademyApplication/);
   assert.match(source, /result\.academies\.map\(serializeAdminAcademyApplication\)/);
