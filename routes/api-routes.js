@@ -16,6 +16,9 @@ const ipadAcademyController = require(
 const ipadSupportController = require(
   "../controllers/ipadSupportController"
 );
+const ipadArchiveController = require(
+  "../controllers/ipadArchiveController"
+);
 const ipadLearningSyncController = require("../controllers/ipadLearningSyncController");
 const ipadAssessmentController = require("../controllers/ipadAssessmentController");
 const ipadPlacementController = require("../controllers/ipadPlacementController");
@@ -543,5 +546,7 @@ router.patch(
 );
 router.get("/support/inquiries", ipadSupportController.dashboard);
 router.post("/support/inquiries", ipadSupportController.create);
+router.get("/archive", ipadArchiveController.dashboard);
+router.get("/archive/items/:itemId/download", ipadArchiveController.download);
 
 module.exports = router;
