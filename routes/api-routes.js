@@ -178,6 +178,17 @@ router.post(
   "/academy/teacher/invites/:inviteId/revoke",
   ipadAcademyController.revokeInvite
 );
+// 운영자는 이동 중에도 학원 등록 병목만 즉시 해소한다. 긴 계약·구성원·출결 편집은
+// 기존 관리자 포털이 담당하고, 이 세 경로는 정본 서비스의 admin 역할 검사를 재사용한다.
+router.get("/academy/admin", ipadAcademyController.adminDashboard);
+router.post(
+  "/academy/admin/applications/:academyId/approve",
+  ipadAcademyController.approveAcademy
+);
+router.post(
+  "/academy/admin/applications/:academyId/reject",
+  ipadAcademyController.rejectAcademy
+);
 
 router.get(
   "/commerce/storefront",

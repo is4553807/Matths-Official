@@ -25,6 +25,9 @@ function verifyRouteRegistration() {
     '"/academy/teacher/students/:membershipId/class"',
     'router.post("/academy/teacher/invites", ipadAcademyController.createInvite)',
     '"/academy/teacher/invites/:inviteId/revoke"',
+    'router.get("/academy/admin", ipadAcademyController.adminDashboard)',
+    '"/academy/admin/applications/:academyId/approve"',
+    '"/academy/admin/applications/:academyId/reject"',
   ]) {
     const position = source.indexOf(route);
     assert.ok(position > authBoundary, `${route}가 requireApiAuth 뒤에 등록되어야 합니다`);
@@ -41,6 +44,11 @@ function verifySerializationBoundary() {
   assert.match(source, /getStudentAcademyWeekFileDownload/);
   assert.match(source, /teacherDashboardPayload/);
   assert.match(source, /portal\.students\.slice\(0, 50\)\.map\(serializeTeacherMembership\)/);
+  assert.match(source, /adminDashboardPayload/);
+  assert.match(source, /getAdminAcademyList/);
+  assert.match(source, /approveAcademyApplication/);
+  assert.match(source, /rejectAcademyApplication/);
+  assert.match(source, /result\.academies\.map\(serializeAdminAcademyApplication\)/);
   assert.ok(!/res\.json\(\s*profile\s*\)/.test(source), "서비스 문서를 응답으로 그대로 내보내면 안 됩니다");
 }
 

@@ -1,15 +1,20 @@
 const {
+  approveAcademyApplication,
   approveMembership,
   assignMembershipClass,
   createAcademyInvite,
   getAcademyPortalData,
   getStudentAcademyProfile,
   leaveAcademy,
+  rejectAcademyApplication,
   rejectMembership,
   requestAcademyByCode,
   requestAcademyFromProfile,
   revokeAcademyInvite,
 } = require("../services/academyService");
+const {
+  getAdminAcademyList,
+} = require("../services/adminAcademyService");
 const {
   getStudentAcademyClassroom,
   getStudentAcademyWeek,
@@ -76,6 +81,27 @@ function serializeTeacherMembership(membership) {
     academyClass: serializeClass(membership.classId),
     requestedAt: membership.requestedAt || null,
     approvedAt: membership.approvedAt || null,
+  };
+}
+
+function serializeAdminAcademyApplication(academy) {
+  const applicant = academy.createdByUserId || null;
+  return {
+    id: identifier(academy),
+    name: String(academy.name || ""),
+    status: String(academy.status || "PENDING"),
+    createdAt: academy.createdAt || null,
+    contractStartsAt: academy.contractStartsAt || null,
+    contractEndsAt: academy.contractEndsAt || null,
+    includesMockExam: academy.includesMockExam !== false,
+    applicant: applicant ? {
+      id: identifier(applicant),
+      name: String(applicant.realName || applicant.name || ""),
+      email: String(applicant.email || ""),
+      accountStatus: String(
+        applicant.accountStatus || (applicant.isActive === false ? "inactive" : "active")
+      ),
+    } : null,
   };
 }
 
@@ -165,6 +191,19 @@ async function teacherDashboardPayload(userId) {
   };
 }
 
+async function adminDashboardPayload(userId) {
+  const result = await getAdminAcademyList({
+    adminUserId: userId,
+    status: "PENDING",
+    page: 1,
+  });
+  return {
+    pendingCount: Number(result.statusCounts.PENDING || 0),
+    activeCount: Number(result.statusCounts.ACTIVE || 0),
+    applications: result.academies.map(serializeAdminAcademyApplication),
+  };
+}
+
 exports.dashboard = async (req, res, next) => {
   try {
     res.set("Cache-Control", "private, no-store");
@@ -178,6 +217,41 @@ exports.teacherDashboard = async (req, res, next) => {
   try {
     res.set("Cache-Control", "private, no-store");
     return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminDashboard = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await adminDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.approveAcademy = async (req, res, next) => {
+  try {
+    await approveAcademyApplication({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await adminDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.rejectAcademy = async (req, res, next) => {
+  try {
+    await rejectAcademyApplication({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await adminDashboardPayload(req.apiUser._id));
   } catch (error) {
     return next(error);
   }
