@@ -303,9 +303,11 @@ router.get(
   "/academy/teacher/classes/:classId/classwork/weeks/:weekId/files/:fileId",
   ipadAcademyController.downloadTeacherClassWeekFile
 );
-// 운영자는 이동 중에도 학원 등록 병목만 즉시 해소한다. 긴 계약·구성원·출결 편집은
-// 기존 관리자 포털이 담당하고, 이 세 경로는 정본 서비스의 admin 역할 검사를 재사용한다.
+// 운영자 네이티브 작업대는 승인 병목과 전체 학원 운영 상태를 함께 다룬다.
+// 모든 경로는 정본 서비스의 admin 역할 검사와 범위 제한 직렬화를 재사용한다.
 router.get("/academy/admin", ipadAcademyController.adminDashboard);
+router.get("/academy/admin/list", ipadAcademyController.adminAcademyList);
+router.get("/academy/admin/:academyId", ipadAcademyController.adminAcademyDetail);
 router.post(
   "/academy/admin/applications/:academyId/approve",
   ipadAcademyController.approveAcademy

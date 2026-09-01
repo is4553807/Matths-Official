@@ -56,6 +56,8 @@ function verifyRouteRegistration() {
     '"/academy/teacher/classes/:classId/classwork/weeks/:weekId/delete"',
     '"/academy/teacher/classes/:classId/classwork/weeks/:weekId/files/:fileId"',
     'router.get("/academy/admin", ipadAcademyController.adminDashboard)',
+    'router.get("/academy/admin/list", ipadAcademyController.adminAcademyList)',
+    'router.get("/academy/admin/:academyId", ipadAcademyController.adminAcademyDetail)',
     '"/academy/admin/applications/:academyId/approve"',
     '"/academy/admin/applications/:academyId/reject"',
   ]) {
@@ -145,6 +147,9 @@ function verifySerializationBoundary() {
   assert.match(attendanceService, /담당 반이 지정된 선생님만 출결을 기록할 수 있습니다/);
   assert.match(source, /adminDashboardPayload/);
   assert.match(source, /getAdminAcademyList/);
+  assert.match(source, /getAdminAcademyDetail/);
+  assert.match(source, /serializeAdminAcademyListItem/);
+  assert.match(source, /serializeAdminAcademyDetail/);
   assert.match(source, /approveAcademyApplication/);
   assert.match(source, /rejectAcademyApplication/);
   assert.match(source, /result\.academies\.map\(serializeAdminAcademyApplication\)/);

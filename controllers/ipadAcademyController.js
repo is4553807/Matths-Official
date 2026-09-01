@@ -40,6 +40,7 @@ const {
   getStudentMathMap,
 } = require("../services/mathMapService");
 const {
+  getAdminAcademyDetail,
   getAdminAcademyList,
 } = require("../services/adminAcademyService");
 const {
@@ -422,6 +423,63 @@ function serializeAdminAcademyApplication(academy) {
   };
 }
 
+function serializeAdminAcademyListItem(academy) {
+  return {
+    ...serializeAdminAcademyApplication(academy),
+    profileImageURL: academy.profileImageSrc || null,
+    planCode: academy.planCode || null,
+    counts: {
+      activeStaff: Number(academy.counts?.activeStaff || 0),
+      pendingStaff: Number(academy.counts?.pendingStaff || 0),
+      approvedStudents: Number(academy.counts?.approvedStudents || 0),
+      pendingStudents: Number(academy.counts?.pendingStudents || 0),
+      activeClasses: Number(academy.counts?.activeClasses || 0),
+    },
+  };
+}
+
+function serializeAdminAcademyDetail(detail) {
+  return {
+    academy: {
+      ...serializeAdminAcademyApplication(detail.academy),
+      profileImageURL: detail.academy.profileImageSrc || null,
+      planCode: detail.academy.planCode || null,
+    },
+    counts: detail.counts,
+    staff: detail.staff.map((staff) => ({
+      id: identifier(staff),
+      user: staff.userId ? {
+        id: identifier(staff.userId),
+        name: String(staff.userId.realName || staff.userId.name || ""),
+        email: String(staff.userId.email || ""),
+      } : null,
+      role: staff.role,
+      status: staff.status,
+      requestedAt: staff.requestedAt || null,
+      joinedAt: staff.joinedAt || null,
+    })),
+    students: detail.memberships.map((membership) => ({
+      id: identifier(membership),
+      student: serializePerson(membership.studentUserId),
+      academyClass: serializeClass(membership.classId),
+      status: membership.status,
+      requestedAt: membership.requestedAt || null,
+      approvedAt: membership.approvedAt || null,
+    })),
+    classes: detail.classes.map(serializeClass),
+    invites: detail.invites.map(serializeInvite),
+    attendanceSessions: detail.attendanceSessions.map((session) => ({
+      id: identifier(session),
+      academyClass: serializeClass(session.classId),
+      dateKey: session.dateKey,
+      startsAt: session.startsAt || null,
+      attendanceMode: session.attendanceMode,
+      state: session.computedState,
+      code: session.code || null,
+    })),
+  };
+}
+
 function serializeInvite(invite) {
   return {
     id: identifier(invite),
@@ -774,6 +832,40 @@ exports.adminDashboard = async (req, res, next) => {
   try {
     res.set("Cache-Control", "private, no-store");
     return res.json(await adminDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminAcademyList = async (req, res, next) => {
+  try {
+    const result = await getAdminAcademyList({
+      adminUserId: req.apiUser._id,
+      search: req.query.search,
+      status: req.query.status,
+      page: req.query.page,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json({
+      academies: result.academies.map(serializeAdminAcademyListItem),
+      filters: result.filters,
+      pagination: result.pagination,
+      statusCounts: result.statusCounts,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminAcademyDetail = async (req, res, next) => {
+  try {
+    const detail = await getAdminAcademyDetail({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      periodKey: req.query.period,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeAdminAcademyDetail(detail));
   } catch (error) {
     return next(error);
   }
