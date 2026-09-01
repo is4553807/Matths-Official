@@ -187,6 +187,18 @@ router.post(
   "/academy/teacher/invites/:inviteId/revoke",
   ipadAcademyController.revokeInvite
 );
+router.post(
+  "/academy/teacher/staff/:staffId/approve",
+  ipadAcademyController.approveTeacherStaff
+);
+router.post(
+  "/academy/teacher/staff/:staffId/reject",
+  ipadAcademyController.rejectTeacherStaff
+);
+router.post(
+  "/academy/teacher/staff/:staffId/revoke",
+  ipadAcademyController.revokeTeacherStaff
+);
 router.get(
   "/academy/teacher/attendance",
   ipadAcademyController.teacherAttendance

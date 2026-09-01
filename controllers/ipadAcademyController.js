@@ -1,5 +1,6 @@
 const {
   approveAcademyApplication,
+  approveAcademyStaff,
   approveMembership,
   assignMembershipClass,
   createAcademyInvite,
@@ -7,10 +8,12 @@ const {
   getStudentAcademyProfile,
   leaveAcademy,
   rejectAcademyApplication,
+  rejectAcademyStaff,
   rejectMembership,
   requestAcademyByCode,
   requestAcademyFromProfile,
   revokeAcademyInvite,
+  revokeAcademyStaff,
 } = require("../services/academyService");
 const {
   getAdminAcademyList,
@@ -124,6 +127,22 @@ function serializeInvite(invite) {
     useCount: Number(invite.useCount || 0),
     maxUses: Number(invite.maxUses || 0),
     expiresAt: invite.expiresAt || null,
+  };
+}
+
+function serializeTeacherStaff(staff) {
+  const user = staff?.userId || null;
+  return {
+    id: identifier(staff),
+    user: user ? {
+      id: identifier(user),
+      name: String(user.realName || user.name || ""),
+      email: String(user.email || ""),
+    } : null,
+    role: String(staff?.role || "TEACHER"),
+    status: String(staff?.status || ""),
+    requestedAt: staff?.requestedAt || null,
+    joinedAt: staff?.joinedAt || null,
   };
 }
 
@@ -251,6 +270,9 @@ async function teacherDashboardPayload(userId) {
     requests: portal.requests.map(serializeTeacherMembership),
     students: portal.students.slice(0, 50).map(serializeTeacherMembership),
     invites: portal.invites.slice(0, 20).map(serializeInvite),
+    staffPendingCount: Number(portal.staffPendingCount || 0),
+    activeStaff: portal.activeStaff.map(serializeTeacherStaff),
+    staffRequests: portal.staffRequests.map(serializeTeacherStaff),
   };
 }
 
@@ -381,6 +403,45 @@ exports.revokeInvite = async (req, res, next) => {
     await revokeAcademyInvite({
       teacherUserId: req.apiUser._id,
       inviteId: req.params.inviteId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.approveTeacherStaff = async (req, res, next) => {
+  try {
+    await approveAcademyStaff({
+      teacherUserId: req.apiUser._id,
+      staffId: req.params.staffId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.rejectTeacherStaff = async (req, res, next) => {
+  try {
+    await rejectAcademyStaff({
+      teacherUserId: req.apiUser._id,
+      staffId: req.params.staffId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.revokeTeacherStaff = async (req, res, next) => {
+  try {
+    await revokeAcademyStaff({
+      teacherUserId: req.apiUser._id,
+      staffId: req.params.staffId,
     });
     res.set("Cache-Control", "private, no-store");
     return res.json(await teacherDashboardPayload(req.apiUser._id));

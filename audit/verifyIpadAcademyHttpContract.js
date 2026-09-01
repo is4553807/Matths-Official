@@ -25,6 +25,9 @@ function verifyRouteRegistration() {
     '"/academy/teacher/students/:membershipId/class"',
     'router.post("/academy/teacher/invites", ipadAcademyController.createInvite)',
     '"/academy/teacher/invites/:inviteId/revoke"',
+    '"/academy/teacher/staff/:staffId/approve"',
+    '"/academy/teacher/staff/:staffId/reject"',
+    '"/academy/teacher/staff/:staffId/revoke"',
     '"/academy/teacher/attendance/sessions/:sessionId/regenerate-code"',
     '"/academy/teacher/classes/:classId/classwork"',
     '"/academy/teacher/classes/:classId/classwork/weeks"',
@@ -76,6 +79,10 @@ function verifySerializationBoundary() {
   assert.match(source, /deleteAcademyClassWeek/);
   assert.match(source, /getTeacherAcademyWeekFileDownload/);
   assert.match(source, /serializeTeacherClasswork/);
+  assert.match(source, /serializeTeacherStaff/);
+  assert.match(source, /approveAcademyStaff/);
+  assert.match(source, /rejectAcademyStaff/);
+  assert.match(source, /revokeAcademyStaff/);
   assert.match(source, /discardRequestUploads\(req\)/);
   const attendanceService = read("services/academyAttendanceService.js");
   assert.match(attendanceService, /!selectedClass && context\.staff\.role !== "OWNER"/);
