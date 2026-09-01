@@ -1194,6 +1194,127 @@ a {
     overflow-x: auto;
   }
 }
+
+/*
+ * The native iPhone app embeds this page below its own compact toolbar and tab bar.
+ * In landscape there are only about 280 CSS px left for the document. Keep the
+ * community identity, board switcher, and first real row in that first viewport
+ * instead of spending it all on the desktop marketing hero.
+ */
+@media (orientation: landscape) and (max-height: 500px) {
+  .community-main {
+    width: min(1120px, calc(100% - 28px));
+    padding: 12px 0 48px;
+  }
+
+  .community-hero {
+    min-height: 0;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    border-radius: 16px;
+  }
+
+  .community-hero p {
+    margin-bottom: 4px;
+    font-size: 9px;
+    letter-spacing: 1.2px;
+  }
+
+  .community-hero h1 {
+    margin: 0;
+    font-size: clamp(20px, 3.4vw, 28px);
+    line-height: 1.08;
+    letter-spacing: -0.8px;
+  }
+
+  .community-hero h1 br {
+    display: none;
+  }
+
+  .community-hero h1 strong {
+    margin-left: 0.3em;
+  }
+
+  .community-hero div > span {
+    display: none;
+  }
+
+  .community-hero-actions {
+    gap: 6px;
+  }
+
+  .community-hero-actions a {
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-size: 10px;
+  }
+
+  .community-board-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 8px;
+  }
+
+  .community-board-tabs a {
+    grid-template-columns: auto 1fr;
+    gap: 2px 8px;
+    padding: 9px 11px;
+    border-radius: 10px;
+  }
+
+  .community-board-tabs a span {
+    grid-row: auto;
+  }
+
+  .community-board-tabs a small {
+    display: none;
+  }
+
+  .community-board {
+    margin-top: 8px;
+    padding: 14px 16px;
+    border-radius: 16px;
+  }
+
+  .community-board-heading {
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 10px;
+  }
+
+  .community-board-heading p,
+  .community-board-heading div > span {
+    display: none;
+  }
+
+  .community-board-heading h2 {
+    font-size: 20px;
+    letter-spacing: -0.5px;
+  }
+
+  .community-board-heading input,
+  .community-board-heading button {
+    min-height: 34px;
+  }
+
+  .community-sort-tabs,
+  .community-operations-categories {
+    margin-top: 8px;
+  }
+
+  .community-sort-tabs + br,
+  .community-operations-categories + br {
+    display: none;
+  }
+
+  .community-popular-strip,
+  .school-board-membership,
+  .school-board-login-guide {
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+}
 .community-report-box {
   margin: 18px 0 0;
   padding: 14px 16px;

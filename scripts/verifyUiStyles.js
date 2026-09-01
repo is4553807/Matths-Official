@@ -119,6 +119,16 @@ const homePublicNavigationCss = fs.readFileSync(
   path.join(cssRoot, "home-public-navigation.css"),
   "utf8"
 );
+
+const communityCss = fs.readFileSync(
+  path.join(cssRoot, "community.css"),
+  "utf8"
+);
+assert.match(
+  communityCss,
+  /@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-height:\s*500px\)[\s\S]*?\.community-hero\s*\{[\s\S]*?min-height:\s*0[\s\S]*?\.community-board-tabs\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3,/,
+  "작은 iPhone 가로 게시판은 데스크톱 영웅 영역을 압축하고 게시판 전환을 한 줄로 유지해야 합니다."
+);
 assert.match(
   homePublicNavigationCss,
   /@media\s*\(max-width:\s*1100px\)/,
