@@ -64,6 +64,10 @@ const {
   resolveAcademyProfileImage,
   updateAcademyProfileImage,
 } = require("../services/academyProfileImageService");
+const {
+  analyzeAcademyForensicEvidence,
+  getAcademyForensicsPageData,
+} = require("../services/academyForensicsService");
 const { discardRequestUploads } = require("../middleware/uploadContentValidation");
 
 function identifier(value) {
@@ -92,6 +96,38 @@ function serializeTeacherSetup(setup, isReady = false) {
     } : null,
     rejectedAcademy: serializeAcademy(setup?.rejectedAcademy),
     academies: (setup?.academies || []).map(serializeAcademy),
+  };
+}
+
+function serializeTeacherForensics(pageData, analysis = null) {
+  return {
+    academy: serializeAcademy(pageData.academy),
+    isOwner: Boolean(pageData.isOwner),
+    classes: (pageData.classes || []).map(serializeClass),
+    selectedClass: serializeClass(pageData.selectedClass),
+    scope: {
+      approvedStudents: Number(pageData.scope?.approvedStudents || 0),
+      issuedCopies: Number(pageData.scope?.issuedCopies || 0),
+      distinctDownloaders: Number(pageData.scope?.distinctDownloaders || 0),
+      firstIssuedAt: pageData.scope?.firstIssuedAt || null,
+    },
+    analysis: analysis ? {
+      inputType: analysis.inputType || null,
+      traceCodes: analysis.traceCodes || [],
+      matches: (analysis.matches || []).map((match) => ({
+        displayName: match.displayName,
+        className: match.className,
+        userRole: match.userRole,
+        downloadedAt: match.downloadedAt || null,
+        traceCode: match.traceCode,
+        documentIssueId: match.documentIssueId,
+        originalName: match.originalName,
+        signatureVerified: Boolean(match.signatureVerified),
+        recognitionMethod: match.recognitionMethod,
+        ocrConfidence: match.ocrConfidence ?? null,
+        matchedCandidate: match.matchedCandidate || null,
+      })),
+    } : null,
   };
 }
 
@@ -658,6 +694,40 @@ exports.removeTeacherAcademyProfileImage = async (req, res, next) => {
     return next(error);
   }
 };
+
+exports.teacherForensics = async (req, res, next) => {
+  try {
+    const pageData = await getAcademyForensicsPageData({
+      teacherUserId: req.apiUser._id,
+      classId: req.query.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeTeacherForensics(pageData));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+async function analyzeTeacherForensics(req, res, next) {
+  try {
+    if (req.academyForensicsUploadError) throw req.academyForensicsUploadError;
+    const result = await analyzeAcademyForensicEvidence({
+      teacherUserId: req.apiUser._id,
+      classId: req.body.classId,
+      filePath: req.file?.path || "",
+      traceCode: req.body.traceCode,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeTeacherForensics(result.pageData, result.analysis));
+  } catch (error) {
+    return next(error);
+  } finally {
+    await discardRequestUploads(req);
+  }
+}
+
+exports.analyzeTeacherForensicsCode = analyzeTeacherForensics;
+exports.analyzeTeacherForensicsFile = analyzeTeacherForensics;
 
 exports.teacherAnalytics = async (req, res, next) => {
   try {

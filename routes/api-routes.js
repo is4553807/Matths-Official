@@ -46,6 +46,9 @@ const {
   handleAcademyAssignmentUpload,
 } = require("../middleware/academyAssignmentUpload");
 const {
+  handleAcademyForensicsUpload,
+} = require("../middleware/pdfForensicsUpload");
+const {
   createUploadContentValidator,
 } = require("../middleware/uploadContentValidation");
 const {
@@ -188,6 +191,16 @@ router.post(
 router.post(
   "/academy/teacher/profile-image/remove",
   ipadAcademyController.removeTeacherAcademyProfileImage
+);
+router.get("/academy/teacher/forensics", ipadAcademyController.teacherForensics);
+router.post(
+  "/academy/teacher/forensics/code",
+  ipadAcademyController.analyzeTeacherForensicsCode
+);
+router.post(
+  "/academy/teacher/forensics/file",
+  handleAcademyForensicsUpload,
+  ipadAcademyController.analyzeTeacherForensicsFile
 );
 router.get("/academy/teacher/analytics", ipadAcademyController.teacherAnalytics);
 router.get("/academy/teacher/students", ipadAcademyController.teacherStudents);
