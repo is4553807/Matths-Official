@@ -24,6 +24,7 @@
     "ipad-notification-http:verify": "node audit/verifyIpadNotificationHttpContract.js",
     "apple-signin:verify": "node scripts/verifyAppleSignIn.js",
     "apple-web-signin:verify": "node scripts/verifyAppleWebSignIn.js",
+    "associated-domains:verify": "node scripts/verifyAssociatedDomains.js",
     "apple-commerce-http:verify": "node audit/verifyAppleCommerceHttpContract.js",
     "apple-commerce-ownership:verify": "node audit/verifyAppleCommerceAccountOwnership.js",
     "apple-commerce-ownership:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyAppleCommerceAccountOwnershipDb.js",

@@ -141,6 +141,29 @@ server.use(compression({
     threshold: 1024,
 }));
 
+/*
+ * iOS Universal Links trust document. The file intentionally has no extension,
+ * so Express' generic static MIME lookup would otherwise return an unsuitable
+ * content type. Serve both Apple-supported locations explicitly before the
+ * public static middleware and keep the response cacheable but revalidatable.
+ */
+const appleAppSiteAssociationPath = path.join(
+    __dirname,
+    "public",
+    ".well-known",
+    "apple-app-site-association"
+);
+server.get(
+    ["/.well-known/apple-app-site-association", "/apple-app-site-association"],
+    (req, res) => {
+        res.set({
+            "Content-Type": "application/json",
+            "Cache-Control": "public, max-age=3600, must-revalidate",
+        });
+        return res.sendFile(appleAppSiteAssociationPath);
+    }
+);
+
 server.use(express.static("public", {
     etag: true,
     lastModified: true,
