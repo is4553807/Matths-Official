@@ -10,6 +10,9 @@ const ipadReadController = require("../controllers/ipadReadController");
 const ipadNotificationController = require(
   "../controllers/ipadNotificationController"
 );
+const ipadAcademyController = require(
+  "../controllers/ipadAcademyController"
+);
 const ipadLearningSyncController = require("../controllers/ipadLearningSyncController");
 const ipadAssessmentController = require("../controllers/ipadAssessmentController");
 const ipadPlacementController = require("../controllers/ipadPlacementController");
@@ -143,6 +146,20 @@ router.post(
 );
 
 router.use(requireApiAuth);
+
+// 학생 학원 화면. 웹 세션판의 정본 서비스를 그대로 재사용하되, 앱에는 내부
+// Mongo 문서가 아니라 최소 DTO만 내려준다. 가입·출석·자료 열기까지 Bearer 경계에서
+// 끝나므로 학생이 앱을 나가거나 웹 로그인으로 다시 인증할 필요가 없다.
+router.get("/academy/student", ipadAcademyController.dashboard);
+router.get("/academy/student/weeks/:weekId", ipadAcademyController.week);
+router.get(
+  "/academy/student/weeks/:weekId/files/:fileId",
+  ipadAcademyController.downloadWeekFile
+);
+router.post("/academy/student/join-code", ipadAcademyController.requestByCode);
+router.post("/academy/student/join", ipadAcademyController.requestByAcademy);
+router.post("/academy/student/leave", ipadAcademyController.leave);
+router.post("/academy/student/attendance/check-in", ipadAcademyController.checkIn);
 
 router.get(
   "/commerce/storefront",
