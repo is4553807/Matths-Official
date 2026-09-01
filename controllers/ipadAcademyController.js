@@ -8,6 +8,7 @@ const {
   bulkManageAcademyStudents,
   createAcademyClass,
   createAcademyInvite,
+  getAcademyClassDetail,
   getAcademyPortalData,
   getAcademyStudentDetail,
   getAcademyStudentPage,
@@ -26,9 +27,11 @@ const {
   updateAcademyClassSettings,
 } = require("../services/academyService");
 const {
+  getAcademyMonthlyStatistics,
   getStudentMonthlyStatistics,
 } = require("../services/academyStatisticsService");
 const {
+  getClassMathMap,
   getStudentMathMap,
 } = require("../services/mathMapService");
 const {
@@ -213,6 +216,127 @@ function serializeStudentMathMap(mathMap) {
       affectedConceptCount: Number(item.affectedConceptCount || item.affectedConcepts?.length || 0),
     })),
     concepts: (mathMap?.concepts || []).map(serializeMathMapConcept),
+  };
+}
+
+function serializeNullableNumber(value) {
+  return value === null || value === undefined ? null : Number(value);
+}
+
+function serializeTeacherAnalytics({ academy, academyClass, statistics, mathMap, memberships }) {
+  const membershipsByStudentId = new Map(
+    (memberships || []).map((membership) => [
+      identifier(membership.studentUserId),
+      membership,
+    ])
+  );
+  return {
+    academy: serializeAcademy(academy),
+    scope: {
+      type: academyClass ? "CLASS" : "ACADEMY",
+      academyClass: academyClass ? {
+        id: identifier(academyClass),
+        name: String(academyClass.name || ""),
+      } : null,
+    },
+    period: {
+      key: String(statistics.period?.key || ""),
+      label: String(statistics.period?.label || ""),
+      isCurrent: statistics.period?.isCurrent === true,
+      options: (statistics.period?.options || []).map((option) => ({
+        key: String(option.key || ""),
+        label: String(option.label || ""),
+      })),
+    },
+    hasActivity: statistics.hasActivity === true,
+    cards: (statistics.cards || []).map((card) => ({
+      label: String(card.label || ""),
+      value: String(card.value || ""),
+      detail: String(card.detail || ""),
+    })),
+    values: {
+      totalStudents: Number(statistics.values?.totalStudents || 0),
+      activeStudents: Number(statistics.values?.activeStudents || 0),
+      participationRate: serializeNullableNumber(statistics.values?.participationRate),
+      averageLearningDays: serializeNullableNumber(statistics.values?.averageLearningDays),
+      averageCompletedConcepts: serializeNullableNumber(statistics.values?.averageCompletedConcepts),
+      averageUniqueProblems: serializeNullableNumber(statistics.values?.averageUniqueProblems),
+      firstAttemptAccuracy: serializeNullableNumber(statistics.values?.firstAttemptAccuracy),
+      wrongAnswerReviewRate: serializeNullableNumber(statistics.values?.wrongAnswerReviewRate),
+      retrySuccessRate: serializeNullableNumber(statistics.values?.retrySuccessRate),
+    },
+    health: {
+      score: serializeNullableNumber(statistics.health?.score),
+      key: String(statistics.health?.key || "RISK"),
+      label: String(statistics.health?.label || "데이터 없음"),
+      dataCoverage: Number(statistics.health?.dataCoverage || 0),
+      targetLearningDays: Number(statistics.health?.targetLearningDays || 0),
+      distribution: {
+        healthy: Number(statistics.health?.distribution?.HEALTHY || 0),
+        watch: Number(statistics.health?.distribution?.WATCH || 0),
+        risk: Number(statistics.health?.distribution?.RISK || 0),
+      },
+      components: {
+        engagement: serializeNullableNumber(statistics.health?.components?.engagement),
+        accuracy: serializeNullableNumber(statistics.health?.components?.accuracy),
+        review: serializeNullableNumber(statistics.health?.components?.review),
+        recovery: serializeNullableNumber(statistics.health?.components?.recovery),
+      },
+    },
+    growth: (statistics.analytics?.growth?.points || []).map((point) => ({
+      week: Number(point.week || 0),
+      label: String(point.label || ""),
+      attempts: Number(point.attempts || 0),
+      uniqueProblems: Number(point.uniqueProblems || 0),
+      activeStudents: Number(point.activeStudents || 0),
+      accuracy: serializeNullableNumber(point.accuracy),
+    })),
+    summary: (statistics.summary?.bullets || []).map((bullet) => ({
+      label: String(bullet.label || ""),
+      text: String(bullet.text || ""),
+    })),
+    attentionStudents: (statistics.attentionStudents || []).map((item) => {
+      const membership = membershipsByStudentId.get(String(item.studentUserId || ""));
+      if (!membership) return null;
+      return {
+        membership: serializeTeacherMembership(membership),
+        reasons: (item.reasons || []).map((reason) => String(reason)),
+        priority: Number(item.priority || 0),
+      };
+    }).filter(Boolean),
+    mathMap: {
+      graphVersion: String(mathMap?.graphVersion || ""),
+      modelVersion: String(mathMap?.modelVersion || ""),
+      overallMastery: serializeNullableNumber(mathMap?.overallMastery),
+      analyzedConceptCount: Number(mathMap?.analyzedConceptCount || 0),
+      totalStudents: Number(mathMap?.totalStudents || memberships?.length || 0),
+      heatmap: (mathMap?.heatmap || []).slice(0, 18).map((item) => ({
+        conceptId: String(item.conceptId || ""),
+        conceptTitle: String(item.conceptTitle || ""),
+        courseTitle: String(item.courseTitle || ""),
+        unitTitle: String(item.unitTitle || ""),
+        mastery: serializeNullableNumber(item.mastery),
+        analyzedCount: Number(item.analyzedCount || 0),
+        totalStudents: Number(item.totalStudents || 0),
+        status: String(item.status || "UNKNOWN"),
+        statusLabel: String(item.statusLabel || "데이터 부족"),
+      })),
+      bottlenecks: (mathMap?.bottlenecks || []).slice(0, 5).map((item) => ({
+        conceptId: String(item.conceptId || ""),
+        conceptTitle: String(item.conceptTitle || ""),
+        mastery: serializeNullableNumber(item.mastery),
+        analyzedCount: Number(item.analyzedCount || 0),
+        weakCount: Number(item.weakCount || 0),
+        affectedConceptCount: Number(item.affectedConceptCount || 0),
+      })),
+      recommendation: mathMap?.recommendation ? {
+        conceptId: String(mathMap.recommendation.conceptId || ""),
+        conceptTitle: String(mathMap.recommendation.conceptTitle || ""),
+        mastery: serializeNullableNumber(mathMap.recommendation.mastery),
+        reason: String(mathMap.recommendation.reason || ""),
+        problemCount: Number(mathMap.recommendation.problemMix?.total || 0),
+      } : null,
+    },
   };
 }
 
@@ -426,6 +550,47 @@ exports.teacherDashboard = async (req, res, next) => {
   try {
     res.set("Cache-Control", "private, no-store");
     return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.teacherAnalytics = async (req, res, next) => {
+  try {
+    const classId = String(req.query.classId || "").trim();
+    let academy;
+    let academyClass = null;
+    let memberships;
+    if (classId) {
+      const detail = await getAcademyClassDetail({
+        teacherUserId: req.apiUser._id,
+        classId,
+      });
+      academy = detail.academy;
+      academyClass = detail.academyClass;
+      memberships = detail.students;
+    } else {
+      const portal = await getAcademyPortalData(req.apiUser._id, { includeStudents: true });
+      academy = portal.academy;
+      memberships = portal.students;
+    }
+    const studentUserIds = memberships.map((membership) => membership.studentUserId._id);
+    const [statistics, mathMap] = await Promise.all([
+      getAcademyMonthlyStatistics({
+        studentUserIds,
+        periodKey: req.query.period,
+        scopeLabel: academyClass ? "반" : "학원",
+      }),
+      getClassMathMap({ studentUserIds }),
+    ]);
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeTeacherAnalytics({
+      academy,
+      academyClass,
+      statistics,
+      mathMap,
+      memberships,
+    }));
   } catch (error) {
     return next(error);
   }

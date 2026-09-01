@@ -170,6 +170,7 @@ router.post("/academy/student/join", ipadAcademyController.requestByAcademy);
 router.post("/academy/student/leave", ipadAcademyController.leave);
 router.post("/academy/student/attendance/check-in", ipadAcademyController.checkIn);
 router.get("/academy/teacher", ipadAcademyController.teacherDashboard);
+router.get("/academy/teacher/analytics", ipadAcademyController.teacherAnalytics);
 router.get("/academy/teacher/students", ipadAcademyController.teacherStudents);
 router.get(
   "/academy/teacher/students/:membershipId",
