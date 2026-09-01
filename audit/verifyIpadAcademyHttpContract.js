@@ -23,6 +23,7 @@ function verifyRouteRegistration() {
     '"/academy/teacher/requests/:membershipId/approve"',
     '"/academy/teacher/requests/:membershipId/reject"',
     '"/academy/teacher/students/:membershipId/class"',
+    '"/academy/teacher/students/:membershipId/remove"',
     'router.post("/academy/teacher/invites", ipadAcademyController.createInvite)',
     '"/academy/teacher/invites/:inviteId/revoke"',
     '"/academy/teacher/staff/:staffId/approve"',
@@ -80,6 +81,7 @@ function verifySerializationBoundary() {
   assert.match(source, /regenerateAttendanceSessionCode/);
   assert.match(source, /function serializeTeacherAttendance\(roster\)/);
   assert.match(source, /studentUserIds: records\.map/);
+  assert.match(source, /bulkManageAcademyStudents/);
   assert.match(source, /getAcademyClassworkTeacherView/);
   assert.match(source, /saveAcademyClassWeek/);
   assert.match(source, /removeAcademyClassWeekFile/);

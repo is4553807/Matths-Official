@@ -182,6 +182,10 @@ router.post(
   "/academy/teacher/students/:membershipId/class",
   ipadAcademyController.assignStudentClass
 );
+router.post(
+  "/academy/teacher/students/:membershipId/remove",
+  ipadAcademyController.removeTeacherStudent
+);
 router.post("/academy/teacher/invites", ipadAcademyController.createInvite);
 router.post(
   "/academy/teacher/invites/:inviteId/revoke",

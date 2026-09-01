@@ -5,6 +5,7 @@ const {
   addAcademyClassCoTeacher,
   archiveAcademyClass,
   assignMembershipClass,
+  bulkManageAcademyStudents,
   createAcademyClass,
   createAcademyInvite,
   getAcademyPortalData,
@@ -398,6 +399,20 @@ exports.assignStudentClass = async (req, res, next) => {
       teacherUserId: req.apiUser._id,
       membershipId: req.params.membershipId,
       classId: req.body.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.removeTeacherStudent = async (req, res, next) => {
+  try {
+    await bulkManageAcademyStudents({
+      teacherUserId: req.apiUser._id,
+      membershipIds: [req.params.membershipId],
+      action: "REMOVE",
     });
     res.set("Cache-Control", "private, no-store");
     return res.json(await teacherDashboardPayload(req.apiUser._id));
