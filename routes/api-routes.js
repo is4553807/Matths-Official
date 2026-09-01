@@ -160,6 +160,24 @@ router.post("/academy/student/join-code", ipadAcademyController.requestByCode);
 router.post("/academy/student/join", ipadAcademyController.requestByAcademy);
 router.post("/academy/student/leave", ipadAcademyController.leave);
 router.post("/academy/student/attendance/check-in", ipadAcademyController.checkIn);
+router.get("/academy/teacher", ipadAcademyController.teacherDashboard);
+router.post(
+  "/academy/teacher/requests/:membershipId/approve",
+  ipadAcademyController.approveStudent
+);
+router.post(
+  "/academy/teacher/requests/:membershipId/reject",
+  ipadAcademyController.rejectStudent
+);
+router.post(
+  "/academy/teacher/students/:membershipId/class",
+  ipadAcademyController.assignStudentClass
+);
+router.post("/academy/teacher/invites", ipadAcademyController.createInvite);
+router.post(
+  "/academy/teacher/invites/:inviteId/revoke",
+  ipadAcademyController.revokeInvite
+);
 
 router.get(
   "/commerce/storefront",

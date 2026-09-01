@@ -1,8 +1,14 @@
 const {
+  approveMembership,
+  assignMembershipClass,
+  createAcademyInvite,
+  getAcademyPortalData,
   getStudentAcademyProfile,
   leaveAcademy,
+  rejectMembership,
   requestAcademyByCode,
   requestAcademyFromProfile,
+  revokeAcademyInvite,
 } = require("../services/academyService");
 const {
   getStudentAcademyClassroom,
@@ -45,6 +51,44 @@ function serializeMembership(membership) {
     joinSource: membership.joinSource || null,
     requestedAt: membership.requestedAt || null,
     approvedAt: membership.approvedAt || null,
+  };
+}
+
+function serializePerson(user) {
+  if (!user) return null;
+  return {
+    id: identifier(user),
+    name: String(user.realName || user.name || ""),
+    nickname: user.realName && user.name && user.realName !== user.name
+      ? String(user.name)
+      : null,
+    schoolGrade: user.schoolGrade || null,
+    school: user.school
+      ? { name: String(user.school.name || ""), region: String(user.school.region || "") }
+      : null,
+  };
+}
+
+function serializeTeacherMembership(membership) {
+  return {
+    id: identifier(membership),
+    student: serializePerson(membership.studentUserId),
+    academyClass: serializeClass(membership.classId),
+    requestedAt: membership.requestedAt || null,
+    approvedAt: membership.approvedAt || null,
+  };
+}
+
+function serializeInvite(invite) {
+  return {
+    id: identifier(invite),
+    label: String(invite.label || "학생 초대"),
+    code: String(invite.code || ""),
+    academyClass: serializeClass(invite.classId),
+    displayState: String(invite.displayState || invite.status || ""),
+    useCount: Number(invite.useCount || 0),
+    maxUses: Number(invite.maxUses || 0),
+    expiresAt: invite.expiresAt || null,
   };
 }
 
@@ -98,10 +142,111 @@ async function dashboardPayload(userId) {
   };
 }
 
+async function teacherDashboardPayload(userId) {
+  const portal = await getAcademyPortalData(userId, { includeStudents: true });
+  const studentCountByClass = new Map();
+  for (const membership of portal.students) {
+    const classId = identifier(membership.classId);
+    if (classId) studentCountByClass.set(classId, (studentCountByClass.get(classId) || 0) + 1);
+  }
+  return {
+    academy: serializeAcademy(portal.academy),
+    staffRole: portal.staff.role,
+    isOwner: portal.isOwner,
+    pendingCount: portal.pendingCount,
+    studentCount: portal.students.length,
+    classes: portal.classes.map((academyClass) => ({
+      ...serializeClass(academyClass),
+      studentCount: studentCountByClass.get(identifier(academyClass)) || 0,
+    })),
+    requests: portal.requests.map(serializeTeacherMembership),
+    students: portal.students.slice(0, 50).map(serializeTeacherMembership),
+    invites: portal.invites.slice(0, 20).map(serializeInvite),
+  };
+}
+
 exports.dashboard = async (req, res, next) => {
   try {
     res.set("Cache-Control", "private, no-store");
     return res.json(await dashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.teacherDashboard = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.approveStudent = async (req, res, next) => {
+  try {
+    await approveMembership({
+      teacherUserId: req.apiUser._id,
+      membershipId: req.params.membershipId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.rejectStudent = async (req, res, next) => {
+  try {
+    await rejectMembership({
+      teacherUserId: req.apiUser._id,
+      membershipId: req.params.membershipId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.assignStudentClass = async (req, res, next) => {
+  try {
+    await assignMembershipClass({
+      teacherUserId: req.apiUser._id,
+      membershipId: req.params.membershipId,
+      classId: req.body.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.createInvite = async (req, res, next) => {
+  try {
+    await createAcademyInvite({
+      teacherUserId: req.apiUser._id,
+      label: req.body.label,
+      classId: req.body.classId,
+      expiryDays: req.body.expiryDays,
+      maxUses: req.body.maxUses,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.status(201).json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.revokeInvite = async (req, res, next) => {
+  try {
+    await revokeAcademyInvite({
+      teacherUserId: req.apiUser._id,
+      inviteId: req.params.inviteId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
   } catch (error) {
     return next(error);
   }
@@ -204,4 +349,3 @@ exports.downloadWeekFile = async (req, res, next) => {
     return next(error);
   }
 };
-

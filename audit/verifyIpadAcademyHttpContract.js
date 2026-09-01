@@ -19,6 +19,12 @@ function verifyRouteRegistration() {
     'router.post("/academy/student/join", ipadAcademyController.requestByAcademy)',
     'router.post("/academy/student/leave", ipadAcademyController.leave)',
     'router.post("/academy/student/attendance/check-in", ipadAcademyController.checkIn)',
+    'router.get("/academy/teacher", ipadAcademyController.teacherDashboard)',
+    '"/academy/teacher/requests/:membershipId/approve"',
+    '"/academy/teacher/requests/:membershipId/reject"',
+    '"/academy/teacher/students/:membershipId/class"',
+    'router.post("/academy/teacher/invites", ipadAcademyController.createInvite)',
+    '"/academy/teacher/invites/:inviteId/revoke"',
   ]) {
     const position = source.indexOf(route);
     assert.ok(position > authBoundary, `${route}가 requireApiAuth 뒤에 등록되어야 합니다`);
@@ -33,6 +39,8 @@ function verifySerializationBoundary() {
   assert.match(source, /files:\s*\(week\.files \|\| \[\]\)\.map/);
   assert.match(source, /getStudentAttendanceDashboard/);
   assert.match(source, /getStudentAcademyWeekFileDownload/);
+  assert.match(source, /teacherDashboardPayload/);
+  assert.match(source, /portal\.students\.slice\(0, 50\)\.map\(serializeTeacherMembership\)/);
   assert.ok(!/res\.json\(\s*profile\s*\)/.test(source), "서비스 문서를 응답으로 그대로 내보내면 안 됩니다");
 }
 
