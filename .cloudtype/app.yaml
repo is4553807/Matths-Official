@@ -37,6 +37,8 @@ options:
       value: 9QKK29V5FQ
     - name: FINANCE_APPLE_FEE_RESERVE_BPS
       value: "3000"
-  install: npm ci --omit=dev --no-audit
+  # Cloudtype가 이전 빌드의 손상된 node_modules를 재사용하더라도
+  # npm ci가 항상 깨끗한 의존성 트리에서 시작하도록 한다.
+  install: rm -rf node_modules && npm ci --omit=dev --no-audit
   ports: 8000/http
   start: npm start

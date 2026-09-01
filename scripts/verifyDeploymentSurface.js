@@ -15,7 +15,10 @@ const gitignore = read(".gitignore");
 assert.match(packageJson.engines?.node || "", />=24/);
 assert.equal(packageLock.packages?.[""]?.engines?.node, packageJson.engines.node);
 assert.match(cloudtype, /app: node@24/);
-assert.match(cloudtype, /install: npm ci --omit=dev --no-audit/);
+assert.match(
+  cloudtype,
+  /install: rm -rf node_modules && npm ci --omit=dev --no-audit/
+);
 assert.match(cloudtype, /APP_BASE_URL[\s\S]*https:\/\/www\.matths\.kr/);
 assert.match(cloudtype, /PUBLIC_BASE_URL[\s\S]*https:\/\/www\.matths\.kr/);
 assert.match(
