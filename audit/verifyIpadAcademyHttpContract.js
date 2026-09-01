@@ -24,6 +24,8 @@ function verifyRouteRegistration() {
     'router.post("/academy/teacher/setup", ipadAcademyController.createTeacherAcademy)',
     '"/academy/teacher/setup/join"',
     '"/academy/teacher/setup/join/cancel"',
+    '"/academy/teacher/profile-image"',
+    '"/academy/teacher/profile-image/remove"',
     'router.get("/academy/teacher/analytics", ipadAcademyController.teacherAnalytics)',
     'router.get("/academy/teacher/students", ipadAcademyController.teacherStudents)',
     '"/academy/teacher/students/:membershipId"',
@@ -106,6 +108,11 @@ function verifySerializationBoundary() {
   assert.match(source, /requestAcademyStaffJoin/);
   assert.match(source, /cancelAcademyStaffJoin/);
   assert.match(source, /serializeTeacherSetup/);
+  assert.match(source, /updateAcademyProfileImage/);
+  assert.match(source, /removeAcademyProfileImage/);
+  assert.match(source, /resolveAcademyProfileImage/);
+  assert.match(source, /profileAvatarUploadError/);
+  assert.match(source, /discardRequestUploads/);
   assert.match(source, /attentionStudents:/);
   assert.match(source, /mathMap:/);
   assert.match(source, /getAcademyClassworkTeacherView/);

@@ -59,6 +59,11 @@ const {
   regenerateAttendanceSessionCode,
   saveAcademyAttendanceRoster,
 } = require("../services/academyAttendanceService");
+const {
+  removeAcademyProfileImage,
+  resolveAcademyProfileImage,
+  updateAcademyProfileImage,
+} = require("../services/academyProfileImageService");
 const { discardRequestUploads } = require("../middleware/uploadContentValidation");
 
 function identifier(value) {
@@ -72,6 +77,7 @@ function serializeAcademy(academy) {
     id: identifier(academy),
     name: String(academy.name || ""),
     status: academy.status || null,
+    profileImageURL: resolveAcademyProfileImage(academy.profileImageAsset) || null,
   };
 }
 
@@ -622,6 +628,32 @@ exports.cancelTeacherAcademyJoin = async (req, res, next) => {
     await cancelAcademyStaffJoin({ teacherUserId: req.apiUser._id });
     res.set("Cache-Control", "private, no-store");
     return res.json(serializeTeacherSetup(await getTeacherAcademySetupData(req.apiUser._id)));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.updateTeacherAcademyProfileImage = async (req, res, next) => {
+  try {
+    if (req.profileAvatarUploadError) throw req.profileAvatarUploadError;
+    await updateAcademyProfileImage({
+      teacherUserId: req.apiUser._id,
+      file: req.file,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  } finally {
+    await discardRequestUploads(req);
+  }
+};
+
+exports.removeTeacherAcademyProfileImage = async (req, res, next) => {
+  try {
+    await removeAcademyProfileImage({ teacherUserId: req.apiUser._id });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
   } catch (error) {
     return next(error);
   }

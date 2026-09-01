@@ -180,6 +180,15 @@ router.post(
   "/academy/teacher/setup/join/cancel",
   ipadAcademyController.cancelTeacherAcademyJoin
 );
+router.post(
+  "/academy/teacher/profile-image",
+  handleProfileAvatarUpload,
+  ipadAcademyController.updateTeacherAcademyProfileImage
+);
+router.post(
+  "/academy/teacher/profile-image/remove",
+  ipadAcademyController.removeTeacherAcademyProfileImage
+);
 router.get("/academy/teacher/analytics", ipadAcademyController.teacherAnalytics);
 router.get("/academy/teacher/students", ipadAcademyController.teacherStudents);
 router.get(
