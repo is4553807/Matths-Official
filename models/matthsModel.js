@@ -62,7 +62,7 @@ const preferenceSchema = new Schema(
     coachMode: {
       type: String,
       enum: ["mild", "spicy", "silent"],
-      default: "spicy",
+      default: "mild",
     },
 
     autoplayMotion: {

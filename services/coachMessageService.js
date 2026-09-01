@@ -104,7 +104,7 @@ function loadCoachMessages() {
 function normalizeMode(mode) {
   return MODES.includes(mode)
     ? mode
-    : "spicy";
+    : "mild";
 }
 
 function normalizeSituation(

@@ -246,7 +246,7 @@ document.addEventListener(
       if (coachFeedback) {
         coachFeedback.hidden = !feedbackMessage;
         coachFeedback.dataset.mode =
-          feedback?.mode || "spicy";
+          feedback?.mode || "mild";
       }
       if (coachLabel) {
         coachLabel.textContent =

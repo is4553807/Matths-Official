@@ -30,7 +30,7 @@
     };
 
     function selectMode(mode, save) {
-      const selected = modes[mode] || modes.spicy;
+      const selected = modes[mode] || modes.mild;
       tone.textContent = selected.tone;
       helper.textContent = selected.helper;
       buttons.forEach((button) => {
@@ -47,7 +47,7 @@
       }
     }
 
-    let selectedMode = "spicy";
+    let selectedMode = "mild";
     try {
       const stored = window.localStorage.getItem("matths-learning-mode");
       if (stored && modes[stored]) selectedMode = stored;

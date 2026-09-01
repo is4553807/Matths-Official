@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const sharp = require("sharp");
+const { User } = require("../models/matthsModel");
 
 const root = path.resolve(__dirname, "..");
 const view = fs.readFileSync(path.join(root, "views/main.ejs"), "utf8");
@@ -45,11 +46,60 @@ const controller = fs.readFileSync(
   path.join(root, "controllers/matthsController.js"),
   "utf8"
 );
+const profileView = fs.readFileSync(
+  path.join(root, "views/profile.ejs"),
+  "utf8"
+);
+const introScript = fs.readFileSync(
+  path.join(root, "public/js/intro.js"),
+  "utf8"
+);
+const learningFlowScript = fs.readFileSync(
+  path.join(root, "public/js/learning-flow.js"),
+  "utf8"
+);
 const assetDirectory = path.join(root, "public/images/coach-characters");
 const tones = ["mild", "spicy"];
 const characters = ["goat", "pigeon", "llama"];
 
 async function main() {
+  const newUser = new User({
+    name: "기본말투검증",
+    realName: "기본말투검증",
+    email: "default-coach-mode@example.com",
+    passwordHash: "verification-only",
+    birthDate: new Date("2008-01-01T00:00:00.000Z"),
+    schoolGrade: 10,
+    preferences: { dashboardTutorialStatus: "PENDING" },
+  });
+  assert.equal(
+    newUser.preferences?.coachMode,
+    "mild",
+    "신규 회원의 기본 코치 말투는 순한맛이어야 합니다."
+  );
+  assert.match(
+    controller,
+    /preferences:\s*\{\s*coachMode:\s*"mild",\s*dashboardTutorialStatus:\s*"PENDING"/,
+    "일반·소셜 회원가입 경로는 순한맛을 명시적으로 저장해야 합니다."
+  );
+  assert.match(
+    coachService,
+    /function normalizeMode\(mode\)[\s\S]*?:\s*"mild";/,
+    "코치 모드가 없는 기존 사용자도 순한맛으로 처리해야 합니다."
+  );
+  assert.match(
+    dashboardService,
+    /user\.preferences\?\.coachMode\s*\|\|\s*"mild"/,
+    "대시보드의 코치 모드 fallback은 순한맛이어야 합니다."
+  );
+  assert.match(
+    profileView,
+    /learner\.preferences\?\.coachMode\s*\|\|\s*"mild"/,
+    "프로필의 초기 선택도 순한맛이어야 합니다."
+  );
+  assert.match(introScript, /let selectedMode = "mild";/);
+  assert.match(learningFlowScript, /let savedMode = "mild";/);
+
   assert.match(
     view,
     /\["mild", "spicy"\]\.includes\(data\.coach\.mode\)[\s\S]*data-dashboard-coach-character/,
