@@ -199,6 +199,19 @@ router.post(
   "/academy/teacher/staff/:staffId/revoke",
   ipadAcademyController.revokeTeacherStaff
 );
+router.post("/academy/teacher/classes", ipadAcademyController.createTeacherClass);
+router.post(
+  "/academy/teacher/classes/:classId/settings",
+  ipadAcademyController.updateTeacherClass
+);
+router.post(
+  "/academy/teacher/classes/:classId/archive",
+  ipadAcademyController.archiveTeacherClass
+);
+router.post(
+  "/academy/teacher/classes/:classId/restore",
+  ipadAcademyController.restoreTeacherClass
+);
 router.get(
   "/academy/teacher/attendance",
   ipadAcademyController.teacherAttendance

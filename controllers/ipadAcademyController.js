@@ -2,7 +2,9 @@ const {
   approveAcademyApplication,
   approveAcademyStaff,
   approveMembership,
+  archiveAcademyClass,
   assignMembershipClass,
+  createAcademyClass,
   createAcademyInvite,
   getAcademyPortalData,
   getStudentAcademyProfile,
@@ -12,8 +14,10 @@ const {
   rejectMembership,
   requestAcademyByCode,
   requestAcademyFromProfile,
+  restoreAcademyClass,
   revokeAcademyInvite,
   revokeAcademyStaff,
+  updateAcademyClassSettings,
 } = require("../services/academyService");
 const {
   getAdminAcademyList,
@@ -57,6 +61,8 @@ function serializeClass(academyClass) {
     id: identifier(academyClass),
     name: String(academyClass.name || ""),
     schedule: academyClass.schedule || null,
+    attendancePolicy: academyClass.attendancePolicy || null,
+    isActive: academyClass.isActive !== false,
   };
 }
 
@@ -266,7 +272,11 @@ async function teacherDashboardPayload(userId) {
     classes: portal.classes.map((academyClass) => ({
       ...serializeClass(academyClass),
       studentCount: studentCountByClass.get(identifier(academyClass)) || 0,
+      canManage: portal.isOwner
+        || identifier(academyClass.homeroomTeacherUserId) === String(userId)
+        || (academyClass.coTeacherUserIds || []).some((teacher) => identifier(teacher) === String(userId)),
     })),
+    archivedClasses: portal.archivedClasses.map(serializeClass),
     requests: portal.requests.map(serializeTeacherMembership),
     students: portal.students.slice(0, 50).map(serializeTeacherMembership),
     invites: portal.invites.slice(0, 20).map(serializeInvite),
@@ -442,6 +452,68 @@ exports.revokeTeacherStaff = async (req, res, next) => {
     await revokeAcademyStaff({
       teacherUserId: req.apiUser._id,
       staffId: req.params.staffId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+function classSettingsInput(req) {
+  return {
+    teacherUserId: req.apiUser._id,
+    classId: req.params.classId,
+    weekdays: req.body.weekdays,
+    startTime: req.body.startTime,
+    endTime: req.body.endTime,
+    effectiveFrom: req.body.effectiveFrom,
+    attendanceMode: req.body.attendanceMode,
+    opensBeforeMinutes: req.body.opensBeforeMinutes,
+    lateAfterMinutes: req.body.lateAfterMinutes,
+    closesAfterMinutes: req.body.closesAfterMinutes,
+  };
+}
+
+exports.createTeacherClass = async (req, res, next) => {
+  try {
+    const input = classSettingsInput(req);
+    await createAcademyClass({ ...input, classId: undefined, name: req.body.name });
+    res.set("Cache-Control", "private, no-store");
+    return res.status(201).json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.updateTeacherClass = async (req, res, next) => {
+  try {
+    await updateAcademyClassSettings(classSettingsInput(req));
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.archiveTeacherClass = async (req, res, next) => {
+  try {
+    await archiveAcademyClass({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.restoreTeacherClass = async (req, res, next) => {
+  try {
+    await restoreAcademyClass({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
     });
     res.set("Cache-Control", "private, no-store");
     return res.json(await teacherDashboardPayload(req.apiUser._id));
