@@ -9,6 +9,8 @@ const {
   createAcademyClass,
   createAcademyInvite,
   getAcademyPortalData,
+  getAcademyStudentDetail,
+  getAcademyStudentPage,
   getStudentAcademyProfile,
   leaveAcademy,
   rejectAcademyApplication,
@@ -23,6 +25,12 @@ const {
   transferAcademyClassHomeroom,
   updateAcademyClassSettings,
 } = require("../services/academyService");
+const {
+  getStudentMonthlyStatistics,
+} = require("../services/academyStatisticsService");
+const {
+  getStudentMathMap,
+} = require("../services/mathMapService");
 const {
   getAdminAcademyList,
 } = require("../services/adminAcademyService");
@@ -114,6 +122,97 @@ function serializeTeacherMembership(membership) {
     academyClass: serializeClass(membership.classId),
     requestedAt: membership.requestedAt || null,
     approvedAt: membership.approvedAt || null,
+  };
+}
+
+function serializeStudentPage(pageData, academy, classes) {
+  return {
+    academy: serializeAcademy(academy),
+    // 학생 명단의 반 선택기에는 반 ID·이름만 필요하다. 담임/공동 담당 이메일까지
+    // 같은 응답에 싣지 않아 화면 목적보다 넓은 개인정보 노출을 만들지 않는다.
+    classes: (classes || []).map((academyClass) => ({
+      id: identifier(academyClass),
+      name: String(academyClass.name || ""),
+      isActive: academyClass.isActive !== false,
+    })),
+    students: (pageData.students || []).map(serializeTeacherMembership),
+    page: Number(pageData.page || 1),
+    pageSize: Number(pageData.pageSize || 20),
+    total: Number(pageData.total || 0),
+    totalPages: Number(pageData.totalPages || 1),
+  };
+}
+
+function serializeStudentStatistics(statistics) {
+  return {
+    period: {
+      key: String(statistics.period?.key || ""),
+      label: String(statistics.period?.label || ""),
+      isCurrent: statistics.period?.isCurrent === true,
+      options: (statistics.period?.options || []).map((option) => ({
+        key: String(option.key || ""),
+        label: String(option.label || ""),
+      })),
+    },
+    hasActivity: statistics.hasActivity === true,
+    cards: (statistics.cards || []).map((card) => ({
+      label: String(card.label || ""),
+      value: String(card.value || ""),
+      detail: String(card.detail || ""),
+    })),
+    summary: {
+      bullets: (statistics.summary?.bullets || []).map((bullet) => ({
+        label: String(bullet.label || ""),
+        text: String(bullet.text || ""),
+      })),
+    },
+  };
+}
+
+function serializeMathMapConcept(concept) {
+  return {
+    id: String(concept.id || ""),
+    title: String(concept.title || ""),
+    courseTitle: String(concept.courseTitle || ""),
+    unitTitle: String(concept.unitTitle || ""),
+    mastery: concept.mastery === null || concept.mastery === undefined
+      ? null
+      : Number(concept.mastery),
+    status: String(concept.status || "UNKNOWN"),
+    statusLabel: String(concept.statusLabel || "데이터 부족"),
+    confidenceLabel: String(concept.confidenceLabel || "판단 전"),
+    evidence: {
+      attemptCount: Number(concept.evidence?.attemptCount || 0),
+      correctCount: Number(concept.evidence?.correctCount || 0),
+      retryAttemptedCount: Number(concept.evidence?.retryAttemptedCount || 0),
+      retryRecoveredCount: Number(concept.evidence?.retryRecoveredCount || 0),
+      averageResponseTimeMs: concept.evidence?.averageResponseTimeMs === null
+        || concept.evidence?.averageResponseTimeMs === undefined
+        ? null
+        : Number(concept.evidence.averageResponseTimeMs),
+      lastStudiedAt: concept.evidence?.lastStudiedAt || null,
+    },
+  };
+}
+
+function serializeStudentMathMap(mathMap) {
+  const serializeHeadline = (concept) => concept ? serializeMathMapConcept(concept) : null;
+  return {
+    graphVersion: String(mathMap?.graphVersion || ""),
+    modelVersion: String(mathMap?.modelVersion || ""),
+    overallMastery: mathMap?.overallMastery === null || mathMap?.overallMastery === undefined
+      ? null
+      : Number(mathMap.overallMastery),
+    analyzedConceptCount: Number(mathMap?.analyzedConceptCount || 0),
+    unknownConceptCount: Number(mathMap?.unknownConceptCount || 0),
+    topStrength: serializeHeadline(mathMap?.topStrength),
+    topPriority: serializeHeadline(mathMap?.topPriority),
+    bottlenecks: (mathMap?.bottlenecks || []).slice(0, 5).map((item) => ({
+      conceptId: String(item.conceptId || ""),
+      conceptTitle: String(item.conceptTitle || ""),
+      affectedConceptCount: Number(item.affectedConceptCount || item.affectedConcepts?.length || 0),
+    })),
+    concepts: (mathMap?.concepts || []).map(serializeMathMapConcept),
   };
 }
 
@@ -416,6 +515,67 @@ exports.removeTeacherStudent = async (req, res, next) => {
     });
     res.set("Cache-Control", "private, no-store");
     return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.teacherStudents = async (req, res, next) => {
+  try {
+    const [pageData, portal] = await Promise.all([
+      getAcademyStudentPage({
+        teacherUserId: req.apiUser._id,
+        page: req.query.page,
+      }),
+      getAcademyPortalData(req.apiUser._id, { includeStudents: false }),
+    ]);
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeStudentPage(pageData, portal.academy, portal.classes));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.teacherStudentDetail = async (req, res, next) => {
+  try {
+    const detail = await getAcademyStudentDetail({
+      teacherUserId: req.apiUser._id,
+      membershipId: req.params.membershipId,
+    });
+    const studentUserId = detail.membership.studentUserId._id;
+    const [statistics, mathMap] = await Promise.all([
+      getStudentMonthlyStatistics({
+        studentUserId,
+        periodKey: req.query.period,
+      }),
+      getStudentMathMap({ studentUserId }),
+    ]);
+    res.set("Cache-Control", "private, no-store");
+    return res.json({
+      academy: serializeAcademy(detail.academy),
+      membership: serializeTeacherMembership(detail.membership),
+      statistics: serializeStudentStatistics(statistics),
+      mathMap: serializeStudentMathMap(mathMap),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.bulkManageTeacherStudents = async (req, res, next) => {
+  try {
+    const result = await bulkManageAcademyStudents({
+      teacherUserId: req.apiUser._id,
+      membershipIds: req.body.membershipIds,
+      action: req.body.action,
+      classId: req.body.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json({
+      action: result.action,
+      count: Number(result.count || 0),
+      modifiedCount: Number(result.modifiedCount || 0),
+    });
   } catch (error) {
     return next(error);
   }
