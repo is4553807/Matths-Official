@@ -337,6 +337,12 @@ const userSchema = new Schema(
         default: undefined,
         select: false,
       },
+      appleId: {
+        type: String,
+        trim: true,
+        default: undefined,
+        select: false,
+      },
     },
 
     emailVerifiedAt: {
@@ -771,6 +777,16 @@ userSchema.index(
     name: "socialAuth_kakaoId_unique_v1",
     partialFilterExpression: {
       "socialAuth.kakaoId": { $type: "string" },
+    },
+  }
+);
+userSchema.index(
+  { "socialAuth.appleId": 1 },
+  {
+    unique: true,
+    name: "socialAuth_appleId_unique_v1",
+    partialFilterExpression: {
+      "socialAuth.appleId": { $type: "string" },
     },
   }
 );

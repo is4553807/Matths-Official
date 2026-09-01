@@ -226,7 +226,7 @@
 
           <% if (social) { %>
             <div class="social-registration-banner" role="status">
-              <span class="social-auth-mark" aria-hidden="true"><%= social.provider === "google" ? "G" : "K" %></span>
+              <span class="social-auth-mark" aria-hidden="true"><%= social.provider === "google" ? "G" : social.provider === "apple" ? "" : "K" %></span>
               <div>
                 <strong><%= social.providerLabel %> 계정 확인 완료</strong>
                 <p>검증된 이메일은 바꿀 수 없습니다. 나머지 필수 정보만 입력해 주세요.</p>

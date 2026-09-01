@@ -34,9 +34,8 @@ const APPLE_REVOKE_URL = `${APPLE_ISSUER}/auth/revoke`;
 
 /*
  * 사용자 문서에 애플 식별자를 남기는 경로입니다. 구글(socialAuth.googleId)과 같은
- * 자리를 쓰되, models/matthsModel.js 는 이 작업의 소유 범위 밖이라 스키마에 그 경로가
- * 있을 때만 기록합니다. 실제 조회 정본은 AppleAuthCredential 컬렉션입니다
- * (linkAppleIdentity 주석 참조).
+ * 자리에 빠른 조회·중복 방지용으로 기록하고, 토큰 폐기에 필요한 비밀 자격 증명은
+ * AppleAuthCredential 컬렉션에만 둡니다.
  */
 const APPLE_ID_PATH = "socialAuth.appleId";
 
@@ -432,10 +431,9 @@ function userSupportsAppleIdPath() {
 }
 
 /*
- * 사용자 스키마에 appleId 경로가 생기면 구글과 같은 자리에도 남깁니다.
- * 지금은 그 경로가 없어(모델 파일이 이 작업의 소유 범위 밖) 조용히 건너뜁니다 —
- * strict 스키마에서는 없는 경로에 set 해도 저장되지 않으므로, 저장된 척하는
- * 코드를 남기는 것보다 조건을 드러내는 편이 낫습니다.
+ * 사용자 스키마의 appleId 경로에 구글·카카오와 같은 공개되지 않는 연결 키를
+ * 남깁니다. 레거시 스키마로 잠시 실행되는 롤링 배포도 고려해 경로가 없으면
+ * AppleAuthCredential 정본만 사용합니다.
  */
 function mirrorAppleIdOnUser(user, subject) {
   if (!userSupportsAppleIdPath()) return;
@@ -500,17 +498,17 @@ async function createAppleUser({ subject, claims, fullName, email }) {
  * 애플 계정 하나가 우리 계정 하나에 붙는 지점입니다.
  *
  * 조회 정본이 User.socialAuth.appleId 가 아니라 AppleAuthCredential 인 이유:
- * 사용자 스키마 파일은 이 작업의 소유 범위 밖이라 새 경로를 추가할 수 없습니다.
- * 자격 증명 컬렉션은 appleSubject 와 userId 가 각각 유니크라 같은 보장을 줍니다
+ * 자격 증명 컬렉션은 appleSubject 와 userId 가 각각 유니크라 같은 보장을 주면서
+ * 탈퇴 시 폐기해야 하는 Apple 비밀 토큰까지 사용자 문서와 분리해 보관합니다
  * (한 애플 계정 → 한 사용자, 한 사용자 → 한 애플 계정).
  */
 async function linkAppleIdentity({ claims, fullName }) {
   const subject = claims.subject;
   const providedName = String(fullName || "").trim().slice(0, 40);
   /*
-   * 이름·이메일은 애플이 **최초 승인 1회만** 줍니다. 두 번째 로그인부터는 없으므로
-   * 지금 받은 것은 지금 저장해야 하고, 반대로 없는 값으로 기존 값을 덮으면
-   * 다시 채울 방법이 영영 없습니다. 그래서 아래는 전부 "비어 있을 때만 채운다" 입니다.
+   * 이름 user 객체는 **최초 승인 1회만** 오고, 검증된 이메일은 보통 이후 identity
+   * token에도 남습니다. 다만 관리형 Apple 계정 등은 이메일이 비어 있을 수 있으므로
+   * 지금 받은 값은 저장하되 없는 값으로 기존 프로필을 덮지는 않습니다.
    */
   /*
    * **body 의 email 은 절대 쓰지 않는다.**

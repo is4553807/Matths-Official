@@ -10,6 +10,12 @@ const {
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
 const SOCIAL_REGISTRATION_MAX_AGE_MS = 30 * 60 * 1000;
 
+const SOCIAL_PROVIDER_LABELS = Object.freeze({
+  google: "Google",
+  kakao: "카카오",
+  apple: "Apple",
+});
+
 const PROVIDERS = Object.freeze({
   google: {
     key: "google",
@@ -307,6 +313,11 @@ function setPendingSocialRegistration(
     providerUserId: profile.providerUserId,
     email: profile.email,
     displayName: profile.displayName,
+    ...(profile.provider === "apple" && profile.provisionalUserId
+      ? {
+          provisionalUserId: String(profile.provisionalUserId),
+        }
+      : {}),
     mobile:
       context.mobile === true,
     ...(context.codeChallenge
@@ -324,9 +335,11 @@ function getPendingSocialRegistration(req) {
   const pending = req.session?.pendingSocialRegistration;
   if (
     !pending ||
-    !PROVIDERS[pending.provider] ||
+    !SOCIAL_PROVIDER_LABELS[pending.provider] ||
     !pending.providerUserId ||
     !pending.email ||
+    (pending.provider === "apple" &&
+      !/^[a-f\d]{24}$/i.test(String(pending.provisionalUserId || ""))) ||
     Date.now() - Number(pending.createdAt || 0) > SOCIAL_REGISTRATION_MAX_AGE_MS
   ) {
     if (req.session) delete req.session.pendingSocialRegistration;
@@ -334,7 +347,7 @@ function getPendingSocialRegistration(req) {
   }
   return {
     ...pending,
-    providerLabel: PROVIDERS[pending.provider].label,
+    providerLabel: SOCIAL_PROVIDER_LABELS[pending.provider],
   };
 }
 

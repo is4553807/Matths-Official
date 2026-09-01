@@ -7,6 +7,9 @@ const {
 const {
   ParentAccount,
 } = require("../models/parentModel");
+const AppleAuthCredential = require(
+  "../models/appleAuthCredentialModel"
+);
 const {
   getStudentAcademyProfile,
 } = require("../services/academyService");
@@ -1044,7 +1047,7 @@ exports.appleWebOAuthStart = (req, res) => {
 
 exports.appleWebOAuthCallback = async (req, res) => {
   try {
-    const { user } = await completeAppleWebAuthorization({
+    const { user, claims } = await completeAppleWebAuthorization({
       code: req.body?.code,
       identityToken: req.body?.id_token,
       state: req.body?.state,
@@ -1052,7 +1055,61 @@ exports.appleWebOAuthCallback = async (req, res) => {
       error: req.body?.error,
     });
 
-    const access = await synchronizeAccountAccess(user._id);
+    /*
+     * Apple 서비스는 네이티브 앱 로그인도 함께 담당하므로 신원 교환 단계에서는
+     * 최소 사용자 문서를 먼저 만든다. 웹에서는 생년월일이 없는 계정을 완성된
+     * 회원으로 로그인시키지 않고 Google·카카오와 같은 추가정보 입력 화면으로
+     * 보낸다. 중간에 창을 닫아도 다음 Apple 로그인에서 다시 이 관문을 지난다.
+     */
+    const appleUser = await User.findById(user._id)
+      .select(`+birthDate ${SOCIAL_AUTH_SELECT}`);
+    if (!appleUser) {
+      const error = new Error(
+        "Apple 계정 정보를 확인하지 못했습니다. 다시 시도해주세요."
+      );
+      error.code = "SOCIAL_AUTH_ACCOUNT_CONFLICT";
+      throw error;
+    }
+    if (!appleUser.birthDate) {
+      const registrationEmail = String(
+        claims.email || appleUser.email || ""
+      )
+        .trim()
+        .toLowerCase();
+      if (
+        !registrationEmail ||
+        /@appleid\.invalid$/i.test(registrationEmail) ||
+        !(claims.emailVerified === true || appleUser.emailVerifiedAt)
+      ) {
+        const error = new Error(
+          "Apple 계정에서 검증된 이메일을 확인하지 못했습니다. 이메일 제공 설정을 확인해주세요."
+        );
+        error.code = "SOCIAL_AUTH_EMAIL_REQUIRED";
+        throw error;
+      }
+      // 최소 계정 생성 시 들어간 기본 약관 시각은 실제 동의가 아니다. 가입 폼에서
+      // 체크박스를 제출한 순간에만 아래 register 경로가 다시 기록한다.
+      appleUser.termsAcceptedAt = null;
+      appleUser.termsVersion = "";
+      appleUser.privacyVersion = "";
+      await appleUser.save();
+      setPendingSocialRegistration(
+        req,
+        {
+          provider: "apple",
+          providerUserId: claims.subject,
+          email: registrationEmail,
+          // Apple이 준 이름이나 서비스가 만든 임시 닉네임을 폼에 강제하지 않는다.
+          displayName: "",
+          provisionalUserId: appleUser._id,
+        },
+        { mobile: false }
+      );
+      await saveSession(req);
+      return res.redirect("/register");
+    }
+
+    const access = await synchronizeAccountAccess(appleUser._id);
     if (!access?.allowed) {
       const error = new Error(
         accountBlockedMessage(
@@ -5900,6 +5957,34 @@ exports.register = async (req, res, next) => {
         )
             .trim()
             .toLowerCase();
+        const appleRegistration =
+          socialRegistration?.provider === "apple";
+        let appleProvisionalUser = null;
+        if (appleRegistration) {
+          const provisionalUserId =
+            socialRegistration.provisionalUserId;
+          const [provisionalUser, appleCredential] = await Promise.all([
+            User.findOne({
+              _id: provisionalUserId,
+              email,
+            }).select(`+birthDate ${SOCIAL_AUTH_SELECT}`),
+            AppleAuthCredential.exists({
+              userId: provisionalUserId,
+              appleSubject:
+                socialRegistration.providerUserId,
+            }),
+          ]);
+          if (!provisionalUser || !appleCredential) {
+            clearPendingSocialRegistration(req);
+            res.locals.socialRegistration = null;
+            return renderRegisterError(
+              res,
+              400,
+              "Apple 가입 인증이 만료되었거나 올바르지 않습니다. 로그인 화면에서 다시 시작해주세요."
+            );
+          }
+          appleProvisionalUser = provisionalUser;
+        }
         const birthDateInput = String(
             req.body.birthDate || ""
         ).trim();
@@ -6117,14 +6202,30 @@ exports.register = async (req, res, next) => {
           ? {
               [socialIdentityPath]:
                 socialRegistration.providerUserId,
+              ...(appleProvisionalUser
+                ? {
+                    _id: {
+                      $ne: appleProvisionalUser._id,
+                    },
+                  }
+                : {}),
             }
           : { _id: null };
+        const excludeAppleProvisional = appleProvisionalUser
+          ? {
+              _id: {
+                $ne: appleProvisionalUser._id,
+              },
+            }
+          : {};
         const [existingUser, existingNickname, existingSocialIdentity] =
           await Promise.all([
             User.exists({
               email,
+              ...excludeAppleProvisional,
             }),
             User.exists({
+              ...excludeAppleProvisional,
               $or: [
                 {
                   nameNormalized:
@@ -6174,29 +6275,12 @@ exports.register = async (req, res, next) => {
             );
         }
 
-        const passwordHash = await bcrypt.hash(
-            socialRegistration
-              ? crypto.randomBytes(48).toString("base64url")
-              : password,
-            BCRYPT_ROUNDS
-        );
-
-        const user = await User.create({
+        const registrationProfile = {
             realName,
             name,
             nameNormalized:
               nicknameKey(name),
             email,
-            passwordHash,
-            ...(socialRegistration
-              ? {
-                  socialAuth: {
-                    [socialIdentityField]:
-                      socialRegistration.providerUserId,
-                  },
-                  emailVerifiedAt: new Date(),
-                }
-              : {}),
             birthDate,
             ...(selectedSchool
                 ? {
@@ -6255,7 +6339,44 @@ exports.register = async (req, res, next) => {
             preferences: {
               dashboardTutorialStatus: "PENDING",
             },
-        });
+        };
+
+        let user;
+        if (appleProvisionalUser) {
+          /*
+           * Apple 신원 교환 때 만들어진 최소 사용자 문서를 지금 사용자가 입력한
+           * 값으로 완성한다. 새 문서를 하나 더 만들면 같은 relay 이메일과 Apple
+           * subject가 두 계정으로 갈라지므로 반드시 기존 _id를 유지한다.
+           */
+          appleProvisionalUser.set(registrationProfile);
+          appleProvisionalUser.set(
+            socialIdentityPath,
+            socialRegistration.providerUserId
+          );
+          appleProvisionalUser.emailVerifiedAt =
+            appleProvisionalUser.emailVerifiedAt || new Date();
+          user = await appleProvisionalUser.save();
+        } else {
+          const passwordHash = await bcrypt.hash(
+              socialRegistration
+                ? crypto.randomBytes(48).toString("base64url")
+                : password,
+              BCRYPT_ROUNDS
+          );
+          user = await User.create({
+            ...registrationProfile,
+            passwordHash,
+            ...(socialRegistration
+              ? {
+                  socialAuth: {
+                    [socialIdentityField]:
+                      socialRegistration.providerUserId,
+                  },
+                  emailVerifiedAt: new Date(),
+                }
+              : {}),
+          });
+        }
 
         await alertPotentialDuplicateIdentity(
             user

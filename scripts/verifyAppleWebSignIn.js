@@ -33,7 +33,10 @@ const {
   sameOriginProtection,
 } = require("../middleware/requestSecurity");
 const {
+  clearPendingSocialRegistration,
+  getPendingSocialRegistration,
   publicProviderStatus,
+  setPendingSocialRegistration,
 } = require("../services/socialAuthService");
 
 function source(relative) {
@@ -57,6 +60,33 @@ async function main() {
   );
   assert.equal(appleStatus.configured, true);
   assert.equal(appleStatus.webConfigured, true);
+
+  const registrationRequest = { session: {} };
+  setPendingSocialRegistration(registrationRequest, {
+    provider: "apple",
+    providerUserId: "001999.appleuser.web",
+    email: "student@privaterelay.appleid.com",
+    displayName: "",
+    provisionalUserId: "64b000000000000000000001",
+  });
+  assert.deepEqual(
+    {
+      provider: getPendingSocialRegistration(registrationRequest)?.provider,
+      providerLabel:
+        getPendingSocialRegistration(registrationRequest)?.providerLabel,
+      email: getPendingSocialRegistration(registrationRequest)?.email,
+      provisionalUserId:
+        getPendingSocialRegistration(registrationRequest)?.provisionalUserId,
+    },
+    {
+      provider: "apple",
+      providerLabel: "Apple",
+      email: "student@privaterelay.appleid.com",
+      provisionalUserId: "64b000000000000000000001",
+    }
+  );
+  clearPendingSocialRegistration(registrationRequest);
+  assert.equal(getPendingSocialRegistration(registrationRequest), null);
   assert.equal(
     _testing.appleWebConfig({
       ...environment,
@@ -175,6 +205,8 @@ async function main() {
   const routes = source("routes/matths-routes.js");
   const controller = source("controllers/matthsController.js");
   const login = source("views/login.ejs");
+  const register = source("views/register.ejs");
+  const userModel = source("models/matthsModel.js");
   const css = source("public/css/auth.css");
   const cloudtype = source(".cloudtype/app.yaml");
   const preview = source("scripts/previewLocalUi.js");
@@ -190,9 +222,14 @@ async function main() {
   assert.match(requestSecurity, /name: "apple-web-oauth-start-ip"/);
   assert.match(requestSecurity, /name: "apple-web-oauth-callback-ip"/);
   assert.match(controller, /completeAppleWebAuthorization/);
+  assert.match(controller, /provider:\s*"apple"[\s\S]*provisionalUserId:/);
+  assert.match(controller, /if \(!appleUser\.birthDate\)/);
+  assert.match(controller, /appleProvisionalUser\.set\(registrationProfile\)/);
   assert.match(login, /Apple로 계속하기/);
   assert.match(login, /href="<%= socialProviderConfigured\('apple'\) \? '\/auth\/apple'/);
   assert.match(css, /\.social-auth-button\.is-apple/);
+  assert.match(register, /social\.provider === "apple" \? ""/);
+  assert.match(userModel, /appleId:\s*\{[\s\S]*select:\s*false/);
   assert.match(preview, /app\.get\("\/preview\/login"/);
   assert.match(cloudtype, /name: APPLE_SERVICES_ID\s+value: kr\.matths\.web/);
   assert.match(
