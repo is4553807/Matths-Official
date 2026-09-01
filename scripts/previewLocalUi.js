@@ -49,7 +49,7 @@ const port = Number(process.env.MATTHS_PREVIEW_PORT) || 8011;
 app.locals.assetVersion = "local-preview";
 const previewArenaActivityAudit = [];
 const previewProducts = [
-  { code: "MOCK_EXAM_ONLY", name: "Matths 주간 공식 모의고사 이용권", amount: 5000, periodLabel: "30일", description: "주간 공식 모의고사 응시에 집중하는 이용권" },
+  { code: "MOCK_EXAM_ONLY", name: "Matths 주간 공식 모의고사 이용권", amount: 5500, periodLabel: "30일", description: "주간 공식 모의고사 응시에 집중하는 이용권" },
   { code: "LEARNING_PACKAGE_29", name: "29일 학습권 패키지", amount: 29000, periodLabel: "29일", description: "모의고사·배치고사·GOAT Arena까지 포함한 학습권" },
 ].map((product) => ({ ...product, refundPolicy: getRefundDisclosure(product) }));
 
@@ -795,7 +795,7 @@ app.get("/pricing", (req, res) => {
   res.render("pricing", {
     user,
     activePage: "pricing",
-    mockExamPolicy: { monthlyPriceAmount: 5000 },
+    mockExamPolicy: { monthlyPriceAmount: 5500 },
     learningPackagePolicy: { priceAmount: 29000 },
     products: previewProducts,
     productAccess: null,
@@ -1128,8 +1128,8 @@ app.get("/preview/parent/payments", (_req, res) => {
       summary: {
         orderCount: 3,
         paidCount: 2,
-        paidAmount: 34000,
-        refundedAmount: 5000,
+        paidAmount: 34500,
+        refundedAmount: 5500,
         refundableCount: 1,
       },
       orders: [
@@ -1158,7 +1158,7 @@ app.get("/preview/parent/payments", (_req, res) => {
           orderId: "matths-preview-refunded-order",
           productCode: "MOCK_EXAM_ONLY",
           productName: "Matths 주간 공식 모의고사 이용권",
-          amount: 5000,
+          amount: 5500,
           currency: "KRW",
           createdAt: new Date("2026-07-01T03:00:00.000Z"),
           approvedAt: new Date("2026-07-01T03:01:00.000Z"),
@@ -1173,7 +1173,7 @@ app.get("/preview/parent/payments", (_req, res) => {
             status: "COMPLETED",
             requestedAt: new Date("2026-07-02T03:00:00.000Z"),
             processingDeadlineAt: new Date("2026-07-07T03:00:00.000Z"),
-            decision: { approvedAmount: 5000 },
+            decision: { approvedAmount: 5500 },
           },
           remainingAmount: 0,
           isRefundable: false,
@@ -1245,7 +1245,7 @@ app.get("/preview/admin/refunds", (_req, res) => {
         status: "CALCULATED",
         requestedAt,
         processingDeadlineAt: new Date("2026-08-18T10:00:00+09:00"),
-        calculation: { approvedAmount: 5000, calculatedAmount: 0, usedDays: 30, calculationType: "NONE", formula: "이용 기간이 종료되어 잔여 환불액 0원", calculatedBy: { realName: "홍길동" } },
+        calculation: { approvedAmount: 5500, calculatedAmount: 0, usedDays: 30, calculationType: "NONE", formula: "이용 기간이 종료되어 잔여 환불액 0원", calculatedBy: { realName: "홍길동" } },
       }],
       status: "",
       page: 1,
@@ -2323,7 +2323,7 @@ app.get("/admin/arena-policies", (_req, res) => {
     displayName: "Matths 주간 공식 모의고사 이용권",
     status: "ACTIVE",
     effectiveFrom: new Date("2026-08-02T00:00:00+09:00"),
-    monthlyPriceAmount: 5000,
+    monthlyPriceAmount: 5500,
     billingPeriodDays: 30,
     placementCalibrationMinimumWeeklyExams: 4,
     changeSummary: "현재 월 이용 가격",

@@ -669,7 +669,7 @@ const mockExamPackagePolicyVersionSchema = new Schema(
       type: Number,
       min: 0,
       required: true,
-      default: 5000,
+      default: 5500,
     },
     billingPeriodDays: {
       type: Number,

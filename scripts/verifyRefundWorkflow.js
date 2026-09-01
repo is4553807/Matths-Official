@@ -73,11 +73,11 @@ async function main() {
     status: { $in: ["REQUESTED", "CALCULATED"] },
   });
 
-  const products = [product("MOCK_EXAM_ONLY", 5000, "30일"), product("LEARNING_PACKAGE_29", 29000, "29일")];
+  const products = [product("MOCK_EXAM_ONLY", 5500, "30일"), product("LEARNING_PACKAGE_29", 29000, "29일")];
   const pricing = await render("pricing.ejs", {
     user: { id: "user", role: "student" },
     activePage: "pricing",
-    mockExamPolicy: { monthlyPriceAmount: 5000 },
+    mockExamPolicy: { monthlyPriceAmount: 5500 },
     learningPackagePolicy: { priceAmount: 29000 },
     products,
     productAccess: null,
@@ -137,7 +137,7 @@ async function main() {
         requestedAt: new Date("2026-08-13T10:00:00+09:00"),
         processingDeadlineAt: new Date("2026-08-18T10:00:00+09:00"),
         status: "CALCULATED",
-        calculation: { approvedAmount: 5000, calculatedAmount: 0, usedDays: 30, calculationType: "NONE", formula: "잔여 환불액 0원", calculatedBy: { realName: "관리자" } },
+        calculation: { approvedAmount: 5500, calculatedAmount: 0, usedDays: 30, calculationType: "NONE", formula: "잔여 환불액 0원", calculatedBy: { realName: "관리자" } },
       }],
       status: "",
       page: 1,

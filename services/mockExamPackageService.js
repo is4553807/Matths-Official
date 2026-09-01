@@ -10,7 +10,7 @@ const {
   recordPolicyChangeScheduled,
 } = require("./policyChangeOutboxService");
 
-const DEFAULT_MONTHLY_PRICE_AMOUNT = 5000;
+const DEFAULT_MONTHLY_PRICE_AMOUNT = 5500;
 const DEFAULT_POLICY_CODE = "MOCK-ONLY-2026-INITIAL";
 const DEFAULT_CALIBRATION_WEEKLY_EXAMS = 4;
 const MOCK_EXAM_PRODUCT_NAME = "Matths 주간 공식 모의고사 이용권";
@@ -81,7 +81,7 @@ async function ensureDefaultMockExamPackagePolicy() {
       billingPeriodDays: 30,
       placementCalibrationMinimumWeeklyExams:
         DEFAULT_CALIBRATION_WEEKLY_EXAMS,
-      changeSummary: "월 5,000원 Matths 주간 공식 모의고사 이용권 최초 정책",
+      changeSummary: "월 5,500원 Matths 주간 공식 모의고사 이용권 최초 정책",
       activatedAt: new Date(),
     });
     return policyView(created.toObject());

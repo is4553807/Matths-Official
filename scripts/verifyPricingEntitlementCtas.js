@@ -10,7 +10,7 @@ const products = [
   {
     code: "MOCK_EXAM_ONLY",
     name: "Matths 주간 공식 모의고사 이용권",
-    amount: 5000,
+    amount: 5500,
     periodLabel: "30일",
     description: "검증용 모의고사 이용권",
     refundPolicy: {
@@ -53,7 +53,7 @@ async function renderPricing(productAccess) {
   return ejs.renderFile(path.join(views, "pricing.ejs"), {
     user,
     activePage: "pricing",
-    mockExamPolicy: { monthlyPriceAmount: 5000 },
+    mockExamPolicy: { monthlyPriceAmount: 5500 },
     learningPackagePolicy: { priceAmount: 29000 },
     products,
     productAccess,

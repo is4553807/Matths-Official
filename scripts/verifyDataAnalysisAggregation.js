@@ -27,7 +27,7 @@ const rows = calculateMonthlyObservations({
   payments: [
     { userId: "user-1", status: "APPLIED", approvedAmount: 29000, policyVersionCode: "P1" },
     { userId: "user-3", status: "REFUNDED", approvedAmount: 29000, policyVersionCode: "P1" },
-    { userId: "user-2", status: "APPROVED", approvedAmount: 5000, policyVersionCode: "P1" },
+    { userId: "user-2", status: "APPROVED", approvedAmount: 5500, policyVersionCode: "P1" },
   ],
   paidCycles: [
     {
@@ -153,7 +153,7 @@ const connectedMetricKeys = new Set(
 assert.equal(FIRST_MONTH_METRICS.length, 47);
 assert.equal(connectedMetricKeys.size, FIRST_MONTH_METRICS.length);
 assert.equal(row("payment.successful_count").numericValue, 2);
-assert.equal(row("payment.net_approved_amount").numericValue, 34000);
+assert.equal(row("payment.net_approved_amount").numericValue, 34500);
 assert.equal(Math.round(row("payment.refund_cancel_rate").numericValue * 10) / 10, 33.3);
 assert.equal(row("access.zero_balance_rate").numericValue, 50);
 assert.equal(row("access.average_depletion_day").numericValue, 5);

@@ -83,7 +83,7 @@ async function getProductCatalog() {
     {
       code: "MOCK_EXAM_ONLY",
       name: "Matths 주간 공식 모의고사 이용권",
-      amount: Number(mockPolicy?.monthlyPriceAmount ?? 5000),
+      amount: Number(mockPolicy?.monthlyPriceAmount ?? 5500),
       periodLabel: "30일",
       description: "배치고사 첫 티어와 매주 티어 승급 경쟁을 포함한 모의고사 이용권",
       policyAvailable: Boolean(mockPolicy),

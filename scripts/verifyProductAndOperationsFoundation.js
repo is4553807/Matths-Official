@@ -32,7 +32,7 @@ const root = path.resolve(__dirname, "..");
 const read = (file) =>
   fs.readFileSync(path.join(root, file), "utf8");
 
-assert.equal(DEFAULT_MONTHLY_PRICE_AMOUNT, 5000);
+assert.equal(DEFAULT_MONTHLY_PRICE_AMOUNT, 5500);
 assert.equal(DEFAULT_CALIBRATION_WEEKLY_EXAMS, 4);
 assert.equal(DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT, 29000);
 assert.equal(DEFAULT_LEARNING_PACKAGE_DAYS, 29);
@@ -46,7 +46,7 @@ assert.deepEqual(
     goatArenaAllowed: policyView(null).goatArenaAllowed,
   },
   {
-    price: 5000,
+    price: 5500,
     weeklyMockExamAllowed: true,
     placementExamAllowed: false,
     goatArenaAllowed: false,

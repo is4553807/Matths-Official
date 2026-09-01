@@ -72,7 +72,7 @@ for (const retiredName of ["모의고사 전용 패키지", "Sub Ranking", "Main
 if (hasPrivateLogicDocs) {
   assert.ok(logicText.includes(MOCK_EXAM_PRODUCT_NAME));
 }
-assert.equal(DEFAULT_MONTHLY_PRICE_AMOUNT, 5000);
+assert.equal(DEFAULT_MONTHLY_PRICE_AMOUNT, 5500);
 assert.equal(DEFAULT_CALIBRATION_WEEKLY_EXAMS, 4);
 assert.equal(DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT, 29000);
 assert.equal(DEFAULT_LEARNING_PACKAGE_DAYS, 29);
