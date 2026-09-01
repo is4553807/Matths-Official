@@ -32,10 +32,6 @@ const {
 const {
     canonicalHostRedirect,
 } = require("./middleware/canonicalHost");
-const {
-    localizationMiddleware,
-} = require("./middleware/localizationMiddleware");
-
 const runtimeEnvironment = assertRuntimeEnvironment();
 for (const warning of runtimeEnvironment.warnings) {
     console.warn(`[startup warning] ${warning}`);
@@ -221,7 +217,6 @@ server.use(session({
     },
 }));
 server.use(sameOriginProtection);
-server.use(localizationMiddleware);
 server.use((req, res, next) => {
     res.locals.user = req.session?.user || null;
     res.locals.arenaPublicText = arenaPublicText;

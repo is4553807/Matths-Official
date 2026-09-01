@@ -151,44 +151,6 @@
   }
 })();
 
-function usesEnglishInterface() {
-  return String(document.documentElement.lang || "")
-    .toLowerCase()
-    .startsWith("en");
-}
-
-function localizedInstitutionRegion(region) {
-  if (!usesEnglishInterface()) return region;
-  const regions = {
-    서울: "Seoul",
-    부산: "Busan",
-    대구: "Daegu",
-    인천: "Incheon",
-    광주: "Gwangju",
-    대전: "Daejeon",
-    울산: "Ulsan",
-    세종: "Sejong",
-    경기: "Gyeonggi",
-    강원: "Gangwon",
-    충북: "North Chungcheong",
-    충남: "South Chungcheong",
-    전북: "North Jeolla",
-    전남: "South Jeolla",
-    경북: "North Gyeongsang",
-    경남: "South Gyeongsang",
-    제주: "Jeju",
-    해외: "Overseas",
-  };
-  return regions[region] || region;
-}
-
-function localizedCampus(campus) {
-  if (!usesEnglishInterface()) return campus;
-  if (campus === "본교") return "Main Campus";
-  const numberedCampus = String(campus || "").match(/^제(\d+)캠퍼스$/u);
-  return numberedCampus ? `Campus ${numberedCampus[1]}` : campus;
-}
-
 function initSchoolSelector() {
   const overseasOptionCode = "OVERSEAS_HIGH_SCHOOL";
   const dataElement =
@@ -292,9 +254,6 @@ function initSchoolSelector() {
   }
 
   function createSchoolLabel(school) {
-    if (school.code === overseasOptionCode && usesEnglishInterface()) {
-      return "High school outside Korea";
-    }
     if (school.roadAddress) {
       return [
         school.name,
@@ -365,8 +324,6 @@ function initSchoolSelector() {
             createSchoolLabel(school),
             school.code
           );
-
-        option.setAttribute("data-i18n-skip", "");
 
         if (
           school.code ===
@@ -542,20 +499,15 @@ function initUniversitySelector() {
     ));
     rows.forEach((university) => {
       const suffix = [
-        localizedCampus(university.campus),
-        localizedInstitutionRegion(university.region),
+        university.campus,
+        university.region,
       ]
         .filter(Boolean)
         .join(" · ");
-      const universityName =
-        university.code === overseasOptionCode && usesEnglishInterface()
-          ? "University outside Korea"
-          : university.name;
       const option = new Option(
-        `${universityName}${suffix ? ` · ${suffix}` : ""}`,
+        `${university.name}${suffix ? ` · ${suffix}` : ""}`,
         university.code
       );
-      option.setAttribute("data-i18n-skip", "");
       option.selected = String(university.code) === String(selectedCode);
       universitySelect.add(option);
     });

@@ -2,24 +2,17 @@
   const publicArenaText = typeof arenaPublicText === "function"
     ? arenaPublicText
     : (value) => String(value ?? "").replace(/Sub\s+Division/g, "Unranked").replace(/Main\s+Division/g, "Ranked");
-  const ruleLocale =
-    typeof locale === "string" && locale.toLowerCase().startsWith("en")
-      ? "en"
-      : "ko";
-  const isEnglishRulebook = ruleLocale === "en";
   const formatWon = (value) =>
-    isEnglishRulebook
-      ? `KRW ${new Intl.NumberFormat("en-US").format(Number(value) || 0)}`
-      : `${new Intl.NumberFormat("ko-KR").format(Number(value) || 0)}원`;
+    `${new Intl.NumberFormat("ko-KR").format(Number(value) || 0)}원`;
   const formatKstDate = (value) =>
-    new Intl.DateTimeFormat(isEnglishRulebook ? "en-US" : "ko-KR", {
+    new Intl.DateTimeFormat("ko-KR", {
       timeZone: "Asia/Seoul",
       year: "numeric",
       month: "long",
       day: "numeric",
     }).format(new Date(value));
   const formatKstDateTime = (value) =>
-    new Intl.DateTimeFormat(isEnglishRulebook ? "en-US" : "ko-KR", {
+    new Intl.DateTimeFormat("ko-KR", {
       timeZone: "Asia/Seoul",
       year: "numeric",
       month: "long",
@@ -29,13 +22,9 @@
       hourCycle: "h23",
     }).format(new Date(value));
   const paybackBandLabel = (band) =>
-    isEnglishRulebook
-      ? band.maxScoreDays === null
-        ? `${band.minScoreDays}+ points`
-        : `${band.minScoreDays}–${band.maxScoreDays} points`
-      : band.maxScoreDays === null
-        ? `${band.minScoreDays}점 이상`
-        : `${band.minScoreDays}~${band.maxScoreDays}점`;
+    band.maxScoreDays === null
+      ? `${band.minScoreDays}점 이상`
+      : `${band.minScoreDays}~${band.maxScoreDays}점`;
 %>
 <!doctype html>
 <html lang="ko">

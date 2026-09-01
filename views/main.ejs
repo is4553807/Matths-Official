@@ -162,7 +162,7 @@
                 <div class="notification-panel-list">
                   <% if (notifications.length) { notifications.forEach((notification) => { %><a class="<%= notification.urgent ? 'urgent' : '' %>" href="<%= notification.href %>"><i aria-hidden="true"></i><span><b><%= notification.title %></b><small><%= notification.description %></small></span></a><% }); } else { %><p class="panel-empty">새로운 알림이 없습니다.</p><% } %>
                 </div>
-                <div class="notification-panel-footer"><a href="/notifications">알림 우편함</a><a href="/notifications">알림 우편함 전체 보기 <%- icon("arrowRight") %></a></div>
+                <div class="notification-panel-footer"><a href="/notifications">알림 우편함 전체 보기 <%- icon("arrowRight") %></a></div>
               </div>
             </div>
           </div>
