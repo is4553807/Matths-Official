@@ -13,6 +13,9 @@ const ipadNotificationController = require(
 const ipadAcademyController = require(
   "../controllers/ipadAcademyController"
 );
+const ipadSupportController = require(
+  "../controllers/ipadSupportController"
+);
 const ipadLearningSyncController = require("../controllers/ipadLearningSyncController");
 const ipadAssessmentController = require("../controllers/ipadAssessmentController");
 const ipadPlacementController = require("../controllers/ipadPlacementController");
@@ -538,5 +541,7 @@ router.patch(
   "/coach-suggestions/:suggestionId",
   apiController.moderateSuggestion
 );
+router.get("/support/inquiries", ipadSupportController.dashboard);
+router.post("/support/inquiries", ipadSupportController.create);
 
 module.exports = router;
