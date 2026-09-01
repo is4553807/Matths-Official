@@ -179,7 +179,7 @@ async function serializeIpadUser(user) {
 
   return {
     ...serializeUser(user),
-    coachMode: user.preferences?.coachMode || "spicy",
+    coachMode: user.preferences?.coachMode || "mild",
     reducedMotion: user.preferences?.reducedMotion === true,
     profileAvatar: resolveArenaProfileAvatar(user.preferences),
     arenaActivityLevel: activityLevel,

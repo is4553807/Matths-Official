@@ -5907,7 +5907,7 @@ function createLoginSession(req, user) {
                     coachMode:
                         user.preferences
                             ?.coachMode ||
-                        "spicy",
+                        "mild",
                     rankingDisplayMode: "nickname",
                 },
 
@@ -6337,6 +6337,7 @@ exports.register = async (req, res, next) => {
             termsVersion: "2026-08-13",
             privacyVersion: "2026-08-13",
             preferences: {
+              coachMode: "mild",
               dashboardTutorialStatus: "PENDING",
             },
         };
@@ -6733,7 +6734,7 @@ exports.login = async (req, res, next) => {
                 coachMode:
                     user.preferences
                         ?.coachMode ||
-                    "spicy",
+                    "mild",
                 rankingDisplayMode: "nickname",
             },
 

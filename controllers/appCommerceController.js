@@ -33,7 +33,7 @@ function browserSessionUser(user) {
     tokenVersion: Number(user.tokenVersion) || 0,
     ...lifecycleSessionView(user),
     preferences: {
-      coachMode: user.preferences?.coachMode || "spicy",
+      coachMode: user.preferences?.coachMode || "mild",
       rankingDisplayMode: "nickname",
     },
     school: user.school?.code ? {

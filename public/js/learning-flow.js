@@ -216,7 +216,7 @@
     };
 
     function selectMode(mode, save) {
-      const content = modes[mode] || modes.spicy;
+      const content = modes[mode] || modes.mild;
       card.dataset.mode = mode;
       label.textContent = content.label;
       tone.textContent = content.tone;
@@ -237,7 +237,7 @@
       }
     }
 
-    let savedMode = "spicy";
+    let savedMode = "mild";
     try {
       const stored = window.localStorage.getItem("matths-learning-mode");
       if (stored && modes[stored]) savedMode = stored;

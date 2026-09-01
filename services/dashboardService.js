@@ -1355,7 +1355,7 @@ async function getDashboardData(
 
     const coachMode =
         user.preferences?.coachMode ||
-        "spicy";
+        "mild";
 
     const coachSituation =
         "study_prompt";
