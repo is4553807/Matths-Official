@@ -20,6 +20,10 @@ function verifyRouteRegistration() {
     'router.post("/academy/student/leave", ipadAcademyController.leave)',
     'router.post("/academy/student/attendance/check-in", ipadAcademyController.checkIn)',
     'router.get("/academy/teacher", ipadAcademyController.teacherDashboard)',
+    'router.get("/academy/teacher/setup", ipadAcademyController.teacherSetup)',
+    'router.post("/academy/teacher/setup", ipadAcademyController.createTeacherAcademy)',
+    '"/academy/teacher/setup/join"',
+    '"/academy/teacher/setup/join/cancel"',
     'router.get("/academy/teacher/analytics", ipadAcademyController.teacherAnalytics)',
     'router.get("/academy/teacher/students", ipadAcademyController.teacherStudents)',
     '"/academy/teacher/students/:membershipId"',
@@ -96,6 +100,12 @@ function verifySerializationBoundary() {
   assert.match(source, /getClassMathMap/);
   assert.match(source, /getAcademyClassDetail/);
   assert.match(source, /serializeTeacherAnalytics/);
+  assert.match(source, /getTeacherAcademySetupData/);
+  assert.match(source, /getTeacherAcademyContext/);
+  assert.match(source, /createAcademyForTeacher/);
+  assert.match(source, /requestAcademyStaffJoin/);
+  assert.match(source, /cancelAcademyStaffJoin/);
+  assert.match(source, /serializeTeacherSetup/);
   assert.match(source, /attentionStudents:/);
   assert.match(source, /mathMap:/);
   assert.match(source, /getAcademyClassworkTeacherView/);

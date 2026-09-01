@@ -6,13 +6,17 @@ const {
   archiveAcademyClass,
   assignMembershipClass,
   bulkManageAcademyStudents,
+  cancelAcademyStaffJoin,
   createAcademyClass,
+  createAcademyForTeacher,
   createAcademyInvite,
   getAcademyClassDetail,
   getAcademyPortalData,
   getAcademyStudentDetail,
   getAcademyStudentPage,
   getStudentAcademyProfile,
+  getTeacherAcademyContext,
+  getTeacherAcademySetupData,
   leaveAcademy,
   rejectAcademyApplication,
   rejectAcademyStaff,
@@ -20,6 +24,7 @@ const {
   requestAcademyByCode,
   requestAcademyFromProfile,
   removeAcademyClassCoTeacher,
+  requestAcademyStaffJoin,
   restoreAcademyClass,
   revokeAcademyInvite,
   revokeAcademyStaff,
@@ -67,6 +72,20 @@ function serializeAcademy(academy) {
     id: identifier(academy),
     name: String(academy.name || ""),
     status: academy.status || null,
+  };
+}
+
+function serializeTeacherSetup(setup, isReady = false) {
+  return {
+    isReady,
+    pendingAcademy: serializeAcademy(setup?.pendingAcademy),
+    pendingRequest: setup?.pendingRequest ? {
+      id: identifier(setup.pendingRequest),
+      academy: serializeAcademy(setup.pendingRequest.academyId),
+      requestedAt: setup.pendingRequest.requestedAt || null,
+    } : null,
+    rejectedAcademy: serializeAcademy(setup?.rejectedAcademy),
+    academies: (setup?.academies || []).map(serializeAcademy),
   };
 }
 
@@ -550,6 +569,59 @@ exports.teacherDashboard = async (req, res, next) => {
   try {
     res.set("Cache-Control", "private, no-store");
     return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.teacherSetup = async (req, res, next) => {
+  try {
+    const context = await getTeacherAcademyContext(req.apiUser._id, { allowMissing: true });
+    const payload = context
+      ? serializeTeacherSetup(null, true)
+      : serializeTeacherSetup(await getTeacherAcademySetupData(req.apiUser._id));
+    res.set("Cache-Control", "private, no-store");
+    return res.json(payload);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.createTeacherAcademy = async (req, res, next) => {
+  try {
+    await createAcademyForTeacher({
+      teacherUserId: req.apiUser._id,
+      name: req.body.academyName,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.status(201).json(
+      serializeTeacherSetup(await getTeacherAcademySetupData(req.apiUser._id))
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.requestTeacherAcademyJoin = async (req, res, next) => {
+  try {
+    await requestAcademyStaffJoin({
+      teacherUserId: req.apiUser._id,
+      academyId: req.body.academyId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.status(201).json(
+      serializeTeacherSetup(await getTeacherAcademySetupData(req.apiUser._id))
+    );
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.cancelTeacherAcademyJoin = async (req, res, next) => {
+  try {
+    await cancelAcademyStaffJoin({ teacherUserId: req.apiUser._id });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeTeacherSetup(await getTeacherAcademySetupData(req.apiUser._id)));
   } catch (error) {
     return next(error);
   }
