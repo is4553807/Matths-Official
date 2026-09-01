@@ -416,6 +416,11 @@ function placeholderEmail(subject) {
   return `apple.${sha256Hex(subject).slice(0, 24)}@appleid.invalid`;
 }
 
+function isPlaceholderEmailForSubject(email, subject) {
+  const current = String(email || "").trim().toLowerCase();
+  return Boolean(current) && safeEqual(current, placeholderEmail(subject));
+}
+
 function randomNickname() {
   // 실명을 닉네임으로 쓰지 않는다. 랭킹·게시판에 그대로 노출되는 값이라,
   // 애플이 준 이름을 여기에 넣으면 학생이 고르지도 않은 실명이 공개된다.
@@ -590,6 +595,37 @@ async function linkAppleIdentity({ claims, fullName }) {
   } else {
     if (providedName && !String(user.realName || "").trim()) {
       user.realName = providedName;
+    }
+    /*
+     * 최초 로그인 때 Apple이 이메일을 주지 않아 결정적 자리표시자로 계정을 만든 뒤,
+     * 이후의 **검증된** ID Token에서 실제 또는 private relay 이메일을 받은 경우다.
+     * 자격 증명의 appleSubject가 이미 이 사용자와 연결돼 있으므로 자리표시자만
+     * 복구한다. 일반 이메일은 절대 바꾸지 않아 사용자가 이미 쓰는 주소나 다른
+     * 공급자 계정을 Apple 값으로 덮어쓰지 않는다.
+     */
+    if (
+      providedEmail &&
+      claims.emailVerified === true &&
+      isPlaceholderEmailForSubject(user.email, subject)
+    ) {
+      const [conflictingUser, parentConflict] = await Promise.all([
+        User.findOne({
+          email: providedEmail,
+          _id: { $ne: user._id },
+        }),
+        ParentAccount.exists({
+          email: providedEmail,
+          isActive: true,
+        }),
+      ]);
+      if (conflictingUser || parentConflict) {
+        throw statusError(
+          409,
+          "이미 가입된 이메일입니다. 기존 방식으로 로그인해주세요.",
+          "SOCIAL_AUTH_ACCOUNT_CONFLICT"
+        );
+      }
+      user.email = providedEmail;
     }
     if (claims.emailVerified && !user.emailVerifiedAt) {
       user.emailVerifiedAt = new Date();
@@ -961,6 +997,7 @@ module.exports = {
     appleClientSecret,
     appleRevokeConfig,
     exchangeAuthorizationCode,
+    isPlaceholderEmailForSubject,
     linkAppleIdentity,
     placeholderEmail,
     rememberAppleAuthorization,

@@ -287,6 +287,59 @@ function line(result) {
   );
   expect(filled.user.realName === "김수빈", "빈 realName 은 채워야 한다");
 
+  console.log("[4-c] 자리표시자 이메일은 이후 검증된 relay 이메일로 복구한다");
+  const relayEmail = "recovered@privaterelay.appleid.com";
+  let recoveredSaved = false;
+  const placeholderUser = {
+    _id: "u-placeholder",
+    realName: "",
+    email: appleAuth._testing.placeholderEmail("001999.appleuser.0001"),
+    emailVerifiedAt: null,
+    lastLoginAt: new Date("2026-01-01"),
+    set() {},
+    async save() { recoveredSaved = true; },
+  };
+  User.findById = async () => placeholderUser;
+  User.findOne = async () => null;
+  const recovered = await appleAuth._testing.linkAppleIdentity({
+    claims: {
+      subject: "001999.appleuser.0001",
+      email: relayEmail,
+      emailVerified: true,
+      isPrivateEmail: true,
+    },
+    fullName: null,
+  });
+  console.log(`  ${recovered.user.email} / 저장=${recoveredSaved}`);
+  expect(recovered.user.email === relayEmail, "자리표시자를 relay 이메일로 교체해야 한다");
+  expect(Boolean(recovered.user.emailVerifiedAt), "복구 이메일을 검증 완료로 기록해야 한다");
+  expect(recoveredSaved, "복구한 사용자 문서를 저장해야 한다");
+
+  console.log("[4-d] 이미 다른 계정이 쓰는 relay 이메일로는 복구하지 않는다");
+  const conflictedPlaceholder = {
+    ...placeholderUser,
+    email: appleAuth._testing.placeholderEmail("001999.appleuser.0001"),
+    emailVerifiedAt: null,
+    async save() {},
+  };
+  User.findById = async () => conflictedPlaceholder;
+  User.findOne = async () => ({ _id: "other-user" });
+  try {
+    await appleAuth._testing.linkAppleIdentity({
+      claims: {
+        subject: "001999.appleuser.0001",
+        email: relayEmail,
+        emailVerified: true,
+        isPrivateEmail: true,
+      },
+      fullName: null,
+    });
+    expect(false, "다른 계정 이메일 충돌은 거부해야 한다");
+  } catch (error) {
+    console.log(`  거부: ${error.code}`);
+    expect(error.code === "SOCIAL_AUTH_ACCOUNT_CONFLICT", "이메일 충돌 코드를 반환해야 한다");
+  }
+
   console.log("[5] 이메일을 주지 않은 애플 계정의 자리표시자 이메일");
   console.log(`  ${appleAuth._testing.placeholderEmail("001999.appleuser.0001")}`);
 
