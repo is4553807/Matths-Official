@@ -26,6 +26,11 @@ function verifyRouteRegistration() {
     'router.post("/academy/teacher/invites", ipadAcademyController.createInvite)',
     '"/academy/teacher/invites/:inviteId/revoke"',
     '"/academy/teacher/attendance/sessions/:sessionId/regenerate-code"',
+    '"/academy/teacher/classes/:classId/classwork"',
+    '"/academy/teacher/classes/:classId/classwork/weeks"',
+    '"/academy/teacher/classes/:classId/classwork/weeks/:weekId/files/:fileId/remove"',
+    '"/academy/teacher/classes/:classId/classwork/weeks/:weekId/delete"',
+    '"/academy/teacher/classes/:classId/classwork/weeks/:weekId/files/:fileId"',
     'router.get("/academy/admin", ipadAcademyController.adminDashboard)',
     '"/academy/admin/applications/:academyId/approve"',
     '"/academy/admin/applications/:academyId/reject"',
@@ -65,6 +70,13 @@ function verifySerializationBoundary() {
   assert.match(source, /regenerateAttendanceSessionCode/);
   assert.match(source, /function serializeTeacherAttendance\(roster\)/);
   assert.match(source, /studentUserIds: records\.map/);
+  assert.match(source, /getAcademyClassworkTeacherView/);
+  assert.match(source, /saveAcademyClassWeek/);
+  assert.match(source, /removeAcademyClassWeekFile/);
+  assert.match(source, /deleteAcademyClassWeek/);
+  assert.match(source, /getTeacherAcademyWeekFileDownload/);
+  assert.match(source, /serializeTeacherClasswork/);
+  assert.match(source, /discardRequestUploads\(req\)/);
   const attendanceService = read("services/academyAttendanceService.js");
   assert.match(attendanceService, /!selectedClass && context\.staff\.role !== "OWNER"/);
   assert.match(attendanceService, /담당 반이 지정된 선생님만 출결을 기록할 수 있습니다/);

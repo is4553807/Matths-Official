@@ -43,6 +43,9 @@ const {
   arenaEvidenceUpload,
 } = require("../middleware/arenaEvidenceUpload");
 const {
+  handleAcademyAssignmentUpload,
+} = require("../middleware/academyAssignmentUpload");
+const {
   createUploadContentValidator,
 } = require("../middleware/uploadContentValidation");
 const {
@@ -195,6 +198,27 @@ router.post(
 router.post(
   "/academy/teacher/attendance/sessions/:sessionId/regenerate-code",
   ipadAcademyController.regenerateTeacherAttendanceCode
+);
+router.get(
+  "/academy/teacher/classes/:classId/classwork",
+  ipadAcademyController.teacherClasswork
+);
+router.post(
+  "/academy/teacher/classes/:classId/classwork/weeks",
+  handleAcademyAssignmentUpload,
+  ipadAcademyController.saveTeacherClassWeek
+);
+router.post(
+  "/academy/teacher/classes/:classId/classwork/weeks/:weekId/files/:fileId/remove",
+  ipadAcademyController.removeTeacherClassWeekFile
+);
+router.post(
+  "/academy/teacher/classes/:classId/classwork/weeks/:weekId/delete",
+  ipadAcademyController.deleteTeacherClassWeek
+);
+router.get(
+  "/academy/teacher/classes/:classId/classwork/weeks/:weekId/files/:fileId",
+  ipadAcademyController.downloadTeacherClassWeekFile
 );
 // 운영자는 이동 중에도 학원 등록 병목만 즉시 해소한다. 긴 계약·구성원·출결 편집은
 // 기존 관리자 포털이 담당하고, 이 세 경로는 정본 서비스의 admin 역할 검사를 재사용한다.

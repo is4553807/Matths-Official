@@ -16,9 +16,14 @@ const {
   getAdminAcademyList,
 } = require("../services/adminAcademyService");
 const {
+  deleteAcademyClassWeek,
+  getAcademyClassworkTeacherView,
   getStudentAcademyClassroom,
   getStudentAcademyWeek,
   getStudentAcademyWeekFileDownload,
+  getTeacherAcademyWeekFileDownload,
+  removeAcademyClassWeekFile,
+  saveAcademyClassWeek,
 } = require("../services/academyClassworkService");
 const {
   checkInStudentAttendance,
@@ -27,6 +32,7 @@ const {
   regenerateAttendanceSessionCode,
   saveAcademyAttendanceRoster,
 } = require("../services/academyAttendanceService");
+const { discardRequestUploads } = require("../middleware/uploadContentValidation");
 
 function identifier(value) {
   if (value === null || value === undefined) return null;
@@ -142,6 +148,36 @@ function serializeTeacherAttendance(roster) {
     })),
     counts: roster.counts,
     truncated: roster.truncated === true,
+  };
+}
+
+function serializeClassworkCatalog(catalog) {
+  return (catalog || []).map((course) => ({
+    id: String(course.id || ""),
+    title: String(course.title || ""),
+    units: (course.units || []).map((unit) => ({
+      id: String(unit.id || ""),
+      title: String(unit.title || ""),
+      concepts: (unit.concepts || []).map((concept) => ({
+        key: String(concept.key || ""),
+        curriculumId: String(concept.curriculumId || ""),
+        courseId: String(concept.courseId || ""),
+        courseTitle: String(concept.courseTitle || course.title || ""),
+        unitId: String(concept.unitId || ""),
+        unitTitle: String(concept.unitTitle || unit.title || ""),
+        conceptId: String(concept.conceptId || ""),
+        conceptTitle: String(concept.conceptTitle || ""),
+      })),
+    })),
+  }));
+}
+
+function serializeTeacherClasswork(academyClass, classwork) {
+  return {
+    academyClass: serializeClass(academyClass),
+    currentAcademicYear: Number(classwork.currentAcademicYear),
+    weeks: (classwork.weeks || []).map(serializeWeek),
+    catalog: serializeClassworkCatalog(classwork.catalog),
   };
 }
 
@@ -399,6 +435,115 @@ exports.regenerateTeacherAttendanceCode = async (req, res, next) => {
     });
     res.set("Cache-Control", "private, no-store");
     return res.json({ session });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.teacherClasswork = async (req, res, next) => {
+  try {
+    const classwork = await getAcademyClassworkTeacherView({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeTeacherClasswork(classwork.academyClass, classwork));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.saveTeacherClassWeek = async (req, res, next) => {
+  try {
+    if (req.academyAssignmentUploadError) throw req.academyAssignmentUploadError;
+    await saveAcademyClassWeek({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+      weekId: req.body.weekId,
+      academicYear: req.body.academicYear,
+      weekNumber: req.body.weekNumber,
+      title: req.body.title,
+      lessonSummary: req.body.lessonSummary,
+      conceptKeys: req.body.conceptKeys,
+      assignmentTitle: req.body.assignmentTitle,
+      assignmentInstructions: req.body.assignmentInstructions,
+      dueAt: req.body.dueAt,
+      files: req.files || [],
+    });
+    const classwork = await getAcademyClassworkTeacherView({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeTeacherClasswork(classwork.academyClass, classwork));
+  } catch (error) {
+    return next(error);
+  } finally {
+    await discardRequestUploads(req);
+  }
+};
+
+exports.removeTeacherClassWeekFile = async (req, res, next) => {
+  try {
+    await removeAcademyClassWeekFile({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+      weekId: req.params.weekId,
+      fileId: req.params.fileId,
+    });
+    const classwork = await getAcademyClassworkTeacherView({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeTeacherClasswork(classwork.academyClass, classwork));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.deleteTeacherClassWeek = async (req, res, next) => {
+  try {
+    await deleteAcademyClassWeek({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+      weekId: req.params.weekId,
+    });
+    const classwork = await getAcademyClassworkTeacherView({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(serializeTeacherClasswork(classwork.academyClass, classwork));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.downloadTeacherClassWeekFile = async (req, res, next) => {
+  try {
+    const download = await getTeacherAcademyWeekFileDownload({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+      weekId: req.params.weekId,
+      fileId: req.params.fileId,
+    });
+    if (download.type === "REDIRECT") {
+      res.set("Cache-Control", "private, no-store");
+      return res.redirect(302, download.url);
+    }
+    const issued = download.issued;
+    const cleanup = () => issued.cleanup().catch(() => {});
+    res.once("finish", cleanup);
+    res.once("close", cleanup);
+    res.type("application/pdf");
+    res.set("Cache-Control", "private, no-store");
+    res.set("X-Matths-Trace", issued.traceCode);
+    return res.download(issued.filePath, issued.downloadName, (error) => {
+      cleanup();
+      if (error && !res.headersSent) return next(error);
+      return undefined;
+    });
   } catch (error) {
     return next(error);
   }

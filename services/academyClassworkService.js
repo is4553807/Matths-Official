@@ -161,6 +161,7 @@ async function getAcademyClassworkTeacherView({ teacherUserId, classId, editWeek
     if (!editingWeek) throw statusError(404, "수정할 주차를 찾을 수 없습니다.");
   }
   return {
+    academyClass,
     catalog: curriculumConceptCatalog().courses,
     currentAcademicYear: currentKstYear(),
     weeks: weeks.map(serializeWeek),
