@@ -2,6 +2,7 @@ const {
   approveAcademyApplication,
   approveAcademyStaff,
   approveMembership,
+  addAcademyClassCoTeacher,
   archiveAcademyClass,
   assignMembershipClass,
   createAcademyClass,
@@ -14,9 +15,11 @@ const {
   rejectMembership,
   requestAcademyByCode,
   requestAcademyFromProfile,
+  removeAcademyClassCoTeacher,
   restoreAcademyClass,
   revokeAcademyInvite,
   revokeAcademyStaff,
+  transferAcademyClassHomeroom,
   updateAcademyClassSettings,
 } = require("../services/academyService");
 const {
@@ -63,6 +66,17 @@ function serializeClass(academyClass) {
     schedule: academyClass.schedule || null,
     attendancePolicy: academyClass.attendancePolicy || null,
     isActive: academyClass.isActive !== false,
+    homeroomTeacher: serializeStaffIdentity(academyClass.homeroomTeacherUserId),
+    coTeachers: (academyClass.coTeacherUserIds || []).map(serializeStaffIdentity).filter(Boolean),
+  };
+}
+
+function serializeStaffIdentity(user) {
+  if (!user) return null;
+  return {
+    id: identifier(user),
+    name: String(user.realName || user.name || ""),
+    email: String(user.email || ""),
   };
 }
 
@@ -514,6 +528,49 @@ exports.restoreTeacherClass = async (req, res, next) => {
     await restoreAcademyClass({
       teacherUserId: req.apiUser._id,
       classId: req.params.classId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.addTeacherClassCoTeacher = async (req, res, next) => {
+  try {
+    await addAcademyClassCoTeacher({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+      coTeacherUserId: req.body.teacherUserId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.removeTeacherClassCoTeacher = async (req, res, next) => {
+  try {
+    await removeAcademyClassCoTeacher({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+      coTeacherUserId: req.params.teacherUserId,
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await teacherDashboardPayload(req.apiUser._id));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.transferTeacherClassHomeroom = async (req, res, next) => {
+  try {
+    await transferAcademyClassHomeroom({
+      teacherUserId: req.apiUser._id,
+      classId: req.params.classId,
+      nextTeacherUserId: req.body.nextTeacherUserId,
+      keepPreviousAsCoTeacher: req.body.keepPreviousAsCoTeacher === true,
     });
     res.set("Cache-Control", "private, no-store");
     return res.json(await teacherDashboardPayload(req.apiUser._id));

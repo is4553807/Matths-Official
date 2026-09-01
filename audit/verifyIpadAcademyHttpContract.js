@@ -32,6 +32,9 @@ function verifyRouteRegistration() {
     '"/academy/teacher/classes/:classId/settings"',
     '"/academy/teacher/classes/:classId/archive"',
     '"/academy/teacher/classes/:classId/restore"',
+    '"/academy/teacher/classes/:classId/co-teachers"',
+    '"/academy/teacher/classes/:classId/co-teachers/:teacherUserId/remove"',
+    '"/academy/teacher/classes/:classId/homeroom-transfer"',
     '"/academy/teacher/attendance/sessions/:sessionId/regenerate-code"',
     '"/academy/teacher/classes/:classId/classwork"',
     '"/academy/teacher/classes/:classId/classwork/weeks"',
@@ -91,6 +94,9 @@ function verifySerializationBoundary() {
   assert.match(source, /updateAcademyClassSettings/);
   assert.match(source, /archiveAcademyClass/);
   assert.match(source, /restoreAcademyClass/);
+  assert.match(source, /addAcademyClassCoTeacher/);
+  assert.match(source, /removeAcademyClassCoTeacher/);
+  assert.match(source, /transferAcademyClassHomeroom/);
   assert.match(source, /discardRequestUploads\(req\)/);
   const attendanceService = read("services/academyAttendanceService.js");
   assert.match(attendanceService, /!selectedClass && context\.staff\.role !== "OWNER"/);

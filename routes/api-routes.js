@@ -212,6 +212,18 @@ router.post(
   "/academy/teacher/classes/:classId/restore",
   ipadAcademyController.restoreTeacherClass
 );
+router.post(
+  "/academy/teacher/classes/:classId/co-teachers",
+  ipadAcademyController.addTeacherClassCoTeacher
+);
+router.post(
+  "/academy/teacher/classes/:classId/co-teachers/:teacherUserId/remove",
+  ipadAcademyController.removeTeacherClassCoTeacher
+);
+router.post(
+  "/academy/teacher/classes/:classId/homeroom-transfer",
+  ipadAcademyController.transferTeacherClassHomeroom
+);
 router.get(
   "/academy/teacher/attendance",
   ipadAcademyController.teacherAttendance
