@@ -66,6 +66,17 @@ async function requireApiAuth(
   }
 }
 
+// 공개 게시판 읽기처럼 로그인 없이도 열리되, Bearer가 있으면 차단 관계·소속
+// 게시판 권한을 같은 계정 기준으로 적용해야 하는 경로에서 사용한다. 토큰을 보냈는데
+// 잘못된 경우 게스트로 조용히 강등하지 않는다. 만료 사실을 숨기면 다른 계정의 공개
+// 화면처럼 보인 채 차단·소속 필터가 풀릴 수 있다.
+async function optionalApiAuth(req, res, next) {
+  const authorization = String(req.get("authorization") || "");
+  if (!authorization.trim()) return next();
+  return requireApiAuth(req, res, next);
+}
+
 module.exports = {
+  optionalApiAuth,
   requireApiAuth,
 };

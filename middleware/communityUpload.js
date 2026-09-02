@@ -25,7 +25,7 @@ async function loadCommunityUploadAccess(
     const user =
       await User.findOne({
         _id:
-          req.session.user.id,
+          req.apiUser?._id || req.session?.user?.id,
         isActive: true,
         accountStatus: {
           $in: [

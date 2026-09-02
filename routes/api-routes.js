@@ -19,6 +19,9 @@ const ipadSupportController = require(
 const ipadArchiveController = require(
   "../controllers/ipadArchiveController"
 );
+const ipadCommunityController = require(
+  "../controllers/ipadCommunityController"
+);
 const ipadLearningSyncController = require("../controllers/ipadLearningSyncController");
 const ipadAssessmentController = require("../controllers/ipadAssessmentController");
 const ipadPlacementController = require("../controllers/ipadPlacementController");
@@ -52,9 +55,14 @@ const {
   handleAcademyForensicsUpload,
 } = require("../middleware/pdfForensicsUpload");
 const {
+  communityUpload,
+  loadCommunityUploadAccess,
+} = require("../middleware/communityUpload");
+const {
   createUploadContentValidator,
 } = require("../middleware/uploadContentValidation");
 const {
+  optionalApiAuth,
   requireApiAuth,
 } = require(
   "../middleware/apiAuthMiddleware"
@@ -74,6 +82,9 @@ const validateInlineSolutionBoard = createUploadContentValidator({
 });
 const validateArenaEvidence = createUploadContentValidator({
   maxTotalBytes: 30 * 1024 * 1024,
+});
+const validateCommunityUpload = createUploadContentValidator({
+  maxTotalBytes: 50 * 1024 * 1024,
 });
 
 router.get(
@@ -163,7 +174,54 @@ router.post(
   appleCommerceController.notifications
 );
 
+// 게시판 읽기는 웹과 같은 공개 범위를 유지한다. Bearer가 있으면 차단 관계와
+// 학교·대학교 소속 권한을 적용하고, 없으면 통합/운영 공개 게시판만 읽는다.
+router.get("/community", optionalApiAuth, ipadCommunityController.list);
+router.get(
+  "/community/posts/:postId",
+  optionalApiAuth,
+  ipadCommunityController.detail
+);
+router.get(
+  "/community/notices/:noticeId",
+  optionalApiAuth,
+  ipadCommunityController.notice
+);
+router.get(
+  "/community/announcements/:announcementId",
+  optionalApiAuth,
+  ipadCommunityController.announcement
+);
+router.get(
+  "/community/posts/:postId/attachments/:attachmentId",
+  optionalApiAuth,
+  ipadCommunityController.attachment
+);
+
 router.use(requireApiAuth);
+
+router.get("/community/posting-access", ipadCommunityController.postingAccess);
+router.post(
+  "/community/posts",
+  loadCommunityUploadAccess,
+  communityUpload.array("communityFiles", 5),
+  validateCommunityUpload,
+  ipadCommunityController.createPost
+);
+router.use("/community/posts", ipadCommunityController.uploadError);
+router.delete("/community/posts/:postId", ipadCommunityController.deletePost);
+router.post(
+  "/community/posts/:postId/comments",
+  ipadCommunityController.createComment
+);
+router.post("/community/posts/:postId/vote", ipadCommunityController.vote);
+router.post("/community/posts/:postId/report", ipadCommunityController.report);
+router.post("/community/posts/:postId/block", ipadCommunityController.block);
+router.get("/community/blocked-users", ipadCommunityController.blockedUsers);
+router.delete(
+  "/community/blocked-users/:userId",
+  ipadCommunityController.unblock
+);
 
 // 학생 학원 화면. 웹 세션판의 정본 서비스를 그대로 재사용하되, 앱에는 내부
 // Mongo 문서가 아니라 최소 DTO만 내려준다. 가입·출석·자료 열기까지 Bearer 경계에서

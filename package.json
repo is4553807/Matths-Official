@@ -28,6 +28,7 @@
     "ipad-academy-http:verify": "node audit/verifyIpadAcademyHttpContract.js",
     "ipad-support-http:verify": "node audit/verifyIpadSupportHttpContract.js",
     "ipad-archive-http:verify": "node audit/verifyIpadArchiveHttpContract.js",
+    "ipad-community-http:verify": "node audit/verifyIpadCommunityHttpContract.js",
     "apple-signin:verify": "node scripts/verifyAppleSignIn.js",
     "apple-web-signin:verify": "node scripts/verifyAppleWebSignIn.js",
     "associated-domains:verify": "node scripts/verifyAssociatedDomains.js",
