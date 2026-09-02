@@ -40,10 +40,17 @@ const {
   getStudentMathMap,
 } = require("../services/mathMapService");
 const {
+  assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,
   getAdminAcademyList,
+  regenerateAdminAcademyAttendanceCode,
+  transferAdminAcademyOwner,
+  updateAdminAcademyClass,
   updateAdminAcademyContract,
+  updateAdminAcademyInvite,
+  updateAdminAcademyMembership,
   updateAdminAcademyProfile,
+  updateAdminAcademyStaff,
 } = require("../services/adminAcademyService");
 const {
   deleteAcademyClassWeek,
@@ -482,6 +489,15 @@ function serializeAdminAcademyDetail(detail) {
   };
 }
 
+async function sendAdminAcademyDetail(req, res) {
+  const detail = await getAdminAcademyDetail({
+    adminUserId: req.apiUser._id,
+    academyId: req.params.academyId,
+  });
+  res.set("Cache-Control", "private, no-store");
+  return res.json(serializeAdminAcademyDetail(detail));
+}
+
 function serializeInvite(invite) {
   return {
     id: identifier(invite),
@@ -881,12 +897,7 @@ exports.adminUpdateAcademyProfile = async (req, res, next) => {
       action: req.body.action,
       name: req.body.name,
     });
-    const detail = await getAdminAcademyDetail({
-      adminUserId: req.apiUser._id,
-      academyId: req.params.academyId,
-    });
-    res.set("Cache-Control", "private, no-store");
-    return res.json(serializeAdminAcademyDetail(detail));
+    return await sendAdminAcademyDetail(req, res);
   } catch (error) {
     return next(error);
   }
@@ -899,12 +910,103 @@ exports.adminUpdateAcademyContract = async (req, res, next) => {
       academyId: req.params.academyId,
       contractEndsAt: req.body.contractEndsAt,
     });
-    const detail = await getAdminAcademyDetail({
+    return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyStaff = async (req, res, next) => {
+  try {
+    await updateAdminAcademyStaff({
       adminUserId: req.apiUser._id,
       academyId: req.params.academyId,
+      staffId: req.params.staffId,
+      action: req.body.action,
     });
-    res.set("Cache-Control", "private, no-store");
-    return res.json(serializeAdminAcademyDetail(detail));
+    return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminTransferAcademyOwner = async (req, res, next) => {
+  try {
+    await transferAdminAcademyOwner({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      newOwnerStaffId: req.body.newOwnerStaffId,
+    });
+    return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyStudent = async (req, res, next) => {
+  try {
+    await updateAdminAcademyMembership({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      membershipId: req.params.membershipId,
+      action: req.body.action,
+    });
+    return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminAssignAcademyStudentClass = async (req, res, next) => {
+  try {
+    await assignAdminAcademyMembershipClass({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      membershipId: req.params.membershipId,
+      classId: String(req.body.classId || ""),
+    });
+    return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyClass = async (req, res, next) => {
+  try {
+    await updateAdminAcademyClass({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      classId: req.params.classId,
+      action: req.body.action,
+    });
+    return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyInvite = async (req, res, next) => {
+  try {
+    await updateAdminAcademyInvite({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      inviteId: req.params.inviteId,
+      action: req.body.action,
+    });
+    return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminRegenerateAcademyAttendanceCode = async (req, res, next) => {
+  try {
+    await regenerateAdminAcademyAttendanceCode({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      sessionId: req.params.sessionId,
+    });
+    return await sendAdminAcademyDetail(req, res);
   } catch (error) {
     return next(error);
   }

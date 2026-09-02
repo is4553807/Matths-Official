@@ -317,6 +317,34 @@ router.post(
   ipadAcademyController.adminUpdateAcademyContract
 );
 router.post(
+  "/academy/admin/:academyId/staff/:staffId",
+  ipadAcademyController.adminUpdateAcademyStaff
+);
+router.post(
+  "/academy/admin/:academyId/owner",
+  ipadAcademyController.adminTransferAcademyOwner
+);
+router.post(
+  "/academy/admin/:academyId/students/:membershipId",
+  ipadAcademyController.adminUpdateAcademyStudent
+);
+router.post(
+  "/academy/admin/:academyId/students/:membershipId/class",
+  ipadAcademyController.adminAssignAcademyStudentClass
+);
+router.post(
+  "/academy/admin/:academyId/classes/:classId",
+  ipadAcademyController.adminUpdateAcademyClass
+);
+router.post(
+  "/academy/admin/:academyId/invites/:inviteId",
+  ipadAcademyController.adminUpdateAcademyInvite
+);
+router.post(
+  "/academy/admin/:academyId/attendance/sessions/:sessionId/regenerate-code",
+  ipadAcademyController.adminRegenerateAcademyAttendanceCode
+);
+router.post(
   "/academy/admin/applications/:academyId/approve",
   ipadAcademyController.approveAcademy
 );

@@ -60,6 +60,13 @@ function verifyRouteRegistration() {
     'router.get("/academy/admin/:academyId", ipadAcademyController.adminAcademyDetail)',
     '"/academy/admin/:academyId/profile"',
     '"/academy/admin/:academyId/contract"',
+    '"/academy/admin/:academyId/staff/:staffId"',
+    '"/academy/admin/:academyId/owner"',
+    '"/academy/admin/:academyId/students/:membershipId"',
+    '"/academy/admin/:academyId/students/:membershipId/class"',
+    '"/academy/admin/:academyId/classes/:classId"',
+    '"/academy/admin/:academyId/invites/:inviteId"',
+    '"/academy/admin/:academyId/attendance/sessions/:sessionId/regenerate-code"',
     '"/academy/admin/applications/:academyId/approve"',
     '"/academy/admin/applications/:academyId/reject"',
   ]) {
@@ -154,6 +161,13 @@ function verifySerializationBoundary() {
   assert.match(source, /serializeAdminAcademyDetail/);
   assert.match(source, /updateAdminAcademyProfile/);
   assert.match(source, /updateAdminAcademyContract/);
+  assert.match(source, /updateAdminAcademyStaff/);
+  assert.match(source, /transferAdminAcademyOwner/);
+  assert.match(source, /updateAdminAcademyMembership/);
+  assert.match(source, /assignAdminAcademyMembershipClass/);
+  assert.match(source, /updateAdminAcademyClass/);
+  assert.match(source, /updateAdminAcademyInvite/);
+  assert.match(source, /regenerateAdminAcademyAttendanceCode/);
   assert.match(source, /approveAcademyApplication/);
   assert.match(source, /rejectAcademyApplication/);
   assert.match(source, /result\.academies\.map\(serializeAdminAcademyApplication\)/);
