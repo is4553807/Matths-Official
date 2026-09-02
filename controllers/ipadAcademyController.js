@@ -44,8 +44,10 @@ const {
   getAdminAcademyDetail,
   getAdminAcademyList,
   regenerateAdminAcademyAttendanceCode,
+  transferAdminAcademyClassHomeroom,
   transferAdminAcademyOwner,
   updateAdminAcademyClass,
+  updateAdminAcademyClassOperations,
   updateAdminAcademyContract,
   updateAdminAcademyInvite,
   updateAdminAcademyMembership,
@@ -978,6 +980,44 @@ exports.adminUpdateAcademyClass = async (req, res, next) => {
       academyId: req.params.academyId,
       classId: req.params.classId,
       action: req.body.action,
+    });
+    return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyClassOperations = async (req, res, next) => {
+  try {
+    await updateAdminAcademyClassOperations({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      classId: req.params.classId,
+      weekdays: req.body.weekdays,
+      startTime: req.body.startTime,
+      endTime: req.body.endTime,
+      effectiveFrom: req.body.effectiveFrom,
+      attendanceMode: req.body.attendanceMode,
+      opensBeforeMinutes: req.body.opensBeforeMinutes,
+      lateAfterMinutes: req.body.lateAfterMinutes,
+      closesAfterMinutes: req.body.closesAfterMinutes,
+    });
+    return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminTransferAcademyClassHomeroom = async (req, res, next) => {
+  try {
+    await transferAdminAcademyClassHomeroom({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      classId: req.params.classId,
+      nextTeacherUserId: req.body.nextTeacherUserId,
+      retainPreviousAsCoTeacher:
+        req.body.retainPreviousAsCoTeacher === true
+        || req.body.retainPreviousAsCoTeacher === "true",
     });
     return await sendAdminAcademyDetail(req, res);
   } catch (error) {

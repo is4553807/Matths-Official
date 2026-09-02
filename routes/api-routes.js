@@ -337,6 +337,14 @@ router.post(
   ipadAcademyController.adminUpdateAcademyClass
 );
 router.post(
+  "/academy/admin/:academyId/classes/:classId/operations",
+  ipadAcademyController.adminUpdateAcademyClassOperations
+);
+router.post(
+  "/academy/admin/:academyId/classes/:classId/homeroom",
+  ipadAcademyController.adminTransferAcademyClassHomeroom
+);
+router.post(
   "/academy/admin/:academyId/invites/:inviteId",
   ipadAcademyController.adminUpdateAcademyInvite
 );

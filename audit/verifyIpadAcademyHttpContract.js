@@ -65,6 +65,8 @@ function verifyRouteRegistration() {
     '"/academy/admin/:academyId/students/:membershipId"',
     '"/academy/admin/:academyId/students/:membershipId/class"',
     '"/academy/admin/:academyId/classes/:classId"',
+    '"/academy/admin/:academyId/classes/:classId/operations"',
+    '"/academy/admin/:academyId/classes/:classId/homeroom"',
     '"/academy/admin/:academyId/invites/:inviteId"',
     '"/academy/admin/:academyId/attendance/sessions/:sessionId/regenerate-code"',
     '"/academy/admin/applications/:academyId/approve"',
@@ -166,6 +168,22 @@ function verifySerializationBoundary() {
   assert.match(source, /updateAdminAcademyMembership/);
   assert.match(source, /assignAdminAcademyMembershipClass/);
   assert.match(source, /updateAdminAcademyClass/);
+  assert.match(source, /updateAdminAcademyClassOperations/);
+  assert.match(source, /transferAdminAcademyClassHomeroom/);
+  for (const field of [
+    "weekdays",
+    "startTime",
+    "endTime",
+    "effectiveFrom",
+    "attendanceMode",
+    "opensBeforeMinutes",
+    "lateAfterMinutes",
+    "closesAfterMinutes",
+  ]) {
+    assert.match(source, new RegExp(`${field}: req\\.body\\.${field}`));
+  }
+  assert.match(source, /nextTeacherUserId: req\.body\.nextTeacherUserId/);
+  assert.match(source, /req\.body\.retainPreviousAsCoTeacher === true/);
   assert.match(source, /updateAdminAcademyInvite/);
   assert.match(source, /regenerateAdminAcademyAttendanceCode/);
   assert.match(source, /approveAcademyApplication/);
