@@ -22,6 +22,10 @@ const ipadArchiveController = require(
 const ipadStudyHallController = require(
   "../controllers/ipadStudyHallController"
 );
+const ipadStoreCatalogController = require(
+  "../controllers/ipadStoreCatalogController"
+);
+const ipadFaqController = require("../controllers/ipadFaqController");
 const ipadCommunityController = require(
   "../controllers/ipadCommunityController"
 );
@@ -176,6 +180,10 @@ router.post(
   "/commerce/apple/notifications",
   appleCommerceController.notifications
 );
+
+// FAQ는 웹과 앱이 같은 공개 원문을 사용한다. 로그인 만료 오류를 설명하는 화면이므로
+// Bearer 인증 경계 앞에 두어 401 상황에서도 열 수 있어야 한다.
+router.get("/faq", ipadFaqController.list);
 
 // 게시판 읽기는 웹과 같은 공개 범위를 유지한다. Bearer가 있으면 차단 관계와
 // 학교·대학교 소속 권한을 적용하고, 없으면 통합/운영 공개 게시판만 읽는다.
@@ -905,6 +913,16 @@ router.post("/study-hall/content/:contentId/submit", ipadStudyHallController.sub
 router.get(
   "/study-hall/content/:contentId/files/:assetId",
   ipadStudyHallController.download
+);
+router.get("/store-products", ipadStoreCatalogController.list);
+router.get("/store-products/:slug", ipadStoreCatalogController.detail);
+router.get(
+  "/store-products/:slug/files/:assetId",
+  ipadStoreCatalogController.download
+);
+router.get(
+  "/store-products/:productId/media/:assetId",
+  ipadStoreCatalogController.media
 );
 
 module.exports = router;
