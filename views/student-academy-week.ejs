@@ -2,6 +2,9 @@
   const academy = classroom.academy;
   const academyClass = classroom.academyClass;
   const week = classroom.week;
+  const submission = classroom.submission || null;
+  const omrClosed = Boolean(week.dueAt && new Date(week.dueAt).getTime() <= Date.now());
+  const missedAssignment = submission?.status === "MISSED";
   const displayName = String(user.realName || user.name || "학생");
   const gradeLabel = ({ 10: "고등학교 1학년", 11: "고등학교 2학년", 12: "고등학교 3학년", 13: "N수생", 14: "대학생", 15: "직장인" })[Number(user.schoolGrade)] || "학년 미설정";
   const formatDueAt = (date) => date
@@ -57,6 +60,33 @@
           <% if (week.files.some((file) => String(file.mimeType || "").toLowerCase() === "application/pdf" || /\.pdf$/i.test(String(file.originalName || "")))) { %><p class="student-academy-file-protection">PDF는 내려받을 때 이 계정의 개인 식별 워터마크와 추적 코드가 삽입됩니다.</p><% } %>
           <div class="student-academy-file-list"><% week.files.forEach((file) => { %><a href="/my-academy/weeks/<%= week._id %>/files/<%= file._id %>"><span aria-hidden="true">↓</span><div><strong><%= file.originalName %></strong><small><%= formatBytes(file.sizeBytes) %></small></div><b>내려받기</b></a><% }) %><% if (!week.files.length) { %><div class="student-academy-file-empty"><strong>첨부 파일이 없는 과제입니다</strong><p>위의 과제 안내에 따라 학습해 주세요.</p></div><% } %></div>
         </section>
+
+        <% if (week.assignmentOmr?.enabled) { %>
+          <section class="student-academy-content-panel student-assignment-omr" id="assignment-omr">
+            <header><div><small>AUTO-GRADING OMR</small><h2>과제 제출하기</h2><p>선생님이 설정한 <%= week.assignmentOmr.questionCount %>문항 답안지입니다. 제출 즉시 자동 채점되며, 기한 내 미제출 시 0점 처리됩니다.</p></div><strong><%= submission ? `${submission.scorePercent}점` : week.assignmentOmr.questionCount %><small><%= missedAssignment ? "미제출" : submission ? `${submission.correctCount}/${submission.questionCount}` : "문항" %></small></strong></header>
+            <% if (typeof submissionFeedback !== "undefined" && submissionFeedback) { %><div class="student-assignment-feedback is-<%= submissionFeedback.type %>" role="<%= submissionFeedback.type === 'error' ? 'alert' : 'status' %>"><%= submissionFeedback.message %></div><% } %>
+            <% if (submission) { %><div class="student-assignment-result <%= missedAssignment ? 'is-missed' : '' %>"><span aria-hidden="true"><%= missedAssignment ? "0" : "✓" %></span><div><strong><%= missedAssignment ? "마감 미제출 · 0점 처리" : `자동 채점 완료 · ${submission.scorePercent}점` %></strong><p><%= missedAssignment ? "과제 기한 내 답안이 제출되지 않아 자동으로 0점 처리되었습니다." : `${submission.correctCount}문항 정답 · ${submission.questionCount - submission.correctCount}문항 오답 · ${formatDueAt(submission.submittedAt)} 제출` %></p></div></div><% } %>
+            <% if (omrClosed) { %><p class="student-assignment-closed">제출 마감 시간이 지났습니다.<%= submission && !missedAssignment ? " 마지막 제출 결과를 확인할 수 있습니다." : " 미제출 과제는 0점으로 처리되며 새 답안은 제출할 수 없습니다." %></p><% } %>
+            <form action="/my-academy/weeks/<%= week._id %>/submission" method="POST" class="student-omr-form">
+              <input type="hidden" name="questionCount" value="<%= week.assignmentOmr.questionCount %>" />
+              <% week.assignmentOmr.sections.forEach((section) => { %>
+                <fieldset class="student-omr-section">
+                  <legend><span><%= section.startNumber %>–<%= section.endNumber %>번</span><strong><%= section.answerType === "MULTIPLE_CHOICE" ? `객관식 · ${section.choiceCount}지선다` : "주관식 · 단답형" %></strong></legend>
+                  <div class="student-omr-grid <%= section.answerType === 'MULTIPLE_CHOICE' ? 'is-objective' : 'is-subjective' %>">
+                    <% week.assignmentOmr.questions.filter((question) => question.number >= section.startNumber && question.number <= section.endNumber).forEach((question) => { const marked = submission ? (submission.correctByQuestion?.[question.number - 1] ? "is-correct" : "is-wrong") : ""; %>
+                      <div class="student-omr-question <%= marked %>">
+                        <span><%= question.number %></span>
+                        <% if (question.answerType === "MULTIPLE_CHOICE") { %><div class="student-omr-bubbles"><% for (let choice = 1; choice <= question.choiceCount; choice += 1) { %><label><input type="radio" name="answer_<%= question.number %>" value="<%= choice %>" <%= String(question.answer) === String(choice) ? "checked" : "" %> <%= omrClosed ? "disabled" : "required" %> /><i><%= choice %></i></label><% } %></div><% } else { %><input type="text" name="answer_<%= question.number %>" value="<%= question.answer || '' %>" maxlength="80" placeholder="정답 입력" aria-label="<%= question.number %>번 주관식 답안" <%= omrClosed ? "disabled" : "required" %> /><% } %>
+                        <% if (submission) { %><b><%= missedAssignment ? "미응답" : submission.correctByQuestion?.[question.number - 1] ? "정답" : "오답" %></b><% } %>
+                      </div>
+                    <% }) %>
+                  </div>
+                </fieldset>
+              <% }) %>
+              <% if (!omrClosed) { %><button type="submit"><%= submission ? "답안 수정 후 다시 제출" : "과제 답안 제출 및 자동 채점" %></button><p>다시 제출하면 가장 최근 답안과 점수로 갱신됩니다.</p><% } %>
+            </form>
+          </section>
+        <% } %>
       </main>
     </div>
   </body>

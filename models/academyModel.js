@@ -430,6 +430,7 @@ academyStudentMembershipSchema.index(
   { unique: true, sparse: true, name: "active_academy_student_unique" }
 );
 academyStudentMembershipSchema.index({ academyId: 1, status: 1, requestedAt: 1 });
+academyStudentMembershipSchema.index({ classId: 1, status: 1, approvedAt: 1 });
 
 const academyInviteSchema = new Schema(
   {
@@ -677,6 +678,43 @@ const academyClassWeekFileSchema = new Schema(
   { versionKey: false }
 );
 
+const academyAssignmentOmrSectionSchema = new Schema(
+  {
+    startNumber: { type: Number, required: true, min: 1, max: 100 },
+    endNumber: { type: Number, required: true, min: 1, max: 100 },
+    answerType: {
+      type: String,
+      enum: ["MULTIPLE_CHOICE", "SHORT_ANSWER"],
+      required: true,
+    },
+    choiceCount: { type: Number, min: 2, max: 9, default: 5 },
+  },
+  { _id: false, versionKey: false }
+);
+
+const academyAssignmentOmrSchema = new Schema(
+  {
+    enabled: { type: Boolean, default: true },
+    questionCount: { type: Number, required: true, min: 1, max: 100 },
+    sections: {
+      type: [academyAssignmentOmrSectionSchema],
+      validate: {
+        validator: (items) => Array.isArray(items) && items.length >= 1 && items.length <= 20,
+        message: "OMR 문항 구간은 1개 이상 20개 이하로 설정해야 합니다.",
+      },
+    },
+    answerKey: {
+      type: [String],
+      default: [],
+      select: false,
+    },
+    configuredAt: { type: Date, default: Date.now },
+    configuredByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    missedSubmissionsFinalizedAt: { type: Date, default: null },
+  },
+  { _id: false, versionKey: false }
+);
+
 const academyClassWeekSchema = new Schema(
   {
     academyId: { type: Schema.Types.ObjectId, ref: "Academy", required: true, index: true },
@@ -704,6 +742,7 @@ const academyClassWeekSchema = new Schema(
     assignmentInstructions: { type: String, trim: true, maxlength: 3000, default: "" },
     dueAt: { type: Date, default: null },
     files: { type: [academyClassWeekFileSchema], default: [] },
+    assignmentOmr: { type: academyAssignmentOmrSchema, default: undefined },
     status: { type: String, enum: ["PUBLISHED", "ARCHIVED"], default: "PUBLISHED", index: true },
     publishedAt: { type: Date, default: Date.now },
     createdByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -717,6 +756,42 @@ academyClassWeekSchema.index(
   { unique: true, name: "academy_class_week_unique" }
 );
 academyClassWeekSchema.index({ classId: 1, status: 1, academicYear: -1, weekNumber: -1 });
+academyClassWeekSchema.index(
+  {
+    status: 1,
+    "assignmentOmr.enabled": 1,
+    "assignmentOmr.missedSubmissionsFinalizedAt": 1,
+    dueAt: 1,
+  },
+  { name: "academy_assignment_deadline_queue" }
+);
+
+const academyAssignmentSubmissionSchema = new Schema(
+  {
+    academyId: { type: Schema.Types.ObjectId, ref: "Academy", required: true, index: true },
+    classId: { type: Schema.Types.ObjectId, ref: "AcademyClass", required: true, index: true },
+    weekId: { type: Schema.Types.ObjectId, ref: "AcademyClassWeek", required: true, index: true },
+    studentUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    answers: { type: [String], default: [] },
+    answeredCount: { type: Number, min: 0, default: 0 },
+    correctByQuestion: { type: [Boolean], default: [] },
+    correctCount: { type: Number, min: 0, default: 0 },
+    questionCount: { type: Number, min: 1, max: 100, required: true },
+    scorePercent: { type: Number, min: 0, max: 100, default: 0 },
+    status: { type: String, enum: ["SUBMITTED", "MISSED"], default: "SUBMITTED", index: true },
+    submittedAt: { type: Date, default: null, index: true },
+    gradedAt: { type: Date, default: Date.now },
+    autoZeroedAt: { type: Date, default: null },
+    answerKeyConfiguredAt: { type: Date, default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+academyAssignmentSubmissionSchema.index(
+  { weekId: 1, studentUserId: 1 },
+  { unique: true, name: "academy_assignment_submission_unique" }
+);
+academyAssignmentSubmissionSchema.index({ classId: 1, submittedAt: -1 });
 
 const Academy = mongoose.models.Academy || mongoose.model("Academy", academySchema);
 const AcademyStaff = mongoose.models.AcademyStaff || mongoose.model("AcademyStaff", academyStaffSchema);
@@ -740,6 +815,9 @@ const AcademyAttendanceCodeAttempt =
 const AcademyClassWeek =
   mongoose.models.AcademyClassWeek ||
   mongoose.model("AcademyClassWeek", academyClassWeekSchema);
+const AcademyAssignmentSubmission =
+  mongoose.models.AcademyAssignmentSubmission ||
+  mongoose.model("AcademyAssignmentSubmission", academyAssignmentSubmissionSchema);
 
 module.exports = {
   Academy,
@@ -752,4 +830,5 @@ module.exports = {
   AcademyAttendanceAudit,
   AcademyAttendanceCodeAttempt,
   AcademyClassWeek,
+  AcademyAssignmentSubmission,
 };

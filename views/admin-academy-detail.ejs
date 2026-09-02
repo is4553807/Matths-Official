@@ -57,6 +57,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/weekly-mock-insights.css" />
     <link rel="stylesheet" href="/css/brand.css" />
   </head>
   <body class="admin-page">
@@ -168,6 +169,13 @@
           <p>그래프 <%= mathMap.graphVersion %> · 계산 모델 <%= mathMap.modelVersion %> · 승인 학생 <%= mathMap.totalStudents %>명 · 분석 개념 <%= mathMap.analyzedConceptCount %>개</p>
           <% if (mathMap.concepts.length) { %><div class="admin-academy-table-wrap"><table class="admin-academy-data-table"><thead><tr><th>개념</th><th>평균 숙달도</th><th>분석 표본</th><th>숙달</th><th>성장 중</th><th>보완 필요</th><th>Unknown</th></tr></thead><tbody><% mathMap.concepts.forEach((concept) => { %><tr><td><strong><%= concept.title %></strong><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small></td><td><%= concept.mastery === null ? "Unknown" : `${concept.mastery}%` %></td><td><%= concept.analyzedCount %>/<%= concept.totalStudents %>명</td><td><%= concept.statusCounts.MASTERED %>명</td><td><%= concept.statusCounts.DEVELOPING %>명</td><td><%= concept.statusCounts.WEAK %>명</td><td><%= concept.statusCounts.UNKNOWN %>명</td></tr><% }) %></tbody></table></div><% } else { %><div class="admin-empty">개념별 풀이 데이터가 없습니다.</div><% } %>
         </div>
+        <%- include("partials/weekly-mock-heatmap", {
+          insight: detail.weeklyMockInsights?.overall,
+          classRows: detail.weeklyMockInsights?.classes || [],
+          title: `${academy.name} 주간 모의고사 개념 히트맵`,
+          eyebrow: "ADMIN · ACADEMY WEEKLY MOCK",
+          showClassHeatmaps: true,
+        }) %>
       </section>
 
       <section class="admin-panel" id="academy-staff">

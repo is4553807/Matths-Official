@@ -272,6 +272,7 @@
               <% attempt.review.forEach((question) => { %>
                 <article class="<%= question.isCorrect ? "correct" : "incorrect" %>">
                   <header><strong><%= question.number %>번</strong><span><%= question.isCorrect ? "정답" : "오답" %> · <%= question.points %>점</span></header>
+                  <% if (question.concept?.conceptTitle) { %><p class="private-mock-question-concept"><small><%= question.concept.courseTitle || "개념" %><%= question.concept.unitTitle ? ` · ${question.concept.unitTitle}` : "" %></small><strong><%= question.concept.conceptTitle %></strong></p><% } %>
                   <% if (question.mode === "multiple-choice") { %>
                     <div class="private-mock-review-omr">
                       <% [1, 2, 3, 4, 5].forEach((choice) => {

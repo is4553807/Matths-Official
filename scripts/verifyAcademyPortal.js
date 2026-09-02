@@ -11,6 +11,8 @@ const {
   LearningEvent,
   Problem,
   ProblemAttempt,
+  PrivateMockExam,
+  PrivateMockExamAttempt,
   User,
 } = require("../models/matthsModel");
 const {
@@ -22,6 +24,7 @@ const {
   AcademyStaff,
   AcademyClass,
   AcademyClassWeek,
+  AcademyAssignmentSubmission,
   AcademyStudentMembership,
   AcademyInvite,
 } = require("../models/academyModel");
@@ -84,16 +87,22 @@ const {
 } = require("../services/mathMapService");
 const {
   deleteAcademyClassWeek,
+  finalizeMissedAssignmentSubmissions,
   getAcademyClassworkTeacherView,
   getStudentAcademyClassroom,
   getStudentAcademyWeek,
   saveAcademyClassWeek,
+  submitAcademyAssignment,
 } = require("../services/academyClassworkService");
 const {
   analyzeAcademyForensicEvidence,
   getAcademyForensicsPageData,
 } = require("../services/academyForensicsService");
 const { buildForensicIdentity } = require("../services/pdfWatermarkService");
+const {
+  getAcademyWeeklyMockInsights,
+  getWeeklyMockInsights,
+} = require("../services/weeklyMockInsightService");
 const {
   assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,
@@ -253,6 +262,7 @@ async function main() {
       AcademyStaff.syncIndexes(),
       AcademyClass.syncIndexes(),
       AcademyClassWeek.syncIndexes(),
+      AcademyAssignmentSubmission.syncIndexes(),
       AcademyStudentMembership.syncIndexes(),
       AcademyInvite.syncIndexes(),
       PdfWatermarkIssuance.syncIndexes(),
@@ -465,10 +475,20 @@ async function main() {
       conceptKeys: selectedConceptKeys,
       assignmentTitle: "다항식 기본 과제",
       assignmentInstructions: "교재 10쪽부터 13쪽까지 풀어오세요.",
+      assignmentOmr: JSON.stringify({
+        enabled: true,
+        sections: [
+          { startNumber: 1, endNumber: 2, answerType: "MULTIPLE_CHOICE", choiceCount: 5 },
+          { startNumber: 3, endNumber: 3, answerType: "SHORT_ANSWER" },
+        ],
+        answers: ["2", "4", "12"],
+      }),
       dueAt: "2026-09-04T18:00",
       files: [],
     });
     assert.equal(publishedWeek.concepts.length, 2);
+    assert.equal(publishedWeek.assignmentOmr.questionCount, 3);
+    assert.deepEqual(publishedWeek.assignmentOmr.answerKey, ["2", "4", "12"]);
     assert.equal(publishedWeek.concepts[0].conceptTitle, "다항식의 사칙연산");
     assert.equal(
       publishedWeek.concepts[0].href,
@@ -506,6 +526,7 @@ async function main() {
     });
     assert.equal(teacherClasswork.weeks.length, 1);
     assert.equal(teacherClasswork.editingWeek.assignmentTitle, "다항식 기본 과제");
+    assert.deepEqual(teacherClasswork.editingWeek.assignmentOmr.answerKey, ["2", "4", "12"]);
     assert.ok(teacherClasswork.catalog.some((course) => course.id === "common-math-1"));
     const deletableWeek = await saveAcademyClassWeek({
       teacherUserId: secondTeacher._id,
@@ -532,6 +553,189 @@ async function main() {
       weekId: publishedWeek._id,
     });
     assert.equal(studentWeek.week.concepts[1].conceptTitle, "항등식과 나머지정리");
+    assert.equal(studentWeek.week.assignmentOmr.questionCount, 3);
+    assert.equal(studentWeek.week.assignmentOmr.answerKey, undefined);
+    const assignmentSubmission = await submitAcademyAssignment({
+      studentUserId: student._id,
+      weekId: publishedWeek._id,
+      answers: ["2", "3", "12"],
+    });
+    assert.equal(assignmentSubmission.correctCount, 2);
+    assert.equal(assignmentSubmission.scorePercent, 67);
+    assert.equal(assignmentSubmission.status, "SUBMITTED");
+    assert.ok(assignmentSubmission.gradedAt);
+    assert.equal(await AcademyAssignmentSubmission.countDocuments({ weekId: publishedWeek._id }), 1);
+    const submittedStudentWeek = await getStudentAcademyWeek({
+      studentUserId: student._id,
+      weekId: publishedWeek._id,
+    });
+    assert.equal(submittedStudentWeek.submission.scorePercent, 67);
+    assert.deepEqual(
+      submittedStudentWeek.week.assignmentOmr.questions.map((question) => question.answer),
+      ["2", "3", "12"]
+    );
+
+    const missedStudent = await User.create({
+      name: "academy-missed-student",
+      realName: "미제출학생",
+      email: "academy-missed-student@example.test",
+      passwordHash: "not-used-in-verification",
+      role: "student",
+      schoolGrade: 10,
+    });
+    const missedMembership = await AcademyStudentMembership.create({
+      academyId: academy._id,
+      studentUserId: missedStudent._id,
+      status: "APPROVED",
+      classId: academyClass._id,
+      joinSource: "ADMIN_ASSIGNMENT",
+      requestedAt: new Date("2026-08-01T00:00:00.000Z"),
+      dataConsentAt: new Date("2026-08-01T00:00:00.000Z"),
+      reviewedAt: new Date("2026-08-01T00:00:00.000Z"),
+      approvedAt: new Date("2026-08-01T00:00:00.000Z"),
+      reviewedByUserId: teacher._id,
+    });
+    const missedWeek = await AcademyClassWeek.create({
+      academyId: academy._id,
+      classId: academyClass._id,
+      academicYear: 2026,
+      weekNumber: 2,
+      title: "미제출 자동 0점 검증",
+      concepts: publishedWeek.concepts,
+      assignmentTitle: "마감 과제",
+      assignmentInstructions: "기한 내 제출해 주세요.",
+      dueAt: new Date("2026-08-29T09:00:00.000Z"),
+      assignmentOmr: {
+        enabled: true,
+        questionCount: 3,
+        sections: [
+          { startNumber: 1, endNumber: 2, answerType: "MULTIPLE_CHOICE", choiceCount: 5 },
+          { startNumber: 3, endNumber: 3, answerType: "SHORT_ANSWER", choiceCount: 5 },
+        ],
+        answerKey: ["2", "4", "12"],
+        configuredAt: new Date("2026-08-28T00:00:00.000Z"),
+        configuredByUserId: teacher._id,
+        missedSubmissionsFinalizedAt: null,
+      },
+      createdByUserId: teacher._id,
+      updatedByUserId: teacher._id,
+    });
+    await AcademyAssignmentSubmission.create({
+      academyId: academy._id,
+      classId: academyClass._id,
+      weekId: missedWeek._id,
+      studentUserId: student._id,
+      answers: ["2", "4", "12"],
+      answeredCount: 3,
+      correctByQuestion: [true, true, true],
+      correctCount: 3,
+      questionCount: 3,
+      scorePercent: 100,
+      status: "SUBMITTED",
+      submittedAt: new Date("2026-08-29T08:30:00.000Z"),
+      gradedAt: new Date("2026-08-29T08:30:00.000Z"),
+    });
+    const missedFinalization = await finalizeMissedAssignmentSubmissions({
+      now: new Date("2026-08-29T09:01:00.000Z"),
+      weekIds: [missedWeek._id],
+    });
+    assert.deepEqual(missedFinalization, { scanned: 1, finalized: 1, autoZeroed: 1 });
+    const missedSubmission = await AcademyAssignmentSubmission.findOne({
+      weekId: missedWeek._id,
+      studentUserId: missedStudent._id,
+    }).lean();
+    assert.equal(missedSubmission.status, "MISSED");
+    assert.equal(missedSubmission.scorePercent, 0);
+    assert.equal(missedSubmission.answeredCount, 0);
+    assert.equal(missedSubmission.submittedAt, null);
+    assert.deepEqual(missedSubmission.correctByQuestion, [false, false, false]);
+    assert.equal(
+      (await AcademyAssignmentSubmission.findOne({ weekId: missedWeek._id, studentUserId: student._id }).lean()).scorePercent,
+      100
+    );
+    assert.deepEqual(
+      await finalizeMissedAssignmentSubmissions({
+        now: new Date("2026-08-29T09:02:00.000Z"),
+        weekIds: [missedWeek._id],
+      }),
+      { scanned: 0, finalized: 0, autoZeroed: 0 }
+    );
+    const missedStudentWeek = await getStudentAcademyWeek({
+      studentUserId: missedStudent._id,
+      weekId: missedWeek._id,
+    });
+    const missedStudentWeekHtml = await render("student-academy-week", {
+      user: { ...missedStudent.toObject(), hasAcademyMembership: true },
+      classroom: missedStudentWeek,
+      arenaProfileAvatar: { imageSrc: "/images/profile/default-avatar.png" },
+      academyMembershipAvailable: true,
+    });
+    assert.match(missedStudentWeekHtml, /마감 미제출 · 0점 처리/);
+    assert.match(missedStudentWeekHtml, /미제출 과제는 0점으로 처리/);
+    await assert.rejects(
+      submitAcademyAssignment({
+        studentUserId: missedStudent._id,
+        weekId: missedWeek._id,
+        answers: ["2", "4", "12"],
+      }),
+      (error) => Number(error.status) === 410 && /마감 시간이 지났습니다/.test(error.message)
+    );
+    const missedTeacherView = await getAcademyClassworkTeacherView({
+      teacherUserId: teacher._id,
+      classId: academyClass._id,
+    });
+    const teacherMissedWeek = missedTeacherView.weeks.find((week) => String(week._id) === String(missedWeek._id));
+    assert.equal(teacherMissedWeek.submissions.filter((submission) => submission.status === "MISSED").length, 1);
+    await deleteAcademyClassWeek({
+      teacherUserId: teacher._id,
+      classId: academyClass._id,
+      weekId: missedWeek._id,
+    });
+    await AcademyStudentMembership.deleteOne({ _id: missedMembership._id });
+    await User.deleteOne({ _id: missedStudent._id });
+
+    const conceptExamId = new mongoose.Types.ObjectId();
+    await PrivateMockExam.collection.insertOne({
+      _id: conceptExamId,
+      title: "개념 히트맵 검증 모의고사",
+      weekKey: "2026-08-30",
+      isTest: false,
+      status: "archived",
+      releaseAt: new Date("2026-08-30T06:00:00.000Z"),
+      questionCount: 3,
+      questionConcepts: [
+        { conceptId: "polynomial-arithmetic", conceptTitle: "다항식의 사칙연산", courseTitle: "공통수학1", unitTitle: "다항식" },
+        { conceptId: "remainder-theorem", conceptTitle: "나머지정리", courseTitle: "공통수학1", unitTitle: "다항식" },
+        { conceptId: "polynomial-arithmetic", conceptTitle: "다항식의 사칙연산", courseTitle: "공통수학1", unitTitle: "다항식" },
+      ],
+    });
+    await PrivateMockExamAttempt.collection.insertOne({
+      _id: new mongoose.Types.ObjectId(),
+      examId: conceptExamId,
+      userId: student._id,
+      status: "submitted",
+      integrityStatus: "CLEAR",
+      score: 33,
+      correctByQuestion: [false, true, false],
+    });
+    const classWeeklyMockInsight = await getWeeklyMockInsights({
+      studentUserIds: [student._id],
+      scopeLabel: academyClass.name,
+      now: new Date("2026-09-03T00:00:00.000Z"),
+    });
+    assert.equal(classWeeklyMockInsight.participantCount, 1);
+    assert.equal(classWeeklyMockInsight.averageScore, 33);
+    assert.equal(classWeeklyMockInsight.hardestConcept.conceptTitle, "다항식의 사칙연산");
+    assert.equal(classWeeklyMockInsight.hardestConcept.difficulty, 100);
+    const academyWeeklyMockInsight = await getAcademyWeeklyMockInsights({
+      academyId: academy._id,
+      now: new Date("2026-09-03T00:00:00.000Z"),
+    });
+    assert.equal(academyWeeklyMockInsight.overall.participantCount, 1);
+    assert.equal(
+      academyWeeklyMockInsight.classes.find((row) => row.classId === String(academyClass._id)).insight.participantCount,
+      1
+    );
 
     const academyAssignmentFileId = new mongoose.Types.ObjectId();
     const scopedIdentity = buildForensicIdentity({
@@ -1044,6 +1248,7 @@ async function main() {
     assert.ok(adminAcademyDetail.attendanceAudits.some((audit) => audit.actorType === "ADMIN"));
     assert.equal(adminAcademyDetail.statistics.values.averageLearningDays, 8);
     assert.equal(adminAcademyDetail.statistics.attentionStudents[0].membership.studentUserId.realName, "이학생");
+    assert.equal(adminAcademyDetail.weeklyMockInsights.overall.participantCount, 1);
 
     const adminListHtml = await render("admin-academies", {
       user: admin,
@@ -1071,6 +1276,9 @@ async function main() {
     assert.match(adminDetailHtml, /수업 회차·학생 출결·감사 이력/);
     assert.match(adminDetailHtml, /운영자 검증 보정/);
     assert.match(adminDetailHtml, /코드 재발급/);
+    assert.match(adminDetailHtml, /주간 모의고사 개념 히트맵/);
+    assert.match(adminDetailHtml, /반별 개념 상세/);
+    assert.match(adminDetailHtml, /다항식의 사칙연산/);
     assert.match(adminDetailHtml, new RegExp(invite.code));
 
     const emptyStatistics = await getStudentMonthlyStatistics({
@@ -1100,6 +1308,7 @@ async function main() {
       user: teacherUser,
       portal,
       statistics: academyStatistics,
+      weeklyMockInsights: academyWeeklyMockInsight,
       attendance: attendanceRoster,
       feedback: null,
       createdInviteId: String(invite._id),
@@ -1119,6 +1328,8 @@ async function main() {
         assert.match(html, /학습 건강도/);
         assert.match(html, /data-academy-growth-chart/);
         assert.match(html, /data-academy-heatmap-chart/);
+        assert.match(html, /학원 주간 모의고사 개념 히트맵/);
+        assert.match(html, /다항식의 사칙연산/);
       }
       if (tab === "attendance") {
         assert.match(html, /학원 출결 관리/);
@@ -1177,6 +1388,7 @@ async function main() {
       statistics: classStatistics,
       mathMap: classMathMap,
       classwork: teacherClasswork,
+      weeklyMockInsights: classWeeklyMockInsight,
       activeAcademyPage: "classes",
     };
     const classDetailHtml = await render("academy-class-detail", { ...classDetailLocals, activeClassSection: "statistics" });
@@ -1191,6 +1403,7 @@ async function main() {
     assert.match(classDetailHtml, /CLASS MATH MAP/);
     assert.match(classDetailHtml, /calculus-1-02-07|함수의 증가·감소와 극값/);
     assert.match(classDetailHtml, /반 상세 메뉴/);
+    assert.match(classDetailHtml, /고1 월수반 주간 모의고사 개념 히트맵/);
     assert.doesNotMatch(classDetailHtml, /수업 일정·출결 방식/);
     assert.match(classAttendanceHtml, /수업 일정·출결 방식/);
     assert.match(classAttendanceHtml, /학생 코드 출결/);
@@ -1218,14 +1431,45 @@ async function main() {
     assert.match(studentDashboardHtml, /href="\/my-academy"[^>]*aria-current="page"/);
     const studentWeekHtml = await render("student-academy-week", {
       user: { ...student.toObject(), hasAcademyMembership: true },
-      classroom: { ...studentWeek, profileImageSrc: "" },
+      classroom: { ...submittedStudentWeek, profileImageSrc: "" },
       arenaProfileAvatar: { imageSrc: "/images/profile/default-avatar.png" },
       academyMembershipAvailable: true,
     });
     assert.match(studentWeekHtml, /이번 주에 배운 개념/);
     assert.match(studentWeekHtml, /다항식 기본 과제/);
     assert.match(studentWeekHtml, /교재 10쪽부터 13쪽까지/);
+    assert.match(studentWeekHtml, /과제 제출하기/);
+    assert.match(studentWeekHtml, /자동 채점 완료 · 67점/);
     assert.match(studentWeekHtml, /\/learn\/common-math-1\/polynomials\/polynomial-arithmetic/);
+
+    await saveAcademyClassWeek({
+      teacherUserId: teacher._id,
+      classId: academyClass._id,
+      weekId: publishedWeek._id,
+      academicYear: 2026,
+      weekNumber: 1,
+      title: "다항식 첫 수업",
+      lessonSummary: "다항식의 사칙연산과 항등식의 기본 원리를 학습했습니다.",
+      conceptKeys: selectedConceptKeys,
+      assignmentTitle: "다항식 기본 과제",
+      assignmentInstructions: "교재 10쪽부터 13쪽까지 풀어오세요.",
+      assignmentOmr: JSON.stringify({
+        enabled: true,
+        sections: [
+          { startNumber: 1, endNumber: 2, answerType: "MULTIPLE_CHOICE", choiceCount: 5 },
+          { startNumber: 3, endNumber: 3, answerType: "SHORT_ANSWER" },
+        ],
+        answers: ["2", "3", "12"],
+      }),
+      dueAt: "2026-09-04T18:00",
+      files: [],
+    });
+    const regradedSubmission = await AcademyAssignmentSubmission.findOne({
+      weekId: publishedWeek._id,
+      studentUserId: student._id,
+    }).lean();
+    assert.equal(regradedSubmission.scorePercent, 100);
+    assert.equal(regradedSubmission.correctCount, 3);
 
     const emptyAcademyClass = await createAcademyClass({
       teacherUserId: teacher._id,

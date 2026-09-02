@@ -1,0 +1,57 @@
+.weekly-mock-insight-panel { margin-top: 18px; padding: 22px; color: #20283d; background: #fff; border: 1px solid #e0e5ef; border-radius: 18px; box-shadow: 0 10px 30px rgb(31 45 78 / 5%); }
+.weekly-mock-insight-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.weekly-mock-insight-heading p { margin: 0; color: #315bea; font-size: 9px; font-weight: 900; letter-spacing: .12em; }
+.weekly-mock-insight-heading h2 { margin: 5px 0 5px; color: #192238; font-size: 17px; }
+.weekly-mock-insight-heading span { color: #737e94; font-size: 9px; }
+.weekly-mock-insight-heading > b { padding: 8px 10px; color: #3152c5; background: #edf1ff; border-radius: 9px; font-size: 9px; }
+.weekly-mock-insight-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-top: 17px; }
+.weekly-mock-insight-stats article { min-width: 0; display: grid; gap: 5px; padding: 13px; background: #f7f8fc; border: 1px solid #e8ebf2; border-radius: 11px; }
+.weekly-mock-insight-stats small, .weekly-mock-insight-stats span { overflow: hidden; color: #788299; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.weekly-mock-insight-stats strong { overflow: hidden; color: #202a42; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.weekly-mock-heatmap-legend { display: flex; justify-content: flex-end; align-items: center; gap: 3px; margin-top: 15px; color: #7e8798; font-size: 9px; }
+.weekly-mock-heatmap-legend i { width: 22px; height: 8px; }
+.weekly-mock-heatmap-legend span:first-child { margin-right: 4px; }
+.weekly-mock-heatmap-legend span:last-child { margin-left: 4px; }
+.weekly-mock-heatmap-legend .is-level-1, .weekly-mock-heatmap .is-level-1 { background: #e8f7f1; border-color: #ceeade; }
+.weekly-mock-heatmap-legend .is-level-2, .weekly-mock-heatmap .is-level-2 { background: #f2f8e9; border-color: #dfebcf; }
+.weekly-mock-heatmap-legend .is-level-3, .weekly-mock-heatmap .is-level-3 { background: #fff7dc; border-color: #f2e5b8; }
+.weekly-mock-heatmap-legend .is-level-4, .weekly-mock-heatmap .is-level-4 { background: #fff0e5; border-color: #f3d8c5; }
+.weekly-mock-heatmap-legend .is-level-5, .weekly-mock-heatmap .is-level-5 { background: #ffe8ec; border-color: #f1cdd5; }
+.weekly-mock-heatmap { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+.weekly-mock-heatmap > article { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; padding: 12px; border: 1px solid; border-radius: 12px; }
+.weekly-mock-heatmap article > div { min-width: 0; display: grid; gap: 4px; }
+.weekly-mock-heatmap article small { overflow: hidden; color: #717b8e; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.weekly-mock-heatmap article strong { overflow: hidden; color: #263047; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.weekly-mock-heatmap article > b { display: grid; justify-items: end; color: #263047; font-size: 16px; }
+.weekly-mock-heatmap article > b small { font-size: 9px; }
+.weekly-mock-heatmap article footer { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 9px; padding-top: 8px; border-top: 1px solid rgb(99 112 139 / 12%); }
+.weekly-mock-heatmap article footer span, .weekly-mock-heatmap article footer em { color: #687287; font-size: 9px; font-style: normal; }
+.weekly-mock-insight-note { margin: 10px 0 0; color: #7a8498; font-size: 9px; }
+.weekly-mock-insight-empty { margin-top: 14px; padding: 28px 20px; text-align: center; background: #f8f9fc; border: 1px dashed #d9deea; border-radius: 12px; }
+.weekly-mock-insight-empty strong { color: #3a4459; font-size: 11px; }
+.weekly-mock-insight-empty p { margin: 6px 0 0; color: #7a8497; font-size: 9px; }
+.weekly-mock-class-comparison { margin-top: 17px; padding-top: 16px; border-top: 1px solid #e4e8f0; }
+.weekly-mock-class-comparison > header { display: flex; justify-content: space-between; gap: 12px; }
+.weekly-mock-class-comparison > header strong { font-size: 11px; }
+.weekly-mock-class-comparison > header span { color: #7b8497; font-size: 9px; }
+.weekly-mock-class-comparison > div { display: grid; gap: 7px; margin-top: 10px; }
+.weekly-mock-class-comparison article { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 12px; background: #f8f9fc; border-radius: 10px; }
+.weekly-mock-class-comparison article > div, .weekly-mock-class-comparison article > span { min-width: 0; display: grid; gap: 3px; }
+.weekly-mock-class-comparison article > span { justify-items: end; text-align: right; }
+.weekly-mock-class-comparison article strong, .weekly-mock-class-comparison article b { color: #29334a; font-size: 10px; }
+.weekly-mock-class-comparison article small { overflow: hidden; color: #778196; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.weekly-mock-class-heatmaps { display: grid; gap: 8px; margin-top: 17px; padding-top: 16px; border-top: 1px solid #e4e8f0; }
+.weekly-mock-class-heatmaps > header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
+.weekly-mock-class-heatmaps > header strong { font-size: 11px; }
+.weekly-mock-class-heatmaps > header span { color: #7b8497; font-size: 9px; }
+.weekly-mock-class-heatmaps > details { overflow: hidden; background: #f8f9fc; border: 1px solid #e3e7ef; border-radius: 11px; }
+.weekly-mock-class-heatmaps summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 13px; cursor: pointer; list-style: none; }
+.weekly-mock-class-heatmaps summary::-webkit-details-marker { display: none; }
+.weekly-mock-class-heatmaps summary > span { min-width: 0; display: grid; gap: 3px; }
+.weekly-mock-class-heatmaps summary strong { color: #29334a; font-size: 10px; }
+.weekly-mock-class-heatmaps summary small { overflow: hidden; color: #778196; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.weekly-mock-class-heatmaps summary > b { flex: 0 0 auto; color: #3156cf; font-size: 9px; }
+.weekly-mock-class-heatmaps details > .weekly-mock-heatmap { margin: 0; padding: 0 12px 12px; }
+.weekly-mock-class-heatmaps details > .weekly-mock-insight-empty { margin: 0 12px 12px; }
+@media (max-width: 900px) { .weekly-mock-insight-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .weekly-mock-heatmap { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 580px) { .weekly-mock-insight-panel { padding: 17px; } .weekly-mock-insight-heading, .weekly-mock-class-comparison article { align-items: flex-start; flex-direction: column; } .weekly-mock-insight-stats, .weekly-mock-heatmap { grid-template-columns: 1fr; } .weekly-mock-class-comparison article > span { justify-items: start; text-align: left; } }

@@ -114,6 +114,27 @@ assert.equal(
   "short-answer"
 );
 
+const concepts = answers.map((_, index) => ({
+  conceptId: `concept-${index + 1}`,
+  conceptTitle: `${index + 1}번 핵심 개념`,
+  courseTitle: "미적분",
+  unitTitle: "수열의 극한",
+}));
+const parsedWithConcepts = validateAnswerKeyJson({
+  schemaVersion: "matths-answer-key-v2",
+  answers,
+  points,
+  questionModes,
+  concepts,
+}, { requireConcepts: true });
+assert.equal(parsedWithConcepts.schemaVersion, "matths-answer-key-v2");
+assert.equal(parsedWithConcepts.questions[0].concept.conceptId, "concept-1");
+assert.equal(parsedWithConcepts.questions[29].concept.conceptTitle, "30번 핵심 개념");
+assert.throws(
+  () => validateAnswerKeyJson({ answers, points, questionModes }, { requireConcepts: true }),
+  /문항의 개념 이름/
+);
+
 const releaseAt =
   parseSeoulReleaseAt(
     "2026-08-02T15:00"

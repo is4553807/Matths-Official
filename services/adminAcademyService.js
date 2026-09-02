@@ -23,6 +23,7 @@ const { getAcademyMonthlyStatistics } = require("./academyStatisticsService");
 const { getClassMathMap } = require("./mathMapService");
 const { signedCloudinaryUrl } = require("./fileStorageService");
 const { createAcademyWeekFileDownload } = require("./academyClassworkService");
+const { getAcademyWeeklyMockInsights } = require("./weeklyMockInsightService");
 
 const ACADEMY_STATUSES = ["PENDING", "ACTIVE", "PAUSED", "REJECTED", "ARCHIVED"];
 const PAGE_SIZE = 50;
@@ -266,9 +267,10 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, now = 
   ]);
   const approvedMemberships = memberships.filter((membership) => membership.status === "APPROVED" && membership.studentUserId);
   const studentUserIds = approvedMemberships.map((membership) => membership.studentUserId._id);
-  const [statistics, mathMap] = await Promise.all([
+  const [statistics, mathMap, weeklyMockInsights] = await Promise.all([
     getAcademyMonthlyStatistics({ studentUserIds, periodKey }),
     getClassMathMap({ studentUserIds }),
+    getAcademyWeeklyMockInsights({ academyId: academy._id }),
   ]);
   const membershipByStudentId = new Map(
     approvedMemberships.map((membership) => [String(membership.studentUserId._id), membership])
@@ -295,6 +297,7 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, now = 
     attendanceAudits: attendanceAudits.filter((audit) => audit.studentUserId && audit.actorUserId),
     statistics,
     mathMap,
+    weeklyMockInsights,
     counts: {
       activeStaff: staff.filter((entry) => entry.status === "ACTIVE").length,
       pendingStaff: staff.filter((entry) => entry.status === "PENDING").length,

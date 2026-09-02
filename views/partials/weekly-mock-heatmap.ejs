@@ -1,0 +1,34 @@
+<%
+  const weeklyInsightData = typeof insight !== "undefined" && insight ? insight : {
+    scopeLabel: "분석 범위", examCount: 0, participantCount: 0, submissionCount: 0,
+    averageScore: null, conceptCount: 0, concepts: [], hardestConcept: null,
+  };
+  const weeklyInsightClasses = typeof classRows !== "undefined" && Array.isArray(classRows) ? classRows : [];
+  const weeklyInsightTitle = typeof title !== "undefined" && title ? title : "주간 모의고사 개념 히트맵";
+  const weeklyInsightEyebrow = typeof eyebrow !== "undefined" && eyebrow ? eyebrow : "WEEKLY MOCK INSIGHTS";
+  const weeklyInsightShowClassHeatmaps = typeof showClassHeatmaps !== "undefined" && showClassHeatmaps === true;
+%>
+<section class="weekly-mock-insight-panel">
+  <header class="weekly-mock-insight-heading"><div><p><%= weeklyInsightEyebrow %></p><h2><%= weeklyInsightTitle %></h2><span>최근 공식 회차의 문항별 개념과 자동 채점 결과를 합산했습니다.</span></div><b><%= weeklyInsightData.scopeLabel %></b></header>
+  <div class="weekly-mock-insight-stats">
+    <article><small>분석 응시자</small><strong><%= weeklyInsightData.participantCount %>명</strong><span>제출 <%= weeklyInsightData.submissionCount %>건</span></article>
+    <article><small>평균 점수</small><strong><%= weeklyInsightData.averageScore === null ? "—" : `${weeklyInsightData.averageScore}점` %></strong><span>공식 회차 <%= weeklyInsightData.examCount %>개</span></article>
+    <article><small>분석 개념</small><strong><%= weeklyInsightData.conceptCount %>개</strong><span>오답률 높은 순</span></article>
+    <article><small>최우선 보완</small><strong><%= weeklyInsightData.hardestConcept?.conceptTitle || "분석 전" %></strong><span><%= weeklyInsightData.hardestConcept ? `오답률 ${weeklyInsightData.hardestConcept.difficulty}%` : "개념 데이터 필요" %></span></article>
+  </div>
+  <div class="weekly-mock-heatmap-legend" aria-hidden="true"><span>안정</span><i class="is-level-1"></i><i class="is-level-2"></i><i class="is-level-3"></i><i class="is-level-4"></i><i class="is-level-5"></i><span>어려움</span></div>
+  <% if (weeklyInsightData.concepts.length) { %>
+    <div class="weekly-mock-heatmap" role="list" aria-label="<%= weeklyInsightData.scopeLabel %> 주간 모의고사 개념별 오답률">
+      <% weeklyInsightData.concepts.slice(0, 18).forEach((concept) => { %><article class="is-level-<%= concept.level %>" role="listitem"><div><small><%= concept.courseTitle || "주간 모의고사" %><%= concept.unitTitle ? ` · ${concept.unitTitle}` : "" %></small><strong><%= concept.conceptTitle %></strong></div><b><%= concept.difficulty %>%<small>오답률</small></b><footer><span><%= concept.label %></span><em><%= concept.responseCount %>개 답안</em></footer></article><% }) %>
+    </div>
+    <% if (weeklyInsightData.concepts.length > 18) { %><p class="weekly-mock-insight-note">오답률이 높은 상위 18개 개념을 먼저 표시했습니다. 전체 분석 개념은 <%= weeklyInsightData.conceptCount %>개입니다.</p><% } %>
+  <% } else { %>
+    <div class="weekly-mock-insight-empty"><strong>아직 개념 히트맵을 만들 데이터가 없습니다</strong><p>문항별 개념이 포함된 공식 모의고사에 이 범위의 학생이 응시하면 자동으로 집계됩니다.</p></div>
+  <% } %>
+  <% if (weeklyInsightClasses.length) { %>
+    <div class="weekly-mock-class-comparison"><header><strong>반별 주간 모의고사 지표</strong><span>현재 승인·배정 학생 기준</span></header><div><% weeklyInsightClasses.forEach((row) => { %><article><div><strong><%= row.className %></strong><small><%= row.studentCount %>명 · 응시 <%= row.insight.participantCount %>명 · 제출 <%= row.insight.submissionCount %>건</small></div><span><b><%= row.insight.averageScore === null ? "—" : `${row.insight.averageScore}점` %></b><small><%= row.insight.hardestConcept ? `${row.insight.hardestConcept.conceptTitle} · 오답률 ${row.insight.hardestConcept.difficulty}%` : "개념 분석 전" %></small></span></article><% }) %></div></div>
+  <% } %>
+  <% if (weeklyInsightShowClassHeatmaps && weeklyInsightClasses.length) { %>
+    <div class="weekly-mock-class-heatmaps"><header><strong>반별 개념 상세</strong><span>반을 펼치면 개념별 오답률 전체를 확인할 수 있습니다.</span></header><% weeklyInsightClasses.forEach((row) => { %><details><summary><span><strong><%= row.className %></strong><small><%= row.isActive ? "활성 반" : "보관된 반" %> · 배정 <%= row.studentCount %>명 · 분석 개념 <%= row.insight.conceptCount %>개</small></span><b><%= row.insight.averageScore === null ? "분석 전" : `평균 ${row.insight.averageScore}점` %></b></summary><% if (row.insight.concepts.length) { %><div class="weekly-mock-heatmap" role="list" aria-label="<%= row.className %> 개념별 오답률"><% row.insight.concepts.forEach((concept) => { %><article class="is-level-<%= concept.level %>" role="listitem"><div><small><%= concept.courseTitle || "주간 모의고사" %><%= concept.unitTitle ? ` · ${concept.unitTitle}` : "" %></small><strong><%= concept.conceptTitle %></strong></div><b><%= concept.difficulty %>%<small>오답률</small></b><footer><span><%= concept.label %></span><em><%= concept.responseCount %>개 답안</em></footer></article><% }) %></div><% } else { %><div class="weekly-mock-insight-empty"><strong>이 반은 아직 개념 분석 전입니다</strong><p>배정 학생의 공식 모의고사 제출 데이터가 쌓이면 표시됩니다.</p></div><% } %></details><% }) %></div>
+  <% } %>
+</section>

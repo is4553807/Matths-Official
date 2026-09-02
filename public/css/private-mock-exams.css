@@ -1480,6 +1480,9 @@
   color: #667086;
   font-size: 9px;
 }
+.private-mock-question-concept { display: grid; gap: 3px; margin: 9px 0 0; padding: 8px 9px; background: #eef2ff; border-radius: 8px; }
+.private-mock-question-concept small { color: #6f7c9c; font-size: 9px; }
+.private-mock-question-concept strong { color: #294ab8; font-size: 9px; }
 
 .private-mock-review-omr {
   display: flex;

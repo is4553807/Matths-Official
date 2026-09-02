@@ -404,6 +404,11 @@ async function connectDB() {
         startAcademyContractScheduler();
 
         const {
+            startAcademyAssignmentDeadlineScheduler,
+        } = require("./services/academyClassworkService");
+        startAcademyAssignmentDeadlineScheduler();
+
+        const {
             registerPolicyChangeOutboxHandler,
             startPolicyChangeNotificationScheduler,
         } = require("./services/policyChangeNotificationService");

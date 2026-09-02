@@ -342,8 +342,46 @@ function standardQuestionMode(
     : "short-answer";
 }
 
+function normalizeQuestionConcept(question, number, { requireConcepts = false } = {}) {
+  const explanation = question?.explanation || question?.solution || null;
+  const source = question?.conceptMeta || question?.concept || explanation?.concept || null;
+  const conceptTitle = cleanSingleLine(
+    typeof source === "string"
+      ? source
+      : source?.conceptTitle || source?.title || source?.name,
+    180
+  );
+  if (requireConcepts && (!conceptTitle || /^__.+__$/.test(conceptTitle))) {
+    throw statusError(400, `${number}번 문항의 개념 이름을 입력해 주세요.`);
+  }
+  if (!conceptTitle) return null;
+  const requestedId = cleanSingleLine(
+    typeof source === "object" ? source?.conceptId || source?.id || source?.key : "",
+    140
+  );
+  const fallbackId = conceptTitle
+    .normalize("NFKC")
+    .toLocaleLowerCase("ko-KR")
+    .replace(/[^0-9a-z가-힣]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 140) || `question-${number}`;
+  return {
+    conceptId: requestedId || fallbackId,
+    conceptTitle,
+    courseTitle: cleanSingleLine(
+      typeof source === "object" ? source?.courseTitle || source?.course : "",
+      120
+    ),
+    unitTitle: cleanSingleLine(
+      typeof source === "object" ? source?.unitTitle || source?.unit : "",
+      160
+    ),
+  };
+}
+
 function validateAnswerKeyJson(
-  value
+  value,
+  { requireConcepts = false } = {}
 ) {
   let parsed = value;
 
@@ -418,6 +456,13 @@ function validateAnswerKeyJson(
             standardQuestionMode(
               index + 1
             ),
+          concept:
+            parsed.concepts?.[
+              index
+            ] ||
+            explanationByNumber.get(
+              index + 1
+            )?.concept || null,
           explanation:
             explanationByNumber.get(
               index + 1
@@ -476,6 +521,7 @@ function validateAnswerKeyJson(
           question.explanation ||
           question.solution ||
           null;
+        const concept = normalizeQuestionConcept(question, number || index + 1, { requireConcepts });
 
         if (
           number !==
@@ -535,6 +581,7 @@ function validateAnswerKeyJson(
           answer,
           points,
           type,
+          concept,
           explanation:
             explanationSource
               ? {
@@ -596,7 +643,8 @@ function validateAnswerKeyJson(
 
   return {
     schemaVersion:
-      "matths-answer-key-v1",
+      cleanSingleLine(parsed?.schemaVersion, 80) ||
+      (normalized.every((question) => question.concept) ? "matths-answer-key-v2" : "matths-answer-key-v1"),
     questionCount: 30,
     totalPoints,
     questions: normalized,
@@ -627,7 +675,8 @@ async function readAnswerKeyJsonFile(
     );
 
   return validateAnswerKeyJson(
-    raw
+    raw,
+    { requireConcepts: true }
   );
 }
 
@@ -1550,6 +1599,11 @@ async function createPrivateMockExam({
           questions.map(
             (question) =>
               question.type
+          ),
+        questionConcepts:
+          questions.map(
+            (question) =>
+              question.concept
           ),
         explanations:
           questions.map(
@@ -10857,6 +10911,11 @@ async function getAdminPrivateMockExamDetailData({
                 explanation:
                   exam
                     .explanations?.[
+                    index
+                  ] || null,
+                concept:
+                  exam
+                    .questionConcepts?.[
                     index
                   ] || null,
               })

@@ -7,6 +7,7 @@ const coverage = [
   ["services/accessCycleService.js", "ACCESS_CYCLE_FIRST_DAY"],
   ["services/accessCycleDailyService.js", "ACCESS_CYCLE_DAILY"],
   ["services/accessCycleExpiryReminderService.js", "ACCESS_CYCLE_EXPIRY_REMINDERS"],
+  ["services/academyClassworkService.js", "ACADEMY_ASSIGNMENT_DEADLINES"],
   ["services/policyChangeNotificationService.js", "POLICY_CHANGE_NOTIFICATION_DELIVERY"],
   ["services/privateMockExamService.js", "PRIVATE_MOCK_EXAM_STATE"],
   ["services/placementExamService.js", "PLACEMENT_EXAM_EXPIRY"],

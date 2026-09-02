@@ -26,6 +26,11 @@ router.get(
   authMiddleware.isLoggedIn,
   academyController.downloadStudentAcademyWeekFile
 );
+router.post(
+  "/my-academy/weeks/:weekId/submission",
+  authMiddleware.isLoggedIn,
+  academyController.submitStudentAcademyAssignment
+);
 
 router.get("/academy/setup", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.setupPage);
 router.post("/academy/setup", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.createAcademy);

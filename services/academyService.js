@@ -9,6 +9,7 @@ const {
   AcademyAttendanceAudit,
   AcademyAttendanceCodeAttempt,
   AcademyAttendanceSession,
+  AcademyAssignmentSubmission,
   AcademyClassWeek,
   AcademyStudentMembership,
   AcademyInvite,
@@ -198,6 +199,7 @@ async function ensureAcademyIndexes() {
     AcademyAttendanceAudit.createIndexes(),
     AcademyAttendanceCodeAttempt.createIndexes(),
     AcademyClassWeek.createIndexes(),
+    AcademyAssignmentSubmission.createIndexes(),
     AcademyStudentMembership.createIndexes(),
     AcademyInvite.createIndexes(),
   ]);

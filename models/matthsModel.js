@@ -4974,6 +4974,17 @@ const privateMockExamSchema =
                 ],
                 default: [],
             },
+            questionConcepts: {
+                type: [
+                    {
+                        conceptId: { type: String, trim: true, maxlength: 140, required: true },
+                        conceptTitle: { type: String, trim: true, maxlength: 180, required: true },
+                        courseTitle: { type: String, trim: true, maxlength: 120, default: "" },
+                        unitTitle: { type: String, trim: true, maxlength: 160, default: "" },
+                    },
+                ],
+                default: [],
+            },
             explanations: {
                 type: [Schema.Types.Mixed],
                 default: [],

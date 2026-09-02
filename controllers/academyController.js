@@ -61,6 +61,7 @@ const {
   getTeacherAcademyWeekFileDownload,
   removeAcademyClassWeekFile,
   saveAcademyClassWeek,
+  submitAcademyAssignment,
 } = require("../services/academyClassworkService");
 const {
   resolveArenaProfileAvatar,
@@ -69,6 +70,10 @@ const {
   analyzeAcademyForensicEvidence,
   getAcademyForensicsPageData,
 } = require("../services/academyForensicsService");
+const {
+  getAcademyWeeklyMockInsights,
+  getWeeklyMockInsights,
+} = require("../services/weeklyMockInsightService");
 
 const ACADEMY_TABS = new Set(["dashboard", "attendance", "students", "requests", "classes", "invites", "teachers", "settings"]);
 
@@ -148,14 +153,16 @@ exports.portalPage = async (req, res, next) => {
       : null;
     let statistics = null;
     let attendance = null;
+    let weeklyMockInsights = null;
     if (activeAcademyPage === "dashboard") {
       const studentUserIds = portal.students.map((membership) => membership.studentUserId._id);
-      const [monthlyStatistics, mathMap] = await Promise.all([
+      const [monthlyStatistics, mathMap, academyWeeklyMock] = await Promise.all([
         getAcademyMonthlyStatistics({
           studentUserIds,
           periodKey: req.query.period,
         }),
         getClassMathMap({ studentUserIds }),
+        getAcademyWeeklyMockInsights({ academyId: context.academyId }),
       ]);
       statistics = monthlyStatistics;
       statistics.mathMap = mathMap;
@@ -169,6 +176,7 @@ exports.portalPage = async (req, res, next) => {
       statistics.attentionStudents = statistics.attentionStudents
         .map((item) => ({ ...item, membership: membershipsByStudentId.get(item.studentUserId) }))
         .filter((item) => item.membership);
+      weeklyMockInsights = academyWeeklyMock;
     }
     if (activeAcademyPage === "attendance") {
       attendance = await getAcademyAttendanceRoster({
@@ -183,6 +191,7 @@ exports.portalPage = async (req, res, next) => {
       portal,
       studentPage,
       statistics,
+      weeklyMockInsights,
       attendance,
       activeAcademyPage,
       feedback: consumeFlash(req),
@@ -613,7 +622,7 @@ exports.classDetailPage = async (req, res, next) => {
       classId: req.params.classId,
     });
     const studentUserIds = detail.students.map((membership) => membership.studentUserId._id);
-    const [statistics, mathMap, classwork] = await Promise.all([
+    const [statistics, mathMap, classwork, weeklyMockInsights] = await Promise.all([
       getAcademyMonthlyStatistics({
         studentUserIds,
         periodKey: req.query.period,
@@ -625,6 +634,7 @@ exports.classDetailPage = async (req, res, next) => {
         classId: req.params.classId,
         editWeekId: req.query.editWeek,
       }),
+      getWeeklyMockInsights({ studentUserIds, scopeLabel: detail.academyClass.name }),
     ]);
     const membershipsByStudentId = new Map(
       detail.students.map((membership) => [String(membership.studentUserId._id), membership])
@@ -641,6 +651,7 @@ exports.classDetailPage = async (req, res, next) => {
       statistics,
       mathMap,
       classwork,
+      weeklyMockInsights,
       activeClassSection,
       activeAcademyPage: "classes",
       feedback: consumeFlash(req),
@@ -665,6 +676,7 @@ exports.saveClassWeek = async (req, res, next) => {
       conceptKeys: req.body.conceptKeys,
       assignmentTitle: req.body.assignmentTitle,
       assignmentInstructions: req.body.assignmentInstructions,
+      assignmentOmr: req.body.assignmentOmr,
       dueAt: req.body.dueAt,
       files: req.files || [],
     });
@@ -749,8 +761,35 @@ exports.studentAcademyWeekPage = async (req, res, next) => {
       user: req.session.user,
       classroom,
       arenaProfileAvatar: resolveArenaProfileAvatar(req.session.user.preferences || {}),
+      submissionFeedback: req.query.submitted === "1"
+        ? { type: "success", message: "과제 답안을 제출하고 자동 채점을 완료했습니다." }
+        : req.query.error
+          ? { type: "error", message: String(req.query.error).slice(0, 240) }
+          : null,
     });
   } catch (error) {
+    return next(error);
+  }
+};
+
+exports.submitStudentAcademyAssignment = async (req, res, next) => {
+  const redirectTo = `/my-academy/weeks/${req.params.weekId}`;
+  try {
+    const questionCount = Math.min(100, Math.max(0, Number.parseInt(req.body.questionCount, 10) || 0));
+    const answers = Array.from(
+      { length: questionCount },
+      (_unused, index) => req.body[`answer_${index + 1}`]
+    );
+    await submitAcademyAssignment({
+      studentUserId: req.session.user.id,
+      weekId: req.params.weekId,
+      answers,
+    });
+    return res.redirect(`${redirectTo}?submitted=1#assignment-omr`);
+  } catch (error) {
+    if ([400, 403, 404, 409, 410].includes(Number(error.status))) {
+      return res.redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}#assignment-omr`);
+    }
     return next(error);
   }
 };

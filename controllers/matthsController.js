@@ -221,6 +221,9 @@ const {
   rejectAcademyApplication,
 } = require("../services/academyService");
 const {
+  getWeeklyMockInsights,
+} = require("../services/weeklyMockInsightService");
+const {
   assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,
   getAdminAcademyList,
@@ -4700,13 +4703,17 @@ exports.selectPrivateMockResult =
 exports.adminPrivateMockExamsPage =
   async (req, res, next) => {
     try {
+      const [examData, weeklyMockInsights] = await Promise.all([
+        getAdminPrivateMockExamData(),
+        getWeeklyMockInsights({ scopeLabel: "전체 유저" }),
+      ]);
       return res.render(
         "admin-private-mock-exams",
         {
           user:
             req.session.user,
-          examData:
-            await getAdminPrivateMockExamData(),
+          examData,
+          weeklyMockInsights,
           feedback:
             Number(
               req.query.created

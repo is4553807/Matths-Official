@@ -97,6 +97,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/brand.css" />
     <link rel="stylesheet" href="/css/academy.css" />
+    <link rel="stylesheet" href="/css/weekly-mock-insights.css" />
     <link rel="stylesheet" href="/css/contrast.css" />
     <script src="/js/academy.js" defer></script>
   </head>
@@ -199,6 +200,13 @@
             <div class="academy-heatmap-chart" data-academy-heatmap-chart role="img" aria-label="개념별 규칙 기반 숙달도 학습 약점 히트맵"></div>
             <p class="academy-chart-note">학생별 최근 유효 풀이 최대 20개에서 난이도·최신성·재도전 회복을 반영한 숙달도 평균입니다. 풀이 5개 미만인 학생은 Unknown으로 평균에서 제외합니다. <%= dashboardMathMap.graphVersion %> · <%= dashboardMathMap.modelVersion %></p>
           </section>
+
+          <%- include("partials/weekly-mock-heatmap", {
+            insight: typeof weeklyMockInsights !== "undefined" ? weeklyMockInsights?.overall : null,
+            classRows: typeof weeklyMockInsights !== "undefined" ? (weeklyMockInsights?.classes || []) : [],
+            title: "학원 주간 모의고사 개념 히트맵",
+            eyebrow: "ACADEMY WEEKLY MOCK",
+          }) %>
 
           <script type="application/json" data-academy-analytics-data><%- dashboardAnalyticsJson %></script>
 

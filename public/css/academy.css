@@ -457,6 +457,32 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .academy-classwork-form optgroup { color: #515c74; font-weight: 850; }
 .academy-classwork-form option { padding: 6px 8px; color: #20273a; font-weight: 600; }
 .academy-classwork-file-field input { padding: 9px; }
+.academy-omr-builder { overflow: hidden; background: #fff; border: 1px solid #dfe4f0; border-radius: 13px; }
+.academy-omr-builder.is-open { border-color: #b9c8ff; box-shadow: 0 9px 24px rgb(49 91 234 / 8%); }
+.academy-omr-builder > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; }
+.academy-omr-builder > header > div { display: grid; gap: 4px; }
+.academy-omr-builder > header small { color: #4165ef; font-size: 9px; font-weight: 900; letter-spacing: .12em; }
+.academy-omr-builder > header strong { color: #202940; font-size: 12px; }
+.academy-omr-builder > header p { margin: 0; color: #727d94; font-size: 9px; line-height: 1.55; }
+.academy-omr-builder > header button { flex: 0 0 auto; padding: 9px 11px; color: #fff; background: #315bea; border: 0; border-radius: 9px; font-size: 9px; font-weight: 900; cursor: pointer; }
+.academy-omr-editor { display: grid; gap: 11px; padding: 14px; background: #f7f9ff; border-top: 1px solid #e2e7f3; }
+.academy-omr-editor[hidden] { display: none; }
+.academy-omr-section-heading, .academy-omr-answer-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.academy-omr-section-heading strong, .academy-omr-answer-heading strong { color: #29334b; font-size: 10px; }
+.academy-omr-section-heading button, .academy-omr-disable { padding: 7px 9px; color: #315bea; background: #fff; border: 1px solid #d9e1ff; border-radius: 8px; font-size: 9px; font-weight: 850; cursor: pointer; }
+.academy-omr-section-list { display: grid; gap: 7px; }
+.academy-omr-section-row { display: grid; grid-template-columns: 74px 74px minmax(105px, 1fr) 78px auto; align-items: end; gap: 7px; padding: 9px; background: #fff; border: 1px solid #e2e6f0; border-radius: 10px; }
+.academy-omr-section-row label { gap: 4px; }
+.academy-omr-section-row input, .academy-omr-section-row select { padding: 8px 9px; }
+.academy-omr-section-row > button { height: 33px; padding: 0 9px; color: #a03247; background: #fff1f4; border: 0; border-radius: 8px; font-size: 9px; font-weight: 850; cursor: pointer; }
+.academy-omr-guide { margin: 0; color: #768197; font-size: 9px; line-height: 1.6; }
+.academy-omr-answer-heading { padding-top: 3px; }
+.academy-omr-answer-heading span { color: #4165ef; font-size: 9px; font-weight: 850; }
+.academy-omr-answer-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; max-height: 340px; overflow: auto; padding-right: 3px; }
+.academy-omr-answer-grid label { min-width: 0; padding: 8px; background: #fff; border: 1px solid #e0e5ef; border-radius: 9px; }
+.academy-omr-answer-grid label > span { color: #5e6880; font-size: 9px; }
+.academy-omr-answer-grid input, .academy-omr-answer-grid select { padding: 8px; }
+.academy-omr-disable { justify-self: start; color: #9a3449; border-color: #f0cbd3; }
 .academy-classwork-edit-files { display: grid; gap: 7px; padding: 12px; background: #fff; border: 1px solid #e1e4ec; border-radius: 11px; }
 .academy-classwork-edit-files > strong { color: #30394d; font-size: 9px; }
 .academy-classwork-edit-files > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -486,6 +512,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .academy-classwork-week-list article > section ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .academy-classwork-week-list article > section li a { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; color: #365ddd; background: #fff; border: 1px solid #e3e6ed; border-radius: 8px; font-size: 9px; font-weight: 750; text-decoration: none; }
 .academy-classwork-week-list article > section li span { color: #81899a; white-space: nowrap; }
+.academy-omr-submission-summary { margin-top: 10px; border: 1px solid #dce4ff; border-radius: 11px; background: #f5f7ff; }
+.academy-omr-submission-summary > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; cursor: pointer; list-style: none; }
+.academy-omr-submission-summary > summary::-webkit-details-marker { display: none; }
+.academy-omr-submission-summary > summary span { display: grid; gap: 3px; }
+.academy-omr-submission-summary > summary strong { color: #2f4ec2; font-size: 9px; }
+.academy-omr-submission-summary > summary small { color: #77829a; font-size: 9px; }
+.academy-omr-submission-summary > summary b { color: #315bea; font-size: 9px; }
+.academy-omr-submission-summary > div { display: grid; gap: 6px; padding: 0 11px 11px; }
+.academy-omr-submission-summary article { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px; background: #fff; border-radius: 8px; }
+.academy-omr-submission-summary article span { display: grid; gap: 2px; }
+.academy-omr-submission-summary article strong { font-size: 9px; }
+.academy-omr-submission-summary article small, .academy-omr-submission-summary article b { color: #6d7890; font-size: 9px; }
+.academy-omr-submission-summary article.is-missed { background: #fff5f6; }
+.academy-omr-submission-summary article.is-missed b { color: #a9324c; }
+.academy-omr-submission-summary > div > p { margin: 0; padding: 10px; text-align: center; }
 .academy-forensics-heading { align-items: center; }
 .academy-forensics-heading > strong { display: grid; justify-items: center; min-width: 80px; color: #254fd1; font-size: 28px; }
 .academy-forensics-heading > strong small { color: #7a8499; font-size: 9px; }
@@ -542,6 +583,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .academy-forensics-result-card dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .academy-math-map-recommendation { grid-template-columns: 1fr; }
   .academy-math-map-recommendation > div + div { padding: 13px 0 0; border-top: 1px solid #dce2fa; border-left: 0; }
+}
+
+@media (max-width: 720px) {
+  .academy-omr-section-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .academy-omr-section-row > button { grid-column: 1 / -1; }
+  .academy-omr-answer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
   .academy-topbar { position: static; }

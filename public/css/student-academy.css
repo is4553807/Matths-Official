@@ -74,9 +74,45 @@
 .student-academy-file-empty { padding: 24px; color: #616b7f; text-align: center; background: #f8f9fc; border-radius: 12px; }
 .student-academy-file-empty strong { color: #3f485c; font-size: 12px; }
 .student-academy-file-empty p { margin: 6px 0 0; font-size: 10px; }
+.student-assignment-feedback { margin-top: 16px; padding: 12px 14px; border-radius: 11px; font-size: 11px; font-weight: 800; }
+.student-assignment-feedback.is-success { color: #176c52; background: #e8f7f1; border: 1px solid #caeddf; }
+.student-assignment-feedback.is-error { color: #a12f49; background: #fff0f3; border: 1px solid #f2d0d7; }
+.student-assignment-result { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 14px; color: #1f5e4b; background: #edf9f4; border: 1px solid #d5eee5; border-radius: 13px; }
+.student-assignment-result > span { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; color: #fff; background: #176c52; border-radius: 50%; font-weight: 900; }
+.student-assignment-result strong { font-size: 12px; }
+.student-assignment-result p { margin: 4px 0 0; color: #568071; font-size: 9px; }
+.student-assignment-result.is-missed { color: #8e2e42; background: #fff2f4; border-color: #f1d2d8; }
+.student-assignment-result.is-missed > span { background: #a9324c; }
+.student-assignment-result.is-missed p { color: #865d66; }
+.student-assignment-closed { margin: 15px 0 0; padding: 12px 14px; color: #875528; background: #fff7e8; border: 1px solid #f4e2bc; border-radius: 11px; font-size: 10px; font-weight: 750; }
+.student-omr-form { display: grid; gap: 16px; margin-top: 19px; }
+.student-omr-section { min-width: 0; margin: 0; padding: 15px; border: 1px solid #e0e5ef; border-radius: 15px; }
+.student-omr-section legend { display: flex; align-items: center; gap: 8px; padding: 0 8px; }
+.student-omr-section legend span { color: #fff; background: #315bea; border-radius: 7px; padding: 5px 7px; font-size: 9px; font-weight: 900; }
+.student-omr-section legend strong { color: #536079; font-size: 10px; }
+.student-omr-grid { display: grid; gap: 9px; margin-top: 4px; }
+.student-omr-grid.is-objective { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.student-omr-grid.is-subjective { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.student-omr-question { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px; background: #f8f9fc; border: 1px solid #e8ebf2; border-radius: 11px; }
+.student-omr-question > span { display: grid; place-items: center; flex: 0 0 27px; width: 27px; height: 27px; color: #3c4b69; background: #fff; border: 1px solid #dde3ed; border-radius: 8px; font-size: 10px; font-weight: 900; }
+.student-omr-question > input[type="text"] { min-width: 0; width: 100%; padding: 9px 10px; color: #202b43; background: #fff; border: 1px solid #d8deea; border-radius: 8px; font: inherit; font-size: 11px; font-weight: 750; box-sizing: border-box; }
+.student-omr-question > b { margin-left: auto; color: #7c879c; font-size: 9px; }
+.student-omr-question.is-correct { background: #edf9f4; border-color: #c8eadf; }
+.student-omr-question.is-correct > b { color: #218260; }
+.student-omr-question.is-wrong { background: #fff2f4; border-color: #f1d2d8; }
+.student-omr-question.is-wrong > b { color: #b13b51; }
+.student-omr-bubbles { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.student-omr-bubbles label { cursor: pointer; }
+.student-omr-bubbles input { position: absolute; opacity: 0; pointer-events: none; }
+.student-omr-bubbles i { display: grid; place-items: center; width: 25px; height: 25px; color: #657086; background: #fff; border: 1px solid #cfd6e3; border-radius: 50%; font-size: 9px; font-style: normal; font-weight: 850; transition: .14s ease; }
+.student-omr-bubbles input:checked + i { color: #fff; background: #315bea; border-color: #315bea; box-shadow: 0 0 0 3px #dfe6ff; }
+.student-omr-bubbles input:focus-visible + i { outline: 2px solid #172d81; outline-offset: 2px; }
+.student-omr-form > button { justify-self: end; min-height: 44px; padding: 0 18px; color: #fff; background: #315bea; border: 0; border-radius: 11px; font-size: 11px; font-weight: 900; cursor: pointer; }
+.student-omr-form > p { justify-self: end; margin: -10px 0 0; color: #78839a; font-size: 9px; }
 
 @media (max-width: 980px) {
   .student-academy-concept-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .student-omr-grid.is-objective, .student-omr-grid.is-subjective { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 1180px) {
@@ -88,6 +124,7 @@
   .student-academy-hero { grid-template-columns: auto 1fr; padding: 22px; }
   .student-academy-hero > strong { display: none; }
   .student-academy-week-grid, .student-academy-concept-grid { grid-template-columns: 1fr; }
+  .student-omr-grid.is-objective, .student-omr-grid.is-subjective { grid-template-columns: 1fr; }
   .student-academy-week-card footer { align-items: flex-start; flex-direction: column; }
   .student-academy-week-card footer small { text-align: left; }
   .student-academy-content-panel { padding: 21px; }

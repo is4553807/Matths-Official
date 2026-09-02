@@ -1365,6 +1365,7 @@ app.get("/admin/private-mock-exams", (_req, res) => {
         ([formCode, schedule]) => ({ formCode, ...schedule, fixedDate: "" })
       ),
     },
+    weeklyMockInsights: previewWeeklyMockInsight("전체 유저"),
     feedback: null,
     error: null,
     oldInput: {},
@@ -2461,6 +2462,39 @@ app.get("/preview/admin/arena-match-history", (_req, res) => {
   });
 });
 
+function previewWeeklyMockInsight(scopeLabel = "학원 전체") {
+  const concepts = [
+    ["다항식의 사칙연산", "공통수학1", "다항식", 74, 126],
+    ["조건부확률", "확률과 통계", "확률", 61, 98],
+    ["수열의 귀납적 정의", "대수", "수열", 48, 113],
+    ["함수의 증가와 감소", "미적분Ⅰ", "미분", 35, 87],
+    ["정적분의 활용", "미적분Ⅰ", "적분", 22, 79],
+  ].map(([conceptTitle, courseTitle, unitTitle, difficulty, responseCount], index) => ({
+    conceptId: `preview-weekly-${index + 1}`,
+    conceptTitle,
+    courseTitle,
+    unitTitle,
+    difficulty,
+    accuracy: 100 - difficulty,
+    responseCount,
+    correctCount: Math.round(responseCount * ((100 - difficulty) / 100)),
+    questionCount: 2,
+    examCount: 4,
+    level: difficulty >= 70 ? 5 : difficulty >= 50 ? 4 : difficulty >= 30 ? 3 : difficulty >= 15 ? 2 : 1,
+    label: difficulty >= 70 ? "집중 보완" : difficulty >= 50 ? "어려움" : difficulty >= 30 ? "확인 필요" : difficulty >= 15 ? "대체로 안정" : "안정",
+  }));
+  return {
+    scopeLabel,
+    examCount: 12,
+    participantCount: scopeLabel === "전체 유저" ? 428 : 23,
+    submissionCount: scopeLabel === "전체 유저" ? 1162 : 61,
+    averageScore: 68.4,
+    conceptCount: concepts.length,
+    concepts,
+    hardestConcept: concepts[0],
+  };
+}
+
 app.get("/preview/academy", (req, res) => {
   const academyClass = { _id: "64b000000000000000000811", name: "고1 월수반" };
   const previewStudents = [
@@ -2578,6 +2612,18 @@ app.get("/preview/academy", (req, res) => {
         ],
       },
       attentionStudents: [],
+    },
+    weeklyMockInsights: {
+      overall: previewWeeklyMockInsight("학원 전체"),
+      classes: [
+        {
+          classId: academyClass._id,
+          className: academyClass.name,
+          isActive: true,
+          studentCount: 25,
+          insight: previewWeeklyMockInsight(academyClass.name),
+        },
+      ],
     },
     attendance: {
       dateKey: "2026-08-29",
