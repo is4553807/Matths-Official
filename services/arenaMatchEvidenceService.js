@@ -724,9 +724,13 @@ async function submitArenaMatchEvidence({
       });
     return {
       evidenceId: String(result.evidence._id),
+      attemptId: String(result.attempt._id),
       status: result.evidence.status,
       matchStatus: result.match.status,
       replayed: result.replayed,
+      submittedAt: result.evidence.submittedAt?.toISOString?.() || null,
+      deadlineAt: result.evidence.deadlineAt?.toISOString?.() || null,
+      anomalyFlags: result.evidence.anomalyFlags || [],
       dailyLearning,
     };
   } catch (error) {

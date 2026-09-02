@@ -5480,6 +5480,31 @@ const arenaMatchEvidenceFileSchema = new Schema(
   { _id: false }
 );
 
+const arenaClientEvidenceReviewSchema = new Schema(
+  {
+    reviewId: { type: String, required: true, trim: true, maxlength: 180 },
+    model: { type: String, required: true, trim: true, maxlength: 120 },
+    modelVersion: { type: String, required: true, trim: true, maxlength: 240 },
+    reviewState: {
+      type: String,
+      enum: ["normal", "suspicious", "inconclusive"],
+      required: true,
+    },
+    signals: {
+      type: [{ type: String, trim: true, maxlength: 100 }],
+      validate: {
+        validator: (values) => Array.isArray(values) && values.length <= 20,
+        message: "기기 검토 신호는 20개 이하여야 합니다.",
+      },
+      default: [],
+    },
+    completedAt: { type: Date, required: true },
+    receivedAt: { type: Date, required: true, default: Date.now },
+    clientBuildVersion: { type: String, trim: true, maxlength: 100, default: "" },
+  },
+  { _id: false }
+);
+
 const arenaMatchEvidenceSchema = new Schema(
   {
     attemptId: {
@@ -5527,6 +5552,9 @@ const arenaMatchEvidenceSchema = new Schema(
     anomalyFlags: { type: [String], default: [] },
     sourceRiskFlags: { type: [String], default: [] },
     screenedAsWinner: { type: Boolean, default: false },
+    // 온디바이스 비전 결과는 운영 검토 후보일 뿐이다. status·anomalyFlags와
+    // 분리해 저장해야 앱 모델이 점수·정산·제재를 직접 바꾸는 경로가 생기지 않는다.
+    clientReview: { type: arenaClientEvidenceReviewSchema, default: null },
     supplementalRequest: {
       status: {
         type: String,

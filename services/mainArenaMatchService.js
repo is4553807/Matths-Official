@@ -962,6 +962,7 @@ async function respondToMainInvitation({
   offerId,
   userId,
   response,
+  declineReasonCode = "",
   now = new Date(),
 }) {
   const normalizedResponse = String(response || "").toUpperCase();
@@ -982,7 +983,35 @@ async function respondToMainInvitation({
       }).session(session);
       if (!offer) throw statusError(404, "받은 초대를 찾을 수 없습니다.", "INVITATION_OFFER_NOT_FOUND");
       if (offer.status !== "OFFERED") {
-        result = { status: offer.status, replayed: true };
+        if (offer.status === "ACCEPTED") {
+          const request = await MainInvitationRequest.findById(
+            offer.invitationRequestId
+          ).session(session);
+          const match = request
+            ? await ArenaMatch.findOne({
+                invitationRequestId: request._id,
+                $or: [
+                  { "challenger.userId": userId },
+                  { "defender.userId": userId },
+                ],
+              }).session(session)
+            : null;
+          if (!match) {
+            throw statusError(
+              409,
+              "수락된 초대의 경기 상태를 확인할 수 없습니다.",
+              "MAIN_INVITATION_MATCH_RECEIPT_MISSING"
+            );
+          }
+          result = {
+            status: "MATCHED",
+            match,
+            matchId: match._id,
+            replayed: true,
+          };
+        } else {
+          result = { status: offer.status, replayed: true };
+        }
         return;
       }
       const request = await MainInvitationRequest.findById(
@@ -998,6 +1027,11 @@ async function respondToMainInvitation({
       if (normalizedResponse === "DECLINE") {
         offer.status = "DECLINED";
         offer.respondedAt = now;
+        // 웹은 사유 없이 거절하고, 앱은 화면에서 고른 운영 사유 코드를 보낸다.
+        // 기존 responseReason 필드에만 기록해 스키마·정산 규칙은 건드리지 않는다.
+        offer.responseReason = String(declineReasonCode || "")
+          .trim()
+          .slice(0, 500);
         await offer.save({ session });
         await ArenaOutboxEvent.create(
           [

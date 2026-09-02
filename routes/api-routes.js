@@ -32,6 +32,9 @@ const ipadArenaShopController = require(
 const ipadGoatArenaCommandController = require(
   "../controllers/ipadGoatArenaCommandController"
 );
+const ipadGoatArenaActionController = require(
+  "../controllers/ipadGoatArenaActionController"
+);
 const goatArenaController = require("../controllers/goatArenaController");
 const {
   userIntegrityEvidenceUpload,
@@ -68,6 +71,9 @@ const {
 const router = express.Router();
 const validateInlineSolutionBoard = createUploadContentValidator({
   maxTotalBytes: 10 * 1024 * 1024,
+});
+const validateArenaEvidence = createUploadContentValidator({
+  maxTotalBytes: 30 * 1024 * 1024,
 });
 
 router.get(
@@ -562,6 +568,39 @@ router.get(
 router.get(
   "/goat-arena/matches/:matchId",
   goatArenaController.getGoatArenaMatch
+);
+
+// 상대 찾기·Ranked 초대 응답은 웹 EJS 폼과 같은 정본 매칭 서비스를 호출한다.
+// 앱은 Bearer + JSON 경계만 다르며, 경기 생성·예치·티어 규칙을 복제하지 않는다.
+router.post(
+  "/goat-arena/matches/sub",
+  ipadGoatArenaActionController.createUnrankedMatch
+);
+router.post(
+  "/goat-arena/matches/:matchId/accept",
+  ipadGoatArenaActionController.acceptRankedInvitation
+);
+router.post(
+  "/goat-arena/matches/:matchId/decline",
+  ipadGoatArenaActionController.declineRankedInvitation
+);
+router.post(
+  "/goat-arena/matches/:matchId/evidence",
+  (req, _res, next) => {
+    req.arenaEvidenceReceivedAt = new Date();
+    next();
+  },
+  arenaEvidenceUpload.array("evidenceFiles", 5),
+  validateArenaEvidence,
+  ipadGoatArenaActionController.submitMatchEvidence
+);
+router.post(
+  "/goat-arena/matches/:matchId/evidence/client-review",
+  ipadGoatArenaActionController.submitClientReview
+);
+router.use(
+  "/goat-arena/matches/:matchId/evidence",
+  ipadGoatArenaActionController.uploadError
 );
 
 // iPad GOAT Arena 경기 명령.
