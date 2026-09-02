@@ -59,6 +59,8 @@ function verifyRouteRegistration() {
     'router.get("/academy/admin/list", ipadAcademyController.adminAcademyList)',
     'router.get("/academy/admin/:academyId", ipadAcademyController.adminAcademyDetail)',
     '"/academy/admin/:academyId/profile"',
+    '"/academy/admin/:academyId/profile-image"',
+    '"/academy/admin/:academyId/weeks/:weekId/files/:fileId"',
     '"/academy/admin/:academyId/contract"',
     '"/academy/admin/:academyId/staff/:staffId"',
     '"/academy/admin/:academyId/owner"',
@@ -190,6 +192,12 @@ function verifySerializationBoundary() {
   assert.match(source, /updateAdminAcademyAttendance/);
   assert.match(source, /attendanceRecords: detail\.attendanceRecords\.map/);
   assert.match(source, /attendanceAudits: detail\.attendanceAudits\.map/);
+  assert.match(source, /classWeeks: detail\.classWeeks\.map\(serializeAdminAcademyWeek\)/);
+  assert.match(source, /analytics: serializeTeacherAnalytics/);
+  assert.match(source, /getAdminAcademyWeekFileDownload/);
+  assert.match(source, /downloadAdminAcademyWeekFile/);
+  assert.match(source, /updateAcademyProfileImageAsAdmin/);
+  assert.match(source, /removeAcademyProfileImageAsAdmin/);
   assert.match(source, /approveAcademyApplication/);
   assert.match(source, /rejectAcademyApplication/);
   assert.match(source, /result\.academies\.map\(serializeAdminAcademyApplication\)/);

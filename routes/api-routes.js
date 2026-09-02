@@ -313,6 +313,15 @@ router.post(
   ipadAcademyController.adminUpdateAcademyProfile
 );
 router.post(
+  "/academy/admin/:academyId/profile-image",
+  handleProfileAvatarUpload,
+  ipadAcademyController.adminUpdateAcademyProfileImage
+);
+router.get(
+  "/academy/admin/:academyId/weeks/:weekId/files/:fileId",
+  ipadAcademyController.downloadAdminAcademyWeekFile
+);
+router.post(
   "/academy/admin/:academyId/contract",
   ipadAcademyController.adminUpdateAcademyContract
 );

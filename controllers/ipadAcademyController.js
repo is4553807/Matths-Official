@@ -43,6 +43,7 @@ const {
   assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,
   getAdminAcademyList,
+  getAdminAcademyWeekFileDownload,
   regenerateAdminAcademyAttendanceCode,
   transferAdminAcademyClassHomeroom,
   transferAdminAcademyOwner,
@@ -73,8 +74,10 @@ const {
   saveAcademyAttendanceRoster,
 } = require("../services/academyAttendanceService");
 const {
+  removeAcademyProfileImageAsAdmin,
   removeAcademyProfileImage,
   resolveAcademyProfileImage,
+  updateAcademyProfileImageAsAdmin,
   updateAcademyProfileImage,
 } = require("../services/academyProfileImageService");
 const {
@@ -450,6 +453,45 @@ function serializeAdminAcademyListItem(academy) {
   };
 }
 
+function serializeAdminAcademyClass(academyClass) {
+  return {
+    ...serializeClass(academyClass),
+    createdBy: serializeStaffIdentity(academyClass.createdByUserId),
+    createdAt: academyClass.createdAt || null,
+    archivedBy: serializeStaffIdentity(academyClass.archivedByUserId),
+    archivedAt: academyClass.archivedAt || null,
+    teacherHistory: (academyClass.teacherHistory || []).map((history) => ({
+      id: identifier(history),
+      previousTeacher: serializeStaffIdentity(history.previousTeacherUserId),
+      nextTeacher: serializeStaffIdentity(history.nextTeacherUserId),
+      changedBy: serializeStaffIdentity(history.changedByUserId),
+      changedAt: history.changedAt || null,
+    })),
+    lifecycleHistory: (academyClass.lifecycleHistory || []).map((history) => ({
+      id: identifier(history),
+      action: String(history.action || ""),
+      actor: serializeStaffIdentity(history.actedByUserId),
+      actorType: String(history.actorType || ""),
+      occurredAt: history.occurredAt || null,
+      unassignedStudentCount: Number(history.unassignedStudentCount || 0),
+      canceledSessionCount: Number(history.canceledSessionCount || 0),
+      revokedInviteCount: Number(history.revokedInviteCount || 0),
+    })),
+  };
+}
+
+function serializeAdminAcademyWeek(week) {
+  return {
+    ...serializeWeek(week),
+    academyClass: serializeClass(week.classId),
+    status: String(week.status || ""),
+    createdBy: serializeStaffIdentity(week.createdByUserId),
+    updatedBy: serializeStaffIdentity(week.updatedByUserId),
+    createdAt: week.createdAt || null,
+    updatedAt: week.updatedAt || null,
+  };
+}
+
 function serializeAdminAcademyDetail(detail) {
   return {
     academy: {
@@ -464,30 +506,57 @@ function serializeAdminAcademyDetail(detail) {
         id: identifier(staff.userId),
         name: String(staff.userId.realName || staff.userId.name || ""),
         email: String(staff.userId.email || ""),
+        accountStatus: String(
+          staff.userId.accountStatus
+          || (staff.userId.isActive === false ? "inactive" : "active")
+        ),
       } : null,
       role: staff.role,
       status: staff.status,
       requestedAt: staff.requestedAt || null,
       joinedAt: staff.joinedAt || null,
+      reviewedAt: staff.reviewedAt || null,
+      rejectedAt: staff.rejectedAt || null,
+      revokedAt: staff.revokedAt || null,
+      reviewedBy: serializeStaffIdentity(staff.reviewedByUserId),
     })),
     students: detail.memberships.map((membership) => ({
       id: identifier(membership),
       student: serializePerson(membership.studentUserId),
       academyClass: serializeClass(membership.classId),
       status: membership.status,
+      joinSource: membership.joinSource || null,
       requestedAt: membership.requestedAt || null,
       approvedAt: membership.approvedAt || null,
+      dataConsentAt: membership.dataConsentAt || null,
+      reviewedAt: membership.reviewedAt || null,
+      rejectedAt: membership.rejectedAt || null,
+      leftAt: membership.leftAt || null,
+      reviewedBy: serializeStaffIdentity(membership.reviewedByUserId),
+      inviteID: identifier(membership.inviteId),
     })),
-    classes: detail.classes.map(serializeClass),
-    invites: detail.invites.map(serializeInvite),
+    classes: detail.classes.map(serializeAdminAcademyClass),
+    classWeeks: detail.classWeeks.map(serializeAdminAcademyWeek),
+    invites: detail.invites.map((invite) => ({
+      ...serializeInvite(invite),
+      token: String(invite.token || ""),
+      status: String(invite.status || ""),
+      createdBy: serializeStaffIdentity(invite.createdByUserId),
+      createdAt: invite.createdAt || null,
+    })),
     attendanceSessions: detail.attendanceSessions.map((session) => ({
       id: identifier(session),
       academyClass: serializeClass(session.classId),
       dateKey: session.dateKey,
       startsAt: session.startsAt || null,
+      endsAt: session.endsAt || null,
       attendanceMode: session.attendanceMode,
       state: session.computedState,
       code: session.code || null,
+      rosterCount: Array.isArray(session.rosterStudentUserIds)
+        ? session.rosterStudentUserIds.length
+        : 0,
+      createdBy: serializeStaffIdentity(session.createdByUserId),
     })),
     attendanceRecords: detail.attendanceRecords.map((record) => ({
       id: identifier(record),
@@ -514,6 +583,13 @@ function serializeAdminAcademyDetail(detail) {
       note: String(audit.note || ""),
       occurredAt: audit.occurredAt || null,
     })),
+    analytics: serializeTeacherAnalytics({
+      academy: detail.academy,
+      academyClass: null,
+      statistics: detail.statistics,
+      mathMap: detail.mathMap,
+      memberships: detail.memberships,
+    }),
   };
 }
 
@@ -926,6 +1002,64 @@ exports.adminUpdateAcademyProfile = async (req, res, next) => {
       name: req.body.name,
     });
     return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyProfileImage = async (req, res, next) => {
+  try {
+    if (req.profileAvatarUploadError) throw req.profileAvatarUploadError;
+    const action = String(req.body.action || "UPDATE").trim().toUpperCase();
+    if (action === "REMOVE") {
+      await removeAcademyProfileImageAsAdmin({
+        adminUserId: req.apiUser._id,
+        academyId: req.params.academyId,
+      });
+    } else if (action === "UPDATE") {
+      await updateAcademyProfileImageAsAdmin({
+        adminUserId: req.apiUser._id,
+        academyId: req.params.academyId,
+        file: req.file,
+      });
+      req.file = undefined;
+    } else {
+      const error = new Error("올바른 학원 프로필 사진 작업이 아닙니다.");
+      error.status = 400;
+      throw error;
+    }
+    return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  } finally {
+    await discardRequestUploads(req);
+  }
+};
+
+exports.downloadAdminAcademyWeekFile = async (req, res, next) => {
+  try {
+    const download = await getAdminAcademyWeekFileDownload({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      weekId: req.params.weekId,
+      fileId: req.params.fileId,
+    });
+    if (download.type === "REDIRECT") {
+      res.set("Cache-Control", "private, no-store");
+      return res.redirect(302, download.url);
+    }
+    const issued = download.issued;
+    const cleanup = () => issued.cleanup().catch(() => {});
+    res.once("finish", cleanup);
+    res.once("close", cleanup);
+    res.type("application/pdf");
+    res.set("Cache-Control", "private, no-store");
+    res.set("X-Matths-Trace", issued.traceCode);
+    return res.download(issued.filePath, issued.downloadName, (error) => {
+      cleanup();
+      if (error && !res.headersSent) return next(error);
+      return undefined;
+    });
   } catch (error) {
     return next(error);
   }
