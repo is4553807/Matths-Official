@@ -29,6 +29,42 @@ const ipadFaqController = require("../controllers/ipadFaqController");
 const ipadAdminOperationsController = require(
   "../controllers/ipadAdminOperationsController"
 );
+const ipadAdminUsersController = require(
+  "../controllers/ipadAdminUsersController"
+);
+const ipadAdminFinanceController = require(
+  "../controllers/ipadAdminFinanceController"
+);
+const ipadAdminCommunityController = require(
+  "../controllers/ipadAdminCommunityController"
+);
+const ipadAdminWeeklyMockController = require(
+  "../controllers/ipadAdminWeeklyMockController"
+);
+const ipadAdminArchiveController = require(
+  "../controllers/ipadAdminArchiveController"
+);
+const ipadAdminStoreController = require(
+  "../controllers/ipadAdminStoreController"
+);
+const ipadAdminArenaController = require(
+  "../controllers/ipadAdminArenaController"
+);
+const ipadAdminDataAnalysisController = require(
+  "../controllers/ipadAdminDataAnalysisController"
+);
+const ipadAdminPdfForensicsController = require(
+  "../controllers/ipadAdminPdfForensicsController"
+);
+const ipadAdminArenaPolicyController = require(
+  "../controllers/ipadAdminArenaPolicyController"
+);
+const ipadAdminProblemBankController = require(
+  "../controllers/ipadAdminProblemBankController"
+);
+const ipadAdminOperationsGuideController = require(
+  "../controllers/ipadAdminOperationsGuideController"
+);
 const ipadCommunityController = require(
   "../controllers/ipadCommunityController"
 );
@@ -50,6 +86,9 @@ const ipadGoatArenaActionController = require(
 );
 const goatArenaController = require("../controllers/goatArenaController");
 const {
+  adminFormulaUpload,
+  adminArchiveUpload,
+  adminWeeklyMockUpload,
   userIntegrityEvidenceUpload,
 } = require("../middleware/archiveUpload");
 const {
@@ -68,6 +107,7 @@ const {
   communityUpload,
   loadCommunityUploadAccess,
 } = require("../middleware/communityUpload");
+const { handleStoreUpload } = require("../middleware/storeUpload");
 const {
   createUploadContentValidator,
 } = require("../middleware/uploadContentValidation");
@@ -87,6 +127,9 @@ const {
 } = require("../middleware/requestSecurity");
 
 const router = express.Router();
+const validateAdminWeeklyMockContent = createUploadContentValidator({ maxTotalBytes: 300 * 1024 * 1024 });
+const validateAdminArchiveContent = createUploadContentValidator({ maxTotalBytes: 500 * 1024 * 1024 });
+const validateAdminStoreContent = createUploadContentValidator({ maxTotalBytes: 500 * 1024 * 1024 });
 const validateInlineSolutionBoard = createUploadContentValidator({
   maxTotalBytes: 10 * 1024 * 1024,
 });
@@ -947,13 +990,260 @@ router.post(
   ipadAdminOperationsController.updateInquiryStatus
 );
 router.get("/admin/announcements", ipadAdminOperationsController.announcements);
-router.post(
-  "/admin/announcements",
-  ipadAdminOperationsController.createAnnouncement
-);
+router.post("/admin/announcements", ipadAdminOperationsController.createAnnouncement);
 router.post(
   "/admin/announcements/:announcementId/status",
   ipadAdminOperationsController.updateAnnouncementStatus
 );
+router.get("/admin/users", ipadAdminUsersController.users);
+router.get("/admin/users/:userId", ipadAdminUsersController.user);
+router.get("/admin/users/:userId/activity", ipadAdminUsersController.activity);
+router.get(
+  "/admin/users/:userId/assessments/:attemptId",
+  ipadAdminUsersController.assessment
+);
+router.get("/admin/parents/:parentId", ipadAdminUsersController.parent);
+router.get("/admin/sanctions", ipadAdminUsersController.sanctions);
+router.get("/admin/audit-log", ipadAdminUsersController.audit);
+router.post(
+  "/admin/users/:userId/nickname-request",
+  ipadAdminUsersController.nicknameRequest
+);
+router.post(
+  "/admin/users/:userId/notification",
+  ipadAdminUsersController.notification
+);
+router.post("/admin/users/:userId/email", ipadAdminUsersController.email);
+router.post(
+  "/admin/users/:userId/password-reset",
+  ipadAdminUsersController.passwordReset
+);
+router.post("/admin/users/:userId/role", ipadAdminUsersController.role);
+router.post(
+  "/admin/users/:userId/account-status",
+  ipadAdminUsersController.accountStatus
+);
+router.post("/admin/users/:userId/withdraw", ipadAdminUsersController.withdraw);
+router.post("/admin/users/:userId/warnings", ipadAdminUsersController.warnings);
+router.post(
+  "/admin/users/:userId/package-access",
+  ipadAdminUsersController.packageAccess
+);
+router.post(
+  "/admin/parents/:parentId/account-status",
+  ipadAdminUsersController.parentStatus
+);
+router.post(
+  "/admin/parents/:parentId/children/:childUserId/notifications",
+  ipadAdminUsersController.parentChildNotifications
+);
+router.post(
+  "/admin/parents/:parentId/children/:childUserId/unlink",
+  ipadAdminUsersController.parentChildUnlink
+);
+router.get("/admin/finance", ipadAdminFinanceController.finance);
+router.post("/admin/finance/withdrawals", ipadAdminFinanceController.withdraw);
+router.post(
+  "/admin/finance/other-unpaid-costs",
+  ipadAdminFinanceController.otherUnpaidCosts
+);
+router.get("/admin/refunds", ipadAdminFinanceController.refunds);
+router.post(
+  "/admin/refunds/:refundRequestId/calculate",
+  ipadAdminFinanceController.calculateRefund
+);
+router.post(
+  "/admin/refunds/:refundRequestId/complete",
+  ipadAdminFinanceController.completeRefund
+);
+router.post(
+  "/admin/refunds/:refundRequestId/reject",
+  ipadAdminFinanceController.rejectRefund
+);
+router.get("/admin/paybacks", ipadAdminFinanceController.paybacks);
+router.post(
+  "/admin/paybacks/:cycleId/complete",
+  ipadAdminFinanceController.completePayback
+);
+router.post(
+  "/admin/paybacks/history/:payoutRecordId/resend-email",
+  ipadAdminFinanceController.resendPaybackEmail
+);
+router.get("/admin/community", ipadAdminCommunityController.dashboard);
+router.post("/admin/community/notices", ipadAdminCommunityController.createNotice);
+router.post(
+  "/admin/community/notices/:noticeId",
+  ipadAdminCommunityController.updateNotice
+);
+router.post(
+  "/admin/community/notices/:noticeId/pin",
+  ipadAdminCommunityController.pinNotice
+);
+router.post(
+  "/admin/community/notices/:noticeId/status",
+  ipadAdminCommunityController.moderateNotice
+);
+router.post(
+  "/admin/community/reports/:reportId/review",
+  ipadAdminCommunityController.reviewReport
+);
+router.post("/admin/community/posts/:postId", ipadAdminCommunityController.editPost);
+router.post(
+  "/admin/community/posts/:postId/pin",
+  ipadAdminCommunityController.pinPost
+);
+router.post(
+  "/admin/community/posts/:postId/status",
+  ipadAdminCommunityController.moderatePost
+);
+router.post(
+  "/admin/community/posts/:postId/warn",
+  ipadAdminCommunityController.warnPost
+);
+router.post(
+  "/admin/community/comments/:commentId/status",
+  ipadAdminCommunityController.moderateComment
+);
+router.post(
+  "/admin/community/comments/:commentId/warn",
+  ipadAdminCommunityController.warnComment
+);
+router.get("/admin/weekly-mock-exams", ipadAdminWeeklyMockController.dashboard);
+router.post(
+  "/admin/weekly-mock-exams/upload",
+  (req, res, next) => adminWeeklyMockUpload.fields([
+    { name: "examFiles", maxCount: 10 },
+    { name: "answerKeyFiles", maxCount: 10 },
+    { name: "answerSheetFiles", maxCount: 10 },
+  ])(req, res, (error) => { if (error) { error.status = error.status || 400; return next(error); } return next(); }),
+  validateAdminWeeklyMockContent,
+  ipadAdminWeeklyMockController.createExams
+);
+router.post(
+  "/admin/weekly-mock-formulas/upload",
+  (req, res, next) => adminFormulaUpload.single("formulaFile")(req, res, (error) => { if (error) { error.status = error.status || 400; return next(error); } return next(); }),
+  validateAdminWeeklyMockContent,
+  ipadAdminWeeklyMockController.createFormula
+);
+router.post(
+  "/admin/weekly-mock-formulas/:resourceId/delete",
+  ipadAdminWeeklyMockController.deleteFormula
+);
+router.get("/admin/weekly-mock-exams/:examId", ipadAdminWeeklyMockController.detail);
+router.get(
+  "/admin/weekly-mock-exams/:examId/files/:fileType",
+  ipadAdminWeeklyMockController.examFile
+);
+router.get(
+  "/admin/weekly-mock-integrity/:caseId/evidence/:archiveItemId",
+  ipadAdminWeeklyMockController.evidenceFile
+);
+router.post(
+  "/admin/weekly-mock-exams/:examId/attempts/:attemptId/integrity-request",
+  ipadAdminWeeklyMockController.requestIntegrityEvidence
+);
+router.post(
+  "/admin/weekly-mock-exams/:examId/integrity/:caseId/review",
+  ipadAdminWeeklyMockController.reviewIntegrity
+);
+router.post(
+  "/admin/weekly-mock-exams/:examId/answer-corrections",
+  ipadAdminWeeklyMockController.correctAnswers
+);
+router.post(
+  "/admin/weekly-mock-exams/:examId/delete",
+  ipadAdminWeeklyMockController.deleteExam
+);
+router.get(
+  "/admin/weekly-mock-objections/:objectionId",
+  ipadAdminWeeklyMockController.objection
+);
+router.post(
+  "/admin/weekly-mock-objections/:objectionId/reject",
+  ipadAdminWeeklyMockController.rejectObjection
+);
+router.post(
+  "/admin/weekly-mock-objections/:objectionId/accept",
+  ipadAdminWeeklyMockController.acceptObjection
+);
+router.get("/admin/archive", ipadAdminArchiveController.dashboard);
+router.post("/admin/archive/folders", ipadAdminArchiveController.createFolder);
+router.post("/admin/archive/folders/:folderId", ipadAdminArchiveController.updateFolder);
+router.post("/admin/archive/folders/:folderId/pin", ipadAdminArchiveController.pinFolder);
+router.post("/admin/archive/folders/:folderId/delete", ipadAdminArchiveController.deleteFolder);
+router.post(
+  "/admin/archive/upload",
+  (req, res, next) => adminArchiveUpload.array("archiveFiles", 20)(req, res, (error) => { if (error) { error.status = error.status || 400; return next(error); } return next(); }),
+  validateAdminArchiveContent,
+  ipadAdminArchiveController.upload
+);
+router.post("/admin/archive/items/bulk-delete", ipadAdminArchiveController.bulkDelete);
+router.post("/admin/archive/items/bulk-move", ipadAdminArchiveController.moveItems);
+router.post("/admin/archive/items/:itemId/delete", ipadAdminArchiveController.deleteItem);
+router.post("/admin/archive/trash/:itemId/restore", ipadAdminArchiveController.restoreItem);
+router.post("/admin/archive/trash/:itemId/purge", ipadAdminArchiveController.purgeItem);
+router.get("/admin/store", ipadAdminStoreController.dashboard);
+router.post(
+  "/admin/store/study-hall",
+  handleStoreUpload,
+  validateAdminStoreContent,
+  ipadAdminStoreController.saveStudyHall
+);
+router.post(
+  "/admin/store/study-hall/:contentId",
+  handleStoreUpload,
+  validateAdminStoreContent,
+  ipadAdminStoreController.saveStudyHall
+);
+router.post("/admin/store/study-hall/:contentId/archive", ipadAdminStoreController.archiveStudyHall);
+router.post(
+  "/admin/store/products",
+  handleStoreUpload,
+  validateAdminStoreContent,
+  ipadAdminStoreController.saveProduct
+);
+router.post(
+  "/admin/store/products/:productId",
+  handleStoreUpload,
+  validateAdminStoreContent,
+  ipadAdminStoreController.saveProduct
+);
+router.post("/admin/store/products/:productId/delete", ipadAdminStoreController.deleteProduct);
+router.post("/admin/store/categories", ipadAdminStoreController.createCategory);
+router.post("/admin/store/categories/reorder", ipadAdminStoreController.reorderCategories);
+router.post("/admin/store/categories/:categoryId", ipadAdminStoreController.updateCategory);
+router.post("/admin/store/categories/:categoryId/delete", ipadAdminStoreController.deleteCategory);
+router.get("/admin/arena", ipadAdminArenaController.dashboard);
+router.post("/admin/arena/matches/:matchId/review", ipadAdminArenaController.reviewMatch);
+router.post("/admin/arena/matches/:matchId/supplemental-evidence/:role/request", ipadAdminArenaController.requestEvidence);
+router.post("/admin/arena/integrity/:caseId/review", ipadAdminArenaController.reviewCase);
+router.post("/admin/arena/ranking/rebuild", ipadAdminArenaController.rebuildRanking);
+router.post("/admin/arena/maintenance", ipadAdminArenaController.maintenance);
+router.get("/admin/arena/ranking.csv", ipadAdminArenaController.rankingCsv);
+router.get("/admin/arena/evidence/:evidenceId/:storedName", ipadAdminArenaController.evidenceFile);
+router.get("/admin/data-analysis", ipadAdminDataAnalysisController.dashboard);
+router.post("/admin/data-analysis/rebuild", ipadAdminDataAnalysisController.rebuild);
+router.post(
+  "/admin/pdf-forensics/analyze",
+  handleAcademyForensicsUpload,
+  ipadAdminPdfForensicsController.analyze
+);
+router.get("/admin/arena-policies", ipadAdminArenaPolicyController.dashboard);
+router.post("/admin/arena-policies/matchmaking", ipadAdminArenaPolicyController.matchmaking);
+router.post("/admin/arena-policies/learning-package", ipadAdminArenaPolicyController.learningPrice);
+router.post("/admin/arena-policies/mock-exam", ipadAdminArenaPolicyController.mockPrice);
+router.post("/admin/arena-policies/shop", ipadAdminArenaPolicyController.shop);
+router.post("/admin/arena-policies/unranked", ipadAdminArenaPolicyController.createUnranked);
+router.post("/admin/arena-policies/ranked", ipadAdminArenaPolicyController.createRanked);
+router.post("/admin/arena-policies/:division/:policyId/activate", ipadAdminArenaPolicyController.activate);
+router.post("/admin/arena-policies/:division/:policyId/retire", ipadAdminArenaPolicyController.retire);
+router.get("/admin/problem-banks", ipadAdminProblemBankController.dashboard);
+router.post("/admin/problem-banks/types/sync", ipadAdminProblemBankController.syncTypes);
+router.post("/admin/problem-banks/types/:versionId/revise", ipadAdminProblemBankController.reviseType);
+router.post("/admin/problem-banks/arena/types", ipadAdminProblemBankController.createTierType);
+router.post("/admin/problem-banks/arena/data", ipadAdminProblemBankController.createProblemData);
+router.post("/admin/problem-banks/arena/data/:versionId", ipadAdminProblemBankController.updateProblemData);
+router.post("/admin/problem-banks/arena/data/:versionId/activate", ipadAdminProblemBankController.activateProblemData);
+router.get("/admin/operations-guide", ipadAdminOperationsGuideController.dashboard);
 
 module.exports = router;
