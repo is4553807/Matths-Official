@@ -26,6 +26,9 @@ const ipadStoreCatalogController = require(
   "../controllers/ipadStoreCatalogController"
 );
 const ipadFaqController = require("../controllers/ipadFaqController");
+const ipadAdminOperationsController = require(
+  "../controllers/ipadAdminOperationsController"
+);
 const ipadCommunityController = require(
   "../controllers/ipadCommunityController"
 );
@@ -923,6 +926,34 @@ router.get(
 router.get(
   "/store-products/:productId/media/:assetId",
   ipadStoreCatalogController.media
+);
+router.get("/admin/operations", ipadAdminOperationsController.dashboard);
+router.get("/admin/todos", ipadAdminOperationsController.todos);
+router.post(
+  "/admin/todos/:todoId/complete",
+  ipadAdminOperationsController.completeTodo
+);
+router.post(
+  "/admin/todos/:todoId/reopen",
+  ipadAdminOperationsController.reopenTodo
+);
+router.get("/admin/inquiries", ipadAdminOperationsController.inquiries);
+router.post(
+  "/admin/inquiries/:inquiryId/reply",
+  ipadAdminOperationsController.replyToInquiry
+);
+router.post(
+  "/admin/inquiries/:inquiryId/status",
+  ipadAdminOperationsController.updateInquiryStatus
+);
+router.get("/admin/announcements", ipadAdminOperationsController.announcements);
+router.post(
+  "/admin/announcements",
+  ipadAdminOperationsController.createAnnouncement
+);
+router.post(
+  "/admin/announcements/:announcementId/status",
+  ipadAdminOperationsController.updateAnnouncementStatus
 );
 
 module.exports = router;
