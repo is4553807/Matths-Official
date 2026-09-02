@@ -360,6 +360,7 @@
   const nextButton = root.querySelector("[data-tutorial-next]");
   const skipButton = root.querySelector("[data-tutorial-skip]");
   const spotlight = root.querySelector("[data-tutorial-spotlight]");
+  const dialog = root.querySelector(".matths-tutorial-dialog");
   const character = root.querySelector("[data-tutorial-character]");
   const characterImage = root.querySelector(
     "[data-tutorial-character-image]"
@@ -385,6 +386,8 @@
   let tutorialExpandedSidebar = false;
   let resizeFrame = null;
   let revealRequest = 0;
+  let tutorialScrollSpacer = null;
+  let tutorialScrollTarget = null;
 
   characterSources.forEach((source) => {
     const image = new Image();
@@ -457,6 +460,16 @@
 
   function clearHighlight() {
     revealRequest += 1;
+    if (tutorialScrollTarget) {
+      tutorialScrollTarget.classList.remove(
+        "matths-tutorial-scroll-target"
+      );
+      tutorialScrollTarget = null;
+    }
+    if (tutorialScrollSpacer) {
+      tutorialScrollSpacer.remove();
+      tutorialScrollSpacer = null;
+    }
     if (highlightedTarget) {
       highlightedTarget.classList.remove("matths-tutorial-target");
     }
@@ -466,17 +479,148 @@
     highlightedTarget = null;
   }
 
+  function resetTutorialDialogPosition() {
+    if (!dialog) return;
+    dialog.style.removeProperty("left");
+    dialog.style.removeProperty("top");
+    dialog.style.removeProperty("right");
+    dialog.style.removeProperty("bottom");
+    delete dialog.dataset.placement;
+  }
+
+  function spotlightPadding(target) {
+    if (target.closest("#dashboard-sidebar")) {
+      return { x: 8, y: 6, inset: 6 };
+    }
+    if (
+      target.matches(
+        '.topbar, [data-tutorial-target="dashboard-welcome"]'
+      )
+    ) {
+      return { x: 10, y: 8, inset: 8 };
+    }
+    return { x: 11, y: 10, inset: 8 };
+  }
+
+  function overlapArea(left, top, width, height, targetRect) {
+    const right = left + width;
+    const bottom = top + height;
+    const overlapWidth = Math.max(
+      0,
+      Math.min(right, targetRect.right) - Math.max(left, targetRect.left)
+    );
+    const overlapHeight = Math.max(
+      0,
+      Math.min(bottom, targetRect.bottom) - Math.max(top, targetRect.top)
+    );
+    return overlapWidth * overlapHeight;
+  }
+
+  function positionTutorialDialog(target) {
+    if (!dialog) return;
+    resetTutorialDialogPosition();
+    if (!target || window.innerWidth <= 700) return;
+
+    const margin = 20;
+    const dialogWidth = dialog.offsetWidth;
+    const dialogHeight = dialog.offsetHeight;
+    const targetRect = target.getBoundingClientRect();
+    const protectedTarget = {
+      left: targetRect.left - 18,
+      top: targetRect.top - 18,
+      right: targetRect.right + 18,
+      bottom: targetRect.bottom + 18,
+    };
+    const maxLeft = Math.max(
+      margin,
+      window.innerWidth - dialogWidth - margin
+    );
+    const maxTop = Math.max(
+      margin,
+      window.innerHeight - dialogHeight - margin
+    );
+    const candidates = [
+      { placement: "bottom-right", left: maxLeft, top: maxTop },
+      { placement: "bottom-left", left: margin, top: maxTop },
+      { placement: "top-right", left: maxLeft, top: margin },
+      { placement: "top-left", left: margin, top: margin },
+    ];
+    const targetCenterX = (targetRect.left + targetRect.right) / 2;
+    const targetCenterY = (targetRect.top + targetRect.bottom) / 2;
+    const selected = candidates
+      .map((candidate) => {
+        const dialogCenterX = candidate.left + dialogWidth / 2;
+        const dialogCenterY = candidate.top + dialogHeight / 2;
+        const distanceSquared =
+          (dialogCenterX - targetCenterX) ** 2 +
+          (dialogCenterY - targetCenterY) ** 2;
+        return {
+          ...candidate,
+          score:
+            overlapArea(
+              candidate.left,
+              candidate.top,
+              dialogWidth,
+              dialogHeight,
+              protectedTarget
+            ) * 1000000 - distanceSquared,
+        };
+      })
+      .sort((left, right) => left.score - right.score)[0];
+
+    dialog.style.left = `${selected.left}px`;
+    dialog.style.top = `${selected.top}px`;
+    dialog.style.right = "auto";
+    dialog.style.bottom = "auto";
+    dialog.dataset.placement = selected.placement;
+  }
+
+  function targetConflictsWithEveryDialogCorner(target) {
+    if (!dialog || !target || window.innerWidth <= 700) return false;
+    const margin = 20;
+    const dialogWidth = dialog.offsetWidth;
+    const dialogHeight = dialog.offsetHeight;
+    const targetRect = target.getBoundingClientRect();
+    const protectedTarget = {
+      left: targetRect.left - 18,
+      top: targetRect.top - 18,
+      right: targetRect.right + 18,
+      bottom: targetRect.bottom + 18,
+    };
+    const maxLeft = Math.max(
+      margin,
+      window.innerWidth - dialogWidth - margin
+    );
+    const maxTop = Math.max(
+      margin,
+      window.innerHeight - dialogHeight - margin
+    );
+    return [
+      [maxLeft, maxTop],
+      [margin, maxTop],
+      [maxLeft, margin],
+      [margin, margin],
+    ].every(
+      ([left, top]) =>
+        overlapArea(
+          left,
+          top,
+          dialogWidth,
+          dialogHeight,
+          protectedTarget
+        ) > 0
+    );
+  }
+
   function positionSpotlight(target) {
     if (!spotlight || !target) return;
 
     const targetStyle = window.getComputedStyle(target);
     const rect = target.getBoundingClientRect();
-    const compactTarget = target.matches(
-      '[data-tutorial-nav], [data-tutorial-target="dashboard-profile"]'
-    );
-    const gapX = compactTarget ? 18 : 28;
-    const gapY = compactTarget ? 11 : 20;
-    const viewportInset = compactTarget ? 2 : 8;
+    const padding = spotlightPadding(target);
+    const gapX = padding.x;
+    const gapY = padding.y;
+    const viewportInset = padding.inset;
     const left = Math.max(viewportInset, rect.left - gapX);
     const top = Math.max(viewportInset, rect.top - gapY);
     const right = Math.min(
@@ -500,6 +644,7 @@
   }
 
   function prepareTargetAppearance(target, attention) {
+    positionTutorialDialog(target);
     positionSpotlight(target);
     if (spotlight) {
       spotlight.hidden = false;
@@ -517,12 +662,39 @@
   function targetNeedsScroll(target) {
     const rect = target.getBoundingClientRect();
     const viewportMargin = 24;
+    const mobileDialogHeight =
+      window.innerWidth <= 700 && dialog
+        ? dialog.getBoundingClientRect().height + 20
+        : 0;
     return (
+      targetConflictsWithEveryDialogCorner(target) ||
       rect.top < viewportMargin ||
       rect.left < viewportMargin ||
-      rect.bottom > window.innerHeight - viewportMargin ||
+      rect.bottom >
+        window.innerHeight - viewportMargin - mobileDialogHeight ||
       rect.right > window.innerWidth - viewportMargin
     );
+  }
+
+  function scrollTargetIntoView(target) {
+    const conflictsWithDialog =
+      targetConflictsWithEveryDialogCorner(target);
+    const needsTopAlignment =
+      window.innerWidth <= 700 || conflictsWithDialog;
+    if (conflictsWithDialog && dialog) {
+      tutorialScrollTarget = target;
+      target.classList.add("matths-tutorial-scroll-target");
+      tutorialScrollSpacer = document.createElement("div");
+      tutorialScrollSpacer.className = "matths-tutorial-scroll-spacer";
+      tutorialScrollSpacer.style.height = `${dialog.offsetHeight + 80}px`;
+      tutorialScrollSpacer.setAttribute("aria-hidden", "true");
+      document.body.append(tutorialScrollSpacer);
+    }
+    target.scrollIntoView({
+      behavior: reducedMotion ? "auto" : "smooth",
+      block: needsTopAlignment ? "start" : "center",
+      inline: "nearest",
+    });
   }
 
   function revealAfterViewportSettles(
@@ -530,7 +702,7 @@
     attention,
     requestId
   ) {
-    const startedAt = performance.now();
+    let startedAt = performance.now();
     let previousX = window.scrollX;
     let previousY = window.scrollY;
     let previousRect = target.getBoundingClientRect();
@@ -556,6 +728,18 @@
       previousX = window.scrollX;
       previousY = window.scrollY;
       previousRect = rect;
+
+      if (
+        stableFrames >= 2 &&
+        !tutorialScrollSpacer &&
+        targetConflictsWithEveryDialogCorner(target)
+      ) {
+        scrollTargetIntoView(target);
+        startedAt = now;
+        stableFrames = 0;
+        window.requestAnimationFrame(checkViewport);
+        return;
+      }
 
       if (
         (stableFrames >= 4 && now - startedAt >= 96) ||
@@ -618,15 +802,12 @@
     if (target) {
       const requestId = revealRequest;
       if (targetNeedsScroll(target)) {
-        target.scrollIntoView({
-          behavior: reducedMotion ? "auto" : "smooth",
-          block: "center",
-          inline: "nearest",
-        });
+        scrollTargetIntoView(target);
       }
       revealAfterViewportSettles(target, step.attention, requestId);
     } else {
       document.body.classList.add("matths-tutorial-active");
+      resetTutorialDialogPosition();
       nextButton.disabled = false;
       window.setTimeout(() => nextButton.focus(), 80);
     }
@@ -719,6 +900,7 @@
     if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
     resizeFrame = window.requestAnimationFrame(() => {
       positionSpotlight(highlightedTarget);
+      positionTutorialDialog(highlightedTarget);
       resizeFrame = null;
     });
   });

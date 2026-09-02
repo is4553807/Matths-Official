@@ -1017,14 +1017,14 @@ body {
 .student-checkout-card .guardian-consent-card {
   margin-bottom: 22px;
 }
-.toss-checkout-shell {
+.inicis-checkout-shell {
   padding: 18px 8px 8px;
   background: #fff;
 }
-.toss-checkout-heading {
+.inicis-checkout-heading {
   padding: 6px 14px 0;
 }
-.toss-checkout-heading > strong {
+.inicis-checkout-heading > strong {
   display: block;
   font-size: 18px;
 }
@@ -1041,7 +1041,7 @@ body {
   font-weight: 900;
   line-height: 1.2 !important;
 }
-.toss-payment-error {
+.inicis-payment-error {
   margin: 8px 14px 0 !important;
   padding: 12px 14px;
   color: #923b49 !important;
@@ -1051,7 +1051,13 @@ body {
   font-size: 11px !important;
   line-height: 1.6 !important;
 }
-.toss-checkout-shell > [data-toss-payment-button] {
+.inicis-payment-guide {
+  margin: 20px 14px 0 !important;
+  color: #68738b !important;
+  font-size: 11px !important;
+  line-height: 1.7 !important;
+}
+.inicis-checkout-shell > [data-inicis-payment-button] {
   width: calc(100% - 28px);
   margin: 12px 14px 4px;
   color: #fff !important;

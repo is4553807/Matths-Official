@@ -52,6 +52,12 @@ assert.deepEqual(
     goatArenaAllowed: false,
   }
 );
+const mockExamPackageService = read("services/mockExamPackageService.js");
+assert.match(
+  mockExamPackageService,
+  /monthlyPriceAmount: 5000,[\s\S]*monthlyPriceAmount: DEFAULT_MONTHLY_PRICE_AMOUNT/,
+  "기존 운영 DB에 남아 있는 최초 5,000원 정책을 5,500원으로 보정해야 합니다."
+);
 
 assert.ok(MockExamPackagePolicyVersion.schema.path("monthlyPriceAmount"));
 assert.ok(MockExamPackagePolicyVersion.schema.path("placementExamAllowed"));
@@ -131,8 +137,8 @@ assert.ok(parentPricing.includes("온라인 결제 준비 중"));
 assert.equal(parentPricing.includes("PG 연결 전"), false);
 const checkoutService = read("services/checkoutService.js");
 assert.ok(checkoutService.includes("PAID_CHECKOUT_UNAVAILABLE"));
-assert.ok(checkoutService.includes('provider === "TOSS"'));
-assert.ok(checkoutService.includes("isTossConfigured"));
+assert.ok(checkoutService.includes('provider === "INICIS"'));
+assert.ok(checkoutService.includes("isInicisConfigured"));
 
 const accessService = read("services/paidFeatureAccessService.js");
 const privateMockService = read("services/privateMockExamService.js");

@@ -28,12 +28,13 @@ const {
   getRefundDisclosure,
 } = require("./refundPolicyService");
 const {
-  getTossConfig,
-  isTossConfigured,
-} = require("./tossPaymentService");
+  getInicisConfig,
+  isInicisConfigured,
+} = require("./inicisPaymentService");
 
 const INVITE_TTL_MS = 72 * 60 * 60 * 1000;
 const CHECKOUT_TTL_MS = 30 * 60 * 1000;
+const APPROVAL_STALE_MS = 10 * 60 * 1000;
 const PRODUCTS = new Set(["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"]);
 const LEGAL_GUARDIAN_CONSENT_VERSION = "MINOR_PAYMENT_GUARDIAN_V1";
 const MINOR_PAYMENT_NOTICE_VERSION = "MINOR_SELF_PAYMENT_NOTICE_V1";
@@ -42,15 +43,42 @@ function isPaidCheckoutEnabled(environment = process.env) {
   const requested =
     String(environment.PAID_CHECKOUT_ENABLED || "").trim().toLowerCase() === "true";
   const provider = String(environment.PAYMENT_PROVIDER || "").trim().toUpperCase();
-  return requested && provider === "TOSS" && isTossConfigured(environment);
+  return requested && provider === "INICIS" && isInicisConfigured(environment);
 }
 
-function assertPaidCheckoutEnabled() {
-  if (!isPaidCheckoutEnabled()) {
+function normalizedEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function inicisTestReviewEmails(environment = process.env) {
+  return new Set(
+    String(environment.INICIS_TEST_REVIEW_EMAILS || "")
+      .split(",")
+      .map(normalizedEmail)
+      .filter(Boolean)
+  );
+}
+
+function isPaidCheckoutAllowedForEmail(email, environment = process.env) {
+  if (!isPaidCheckoutEnabled(environment)) return false;
+  const { mode } = getInicisConfig(environment);
+  if (mode === "LIVE") return true;
+  return inicisTestReviewEmails(environment).has(normalizedEmail(email));
+}
+
+function assertPaidCheckoutEnabled({ email = "", environment = process.env } = {}) {
+  if (!isPaidCheckoutEnabled(environment)) {
     throw statusError(
       503,
       "온라인 결제는 현재 준비 중입니다. 무료 학습은 바로 이용할 수 있습니다.",
       "PAID_CHECKOUT_UNAVAILABLE"
+    );
+  }
+  if (!isPaidCheckoutAllowedForEmail(email, environment)) {
+    throw statusError(
+      403,
+      "KG이니시스 TEST 결제는 심사 전용 계정에서만 이용할 수 있습니다.",
+      "INICIS_TEST_REVIEW_ACCOUNT_REQUIRED"
     );
   }
 }
@@ -177,9 +205,10 @@ async function createCheckoutIntent({
   minorPaymentNoticeAccepted = false,
   refundPolicyAccepted = false,
 }) {
-  assertPaidCheckoutEnabled();
   const [student, product] = await Promise.all([
-    User.findById(studentUserId).select("_id name isActive accountStatus").lean(),
+    User.findById(studentUserId)
+      .select("_id name email isActive accountStatus")
+      .lean(),
     getProduct(productCode),
   ]);
   if (!student || student.isActive === false || student.accountStatus === "withdrawn") {
@@ -192,6 +221,17 @@ async function createCheckoutIntent({
       "PRODUCT_POLICY_UNAVAILABLE"
     );
   }
+  let checkoutActorEmail = student.email;
+  if (requestedBy === "PARENT") {
+    const parent = await ParentAccount.findById(parentAccountId)
+      .select("email isActive")
+      .lean();
+    if (!parent || parent.isActive === false) {
+      throw statusError(403, "학부모 계정 이용 상태를 확인해주세요.");
+    }
+    checkoutActorEmail = parent.email;
+  }
+  assertPaidCheckoutEnabled({ email: checkoutActorEmail });
   if (requestedBy === "PARENT" && legalGuardianConsent !== true) {
     throw statusError(
       400,
@@ -222,7 +262,7 @@ async function createCheckoutIntent({
   } else if (product.code === "MOCK_EXAM_ONLY") {
     await assertMockExamPurchaseEligible({ userId: student._id });
   }
-  const { mode: providerMode } = getTossConfig();
+  const { mode: providerMode } = getInicisConfig();
   const uniqueOrderPart = randomUUID().replace(/-/g, "");
   return CheckoutIntent.create({
     studentUserId: student._id,
@@ -245,7 +285,7 @@ async function createCheckoutIntent({
         : "",
     refundPolicyAcceptedAt: new Date(),
     refundPolicyVersion: REFUND_POLICY_VERSION,
-    provider: "TOSS",
+    provider: "INICIS",
     providerMode,
     orderId: `matths-${uniqueOrderPart}`,
     customerKey: `customer-${randomUUID()}`,
@@ -270,7 +310,24 @@ async function ensureCheckoutIntentIndexes() {
     await CheckoutIntent.collection.dropIndex(legacyTtlIndex.name);
   }
   await CheckoutIntent.createIndexes();
-  return { removedLegacyTtlIndex: legacyTtlIndex?.name || "" };
+  const staleApprovalResult = await CheckoutIntent.updateMany(
+    {
+      provider: "INICIS",
+      status: "APPROVING",
+      updatedAt: { $lte: new Date(Date.now() - APPROVAL_STALE_MS) },
+    },
+    {
+      $set: {
+        status: "REVIEW_REQUIRED",
+        failureCode: "STALE_APPROVAL_REVIEW_REQUIRED",
+        failureMessage: "승인 처리 중 서버 응답이 종료되어 운영자 확인이 필요합니다.",
+      },
+    }
+  );
+  return {
+    removedLegacyTtlIndex: legacyTtlIndex?.name || "",
+    staleApprovalReviewCount: Number(staleApprovalResult.modifiedCount || 0),
+  };
 }
 
 async function createParentInvite({
@@ -279,19 +336,21 @@ async function createParentInvite({
   productCode,
   baseUrl,
 }) {
-  assertPaidCheckoutEnabled();
   const email = String(parentEmail || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw statusError(400, "학부모 이메일 주소를 정확히 입력해주세요.");
   }
   const [child, product, existingParent] = await Promise.all([
-    User.findById(childUserId).select("_id name realName isActive accountStatus").lean(),
+    User.findById(childUserId)
+      .select("_id name realName email isActive accountStatus")
+      .lean(),
     getProduct(productCode),
     ParentAccount.findOne({ email }).select("_id childUserId").lean(),
   ]);
   if (!child || child.isActive === false || child.accountStatus === "withdrawn") {
     throw statusError(404, "학생 계정을 찾을 수 없습니다.");
   }
+  assertPaidCheckoutEnabled({ email: child.email });
   const [linkedParent, legacyParent] = await Promise.all([
     ParentChildLink.findOne({ childUserId: child._id, status: "ACTIVE" })
       .select("parentAccountId")
@@ -459,6 +518,7 @@ module.exports = {
   REFUND_POLICY_VERSION,
   assertPaidCheckoutEnabled,
   isPaidCheckoutEnabled,
+  isPaidCheckoutAllowedForEmail,
   registerParent,
   _testing: {
     buildPricingProductAccess,

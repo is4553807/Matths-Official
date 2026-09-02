@@ -67,9 +67,31 @@ async function getActiveMockExamPackagePolicy(now = new Date()) {
 }
 
 async function ensureDefaultMockExamPackagePolicy() {
-  const existing = await MockExamPackagePolicyVersion.findOne({
+  let existing = await MockExamPackagePolicyVersion.findOne({
     code: DEFAULT_POLICY_CODE,
   }).lean();
+  if (
+    existing &&
+    Number(existing.monthlyPriceAmount) === 5000 &&
+    !existing.createdBy
+  ) {
+    existing = await MockExamPackagePolicyVersion.findOneAndUpdate(
+      {
+        _id: existing._id,
+        code: DEFAULT_POLICY_CODE,
+        monthlyPriceAmount: 5000,
+        createdBy: null,
+      },
+      {
+        $set: {
+          monthlyPriceAmount: DEFAULT_MONTHLY_PRICE_AMOUNT,
+          changeSummary:
+            "월 5,500원 Matths 주간 공식 모의고사 이용권 최초 정책",
+        },
+      },
+      { new: true }
+    ).lean();
+  }
   if (existing) return policyView(existing);
   try {
     const created = await MockExamPackagePolicyVersion.create({

@@ -33,6 +33,7 @@
   bottom: 28px;
   z-index: 9002;
   width: min(560px, calc(100vw - 56px));
+  max-height: calc(100vh - 40px);
   min-height: 224px;
   display: grid;
   grid-template-columns: 142px minmax(0, 1fr);
@@ -47,6 +48,7 @@
   border-radius: 26px;
   box-shadow: 0 28px 80px rgba(5, 17, 38, 0.34);
   overflow: visible;
+  transition: left 140ms ease, top 140ms ease;
 }
 
 .matths-tutorial-close {
@@ -176,6 +178,15 @@ body.matths-tutorial-active {
   overflow: hidden;
 }
 
+.matths-tutorial-scroll-target {
+  scroll-margin-top: 84px;
+}
+
+.matths-tutorial-scroll-spacer {
+  width: 1px;
+  pointer-events: none;
+}
+
 @keyframes matths-tutorial-attention {
   0%, 100% {
     opacity: 0.28;
@@ -201,6 +212,7 @@ body.matths-tutorial-active {
     right: 12px;
     bottom: 12px;
     width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
     min-height: 198px;
     grid-template-columns: 92px minmax(0, 1fr);
     gap: 8px;
@@ -216,6 +228,9 @@ body.matths-tutorial-active {
 
   .matths-tutorial-copy {
     gap: 6px;
+    max-height: calc(100vh - 52px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .matths-tutorial-copy h2 {

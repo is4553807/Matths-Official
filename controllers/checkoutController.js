@@ -98,7 +98,7 @@ async function renderCheckout(req, res, { intent = null, status = 200 } = {}) {
 
 exports.selfCheckoutPage = async (req, res, next) => {
   try {
-    assertPaidCheckoutEnabled();
+    assertPaidCheckoutEnabled({ email: req.session.user.email });
     const productCode = productCodeFromRoute(req);
     if (
       (await requiresMinorPaymentNotice(req.session.user.id)) &&
@@ -120,7 +120,7 @@ exports.selfCheckoutPage = async (req, res, next) => {
 
 exports.acceptMinorPaymentNotice = async (req, res, next) => {
   try {
-    assertPaidCheckoutEnabled();
+    assertPaidCheckoutEnabled({ email: req.session.user.email });
     const productCode = productCodeFromRoute(req);
     if (!(await requiresMinorPaymentNotice(req.session.user.id))) {
       return res.redirect(`/pricing/${req.params.product}/self`);
@@ -187,7 +187,7 @@ async function renderParentRequest(
 
 exports.parentRequestPage = async (req, res, next) => {
   try {
-    assertPaidCheckoutEnabled();
+    assertPaidCheckoutEnabled({ email: req.session.user.email });
     return await renderParentRequest(req, res);
   } catch (error) {
     return next(error);
@@ -196,7 +196,7 @@ exports.parentRequestPage = async (req, res, next) => {
 
 exports.sendParentRequest = async (req, res, next) => {
   try {
-    assertPaidCheckoutEnabled();
+    assertPaidCheckoutEnabled({ email: req.session.user.email });
     const result = await createParentInvite({
       childUserId: req.session.user.id,
       parentEmail: req.body.parentEmail,

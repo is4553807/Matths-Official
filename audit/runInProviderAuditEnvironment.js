@@ -28,8 +28,12 @@ process.env.PUBLIC_BASE_URL = process.env.APP_BASE_URL;
 process.env.DISABLE_SCHEDULERS = "1";
 process.env.ALLOW_TEST_DATA_MUTATION = "1";
 process.env.PAID_CHECKOUT_ENABLED = "true";
-process.env.PAYMENT_PROVIDER = "TOSS";
-process.env.TOSS_PAYMENTS_MODE = "TEST";
+process.env.PAYMENT_PROVIDER = "INICIS";
+process.env.INICIS_PAYMENTS_MODE = "TEST";
+process.env.INICIS_TEST_MID = "INIpayTest";
+process.env.INICIS_TEST_HASH_KEY = "h".repeat(32);
+process.env.INICIS_TEST_API_KEY = "a".repeat(32);
+process.env.INICIS_TEST_CLIENT_IP = "203.0.113.10";
 process.env.TEST_ACCOUNT_PASSWORD = String(
   process.env.AUDIT_TEST_PASSWORD || "Audit2026!MatthsLocal"
 );

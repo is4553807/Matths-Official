@@ -72,7 +72,9 @@ exports.storefront = async (req, res, next) => {
   try {
     res.set("Cache-Control", "no-store");
     return res.json({
-      storefront: await getAppStorefront(req.apiUser._id),
+      storefront: await getAppStorefront(req.apiUser._id, {
+        userEmail: req.apiUser.email,
+      }),
     });
   } catch (error) {
     return next(error);
@@ -85,6 +87,7 @@ exports.createHandoff = async (req, res, next) => {
       userId: req.apiUser._id,
       productCode: req.body?.productCode,
       mode: String(req.body?.mode || "pricing"),
+      userEmail: req.apiUser.email,
     });
     res.set("Cache-Control", "no-store");
     return res.status(201).json({ handoff });

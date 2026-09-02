@@ -87,15 +87,20 @@ for (const relative of viewFiles) {
 }
 
 const checkoutService = read("services/checkoutService.js");
-assert.match(checkoutService, /provider === "TOSS"/);
-assert.match(checkoutService, /isTossConfigured/);
+assert.match(checkoutService, /provider === "INICIS"/);
+assert.match(checkoutService, /isInicisConfigured/);
 assert.match(checkoutService, /PAID_CHECKOUT_UNAVAILABLE/);
-assert.doesNotMatch(cloudtype, /PAID_CHECKOUT_ENABLED[\s\S]*true/);
+assert.match(cloudtype, /PAID_CHECKOUT_ENABLED[\s\S]*value: "true"/);
+assert.match(cloudtype, /INICIS_PAYMENTS_MODE[\s\S]*value: TEST/);
+assert.match(cloudtype, /INICIS_TEST_REVIEW_EMAILS[\s\S]*value: kginicis@test\.com/);
+assert.match(checkoutService, /INICIS_TEST_REVIEW_ACCOUNT_REQUIRED/);
+assert.doesNotMatch(cloudtype, /INICIS_LIVE_(?:MID|HASH_KEY|API_KEY|CLIENT_IP)/);
 
-const tossService = read("services/tossPaymentService.js");
+const inicisService = read("services/inicisPaymentService.js");
 const paymentService = read("services/paymentService.js");
-assert.match(tossService, /\/v1\/payments\/confirm/);
-assert.match(tossService, /Idempotency-Key/);
+assert.match(inicisService, /payAppl\.ini/);
+assert.match(inicisService, /P_CHKFAKE/);
+assert.match(inicisService, /api\/v1\/refund/);
 assert.match(paymentService, /PAYMENT_AMOUNT_MISMATCH/);
 assert.match(paymentService, /applyApprovedPackagePayment/);
 assert.match(paymentService, /applyApprovedMockExamPayment/);

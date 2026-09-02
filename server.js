@@ -120,15 +120,15 @@ server.use((req, res, next) => {
         "Content-Security-Policy": [
             "default-src 'self'",
             "base-uri 'self'",
-            "connect-src 'self' https://*.tosspayments.com",
-            "font-src 'self' data: https://static.toss.im",
-            "form-action 'self'",
+            "connect-src 'self' https://*.inicis.com",
+            "font-src 'self' data: https://*.inicis.com",
+            "form-action 'self' https://*.inicis.com",
             "frame-ancestors 'none'",
-            "frame-src https://*.tosspayments.com",
+            "frame-src https://*.inicis.com",
             "img-src 'self' data: blob: https:",
             "object-src 'none'",
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.tosspayments.com",
-            "style-src 'self' 'unsafe-inline'",
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.inicis.com",
+            "style-src 'self' 'unsafe-inline' https://*.inicis.com",
         ].join("; "),
     });
     if (process.env.NODE_ENV === "production") {
@@ -264,6 +264,11 @@ async function connectDB() {
         if (checkoutIndexes.removedLegacyTtlIndex) {
             console.log(
                 `Removed legacy checkout TTL index: ${checkoutIndexes.removedLegacyTtlIndex}`
+            );
+        }
+        if (checkoutIndexes.staleApprovalReviewCount > 0) {
+            console.warn(
+                `Moved ${checkoutIndexes.staleApprovalReviewCount} stale KG이니시스 approvals to operator review.`
             );
         }
 

@@ -1,9 +1,8 @@
 const {
-  confirmTossCheckout,
-  recordTossCheckoutFailure,
-  reconcileTossWebhook,
+  confirmInicisCheckout,
+  recordInicisCheckoutFailure,
 } = require("../services/paymentService");
-const { getTossConfig } = require("../services/tossPaymentService");
+const { getInicisConfig } = require("../services/inicisPaymentService");
 
 function clean(value, maxLength = 500) {
   return String(value || "")
@@ -13,59 +12,55 @@ function clean(value, maxLength = 500) {
     .slice(0, maxLength);
 }
 
-exports.tossSuccess = async (req, res, next) => {
+function fallbackResult(recorded = null) {
+  return recorded
+    ? { state: "FAILED", intent: recorded.intent, backLink: recorded.backLink }
+    : {
+        state: "FAILED",
+        intent: null,
+        backLink: { href: "/pricing", label: "이용권으로 돌아가기" },
+      };
+}
+
+exports.inicisReturn = async (req, res, next) => {
   try {
-    const result = await confirmTossCheckout({
-      paymentKey: req.query.paymentKey,
-      orderId: req.query.orderId,
-      amount: req.query.amount,
-    });
+    const result = await confirmInicisCheckout(req.body || {});
+    const failed = !result || result.state === "FAILED";
     res.set("Cache-Control", "no-store");
-    return res.render("payment-result", {
-      mode: getTossConfig().mode,
-      result,
-      failure: null,
+    return res.status(failed ? 400 : 200).render("payment-result", {
+      mode: getInicisConfig().mode,
+      result: result || fallbackResult(),
+      failure: failed
+        ? {
+            code: clean(req.body?.P_STATUS || "PAYMENT_NOT_COMPLETED", 100),
+            message: clean(
+              req.body?.P_RMESG || "결제가 완료되지 않았습니다.",
+              300
+            ),
+          }
+        : null,
     });
   } catch (error) {
     return next(error);
   }
 };
 
-exports.tossFailure = async (req, res, next) => {
+exports.inicisClose = async (req, res, next) => {
   try {
-    const recorded = await recordTossCheckoutFailure({
+    const recorded = await recordInicisCheckoutFailure({
       orderId: req.query.orderId,
-      code: req.query.code,
-      message: req.query.message,
+      code: "PAYMENT_WINDOW_CLOSED",
+      message: "결제창을 닫아 결제가 완료되지 않았습니다.",
     });
     res.set("Cache-Control", "no-store");
     return res.status(400).render("payment-result", {
-      mode: getTossConfig().mode,
-      result: recorded
-        ? {
-            state: "FAILED",
-            intent: recorded.intent,
-            backLink: recorded.backLink,
-          }
-        : {
-            state: "FAILED",
-            intent: null,
-            backLink: { href: "/pricing", label: "이용권으로 돌아가기" },
-          },
+      mode: getInicisConfig().mode,
+      result: fallbackResult(recorded),
       failure: {
-        code: clean(req.query.code || "PAYMENT_NOT_COMPLETED", 100),
-        message: clean(req.query.message || "결제가 완료되지 않았습니다.", 300),
+        code: "PAYMENT_WINDOW_CLOSED",
+        message: "결제창을 닫아 결제가 완료되지 않았습니다.",
       },
     });
-  } catch (error) {
-    return next(error);
-  }
-};
-
-exports.tossWebhook = async (req, res, next) => {
-  try {
-    const reconciliation = await reconcileTossWebhook(req.body || {});
-    return res.status(200).json({ received: true, action: reconciliation.action });
   } catch (error) {
     return next(error);
   }

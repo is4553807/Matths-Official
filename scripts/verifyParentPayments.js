@@ -76,7 +76,7 @@ async function main() {
         createdAt: new Date("2026-08-13T00:00:00.000Z"),
         approvedAt: new Date("2026-08-13T00:01:00.000Z"),
         paymentMethod: "카드",
-        receiptUrl: "https://dashboard.tosspayments.com/receipt/test",
+        receiptUrl: "https://example.com/payment-receipt/test",
         providerMode: "TEST",
         intentStatus: "PAID",
         status: "PAID",

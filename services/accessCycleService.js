@@ -341,7 +341,7 @@ function normalizePaymentApproval(input = {}) {
       "PAYMENT_IDENTIFIER_REQUIRED"
     );
   }
-  if (["TOSS", "APPLE"].includes(provider) && !["TEST", "LIVE"].includes(providerMode)) {
+  if (["INICIS", "TOSS", "APPLE"].includes(provider) && !["TEST", "LIVE"].includes(providerMode)) {
     throw statusError(
       400,
       "결제 실행 모드를 확인해주세요.",

@@ -128,14 +128,18 @@ async function verify() {
 
   const environment = {
     PAID_CHECKOUT_ENABLED: "true",
-    PAYMENT_PROVIDER: "TOSS",
-    TOSS_PAYMENTS_MODE: "TEST",
-    TOSS_TEST_CLIENT_KEY: "test_gck_contract",
-    TOSS_TEST_SECRET_KEY: "test_gsk_contract",
+    PAYMENT_PROVIDER: "INICIS",
+    INICIS_PAYMENTS_MODE: "TEST",
+    INICIS_TEST_MID: "INIpayTest",
+    INICIS_TEST_HASH_KEY: "h".repeat(32),
+    INICIS_TEST_API_KEY: "a".repeat(32),
+    INICIS_TEST_CLIENT_IP: "203.0.113.10",
+    INICIS_TEST_REVIEW_EMAILS: "kginicis@test.com",
     PUBLIC_BASE_URL: "https://www.matths.kr",
   };
   const storefront = await getAppStorefront("student-1", {
     environment,
+    userEmail: "kginicis@test.com",
     catalogLoader: async () => [{
       code: "LEARNING_PACKAGE_29",
       name: "학습 이용권",
@@ -175,6 +179,7 @@ async function verify() {
     mode: "self",
     model,
     environment,
+    userEmail: "kginicis@test.com",
   });
   const token = new URL(issued.url).pathname.split("/").at(-1);
   assert.match(token, /^[A-Za-z0-9_-]{43}$/);

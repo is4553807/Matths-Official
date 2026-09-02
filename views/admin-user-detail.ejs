@@ -276,6 +276,65 @@
         </section>
       <% } %>
 
+      <% if (!isAdminProfile) {
+        const arenaConceptInsights = detail.arenaConceptInsights || {};
+        const arenaConceptSummary = arenaConceptInsights.summary || {};
+      %>
+        <section class="admin-panel admin-arena-concept-panel">
+          <div class="admin-panel-heading admin-arena-concept-heading">
+            <div><p>1:1 CONCEPT SIGNAL</p><h2>경기 기반 개념 강·약점</h2></div>
+            <span class="admin-private-badge">운영자 전용 · 사용자 비공개</span>
+          </div>
+          <p class="admin-arena-concept-note">정산 완료된 최근 <%= arenaConceptSummary.matchLimit || 100 %>경기 안에서 제출 답안을 문항의 실제 개념 태그로 다시 집계합니다. 보완 필요는 정답률 <%= Number(arenaConceptInsights.thresholds?.weakCorrectRateMax ?? 59) + 1 %>% 미만, 강점 후보는 <%= arenaConceptInsights.thresholds?.strongCorrectRateMin ?? 70 %>% 이상이며 진단이나 학생 공개 지표로 사용하지 않습니다.</p>
+          <div class="admin-arena-concept-metrics">
+            <div><span>분석 경기</span><strong><%= arenaConceptSummary.matchCount || 0 %>경기</strong></div>
+            <div><span>분석 문항</span><strong><%= arenaConceptSummary.questionCount || 0 %>문항</strong></div>
+            <div><span>경기 정답률</span><strong><%= arenaConceptSummary.correctRate || 0 %>%</strong></div>
+            <div><span>감지 개념</span><strong><%= arenaConceptSummary.conceptCount || 0 %>개</strong></div>
+          </div>
+          <% if (arenaConceptSummary.questionCount) { %>
+            <div class="admin-arena-concept-grid">
+              <section class="admin-arena-concept-group is-weak">
+                <header><div><p>NEEDS REVIEW</p><h3>보완이 필요한 개념</h3></div><strong><%= arenaConceptInsights.weakConcepts?.length || 0 %></strong></header>
+                <% if (arenaConceptInsights.weakConcepts?.length) { %>
+                  <div class="admin-arena-concept-list">
+                    <% arenaConceptInsights.weakConcepts.forEach((concept) => { %>
+                      <article>
+                        <div><span><%= concept.courseLabel %> · 표본 <%= concept.confidence %></span><strong><%= concept.label %></strong><small>오답 <%= concept.incorrect %>/<%= concept.attempts %> · 정답률 <%= concept.correctRate %>%</small></div>
+                        <div class="admin-arena-concept-bar" aria-label="정답률 <%= concept.correctRate %>%"><i style="width:<%= concept.correctRate %>%"></i></div>
+                      </article>
+                    <% }) %>
+                  </div>
+                <% } else { %>
+                  <p class="admin-empty">현재 기준에서 보완 필요로 분류된 개념이 없습니다.</p>
+                <% } %>
+              </section>
+              <section class="admin-arena-concept-group is-strong">
+                <header><div><p>STRENGTH CANDIDATE</p><h3>잘하는 개념 후보</h3></div><strong><%= arenaConceptInsights.strongConcepts?.length || 0 %></strong></header>
+                <% if (arenaConceptInsights.strongConcepts?.length) { %>
+                  <div class="admin-arena-concept-list">
+                    <% arenaConceptInsights.strongConcepts.forEach((concept) => { %>
+                      <article>
+                        <div><span><%= concept.courseLabel %> · 표본 <%= concept.confidence %></span><strong><%= concept.label %></strong><small>정답 <%= concept.correct %>/<%= concept.attempts %> · 정답률 <%= concept.correctRate %>%</small></div>
+                        <div class="admin-arena-concept-bar" aria-label="정답률 <%= concept.correctRate %>%"><i style="width:<%= concept.correctRate %>%"></i></div>
+                      </article>
+                    <% }) %>
+                  </div>
+                <% } else { %>
+                  <p class="admin-empty">현재 기준에서 강점 후보로 분류된 개념이 없습니다.</p>
+                <% } %>
+              </section>
+            </div>
+            <% if (arenaConceptInsights.observingConcepts?.length) { %>
+              <p class="admin-arena-observing">관찰 중 · <%= arenaConceptInsights.observingConcepts.map((concept) => `${concept.label} ${concept.correctRate}%`).join(" · ") %></p>
+            <% } %>
+            <small class="admin-arena-concept-updated">최근 분석 답안 <%= formatDate(arenaConceptSummary.lastAnalyzedAt) %></small>
+          <% } else { %>
+            <p class="admin-empty">정산된 1:1 경기의 제출 답안이 쌓이면 개념 지표가 자동으로 표시됩니다.</p>
+          <% } %>
+        </section>
+      <% } %>
+
       <% if (!isAdminProfile) { %><div class="admin-detail-grid">
         <section class="admin-panel">
           <div class="admin-panel-heading"><div><p>LEARNING</p><h2>학습 진행</h2></div></div>

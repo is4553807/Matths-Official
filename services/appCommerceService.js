@@ -2,7 +2,7 @@ const { createHash, randomBytes } = require("node:crypto");
 const AppCommerceHandoff = require("../models/appCommerceHandoffModel");
 const {
   getProductCatalog,
-  isPaidCheckoutEnabled,
+  isPaidCheckoutAllowedForEmail,
 } = require("./checkoutService");
 const {
   getWeeklyMockExamAccess,
@@ -58,6 +58,7 @@ async function getAppStorefront(userId, {
   catalogLoader = getProductCatalog,
   accessLoader = getWeeklyMockExamAccess,
   environment = process.env,
+  userEmail = "",
 } = {}) {
   const [products, access] = await Promise.all([
     catalogLoader(),
@@ -65,7 +66,7 @@ async function getAppStorefront(userId, {
   ]);
   return {
     generatedAt: new Date().toISOString(),
-    checkoutEnabled: isPaidCheckoutEnabled(environment),
+    checkoutEnabled: isPaidCheckoutAllowedForEmail(userEmail, environment),
     currency: "KRW",
     access: {
       packageType: access.packageType || null,
@@ -106,9 +107,13 @@ async function issueAppCommerceHandoff({
   now = new Date(),
   model = AppCommerceHandoff,
   environment = process.env,
+  userEmail = "",
 } = {}) {
   const destination = productDestination(productCode, mode);
-  if (mode !== "pricing" && !isPaidCheckoutEnabled(environment)) {
+  if (
+    mode !== "pricing" &&
+    !isPaidCheckoutAllowedForEmail(userEmail, environment)
+  ) {
     throw statusError(
       503,
       "유료 이용권 결제는 현재 준비 중입니다.",

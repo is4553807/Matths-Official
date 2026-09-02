@@ -60,11 +60,24 @@ function isAppleOAuthCallback(req) {
   );
 }
 
+function isInicisPaymentCallback(req) {
+  const pathname = String(req.path || req.originalUrl || req.url || "")
+    .split("?")[0];
+  return (
+    String(req.method || "").toUpperCase() === "POST" &&
+    pathname === "/payments/inicis/return" &&
+    String(req.get?.("content-type") || "")
+      .toLowerCase()
+      .startsWith("application/x-www-form-urlencoded")
+  );
+}
+
 function sameOriginProtection(req, _res, next) {
   if (
     SAFE_METHODS.has(String(req.method || "GET").toUpperCase()) ||
     isApiRequest(req) ||
-    isAppleOAuthCallback(req)
+    isAppleOAuthCallback(req) ||
+    isInicisPaymentCallback(req)
   ) {
     return next();
   }

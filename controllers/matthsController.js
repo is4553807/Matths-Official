@@ -133,6 +133,7 @@ const {
 const {
   getProductCatalog,
   getPricingProductAccess,
+  isPaidCheckoutAllowedForEmail,
 } = require("../services/checkoutService");
 const {
   createArchiveFolder,
@@ -590,7 +591,7 @@ exports.pricingPage = async (req, res, next) => {
       learningPackagePolicy,
       products,
       productAccess,
-      checkoutEnabled: require("../services/checkoutService").isPaidCheckoutEnabled(),
+      checkoutEnabled: isPaidCheckoutAllowedForEmail(pricingUser?.email),
     });
   } catch (error) {
     return next(error);

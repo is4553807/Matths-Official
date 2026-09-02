@@ -312,7 +312,7 @@ app.get("/preview/my-learning", (_req, res) => {
   });
 });
 
-app.get("/preview/main-dashboard", (req, res) => {
+app.get(["/preview/main-dashboard", "/main"], (req, res) => {
   const now = new Date("2026-08-30T10:05:00.000Z");
   const previewCoachMode =
     req.query.coachMode === "spicy" ? "spicy" : "mild";
@@ -331,6 +331,10 @@ app.get("/preview/main-dashboard", (req, res) => {
     hasAcademyMembership: true,
   };
 
+  const tutorialRequested =
+    req.query.tutorial === "1" ||
+    Object.hasOwn(req.query, "tutorialStep");
+
   res.render("main", {
     user: previewUser,
     arenaActivityLevel: {
@@ -340,7 +344,9 @@ app.get("/preview/main-dashboard", (req, res) => {
       isMaxLevel: false,
     },
     arenaProfileAvatar: getArenaProfileAvatar("ORBIT_OWL"),
-    onboardingTutorial: { status: "NOT_REQUIRED", shouldAutoStart: false },
+    onboardingTutorial: tutorialRequested
+      ? { status: "PENDING", shouldAutoStart: true }
+      : { status: "NOT_REQUIRED", shouldAutoStart: false },
     dashboardData: {
       user: previewUser,
       completedConcepts: req.query.completedConcepts === "0" ? 0 : 24,
@@ -996,6 +1002,35 @@ app.get("/preview/admin/users/detail", (_req, res) => {
           opponent: { id: "64b000000000000000000704", nickname: "미적분비둘기", score: 100 },
         },
       ],
+      arenaConceptInsights: {
+        summary: {
+          matchCount: 24,
+          questionCount: 120,
+          correctCount: 78,
+          incorrectCount: 42,
+          correctRate: 65,
+          conceptCount: 17,
+          lastAnalyzedAt: new Date("2026-08-18T18:10:00+09:00"),
+          matchLimit: 100,
+        },
+        thresholds: {
+          weakCorrectRateMax: 59,
+          strongCorrectRateMin: 70,
+        },
+        weakConcepts: [
+          { label: "정적분 넓이", courseLabel: "미적분Ⅰ", attempts: 8, correct: 2, incorrect: 6, correctRate: 25, confidence: "충분" },
+          { label: "미정계수", courseLabel: "대수", attempts: 5, correct: 2, incorrect: 3, correctRate: 40, confidence: "충분" },
+          { label: "나머지 경우분류", courseLabel: "확률과 통계", attempts: 4, correct: 2, incorrect: 2, correctRate: 50, confidence: "보통" },
+        ],
+        strongConcepts: [
+          { label: "점화식", courseLabel: "대수", attempts: 9, correct: 9, incorrect: 0, correctRate: 100, confidence: "충분" },
+          { label: "접선", courseLabel: "미적분Ⅰ", attempts: 7, correct: 6, incorrect: 1, correctRate: 86, confidence: "충분" },
+          { label: "부분집합", courseLabel: "확률과 통계", attempts: 6, correct: 5, incorrect: 1, correctRate: 83, confidence: "충분" },
+        ],
+        observingConcepts: [
+          { label: "연립 추론", courseId: "algebra", correctRate: 67 },
+        ],
+      },
       inquiries: [],
       notifications: [],
       actionLogs: [],
@@ -1069,7 +1104,7 @@ app.get("/preview/refunds/checkout", (_req, res) => {
   });
 });
 
-app.get("/preview/payments/toss", (_req, res) => {
+app.get("/preview/payments/inicis", (_req, res) => {
   const intent = {
     orderId: "matths-preview-0123456789abcdef",
     customerKey: "customer-preview-0123456789abcdef",
@@ -1083,19 +1118,25 @@ app.get("/preview/payments/toss", (_req, res) => {
     product: previewProducts[1],
     intent,
     checkoutConfig: {
-      clientKey: "test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm",
+      sdkUrl: "https://stgpaypro.inicis.com/std/payment/js/INIPayPro_v2.js",
       mode: "TEST",
-      customerKey: intent.customerKey,
-      amount: intent.amount,
-      currency: intent.currency,
-      orderId: intent.orderId,
-      orderName: intent.productName,
-      customerEmail: "preview@example.com",
-      customerName: "김학생",
-      successUrl: `http://127.0.0.1:${port}/payments/toss/success`,
-      failUrl: `http://127.0.0.1:${port}/payments/toss/fail`,
-      paymentVariantKey: "DEFAULT",
-      agreementVariantKey: "AGREEMENT",
+      fields: {
+        P_MID: "INIpayTest",
+        P_OID: intent.orderId,
+        P_PAY_TYPE: "CARD",
+        P_DEVICE_TYPE: "",
+        P_IDCCODE: "Y",
+        P_AMT: intent.amount,
+        P_GOODS: intent.productName,
+        P_UNAME: "김학생",
+        P_NEXT_URL: `http://127.0.0.1:${port}/payments/inicis/return`,
+        P_CLOSE_URL: `http://127.0.0.1:${port}/payments/inicis/close?orderId=${intent.orderId}`,
+        P_TIMESTAMP: String(Date.now()),
+        P_CHARSET: "UTF-8",
+        P_LANG: "ko",
+        P_NOTI: intent.orderId,
+        P_CHKFAKE: "preview-only-not-a-real-hash",
+      },
     },
   });
 });
@@ -1143,7 +1184,7 @@ app.get("/preview/parent/payments", (_req, res) => {
           createdAt: new Date("2026-08-13T08:00:00.000Z"),
           approvedAt: new Date("2026-08-13T08:02:00.000Z"),
           paymentMethod: "카드",
-          receiptUrl: "https://dashboard.tosspayments.com/receipt/preview",
+          receiptUrl: "",
           providerMode: "TEST",
           intentStatus: "PAID",
           status: "PAID",
@@ -1163,7 +1204,7 @@ app.get("/preview/parent/payments", (_req, res) => {
           createdAt: new Date("2026-07-01T03:00:00.000Z"),
           approvedAt: new Date("2026-07-01T03:01:00.000Z"),
           paymentMethod: "카드",
-          receiptUrl: "https://dashboard.tosspayments.com/receipt/refunded-preview",
+          receiptUrl: "",
           providerMode: "TEST",
           intentStatus: "CANCELLED",
           status: "REFUNDED",
@@ -1227,7 +1268,7 @@ app.get("/preview/admin/refunds", (_req, res) => {
       requests: [{
         _id: "64b000000000000000000092",
         userId: { name: "preview-user", realName: "김학생", email: "preview@example.com" },
-        paymentId: { provider: "TOSS", providerMode: "TEST" },
+        paymentId: { provider: "INICIS", providerMode: "TEST" },
         productNameSnapshot: previewProducts[1].name,
         orderReferenceSnapshot: "ORDER-PREVIEW-20260813",
         reasonDetail: "상품 환불 기준과 산정 금액을 확인해주세요.",
@@ -1238,7 +1279,7 @@ app.get("/preview/admin/refunds", (_req, res) => {
       }, {
         _id: "64b000000000000000000093",
         userId: { name: "preview-zero", realName: "이학생", email: "zero@example.com" },
-        paymentId: { provider: "TOSS", providerMode: "TEST" },
+        paymentId: { provider: "INICIS", providerMode: "TEST" },
         productNameSnapshot: previewProducts[0].name,
         orderReferenceSnapshot: "ORDER-PREVIEW-ZERO",
         reasonDetail: "이용 기간 종료 뒤 환불 가능 금액 확인 요청입니다.",

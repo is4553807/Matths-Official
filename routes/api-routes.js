@@ -3,7 +3,6 @@ const apiController = require(
   "../controllers/apiController"
 );
 const appleAuthController = require("../controllers/appleAuthController");
-const paymentController = require("../controllers/paymentController");
 const appCommerceController = require("../controllers/appCommerceController");
 const appleCommerceController = require("../controllers/appleCommerceController");
 const ipadReadController = require("../controllers/ipadReadController");
@@ -66,10 +65,6 @@ router.get(
 router.get(
   "/ready",
   apiController.readiness
-);
-router.post(
-  "/payments/toss/webhook",
-  paymentController.tossWebhook
 );
 router.get(
   "/schools",

@@ -345,8 +345,10 @@ const checkoutIntentSchema = new Schema(
     },
     provider: {
       type: String,
-      enum: ["TOSS"],
-      default: "TOSS",
+      // TOSS는 기존 결제 감사 기록을 읽기 위한 레거시 값입니다. 신규 주문은
+      // 반드시 INICIS로 생성되며 토스 API를 다시 호출하지 않습니다.
+      enum: ["INICIS", "TOSS"],
+      default: "INICIS",
       required: true,
     },
     providerMode: {
@@ -420,7 +422,15 @@ const checkoutIntentSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["AWAITING_PG", "AWAITING_DEPOSIT", "CANCELLED", "EXPIRED", "PAID"],
+      enum: [
+        "AWAITING_PG",
+        "APPROVING",
+        "REVIEW_REQUIRED",
+        "AWAITING_DEPOSIT",
+        "CANCELLED",
+        "EXPIRED",
+        "PAID",
+      ],
       default: "AWAITING_PG",
       index: true,
     },

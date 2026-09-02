@@ -7651,6 +7651,190 @@
   white-space: nowrap;
 }
 
+.admin-arena-concept-panel {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 100% 0, rgba(89, 76, 255, 0.08), transparent 34%),
+    #fff;
+}
+
+.admin-arena-concept-heading {
+  align-items: center;
+}
+
+.admin-private-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 11px;
+  color: #5546c7 !important;
+  background: #eeebff;
+  border: 1px solid #ddd7ff;
+  border-radius: 999px;
+  font-size: 9px !important;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.admin-arena-concept-note {
+  max-width: 980px;
+  margin: -8px 0 20px;
+  color: #707b92;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.admin-arena-concept-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.admin-arena-concept-metrics > div {
+  display: grid;
+  gap: 5px;
+  padding: 15px 16px;
+  background: rgba(247, 248, 252, 0.9);
+  border: 1px solid #e6e8f1;
+  border-radius: 12px;
+}
+
+.admin-arena-concept-metrics span {
+  color: #7c869d;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.admin-arena-concept-metrics strong {
+  color: #27324a;
+  font-size: 18px;
+}
+
+.admin-arena-concept-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-arena-concept-group {
+  padding: 18px;
+  background: #fafbfe;
+  border: 1px solid #e5e8f1;
+  border-radius: 15px;
+}
+
+.admin-arena-concept-group > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+
+.admin-arena-concept-group > header p,
+.admin-arena-concept-group > header h3 {
+  margin: 0;
+}
+
+.admin-arena-concept-group > header p {
+  margin-bottom: 4px;
+  color: #868fa4;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 1.2px;
+}
+
+.admin-arena-concept-group > header h3 {
+  color: #28334c;
+  font-size: 15px;
+}
+
+.admin-arena-concept-group > header > strong {
+  min-width: 32px;
+  min-height: 32px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: #8b91a2;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.admin-arena-concept-group.is-weak > header > strong { background: #dc6673; }
+.admin-arena-concept-group.is-strong > header > strong { background: #20a476; }
+
+.admin-arena-concept-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-arena-concept-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 12px;
+  background: #fff;
+  border: 1px solid #e7e9f1;
+  border-radius: 11px;
+}
+
+.admin-arena-concept-list article > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.admin-arena-concept-list span,
+.admin-arena-concept-list small {
+  color: #7b859b;
+  font-size: 9px;
+}
+
+.admin-arena-concept-list strong {
+  overflow-wrap: anywhere;
+  color: #2b354d;
+  font-size: 12px;
+}
+
+.admin-arena-concept-bar {
+  height: 7px;
+  overflow: hidden;
+  background: #eceef4;
+  border-radius: 999px;
+}
+
+.admin-arena-concept-bar i {
+  height: 100%;
+  display: block;
+  min-width: 3px;
+  background: #dc6673;
+  border-radius: inherit;
+}
+
+.admin-arena-concept-group.is-strong .admin-arena-concept-bar i {
+  background: #20a476;
+}
+
+.admin-arena-observing {
+  margin: 14px 0 0;
+  padding: 11px 13px;
+  color: #6e7890;
+  background: #f7f8fc;
+  border-radius: 10px;
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.admin-arena-concept-updated {
+  display: block;
+  margin-top: 10px;
+  color: #8b93a4;
+  font-size: 9px;
+  text-align: right;
+}
+
 @media (max-width: 1180px) {
   .arena-history-filter {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -7698,6 +7882,26 @@
 
   .admin-arena-recent-score {
     grid-column: 2;
+  }
+
+  .admin-arena-concept-grid,
+  .admin-arena-concept-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-arena-concept-list article {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-arena-concept-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-arena-concept-metrics {
+    grid-template-columns: 1fr;
   }
 }
 
