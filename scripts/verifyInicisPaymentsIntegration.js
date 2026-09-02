@@ -16,6 +16,7 @@ const {
   isInicisConfigured,
 } = require("../services/inicisPaymentService");
 const {
+  ensureCheckoutIntentIndexes,
   isPaidCheckoutAllowedForEmail,
   isPaidCheckoutEnabled,
 } = require("../services/checkoutService");
@@ -43,6 +44,39 @@ function response(payload, { json = false } = {}) {
 }
 
 async function main() {
+  const originalIndexes = CheckoutIntent.collection.indexes;
+  const originalDropIndex = CheckoutIntent.collection.dropIndex;
+  const originalCreateIndexes = CheckoutIntent.createIndexes;
+  const originalUpdateMany = CheckoutIntent.updateMany;
+  const droppedIndexes = [];
+  try {
+    CheckoutIntent.collection.indexes = async () => [
+      { name: "_id_", key: { _id: 1 } },
+      {
+        name: "provider_1_providerOrderId_1",
+        key: { provider: 1, providerOrderId: 1 },
+        unique: true,
+      },
+      { name: "orderId_1", key: { orderId: 1 }, unique: true },
+    ];
+    CheckoutIntent.collection.dropIndex = async (name) => {
+      droppedIndexes.push(name);
+    };
+    CheckoutIntent.createIndexes = async () => [];
+    CheckoutIntent.updateMany = async () => ({ modifiedCount: 0 });
+    const migration = await ensureCheckoutIntentIndexes();
+    assert.equal(
+      migration.removedLegacyProviderOrderIndex,
+      "provider_1_providerOrderId_1"
+    );
+    assert.deepEqual(droppedIndexes, ["provider_1_providerOrderId_1"]);
+  } finally {
+    CheckoutIntent.collection.indexes = originalIndexes;
+    CheckoutIntent.collection.dropIndex = originalDropIndex;
+    CheckoutIntent.createIndexes = originalCreateIndexes;
+    CheckoutIntent.updateMany = originalUpdateMany;
+  }
+
   const config = getInicisConfig(fakeEnvironment);
   assert.equal(config.mode, "TEST");
   assert.equal(config.mid, "INIpayTest");
@@ -227,6 +261,7 @@ async function main() {
   );
 
   assert.ok(CheckoutIntent.schema.path("orderId"));
+  assert.equal(CheckoutIntent.schema.path("providerOrderId"), undefined);
   assert.ok(CheckoutIntent.schema.path("providerPaymentKey"));
   assert.ok(CheckoutIntent.schema.path("provider").enumValues.includes("INICIS"));
   assert.equal(
@@ -236,6 +271,12 @@ async function main() {
     false,
     "결제 감사 주문은 TTL로 자동 삭제하면 안 됩니다."
   );
+  const checkoutServiceSource = fs.readFileSync(
+    path.join(root, "services", "checkoutService.js"),
+    "utf8"
+  );
+  assert.match(checkoutServiceSource, /legacyProviderOrderIndex/);
+  assert.match(checkoutServiceSource, /providerOrderId/);
 
   const checkoutHtml = await ejs.renderFile(path.join(root, "views", "checkout.ejs"), {
     user: { id: "user", name: "학생", role: "student" },

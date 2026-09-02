@@ -306,8 +306,24 @@ async function ensureCheckoutIntentIndexes() {
     Object.keys(index.key || {}).length === 1 &&
     Number.isFinite(Number(index.expireAfterSeconds))
   ));
+  const dropLegacyIndex = async (name) => {
+    if (!name) return;
+    try {
+      await CheckoutIntent.collection.dropIndex(name);
+    } catch (error) {
+      if (error?.code !== 27 && error?.codeName !== "IndexNotFound") throw error;
+    }
+  };
   if (legacyTtlIndex?.name) {
-    await CheckoutIntent.collection.dropIndex(legacyTtlIndex.name);
+    await dropLegacyIndex(legacyTtlIndex.name);
+  }
+  const legacyProviderOrderIndex = indexes.find((index) => (
+    index?.key?.provider === 1 &&
+    index?.key?.providerOrderId === 1 &&
+    Object.keys(index.key || {}).length === 2
+  ));
+  if (legacyProviderOrderIndex?.name) {
+    await dropLegacyIndex(legacyProviderOrderIndex.name);
   }
   await CheckoutIntent.createIndexes();
   const staleApprovalResult = await CheckoutIntent.updateMany(
@@ -326,6 +342,7 @@ async function ensureCheckoutIntentIndexes() {
   );
   return {
     removedLegacyTtlIndex: legacyTtlIndex?.name || "",
+    removedLegacyProviderOrderIndex: legacyProviderOrderIndex?.name || "",
     staleApprovalReviewCount: Number(staleApprovalResult.modifiedCount || 0),
   };
 }
