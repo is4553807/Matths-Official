@@ -12,12 +12,13 @@ const HEADERS = {
   "x-matths-client-version": "1.0.0(16)",
 };
 
-function request({ matchId = MATCH_ID, body = {}, files = [] } = {}) {
+function request({ matchId = MATCH_ID, body = {}, files = [], query = {} } = {}) {
   return {
     apiUser: { _id: USER_ID },
     params: { matchId },
     body,
     files,
+    query,
     headers: HEADERS,
     get(name) {
       return this.headers[String(name).toLowerCase()];
@@ -145,6 +146,147 @@ async function run() {
         burnedLearningDays: 0,
       };
     },
+    async getPaybackAccountSummary(userId) {
+      calls.push(["payback-summary", userId]);
+      return {
+        confirmed: true,
+        bankName: "토스뱅크",
+        last4: "2195",
+        confirmedAt: "2026-09-02T00:00:00.000Z",
+        accountHolderName: "응답에 나오면 안 됨",
+        accountNumber: "123456782195",
+      };
+    },
+    async hasPendingPaybackPayout(input) {
+      calls.push(["payback-eligibility", input]);
+      return true;
+    },
+    async saveConfirmedPaybackAccount(userId, input) {
+      calls.push(["payback-save", { userId, input }]);
+      return {
+        confirmed: true,
+        bankName: input.bankName,
+        last4: String(input.accountNumber).slice(-4),
+        confirmedAt: "2026-09-02T01:00:00.000Z",
+        accountHolderName: input.accountHolderName,
+        accountNumber: input.accountNumber,
+      };
+    },
+    async getMainFriendlyMatchData(input) {
+      calls.push(["friendly-options", input]);
+      return {
+        query: input.nickname,
+        eligible: true,
+        eligibilityReason: "",
+        feeDays: 1,
+        activeMatch: null,
+        searchResults: [{
+          userId: "444444444444444444444444",
+          nickname: "친구학생",
+          tier: "GOLD",
+          availableLearningDays: 8,
+        }],
+        receivedInvitations: [{
+          _id: "555555555555555555555555",
+          status: "PENDING",
+          inviterUserId: { name: "초대한학생" },
+          feeDays: 1,
+          expiresAt: new Date("2026-09-03T00:00:00.000Z"),
+        }],
+        sentInvitations: [{
+          _id: "666666666666666666666666",
+          status: "PENDING",
+          inviteeUserId: { name: "초대받은학생" },
+          feeDays: 1,
+          expiresAt: new Date("2026-09-03T00:00:00.000Z"),
+        }],
+      };
+    },
+    async createMainFriendlyInvitation(input) {
+      calls.push(["friendly-create", input]);
+      return {
+        invitation: {
+          _id: "666666666666666666666666",
+          status: "PENDING",
+          inviteeUserId: { name: "초대받은학생" },
+          feeDays: 1,
+        },
+      };
+    },
+    async respondToMainFriendlyInvitation(input) {
+      calls.push(["friendly-respond", input]);
+      if (input.response === "ACCEPT") {
+        return {
+          match: { _id: MATCH_ID, status: "READY", integrityStatus: "PENDING" },
+        };
+      }
+      return {
+        invitation: {
+          _id: input.invitationId,
+          status: "DECLINED",
+          inviterUserId: { name: "초대한학생" },
+          feeDays: 1,
+        },
+      };
+    },
+    async cancelMainFriendlyInvitation(input) {
+      calls.push(["friendly-cancel", input]);
+      return {
+        invitation: {
+          _id: input.invitationId,
+          status: "CANCELLED",
+          inviteeUserId: { name: "초대받은학생" },
+          feeDays: 1,
+        },
+      };
+    },
+    async getPendingArenaRevengeRight(input) {
+      calls.push(["revenge-right", input]);
+      return {
+        id: "777777777777777777777777",
+        division: "SUB",
+        stakeDays: 2,
+        feeDays: 1,
+        expiresAt: "2026-09-03T00:00:00.000Z",
+      };
+    },
+    async claimArenaRevengeRight(input) {
+      calls.push(["revenge-claim", input]);
+      return { matchId: MATCH_ID, replayed: false };
+    },
+    async forfeitArenaRevengeRight(input) {
+      calls.push(["revenge-forfeit", input]);
+      return { sourceMatchId: MATCH_ID, replayed: false };
+    },
+    async getSupplementalEvidenceRequest(input) {
+      calls.push(["supplemental-get", input]);
+      return {
+        matchId: input.matchId,
+        division: "MAIN",
+        matchType: "NORMAL",
+        role: "CHALLENGER",
+        status: "REQUESTED",
+        requestedAt: "2026-09-02T00:00:00.000Z",
+        deadlineAt: "2026-09-03T00:00:00.000Z",
+        requestMessage: "풀이 과정의 앞뒤 사진을 제출해주세요.",
+        submittedAt: null,
+        submittedLate: false,
+        lateByMs: 0,
+        fileCount: 0,
+        serverNow: "2026-09-02T01:00:00.000Z",
+      };
+    },
+    async submitSupplementalEvidence(input) {
+      calls.push(["supplemental-submit", input]);
+      return {
+        replayed: false,
+        status: "SUBMITTED",
+        submittedAt: "2026-09-02T01:00:00.000Z",
+        submittedLate: false,
+        lateByMs: 0,
+        fileCount: input.files.length,
+      };
+    },
   });
 
   const created = await invoke(controller.createUnrankedMatch, request());
@@ -244,6 +386,136 @@ async function run() {
   assert.equal(cancellation.payload.kind, "INVITATION_CANCELLATION");
   assert.equal(cancellation.payload.invitation.releasedLearningDays, 2);
 
+  const payback = await invoke(controller.getPaybackAccount, request());
+  assert.ifError(payback.error);
+  assert.equal(payback.payload.schemaVersion, "GOAT_ARENA_PAYBACK_ACCOUNT_V1");
+  assert.equal(payback.payload.account.last4, "2195");
+  assert.equal(payback.payload.payoutEligible, true);
+  assert.ok(payback.payload.bankSuggestions.includes("토스뱅크"));
+  assert.equal("accountNumber" in payback.payload.account, false);
+  assert.equal("accountHolderName" in payback.payload.account, false);
+
+  const confirmedPayback = await invoke(
+    controller.confirmPaybackAccount,
+    request({
+      body: {
+        bankName: "토스뱅크",
+        accountHolderName: "홍길동",
+        accountNumber: "123456782195",
+        accountConfirmed: true,
+      },
+    })
+  );
+  assert.ifError(confirmedPayback.error);
+  assert.equal(confirmedPayback.payload.account.last4, "2195");
+  assert.equal("accountNumber" in confirmedPayback.payload.account, false);
+  assert.equal("accountHolderName" in confirmedPayback.payload.account, false);
+
+  const unconfirmedPayback = await invoke(
+    controller.confirmPaybackAccount,
+    request({
+      body: {
+        bankName: "토스뱅크",
+        accountHolderName: "홍길동",
+        accountNumber: "123456782195",
+        accountConfirmed: false,
+      },
+    })
+  );
+  assert.equal(
+    unconfirmedPayback.error?.code,
+    "PAYBACK_ACCOUNT_CONFIRMATION_REQUIRED"
+  );
+
+  const friendly = await invoke(
+    controller.getMainFriendlyOptions,
+    request({ query: { nickname: "친구" } })
+  );
+  assert.ifError(friendly.error);
+  assert.equal(friendly.payload.schemaVersion, "GOAT_ARENA_MAIN_FRIENDLY_V1");
+  assert.equal(friendly.payload.searchResults[0].nickname, "친구학생");
+  assert.equal(
+    friendly.payload.receivedInvitations[0].counterpartNickname,
+    "초대한학생"
+  );
+  assert.equal(
+    friendly.payload.sentInvitations[0].counterpartNickname,
+    "초대받은학생"
+  );
+
+  const friendlyCreated = await invoke(
+    controller.createFriendlyInvitation,
+    request({ body: { inviteeUserId: "444444444444444444444444" } })
+  );
+  assert.ifError(friendlyCreated.error);
+  assert.equal(friendlyCreated.payload.invitation.status, "PENDING");
+
+  const friendlyAcceptRequest = request({ body: { response: "ACCEPT" } });
+  friendlyAcceptRequest.params.invitationId = "555555555555555555555555";
+  const friendlyAccepted = await invoke(
+    controller.respondFriendlyInvitation,
+    friendlyAcceptRequest
+  );
+  assert.ifError(friendlyAccepted.error);
+  assert.equal(friendlyAccepted.payload.kind, "MATCH");
+  assert.equal(friendlyAccepted.payload.match.id, MATCH_ID);
+
+  const friendlyDeclineRequest = request({ body: { response: "DECLINE" } });
+  friendlyDeclineRequest.params.invitationId = "555555555555555555555555";
+  const friendlyDeclined = await invoke(
+    controller.respondFriendlyInvitation,
+    friendlyDeclineRequest
+  );
+  assert.ifError(friendlyDeclined.error);
+  assert.equal(friendlyDeclined.payload.invitation.status, "DECLINED");
+
+  const friendlyCancelRequest = request();
+  friendlyCancelRequest.params.invitationId = "666666666666666666666666";
+  const friendlyCancelled = await invoke(
+    controller.cancelFriendlyInvitation,
+    friendlyCancelRequest
+  );
+  assert.ifError(friendlyCancelled.error);
+  assert.equal(friendlyCancelled.payload.invitation.status, "CANCELLED");
+
+  const revenge = await invoke(controller.getRevengeRight, request());
+  assert.ifError(revenge.error);
+  assert.equal(revenge.payload.schemaVersion, "GOAT_ARENA_REVENGE_RIGHT_V1");
+  assert.equal(revenge.payload.right.stakeDays, 2);
+
+  const revengeClaimRequest = request();
+  revengeClaimRequest.params.rightId = "777777777777777777777777";
+  const revengeClaimed = await invoke(controller.claimRevengeRight, revengeClaimRequest);
+  assert.ifError(revengeClaimed.error);
+  assert.equal(revengeClaimed.payload.match.id, MATCH_ID);
+
+  const revengeForfeitRequest = request();
+  revengeForfeitRequest.params.rightId = "777777777777777777777777";
+  const revengeForfeited = await invoke(
+    controller.forfeitRevengeRight,
+    revengeForfeitRequest
+  );
+  assert.ifError(revengeForfeited.error);
+  assert.equal(revengeForfeited.payload.kind, "REVENGE_FORFEIT");
+
+  const supplemental = await invoke(controller.getSupplementalEvidence, request());
+  assert.ifError(supplemental.error);
+  assert.equal(
+    supplemental.payload.schemaVersion,
+    "GOAT_ARENA_SUPPLEMENTAL_EVIDENCE_V1"
+  );
+  assert.equal(supplemental.payload.request.status, "REQUESTED");
+
+  const supplementalRequest = request({ files: [{ path: "/tmp/supplemental.jpg" }] });
+  supplementalRequest.arenaEvidenceReceivedAt = new Date("2026-09-02T01:00:00.000Z");
+  const supplementalSubmitted = await invoke(
+    controller.submitSupplementalEvidenceFiles,
+    supplementalRequest
+  );
+  assert.ifError(supplementalSubmitted.error);
+  assert.equal(supplementalSubmitted.payload.submission.status, "SUBMITTED");
+  assert.equal(supplementalSubmitted.payload.submission.fileCount, 1);
+
   const missingHeaders = request();
   missingHeaders.headers = {};
   const rejected = await invoke(controller.createUnrankedMatch, missingHeaders);
@@ -263,6 +535,16 @@ async function run() {
     '"/goat-arena/matches/main/upward"',
     '"/goat-arena/matches/main/invitations"',
     '"/goat-arena/matches/main/invitations/:invitationId/cancel"',
+    '"/goat-arena/profile/payback-account"',
+    '"/goat-arena/profile/payback-account/confirm"',
+    '"/goat-arena/matches/main/friendly"',
+    '"/goat-arena/matches/main/friendly/invitations"',
+    '"/goat-arena/matches/main/friendly/invitations/:invitationId/respond"',
+    '"/goat-arena/matches/main/friendly/invitations/:invitationId/cancel"',
+    '"/goat-arena/revenge-rights/pending"',
+    '"/goat-arena/revenge-rights/:rightId/claim"',
+    '"/goat-arena/revenge-rights/:rightId/forfeit"',
+    '"/goat-arena/matches/:matchId/supplemental-evidence"',
   ]) {
     assert.ok(routeSource.includes(route), `${route} Bearer 라우트가 없습니다`);
   }

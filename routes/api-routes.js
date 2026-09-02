@@ -592,6 +592,60 @@ router.post(
   "/goat-arena/matches/main/invitations/:invitationId/cancel",
   ipadGoatArenaActionController.cancelSentMainInvitation
 );
+router.get(
+  "/goat-arena/profile/payback-account",
+  ipadGoatArenaActionController.getPaybackAccount
+);
+router.post(
+  "/goat-arena/profile/payback-account/confirm",
+  ipadGoatArenaActionController.confirmPaybackAccount
+);
+router.get(
+  "/goat-arena/matches/main/friendly",
+  ipadGoatArenaActionController.getMainFriendlyOptions
+);
+router.post(
+  "/goat-arena/matches/main/friendly/invitations",
+  ipadGoatArenaActionController.createFriendlyInvitation
+);
+router.post(
+  "/goat-arena/matches/main/friendly/invitations/:invitationId/respond",
+  ipadGoatArenaActionController.respondFriendlyInvitation
+);
+router.post(
+  "/goat-arena/matches/main/friendly/invitations/:invitationId/cancel",
+  ipadGoatArenaActionController.cancelFriendlyInvitation
+);
+router.get(
+  "/goat-arena/revenge-rights/pending",
+  ipadGoatArenaActionController.getRevengeRight
+);
+router.post(
+  "/goat-arena/revenge-rights/:rightId/claim",
+  ipadGoatArenaActionController.claimRevengeRight
+);
+router.post(
+  "/goat-arena/revenge-rights/:rightId/forfeit",
+  ipadGoatArenaActionController.forfeitRevengeRight
+);
+router.get(
+  "/goat-arena/matches/:matchId/supplemental-evidence",
+  ipadGoatArenaActionController.getSupplementalEvidence
+);
+router.post(
+  "/goat-arena/matches/:matchId/supplemental-evidence",
+  (req, _res, next) => {
+    req.arenaEvidenceReceivedAt = new Date();
+    next();
+  },
+  arenaEvidenceUpload.array("evidenceFiles", 5),
+  validateArenaEvidence,
+  ipadGoatArenaActionController.submitSupplementalEvidenceFiles
+);
+router.use(
+  "/goat-arena/matches/:matchId/supplemental-evidence",
+  ipadGoatArenaActionController.uploadError
+);
 router.post(
   "/goat-arena/matches/:matchId/accept",
   ipadGoatArenaActionController.acceptRankedInvitation

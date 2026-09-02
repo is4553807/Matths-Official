@@ -23,6 +23,7 @@
     "ipad-arena-command-http:verify": "node audit/verifyIpadArenaCommandHttpContract.js",
     "ipad-arena-action-http:verify": "node audit/verifyIpadArenaActionHttpContract.js",
     "ipad-arena-client-review:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyIpadArenaClientReviewDb.js",
+    "ipad-payback-account:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyIpadPaybackAccountDb.js",
     "ipad-notification-http:verify": "node audit/verifyIpadNotificationHttpContract.js",
     "ipad-academy-http:verify": "node audit/verifyIpadAcademyHttpContract.js",
     "ipad-support-http:verify": "node audit/verifyIpadSupportHttpContract.js",
