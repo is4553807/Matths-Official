@@ -19,6 +19,9 @@ const ipadSupportController = require(
 const ipadArchiveController = require(
   "../controllers/ipadArchiveController"
 );
+const ipadStudyHallController = require(
+  "../controllers/ipadStudyHallController"
+);
 const ipadCommunityController = require(
   "../controllers/ipadCommunityController"
 );
@@ -893,5 +896,15 @@ router.get("/support/inquiries", ipadSupportController.dashboard);
 router.post("/support/inquiries", ipadSupportController.create);
 router.get("/archive", ipadArchiveController.dashboard);
 router.get("/archive/items/:itemId/download", ipadArchiveController.download);
+// 웹 수험관의 정본 서비스와 같은 공개 시각·제출 잠금·해설 공개 규칙을 쓴다.
+// 앱은 세션 웹뷰 없이 목록, 답안 저장, 채점 결과와 개인 워터마크 파일을 받는다.
+router.get("/study-hall", ipadStudyHallController.list);
+router.get("/study-hall/content/:contentId", ipadStudyHallController.detail);
+router.put("/study-hall/content/:contentId/answers", ipadStudyHallController.save);
+router.post("/study-hall/content/:contentId/submit", ipadStudyHallController.submit);
+router.get(
+  "/study-hall/content/:contentId/files/:assetId",
+  ipadStudyHallController.download
+);
 
 module.exports = router;
