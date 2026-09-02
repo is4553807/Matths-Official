@@ -69,6 +69,7 @@ function verifyRouteRegistration() {
     '"/academy/admin/:academyId/classes/:classId/homeroom"',
     '"/academy/admin/:academyId/invites/:inviteId"',
     '"/academy/admin/:academyId/attendance/sessions/:sessionId/regenerate-code"',
+    '"/academy/admin/:academyId/attendance/:attendanceId"',
     '"/academy/admin/applications/:academyId/approve"',
     '"/academy/admin/applications/:academyId/reject"',
   ]) {
@@ -186,6 +187,9 @@ function verifySerializationBoundary() {
   assert.match(source, /req\.body\.retainPreviousAsCoTeacher === true/);
   assert.match(source, /updateAdminAcademyInvite/);
   assert.match(source, /regenerateAdminAcademyAttendanceCode/);
+  assert.match(source, /updateAdminAcademyAttendance/);
+  assert.match(source, /attendanceRecords: detail\.attendanceRecords\.map/);
+  assert.match(source, /attendanceAudits: detail\.attendanceAudits\.map/);
   assert.match(source, /approveAcademyApplication/);
   assert.match(source, /rejectAcademyApplication/);
   assert.match(source, /result\.academies\.map\(serializeAdminAcademyApplication\)/);

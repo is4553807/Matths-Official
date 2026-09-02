@@ -46,6 +46,7 @@ const {
   regenerateAdminAcademyAttendanceCode,
   transferAdminAcademyClassHomeroom,
   transferAdminAcademyOwner,
+  updateAdminAcademyAttendance,
   updateAdminAcademyClass,
   updateAdminAcademyClassOperations,
   updateAdminAcademyContract,
@@ -487,6 +488,31 @@ function serializeAdminAcademyDetail(detail) {
       attendanceMode: session.attendanceMode,
       state: session.computedState,
       code: session.code || null,
+    })),
+    attendanceRecords: detail.attendanceRecords.map((record) => ({
+      id: identifier(record),
+      student: serializeStaffIdentity(record.studentUserId),
+      academyClass: serializeClass(record.classId),
+      sessionStartsAt: record.sessionId?.startsAt || null,
+      dateKey: record.dateKey,
+      status: record.status,
+      source: record.source || null,
+      checkedInAt: record.checkedInAt || null,
+      note: String(record.note || ""),
+      recordedBy: serializeStaffIdentity(record.recordedByUserId),
+      updatedAt: record.updatedAt || null,
+    })),
+    attendanceAudits: detail.attendanceAudits.map((audit) => ({
+      id: identifier(audit),
+      student: serializeStaffIdentity(audit.studentUserId),
+      academyClass: serializeClass(audit.classId),
+      previousStatus: audit.previousStatus || null,
+      nextStatus: audit.nextStatus || null,
+      action: audit.action,
+      actor: serializeStaffIdentity(audit.actorUserId),
+      actorType: audit.actorType,
+      note: String(audit.note || ""),
+      occurredAt: audit.occurredAt || null,
     })),
   };
 }
@@ -1045,6 +1071,21 @@ exports.adminRegenerateAcademyAttendanceCode = async (req, res, next) => {
       adminUserId: req.apiUser._id,
       academyId: req.params.academyId,
       sessionId: req.params.sessionId,
+    });
+    return await sendAdminAcademyDetail(req, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.adminUpdateAcademyAttendance = async (req, res, next) => {
+  try {
+    await updateAdminAcademyAttendance({
+      adminUserId: req.apiUser._id,
+      academyId: req.params.academyId,
+      attendanceId: req.params.attendanceId,
+      status: req.body.status,
+      note: req.body.note,
     });
     return await sendAdminAcademyDetail(req, res);
   } catch (error) {

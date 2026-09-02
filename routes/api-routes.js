@@ -353,6 +353,10 @@ router.post(
   ipadAcademyController.adminRegenerateAcademyAttendanceCode
 );
 router.post(
+  "/academy/admin/:academyId/attendance/:attendanceId",
+  ipadAcademyController.adminUpdateAcademyAttendance
+);
+router.post(
   "/academy/admin/applications/:academyId/approve",
   ipadAcademyController.approveAcademy
 );
