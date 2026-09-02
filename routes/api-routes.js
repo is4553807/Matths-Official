@@ -847,6 +847,10 @@ router.get(
   apiController.me
 );
 router.patch(
+  "/me/nickname",
+  apiController.updateNickname
+);
+router.patch(
   "/me/avatar/preset",
   apiController.updateProfileAvatarPreset
 );

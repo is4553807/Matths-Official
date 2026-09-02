@@ -61,6 +61,7 @@ const {
   withdrawOwnAccount,
 } = require("../services/accountDeletionService");
 const {
+  validateNickname,
   nicknameKey,
 } = require("../services/nicknameService");
 const {
@@ -976,6 +977,59 @@ exports.updateRankingIdentity = async (
     return res.json({
       user: serializeUser(user),
     });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 웹 프로필의 닉네임 변경과 같은 검증·중복 규칙을 Bearer API에도 노출한다.
+// realName은 건드리지 않으며 공개 이름(name)과 정규화 키만 원자적으로 갱신한다.
+exports.updateNickname = async (req, res, next) => {
+  try {
+    const validation = validateNickname(req.body?.nickname);
+    const nickname = validation.nickname;
+    if (!validation.valid) {
+      return res.status(400).json({
+        code: "INVALID_NICKNAME",
+        message: validation.message,
+      });
+    }
+
+    const duplicate = await User.exists({
+      _id: { $ne: req.apiUser._id },
+      $or: [
+        { nameNormalized: nicknameKey(nickname) },
+        {
+          name: {
+            $regex: `^${nickname.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+            $options: "i",
+          },
+        },
+      ],
+    });
+    if (duplicate) {
+      return res.status(409).json({
+        code: "NICKNAME_TAKEN",
+        message: "이미 사용 중인 닉네임입니다.",
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.apiUser._id,
+      {
+        name: nickname,
+        nameNormalized: nicknameKey(nickname),
+      },
+      { new: true, runValidators: true }
+    );
+    if (!user) {
+      return res.status(404).json({
+        code: "USER_NOT_FOUND",
+        message: "사용자 정보를 찾을 수 없습니다.",
+      });
+    }
+
+    return res.json({ user: serializeUser(user) });
   } catch (error) {
     return next(error);
   }

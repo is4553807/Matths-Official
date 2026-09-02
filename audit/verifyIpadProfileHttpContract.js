@@ -11,6 +11,7 @@ mongoose.set("bufferCommands", false);
 
 const PROFILE_ROUTES = [
   ["GET", "/me"],
+  ["PATCH", "/me/nickname"],
   ["PATCH", "/me/avatar/preset"],
   ["POST", "/me/avatar/custom"],
   ["PATCH", "/me/coach-mode"],
@@ -58,11 +59,27 @@ function verifyLeaderboardProfileContract() {
   assert.match(source, /arenaActivityLevel:/);
 }
 
+function verifyNicknameContract() {
+  const source = fs.readFileSync(
+    path.join(__dirname, "../controllers/apiController.js"),
+    "utf8"
+  );
+  assert.match(source, /exports\.updateNickname/);
+  assert.match(source, /validateNickname\(req\.body\?\.nickname\)/);
+  assert.match(source, /nameNormalized: nicknameKey\(nickname\)/);
+  assert.match(source, /NICKNAME_TAKEN/);
+  assert.doesNotMatch(
+    source.slice(source.indexOf("exports.updateNickname"), source.indexOf("exports.updateNickname") + 1800),
+    /realName\s*:/
+  );
+}
+
 async function main() {
   verifyRegistration();
   verifyCanonicalViews();
   verifyLeaderboardProfileContract();
-  console.log("iPad profile API verified: Bearer routes, avatar, activity level, coach, tutorials and leaderboard profile fields.");
+  verifyNicknameContract();
+  console.log("iPad profile API verified: Bearer routes, nickname, avatar, activity level, coach, tutorials and leaderboard profile fields.");
 }
 
 main().catch((error) => {
