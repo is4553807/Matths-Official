@@ -576,6 +576,22 @@ router.post(
   "/goat-arena/matches/sub",
   ipadGoatArenaActionController.createUnrankedMatch
 );
+router.get(
+  "/goat-arena/matches/main/options",
+  ipadGoatArenaActionController.getMainActionOptions
+);
+router.post(
+  "/goat-arena/matches/main/upward",
+  ipadGoatArenaActionController.createMainUpwardMatch
+);
+router.post(
+  "/goat-arena/matches/main/invitations",
+  ipadGoatArenaActionController.createMainLowerInvitation
+);
+router.post(
+  "/goat-arena/matches/main/invitations/:invitationId/cancel",
+  ipadGoatArenaActionController.cancelSentMainInvitation
+);
 router.post(
   "/goat-arena/matches/:matchId/accept",
   ipadGoatArenaActionController.acceptRankedInvitation

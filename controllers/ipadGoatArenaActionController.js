@@ -89,6 +89,14 @@ function productionDependencies() {
       require("../services/arenaMatchService").createSubNormalChallenge,
     respondInvitation:
       require("../services/mainArenaMatchService").respondToMainInvitation,
+    getMainActions:
+      require("../services/mainArenaMatchService").getMainArenaActionData,
+    createMainUpward:
+      require("../services/mainArenaMatchService").createMainUpwardChallenge,
+    createMainInvitation:
+      require("../services/mainArenaMatchService").createMainLowerInvitation,
+    cancelMainInvitation:
+      require("../services/mainArenaMatchService").cancelMainInvitation,
     submitEvidence:
       require("../services/arenaMatchEvidenceService").submitArenaMatchEvidence,
     attachClientReview:
@@ -104,6 +112,10 @@ function createIpadGoatArenaActionController(options = null) {
   const {
     createSubChallenge,
     respondInvitation,
+    getMainActions,
+    createMainUpward,
+    createMainInvitation,
+    cancelMainInvitation,
     submitEvidence,
     attachClientReview = async () => {
       fail(
@@ -177,6 +189,154 @@ function createIpadGoatArenaActionController(options = null) {
           id: req.params.matchId,
           status: "CANCELLED",
           integrityState: "CLEAR",
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  function mainTarget(row, availableLearningDays, eligible, requestLocked) {
+    const minimumStakeDays = Math.max(1, Number(row.minimumStakeDays || row.gap || 1));
+    const maximumStakeDays = Math.max(
+      minimumStakeDays,
+      Math.min(
+        Number(row.maximumStakeDays || availableLearningDays - 1 || minimumStakeDays),
+        Math.max(minimumStakeDays, availableLearningDays - 1)
+      )
+    );
+    return {
+      tier: String(row.label || row.tier || ""),
+      gap: Number(row.gap || 0),
+      minimumStakeDays,
+      maximumStakeDays,
+      available:
+        eligible === true &&
+        requestLocked !== true &&
+        availableLearningDays > minimumStakeDays,
+    };
+  }
+
+  async function getMainActionOptions(req, res, next) {
+    try {
+      if (!req.apiUser?._id) {
+        fail("UNAUTHORIZED", "다시 로그인한 뒤 시도해주세요.", 401);
+      }
+      const data = await getMainActions({ userId: req.apiUser._id });
+      const availableLearningDays = Math.max(
+        0,
+        Number(data.availableLearningDays || 0)
+      );
+      const eligible = data.eligible === true && !data.activeMatch;
+      const requestLocked = data.requestLocked === true;
+      const lowerMinimumByGap = new Map(
+        (data.policy?.stakeDaysByTierGap || []).map((row) => [
+          Number(row.tierGap),
+          Number(row.stakeDays),
+        ])
+      );
+      const lowerRows = (data.lowerTargets || []).map((row) => ({
+        ...row,
+        minimumStakeDays: lowerMinimumByGap.get(Number(row.gap)) || row.gap,
+        maximumStakeDays: Math.max(1, availableLearningDays - 1),
+      }));
+      noStore(res);
+      return res.json({
+        schemaVersion: "GOAT_ARENA_MAIN_ACTIONS_V1",
+        eligible,
+        reasonCodes: data.reasons || [],
+        currentTier: data.currentTier || null,
+        availableLearningDays,
+        matchmakingRestrictedUntil:
+          data.matchmakingRestrictedUntil?.toISOString?.() ||
+          data.matchmakingRestrictedUntil ||
+          null,
+        hasActiveMatch: Boolean(data.activeMatch),
+        requestLocked,
+        sentInvitations: (data.sentInvitations || []).map((invitation) => ({
+          id: String(invitation._id || invitation.id),
+          status: String(invitation.status || ""),
+          targetTier: String(invitation.targetTier || ""),
+          stakeDays: Number(invitation.stakeDays || 0),
+          reservedLearningDays: Number(invitation.reservedLearningDays || 0),
+          createdAt:
+            invitation.createdAt?.toISOString?.() || invitation.createdAt || null,
+          canCancel: ["SEARCHING", "OFFERED", "PAUSED"].includes(
+            invitation.status
+          ),
+        })),
+        upwardTargets: (data.upwardTargets || []).map((row) =>
+          mainTarget(row, availableLearningDays, eligible, requestLocked)
+        ),
+        lowerTargets: lowerRows.map((row) =>
+          mainTarget(row, availableLearningDays, eligible, requestLocked)
+        ),
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async function createMainUpwardMatch(req, res, next) {
+    try {
+      const body = strictBody(req, ["targetTier", "stakeDays"]);
+      const context = commandContext(req);
+      const result = await createMainUpward({
+        userId: context.userId,
+        targetTier: body.targetTier,
+        stakeDays: body.stakeDays,
+        requestId: context.requestId,
+      });
+      noStore(res);
+      return res.json({ kind: "MATCH", match: matchReceipt(result.match) });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async function createMainLowerInvitation(req, res, next) {
+    try {
+      const body = strictBody(req, ["targetTier", "stakeDays"]);
+      const context = commandContext(req);
+      const invitation = await createMainInvitation({
+        userId: context.userId,
+        targetTier: body.targetTier,
+        stakeDays: body.stakeDays,
+        requestId: context.requestId,
+      });
+      noStore(res);
+      return res.json({
+        kind: "INVITATION",
+        invitation: {
+          id: String(invitation._id || invitation.id),
+          status: String(invitation.status || ""),
+          targetTier: String(invitation.targetTier || ""),
+          stakeDays: Number(invitation.stakeDays || 0),
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async function cancelSentMainInvitation(req, res, next) {
+    try {
+      strictBody(req, []);
+      const context = commandContext(req);
+      const invitation = await cancelMainInvitation({
+        invitationId: req.params.invitationId,
+        userId: context.userId,
+        cancellationType: "MANUAL",
+        reason: "USER_CANCELLED_FROM_IOS",
+      });
+      noStore(res);
+      return res.json({
+        kind: "INVITATION_CANCELLATION",
+        invitation: {
+          id: String(invitation._id || invitation.id),
+          status: String(invitation.status || ""),
+          releasedLearningDays: Number(invitation.releasedLearningDays || 0),
+          burnedLearningDays: Number(invitation.burnedLearningDays || 0),
         },
       });
     } catch (error) {
@@ -260,8 +420,12 @@ function createIpadGoatArenaActionController(options = null) {
 
   return Object.freeze({
     acceptRankedInvitation,
+    cancelSentMainInvitation,
+    createMainLowerInvitation,
+    createMainUpwardMatch,
     createUnrankedMatch,
     declineRankedInvitation,
+    getMainActionOptions,
     submitMatchEvidence,
     submitClientReview,
     uploadError,
@@ -288,8 +452,12 @@ module.exports = {
   IpadGoatArenaActionError,
   createIpadGoatArenaActionController,
   acceptRankedInvitation: productionHandler("acceptRankedInvitation"),
+  cancelSentMainInvitation: productionHandler("cancelSentMainInvitation"),
+  createMainLowerInvitation: productionHandler("createMainLowerInvitation"),
+  createMainUpwardMatch: productionHandler("createMainUpwardMatch"),
   createUnrankedMatch: productionHandler("createUnrankedMatch"),
   declineRankedInvitation: productionHandler("declineRankedInvitation"),
+  getMainActionOptions: productionHandler("getMainActionOptions"),
   submitMatchEvidence: productionHandler("submitMatchEvidence"),
   submitClientReview: productionHandler("submitClientReview"),
   uploadError: productionUploadError,

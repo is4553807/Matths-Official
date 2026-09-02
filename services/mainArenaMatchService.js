@@ -1552,6 +1552,7 @@ async function getMainArenaActionData({ userId, now = new Date() }) {
     competitivePoolLabel: mainCompetitivePoolLabel(),
     policy: snapshot,
     activeMatch,
+    requestLocked: isSundayMatchRequestLocked(now, "MAIN"),
     sentInvitations,
     receivedOffers: receivedOffers.map((offer) => {
       const invitation = offer.invitationRequestId || {};

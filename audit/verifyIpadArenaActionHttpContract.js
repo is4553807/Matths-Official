@@ -88,6 +88,63 @@ async function run() {
       calls.push(["client-review", input]);
       return { reviewId: input.reviewId, replayed: false, accepted: true };
     },
+    async getMainActions(input) {
+      calls.push(["main-options", input]);
+      return {
+        eligible: true,
+        reasons: [],
+        currentTier: "골드",
+        availableLearningDays: 12,
+        matchmakingRestrictedUntil: null,
+        activeMatch: null,
+        requestLocked: false,
+        policy: {
+          stakeDaysByTierGap: [
+            { tierGap: 1, stakeDays: 2 },
+            { tierGap: 2, stakeDays: 3 },
+          ],
+        },
+        sentInvitations: [{
+          _id: "333333333333333333333333",
+          status: "OFFERED",
+          targetTier: "실버",
+          stakeDays: 2,
+          reservedLearningDays: 2,
+          createdAt: new Date("2026-09-02T00:00:00.000Z"),
+        }],
+        upwardTargets: [{
+          label: "플래티넘",
+          gap: 1,
+          minimumStakeDays: 1,
+          maximumStakeDays: 5,
+        }],
+        lowerTargets: [{ label: "실버", gap: 1 }],
+      };
+    },
+    async createMainUpward(input) {
+      calls.push(["main-upward", input]);
+      return {
+        match: { _id: MATCH_ID, status: "READY", integrityStatus: "PENDING" },
+      };
+    },
+    async createMainInvitation(input) {
+      calls.push(["main-invitation", input]);
+      return {
+        _id: "333333333333333333333333",
+        status: "OFFERED",
+        targetTier: input.targetTier,
+        stakeDays: input.stakeDays,
+      };
+    },
+    async cancelMainInvitation(input) {
+      calls.push(["main-cancel", input]);
+      return {
+        _id: input.invitationId,
+        status: "CANCELLED",
+        releasedLearningDays: 2,
+        burnedLearningDays: 0,
+      };
+    },
   });
 
   const created = await invoke(controller.createUnrankedMatch, request());
@@ -156,6 +213,37 @@ async function run() {
   assert.equal(calls[5][0], "client-review");
   assert.equal(calls[5][1].reviewId, HEADERS["idempotency-key"]);
 
+  const options = await invoke(controller.getMainActionOptions, request());
+  assert.ifError(options.error);
+  assert.equal(options.payload.schemaVersion, "GOAT_ARENA_MAIN_ACTIONS_V1");
+  assert.equal(options.payload.upwardTargets[0].maximumStakeDays, 5);
+  assert.equal(options.payload.lowerTargets[0].minimumStakeDays, 2);
+  assert.equal(options.payload.sentInvitations[0].canCancel, true);
+
+  const upward = await invoke(
+    controller.createMainUpwardMatch,
+    request({ body: { targetTier: "플래티넘", stakeDays: 2 } })
+  );
+  assert.ifError(upward.error);
+  assert.equal(upward.payload.kind, "MATCH");
+  assert.equal(upward.payload.match.id, MATCH_ID);
+
+  const invitation = await invoke(
+    controller.createMainLowerInvitation,
+    request({ body: { targetTier: "실버", stakeDays: 2 } })
+  );
+  assert.ifError(invitation.error);
+  assert.equal(invitation.payload.kind, "INVITATION");
+  assert.equal(invitation.payload.invitation.status, "OFFERED");
+
+  // cancel 경로는 matchId가 아니라 invitationId를 사용한다.
+  const cancelRequest = request();
+  cancelRequest.params.invitationId = "333333333333333333333333";
+  const cancellation = await invoke(controller.cancelSentMainInvitation, cancelRequest);
+  assert.ifError(cancellation.error);
+  assert.equal(cancellation.payload.kind, "INVITATION_CANCELLATION");
+  assert.equal(cancellation.payload.invitation.releasedLearningDays, 2);
+
   const missingHeaders = request();
   missingHeaders.headers = {};
   const rejected = await invoke(controller.createUnrankedMatch, missingHeaders);
@@ -171,6 +259,10 @@ async function run() {
     '"/goat-arena/matches/:matchId/decline"',
     '"/goat-arena/matches/:matchId/evidence"',
     '"/goat-arena/matches/:matchId/evidence/client-review"',
+    '"/goat-arena/matches/main/options"',
+    '"/goat-arena/matches/main/upward"',
+    '"/goat-arena/matches/main/invitations"',
+    '"/goat-arena/matches/main/invitations/:invitationId/cancel"',
   ]) {
     assert.ok(routeSource.includes(route), `${route} Bearer 라우트가 없습니다`);
   }
