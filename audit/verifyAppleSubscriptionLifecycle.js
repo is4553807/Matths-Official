@@ -59,14 +59,14 @@ const appleEnd = mockExam._testing.subscriptionEndsAt(
 );
 assert.equal(appleEnd.toISOString(), expiresAt.toISOString());
 
-const tossEnd = mockExam._testing.subscriptionEndsAt(
+const inicisEnd = mockExam._testing.subscriptionEndsAt(
   {
-    provider: "TOSS",
+    provider: "INICIS",
     approvedAt,
   },
   { billingPeriodDays: 30 }
 );
-assert.equal(tossEnd.toISOString(), "2026-09-29T12:00:00.000Z");
+assert.equal(inicisEnd.toISOString(), "2026-09-29T12:00:00.000Z");
 
 for (const field of [
   "appleOriginalTransactionId",

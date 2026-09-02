@@ -47,7 +47,7 @@ async function main() {
     const approvedAt = new Date("2026-07-01T00:00:00.000Z");
     const payment = await ArenaPackagePayment.create({
       userId: student._id,
-      provider: "TOSS",
+      provider: "INICIS",
       providerMode: "TEST",
       providerPaymentKey: `audit-payment-${suffix}`,
       orderReference: `audit-order-${suffix}`,

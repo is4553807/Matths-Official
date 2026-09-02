@@ -95,7 +95,7 @@ function normalizeApproval(input = {}) {
   ) {
     throw statusError(400, "결제 승인 식별자가 누락되었습니다.", "PAYMENT_IDENTIFIER_REQUIRED");
   }
-  if (["TOSS", "APPLE"].includes(approval.provider) && !["TEST", "LIVE"].includes(approval.providerMode)) {
+  if (["INICIS", "TOSS", "APPLE"].includes(approval.provider) && !["TEST", "LIVE"].includes(approval.providerMode)) {
     throw statusError(400, "결제 실행 모드를 확인해주세요.", "PAYMENT_PROVIDER_MODE_REQUIRED");
   }
   if (!Number.isSafeInteger(approvedAmount) || approvedAmount < 0) {

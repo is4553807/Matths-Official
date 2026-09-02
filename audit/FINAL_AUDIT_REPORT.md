@@ -268,7 +268,7 @@ No P0 was reproduced. Temporary Cloudinary/R2 lifecycle checks passed, but real-
 ## D. Previously blocked tests — now PASS
 
 1. **PASS — user-confirmed:** inbox receipt of the three live SMTP audit messages.
-2. **PASS — user-confirmed:** end-to-end Toss TEST payment, cancellation, webhook, and receipt. A real-money LIVE transaction was not required or performed.
+2. **HISTORICAL — superseded 2026-09-02:** this audit recorded the former Toss TEST flow. The active web PG implementation is now KG이니시스 INIpay PRO and must complete its own TEST/LIVE approval and cancellation checklist before paid checkout is enabled.
 3. **PASS — user-confirmed:** Google OAuth callback with a real Google identity and the deployed canonical-host flow.
 4. **PASS — user-confirmed external execution:** T1–T9 270-source catalog verification. The external source artifact itself is not stored in this repository.
 5. **PASS — user-confirmed:** physical Safari/iOS and Android browser checks.

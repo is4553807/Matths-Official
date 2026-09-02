@@ -84,7 +84,7 @@ function checkoutFailureDisplayMessage(intent = {}) {
   };
   return (
     codes.map((code) => messages[code]).find(Boolean) ||
-    "이용권 적용 조건을 충족하지 못해 결제가 자동 취소되었습니다. 실제 승인 금액은 토스페이먼츠에서 전체 취소 처리되었습니다."
+    "이용권 적용 조건을 충족하지 못해 결제가 자동 취소되었습니다. 실제 승인 금액은 KG이니시스에서 전체 취소 처리되었습니다."
   );
 }
 

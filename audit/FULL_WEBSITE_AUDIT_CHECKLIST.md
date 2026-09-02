@@ -95,7 +95,7 @@ Across the five-page/six-size matrix, every case had `scrollWidth === clientWidt
 ## Previously blocked / externally executed items
 
 1. **PASS — user-confirmed:** live support/reset/payback email receipt.
-2. **PASS — user-confirmed:** end-to-end Toss TEST payment, cancellation, receipt, and webhook. No real-money LIVE transaction was required.
+2. **HISTORICAL — superseded 2026-09-02:** this checklist entry covers the former Toss TEST flow. The active web PG implementation is KG이니시스 INIpay PRO and requires a new TEST/LIVE approval and cancellation sign-off before paid checkout is enabled.
 3. **PASS — user-confirmed:** Google OAuth callback with a real identity and deployed canonical-host behavior.
 4. **PASS — user-confirmed external execution:** T1–T9 270-source catalog verification; the source artifact is not archived in this repository.
 5. **PASS — user-confirmed:** physical Safari/iOS and Android devices.

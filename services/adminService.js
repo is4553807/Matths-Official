@@ -89,6 +89,10 @@ const {
   getAdminUserRecentArenaMatches,
 } = require("./adminArenaMatchHistoryService");
 const {
+  emptyAdminArenaConceptInsights,
+  getAdminArenaConceptInsights,
+} = require("./adminArenaConceptInsightService");
+const {
   synchronizeOwnedAcademyContract,
 } = require("./academyContractService");
 const accountEmailCopy =
@@ -1638,6 +1642,7 @@ async function getAdminUserDetail(
     arenaBadges,
     arenaActivityLevel,
     arenaRecentMatches,
+    arenaConceptInsights,
   ] = await Promise.all([
     isAdminProfile
       ? Promise.resolve([])
@@ -1770,6 +1775,9 @@ async function getAdminUserDetail(
     isAdminProfile
       ? Promise.resolve([])
       : getAdminUserRecentArenaMatches(userId, 5),
+    isAdminProfile
+      ? Promise.resolve(emptyAdminArenaConceptInsights())
+      : getAdminArenaConceptInsights(userId),
   ]);
   const stats =
     problemStats[0] || {
@@ -1848,6 +1856,7 @@ async function getAdminUserDetail(
     arenaBadges,
     arenaActivityLevel,
     arenaRecentMatches,
+    arenaConceptInsights,
   };
 }
 

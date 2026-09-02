@@ -49,7 +49,7 @@ assert.match(
 );
 assert.match(
   controller,
-  /User\.create\(\{[\s\S]*dashboardTutorialStatus: "PENDING"/,
+  /registrationProfile\s*=\s*\{[\s\S]*preferences:\s*\{[\s\S]*dashboardTutorialStatus: "PENDING"[\s\S]*User\.create\(\{/,
   "새로 가입한 계정은 튜토리얼 대기 상태로 생성되어야 합니다."
 );
 assert.match(controller, /exports\.restartDashboardTutorial/);
@@ -127,9 +127,19 @@ assert.match(script, /function prepareTargetAppearance\(target, attention\)/);
 assert.match(script, /function revealAfterViewportSettles/);
 assert.match(script, /stableFrames >= 4/);
 assert.match(script, /targetNeedsScroll\(target\)/);
+assert.match(script, /function scrollTargetIntoView\(target\)/);
 assert.match(script, /behavior: reducedMotion \? "auto" : "smooth"/);
 assert.match(script, /nextButton\.disabled = Boolean\(target\)/);
-assert.match(script, /const gapX = compactTarget \? 18 : 28/);
-assert.match(script, /const gapY = compactTarget \? 11 : 20/);
+assert.match(script, /function spotlightPadding\(target\)/);
+assert.match(script, /target\.closest\("#dashboard-sidebar"\)/);
+assert.match(script, /function positionTutorialDialog\(target\)/);
+assert.match(script, /overlapArea\(/);
+assert.match(script, /dialog\.dataset\.placement = selected\.placement/);
+assert.match(script, /function targetConflictsWithEveryDialogCorner\(target\)/);
+assert.match(script, /matths-tutorial-scroll-spacer/);
+assert.match(script, /stableFrames >= 2[\s\S]*targetConflictsWithEveryDialogCorner\(target\)/);
+assert.match(styles, /\.matths-tutorial-scroll-target/);
+assert.match(script, /mobileDialogHeight/);
+assert.match(styles, /max-height: calc\(100vh - 24px\)/);
 
 console.log("신규 가입 자동 시작·페이지 이동·완료·스킵·프로필 재시작 튜토리얼 검증을 통과했습니다.");

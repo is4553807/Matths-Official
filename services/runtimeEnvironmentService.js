@@ -172,15 +172,27 @@ function runtimeEnvironmentReport(environment = process.env) {
   }
 
   if (valueOf(environment, "PAID_CHECKOUT_ENABLED").toLowerCase() === "true") {
-    if (valueOf(environment, "PAYMENT_PROVIDER").toUpperCase() !== "TOSS") {
-      errors.push("유료 결제를 열려면 PAYMENT_PROVIDER=TOSS가 필요합니다.");
+    if (valueOf(environment, "PAYMENT_PROVIDER").toUpperCase() !== "INICIS") {
+      errors.push("유료 결제를 열려면 PAYMENT_PROVIDER=INICIS가 필요합니다.");
     } else {
       try {
-        const { getTossConfig } = require("./tossPaymentService");
-        const toss = getTossConfig(environment);
-        if (toss.mode === "TEST") {
+        const { getInicisConfig } = require("./inicisPaymentService");
+        const inicis = getInicisConfig(environment);
+        if (inicis.mode === "TEST") {
+          const reviewEmails = valueOf(environment, "INICIS_TEST_REVIEW_EMAILS")
+            .split(",")
+            .map((email) => email.trim().toLowerCase())
+            .filter(Boolean);
+          if (
+            !reviewEmails.length ||
+            reviewEmails.some((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+          ) {
+            errors.push(
+              "운영 도메인에서 TEST 결제를 열려면 INICIS_TEST_REVIEW_EMAILS에 유효한 심사 계정을 등록해야 합니다."
+            );
+          }
           warnings.push(
-            "토스페이먼츠 TEST 모드입니다. 실제 청구는 발생하지 않으며, 라이브 오픈 전 LIVE 키와 웹훅을 별도로 점검해야 합니다."
+            "KG이니시스 TEST 심사 모드입니다. 테스트 거래도 실제 승인되며, 라이브 오픈 전 LIVE 상점키와 실제 승인·취소 흐름을 별도로 점검해야 합니다."
           );
         }
       } catch (error) {

@@ -1,0 +1,53 @@
+<div class="parent-pending-payment inicis-checkout-shell">
+  <div class="inicis-checkout-heading">
+    <strong>카드 결제를 진행해 주세요.</strong>
+    <% if (checkoutConfig.mode === "TEST") { %><span class="payment-test-badge">KG이니시스 테스트 결제</span><% } %>
+    <p>주문번호 <%= checkoutConfig.fields.P_OID %></p>
+  </div>
+  <form id="inicis-payment-form" method="post" accept-charset="UTF-8">
+    <% Object.entries(checkoutConfig.fields).forEach(([name, value]) => { %>
+      <input type="hidden" name="<%= name %>" value="<%= value %>" />
+    <% }); %>
+  </form>
+  <p class="inicis-payment-guide">KG이니시스 결제창에서 카드 또는 지원되는 간편결제를 선택할 수 있습니다.</p>
+  <p class="inicis-payment-error" data-inicis-payment-error role="alert" hidden></p>
+  <button type="button" data-inicis-payment-button disabled><%= new Intl.NumberFormat('ko-KR').format(amount) %>원 결제하기</button>
+</div>
+<script src="<%= checkoutConfig.sdkUrl %>"></script>
+<script>
+  (() => {
+    const form = document.getElementById("inicis-payment-form");
+    const button = document.querySelector("[data-inicis-payment-button]");
+    const errorBox = document.querySelector("[data-inicis-payment-error]");
+    const showError = (message) => {
+      errorBox.textContent = String(message || "결제창을 열지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      errorBox.hidden = false;
+    };
+    if (!form || !button || !window.INIPayPro) {
+      showError("KG이니시스 결제 모듈을 불러오지 못했습니다. 페이지를 새로고침해 주세요.");
+      return;
+    }
+    const deviceField = form.querySelector('[name="P_DEVICE_TYPE"]');
+    if (deviceField) {
+      deviceField.value = /Android|iPhone|iPad|iPod|Mobile/i.test(
+        window.navigator.userAgent
+      )
+        ? "MOBILE"
+        : "WEB";
+    }
+    button.disabled = false;
+    button.addEventListener("click", () => {
+      button.disabled = true;
+      errorBox.hidden = true;
+      try {
+        const paymentFields = Object.fromEntries(new FormData(form).entries());
+        // 공식 INIpay PRO v2 형식대로 결제 필드 객체만 전달한다.
+        // 콜백은 P_NEXT_URL form POST 방식과 함께 사용하지 않는다.
+        window.INIPayPro.requestPayment(paymentFields);
+      } catch (error) {
+        showError(error?.message);
+        button.disabled = false;
+      }
+    });
+  })();
+</script>

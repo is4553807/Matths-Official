@@ -119,7 +119,7 @@ async function main() {
       requests: [{
         _id: "refund-positive",
         userId: { realName: "학생", email: "student@example.com" },
-        paymentId: { provider: "TOSS", providerMode: "TEST" },
+        paymentId: { provider: "INICIS", providerMode: "TEST" },
         productNameSnapshot: "29일 학습권",
         orderReferenceSnapshot: "ORDER-1",
         reasonDetail: "환불 요청 사유입니다.",
@@ -130,7 +130,7 @@ async function main() {
       }, {
         _id: "refund-zero",
         userId: { realName: "학생", email: "student@example.com" },
-        paymentId: { provider: "TOSS", providerMode: "TEST" },
+        paymentId: { provider: "INICIS", providerMode: "TEST" },
         productNameSnapshot: "주간 모의고사 이용권",
         orderReferenceSnapshot: "ORDER-0",
         reasonDetail: "환불 요청 사유입니다.",

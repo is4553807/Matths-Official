@@ -97,6 +97,36 @@ try {
     null,
     "Apple의 정확한 form_post callback만 cross-site 예외여야 합니다."
   );
+  assert.equal(
+    invoke(sameOriginProtection, request({
+      url: "/payments/inicis/return",
+      headers: {
+        origin: "https://stgpaypro.inicis.com",
+        "sec-fetch-site": "cross-site",
+        "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+      },
+    })).error,
+    null,
+    "KG이니시스의 정확한 인증결과 form POST만 cross-site 예외여야 합니다."
+  );
+  const inicisCallbackLookalike = invoke(sameOriginProtection, request({
+    url: "/payments/inicis/return/extra",
+    headers: {
+      origin: "https://attacker.example",
+      "sec-fetch-site": "cross-site",
+      "content-type": "application/x-www-form-urlencoded",
+    },
+  })).error;
+  assert.equal(inicisCallbackLookalike.code, "CROSS_SITE_REQUEST_BLOCKED");
+  const inicisCallbackWrongType = invoke(sameOriginProtection, request({
+    url: "/payments/inicis/return",
+    headers: {
+      origin: "https://attacker.example",
+      "sec-fetch-site": "cross-site",
+      "content-type": "application/json",
+    },
+  })).error;
+  assert.equal(inicisCallbackWrongType.code, "CROSS_SITE_REQUEST_BLOCKED");
   const appleCallbackLookalike = invoke(sameOriginProtection, request({
     url: "/auth/apple/callback/extra",
     headers: { origin: "https://attacker.example", "sec-fetch-site": "cross-site" },

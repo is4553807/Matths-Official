@@ -18,7 +18,7 @@
 <body class="admin-page">
   <%- include("partials/admin-navigation", { activePage: "refunds" }) %>
   <main class="admin-main">
-    <header class="admin-heading"><div><p>PAYMENT REFUNDS</p><h1>환불 관리</h1><span>토스 결제는 환불 완료 버튼을 누르면 서버가 취소 API를 호출하고, 성공 응답을 확인한 뒤 권한을 종료합니다.</span></div><strong><%= refundData.total %><small>건</small></strong></header>
+    <header class="admin-heading"><div><p>PAYMENT REFUNDS</p><h1>환불 관리</h1><span>KG이니시스 결제는 환불 완료 버튼을 누르면 서버가 취소 API를 호출하고, 성공 응답을 확인한 뒤 권한을 종료합니다.</span></div><strong><%= refundData.total %><small>건</small></strong></header>
     <% if (feedback) { %><div class="admin-feedback" role="status"><%= feedback %></div><% } %>
     <form class="admin-filter-bar" method="get"><label><span>처리 상태</span><select name="status"><option value="all">전체</option><% Object.entries(statusLabels).forEach(([value, label]) => { %><option value="<%= value %>" <%= refundData.status === value ? "selected" : "" %>><%= label %></option><% }) %></select></label><button type="submit">필터 적용</button></form>
 
@@ -40,11 +40,11 @@
               <form class="admin-inquiry-actions" action="/admin/refunds/<%= request._id %>/complete" method="post">
                 <label>실제 승인금액<input name="approvedAmount" type="number" min="1" max="<%= request.calculation?.approvedAmount %>" value="<%= request.calculation?.calculatedAmount %>" required /></label>
                 <label>취소 유형<select name="cancellationMode" required><option value="FULL" <%= request.calculation?.calculationType === "FULL" ? "selected" : "" %>>전체 취소</option><option value="PARTIAL" <%= request.calculation?.calculationType !== "FULL" ? "selected" : "" %>>부분 취소</option></select></label>
-                <% if (request.paymentId?.provider !== "TOSS") { %>
+                <% if (request.paymentId?.provider !== "INICIS") { %>
                   <label>결제사 취소 거래키<input name="providerCancellationTransactionKey" minlength="6" maxlength="200" required /></label>
                   <label>결제사 취소 처리시각<input name="providerCancelledAt" type="datetime-local" required /></label>
                 <% } else { %>
-                  <div class="admin-inquiry-content">토스 <%= request.paymentId.providerMode %> 취소 API가 승인금액을 원 결제수단으로 자동 취소합니다.</div>
+                  <div class="admin-inquiry-content">KG이니시스 <%= request.paymentId.providerMode %> 취소 API가 승인금액을 원 결제수단으로 자동 취소합니다.</div>
                 <% } %>
                 <label>운영 메모<textarea name="operatorNote" minlength="5" maxlength="1000" rows="3" required></textarea></label>
                 <button type="submit">결제 취소 및 환불 완료</button>

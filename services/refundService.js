@@ -25,8 +25,8 @@ const { sendAdminUserEmail } = require("./emailService");
 const { calculateRefundQuote } = require("./refundPolicyService");
 const {
   cancelPayment,
-  getTossConfig,
-} = require("./tossPaymentService");
+  getInicisConfig,
+} = require("./inicisPaymentService");
 
 const ADMIN_PAGE_SIZE = 20;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -476,33 +476,34 @@ async function completeRefundRequest({
     );
   }
 
-  if (preflightPayment.provider === "TOSS") {
-    const tossConfig = getTossConfig();
-    if (preflightPayment.providerMode !== tossConfig.mode) {
+  if (preflightPayment.provider === "INICIS") {
+    const inicisConfig = getInicisConfig();
+    if (preflightPayment.providerMode !== inicisConfig.mode) {
       throw statusError(
         409,
-        `${preflightPayment.providerMode || "확인 불가"} 결제는 현재 ${tossConfig.mode} 키로 취소할 수 없습니다.`,
-        "TOSS_REFUND_MODE_MISMATCH"
+        `${preflightPayment.providerMode || "확인 불가"} 결제는 현재 ${inicisConfig.mode} 키로 취소할 수 없습니다.`,
+        "INICIS_REFUND_MODE_MISMATCH"
       );
     }
+    const checkoutIntent = await CheckoutIntent.findOne({
+      orderId: preflightPayment.orderReference,
+      provider: "INICIS",
+    }).select("paymentMethod").lean();
     const cancellation = await cancelPayment({
       paymentKey: preflightPayment.providerPaymentKey,
       cancelReason: `Matths 환불 신청 ${preflightRequest.requestKey}`,
       cancelAmount: requestedAmount,
-      idempotencyKey: `refund-${preflightRequest._id}`,
+      remainingAmount: preflightRemaining - requestedAmount,
+      paymentMethod: checkoutIntent?.paymentMethod || "CARD",
+      fullCancellation: mode === "FULL",
     });
-    const providerCancellation = Array.isArray(cancellation.cancels)
-      ? [...cancellation.cancels]
-          .reverse()
-          .find((entry) => Number(entry.cancelAmount) === requestedAmount)
-      : null;
-    transactionKey = String(providerCancellation?.transactionKey || "").trim();
-    cancelTime = new Date(providerCancellation?.canceledAt || new Date());
-    if (!providerCancellation || transactionKey.length < 6) {
+    transactionKey = String(cancellation.transactionKey || "").trim();
+    cancelTime = new Date(cancellation.cancelledAt || new Date());
+    if (transactionKey.length < 6) {
       throw statusError(
         502,
-        "토스페이먼츠 취소 응답의 거래 정보를 확인할 수 없습니다. 결제 상태를 운영자가 확인해주세요.",
-        "TOSS_CANCELLATION_RESULT_INVALID"
+        "KG이니시스 취소 응답의 거래 정보를 확인할 수 없습니다. 결제 상태를 운영자가 확인해주세요.",
+        "INICIS_CANCELLATION_RESULT_INVALID"
       );
     }
   }

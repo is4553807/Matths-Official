@@ -12,7 +12,7 @@
 <body class="checkout-page">
   <main class="student-checkout-main">
     <section class="student-checkout-card payment-result-card">
-      <% if (mode === "TEST") { %><span class="payment-test-badge">토스 테스트 결제</span><% } %>
+      <% if (mode === "TEST") { %><span class="payment-test-badge">KG이니시스 테스트 결제</span><% } %>
       <% if (result.state === "PAID") { %>
         <p>PAYMENT COMPLETE</p>
         <h1>결제가 완료되었습니다.</h1>
@@ -33,7 +33,7 @@
         <span><%= failure?.message || "결제창을 닫았거나 승인 과정에서 문제가 발생했습니다." %></span>
         <% if (failure?.code) { %><small class="payment-failure-code"><%= failure.code %></small><% } %>
       <% } %>
-      <% if (mode === "TEST") { %><p class="payment-test-note">테스트 모드에서는 실제 금액이 청구되지 않습니다.</p><% } %>
+      <% if (mode === "TEST") { %><p class="payment-test-note">테스트 상점 결과입니다. 실제 승인 여부는 계약된 테스트 상점 정책과 KG이니시스 거래내역에서 확인해 주세요.</p><% } %>
       <a class="checkout-back" href="<%= result.backLink.href %>"><%= result.backLink.label %></a>
     </section>
   </main>

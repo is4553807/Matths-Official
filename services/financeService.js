@@ -33,7 +33,7 @@ function kstDateKey(now = new Date()) {
 }
 
 /*
- * 결제 수수료 유보율은 결제사마다 자릿수가 다르다. 토스는 3% 언저리인데 애플
+ * 결제 수수료 유보율은 결제사마다 자릿수가 다르다. 일반 PG는 3% 언저리인데 애플
  * App Store 는 15~30% 다. 한 값으로 뭉뚱그리면 출금가능액이 그대로 틀어지고,
  * 출금가능액은 페이백 지급 여력 판단에 쓰이므로 실제 은행 송금 금액이 어긋난다.
  * 그래서 유보율은 결제 기록의 provider 를 보고 고른다.
@@ -101,7 +101,7 @@ function pgFeeReserveConfiguration() {
 }
 
 /*
- * 기본(토스) 설정 위에 결제사별 유보율 표를 얹은 확장본.
+ * 기본(PG) 설정 위에 결제사별 유보율 표를 얹은 확장본.
  * FINANCE_PG_FEE_RESERVE_BPS 미설정 시 출금이 잠기는 규칙은 그대로 두고,
  * 애플 몫만 별도 비율로 계상한다 — 애플 커미션은 운영 정책이 아니라 계약 사실이라
  * 기본 유보율 설정 여부와 무관하게 빠져나가는 돈이다.
@@ -116,7 +116,7 @@ function providerFeeReserveConfiguration() {
       // 애플 커미션이 0% 인 경우는 존재하지 않으므로 0 은 언제나 설정 사고다.
       // 기본 유보율에는 미설정 시 출금을 잠그는 안전장치가 있는데 애플 요율에는
       // 없어서, 오타 하나로 애플 몫 전액이 출금가능액으로 흘러나간다.
-      // 기본 유보율보다 낮아지는 것도 막는다 — 애플이 토스보다 싼 경우는 없다.
+      // 기본 유보율보다 낮아지는 것도 막는다 — 애플이 일반 PG보다 싼 경우는 없다.
       APPLE: Math.max(
         apple.configured && apple.bps > 0 ? apple.bps : APPLE_DEFAULT_FEE_RESERVE_BPS,
         Number.isFinite(Number(base.bps)) ? Number(base.bps) : 0
@@ -282,7 +282,7 @@ async function paybackObligations() {
 /*
  * 수금액을 결제사 단위로 쪼갠다. 쪼갤 근거가 없으면(=예전 호출부, 또는 결제사
  * 내역이 총액과 어긋나는 경우) 예전처럼 전액을 기본 유보율 한 덩어리로 본다.
- * 그래야 토스만 있던 기존 계산이 1원도 달라지지 않는다.
+ * 그래야 단일 PG만 있던 기존 계산이 1원도 달라지지 않는다.
  */
 function providerFeeBuckets(payments, pgFeeConfig) {
   const netCollected = payments.netCollected;

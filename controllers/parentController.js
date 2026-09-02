@@ -9,7 +9,7 @@ const {
   getProduct,
   getProductCatalog,
   getPricingProductAccess,
-  isPaidCheckoutEnabled,
+  isPaidCheckoutAllowedForEmail,
   registerParent,
 } = require("../services/checkoutService");
 const {
@@ -277,7 +277,7 @@ exports.pricingPage = async (req, res, next) => {
       selectedChildId: context.selectedChildId,
       products,
       productAccess,
-      checkoutEnabled: isPaidCheckoutEnabled(),
+      checkoutEnabled: isPaidCheckoutAllowedForEmail(parent.email),
     });
   } catch (error) {
     return next(error);
@@ -431,7 +431,7 @@ async function renderCheckout(req, res, { intent = null } = {}) {
 
 exports.checkoutPage = async (req, res, next) => {
   try {
-    assertPaidCheckoutEnabled();
+    assertPaidCheckoutEnabled({ email: req.session.parent.email });
     return await renderCheckout(req, res);
   } catch (error) {
     return next(error);
