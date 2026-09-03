@@ -7,76 +7,54 @@
   const editor = builder.querySelector("[data-academy-omr-editor]");
   const toggleButton = builder.querySelector("[data-academy-omr-toggle]");
   const disableButton = builder.querySelector("[data-academy-omr-disable]");
-  const addSectionButton = builder.querySelector("[data-academy-omr-add-section]");
-  const sectionList = builder.querySelector("[data-academy-omr-sections]");
+  const questionCountInput = builder.querySelector("[data-academy-omr-question-count]");
+  const defaultTypeSelect = builder.querySelector("[data-academy-omr-default-type]");
+  const choiceCountInput = builder.querySelector("[data-academy-omr-choice-count]");
   const answerGrid = builder.querySelector("[data-academy-omr-answers]");
   const countLabel = builder.querySelector("[data-academy-omr-count]");
   const initialElement = builder.querySelector("[data-academy-omr-initial]");
+
   let initial = { enabled: false };
   try {
     initial = JSON.parse(initialElement?.textContent || "{}");
   } catch (_error) {
     initial = { enabled: false };
   }
+
+  const initialSections = Array.isArray(initial.sections) ? initial.sections : [];
+  const initialDefault = initialSections.find((section) => Number(section.startNumber) === 1)
+    || initialSections[0]
+    || {};
+  const initialQuestionCount = Number(initial.questionCount)
+    || Math.max(0, ...initialSections.map((section) => Number(section.endNumber) || 0))
+    || (Array.isArray(initial.answers) ? initial.answers.length : 0)
+    || 30;
+
   let enabled = initial.enabled === true;
-  let sections = enabled && Array.isArray(initial.sections) && initial.sections.length
-    ? initial.sections.map((section) => ({
-        startNumber: Number(section.startNumber),
-        endNumber: Number(section.endNumber),
-        answerType: String(section.answerType || "MULTIPLE_CHOICE"),
-        choiceCount: Number(section.choiceCount || 5),
-      }))
-    : [
-        { startNumber: 1, endNumber: 20, answerType: "MULTIPLE_CHOICE", choiceCount: 5 },
-        { startNumber: 21, endNumber: 30, answerType: "SHORT_ANSWER", choiceCount: 5 },
-      ];
+  let questionCount = Math.min(100, Math.max(1, initialQuestionCount));
+  let defaultAnswerType = initialDefault.answerType === "SHORT_ANSWER"
+    ? "SHORT_ANSWER"
+    : "MULTIPLE_CHOICE";
+  let choiceCount = Math.min(9, Math.max(2, Number(initialDefault.choiceCount) || 5));
   let answers = Array.isArray(initial.answers) ? initial.answers.map(String) : [];
 
-  const sectionFor = (number) => sections.find(
-    (section) => number >= section.startNumber && number <= section.endNumber
-  );
-
   function readAnswerInputs() {
-    const next = [];
     answerGrid.querySelectorAll("[data-academy-omr-answer]").forEach((input) => {
-      next[Number(input.dataset.academyOmrAnswer) - 1] = input.value;
+      answers[Number(input.dataset.academyOmrAnswer) - 1] = input.value;
     });
-    answers = next;
-  }
-
-  function readSectionInputs() {
-    sections = [...sectionList.querySelectorAll("[data-academy-omr-section]")].map((row) => ({
-      startNumber: Number(row.querySelector("[data-omr-start]").value || 0),
-      endNumber: Number(row.querySelector("[data-omr-end]").value || 0),
-      answerType: row.querySelector("[data-omr-type]").value,
-      choiceCount: Number(row.querySelector("[data-omr-choices]").value || 5),
-    }));
   }
 
   function renderAnswers() {
     answerGrid.replaceChildren();
-    const questionCount = Math.max(0, ...sections.map((section) => Number(section.endNumber) || 0));
     countLabel.textContent = `${questionCount}문항`;
     for (let number = 1; number <= questionCount; number += 1) {
-      const section = sectionFor(number);
-      if (!section) continue;
       const label = document.createElement("label");
-      label.className = section.answerType === "MULTIPLE_CHOICE" ? "is-objective" : "is-subjective";
       const numberLabel = document.createElement("span");
       numberLabel.textContent = `${number}번`;
-      let input;
-      if (section.answerType === "MULTIPLE_CHOICE") {
-        input = document.createElement("select");
-        input.append(new Option("정답", ""));
-        for (let choice = 1; choice <= section.choiceCount; choice += 1) {
-          input.append(new Option(String(choice), String(choice)));
-        }
-      } else {
-        input = document.createElement("input");
-        input.type = "text";
-        input.maxLength = 80;
-        input.placeholder = "정답";
-      }
+      const input = document.createElement("input");
+      input.type = "text";
+      input.maxLength = 80;
+      input.placeholder = "정답";
       input.dataset.academyOmrAnswer = String(number);
       input.value = answers[number - 1] || "";
       input.setAttribute("aria-label", `${number}번 교사 정답`);
@@ -85,41 +63,11 @@
     }
   }
 
-  function renderSections() {
-    sectionList.replaceChildren();
-    sections.forEach((section, index) => {
-      const row = document.createElement("div");
-      row.className = "academy-omr-section-row";
-      row.dataset.academyOmrSection = "";
-      row.innerHTML = `
-        <label><span>시작</span><input type="number" min="1" max="100" value="${section.startNumber}" data-omr-start></label>
-        <label><span>끝</span><input type="number" min="1" max="100" value="${section.endNumber}" data-omr-end></label>
-        <label><span>유형</span><select data-omr-type><option value="MULTIPLE_CHOICE">객관식</option><option value="SHORT_ANSWER">주관식</option></select></label>
-        <label><span>선택지</span><input type="number" min="2" max="9" value="${section.choiceCount || 5}" data-omr-choices></label>
-        <button type="button" aria-label="${index + 1}번째 문항 구간 삭제" data-omr-remove>삭제</button>`;
-      row.querySelector("[data-omr-type]").value = section.answerType;
-      const choices = row.querySelector("[data-omr-choices]");
-      choices.disabled = section.answerType !== "MULTIPLE_CHOICE";
-      row.querySelector("[data-omr-type]").addEventListener("change", (event) => {
-        readAnswerInputs();
-        readSectionInputs();
-        choices.disabled = event.currentTarget.value !== "MULTIPLE_CHOICE";
-        renderAnswers();
-      });
-      row.querySelectorAll("input").forEach((input) => input.addEventListener("change", () => {
-        readAnswerInputs();
-        readSectionInputs();
-        renderAnswers();
-      }));
-      row.querySelector("[data-omr-remove]").addEventListener("click", () => {
-        if (sections.length === 1) return;
-        readAnswerInputs();
-        sections.splice(index, 1);
-        renderSections();
-        renderAnswers();
-      });
-      sectionList.append(row);
-    });
+  function renderSetup() {
+    questionCountInput.value = String(questionCount);
+    defaultTypeSelect.value = defaultAnswerType;
+    choiceCountInput.value = String(choiceCount);
+    choiceCountInput.disabled = defaultAnswerType !== "MULTIPLE_CHOICE";
   }
 
   function setEnabled(nextEnabled) {
@@ -128,10 +76,31 @@
     builder.classList.toggle("is-open", enabled);
     toggleButton.textContent = enabled ? "답안지 사용 중" : "답안지 만들기";
     if (enabled) {
-      renderSections();
+      renderSetup();
       renderAnswers();
     }
   }
+
+  questionCountInput.addEventListener("change", () => {
+    readAnswerInputs();
+    const nextCount = Number.parseInt(questionCountInput.value, 10);
+    if (!Number.isInteger(nextCount) || nextCount < 1 || nextCount > 100) return;
+    questionCount = nextCount;
+    answers = answers.slice(0, questionCount);
+    renderAnswers();
+  });
+
+  defaultTypeSelect.addEventListener("change", () => {
+    defaultAnswerType = defaultTypeSelect.value === "SHORT_ANSWER"
+      ? "SHORT_ANSWER"
+      : "MULTIPLE_CHOICE";
+    choiceCountInput.disabled = defaultAnswerType !== "MULTIPLE_CHOICE";
+  });
+
+  choiceCountInput.addEventListener("change", () => {
+    const nextCount = Number.parseInt(choiceCountInput.value, 10);
+    if (Number.isInteger(nextCount) && nextCount >= 2 && nextCount <= 9) choiceCount = nextCount;
+  });
 
   toggleButton.addEventListener("click", () => setEnabled(true));
   disableButton.addEventListener("click", () => {
@@ -141,41 +110,45 @@
     toggleButton.textContent = "답안지 만들기";
     if (payloadInput) payloadInput.value = JSON.stringify({ enabled: false });
   });
-  addSectionButton.addEventListener("click", () => {
-    readAnswerInputs();
-    readSectionInputs();
-    const lastEnd = Math.max(0, ...sections.map((section) => section.endNumber || 0));
-    if (lastEnd >= 100 || sections.length >= 20) return;
-    sections.push({
-      startNumber: lastEnd + 1,
-      endNumber: Math.min(100, lastEnd + 5),
-      answerType: "SHORT_ANSWER",
-      choiceCount: 5,
-    });
-    renderSections();
-    renderAnswers();
-  });
 
   form?.addEventListener("submit", (event) => {
     if (!enabled) return;
     readAnswerInputs();
-    readSectionInputs();
-    const sorted = [...sections].sort((left, right) => left.startNumber - right.startNumber);
-    let expected = 1;
-    const invalid = sorted.some((section) => {
-      const isInvalid = section.startNumber !== expected || section.endNumber < section.startNumber;
-      expected = section.endNumber + 1;
-      return isInvalid;
-    });
-    const questionCount = Math.max(0, ...sorted.map((section) => section.endNumber));
-    const missing = Array.from({ length: questionCount }, (_unused, index) => answers[index] || "")
-      .findIndex((answer) => !String(answer).trim());
-    if (invalid || !questionCount || missing >= 0) {
+    questionCount = Number.parseInt(questionCountInput.value, 10);
+    defaultAnswerType = defaultTypeSelect.value === "SHORT_ANSWER"
+      ? "SHORT_ANSWER"
+      : "MULTIPLE_CHOICE";
+    choiceCount = Number.parseInt(choiceCountInput.value, 10);
+    if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > 100) {
       event.preventDefault();
-      window.alert(invalid ? "문항 구간을 1번부터 빈 번호 없이 이어서 설정해 주세요." : `${missing + 1}번 교사 정답을 입력해 주세요.`);
+      window.alert("총 문항 수를 1개부터 100개 사이로 입력해 주세요.");
       return;
     }
-    payloadInput.value = JSON.stringify({ enabled: true, sections: sorted, answers });
+    if (
+      defaultAnswerType === "MULTIPLE_CHOICE"
+      && (!Number.isInteger(choiceCount) || choiceCount < 2 || choiceCount > 9)
+    ) {
+      event.preventDefault();
+      window.alert("객관식 선택지 수를 2개부터 9개 사이로 입력해 주세요.");
+      return;
+    }
+    const normalizedAnswers = Array.from(
+      { length: questionCount },
+      (_unused, index) => String(answers[index] || "")
+    );
+    const missing = normalizedAnswers.findIndex((answer) => !answer.trim());
+    if (missing >= 0) {
+      event.preventDefault();
+      window.alert(`${missing + 1}번 교사 정답을 입력해 주세요.`);
+      return;
+    }
+    payloadInput.value = JSON.stringify({
+      enabled: true,
+      questionCount,
+      defaultAnswerType,
+      choiceCount: defaultAnswerType === "MULTIPLE_CHOICE" ? choiceCount : 5,
+      answers: normalizedAnswers,
+    });
   });
 
   setEnabled(enabled);

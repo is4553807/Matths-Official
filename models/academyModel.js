@@ -773,6 +773,10 @@ const academyAssignmentSubmissionSchema = new Schema(
     weekId: { type: Schema.Types.ObjectId, ref: "AcademyClassWeek", required: true, index: true },
     studentUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     answers: { type: [String], default: [] },
+    answerModes: {
+      type: [{ type: String, enum: ["MULTIPLE_CHOICE", "SHORT_ANSWER"] }],
+      default: [],
+    },
     answeredCount: { type: Number, min: 0, default: 0 },
     correctByQuestion: { type: [Boolean], default: [] },
     correctCount: { type: Number, min: 0, default: 0 },

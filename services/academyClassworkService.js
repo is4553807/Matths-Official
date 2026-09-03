@@ -99,9 +99,34 @@ function normalizeAssignmentOmr(value, teacherUserId) {
     throw statusError(400, "답안지 설정을 읽을 수 없습니다. 문항 구간을 다시 확인해 주세요.");
   }
   if (!parsed || parsed.enabled === false) return null;
-  const sourceSections = Array.isArray(parsed.sections) ? parsed.sections : [];
+  let sourceSections = Array.isArray(parsed.sections) ? parsed.sections : [];
+  if (!sourceSections.length) {
+    const questionCount = Number.parseInt(parsed.questionCount, 10);
+    const rawDefaultType = String(parsed.defaultAnswerType || parsed.answerType || "")
+      .trim()
+      .toUpperCase();
+    const defaultAnswerType = ["SHORT_ANSWER", "SHORT-ANSWER", "SUBJECTIVE", "주관식", "단답형"]
+      .includes(rawDefaultType)
+      ? "SHORT_ANSWER"
+      : ["MULTIPLE_CHOICE", "MULTIPLE-CHOICE", "OBJECTIVE", "객관식"].includes(rawDefaultType)
+        ? "MULTIPLE_CHOICE"
+        : "";
+    if (
+      Number.isInteger(questionCount)
+      && questionCount >= 1
+      && questionCount <= MAX_OMR_QUESTIONS
+      && defaultAnswerType
+    ) {
+      sourceSections = [{
+        startNumber: 1,
+        endNumber: questionCount,
+        answerType: defaultAnswerType,
+        choiceCount: Number.parseInt(parsed.choiceCount, 10) || 5,
+      }];
+    }
+  }
   if (!sourceSections.length || sourceSections.length > 20) {
-    throw statusError(400, "객관식·주관식 문항 구간을 한 개 이상 설정해 주세요.");
+    throw statusError(400, "총 문항 수와 기본 입력 방식을 다시 확인해 주세요.");
   }
   const sections = sourceSections
     .map((section) => {
@@ -152,14 +177,7 @@ function normalizeAssignmentOmr(value, teacherUserId) {
   const answerKey = sourceAnswers.map((value, index) => {
     const answer = normalizeAnswer(value);
     const questionNumber = index + 1;
-    const section = answerTypeForNumber({ sections }, questionNumber);
     if (!answer) throw statusError(400, `${questionNumber}번 정답을 입력해 주세요.`);
-    if (
-      section.answerType === "MULTIPLE_CHOICE" &&
-      (!/^\d$/.test(answer) || Number(answer) < 1 || Number(answer) > section.choiceCount)
-    ) {
-      throw statusError(400, `${questionNumber}번 객관식 정답은 1~${section.choiceCount} 중 하나여야 합니다.`);
-    }
     return answer;
   });
   return {
@@ -173,14 +191,19 @@ function normalizeAssignmentOmr(value, teacherUserId) {
   };
 }
 
-function omrQuestionRows(omr, answers = []) {
+function omrQuestionRows(omr, answers = [], answerModes = []) {
   if (!omr?.enabled || !Number.isInteger(Number(omr.questionCount))) return [];
   return Array.from({ length: Number(omr.questionCount) }, (_unused, index) => {
     const number = index + 1;
     const section = answerTypeForNumber(omr, number);
+    const defaultAnswerType = section?.answerType || "SHORT_ANSWER";
+    const answerType = ["MULTIPLE_CHOICE", "SHORT_ANSWER"].includes(String(answerModes[index]))
+      ? String(answerModes[index])
+      : defaultAnswerType;
     return {
       number,
-      answerType: section?.answerType || "SHORT_ANSWER",
+      answerType,
+      defaultAnswerType,
       choiceCount: Number(section?.choiceCount || 5),
       answer: String(answers[index] || ""),
     };
@@ -533,7 +556,11 @@ async function getStudentAcademyWeek({ studentUserId, weekId }) {
   }).lean();
   const serialized = serializeWeek(week);
   if (serialized.assignmentOmr) {
-    serialized.assignmentOmr.questions = omrQuestionRows(serialized.assignmentOmr, submission?.answers || []);
+    serialized.assignmentOmr.questions = omrQuestionRows(
+      serialized.assignmentOmr,
+      submission?.answers || [],
+      submission?.answerModes || []
+    );
   }
   return { ...context, week: serialized, submission };
 }
@@ -668,7 +695,7 @@ function stopAcademyAssignmentDeadlineScheduler() {
   assignmentDeadlineRunning = false;
 }
 
-async function submitAcademyAssignment({ studentUserId, weekId, answers }) {
+async function submitAcademyAssignment({ studentUserId, weekId, answers, answerModes }) {
   const context = await getStudentAcademyContext(studentUserId);
   if (!context.academyClass || !mongoose.isValidObjectId(weekId)) {
     throw statusError(404, "제출할 과제를 찾을 수 없습니다.");
@@ -690,11 +717,16 @@ async function submitAcademyAssignment({ studentUserId, weekId, answers }) {
   );
   const missingNumber = normalizedInput.findIndex((answer) => !answer);
   if (missingNumber >= 0) throw statusError(400, `${missingNumber + 1}번 답안을 입력해 주세요.`);
+  const normalizedModes = Array.from({ length: week.assignmentOmr.questionCount }, (_unused, index) => {
+    const requestedMode = String(answerModes?.[index] || "").trim().toUpperCase();
+    if (["MULTIPLE_CHOICE", "SHORT_ANSWER"].includes(requestedMode)) return requestedMode;
+    return answerTypeForNumber(week.assignmentOmr, index + 1)?.answerType || "SHORT_ANSWER";
+  });
   normalizedInput.forEach((answer, index) => {
     const questionNumber = index + 1;
     const section = answerTypeForNumber(week.assignmentOmr, questionNumber);
     if (
-      section?.answerType === "MULTIPLE_CHOICE" &&
+      normalizedModes[index] === "MULTIPLE_CHOICE" &&
       (!/^\d$/.test(answer) || Number(answer) < 1 || Number(answer) > section.choiceCount)
     ) {
       throw statusError(400, `${questionNumber}번 답안을 1~${section.choiceCount} 중에서 선택해 주세요.`);
@@ -709,6 +741,7 @@ async function submitAcademyAssignment({ studentUserId, weekId, answers }) {
         academyId: context.academy._id,
         classId: context.academyClass._id,
         ...graded,
+        answerModes: normalizedModes,
         status: "SUBMITTED",
         submittedAt,
         autoZeroedAt: null,

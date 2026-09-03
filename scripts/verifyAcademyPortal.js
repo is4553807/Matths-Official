@@ -477,10 +477,9 @@ async function main() {
       assignmentInstructions: "교재 10쪽부터 13쪽까지 풀어오세요.",
       assignmentOmr: JSON.stringify({
         enabled: true,
-        sections: [
-          { startNumber: 1, endNumber: 2, answerType: "MULTIPLE_CHOICE", choiceCount: 5 },
-          { startNumber: 3, endNumber: 3, answerType: "SHORT_ANSWER" },
-        ],
+        questionCount: 3,
+        defaultAnswerType: "MULTIPLE_CHOICE",
+        choiceCount: 5,
         answers: ["2", "4", "12"],
       }),
       dueAt: "2026-09-04T18:00",
@@ -559,10 +558,16 @@ async function main() {
       studentUserId: student._id,
       weekId: publishedWeek._id,
       answers: ["2", "3", "12"],
+      answerModes: ["MULTIPLE_CHOICE", "MULTIPLE_CHOICE", "SHORT_ANSWER"],
     });
     assert.equal(assignmentSubmission.correctCount, 2);
     assert.equal(assignmentSubmission.scorePercent, 67);
     assert.equal(assignmentSubmission.status, "SUBMITTED");
+    assert.deepEqual(assignmentSubmission.answerModes, [
+      "MULTIPLE_CHOICE",
+      "MULTIPLE_CHOICE",
+      "SHORT_ANSWER",
+    ]);
     assert.ok(assignmentSubmission.gradedAt);
     assert.equal(await AcademyAssignmentSubmission.countDocuments({ weekId: publishedWeek._id }), 1);
     const submittedStudentWeek = await getStudentAcademyWeek({
@@ -573,6 +578,10 @@ async function main() {
     assert.deepEqual(
       submittedStudentWeek.week.assignmentOmr.questions.map((question) => question.answer),
       ["2", "3", "12"]
+    );
+    assert.deepEqual(
+      submittedStudentWeek.week.assignmentOmr.questions.map((question) => question.answerType),
+      ["MULTIPLE_CHOICE", "MULTIPLE_CHOICE", "SHORT_ANSWER"]
     );
 
     const missedStudent = await User.create({
@@ -1418,6 +1427,9 @@ async function main() {
     assert.match(classworkHtml, new RegExp(`editWeek=${publishedWeek._id}`));
     assert.match(classworkHtml, new RegExp(`/academy/classes/${academyClass._id}/weeks/${publishedWeek._id}/delete`));
     assert.match(classworkHtml, /academy-classwork-layout is-editing/);
+    assert.match(classworkHtml, /총 문항 수/);
+    assert.match(classworkHtml, /기본 입력 방식/);
+    assert.doesNotMatch(classworkHtml, /data-academy-omr-add-section/);
 
     const studentDashboardHtml = await render("student-academy", {
       user: { ...student.toObject(), hasAcademyMembership: true },
@@ -1439,6 +1451,8 @@ async function main() {
     assert.match(studentWeekHtml, /다항식 기본 과제/);
     assert.match(studentWeekHtml, /교재 10쪽부터 13쪽까지/);
     assert.match(studentWeekHtml, /과제 제출하기/);
+    assert.match(studentWeekHtml, /객관식으로 바꾸기/);
+    assert.match(studentWeekHtml, /student-assignment-omr\.js/);
     assert.match(studentWeekHtml, /자동 채점 완료 · 67점/);
     assert.match(studentWeekHtml, /\/learn\/common-math-1\/polynomials\/polynomial-arithmetic/);
 

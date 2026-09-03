@@ -33,6 +33,7 @@
   const editingWeek = weeklyClasswork.editingWeek || null;
   const editingOmr = editingWeek?.assignmentOmr?.enabled ? {
     enabled: true,
+    questionCount: editingWeek.assignmentOmr.questionCount,
     sections: editingWeek.assignmentOmr.sections || [],
     answers: editingWeek.assignmentOmr.answerKey || [],
   } : { enabled: false };
@@ -182,12 +183,16 @@
               <label><span>마감일</span><input type="datetime-local" name="dueAt" value="<%= dateTimeInputValue(editingWeek?.dueAt) %>" /></label>
               <label class="academy-classwork-file-field"><span>과제 파일</span><input type="file" name="assignmentFiles" multiple accept=".pdf,.doc,.docx,.hwp,.hwpx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp" /><small>파일당 30MB, 한 주차 최대 10개입니다. PDF는 다운로드 사용자별 워터마크와 추적 코드가 자동 삽입됩니다.</small></label>
               <section class="academy-omr-builder <%= editingWeek?.assignmentOmr?.enabled ? 'is-open' : '' %>" data-academy-omr-builder>
-                <header><div><small>AUTO-GRADING OMR</small><strong>답안지 만들기</strong><p>객관식·주관식 번호 구간을 나누고 정답을 입력하면 학생에게 같은 OMR이 열립니다.</p></div><button type="button" data-academy-omr-toggle><%= editingWeek?.assignmentOmr?.enabled ? "답안지 사용 중" : "답안지 만들기" %></button></header>
+                <header><div><small>AUTO-GRADING OMR</small><strong>답안지 만들기</strong><p>총 문항 수와 기본 입력 방식을 정한 뒤 정답만 입력하세요. 학생은 실제 문제지에 맞춰 문항별 입력 방식을 바꿀 수 있습니다.</p></div><button type="button" data-academy-omr-toggle><%= editingWeek?.assignmentOmr?.enabled ? "답안지 사용 중" : "답안지 만들기" %></button></header>
                 <div class="academy-omr-editor" data-academy-omr-editor <%= editingWeek?.assignmentOmr?.enabled ? '' : 'hidden' %>>
-                  <div class="academy-omr-section-heading"><strong>문항 구간</strong><button type="button" data-academy-omr-add-section>구간 추가</button></div>
-                  <div class="academy-omr-section-list" data-academy-omr-sections></div>
-                  <p class="academy-omr-guide">문항은 1번부터 빈 번호 없이 이어져야 합니다. 객관식 선택지는 기본 5개이며 최대 9개까지 설정할 수 있습니다.</p>
+                  <div class="academy-omr-quick-setup">
+                    <label><span>총 문항 수</span><input type="number" min="1" max="100" value="30" data-academy-omr-question-count /></label>
+                    <label><span>기본 입력 방식</span><select data-academy-omr-default-type><option value="MULTIPLE_CHOICE">객관식</option><option value="SHORT_ANSWER">주관식</option></select></label>
+                    <label><span>객관식 선택지</span><input type="number" min="2" max="9" value="5" data-academy-omr-choice-count /></label>
+                  </div>
+                  <p class="academy-omr-guide">기본 입력 방식은 학생에게 처음 보이는 답안 형태입니다. 학생은 문제를 풀면서 각 문항을 객관식 또는 주관식으로 바꿀 수 있습니다.</p>
                   <div class="academy-omr-answer-heading"><strong>교사 정답 입력</strong><span data-academy-omr-count>0문항</span></div>
+                  <p class="academy-omr-guide">객관식은 정답 번호를, 주관식은 실제 정답을 입력하세요. 유형이 섞여 있어도 순서대로 정답만 적으면 됩니다.</p>
                   <div class="academy-omr-answer-grid" data-academy-omr-answers></div>
                   <button type="button" class="academy-omr-disable" data-academy-omr-disable>답안지 사용 안 함</button>
                 </div>
