@@ -33,11 +33,11 @@
         <div class="admin-answer-key-guide__copy">
           <p>AUTO-GRADING JSON TEMPLATE</p>
           <h2 id="study-hall-answer-key-guide-title">자동 채점 답안지 스켈레톤</h2>
-          <span>30문항 모의고사 콘텐츠는 아래 파일의 키 이름과 배열 순서를 유지해 작성하세요. 자리표시자를 실제 답안과 해설로 모두 교체한 뒤 업로드해야 합니다.</span>
+          <span>30문항 모의고사 콘텐츠는 문항별 번호·유형·정답·배점·개념·해설을 하나의 questions 객체로 작성하세요. 자리표시자를 실제 값으로 모두 교체한 뒤 업로드해야 합니다.</span>
           <ul>
-            <li><b>answers</b>와 <b>explanations.answer</b>에는 같은 정답 입력</li>
+            <li><b>number</b>는 1번부터 30번까지 중복·누락 없이 입력</li>
             <li><b>points</b>는 문항별 2·3·4점, 전체 합계 100점</li>
-            <li>해설은 출제 의도·핵심 개념·단계별 풀이·요약·주의점까지 작성</li>
+            <li><b>concept</b>는 개념 카탈로그의 값을 정확히 복사</li>
           </ul>
         </div>
         <div class="admin-answer-key-guide__action">
@@ -45,6 +45,7 @@
           <strong>30문항 · 100점</strong>
           <small>주간 공식 모의고사와 같은 자동 채점 형식</small>
           <a href="/templates/matths-answer-key-skeleton.json" download="MATTHS_자동채점_답안지_스켈레톤.json">스켈레톤 JSON 다운로드</a>
+          <a class="is-secondary" href="/templates/matths-ai-concept-catalog.md" download="MATTHS_AI_개념_카탈로그.md">AI 개념 카탈로그 MD 다운로드</a>
         </div>
       </section>
 

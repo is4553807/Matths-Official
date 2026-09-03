@@ -118,12 +118,16 @@ function validateStudyHallAnswerKeyJson(value, { expectedCount = 0 } = {}) {
   // 30문항 모의고사는 주간 공식 모의고사와 동일한 100점·문항 유형 검증을 그대로 적용한다.
   let normalizedRows = rawRows;
   if (questionCount === 30) {
-    normalizedRows = validateAnswerKeyJson(parsed).questions.map((validated, index) => ({
-      ...rawRows[index],
+    const rawByNumber = new Map(
+      rawRows.map((row, index) => [Number(row?.number || index + 1), row])
+    );
+    normalizedRows = validateAnswerKeyJson(parsed).questions.map((validated) => ({
+      ...rawByNumber.get(validated.number),
       ...validated,
-      stem: rawRows[index]?.stem,
-      choices: rawRows[index]?.choices,
-      explanation: rawRows[index]?.explanation ?? validated.explanation,
+      stem: rawByNumber.get(validated.number)?.stem,
+      choices: rawByNumber.get(validated.number)?.choices,
+      explanation:
+        rawByNumber.get(validated.number)?.explanation ?? validated.explanation,
     }));
   }
 

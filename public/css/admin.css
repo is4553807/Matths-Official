@@ -2082,6 +2082,18 @@
   box-shadow: 0 16px 32px rgba(29, 134, 224, 0.32);
 }
 
+.admin-answer-key-guide__action a.is-secondary {
+  margin-top: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(171, 186, 255, 0.32);
+  box-shadow: none;
+}
+
+.admin-answer-key-guide__action a.is-secondary:hover {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+
 @media (max-width: 760px) {
   .admin-answer-key-guide {
     grid-template-columns: 1fr;

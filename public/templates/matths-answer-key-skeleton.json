@@ -1,461 +1,763 @@
 {
-  "schemaVersion": "matths-answer-key-v2",
-  "concepts": [
-    { "conceptId": "__개념_ID_1__", "conceptTitle": "__1번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_2__", "conceptTitle": "__2번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_3__", "conceptTitle": "__3번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_4__", "conceptTitle": "__4번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_5__", "conceptTitle": "__5번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_6__", "conceptTitle": "__6번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_7__", "conceptTitle": "__7번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_8__", "conceptTitle": "__8번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_9__", "conceptTitle": "__9번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_10__", "conceptTitle": "__10번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_11__", "conceptTitle": "__11번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_12__", "conceptTitle": "__12번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_13__", "conceptTitle": "__13번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_14__", "conceptTitle": "__14번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_15__", "conceptTitle": "__15번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_16__", "conceptTitle": "__16번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_17__", "conceptTitle": "__17번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_18__", "conceptTitle": "__18번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_19__", "conceptTitle": "__19번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_20__", "conceptTitle": "__20번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_21__", "conceptTitle": "__21번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_22__", "conceptTitle": "__22번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_23__", "conceptTitle": "__23번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_24__", "conceptTitle": "__24번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_25__", "conceptTitle": "__25번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_26__", "conceptTitle": "__26번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_27__", "conceptTitle": "__27번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_28__", "conceptTitle": "__28번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_29__", "conceptTitle": "__29번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" },
-    { "conceptId": "__개념_ID_30__", "conceptTitle": "__30번 핵심 개념__", "courseTitle": "__과목__", "unitTitle": "__단원__" }
+  "schemaVersion": "matths-answer-key-v3",
+  "referenceCatalog": "MATTHS_AI_개념_카탈로그.md",
+  "instructions": [
+    "questions 배열에는 1번부터 30번까지 각 번호를 정확히 한 번씩 넣으세요. 배열 순서는 달라도 number를 기준으로 정렬됩니다.",
+    "type은 multiple-choice 또는 short-answer 중 하나이며 문항마다 다르게 지정할 수 있습니다.",
+    "multiple-choice 정답은 문자열 1~5 중 하나, short-answer 정답은 채점할 실제 값을 문자열로 입력하세요.",
+    "concept의 모든 값은 AI 개념 카탈로그에서 같은 레코드의 값을 정확히 복사하세요.",
+    "모든 자리표시자를 실제 값으로 교체하고 points 합계를 100점으로 맞추세요."
   ],
-  "answers": [
-    "__1번 정답: 1~5 중 하나__",
-    "__2번 정답: 1~5 중 하나__",
-    "__3번 정답: 1~5 중 하나__",
-    "__4번 정답: 1~5 중 하나__",
-    "__5번 정답: 1~5 중 하나__",
-    "__6번 정답: 1~5 중 하나__",
-    "__7번 정답: 1~5 중 하나__",
-    "__8번 정답: 1~5 중 하나__",
-    "__9번 정답: 1~5 중 하나__",
-    "__10번 정답: 1~5 중 하나__",
-    "__11번 정답: 1~5 중 하나__",
-    "__12번 정답: 1~5 중 하나__",
-    "__13번 정답: 1~5 중 하나__",
-    "__14번 정답: 1~5 중 하나__",
-    "__15번 정답: 1~5 중 하나__",
-    "__16번 정답: 1~5 중 하나__",
-    "__17번 정답: 1~5 중 하나__",
-    "__18번 정답: 1~5 중 하나__",
-    "__19번 정답: 1~5 중 하나__",
-    "__20번 정답: 1~5 중 하나__",
-    "__21번 정답: 1~5 중 하나__",
-    "__22번 정답__",
-    "__23번 정답__",
-    "__24번 정답__",
-    "__25번 정답__",
-    "__26번 정답__",
-    "__27번 정답__",
-    "__28번 정답__",
-    "__29번 정답__",
-    "__30번 정답__"
-  ],
-  "points": [
-    2,
-    2,
-    2,
-    3,
-    3,
-    3,
-    3,
-    3,
-    3,
-    3,
-    3,
-    3,
-    3,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    3,
-    3,
-    3,
-    3,
-    4,
-    4,
-    4,
-    4,
-    4
-  ],
-  "explanations": [
+  "questions": [
     {
       "number": 1,
+      "type": "multiple-choice",
       "answer": "__1번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 2,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__1번 과목_ID__",
+        "courseTitle": "__1번 과목명__",
+        "unitId": "__1번 단원_ID__",
+        "unitTitle": "__1번 단원명__",
+        "conceptId": "__1번 개념_ID__",
+        "conceptTitle": "__1번 핵심 개념__",
+        "conceptKey": "__1번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__1번 출제 의도__",
+        "steps": [
+          "__1번 풀이 1단계__",
+          "__1번 풀이 2단계__"
+        ],
+        "summary": "__1번 풀이 핵심 요약__",
+        "commonMistake": "__1번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 2,
+      "type": "multiple-choice",
       "answer": "__2번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 2,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__2번 과목_ID__",
+        "courseTitle": "__2번 과목명__",
+        "unitId": "__2번 단원_ID__",
+        "unitTitle": "__2번 단원명__",
+        "conceptId": "__2번 개념_ID__",
+        "conceptTitle": "__2번 핵심 개념__",
+        "conceptKey": "__2번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__2번 출제 의도__",
+        "steps": [
+          "__2번 풀이 1단계__",
+          "__2번 풀이 2단계__"
+        ],
+        "summary": "__2번 풀이 핵심 요약__",
+        "commonMistake": "__2번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 3,
+      "type": "multiple-choice",
       "answer": "__3번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 2,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__3번 과목_ID__",
+        "courseTitle": "__3번 과목명__",
+        "unitId": "__3번 단원_ID__",
+        "unitTitle": "__3번 단원명__",
+        "conceptId": "__3번 개념_ID__",
+        "conceptTitle": "__3번 핵심 개념__",
+        "conceptKey": "__3번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__3번 출제 의도__",
+        "steps": [
+          "__3번 풀이 1단계__",
+          "__3번 풀이 2단계__"
+        ],
+        "summary": "__3번 풀이 핵심 요약__",
+        "commonMistake": "__3번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 4,
+      "type": "multiple-choice",
       "answer": "__4번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__4번 과목_ID__",
+        "courseTitle": "__4번 과목명__",
+        "unitId": "__4번 단원_ID__",
+        "unitTitle": "__4번 단원명__",
+        "conceptId": "__4번 개념_ID__",
+        "conceptTitle": "__4번 핵심 개념__",
+        "conceptKey": "__4번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__4번 출제 의도__",
+        "steps": [
+          "__4번 풀이 1단계__",
+          "__4번 풀이 2단계__"
+        ],
+        "summary": "__4번 풀이 핵심 요약__",
+        "commonMistake": "__4번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 5,
+      "type": "multiple-choice",
       "answer": "__5번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__5번 과목_ID__",
+        "courseTitle": "__5번 과목명__",
+        "unitId": "__5번 단원_ID__",
+        "unitTitle": "__5번 단원명__",
+        "conceptId": "__5번 개념_ID__",
+        "conceptTitle": "__5번 핵심 개념__",
+        "conceptKey": "__5번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__5번 출제 의도__",
+        "steps": [
+          "__5번 풀이 1단계__",
+          "__5번 풀이 2단계__"
+        ],
+        "summary": "__5번 풀이 핵심 요약__",
+        "commonMistake": "__5번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 6,
+      "type": "multiple-choice",
       "answer": "__6번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__6번 과목_ID__",
+        "courseTitle": "__6번 과목명__",
+        "unitId": "__6번 단원_ID__",
+        "unitTitle": "__6번 단원명__",
+        "conceptId": "__6번 개념_ID__",
+        "conceptTitle": "__6번 핵심 개념__",
+        "conceptKey": "__6번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__6번 출제 의도__",
+        "steps": [
+          "__6번 풀이 1단계__",
+          "__6번 풀이 2단계__"
+        ],
+        "summary": "__6번 풀이 핵심 요약__",
+        "commonMistake": "__6번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 7,
+      "type": "multiple-choice",
       "answer": "__7번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__7번 과목_ID__",
+        "courseTitle": "__7번 과목명__",
+        "unitId": "__7번 단원_ID__",
+        "unitTitle": "__7번 단원명__",
+        "conceptId": "__7번 개념_ID__",
+        "conceptTitle": "__7번 핵심 개념__",
+        "conceptKey": "__7번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__7번 출제 의도__",
+        "steps": [
+          "__7번 풀이 1단계__",
+          "__7번 풀이 2단계__"
+        ],
+        "summary": "__7번 풀이 핵심 요약__",
+        "commonMistake": "__7번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 8,
+      "type": "multiple-choice",
       "answer": "__8번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__8번 과목_ID__",
+        "courseTitle": "__8번 과목명__",
+        "unitId": "__8번 단원_ID__",
+        "unitTitle": "__8번 단원명__",
+        "conceptId": "__8번 개념_ID__",
+        "conceptTitle": "__8번 핵심 개념__",
+        "conceptKey": "__8번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__8번 출제 의도__",
+        "steps": [
+          "__8번 풀이 1단계__",
+          "__8번 풀이 2단계__"
+        ],
+        "summary": "__8번 풀이 핵심 요약__",
+        "commonMistake": "__8번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 9,
+      "type": "multiple-choice",
       "answer": "__9번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__9번 과목_ID__",
+        "courseTitle": "__9번 과목명__",
+        "unitId": "__9번 단원_ID__",
+        "unitTitle": "__9번 단원명__",
+        "conceptId": "__9번 개념_ID__",
+        "conceptTitle": "__9번 핵심 개념__",
+        "conceptKey": "__9번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__9번 출제 의도__",
+        "steps": [
+          "__9번 풀이 1단계__",
+          "__9번 풀이 2단계__"
+        ],
+        "summary": "__9번 풀이 핵심 요약__",
+        "commonMistake": "__9번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 10,
+      "type": "multiple-choice",
       "answer": "__10번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__10번 과목_ID__",
+        "courseTitle": "__10번 과목명__",
+        "unitId": "__10번 단원_ID__",
+        "unitTitle": "__10번 단원명__",
+        "conceptId": "__10번 개념_ID__",
+        "conceptTitle": "__10번 핵심 개념__",
+        "conceptKey": "__10번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__10번 출제 의도__",
+        "steps": [
+          "__10번 풀이 1단계__",
+          "__10번 풀이 2단계__"
+        ],
+        "summary": "__10번 풀이 핵심 요약__",
+        "commonMistake": "__10번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 11,
+      "type": "multiple-choice",
       "answer": "__11번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__11번 과목_ID__",
+        "courseTitle": "__11번 과목명__",
+        "unitId": "__11번 단원_ID__",
+        "unitTitle": "__11번 단원명__",
+        "conceptId": "__11번 개념_ID__",
+        "conceptTitle": "__11번 핵심 개념__",
+        "conceptKey": "__11번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__11번 출제 의도__",
+        "steps": [
+          "__11번 풀이 1단계__",
+          "__11번 풀이 2단계__"
+        ],
+        "summary": "__11번 풀이 핵심 요약__",
+        "commonMistake": "__11번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 12,
+      "type": "multiple-choice",
       "answer": "__12번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__12번 과목_ID__",
+        "courseTitle": "__12번 과목명__",
+        "unitId": "__12번 단원_ID__",
+        "unitTitle": "__12번 단원명__",
+        "conceptId": "__12번 개념_ID__",
+        "conceptTitle": "__12번 핵심 개념__",
+        "conceptKey": "__12번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__12번 출제 의도__",
+        "steps": [
+          "__12번 풀이 1단계__",
+          "__12번 풀이 2단계__"
+        ],
+        "summary": "__12번 풀이 핵심 요약__",
+        "commonMistake": "__12번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 13,
+      "type": "multiple-choice",
       "answer": "__13번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__13번 과목_ID__",
+        "courseTitle": "__13번 과목명__",
+        "unitId": "__13번 단원_ID__",
+        "unitTitle": "__13번 단원명__",
+        "conceptId": "__13번 개념_ID__",
+        "conceptTitle": "__13번 핵심 개념__",
+        "conceptKey": "__13번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__13번 출제 의도__",
+        "steps": [
+          "__13번 풀이 1단계__",
+          "__13번 풀이 2단계__"
+        ],
+        "summary": "__13번 풀이 핵심 요약__",
+        "commonMistake": "__13번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 14,
+      "type": "multiple-choice",
       "answer": "__14번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__14번 과목_ID__",
+        "courseTitle": "__14번 과목명__",
+        "unitId": "__14번 단원_ID__",
+        "unitTitle": "__14번 단원명__",
+        "conceptId": "__14번 개념_ID__",
+        "conceptTitle": "__14번 핵심 개념__",
+        "conceptKey": "__14번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__14번 출제 의도__",
+        "steps": [
+          "__14번 풀이 1단계__",
+          "__14번 풀이 2단계__"
+        ],
+        "summary": "__14번 풀이 핵심 요약__",
+        "commonMistake": "__14번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 15,
+      "type": "multiple-choice",
       "answer": "__15번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__15번 과목_ID__",
+        "courseTitle": "__15번 과목명__",
+        "unitId": "__15번 단원_ID__",
+        "unitTitle": "__15번 단원명__",
+        "conceptId": "__15번 개념_ID__",
+        "conceptTitle": "__15번 핵심 개념__",
+        "conceptKey": "__15번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__15번 출제 의도__",
+        "steps": [
+          "__15번 풀이 1단계__",
+          "__15번 풀이 2단계__"
+        ],
+        "summary": "__15번 풀이 핵심 요약__",
+        "commonMistake": "__15번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 16,
+      "type": "multiple-choice",
       "answer": "__16번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__16번 과목_ID__",
+        "courseTitle": "__16번 과목명__",
+        "unitId": "__16번 단원_ID__",
+        "unitTitle": "__16번 단원명__",
+        "conceptId": "__16번 개념_ID__",
+        "conceptTitle": "__16번 핵심 개념__",
+        "conceptKey": "__16번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__16번 출제 의도__",
+        "steps": [
+          "__16번 풀이 1단계__",
+          "__16번 풀이 2단계__"
+        ],
+        "summary": "__16번 풀이 핵심 요약__",
+        "commonMistake": "__16번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 17,
+      "type": "multiple-choice",
       "answer": "__17번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__17번 과목_ID__",
+        "courseTitle": "__17번 과목명__",
+        "unitId": "__17번 단원_ID__",
+        "unitTitle": "__17번 단원명__",
+        "conceptId": "__17번 개념_ID__",
+        "conceptTitle": "__17번 핵심 개념__",
+        "conceptKey": "__17번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__17번 출제 의도__",
+        "steps": [
+          "__17번 풀이 1단계__",
+          "__17번 풀이 2단계__"
+        ],
+        "summary": "__17번 풀이 핵심 요약__",
+        "commonMistake": "__17번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 18,
+      "type": "multiple-choice",
       "answer": "__18번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__18번 과목_ID__",
+        "courseTitle": "__18번 과목명__",
+        "unitId": "__18번 단원_ID__",
+        "unitTitle": "__18번 단원명__",
+        "conceptId": "__18번 개념_ID__",
+        "conceptTitle": "__18번 핵심 개념__",
+        "conceptKey": "__18번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__18번 출제 의도__",
+        "steps": [
+          "__18번 풀이 1단계__",
+          "__18번 풀이 2단계__"
+        ],
+        "summary": "__18번 풀이 핵심 요약__",
+        "commonMistake": "__18번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 19,
+      "type": "multiple-choice",
       "answer": "__19번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__19번 과목_ID__",
+        "courseTitle": "__19번 과목명__",
+        "unitId": "__19번 단원_ID__",
+        "unitTitle": "__19번 단원명__",
+        "conceptId": "__19번 개념_ID__",
+        "conceptTitle": "__19번 핵심 개념__",
+        "conceptKey": "__19번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__19번 출제 의도__",
+        "steps": [
+          "__19번 풀이 1단계__",
+          "__19번 풀이 2단계__"
+        ],
+        "summary": "__19번 풀이 핵심 요약__",
+        "commonMistake": "__19번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 20,
+      "type": "multiple-choice",
       "answer": "__20번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__20번 과목_ID__",
+        "courseTitle": "__20번 과목명__",
+        "unitId": "__20번 단원_ID__",
+        "unitTitle": "__20번 단원명__",
+        "conceptId": "__20번 개념_ID__",
+        "conceptTitle": "__20번 핵심 개념__",
+        "conceptKey": "__20번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__20번 출제 의도__",
+        "steps": [
+          "__20번 풀이 1단계__",
+          "__20번 풀이 2단계__"
+        ],
+        "summary": "__20번 풀이 핵심 요약__",
+        "commonMistake": "__20번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 21,
+      "type": "multiple-choice",
       "answer": "__21번 정답: 1~5 중 하나__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__21번 과목_ID__",
+        "courseTitle": "__21번 과목명__",
+        "unitId": "__21번 단원_ID__",
+        "unitTitle": "__21번 단원명__",
+        "conceptId": "__21번 개념_ID__",
+        "conceptTitle": "__21번 핵심 개념__",
+        "conceptKey": "__21번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__21번 출제 의도__",
+        "steps": [
+          "__21번 풀이 1단계__",
+          "__21번 풀이 2단계__"
+        ],
+        "summary": "__21번 풀이 핵심 요약__",
+        "commonMistake": "__21번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 22,
+      "type": "short-answer",
       "answer": "__22번 정답__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__22번 과목_ID__",
+        "courseTitle": "__22번 과목명__",
+        "unitId": "__22번 단원_ID__",
+        "unitTitle": "__22번 단원명__",
+        "conceptId": "__22번 개념_ID__",
+        "conceptTitle": "__22번 핵심 개념__",
+        "conceptKey": "__22번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__22번 출제 의도__",
+        "steps": [
+          "__22번 풀이 1단계__",
+          "__22번 풀이 2단계__"
+        ],
+        "summary": "__22번 풀이 핵심 요약__",
+        "commonMistake": "__22번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 23,
+      "type": "short-answer",
       "answer": "__23번 정답__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__23번 과목_ID__",
+        "courseTitle": "__23번 과목명__",
+        "unitId": "__23번 단원_ID__",
+        "unitTitle": "__23번 단원명__",
+        "conceptId": "__23번 개념_ID__",
+        "conceptTitle": "__23번 핵심 개념__",
+        "conceptKey": "__23번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__23번 출제 의도__",
+        "steps": [
+          "__23번 풀이 1단계__",
+          "__23번 풀이 2단계__"
+        ],
+        "summary": "__23번 풀이 핵심 요약__",
+        "commonMistake": "__23번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 24,
+      "type": "short-answer",
       "answer": "__24번 정답__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__24번 과목_ID__",
+        "courseTitle": "__24번 과목명__",
+        "unitId": "__24번 단원_ID__",
+        "unitTitle": "__24번 단원명__",
+        "conceptId": "__24번 개념_ID__",
+        "conceptTitle": "__24번 핵심 개념__",
+        "conceptKey": "__24번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__24번 출제 의도__",
+        "steps": [
+          "__24번 풀이 1단계__",
+          "__24번 풀이 2단계__"
+        ],
+        "summary": "__24번 풀이 핵심 요약__",
+        "commonMistake": "__24번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 25,
+      "type": "short-answer",
       "answer": "__25번 정답__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 3,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__25번 과목_ID__",
+        "courseTitle": "__25번 과목명__",
+        "unitId": "__25번 단원_ID__",
+        "unitTitle": "__25번 단원명__",
+        "conceptId": "__25번 개념_ID__",
+        "conceptTitle": "__25번 핵심 개념__",
+        "conceptKey": "__25번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__25번 출제 의도__",
+        "steps": [
+          "__25번 풀이 1단계__",
+          "__25번 풀이 2단계__"
+        ],
+        "summary": "__25번 풀이 핵심 요약__",
+        "commonMistake": "__25번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 26,
+      "type": "short-answer",
       "answer": "__26번 정답__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__26번 과목_ID__",
+        "courseTitle": "__26번 과목명__",
+        "unitId": "__26번 단원_ID__",
+        "unitTitle": "__26번 단원명__",
+        "conceptId": "__26번 개념_ID__",
+        "conceptTitle": "__26번 핵심 개념__",
+        "conceptKey": "__26번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__26번 출제 의도__",
+        "steps": [
+          "__26번 풀이 1단계__",
+          "__26번 풀이 2단계__"
+        ],
+        "summary": "__26번 풀이 핵심 요약__",
+        "commonMistake": "__26번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 27,
+      "type": "short-answer",
       "answer": "__27번 정답__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__27번 과목_ID__",
+        "courseTitle": "__27번 과목명__",
+        "unitId": "__27번 단원_ID__",
+        "unitTitle": "__27번 단원명__",
+        "conceptId": "__27번 개념_ID__",
+        "conceptTitle": "__27번 핵심 개념__",
+        "conceptKey": "__27번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__27번 출제 의도__",
+        "steps": [
+          "__27번 풀이 1단계__",
+          "__27번 풀이 2단계__"
+        ],
+        "summary": "__27번 풀이 핵심 요약__",
+        "commonMistake": "__27번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 28,
+      "type": "short-answer",
       "answer": "__28번 정답__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__28번 과목_ID__",
+        "courseTitle": "__28번 과목명__",
+        "unitId": "__28번 단원_ID__",
+        "unitTitle": "__28번 단원명__",
+        "conceptId": "__28번 개념_ID__",
+        "conceptTitle": "__28번 핵심 개념__",
+        "conceptKey": "__28번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__28번 출제 의도__",
+        "steps": [
+          "__28번 풀이 1단계__",
+          "__28번 풀이 2단계__"
+        ],
+        "summary": "__28번 풀이 핵심 요약__",
+        "commonMistake": "__28번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 29,
+      "type": "short-answer",
       "answer": "__29번 정답__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__29번 과목_ID__",
+        "courseTitle": "__29번 과목명__",
+        "unitId": "__29번 단원_ID__",
+        "unitTitle": "__29번 단원명__",
+        "conceptId": "__29번 개념_ID__",
+        "conceptTitle": "__29번 핵심 개념__",
+        "conceptKey": "__29번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__29번 출제 의도__",
+        "steps": [
+          "__29번 풀이 1단계__",
+          "__29번 풀이 2단계__"
+        ],
+        "summary": "__29번 풀이 핵심 요약__",
+        "commonMistake": "__29번 자주 하는 실수와 주의점__"
+      }
     },
     {
       "number": 30,
+      "type": "short-answer",
       "answer": "__30번 정답__",
-      "intent": "__출제 의도를 입력하세요.__",
-      "concept": "__핵심 개념을 입력하세요.__",
-      "steps": [
-        "__풀이 1단계를 입력하세요.__",
-        "__풀이 2단계를 입력하세요.__"
-      ],
-      "summary": "__풀이 핵심을 한 문장으로 정리하세요.__",
-      "commonMistake": "__자주 하는 실수와 주의점을 입력하세요.__"
+      "points": 4,
+      "concept": {
+        "curriculumId": "kr-2022",
+        "courseId": "__30번 과목_ID__",
+        "courseTitle": "__30번 과목명__",
+        "unitId": "__30번 단원_ID__",
+        "unitTitle": "__30번 단원명__",
+        "conceptId": "__30번 개념_ID__",
+        "conceptTitle": "__30번 핵심 개념__",
+        "conceptKey": "__30번 conceptKey__"
+      },
+      "explanation": {
+        "intent": "__30번 출제 의도__",
+        "steps": [
+          "__30번 풀이 1단계__",
+          "__30번 풀이 2단계__"
+        ],
+        "summary": "__30번 풀이 핵심 요약__",
+        "commonMistake": "__30번 자주 하는 실수와 주의점__"
+      }
     }
   ]
 }

@@ -61,19 +61,20 @@
         <div class="admin-answer-key-guide__copy">
           <p>AUTO-GRADING JSON TEMPLATE</p>
           <h2 id="private-mock-answer-key-guide-title">자동 채점 답안지 스켈레톤</h2>
-          <span>새 문제를 만들 때 아래 파일의 키 이름과 배열 순서를 유지해 답안·배점·해설을 작성하세요. 자리표시자는 실제 내용으로 모두 교체해야 합니다.</span>
+          <span>새 문제를 만들 때 문항별 객체 안에 번호·유형·정답·배점·개념·해설을 함께 작성하세요. 문항 배열 순서가 섞여도 number를 기준으로 정렬되며, 자리표시자는 실제 내용으로 모두 교체해야 합니다.</span>
           <ul>
-            <li><b>answers</b>는 1번부터 30번까지 문자열 30개</li>
+            <li><b>questions</b>에는 1번부터 30번까지 중복·누락 없는 문항 객체 30개</li>
+            <li><b>type</b>은 객관식 multiple-choice 또는 주관식 short-answer</li>
             <li><b>points</b>는 문항별 2·3·4점, 전체 합계 100점</li>
-            <li><b>concepts</b>는 각 문항의 개념 ID·개념명·과목·단원을 1번부터 순서대로 작성</li>
-            <li><b>explanations</b>는 문항 번호·정답·출제 의도·개념·풀이 단계·요약·주의점 작성</li>
+            <li><b>concept</b>는 AI 개념 카탈로그의 ID·제목·과목·단원 값을 정확히 복사</li>
           </ul>
         </div>
         <div class="admin-answer-key-guide__action">
           <span>주간 공식 모의고사 기준</span>
           <strong>30문항 · 100점</strong>
-          <small>1~21번 객관식 · 22~30번 단답형</small>
+          <small>v3 문항별 번호 연결 · 객관식/주관식 혼합 가능</small>
           <a href="/templates/matths-answer-key-skeleton.json" download="MATTHS_자동채점_답안지_스켈레톤.json">스켈레톤 JSON 다운로드</a>
+          <a class="is-secondary" href="/templates/matths-ai-concept-catalog.md" download="MATTHS_AI_개념_카탈로그.md">AI 개념 카탈로그 MD 다운로드</a>
         </div>
       </section>
 
@@ -138,7 +139,7 @@
               <label class="archive-admin-file-picker private-mock-file-picker">
                 <span>답안지 JSON</span>
                 <input type="file" name="answerKeyFiles" accept=".json,application/json" required />
-                <small>상단 스켈레톤과 같은 형식으로 올려주세요. 30문항·100점·문항별 개념을 즉시 검증하며 유저에게 공개하지 않습니다.</small>
+                <small>상단 v3 스켈레톤 형식으로 올려주세요. 번호 중복·누락, 30문항·100점, 문항 유형과 실제 개념 ID를 즉시 검증하며 유저에게 공개하지 않습니다.</small>
               </label>
               <label class="archive-admin-file-picker private-mock-file-picker">
                 <span>확인용 답지 PDF <b>선택</b></span>

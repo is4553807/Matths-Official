@@ -4952,6 +4952,10 @@ const privateMockExamSchema =
                 max: 60,
                 default: 0,
             },
+            questionNumbers: {
+                type: [Number],
+                default: [],
+            },
             answerKey: {
                 type: [String],
                 default: [],
@@ -4977,10 +4981,14 @@ const privateMockExamSchema =
             questionConcepts: {
                 type: [
                     {
+                        curriculumId: { type: String, trim: true, maxlength: 80, default: "" },
+                        courseId: { type: String, trim: true, maxlength: 100, default: "" },
                         conceptId: { type: String, trim: true, maxlength: 140, required: true },
                         conceptTitle: { type: String, trim: true, maxlength: 180, required: true },
                         courseTitle: { type: String, trim: true, maxlength: 120, default: "" },
+                        unitId: { type: String, trim: true, maxlength: 100, default: "" },
                         unitTitle: { type: String, trim: true, maxlength: 160, default: "" },
+                        conceptKey: { type: String, trim: true, maxlength: 400, default: "" },
                     },
                 ],
                 default: [],

@@ -81,6 +81,11 @@ const {
   recordOperationalMetricEvent,
 } = require("./operationalMetricEventService");
 const {
+  conceptKey: curriculumConceptKey,
+  findCurriculumConcept,
+  loadCurriculum,
+} = require("./curriculumService");
+const {
   destroyStoredAsset,
   signedStoredAssetUrl,
   STORAGE_PURPOSES,
@@ -342,9 +347,121 @@ function standardQuestionMode(
     : "short-answer";
 }
 
-function normalizeQuestionConcept(question, number, { requireConcepts = false } = {}) {
+function isAnswerKeyPlaceholder(value) {
+  return /^__.+__$/.test(
+    cleanSingleLine(value, 500)
+  );
+}
+
+function canonicalQuestionConcept(source, number) {
+  if (!source || typeof source !== "object") {
+    throw statusError(400, `${number}번 문항의 concept 객체를 입력해 주세요.`);
+  }
+
+  const curriculumId = cleanSingleLine(source.curriculumId, 80);
+  const courseId = cleanSingleLine(source.courseId, 100);
+  const unitId = cleanSingleLine(source.unitId, 100);
+  const conceptId = cleanSingleLine(source.conceptId || source.id, 140);
+  const suppliedCourseTitle = cleanSingleLine(source.courseTitle, 120);
+  const suppliedUnitTitle = cleanSingleLine(source.unitTitle, 160);
+  const suppliedConceptTitle = cleanSingleLine(
+    source.conceptTitle || source.title || source.name,
+    180
+  );
+  const requiredFields = [
+    ["curriculumId", curriculumId],
+    ["courseId", courseId],
+    ["unitId", unitId],
+    ["conceptId", conceptId],
+    ["courseTitle", suppliedCourseTitle],
+    ["unitTitle", suppliedUnitTitle],
+    ["conceptTitle", suppliedConceptTitle],
+  ];
+
+  for (const [field, value] of requiredFields) {
+    if (!value || isAnswerKeyPlaceholder(value)) {
+      throw statusError(400, `${number}번 문항의 ${field}를 실제 개념 카탈로그 값으로 입력해 주세요.`);
+    }
+  }
+
+  const curriculum = loadCurriculum();
+  const expectedCurriculumId = cleanSingleLine(
+    curriculum.curriculum?.id || "kr-2022",
+    80
+  );
+  if (curriculumId !== expectedCurriculumId) {
+    throw statusError(
+      400,
+      `${number}번 문항의 curriculumId가 현재 교육과정과 일치하지 않습니다.`
+    );
+  }
+
+  const match = findCurriculumConcept(
+    curriculum,
+    courseId,
+    unitId,
+    conceptId
+  );
+  if (!match) {
+    throw statusError(
+      400,
+      `${number}번 문항의 courseId·unitId·conceptId 조합을 개념 카탈로그에서 찾을 수 없습니다.`
+    );
+  }
+
+  const canonical = {
+    curriculumId: expectedCurriculumId,
+    courseId: match.course.id,
+    courseTitle: match.course.officialTitle || match.course.title || match.course.id,
+    unitId: match.unit.id,
+    unitTitle: match.unit.title || match.unit.id,
+    conceptId: match.concept.id,
+    conceptTitle: match.concept.title || match.concept.id,
+    conceptKey: curriculumConceptKey(
+      match.course.id,
+      match.unit.id,
+      match.concept.id
+    ),
+  };
+  const titleFields = [
+    ["courseTitle", suppliedCourseTitle],
+    ["unitTitle", suppliedUnitTitle],
+    ["conceptTitle", suppliedConceptTitle],
+  ];
+  for (const [field, suppliedValue] of titleFields) {
+    if (suppliedValue !== canonical[field]) {
+      throw statusError(
+        400,
+        `${number}번 문항의 ${field}이 개념 카탈로그와 일치하지 않습니다. 올바른 값: ${canonical[field]}`
+      );
+    }
+  }
+
+  const suppliedConceptKey = cleanSingleLine(source.conceptKey, 400);
+  if (
+    suppliedConceptKey &&
+    !isAnswerKeyPlaceholder(suppliedConceptKey) &&
+    suppliedConceptKey !== canonical.conceptKey
+  ) {
+    throw statusError(
+      400,
+      `${number}번 문항의 conceptKey가 개념 카탈로그와 일치하지 않습니다.`
+    );
+  }
+
+  return canonical;
+}
+
+function normalizeQuestionConcept(
+  question,
+  number,
+  { requireConcepts = false, requireCanonicalConcept = false } = {}
+) {
   const explanation = question?.explanation || question?.solution || null;
   const source = question?.conceptMeta || question?.concept || explanation?.concept || null;
+  if (requireCanonicalConcept) {
+    return canonicalQuestionConcept(source, number);
+  }
   const conceptTitle = cleanSingleLine(
     typeof source === "string"
       ? source
@@ -404,6 +521,16 @@ function validateAnswerKeyJson(
         "답지 JSON 문법이 올바르지 않습니다."
       );
     }
+  }
+
+  const schemaVersion = cleanSingleLine(parsed?.schemaVersion, 80);
+  const isVersion3 = schemaVersion === "matths-answer-key-v3";
+
+  if (isVersion3 && !Array.isArray(parsed?.questions)) {
+    throw statusError(
+      400,
+      "matths-answer-key-v3 답지에는 문항별 number·type·answer·points·concept·explanation을 담은 questions 배열이 필요합니다."
+    );
   }
 
   let questions =
@@ -471,6 +598,23 @@ function validateAnswerKeyJson(
       );
   }
 
+  if (isVersion3 && Array.isArray(questions) && questions.length === 30) {
+    const seenNumbers = new Set();
+    for (const question of questions) {
+      const number = Number(question?.number);
+      if (!Number.isInteger(number) || number < 1 || number > 30) {
+        throw statusError(400, "v3 답지의 문항 번호는 1부터 30 사이의 정수여야 합니다.");
+      }
+      if (seenNumbers.has(number)) {
+        throw statusError(400, `v3 답지에 ${number}번 문항이 중복되어 있습니다.`);
+      }
+      seenNumbers.add(number);
+    }
+    questions = [...questions].sort(
+      (left, right) => Number(left.number) - Number(right.number)
+    );
+  }
+
   if (
     !Array.isArray(
       questions
@@ -510,10 +654,20 @@ function validateAnswerKeyJson(
           standardQuestionMode(
             index + 1
           );
-        const type =
-          question.type
-            ? question.type ===
-              "short-answer"
+        const requestedType = cleanSingleLine(question.type, 40);
+        if (
+          isVersion3 &&
+          !["multiple-choice", "short-answer"].includes(requestedType)
+        ) {
+          throw statusError(
+            400,
+            `${number || index + 1}번 문항의 type은 multiple-choice 또는 short-answer여야 합니다.`
+          );
+        }
+        const type = isVersion3
+          ? requestedType
+          : question.type
+            ? question.type === "short-answer"
               ? "short-answer"
               : "multiple-choice"
             : expectedType;
@@ -521,7 +675,14 @@ function validateAnswerKeyJson(
           question.explanation ||
           question.solution ||
           null;
-        const concept = normalizeQuestionConcept(question, number || index + 1, { requireConcepts });
+        const concept = normalizeQuestionConcept(
+          question,
+          number || index + 1,
+          {
+            requireConcepts,
+            requireCanonicalConcept: isVersion3,
+          }
+        );
 
         if (
           number !==
@@ -541,6 +702,50 @@ function validateAnswerKeyJson(
         }
 
         if (
+          isVersion3 &&
+          isAnswerKeyPlaceholder(question.answer)
+        ) {
+          throw statusError(
+            400,
+            `${number}번 정답의 자리표시자를 실제 정답으로 교체해 주세요.`
+          );
+        }
+
+        if (isVersion3) {
+          const explanationFields = [
+            ["intent", explanationSource?.intent],
+            ["summary", explanationSource?.summary],
+            ["commonMistake", explanationSource?.commonMistake],
+          ];
+          if (!explanationSource || typeof explanationSource !== "object") {
+            throw statusError(400, `${number}번 문항의 explanation 객체를 입력해 주세요.`);
+          }
+          for (const [field, value] of explanationFields) {
+            const cleaned = cleanMultiline(value, 5000);
+            if (!cleaned || isAnswerKeyPlaceholder(cleaned)) {
+              throw statusError(
+                400,
+                `${number}번 문항의 explanation.${field}를 실제 내용으로 입력해 주세요.`
+              );
+            }
+          }
+          if (
+            !Array.isArray(explanationSource.steps) ||
+            !explanationSource.steps.length ||
+            explanationSource.steps.some((step) => {
+              const cleaned = cleanMultiline(step, 3000);
+              return !cleaned || isAnswerKeyPlaceholder(cleaned);
+            })
+          ) {
+            throw statusError(
+              400,
+              `${number}번 문항의 explanation.steps를 실제 풀이 단계로 입력해 주세요.`
+            );
+          }
+        }
+
+        if (
+          !isVersion3 &&
           type !== expectedType
         ) {
           throw statusError(
@@ -643,7 +848,7 @@ function validateAnswerKeyJson(
 
   return {
     schemaVersion:
-      cleanSingleLine(parsed?.schemaVersion, 80) ||
+      schemaVersion ||
       (normalized.every((question) => question.concept) ? "matths-answer-key-v2" : "matths-answer-key-v1"),
     questionCount: 30,
     totalPoints,
@@ -1316,6 +1521,7 @@ function gradePrivateMockAnswers({
   answers,
   answerKey,
   points,
+  questionNumbers,
   questionCount,
 }) {
   const normalizedAnswers =
@@ -1323,6 +1529,42 @@ function gradePrivateMockAnswers({
       answers,
       questionCount
     );
+  const storedQuestionNumbers =
+    Array.isArray(questionNumbers) &&
+    questionNumbers.length === questionCount
+      ? questionNumbers.map(Number)
+      : Array.from(
+          { length: questionCount },
+          (_unused, index) => index + 1
+        );
+  const uniqueQuestionNumbers =
+    new Set(storedQuestionNumbers);
+  if (
+    uniqueQuestionNumbers.size !== questionCount ||
+    storedQuestionNumbers.some(
+      (number) =>
+        !Number.isInteger(number) ||
+        number < 1 ||
+        number > questionCount
+    )
+  ) {
+    throw statusError(
+      500,
+      "저장된 모의고사의 문항 번호 연결 정보가 올바르지 않습니다."
+    );
+  }
+  const answerKeyByQuestion =
+    Array(questionCount).fill("");
+  const pointsByQuestion =
+    Array(questionCount).fill(0);
+  storedQuestionNumbers.forEach(
+    (number, storageIndex) => {
+      answerKeyByQuestion[number - 1] =
+        answerKey[storageIndex];
+      pointsByQuestion[number - 1] =
+        Number(points[storageIndex]) || 0;
+    }
+  );
   const correctByQuestion =
     Array(
       questionCount
@@ -1335,7 +1577,7 @@ function gradePrivateMockAnswers({
       if (
         isCorrectAnswer(
           answer,
-          answerKey[index]
+          answerKeyByQuestion[index]
         )
       ) {
         correctByQuestion[
@@ -1344,7 +1586,7 @@ function gradePrivateMockAnswers({
         correctCount += 1;
         score +=
           Number(
-            points[index]
+            pointsByQuestion[index]
           ) || 0;
       }
     }
@@ -1365,12 +1607,12 @@ function gradePrivateMockAnswers({
         correctByQuestion.filter(
           (isCorrect, index) =>
             Number(
-              points[index]
+              pointsByQuestion[index]
             ) === 3 &&
             isCorrect
         ).length,
       threePointTotal:
-        points.filter(
+        pointsByQuestion.filter(
           (point) =>
             Number(point) === 3
         ).length,
@@ -1378,12 +1620,12 @@ function gradePrivateMockAnswers({
         correctByQuestion.filter(
           (isCorrect, index) =>
             Number(
-              points[index]
+              pointsByQuestion[index]
             ) === 4 &&
             isCorrect
         ).length,
       fourPointTotal:
-        points.filter(
+        pointsByQuestion.filter(
           (point) =>
             Number(point) === 4
         ).length,
@@ -1585,6 +1827,11 @@ async function createPrivateMockExam({
           duration,
         questionCount:
           questions.length,
+        questionNumbers:
+          questions.map(
+            (question) =>
+              question.number
+          ),
         answerKey:
           questions.map(
             (question) =>
@@ -8274,6 +8521,8 @@ async function submitPrivateMockAttempt({
         exam.answerKey,
       points:
         exam.points,
+      questionNumbers:
+        exam.questionNumbers,
       questionCount:
         exam.questionCount,
     });
@@ -9849,6 +10098,8 @@ async function regradePrivateMockExam({
           exam.answerKey,
         points:
           exam.points,
+        questionNumbers:
+          exam.questionNumbers,
         questionCount:
           exam.questionCount,
       });
@@ -11217,6 +11468,7 @@ module.exports = {
   getSundayReleaseAt,
   getWeekSelectionLockAt,
   getUploadReminderWindow,
+  gradePrivateMockAnswers,
   parseSeoulReleaseAt,
   parsePrivateMockExamDate,
   privateMockAttemptNumber,

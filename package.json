@@ -75,6 +75,8 @@
     "account-deletion:verify-db": "node scripts/verifyAccountDeletionDb.js",
     "placement:verify": "node scripts/verifyPlacementExamBank.js",
     "placement-story:verify": "node scripts/verifyFreePlacementStory.js",
+    "ai-concept-catalog:build": "node scripts/generateAiConceptCatalog.js",
+    "ai-concept-catalog:verify": "node scripts/generateAiConceptCatalog.js --check",
     "problem-types:verify": "node scripts/verifyProblemTypeCatalog.js",
     "problem-types:sync": "node scripts/syncProblemTypeCatalog.js",
     "problem-types:verify-db": "node scripts/verifyProblemTypeCatalogDb.js",
