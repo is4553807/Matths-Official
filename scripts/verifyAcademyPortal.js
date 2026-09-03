@@ -1578,6 +1578,10 @@ async function main() {
     const academyPortalRoutes = fs.readFileSync(path.join(root, "routes", "academy-routes.js"), "utf8");
     assert.match(academyPortalRoutes, /"\/my-academy"/);
     assert.match(academyPortalRoutes, /"\/academy\/classes\/:classId\/weeks"/);
+    const academyOmrClient = fs.readFileSync(path.join(root, "public", "js", "academy-assignment-omr.js"), "utf8");
+    assert.match(academyOmrClient, /academy-omr-answer-bubbles/);
+    assert.match(academyOmrClient, /aria-pressed/);
+    assert.doesNotMatch(academyOmrClient, /createElement\("select"\)/);
     const dashboardNavigation = fs.readFileSync(path.join(root, "views", "partials", "dashboard-navigation.ejs"), "utf8");
     assert.match(dashboardNavigation, /hasAcademyMembership/);
     assert.match(dashboardNavigation, /label: "학원"/);

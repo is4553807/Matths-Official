@@ -84,21 +84,41 @@
 
       let input;
       if (answerType === "MULTIPLE_CHOICE") {
-        input = document.createElement("select");
-        input.append(new Option("정답 선택", ""));
+        input = document.createElement("input");
+        input.type = "hidden";
+        input.value = answers[index] || "";
+        const bubbles = document.createElement("div");
+        bubbles.className = "academy-omr-answer-bubbles";
+        bubbles.setAttribute("role", "group");
+        bubbles.setAttribute("aria-label", `${number}번 객관식 정답`);
         for (let choice = 1; choice <= choiceCount; choice += 1) {
-          input.append(new Option(String(choice), String(choice)));
+          const choiceButton = document.createElement("button");
+          choiceButton.type = "button";
+          choiceButton.textContent = String(choice);
+          choiceButton.setAttribute("aria-pressed", String(input.value === String(choice)));
+          choiceButton.setAttribute("aria-label", `${number}번 정답 ${choice}번`);
+          choiceButton.addEventListener("click", () => {
+            input.value = String(choice);
+            answers[index] = String(choice);
+            bubbles.querySelectorAll("button").forEach((button) => {
+              button.setAttribute("aria-pressed", String(button === choiceButton));
+            });
+          });
+          bubbles.append(choiceButton);
         }
+        input.dataset.academyOmrAnswer = String(number);
+        input.setAttribute("aria-label", `${number}번 교사 정답`);
+        card.append(heading, bubbles, input);
       } else {
         input = document.createElement("input");
         input.type = "text";
         input.maxLength = 80;
         input.placeholder = "정답 입력";
+        input.dataset.academyOmrAnswer = String(number);
+        input.value = answers[index] || "";
+        input.setAttribute("aria-label", `${number}번 교사 정답`);
+        card.append(heading, input);
       }
-      input.dataset.academyOmrAnswer = String(number);
-      input.value = answers[index] || "";
-      input.setAttribute("aria-label", `${number}번 교사 정답`);
-      card.append(heading, input);
       answerGrid.append(card);
     }
   }
