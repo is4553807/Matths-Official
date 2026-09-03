@@ -8608,21 +8608,58 @@
   letter-spacing: -.055em;
 }
 
-.admin-academy-detail-hero > nav {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+.admin-academy-section-navigation {
+  flex: 1 1 600px;
+  max-width: 720px;
+}
+
+.admin-academy-section-nav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(104px, 1fr));
   gap: 7px;
 }
 
-.admin-academy-detail-hero > nav a {
-  padding: 8px 10px;
+.admin-academy-section-nav a {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  min-height: 58px;
+  align-content: center;
+  padding: 9px 11px;
   color: #58627c;
   background: #f4f6fa;
-  border-radius: 8px;
-  font-size: 9px;
-  font-weight: 800;
+  border: 1px solid transparent;
+  border-radius: 10px;
   text-decoration: none;
+}
+
+.admin-academy-section-nav a span {
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.admin-academy-section-nav a small {
+  overflow: hidden;
+  color: #68728a;
+  font-size: 9px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-academy-section-nav a.active {
+  color: #fff;
+  background: var(--admin-blue);
+  border-color: var(--admin-blue);
+  box-shadow: 0 10px 20px rgba(49, 87, 246, .18);
+}
+
+.admin-academy-section-nav a.active small {
+  color: #fff;
+}
+
+.admin-academy-mobile-section-nav {
+  display: none;
 }
 
 .admin-academy-critical-note,
@@ -9212,8 +9249,38 @@
     flex-direction: column;
   }
 
-  .admin-academy-detail-hero > nav {
-    justify-content: flex-start;
+  .admin-academy-section-navigation {
+    width: 100%;
+    max-width: none;
+    flex: none;
+  }
+
+  .admin-academy-section-nav {
+    display: none;
+  }
+
+  .admin-academy-mobile-section-nav {
+    display: grid;
+    gap: 7px;
+  }
+
+  .admin-academy-mobile-section-nav > span {
+    color: #69738a;
+    font-size: 9px;
+    font-weight: 850;
+  }
+
+  .admin-academy-mobile-section-nav select {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 42px 0 13px;
+    color: #27304a;
+    background-color: #f4f6fa;
+    border: 1px solid #dfe4ee;
+    border-radius: 11px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 850;
   }
 
   .admin-academy-count-grid,

@@ -199,9 +199,11 @@ async function getAdminAcademyList({ adminUserId, search = "", status = "ALL", p
   };
 }
 
-async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, now = new Date() }) {
+async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, section = "all", now = new Date() }) {
   await assertSuperAdmin(adminUserId);
   validObjectId(academyId, "학원");
+  const normalizedSection = String(section || "all").trim().toLowerCase();
+  const includeSection = (...sections) => normalizedSection === "all" || sections.includes(normalizedSection);
   const academy = await Academy.findById(academyId)
     .populate("createdByUserId", ADMIN_USER_FIELDS)
     .populate("reviewedByUserId", "name realName email")
@@ -210,18 +212,18 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, now = 
   academy.profileImageSrc = signedCloudinaryUrl(academy.profileImageAsset) || "";
 
   const [staff, memberships, classes, classWeeks, invites, attendanceSessions, attendanceRecords, attendanceAudits] = await Promise.all([
-    AcademyStaff.find({ academyId: academy._id })
+    includeSection("overview", "members", "classes") ? AcademyStaff.find({ academyId: academy._id })
       .sort({ role: 1, status: 1, createdAt: 1 })
       .populate("userId", ADMIN_USER_FIELDS)
       .populate("reviewedByUserId", "name realName email")
-      .lean(),
-    AcademyStudentMembership.find({ academyId: academy._id })
+      .lean() : Promise.resolve([]),
+    includeSection("overview", "analytics", "members", "classes") ? AcademyStudentMembership.find({ academyId: academy._id })
       .sort({ status: 1, requestedAt: -1 })
       .populate("studentUserId", ADMIN_USER_FIELDS)
       .populate("classId", "name isActive")
       .populate("reviewedByUserId", "name realName email")
-      .lean(),
-    AcademyClass.find({ academyId: academy._id })
+      .lean() : Promise.resolve([]),
+    includeSection("overview", "members", "classes") ? AcademyClass.find({ academyId: academy._id })
       .sort({ isActive: -1, name: 1 })
       .populate("createdByUserId", "name realName email")
       .populate("homeroomTeacherUserId", "name realName email")
@@ -231,53 +233,57 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, now = 
       .populate("teacherHistory.changedByUserId", "name realName email")
       .populate("archivedByUserId", "name realName email")
       .populate("lifecycleHistory.actedByUserId", "name realName email")
-      .lean(),
-    AcademyClassWeek.find({ academyId: academy._id })
+      .lean() : Promise.resolve([]),
+    includeSection("classes") ? AcademyClassWeek.find({ academyId: academy._id })
       .sort({ academicYear: -1, weekNumber: -1, _id: -1 })
       .populate("classId", "name isActive")
       .populate("createdByUserId", "name realName email")
       .populate("updatedByUserId", "name realName email")
-      .lean(),
-    AcademyInvite.find({ academyId: academy._id })
+      .lean() : Promise.resolve([]),
+    includeSection("overview", "members") ? AcademyInvite.find({ academyId: academy._id })
       .sort({ createdAt: -1 })
       .populate("createdByUserId", "name realName email")
       .populate("classId", "name isActive")
-      .lean(),
-    AcademyAttendanceSession.find({ academyId: academy._id })
+      .lean() : Promise.resolve([]),
+    includeSection("attendance") ? AcademyAttendanceSession.find({ academyId: academy._id })
       .sort({ startsAt: -1, _id: -1 })
       .limit(40)
       .populate("classId", "name isActive")
       .populate("createdByUserId", "name realName email")
-      .lean(),
-    AcademyAttendance.find({ academyId: academy._id })
+      .lean() : Promise.resolve([]),
+    includeSection("attendance") ? AcademyAttendance.find({ academyId: academy._id })
       .sort({ dateKey: -1, updatedAt: -1, _id: -1 })
       .limit(120)
       .populate("studentUserId", ADMIN_USER_FIELDS)
       .populate("classId", "name isActive")
       .populate("sessionId", "dateKey startsAt attendanceMode status")
       .populate("recordedByUserId", "name realName email role")
-      .lean(),
-    AcademyAttendanceAudit.find({ academyId: academy._id })
+      .lean() : Promise.resolve([]),
+    includeSection("attendance") ? AcademyAttendanceAudit.find({ academyId: academy._id })
       .sort({ occurredAt: -1, _id: -1 })
       .limit(120)
       .populate("studentUserId", ADMIN_USER_FIELDS)
       .populate("classId", "name isActive")
       .populate("actorUserId", "name realName email role")
-      .lean(),
+      .lean() : Promise.resolve([]),
   ]);
   const approvedMemberships = memberships.filter((membership) => membership.status === "APPROVED" && membership.studentUserId);
   const studentUserIds = approvedMemberships.map((membership) => membership.studentUserId._id);
-  const [statistics, mathMap, weeklyMockInsights] = await Promise.all([
-    getAcademyMonthlyStatistics({ studentUserIds, periodKey }),
-    getClassMathMap({ studentUserIds }),
-    getAcademyWeeklyMockInsights({ academyId: academy._id }),
-  ]);
+  const [statistics, mathMap, weeklyMockInsights] = includeSection("analytics")
+    ? await Promise.all([
+      getAcademyMonthlyStatistics({ studentUserIds, periodKey }),
+      getClassMathMap({ studentUserIds }),
+      getAcademyWeeklyMockInsights({ academyId: academy._id }),
+    ])
+    : [null, null, null];
   const membershipByStudentId = new Map(
     approvedMemberships.map((membership) => [String(membership.studentUserId._id), membership])
   );
-  statistics.attentionStudents = statistics.attentionStudents
-    .map((item) => ({ ...item, membership: membershipByStudentId.get(item.studentUserId) }))
-    .filter((item) => item.membership);
+  if (statistics) {
+    statistics.attentionStudents = statistics.attentionStudents
+      .map((item) => ({ ...item, membership: membershipByStudentId.get(item.studentUserId) }))
+      .filter((item) => item.membership);
+  }
 
   return {
     academy,

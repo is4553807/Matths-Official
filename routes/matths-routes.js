@@ -472,6 +472,12 @@ router.get(
   matthsController.adminAcademyDetailPage
 );
 router.get(
+  "/admin/academies/:academyId/:section",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminAcademyDetailPage
+);
+router.get(
   "/admin/academies/:academyId/weeks/:weekId/files/:fileId",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,

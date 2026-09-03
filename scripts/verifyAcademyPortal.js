@@ -1285,6 +1285,29 @@ async function main() {
     assert.equal(adminAcademyDetail.statistics.attentionStudents[0].membership.studentUserId.realName, "이학생");
     assert.equal(adminAcademyDetail.weeklyMockInsights.overall.participantCount, 1);
 
+    const adminAnalyticsDetail = await getAdminAcademyDetail({
+      adminUserId: admin._id,
+      academyId: academy._id,
+      periodKey: "2026-08",
+      section: "analytics",
+    });
+    assert.equal(adminAnalyticsDetail.staff.length, 0);
+    assert.equal(adminAnalyticsDetail.classes.length, 0);
+    assert.equal(adminAnalyticsDetail.attendanceRecords.length, 0);
+    assert.equal(adminAnalyticsDetail.memberships.length, 1);
+    assert.equal(adminAnalyticsDetail.statistics.values.averageLearningDays, 8);
+
+    const adminAttendanceDetail = await getAdminAcademyDetail({
+      adminUserId: admin._id,
+      academyId: academy._id,
+      section: "attendance",
+      now: new Date("2026-08-28T08:32:00.000Z"),
+    });
+    assert.equal(adminAttendanceDetail.memberships.length, 0);
+    assert.equal(adminAttendanceDetail.classWeeks.length, 0);
+    assert.ok(adminAttendanceDetail.attendanceRecords.length >= 1);
+    assert.equal(adminAttendanceDetail.statistics, null);
+
     const adminListHtml = await render("admin-academies", {
       user: admin,
       academyData: await getAdminAcademyList({ adminUserId: admin._id }),
@@ -1292,29 +1315,60 @@ async function main() {
     });
     assert.match(adminListHtml, /SUPER ADMIN/);
     assert.match(adminListHtml, /평촌 검증수학/);
-    assert.match(adminListHtml, /전체 정보/);
-    const adminDetailHtml = await render("admin-academy-detail", {
+    assert.match(adminListHtml, /상세 관리/);
+    const adminDetailLocals = {
       user: admin,
       detail: adminAcademyDetail,
       feedback: { message: null, error: null },
+    };
+    const adminOverviewHtml = await render("admin-academy-detail", {
+      ...adminDetailLocals,
+      activeAcademySection: "overview",
     });
-    assert.match(adminDetailHtml, /기본 정보·운영 제어/);
-    assert.match(adminDetailHtml, /승인 학생 전체 평균 통계/);
-    assert.match(adminDetailHtml, /선생님 전체 정보/);
-    assert.match(adminDetailHtml, /학생 전체 정보·소속 제어/);
-    assert.match(adminDetailHtml, /학원 프로필 사진/);
-    assert.match(adminDetailHtml, /\/admin\/academies\/.+\/profile-image/);
-    assert.match(adminDetailHtml, /고1 월수반/);
-    assert.match(adminDetailHtml, /수업 일정·출석 방식/);
-    assert.match(adminDetailHtml, /주차별 수업·과제 전체 정보/);
-    assert.match(adminDetailHtml, /다항식 기본 과제/);
-    assert.match(adminDetailHtml, /수업 회차·학생 출결·감사 이력/);
-    assert.match(adminDetailHtml, /운영자 검증 보정/);
-    assert.match(adminDetailHtml, /코드 재발급/);
-    assert.match(adminDetailHtml, /주간 모의고사 개념 히트맵/);
-    assert.match(adminDetailHtml, /반별 개념 상세/);
-    assert.match(adminDetailHtml, /다항식의 사칙연산/);
-    assert.match(adminDetailHtml, new RegExp(invite.code));
+    assert.match(adminOverviewHtml, /기본 설정/);
+    assert.match(adminOverviewHtml, /기본 정보·운영 제어/);
+    assert.match(adminOverviewHtml, /계약 기간·학원 플랜/);
+    assert.match(adminOverviewHtml, /학원 프로필 사진/);
+    assert.match(adminOverviewHtml, /\/admin\/academies\/.+\/profile-image/);
+    assert.doesNotMatch(adminOverviewHtml, /승인 학생 전체 평균 통계/);
+
+    const adminAnalyticsHtml = await render("admin-academy-detail", {
+      ...adminDetailLocals,
+      activeAcademySection: "analytics",
+    });
+    assert.match(adminAnalyticsHtml, /승인 학생 전체 평균 통계/);
+    assert.match(adminAnalyticsHtml, /주간 모의고사 개념 히트맵/);
+    assert.match(adminAnalyticsHtml, /반별 개념 상세/);
+    assert.match(adminAnalyticsHtml, /다항식의 사칙연산/);
+    assert.doesNotMatch(adminAnalyticsHtml, /선생님 전체 정보/);
+
+    const adminMembersHtml = await render("admin-academy-detail", {
+      ...adminDetailLocals,
+      activeAcademySection: "members",
+    });
+    assert.match(adminMembersHtml, /선생님 전체 정보/);
+    assert.match(adminMembersHtml, /학생 전체 정보·소속 제어/);
+    assert.match(adminMembersHtml, new RegExp(invite.code));
+    assert.doesNotMatch(adminMembersHtml, /수업 일정·출석 방식/);
+
+    const adminClassesHtml = await render("admin-academy-detail", {
+      ...adminDetailLocals,
+      activeAcademySection: "classes",
+    });
+    assert.match(adminClassesHtml, /고1 월수반/);
+    assert.match(adminClassesHtml, /수업 일정·출석 방식/);
+    assert.match(adminClassesHtml, /주차별 수업·과제 전체 정보/);
+    assert.match(adminClassesHtml, /다항식 기본 과제/);
+    assert.doesNotMatch(adminClassesHtml, /수업 회차·학생 출결·감사 이력/);
+
+    const adminAttendanceHtml = await render("admin-academy-detail", {
+      ...adminDetailLocals,
+      activeAcademySection: "attendance",
+    });
+    assert.match(adminAttendanceHtml, /수업 회차·학생 출결·감사 이력/);
+    assert.match(adminAttendanceHtml, /운영자 검증 보정/);
+    assert.match(adminAttendanceHtml, /코드 재발급/);
+    assert.doesNotMatch(adminAttendanceHtml, /주차별 수업·과제 전체 정보/);
 
     const emptyStatistics = await getStudentMonthlyStatistics({
       studentUserId: student._id,
@@ -1575,6 +1629,7 @@ async function main() {
     const academyRoutes = fs.readFileSync(path.join(root, "routes", "matths-routes.js"), "utf8");
     assert.match(academyRoutes, /"\/admin\/academies"[\s\S]+adminAcademiesPage/);
     assert.match(academyRoutes, /"\/admin\/academies\/:academyId"[\s\S]+adminAcademyDetailPage/);
+    assert.match(academyRoutes, /"\/admin\/academies\/:academyId\/:section"[\s\S]+adminAcademyDetailPage/);
     const academyPortalRoutes = fs.readFileSync(path.join(root, "routes", "academy-routes.js"), "utf8");
     assert.match(academyPortalRoutes, /"\/my-academy"/);
     assert.match(academyPortalRoutes, /"\/academy\/classes\/:classId\/weeks"/);

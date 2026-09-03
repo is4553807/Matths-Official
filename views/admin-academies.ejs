@@ -90,7 +90,7 @@
                 <form action="/admin/academies/<%= academy._id %>/approve" method="POST"><input type="hidden" name="returnTo" value="<%= currentListReturn %>academyApproved" /><button type="submit">승인</button></form>
                 <form action="/admin/academies/<%= academy._id %>/reject" method="POST"><input type="hidden" name="returnTo" value="<%= currentListReturn %>academyRejected" /><button class="is-danger" type="submit">거절</button></form>
               <% } %>
-              <a href="/admin/academies/<%= academy._id %>">전체 정보 →</a>
+              <a href="/admin/academies/<%= academy._id %>/overview">상세 관리 →</a>
             </div>
           </article>
         <% }) %>

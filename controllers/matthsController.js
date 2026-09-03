@@ -2079,15 +2079,27 @@ function adminAcademyFeedback(query) {
 
 function safeAdminAcademyReturnPath(value, fallback) {
   const candidate = String(value || "").trim();
-  return /^\/admin\/academies(?:\/[a-f\d]{24})?(?:\?[^\s#]*)?(?:#[a-z0-9-]+)?$/i.test(candidate)
+  return /^\/admin\/academies(?:\/[a-f\d]{24}(?:\/(?:overview|analytics|members|classes|attendance))?)?(?:\?[^\s#]*)?(?:#[a-z0-9-]+)?$/i.test(candidate)
     ? candidate
     : fallback;
 }
 
 function adminAcademyErrorRedirect(res, academyId, error, anchor = "") {
+  const sectionByAnchor = {
+    "academy-control": "overview",
+    "academy-contract": "overview",
+    "academy-statistics": "analytics",
+    "academy-staff": "members",
+    "academy-students": "members",
+    "academy-classes": "classes",
+    "academy-classwork": "classes",
+    "academy-attendance": "attendance",
+    "academy-invites": "members",
+  };
+  const section = sectionByAnchor[anchor] || "overview";
   const suffix = anchor ? `#${anchor}` : "";
   const message = encodeURIComponent(String(error.message || "학원 관리 작업을 처리하지 못했습니다.").slice(0, 240));
-  return res.redirect(303, `/admin/academies/${academyId}?error=${message}${suffix}`);
+  return res.redirect(303, `/admin/academies/${academyId}/${section}?error=${message}${suffix}`);
 }
 
 exports.adminAcademiesPage = async (req, res, next) => {
@@ -2110,6 +2122,13 @@ exports.adminAcademiesPage = async (req, res, next) => {
 
 exports.adminAcademyDetailPage = async (req, res, next) => {
   try {
+    const availableSections = new Set(["overview", "analytics", "members", "classes", "attendance"]);
+    const activeAcademySection = String(req.params.section || "overview").trim().toLowerCase();
+    if (!availableSections.has(activeAcademySection)) {
+      const sectionError = new Error("학원 관리 메뉴를 찾을 수 없습니다.");
+      sectionError.status = 404;
+      throw sectionError;
+    }
     res.set("Cache-Control", "private, no-store");
     return res.render("admin-academy-detail", {
       user: req.session.user,
@@ -2117,8 +2136,10 @@ exports.adminAcademyDetailPage = async (req, res, next) => {
         adminUserId: req.session.user.id,
         academyId: req.params.academyId,
         periodKey: req.query.period,
+        section: activeAcademySection,
       }),
       feedback: adminAcademyFeedback(req.query),
+      activeAcademySection,
     });
   } catch (error) {
     return next(error);
@@ -2169,7 +2190,7 @@ exports.adminUpdateAcademyProfile = async (req, res, next) => {
       ACTIVATE: "academyActivated",
       REOPEN: "academyReopened",
     }[action] || (result.status === "PAUSED" ? "academyPaused" : "academyActivated");
-    return res.redirect(303, `/admin/academies/${result._id}?done=${done}`);
+    return res.redirect(303, `/admin/academies/${result._id}/overview?done=${done}#academy-control`);
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-control");
@@ -2187,7 +2208,7 @@ exports.adminUpdateAcademyContract = async (req, res, next) => {
     });
     return res.redirect(
       303,
-      `/admin/academies/${academy._id}?done=academyContractUpdated#academy-contract`
+      `/admin/academies/${academy._id}/overview?done=academyContractUpdated#academy-contract`
     );
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
@@ -2211,7 +2232,7 @@ exports.adminUpdateAcademyProfileImage = async (req, res, next) => {
         adminUserId: req.session.user.id,
         academyId: req.params.academyId,
       });
-      return res.redirect(303, `/admin/academies/${req.params.academyId}?done=academyProfileImageRemoved#academy-control`);
+      return res.redirect(303, `/admin/academies/${req.params.academyId}/overview?done=academyProfileImageRemoved#academy-control`);
     }
     if (action !== "UPDATE") {
       const actionError = new Error("올바른 학원 프로필 사진 작업이 아닙니다.");
@@ -2224,7 +2245,7 @@ exports.adminUpdateAcademyProfileImage = async (req, res, next) => {
       file: req.file,
     });
     req.file = undefined;
-    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=academyProfileImageUpdated#academy-control`);
+    return res.redirect(303, `/admin/academies/${req.params.academyId}/overview?done=academyProfileImageUpdated#academy-control`);
   } catch (error) {
     if ([400, 403, 404, 409, 413, 422, 503].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-control");
@@ -2246,7 +2267,7 @@ exports.adminUpdateAcademyStaff = async (req, res, next) => {
       staffId: req.params.staffId,
       action: req.body.action,
     });
-    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=staffUpdated#academy-staff`);
+    return res.redirect(303, `/admin/academies/${req.params.academyId}/members?done=staffUpdated#academy-staff`);
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-staff");
@@ -2262,7 +2283,7 @@ exports.adminTransferAcademyOwner = async (req, res, next) => {
       academyId: req.params.academyId,
       newOwnerStaffId: req.body.newOwnerStaffId,
     });
-    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=ownerTransferred#academy-staff`);
+    return res.redirect(303, `/admin/academies/${req.params.academyId}/members?done=ownerTransferred#academy-staff`);
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-staff");
@@ -2279,7 +2300,7 @@ exports.adminUpdateAcademyStudent = async (req, res, next) => {
       membershipId: req.params.membershipId,
       action: req.body.action,
     });
-    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=studentUpdated#academy-students`);
+    return res.redirect(303, `/admin/academies/${req.params.academyId}/members?done=studentUpdated#academy-students`);
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-students");
@@ -2296,7 +2317,7 @@ exports.adminAssignAcademyStudentClass = async (req, res, next) => {
       membershipId: req.params.membershipId,
       classId: String(req.body.classId || ""),
     });
-    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=studentClassUpdated#academy-students`);
+    return res.redirect(303, `/admin/academies/${req.params.academyId}/members?done=studentClassUpdated#academy-students`);
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-students");
@@ -2313,7 +2334,7 @@ exports.adminUpdateAcademyClass = async (req, res, next) => {
       classId: req.params.classId,
       action: req.body.action,
     });
-    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=classUpdated#academy-classes`);
+    return res.redirect(303, `/admin/academies/${req.params.academyId}/classes?done=classUpdated#academy-classes`);
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-classes");
@@ -2337,7 +2358,7 @@ exports.adminUpdateAcademyClassOperations = async (req, res, next) => {
       lateAfterMinutes: req.body.lateAfterMinutes,
       closesAfterMinutes: req.body.closesAfterMinutes,
     });
-    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=classOperationsUpdated#academy-classes`);
+    return res.redirect(303, `/admin/academies/${req.params.academyId}/classes?done=classOperationsUpdated#academy-classes`);
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-classes");
@@ -2355,7 +2376,7 @@ exports.adminTransferAcademyClassHomeroom = async (req, res, next) => {
       nextTeacherUserId: req.body.nextTeacherUserId,
       retainPreviousAsCoTeacher: req.body.retainPreviousAsCoTeacher === "true",
     });
-    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=classHomeroomTransferred#academy-classes`);
+    return res.redirect(303, `/admin/academies/${req.params.academyId}/classes?done=classHomeroomTransferred#academy-classes`);
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-classes");
@@ -2373,7 +2394,7 @@ exports.adminUpdateAcademyAttendance = async (req, res, next) => {
       status: req.body.status,
       note: req.body.note,
     });
-    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=attendanceUpdated#academy-attendance`);
+    return res.redirect(303, `/admin/academies/${req.params.academyId}/attendance?done=attendanceUpdated#academy-attendance`);
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-attendance");
@@ -2389,7 +2410,7 @@ exports.adminRegenerateAcademyAttendanceCode = async (req, res, next) => {
       academyId: req.params.academyId,
       sessionId: req.params.sessionId,
     });
-    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=attendanceCodeRegenerated#academy-attendance`);
+    return res.redirect(303, `/admin/academies/${req.params.academyId}/attendance?done=attendanceCodeRegenerated#academy-attendance`);
   } catch (error) {
     if ([400, 403, 404, 409, 503].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-attendance");
@@ -2406,7 +2427,7 @@ exports.adminUpdateAcademyInvite = async (req, res, next) => {
       inviteId: req.params.inviteId,
       action: req.body.action,
     });
-    return res.redirect(303, `/admin/academies/${req.params.academyId}?done=inviteUpdated#academy-invites`);
+    return res.redirect(303, `/admin/academies/${req.params.academyId}/members?done=inviteUpdated#academy-invites`);
   } catch (error) {
     if ([400, 403, 404, 409].includes(Number(error.status))) {
       return adminAcademyErrorRedirect(res, req.params.academyId, error, "academy-invites");
