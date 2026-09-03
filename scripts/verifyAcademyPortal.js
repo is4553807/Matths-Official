@@ -91,6 +91,7 @@ const {
   getAcademyClassworkTeacherView,
   getStudentAcademyClassroom,
   getStudentAcademyWeek,
+  normalizeAssignmentOmr,
   saveAcademyClassWeek,
   submitAcademyAssignment,
 } = require("../services/academyClassworkService");
@@ -465,6 +466,29 @@ async function main() {
       "common-math-1/polynomials/polynomial-arithmetic",
       "common-math-1/polynomials/identity-remainder-theorem",
     ];
+    const quickOmr = normalizeAssignmentOmr(JSON.stringify({
+      enabled: true,
+      questionCount: 3,
+      defaultAnswerType: "MULTIPLE_CHOICE",
+      choiceCount: 5,
+      answers: ["2", "4", "5"],
+    }), teacher._id);
+    assert.deepEqual(quickOmr.sections, [{
+      startNumber: 1,
+      endNumber: 3,
+      answerType: "MULTIPLE_CHOICE",
+      choiceCount: 5,
+    }]);
+    assert.throws(
+      () => normalizeAssignmentOmr(JSON.stringify({
+        enabled: true,
+        questionCount: 1,
+        defaultAnswerType: "MULTIPLE_CHOICE",
+        choiceCount: 5,
+        answers: ["12"],
+      }), teacher._id),
+      /객관식 정답은 1~5/
+    );
     const publishedWeek = await saveAcademyClassWeek({
       teacherUserId: teacher._id,
       classId: academyClass._id,
@@ -477,9 +501,10 @@ async function main() {
       assignmentInstructions: "교재 10쪽부터 13쪽까지 풀어오세요.",
       assignmentOmr: JSON.stringify({
         enabled: true,
-        questionCount: 3,
-        defaultAnswerType: "MULTIPLE_CHOICE",
-        choiceCount: 5,
+        sections: [
+          { startNumber: 1, endNumber: 2, answerType: "MULTIPLE_CHOICE", choiceCount: 5 },
+          { startNumber: 3, endNumber: 3, answerType: "SHORT_ANSWER" },
+        ],
         answers: ["2", "4", "12"],
       }),
       dueAt: "2026-09-04T18:00",
@@ -563,6 +588,7 @@ async function main() {
     assert.equal(assignmentSubmission.correctCount, 2);
     assert.equal(assignmentSubmission.scorePercent, 67);
     assert.equal(assignmentSubmission.status, "SUBMITTED");
+    assert.equal(String(assignmentSubmission.weekId), String(publishedWeek._id));
     assert.deepEqual(assignmentSubmission.answerModes, [
       "MULTIPLE_CHOICE",
       "MULTIPLE_CHOICE",

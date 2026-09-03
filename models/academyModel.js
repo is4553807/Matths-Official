@@ -699,8 +699,8 @@ const academyAssignmentOmrSchema = new Schema(
     sections: {
       type: [academyAssignmentOmrSectionSchema],
       validate: {
-        validator: (items) => Array.isArray(items) && items.length >= 1 && items.length <= 20,
-        message: "OMR 문항 구간은 1개 이상 20개 이하로 설정해야 합니다.",
+        validator: (items) => Array.isArray(items) && items.length >= 1 && items.length <= 100,
+        message: "OMR 문항 설정은 1개 이상 100개 이하로 저장해야 합니다.",
       },
     },
     answerKey: {

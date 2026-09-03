@@ -125,7 +125,7 @@ function normalizeAssignmentOmr(value, teacherUserId) {
       }];
     }
   }
-  if (!sourceSections.length || sourceSections.length > 20) {
+  if (!sourceSections.length || sourceSections.length > MAX_OMR_QUESTIONS) {
     throw statusError(400, "총 문항 수와 기본 입력 방식을 다시 확인해 주세요.");
   }
   const sections = sourceSections
@@ -177,7 +177,14 @@ function normalizeAssignmentOmr(value, teacherUserId) {
   const answerKey = sourceAnswers.map((value, index) => {
     const answer = normalizeAnswer(value);
     const questionNumber = index + 1;
+    const section = answerTypeForNumber({ sections }, questionNumber);
     if (!answer) throw statusError(400, `${questionNumber}번 정답을 입력해 주세요.`);
+    if (
+      section.answerType === "MULTIPLE_CHOICE"
+      && (!/^\d$/.test(answer) || Number(answer) < 1 || Number(answer) > section.choiceCount)
+    ) {
+      throw statusError(400, `${questionNumber}번 객관식 정답은 1~${section.choiceCount} 중 하나여야 합니다.`);
+    }
     return answer;
   });
   return {
