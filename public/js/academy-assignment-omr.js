@@ -3,6 +3,7 @@
   if (!builder) return;
 
   const form = builder.closest("form");
+  const classworkLayout = builder.closest(".academy-classwork-layout");
   const payloadInput = form?.querySelector("[data-academy-omr-payload]");
   const editor = builder.querySelector("[data-academy-omr-editor]");
   const toggleButton = builder.querySelector("[data-academy-omr-toggle]");
@@ -59,6 +60,7 @@
 
   function renderAnswers() {
     answerGrid.replaceChildren();
+    answerGrid.classList.toggle("is-long", questionCount > 40);
     countLabel.textContent = `${questionCount}문항`;
     for (let number = 1; number <= questionCount; number += 1) {
       const index = number - 1;
@@ -130,6 +132,7 @@
     enabled = nextEnabled;
     editor.hidden = !enabled;
     builder.classList.toggle("is-open", enabled);
+    classworkLayout?.classList.toggle("has-open-omr", enabled);
     toggleButton.textContent = enabled ? "답안지 사용 중" : "답안지 만들기";
     if (enabled) {
       renderSetup();
@@ -172,6 +175,7 @@
     enabled = false;
     editor.hidden = true;
     builder.classList.remove("is-open");
+    classworkLayout?.classList.remove("has-open-omr");
     toggleButton.textContent = "답안지 만들기";
     if (payloadInput) payloadInput.value = JSON.stringify({ enabled: false });
   });
