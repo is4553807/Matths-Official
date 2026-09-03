@@ -11,6 +11,7 @@ const packageLock = JSON.parse(read("package-lock.json"));
 const cloudtype = read(".cloudtype/app.yaml");
 const dockerignore = read(".dockerignore");
 const gitignore = read(".gitignore");
+const environmentExample = read(".env.example");
 
 assert.match(packageJson.engines?.node || "", />=24/);
 assert.equal(packageLock.packages?.[""]?.engines?.node, packageJson.engines.node);
@@ -70,7 +71,7 @@ const forbiddenTracked = trackedFiles.filter((file) =>
     !allowedEnvironmentExample(file)
   ) ||
   /(?:credentials|service-account).*\.json$/i.test(file) ||
-  /\.(?:pem|key|p12|pfx)$/i.test(file)
+  /\.(?:pem|key|enc|p12|pfx)$/i.test(file)
 );
 assert.deepEqual(forbiddenTracked, [], `Git에 민감·런타임 파일이 추적 중입니다: ${forbiddenTracked.join(", ")}`);
 
@@ -91,10 +92,30 @@ assert.match(checkoutService, /provider === "INICIS"/);
 assert.match(checkoutService, /isInicisConfigured/);
 assert.match(checkoutService, /PAID_CHECKOUT_UNAVAILABLE/);
 assert.match(cloudtype, /PAID_CHECKOUT_ENABLED[\s\S]*value: "true"/);
-assert.match(cloudtype, /INICIS_PAYMENTS_MODE[\s\S]*value: TEST/);
-assert.match(cloudtype, /INICIS_TEST_REVIEW_EMAILS[\s\S]*value: kginicis@test\.com/);
+assert.match(cloudtype, /INICIS_PAYMENTS_MODE[\s\S]*value: LIVE/);
+assert.doesNotMatch(
+  cloudtype,
+  /^\s*-\s+name:\s+INICIS_TEST_(?:REVIEW_EMAILS|MID|HASH_KEY|API_KEY|CLIENT_IP)\s*$/m
+);
 assert.match(checkoutService, /INICIS_TEST_REVIEW_ACCOUNT_REQUIRED/);
-assert.doesNotMatch(cloudtype, /INICIS_LIVE_(?:MID|HASH_KEY|API_KEY|CLIENT_IP)/);
+assert.doesNotMatch(
+  cloudtype,
+  /^\s*-\s+name:\s+INICIS_LIVE_(?:MID|HASH_KEY|API_KEY|CLIENT_IP)\s*$/m
+);
+for (const required of [
+  "PAYMENT_PROVIDER=INICIS",
+  "INICIS_PAYMENTS_MODE=LIVE",
+  "INICIS_LIVE_MID=",
+  "INICIS_LIVE_HASH_KEY=",
+  "INICIS_LIVE_API_KEY=",
+  "INICIS_LIVE_CLIENT_IP=",
+]) {
+  assert.ok(environmentExample.includes(required), `.env.example에 ${required}가 없습니다.`);
+}
+assert.doesNotMatch(
+  environmentExample,
+  /^INICIS_TEST_(?:REVIEW_EMAILS|MID|HASH_KEY|API_KEY|CLIENT_IP)=/m
+);
 
 const inicisService = read("services/inicisPaymentService.js");
 const paymentService = read("services/paymentService.js");

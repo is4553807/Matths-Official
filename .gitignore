@@ -1,6 +1,7 @@
 # Secrets and local configuration
 *.env
 .env.*
+!.env.example
 .envrc
 .direnv/
 .secrets/
@@ -12,6 +13,7 @@ service-account*.json
 .npmrc
 *.pem
 *.key
+*.enc
 *.p12
 *.pfx
 *.jks

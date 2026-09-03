@@ -12,6 +12,7 @@ credentials*.json
 service-account*.json
 *.pem
 *.key
+*.enc
 *.p12
 *.pfx
 
