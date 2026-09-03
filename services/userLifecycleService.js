@@ -6,19 +6,20 @@ const TIME_ZONE = "Asia/Seoul";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_UPDATE_RETRIES = 4;
 
-function getKoreanDateParts(date = new Date()) {
-  const formatter = new Intl.DateTimeFormat(
-    "en-US",
-    {
-      timeZone: TIME_ZONE,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }
-  );
+// Reuse immutable locale configuration, never a date or user-specific result.
+const koreanDateFormatter = new Intl.DateTimeFormat(
+  "en-US",
+  {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }
+);
 
+function getKoreanDateParts(date = new Date()) {
   return Object.fromEntries(
-    formatter
+    koreanDateFormatter
       .formatToParts(date)
       .filter(
         (part) =>

@@ -14,6 +14,18 @@ const {
 
 const PAGE_SIZE = 10;
 const MAX_RECENT_ATTEMPTS = 500;
+const koreanDateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+});
+const koreanDayKeyFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 const REVIEW_LABELS = {
   pending: "복습 대기",
@@ -51,12 +63,7 @@ function normalizeReviewStatus(status) {
 function formatKoreanDate(value) {
   if (!value) return "";
 
-  return new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(value));
+  return koreanDateFormatter.format(new Date(value));
 }
 
 function formatAnswer(answer) {
@@ -125,13 +132,7 @@ function createSourceLabel(source = {}) {
 function isSameOrBeforeToday(value) {
   if (!value) return false;
 
-  const dateKey = (date) =>
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Seoul",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(date));
+  const dateKey = (date) => koreanDayKeyFormatter.format(new Date(date));
 
   return dateKey(value) <= dateKey(new Date());
 }

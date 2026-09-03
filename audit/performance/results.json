@@ -1,0 +1,2560 @@
+{
+  "schemaVersion": 2,
+  "auditDate": "2026-09-04",
+  "baselineCommit": "bc2a2a26fe706ecc0371cff7830f011a6ed514cd",
+  "environment": {
+    "node": "v24.13.0",
+    "mongo": "8.2.6",
+    "architecture": "arm64",
+    "hardware": "Mac16,1, 24 GiB RAM, 10 logical CPUs",
+    "warmRuns": 25,
+    "fixture": {
+      "students": 96,
+      "classes": 12,
+      "concepts": 60,
+      "problemAttempts": 28800,
+      "exams": 12,
+      "examAttempts": 1152
+    },
+    "fixtureVersion": 2,
+    "scope": "Local HTTP/service timings; not browser page-load metrics or production load tests."
+  },
+  "inventory": {
+    "files": 531,
+    "lines": 253004,
+    "routeRegistrations": 731,
+    "queryCallSites": 1944,
+    "networkCallSites": 22
+  },
+  "comparisons": [
+    {
+      "name": "public /",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 8.234375,
+        "warmP50Ms": 1.0707919999986188,
+        "warmP95Ms": 1.9019999999982247,
+        "nodeCpuP50Ms": 1.186,
+        "dbDurationSumP50Ms": 0,
+        "dbCommandsP50": 1,
+        "resultBytesP50": 16196,
+        "ttfbP50Ms": 0.9158339999994496,
+        "wireBytesP50": 4395
+      },
+      "after": {
+        "coldFirstRequestMs": 8.191166000000521,
+        "warmP50Ms": 1.0337079999990237,
+        "warmP95Ms": 1.819499999997788,
+        "nodeCpuP50Ms": 1.187,
+        "dbDurationSumP50Ms": 0,
+        "dbCommandsP50": 1,
+        "resultBytesP50": 16196,
+        "ttfbP50Ms": 0.8942090000018652,
+        "wireBytesP50": 4395
+      }
+    },
+    {
+      "name": "public /intro",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 2.625167000001966,
+        "warmP50Ms": 0.7706670000006852,
+        "warmP95Ms": 1.192458000001352,
+        "nodeCpuP50Ms": 0.994,
+        "dbDurationSumP50Ms": 0,
+        "dbCommandsP50": 0,
+        "resultBytesP50": 27643,
+        "ttfbP50Ms": 0.5973339999982272,
+        "wireBytesP50": 7304
+      },
+      "after": {
+        "coldFirstRequestMs": 2.6252910000002885,
+        "warmP50Ms": 0.7891670000026352,
+        "warmP95Ms": 1.0288340000006428,
+        "nodeCpuP50Ms": 0.968,
+        "dbDurationSumP50Ms": 0,
+        "dbCommandsP50": 0,
+        "resultBytesP50": 27643,
+        "ttfbP50Ms": 0.6262079999978596,
+        "wireBytesP50": 7304
+      }
+    },
+    {
+      "name": "public /pricing",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 13.301083000002109,
+        "warmP50Ms": 8.291500000002998,
+        "warmP95Ms": 9.809583000002021,
+        "nodeCpuP50Ms": 2.609,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 5,
+        "resultBytesP50": 17190,
+        "ttfbP50Ms": 8.107875000001513,
+        "wireBytesP50": 4520
+      },
+      "after": {
+        "coldFirstRequestMs": 12.214208000001236,
+        "warmP50Ms": 8.737833999999566,
+        "warmP95Ms": 10.59979100000055,
+        "nodeCpuP50Ms": 2.781,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 5,
+        "resultBytesP50": 17190,
+        "ttfbP50Ms": 8.552084000002651,
+        "wireBytesP50": 4520
+      }
+    },
+    {
+      "name": "public /curriculum",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 4.05595799999719,
+        "warmP50Ms": 2.042457999999897,
+        "warmP95Ms": 2.625916999997571,
+        "nodeCpuP50Ms": 2.23,
+        "dbDurationSumP50Ms": 0,
+        "dbCommandsP50": 0,
+        "resultBytesP50": 125868,
+        "ttfbP50Ms": 1.7117079999989073,
+        "wireBytesP50": 11324
+      },
+      "after": {
+        "coldFirstRequestMs": 3.6083750000034343,
+        "warmP50Ms": 2.5054159999999683,
+        "warmP95Ms": 3.185875000002852,
+        "nodeCpuP50Ms": 2.848,
+        "dbDurationSumP50Ms": 0,
+        "dbCommandsP50": 0,
+        "resultBytesP50": 125868,
+        "ttfbP50Ms": 2.1114589999997406,
+        "wireBytesP50": 11324
+      }
+    },
+    {
+      "name": "public /faq",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 3.3113330000014685,
+        "warmP50Ms": 1.2101660000007541,
+        "warmP95Ms": 1.359334000000672,
+        "nodeCpuP50Ms": 1.259,
+        "dbDurationSumP50Ms": 0,
+        "dbCommandsP50": 0,
+        "resultBytesP50": 62131,
+        "ttfbP50Ms": 0.9353749999972933,
+        "wireBytesP50": 14156
+      },
+      "after": {
+        "coldFirstRequestMs": 3.0743750000001455,
+        "warmP50Ms": 1.3644590000003518,
+        "warmP95Ms": 1.6175419999999576,
+        "nodeCpuP50Ms": 1.459,
+        "dbDurationSumP50Ms": 0,
+        "dbCommandsP50": 0,
+        "resultBytesP50": 62131,
+        "ttfbP50Ms": 1.025541000002704,
+        "wireBytesP50": 14156
+      }
+    },
+    {
+      "name": "public /community",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 12.798208000000159,
+        "warmP50Ms": 2.68458400000236,
+        "warmP95Ms": 11.630875000002561,
+        "nodeCpuP50Ms": 2.216,
+        "dbDurationSumP50Ms": 3,
+        "dbCommandsP50": 4,
+        "resultBytesP50": 12026,
+        "ttfbP50Ms": 2.507000000001426,
+        "wireBytesP50": 3519
+      },
+      "after": {
+        "coldFirstRequestMs": 18.54070800000045,
+        "warmP50Ms": 2.355999999999767,
+        "warmP95Ms": 3.5007079999995767,
+        "nodeCpuP50Ms": 2.199,
+        "dbDurationSumP50Ms": 1,
+        "dbCommandsP50": 4,
+        "resultBytesP50": 12026,
+        "ttfbP50Ms": 2.212375000002794,
+        "wireBytesP50": 3520
+      }
+    },
+    {
+      "name": "student /main",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 31.693875000000844,
+        "warmP50Ms": 15.079083000000537,
+        "warmP95Ms": 18.2665829999969,
+        "nodeCpuP50Ms": 10.462,
+        "dbDurationSumP50Ms": 39,
+        "dbCommandsP50": 24,
+        "resultBytesP50": 24784,
+        "ttfbP50Ms": 8.641415999998571,
+        "wireBytesP50": 6091
+      },
+      "after": {
+        "coldFirstRequestMs": 26.950582999998005,
+        "warmP50Ms": 14.680500000002212,
+        "warmP95Ms": 16.84254200000214,
+        "nodeCpuP50Ms": 8.911,
+        "dbDurationSumP50Ms": 38,
+        "dbCommandsP50": 24,
+        "resultBytesP50": 24783,
+        "ttfbP50Ms": 7.524750000000495,
+        "wireBytesP50": 6087
+      }
+    },
+    {
+      "name": "student /my-learning",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 14.518416999999317,
+        "warmP50Ms": 11.894500000002154,
+        "warmP95Ms": 13.529500000000553,
+        "nodeCpuP50Ms": 6.186,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 141162,
+        "ttfbP50Ms": 5.486791999999696,
+        "wireBytesP50": 10260
+      },
+      "after": {
+        "coldFirstRequestMs": 14.036500000001979,
+        "warmP50Ms": 11.474167000000307,
+        "warmP95Ms": 13.600916999999754,
+        "nodeCpuP50Ms": 5.573,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 141162,
+        "ttfbP50Ms": 4.776832999999897,
+        "wireBytesP50": 10260
+      }
+    },
+    {
+      "name": "student /log-curriculum",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 15.639084000002185,
+        "warmP50Ms": 14.692917000000307,
+        "warmP95Ms": 22.43366700000115,
+        "nodeCpuP50Ms": 9.028,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 365659,
+        "ttfbP50Ms": 8.298041999998532,
+        "wireBytesP50": 20700
+      },
+      "after": {
+        "coldFirstRequestMs": 13.055499999998574,
+        "warmP50Ms": 13.408374999999069,
+        "warmP95Ms": 17.99499999999898,
+        "nodeCpuP50Ms": 7.308,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 365659,
+        "ttfbP50Ms": 6.489958000001934,
+        "wireBytesP50": 20700
+      }
+    },
+    {
+      "name": "student /wrong-notes",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 33.73099999999977,
+        "warmP50Ms": 17.842874999998457,
+        "warmP95Ms": 23.101041000001715,
+        "nodeCpuP50Ms": 12.219,
+        "dbDurationSumP50Ms": 10,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 60240,
+        "ttfbP50Ms": 10.973292000002402,
+        "wireBytesP50": 7397
+      },
+      "after": {
+        "coldFirstRequestMs": 21.389875000000757,
+        "warmP50Ms": 13.244792000001326,
+        "warmP95Ms": 16.049125000001368,
+        "nodeCpuP50Ms": 6.9,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 60240,
+        "ttfbP50Ms": 5.846291999998357,
+        "wireBytesP50": 7397
+      }
+    },
+    {
+      "name": "student /assessments",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 18.792207999998936,
+        "warmP50Ms": 10.855625000000146,
+        "warmP95Ms": 13.030415999997786,
+        "nodeCpuP50Ms": 4.501,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 8,
+        "resultBytesP50": 21763,
+        "ttfbP50Ms": 4.526999999998225,
+        "wireBytesP50": 4603
+      },
+      "after": {
+        "coldFirstRequestMs": 14.57458399999814,
+        "warmP50Ms": 10.669417000000976,
+        "warmP95Ms": 14.835624999999709,
+        "nodeCpuP50Ms": 3.804,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 8,
+        "resultBytesP50": 21763,
+        "ttfbP50Ms": 3.7490839999991294,
+        "wireBytesP50": 4603
+      }
+    },
+    {
+      "name": "student /profile",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 39.45104100000026,
+        "warmP50Ms": 14.849457999996957,
+        "warmP95Ms": 17.87774999999965,
+        "nodeCpuP50Ms": 11.927,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 11,
+        "resultBytesP50": 439970,
+        "ttfbP50Ms": 8.730708999999479,
+        "wireBytesP50": 60113
+      },
+      "after": {
+        "coldFirstRequestMs": 36.47283400000015,
+        "warmP50Ms": 13.940082999997685,
+        "warmP95Ms": 17.598833000000013,
+        "nodeCpuP50Ms": 10.72,
+        "dbDurationSumP50Ms": 10,
+        "dbCommandsP50": 11,
+        "resultBytesP50": 439970,
+        "ttfbP50Ms": 7.71650000000227,
+        "wireBytesP50": 60113
+      }
+    },
+    {
+      "name": "student /notifications",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 13.451124999999593,
+        "warmP50Ms": 11.090499999998428,
+        "warmP95Ms": 12.865125000000262,
+        "nodeCpuP50Ms": 3.974,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 9,
+        "resultBytesP50": 13778,
+        "ttfbP50Ms": 4.0352920000004815,
+        "wireBytesP50": 3800
+      },
+      "after": {
+        "coldFirstRequestMs": 11.676625000000058,
+        "warmP50Ms": 10.074874999998428,
+        "warmP95Ms": 12.36041699999987,
+        "nodeCpuP50Ms": 3.549,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 9,
+        "resultBytesP50": 13778,
+        "ttfbP50Ms": 3.6655830000017886,
+        "wireBytesP50": 3800
+      }
+    },
+    {
+      "name": "student /my-academy",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 12.32562500000131,
+        "warmP50Ms": 10.065624999999272,
+        "warmP95Ms": 11.226708000001963,
+        "nodeCpuP50Ms": 3.746,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 9,
+        "resultBytesP50": 11088,
+        "ttfbP50Ms": 3.72162500000195,
+        "wireBytesP50": 2998
+      },
+      "after": {
+        "coldFirstRequestMs": 12.343208999998751,
+        "warmP50Ms": 9.916874999998981,
+        "warmP95Ms": 11.170500000000175,
+        "nodeCpuP50Ms": 3.381,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 9,
+        "resultBytesP50": 11088,
+        "ttfbP50Ms": 3.5219579999975394,
+        "wireBytesP50": 2998
+      }
+    },
+    {
+      "name": "student /private-mock-exams",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 18.988375000000815,
+        "warmP50Ms": 10.698709000000235,
+        "warmP95Ms": 12.205582999999024,
+        "nodeCpuP50Ms": 4.227,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 12,
+        "resultBytesP50": 13776,
+        "ttfbP50Ms": 4.470250000002125,
+        "wireBytesP50": 3834
+      },
+      "after": {
+        "coldFirstRequestMs": 14.847999999998137,
+        "warmP50Ms": 11.534583000000566,
+        "warmP95Ms": 16.947457999998733,
+        "nodeCpuP50Ms": 4.031,
+        "dbDurationSumP50Ms": 10,
+        "dbCommandsP50": 12,
+        "resultBytesP50": 13776,
+        "ttfbP50Ms": 4.328125,
+        "wireBytesP50": 3834
+      }
+    },
+    {
+      "name": "student /war-of-masters",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 14.259165999999823,
+        "warmP50Ms": 12.178916000000754,
+        "warmP95Ms": 14.023583000001963,
+        "nodeCpuP50Ms": 6.17,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 20,
+        "resultBytesP50": 19181,
+        "ttfbP50Ms": 6.179375000003347,
+        "wireBytesP50": 5039
+      },
+      "after": {
+        "coldFirstRequestMs": 14.689875000000029,
+        "warmP50Ms": 12.114166999999725,
+        "warmP95Ms": 14.895000000000437,
+        "nodeCpuP50Ms": 5.963,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 20,
+        "resultBytesP50": 19181,
+        "ttfbP50Ms": 5.883834000000206,
+        "wireBytesP50": 5039
+      }
+    },
+    {
+      "name": "student /war-of-masters/rankings",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 14.589583000000857,
+        "warmP50Ms": 10.422458999997616,
+        "warmP95Ms": 18.29491699999926,
+        "nodeCpuP50Ms": 4.229,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 12,
+        "resultBytesP50": 15934,
+        "ttfbP50Ms": 4.145958999997674,
+        "wireBytesP50": 4339
+      },
+      "after": {
+        "coldFirstRequestMs": 11.790250000001834,
+        "warmP50Ms": 9.869750000001659,
+        "warmP95Ms": 12.077833999999712,
+        "nodeCpuP50Ms": 3.594,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 12,
+        "resultBytesP50": 15934,
+        "ttfbP50Ms": 3.714165999997931,
+        "wireBytesP50": 4339
+      }
+    },
+    {
+      "name": "student /goat-arena",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 17.99566699999923,
+        "warmP50Ms": 12.009083999997529,
+        "warmP95Ms": 14.224750000001222,
+        "nodeCpuP50Ms": 5.9,
+        "dbDurationSumP50Ms": 15,
+        "dbCommandsP50": 21,
+        "resultBytesP50": 25806,
+        "ttfbP50Ms": 5.604707999998936,
+        "wireBytesP50": 6968
+      },
+      "after": {
+        "coldFirstRequestMs": 14.068999999999505,
+        "warmP50Ms": 11.681166999998823,
+        "warmP95Ms": 15.351041999998415,
+        "nodeCpuP50Ms": 5.508,
+        "dbDurationSumP50Ms": 16,
+        "dbCommandsP50": 21,
+        "resultBytesP50": 25806,
+        "ttfbP50Ms": 5.539209000002302,
+        "wireBytesP50": 6968
+      }
+    },
+    {
+      "name": "student /store",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 11.144624999997177,
+        "warmP50Ms": 10.927833000001556,
+        "warmP95Ms": 13.478084000002127,
+        "nodeCpuP50Ms": 3.808,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 15840,
+        "ttfbP50Ms": 3.8717499999984284,
+        "wireBytesP50": 4420
+      },
+      "after": {
+        "coldFirstRequestMs": 11.022666000000754,
+        "warmP50Ms": 9.892667000000074,
+        "warmP95Ms": 13.233542000001762,
+        "nodeCpuP50Ms": 3.35,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 15840,
+        "ttfbP50Ms": 3.395209000002069,
+        "wireBytesP50": 4420
+      }
+    },
+    {
+      "name": "teacher /academy",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 437.09170800000356,
+        "warmP50Ms": 280.3443750000006,
+        "warmP95Ms": 320.539041,
+        "nodeCpuP50Ms": 235.433,
+        "dbDurationSumP50Ms": 503,
+        "dbCommandsP50": 68,
+        "resultBytesP50": 26716,
+        "ttfbP50Ms": 272.9462500000009,
+        "wireBytesP50": 5278
+      },
+      "after": {
+        "coldFirstRequestMs": 412.1001669999969,
+        "warmP50Ms": 267.8733749999992,
+        "warmP95Ms": 311.1810830000031,
+        "nodeCpuP50Ms": 193.493,
+        "dbDurationSumP50Ms": 310,
+        "dbCommandsP50": 31,
+        "resultBytesP50": 26716,
+        "ttfbP50Ms": 261.2374579999996,
+        "wireBytesP50": 5278
+      }
+    },
+    {
+      "name": "teacher /academy?tab=students",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 15.770541999998386,
+        "warmP50Ms": 12.607707999999548,
+        "warmP95Ms": 15.104291999999987,
+        "nodeCpuP50Ms": 6.104,
+        "dbDurationSumP50Ms": 12,
+        "dbCommandsP50": 21,
+        "resultBytesP50": 48531,
+        "ttfbP50Ms": 6.594790999999532,
+        "wireBytesP50": 4063
+      },
+      "after": {
+        "coldFirstRequestMs": 16.132666000001336,
+        "warmP50Ms": 14.940458000000945,
+        "warmP95Ms": 21.79662499999904,
+        "nodeCpuP50Ms": 5.765,
+        "dbDurationSumP50Ms": 14,
+        "dbCommandsP50": 21,
+        "resultBytesP50": 48531,
+        "ttfbP50Ms": 6.744249999999738,
+        "wireBytesP50": 4063
+      }
+    },
+    {
+      "name": "teacher /academy?tab=classes",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 12.545624999998836,
+        "warmP50Ms": 12.07879099999991,
+        "warmP95Ms": 13.364250000002357,
+        "nodeCpuP50Ms": 6.104,
+        "dbDurationSumP50Ms": 15,
+        "dbCommandsP50": 18,
+        "resultBytesP50": 10325,
+        "ttfbP50Ms": 6.221417000000656,
+        "wireBytesP50": 2763
+      },
+      "after": {
+        "coldFirstRequestMs": 12.358832999998413,
+        "warmP50Ms": 14.988208999999188,
+        "warmP95Ms": 19.98949999999968,
+        "nodeCpuP50Ms": 6.496,
+        "dbDurationSumP50Ms": 17,
+        "dbCommandsP50": 18,
+        "resultBytesP50": 10325,
+        "ttfbP50Ms": 6.425125000001572,
+        "wireBytesP50": 2763
+      }
+    },
+    {
+      "name": "teacher /academy?tab=attendance",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 13.327500000003056,
+        "warmP50Ms": 12.660750000002736,
+        "warmP95Ms": 15.899583000002167,
+        "nodeCpuP50Ms": 5.892,
+        "dbDurationSumP50Ms": 12,
+        "dbCommandsP50": 23,
+        "resultBytesP50": 15586,
+        "ttfbP50Ms": 6.668249999998807,
+        "wireBytesP50": 2953
+      },
+      "after": {
+        "coldFirstRequestMs": 13.767792000002373,
+        "warmP50Ms": 13.55304199999955,
+        "warmP95Ms": 20.94800000000032,
+        "nodeCpuP50Ms": 5.313,
+        "dbDurationSumP50Ms": 13,
+        "dbCommandsP50": 23,
+        "resultBytesP50": 15586,
+        "ttfbP50Ms": 6.183167000002868,
+        "wireBytesP50": 2953
+      }
+    },
+    {
+      "name": "teacher /academy/classes/76fa8088b6db6199e7d4f9ce",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 82.76483299999745,
+        "warmP50Ms": 45.4575420000001,
+        "warmP95Ms": 48.31054099999892,
+        "nodeCpuP50Ms": 26.37,
+        "dbDurationSumP50Ms": 52,
+        "dbCommandsP50": 28,
+        "resultBytesP50": 42342,
+        "ttfbP50Ms": 39.17766599999959,
+        "wireBytesP50": 6402
+      },
+      "after": {
+        "coldFirstRequestMs": 53.49437500000204,
+        "warmP50Ms": 46.315207999999984,
+        "warmP95Ms": 49.45941600000151,
+        "nodeCpuP50Ms": 24.086,
+        "dbDurationSumP50Ms": 52,
+        "dbCommandsP50": 28,
+        "resultBytesP50": 42342,
+        "ttfbP50Ms": 38.35066600000209,
+        "wireBytesP50": 6402
+      }
+    },
+    {
+      "name": "teacher /academy/students/adebd630481eed9a760e48e1",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 25.880541000002268,
+        "warmP50Ms": 17.23449999999866,
+        "warmP95Ms": 22.813291000005847,
+        "nodeCpuP50Ms": 10.605,
+        "dbDurationSumP50Ms": 14,
+        "dbCommandsP50": 16,
+        "resultBytesP50": 144510,
+        "ttfbP50Ms": 11.477707999998529,
+        "wireBytesP50": 10347
+      },
+      "after": {
+        "coldFirstRequestMs": 38.33937499999956,
+        "warmP50Ms": 17.798957999999402,
+        "warmP95Ms": 23.129750000000058,
+        "nodeCpuP50Ms": 9.91,
+        "dbDurationSumP50Ms": 13,
+        "dbCommandsP50": 16,
+        "resultBytesP50": 144510,
+        "ttfbP50Ms": 11.375874999997905,
+        "wireBytesP50": 10347
+      }
+    },
+    {
+      "name": "parent /parent",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 22.604458000001614,
+        "warmP50Ms": 19.941459000001487,
+        "warmP95Ms": 22.61229099999764,
+        "nodeCpuP50Ms": 8.296,
+        "dbDurationSumP50Ms": 46,
+        "dbCommandsP50": 33,
+        "resultBytesP50": 7186,
+        "ttfbP50Ms": 13.890917000004265,
+        "wireBytesP50": 2734
+      },
+      "after": {
+        "coldFirstRequestMs": 25.564958999999362,
+        "warmP50Ms": 20.28704199999993,
+        "warmP95Ms": 36.7677079999994,
+        "nodeCpuP50Ms": 8.046,
+        "dbDurationSumP50Ms": 45,
+        "dbCommandsP50": 33,
+        "resultBytesP50": 7186,
+        "ttfbP50Ms": 13.643000000000029,
+        "wireBytesP50": 2734
+      }
+    },
+    {
+      "name": "parent /parent/notifications",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 25.444792000002053,
+        "warmP50Ms": 18.763749999998254,
+        "warmP95Ms": 22.654459000004863,
+        "nodeCpuP50Ms": 7.402,
+        "dbDurationSumP50Ms": 36,
+        "dbCommandsP50": 26,
+        "resultBytesP50": 8200,
+        "ttfbP50Ms": 13.048000000002503,
+        "wireBytesP50": 3074
+      },
+      "after": {
+        "coldFirstRequestMs": 18.7074999999968,
+        "warmP50Ms": 19.395958000000974,
+        "warmP95Ms": 46.82437500000378,
+        "nodeCpuP50Ms": 7.002,
+        "dbDurationSumP50Ms": 37,
+        "dbCommandsP50": 26,
+        "resultBytesP50": 8200,
+        "ttfbP50Ms": 12.975124999997206,
+        "wireBytesP50": 3074
+      }
+    },
+    {
+      "name": "parent /parent/pricing",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 17.941624999999476,
+        "warmP50Ms": 15.837249999996857,
+        "warmP95Ms": 17.292709000001196,
+        "nodeCpuP50Ms": 4.621,
+        "dbDurationSumP50Ms": 18,
+        "dbCommandsP50": 17,
+        "resultBytesP50": 7541,
+        "ttfbP50Ms": 10.020082999995793,
+        "wireBytesP50": 2815
+      },
+      "after": {
+        "coldFirstRequestMs": 20.547583999999915,
+        "warmP50Ms": 16.41833300000144,
+        "warmP95Ms": 18.385417000004963,
+        "nodeCpuP50Ms": 5.213,
+        "dbDurationSumP50Ms": 19,
+        "dbCommandsP50": 17,
+        "resultBytesP50": 7541,
+        "ttfbP50Ms": 10.53204199999891,
+        "wireBytesP50": 2815
+      }
+    },
+    {
+      "name": "parent /parent/payments",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 16.122667000003275,
+        "warmP50Ms": 15.175250000000233,
+        "warmP95Ms": 18.993625000002794,
+        "nodeCpuP50Ms": 3.318,
+        "dbDurationSumP50Ms": 13,
+        "dbCommandsP50": 8,
+        "resultBytesP50": 6258,
+        "ttfbP50Ms": 9.188916999999492,
+        "wireBytesP50": 2452
+      },
+      "after": {
+        "coldFirstRequestMs": 17.436458000003768,
+        "warmP50Ms": 15.017749999999069,
+        "warmP95Ms": 16.927000000003318,
+        "nodeCpuP50Ms": 3.153,
+        "dbDurationSumP50Ms": 12,
+        "dbCommandsP50": 8,
+        "resultBytesP50": 6258,
+        "ttfbP50Ms": 9.172124999997322,
+        "wireBytesP50": 2452
+      }
+    },
+    {
+      "name": "admin /admin",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 28.264333000006445,
+        "warmP50Ms": 23.469292000001587,
+        "warmP95Ms": 26.882666999998037,
+        "nodeCpuP50Ms": 6.984,
+        "dbDurationSumP50Ms": 30,
+        "dbCommandsP50": 23,
+        "resultBytesP50": 16359,
+        "ttfbP50Ms": 17.23529199999757,
+        "wireBytesP50": 4207
+      },
+      "after": {
+        "coldFirstRequestMs": 32.3917089999959,
+        "warmP50Ms": 23.315875000000233,
+        "warmP95Ms": 26.423207999992883,
+        "nodeCpuP50Ms": 6.666,
+        "dbDurationSumP50Ms": 31,
+        "dbCommandsP50": 23,
+        "resultBytesP50": 16359,
+        "ttfbP50Ms": 17.028041999998095,
+        "wireBytesP50": 4207
+      }
+    },
+    {
+      "name": "admin /admin/academies",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 14.969208000002254,
+        "warmP50Ms": 10.34599999999773,
+        "warmP95Ms": 52.853917000000365,
+        "nodeCpuP50Ms": 4.042,
+        "dbDurationSumP50Ms": 10,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 11357,
+        "ttfbP50Ms": 4.134209000003466,
+        "wireBytesP50": 2745
+      },
+      "after": {
+        "coldFirstRequestMs": 16.12600000000384,
+        "warmP50Ms": 10.806499999998778,
+        "warmP95Ms": 12.1728329999969,
+        "nodeCpuP50Ms": 4.224,
+        "dbDurationSumP50Ms": 10,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 11357,
+        "ttfbP50Ms": 4.089665999999852,
+        "wireBytesP50": 2745
+      }
+    },
+    {
+      "name": "admin /admin/academies/4a546ef6bcaae2abf09fbaa5/overview",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 16.894582999993872,
+        "warmP50Ms": 12.575957999993989,
+        "warmP95Ms": 14.631042000000889,
+        "nodeCpuP50Ms": 7.202,
+        "dbDurationSumP50Ms": 14,
+        "dbCommandsP50": 17,
+        "resultBytesP50": 15441,
+        "ttfbP50Ms": 6.773958000005223,
+        "wireBytesP50": 3785
+      },
+      "after": {
+        "coldFirstRequestMs": 19.414834000002884,
+        "warmP50Ms": 13.599542000003566,
+        "warmP95Ms": 16.64912500000355,
+        "nodeCpuP50Ms": 7.74,
+        "dbDurationSumP50Ms": 17,
+        "dbCommandsP50": 17,
+        "resultBytesP50": 15441,
+        "ttfbP50Ms": 7.42412499999773,
+        "wireBytesP50": 3781
+      }
+    },
+    {
+      "name": "admin /admin/academies/4a546ef6bcaae2abf09fbaa5/analytics",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 313.7042500000025,
+        "warmP50Ms": 276.028624999999,
+        "warmP95Ms": 291.8515000000043,
+        "nodeCpuP50Ms": 237.007,
+        "dbDurationSumP50Ms": 491,
+        "dbCommandsP50": 61,
+        "resultBytesP50": 100313,
+        "ttfbP50Ms": 268.75729200000205,
+        "wireBytesP50": 6644
+      },
+      "after": {
+        "coldFirstRequestMs": 271.4681669999991,
+        "warmP50Ms": 264.04845800000476,
+        "warmP95Ms": 413.968832999999,
+        "nodeCpuP50Ms": 190.337,
+        "dbDurationSumP50Ms": 294,
+        "dbCommandsP50": 24,
+        "resultBytesP50": 100313,
+        "ttfbP50Ms": 258.0779580000017,
+        "wireBytesP50": 6644
+      }
+    },
+    {
+      "name": "admin /admin/academies/4a546ef6bcaae2abf09fbaa5/members",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 30.617458000000624,
+        "warmP50Ms": 25.161458000002312,
+        "warmP95Ms": 27.883749999993597,
+        "nodeCpuP50Ms": 19.087,
+        "dbDurationSumP50Ms": 14,
+        "dbCommandsP50": 17,
+        "resultBytesP50": 217558,
+        "ttfbP50Ms": 18.974999999998545,
+        "wireBytesP50": 10504
+      },
+      "after": {
+        "coldFirstRequestMs": 48.34058399999776,
+        "warmP50Ms": 25.350125000004482,
+        "warmP95Ms": 31.307291999997688,
+        "nodeCpuP50Ms": 20.075,
+        "dbDurationSumP50Ms": 16,
+        "dbCommandsP50": 17,
+        "resultBytesP50": 217558,
+        "ttfbP50Ms": 19.16437500000029,
+        "wireBytesP50": 10522
+      }
+    },
+    {
+      "name": "admin /admin/academies/4a546ef6bcaae2abf09fbaa5/classes",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 14.233540999994148,
+        "warmP50Ms": 14.177208000000974,
+        "warmP95Ms": 19.2744160000002,
+        "nodeCpuP50Ms": 9.354,
+        "dbDurationSumP50Ms": 14,
+        "dbCommandsP50": 17,
+        "resultBytesP50": 56302,
+        "ttfbP50Ms": 7.746790999997756,
+        "wireBytesP50": 4556
+      },
+      "after": {
+        "coldFirstRequestMs": 19.475375000001804,
+        "warmP50Ms": 15.137750000001688,
+        "warmP95Ms": 19.94774999999936,
+        "nodeCpuP50Ms": 8.453,
+        "dbDurationSumP50Ms": 15,
+        "dbCommandsP50": 17,
+        "resultBytesP50": 56302,
+        "ttfbP50Ms": 8.277959000006376,
+        "wireBytesP50": 4556
+      }
+    },
+    {
+      "name": "admin /admin/academies/4a546ef6bcaae2abf09fbaa5/attendance",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 11.011167000004207,
+        "warmP50Ms": 9.431541999998444,
+        "warmP95Ms": 11.112957999997889,
+        "nodeCpuP50Ms": 3.216,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 11,
+        "resultBytesP50": 11661,
+        "ttfbP50Ms": 3.5381669999987935,
+        "wireBytesP50": 2804
+      },
+      "after": {
+        "coldFirstRequestMs": 14.382708999997703,
+        "warmP50Ms": 9.420250000002852,
+        "warmP95Ms": 11.05420900000172,
+        "nodeCpuP50Ms": 3.632,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 11,
+        "resultBytesP50": 11661,
+        "ttfbP50Ms": 3.590541999998095,
+        "wireBytesP50": 2804
+      }
+    },
+    {
+      "name": "admin /admin/users",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 15.146040999999968,
+        "warmP50Ms": 11.16741699999693,
+        "warmP95Ms": 13.813750000001164,
+        "nodeCpuP50Ms": 4.605,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 12,
+        "resultBytesP50": 23174,
+        "ttfbP50Ms": 4.978250000000116,
+        "wireBytesP50": 3397
+      },
+      "after": {
+        "coldFirstRequestMs": 15.548125000001164,
+        "warmP50Ms": 11.247457999998005,
+        "warmP95Ms": 13.49237500000163,
+        "nodeCpuP50Ms": 4.599,
+        "dbDurationSumP50Ms": 10,
+        "dbCommandsP50": 12,
+        "resultBytesP50": 23174,
+        "ttfbP50Ms": 5.094666999997571,
+        "wireBytesP50": 3397
+      }
+    },
+    {
+      "name": "admin /admin/users/0b91fae85212eed702072a1f",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 20.2412089999998,
+        "warmP50Ms": 12.819792000002053,
+        "warmP95Ms": 14.924915999996301,
+        "nodeCpuP50Ms": 6.806,
+        "dbDurationSumP50Ms": 40,
+        "dbCommandsP50": 38,
+        "resultBytesP50": 23586,
+        "ttfbP50Ms": 7.191624999999476,
+        "wireBytesP50": 5530
+      },
+      "after": {
+        "coldFirstRequestMs": 19.77599999999802,
+        "warmP50Ms": 13.376875000001746,
+        "warmP95Ms": 16.36041700000351,
+        "nodeCpuP50Ms": 6.881,
+        "dbDurationSumP50Ms": 41,
+        "dbCommandsP50": 38,
+        "resultBytesP50": 23586,
+        "ttfbP50Ms": 7.1227080000026035,
+        "wireBytesP50": 5530
+      }
+    },
+    {
+      "name": "admin /admin/private-mock-exams",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 40.879500000002736,
+        "warmP50Ms": 19.08087499999965,
+        "warmP95Ms": 22.255333000000974,
+        "nodeCpuP50Ms": 9.87,
+        "dbDurationSumP50Ms": 20,
+        "dbCommandsP50": 24,
+        "resultBytesP50": 44278,
+        "ttfbP50Ms": 12.625124999998661,
+        "wireBytesP50": 6296
+      },
+      "after": {
+        "coldFirstRequestMs": 41.89220799999748,
+        "warmP50Ms": 19.32970899999782,
+        "warmP95Ms": 21.27204200000415,
+        "nodeCpuP50Ms": 9.984,
+        "dbDurationSumP50Ms": 20,
+        "dbCommandsP50": 24,
+        "resultBytesP50": 44278,
+        "ttfbP50Ms": 13.136874999996508,
+        "wireBytesP50": 6296
+      }
+    },
+    {
+      "name": "admin /admin/community",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 12.452916999995068,
+        "warmP50Ms": 10.194833000001381,
+        "warmP95Ms": 12.119957999995677,
+        "nodeCpuP50Ms": 3.698,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 11,
+        "resultBytesP50": 36439,
+        "ttfbP50Ms": 4.081541999999899,
+        "wireBytesP50": 5201
+      },
+      "after": {
+        "coldFirstRequestMs": 13.705791000000318,
+        "warmP50Ms": 10.21875,
+        "warmP95Ms": 11.56279099999665,
+        "nodeCpuP50Ms": 3.654,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 11,
+        "resultBytesP50": 36439,
+        "ttfbP50Ms": 3.931917000001704,
+        "wireBytesP50": 5224
+      }
+    },
+    {
+      "name": "admin /admin/arena-policies",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 26.33037499999773,
+        "warmP50Ms": 16.780917000003683,
+        "warmP95Ms": 19.804042000003392,
+        "nodeCpuP50Ms": 5.174,
+        "dbDurationSumP50Ms": 15,
+        "dbCommandsP50": 17,
+        "resultBytesP50": 33081,
+        "ttfbP50Ms": 10.89862500000163,
+        "wireBytesP50": 6363
+      },
+      "after": {
+        "coldFirstRequestMs": 29.81262499999866,
+        "warmP50Ms": 17.163625000001048,
+        "warmP95Ms": 23.176750000005995,
+        "nodeCpuP50Ms": 5.54,
+        "dbDurationSumP50Ms": 16,
+        "dbCommandsP50": 17,
+        "resultBytesP50": 33081,
+        "ttfbP50Ms": 11.181166000002122,
+        "wireBytesP50": 6366
+      }
+    },
+    {
+      "name": "admin /admin/problem-banks",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 52.29166699999769,
+        "warmP50Ms": 12.686499999996158,
+        "warmP95Ms": 15.014582999996492,
+        "nodeCpuP50Ms": 6.582,
+        "dbDurationSumP50Ms": 10,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 152283,
+        "ttfbP50Ms": 6.237667000001238,
+        "wireBytesP50": 12409
+      },
+      "after": {
+        "coldFirstRequestMs": 53.10029200000281,
+        "warmP50Ms": 12.518791999995301,
+        "warmP95Ms": 15.790667000001122,
+        "nodeCpuP50Ms": 6.605,
+        "dbDurationSumP50Ms": 10,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 152283,
+        "ttfbP50Ms": 6.250958000004175,
+        "wireBytesP50": 12408
+      }
+    },
+    {
+      "name": "admin /admin/arena-audit",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 14.213457999998354,
+        "warmP50Ms": 11.246167000004789,
+        "warmP95Ms": 14.16229100000055,
+        "nodeCpuP50Ms": 4.65,
+        "dbDurationSumP50Ms": 21,
+        "dbCommandsP50": 26,
+        "resultBytesP50": 14527,
+        "ttfbP50Ms": 5.014999999999418,
+        "wireBytesP50": 3622
+      },
+      "after": {
+        "coldFirstRequestMs": 14.171999999998661,
+        "warmP50Ms": 11.090416999999434,
+        "warmP95Ms": 12.38350000000355,
+        "nodeCpuP50Ms": 4.409,
+        "dbDurationSumP50Ms": 24,
+        "dbCommandsP50": 26,
+        "resultBytesP50": 14527,
+        "ttfbP50Ms": 4.588415999998688,
+        "wireBytesP50": 3623
+      }
+    },
+    {
+      "name": "admin /admin/data-analysis",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 68.3055830000012,
+        "warmP50Ms": 9.306499999998778,
+        "warmP95Ms": 10.747957999999926,
+        "nodeCpuP50Ms": 3.212,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 5,
+        "resultBytesP50": 68184,
+        "ttfbP50Ms": 3.052917000000889,
+        "wireBytesP50": 5454
+      },
+      "after": {
+        "coldFirstRequestMs": 68.04791699999623,
+        "warmP50Ms": 9.144083999999566,
+        "warmP95Ms": 15.307291999997688,
+        "nodeCpuP50Ms": 3.371,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 5,
+        "resultBytesP50": 68184,
+        "ttfbP50Ms": 3.2599999999947613,
+        "wireBytesP50": 5454
+      }
+    },
+    {
+      "name": "admin /api/admin/revenue",
+      "kind": "http",
+      "before": {
+        "coldFirstRequestMs": 25.040082999999868,
+        "warmP50Ms": 21.839583000000857,
+        "warmP95Ms": 24.346707999997307,
+        "nodeCpuP50Ms": 4.686,
+        "dbDurationSumP50Ms": 20,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 675,
+        "ttfbP50Ms": 15.596291999994719,
+        "wireBytesP50": 675
+      },
+      "after": {
+        "coldFirstRequestMs": 21.780707999998413,
+        "warmP50Ms": 20.991290999998455,
+        "warmP95Ms": 27.15137500000128,
+        "nodeCpuP50Ms": 4.333,
+        "dbDurationSumP50Ms": 20,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 675,
+        "ttfbP50Ms": 15.806709000004048,
+        "wireBytesP50": 675
+      }
+    },
+    {
+      "name": "weekly-academy",
+      "kind": "service",
+      "before": {
+        "coldFirstRequestMs": 15.801666999999725,
+        "warmP50Ms": 15.517540999993798,
+        "warmP95Ms": 18.999250000000757,
+        "nodeCpuP50Ms": 12.603,
+        "dbDurationSumP50Ms": 178,
+        "dbCommandsP50": 42,
+        "resultBytesP50": 86054
+      },
+      "after": {
+        "coldFirstRequestMs": 22.270625000004657,
+        "warmP50Ms": 20.049333999995724,
+        "warmP95Ms": 21.105290999999852,
+        "nodeCpuP50Ms": 8.881,
+        "dbDurationSumP50Ms": 25,
+        "dbCommandsP50": 5,
+        "resultBytesP50": 86054
+      }
+    },
+    {
+      "name": "math-map-class",
+      "kind": "service",
+      "before": {
+        "coldFirstRequestMs": 266.2038339999999,
+        "warmP50Ms": 255.5835420000003,
+        "warmP95Ms": 318.0520000000033,
+        "nodeCpuP50Ms": 202.726,
+        "dbDurationSumP50Ms": 174,
+        "dbCommandsP50": 5,
+        "resultBytesP50": 8741378
+      },
+      "after": {
+        "coldFirstRequestMs": 280.457917000007,
+        "warmP50Ms": 235.81387499999983,
+        "warmP95Ms": 296.5878329999978,
+        "nodeCpuP50Ms": 180.044,
+        "dbDurationSumP50Ms": 165,
+        "dbCommandsP50": 5,
+        "resultBytesP50": 8741378
+      }
+    },
+    {
+      "name": "math-map-student",
+      "kind": "service",
+      "before": {
+        "coldFirstRequestMs": 5.819958000000042,
+        "warmP50Ms": 4.820332999996026,
+        "warmP95Ms": 5.629500000002736,
+        "nodeCpuP50Ms": 2.872,
+        "dbDurationSumP50Ms": 4,
+        "dbCommandsP50": 4,
+        "resultBytesP50": 82015
+      },
+      "after": {
+        "coldFirstRequestMs": 4.9846249999973224,
+        "warmP50Ms": 4.190958999999566,
+        "warmP95Ms": 5.597459000004164,
+        "nodeCpuP50Ms": 2.364,
+        "dbDurationSumP50Ms": 4,
+        "dbCommandsP50": 4,
+        "resultBytesP50": 82015
+      }
+    },
+    {
+      "name": "monthly-academy",
+      "kind": "service",
+      "before": {
+        "coldFirstRequestMs": 79.89362500000425,
+        "warmP50Ms": 70.40374999999767,
+        "warmP95Ms": 75.67250000000058,
+        "nodeCpuP50Ms": 2.516,
+        "dbDurationSumP50Ms": 71,
+        "dbCommandsP50": 3,
+        "resultBytesP50": 15834
+      },
+      "after": {
+        "coldFirstRequestMs": 74.35566700000345,
+        "warmP50Ms": 69.81829200000357,
+        "warmP95Ms": 71.51029099999869,
+        "nodeCpuP50Ms": 2.599,
+        "dbDurationSumP50Ms": 70,
+        "dbCommandsP50": 3,
+        "resultBytesP50": 15834
+      }
+    },
+    {
+      "name": "date-keys-1000",
+      "kind": "service",
+      "before": {
+        "coldFirstRequestMs": 33.244417000001704,
+        "warmP50Ms": 30.933458999999857,
+        "warmP95Ms": 32.877457999995386,
+        "nodeCpuP50Ms": 30.646,
+        "dbDurationSumP50Ms": 0,
+        "dbCommandsP50": 0,
+        "resultBytesP50": 13001
+      },
+      "after": {
+        "coldFirstRequestMs": 4.999250000000757,
+        "warmP50Ms": 4.298333000006096,
+        "warmP95Ms": 4.724459000004572,
+        "nodeCpuP50Ms": 4.559,
+        "dbDurationSumP50Ms": 0,
+        "dbCommandsP50": 0,
+        "resultBytesP50": 13001
+      }
+    },
+    {
+      "name": "student /api/v1/me",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 14.319250000000466,
+        "warmP50Ms": 9.720541999999114,
+        "warmP95Ms": 12.087500000001455,
+        "nodeCpuP50Ms": 4.389,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 1447,
+        "ttfbP50Ms": 3.6218750000007276,
+        "wireBytesP50": 672
+      },
+      "after": {
+        "coldFirstRequestMs": 13.316124999997555,
+        "warmP50Ms": 9.094625000001543,
+        "warmP95Ms": 10.253625000001193,
+        "nodeCpuP50Ms": 4.108,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 1447,
+        "ttfbP50Ms": 3.4751670000005106,
+        "wireBytesP50": 672
+      }
+    },
+    {
+      "name": "student /api/v1/curriculum",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 11.414375000000291,
+        "warmP50Ms": 11.95274999999674,
+        "warmP95Ms": 15.503333000000566,
+        "nodeCpuP50Ms": 9.036,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 5,
+        "resultBytesP50": 361319,
+        "ttfbP50Ms": 5.910041999999521,
+        "wireBytesP50": 45850
+      },
+      "after": {
+        "coldFirstRequestMs": 11.442833000000974,
+        "warmP50Ms": 11.884125000000495,
+        "warmP95Ms": 14.929665999999997,
+        "nodeCpuP50Ms": 9.03,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 5,
+        "resultBytesP50": 361319,
+        "ttfbP50Ms": 6.034000000003289,
+        "wireBytesP50": 45850
+      }
+    },
+    {
+      "name": "student /api/v1/learning",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 17.001208000001498,
+        "warmP50Ms": 20.034749999998894,
+        "warmP95Ms": 33.022290999997495,
+        "nodeCpuP50Ms": 16.138,
+        "dbDurationSumP50Ms": 11,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 447512,
+        "ttfbP50Ms": 13.519541000001482,
+        "wireBytesP50": 50311
+      },
+      "after": {
+        "coldFirstRequestMs": 17.339374999999563,
+        "warmP50Ms": 13.420125000000553,
+        "warmP95Ms": 19.118916999999783,
+        "nodeCpuP50Ms": 10.89,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 447512,
+        "ttfbP50Ms": 7.3073330000006536,
+        "wireBytesP50": 50311
+      }
+    },
+    {
+      "name": "student /api/v1/dashboard/activity",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 14.933750000000146,
+        "warmP50Ms": 14.628250000001572,
+        "warmP95Ms": 20.661917000001267,
+        "nodeCpuP50Ms": 6.56,
+        "dbDurationSumP50Ms": 13,
+        "dbCommandsP50": 9,
+        "resultBytesP50": 857,
+        "ttfbP50Ms": 7.299082999998063,
+        "wireBytesP50": 857
+      },
+      "after": {
+        "coldFirstRequestMs": 13.428708000003098,
+        "warmP50Ms": 9.603000000002794,
+        "warmP95Ms": 11.255166999999346,
+        "nodeCpuP50Ms": 3.766,
+        "dbDurationSumP50Ms": 10,
+        "dbCommandsP50": 9,
+        "resultBytesP50": 857,
+        "ttfbP50Ms": 3.786292000000685,
+        "wireBytesP50": 857
+      }
+    },
+    {
+      "name": "student /api/v1/notifications",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 13.86041699999987,
+        "warmP50Ms": 10.167333999997936,
+        "warmP95Ms": 13.099332999998296,
+        "nodeCpuP50Ms": 4.206,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 9,
+        "resultBytesP50": 152,
+        "ttfbP50Ms": 4.277374999997846,
+        "wireBytesP50": 152
+      },
+      "after": {
+        "coldFirstRequestMs": 10.066208000000188,
+        "warmP50Ms": 9.095708999997441,
+        "warmP95Ms": 10.255582999998296,
+        "nodeCpuP50Ms": 3.149,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 9,
+        "resultBytesP50": 152,
+        "ttfbP50Ms": 3.5201669999987644,
+        "wireBytesP50": 152
+      }
+    },
+    {
+      "name": "student /api/v1/assessments",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 9.96191700000054,
+        "warmP50Ms": 9.639707999998791,
+        "warmP95Ms": 14.198834000002535,
+        "nodeCpuP50Ms": 3.706,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 6,
+        "resultBytesP50": 18,
+        "ttfbP50Ms": 3.8013339999997697,
+        "wireBytesP50": 18
+      },
+      "after": {
+        "coldFirstRequestMs": 8.762541000000056,
+        "warmP50Ms": 9.068291999999929,
+        "warmP95Ms": 10.575583999998344,
+        "nodeCpuP50Ms": 3.054,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 6,
+        "resultBytesP50": 18,
+        "ttfbP50Ms": 3.0429580000018177,
+        "wireBytesP50": 18
+      }
+    },
+    {
+      "name": "student /api/v1/wrong-notes",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 16.792374999997264,
+        "warmP50Ms": 11.47583300000042,
+        "warmP95Ms": 13.064291999999114,
+        "nodeCpuP50Ms": 6.684,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 36347,
+        "ttfbP50Ms": 5.385042000001704,
+        "wireBytesP50": 2141
+      },
+      "after": {
+        "coldFirstRequestMs": 16.2132500000007,
+        "warmP50Ms": 10.667750000000524,
+        "warmP95Ms": 11.273541999998997,
+        "nodeCpuP50Ms": 5.646,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 36347,
+        "ttfbP50Ms": 5.003541999998561,
+        "wireBytesP50": 2141
+      }
+    },
+    {
+      "name": "student /api/v1/academy/student",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 14.897540999998455,
+        "warmP50Ms": 10.693249999996624,
+        "warmP95Ms": 12.343291999997746,
+        "nodeCpuP50Ms": 4.589,
+        "dbDurationSumP50Ms": 10,
+        "dbCommandsP50": 16,
+        "resultBytesP50": 724,
+        "ttfbP50Ms": 4.741042000001471,
+        "wireBytesP50": 724
+      },
+      "after": {
+        "coldFirstRequestMs": 11.310999999997875,
+        "warmP50Ms": 10.237958000001527,
+        "warmP95Ms": 11.310750000000553,
+        "nodeCpuP50Ms": 4.567,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 16,
+        "resultBytesP50": 724,
+        "ttfbP50Ms": 4.3249590000013995,
+        "wireBytesP50": 724
+      }
+    },
+    {
+      "name": "student /api/v1/weekly-mock-exams",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 11.231332999999722,
+        "warmP50Ms": 10.223791000000347,
+        "warmP95Ms": 11.601542000000336,
+        "nodeCpuP50Ms": 4.408,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 12,
+        "resultBytesP50": 676,
+        "ttfbP50Ms": 4.429291000000376,
+        "wireBytesP50": 676
+      },
+      "after": {
+        "coldFirstRequestMs": 11.423333999999159,
+        "warmP50Ms": 10.016791999998532,
+        "warmP95Ms": 11.842915999997786,
+        "nodeCpuP50Ms": 3.971,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 12,
+        "resultBytesP50": 676,
+        "ttfbP50Ms": 4.0613329999978305,
+        "wireBytesP50": 676
+      }
+    },
+    {
+      "name": "student /api/v1/goat-arena",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 12.626791999999114,
+        "warmP50Ms": 10.034124999998312,
+        "warmP95Ms": 12.296916000002966,
+        "nodeCpuP50Ms": 4.275,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 12,
+        "resultBytesP50": 909,
+        "ttfbP50Ms": 3.920791000000463,
+        "wireBytesP50": 909
+      },
+      "after": {
+        "coldFirstRequestMs": 11.910667000000103,
+        "warmP50Ms": 9.460166000000754,
+        "warmP95Ms": 11.369166999997105,
+        "nodeCpuP50Ms": 3.959,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 12,
+        "resultBytesP50": 909,
+        "ttfbP50Ms": 3.604583000000275,
+        "wireBytesP50": 909
+      }
+    },
+    {
+      "name": "student /api/v1/archive",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 11.724833000000217,
+        "warmP50Ms": 10.287208000001556,
+        "warmP95Ms": 11.337749999998778,
+        "nodeCpuP50Ms": 3.949,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 92,
+        "ttfbP50Ms": 4.499625000000378,
+        "wireBytesP50": 92
+      },
+      "after": {
+        "coldFirstRequestMs": 11.606416000002355,
+        "warmP50Ms": 10.200458000002982,
+        "warmP95Ms": 24.571625000000495,
+        "nodeCpuP50Ms": 3.87,
+        "dbDurationSumP50Ms": 8,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 92,
+        "ttfbP50Ms": 4.457624999999098,
+        "wireBytesP50": 92
+      }
+    },
+    {
+      "name": "student /api/v1/study-hall",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 9.95208300000013,
+        "warmP50Ms": 9.085167000001093,
+        "warmP95Ms": 9.78729100000055,
+        "nodeCpuP50Ms": 3.024,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 826,
+        "ttfbP50Ms": 3.281375000002299,
+        "wireBytesP50": 826
+      },
+      "after": {
+        "coldFirstRequestMs": 10.485167000002548,
+        "warmP50Ms": 9.03074999999808,
+        "warmP95Ms": 11.14037499999904,
+        "nodeCpuP50Ms": 2.671,
+        "dbDurationSumP50Ms": 7,
+        "dbCommandsP50": 7,
+        "resultBytesP50": 826,
+        "ttfbP50Ms": 3.062999999998283,
+        "wireBytesP50": 826
+      }
+    },
+    {
+      "name": "teacher /api/v1/academy/teacher",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 14.780582999999751,
+        "warmP50Ms": 13.072791999999026,
+        "warmP95Ms": 15.6127919999999,
+        "nodeCpuP50Ms": 8.049,
+        "dbDurationSumP50Ms": 15,
+        "dbCommandsP50": 18,
+        "resultBytesP50": 26517,
+        "ttfbP50Ms": 6.67870799999946,
+        "wireBytesP50": 3098
+      },
+      "after": {
+        "coldFirstRequestMs": 13.224708000001556,
+        "warmP50Ms": 12.228417000002082,
+        "warmP95Ms": 14.084749999998166,
+        "nodeCpuP50Ms": 7.352,
+        "dbDurationSumP50Ms": 14,
+        "dbCommandsP50": 18,
+        "resultBytesP50": 26517,
+        "ttfbP50Ms": 6.2520409999997355,
+        "wireBytesP50": 3096
+      }
+    },
+    {
+      "name": "teacher /api/v1/academy/teacher/analytics",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 473.59504099999685,
+        "warmP50Ms": 277.9437919999982,
+        "warmP95Ms": 319.5663339999992,
+        "nodeCpuP50Ms": 223.183,
+        "dbDurationSumP50Ms": 277,
+        "dbCommandsP50": 26,
+        "resultBytesP50": 53510,
+        "ttfbP50Ms": 271.2172920000012,
+        "wireBytesP50": 6932
+      },
+      "after": {
+        "coldFirstRequestMs": 395.4144579999993,
+        "warmP50Ms": 257.6349999999984,
+        "warmP95Ms": 298.0610830000005,
+        "nodeCpuP50Ms": 176.601,
+        "dbDurationSumP50Ms": 261,
+        "dbCommandsP50": 26,
+        "resultBytesP50": 53510,
+        "ttfbP50Ms": 253.57700000000114,
+        "wireBytesP50": 6944
+      }
+    },
+    {
+      "name": "teacher /api/v1/academy/teacher/students",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 14.034999999999854,
+        "warmP50Ms": 12.441625000003114,
+        "warmP95Ms": 15.622166000001016,
+        "nodeCpuP50Ms": 5.895,
+        "dbDurationSumP50Ms": 14,
+        "dbCommandsP50": 21,
+        "resultBytesP50": 9459,
+        "ttfbP50Ms": 5.8058750000018335,
+        "wireBytesP50": 1530
+      },
+      "after": {
+        "coldFirstRequestMs": 13.776166999999987,
+        "warmP50Ms": 11.610583000001498,
+        "warmP95Ms": 15.021208999998635,
+        "nodeCpuP50Ms": 5.974,
+        "dbDurationSumP50Ms": 15,
+        "dbCommandsP50": 21,
+        "resultBytesP50": 9459,
+        "ttfbP50Ms": 5.59820899999977,
+        "wireBytesP50": 1521
+      }
+    },
+    {
+      "name": "admin /api/v1/academy/admin/list",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 12.011749999997846,
+        "warmP50Ms": 10.190499999996973,
+        "warmP95Ms": 11.664334000000963,
+        "nodeCpuP50Ms": 3.677,
+        "dbDurationSumP50Ms": 10,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 677,
+        "ttfbP50Ms": 4.048457999997481,
+        "wireBytesP50": 677
+      },
+      "after": {
+        "coldFirstRequestMs": 11.841165999998339,
+        "warmP50Ms": 10.156708999998955,
+        "warmP95Ms": 13.28808299999946,
+        "nodeCpuP50Ms": 3.78,
+        "dbDurationSumP50Ms": 9,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 677,
+        "ttfbP50Ms": 4.09687500000291,
+        "wireBytesP50": 677
+      }
+    },
+    {
+      "name": "admin /api/v1/academy/admin/4a546ef6bcaae2abf09fbaa5",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 294.5119159999995,
+        "warmP50Ms": 293.9960829999982,
+        "warmP95Ms": 426.8756659999999,
+        "nodeCpuP50Ms": 256.187,
+        "dbDurationSumP50Ms": 537,
+        "dbCommandsP50": 71,
+        "resultBytesP50": 118727,
+        "ttfbP50Ms": 287.3302089999961,
+        "wireBytesP50": 11728
+      },
+      "after": {
+        "coldFirstRequestMs": 271.7818750000006,
+        "warmP50Ms": 274.10945899999933,
+        "warmP95Ms": 287.37162499999977,
+        "nodeCpuP50Ms": 194.756,
+        "dbDurationSumP50Ms": 319,
+        "dbCommandsP50": 34,
+        "resultBytesP50": 118727,
+        "ttfbP50Ms": 267.465916000001,
+        "wireBytesP50": 11831
+      }
+    },
+    {
+      "name": "admin /api/admin/revenue",
+      "kind": "http-api",
+      "before": {
+        "coldFirstRequestMs": 35.24262499999895,
+        "warmP50Ms": 21.928375000003143,
+        "warmP95Ms": 28.093290999997407,
+        "nodeCpuP50Ms": 4.87,
+        "dbDurationSumP50Ms": 19,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 675,
+        "ttfbP50Ms": 15.97858300000371,
+        "wireBytesP50": 675
+      },
+      "after": {
+        "coldFirstRequestMs": 27.777499999996508,
+        "warmP50Ms": 21.069125000001804,
+        "warmP95Ms": 23.321916999993846,
+        "nodeCpuP50Ms": 4.634,
+        "dbDurationSumP50Ms": 20,
+        "dbCommandsP50": 13,
+        "resultBytesP50": 675,
+        "ttfbP50Ms": 15.400750000000698,
+        "wireBytesP50": 675
+      }
+    }
+  ],
+  "concurrentWeekly": {
+    "method": "8 concurrent service calls per round, 10 rounds after one warm-up call; fresh identical local replica set per revision",
+    "before": {
+      "roundP50Ms": 108.17775000000074,
+      "roundP95Ms": 124.14374999999927,
+      "nodeCpuP50MsPerRound": 141.852,
+      "requestsPerSecondAtP50": 73.9523608135679,
+      "dbCommandsPerRequest": 42
+    },
+    "after": {
+      "roundP50Ms": 80.3539579999997,
+      "roundP95Ms": 100.01483299999927,
+      "nodeCpuP50MsPerRound": 81.911,
+      "requestsPerSecondAtP50": 99.55950147471304,
+      "dbCommandsPerRequest": 5
+    }
+  },
+  "indexExperiment": [
+    {
+      "label": "existing-indexes",
+      "p50": 202.70016699999996,
+      "p95": 220.90745799999968,
+      "cpuMs": 131.633,
+      "plan": {
+        "stages": [
+          "GROUP",
+          "SORT",
+          "PROJECTION_DEFAULT",
+          "FETCH",
+          "IXSCAN"
+        ],
+        "indexes": [
+          "reviewSourceAttemptId_1"
+        ],
+        "executionMs": 218,
+        "docsExamined": 28800,
+        "keysExamined": 28800
+      }
+    },
+    {
+      "label": "candidate-index",
+      "p50": 200.3748340000002,
+      "p95": 217.00658400000066,
+      "cpuMs": 119.512,
+      "plan": {
+        "stages": [
+          "GROUP",
+          "FETCH",
+          "SORT_MERGE",
+          "IXSCAN"
+        ],
+        "indexes": [
+          "performance_candidate_math_map_order"
+        ],
+        "executionMs": 117,
+        "docsExamined": 28800,
+        "keysExamined": 28800
+      }
+    },
+    {
+      "label": "existing-indexes-recheck",
+      "p50": 210.4170410000006,
+      "p95": 311.08958300000086,
+      "cpuMs": 130.193,
+      "plan": {
+        "stages": [
+          "GROUP",
+          "SORT",
+          "PROJECTION_DEFAULT",
+          "FETCH",
+          "IXSCAN"
+        ],
+        "indexes": [
+          "reviewSourceAttemptId_1"
+        ],
+        "executionMs": 212,
+        "docsExamined": 28800,
+        "keysExamined": 28800
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "korean-only:verify",
+      "status": "passed"
+    },
+    {
+      "name": "overseas-institutions:verify",
+      "status": "passed"
+    },
+    {
+      "name": "auth-email-only:verify",
+      "status": "passed"
+    },
+    {
+      "name": "study-streak:verify",
+      "status": "passed"
+    },
+    {
+      "name": "weekly-tier-competition:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-server-surface:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-profile-http:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-learning-sync:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-assessment-http:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-assessment-safety:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-placement-http:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-weekly-mock-evidence:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-arena-command-http:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-arena-action-http:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-arena-client-review:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-payback-account:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-notification-http:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-academy-http:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-support-http:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-archive-http:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-community-http:verify",
+      "status": "passed"
+    },
+    {
+      "name": "apple-signin:verify",
+      "status": "passed"
+    },
+    {
+      "name": "apple-web-signin:verify",
+      "status": "passed"
+    },
+    {
+      "name": "associated-domains:verify",
+      "status": "passed"
+    },
+    {
+      "name": "apple-commerce-http:verify",
+      "status": "passed"
+    },
+    {
+      "name": "apple-commerce-ownership:verify",
+      "status": "passed"
+    },
+    {
+      "name": "apple-commerce-ownership:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "apple-commerce-notification-recovery:verify",
+      "status": "passed"
+    },
+    {
+      "name": "apple-subscription-lifecycle:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-arena-shop:verify",
+      "status": "passed"
+    },
+    {
+      "name": "app-commerce-handoff:verify",
+      "status": "passed"
+    },
+    {
+      "name": "oauth-mobile:verify",
+      "status": "passed"
+    },
+    {
+      "name": "oauth-kakao:verify",
+      "status": "passed"
+    },
+    {
+      "name": "email:verify",
+      "status": "skipped",
+      "reason": "Live SMTP connection check; no external credentials used"
+    },
+    {
+      "name": "email-routing:verify",
+      "status": "passed"
+    },
+    {
+      "name": "support-email-routing:verify",
+      "status": "passed"
+    },
+    {
+      "name": "finance:verify",
+      "status": "passed"
+    },
+    {
+      "name": "refund:verify",
+      "status": "passed"
+    },
+    {
+      "name": "refund-rejection:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "payments:inicis:verify",
+      "status": "passed"
+    },
+    {
+      "name": "pricing-entitlements:verify",
+      "status": "passed"
+    },
+    {
+      "name": "pricing-entitlements:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "parent-payments:verify",
+      "status": "passed"
+    },
+    {
+      "name": "parent-inquiries:verify",
+      "status": "passed"
+    },
+    {
+      "name": "academy-portal:verify",
+      "status": "passed"
+    },
+    {
+      "name": "academy-contract:verify",
+      "status": "passed"
+    },
+    {
+      "name": "support-inquiry-concurrency:verify",
+      "status": "passed"
+    },
+    {
+      "name": "support-inquiry:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "smtp:verify-live-delivery",
+      "status": "skipped",
+      "reason": "Sends real email; intentionally not run"
+    },
+    {
+      "name": "payback-completion:verify",
+      "status": "passed"
+    },
+    {
+      "name": "payback-daily-learning:verify",
+      "status": "passed"
+    },
+    {
+      "name": "payback-daily-learning:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "admin-audit:verify",
+      "status": "passed"
+    },
+    {
+      "name": "launch-views:verify",
+      "status": "passed"
+    },
+    {
+      "name": "admin:verify",
+      "status": "passed"
+    },
+    {
+      "name": "admin-arena-concepts:verify",
+      "status": "passed"
+    },
+    {
+      "name": "admin:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "community-author-delete:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "community-user-block:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "admin-users:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "account-deletion:verify",
+      "status": "passed"
+    },
+    {
+      "name": "account-reauthentication:verify",
+      "status": "passed"
+    },
+    {
+      "name": "account-deletion:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "placement:verify",
+      "status": "passed"
+    },
+    {
+      "name": "placement-story:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ai-concept-catalog:verify",
+      "status": "passed"
+    },
+    {
+      "name": "problem-types:verify",
+      "status": "passed"
+    },
+    {
+      "name": "problem-types:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "ranking:verify",
+      "status": "passed"
+    },
+    {
+      "name": "ranking:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "logic-parity:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-foundation:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-policy:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-policy-notice:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "arena-division-rules:verify",
+      "status": "passed"
+    },
+    {
+      "name": "access-cycle:verify",
+      "status": "passed"
+    },
+    {
+      "name": "access-cycle-daily:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-placement:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-ranked-cap:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "arena-match:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-level:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-avatar:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-defense-email:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-defense-fairness:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "arena-matchmaking-control:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-match-attempt:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-question-design:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-question-isolation:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-pdf-runtime:verify",
+      "status": "passed"
+    },
+    {
+      "name": "study-hall:verify",
+      "status": "passed"
+    },
+    {
+      "name": "study-hall:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "arena-official-mock-research:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-private-mock-research:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-private-mock-generated:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-problem-data:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-tier-catalog:verify",
+      "status": "failed"
+    },
+    {
+      "name": "arena-tier-catalog:verify-file",
+      "status": "failed"
+    },
+    {
+      "name": "arena-tier-catalog:verify-db",
+      "status": "skipped",
+      "reason": "Duplicate command alias"
+    },
+    {
+      "name": "arena-match-settlement:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-match-settlement:verify-db",
+      "status": "failed"
+    },
+    {
+      "name": "arena-auto-defense:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "arena-live-admin:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-history-admin:verify",
+      "status": "passed"
+    },
+    {
+      "name": "dashboard-arena-presentation:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-revenge:verify-db",
+      "status": "failed"
+    },
+    {
+      "name": "arena-main-settlement:verify-db",
+      "status": "failed"
+    },
+    {
+      "name": "arena-friendly-fee:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "ui:verify",
+      "status": "passed"
+    },
+    {
+      "name": "contrast:verify",
+      "status": "failed"
+    },
+    {
+      "name": "math-rendering:verify",
+      "status": "passed"
+    },
+    {
+      "name": "wrong-note-review:verify",
+      "status": "passed"
+    },
+    {
+      "name": "navigation:verify",
+      "status": "passed"
+    },
+    {
+      "name": "navigation-performance:verify",
+      "status": "failed"
+    },
+    {
+      "name": "canonical-host:verify",
+      "status": "passed"
+    },
+    {
+      "name": "coach-content:verify",
+      "status": "passed"
+    },
+    {
+      "name": "coach-character:verify",
+      "status": "passed"
+    },
+    {
+      "name": "dashboard-sidebar:verify",
+      "status": "passed"
+    },
+    {
+      "name": "dashboard-tutorial:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-tutorial:verify",
+      "status": "passed"
+    },
+    {
+      "name": "home-arena-tier:verify",
+      "status": "passed"
+    },
+    {
+      "name": "coach-idempotency:verify",
+      "status": "passed"
+    },
+    {
+      "name": "dynamic-id-errors:verify",
+      "status": "passed"
+    },
+    {
+      "name": "platform-expansion:verify",
+      "status": "passed"
+    },
+    {
+      "name": "auth-rate-limit:verify",
+      "status": "passed"
+    },
+    {
+      "name": "brand:verify",
+      "status": "passed"
+    },
+    {
+      "name": "error-page:verify",
+      "status": "passed"
+    },
+    {
+      "name": "session-store:verify",
+      "status": "passed"
+    },
+    {
+      "name": "request-security:verify",
+      "status": "passed"
+    },
+    {
+      "name": "upload-security:verify",
+      "status": "passed"
+    },
+    {
+      "name": "runtime:verify",
+      "status": "passed"
+    },
+    {
+      "name": "http-surface:verify",
+      "status": "passed"
+    },
+    {
+      "name": "deployment-surface:verify",
+      "status": "passed"
+    },
+    {
+      "name": "cloudtype-workflow:verify",
+      "status": "passed"
+    },
+    {
+      "name": "production-smoke-contract:verify",
+      "status": "passed"
+    },
+    {
+      "name": "production:verify",
+      "status": "skipped",
+      "reason": "Targets deployed HTTP server; offline audit only"
+    },
+    {
+      "name": "launch:verify",
+      "status": "skipped",
+      "reason": "Composite; constituent scripts run separately without stopping at first failure"
+    },
+    {
+      "name": "launch-db:verify-memory",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-notification-db:verify-memory",
+      "status": "passed"
+    },
+    {
+      "name": "ipad-arena-command-db:verify-memory",
+      "status": "passed"
+    },
+    {
+      "name": "scheduler-lease:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "scheduler-coverage:verify",
+      "status": "passed"
+    },
+    {
+      "name": "scheduler-multiprocess:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "private-mock:verify",
+      "status": "passed"
+    },
+    {
+      "name": "private-mock:restriction-verify",
+      "status": "passed"
+    },
+    {
+      "name": "product-foundation:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-latest-policy:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-reconciliation:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-outbox:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "arena-shop-resilience:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "arena-test:verify-db",
+      "status": "failed"
+    },
+    {
+      "name": "data-analysis:verify",
+      "status": "passed"
+    },
+    {
+      "name": "access-cycle-reminders:verify",
+      "status": "passed"
+    },
+    {
+      "name": "access-cycle-reminders:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "arena-integrity:verify",
+      "status": "passed"
+    },
+    {
+      "name": "arena-integrity:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "arena-held-review:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "arena-integrity-settlement:verify-db",
+      "status": "passed"
+    },
+    {
+      "name": "arena-main-rulebook:verify-db",
+      "status": "failed"
+    },
+    {
+      "name": "file-storage:verify",
+      "status": "passed"
+    },
+    {
+      "name": "file-storage:verify-cloud",
+      "status": "skipped",
+      "reason": "Uploads/deletes Cloudinary objects; intentionally not run"
+    },
+    {
+      "name": "storage-r2:verify",
+      "status": "skipped",
+      "reason": "Live R2 access; intentionally not run"
+    },
+    {
+      "name": "storage-policy:verify",
+      "status": "passed"
+    },
+    {
+      "name": "storage-lifecycle:verify-db",
+      "status": "skipped",
+      "reason": "Requires live R2 upload/delete; initial offline run stopped at missing local admin prerequisite"
+    },
+    {
+      "name": "archive-access:verify",
+      "status": "passed"
+    },
+    {
+      "name": "pdf-watermark:verify",
+      "status": "passed"
+    },
+    {
+      "name": "pdf-watermark:verify-db",
+      "status": "failed"
+    },
+    {
+      "name": "ranking-operations:verify-db",
+      "status": "passed"
+    }
+  ],
+  "authorizationChecks": [
+    "anonymous API access: 401",
+    "student admin access: 403"
+  ],
+  "userLookup": {
+    "keysExamined": 1,
+    "docsExamined": 1,
+    "index": "email_1"
+  },
+  "rawOutputs": [
+    "outputs/performance/before.json",
+    "outputs/performance/before-final.json",
+    "outputs/performance/after-final.json",
+    "outputs/performance/api-before-final.json",
+    "outputs/performance/api-after-final.json",
+    "outputs/performance/weekly-concurrent-before.json",
+    "outputs/performance/weekly-concurrent-after.json",
+    "outputs/performance/tests-after/results.json",
+    "outputs/performance/tests-before-recheck/results.json",
+    "outputs/performance/tests-after-recheck/results.json",
+    "outputs/performance/tests-after-final-cache/results.json"
+  ]
+}

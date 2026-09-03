@@ -9,6 +9,7 @@ const {
 } = require("../models/academyModel");
 
 const DEFAULT_EXAM_LIMIT = 36;
+const SCOPES_PER_AGGREGATE = 8;
 
 function objectIds(values) {
   return [...new Set((values || []).map(String))]
@@ -79,16 +80,7 @@ async function recentConceptExams(now = new Date()) {
     .filter((exam) => exam.questionConcepts?.some((concept) => concept?.conceptTitle));
 }
 
-async function getWeeklyMockInsights({
-  studentUserIds,
-  scopeLabel = "전체",
-  exams: suppliedExams,
-  now = new Date(),
-} = {}) {
-  const scopedUserIds = studentUserIds === undefined ? null : objectIds(studentUserIds);
-  if (scopedUserIds && !scopedUserIds.length) return emptyInsight(scopeLabel);
-  const exams = suppliedExams || await recentConceptExams(now);
-  if (!exams.length) return emptyInsight(scopeLabel);
+function attemptMatch(exams, scopedUserIds) {
   const examIds = exams.map((exam) => exam._id);
   const match = {
     examId: { $in: examIds },
@@ -104,41 +96,45 @@ async function getWeeklyMockInsights({
     ],
   };
   if (scopedUserIds) match.userId = { $in: scopedUserIds };
+  return match;
+}
 
-  const [questionRows, summaryRows] = await Promise.all([
-    PrivateMockExamAttempt.aggregate([
-      { $match: match },
-      { $project: { examId: 1, correctByQuestion: 1 } },
-      { $unwind: { path: "$correctByQuestion", includeArrayIndex: "questionIndex" } },
-      {
-        $group: {
-          _id: { examId: "$examId", questionIndex: "$questionIndex" },
-          responseCount: { $sum: 1 },
-          correctCount: { $sum: { $cond: ["$correctByQuestion", 1, 0] } },
-        },
+function questionPipeline() {
+  return [
+    { $project: { examId: 1, correctByQuestion: 1 } },
+    { $unwind: { path: "$correctByQuestion", includeArrayIndex: "questionIndex" } },
+    {
+      $group: {
+        _id: { examId: "$examId", questionIndex: "$questionIndex" },
+        responseCount: { $sum: 1 },
+        correctCount: { $sum: { $cond: ["$correctByQuestion", 1, 0] } },
       },
-    ]),
-    PrivateMockExamAttempt.aggregate([
-      { $match: match },
-      {
-        $group: {
-          _id: null,
-          participantIds: { $addToSet: "$userId" },
-          submissionCount: { $sum: 1 },
-          averageScore: { $avg: "$score" },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          participantCount: { $size: "$participantIds" },
-          submissionCount: 1,
-          averageScore: 1,
-        },
-      },
-    ]),
-  ]);
+    },
+  ];
+}
 
+function summaryPipeline() {
+  return [
+    {
+      $group: {
+        _id: null,
+        participantIds: { $addToSet: "$userId" },
+        submissionCount: { $sum: 1 },
+        averageScore: { $avg: "$score" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        participantCount: { $size: "$participantIds" },
+        submissionCount: 1,
+        averageScore: 1,
+      },
+    },
+  ];
+}
+
+function buildInsight({ exams, questionRows, summaryRows, scopeLabel, now }) {
   const examById = new Map(exams.map((exam) => [String(exam._id), exam]));
   const conceptStats = new Map();
   questionRows.forEach((row) => {
@@ -200,6 +196,70 @@ async function getWeeklyMockInsights({
   };
 }
 
+async function getWeeklyMockInsights({
+  studentUserIds,
+  scopeLabel = "전체",
+  exams: suppliedExams,
+  now = new Date(),
+} = {}) {
+  const scopedUserIds = studentUserIds === undefined ? null : objectIds(studentUserIds);
+  if (scopedUserIds && !scopedUserIds.length) return emptyInsight(scopeLabel);
+  const exams = suppliedExams || await recentConceptExams(now);
+  if (!exams.length) return emptyInsight(scopeLabel);
+  const match = attemptMatch(exams, scopedUserIds);
+  const [questionRows, summaryRows] = await Promise.all([
+    PrivateMockExamAttempt.aggregate([{ $match: match }, ...questionPipeline()]),
+    PrivateMockExamAttempt.aggregate([{ $match: match }, ...summaryPipeline()]),
+  ]);
+  return buildInsight({ exams, questionRows, summaryRows, scopeLabel, now });
+}
+
+async function getScopeInsights(scopes, exams, now) {
+  const insights = scopes.map((scope) => emptyInsight(scope.scopeLabel));
+  if (!exams.length) return insights;
+  const populatedScopes = scopes
+    .map((scope, index) => ({ ...scope, index, userIds: objectIds(scope.studentUserIds) }))
+    .filter((scope) => scope.userIds.length);
+  const batches = [];
+  for (let offset = 0; offset < populatedScopes.length; offset += SCOPES_PER_AGGREGATE) {
+    batches.push(populatedScopes.slice(offset, offset + SCOPES_PER_AGGREGATE));
+  }
+  await Promise.all(batches.map(async (batch) => {
+    const userIds = objectIds(batch.flatMap((scope) => scope.userIds));
+    const facets = {};
+    batch.forEach((scope, index) => {
+      const match = { $match: { userId: { $in: scope.userIds } } };
+      facets[`questions${index}`] = [match, ...questionPipeline()];
+      facets[`summary${index}`] = [match, ...summaryPipeline()];
+    });
+    try {
+      // The indexed match precedes the facet; each matched attempt is fetched
+      // once per batch, retaining MongoDB's exact count/average semantics.
+      const [result = {}] = await PrivateMockExamAttempt.aggregate([
+        { $match: attemptMatch(exams, userIds) },
+        { $project: { userId: 1, examId: 1, correctByQuestion: 1, score: 1 } },
+        { $facet: facets },
+      ]);
+      batch.forEach((scope, index) => {
+        insights[scope.index] = buildInsight({
+          exams, questionRows: result[`questions${index}`] || [],
+          summaryRows: result[`summary${index}`] || [], scopeLabel: scope.scopeLabel, now,
+        });
+      });
+    } catch (error) {
+      // Facets cannot spill and have an output-document limit. Keep the original
+      // streaming aggregations for unusually large/legacy datasets, not truncation.
+      if (![10334, 146, 292, 4031700].includes(Number(error.code))) throw error;
+      await Promise.all(batch.map(async (scope) => {
+        insights[scope.index] = await getWeeklyMockInsights({
+          studentUserIds: scope.studentUserIds, scopeLabel: scope.scopeLabel, exams, now,
+        });
+      }));
+    }
+  }));
+  return insights;
+}
+
 async function getAcademyWeeklyMockInsights({ academyId, now = new Date() }) {
   if (!mongoose.isValidObjectId(academyId)) return { overall: emptyInsight("학원 전체"), classes: [] };
   const [classes, memberships, exams] = await Promise.all([
@@ -208,27 +268,28 @@ async function getAcademyWeeklyMockInsights({ academyId, now = new Date() }) {
     recentConceptExams(now),
   ]);
   const allStudentIds = memberships.map((membership) => membership.studentUserId);
-  const [overall, classInsights] = await Promise.all([
-    getWeeklyMockInsights({ studentUserIds: allStudentIds, scopeLabel: "학원 전체", exams, now }),
-    Promise.all(classes.map(async (academyClass) => {
-      const studentIds = memberships
-        .filter((membership) => String(membership.classId || "") === String(academyClass._id))
-        .map((membership) => membership.studentUserId);
-      return {
-        classId: String(academyClass._id),
-        className: academyClass.name,
-        isActive: academyClass.isActive,
-        studentCount: studentIds.length,
-        insight: await getWeeklyMockInsights({
-          studentUserIds: studentIds,
-          scopeLabel: academyClass.name,
-          exams,
-          now,
-        }),
-      };
+  const studentsByClass = new Map();
+  memberships.forEach((membership) => {
+    const key = String(membership.classId || "");
+    if (!studentsByClass.has(key)) studentsByClass.set(key, []);
+    studentsByClass.get(key).push(membership.studentUserId);
+  });
+  const scopes = [
+    { studentUserIds: allStudentIds, scopeLabel: "학원 전체" },
+    ...classes.map((academyClass) => ({
+      studentUserIds: studentsByClass.get(String(academyClass._id)) || [],
+      scopeLabel: academyClass.name,
     })),
-  ]);
-  return { overall, classes: await classInsights };
+  ];
+  const [overall, ...insights] = await getScopeInsights(scopes, exams, now);
+  const classInsights = classes.map((academyClass, index) => ({
+    classId: String(academyClass._id),
+    className: academyClass.name,
+    isActive: academyClass.isActive,
+    studentCount: scopes[index + 1].studentUserIds.length,
+    insight: insights[index],
+  }));
+  return { overall, classes: classInsights };
 }
 
 module.exports = {

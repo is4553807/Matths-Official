@@ -31,6 +31,9 @@ const CONFIDENCE_LABELS = Object.freeze({
   UNKNOWN: "판단 전",
 });
 
+let graphCache = null;
+let graphCacheCurriculum = null;
+
 function uniqueObjectIds(values) {
   const ids = [...new Set((Array.isArray(values) ? values : []).map(String).filter(Boolean))];
   return ids.map((id) => {
@@ -58,6 +61,10 @@ function clampDifficulty(value) {
 
 function buildGraph() {
   const curriculum = loadCurriculum();
+  // curriculumService returns the same parsed object until its cache is
+  // explicitly cleared. Key this derived cache by that identity so a reload
+  // still rebuilds the graph while normal requests avoid reconstructing it.
+  if (graphCache && graphCacheCurriculum === curriculum) return graphCache;
   const nodes = [];
   const nodeById = new Map();
 
@@ -100,7 +107,9 @@ function buildGraph() {
     outgoingById.get(edge.from).push(edge);
   });
 
-  return { curriculum, nodes, nodeById, edges, incomingById, outgoingById };
+  graphCacheCurriculum = curriculum;
+  graphCache = { curriculum, nodes, nodeById, edges, incomingById, outgoingById };
+  return graphCache;
 }
 
 function validateMathMapGraph() {
@@ -284,9 +293,12 @@ async function loadAttemptGroups(userIds) {
           $push: {
             _id: "$_id",
             problemId: "$problemId",
-            courseId: "$courseId",
-            unitId: "$unitId",
-            problemSnapshot: "$problemSnapshot",
+            // Mastery only consumes these two snapshot fields. Stems, solutions
+            // and visualizations must not be transferred for every historical attempt.
+            problemSnapshot: {
+              typeId: "$problemSnapshot.typeId",
+              difficulty: "$problemSnapshot.difficulty",
+            },
             isCorrect: "$isCorrect",
             responseTimeMs: "$responseTimeMs",
             submittedAt: "$submittedAt",
@@ -298,7 +310,9 @@ async function loadAttemptGroups(userIds) {
   ]);
 
   const attemptIds = groups.flatMap((group) => group.attempts.map((attempt) => attempt._id));
-  const problemIds = groups.flatMap((group) => group.attempts.map((attempt) => attempt.problemId));
+  const problemIds = [...new Map(groups.flatMap((group) =>
+    group.attempts.map((attempt) => [String(attempt.problemId), attempt.problemId])
+  )).values()];
   const [retryRows, problems] = await Promise.all([
     attemptIds.length
       ? ProblemAttempt.aggregate([
@@ -313,7 +327,7 @@ async function loadAttemptGroups(userIds) {
       : [],
     problemIds.length
       ? Problem.find({ _id: { $in: problemIds } })
-          .select("difficulty tags questionType primaryConceptId courseId unitId")
+          .select("difficulty tags questionType primaryConceptId")
           .lean()
       : [],
   ]);
@@ -396,16 +410,27 @@ function recommendedProblemMix(mastery) {
 
 function buildStudentRecommendation(concepts, bottlenecks) {
   const bottleneckIds = new Set(bottlenecks.map((item) => item.conceptId));
-  const weak = concepts
-    .filter((concept) => concept.status === "WEAK" && concept.confidence !== "UNKNOWN")
-    .sort((left, right) => Number(bottleneckIds.has(right.id)) - Number(bottleneckIds.has(left.id)) || left.mastery - right.mastery);
-  const developingWithErrors = concepts
-    .filter((concept) => concept.status === "DEVELOPING" && concept.evidence.incorrectCount >= 2)
-    .sort((left, right) => right.evidence.incorrectCount - left.evidence.incorrectCount || left.mastery - right.mastery);
-  const unknown = concepts
-    .filter((concept) => concept.status === "UNKNOWN")
-    .sort((left, right) => right.evidence.attemptCount - left.evidence.attemptCount);
-  const concept = weak[0] || developingWithErrors[0] || unknown[0] || null;
+  let weak = null;
+  let developingWithErrors = null;
+  let unknown = null;
+  // Only each category's first sorted result is consumed. Select it in one pass
+  // using the same comparators, retaining the first input on exact ties.
+  for (const candidate of concepts) {
+    if (candidate.status === "WEAK" && candidate.confidence !== "UNKNOWN") {
+      if (!weak || (
+        Number(bottleneckIds.has(weak.id)) - Number(bottleneckIds.has(candidate.id)) ||
+        candidate.mastery - weak.mastery
+      ) < 0) weak = candidate;
+    } else if (candidate.status === "DEVELOPING" && candidate.evidence.incorrectCount >= 2) {
+      if (!developingWithErrors || (
+        developingWithErrors.evidence.incorrectCount - candidate.evidence.incorrectCount ||
+        candidate.mastery - developingWithErrors.mastery
+      ) < 0) developingWithErrors = candidate;
+    } else if (candidate.status === "UNKNOWN") {
+      if (!unknown || candidate.evidence.attemptCount > unknown.evidence.attemptCount) unknown = candidate;
+    }
+  }
+  const concept = weak || developingWithErrors || unknown;
   if (!concept) return null;
 
   const reasonType = concept.status === "UNKNOWN"
@@ -467,8 +492,13 @@ function buildStudentMap(userId, groupRows, problemById, graph) {
       mastery: average(assessed.map((concept) => concept.mastery), 1),
     };
   });
-  const strengths = [...analyzed].sort((left, right) => right.mastery - left.mastery);
-  const priorities = [...analyzed].sort((left, right) => left.mastery - right.mastery);
+  // Strict comparisons retain the first concept on ties, as the stable sorts did.
+  let topStrength = null;
+  let topPriority = null;
+  for (const concept of analyzed) {
+    if (!topStrength || concept.mastery > topStrength.mastery) topStrength = concept;
+    if (!topPriority || concept.mastery < topPriority.mastery) topPriority = concept;
+  }
 
   const bottlenecks = findBottlenecks(concepts);
   return {
@@ -481,8 +511,8 @@ function buildStudentMap(userId, groupRows, problemById, graph) {
     analyzedConceptCount: analyzed.length,
     unknownConceptCount: concepts.length - analyzed.length,
     attemptedConceptCount: concepts.length,
-    topStrength: strengths[0] || null,
-    topPriority: priorities[0] || null,
+    topStrength,
+    topPriority,
     bottlenecks,
     recommendation: buildStudentRecommendation(concepts, bottlenecks),
     courses,
@@ -516,13 +546,22 @@ async function getClassMathMap({ studentUserIds }) {
   const maps = await getStudentMathMaps({ studentUserIds: userIds });
   const graph = buildGraph();
   const conceptIds = new Set();
-  maps.forEach((map) => map.concepts.forEach((concept) => conceptIds.add(concept.id)));
+  const conceptsByStudent = new Map();
+  maps.forEach((map, userId) => {
+    const byId = new Map();
+    map.concepts.forEach((concept) => {
+      conceptIds.add(concept.id);
+      // Preserve Array.find's first-match semantics even for duplicate IDs.
+      if (!byId.has(concept.id)) byId.set(concept.id, concept);
+    });
+    conceptsByStudent.set(userId, byId);
+  });
 
   const concepts = [...conceptIds]
     .map((conceptId) => {
       const node = graph.nodeById.get(conceptId);
       const studentResults = userIds.map((userId) => {
-        const concept = maps.get(String(userId)).concepts.find((item) => item.id === conceptId);
+        const concept = conceptsByStudent.get(String(userId)).get(conceptId);
         return {
           userId: String(userId),
           mastery: concept?.mastery ?? null,
