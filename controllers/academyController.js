@@ -780,15 +780,10 @@ exports.submitStudentAcademyAssignment = async (req, res, next) => {
       { length: questionCount },
       (_unused, index) => req.body[`answer_${index + 1}`]
     );
-    const answerModes = Array.from(
-      { length: questionCount },
-      (_unused, index) => req.body[`answer_mode_${index + 1}`]
-    );
     await submitAcademyAssignment({
       studentUserId: req.session.user.id,
       weekId: req.params.weekId,
       answers,
-      answerModes,
     });
     return res.redirect(`${redirectTo}?submitted=1#assignment-omr`);
   } catch (error) {

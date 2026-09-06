@@ -198,19 +198,15 @@ function normalizeAssignmentOmr(value, teacherUserId) {
   };
 }
 
-function omrQuestionRows(omr, answers = [], answerModes = []) {
+function omrQuestionRows(omr, answers = []) {
   if (!omr?.enabled || !Number.isInteger(Number(omr.questionCount))) return [];
   return Array.from({ length: Number(omr.questionCount) }, (_unused, index) => {
     const number = index + 1;
     const section = answerTypeForNumber(omr, number);
-    const defaultAnswerType = section?.answerType || "SHORT_ANSWER";
-    const answerType = ["MULTIPLE_CHOICE", "SHORT_ANSWER"].includes(String(answerModes[index]))
-      ? String(answerModes[index])
-      : defaultAnswerType;
+    const answerType = section?.answerType || "SHORT_ANSWER";
     return {
       number,
       answerType,
-      defaultAnswerType,
       choiceCount: Number(section?.choiceCount || 5),
       answer: String(answers[index] || ""),
     };
@@ -565,8 +561,7 @@ async function getStudentAcademyWeek({ studentUserId, weekId }) {
   if (serialized.assignmentOmr) {
     serialized.assignmentOmr.questions = omrQuestionRows(
       serialized.assignmentOmr,
-      submission?.answers || [],
-      submission?.answerModes || []
+      submission?.answers || []
     );
   }
   return { ...context, week: serialized, submission };
@@ -702,7 +697,7 @@ function stopAcademyAssignmentDeadlineScheduler() {
   assignmentDeadlineRunning = false;
 }
 
-async function submitAcademyAssignment({ studentUserId, weekId, answers, answerModes }) {
+async function submitAcademyAssignment({ studentUserId, weekId, answers }) {
   const context = await getStudentAcademyContext(studentUserId);
   if (!context.academyClass || !mongoose.isValidObjectId(weekId)) {
     throw statusError(404, "제출할 과제를 찾을 수 없습니다.");
@@ -725,8 +720,6 @@ async function submitAcademyAssignment({ studentUserId, weekId, answers, answerM
   const missingNumber = normalizedInput.findIndex((answer) => !answer);
   if (missingNumber >= 0) throw statusError(400, `${missingNumber + 1}번 답안을 입력해 주세요.`);
   const normalizedModes = Array.from({ length: week.assignmentOmr.questionCount }, (_unused, index) => {
-    const requestedMode = String(answerModes?.[index] || "").trim().toUpperCase();
-    if (["MULTIPLE_CHOICE", "SHORT_ANSWER"].includes(requestedMode)) return requestedMode;
     return answerTypeForNumber(week.assignmentOmr, index + 1)?.answerType || "SHORT_ANSWER";
   });
   normalizedInput.forEach((answer, index) => {

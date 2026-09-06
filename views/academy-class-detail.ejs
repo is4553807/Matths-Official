@@ -183,14 +183,14 @@
               <label><span>마감일</span><input type="datetime-local" name="dueAt" value="<%= dateTimeInputValue(editingWeek?.dueAt) %>" /></label>
               <label class="academy-classwork-file-field"><span>과제 파일</span><input type="file" name="assignmentFiles" multiple accept=".pdf,.doc,.docx,.hwp,.hwpx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp" /><small>파일당 30MB, 한 주차 최대 10개입니다. PDF는 다운로드 사용자별 워터마크와 추적 코드가 자동 삽입됩니다.</small></label>
               <section class="academy-omr-builder <%= editingWeek?.assignmentOmr?.enabled ? 'is-open' : '' %>" data-academy-omr-builder>
-                <header><div><small>AUTO-GRADING OMR</small><strong>답안지 만들기</strong><p>총 문항 수와 기본 입력 방식을 정한 뒤 정답만 입력하세요. 학생은 실제 문제지에 맞춰 문항별 입력 방식을 바꿀 수 있습니다.</p></div><button type="button" data-academy-omr-toggle><%= editingWeek?.assignmentOmr?.enabled ? "답안지 사용 중" : "답안지 만들기" %></button></header>
+                <header><div><small>AUTO-GRADING OMR</small><strong>답안지 만들기</strong><p>총 문항 수를 정하고 문제지에 맞춰 각 문항의 정답과 객관식·주관식 형식을 설정하세요.</p></div><button type="button" data-academy-omr-toggle><%= editingWeek?.assignmentOmr?.enabled ? "답안지 사용 중" : "답안지 만들기" %></button></header>
                 <div class="academy-omr-editor" data-academy-omr-editor <%= editingWeek?.assignmentOmr?.enabled ? '' : 'hidden' %>>
                   <div class="academy-omr-quick-setup">
                     <label><span>총 문항 수</span><input type="number" min="1" max="100" value="30" data-academy-omr-question-count /></label>
                     <label><span>기본 입력 방식</span><select data-academy-omr-default-type><option value="MULTIPLE_CHOICE">객관식</option><option value="SHORT_ANSWER">주관식</option></select></label>
                     <label><span>객관식 선택지</span><input type="number" min="2" max="9" value="5" data-academy-omr-choice-count /></label>
                   </div>
-                  <p class="academy-omr-guide">선택한 기본 방식으로 전체 문항이 만들어집니다. 아래 카드에서 필요한 문항만 유형을 바꿀 수 있고, 학생도 문제를 풀면서 각 문항의 입력 방식을 바꿀 수 있습니다.</p>
+                  <p class="academy-omr-guide">선택한 기본 방식으로 전체 문항이 만들어집니다. 아래 카드에서 필요한 문항만 유형을 바꾸면 학생 답안지도 같은 형식으로 고정됩니다.</p>
                   <div class="academy-omr-answer-heading"><strong>교사 정답 입력</strong><span data-academy-omr-count>0문항</span></div>
                   <p class="academy-omr-guide">객관식은 정답 번호를, 주관식은 실제 정답을 입력하세요. 유형이 섞여 있어도 순서대로 정답만 적으면 됩니다.</p>
                   <div class="academy-omr-answer-grid" data-academy-omr-answers></div>
@@ -209,7 +209,43 @@
                 <% if (week.lessonSummary) { %><p><%= week.lessonSummary %></p><% } %>
                 <div class="academy-classwork-concepts"><% week.concepts.forEach((concept) => { %><a href="<%= concept.href %>" target="_blank" rel="noopener"><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small><strong><%= concept.conceptTitle %></strong></a><% }) %></div>
                 <section><div><small>ASSIGNMENT</small><strong><%= week.assignmentTitle %></strong><span><%= formatClassworkDate(week.dueAt) %></span></div><% if (week.assignmentInstructions) { %><p><%= week.assignmentInstructions %></p><% } %><ul><% week.files.forEach((file) => { %><li><a href="/academy/classes/<%= academyClass._id %>/weeks/<%= week._id %>/files/<%= file._id %>"><%= file.originalName %><span><%= formatBytes(file.sizeBytes) %></span></a></li><% }) %></ul></section>
-                <% if (week.assignmentOmr?.enabled) { const submittedCount = (week.submissions || []).filter((submission) => submission.status === "SUBMITTED").length; const missedCount = (week.submissions || []).filter((submission) => submission.status === "MISSED").length; %><details class="academy-omr-submission-summary"><summary><span><strong>자동 채점 OMR · <%= week.assignmentOmr.questionCount %>문항</strong><small>제출 <%= submittedCount %>명<%= missedCount ? ` · 미제출 0점 ${missedCount}명` : "" %></small></span><b>채점 현황 보기</b></summary><div><% (week.submissions || []).forEach((submission) => { const student = submission.studentUserId || {}; const missed = submission.status === "MISSED"; %><article class="<%= missed ? 'is-missed' : '' %>"><span><strong><%= displayStudentName(student) %></strong><small><%= missed ? `마감 미제출 · ${formatClassworkDate(submission.autoZeroedAt)}` : `${formatClassworkDate(submission.submittedAt)} 제출` %></small></span><b><%= missed ? "미제출 · 0점" : `${submission.scorePercent}점 · ${submission.correctCount}/${submission.questionCount}` %></b></article><% }) %><% if (!week.submissions?.length) { %><p>아직 제출한 학생이 없습니다.</p><% } %></div></details><% } %>
+                <% if (week.assignmentOmr?.enabled) { const submittedCount = (week.submissions || []).filter((submission) => submission.status === "SUBMITTED").length; const missedCount = (week.submissions || []).filter((submission) => submission.status === "MISSED").length; %>
+                  <details class="academy-omr-submission-summary">
+                    <summary><span><strong>자동 채점 OMR · <%= week.assignmentOmr.questionCount %>문항</strong><small>제출 <%= submittedCount %>명<%= missedCount ? ` · 미제출 0점 ${missedCount}명` : "" %></small></span><b>채점 현황 보기</b></summary>
+                    <div class="academy-omr-submission-list">
+                      <% (week.submissions || []).forEach((submission) => { const student = submission.studentUserId || {}; const missed = submission.status === "MISSED"; const wrongNumbers = (submission.correctByQuestion || []).map((correct, index) => correct ? null : index + 1).filter(Boolean); %>
+                        <article class="academy-omr-submission-student <%= missed ? 'is-missed' : '' %>">
+                          <div class="academy-omr-submission-row">
+                            <span><strong><%= displayStudentName(student) %></strong><small><%= missed ? `마감 미제출 · ${formatClassworkDate(submission.autoZeroedAt)}` : `${formatClassworkDate(submission.submittedAt)} 제출` %></small></span>
+                            <b><%= missed ? "미제출 · 0점" : `${submission.scorePercent}점 · ${submission.correctCount}/${submission.questionCount}` %></b>
+                            <% if (!missed) { %>
+                              <details class="academy-omr-grading-detail">
+                                <summary>채점 상세</summary>
+                                <div>
+                                  <header><strong><%= displayStudentName(student) %> 문항별 채점 결과</strong><span class="<%= wrongNumbers.length ? '' : 'is-perfect' %>"><%= wrongNumbers.length ? `오답 ${wrongNumbers.map((number) => `${number}번`).join(", ")}` : "전 문항 정답" %></span></header>
+                                  <div class="academy-omr-grading-grid">
+                                    <% (week.assignmentOmr.questions || []).forEach((question) => { const answer = String(submission.answers?.[question.number - 1] || ""); const correct = Boolean(submission.correctByQuestion?.[question.number - 1]); const objective = question.answerType === "MULTIPLE_CHOICE"; %>
+                                      <div class="academy-omr-grading-question <%= correct ? 'is-correct' : 'is-wrong' %>">
+                                        <div><span><%= question.number %>번</span><small><%= objective ? "객관식" : "주관식" %></small></div>
+                                        <% if (objective) { %>
+                                          <div class="academy-omr-grading-bubbles" aria-label="<%= question.number %>번 제출 답안 <%= answer || '미응답' %>"><% for (let choice = 1; choice <= question.choiceCount; choice += 1) { %><i class="<%= answer === String(choice) ? 'is-selected' : '' %>"><%= choice %></i><% } %></div>
+                                        <% } else { %>
+                                          <p><small>제출 답안</small><strong><%= answer || "미응답" %></strong></p>
+                                        <% } %>
+                                        <b><%= correct ? "정답" : "오답" %></b>
+                                      </div>
+                                    <% }) %>
+                                  </div>
+                                </div>
+                              </details>
+                            <% } else { %><span class="academy-omr-detail-unavailable">답안 없음</span><% } %>
+                          </div>
+                        </article>
+                      <% }) %>
+                      <% if (!week.submissions?.length) { %><p>아직 제출한 학생이 없습니다.</p><% } %>
+                    </div>
+                  </details>
+                <% } %>
               </article><% }) %>
             </div>
           </div>

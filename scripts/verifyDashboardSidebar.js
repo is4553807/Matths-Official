@@ -16,9 +16,9 @@ const sidebarPath = path.join(
   "partials/dashboard-sidebar.ejs"
 );
 
-async function renderNavigation(completedConcepts) {
+async function renderNavigation(completedConcepts, activePage = "main") {
   return ejs.renderFile(navigationPath, {
-    activePage: "main",
+    activePage,
     assetVersion: "verification",
     data: {
       completedConcepts,
@@ -45,6 +45,18 @@ async function main() {
     "완료 개념이 있을 때만 실제 개수를 배지로 표시해야 합니다."
   );
 
+  const weeklyMockNavigation = await renderNavigation(0, "weekly-mock");
+  assert.match(
+    weeklyMockNavigation,
+    /href="\/private-mock-exams"[^>]*aria-label="주간 모의고사"[^>]*aria-current="page"/,
+    "주간 모의고사는 GOAT Arena와 분리된 대시보드 메뉴로 표시해야 합니다."
+  );
+  assert.match(
+    weeklyMockNavigation,
+    /href="\/war-of-masters"[^>]*aria-label="GOAT Arena"/,
+    "주간 모의고사를 추가해도 GOAT Arena 메뉴는 별도로 유지해야 합니다."
+  );
+
   const sidebar = await ejs.renderFile(sidebarPath, {
     activePage: "main",
     assetVersion: "verification",
@@ -66,6 +78,21 @@ async function main() {
     sidebar,
     /\/images\/dashboard\/matths-logo\.png|>Matths<\/span>/,
     "별도 마크와 텍스트를 조합한 임시 로고를 사용하면 안 됩니다."
+  );
+
+  const sidebarCss = fs.readFileSync(
+    path.join(root, "public/css/dashboard-sidebar.css"),
+    "utf8"
+  );
+  assert.match(
+    sidebarCss,
+    /dashboard-sidebar-shared \.sidebar-close:empty::before/,
+    "모든 대시보드에서 같은 사이드바 접기 아이콘을 사용해야 합니다."
+  );
+  assert.match(
+    sidebarCss,
+    /dashboard-home\.dashboard-sidebar-collapsed \.dashboard-content-shell\s*\{\s*padding-left: var\(--sidebar-collapsed-width\)/,
+    "중간 폭에서도 접힌 사이드바 너비만큼 본문을 정렬해야 합니다."
   );
 
   const dashboardViews = fs

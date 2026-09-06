@@ -507,7 +507,7 @@ async function main() {
         ],
         answers: ["2", "4", "12"],
       }),
-      dueAt: "2026-09-04T18:00",
+      dueAt: "2099-09-04T18:00",
       files: [],
     });
     assert.equal(publishedWeek.concepts.length, 2);
@@ -583,7 +583,7 @@ async function main() {
       studentUserId: student._id,
       weekId: publishedWeek._id,
       answers: ["2", "3", "12"],
-      answerModes: ["MULTIPLE_CHOICE", "MULTIPLE_CHOICE", "SHORT_ANSWER"],
+      answerModes: ["SHORT_ANSWER", "SHORT_ANSWER", "MULTIPLE_CHOICE"],
     });
     assert.equal(assignmentSubmission.correctCount, 2);
     assert.equal(assignmentSubmission.scorePercent, 67);
@@ -1471,12 +1471,17 @@ async function main() {
     classStatistics.attentionStudents = classStatistics.attentionStudents
       .map((item) => ({ ...item, membership: classMembershipsByStudentId.get(item.studentUserId) }))
       .filter((item) => item.membership);
+    const teacherClassworkWithSubmissions = await getAcademyClassworkTeacherView({
+      teacherUserId: teacher._id,
+      classId: academyClass._id,
+      editWeekId: publishedWeek._id,
+    });
     const classDetailLocals = {
       user: teacherUser,
       detail: { ...classDetail, profileImageSrc: "" },
       statistics: classStatistics,
       mathMap: classMathMap,
-      classwork: teacherClasswork,
+      classwork: teacherClassworkWithSubmissions,
       weeklyMockInsights: classWeeklyMockInsight,
       activeAcademyPage: "classes",
     };
@@ -1510,6 +1515,9 @@ async function main() {
     assert.match(classworkHtml, /총 문항 수/);
     assert.match(classworkHtml, /기본 입력 방식/);
     assert.doesNotMatch(classworkHtml, /data-academy-omr-add-section/);
+    assert.match(classworkHtml, /채점 상세/);
+    assert.match(classworkHtml, /오답 2번/);
+    assert.match(classworkHtml, /academy-omr-grading-question is-wrong/);
 
     const studentDashboardHtml = await render("student-academy", {
       user: { ...student.toObject(), hasAcademyMembership: true },
@@ -1531,8 +1539,9 @@ async function main() {
     assert.match(studentWeekHtml, /다항식 기본 과제/);
     assert.match(studentWeekHtml, /교재 10쪽부터 13쪽까지/);
     assert.match(studentWeekHtml, /과제 제출하기/);
-    assert.match(studentWeekHtml, /객관식으로 바꾸기/);
-    assert.match(studentWeekHtml, /student-assignment-omr\.js/);
+    assert.doesNotMatch(studentWeekHtml, /(?:객관식|주관식)으로 바꾸기/);
+    assert.doesNotMatch(studentWeekHtml, /student-assignment-omr\.js|answer_mode_/);
+    assert.match(studentWeekHtml, /선생님이 문제지에 맞춰 정한 객관식·주관식 형식/);
     assert.match(studentWeekHtml, /자동 채점 완료 · 67점/);
     assert.match(studentWeekHtml, /\/learn\/common-math-1\/polynomials\/polynomial-arithmetic/);
 
@@ -1555,7 +1564,7 @@ async function main() {
         ],
         answers: ["2", "3", "12"],
       }),
-      dueAt: "2026-09-04T18:00",
+      dueAt: "2099-09-04T18:00",
       files: [],
     });
     const regradedSubmission = await AcademyAssignmentSubmission.findOne({
@@ -1976,9 +1985,9 @@ async function main() {
     assert.deepEqual((await AcademyClass.findById(academyClass._id).lean()).schedule.weekdays, [1, 3, 5]);
     const futureAttendanceRoster = await getAcademyAttendanceRoster({
       teacherUserId: secondTeacher._id,
-      dateKey: "2026-09-04",
+      dateKey: "2099-09-04",
       classId: academyClass._id,
-      now: new Date("2026-09-01T03:00:00.000Z"),
+      now: new Date("2099-09-01T03:00:00.000Z"),
     });
     assert.equal(futureAttendanceRoster.session.state, "SCHEDULED");
     const futureSessionId = futureAttendanceRoster.session.id;
@@ -1998,9 +2007,9 @@ async function main() {
     assert.equal((await AcademyAttendanceSession.findById(futureSessionId).lean()).status, "CANCELED");
     const revivedFutureRoster = await getAcademyAttendanceRoster({
       teacherUserId: secondTeacher._id,
-      dateKey: "2026-09-04",
+      dateKey: "2099-09-04",
       classId: academyClass._id,
-      now: new Date("2026-09-01T03:01:00.000Z"),
+      now: new Date("2099-09-01T03:01:00.000Z"),
     });
     assert.equal(revivedFutureRoster.session.id, futureSessionId);
     assert.equal(revivedFutureRoster.session.state, "SCHEDULED");

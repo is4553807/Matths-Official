@@ -1,5 +1,6 @@
 :root {
   --dashboard-sidebar-width: 260px;
+  --sidebar-collapsed-width: 76px;
   --dashboard-sidebar-canvas: #090c1a;
   --dashboard-sidebar-ink: #ffffff;
   --dashboard-sidebar-muted: #aeb7cf;
@@ -319,6 +320,43 @@ body.dashboard-home .dashboard-sidebar-shared .sidebar-profile button:hover {
 }
 
 @media (min-width: 901px) {
+  body .dashboard-sidebar-shared .sidebar-close:empty {
+    position: relative;
+    overflow: hidden;
+    font-size: 0;
+  }
+
+  body .dashboard-sidebar-shared .sidebar-close:empty::before {
+    content: "";
+    width: 19px;
+    height: 16px;
+    position: absolute;
+    inset: 50% auto auto 50%;
+    background: linear-gradient(90deg, transparent 0 5px, currentColor 5px 6.5px, transparent 6.5px 100%);
+    border: 1.5px solid currentColor;
+    border-radius: 4px;
+    clip-path: none;
+    opacity: .9;
+    transform: translate(-50%, -50%);
+  }
+
+  body .dashboard-sidebar-shared .sidebar-close:empty::after {
+    content: "";
+    width: 4px;
+    height: 4px;
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    border: solid currentColor;
+    border-width: 0 1.5px 1.5px 0;
+    transform: translate(-50%, -50%) rotate(135deg);
+    transition: transform .18s ease;
+  }
+
+  body .dashboard-sidebar-shared .sidebar-close.sidebar-toggle-collapsed:empty::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+  }
+
   body.dashboard-sidebar-collapsed .dashboard-sidebar-shared,
   body.dashboard-home.dashboard-sidebar-collapsed .dashboard-sidebar-shared {
     width: var(--sidebar-collapsed-width);
@@ -366,13 +404,21 @@ body.dashboard-home .dashboard-sidebar-shared .sidebar-profile button:hover {
     transform: none;
   }
 
+  body.dashboard-home.dashboard-sidebar-collapsed .dashboard-sidebar-shared {
+    width: var(--sidebar-collapsed-width);
+    padding-inline: 12px;
+  }
+
   body.dashboard-home .sidebar-open {
     display: none;
   }
 
-  body.dashboard-home .dashboard-content-shell,
-  body.dashboard-home.dashboard-sidebar-collapsed .dashboard-content-shell {
+  body.dashboard-home .dashboard-content-shell {
     padding-left: var(--dashboard-sidebar-width);
+  }
+
+  body.dashboard-home.dashboard-sidebar-collapsed .dashboard-content-shell {
+    padding-left: var(--sidebar-collapsed-width);
   }
 }
 
