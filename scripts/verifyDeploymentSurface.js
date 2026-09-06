@@ -12,6 +12,9 @@ const cloudtype = read(".cloudtype/app.yaml");
 const dockerignore = read(".dockerignore");
 const gitignore = read(".gitignore");
 const environmentExample = read(".env.example");
+const homepage = read("views/index.ejs");
+const robots = read("public/robots.txt");
+const sitemap = read("public/sitemap.xml");
 
 assert.match(packageJson.engines?.node || "", />=24/);
 assert.equal(packageLock.packages?.[""]?.engines?.node, packageJson.engines.node);
@@ -34,6 +37,15 @@ assert.doesNotMatch(
   cloudtype,
   /GOOGLE_OAUTH_CLIENT_(?:ID|SECRET)|KAKAO_OAUTH_(?:REST_API_KEY|CLIENT_SECRET)/
 );
+
+assert.match(homepage, /<link rel="canonical" href="https:\/\/www\.matths\.kr\/" \/>/);
+for (const property of ["og:type", "og:site_name", "og:title", "og:description", "og:url", "og:image"]) {
+  assert.match(homepage, new RegExp(`<meta(?:\\s|\\n)+property="${property}"`));
+}
+assert.match(robots, /^User-agent: \*$/m);
+assert.match(robots, /^Allow: \/$/m);
+assert.match(robots, /^Sitemap: https:\/\/www\.matths\.kr\/sitemap\.xml$/m);
+assert.match(sitemap, /<loc>https:\/\/www\.matths\.kr\/<\/loc>/);
 
 for (const required of [
   "config.env",
