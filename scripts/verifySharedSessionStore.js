@@ -1,13 +1,19 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { MongoSessionStore, sessionExpiry } = require("../services/mongoSessionStore");
+const {
+  DEFAULT_OPERATION_TIMEOUT_MS,
+  MongoSessionStore,
+  sessionExpiry,
+} = require("../services/mongoSessionStore");
 const { WebSession } = require("../models/sessionModel");
 
 const expiry = sessionExpiry({ cookie: {} }, 600);
 assert.ok(expiry.getTime() > Date.now() + 590_000);
 assert.ok(expiry.getTime() < Date.now() + 610_000);
 assert.equal(new MongoSessionStore({ ttlSeconds: 600 }).ttlSeconds, 600);
+assert.equal(new MongoSessionStore().operationTimeoutMs, DEFAULT_OPERATION_TIMEOUT_MS);
+assert.equal(new MongoSessionStore({ operationTimeoutMs: 2500 }).operationTimeoutMs, 2500);
 assert.ok(
   WebSession.schema.indexes().some(
     ([fields, options]) => fields.expiresAt === 1 && options.expireAfterSeconds === 0

@@ -22,6 +22,7 @@ process.env.PUBLIC_BASE_URL = "https://www.matths.kr";
 process.env.APP_BASE_URL = "https://app.matths.kr";
 process.env.ACADEMY_BASE_URL = "https://academy.matths.kr";
 process.env.ADMIN_BASE_URL = "https://admin.matths.kr";
+process.env.PARENTS_BASE_URL = "https://parents.matths.kr";
 process.env.SESSION_COOKIE_DOMAIN = ".matths.kr";
 process.env.DISABLE_SCHEDULERS = "1";
 process.env.ALLOW_TEST_DATA_MUTATION = "1";

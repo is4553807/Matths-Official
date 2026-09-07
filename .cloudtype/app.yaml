@@ -16,6 +16,8 @@ options:
       value: https://academy.matths.kr
     - name: ADMIN_BASE_URL
       value: https://admin.matths.kr
+    - name: PARENTS_BASE_URL
+      value: https://parents.matths.kr
     - name: SESSION_COOKIE_DOMAIN
       value: .matths.kr
     - name: GOOGLE_OAUTH_REDIRECT_URI

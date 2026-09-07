@@ -12,6 +12,7 @@
 - 학생 URL: `https://app.matths.kr`
 - 학원 URL: `https://academy.matths.kr`
 - 관리자 URL: `https://admin.matths.kr`
+- 학부모 URL: `https://parents.matths.kr`
 
 과거 요청 커밋 `939c25af`는 최신 `main`의 조상이 아니므로 직접 배포하지 않는다. 항상 원격 `main`의 현재 tip을 검증한 뒤 배포한다.
 
@@ -57,8 +58,8 @@ API key, OAuth token, Apple private key는 이 문서·이슈·PR·workflow inpu
 - OAuth callback은 기존 `https://www.matths.kr/auth/{provider}/callback`을 유지
 
 Cloudtype 앱의 사용자 도메인에는 `matths.kr`, `www.matths.kr`, `app.matths.kr`,
-`academy.matths.kr`, `admin.matths.kr` 다섯 호스트를 모두 등록한다. Cloudflare DNS에서
-세 서브도메인은 Cloudtype이 안내한 CNAME 대상으로 연결하고 인증서 상태가 정상인지 확인한다.
+`academy.matths.kr`, `admin.matths.kr`, `parents.matths.kr` 여섯 호스트를 모두 등록한다.
+Cloudflare DNS에서 네 서브도메인은 Cloudtype이 안내한 CNAME 대상으로 연결하고 인증서 상태가 정상인지 확인한다.
 
 ## 배포
 

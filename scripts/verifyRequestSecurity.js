@@ -60,6 +60,7 @@ const originalEnvironment = {
   PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL,
   ACADEMY_BASE_URL: process.env.ACADEMY_BASE_URL,
   ADMIN_BASE_URL: process.env.ADMIN_BASE_URL,
+  PARENTS_BASE_URL: process.env.PARENTS_BASE_URL,
 };
 
 try {
@@ -68,6 +69,7 @@ try {
   process.env.APP_BASE_URL = "https://app.matths.kr";
   process.env.ACADEMY_BASE_URL = "https://academy.matths.kr";
   process.env.ADMIN_BASE_URL = "https://admin.matths.kr";
+  process.env.PARENTS_BASE_URL = "https://parents.matths.kr";
 
   assert.equal(invoke(sameOriginProtection, request({ method: "GET" })).error, null);
   assert.equal(
@@ -87,6 +89,7 @@ try {
     "https://app.matths.kr",
     "https://academy.matths.kr",
     "https://admin.matths.kr",
+    "https://parents.matths.kr",
   ]) {
     assert.equal(
       invoke(sameOriginProtection, request({

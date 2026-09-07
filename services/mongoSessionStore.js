@@ -2,6 +2,7 @@ const session = require("express-session");
 const { WebSession } = require("../models/sessionModel");
 
 const DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60;
+const DEFAULT_OPERATION_TIMEOUT_MS = 10_000;
 
 function sessionExpiry(sessionData, ttlSeconds) {
   const cookieExpiry = sessionData?.cookie?.expires
@@ -12,13 +13,24 @@ function sessionExpiry(sessionData, ttlSeconds) {
 }
 
 class MongoSessionStore extends session.Store {
-  constructor({ ttlSeconds = DEFAULT_TTL_SECONDS } = {}) {
+  constructor({
+    ttlSeconds = DEFAULT_TTL_SECONDS,
+    operationTimeoutMs = DEFAULT_OPERATION_TIMEOUT_MS,
+  } = {}) {
     super();
     this.ttlSeconds = Math.max(300, Number(ttlSeconds) || DEFAULT_TTL_SECONDS);
+    this.operationTimeoutMs = Math.max(
+      1_000,
+      Number(operationTimeoutMs) || DEFAULT_OPERATION_TIMEOUT_MS
+    );
+  }
+
+  queryTimeout(query) {
+    return query.maxTimeMS(this.operationTimeoutMs);
   }
 
   get(sid, callback) {
-    WebSession.findOne({ sid, expiresAt: { $gt: new Date() } })
+    this.queryTimeout(WebSession.findOne({ sid, expiresAt: { $gt: new Date() } }))
       .select("session")
       .lean()
       .then((record) => callback(null, record?.session || null))
@@ -26,7 +38,7 @@ class MongoSessionStore extends session.Store {
   }
 
   set(sid, sessionData, callback = () => {}) {
-    WebSession.updateOne(
+    this.queryTimeout(WebSession.updateOne(
       { sid },
       {
         $set: {
@@ -35,38 +47,38 @@ class MongoSessionStore extends session.Store {
         },
       },
       { upsert: true, setDefaultsOnInsert: true }
-    )
+    ))
       .then(() => callback(null))
       .catch((error) => callback(error));
   }
 
   touch(sid, sessionData, callback = () => {}) {
-    WebSession.updateOne(
+    this.queryTimeout(WebSession.updateOne(
       { sid },
       {
         $set: {
           expiresAt: sessionExpiry(sessionData, this.ttlSeconds),
         },
       }
-    )
+    ))
       .then(() => callback(null))
       .catch((error) => callback(error));
   }
 
   destroy(sid, callback = () => {}) {
-    WebSession.deleteOne({ sid })
+    this.queryTimeout(WebSession.deleteOne({ sid }))
       .then(() => callback(null))
       .catch((error) => callback(error));
   }
 
   clear(callback = () => {}) {
-    WebSession.deleteMany({})
+    this.queryTimeout(WebSession.deleteMany({}))
       .then(() => callback(null))
       .catch((error) => callback(error));
   }
 
   length(callback) {
-    WebSession.countDocuments({ expiresAt: { $gt: new Date() } })
+    this.queryTimeout(WebSession.countDocuments({ expiresAt: { $gt: new Date() } }))
       .then((count) => callback(null, count))
       .catch((error) => callback(error));
   }
@@ -74,6 +86,7 @@ class MongoSessionStore extends session.Store {
 
 module.exports = {
   DEFAULT_TTL_SECONDS,
+  DEFAULT_OPERATION_TIMEOUT_MS,
   MongoSessionStore,
   sessionExpiry,
 };

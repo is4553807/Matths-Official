@@ -30,6 +30,7 @@ function configuredOrigins() {
       process.env.APP_BASE_URL,
       process.env.ACADEMY_BASE_URL,
       process.env.ADMIN_BASE_URL,
+      process.env.PARENTS_BASE_URL,
     ]
       .map(normalizedOrigin)
       .filter(Boolean)

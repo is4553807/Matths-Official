@@ -3,12 +3,14 @@ const DEFAULT_SERVICE_HOSTS = Object.freeze({
   app: "app.matths.kr",
   academy: "academy.matths.kr",
   admin: "admin.matths.kr",
+  parents: "parents.matths.kr",
 });
 
 const ROOT_PATH_BY_SURFACE = Object.freeze({
   app: "/main",
   academy: "/academy",
   admin: "/admin",
+  parents: "/parent",
 });
 
 function cleanHost(value) {
@@ -48,6 +50,11 @@ function serviceHosts(environment = process.env) {
       "ADMIN_BASE_URL",
       DEFAULT_SERVICE_HOSTS.admin
     ),
+    parents: configuredHost(
+      environment,
+      "PARENTS_BASE_URL",
+      DEFAULT_SERVICE_HOSTS.parents
+    ),
   };
 }
 
@@ -69,6 +76,7 @@ function surfaceForPath(pathname) {
   }
   if (/^\/academy(?:\/|$)/.test(pathname)) return "academy";
   if (/^\/main(?:\/|$)/.test(pathname)) return "app";
+  if (/^\/parent(?:\/|$)/.test(pathname)) return "parents";
   return "";
 }
 

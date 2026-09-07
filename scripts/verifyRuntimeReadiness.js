@@ -14,6 +14,7 @@ const validProductionEnvironment = {
   APP_BASE_URL: "https://app.matths.kr",
   ACADEMY_BASE_URL: "https://academy.matths.kr",
   ADMIN_BASE_URL: "https://admin.matths.kr",
+  PARENTS_BASE_URL: "https://parents.matths.kr",
   SESSION_COOKIE_DOMAIN: ".matths.kr",
   GOOGLE_OAUTH_CLIENT_ID:
     "runtime-google-client",

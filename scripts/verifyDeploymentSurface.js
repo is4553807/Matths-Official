@@ -27,6 +27,7 @@ assert.match(cloudtype, /PUBLIC_BASE_URL[\s\S]*https:\/\/www\.matths\.kr/);
 assert.match(cloudtype, /APP_BASE_URL[\s\S]*https:\/\/app\.matths\.kr/);
 assert.match(cloudtype, /ACADEMY_BASE_URL[\s\S]*https:\/\/academy\.matths\.kr/);
 assert.match(cloudtype, /ADMIN_BASE_URL[\s\S]*https:\/\/admin\.matths\.kr/);
+assert.match(cloudtype, /PARENTS_BASE_URL[\s\S]*https:\/\/parents\.matths\.kr/);
 assert.match(cloudtype, /SESSION_COOKIE_DOMAIN[\s\S]*value: \.matths\.kr/);
 assert.match(
   cloudtype,
@@ -123,6 +124,7 @@ for (const required of [
   "APP_BASE_URL=https://app.matths.kr",
   "ACADEMY_BASE_URL=https://academy.matths.kr",
   "ADMIN_BASE_URL=https://admin.matths.kr",
+  "PARENTS_BASE_URL=https://parents.matths.kr",
   "PAYMENT_PROVIDER=INICIS",
   "INICIS_PAYMENTS_MODE=LIVE",
   "INICIS_LIVE_MID=",

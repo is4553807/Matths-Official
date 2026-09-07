@@ -93,6 +93,7 @@ function runtimeEnvironmentReport(environment = process.env) {
     "APP_BASE_URL",
     "ACADEMY_BASE_URL",
     "ADMIN_BASE_URL",
+    "PARENTS_BASE_URL",
   ];
   for (const key of surfaceUrlKeys) {
     const value = valueOf(environment, key);
@@ -104,19 +105,19 @@ function runtimeEnvironmentReport(environment = process.env) {
     .map((key) => hostnameOf(valueOf(environment, key)))
     .filter(Boolean);
   if (surfaceHosts.length === surfaceUrlKeys.length && new Set(surfaceHosts).size !== surfaceHosts.length) {
-    errors.push("공개·학생·학원·관리자 서비스 주소는 서로 다른 호스트여야 합니다.");
+    errors.push("공개·학생·학원·관리자·학부모 서비스 주소는 서로 다른 호스트여야 합니다.");
   }
 
   const cookieDomainValue = valueOf(environment, "SESSION_COOKIE_DOMAIN");
   const cookieDomain = normalizedCookieDomain(cookieDomainValue);
   if (!validCookieDomain(cookieDomainValue)) {
-    errors.push("SESSION_COOKIE_DOMAIN은 네 서비스 호스트를 포함하는 유효한 도메인이어야 합니다. 예: .matths.kr");
+    errors.push("SESSION_COOKIE_DOMAIN은 다섯 서비스 호스트를 포함하는 유효한 도메인이어야 합니다. 예: .matths.kr");
   } else if (
     surfaceHosts.some(
       (host) => host !== cookieDomain && !host.endsWith(`.${cookieDomain}`)
     )
   ) {
-    errors.push("SESSION_COOKIE_DOMAIN이 공개·학생·학원·관리자 서비스 호스트를 모두 포함해야 합니다.");
+    errors.push("SESSION_COOKIE_DOMAIN이 공개·학생·학원·관리자·학부모 서비스 호스트를 모두 포함해야 합니다.");
   }
 
   for (const key of [

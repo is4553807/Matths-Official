@@ -12,6 +12,7 @@ const production = {
   APP_BASE_URL: "https://app.matths.kr",
   ACADEMY_BASE_URL: "https://academy.matths.kr",
   ADMIN_BASE_URL: "https://admin.matths.kr",
+  PARENTS_BASE_URL: "https://parents.matths.kr",
 };
 
 assert.deepEqual(serviceHosts(production), {
@@ -19,6 +20,7 @@ assert.deepEqual(serviceHosts(production), {
   app: "app.matths.kr",
   academy: "academy.matths.kr",
   admin: "admin.matths.kr",
+  parents: "parents.matths.kr",
 });
 
 for (const [hostname, originalUrl, expected] of [
@@ -26,6 +28,7 @@ for (const [hostname, originalUrl, expected] of [
   ["app.matths.kr", "/academy/classes/42", "https://academy.matths.kr/academy/classes/42"],
   ["academy.matths.kr", "/admin/users", "https://admin.matths.kr/admin/users"],
   ["www.matths.kr", "/archive/admin?folder=1", "https://admin.matths.kr/archive/admin?folder=1"],
+  ["www.matths.kr", "/parent/notifications", "https://parents.matths.kr/parent/notifications"],
 ]) {
   assert.equal(
     serviceHostRedirectLocation({
@@ -77,6 +80,7 @@ try {
     ["app.matths.kr", "/main?tab=today"],
     ["academy.matths.kr", "/academy?tab=today"],
     ["admin.matths.kr", "/admin?tab=today"],
+    ["parents.matths.kr", "/parent?tab=today"],
   ]) {
     const req = {
       hostname,
@@ -99,5 +103,5 @@ try {
 }
 
 console.log(
-  "Service host routing verified: app, academy, and admin roots map internally while legacy surface paths move to their dedicated HTTPS hosts."
+  "Service host routing verified: app, academy, admin, and parents roots map internally while legacy surface paths move to their dedicated HTTPS hosts."
 );
