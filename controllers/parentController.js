@@ -1,4 +1,3 @@
-const bcrypt = require("bcrypt");
 const { randomUUID } = require("node:crypto");
 const { ParentAccount } = require("../models/parentModel");
 const {
@@ -29,6 +28,7 @@ const {
   createSupportInquiry,
   getParentInquiryPageData,
 } = require("../services/supportInquiryService");
+const { serviceUrl } = require("../services/serviceUrlService");
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -79,7 +79,7 @@ exports.inviteSignupPage = async (req, res, next) => {
 
     if (!req.session?.parent?.id) {
       const nextPath = encodeURIComponent(`/parent/invite/${req.params.token}`);
-      return res.redirect(`/parent/login?next=${nextPath}`);
+      return res.redirect(serviceUrl("public", `/login?next=${nextPath}`));
     }
     if (String(req.session.parent.id) !== String(existingParent._id)) {
       const error = new Error("초대를 받은 이메일의 학부모 계정으로 로그인해주세요.");
@@ -136,48 +136,17 @@ exports.completeInviteSignup = async (req, res, next) => {
 };
 
 exports.loginPage = (req, res) => {
-  res.set("Cache-Control", "no-store");
-  return res.render("parent-login", {
-    error: "",
-    oldInput: { identifier: "" },
-    next: safeNext(req.query.next),
-  });
-};
-
-exports.login = async (req, res, next) => {
-  try {
-    const identifier = String(req.body.identifier || "").trim().toLowerCase();
-    const parent = await ParentAccount.findOne({
-      $or: [{ email: identifier }, { usernameNormalized: identifier }],
-      isActive: true,
-    }).select("+passwordHash");
-    const valid = parent
-      ? await bcrypt.compare(String(req.body.password || ""), parent.passwordHash)
-      : false;
-    if (!valid) {
-      return res.status(401).render("parent-login", {
-        error: "학부모 아이디 또는 비밀번호를 다시 확인해주세요.",
-        oldInput: { identifier },
-        next: safeNext(req.body.next),
-      });
-    }
-    const nextPath = safeNext(req.body.next);
-    parent.lastLoginAt = new Date();
-    await parent.save();
-    await regenerateSession(req);
-    req.session.parent = parentSession(parent);
-    await saveSession(req);
-    return res.redirect(nextPath);
-  } catch (error) {
-    return next(error);
-  }
+  const requestedNext = safeNext(req.query.next);
+  return res.redirect(
+    serviceUrl("public", `/login?next=${encodeURIComponent(requestedNext)}`)
+  );
 };
 
 exports.logout = async (req, res, next) => {
   try {
     delete req.session.parent;
     await saveSession(req);
-    return res.redirect("/parent/login");
+    return res.redirect(serviceUrl("public", "/login"));
   } catch (error) {
     return next(error);
   }

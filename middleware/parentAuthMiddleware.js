@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { ParentAccount } = require("../models/parentModel");
+const { serviceUrl } = require("../services/serviceUrlService");
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -29,12 +30,14 @@ async function isParentLoggedIn(req, res, next) {
     return next(error);
   }
   const nextPath = encodeURIComponent(req.originalUrl || "/parent");
-  return res.redirect(`/parent/login?next=${nextPath}`);
+  return res.redirect(serviceUrl("public", `/login?next=${nextPath}`));
 }
 
 async function isParentLoggedOut(req, res, next) {
   try {
-    if (await activeParentForSession(req)) return res.redirect("/parent");
+    if (await activeParentForSession(req)) {
+      return res.redirect(serviceUrl("parents", "/parent"));
+    }
     await clearInvalidParentSession(req);
     return next();
   } catch (error) {

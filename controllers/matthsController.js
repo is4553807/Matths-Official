@@ -7,6 +7,9 @@ const {
 const {
   ParentAccount,
 } = require("../models/parentModel");
+const {
+  serviceUrl,
+} = require("../services/serviceUrlService");
 const AppleAuthCredential = require(
   "../models/appleAuthCredentialModel"
 );
@@ -663,6 +666,10 @@ exports.loginPage = (req,res) => {
       oldInput: {
         email: "",
       },
+      next:
+        isSafeParentReturnPath(req.query.next)
+          ? req.query.next
+          : "",
     });
 }
 
@@ -6581,6 +6588,7 @@ function isSafeStudentReturnPath(returnTo) {
     const pathname = String(returnTo).split(/[?#]/, 1)[0];
     const blockedPrefixes = [
         "/admin",
+        "/academy",
         "/parent",
         "/api",
     ];
@@ -6602,6 +6610,23 @@ function isSafeStudentReturnPath(returnTo) {
     );
 }
 
+function isSafeParentReturnPath(returnTo) {
+    if (!isSafeReturnPath(returnTo)) return false;
+    const pathname = String(returnTo).split(/[?#]/, 1)[0];
+    return pathname === "/parent" || pathname.startsWith("/parent/");
+}
+
+function studentReturnUrl(returnTo) {
+    const pathname = String(returnTo || "").split(/[?#]/, 1)[0];
+    const publicStudentPaths = ["/community", "/contact"];
+    const surface = publicStudentPaths.some(
+        (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    )
+        ? "public"
+        : "app";
+    return serviceUrl(surface, returnTo);
+}
+
 exports.login = async (req, res, next) => {
     try {
         const identifier = String(
@@ -6612,14 +6637,18 @@ exports.login = async (req, res, next) => {
         const email = identifier.toLowerCase();
 
         const password = String(req.body.password || "");
+        const parentReturnTo = isSafeParentReturnPath(req.body.next)
+            ? req.body.next
+            : "";
 
         if (!identifier || !password) {
             return res.status(400).render("login", {
-                error: "이메일과 비밀번호를 모두 입력해주세요.",
+                error: "이메일 또는 학부모 아이디와 비밀번호를 모두 입력해주세요.",
                 loginNotice: protectedPageLoginNotice(req),
                 oldInput: {
                     email: identifier,
                 },
+                next: parentReturnTo,
             });
         }
 
@@ -6636,7 +6665,10 @@ exports.login = async (req, res, next) => {
          * 어떤 이메일이 가입되어 있는지 외부에 노출하지 않기 위해서다.
          */
         const parentAccount = await ParentAccount.findOne({
-            email,
+            $or: [
+                { email },
+                { usernameNormalized: email },
+            ],
             isActive: true,
         })
             .select("+passwordHash")
@@ -6649,6 +6681,7 @@ exports.login = async (req, res, next) => {
                 oldInput: {
                     email: identifier,
                 },
+                next: parentReturnTo,
             });
         }
 
@@ -6672,6 +6705,7 @@ exports.login = async (req, res, next) => {
                 oldInput: {
                     email: identifier,
                 },
+                next: parentReturnTo,
             });
         }
 
@@ -6691,7 +6725,12 @@ exports.login = async (req, res, next) => {
                 selectedChildUserId: parent.childUserId ? String(parent.childUserId) : "",
             };
             await saveSession(req);
-            return res.redirect("/parent");
+            return res.redirect(
+                serviceUrl(
+                    "parents",
+                    parentReturnTo || "/parent"
+                )
+            );
         }
 
         const access =
@@ -6716,6 +6755,7 @@ exports.login = async (req, res, next) => {
                     oldInput: {
                         email: identifier,
                     },
+                    next: parentReturnTo,
                 }
             );
         }
@@ -6791,18 +6831,18 @@ exports.login = async (req, res, next) => {
         if (
             user.role === "admin"
         ) {
-            return res.redirect("/admin");
+            return res.redirect(serviceUrl("admin", "/admin"));
         }
 
         if (user.role === "teacher") {
-            return res.redirect("/academy");
+            return res.redirect(serviceUrl("academy", "/academy"));
         }
 
         if (isSafeStudentReturnPath(returnTo)) {
-            return res.redirect(returnTo);
+            return res.redirect(studentReturnUrl(returnTo));
         }
 
-        return res.redirect("/main");
+        return res.redirect(serviceUrl("app", "/main"));
     } catch (error) {
         return next(error);
     }
@@ -6820,7 +6860,7 @@ exports.logout = (req, res, next) => {
                 ? { domain: process.env.SESSION_COOKIE_DOMAIN }
                 : {}),
         });
-        return res.redirect("/login");
+        return res.redirect(serviceUrl("public", "/login"));
     });
 };
 

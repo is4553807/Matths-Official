@@ -9,6 +9,9 @@ const {
 const {
     getActiveAcademyPlan,
 } = require("../services/academyPlanService");
+const {
+    serviceUrl,
+} = require("../services/serviceUrlService");
 
 function isAdminSessionUser(user) {
     return user?.role === "admin";
@@ -16,6 +19,19 @@ function isAdminSessionUser(user) {
 
 function isTeacherSessionUser(user) {
     return user?.role === "teacher";
+}
+
+function dashboardUrlForSession(req) {
+    if (req.session?.parent?.id && !req.session?.user?.id) {
+        return serviceUrl("parents", "/parent");
+    }
+    if (isAdminSessionUser(req.session?.user)) {
+        return serviceUrl("admin", "/admin");
+    }
+    if (isTeacherSessionUser(req.session?.user)) {
+        return serviceUrl("academy", "/academy");
+    }
+    return serviceUrl("app", "/main");
 }
 
 exports.isLoggedIn = async (req, res, next) => {
@@ -50,7 +66,10 @@ exports.isLoggedIn = async (req, res, next) => {
                 return req.session.destroy(
                     () =>
                         res.redirect(
-                            `/login?account=${encodeURIComponent(state)}`
+                            serviceUrl(
+                                "public",
+                                `/login?account=${encodeURIComponent(state)}`
+                            )
                         )
                 );
             }
@@ -129,23 +148,15 @@ exports.isLoggedIn = async (req, res, next) => {
         req.session.returnTo = req.originalUrl;
     }
 
-    return res.redirect("/login");
+    return res.redirect(serviceUrl("public", "/login"));
 };
 
 exports.isLoggedOut = (req, res, next) => {
-    if (!req.session?.user) {
+    if (!req.session?.user && !req.session?.parent?.id) {
         return next();
     }
 
-    return res.redirect(
-        isAdminSessionUser(
-            req.session.user
-        )
-            ? "/admin"
-            : isTeacherSessionUser(req.session.user)
-                ? "/academy"
-                : "/main"
-    );
+    return res.redirect(dashboardUrlForSession(req));
 };
 
 // ASWebAuthenticationSession은 기존 Safari 로그인 쿠키를 재사용할 수 있다.

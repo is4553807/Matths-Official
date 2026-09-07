@@ -35,6 +35,10 @@ const {
 const {
     serviceHostRouting,
 } = require("./middleware/serviceHostRouting");
+const {
+    accountNavigation,
+    serviceOrigins,
+} = require("./services/serviceUrlService");
 const runtimeEnvironment = assertRuntimeEnvironment();
 for (const warning of runtimeEnvironment.warnings) {
     console.warn(`[startup warning] ${warning}`);
@@ -252,6 +256,8 @@ server.use(session({
 server.use(sameOriginProtection);
 server.use((req, res, next) => {
     res.locals.user = req.session?.user || null;
+    res.locals.serviceUrls = serviceOrigins();
+    res.locals.accountNavigation = accountNavigation(req.session);
     res.locals.arenaPublicText = arenaPublicText;
     // 공개 연락처는 약관·개인정보처리방침·푸터에서 동일해야 한다. 운영 플랫폼에
     // 남은 과거 환경변수가 새 주소를 되돌리지 못하도록 배포 코드가 단일 소유한다.

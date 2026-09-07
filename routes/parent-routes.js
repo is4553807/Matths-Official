@@ -1,5 +1,6 @@
 const express = require("express");
 const parentController = require("../controllers/parentController");
+const matthsController = require("../controllers/matthsController");
 const { isParentLoggedIn, isParentLoggedOut } = require("../middleware/parentAuthMiddleware");
 const {
   loginIpRateLimit,
@@ -28,7 +29,7 @@ router.post(
   isParentLoggedOut,
   loginIpRateLimit,
   loginRateLimit,
-  parentController.login
+  matthsController.login
 );
 router.post("/parent/logout", isParentLoggedIn, parentController.logout);
 router.get("/parent", isParentLoggedIn, parentController.dashboardPage);

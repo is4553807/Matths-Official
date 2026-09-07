@@ -1,6 +1,12 @@
 <% const footerContactEmail = typeof publicContactEmail !== "undefined" && publicContactEmail
   ? publicContactEmail
-  : "dltkddbs4553@matths.kr"; %>
+  : "dltkddbs4553@matths.kr";
+  const footerPublicOrigin =
+    typeof serviceUrls !== "undefined" && serviceUrls?.public
+      ? String(serviceUrls.public).replace(/\/$/, "")
+      : "";
+  const footerPublicPath = (path) => `${footerPublicOrigin}${path}`;
+%>
 <footer class="business-site-footer">
   <div class="business-site-footer__inner">
     <div class="business-site-footer__top">
@@ -11,12 +17,12 @@
         tone: "light",
       }) %>
       <nav class="business-site-footer__links" aria-label="하단 정책 및 고객지원">
-        <a href="/intro">서비스 소개</a>
-        <a href="/curriculum">교육과정</a>
-        <a href="/faq">자주 묻는 질문</a>
-        <a href="/terms">이용약관</a>
-        <a href="/privacy">개인정보처리방침</a>
-        <a href="/contact">문의하기</a>
+        <a href="<%= footerPublicPath('/intro') %>">서비스 소개</a>
+        <a href="<%= footerPublicPath('/curriculum') %>">교육과정</a>
+        <a href="<%= footerPublicPath('/faq') %>">자주 묻는 질문</a>
+        <a href="<%= footerPublicPath('/terms') %>">이용약관</a>
+        <a href="<%= footerPublicPath('/privacy') %>">개인정보처리방침</a>
+        <a href="<%= footerPublicPath('/contact') %>">문의하기</a>
       </nav>
     </div>
 

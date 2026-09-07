@@ -1,9 +1,14 @@
+const {
+  DEFAULT_SERVICE_ORIGINS,
+  serviceOrigins,
+} = require("../services/serviceUrlService");
+
 const DEFAULT_SERVICE_HOSTS = Object.freeze({
-  public: "matths.kr",
-  app: "app.matths.kr",
-  academy: "academy.matths.kr",
-  admin: "admin.matths.kr",
-  parents: "parents.matths.kr",
+  public: new URL(DEFAULT_SERVICE_ORIGINS.public).hostname,
+  app: new URL(DEFAULT_SERVICE_ORIGINS.app).hostname,
+  academy: new URL(DEFAULT_SERVICE_ORIGINS.academy).hostname,
+  admin: new URL(DEFAULT_SERVICE_ORIGINS.admin).hostname,
+  parents: new URL(DEFAULT_SERVICE_ORIGINS.parents).hostname,
 });
 
 const ROOT_PATH_BY_SURFACE = Object.freeze({
@@ -20,42 +25,13 @@ function cleanHost(value) {
     .replace(/:\d+$/, "");
 }
 
-function configuredHost(environment, key, fallback) {
-  try {
-    return cleanHost(new URL(String(environment?.[key] || "")).hostname) || fallback;
-  } catch (_error) {
-    return fallback;
-  }
-}
-
 function serviceHosts(environment = process.env) {
-  return {
-    public: configuredHost(
-      environment,
-      "PUBLIC_BASE_URL",
-      DEFAULT_SERVICE_HOSTS.public
-    ),
-    app: configuredHost(
-      environment,
-      "APP_BASE_URL",
-      DEFAULT_SERVICE_HOSTS.app
-    ),
-    academy: configuredHost(
-      environment,
-      "ACADEMY_BASE_URL",
-      DEFAULT_SERVICE_HOSTS.academy
-    ),
-    admin: configuredHost(
-      environment,
-      "ADMIN_BASE_URL",
-      DEFAULT_SERVICE_HOSTS.admin
-    ),
-    parents: configuredHost(
-      environment,
-      "PARENTS_BASE_URL",
-      DEFAULT_SERVICE_HOSTS.parents
-    ),
-  };
+  return Object.fromEntries(
+    Object.entries(serviceOrigins(environment)).map(([surface, origin]) => [
+      surface,
+      cleanHost(origin ? new URL(origin).hostname : DEFAULT_SERVICE_HOSTS[surface]),
+    ])
+  );
 }
 
 function safeRequestTarget(originalUrl) {
@@ -67,6 +43,31 @@ function pathnameOf(originalUrl) {
   return safeRequestTarget(originalUrl).split("?", 1)[0];
 }
 
+function isPublicPath(pathname) {
+  if (/^\/(?:login|register|forgot-password)(?:\/|$)/.test(pathname)) {
+    return true;
+  }
+  if (/^\/auth\/(?:google|kakao|apple)(?:\/|$)/.test(pathname)) {
+    return true;
+  }
+  if (/^\/parent\/login(?:\/|$)/.test(pathname)) return true;
+  if (/^\/(?:intro|visual-learning|learning-flow|curriculum|faq|terms|privacy)(?:\/|$)/.test(pathname)) {
+    return true;
+  }
+  if (/^\/community(?:\/|$)/.test(pathname)) return true;
+  if (/^\/archive(?:\/|$)/.test(pathname) && !/^\/archive\/admin(?:\/|$)/.test(pathname)) {
+    return true;
+  }
+  return pathname === "/pricing" || pathname === "/contact";
+}
+
+function publicTarget(originalUrl) {
+  const target = safeRequestTarget(originalUrl);
+  if (pathnameOf(target) !== "/parent/login") return target;
+  const queryIndex = target.indexOf("?");
+  return `/login${queryIndex >= 0 ? target.slice(queryIndex) : ""}`;
+}
+
 function surfaceForPath(pathname) {
   if (
     /^\/admin(?:\/|$)/.test(pathname) ||
@@ -75,7 +76,14 @@ function surfaceForPath(pathname) {
     return "admin";
   }
   if (/^\/academy(?:\/|$)/.test(pathname)) return "academy";
-  if (/^\/main(?:\/|$)/.test(pathname)) return "app";
+  if (
+    /^\/(?:main|my-learning|my-academy|learn|war-of-masters|goat-arena|profile|store|notifications|announcements|account|private-mock-exams|integrity|nickname-change|log-curriculum|assessments|wrong-notes|quick-practice|coach-suggestions)(?:\/|$)/.test(pathname)
+  ) {
+    return "app";
+  }
+  if (/^\/pricing\/[^/]+\/(?:self|parent-request)(?:\/|$)/.test(pathname)) {
+    return "app";
+  }
   if (/^\/parent(?:\/|$)/.test(pathname)) return "parents";
   return "";
 }
@@ -94,9 +102,11 @@ function serviceHostRedirectLocation({
   if (!Object.values(hosts).includes(currentHost)) return "";
 
   const target = safeRequestTarget(originalUrl);
-  const surface = surfaceForPath(pathnameOf(target));
+  const pathname = pathnameOf(target);
+  const surface = isPublicPath(pathname) ? "public" : surfaceForPath(pathname);
   if (!surface || currentHost === hosts[surface]) return "";
-  return `https://${hosts[surface]}${target}`;
+  const origin = serviceOrigins(environment)[surface];
+  return `${origin}${surface === "public" ? publicTarget(target) : target}`;
 }
 
 function serviceHostRouting(req, res, next) {
@@ -134,4 +144,6 @@ module.exports = {
   serviceHostRouting,
   serviceHosts,
   surfaceForPath,
+  isPublicPath,
+  publicTarget,
 };

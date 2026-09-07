@@ -1,7 +1,18 @@
 <%
-  const loggedIn = typeof user !== "undefined" && Boolean(user);
-  const learningHref = loggedIn ? "/my-learning" : "/register";
-  const learningLabel = loggedIn ? "학습 계속하기" : "학습도 둘러보기";
+  const landingNavigation =
+    typeof accountNavigation !== "undefined" && accountNavigation
+      ? accountNavigation
+      : {
+          authenticated: typeof user !== "undefined" && Boolean(user),
+          role: typeof user !== "undefined" ? user?.role : "guest",
+          dashboardHref: "/main",
+          primaryHref: typeof user !== "undefined" && user ? "/my-learning" : "/register",
+          primaryLabel: typeof user !== "undefined" && user ? "학습 계속하기" : "무료로 시작하기",
+        };
+  const loggedIn = landingNavigation.authenticated;
+  const studentLoggedIn = ["student", "test"].includes(landingNavigation.role);
+  const learningHref = landingNavigation.primaryHref;
+  const learningLabel = landingNavigation.primaryLabel;
   const arenaContractView =
     typeof arenaContract !== "undefined" ? arenaContract : null;
 
@@ -13,7 +24,7 @@
         .filter((entry) => entry && entry.displayName && entry.tierLabel)
         .slice(0, 3)
     : [];
-  const arenaCurrentRaw = loggedIn && arenaRaw && arenaRaw.currentEntry
+  const arenaCurrentRaw = studentLoggedIn && arenaRaw && arenaRaw.currentEntry
     ? arenaRaw.currentEntry
     : null;
   const arenaCurrentEntry =
@@ -62,12 +73,28 @@
         : null,
     topEntries: arenaTopEntries,
   };
-  const arenaShowCurrent = loggedIn && Boolean(arenaCurrentEntry);
-  const arenaShowRanking = loggedIn && arena.available && arena.topEntries.length > 0;
-  const arenaCtaHref = loggedIn ? "/war-of-masters" : "/register";
-  const arenaCtaLabel = loggedIn ? "GOAT Arena 입장" : "무료로 배치 시작";
-  const arenaRankingHref = loggedIn ? "/war-of-masters" : "/login";
-  const arenaRankingLabel = loggedIn ? "내 아레나 확인" : "로그인하고 확인";
+  const arenaShowCurrent = studentLoggedIn && Boolean(arenaCurrentEntry);
+  const arenaShowRanking = studentLoggedIn && arena.available && arena.topEntries.length > 0;
+  const arenaCtaHref = studentLoggedIn
+    ? landingNavigation.arenaHref
+    : loggedIn
+      ? landingNavigation.dashboardHref
+      : landingNavigation.primaryHref;
+  const arenaCtaLabel = studentLoggedIn
+    ? "GOAT Arena 입장"
+    : loggedIn
+      ? "대시보드로 이동"
+      : "무료로 배치 시작";
+  const arenaRankingHref = studentLoggedIn
+    ? landingNavigation.arenaHref
+    : loggedIn
+      ? landingNavigation.dashboardHref
+      : landingNavigation.dashboardHref;
+  const arenaRankingLabel = studentLoggedIn
+    ? "내 아레나 확인"
+    : loggedIn
+      ? "대시보드로 이동"
+      : "로그인하고 확인";
   const tierSlugMap = {
     브론즈: "bronze",
     실버: "silver",

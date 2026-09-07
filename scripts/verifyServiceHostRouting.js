@@ -1,10 +1,16 @@
 const assert = require("node:assert/strict");
 
 const {
+  isPublicPath,
   serviceHostRedirectLocation,
   serviceHostRouting,
   serviceHosts,
+  surfaceForPath,
 } = require("../middleware/serviceHostRouting");
+const {
+  accountNavigation,
+  serviceUrl,
+} = require("../services/serviceUrlService");
 
 const production = {
   NODE_ENV: "production",
@@ -29,6 +35,14 @@ for (const [hostname, originalUrl, expected] of [
   ["academy.matths.kr", "/admin/users", "https://admin.matths.kr/admin/users"],
   ["www.matths.kr", "/archive/admin?folder=1", "https://admin.matths.kr/archive/admin?folder=1"],
   ["www.matths.kr", "/parent/notifications", "https://parents.matths.kr/parent/notifications"],
+  ["academy.matths.kr", "/login", "https://www.matths.kr/login"],
+  ["admin.matths.kr", "/register?from=nav", "https://www.matths.kr/register?from=nav"],
+  ["parents.matths.kr", "/parent/login?next=%2Fparent%2Fpayments", "https://www.matths.kr/login?next=%2Fparent%2Fpayments"],
+  ["app.matths.kr", "/intro", "https://www.matths.kr/intro"],
+  ["www.matths.kr", "/my-learning", "https://app.matths.kr/my-learning"],
+  ["academy.matths.kr", "/goat-arena", "https://app.matths.kr/goat-arena"],
+  ["admin.matths.kr", "/my-academy", "https://app.matths.kr/my-academy"],
+  ["www.matths.kr", "/pricing/learning-package/self", "https://app.matths.kr/pricing/learning-package/self"],
 ]) {
   assert.equal(
     serviceHostRedirectLocation({
@@ -48,6 +62,28 @@ assert.equal(
   }),
   ""
 );
+assert.equal(isPublicPath("/login"), true);
+assert.equal(isPublicPath("/parent/login"), true);
+assert.equal(isPublicPath("/archive"), true);
+assert.equal(isPublicPath("/archive/admin"), false);
+assert.equal(surfaceForPath("/academy/classes/42"), "academy");
+assert.equal(surfaceForPath("/private-mock-exams"), "app");
+assert.equal(surfaceForPath("/parent/payments"), "parents");
+assert.equal(serviceUrl("public", "/login", production), "https://www.matths.kr/login");
+
+for (const [session, expected] of [
+  [{}, ["guest", "로그인", "무료로 시작하기", "https://www.matths.kr/login", "https://www.matths.kr/register"]],
+  [{ user: { id: "student", role: "student" } }, ["student", "대시보드", "학습 계속하기", "https://app.matths.kr/main", "https://app.matths.kr/my-learning"]],
+  [{ user: { id: "teacher", role: "teacher" } }, ["teacher", "대시보드", "학습 계속하기", "https://academy.matths.kr/academy", "https://academy.matths.kr/academy"]],
+  [{ user: { id: "admin", role: "admin" } }, ["admin", "대시보드", "학습 계속하기", "https://admin.matths.kr/admin", "https://admin.matths.kr/admin"]],
+  [{ parent: { id: "parent" } }, ["parent", "대시보드", "학습 계속하기", "https://parents.matths.kr/parent", "https://parents.matths.kr/parent"]],
+]) {
+  const navigation = accountNavigation(session, production);
+  assert.deepEqual(
+    [navigation.role, navigation.dashboardLabel, navigation.primaryLabel, navigation.dashboardHref, navigation.primaryHref],
+    expected
+  );
+}
 assert.equal(
   serviceHostRedirectLocation({
     hostname: "mpzm0tyz6f7ddb63.sel3.cloudtype.app",
@@ -72,6 +108,7 @@ const originalEnvironment = {
   APP_BASE_URL: process.env.APP_BASE_URL,
   ACADEMY_BASE_URL: process.env.ACADEMY_BASE_URL,
   ADMIN_BASE_URL: process.env.ADMIN_BASE_URL,
+  PARENTS_BASE_URL: process.env.PARENTS_BASE_URL,
 };
 
 try {
@@ -103,5 +140,5 @@ try {
 }
 
 console.log(
-  "Service host routing verified: app, academy, admin, and parents roots map internally while legacy surface paths move to their dedicated HTTPS hosts."
+  "Service host routing verified: shared auth/public routes, account CTAs, and app, academy, admin, and parents destinations use their canonical HTTPS hosts."
 );

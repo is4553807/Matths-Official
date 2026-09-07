@@ -14,7 +14,6 @@ const mongoose = require("mongoose");
 const { MongoMemoryReplSet } = require("mongodb-memory-server-core");
 
 const matthsController = require("../controllers/matthsController");
-const parentController = require("../controllers/parentController");
 const { MongoSessionStore } = require("../services/mongoSessionStore");
 const { User } = require("../models/matthsModel");
 const { ParentAccount } = require("../models/parentModel");
@@ -112,7 +111,6 @@ async function main() {
       cookie: { httpOnly: true, sameSite: "lax", secure: false, maxAge: 600_000 },
     }));
     app.post("/login", matthsController.login);
-    app.post("/parent/login", parentController.login);
     app.get("/__test/session", (req, res) => {
       res.json({
         userRole: req.session?.user?.role || null,
@@ -140,12 +138,12 @@ async function main() {
       assert.equal(snapshot.parentId, null);
     }
 
-    const parentResponse = await postForm(origin, "/parent/login", {
-      identifier: parent.email,
+    const parentResponse = await postForm(origin, "/login", {
+      identifier: parent.username,
       password: parentPassword,
       next: "/parent",
     });
-    assert.equal(parentResponse.status, 302, "학부모 로그인은 성공 후 이동해야 합니다.");
+    assert.equal(parentResponse.status, 302, "공용 로그인에서 학부모 아이디 로그인이 성공해야 합니다.");
     assert.equal(parentResponse.headers.get("location"), "/parent");
     const parentSnapshot = await sessionView(origin, sessionCookie(parentResponse));
     assert.equal(parentSnapshot.userRole, null);

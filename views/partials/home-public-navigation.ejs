@@ -8,21 +8,31 @@
     typeof user !== "undefined" && user
       ? user
       : null;
+  const publicAccountNavigation =
+    typeof accountNavigation !== "undefined" && accountNavigation
+      ? accountNavigation
+      : {
+          authenticated: Boolean(publicUser),
+          dashboardHref: publicUser ? "/main" : "/login",
+          dashboardLabel: publicUser ? "대시보드" : "로그인",
+          primaryHref: publicUser ? "/my-learning" : "/register",
+          primaryLabel: publicUser ? "학습 계속하기" : "무료로 시작하기",
+          arenaHref: publicUser ? "/war-of-masters" : "/#goat-arena",
+        };
+  const publicOrigin =
+    typeof serviceUrls !== "undefined" && serviceUrls?.public
+      ? String(serviceUrls.public).replace(/\/$/, "")
+      : "";
+  const publicPath = (path) => `${publicOrigin}${path}`;
   const publicActivePage =
     typeof activePage === "string"
       ? activePage
       : "";
   const publicStartHref =
-    publicUser
-      ? "/my-learning"
-      : "/register";
+    publicAccountNavigation.primaryHref;
   const publicStartLabel =
-    publicUser
-      ? "학습 계속하기"
-      : "무료로 시작하기";
-  const publicArenaHref = publicUser
-    ? "/war-of-masters"
-    : "/#goat-arena";
+    publicAccountNavigation.primaryLabel;
+  const publicArenaHref = publicAccountNavigation.arenaHref;
   const publicNavigationGroups = [
     {
       id: "arena",
@@ -34,20 +44,20 @@
       id: "learning",
       label: "학습",
       items: [
-        ["visual-learning", "/visual-learning", "시각화 학습"],
-        ["learning-flow", "/learning-flow", "학습 과정"],
-        ["curriculum", "/curriculum", "교육과정"],
+        ["visual-learning", publicPath("/visual-learning"), "시각화 학습"],
+        ["learning-flow", publicPath("/learning-flow"), "학습 과정"],
+        ["curriculum", publicPath("/curriculum"), "교육과정"],
       ],
     },
     {
       id: "service",
       label: "서비스",
       items: [
-        ["intro", "/intro", "서비스 소개"],
-        ["pricing", "/pricing", "이용권"],
-        ["faq", "/faq", "FAQ"],
-        ["community", "/community", "게시판"],
-        ["archive", "/archive", "아카이브"],
+        ["intro", publicPath("/intro"), "서비스 소개"],
+        ["pricing", publicPath("/pricing"), "이용권"],
+        ["faq", publicPath("/faq"), "FAQ"],
+        ["community", publicPath("/community"), "게시판"],
+        ["archive", publicPath("/archive"), "아카이브"],
       ],
     },
   ];
@@ -98,8 +108,8 @@
     </div>
 
     <div class="nav-actions">
-      <a class="login-link" href="<%= publicUser ? '/main' : '/login' %>">
-        <%= publicUser ? "대시보드" : "로그인" %>
+      <a class="login-link" href="<%= publicAccountNavigation.dashboardHref %>">
+        <%= publicAccountNavigation.dashboardLabel %>
       </a>
       <a class="button button-primary button-small" href="<%= publicStartHref %>">
         <%= publicStartLabel %>
@@ -125,8 +135,8 @@
             <% }) %>
           <% } %>
         <% }) %>
-        <a href="<%= publicUser ? '/main' : '/login' %>">
-          <%= publicUser ? "대시보드" : "로그인" %>
+        <a href="<%= publicAccountNavigation.dashboardHref %>">
+          <%= publicAccountNavigation.dashboardLabel %>
         </a>
         <a class="mobile-primary-action" href="<%= publicStartHref %>">
           <%= publicStartLabel %>

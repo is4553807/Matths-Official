@@ -57,6 +57,8 @@ const checks = [
   "navigation:verify",
   "canonical-host:verify",
   "service-hosts:verify",
+  "public-navigation:verify",
+  "role-web-login:verify",
   "coach-content:verify",
   "coach-idempotency:verify",
   "dynamic-id-errors:verify",
