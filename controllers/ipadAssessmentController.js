@@ -44,6 +44,9 @@ function assessmentAttemptView(source) {
     subunitId: raw.subunitId || null,
     title: text(raw.title),
     status: text(raw.status),
+    mutationRevision: Number.isSafeInteger(raw.mutationRevision) && raw.mutationRevision >= 0
+      ? raw.mutationRevision
+      : raw.mutationRevision == null ? 0 : null,
     questions,
     answers: questions.map((question) => question.submittedAnswer),
     startedAt,
@@ -116,6 +119,7 @@ function createIpadAssessmentController(service = assessmentService) {
           userId: req.apiUser._id,
           attemptId: req.params.attemptId,
           answers: answers(req),
+          expectedRevision: req.body?.expectedRevision,
         });
         return res.json({ draft });
       } catch (error) { return sendError(res, next, error); }
@@ -127,6 +131,7 @@ function createIpadAssessmentController(service = assessmentService) {
           userId: req.apiUser._id,
           attemptId: req.params.attemptId,
           answers: answers(req),
+          expectedRevision: req.body?.expectedRevision,
         });
         return res.json({ assessment: assessmentAttemptView(attempt) });
       } catch (error) { return sendError(res, next, error); }
@@ -138,6 +143,7 @@ function createIpadAssessmentController(service = assessmentService) {
           userId: req.apiUser._id,
           attemptId: req.params.attemptId,
           answers: answers(req),
+          expectedRevision: req.body?.expectedRevision,
         });
         return res.json({ assessment: assessmentAttemptView(attempt) });
       } catch (error) { return sendError(res, next, error); }

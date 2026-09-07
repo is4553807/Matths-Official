@@ -275,6 +275,7 @@ async function createPost(req, res, next) {
       "title",
       "content",
       "isAnonymous",
+      "requestId",
     ]);
     const post = await createCommunityPost({
       userId: req.apiUser._id,
@@ -283,6 +284,7 @@ async function createPost(req, res, next) {
       content: body.content,
       isAnonymous: body.isAnonymous,
       files: req.files || [],
+      requestId: body.requestId,
     });
     req.files = [];
     noStore(res);
@@ -299,12 +301,13 @@ async function createPost(req, res, next) {
 
 async function createComment(req, res, next) {
   try {
-    const body = strictObject(req.body, ["content", "isAnonymous"]);
+    const body = strictObject(req.body, ["content", "isAnonymous", "requestId"]);
     const comment = await createCommunityComment({
       userId: req.apiUser._id,
       postId: req.params.postId,
       content: body.content,
       isAnonymous: body.isAnonymous,
+      requestId: body.requestId,
     });
     noStore(res);
     return res.status(201).json({

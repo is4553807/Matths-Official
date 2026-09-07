@@ -62,7 +62,12 @@ async function updateDashboardTutorial({ userId, action }) {
           : {}),
     },
     $unset: {},
+    $inc: { "preferences.firstLearningRevision": 1 },
   };
+  // Existing COMPLETE/SKIP/RESTART semantics are unchanged. Invalidate pending
+  // mobile resume writes atomically so another device cannot resurrect a stale
+  // intermediate flow after the user completes, skips or restarts it.
+  update.$unset["preferences.firstLearning"] = 1;
 
   if (normalizedAction !== "COMPLETE") {
     update.$unset["preferences.dashboardTutorialCompletedAt"] = 1;

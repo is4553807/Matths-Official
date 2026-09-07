@@ -12,6 +12,7 @@ const ipadNotificationController = require(
 const ipadAcademyController = require(
   "../controllers/ipadAcademyController"
 );
+const ipadAssignmentController = require("../controllers/ipadAssignmentController");
 const ipadSupportController = require(
   "../controllers/ipadSupportController"
 );
@@ -252,6 +253,15 @@ router.get(
 
 router.use(requireApiAuth);
 
+// Same canonical weekly-mock concept aggregates as the web dashboards, with
+// teacher/administrator scope checked separately from generic authentication.
+const ipadWeeklyMockInsightController = require("../controllers/ipadWeeklyMockInsightController");
+router.get("/academy/teacher/weekly-mock-insights", ipadWeeklyMockInsightController.teacher);
+router.get("/academy/admin/:academyId/weekly-mock-insights", ipadWeeklyMockInsightController.admin);
+router.get("/admin/weekly-mock-insights", ipadWeeklyMockInsightController.admin);
+const ipadAnswerKeyResourceController = require("../controllers/ipadAnswerKeyResourceController");
+router.get("/admin/answer-key-resources/:resource", ipadAnswerKeyResourceController.download);
+
 router.get("/community/posting-access", ipadCommunityController.postingAccess);
 router.post(
   "/community/posts",
@@ -280,6 +290,7 @@ router.delete(
 // 끝나므로 학생이 앱을 나가거나 웹 로그인으로 다시 인증할 필요가 없다.
 router.get("/academy/student", ipadAcademyController.dashboard);
 router.get("/academy/student/weeks/:weekId", ipadAcademyController.week);
+router.post("/academy/student/weeks/:weekId/submission", ipadAssignmentController.submit);
 router.get(
   "/academy/student/weeks/:weekId/files/:fileId",
   ipadAcademyController.downloadWeekFile
@@ -398,6 +409,7 @@ router.post(
   "/academy/teacher/attendance/sessions/:sessionId/regenerate-code",
   ipadAcademyController.regenerateTeacherAttendanceCode
 );
+router.use("/academy/teacher/classes/:classId/classwork", ipadAssignmentController.requireTeacher);
 router.get(
   "/academy/teacher/classes/:classId/classwork",
   ipadAcademyController.teacherClasswork
@@ -846,6 +858,12 @@ router.get(
   "/me",
   apiController.me
 );
+// Additive, account-owned UX state. Old clients and existing tutorial actions
+// retain their contract; these routes are below the existing Bearer auth gate.
+const ipadFirstLearningController = require("../controllers/ipadFirstLearningController");
+router.get("/mobile-capabilities", ipadFirstLearningController.capabilities);
+router.get("/me/first-learning", ipadFirstLearningController.get);
+router.patch("/me/first-learning", ipadFirstLearningController.save);
 router.patch(
   "/me/nickname",
   apiController.updateNickname

@@ -1393,6 +1393,7 @@ async function getAcademyStudentDetail({ teacherUserId, membershipId }) {
 }
 
 module.exports = {
+  assertTeacherAccount,
   ACADEMY_STUDENT_BULK_LIMIT,
   ACADEMY_STUDENT_PAGE_SIZE,
   STAFF_FIELDS,

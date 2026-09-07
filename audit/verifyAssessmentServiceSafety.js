@@ -278,6 +278,7 @@ async function verifyBoundedList() {
     "subunitId",
     "title",
     "status",
+    "mutationRevision",
     "questions",
     "answers",
     "startedAt",

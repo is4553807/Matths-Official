@@ -1119,6 +1119,7 @@ async function updateAdminAcademyInvite({ adminUserId, academyId, inviteId, acti
 }
 
 module.exports = {
+  assertSuperAdmin,
   ACADEMY_STATUSES,
   assignAdminAcademyMembershipClass,
   getAdminAcademyDetail,

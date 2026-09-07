@@ -5,6 +5,7 @@ const {
 } = require("../constants/arenaProfileAvatars");
 
 const { Schema } = mongoose;
+const { COMMUNITY_REQUEST_INDEX } = require("../services/communityRequestIdentityService");
 
 const profileAvatarAssetSchema = new Schema(
   {
@@ -121,6 +122,31 @@ const preferenceSchema = new Schema(
     dashboardTutorialSkippedAt: {
       type: Date,
       default: null,
+    },
+
+    // Account-owned resume data only; never grants learning progress or gates.
+    firstLearningRevision: { type: Number, min: 0, default: 0 },
+    firstLearning: {
+      type: new Schema({
+        flowVersion: { type: Number, required: true, enum: [2] },
+        stage: { type: String, required: true, enum: ["goal", "diagnosis", "lesson", "checks", "awaitingSync", "result", "completed", "skipped"] },
+        goal: { type: String, required: true, enum: ["school", "review", "examination", "measure"] },
+        diagnosticAnswers: { type: [Number], default: [] },
+        seed: { type: String, maxlength: 20, default: null },
+        conceptId: { type: String, maxlength: 128, default: null },
+        expectedProblemIds: { type: [{ type: String, maxlength: 128 }], default: [] },
+        problemContentFingerprint: { type: String, maxlength: 64, default: null },
+        checkedAnswers: { type: [new Schema({
+          problemId: { type: String, required: true, maxlength: 128 },
+          correct: { type: Boolean, required: true },
+        }, { _id: false, strict: "throw" })], default: [] },
+        topicRead: { type: Boolean, required: true },
+        startedAt: { type: Date, default: null },
+        learningStartedAt: { type: Date, default: null },
+        baselineProgress: { type: Number, min: 0, max: 100, default: null },
+        updatedAt: { type: Date, required: true },
+      }, { _id: false, strict: "throw" }),
+      default: undefined,
     },
 
     arenaTutorial: {
@@ -2455,6 +2481,9 @@ const assessmentAttemptSchema =
         default: null,
       },
 
+      // Non-placement draft/finalization CAS; absent legacy values equal zero.
+      mutationRevision: { type: Number, min: 0, default: 0 },
+
       paperId: {
         type: String,
         required: true,
@@ -4260,6 +4289,8 @@ const communityPostSchema =
                 required: true,
                 index: true,
             },
+            requestId: { type: String, maxlength: 128, default: undefined },
+            requestFingerprint: { type: String, maxlength: 64, default: undefined },
             boardType: {
                 type: String,
                 enum: [
@@ -4430,6 +4461,11 @@ const communityPostSchema =
         }
     );
 
+communityPostSchema.index(COMMUNITY_REQUEST_INDEX.key, {
+    name: COMMUNITY_REQUEST_INDEX.name,
+    unique: true,
+    partialFilterExpression: COMMUNITY_REQUEST_INDEX.partialFilterExpression,
+});
 communityPostSchema.index({
     boardType: 1,
     schoolCode: 1,
@@ -4647,6 +4683,8 @@ const communityCommentSchema =
                 required: true,
                 index: true,
             },
+            requestId: { type: String, maxlength: 128, default: undefined },
+            requestFingerprint: { type: String, maxlength: 64, default: undefined },
             authorName: {
                 type: String,
                 required: true,
@@ -4710,6 +4748,11 @@ const communityCommentSchema =
         }
     );
 
+communityCommentSchema.index(COMMUNITY_REQUEST_INDEX.key, {
+    name: COMMUNITY_REQUEST_INDEX.name,
+    unique: true,
+    partialFilterExpression: COMMUNITY_REQUEST_INDEX.partialFilterExpression,
+});
 communityCommentSchema.index({
     postId: 1,
     status: 1,

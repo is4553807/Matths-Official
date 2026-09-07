@@ -1,3 +1,4 @@
+const { assertTeacherClassworkAccess, serializeAssignmentOmr, serializeAssignmentSubmission } = require("./ipadAssignmentController");
 const {
   approveAcademyApplication,
   approveAcademyStaff,
@@ -633,6 +634,7 @@ function serializeTeacherStaff(staff) {
 
 function serializeTeacherAttendance(roster) {
   return {
+    conditionalWriteVersion: 1,
     dateKey: roster.dateKey,
     todayKey: roster.todayKey,
     classes: (roster.classes || []).map(serializeClass),
@@ -643,6 +645,8 @@ function serializeTeacherAttendance(roster) {
       student: serializePerson(item.membership?.studentUserId),
       attendance: item.attendance
         ? {
+            id: identifier(item.attendance),
+            updatedAt: item.attendance.updatedAt || null,
             status: String(item.attendance.status || ""),
             checkedInAt: item.attendance.checkedInAt || null,
             source: item.attendance.source || null,
@@ -680,12 +684,12 @@ function serializeTeacherClasswork(academyClass, classwork) {
   return {
     academyClass: serializeClass(academyClass),
     currentAcademicYear: Number(classwork.currentAcademicYear),
-    weeks: (classwork.weeks || []).map(serializeWeek),
+    weeks: (classwork.weeks || []).map((week) => serializeWeek(week, { includeTeacherFields: true })),
     catalog: serializeClassworkCatalog(classwork.catalog),
   };
 }
 
-function serializeWeek(week) {
+function serializeWeek(week, { includeTeacherFields = false } = {}) {
   return {
     id: identifier(week),
     academicYear: Number(week.academicYear),
@@ -704,6 +708,10 @@ function serializeWeek(week) {
     })),
     assignmentTitle: String(week.assignmentTitle || ""),
     assignmentInstructions: String(week.assignmentInstructions || ""),
+    assignmentOmr: serializeAssignmentOmr(week.assignmentOmr, { includeAnswerKey: includeTeacherFields }),
+    ...(includeTeacherFields ? {
+      submissions: (week.submissions || []).map((submission) => serializeAssignmentSubmission(submission, { includeStudent: true })),
+    } : {}),
     dueAt: week.dueAt || null,
     files: (week.files || []).map((file) => ({
       id: identifier(file),
@@ -1558,7 +1566,7 @@ exports.teacherAttendance = async (req, res, next) => {
 exports.saveTeacherAttendance = async (req, res, next) => {
   try {
     const records = Array.isArray(req.body.records) ? req.body.records : [];
-    await saveAcademyAttendanceRoster({
+    const saved = await saveAcademyAttendanceRoster({
       teacherUserId: req.apiUser._id,
       dateKey: req.body.dateKey,
       classId: req.body.classId,
@@ -1566,11 +1574,13 @@ exports.saveTeacherAttendance = async (req, res, next) => {
       studentUserIds: records.map((record) => record?.studentUserId),
       statuses: records.map((record) => record?.status),
       notes: records.map((record) => record?.note),
+      expectedStates: records.some((record) => record && Object.hasOwn(record, "expectedState"))
+        ? records.map((record) => record?.expectedState) : undefined,
     });
     const roster = await getAcademyAttendanceRoster({
       teacherUserId: req.apiUser._id,
-      dateKey: req.body.dateKey,
-      classId: req.body.classId,
+      dateKey: saved.dateKey,
+      classId: saved.classId || req.body.classId,
     });
     res.set("Cache-Control", "private, no-store");
     return res.json(serializeTeacherAttendance(roster));
@@ -1598,6 +1608,7 @@ exports.teacherClasswork = async (req, res, next) => {
       teacherUserId: req.apiUser._id,
       classId: req.params.classId,
     });
+    await assertTeacherClassworkAccess(req);
     res.set("Cache-Control", "private, no-store");
     return res.json(serializeTeacherClasswork(classwork.academyClass, classwork));
   } catch (error) {
@@ -1619,6 +1630,7 @@ exports.saveTeacherClassWeek = async (req, res, next) => {
       conceptKeys: req.body.conceptKeys,
       assignmentTitle: req.body.assignmentTitle,
       assignmentInstructions: req.body.assignmentInstructions,
+      assignmentOmr: req.body.assignmentOmr,
       dueAt: req.body.dueAt,
       files: req.files || [],
     });
@@ -1626,6 +1638,7 @@ exports.saveTeacherClassWeek = async (req, res, next) => {
       teacherUserId: req.apiUser._id,
       classId: req.params.classId,
     });
+    await assertTeacherClassworkAccess(req);
     res.set("Cache-Control", "private, no-store");
     return res.json(serializeTeacherClasswork(classwork.academyClass, classwork));
   } catch (error) {
@@ -1647,6 +1660,7 @@ exports.removeTeacherClassWeekFile = async (req, res, next) => {
       teacherUserId: req.apiUser._id,
       classId: req.params.classId,
     });
+    await assertTeacherClassworkAccess(req);
     res.set("Cache-Control", "private, no-store");
     return res.json(serializeTeacherClasswork(classwork.academyClass, classwork));
   } catch (error) {
@@ -1665,6 +1679,7 @@ exports.deleteTeacherClassWeek = async (req, res, next) => {
       teacherUserId: req.apiUser._id,
       classId: req.params.classId,
     });
+    await assertTeacherClassworkAccess(req);
     res.set("Cache-Control", "private, no-store");
     return res.json(serializeTeacherClasswork(classwork.academyClass, classwork));
   } catch (error) {
@@ -1680,6 +1695,11 @@ exports.downloadTeacherClassWeekFile = async (req, res, next) => {
       weekId: req.params.weekId,
       fileId: req.params.fileId,
     });
+    try { await assertTeacherClassworkAccess(req); }
+    catch (error) {
+      if (download.issued) await download.issued.cleanup().catch(() => {});
+      throw error;
+    }
     if (download.type === "REDIRECT") {
       res.set("Cache-Control", "private, no-store");
       return res.redirect(302, download.url);
@@ -1712,6 +1732,8 @@ exports.week = async (req, res, next) => {
       academy: serializeAcademy(classroom.academy),
       academyClass: serializeClass(classroom.academyClass),
       week: serializeWeek(classroom.week),
+      submission: serializeAssignmentSubmission(classroom.submission),
+      serverTime: new Date().toISOString(),
     });
   } catch (error) {
     return next(error);

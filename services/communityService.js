@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const crypto = require("crypto");
 const fs = require("fs");
+const { communityRequestIdentity, findCommunityRequestReplay } = require("./communityRequestIdentityService");
 const {
   AdminActionLog,
   Announcement,
@@ -2055,6 +2056,37 @@ async function getCommunityPostingAccess(
   };
 }
 
+// Recheck after slow uploads, index preparation, posting-lock waits and anonymous
+// number allocation. This restores the pre-upload-ordering account boundary; it
+// does not claim a cross-document transaction with the withdrawal service.
+async function revalidateCommunityWriteUser(original, resource, { hasUploads = false, newPost = false } = {}) {
+  const user = await User.findOne({ _id: original._id, isActive: true,
+    accountStatus: { $in: ["active", null] } }).lean();
+  if (!user) throw statusError(403, "활성 계정만 커뮤니티 콘텐츠를 작성할 수 있습니다.");
+  if (Number(user.tokenVersion || 0) !== Number(original.tokenVersion || 0)) {
+    throw Object.assign(statusError(401, "로그인 정보가 변경되었습니다. 다시 로그인한 뒤 작성해주세요."), { code: "TOKEN_REVOKED" });
+  }
+  assertCommunityBoardAccess(resource, user);
+  if (newPost && resource.boardType === "school" && (!user.school?.code || ![10, 11, 12].includes(Number(user.schoolGrade)))) {
+    throw statusError(403, "학교 게시판은 현재 소속 고등학교가 있는 회원만 작성할 수 있습니다.");
+  }
+  if (newPost && resource.boardType === "university" && (Number(user.schoolGrade) !== 14 || !user.university?.code)) {
+    throw statusError(403, "대학교 게시판은 현재 소속 대학교가 있는 회원만 작성할 수 있습니다.");
+  }
+  if (hasUploads && Number(user.warningCount || 0) > 0) {
+    throw statusError(403, "파일 업로드 권한이 변경되었습니다. 게시판 작성 권한을 다시 확인해주세요.");
+  }
+  return user;
+}
+
+async function revalidateCommunityCommentContext(originalUser, postId) {
+  const post = await CommunityPost.findOne({ _id: postId, status: "published", authorDeletedAt: null }).lean();
+  if (!post) throw statusError(404, "게시글을 찾을 수 없습니다.");
+  const user = await revalidateCommunityWriteUser(originalUser, post);
+  await assertNoCommunityBlockBetween(user._id, post.authorId);
+  return { user, post };
+}
+
 async function createCommunityPost({
   userId,
   board,
@@ -2062,6 +2094,7 @@ async function createCommunityPost({
   content,
   isAnonymous,
   files = [],
+  requestId,
 }) {
   const normalizedBoard =
     normalizeBoard(board);
@@ -2129,9 +2162,9 @@ async function createCommunityPost({
   ) {
     throw statusError(400, "게시판 이미지는 파일당 10MB 이하로 올려주세요.");
   }
-  const attachments = await Promise.all(
-    uploads.map((file) => serializeCommunityUpload(file))
-  );
+  const identity = await communityRequestIdentity({ requestId, files: uploads,
+    payload: { board: normalizedBoard, title: cleanTitle, content: cleanContent,
+      isAnonymous: wantsAnonymousIdentity(isAnonymous) } });
 
   const user =
     await User.findOne({
@@ -2153,7 +2186,7 @@ async function createCommunityPost({
   }
 
   if (
-    attachments.length > 0 &&
+    uploads.length > 0 &&
     Number(
       user.warningCount || 0
     ) > 0
@@ -2189,6 +2222,36 @@ async function createCommunityPost({
     );
   }
 
+  const writeScope = { boardType: normalizedBoard,
+    ...(normalizedBoard === "school" ? { schoolCode: user.school.code } : {}),
+    ...(normalizedBoard === "university" ? { universityCode: user.university.code } : {}) };
+  const writeAccess = { hasUploads: uploads.length > 0, newPost: true };
+  const replay = await findCommunityRequestReplay(CommunityPost, user._id, identity);
+  if (replay) {
+    try {
+      const replayUser = await revalidateCommunityWriteUser(user, writeScope, writeAccess);
+      assertCommunityBoardAccess(replay, replayUser);
+    } catch (error) { await discardCommunityUploads(uploads); throw error; }
+    await discardCommunityUploads(uploads);
+    return replay;
+  }
+
+  try {
+  // Only new requests consume cloud storage. Cross-process duplicate winners
+  // are handled below and their independently staged/uploaded files discarded.
+  const uploaded = await Promise.allSettled(
+    uploads.map((file) => serializeCommunityUpload(file))
+  );
+  const uploadFailure = uploaded.find((result) => result.status === "rejected");
+  if (uploadFailure) {
+    // Wait for every in-flight upload before cleanup. Promise.all would reject
+    // early and allow a later successful upload to escape the error cleanup.
+    await discardCommunityUploads(uploads);
+    throw uploadFailure.reason;
+  }
+  const attachments = uploaded.map((result) => result.value);
+  const preparedUser = await revalidateCommunityWriteUser(user, writeScope, writeAccess);
+
   const anonymous =
     wantsAnonymousIdentity(
       isAnonymous
@@ -2196,23 +2259,34 @@ async function createCommunityPost({
   const anonymousNumber =
     anonymous
       ? await ensureAnonymousNumber(
-          user
+          preparedUser
         )
       : "";
 
-  return withCommunityPostingLock(
+  return await withCommunityPostingLock(
     user._id,
     async () => {
+      const lockedReplay = await findCommunityRequestReplay(CommunityPost, user._id, identity);
+      const lockedUser = await revalidateCommunityWriteUser(preparedUser, writeScope, writeAccess);
+      if (lockedReplay) {
+        assertCommunityBoardAccess(lockedReplay, lockedUser);
+        await discardCommunityUploads(uploads);
+        return lockedReplay;
+      }
       const reservation =
         await reserveCommunityPostSlot(
           user._id
         );
       try {
+        // Quota reservation also awaits the database. Keep the final account
+        // check next to insert and publish only the current profile information.
+        const writeUser = await revalidateCommunityWriteUser(lockedUser, writeScope, writeAccess);
         return await CommunityPost.create({
+          ...(identity || {}),
           authorId: user._id,
           authorName: anonymous
             ? `익명(${anonymousNumber})`
-            : user.name,
+            : writeUser.name,
           isAnonymous:
             anonymous,
           anonymousNumber,
@@ -2221,21 +2295,21 @@ async function createCommunityPost({
           schoolCode:
             normalizedBoard ===
             "school"
-              ? user.school.code
+              ? writeUser.school.code
               : "",
           schoolName:
-            normalizedBoard === "school" ? user.school?.name || "" : "",
+            normalizedBoard === "school" ? writeUser.school?.name || "" : "",
           universityCode:
-            normalizedBoard === "university" ? user.university.code : "",
+            normalizedBoard === "university" ? writeUser.university.code : "",
           universityName:
-            normalizedBoard === "university" ? user.university.name : "",
+            normalizedBoard === "university" ? writeUser.university.name : "",
           authorRegion:
             normalizedBoard === "university"
-              ? user.university?.region || ""
-              : user.school?.region || "",
+              ? writeUser.university?.region || ""
+              : writeUser.school?.region || "",
           authorSchoolGrade:
             Number(
-              user.schoolGrade
+              writeUser.schoolGrade
             ) || null,
           title: cleanTitle,
           content:
@@ -2248,10 +2322,25 @@ async function createCommunityPost({
           dayKey:
             reservation.dayKey,
         }).catch(() => {});
+        if (error?.code === 11000 && identity) {
+          const winner = await findCommunityRequestReplay(CommunityPost, user._id, identity);
+          if (winner) {
+            const replayUser = await revalidateCommunityWriteUser(preparedUser, writeScope, writeAccess);
+            assertCommunityBoardAccess(winner, replayUser);
+            await discardCommunityUploads(uploads);
+            return winner;
+          }
+        }
         throw error;
       }
     }
   );
+  } catch (error) {
+    // Includes failed revalidation after a successful remote upload. Controllers
+    // may repeat this idempotent cleanup, but no newly uploaded asset is orphaned.
+    await discardCommunityUploads(uploads);
+    throw error;
+  }
 }
 
 async function getCommunityPost(
@@ -2815,6 +2904,7 @@ async function createCommunityComment({
   postId,
   content,
   isAnonymous,
+  requestId,
 }) {
   const cleanContent =
     cleanMultiline(
@@ -2887,6 +2977,13 @@ async function createCommunityComment({
     post.authorId
   );
 
+  const identity = await communityRequestIdentity({ requestId,
+    payload: { postId: String(post._id), content: cleanContent,
+      isAnonymous: wantsAnonymousIdentity(isAnonymous) } });
+  const replay = await findCommunityRequestReplay(CommunityComment, user._id, identity);
+  const prepared = await revalidateCommunityCommentContext(user, post._id);
+  if (replay) return replay;
+
   const anonymous =
     wantsAnonymousIdentity(
       isAnonymous
@@ -2894,21 +2991,32 @@ async function createCommunityComment({
   const anonymousNumber =
     anonymous
       ? await ensureAnonymousNumber(
-          user
+          prepared.user
         )
       : "";
 
-  return CommunityComment.create({
+  const current = await revalidateCommunityCommentContext(prepared.user, post._id);
+  try { return await CommunityComment.create({
+    ...(identity || {}),
     postId: post._id,
     authorId: user._id,
     authorName: anonymous
       ? `익명(${anonymousNumber})`
-      : user.name,
+      : current.user.name,
     isAnonymous:
       anonymous,
     anonymousNumber,
     content: cleanContent,
-  });
+  }); } catch (error) {
+    if (error?.code === 11000 && identity) {
+      const winner = await findCommunityRequestReplay(CommunityComment, user._id, identity);
+      if (winner) {
+        await revalidateCommunityCommentContext(current.user, post._id);
+        return winner;
+      }
+    }
+    throw error;
+  }
 }
 
 async function blockCommunityUser({

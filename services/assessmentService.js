@@ -60,6 +60,7 @@ const IPAD_ASSESSMENT_LIST_PROJECTION = [
   "subunitId",
   "title",
   "status",
+  "mutationRevision",
   "questions",
   "startedAt",
   "submittedAt",
@@ -2364,6 +2365,43 @@ function findCenterTarget(
   );
 }
 
+function assessmentConflict(code, message) {
+  const error = new Error(message);
+  error.status = 409;
+  error.code = code;
+  return error;
+}
+
+function assertAssessmentNotAbandoned(attempt) {
+  if (attempt.status === "abandoned") {
+    throw assessmentConflict(
+      "ASSESSMENT_ABANDONED",
+      "중단된 평가는 변경할 수 없습니다. 새 평가를 시작해 주세요."
+    );
+  }
+}
+
+function assessmentScopeFingerprint(value) {
+  const scope = assessmentScopeFilter(value);
+  return JSON.stringify([
+    scope.scopeType,
+    scope.courseId || null,
+    scope.unitId || null,
+    scope.subunitId || null,
+  ]);
+}
+
+function validateAssessmentStartReplay(attempt, requestedScope) {
+  if (assessmentScopeFingerprint(attempt) !== assessmentScopeFingerprint(requestedScope)) {
+    throw assessmentConflict(
+      "ASSESSMENT_START_ID_CONFLICT",
+      "같은 시작 요청 번호로 다른 범위의 평가를 시작할 수 없습니다."
+    );
+  }
+  assertAssessmentNotAbandoned(attempt);
+  return attempt;
+}
+
 async function createAssessmentRecordIdempotently({
   model = AssessmentAttempt,
   ensureClientStartIndex =
@@ -2380,7 +2418,7 @@ async function createAssessmentRecordIdempotently({
       clientStartId,
       scopeType: { $ne: "placement" },
     });
-    if (replay) return replay;
+    if (replay) return validateAssessmentStartReplay(replay, paper);
   }
 
   try {
@@ -2404,7 +2442,7 @@ async function createAssessmentRecordIdempotently({
             $ne: "placement",
           },
         });
-      if (winner) return winner;
+      if (winner) return validateAssessmentStartReplay(winner, paper);
     }
     throw error;
   }
@@ -2434,7 +2472,9 @@ async function createAssessmentAttempt({
       clientStartId: normalizedClientStartId,
       scopeType: { $ne: "placement" },
     });
-    if (replay) return replay;
+    if (replay) return validateAssessmentStartReplay(replay, {
+      scopeType, courseId, unitId, subunitId,
+    });
   }
   const center =
     await getAssessmentCenterData(
@@ -2612,48 +2652,114 @@ function applyAssessmentAnswers(
   }
 }
 
-async function disqualifyAssessmentDocument(
-  attempt,
-  answers = {}
-) {
-  if (
-    attempt.status !==
-    "in-progress"
-  ) {
-    attempt.$locals.wasAlreadyFinalized =
-      true;
-    return attempt;
+const ASSESSMENT_WRITE_RETRIES = 6;
+
+async function reloadOwnedAssessment(attempt) {
+  const current = await AssessmentAttempt.findOne({
+    _id: attempt._id,
+    userId: attempt.userId,
+    scopeType: { $ne: "placement" },
+  });
+  if (!current) {
+    const error = new Error("평가 기록을 찾을 수 없습니다.");
+    error.status = 404;
+    throw error;
   }
+  assertAssessmentNotAbandoned(current);
+  return current;
+}
 
-  applyAssessmentAnswers(
-    attempt,
-    answers
+// A detached Mongoose document must never save over a newer draft or a terminal
+// result. Revision prevents same-millisecond races; updatedAt also detects older
+// writers which do not yet know the revision field. Missing legacy revisions are
+// version zero. MongoDB's clock makes the deadline a write-time condition.
+async function writeAssessmentSnapshot(attempt, fields, deadlineState, expectedRevision) {
+  const revision = expectedRevision === undefined
+    ? Number(attempt.mutationRevision) || 0
+    : expectedRevision;
+  const filter = {
+    _id: attempt._id,
+    userId: attempt.userId,
+    scopeType: { $ne: "placement" },
+    status: "in-progress",
+    updatedAt: attempt.updatedAt || { $exists: false },
+    ...(revision === 0
+      ? { $or: [{ mutationRevision: 0 }, { mutationRevision: { $exists: false } }] }
+      : { mutationRevision: revision }),
+    $expr: {
+      [deadlineState === "overdue" ? "$gte" : "$lt"]: [
+        "$$NOW",
+        { $add: ["$startedAt", attemptTimeLimitMs(attempt)] },
+      ],
+    },
+  };
+  return AssessmentAttempt.findOneAndUpdate(
+    filter,
+    { $set: fields, $inc: { mutationRevision: 1 } },
+    { returnDocument: "after", runValidators: true }
   );
+}
 
-  const timeLimitMs =
-    attemptTimeLimitMs(attempt);
-  const deadline = new Date(
-    attemptDeadlineMs(attempt)
+function assessmentWriteConflict() {
+  return assessmentConflict(
+    "ASSESSMENT_WRITE_CONFLICT",
+    "다른 요청이 평가를 변경했습니다. 최신 상태를 확인하고 다시 시도해 주세요."
   );
+}
 
-  attempt.timeLimitMs =
-    timeLimitMs;
-  attempt.earnedPoints = 0;
-  attempt.scorePercent = 0;
-  attempt.passed = false;
-  attempt.status =
-    "disqualified";
-  attempt.disqualifiedReason =
-    "time-limit";
-  attempt.submittedAt =
-    deadline;
-  attempt.elapsedTimeMs =
-    timeLimitMs;
-  attempt.lastSavedAt =
-    new Date();
+function assertExpectedAssessmentRevision(attempt, expectedRevision, code = "ASSESSMENT_WRITE_CONFLICT") {
+  // Optional: older web and native callers retain their existing contract.
+  // Do not coerce null/string/Boolean to zero, or a malformed client could
+  // accidentally opt out of the cross-device revision guard.
+  if (expectedRevision === undefined) return;
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0 || expectedRevision >= Number.MAX_SAFE_INTEGER) {
+    const error = new Error("평가 수정 번호가 올바르지 않습니다.");
+    error.status = 400;
+    error.code = "ASSESSMENT_REVISION_INVALID";
+    throw error;
+  }
+  if (expectedRevision !== (Number(attempt.mutationRevision) || 0)) {
+    throw assessmentConflict(code, "다른 기기에서 답안이 변경되었습니다. 최신 평가를 다시 불러와 확인해 주세요.");
+  }
+}
 
-  await attempt.save();
+function finalizedAssessment(attempt, alreadyFinalized = true) {
+  assertAssessmentNotAbandoned(attempt);
+  attempt.$locals.wasAlreadyFinalized = alreadyFinalized;
   return attempt;
+}
+
+async function disqualifyAssessmentDocument(attempt, answers = {}, {
+  expectedRevision, conflictCode = "ASSESSMENT_WRITE_CONFLICT",
+} = {}) {
+  for (let retry = 0; retry < ASSESSMENT_WRITE_RETRIES; retry += 1) {
+    assertAssessmentNotAbandoned(attempt);
+    if (attempt.status !== "in-progress") return finalizedAssessment(attempt);
+    assertExpectedAssessmentRevision(attempt, expectedRevision, conflictCode);
+    applyAssessmentAnswers(attempt, answers);
+    const timeLimitMs = attemptTimeLimitMs(attempt);
+    const winner = await writeAssessmentSnapshot(attempt, {
+      questions: attempt.questions.map((question) => question.toObject()),
+      timeLimitMs,
+      earnedPoints: 0,
+      scorePercent: 0,
+      passed: false,
+      status: "disqualified",
+      disqualifiedReason: "time-limit",
+      submittedAt: new Date(attemptDeadlineMs(attempt)),
+      elapsedTimeMs: timeLimitMs,
+      lastSavedAt: new Date(),
+    }, "overdue", expectedRevision);
+    if (winner) return finalizedAssessment(winner, false);
+    attempt = await reloadOwnedAssessment(attempt);
+    // A conflicting expiry request must preserve the newer persisted draft,
+    // not retry its stale answer snapshot over it.
+    answers = {};
+    if (attempt.status === "in-progress" && !assessmentIsOverdue(attempt)) {
+      throw assessmentWriteConflict();
+    }
+  }
+  throw assessmentWriteConflict();
 }
 
 async function expireOverdueAssessments(
@@ -2678,10 +2784,13 @@ async function expireOverdueAssessments(
         now
       )
     ) {
-      await disqualifyAssessmentDocument(
-        attempt
-      );
-      expiredCount += 1;
+      try {
+        const result = await disqualifyAssessmentDocument(attempt);
+        if (!result.$locals.wasAlreadyFinalized) expiredCount += 1;
+      } catch (error) {
+        // Another valid start may have abandoned this snapshot in the meantime.
+        if (error.code !== "ASSESSMENT_ABANDONED") throw error;
+      }
     }
   }
 
@@ -2692,6 +2801,7 @@ async function saveAssessmentDraft({
   userId,
   attemptId,
   answers = {},
+  expectedRevision,
 }) {
   if (
     !mongoose.isValidObjectId(
@@ -2722,39 +2832,21 @@ async function saveAssessmentDraft({
     throw error;
   }
 
-  if (
-    attempt.status !==
-    "in-progress"
-  ) {
-    return {
-      status: attempt.status,
-      expired:
-        attempt.status ===
-        "disqualified",
-      redirectUrl:
-        `/assessments/${attempt._id}`,
-    };
-  }
+  assertAssessmentNotAbandoned(attempt);
+  if (attempt.status !== "in-progress") return assessmentDraftTerminalReceipt(attempt);
+  assertExpectedAssessmentRevision(attempt, expectedRevision, "ASSESSMENT_DRAFT_CONFLICT");
 
   if (
     assessmentIsOverdue(
       attempt
     )
   ) {
-    await disqualifyAssessmentDocument(
+    const terminal = await disqualifyAssessmentDocument(
       attempt,
-      answers
+      answers,
+      { expectedRevision, conflictCode: "ASSESSMENT_DRAFT_CONFLICT" }
     );
-
-    return {
-      status:
-        attempt.status,
-      expired: true,
-      redirectUrl:
-        `/assessments/${attempt._id}`,
-      elapsedTimeMs:
-        attempt.elapsedTimeMs,
-    };
+    return assessmentDraftTerminalReceipt(terminal);
   }
 
   applyAssessmentAnswers(
@@ -2782,13 +2874,36 @@ async function saveAssessmentDraft({
     )
   );
   attempt.lastSavedAt = new Date();
-  await attempt.save();
+  const winner = await writeAssessmentSnapshot(attempt, {
+    questions: attempt.questions.map((question) => question.toObject()),
+    elapsedTimeMs: attempt.elapsedTimeMs,
+    lastSavedAt: attempt.lastSavedAt,
+  }, "active", expectedRevision);
+  if (winner) return { savedAt: winner.lastSavedAt, elapsedTimeMs: winner.elapsedTimeMs,
+    mutationRevision: Number(winner.mutationRevision) || 0 };
+  const current = await reloadOwnedAssessment(attempt);
+  if (current.status !== "in-progress") return assessmentDraftTerminalReceipt(current);
+  assertExpectedAssessmentRevision(current, expectedRevision, "ASSESSMENT_DRAFT_CONFLICT");
+  if (assessmentIsOverdue(current)) {
+    // The stale draft must not overwrite a newer accepted draft at expiry.
+    return assessmentDraftTerminalReceipt(await disqualifyAssessmentDocument(current, {}, {
+      expectedRevision, conflictCode: "ASSESSMENT_DRAFT_CONFLICT",
+    }));
+  }
+  throw assessmentConflict(
+    "ASSESSMENT_DRAFT_CONFLICT",
+    "더 최근에 저장된 답안이 있습니다. 최신 평가를 다시 불러와 주세요."
+  );
+}
 
+function assessmentDraftTerminalReceipt(attempt) {
+  assertAssessmentNotAbandoned(attempt);
   return {
-    savedAt:
-      attempt.lastSavedAt,
-    elapsedTimeMs:
-      attempt.elapsedTimeMs,
+    status: attempt.status,
+    mutationRevision: Number(attempt.mutationRevision) || 0,
+    expired: attempt.status === "disqualified",
+    redirectUrl: `/assessments/${attempt._id}`,
+    ...(attempt.status === "disqualified" ? { elapsedTimeMs: attempt.elapsedTimeMs } : {}),
   };
 }
 
@@ -2796,6 +2911,7 @@ async function expireAssessmentAttempt({
   userId,
   attemptId,
   answers = {},
+  expectedRevision,
 }) {
   if (
     !mongoose.isValidObjectId(
@@ -2826,12 +2942,9 @@ async function expireAssessmentAttempt({
     throw error;
   }
 
-  if (
-    attempt.status !==
-    "in-progress"
-  ) {
-    return attempt;
-  }
+  assertAssessmentNotAbandoned(attempt);
+  if (attempt.status !== "in-progress") return finalizedAssessment(attempt);
+  assertExpectedAssessmentRevision(attempt, expectedRevision);
 
   if (
     !assessmentIsOverdue(
@@ -2855,10 +2968,9 @@ async function expireAssessmentAttempt({
   const disqualified =
     await disqualifyAssessmentDocument(
       attempt,
-      answers
+      answers,
+      { expectedRevision }
     );
-  disqualified.$locals.wasAlreadyFinalized =
-    false;
   return disqualified;
 }
 
@@ -3027,6 +3139,7 @@ async function submitAssessmentAttempt({
   userId,
   attemptId,
   answers = {},
+  expectedRevision,
 }) {
   if (
     !mongoose.isValidObjectId(
@@ -3040,7 +3153,7 @@ async function submitAssessmentAttempt({
     throw error;
   }
 
-  const attempt =
+  let attempt =
     await AssessmentAttempt.findOne({
       _id: attemptId,
       userId,
@@ -3057,97 +3170,47 @@ async function submitAssessmentAttempt({
     throw error;
   }
 
-  if (
-    attempt.status ===
-      "submitted" ||
-    attempt.status ===
-      "disqualified"
-  ) {
-    return attempt;
-  }
+  for (let retry = 0; retry < ASSESSMENT_WRITE_RETRIES; retry += 1) {
+    assertAssessmentNotAbandoned(attempt);
+    if (attempt.status !== "in-progress") return finalizedAssessment(attempt);
+    assertExpectedAssessmentRevision(attempt, expectedRevision);
+    if (assessmentIsOverdue(attempt)) return disqualifyAssessmentDocument(attempt, answers, { expectedRevision });
 
-  if (
-    assessmentIsOverdue(
-      attempt
-    )
-  ) {
-    return disqualifyAssessmentDocument(
-      attempt,
-      answers
-    );
-  }
-
-  let earnedPoints = 0;
-
-  for (const question of
-    attempt.questions) {
-    const hasSubmitted =
-      Object.prototype.hasOwnProperty.call(
-        answers,
-        question.questionId
-      );
-    const submitted = hasSubmitted
-      ? answers[
-          question.questionId
-        ]
-      : question.submittedAnswer;
-    const correct =
-      isCorrectAssessmentAnswer(
-        question.answer,
-        submitted
-      );
-
-    question.submittedAnswer =
-      submitted === undefined
-        ? ""
-        : submitted;
-    question.isCorrect = correct;
-
-    if (correct) {
-      earnedPoints +=
-        Number(question.points) ||
-        0;
+    let earnedPoints = 0;
+    for (const question of attempt.questions) {
+      const submitted = Object.prototype.hasOwnProperty.call(answers, question.questionId)
+        ? answers[question.questionId]
+        : question.submittedAnswer;
+      question.isCorrect = isCorrectAssessmentAnswer(question.answer, submitted);
+      question.submittedAnswer = submitted === undefined ? "" : submitted;
+      if (question.isCorrect) earnedPoints += Number(question.points) || 0;
     }
-  }
-
-  attempt.earnedPoints =
-    Math.round(
-      earnedPoints * 100
-    ) / 100;
-  attempt.scorePercent =
-    attempt.totalPoints
-      ? Math.round(
-          (attempt.earnedPoints /
-            attempt.totalPoints) *
-            100
-        )
+    earnedPoints = Math.round(earnedPoints * 100) / 100;
+    const scorePercent = attempt.totalPoints
+      ? Math.round((earnedPoints / attempt.totalPoints) * 100)
       : 0;
-  attempt.passed =
-    attempt.scorePercent >=
-    attempt.passScore;
-  attempt.status = "submitted";
-  attempt.submittedAt = new Date();
-  attempt.elapsedTimeMs =
-    Math.min(
-      attemptTimeLimitMs(
-        attempt
-      ),
-      Math.max(
-        0,
-        attempt.submittedAt.getTime() -
-          new Date(
-            attempt.startedAt
-          ).getTime()
-      )
-    );
-  attempt.lastSavedAt =
-    attempt.submittedAt;
-
-  await attempt.save();
-  await recordAssessmentWrongAnswers(
-    attempt
-  );
-  return attempt;
+    const submittedAt = new Date();
+    const winner = await writeAssessmentSnapshot(attempt, {
+      questions: attempt.questions.map((question) => question.toObject()),
+      earnedPoints,
+      scorePercent,
+      passed: scorePercent >= attempt.passScore,
+      status: "submitted",
+      submittedAt,
+      elapsedTimeMs: Math.min(attemptTimeLimitMs(attempt), Math.max(
+        0, submittedAt.getTime() - new Date(attempt.startedAt).getTime()
+      )),
+      lastSavedAt: submittedAt,
+    }, "active", expectedRevision);
+    if (winner) {
+      // Only the caller that atomically finalized the attempt records wrong
+      // answers. Replayed/concurrent submits return the winning terminal result.
+      await recordAssessmentWrongAnswers(winner);
+      return finalizedAssessment(winner, false);
+    }
+    attempt = await reloadOwnedAssessment(attempt);
+  }
+  throw assessmentWriteConflict();
 }
 
 function assessmentAttemptDocumentView(

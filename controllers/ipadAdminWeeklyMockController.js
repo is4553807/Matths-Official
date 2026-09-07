@@ -55,7 +55,13 @@ function explanation(value) {
   return { intent: text(value.intent), concept: text(value.concept), steps: (value.steps || []).map(text), summary: text(value.summary), commonMistake: text(value.commonMistake) };
 }
 function reviewRow(value) {
-  return { number: number(value.number), mode: text(value.mode), submittedAnswer: text(value.submittedAnswer), correctAnswer: text(value.correctAnswer), isCorrect: Boolean(value.isCorrect), points: number(value.points), explanation: explanation(value.explanation) };
+  const source = value.concept;
+  const concept = source && typeof source === "object" ? {
+    curriculumId: text(source.curriculumId), courseId: text(source.courseId), courseTitle: text(source.courseTitle),
+    unitId: text(source.unitId), unitTitle: text(source.unitTitle), conceptId: text(source.conceptId),
+    conceptTitle: text(source.conceptTitle), conceptKey: text(source.conceptKey),
+  } : null;
+  return { number: number(value.number), mode: text(value.mode), submittedAnswer: text(value.submittedAnswer), correctAnswer: text(value.correctAnswer), isCorrect: Boolean(value.isCorrect), points: number(value.points), explanation: explanation(value.explanation), concept };
 }
 function eventRow(value, index) {
   let metadata = "";

@@ -159,7 +159,8 @@ function canonicalTypeIdsExpression(additionalTypeIds) {
           },
         },
       },
-      canonicalProgressTypeIds(additionalTypeIds),
+      // Client strings are values, never Mongo aggregation expressions.
+      { $literal: canonicalProgressTypeIds(additionalTypeIds) },
     ],
   };
 }
@@ -705,7 +706,7 @@ exports.patchMastery = async (req, res, next) => {
     // 응답 view가 서로 다른 유형 개수를 세는 순간을 만들지 않는다.
     await ConceptProgress.updateOne(progressFilter(req.apiUser._id, contract), [
       { $set: setStage },
-    ]);
+    ], { updatePipeline: true });
     const progress = await refreshProgress(req.apiUser._id, contract);
     return res.json({ progress: serializeProgress(progress) });
   } catch (error) {
@@ -815,7 +816,7 @@ exports.patchSnapshot = async (req, res, next) => {
     }
     await ConceptProgress.updateOne(progressFilter(req.apiUser._id, contract), [
       { $set: setStage },
-    ]);
+    ], { updatePipeline: true });
     const progress = await refreshProgress(req.apiUser._id, contract);
     return res.json({ progress: serializeProgress(progress) });
   } catch (error) {

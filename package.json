@@ -15,6 +15,8 @@
     "weekly-tier-competition:verify": "node scripts/verifyWeeklyTierCompetition.js",
     "ipad-server-surface:verify": "node scripts/verifyIpadServerSurface.js",
     "ipad-profile-http:verify": "node audit/verifyIpadProfileHttpContract.js",
+    "mobile-reliability:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyFirstLearningStateDb.js audit/verifyCommunityRequestIdDb.js audit/verifyAssessmentTerminalSafetyDb.js audit/verifyPasswordResetByteBoundDb.js audit/verifyMobileReliabilityHttpDb.js audit/verifyIpadLearningPipelineDb.js audit/verifyAssessmentExpectedRevisionDb.js audit/verifyAttendanceConditionalWriteDb.js audit/verifyAcademyAssignmentNativeDb.js audit/verifyWeeklyMockInsightsNativeDb.js",
+    "mobile-reliability:indexes": "node scripts/prepareMobileReliabilityIndexes.js",
     "ipad-learning-sync:verify": "node scripts/verifyIpadLearningSyncSurface.js",
     "ipad-assessment-http:verify": "node audit/verifyIpadAssessmentHttpContract.js",
     "ipad-assessment-safety:verify": "node audit/verifyAssessmentServiceSafety.js",

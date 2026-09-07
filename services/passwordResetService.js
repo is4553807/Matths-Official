@@ -45,6 +45,13 @@ function safeEqual(first, second) {
 function validatePassword(password) {
   const value = String(password || "");
 
+  if (Buffer.byteLength(value, "utf8") > 72) {
+    const error = new Error("비밀번호는 UTF-8 기준 72바이트 이하여야 합니다.");
+    error.status = 400;
+    error.code = "PASSWORD_TOO_LONG";
+    throw error;
+  }
+
   if (
     value.length < 8 ||
     !/[A-Za-z]/.test(value) ||

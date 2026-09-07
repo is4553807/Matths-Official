@@ -1,0 +1,93 @@
+{
+  "date": "2026-09-07",
+  "baselineCommit": "eacae5f8949b12e6afe6965326c762d9b061bfb2",
+  "statusScope": "Historical validation snapshot on 2026-09-07, not a live commit/deployment status; root batch commit may occur afterward",
+  "workingTreeChangesCommittedAtValidation": false,
+  "productionDeployedByThisTaskAtValidation": false,
+  "productionDataMutatedByThisTaskAtValidation": false,
+  "productionNewIndexApplicationConfirmedAtValidation": false,
+  "cloudtypeOperatorAccessAvailableAtValidation": false,
+  "node": "24.16.0",
+  "database": "isolated MongoDB 8.2.6 replica set",
+  "latestCombinedRun": {
+    "command": "npm run mobile-reliability:verify-db",
+    "exitCode": 0,
+    "selectedSuiteCount": 10,
+    "passedSuiteCount": 10,
+    "completedAfter": "Index CLI autoCreate/autoIndex guard and nested actual CLI read-only regression",
+    "focusedRerun": {
+      "command": "node audit/runMemoryMongoSuite.js audit/verifyMobileReliabilityHttpDb.js",
+      "exitCode": 0,
+      "reason": "Rechecked after making the nested index test database name random and cleanup conditional on fresh-database ownership"
+    },
+    "countingNote": "The suites array also retains earlier standalone compatibility evidence; it is not the package's selected-suite count. The CLI regression is nested inside the HTTP suite, not an eleventh suite."
+  },
+  "suites": [
+    {"file": "audit/verifyAcademyAssignmentNativeDb.js", "result": "PASS", "evidence": "Actual Express/Bearer/Mongo mixed 2-choice/9-choice and short-answer OMR; teacher answer keys and student redaction; owner-only submit/resubmit; canonical regrading; invalid inputs; deadline MISSED zero and reopen; legacy omitted OMR; expired/revoked teacher and foreign-class denial including role/class revocation during awaited reads"},
+    {"file": "audit/verifyWeeklyMockInsightsNativeDb.js", "result": "PASS", "evidence": "Actual teacher academy/assigned-class and admin academy/global scopes; canonical counts and flagged/pending exclusion; foreign/anonymous/student/malformed denial; mid-aggregation revocation; admin review concept metadata; JSON/Markdown template bytes and SHA256 equal tracked originals; non-admin and path traversal rejected"},
+    {"file": "audit/verifyAttendanceConditionalWriteDb.js", "result": "PASS", "evidence": "Reproduced two-teacher stale full-roster loss; guarded changed rows preserve other edits; teacher/admin stale row and clear rejected; transaction/audit all-or-none including mid-write conflict; ten update/insert contenders one winner; owner omitted-class/session retry and mixed assigned/unassigned roster; schema/ownership and actual Bearer HTTP"},
+    {"file": "scripts/verifyAcademyPortal.js", "result": "PASS", "evidence": "Existing full academy portal verification ran against isolated MongoDB, retaining legacy keyless behavior"},
+    {"file": "audit/verifyAssessmentExpectedRevisionDb.js", "result": "PASS", "caseCount": 7, "evidence": "Real HTTP same-question sequential overwrite rejected; 20 captured-baseline drafts one winner; stale submit CAS refuses rebase; expiry conflict; legacy omitted revision; DTO/list/ack actual revision; terminal precedence; malformed revision and foreign owner"},
+    {"file": "audit/verifyIpadLearningPipelineDb.js", "result": "PASS", "evidence": "Exact simulator mastery payload succeeds with Mongoose9 updatePipeline; snapshot, canonical web-prefix replay, literal dollar strings, topic preservation, owner separation, 20 simultaneous unions, canonical learning read"},
+    {"file": "audit/verifyFirstLearningStateDb.js", "result": "PASS", "evidence": "20 competing revision writes yield one winner; account isolation; exact UInt64 string; 20 invalid state payloads; stale action invalidation; conflict envelope"},
+    {"file": "audit/verifyCommunityRequestIdDb.js", "result": "PASS", "evidence": "20 post and 20 comment replays; 3 separate Node processes create one post; quota reservation release; actual attachment byte hashes; duplicate staged and remote cleanup; upload failure; tombstones; index fail-closed"},
+    {"file": "audit/verifyAssessmentTerminalSafetyDb.js", "result": "PASS", "caseCount": 14, "evidence": "Real model/service concurrent terminal and draft mutation, server write-time deadline, legacy records, start replay, existing web and mobile resume behavior"},
+    {"file": "audit/verifyPasswordResetByteBoundDb.js", "result": "PASS", "evidence": "ASCII and multibyte 72-byte limits; 73/74-byte rejection; unchanged ordinary rules; actual bcrypt hashes, code consumption and token-version rotation"},
+    {"file": "audit/verifyMobileReliabilityHttpDb.js", "result": "PASS", "evidence": "Actual router, signed tokens, auth and lifecycle service, MongoDB, ownership, revoked-token denial, JSON shape, 409 current state, old COMPLETE, community 201/409/410; nested real index CLI fresh-DB delayed-read dry-run, exact apply, repeat apply, unrelated data/index preservation and invalid flags"},
+    {"file": "audit/verifyIpadProfileHttpContract.js", "result": "PASS"},
+    {"file": "scripts/verifyIpadServerSurface.js", "result": "PASS"},
+    {"file": "scripts/verifyDashboardTutorial.js", "result": "PASS"},
+    {"file": "audit/verifyIpadCommunityHttpContract.js", "result": "PASS"},
+    {"file": "audit/verifyIpadAssessmentHttpContract.js", "result": "PASS"},
+    {"file": "audit/verifyAssessmentServiceSafety.js", "result": "PASS"},
+    {"file": "audit/verifyCommunityAuthorSoftDeleteDb.js", "result": "PASS"}
+  ],
+  "externalBoundaryFakes": ["Community upload/deletion provider only; no live Cloudinary/R2 mutation"],
+  "nativeIntegrationFinding": {
+    "route": "PATCH /api/v1/learning/common-math-1/polynomials/polynomial-arithmetic/mastery",
+    "payload": {"addCorrectTypeIds": ["polynomial-arithmetic-core-definition"]},
+    "cause": "Mongoose 9.7.4 requires explicit updatePipeline:true for array-form update; mastery and snapshot omitted it",
+    "beforeIsolatedFixture": {"port": 58156, "httpStatus": 500, "code": "HTTP_500"},
+    "afterIsolatedFixture": {"port": 59446, "httpStatus": 200, "typePersisted": true},
+    "accounts": "Separate synthetic returningStudent accounts; no production mutation or credential output"
+  },
+  "indexCliReadOnlyFinding": {
+    "file": "scripts/prepareMobileReliabilityIndexes.js",
+    "cause": "Importing all Mongoose models with implicit autoCreate enabled permits collection creation during what was documented as read-only index inspection",
+    "beforeUndelayedIsolatedRun": {"beforeCollectionCount": 0, "afterCollectionCount": 0, "exitCode": 2},
+    "beforeTimingControlledIsolatedRun": {
+      "indexesReadDelayMs": 200,
+      "beforeCollectionCount": 0,
+      "afterCollectionCount": 1,
+      "createdCollection": "users",
+      "completedNormally": false,
+      "terminatedAtTimeoutMs": 30000,
+      "evidenceLimit": "Only index-list timing was delayed; real MongoDB collection creation was observed. This is not a claim that the delayed pre-fix process completed normally."
+    },
+    "fix": "Set autoCreate:false and autoIndex:false before importing models and on the CLI connection; application runtime global settings unchanged",
+    "afterRegression": {
+      "file": "audit/verifyMobileIndexToolReadOnly.js",
+      "parentSuite": "audit/verifyMobileReliabilityHttpDb.js",
+      "result": "PASS",
+      "indexesReadDelayMs": 100,
+      "dryRunCollectionIndexDocumentSnapshotUnchanged": true,
+      "applyCreatesOnlyIntendedCommunityIndexes": true,
+      "repeatedApplyPreservesUnrelatedDataAndIndexes": true,
+      "unsupportedFlagRejectedWithoutMutation": true,
+      "database": "Fresh randomly named loopback-only test database; cleanup only after verified fresh ownership"
+    }
+  },
+  "verificationLimits": [
+    "No Cloudtype restart or production API deployment",
+    "Cloudtype/operator access was not provided; production community/OMR index preparation and transaction topology remain unconfirmed",
+    "OMR preserves the mutable web resubmission policy; no new expectedRevision/requestId guarantee is claimed for that route",
+    "Default native simulator fixture has no OMR/nonempty weekly-insight seed and does not explicitly create AcademyAssignmentSubmission indexes; dedicated automated OMR suite does",
+    "Native fixture schedulers are disabled; deadline service-path verification is not proof of a live production scheduler run",
+    "General audit wrapper masks known provider settings after reading config.env but is not the native fixture worker's complete loopback egress sandbox",
+    "No live object-store outage recovery verification",
+    "Assessment finalization and wrong-answer side effects still have an inherited process-crash gap between separate writes",
+    "Remote attachment deletion retains existing best-effort failure behavior, not a durable cleanup outbox",
+    "Different start keys for one scope are not constrained by a new active-scope unique index, preserving existing web semantics",
+    "This is scoped remediation coverage, not every server route or complete app QA"
+  ]
+}

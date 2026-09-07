@@ -10,6 +10,8 @@ const {
   AcademyStudentMembership,
 } = require("../models/academyModel");
 const { getTeacherAcademyContext } = require("./academyService");
+const { assertExpectedAttendance, attendanceDocumentId, expectedAttendanceFilter,
+  normalizedExpectedStates, attendanceWriteConflict } = require("./academyAttendanceWriteGuardService");
 
 const KST_TIME_ZONE = "Asia/Seoul";
 const ATTENDANCE_STATUSES = new Set(["PRESENT", "LATE", "ABSENT", "EXCUSED"]);
@@ -444,6 +446,7 @@ async function saveAcademyAttendanceRoster({
   studentUserIds,
   statuses,
   notes,
+  expectedStates,
   now = new Date(),
 }) {
   const context = await getTeacherAcademyContext(teacherUserId);
@@ -461,6 +464,7 @@ async function saveAcademyAttendanceRoster({
   if (new Set(rawUserIds).size !== rawUserIds.length) throw statusError(400, "출결 목록에 같은 학생이 중복되어 있습니다.");
   if (rawUserIds.some((value) => !mongoose.isValidObjectId(value))) throw statusError(400, "학생 정보가 올바르지 않습니다.");
   if (rawStatuses.some((status) => status && !ATTENDANCE_STATUSES.has(status))) throw statusError(400, "지원하지 않는 출결 상태가 포함되어 있습니다.");
+  const expected = normalizedExpectedStates(expectedStates, rawUserIds.length);
 
   let session = null;
   const normalizedSessionId = normalizeOptionalObjectId(sessionId, "수업 회차");
@@ -480,7 +484,7 @@ async function saveAcademyAttendanceRoster({
     academyId: context.academyId,
     status: "APPROVED",
     studentUserId: { $in: objectIds },
-    ...(selectedClass ? { classId: selectedClass._id } : {}),
+    ...(selectedClass || session?.classId ? { classId: selectedClass?._id || session.classId } : {}),
   };
   const recordFilter = session
     ? { academyId: context.academyId, sessionId: session._id, studentUserId: { $in: objectIds } }
@@ -491,29 +495,47 @@ async function saveAcademyAttendanceRoster({
         sessionId: null,
         studentUserId: { $in: objectIds },
       };
-  const [memberships, existingRecords] = await Promise.all([
-    AcademyStudentMembership.find(membershipFilter).select("studentUserId classId").lean(),
-    AcademyAttendance.find(recordFilter).lean(),
-  ]);
+  const writeRows = async (transaction = null) => {
+  // Read and write the guarded batch in one transaction, including its audit.
+  // Any conflict rolls back every row; no partial-success response is hidden.
+  const memberships = await AcademyStudentMembership.find(membershipFilter)
+    .select("studentUserId classId").session(transaction).lean();
   if (memberships.length !== rawUserIds.length) throw statusError(403, "현재 학원과 반에 소속된 승인 학생만 출결을 기록할 수 있습니다.");
   const membershipByStudentId = new Map(memberships.map((membership) => [String(membership.studentUserId), membership]));
+  // An owner may submit an unscoped roster containing assigned and unassigned
+  // students. Lookup, unique identity and stored class must use the same row
+  // scope; classId:null in the filter plus membership.classId in $set made the
+  // next save miss its own inserted row and collide on the deterministic _id.
+  const effectiveRecordFilter = !session && !selectedClass
+    ? { academyId: context.academyId, dateKey: selectedDateKey, sessionId: null,
+        $or: memberships.map((membership) => ({ studentUserId: membership.studentUserId, classId: membership.classId || null })) }
+    : recordFilter;
+  const existingRecords = await AcademyAttendance.find(effectiveRecordFilter).session(transaction).lean();
   const existingByStudentId = new Map(existingRecords.map((record) => [String(record.studentUserId), record]));
+  if (expected) {
+    if (existingByStudentId.size !== existingRecords.length) throw attendanceWriteConflict();
+    rawUserIds.forEach((studentUserId, index) => assertExpectedAttendance(existingByStudentId.get(studentUserId), expected[index]));
+  }
   const operations = rawUserIds.map((studentUserId, index) => {
     const status = rawStatuses[index];
-    const baseFilter = session
-      ? { sessionId: session._id, studentUserId }
-      : { academyId: context.academyId, studentUserId, dateKey: selectedDateKey, classId: selectedClass?._id || null, sessionId: null };
-    if (!status) return { deleteOne: { filter: baseFilter } };
     const membership = membershipByStudentId.get(studentUserId);
+    const effectiveClassId = selectedClass?._id || session?.classId || membership.classId || null;
+    const baseFilter = session
+      ? { academyId: context.academyId, sessionId: session._id, studentUserId }
+      : { academyId: context.academyId, studentUserId, dateKey: selectedDateKey, classId: effectiveClassId, sessionId: null };
     const existing = existingByStudentId.get(studentUserId);
+    if (!status) {
+      if (expected && !existing) return null;
+      return { deleteOne: { filter: expected ? expectedAttendanceFilter(baseFilter, expected[index]) : baseFilter } };
+    }
     const isArrival = status === "PRESENT" || status === "LATE";
     return {
       updateOne: {
-        filter: baseFilter,
+        filter: expected && existing ? expectedAttendanceFilter(baseFilter, expected[index]) : baseFilter,
         update: {
           $set: {
             academyId: context.academyId,
-            classId: membership.classId || null,
+            classId: effectiveClassId,
             sessionId: session?._id || null,
             studentUserId,
             dateKey: selectedDateKey,
@@ -525,16 +547,33 @@ async function saveAcademyAttendanceRoster({
             source: "MANUAL",
             seedRunId: null,
           },
+          ...(!existing ? { $setOnInsert: { _id: attendanceDocumentId(baseFilter) } } : {}),
         },
-        upsert: true,
+        upsert: !(expected && existing),
       },
     };
-  });
-  await AcademyAttendance.bulkWrite(operations, { ordered: true });
-  if (session) {
-    await AcademyAttendanceSession.updateOne({ _id: session._id }, { $addToSet: { rosterStudentUserIds: { $each: objectIds } } });
+  }).filter(Boolean);
+  if (expected) {
+    // A captured missing row must be an insert, not an upsert that can mutate
+    // a concurrently created record. Unique _id/session keys arbitrate winners.
+    operations.forEach((operation) => {
+      if (operation.updateOne?.upsert) {
+        operation.insertOne = { document: { ...operation.updateOne.update.$setOnInsert, ...operation.updateOne.update.$set } };
+        delete operation.updateOne;
+      }
+    });
   }
-  const savedRecords = await AcademyAttendance.find(recordFilter).lean();
+  const written = operations.length
+    ? await AcademyAttendance.bulkWrite(operations, { ordered: true, ...(transaction ? { session: transaction } : {}) })
+    : null;
+  if (expected && written && written.matchedCount + written.insertedCount + written.deletedCount !== operations.length) {
+    throw attendanceWriteConflict();
+  }
+  if (session) {
+    await AcademyAttendanceSession.updateOne({ _id: session._id }, { $addToSet: { rosterStudentUserIds: { $each: objectIds } } },
+      transaction ? { session: transaction } : {});
+  }
+  const savedRecords = await AcademyAttendance.find(effectiveRecordFilter).session(transaction).lean();
   const savedByStudentId = new Map(savedRecords.map((record) => [String(record.studentUserId), record]));
   await AcademyAttendanceAudit.insertMany(rawUserIds.map((studentUserId, index) => {
     const existing = existingByStudentId.get(studentUserId);
@@ -553,14 +592,29 @@ async function saveAcademyAttendanceRoster({
       note: rawNotes[index] || "",
       occurredAt: now,
     };
-  }), { ordered: false });
+  }), { ordered: false, ...(transaction ? { session: transaction } : {}) });
   return {
     dateKey: selectedDateKey,
-    classId: selectedClass ? String(selectedClass._id) : "",
+    classId: selectedClass || session?.classId ? String(selectedClass?._id || session.classId) : "",
     sessionId: session ? String(session._id) : "",
     count: operations.length,
     recordedCount: rawStatuses.filter(Boolean).length,
   };
+  };
+  if (!expected) return writeRows();
+  // This platform already requires replica-set transactions for settlement and
+  // payments. Never silently downgrade a guarded write on a standalone server.
+  const transaction = await mongoose.startSession();
+  try {
+    let result;
+    await transaction.withTransaction(async () => { result = await writeRows(transaction); });
+    return result;
+  } catch (error) {
+    if (error?.code === 11000) throw attendanceWriteConflict();
+    if ([20, 303].includes(error?.code)) throw statusError(503,
+      "안전한 출결 동시 저장을 사용할 수 없습니다. 잠시 후 다시 시도해주세요.", "ATTENDANCE_CONDITIONAL_WRITE_UNAVAILABLE");
+    throw error;
+  } finally { await transaction.endSession(); }
 }
 
 async function regenerateAttendanceSessionCode({ teacherUserId, sessionId, now = new Date() }) {

@@ -211,10 +211,7 @@ async function discardCommunityUploads(
           file?.storedName
         );
 
-      if (
-        file?.storageAsset?.storageProvider === "CLOUDINARY" ||
-        file?.storageProvider === "CLOUDINARY"
-      ) {
+      if (["CLOUDINARY", "R2"].includes(file?.storageAsset?.storageProvider || file?.storageProvider)) {
         await destroyStoredAsset(file.storageAsset || file).catch(() => {});
         return;
       }
