@@ -9,9 +9,15 @@ options:
     - name: PORT
       value: "8000"
     - name: APP_BASE_URL
-      value: https://www.matths.kr
+      value: https://app.matths.kr
     - name: PUBLIC_BASE_URL
       value: https://www.matths.kr
+    - name: ACADEMY_BASE_URL
+      value: https://academy.matths.kr
+    - name: ADMIN_BASE_URL
+      value: https://admin.matths.kr
+    - name: SESSION_COOKIE_DOMAIN
+      value: .matths.kr
     - name: GOOGLE_OAUTH_REDIRECT_URI
       value: https://www.matths.kr/auth/google/callback
     - name: KAKAO_OAUTH_REDIRECT_URI

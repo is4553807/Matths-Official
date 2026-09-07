@@ -23,8 +23,11 @@ assert.match(
   cloudtype,
   /install: rm -rf node_modules && npm ci --omit=dev --no-audit/
 );
-assert.match(cloudtype, /APP_BASE_URL[\s\S]*https:\/\/www\.matths\.kr/);
 assert.match(cloudtype, /PUBLIC_BASE_URL[\s\S]*https:\/\/www\.matths\.kr/);
+assert.match(cloudtype, /APP_BASE_URL[\s\S]*https:\/\/app\.matths\.kr/);
+assert.match(cloudtype, /ACADEMY_BASE_URL[\s\S]*https:\/\/academy\.matths\.kr/);
+assert.match(cloudtype, /ADMIN_BASE_URL[\s\S]*https:\/\/admin\.matths\.kr/);
+assert.match(cloudtype, /SESSION_COOKIE_DOMAIN[\s\S]*value: \.matths\.kr/);
 assert.match(
   cloudtype,
   /GOOGLE_OAUTH_REDIRECT_URI[\s\S]*https:\/\/www\.matths\.kr\/auth\/google\/callback/
@@ -115,6 +118,11 @@ assert.doesNotMatch(
   /^\s*-\s+name:\s+INICIS_LIVE_(?:MID|HASH_KEY|API_KEY|CLIENT_IP)\s*$/m
 );
 for (const required of [
+  "SESSION_COOKIE_DOMAIN=.matths.kr",
+  "PUBLIC_BASE_URL=https://www.matths.kr",
+  "APP_BASE_URL=https://app.matths.kr",
+  "ACADEMY_BASE_URL=https://academy.matths.kr",
+  "ADMIN_BASE_URL=https://admin.matths.kr",
   "PAYMENT_PROVIDER=INICIS",
   "INICIS_PAYMENTS_MODE=LIVE",
   "INICIS_LIVE_MID=",

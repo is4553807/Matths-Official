@@ -40,14 +40,15 @@ function contractTodoSourceType(contractEndsAt) {
 
 function publicBaseUrl() {
   const candidate = String(
-    process.env.PUBLIC_BASE_URL ||
+    process.env.ACADEMY_BASE_URL ||
+      process.env.PUBLIC_BASE_URL ||
       process.env.APP_BASE_URL ||
-      "https://www.matths.kr"
+      "https://academy.matths.kr"
   ).trim();
   try {
     return new URL(candidate).origin;
   } catch (_error) {
-    return "https://www.matths.kr";
+    return "https://academy.matths.kr";
   }
 }
 

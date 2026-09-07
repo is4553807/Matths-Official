@@ -10,8 +10,11 @@ const validProductionEnvironment = {
   NODE_ENV: "production",
   DB: "mongodb://database.example/matths",
   SECRET: "s".repeat(64),
-  APP_BASE_URL: "https://www.matths.kr",
   PUBLIC_BASE_URL: "https://www.matths.kr",
+  APP_BASE_URL: "https://app.matths.kr",
+  ACADEMY_BASE_URL: "https://academy.matths.kr",
+  ADMIN_BASE_URL: "https://admin.matths.kr",
+  SESSION_COOKIE_DOMAIN: ".matths.kr",
   GOOGLE_OAUTH_CLIENT_ID:
     "runtime-google-client",
   GOOGLE_OAUTH_CLIENT_SECRET:
@@ -106,6 +109,22 @@ async function main() {
     invalidAppleRedirectReport.errors.some(
       (item) => item.includes("APPLE_OAUTH_REDIRECT_URI")
     )
+  );
+
+  const duplicateSurfaceReport = runtimeEnvironmentReport({
+    ...validProductionEnvironment,
+    ADMIN_BASE_URL: "https://app.matths.kr",
+  });
+  assert.ok(
+    duplicateSurfaceReport.errors.some((item) => item.includes("서로 다른 호스트"))
+  );
+
+  const invalidCookieDomainReport = runtimeEnvironmentReport({
+    ...validProductionEnvironment,
+    SESSION_COOKIE_DOMAIN: ".app.matths.kr",
+  });
+  assert.ok(
+    invalidCookieDomainReport.errors.some((item) => item.includes("모두 포함"))
   );
 
   const missingInicisKeysReport = runtimeEnvironmentReport({

@@ -32,6 +32,9 @@ const {
 const {
     canonicalHostRedirect,
 } = require("./middleware/canonicalHost");
+const {
+    serviceHostRouting,
+} = require("./middleware/serviceHostRouting");
 const runtimeEnvironment = assertRuntimeEnvironment();
 for (const warning of runtimeEnvironment.warnings) {
     console.warn(`[startup warning] ${warning}`);
@@ -103,6 +106,7 @@ if (process.env.NODE_ENV === "production") {
     server.set("trust proxy", 1);
 }
 server.use(canonicalHostRedirect);
+server.use(serviceHostRouting);
 server.use((req, res, next) => {
     const paymentSurface = /^\/(?:pricing\/[^/]+\/self|parent\/checkout\/)/.test(
         String(req.path || "")
@@ -223,6 +227,9 @@ const sessionTtlSeconds = Math.max(
     300,
     Number(process.env.SESSION_TTL_SECONDS) || 7 * 24 * 60 * 60
 );
+const sessionCookieDomain = String(
+    process.env.SESSION_COOKIE_DOMAIN || ""
+).trim() || undefined;
 server.use(session({
     secret: secret,
     resave: false,
@@ -237,6 +244,9 @@ server.use(session({
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
         maxAge: sessionTtlSeconds * 1000,
+        ...(sessionCookieDomain
+            ? { domain: sessionCookieDomain }
+            : {}),
     },
 }));
 server.use(sameOriginProtection);

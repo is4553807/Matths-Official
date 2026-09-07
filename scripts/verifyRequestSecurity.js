@@ -12,7 +12,7 @@ function request({
   method = "POST",
   url = "/profile/password",
   protocol = "https",
-  host = "www.matths.kr",
+  host = "app.matths.kr",
   headers = {},
   body = {},
   ip = "203.0.113.10",
@@ -58,26 +58,54 @@ const originalEnvironment = {
   NODE_ENV: process.env.NODE_ENV,
   APP_BASE_URL: process.env.APP_BASE_URL,
   PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL,
+  ACADEMY_BASE_URL: process.env.ACADEMY_BASE_URL,
+  ADMIN_BASE_URL: process.env.ADMIN_BASE_URL,
 };
 
 try {
   process.env.NODE_ENV = "production";
-  process.env.APP_BASE_URL = "https://www.matths.kr";
-  delete process.env.PUBLIC_BASE_URL;
+  process.env.PUBLIC_BASE_URL = "https://www.matths.kr";
+  process.env.APP_BASE_URL = "https://app.matths.kr";
+  process.env.ACADEMY_BASE_URL = "https://academy.matths.kr";
+  process.env.ADMIN_BASE_URL = "https://admin.matths.kr";
 
   assert.equal(invoke(sameOriginProtection, request({ method: "GET" })).error, null);
   assert.equal(
     invoke(sameOriginProtection, request({
-      headers: { origin: "https://www.matths.kr", "sec-fetch-site": "same-origin" },
+      headers: { origin: "https://app.matths.kr", "sec-fetch-site": "same-origin" },
     })).error,
     null
   );
   assert.equal(
     invoke(sameOriginProtection, request({
-      headers: { referer: "https://www.matths.kr/profile" },
+      headers: { referer: "https://app.matths.kr/profile" },
     })).error,
     null
   );
+  for (const origin of [
+    "https://www.matths.kr",
+    "https://app.matths.kr",
+    "https://academy.matths.kr",
+    "https://admin.matths.kr",
+  ]) {
+    assert.equal(
+      invoke(sameOriginProtection, request({
+        host: new URL(origin).host,
+        headers: { origin, "sec-fetch-site": "same-origin" },
+      })).error,
+      null,
+      `${origin}은 허용된 서비스 출처여야 합니다.`
+    );
+  }
+  const crossService = invoke(sameOriginProtection, request({
+    host: "admin.matths.kr",
+    headers: {
+      origin: "https://www.matths.kr",
+      "sec-fetch-site": "same-site",
+    },
+  })).error;
+  assert.equal(crossService.status, 403);
+  assert.equal(crossService.code, "REQUEST_ORIGIN_MISMATCH");
 
   const crossSite = invoke(sameOriginProtection, request({
     headers: { origin: "https://attacker.example", "sec-fetch-site": "cross-site" },

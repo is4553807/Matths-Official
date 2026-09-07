@@ -1,6 +1,6 @@
 # Cloudtype 운영 배포·롤백 런북
 
-이 문서는 `www.matths.kr`의 기존 Cloudtype 앱을 안전하게 재배포하는 절차다. 새 앱을 만들거나 새 DB를 연결하는 절차가 아니다.
+이 문서는 `www.matths.kr`과 서비스 서브도메인을 제공하는 기존 Cloudtype 앱을 안전하게 재배포하는 절차다. 새 앱을 만들거나 새 DB를 연결하는 절차가 아니다.
 
 ## 배포 정본
 
@@ -8,7 +8,10 @@
 - 브랜치: `main`
 - 앱 이름: `matths`
 - 공개 연락처: `dltkddbs4553@matths.kr`
-- 운영 URL: `https://www.matths.kr`
+- 공개 URL: `https://www.matths.kr` (`https://matths.kr`에서 자동 이동)
+- 학생 URL: `https://app.matths.kr`
+- 학원 URL: `https://academy.matths.kr`
+- 관리자 URL: `https://admin.matths.kr`
 
 과거 요청 커밋 `939c25af`는 최신 `main`의 조상이 아니므로 직접 배포하지 않는다. 항상 원격 `main`의 현재 tip을 검증한 뒤 배포한다.
 
@@ -50,6 +53,12 @@ API key, OAuth token, Apple private key는 이 문서·이슈·PR·workflow inpu
 - `FINANCE_APPLE_FEE_RESERVE_BPS=3000`
 - `PUBLIC_CONTACT_EMAIL=dltkddbs4553@matths.kr`
 - 기존 Google/Kakao OAuth, DB, session, storage, SMTP secret 유지
+- `SESSION_COOKIE_DOMAIN=.matths.kr`
+- OAuth callback은 기존 `https://www.matths.kr/auth/{provider}/callback`을 유지
+
+Cloudtype 앱의 사용자 도메인에는 `matths.kr`, `www.matths.kr`, `app.matths.kr`,
+`academy.matths.kr`, `admin.matths.kr` 다섯 호스트를 모두 등록한다. Cloudflare DNS에서
+세 서브도메인은 Cloudtype이 안내한 CNAME 대상으로 연결하고 인증서 상태가 정상인지 확인한다.
 
 ## 배포
 

@@ -143,6 +143,7 @@
     "navigation:verify": "node audit/verifyInternalNavigation.js",
     "navigation-performance:verify": "node audit/verifyNavigationPerformanceOptimizations.js",
     "canonical-host:verify": "node scripts/verifyCanonicalHostRedirect.js",
+    "service-hosts:verify": "node scripts/verifyServiceHostRouting.js",
     "coach-content:verify": "node scripts/validateCoachAndConceptContent.js",
     "coach-character:verify": "node scripts/verifyDashboardCoachCharacter.js",
     "dashboard-sidebar:verify": "node scripts/verifyDashboardSidebar.js",

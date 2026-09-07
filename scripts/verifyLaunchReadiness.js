@@ -56,6 +56,7 @@ const checks = [
   "math-rendering:verify",
   "navigation:verify",
   "canonical-host:verify",
+  "service-hosts:verify",
   "coach-content:verify",
   "coach-idempotency:verify",
   "dynamic-id-errors:verify",

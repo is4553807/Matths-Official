@@ -20,6 +20,29 @@ function validHttpsUrl(value) {
   }
 }
 
+function hostnameOf(value) {
+  try {
+    return new URL(String(value || "")).hostname.toLowerCase();
+  } catch (_error) {
+    return "";
+  }
+}
+
+function normalizedCookieDomain(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^\./, "");
+}
+
+function validCookieDomain(value) {
+  const domain = normalizedCookieDomain(value);
+  return (
+    domain.includes(".") &&
+    /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(domain)
+  );
+}
+
 function hasCloudinaryConfig(environment) {
   return Boolean(
     valueOf(environment, "CLOUDINARY_URL") ||
@@ -65,11 +88,35 @@ function runtimeEnvironmentReport(environment = process.env) {
     errors.push(`SECRET은 ${MIN_SECRET_LENGTH}자 이상의 무작위 값이어야 합니다.`);
   }
 
-  for (const key of ["APP_BASE_URL", "PUBLIC_BASE_URL"]) {
+  const surfaceUrlKeys = [
+    "PUBLIC_BASE_URL",
+    "APP_BASE_URL",
+    "ACADEMY_BASE_URL",
+    "ADMIN_BASE_URL",
+  ];
+  for (const key of surfaceUrlKeys) {
     const value = valueOf(environment, key);
     if (!validHttpsUrl(value)) {
-      errors.push(`${key}는 경로가 없는 HTTPS 주소여야 합니다. 예: https://www.matths.kr`);
+      errors.push(`${key}는 경로가 없는 HTTPS 주소여야 합니다. 예: https://app.matths.kr`);
     }
+  }
+  const surfaceHosts = surfaceUrlKeys
+    .map((key) => hostnameOf(valueOf(environment, key)))
+    .filter(Boolean);
+  if (surfaceHosts.length === surfaceUrlKeys.length && new Set(surfaceHosts).size !== surfaceHosts.length) {
+    errors.push("공개·학생·학원·관리자 서비스 주소는 서로 다른 호스트여야 합니다.");
+  }
+
+  const cookieDomainValue = valueOf(environment, "SESSION_COOKIE_DOMAIN");
+  const cookieDomain = normalizedCookieDomain(cookieDomainValue);
+  if (!validCookieDomain(cookieDomainValue)) {
+    errors.push("SESSION_COOKIE_DOMAIN은 네 서비스 호스트를 포함하는 유효한 도메인이어야 합니다. 예: .matths.kr");
+  } else if (
+    surfaceHosts.some(
+      (host) => host !== cookieDomain && !host.endsWith(`.${cookieDomain}`)
+    )
+  ) {
+    errors.push("SESSION_COOKIE_DOMAIN이 공개·학생·학원·관리자 서비스 호스트를 모두 포함해야 합니다.");
   }
 
   for (const key of [

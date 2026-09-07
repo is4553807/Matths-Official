@@ -25,7 +25,12 @@ function normalizedOrigin(value) {
 
 function configuredOrigins() {
   return new Set(
-    [process.env.APP_BASE_URL, process.env.PUBLIC_BASE_URL]
+    [
+      process.env.PUBLIC_BASE_URL,
+      process.env.APP_BASE_URL,
+      process.env.ACADEMY_BASE_URL,
+      process.env.ADMIN_BASE_URL,
+    ]
       .map(normalizedOrigin)
       .filter(Boolean)
   );
@@ -102,12 +107,16 @@ function sameOriginProtection(req, _res, next) {
   }
 
   const allowedOrigins = configuredOrigins();
+  const currentOrigin = currentRequestOrigin(req);
   if (process.env.NODE_ENV !== "production") {
-    const localOrigin = currentRequestOrigin(req);
-    if (localOrigin) allowedOrigins.add(localOrigin);
+    if (currentOrigin) allowedOrigins.add(currentOrigin);
   }
 
-  if (!allowedOrigins.has(suppliedOrigin)) {
+  if (
+    !allowedOrigins.has(suppliedOrigin) ||
+    !currentOrigin ||
+    suppliedOrigin !== currentOrigin
+  ) {
     return next(statusError(
       403,
       "요청 출처가 Matths 서비스 주소와 일치하지 않습니다.",

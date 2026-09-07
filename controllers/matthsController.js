@@ -6814,7 +6814,12 @@ exports.logout = (req, res, next) => {
             return next(error);
         }
 
-        res.clearCookie("connect.sid");
+        res.clearCookie("connect.sid", {
+            path: "/",
+            ...(process.env.SESSION_COOKIE_DOMAIN
+                ? { domain: process.env.SESSION_COOKIE_DOMAIN }
+                : {}),
+        });
         return res.redirect("/login");
     });
 };
