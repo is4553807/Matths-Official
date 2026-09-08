@@ -5,6 +5,9 @@ const path = require("node:path");
 const {
   runtimeEnvironmentReport,
 } = require("../services/runtimeEnvironmentService");
+const {
+  formActionDirective,
+} = require("../services/contentSecurityPolicyService");
 
 const validProductionEnvironment = {
   NODE_ENV: "production",
@@ -52,6 +55,22 @@ const validProductionEnvironment = {
 async function main() {
   const validReport = runtimeEnvironmentReport(validProductionEnvironment);
   assert.deepEqual(validReport.errors, []);
+
+  const formAction = formActionDirective(validProductionEnvironment);
+  for (const origin of [
+    "https://www.matths.kr",
+    "https://app.matths.kr",
+    "https://academy.matths.kr",
+    "https://admin.matths.kr",
+    "https://parents.matths.kr",
+  ]) {
+    assert.ok(
+      formAction.split(" ").includes(origin),
+      `${origin} 로그인 후 역할별 이동을 CSP가 허용해야 합니다.`
+    );
+  }
+  assert.ok(formAction.includes("https://*.inicis.com"));
+  assert.ok(!formAction.includes("https://*.matths.kr"));
 
   const invalidReport = runtimeEnvironmentReport({ NODE_ENV: "production" });
   assert.ok(invalidReport.errors.length >= 8);
@@ -183,7 +202,7 @@ async function main() {
   assert.match(serverSource, /frame-ancestors 'none'/);
   assert.match(serverSource, /frame-src https:\/\/\*\.inicis\.com/);
   assert.match(serverSource, /script-src[^\n]+https:\/\/\*\.inicis\.com/);
-  assert.match(serverSource, /form-action 'self' https:\/\/\*\.inicis\.com/);
+  assert.match(serverSource, /formActionDirective\(\)/);
   assert.match(serverSource, /X-Content-Type-Options/);
   assert.match(serverSource, /process\.once\("SIGTERM"/);
   assert.match(serverSource, /mongoose\.disconnect\(\)/);

@@ -39,6 +39,9 @@ const {
     accountNavigation,
     serviceOrigins,
 } = require("./services/serviceUrlService");
+const {
+    formActionDirective,
+} = require("./services/contentSecurityPolicyService");
 const runtimeEnvironment = assertRuntimeEnvironment();
 for (const warning of runtimeEnvironment.warnings) {
     console.warn(`[startup warning] ${warning}`);
@@ -130,7 +133,7 @@ server.use((req, res, next) => {
             "base-uri 'self'",
             "connect-src 'self' https://*.inicis.com",
             "font-src 'self' data: https://*.inicis.com",
-            "form-action 'self' https://*.inicis.com",
+            formActionDirective(),
             "frame-ancestors 'none'",
             "frame-src https://*.inicis.com",
             "img-src 'self' data: blob: https:",
