@@ -166,14 +166,14 @@
           >
             <% if (loginNext) { %><input type="hidden" name="next" value="<%= loginNext %>" /><% } %>
             <div class="form-field">
-              <label for="identifier">이메일 또는 학부모 아이디</label>
+              <label for="identifier">이메일 또는 아이디</label>
 
               <input
                 id="identifier"
                 name="identifier"
                 type="text"
                 value="<%= input.email || '' %>"
-                placeholder="가입 이메일 또는 학부모 아이디"
+                placeholder="가입 이메일 또는 아이디"
                 autocomplete="username"
                 required
               />
