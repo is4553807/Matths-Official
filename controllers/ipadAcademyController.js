@@ -3,6 +3,7 @@ const {
   approveAcademyApplication,
   approveAcademyStaff,
   approveMembership,
+  assertTeacherAccount,
   addAcademyClassCoTeacher,
   archiveAcademyClass,
   assignMembershipClass,
@@ -608,11 +609,13 @@ function serializeInvite(invite) {
     id: identifier(invite),
     label: String(invite.label || "학생 초대"),
     code: String(invite.code || ""),
+    token: String(invite.token || ""),
     academyClass: serializeClass(invite.classId),
     displayState: String(invite.displayState || invite.status || ""),
     useCount: Number(invite.useCount || 0),
     maxUses: Number(invite.maxUses || 0),
     expiresAt: invite.expiresAt || null,
+    createdAt: invite.createdAt || null,
   };
 }
 
@@ -744,7 +747,13 @@ async function dashboardPayload(userId) {
 }
 
 async function teacherDashboardPayload(userId) {
+  await assertTeacherAccount(userId);
   const portal = await getAcademyPortalData(userId, { includeStudents: true });
+  await assertTeacherAccount(userId);
+  const current = await getTeacherAcademyContext(userId);
+  if (String(current.academyId) !== String(portal.academy._id)) {
+    throw Object.assign(new Error("학원 소속이 변경되었습니다. 다시 조회해 주세요."), { status: 403, code: "ACADEMY_CONTEXT_CHANGED" });
+  }
   const studentCountByClass = new Map();
   for (const membership of portal.students) {
     const classId = identifier(membership.classId);
@@ -766,7 +775,9 @@ async function teacherDashboardPayload(userId) {
     archivedClasses: portal.archivedClasses.map(serializeClass),
     requests: portal.requests.map(serializeTeacherMembership),
     students: portal.students.slice(0, 50).map(serializeTeacherMembership),
-    invites: portal.invites.slice(0, 20).map(serializeInvite),
+    // Canonical web portal already bounds its ordered history to 50. Do not
+    // silently discard the older 30 entries again in the native adapter.
+    invites: portal.invites.map(serializeInvite),
     staffPendingCount: Number(portal.staffPendingCount || 0),
     activeStaff: portal.activeStaff.map(serializeTeacherStaff),
     staffRequests: portal.staffRequests.map(serializeTeacherStaff),

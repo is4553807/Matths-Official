@@ -171,7 +171,10 @@ server.get(
             "Content-Type": "application/json",
             "Cache-Control": "public, max-age=3600, must-revalidate",
         });
-        return res.sendFile(appleAppSiteAssociationPath);
+        // This one fixed public document lives under .well-known. sendFile's
+        // default dotfiles=ignore otherwise returns 404 even when it exists.
+        // Do not enable dotfiles on the general express.static middleware.
+        return res.sendFile(appleAppSiteAssociationPath, { dotfiles: "allow" });
     }
 );
 

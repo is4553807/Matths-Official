@@ -184,6 +184,11 @@ router.post(
   "/auth/social/exchange",
   apiController.exchangeSocialAuthCode
 );
+router.post(
+  "/auth/kakao/native",
+  loginIpRateLimit,
+  require("../controllers/kakaoNativeAuthController").start
+);
 // 기존 앱 빌드가 이 주소를 쓴다. TestFlight 에 이미 나간 1.0(1) 이 여기로 오므로
 // 지우면 그 빌드의 구글 로그인이 끊긴다.
 router.post(
@@ -299,6 +304,9 @@ router.post("/academy/student/join-code", ipadAcademyController.requestByCode);
 router.post("/academy/student/join", ipadAcademyController.requestByAcademy);
 router.post("/academy/student/leave", ipadAcademyController.leave);
 router.post("/academy/student/attendance/check-in", ipadAcademyController.checkIn);
+// Match the web teacher-role/expiry gate before any teacher query, upload or
+// mutation. Retained ACTIVE staff membership is not a current teacher role.
+router.use("/academy/teacher", ipadAssignmentController.requireTeacher);
 router.get("/academy/teacher", ipadAcademyController.teacherDashboard);
 router.get("/academy/teacher/setup", ipadAcademyController.teacherSetup);
 router.post("/academy/teacher/setup", ipadAcademyController.createTeacherAcademy);

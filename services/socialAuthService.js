@@ -89,6 +89,7 @@ function publicProviderStatus() {
     return {
       key: provider.key,
       label: provider.label,
+      ...(provider.key === "kakao" ? { nativeConfigured: true } : {}),
       configured: Boolean(
         config.clientId &&
         config.clientSecret &&

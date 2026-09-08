@@ -63,13 +63,11 @@ const COURSE_ORDER = new Map(
   ].map((courseId, index) => [courseId, index + 1])
 );
 
-const AVAILABLE_COURSE_IDS = new Set([
-  "common-math-1",
-  "common-math-2",
-  "algebra",
-  "probability-statistics",
-  "calculus-1",
-]);
+// All 13 authored 2022 curriculum courses are released. The former five-course
+// development hold was not an entitlement or assessment prerequisite. Unknown
+// course IDs still fail closed, and missing content still follows its own error.
+const AVAILABILITY_POLICY_REVISION = 2;
+const AVAILABLE_COURSE_IDS = new Set(COURSE_ORDER.keys());
 
 function isCourseAvailable(courseId) {
   return AVAILABLE_COURSE_IDS.has(String(courseId || ""));
@@ -265,6 +263,7 @@ function loadCurriculum() {
 
   cachedCurriculum = {
     schemaVersion: 1,
+    availabilityPolicyRevision: AVAILABILITY_POLICY_REVISION,
     curriculum: {
       ...(baseDocument.curriculum || {}),
       id: baseDocument.curriculum?.id || "kr-2022",
