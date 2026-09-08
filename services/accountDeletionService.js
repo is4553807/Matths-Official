@@ -378,10 +378,12 @@ async function anonymizePublicActivity(
           anonymousNumber: "",
           schoolCode: "",
           schoolName: "",
-          /*
-           * 자유 서술식 본문에는 작성자가 직접 적은 개인정보가 남아 있을
-           * 수 있으므로 공개 화면에서는 내리고 DB에만 익명 자료로 보존한다.
-           */
+          // Keep only a tombstone for existing references, never the author's
+          // free text or attachment metadata. Files are removed before this call.
+          title: "삭제된 게시글",
+          content: "작성자가 탈퇴하여 삭제된 게시글입니다.",
+          attachments: [],
+          moderationReason: "",
           status: "hidden",
         },
       }
@@ -393,6 +395,8 @@ async function anonymizePublicActivity(
           authorName: "탈퇴회원",
           isAnonymous: true,
           anonymousNumber: "",
+          content: "작성자가 탈퇴하여 삭제된 댓글입니다.",
+          moderationReason: "",
           status: "hidden",
         },
       }

@@ -3,6 +3,7 @@ const {
   approveAcademyApplication,
   approveAcademyStaff,
   approveMembership,
+  assertTeacherAccount,
   addAcademyClassCoTeacher,
   archiveAcademyClass,
   assignMembershipClass,
@@ -262,6 +263,8 @@ function serializeMathMapConcept(concept) {
     status: String(concept.status || "UNKNOWN"),
     statusLabel: String(concept.statusLabel || "데이터 부족"),
     confidenceLabel: String(concept.confidenceLabel || "판단 전"),
+    prerequisiteCount: Array.isArray(concept.prerequisites) ? concept.prerequisites.length : 0,
+    unlockCount: Array.isArray(concept.unlocks) ? concept.unlocks.length : 0,
     evidence: {
       attemptCount: Number(concept.evidence?.attemptCount || 0),
       correctCount: Number(concept.evidence?.correctCount || 0),
@@ -272,6 +275,15 @@ function serializeMathMapConcept(concept) {
         ? null
         : Number(concept.evidence.averageResponseTimeMs),
       lastStudiedAt: concept.evidence?.lastStudiedAt || null,
+      lowDifficulty: concept.evidence?.lowDifficulty ? {
+        total: Number(concept.evidence.lowDifficulty.total || 0),
+        correct: Number(concept.evidence.lowDifficulty.correct || 0),
+      } : null,
+      highDifficulty: concept.evidence?.highDifficulty ? {
+        total: Number(concept.evidence.highDifficulty.total || 0),
+        correct: Number(concept.evidence.highDifficulty.correct || 0),
+      } : null,
+      problemTypeCount: Number(concept.evidence?.problemTypeCount || 0),
     },
   };
 }
@@ -288,7 +300,17 @@ function serializeStudentMathMap(mathMap) {
     unknownConceptCount: Number(mathMap?.unknownConceptCount || 0),
     topStrength: serializeHeadline(mathMap?.topStrength),
     topPriority: serializeHeadline(mathMap?.topPriority),
-    bottlenecks: (mathMap?.bottlenecks || []).slice(0, 5).map((item) => ({
+    recommendation: mathMap?.recommendation ? {
+      conceptTitle: String(mathMap.recommendation.conceptTitle || ""),
+      reasons: (mathMap.recommendation.reasons || []).map(String),
+      total: Number(mathMap.recommendation.problemMix?.total || 0),
+      diagnostic: mathMap.recommendation.problemMix?.diagnostic === true,
+      difficulties: (mathMap.recommendation.problemMix?.difficulties || []).map(item => ({
+        level: Number(item.level), count: Number(item.count),
+      })),
+      retryCount: Number(mathMap.recommendation.problemMix?.retryCount || 0),
+    } : null,
+    bottlenecks: (mathMap?.bottlenecks || []).map((item) => ({
       conceptId: String(item.conceptId || ""),
       conceptTitle: String(item.conceptTitle || ""),
       affectedConceptCount: Number(item.affectedConceptCount || item.affectedConcepts?.length || 0),
@@ -608,11 +630,13 @@ function serializeInvite(invite) {
     id: identifier(invite),
     label: String(invite.label || "학생 초대"),
     code: String(invite.code || ""),
+    token: String(invite.token || ""),
     academyClass: serializeClass(invite.classId),
     displayState: String(invite.displayState || invite.status || ""),
     useCount: Number(invite.useCount || 0),
     maxUses: Number(invite.maxUses || 0),
     expiresAt: invite.expiresAt || null,
+    createdAt: invite.createdAt || null,
   };
 }
 
@@ -744,7 +768,13 @@ async function dashboardPayload(userId) {
 }
 
 async function teacherDashboardPayload(userId) {
+  await assertTeacherAccount(userId);
   const portal = await getAcademyPortalData(userId, { includeStudents: true });
+  await assertTeacherAccount(userId);
+  const current = await getTeacherAcademyContext(userId);
+  if (String(current.academyId) !== String(portal.academy._id)) {
+    throw Object.assign(new Error("학원 소속이 변경되었습니다. 다시 조회해 주세요."), { status: 403, code: "ACADEMY_CONTEXT_CHANGED" });
+  }
   const studentCountByClass = new Map();
   for (const membership of portal.students) {
     const classId = identifier(membership.classId);
@@ -766,7 +796,9 @@ async function teacherDashboardPayload(userId) {
     archivedClasses: portal.archivedClasses.map(serializeClass),
     requests: portal.requests.map(serializeTeacherMembership),
     students: portal.students.slice(0, 50).map(serializeTeacherMembership),
-    invites: portal.invites.slice(0, 20).map(serializeInvite),
+    // Canonical web portal already bounds its ordered history to 50. Do not
+    // silently discard the older 30 entries again in the native adapter.
+    invites: portal.invites.map(serializeInvite),
     staffPendingCount: Number(portal.staffPendingCount || 0),
     activeStaff: portal.activeStaff.map(serializeTeacherStaff),
     staffRequests: portal.staffRequests.map(serializeTeacherStaff),
