@@ -30,7 +30,7 @@ function sessionCookie(response) {
   return match[0];
 }
 
-async function postForm(origin, path, fields) {
+async function postForm(origin, path, fields, cookie = "") {
   const body = new URLSearchParams(fields);
   return fetch(`${origin}${path}`, {
     method: "POST",
@@ -38,6 +38,7 @@ async function postForm(origin, path, fields) {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       Origin: origin,
+      ...(cookie ? { Cookie: cookie } : {}),
     },
     body,
   });
@@ -90,14 +91,14 @@ async function main() {
         return { role, email: user.email, password: userPassword, user };
       })
     );
-    const student = accounts.find((account) => account.role === "student");
+    const studentAccount = accounts.find((account) => account.role === "student");
     const parentPassword = password();
     const parent = await ParentAccount.create({
       username: "웹로그인학부모",
       usernameNormalized: "웹로그인학부모",
       email: `parent-${crypto.randomUUID()}@qa.invalid`,
       passwordHash: await bcrypt.hash(parentPassword, 10),
-      childUserId: student.user._id,
+      childUserId: studentAccount.user._id,
       isActive: true,
     });
 
@@ -111,6 +112,10 @@ async function main() {
       cookie: { httpOnly: true, sameSite: "lax", secure: false, maxAge: 600_000 },
     }));
     app.post("/login", matthsController.login);
+    app.get("/__test/return-to", (req, res) => {
+      req.session.returnTo = String(req.query.path || "");
+      res.sendStatus(204);
+    });
     app.get("/__test/session", (req, res) => {
       res.json({
         userRole: req.session?.user?.role || null,
@@ -125,18 +130,42 @@ async function main() {
     });
     const origin = `http://127.0.0.1:${listener.address().port}`;
 
-    const expectedLocation = { student: "/main", teacher: "/academy", admin: "/admin" };
+    const returnToByRole = {
+      student: "/academy/join/test-invite-token",
+      teacher: "/academy/forensics?case=open",
+      admin: "/admin/users?status=active",
+    };
     for (const account of accounts) {
+      const returnResponse = await fetch(
+        `${origin}/__test/return-to?path=${encodeURIComponent(returnToByRole[account.role])}`
+      );
+      assert.equal(returnResponse.status, 204);
+      const preLoginCookie = sessionCookie(returnResponse);
       const response = await postForm(origin, "/login", {
         email: account.email,
         password: account.password,
-      });
+      }, preLoginCookie);
       assert.equal(response.status, 302, `${account.role} 로그인은 성공 후 이동해야 합니다.`);
-      assert.equal(response.headers.get("location"), expectedLocation[account.role]);
+      assert.equal(response.headers.get("location"), returnToByRole[account.role]);
       const snapshot = await sessionView(origin, sessionCookie(response));
       assert.equal(snapshot.userRole, account.role);
       assert.equal(snapshot.parentId, null);
     }
+
+    const blockedAcademyReturn = await fetch(
+      `${origin}/__test/return-to?path=${encodeURIComponent("/academy/forensics")}`
+    );
+    assert.equal(blockedAcademyReturn.status, 204);
+    const blockedAcademyResponse = await postForm(origin, "/login", {
+      email: studentAccount.email,
+      password: studentAccount.password,
+    }, sessionCookie(blockedAcademyReturn));
+    assert.equal(blockedAcademyResponse.status, 302);
+    assert.equal(
+      blockedAcademyResponse.headers.get("location"),
+      "/main",
+      "학생은 학원 초대 경로 이외의 학원 관리 화면으로 복귀하면 안 됩니다."
+    );
 
     const parentResponse = await postForm(origin, "/login", {
       identifier: parent.username,
@@ -148,7 +177,7 @@ async function main() {
     const parentSnapshot = await sessionView(origin, sessionCookie(parentResponse));
     assert.equal(parentSnapshot.userRole, null);
     assert.equal(parentSnapshot.parentId, String(parent._id));
-    assert.equal(await WebSession.countDocuments({}), 4, "각 역할 로그인은 Mongo 세션 저장소에 기록되어야 합니다.");
+    assert.equal(await WebSession.countDocuments({}), 5, "각 역할과 경로 복귀 로그인은 Mongo 세션 저장소에 기록되어야 합니다.");
 
     console.log("웹 로그인 검증 완료: 학생·선생님·관리자·학부모의 세션 재발급과 역할별 목적지 이동을 확인했습니다.");
   } finally {

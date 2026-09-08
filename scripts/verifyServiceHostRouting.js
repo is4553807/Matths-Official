@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 
 const {
+  isAuthenticationPath,
   isPublicPath,
   serviceHostRedirectLocation,
   serviceHostRouting,
@@ -63,6 +64,9 @@ assert.equal(
   ""
 );
 assert.equal(isPublicPath("/login"), true);
+assert.equal(isAuthenticationPath("/login"), true);
+assert.equal(isAuthenticationPath("/auth/apple/callback"), true);
+assert.equal(isAuthenticationPath("/community"), false);
 assert.equal(isPublicPath("/parent/login"), true);
 assert.equal(isPublicPath("/archive"), true);
 assert.equal(isPublicPath("/archive/admin"), false);
@@ -94,6 +98,24 @@ assert.equal(
 );
 assert.equal(
   serviceHostRedirectLocation({
+    hostname: "app.matths.kr",
+    method: "POST",
+    originalUrl: "/login",
+    environment: production,
+  }),
+  "https://www.matths.kr/login"
+);
+assert.equal(
+  serviceHostRedirectLocation({
+    hostname: "academy.matths.kr",
+    method: "POST",
+    originalUrl: "/community",
+    environment: production,
+  }),
+  ""
+);
+assert.equal(
+  serviceHostRedirectLocation({
     hostname: "www.matths.kr",
     method: "POST",
     originalUrl: "/admin/users/42",
@@ -113,6 +135,28 @@ const originalEnvironment = {
 
 try {
   Object.assign(process.env, production);
+  {
+    const req = {
+      hostname: "app.matths.kr",
+      method: "POST",
+      originalUrl: "/login",
+      url: "/login",
+    };
+    let redirect = null;
+    serviceHostRouting(
+      req,
+      {
+        redirect(status, location) {
+          redirect = { status, location };
+        },
+      },
+      () => assert.fail("POST /login must redirect to the public host")
+    );
+    assert.deepEqual(redirect, {
+      status: 307,
+      location: "https://www.matths.kr/login",
+    });
+  }
   for (const [hostname, expectedUrl] of [
     ["app.matths.kr", "/main?tab=today"],
     ["academy.matths.kr", "/academy?tab=today"],

@@ -862,7 +862,7 @@ async function redirectSocialAuthError(
   req.session.socialOAuthError =
     message;
   await saveSession(req);
-  return res.redirect("/login");
+  return res.redirect(serviceUrl("public", "/login"));
 }
 
 async function finishSocialLogin(
@@ -889,14 +889,9 @@ async function finishSocialLogin(
     );
   }
 
+  const returnTo = req.session?.returnTo;
   await createLoginSession(req, user);
-  return res.redirect(
-    user.role === "admin"
-      ? "/admin"
-      : user.role === "teacher"
-        ? "/academy"
-        : "/main"
-  );
+  return res.redirect(postLoginUrl(user, returnTo));
 }
 
 exports.socialOAuthCallback = async (req, res) => {
@@ -1021,9 +1016,7 @@ exports.socialOAuthCallback = async (req, res) => {
       context
     );
     await saveSession(req);
-    return res.redirect(
-      "/register"
-    );
+    return res.redirect(serviceUrl("public", "/register"));
   } catch (error) {
     mobile =
       mobile ||
@@ -1117,7 +1110,7 @@ exports.appleWebOAuthCallback = async (req, res) => {
         { mobile: false }
       );
       await saveSession(req);
-      return res.redirect("/register");
+      return res.redirect(serviceUrl("public", "/register"));
     }
 
     const access = await synchronizeAccountAccess(appleUser._id);
@@ -1136,14 +1129,9 @@ exports.appleWebOAuthCallback = async (req, res) => {
     synchronizedUser.lastLoginAt = new Date();
     await synchronizedUser.save();
     clearPendingSocialRegistration(req);
+    const returnTo = req.session?.returnTo;
     await createLoginSession(req, synchronizedUser);
-    return res.redirect(
-      synchronizedUser.role === "admin"
-        ? "/admin"
-        : synchronizedUser.role === "teacher"
-          ? "/academy"
-          : "/main"
-    );
+    return res.redirect(postLoginUrl(synchronizedUser, returnTo));
   } catch (error) {
     return redirectSocialAuthError(
       req,
@@ -6586,6 +6574,9 @@ function isSafeStudentReturnPath(returnTo) {
     }
 
     const pathname = String(returnTo).split(/[?#]/, 1)[0];
+    if (/^\/academy\/join\/[^/]+$/.test(pathname)) {
+        return true;
+    }
     const blockedPrefixes = [
         "/admin",
         "/academy",
@@ -6616,15 +6607,52 @@ function isSafeParentReturnPath(returnTo) {
     return pathname === "/parent" || pathname.startsWith("/parent/");
 }
 
+function isSafeAdminReturnPath(returnTo) {
+    if (!isSafeReturnPath(returnTo)) return false;
+    const pathname = String(returnTo).split(/[?#]/, 1)[0];
+    return (
+        pathname === "/admin" ||
+        pathname.startsWith("/admin/") ||
+        pathname === "/archive/admin" ||
+        pathname.startsWith("/archive/admin/")
+    );
+}
+
+function isSafeTeacherReturnPath(returnTo) {
+    if (!isSafeReturnPath(returnTo)) return false;
+    const pathname = String(returnTo).split(/[?#]/, 1)[0];
+    return pathname === "/academy" || pathname.startsWith("/academy/");
+}
+
 function studentReturnUrl(returnTo) {
     const pathname = String(returnTo || "").split(/[?#]/, 1)[0];
     const publicStudentPaths = ["/community", "/contact"];
-    const surface = publicStudentPaths.some(
-        (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-    )
-        ? "public"
-        : "app";
+    const surface = /^\/academy\/join\/[^/]+$/.test(pathname)
+        ? "academy"
+        : publicStudentPaths.some(
+              (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+          )
+          ? "public"
+          : "app";
     return serviceUrl(surface, returnTo);
+}
+
+function postLoginUrl(user, returnTo) {
+    if (user?.role === "admin") {
+        return serviceUrl(
+            "admin",
+            isSafeAdminReturnPath(returnTo) ? returnTo : "/admin"
+        );
+    }
+    if (user?.role === "teacher") {
+        return serviceUrl(
+            "academy",
+            isSafeTeacherReturnPath(returnTo) ? returnTo : "/academy"
+        );
+    }
+    return isSafeStudentReturnPath(returnTo)
+        ? studentReturnUrl(returnTo)
+        : serviceUrl("app", "/main");
 }
 
 exports.login = async (req, res, next) => {
@@ -6828,21 +6856,7 @@ exports.login = async (req, res, next) => {
 
         await saveSession(req);
 
-        if (
-            user.role === "admin"
-        ) {
-            return res.redirect(serviceUrl("admin", "/admin"));
-        }
-
-        if (user.role === "teacher") {
-            return res.redirect(serviceUrl("academy", "/academy"));
-        }
-
-        if (isSafeStudentReturnPath(returnTo)) {
-            return res.redirect(studentReturnUrl(returnTo));
-        }
-
-        return res.redirect(serviceUrl("app", "/main"));
+        return res.redirect(postLoginUrl(user, returnTo));
     } catch (error) {
         return next(error);
     }

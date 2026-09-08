@@ -110,6 +110,29 @@ try {
   assert.equal(crossService.status, 403);
   assert.equal(crossService.code, "REQUEST_ORIGIN_MISMATCH");
 
+  assert.equal(
+    invoke(sameOriginProtection, request({
+      url: "/login",
+      host: "www.matths.kr",
+      headers: {
+        origin: "https://app.matths.kr",
+        "sec-fetch-site": "same-site",
+      },
+    })).error,
+    null,
+    "서비스 로그인 POST를 공개 로그인 주소로 넘긴 뒤에는 같은 Matths 출처를 허용해야 합니다."
+  );
+  const crossServiceNonAuth = invoke(sameOriginProtection, request({
+    url: "/contact",
+    host: "www.matths.kr",
+    headers: {
+      origin: "https://app.matths.kr",
+      "sec-fetch-site": "same-site",
+    },
+  })).error;
+  assert.equal(crossServiceNonAuth.status, 403);
+  assert.equal(crossServiceNonAuth.code, "REQUEST_ORIGIN_MISMATCH");
+
   const crossSite = invoke(sameOriginProtection, request({
     headers: { origin: "https://attacker.example", "sec-fetch-site": "cross-site" },
   })).error;
@@ -204,6 +227,10 @@ try {
   const webRoutes = fs.readFileSync(path.join(root, "routes", "matths-routes.js"), "utf8");
   const apiRoutes = fs.readFileSync(path.join(root, "routes", "api-routes.js"), "utf8");
   const parentRoutes = fs.readFileSync(path.join(root, "routes", "parent-routes.js"), "utf8");
+  const webController = fs.readFileSync(
+    path.join(root, "controllers", "matthsController.js"),
+    "utf8"
+  );
   const parentController = fs.readFileSync(
     path.join(root, "controllers", "parentController.js"),
     "utf8"
@@ -232,12 +259,13 @@ try {
   );
   assert.match(
     parentRoutes,
-    /loginIpRateLimit[\s\S]*loginRateLimit[\s\S]*parentController\.login/
+    /router\.post\("\/parent\/login"[\s\S]*res\.redirect\(307, serviceUrl\("public", "\/login"\)\)/
   );
   assert.match(
-    parentController,
-    /await regenerateSession\(req\);\s*req\.session\.parent = parentSession\(parent\);/
+    webController,
+    /await regenerateSession\(req\);\s*req\.session\.parent = \{/
   );
+  assert.match(parentController, /req\.session\.parent = parentSession\(parent\)/);
 } finally {
   for (const [key, value] of Object.entries(originalEnvironment)) {
     if (value === undefined) delete process.env[key];

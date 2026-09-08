@@ -50,6 +50,19 @@ function currentRequestOrigin(req) {
   return normalizedOrigin(`${protocol}://${host}`);
 }
 
+function isCentralPublicAuthSubmission(req, suppliedOrigin, currentOrigin, allowedOrigins) {
+  const pathname = String(req.path || req.originalUrl || req.url || "")
+    .split("?")[0];
+  const publicOrigin = normalizedOrigin(process.env.PUBLIC_BASE_URL);
+  return (
+    String(req.method || "").toUpperCase() === "POST" &&
+    /^\/(?:login|register|forgot-password(?:\/(?:verify|reset))?)$/.test(pathname) &&
+    Boolean(publicOrigin) &&
+    currentOrigin === publicOrigin &&
+    allowedOrigins.has(suppliedOrigin)
+  );
+}
+
 function isApiRequest(req) {
   return String(req.originalUrl || req.url || "").startsWith("/api/v1/");
 }
@@ -113,11 +126,18 @@ function sameOriginProtection(req, _res, next) {
     if (currentOrigin) allowedOrigins.add(currentOrigin);
   }
 
-  if (
-    !allowedOrigins.has(suppliedOrigin) ||
-    !currentOrigin ||
-    suppliedOrigin !== currentOrigin
-  ) {
+  const exactOriginMatch =
+    allowedOrigins.has(suppliedOrigin) &&
+    Boolean(currentOrigin) &&
+    suppliedOrigin === currentOrigin;
+  const centralAuthHandoff = isCentralPublicAuthSubmission(
+    req,
+    suppliedOrigin,
+    currentOrigin,
+    allowedOrigins
+  );
+
+  if (!exactOriginMatch && !centralAuthHandoff) {
     return next(statusError(
       403,
       "요청 출처가 Matths 서비스 주소와 일치하지 않습니다.",

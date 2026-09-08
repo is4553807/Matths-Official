@@ -43,14 +43,16 @@ function pathnameOf(originalUrl) {
   return safeRequestTarget(originalUrl).split("?", 1)[0];
 }
 
+function isAuthenticationPath(pathname) {
+  return (
+    /^\/(?:login|register|forgot-password)(?:\/|$)/.test(pathname) ||
+    /^\/auth\/(?:google|kakao|apple)(?:\/|$)/.test(pathname) ||
+    /^\/parent\/login(?:\/|$)/.test(pathname)
+  );
+}
+
 function isPublicPath(pathname) {
-  if (/^\/(?:login|register|forgot-password)(?:\/|$)/.test(pathname)) {
-    return true;
-  }
-  if (/^\/auth\/(?:google|kakao|apple)(?:\/|$)/.test(pathname)) {
-    return true;
-  }
-  if (/^\/parent\/login(?:\/|$)/.test(pathname)) return true;
+  if (isAuthenticationPath(pathname)) return true;
   if (/^\/(?:intro|visual-learning|learning-flow|curriculum|faq|terms|privacy)(?:\/|$)/.test(pathname)) {
     return true;
   }
@@ -95,14 +97,19 @@ function serviceHostRedirectLocation({
   environment = process.env,
 }) {
   if (String(environment.NODE_ENV || "") !== "production") return "";
-  if (!["GET", "HEAD"].includes(String(method || "GET").toUpperCase())) return "";
+
+  const requestMethod = String(method || "GET").toUpperCase();
+  const target = safeRequestTarget(originalUrl);
+  const pathname = pathnameOf(target);
+  const redirectableMethod =
+    ["GET", "HEAD"].includes(requestMethod) ||
+    (requestMethod === "POST" && isAuthenticationPath(pathname));
+  if (!redirectableMethod) return "";
 
   const hosts = serviceHosts(environment);
   const currentHost = cleanHost(hostname);
   if (!Object.values(hosts).includes(currentHost)) return "";
 
-  const target = safeRequestTarget(originalUrl);
-  const pathname = pathnameOf(target);
   const surface = isPublicPath(pathname) ? "public" : surfaceForPath(pathname);
   if (!surface || currentHost === hosts[surface]) return "";
   const origin = serviceOrigins(environment)[surface];
@@ -117,7 +124,9 @@ function serviceHostRouting(req, res, next) {
     originalUrl: req.originalUrl,
     environment,
   });
-  if (location) return res.redirect(308, location);
+  if (location) {
+    return res.redirect(req.method === "POST" ? 307 : 308, location);
+  }
 
   if (String(environment.NODE_ENV || "") !== "production") return next();
   if (pathnameOf(req.originalUrl) !== "/") return next();
@@ -140,6 +149,7 @@ module.exports = {
   DEFAULT_SERVICE_HOSTS,
   ROOT_PATH_BY_SURFACE,
   cleanHost,
+  isAuthenticationPath,
   serviceHostRedirectLocation,
   serviceHostRouting,
   serviceHosts,
