@@ -21,21 +21,33 @@
       : "/images/brand/matths-logo.svg";
   const matthsBrandCompact = typeof compact !== "undefined" && Boolean(compact);
   const matthsBrandCurrent = typeof current !== "undefined" && Boolean(current);
+  const matthsBrandThemeSwitchable =
+    typeof themeSwitchable !== "undefined" && Boolean(themeSwitchable);
 %>
 <a
-  class="matths-brand-lockup matths-brand-lockup--<%= matthsBrandTone %><%= matthsBrandCompact ? ' matths-brand-lockup--compact' : '' %><%= matthsBrandClassName %>"
+  class="matths-brand-lockup matths-brand-lockup--<%= matthsBrandTone %><%= matthsBrandCompact ? ' matths-brand-lockup--compact' : '' %><%= matthsBrandThemeSwitchable ? ' matths-brand-lockup--theme-switchable' : '' %><%= matthsBrandClassName %>"
   href="<%= matthsBrandHref %>"
   aria-label="<%= matthsBrandAriaLabel %>"
   <% if (matthsBrandCurrent) { %>aria-current="page"<% } %>
 >
   <img
-    class="brand-logo matths-brand-lockup__image"
+    class="brand-logo matths-brand-lockup__image matths-brand-lockup__image--dark"
     src="<%= matthsBrandLogoSrc %>"
     alt=""
     aria-hidden="true"
     width="132"
     height="41"
   />
+  <% if (matthsBrandThemeSwitchable) { %>
+    <img
+      class="brand-logo matths-brand-lockup__image matths-brand-lockup__image--light"
+      src="/images/brand/matths-logo-light.svg"
+      alt=""
+      aria-hidden="true"
+      width="132"
+      height="41"
+    />
+  <% } %>
   <% if (matthsBrandSuffix) { %>
     <span class="matths-brand-lockup__suffix"><%= matthsBrandSuffix %></span>
   <% } %>

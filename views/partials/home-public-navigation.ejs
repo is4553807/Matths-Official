@@ -17,13 +17,20 @@
           dashboardLabel: publicUser ? "대시보드" : "로그인",
           primaryHref: publicUser ? "/my-learning" : "/register",
           primaryLabel: publicUser ? "학습 계속하기" : "무료로 시작하기",
-          arenaHref: publicUser ? "/war-of-masters" : "/#goat-arena",
+          arenaHref: publicUser ? "/goat-arena" : "/#goat-arena",
         };
   const publicOrigin =
     typeof serviceUrls !== "undefined" && serviceUrls?.public
       ? String(serviceUrls.public).replace(/\/$/, "")
       : "";
   const publicPath = (path) => `${publicOrigin}${path}`;
+  const publicServicePath = (surface, path) => {
+    const origin =
+      typeof serviceUrls !== "undefined" && serviceUrls?.[surface]
+        ? String(serviceUrls[surface]).replace(/\/$/, "")
+        : "";
+    return `${origin}${path}`;
+  };
   const publicActivePage =
     typeof activePage === "string"
       ? activePage
@@ -50,6 +57,17 @@
       ],
     },
     {
+      id: "audience",
+      label: "이용하기",
+      items: [
+        ["student-service", publicServicePath("app", "/main"), "학생 페이지"],
+        ["academy-service", publicServicePath("academy", "/academy"), "학원 페이지"],
+        ["parent-service", publicServicePath("parents", "/parent"), "학부모 페이지"],
+        ["weekly-mock", publicServicePath("app", "/private-mock-exams"), "주간 모의고사"],
+        ["app-download", publicPath("/#app-download"), "모바일 앱 다운로드"],
+      ],
+    },
+    {
       id: "service",
       label: "서비스",
       items: [
@@ -68,10 +86,11 @@
 <header class="site-header">
   <nav class="navbar container" aria-label="주요 메뉴">
     <%- include("matths-brand", {
-      href: "/",
+      href: publicPath("/"),
       ariaLabel: "Matths 메인",
       className: "brand",
       current: publicActivePage === "home",
+      themeSwitchable: publicActivePage === "home",
     }) %>
 
     <div class="nav-links">
@@ -114,6 +133,20 @@
       <a class="button button-primary button-small" href="<%= publicStartHref %>">
         <%= publicStartLabel %>
       </a>
+      <% if (publicActivePage === "home") { %>
+        <button
+          class="home-theme-toggle"
+          type="button"
+          aria-label="다크 모드로 전환"
+          aria-pressed="false"
+          title="화면 모드 바꾸기"
+          data-home-theme-toggle
+        >
+          <svg class="home-theme-icon home-theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2v2.2M12 19.8V22M4.93 4.93l1.56 1.56M17.51 17.51l1.56 1.56M2 12h2.2M19.8 12H22M4.93 19.07l1.56-1.56M17.51 6.49l1.56-1.56"></path></svg>
+          <svg class="home-theme-icon home-theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.2 8.2 0 0 1 8.8 3.8 8.7 8.7 0 1 0 20.2 15.2Z"></path></svg>
+          <span class="sr-only" data-home-theme-label>다크 모드로 전환</span>
+        </button>
+      <% } %>
     </div>
 
     <details class="mobile-menu" data-public-mobile-menu>

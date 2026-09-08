@@ -57,7 +57,7 @@ async function main() {
     error: null,
     loginNotice: null,
     next: "/parent/payments",
-    oldInput: { email: "parent-id" },
+    oldInput: { email: "parent@example.com" },
     publicContactEmail: "support@example.invalid",
     serviceUrls,
     socialAuthProviders: [],
@@ -65,7 +65,10 @@ async function main() {
   });
   assert.ok(loginHtml.includes('href="https://www.matths.kr/"'));
   assert.ok(loginHtml.includes('action="https://www.matths.kr/login"'));
-  assert.ok(loginHtml.includes('name="identifier"'));
+  assert.ok(loginHtml.includes('type="email"'));
+  assert.ok(loginHtml.includes('name="email"'));
+  assert.ok(loginHtml.includes('value="parent@example.com"'));
+  assert.ok(!loginHtml.includes('name="identifier"'));
   assert.ok(loginHtml.includes('name="next" value="/parent/payments"'));
 
   console.log("공용 로그인·로고·역할별 메인 네비게이션 링크 검증 완료");

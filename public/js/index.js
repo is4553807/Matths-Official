@@ -1,4 +1,52 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const root = document.documentElement;
+  const themeToggle = document.querySelector("[data-home-theme-toggle]");
+  const themeLabel = document.querySelector("[data-home-theme-label]");
+  const themeStorageKey = "matths-home-theme";
+
+  const applyTheme = (theme, { persist = false } = {}) => {
+    const nextTheme = theme === "dark" ? "dark" : "light";
+    const darkMode = nextTheme === "dark";
+    const nextActionLabel = darkMode
+      ? "라이트 모드로 전환"
+      : "다크 모드로 전환";
+
+    root.dataset.homeTheme = nextTheme;
+    root.style.colorScheme = nextTheme;
+    if (themeToggle) {
+      themeToggle.setAttribute("aria-pressed", String(darkMode));
+      themeToggle.setAttribute("aria-label", nextActionLabel);
+      themeToggle.setAttribute("title", nextActionLabel);
+    }
+    if (themeLabel) themeLabel.textContent = nextActionLabel;
+
+    if (persist) {
+      try {
+        window.localStorage.setItem(themeStorageKey, nextTheme);
+      } catch (_error) {
+        // 저장소를 사용할 수 없는 브라우저에서도 현재 화면의 전환은 유지한다.
+      }
+    }
+  };
+
+  let initialTheme = "light";
+  try {
+    initialTheme =
+      window.localStorage.getItem(themeStorageKey) ||
+      (window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light");
+  } catch (_error) {
+    initialTheme = "light";
+  }
+  applyTheme(initialTheme);
+
+  themeToggle?.addEventListener("click", () => {
+    applyTheme(root.dataset.homeTheme === "dark" ? "light" : "dark", {
+      persist: true,
+    });
+  });
+
   const lessonWindow = document.querySelector(".lesson-window[data-current-step]");
 
   if (!lessonWindow) return;

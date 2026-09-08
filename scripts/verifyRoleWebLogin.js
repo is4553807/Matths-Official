@@ -168,11 +168,11 @@ async function main() {
     );
 
     const parentResponse = await postForm(origin, "/login", {
-      identifier: parent.username,
+      email: parent.email,
       password: parentPassword,
       next: "/parent",
     });
-    assert.equal(parentResponse.status, 302, "공용 로그인에서 학부모 아이디 로그인이 성공해야 합니다.");
+    assert.equal(parentResponse.status, 302, "공용 로그인에서 학부모 이메일 로그인이 성공해야 합니다.");
     assert.equal(parentResponse.headers.get("location"), "/parent");
     const parentSnapshot = await sessionView(origin, sessionCookie(parentResponse));
     assert.equal(parentSnapshot.userRole, null);

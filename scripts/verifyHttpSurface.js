@@ -93,7 +93,7 @@ async function main() {
         origin: "https://attacker.example",
         "sec-fetch-site": "cross-site",
       },
-      body: "identifier=test&password=test",
+      body: "email=test%40example.com&password=test",
     });
     assert.equal(rejected.status, 403);
 
@@ -232,7 +232,7 @@ async function verifyInProcess() {
             "cross-site",
         },
         body:
-          "identifier=test&password=test",
+          "email=test%40example.com&password=test",
       }
     );
   assert.equal(rejected.status, 403);

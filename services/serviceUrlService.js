@@ -92,7 +92,7 @@ function accountNavigation(session = {}, environment = process.env) {
     primaryHref,
     primaryLabel: "학습 계속하기",
     arenaHref: studentAccount
-      ? serviceUrl("app", "/war-of-masters", environment)
+      ? serviceUrl("app", "/goat-arena", environment)
       : dashboardHref,
   };
 }

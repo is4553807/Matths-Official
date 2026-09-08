@@ -6657,25 +6657,32 @@ function postLoginUrl(user, returnTo) {
 
 exports.login = async (req, res, next) => {
     try {
-        const identifier = String(
-            req.body.identifier ||
-                req.body.email ||
-                ""
+        const rawEmail = String(
+            req.body.email || ""
         ).trim();
-        const email = identifier.toLowerCase();
+        const email = rawEmail.toLowerCase();
 
         const password = String(req.body.password || "");
         const parentReturnTo = isSafeParentReturnPath(req.body.next)
             ? req.body.next
             : "";
 
-        if (!identifier || !password) {
+        if (!email || !password) {
             return res.status(400).render("login", {
-                error: "이메일 또는 학부모 아이디와 비밀번호를 모두 입력해주세요.",
+                error: "이메일과 비밀번호를 모두 입력해주세요.",
                 loginNotice: protectedPageLoginNotice(req),
                 oldInput: {
-                    email: identifier,
+                    email: rawEmail,
                 },
+                next: parentReturnTo,
+            });
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).render("login", {
+                error: "올바른 이메일 주소를 입력해주세요.",
+                loginNotice: protectedPageLoginNotice(req),
+                oldInput: { email: rawEmail },
                 next: parentReturnTo,
             });
         }
@@ -6693,10 +6700,7 @@ exports.login = async (req, res, next) => {
          * 어떤 이메일이 가입되어 있는지 외부에 노출하지 않기 위해서다.
          */
         const parentAccount = await ParentAccount.findOne({
-            $or: [
-                { email },
-                { usernameNormalized: email },
-            ],
+            email,
             isActive: true,
         })
             .select("+passwordHash")
@@ -6707,7 +6711,7 @@ exports.login = async (req, res, next) => {
                 error: "이메일 또는 비밀번호가 올바르지 않습니다.",
                 loginNotice: protectedPageLoginNotice(req),
                 oldInput: {
-                    email: identifier,
+                    email: rawEmail,
                 },
                 next: parentReturnTo,
             });
@@ -6731,7 +6735,7 @@ exports.login = async (req, res, next) => {
                 error: "이메일 또는 비밀번호가 올바르지 않습니다.",
                 loginNotice: protectedPageLoginNotice(req),
                 oldInput: {
-                    email: identifier,
+                    email: rawEmail,
                 },
                 next: parentReturnTo,
             });
@@ -6781,7 +6785,7 @@ exports.login = async (req, res, next) => {
                         ),
                     loginNotice: protectedPageLoginNotice(req),
                     oldInput: {
-                        email: identifier,
+                        email: rawEmail,
                     },
                     next: parentReturnTo,
                 }

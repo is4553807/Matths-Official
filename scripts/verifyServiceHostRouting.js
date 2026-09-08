@@ -76,15 +76,15 @@ assert.equal(surfaceForPath("/parent/payments"), "parents");
 assert.equal(serviceUrl("public", "/login", production), "https://www.matths.kr/login");
 
 for (const [session, expected] of [
-  [{}, ["guest", "로그인", "무료로 시작하기", "https://www.matths.kr/login", "https://www.matths.kr/register"]],
-  [{ user: { id: "student", role: "student" } }, ["student", "대시보드", "학습 계속하기", "https://app.matths.kr/main", "https://app.matths.kr/my-learning"]],
-  [{ user: { id: "teacher", role: "teacher" } }, ["teacher", "대시보드", "학습 계속하기", "https://academy.matths.kr/academy", "https://academy.matths.kr/academy"]],
-  [{ user: { id: "admin", role: "admin" } }, ["admin", "대시보드", "학습 계속하기", "https://admin.matths.kr/admin", "https://admin.matths.kr/admin"]],
-  [{ parent: { id: "parent" } }, ["parent", "대시보드", "학습 계속하기", "https://parents.matths.kr/parent", "https://parents.matths.kr/parent"]],
+  [{}, ["guest", "로그인", "무료로 시작하기", "https://www.matths.kr/login", "https://www.matths.kr/register", "https://www.matths.kr/#goat-arena"]],
+  [{ user: { id: "student", role: "student" } }, ["student", "대시보드", "학습 계속하기", "https://app.matths.kr/main", "https://app.matths.kr/my-learning", "https://app.matths.kr/goat-arena"]],
+  [{ user: { id: "teacher", role: "teacher" } }, ["teacher", "대시보드", "학습 계속하기", "https://academy.matths.kr/academy", "https://academy.matths.kr/academy", "https://academy.matths.kr/academy"]],
+  [{ user: { id: "admin", role: "admin" } }, ["admin", "대시보드", "학습 계속하기", "https://admin.matths.kr/admin", "https://admin.matths.kr/admin", "https://admin.matths.kr/admin"]],
+  [{ parent: { id: "parent" } }, ["parent", "대시보드", "학습 계속하기", "https://parents.matths.kr/parent", "https://parents.matths.kr/parent", "https://parents.matths.kr/parent"]],
 ]) {
   const navigation = accountNavigation(session, production);
   assert.deepEqual(
-    [navigation.role, navigation.dashboardLabel, navigation.primaryLabel, navigation.dashboardHref, navigation.primaryHref],
+    [navigation.role, navigation.dashboardLabel, navigation.primaryLabel, navigation.dashboardHref, navigation.primaryHref, navigation.arenaHref],
     expected
   );
 }
