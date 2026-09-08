@@ -263,6 +263,8 @@ function serializeMathMapConcept(concept) {
     status: String(concept.status || "UNKNOWN"),
     statusLabel: String(concept.statusLabel || "데이터 부족"),
     confidenceLabel: String(concept.confidenceLabel || "판단 전"),
+    prerequisiteCount: Array.isArray(concept.prerequisites) ? concept.prerequisites.length : 0,
+    unlockCount: Array.isArray(concept.unlocks) ? concept.unlocks.length : 0,
     evidence: {
       attemptCount: Number(concept.evidence?.attemptCount || 0),
       correctCount: Number(concept.evidence?.correctCount || 0),
@@ -273,6 +275,15 @@ function serializeMathMapConcept(concept) {
         ? null
         : Number(concept.evidence.averageResponseTimeMs),
       lastStudiedAt: concept.evidence?.lastStudiedAt || null,
+      lowDifficulty: concept.evidence?.lowDifficulty ? {
+        total: Number(concept.evidence.lowDifficulty.total || 0),
+        correct: Number(concept.evidence.lowDifficulty.correct || 0),
+      } : null,
+      highDifficulty: concept.evidence?.highDifficulty ? {
+        total: Number(concept.evidence.highDifficulty.total || 0),
+        correct: Number(concept.evidence.highDifficulty.correct || 0),
+      } : null,
+      problemTypeCount: Number(concept.evidence?.problemTypeCount || 0),
     },
   };
 }
@@ -289,7 +300,17 @@ function serializeStudentMathMap(mathMap) {
     unknownConceptCount: Number(mathMap?.unknownConceptCount || 0),
     topStrength: serializeHeadline(mathMap?.topStrength),
     topPriority: serializeHeadline(mathMap?.topPriority),
-    bottlenecks: (mathMap?.bottlenecks || []).slice(0, 5).map((item) => ({
+    recommendation: mathMap?.recommendation ? {
+      conceptTitle: String(mathMap.recommendation.conceptTitle || ""),
+      reasons: (mathMap.recommendation.reasons || []).map(String),
+      total: Number(mathMap.recommendation.problemMix?.total || 0),
+      diagnostic: mathMap.recommendation.problemMix?.diagnostic === true,
+      difficulties: (mathMap.recommendation.problemMix?.difficulties || []).map(item => ({
+        level: Number(item.level), count: Number(item.count),
+      })),
+      retryCount: Number(mathMap.recommendation.problemMix?.retryCount || 0),
+    } : null,
+    bottlenecks: (mathMap?.bottlenecks || []).map((item) => ({
       conceptId: String(item.conceptId || ""),
       conceptTitle: String(item.conceptTitle || ""),
       affectedConceptCount: Number(item.affectedConceptCount || item.affectedConcepts?.length || 0),
