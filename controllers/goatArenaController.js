@@ -2449,6 +2449,8 @@ exports.getGoatArenaMatches = async (req, res, next) => {
       userId: req.apiUser._id,
       cursor: req.query.cursor,
       limit: req.query.limit,
+      role: req.query.role,
+      actionable: req.query.actionable,
     });
     return res.json(result);
   } catch (error) {

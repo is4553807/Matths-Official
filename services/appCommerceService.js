@@ -7,6 +7,9 @@ const {
 const {
   getWeeklyMockExamAccess,
 } = require("./paidFeatureAccessService");
+const {
+  isAppleStoreConfigured,
+} = require("./appleStoreVerifyService");
 
 const HANDOFF_TTL_MS = 2 * 60 * 1000;
 const PRODUCT_ROUTES = Object.freeze({
@@ -66,7 +69,13 @@ async function getAppStorefront(userId, {
   ]);
   return {
     generatedAt: new Date().toISOString(),
-    checkoutEnabled: isPaidCheckoutAllowedForEmail(userEmail, environment),
+    // 이 응답은 네이티브 iOS StoreKit 화면의 정본이다. 웹 KG이니시스의
+    // PAID_CHECKOUT_ENABLED/리뷰 이메일 제한을 여기에 재사용하면 웹 결제를
+    // 닫는 순간 정상 App Store 상품의 구매 버튼까지 비활성화된다. 두 결제
+    // 경계를 분리하고, 네이티브는 Apple 거래 검증 경계의 준비 상태만 본다.
+    checkoutEnabled: isAppleStoreConfigured(environment),
+    appleCheckoutEnabled: isAppleStoreConfigured(environment),
+    webCheckoutEnabled: isPaidCheckoutAllowedForEmail(userEmail, environment),
     currency: "KRW",
     access: {
       packageType: access.packageType || null,
