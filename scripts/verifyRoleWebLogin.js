@@ -357,14 +357,23 @@ async function main() {
       parentId: String(parent._id),
     });
 
-    for (const [pathname, fields] of [
-      ["/student/login", { email: teacher.email, password: teacherPassword }],
-      ["/academy/login", { email: student.email, password: studentPassword }],
-      ["/parent/login", { email: student.email, password: studentPassword }],
-      ["/admin/login", { email: student.email, password: studentPassword }],
-    ]) {
-      const rejected = await postForm(origin, pathname, fields);
-      assert.equal(rejected.status, 401, `${pathname}은 다른 역할의 자격증명을 거부해야 합니다.`);
+    for (const pathname of ["/student/login", "/academy/login", "/parent/login", "/admin/login"]) {
+      for (const [account, secret, destination, role, type] of [
+        [student, studentPassword, "/main", "student", "student"],
+        [teacher, teacherPassword, "/academy", "teacher", "academy"],
+        [parent, parentPassword, "/parent", null, null],
+        [admin, adminPassword, "/admin", "admin", "admin"],
+      ]) {
+        const response = await postForm(origin, pathname, { email: account.email, password: secret, next: destination === "/main" ? "/admin/users" : "/main" });
+        assert.equal(response.status, 302, `${pathname} must authenticate an account independently of its role`);
+        assert.equal(response.headers.get("location"), destination);
+        const identity = await sessionView(origin, sessionCookie(response));
+        assert.equal(identity.userRole, role);
+        assert.equal(identity.userAccountType, type);
+        assert.equal(identity.parentId, role ? null : String(parent._id));
+        const wrong = await postForm(origin, pathname, { email: account.email, password: password() });
+        assert.equal(wrong.status, 401);
+      }
     }
 
     const newAcademyEmail = `academy-signup-${crypto.randomUUID()}@qa.invalid`;

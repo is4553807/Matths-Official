@@ -2,7 +2,9 @@
   const parentAccount = accountType === "parent";
   const selectedAccountType = parentAccount ? "parent" : "academy";
   const invitation = typeof registrationInvite !== "undefined" ? registrationInvite : null;
-  const input = oldInput || {};
+  const input = { ...(oldInput || {}) };
+  const verifiedSocial = typeof socialRegistration !== "undefined" ? socialRegistration : null;
+  if (verifiedSocial) { input.email = verifiedSocial.email; if (!input.displayName) input.displayName = verifiedSocial.displayName; }
   const flow = parentAccount ? "parent" : invitation || input.registrationFlow === "staff" ? "staff" : "new";
   const action = typeof registrationAction !== "undefined" && registrationAction ? registrationAction : parentAccount ? "/parent/register" : "/academy/register";
   const config = selectedAccountType === "parent"
@@ -86,6 +88,7 @@
           <% if (!parentAccount) { %><nav class="portal-paths" aria-label="학원 가입 경로"><a href="/academy/register" data-registration-path="new" class="<%= flow === 'new' ? 'is-selected' : '' %>"><strong>새 학원 등록</strong><span>원장·대표 담당자</span></a><a href="/academy/register?path=staff" data-registration-path="staff" class="<%= flow === 'staff' ? 'is-selected' : '' %>"><strong>초대받은 교사</strong><span>기존 학원에 합류</span></a></nav><% } %>
           <ol class="portal-progress" aria-label="가입 단계" data-registration-progress hidden></ol>
           <% if (error) { %><div class="form-alert" role="alert"><span aria-hidden="true">!</span><p><%= error %></p></div><% } %>
+          <% if (verifiedSocial) { %><p class="portal-note"><%= verifiedSocial.providerLabel %> 인증 완료 · 아래 가입 정보와 동의를 확인해 주세요.</p><% } else { %><%- include("partials/social-auth-buttons", { accountType: selectedAccountType, socialAuthProviders: typeof socialAuthProviders !== "undefined" ? socialAuthProviders : [], inviteToken: invitation?.token || "", registrationFlow: flow, next: "" }) %><% } %>
           <p class="portal-step-status" data-step-status role="status" aria-live="polite" hidden></p>
           <form class="auth-form" method="post" action="<%= action %>" data-register-form data-portal-form>
             <input type="hidden" name="registrationFlow" value="<%= flow %>" />
@@ -93,9 +96,9 @@
             <fieldset class="portal-stage" data-registration-stage="account">
               <legend tabindex="-1"><%= parentAccount ? '학부모 계정 만들기' : '담당자 계정' %></legend>
               <div class="form-field"><label for="displayName"><%= parentAccount ? '학부모 이름' : '담당자 이름' %></label><input id="displayName" name="displayName" value="<%= input.displayName || '' %>" minlength="2" maxlength="<%= parentAccount ? 30 : 40 %>" autocomplete="name" placeholder="실명" required /></div>
-              <div class="form-field"><label for="email">로그인 이메일</label><input id="email" name="email" type="email" value="<%= invitation ? invitation.email : input.email || '' %>" maxlength="254" autocomplete="email" inputmode="email" autocapitalize="none" <%= invitation ? 'readonly' : '' %> required /><small class="field-guide"><%= invitation ? '초대받은 이메일로 고정됩니다.' : parentAccount ? '자녀가 초대를 보낼 이메일과 같은 주소를 사용하세요.' : '신청·승인 안내를 받을 이메일입니다.' %></small></div>
-              <div class="form-field"><label for="password">비밀번호</label><div class="password-field"><input id="password" name="password" type="password" minlength="8" autocomplete="new-password" required /><button type="button" data-password-toggle="password" aria-label="비밀번호 표시" aria-pressed="false">보기</button></div><small class="field-guide">영문과 숫자를 포함해 8자 이상 입력해 주세요.</small></div>
-              <div class="form-field"><label for="passwordConfirm">비밀번호 확인</label><div class="password-field"><input id="passwordConfirm" name="passwordConfirm" type="password" minlength="8" autocomplete="new-password" required /><button type="button" data-password-toggle="passwordConfirm" aria-label="비밀번호 확인 표시" aria-pressed="false">보기</button></div><small class="field-guide" id="password-match"></small></div>
+              <div class="form-field"><label for="email">로그인 이메일</label><input id="email" name="email" type="email" value="<%= verifiedSocial ? verifiedSocial.email : invitation ? invitation.email : input.email || '' %>" maxlength="254" autocomplete="email" inputmode="email" autocapitalize="none" <%= invitation || verifiedSocial ? 'readonly' : '' %> required /><small class="field-guide"><%= verifiedSocial ? '소셜 계정에서 인증한 이메일입니다.' : invitation ? '초대받은 이메일로 고정됩니다.' : parentAccount ? '자녀가 초대를 보낼 이메일과 같은 주소를 사용하세요.' : '신청·승인 안내를 받을 이메일입니다.' %></small></div>
+              <% if (!verifiedSocial) { %><div class="form-field"><label for="password">비밀번호</label><div class="password-field"><input id="password" name="password" type="password" minlength="8" autocomplete="new-password" required /><button type="button" data-password-toggle="password" aria-label="비밀번호 표시" aria-pressed="false">보기</button></div><small class="field-guide">영문과 숫자를 포함해 8자 이상 입력해 주세요.</small></div>
+              <div class="form-field"><label for="passwordConfirm">비밀번호 확인</label><div class="password-field"><input id="passwordConfirm" name="passwordConfirm" type="password" minlength="8" autocomplete="new-password" required /><button type="button" data-password-toggle="passwordConfirm" aria-label="비밀번호 확인 표시" aria-pressed="false">보기</button></div><small class="field-guide" id="password-match"></small></div><% } %>
               <% if (parentAccount) { %><label class="check-field terms-field"><input type="checkbox" name="termsAccepted" value="1" <%= input.termsAccepted ? 'checked' : '' %> required /><span aria-hidden="true"></span><em>[필수] <a href="/terms" target="_blank" rel="noopener">이용약관</a>과 <a href="/privacy" target="_blank" rel="noopener">개인정보처리방침</a>에 동의합니다.</em></label><% } %>
             </fieldset>
             <% if (!parentAccount) { %>

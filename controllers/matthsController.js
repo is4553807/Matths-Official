@@ -690,6 +690,10 @@ exports.registerPage = (
     const socialRegistration =
       getPendingSocialRegistration(req);
 
+    if (socialRegistration && socialRegistration.accountType !== "student") {
+      return res.redirect(require("../services/portalSocialAuthService").registrationUrl(socialRegistration));
+    }
+
     return res.render("register", {
       schoolRegions,
       universities: getUniversitySelectData(),
@@ -715,6 +719,9 @@ exports.registerPage = (
 
 exports.socialOAuthStart = async (req, res) => {
   try {
+    const accountType = ["academy", "parent"].includes(req.query.accountType) ? req.query.accountType : "student";
+    req.socialOAuthAccountType = accountType;
+    res.set("Referrer-Policy", "no-referrer");
     const authorizationUrl = beginSocialAuthorization(
       req,
       req.params.provider,
@@ -725,6 +732,10 @@ exports.socialOAuthStart = async (req, res) => {
         codeChallenge:
           req.socialOAuthCodeChallenge ||
           null,
+        accountType,
+        next: typeof req.query.next === "string" ? req.query.next : req.session?.returnTo,
+        inviteToken: typeof req.query.invite === "string" ? req.query.invite : "",
+        registrationFlow: req.query.path === "staff" ? "staff" : "new",
       }
     );
     // OAuth state를 공급자 페이지로 이동하기 전에 확실히 저장한다.
@@ -869,7 +880,8 @@ async function redirectSocialAuthError(
   req.session.socialOAuthError =
     message;
   await saveSession(req);
-  return res.redirect(serviceUrl("public", "/student/login"));
+  const accountType = ["academy", "parent"].includes(req.socialOAuthAccountType) ? req.socialOAuthAccountType : "student";
+  return res.redirect(serviceUrl(accountType === "parent" ? "parents" : accountType === "academy" ? "academy" : "public", `/${accountType}/login`));
 }
 
 async function finishSocialLogin(
@@ -880,7 +892,7 @@ async function finishSocialLogin(
   codeChallenge = null,
   provider = "google"
 ) {
-  if (!["student", "test"].includes(String(user?.role || "student"))) {
+  if (mobile && !["student", "test"].includes(String(user?.role || "student"))) {
     const error = new Error("학생 계정은 학생 로그인에서만 이용할 수 있습니다.");
     error.code = "SOCIAL_AUTH_STUDENT_ACCOUNT_REQUIRED";
     throw error;
@@ -907,6 +919,7 @@ async function finishSocialLogin(
 }
 
 exports.socialOAuthCallback = async (req, res) => {
+  req.socialOAuthAccountType = req.session?.socialOAuthState?.context?.accountType;
   let mobile =
     req.session
       ?.socialOAuthState
@@ -956,6 +969,22 @@ exports.socialOAuthCallback = async (req, res) => {
       const url = mobileCallbackURL(profile.provider, true);
       url.searchParams.set("code", proof);
       return res.redirect(url.toString());
+    }
+
+    if (!mobile) {
+      const { resolveWebSocialAccount, registrationUrl } = require("../services/portalSocialAuthService");
+      const { establishWebSession, loginDestination } = require("../services/webLoginService");
+      const account = await resolveWebSocialAccount(profile);
+      if (account) {
+        const destination = loginDestination(account, context.next || req.session?.returnTo);
+        clearPendingSocialRegistration(req);
+        await establishWebSession(req, account);
+        return res.redirect(destination);
+      }
+      setPendingSocialRegistration(req, profile, context);
+      await saveSession(req);
+      const type = context.accountType || "student";
+      return res.redirect(serviceUrl(type === "parent" ? "parents" : type === "academy" ? "academy" : "public", registrationUrl(req.session.pendingSocialRegistration)));
     }
 
     const [providerUser, emailUser, parentAccount] = await Promise.all([
@@ -3817,6 +3846,10 @@ exports.adminAuditLogPage = async (req, res, next) => {
 exports.adminUserDetailPage =
   async (req, res, next) => {
     try {
+      const [detail, weeklyMockInsights] = await Promise.all([
+        getAdminUserDetail(req.params.userId),
+        getWeeklyMockInsights({ studentUserIds: [req.params.userId], scopeLabel: "개별 유저" }),
+      ]);
       res.set(
         "Cache-Control",
         "no-store"
@@ -3826,10 +3859,8 @@ exports.adminUserDetailPage =
         {
           user:
             req.session.user,
-          detail:
-            await getAdminUserDetail(
-              req.params.userId
-            ),
+          detail,
+          weeklyMockInsights,
           feedback:
             adminFeedbackFromQuery(
               req.query
@@ -5917,73 +5948,17 @@ function renderRegisterError(res, status, error, oldInput = {}) {
 }
 
 function createLoginSession(req, user) {
-    return new Promise((resolve, reject) => {
-        req.session.regenerate((regenerateError) => {
-            if (regenerateError) {
-                return reject(regenerateError);
-            }
-
-            req.session.user = {
-                id: user._id.toString(),
-                name: user.name,
-                realName: user.realName || "",
-                email: user.email,
-                loginAt:
-                    user.lastLoginAt ||
-                    new Date(),
-                role: user.role || "student",
-                accountType: "student",
-                tokenVersion:
-                    Number(user.tokenVersion) || 0,
-                schoolGrade: user.schoolGrade,
-                educationStatus:
-                    user.educationStatus ||
-                    ([13, 15].includes(Number(user.schoolGrade))
-                        ? "graduated"
-                        : "enrolled"),
-                ...lifecycleSessionView(user),
-                preferences: {
-                    coachMode:
-                        user.preferences
-                            ?.coachMode ||
-                        "mild",
-                    rankingDisplayMode: "nickname",
-                },
-
-                school: user.school?.code
-                    ? {
-                          region: user.school.region,
-                          code: user.school.code,
-                          name: user.school.name,
-                          isOverseas: user.school.isOverseas === true,
-                      }
-                    : null,
-                university: user.university?.code
-                    ? {
-                          code: user.university.code,
-                          name: user.university.name,
-                          campus: user.university.campus,
-                          region: user.university.region,
-                          isOverseas: user.university.isOverseas === true,
-                      }
-                    : null,
-            };
-
-            req.session.save((saveError) => {
-                if (saveError) {
-                    return reject(saveError);
-                }
-
-                resolve();
-            });
-        });
-    });
+  return require("../services/webLoginService").establishWebSession(req, { kind: "user", user });
 }
 
 exports.register = async (req, res, next) => {
     try {
         const socialRegistration =
           getPendingSocialRegistration(req);
+
+        if (socialRegistration && socialRegistration.accountType !== "student") {
+          return res.redirect(require("../services/portalSocialAuthService").registrationUrl(socialRegistration));
+        }
         res.locals.socialRegistration =
           socialRegistration;
         const realNameValidation = validateRealName(
@@ -6625,12 +6600,6 @@ function isSafeStudentReturnPath(returnTo) {
     );
 }
 
-function isSafeParentReturnPath(returnTo) {
-    if (!isSafeReturnPath(returnTo)) return false;
-    const pathname = String(returnTo).split(/[?#]/, 1)[0];
-    return pathname === "/parent" || pathname.startsWith("/parent/");
-}
-
 function isSafeAdminReturnPath(returnTo) {
     if (!isSafeReturnPath(returnTo)) return false;
     const pathname = String(returnTo).split(/[?#]/, 1)[0];
@@ -6642,228 +6611,24 @@ function isSafeAdminReturnPath(returnTo) {
     );
 }
 
-function isSafeTeacherReturnPath(returnTo) {
-    if (!isSafeReturnPath(returnTo)) return false;
-    const pathname = String(returnTo).split(/[?#]/, 1)[0];
-    return pathname === "/academy" || pathname.startsWith("/academy/");
-}
-
-function studentReturnUrl(returnTo) {
-    const pathname = String(returnTo || "").split(/[?#]/, 1)[0];
-    const publicStudentPaths = ["/community", "/contact"];
-    const surface = /^\/academy\/join\/[^/]+$/.test(pathname)
-        ? "academy"
-        : publicStudentPaths.some(
-              (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-          )
-          ? "public"
-          : "app";
-    return serviceUrl(surface, returnTo);
-}
-
 function postLoginUrl(user, returnTo) {
-    if (user?.role === "admin") {
-        return serviceUrl(
-            "admin",
-            isSafeAdminReturnPath(returnTo) ? returnTo : "/admin"
-        );
-    }
-    if (user?.role === "teacher") {
-        return serviceUrl(
-            "academy",
-            isSafeTeacherReturnPath(returnTo) ? returnTo : "/academy"
-        );
-    }
-    return isSafeStudentReturnPath(returnTo)
-        ? studentReturnUrl(returnTo)
-        : serviceUrl("app", "/main");
+    return require("../services/webLoginService").loginDestination({ kind: "user", user }, returnTo);
 }
 
 exports.login = async (req, res, next) => {
-    try {
-        const accountType = req.authAccountType === "admin" ? "admin" : "student";
-        const allowedRoles = accountType === "admin"
-            ? ["admin"]
-            : ["student", "test"];
-        const rawEmail = String(
-            req.body.email || ""
-        ).trim();
-        const email = rawEmail.toLowerCase();
-
-        const password = String(req.body.password || "");
-        const loginReturnTo = accountType === "admin" && isSafeAdminReturnPath(req.body.next)
-            ? req.body.next
-            : "";
-
-        if (!email || !password) {
-            return res.status(400).render("login", {
-                accountType,
-                error: "이메일과 비밀번호를 모두 입력해주세요.",
-                loginNotice: protectedPageLoginNotice(req),
-                oldInput: {
-                    email: rawEmail,
-                },
-                next: loginReturnTo,
-                socialAuthProviders: accountType === "student" ? publicProviderStatus() : [],
-            });
-        }
-
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            return res.status(400).render("login", {
-                accountType,
-                error: "올바른 이메일 주소를 입력해주세요.",
-                loginNotice: protectedPageLoginNotice(req),
-                oldInput: { email: rawEmail },
-                next: loginReturnTo,
-                socialAuthProviders: accountType === "student" ? publicProviderStatus() : [],
-            });
-        }
-
-        /*
-         * passwordHash가 Schema에서 select: false라면
-         * 반드시 select("+passwordHash")를 사용해야 한다.
-         */
-        let user = await User.findOne({ email, role: { $in: allowedRoles } })
-            .select("+passwordHash")
-            .lean();
-
-        /*
-         * 이메일 존재 여부와 비밀번호 오류를 같은 문구로 처리한다.
-         * 어떤 이메일이 가입되어 있는지 외부에 노출하지 않기 위해서다.
-         */
-        if (!user) {
-            return res.status(401).render("login", {
-                accountType,
-                error: "이메일 또는 비밀번호가 올바르지 않습니다.",
-                loginNotice: protectedPageLoginNotice(req),
-                oldInput: {
-                    email: rawEmail,
-                },
-                next: loginReturnTo,
-                socialAuthProviders: accountType === "student" ? publicProviderStatus() : [],
-            });
-        }
-
-        const userPasswordMatched = await bcrypt.compare(
-            password,
-            user.passwordHash || ""
-        );
-
-        if (!userPasswordMatched) {
-            return res.status(401).render("login", {
-                accountType,
-                error: "이메일 또는 비밀번호가 올바르지 않습니다.",
-                loginNotice: protectedPageLoginNotice(req),
-                oldInput: {
-                    email: rawEmail,
-                },
-                next: loginReturnTo,
-                socialAuthProviders: accountType === "student" ? publicProviderStatus() : [],
-            });
-        }
-
-        const access =
-            await synchronizeAccountAccess(
-                user._id
-            );
-
-        if (
-            !access ||
-            !access.allowed
-        ) {
-            return res.status(403).render(
-                "login",
-                {
-                    accountType,
-                    error:
-                        accountBlockedMessage(
-                            access?.status,
-                            access?.user
-                                ?.accountStatusReason
-                        ),
-                    loginNotice: protectedPageLoginNotice(req),
-                    oldInput: {
-                        email: rawEmail,
-                    },
-                    next: loginReturnTo,
-                    socialAuthProviders: accountType === "student" ? publicProviderStatus() : [],
-                }
-            );
-        }
-
-        const synchronizedUser =
-            await synchronizeUserLifecycle(
-                access.user._id
-            );
-        const loginAt = new Date();
-        synchronizedUser.lastLoginAt =
-            loginAt;
-        await synchronizedUser.save();
-        user =
-            synchronizedUser.toObject();
-
-        /*
-         * 로그인 전에 사용자가 접근하려던 주소를 보관한다.
-         * regenerate하면 기존 session 데이터가 사라지므로 먼저 꺼내야 한다.
-         */
-        const returnTo = req.session.returnTo;
-
-        /*
-         * 로그인 성공 시 Session ID를 새로 발급해서
-         * 세션 고정 공격을 방지한다.
-         */
-        await regenerateSession(req);
-
-        req.session.user = {
-            id: user._id.toString(),
-            name: user.name,
-            realName: user.realName || "",
-            email: user.email,
-            loginAt,
-            role: user.role || "student",
-            accountType,
-            tokenVersion:
-                Number(user.tokenVersion) || 0,
-            schoolGrade: user.schoolGrade,
-            educationStatus:
-                user.educationStatus ||
-                ([13, 15].includes(Number(user.schoolGrade))
-                    ? "graduated"
-                    : "enrolled"),
-            ...lifecycleSessionView(user),
-            preferences: {
-                coachMode:
-                    user.preferences
-                        ?.coachMode ||
-                    "mild",
-                rankingDisplayMode: "nickname",
-            },
-
-            school: user.school?.code
-                ? {
-                      region: user.school.region,
-                      code: user.school.code,
-                      name: user.school.name,
-                      isOverseas: user.school.isOverseas === true,
-                  }
-                : null,
-            university: user.university?.code
-                ? {
-                      code: user.university.code,
-                      name: user.university.name,
-                      campus: user.university.campus,
-                      region: user.university.region,
-                      isOverseas: user.university.isOverseas === true,
-                  }
-                : null,
-        };
-
-        await saveSession(req);
-
-        return res.redirect(postLoginUrl(user, returnTo));
-    } catch (error) {
-        return next(error);
+  try {
+    return res.redirect(await require("../services/webLoginService").loginWebAccount(req));
+  } catch (error) {
+    if ([400, 401, 403].includes(Number(error.status))) {
+      const accountType = req.authAccountType === "admin" ? "admin" : "student";
+      return res.status(error.status).render("login", {
+        accountType, error: error.message, loginNotice: protectedPageLoginNotice(req),
+        oldInput: { email: String(req.body.email || "") }, next: "",
+        socialAuthProviders: accountType === "admin" ? [] : publicProviderStatus(),
+      });
     }
+    return next(error);
+  }
 };
 
 exports.logout = (req, res, next) => {

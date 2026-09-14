@@ -11,7 +11,7 @@ const ACCOUNT_STATUS_LABELS = {
 const ACCOUNT_ACCESS_SELECT = [
   "name realName email role teacherAccessExpiresAt",
   "tokenVersion school schoolGrade educationStatus university preferences",
-  "currentStreak lastStudyDate totalConnectedSeconds",
+  "currentStreak longestStreak lastStudyDate totalConnectedSeconds",
   "isActive accountStatus accountStatusReason accountStatusChangedAt suspendedUntil",
 ].join(" ");
 

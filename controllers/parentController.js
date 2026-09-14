@@ -1,5 +1,4 @@
 const { randomUUID } = require("node:crypto");
-const bcrypt = require("bcrypt");
 const { ParentAccount } = require("../models/parentModel");
 const {
   acceptParentInvite,
@@ -31,6 +30,8 @@ const {
 const { serviceUrl } = require("../services/serviceUrlService");
 const { registerParentAccount } = require("../services/parentAccountService");
 const { accepted, inviteTokenFrom, validateChildConsent } = require("../services/portalRegistrationValidation");
+const { clearPendingSocialRegistration, getPendingSocialRegistration, publicProviderStatus } = require("../services/socialAuthService");
+const { pendingForPortal, registrationUrl } = require("../services/portalSocialAuthService");
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -68,6 +69,7 @@ async function renderInvite(req, res, { status = 200, error = "", oldInput = {} 
     error,
     registrationInvite: { token: req.params.token, email: invite.parentEmail, name: invite.childUserId.realName || invite.childUserId.name, productCode: invite.productCode, expiresAt: invite.expiresAt },
     registrationAction: `/parent/invite/${req.params.token}`,
+    socialRegistration: pendingForPortal(req, "parent"),
     disablePageAnalytics: true,
     oldInput: { displayName: String(oldInput.displayName || oldInput.username || ""), email: invite.parentEmail, termsAccepted: accepted(oldInput.termsAccepted), relationship: String(oldInput.relationship || ""), linkConsent: accepted(oldInput.linkConsent) },
   }));
@@ -137,7 +139,9 @@ exports.completeInviteSignup = async (req, res, next) => {
       termsAccepted: req.body.termsAccepted,
       relationship: req.body.relationship,
       linkConsent: req.body.linkConsent,
+      socialProfile: pendingForPortal(req, "parent"),
     });
+    clearPendingSocialRegistration(req);
     await regenerateSession(req);
     req.session.parent = parentSession(parent);
     await saveSession(req);
@@ -155,17 +159,19 @@ exports.completeInviteSignup = async (req, res, next) => {
 };
 
 function parentLoginLocals(req, overrides = {}) {
+  const socialError = req.session?.socialOAuthError;
+  if (req.session) delete req.session.socialOAuthError;
   return {
     accountType: "parent",
     disablePageAnalytics: /^\/parent\/invite\//.test(String(req.query.next || req.body?.next || "")),
-    error: null,
+    error: socialError || null,
     success: req.query.registered === "1"
       ? "학부모 계정이 생성되었습니다. 로그인해주세요."
       : null,
     loginNotice: null,
     oldInput: { email: "" },
     next: safeNext(req.query.next),
-    socialAuthProviders: [],
+    socialAuthProviders: require("../services/socialAuthService").publicProviderStatus(),
     ...overrides,
   };
 }
@@ -174,35 +180,9 @@ exports.loginPage = (req, res) => { res.set("Referrer-Policy", "no-referrer"); r
 
 exports.login = async (req, res, next) => {
   try {
-    const rawEmail = String(req.body.email || "").trim();
-    const email = rawEmail.toLowerCase();
-    const password = String(req.body.password || "");
-    const parent = await ParentAccount.findOne({ email }).select("+passwordHash");
-    const matched = parent
-      ? await bcrypt.compare(password, parent.passwordHash || "")
-      : false;
-    if (!parent || !matched) {
-      return res.status(401).render("login", parentLoginLocals(req, {
-        error: "이메일 또는 비밀번호가 올바르지 않습니다.",
-        oldInput: { email: rawEmail },
-        next: safeNext(req.body.next),
-      }));
-    }
-    if (parent.isActive === false) {
-      return res.status(403).render("login", parentLoginLocals(req, {
-        error: "이용이 중지된 학부모 계정입니다.",
-        oldInput: { email: rawEmail },
-        next: safeNext(req.body.next),
-      }));
-    }
-    parent.lastLoginAt = new Date();
-    await parent.save();
-    const destination = safeNext(req.body.next);
-    await regenerateSession(req);
-    req.session.parent = parentSession(parent);
-    await saveSession(req);
-    return res.redirect(serviceUrl("parents", destination));
+    return res.redirect(await require("../services/webLoginService").loginWebAccount(req));
   } catch (error) {
+    if ([400, 401, 403].includes(Number(error.status))) return res.status(error.status).render("login", parentLoginLocals(req, { error: error.message, oldInput: { email: String(req.body.email || "") }, next: safeNext(req.body.next) }));
     return next(error);
   }
 };
@@ -214,19 +194,23 @@ function parentRegistrationLocals(overrides = {}) {
     oldInput: { displayName: "", email: "" },
     registrationInvite: null,
     registrationAction: null,
+    socialAuthProviders: publicProviderStatus(),
+    socialRegistration: null,
     ...overrides,
   };
 }
 
 exports.registerPage = async (req, res, next) => {
   try {
+    const pending = getPendingSocialRegistration(req);
+    if (pending && (pending.accountType !== "parent" || pending.inviteToken && req.query.invite !== pending.inviteToken)) return res.redirect(registrationUrl(pending));
     res.set("Cache-Control", "no-store");
     res.set("Referrer-Policy", "no-referrer");
     if (req.query.invite) {
       const token = inviteTokenFrom(req.query.invite, "/parent/invite/");
       return res.redirect(`/parent/invite/${token}`);
     }
-    return res.render("portal-register", parentRegistrationLocals());
+    return res.render("portal-register", parentRegistrationLocals({ socialRegistration: pendingForPortal(req, "parent") }));
   } catch (error) { return next(error); }
 };
 
@@ -241,7 +225,8 @@ exports.lookupRegistrationInvite = async (req, res) => {
 
 exports.register = async (req, res, next) => {
   try {
-    const parent = await registerParentAccount({ displayName: req.body.displayName, email: req.body.email, password: req.body.password, passwordConfirm: req.body.passwordConfirm, termsAccepted: req.body.termsAccepted, inviteToken: req.body.inviteToken || req.body.inviteLink, relationship: req.body.relationship, linkConsent: req.body.linkConsent });
+    const parent = await registerParentAccount({ displayName: req.body.displayName, email: req.body.email, password: req.body.password, passwordConfirm: req.body.passwordConfirm, termsAccepted: req.body.termsAccepted, inviteToken: req.body.inviteToken || req.body.inviteLink, relationship: req.body.relationship, linkConsent: req.body.linkConsent, socialProfile: pendingForPortal(req, "parent") });
+    clearPendingSocialRegistration(req);
     await regenerateSession(req);
     req.session.parent = parentSession(parent);
     await saveSession(req);
@@ -253,6 +238,7 @@ exports.register = async (req, res, next) => {
         parentRegistrationLocals({
           error: Number(error.code) === 11000 ? "이미 사용 중인 이메일입니다." : error.message,
           disablePageAnalytics: Boolean(req.body.inviteToken || req.body.inviteLink),
+          socialRegistration: pendingForPortal(req, "parent"),
           oldInput: {
             displayName: String(req.body.displayName || ""),
             email: String(req.body.email || ""),

@@ -30,6 +30,18 @@
     function stageFor(key) { return stages.find(stage => stage.dataset.registrationStage === key); }
     function showError(message) { errorMessage.textContent = message; errorMessage.hidden = !message; }
 
+    function updateSocialLinks() {
+      root.querySelectorAll("[data-social-provider]").forEach(link => {
+        const href = link.getAttribute("href");
+        if (!href || href === "#") return;
+        const [pathname, query = ""] = href.split("?");
+        const params = new URLSearchParams(query);
+        if (!parent && flowInput.value === "staff") params.set("path", "staff"); else params.delete("path");
+        if (invitation?.token) params.set("invite", invitation.token); else params.delete("invite");
+        link.setAttribute("href", `${pathname}${params.size ? "?" + params : ""}`);
+      });
+    }
+
     function updateChildConsent() {
       if (!parent) return;
       const container = form.querySelector("[data-child-consent]");
@@ -71,11 +83,13 @@
       status.hidden = false; status.textContent = `${step + 1} / ${sequence.length} 단계 · ${labels[sequence[step]]}`;
       if (sequence[step] === "review") renderReview();
       updateChildConsent();
+      updateSocialLinks();
       if (focus) stageFor(sequence[step]).querySelector("legend").focus();
     }
 
     function checkPasswords() {
       const password = form.elements.namedItem("password"), confirm = form.elements.namedItem("passwordConfirm");
+      if (!password || !confirm) return;
       const secret = password.value;
       password.setCustomValidity(secret && (secret.length < 8 || !/[A-Za-z]/.test(secret) || !/\d/.test(secret)) ? "영문과 숫자를 포함해 8자 이상 입력해 주세요." : secret && new TextEncoder().encode(secret).length > 72 ? "비밀번호는 UTF-8 기준 72바이트 이하로 입력해 주세요." : "");
       confirm.setCustomValidity(confirm.value && secret !== confirm.value ? "비밀번호가 일치하지 않습니다." : "");
@@ -110,8 +124,8 @@
     }
     next.addEventListener("click", advance);
     back.addEventListener("click", () => { step = Math.max(0, step - 1); render(true); });
-    form.elements.namedItem("password").addEventListener("input", checkPasswords);
-    form.elements.namedItem("passwordConfirm").addEventListener("input", checkPasswords);
+    form.elements.namedItem("password")?.addEventListener("input", checkPasswords);
+    form.elements.namedItem("passwordConfirm")?.addEventListener("input", checkPasswords);
 
     function clearInvitation() {
       requestVersion++; invitation = null; tokenInput.value = ""; preview.hidden = true; showError(""); updateChildConsent();

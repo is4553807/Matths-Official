@@ -133,6 +133,7 @@
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
     <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/weekly-mock-insights.css" />
   </head>
   <body class="admin-page">
     <%- include("partials/admin-navigation", { activePage: "users" }) %>
@@ -275,6 +276,13 @@
           <% } %>
         </section>
       <% } %>
+
+      <%- include("partials/weekly-mock-heatmap", {
+        insight: typeof weeklyMockInsights !== "undefined" ? weeklyMockInsights : null,
+        title: "주간 모의고사 개념 강·약점",
+        eyebrow: "운영자 전용 · 개별 유저 분석",
+        showAllConcepts: true,
+      }) %>
 
       <% if (!isAdminProfile) {
         const arenaConceptInsights = detail.arenaConceptInsights || {};

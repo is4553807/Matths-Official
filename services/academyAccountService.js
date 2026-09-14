@@ -120,9 +120,10 @@ async function registerAcademyAccount({
   authorityConfirmed,
   registrationFlow = "new",
   inviteToken,
+  socialProfile = null,
 }) {
   if (!["new", "staff"].includes(registrationFlow)) throw statusError(400, "학원 가입 경로를 다시 선택해주세요.");
-  const credentials = validateAccount({ displayName, email, password, passwordConfirm, termsAccepted }, { nameLabel: "담당자 이름" });
+  const credentials = validateAccount(require("./portalSocialAuthService").socialCredentials({ displayName, email, password, passwordConfirm, termsAccepted }, socialProfile), { nameLabel: "담당자 이름" });
   const teacherName = credentials.displayName;
   const cleanEmail = credentials.email;
   const secret = credentials.password;
@@ -161,6 +162,7 @@ async function registerAcademyAccount({
       privacyVersion: "2026-08-13",
       lastLoginAt: now,
       teacherAccessExpiresAt: invited ? invited.academy.contractEndsAt : null,
+      ...(socialProfile ? { [require("./socialAuthService").socialIdPath(socialProfile.provider)]: socialProfile.providerUserId, emailVerifiedAt: now } : {}),
     });
     account = await AcademyAccount.create({
       teacherUserId: teacher._id,

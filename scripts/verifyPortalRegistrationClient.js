@@ -12,6 +12,7 @@ class Node {
   addEventListener(event, callback) { (this.listeners[event] ||= []).push(callback); }
   async dispatch(type) { const event = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }; for (const callback of this.listeners[type] || []) await callback(event); return event; }
   setAttribute(key, value) { this.attrs[key] = value; }
+  getAttribute(key) { return this.attrs[key] || null; }
   replaceChildren(...nodes) { this.children = nodes; }
   append(...nodes) { this.children.push(...nodes); }
   focus() { this.focused = true; }
@@ -21,7 +22,7 @@ class Node {
   reportValidity() { this.focus(); return this.checkValidity(); }
 }
 
-function fixture({ parent = false, locked = false } = {}) {
+function fixture({ parent = false, locked = false, social = false } = {}) {
   const nodes = {}, controls = {};
   const root = new Node({ dataset: { accountType: parent ? "parent" : "academy", invitationLocked: String(locked) } });
   const form = new Node(); let submitted = 0;
@@ -33,8 +34,10 @@ function fixture({ parent = false, locked = false } = {}) {
   control("inviteToken", { value: locked ? "unit-token" : "" });
   control("displayName", { value: "단위 테스트", required: true });
   control("email", { value: "fixture@qa.invalid", required: true });
-  control("password", { value: "UnitFixture123", required: true });
-  control("passwordConfirm", { value: "UnitFixture123", required: true });
+  if (!social) {
+    control("password", { value: "UnitFixture123", required: true });
+    control("passwordConfirm", { value: "UnitFixture123", required: true });
+  }
   control("termsAccepted", { type: "checkbox", checked: true, required: true });
   if (!locked) control("inviteLink");
   if (parent) { control("relationship"); control("linkConsent", { type: "checkbox" }); }
@@ -56,15 +59,24 @@ function fixture({ parent = false, locked = false } = {}) {
   form.querySelectorAll = () => stages;
   form.requestSubmit = async () => { if (!(await form.dispatch("submit")).defaultPrevented) submitted++; };
   const paths = parent ? [] : [new Node({ dataset: { registrationPath: "new" } }), new Node({ dataset: { registrationPath: "staff" } })];
+  const socialLinks = ["google", "kakao"].map(provider => new Node({ attrs: { href: `/auth/${provider}?accountType=${parent ? "parent" : "academy"}` } }));
   root.querySelector = selector => selector === "[data-portal-form]" ? form : nodes[selector.slice(6, -1)];
-  root.querySelectorAll = selector => selector === "[data-registration-path]" ? paths : [];
+  root.querySelectorAll = selector => selector === "[data-registration-path]" ? paths : selector === "[data-social-provider]" ? socialLinks : [];
   const document = { readyState: "complete", querySelector: () => root, createElement: () => new Node() };
   const fetch = async () => ({ ok: true, json: async () => ({ token: "unit-invite-token", email: "fixture@qa.invalid", name: "<script>not executed</script>", expiresAt: new Date(Date.now() + 3600000).toISOString() }) });
   vm.runInNewContext(script, { document, TextEncoder, Intl, Date, URLSearchParams, SyntaxError, Error, fetch });
-  return { nodes, controls, form, paths, stage: key => stages.find(item => item.dataset.registrationStage === key), submitted: () => submitted };
+  return { nodes, controls, form, paths, socialLinks, stage: key => stages.find(item => item.dataset.registrationStage === key), submitted: () => submitted };
 }
 
 async function main() {
+  for (const parent of [false, true]) {
+    const social = fixture({ parent, social: true });
+    assert.equal(social.controls.password, undefined);
+    await social.nodes["registration-next"].dispatch("click");
+    if (!parent) await social.nodes["registration-next"].dispatch("click");
+    assert.equal(social.nodes["registration-submit"].hidden, false);
+    assert.equal((await social.form.dispatch("submit")).defaultPrevented, false);
+  }
   const academy = fixture();
   assert.equal(academy.stage("account").hidden, false); assert.equal(academy.stage("institution").hidden, true);
   academy.controls.displayName.value = ""; await academy.nodes["registration-next"].dispatch("click"); assert.equal(academy.stage("account").hidden, false); assert.equal(academy.controls.displayName.focused, true);
@@ -75,10 +87,12 @@ async function main() {
   academy.controls.authorityConfirmed.checked = false; assert.equal((await academy.form.dispatch("submit")).defaultPrevented, true);
   academy.controls.authorityConfirmed.checked = true; assert.equal((await academy.form.dispatch("submit")).defaultPrevented, false);
   await academy.paths[1].dispatch("click"); assert.equal(academy.controls.registrationFlow.value, "staff"); assert.equal(academy.stage("institution").disabled, true); assert.equal(academy.controls.authorityConfirmed.disabled, true);
+  assert.ok(academy.socialLinks.every(link => link.getAttribute("href").includes("path=staff")));
   await academy.nodes["registration-next"].dispatch("click"); await academy.nodes["registration-next"].dispatch("click"); assert.equal(academy.stage("staff").hidden, false); assert.match(academy.nodes["invite-error"].textContent, /초대 확인/);
   const parent = fixture({ parent: true }); await parent.nodes["registration-next"].dispatch("click"); assert.equal(parent.stage("child").hidden, false); assert.equal(parent.nodes["connect-later"].hidden, false);
   await parent.nodes["connect-later"].dispatch("click"); assert.equal(parent.submitted(), 1); assert.equal(parent.controls.inviteToken.value, "");
   parent.controls.inviteLink.value = "unit-child-link"; await parent.nodes["invite-lookup"].dispatch("click"); assert.equal(parent.controls.inviteToken.value, "unit-invite-token"); assert.equal(parent.nodes["invite-name"].textContent, "<script>not executed</script>");
+  assert.ok(parent.socialLinks.every(link => link.getAttribute("href").includes("invite=unit-invite-token")));
   parent.controls.relationship.value = "MOTHER"; parent.controls.linkConsent.checked = true;
   parent.controls.inviteLink.value = "different-child-link"; await parent.controls.inviteLink.dispatch("input"); assert.equal(parent.controls.inviteToken.value, ""); assert.equal(parent.controls.relationship.value, ""); assert.equal(parent.controls.linkConsent.checked, false); assert.equal(parent.nodes["invite-preview"].hidden, true);
   const invitedParent = fixture({ parent: true, locked: true }); await invitedParent.nodes["registration-next"].dispatch("click");

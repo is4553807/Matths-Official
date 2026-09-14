@@ -1,7 +1,6 @@
 "use strict";
 
 const {
-  authenticateAcademyAccount,
   registerAcademyAccount,
 } = require("../services/academyAccountService");
 const { serviceUrl } = require("../services/serviceUrlService");
@@ -9,6 +8,8 @@ const auth = require("../middleware/authMiddleware");
 const { AcademyAccount } = require("../models/academyModel");
 const { accepted, statusError } = require("../services/portalRegistrationValidation");
 const { getAcademyStaffInvite, createAcademyStaffInvite, acceptAcademyStaffInvite, revokeAcademyStaffInvite } = require("../services/academyStaffInviteService");
+const { getPendingSocialRegistration, clearPendingSocialRegistration, publicProviderStatus } = require("../services/socialAuthService");
+const { pendingForPortal, registrationUrl } = require("../services/portalSocialAuthService");
 
 function regenerateSession(req) {
   return new Promise((resolve, reject) => {
@@ -30,17 +31,19 @@ function safeAcademyNext(value) {
 }
 
 function loginLocals(req, overrides = {}) {
+  const socialError = req.session?.socialOAuthError;
+  if (req.session) delete req.session.socialOAuthError;
   return {
     accountType: "academy",
     disablePageAnalytics: /^\/academy\/staff-invite\//.test(String(req.query.next || req.body?.next || "")),
-    error: null,
+    error: socialError || null,
     success: req.query.registered === "1"
       ? "학원 계정 신청이 접수되었습니다. 로그인 후 승인 상태를 확인할 수 있습니다."
       : null,
     loginNotice: null,
     oldInput: { email: "" },
     next: safeAcademyNext(req.query.next),
-    socialAuthProviders: [],
+    socialAuthProviders: require("../services/socialAuthService").publicProviderStatus(),
     ...overrides,
   };
 }
@@ -64,13 +67,7 @@ exports.loginPage = (req, res) => { res.set("Referrer-Policy", "no-referrer"); r
 
 exports.login = async (req, res, next) => {
   try {
-    const result = await authenticateAcademyAccount({
-      email: req.body.email,
-      password: req.body.password,
-    });
-    const destination = safeAcademyNext(req.body.next || req.session?.returnTo);
-    await establishAcademySession(req, result.teacher);
-    return res.redirect(serviceUrl("academy", destination));
+    return res.redirect(await require("../services/webLoginService").loginWebAccount(req));
   } catch (error) {
     if ([400, 401, 403].includes(Number(error.status))) {
       return res.status(Number(error.status)).render("login", loginLocals(req, {
@@ -89,21 +86,25 @@ function registrationLocals(overrides = {}) {
     error: null,
     oldInput: { displayName: "", academyName: "", branchName: "", address: "", contactPhone: "", email: "", registrationFlow: "new" },
     registrationInvite: null,
+    socialAuthProviders: publicProviderStatus(),
+    socialRegistration: null,
     ...overrides,
   };
 }
 
 exports.registerPage = async (req, res, next) => {
   try {
+    const pending = getPendingSocialRegistration(req);
+    if (pending && (pending.accountType !== "academy" || pending.inviteToken && req.query.invite !== pending.inviteToken)) return res.redirect(registrationUrl(pending));
     const invited = req.query.invite ? await getAcademyStaffInvite(req.query.invite) : null;
     res.set("Cache-Control", "no-store");
     res.set("Referrer-Policy", "no-referrer");
     if (invited && await AcademyAccount.exists({ email: invited.invite.email })) return res.redirect(serviceUrl("academy", `/academy/login?next=${encodeURIComponent(`/academy/staff-invite/${invited.token}`)}`));
-    return res.render("portal-register", registrationLocals(invited ? {
+    return res.render("portal-register", registrationLocals({ socialRegistration: pendingForPortal(req, "academy"), ...(invited ? {
       registrationInvite: { token: invited.token, email: invited.invite.email, name: invited.academy.name, expiresAt: invited.invite.expiresAt },
       disablePageAnalytics: true,
       oldInput: { email: invited.invite.email, registrationFlow: "staff", inviteToken: invited.token },
-    } : { oldInput: { registrationFlow: req.query.path === "staff" ? "staff" : "new" } }));
+    } : { oldInput: { registrationFlow: req.query.path === "staff" ? "staff" : "new" } }) }));
   } catch (error) { return next(error); }
 };
 
@@ -130,7 +131,9 @@ exports.register = async (req, res, next) => {
       authorityConfirmed: accepted(req.body.authorityConfirmed),
       registrationFlow: String(req.body.registrationFlow || "new"),
       inviteToken: req.body.inviteToken || req.body.inviteLink,
+      socialProfile: pendingForPortal(req, "academy"),
     });
+    clearPendingSocialRegistration(req);
     await establishAcademySession(req, result.teacher);
     return res.redirect(serviceUrl("academy", "/academy/setup?registered=1"));
   } catch (error) {
@@ -138,6 +141,7 @@ exports.register = async (req, res, next) => {
       return res.status(Number(error.status)).render("portal-register", registrationLocals({
         error: error.message,
         disablePageAnalytics: req.body.registrationFlow === "staff",
+        socialRegistration: pendingForPortal(req, "academy"),
         oldInput: {
           displayName: String(req.body.displayName || ""),
           academyName: String(req.body.academyName || ""),

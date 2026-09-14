@@ -18,21 +18,23 @@ const webLogin = exportedHandler(read("controllers/matthsController.js"), "login
 const parentLogin = exportedHandler(read("controllers/parentController.js"), "login");
 const academyLogin = exportedHandler(read("controllers/academyAuthController.js"), "login");
 const academyAccountService = read("services/academyAccountService.js");
+const unifiedWebLogin = read("services/webLoginService.js");
 const apiLogin = exportedHandler(read("controllers/apiController.js"), "login");
 const loginView = read("views/login.ejs");
 const faqView = read("views/faq.ejs");
 
-assert.match(webLogin, /User\.findOne\(\{ email, role: \{ \$in: allowedRoles \} \}\)/, "student/admin login must scope email queries by role");
+assert.match(webLogin, /webLoginService.*loginWebAccount/, "web login must use role-independent authentication with role-safe destinations");
 assert.doesNotMatch(
   webLogin,
   /User\.findOne\(\{\s*\$or/,
   "student and admin login must not accept display nicknames"
 );
-assert.match(webLogin, /const rawEmail = String\(\s*req\.body\.email/);
+assert.match(unifiedWebLogin, /String\(email \|\| ""\).*trim\(\).*toLowerCase\(\)/);
 assert.doesNotMatch(webLogin, /req\.body\.identifier/);
 assert.doesNotMatch(webLogin, /usernameNormalized/);
-assert.match(webLogin, /이메일 또는 비밀번호가 올바르지 않습니다/);
-assert.match(parentLogin, /ParentAccount\.findOne\(\{ email \}\)/);
+assert.match(unifiedWebLogin, /이메일 또는 비밀번호가 올바르지 않습니다/);
+assert.match(parentLogin, /webLoginService.*loginWebAccount/);
+assert.match(unifiedWebLogin, /ParentAccount\.findOne\(\{ email: cleanEmail \}\)/);
 assert.doesNotMatch(parentLogin, /User\.findOne|usernameNormalized/);
 assert.match(academyAccountService, /AcademyAccount\.findOne\(\{ email: cleanEmail \}\)/);
 assert.doesNotMatch(academyLogin, /ParentAccount|User\.findOne/);
@@ -51,4 +53,4 @@ assert.doesNotMatch(loginView, /학부모 아이디/);
 assert.doesNotMatch(loginView, /이메일 또는 닉네임/);
 assert.match(faqView, /닉네임은 공개 랭킹과 커뮤니티 표시용이며 로그인 식별자로 사용하지 않습니다/);
 
-console.log("분리 웹 로그인 검증 완료: 학생·학원·학부모 자격증명 저장소와 역할 조회 범위가 분리되어 있습니다.");
+console.log("이메일 전용 로그인 검증 완료: 역할별 저장소 유지, 공통 인증, 실제 계정 역할에 따른 이동 및 접근 제한.");

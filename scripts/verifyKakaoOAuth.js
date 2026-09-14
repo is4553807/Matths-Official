@@ -246,7 +246,10 @@ async function main() {
     apiController,
     /Google 로그인 확인 코드가 만료되었습니다/
   );
-  assert.match(read("views/login.ejs"), /카카오로 계속하기/);
+  assert.match(read("views/login.ejs"), /partials\/social-auth-buttons/);
+  const socialHtml = await require("ejs").renderFile(path.join(root, "views/partials/social-auth-buttons.ejs"), { accountType: "parent", socialAuthProviders: publicProviderStatus() });
+  assert.match(socialHtml, /카카오로 계속하기/);
+  assert.match(socialHtml, /\/auth\/kakao\?accountType=parent/);
   assert.match(read("public/css/auth.css"), /\.social-auth-button\.is-kakao/);
   // .env.example 은 .gitignore 의 `.env.*` 에 막혀 저장소에 추적되지 않는다.
   // 즉 이 검사는 그 파일을 로컬에 들고 있는 사람에게만 돈다 — 새로 클론한

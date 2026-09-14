@@ -225,8 +225,10 @@ async function main() {
   assert.match(controller, /provider:\s*"apple"[\s\S]*provisionalUserId:/);
   assert.match(controller, /if \(!appleUser\.birthDate\)/);
   assert.match(controller, /appleProvisionalUser\.set\(registrationProfile\)/);
-  assert.match(login, /Apple로 계속하기/);
-  assert.match(login, /href="<%= socialProviderConfigured\('apple'\) \? '\/auth\/apple'/);
+  assert.match(login, /partials\/social-auth-buttons/);
+  const appleHtml = await require("ejs").renderFile(path.join(root, "views/partials/social-auth-buttons.ejs"), { accountType: "student", socialAuthProviders: publicProviderStatus() });
+  assert.match(appleHtml, /Apple로 계속하기/);
+  assert.match(appleHtml, /href="\/auth\/apple"/);
   assert.match(css, /\.social-auth-button\.is-apple/);
   assert.match(register, /social\.provider === "apple" \? ""/);
   assert.match(userModel, /appleId:\s*\{[\s\S]*select:\s*false/);

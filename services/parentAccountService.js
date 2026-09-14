@@ -9,7 +9,7 @@ const { acceptParentInvite, getParentInvite } = require("./checkoutService");
 const { inviteTokenFrom, statusError, validateAccount, validateChildConsent } = require("./portalRegistrationValidation");
 
 async function registerParentAccount(values) {
-  const credentials = validateAccount(values, { nameLabel: "학부모 이름", nameMaximum: 30 });
+  const credentials = validateAccount(require("./portalSocialAuthService").socialCredentials(values, values.socialProfile), { nameLabel: "학부모 이름", nameMaximum: 30 });
   const token = values.inviteToken ? inviteTokenFrom(values.inviteToken, "/parent/invite/") : "";
   const invite = token ? await getParentInvite(token) : null;
   const consent = invite ? validateChildConsent(values) : null;
@@ -26,6 +26,7 @@ async function registerParentAccount(values) {
       usernameNormalized: `parent-${createHash("sha256").update(credentials.email).digest("hex").slice(0, 20)}`,
       email: credentials.email, passwordHash: await bcrypt.hash(credentials.password, 12),
       childUserId: null, acceptedTermsAt: now, acceptedPrivacyAt: now, lastLoginAt: now,
+      ...(values.socialProfile ? { [require("./socialAuthService").socialIdPath(values.socialProfile.provider)]: values.socialProfile.providerUserId, emailVerifiedAt: now } : {}),
     });
     if (invite) {
       const linked = await acceptParentInvite({ rawToken: token, parentAccountId: parent._id, ...consent });
