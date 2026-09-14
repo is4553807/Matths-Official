@@ -6,9 +6,9 @@ const mongoose = require("mongoose");
  * 사용자 문서(User.socialAuth)에 같이 두지 않은 이유는 두 가지입니다.
  *  ① authorizationCode 와 refreshToken 은 계정 정보가 아니라 **애플 쪽 비밀**이라,
  *    사용자 조회에 딸려 나갈 수 있는 자리에 두면 언젠가 응답에 섞여 나간다.
- *  ② models/matthsModel.js 는 다른 담당자 소유라 이 작업에서 열 수 없다.
- *    appleSubject → userId 매핑을 여기에 두면 사용자 스키마를 건드리지 않고도
- *    "같은 애플 계정으로 다시 로그인" 이 성립한다(appleAuthService 주석 참조).
+ *  ② appleSubject → (ownerModel, userId) 매핑으로 학생·교사·학부모 저장소 간에도
+ *    하나의 Apple 계정이 다른 역할 계정에 중복 연결되지 않는다. userId는 기존
+ *    네이티브 자격 증명과 인덱스를 유지하기 위한 소유자 ID 필드다.
  *
  * 저장 값은 평문이 아니다. mobileSocialAuthGrantService 가 인증 결과를 다루는
  * 방식과 같게 AES-256-GCM 으로 봉해서 넣는다 — DB 덤프 하나로 남의 애플 계정
@@ -26,9 +26,17 @@ const appleAuthCredentialSchema =
       },
       userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        // Keep the existing unique owner-ID index for native/legacy credentials.
+        // For parent credentials this ID belongs to ParentAccount, not User.
+        refPath: "ownerModel",
         required: true,
         unique: true,
+      },
+      ownerModel: {
+        type: String,
+        enum: ["User", "ParentAccount"],
+        default: "User",
+        required: true,
       },
 
       /*

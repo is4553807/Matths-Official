@@ -1,7 +1,9 @@
 const crypto = require("node:crypto");
 
 const {
-  exchangeAppleIdentity,
+  verifyAppleIdentityToken,
+  exchangeAuthorizationCode,
+  sealAppleCredential,
 } = require("./appleAuthService");
 
 const APPLE_AUTHORIZE_URL = "https://appleid.apple.com/auth/authorize";
@@ -13,13 +15,19 @@ function envValue(environment, key) {
 }
 
 function appleWebConfig(environment = process.env) {
-  const publicBaseUrl = envValue(environment, "PUBLIC_BASE_URL").replace(/\/$/, "");
+  const publicBaseUrl = envValue(environment, "PUBLIC_BASE_URL").replace(
+    /\/$/,
+    "",
+  );
   const expectedRedirectUri = publicBaseUrl
     ? `${publicBaseUrl}/auth/apple/callback`
     : "";
   const redirectUri =
     envValue(environment, "APPLE_OAUTH_REDIRECT_URI") || expectedRedirectUri;
-  const privateKey = envValue(environment, "APPLE_PRIVATE_KEY").replace(/\\n/g, "\n");
+  const privateKey = envValue(environment, "APPLE_PRIVATE_KEY").replace(
+    /\\n/g,
+    "\n",
+  );
   const stateSecrets = [
     envValue(environment, "APPLE_OAUTH_STATE_SECRET"),
     envValue(environment, "API_TOKEN_SECRET"),
@@ -46,12 +54,12 @@ function isAppleWebConfigured(environment = process.env) {
   const config = appleWebConfig(environment);
   return Boolean(
     config.clientId &&
-      config.redirectUri &&
-      config.redirectUri === config.expectedRedirectUri &&
-      config.teamId &&
-      config.keyId &&
-      config.privateKey &&
-      config.stateSecret.length >= 32
+    config.redirectUri &&
+    config.redirectUri === config.expectedRedirectUri &&
+    config.teamId &&
+    config.keyId &&
+    config.privateKey &&
+    config.stateSecret.length >= 32,
   );
 }
 
@@ -67,7 +75,7 @@ function assertConfigured(environment = process.env) {
     throw statusError(
       503,
       "웹 Apple 로그인이 아직 설정되지 않았습니다.",
-      "SOCIAL_AUTH_NOT_CONFIGURED"
+      "SOCIAL_AUTH_NOT_CONFIGURED",
     );
   }
   return appleWebConfig(environment);
@@ -89,15 +97,27 @@ function stateSignature(encodedPayload, secret) {
     .digest("base64url");
 }
 
-function issueState(config, now = Date.now()) {
+function issueState(config, now = Date.now(), context = {}) {
   const payload = Buffer.from(
     JSON.stringify({
       version: 1,
       issuedAt: now,
       nonce: crypto.randomBytes(32).toString("base64url"),
       requestId: crypto.randomBytes(16).toString("base64url"),
+      accountType: ["academy", "parent"].includes(context.accountType)
+        ? context.accountType
+        : "student",
+      inviteToken: /^[A-Za-z0-9_-]{1,512}$/.test(
+        String(context.inviteToken || ""),
+      )
+        ? context.inviteToken
+        : "",
+      registrationFlow: context.registrationFlow === "staff" ? "staff" : "new",
+      next: /^\/(?!\/)[^\\\r\n]*$/.test(String(context.next || ""))
+        ? String(context.next).slice(0, 2048)
+        : "",
     }),
-    "utf8"
+    "utf8",
   ).toString("base64url");
   return `${payload}.${stateSignature(payload, config.stateSecret)}`;
 }
@@ -113,7 +133,7 @@ function consumeState(rawState, config, now = Date.now()) {
     throw statusError(
       400,
       "Apple 로그인 요청이 만료되었거나 올바르지 않습니다. 다시 시도해주세요.",
-      "SOCIAL_AUTH_STATE_INVALID"
+      "SOCIAL_AUTH_STATE_INVALID",
     );
   }
 
@@ -133,15 +153,19 @@ function consumeState(rawState, config, now = Date.now()) {
     throw statusError(
       400,
       "Apple 로그인 요청이 만료되었거나 올바르지 않습니다. 다시 시도해주세요.",
-      "SOCIAL_AUTH_STATE_INVALID"
+      "SOCIAL_AUTH_STATE_INVALID",
     );
   }
   return decoded;
 }
 
-function beginAppleWebAuthorization({ environment = process.env, now = Date.now() } = {}) {
+function beginAppleWebAuthorization({
+  environment = process.env,
+  now = Date.now(),
+  ...context
+} = {}) {
   const config = assertConfigured(environment);
-  const state = issueState(config, now);
+  const state = issueState(config, now, context);
   const decodedState = consumeState(state, config, now);
   const authorizationUrl = new URL(APPLE_AUTHORIZE_URL);
   authorizationUrl.searchParams.set("client_id", config.clientId);
@@ -154,7 +178,7 @@ function beginAppleWebAuthorization({ environment = process.env, now = Date.now(
   // identity token 의 nonce 클레임과 다시 대조해 토큰 재생을 막는다.
   authorizationUrl.searchParams.set(
     "nonce",
-    crypto.createHash("sha256").update(decodedState.nonce).digest("hex")
+    crypto.createHash("sha256").update(decodedState.nonce).digest("hex"),
   );
   return authorizationUrl.toString();
 }
@@ -179,29 +203,95 @@ async function completeAppleWebAuthorization(
     environment = process.env,
     fetchImpl = fetch,
     now = Date.now(),
-    exchangeImpl = exchangeAppleIdentity,
-  } = {}
+    exchangeImpl = verifyWebIdentity,
+  } = {},
 ) {
   const config = assertConfigured(environment);
   const statePayload = consumeState(state, config, now);
-  if (error || !code || !identityToken) {
+  try {
+    if (error || !code || !identityToken) {
+      throw statusError(
+        400,
+        "Apple 로그인이 취소되었습니다.",
+        "SOCIAL_AUTH_CANCELLED",
+      );
+    }
+
+    const result = await exchangeImpl(
+      {
+        identityToken,
+        authorizationCode: code,
+        nonce: statePayload.nonce,
+        fullName: appleFullName(user),
+        redirectUri: config.redirectUri,
+        clientId: config.clientId,
+      },
+      { fetchImpl, now },
+    );
+    return { ...result, context: statePayload };
+  } catch (failure) {
+    failure.context = statePayload;
+    throw failure;
+  }
+}
+
+// A web authorization proves identity only. It must not create a student before
+// the callback has resolved the existing account or the signed signup portal.
+async function verifyWebIdentity(input, { fetchImpl, now }) {
+  const claims = await verifyAppleIdentityToken(input, { fetchImpl, now });
+  if (claims.audience !== input.clientId)
+    throw statusError(
+      401,
+      "Apple 웹 인증 대상이 올바르지 않습니다.",
+      "SOCIAL_AUTH_ACCOUNT_CONFLICT",
+    );
+  if (!claims.emailVerified || !claims.email)
     throw statusError(
       400,
-      "Apple 로그인이 취소되었습니다.",
-      "SOCIAL_AUTH_CANCELLED"
+      "Apple 계정에서 검증된 이메일을 제공해주세요.",
+      "SOCIAL_AUTH_EMAIL_REQUIRED",
     );
-  }
-
-  return exchangeImpl(
-    {
-      identityToken,
-      authorizationCode: code,
-      nonce: statePayload.nonce,
-      fullName: appleFullName(user),
-      redirectUri: config.redirectUri,
-    },
-    { fetchImpl, now }
+  // Fail closed: Apple consumes a code once, preventing replay of signed state.
+  const exchanged = await exchangeAuthorizationCode(input.authorizationCode, {
+    fetchImpl,
+    clientId: input.clientId,
+    redirectUri: input.redirectUri,
+  });
+  if (!exchanged.refreshToken)
+    throw statusError(
+      401,
+      "Apple 인증 코드가 만료되었거나 사용되었습니다. 다시 로그인해주세요.",
+      "SOCIAL_AUTH_STATE_INVALID",
+    );
+  const exchangedClaims = await verifyAppleIdentityToken(
+    { identityToken: exchanged.identityToken, nonce: input.nonce },
+    { fetchImpl, now },
   );
+  if (
+    exchangedClaims.subject !== claims.subject ||
+    exchangedClaims.audience !== input.clientId
+  )
+    throw statusError(
+      401,
+      "Apple 인증 코드와 계정이 일치하지 않습니다.",
+      "SOCIAL_AUTH_ACCOUNT_CONFLICT",
+    );
+  return {
+    claims,
+    profile: {
+      provider: "apple",
+      providerUserId: claims.subject,
+      email: claims.email,
+      emailVerified: true,
+      displayName: input.fullName,
+      appleAuthorization: {
+        authorizationCode: sealAppleCredential(input.authorizationCode),
+        refreshToken: sealAppleCredential(exchanged.refreshToken),
+        appleClientId: input.clientId,
+        issuedAt: new Date(now).toISOString(),
+      },
+    },
+  };
 }
 
 function appleWebProviderStatus(environment = process.env) {

@@ -1075,9 +1075,15 @@ exports.socialOAuthCallback = async (req, res) => {
 };
 
 exports.appleWebOAuthStart = (req, res) => {
+  req.socialOAuthAccountType = ["academy", "parent"].includes(req.query.accountType) ? req.query.accountType : "student";
   try {
     return res.redirect(
-      beginAppleWebAuthorization()
+      beginAppleWebAuthorization({
+        accountType: req.socialOAuthAccountType,
+        inviteToken: req.query.invite,
+        registrationFlow: req.query.path,
+        next: req.query.next,
+      })
     );
   } catch (error) {
     return redirectSocialAuthError(
@@ -1092,7 +1098,7 @@ exports.appleWebOAuthStart = (req, res) => {
 
 exports.appleWebOAuthCallback = async (req, res) => {
   try {
-    const { user, claims } = await completeAppleWebAuthorization({
+    const { profile, claims, context } = await completeAppleWebAuthorization({
       code: req.body?.code,
       identityToken: req.body?.id_token,
       state: req.body?.state,
@@ -1100,11 +1106,28 @@ exports.appleWebOAuthCallback = async (req, res) => {
       error: req.body?.error,
     });
 
+    req.socialOAuthAccountType = context.accountType;
+    const { resolveWebSocialAccount, registrationUrl, bindAppleAccount } = require("../services/portalSocialAuthService");
+    const { establishWebSession, loginDestination } = require("../services/webLoginService");
+    const account = await resolveWebSocialAccount(profile);
+    if (account && (account.kind === "parent" || account.user.role !== "student")) {
+      const destination = loginDestination(account, context.next || req.session?.returnTo);
+      clearPendingSocialRegistration(req);
+      await establishWebSession(req, account);
+      return res.redirect(destination);
+    }
+    if (!account && ["academy", "parent"].includes(context.accountType)) {
+      setPendingSocialRegistration(req, profile, context);
+      await saveSession(req);
+      return res.redirect(serviceUrl(context.accountType === "parent" ? "parents" : "academy", registrationUrl(req.session.pendingSocialRegistration)));
+    }
+    const { user } = account || await require("../services/appleAuthService").linkAppleIdentity({ claims, fullName: profile.displayName });
+    if (!account) await bindAppleAccount(profile, { kind: "user", user });
+
     /*
-     * Apple 서비스는 네이티브 앱 로그인도 함께 담당하므로 신원 교환 단계에서는
-     * 최소 사용자 문서를 먼저 만든다. 웹에서는 생년월일이 없는 계정을 완성된
-     * 회원으로 로그인시키지 않고 Google·카카오와 같은 추가정보 입력 화면으로
-     * 보낸다. 중간에 창을 닫아도 다음 Apple 로그인에서 다시 이 관문을 지난다.
+     * 신규 학생만 기존 네이티브 신원 연결 경로로 최소 문서를 만든다. 학원·학부모는
+     * 해당 저장소의 가입 폼에서 생성한다. 생년월일이 없는 학생은 추가정보와 실제
+     * 약관 동의를 완료하기 전까지 로그인 세션을 발급하지 않는다.
      */
     const appleUser = await User.findById(user._id)
       .select(`+birthDate ${SOCIAL_AUTH_SELECT}`);
@@ -1170,10 +1193,11 @@ exports.appleWebOAuthCallback = async (req, res) => {
     synchronizedUser.lastLoginAt = new Date();
     await synchronizedUser.save();
     clearPendingSocialRegistration(req);
-    const returnTo = req.session?.returnTo;
+    const returnTo = context.next || req.session?.returnTo;
     await createLoginSession(req, synchronizedUser);
     return res.redirect(postLoginUrl(synchronizedUser, returnTo));
   } catch (error) {
+    if (error.context?.accountType) req.socialOAuthAccountType = error.context.accountType;
     return redirectSocialAuthError(
       req,
       res,

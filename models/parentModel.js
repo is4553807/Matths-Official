@@ -34,6 +34,7 @@ const parentAccountSchema = new Schema(
     socialAuth: {
       googleId: { type: String, trim: true, select: false, default: undefined },
       kakaoId: { type: String, trim: true, select: false, default: undefined },
+      appleId: { type: String, trim: true, select: false, default: undefined },
     },
     emailVerifiedAt: { type: Date, default: null },
     childUserId: {
@@ -62,7 +63,7 @@ const parentAccountSchema = new Schema(
   { timestamps: true, versionKey: false }
 );
 
-for (const provider of ["google", "kakao"]) {
+for (const provider of ["google", "kakao", "apple"]) {
   const key = `socialAuth.${provider}Id`;
   parentAccountSchema.index({ [key]: 1 }, { unique: true, name: `parent_${provider}_identity_unique_v1`, partialFilterExpression: { [key]: { $type: "string" } } });
 }

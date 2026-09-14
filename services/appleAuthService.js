@@ -530,6 +530,10 @@ async function linkAppleIdentity({ claims, fullName }) {
     appleSubject: subject,
   }).select("+appleSubject");
 
+  if (credential?.ownerModel === "ParentAccount") {
+    throw statusError(409, "학부모 계정은 학부모 웹 로그인을 이용해주세요.", "SOCIAL_AUTH_PARENT_ACCOUNT");
+  }
+
   let user = credential
     ? await User.findById(credential.userId)
     : null;
@@ -635,7 +639,7 @@ async function linkAppleIdentity({ claims, fullName }) {
 
   try {
     await AppleAuthCredential.updateOne(
-      { appleSubject: subject },
+      { appleSubject: subject, $or: [{ ownerModel: "User" }, { ownerModel: { $exists: false } }] },
       { $set: { userId: user._id } },
       { upsert: true }
     );
@@ -772,7 +776,7 @@ async function exchangeAuthorizationCode(
       error: String(body?.error || `HTTP_${response.status}`),
     };
   }
-  return { refreshToken: String(body.refresh_token), error: "" };
+  return { refreshToken: String(body.refresh_token), identityToken: String(body.id_token || ""), error: "" };
 }
 
 /*
@@ -818,7 +822,7 @@ async function rememberAppleAuthorization(
   }
 
   await AppleAuthCredential.updateOne(
-    { appleSubject: subject },
+    { appleSubject: subject, $or: [{ ownerModel: "User" }, { ownerModel: { $exists: false } }] },
     { $set: update },
     { upsert: true }
   );
@@ -989,6 +993,9 @@ module.exports = {
   isAppleRevokeConfigured,
   revokeAppleTokens,
   verifyAppleIdentityToken,
+  linkAppleIdentity,
+  exchangeAuthorizationCode,
+  sealAppleCredential: seal,
   _testing: {
     APPLE_JWKS_URL,
     APPLE_TOKEN_URL,

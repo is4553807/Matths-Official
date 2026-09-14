@@ -164,6 +164,7 @@ async function registerAcademyAccount({
       teacherAccessExpiresAt: invited ? invited.academy.contractEndsAt : null,
       ...(socialProfile ? { [require("./socialAuthService").socialIdPath(socialProfile.provider)]: socialProfile.providerUserId, emailVerifiedAt: now } : {}),
     });
+    await require("./portalSocialAuthService").bindAppleAccount(socialProfile, { kind: "user", user: teacher });
     account = await AcademyAccount.create({
       teacherUserId: teacher._id,
       displayName: teacherName,
@@ -206,6 +207,7 @@ async function registerAcademyAccount({
     if (academy?._id) await Academy.deleteOne({ _id: academy._id }).catch(() => {});
     if (account?._id) await AcademyAccount.deleteOne({ _id: account._id }).catch(() => {});
     if (teacher?._id) await User.deleteOne({ _id: teacher._id }).catch(() => {});
+    if (teacher?._id) await require("./portalSocialAuthService").removeAppleAccountBinding(socialProfile, teacher._id);
     if (Number(error?.code) === 11000) {
       throw statusError(409, "이미 사용 중인 이메일 또는 학원 계정입니다.");
     }

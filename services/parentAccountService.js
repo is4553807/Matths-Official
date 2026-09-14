@@ -28,6 +28,7 @@ async function registerParentAccount(values) {
       childUserId: null, acceptedTermsAt: now, acceptedPrivacyAt: now, lastLoginAt: now,
       ...(values.socialProfile ? { [require("./socialAuthService").socialIdPath(values.socialProfile.provider)]: values.socialProfile.providerUserId, emailVerifiedAt: now } : {}),
     });
+    await require("./portalSocialAuthService").bindAppleAccount(values.socialProfile, { kind: "parent", parent });
     if (invite) {
       const linked = await acceptParentInvite({ rawToken: token, parentAccountId: parent._id, ...consent });
       parent.childUserId = linked.child._id;
@@ -35,7 +36,10 @@ async function registerParentAccount(values) {
     return parent;
   } catch (error) {
     // Retain a successfully linked account if a later database operation fails.
-    if (parent && !await ParentAccount.exists({ _id: parent._id, childUserId: { $ne: null } })) await ParentAccount.deleteOne({ _id: parent._id });
+    if (parent && !await ParentAccount.exists({ _id: parent._id, childUserId: { $ne: null } })) {
+      await ParentAccount.deleteOne({ _id: parent._id });
+      await require("./portalSocialAuthService").removeAppleAccountBinding(values.socialProfile, parent._id);
+    }
     if (Number(error.code) === 11000) throw statusError(409, "이미 사용 중인 이메일 또는 자녀 연결입니다.");
     throw error;
   }

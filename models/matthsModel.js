@@ -5235,6 +5235,8 @@ const privateMockUploadReminderSchema =
 const privateMockExamAttemptSchema =
     new Schema(
         {
+            // Synthetic academy-demo responses never participate in live ranking.
+            demoBatchKey: { type: String, trim: true, maxlength: 120, default: undefined, select: false },
             examId: {
                 type: Schema.Types.ObjectId,
                 ref: "PrivateMockExam",

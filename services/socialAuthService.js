@@ -320,6 +320,9 @@ function setPendingSocialRegistration(
     providerUserId: profile.providerUserId,
     email: profile.email,
     displayName: profile.displayName,
+    ...(profile.provider === "apple" && profile.appleAuthorization
+      ? { appleAuthorization: profile.appleAuthorization }
+      : {}),
     ...(profile.provider === "apple" && profile.provisionalUserId
       ? {
           provisionalUserId: String(profile.provisionalUserId),
@@ -348,7 +351,7 @@ function getPendingSocialRegistration(req) {
     !SOCIAL_PROVIDER_LABELS[pending.provider] ||
     !pending.providerUserId ||
     !pending.email ||
-    (pending.provider === "apple" &&
+    (pending.provider === "apple" && !["academy", "parent"].includes(pending.accountType) &&
       !/^[a-f\d]{24}$/i.test(String(pending.provisionalUserId || ""))) ||
     Date.now() - Number(pending.createdAt || 0) > SOCIAL_REGISTRATION_MAX_AGE_MS
   ) {

@@ -2,7 +2,7 @@ const { createHash, randomBytes } = require("node:crypto");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
 
-dotenv.config({ path: "./config.env" });
+if (require.main === module) dotenv.config({ path: "./config.env", quiet: true });
 
 const {
   ConceptProgress,

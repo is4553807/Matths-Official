@@ -1,4 +1,6 @@
 const assert = require("node:assert/strict");
+// The fixture must not depend on importing a live-DB seed script loading config.env.
+process.env.DOCUMENT_WATERMARK_SECRET = require("node:crypto").randomBytes(32).toString("hex");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");

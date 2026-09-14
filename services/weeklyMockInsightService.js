@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const {
   PrivateMockExam,
   PrivateMockExamAttempt,
+  User,
 } = require("../models/matthsModel");
 const {
   AcademyClass,
@@ -80,6 +81,16 @@ async function recentConceptExams(now = new Date()) {
     .filter((exam) => exam.questionConcepts?.some((concept) => concept?.conceptTitle));
 }
 
+async function demoConceptExams(studentUserIds, now) {
+  if (!studentUserIds?.length) return [];
+  const demoUsers = await User.find({ _id: { $in: objectIds(studentUserIds) }, isTestAccount: true, testBatchKey: /^academy-demo-20:/ }).select("testBatchKey").lean();
+  if (!demoUsers.length) return [];
+  const keys = [...new Set(demoUsers.map(user => user.testBatchKey))];
+  const examIds = await PrivateMockExamAttempt.distinct("examId", { userId: { $in: demoUsers.map(user => user._id) }, demoBatchKey: { $in: keys }, status: "submitted" });
+  const exams = await PrivateMockExam.find({ _id: { $in: examIds }, isTest: true, closeAt: { $lte: now }, settlementCompletedAt: { $ne: null } }).select("title weekKey releaseAt questionCount questionConcepts").lean();
+  return exams.filter(exam => exam.questionConcepts?.some(concept => concept?.conceptTitle)).map(exam => ({ ...exam, demoBatchKeys: keys }));
+}
+
 function attemptMatch(exams, scopedUserIds) {
   const examIds = exams.map((exam) => exam._id);
   const match = {
@@ -95,6 +106,7 @@ function attemptMatch(exams, scopedUserIds) {
       { "submissionFinalization.status": { $nin: ["pending", "processing"] } },
     ],
   };
+  if (exams.some(exam => exam.demoBatchKeys)) match.$and.push({ $or: exams.map(exam => ({ examId: exam._id, ...(exam.demoBatchKeys ? { demoBatchKey: { $in: exam.demoBatchKeys } } : {}) })) });
   if (scopedUserIds) match.userId = { $in: scopedUserIds };
   return match;
 }
@@ -204,7 +216,7 @@ async function getWeeklyMockInsights({
 } = {}) {
   const scopedUserIds = studentUserIds === undefined ? null : objectIds(studentUserIds);
   if (scopedUserIds && !scopedUserIds.length) return emptyInsight(scopeLabel);
-  const exams = suppliedExams || await recentConceptExams(now);
+  const exams = suppliedExams || [...await recentConceptExams(now), ...await demoConceptExams(scopedUserIds, now)];
   if (!exams.length) return emptyInsight(scopeLabel);
   const match = attemptMatch(exams, scopedUserIds);
   const [questionRows, summaryRows] = await Promise.all([
@@ -262,12 +274,13 @@ async function getScopeInsights(scopes, exams, now) {
 
 async function getAcademyWeeklyMockInsights({ academyId, now = new Date() }) {
   if (!mongoose.isValidObjectId(academyId)) return { overall: emptyInsight("학원 전체"), classes: [] };
-  const [classes, memberships, exams] = await Promise.all([
+  const [classes, memberships, officialExams] = await Promise.all([
     AcademyClass.find({ academyId }).sort({ isActive: -1, name: 1 }).select("name isActive").lean(),
     AcademyStudentMembership.find({ academyId, status: "APPROVED" }).select("studentUserId classId").lean(),
     recentConceptExams(now),
   ]);
   const allStudentIds = memberships.map((membership) => membership.studentUserId);
+  const exams = [...officialExams, ...await demoConceptExams(allStudentIds, now)];
   const studentsByClass = new Map();
   memberships.forEach((membership) => {
     const key = String(membership.classId || "");
