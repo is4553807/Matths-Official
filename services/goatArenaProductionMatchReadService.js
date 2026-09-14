@@ -55,13 +55,32 @@ function isoString(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-function participantFilter(userId) {
+function participantFilter(userId, role = null) {
+  if (role === "DEFENDER") return { "defender.userId": userId };
+  if (role === "CHALLENGER") return { "challenger.userId": userId };
   return {
     $or: [
       { "challenger.userId": userId },
       { "defender.userId": userId },
     ],
   };
+}
+
+function participantRoleFilter(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const normalized = String(value).trim().toUpperCase();
+  if (!["DEFENDER", "CHALLENGER"].includes(normalized)) {
+    fail("INVALID_MATCH_ROLE", "match role is invalid", 400);
+  }
+  return normalized;
+}
+
+function booleanQuery(value, label) {
+  if (value === null || value === undefined || value === "") return false;
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") return true;
+  if (normalized === "false" || normalized === "0") return false;
+  fail("INVALID_MATCH_QUERY", `${label} is invalid`, 400);
 }
 
 function participantRole(match, userId) {
@@ -263,13 +282,18 @@ async function attemptsFor(matches, userId, AttemptModel) {
 }
 
 async function listParticipantMatches(
-  { userId, cursor = null, limit = null },
+  { userId, cursor = null, limit = null, role = null, actionable = false },
   { MatchModel = ArenaMatch, AttemptModel = ArenaMatchAttempt } = {}
 ) {
   const participantUserId = objectId(userId, "user id");
   const resolvedLimit = pageSize(limit);
   const decodedCursor = decodeMatchCursor(cursor);
-  const query = participantFilter(participantUserId);
+  const resolvedRole = participantRoleFilter(role);
+  const actionableOnly = booleanQuery(actionable, "actionable");
+  const query = participantFilter(participantUserId, resolvedRole);
+  // 받은 공격은 전체 경기의 최근 N개를 가져온 뒤 앱에서 거르면 누락될 수 있다.
+  // 서버가 먼저 역할과 미종료 상태를 제한해 cursor가 같은 집합 위에서 움직이게 한다.
+  if (actionableOnly) query.status = { $in: ACTIVE_MATCH_STATUSES };
   if (decodedCursor) {
     query.$and = [
       {
@@ -291,16 +315,24 @@ async function listParticipantMatches(
     participantUserId,
     AttemptModel
   );
-  return {
-    matches: page.map((row) =>
+  const serialized = page.map((row) =>
       serializeParticipantMatch(
         row,
         participantUserId,
         attemptByMatchId.get(String(row._id)) || null
       )
-    ),
+    );
+  const matches = actionableOnly
+    ? serialized.filter((match) => match.capabilities.availableActions.length > 0)
+    : serialized;
+  return {
+    matches,
     nextCursor:
       hasMore && page.length ? encodeMatchCursor(page[page.length - 1]) : null,
+    scope: resolvedRole === "DEFENDER" && actionableOnly
+      ? "ACTIONABLE_DEFENSES"
+      : "PARTICIPANT_MATCHES",
+    complete: !hasMore,
   };
 }
 
@@ -381,5 +413,6 @@ module.exports = {
   getPendingParticipantInvitation,
   listParticipantMatches,
   participantFilter,
+  participantRoleFilter,
   serializeParticipantMatch,
 };
