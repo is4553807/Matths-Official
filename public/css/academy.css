@@ -1,5 +1,25 @@
 @import url("/css/matths-logo.css");
 
+.academy-staff-invite-panel { padding: 24px; margin-bottom: 24px; }
+.academy-auth-form { display: grid; gap: 18px; margin-top: 24px; }
+.academy-auth-form label { font-size: 13px; line-height: 1.8; }
+.academy-auth-form input[type="checkbox"] { width: 18px; height: 18px; vertical-align: middle; accent-color: #3157f6; }
+.academy-auth-form button { min-height: 46px; border: 0; border-radius: 10px; background: #3157f6; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.academy-staff-invite-panel > p { color: #596277; font-size: 13px; line-height: 1.8; }
+.academy-staff-invite-form { display: flex; gap: 12px; align-items: end; }
+.academy-staff-invite-form label { flex: 1; min-width: 0; }
+.academy-staff-invite-form label > span { display: block; font-size: 12px; margin-bottom: 8px; }
+.academy-staff-invite-form input { width: 100%; min-height: 44px; padding: 12px; border: 1px solid #dce2ef; border-radius: 10px; font: inherit; }
+.academy-staff-invite-form button, .academy-staff-invite-created button, .academy-staff-invite-list button { min-height: 44px; padding: 10px 14px; border: 1px solid #c4d1ff; border-radius: 10px; background: #eef2ff; color: #203fc5; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.academy-staff-invite-created { margin-top: 18px; padding: 16px; border-radius: 12px; background: #eef2ff; overflow-wrap: anywhere; font-size: 13px; }
+.academy-staff-invite-created > div { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 12px 0; }
+.academy-staff-invite-created a { color: #203fc5; text-decoration: underline; }
+.academy-staff-invite-created small { color: #596277; line-height: 1.7; }
+.academy-staff-invite-list { list-style: none; padding: 0; margin: 18px 0 0; }
+.academy-staff-invite-list li { display: flex; gap: 12px; justify-content: space-between; align-items: center; border-top: 1px solid #dce2ef; padding: 12px 0; }
+.academy-staff-invite-list strong, .academy-staff-invite-list small { display: block; overflow-wrap: anywhere; font-size: 12px; }
+.academy-staff-invite-list small { margin-top: 6px; color: #596277; }
+@media (max-width: 600px) { .academy-staff-invite-form { flex-direction: column; align-items: stretch; } }
 :root {
   --academy-ink: #192035;
   --academy-muted: #6f788d;
@@ -9,6 +29,9 @@
   --academy-navy: #18213d;
   --academy-mint: #1b9d7a;
 }
+
+.academy-attendance-export { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px; color: #3157f6; background: #edf1ff; border: 1px solid #d9e2ff; border-radius: 10px; font-size: 12px; font-weight: 800; }
+.academy-attendance-export-note { margin: 14px 0; color: #657087; font-size: 12px; line-height: 1.7; }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }

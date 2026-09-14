@@ -19,6 +19,7 @@ const {
 } = require("../middleware/pdfForensicsUpload");
 
 const router = express.Router();
+router.use(require("../middleware/adminPagePreview").adminAcademyPreview);
 
 router.get("/academy/login", authMiddleware.isLoggedOut, academyAuthController.loginPage);
 router.post(
@@ -29,6 +30,7 @@ router.post(
   academyAuthController.login
 );
 router.get("/academy/register", authMiddleware.isLoggedOut, academyAuthController.registerPage);
+router.get("/academy/register/invite", authMiddleware.isLoggedOut, registrationIpRateLimit, academyAuthController.lookupRegistrationInvite);
 router.post(
   "/academy/register",
   authMiddleware.isLoggedOut,
@@ -36,6 +38,10 @@ router.post(
   registrationRateLimit,
   academyAuthController.register
 );
+router.get("/academy/staff-invite/:token", academyAuthController.staffInvitePage);
+router.post("/academy/staff-invite/:token/accept", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyAuthController.acceptStaffInvite);
+router.post("/academy/staff-invites", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyAuthController.createStaffInvite);
+router.post("/academy/staff-invites/:inviteId/revoke", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyAuthController.revokeStaffInvite);
 router.post(
   "/academy/logout",
   authMiddleware.isLoggedIn,
@@ -88,6 +94,12 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isTeacher,
   academyController.saveAttendance
+);
+router.get(
+  "/academy/attendance/export.csv",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.exportAttendanceCsv
 );
 router.post(
   "/academy/attendance/sessions/:sessionId/regenerate-code",

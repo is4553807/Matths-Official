@@ -41,6 +41,7 @@ const academyAccountSchema = new Schema(
     },
     acceptedTermsAt: { type: Date, default: null },
     acceptedPrivacyAt: { type: Date, default: null },
+    authorityConfirmedAt: { type: Date, default: null },
     lastLoginAt: { type: Date, default: null },
     migratedFromLegacyUserAt: { type: Date, default: null },
     legacyPasswordDisabledAt: { type: Date, default: null },
@@ -108,6 +109,9 @@ const academySchema = new Schema(
       maxlength: 80,
       index: true,
     },
+    branchName: { type: String, trim: true, maxlength: 80, default: "" },
+    address: { type: String, trim: true, maxlength: 200, default: "" },
+    contactPhone: { type: String, trim: true, maxlength: 30, default: "" },
     status: {
       type: String,
       enum: ["PENDING", "ACTIVE", "REJECTED", "PAUSED", "ARCHIVED"],
@@ -248,6 +252,19 @@ const academyStaffSchema = new Schema(
   },
   { timestamps: true, versionKey: false }
 );
+
+// Staff invitations cannot be exchanged for student invitation tokens.
+const academyStaffInviteSchema = new Schema({
+  academyId: { type: Schema.Types.ObjectId, ref: "Academy", required: true, index: true },
+  email: { type: String, trim: true, lowercase: true, maxlength: 254, required: true },
+  tokenHash: { type: String, required: true, unique: true, select: false },
+  status: { type: String, enum: ["ACTIVE", "ACCEPTED", "REVOKED"], default: "ACTIVE" },
+  expiresAt: { type: Date, required: true },
+  createdByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  acceptedByUserId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+  acceptedAt: { type: Date, default: null },
+}, { timestamps: true, versionKey: false });
+academyStaffInviteSchema.index({ academyId: 1, email: 1, status: 1 });
 
 academyStaffSchema.index({ academyId: 1, userId: 1 }, { unique: true });
 academyStaffSchema.index(
@@ -848,6 +865,7 @@ const AcademyAccount =
   mongoose.model("AcademyAccount", academyAccountSchema);
 const Academy = mongoose.models.Academy || mongoose.model("Academy", academySchema);
 const AcademyStaff = mongoose.models.AcademyStaff || mongoose.model("AcademyStaff", academyStaffSchema);
+const AcademyStaffInvite = mongoose.models.AcademyStaffInvite || mongoose.model("AcademyStaffInvite", academyStaffInviteSchema);
 const AcademyClass = mongoose.models.AcademyClass || mongoose.model("AcademyClass", academyClassSchema);
 const AcademyStudentMembership =
   mongoose.models.AcademyStudentMembership ||
@@ -876,6 +894,7 @@ module.exports = {
   AcademyAccount,
   Academy,
   AcademyStaff,
+  AcademyStaffInvite,
   AcademyClass,
   AcademyStudentMembership,
   AcademyInvite,

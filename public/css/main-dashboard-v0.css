@@ -464,6 +464,7 @@ body.dashboard-home.sidebar-visible { overflow: hidden; }
 .dashboard-home .plan-stats dd small { margin-left: 2px; color: var(--muted-foreground); font-size: 12px; font-weight: 500; }
 .dashboard-home .plan-card > p { margin: 12px 0 0; color: var(--muted-foreground); font-size: 12px; line-height: 16px; }
 .dashboard-home .plan-card > p strong { color: var(--foreground); font-weight: 600; }
+.dashboard-home .plan-scope-note { margin-top: 10px; color: var(--muted-foreground); font-size: 12px; line-height: 1.7; }
 .dashboard-home .plan-card > a { height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-top: 16px; padding: 0 16px; color: var(--foreground); background: var(--card); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-weight: 700; }
 .dashboard-home .plan-card > a:hover { background: var(--muted); }
 .dashboard-home .plan-card > a svg { width: 16px; height: 16px; }

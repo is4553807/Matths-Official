@@ -1,3 +1,5 @@
+const mongoose = require("mongoose");
+const { getAcademyAttendanceCsv } = require("../services/academyAttendanceExportService");
 const {
   approveAcademyStaff,
   approveMembership,
@@ -30,6 +32,7 @@ const {
   transferAcademyClassHomeroom,
   updateAcademyClassSettings,
 } = require("../services/academyService");
+const { AcademyClassWeek } = require("../models/academyModel");
 const {
   removeAcademyProfileImage,
   resolveAcademyProfileImage,
@@ -145,6 +148,7 @@ exports.portalPage = async (req, res, next) => {
     }
     const includeStudents = activeAcademyPage === "dashboard" || activeAcademyPage === "classes";
     const portal = await getAcademyPortalData(req.session.user.id, { includeStudents });
+    portal.createdStaffInvite = portal.isOwner ? req.session.createdStaffInvite || null : null;
     portal.profileImageSrc = resolveAcademyProfileImage(portal.academy.profileImageAsset);
     const studentPage = activeAcademyPage === "students"
       ? await getAcademyStudentPage({
@@ -198,6 +202,19 @@ exports.portalPage = async (req, res, next) => {
       feedback: consumeFlash(req),
       createdInviteId: String(req.query.createdInvite || ""),
     });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.exportAttendanceCsv = async (req, res, next) => {
+  try {
+    const result = await getAcademyAttendanceCsv({ teacherUserId: req.session.user.id, dateKey: req.query.date, classId: req.query.classId });
+    res.set("Cache-Control", "private, no-store");
+    res.set("X-Robots-Tag", "noindex, nofollow");
+    res.set("Content-Type", "text/csv; charset=utf-8");
+    res.set("Content-Disposition", `attachment; filename="${result.filename}"`);
+    return res.send(result.csv);
   } catch (error) {
     return next(error);
   }
@@ -767,6 +784,7 @@ exports.studentAssignmentPreview = async (req, res, next) => {
 
 exports.studentAcademyPage = async (req, res, next) => {
   try {
+    if (req.authenticatedUser?.role === "admin") return res.redirect("/academy?tab=classes");
     const classroom = await getStudentAcademyClassroom({ studentUserId: req.session.user.id });
     classroom.profileImageSrc = resolveAcademyProfileImage(classroom.academy.profileImageAsset);
     res.set("Cache-Control", "private, no-store");
@@ -782,6 +800,12 @@ exports.studentAcademyPage = async (req, res, next) => {
 
 exports.studentAcademyWeekPage = async (req, res, next) => {
   try {
+    if (req.authenticatedUser?.role === "admin") {
+      if (!mongoose.isValidObjectId(req.params.weekId)) return next(Object.assign(new Error("주차별 수업을 찾을 수 없습니다."), { status: 404 }));
+      const week = await AcademyClassWeek.findById(req.params.weekId).select("classId").lean();
+      if (!week) return next(Object.assign(new Error("주차별 수업을 찾을 수 없습니다."), { status: 404 }));
+      return res.redirect(`/academy/classes/${week.classId}/weeks/${week._id}/preview`);
+    }
     const classroom = await getStudentAcademyWeek({
       studentUserId: req.session.user.id,
       weekId: req.params.weekId,
@@ -827,6 +851,12 @@ exports.submitStudentAcademyAssignment = async (req, res, next) => {
 
 exports.downloadStudentAcademyWeekFile = async (req, res, next) => {
   try {
+    if (req.authenticatedUser?.role === "admin") {
+      if (!mongoose.isValidObjectId(req.params.weekId)) return next(Object.assign(new Error("주차별 수업을 찾을 수 없습니다."), { status: 404 }));
+      const week = await AcademyClassWeek.findById(req.params.weekId).select("classId").lean();
+      if (!week) return next(Object.assign(new Error("주차별 수업을 찾을 수 없습니다."), { status: 404 }));
+      return res.redirect(`/academy/classes/${week.classId}/weeks/${week._id}/files/${encodeURIComponent(req.params.fileId)}`);
+    }
     const download = await getStudentAcademyWeekFileDownload({
       studentUserId: req.session.user.id,
       studentRole: req.session.user.role,

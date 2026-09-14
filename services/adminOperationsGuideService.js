@@ -198,7 +198,7 @@ const STORAGE_MATRIX = [
   },
   {
     owner: "운영자",
-    fileType: "고2·고3 수험관 문제지·해설·표지·연결 자료",
+    fileType: "GOAT 교재관 문제지·해설·표지·연결 자료",
     purpose: "STUDY_HALL",
     primary: "Cloudflare R2 비공개 객체",
     backup: "플랫폼 백업 정책",
@@ -396,7 +396,7 @@ const OPERATING_WORKFLOWS = [
     audit: "ArchiveFolder, ArchiveItem, backupStatus, deletedAt·purgeAt",
   },
   {
-    title: "고2·고3 수험관 콘텐츠 운영",
+    title: "GOAT 교재관 콘텐츠 운영",
     cadence: "문제집·회차·개념·리포트 공개 및 개정 시",
     objective: "여섯 콘텐츠 유형의 문제·정답·진행률과 R2 원본을 하나의 공개 버전으로 관리합니다.",
     steps: [

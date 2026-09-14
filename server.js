@@ -106,12 +106,16 @@ function versionStaticAssetReferences(
 server.engine("ejs", (filePath, options, callback) => {
     ejs.renderFile(filePath, options, (error, html) => {
         if (error) return callback(error);
+        const versionedHtml = versionStaticAssetReferences(html);
+        // Invitation pages can contain single-use account-access tokens.
         return callback(
             null,
-            injectGoogleTagManager(
-                versionStaticAssetReferences(html),
-                server.locals.googleTagManagerId
-            )
+            options.disablePageAnalytics === true
+                ? versionedHtml
+                : injectGoogleTagManager(
+                    versionedHtml,
+                    server.locals.googleTagManagerId
+                )
         );
     });
 });

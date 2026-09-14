@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>관리자 화면 미리보기 | Matths</title>
+    <link rel="icon" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/academy.css" />
+    <link rel="stylesheet" href="/css/admin-page-preview.css" />
+  </head>
+  <body class="academy-auth-page admin-page-selector">
+    <main class="academy-auth-shell">
+      <section class="academy-auth-card">
+        <p>ADMIN PAGE ACCESS</p>
+        <h1><%= surface === "academy" ? "학원" : "학부모" %> 화면 미리보기</h1>
+        <span>관리자 권한으로 열람할 대상을 선택해 주십시오. 로그인 계정은 관리자로 유지되며, 미리보기에서 데이터는 변경하지 않습니다.</span>
+        <% if (choices.length) { %>
+          <form method="get" action="<%= targetPath %>" class="academy-setup-option">
+            <label>미리보기 대상
+              <select name="<%= surface === 'academy' ? 'academyId' : 'parentId' %>" required>
+                <option value="">선택해 주십시오</option>
+                <% choices.forEach(choice => { %><option value="<%= choice.id %>"><%= choice.label %> · <%= choice.detail %></option><% }) %>
+              </select>
+            </label>
+            <button type="submit">선택한 화면 열기</button>
+          </form>
+        <% } else { %><div class="academy-auth-note">등록된 미리보기 대상이 없습니다.</div><% } %>
+        <a class="academy-auth-back" href="/admin">관리자 홈으로 돌아가기</a>
+      </section>
+    </main>
+  </body>
+</html>

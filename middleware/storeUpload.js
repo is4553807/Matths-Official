@@ -49,7 +49,7 @@ const storeUpload = multer({
             ? "문제지와 해설지는 PDF만 올릴 수 있습니다."
             : jsonField
               ? "답지 데이터는 JSON 파일만 올릴 수 있습니다."
-            : "수험관 연결 자료는 PDF, ZIP 또는 문서 파일만 올릴 수 있습니다."
+            : "GOAT 교재관 연결 자료는 PDF, ZIP 또는 문서 파일만 올릴 수 있습니다."
       );
       error.status = 400;
       return callback(error);

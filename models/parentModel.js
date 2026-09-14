@@ -159,6 +159,8 @@ const parentChildLinkSchema = new Schema(
       default: Date.now,
       required: true,
     },
+    relationship: { type: String, enum: ["FATHER", "MOTHER", "GUARDIAN", null], default: null },
+    linkConsentAt: { type: Date, default: null },
     notificationSettings: {
       emailEnabled: {
         type: Boolean,

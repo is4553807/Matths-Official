@@ -270,14 +270,14 @@
       path: "/war-of-masters",
       selector: '[data-tutorial-nav="store"]',
       attention: true,
-      title: "이제 고2·고3 수험관으로 이동합니다.",
+      title: "이제 GOAT 교재관으로 이동합니다.",
       message:
         "N제, 데일리 하프와 실전 콘텐츠를 고르고 진행 기록을 남기는 방법을 확인합니다.",
     },
     {
       path: "/store",
       selector: '[data-tutorial-target="store-overview"]',
-      title: "수험관은 실전용 콘텐츠를 모아 둔 공간입니다.",
+      title: "GOAT 교재관은 실전용 콘텐츠를 모아 둔 공간입니다.",
       message:
         "오늘 풀 문제부터 수능 직전 파이널까지 제공됩니다. 우측 현재 영역에서 선택한 콘텐츠 종류와 설명을 확인합니다.",
     },

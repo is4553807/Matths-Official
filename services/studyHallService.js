@@ -365,7 +365,7 @@ async function getStudyHallContent({ contentId, userId, admin = false }) {
     _id: contentId,
     ...(admin ? {} : { status: "PUBLISHED", $or: [{ publishAt: null }, { publishAt: { $lte: new Date() } }] }),
   }).lean();
-  if (!content) throw httpError(404, "공개된 수험관 콘텐츠를 찾을 수 없습니다.");
+  if (!content) throw httpError(404, "공개된 GOAT 교재관 콘텐츠를 찾을 수 없습니다.");
   const progress = mongoose.isValidObjectId(userId)
     ? await StudyHallProgress.findOne({ userId, contentId }).lean()
     : null;

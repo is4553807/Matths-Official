@@ -1,0 +1,5 @@
+<p class="field-guide invalid" data-invite-error role="alert" hidden></p>
+<section class="portal-invite-preview" data-invite-preview <%= invitation ? '' : 'hidden' %> aria-label="확인된 초대">
+  <strong><%= parentAccount ? '연결할 자녀' : '참여할 학원' %> · <span data-invite-name><%= invitation ? invitation.name : '' %></span></strong>
+  <dl><div><dt>초대 이메일</dt><dd data-invite-email><%= invitation ? invitation.email : '' %></dd></div><div><dt><%= parentAccount ? '공유 범위' : '요청 권한' %></dt><dd><%= parentAccount ? '학습 현황·결제 내역' : '교사 · 원장 승인 후 이용' %></dd></div><div><dt>초대 만료</dt><dd data-invite-expiry><%= expiryLabel %><%= invitation ? ' (한국시간)' : '' %></dd></div></dl>
+</section>

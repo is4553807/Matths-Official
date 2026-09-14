@@ -865,7 +865,7 @@ function signedText(value, unit) {
 
 async function getDashboardData(
     userId,
-    { user: authenticatedUser = null } = {}
+    { user: authenticatedUser = null, now = new Date() } = {}
 ) {
     const user = authenticatedUser
         ? typeof authenticatedUser.toObject === "function"
@@ -898,7 +898,7 @@ async function getDashboardData(
         currentWeekSeries[
             currentWeekSeries.length - 1
         ].dateKey;
-    const dashboardNow = new Date();
+    const dashboardNow = new Date(now);
 
     const [
         progressDocuments,
@@ -995,6 +995,7 @@ async function getDashboardData(
         MockExamSubscription.findOne({
             userId: user._id,
             status: "ACTIVE",
+            startsAt: { $lte: dashboardNow },
             endsAt: { $gt: dashboardNow },
         })
             .sort({ endsAt: -1 })
@@ -1433,7 +1434,11 @@ async function getDashboardData(
                 reservedLearningDays: reservedDays,
                 lockedLearningDays: lockedDays,
                 expiresAt: activeAccessCycle.expiresAt,
-                statusLabel: "이용 중",
+                statusLabel: availableDays > 0
+                    ? "이용 중"
+                    : reservedDays + lockedDays > 0
+                        ? "학습일 예약·예치 중"
+                        : "학습일 소진",
             };
         }
         if (activeMockExamSubscription) {
@@ -1446,6 +1451,9 @@ async function getDashboardData(
                 reservedLearningDays: 0,
                 lockedLearningDays: 0,
                 expiresAt: activeMockExamSubscription.endsAt,
+                remainingUsageDays: Math.max(0, Math.ceil(
+                    (new Date(activeMockExamSubscription.endsAt).getTime() - dashboardNow.getTime()) / DAY_MS
+                )),
                 statusLabel: "이용 중",
             };
         }

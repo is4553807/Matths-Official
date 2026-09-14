@@ -20,7 +20,7 @@ const {
 const SCHEMA_VERSION = "ADMIN_STORE_NATIVE_V1";
 function statusError(status, message) { const error = new Error(message); error.status = status; return error; }
 function requireAdmin(req) {
-  if (String(req.apiUser?.role || "").toLowerCase() !== "admin") throw statusError(403, "관리자만 수험관과 상점을 편집할 수 있습니다.");
+  if (String(req.apiUser?.role || "").toLowerCase() !== "admin") throw statusError(403, "관리자만 GOAT 교재관과 상점을 편집할 수 있습니다.");
   return req.apiUser;
 }
 function noStore(res) { res.set("Cache-Control", "private, no-store"); }

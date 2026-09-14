@@ -13,6 +13,7 @@ const router = express.Router();
 router.get("/parent/invite/:token", parentController.inviteSignupPage);
 router.post(
   "/parent/invite/:token",
+  isParentLoggedOut,
   registrationIpRateLimit,
   registrationRateLimit,
   parentController.completeInviteSignup
@@ -31,6 +32,7 @@ router.post(
   parentController.login
 );
 router.get("/parent/register", isParentLoggedOut, parentController.registerPage);
+router.get("/parent/register/invite", isParentLoggedOut, registrationIpRateLimit, parentController.lookupRegistrationInvite);
 router.post(
   "/parent/register",
   isParentLoggedOut,

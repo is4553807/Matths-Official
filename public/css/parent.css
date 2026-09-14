@@ -396,6 +396,8 @@ body {
   color: #677086;
   background: #edf0f6;
 }
+.parent-auth-form select { width: 100%; min-height: 49px; padding: 0 14px; border: 1px solid #dce2ef; border-radius: 11px; background: #f8f9fd; color: var(--parent-ink); font: inherit; }
+.parent-auth-form input[type="checkbox"] { width: 18px; min-height: 18px; height: 18px; padding: 0; vertical-align: middle; accent-color: #3157f6; }
 .parent-auth-form label small {
   color: #8a91a2;
   font-size: 9px;

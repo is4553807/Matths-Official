@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="robots" content="noindex, nofollow" /><meta name="referrer" content="no-referrer" />
+    <title>교사 초대 확인 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" /><link rel="stylesheet" href="/css/brand.css" /><link rel="stylesheet" href="/css/academy.css" />
+  </head>
+  <body class="academy-auth-page">
+    <main class="academy-auth-shell"><div class="academy-auth-brand"><%- include("partials/matths-brand", { href: "/academy", ariaLabel: "Matths 학원 홈", suffix: "교사 초대", compact: true }) %></div>
+      <section class="academy-auth-card"><p>TEACHER INVITATION</p><h1><%= invitation.academy.name %> 참여 초대</h1><span>초대 이메일: <strong><%= invitation.invite.email %></strong><br />요청 권한은 교사로 고정됩니다. 참여 신청 후 원장 승인 전에는 학원의 학생 정보·출결·과제를 볼 수 없습니다.</span>
+        <% if (error) { %><div class="academy-feedback is-error" role="alert"><%= error %></div><% } %>
+        <form action="/academy/staff-invite/<%= invitation.token %>/accept" method="post" class="academy-auth-form"><label><span><input type="checkbox" name="inviteConsent" value="1" required /> 초대 학원과 교사 권한을 확인하고 참여 신청에 동의합니다.</span></label><button type="submit">교사 참여 신청</button></form>
+        <a class="academy-auth-back" href="/academy">지금은 참여하지 않기</a>
+      </section>
+    </main>
+  </body>
+</html>

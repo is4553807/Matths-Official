@@ -452,6 +452,7 @@ async function getParentInvite(rawToken) {
     .populate("childUserId", "name realName accountStatus isActive")
     .lean();
   if (!invite) throw statusError(404, "학부모 가입 링크를 찾을 수 없습니다.");
+  if (!invite.childUserId || invite.childUserId.isActive === false || ["inactive", "suspended", "withdrawn"].includes(invite.childUserId.accountStatus)) throw statusError(410, "현재 연결할 수 없는 자녀 계정입니다. 자녀에게 계정 상태를 확인해주세요.");
   if (invite.status !== "PENDING") {
     throw statusError(410, "이미 사용했거나 취소된 학부모 가입 링크입니다.");
   }
@@ -511,7 +512,7 @@ async function registerParent({ rawToken, username, password, passwordConfirm })
   return parent;
 }
 
-async function acceptParentInvite({ rawToken, parentAccountId }) {
+async function acceptParentInvite({ rawToken, parentAccountId, relationship = null, linkConsentAt = null }) {
   const invite = await getParentInvite(rawToken);
   const parent = await ParentAccount.findById(parentAccountId).lean();
   if (!parent || !parent.isActive) {
@@ -521,18 +522,22 @@ async function acceptParentInvite({ rawToken, parentAccountId }) {
     throw statusError(403, "초대를 받은 이메일의 학부모 계정으로 로그인해주세요.");
   }
 
-  const link = await linkChildToParent({
-    parentAccountId: parent._id,
-    childUserId: invite.childUserId._id,
-  });
+  // Claim the single-use invitation before changing family permissions.
+  const acceptedAt = new Date();
   const accepted = await ParentInvite.updateOne(
-    { _id: invite._id, status: "PENDING" },
-    { $set: { status: "ACCEPTED", acceptedAt: new Date() } }
+    { _id: invite._id, status: "PENDING", expiresAt: { $gt: acceptedAt } },
+    { $set: { status: "ACCEPTED", acceptedAt } }
   );
   if (accepted.modifiedCount !== 1) {
     throw statusError(409, "이미 처리된 자녀 연결 초대입니다.");
   }
-  return { parent, child: invite.childUserId, link };
+  try {
+    const link = await linkChildToParent({ parentAccountId: parent._id, childUserId: invite.childUserId._id, relationship, linkConsentAt });
+    return { parent, child: invite.childUserId, link };
+  } catch (error) {
+    await ParentInvite.updateOne({ _id: invite._id, status: "ACCEPTED", acceptedAt }, { $set: { status: "PENDING", acceptedAt: null } });
+    throw error;
+  }
 }
 
 module.exports = {

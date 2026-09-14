@@ -11,6 +11,8 @@ const {
   AcademyStaff,
 } = require("../models/academyModel");
 const { synchronizeAccountAccess } = require("./accountAccessService");
+const { getAcademyStaffInvite, acceptAcademyStaffInvite } = require("./academyStaffInviteService");
+const { validateAccount, validateInstitution } = require("./portalRegistrationValidation");
 
 const BCRYPT_ROUNDS = 12;
 
@@ -27,20 +29,6 @@ function normalizedEmail(value) {
 
 function normalizedName(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
-}
-
-function validatePassword(password, passwordConfirm) {
-  const value = String(password || "");
-  if (value.length < 8 || !/[A-Za-z]/.test(value) || !/\d/.test(value)) {
-    throw statusError(400, "비밀번호는 영문과 숫자를 포함해 8자 이상으로 입력해주세요.");
-  }
-  if (Buffer.byteLength(value, "utf8") > 72) {
-    throw statusError(400, "비밀번호가 너무 깁니다.");
-  }
-  if (value !== String(passwordConfirm || "")) {
-    throw statusError(400, "비밀번호 확인이 일치하지 않습니다.");
-  }
-  return value;
 }
 
 async function disabledLegacyPasswordHash() {
@@ -126,24 +114,21 @@ async function registerAcademyAccount({
   password,
   passwordConfirm,
   termsAccepted,
+  branchName,
+  address,
+  contactPhone,
+  authorityConfirmed,
+  registrationFlow = "new",
+  inviteToken,
 }) {
-  const teacherName = normalizedName(displayName);
-  const organizationName = normalizedName(academyName);
-  const cleanEmail = normalizedEmail(email);
-  const secret = validatePassword(password, passwordConfirm);
-
-  if (teacherName.length < 2 || teacherName.length > 40) {
-    throw statusError(400, "선생님 이름은 2자 이상 40자 이하로 입력해주세요.");
-  }
-  if (organizationName.length < 2 || organizationName.length > 80) {
-    throw statusError(400, "학원 이름은 2자 이상 80자 이하로 입력해주세요.");
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-    throw statusError(400, "올바른 이메일 주소를 입력해주세요.");
-  }
-  if (termsAccepted !== true) {
-    throw statusError(400, "이용약관과 개인정보처리방침에 동의해주세요.");
-  }
+  if (!["new", "staff"].includes(registrationFlow)) throw statusError(400, "학원 가입 경로를 다시 선택해주세요.");
+  const credentials = validateAccount({ displayName, email, password, passwordConfirm, termsAccepted }, { nameLabel: "담당자 이름" });
+  const teacherName = credentials.displayName;
+  const cleanEmail = credentials.email;
+  const secret = credentials.password;
+  const institution = registrationFlow === "new" ? validateInstitution({ academyName, branchName, address, contactPhone, authorityConfirmed }) : null;
+  const invited = registrationFlow === "staff" ? await getAcademyStaffInvite(inviteToken) : null;
+  if (invited && invited.invite.email !== cleanEmail) throw statusError(400, "초대를 받은 이메일로 가입해주세요.");
 
   const [userExists, academyAccountExists, parentExists] = await Promise.all([
     User.exists({ email: cleanEmail }),
@@ -175,6 +160,7 @@ async function registerAcademyAccount({
       termsVersion: "2026-08-13",
       privacyVersion: "2026-08-13",
       lastLoginAt: now,
+      teacherAccessExpiresAt: invited ? invited.academy.contractEndsAt : null,
     });
     account = await AcademyAccount.create({
       teacherUserId: teacher._id,
@@ -185,10 +171,18 @@ async function registerAcademyAccount({
       acceptedPrivacyAt: now,
       lastLoginAt: now,
       legacyPasswordDisabledAt: now,
+      authorityConfirmedAt: institution ? now : null,
     });
+    if (invited) {
+      const joined = await acceptAcademyStaffInvite({ value: invited.token, teacherUserId: teacher._id, email: cleanEmail });
+      return { account, teacher, academy: joined.academy, staff: joined.staff };
+    }
     academy = await Academy.create({
-      name: organizationName,
-      nameNormalized: organizationName.toLocaleLowerCase("ko-KR"),
+      name: institution.academyName,
+      nameNormalized: institution.academyName.toLocaleLowerCase("ko-KR"),
+      branchName: institution.branchName,
+      address: institution.address,
+      contactPhone: institution.contactPhone,
       status: "PENDING",
       createdByUserId: teacher._id,
       contractStartsAt: null,

@@ -249,6 +249,9 @@ async function main() {
       req.authAccountType = accountType;
       next();
     };
+    // Match production: this router is mounted before academy/matths routes.
+    // Its student-only marker must not leak onto /admin or /academy requests.
+    app.use("/", require("../routes/goat-arena-routes"));
     app.post("/student/login", setAccountType("student"), matthsController.login);
     app.post("/admin/login", setAccountType("admin"), matthsController.login);
     app.post("/academy/login", academyAuthController.login);
@@ -256,6 +259,12 @@ async function main() {
     app.post("/academy/register", academyAuthController.register);
     app.post("/parent/register", parentController.register);
     app.post("/api/login", apiController.login);
+    app.get(
+      "/admin",
+      authMiddleware.isLoggedIn,
+      authMiddleware.isAdmin,
+      (_req, res) => res.send("admin-ok")
+    );
     app.get(
       "/student-area",
       authMiddleware.requireStudentAccount,
@@ -333,6 +342,7 @@ async function main() {
     assert.equal(adminResponse.headers.get("location"), "/admin");
     const adminCookie = sessionCookie(adminResponse);
     assert.equal((await sessionView(origin, adminCookie)).userAccountType, "admin");
+    assert.equal((await fetch(`${origin}/admin`, { headers: { Cookie: adminCookie }, redirect: "manual" })).status, 200, "admin must reach its dashboard after login with production router ordering");
 
     const parentResponse = await postForm(origin, "/parent/login", {
       email: parent.email,
@@ -361,6 +371,9 @@ async function main() {
     const academySignup = await postForm(origin, "/academy/register", {
       displayName: "신규 학원 담당자",
       academyName: "신규 가입 학원",
+      address: "서울시 강남구 테스트로 10",
+      contactPhone: "02-1234-5678",
+      authorityConfirmed: "1",
       email: newAcademyEmail,
       password: "Academy1234",
       passwordConfirm: "Academy1234",
@@ -386,12 +399,19 @@ async function main() {
     assert.equal((await ParentAccount.findOne({ email: newParentEmail }).lean()).childUserId, null);
 
     assert.equal((await fetch(`${origin}/student-area`, { headers: { Cookie: studentCookie } })).status, 200);
+    assert.equal((await fetch(`${origin}/student-area`, { headers: { Cookie: adminCookie } })).status, 200);
+    assert.equal((await fetch(`${origin}/academy-area`, { headers: { Cookie: adminCookie } })).status, 200);
+    assert.equal((await fetch(`${origin}/parent-area`, { headers: { Cookie: adminCookie } })).status, 200);
     assert.equal((await fetch(`${origin}/academy-area`, { headers: { Cookie: academyCookie } })).status, 200);
     assert.equal((await fetch(`${origin}/parent-area`, { headers: { Cookie: parentCookie } })).status, 200);
     assert.equal((await fetch(`${origin}/student-area`, { headers: { Cookie: academyCookie }, redirect: "manual" })).status, 403);
     assert.equal((await fetch(`${origin}/academy-area`, { headers: { Cookie: studentCookie }, redirect: "manual" })).status, 403);
     assert.equal((await fetch(`${origin}/student-area`, { headers: { Cookie: parentCookie }, redirect: "manual" })).status, 302);
     assert.equal((await fetch(`${origin}/parent-area`, { headers: { Cookie: studentCookie }, redirect: "manual" })).status, 302);
+    for (const cookie of [studentCookie, academyCookie, parentCookie]) {
+      const denied = await fetch(`${origin}/admin`, { headers: { Cookie: cookie }, redirect: "manual" });
+      assert.ok([302, 403].includes(denied.status), "non-admin must never reach admin dashboard");
+    }
 
     const previewResponse = await fetch(
       `${origin}/academy/classes/${academyClass._id}/weeks/${week._id}/preview`,

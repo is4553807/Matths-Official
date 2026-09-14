@@ -1,10 +1,12 @@
 const { randomBytes } = require("node:crypto");
+const { adminPageContextFor } = require("./adminPageContextService");
 const mongoose = require("mongoose");
 const { AdminActionLog, User } = require("../models/matthsModel");
 const {
   AcademyAccount,
   Academy,
   AcademyStaff,
+  AcademyStaffInvite,
   AcademyClass,
   AcademyAttendance,
   AcademyAttendanceAudit,
@@ -195,6 +197,7 @@ async function ensureAcademyIndexes() {
     AcademyAccount.createIndexes(),
     Academy.createIndexes(),
     AcademyStaff.createIndexes(),
+    AcademyStaffInvite.createIndexes(),
     AcademyClass.createIndexes(),
     AcademyAttendance.createIndexes(),
     AcademyAttendanceSession.createIndexes(),
@@ -209,7 +212,7 @@ async function ensureAcademyIndexes() {
 
 async function assertTeacherAccount(teacherUserId) {
   const teacher = await User.findById(teacherUserId)
-    .select("role isActive accountStatus teacherAccessExpiresAt")
+    .select("role email isActive accountStatus teacherAccessExpiresAt")
     .lean();
   const expiry = teacher?.teacherAccessExpiresAt
     ? new Date(teacher.teacherAccessExpiresAt)
@@ -218,7 +221,7 @@ async function assertTeacherAccount(teacherUserId) {
     !teacher ||
     teacher.role !== "teacher" ||
     teacher.isActive === false ||
-    teacher.accountStatus === "withdrawn" ||
+    ["inactive", "suspended", "withdrawn"].includes(teacher.accountStatus) ||
     (expiry && expiry.getTime() <= Date.now())
   ) {
     throw statusError(403, "운영자가 교사로 전환한 활성 계정만 학원에 연결할 수 있습니다.");
@@ -237,6 +240,12 @@ async function assertAdminAccount(adminUserId) {
 }
 
 async function getTeacherAcademyContext(userId, { allowMissing = false } = {}) {
+  const adminContext = adminPageContextFor(userId);
+  if (adminContext?.academyId) {
+    const academy = await Academy.findById(adminContext.academyId).lean();
+    if (!academy) throw statusError(404, "미리 볼 학원을 찾을 수 없습니다.");
+    return { academy, academyId: academy._id, staff: { userId, academyId: academy._id, role: "OWNER", status: "ACTIVE", isAdminPreview: true } };
+  }
   const staff = await AcademyStaff.findOne({ userId, status: "ACTIVE" })
     .populate("academyId")
     .lean();
@@ -838,7 +847,7 @@ async function leaveAcademy({ studentUserId }) {
 async function getAcademyPortalData(teacherUserId, { includeStudents = true } = {}) {
   const context = await getTeacherAcademyContext(teacherUserId);
   const academyId = context.academyId;
-  const [classes, archivedClasses, students, requests, invites, activeStaff, staffRequests] = await Promise.all([
+  const [classes, archivedClasses, students, requests, invites, activeStaff, staffRequests, staffInvites] = await Promise.all([
     AcademyClass.find({ academyId, isActive: true })
       .sort({ name: 1, _id: 1 })
       .populate("homeroomTeacherUserId", STAFF_FIELDS)
@@ -879,6 +888,9 @@ async function getAcademyPortalData(teacherUserId, { includeStudents = true } = 
           .populate("userId", STAFF_FIELDS)
           .lean()
       : Promise.resolve([]),
+    context.staff.role === "OWNER"
+      ? AcademyStaffInvite.find({ academyId }).sort({ createdAt: -1 }).limit(50).lean()
+      : Promise.resolve([]),
   ]);
 
   const now = new Date();
@@ -892,6 +904,7 @@ async function getAcademyPortalData(teacherUserId, { includeStudents = true } = 
     invites: invites.map((invite) => ({ ...invite, displayState: inviteState(invite, now) })),
     activeStaff: activeStaff.filter((entry) => entry.userId),
     staffRequests: staffRequests.filter((entry) => entry.userId),
+    staffInvites,
     isOwner: context.staff.role === "OWNER",
     staffPendingCount: staffRequests.filter((entry) => entry.userId).length,
     pendingCount: requests.length,

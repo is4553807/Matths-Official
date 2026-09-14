@@ -24,7 +24,7 @@
       <section class="academy-auth-card">
         <p>ACADEMY SETUP</p>
         <h1>학원 관리 페이지를 시작합니다.</h1>
-        <span>운영자가 교사 역할로 전환한 계정만 이용할 수 있습니다. 새 학원은 운영자 검토·승인 후 공개되며, 기존 학원 참여는 원장이 승인합니다.</span>
+        <span>학원 전용 계정의 등록·참여 상태를 확인합니다. 새 학원은 기관 정보·운영 권한·계약 확인 후 운영자가 승인하며, 기존 학원의 교사 참여는 원장이 승인합니다.</span>
         <% if (feedback) { %><div class="academy-feedback <%= feedback.type === 'error' ? 'is-error' : 'is-success' %>" role="<%= feedback.type === 'error' ? 'alert' : 'status' %>"><span aria-hidden="true"><%= feedback.type === 'error' ? '!' : '✓' %></span><%= feedback.message %></div><% } %>
 
         <% if (pendingAcademy) { %>
@@ -58,7 +58,7 @@
           </div>
         <% } %>
 
-        <div class="academy-auth-note academy-setup-policy-note"><strong>승인 기준</strong> 교사 역할은 Matths 운영자만 부여합니다. 새 학원은 운영자 승인, 기존 학원 참여는 해당 학원 원장 승인을 거쳐야 하며 승인 전에는 내부 정보가 공개되지 않습니다.</div>
+        <div class="academy-auth-note academy-setup-policy-note"><strong>승인 기준</strong> 계정을 만들거나 교사 초대를 수락해도 운영 권한이 바로 열리지 않습니다. 새 학원은 기관·담당자·계약에 대한 운영자 승인, 교사 참여는 해당 학원 원장 승인이 필요합니다.</div>
         <a class="academy-auth-back" href="/contact">학원 정보가 다르거나 교사 역할 전환이 필요하면 문의하기</a>
       </section>
     </main>

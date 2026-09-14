@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const { AdminActionLog, AdminTodo, User } = require("../models/matthsModel");
 const {
   Academy,
+  AcademyAccount,
   AcademyAttendance,
   AcademyAttendanceAudit,
   AcademyAttendanceCodeAttempt,
@@ -209,6 +210,8 @@ async function getAdminAcademyDetail({ adminUserId, academyId, periodKey, sectio
     .populate("reviewedByUserId", "name realName email")
     .lean();
   if (!academy) throw statusError(404, "학원을 찾을 수 없습니다.");
+  const registrationAccount = academy.createdByUserId?._id ? await AcademyAccount.findOne({ teacherUserId: academy.createdByUserId._id }).select("authorityConfirmedAt").lean() : null;
+  academy.authorityConfirmedAt = registrationAccount?.authorityConfirmedAt || null;
   academy.profileImageSrc = signedCloudinaryUrl(academy.profileImageAsset) || "";
 
   const [staff, memberships, classes, classWeeks, invites, attendanceSessions, attendanceRecords, attendanceAudits] = await Promise.all([

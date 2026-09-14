@@ -30,8 +30,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Matths 고2·고3 수험관에서 N제, 데일리 하프, 실전 모의고사와 파이널 콘텐츠를 학습하세요." />
-    <title>고2·고3 수험관 | Matths</title>
+    <meta name="description" content="Matths GOAT 교재관에서 N제, 데일리 하프, 실전 모의고사와 파이널 콘텐츠를 학습하세요." />
+    <title>GOAT 교재관 | Matths</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/store.css" />
@@ -54,13 +54,13 @@
       <main class="dashboard-main study-hall-main" id="study-hall-main">
         <header class="study-hall-mobile-header">
           <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
-          <strong>고2·고3 수험관</strong>
+          <strong>GOAT 교재관</strong>
           <a href="/main">학습 홈</a>
         </header>
 
         <section class="study-hall-hero" aria-labelledby="study-hall-title" data-tutorial-target="store-overview">
           <div>
-            <p>MATTHS EXAM PREP</p>
+            <p>GOAT STUDY MATERIALS</p>
             <h1 id="study-hall-title">오늘 풀 문제부터<br />수능 직전 파이널까지.</h1>
             <span>문제집보다 중요한 건, 매일 어디까지 풀었는지 남는 학습입니다.</span>
           </div>
@@ -71,7 +71,7 @@
           </aside>
         </section>
 
-        <nav class="study-hall-tabs" aria-label="수험관 콘텐츠" data-tutorial-target="store-tabs">
+        <nav class="study-hall-tabs" aria-label="GOAT 교재관 콘텐츠" data-tutorial-target="store-tabs">
           <% storeData.tabs.forEach((tab) => { %>
             <a href="/store?tab=<%= tab.code %>" class="<%= tab.code === storeData.activeTab ? 'is-active' : '' %>" <%= tab.code === storeData.activeTab ? 'aria-current="page"' : '' %>>
               <span><%= tab.label %></span><small><%= tab.summary %></small>

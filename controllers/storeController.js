@@ -151,7 +151,7 @@ exports.adminStorePage = async (req, res, next) => {
       user: req.session.user,
       storeData,
       feedback: req.query.saved === "1"
-        ? { type: "success", message: "수험관 콘텐츠를 저장했습니다." }
+        ? { type: "success", message: "GOAT 교재관 콘텐츠를 저장했습니다." }
         : req.query.archived === "1"
           ? { type: "success", message: "콘텐츠를 삭제하지 않고 비공개 보관했습니다." }
           : null,

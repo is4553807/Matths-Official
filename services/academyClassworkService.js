@@ -328,7 +328,9 @@ async function getAcademyClassworkTeacherView({ teacherUserId, classId, editWeek
     .populate("createdByUserId", "name realName")
     .populate("updatedByUserId", "name realName")
     .lean();
-  await finalizeMissedAssignmentSubmissions({ weekIds: weeks.map((week) => week._id) });
+  if (!context.staff.isAdminPreview) {
+    await finalizeMissedAssignmentSubmissions({ weekIds: weeks.map((week) => week._id) });
+  }
   const submissions = weeks.length
     ? await AcademyAssignmentSubmission.find({ weekId: { $in: weeks.map((week) => week._id) } })
         .sort({ submittedAt: -1 })

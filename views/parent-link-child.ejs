@@ -20,7 +20,10 @@
           <div><dt>요청 상품</dt><dd><%= invite.productCode === "LEARNING_PACKAGE_29" ? "29일 학습권 패키지" : "Matths 주간 공식 모의고사 이용권" %></dd></div>
           <div><dt>초대 이메일</dt><dd><%= invite.parentEmail %></dd></div>
         </dl>
+        <% if (typeof error !== 'undefined' && error) { %><div class="parent-form-message is-error" role="alert"><%= error %></div><% } %>
         <form action="/parent/invite/<%= token %>/link" method="post" class="parent-auth-form">
+          <label><span>자녀와의 관계</span><select name="relationship" required><option value="">선택해 주세요</option><% [['FATHER', '부'], ['MOTHER', '모'], ['GUARDIAN', '기타 보호자']].forEach(([value, label]) => { %><option value="<%= value %>" <%= typeof oldInput !== 'undefined' && oldInput.relationship === value ? 'selected' : '' %>><%= label %></option><% }) %></select></label>
+          <label><span><input type="checkbox" name="linkConsent" value="1" required /> 자녀와 공유 범위(학습 현황·결제 내역)를 확인하고 연결에 동의합니다.</span></label>
           <button type="submit">자녀 계정 연결하기</button>
         </form>
         <a class="parent-link-cancel" href="/parent">지금은 연결하지 않기</a>

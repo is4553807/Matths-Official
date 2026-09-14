@@ -14,7 +14,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>고2·고3 수험관 관리 | Matths</title>
+    <title>GOAT 교재관 관리 | Matths</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
@@ -25,7 +25,7 @@
   <body class="admin-page admin-store-page study-hall-admin-page">
     <%- include("partials/admin-navigation", { activePage: "store" }) %>
     <main class="admin-main">
-      <header class="admin-heading"><div><p>MATTHS EXAM PREP</p><h1>고2·고3 수험관 관리</h1><span>콘텐츠 등록, 답안 데이터, 공개 시각과 R2 파일을 한 화면에서 관리합니다.</span></div><strong><%= storeData.items.length %><small>개 콘텐츠</small></strong></header>
+      <header class="admin-heading"><div><p>GOAT STUDY MATERIALS</p><h1>GOAT 교재관 관리</h1><span>콘텐츠 등록, 답안 데이터, 공개 시각과 R2 파일을 한 화면에서 관리합니다.</span></div><strong><%= storeData.items.length %><small>개 콘텐츠</small></strong></header>
       <% if (feedback) { %><div class="store-admin-feedback <%= feedback.type %>" role="status"><%= feedback.message %></div><% } %>
       <% if (error) { %><div class="store-admin-feedback error" role="alert"><%= error %></div><% } %>
 
@@ -55,7 +55,7 @@
       </nav>
 
       <section class="admin-panel study-hall-editor" id="content-editor">
-        <div class="admin-panel-heading"><div><p><%= editing ? "EDIT CONTENT" : "NEW CONTENT" %></p><h2><%= editing ? "수험관 콘텐츠 수정" : "새 수험관 콘텐츠 등록" %></h2></div><% if (editing) { %><a href="/admin/store<%= storeData.activeTab ? `?tab=${storeData.activeTab}` : '' %>#content-editor">새 콘텐츠 입력</a><% } %></div>
+        <div class="admin-panel-heading"><div><p><%= editing ? "EDIT CONTENT" : "NEW CONTENT" %></p><h2><%= editing ? "교재관 콘텐츠 수정" : "새 교재관 콘텐츠 등록" %></h2></div><% if (editing) { %><a href="/admin/store<%= storeData.activeTab ? `?tab=${storeData.activeTab}` : '' %>#content-editor">새 콘텐츠 입력</a><% } %></div>
         <form class="admin-form study-hall-content-form" action="<%= editing ? `/admin/store/content/${editing.id}` : '/admin/store/content' %>" method="POST" enctype="multipart/form-data" data-study-hall-admin-form data-initial-questions="<%- JSON.stringify(formContent.questions || []).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') %>">
           <div class="study-hall-form-grid">
             <label><span>콘텐츠 종류</span><select name="contentType" data-content-type required><% storeData.tabs.forEach((tab) => { %><option value="<%= tab.code %>" <%= formContent.contentType === tab.code ? 'selected' : '' %>><%= tab.label %></option><% }) %></select></label>
@@ -109,12 +109,12 @@
             <label><span>추가 연결 자료</span><input type="file" name="contentFiles" accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx" multiple /><small>오답 리포트나 보조 학습 자료를 연결합니다.</small></label>
           </section>
           <% if (editing?.assets?.length) { %><div class="study-hall-current-files"><strong>현재 R2 연결 파일</strong><% editing.assets.forEach((file) => { %><label><input type="checkbox" name="removeAssetIds" value="<%= file.id %>" /><span><b><%= file.kind %> · <%= file.originalName %></b><small><%= formatBytes(file.sizeBytes) %> · 선택하면 저장 시 R2에서도 삭제</small></span></label><% }) %></div><% } %>
-          <button type="submit"><%= editing ? "콘텐츠 변경사항 저장" : "수험관 콘텐츠 등록" %></button>
+          <button type="submit"><%= editing ? "콘텐츠 변경사항 저장" : "교재관 콘텐츠 등록" %></button>
         </form>
       </section>
 
       <section class="admin-panel">
-        <div class="admin-panel-heading"><div><p>CONTENT CATALOG</p><h2>등록 콘텐츠</h2></div><a href="/store" target="_blank" rel="noopener">사용자 수험관 열기 →</a></div>
+        <div class="admin-panel-heading"><div><p>CONTENT CATALOG</p><h2>등록 콘텐츠</h2></div><a href="/store" target="_blank" rel="noopener">사용자 교재관 열기 →</a></div>
         <% if (!storeData.items.length) { %><p class="admin-empty">아직 등록한 콘텐츠가 없습니다.</p><% } else { %><div class="study-hall-admin-list">
           <% storeData.items.forEach((item) => { %><article><div><p><%= item.tabLabel %> · <%= item.status === 'PUBLISHED' ? '공개' : item.status === 'DRAFT' ? '초안' : '비공개 보관' %></p><h3><%= item.title %></h3><span><%= item.series || item.subject || '분류 없음' %> · <%= item.itemCount %>문항 · 수정 <%= new Date(item.updatedAt).toLocaleString('ko-KR', { timeZone:'Asia/Seoul' }) %></span></div><div><a href="/admin/store?edit=<%= item.id %>&tab=<%= item.contentType %>#content-editor">수정</a><% if (item.status === 'PUBLISHED') { %><a href="/store/content/<%= item.id %>" target="_blank" rel="noopener">보기</a><% } %><form action="/admin/store/content/<%= item.id %>/archive" method="POST" onsubmit="return window.confirm('삭제하지 않고 임시 비공개 보관할까요?');"><button type="submit">비공개 보관</button></form></div></article><% }) %>
         </div><% } %>

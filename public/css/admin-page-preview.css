@@ -1,0 +1,24 @@
+.admin-page-preview-bar {
+  position: relative;
+  z-index: 100;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: #ffffff;
+  background: #203fc5;
+  font: 600 14px/1.5 system-ui, sans-serif;
+}
+.admin-page-preview-bar a { color: #ffffff; text-decoration: underline; }
+
+.admin-page-selector .academy-auth-card > span {
+  color: #566078;
+  font-size: 14px;
+  line-height: 1.75;
+}
+.admin-page-selector .academy-auth-card .academy-setup-option { margin-top: 24px; }
+.admin-page-selector .academy-auth-card label { font-size: 14px; }
+.admin-page-selector .academy-auth-card form > button,
+.admin-page-selector .academy-auth-back { font-size: 13px; }

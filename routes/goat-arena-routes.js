@@ -18,7 +18,13 @@ const validateArenaEvidenceContent = createUploadContentValidator({
 const router =
   express.Router();
 
-router.use(authMiddleware.requireStudentAccount);
+// This router shares the root mount with admin, academy and public routes.
+// Do not leave a student-only marker on requests handled by the next router.
+router.use((req, res, next) => (
+  /^\/(?:goat-arena|api\/goat-arena)(?:\/|$)/.test(req.path)
+    ? authMiddleware.requireStudentAccount(req, res, next)
+    : next()
+));
 
 router.get(
   "/goat-arena",

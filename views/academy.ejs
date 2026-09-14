@@ -276,7 +276,8 @@
           </section>
 
           <section class="academy-panel academy-table-panel academy-attendance-panel">
-            <header><div><p>DAILY ROSTER</p><h2><%= attendanceData.dateKey %> 출결표</h2></div><span class="academy-status-chip"><%= attendanceData.dateKey === attendanceData.todayKey ? "오늘" : "과거 기록" %></span></header>
+            <header><div><p>DAILY ROSTER</p><h2><%= attendanceData.dateKey %> 출결표</h2></div><a class="academy-attendance-export" href="/academy/attendance/export.csv?date=<%= encodeURIComponent(attendanceData.dateKey) %>&amp;classId=<%= encodeURIComponent(String(attendanceData.selectedClass?._id || '')) %>" download>CSV 다운로드</a></header>
+            <p class="academy-attendance-export-note">현재 조회한 날짜와 반의 저장된 출결을 엑셀용 CSV로 내려받습니다. 변경한 내용은 출결 저장 후 다운로드해 주세요.</p>
             <% if (!attendanceData.roster.length) { %>
               <div class="academy-empty-state"><span aria-hidden="true">✓</span><strong>표시할 학생이 없습니다</strong><p>선택한 반에 승인된 학생이 있는지 확인해 주세요.</p></div>
             <% } else { %>
@@ -485,10 +486,20 @@
 
         <% if (currentTab === "teachers") { %>
           <header class="academy-heading academy-list-heading">
-            <div><p>ACADEMY STAFF</p><h1>선생님 관리</h1><span>운영자가 교사로 전환한 계정만 참여를 요청할 수 있으며, 원장 승인 후 학원 정보에 접근합니다.</span></div>
+            <div><p>ACADEMY STAFF</p><h1>선생님 관리</h1><span>교사 전용 초대로 계정을 만들거나 기존 학원 계정으로 참여를 신청합니다. 원장 승인 후 학원 정보에 접근합니다.</span></div>
             <strong class="academy-heading-count"><%= (portal.activeStaff || []).length %><small>명</small></strong>
           </header>
           <div class="academy-privacy-note"><strong>권한 구분</strong><span>원장: 선생님 승인·해제 가능</span><i></i><span>교사: 학생·반·통계 업무 가능</span></div>
+          <% if (isOwner) { %>
+            <section class="academy-panel academy-staff-invite-panel">
+              <header><div><p>TEACHER INVITE</p><h2>교사 전용 초대</h2></div><span class="academy-status-chip">이메일 지정 · 72시간</span></header>
+              <p>실제 근무할 선생님의 이메일로 초대를 만드세요. 링크를 복사해 직접 전달하며, 학생용 초대와는 별도로 검증됩니다.</p>
+              <form method="post" action="/academy/staff-invites" class="academy-staff-invite-form"><label><span>선생님 이메일</span><input type="email" name="email" maxlength="254" autocomplete="off" placeholder="초대받을 선생님의 이메일" required /></label><button type="submit">교사 초대 만들기</button></form>
+              <% const createdStaffInvite = portal.createdStaffInvite; const validCreatedInvite = createdStaffInvite && (portal.staffInvites || []).some((item) => String(item._id) === createdStaffInvite.id && item.status === 'ACTIVE' && new Date(item.expiresAt).getTime() > Date.now()); if (validCreatedInvite) { %><div class="academy-staff-invite-created" role="status"><strong><%= createdStaffInvite.email %> 교사 초대가 생성되었습니다.</strong><div><a href="<%= createdStaffInvite.path %>">초대 링크 확인</a><button type="button" data-copy-link="<%= createdStaffInvite.path %>" data-copy-success="교사 초대 링크를 복사했습니다.">초대 링크 복사</button></div><small>초대받은 이메일로만 가입·참여할 수 있으며, 마지막 원장 승인이 필요합니다.</small></div><% } %>
+              <% const openStaffInvites = (portal.staffInvites || []).filter(item => item.status === 'ACTIVE' && new Date(item.expiresAt).getTime() > Date.now()); if (openStaffInvites.length) { %><ul class="academy-staff-invite-list"><% openStaffInvites.forEach(item => { %><li><span><strong><%= item.email %></strong><small><%= formatDate(item.expiresAt) %>까지 유효</small></span><form method="post" action="/academy/staff-invites/<%= item._id %>/revoke"><button type="submit">초대 취소</button></form></li><% }) %></ul><% } %>
+            </section>
+            <div class="academy-copy-toast" data-copy-toast role="status" aria-live="polite" hidden>복사했습니다.</div>
+          <% } %>
 
           <section class="academy-panel academy-table-panel">
             <header><div><p>ACTIVE STAFF</p><h2>소속 선생님</h2></div><span class="academy-status-chip"><%= isOwner ? "원장 관리" : "조회 전용" %></span></header>
@@ -516,7 +527,7 @@
               <% (portal.staffRequests || []).forEach((staff) => { const staffUser = staff.userId; %>
                 <article class="academy-panel academy-request-card">
                   <div class="academy-student-avatar" aria-hidden="true"><%= String(staffUser.realName || staffUser.name || "선").slice(0, 1) %></div>
-                  <div class="academy-request-copy"><small>교사 참여 요청 · <%= formatDate(staff.requestedAt) %></small><h2><%= staffUser.realName || staffUser.name || "선생님" %></h2><p>운영자 교사 역할 전환 확인됨</p><span>승인 전에는 학생 정보와 학습 통계를 볼 수 없습니다.</span></div>
+                  <div class="academy-request-copy"><small>교사 참여 요청 · <%= formatDate(staff.requestedAt) %></small><h2><%= staffUser.realName || staffUser.name || "선생님" %></h2><p>학원 전용 교사 계정 확인됨</p><span>승인 전에는 학생 정보와 학습 통계를 볼 수 없습니다.</span></div>
                   <div class="academy-request-actions"><form action="/academy/staff/<%= staff._id %>/approve" method="POST"><button class="is-primary" type="submit">승인</button></form><form action="/academy/staff/<%= staff._id %>/reject" method="POST" onsubmit="return confirm('이 선생님의 참여 요청을 거절할까요?')"><button type="submit">거절</button></form></div>
                 </article>
               <% }) %>

@@ -362,8 +362,18 @@ function sessionPresentation(session, now, { includeCode = false } = {}) {
   };
 }
 
-async function getAcademyAttendanceRoster({ teacherUserId, dateKey, classId, now = new Date() }) {
+async function getAcademyAttendanceRoster({
+  teacherUserId,
+  dateKey,
+  classId,
+  now = new Date(),
+  readOnly = false,
+  rosterLimit = MAX_ROSTER_SIZE,
+  includeCode = true,
+}) {
   const context = await getTeacherAcademyContext(teacherUserId);
+  const readOnlyView = readOnly || context.staff.isAdminPreview;
+  const safeRosterLimit = Math.min(10001, Math.max(1, Number.parseInt(rosterLimit, 10) || MAX_ROSTER_SIZE));
   const selectedDateKey = normalizeDateKey(dateKey, now);
   const classes = await getManageableClasses(context, teacherUserId);
   const selectedClass = await resolveClassFilter(context, teacherUserId, classId, classes, { defaultFirst: true });
@@ -386,7 +396,7 @@ async function getAcademyAttendanceRoster({ teacherUserId, dateKey, classId, now
   };
   const memberships = await AcademyStudentMembership.find(membershipFilter)
     .sort({ approvedAt: 1, _id: 1 })
-    .limit(MAX_ROSTER_SIZE)
+    .limit(safeRosterLimit)
     .populate("studentUserId", "name realName schoolGrade school isActive accountStatus")
     .populate("classId", "name")
     .lean();
@@ -396,10 +406,18 @@ async function getAcademyAttendanceRoster({ teacherUserId, dateKey, classId, now
       membership.studentUserId.isActive !== false &&
       membership.studentUserId.accountStatus !== "withdrawn"
   );
-  let session = selectedClass
-    ? await ensureAttendanceSessionForClassDate({ academyClass: selectedClass, dateKey: selectedDateKey, actorUserId: teacherUserId, now })
-    : null;
-  if (session) {
+  let session = null;
+  if (selectedClass) {
+    session = readOnlyView
+      ? await AcademyAttendanceSession.findOne({
+          academyId: context.academyId,
+          classId: selectedClass._id,
+          dateKey: selectedDateKey,
+          sessionKey: `${selectedClass.academyId}:${selectedClass._id}:${selectedDateKey}:${selectedClass.schedule.startTime}`,
+        }).lean()
+      : await ensureAttendanceSessionForClassDate({ academyClass: selectedClass, dateKey: selectedDateKey, actorUserId: teacherUserId, now });
+  }
+  if (session && !readOnlyView) {
     await finalizeAttendanceSession(session, now);
     session = await AcademyAttendanceSession.findById(session._id).lean();
   }
@@ -431,10 +449,10 @@ async function getAcademyAttendanceRoster({ teacherUserId, dateKey, classId, now
     todayKey: getKstDateKey(now),
     classes,
     selectedClass,
-    session: sessionPresentation(session, now, { includeCode: true }),
+    session: sessionPresentation(session, now, { includeCode }),
     roster,
     counts,
-    truncated: memberships.length >= MAX_ROSTER_SIZE,
+    truncated: memberships.length >= safeRosterLimit,
   };
 }
 

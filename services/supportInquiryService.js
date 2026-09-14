@@ -8,6 +8,7 @@ const {
   ParentAccount,
   ParentChildLink,
 } = require("../models/parentModel");
+const { getParentFamily } = require("./parentFamilyService");
 const {
   sendSupportInquiryNotification,
 } = require("./emailService");
@@ -201,12 +202,20 @@ function parentContactSnapshot(parent, user) {
 async function getParentInquiryPageData({
   parentAccountId,
   userId,
+  readOnly = false,
 }) {
-  const { parent, user } =
-    await resolveParentInquiryContext({
-      parentAccountId,
-      userId,
-    });
+  let context;
+  if (readOnly) {
+    // Read-only admin previews support legacy links without creating them.
+    // Still enforce the selected parent's own child scope; writes use the
+    // original active-link validation in resolveParentInquiryContext.
+    const family = await getParentFamily({ parentId: parentAccountId, selectedChildUserId: userId, readOnly: true });
+    if (family.selected.childId !== String(userId)) throw createStatusError(403, "연결된 자녀만 열람할 수 있습니다.");
+    context = { parent: family.parent, user: family.child };
+  } else {
+    context = await resolveParentInquiryContext({ parentAccountId, userId });
+  }
+  const { parent, user } = context;
   const inquiries = await SupportInquiry.find({
     parentAccountId: parent._id,
     userId: user._id,

@@ -1,8 +1,6 @@
-const { createHash, randomUUID } = require("node:crypto");
+const { randomUUID } = require("node:crypto");
 const bcrypt = require("bcrypt");
 const { ParentAccount } = require("../models/parentModel");
-const { User } = require("../models/matthsModel");
-const { AcademyAccount } = require("../models/academyModel");
 const {
   acceptParentInvite,
   assertPaidCheckoutEnabled,
@@ -12,7 +10,6 @@ const {
   getProductCatalog,
   getPricingProductAccess,
   isPaidCheckoutAllowedForEmail,
-  registerParent,
 } = require("../services/checkoutService");
 const {
   buildCheckoutClientConfig,
@@ -32,6 +29,8 @@ const {
   getParentInquiryPageData,
 } = require("../services/supportInquiryService");
 const { serviceUrl } = require("../services/serviceUrlService");
+const { registerParentAccount } = require("../services/parentAccountService");
+const { accepted, inviteTokenFrom, validateChildConsent } = require("../services/portalRegistrationValidation");
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -50,10 +49,6 @@ function safeNext(value) {
   return /^\/parent(?:\/|$)/.test(next) ? next : "/parent";
 }
 
-function parentUsernameKey(email) {
-  return `parent-${createHash("sha256").update(String(email)).digest("hex").slice(0, 20)}`;
-}
-
 function parentSession(parent) {
   return {
     id: String(parent._id),
@@ -68,12 +63,14 @@ function parentSession(parent) {
 async function renderInvite(req, res, { status = 200, error = "", oldInput = {} } = {}) {
   const invite = await getParentInvite(req.params.token);
   res.set("Cache-Control", "no-store");
-  return res.status(status).render("parent-register", {
-    invite,
-    token: req.params.token,
+  res.set("Referrer-Policy", "no-referrer");
+  return res.status(status).render("portal-register", parentRegistrationLocals({
     error,
-    oldInput: { username: String(oldInput.username || "") },
-  });
+    registrationInvite: { token: req.params.token, email: invite.parentEmail, name: invite.childUserId.realName || invite.childUserId.name, productCode: invite.productCode, expiresAt: invite.expiresAt },
+    registrationAction: `/parent/invite/${req.params.token}`,
+    disablePageAnalytics: true,
+    oldInput: { displayName: String(oldInput.displayName || oldInput.username || ""), email: invite.parentEmail, termsAccepted: accepted(oldInput.termsAccepted), relationship: String(oldInput.relationship || ""), linkConsent: accepted(oldInput.linkConsent) },
+  }));
 }
 
 exports.inviteSignupPage = async (req, res, next) => {
@@ -95,9 +92,13 @@ exports.inviteSignupPage = async (req, res, next) => {
       throw error;
     }
     res.set("Cache-Control", "no-store");
+    res.set("Referrer-Policy", "no-referrer");
     return res.render("parent-link-child", {
       invite,
       token: req.params.token,
+      error: null,
+      oldInput: {},
+      disablePageAnalytics: true,
     });
   } catch (error) {
     return next(error);
@@ -106,26 +107,36 @@ exports.inviteSignupPage = async (req, res, next) => {
 
 exports.acceptExistingParentInvite = async (req, res, next) => {
   try {
+    const consent = validateChildConsent(req.body);
     const result = await acceptParentInvite({
       rawToken: req.params.token,
       parentAccountId: req.session.parent.id,
+      ...consent,
     });
     req.session.parent.selectedChildUserId = String(result.child._id);
     req.session.parent.childUserId = String(result.child._id);
     await saveSession(req);
     return res.redirect("/parent?linked=1");
   } catch (error) {
+    if (Number(error.status) === 400) {
+      try { return res.status(400).render("parent-link-child", { invite: await getParentInvite(req.params.token), disablePageAnalytics: true, token: req.params.token, error: error.message, oldInput: { relationship: String(req.body.relationship || "") } }); } catch (lookupError) { return next(lookupError); }
+    }
     return next(error);
   }
 };
 
 exports.completeInviteSignup = async (req, res, next) => {
   try {
-    const parent = await registerParent({
-      rawToken: req.params.token,
-      username: req.body.username,
+    const invite = await getParentInvite(req.params.token);
+    const parent = await registerParentAccount({
+      inviteToken: req.params.token,
+      displayName: req.body.displayName || req.body.username,
+      email: invite.parentEmail,
       password: req.body.password,
       passwordConfirm: req.body.passwordConfirm,
+      termsAccepted: req.body.termsAccepted,
+      relationship: req.body.relationship,
+      linkConsent: req.body.linkConsent,
     });
     await regenerateSession(req);
     req.session.parent = parentSession(parent);
@@ -146,6 +157,7 @@ exports.completeInviteSignup = async (req, res, next) => {
 function parentLoginLocals(req, overrides = {}) {
   return {
     accountType: "parent",
+    disablePageAnalytics: /^\/parent\/invite\//.test(String(req.query.next || req.body?.next || "")),
     error: null,
     success: req.query.registered === "1"
       ? "학부모 계정이 생성되었습니다. 로그인해주세요."
@@ -158,7 +170,7 @@ function parentLoginLocals(req, overrides = {}) {
   };
 }
 
-exports.loginPage = (req, res) => res.render("login", parentLoginLocals(req));
+exports.loginPage = (req, res) => { res.set("Referrer-Policy", "no-referrer"); return res.render("login", parentLoginLocals(req)); };
 
 exports.login = async (req, res, next) => {
   try {
@@ -200,83 +212,54 @@ function parentRegistrationLocals(overrides = {}) {
     accountType: "parent",
     error: null,
     oldInput: { displayName: "", email: "" },
+    registrationInvite: null,
+    registrationAction: null,
     ...overrides,
   };
 }
 
-exports.registerPage = (_req, res) => (
-  res.render("portal-register", parentRegistrationLocals())
-);
+exports.registerPage = async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    res.set("Referrer-Policy", "no-referrer");
+    if (req.query.invite) {
+      const token = inviteTokenFrom(req.query.invite, "/parent/invite/");
+      return res.redirect(`/parent/invite/${token}`);
+    }
+    return res.render("portal-register", parentRegistrationLocals());
+  } catch (error) { return next(error); }
+};
+
+exports.lookupRegistrationInvite = async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const token = inviteTokenFrom(req.query.token, "/parent/invite/");
+    const invite = await getParentInvite(token);
+    return res.json({ token, email: invite.parentEmail, name: invite.childUserId.realName || invite.childUserId.name, productCode: invite.productCode, expiresAt: invite.expiresAt });
+  } catch (error) { return res.status(Number(error.status) || 500).json({ error: Number(error.status) ? error.message : "초대 확인에 실패했습니다. 다시 시도해주세요." }); }
+};
 
 exports.register = async (req, res, next) => {
   try {
-    const displayName = String(req.body.displayName || "").replace(/\s+/g, " ").trim();
-    const email = String(req.body.email || "").trim().toLowerCase();
-    const password = String(req.body.password || "");
-    const passwordConfirm = String(req.body.passwordConfirm || "");
-    const termsAccepted = ["1", "true", "on"].includes(String(req.body.termsAccepted || ""));
-
-    if (displayName.length < 2 || displayName.length > 40) {
-      const error = new Error("학부모 이름은 2자 이상 40자 이하로 입력해주세요.");
-      error.status = 400;
-      throw error;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      const error = new Error("올바른 이메일 주소를 입력해주세요.");
-      error.status = 400;
-      throw error;
-    }
-    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
-      const error = new Error("비밀번호는 영문과 숫자를 포함해 8자 이상으로 입력해주세요.");
-      error.status = 400;
-      throw error;
-    }
-    if (Buffer.byteLength(password, "utf8") > 72 || password !== passwordConfirm) {
-      const error = new Error(password !== passwordConfirm
-        ? "비밀번호 확인이 일치하지 않습니다."
-        : "비밀번호가 너무 깁니다.");
-      error.status = 400;
-      throw error;
-    }
-    if (!termsAccepted) {
-      const error = new Error("이용약관과 개인정보처리방침에 동의해주세요.");
-      error.status = 400;
-      throw error;
-    }
-    const [parentExists, userExists, academyExists] = await Promise.all([
-      ParentAccount.exists({ email }),
-      User.exists({ email }),
-      AcademyAccount.exists({ email }),
-    ]);
-    if (parentExists || userExists || academyExists) {
-      const error = new Error("이미 사용 중인 이메일입니다.");
-      error.status = 409;
-      throw error;
-    }
-
-    const parent = await ParentAccount.create({
-      username: displayName,
-      usernameNormalized: parentUsernameKey(email),
-      email,
-      passwordHash: await bcrypt.hash(password, 12),
-      childUserId: null,
-      acceptedTermsAt: new Date(),
-      acceptedPrivacyAt: new Date(),
-      lastLoginAt: new Date(),
-    });
+    const parent = await registerParentAccount({ displayName: req.body.displayName, email: req.body.email, password: req.body.password, passwordConfirm: req.body.passwordConfirm, termsAccepted: req.body.termsAccepted, inviteToken: req.body.inviteToken || req.body.inviteLink, relationship: req.body.relationship, linkConsent: req.body.linkConsent });
     await regenerateSession(req);
     req.session.parent = parentSession(parent);
     await saveSession(req);
     return res.redirect(serviceUrl("parents", "/parent?welcome=1"));
   } catch (error) {
-    if ([400, 409].includes(Number(error.status)) || Number(error.code) === 11000) {
+    if ([400, 403, 404, 409, 410].includes(Number(error.status)) || Number(error.code) === 11000) {
       return res.status(Number(error.status) || 409).render(
         "portal-register",
         parentRegistrationLocals({
           error: Number(error.code) === 11000 ? "이미 사용 중인 이메일입니다." : error.message,
+          disablePageAnalytics: Boolean(req.body.inviteToken || req.body.inviteLink),
           oldInput: {
             displayName: String(req.body.displayName || ""),
             email: String(req.body.email || ""),
+            inviteToken: String(req.body.inviteToken || ""),
+            termsAccepted: accepted(req.body.termsAccepted),
+            relationship: String(req.body.relationship || ""),
+            linkConsent: accepted(req.body.linkConsent),
           },
         })
       );
@@ -296,9 +279,11 @@ exports.logout = async (req, res, next) => {
 };
 
 async function getRequestParentContext(req) {
-  const family = await getParentFamily({
-    parentId: req.session.parent.id,
-    selectedChildUserId: req.session.parent.selectedChildUserId,
+  const accountSession = req.adminParentView || req.session.parent;
+  const family = req.adminParentFamily || await getParentFamily({
+    parentId: accountSession.id,
+    selectedChildUserId: accountSession.selectedChildUserId,
+    readOnly: Boolean(req.adminParentView),
   });
   return {
     ...family,
@@ -371,7 +356,7 @@ exports.dashboardPage = async (req, res, next) => {
     });
   } catch (error) {
     if (error?.code === "PARENT_CHILD_LINK_REQUIRED") {
-      const parent = await ParentAccount.findById(req.session.parent.id).lean();
+      const parent = await ParentAccount.findById((req.adminParentView || req.session.parent).id).lean();
       res.set("Cache-Control", "private, no-store");
       return res.status(200).render("parent-onboarding", { parent });
     }
@@ -394,7 +379,7 @@ exports.pricingPage = async (req, res, next) => {
       selectedChildId: context.selectedChildId,
       products,
       productAccess,
-      checkoutEnabled: isPaidCheckoutAllowedForEmail(parent.email),
+      checkoutEnabled: !req.adminParentView && isPaidCheckoutAllowedForEmail(parent.email),
     });
   } catch (error) {
     return next(error);
@@ -469,6 +454,7 @@ async function renderParentInquiries(
   const inquiryData = await getParentInquiryPageData({
     parentAccountId: parent._id,
     userId: child._id,
+    readOnly: Boolean(req.adminParentView),
   });
   res.set("Cache-Control", "no-store");
   return res.status(status).render("parent-inquiries", {
@@ -548,7 +534,7 @@ async function renderCheckout(req, res, { intent = null } = {}) {
 
 exports.checkoutPage = async (req, res, next) => {
   try {
-    assertPaidCheckoutEnabled({ email: req.session.parent.email });
+    if (!req.adminParentView) assertPaidCheckoutEnabled({ email: req.session.parent.email });
     return await renderCheckout(req, res);
   } catch (error) {
     return next(error);

@@ -126,6 +126,7 @@ exports.isLoggedIn = async (req, res, next) => {
 
             if (
                 req.requiredAccountType === "student" &&
+                !isAdminSessionUser(account) &&
                 !["student", "test"].includes(String(account.role || ""))
             ) {
                 return next(studentAccessError());
@@ -181,7 +182,7 @@ exports.requireStudentAccount = (req, _res, next) => {
 };
 
 exports.isStudent = (req, _res, next) => {
-    if (["student", "test"].includes(String(req.session?.user?.role || ""))) {
+    if (["student", "test", "admin"].includes(String(req.session?.user?.role || ""))) {
         return next();
     }
     return next(studentAccessError());
@@ -243,6 +244,7 @@ exports.isAdmin = (
 };
 
 exports.isTeacher = (req, res, next) => {
+    if (isAdminSessionUser(req.session?.user)) return next();
     const account = req.authenticatedUser;
     const expiresAt = account?.teacherAccessExpiresAt
         ? new Date(account.teacherAccessExpiresAt)

@@ -2,6 +2,7 @@ const {
   ParentAccount,
   ParentChildLink,
 } = require("../models/parentModel");
+const { User } = require("../models/matthsModel");
 
 const CHILD_SELECT_FIELDS = [
   "name",
@@ -74,7 +75,7 @@ async function ensureLegacyParentChildLink(parent) {
   );
 }
 
-async function linkChildToParent({ parentAccountId, childUserId }) {
+async function linkChildToParent({ parentAccountId, childUserId, relationship = null, linkConsentAt = null }) {
   const parent = await ParentAccount.findById(parentAccountId);
   if (!parent || !parent.isActive) {
     throw statusError(403, "학부모 계정 이용 상태를 확인해주세요.");
@@ -102,6 +103,7 @@ async function linkChildToParent({ parentAccountId, childUserId }) {
       $set: {
         status: "ACTIVE",
         linkedAt: new Date(),
+        ...(relationship && linkConsentAt ? { relationship, linkConsentAt } : {}),
       },
       $setOnInsert: {
         parentAccountId: parent._id,
@@ -123,13 +125,13 @@ async function linkChildToParent({ parentAccountId, childUserId }) {
   return link;
 }
 
-async function getParentFamily({ parentId, selectedChildUserId = null }) {
+async function getParentFamily({ parentId, selectedChildUserId = null, readOnly = false }) {
   const parent = await ParentAccount.findById(parentId).lean();
-  if (!parent || !parent.isActive) {
+  if (!parent || (!readOnly && !parent.isActive)) {
     throw statusError(403, "학부모 계정 이용 상태를 확인해주세요.");
   }
 
-  await ensureLegacyParentChildLink(parent);
+  if (!readOnly) await ensureLegacyParentChildLink(parent);
   const links = await ParentChildLink.find({
     parentAccountId: parent._id,
     status: "ACTIVE",
@@ -137,11 +139,20 @@ async function getParentFamily({ parentId, selectedChildUserId = null }) {
     .sort({ linkedAt: 1, _id: 1 })
     .populate("childUserId", CHILD_SELECT_FIELDS)
     .lean();
+  // Preview legacy records without creating links as a side effect of a GET.
+  if (readOnly && parent.childUserId && !links.some(link => String(link.childUserId?._id) === String(parent.childUserId))) {
+    const existingLink = await ParentChildLink.exists({ parentAccountId: parent._id, childUserId: parent.childUserId });
+    // A revoked link must stay revoked, including in the legacy view.
+    if (!existingLink) {
+      const child = await User.findById(parent.childUserId).select(CHILD_SELECT_FIELDS).lean();
+      if (child) links.push({ _id: null, childUserId: child, linkedAt: parent.createdAt, notificationSettings: {} });
+    }
+  }
 
   const children = links
     .filter((link) => {
       const child = link.childUserId;
-      return child && child.isActive !== false && child.accountStatus !== "withdrawn";
+      return child && (readOnly || (child.isActive !== false && child.accountStatus !== "withdrawn"));
     })
     .map((link) => ({
       linkId: String(link._id),
