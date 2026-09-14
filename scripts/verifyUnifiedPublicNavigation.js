@@ -35,7 +35,7 @@ async function renderNavigation(session) {
 
 async function main() {
   const cases = [
-    [{}, "https://www.matths.kr/login", "https://www.matths.kr/register", "로그인", "무료로 시작하기"],
+    [{}, "https://www.matths.kr/student/login", "https://www.matths.kr/student/register", "로그인", "무료로 시작하기"],
     [{ user: { id: "student", role: "student" } }, "https://app.matths.kr/main", "https://app.matths.kr/my-learning", "대시보드", "학습 계속하기"],
     [{ user: { id: "teacher", role: "teacher" } }, "https://academy.matths.kr/academy", "https://academy.matths.kr/academy", "대시보드", "학습 계속하기"],
     [{ user: { id: "admin", role: "admin" } }, "https://admin.matths.kr/admin", "https://admin.matths.kr/admin", "대시보드", "학습 계속하기"],
@@ -62,16 +62,19 @@ async function main() {
     serviceUrls,
     socialAuthProviders: [],
     success: null,
+    accountType: "student",
   });
   assert.ok(loginHtml.includes('href="https://www.matths.kr/"'));
-  assert.ok(loginHtml.includes('action="https://www.matths.kr/login"'));
+  assert.ok(loginHtml.includes('action="/student/login"'));
   assert.ok(loginHtml.includes('type="email"'));
   assert.ok(loginHtml.includes('name="email"'));
   assert.ok(loginHtml.includes('value="parent@example.com"'));
   assert.ok(!loginHtml.includes('name="identifier"'));
   assert.ok(loginHtml.includes('name="next" value="/parent/payments"'));
+  assert.ok(loginHtml.includes('href="/academy/login"'));
+  assert.ok(loginHtml.includes('href="/parent/login"'));
 
-  console.log("공용 로그인·로고·역할별 메인 네비게이션 링크 검증 완료");
+  console.log("학생 로그인·로고·역할별 메인 네비게이션 링크 검증 완료");
 }
 
 main().catch((error) => {

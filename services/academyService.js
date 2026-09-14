@@ -2,6 +2,7 @@ const { randomBytes } = require("node:crypto");
 const mongoose = require("mongoose");
 const { AdminActionLog, User } = require("../models/matthsModel");
 const {
+  AcademyAccount,
   Academy,
   AcademyStaff,
   AcademyClass,
@@ -191,6 +192,7 @@ async function ensureAcademyIndexes() {
     if (![26, 27].includes(Number(error?.code))) throw error;
   }
   await Promise.all([
+    AcademyAccount.createIndexes(),
     Academy.createIndexes(),
     AcademyStaff.createIndexes(),
     AcademyClass.createIndexes(),

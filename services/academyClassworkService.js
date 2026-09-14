@@ -567,6 +567,31 @@ async function getStudentAcademyWeek({ studentUserId, weekId }) {
   return { ...context, week: serialized, submission };
 }
 
+async function getTeacherAcademyWeekPreview({ teacherUserId, classId, weekId }) {
+  const { context, academyClass } = await getManagedClass({ teacherUserId, classId });
+  if (!mongoose.isValidObjectId(weekId)) {
+    throw statusError(404, "미리 볼 주차별 수업을 찾을 수 없습니다.");
+  }
+  const week = await AcademyClassWeek.findOne({
+    _id: weekId,
+    academyId: context.academyId,
+    classId: academyClass._id,
+    status: "PUBLISHED",
+  }).lean();
+  if (!week) throw statusError(404, "미리 볼 주차별 수업을 찾을 수 없습니다.");
+
+  const serialized = serializeWeek(week);
+  if (serialized.assignmentOmr) {
+    serialized.assignmentOmr.questions = omrQuestionRows(serialized.assignmentOmr, []);
+  }
+  return {
+    academy: context.academy,
+    academyClass,
+    week: serialized,
+    submission: null,
+  };
+}
+
 async function regradeAssignmentSubmissions(week) {
   if (!week?.assignmentOmr?.enabled || !week.assignmentOmr.answerKey?.length) return { modifiedCount: 0 };
   const submissions = await AcademyAssignmentSubmission.find({ weekId: week._id }).lean();
@@ -833,6 +858,7 @@ module.exports = {
   getStudentAcademyClassroom,
   getStudentAcademyWeek,
   getStudentAcademyWeekFileDownload,
+  getTeacherAcademyWeekPreview,
   getTeacherAcademyWeekFileDownload,
   MAX_WEEK_CONCEPTS,
   MAX_WEEK_FILES,

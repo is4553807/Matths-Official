@@ -8,6 +8,8 @@ const {
   calculateWeeklyMmrPerformance,
   getIntegrityEvidenceDeadline,
   getPrivateMockPhase,
+  getPrivateMockAttemptDeadline,
+  getCustomPrivateMockScheduleExtension,
   getWeekSelectionLockAt,
   getUploadReminderWindow,
   gradePrivateMockAnswers,
@@ -421,6 +423,12 @@ assert.equal(
   testSchedule.closeAt.toISOString(),
   "2026-07-29T11:40:00.000Z"
 );
+const lateAttempt = { startedAt: new Date("2026-07-29T10:20:00.000Z") };
+const customExam = { ...testSchedule, formCode: "CUSTOM", durationMinutes: 100 };
+assert.equal(getPrivateMockAttemptDeadline(customExam, lateAttempt).toISOString(), "2026-07-29T12:00:00.000Z");
+assert.equal(getCustomPrivateMockScheduleExtension(customExam, lateAttempt).closeAt.toISOString(), "2026-07-29T12:00:00.000Z");
+assert.equal(getPrivateMockAttemptDeadline({ ...customExam, formCode: "A" }, lateAttempt).toISOString(), "2026-07-29T11:40:00.000Z");
+assert.equal(getCustomPrivateMockScheduleExtension({ ...customExam, formCode: "A" }, lateAttempt), null);
 const thirdSchedule =
   buildPrivateMockSchedule(
     thirdReleaseAt

@@ -58,6 +58,7 @@ const {
   getStudentAcademyClassroom,
   getStudentAcademyWeek,
   getStudentAcademyWeekFileDownload,
+  getTeacherAcademyWeekPreview,
   getTeacherAcademyWeekFileDownload,
   removeAcademyClassWeekFile,
   saveAcademyClassWeek,
@@ -729,6 +730,36 @@ exports.downloadClassWeekFile = async (req, res, next) => {
       fileId: req.params.fileId,
     });
     return sendAcademyAssignmentDownload(res, next, download);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.studentAssignmentPreview = async (req, res, next) => {
+  try {
+    const classroom = await getTeacherAcademyWeekPreview({
+      teacherUserId: req.session.user.id,
+      classId: req.params.classId,
+      weekId: req.params.weekId,
+    });
+    classroom.profileImageSrc = resolveAcademyProfileImage(classroom.academy.profileImageAsset);
+    const previewUser = {
+      name: "학생 미리보기",
+      realName: "학생",
+      role: "student",
+      schoolGrade: 10,
+      preferences: {},
+    };
+    res.set("Cache-Control", "private, no-store");
+    res.set("X-Robots-Tag", "noindex, nofollow");
+    return res.render("student-academy-week", {
+      user: previewUser,
+      classroom,
+      arenaProfileAvatar: resolveArenaProfileAvatar({}),
+      submissionFeedback: null,
+      previewMode: true,
+      previewReturnUrl: `/academy/classes/${classroom.academyClass._id}?section=classwork#class-weekly-work`,
+    });
   } catch (error) {
     return next(error);
   }

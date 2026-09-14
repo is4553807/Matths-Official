@@ -5,7 +5,7 @@
       : {
           authenticated: typeof user !== "undefined" && Boolean(user),
           role: typeof user !== "undefined" ? user?.role : "guest",
-          dashboardHref: typeof user !== "undefined" && user ? "/main" : "/login",
+          dashboardHref: typeof user !== "undefined" && user ? "/main" : "/student/login",
           primaryHref: typeof user !== "undefined" && user ? "/my-learning" : "/register",
           primaryLabel: typeof user !== "undefined" && user ? "학습 계속하기" : "무료로 시작하기",
           arenaHref: typeof user !== "undefined" && user ? "/goat-arena" : "/#goat-arena",

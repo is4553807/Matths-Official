@@ -5,8 +5,48 @@
     typeof success !== "undefined" ? success : null;
   const protectedPageNotice =
     typeof loginNotice !== "undefined" ? loginNotice : null;
+  const selectedAccountType =
+    ["student", "academy", "parent", "admin"].includes(
+      typeof accountType === "string" ? accountType : ""
+    )
+      ? accountType
+      : "student";
+  const accountCopy = {
+    student: {
+      label: "학생",
+      eyebrow: "STUDENT LOGIN",
+      title: "학생 학습을 이어가세요.",
+      description: "오늘의 학습, 오답 기록과 학원 과제를 확인합니다.",
+      action: "/student/login",
+      register: "/student/register",
+    },
+    academy: {
+      label: "학원",
+      eyebrow: "ACADEMY LOGIN",
+      title: "학원 운영 화면으로 들어가세요.",
+      description: "반, 출결, 과제와 학생 학습 현황을 관리합니다.",
+      action: "/academy/login",
+      register: "/academy/register",
+    },
+    parent: {
+      label: "학부모",
+      eyebrow: "PARENT LOGIN",
+      title: "자녀의 학습 현황을 확인하세요.",
+      description: "자녀별 학습 현황, 알림과 결제 내역을 확인합니다.",
+      action: "/parent/login",
+      register: "/parent/register",
+    },
+    admin: {
+      label: "운영자",
+      eyebrow: "ADMIN LOGIN",
+      title: "Matths 운영센터 로그인",
+      description: "승인된 운영자 계정만 접근할 수 있습니다.",
+      action: "/admin/login",
+      register: "",
+    },
+  }[selectedAccountType];
   const loginNext =
-    typeof next === "string" && /^\/parent(?:\/|$)/.test(next)
+    typeof next === "string" && next.startsWith("/") && !next.startsWith("//")
       ? next
       : "";
 
@@ -37,10 +77,10 @@
 
     <meta
       name="description"
-      content="Matths에 로그인하고 학습을 이어서 시작하세요."
+      content="Matths <%= accountCopy.label %> 계정으로 로그인하세요."
     />
 
-    <title>로그인 | Matths</title>
+    <title><%= accountCopy.label %> 로그인 | Matths</title>
 
     <link
       rel="stylesheet"
@@ -74,8 +114,8 @@
       }) %>
 
       <nav aria-label="인증 페이지 메뉴">
-        <span>아직 계정이 없나요?</span>
-        <a href="/register">회원가입</a>
+        <span><%= accountCopy.label %> 계정이 없나요?</span>
+        <% if (accountCopy.register) { %><a href="<%= accountCopy.register %>">회원가입</a><% } %>
       </nav>
     </header>
 
@@ -85,34 +125,34 @@
         aria-labelledby="visual-title"
       >
         <div class="visual-copy">
-          <p>WELCOME BACK</p>
+          <p><%= accountCopy.eyebrow %></p>
 
           <h1 id="visual-title">
-            외운 공식 말고,<br />
-            <strong>이해한 장면</strong>부터<br />
-            이어서 시작하세요.
+            역할에 맞는 공간에서<br />
+            <strong>필요한 화면만</strong><br />
+            안전하게 이용하세요.
           </h1>
 
           <span>
-            지난 학습 위치와 오답 기록을 불러와
-            필요한 개념부터 다시 보여드립니다.
+            학생·학원·학부모 계정은 서로 다른 데이터와
+            접근 권한으로 분리되어 있습니다.
           </span>
         </div>
 
         <div class="visual-points">
           <span>
-            <b>01</b>
-            마지막 학습부터 이어서
+            <b>학생</b>
+            학습·오답·과제
           </span>
 
           <span>
-            <b>02</b>
-            오답은 막힌 Step부터
+            <b>학원</b>
+            반·출결·과제 관리
           </span>
 
           <span>
-            <b>03</b>
-            내 진도를 한눈에
+            <b>학부모</b>
+            자녀 현황·알림·결제
           </span>
         </div>
       </section>
@@ -124,13 +164,21 @@
       >
         <div class="auth-panel-inner">
           <div class="auth-heading">
-            <p>LOGIN</p>
-            <h2 id="login-title">다시 만나 반갑습니다.</h2>
+            <p><%= accountCopy.eyebrow %></p>
+            <h2 id="login-title"><%= accountCopy.title %></h2>
 
             <span>
-              로그인하고 오늘의 학습을 이어가세요.
+              <%= accountCopy.description %>
             </span>
           </div>
+
+          <% if (selectedAccountType !== "admin") { %>
+            <nav class="account-type-switcher" aria-label="계정 유형 선택">
+              <a href="/student/login" class="<%= selectedAccountType === 'student' ? 'is-active' : '' %>" <% if (selectedAccountType === "student") { %>aria-current="page"<% } %>>학생</a>
+              <a href="/academy/login" class="<%= selectedAccountType === 'academy' ? 'is-active' : '' %>" <% if (selectedAccountType === "academy") { %>aria-current="page"<% } %>>학원</a>
+              <a href="/parent/login" class="<%= selectedAccountType === 'parent' ? 'is-active' : '' %>" <% if (selectedAccountType === "parent") { %>aria-current="page"<% } %>>학부모</a>
+            </nav>
+          <% } %>
 
           <% if (protectedPageNotice) { %>
             <div class="form-alert form-alert-login" role="status">
@@ -161,7 +209,7 @@
 
           <form
             class="auth-form"
-            action="<%= typeof serviceUrls !== 'undefined' && serviceUrls?.public ? `${String(serviceUrls.public).replace(/\/$/, '')}/login` : '/login' %>"
+            action="<%= accountCopy.action %>"
             method="POST"
           >
             <% if (loginNext) { %><input type="hidden" name="next" value="<%= loginNext %>" /><% } %>
@@ -188,9 +236,7 @@
                   비밀번호
                 </label>
 
-                <a href="/forgot-password">
-                  비밀번호를 잊었나요?
-                </a>
+                <% if (["student", "admin"].includes(selectedAccountType)) { %><a href="/forgot-password">비밀번호를 잊었나요?</a><% } %>
               </div>
 
               <div class="password-field">
@@ -223,7 +269,7 @@
             </button>
           </form>
 
-          <div class="social-auth" aria-label="소셜 로그인">
+          <% if (selectedAccountType === "student") { %><div class="social-auth" aria-label="소셜 로그인">
             <div class="social-auth-divider"><span>또는</span></div>
             <div class="social-auth-buttons">
               <a
@@ -277,13 +323,16 @@
             ) { %>
               <small class="social-auth-guide">운영 키가 설정되지 않은 로그인 방식은 아직 사용할 수 없습니다.</small>
             <% } %>
-          </div>
+          </div><% } %>
 
           <div class="auth-switch">
-            <span>Matths가 처음인가요?</span>
-            <a href="/register">
-              무료로 시작하기
-            </a>
+            <% if (accountCopy.register) { %>
+              <span><%= accountCopy.label %> 계정이 처음인가요?</span>
+              <a href="<%= accountCopy.register %>">회원가입</a>
+            <% } else { %>
+              <span>운영자 계정 발급이 필요한가요?</span>
+              <a href="/contact">문의하기</a>
+            <% } %>
           </div>
 
           <p class="auth-notice">

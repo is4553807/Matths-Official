@@ -7,6 +7,7 @@ const {
   CheckoutIntent,
 } = require("../models/parentModel");
 const { User } = require("../models/matthsModel");
+const { AcademyAccount } = require("../models/academyModel");
 const { sendEmail, buildBrandedHtml } = require("./emailService");
 const {
   getActiveMockExamPackagePolicy,
@@ -357,17 +358,22 @@ async function createParentInvite({
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw statusError(400, "학부모 이메일 주소를 정확히 입력해주세요.");
   }
-  const [child, product, existingParent] = await Promise.all([
+  const [child, product, existingParent, conflictingUser, conflictingAcademy] = await Promise.all([
     User.findById(childUserId)
       .select("_id name realName email isActive accountStatus")
       .lean(),
     getProduct(productCode),
     ParentAccount.findOne({ email }).select("_id childUserId").lean(),
+    User.exists({ email }),
+    AcademyAccount.exists({ email }),
   ]);
   if (!child || child.isActive === false || child.accountStatus === "withdrawn") {
     throw statusError(404, "학생 계정을 찾을 수 없습니다.");
   }
   assertPaidCheckoutEnabled({ email: child.email });
+  if (!existingParent && (conflictingUser || conflictingAcademy)) {
+    throw statusError(409, "학생 또는 학원 계정에서 사용 중인 이메일입니다. 다른 학부모 이메일을 입력해 주세요.");
+  }
   const [linkedParent, legacyParent] = await Promise.all([
     ParentChildLink.findOne({ childUserId: child._id, status: "ACTIVE" })
       .select("parentAccountId")
@@ -469,22 +475,30 @@ async function registerParent({ rawToken, username, password, passwordConfirm })
   if (password !== passwordConfirm) {
     throw statusError(400, "비밀번호 확인이 일치하지 않습니다.");
   }
-  const duplicate = await ParentAccount.exists({
-    $or: [
-      { usernameNormalized: normalized },
-      { email: invite.parentEmail },
-      { childUserId: invite.childUserId._id },
-    ],
-  });
-  if (duplicate) throw statusError(409, "이미 가입된 학부모 계정 또는 자녀 연결입니다.");
+  const [duplicate, conflictingUser, conflictingAcademy] = await Promise.all([
+    ParentAccount.exists({
+      $or: [
+        { usernameNormalized: normalized },
+        { email: invite.parentEmail },
+        { childUserId: invite.childUserId._id },
+      ],
+    }),
+    User.exists({ email: invite.parentEmail }),
+    AcademyAccount.exists({ email: invite.parentEmail }),
+  ]);
+  if (duplicate || conflictingUser || conflictingAcademy) {
+    throw statusError(409, "이미 가입된 계정 또는 자녀 연결입니다.");
+  }
+  const acceptedAt = new Date();
   const parent = await ParentAccount.create({
     username: cleanUsername,
     usernameNormalized: normalized,
     email: invite.parentEmail,
     passwordHash: await bcrypt.hash(password, 12),
     childUserId: invite.childUserId._id,
-    acceptedTermsAt: new Date(),
-    lastLoginAt: new Date(),
+    acceptedTermsAt: acceptedAt,
+    acceptedPrivacyAt: acceptedAt,
+    lastLoginAt: acceptedAt,
   });
   await linkChildToParent({
     parentAccountId: parent._id,

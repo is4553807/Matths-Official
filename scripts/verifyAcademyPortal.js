@@ -1577,6 +1577,10 @@ async function main() {
     const emptyAcademyClass = await createAcademyClass({
       teacherUserId: teacher._id,
       name: "빈 반 검증",
+      weekdays: [1],
+      startTime: "18:00",
+      endTime: "20:00",
+      effectiveFrom: "2026-01-01",
     });
     const emptyClassDetail = await getAcademyClassDetail({
       teacherUserId: teacher._id,

@@ -1,6 +1,7 @@
 const { spawnSync } = require("node:child_process");
 
 const checks = [
+  "gtm:verify",
   "korean-only:verify",
   "auth-email-only:verify",
   "study-streak:verify",
@@ -14,6 +15,8 @@ const checks = [
   "ipad-assessment-safety:verify",
   "ipad-placement-http:verify",
   "ipad-weekly-mock-evidence:verify",
+  "private-mock:verify",
+  "custom-weekly-mock:verify",
   "ipad-arena-command-http:verify",
   "ipad-notification-http:verify",
   "ipad-arena-shop:verify",

@@ -3,7 +3,11 @@
   const academyClass = classroom.academyClass;
   const week = classroom.week;
   const submission = classroom.submission || null;
-  const omrClosed = Boolean(week.dueAt && new Date(week.dueAt).getTime() <= Date.now());
+  const isPreview = typeof previewMode !== "undefined" && previewMode === true;
+  const returnUrl = isPreview && typeof previewReturnUrl === "string"
+    ? previewReturnUrl
+    : "/my-academy";
+  const omrClosed = !isPreview && Boolean(week.dueAt && new Date(week.dueAt).getTime() <= Date.now());
   const missedAssignment = submission?.status === "MISSED";
   const displayName = String(user.realName || user.name || "학생");
   const gradeLabel = ({ 10: "고등학교 1학년", 11: "고등학교 2학년", 12: "고등학교 3학년", 13: "N수생", 14: "대학생", 15: "직장인" })[Number(user.schoolGrade)] || "학년 미설정";
@@ -30,8 +34,14 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <script src="/js/main.js" defer></script>
   </head>
-  <body class="student-academy-page">
+  <body class="student-academy-page <%= isPreview ? 'student-preview-mode' : '' %>">
     <a class="skip-link" href="#student-academy-main">본문으로 바로가기</a>
+    <% if (isPreview) { %>
+      <div class="student-preview-banner" role="status">
+        <div><strong>학생 화면 미리보기</strong><span>실제 학생에게 공개되는 과제 화면입니다. 미리보기에서는 학습 이동과 답안 제출이 비활성화됩니다.</span></div>
+        <a href="<%= returnUrl %>">미리보기 닫기</a>
+      </div>
+    <% } %>
     <div class="dashboard-shell">
       <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
       <%- include("partials/dashboard-sidebar", {
@@ -42,23 +52,24 @@
   profileImageSrc: arenaProfileAvatar.imageSrc,
   navigationUser: user,
   academyMembershipAvailable: true,
+  showLogout: !isPreview,
 }) %>
 
       <main class="dashboard-main student-academy-main" id="student-academy-main">
-        <header class="topbar student-academy-topbar"><div class="topbar-left"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button><div><p><%= academy.name %> · <%= academyClass.name %></p><h1><%= week.weekNumber %>주차</h1></div></div><a class="learning-home-button" href="/my-academy">주차 목록 <span aria-hidden="true">→</span></a></header>
+        <header class="topbar student-academy-topbar"><div class="topbar-left"><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button><div><p><%= academy.name %> · <%= academyClass.name %></p><h1><%= week.weekNumber %>주차</h1></div></div><a class="learning-home-button" href="<%= returnUrl %>"><%= isPreview ? "교사 화면으로" : "주차 목록" %> <span aria-hidden="true">→</span></a></header>
 
         <section class="student-academy-week-hero"><span><%= week.weekNumber %></span><div><small><%= week.academicYear %> · WEEK <%= week.weekNumber %></small><h2><%= week.title %></h2><p><%= week.lessonSummary || "선생님이 등록한 이번 주 학습 개념과 과제를 확인하세요." %></p></div></section>
 
         <section class="student-academy-content-panel">
           <header><div><small>LEARNED CONCEPTS</small><h2>이번 주에 배운 개념</h2><p>개념을 누르면 Matths 내 학습의 해당 개념으로 바로 이동합니다.</p></div><strong><%= week.concepts.length %><small>개념</small></strong></header>
-          <div class="student-academy-concept-grid"><% week.concepts.forEach((concept) => { %><a href="<%= concept.href %>"><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small><strong><%= concept.conceptTitle %></strong><span>내 학습에서 보기 →</span></a><% }) %></div>
+          <div class="student-academy-concept-grid"><% week.concepts.forEach((concept) => { %><a href="<%= isPreview ? '#' : concept.href %>" <%= isPreview ? 'aria-disabled="true" tabindex="-1"' : '' %>><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small><strong><%= concept.conceptTitle %></strong><span>내 학습에서 보기 →</span></a><% }) %></div>
         </section>
 
         <section class="student-academy-content-panel student-academy-assignment-panel">
           <header><div><small>WEEKLY ASSIGNMENT</small><h2><%= week.assignmentTitle %></h2><p><%= formatDueAt(week.dueAt) %></p></div><strong><%= week.files.length %><small>파일</small></strong></header>
           <% if (week.assignmentInstructions) { %><div class="student-academy-instructions"><%= week.assignmentInstructions %></div><% } %>
           <% if (week.files.some((file) => String(file.mimeType || "").toLowerCase() === "application/pdf" || /\.pdf$/i.test(String(file.originalName || "")))) { %><p class="student-academy-file-protection">PDF는 내려받을 때 이 계정의 개인 식별 워터마크와 추적 코드가 삽입됩니다.</p><% } %>
-          <div class="student-academy-file-list"><% week.files.forEach((file) => { %><a href="/my-academy/weeks/<%= week._id %>/files/<%= file._id %>"><span aria-hidden="true">↓</span><div><strong><%= file.originalName %></strong><small><%= formatBytes(file.sizeBytes) %></small></div><b>내려받기</b></a><% }) %><% if (!week.files.length) { %><div class="student-academy-file-empty"><strong>첨부 파일이 없는 과제입니다</strong><p>위의 과제 안내에 따라 학습해 주세요.</p></div><% } %></div>
+          <div class="student-academy-file-list"><% week.files.forEach((file) => { %><a href="<%= isPreview ? `/academy/classes/${academyClass._id}/weeks/${week._id}/files/${file._id}` : `/my-academy/weeks/${week._id}/files/${file._id}` %>"><span aria-hidden="true">↓</span><div><strong><%= file.originalName %></strong><small><%= formatBytes(file.sizeBytes) %></small></div><b><%= isPreview ? "교사용 열기" : "내려받기" %></b></a><% }) %><% if (!week.files.length) { %><div class="student-academy-file-empty"><strong>첨부 파일이 없는 과제입니다</strong><p>위의 과제 안내에 따라 학습해 주세요.</p></div><% } %></div>
         </section>
 
         <% if (week.assignmentOmr?.enabled) { %>
@@ -67,7 +78,8 @@
             <% if (typeof submissionFeedback !== "undefined" && submissionFeedback) { %><div class="student-assignment-feedback is-<%= submissionFeedback.type %>" role="<%= submissionFeedback.type === 'error' ? 'alert' : 'status' %>"><%= submissionFeedback.message %></div><% } %>
             <% if (submission) { %><div class="student-assignment-result <%= missedAssignment ? 'is-missed' : '' %>"><span aria-hidden="true"><%= missedAssignment ? "0" : "✓" %></span><div><strong><%= missedAssignment ? "마감 미제출 · 0점 처리" : `자동 채점 완료 · ${submission.scorePercent}점` %></strong><p><%= missedAssignment ? "과제 기한 내 답안이 제출되지 않아 자동으로 0점 처리되었습니다." : `${submission.correctCount}문항 정답 · ${submission.questionCount - submission.correctCount}문항 오답 · ${formatDueAt(submission.submittedAt)} 제출` %></p></div></div><% } %>
             <% if (omrClosed) { %><p class="student-assignment-closed">제출 마감 시간이 지났습니다.<%= submission && !missedAssignment ? " 마지막 제출 결과를 확인할 수 있습니다." : " 미제출 과제는 0점으로 처리되며 새 답안은 제출할 수 없습니다." %></p><% } %>
-            <form action="/my-academy/weeks/<%= week._id %>/submission" method="POST" class="student-omr-form">
+            <% if (isPreview) { %><p class="student-preview-form-notice">학생은 이 위치에서 답안을 입력하고 제출합니다. 미리보기에서는 입력과 제출이 잠겨 있습니다.</p><% } %>
+            <form action="<%= isPreview ? '#' : `/my-academy/weeks/${week._id}/submission` %>" method="POST" class="student-omr-form" <%= isPreview ? 'onsubmit="return false"' : '' %>>
               <input type="hidden" name="questionCount" value="<%= week.assignmentOmr.questionCount %>" />
               <% week.assignmentOmr.sections.forEach((section) => { %>
                 <fieldset class="student-omr-section">
@@ -77,8 +89,8 @@
                       <% const objectiveMode = question.answerType === "MULTIPLE_CHOICE"; %>
                       <div class="student-omr-question <%= marked %> <%= objectiveMode ? 'is-mode-objective' : 'is-mode-subjective' %>">
                         <div class="student-omr-question-heading"><span><%= question.number %>번</span><small><%= objectiveMode ? "객관식" : "주관식" %></small></div>
-                        <% if (objectiveMode) { %><div class="student-omr-bubbles"><% for (let choice = 1; choice <= question.choiceCount; choice += 1) { %><label><input type="radio" name="answer_<%= question.number %>" value="<%= choice %>" <%= String(question.answer) === String(choice) ? "checked" : "" %> <%= omrClosed ? "disabled" : "required" %> /><i><%= choice %></i></label><% } %></div><% } else { %>
-                        <input type="text" name="answer_<%= question.number %>" value="<%= question.answer || '' %>" maxlength="80" placeholder="정답 입력" aria-label="<%= question.number %>번 주관식 답안" <%= omrClosed ? "disabled" : "required" %> />
+                        <% if (objectiveMode) { %><div class="student-omr-bubbles"><% for (let choice = 1; choice <= question.choiceCount; choice += 1) { %><label><input type="radio" name="answer_<%= question.number %>" value="<%= choice %>" <%= String(question.answer) === String(choice) ? "checked" : "" %> <%= omrClosed || isPreview ? "disabled" : "required" %> /><i><%= choice %></i></label><% } %></div><% } else { %>
+                        <input type="text" name="answer_<%= question.number %>" value="<%= question.answer || '' %>" maxlength="80" placeholder="정답 입력" aria-label="<%= question.number %>번 주관식 답안" <%= omrClosed || isPreview ? "disabled" : "required" %> />
                         <% } %>
                         <% if (submission) { %><b><%= missedAssignment ? "미응답" : submission.correctByQuestion?.[question.number - 1] ? "정답" : "오답" %></b><% } %>
                       </div>
@@ -86,7 +98,7 @@
                   </div>
                 </fieldset>
               <% }) %>
-              <% if (!omrClosed) { %><button type="submit"><%= submission ? "답안 수정 후 다시 제출" : "과제 답안 제출 및 자동 채점" %></button><p>다시 제출하면 가장 최근 답안과 점수로 갱신됩니다.</p><% } %>
+              <% if (!omrClosed && !isPreview) { %><button type="submit"><%= submission ? "답안 수정 후 다시 제출" : "과제 답안 제출 및 자동 채점" %></button><p>다시 제출하면 가장 최근 답안과 점수로 갱신됩니다.</p><% } %>
             </form>
           </section>
         <% } %>

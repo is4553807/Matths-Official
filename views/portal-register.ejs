@@ -1,0 +1,128 @@
+<%
+  const selectedAccountType = accountType === "parent" ? "parent" : "academy";
+  const config = selectedAccountType === "parent"
+    ? {
+        label: "학부모",
+        eyebrow: "PARENT ACCOUNT",
+        title: "학부모 계정을 만드세요.",
+        description: "가입 후 자녀가 보낸 초대를 승인하면 학습 현황과 결제 내역을 확인할 수 있습니다.",
+        action: "/parent/register",
+        login: "/parent/login",
+      }
+    : {
+        label: "학원",
+        eyebrow: "ACADEMY ACCOUNT",
+        title: "학원 운영 계정을 신청하세요.",
+        description: "신청 후 운영자 승인이 완료되면 반, 출결과 과제를 관리할 수 있습니다.",
+        action: "/academy/register",
+        login: "/academy/login",
+      };
+  const input = oldInput || {};
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Matths <%= config.label %> 전용 회원가입" />
+    <title><%= config.label %> 회원가입 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/auth.css" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/matths-theme.css" />
+    <script src="/js/auth.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#portal-register-form">회원가입 폼으로 이동</a>
+    <header class="auth-header">
+      <%- include("partials/matths-brand", {
+        href: "/",
+        ariaLabel: "Matths 메인 페이지",
+        className: "auth-brand",
+      }) %>
+      <nav aria-label="회원가입 페이지 메뉴">
+        <span>이미 <%= config.label %> 계정이 있나요?</span>
+        <a href="<%= config.login %>">로그인</a>
+      </nav>
+    </header>
+
+    <main class="auth-layout">
+      <section class="auth-visual" aria-labelledby="portal-visual-title">
+        <div class="visual-copy">
+          <p><%= config.eyebrow %></p>
+          <h1 id="portal-visual-title">
+            계정과 데이터는 분리하고,<br />
+            <strong>필요한 권한만</strong><br />
+            연결합니다.
+          </h1>
+          <span><%= config.description %></span>
+        </div>
+        <div class="visual-points">
+          <span><b>01</b>역할별 독립 로그인</span>
+          <span><b>02</b>허용된 화면만 접근</span>
+          <span><b>03</b>안전한 계정 연결</span>
+        </div>
+      </section>
+
+      <section class="auth-panel" id="portal-register-form" aria-labelledby="portal-register-title">
+        <div class="auth-panel-inner">
+          <div class="auth-heading">
+            <p><%= config.eyebrow %></p>
+            <h2 id="portal-register-title"><%= config.title %></h2>
+            <span><%= config.description %></span>
+          </div>
+
+          <nav class="account-type-switcher" aria-label="계정 유형 선택">
+            <a href="/student/register">학생</a>
+            <a href="/academy/register" class="<%= selectedAccountType === 'academy' ? 'is-active' : '' %>" <% if (selectedAccountType === "academy") { %>aria-current="page"<% } %>>학원</a>
+            <a href="/parent/register" class="<%= selectedAccountType === 'parent' ? 'is-active' : '' %>" <% if (selectedAccountType === "parent") { %>aria-current="page"<% } %>>학부모</a>
+          </nav>
+
+          <% if (error) { %><div class="form-alert" role="alert"><span aria-hidden="true">!</span><p><%= error %></p></div><% } %>
+
+          <form class="auth-form" method="post" action="<%= config.action %>" data-register-form>
+            <div class="form-field">
+              <label for="displayName"><%= selectedAccountType === "parent" ? "학부모 이름" : "담당자 이름" %></label>
+              <input id="displayName" name="displayName" value="<%= input.displayName || '' %>" minlength="2" maxlength="40" autocomplete="name" required />
+            </div>
+            <% if (selectedAccountType === "academy") { %>
+              <div class="form-field">
+                <label for="academyName">학원 이름</label>
+                <input id="academyName" name="academyName" value="<%= input.academyName || '' %>" minlength="2" maxlength="80" autocomplete="organization" required />
+              </div>
+            <% } %>
+            <div class="form-field">
+              <label for="email">로그인 이메일</label>
+              <input id="email" name="email" type="email" value="<%= input.email || '' %>" autocomplete="email" inputmode="email" autocapitalize="none" required />
+            </div>
+            <div class="form-field">
+              <label for="password">비밀번호</label>
+              <div class="password-field">
+                <input id="password" name="password" type="password" minlength="8" autocomplete="new-password" required />
+                <button type="button" data-password-toggle="password" aria-label="비밀번호 표시" aria-pressed="false">보기</button>
+              </div>
+              <small class="field-guide">영문과 숫자를 포함해 8자 이상 입력해 주세요.</small>
+            </div>
+            <div class="form-field">
+              <label for="passwordConfirm">비밀번호 확인</label>
+              <div class="password-field">
+                <input id="passwordConfirm" name="passwordConfirm" type="password" minlength="8" autocomplete="new-password" required />
+                <button type="button" data-password-toggle="passwordConfirm" aria-label="비밀번호 확인 표시" aria-pressed="false">보기</button>
+              </div>
+              <small class="field-guide" id="password-match"></small>
+            </div>
+            <label class="check-field terms-field">
+              <input type="checkbox" name="termsAccepted" value="1" required />
+              <span aria-hidden="true"></span>
+              <em><a href="/terms" target="_blank" rel="noopener">이용약관</a>과 <a href="/privacy" target="_blank" rel="noopener">개인정보처리방침</a>에 동의합니다.</em>
+            </label>
+            <button class="submit-button" type="submit"><%= selectedAccountType === "academy" ? "학원 계정 신청" : "학부모 계정 만들기" %><span aria-hidden="true">→</span></button>
+          </form>
+
+          <div class="auth-switch"><span>이미 계정이 있나요?</span><a href="<%= config.login %>"><%= config.label %> 로그인</a></div>
+        </div>
+      </section>
+    </main>
+    <%- include("partials/business-footer") %>
+  </body>
+</html>

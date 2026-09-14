@@ -81,7 +81,7 @@
   <body class="academy-page">
     <header class="academy-topbar">
       <%- include("partials/matths-brand", { href: "/academy", ariaLabel: "Matths 학원 관리 홈", className: "academy-brand", suffix: "학원 관리", compact: true }) %>
-      <div class="academy-account"><span><strong><%= user.realName || user.name %></strong> 선생님</span><form action="/logout" method="POST"><button type="submit">로그아웃</button></form></div>
+      <div class="academy-account"><span><strong><%= user.realName || user.name %></strong> 선생님</span><form action="/academy/logout" method="POST"><button type="submit">로그아웃</button></form></div>
     </header>
 
     <div class="academy-layout">
@@ -205,7 +205,7 @@
             <div class="academy-classwork-week-list">
               <% if (!weeklyClasswork.weeks.length) { %><div class="academy-empty-state"><span aria-hidden="true">1</span><strong>아직 등록한 주차가 없습니다</strong><p>교육과정 개념을 선택하고 첫 수업과 과제를 등록해 주세요.</p></div><% } %>
               <% weeklyClasswork.weeks.forEach((week) => { %><article>
-                <header><div><small><%= week.academicYear %> · WEEK <%= week.weekNumber %></small><h3><%= week.title %></h3></div><div class="academy-classwork-week-actions"><a href="/academy/classes/<%= academyClass._id %>?section=classwork&amp;editWeek=<%= week._id %>#class-weekly-work">수정</a><form action="/academy/classes/<%= academyClass._id %>/weeks/<%= week._id %>/delete" method="POST" onsubmit="return confirm('<%= week.academicYear %>년 <%= week.weekNumber %>주차 수업과 과제를 삭제할까요? 등록된 과제 파일도 함께 삭제됩니다.')"><button type="submit">삭제</button></form></div></header>
+                <header><div><small><%= week.academicYear %> · WEEK <%= week.weekNumber %></small><h3><%= week.title %></h3></div><div class="academy-classwork-week-actions"><a href="/academy/classes/<%= academyClass._id %>/weeks/<%= week._id %>/preview" target="_blank" rel="noopener">학생 화면 미리보기</a><a href="/academy/classes/<%= academyClass._id %>?section=classwork&amp;editWeek=<%= week._id %>#class-weekly-work">수정</a><form action="/academy/classes/<%= academyClass._id %>/weeks/<%= week._id %>/delete" method="POST" onsubmit="return confirm('<%= week.academicYear %>년 <%= week.weekNumber %>주차 수업과 과제를 삭제할까요? 등록된 과제 파일도 함께 삭제됩니다.')"><button type="submit">삭제</button></form></div></header>
                 <% if (week.lessonSummary) { %><p><%= week.lessonSummary %></p><% } %>
                 <div class="academy-classwork-concepts"><% week.concepts.forEach((concept) => { %><a href="<%= concept.href %>" target="_blank" rel="noopener"><small><%= concept.courseTitle %> · <%= concept.unitTitle %></small><strong><%= concept.conceptTitle %></strong></a><% }) %></div>
                 <section><div><small>ASSIGNMENT</small><strong><%= week.assignmentTitle %></strong><span><%= formatClassworkDate(week.dueAt) %></span></div><% if (week.assignmentInstructions) { %><p><%= week.assignmentInstructions %></p><% } %><ul><% week.files.forEach((file) => { %><li><a href="/academy/classes/<%= academyClass._id %>/weeks/<%= week._id %>/files/<%= file._id %>"><%= file.originalName %><span><%= formatBytes(file.sizeBytes) %></span></a></li><% }) %></ul></section>

@@ -92,24 +92,31 @@ function cleanMessage(value, fallback) {
   return message ? message.slice(0, 500) : fallback;
 }
 
+function dashboardHref(user) {
+  if (user?.role === "admin") return "/admin";
+  if (user?.role === "teacher") return "/academy";
+  return "/main";
+}
+
 function actionSet(status, user, errorCode = "") {
   const signedIn = Boolean(user);
+  const signedInDashboard = dashboardHref(user);
   if (status === 401) {
     return {
-      primaryAction: { href: "/login", label: "로그인하기" },
+      primaryAction: { href: "/student/login", label: "로그인하기" },
       secondaryAction: { href: "/", label: "Matths 홈" },
     };
   }
   if (status === 403) {
     if (errorCode === "ADMIN_ACCESS_REQUIRED") {
       return {
-        primaryAction: { href: "/main", label: "대시보드로 돌아가기" },
+        primaryAction: { href: signedInDashboard, label: "대시보드로 돌아가기" },
         secondaryAction: { href: "/faq", label: "도움말 보기" },
       };
     }
     return {
       primaryAction: {
-        href: signedIn ? "/main" : "/login",
+        href: signedIn ? signedInDashboard : "/student/login",
         label: signedIn ? "대시보드로 돌아가기" : "로그인하기",
       },
       secondaryAction: { href: "/pricing", label: "이용권 확인" },
@@ -118,13 +125,13 @@ function actionSet(status, user, errorCode = "") {
   if (status === 501) {
     return {
       primaryAction: { href: "/pricing", label: "이용권으로 돌아가기" },
-      secondaryAction: { href: signedIn ? "/main" : "/", label: "Matths로 돌아가기" },
+      secondaryAction: { href: signedIn ? signedInDashboard : "/", label: "Matths로 돌아가기" },
     };
   }
   if (status === 404 || status >= 500) {
     return {
       primaryAction: {
-        href: signedIn ? "/main" : "/",
+        href: signedIn ? signedInDashboard : "/",
         label: signedIn ? "대시보드로 이동" : "Matths 홈으로 이동",
       },
       secondaryAction: { href: "/faq", label: "도움말 보기" },
@@ -132,7 +139,7 @@ function actionSet(status, user, errorCode = "") {
   }
   return {
     primaryAction: {
-      href: signedIn ? "/main" : "/",
+      href: signedIn ? signedInDashboard : "/",
       label: signedIn ? "현재 상태 확인" : "Matths 홈으로 이동",
     },
     secondaryAction: { href: "/faq", label: "도움말 보기" },

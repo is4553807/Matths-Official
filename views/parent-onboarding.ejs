@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>자녀 계정 연결 | Matths 학부모</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/parent.css" />
+  </head>
+  <body class="parent-auth-page">
+    <main class="parent-auth-shell">
+      <%- include("partials/matths-brand", { href: "/parent", ariaLabel: "Matths 학부모 홈", className: "parent-auth-brand", suffix: "학부모" }) %>
+      <section class="parent-auth-card">
+        <p>PARENT CONNECTION</p>
+        <h1>자녀 계정 연결을 기다리고 있습니다.</h1>
+        <span><strong><%= parent.username %></strong>님의 학부모 계정은 생성되었습니다. 자녀가 Matths에서 학부모 이메일 <b><%= parent.email %></b>로 초대를 보내면, 이메일의 연결 버튼을 눌러주세요.</span>
+        <div class="parent-form-message">자녀 연결 전에는 학생 대시보드나 학습 기록에 접근할 수 없습니다.</div>
+        <form method="post" action="/parent/logout" class="parent-auth-form"><button type="submit">로그아웃</button></form>
+      </section>
+    </main>
+    <%- include("partials/business-footer") %>
+  </body>
+</html>

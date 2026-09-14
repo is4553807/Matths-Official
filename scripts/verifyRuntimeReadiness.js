@@ -7,6 +7,7 @@ const {
 } = require("../services/runtimeEnvironmentService");
 const {
   formActionDirective,
+  sameOriginFramePolicy,
 } = require("../services/contentSecurityPolicyService");
 
 const validProductionEnvironment = {
@@ -200,7 +201,11 @@ async function main() {
 
   const serverSource = fs.readFileSync(path.resolve(__dirname, "../server.js"), "utf8");
   assert.match(serverSource, /frame-ancestors 'none'/);
-  assert.match(serverSource, /frame-src https:\/\/\*\.inicis\.com/);
+  assert.match(serverSource, /frame-src 'self' https:\/\/\*\.inicis\.com/);
+  const pdfPolicy = sameOriginFramePolicy("default-src 'self'; frame-ancestors 'none'; object-src 'none'");
+  assert.match(pdfPolicy, /frame-ancestors 'self'/);
+  assert.doesNotMatch(pdfPolicy, /frame-ancestors 'none'/);
+  assert.match(pdfPolicy, /object-src 'none'/);
   assert.match(serverSource, /script-src[^\n]+https:\/\/\*\.inicis\.com/);
   assert.match(serverSource, /formActionDirective\(\)/);
   assert.match(serverSource, /X-Content-Type-Options/);

@@ -38,7 +38,10 @@ for (const [hostname, originalUrl, expected] of [
   ["www.matths.kr", "/parent/notifications", "https://parents.matths.kr/parent/notifications"],
   ["academy.matths.kr", "/login", "https://www.matths.kr/login"],
   ["admin.matths.kr", "/register?from=nav", "https://www.matths.kr/register?from=nav"],
-  ["parents.matths.kr", "/parent/login?next=%2Fparent%2Fpayments", "https://www.matths.kr/login?next=%2Fparent%2Fpayments"],
+  ["www.matths.kr", "/parent/login?next=%2Fparent%2Fpayments", "https://parents.matths.kr/parent/login?next=%2Fparent%2Fpayments"],
+  ["www.matths.kr", "/academy/login", "https://academy.matths.kr/academy/login"],
+  ["www.matths.kr", "/admin/login", "https://admin.matths.kr/admin/login"],
+  ["app.matths.kr", "/student/login", "https://www.matths.kr/student/login"],
   ["app.matths.kr", "/intro", "https://www.matths.kr/intro"],
   ["www.matths.kr", "/my-learning", "https://app.matths.kr/my-learning"],
   ["academy.matths.kr", "/goat-arena", "https://app.matths.kr/goat-arena"],
@@ -66,8 +69,13 @@ assert.equal(
 assert.equal(isPublicPath("/login"), true);
 assert.equal(isAuthenticationPath("/login"), true);
 assert.equal(isAuthenticationPath("/auth/apple/callback"), true);
+assert.equal(isAuthenticationPath("/academy/login"), true);
+assert.equal(isAuthenticationPath("/parent/register"), true);
 assert.equal(isAuthenticationPath("/community"), false);
-assert.equal(isPublicPath("/parent/login"), true);
+assert.equal(isPublicPath("/student/login"), true);
+assert.equal(isPublicPath("/parent/login"), false);
+assert.equal(isPublicPath("/academy/login"), false);
+assert.equal(isPublicPath("/admin/login"), false);
 assert.equal(isPublicPath("/archive"), true);
 assert.equal(isPublicPath("/archive/admin"), false);
 assert.equal(surfaceForPath("/academy/classes/42"), "academy");
@@ -76,7 +84,7 @@ assert.equal(surfaceForPath("/parent/payments"), "parents");
 assert.equal(serviceUrl("public", "/login", production), "https://www.matths.kr/login");
 
 for (const [session, expected] of [
-  [{}, ["guest", "로그인", "무료로 시작하기", "https://www.matths.kr/login", "https://www.matths.kr/register", "https://www.matths.kr/#goat-arena"]],
+  [{}, ["guest", "로그인", "무료로 시작하기", "https://www.matths.kr/student/login", "https://www.matths.kr/student/register", "https://www.matths.kr/#goat-arena"]],
   [{ user: { id: "student", role: "student" } }, ["student", "대시보드", "학습 계속하기", "https://app.matths.kr/main", "https://app.matths.kr/my-learning", "https://app.matths.kr/goat-arena"]],
   [{ user: { id: "teacher", role: "teacher" } }, ["teacher", "대시보드", "학습 계속하기", "https://academy.matths.kr/academy", "https://academy.matths.kr/academy", "https://academy.matths.kr/academy"]],
   [{ user: { id: "admin", role: "admin" } }, ["admin", "대시보드", "학습 계속하기", "https://admin.matths.kr/admin", "https://admin.matths.kr/admin", "https://admin.matths.kr/admin"]],
@@ -184,5 +192,5 @@ try {
 }
 
 console.log(
-  "Service host routing verified: shared auth/public routes, account CTAs, and app, academy, admin, and parents destinations use their canonical HTTPS hosts."
+  "Service host routing verified: separated role auth routes and app, academy, admin, and parents destinations use their canonical HTTPS hosts."
 );

@@ -208,6 +208,32 @@ select:focus-visible {
   letter-spacing: 2px;
 }
 
+.account-type-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 20px 0 24px;
+  padding: 5px;
+  background: #eef1f7;
+  border-radius: 12px;
+}
+
+.account-type-switcher a {
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+  color: #6d768c;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.account-type-switcher a.is-active {
+  color: var(--blue);
+  background: #fff;
+  box-shadow: 0 4px 14px rgb(31 45 78 / 9%);
+}
+
 .visual-copy h1 {
   margin: 0;
   font-size: clamp(40px, 4vw, 62px);

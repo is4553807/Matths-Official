@@ -8,6 +8,8 @@
   },
   "scripts": {
     "start": "node server.js",
+    "gtm:verify": "node scripts/verifyGoogleTagManagerIntegration.js",
+    "custom-weekly-mock:verify": "node scripts/verifyCustomWeeklyMockDelivery.js",
     "korean-only:verify": "node scripts/verifyKoreanOnlyInterface.js",
     "overseas-institutions:verify": "node scripts/verifyOverseasInstitutions.js",
     "auth-email-only:verify": "node scripts/verifyEmailOnlyLogin.js",

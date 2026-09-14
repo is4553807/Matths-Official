@@ -46,6 +46,7 @@ async function main() {
     assert.equal(live.headers.get("x-content-type-options"), "nosniff");
     assert.equal(live.headers.get("x-frame-options"), "DENY");
     assert.match(live.headers.get("content-security-policy") || "", /frame-ancestors 'none'/);
+    assert.match(live.headers.get("content-security-policy") || "", /frame-src 'self'/);
 
     const ready = await fetch(`${origin}/api/v1/ready`, { redirect: "manual" });
     assert.equal(ready.status, 503);
@@ -78,14 +79,27 @@ async function main() {
       /^matths:\/\/oauth\/google\?error=/
     );
 
-    for (const path of ["/login", "/faq", "/terms"]) {
+    const legacyLogin = await fetch(`${origin}/login`, { redirect: "manual" });
+    assert.equal(legacyLogin.status, 302);
+    assert.equal(legacyLogin.headers.get("location"), "/student/login");
+
+    for (const path of [
+      "/student/login",
+      "/student/register",
+      "/academy/login",
+      "/academy/register",
+      "/parent/login",
+      "/parent/register",
+      "/faq",
+      "/terms",
+    ]) {
       const response = await fetch(`${origin}${path}`, { redirect: "manual" });
       assert.equal(response.status, 200, `${path} 응답 상태가 200이 아닙니다.`);
       assert.match(response.headers.get("content-type") || "", /text\/html/);
       assert.ok((await response.text()).includes("Matths"), `${path} 화면이 렌더링되지 않았습니다.`);
     }
 
-    const rejected = await fetch(`${origin}/login`, {
+    const rejected = await fetch(`${origin}/student/login`, {
       method: "POST",
       redirect: "manual",
       headers: {
@@ -139,6 +153,7 @@ async function verifyInProcess() {
     ] || "",
     /frame-ancestors 'none'/
   );
+  assert.match(live.headers["content-security-policy"] || "", /frame-src 'self'/);
 
   const ready =
     await requestInProcess(
@@ -190,7 +205,12 @@ async function verifyInProcess() {
   );
 
   for (const path of [
-    "/login",
+    "/student/login",
+    "/student/register",
+    "/academy/login",
+    "/academy/register",
+    "/parent/login",
+    "/parent/register",
     "/faq",
     "/terms",
   ]) {

@@ -1,8 +1,9 @@
 const express = require("express");
 const parentController = require("../controllers/parentController");
 const { isParentLoggedIn, isParentLoggedOut } = require("../middleware/parentAuthMiddleware");
-const { serviceUrl } = require("../services/serviceUrlService");
 const {
+  loginIpRateLimit,
+  loginRateLimit,
   registrationIpRateLimit,
   registrationRateLimit,
 } = require("../middleware/requestSecurity");
@@ -22,9 +23,21 @@ router.post(
   parentController.acceptExistingParentInvite
 );
 router.get("/parent/login", isParentLoggedOut, parentController.loginPage);
-router.post("/parent/login", (_req, res) => (
-  res.redirect(307, serviceUrl("public", "/login"))
-));
+router.post(
+  "/parent/login",
+  isParentLoggedOut,
+  loginIpRateLimit,
+  loginRateLimit,
+  parentController.login
+);
+router.get("/parent/register", isParentLoggedOut, parentController.registerPage);
+router.post(
+  "/parent/register",
+  isParentLoggedOut,
+  registrationIpRateLimit,
+  registrationRateLimit,
+  parentController.register
+);
 router.post("/parent/logout", isParentLoggedIn, parentController.logout);
 router.get("/parent", isParentLoggedIn, parentController.dashboardPage);
 router.post(

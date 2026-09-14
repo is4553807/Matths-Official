@@ -42,6 +42,10 @@ const {
 const {
     formActionDirective,
 } = require("./services/contentSecurityPolicyService");
+const {
+    injectGoogleTagManager,
+    resolveGoogleTagManagerId,
+} = require("./services/googleTagManagerService");
 const runtimeEnvironment = assertRuntimeEnvironment();
 for (const warning of runtimeEnvironment.warnings) {
     console.warn(`[startup warning] ${warning}`);
@@ -76,6 +80,7 @@ function staticAssetFingerprint() {
 server.locals.assetVersion = String(
     process.env.MATTHS_ASSET_VERSION || staticAssetFingerprint()
 );
+server.locals.googleTagManagerId = resolveGoogleTagManagerId();
 
 function versionStaticAssetReferences(
     html,
@@ -103,7 +108,10 @@ server.engine("ejs", (filePath, options, callback) => {
         if (error) return callback(error);
         return callback(
             null,
-            versionStaticAssetReferences(html)
+            injectGoogleTagManager(
+                versionStaticAssetReferences(html),
+                server.locals.googleTagManagerId
+            )
         );
     });
 });
@@ -131,14 +139,14 @@ server.use((req, res, next) => {
         "Content-Security-Policy": [
             "default-src 'self'",
             "base-uri 'self'",
-            "connect-src 'self' https://*.inicis.com",
+            "connect-src 'self' https://*.inicis.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com",
             "font-src 'self' data: https://*.inicis.com",
             formActionDirective(),
             "frame-ancestors 'none'",
-            "frame-src https://*.inicis.com",
+            "frame-src 'self' https://*.inicis.com https://www.googletagmanager.com",
             "img-src 'self' data: blob: https:",
             "object-src 'none'",
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.inicis.com",
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.inicis.com https://www.googletagmanager.com",
             "style-src 'self' 'unsafe-inline' https://*.inicis.com",
         ].join("; "),
     });
@@ -318,6 +326,16 @@ async function connectDB() {
         }
 
         const {
+            ensureParentAccountIndexes,
+        } = require("./services/parentFamilyService");
+        const parentIndexes = await ensureParentAccountIndexes();
+        if (parentIndexes.removedLegacyChildIndex) {
+            console.log(
+                `Removed legacy parent-child index: ${parentIndexes.removedLegacyChildIndex}`
+            );
+        }
+
+        const {
             ensureAuthRequestLimitIndexes,
         } = require("./services/authRequestLimitService");
         await ensureAuthRequestLimitIndexes();
@@ -326,6 +344,15 @@ async function connectDB() {
             ensureAcademyIndexes,
         } = require("./services/academyService");
         await ensureAcademyIndexes();
+        const {
+            migrateLegacyAcademyAccounts,
+        } = require("./services/academyAccountService");
+        const academyAccountMigration = await migrateLegacyAcademyAccounts();
+        if (academyAccountMigration.migratedCount > 0) {
+            console.log(
+                `Migrated ${academyAccountMigration.migratedCount} legacy teacher accounts to AcademyAccount.`
+            );
+        }
 
         const {
             ensureMatchmakingControl,

@@ -30,7 +30,7 @@ async function isParentLoggedIn(req, res, next) {
     return next(error);
   }
   const nextPath = encodeURIComponent(req.originalUrl || "/parent");
-  return res.redirect(serviceUrl("public", `/login?next=${nextPath}`));
+  return res.redirect(serviceUrl("parents", `/parent/login?next=${nextPath}`));
 }
 
 async function isParentLoggedOut(req, res, next) {

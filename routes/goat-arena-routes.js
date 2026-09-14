@@ -18,6 +18,8 @@ const validateArenaEvidenceContent = createUploadContentValidator({
 const router =
   express.Router();
 
+router.use(authMiddleware.requireStudentAccount);
+
 router.get(
   "/goat-arena",
   authMiddleware.isLoggedIn,

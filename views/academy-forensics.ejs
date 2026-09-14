@@ -24,7 +24,7 @@
   <body class="academy-page">
     <header class="academy-topbar">
       <%- include("partials/matths-brand", { href: "/academy", ariaLabel: "Matths 학원 관리 홈", className: "academy-brand", suffix: "학원 관리", compact: true }) %>
-      <div class="academy-account"><span><strong><%= user.realName || user.name %></strong> 선생님</span><form action="/logout" method="POST"><button type="submit">로그아웃</button></form></div>
+      <div class="academy-account"><span><strong><%= user.realName || user.name %></strong> 선생님</span><form action="/academy/logout" method="POST"><button type="submit">로그아웃</button></form></div>
     </header>
 
     <div class="academy-layout">

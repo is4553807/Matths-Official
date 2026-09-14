@@ -142,7 +142,7 @@
           <div class="school-board-login-guide">
             <strong><%= loggedIn ? "등록된 소속 고등학교가 없습니다." : "로그인 후 사용하세요." %></strong>
             <span><%= loggedIn ? "학교 정보를 등록해야 소속 학교 전용 게시판을 열람할 수 있습니다." : "학교별 게시판은 가입할 때 등록한 학교 소속 학생만 열람할 수 있습니다." %></span>
-            <% if (!loggedIn) { %><a href="/login">로그인</a><% } %>
+            <% if (!loggedIn) { %><a href="/student/login">학생 로그인</a><% } %>
           </div>
         <% } else if (boardData.board === "retaker") { %>
           <section class="school-board-membership" aria-label="현재 N수생 게시판">

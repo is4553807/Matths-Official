@@ -34,9 +34,7 @@ const parentAccountSchema = new Schema(
     childUserId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      unique: true,
-      index: true,
+      default: null,
     },
     isActive: {
       type: Boolean,
@@ -51,8 +49,21 @@ const parentAccountSchema = new Schema(
       type: Date,
       default: null,
     },
+    acceptedPrivacyAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true, versionKey: false }
+);
+
+parentAccountSchema.index(
+  { childUserId: 1 },
+  {
+    unique: true,
+    name: "parent_primary_child_unique",
+    partialFilterExpression: { childUserId: { $type: "objectId" } },
+  }
 );
 
 const parentInviteSchema = new Schema(

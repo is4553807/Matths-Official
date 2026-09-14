@@ -21,6 +21,25 @@ function isTeacherSessionUser(user) {
     return user?.role === "teacher";
 }
 
+function loginUrlForRequest(req, query = "") {
+    const pathname = String(req.originalUrl || req.path || "").split(/[?#]/, 1)[0];
+    const suffix = query ? `?${query}` : "";
+    if (pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/archive/admin")) {
+        return serviceUrl("admin", `/admin/login${suffix}`);
+    }
+    if (pathname === "/academy" || pathname.startsWith("/academy/")) {
+        return serviceUrl("academy", `/academy/login${suffix}`);
+    }
+    return serviceUrl("public", `/student/login${suffix}`);
+}
+
+function studentAccessError() {
+    const error = new Error("학생 계정만 이용할 수 있는 학습 화면입니다.");
+    error.status = 403;
+    error.code = "STUDENT_ACCESS_REQUIRED";
+    return error;
+}
+
 function dashboardUrlForSession(req) {
     if (req.session?.parent?.id && !req.session?.user?.id) {
         return serviceUrl("parents", "/parent");
@@ -65,12 +84,10 @@ exports.isLoggedIn = async (req, res, next) => {
                     "inactive";
                 return req.session.destroy(
                     () =>
-                        res.redirect(
-                            serviceUrl(
-                                "public",
-                                `/login?account=${encodeURIComponent(state)}`
-                            )
-                        )
+                        res.redirect(loginUrlForRequest(
+                            req,
+                            `account=${encodeURIComponent(state)}`
+                        ))
                 );
             }
 
@@ -106,6 +123,13 @@ exports.isLoggedIn = async (req, res, next) => {
             );
             req.authenticatedUser =
                 account;
+
+            if (
+                req.requiredAccountType === "student" &&
+                !["student", "test"].includes(String(account.role || ""))
+            ) {
+                return next(studentAccessError());
+            }
 
             let academyMembershipAvailable = false;
             if (["student", "test"].includes(account.role)) {
@@ -148,7 +172,19 @@ exports.isLoggedIn = async (req, res, next) => {
         req.session.returnTo = req.originalUrl;
     }
 
-    return res.redirect(serviceUrl("public", "/login"));
+    return res.redirect(loginUrlForRequest(req));
+};
+
+exports.requireStudentAccount = (req, _res, next) => {
+    req.requiredAccountType = "student";
+    return next();
+};
+
+exports.isStudent = (req, _res, next) => {
+    if (["student", "test"].includes(String(req.session?.user?.role || ""))) {
+        return next();
+    }
+    return next(studentAccessError());
 };
 
 exports.isLoggedOut = (req, res, next) => {
@@ -213,14 +249,18 @@ exports.isTeacher = (req, res, next) => {
         : null;
     const accessActive =
         !expiresAt || expiresAt.getTime() > Date.now();
-    if (isTeacherSessionUser(req.session?.user) && accessActive) {
+    if (
+        isTeacherSessionUser(req.session?.user) &&
+        req.session.user.accountType === "academy" &&
+        accessActive
+    ) {
         return next();
     }
 
     const error = new Error(
         isTeacherSessionUser(req.session?.user) && !accessActive
             ? "학원 기능 계약이 만료되었습니다. 운영자에게 계약 갱신을 요청해주세요."
-            : "학원 선생님 계정만 접근할 수 있습니다."
+            : "학원 전용 로그인으로 인증한 선생님 계정만 접근할 수 있습니다."
     );
     error.status = 403;
     error.code = "TEACHER_ACCESS_REQUIRED";

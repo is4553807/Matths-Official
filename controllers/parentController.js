@@ -1,5 +1,8 @@
-const { randomUUID } = require("node:crypto");
+const { createHash, randomUUID } = require("node:crypto");
+const bcrypt = require("bcrypt");
 const { ParentAccount } = require("../models/parentModel");
+const { User } = require("../models/matthsModel");
+const { AcademyAccount } = require("../models/academyModel");
 const {
   acceptParentInvite,
   assertPaidCheckoutEnabled,
@@ -47,6 +50,10 @@ function safeNext(value) {
   return /^\/parent(?:\/|$)/.test(next) ? next : "/parent";
 }
 
+function parentUsernameKey(email) {
+  return `parent-${createHash("sha256").update(String(email)).digest("hex").slice(0, 20)}`;
+}
+
 function parentSession(parent) {
   return {
     id: String(parent._id),
@@ -54,6 +61,7 @@ function parentSession(parent) {
     email: parent.email,
     childUserId: parent.childUserId ? String(parent.childUserId) : "",
     selectedChildUserId: parent.childUserId ? String(parent.childUserId) : "",
+    accountType: "parent",
   };
 }
 
@@ -79,7 +87,7 @@ exports.inviteSignupPage = async (req, res, next) => {
 
     if (!req.session?.parent?.id) {
       const nextPath = encodeURIComponent(`/parent/invite/${req.params.token}`);
-      return res.redirect(serviceUrl("public", `/login?next=${nextPath}`));
+      return res.redirect(serviceUrl("parents", `/parent/login?next=${nextPath}`));
     }
     if (String(req.session.parent.id) !== String(existingParent._id)) {
       const error = new Error("초대를 받은 이메일의 학부모 계정으로 로그인해주세요.");
@@ -135,18 +143,153 @@ exports.completeInviteSignup = async (req, res, next) => {
   }
 };
 
-exports.loginPage = (req, res) => {
-  const requestedNext = safeNext(req.query.next);
-  return res.redirect(
-    serviceUrl("public", `/login?next=${encodeURIComponent(requestedNext)}`)
-  );
+function parentLoginLocals(req, overrides = {}) {
+  return {
+    accountType: "parent",
+    error: null,
+    success: req.query.registered === "1"
+      ? "학부모 계정이 생성되었습니다. 로그인해주세요."
+      : null,
+    loginNotice: null,
+    oldInput: { email: "" },
+    next: safeNext(req.query.next),
+    socialAuthProviders: [],
+    ...overrides,
+  };
+}
+
+exports.loginPage = (req, res) => res.render("login", parentLoginLocals(req));
+
+exports.login = async (req, res, next) => {
+  try {
+    const rawEmail = String(req.body.email || "").trim();
+    const email = rawEmail.toLowerCase();
+    const password = String(req.body.password || "");
+    const parent = await ParentAccount.findOne({ email }).select("+passwordHash");
+    const matched = parent
+      ? await bcrypt.compare(password, parent.passwordHash || "")
+      : false;
+    if (!parent || !matched) {
+      return res.status(401).render("login", parentLoginLocals(req, {
+        error: "이메일 또는 비밀번호가 올바르지 않습니다.",
+        oldInput: { email: rawEmail },
+        next: safeNext(req.body.next),
+      }));
+    }
+    if (parent.isActive === false) {
+      return res.status(403).render("login", parentLoginLocals(req, {
+        error: "이용이 중지된 학부모 계정입니다.",
+        oldInput: { email: rawEmail },
+        next: safeNext(req.body.next),
+      }));
+    }
+    parent.lastLoginAt = new Date();
+    await parent.save();
+    const destination = safeNext(req.body.next);
+    await regenerateSession(req);
+    req.session.parent = parentSession(parent);
+    await saveSession(req);
+    return res.redirect(serviceUrl("parents", destination));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+function parentRegistrationLocals(overrides = {}) {
+  return {
+    accountType: "parent",
+    error: null,
+    oldInput: { displayName: "", email: "" },
+    ...overrides,
+  };
+}
+
+exports.registerPage = (_req, res) => (
+  res.render("portal-register", parentRegistrationLocals())
+);
+
+exports.register = async (req, res, next) => {
+  try {
+    const displayName = String(req.body.displayName || "").replace(/\s+/g, " ").trim();
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+    const passwordConfirm = String(req.body.passwordConfirm || "");
+    const termsAccepted = ["1", "true", "on"].includes(String(req.body.termsAccepted || ""));
+
+    if (displayName.length < 2 || displayName.length > 40) {
+      const error = new Error("학부모 이름은 2자 이상 40자 이하로 입력해주세요.");
+      error.status = 400;
+      throw error;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      const error = new Error("올바른 이메일 주소를 입력해주세요.");
+      error.status = 400;
+      throw error;
+    }
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      const error = new Error("비밀번호는 영문과 숫자를 포함해 8자 이상으로 입력해주세요.");
+      error.status = 400;
+      throw error;
+    }
+    if (Buffer.byteLength(password, "utf8") > 72 || password !== passwordConfirm) {
+      const error = new Error(password !== passwordConfirm
+        ? "비밀번호 확인이 일치하지 않습니다."
+        : "비밀번호가 너무 깁니다.");
+      error.status = 400;
+      throw error;
+    }
+    if (!termsAccepted) {
+      const error = new Error("이용약관과 개인정보처리방침에 동의해주세요.");
+      error.status = 400;
+      throw error;
+    }
+    const [parentExists, userExists, academyExists] = await Promise.all([
+      ParentAccount.exists({ email }),
+      User.exists({ email }),
+      AcademyAccount.exists({ email }),
+    ]);
+    if (parentExists || userExists || academyExists) {
+      const error = new Error("이미 사용 중인 이메일입니다.");
+      error.status = 409;
+      throw error;
+    }
+
+    const parent = await ParentAccount.create({
+      username: displayName,
+      usernameNormalized: parentUsernameKey(email),
+      email,
+      passwordHash: await bcrypt.hash(password, 12),
+      childUserId: null,
+      acceptedTermsAt: new Date(),
+      acceptedPrivacyAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+    await regenerateSession(req);
+    req.session.parent = parentSession(parent);
+    await saveSession(req);
+    return res.redirect(serviceUrl("parents", "/parent?welcome=1"));
+  } catch (error) {
+    if ([400, 409].includes(Number(error.status)) || Number(error.code) === 11000) {
+      return res.status(Number(error.status) || 409).render(
+        "portal-register",
+        parentRegistrationLocals({
+          error: Number(error.code) === 11000 ? "이미 사용 중인 이메일입니다." : error.message,
+          oldInput: {
+            displayName: String(req.body.displayName || ""),
+            email: String(req.body.email || ""),
+          },
+        })
+      );
+    }
+    return next(error);
+  }
 };
 
 exports.logout = async (req, res, next) => {
   try {
     delete req.session.parent;
     await saveSession(req);
-    return res.redirect(serviceUrl("public", "/login"));
+    return res.redirect(serviceUrl("parents", "/parent/login"));
   } catch (error) {
     return next(error);
   }
@@ -227,6 +370,11 @@ exports.dashboardPage = async (req, res, next) => {
       selectedChildId: context.selectedChildId,
     });
   } catch (error) {
+    if (error?.code === "PARENT_CHILD_LINK_REQUIRED") {
+      const parent = await ParentAccount.findById(req.session.parent.id).lean();
+      res.set("Cache-Control", "private, no-store");
+      return res.status(200).render("parent-onboarding", { parent });
+    }
     return next(error);
   }
 };

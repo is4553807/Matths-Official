@@ -119,6 +119,21 @@ async function requirePlacementExamAccess(req, _res, next) {
   }
 }
 
+function isStudentOnlyPath(pathname) {
+  const path = String(pathname || "");
+  return (
+    /^\/(?:main|my-learning|learn|war-of-masters|profile|store|notifications|announcements|account|private-mock-exams|integrity|nickname-change|log-curriculum|assessments|wrong-notes|quick-practice|coach-suggestions)(?:\/|$)/.test(path) ||
+    /^\/api\/(?:dashboard|preferences|learning-progress|practice|session|quick-practice|assessments|private-mock-exams|war-of-masters)(?:\/|$)/.test(path) ||
+    /^\/pricing\/[^/]+\/(?:self|parent-request)(?:\/|$)/.test(path)
+  );
+}
+
+router.use((req, res, next) => (
+  isStudentOnlyPath(req.path)
+    ? authMiddleware.requireStudentAccount(req, res, next)
+    : next()
+));
+
 router.get('/', matthsController.mainPage);
 router.get('/intro', matthsController.introPage);
 router.get('/pricing', matthsController.pricingPage);
@@ -1540,13 +1555,49 @@ router.post(
   matthsController.withdrawOwnAccount
 );
 
-router.get('/login', authMiddleware.isLoggedOut, matthsController.loginPage);
+function authenticationAccountType(accountType) {
+  return (req, _res, next) => {
+    req.authAccountType = accountType;
+    next();
+  };
+}
+
+router.get('/login', (req, res) => {
+  const query = new URLSearchParams(req.query).toString();
+  return res.redirect(`/student/login${query ? `?${query}` : ""}`);
+});
+
+router.post('/login', (req, res) => res.redirect(307, '/student/login'));
+
+router.get(
+  '/student/login',
+  authMiddleware.isLoggedOut,
+  authenticationAccountType("student"),
+  matthsController.loginPage
+);
 
 router.post(
-  '/login',
+  '/student/login',
   authMiddleware.isLoggedOut,
   loginIpRateLimit,
   loginRateLimit,
+  authenticationAccountType("student"),
+  matthsController.login
+);
+
+router.get(
+  '/admin/login',
+  authMiddleware.isLoggedOut,
+  authenticationAccountType("admin"),
+  matthsController.loginPage
+);
+
+router.post(
+  '/admin/login',
+  authMiddleware.isLoggedOut,
+  loginIpRateLimit,
+  loginRateLimit,
+  authenticationAccountType("admin"),
   matthsController.login
 );
 
@@ -1634,10 +1685,18 @@ router.post(
   matthsController.appleWebOAuthCallback
 );
 
-router.get('/register', matthsController.registerPage);
+router.get('/register', (req, res) => {
+  const query = new URLSearchParams(req.query).toString();
+  return res.redirect(`/student/register${query ? `?${query}` : ""}`);
+});
+
+router.post('/register', (req, res) => res.redirect(307, '/student/register'));
+
+router.get('/student/register', authMiddleware.isLoggedOut, matthsController.registerPage);
 
 router.post(
-  '/register',
+  '/student/register',
+  authMiddleware.isLoggedOut,
   registrationIpRateLimit,
   registrationRateLimit,
   matthsController.register

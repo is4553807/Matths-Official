@@ -46,13 +46,20 @@ function pathnameOf(originalUrl) {
 function isAuthenticationPath(pathname) {
   return (
     /^\/(?:login|register|forgot-password)(?:\/|$)/.test(pathname) ||
-    /^\/auth\/(?:google|kakao|apple)(?:\/|$)/.test(pathname) ||
-    /^\/parent\/login(?:\/|$)/.test(pathname)
+    /^\/student\/(?:login|register)(?:\/|$)/.test(pathname) ||
+    /^\/academy\/(?:login|register)(?:\/|$)/.test(pathname) ||
+    /^\/parent\/(?:login|register)(?:\/|$)/.test(pathname) ||
+    /^\/admin\/login(?:\/|$)/.test(pathname) ||
+    /^\/auth\/(?:google|kakao|apple)(?:\/|$)/.test(pathname)
   );
 }
 
 function isPublicPath(pathname) {
-  if (isAuthenticationPath(pathname)) return true;
+  if (
+    /^\/(?:login|register|forgot-password)(?:\/|$)/.test(pathname) ||
+    /^\/student\/(?:login|register)(?:\/|$)/.test(pathname) ||
+    /^\/auth\/(?:google|kakao|apple)(?:\/|$)/.test(pathname)
+  ) return true;
   if (/^\/(?:intro|visual-learning|learning-flow|curriculum|faq|terms|privacy)(?:\/|$)/.test(pathname)) {
     return true;
   }
@@ -64,10 +71,7 @@ function isPublicPath(pathname) {
 }
 
 function publicTarget(originalUrl) {
-  const target = safeRequestTarget(originalUrl);
-  if (pathnameOf(target) !== "/parent/login") return target;
-  const queryIndex = target.indexOf("?");
-  return `/login${queryIndex >= 0 ? target.slice(queryIndex) : ""}`;
+  return safeRequestTarget(originalUrl);
 }
 
 function surfaceForPath(pathname) {

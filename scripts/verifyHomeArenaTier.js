@@ -147,7 +147,7 @@ async function run() {
   );
   assert.match(loggedOut, /로그인 후 Arena 순위를 확인할 수 있습니다/);
   assert.match(loggedOut, /로그인하면 현재 티어와 종합랭킹, 사용자군 순위를 확인할 수 있습니다/);
-  assert.match(loggedOut, /href="https:\/\/www\.matths\.kr\/login">로그인하고 확인/);
+  assert.match(loggedOut, /href="https:\/\/www\.matths\.kr\/student\/login">로그인하고 확인/);
   assert.match(loggedOut, /href="https:\/\/app\.matths\.kr\/main"/);
   assert.match(loggedOut, /href="https:\/\/academy\.matths\.kr\/academy"/);
   assert.match(loggedOut, /href="https:\/\/parents\.matths\.kr\/parent"/);

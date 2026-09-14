@@ -2,6 +2,52 @@ const mongoose = require("mongoose");
 
 const { Schema } = mongoose;
 
+/*
+ * 학원 운영 계정의 로그인 자격증명은 학생 User 문서와 분리한다.
+ * teacherUserId는 기존 학원 운영 데이터의 User 참조를 유지하기 위한 연결 키이며,
+ * 실제 비밀번호는 AcademyAccount에만 저장한다.
+ */
+const academyAccountSchema = new Schema(
+  {
+    teacherUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true,
+    },
+    displayName: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 40,
+    },
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      maxlength: 254,
+      unique: true,
+    },
+    passwordHash: {
+      type: String,
+      required: true,
+      select: false,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    acceptedTermsAt: { type: Date, default: null },
+    acceptedPrivacyAt: { type: Date, default: null },
+    lastLoginAt: { type: Date, default: null },
+    migratedFromLegacyUserAt: { type: Date, default: null },
+    legacyPasswordDisabledAt: { type: Date, default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+
 const academyProfileImageAssetSchema = new Schema(
   {
     storageProvider: {
@@ -797,6 +843,9 @@ academyAssignmentSubmissionSchema.index(
 );
 academyAssignmentSubmissionSchema.index({ classId: 1, submittedAt: -1 });
 
+const AcademyAccount =
+  mongoose.models.AcademyAccount ||
+  mongoose.model("AcademyAccount", academyAccountSchema);
 const Academy = mongoose.models.Academy || mongoose.model("Academy", academySchema);
 const AcademyStaff = mongoose.models.AcademyStaff || mongoose.model("AcademyStaff", academyStaffSchema);
 const AcademyClass = mongoose.models.AcademyClass || mongoose.model("AcademyClass", academyClassSchema);
@@ -824,6 +873,7 @@ const AcademyAssignmentSubmission =
   mongoose.model("AcademyAssignmentSubmission", academyAssignmentSubmissionSchema);
 
 module.exports = {
+  AcademyAccount,
   Academy,
   AcademyStaff,
   AcademyClass,

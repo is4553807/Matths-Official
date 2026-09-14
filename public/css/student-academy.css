@@ -144,3 +144,31 @@
 @media (max-width: 560px) {
   .student-academy-main .student-academy-topbar { margin-inline: -16px; padding-inline: 16px; }
 }
+
+.student-preview-banner {
+  position: relative;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 58px;
+  padding: 10px 24px;
+  color: #fff;
+  background: #172d81;
+  box-sizing: border-box;
+}
+.student-preview-banner > div { display: flex; align-items: baseline; gap: 12px; }
+.student-preview-banner strong { font-size: 13px; }
+.student-preview-banner span { color: #dbe3ff; font-size: 10px; line-height: 1.5; }
+.student-preview-banner a { flex: 0 0 auto; padding: 9px 12px; color: #172d81; background: #fff; border-radius: 9px; font-size: 10px; font-weight: 900; text-decoration: none; }
+.student-preview-mode .dashboard-sidebar-shared { pointer-events: none; user-select: none; }
+.student-preview-mode .student-academy-concept-grid a[aria-disabled="true"] { cursor: default; pointer-events: none; }
+.student-preview-mode .student-omr-question { opacity: .78; }
+.student-preview-form-notice { margin: 16px 0 0; padding: 12px 14px; color: #3651b8; background: #f0f3ff; border: 1px solid #dce4ff; border-radius: 11px; font-size: 10px; font-weight: 750; }
+
+@media (max-width: 720px) {
+  .student-preview-banner { align-items: flex-start; padding: 12px 14px; }
+  .student-preview-banner > div { display: grid; gap: 3px; }
+  .student-preview-banner span { max-width: 58ch; }
+}

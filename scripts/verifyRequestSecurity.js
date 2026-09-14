@@ -259,13 +259,13 @@ try {
   );
   assert.match(
     parentRoutes,
-    /router\.post\("\/parent\/login"[\s\S]*res\.redirect\(307, serviceUrl\("public", "\/login"\)\)/
+    /"\/parent\/login"[\s\S]*loginIpRateLimit[\s\S]*loginRateLimit[\s\S]*parentController\.login/
   );
+  assert.doesNotMatch(webController, /req\.session\.parent\s*=/);
   assert.match(
-    webController,
-    /await regenerateSession\(req\);\s*req\.session\.parent = \{/
+    parentController,
+    /await regenerateSession\(req\);\s*req\.session\.parent = parentSession\(parent\)/
   );
-  assert.match(parentController, /req\.session\.parent = parentSession\(parent\)/);
 } finally {
   for (const [key, value] of Object.entries(originalEnvironment)) {
     if (value === undefined) delete process.env[key];

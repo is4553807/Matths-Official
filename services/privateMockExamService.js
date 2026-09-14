@@ -1430,6 +1430,29 @@ function getPrivateMockPhase(
   return "archived";
 }
 
+function getPrivateMockAttemptDeadline(exam, attempt) {
+  const personalDeadline = new Date(
+    new Date(attempt.startedAt).getTime() +
+      Number(exam.durationMinutes || DEFAULT_DURATION_MINUTES) * MINUTE_MS
+  );
+  // CUSTOM is an operational check: clicking Start must grant the full duration.
+  // Official A/B/C forms still end at their shared scheduled closing time.
+  if (String(exam.formCode || "").toUpperCase() === "CUSTOM") {
+    return personalDeadline;
+  }
+  return new Date(Math.min(personalDeadline.getTime(), new Date(exam.closeAt).getTime()));
+}
+
+function getCustomPrivateMockScheduleExtension(exam, attempt) {
+  if (String(exam.formCode || "").toUpperCase() !== "CUSTOM") return null;
+  const deadline = getPrivateMockAttemptDeadline(exam, attempt);
+  if (deadline <= new Date(exam.closeAt)) return null;
+  return Object.fromEntries([
+    "closeAt", "aggregationStartsAt", "rankingPublishesAt", "reviewPublishesAt", "archiveAt",
+  ].filter((field) => !exam[field] || new Date(exam[field]) < deadline)
+    .map((field) => [field, deadline]));
+}
+
 function formatSeoulDateTimeInput(
   date
 ) {
@@ -4012,7 +4035,7 @@ async function normalizeStoredPrivateMockSchedules() {
       },
     })
       .select(
-        "releaseAt durationMinutes status archivedAt weekKey attemptNumber formCode isTest"
+        "releaseAt closeAt aggregationStartsAt rankingPublishesAt reviewPublishesAt archiveAt durationMinutes status archivedAt weekKey attemptNumber formCode isTest"
       )
       .lean();
 
@@ -4031,6 +4054,15 @@ async function normalizeStoredPrivateMockSchedules() {
               ),
           }
         );
+      if (String(exam.formCode || "").toUpperCase() === "CUSTOM") {
+        // Preserve a CUSTOM window extended by a started attempt across restarts
+        // and across servers instead of resetting it to releaseAt + 100 minutes.
+        for (const field of ["closeAt", "aggregationStartsAt", "rankingPublishesAt", "reviewPublishesAt", "archiveAt"]) {
+          if (exam[field] && !Number.isNaN(new Date(exam[field]).getTime())) {
+            schedule[field] = new Date(exam[field]);
+          }
+        }
+      }
     } catch (error) {
       continue;
     }
@@ -4060,20 +4092,25 @@ async function normalizeStoredPrivateMockSchedules() {
       privateMockFormCode(
         attemptNumber
       );
+    const scheduleUpdate = {
+      $set: { ...schedule, weekKey, attemptNumber, formCode, status },
+    };
+    if (String(formCode).toUpperCase() === "CUSTOM") {
+      // A concurrent start on another server may have extended these after our
+      // read. Never overwrite that later deadline during schedule backfill.
+      scheduleUpdate.$max = {};
+      for (const field of ["closeAt", "aggregationStartsAt", "rankingPublishesAt", "reviewPublishesAt", "archiveAt"]) {
+        scheduleUpdate.$max[field] = scheduleUpdate.$set[field];
+        delete scheduleUpdate.$set[field];
+      }
+    }
 
     await PrivateMockExam.updateOne(
       {
         _id: exam._id,
+        status: exam.status,
       },
-      {
-        $set: {
-          ...schedule,
-          weekKey,
-          attemptNumber,
-          formCode,
-          status,
-        },
-      }
+      scheduleUpdate
     );
     await PrivateMockExamAttempt.updateMany(
       {
@@ -5822,22 +5859,7 @@ async function getPrivateMockAttemptData({
     };
   }
 
-  const personalDeadline =
-    new Date(
-      attempt.startedAt.getTime() +
-        exam.durationMinutes *
-          60 *
-          1000
-    );
-  const deadline =
-    new Date(
-      Math.min(
-        personalDeadline.getTime(),
-        new Date(
-          exam.closeAt
-        ).getTime()
-      )
-    );
+  const deadline = getPrivateMockAttemptDeadline(exam, attempt);
 
   if (
     deadline.getTime() <=
@@ -6244,6 +6266,14 @@ async function startPrivateMockAttempt({
     throw statusError(
       409,
       "이미 제출하거나 종료된 회차입니다."
+    );
+  }
+
+  const customScheduleExtension = getCustomPrivateMockScheduleExtension(exam, attempt);
+  if (customScheduleExtension) {
+    await PrivateMockExam.updateOne(
+      { _id: exam._id, formCode: "CUSTOM", status: "open" },
+      { $max: customScheduleExtension }
     );
   }
 
@@ -7521,16 +7551,7 @@ async function getWritableAttempt({
     );
   }
 
-  const deadline =
-    Math.min(
-      new Date(
-        exam.closeAt
-      ).getTime(),
-      attempt.startedAt.getTime() +
-        exam.durationMinutes *
-          60 *
-          1000
-    );
+  const deadline = getPrivateMockAttemptDeadline(exam, attempt).getTime();
 
   if (
     now.getTime() >= deadline
@@ -8353,19 +8374,7 @@ async function submitPrivateMockAttempt({
     new Date(
       exam.releaseAt
     );
-  const deadline =
-    new Date(
-      Math.min(
-        new Date(
-          exam.closeAt
-        ).getTime(),
-        new Date(
-          initialAttempt.startedAt
-        ).getTime() +
-          exam.durationMinutes *
-            MINUTE_MS
-      )
-    );
+  const deadline = getPrivateMockAttemptDeadline(exam, initialAttempt);
 
   const existingClaim =
     activePrivateMockSubmissionClaim({
@@ -11454,6 +11463,8 @@ module.exports = {
   getAdminPrivateMockObjection,
   getKoreanWeekTitle,
   getPrivateMockAttemptData,
+  getPrivateMockAttemptDeadline,
+  getCustomPrivateMockScheduleExtension,
   getPrivateMockExamFile,
   getPrivateMockFormulaFile,
   getPrivateMockEligibility,

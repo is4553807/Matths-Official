@@ -3,6 +3,9 @@ const mongoose = require("mongoose");
 const {
   User,
 } = require("../models/matthsModel");
+const { ParentAccount } = require("../models/parentModel");
+const { AcademyAccount } = require("../models/academyModel");
+const { authenticateAcademyAccount } = require("../services/academyAccountService");
 const {
   OVERSEAS_HIGH_SCHOOL_OPTION_CODE,
   buildOverseasSchool,
@@ -444,6 +447,8 @@ exports.register = async (
     const [
       existing,
       existingNickname,
+      existingParentAccount,
+      existingAcademyAccount,
     ] = await Promise.all([
       User.exists({
         email,
@@ -466,9 +471,11 @@ exports.register = async (
           },
         ],
       }),
+      ParentAccount.exists({ email }),
+      AcademyAccount.exists({ email }),
     ]);
 
-    if (existing) {
+    if (existing || existingParentAccount || existingAcademyAccount) {
       return res.status(409).json({
         code: "EMAIL_EXISTS",
         message:
@@ -600,17 +607,33 @@ exports.login = async (
     const password = String(
       req.body.password || ""
     );
-    const user = await User.findOne({ email }).select(
+    let user = await User.findOne({
+      email,
+      role: { $in: ["student", "test", "admin"] },
+    }).select(
       "+passwordHash"
     );
+    const standardPasswordMatched = user
+      ? await bcrypt.compare(password, user.passwordHash || "")
+      : false;
+    let academyLoginError = null;
+    if (!standardPasswordMatched) {
+      user = null;
+      try {
+        const academyLogin = await authenticateAcademyAccount({ email, password });
+        user = academyLogin.teacher;
+      } catch (error) {
+        academyLoginError = error;
+      }
+    }
 
-    if (
-      !user ||
-      !(await bcrypt.compare(
-        password,
-        user.passwordHash
-      ))
-    ) {
+    if (!user) {
+      if (Number(academyLoginError?.status) === 403) {
+        return res.status(403).json({
+          code: academyLoginError.code || "ACCOUNT_BLOCKED",
+          message: academyLoginError.message,
+        });
+      }
       return res.status(401).json({
         code: "INVALID_CREDENTIALS",
         message:

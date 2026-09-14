@@ -101,7 +101,7 @@ assert.match(errorCss, /\.matths-error-main[\s\S]*overflow:\s*clip/);
     status: 401,
     error: new Error("로그인이 필요합니다."),
   });
-  assert.equal(model.primaryAction.href, "/login");
+  assert.equal(model.primaryAction.href, "/student/login");
 }
 
 {

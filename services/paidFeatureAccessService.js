@@ -59,11 +59,14 @@ async function assertPaidPackageAccess(userId) {
   return access;
 }
 
-async function getWeeklyMockExamAccess(userId) {
+async function getWeeklyMockExamAccess(
+  userId,
+  { now = new Date(), session = null } = {}
+) {
   const [learningPackage, mockExamOnlyPackage, academyPlan] = await Promise.all([
-    getPaidPackageAccess(userId),
-    getMockExamPackageAccess(userId),
-    getActiveAcademyPlan(userId),
+    getPaidPackageAccess(userId, { session }),
+    getMockExamPackageAccess(userId, now),
+    getActiveAcademyPlan(userId, { now, session }),
   ]);
   if (learningPackage.active) {
     return {

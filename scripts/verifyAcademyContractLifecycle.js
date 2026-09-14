@@ -155,7 +155,9 @@ async function main() {
       "2026-09-10T14:59:59.999Z",
       "교사 접근 미들웨어가 계약 만료일을 읽을 수 있어야 합니다."
     );
-    const mockAccess = await getWeeklyMockExamAccess(student._id);
+    const mockAccess = await getWeeklyMockExamAccess(student._id, {
+      now: new Date("2026-09-01T00:00:00.000Z"),
+    });
     assert.equal(mockAccess.active, true);
     assert.equal(mockAccess.packageType, "ACADEMY_PLAN");
     assert.equal(mockAccess.arenaAllowed, false);

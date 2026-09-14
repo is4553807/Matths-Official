@@ -26,6 +26,31 @@ function statusError(status, message, code = "") {
   return error;
 }
 
+async function ensureParentAccountIndexes() {
+  let indexes = [];
+  try {
+    indexes = await ParentAccount.collection.indexes();
+  } catch (error) {
+    if (Number(error?.code) !== 26 && error?.codeName !== "NamespaceNotFound") throw error;
+  }
+
+  const legacyChildIndex = indexes.find((index) => (
+    index?.unique === true &&
+    index?.key?.childUserId === 1 &&
+    Object.keys(index.key || {}).length === 1 &&
+    !index.partialFilterExpression
+  ));
+  if (legacyChildIndex?.name) {
+    try {
+      await ParentAccount.collection.dropIndex(legacyChildIndex.name);
+    } catch (error) {
+      if (Number(error?.code) !== 27 && error?.codeName !== "IndexNotFound") throw error;
+    }
+  }
+  await ParentAccount.createIndexes();
+  return { removedLegacyChildIndex: legacyChildIndex?.name || "" };
+}
+
 async function ensureLegacyParentChildLink(parent) {
   if (!parent?.childUserId) return null;
   return ParentChildLink.findOneAndUpdate(
@@ -127,7 +152,11 @@ async function getParentFamily({ parentId, selectedChildUserId = null }) {
     }));
 
   if (!children.length) {
-    throw statusError(404, "연결된 자녀 계정을 찾을 수 없습니다.");
+    throw statusError(
+      404,
+      "연결된 자녀 계정을 찾을 수 없습니다.",
+      "PARENT_CHILD_LINK_REQUIRED"
+    );
   }
 
   const requestedId = String(selectedChildUserId || "");
@@ -187,6 +216,7 @@ async function updateParentNotificationSettings({
 
 module.exports = {
   CHILD_SELECT_FIELDS,
+  ensureParentAccountIndexes,
   ensureLegacyParentChildLink,
   getParentFamily,
   linkChildToParent,

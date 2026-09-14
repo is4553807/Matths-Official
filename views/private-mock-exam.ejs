@@ -168,7 +168,7 @@
         >
           <p>응시 준비</p>
           <h2><%= examData.canStart ? "시험 시작 준비가 끝났습니다." : "시험 시작까지 기다려주세요." %></h2>
-          <span><%= examData.canStart ? "시험 시작 버튼을 누르면 이 화면 안에 문제지 PDF가 표시되고 100분 제한 시간이 시작됩니다." : "시험장은 10분 일찍 열렸습니다. 시작 시각이 되기 전에는 문제지 PDF를 열거나 저장할 수 없습니다." %></span>
+          <span><%= examData.canStart ? (examData.exam.formCode === "CUSTOM" ? `시험 시작 버튼을 누르면 문제지 PDF가 표시되고 개인 시작 시각부터 ${examData.exam.durationMinutes}분 제한 시간이 시작됩니다.` : `시험 시작 버튼을 누르면 문제지 PDF가 표시됩니다. 제한 시간은 최대 ${examData.exam.durationMinutes}분이며, 늦게 시작해도 정해진 회차 마감 시각에 종료됩니다.`) : "시험장은 10분 일찍 열렸습니다. 시작 시각이 되기 전에는 문제지 PDF를 열거나 저장할 수 없습니다." %></span>
           <div class="private-mock-lobby-countdown">
             <small>시험 시작까지</small>
             <strong data-private-mock-lobby-countdown><%= examData.canStart ? "00:00" : "--:--" %></strong>
@@ -214,6 +214,7 @@
           <div class="private-mock-paper-panel">
             <div class="private-mock-paper-toolbar">
               <div><strong>문제지</strong><span>시험 화면 안에서 확대·축소해 확인할 수 있습니다.</span></div>
+              <a href="<%= examData.exam.fileHref %>" target="_blank" rel="noopener">문제지 새 창에서 열기 ↗</a>
             </div>
             <iframe src="<%= examData.exam.fileHref %>#toolbar=1&navpanes=0" title="<%= examData.exam.title %> 문제지"></iframe>
           </div>

@@ -107,7 +107,7 @@
 
       <nav aria-label="회원가입 페이지 메뉴">
         <span>이미 계정이 있나요?</span>
-        <a href="/login">로그인</a>
+        <a href="/student/login">학생 로그인</a>
       </nav>
     </header>
 
@@ -207,12 +207,18 @@
       >
         <div class="auth-panel-inner">
           <div class="auth-heading">
-            <p>CREATE ACCOUNT</p>
+            <p>STUDENT ACCOUNT</p>
 
             <h2 id="register-title">
               Matths 학습을 시작하세요.
             </h2>
           </div>
+
+          <nav class="account-type-switcher" aria-label="계정 유형 선택">
+            <a href="/student/register" class="is-active" aria-current="page">학생</a>
+            <a href="/academy/register">학원</a>
+            <a href="/parent/register">학부모</a>
+          </nav>
 
           <% if (formError) { %>
             <div
@@ -236,7 +242,7 @@
 
           <form
             class="auth-form"
-            action="/register"
+            action="/student/register"
             method="POST"
             data-register-form
           >
@@ -630,7 +636,7 @@
 
           <div class="auth-switch">
             <span>이미 계정이 있나요?</span>
-            <a href="/login">로그인하기</a>
+            <a href="/student/login">학생 로그인</a>
           </div>
         </div>
       </section>

@@ -1,6 +1,13 @@
 const express = require("express");
 const academyController = require("../controllers/academyController");
+const academyAuthController = require("../controllers/academyAuthController");
 const authMiddleware = require("../middleware/authMiddleware");
+const {
+  loginIpRateLimit,
+  loginRateLimit,
+  registrationIpRateLimit,
+  registrationRateLimit,
+} = require("../middleware/requestSecurity");
 const {
   handleProfileAvatarUpload,
 } = require("../middleware/profileAvatarUpload");
@@ -13,21 +20,47 @@ const {
 
 const router = express.Router();
 
-router.get("/academy/join/:token", authMiddleware.isLoggedIn, academyController.inviteJoinPage);
-router.post("/academy/join/:token", authMiddleware.isLoggedIn, academyController.acceptInvite);
-router.get("/my-academy", authMiddleware.isLoggedIn, academyController.studentAcademyPage);
+router.get("/academy/login", authMiddleware.isLoggedOut, academyAuthController.loginPage);
+router.post(
+  "/academy/login",
+  authMiddleware.isLoggedOut,
+  loginIpRateLimit,
+  loginRateLimit,
+  academyAuthController.login
+);
+router.get("/academy/register", authMiddleware.isLoggedOut, academyAuthController.registerPage);
+router.post(
+  "/academy/register",
+  authMiddleware.isLoggedOut,
+  registrationIpRateLimit,
+  registrationRateLimit,
+  academyAuthController.register
+);
+router.post(
+  "/academy/logout",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyAuthController.logout
+);
+
+router.get("/academy/join/:token", authMiddleware.requireStudentAccount, authMiddleware.isLoggedIn, academyController.inviteJoinPage);
+router.post("/academy/join/:token", authMiddleware.requireStudentAccount, authMiddleware.isLoggedIn, academyController.acceptInvite);
+router.get("/my-academy", authMiddleware.requireStudentAccount, authMiddleware.isLoggedIn, academyController.studentAcademyPage);
 router.get(
   "/my-academy/weeks/:weekId",
+  authMiddleware.requireStudentAccount,
   authMiddleware.isLoggedIn,
   academyController.studentAcademyWeekPage
 );
 router.get(
   "/my-academy/weeks/:weekId/files/:fileId",
+  authMiddleware.requireStudentAccount,
   authMiddleware.isLoggedIn,
   academyController.downloadStudentAcademyWeekFile
 );
 router.post(
   "/my-academy/weeks/:weekId/submission",
+  authMiddleware.requireStudentAccount,
   authMiddleware.isLoggedIn,
   academyController.submitStudentAcademyAssignment
 );
@@ -64,6 +97,7 @@ router.post(
 );
 router.post(
   "/api/academy/attendance/check-in",
+  authMiddleware.requireStudentAccount,
   authMiddleware.isLoggedIn,
   academyController.studentAttendanceCheckIn
 );
@@ -128,6 +162,12 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isTeacher,
   academyController.deleteClassWeek
+);
+router.get(
+  "/academy/classes/:classId/weeks/:weekId/preview",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isTeacher,
+  academyController.studentAssignmentPreview
 );
 router.get(
   "/academy/classes/:classId/weeks/:weekId/files/:fileId",
