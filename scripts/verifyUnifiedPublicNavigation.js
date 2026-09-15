@@ -35,7 +35,7 @@ async function renderNavigation(session) {
 
 async function main() {
   const cases = [
-    [{}, "https://www.matths.kr/student/login", "https://www.matths.kr/student/register", "로그인", "무료로 시작하기"],
+    [{}, "https://www.matths.kr/login", "https://www.matths.kr/student/register", "로그인", "무료로 시작하기"],
     [{ user: { id: "student", role: "student" } }, "https://app.matths.kr/main", "https://app.matths.kr/my-learning", "대시보드", "학습 계속하기"],
     [{ user: { id: "teacher", role: "teacher" } }, "https://academy.matths.kr/academy", "https://academy.matths.kr/academy", "대시보드", "학습 계속하기"],
     [{ user: { id: "admin", role: "admin" } }, "https://admin.matths.kr/admin", "https://admin.matths.kr/admin", "대시보드", "학습 계속하기"],
@@ -74,7 +74,30 @@ async function main() {
   assert.ok(loginHtml.includes('href="/academy/login"'));
   assert.ok(loginHtml.includes('href="/parent/login"'));
 
-  console.log("학생 로그인·로고·역할별 메인 네비게이션 링크 검증 완료");
+  const unifiedLoginHtml = await ejs.renderFile(path.join(viewsDirectory, "login.ejs"), {
+    accountNavigation: accountNavigation({}, environment),
+    assetVersion: "test",
+    error: null,
+    loginNotice: null,
+    next: "/academy",
+    oldInput: { email: "teacher@example.com" },
+    publicContactEmail: "support@example.invalid",
+    serviceUrls,
+    socialAuthProviders: [],
+    success: null,
+    accountType: "academy",
+    unifiedLogin: true,
+  });
+  assert.ok(unifiedLoginHtml.includes("<title>통합 로그인 | Matths</title>"));
+  assert.ok(unifiedLoginHtml.includes('action="/login"'));
+  assert.ok(unifiedLoginHtml.includes('name="accountType" value="academy"'));
+  assert.ok(unifiedLoginHtml.includes('href="/login?accountType=student&amp;next=%2Facademy"'));
+  assert.ok(unifiedLoginHtml.includes('href="/login?accountType=academy&amp;next=%2Facademy"'));
+  assert.ok(unifiedLoginHtml.includes('href="/login?accountType=parent&amp;next=%2Facademy"'));
+  assert.ok(unifiedLoginHtml.includes('href="/login?accountType=admin&amp;next=%2Facademy"'));
+  assert.ok(unifiedLoginHtml.includes("로그인 후 실제 계정 역할에 맞는 화면으로 이동합니다."));
+
+  console.log("통합 로그인 역할 선택·학생 로그인·로고·역할별 메인 네비게이션 링크 검증 완료");
 }
 
 main().catch((error) => {

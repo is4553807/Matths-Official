@@ -218,6 +218,10 @@ select:focus-visible {
   border-radius: 12px;
 }
 
+.account-type-switcher.is-unified {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .account-type-switcher a {
   display: grid;
   place-items: center;

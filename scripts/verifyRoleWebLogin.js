@@ -254,6 +254,7 @@ async function main() {
     // Match production: this router is mounted before academy/matths routes.
     // Its student-only marker must not leak onto /admin or /academy requests.
     app.use("/", require("../routes/goat-arena-routes"));
+    app.post("/login", setAccountType("unified"), matthsController.login);
     app.post("/student/login", setAccountType("student"), matthsController.login);
     app.post("/admin/login", setAccountType("admin"), matthsController.login);
     app.post("/academy/login", academyAuthController.login);
@@ -359,7 +360,7 @@ async function main() {
       parentId: String(parent._id),
     });
 
-    for (const pathname of ["/student/login", "/academy/login", "/parent/login", "/admin/login"]) {
+    for (const pathname of ["/login", "/student/login", "/academy/login", "/parent/login", "/admin/login"]) {
       for (const [account, secret, destination, role, type] of [
         [student, studentPassword, "/main", "student", "student"],
         [teacher, teacherPassword, "/academy", "teacher", "academy"],

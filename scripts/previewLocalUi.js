@@ -102,9 +102,14 @@ function universalPreviewValue() {
   return value;
 }
 
-app.get("/preview/login", (_req, res) => {
+app.get("/preview/login", (req, res) => {
   res.locals.publicContactEmail = "dltkddbs4553@matths.kr";
+  const accountType = ["student", "academy", "parent", "admin"].includes(String(req.query.accountType || ""))
+    ? String(req.query.accountType)
+    : "student";
   res.render("login", {
+    accountType,
+    unifiedLogin: true,
     socialAuthProviders: [
       { key: "google", configured: true },
       { key: "kakao", configured: true },
@@ -114,6 +119,7 @@ app.get("/preview/login", (_req, res) => {
     success: null,
     error: null,
     oldInput: { email: "" },
+    next: "",
   });
 });
 

@@ -640,8 +640,20 @@ function protectedPageLoginNotice(req) {
     : null;
 }
 
+function publicLoginAccountType(value) {
+  const accountType = String(value || "student").trim().toLowerCase();
+  return ["student", "academy", "parent", "admin"].includes(accountType)
+    ? accountType
+    : "student";
+}
+
 exports.loginPage = (req,res) => {
-    const accountType = req.authAccountType === "admin" ? "admin" : "student";
+    const unifiedLogin = req.authAccountType === "unified";
+    const accountType = req.authAccountType === "admin"
+      ? "admin"
+      : unifiedLogin
+        ? publicLoginAccountType(req.query.accountType)
+        : "student";
     const blockedStatus =
       String(
         req.query.account || ""
@@ -654,8 +666,9 @@ exports.loginPage = (req,res) => {
     }
     res.render('login', {
       accountType,
+      unifiedLogin,
       socialAuthProviders: publicProviderStatus(),
-      loginNotice: accountType === "student" ? protectedPageLoginNotice(req) : null,
+      loginNotice: accountType === "student" || unifiedLogin ? protectedPageLoginNotice(req) : null,
       success:
         req.query.reset === "1"
           ? "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요."
@@ -675,6 +688,8 @@ exports.loginPage = (req,res) => {
       next:
         accountType === "admin" && isSafeAdminReturnPath(req.query.next)
           ? req.query.next
+          : unifiedLogin && isSafeReturnPath(req.query.next)
+            ? req.query.next
           : "",
     });
 }
@@ -6644,10 +6659,16 @@ exports.login = async (req, res, next) => {
     return res.redirect(await require("../services/webLoginService").loginWebAccount(req));
   } catch (error) {
     if ([400, 401, 403].includes(Number(error.status))) {
-      const accountType = req.authAccountType === "admin" ? "admin" : "student";
+      const unifiedLogin = req.authAccountType === "unified";
+      const accountType = req.authAccountType === "admin"
+        ? "admin"
+        : unifiedLogin
+          ? publicLoginAccountType(req.body.accountType)
+          : "student";
       return res.status(error.status).render("login", {
-        accountType, error: error.message, loginNotice: protectedPageLoginNotice(req),
-        oldInput: { email: String(req.body.email || "") }, next: "",
+        accountType, unifiedLogin, error: error.message, loginNotice: protectedPageLoginNotice(req),
+        oldInput: { email: String(req.body.email || "") },
+        next: unifiedLogin && isSafeReturnPath(req.body.next) ? req.body.next : "",
         socialAuthProviders: accountType === "admin" ? [] : publicProviderStatus(),
       });
     }

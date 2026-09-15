@@ -57,7 +57,7 @@ function accountNavigation(session = {}, environment = process.env) {
     return {
       authenticated: false,
       role: "guest",
-      dashboardHref: serviceUrl("public", "/student/login", environment),
+      dashboardHref: serviceUrl("public", "/login", environment),
       dashboardLabel: "로그인",
       primaryHref: serviceUrl("public", "/student/register", environment),
       primaryLabel: "무료로 시작하기",

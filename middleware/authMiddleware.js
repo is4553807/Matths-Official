@@ -30,7 +30,7 @@ function loginUrlForRequest(req, query = "") {
     if (pathname === "/academy" || pathname.startsWith("/academy/")) {
         return serviceUrl("academy", `/academy/login${suffix}`);
     }
-    return serviceUrl("public", `/student/login${suffix}`);
+    return serviceUrl("public", `/login${suffix}`);
 }
 
 function studentAccessError() {

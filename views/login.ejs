@@ -11,6 +11,8 @@
     )
       ? accountType
       : "student";
+  const isUnifiedLogin =
+    typeof unifiedLogin === "boolean" && unifiedLogin;
   const accountCopy = {
     student: {
       label: "학생",
@@ -58,6 +60,20 @@
     typeof socialAuthProviders !== "undefined" && Array.isArray(socialAuthProviders)
       ? socialAuthProviders
       : [];
+  const formAction = isUnifiedLogin ? "/login" : accountCopy.action;
+  const loginRoleHref = (role) => {
+    if (!isUnifiedLogin) {
+      return {
+        student: "/student/login",
+        academy: "/academy/login",
+        parent: "/parent/login",
+        admin: "/admin/login",
+      }[role];
+    }
+    const query = new URLSearchParams({ accountType: role });
+    if (loginNext) query.set("next", loginNext);
+    return `/login?${query.toString()}`;
+  };
 %>
 
 <!doctype html>
@@ -71,10 +87,10 @@
 
     <meta
       name="description"
-      content="Matths <%= accountCopy.label %> 계정으로 로그인하세요."
+      content="<%= isUnifiedLogin ? 'Matths 통합 로그인에서 계정 역할을 선택하고 로그인하세요.' : `Matths ${accountCopy.label} 계정으로 로그인하세요.` %>"
     />
 
-    <title><%= accountCopy.label %> 로그인 | Matths</title>
+    <title><%= isUnifiedLogin ? '통합 로그인' : `${accountCopy.label} 로그인` %> | Matths</title>
 
     <link
       rel="stylesheet"
@@ -128,7 +144,7 @@
           </h1>
 
           <span>
-            학생·학원·학부모 계정은 서로 다른 데이터와
+            학생·학원·학부모<% if (isUnifiedLogin) { %>·운영자<% } %> 계정은 서로 다른 데이터와
             접근 권한으로 분리되어 있습니다.
           </span>
         </div>
@@ -148,6 +164,12 @@
             <b>학부모</b>
             자녀 현황·알림·결제
           </span>
+          <% if (isUnifiedLogin) { %>
+            <span>
+              <b>운영자</b>
+              서비스 운영·관리
+            </span>
+          <% } %>
         </div>
       </section>
 
@@ -158,19 +180,22 @@
       >
         <div class="auth-panel-inner">
           <div class="auth-heading">
-            <p><%= accountCopy.eyebrow %></p>
+            <p><%= isUnifiedLogin ? "MATTHS LOGIN" : accountCopy.eyebrow %></p>
             <h2 id="login-title"><%= accountCopy.title %></h2>
 
             <span>
-              <%= accountCopy.description %>
+              <%= isUnifiedLogin
+                ? `${accountCopy.description} 로그인 후 실제 계정 역할에 맞는 화면으로 이동합니다.`
+                : accountCopy.description %>
             </span>
           </div>
 
-          <% if (selectedAccountType !== "admin") { %>
-            <nav class="account-type-switcher" aria-label="계정 유형 선택">
-              <a href="/student/login" class="<%= selectedAccountType === 'student' ? 'is-active' : '' %>" <% if (selectedAccountType === "student") { %>aria-current="page"<% } %>>학생</a>
-              <a href="/academy/login" class="<%= selectedAccountType === 'academy' ? 'is-active' : '' %>" <% if (selectedAccountType === "academy") { %>aria-current="page"<% } %>>학원</a>
-              <a href="/parent/login" class="<%= selectedAccountType === 'parent' ? 'is-active' : '' %>" <% if (selectedAccountType === "parent") { %>aria-current="page"<% } %>>학부모</a>
+          <% if (isUnifiedLogin || selectedAccountType !== "admin") { %>
+            <nav class="account-type-switcher <%= isUnifiedLogin ? 'is-unified' : '' %>" aria-label="계정 유형 선택">
+              <a href="<%= loginRoleHref('student') %>" class="<%= selectedAccountType === 'student' ? 'is-active' : '' %>" <% if (selectedAccountType === "student") { %>aria-current="page"<% } %>>학생</a>
+              <a href="<%= loginRoleHref('academy') %>" class="<%= selectedAccountType === 'academy' ? 'is-active' : '' %>" <% if (selectedAccountType === "academy") { %>aria-current="page"<% } %>>학원</a>
+              <a href="<%= loginRoleHref('parent') %>" class="<%= selectedAccountType === 'parent' ? 'is-active' : '' %>" <% if (selectedAccountType === "parent") { %>aria-current="page"<% } %>>학부모</a>
+              <% if (isUnifiedLogin) { %><a href="<%= loginRoleHref('admin') %>" class="<%= selectedAccountType === 'admin' ? 'is-active' : '' %>" <% if (selectedAccountType === "admin") { %>aria-current="page"<% } %>>운영자</a><% } %>
             </nav>
           <% } %>
 
@@ -203,9 +228,10 @@
 
           <form
             class="auth-form"
-            action="<%= accountCopy.action %>"
+            action="<%= formAction %>"
             method="POST"
           >
+            <% if (isUnifiedLogin) { %><input type="hidden" name="accountType" value="<%= selectedAccountType %>" /><% } %>
             <% if (loginNext) { %><input type="hidden" name="next" value="<%= loginNext %>" /><% } %>
             <div class="form-field">
               <label for="email">이메일</label>

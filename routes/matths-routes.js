@@ -1562,12 +1562,21 @@ function authenticationAccountType(accountType) {
   };
 }
 
-router.get('/login', (req, res) => {
-  const query = new URLSearchParams(req.query).toString();
-  return res.redirect(`/student/login${query ? `?${query}` : ""}`);
-});
+router.get(
+  '/login',
+  authMiddleware.isLoggedOut,
+  authenticationAccountType("unified"),
+  matthsController.loginPage
+);
 
-router.post('/login', (req, res) => res.redirect(307, '/student/login'));
+router.post(
+  '/login',
+  authMiddleware.isLoggedOut,
+  loginIpRateLimit,
+  loginRateLimit,
+  authenticationAccountType("unified"),
+  matthsController.login
+);
 
 router.get(
   '/student/login',

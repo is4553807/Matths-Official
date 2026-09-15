@@ -79,9 +79,14 @@ async function main() {
       /^matths:\/\/oauth\/google\?error=/
     );
 
-    const legacyLogin = await fetch(`${origin}/login`, { redirect: "manual" });
-    assert.equal(legacyLogin.status, 302);
-    assert.equal(legacyLogin.headers.get("location"), "/student/login");
+    const unifiedLogin = await fetch(`${origin}/login`, { redirect: "manual" });
+    assert.equal(unifiedLogin.status, 200);
+    const unifiedLoginHtml = await unifiedLogin.text();
+    assert.match(unifiedLoginHtml, /<title>통합 로그인 \| Matths<\/title>/);
+    assert.match(unifiedLoginHtml, /action="\/login"/);
+    for (const accountType of ["student", "academy", "parent", "admin"]) {
+      assert.match(unifiedLoginHtml, new RegExp(`accountType=${accountType}`));
+    }
 
     for (const path of [
       "/student/login",

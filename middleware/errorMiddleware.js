@@ -103,7 +103,7 @@ function actionSet(status, user, errorCode = "") {
   const signedInDashboard = dashboardHref(user);
   if (status === 401) {
     return {
-      primaryAction: { href: "/student/login", label: "로그인하기" },
+      primaryAction: { href: "/login", label: "로그인하기" },
       secondaryAction: { href: "/", label: "Matths 홈" },
     };
   }
@@ -116,7 +116,7 @@ function actionSet(status, user, errorCode = "") {
     }
     return {
       primaryAction: {
-        href: signedIn ? signedInDashboard : "/student/login",
+        href: signedIn ? signedInDashboard : "/login",
         label: signedIn ? "대시보드로 돌아가기" : "로그인하기",
       },
       secondaryAction: { href: "/pricing", label: "이용권 확인" },
