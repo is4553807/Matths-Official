@@ -201,6 +201,23 @@ try {
   assert.equal(missingOrigin.code, "REQUEST_ORIGIN_REQUIRED");
 
   assert.equal(
+    invoke(sameOriginProtection, request({
+      host: "academy.matths.kr",
+      url: "/academy/login",
+      headers: { "sec-fetch-site": "same-origin" },
+    })).error,
+    null,
+    "브라우저가 Origin/Referer를 생략해도 신뢰 가능한 same-origin Fetch Metadata가 있으면 로그인 POST를 허용해야 합니다."
+  );
+  const missingOriginSameSite = invoke(sameOriginProtection, request({
+    host: "academy.matths.kr",
+    url: "/academy/login",
+    headers: { "sec-fetch-site": "same-site" },
+  })).error;
+  assert.equal(missingOriginSameSite.status, 403);
+  assert.equal(missingOriginSameSite.code, "REQUEST_ORIGIN_REQUIRED");
+
+  assert.equal(
     invoke(sameOriginProtection, request({ url: "/api/v1/auth/login" })).error,
     null,
     "네이티브 Bearer API는 브라우저 Origin 검사와 분리해야 합니다."

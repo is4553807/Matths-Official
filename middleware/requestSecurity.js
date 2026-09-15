@@ -112,6 +112,11 @@ function sameOriginProtection(req, _res, next) {
 
   const suppliedOrigin = requestOrigin(req);
   if (!suppliedOrigin) {
+    // Some privacy-focused browser configurations omit both Origin and Referer
+    // on a same-origin form POST. Sec-Fetch-Site is a forbidden browser header,
+    // so it still provides a trustworthy same-origin signal while cross-site
+    // form submissions are rejected above.
+    if (fetchSite === "same-origin") return next();
     if (process.env.NODE_ENV !== "production") return next();
     return next(statusError(
       403,
