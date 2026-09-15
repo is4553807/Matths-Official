@@ -77,6 +77,10 @@
   const attendanceStatusLabel = { PRESENT: "출석", LATE: "지각", ABSENT: "결석", EXCUSED: "사유 결석" };
   const weekdayLabels = ["일", "월", "화", "수", "목", "금", "토"];
   const currentKstDateKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const attendanceRangeEnd = /^\d{4}-\d{2}-\d{2}$/.test(attendanceData.dateKey)
+    ? attendanceData.dateKey
+    : currentKstDateKey;
+  const attendanceRangeStart = `${attendanceRangeEnd.slice(0, 7)}-01`;
   const classScheduleText = (academyClass) => {
     const schedule = academyClass?.schedule;
     if (!schedule?.weekdays?.length || !schedule.startTime || !schedule.endTime) return "일정 미설정";
@@ -276,8 +280,15 @@
           </section>
 
           <section class="academy-panel academy-table-panel academy-attendance-panel">
-            <header><div><p>DAILY ROSTER</p><h2><%= attendanceData.dateKey %> 출결표</h2></div><a class="academy-attendance-export" href="/academy/attendance/export.csv?date=<%= encodeURIComponent(attendanceData.dateKey) %>&amp;classId=<%= encodeURIComponent(String(attendanceData.selectedClass?._id || '')) %>" download>CSV 다운로드</a></header>
-            <p class="academy-attendance-export-note">현재 조회한 날짜와 반의 저장된 출결을 엑셀용 CSV로 내려받습니다. 변경한 내용은 출결 저장 후 다운로드해 주세요.</p>
+            <header><div><p>DAILY ROSTER</p><h2><%= attendanceData.dateKey %> 출결표</h2></div></header>
+            <form class="academy-attendance-export-form" action="/academy/attendance/export.csv" method="GET">
+              <input type="hidden" name="classId" value="<%= attendanceData.selectedClass?._id || '' %>" />
+              <div><strong>기간 출결표 내보내기</strong><small>기간 중 수업일을 날짜 열로 구성하고 학생별 상태와 합계를 한 표에 담습니다.</small></div>
+              <label><span>시작 날짜</span><input type="date" name="startDate" value="<%= attendanceRangeStart %>" required /></label>
+              <label><span>종료 날짜</span><input type="date" name="endDate" value="<%= attendanceRangeEnd %>" required /></label>
+              <button class="academy-attendance-export" type="submit" <%= attendanceData.selectedClass ? "" : "disabled" %>>기간 CSV 다운로드</button>
+            </form>
+            <p class="academy-attendance-export-note">최대 366일까지 선택할 수 있습니다. 화면에서 변경한 내용은 출결 저장 후 다운로드해 주세요.</p>
             <% if (!attendanceData.roster.length) { %>
               <div class="academy-empty-state"><span aria-hidden="true">✓</span><strong>표시할 학생이 없습니다</strong><p>선택한 반에 승인된 학생이 있는지 확인해 주세요.</p></div>
             <% } else { %>

@@ -31,6 +31,13 @@
 }
 
 .academy-attendance-export { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px; color: #3157f6; background: #edf1ff; border: 1px solid #d9e2ff; border-radius: 10px; font-size: 12px; font-weight: 800; }
+.academy-attendance-export:disabled { color: #949caf; background: #f1f3f7; border-color: #e1e5ed; cursor: not-allowed; }
+.academy-attendance-export-form { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto; align-items: end; gap: 10px; margin-top: 16px; padding: 14px; background: #f4f6fb; border: 1px solid #e1e5ee; border-radius: 12px; }
+.academy-attendance-export-form > div { align-self: center; display: grid; gap: 4px; }
+.academy-attendance-export-form strong { color: #3e4860; font-size: 11px; }
+.academy-attendance-export-form small { color: #8a92a4; font-size: 9px; line-height: 1.45; }
+.academy-attendance-export-form label { display: grid; gap: 6px; color: #737d91; font-size: 9px; font-weight: 850; }
+.academy-attendance-export-form input { min-height: 40px; padding: 0 10px; color: #555f75; background: #fff; border: 1px solid #dce1eb; border-radius: 9px; font-size: 10px; }
 .academy-attendance-export-note { margin: 14px 0; color: #657087; font-size: 12px; line-height: 1.7; }
 
 * { box-sizing: border-box; }
@@ -691,6 +698,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .academy-bulk-toolbar select, .academy-bulk-toolbar button { width: 100%; }
   .academy-attendance-toolbar { grid-template-columns: 1fr 1fr; }
   .academy-attendance-toolbar > div { grid-column: 1 / -1; }
+  .academy-attendance-export-form { grid-template-columns: 1fr 1fr; }
+  .academy-attendance-export-form > div, .academy-attendance-export-form > button { grid-column: 1 / -1; }
   .academy-pagination { grid-template-columns: 1fr 1fr; }
   .academy-pagination > div { grid-column: 1 / -1; grid-row: 1; flex-wrap: wrap; }
   .academy-pagination .academy-pagination-direction { width: 100%; }
@@ -714,6 +723,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .academy-health-components { grid-template-columns: 1fr; }
   .academy-attendance-toolbar { grid-template-columns: 1fr; }
   .academy-attendance-toolbar > div { grid-column: auto; }
+  .academy-attendance-export-form { grid-template-columns: 1fr; }
+  .academy-attendance-export-form > div, .academy-attendance-export-form > button { grid-column: auto; }
   .academy-math-map-meta { grid-template-columns: 1fr 1fr; }
   .academy-forensics-input-grid, .academy-forensics-result-card dl { grid-template-columns: 1fr; }
   .academy-forensics-input-grid > b { width: auto; height: auto; background: transparent; }

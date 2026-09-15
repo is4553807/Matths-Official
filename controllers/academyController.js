@@ -209,7 +209,13 @@ exports.portalPage = async (req, res, next) => {
 
 exports.exportAttendanceCsv = async (req, res, next) => {
   try {
-    const result = await getAcademyAttendanceCsv({ teacherUserId: req.session.user.id, dateKey: req.query.date, classId: req.query.classId });
+    const result = await getAcademyAttendanceCsv({
+      teacherUserId: req.session.user.id,
+      dateKey: req.query.date,
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+      classId: req.query.classId,
+    });
     res.set("Cache-Control", "private, no-store");
     res.set("X-Robots-Tag", "noindex, nofollow");
     res.set("Content-Type", "text/csv; charset=utf-8");

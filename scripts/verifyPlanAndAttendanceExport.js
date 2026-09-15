@@ -121,18 +121,57 @@ async function main() {
       if (originalCodeSecret === undefined) delete process.env.ATTENDANCE_CODE_SECRET;
       else process.env.ATTENDANCE_CODE_SECRET = originalCodeSecret;
     }
+    await AcademyAttendance.create([
+      { academyId: academy._id, classId: academyClass._id, studentUserId: learner._id, dateKey: "2026-09-15", status: "PRESENT", checkedInAt: new Date("2026-09-15T09:00:00Z"), recordedByUserId: teacher._id, source: "MANUAL", note: "정상 등원" },
+      { academyId: academy._id, classId: academyClass._id, studentUserId: missingRecordStudent._id, dateKey: "2026-09-15", status: "ABSENT", recordedByUserId: teacher._id, source: "MANUAL", note: "가정 일정" },
+    ]);
+    const rangeExport = await getAcademyAttendanceCsv({
+      teacherUserId: teacher._id,
+      startDate: "2026-09-14",
+      endDate: "2026-09-16",
+      classId: academyClass._id,
+    });
+    assert.equal(rangeExport.filename, "matths-attendance-2026-09-14-to-2026-09-16.csv");
+    assert.ok(rangeExport.csv.startsWith("\uFEFF"));
+    assert.match(rangeExport.csv, /"2026-09-14 \(월\)","2026-09-15 \(화\)","2026-09-16 \(수\)"/);
+    assert.match(rangeExport.csv, /"김, ""학생""".*"지각 18:07","출석 18:00","미기록","1","1","0","0","1"/);
+    assert.match(rangeExport.csv, /"미기록학생".*"미기록","결석","미기록","0","0","1","0","2"/);
+    assert.match(rangeExport.csv, /"날짜별 출석".*"0","1","0"/);
+    assert.match(rangeExport.csv, /"날짜별 미기록".*"1","0","2"/);
+    assert.match(rangeExport.csv, /2026-09-14: =1\+1/);
+    assert.equal(await AcademyAttendanceSession.countDocuments({ academyId: academy._id }), 1, "range export must not create attendance sessions");
+    assert.equal(await AcademyAttendance.countDocuments({ academyId: academy._id }), 3, "range export must not create or change attendance records");
+    await AcademyClass.updateOne({ _id: academyClass._id }, { $set: { "schedule.weekdays": [1, 3] } });
+    const scheduledRange = await getAcademyAttendanceCsv({
+      teacherUserId: teacher._id,
+      startDate: "2026-09-14",
+      endDate: "2026-09-17",
+      classId: academyClass._id,
+    });
+    assert.match(scheduledRange.csv, /"2026-09-14 \(월\)","2026-09-15 \(화\)","2026-09-16 \(수\)"/);
+    assert.doesNotMatch(scheduledRange.csv, /2026-09-17 \(목\)/, "unscheduled unrecorded dates must not appear as attendance days");
     await assert.rejects(getAcademyAttendanceCsv({ teacherUserId: teacher._id, dateKey: "2026-09-14", classId: otherClass._id }), error => error.status === 403);
     await assert.rejects(getAcademyAttendanceCsv({ teacherUserId: teacher._id, dateKey: "2026-02-30", classId: academyClass._id }), error => error.status === 400);
+    await assert.rejects(getAcademyAttendanceCsv({ teacherUserId: teacher._id, startDate: "2026-09-14", endDate: "2026-09-16", classId: otherClass._id }), error => error.status === 403);
+    await assert.rejects(getAcademyAttendanceCsv({ teacherUserId: teacher._id, startDate: "2026-09-16", endDate: "2026-09-14", classId: academyClass._id }), error => error.status === 400);
+    await assert.rejects(getAcademyAttendanceCsv({ teacherUserId: teacher._id, startDate: "2026-09-14", classId: academyClass._id }), error => error.status === 400);
+    await assert.rejects(getAcademyAttendanceCsv({ teacherUserId: teacher._id, endDate: "2026-09-14", classId: academyClass._id }), error => error.status === 400);
+    await assert.rejects(getAcademyAttendanceCsv({ teacherUserId: teacher._id, startDate: "2026-02-30", endDate: "2026-09-14", classId: academyClass._id }), error => error.status === 400);
+    await assert.rejects(getAcademyAttendanceCsv({ teacherUserId: teacher._id, startDate: "2025-09-14", endDate: "2026-09-15", classId: academyClass._id }), error => error.status === 400);
     for (const value of ["=1+1", "+1", "-2", "@SUM(1)", " =1", "\t=1"]) assert.ok(csvCell(value).startsWith('"\''), "Excel formula injection must be neutralized");
     assert.equal(csvCell('a,"b"\r\nc'), '"a,""b""\r\nc"');
     const emptyExport = await getAcademyAttendanceCsv({ teacherUserId: owner._id, dateKey: "2026-09-14", classId: otherClass._id });
     assert.equal(emptyExport.csv.trim().split("\r\n").length, 1);
+    const academyView = fs.readFileSync(path.resolve("views/academy.ejs"), "utf8");
+    assert.match(academyView, /name="startDate"/);
+    assert.match(academyView, /name="endDate"/);
+    assert.match(academyView, /기간 CSV 다운로드/);
     for (const view of ["views/store.ejs", "views/store-study.ejs", "views/admin-store.ejs", "views/partials/dashboard-navigation.ejs", "views/partials/admin-navigation.ejs", "public/js/onboarding-tutorial.js"]) {
       const source = fs.readFileSync(path.resolve(view), "utf8");
       assert.match(source, /GOAT 교재관/);
       assert.doesNotMatch(source, /고2·고3 수험관/);
     }
-    console.log("Plan/CSV verified: mock subscription duration vs learning balance, future/exact-expiry boundaries, midnight last-use date, held/exhausted days, renamed pages, Excel-safe Korean CSV, teacher class scope and non-mutating downloads.");
+    console.log("Plan/CSV verified: mock subscription duration vs learning balance, future/exact-expiry boundaries, midnight last-use date, held/exhausted days, renamed pages, Excel-safe Korean daily/range matrices, teacher class scope and non-mutating downloads.");
   } finally {
     await mongoose.disconnect();
     await mongo.stop();
