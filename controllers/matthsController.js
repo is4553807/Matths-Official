@@ -7219,7 +7219,9 @@ exports.completeNicknameChange =
       await saveSession(req);
 
       return res.redirect(
-        "/profile?nicknameChanged=1"
+        req.session.user.role === "teacher"
+          ? serviceUrl("academy", "/academy?nicknameChanged=1")
+          : "/profile?nicknameChanged=1"
       );
     } catch (error) {
       if (error.status) {

@@ -239,6 +239,8 @@ async function createNicknameChangeRequest({
       notice.subject,
     emailMessage:
       notice.message,
+    emailActionUrl: absoluteUrl,
+    emailActionLabel: "닉네임 변경하기",
   });
 
   return {

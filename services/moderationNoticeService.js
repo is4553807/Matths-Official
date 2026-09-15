@@ -40,6 +40,8 @@ async function deliverModerationNotice({
   createdBy = null,
   emailSubject = "",
   emailMessage = "",
+  emailActionUrl = "",
+  emailActionLabel = "",
 }) {
   if (!user?._id || !user?.email) {
     const error = new Error(
@@ -81,6 +83,8 @@ async function deliverModerationNotice({
               emailMessage ||
               message,
           }),
+        actionUrl: emailActionUrl,
+        actionLabel: emailActionLabel,
         fromAddress: sender?.email || "",
       });
   } catch (error) {

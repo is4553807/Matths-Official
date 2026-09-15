@@ -14,7 +14,7 @@ process.env.DISABLE_SCHEDULERS = "1";
 process.env.API_TOKEN_SECRET = crypto.randomBytes(48).toString("hex");
 require("../services/emailService").sendEmail = async () => ({ delivered: false });
 
-const { User } = require("../models/matthsModel");
+const { NicknameChangeRequest, User } = require("../models/matthsModel");
 const { ParentAccount, ParentChildLink } = require("../models/parentModel");
 const { Academy, AcademyAccount, AcademyClass, AcademyClassWeek, AcademyStaff, AcademyStudentMembership, AcademyAttendance, AcademyAttendanceSession, AcademyAssignmentSubmission } = require("../models/academyModel");
 const { MongoSessionStore } = require("../services/mongoSessionStore");
@@ -129,6 +129,48 @@ async function main() {
     const testCookie = await login("/student/login", testStudent.email);
     const teacherCookie = await login("/academy/login", teacher.email);
     const parentCookie = await login("/parent/login", parent.email);
+    const nicknameToken = crypto.randomBytes(32).toString("hex");
+    const nicknameRequest = await NicknameChangeRequest.create({
+      userId: teacher._id,
+      requestedBy: admin._id,
+      reason: "교사 닉네임 확인 요청",
+      tokenHash: crypto.createHash("sha256").update(nicknameToken).digest("hex"),
+      expiresAt: new Date(Date.now() + 86400000),
+      previousName: teacher.name,
+    });
+    const nicknamePath = `/nickname-change?requestId=${nicknameRequest._id}&token=${nicknameToken}`;
+    const teacherNicknamePage = await request(nicknamePath, teacherCookie);
+    assert.match(teacherNicknamePage.text, /교사 닉네임 확인 요청/);
+    assert.match(teacherNicknamePage.text, /학원 홈으로/);
+    assert.doesNotMatch(teacherNicknamePage.text, /학습 메뉴/);
+    await request(nicknamePath, studentCookie, {}, 404);
+    await request(nicknamePath, adminCookie, {}, 404);
+    const anonymousNicknamePage = await request(nicknamePath, null, {}, 302);
+    assert.match(anonymousNicknamePage.response.headers.get("location"), /\/login$/);
+    const pendingNicknameCookie = anonymousNicknamePage.response.headers.get("set-cookie")?.match(/connect\.sid=[^;]+/)?.[0];
+    assert.ok(pendingNicknameCookie);
+    const teacherLinkLogin = await request("/login", pendingNicknameCookie, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ email: teacher.email, password }),
+    }, 302);
+    assert.ok(teacherLinkLogin.response.headers.get("location")?.endsWith(nicknamePath), "teacher login must return to the nickname email link after anonymous entry");
+    const nicknameCheck = await request("/nickname-change/check", teacherCookie, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ requestId: String(nicknameRequest._id), token: nicknameToken, nickname: "변경된교사닉네임" }),
+    });
+    const nicknameProof = JSON.parse(nicknameCheck.text).proof;
+    assert.ok(nicknameProof);
+    const nicknameCompleted = await request("/nickname-change", teacherCookie, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ requestId: String(nicknameRequest._id), token: nicknameToken, nickname: "변경된교사닉네임", proof: nicknameProof }),
+    }, 302);
+    assert.match(nicknameCompleted.response.headers.get("location"), /\/academy\?nicknameChanged=1$/);
+    assert.equal((await User.findById(teacher._id).lean()).name, "변경된교사닉네임");
+    assert.equal((await NicknameChangeRequest.findById(nicknameRequest._id).lean()).status, "completed");
+    await request(nicknamePath, teacherCookie, {}, 404);
     for (const cookie of [studentCookie, testCookie, teacherCookie]) await request("/admin", cookie, {}, 403);
     for (const cookie of [studentCookie, testCookie]) {
       await request("/main", cookie);
@@ -144,6 +186,7 @@ async function main() {
     await request("/academy/attendance/export.csv", null, {}, 302);
     await request(`/academy/attendance/export.csv?date=2026-09-14&classId=${academyClass._id}`, teacherCookie);
     await request("/main", teacherCookie, {}, 403);
+    await request("/profile", teacherCookie, {}, 403);
     await request("/main", parentCookie, {}, 302);
     await request(`/academy?academyId=${academy._id}`, parentCookie, {}, 302);
     await request(`/parent?parentId=${parent._id}`, teacherCookie, {}, 302);
@@ -168,7 +211,7 @@ async function main() {
     await User.updateOne({ _id: admin._id }, { $set: { role: "admin", accountStatus: "suspended", isActive: true } });
     await request("/admin", adminCookie, {}, 302);
     await apiRequest("/admin/users", adminToken, 401);
-    console.log("Real mounted web/API routes verified: admin dashboard, student/test pages, scoped academy/parent previews, unchanged identity, read-only boundaries, revoked child links, role downgrades, suspended/inactive accounts, and expired teacher contracts.");
+    console.log("Real mounted web/API routes verified: admin dashboard, student/test pages, scoped academy/parent previews, teacher nickname email links and login return, unchanged identity, read-only boundaries, revoked child links, role downgrades, suspended/inactive accounts, and expired teacher contracts.");
   } finally {
     if (listener) await new Promise(resolve => listener.close(resolve));
     await mongoose.disconnect();

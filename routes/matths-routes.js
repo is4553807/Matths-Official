@@ -122,7 +122,7 @@ async function requirePlacementExamAccess(req, _res, next) {
 function isStudentOnlyPath(pathname) {
   const path = String(pathname || "");
   return (
-    /^\/(?:main|my-learning|learn|war-of-masters|profile|store|notifications|announcements|account|private-mock-exams|integrity|nickname-change|log-curriculum|assessments|wrong-notes|quick-practice|coach-suggestions)(?:\/|$)/.test(path) ||
+    /^\/(?:main|my-learning|learn|war-of-masters|profile|store|notifications|announcements|account|private-mock-exams|integrity|log-curriculum|assessments|wrong-notes|quick-practice|coach-suggestions)(?:\/|$)/.test(path) ||
     /^\/api\/(?:dashboard|preferences|learning-progress|practice|session|quick-practice|assessments|private-mock-exams|war-of-masters)(?:\/|$)/.test(path) ||
     /^\/pricing\/[^/]+\/(?:self|parent-request)(?:\/|$)/.test(path)
   );

@@ -19,22 +19,24 @@
     <script src="/js/nickname-change.js" defer></script>
   </head>
   <body>
-    <div class="dashboard-shell">
-      <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
-      <%- include("partials/dashboard-sidebar", {
+    <div class="dashboard-shell <%= user.role === 'teacher' ? 'nickname-change-shell--standalone' : '' %>">
+      <% if (user.role !== 'teacher') { %>
+        <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+        <%- include("partials/dashboard-sidebar", {
   activePage: "",
   profileName: String(user.name || "학생"),
   profileSubtitle: String(user.email || "학생"),
   navigationUser: user,
-}) %>
+        }) %>
+      <% } %>
 
       <main class="dashboard-main nickname-change-main">
         <header class="topbar">
           <div class="topbar-left">
-            <button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
+            <% if (user.role !== 'teacher') { %><button class="sidebar-open" id="sidebar-open" type="button" aria-label="학습 메뉴 열기" aria-controls="dashboard-sidebar" aria-expanded="false"><span></span><span></span><span></span></button><% } %>
             <div><p>ACCOUNT SAFETY</p><h1>닉네임 변경</h1></div>
           </div>
-          <a class="dashboard-return learning-home-button" href="/main">학습 홈으로 <span aria-hidden="true">→</span></a>
+          <a class="dashboard-return learning-home-button" href="<%= user.role === 'teacher' ? '/academy' : '/main' %>"><%= user.role === 'teacher' ? '학원 홈으로' : '학습 홈으로' %> <span aria-hidden="true">→</span></a>
         </header>
 
         <section class="nickname-request-card">

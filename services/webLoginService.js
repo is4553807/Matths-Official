@@ -25,7 +25,10 @@ function loginDestination(account, next) {
   const pathname = safePath(next);
   if (role === "parent") return serviceUrl("parents", pathname && /^\/parent(?:\/|$)/.test(pathname) ? next : "/parent");
   if (role === "admin") return serviceUrl("admin", pathname && /^\/(?:admin|archive\/admin)(?:\/|$)/.test(pathname) ? next : "/admin");
-  if (role === "teacher") return serviceUrl("academy", pathname && /^\/academy(?:\/|$)/.test(pathname) && !/^\/academy\/join\//.test(pathname) ? next : "/academy");
+  if (role === "teacher") {
+    if (pathname === "/nickname-change") return serviceUrl("app", next);
+    return serviceUrl("academy", pathname && /^\/academy(?:\/|$)/.test(pathname) && !/^\/academy\/join\//.test(pathname) ? next : "/academy");
+  }
   if (!pathname || (/^\/(?:admin|academy|parent|api)(?:\/|$)/.test(pathname) && !/^\/academy\/join\/[^/]+$/.test(pathname)) || ["/login", "/register", "/logout", "/forgot-password", "/reset-password"].includes(pathname)) return serviceUrl("app", "/main");
   const surface = /^\/academy\/join\//.test(pathname) ? "academy" : /^\/(?:community|contact)(?:\/|$)/.test(pathname) ? "public" : "app";
   return serviceUrl(surface, next);
