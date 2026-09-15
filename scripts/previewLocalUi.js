@@ -104,7 +104,7 @@ function universalPreviewValue() {
 
 app.get("/preview/login", (req, res) => {
   res.locals.publicContactEmail = "dltkddbs4553@matths.kr";
-  const accountType = ["student", "academy", "parent", "admin"].includes(String(req.query.accountType || ""))
+  const accountType = ["student", "academy", "parent"].includes(String(req.query.accountType || ""))
     ? String(req.query.accountType)
     : "student";
   res.render("login", {

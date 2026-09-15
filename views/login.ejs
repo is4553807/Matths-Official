@@ -144,7 +144,7 @@
           </h1>
 
           <span>
-            학생·학원·학부모<% if (isUnifiedLogin) { %>·운영자<% } %> 계정은 서로 다른 데이터와
+            학생·학원·학부모 계정은 서로 다른 데이터와
             접근 권한으로 분리되어 있습니다.
           </span>
         </div>
@@ -164,12 +164,6 @@
             <b>학부모</b>
             자녀 현황·알림·결제
           </span>
-          <% if (isUnifiedLogin) { %>
-            <span>
-              <b>운영자</b>
-              서비스 운영·관리
-            </span>
-          <% } %>
         </div>
       </section>
 
@@ -191,11 +185,10 @@
           </div>
 
           <% if (isUnifiedLogin || selectedAccountType !== "admin") { %>
-            <nav class="account-type-switcher <%= isUnifiedLogin ? 'is-unified' : '' %>" aria-label="계정 유형 선택">
+            <nav class="account-type-switcher" aria-label="계정 유형 선택">
               <a href="<%= loginRoleHref('student') %>" class="<%= selectedAccountType === 'student' ? 'is-active' : '' %>" <% if (selectedAccountType === "student") { %>aria-current="page"<% } %>>학생</a>
               <a href="<%= loginRoleHref('academy') %>" class="<%= selectedAccountType === 'academy' ? 'is-active' : '' %>" <% if (selectedAccountType === "academy") { %>aria-current="page"<% } %>>학원</a>
               <a href="<%= loginRoleHref('parent') %>" class="<%= selectedAccountType === 'parent' ? 'is-active' : '' %>" <% if (selectedAccountType === "parent") { %>aria-current="page"<% } %>>학부모</a>
-              <% if (isUnifiedLogin) { %><a href="<%= loginRoleHref('admin') %>" class="<%= selectedAccountType === 'admin' ? 'is-active' : '' %>" <% if (selectedAccountType === "admin") { %>aria-current="page"<% } %>>운영자</a><% } %>
             </nav>
           <% } %>
 

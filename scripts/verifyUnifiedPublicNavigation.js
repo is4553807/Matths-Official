@@ -94,7 +94,7 @@ async function main() {
   assert.ok(unifiedLoginHtml.includes('href="/login?accountType=student&amp;next=%2Facademy"'));
   assert.ok(unifiedLoginHtml.includes('href="/login?accountType=academy&amp;next=%2Facademy"'));
   assert.ok(unifiedLoginHtml.includes('href="/login?accountType=parent&amp;next=%2Facademy"'));
-  assert.ok(unifiedLoginHtml.includes('href="/login?accountType=admin&amp;next=%2Facademy"'));
+  assert.ok(!unifiedLoginHtml.includes("accountType=admin"));
   assert.ok(unifiedLoginHtml.includes("로그인 후 실제 계정 역할에 맞는 화면으로 이동합니다."));
 
   console.log("통합 로그인 역할 선택·학생 로그인·로고·역할별 메인 네비게이션 링크 검증 완료");

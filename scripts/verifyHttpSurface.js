@@ -84,9 +84,14 @@ async function main() {
     const unifiedLoginHtml = await unifiedLogin.text();
     assert.match(unifiedLoginHtml, /<title>통합 로그인 \| Matths<\/title>/);
     assert.match(unifiedLoginHtml, /action="\/login"/);
-    for (const accountType of ["student", "academy", "parent", "admin"]) {
+    for (const accountType of ["student", "academy", "parent"]) {
       assert.match(unifiedLoginHtml, new RegExp(`accountType=${accountType}`));
     }
+    assert.doesNotMatch(unifiedLoginHtml, /accountType=admin/);
+    const publicAdminSelection = await fetch(`${origin}/login?accountType=admin`);
+    const publicAdminSelectionHtml = await publicAdminSelection.text();
+    assert.match(publicAdminSelectionHtml, /name="accountType" value="student"/);
+    assert.doesNotMatch(publicAdminSelectionHtml, /accountType=admin/);
 
     for (const path of [
       "/student/login",

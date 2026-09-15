@@ -642,7 +642,7 @@ function protectedPageLoginNotice(req) {
 
 function publicLoginAccountType(value) {
   const accountType = String(value || "student").trim().toLowerCase();
-  return ["student", "academy", "parent", "admin"].includes(accountType)
+  return ["student", "academy", "parent"].includes(accountType)
     ? accountType
     : "student";
 }
