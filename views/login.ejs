@@ -230,7 +230,7 @@
                   비밀번호
                 </label>
 
-                <% if (["student", "admin"].includes(selectedAccountType)) { %><a href="/forgot-password">비밀번호를 잊었나요?</a><% } %>
+                <a href="/forgot-password?accountType=<%= encodeURIComponent(selectedAccountType) %>">비밀번호를 잊었나요?</a>
               </div>
 
               <div class="password-field">

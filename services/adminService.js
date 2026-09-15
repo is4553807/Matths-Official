@@ -2994,6 +2994,12 @@ async function sendUserPasswordReset({
       email: user.email,
       baseUrl,
       fromAddress: sender.email,
+      accountType:
+        user.role === "teacher"
+          ? "academy"
+          : user.role === "admin"
+            ? "admin"
+            : "student",
     });
 
   await logAdminAction({

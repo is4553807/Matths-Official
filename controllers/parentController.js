@@ -165,9 +165,11 @@ function parentLoginLocals(req, overrides = {}) {
     accountType: "parent",
     disablePageAnalytics: /^\/parent\/invite\//.test(String(req.query.next || req.body?.next || "")),
     error: socialError || null,
-    success: req.query.registered === "1"
-      ? "학부모 계정이 생성되었습니다. 로그인해주세요."
-      : null,
+    success: req.query.reset === "1"
+      ? "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요."
+      : req.query.registered === "1"
+        ? "학부모 계정이 생성되었습니다. 로그인해주세요."
+        : null,
     loginNotice: null,
     oldInput: { email: "" },
     next: safeNext(req.query.next),

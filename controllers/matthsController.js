@@ -8169,14 +8169,28 @@ exports.moderateCoachSuggestion =
     }
   };
 
-exports.forgotPasswordPage = (
-  req,
-  res
-) =>
+function passwordResetAccountType(value) {
+  const accountType = String(value || "student").trim().toLowerCase();
+  return ["student", "academy", "parent", "admin"].includes(accountType)
+    ? accountType
+    : "student";
+}
+
+function passwordResetLoginUrl(accountType) {
+  return {
+    academy: serviceUrl("academy", "/academy/login?reset=1"),
+    parent: serviceUrl("parents", "/parent/login?reset=1"),
+    admin: serviceUrl("admin", "/admin/login?reset=1"),
+    student: serviceUrl("public", "/student/login?reset=1"),
+  }[passwordResetAccountType(accountType)];
+}
+
+exports.forgotPasswordPage = (req, res) =>
   res.render("password-reset", {
     step: "request",
     error: null,
     email: "",
+    accountType: passwordResetAccountType(req.query.accountType),
   });
 
 exports.openPasswordResetLink =
@@ -8194,6 +8208,8 @@ exports.openPasswordResetLink =
           verification.resetId,
         userId:
           verification.userId,
+        accountType:
+          verification.accountType,
         expiresAt:
           verification.expiresAt,
       };
@@ -8211,6 +8227,8 @@ exports.openPasswordResetLink =
           step: "reset",
           error: null,
           email: "",
+          accountType:
+            verification.accountType,
         }
       );
     } catch (error) {
@@ -8224,6 +8242,8 @@ exports.openPasswordResetLink =
               error:
                 error.message,
               email: "",
+              accountType:
+                passwordResetAccountType(req.query.accountType),
             }
           );
       }
@@ -8239,11 +8259,11 @@ exports.requestPasswordReset =
     )
       .trim()
       .toLowerCase();
+    const accountType =
+      passwordResetAccountType(req.body.accountType);
 
     try {
-      await requestPasswordReset(
-        email
-      );
+      await requestPasswordReset(email, { accountType });
 
       return res.render(
         "password-reset",
@@ -8251,6 +8271,7 @@ exports.requestPasswordReset =
           step: "verify",
           error: null,
           email,
+          accountType,
         }
       );
     } catch (error) {
@@ -8264,6 +8285,7 @@ exports.requestPasswordReset =
               error:
                 error.message,
               email,
+              accountType,
             }
           );
       }
@@ -8279,6 +8301,8 @@ exports.verifyPasswordReset =
     )
       .trim()
       .toLowerCase();
+    const accountType =
+      passwordResetAccountType(req.body.accountType);
 
     try {
       const verification =
@@ -8286,6 +8310,7 @@ exports.verifyPasswordReset =
           {
             email,
             code: req.body.code,
+            accountType,
           }
         );
 
@@ -8294,6 +8319,8 @@ exports.verifyPasswordReset =
           verification.resetId,
         userId:
           verification.userId,
+        accountType:
+          verification.accountType,
         expiresAt:
           verification.expiresAt,
       };
@@ -8305,6 +8332,8 @@ exports.verifyPasswordReset =
           step: "reset",
           error: null,
           email,
+          accountType:
+            verification.accountType,
         }
       );
     } catch (error) {
@@ -8318,6 +8347,7 @@ exports.verifyPasswordReset =
               error:
                 error.message,
               email,
+              accountType,
             }
           );
       }
@@ -8350,6 +8380,8 @@ exports.completePasswordReset =
           authorization.resetId,
         userId:
           authorization.userId,
+        accountType:
+          authorization.accountType,
         password:
           req.body.password,
         passwordConfirm:
@@ -8367,9 +8399,7 @@ exports.completePasswordReset =
           res.clearCookie(
             "connect.sid"
           );
-          return res.redirect(
-            "/login?reset=1"
-          );
+          return res.redirect(passwordResetLoginUrl(authorization.accountType));
         }
       );
     } catch (error) {
@@ -8383,6 +8413,8 @@ exports.completePasswordReset =
               error:
                 error.message,
               email: "",
+              accountType:
+                passwordResetAccountType(authorization?.accountType),
             }
           );
       }

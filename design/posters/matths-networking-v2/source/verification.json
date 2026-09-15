@@ -1,0 +1,50 @@
+{
+  "status": "pass",
+  "poster_pixels": [
+    3508,
+    4960
+  ],
+  "ppi": [
+    299.9994,
+    299.9994
+  ],
+  "pdf_pages": 1,
+  "pdf_size_mm": [
+    297.0,
+    420.0
+  ],
+  "required_copy": [
+    "부모의 교육비가,",
+    "학생의 성과 보상으로.",
+    "Learn, Achieve, Get Rewarded",
+    "부모의 학습권 구매",
+    "학생에게 페이백",
+    "일대일 경쟁 · 주간 모의고사",
+    "참여·성과 조건 달성 시",
+    "결제액 일부 또는 전액 페이백",
+    "다음 목표에 다시 도전",
+    "새로운 교육 사이클을 만들었습니다.",
+    "협업·투자 문의",
+    "dltkddbs4553@matths.kr",
+    "페이백은 정해진 참여·성과·본인확인 및 지급 정책에 따릅니다."
+  ],
+  "qr_decodes": {
+    "design/posters/matths-networking-v2/matths-networking-poster-v2.png": [
+      "https://www.matths.kr/intro"
+    ],
+    "design/posters/matths-networking-v2/source/qa/pdf-render.png": [
+      "https://www.matths.kr/intro"
+    ]
+  },
+  "pdf_links": [
+    "https://www.matths.kr/intro",
+    "mailto:dltkddbs4553@matths.kr"
+  ],
+  "unaltered_ui_sha256": "a5e9ca32bf7a213472978698b884682114201dd7c982d33b2cf4d14e77e5627c",
+  "safe_edge_text_blocks": 29,
+  "file_sha256": {
+    "design/posters/matths-networking-v2/matths-networking-poster-v2.png": "d10986af1f8d1d7e34aa760d8b0edbbda63d8e2dbfed1da50891418f2aa67454",
+    "design/posters/matths-networking-v2/matths-networking-poster-v2.svg": "15161e04c6aa72be449c1c2a816c8f59f74e517fdbba906ed78956679a2927b8",
+    "output/pdf/matths-networking-poster-a3-v2.pdf": "69de2e261926183fcde4b7aecc08f1083f711ccc4a633d8f68a9c165bc74842f"
+  }
+}

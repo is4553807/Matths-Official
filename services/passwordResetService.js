@@ -4,6 +4,8 @@ const {
   PasswordResetCode,
   User,
 } = require("../models/matthsModel");
+const { ParentAccount } = require("../models/parentModel");
+const { AcademyAccount } = require("../models/academyModel");
 const {
   sendPasswordResetCode,
   sendPasswordResetLink,
@@ -15,6 +17,40 @@ const RESEND_WAIT_MS =
   60 * 1000;
 const MAX_FAILED_ATTEMPTS = 5;
 const BCRYPT_ROUNDS = 12;
+const ACCOUNT_TYPES = new Set(["student", "academy", "parent", "admin"]);
+
+function normalizedAccountType(value) {
+  const type = String(value || "student").trim().toLowerCase();
+  return ACCOUNT_TYPES.has(type) ? type : "student";
+}
+
+async function findResetIdentity(email, accountType = "student") {
+  const type = normalizedAccountType(accountType);
+  if (type === "academy") {
+    const account = await AcademyAccount.findOne({ email, isActive: true }).lean();
+    if (!account) return null;
+    const teacher = await User.findOne({
+      _id: account.teacherUserId,
+      role: "teacher",
+      isActive: true,
+      accountStatus: { $nin: ["suspended", "withdrawn", "inactive"] },
+    }).select("_id").lean();
+    return teacher ? { id: teacher._id, accountType: type } : null;
+  }
+  if (type === "parent") {
+    const parent = await ParentAccount.findOne({ email, isActive: true })
+      .select("_id")
+      .lean();
+    return parent ? { id: parent._id, accountType: type } : null;
+  }
+  const user = await User.findOne({
+    email,
+    role: type === "admin" ? "admin" : { $in: ["student", "test"] },
+    isActive: true,
+    accountStatus: { $nin: ["suspended", "withdrawn", "inactive"] },
+  }).select("_id").lean();
+  return user ? { id: user._id, accountType: type } : null;
+}
 
 function hashCode(userId, code) {
   return crypto
@@ -68,19 +104,17 @@ function validatePassword(password) {
 }
 
 async function requestPasswordReset(
-  email
+  email,
+  { accountType = "student" } = {}
 ) {
   const normalizedEmail = String(
     email || ""
   )
     .trim()
     .toLowerCase();
-  const user = await User.findOne({
-    email: normalizedEmail,
-    isActive: true,
-  }).lean();
+  const identity = await findResetIdentity(normalizedEmail, accountType);
 
-  if (!user) {
+  if (!identity) {
     return {
       requested: true,
       email: normalizedEmail,
@@ -89,7 +123,8 @@ async function requestPasswordReset(
 
   const recent =
     await PasswordResetCode.findOne({
-      userId: user._id,
+      userId: identity.id,
+      accountType: identity.accountType,
       createdAt: {
         $gte: new Date(
           Date.now() -
@@ -107,7 +142,8 @@ async function requestPasswordReset(
 
   await PasswordResetCode.updateMany(
     {
-      userId: user._id,
+      userId: identity.id,
+      accountType: identity.accountType,
       status: {
         $in: [
           "pending",
@@ -130,10 +166,11 @@ async function requestPasswordReset(
   );
   const reset =
     await PasswordResetCode.create({
-      userId: user._id,
+      userId: identity.id,
+      accountType: identity.accountType,
       mode: "code",
       codeHash: hashCode(
-        user._id,
+        identity.id,
         code
       ),
       expiresAt: new Date(
@@ -163,18 +200,16 @@ async function requestPasswordReset(
 async function verifyPasswordResetCode({
   email,
   code,
+  accountType = "student",
 }) {
   const normalizedEmail = String(
     email || ""
   )
     .trim()
     .toLowerCase();
-  const user = await User.findOne({
-    email: normalizedEmail,
-    isActive: true,
-  }).lean();
+  const identity = await findResetIdentity(normalizedEmail, accountType);
 
-  if (!user) {
+  if (!identity) {
     const error = new Error(
       "인증코드가 올바르지 않거나 만료되었습니다."
     );
@@ -184,7 +219,8 @@ async function verifyPasswordResetCode({
 
   const reset =
     await PasswordResetCode.findOne({
-      userId: user._id,
+      userId: identity.id,
+      accountType: identity.accountType,
       mode: "code",
       status: "pending",
     })
@@ -207,7 +243,7 @@ async function verifyPasswordResetCode({
 
   const matches = safeEqual(
     reset.codeHash,
-    hashCode(user._id, code)
+    hashCode(identity.id, code)
   );
 
   if (!matches) {
@@ -237,7 +273,8 @@ async function verifyPasswordResetCode({
 
   return {
     resetId: String(reset._id),
-    userId: String(user._id),
+    userId: String(identity.id),
+    accountType: identity.accountType,
     email: normalizedEmail,
     expiresAt: reset.expiresAt,
   };
@@ -247,25 +284,15 @@ async function requestPasswordResetLink({
   email,
   baseUrl,
   fromAddress = "",
+  accountType = "student",
 }) {
   const normalizedEmail =
     String(email || "")
       .trim()
       .toLowerCase();
-  const user =
-    await User.findOne({
-      email: normalizedEmail,
-      isActive: true,
-      accountStatus: {
-        $nin: [
-          "suspended",
-          "withdrawn",
-          "inactive",
-        ],
-      },
-    }).lean();
+  const identity = await findResetIdentity(normalizedEmail, accountType);
 
-  if (!user) {
+  if (!identity) {
     const error = new Error(
       "활성 사용자를 찾을 수 없습니다."
     );
@@ -275,7 +302,8 @@ async function requestPasswordResetLink({
 
   await PasswordResetCode.updateMany(
     {
-      userId: user._id,
+      userId: identity.id,
+      accountType: identity.accountType,
       status: {
         $in: [
           "pending",
@@ -296,10 +324,11 @@ async function requestPasswordResetLink({
       .toString("hex");
   const reset =
     await PasswordResetCode.create({
-      userId: user._id,
+      userId: identity.id,
+      accountType: identity.accountType,
       mode: "link",
       codeHash: hashCode(
-        user._id,
+        identity.id,
         token
       ),
       expiresAt: new Date(
@@ -329,7 +358,8 @@ async function requestPasswordResetLink({
   const resetUrl =
     `${normalizedBaseUrl}/forgot-password/link` +
     `?resetId=${encodeURIComponent(reset._id)}` +
-    `&token=${encodeURIComponent(token)}`;
+    `&token=${encodeURIComponent(token)}` +
+    `&accountType=${encodeURIComponent(identity.accountType)}`;
 
   try {
     const delivery =
@@ -420,6 +450,7 @@ async function verifyPasswordResetLink({
     userId: String(
       reset.userId
     ),
+    accountType: normalizedAccountType(reset.accountType),
     expiresAt:
       reset.expiresAt,
   };
@@ -428,6 +459,7 @@ async function verifyPasswordResetLink({
 async function resetPassword({
   resetId,
   userId,
+  accountType = "student",
   password,
   passwordConfirm,
 }) {
@@ -449,6 +481,7 @@ async function resetPassword({
     await PasswordResetCode.findOne({
       _id: resetId,
       userId,
+      accountType: normalizedAccountType(accountType),
       status: "verified",
       expiresAt: {
         $gt: new Date(),
@@ -469,20 +502,45 @@ async function resetPassword({
       BCRYPT_ROUNDS
     );
 
-  await User.updateOne(
-    {
-      _id: userId,
-      isActive: true,
-    },
-    {
-      $set: {
-        passwordHash,
-      },
-      $inc: {
-        tokenVersion: 1,
-      },
+  const resetAccountType = normalizedAccountType(reset.accountType);
+  let credentialUpdate;
+  if (resetAccountType === "academy") {
+    credentialUpdate = await AcademyAccount.updateOne(
+      { teacherUserId: userId, isActive: true },
+      { $set: { passwordHash } }
+    );
+    if (credentialUpdate.matchedCount) {
+      await User.updateOne(
+        { _id: userId, role: "teacher", isActive: true },
+        { $inc: { tokenVersion: 1 } }
+      );
     }
-  );
+  } else if (resetAccountType === "parent") {
+    credentialUpdate = await ParentAccount.updateOne(
+      { _id: userId, isActive: true },
+      { $set: { passwordHash } }
+    );
+  } else {
+    credentialUpdate = await User.updateOne(
+      {
+        _id: userId,
+        role:
+          resetAccountType === "admin"
+            ? "admin"
+            : { $in: ["student", "test"] },
+        isActive: true,
+      },
+      {
+        $set: { passwordHash },
+        $inc: { tokenVersion: 1 },
+      }
+    );
+  }
+  if (!credentialUpdate.matchedCount) {
+    const error = new Error("비밀번호를 변경할 활성 계정을 찾을 수 없습니다.");
+    error.status = 400;
+    throw error;
+  }
 
   reset.status = "used";
   reset.usedAt = new Date();
@@ -491,6 +549,7 @@ async function resetPassword({
   await PasswordResetCode.updateMany(
     {
       userId,
+      accountType: resetAccountType,
       _id: {
         $ne: reset._id,
       },

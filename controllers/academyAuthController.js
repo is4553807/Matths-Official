@@ -37,9 +37,11 @@ function loginLocals(req, overrides = {}) {
     accountType: "academy",
     disablePageAnalytics: /^\/academy\/staff-invite\//.test(String(req.query.next || req.body?.next || "")),
     error: socialError || null,
-    success: req.query.registered === "1"
-      ? "학원 계정 신청이 접수되었습니다. 로그인 후 승인 상태를 확인할 수 있습니다."
-      : null,
+    success: req.query.reset === "1"
+      ? "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요."
+      : req.query.registered === "1"
+        ? "학원 계정 신청이 접수되었습니다. 로그인 후 승인 상태를 확인할 수 있습니다."
+        : null,
     loginNotice: null,
     oldInput: { email: "" },
     next: safeAcademyNext(req.query.next),

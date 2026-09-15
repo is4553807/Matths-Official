@@ -3179,6 +3179,13 @@ const passwordResetCodeSchema = new Schema(
             index: true,
         },
 
+        accountType: {
+            type: String,
+            enum: ["student", "academy", "parent", "admin"],
+            default: "student",
+            index: true,
+        },
+
         codeHash: {
             type: String,
             required: true,

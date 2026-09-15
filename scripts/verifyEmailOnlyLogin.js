@@ -19,8 +19,10 @@ const parentLogin = exportedHandler(read("controllers/parentController.js"), "lo
 const academyLogin = exportedHandler(read("controllers/academyAuthController.js"), "login");
 const academyAccountService = read("services/academyAccountService.js");
 const unifiedWebLogin = read("services/webLoginService.js");
+const passwordResetService = read("services/passwordResetService.js");
 const apiLogin = exportedHandler(read("controllers/apiController.js"), "login");
 const loginView = read("views/login.ejs");
+const passwordResetView = read("views/password-reset.ejs");
 const faqView = read("views/faq.ejs");
 
 assert.match(webLogin, /webLoginService.*loginWebAccount/, "web login must use role-independent authentication with role-safe destinations");
@@ -51,6 +53,10 @@ assert.match(loginView, /가입한 이메일을 입력하세요/);
 assert.doesNotMatch(loginView, /name="identifier"/);
 assert.doesNotMatch(loginView, /학부모 아이디/);
 assert.doesNotMatch(loginView, /이메일 또는 닉네임/);
+assert.match(loginView, /forgot-password\?accountType=<%= encodeURIComponent\(selectedAccountType\) %>/);
+assert.match(passwordResetView, /name="accountType" value="<%= currentAccountType %>"/);
+assert.match(passwordResetService, /AcademyAccount\.updateOne\([\s\S]*teacherUserId: userId/);
+assert.match(passwordResetService, /ParentAccount\.updateOne\([\s\S]*_id: userId/);
 assert.match(faqView, /닉네임은 공개 랭킹과 커뮤니티 표시용이며 로그인 식별자로 사용하지 않습니다/);
 
 console.log("이메일 전용 로그인 검증 완료: 역할별 저장소 유지, 공통 인증, 실제 계정 역할에 따른 이동 및 접근 제한.");

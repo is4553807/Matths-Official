@@ -23,8 +23,10 @@ const { isParentLoggedIn } = require("../middleware/parentAuthMiddleware");
 const { MongoSessionStore } = require("../services/mongoSessionStore");
 const { ensureParentAccountIndexes } = require("../services/parentFamilyService");
 const { migrateLegacyAcademyAccounts } = require("../services/academyAccountService");
-const { User } = require("../models/matthsModel");
+const { User, PasswordResetCode } = require("../models/matthsModel");
 const { ParentAccount } = require("../models/parentModel");
+const { resetPassword } = require("../services/passwordResetService");
+const { authenticateWebAccount } = require("../services/webLoginService");
 const {
   Academy,
   AcademyAccount,
@@ -442,7 +444,42 @@ async function main() {
     );
     assert.equal(studentPreviewAttempt.status, 403);
 
-    console.log("역할별 계정 검증 완료: DB 컬렉션·로그인·페이지 권한·교사 학생 화면 미리보기가 분리되어 있습니다.");
+    const resetCases = [
+      ["student", student._id, student.email, studentPassword],
+      ["academy", teacher._id, teacher.email, teacherPassword],
+      ["parent", parent._id, parent.email, parentPassword],
+      ["admin", admin._id, admin.email, adminPassword],
+    ];
+    for (const [accountType, userId, email, oldPassword] of resetCases) {
+      const reset = await PasswordResetCode.create({
+        userId,
+        accountType,
+        mode: "code",
+        status: "verified",
+        codeHash: `fixture-${accountType}`,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      const newPassword = password();
+      await resetPassword({
+        resetId: reset._id,
+        userId,
+        accountType,
+        password: newPassword,
+        passwordConfirm: newPassword,
+      });
+      assert.equal((await PasswordResetCode.findById(reset._id)).status, "used");
+      await assert.rejects(
+        () => authenticateWebAccount({ email, password: oldPassword }),
+        (error) => Number(error.status) === 401,
+      );
+      const relogin = await authenticateWebAccount({ email, password: newPassword });
+      assert.equal(
+        relogin.kind === "parent" ? "parent" : relogin.user.role,
+        accountType === "academy" ? "teacher" : accountType,
+      );
+    }
+
+    console.log("역할별 계정 검증 완료: DB 컬렉션·로그인·비밀번호 재설정·페이지 권한·교사 학생 화면 미리보기가 분리되어 있습니다.");
   } finally {
     if (listener) await new Promise((resolve) => listener.close(resolve));
     if (mongoose.connection.readyState !== 0) await mongoose.disconnect();

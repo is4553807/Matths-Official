@@ -14,6 +14,7 @@
     "overseas-institutions:verify": "node scripts/verifyOverseasInstitutions.js",
     "auth-email-only:verify": "node scripts/verifyEmailOnlyLogin.js",
     "role-web-login:verify": "node scripts/verifyRoleWebLogin.js",
+    "role-web-login:verify-live": "node scripts/verifyLiveRoleLogins.js",
     "portal-social-login:verify": "node scripts/verifyPortalSocialLogin.js",
     "test-accounts:purge": "node scripts/purgeTestAccounts.js",
     "test-accounts:purge-verify": "node scripts/verifyTestAccountPurge.js",

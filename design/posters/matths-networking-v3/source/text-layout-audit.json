@@ -1,0 +1,290 @@
+{
+  "dimensions": [
+    1600,
+    2262.626262626263
+  ],
+  "qr_url": "https://www.matths.kr/intro",
+  "qr_modules": 37,
+  "text": [
+    {
+      "text": "수학 학습 · 실력 경쟁 · 성과 보상",
+      "x": 1190.42,
+      "baseline": 135,
+      "font": "regular",
+      "size": 24,
+      "width": 313.58
+    },
+    {
+      "text": "부모의 교육비가,",
+      "x": 96,
+      "baseline": 360,
+      "font": "heavy",
+      "size": 106,
+      "width": 685.64
+    },
+    {
+      "text": "학생의 성과 보상으로.",
+      "x": 96,
+      "baseline": 486,
+      "font": "heavy",
+      "size": 106,
+      "width": 885.48
+    },
+    {
+      "text": "Learn, Achieve, Get Rewarded",
+      "x": 96,
+      "baseline": 629,
+      "font": "bold",
+      "size": 58,
+      "width": 805.18
+    },
+    {
+      "text": "부모의 학습권 구매 → 학생의 학습·경쟁 → 성과 조건 달성 → 학생에게 페이백",
+      "x": 96,
+      "baseline": 694,
+      "font": "regular",
+      "size": 27,
+      "width": 829.33
+    },
+    {
+      "text": "교육비의 새로운 방향",
+      "x": 96,
+      "baseline": 844,
+      "font": "bold",
+      "size": 25,
+      "width": 208.15
+    },
+    {
+      "text": "보상이 다시 학습으로 이어지는 구조",
+      "x": 706,
+      "baseline": 844,
+      "font": "bold",
+      "size": 27,
+      "width": 378.81
+    },
+    {
+      "text": "결제는",
+      "x": 96,
+      "baseline": 970,
+      "font": "regular",
+      "size": 37,
+      "width": 97.01
+    },
+    {
+      "text": "부모가.",
+      "x": 96,
+      "baseline": 1060,
+      "font": "heavy",
+      "size": 76,
+      "width": 216.58
+    },
+    {
+      "text": "성과는",
+      "x": 96,
+      "baseline": 1204,
+      "font": "regular",
+      "size": 37,
+      "width": 97.01
+    },
+    {
+      "text": "학생이.",
+      "x": 96,
+      "baseline": 1300,
+      "font": "heavy",
+      "size": 76,
+      "width": 216.58
+    },
+    {
+      "text": "보상도",
+      "x": 96,
+      "baseline": 1450,
+      "font": "regular",
+      "size": 37,
+      "width": 97.01
+    },
+    {
+      "text": "학생에게.",
+      "x": 96,
+      "baseline": 1547,
+      "font": "heavy",
+      "size": 76,
+      "width": 281.51
+    },
+    {
+      "text": "부모는 미래의 성적을,",
+      "x": 96,
+      "baseline": 1792,
+      "font": "bold",
+      "size": 30,
+      "width": 258.63
+    },
+    {
+      "text": "학생은 오늘의 동기를.",
+      "x": 96,
+      "baseline": 1845,
+      "font": "bold",
+      "size": 30,
+      "width": 258.12
+    },
+    {
+      "text": "01",
+      "x": 638.44,
+      "baseline": 980,
+      "font": "bold",
+      "size": 18,
+      "width": 19.12
+    },
+    {
+      "text": "02",
+      "x": 637.02,
+      "baseline": 1210,
+      "font": "bold",
+      "size": 18,
+      "width": 21.96
+    },
+    {
+      "text": "03",
+      "x": 636.88,
+      "baseline": 1475,
+      "font": "bold",
+      "size": 18,
+      "width": 22.23
+    },
+    {
+      "text": "04",
+      "x": 636.63,
+      "baseline": 1785,
+      "font": "bold",
+      "size": 18,
+      "width": 22.73
+    },
+    {
+      "text": "Learn",
+      "x": 706,
+      "baseline": 1000,
+      "font": "heavy",
+      "size": 82,
+      "width": 217.86
+    },
+    {
+      "text": "개념을 배우고 문제를 풉니다.",
+      "x": 706,
+      "baseline": 1070,
+      "font": "regular",
+      "size": 28,
+      "width": 320.38
+    },
+    {
+      "text": "Achieve",
+      "x": 706,
+      "baseline": 1230,
+      "font": "heavy",
+      "size": 82,
+      "width": 313.26
+    },
+    {
+      "text": "일대일 경쟁 · 주간 모의고사",
+      "x": 706,
+      "baseline": 1300,
+      "font": "regular",
+      "size": 28,
+      "width": 308.5
+    },
+    {
+      "text": "결과와 순위로 성과를 확인합니다.",
+      "x": 706,
+      "baseline": 1343,
+      "font": "regular",
+      "size": 28,
+      "width": 369.32
+    },
+    {
+      "text": "Get Rewarded",
+      "x": 706,
+      "baseline": 1495,
+      "font": "heavy",
+      "size": 72,
+      "width": 484.91
+    },
+    {
+      "text": "결제액 일부 또는 전액 페이백",
+      "x": 706,
+      "baseline": 1565,
+      "font": "bold",
+      "size": 28,
+      "width": 319.42
+    },
+    {
+      "text": "다음 목표에 다시 도전",
+      "x": 706,
+      "baseline": 1792,
+      "font": "bold",
+      "size": 41,
+      "width": 350.8
+    },
+    {
+      "text": "보상과 다음 목표가 학습의 이유로.",
+      "x": 706,
+      "baseline": 1845,
+      "font": "regular",
+      "size": 27,
+      "width": 362.34
+    },
+    {
+      "text": "학습이 다음 학습을 만드는",
+      "x": 96,
+      "baseline": 2070,
+      "font": "bold",
+      "size": 43,
+      "width": 432.67
+    },
+    {
+      "text": "새로운 교육 사이클을 만들었습니다.",
+      "x": 96,
+      "baseline": 2133,
+      "font": "bold",
+      "size": 43,
+      "width": 590.95
+    },
+    {
+      "text": "협업·투자 문의",
+      "x": 968,
+      "baseline": 2057,
+      "font": "bold",
+      "size": 24,
+      "width": 143.33
+    },
+    {
+      "text": "www.matths.kr",
+      "x": 968,
+      "baseline": 2110,
+      "font": "bold",
+      "size": 36,
+      "width": 254.74
+    },
+    {
+      "text": "dltkddbs4553@matths.kr",
+      "x": 968,
+      "baseline": 2153,
+      "font": "regular",
+      "size": 20,
+      "width": 230.56
+    },
+    {
+      "text": "서비스 소개 보기",
+      "x": 1352.8,
+      "baseline": 2244,
+      "font": "regular",
+      "size": 18,
+      "width": 118.4
+    },
+    {
+      "text": "페이백은 정해진 참여·성과·본인확인 및 지급 정책에 따릅니다.",
+      "x": 96,
+      "baseline": 2225,
+      "font": "regular",
+      "size": 21,
+      "width": 513.7
+    }
+  ]
+}
