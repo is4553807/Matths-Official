@@ -5,7 +5,7 @@
     : "기록 없음";
   const gradeLabels = { 10: "고등학교 1학년", 11: "고등학교 2학년", 12: "고등학교 3학년", 13: "N수생", 14: "대학생", 15: "직장인" };
   const checkoutStatuses = { AWAITING_PG: "결제 대기", APPROVING: "승인 처리 중", REVIEW_REQUIRED: "운영자 확인 필요", AWAITING_DEPOSIT: "입금 대기", CANCELLED: "취소", EXPIRED: "만료", PAID: "결제 완료" };
-  const alertStatuses = { PENDING: "발송 대기", SENT: "발송 완료", PREVIEW: "이전 미발송 기록", FAILED: "발송 실패" };
+  const alertStatuses = { PENDING: "발송 대기", SENT: "발송 완료", IN_APP: "우편함 전달", PREVIEW: "이전 미발송 기록", FAILED: "발송 실패" };
   const alertTypes = { LOW_LEARNING: "학습 저조", INACTIVITY: "장기 미접속" };
   const childNames = new Map((detail.links || []).filter((link) => link.childUserId).map((link) => [String(link.childUserId._id), link.childUserId.name]));
   const formatMinutes = (value) => {
@@ -53,6 +53,16 @@
         <article><span>약관 동의</span><strong><%= formatDate(parent.acceptedTermsAt) %></strong></article>
         <article><span>역할</span><strong>학부모</strong><small>자녀 학습·결제 관리</small></article>
         <article><span>계정 상태</span><strong><%= parent.isActive ? '활성' : '비활성화' %></strong><small>학부모 로그인 및 자녀 확인 권한</small></article>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>PARENT MAILBOX</p><h2>학부모에게 우편 보내기</h2></div></div>
+        <form class="admin-form" action="/admin/parents/<%= parent._id %>/notification" method="POST">
+          <label><span>제목</span><input name="title" maxlength="100" required /></label>
+          <label><span>내용</span><textarea name="message" rows="5" maxlength="1000" required></textarea></label>
+          <label><span>관련 학부모 페이지 (선택)</span><input name="href" placeholder="/parent" maxlength="500" /></label>
+          <button type="submit">학부모 우편함으로 보내기</button>
+        </form>
       </section>
 
       <section class="admin-panel">

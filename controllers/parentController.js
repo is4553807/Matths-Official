@@ -32,6 +32,12 @@ const { registerParentAccount } = require("../services/parentAccountService");
 const { accepted, inviteTokenFrom, validateChildConsent } = require("../services/portalRegistrationValidation");
 const { clearPendingSocialRegistration, getPendingSocialRegistration, publicProviderStatus } = require("../services/socialAuthService");
 const { pendingForPortal, registrationUrl } = require("../services/portalSocialAuthService");
+const { accountEmailLinkMismatch, accountLinkMismatch } = require("../services/accountLinkAccessService");
+const {
+  getParentNotificationInbox,
+  getParentNotificationDetail,
+  markAllParentNotificationsRead,
+} = require("../services/parentNotificationService");
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -82,16 +88,18 @@ exports.inviteSignupPage = async (req, res, next) => {
       email: invite.parentEmail,
       isActive: true,
     }).lean();
-    if (!existingParent) return await renderInvite(req, res);
+    if (!existingParent) {
+      const mismatch = accountEmailLinkMismatch(req.session, invite.parentEmail, "parent");
+      if (mismatch) throw mismatch;
+      return await renderInvite(req, res);
+    }
+
+    const mismatch = accountLinkMismatch(req.session, { userId: existingParent._id, accountType: "parent" });
+    if (mismatch) throw mismatch;
 
     if (!req.session?.parent?.id) {
       const nextPath = encodeURIComponent(`/parent/invite/${req.params.token}`);
       return res.redirect(serviceUrl("parents", `/parent/login?next=${nextPath}`));
-    }
-    if (String(req.session.parent.id) !== String(existingParent._id)) {
-      const error = new Error("초대를 받은 이메일의 학부모 계정으로 로그인해주세요.");
-      error.status = 403;
-      throw error;
     }
     res.set("Cache-Control", "no-store");
     res.set("Referrer-Policy", "no-referrer");
@@ -563,6 +571,33 @@ exports.notificationSettingsPage = async (req, res, next) => {
   } catch (error) {
     return next(error);
   }
+};
+
+exports.mailboxPage = async (req, res, next) => {
+  try {
+    const parentId = (req.adminParentView || req.session.parent).id;
+    const parent = await ParentAccount.findById(parentId).lean();
+    const notification = req.query.notificationId
+      ? await getParentNotificationDetail({ parentId, notificationId: req.query.notificationId, readOnly: Boolean(req.adminParentView) })
+      : null;
+    const inbox = await getParentNotificationInbox({ parentId, page: req.query.page });
+    res.locals.parentUnreadCount = inbox.stats.unread;
+    res.set("Cache-Control", "private, no-store");
+    return res.render("parent-mailbox", {
+      parent,
+      inbox,
+      notification,
+      familyChildren: req.adminParentFamily?.children || [],
+      selectedChildId: req.adminParentFamily?.selected?.childId || "",
+    });
+  } catch (error) { return next(error); }
+};
+
+exports.markAllMailboxRead = async (req, res, next) => {
+  try {
+    await markAllParentNotificationsRead(req.session.parent.id);
+    return res.redirect("/parent/mailbox");
+  } catch (error) { return next(error); }
 };
 
 exports.updateNotificationSettings = async (req, res, next) => {

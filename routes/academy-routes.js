@@ -76,6 +76,7 @@ router.post("/academy/setup", authMiddleware.isLoggedIn, authMiddleware.isTeache
 router.post("/academy/setup/join", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.requestAcademyJoin);
 router.post("/academy/setup/join/cancel", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.cancelAcademyJoin);
 router.get("/academy", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.portalPage);
+router.post("/academy/mailbox/read-all", authMiddleware.isLoggedIn, authMiddleware.isTeacher, academyController.markAllMailboxRead);
 router.get(
   "/academy/forensics",
   authMiddleware.isLoggedIn,

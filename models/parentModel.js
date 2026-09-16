@@ -255,7 +255,7 @@ const parentAlertDeliverySchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["PENDING", "SENT", "PREVIEW", "FAILED"],
+      enum: ["PENDING", "SENT", "IN_APP", "PREVIEW", "FAILED"],
       required: true,
       index: true,
     },
@@ -293,6 +293,23 @@ parentAlertDeliverySchema.index(
   { parentChildLinkId: 1, alertType: 1, dateKey: 1 },
   { unique: true }
 );
+
+const parentNotificationSchema = new Schema(
+  {
+    parentAccountId: { type: Schema.Types.ObjectId, ref: "ParentAccount", required: true, index: true },
+    childUserId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
+    title: { type: String, required: true, trim: true, maxlength: 100 },
+    message: { type: String, required: true, trim: true, maxlength: 1000 },
+    href: { type: String, default: "/parent", maxlength: 500 },
+    kind: { type: String, enum: ["admin", "learning", "account"], default: "admin" },
+    sourceId: { type: Schema.Types.ObjectId, default: null },
+    readAt: { type: Date, default: null },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+parentNotificationSchema.index({ parentAccountId: 1, readAt: 1, createdAt: -1 });
+parentNotificationSchema.index({ sourceId: 1 }, { unique: true, partialFilterExpression: { sourceId: { $type: "objectId" } } });
 
 const checkoutIntentSchema = new Schema(
   {
@@ -492,6 +509,9 @@ const ParentChildLink =
 const ParentAlertDelivery =
   mongoose.models.ParentAlertDelivery ||
   mongoose.model("ParentAlertDelivery", parentAlertDeliverySchema);
+const ParentNotification =
+  mongoose.models.ParentNotification ||
+  mongoose.model("ParentNotification", parentNotificationSchema);
 const CheckoutIntent =
   mongoose.models.CheckoutIntent ||
   mongoose.model("CheckoutIntent", checkoutIntentSchema);
@@ -499,6 +519,7 @@ const CheckoutIntent =
 module.exports = {
   ParentAccount,
   ParentAlertDelivery,
+  ParentNotification,
   ParentChildLink,
   ParentInvite,
   CheckoutIntent,

@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { ParentAccount } = require("../models/parentModel");
+const { ParentAccount, ParentNotification } = require("../models/parentModel");
 const { serviceUrl } = require("../services/serviceUrlService");
 const auth = require("./authMiddleware");
 const { getParentFamily } = require("../services/parentFamilyService");
@@ -57,12 +57,18 @@ async function isParentLoggedIn(req, res, next) {
           if (failure.code === "PARENT_CHILD_LINK_REQUIRED") return res.render("parent-onboarding", { parent });
           throw failure;
         }
+        res.locals.parentUnreadCount = await ParentNotification.countDocuments({ parentAccountId: parent._id, readAt: null });
         return next();
       } catch (failure) { return next(failure); }
     });
   }
   try {
-    if (await activeParentForSession(req)) return next();
+    if (await activeParentForSession(req)) {
+      if (["GET", "HEAD"].includes(req.method)) {
+        res.locals.parentUnreadCount = await ParentNotification.countDocuments({ parentAccountId: req.session.parent.id, readAt: null });
+      }
+      return next();
+    }
     await clearInvalidParentSession(req);
   } catch (error) {
     return next(error);

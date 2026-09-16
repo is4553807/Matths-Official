@@ -12,10 +12,12 @@ const { MongoMemoryServer } = require("mongodb-memory-server-core");
 process.env.NODE_ENV = "development";
 process.env.DISABLE_SCHEDULERS = "1";
 process.env.API_TOKEN_SECRET = crypto.randomBytes(48).toString("hex");
+process.env.PASSWORD_RESET_SECRET = crypto.randomBytes(48).toString("hex");
 require("../services/emailService").sendEmail = async () => ({ delivered: false });
 
-const { NicknameChangeRequest, User } = require("../models/matthsModel");
-const { ParentAccount, ParentChildLink } = require("../models/parentModel");
+const { NicknameChangeRequest, PasswordResetCode, User, UserNotification } = require("../models/matthsModel");
+const { ParentAccount, ParentAlertDelivery, ParentChildLink, ParentNotification } = require("../models/parentModel");
+const { evaluateParentAlerts } = require("../services/parentAlertService");
 const { Academy, AcademyAccount, AcademyClass, AcademyClassWeek, AcademyStaff, AcademyStudentMembership, AcademyAttendance, AcademyAttendanceSession, AcademyAssignmentSubmission } = require("../models/academyModel");
 const { MongoSessionStore } = require("../services/mongoSessionStore");
 const { createAccessToken } = require("../services/mobileAuthService");
@@ -55,7 +57,7 @@ async function main() {
     app.use("/", require("../routes/goat-arena-routes"));
     app.use("/", require("../routes/academy-routes"));
     app.use("/", require("../routes/matths-routes"));
-    app.use((error, _req, res, _next) => res.status(error.status || 500).json({ code: error.code, message: error.message }));
+    app.use(require("../middleware/errorMiddleware").errorHandler);
     listener = await new Promise(resolve => { const server = app.listen(0, "127.0.0.1", () => resolve(server)); });
     const origin = `http://127.0.0.1:${listener.address().port}`;
     async function request(url, cookie, init = {}, expected = 200) {
@@ -128,7 +130,115 @@ async function main() {
     const studentCookie = await login("/student/login", student.email);
     const testCookie = await login("/student/login", testStudent.email);
     const teacherCookie = await login("/academy/login", teacher.email);
+    const pendingTeacher = await User.create({ name: "승인대기교사", email: "pending-teacher@fixture.invalid", passwordHash, role: "teacher", isActive: true, accountStatus: "active", teacherAccessExpiresAt: new Date(Date.now() + 86400000) });
+    await AcademyAccount.create({ teacherUserId: pendingTeacher._id, displayName: pendingTeacher.name, email: pendingTeacher.email, passwordHash, legacyPasswordDisabledAt: new Date() });
+    const pendingTeacherCookie = await login("/academy/login", pendingTeacher.email);
     const parentCookie = await login("/parent/login", parent.email);
+    const unlinkedParentCookie = await login("/parent/login", unlinkedParent.email);
+    const teacherNotice = await UserNotification.create({ userId: teacher._id, title: "교사 전용 안내", message: "교사 우편함 내용", href: "/academy", kind: "admin" });
+    const pendingTeacherNotice = await UserNotification.create({ userId: pendingTeacher._id, title: "승인대기 교사 안내", message: "학원 연결 전에도 우편함 접근", href: "/academy/setup" });
+    const parentNotice = await ParentNotification.create({ parentAccountId: parent._id, title: "학부모 전용 안내", message: "학부모 우편함 내용", href: "/parent/notifications" });
+    const otherParentNotice = await ParentNotification.create({ parentAccountId: unlinkedParent._id, title: "다른 학부모 안내", message: "다른 학부모의 내용" });
+    const teacherMailbox = await request("/academy?tab=mailbox", teacherCookie);
+    assert.match(teacherMailbox.text, /교사 전용 안내/);
+    assert.doesNotMatch(teacherMailbox.text, /학부모 전용 안내/);
+    assert.doesNotMatch(teacherMailbox.text, /승인대기 교사 안내/);
+    assert.match(teacherMailbox.text, /우편함\s*<b>1<\/b>/);
+    assert.match((await request("/academy/setup", pendingTeacherCookie)).text, /우편함 확인/);
+    const pendingMailbox = await request("/academy?tab=mailbox", pendingTeacherCookie);
+    assert.match(pendingMailbox.text, /승인대기 교사 안내/);
+    assert.doesNotMatch(pendingMailbox.text, /교사 전용 안내/);
+    await request(`/academy?tab=mailbox&notificationId=${teacherNotice._id}`, pendingTeacherCookie, {}, 404);
+    await request("/academy?tab=mailbox", studentCookie, {}, 403);
+    const adminTeacherMailboxPreview = await request("/academy?tab=mailbox", adminCookie);
+    assert.doesNotMatch(adminTeacherMailboxPreview.text, /교사 전용 안내/);
+    await request(`/academy?tab=mailbox&notificationId=${teacherNotice._id}`, teacherCookie);
+    assert.ok((await UserNotification.findById(teacherNotice._id).lean()).readAt);
+    const parentMailbox = await request("/parent/mailbox", parentCookie);
+    assert.match(parentMailbox.text, /학부모 전용 안내/);
+    assert.match(parentMailbox.text, /우편함\s*<b>1<\/b>/);
+    assert.doesNotMatch(parentMailbox.text, /다른 학부모 안내/);
+    await request("/parent/mailbox", unlinkedParentCookie);
+    await request(`/parent/mailbox?notificationId=${otherParentNotice._id}`, parentCookie, {}, 404);
+    const adminParentMailboxPreview = await request(`/parent/mailbox?parentId=${parent._id}&notificationId=${parentNotice._id}`, adminCookie);
+    assert.match(adminParentMailboxPreview.text, /관리자 미리보기 · 읽기 전용/);
+    assert.equal((await ParentNotification.findById(parentNotice._id).lean()).readAt, null);
+    await request(`/parent/mailbox?notificationId=${parentNotice._id}`, parentCookie);
+    assert.ok((await ParentNotification.findById(parentNotice._id).lean()).readAt);
+    await request("/parent/mailbox/read-all", adminCookie, { method: "POST" }, 403);
+    const parentSend = await request(`/admin/parents/${parent._id}/notification`, adminCookie, {
+      method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ title: "운영자 학부모 안내", message: "운영자가 보낸 학부모 우편", href: "/parent" }),
+    }, 302);
+    assert.match(parentSend.response.headers.get("location"), /done=notification/);
+    assert.match((await request("/parent/mailbox", parentCookie)).text, /운영자 학부모 안내/);
+    const alertLink = await ParentChildLink.create({
+      parentAccountId: parent._id, childUserId: student._id, status: "ACTIVE",
+      notificationSettings: { emailEnabled: false, inactivity: { enabled: true, days: 3 }, lowLearning: { enabled: false } },
+    });
+    await User.updateOne({ _id: student._id }, { $set: { lastLoginAt: new Date(Date.now() - 8 * 86400000) } });
+    const alertResult = await evaluateParentAlerts({ force: true, sendEmailFn: async () => { throw new Error("email was disabled"); } });
+    assert.equal(alertResult.processed, 1);
+    assert.equal((await ParentAlertDelivery.findOne({ parentChildLinkId: alertLink._id }).lean()).status, "IN_APP");
+    assert.match((await request("/parent/mailbox", parentCookie)).text, /최근 접속을 확인해주세요/);
+    await evaluateParentAlerts({ force: true, sendEmailFn: async () => { throw new Error("email was disabled"); } });
+    assert.equal(await ParentNotification.countDocuments({ parentAccountId: parent._id, kind: "learning" }), 1, "scheduled alerts must be idempotent");
+    await ParentChildLink.updateOne({ _id: alertLink._id }, { $set: { "notificationSettings.emailEnabled": true } });
+    let emailCalls = 0;
+    const emailAlert = await evaluateParentAlerts({
+      force: true, now: new Date(Date.now() + 8 * 86400000),
+      sendEmailFn: async () => { emailCalls += 1; return { delivered: true, providerMessageId: "isolated-fixture" }; },
+    });
+    assert.equal(emailAlert.processed, 1);
+    assert.equal(emailCalls, 1);
+    assert.equal(await ParentAlertDelivery.countDocuments({ parentChildLinkId: alertLink._id, status: "SENT" }), 1);
+    assert.equal(await ParentNotification.countDocuments({ parentAccountId: parent._id, kind: "learning" }), 2, "email alerts must also reach the mailbox");
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetLink = await PasswordResetCode.create({
+      userId: teacher._id, accountType: "academy", mode: "link", status: "pending",
+      codeHash: crypto.createHmac("sha256", process.env.PASSWORD_RESET_SECRET).update(`${teacher._id}:${resetToken}`).digest("hex"),
+      expiresAt: new Date(Date.now() + 600000),
+    });
+    const resetPath = `/forgot-password/link?resetId=${resetLink._id}&token=${resetToken}&accountType=academy`;
+    const mismatchedReset = await request(resetPath, parentCookie, {}, 403);
+    assert.match(mismatchedReset.text, /ACCOUNT_LINK_SESSION_MISMATCH/);
+    assert.match(mismatchedReset.text, /현재 로그인된 계정은 이 이메일 링크의 대상 계정이 아니므로/);
+    assert.match(mismatchedReset.text, /action="\/parent\/logout"/);
+    assert.match(mismatchedReset.text, /현재 계정 로그아웃/);
+    assert.equal((await PasswordResetCode.findById(resetLink._id).lean()).status, "pending", "mismatched login must not consume a valid email link");
+    assert.match((await request(resetPath, studentCookie, {}, 403)).text, /action="\/logout"/);
+    await request(resetPath, teacherCookie);
+    assert.equal((await PasswordResetCode.findById(resetLink._id).lean()).status, "verified");
+    const resetCode = "123456";
+    const codeRecord = await PasswordResetCode.create({
+      userId: teacher._id, accountType: "academy", mode: "code", status: "pending",
+      codeHash: crypto.createHmac("sha256", process.env.PASSWORD_RESET_SECRET).update(`${teacher._id}:${resetCode}`).digest("hex"),
+      expiresAt: new Date(Date.now() + 600000),
+    });
+    const verifyCodeRequest = {
+      method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ email: teacher.email, code: resetCode, accountType: "academy" }),
+    };
+    assert.match((await request("/forgot-password/verify", parentCookie, verifyCodeRequest, 403)).text, /action="\/parent\/logout"/);
+    assert.equal((await PasswordResetCode.findById(codeRecord._id).lean()).status, "pending", "wrong session must not verify another account's code");
+    await request("/forgot-password/verify", teacherCookie, verifyCodeRequest);
+    assert.equal((await PasswordResetCode.findById(codeRecord._id).lean()).status, "verified");
+    const parentLogoutCookie = await login("/parent/login", parent.email);
+    assert.match((await request(resetPath, parentLogoutCookie, {}, 403)).text, /action="\/parent\/logout"/);
+    await request("/parent/logout", parentLogoutCookie, { method: "POST" }, 302);
+    assert.equal(JSON.parse((await request("/__fixture/identity", parentLogoutCookie)).text).parentId, null);
+    const studentResetToken = crypto.randomBytes(32).toString("hex");
+    const studentResetLink = await PasswordResetCode.create({
+      userId: student._id, accountType: "student", mode: "link", status: "pending",
+      codeHash: crypto.createHmac("sha256", process.env.PASSWORD_RESET_SECRET).update(`${student._id}:${studentResetToken}`).digest("hex"),
+      expiresAt: new Date(Date.now() + 600000),
+    });
+    const studentResetPath = `/forgot-password/link?resetId=${studentResetLink._id}&token=${studentResetToken}&accountType=student`;
+    const teacherLogoutCookie = await login("/academy/login", teacher.email);
+    assert.match((await request(studentResetPath, teacherLogoutCookie, {}, 403)).text, /action="\/academy\/logout"/);
+    await request("/academy/logout", teacherLogoutCookie, { method: "POST" }, 302);
+    assert.equal(JSON.parse((await request("/__fixture/identity", teacherLogoutCookie)).text).role, undefined);
+    assert.equal((await PasswordResetCode.findById(studentResetLink._id).lean()).status, "pending");
     const nicknameToken = crypto.randomBytes(32).toString("hex");
     const nicknameRequest = await NicknameChangeRequest.create({
       userId: teacher._id,
@@ -143,8 +253,9 @@ async function main() {
     assert.match(teacherNicknamePage.text, /교사 닉네임 확인 요청/);
     assert.match(teacherNicknamePage.text, /학원 홈으로/);
     assert.doesNotMatch(teacherNicknamePage.text, /학습 메뉴/);
-    await request(nicknamePath, studentCookie, {}, 404);
-    await request(nicknamePath, adminCookie, {}, 404);
+    assert.match((await request(nicknamePath, studentCookie, {}, 403)).text, /action="\/logout"/);
+    await request(nicknamePath, adminCookie, {}, 403);
+    await request(nicknamePath, parentCookie, {}, 403);
     const anonymousNicknamePage = await request(nicknamePath, null, {}, 302);
     assert.match(anonymousNicknamePage.response.headers.get("location"), /\/login$/);
     const pendingNicknameCookie = anonymousNicknamePage.response.headers.get("set-cookie")?.match(/connect\.sid=[^;]+/)?.[0];
@@ -211,7 +322,7 @@ async function main() {
     await User.updateOne({ _id: admin._id }, { $set: { role: "admin", accountStatus: "suspended", isActive: true } });
     await request("/admin", adminCookie, {}, 302);
     await apiRequest("/admin/users", adminToken, 401);
-    console.log("Real mounted web/API routes verified: admin dashboard, student/test pages, scoped academy/parent previews, teacher nickname email links and login return, unchanged identity, read-only boundaries, revoked child links, role downgrades, suspended/inactive accounts, and expired teacher contracts.");
+    console.log("Real mounted web/API routes verified: role-scoped teacher/parent mailboxes, admin direct parent notices, account-mismatched email links without token consumption, admin/student access and previews, nickname login return, read-only boundaries, revoked child links, role downgrades, inactive accounts, and expired teacher contracts.");
   } finally {
     if (listener) await new Promise(resolve => listener.close(resolve));
     await mongoose.disconnect();

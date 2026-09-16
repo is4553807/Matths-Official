@@ -118,6 +118,7 @@ async function getNotificationInbox({
 async function getNotificationDetail({
   userId,
   notificationId,
+  readOnly = false,
 }) {
   if (
     !mongoose.isValidObjectId(
@@ -132,24 +133,14 @@ async function getNotificationDetail({
     throw error;
   }
 
-  const notification =
-    await UserNotification.findOneAndUpdate(
-      {
-        _id:
-          notificationId,
-        userId,
-      },
-      {
-        $set: {
-          readAt: new Date(),
-          dashboardDismissedAt:
-            new Date(),
-        },
-      },
-      {
-        returnDocument: "after",
-      }
-    ).lean();
+  const query = readOnly
+    ? UserNotification.findOne({ _id: notificationId, userId })
+    : UserNotification.findOneAndUpdate(
+        { _id: notificationId, userId },
+        { $set: { readAt: new Date(), dashboardDismissedAt: new Date() } },
+        { returnDocument: "after" }
+      );
+  const notification = await query.lean();
 
   if (!notification) {
     const error =

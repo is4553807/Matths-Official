@@ -33,6 +33,8 @@ const {
   updateAcademyClassSettings,
 } = require("../services/academyService");
 const { AcademyClassWeek } = require("../models/academyModel");
+const { UserNotification } = require("../models/matthsModel");
+const { getNotificationInbox, getNotificationDetail, markAllNotificationsRead } = require("../services/notificationService");
 const {
   removeAcademyProfileImage,
   resolveAcademyProfileImage,
@@ -79,7 +81,7 @@ const {
   getWeeklyMockInsights,
 } = require("../services/weeklyMockInsightService");
 
-const ACADEMY_TABS = new Set(["dashboard", "attendance", "students", "requests", "classes", "invites", "teachers", "settings"]);
+const ACADEMY_TABS = new Set(["dashboard", "attendance", "students", "requests", "classes", "invites", "teachers", "settings", "mailbox"]);
 
 function sendAcademyAssignmentDownload(res, next, download) {
   if (download.type === "REDIRECT") {
@@ -140,7 +142,15 @@ function studentListPath(page) {
 exports.portalPage = async (req, res, next) => {
   try {
     const context = await getTeacherAcademyContext(req.session.user.id, { allowMissing: true });
-    if (!context) return res.redirect("/academy/setup");
+    if (!context) {
+      if (req.query.tab !== "mailbox") return res.redirect("/academy/setup");
+      const mailboxNotification = req.query.notificationId
+        ? await getNotificationDetail({ userId: req.session.user.id, notificationId: req.query.notificationId, readOnly: req.session.user.role === "admin" })
+        : null;
+      const mailboxInbox = await getNotificationInbox({ userId: req.session.user.id, page: req.query.page });
+      res.set("Cache-Control", "private, no-store");
+      return res.render("academy-standalone-mailbox", { user: req.session.user, inbox: mailboxInbox, notification: mailboxNotification });
+    }
     const requestedTab = String(req.query.tab || "dashboard");
     let activeAcademyPage = ACADEMY_TABS.has(requestedTab) ? requestedTab : "dashboard";
     if (activeAcademyPage === "settings" && context.staff.role !== "OWNER") {
@@ -159,6 +169,17 @@ exports.portalPage = async (req, res, next) => {
     let statistics = null;
     let attendance = null;
     let weeklyMockInsights = null;
+    const mailboxNotification = activeAcademyPage === "mailbox" && req.query.notificationId
+      ? await getNotificationDetail({
+          userId: req.session.user.id,
+          notificationId: req.query.notificationId,
+          readOnly: req.session.user.role === "admin",
+        })
+      : null;
+    const mailboxInbox = activeAcademyPage === "mailbox"
+      ? await getNotificationInbox({ userId: req.session.user.id, page: req.query.page })
+      : null;
+    const mailboxUnreadCount = mailboxInbox?.stats.unread ?? await UserNotification.countDocuments({ userId: req.session.user.id, readAt: null });
     if (activeAcademyPage === "dashboard") {
       const studentUserIds = portal.students.map((membership) => membership.studentUserId._id);
       const [monthlyStatistics, mathMap, academyWeeklyMock] = await Promise.all([
@@ -198,6 +219,9 @@ exports.portalPage = async (req, res, next) => {
       statistics,
       weeklyMockInsights,
       attendance,
+      mailboxInbox,
+      mailboxNotification,
+      mailboxUnreadCount,
       activeAcademyPage,
       feedback: consumeFlash(req),
       createdInviteId: String(req.query.createdInvite || ""),
@@ -205,6 +229,13 @@ exports.portalPage = async (req, res, next) => {
   } catch (error) {
     return next(error);
   }
+};
+
+exports.markAllMailboxRead = async (req, res, next) => {
+  try {
+    await markAllNotificationsRead(req.session.user.id);
+    return res.redirect("/academy?tab=mailbox");
+  } catch (error) { return next(error); }
 };
 
 exports.exportAttendanceCsv = async (req, res, next) => {
@@ -257,12 +288,14 @@ exports.setupPage = async (req, res, next) => {
     const context = await getTeacherAcademyContext(req.session.user.id, { allowMissing: true });
     if (context) return res.redirect("/academy");
     const setup = await getTeacherAcademySetupData(req.session.user.id);
+    const mailboxUnreadCount = await UserNotification.countDocuments({ userId: req.session.user.id, readAt: null });
     res.set("Cache-Control", "private, no-store");
     return res.render("academy-setup", {
       user: req.session.user,
       feedback: consumeFlash(req),
       academyName: "",
       setup,
+      mailboxUnreadCount,
     });
   } catch (error) {
     return next(error);

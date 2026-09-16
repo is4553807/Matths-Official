@@ -28,14 +28,16 @@
           <p><%= eyebrow %></p>
           <h1 id="error-title"><%= title %></h1>
           <span><%= message %></span>
+          <% if (accountMismatch && currentAccountEmail) { %><p class="matths-error-current-account">현재 로그인: <strong><%= currentAccountEmail %></strong></p><% } %>
           <div class="matths-error-code" aria-label="오류 식별 코드">
             <small>오류 코드</small>
             <code><%= errorCode %></code>
           </div>
 
           <div class="matths-error-actions">
+            <% if (accountMismatch) { %><form action="<%= logoutPath %>" method="POST"><button class="matths-error-primary" type="submit">현재 계정 로그아웃</button></form><% } %>
             <a class="matths-error-primary" href="<%= primaryAction.href %>"><%= primaryAction.label %></a>
-            <button type="button" data-error-back data-fallback-href="<%= primaryAction.href %>">이전 페이지</button>
+            <% if (!accountMismatch) { %><button type="button" data-error-back data-fallback-href="<%= primaryAction.href %>">이전 페이지</button><% } %>
             <a class="matths-error-secondary" href="<%= errorFaqHref %>">FAQ에서 <%= statusCode %> 코드 찾기</a>
           </div>
 

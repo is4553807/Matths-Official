@@ -201,6 +201,7 @@ async function verifyPasswordResetCode({
   email,
   code,
   accountType = "student",
+  verifyOnly = false,
 }) {
   const normalizedEmail = String(
     email || ""
@@ -267,9 +268,11 @@ async function verifyPasswordResetCode({
     throw error;
   }
 
-  reset.status = "verified";
-  reset.verifiedAt = new Date();
-  await reset.save();
+  if (!verifyOnly) {
+    reset.status = "verified";
+    reset.verifiedAt = new Date();
+    await reset.save();
+  }
 
   return {
     resetId: String(reset._id),
@@ -386,6 +389,7 @@ async function requestPasswordResetLink({
 async function verifyPasswordResetLink({
   resetId,
   token,
+  verifyOnly = false,
 }) {
   if (
     !/^[a-f\d]{24}$/i.test(
@@ -434,10 +438,7 @@ async function verifyPasswordResetLink({
     throw error;
   }
 
-  if (
-    reset.status !==
-    "verified"
-  ) {
+  if (!verifyOnly && reset.status !== "verified") {
     reset.status = "verified";
     reset.verifiedAt = new Date();
     await reset.save();

@@ -10,6 +10,7 @@ const { accepted, statusError } = require("../services/portalRegistrationValidat
 const { getAcademyStaffInvite, createAcademyStaffInvite, acceptAcademyStaffInvite, revokeAcademyStaffInvite } = require("../services/academyStaffInviteService");
 const { getPendingSocialRegistration, clearPendingSocialRegistration, publicProviderStatus } = require("../services/socialAuthService");
 const { pendingForPortal, registrationUrl } = require("../services/portalSocialAuthService");
+const { accountEmailLinkMismatch } = require("../services/accountLinkAccessService");
 
 function regenerateSession(req) {
   return new Promise((resolve, reject) => {
@@ -165,6 +166,8 @@ exports.register = async (req, res, next) => {
 exports.staffInvitePage = async (req, res, next) => {
   try {
     const result = await getAcademyStaffInvite(req.params.token);
+    const mismatch = accountEmailLinkMismatch(req.session, result.invite.email, "academy");
+    if (mismatch) throw mismatch;
     if (!req.session?.user && !req.session?.parent) {
       if (await AcademyAccount.exists({ email: result.invite.email })) return res.redirect(serviceUrl("academy", `/academy/login?next=${encodeURIComponent(`/academy/staff-invite/${result.token}`)}`));
       return res.redirect(`/academy/register?invite=${encodeURIComponent(result.token)}`);
@@ -172,10 +175,12 @@ exports.staffInvitePage = async (req, res, next) => {
     if (!req.session?.user) return auth.isLoggedOut(req, res, next);
     return auth.isLoggedIn(req, res, (error) => {
       if (error) return next(error);
-      if (req.authenticatedUser?.role !== "teacher" || req.session.user.accountType !== "academy") return next(statusError(403, "교사 초대는 초대받은 학원 계정으로 이용해주세요."));
+      if (req.authenticatedUser?.role !== "teacher" || req.session.user.accountType !== "academy") return next(accountEmailLinkMismatch(req.session, result.invite.email, "academy") || statusError(403, "교사 초대는 초대받은 학원 계정으로 이용해주세요."));
+      const currentMismatch = accountEmailLinkMismatch(req.session, result.invite.email, "academy");
+      if (currentMismatch) return next(currentMismatch);
       res.set("Cache-Control", "no-store");
       res.set("Referrer-Policy", "no-referrer");
-      return res.render("academy-staff-invite", { invitation: result, disablePageAnalytics: true, error: result.invite.email !== req.authenticatedUser.email ? "현재 계정의 이메일이 초대받은 이메일과 다릅니다. 초대받은 계정으로 다시 로그인해주세요." : null });
+      return res.render("academy-staff-invite", { invitation: result, disablePageAnalytics: true, error: null });
     });
   } catch (error) { return next(error); }
 };

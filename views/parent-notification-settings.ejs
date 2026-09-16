@@ -53,7 +53,7 @@
         </section>
 
         <section class="parent-alert-delivery">
-          <label><input type="checkbox" name="emailEnabled" value="1" <%= settings.emailEnabled !== false ? "checked" : "" %> /><span><strong>이메일로 알림 받기</strong><small><%= parent.email %> 주소로 발송합니다.</small></span></label>
+          <label><input type="checkbox" name="emailEnabled" value="1" <%= settings.emailEnabled !== false ? "checked" : "" %> /><span><strong>이메일로도 알림 받기</strong><small>알림은 우편함에 보관됩니다. 이메일을 켜면 <%= parent.email %> 주소로도 발송합니다.</small></span></label>
           <button type="submit">알림 설정 저장</button>
         </section>
       </form>

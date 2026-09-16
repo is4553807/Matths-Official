@@ -1,10 +1,12 @@
 const {
   ParentAlertDelivery,
   ParentChildLink,
+  ParentNotification,
 } = require("../models/parentModel");
 const { getDashboardData } = require("./dashboardService");
 const { buildBrandedHtml, sendEmail } = require("./emailService");
 const { withSchedulerLease } = require("./schedulerLeaseService");
+const { serviceUrl } = require("./serviceUrlService");
 const {
   getDateGapInDays,
   getKoreanDateKey,
@@ -13,7 +15,7 @@ const {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_INTERVAL_MS = 30 * 60 * 1000;
 const MAX_ATTEMPTS_PER_DAY = 3;
-const TERMINAL_STATUSES = new Set(["SENT"]);
+const TERMINAL_STATUSES = new Set(["SENT", "IN_APP"]);
 
 let schedulerTimer = null;
 let schedulerRunning = false;
@@ -32,10 +34,7 @@ function childDisplayName(child) {
 }
 
 function dashboardUrl() {
-  const baseUrl = String(
-    process.env.APP_BASE_URL || process.env.PUBLIC_BASE_URL || ""
-  ).replace(/\/$/, "");
-  return baseUrl ? `${baseUrl}/parent` : "";
+  return serviceUrl("parents", "/parent");
 }
 
 async function hasRecentTerminalDelivery({ linkId, alertType, now, cooldownDays }) {
@@ -147,6 +146,23 @@ async function deliverAlert({ link, alertType, reasonSnapshot, now, sendEmailFn 
     child: link.childUserId,
     snapshot: reasonSnapshot,
   });
+  await ParentNotification.findOneAndUpdate(
+    { sourceId: delivery._id },
+    { $setOnInsert: {
+      parentAccountId: link.parentAccountId._id,
+      childUserId: link.childUserId._id,
+      title: copy.heading,
+      message: copy.body,
+      href: "/parent/notifications",
+      kind: "learning",
+      sourceId: delivery._id,
+    } },
+    { upsert: true, returnDocument: "after" }
+  );
+  if (link.notificationSettings?.emailEnabled === false) {
+    await ParentAlertDelivery.updateOne({ _id: delivery._id }, { $set: { status: "IN_APP", sentAt: now } });
+    return { delivered: true, channel: "IN_APP" };
+  }
   try {
     const result = await sendEmailFn({
       to: link.parentAccountId.email,
@@ -257,7 +273,6 @@ async function evaluateParentAlerts({
   }
   const links = await ParentChildLink.find({
     status: "ACTIVE",
-    "notificationSettings.emailEnabled": true,
     $or: [
       { "notificationSettings.lowLearning.enabled": true },
       { "notificationSettings.inactivity.enabled": true },

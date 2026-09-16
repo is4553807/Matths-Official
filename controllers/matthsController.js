@@ -13,6 +13,8 @@ const {
 const {
   serviceUrl,
 } = require("../services/serviceUrlService");
+const { accountLinkMismatch } = require("../services/accountLinkAccessService");
+const { createParentDirectNotification } = require("../services/parentNotificationService");
 const AppleAuthCredential = require(
   "../models/appleAuthCredentialModel"
 );
@@ -265,6 +267,7 @@ const {
   completeNicknameChange,
   getNicknameChangePageData,
   nicknameKey,
+  nicknameLinkOwner,
   validateNickname,
 } = require("../services/nicknameService");
 const {
@@ -4071,6 +4074,19 @@ exports.adminSendUserNotification =
     }
   };
 
+exports.adminSendParentNotification = async (req, res, next) => {
+  try {
+    await createParentDirectNotification({
+      parentId: req.params.parentId,
+      adminUserId: req.session.user.id,
+      title: req.body.title,
+      message: req.body.message,
+      href: req.body.href,
+    });
+    return res.redirect(`/admin/parents/${req.params.parentId}?done=notification`);
+  } catch (error) { return next(error); }
+};
+
 exports.adminSendUserEmail =
   async (req, res, next) => {
     try {
@@ -7166,6 +7182,21 @@ exports.nicknameChangePage =
     }
   };
 
+exports.guardNicknameLinkSession = async (req, _res, next) => {
+  try {
+    if (!req.session?.user?.id && !req.session?.parent?.id) return next();
+    const ownerId = await nicknameLinkOwner({ requestId: req.query.requestId, token: req.query.token });
+    if (!ownerId) return next();
+    const owner = await User.findById(ownerId).select("role").lean();
+    if (!owner) return next();
+    const mismatch = accountLinkMismatch(req.session, {
+      userId: ownerId,
+      accountType: owner.role === "teacher" ? "academy" : "student",
+    });
+    return next(mismatch || undefined);
+  } catch (error) { return next(error); }
+};
+
 exports.checkNicknameChange =
   async (req, res, next) => {
     try {
@@ -8219,6 +8250,13 @@ exports.forgotPasswordPage = (req, res) =>
 exports.openPasswordResetLink =
   async (req, res, next) => {
     try {
+      const identity = await verifyPasswordResetLink({
+        resetId: req.query.resetId,
+        token: req.query.token,
+        verifyOnly: true,
+      });
+      const mismatch = accountLinkMismatch(req.session, identity);
+      if (mismatch) throw mismatch;
       const verification =
         await verifyPasswordResetLink({
           resetId:
@@ -8255,6 +8293,7 @@ exports.openPasswordResetLink =
         }
       );
     } catch (error) {
+      if (error.code === "ACCOUNT_LINK_SESSION_MISMATCH") return next(error);
       if (error.status) {
         return res
           .status(error.status)
@@ -8328,6 +8367,14 @@ exports.verifyPasswordReset =
       passwordResetAccountType(req.body.accountType);
 
     try {
+      const identity = await verifyPasswordResetCode({
+        email,
+        code: req.body.code,
+        accountType,
+        verifyOnly: true,
+      });
+      const mismatch = accountLinkMismatch(req.session, identity);
+      if (mismatch) throw mismatch;
       const verification =
         await verifyPasswordResetCode(
           {
@@ -8360,6 +8407,7 @@ exports.verifyPasswordReset =
         }
       );
     } catch (error) {
+      if (error.code === "ACCOUNT_LINK_SESSION_MISMATCH") return next(error);
       if (error.status) {
         return res
           .status(error.status)
@@ -8398,6 +8446,9 @@ exports.completePasswordReset =
         throw error;
       }
 
+      const mismatch = accountLinkMismatch(req.session, authorization);
+      if (mismatch) throw mismatch;
+
       await resetPassword({
         resetId:
           authorization.resetId,
@@ -8426,6 +8477,7 @@ exports.completePasswordReset =
         }
       );
     } catch (error) {
+      if (error.code === "ACCOUNT_LINK_SESSION_MISMATCH") return next(error);
       if (error.status) {
         return res
           .status(error.status)

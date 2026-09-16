@@ -315,6 +315,15 @@ async function findValidRequest({
   return request;
 }
 
+async function nicknameLinkOwner({ requestId, token }) {
+  if (!mongoose.isValidObjectId(requestId)) return null;
+  const request = await NicknameChangeRequest.findOne({ _id: requestId, status: "pending", expiresAt: { $gt: new Date() } })
+    .select("+tokenHash userId")
+    .lean();
+  if (!request || !safeEqual(request.tokenHash, tokenHash(token))) return null;
+  return String(request.userId);
+}
+
 async function findNicknameConflict({
   nickname,
   excludeUserId,
@@ -571,6 +580,7 @@ module.exports = {
   completeNicknameChange,
   createNicknameChangeRequest,
   getNicknameChangePageData,
+  nicknameLinkOwner,
   nicknameKey,
   normalizeNickname,
   validateNickname,

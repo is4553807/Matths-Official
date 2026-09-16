@@ -202,6 +202,9 @@ html:has(.matths-error-page) {
   gap: 9px;
   margin-top: 34px;
 }
+.matths-error-current-account { margin: 13px 0 0; color: #536078; font-size: 13px; }
+.matths-error-current-account strong { color: #1e2d55; }
+.matths-error-actions form { margin: 0; }
 
 .matths-error-actions a,
 .matths-error-actions button {

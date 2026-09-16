@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>선생님 우편함 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/academy.css" />
+    <link rel="stylesheet" href="/css/portal-mailbox.css" />
+  </head>
+  <body class="academy-page">
+    <header class="academy-topbar">
+      <%- include("partials/matths-brand", { href: "/academy/setup", ariaLabel: "Matths 학원 시작 페이지", className: "academy-brand", suffix: "선생님", compact: true }) %>
+      <div class="academy-account"><span><strong><%= user.realName || user.name %></strong> 선생님</span><form action="/academy/logout" method="POST"><button type="submit">로그아웃</button></form></div>
+    </header>
+    <main class="academy-main portal-mailbox-standalone">
+      <a class="portal-mailbox-back" href="/academy/setup">← 학원 등록·참여 상태</a>
+      <%- include("partials/portal-mailbox", {
+        inbox, notification,
+        basePath: "/academy?tab=mailbox",
+        readAllPath: "/academy/mailbox/read-all",
+        accountLabel: "선생님",
+        readOnly: false,
+      }) %>
+    </main>
+  </body>
+</html>

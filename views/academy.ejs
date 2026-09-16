@@ -101,6 +101,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/brand.css" />
     <link rel="stylesheet" href="/css/academy.css" />
+    <link rel="stylesheet" href="/css/portal-mailbox.css" />
     <link rel="stylesheet" href="/css/weekly-mock-insights.css" />
     <link rel="stylesheet" href="/css/contrast.css" />
     <script src="/js/academy.js" defer></script>
@@ -135,6 +136,7 @@
           <a class="<%= currentTab === 'invites' ? 'active' : '' %>" href="/academy?tab=invites">초대 관리</a>
           <a href="/academy/forensics">유출 자료 추적</a>
           <a class="<%= currentTab === 'teachers' ? 'active' : '' %>" href="/academy?tab=teachers">선생님 관리 <% if (isOwner && staffPendingCount) { %><b><%= staffPendingCount %></b><% } %></a>
+          <a class="<%= currentTab === 'mailbox' ? 'active' : '' %>" href="/academy?tab=mailbox">우편함 <% if (typeof mailboxUnreadCount !== "undefined" && mailboxUnreadCount) { %><b><%= mailboxUnreadCount %></b><% } %></a>
           <% if (isOwner) { %><a class="<%= currentTab === 'settings' ? 'active' : '' %>" href="/academy?tab=settings">학원 설정</a><% } %>
         </nav>
         <p>학생의 학습 기록은 승인된 소속 관계 안에서만 조회됩니다.</p>
@@ -145,6 +147,17 @@
           <div class="academy-feedback <%= viewFeedback.type === 'error' ? 'is-error' : 'is-success' %>" role="<%= viewFeedback.type === 'error' ? 'alert' : 'status' %>">
             <span aria-hidden="true"><%= viewFeedback.type === "error" ? "!" : "✓" %></span><%= viewFeedback.message %>
           </div>
+        <% } %>
+
+        <% if (currentTab === "mailbox") { %>
+          <%- include("partials/portal-mailbox", {
+            inbox: mailboxInbox,
+            notification: mailboxNotification,
+            basePath: "/academy?tab=mailbox",
+            readAllPath: "/academy/mailbox/read-all",
+            accountLabel: "선생님",
+            readOnly: user.role === "admin",
+          }) %>
         <% } %>
 
         <% if (currentTab === "dashboard") { %>

@@ -12,7 +12,9 @@
     typeof selectedChildId !== "undefined" ? String(selectedChildId || "") : "";
   const adminPreview = typeof isAdminPagePreview !== "undefined" && isAdminPagePreview;
   const returnPath =
-    activeParentPage === "notifications"
+    activeParentPage === "mailbox"
+      ? "/parent/mailbox"
+    : activeParentPage === "notifications"
       ? "/parent/notifications"
       : activeParentPage === "inquiries"
         ? "/parent/inquiries"
@@ -47,6 +49,7 @@
   <nav aria-label="학부모 메뉴">
     <a class="<%= activeParentPage === 'dashboard' ? 'active' : '' %>" href="/parent">자녀 학습 현황</a>
     <a class="<%= activeParentPage === 'notifications' ? 'active' : '' %>" href="/parent/notifications">학습 알림</a>
+    <a class="<%= activeParentPage === 'mailbox' ? 'active' : '' %>" href="/parent/mailbox">우편함 <% if (typeof parentUnreadCount !== "undefined" && parentUnreadCount) { %><b><%= parentUnreadCount %></b><% } %></a>
     <a class="<%= activeParentPage === 'payments' ? 'active' : '' %>" href="/parent/payments">결제·환불</a>
     <a class="<%= activeParentPage === 'inquiries' ? 'active' : '' %>" href="/parent/inquiries">문의하기</a>
     <a class="parent-buy-nav <%= activeParentPage === 'pricing' ? 'active' : '' %>" href="/parent/pricing">패키지 구매하기</a>

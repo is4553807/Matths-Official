@@ -1170,6 +1170,12 @@ router.post(
   matthsController.adminUpdateParentAccountStatus
 );
 router.post(
+  "/admin/parents/:parentId/notification",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminSendParentNotification
+);
+router.post(
   "/admin/parents/:parentId/children/:childUserId/notifications",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
@@ -1498,6 +1504,7 @@ router.post(
 );
 router.get(
   "/nickname-change",
+  matthsController.guardNicknameLinkSession,
   authMiddleware.isLoggedIn,
   matthsController.nicknameChangePage
 );

@@ -42,6 +42,8 @@ router.post(
 );
 router.post("/parent/logout", isParentLoggedIn, parentController.logout);
 router.get("/parent", isParentLoggedIn, parentController.dashboardPage);
+router.get("/parent/mailbox", isParentLoggedIn, parentController.mailboxPage);
+router.post("/parent/mailbox/read-all", isParentLoggedIn, parentController.markAllMailboxRead);
 router.post(
   "/parent/children/select",
   isParentLoggedIn,

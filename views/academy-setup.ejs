@@ -59,6 +59,7 @@
         <% } %>
 
         <div class="academy-auth-note academy-setup-policy-note"><strong>승인 기준</strong> 계정을 만들거나 교사 초대를 수락해도 운영 권한이 바로 열리지 않습니다. 새 학원은 기관·담당자·계약에 대한 운영자 승인, 교사 참여는 해당 학원 원장 승인이 필요합니다.</div>
+        <a class="academy-auth-back" href="/academy?tab=mailbox">우편함 확인<%= typeof mailboxUnreadCount !== "undefined" && mailboxUnreadCount ? ` · 안 읽은 알림 ${mailboxUnreadCount}개` : "" %> →</a>
         <a class="academy-auth-back" href="/contact">학원 정보가 다르거나 교사 역할 전환이 필요하면 문의하기</a>
       </section>
     </main>

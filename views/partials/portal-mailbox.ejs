@@ -1,0 +1,49 @@
+<%
+  const mailboxDate = (value) => new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short",
+  }).format(new Date(value));
+  const mailboxLink = (id) => `${basePath}${basePath.includes("?") ? "&" : "?"}notificationId=${encodeURIComponent(id)}`;
+  const mailboxPageLink = (page) => `${basePath}${basePath.includes("?") ? "&" : "?"}page=${page}`;
+  const allowedRelatedHref = (href) => accountLabel === "선생님"
+    ? /^\/(?:academy|nickname-change)(?:\/|\?|$)/.test(String(href || ""))
+    : /^\/parent(?:\/|\?|$)/.test(String(href || ""));
+%>
+<section class="portal-mailbox" aria-labelledby="portal-mailbox-title">
+  <header class="portal-mailbox-heading">
+    <div><small>NOTIFICATION INBOX</small><h1 id="portal-mailbox-title"><%= accountLabel %> 우편함</h1><p>운영 안내와 중요한 알림을 계정별로 보관합니다.</p></div>
+    <div class="portal-mailbox-stats"><span>전체 <strong><%= inbox.stats.total %></strong></span><span>안 읽음 <strong><%= inbox.stats.unread %></strong></span></div>
+  </header>
+  <% if (notification) { %>
+    <a class="portal-mailbox-back" href="<%= basePath %>">← 우편함 목록</a>
+    <article class="portal-mailbox-detail">
+      <small><%= mailboxDate(notification.createdAt) %> · <%= notification.kind === "learning" ? "학습 알림" : "운영 안내" %></small>
+      <h2><%= notification.title %></h2>
+      <p><%= notification.message %></p>
+      <% if (allowedRelatedHref(notification.targetHref)) { %><a href="<%= notification.targetHref %>">관련 페이지 열기 →</a><% } %>
+    </article>
+  <% } else { %>
+    <div class="portal-mailbox-toolbar"><h2>받은 우편</h2>
+      <% if (inbox.stats.unread && !readOnly) { %><form action="<%= readAllPath %>" method="POST"><button type="submit">모두 읽음 처리</button></form><% } %>
+    </div>
+    <% if (!inbox.notifications.length) { %>
+      <div class="portal-mailbox-empty"><span aria-hidden="true">✉</span><h2>아직 받은 우편이 없습니다.</h2><p>새로운 알림이 오면 여기에 표시됩니다.</p></div>
+    <% } else { %>
+      <div class="portal-mailbox-list">
+        <% inbox.notifications.forEach((item) => { %>
+          <a class="<%= item.readAt ? "is-read" : "is-unread" %>" href="<%= mailboxLink(item.id) %>">
+            <span aria-hidden="true"><%= item.readAt ? "○" : "●" %></span>
+            <div><small><%= mailboxDate(item.createdAt) %></small><h3><%= item.title %></h3><p><%= item.message %></p></div>
+            <b aria-hidden="true">→</b>
+          </a>
+        <% }) %>
+      </div>
+      <% if (inbox.pagination.totalPages > 1) { %>
+        <nav class="portal-mailbox-pages" aria-label="우편함 페이지">
+          <% if (inbox.pagination.hasPrevious) { %><a href="<%= mailboxPageLink(inbox.pagination.page - 1) %>">이전</a><% } %>
+          <span><%= inbox.pagination.page %> / <%= inbox.pagination.totalPages %></span>
+          <% if (inbox.pagination.hasNext) { %><a href="<%= mailboxPageLink(inbox.pagination.page + 1) %>">다음</a><% } %>
+        </nav>
+      <% } %>
+    <% } %>
+  <% } %>
+</section>

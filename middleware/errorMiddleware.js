@@ -1,6 +1,7 @@
 const {
   errorFaqHref,
 } = require("../services/errorHelpService");
+const { signedInIdentity } = require("../services/accountLinkAccessService");
 
 const ERROR_COPY = {
   400: {
@@ -148,6 +149,8 @@ function actionSet(status, user, errorCode = "") {
 
 function buildErrorViewModel({ error = null, req, status }) {
   const user = req.session?.user || null;
+  const currentIdentity = signedInIdentity(req.session);
+  const accountMismatch = error?.code === "ACCOUNT_LINK_SESSION_MISMATCH" && Boolean(currentIdentity);
   const copy = ERROR_COPY[status] || {
     eyebrow: "요청 처리 안내",
     title: "요청을 완료하지 못했습니다.",
@@ -157,6 +160,9 @@ function buildErrorViewModel({ error = null, req, status }) {
     status >= 500 || error?.expose === false
       ? copy.fallbackMessage
       : cleanMessage(error?.message, copy.fallbackMessage);
+  const currentDashboard = currentIdentity?.accountType === "parent" ? "/parent"
+    : currentIdentity?.accountType === "academy" ? "/academy"
+    : currentIdentity?.accountType === "admin" ? "/admin" : "/main";
 
   return {
     user,
@@ -164,7 +170,14 @@ function buildErrorViewModel({ error = null, req, status }) {
     statusCode: status,
     eyebrow: copy.eyebrow,
     title: copy.title,
+    ...(accountMismatch ? { title: "현재 계정으로는 이 이메일 링크를 열 수 없습니다." } : {}),
     message: safeMessage,
+    accountMismatch,
+    currentAccountEmail: accountMismatch ? currentIdentity.email : "",
+    logoutPath: accountMismatch
+      ? currentIdentity.accountType === "parent" ? "/parent/logout"
+        : currentIdentity.accountType === "academy" ? "/academy/logout" : "/logout"
+      : "",
     errorCode:
       String(
         error?.code ||
@@ -173,12 +186,17 @@ function buildErrorViewModel({ error = null, req, status }) {
     errorFaqHref:
       errorFaqHref(status),
     ...actionSet(status, user, error?.code),
+    ...(accountMismatch ? {
+      primaryAction: { href: currentDashboard, label: "현재 계정 대시보드" },
+      secondaryAction: { href: "/faq", label: "도움말 보기" },
+    } : {}),
   };
 }
 
 function renderErrorPage(req, res, { error = null, status = 500 } = {}) {
   const normalized = normalizedStatus(status);
   res.set("Cache-Control", "no-store");
+  res.set("Referrer-Policy", "no-referrer");
   return res
     .status(normalized)
     .render(

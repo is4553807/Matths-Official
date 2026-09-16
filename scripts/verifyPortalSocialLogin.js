@@ -148,6 +148,12 @@ async function main() {
     const link = await ParentChildLink.findOne({ parentAccountId: linkedParent._id, childUserId: child._id });
     assert.equal(link.status, "ACTIVE"); assert.ok(link.linkConsentAt);
     assert.equal((await ParentInvite.findById(childInvite._id)).status, "ACCEPTED");
+    const otherInviteToken = crypto.randomBytes(32).toString("base64url");
+    const otherInviteChild = await User.create({ name: "다른 학부모 초대 자녀", email: email("other-invite-child"), role: "student", passwordHash: "unused" });
+    await ParentInvite.create({ childUserId: otherInviteChild._id, parentEmail: email("other-invite-parent"), productCode: "LEARNING_PACKAGE_29", tokenHash: digest(otherInviteToken), expiresAt: new Date(Date.now() + 3600000) });
+    const wrongParentInvite = await get(`/parent/invite/${otherInviteToken}`, cookie(linkedParentSignup));
+    assert.equal(wrongParentInvite.status, 403);
+    assert.match((await wrongParentInvite.text()), /현재 로그인된 계정은 이 이메일 링크의 대상 계정이 아니므로/);
 
     const contractEndsAt = new Date(Date.now() + 30 * 86400000);
     await User.updateOne({ _id: newTeacher._id }, { $set: { teacherAccessExpiresAt: contractEndsAt } });
@@ -155,6 +161,10 @@ async function main() {
     await approveAcademyApplication({ adminUserId: admin._id, academyId: institution._id });
     const staffEmail = email("invited-social-staff");
     const staffInvite = await createAcademyStaffInvite({ teacherUserId: newTeacher._id, email: staffEmail });
+    const wrongTeacherInvite = await get(`/academy/staff-invite/${staffInvite.token}`, cookie(registered));
+    assert.equal(wrongTeacherInvite.status, 403);
+    assert.match((await wrongTeacherInvite.text()), /현재 로그인된 계정은 이 이메일 링크의 대상 계정이 아니므로/);
+    assert.equal((await get(`/academy/staff-invite/${staffInvite.token}`, cookie(linkedParentSignup))).status, 403);
     const staffSignup = await oauth(provider, "academy", staffEmail, { invite: staffInvite.token, staff: true });
     assert.equal(staffSignup.response.headers.get("location"), `/academy/register?invite=${staffInvite.token}&path=staff`);
     const staffRegistered = await post("/academy/register", { displayName: "소셜 초대 교사", termsAccepted: "1", registrationFlow: "staff", inviteToken: staffInvite.token, role: "OWNER", academyId: crypto.randomUUID() }, staffSignup.cookie);

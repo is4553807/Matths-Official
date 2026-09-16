@@ -71,6 +71,7 @@ const { OperationalMetricEvent } = require("../models/operationModel");
 const { PdfWatermarkIssuance } = require("../models/documentSecurityModel");
 const {
   ParentAlertDelivery,
+  ParentNotification,
   ParentAccount,
   ParentChildLink,
   ParentInvite,
@@ -207,6 +208,7 @@ async function removePrivateAccountData(
     if (!parentIds.includes(String(parent._id))) parentIds.push(String(parent._id));
   }
   await Promise.all([
+    ParentNotification.deleteMany({ childUserId: userId }),
     ParentAlertDelivery.deleteMany({
       $or: [
         { childUserId: userId },
@@ -229,6 +231,7 @@ async function removePrivateAccountData(
       await Promise.all([
         ParentAccount.deleteOne({ _id: parent._id }),
         ParentAlertDelivery.deleteMany({ parentAccountId: parent._id }),
+        ParentNotification.deleteMany({ parentAccountId: parent._id }),
         CheckoutIntent.deleteMany({ parentAccountId: parent._id }),
       ]);
     }

@@ -93,6 +93,7 @@ body {
   color: var(--parent-blue);
   background: #eef2ff;
 }
+.parent-nav nav a b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-left: 5px; padding: 0 4px; border-radius: 999px; color: #fff; background: #3157f6; font-size: 10px; }
 .parent-nav nav .parent-buy-nav {
   color: #fff;
   background: linear-gradient(

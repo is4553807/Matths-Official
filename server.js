@@ -338,6 +338,8 @@ async function connectDB() {
                 `Removed legacy parent-child index: ${parentIndexes.removedLegacyChildIndex}`
             );
         }
+        const { ParentNotification } = require("./models/parentModel");
+        await ParentNotification.createIndexes();
 
         const {
             ensureAuthRequestLimitIndexes,

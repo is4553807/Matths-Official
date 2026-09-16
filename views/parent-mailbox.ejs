@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>학부모 우편함 | Matths</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <link rel="stylesheet" href="/css/brand.css" />
+    <link rel="stylesheet" href="/css/parent.css" />
+    <link rel="stylesheet" href="/css/portal-mailbox.css" />
+  </head>
+  <body class="parent-page">
+    <%- include("partials/parent-navigation", { activeParentPage: "mailbox" }) %>
+    <main class="parent-main" id="parent-main">
+      <%- include("partials/portal-mailbox", {
+        inbox, notification,
+        basePath: "/parent/mailbox",
+        readAllPath: "/parent/mailbox/read-all",
+        accountLabel: "학부모",
+        readOnly: typeof isAdminPagePreview !== "undefined" && isAdminPagePreview,
+      }) %>
+      <p class="portal-mailbox-settings"><a href="/parent/notifications">자녀별 학습 알림 기준 설정 →</a></p>
+    </main>
+    <%- include("partials/business-footer") %>
+  </body>
+</html>
