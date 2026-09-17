@@ -347,6 +347,11 @@ async function connectDB() {
         await ensureAuthRequestLimitIndexes();
 
         const {
+            ensureNativeSocialRegistrationIndexes,
+        } = require("./services/nativeSocialRegistrationService");
+        await ensureNativeSocialRegistrationIndexes();
+
+        const {
             ensureAcademyIndexes,
         } = require("./services/academyService");
         await ensureAcademyIndexes();

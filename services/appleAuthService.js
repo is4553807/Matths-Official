@@ -124,6 +124,12 @@ function isAppleLoginConfigured() {
   return appleLoginConfig().nativeAudiences.length > 0;
 }
 
+function isNativeAppleAudience(audience) {
+  return appleLoginConfig().nativeAudiences.includes(
+    String(audience || "").trim()
+  );
+}
+
 function isAppleRevokeConfigured() {
   const config = appleRevokeConfig();
   return Boolean(
@@ -238,6 +244,15 @@ function sha256Hex(value) {
     .digest("hex");
 }
 
+function authorizationCodeHash(value) {
+  return crypto
+    .createHash("sha256")
+    .update(String(value), "utf8")
+    .digest()
+    .subarray(0, 16)
+    .toString("base64url");
+}
+
 function safeEqual(left, right) {
   const leftBuffer = Buffer.from(String(left || ""), "utf8");
   const rightBuffer = Buffer.from(String(right || ""), "utf8");
@@ -255,7 +270,12 @@ function safeEqual(left, right) {
  */
 async function verifyAppleIdentityToken(
   { identityToken, nonce } = {},
-  { fetchImpl = fetch, now = Date.now() } = {}
+  {
+    fetchImpl = fetch,
+    now = Date.now(),
+    requireNonce = true,
+    expectedAudience = "",
+  } = {}
 ) {
   const config = appleLoginConfig();
   if (!config.audiences.length) {
@@ -267,7 +287,7 @@ async function verifyAppleIdentityToken(
   }
 
   const rawNonce = String(nonce || "").trim();
-  if (!rawNonce) {
+  if (requireNonce && !rawNonce) {
     throw statusError(
       400,
       "Apple 로그인 요청 정보가 올바르지 않습니다. 다시 시도해주세요.",
@@ -338,7 +358,13 @@ async function verifyAppleIdentityToken(
   const matchedAudience = audiences.find((value) =>
     config.audiences.includes(value)
   );
-  if (!matchedAudience) {
+  if (
+    !matchedAudience ||
+    (
+      expectedAudience &&
+      !safeEqual(matchedAudience, expectedAudience)
+    )
+  ) {
     throw statusError(
       401,
       "Apple 로그인 정보를 확인하지 못했습니다.",
@@ -370,7 +396,10 @@ async function verifyAppleIdentityToken(
     );
   }
 
-  if (!safeEqual(String(claims?.nonce || ""), sha256Hex(rawNonce))) {
+  if (
+    requireNonce &&
+    !safeEqual(String(claims?.nonce || ""), sha256Hex(rawNonce))
+  ) {
     throw statusError(
       401,
       "Apple 로그인 요청을 확인하지 못했습니다. 다시 시도해주세요.",
@@ -398,6 +427,7 @@ async function verifyAppleIdentityToken(
     isPrivateEmail:
       claims?.is_private_email === true ||
       claims?.is_private_email === "true",
+    authorizationCodeHash: String(claims?.c_hash || "").trim(),
   };
 }
 
@@ -773,10 +803,191 @@ async function exchangeAuthorizationCode(
   if (!response.ok || !body?.refresh_token) {
     return {
       refreshToken: "",
+      identityToken: "",
       error: String(body?.error || `HTTP_${response.status}`),
     };
   }
-  return { refreshToken: String(body.refresh_token), identityToken: String(body.id_token || ""), error: "" };
+  return {
+    refreshToken: String(body.refresh_token),
+    identityToken: String(body.id_token || ""),
+    error: "",
+  };
+}
+
+/*
+ * 가입 정보 화면이 오래 열려 있어도 Apple authorization code(약 5분)의
+ * 교환 기회를 잃지 않도록, 사용자 문서를 만들기 전에 refresh token까지
+ * 준비합니다. 반환값은 네이티브 가입 티켓 안에서 다시 암호화되어야 하며
+ * 로그나 응답에 포함하면 안 됩니다.
+ */
+async function prepareAppleAuthorization(
+  {
+    authorizationCode,
+    clientId,
+    redirectUri,
+    expectedSubject,
+    expectedCodeHash,
+  } = {},
+  { fetchImpl = fetch } = {}
+) {
+  const code = String(authorizationCode || "").trim();
+  if (!code) return null;
+  const subject = String(expectedSubject || "").trim();
+  const normalizedClientId = String(clientId || "").trim();
+  if (!subject || !normalizedClientId) {
+    throw statusError(
+      400,
+      "Apple 자격 증명 연결 정보를 확인하지 못했습니다.",
+      "APPLE_AUTH_CREDENTIAL_INVALID"
+    );
+  }
+
+  const signedCodeHash = String(expectedCodeHash || "").trim();
+  const codeHashBound = Boolean(signedCodeHash);
+  if (
+    codeHashBound &&
+    !safeEqual(signedCodeHash, authorizationCodeHash(code))
+  ) {
+    throw statusError(
+      401,
+      "Apple 인증 코드가 로그인 계정과 일치하지 않습니다.",
+      "APPLE_AUTH_CODE_MISMATCH"
+    );
+  }
+
+  const prepared = {
+    authorizationCode: code,
+    authorizationCodeIssuedAt: new Date().toISOString(),
+    clientId: normalizedClientId,
+    refreshToken: "",
+    refreshTokenIssuedAt: null,
+  };
+
+  if (isAppleRevokeConfigured()) {
+    let exchange;
+    try {
+      exchange = await exchangeAuthorizationCode(code, {
+        fetchImpl,
+        clientId: normalizedClientId,
+        redirectUri,
+      });
+    } catch (error) {
+      console.warn(
+        `[apple-auth] refresh token 교환 실패: ${error?.message || error}`
+      );
+      // 원 identity token의 서명된 c_hash로 코드 결합이 확인된 경우에만
+      // 짧은 수명의 원본 코드를 남깁니다. 결합 근거가 없으면 저장하지 않습니다.
+      return codeHashBound ? prepared : null;
+    }
+
+    if (exchange.refreshToken) {
+      if (!exchange.identityToken) {
+        throw statusError(
+          502,
+          "Apple 자격 증명 응답을 확인하지 못했습니다.",
+          "APPLE_AUTH_TOKEN_RESPONSE_INVALID"
+        );
+      }
+      let tokenClaims;
+      try {
+        tokenClaims = await verifyAppleIdentityToken(
+          { identityToken: exchange.identityToken },
+          {
+            fetchImpl,
+            requireNonce: false,
+            expectedAudience: normalizedClientId,
+          }
+        );
+      } catch (error) {
+        throw statusError(
+          error?.status === 502 ? 502 : 401,
+          "Apple 자격 증명 응답을 확인하지 못했습니다.",
+          "APPLE_AUTH_TOKEN_RESPONSE_INVALID"
+        );
+      }
+      if (!safeEqual(tokenClaims.subject, subject)) {
+        throw statusError(
+          401,
+          "Apple 인증 코드가 로그인 계정과 일치하지 않습니다.",
+          "APPLE_AUTH_CODE_SUBJECT_MISMATCH"
+        );
+      }
+      prepared.refreshToken = exchange.refreshToken;
+      prepared.refreshTokenIssuedAt = new Date().toISOString();
+    }
+  }
+
+  // 폐기 설정이 없거나 교환이 실패한 경우에도, 서명된 c_hash가 확인한
+  // authorization code만 보관합니다. 아무 결합 근거도 없는 코드는 버립니다.
+  return codeHashBound || prepared.refreshToken
+    ? prepared
+    : null;
+}
+
+async function storePreparedAppleAuthorization(
+  { userId, subject, prepared } = {},
+  { session = null } = {}
+) {
+  const normalizedSubject = String(subject || "").trim();
+  if (!userId || !normalizedSubject) {
+    throw statusError(
+      400,
+      "Apple 계정 연결 정보를 확인하지 못했습니다.",
+      "APPLE_AUTH_CREDENTIAL_INVALID"
+    );
+  }
+
+  const update = { userId };
+  if (prepared?.authorizationCode) {
+    update.authorizationCode = seal(prepared.authorizationCode);
+    update.authorizationCodeIssuedAt = prepared.authorizationCodeIssuedAt
+      ? new Date(prepared.authorizationCodeIssuedAt)
+      : new Date();
+    update.appleClientId = String(prepared.clientId || "").trim() || null;
+  }
+  if (prepared?.refreshToken) {
+    update.refreshToken = seal(prepared.refreshToken);
+    update.refreshTokenIssuedAt = prepared.refreshTokenIssuedAt
+      ? new Date(prepared.refreshTokenIssuedAt)
+      : new Date();
+  }
+
+  let credentialQuery = AppleAuthCredential.findOne({
+    appleSubject: normalizedSubject,
+  }).select("+appleSubject");
+  if (session) credentialQuery = credentialQuery.session(session);
+  const existingCredential = await credentialQuery;
+  if (existingCredential?.ownerModel === "ParentAccount") {
+    throw statusError(
+      409,
+      "학부모 계정은 학부모 웹 로그인을 이용해주세요.",
+      "SOCIAL_AUTH_PARENT_ACCOUNT"
+    );
+  }
+
+  await AppleAuthCredential.updateOne(
+    {
+      appleSubject: normalizedSubject,
+      $or: [
+        { ownerModel: "User" },
+        { ownerModel: { $exists: false } },
+      ],
+    },
+    {
+      $set: {
+        ...update,
+        ownerModel: "User",
+      },
+    },
+    {
+      upsert: true,
+      ...(session ? { session } : {}),
+    }
+  );
+  return {
+    stored: Boolean(prepared?.authorizationCode),
+    exchanged: Boolean(prepared?.refreshToken),
+  };
 }
 
 /*
@@ -786,47 +997,32 @@ async function exchangeAuthorizationCode(
  * 폐기 설정이 없는 배포에서는 교환을 건너뛰고 코드만 남깁니다(로그인은 계속 된다).
  */
 async function rememberAppleAuthorization(
-  { userId, subject, authorizationCode, clientId, redirectUri },
+  {
+    userId,
+    subject,
+    authorizationCode,
+    clientId,
+    redirectUri,
+    authorizationCodeHash: expectedCodeHash,
+  },
   { fetchImpl = fetch } = {}
 ) {
-  const code = String(authorizationCode || "").trim();
-  if (!code) return { stored: false, exchanged: false };
-
-  const update = {
-    userId,
-    authorizationCode: seal(code),
-    authorizationCodeIssuedAt: new Date(),
-    appleClientId: String(clientId || "").trim() || null,
-  };
-
-  let exchanged = false;
-  if (isAppleRevokeConfigured()) {
-    try {
-      const { refreshToken } = await exchangeAuthorizationCode(code, {
-        fetchImpl,
-        clientId,
-        redirectUri,
-      });
-      if (refreshToken) {
-        update.refreshToken = seal(refreshToken);
-        update.refreshTokenIssuedAt = new Date();
-        exchanged = true;
-      }
-    } catch (error) {
-      // 로그인을 애플 토큰 엔드포인트 장애에 묶지 않는다. 폐기 자료가 없다는
-      // 사실만 남기고 로그인은 그대로 성립시킨다.
-      console.warn(
-        `[apple-auth] refresh token 교환 실패: ${error?.message || error}`
-      );
-    }
-  }
-
-  await AppleAuthCredential.updateOne(
-    { appleSubject: subject, $or: [{ ownerModel: "User" }, { ownerModel: { $exists: false } }] },
-    { $set: update },
-    { upsert: true }
+  const prepared = await prepareAppleAuthorization(
+    {
+      authorizationCode,
+      clientId,
+      redirectUri,
+      expectedSubject: subject,
+      expectedCodeHash,
+    },
+    { fetchImpl }
   );
-  return { stored: true, exchanged };
+  if (!prepared) return { stored: false, exchanged: false };
+  return storePreparedAppleAuthorization({
+    userId,
+    subject,
+    prepared,
+  });
 }
 
 /* --------------------------------------------------
@@ -857,6 +1053,7 @@ async function exchangeAppleIdentity(
         authorizationCode,
         clientId: claims.audience,
         redirectUri,
+        authorizationCodeHash: claims.authorizationCodeHash,
       },
       { fetchImpl }
     );
@@ -989,9 +1186,15 @@ module.exports = {
   appleProviderStatus,
   exchangeAppleIdentity,
   forgetAppleCredential,
+  isPlaceholderAppleEmail: isPlaceholderEmailForSubject,
   isAppleLoginConfigured,
   isAppleRevokeConfigured,
+  isNativeAppleAudience,
+  placeholderAppleEmail: placeholderEmail,
+  prepareAppleAuthorization,
+  rememberAppleAuthorization,
   revokeAppleTokens,
+  storePreparedAppleAuthorization,
   verifyAppleIdentityToken,
   linkAppleIdentity,
   exchangeAuthorizationCode,
@@ -1001,6 +1204,7 @@ module.exports = {
     APPLE_TOKEN_URL,
     appleClientSecret,
     appleRevokeConfig,
+    authorizationCodeHash,
     exchangeAuthorizationCode,
     isPlaceholderEmailForSubject,
     linkAppleIdentity,

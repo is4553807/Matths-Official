@@ -3,6 +3,9 @@ const apiController = require(
   "../controllers/apiController"
 );
 const appleAuthController = require("../controllers/appleAuthController");
+const nativeSocialAuthController = require(
+  "../controllers/nativeSocialAuthController"
+);
 const appCommerceController = require("../controllers/appCommerceController");
 const appleCommerceController = require("../controllers/appleCommerceController");
 const ipadReadController = require("../controllers/ipadReadController");
@@ -188,6 +191,24 @@ router.post(
   "/auth/kakao/native",
   loginIpRateLimit,
   require("../controllers/kakaoNativeAuthController").start
+);
+router.post(
+  "/auth/native-social/kakao/start",
+  loginIpRateLimit,
+  loginRateLimit,
+  nativeSocialAuthController.startKakao
+);
+router.post(
+  "/auth/native-social/apple/start",
+  loginIpRateLimit,
+  loginRateLimit,
+  nativeSocialAuthController.startApple
+);
+router.post(
+  "/auth/native-social/register",
+  registrationIpRateLimit,
+  registrationRateLimit,
+  nativeSocialAuthController.register
 );
 // 기존 앱 빌드가 이 주소를 쓴다. TestFlight 에 이미 나간 1.0(1) 이 여기로 오므로
 // 지우면 그 빌드의 구글 로그인이 끊긴다.

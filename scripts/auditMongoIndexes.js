@@ -4,6 +4,9 @@ const mongoose = require("mongoose");
 const matthsModels = require("../models/matthsModel");
 const arenaModels = require("../models/goatArenaModel");
 const paybackDailyLearningModels = require("../models/paybackDailyLearningModel");
+const NativeSocialRegistrationTicket = require(
+  "../models/nativeSocialRegistrationTicketModel"
+);
 
 function keySignature(key = {}, index = null) {
   if (index?.weights && Object.keys(index.weights).length) {
@@ -25,6 +28,7 @@ function registeredModels() {
     ...matthsModels,
     ...arenaModels,
     ...paybackDailyLearningModels,
+    NativeSocialRegistrationTicket,
   })) {
     if (!model?.modelName || !model?.schema || !model?.collection?.name) continue;
     byCollection.set(model.collection.name, model);

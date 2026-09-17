@@ -78,6 +78,10 @@ const {
   CheckoutIntent,
 } = require("../models/parentModel");
 const { PaybackPayoutRecord } = require("../models/paybackModel");
+const MobileAuthGrant = require("../models/mobileAuthGrantModel");
+const NativeSocialRegistrationTicket = require(
+  "../models/nativeSocialRegistrationTicketModel"
+);
 const {
   PaybackDailyLearning,
 } = require("../models/paybackDailyLearningModel");
@@ -238,6 +242,13 @@ async function removePrivateAccountData(
   }
 
   await Promise.all([
+    MobileAuthGrant.deleteMany({ userId }),
+    NativeSocialRegistrationTicket.deleteMany({
+      $or: [
+        { userId },
+        { existingUserId: userId },
+      ],
+    }),
     PasswordResetCode.deleteMany({
       userId,
     }),
