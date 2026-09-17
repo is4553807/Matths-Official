@@ -54,6 +54,8 @@
     "app-commerce-handoff:verify": "node audit/verifyAppCommerceHandoffErrorContract.js",
     "oauth-mobile:verify": "node scripts/verifyMobileGoogleOAuth.js",
     "oauth-kakao:verify": "node scripts/verifyKakaoOAuth.js",
+    "native-social:indexes": "node scripts/prepareNativeSocialRegistrationIndexes.js",
+    "native-social:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyNativeSocialRegistrationDb.js",
     "email:verify": "node scripts/verifyEmailConfig.js",
     "email-routing:verify": "node scripts/verifyOperatorEmailRouting.js",
     "support-email-routing:verify": "node scripts/verifySupportEmailRouting.js",

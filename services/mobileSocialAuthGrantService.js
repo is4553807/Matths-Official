@@ -132,21 +132,32 @@ async function issueMobileAuthGrant(
   {
     GrantModel = MobileAuthGrant,
     codeChallenge = null,
+    session = null,
+    now = Date.now(),
   } = {}
 ) {
   const code = crypto
     .randomBytes(32)
     .toString("base64url");
 
-  await GrantModel.create({
+  const grant = {
     tokenHash: digest(code),
     codeChallenge:
       codeChallenge || null,
     userId,
     expiresAt: new Date(
-      Date.now() + GRANT_TTL_MS
+      now + GRANT_TTL_MS
     ),
-  });
+  };
+
+  if (session) {
+    await GrantModel.create(
+      [grant],
+      { session }
+    );
+  } else {
+    await GrantModel.create(grant);
+  }
 
   return code;
 }

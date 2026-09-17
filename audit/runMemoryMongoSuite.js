@@ -15,6 +15,7 @@ const defaultTargets = [
   { target: "audit/verifyIpadNotificationDb.js", dropAfter: true },
   { target: "audit/verifyIpadArenaCommandDb.js", dropAfter: true },
   { target: "audit/verifyPaybackDailyLearningDb.js", dropAfter: true },
+  { target: "audit/verifyNativeSocialRegistrationDb.js", dropAfter: true },
   { target: "audit/verifyAdminUserDataDb.js", dropAfter: true },
   { target: "audit/verifyCommunityAuthorSoftDeleteDb.js", dropAfter: true },
   { target: "audit/verifyCommunityUserBlockDb.js", dropAfter: true },

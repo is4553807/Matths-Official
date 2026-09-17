@@ -6,7 +6,7 @@ const MATTHS_KAKAO_APP_ID = "1539001";
 function failure(code, message, status = 401) {
   return Object.assign(new Error(message), { code, status });
 }
-async function verifyNativeKakaoToken(accessToken, fetchImpl = fetch) {
+async function verifyNativeKakaoIdentity(accessToken, fetchImpl = fetch) {
   if (typeof accessToken !== "string" || !accessToken.length ||
       accessToken.length > 4096 || /\s/.test(accessToken)) {
     throw failure("KAKAO_NATIVE_TOKEN_INVALID", "카카오 인증 정보가 올바르지 않습니다.");
@@ -27,6 +27,28 @@ async function verifyNativeKakaoToken(accessToken, fetchImpl = fetch) {
   if (!profile.id || String(profile.id) !== String(info.id)) {
     throw failure("KAKAO_NATIVE_ID_MISMATCH", "카카오 계정 정보가 일치하지 않습니다.");
   }
-  return String(profile.id);
+  const account = profile.kakao_account || {};
+  const email = String(account.email || "").trim().toLowerCase();
+  const emailVerified = Boolean(
+    email &&
+    account.email_needs_agreement !== true &&
+    account.is_email_valid === true &&
+    account.is_email_verified === true
+  );
+  return {
+    provider: "kakao",
+    providerUserId: String(profile.id),
+    email: emailVerified ? email : "",
+    emailVerified,
+    displayName: String(account.profile?.nickname || "").trim(),
+  };
 }
-module.exports = { verifyNativeKakaoToken };
+
+async function verifyNativeKakaoToken(accessToken, fetchImpl = fetch) {
+  return (await verifyNativeKakaoIdentity(accessToken, fetchImpl)).providerUserId;
+}
+
+module.exports = {
+  verifyNativeKakaoIdentity,
+  verifyNativeKakaoToken,
+};

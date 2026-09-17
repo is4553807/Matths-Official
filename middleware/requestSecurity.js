@@ -171,6 +171,9 @@ function identifierDigest(value) {
 
 function authRequestKey(req) {
   const identifier =
+    req.body?.registrationToken ||
+    req.body?.accessToken ||
+    req.body?.identityToken ||
     req.body?.identifier ||
     req.body?.email ||
     req.body?.username ||
