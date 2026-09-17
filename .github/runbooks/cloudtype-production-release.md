@@ -7,7 +7,7 @@
 - 저장소: `is4553807/Matths-Official`
 - 브랜치: `main`
 - 앱 이름: `matths`
-- 공개 연락처: `dltkddbs4553@matths.kr`
+- 공개 연락처: `matths-support@matths.kr`
 - 공개 URL: `https://www.matths.kr` (`https://matths.kr`에서 자동 이동)
 - 학생 URL: `https://app.matths.kr`
 - 학원 URL: `https://academy.matths.kr`
@@ -52,7 +52,7 @@ API key, OAuth token, Apple private key는 이 문서·이슈·PR·workflow inpu
 - `APPLE_PRIVATE_KEY` configured (값 출력 금지)
 - `APPLE_ALLOW_SANDBOX=true`
 - `FINANCE_APPLE_FEE_RESERVE_BPS=3000`
-- `PUBLIC_CONTACT_EMAIL=dltkddbs4553@matths.kr`
+- 공개 연락처는 코드의 `contactEmail.js`에서 `matths-support@matths.kr`로 고정
 - 기존 Google/Kakao OAuth, DB, session, storage, SMTP secret 유지
 - `SESSION_COOKIE_DOMAIN=.matths.kr`
 - OAuth callback은 기존 `https://www.matths.kr/auth/{provider}/callback`을 유지

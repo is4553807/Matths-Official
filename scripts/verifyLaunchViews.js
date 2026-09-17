@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const ejs = require("ejs");
+const { PUBLIC_CONTACT_EMAIL } = require("../contactEmail");
 
 const root = path.resolve(__dirname, "..");
 const views = path.join(root, "views");
@@ -16,18 +17,15 @@ const admin = {
 async function render(name, locals) {
   return ejs.renderFile(path.join(views, name), {
     adminTodoSummary: { pendingCount: 0, items: [] },
-    publicContactEmail: "dltkddbs4553@matths.kr",
+    publicContactEmail: PUBLIC_CONTACT_EMAIL,
     ...locals,
   });
 }
 
 async function main() {
   const serverSource = fs.readFileSync(path.join(root, "server.js"), "utf8");
-  assert.match(
-    serverSource,
-    /const CANONICAL_PUBLIC_CONTACT_EMAIL = "dltkddbs4553@matths\.kr";/,
-  );
-  assert.match(serverSource, /res\.locals\.publicContactEmail = CANONICAL_PUBLIC_CONTACT_EMAIL;/);
+  assert.equal(PUBLIC_CONTACT_EMAIL, "matths-support@matths.kr");
+  assert.match(serverSource, /res\.locals\.publicContactEmail = PUBLIC_CONTACT_EMAIL;/);
   assert.doesNotMatch(serverSource, /process\.env\.PUBLIC_CONTACT_EMAIL/);
 
   const userFacingViews = fs
@@ -200,10 +198,11 @@ async function main() {
 
   for (const legalView of ["terms.ejs", "privacy.ejs"]) {
     const html = await render(legalView, { user: null });
-    assert.match(html, /dltkddbs4553@matths\.kr/);
+    assert.ok(html.includes(`href="mailto:${PUBLIC_CONTACT_EMAIL}"`));
+    assert.doesNotMatch(html, /dltkddbs4553@matths\.kr/);
     assert.doesNotMatch(html, /dltnqls7297@matths\.kr/);
     assert.doesNotMatch(html, /admin@lsbproduction\.com/);
-    assert.doesNotMatch(html, /support@matths\.kr|운영 전 확인 사항/);
+    assert.doesNotMatch(html, /(?:mailto:|>)support@matths\.kr|운영 전 확인 사항/);
   }
 
   const privacy = await render("privacy.ejs", { user: null });

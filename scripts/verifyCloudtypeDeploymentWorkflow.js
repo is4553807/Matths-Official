@@ -29,7 +29,7 @@ assert.equal(job.if, "github.ref == 'refs/heads/main'");
 assert.ok(Number(job["timeout-minutes"]) <= 30);
 assert.equal(
   job.env?.EXPECTED_PUBLIC_CONTACT_EMAIL,
-  "dltkddbs4553@matths.kr"
+  "matths-support@matths.kr"
 );
 for (const variable of [
   "CLOUDTYPE_API_KEY",
@@ -73,7 +73,7 @@ for (const required of [
   "CLOUDTYPE_APP",
   "CLOUDTYPE_SOURCE_BRANCH",
   "APPLE_PRIVATE_KEY",
-  "dltkddbs4553@matths.kr",
+  "matths-support@matths.kr",
   "rollback release ID",
   "DEPLOY_PRODUCTION",
   "npm run production:verify",

@@ -28,7 +28,7 @@ function product(code, amount, periodLabel) {
 
 async function render(name, locals) {
   return ejs.renderFile(path.join(views, name), {
-    publicContactEmail: "dltkddbs4553@matths.kr",
+    publicContactEmail: "matths-support@matths.kr",
     adminTodoSummary: { pendingCount: 0, items: [] },
     ...locals,
   });
@@ -109,6 +109,7 @@ async function main() {
     oldInput: { inquiryType: "REFUND", paymentId: "payment", refundReasonType: "SIMPLE_CHANGE", subject: "", content: "" },
   });
   assert.match(contact, /환불 신청/);
+  assert.match(contact, /mailto:matths-support@matths\.kr/);
   assert.match(contact, /ORDER-1/);
   assert.match(contact, /ORDER-1 - 2026년 8월 13일/);
 

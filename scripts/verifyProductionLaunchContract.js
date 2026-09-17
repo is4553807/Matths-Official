@@ -5,7 +5,7 @@ const {
   runProductionChecks,
 } = require("./verifyProductionLaunch");
 
-const expectedContact = "dltkddbs4553@matths.kr";
+const expectedContact = "matths-support@matths.kr";
 
 function createFixtureServer(mode = "valid") {
   return http.createServer((request, response) => {
@@ -62,8 +62,8 @@ function createFixtureServer(mode = "valid") {
     }
     if (["/privacy", "/terms"].includes(url.pathname)) {
       response.writeHead(200, { "content-type": "text/html" });
-      const stale = mode === "stale-contact" ? " admin@lsbproduction.com" : "";
-      return response.end(`<main>${expectedContact}${stale}</main>`);
+      const stale = mode === "stale-contact" ? " dltkddbs4553@matths.kr" : "";
+      return response.end(`<main><a href="mailto:${expectedContact}">${expectedContact}</a>${stale}</main>`);
     }
     return json(404, { code: "NOT_FOUND" });
   });

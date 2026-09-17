@@ -1,6 +1,6 @@
 const express = require('express');
 const server = express();
-const CANONICAL_PUBLIC_CONTACT_EMAIL = "dltkddbs4553@matths.kr";
+const { PUBLIC_CONTACT_EMAIL } = require("./contactEmail");
 const path = require('path');
 const fs = require("fs");
 const crypto = require("crypto");
@@ -279,7 +279,7 @@ server.use((req, res, next) => {
     res.locals.arenaPublicText = arenaPublicText;
     // 공개 연락처는 약관·개인정보처리방침·푸터에서 동일해야 한다. 운영 플랫폼에
     // 남은 과거 환경변수가 새 주소를 되돌리지 못하도록 배포 코드가 단일 소유한다.
-    res.locals.publicContactEmail = CANONICAL_PUBLIC_CONTACT_EMAIL;
+    res.locals.publicContactEmail = PUBLIC_CONTACT_EMAIL;
     res.locals.coach = getCoachView({
         mode:
             req.session?.user?.preferences

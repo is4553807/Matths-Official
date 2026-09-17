@@ -103,7 +103,7 @@ function universalPreviewValue() {
 }
 
 app.get("/preview/login", (req, res) => {
-  res.locals.publicContactEmail = "dltkddbs4553@matths.kr";
+  res.locals.publicContactEmail = "matths-support@matths.kr";
   const accountType = ["student", "academy", "parent"].includes(String(req.query.accountType || ""))
     ? String(req.query.accountType)
     : "student";
@@ -124,7 +124,7 @@ app.get("/preview/login", (req, res) => {
 });
 
 app.get("/preview/community-post-safety", (_req, res) => {
-  res.locals.publicContactEmail = "dltkddbs4553@matths.kr";
+  res.locals.publicContactEmail = "matths-support@matths.kr";
   res.render("community-post", {
     user: {
       id: "64b000000000000000000181",
@@ -176,7 +176,7 @@ app.get("/preview/community-post-safety", (_req, res) => {
 });
 
 app.get("/preview/community-blocked-users", (_req, res) => {
-  res.locals.publicContactEmail = "dltkddbs4553@matths.kr";
+  res.locals.publicContactEmail = "matths-support@matths.kr";
   res.render("community-blocked-users", {
     user: {
       id: "64b000000000000000000181",

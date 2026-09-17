@@ -27,7 +27,7 @@ jobs:
       CLOUDTYPE_STAGE: ${{ vars.CLOUDTYPE_STAGE }}
       CLOUDTYPE_APP: ${{ vars.CLOUDTYPE_APP }}
       CLOUDTYPE_SOURCE_BRANCH: ${{ vars.CLOUDTYPE_SOURCE_BRANCH }}
-      EXPECTED_PUBLIC_CONTACT_EMAIL: dltkddbs4553@matths.kr
+      EXPECTED_PUBLIC_CONTACT_EMAIL: matths-support@matths.kr
       PRODUCTION_BASE_URL: https://www.matths.kr
 
     steps:

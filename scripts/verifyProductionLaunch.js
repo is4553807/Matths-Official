@@ -1,8 +1,9 @@
 const DEFAULT_BASE_URL = "https://www.matths.kr";
-const DEFAULT_CONTACT_EMAIL = "dltkddbs4553@matths.kr";
+const DEFAULT_CONTACT_EMAIL = "matths-support@matths.kr";
 const DEFAULT_FORBIDDEN_EMAILS = [
   "admin@lsbproduction.com",
   "dltnqls7297@matths.kr",
+  "dltkddbs4553@matths.kr",
 ];
 
 function positiveNumber(value, flag) {
@@ -226,6 +227,10 @@ async function runProductionChecks(options, fetchImpl = globalThis.fetch) {
       requireCondition(
         normalized.includes(options.expectedContact),
         `${options.expectedContact}가 없습니다.`
+      );
+      requireCondition(
+        normalized.includes(`mailto:${options.expectedContact}`),
+        `${options.expectedContact} 메일 링크가 없습니다.`
       );
       for (const forbidden of options.forbiddenContacts) {
         requireCondition(!normalized.includes(forbidden), `${forbidden}가 노출됩니다.`);

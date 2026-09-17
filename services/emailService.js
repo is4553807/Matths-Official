@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const { SSL_OP_LEGACY_SERVER_CONNECT } = require("node:constants");
+const { PUBLIC_CONTACT_EMAIL } = require("../contactEmail");
 const {
   passwordResetCode,
   passwordResetLink,
@@ -250,7 +251,7 @@ async function sendEmail({
       },
       sender: account.user !== senderAddress ? account.user : undefined,
       to: recipient,
-      replyTo: replyTo ? normalizeEmail(replyTo) : senderAddress,
+      replyTo: replyTo ? normalizeEmail(replyTo) : PUBLIC_CONTACT_EMAIL,
       subject,
       text,
       html,
@@ -358,10 +359,9 @@ async function sendPasswordResetLink({ to, resetUrl, fromAddress = "" }) {
 }
 
 async function sendSupportInquiryNotification({ inquiryId, user, subject, content }) {
-  const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL);
   const template = inquiryReceived({ inquiryId, user, subject, content });
   return sendSupportMailboxEmail({
-    to: adminEmail,
+    to: PUBLIC_CONTACT_EMAIL,
     replyTo: template.replyTo,
     subject: template.subject,
     text: template.text,
