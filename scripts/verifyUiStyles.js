@@ -120,6 +120,21 @@ const homePublicNavigationCss = fs.readFileSync(
   "utf8"
 );
 
+const contactCss = fs.readFileSync(
+  path.join(cssRoot, "contact.css"),
+  "utf8"
+);
+assert.match(
+  contactCss,
+  /\.inquiry-form \.inquiry-type-fieldset label[\s\S]*?white-space:\s*nowrap/,
+  "문의 유형 라벨은 일반 문의와 환불 신청을 각각 한 줄로 표시해야 합니다."
+);
+assert.match(
+  contactCss,
+  /\.inquiry-form \.inquiry-type-fieldset input\[type="radio"\][\s\S]*?width:\s*18px/,
+  "문의 유형 라디오 버튼에 일반 입력칸의 100% 너비를 적용하면 안 됩니다."
+);
+
 const communityCss = fs.readFileSync(
   path.join(cssRoot, "community.css"),
   "utf8"

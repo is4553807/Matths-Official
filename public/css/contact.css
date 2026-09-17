@@ -710,9 +710,44 @@
   }
 }
 
-.inquiry-type-fieldset { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 0; padding: 16px; border: 1px solid #dfe4f0; border-radius: 14px; }
-.inquiry-type-fieldset legend { padding: 0 7px; color: #28334d; font-size: 12px; font-weight: 850; }
-.inquiry-type-fieldset label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 750; cursor: pointer; }
+.inquiry-type-fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #dfe4f0;
+  border-radius: 14px;
+}
+
+.inquiry-type-fieldset legend {
+  padding: 0 7px;
+  color: #28334d;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.inquiry-form .inquiry-type-fieldset label,
+.inquiry-form .inquiry-type-fieldset label:not(:first-child) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 0;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.inquiry-form .inquiry-type-fieldset input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: #704cf9;
+}
 .refund-request-fields { display: grid; gap: 10px; padding: 18px; background: #f5f7ff; border: 1px solid #dce3fb; border-radius: 14px; }
 .refund-request-fields[hidden] { display: none; }
 .refund-request-fields select { width: 100%; min-height: 48px; padding: 0 13px; color: #222b43; background: #fff; border: 1px solid #d9dfed; border-radius: 11px; font: inherit; }
