@@ -207,6 +207,7 @@
               <span aria-hidden="true">!</span>
               <p><%= formError %></p>
             </div>
+            <% if (String(formError).includes('이메일 인증')) { %><p><a href="/verify-email">인증 메일 다시 받기</a></p><% } %>
           <% } %>
 
           <% if (formSuccess) { %>

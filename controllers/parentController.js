@@ -150,6 +150,11 @@ exports.completeInviteSignup = async (req, res, next) => {
       socialProfile: pendingForPortal(req, "parent"),
     });
     clearPendingSocialRegistration(req);
+    if (!parent.emailVerifiedAt && parent.emailVerificationRequiredAt) {
+      return require("./emailVerificationController").finishPasswordRegistration(res, {
+        accountType: "parent", accountId: parent._id, email: parent.email,
+      });
+    }
     await regenerateSession(req);
     req.session.parent = parentSession(parent);
     await saveSession(req);
@@ -237,6 +242,11 @@ exports.register = async (req, res, next) => {
   try {
     const parent = await registerParentAccount({ displayName: req.body.displayName, email: req.body.email, password: req.body.password, passwordConfirm: req.body.passwordConfirm, termsAccepted: req.body.termsAccepted, inviteToken: req.body.inviteToken || req.body.inviteLink, relationship: req.body.relationship, linkConsent: req.body.linkConsent, socialProfile: pendingForPortal(req, "parent") });
     clearPendingSocialRegistration(req);
+    if (!parent.emailVerifiedAt && parent.emailVerificationRequiredAt) {
+      return require("./emailVerificationController").finishPasswordRegistration(res, {
+        accountType: "parent", accountId: parent._id, email: parent.email,
+      });
+    }
     await regenerateSession(req);
     req.session.parent = parentSession(parent);
     await saveSession(req);

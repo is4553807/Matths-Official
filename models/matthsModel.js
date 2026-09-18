@@ -376,6 +376,9 @@ const userSchema = new Schema(
       default: null,
     },
 
+    // 기존 계정은 null로 유지해 배포 전 가입자를 잠그지 않습니다.
+    emailVerificationRequiredAt: { type: Date, default: null },
+
     // 원본 비밀번호가 아닌 암호화된 값만 저장
     passwordHash: {
       type: String,

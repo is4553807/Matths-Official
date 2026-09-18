@@ -45,7 +45,27 @@ function passwordResetLink({ resetUrl }) {
   };
 }
 
+function accountActivation({ activationUrl }) {
+  return {
+    subject: "[Matths] 계정을 활성화해주세요",
+    heading: "이메일 인증을 완료해주세요.",
+    text: [
+      "Matths 계정 가입을 완료하려면 아래 링크를 눌러주세요.",
+      "",
+      String(activationUrl),
+      "",
+      "링크는 24시간 동안 한 번만 사용할 수 있습니다.",
+      "본인이 가입하지 않았다면 이 이메일을 무시해주세요.",
+    ].join("\n"),
+    body: "아래 버튼을 누르면 이메일 인증이 완료되고 계정이 활성화됩니다.",
+    actionLabel: "계정 활성화",
+    actionUrl: String(activationUrl),
+    footer: "링크는 24시간 동안 한 번만 사용할 수 있습니다. 본인이 가입하지 않았다면 이 이메일을 무시해주세요.",
+  };
+}
+
 module.exports = {
+  accountActivation,
   passwordResetCode,
   passwordResetLink,
 };

@@ -36,7 +36,7 @@ function loginDestination(account, next) {
 
 async function activeUser(userId) {
   const access = await synchronizeAccountAccess(userId);
-  if (!access?.allowed || !["student", "test", "teacher", "admin"].includes(access.user?.role)) throw failure(403, "계정 이용 상태를 확인해주세요.");
+  if (!access?.allowed || !["student", "test", "teacher", "admin"].includes(access.user?.role)) throw failure(403, access?.status === "email-unverified" ? "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요." : "계정 이용 상태를 확인해주세요.");
   if (access.user.role === "teacher") {
     const academy = await AcademyAccount.findOne({ teacherUserId: userId }).select("isActive").lean();
     if (!academy || academy.isActive === false) throw failure(403, "이용이 중지되었거나 확인이 필요한 학원 계정입니다.");
@@ -65,6 +65,7 @@ async function authenticateWebAccount({ email, password }) {
   if (!credential || !await bcrypt.compare(secret, credential.passwordHash || "")) throw failure(401, "이메일 또는 비밀번호가 올바르지 않습니다.");
   if (parent) {
     if (parent.isActive === false) throw failure(403, "이용이 중지된 학부모 계정입니다.");
+    if (parent.emailVerificationRequiredAt && !parent.emailVerifiedAt) throw failure(403, "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요.");
     return { kind: "parent", parent };
   }
   return { kind: "user", user: await activeUser(user._id) };
@@ -76,6 +77,7 @@ async function establishWebSession(req, account) {
   if (account.kind === "parent") {
     parent = await ParentAccount.findOne({ _id: account.parent._id, isActive: true }).lean();
     if (!parent) throw failure(403, "이용이 중지된 학부모 계정입니다.");
+    if (parent.emailVerificationRequiredAt && !parent.emailVerifiedAt) throw failure(403, "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요.");
     await ParentAccount.updateOne({ _id: parent._id, isActive: true }, { $set: { lastLoginAt: loginAt } });
   } else {
     user = await activeUser(account.user._id);

@@ -13,6 +13,7 @@ const ACCOUNT_ACCESS_SELECT = [
   "tokenVersion school schoolGrade educationStatus university preferences",
   "currentStreak longestStreak lastStudyDate totalConnectedSeconds",
   "isActive accountStatus accountStatusReason accountStatusChangedAt suspendedUntil",
+  "emailVerifiedAt emailVerificationRequiredAt",
 ].join(" ");
 
 function normalizedAccountStatus(
@@ -77,10 +78,12 @@ async function synchronizeAccountAccess(
 
   return {
     user,
-    status,
+    status: status === "active" && user.emailVerificationRequiredAt && !user.emailVerifiedAt
+      ? "email-unverified" : status,
     allowed:
       status === "active" &&
-      user.isActive !== false,
+      user.isActive !== false &&
+      (!user.emailVerificationRequiredAt || Boolean(user.emailVerifiedAt)),
   };
 }
 
@@ -88,6 +91,9 @@ function accountBlockedMessage(
   status,
   reason = ""
 ) {
+  if (status === "email-unverified") {
+    return "이메일 인증이 필요합니다. 가입 이메일의 계정 활성화 링크를 확인해주세요.";
+  }
   const normalized =
     normalizedAccountStatus({
       accountStatus: status,

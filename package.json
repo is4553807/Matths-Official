@@ -171,6 +171,7 @@
     "dynamic-id-errors:verify": "node audit/verifyMalformedDynamicIds.js",
     "platform-expansion:verify": "node scripts/validatePlatformExpansion.js",
     "auth-rate-limit:verify": "node audit/verifySharedAuthRateLimit.js",
+    "email-verification:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyEmailVerificationDb.js",
     "brand:verify": "node scripts/verifyBrandAssets.js",
     "error-page:verify": "node scripts/verifyErrorMiddleware.js",
     "session-store:verify": "node scripts/verifySharedSessionStore.js",

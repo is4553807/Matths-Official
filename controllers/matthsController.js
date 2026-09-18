@@ -6388,7 +6388,8 @@ exports.register = async (req, res, next) => {
                     : "enrolled",
             lastGradePromotionYear:
                 getAcademicYear(),
-            lastLoginAt: new Date(),
+            lastLoginAt: socialRegistration ? new Date() : null,
+            ...(!socialRegistration ? { emailVerificationRequiredAt: new Date() } : {}),
 
             ...(selectedSchool
                 ? {
@@ -6465,6 +6466,12 @@ exports.register = async (req, res, next) => {
                 error
             );
         });
+
+        if (!socialRegistration) {
+          return require("./emailVerificationController").finishPasswordRegistration(res, {
+            accountType: "user", accountId: user._id, email,
+          });
+        }
 
         // 앱에서 시작한 소셜 가입은 웹 세션으로 끝내지 않고, 같은 PKCE
         // challenge에 묶인 일회용 교환 코드로 앱에 돌아간다.

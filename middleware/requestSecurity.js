@@ -56,7 +56,7 @@ function isCentralPublicAuthSubmission(req, suppliedOrigin, currentOrigin, allow
   const publicOrigin = normalizedOrigin(process.env.PUBLIC_BASE_URL);
   return (
     String(req.method || "").toUpperCase() === "POST" &&
-    /^\/(?:login|register|student\/(?:login|register)|forgot-password(?:\/(?:verify|reset))?)$/.test(pathname) &&
+    /^\/(?:login|register|student\/(?:login|register)|forgot-password(?:\/(?:verify|reset))?|verify-email\/resend)$/.test(pathname) &&
     Boolean(publicOrigin) &&
     currentOrigin === publicOrigin &&
     allowedOrigins.has(suppliedOrigin)

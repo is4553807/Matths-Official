@@ -170,6 +170,12 @@ router.post(
   apiController.register
 );
 router.post(
+  "/auth/verify-email/resend",
+  registrationIpRateLimit,
+  registrationRateLimit,
+  require("../controllers/emailVerificationController").resendApi
+);
+router.post(
   "/auth/login",
   loginIpRateLimit,
   loginRateLimit,

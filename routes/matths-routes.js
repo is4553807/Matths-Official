@@ -1708,6 +1708,9 @@ router.get('/register', (req, res) => {
 
 router.post('/register', (req, res) => res.redirect(307, '/student/register'));
 
+router.get('/verify-email', require('../controllers/emailVerificationController').verificationPage);
+router.post('/verify-email/resend', registrationIpRateLimit, registrationRateLimit, require('../controllers/emailVerificationController').resendPage);
+
 router.get('/student/register', authMiddleware.isLoggedOut, matthsController.registerPage);
 
 router.post(

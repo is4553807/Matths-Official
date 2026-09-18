@@ -137,6 +137,11 @@ exports.register = async (req, res, next) => {
       socialProfile: pendingForPortal(req, "academy"),
     });
     clearPendingSocialRegistration(req);
+    if (!result.teacher.emailVerifiedAt && result.teacher.emailVerificationRequiredAt) {
+      return require("./emailVerificationController").finishPasswordRegistration(res, {
+        accountType: "user", accountId: result.teacher._id, email: result.teacher.email,
+      });
+    }
     await establishAcademySession(req, result.teacher);
     return res.redirect(serviceUrl("academy", "/academy/setup?registered=1"));
   } catch (error) {

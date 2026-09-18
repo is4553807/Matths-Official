@@ -98,7 +98,7 @@ async function authenticateAcademyAccount({ email, password }) {
 
   const access = await synchronizeAccountAccess(account.teacherUserId);
   if (!access?.allowed || access.user?.role !== "teacher") {
-    throw statusError(403, "학원 계정 이용 상태를 확인해주세요.", "ACADEMY_ACCOUNT_INACTIVE");
+    throw statusError(403, access?.status === "email-unverified" ? "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요." : "학원 계정 이용 상태를 확인해주세요.", access?.status === "email-unverified" ? "EMAIL_VERIFICATION_REQUIRED" : "ACADEMY_ACCOUNT_INACTIVE");
   }
 
   await disableLegacyTeacherCredential(account);
@@ -157,10 +157,11 @@ async function registerAcademyAccount({
       role: "teacher",
       isActive: true,
       accountStatus: "active",
+      ...(!socialProfile ? { emailVerificationRequiredAt: now } : {}),
       termsAcceptedAt: now,
       termsVersion: "2026-08-13",
       privacyVersion: "2026-08-13",
-      lastLoginAt: now,
+      lastLoginAt: socialProfile ? now : null,
       teacherAccessExpiresAt: invited ? invited.academy.contractEndsAt : null,
       ...(socialProfile ? { [require("./socialAuthService").socialIdPath(socialProfile.provider)]: socialProfile.providerUserId, emailVerifiedAt: now } : {}),
     });
@@ -172,7 +173,7 @@ async function registerAcademyAccount({
       passwordHash: await bcrypt.hash(secret, BCRYPT_ROUNDS),
       acceptedTermsAt: now,
       acceptedPrivacyAt: now,
-      lastLoginAt: now,
+      lastLoginAt: socialProfile ? now : null,
       legacyPasswordDisabledAt: now,
       authorityConfirmedAt: institution ? now : null,
     });

@@ -20,7 +20,10 @@ async function clearInvalidParentSession(req) {
 async function activeParentForSession(req) {
   const parentId = req.session?.parent?.id;
   if (!parentId || !mongoose.isValidObjectId(parentId)) return null;
-  return ParentAccount.findOne({ _id: parentId, isActive: true })
+  return ParentAccount.findOne({ _id: parentId, isActive: true, $or: [
+    { emailVerificationRequiredAt: null },
+    { emailVerifiedAt: { $ne: null } },
+  ] })
     .select("_id")
     .lean();
 }

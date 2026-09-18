@@ -37,6 +37,7 @@ const parentAccountSchema = new Schema(
       appleId: { type: String, trim: true, select: false, default: undefined },
     },
     emailVerifiedAt: { type: Date, default: null },
+    emailVerificationRequiredAt: { type: Date, default: null },
     childUserId: {
       type: Schema.Types.ObjectId,
       ref: "User",

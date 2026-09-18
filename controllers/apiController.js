@@ -499,6 +499,7 @@ exports.register = async (
       nameNormalized:
         nicknameKey(name),
       email,
+      emailVerificationRequiredAt: now,
       passwordHash:
         await bcrypt.hash(
           password,
@@ -567,9 +568,22 @@ exports.register = async (
       );
     });
 
-    return res
-      .status(201)
-      .json(authResponse(user));
+    let emailSent = false;
+    try {
+      const delivery = await require("../services/emailVerificationService")
+        .sendVerificationForAccount("user", user._id);
+      emailSent = delivery.sent;
+    } catch (error) {
+      console.error("[auth] 가입 인증 메일 발송 실패", { code: error.code || error.providerCode || "", message: error.message });
+    }
+    return res.status(202).json({
+      code: "EMAIL_VERIFICATION_REQUIRED",
+      message: emailSent
+        ? "가입 이메일로 계정 활성화 링크를 보냈습니다."
+        : "계정은 생성됐지만 인증 메일 발송에 실패했습니다. 인증 메일을 다시 요청해주세요.",
+      emailVerificationRequired: true,
+      emailSent,
+    });
   } catch (error) {
     if (
       error.code === 11000
@@ -652,7 +666,7 @@ exports.login = async (
     ) {
       return res.status(403).json({
         code:
-          "ACCOUNT_BLOCKED",
+          access?.status === "email-unverified" ? "EMAIL_VERIFICATION_REQUIRED" : "ACCOUNT_BLOCKED",
         message:
           accountBlockedMessage(
             access?.status,

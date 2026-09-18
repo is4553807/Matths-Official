@@ -45,7 +45,7 @@ function pathnameOf(originalUrl) {
 
 function isAuthenticationPath(pathname) {
   return (
-    /^\/(?:login|register|forgot-password)(?:\/|$)/.test(pathname) ||
+    /^\/(?:login|register|forgot-password|verify-email)(?:\/|$)/.test(pathname) ||
     /^\/student\/(?:login|register)(?:\/|$)/.test(pathname) ||
     /^\/academy\/(?:login|register)(?:\/|$)/.test(pathname) ||
     /^\/parent\/(?:login|register)(?:\/|$)/.test(pathname) ||
@@ -56,7 +56,7 @@ function isAuthenticationPath(pathname) {
 
 function isPublicPath(pathname) {
   if (
-    /^\/(?:login|register|forgot-password)(?:\/|$)/.test(pathname) ||
+    /^\/(?:login|register|forgot-password|verify-email)(?:\/|$)/.test(pathname) ||
     /^\/student\/(?:login|register)(?:\/|$)/.test(pathname) ||
     /^\/auth\/(?:google|kakao|apple)(?:\/|$)/.test(pathname)
   ) return true;

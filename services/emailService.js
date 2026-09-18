@@ -2,6 +2,7 @@ const nodemailer = require("nodemailer");
 const { SSL_OP_LEGACY_SERVER_CONNECT } = require("node:constants");
 const { PUBLIC_CONTACT_EMAIL } = require("../contactEmail");
 const {
+  accountActivation,
   passwordResetCode,
   passwordResetLink,
 } = require("../content/email/auth");
@@ -358,6 +359,16 @@ async function sendPasswordResetLink({ to, resetUrl, fromAddress = "" }) {
   });
 }
 
+async function sendAccountActivation({ to, activationUrl }) {
+  const template = accountActivation({ activationUrl });
+  return sendEmail({
+    to,
+    subject: template.subject,
+    text: template.text,
+    html: buildBrandedHtml(template),
+  });
+}
+
 async function sendSupportInquiryNotification({ inquiryId, user, subject, content }) {
   const template = inquiryReceived({ inquiryId, user, subject, content });
   return sendSupportMailboxEmail({
@@ -411,6 +422,7 @@ async function sendAdminUserEmail({
 }
 
 module.exports = {
+  sendAccountActivation,
   DEFAULT_ADMIN_EMAIL,
   DEFAULT_FROM: DEFAULT_FROM_NAME,
   DEFAULT_FROM_NAME,

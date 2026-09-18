@@ -11,7 +11,17 @@ const express = require("express");
 const session = require("express-session");
 const bcrypt = require("bcrypt");
 const mongoose = require("mongoose");
+const nodemailer = require("nodemailer");
 const { MongoMemoryReplSet } = require("mongodb-memory-server-core");
+
+const activationMails = [];
+nodemailer.createTransport = () => ({ sendMail: async (mail) => {
+  activationMails.push(mail);
+  return { accepted: [mail.to], messageId: `fixture-${activationMails.length}` };
+} });
+process.env.EMAIL_VERIFICATION_BASE_URL = "https://www.matths.kr";
+process.env.SUPPORT_SMTP_USER = "fixture@qa.invalid";
+process.env.GMAIL_APP_PASSWORD = "fixture-password";
 
 const academyAuthController = require("../controllers/academyAuthController");
 const academyController = require("../controllers/academyController");
@@ -27,6 +37,7 @@ const { User, PasswordResetCode } = require("../models/matthsModel");
 const { ParentAccount } = require("../models/parentModel");
 const { resetPassword } = require("../services/passwordResetService");
 const { authenticateWebAccount } = require("../services/webLoginService");
+const { activateAccount } = require("../services/emailVerificationService");
 const {
   Academy,
   AcademyAccount,
@@ -391,8 +402,8 @@ async function main() {
       passwordConfirm: "Academy1234",
       termsAccepted: "1",
     });
-    assert.equal(academySignup.status, 302);
-    assert.equal(academySignup.headers.get("location"), "/academy/setup?registered=1");
+    assert.equal(academySignup.status, 202);
+    assert.equal((await activateAccount(activationMails.at(-1).text.match(/verify-email\?token=([A-Za-z0-9_-]{43})/)[1])).activated, true);
     const createdAcademyAccount = await AcademyAccount.findOne({ email: newAcademyEmail }).lean();
     assert.ok(createdAcademyAccount?.teacherUserId);
     assert.equal((await User.findById(createdAcademyAccount.teacherUserId).lean()).role, "teacher");
@@ -406,8 +417,8 @@ async function main() {
       passwordConfirm: "Parent1234",
       termsAccepted: "1",
     });
-    assert.equal(parentSignup.status, 302);
-    assert.equal(parentSignup.headers.get("location"), "/parent?welcome=1");
+    assert.equal(parentSignup.status, 202);
+    assert.equal((await activateAccount(activationMails.at(-1).text.match(/verify-email\?token=([A-Za-z0-9_-]{43})/)[1])).activated, true);
     assert.equal((await ParentAccount.findOne({ email: newParentEmail }).lean()).childUserId, null);
 
     assert.equal((await fetch(`${origin}/student-area`, { headers: { Cookie: studentCookie } })).status, 200);

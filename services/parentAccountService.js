@@ -25,7 +25,8 @@ async function registerParentAccount(values) {
       username: credentials.displayName,
       usernameNormalized: `parent-${createHash("sha256").update(credentials.email).digest("hex").slice(0, 20)}`,
       email: credentials.email, passwordHash: await bcrypt.hash(credentials.password, 12),
-      childUserId: null, acceptedTermsAt: now, acceptedPrivacyAt: now, lastLoginAt: now,
+      childUserId: null, acceptedTermsAt: now, acceptedPrivacyAt: now, lastLoginAt: values.socialProfile ? now : null,
+      ...(!values.socialProfile ? { emailVerificationRequiredAt: now } : {}),
       ...(values.socialProfile ? { [require("./socialAuthService").socialIdPath(values.socialProfile.provider)]: values.socialProfile.providerUserId, emailVerifiedAt: now } : {}),
     });
     await require("./portalSocialAuthService").bindAppleAccount(values.socialProfile, { kind: "parent", parent });
