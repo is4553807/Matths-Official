@@ -101,6 +101,13 @@ async function resolveWebSocialAccount(profile) {
   if (user && parent) throw conflict();
   const candidate = user || parent;
   if (!candidate) return null;
+  if (candidate.emailVerificationRequiredAt && !candidate.emailVerifiedAt) {
+    throw Object.assign(new Error("이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요."), {
+      status: 403,
+      code: "EMAIL_VERIFICATION_REQUIRED",
+      email: candidate.email,
+    });
+  }
   const linked = String(candidate.get(key) || "");
   if (linked && linked !== profile.providerUserId)
     throw conflict("이미 다른 소셜 계정이 연결된 이메일입니다.");

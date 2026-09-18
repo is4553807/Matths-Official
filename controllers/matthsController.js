@@ -874,6 +874,7 @@ async function redirectSocialAuthError(
     "SOCIAL_AUTH_PARENT_ACCOUNT",
     "SOCIAL_AUTH_STUDENT_ACCOUNT_REQUIRED",
     "SOCIAL_AUTH_ACCOUNT_BLOCKED",
+    "EMAIL_VERIFICATION_REQUIRED",
     "SOCIAL_AUTH_CANCELLED",
     "SOCIAL_AUTH_STATE_INVALID",
     "ACCOUNT_REAUTHENTICATION_TICKET_INVALID",
@@ -893,6 +894,12 @@ async function redirectSocialAuthError(
     return res.redirect(
       url.toString()
     );
+  }
+
+  if (error?.code === "EMAIL_VERIFICATION_REQUIRED") {
+    req.session.pendingEmailVerification = { email: String(error.email || "") };
+    await saveSession(req);
+    return res.redirect(serviceUrl("public", "/verify-email"));
   }
 
   req.session.socialOAuthError =
@@ -1025,6 +1032,12 @@ exports.socialOAuthCallback = async (req, res) => {
 
     const user = providerUser || emailUser;
     if (user) {
+      if (user.emailVerificationRequiredAt && !user.emailVerifiedAt) {
+        const error = new Error("이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요.");
+        error.code = "EMAIL_VERIFICATION_REQUIRED";
+        error.email = user.email;
+        throw error;
+      }
       const linkedId = String(user.get(idPath) || "");
       if (linkedId && linkedId !== profile.providerUserId) {
         const error = new Error("이미 다른 소셜 계정이 연결된 이메일입니다.");
@@ -6388,8 +6401,8 @@ exports.register = async (req, res, next) => {
                     : "enrolled",
             lastGradePromotionYear:
                 getAcademicYear(),
-            lastLoginAt: socialRegistration ? new Date() : null,
-            ...(!socialRegistration ? { emailVerificationRequiredAt: new Date() } : {}),
+            lastLoginAt: null,
+            emailVerificationRequiredAt: new Date(),
 
             ...(selectedSchool
                 ? {
@@ -6433,8 +6446,7 @@ exports.register = async (req, res, next) => {
             socialIdentityPath,
             socialRegistration.providerUserId
           );
-          appleProvisionalUser.emailVerifiedAt =
-            appleProvisionalUser.emailVerifiedAt || new Date();
+          appleProvisionalUser.emailVerifiedAt = null;
           user = await appleProvisionalUser.save();
         } else {
           const passwordHash = await bcrypt.hash(
@@ -6452,7 +6464,6 @@ exports.register = async (req, res, next) => {
                     [socialIdentityField]:
                       socialRegistration.providerUserId,
                   },
-                  emailVerifiedAt: new Date(),
                 }
               : {}),
           });
@@ -6467,29 +6478,23 @@ exports.register = async (req, res, next) => {
             );
         });
 
-        if (!socialRegistration) {
-          return require("./emailVerificationController").finishPasswordRegistration(res, {
-            accountType: "user", accountId: user._id, email,
-          });
-        }
-
-        // 앱에서 시작한 소셜 가입은 웹 세션으로 끝내지 않고, 같은 PKCE
-        // challenge에 묶인 일회용 교환 코드로 앱에 돌아간다.
         const mobileSocialRegistration =
           socialRegistration
             ?.mobile === true;
         clearPendingSocialRegistration(
           req
         );
-        return finishSocialLogin(
-          req,
-          res,
-          user,
-          mobileSocialRegistration,
-          socialRegistration
-            ?.codeChallenge || null,
-          socialRegistration?.provider
-        );
+        if (mobileSocialRegistration) {
+          const delivery = await require("./emailVerificationController").sendRegistrationVerification({
+            accountType: "user", accountId: user._id,
+          });
+          const url = mobileCallbackURL(socialRegistration.provider);
+          url.searchParams.set("error", delivery.message);
+          return res.redirect(url.toString());
+        }
+        return require("./emailVerificationController").finishRegistration(res, {
+          accountType: "user", accountId: user._id, email,
+        });
     } catch (error) {
         const pendingSocialRegistration =
           getPendingSocialRegistration(req);

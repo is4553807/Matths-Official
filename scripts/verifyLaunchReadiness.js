@@ -63,6 +63,8 @@ const checks = [
   "public-navigation:verify",
   "role-web-login:verify",
   "portal-registration:verify",
+  "portal-social-login:verify",
+  "apple-portal-login:verify",
   "admin-page-access:verify",
   "plan-attendance-export:verify",
   "coach-content:verify",

@@ -157,13 +157,13 @@ async function registerAcademyAccount({
       role: "teacher",
       isActive: true,
       accountStatus: "active",
-      ...(!socialProfile ? { emailVerificationRequiredAt: now } : {}),
+      emailVerificationRequiredAt: now,
       termsAcceptedAt: now,
       termsVersion: "2026-08-13",
       privacyVersion: "2026-08-13",
-      lastLoginAt: socialProfile ? now : null,
+      lastLoginAt: null,
       teacherAccessExpiresAt: invited ? invited.academy.contractEndsAt : null,
-      ...(socialProfile ? { [require("./socialAuthService").socialIdPath(socialProfile.provider)]: socialProfile.providerUserId, emailVerifiedAt: now } : {}),
+      ...(socialProfile ? { [require("./socialAuthService").socialIdPath(socialProfile.provider)]: socialProfile.providerUserId } : {}),
     });
     await require("./portalSocialAuthService").bindAppleAccount(socialProfile, { kind: "user", user: teacher });
     account = await AcademyAccount.create({
@@ -173,7 +173,7 @@ async function registerAcademyAccount({
       passwordHash: await bcrypt.hash(secret, BCRYPT_ROUNDS),
       acceptedTermsAt: now,
       acceptedPrivacyAt: now,
-      lastLoginAt: socialProfile ? now : null,
+      lastLoginAt: null,
       legacyPasswordDisabledAt: now,
       authorityConfirmedAt: institution ? now : null,
     });

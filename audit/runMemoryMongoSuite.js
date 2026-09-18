@@ -11,6 +11,7 @@ const defaultTargets = [
   { target: "audit/verifyRefundRejectionDb.js", dropAfter: true },
   { target: "scripts/seedFocusedLaunchTestAccounts.js", dropAfter: false },
   { target: "audit/verifyPricingEntitlementDb.js", dropAfter: true },
+  { target: "audit/verifyEmailVerificationDb.js", dropAfter: true },
   { target: "audit/verifyLiveSupportInquiryDb.js", dropAfter: true },
   { target: "audit/verifyIpadNotificationDb.js", dropAfter: true },
   { target: "audit/verifyIpadArenaCommandDb.js", dropAfter: true },

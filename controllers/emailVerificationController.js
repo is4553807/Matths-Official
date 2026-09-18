@@ -13,7 +13,7 @@ function renderVerification(res, { state, email = "", message, loginPath = null,
   return res.status(status).render("email-verification", { state, email, message, loginPath, disablePageAnalytics: true });
 }
 
-async function finishPasswordRegistration(res, { accountType, accountId, email }) {
+async function sendRegistrationVerification({ accountType, accountId }) {
   let sent = false;
   try {
     const delivery = await sendVerificationForAccount(accountType, accountId);
@@ -21,25 +21,38 @@ async function finishPasswordRegistration(res, { accountType, accountId, email }
   } catch (error) {
     console.error("[auth] 가입 인증 메일 발송 실패", { code: error.code || error.providerCode || "", message: error.message });
   }
-  return renderVerification(res, {
-    state: sent ? "pending" : "send-error",
-    email,
-    status: sent ? 202 : 503,
+  return {
+    sent,
     message: sent
       ? "가입 이메일로 계정 활성화 링크를 보냈습니다. 메일함에서 링크를 눌러주세요."
       : "계정은 생성됐지만 인증 메일 발송에 실패했습니다. 아래에서 다시 요청해주세요.",
+  };
+}
+
+async function finishRegistration(res, { accountType, accountId, email }) {
+  const delivery = await sendRegistrationVerification({ accountType, accountId });
+  return renderVerification(res, {
+    state: delivery.sent ? "pending" : "send-error",
+    email,
+    status: delivery.sent ? 202 : 503,
+    message: delivery.message,
   });
 }
 
 async function verificationPage(req, res, next) {
   try {
     if (!req.query.token) {
+      const pendingEmail = String(req.session?.pendingEmailVerification?.email || "");
       return renderVerification(res, {
-        state: "request",
-        message: "인증 메일을 다시 받으려면 가입 이메일을 입력해주세요.",
+        state: pendingEmail ? "pending" : "request",
+        email: pendingEmail,
+        message: pendingEmail
+          ? "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요."
+          : "인증 메일을 다시 받으려면 가입 이메일을 입력해주세요.",
       });
     }
     const result = await activateAccount(req.query.token);
+    if (result.activated && req.session?.pendingEmailVerification) delete req.session.pendingEmailVerification;
     return renderVerification(res, result.activated
       ? {
           state: "activated",
@@ -84,4 +97,4 @@ async function resendApi(req, res, next) {
   }
 }
 
-module.exports = { finishPasswordRegistration, verificationPage, resendPage, resendApi };
+module.exports = { finishRegistration, sendRegistrationVerification, verificationPage, resendPage, resendApi };

@@ -86,7 +86,7 @@
           </nav>
 
           <% if (!parentAccount) { %><nav class="portal-paths" aria-label="학원 가입 경로"><a href="/academy/register" data-registration-path="new" class="<%= flow === 'new' ? 'is-selected' : '' %>"><strong>새 학원 등록</strong><span>원장·대표 담당자</span></a><a href="/academy/register?path=staff" data-registration-path="staff" class="<%= flow === 'staff' ? 'is-selected' : '' %>"><strong>초대받은 교사</strong><span>기존 학원에 합류</span></a></nav><% } %>
-          <% if (!verifiedSocial) { %><p class="portal-note">가입 후 이메일로 받은 계정 활성화 링크를 눌러야 로그인할 수 있습니다.</p><% } %>
+          <p class="portal-note">가입 후 이메일로 받은 계정 활성화 링크를 눌러야 로그인할 수 있습니다.</p>
           <ol class="portal-progress" aria-label="가입 단계" data-registration-progress hidden></ol>
           <% if (error) { %><div class="form-alert" role="alert"><span aria-hidden="true">!</span><p><%= error %></p></div><% } %>
           <% if (verifiedSocial) { %><p class="portal-note"><%= verifiedSocial.providerLabel %> 인증 완료 · 아래 가입 정보와 동의를 확인해 주세요.</p><% } else { %><%- include("partials/social-auth-buttons", { accountType: selectedAccountType, socialAuthProviders: typeof socialAuthProviders !== "undefined" ? socialAuthProviders : [], inviteToken: invitation?.token || "", registrationFlow: flow, next: "" }) %><% } %>

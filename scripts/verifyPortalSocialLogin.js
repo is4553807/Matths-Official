@@ -7,7 +7,16 @@ const path = require("node:path");
 const express = require("express");
 const session = require("express-session");
 const mongoose = require("mongoose");
+const nodemailer = require("nodemailer");
 const { MongoMemoryServer } = require("mongodb-memory-server-core");
+const activationMails = [];
+nodemailer.createTransport = () => ({ sendMail: async (mail) => {
+  activationMails.push(mail);
+  return { accepted: [mail.to], messageId: `fixture-${activationMails.length}` };
+} });
+process.env.EMAIL_VERIFICATION_BASE_URL = "https://www.matths.kr";
+process.env.SUPPORT_SMTP_USER = "fixture@qa.invalid";
+process.env.GMAIL_APP_PASSWORD = "fixture-password";
 process.env.NODE_ENV = "test";
 process.env.DISABLE_SCHEDULERS = "1";
 const { User, PrivateMockExam, PrivateMockExamAttempt } = require("../models/matthsModel");
@@ -18,12 +27,18 @@ const { loginDestination } = require("../services/webLoginService");
 const { setPendingSocialRegistration } = require("../services/socialAuthService");
 const { getWeeklyMockInsights, getAcademyWeeklyMockInsights } = require("../services/weeklyMockInsightService");
 const { approveAcademyApplication } = require("../services/academyService");
+const { activateAccount } = require("../services/emailVerificationService");
 const { createAcademyStaffInvite } = require("../services/academyStaffInviteService");
 const auth = require("../middleware/authMiddleware");
 const profiles = new Map();
 const cookie = r => String(r.headers.get("set-cookie") || "").match(/connect\.sid=[^;]+/)?.[0] || "";
 const email = prefix => `${prefix}-${crypto.randomUUID()}@qa.invalid`;
 const digest = value => crypto.createHash("sha256").update(value).digest("hex");
+async function activateLatest() {
+  const token = activationMails.at(-1)?.text.match(/verify-email\?token=([A-Za-z0-9_-]{43})/)?.[1];
+  assert.ok(token, "가입 인증 메일에 활성화 링크가 있어야 합니다.");
+  assert.equal((await activateAccount(token)).activated, true);
+}
 let memory, listener;
 
 async function main() {
@@ -79,10 +94,11 @@ async function main() {
     const authUrl = new URL(start.headers.get("location"));
     const state = authUrl.searchParams.get("state");
     const code = crypto.randomUUID();
-    profiles.set(code, { email: address, subject: options.subject || `${provider}-${crypto.randomUUID()}`, verified: options.verified });
+    const subject = options.subject || `${provider}-${crypto.randomUUID()}`;
+    profiles.set(code, { email: address, subject, verified: options.verified });
     const sessionCookie = cookie(start);
     const response = await get(`/auth/${provider}/callback?code=${code}&state=${options.invalidState ? "wrong-state" : state}${options.callbackType ? "&accountType=" + options.callbackType : ""}`, sessionCookie);
-    return { response, cookie: cookie(response) || sessionCookie, oldCookie: sessionCookie, state, code };
+    return { response, cookie: cookie(response) || sessionCookie, oldCookie: sessionCookie, state, code, subject };
   }
 
   for (const type of ["academy", "parent"]) for (const page of ["login", "register"]) {
@@ -108,6 +124,28 @@ async function main() {
       if (["parent", "teacher"].includes(role)) assert.notEqual((await get("/__fixture/student", result.cookie)).status, 200);
       if (role !== "admin") assert.notEqual((await get("/admin/users", result.cookie)).status, 200);
     }
+    const studentEmail = email("new-student");
+    const studentSignup = await oauth(provider, "student", studentEmail);
+    assert.equal(studentSignup.response.headers.get("location"), "/student/register");
+    const studentRegistered = await post("/student/register", {
+      realName: "소셜 신규 학생", name: `소셜학생${crypto.randomUUID().slice(0, 6)}`,
+      email: studentEmail, birthDate: "1990-01-01", schoolGrade: "15", termsAccepted: "on",
+    }, studentSignup.cookie);
+    assert.equal(studentRegistered.status, 202, await studentRegistered.text());
+    const newStudent = await User.findOne({ email: studentEmail });
+    assert.ok(newStudent.emailVerificationRequiredAt);
+    assert.equal(newStudent.emailVerifiedAt, null);
+    assert.equal((await identity(studentSignup.cookie)).userRole, null);
+    assert.notEqual((await get("/__fixture/student", studentSignup.cookie)).status, 200);
+    const pendingStudentLogin = await oauth(provider, "student", studentEmail, { subject: studentSignup.subject });
+    assert.equal(pendingStudentLogin.response.headers.get("location"), "/verify-email");
+    assert.match(await (await get("/verify-email", pendingStudentLogin.cookie)).text(), /이메일 인증이 필요합니다/);
+    assert.equal((await identity(pendingStudentLogin.cookie)).userRole, null);
+    await activateLatest();
+    const verifiedStudentLogin = await oauth(provider, "student", studentEmail, { subject: studentSignup.subject });
+    assert.equal(verifiedStudentLogin.response.headers.get("location"), "/main");
+    assert.equal((await identity(verifiedStudentLogin.cookie)).userRole, "student");
+
     const address = email("new-parent");
     const signup = await oauth(provider, "parent", address, { callbackType: "academy" });
     assert.equal(signup.response.headers.get("location"), "/parent/register", "callback query must not change the state-bound signup role");
@@ -115,20 +153,31 @@ async function main() {
     assert.match(html, /인증 완료/); assert.doesNotMatch(html, /name="password"/);
     const rejected = await post("/parent/register", { displayName: "소셜 학부모" }, signup.cookie); assert.equal(rejected.status, 400);
     const created = await post("/parent/register", { displayName: "소셜 학부모", email: "forged@qa.invalid", role: "admin", termsAccepted: "1" }, signup.cookie);
-    assert.equal(created.status, 302, await created.text());
+    assert.equal(created.status, 202, await created.text());
     const newParent = await ParentAccount.findOne({ email: address }); assert.ok(newParent); assert.equal(newParent.childUserId, null);
     assert.equal(await User.exists({ email: address }), null);
-    assert.equal((await identity(cookie(created))).parentId, String(newParent._id));
-    assert.equal((await identity(cookie(created))).pendingType, null);
+    assert.equal((await identity(signup.cookie)).parentId, null);
+    assert.equal((await identity(signup.cookie)).pendingType, null);
+    const pendingParentLogin = await oauth(provider, "parent", address, { subject: signup.subject });
+    assert.equal(pendingParentLogin.response.headers.get("location"), "/verify-email");
+    assert.equal((await identity(pendingParentLogin.cookie)).parentId, null);
+    await activateLatest();
+    const verifiedParentLogin = await oauth(provider, "parent", address, { subject: signup.subject });
+    assert.equal(verifiedParentLogin.response.headers.get("location"), "/parent");
+    assert.equal((await identity(verifiedParentLogin.cookie)).parentId, String(newParent._id));
 
     const academyEmail = email("new-academy");
     const academySignup = await oauth(provider, "academy", academyEmail);
     assert.equal(academySignup.response.headers.get("location"), "/academy/register");
     const academyForm = await get("/academy/register", academySignup.cookie); assert.doesNotMatch(await academyForm.text(), /name="password"/);
-    const registered = await post("/academy/register", { displayName: "소셜 학원 담당자", academyName: "소셜 검증 학원", address: "서울시 강남구 테스트로 10", contactPhone: "02-1234-5678", termsAccepted: "1", authorityConfirmed: "1", role: "admin", registrationFlow: "new" }, academySignup.cookie);
-    assert.equal(registered.status, 302, await registered.text());
+    const academyRegistered = await post("/academy/register", { displayName: "소셜 학원 담당자", academyName: "소셜 검증 학원", address: "서울시 강남구 테스트로 10", contactPhone: "02-1234-5678", termsAccepted: "1", authorityConfirmed: "1", role: "admin", registrationFlow: "new" }, academySignup.cookie);
+    assert.equal(academyRegistered.status, 202, await academyRegistered.text());
     const newTeacher = await User.findOne({ email: academyEmail }); assert.equal(newTeacher.role, "teacher");
     const institution = await Academy.findOne({ createdByUserId: newTeacher._id }); assert.equal(institution.status, "PENDING");
+    assert.equal((await identity(academySignup.cookie)).userRole, null);
+    await activateLatest();
+    const registered = (await oauth(provider, "academy", academyEmail, { subject: academySignup.subject })).response;
+    assert.equal(registered.headers.get("location"), "/academy");
     assert.equal((await get("/academy", cookie(registered))).headers.get("location"), "/academy/setup");
     assert.equal((await get("/__fixture/student", cookie(registered))).status, 403);
 
@@ -142,12 +191,16 @@ async function main() {
       assert.equal((await post("/parent/register", { displayName: "초대 소셜 학부모", termsAccepted: "1", inviteToken: childToken, relationship: "MOTHER", linkConsent: "1", ...overrides }, parentInviteSignup.cookie)).status, 400);
       assert.equal(await ParentAccount.exists({ email: invitedParentEmail }), null);
     }
-    const linkedParentSignup = await post("/parent/register", { displayName: "초대 소셜 학부모", termsAccepted: "1", inviteToken: childToken, relationship: "MOTHER", linkConsent: "1" }, parentInviteSignup.cookie);
-    assert.equal(linkedParentSignup.status, 302, await linkedParentSignup.text());
+    const linkedParentRegistration = await post("/parent/register", { displayName: "초대 소셜 학부모", termsAccepted: "1", inviteToken: childToken, relationship: "MOTHER", linkConsent: "1" }, parentInviteSignup.cookie);
+    assert.equal(linkedParentRegistration.status, 202, await linkedParentRegistration.text());
     const linkedParent = await ParentAccount.findOne({ email: invitedParentEmail });
     const link = await ParentChildLink.findOne({ parentAccountId: linkedParent._id, childUserId: child._id });
     assert.equal(link.status, "ACTIVE"); assert.ok(link.linkConsentAt);
     assert.equal((await ParentInvite.findById(childInvite._id)).status, "ACCEPTED");
+    assert.equal((await identity(parentInviteSignup.cookie)).parentId, null);
+    await activateLatest();
+    const linkedParentSignup = (await oauth(provider, "parent", invitedParentEmail, { subject: parentInviteSignup.subject })).response;
+    assert.equal(linkedParentSignup.headers.get("location"), "/parent");
     const otherInviteToken = crypto.randomBytes(32).toString("base64url");
     const otherInviteChild = await User.create({ name: "다른 학부모 초대 자녀", email: email("other-invite-child"), role: "student", passwordHash: "unused" });
     await ParentInvite.create({ childUserId: otherInviteChild._id, parentEmail: email("other-invite-parent"), productCode: "LEARNING_PACKAGE_29", tokenHash: digest(otherInviteToken), expiresAt: new Date(Date.now() + 3600000) });
@@ -167,11 +220,15 @@ async function main() {
     assert.equal((await get(`/academy/staff-invite/${staffInvite.token}`, cookie(linkedParentSignup))).status, 403);
     const staffSignup = await oauth(provider, "academy", staffEmail, { invite: staffInvite.token, staff: true });
     assert.equal(staffSignup.response.headers.get("location"), `/academy/register?invite=${staffInvite.token}&path=staff`);
-    const staffRegistered = await post("/academy/register", { displayName: "소셜 초대 교사", termsAccepted: "1", registrationFlow: "staff", inviteToken: staffInvite.token, role: "OWNER", academyId: crypto.randomUUID() }, staffSignup.cookie);
-    assert.equal(staffRegistered.status, 302, await staffRegistered.text());
+    const staffRegistration = await post("/academy/register", { displayName: "소셜 초대 교사", termsAccepted: "1", registrationFlow: "staff", inviteToken: staffInvite.token, role: "OWNER", academyId: crypto.randomUUID() }, staffSignup.cookie);
+    assert.equal(staffRegistration.status, 202, await staffRegistration.text());
     const staffUser = await User.findOne({ email: staffEmail }); assert.equal(staffUser.role, "teacher");
     const staff = await AcademyStaff.findOne({ userId: staffUser._id });
     assert.equal(String(staff.academyId), String(institution._id)); assert.equal(staff.role, "TEACHER"); assert.equal(staff.status, "PENDING");
+    assert.equal((await identity(staffSignup.cookie)).userRole, null);
+    await activateLatest();
+    const staffRegistered = (await oauth(provider, "academy", staffEmail, { subject: staffSignup.subject })).response;
+    assert.equal(staffRegistered.headers.get("location"), "/academy");
     assert.equal((await get("/academy", cookie(staffRegistered))).headers.get("location"), "/academy/setup");
 
     const denied = await oauth(provider, "parent", email("unverified"), { verified: false });
@@ -224,7 +281,7 @@ async function main() {
     assert.equal(loginDestination({ kind: "user", user: teacher }, next), "/academy");
     assert.equal(loginDestination({ kind: "parent", parent }, next), "/parent");
   }
-  console.log("Portal social login verified: Google/Kakao across every role portal, isolated parent/academy signup, state-bound roles, approval and consent, CSRF/replay/unverified/conflicting identity rejection, and role-safe destinations.");
+  console.log("Portal social login verified: Google/Kakao signup waits for email activation across student/academy/parent portals; existing login, approval, consent, replay, conflicts, and role destinations verified.");
   if (process.env.PORTAL_SOCIAL_PREVIEW === "1") {
     app.get("/__fixture/admin-preview", async (req, res, next) => {
       try { await require("../services/webLoginService").establishWebSession(req, { kind: "user", user: admin }); return res.redirect(`/admin/users/${student._id}`); } catch (error) { return next(error); }

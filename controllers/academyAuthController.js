@@ -138,7 +138,7 @@ exports.register = async (req, res, next) => {
     });
     clearPendingSocialRegistration(req);
     if (!result.teacher.emailVerifiedAt && result.teacher.emailVerificationRequiredAt) {
-      return require("./emailVerificationController").finishPasswordRegistration(res, {
+      return require("./emailVerificationController").finishRegistration(res, {
         accountType: "user", accountId: result.teacher._id, email: result.teacher.email,
       });
     }

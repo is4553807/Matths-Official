@@ -232,7 +232,7 @@ async function main() {
   assert.match(read("models/matthsModel.js"), /socialAuth\.kakaoId/);
   assert.match(
     matthsController,
-    /socialRegistration\s*\?\.codeChallenge\s*\|\|\s*null,\s*socialRegistration\?\.provider/
+    /if \(mobileSocialRegistration\) \{[\s\S]*?sendRegistrationVerification\([\s\S]*?mobileCallbackURL\(socialRegistration\.provider\)/
   );
   assert.match(
     matthsController,

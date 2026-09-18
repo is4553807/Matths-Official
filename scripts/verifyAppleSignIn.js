@@ -262,6 +262,25 @@ function line(result) {
   expect(before === after, "nil 로 기존 값을 덮지 않아야 한다");
   expect(linked.created === false, "기존 계정을 다시 만들지 않아야 한다");
 
+  console.log("[4-a] 이메일 활성화 전 Apple 재로그인으로 인증을 우회하지 못한다");
+  const pending = {
+    ...stored,
+    emailVerifiedAt: null,
+    emailVerificationRequiredAt: new Date(),
+    async save() { throw new Error("인증 대기 계정을 저장하면 안 됩니다."); },
+  };
+  User.findById = async () => pending;
+  try {
+    await appleAuth._testing.linkAppleIdentity({
+      claims: { subject: "001999.appleuser.0001", email: pending.email, emailVerified: true },
+      fullName: null,
+    });
+    expect(false, "이메일 미인증 계정은 Apple 연결을 거부해야 한다");
+  } catch (error) {
+    expect(error.code === "EMAIL_VERIFICATION_REQUIRED", "Apple 경로도 이메일 활성화를 요구해야 한다");
+  }
+  expect(pending.emailVerifiedAt === null, "Apple 인증값이 이메일 활성화 상태를 바꾸면 안 된다");
+
   console.log("[4-b] 최초 승인분이 비어 있던 realName 은 채운다");
   const empty = {
     _id: "u-2",

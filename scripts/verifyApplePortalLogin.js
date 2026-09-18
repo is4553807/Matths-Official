@@ -6,7 +6,15 @@ const path = require("node:path");
 const express = require("express");
 const session = require("express-session");
 const mongoose = require("mongoose");
+const nodemailer = require("nodemailer");
 const { MongoMemoryServer } = require("mongodb-memory-server-core");
+const activationMails = [];
+nodemailer.createTransport = () => ({ sendMail: async (mail) => {
+  activationMails.push(mail);
+  return { accepted: [mail.to], messageId: `fixture-${activationMails.length}` };
+} });
+process.env.SUPPORT_SMTP_USER = "fixture@qa.invalid";
+process.env.GMAIL_APP_PASSWORD = "fixture-password";
 process.env.NODE_ENV = "test";
 process.env.SECRET = crypto.randomBytes(48).toString("base64url");
 process.env.APPLE_SERVICES_ID = "kr.matths.web";
@@ -26,6 +34,7 @@ const Credential = require("../models/appleAuthCredentialModel");
 const { _testing: native } = require("../services/appleAuthService");
 const { loginDestination } = require("../services/webLoginService");
 const { registerAcademyAccount } = require("../services/academyAccountService");
+const { activateAccount } = require("../services/emailVerificationService");
 const auth = require("../middleware/authMiddleware");
 const realFetch = global.fetch;
 const rsa = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -176,7 +185,7 @@ async function main() {
   );
   await User.updateOne(
     { _id: teacherResult.teacher._id },
-    { $set: { teacherAccessExpiresAt: new Date(Date.now() + 86400000 * 30) } },
+    { $set: { teacherAccessExpiresAt: new Date(Date.now() + 86400000 * 30), emailVerifiedAt: new Date() }, $unset: { emailVerificationRequiredAt: "" } },
   );
   const admin = await User.create({
     name: "애플 관리자",
@@ -226,6 +235,28 @@ async function main() {
         "authorization code replay must fail",
       );
     }
+  const studentEmail = "new-apple-student@qa.invalid";
+  const studentSignup = await apple("student", studentEmail);
+  assert.equal(new URL(studentSignup.response.headers.get("location"), origin).pathname, "/student/register");
+  const studentRegistration = await post("/student/register", {
+    realName: "애플 신규 학생", name: "애플신규학생", email: studentEmail,
+    birthDate: "1990-01-01", schoolGrade: "15", termsAccepted: "on",
+  }, studentSignup.sid);
+  assert.equal(studentRegistration.status, 202, await studentRegistration.text());
+  const registeredStudent = await User.findOne({ email: studentEmail });
+  assert.ok(registeredStudent.emailVerificationRequiredAt);
+  assert.equal(registeredStudent.emailVerifiedAt, null);
+  const pendingStudentLogin = await apple("student", studentEmail);
+  assert.equal(new URL(pendingStudentLogin.response.headers.get("location"), origin).pathname, "/verify-email");
+  assert.match(await (await get("/verify-email", pendingStudentLogin.sid)).text(), /이메일 인증이 필요합니다/);
+  const pendingStudentSession = await (await get("/__session", pendingStudentLogin.sid)).json();
+  assert.equal(pendingStudentSession.user?.id, undefined);
+  const studentActivationToken = activationMails.at(-1)?.text.match(/verify-email\?token=([A-Za-z0-9_-]{43})/)?.[1];
+  assert.ok(studentActivationToken);
+  assert.equal((await activateAccount(studentActivationToken)).activated, true);
+  const verifiedStudentLogin = await apple("student", studentEmail);
+  assert.equal(new URL(verifiedStudentLogin.response.headers.get("location"), origin).pathname, "/main");
+
   for (const type of ["academy", "parent"]) {
     for (const page of ["login", "register"])
       assert.match(
@@ -272,11 +303,23 @@ async function main() {
         : {}),
     };
     const created = await post(`/${type}/register`, fields, result.sid);
-    assert.equal(created.status, 302, await created.text());
+    assert.equal(created.status, 202, await created.text());
     const owner = await (type === "parent" ? ParentAccount : User)
       .findOne({ email: address })
       .select("+socialAuth.appleId");
     assert.equal(owner.socialAuth.appleId, address);
+    assert.ok(owner.emailVerificationRequiredAt);
+    assert.equal(owner.emailVerifiedAt, null);
+    const pendingLogin = await apple(type, address);
+    assert.equal(new URL(pendingLogin.response.headers.get("location"), origin).pathname, "/verify-email");
+    assert.match(await (await get("/verify-email", pendingLogin.sid)).text(), /이메일 인증이 필요합니다/);
+    const pendingSession = await (await get("/__session", pendingLogin.sid)).json();
+    assert.equal(pendingSession.user?.id || pendingSession.parent?.id, undefined);
+    const activationToken = activationMails.at(-1)?.text.match(/verify-email\?token=([A-Za-z0-9_-]{43})/)?.[1];
+    assert.ok(activationToken);
+    assert.equal((await activateAccount(activationToken)).activated, true);
+    const verifiedLogin = await apple(type, address);
+    assert.equal(verifiedLogin.response.headers.get("location"), loginDestination(type === "parent" ? { kind: "parent", parent: owner } : { kind: "user", user: owner }, "/admin/users"));
     const credential = await Credential.findOne({ userId: owner._id }).select(
       "+refreshToken",
     );
@@ -317,7 +360,7 @@ async function main() {
   );
   assert.equal(await User.exists({ email: "tamper@qa.invalid" }), null);
   console.log(
-    "Apple portal HTTP/Mongo verified: every actual-role redirect, separate signup, encrypted credentials, native parent isolation, signed state, one-use code, required consent and approval.",
+    "Apple portal HTTP/Mongo verified: student/academy/parent signup waits for email activation; existing role redirects, encrypted credentials, signed state, one-use code, consent and approval.",
   );
 }
 main()

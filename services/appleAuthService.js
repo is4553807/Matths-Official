@@ -597,6 +597,14 @@ async function linkAppleIdentity({ claims, fullName }) {
     }
   }
 
+  if (user?.emailVerificationRequiredAt && !user.emailVerifiedAt) {
+    throw statusError(
+      403,
+      "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요.",
+      "EMAIL_VERIFICATION_REQUIRED"
+    );
+  }
+
   let created = false;
   if (!user) {
     /*
