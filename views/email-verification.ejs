@@ -19,17 +19,15 @@
           <div class="form-alert <%= state === 'activated' || state === 'pending' || state === 'resent' ? 'form-alert-success' : '' %>" role="status">
             <p><%= message %></p>
           </div>
-          <% if (email) { %><p class="verification-email"><strong><%= email %></strong></p><% } %>
+          <% if (email) { %><p class="verification-email">가입 이메일: <strong><%= email %></strong></p><% } %>
           <% if (loginPath) { %>
             <p class="verification-link"><a href="<%= loginPath %>">로그인으로 이동</a></p>
-          <% } else { %>
+          <% } else if (email) { %>
             <form class="auth-form" action="/verify-email/resend" method="POST">
-              <div class="form-field">
-                <label for="email">가입 이메일</label>
-                <input id="email" name="email" type="email" value="<%= email %>" maxlength="254" autocomplete="email" required />
-              </div>
               <button class="submit-button" type="submit">인증 메일 다시 보내기</button>
             </form>
+            <p class="verification-link"><a href="/login">로그인으로 이동</a></p>
+          <% } else { %>
             <p class="verification-link"><a href="/login">로그인으로 이동</a></p>
           <% } %>
         </div>

@@ -6492,7 +6492,7 @@ exports.register = async (req, res, next) => {
           url.searchParams.set("error", delivery.message);
           return res.redirect(url.toString());
         }
-        return require("./emailVerificationController").finishRegistration(res, {
+        return require("./emailVerificationController").finishRegistration(req, res, {
           accountType: "user", accountId: user._id, email,
         });
     } catch (error) {
@@ -6686,6 +6686,7 @@ exports.login = async (req, res, next) => {
   try {
     return res.redirect(await require("../services/webLoginService").loginWebAccount(req));
   } catch (error) {
+    if (error.code === "EMAIL_VERIFICATION_REQUIRED") return res.redirect("/verify-email");
     if ([400, 401, 403].includes(Number(error.status))) {
       const unifiedLogin = req.authAccountType === "unified";
       const accountType = req.authAccountType === "admin"

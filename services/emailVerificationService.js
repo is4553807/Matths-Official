@@ -9,7 +9,7 @@ const { serviceOrigins } = require("./serviceUrlService");
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const RESEND_WAIT_MS = 60 * 1000;
-const INVALID_LINK_MESSAGE = "인증 링크가 올바르지 않거나 만료되었습니다. 이메일을 다시 입력해 인증 메일을 요청해주세요.";
+const INVALID_LINK_MESSAGE = "인증 링크가 올바르지 않거나 만료되었습니다. 인증 메일을 다시 요청해주세요.";
 let indexPromise = null;
 
 function ensureIndexes() {

@@ -151,6 +151,15 @@ select:focus-visible {
   min-height: 100vh;
 }
 
+.email-verification-layout .form-alert {
+  display: block;
+}
+
+.email-verification-layout .form-alert p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .verification-email {
   margin: 18px 0 0;
   color: var(--muted);

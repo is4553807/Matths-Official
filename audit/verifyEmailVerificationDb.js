@@ -139,7 +139,31 @@ async function main() {
         }),
       });
       assert.equal(signup.status, 202, await signup.text());
-      assert.equal(signup.headers.get("set-cookie"), null, "가입 직후 로그인 세션을 발급하면 안 됩니다.");
+      const pendingCookie = String(signup.headers.get("set-cookie") || "").match(/connect\.sid=[^;]+/)?.[0];
+      assert.ok(pendingCookie, "재발송용 대기 세션이 있어야 합니다.");
+      const pendingPage = await fetch(`${origin}/verify-email`, { headers: { Cookie: pendingCookie } });
+      const pendingHtml = await pendingPage.text();
+      assert.match(pendingHtml, /verification-web@test\.invalid/);
+      assert.doesNotMatch(pendingHtml, /<input[^>]+name="email"/, "가입 이메일은 편집할 수 없어야 합니다.");
+      const otherPending = await User.create({
+        name: "다른 인증 대기 학생", email: "verification-other@test.invalid", passwordHash,
+        role: "student", emailVerificationRequiredAt: new Date(),
+      });
+      assert.ok(otherPending);
+      await EmailVerification.updateOne({ email: "verification-web@test.invalid" }, { $set: { sentAt: new Date(Date.now() - 61_000) } });
+      const tamperedResend = await fetch(`${origin}/verify-email/resend`, {
+        method: "POST", redirect: "manual",
+        headers: { "content-type": "application/x-www-form-urlencoded", origin, Cookie: pendingCookie },
+        body: new URLSearchParams({ email: otherPending.email }),
+      });
+      assert.equal(tamperedResend.status, 200);
+      assert.equal(sent.at(-1).to, "verification-web@test.invalid", "요청 본문의 이메일로 재발송하면 안 됩니다.");
+      const anonymousResend = await fetch(`${origin}/verify-email/resend`, {
+        method: "POST", redirect: "manual",
+        headers: { "content-type": "application/x-www-form-urlencoded", origin },
+        body: new URLSearchParams({ email: otherPending.email }),
+      });
+      assert.equal(anonymousResend.status, 403, "대기 세션이 없으면 재발송할 수 없어야 합니다.");
       const webToken = lastToken();
       const login = () => fetch(`${origin}/student/login`, {
         method: "POST", redirect: "manual",
@@ -147,8 +171,8 @@ async function main() {
         body: new URLSearchParams({ email: "verification-web@test.invalid", password: "Password123" }),
       });
       const blocked = await login();
-      assert.equal(blocked.status, 403);
-      assert.match(await blocked.text(), /이메일 인증/);
+      assert.equal(blocked.status, 302);
+      assert.equal(blocked.headers.get("location"), "/verify-email");
       const activated = await fetch(`${origin}/verify-email?token=${webToken}`);
       assert.equal(activated.status, 200);
       const activationHtml = await activated.text();

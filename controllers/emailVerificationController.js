@@ -29,7 +29,9 @@ async function sendRegistrationVerification({ accountType, accountId }) {
   };
 }
 
-async function finishRegistration(res, { accountType, accountId, email }) {
+async function finishRegistration(req, res, { accountType, accountId, email }) {
+  req.session.pendingEmailVerification = { email: String(email || "").trim().toLowerCase() };
+  await new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()));
   const delivery = await sendRegistrationVerification({ accountType, accountId });
   return renderVerification(res, {
     state: delivery.sent ? "pending" : "send-error",
@@ -48,39 +50,48 @@ async function verificationPage(req, res, next) {
         email: pendingEmail,
         message: pendingEmail
           ? "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요."
-          : "인증 메일을 다시 받으려면 가입 이메일을 입력해주세요.",
+          : "가입 이메일을 확인할 수 없습니다. 가입한 계정으로 로그인한 뒤 다시 시도해주세요.",
       });
     }
     const result = await activateAccount(req.query.token);
     if (result.activated && req.session?.pendingEmailVerification) delete req.session.pendingEmailVerification;
+    const pendingEmail = String(req.session?.pendingEmailVerification?.email || "");
     return renderVerification(res, result.activated
       ? {
           state: "activated",
           message: "이메일 인증이 완료되어 계정이 활성화되었습니다. 로그인해주세요.",
           loginPath: serviceUrl(result.loginPath.startsWith("/parent") ? "parents" : result.loginPath.startsWith("/academy") ? "academy" : "public", result.loginPath),
         }
-      : { state: "invalid", message: result.message, status: 400 });
+      : { state: "invalid", email: pendingEmail, message: pendingEmail ? result.message : `${result.message} 가입한 계정으로 로그인한 뒤 재발송할 수 있습니다.`, status: 400 });
   } catch (error) {
     return next(error);
   }
 }
 
 async function resendPage(req, res, next) {
+  const email = String(req.session?.pendingEmailVerification?.email || "");
+  if (!email) {
+    return renderVerification(res, {
+      state: "request",
+      status: 403,
+      message: "가입 이메일을 확인할 수 없습니다. 가입한 계정으로 로그인한 뒤 다시 시도해주세요.",
+    });
+  }
   try {
-    await resendVerification(req.body.email);
+    await resendVerification(email);
     return renderVerification(res, {
       state: "resent",
-      email: String(req.body.email || "").trim().toLowerCase(),
+      email,
       message: "인증이 필요한 계정에는 활성화 링크가 발송됩니다. 방금 요청했다면 1분 뒤 다시 시도해주세요.",
     });
   } catch (error) {
     if (Number(error.status) === 400) {
-      return renderVerification(res, { state: "request", email: String(req.body.email || ""), message: error.message, status: 400 });
+      return renderVerification(res, { state: "request", email, message: error.message, status: 400 });
     }
     console.error("[auth] 인증 메일 재발송 실패", { code: error.code || error.providerCode || "", message: error.message });
     return renderVerification(res, {
       state: "send-error",
-      email: String(req.body.email || "").trim().toLowerCase(),
+      email,
       message: "메일 발송을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.",
       status: 503,
     });

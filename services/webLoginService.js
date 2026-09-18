@@ -9,7 +9,7 @@ const { synchronizeAccountAccess } = require("./accountAccessService");
 const { synchronizeUserLifecycle, lifecycleSessionView } = require("./userLifecycleService");
 const { serviceUrl } = require("./serviceUrlService");
 
-function failure(status, message) { return Object.assign(new Error(message), { status }); }
+function failure(status, message, code) { return Object.assign(new Error(message), { status, ...(code ? { code } : {}) }); }
 function accountTypeForRole(role) { return role === "teacher" ? "academy" : role === "admin" ? "admin" : "student"; }
 function safePath(value) {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || /[\\\r\n]/.test(value)) return null;
@@ -36,7 +36,7 @@ function loginDestination(account, next) {
 
 async function activeUser(userId) {
   const access = await synchronizeAccountAccess(userId);
-  if (!access?.allowed || !["student", "test", "teacher", "admin"].includes(access.user?.role)) throw failure(403, access?.status === "email-unverified" ? "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요." : "계정 이용 상태를 확인해주세요.");
+  if (!access?.allowed || !["student", "test", "teacher", "admin"].includes(access.user?.role)) throw failure(403, access?.status === "email-unverified" ? "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요." : "계정 이용 상태를 확인해주세요.", access?.status === "email-unverified" ? "EMAIL_VERIFICATION_REQUIRED" : null);
   if (access.user.role === "teacher") {
     const academy = await AcademyAccount.findOne({ teacherUserId: userId }).select("isActive").lean();
     if (!academy || academy.isActive === false) throw failure(403, "이용이 중지되었거나 확인이 필요한 학원 계정입니다.");
@@ -65,7 +65,7 @@ async function authenticateWebAccount({ email, password }) {
   if (!credential || !await bcrypt.compare(secret, credential.passwordHash || "")) throw failure(401, "이메일 또는 비밀번호가 올바르지 않습니다.");
   if (parent) {
     if (parent.isActive === false) throw failure(403, "이용이 중지된 학부모 계정입니다.");
-    if (parent.emailVerificationRequiredAt && !parent.emailVerifiedAt) throw failure(403, "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요.");
+    if (parent.emailVerificationRequiredAt && !parent.emailVerifiedAt) throw failure(403, "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요.", "EMAIL_VERIFICATION_REQUIRED");
     return { kind: "parent", parent };
   }
   return { kind: "user", user: await activeUser(user._id) };
@@ -77,7 +77,7 @@ async function establishWebSession(req, account) {
   if (account.kind === "parent") {
     parent = await ParentAccount.findOne({ _id: account.parent._id, isActive: true }).lean();
     if (!parent) throw failure(403, "이용이 중지된 학부모 계정입니다.");
-    if (parent.emailVerificationRequiredAt && !parent.emailVerifiedAt) throw failure(403, "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요.");
+    if (parent.emailVerificationRequiredAt && !parent.emailVerifiedAt) throw failure(403, "이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요.", "EMAIL_VERIFICATION_REQUIRED");
     await ParentAccount.updateOne({ _id: parent._id, isActive: true }, { $set: { lastLoginAt: loginAt } });
   } else {
     user = await activeUser(account.user._id);
@@ -97,8 +97,16 @@ async function establishWebSession(req, account) {
 
 async function loginWebAccount(req) {
   const next = req.body.next || req.session?.returnTo;
-  const account = await establishWebSession(req, await authenticateWebAccount(req.body));
-  return loginDestination(account, next);
+  try {
+    const account = await establishWebSession(req, await authenticateWebAccount(req.body));
+    return loginDestination(account, next);
+  } catch (error) {
+    if (error.code === "EMAIL_VERIFICATION_REQUIRED" && req.session) {
+      req.session.pendingEmailVerification = { email: String(req.body.email || "").trim().toLowerCase() };
+      await new Promise((resolve, reject) => req.session.save(saveError => saveError ? reject(saveError) : resolve()));
+    }
+    throw error;
+  }
 }
 
 module.exports = { accountTypeForRole, activeUser, authenticateWebAccount, establishWebSession, loginDestination, loginWebAccount, safePath };

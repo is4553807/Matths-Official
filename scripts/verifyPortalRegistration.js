@@ -98,7 +98,8 @@ async function main() {
     const ownerEmail = email("owner");
     const signup = await post("/academy/register", { ...account(ownerEmail, "학원 원장"), ...institution, role: "admin", status: "ACTIVE", contractEndsAt: "2099-01-01" });
     assert.equal(signup.status, 202, await signup.text());
-    assert.equal(cookie(signup), "", "인증 전에는 로그인 세션을 발급하지 않습니다.");
+    assert.ok(cookie(signup), "인증 메일 재발송용 대기 세션이 있어야 합니다.");
+    assert.equal(JSON.parse((await get("/__fixture/identity", cookie(signup))).text).role, null, "대기 세션에는 로그인 권한이 없어야 합니다.");
     await activateLatest();
     const ownerCookie = cookie(await post("/academy/login", { email: ownerEmail, password: "Signup1234!" })); assert.ok(ownerCookie);
     const ownerAccount = await AcademyAccount.findOne({ email: ownerEmail }).select("+passwordHash").lean();

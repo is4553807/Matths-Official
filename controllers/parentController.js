@@ -151,7 +151,7 @@ exports.completeInviteSignup = async (req, res, next) => {
     });
     clearPendingSocialRegistration(req);
     if (!parent.emailVerifiedAt && parent.emailVerificationRequiredAt) {
-      return require("./emailVerificationController").finishRegistration(res, {
+      return require("./emailVerificationController").finishRegistration(req, res, {
         accountType: "parent", accountId: parent._id, email: parent.email,
       });
     }
@@ -197,6 +197,7 @@ exports.login = async (req, res, next) => {
   try {
     return res.redirect(await require("../services/webLoginService").loginWebAccount(req));
   } catch (error) {
+    if (error.code === "EMAIL_VERIFICATION_REQUIRED") return res.redirect("/verify-email");
     if ([400, 401, 403].includes(Number(error.status))) return res.status(error.status).render("login", parentLoginLocals(req, { error: error.message, oldInput: { email: String(req.body.email || "") }, next: safeNext(req.body.next) }));
     return next(error);
   }
@@ -243,7 +244,7 @@ exports.register = async (req, res, next) => {
     const parent = await registerParentAccount({ displayName: req.body.displayName, email: req.body.email, password: req.body.password, passwordConfirm: req.body.passwordConfirm, termsAccepted: req.body.termsAccepted, inviteToken: req.body.inviteToken || req.body.inviteLink, relationship: req.body.relationship, linkConsent: req.body.linkConsent, socialProfile: pendingForPortal(req, "parent") });
     clearPendingSocialRegistration(req);
     if (!parent.emailVerifiedAt && parent.emailVerificationRequiredAt) {
-      return require("./emailVerificationController").finishRegistration(res, {
+      return require("./emailVerificationController").finishRegistration(req, res, {
         accountType: "parent", accountId: parent._id, email: parent.email,
       });
     }

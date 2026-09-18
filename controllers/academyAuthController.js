@@ -72,6 +72,7 @@ exports.login = async (req, res, next) => {
   try {
     return res.redirect(await require("../services/webLoginService").loginWebAccount(req));
   } catch (error) {
+    if (error.code === "EMAIL_VERIFICATION_REQUIRED") return res.redirect("/verify-email");
     if ([400, 401, 403].includes(Number(error.status))) {
       return res.status(Number(error.status)).render("login", loginLocals(req, {
         error: error.message,
@@ -138,7 +139,7 @@ exports.register = async (req, res, next) => {
     });
     clearPendingSocialRegistration(req);
     if (!result.teacher.emailVerifiedAt && result.teacher.emailVerificationRequiredAt) {
-      return require("./emailVerificationController").finishRegistration(res, {
+      return require("./emailVerificationController").finishRegistration(req, res, {
         accountType: "user", accountId: result.teacher._id, email: result.teacher.email,
       });
     }
