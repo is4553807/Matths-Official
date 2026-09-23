@@ -5,6 +5,7 @@ const path = require("node:path");
 const {
   authRequestKey,
   createRateLimit,
+  inicisPaymentCallbackIpRateLimit,
   sameOriginProtection,
 } = require("../middleware/requestSecurity");
 
@@ -239,6 +240,22 @@ try {
   assert.ok(Number(blocked.res.headers["Retry-After"]) >= 1);
   assert.doesNotMatch(authRequestKey(authReq), /student@example\.com/i);
 
+  inicisPaymentCallbackIpRateLimit.reset();
+  const paymentCallback = request({
+    url: "/payments/inicis/return",
+    body: { P_OID: "matths-rate-limit-verification" },
+  });
+  for (let count = 0; count < 60; count += 1) {
+    assert.equal(invoke(inicisPaymentCallbackIpRateLimit, paymentCallback).error, null);
+  }
+  const paymentCallbackBlocked = invoke(
+    inicisPaymentCallbackIpRateLimit,
+    paymentCallback
+  ).error;
+  assert.equal(paymentCallbackBlocked.status, 429);
+  assert.equal(paymentCallbackBlocked.code, "PAYMENT_CALLBACK_RATE_LIMITED");
+  inicisPaymentCallbackIpRateLimit.reset();
+
   const root = path.resolve(__dirname, "..");
   const serverSource = fs.readFileSync(path.join(root, "server.js"), "utf8");
   const webRoutes = fs.readFileSync(path.join(root, "routes", "matths-routes.js"), "utf8");
@@ -265,6 +282,10 @@ try {
   assert.match(
     webRoutes,
     /passwordResetIpRateLimit[\s\S]*passwordResetRateLimit[\s\S]*matthsController\.requestPasswordReset/
+  );
+  assert.match(
+    serverSource,
+    /server\.post\("\/payments\/inicis\/return", inicisPaymentCallbackIpRateLimit\)[\s\S]*server\.use\(session\(/
   );
   assert.match(
     apiRoutes,

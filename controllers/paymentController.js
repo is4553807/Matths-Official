@@ -1,6 +1,7 @@
 const {
   confirmInicisCheckout,
   recordInicisCheckoutFailure,
+  validateInicisCloseParameters,
 } = require("../services/paymentService");
 const { getInicisConfig } = require("../services/inicisPaymentService");
 
@@ -47,8 +48,9 @@ exports.inicisReturn = async (req, res, next) => {
 
 exports.inicisClose = async (req, res, next) => {
   try {
+    const { orderId } = validateInicisCloseParameters(req.query || {});
     const recorded = await recordInicisCheckoutFailure({
-      orderId: req.query.orderId,
+      orderId,
       code: "PAYMENT_WINDOW_CLOSED",
       message: "결제창을 닫아 결제가 완료되지 않았습니다.",
     });

@@ -24,6 +24,7 @@ const {
     arenaPublicText,
 } = require("./services/arenaPublicTerminologyService");
 const {
+    inicisPaymentCallbackIpRateLimit,
     sameOriginProtection,
 } = require("./middleware/requestSecurity");
 const {
@@ -127,13 +128,31 @@ if (process.env.NODE_ENV === "production") {
 server.use(canonicalHostRedirect);
 server.use(serviceHostRouting);
 server.use((req, res, next) => {
-    const paymentSurface = /^\/(?:pricing\/[^/]+\/self|parent\/checkout\/)/.test(
+    const paymentSurface = /^\/(?:pricing\/[^/]+\/self|parent\/checkout\/|payments\/inicis\/(?:return|close)(?:\/|$))/.test(
         String(req.path || "")
     );
+    const connectSources = paymentSurface
+        ? "connect-src 'self' https://*.inicis.com"
+        : "connect-src 'self' https://*.inicis.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com";
+    const frameSources = paymentSurface
+        ? "frame-src 'self' https://*.inicis.com"
+        : "frame-src 'self' https://*.inicis.com https://www.googletagmanager.com";
+    const imageSources = paymentSurface
+        ? "img-src 'self' data: blob: https://*.inicis.com"
+        : "img-src 'self' data: blob: https:";
+    const scriptSources = paymentSurface
+        ? "script-src 'self' 'unsafe-inline' https://*.inicis.com"
+        : "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.inicis.com https://www.googletagmanager.com";
+    res.locals.disablePageAnalytics = paymentSurface;
+    if (paymentSurface) {
+        res.set("Cache-Control", "no-store");
+    }
     res.set({
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Referrer-Policy": paymentSurface
+            ? "no-referrer"
+            : "strict-origin-when-cross-origin",
         "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
         "Cross-Origin-Opener-Policy": paymentSurface
             ? "same-origin-allow-popups"
@@ -143,14 +162,14 @@ server.use((req, res, next) => {
         "Content-Security-Policy": [
             "default-src 'self'",
             "base-uri 'self'",
-            "connect-src 'self' https://*.inicis.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com",
+            connectSources,
             "font-src 'self' data: https://*.inicis.com",
             formActionDirective(),
             "frame-ancestors 'none'",
-            "frame-src 'self' https://*.inicis.com https://www.googletagmanager.com",
-            "img-src 'self' data: blob: https:",
+            frameSources,
+            imageSources,
             "object-src 'none'",
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.inicis.com https://www.googletagmanager.com",
+            scriptSources,
             "style-src 'self' 'unsafe-inline' https://*.inicis.com",
         ].join("; "),
     });
@@ -243,6 +262,8 @@ server.use("/vendor/mathjax-fonts", express.static(
 server.set('view engine', 'ejs');
 server.use(express.urlencoded({extended:true}));
 server.use(express.json());
+// 결제 콜백은 세션 저장소를 읽기 전에 제한해 대량 위조 요청의 비용을 낮춘다.
+server.post("/payments/inicis/return", inicisPaymentCallbackIpRateLimit);
 
 const secret = process.env.SECRET || "matths-local-session-secret-change-before-production";
 const sessionTtlSeconds = Math.max(

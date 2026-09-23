@@ -4,10 +4,22 @@ const INICIS_LIVE_SDK_URL =
   "https://paypro.inicis.com/std/payment/js/INIPayPro_v2.js";
 const INICIS_TEST_SDK_URL =
   "https://stgpaypro.inicis.com/std/payment/js/INIPayPro_v2.js";
+const INICIS_LIVE_JQUERY_URL =
+  "https://paypro.inicis.com/std/payment/js/jquery-1.8.3.js";
+const INICIS_TEST_JQUERY_URL =
+  "https://stgpaypro.inicis.com/std/payment/js/jquery-1.8.3.js";
 const INICIS_LIVE_CANCEL_URL = "https://iniapi.inicis.com/api/v1/refund";
 const INICIS_TEST_CANCEL_URL = "https://stginiapi.inicis.com/api/v1/refund";
 const API_TIMEOUT_MS = 15_000;
-const ALLOWED_IDC_NAMES = new Set(["fc", "ks", "stg"]);
+const APPROVAL_ORIGINS_BY_MODE = Object.freeze({
+  LIVE: Object.freeze({
+    fc: "https://fcpaypro.inicis.com",
+    ks: "https://kspaypro.inicis.com",
+  }),
+  TEST: Object.freeze({
+    stg: "https://stgpaypro.inicis.com",
+  }),
+});
 
 function clean(value, maxLength = 500) {
   return String(value || "")
@@ -89,6 +101,8 @@ function getInicisConfig(environment = process.env) {
     apiKey,
     clientIp,
     sdkUrl: mode === "LIVE" ? INICIS_LIVE_SDK_URL : INICIS_TEST_SDK_URL,
+    jqueryUrl:
+      mode === "LIVE" ? INICIS_LIVE_JQUERY_URL : INICIS_TEST_JQUERY_URL,
     cancelUrl:
       mode === "LIVE" ? INICIS_LIVE_CANCEL_URL : INICIS_TEST_CANCEL_URL,
   };
@@ -159,24 +173,16 @@ function inicisDateTime(dateValue, timeValue) {
 
 function approvalOrigin(idcName, mode = "") {
   const idc = clean(idcName, 3).toLowerCase();
-  if (!ALLOWED_IDC_NAMES.has(idc)) {
-    throw statusError(
-      400,
-      "KG이니시스 승인 센터 정보를 확인할 수 없습니다.",
-      "INICIS_IDC_INVALID"
-    );
-  }
-  if (
-    (mode === "TEST" && idc !== "stg") ||
-    (mode === "LIVE" && !new Set(["fc", "ks"]).has(idc))
-  ) {
+  const normalizedMode = clean(mode, 10).toUpperCase();
+  const origin = APPROVAL_ORIGINS_BY_MODE[normalizedMode]?.[idc];
+  if (!origin) {
     throw statusError(
       409,
       "KG이니시스 결제 모드와 승인 센터가 일치하지 않습니다.",
       "INICIS_IDC_MODE_MISMATCH"
     );
   }
-  return `https://${idc}paypro.inicis.com`;
+  return origin;
 }
 
 function parseProviderPayload(raw) {
@@ -369,8 +375,10 @@ async function cancelPayment(
 
 module.exports = {
   INICIS_LIVE_CANCEL_URL,
+  INICIS_LIVE_JQUERY_URL,
   INICIS_LIVE_SDK_URL,
   INICIS_TEST_CANCEL_URL,
+  INICIS_TEST_JQUERY_URL,
   INICIS_TEST_SDK_URL,
   InicisApiError,
   approvePayment,

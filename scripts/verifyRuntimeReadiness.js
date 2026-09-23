@@ -207,6 +207,9 @@ async function main() {
   assert.doesNotMatch(pdfPolicy, /frame-ancestors 'none'/);
   assert.match(pdfPolicy, /object-src 'none'/);
   assert.match(serverSource, /script-src[^\n]+https:\/\/\*\.inicis\.com/);
+  assert.match(serverSource, /res\.locals\.disablePageAnalytics = paymentSurface/);
+  assert.match(serverSource, /paymentSurface[\s\S]*Cache-Control["'], ["']no-store/);
+  assert.match(serverSource, /paymentSurface[\s\S]*Referrer-Policy[\s\S]*no-referrer/);
   assert.match(serverSource, /formActionDirective\(\)/);
   assert.match(serverSource, /X-Content-Type-Options/);
   assert.match(serverSource, /process\.once\("SIGTERM"/);

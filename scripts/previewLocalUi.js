@@ -1124,6 +1124,7 @@ app.get("/preview/payments/inicis", (_req, res) => {
     product: previewProducts[1],
     intent,
     checkoutConfig: {
+      jqueryUrl: "https://stgpaypro.inicis.com/std/payment/js/jquery-1.8.3.js",
       sdkUrl: "https://stgpaypro.inicis.com/std/payment/js/INIPayPro_v2.js",
       mode: "TEST",
       fields: {

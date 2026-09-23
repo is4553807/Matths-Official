@@ -5,6 +5,7 @@ const ejs = require("ejs");
 const { CheckoutIntent } = require("../models/parentModel");
 const {
   buildCheckoutClientConfig,
+  validateInicisCloseParameters,
   _testing: paymentTesting,
 } = require("../services/paymentService");
 const {
@@ -81,6 +82,7 @@ async function main() {
   assert.equal(config.mode, "TEST");
   assert.equal(config.mid, "INIpayTest");
   assert.match(config.sdkUrl, /^https:\/\/stgpaypro\.inicis\.com\//);
+  assert.match(config.jqueryUrl, /^https:\/\/stgpaypro\.inicis\.com\//);
   assert.equal(isInicisConfigured(fakeEnvironment), true);
   assert.equal(isPaidCheckoutEnabled(fakeEnvironment), true);
   assert.equal(
@@ -99,6 +101,14 @@ async function main() {
     () =>
       approvePayment(
         { authTid: "auth-tid-verification", amount: 29000, idcName: "fc" },
+        { environment: fakeEnvironment, fetchImpl: async () => response({}) }
+      ),
+    (error) => error.code === "INICIS_IDC_MODE_MISMATCH"
+  );
+  await assert.rejects(
+    () =>
+      approvePayment(
+        { authTid: "auth-tid-verification", amount: 29000, idcName: "evil" },
         { environment: fakeEnvironment, fetchImpl: async () => response({}) }
       ),
     (error) => error.code === "INICIS_IDC_MODE_MISMATCH"
@@ -136,15 +146,61 @@ async function main() {
     environment: fakeEnvironment,
   });
   assert.equal(browserConfig.fields.P_NEXT_URL, "https://www.matths.kr/payments/inicis/return");
+  const noticeToken = paymentTesting.paymentStateToken(
+    "return",
+    intent.orderId,
+    fakeEnvironment.INICIS_TEST_HASH_KEY
+  );
+  const closeToken = paymentTesting.paymentStateToken(
+    "close",
+    intent.orderId,
+    fakeEnvironment.INICIS_TEST_HASH_KEY
+  );
   assert.equal(
     browserConfig.fields.P_CLOSE_URL,
-    `https://www.matths.kr/payments/inicis/close?orderId=${intent.orderId}`
+    `https://www.matths.kr/payments/inicis/close?orderId=${intent.orderId}&token=${closeToken}`
   );
   assert.equal(browserConfig.fields.P_AMT, 29000);
   assert.equal(browserConfig.fields.P_PAY_TYPE, "CARD");
-  assert.equal(browserConfig.fields.P_NOTI, intent.orderId);
+  assert.equal(browserConfig.fields.P_IDCCODE, "Y");
+  assert.equal(browserConfig.fields.P_NOTI, noticeToken);
   assert.equal(JSON.stringify(browserConfig).includes(fakeEnvironment.INICIS_TEST_HASH_KEY), false);
   assert.equal(JSON.stringify(browserConfig).includes(fakeEnvironment.INICIS_TEST_API_KEY), false);
+  assert.deepEqual(
+    validateInicisCloseParameters(
+      { orderId: intent.orderId, token: closeToken },
+      fakeEnvironment
+    ),
+    { orderId: intent.orderId }
+  );
+  assert.throws(
+    () =>
+      validateInicisCloseParameters(
+        {
+          orderId: intent.orderId,
+          token: `${closeToken[0] === "a" ? "b" : "a"}${closeToken.slice(1)}`,
+        },
+        fakeEnvironment
+      ),
+    (error) => error.code === "INICIS_CLOSE_TOKEN_INVALID"
+  );
+  assert.equal(
+    paymentTesting.paymentCallbackOrigin("http://attacker.example", {
+      ...fakeEnvironment,
+      NODE_ENV: "production",
+      PUBLIC_BASE_URL: "https://www.matths.kr",
+    }),
+    "https://www.matths.kr"
+  );
+  assert.throws(
+    () =>
+      paymentTesting.paymentCallbackOrigin("http://www.matths.kr", {
+        ...fakeEnvironment,
+        NODE_ENV: "production",
+        PUBLIC_BASE_URL: "http://www.matths.kr",
+      }),
+    (error) => error.code === "PAYMENT_BASE_URL_HTTPS_REQUIRED"
+  );
 
   const authentication = paymentTesting.normalizeAuthenticationParameters({
     P_STATUS: "00",
@@ -153,7 +209,7 @@ async function main() {
     P_OID: intent.orderId,
     P_AMT: "29000",
     P_IDCNAME: "stg",
-    P_NOTI: intent.orderId,
+    P_NOTI: noticeToken,
     P_CHARSET: "UTF-8",
   });
   assert.equal(authentication.amount, 29000);
@@ -176,13 +232,14 @@ async function main() {
       P_OID: intent.orderId,
       P_AMT: "29000",
       P_TYPE: "CARD",
-      P_NOTI: intent.orderId,
+      P_NOTI: noticeToken,
       P_APPL_DT: "20260902",
       P_APPL_TM: "102030",
     },
     intent,
     authentication,
-    "INIpayTest"
+    "INIpayTest",
+    noticeToken
   );
   assert.equal(approved.paymentKey, "approval-tid-verification");
   assert.equal(approved.approvedAt.toISOString(), "2026-09-02T01:20:30.000Z");
@@ -291,8 +348,15 @@ async function main() {
     checkoutConfig: browserConfig,
   });
   assert.match(checkoutHtml, /stgpaypro\.inicis\.com\/std\/payment\/js\/INIPayPro_v2\.js/);
+  assert.match(checkoutHtml, /stgpaypro\.inicis\.com\/std\/payment\/js\/jquery-1\.8\.3\.js/);
+  assert.ok(
+    checkoutHtml.indexOf("jquery-1.8.3.js") < checkoutHtml.indexOf("INIPayPro_v2.js"),
+    "KG이니시스 SDK가 전역 $를 사용하기 전에 공식 jQuery 의존성을 로드해야 합니다."
+  );
   assert.match(checkoutHtml, /Object\.fromEntries\(new FormData\(form\)\.entries\(\)\)/);
   assert.match(checkoutHtml, /INIPayPro\.requestPayment\(paymentFields\)/);
+  assert.match(checkoutHtml, /typeof window\.\$ !== "function"/);
+  assert.doesNotMatch(checkoutHtml, /showError\(error\?\.message\)/);
   assert.match(checkoutHtml, /"MOBILE"[\s\S]*"WEB"/);
   assert.match(checkoutHtml, /KG이니시스 테스트 결제/);
   assert.doesNotMatch(checkoutHtml, /TossPayments|tosspayments/);

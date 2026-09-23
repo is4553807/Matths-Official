@@ -13,7 +13,8 @@
   <p class="inicis-payment-error" data-inicis-payment-error role="alert" hidden></p>
   <button type="button" data-inicis-payment-button disabled><%= new Intl.NumberFormat('ko-KR').format(amount) %>원 결제하기</button>
 </div>
-<script src="<%= checkoutConfig.sdkUrl %>"></script>
+<script src="<%= checkoutConfig.jqueryUrl %>" referrerpolicy="no-referrer"></script>
+<script src="<%= checkoutConfig.sdkUrl %>" referrerpolicy="no-referrer"></script>
 <script>
   (() => {
     const form = document.getElementById("inicis-payment-form");
@@ -23,7 +24,13 @@
       errorBox.textContent = String(message || "결제창을 열지 못했습니다. 잠시 후 다시 시도해 주세요.");
       errorBox.hidden = false;
     };
-    if (!form || !button || !window.INIPayPro) {
+    if (
+      !form ||
+      !button ||
+      !window.jQuery ||
+      typeof window.$ !== "function" ||
+      !window.INIPayPro
+    ) {
       showError("KG이니시스 결제 모듈을 불러오지 못했습니다. 페이지를 새로고침해 주세요.");
       return;
     }
@@ -45,7 +52,8 @@
         // 콜백은 P_NEXT_URL form POST 방식과 함께 사용하지 않는다.
         window.INIPayPro.requestPayment(paymentFields);
       } catch (error) {
-        showError(error?.message);
+        console.error("KG이니시스 결제창 호출 실패", error);
+        showError("결제창을 열지 못했습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.");
         button.disabled = false;
       }
     });

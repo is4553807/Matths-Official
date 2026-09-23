@@ -1,3 +1,4 @@
+const { createHmac, timingSafeEqual } = require("node:crypto");
 const {
   ArenaPackagePayment,
 } = require("../models/goatArenaModel");
@@ -43,6 +44,61 @@ function safePublicOrigin(value) {
   }
 }
 
+function paymentCallbackOrigin(baseUrl, environment = process.env) {
+  const configuredPublicUrl = clean(environment.PUBLIC_BASE_URL, 1000);
+  const origin = safePublicOrigin(configuredPublicUrl || baseUrl);
+  if (
+    clean(environment.NODE_ENV, 20).toLowerCase() === "production" &&
+    !origin.startsWith("https://")
+  ) {
+    throw statusError(
+      500,
+      "운영 결제 결과 주소는 HTTPS여야 합니다.",
+      "PAYMENT_BASE_URL_HTTPS_REQUIRED"
+    );
+  }
+  return origin;
+}
+
+function paymentStateToken(purpose, orderId, hashKey) {
+  const normalizedPurpose = clean(purpose, 20);
+  const normalizedOrderId = clean(orderId, 40);
+  if (!normalizedPurpose || !normalizedOrderId || !hashKey) {
+    throw statusError(500, "결제 요청 검증 정보를 만들 수 없습니다.", "PAYMENT_STATE_INVALID");
+  }
+  return createHmac("sha256", String(hashKey))
+    .update(`${normalizedPurpose}:${normalizedOrderId}`, "utf8")
+    .digest("base64url");
+}
+
+function safeTokenEqual(left, right) {
+  const leftBuffer = Buffer.from(String(left || ""), "utf8");
+  const rightBuffer = Buffer.from(String(right || ""), "utf8");
+  return (
+    leftBuffer.length > 0 &&
+    leftBuffer.length === rightBuffer.length &&
+    timingSafeEqual(leftBuffer, rightBuffer)
+  );
+}
+
+function validateInicisCloseParameters(parameters = {}, environment = process.env) {
+  const orderId = clean(parameters.orderId, 40);
+  const suppliedToken = clean(parameters.token, 100);
+  if (!/^[A-Za-z0-9_-]{6,40}$/.test(orderId)) {
+    throw statusError(400, "결제 주문번호 형식을 확인해주세요.", "ORDER_ID_INVALID");
+  }
+  const { hashKey } = getInicisConfig(environment);
+  const expectedToken = paymentStateToken("close", orderId, hashKey);
+  if (!safeTokenEqual(suppliedToken, expectedToken)) {
+    throw statusError(
+      403,
+      "결제창 종료 요청을 확인할 수 없습니다.",
+      "INICIS_CLOSE_TOKEN_INVALID"
+    );
+  }
+  return { orderId };
+}
+
 function safeReceiptUrl(value) {
   try {
     const url = new URL(String(value || ""));
@@ -81,9 +137,11 @@ function buildCheckoutClientConfig(
       "PAYMENT_MODE_CHANGED"
     );
   }
-  const origin = safePublicOrigin(baseUrl);
+  const origin = paymentCallbackOrigin(baseUrl, environment);
   const email = clean(customerEmail, 100);
   const timestamp = String(Date.now());
+  const noticeToken = paymentStateToken("return", intent.orderId, config.hashKey);
+  const closeToken = paymentStateToken("close", intent.orderId, config.hashKey);
   const fields = {
     P_MID: config.mid,
     P_OID: intent.orderId,
@@ -96,11 +154,11 @@ function buildCheckoutClientConfig(
     P_NEXT_URL: `${origin}/payments/inicis/return`,
     P_CLOSE_URL: `${origin}/payments/inicis/close?orderId=${encodeURIComponent(
       intent.orderId
-    )}`,
+    )}&token=${encodeURIComponent(closeToken)}`,
     P_TIMESTAMP: timestamp,
     P_CHARSET: "UTF-8",
     P_LANG: "ko",
-    P_NOTI: intent.orderId,
+    P_NOTI: noticeToken,
     P_CHKFAKE: createPaymentHash({
       amount: intent.amount,
       orderId: intent.orderId,
@@ -112,6 +170,7 @@ function buildCheckoutClientConfig(
     fields.P_RESERVED = JSON.stringify({ email: utf8Truncate(email, 64) });
   }
   return {
+    jqueryUrl: config.jqueryUrl,
     sdkUrl: config.sdkUrl,
     mode: config.mode,
     fields,
@@ -369,7 +428,13 @@ function approvedAtFromInicis(dateValue, timeValue) {
   return Number.isNaN(value.getTime()) ? null : value;
 }
 
-function normalizeApprovedPayment(payment, intent, input, expectedMid) {
+function normalizeApprovedPayment(
+  payment,
+  intent,
+  input,
+  expectedMid,
+  expectedNotice = input.noti
+) {
   const status = clean(payment.P_STATUS, 10);
   const paymentKey = clean(payment.P_APPL_TID, 40);
   const orderId = clean(payment.P_OID, 40);
@@ -386,7 +451,7 @@ function normalizeApprovedPayment(payment, intent, input, expectedMid) {
     mid !== expectedMid ||
     method !== "CARD" ||
     !approvedAt ||
-    (noti && noti !== intent.orderId)
+    (noti && !safeTokenEqual(noti, expectedNotice))
   ) {
     throw statusError(
       409,
@@ -461,13 +526,14 @@ async function confirmInicisCheckout(parameters) {
   if (!intent) {
     throw statusError(404, "결제 주문을 찾을 수 없습니다.", "CHECKOUT_INTENT_NOT_FOUND");
   }
-  const { mode, mid } = getInicisConfig();
+  const { mode, mid, hashKey } = getInicisConfig();
+  const expectedNotice = paymentStateToken("return", intent.orderId, hashKey);
   if (intent.provider !== "INICIS" || intent.providerMode !== mode) {
     throw statusError(409, "주문과 현재 결제 환경이 일치하지 않습니다.", "PAYMENT_MODE_MISMATCH");
   }
   if (
     input.mid !== mid ||
-    input.noti !== intent.orderId ||
+    !safeTokenEqual(input.noti, expectedNotice) ||
     input.charset !== "UTF-8"
   ) {
     throw statusError(
@@ -569,7 +635,13 @@ async function confirmInicisCheckout(parameters) {
   }
   let payment;
   try {
-    payment = normalizeApprovedPayment(approved, intent, input, mid);
+    payment = normalizeApprovedPayment(
+      approved,
+      intent,
+      input,
+      mid,
+      expectedNotice
+    );
   } catch (verificationError) {
     return rollbackInvalidApproval(intent, input, verificationError);
   }
@@ -603,12 +675,16 @@ module.exports = {
   confirmInicisCheckout,
   recordInicisCheckoutFailure,
   resultBackLink,
+  validateInicisCloseParameters,
   _testing: {
     approvedAtFromInicis,
     assertPaymentMatchesIntent,
     normalizeApprovedPayment,
     normalizeAuthenticationParameters,
+    paymentStateToken,
+    paymentCallbackOrigin,
     safePublicOrigin,
+    safeTokenEqual,
     utf8Truncate,
   },
 };

@@ -188,6 +188,9 @@ function createRateLimit({
   key = authRequestKey,
   maxBuckets = DEFAULT_MAX_BUCKETS,
   consumer = null,
+  errorCode = "AUTH_RATE_LIMITED",
+  errorMessage =
+    "짧은 시간에 인증 요청이 너무 많이 발생했습니다. 잠시 후 다시 시도해주세요.",
 }) {
   if (!name || !Number.isSafeInteger(limit) || limit < 1 || !Number.isFinite(windowMs)) {
     throw new TypeError("요청 제한 설정을 확인해주세요.");
@@ -256,8 +259,8 @@ function createRateLimit({
     );
     return statusError(
       429,
-      "짧은 시간에 인증 요청이 너무 많이 발생했습니다. 잠시 후 다시 시도해주세요.",
-      "AUTH_RATE_LIMITED"
+      errorMessage,
+      errorCode
     );
   }
 
@@ -396,6 +399,15 @@ const passwordResetIpRateLimit =
     consumer:
       consumeAuthRequestLimit,
   });
+const inicisPaymentCallbackIpRateLimit = createRateLimit({
+  name: "inicis-payment-callback-ip",
+  limit: 60,
+  windowMs: 15 * 60 * 1000,
+  key: clientAddress,
+  errorCode: "PAYMENT_CALLBACK_RATE_LIMITED",
+  errorMessage:
+    "짧은 시간에 결제 결과 요청이 너무 많이 발생했습니다. 잠시 후 결제 내역을 확인해주세요.",
+});
 
 module.exports = {
   appleWebOAuthCallbackIpRateLimit,
@@ -403,6 +415,7 @@ module.exports = {
   authRequestKey,
   configuredOrigins,
   createRateLimit,
+  inicisPaymentCallbackIpRateLimit,
   loginIpRateLimit,
   loginRateLimit,
   passwordResetIpRateLimit,
