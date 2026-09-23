@@ -64,6 +64,7 @@ for (const fileName of viewFiles) {
 const footer = read("views", "partials", "business-footer.ejs");
 assert.match(footer, />맵쓰 \(Matths\)</);
 assert.match(footer, />이상윤</);
+assert.match(footer, /href="tel:01086746646">010-8674-6646</);
 assert.match(footer, />주식회사 클라우드타입</);
 
 console.log(`Korean-only interface verification passed: ${viewFiles.length} views checked.`);
