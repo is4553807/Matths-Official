@@ -867,6 +867,9 @@ async function redirectSocialAuthError(
   provider = "google",
   accountWithdrawal = false
 ) {
+  if (req.socialOAuthNativePortal === true || error?.context?.nativePortal === true) {
+    return res.redirect(require("./nativePortalAuthController").callback({ error: "소셜 로그인을 완료하지 못했습니다. 계정 유형을 확인하고 다시 시도해 주세요." }));
+  }
   const userSafeCodes = new Set([
     "SOCIAL_AUTH_NOT_CONFIGURED",
     "SOCIAL_AUTH_EMAIL_REQUIRED",
@@ -944,6 +947,7 @@ async function finishSocialLogin(
 }
 
 exports.socialOAuthCallback = async (req, res) => {
+  req.socialOAuthNativePortal = req.session?.socialOAuthState?.context?.nativePortal === true;
   req.socialOAuthAccountType = req.session?.socialOAuthState?.context?.accountType;
   let mobile =
     req.session
@@ -965,6 +969,10 @@ exports.socialOAuthCallback = async (req, res) => {
     );
     const { profile, context } =
       completed;
+    if (context.nativePortal === true) {
+      const ticket = await require("../services/nativePortalSocialService").issuePortalProof(profile, context);
+      return res.redirect(require("./nativePortalAuthController").callback({ ticket }));
+    }
     mobile =
       context.mobile === true;
     const idPath = socialIdPath(profile.provider);
@@ -1138,6 +1146,11 @@ exports.appleWebOAuthCallback = async (req, res) => {
     });
 
     req.socialOAuthAccountType = context.accountType;
+    if (context.nativePortal === true) {
+      req.socialOAuthNativePortal = true;
+      const ticket = await require("../services/nativePortalSocialService").issuePortalProof(profile, context);
+      return res.redirect(require("./nativePortalAuthController").callback({ ticket }));
+    }
     const { resolveWebSocialAccount, registrationUrl, bindAppleAccount } = require("../services/portalSocialAuthService");
     const { establishWebSession, loginDestination } = require("../services/webLoginService");
     const account = await resolveWebSocialAccount(profile);
@@ -7195,7 +7208,9 @@ exports.nicknameChangePage =
     }
   };
 
-exports.guardNicknameLinkSession = async (req, _res, next) => {
+exports.guardNicknameLinkSession = async (req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  res.set("Referrer-Policy", "no-referrer");
   try {
     if (!req.session?.user?.id && !req.session?.parent?.id) return next();
     const ownerId = await nicknameLinkOwner({ requestId: req.query.requestId, token: req.query.token });

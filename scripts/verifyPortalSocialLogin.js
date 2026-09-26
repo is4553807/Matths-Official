@@ -18,6 +18,7 @@ process.env.EMAIL_VERIFICATION_BASE_URL = "https://www.matths.kr";
 process.env.SUPPORT_SMTP_USER = "fixture@qa.invalid";
 process.env.GMAIL_APP_PASSWORD = "fixture-password";
 process.env.NODE_ENV = "test";
+process.env.API_TOKEN_SECRET = crypto.randomBytes(48).toString("base64url");
 process.env.DISABLE_SCHEDULERS = "1";
 const { User, PrivateMockExam, PrivateMockExamAttempt } = require("../models/matthsModel");
 const { ParentAccount, ParentInvite, ParentChildLink } = require("../models/parentModel");
@@ -99,6 +100,22 @@ async function main() {
     const sessionCookie = cookie(start);
     const response = await get(`/auth/${provider}/callback?code=${code}&state=${options.invalidState ? "wrong-state" : state}${options.callbackType ? "&accountType=" + options.callbackType : ""}`, sessionCookie);
     return { response, cookie: cookie(response) || sessionCookie, oldCookie: sessionCookie, state, code, subject };
+  }
+
+  for (const provider of ["google", "kakao"]) for (const accountType of ["parent", "academy"]) {
+    const verifier = crypto.randomBytes(32).toString("base64url");
+    const challenge = crypto.createHash("sha256").update(verifier).digest("base64url");
+    const start = await get(`/auth/portal-app/${provider}?accountType=${accountType}&code_challenge=${challenge}`);
+    assert.equal(start.status, 302);
+    const authorization = new URL(start.headers.get("location"));
+    const code = crypto.randomUUID(), subject = crypto.randomUUID();
+    profiles.set(code, { email: email("native-role"), subject, verified: true });
+    const result = await get(`/auth/${provider}/callback?code=${code}&state=${authorization.searchParams.get("state")}&accountType=admin`, cookie(start));
+    const returned = new URL(result.headers.get("location"));
+    assert.equal(returned.protocol, "matths:"); assert.equal(returned.hostname, "portal-auth");
+    const ticket = returned.searchParams.get("ticket"); assert.match(ticket || "", /^[A-Za-z0-9_-]{43}$/);
+    const native = await require("../services/nativePortalSocialService").exchangePortalProof(ticket, verifier);
+    assert.equal(native.status, "registration_required"); assert.equal(native.accountType, accountType);
   }
 
   for (const type of ["academy", "parent"]) for (const page of ["login", "register"]) {

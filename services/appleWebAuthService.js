@@ -104,6 +104,8 @@ function issueState(config, now = Date.now(), context = {}) {
       issuedAt: now,
       nonce: crypto.randomBytes(32).toString("base64url"),
       requestId: crypto.randomBytes(16).toString("base64url"),
+      ...(context.nativePortal === true && /^[A-Za-z0-9_-]{43}$/.test(context.codeChallenge || "")
+        ? { nativePortal: true, codeChallenge: context.codeChallenge } : {}),
       accountType: ["academy", "parent"].includes(context.accountType)
         ? context.accountType
         : "student",

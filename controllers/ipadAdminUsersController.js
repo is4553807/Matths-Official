@@ -450,6 +450,26 @@ exports.assessment = async (req, res, next) => {
   } catch (error) { return next(error); }
 };
 
+exports.parentPreview = async (req, res, next) => {
+  try {
+    requireAdmin(req); noStore(res);
+    const { ParentAccount } = require("../models/parentModel");
+    const parent = await ParentAccount.findById(req.params.parentId).select("username email").lean();
+    if (!parent) return res.status(404).json({ message: "학부모 계정을 찾을 수 없습니다." });
+    let children = [];
+    try {
+      const family = await require("../services/parentFamilyService").getParentFamily({ parentId: parent._id, readOnly: true });
+      children = family.children.map(item => ({ id: item.childId, name: item.child.realName || item.child.name,
+        schoolName: item.child.school?.name || item.child.university?.name || "" }));
+    } catch (error) { if (error.code !== "PARENT_CHILD_LINK_REQUIRED") throw error; }
+    const inbox = await require("../services/parentNotificationService").getParentNotificationInbox({ parentId: parent._id, page: req.query.page });
+    return res.json({ dashboard: { parent: { id: String(parent._id), name: parent.username, email: parent.email }, children },
+      inbox: { stats: inbox.stats, pagination: inbox.pagination, notifications: inbox.notifications.map(item => ({
+        id: item.id, title: item.title, message: item.message, readAt: item.readAt || null, createdAt: item.createdAt,
+      })) } });
+  } catch (error) { return next(error); }
+};
+
 exports.parent = async (req, res, next) => {
   try {
     requireAdmin(req);

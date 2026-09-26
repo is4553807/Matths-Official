@@ -99,6 +99,7 @@ async function resendPage(req, res, next) {
 }
 
 async function resendApi(req, res, next) {
+  res.set("Cache-Control", "no-store");
   try {
     await resendVerification(req.body.email);
     return res.json({ requested: true, message: "인증이 필요한 계정에는 활성화 링크가 발송됩니다. 방금 요청했다면 1분 뒤 다시 시도해주세요." });

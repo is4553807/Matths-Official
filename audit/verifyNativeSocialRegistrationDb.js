@@ -30,6 +30,12 @@ const {
   verifyNativeKakaoIdentity,
 } = require("../services/kakaoNativeAuthService");
 const appleAuth = require("../services/appleAuthService");
+// Isolated database test: never send mail to real recipients.
+const activationDeliveries = [];
+require("../services/emailVerificationService").sendVerificationForAccount = async (type, id) => {
+  activationDeliveries.push({ type, id: String(id) });
+  return { sent: true };
+};
 const router = require("../routes/api-routes");
 const { errorHandler } = require("../middleware/errorMiddleware");
 const {
@@ -207,7 +213,9 @@ async function main() {
     const body = registrationBody(started.registration.token);
     const completed = await completeNativeSocialRegistration(body);
     const replayed = await completeNativeSocialRegistration(body);
-    assert.equal(replayed.code, completed.code);
+    assert.deepEqual(replayed, completed);
+    assert.equal(completed.status, "email_verification_required");
+    assert.equal(completed.code, undefined);
     await rejectsCode(
       completeNativeSocialRegistration({
         ...body,
@@ -223,13 +231,18 @@ async function main() {
     assert.equal(await User.countDocuments({ email: providerEmail }), 1);
     assert.equal(
       await MobileAuthGrant.countDocuments({ userId: created._id }),
-      1
+      0
     );
-    assert.ok(
-      await consumeMobileAuthGrant(completed.code, {
-        codeVerifier: verifier,
-      })
-    );
+    assert.ok(created.emailVerificationRequiredAt);
+    assert.equal(created.emailVerifiedAt, null);
+    assert.ok(activationDeliveries.some(item => item.id === String(created._id)));
+    const pendingLogin = await _testing.startNativeSocialRegistration({
+      provider: "kakao", identity: { providerUserId: providerSubject, email: providerEmail, emailVerified: true }, codeChallenge,
+    });
+    assert.equal(pendingLogin.status, "email_verification_required");
+    assert.equal(pendingLogin.code, undefined);
+    // Simulate the separate email activation endpoint, not an OAuth claim.
+    await User.updateOne({ _id: created._id }, { $set: { emailVerifiedAt: new Date() }, $unset: { emailVerificationRequiredAt: 1 } });
 
     const completeLogin = await _testing.startNativeSocialRegistration({
       provider: "kakao",
@@ -265,7 +278,8 @@ async function main() {
         completeNativeSocialRegistration(raceBody)
       )
     );
-    assert.equal(new Set(raceResults.map((item) => item.code)).size, 1);
+    assert.equal(new Set(raceResults.map((item) => JSON.stringify(item))).size, 1);
+    assert.ok(raceResults.every(item => item.status === "email_verification_required" && !item.code));
     const raceUser = await User.findOne({
       email: "native-race-001@example.test",
     });
@@ -277,8 +291,22 @@ async function main() {
     );
     assert.equal(
       await MobileAuthGrant.countDocuments({ userId: raceUser._id }),
-      1
+      0
     );
+
+    const mailService = require("../services/emailVerificationService");
+    const successfulDelivery = mailService.sendVerificationForAccount;
+    mailService.sendVerificationForAccount = async () => { throw new Error("synthetic mail outage"); };
+    const mailFailureStart = await issueKakaoTicket("kakao-mail-failure", "mail-failure@example.test");
+    const mailFailureBody = registrationBody(mailFailureStart.registration.token);
+    const mailFailureResult = await completeNativeSocialRegistration(mailFailureBody);
+    assert.equal(mailFailureResult.status, "email_verification_required");
+    assert.equal(mailFailureResult.code, undefined);
+    const mailFailureUser = await User.findOne({ email: "mail-failure@example.test" });
+    assert.ok(mailFailureUser.emailVerificationRequiredAt);
+    assert.equal(await MobileAuthGrant.countDocuments({ userId: mailFailureUser._id }), 0);
+    mailService.sendVerificationForAccount = successfulDelivery;
+    assert.deepEqual(await completeNativeSocialRegistration(mailFailureBody), mailFailureResult);
 
     const conflictStarted = await issueKakaoTicket(
       "kakao-native-conflict-001",
@@ -394,7 +422,8 @@ async function main() {
     const rollbackCompleted = await completeNativeSocialRegistration(
       rollbackBody
     );
-    assert.ok(rollbackCompleted.code);
+    assert.equal(rollbackCompleted.status, "email_verification_required");
+    assert.equal(rollbackCompleted.code, undefined);
     const appleUser = await User.findOne({
       email: "apple-rollback-001@example.test",
     }).select("+socialAuth.appleId");
@@ -585,15 +614,21 @@ async function main() {
     ]) {
       assert.equal(noEmailStored.includes(secret), false);
     }
+    await rejectsCode(completeNativeSocialRegistration(
+      registrationBody(noEmailApple.registration.token, { realName: "애플 학생" })
+    ), "NATIVE_SOCIAL_CONTACT_EMAIL_REQUIRED");
+    assert.equal(await User.countDocuments({ "socialAuth.appleId": "apple-native-noemail-001" }), 0);
     await completeNativeSocialRegistration(
       registrationBody(noEmailApple.registration.token, {
         realName: "애플 학생",
+        contactEmail: "native-contact@example.test",
       })
     );
     const noEmailUser = await User.findOne({
       "socialAuth.appleId": "apple-native-noemail-001",
     }).select("+socialAuth.appleId");
-    assert.match(noEmailUser.email, /^apple\.[a-f0-9]{24}@appleid\.invalid$/);
+    assert.equal(noEmailUser.email, "native-contact@example.test");
+    assert.ok(noEmailUser.emailVerificationRequiredAt);
     assert.equal(noEmailUser.emailVerifiedAt, null);
     assert.notEqual(noEmailUser.email, "untrusted-body-email@example.test");
     await rejectsCode(
@@ -938,19 +973,40 @@ async function main() {
     const httpStarted = await kakaoStartResponse.json();
     assert.equal(httpStarted.status, "registration_required");
 
+    const httpRegistrationBody = registrationBody(httpStarted.registration.token);
     const response = await originalFetch(
       `${origin}/auth/native-social/register`,
       {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(
-          registrationBody(httpStarted.registration.token)
+          httpRegistrationBody
         ),
       }
     );
-    assert.equal(response.status, 200);
+    assert.equal(response.status, 202);
     assert.equal(response.headers.get("cache-control"), "no-store");
-    assert.ok((await response.json()).code);
+    const httpCompleted = await response.json();
+    assert.equal(httpCompleted.status, "email_verification_required");
+    assert.equal(httpCompleted.code, undefined);
+    const legacyResponse = await originalFetch(`${origin}/auth/native-social/register`, {
+      method: "POST", headers: { "content-type": "application/json", "X-Matths-Client-Version": "1.0.2(26)" },
+      body: JSON.stringify(httpRegistrationBody),
+    });
+    assert.equal(legacyResponse.status, 403);
+    const legacyPending = await legacyResponse.json();
+    assert.equal(legacyPending.code, "EMAIL_VERIFICATION_REQUIRED");
+    assert.match(legacyPending.message, /인증 메일/);
+    const newResponse = await originalFetch(`${origin}/auth/native-social/register`, {
+      method: "POST", headers: { "content-type": "application/json", "X-Matths-Client-Version": "1.0.3(27)" },
+      body: JSON.stringify({ ...httpRegistrationBody, emailVerificationUI: true }),
+    });
+    assert.equal(newResponse.status, 202);
+    await rejectsCode(appleAuth.linkAppleIdentity({
+      claims: { subject: "legacy-api-new-subject", email: "legacy-api-new@example.test", emailVerified: true },
+      fullName: "신규 테스트", allowCreate: false,
+    }), "NATIVE_REGISTRATION_REQUIRED");
+    assert.equal(await User.countDocuments({ email: "legacy-api-new@example.test" }), 0);
 
     process.env.APPLE_BUNDLE_ID = "kr.matths.audit";
     process.env.APPLE_SERVICES_ID = "kr.matths.web.audit";

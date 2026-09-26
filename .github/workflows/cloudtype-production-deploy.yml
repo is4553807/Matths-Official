@@ -84,6 +84,9 @@ jobs:
       - name: Run complete launch verification
         run: npm run launch:verify
 
+      - name: Verify native account and preview boundaries in isolated MongoDB
+        run: node audit/runMemoryMongoSuite.js audit/verifyNativePortalSocialDb.js audit/verifyNativeParentDb.js audit/verifyNativeSocialRegistrationDb.js audit/verifyAcademyAssignmentNativeDb.js
+
       - name: Run isolated transactional database verification
         run: npm run launch-db:verify-memory
 

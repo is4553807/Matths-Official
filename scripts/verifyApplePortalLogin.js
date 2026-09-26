@@ -163,6 +163,22 @@ async function main() {
     const response = await post("/auth/apple/callback", fields);
     return { response, sid: cookie(response), fields };
   }
+  for (const accountType of ["parent", "academy"]) {
+    const verifier = crypto.randomBytes(32).toString("base64url");
+    const challenge = crypto.createHash("sha256").update(verifier).digest("base64url");
+    const start = await get(`/auth/portal-app/apple?accountType=${accountType}&code_challenge=${challenge}`);
+    assert.equal(start.status, 302);
+    const authorization = new URL(start.headers.get("location"));
+    const code = crypto.randomUUID(), subject = `native-${accountType}`;
+    const idToken = token(subject, `${subject}@qa.invalid`, authorization.searchParams.get("nonce"));
+    grants.set(code, idToken);
+    const response = await post("/auth/apple/callback", { code, id_token: idToken, state: authorization.searchParams.get("state") });
+    const returned = new URL(response.headers.get("location"));
+    assert.equal(returned.protocol, "matths:"); assert.equal(returned.hostname, "portal-auth");
+    const ticket = returned.searchParams.get("ticket"); assert.match(ticket || "", /^[A-Za-z0-9_-]{43}$/);
+    const nativeResult = await require("../services/nativePortalSocialService").exchangePortalProof(ticket, verifier);
+    assert.equal(nativeResult.status, "registration_required"); assert.equal(nativeResult.accountType, accountType);
+  }
   const teacherResult = await registerAcademyAccount({
     displayName: "애플 교사",
     email: "teacher@qa.invalid",

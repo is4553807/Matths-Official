@@ -97,6 +97,7 @@ exports.exchangeAppleIdentityToken = async (req, res, next) => {
       nonce: req.body?.nonce,
       fullName: req.body?.fullName,
       email: req.body?.email,
+      allowCreate: false,
     });
 
     // 정지·탈퇴 계정이 애플 경로로 되살아나지 않게 한다. 구글 교환과 같은 관문이다.

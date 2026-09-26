@@ -65,6 +65,18 @@ async function main() {
     assert.deepEqual(week.assignmentOmr.answerKey, ["2", "12|12.0", "9", "가나"]);
     assert.deepEqual(week.assignmentOmr.questions.map((row) => row.answerType), ["MULTIPLE_CHOICE", "SHORT_ANSWER", "MULTIPLE_CHOICE", "SHORT_ANSWER"]);
     const studentPath = `/academy/student/weeks/${week.id}`;
+    const previewPath = teacherPath + `/weeks/${week.id}/student-preview`;
+    const preview = await request("GET", previewPath, 0);
+    assert.equal(preview.status, 200, JSON.stringify(preview.body));
+    assert.equal(preview.body.previewMode, true);
+    assert.equal(preview.cache, "private, no-store");
+    noAnswerKey(preview.body);
+    assert.equal(preview.body.submission, null);
+    assert.equal((await request("GET", previewPath, null)).status, 401);
+    assert.equal((await request("GET", previewPath, 4)).status, 403);
+    assert.equal((await request("GET", previewPath, 2)).status, 404);
+    assert.equal((await request("POST", studentPath + "/submission", 0, { answers: ["2", "12", "9", "가나"] })).status, 403);
+    assert.equal(await AcademyAssignmentSubmission.countDocuments({ weekId: week.id }), 0);
     const firstRead = await request("GET", studentPath, 4);
     assert.equal(firstRead.status, 200); assert.equal(firstRead.cache, "private, no-store");
     noAnswerKey(firstRead.body); assert.equal(firstRead.body.submission, null);

@@ -161,6 +161,8 @@ function beginSocialAuthorization(
         }
       : {
           mobile: false,
+          ...(context.nativePortal === true && /^[A-Za-z0-9_-]{43}$/.test(context.codeChallenge || "")
+            ? { nativePortal: true, codeChallenge: context.codeChallenge } : {}),
           accountType: ["academy", "parent"].includes(context.accountType) ? context.accountType : "student",
           ...(typeof context.next === "string" ? { next: context.next } : {}),
           ...(/^[A-Za-z0-9_-]{43}$/.test(String(context.inviteToken || "")) ? { inviteToken: context.inviteToken } : {}),

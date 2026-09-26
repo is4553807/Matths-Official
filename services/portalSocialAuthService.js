@@ -46,7 +46,7 @@ function socialCredentials(values, social) {
   };
 }
 
-async function resolveWebSocialAccount(profile) {
+async function resolveWebSocialAccount(profile, { accountType = null } = {}) {
   if (
     !profile.emailVerified ||
     !profile.providerUserId ||
@@ -101,6 +101,10 @@ async function resolveWebSocialAccount(profile) {
   if (user && parent) throw conflict();
   const candidate = user || parent;
   if (!candidate) return null;
+  if ((accountType === "parent" && !parent) ||
+      (accountType === "academy" && (!user || user.role !== "teacher"))) {
+    throw conflict("선택한 계정 유형과 연결된 소셜 계정이 다릅니다. 기존 계정 유형으로 로그인해 주세요.");
+  }
   if (candidate.emailVerificationRequiredAt && !candidate.emailVerifiedAt) {
     throw Object.assign(new Error("이메일 인증이 필요합니다. 받은 메일의 계정 활성화 링크를 눌러주세요."), {
       status: 403,

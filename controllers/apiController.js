@@ -576,9 +576,12 @@ exports.register = async (
     } catch (error) {
       console.error("[auth] 가입 인증 메일 발송 실패", { code: error.code || error.providerCode || "", message: error.message });
     }
-    return res.status(202).json({
+    const legacyNativeClient = Boolean(req.get?.("X-Matths-Client-Version")) && req.body.emailVerificationUI !== true;
+    return res.status(legacyNativeClient ? 403 : 202).json({
       code: "EMAIL_VERIFICATION_REQUIRED",
-      message: emailSent
+      message: legacyNativeClient
+        ? "가입 신청이 저장됐습니다. 받은 인증 메일의 링크를 누른 뒤 로그인해 주세요. 메일이 없다면 www.matths.kr에서 로그인 후 재발송할 수 있습니다."
+        : emailSent
         ? "가입 이메일로 계정 활성화 링크를 보냈습니다."
         : "계정은 생성됐지만 인증 메일 발송에 실패했습니다. 인증 메일을 다시 요청해주세요.",
       emailVerificationRequired: true,
@@ -1465,7 +1468,7 @@ exports.requestPasswordReset =
   async (req, res, next) => {
     try {
       await requestPasswordReset(
-        req.body.email
+        req.body.email, { accountType: req.body.accountType }
       );
 
       return res.json({
@@ -1486,6 +1489,7 @@ exports.verifyPasswordReset =
             email:
               req.body.email,
             code: req.body.code,
+            accountType: req.body.accountType,
           }
         );
 
@@ -1514,6 +1518,7 @@ exports.resetPassword = async (
       resetId:
         req.body.resetId,
       userId: req.body.userId,
+      accountType: req.body.accountType,
       password: req.body.password,
       passwordConfirm:
         req.body.passwordConfirm,

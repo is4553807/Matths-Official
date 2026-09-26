@@ -1581,6 +1581,25 @@ exports.transferTeacherClassHomeroom = async (req, res, next) => {
   }
 };
 
+exports.exportTeacherAttendance = async (req, res, next) => {
+  res.set("Cache-Control", "private, no-store");
+  try {
+    if (![req.query.startDate, req.query.endDate].every(value =>
+      typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) ||
+      typeof req.query.classId !== "string" || !/^[a-f\d]{24}$/i.test(req.query.classId)) {
+      return res.status(400).json({ code: "ATTENDANCE_EXPORT_INVALID_RANGE", message: "반과 시작일·종료일을 확인해 주세요." });
+    }
+    const { getAcademyAttendanceCsv } = require("../services/academyAttendanceExportService");
+    const result = await getAcademyAttendanceCsv({
+      teacherUserId: req.apiUser._id,
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+      classId: req.query.classId,
+    });
+    return res.json(result);
+  } catch (error) { return next(error); }
+};
+
 exports.teacherAttendance = async (req, res, next) => {
   try {
     const roster = await getAcademyAttendanceRoster({
@@ -1751,6 +1770,32 @@ exports.downloadTeacherClassWeekFile = async (req, res, next) => {
   } catch (error) {
     return next(error);
   }
+};
+
+exports.teacherWeekPreview = async (req, res, next) => {
+  res.set("Cache-Control", "private, no-store");
+  try {
+    const { getTeacherAcademyWeekPreview } = require("../services/academyClassworkService");
+    const classroom = await getTeacherAcademyWeekPreview({
+      teacherUserId: req.apiUser._id, classId: req.params.classId, weekId: req.params.weekId,
+    });
+    return res.json({
+      academy: serializeAcademy(classroom.academy),
+      academyClass: serializeClass(classroom.academyClass),
+      week: serializeWeek(classroom.week), submission: null,
+      serverTime: new Date().toISOString(), previewMode: true,
+    });
+  } catch (error) { return next(error); }
+};
+
+exports.acceptNativeStaffInvite = async (req, res, next) => {
+  res.set("Cache-Control", "private, no-store");
+  try {
+    await require("../services/academyStaffInviteService").acceptAcademyStaffInvite({
+      value: req.body.inviteToken, teacherUserId: req.apiUser._id, email: req.apiUser.email,
+    });
+    return res.json({ ok: true });
+  } catch (error) { return next(error); }
 };
 
 exports.week = async (req, res, next) => {

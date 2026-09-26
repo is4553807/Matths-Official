@@ -50,6 +50,7 @@ function verifyRouteRegistration() {
     '"/academy/teacher/classes/:classId/co-teachers/:teacherUserId/remove"',
     '"/academy/teacher/classes/:classId/homeroom-transfer"',
     '"/academy/teacher/attendance/sessions/:sessionId/regenerate-code"',
+    '"/academy/teacher/attendance/export"',
     '"/academy/teacher/classes/:classId/classwork"',
     '"/academy/teacher/classes/:classId/classwork/weeks"',
     '"/academy/teacher/classes/:classId/classwork/weeks/:weekId/files/:fileId/remove"',

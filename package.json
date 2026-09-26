@@ -56,6 +56,8 @@
     "oauth-kakao:verify": "node scripts/verifyKakaoOAuth.js",
     "native-social:indexes": "node scripts/prepareNativeSocialRegistrationIndexes.js",
     "native-social:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyNativeSocialRegistrationDb.js",
+    "native-parent:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyNativeParentDb.js",
+    "native-portal-social:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyNativePortalSocialDb.js",
     "email:verify": "node scripts/verifyEmailConfig.js",
     "email-routing:verify": "node scripts/verifyOperatorEmailRouting.js",
     "support-email-routing:verify": "node scripts/verifySupportEmailRouting.js",

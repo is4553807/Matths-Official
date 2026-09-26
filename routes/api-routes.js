@@ -283,6 +283,22 @@ router.get(
   ipadCommunityController.attachment
 );
 
+const nativeParent = require("../controllers/nativeParentController");
+const nativePortalAuth = require("../controllers/nativePortalAuthController");
+router.post("/auth/portal/exchange", loginIpRateLimit, nativePortalAuth.exchange);
+router.post("/auth/portal/register", registrationIpRateLimit, registrationRateLimit, nativePortalAuth.register);
+router.post("/auth/academy/register", registrationIpRateLimit, registrationRateLimit, nativeParent.registerAcademy);
+router.post("/parent-native/login", loginIpRateLimit, loginRateLimit, nativeParent.login);
+router.post("/parent-native/register", registrationIpRateLimit, registrationRateLimit, nativeParent.register);
+router.use("/parent-native", nativeParent.requireParent);
+router.get("/parent-native/dashboard", nativeParent.dashboard);
+router.get("/parent-native/mailbox", nativeParent.mailbox);
+router.get("/parent-native/mailbox/:id", nativeParent.notification);
+router.post("/parent-native/mailbox/read-all", nativeParent.readAll);
+router.post("/parent-native/mailbox/:id/read", nativeParent.read);
+router.post("/parent-native/invite", nativeParent.link);
+router.post("/parent-native/logout", nativeParent.logout);
+
 router.use(requireApiAuth);
 
 // Same canonical weekly-mock concept aggregates as the web dashboards, with
@@ -335,6 +351,7 @@ router.post("/academy/student/attendance/check-in", ipadAcademyController.checkI
 // mutation. Retained ACTIVE staff membership is not a current teacher role.
 router.use("/academy/teacher", ipadAssignmentController.requireTeacher);
 router.get("/academy/teacher", ipadAcademyController.teacherDashboard);
+router.post("/academy/teacher/staff-invite/accept", ipadAcademyController.acceptNativeStaffInvite);
 router.get("/academy/teacher/setup", ipadAcademyController.teacherSetup);
 router.post("/academy/teacher/setup", ipadAcademyController.createTeacherAcademy);
 router.post(
@@ -433,6 +450,10 @@ router.post(
   ipadAcademyController.transferTeacherClassHomeroom
 );
 router.get(
+  "/academy/teacher/attendance/export",
+  ipadAcademyController.exportTeacherAttendance
+);
+router.get(
   "/academy/teacher/attendance",
   ipadAcademyController.teacherAttendance
 );
@@ -445,6 +466,7 @@ router.post(
   ipadAcademyController.regenerateTeacherAttendanceCode
 );
 router.use("/academy/teacher/classes/:classId/classwork", ipadAssignmentController.requireTeacher);
+router.get("/academy/teacher/classes/:classId/classwork/weeks/:weekId/student-preview", ipadAcademyController.teacherWeekPreview);
 router.get(
   "/academy/teacher/classes/:classId/classwork",
   ipadAcademyController.teacherClasswork
@@ -1055,6 +1077,7 @@ router.get(
   ipadAdminUsersController.assessment
 );
 router.get("/admin/parents/:parentId", ipadAdminUsersController.parent);
+router.get("/admin/parents/:parentId/native-preview", ipadAdminUsersController.parentPreview);
 router.get("/admin/sanctions", ipadAdminUsersController.sanctions);
 router.get("/admin/audit-log", ipadAdminUsersController.audit);
 router.post(

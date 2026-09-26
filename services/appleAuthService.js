@@ -532,7 +532,7 @@ async function createAppleUser({ subject, claims, fullName, email }) {
  * 탈퇴 시 폐기해야 하는 Apple 비밀 토큰까지 사용자 문서와 분리해 보관합니다
  * (한 애플 계정 → 한 사용자, 한 사용자 → 한 애플 계정).
  */
-async function linkAppleIdentity({ claims, fullName }) {
+async function linkAppleIdentity({ claims, fullName, allowCreate = true }) {
   const subject = claims.subject;
   const providedName = String(fullName || "").trim().slice(0, 40);
   /*
@@ -624,6 +624,9 @@ async function linkAppleIdentity({ claims, fullName }) {
         "같은 이메일의 학부모 계정이 있습니다. 학부모 로그인 방식을 이용해주세요.",
         "SOCIAL_AUTH_PARENT_ACCOUNT"
       );
+    }
+    if (!allowCreate) {
+      throw statusError(409, "새 Apple 계정으로 가입하려면 앱을 최신 버전으로 업데이트해 주세요.", "NATIVE_REGISTRATION_REQUIRED");
     }
     user = await createAppleUser({
       subject,
@@ -1041,7 +1044,7 @@ async function exchangeAppleIdentity(
   // body 의 email 은 **의도적으로 받지 않는다.** 이메일은 오직 검증된 토큰
   // 클레임에서만 온다(linkAppleIdentity 주석 참조 — 계정 탈취 경로였다).
   // 앱이 보내더라도 여기서 버려진다.
-  { identityToken, authorizationCode, nonce, fullName, redirectUri } = {},
+  { identityToken, authorizationCode, nonce, fullName, redirectUri, allowCreate = true } = {},
   { fetchImpl = fetch, now = Date.now() } = {}
 ) {
   const claims = await verifyAppleIdentityToken(
@@ -1051,6 +1054,7 @@ async function exchangeAppleIdentity(
   const { user, created } = await linkAppleIdentity({
     claims,
     fullName,
+    allowCreate,
   });
 
   try {

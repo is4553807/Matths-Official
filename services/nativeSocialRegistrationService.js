@@ -469,10 +469,26 @@ async function assertAccountAllowed(userId) {
         access?.status,
         access?.user?.accountStatusReason
       ),
-      "ACCOUNT_BLOCKED"
+      access?.status === "email-unverified" ? "EMAIL_VERIFICATION_REQUIRED" : "ACCOUNT_BLOCKED"
     );
   }
   return access.user;
+}
+
+function verificationResult(user) {
+  return { status: "email_verification_required", verification: {
+    email: user.email,
+    message: "가입 이메일의 활성화 링크를 누른 뒤 다시 로그인해 주세요.",
+  } };
+}
+
+async function deliverActivation(userId) {
+  try {
+    await require("./emailVerificationService").sendVerificationForAccount("user", userId);
+  } catch {
+    // Account remains pending. The native pending screen supports retry; never issue a grant on mail failure.
+    console.warn("Native registration activation email delivery failed");
+  }
 }
 
 async function assertNoParentConflict(identity, { session = null } = {}) {
@@ -560,6 +576,9 @@ async function linkAndIssueGrant({
         );
       }
       const status = normalizedAccountStatus(user);
+      if (user.emailVerificationRequiredAt && !user.emailVerifiedAt) {
+        throw statusError(403, "이메일 인증을 완료한 뒤 다시 로그인해 주세요.", "EMAIL_VERIFICATION_REQUIRED");
+      }
       if (status !== "active" || user.isActive === false) {
         throw statusError(
           403,
@@ -628,6 +647,10 @@ async function startNativeSocialRegistration({
   const owner = await findIdentityOwner(identity);
 
   if (owner) {
+    if (owner.emailVerificationRequiredAt && !owner.emailVerifiedAt &&
+        normalizedAccountStatus(owner) === "active" && owner.isActive !== false) {
+      return verificationResult(owner);
+    }
     await assertAccountAllowed(owner._id);
     if (isRegistrationComplete(owner)) {
       return linkAndIssueGrant({
@@ -1090,13 +1113,18 @@ async function completeNativeSocialRegistration(
 ) {
   await ensureNativeSocialRegistrationIndexes();
   const profile = normalizeRegistrationProfile(body);
+  const contactEmail = String(body.contactEmail || "").trim().toLowerCase();
+  if (contactEmail) profile.fingerprint = digest(`${profile.fingerprint}\0${contactEmail}`);
   const initial = await loadRegistrationTicket(
     body.registrationToken,
     body.codeVerifier
   );
   if (initial.ticket.status === "COMPLETED") {
     const replay = readStoredResult(initial.ticket, profile.fingerprint);
-    if (replay) return replay;
+    if (replay) {
+      if (replay.verification) await deliverActivation(initial.ticket.userId);
+      return replay;
+    }
   }
   if (initial.ticket.status !== "PENDING") {
     throw statusError(
@@ -1167,6 +1195,9 @@ async function completeNativeSocialRegistration(
           );
         }
         const status = normalizedAccountStatus(user);
+        if (user.emailVerificationRequiredAt && !user.emailVerifiedAt) {
+          throw statusError(403, "이메일 인증을 완료한 뒤 다시 로그인해 주세요.", "EMAIL_VERIFICATION_REQUIRED");
+        }
         if (status !== "active" || user.isActive === false) {
           throw statusError(
             403,
@@ -1183,13 +1214,17 @@ async function completeNativeSocialRegistration(
           );
         }
         await assertNoParentConflict(identity, { session });
+        const activationEmail = identity.emailVerified ? identity.email : contactEmail;
+        if (!activationEmail || activationEmail.length > 254 ||
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(activationEmail) || /\.invalid$/i.test(activationEmail)) {
+          throw statusError(400, "인증 메일을 받을 이메일 주소를 입력해 주세요.", "NATIVE_SOCIAL_CONTACT_EMAIL_REQUIRED");
+        }
+        if (await ParentAccount.exists({ email: activationEmail }).session(session)) {
+          throw statusError(409, "이미 사용 중인 이메일입니다. 기존 계정으로 로그인해 주세요.", "NATIVE_SOCIAL_ACCOUNT_CONFLICT");
+        }
         user = new User({
-          email: identity.emailVerified
-            ? identity.email
-            : providerPlaceholderEmail(
-                identity.provider,
-                identity.providerUserId
-              ),
+          email: activationEmail,
+          emailVerificationRequiredAt: new Date(),
           passwordHash,
         });
       }
@@ -1218,7 +1253,8 @@ async function completeNativeSocialRegistration(
           user.email = identity.email;
         }
         if (
-          String(user.email || "").trim().toLowerCase() === identity.email
+          String(user.email || "").trim().toLowerCase() === identity.email &&
+          !user.emailVerificationRequiredAt
         ) {
           user.emailVerifiedAt = user.emailVerifiedAt || new Date();
         }
@@ -1298,14 +1334,15 @@ async function completeNativeSocialRegistration(
         throw new Error("NATIVE_SOCIAL_TEST_FAILURE_AFTER_CREDENTIAL");
       }
 
-      const code = await issueMobileAuthGrant(user._id, {
+      const pendingActivation = Boolean(user.emailVerificationRequiredAt && !user.emailVerifiedAt);
+      const code = pendingActivation ? null : await issueMobileAuthGrant(user._id, {
         codeChallenge: ticket.codeChallenge,
         session,
       });
       if (failurePoint === "after-grant") {
         throw new Error("NATIVE_SOCIAL_TEST_FAILURE_AFTER_GRANT");
       }
-      result = { code };
+      result = pendingActivation ? verificationResult(user) : { code };
       const encryptedResult = seal(ticket._id, "result", result);
       const completedAt = new Date();
       const resultExpiresAt = new Date(
@@ -1378,17 +1415,19 @@ async function completeNativeSocialRegistration(
       );
     });
   }
-  if (!result?.code) {
+  if (!result?.code && !result?.verification) {
     throw statusError(
       409,
       "가입 결과를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.",
       "NATIVE_SOCIAL_REGISTRATION_IN_PROGRESS"
     );
   }
+  if (result.verification && completedUser) await deliverActivation(completedUser._id);
   return result;
 }
 
 module.exports = {
+  registrationCipher: { seal, open },
   PRIVACY_VERSION,
   TERMS_VERSION,
   TICKET_TTL_MS,

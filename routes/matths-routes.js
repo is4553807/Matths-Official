@@ -1623,6 +1623,7 @@ router.get(
   "/auth/google/app",
   matthsController.socialOAuthAppStart
 );
+router.get("/auth/portal-app/:provider", loginIpRateLimit, require("../controllers/nativePortalAuthController").start);
 
 // 앱 API가 발급한 서명 ticket으로만 여는 탈퇴 전용 Google 본인 확인.
 // Bearer 토큰은 브라우저 주소나 쿠키로 넘기지 않는다.
