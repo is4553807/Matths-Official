@@ -107,16 +107,16 @@ function versionStaticAssetReferences(
 server.engine("ejs", (filePath, options, callback) => {
     ejs.renderFile(filePath, options, (error, html) => {
         if (error) return callback(error);
-        const versionedHtml = versionStaticAssetReferences(html);
-        // Invitation pages can contain single-use account-access tokens.
+        // Invitation and payment pages can contain single-use or financial
+        // data. They still receive cookie controls, but never load GTM.
+        const consentManagedHtml = injectGoogleTagManager(
+            html,
+            server.locals.googleTagManagerId,
+            { analyticsEnabled: options.disablePageAnalytics !== true }
+        );
         return callback(
             null,
-            options.disablePageAnalytics === true
-                ? versionedHtml
-                : injectGoogleTagManager(
-                    versionedHtml,
-                    server.locals.googleTagManagerId
-                )
+            versionStaticAssetReferences(consentManagedHtml)
         );
     });
 });

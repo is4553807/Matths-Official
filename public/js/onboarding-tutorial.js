@@ -368,14 +368,14 @@
   const reducedMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)"
   ).matches;
-  const characterNames = ["goat", "pigeon", "llama"];
+  const characterNames = ["lumi", "max", "obi", "pi"];
   const characterName =
     characterNames[
       Math.floor(Math.random() * characterNames.length)
     ];
   const characterSources = [1, 2, 3].map(
     (frame) =>
-      `/images/coach-characters/mild-${characterName}-${frame}.webp`
+      `/images/coach-characters/${characterName}-talking-${frame}.webp`
   );
   let characterFrame = 0;
   let characterTimer = null;

@@ -319,35 +319,15 @@
 
     const characterTone =
       stage.dataset.characterTone === "spicy" ? "spicy" : "mild";
-    const assetPrefix = `/images/coach-characters/${characterTone}`;
-    const coachCharacters = [
-      {
-        id: "goat",
-        frames: [
-          `${assetPrefix}-goat-1.webp`,
-          `${assetPrefix}-goat-2.webp`,
-          `${assetPrefix}-goat-3.webp`,
-        ],
-      },
-      {
-        id: "pigeon",
-        frames: [
-          `${assetPrefix}-pigeon-1.webp`,
-          `${assetPrefix}-pigeon-2.webp`,
-          `${assetPrefix}-pigeon-3.webp`,
-        ],
-      },
-      {
-        id: "llama",
-        frames: [
-          `${assetPrefix}-llama-1.webp`,
-          `${assetPrefix}-llama-2.webp`,
-          `${assetPrefix}-llama-3.webp`,
-        ],
-      },
-    ];
-    const character =
+    const characterPose =
+      characterTone === "spicy" ? "angry" : "talking";
+    const coachCharacters = ["lumi", "max", "obi", "pi"];
+    const characterName =
       coachCharacters[Math.floor(Math.random() * coachCharacters.length)];
+    const characterFrames = [1, 2, 3].map(
+      (frame) =>
+        `/images/coach-characters/${characterName}-${characterPose}-${frame}.webp`
+    );
     const reducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
@@ -356,23 +336,23 @@
     let swapTimer = null;
 
     const revealCharacter = () => {
-      stage.dataset.character = character.id;
+      stage.dataset.character = characterName;
     };
     image.addEventListener("load", revealCharacter, { once: true });
-    image.src = character.frames[frameIndex];
+    image.src = characterFrames[frameIndex];
     if (image.complete) revealCharacter();
 
-    character.frames.forEach((frameSource) => {
+    characterFrames.forEach((frameSource) => {
       const preloadImage = new Image();
       preloadImage.src = frameSource;
     });
 
     function showNextFrame() {
-      frameIndex = (frameIndex + 1) % character.frames.length;
+      frameIndex = (frameIndex + 1) % characterFrames.length;
       stage.classList.add("is-switching");
       window.clearTimeout(swapTimer);
       swapTimer = window.setTimeout(() => {
-        image.src = character.frames[frameIndex];
+        image.src = characterFrames[frameIndex];
         window.requestAnimationFrame(() => {
           stage.classList.remove("is-switching");
         });

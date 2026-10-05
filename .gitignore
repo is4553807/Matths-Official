@@ -86,6 +86,7 @@ dataAnalysis/arenaPdfSkeletonImplementation/*preview*.html
 dataAnalysis/arenaPdfSkeletonImplementation/*render*.html
 dataAnalysis/arenaPdfSkeletonImplementation/*verification*.json
 dataAnalysis/arenaPdfSkeletonImplementation/*audit*.json
+INVESTOR_MEETING_BRIEF_EN.md
 
 # Python caches
 __pycache__/

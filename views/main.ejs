@@ -219,7 +219,7 @@
                 <section class="coach-card" aria-labelledby="coach-heading" data-mode="<%= data.coach.mode %>" data-tutorial-target="dashboard-coach">
                   <div class="coach-content">
                     <figure class="dashboard-coach-character" data-dashboard-coach-character data-character-tone="<%= data.coach.mode %>" aria-label="<%= coachModeLabel %> 코치 캐릭터">
-                      <img data-dashboard-coach-character-image src="/images/coach-characters/<%= data.coach.mode === 'spicy' ? 'spicy' : 'mild' %>-goat-1.webp" alt="" aria-hidden="true" width="72" height="72" decoding="async" />
+                      <img data-dashboard-coach-character-image src="/images/coach-characters/lumi-<%= data.coach.mode === 'spicy' ? 'angry' : 'talking' %>-1.webp" alt="" aria-hidden="true" width="72" height="72" decoding="async" />
                     </figure>
                     <div class="coach-copy"><div><h2 id="coach-heading">오늘의 Matths 코치</h2><span><%- icon("sparkles") %><%= coachModeLabel %></span></div><p><%= data.coach.message %></p></div>
                   </div>

@@ -76,7 +76,7 @@ assert.match(navigationView, /data-tutorial-nav="<%= item\.id %>"/);
 assert.match(tutorialView, /data-tutorial-skip/);
 assert.match(tutorialView, /data-tutorial-next/);
 assert.match(tutorialView, /data-tutorial-spotlight/);
-assert.match(tutorialView, /mild-goat-1\.webp/);
+assert.match(tutorialView, /lumi-talking-1\.webp/);
 assert.match(profileView, /action="\/profile\/tutorial\/restart"/);
 assert.match(profileView, />\s*튜토리얼 시작하기/);
 

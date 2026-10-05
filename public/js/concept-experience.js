@@ -2793,9 +2793,10 @@
     let coachCharacterFrame = 0;
 
     const coachCharacterNames = [
-      "goat",
-      "pigeon",
-      "llama",
+      "lumi",
+      "max",
+      "obi",
+      "pi",
     ];
 
     const reduceCoachMotion = window.matchMedia(
@@ -2803,7 +2804,9 @@
     );
 
     function coachCharacterSource(frame) {
-      return `/images/coach-characters/${coachCharacterTone}-${coachCharacterName}-${frame}.webp`;
+      const pose =
+        coachCharacterTone === "spicy" ? "angry" : "talking";
+      return `/images/coach-characters/${coachCharacterName}-${pose}-${frame}.webp`;
     }
 
     function stopCoachCharacter() {

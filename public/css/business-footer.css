@@ -60,8 +60,26 @@
   text-decoration: none;
 }
 
-.business-site-footer a:hover {
+.business-site-footer a:hover,
+.business-site-footer__cookie-button:hover {
   color: #fff;
+}
+
+.business-site-footer__cookie-button {
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.business-site-footer__cookie-button:focus-visible {
+  color: #fff;
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 .business-site-footer__links {

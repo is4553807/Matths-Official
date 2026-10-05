@@ -59,8 +59,11 @@ const learningFlowScript = fs.readFileSync(
   "utf8"
 );
 const assetDirectory = path.join(root, "public/images/coach-characters");
-const tones = ["mild", "spicy"];
-const characters = ["goat", "pigeon", "llama"];
+const characterPoses = {
+  mild: "talking",
+  spicy: "angry",
+};
+const characters = ["lumi", "max", "obi", "pi"];
 
 async function main() {
   const newUser = new User({
@@ -117,7 +120,7 @@ async function main() {
   );
   assert.match(
     view,
-    /\/images\/coach-characters\/<%= data\.coach\.mode === 'spicy' \? 'spicy' : 'mild' %>-goat-1\.webp/,
+    /\/images\/coach-characters\/lumi-<%= data\.coach\.mode === 'spicy' \? 'angry' : 'talking' %>-1\.webp/,
     "첫 화면부터 사용자 말투에 맞는 캐릭터 자산을 사용해야 합니다."
   );
   assert.match(
@@ -129,6 +132,11 @@ async function main() {
     script,
     /stage\.dataset\.characterTone === "spicy" \? "spicy" : "mild"/,
     "사용자의 말투 설정에 맞는 캐릭터 세트를 선택해야 합니다."
+  );
+  assert.match(
+    script,
+    /characterTone === "spicy" \? "angry" : "talking"/,
+    "매운맛은 angry, 순한맛은 talking 포즈를 사용해야 합니다."
   );
   assert.match(
     script,
@@ -215,6 +223,11 @@ async function main() {
   );
   assert.match(
     learningScript,
+    /coachCharacterTone === "spicy" \? "angry" : "talking"/,
+    "내 학습도 매운맛은 angry, 순한맛은 talking 포즈를 사용해야 합니다."
+  );
+  assert.match(
+    learningScript,
     /window\.setInterval\(\(\) => \{[\s\S]*?\}, 2000\)/,
     "내 학습 코치 캐릭터 컷은 2초 간격으로 순환해야 합니다."
   );
@@ -242,12 +255,15 @@ async function main() {
   );
 
   const assetChecks = [];
-  for (const tone of tones) {
+  for (const [tone, pose] of Object.entries(characterPoses)) {
     for (const character of characters) {
       for (let frame = 1; frame <= 3; frame += 1) {
-        const name = `${tone}-${character}-${frame}.webp`;
+        const name = `${character}-${pose}-${frame}.webp`;
         const filePath = path.join(assetDirectory, name);
-        assert.ok(fs.existsSync(filePath), `${name} 파일이 필요합니다.`);
+        assert.ok(
+          fs.existsSync(filePath),
+          `${tone} 모드용 ${name} 파일이 필요합니다.`
+        );
         assert.ok(
           fs.statSync(filePath).size < 100 * 1024,
           `${name}은 100KB 미만이어야 합니다.`
