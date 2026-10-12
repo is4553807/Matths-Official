@@ -31,6 +31,9 @@
   let lockedRevision = 0;
   let lockedSubmissionMode = "MANUAL";
   let localDraftSavedAt = 0;
+  let reservedRevision = 0;
+  let autosaveTimer = null;
+  let lastSavedDrawing = "";
   const draftKey = `arena-member-board:${matchId}:${questionSlot}`;
   try {
     for (const key of Object.keys(localStorage)) {
@@ -55,9 +58,9 @@
     if (state) state.textContent = message;
   };
 
-  const encodeDrawingData = () => {
+  const encodeDrawingData = (drawingStrokes = strokes) => {
     const bytes = new TextEncoder().encode(
-      JSON.stringify({ version: 1, strokes })
+      JSON.stringify({ version: 1, strokes: drawingStrokes })
     );
     let binary = "";
     bytes.forEach((byte) => {
@@ -142,6 +145,8 @@
       lockedSubmissionMode = board.lockedSubmissionMode || "MANUAL";
       if (completionLocked) freezeAnswerInput();
       revision = Number(board.revision || 0);
+      reservedRevision = Math.max(reservedRevision, revision);
+      lastSavedDrawing = board.drawingDataBase64 || "";
       sha256 = String(board.sha256 || "");
       render();
       setState("서버에 저장된 풀이판을 불러왔습니다.");
@@ -150,10 +155,18 @@
     }
   };
 
-  const saveBoard = () => {
+  const reserveRevision = () => {
+    reservedRevision = Math.max(reservedRevision, revision) + 1;
+    return reservedRevision;
+  };
+
+  const saveBoard = (requestedRevision = null) => {
+    const snapshot = strokes.map(stroke => stroke.map(point => [...point]));
+    const drawingDataBase64 = encodeDrawingData(snapshot);
+    const uploadRevision = requestedRevision || reserveRevision();
     saveChain = saveChain.catch(() => {}).then(async () => {
       setState("풀이판 저장 중…");
-      const evidenceCanvas = window.MatthsNoteGrid.createEvidenceCanvas(canvas, strokes);
+      const evidenceCanvas = window.MatthsNoteGrid.createEvidenceCanvas(canvas, snapshot);
       const blob = await new Promise((resolve) =>
         evidenceCanvas.toBlob(resolve, "image/png")
       );
@@ -165,9 +178,9 @@
         new File([blob], `question-${questionSlot}.png`, { type: "image/png" })
       );
       form.append("questionSlot", String(questionSlot));
-      form.append("revision", String(lockedRevision || revision + 1));
-      form.append("strokeCount", String(strokes.length));
-      form.append("drawingDataBase64", encodeDrawingData());
+      form.append("revision", String(uploadRevision));
+      form.append("strokeCount", String(snapshot.length));
+      form.append("drawingDataBase64", drawingDataBase64);
 
       const response = await nativeFetch(boardPath, {
         method: "PUT",
@@ -180,10 +193,24 @@
       }
       revision = Number(payload.board?.revision || revision + 1);
       sha256 = String(payload.board?.sha256 || "");
+      lastSavedDrawing = drawingDataBase64;
       setState("풀이판 저장 완료");
       return payload.board;
     });
     return saveChain;
+  };
+
+  const autosave = async () => {
+    window.clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+    await boardReady;
+    if (completionLocked || activeStroke || encodeDrawingData() === lastSavedDrawing) return;
+    try { await saveBoard(); }
+    catch (_error) { if (!completionLocked) setState("기기에 저장했습니다. 서버 저장은 다음 필기 또는 문항 완료 때 다시 시도합니다."); }
+  };
+  const scheduleAutosave = () => {
+    window.clearTimeout(autosaveTimer);
+    autosaveTimer = window.setTimeout(() => { autosave().catch(() => {}); }, 1000);
   };
 
   const requestUrl = (input) =>
@@ -198,6 +225,7 @@
     }
 
     await boardReady;
+    window.clearTimeout(autosaveTimer);
     const body = JSON.parse(String(init.body || "{}"));
     if (!completionLocked) {
       activeStroke = null;
@@ -205,7 +233,7 @@
       completionRequestId = body.requestId;
       lockedAnswer = String(body.value ?? "").trim();
       freezeAnswerInput();
-      lockedRevision = revision + 1;
+      lockedRevision = reserveRevision();
       lockedSubmissionMode = body.submissionMode === "TIME_LIMIT" ? "TIME_LIMIT" : "MANUAL";
       persistDraft();
     }
@@ -231,7 +259,7 @@
       setState("이미 저장된 풀이판으로 문항 완료를 확인합니다.");
     } else {
       setState("답안과 풀이 시간이 확정됐습니다. 풀이판을 업로드합니다.");
-      await saveBoard();
+      await saveBoard(lockedRevision);
     }
     const response = await nativeFetch(input, {
       ...init,
@@ -282,6 +310,7 @@
   const finishStroke = () => {
     activeStroke = null;
     persistDraft();
+    if (!completionLocked) scheduleAutosave();
   };
   canvas.addEventListener("pointerup", finishStroke);
   canvas.addEventListener("pointercancel", finishStroke);
@@ -292,6 +321,7 @@
       strokes.pop();
       persistDraft();
       render();
+      scheduleAutosave();
     }
   );
   boardRoot.querySelector("[data-arena-board-clear]")?.addEventListener(
@@ -302,9 +332,13 @@
       strokes = [];
       persistDraft();
       render();
+      scheduleAutosave();
     }
   );
 
   window.MatthsNoteGrid.observeCanvas(canvas, render);
   const boardReady = loadBoard();
+  document.addEventListener?.("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && !completionLocked) autosave().catch(() => {});
+  });
 })();

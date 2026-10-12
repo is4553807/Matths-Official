@@ -317,6 +317,12 @@ async function main() {
 
     // The native normal-result contract exposes both actual sets and their
     // protected evidence links, while the service keeps outsider access denied.
+    const sealedEvidence = await ArenaMatchEvidence.findOne({ matchId: fileStart.match._id, originalEvidenceSubmitted: true }).lean();
+    const fileAttempt = await ArenaMatchAttempt.findOne({ matchId: fileStart.match._id, userId: fileUserId }).lean();
+    await ArenaInlineSolutionBoard.create([
+      { attemptId: fileAttempt._id, matchId: fileStart.match._id, userId: fileUserId, questionSlot: 1, revision: 1, strokeCount: 1, drawingData: Buffer.from('{"version":1,"strokes":[[[10,20],[30,40]]]}'), file: sealedEvidence.files[0] },
+      { attemptId: fileAttempt._id, matchId: fileStart.match._id, userId: fileUserId, questionSlot: 3, revision: 1, strokeCount: 1, drawingData: Buffer.from('{"version":1,"strokes":[[[20,30],[40,50]]]}'), file: evidenceFile(`partial-ipad-${suffix}`, 3) },
+    ]);
     const resultResponse = await invoke(goatArenaV2Controller.apiNormalResult, {
       params: { matchId: String(fileStart.match._id) },
       apiUser: { _id: fileUserId },
@@ -333,6 +339,9 @@ async function main() {
     assert.match(result.historicalOpponent.solutions[0].href, /\/api\/v1\/goat-arena\/matches\/.+\/normal-result\/evidence\/historical\/1$/);
     assert.equal("answer" in result.challenger.questions[0], false);
     assert.equal("solution" in result.challenger.questions[0], false);
+    assert.equal(result.challenger.solutions.length, 6, "show the saved iPad board alongside the photos and deduplicate a board already in the sealed evidence");
+    assert.equal(result.challenger.solutions[5].questionSlot, 3);
+    assert.equal((await ArenaMatchEvidence.findById(sealedEvidence._id).lean()).files.length, 5, "result display must preserve the original evidence and scoring snapshot");
 
     const evidenceResponse = await invoke(goatArenaV2Controller.apiNormalEvidenceFile, {
       params: { matchId: String(fileStart.match._id), side: "historical", fileIndex: "1" },
@@ -341,6 +350,14 @@ async function main() {
     assert.ifError(evidenceResponse.error);
     assert.equal(evidenceResponse.redirect.status, 302);
     assert.match(evidenceResponse.redirect.url, /^https:\/\//);
+    const boardEvidenceResponse = await invoke(goatArenaV2Controller.apiNormalEvidenceFile, {
+      params: { matchId: String(fileStart.match._id), side: "challenger", fileIndex: "6" }, apiUser: { _id: fileUserId },
+    });
+    assert.ifError(boardEvidenceResponse.error); assert.equal(boardEvidenceResponse.redirect.status, 302);
+    const forbiddenBoard = await invoke(goatArenaV2Controller.apiNormalEvidenceFile, {
+      params: { matchId: String(fileStart.match._id), side: "challenger", fileIndex: "6" }, apiUser: { _id: outsiderUserId },
+    });
+    assert.equal(forbiddenBoard.error?.code, "ARENA_RESULT_FORBIDDEN");
 
     const forbidden = await invoke(goatArenaV2Controller.apiNormalResult, {
       params: { matchId: String(fileStart.match._id) },

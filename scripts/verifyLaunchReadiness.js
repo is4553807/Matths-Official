@@ -55,6 +55,7 @@ const checks = [
   "launch-views:verify",
   "ui:verify",
   "math-rendering:verify",
+  "note-grid:verify",
   "navigation:verify",
   "canonical-host:verify",
   "service-hosts:verify",

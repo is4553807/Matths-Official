@@ -206,7 +206,7 @@
     "archive-access:verify": "node scripts/verifyArchivePackageAccess.js",
     "pdf-watermark:verify": "node scripts/verifyPdfWatermarkLocal.js",
     "pdf-watermark:verify-db": "node scripts/verifyPdfWatermark.js",
-    "note-grid:verify": "node audit/verifyMatthsNoteGrid.js && node audit/verifyArenaWebCompletionProtocol.js",
+    "note-grid:verify": "node audit/verifyMatthsNoteGrid.js && node audit/verifyArenaWebCompletionProtocol.js && node audit/verifyArenaStoredBoardEvidenceUi.js",
     "arena-audit-fixes:verify": "node audit/verifyArenaAuditFixes.js && node audit/verifyArenaWebCompletionProtocol.js",
     "arena-audit-fixes:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyArenaAuditRatingInterleaveDb.js audit/verifyArenaAuditReferenceDb.js audit/verifyArenaAuditStorageFailuresDb.js audit/verifyArenaAuditCommandsDb.js audit/verifyArenaAuditBaselineFallbackDb.js",
     "arena-audit-fixes:inspect": "node scripts/inspectArenaAuditRepairState.js"

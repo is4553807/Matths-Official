@@ -50,6 +50,7 @@ const {
   selectActiveNormalBaselineQuestionSet,
 } = require("./arenaNormalBaselineQuestionService");
 const { ensureArenaV2Profile, tierForRating } = require("./arenaV2ProfileService");
+const { memberEvidenceWithSavedBoards } = require("./arenaSolutionEvidenceReadService");
 
 const NORMAL_ASYNC_SETTLEMENT_VERSION = "GOAT-ARENA-NORMAL-ASYNC-V3-DIFFICULTY-ADAPTIVE-RATING";
 const NORMAL_RECORD_CONSENT_VERSION = "ARENA_NORMAL_SOLUTION_SHARE_V1";
@@ -1014,6 +1015,7 @@ function evidenceFiles(matchId, side, evidence) {
     originalName: file.originalName,
     mimeType: file.mimeType,
     sizeBytes: file.sizeBytes,
+    questionSlot: file.questionSlot || null,
     href: `/goat-arena/matches/${matchId}/normal-result/evidence/${side}/${index + 1}`,
   }));
 }
@@ -1086,14 +1088,18 @@ async function loadAuthorizedNormalResult({ matchId, userId }) {
     (!record && !usesBaseline) ||
     !historicalAttempt ||
     historicalPack?.questions?.length !== 5 ||
-    historicalEvidence?.files?.length !== 5 ||
+    (usesBaseline ? historicalEvidence?.files?.length !== 5 : !historicalEvidence?.files?.length) ||
     historicalEvidence.contentPurgedAt ||
     !historicalPerformance
   ) {
     throw statusError(409, "상대의 문제와 풀이 원본을 확인할 수 없습니다.", "ARENA_RESULT_RECORD_INCOMPLETE");
   }
-  return { match, attempt, record, users, currentEvidence, currentPack,
-    historicalAttempt, historicalEvidence, historicalPack, historicalPerformance,
+  const [visibleCurrentEvidence, visibleHistoricalEvidence] = await Promise.all([
+    memberEvidenceWithSavedBoards(currentEvidence, attempt),
+    record ? memberEvidenceWithSavedBoards(historicalEvidence, historicalAttempt) : historicalEvidence,
+  ]);
+  return { match, attempt, record, users, currentEvidence: visibleCurrentEvidence, currentPack,
+    historicalAttempt, historicalEvidence: visibleHistoricalEvidence, historicalPack, historicalPerformance,
     usesBaseline };
 }
 

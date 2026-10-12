@@ -1077,6 +1077,7 @@ function publicEvidenceFiles(matchId, side, evidence) {
     originalName: file.originalName,
     mimeType: file.mimeType,
     sizeBytes: file.sizeBytes,
+    questionSlot: file.questionSlot || null,
     href: `/goat-arena/matches/${matchId}/competitive-result/evidence/${side}/${index + 1}`,
   }));
 }
@@ -1112,7 +1113,12 @@ async function loadAuthorizedResultParts({ matchId, userId }) {
       !historicalEvidence?.files?.length || historicalEvidence.contentPurgedAt || !historicalPack) {
     throw statusError(409, "양쪽 실제 문제와 풀이 원본을 모두 확인할 수 없습니다.", "ARENA_RESULT_RECORD_INCOMPLETE");
   }
-  return { match, record, challengerAttempt, challengerEvidence, challengerPack, historicalAttempt, historicalEvidence, historicalPack, users };
+  const { memberEvidenceWithSavedBoards } = require("./arenaSolutionEvidenceReadService");
+  const [visibleChallengerEvidence, visibleHistoricalEvidence] = await Promise.all([
+    memberEvidenceWithSavedBoards(challengerEvidence, challengerAttempt),
+    memberEvidenceWithSavedBoards(historicalEvidence, historicalAttempt),
+  ]);
+  return { match, record, challengerAttempt, challengerEvidence: visibleChallengerEvidence, challengerPack, historicalAttempt, historicalEvidence: visibleHistoricalEvidence, historicalPack, users };
 }
 
 async function getAsyncCompetitiveResult({ matchId, userId }) {

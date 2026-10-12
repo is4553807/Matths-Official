@@ -97,7 +97,7 @@ async function verifyActualGuestCapture() {
     throw new Error(`Unexpected guest request ${url}`);
   };
   const matchMedia = () => ({ matches: true });
-  const window = { fetch, matchMedia };
+  const window = { fetch, matchMedia, setTimeout, clearTimeout };
   const context = { window, document, matchMedia, navigator: { userAgent: "iPad", platform: "MacIntel", maxTouchPoints: 5 },
     fetch, location: { assign: (url) => assert.equal(url, "/arena-invite/grid-guest") },
     localStorage: { getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: (key) => storage.delete(key) },

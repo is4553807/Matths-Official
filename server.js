@@ -372,6 +372,12 @@ async function connectDB() {
         } = require("./services/nativeSocialRegistrationService");
         await ensureNativeSocialRegistrationIndexes();
 
+        const { ensureArenaGuestIdentityIndexes } = require("./services/arenaGuestIdentityIndexService");
+        const guestIdentityIndexes = await ensureArenaGuestIdentityIndexes();
+        if (guestIdentityIndexes.removedLegacyGuestClaimIndex) {
+            console.log("Removed retired guest claim index; multiple anonymous participants are enabled.");
+        }
+
         const {
             ensureAcademyIndexes,
         } = require("./services/academyService");
@@ -427,11 +433,8 @@ async function connectDB() {
         } = require("./services/supportInquiryService");
         await ensureSupportInquiryIndexes();
 
-        const { activateConfiguredNormalBaselineBatch } = require("./services/arenaNormalBaselineReleaseService");
-        const normalBaselineRelease = await activateConfiguredNormalBaselineBatch();
-        if (normalBaselineRelease.activatedCount) {
-            console.log(`Normal beta baseline ready: ${normalBaselineRelease.activatedCount} questions (${normalBaselineRelease.replayed ? "existing activation" : "activated"}).`);
-        }
+        const { initializeConfiguredNormalBaselineRelease } = require("./services/arenaNormalBaselineReleaseService");
+        await initializeConfiguredNormalBaselineRelease();
 
         const {
             startPrivateMockExamScheduler,

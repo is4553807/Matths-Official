@@ -6888,6 +6888,45 @@ html {
   text-align: center;
 }
 
+.arena-match-wait-card[data-arena-result-panel][hidden] {
+  display: none;
+}
+
+.arena-result-solution-list {
+  display: grid;
+  width: 100%;
+  gap: 24px;
+  padding: 0;
+  list-style: none;
+}
+
+.arena-result-solution-list a {
+  display: grid;
+  gap: 10px;
+}
+
+.arena-result-solution-list img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  background: #fff;
+}
+
+[data-stored-board-evidence] [hidden] {
+  display: none !important;
+}
+
+.arena-stored-board-previews {
+  display: grid;
+  width: 100%;
+  gap: 16px;
+}
+
+.arena-stored-board-previews figure { margin: 0; }
+.arena-stored-board-previews canvas { width: 100%; height: auto; border-radius: 12px; }
+.arena-stored-board-previews img { display: block; width: 100%; height: auto; border-radius: 12px; }
+
 .arena-match-wait-mark {
   display: grid;
   place-items: center;

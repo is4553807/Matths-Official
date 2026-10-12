@@ -41,6 +41,7 @@
     <script src="/js/math-renderer.js" defer></script>
     <% if (challenge.currentQuestion || challenge.result || challenge.leaderboard?.visible) { %><script src="/js/arena-problem-visualization.js" defer></script><% } %>
     <script src="/js/matths-note-grid.js" defer></script>
+    <script src="/js/arena-solution-evidence.js" defer></script>
     <script src="/js/arena-guest-challenge.js?noteGrid=1" defer></script>
   </head>
   <body class="goat-arena-page arena-inner-page arena-match-page">
@@ -108,17 +109,15 @@
           <footer class="arena-match-submit-panel"><div><strong>현재 답과 풀이과정을 확정합니다.</strong><span>확정 뒤에는 이전 문항으로 돌아갈 수 없습니다.</span></div><button type="button" data-guest-advance><%= challenge.currentQuestion.slot === 5 ? "5번 완료 · 풀이 제출" : "다음 문제" %></button><p data-guest-error role="alert" hidden></p></footer>
         </section>
       <% } else if (challenge.isGuest && challenge.attempt?.status === "EVIDENCE_REQUIRED") { %>
-        <section class="arena-match-wait-card arena-evidence-card">
+        <section class="arena-match-wait-card arena-evidence-card" data-stored-board-evidence data-boards-url="/api/arena-invite/<%= encodeURIComponent(challenge.token) %>/solution-boards" data-finalize-url="/api/arena-invite/<%= encodeURIComponent(challenge.token) %>/solution-boards/finalize">
           <small>풀이과정 필수 제출</small><h2>문제 풀이를 모두 마쳤습니다.</h2><p>컴퓨터에서는 풀이 파일 1~5장을 올려야 합니다. 태블릿·휴대폰에서 작성한 다섯 격자 풀이판은 바로 확정할 수 있습니다.</p>
-          <form action="/arena-invite/<%= encodeURIComponent(challenge.token) %>/evidence" method="post" enctype="multipart/form-data" data-guest-file-evidence>
+          <div class="arena-stored-board-previews" data-stored-board-previews hidden></div>
+          <form action="/arena-invite/<%= encodeURIComponent(challenge.token) %>/evidence" method="post" enctype="multipart/form-data" data-guest-file-evidence data-stored-board-photo-form>
             <label class="arena-evidence-dropzone"><span>풀이 파일 선택</span><strong>1~5장의 JPG · PNG · WEBP · HEIC</strong><input type="file" name="evidenceFiles" accept=".jpg,.jpeg,.png,.webp,.heic,image/*" multiple required /></label><button type="submit">풀이과정 제출</button>
           </form>
-          <button type="button" data-guest-board-finalize hidden>작성한 5개 풀이판 제출</button>
-          <p data-guest-finalize-error role="alert" hidden></p>
+          <button type="button" data-guest-board-finalize data-stored-board-finalize hidden>작성한 5개 풀이판 제출</button>
+          <p data-stored-board-state role="status"></p>
         </section>
-        <script>
-          (()=>{const mobile=window.MatthsNoteGrid.isTouchBoardDevice();const form=document.querySelector("[data-guest-file-evidence]");const button=document.querySelector("[data-guest-board-finalize]");const error=document.querySelector("[data-guest-finalize-error]");if(!mobile||!button)return;form.hidden=true;button.hidden=false;button.onclick=async()=>{button.disabled=true;try{const response=await fetch("/api/arena-invite/<%= encodeURIComponent(challenge.token) %>/solution-boards/finalize",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",credentials:"same-origin"});const body=await response.json().catch(()=>({}));if(!response.ok)throw new Error(body.message||"풀이판을 제출하지 못했습니다.");location.reload();}catch(reason){button.disabled=false;error.hidden=false;error.textContent=reason.message;}};})();
-        </script>
       <% } %>
 
       <% if (challenge.accountArchive && challenge.result) { %>

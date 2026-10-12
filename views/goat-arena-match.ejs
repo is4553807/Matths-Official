@@ -74,6 +74,7 @@
     <script src="/vendor/mathjax/tex-svg.js" defer></script>
     <script src="/js/math-renderer.js" defer></script>
     <script src="/js/matths-note-grid.js" defer></script>
+    <script src="/js/arena-solution-evidence.js" defer></script>
     <script src="/js/goat-arena-v2.js" defer></script>
     <% if (matchData.inProgress || asyncHistoricalResult) { %>
       <script src="/js/arena-problem-visualization.js" defer></script>
@@ -207,9 +208,14 @@
               <% }) %>
             </div>
             <h3>제출된 전체 풀이 과정</h3>
-            <ul>
+            <ul class="arena-result-solution-list">
               <% competitor.solutions.forEach((file) => { %>
-                <li><a href="<%= file.href %>" target="_blank" rel="noopener"><%= file.index %>. <%= file.originalName %></a></li>
+                <li><a href="<%= file.href %>" target="_blank" rel="noopener">
+                  <% if (/^image\/(?:jpeg|png|webp|gif)$/i.test(file.mimeType || "")) { %>
+                    <img src="<%= file.href %>" alt="<%= competitor.isViewer ? "내" : "상대" %> <%= file.questionSlot ? `${file.questionSlot}번 문항` : `${file.index}번째` %> 풀이과정" loading="lazy" />
+                  <% } %>
+                  <span><%= file.questionSlot ? `${file.questionSlot}번 문항 풀이` : `${file.index}. ${file.originalName}` %></span>
+                </a></li>
               <% }) %>
             </ul>
           </section>
@@ -478,7 +484,7 @@
           </footer>
         </section>
       <% } else if (matchData.evidenceRequired) { %>
-        <section class="arena-match-wait-card arena-evidence-card" data-evidence-deadline="<%= matchData.attempt.evidenceDeadlineAt?.toISOString() %>" data-evidence-server-now="<%= matchData.serverNow %>">
+        <section class="arena-match-wait-card arena-evidence-card" data-evidence-deadline="<%= matchData.attempt.evidenceDeadlineAt?.toISOString() %>" data-evidence-server-now="<%= matchData.serverNow %>" data-stored-board-evidence data-boards-url="/api/goat-arena/matches/<%= matchData.id %>/solution-boards" data-finalize-url="/api/goat-arena/matches/<%= matchData.id %>/solution-boards/finalize">
           <div class="arena-evidence-heading">
             <div class="arena-match-wait-mark" aria-hidden="true">↥</div>
             <div class="arena-evidence-copy">
@@ -492,7 +498,10 @@
               <small>마지막 답안 확정 시점부터 계산됩니다.</small>
             </div>
           </div>
-          <form action="/goat-arena/matches/<%= matchData.id %>/evidence" method="post" enctype="multipart/form-data" data-arena-evidence-form>
+          <div class="arena-stored-board-previews" data-stored-board-previews hidden></div>
+          <button type="button" data-stored-board-finalize hidden>작성한 5개 풀이판 제출</button>
+          <p data-stored-board-state role="status"></p>
+          <form action="/goat-arena/matches/<%= matchData.id %>/evidence" method="post" enctype="multipart/form-data" data-arena-evidence-form data-stored-board-photo-form>
             <label class="arena-evidence-dropzone">
               <span>풀이 사진 선택</span>
               <strong>1~5장의 JPG · PNG · WEBP · HEIC</strong>

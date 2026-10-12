@@ -27,6 +27,7 @@ const {
 } = require("./arenaV2DifficultyService");
 const { normalizeBirthDate } = require("./identityRiskService");
 const { nicknameKey, validateNickname } = require("./nicknameService");
+const { memberEvidenceWithSavedBoards, guestFilesWithSavedBoards } = require("./arenaSolutionEvidenceReadService");
 const {
   bindGuestNicknameToUser,
   releaseNickname,
@@ -262,10 +263,11 @@ async function sourceEvidenceFiles(challenge) {
       _id: challenge.sourceGuestAttemptId,
       status: "SETTLED",
     }).lean();
-    return sourceAttempt?.evidenceFiles || [];
+    return guestFilesWithSavedBoards(sourceAttempt);
   }
   const evidence = await ArenaMatchEvidence.findById(challenge?.sourceEvidenceId).lean();
-  return evidence?.files || [];
+  const attempt = await ArenaMatchAttempt.findById(challenge?.sourceAttemptId).lean();
+  return (await memberEvidenceWithSavedBoards(evidence, attempt))?.files || [];
 }
 
 async function createGuestChallengeFromClaimedAttempt({
@@ -708,7 +710,7 @@ async function claimGuestChallenge({
       });
       identityCreatedForAdmission = true;
     } catch (error) {
-      if (Number(error?.code) === 11000 || error?.code === "NICKNAME_NAMESPACE_TAKEN") {
+      if (error?.code === "NICKNAME_NAMESPACE_TAKEN" || (Number(error?.code) === 11000 && error.keyPattern?.nicknameNormalized)) {
         throw statusError(
           409,
           "방금 다른 참가 요청이 이 닉네임 또는 계정 신원을 사용했습니다.",
@@ -730,8 +732,11 @@ async function claimGuestChallenge({
       });
       identityCreatedForAdmission = true;
     } catch (error) {
-      if (Number(error?.code) === 11000 || error?.code === "NICKNAME_NAMESPACE_TAKEN") {
+      if (error?.code === "NICKNAME_NAMESPACE_TAKEN" || (Number(error?.code) === 11000 && error.keyPattern?.nicknameNormalized)) {
         throw statusError(409, "방금 다른 게스트가 이 닉네임을 사용했습니다.", "ARENA_GUEST_NICKNAME_TAKEN");
+      }
+      if (Number(error?.code) === 11000 && error.keyPattern?.claimedByUserId) {
+        throw statusError(503, "도전장 참여 기능을 준비 중입니다. 잠시 후 다시 시도하세요.", "ARENA_GUEST_IDENTITY_INDEX_NOT_READY");
       }
       throw error;
     }
@@ -1211,13 +1216,14 @@ async function getGuestSolutionBoards({ rawToken, cookieHeader, viewerUserId = n
     .select("+drawingData")
     .sort({ questionSlot: 1 })
     .lean();
-  return boards.map((board) => ({
+  return Promise.all(boards.map(async (board) => ({
     questionSlot: board.questionSlot,
     revision: board.revision,
     strokeCount: board.strokeCount,
     sha256: board.file?.sha256 || "",
     drawingDataBase64: Buffer.from(board.drawingData || "").toString("base64"),
-  }));
+    previewURL: await signedStoredAssetUrl(board.file, { expiresIn: 300 }),
+  })));
 }
 
 async function assertGuestBoard({
@@ -1252,7 +1258,16 @@ async function settleGuestAttempt({ challenge, attempt, evidenceFiles, now = new
   // 게스트 링크는 지인 간 친선전이므로 자동 부정행위 감지·운영 검토 대상에서 제외한다.
   // 풀이 제출과 결과 기록은 유지하되 MMR·XP에는 반영하지 않는다.
   const pack = await ArenaProblemPack.findById(attempt.problemPackId).select("+questions").lean();
-  const performance = performanceForAttempt({ attempt, problemPack: pack, sourceRates: exactSourceRates(pack) });
+  // Every participant solves the creator's same five questions. Reuse the
+  // rates sealed with that challenge, including normal-mode published bounds.
+  const sourceObservations = challenge.sourcePerformance?.observations;
+  if (!Array.isArray(sourceObservations) || sourceObservations.length !== 5 ||
+      pack?.questions?.length !== 5 || sourceObservations.some((observation, index) =>
+        observation.questionKey !== pack.questions[index].questionKey ||
+        !Number.isFinite(observation.p) || observation.p <= 0 || observation.p >= 1)) {
+    throw statusError(409, "도전장 원본 문제의 평가 정보를 확인할 수 없습니다.", "ARENA_GUEST_SOURCE_PERFORMANCE_INVALID");
+  }
+  const performance = performanceForAttempt({ attempt, problemPack: pack, sourceRates: sourceObservations.map(observation => observation.p) });
   const comparison = compareCountThenTimePerformance(performance.performance, challenge.sourcePerformance);
   if (!comparison.valid) throw statusError(409, "유효 풀이 시간을 확인할 수 없습니다.", "ARENA_GUEST_COMPARISON_INVALID");
   const result = comparison.winnerRole === "CHALLENGER"
@@ -1392,7 +1407,7 @@ async function sourceAttemptForChallenge(challenge) {
 function publicEvidence(basePath, side, files) {
   return (files || []).map((file, index) => ({
     index: index + 1,
-    displayName: `${index + 1}번 풀이과정`,
+    displayName: file.questionSlot ? `${file.questionSlot}번 문항 풀이` : `${index + 1}번 풀이과정`,
     mimeType: file.mimeType || "",
     previewable: /^image\/(?:jpeg|png|webp|gif)$/i.test(String(file.mimeType || "")),
     href: `${basePath}/evidence/${side}/${index + 1}`,
@@ -1409,9 +1424,10 @@ async function guestResultData({
   includeCreator = true,
 }) {
   if (attempt?.status !== "SETTLED" || !pack) return null;
-  const [creatorEvidenceFiles, creatorAttempt] = await Promise.all([
+  const [creatorEvidenceFiles, creatorAttempt, guestEvidenceFiles] = await Promise.all([
     sourceEvidenceFiles(challenge),
     sourceAttemptForChallenge(challenge),
+    guestFilesWithSavedBoards(attempt),
   ]);
   const creatorPerformance = challenge.sourcePerformance;
   return {
@@ -1457,7 +1473,7 @@ async function guestResultData({
           attempt
         )
       ),
-      solutions: publicEvidence(evidenceBasePath, "guest", attempt.evidenceFiles),
+      solutions: publicEvidence(evidenceBasePath, "guest", guestEvidenceFiles),
     },
   };
 }
@@ -1549,7 +1565,7 @@ async function getGuestRegistrationClaimPreview({
 function leaderboardEvidence(files, hrefForIndex) {
   return (files || []).map((file, index) => ({
     index: index + 1,
-    displayName: `${index + 1}번 풀이과정`,
+    displayName: file.questionSlot ? `${file.questionSlot}번 문항 풀이` : `${index + 1}번 풀이과정`,
     mimeType: file.mimeType || "",
     previewable: /^image\/(?:jpeg|png|webp|gif)$/i.test(String(file.mimeType || "")),
     href: hrefForIndex(index + 1),
@@ -1651,7 +1667,7 @@ async function buildGuestChallengeLeaderboard({
         )
       ),
       solutions: leaderboardEvidence(
-        attempt.evidenceFiles,
+        await guestFilesWithSavedBoards(attempt),
         (fileIndex) => `${tokenPath}/evidence/participants/${encodeURIComponent(id(attempt))}/${fileIndex}`
       ),
     });
@@ -1971,7 +1987,7 @@ async function getClaimedGuestEvidenceFile({ attemptId, userId, side, fileIndex 
   const files = normalizedSide === "creator"
     ? await sourceEvidenceFiles(challenge)
     : normalizedSide === "guest"
-      ? attempt.evidenceFiles
+      ? await guestFilesWithSavedBoards(attempt)
       : null;
   const file = files?.[Number(fileIndex) - 1];
   if (!file) {
@@ -2037,14 +2053,14 @@ async function getGuestEvidenceFile({
           status: "SETTLED",
         }).lean()
       : null;
-    files = participantAttempt?.evidenceFiles || null;
+    files = participantAttempt ? await guestFilesWithSavedBoards(participantAttempt) : null;
   } else if (normalizedSide === "guest" && identity) {
     const ownAttempt = await ArenaGuestChallengeAttempt.findOne({
       challengeId: challenge._id,
       guestIdentityId: identity._id,
       status: "SETTLED",
     }).sort({ attemptNumber: -1 }).lean();
-    files = ownAttempt?.evidenceFiles || null;
+    files = ownAttempt ? await guestFilesWithSavedBoards(ownAttempt) : null;
   }
   const file = files?.[Number(fileIndex) - 1];
   if (!file) throw statusError(404, "풀이 파일을 찾을 수 없습니다.", "ARENA_GUEST_EVIDENCE_MISSING");

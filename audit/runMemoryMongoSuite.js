@@ -19,6 +19,9 @@ const defaultTargets = [
   { target: "audit/verifyCommunityAuthorSoftDeleteDb.js", dropAfter: true },
   { target: "audit/verifyCommunityUserBlockDb.js", dropAfter: true },
   { target: "audit/verifyArenaAsyncHistoricalSemanticsDb.js", dropAfter: true },
+  { target: "audit/verifyArenaGuestIdentityIndexesDb.js", dropAfter: true },
+  { target: "audit/verifyArenaGuestChallengeDb.js", dropAfter: true },
+  { target: "audit/verifyArenaAsyncEvidenceDeliveryDb.js", dropAfter: true },
   { target: "audit/verifyMultiProcessSchedulerLease.js", dropAfter: true },
 ];
 

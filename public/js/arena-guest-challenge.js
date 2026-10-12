@@ -216,6 +216,11 @@
   let submitting = false;
   let boardRevision = 0;
   let boardDirty = false;
+  let boardReady = Promise.resolve();
+  let boardSaveChain = Promise.resolve();
+  let reservedBoardRevision = 0;
+  let boardAutosaveTimer = null;
+  let lastSavedDrawing = "";
 
   const showError = (message) => {
     errorBox.textContent = message;
@@ -256,30 +261,49 @@
       }
     } catch (_error) {}
   };
-  const drawingBase64 = () => {
-    const bytes = new TextEncoder().encode(JSON.stringify({ version: 1, strokes }));
+  const drawingBase64 = (drawingStrokes = strokes) => {
+    const bytes = new TextEncoder().encode(JSON.stringify({ version: 1, strokes: drawingStrokes }));
     let binary = "";
     bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
     return btoa(binary);
   };
-  const saveBoard = async () => {
-    const evidenceCanvas = window.MatthsNoteGrid.createEvidenceCanvas(canvas, strokes);
+  const saveBoard = () => {
+    const snapshot = strokes.map(stroke => stroke.map(point => [...point]));
+    const drawingDataBase64 = drawingBase64(snapshot);
+    reservedBoardRevision = Math.max(Date.now(), reservedBoardRevision + 1, boardRevision + 1);
+    const uploadRevision = reservedBoardRevision;
+    boardSaveChain = boardSaveChain.catch(() => {}).then(async () => {
+    const evidenceCanvas = window.MatthsNoteGrid.createEvidenceCanvas(canvas, snapshot);
     const blob = await new Promise((resolve) => evidenceCanvas.toBlob(resolve, "image/png"));
     if (!blob) throw new Error("풀이판 이미지를 만들지 못했습니다.");
     if (boardState) boardState.textContent = "풀이판 저장 중…";
     const form = new FormData();
     form.append("solutionBoard", new File([blob], `guest-question-${slot}.png`, { type: "image/png" }));
     form.append("questionSlot", String(slot));
-    form.append("revision", String(Math.max(Date.now(), boardRevision + 1)));
-    form.append("strokeCount", String(strokes.length));
-    form.append("drawingDataBase64", drawingBase64());
+    form.append("revision", String(uploadRevision));
+    form.append("strokeCount", String(snapshot.length));
+    form.append("drawingDataBase64", drawingDataBase64);
     const response = await fetch(`/api/arena-invite/${encodeURIComponent(token)}/solution-board`, {
       method: "PUT", body: form, credentials: "same-origin",
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.message || "풀이판을 저장하지 못했습니다.");
     boardRevision = Number(payload.board?.revision || boardRevision + 1);
+    lastSavedDrawing = drawingDataBase64;
     if (boardState) boardState.textContent = "풀이판 저장 완료";
+    });
+    return boardSaveChain;
+  };
+  const autosaveBoard = async () => {
+    window.clearTimeout(boardAutosaveTimer);
+    await boardReady;
+    if (submitting || activeStroke || drawingBase64() === lastSavedDrawing) return;
+    try { await saveBoard(); }
+    catch (_error) { if (!submitting && boardState) boardState.textContent = "기기에 저장했습니다. 서버 저장은 다음 필기 또는 문항 완료 때 다시 시도합니다."; }
+  };
+  const scheduleBoardAutosave = () => {
+    window.clearTimeout(boardAutosaveTimer);
+    boardAutosaveTimer = window.setTimeout(() => { autosaveBoard().catch(() => {}); }, 1000);
   };
 
   if (mobileBoard && canvas) {
@@ -300,21 +324,22 @@
     window.MatthsNoteGrid.observeCanvas(canvas, draw);
     draw();
     canvas.addEventListener("pointerdown", (event) => {
+      if (submitting) return;
       event.preventDefault(); canvas.setPointerCapture(event.pointerId);
       activeStroke = [point(event)]; strokes.push(activeStroke); boardDirty = true; persist(); draw();
     });
     canvas.addEventListener("pointermove", (event) => {
-      if (!activeStroke) return; event.preventDefault(); activeStroke.push(point(event)); persist(); draw();
+      if (submitting || !activeStroke) return; event.preventDefault(); activeStroke.push(point(event)); persist(); draw();
     });
-    const finish = () => { activeStroke = null; persist(); };
+    const finish = () => { activeStroke = null; persist(); if (!submitting) scheduleBoardAutosave(); };
     canvas.addEventListener("pointerup", finish);
     canvas.addEventListener("pointercancel", finish);
-    boardRoot.querySelector("[data-board-undo]")?.addEventListener("click", () => { strokes.pop(); boardDirty = true; persist(); draw(); });
+    boardRoot.querySelector("[data-board-undo]")?.addEventListener("click", () => { if (submitting) return; strokes.pop(); boardDirty = true; persist(); draw(); scheduleBoardAutosave(); });
     boardRoot.querySelector("[data-board-clear]")?.addEventListener("click", () => {
-      if (!confirm("현재 풀이판을 모두 지울까요?")) return;
-      strokes = []; boardDirty = true; persist(); draw();
+      if (submitting || !confirm("현재 풀이판을 모두 지울까요?")) return;
+      strokes = []; boardDirty = true; persist(); draw(); scheduleBoardAutosave();
     });
-    fetch(`/api/arena-invite/${encodeURIComponent(token)}/solution-boards`, {
+    boardReady = fetch(`/api/arena-invite/${encodeURIComponent(token)}/solution-boards`, {
       headers: { Accept: "application/json" },
       credentials: "same-origin",
     }).then((response) => response.json().then((payload) => ({ response, payload })))
@@ -325,6 +350,8 @@
           return;
         }
         boardRevision = Number(board.revision || 0);
+        reservedBoardRevision = Math.max(reservedBoardRevision, boardRevision);
+        lastSavedDrawing = board.drawingDataBase64 || "";
         if (boardDirty) {
           if (boardState) boardState.textContent = "기기에 남아 있는 풀이판을 복구했습니다.";
           return;
@@ -340,6 +367,9 @@
       .catch(() => {
         if (boardState) boardState.textContent = "저장된 로컬 풀이판을 사용합니다.";
       });
+    document.addEventListener?.("visibilitychange", () => {
+      if (document.visibilityState === "hidden" && !submitting) autosaveBoard().catch(() => {});
+    });
   }
 
   const advance = async (timedOut = false) => {
@@ -348,6 +378,9 @@
     advanceButton.disabled = true;
     try {
       if (mobileBoard) {
+        window.clearTimeout(boardAutosaveTimer);
+        await boardReady;
+        activeStroke = null;
         const lockResponse = await fetch(
           `/api/arena-invite/${encodeURIComponent(token)}/lock-question`,
           {
@@ -382,7 +415,7 @@
           method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", credentials: "same-origin",
         });
         const finalizeBody = await finalize.json().catch(() => ({}));
-        if (!finalize.ok) throw new Error(finalizeBody.message || "풀이판을 제출하지 못했습니다.");
+        if (!finalize.ok && finalizeBody.code !== "ARENA_GUEST_BOARDS_INCOMPLETE") throw new Error(finalizeBody.message || "풀이판을 제출하지 못했습니다.");
       }
       if (payload.finalQuestion) clearAttemptBoardStorage();
       else localStorage.removeItem(storageKey);

@@ -47,6 +47,8 @@ const {
   ARENA_ONE_ON_ONE_TIME_LIMIT_MS,
 } = require("../services/arenaOneOnOneProblemBank");
 const { GOAT_ARENA_V2_CONFIG } = require("../services/goatArenaV2Config");
+const { publicSourceAccuracyForQuestion } = require("../services/arenaMatchAttemptService");
+const { exactSourceRates } = require("../services/arenaAsyncCompetitiveService");
 const { purgeExpiredArenaEvidence } = require("../services/arenaMatchEvidenceService");
 
 const now = new Date();
@@ -162,13 +164,18 @@ async function completeGuestAttemptWithBoards({
 
 async function createSourceFixture(
   creatorUserId,
-  { gameMode = "NORMAL", difficultyCode = "U9", rating = 1777 } = {}
+  { gameMode = "NORMAL", difficultyCode = "U9", rating = 1777, usePublishedBound = false } = {}
 ) {
   const matchId = new mongoose.Types.ObjectId();
   const attemptId = new mongoose.Types.ObjectId();
   const evidenceId = new mongoose.Types.ObjectId();
   const packId = new mongoose.Types.ObjectId();
   const sourceIds = exactSourceIds();
+  if (usePublishedBound) {
+    const bounded = POOL_ENTRIES.find(entry => publicSourceAccuracyForQuestion({ sourceTypeId: entry.definition.sourceReferenceId })?.evidenceKind === "CENSORED_BOUND");
+    assert.ok(bounded, "use an actual published-bound source in the regression");
+    sourceIds[0] = bounded.definition.sourceReferenceId;
+  }
   assert.equal(sourceIds.length, 5);
   const questions = sourceIds.map((sourceTypeId, index) => ({
     questionKey: `GUEST-SOURCE-Q${index + 1}`,
@@ -395,6 +402,22 @@ async function main() {
     assert.equal(storedInvitation.creatorRatingSnapshot, 1777);
     assert.equal(storedInvitation.difficultyCodeSnapshot, "U9");
     assert.equal(storedInvitation.difficultyPolicy, "CHALLENGER_MMR_V1");
+    const boundedSource = await createSourceFixture(creatorUserId, { usePublishedBound: true });
+    const boundedPack = await ArenaProblemPack.findById(boundedSource.packId).select("+questions").lean();
+    assert.throws(() => exactSourceRates(boundedPack), error => error.code === "ARENA_COMPETITIVE_ACCURACY_UNAVAILABLE");
+    const boundedInvitation = await createGuestChallenge({ creatorUserId, sourceMatchId: boundedSource.matchId, now });
+    const beforeFriendly = await guestSideEffectSnapshot([creatorUserId, strangerUserId]);
+    const boundedClaims = await Promise.all(["published-bound-a", "published-bound-b"].map(nickname => claimGuestChallenge({ rawToken: boundedInvitation.token, nickname, birthDate: OWNER_BIRTH_DATE, cookieHeader: "", now })));
+    assert.notEqual(String(boundedClaims[0].identity._id), String(boundedClaims[1].identity._id));
+    for (const [index, claim] of boundedClaims.entries()) {
+      const cookieHeader = `${GUEST_COOKIE_NAME}=${claim.cookieValue}`;
+      const startedAt = new Date(now.getTime() + 1000);
+      const attempt = await startGuestAttempt({ rawToken: boundedInvitation.token, cookieHeader, now: startedAt });
+      const settled = await completeGuestAttemptWithBoards({ rawToken: boundedInvitation.token, cookieHeader, attempt, questions: boundedSource.questions, startedAt, answerIntervalMs: 10000 + index * 1000, evidencePrefix: `published-bound-${index}` });
+      assert.equal(settled.status, "SETTLED"); assert.equal(settled.performance.correctCount, 5);
+      assert.deepEqual(settled.performance.observations.map(observation => observation.p), (await ArenaGuestChallenge.findById(boundedInvitation.id).lean()).sourcePerformance.observations.map(observation => observation.p));
+    }
+    assert.deepEqual(await guestSideEffectSnapshot([creatorUserId, strangerUserId]), beforeFriendly, "normal-source friendly submissions must not write MMR, XP or integrity records");
     const competitiveSource = await createSourceFixture(creatorUserId, {
       gameMode: "COMPETITIVE",
       difficultyCode: "R9",
@@ -1501,7 +1524,7 @@ async function main() {
     assert.equal(chainedCreatorView.leaderboard.rows[0].completionTimeMs, 390000);
     assert.equal(
       chainedCreatorView.leaderboard.rows[0].solutions[0].displayName,
-      "1번 풀이과정",
+      "1번 문항 풀이",
       "a second-generation reverse challenge resolves its evidence without exposing the upload filename"
     );
 
