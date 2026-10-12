@@ -4,10 +4,6 @@
       ? assetVersion
       : "dev"
   );
-  const pendingRankUpPresentation =
-    typeof rankUpPresentation !== "undefined"
-      ? rankUpPresentation
-      : null;
   const arenaNotificationState =
     typeof arenaNotifications !== "undefined"
       ? arenaNotifications
@@ -20,36 +16,30 @@
       href: "/goat-arena",
     },
     {
-      key: "rankings",
-      label: "티어 순위",
-      ariaLabel: "GOAT Arena 티어 순위",
-      href: "/goat-arena/rankings",
-    },
-    {
       key: "sub",
-      label: "UNRANKED",
-      ariaLabel: "Unranked 페이백 도전",
+      label: "일반전",
+      ariaLabel: "GOAT Arena 일반전",
       href: "/goat-arena/sub",
       alertCount: arenaNotificationState?.actionByDivision?.SUB || arenaNotificationState?.defenseByDivision?.SUB || 0,
     },
     {
       key: "main",
-      label: "RANKED",
-      ariaLabel: "Ranked 상위 전장",
+      label: "경쟁전",
+      ariaLabel: "GOAT Arena 경쟁전",
       href: "/goat-arena/main",
       alertCount: arenaNotificationState?.actionByDivision?.MAIN || arenaNotificationState?.defenseByDivision?.MAIN || 0,
     },
     {
-      key: "shop",
-      label: "상점",
-      ariaLabel: "GOAT Arena Ranked 상점",
-      href: "/goat-arena/main/shop",
+      key: "friends",
+      label: "친구",
+      ariaLabel: "GOAT Arena 친구와 친선전",
+      href: "/goat-arena/friends",
     },
     {
       key: "rules",
       label: "경기 규정",
       ariaLabel: "GOAT Arena 경기 규정",
-      href: "/goat-arena/rules/sub",
+      href: "/goat-arena/rules",
     },
   ];
 %>
@@ -109,7 +99,7 @@
       </section>
     </div>
     <a
-      class="arena-player <%= activeArenaPage === 'profile' ? 'active' : '' %> <%= arenaUser.hasMainProfileBorder ? 'has-main-shop-border' : '' %>"
+      class="arena-player <%= activeArenaPage === 'profile' ? 'active' : '' %>"
       href="/goat-arena/profile"
       data-arena-tutorial-nav="profile"
       aria-label="<%= arenaUser.nickname %>님의 GOAT Arena 프로필, 활동 레벨 <%= arenaUser.activityLevel?.level || 1 %>"
@@ -126,20 +116,10 @@
       </span>
       <strong>
         <%= arenaUser.nickname %>
-        <% if (arenaUser.hasStyleEntrance) { %><small>ARENA CONTENDER</small><% } %>
       </strong>
     </a>
   </div>
 </header>
-<% if (pendingRankUpPresentation) { %>
-  <%- include("rank-motion-dialog", {
-    rankMotionAssetBase: "/media/rank-motion",
-    rankMotionMode: "modal",
-    rankMotionBackdrop: true,
-    rankMotionControls: true,
-  }) %>
-  <script type="application/json" data-rank-up-presentation-payload><%- JSON.stringify(pendingRankUpPresentation).replace(/</g, "\\u003c") %></script>
-<% } %>
 <%- include("arena-tutorial") %>
 <script src="/js/navigation-performance.js?v=<%= arenaAssetVersion %>" defer></script>
 <script src="/js/session-usage.js?v=<%= arenaAssetVersion %>" defer></script>

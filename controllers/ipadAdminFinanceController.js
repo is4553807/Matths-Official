@@ -11,11 +11,6 @@ const {
   getAdminRefundData,
   rejectRefundRequest,
 } = require("../services/refundService");
-const {
-  completePaybackPayout,
-  getAdminPaybackDashboard,
-  resendPaybackPayoutEmail,
-} = require("../services/paybackAccountService");
 
 const SCHEMA_VERSION = "ADMIN_FINANCE_NATIVE_V1";
 
@@ -61,9 +56,6 @@ function financePayload(value) {
     refundedAndCancelled: integer(value.refundedAndCancelled),
     todayRevenue: integer(value.todayRevenue),
     actualCashBalance: integer(value.actualCashBalance),
-    cumulativePaybackPaid: integer(value.cumulativePaybackPaid),
-    paybackReserve: integer(value.paybackReserve),
-    confirmedUnpaidPayback: integer(value.confirmedUnpaidPayback),
     pgFeeReserve: integer(value.pgFeeReserve),
     otherUnpaidCosts: integer(value.otherUnpaidCosts),
     cumulativeConfirmedProfit: integer(value.cumulativeConfirmedProfit),
@@ -135,62 +127,6 @@ function refundPayload(value) {
       totalPages: integer(value.totalPages) || 1,
       hasPrevious: Number(value.page) > 1,
       hasNext: Number(value.page) < Number(value.totalPages),
-    },
-  };
-}
-
-function paybackPayload(value) {
-  return {
-    periodKey: String(value.periodKey || ""),
-    eligible: {
-      total: integer(value.eligible?.total),
-      linkedTotal: integer(value.eligible?.linkedTotal),
-      payoutRate: Number(value.eligible?.payoutRate || 0),
-      pendingAmount: integer(value.eligible?.pendingAmount),
-    },
-    monthly: {
-      salesAmount: integer(value.monthly?.salesAmount),
-      salesCount: integer(value.monthly?.salesCount),
-      payoutAmount: integer(value.monthly?.payoutAmount),
-      payoutCount: integer(value.monthly?.payoutCount),
-      payoutToSalesRate: Number(value.monthly?.payoutToSalesRate || 0),
-    },
-    rows: (value.rows || []).map((item) => ({
-      cycleId: String(item.cycleId || ""),
-      userId: String(item.userId || ""),
-      userName: String(item.userName || "사용자"),
-      email: String(item.email || ""),
-      paybackRate: Number(item.paybackRate || 0),
-      paybackAmount: integer(item.paybackAmount),
-      evaluatedAt: item.evaluatedAt || null,
-      payoutDeadlineAt: item.payoutDeadlineAt || null,
-      payoutOverdue: Boolean(item.payoutOverdue),
-      accountConfirmed: Boolean(item.accountConfirmed),
-      bankName: String(item.bankName || ""),
-      accountHolderName: String(item.accountHolderName || ""),
-      accountNumber: String(item.accountNumber || ""),
-      accountNumberLast4: String(item.accountNumberLast4 || ""),
-      decryptError: Boolean(item.decryptError),
-    })),
-    history: (value.history || []).map((item) => ({
-      id: id(item),
-      user: person(item.userId),
-      completedBy: person(item.completedBy),
-      amount: integer(item.amount),
-      paybackRate: Number(item.paybackRate || 0),
-      bankName: String(item.bankName || ""),
-      accountNumberLast4: String(item.accountNumberLast4 || ""),
-      status: String(item.status || "COMPLETED"),
-      completedAt: item.completedAt || null,
-      emailStatus: String(item.emailStatus || "PENDING"),
-      operatorNote: String(item.operatorNote || ""),
-    })),
-    pagination: {
-      page: integer(value.pagination?.page) || 1,
-      total: integer(value.pagination?.total),
-      totalPages: integer(value.pagination?.totalPages) || 1,
-      hasPrevious: Number(value.pagination?.page) > 1,
-      hasNext: Number(value.pagination?.page) < Number(value.pagination?.totalPages),
     },
   };
 }
@@ -283,39 +219,5 @@ exports.rejectRefund = async (req, res, next) => {
     const data = await getAdminRefundData({ status: req.query.status });
     noStore(res);
     return res.json({ schemaVersion: SCHEMA_VERSION, ok: true, refunds: refundPayload(data) });
-  } catch (error) { return next(error); }
-};
-
-exports.paybacks = async (req, res, next) => {
-  try {
-    requireAdmin(req);
-    const data = await getAdminPaybackDashboard({ page: req.query.page, periodKey: req.query.periodKey });
-    noStore(res);
-    return res.json({ schemaVersion: SCHEMA_VERSION, paybacks: paybackPayload(data) });
-  } catch (error) { return next(error); }
-};
-
-exports.completePayback = async (req, res, next) => {
-  try {
-    const admin = requireAdmin(req);
-    const result = await completePaybackPayout({
-      cycleId: req.params.cycleId,
-      adminUserId: admin._id,
-      operatorNote: req.body.operatorNote,
-    });
-    noStore(res);
-    return res.json({ schemaVersion: SCHEMA_VERSION, ok: true, emailDelivered: result.emailDelivered });
-  } catch (error) { return next(error); }
-};
-
-exports.resendPaybackEmail = async (req, res, next) => {
-  try {
-    const admin = requireAdmin(req);
-    const result = await resendPaybackPayoutEmail({
-      payoutRecordId: req.params.payoutRecordId,
-      adminUserId: admin._id,
-    });
-    noStore(res);
-    return res.json({ schemaVersion: SCHEMA_VERSION, ok: true, emailDelivered: result.emailDelivered });
   } catch (error) { return next(error); }
 };

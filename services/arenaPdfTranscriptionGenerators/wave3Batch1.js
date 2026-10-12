@@ -798,10 +798,10 @@ function makeTilingWithLabeledPieces(sourceReferenceId) {
         ? ""
         : parameters.restrictionLevel === 1
           ? " 그림에서 파란색으로 표시한 칸에는 반드시 ◇ 조각을 놓는다."
-          : " 그림에서 파란색 칸에는 ◇ 조각을, 보라색 칸에는 ○ 조각 두 개를 놓는다.";
+          : " 그림에서 파란색 칸에는 ◇ 조각을, 보라색 칸에는 ○ 조각이 반드시 포함되도록 놓는다.";
       const cells = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 1, y: 1 }];
       return {
-        prompt: `다음 그림처럼 빗변이 \\(\\sqrt2\\)인 직각이등변삼각형 조각 6개와 한 변이 1인 정사각형 조각 1개로 네 정사각형 도형을 빈틈없이 채운다. 삼각형 표시는 ○ 1개, ☆ 1개, ◎ 4개이고 정사각형 표시는 ◇이며 ◎ 조각끼리는 구별하지 않고 조각은 뒤집지 않는다.${extra} 가능한 타일링의 수를 구하여라.`,
+        prompt: `다음 그림처럼 빗변이 \\(\\sqrt2\\)인 직각이등변삼각형 조각 6개와 한 변이 1인 정사각형 조각 1개로 네 정사각형 도형을 빈틈없이 채운다. 삼각형 표시는 ○ 1개, ☆ 1개, ◎ 4개이고 정사각형 표시는 ◇이며 ◎ 조각끼리는 구별하지 않고 조각은 뒤집지 않는다.${extra} 각 정사각형 칸은 ◇ 조각 한 개 또는 대각선으로 나눈 삼각형 조각 두 개로 채우며, 대각선 방향은 자유롭게 선택한다. 가능한 타일링의 수를 구하여라.`,
         solution: `◇와 ○가 들어갈 칸 및 ○ 조각의 방향을 정한 뒤 ☆와 네 ◎ 조각을 배치한다. 주어진 고정 조건을 반영하면 답은 \\(${answer}\\)이다.`,
         visualization: visual("GEO", {
           showAxes: false,
@@ -826,7 +826,7 @@ function makeTilingWithLabeledPieces(sourceReferenceId) {
             { points: [{ x: 5.2, y: 0 }, { x: 6.2, y: 0 }, { x: 5.2, y: 1 }], fill: "#ffffff" },
             { points: [{ x: 4, y: 1.7 }, { x: 5, y: 1.7 }, { x: 4, y: 2.7 }], fill: "#ffffff" },
           ],
-          polylines: cells.filter((_, index) => index !== 1).map((cell) => ({ points: [{ x: cell.x, y: cell.y }, { x: cell.x + 1, y: cell.y + 1 }], color: "#64748b", width: 1.5 })),
+          polylines: [],
           texts: [
             { x: 1.5, y: 0.5, text: parameters.restrictionLevel >= 1 ? "◇ 고정" : "목표 도형", color: "#2563eb" },
             ...(parameters.restrictionLevel >= 2 ? [{ x: 0.5, y: 0.5, text: "○ 고정", color: "#7c3aed" }] : []),

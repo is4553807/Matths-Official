@@ -111,6 +111,9 @@ function baseLocals(previewValue) {
         issueCount: 0,
         byCategory: {},
       },
+      overview: {
+        placementReviewQueue: [],
+      },
       scope: { truncated: false },
       issues: [],
     },

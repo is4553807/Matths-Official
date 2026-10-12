@@ -1,0 +1,22 @@
+"use strict";
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),mongoose=require('mongoose');
+const {User}=require('../models/matthsModel');
+const {ArenaNormalBaselineQuestion}=require('../models/goatArenaModel');
+const {activatePreparedNormalBaselineBatch,activateConfiguredNormalBaselineBatch}=require('../services/arenaNormalBaselineReleaseService');
+const {selectActiveNormalBaselineQuestionSet}=require('../services/arenaNormalBaselineQuestionService');
+const {batchAssets,documentForQuestion}=require('../scripts/arenaFontBaselineArtifacts');
+const release=require('../dataAnalysis/arenaNormalBaselineRelease20261012.json');
+async function main(){assert.match(String(process.env.DB||''),/matths_audit_zero_assumption_20260815/);await mongoose.connect(process.env.DB);
+ try{const dir=path.resolve('output/baseline/normal60_20261012'),manifest=JSON.parse(fs.readFileSync(dir+'/manifest.json')),simulation=JSON.parse(fs.readFileSync(dir+'/fairness-simulation.json')),inventory=JSON.parse(fs.readFileSync(dir+'/evidence-inventory.json')),assets=batchAssets(dir,manifest),byName=new Map(assets.map(a=>[a.originalName,a])),meta=byName.get('manifest.json');
+ const operatorId=new mongoose.Types.ObjectId(),viewerId=new mongoose.Types.ObjectId();await User.collection.insertOne({_id:operatorId,email:'normal-release-operator@example.invalid',role:'admin',accountStatus:'active',isActive:true});await ArenaNormalBaselineQuestion.insertMany(manifest.questions.map(q=>documentForQuestion(q,byName,meta)));
+ const readJson=async key=>key===release.manifestR2ObjectKey?manifest:key===release.calibrationR2ObjectKey?simulation:inventory;let checked=0;const checkEvidence=async file=>{assert.equal(file.storagePurpose,'ARENA_BASELINE_SOLUTION');checked++;};
+ delete process.env.ARENA_NORMAL_BASELINE_AUTO_ACTIVATE;assert.deepEqual(await activateConfiguredNormalBaselineBatch(),{enabled:false});
+ await assert.rejects(activatePreparedNormalBaselineBatch({operatorEmail:'missing@example.invalid',readJson,checkEvidence}),/active registered administrator/);assert.equal(await ArenaNormalBaselineQuestion.countDocuments({status:'ACTIVE'}),0);
+ await assert.rejects(activatePreparedNormalBaselineBatch({operatorEmail:'normal-release-operator@example.invalid',readJson:async key=>key===release.calibrationR2ObjectKey?{...simulation,activationApproved:false}:readJson(key),checkEvidence}));assert.equal(await ArenaNormalBaselineQuestion.countDocuments({status:'ACTIVE'}),0);
+ const result=await activatePreparedNormalBaselineBatch({operatorEmail:'normal-release-operator@example.invalid',readJson,checkEvidence,now:new Date('2026-10-12T05:00:00+09:00')});assert.equal(result.activatedCount,540);assert.equal(result.replayed,false);assert.ok(checked>=763);
+ const rows=await ArenaNormalBaselineQuestion.find({batchKey:release.batchKey}).select('+question').lean();assert.ok(rows.every(r=>r.status==='ACTIVE'&&r.calibrationStatus==='SIMULATION_APPROVED'&&String(r.reviewedByUserId)===String(operatorId)&&r.generationProvenance.isHumanSolveEvidence===false));
+ const history=[];for(let sequence=1;sequence<=24;sequence++){const blocked=history.slice(-10).flatMap(h=>h.questions.map(q=>q.questionInstanceHash));const selected=await selectActiveNormalBaselineQuestionSet({challengerUserId:viewerId,rating:1000,sequence,excludedQuestionHashes:blocked});assert.equal(selected.questions.length,5);assert.ok(selected.questions.every(q=>!blocked.includes(q.questionInstanceHash)));assert.equal(selected.batchKey,release.batchKey);history.push(selected);}
+ const replay=await activatePreparedNormalBaselineBatch({operatorEmail:'normal-release-operator@example.invalid',readJson,checkEvidence,now:new Date('2026-10-13T05:00:00+09:00')});assert.equal(replay.replayed,true);assert.equal((await ArenaNormalBaselineQuestion.findById(rows[0]._id).lean()).activatedAt.getTime(),rows[0].activatedAt.getTime());
+ console.log('Prepared normal beta release verified: 540 guarded activations, invalid operator/calibration refusal, preserved synthetic provenance, idempotent restart and 24 real-DB five-question selections with ten-game exclusion.');
+ }finally{await mongoose.disconnect();}}
+main().catch(e=>{console.error(e);process.exitCode=1});

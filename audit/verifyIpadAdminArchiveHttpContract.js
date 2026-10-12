@@ -68,7 +68,7 @@ const controller = require("../controllers/ipadAdminArchiveController");
   assert.equal(first.payload.archive.requestedFolderId, "f1");
   assert.equal(first.headers.get("Cache-Control"), "private, no-store");
 
-  await invoke(controller.createFolder, { body: { name: "새 폴더", accessLevel: "LEARNING_PACKAGE" } });
+  await invoke(controller.createFolder, { body: { name: "새 폴더", accessLevel: "PRO" } });
   await invoke(controller.updateFolder, { params: { folderId: "f1" }, body: { name: "수정 폴더" } });
   await invoke(controller.pinFolder, { params: { folderId: "f1" }, body: { pinned: "true" } });
   await invoke(controller.deleteFolder, { params: { folderId: "f1" } });

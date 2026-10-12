@@ -82,9 +82,6 @@ async function main() {
       announcements: [],
       revenue: {
         grossPayments: 29000,
-        cumulativePaybackPaid: 0,
-        paybackReserve: 29000,
-        confirmedUnpaidPayback: 0,
         pgFeeReserve: 0,
         otherUnpaidCosts: 0,
         actualCashBalance: 29000,
@@ -99,7 +96,8 @@ async function main() {
     },
   });
   assert.match(dashboard, /현재 출금가능액/);
-  assert.match(dashboard, /미확정 페이백 금액은 이익에서 제외/);
+  assert.doesNotMatch(dashboard, /보존된 과거 미지급 의무/);
+  assert.doesNotMatch(dashboard, /페이백|payback/i);
   assert.match(dashboard, /홍길동 관리자/);
   assert.doesNotMatch(dashboard, /admin-login-name 관리자/);
 
@@ -126,9 +124,9 @@ async function main() {
     audit: {
       rows: [{
         _id: "audit-1",
-        action: "finance.payback-completed",
-        actionLabel: "페이백 지급 완료",
-        detail: "실제 송금 확인",
+        action: "user.warning-count",
+        actionLabel: "경고 횟수 수정",
+        detail: "운영 규정 위반 검토",
         createdAt: new Date(),
         actor: admin,
         target: { _id: "507f1f77bcf86cd799439012", name: "사용자", email: "user@matths.kr" },
@@ -148,37 +146,8 @@ async function main() {
   assert.match(auditLog, /운영 감사 로그/);
   assert.match(auditLog, /관리자 로그인/);
   assert.match(auditLog, /account1@matths\.kr/);
-  assert.doesNotMatch(auditLog, /finance\.payback-completed|HTTP 200|12ms/);
+  assert.doesNotMatch(auditLog, /페이백|payback|HTTP 200|12ms/i);
   assert.match(auditLog, /페이지당 20건/);
-
-  const paybacks = await render("admin-paybacks.ejs", {
-    user: admin,
-    feedback: "페이백 지급 완료, 우편함 알림 생성과 이메일 발송을 모두 처리했습니다.",
-    feedbackTone: "success",
-    paybacks: {
-      periodKey: "2026-08",
-      rows: [],
-      pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 },
-      eligible: { total: 0, linkedTotal: 0, payoutRate: 0, pendingAmount: 0 },
-      monthly: { salesAmount: 29000, salesCount: 1, payoutAmount: 14500, payoutCount: 1, payoutToSalesRate: 50 },
-      history: [{
-        _id: "507f1f77bcf86cd799439099",
-        completedAt: new Date(),
-        userId: { name: "사용자", email: "user@matths.kr" },
-        completedBy: admin,
-        paybackRate: 50,
-        amount: 14500,
-        bankName: "은행",
-        accountNumberLast4: "1234",
-        siteNotificationId: "507f1f77bcf86cd799439098",
-        emailStatus: "SENT",
-        operatorNote: "실제 송금 확인",
-      }],
-    },
-  });
-  assert.match(paybacks, /송금 확인 및 지급 완료|현재 지급 대기 중인 페이백/);
-  assert.match(paybacks, /우편함 완료/);
-  assert.match(paybacks, /이메일 발송 완료/);
 
   const parentRequest = await render("parent-payment-request.ejs", {
     user: { name: "학생", role: "student" },

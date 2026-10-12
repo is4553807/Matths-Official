@@ -1,12 +1,11 @@
 const mongoose = require("mongoose");
 const { AdminActionLog } = require("../models/matthsModel");
-const { AccessCycle, ArenaPackagePayment } = require("../models/goatArenaModel");
+const { ArenaPackagePayment } = require("../models/goatArenaModel");
 const {
   BusinessWithdrawal,
   FinanceAccount,
   FinanceDailySnapshot,
-  PaybackPayoutRecord,
-} = require("../models/paybackModel");
+} = require("../models/financeModel");
 const { getActiveAdminSender } = require("./adminIdentityService");
 
 const ACCOUNT_KEY = "PRIMARY";
@@ -35,8 +34,8 @@ function kstDateKey(now = new Date()) {
 /*
  * 결제 수수료 유보율은 결제사마다 자릿수가 다르다. 일반 PG는 3% 언저리인데 애플
  * App Store 는 15~30% 다. 한 값으로 뭉뚱그리면 출금가능액이 그대로 틀어지고,
- * 출금가능액은 페이백 지급 여력 판단에 쓰이므로 실제 은행 송금 금액이 어긋난다.
- * 그래서 유보율은 결제 기록의 provider 를 보고 고른다.
+ * 출금가능액이 실제 은행 정산액보다 커지지 않도록 유보율은 결제 기록의
+ * provider 를 보고 고른다.
  */
 
 /*
@@ -64,8 +63,7 @@ const APPLE_DEFAULT_FEE_RESERVE_BPS = 3000;
 /*
  * 정식 값은 "APPLE" 이다(services/appleCommerceService.js 가 그 값으로 기록한다).
  * 나머지는 보험이다 — 다른 결제 경로가 붙으면서 이름을 조금 다르게 쓰면 유보율이
- * 3% 로 떨어져 준비금이 10배 가까이 비게 되는데, 그 사고가 페이백 송금액까지
- * 밀고 내려간다. 오탐보다 미탐이 훨씬 비싸서 후보를 넓게 잡는다.
+ * 3% 로 떨어져 준비금이 10배 가까이 비는 사고를 막기 위해 후보를 넓게 잡는다.
  */
 const APPLE_PROVIDER_ALIASES = new Set([
   "APPLE",
@@ -137,17 +135,6 @@ function resolveProviderReserveBps(provider, pgFeeConfig = {}) {
   const directBps = Number(table[key]);
   if (Number.isFinite(directBps)) return directBps;
   return fallback;
-}
-
-function maximumPaybackAmount(cycle) {
-  const bands = Array.isArray(cycle?.policySnapshot?.payback?.bands)
-    ? cycle.policySnapshot.payback.bands
-    : [];
-  const rates = bands
-    .map((band) => Number(band?.ratePercent ?? band?.rate ?? band?.paybackRate))
-    .filter((rate) => Number.isFinite(rate) && rate >= 0 && rate <= 100);
-  const maximumRate = rates.length ? Math.max(...rates) : 100;
-  return nonNegativeInteger(Number(cycle.pricePaid || 0) * maximumRate / 100);
 }
 
 function startOfKstDay(now = new Date()) {
@@ -229,53 +216,13 @@ async function paymentTotals(now = new Date()) {
   };
 }
 
-async function payoutAndWithdrawalTotals() {
-  const [payoutRows, withdrawalRows] = await Promise.all([
-    PaybackPayoutRecord.aggregate([
-      { $match: { status: "COMPLETED" } },
-      { $group: { _id: null, amount: { $sum: "$amount" } } },
-    ]),
-    BusinessWithdrawal.aggregate([
-      { $match: { status: "COMPLETED" } },
-      { $group: { _id: null, amount: { $sum: "$amount" } } },
-    ]),
+async function withdrawalTotals() {
+  const withdrawalRows = await BusinessWithdrawal.aggregate([
+    { $match: { status: "COMPLETED" } },
+    { $group: { _id: null, amount: { $sum: "$amount" } } },
   ]);
   return {
-    cumulativePaybackPaid: nonNegativeInteger(payoutRows[0]?.amount),
     cumulativeWithdrawals: nonNegativeInteger(withdrawalRows[0]?.amount),
-  };
-}
-
-async function paybackObligations() {
-  const cycles = await AccessCycle.find({
-    status: { $nin: ["CANCELLED"] },
-  })
-    .select("pricePaid policySnapshot.payback evaluatedAt paybackPayoutStatus paybackAmount")
-    .lean();
-  let paybackReserve = 0;
-  let confirmedUnpaidPayback = 0;
-  let confirmedGrossProfit = 0;
-  let finalizedRevenue = 0;
-
-  cycles.forEach((cycle) => {
-    const pricePaid = nonNegativeInteger(cycle.pricePaid);
-    if (!cycle.evaluatedAt) {
-      paybackReserve += maximumPaybackAmount(cycle);
-      return;
-    }
-    finalizedRevenue += pricePaid;
-    const finalPayback = nonNegativeInteger(cycle.paybackAmount);
-    confirmedGrossProfit += Math.max(0, pricePaid - finalPayback);
-    if (cycle.paybackPayoutStatus === "PENDING") {
-      confirmedUnpaidPayback += finalPayback;
-    }
-  });
-
-  return {
-    paybackReserve,
-    confirmedUnpaidPayback,
-    confirmedGrossProfit,
-    finalizedRevenue,
   };
 }
 
@@ -352,12 +299,11 @@ function prorateAcrossBuckets(target, buckets, total) {
 function deriveFinanceMetrics({
   payments,
   cashOut,
-  obligations,
   existingAccount = {},
   pgFeeConfig,
 }) {
   const feeBuckets = providerFeeBuckets(payments, pgFeeConfig);
-  const finalizedBase = Math.min(payments.netCollected, obligations.finalizedRevenue);
+  const finalizedBase = payments.netCollected;
   const finalizedShares = prorateAcrossBuckets(
     finalizedBase,
     feeBuckets,
@@ -378,10 +324,7 @@ function deriveFinanceMetrics({
     netCollectedByProvider[bucket.provider] =
       (netCollectedByProvider[bucket.provider] || 0) + bucket.amount;
   });
-  const recognizedGrossProfit = Math.min(
-    payments.netCollected,
-    obligations.confirmedGrossProfit
-  );
+  const recognizedGrossProfit = payments.netCollected;
   const cumulativeConfirmedProfit = Math.max(
     0,
     recognizedGrossProfit - finalizedPgFeeReserve
@@ -389,12 +332,11 @@ function deriveFinanceMetrics({
   const otherUnpaidCosts = nonNegativeInteger(existingAccount.otherUnpaidCosts);
   const actualCashBalance = Math.max(
     0,
-    payments.netCollected - cashOut.cumulativePaybackPaid - cashOut.cumulativeWithdrawals
+    payments.netCollected - cashOut.cumulativeWithdrawals
   );
   const liquidityAfterReserves = Math.max(
     0,
-    actualCashBalance - obligations.paybackReserve -
-      obligations.confirmedUnpaidPayback - pgFeeReserve - otherUnpaidCosts
+    actualCashBalance - pgFeeReserve - otherUnpaidCosts
   );
   const recognizedProfitRemaining = Math.max(
     0,
@@ -413,9 +355,6 @@ function deriveFinanceMetrics({
     netCollected: payments.netCollected,
     todayRevenue: payments.todayRevenue,
     actualCashBalance,
-    cumulativePaybackPaid: cashOut.cumulativePaybackPaid,
-    paybackReserve: obligations.paybackReserve,
-    confirmedUnpaidPayback: obligations.confirmedUnpaidPayback,
     pgFeeReserve,
     otherUnpaidCosts,
     cumulativeConfirmedProfit,
@@ -432,15 +371,13 @@ function deriveFinanceMetrics({
 }
 
 async function calculateFinanceMetrics(existingAccount = {}, now = new Date()) {
-  const [payments, cashOut, obligations] = await Promise.all([
+  const [payments, cashOut] = await Promise.all([
     paymentTotals(now),
-    payoutAndWithdrawalTotals(),
-    paybackObligations(),
+    withdrawalTotals(),
   ]);
   return deriveFinanceMetrics({
     payments,
     cashOut,
-    obligations,
     existingAccount,
     pgFeeConfig: providerFeeReserveConfiguration(),
   });

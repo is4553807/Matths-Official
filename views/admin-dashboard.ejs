@@ -112,16 +112,13 @@
       <section class="admin-panel admin-revenue-panel" data-admin-revenue>
         <div class="admin-panel-heading">
           <div><p>SAFE FUNDS</p><h2>자금 현황</h2></div>
-          <span>결제·페이백·출금 원장 기준 · 미확정 페이백 금액은 이익에서 제외</span>
+          <span>결제·환불·출금 원장과 PG 수수료 준비금 기준</span>
         </div>
         <% if (!adminData.revenue.withdrawalsEnabled) { %>
           <div class="admin-feedback admin-feedback--error" role="alert">PG 수수료 준비금 비율이 설정되지 않아 사업자 출금이 잠겨 있습니다. 운영 환경에 FINANCE_PG_FEE_RESERVE_BPS를 먼저 설정하세요.</div>
         <% } %>
         <div class="admin-stat-grid admin-finance-grid">
           <article><span>총 누적 결제액</span><strong data-revenue="grossPayments"><%= money(adminData.revenue.grossPayments) %><small>원</small></strong></article>
-          <article><span>누적 페이백 지급액</span><strong data-revenue="cumulativePaybackPaid"><%= money(adminData.revenue.cumulativePaybackPaid) %><small>원</small></strong></article>
-          <article><span>페이백 준비금</span><strong data-revenue="paybackReserve"><%= money(adminData.revenue.paybackReserve) %><small>원</small></strong><small>미확정 유저 최대 지급 가능액</small></article>
-          <article><span>확정·미송금 페이백</span><strong data-revenue="confirmedUnpaidPayback"><%= money(adminData.revenue.confirmedUnpaidPayback) %><small>원</small></strong></article>
           <article><span>PG 수수료 준비금</span><strong data-revenue="pgFeeReserve"><%= money(adminData.revenue.pgFeeReserve) %><small>원</small></strong><small><%= Number(adminData.revenue.pgFeeReserveBps || 0) / 100 %>% 적용 · 세금 제외</small></article>
           <article><span>기타 미지급 비용</span><strong data-revenue="otherUnpaidCosts"><%= money(adminData.revenue.otherUnpaidCosts) %><small>원</small></strong></article>
           <article><span>현재 실제 현금</span><strong data-revenue="actualCashBalance"><%= money(adminData.revenue.actualCashBalance) %><small>원</small></strong></article>
@@ -157,7 +154,7 @@
             const response = await fetch("/api/admin/revenue", { headers: { Accept: "application/json" } });
             if (!response.ok) return;
             const { revenue } = await response.json();
-            ["grossPayments", "cumulativePaybackPaid", "paybackReserve", "confirmedUnpaidPayback", "pgFeeReserve", "otherUnpaidCosts", "actualCashBalance", "cumulativeConfirmedProfit", "cumulativeWithdrawals", "withdrawableAmount"].forEach((key) => {
+            ["grossPayments", "pgFeeReserve", "otherUnpaidCosts", "actualCashBalance", "cumulativeConfirmedProfit", "cumulativeWithdrawals", "withdrawableAmount"].forEach((key) => {
               const node = root.querySelector(`[data-revenue="${key}"]`);
               if (node) node.innerHTML = format(revenue[key]);
             });

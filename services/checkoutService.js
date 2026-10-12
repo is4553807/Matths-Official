@@ -10,19 +10,12 @@ const { User } = require("../models/matthsModel");
 const { AcademyAccount } = require("../models/academyModel");
 const { sendEmail, buildBrandedHtml } = require("./emailService");
 const {
-  getActiveMockExamPackagePolicy,
-  getMockExamPackageAccess,
-} = require("./mockExamPackageService");
-const { getActiveArenaPolicy } = require("./arenaPolicyService");
-const {
-  assertPackagePurchaseEligible,
-  getPackagePurchaseEligibilityForUser,
-} = require("./accessCycleService");
-const { getPaidPackageAccess } = require("./paidFeatureAccessService");
-const { getActiveAcademyPlan } = require("./academyPlanService");
-const {
-  assertMockExamPurchaseEligible,
-} = require("./mockExamPaymentService");
+  PRO_PRODUCT_CODE,
+  PRO_PRODUCT_NAME,
+  assertProPurchaseEligible,
+  getAccountPlanAccess,
+  getAccountPlanConfig,
+} = require("./accountPlanService");
 const { linkChildToParent } = require("./parentFamilyService");
 const {
   REFUND_POLICY_VERSION,
@@ -36,7 +29,7 @@ const {
 const INVITE_TTL_MS = 72 * 60 * 60 * 1000;
 const CHECKOUT_TTL_MS = 30 * 60 * 1000;
 const APPROVAL_STALE_MS = 10 * 60 * 1000;
-const PRODUCTS = new Set(["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"]);
+const PRODUCTS = new Set([PRO_PRODUCT_CODE]);
 const LEGAL_GUARDIAN_CONSENT_VERSION = "MINOR_PAYMENT_GUARDIAN_V1";
 const MINOR_PAYMENT_NOTICE_VERSION = "MINOR_SELF_PAYMENT_NOTICE_V1";
 
@@ -104,26 +97,15 @@ function normalizeProductCode(value) {
 }
 
 async function getProductCatalog() {
-  const [mockPolicy, learningPolicy] = await Promise.all([
-    getActiveMockExamPackagePolicy(),
-    getActiveArenaPolicy(),
-  ]);
+  const config = getAccountPlanConfig();
   const products = [
     {
-      code: "MOCK_EXAM_ONLY",
-      name: "Matths 주간 공식 모의고사 이용권",
-      amount: Number(mockPolicy?.monthlyPriceAmount ?? 5500),
-      periodLabel: "30일",
-      description: "배치고사 첫 티어와 매주 티어 승급 경쟁을 포함한 모의고사 이용권",
-      policyAvailable: Boolean(mockPolicy),
-    },
-    {
-      code: "LEARNING_PACKAGE_29",
-      name: "29일 학습권 패키지",
-      amount: Number(learningPolicy?.priceAmount ?? 29000),
-      periodLabel: "29일",
-      description: "모의고사·배치고사·GOAT Arena까지 포함한 학습권",
-      policyAvailable: Boolean(learningPolicy),
+      code: PRO_PRODUCT_CODE,
+      name: PRO_PRODUCT_NAME,
+      amount: config.proPriceAmount,
+      periodLabel: `${config.proBillingPeriodDays}일`,
+      description: "Matths의 Pro 기능을 하나로 이용하는 월 플랜",
+      policyAvailable: true,
     },
   ];
   return products.map((product) => ({
@@ -139,60 +121,25 @@ async function getProduct(code) {
 }
 
 function buildPricingProductAccess({
-  paidPackageAccess = {},
-  mockExamPackageAccess = {},
-  academyPlanAccess = {},
-  learningPackageEligibility = { eligible: true, reasons: [] },
+  planAccess = {},
 } = {}) {
-  const learningActive = paidPackageAccess.active === true;
-  const academyMockIncluded =
-    academyPlanAccess.active === true && academyPlanAccess.includesMockExam === true;
-  const mockExamActive =
-    learningActive || academyMockIncluded || mockExamPackageAccess.active === true;
-  const learningPurchaseAllowed =
-    !learningActive && learningPackageEligibility.eligible !== false;
+  const proActive = planAccess.code === "PRO" && planAccess.active === true;
+  const adminUnlimited = planAccess.code === "SUPER_ADMIN";
 
   return {
-    MOCK_EXAM_ONLY: {
-      active: mockExamActive,
-      purchaseAllowed: !mockExamActive,
-      includedByLearningPackage: learningActive,
-      includedByAcademyPlan: academyMockIncluded,
-      continueHref: "/private-mock-exams",
-      continueLabel: "주간 모의고사 계속하기",
-    },
-    LEARNING_PACKAGE_29: {
-      active: learningActive,
-      purchaseAllowed: learningPurchaseAllowed,
-      requiresExistingPackageResolution:
-        !learningActive && !learningPurchaseAllowed,
-      reasons: learningPackageEligibility.reasons || [],
-      continueHref: "/war-of-masters",
-      continueLabel: learningActive
-        ? "GOAT Arena 계속하기"
-        : "기존 학습권 상태 확인하기",
+    [PRO_PRODUCT_CODE]: {
+      active: proActive || adminUnlimited,
+      purchaseAllowed: !proActive && !adminUnlimited,
+      continueHref: "/main",
+      continueLabel: adminUnlimited ? "관리자 대시보드로" : "Pro 계속 이용하기",
     },
   };
 }
 
 async function getPricingProductAccess(userId, now = new Date()) {
-  const [
-    paidPackageAccess,
-    mockExamPackageAccess,
-    academyPlanAccess,
-    learningPackageEligibility,
-  ] =
-    await Promise.all([
-      getPaidPackageAccess(userId),
-      getMockExamPackageAccess(userId, now),
-      getActiveAcademyPlan(userId, { now }),
-      getPackagePurchaseEligibilityForUser({ userId }),
-    ]);
+  const planAccess = await getAccountPlanAccess(userId, { now });
   return buildPricingProductAccess({
-    paidPackageAccess,
-    mockExamPackageAccess,
-    academyPlanAccess,
-    learningPackageEligibility,
+    planAccess,
   });
 }
 
@@ -258,11 +205,7 @@ async function createCheckoutIntent({
       "REFUND_POLICY_CONSENT_REQUIRED"
     );
   }
-  if (product.code === "LEARNING_PACKAGE_29") {
-    await assertPackagePurchaseEligible({ userId: student._id });
-  } else if (product.code === "MOCK_EXAM_ONLY") {
-    await assertMockExamPurchaseEligible({ userId: student._id });
-  }
+  await assertProPurchaseEligible({ userId: student._id });
   const { mode: providerMode } = getInicisConfig();
   const uniqueOrderPart = randomUUID().replace(/-/g, "");
   return CheckoutIntent.create({

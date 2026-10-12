@@ -2,136 +2,126 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
+const { getAccountPlanConfig, PLAN_CODES } = require("../services/accountPlanService");
+const { GOAT_ARENA_V2_CONFIG } = require("../services/goatArenaV2Config");
 const {
-  DEFAULT_LEARNING_PACKAGE_DAYS,
-  DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT,
-  defaultLearningPackagePolicyDefinition,
-} = require("../services/arenaPolicyService");
-const {
-  DEFAULT_CALIBRATION_WEEKLY_EXAMS,
-  DEFAULT_MONTHLY_PRICE_AMOUNT,
-  MOCK_EXAM_PRODUCT_NAME,
-} = require("../services/mockExamPackageService");
-const {
-  ARENA_ONE_ON_ONE_EVIDENCE_LIMIT_MS,
-  ARENA_ONE_ON_ONE_PACKS_PER_PAIR,
-  ARENA_ONE_ON_ONE_QUESTION_COUNT,
-  ARENA_ONE_ON_ONE_START_LIMIT_MS,
-  ARENA_ONE_ON_ONE_TIME_LIMIT_MS,
-  SUB_TIER_PAIR_CONFIG,
-} = require("../services/arenaOneOnOneProblemBank");
-const {
-  SUB_NORMAL_STAKE_DAYS,
-  SUB_REVENGE_STAKE_DAYS,
-} = require("../services/arenaDivisionRuleService");
-const {
-  SOFT_RESET_RETENTION,
-} = require("../services/arenaSeasonService");
+  SCORING_VERSION,
+  calculateCompetitivePerformance,
+  compareCompetitivePerformance,
+} = require("../services/arenaCompetitiveScoringService");
 
 const root = path.resolve(__dirname, "..");
-const logicDirectory = path.join(root, "docs", "logic");
-const hasPrivateLogicDocs = fs.existsSync(logicDirectory);
-const logicFiles = hasPrivateLogicDocs
-  ? fs
-      .readdirSync(logicDirectory)
-      .filter((filename) => /^\d{2}_.+\.md$/.test(filename))
-      .sort()
-  : [];
+const koreanDirectory = path.join(root, "docs", "logic");
+const englishDirectory = path.join(root, "docs", "logic_en");
+const expectedFiles = [
+  "01_MATTHS_CURRENT_SYSTEM.md",
+  "02_GOAT_ARENA_COMMON_MATCH_RULES.md",
+  "03_NORMAL_MATCH.md",
+  "04_COMPETITIVE_MATCH.md",
+  "05_FRIENDLY_AND_GUEST_CHALLENGE.md",
+  "06_RATING_AND_SCORING.md",
+  "07_QUESTION_AND_EVIDENCE.md",
+  "08_ACCOUNTS_PLANS_AND_ENTITLEMENTS.md",
+  "09_WEEKLY_MOCK_AND_RANKING.md",
+  "10_ADMIN_OPERATIONS.md",
+  "11_DATA_STORAGE_AND_SECURITY.md",
+  "12_API_AND_BACKGROUND_JOBS.md",
+  "13_RELEASE_AND_VALIDATION.md",
+];
 
-if (hasPrivateLogicDocs) {
-  assert.deepEqual(
-    logicFiles.map((filename) => filename.slice(0, 2)),
-    Array.from({ length: 13 }, (_, index) => String(index + 1).padStart(2, "0")),
-    "권위 규칙 문서는 01~13이 빠짐없이 한 번씩 존재해야 합니다."
+function markdownFiles(directory) {
+  return fs.readdirSync(directory)
+    .filter((filename) => filename.endsWith(".md"))
+    .sort();
+}
+
+function combinedText(directory) {
+  return expectedFiles
+    .map((filename) => fs.readFileSync(path.join(directory, filename), "utf8"))
+    .join("\n");
+}
+
+assert.deepEqual(markdownFiles(koreanDirectory), expectedFiles);
+assert.deepEqual(markdownFiles(englishDirectory), expectedFiles);
+
+const korean = combinedText(koreanDirectory);
+const english = combinedText(englishDirectory);
+const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+
+for (const term of [
+  "숨은 MMR",
+  "문항당 10분",
+  "3일",
+  "유효한 일반전 3경기",
+  "350 / sqrt",
+  "5,500원",
+  "부정행위",
+]) {
+  assert.ok(korean.includes(term), `한국어 현행 문서에 필수 내용이 없습니다: ${term}`);
+}
+
+for (const term of [
+  "hidden MMR",
+  "ten minutes per question",
+  "three days",
+  "three valid normal matches",
+  "350 / sqrt",
+  "KRW 5,500",
+  "cheating detection",
+]) {
+  assert.ok(
+    english.toLowerCase().includes(term.toLowerCase()),
+    `English current-state documentation is missing: ${term}`
   );
 }
 
-const logicText = logicFiles
-  .map((filename) => fs.readFileSync(path.join(logicDirectory, filename), "utf8"))
-  .join("\n");
-const userFacingText = ["views", "controllers", "services", "routes"]
-  .flatMap((directory) => {
-    const walk = (current) => fs.readdirSync(current, { withFileTypes: true }).flatMap((entry) => {
-      const absolute = path.join(current, entry.name);
-      return entry.isDirectory()
-        ? walk(absolute)
-        : /\.(?:js|ejs)$/.test(entry.name)
-          ? [fs.readFileSync(absolute, "utf8")]
-          : [];
-    });
-    return walk(path.join(root, directory));
-  })
-  .join("\n");
-
-for (const retiredName of ["모의고사 전용 패키지", "Sub Ranking", "Main Ranking"]) {
-  if (hasPrivateLogicDocs) {
-    assert.ok(!logicText.includes(retiredName), `규칙 문서에 폐기한 명칭이 남아 있습니다: ${retiredName}`);
-  }
-  assert.ok(!userFacingText.includes(retiredName), `웹 코드에 폐기한 명칭이 남아 있습니다: ${retiredName}`);
-}
-if (hasPrivateLogicDocs) {
-  assert.ok(logicText.includes(MOCK_EXAM_PRODUCT_NAME));
-}
-assert.equal(DEFAULT_MONTHLY_PRICE_AMOUNT, 5500);
-assert.equal(DEFAULT_CALIBRATION_WEEKLY_EXAMS, 4);
-assert.equal(DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT, 29000);
-assert.equal(DEFAULT_LEARNING_PACKAGE_DAYS, 29);
-
-const learningPolicy = defaultLearningPackagePolicyDefinition();
-assert.equal(learningPolicy.initialPaybackScoreDays, 29);
-assert.equal(learningPolicy.payback.minimumAttackParticipationDays, 15);
-assert.deepEqual(
-  learningPolicy.payback.bands.map((band) => [band.minScoreDays, band.maxScoreDays, band.ratePercent]),
-  [[0, 29, 0], [30, 34, 50], [35, 39, 80], [40, null, 100]]
-);
-
-assert.equal(ARENA_ONE_ON_ONE_QUESTION_COUNT, 5);
-assert.equal(ARENA_ONE_ON_ONE_TIME_LIMIT_MS, 10 * 60 * 1000);
-assert.equal(ARENA_ONE_ON_ONE_EVIDENCE_LIMIT_MS, 60 * 1000);
-assert.equal(ARENA_ONE_ON_ONE_START_LIMIT_MS, 24 * 60 * 60 * 1000);
-assert.equal(ARENA_ONE_ON_ONE_PACKS_PER_PAIR, 30);
-assert.equal(SUB_TIER_PAIR_CONFIG.length, 17);
-assert.ok(
-  SUB_TIER_PAIR_CONFIG.every(
-    (pair) => pair.packSlots.length === 30 && pair.packSlots.every((pack) => pack.questionSlots.length === 5)
-  )
-);
-assert.equal(SUB_NORMAL_STAKE_DAYS, 1);
-assert.equal(SUB_REVENGE_STAKE_DAYS, 2);
-assert.equal(SOFT_RESET_RETENTION, 0.6);
-
-for (const retiredDormancyRule of [
-  "미활동 1~19일차",
-  "20일차 추가 차감 없음",
-  "RANKED_ASSESSMENT_REQUIRED",
-  "Ranked 휴면 평가",
-  "휴면 강등 예치분",
+for (const obsoleteTerm of [
+  "페이백",
+  "학습일수 예치",
+  "복수전",
+  "Ranked 상점",
+  "payback",
+  "learning-day deposit",
+  "revenge match",
+  "retired",
 ]) {
-  if (hasPrivateLogicDocs) {
-    assert.ok(
-      !logicText.includes(retiredDormancyRule),
-      `권위 문서에 폐기한 Ranked 휴면 규칙이 남아 있습니다: ${retiredDormancyRule}`
-    );
-  }
+  assert.ok(!`${korean}\n${english}\n${readme}`.toLowerCase().includes(obsoleteTerm.toLowerCase()),
+    `현재 문서에 사용하지 않는 정책이 남아 있습니다: ${obsoleteTerm}`);
 }
 
-if (hasPrivateLogicDocs) {
-  for (const requiredRule of [
-    "일요일 14:00",
-    "일요일 15:00",
-    "점수 높은 순 → 정답 수 많은 순 → 정답 문항 풀이시간 짧은 순 → 전체 풀이시간 짧은 순",
-    "정기권 학습 가능 일수",
-    "학습권 패키지",
-    "페이백 점수",
-    "공격 출석",
-    "최종 종합 랭킹",
-  ]) {
-    assert.ok(logicText.includes(requiredRule), `권위 문서에서 핵심 규칙을 찾을 수 없습니다: ${requiredRule}`);
-  }
-}
+assert.deepEqual(PLAN_CODES, { FREE: "FREE", PRO: "PRO" });
+const plan = getAccountPlanConfig({});
+assert.equal(plan.proPriceAmount, 5500);
+assert.equal(plan.proBillingPeriodDays, 30);
 
-console.log(
-  hasPrivateLogicDocs
-    ? "규칙 문서 13개·상품·페이백·1대1·시즌 핵심 상수와 웹 용어 정합성 검증 완료"
-    : "비공개 규칙 문서 제외 checkout: 상품·페이백·1대1·시즌 핵심 상수와 웹 용어 검증 완료"
+const config = GOAT_ARENA_V2_CONFIG;
+assert.equal(config.glicko2.defaultRating, 1500);
+assert.equal(config.glicko2.defaultRatingDeviation, 350);
+assert.equal(config.glicko2.defaultVolatility, 0.06);
+assert.equal(config.glicko2.systemConstant, 0.5);
+assert.equal(config.asyncNormal.defaultRating, 1000);
+assert.equal(config.asyncNormal.questionRepeatWindowMatches, 10);
+assert.equal(config.requiredNormalMatches, 3);
+assert.equal(config.placement.minimumAttempts, 1);
+assert.equal(config.placement.maximumAttempts, 5);
+assert.equal(config.competitiveScore.kFactor, 32);
+assert.equal(config.guestChallenge.linkTtlDays, 3);
+assert.equal(config.guestChallenge.participantLimit, null);
+
+const sample = calculateCompetitivePerformance({
+  questions: Array.from({ length: 5 }, (_, index) => ({
+    questionKey: `Q${index + 1}`,
+    correct: index < 3,
+    sourceAccuracyRate: 0.5,
+  })),
+  totalSolveTimeMs: 300000,
+});
+assert.equal(sample.scoringVersion, SCORING_VERSION);
+assert.equal(
+  compareCompetitivePerformance(sample, sample, {
+    closeScoreThreshold: config.asyncNormal.closeScoreThreshold,
+  }).reason,
+  "DRAW"
 );
+
+console.log("현재 코드와 한·영 로직 문서 13개 정합성 검증 완료");

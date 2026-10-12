@@ -31,7 +31,7 @@
 }
 
 .academy-attendance-export { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px; color: #3157f6; background: #edf1ff; border: 1px solid #d9e2ff; border-radius: 10px; font-size: 12px; font-weight: 800; }
-.academy-attendance-export:disabled { color: #949caf; background: #f1f3f7; border-color: #e1e5ed; cursor: not-allowed; }
+.academy-attendance-export:disabled { color: #5f687b; background: #f1f3f7; border-color: #e1e5ed; cursor: not-allowed; }
 .academy-attendance-export-form { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto; align-items: end; gap: 10px; margin-top: 16px; padding: 14px; background: #f4f6fb; border: 1px solid #e1e5ee; border-radius: 12px; }
 .academy-attendance-export-form > div { align-self: center; display: grid; gap: 4px; }
 .academy-attendance-export-form strong { color: #3e4860; font-size: 11px; }

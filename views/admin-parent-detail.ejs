@@ -13,9 +13,10 @@
     return minutes >= 60 ? `${Math.floor(minutes / 60)}시간 ${minutes % 60}분` : `${minutes}분`;
   };
   const formatPackage = (access) => {
-    if (!access || access.packageType === "FREE") return "기본학습 패키지";
-    if (access.packageType === "MOCK_EXAM_ONLY") return "Matths 주간 공식 모의고사 이용권";
-    return "29일 학습권 패키지";
+    if (!access || access.packageType === "FREE") return "무료 플랜";
+    if (access.packageType === "PRO") return "Pro 플랜";
+    if (access.packageType === "SUPER_ADMIN") return "관리자 무제한";
+    return access.label || "무료 플랜";
   };
 %>
 <!doctype html>
@@ -98,9 +99,9 @@
               <div><span>정답률</span><strong><%= Number(entry.dashboard.correctRate) || 0 %>%</strong><small>오답률 <%= Math.max(0, 100 - (Number(entry.dashboard.correctRate) || 0)) %>%</small></div>
             </div>
             <div class="admin-metric-row admin-parent-metric-row">
-              <div><span>현재 패키지</span><strong><%= formatPackage(entry.packageAccess) %></strong><small><%= entry.packageAccess?.cycle ? `남은 학습일수 ${entry.packageAccess.cycle.availableLearningDays || 0}일` : entry.packageAccess?.mockSubscription ? `${formatDate(entry.packageAccess.mockSubscription.endsAt)}까지` : '유료 권한 없음' %></small></div>
-              <div><span>최종 종합 랭킹</span><strong><%= entry.ranking?.finalRank ?? '—' %><%= entry.ranking?.finalRank ? '위' : '' %></strong><small><%= entry.ranking ? `${entry.ranking.finalRating ?? '—'}점` : '랭킹 미확정' %></small></div>
-              <div><span>GOAT Arena</span><strong><%= entry.ranking?.arenaRank || '미배정' %></strong><small><%= entry.ranking?.arenaDivision ? `${entry.ranking.arenaDivision === 'MAIN' ? 'RANKED' : 'UNRANKED'} · ${entry.ranking.gp ?? 0} GP` : '배치고사 후 표시' %></small></div>
+              <div><span>현재 플랜</span><strong><%= formatPackage(entry.packageAccess) %></strong><small><%= entry.packageAccess?.planCode === 'PRO' ? `${formatDate(entry.packageAccess.endsAt)}까지` : '무료 기능 이용' %></small></div>
+              <div><span>경쟁전 티어</span><strong><%= entry.arenaProfile?.placementFinalizedAt ? (entry.arenaProfile.tier || '미배정') : '배치 전' %></strong><small>일반전 <%= Number(entry.arenaProfile?.normalMatchesCompleted) || 0 %>경기</small></div>
+              <div><span>경쟁전 MMR</span><strong><%= entry.arenaProfile?.rating != null ? Math.round(Number(entry.arenaProfile.rating)) : '—' %></strong><small><%= entry.arenaProfile?.ratingDeviation != null ? `RD ${Number(entry.arenaProfile.ratingDeviation).toFixed(1)}` : '배치 완료 후 표시' %></small></div>
               <div><span>최근 로그인</span><strong><%= formatDate(child.lastLoginAt) %></strong><small><%= child.accountStatus === 'withdrawn' ? '탈퇴 계정' : child.isActive === false ? '비활성화 계정' : '활성 계정' %></small></div>
             </div>
             <div class="admin-action-grid admin-parent-action-grid">

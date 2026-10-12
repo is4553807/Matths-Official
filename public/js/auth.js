@@ -130,11 +130,57 @@
     });
   }
 
+  function initArenaGuestRegistrationClaim() {
+    const card = document.querySelector(
+      "[data-arena-guest-registration-claim]"
+    );
+    if (!card) return;
+
+    const nicknameInput = document.getElementById("name");
+    const birthDateInput = document.getElementById("birthDate");
+    const confirmation = card.querySelector(
+      "[data-arena-guest-claim-confirmation]"
+    );
+    const status = document.querySelector(
+      "[data-arena-guest-claim-status]"
+    );
+    if (!nicknameInput || !birthDateInput || !confirmation) return;
+
+    const normalize = (value) => String(value || "")
+      .normalize("NFKC")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLocaleLowerCase("ko-KR");
+
+    function updateClaimConfirmation() {
+      const nicknameMatches =
+        normalize(nicknameInput.value) === normalize(card.dataset.claimNickname);
+      const birthDateIsPresent = /^\d{4}-\d{2}-\d{2}$/.test(birthDateInput.value);
+      const matches = nicknameMatches && birthDateIsPresent;
+
+      card.hidden = !matches;
+      confirmation.disabled = !matches;
+      confirmation.required = matches;
+      if (!matches) confirmation.checked = false;
+      if (status) {
+        status.textContent = matches
+          ? "가입 전에 참여한 도전장 기록을 연결하려면 아래 내용을 확인해 주세요."
+          : "도전장 참가 때 사용한 닉네임과 생년월일을 입력하면 기록 연결 확인이 표시됩니다.";
+      }
+    }
+
+    nicknameInput.addEventListener("input", updateClaimConfirmation);
+    birthDateInput.addEventListener("input", updateClaimConfirmation);
+    birthDateInput.addEventListener("change", updateClaimConfirmation);
+    updateClaimConfirmation();
+  }
+
   function init() {
     initPasswordToggles();
     initPasswordConfirmation();
     initSchoolSelector();
     initUniversitySelector();
+    initArenaGuestRegistrationClaim();
     initSubmitState();
   }
 

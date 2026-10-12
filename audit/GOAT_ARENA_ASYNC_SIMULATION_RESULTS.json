@@ -1,0 +1,254 @@
+{
+  "study": "ASYNC_ONE_SIDED_ADAPTIVE_GLICKO_SYNTHETIC_V2",
+  "seedRange": [
+    8000,
+    8009
+  ],
+  "scoringVersion": "ARENA22-DIFFICULTY-CORRECTNESS-TIME-V1",
+  "scoringRuntimeIntegrated": true,
+  "productionRecordSnapshotTiming": "AFTER",
+  "ratingDefaults": {
+    "systemConstant": 0.5,
+    "convergenceTolerance": 0.000001,
+    "scale": 173.7178,
+    "defaultRating": 1500,
+    "defaultRatingDeviation": 350,
+    "defaultVolatility": 0.06
+  },
+  "placementRdHypothesis": [
+    350,
+    247.48737341529161,
+    202.07259421636903,
+    175,
+    156.52475842498527
+  ],
+  "placementVolatilityHypothesis": [
+    0.1,
+    0.09,
+    0.08,
+    0.07,
+    0.06
+  ],
+  "adaptiveRatingPolicy": {
+    "reversalMinimumStreak": 2,
+    "reversalDeltaStep": 0.15,
+    "reversalMinimumMultiplier": 0.55,
+    "convergencePolicy": "GLICKO2_RD_CONTINUOUS_V1",
+    "fixedMatchBoundary": false
+  },
+  "productionRecordReusePolicy": "REUSABLE_APPROVED_RECORDS_WITH_NEW_RECORD_APPEND",
+  "simulationPoolApproximation": "ONE_REUSABLE_LATEST_RECORD_PER_OWNER",
+  "exactSourceRatesUsed": 168,
+  "fairness": {
+    "pairs": 50000,
+    "expectedZ": [
+      -0.0002,
+      -0.0047
+    ],
+    "equalAbilityWinRate": 0.5008,
+    "meanSourceRateBySet": [
+      0.3116,
+      0.3116
+    ],
+    "note": "Unbiased only in the synthetic independent-Bernoulli model. Does not validate transformed questions or real cohorts."
+  },
+  "hardVersusEasySetStress": {
+    "pairs": 50000,
+    "expectedZ": [
+      -0.0089,
+      -0.0003
+    ],
+    "equalAbilityWinRate": 0.4567,
+    "meanSourceRateBySet": [
+      0.0575,
+      0.6116
+    ],
+    "note": "Deliberately mismatched source-accuracy quartiles; left receives harder sets. A five-question Z score can have equal means but unequal outcome distributions. This stress input is not the production pack policy."
+  },
+  "scenarios": [
+    {
+      "scenario": "before_snapshot_sensitivity",
+      "modelParameters": {
+        "name": "before_snapshot_sensitivity",
+        "snapshotTiming": "BEFORE",
+        "threshold": 0.1
+      },
+      "runs": 10,
+      "matchesPerRun": 10000,
+      "meanMmrDrift": 4.1368,
+      "minMmrDrift": -43.8862,
+      "maxMmrDrift": 23.0787,
+      "meanWinRate": 0.5017,
+      "groupMmrLowMidHigh": [
+        1313.3257,
+        1501.665,
+        1697.4198
+      ]
+    },
+    {
+      "scenario": "production_after_snapshot",
+      "modelParameters": {
+        "name": "production_after_snapshot",
+        "snapshotTiming": "AFTER",
+        "threshold": 0.1
+      },
+      "runs": 10,
+      "matchesPerRun": 10000,
+      "meanMmrDrift": -1.0419,
+      "minMmrDrift": -49.9893,
+      "maxMmrDrift": 33.3056,
+      "meanWinRate": 0.5,
+      "groupMmrLowMidHigh": [
+        1368.5265,
+        1496.4083,
+        1631.9395
+      ]
+    },
+    {
+      "scenario": "production_one_placement_sample",
+      "modelParameters": {
+        "name": "production_one_placement_sample",
+        "snapshotTiming": "AFTER",
+        "threshold": 0.1,
+        "placementSamples": 1
+      },
+      "runs": 10,
+      "matchesPerRun": 10000,
+      "meanMmrDrift": -14.4817,
+      "minMmrDrift": -109.851,
+      "maxMmrDrift": 62.2625,
+      "meanWinRate": 0.4975,
+      "groupMmrLowMidHigh": [
+        1190.0009,
+        1498.8579,
+        1767.696
+      ]
+    },
+    {
+      "scenario": "production_three_placement_samples",
+      "modelParameters": {
+        "name": "production_three_placement_samples",
+        "snapshotTiming": "AFTER",
+        "threshold": 0.1,
+        "placementSamples": 3
+      },
+      "runs": 10,
+      "matchesPerRun": 10000,
+      "meanMmrDrift": -10.7943,
+      "minMmrDrift": -58.9311,
+      "maxMmrDrift": 32.9506,
+      "meanWinRate": 0.4982,
+      "groupMmrLowMidHigh": [
+        1314.9028,
+        1490.6818,
+        1662.0324
+      ]
+    },
+    {
+      "scenario": "production_threshold_0_1",
+      "modelParameters": {
+        "name": "production_threshold_0_1",
+        "snapshotTiming": "AFTER",
+        "threshold": 0.1
+      },
+      "runs": 10,
+      "matchesPerRun": 10000,
+      "meanMmrDrift": -1.0419,
+      "minMmrDrift": -49.9893,
+      "maxMmrDrift": 33.3056,
+      "meanWinRate": 0.5,
+      "groupMmrLowMidHigh": [
+        1368.5265,
+        1496.4083,
+        1631.9395
+      ]
+    },
+    {
+      "scenario": "production_threshold_0_2",
+      "modelParameters": {
+        "name": "production_threshold_0_2",
+        "snapshotTiming": "AFTER",
+        "threshold": 0.2
+      },
+      "runs": 10,
+      "matchesPerRun": 10000,
+      "meanMmrDrift": -0.5198,
+      "minMmrDrift": -32.7592,
+      "maxMmrDrift": 32.9873,
+      "meanWinRate": 0.4996,
+      "groupMmrLowMidHigh": [
+        1366.7275,
+        1497.764,
+        1633.949
+      ]
+    },
+    {
+      "scenario": "production_cohort_shift_plus_0_3",
+      "modelParameters": {
+        "name": "production_cohort_shift_plus_0_3",
+        "snapshotTiming": "AFTER",
+        "threshold": 0.1,
+        "cohortShift": 0.3
+      },
+      "runs": 10,
+      "matchesPerRun": 10000,
+      "meanMmrDrift": 4.5075,
+      "minMmrDrift": -15.199,
+      "maxMmrDrift": 37.2288,
+      "meanWinRate": 0.4997,
+      "groupMmrLowMidHigh": [
+        1364.9889,
+        1506.3457,
+        1642.1878
+      ]
+    },
+    {
+      "scenario": "production_cohort_shift_minus_0_3",
+      "modelParameters": {
+        "name": "production_cohort_shift_minus_0_3",
+        "snapshotTiming": "AFTER",
+        "threshold": 0.1,
+        "cohortShift": -0.3
+      },
+      "runs": 10,
+      "matchesPerRun": 10000,
+      "meanMmrDrift": -5.5974,
+      "minMmrDrift": -31.1068,
+      "maxMmrDrift": 20.113,
+      "meanWinRate": 0.5007,
+      "groupMmrLowMidHigh": [
+        1347.5843,
+        1490.1514,
+        1645.4722
+      ]
+    },
+    {
+      "scenario": "production_illicit_best_of_3_sensitivity",
+      "modelParameters": {
+        "name": "production_illicit_best_of_3_sensitivity",
+        "snapshotTiming": "AFTER",
+        "threshold": 0.1,
+        "bestOf": 3
+      },
+      "runs": 10,
+      "matchesPerRun": 10000,
+      "meanMmrDrift": 30.927,
+      "minMmrDrift": -21.0999,
+      "maxMmrDrift": 59.9229,
+      "meanWinRate": 0.5036,
+      "groupMmrLowMidHigh": [
+        1391.1663,
+        1534.0454,
+        1667.5693
+      ]
+    }
+  ],
+  "productionValidated": false,
+  "limitations": [
+    "No human calibration data",
+    "Raw source accuracy is not validated for parameter variants",
+    "Thresholds are experimental sensitivity inputs, not approved production constants",
+    "No one-sided rating conservation guarantee",
+    "The bounded synthetic pool keeps one reusable latest record per owner; production retains all approved records, so record distribution and concurrency still need staging tests"
+  ]
+}

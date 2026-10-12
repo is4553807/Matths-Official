@@ -9,18 +9,16 @@ const repositoryRoot = path.resolve(__dirname, "..");
 const defaultTargets = [
   { target: "scripts/verifyAccountDeletionDb.js", dropAfter: true },
   { target: "audit/verifyRefundRejectionDb.js", dropAfter: true },
-  { target: "scripts/seedFocusedLaunchTestAccounts.js", dropAfter: false },
   { target: "audit/verifyPricingEntitlementDb.js", dropAfter: true },
   { target: "audit/verifyEmailVerificationDb.js", dropAfter: true },
   { target: "audit/verifyLiveSupportInquiryDb.js", dropAfter: true },
   { target: "audit/verifyIpadNotificationDb.js", dropAfter: true },
   { target: "audit/verifyIpadArenaCommandDb.js", dropAfter: true },
-  { target: "audit/verifyPaybackDailyLearningDb.js", dropAfter: true },
   { target: "audit/verifyNativeSocialRegistrationDb.js", dropAfter: true },
   { target: "audit/verifyAdminUserDataDb.js", dropAfter: true },
   { target: "audit/verifyCommunityAuthorSoftDeleteDb.js", dropAfter: true },
   { target: "audit/verifyCommunityUserBlockDb.js", dropAfter: true },
-  { target: "audit/verifySubDefenseFairnessDb.js", dropAfter: true },
+  { target: "audit/verifyArenaAsyncHistoricalSemanticsDb.js", dropAfter: true },
   { target: "audit/verifyMultiProcessSchedulerLease.js", dropAfter: true },
 ];
 
@@ -43,8 +41,6 @@ function runTarget(target, databaseUri) {
           DISABLE_SCHEDULERS: "1",
           ALLOW_TEST_DATA_MUTATION: "1",
           SECRET: "memory-audit-session-secret-that-is-never-used-in-production",
-          PAYBACK_ACCOUNT_ENCRYPTION_KEY:
-            "memory-audit-payback-key-that-is-never-used-in-production",
           TEST_ACCOUNT_OUTPUT_PATH: manifestPath,
         },
       }

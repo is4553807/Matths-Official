@@ -82,7 +82,6 @@ async function controller() {
       API_TOKEN_SECRET: crypto.randomBytes(48).toString("base64url"),
       SECRET: crypto.randomBytes(48).toString("base64url"),
       PASSWORD_RESET_SECRET: crypto.randomBytes(48).toString("base64url"),
-      PAYBACK_ACCOUNT_ENCRYPTION_KEY: crypto.randomBytes(32).toString("hex"),
       DISABLE_SCHEDULERS: "1", ALLOW_TEST_DATA_MUTATION: "1",
       PAID_CHECKOUT_ENABLED: "false", PAYMENT_PROVIDER: "DISABLED",
       APP_BASE_URL: "http://127.0.0.1", PUBLIC_BASE_URL: "http://127.0.0.1",

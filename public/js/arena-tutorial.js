@@ -14,168 +14,70 @@
 
   const chapterLabels = {
     common: "기본 안내",
-    unranked: "UNRANKED 전장",
-    unranked_match: "UNRANKED 1대1",
-    ranked: "RANKED 전장",
-    ranked_battle: "RANKED 경기",
-    ranked_shop: "RANKED 상점",
+    normal: "일반전",
+    competitive: "경쟁전",
+    friends: "친구",
   };
   const pageChapters = {
-    "/goat-arena/sub": "unranked",
-    "/goat-arena/sub/challenge": "unranked_match",
-    "/goat-arena/main": "ranked",
-    "/goat-arena/main/battle": "ranked_battle",
-    "/goat-arena/main/shop": "ranked_shop",
+    "/goat-arena/sub": "normal",
+    "/goat-arena/main": "competitive",
+    "/goat-arena/friends": "friends",
   };
   const stepsByChapter = {
     common: [
       {
         path: "/goat-arena",
         selector: '[data-arena-tutorial-target="navigation"]',
-        title: "현재 내 전장에서 플레이를 시작합니다.",
-        message: "Unranked와 Ranked는 서로 다른 전장입니다. 현재 내 Division 메뉴로 들어가면 실제로 이용할 수 있는 경기 기능만 볼 수 있습니다.",
+        title: "일반전과 경쟁전을 선택합니다.",
+        message: "일반전은 바로 시작하는 1대1 대결이고, 경쟁전은 레이팅과 티어를 겨루는 경기입니다.",
       },
       {
         path: "/goat-arena",
         selector: '[data-arena-tutorial-target="arena-home-hero"]',
-        title: "공식 1대1은 같은 다섯 문제로 겨룹니다.",
-        message: "양쪽 사용자가 같은 문제를 문항당 10분 안에 풀고, 경기 결과에 따라 공개 티어·티어 안 순위·GP가 움직입니다.",
+        title: "다섯 문제로 실력을 겨룹니다.",
+        message: "문항마다 10분 동안 문제를 풀고 풀이과정을 제출하면 상대와의 경기 결과를 확인할 수 있습니다.",
       },
       {
         path: "/goat-arena",
         selector: '[data-arena-tutorial-target="arena-seed-card"]',
-        title: "내 현재 Arena 상태를 확인합니다.",
-        message: "티어, 티어 안 순위, GP와 현재 Division이 표시됩니다. 다음 플레이는 상단의 현재 Division 메뉴에서 시작하면 됩니다.",
+        title: "경기 방식과 내 정보를 확인합니다.",
+        message: "문항 수와 제한 시간을 확인하고 일반전 또는 경쟁전 메뉴에서 플레이를 시작할 수 있습니다.",
       },
     ],
-    unranked: [
+    normal: [
       {
         path: "/goat-arena/sub",
         selector: '[data-arena-tutorial-target="division-hero"]',
-        title: "Unranked는 자동 배정 방식입니다.",
-        message: "같은 티어의 내 위 순위를 먼저 찾고, 후보가 없을 때만 바로 위 티어까지 탐색합니다. 상대 닉네임을 직접 선택하지는 않습니다.",
+        title: "일반전은 비슷한 실력의 유저와 대결합니다.",
+        message: "비슷한 난도로 구성된 다섯 문제를 풀고 상대와 실력을 겨룹니다.",
       },
       {
         path: "/goat-arena/sub",
         selector: '[data-arena-tutorial-target="division-status"]',
-        title: "신청 전에 내 이용 상태를 확인합니다.",
-        message: "현재 이용 가능 여부, 내 티어 안 순위와 남은 학습 가능 일수가 표시됩니다. 기능이 잠겼다면 이곳에서 먼저 원인을 확인합니다.",
-      },
-      {
-        path: "/goat-arena/sub",
-        selector: '[data-arena-tutorial-target="division-group-battle"]',
-        title: "여기서 일반 쟁탈전을 시작합니다.",
-        message: "‘일반 쟁탈전 신청’을 누르면 자동 매치 화면으로 이동합니다. 이미 잡힌 공격·방어 경기는 ‘진행 중 경기’에서 이어서 풀고, 복수전 권리도 여기서 확인합니다.",
-      },
-      {
-        path: "/goat-arena/sub",
-        selector: '[data-arena-tutorial-target="division-group-record"]',
-        title: "끝난 경기는 기록으로 남습니다.",
-        message: "경기 상대와 승패, 경기 뒤 티어·순위·GP 변동을 다시 확인합니다. 정산이 확정된 기록만 표시됩니다.",
-      },
-      {
-        path: "/goat-arena/sub",
-        selector: '[data-arena-tutorial-target="division-group-progress"]',
-        title: "페이백 점수와 공격 출석을 따로 확인합니다.",
-        message: "경기에서 움직이는 페이백 점수와 이용 주기의 공격 출석일은 별도 조건입니다. 현재 수치와 남은 조건을 이 묶음에서 확인합니다.",
+        title: "승리 기준을 확인합니다.",
+        message: "정오답과 문제 난도를 함께 반영한 내부 평가를 비교하고, 결과가 근소하면 풀이 시간이 짧은 쪽이 승리합니다.",
       },
     ],
-    unranked_match: [
-      {
-        path: "/goat-arena/sub/challenge",
-        selector: '[data-arena-tutorial-target="sub-challenge-hero"]',
-        title: "서버가 가장 가까운 상위 후보를 찾습니다.",
-        message: "같은 티어의 상위 순위를 우선 탐색하고 없으면 바로 위 티어로 넓힙니다. 최근 방어 부담도 고려해 한 명을 자동 배정합니다.",
-      },
-      {
-        path: "/goat-arena/sub/challenge",
-        selector: '[data-arena-tutorial-target="sub-challenge-status"]',
-        title: "신청 전에 예치와 오늘의 참가 범위를 봅니다.",
-        message: "내 Arena 상태, 이번 경기에서 거는 페이백 점수와 탐색 가능한 티어가 표시됩니다. 신청 제한 중이면 정확한 사유도 이 아래에 나옵니다.",
-      },
-      {
-        path: "/goat-arena/sub/challenge",
-        selector: '[data-arena-tutorial-target="sub-match-action"]',
-        title: "가능한 행동 하나만 선택하면 됩니다.",
-        message: "신청 가능할 때 ‘자동 매치 신청’을 누르면 상대 확정과 예치가 처리됩니다. 진행 중 경기가 있으면 이 자리의 버튼으로 경기 화면에 복귀합니다.",
-      },
-    ],
-    ranked: [
+    competitive: [
       {
         path: "/goat-arena/main",
         selector: '[data-arena-tutorial-target="division-hero"]',
-        title: "Ranked에서는 학습일수를 직접 운용합니다.",
-        message: "상향 쟁탈전과 하위 티어 초대전에서 목표 티어와 학습일수를 정합니다. 특정 상대의 닉네임을 직접 고르는 방식은 아닙니다.",
+        title: "경쟁전은 레이팅과 티어를 겨룹니다.",
+        message: "비슷한 실력의 유저와 대결하고, 확정된 결과가 내 레이팅과 티어에 반영됩니다.",
       },
       {
         path: "/goat-arena/main",
         selector: '[data-arena-tutorial-target="division-status"]',
-        title: "사용 가능한 학습일수부터 확인합니다.",
-        message: "새 경기나 상점에 쓸 수 있는 일수만 표시됩니다. 초대 예약이나 진행 중 경기 예치분은 사용 가능 수치에서 빠집니다.",
-      },
-      {
-        path: "/goat-arena/main",
-        selector: '[data-arena-tutorial-target="division-group-battle"]',
-        title: "경기 지휘에서 플레이 방식을 고릅니다.",
-        message: "상향 쟁탈전·하위 티어 초대전·복수전·친선 경기 중 원하는 방식을 선택하고, 이미 시작된 경기는 ‘진행 중 경기’에서 이어서 풉니다.",
-      },
-      {
-        path: "/goat-arena/main",
-        selector: '[data-arena-tutorial-target="division-group-operations"]',
-        title: "초대와 학습일수 이동을 관리합니다.",
-        message: "받은 초대와 보낸 예약을 처리하고, 사용 가능·예약·경기 예치 학습일수와 이동 기록을 확인합니다.",
-      },
-      {
-        path: "/goat-arena/main",
-        selector: '[data-arena-tutorial-target="division-group-support"]',
-        title: "확보한 학습일수는 상점에서도 사용합니다.",
-        message: "경기 분석, 일정 보호와 프로필 효과가 필요하면 Ranked 상점으로 들어갑니다. 상점은 처음 들어갈 때 별도로 짧게 안내합니다.",
+        title: "경쟁전 참가 과정을 확인합니다.",
+        message: "유효한 일반전 세 경기와 배치고사를 완료하면 첫 레이팅과 티어가 정해집니다.",
       },
     ],
-    ranked_battle: [
+    friends: [
       {
-        path: "/goat-arena/main/battle",
-        selector: '[data-arena-tutorial-target="main-battle-status"]',
-        title: "새 경기 전에 현재 이용 가능 상태를 봅니다.",
-        message: "진행 중 공식 경기, 부족한 학습일수나 이용 제한이 있으면 작전 카드가 잠기고 이 영역에 이유가 표시됩니다.",
-      },
-      {
-        path: "/goat-arena/main/battle",
-        selector: '[data-arena-tutorial-target="main-upward-operation"]',
-        title: "상향 쟁탈전은 목표 티어를 정해 도전합니다.",
-        message: "최대 세 티어 위까지 목표와 예치량을 선택하면 서버가 적격 상대를 무작위 배정합니다. 상대는 자동으로 경기에 참가합니다.",
-      },
-      {
-        path: "/goat-arena/main/battle",
-        selector: '[data-arena-tutorial-target="main-invite-operation"]',
-        title: "하위 티어 초대전은 먼저 예약을 만듭니다.",
-        message: "목표 하위 티어에 일괄 초대하고, 먼저 수락한 한 명과만 경기합니다. 수락이 완료되면 양쪽이 같은 학습일수를 예치합니다.",
-      },
-      {
-        path: "/goat-arena/main/battle",
+        path: "/goat-arena/friends",
         selector: '[data-arena-tutorial-target="main-friendly"]',
-        title: "친선전은 랭크 부담 없이 연습합니다.",
-        message: "Ranked 사용자를 닉네임으로 초대하지만 티어·GP·학습일수는 이동하지 않습니다. 공식전과 별도로 관리됩니다.",
-      },
-      {
-        path: "/goat-arena/main/battle",
-        selector: '[data-arena-tutorial-target="main-invitations"]',
-        title: "받은 초대와 보낸 예약을 여기서 처리합니다.",
-        message: "받은 초대는 조건을 확인한 뒤 수락하거나 거절하고, 보낸 예약은 상대가 수락하기 전까지 상태와 취소 가능 여부를 확인합니다.",
-      },
-    ],
-    ranked_shop: [
-      {
-        path: "/goat-arena/main/shop",
-        selector: '[data-arena-tutorial-target="ranked-shop-wallet"]',
-        title: "상점은 사용 가능한 학습일수로 이용합니다.",
-        message: "초대 예약이나 경기 예치 중인 일수는 쓸 수 없습니다. 아이템을 고르기 전에 현재 사용 가능 잔액을 확인합니다.",
-      },
-      {
-        path: "/goat-arena/main/shop",
-        selector: '[data-arena-tutorial-target="ranked-shop-grid"]',
-        title: "필요한 효과의 카드를 선택합니다.",
-        message: "경기 분석·일정 보호·프로필 효과 등의 가격과 적용 범위를 확인하고 동의한 뒤 사용합니다. 적용된 효과는 화면 아래 기록에 남습니다.",
+        title: "친구와 부담 없이 대결합니다.",
+        message: "친구를 닉네임으로 초대하거나 단체 도전장 링크를 공유해 같은 5문제의 순위를 만들 수 있습니다.",
       },
     ],
   };

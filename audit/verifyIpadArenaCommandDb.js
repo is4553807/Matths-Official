@@ -15,7 +15,7 @@ const {
 const { initialAnswersForPack } = require("../services/arenaMatchAttemptService");
 const { computeArenaProblemPackHash } = require("../services/arenaProblemPackService");
 const {
-  ARENA_LEGACY_CONTENT_VERSION,
+  ARENA_FALLBACK_CONTENT_VERSION,
   ARENA_QUESTION_DESIGN_POLICY_VERSION,
   TIER_SPECS,
   packCurveForPair,
@@ -117,7 +117,7 @@ async function run() {
         generationMode: "AUTO_ON_CHALLENGE",
         generatedForMatchKey: `IPAD:E2E:${suffix}`,
         designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
-        contentSourceVersion: ARENA_LEGACY_CONTENT_VERSION,
+        contentSourceVersion: ARENA_FALLBACK_CONTENT_VERSION,
         designCompliance: "PENDING_FINAL_GENERATORS",
         difficultyAnchor: "DEFENDER",
         difficultyTier,
@@ -158,28 +158,16 @@ async function run() {
     await ArenaMatch.create({
       _id: matchId,
       matchKey: `IPAD:E2E:${suffix}`,
+      gameMode: "NORMAL",
       division: "SUB",
       seasonKey: `IPAD-E2E-${suffix}`,
       matchType: "NORMAL",
-      matchOrigin: "SUB_UPWARD_AUTO_MATCH",
+      matchOrigin: "ARENA_2_MATCHMAKING",
       requestInitiatorUserId: challengerUserId,
-      targetTier: "GOLD",
       tierPairKey: "SILVER_GOLD",
       tierPairLabel: "실버-골드",
-      challenger: {
-        userId: challengerUserId,
-        standingId: new mongoose.Types.ObjectId(),
-        accessCycleId: new mongoose.Types.ObjectId(),
-        tupleBefore: { arenaRank: "실버", arenaPosition: 7, arenaGp: 40 },
-        stakeDays: 1,
-      },
-      defender: {
-        userId: defenderUserId,
-        standingId: new mongoose.Types.ObjectId(),
-        accessCycleId: new mongoose.Types.ObjectId(),
-        tupleBefore: { arenaRank: "골드", arenaPosition: 2, arenaGp: 90 },
-        stakeDays: 0,
-      },
+      challenger: { userId: challengerUserId },
+      defender: { userId: defenderUserId },
       status: "READY",
       policyVersionCode: "IPAD-E2E-POLICY",
       problemPackId,
@@ -269,12 +257,12 @@ async function run() {
           attemptId: started.attempt.attemptId,
           idempotencyKey: `ARENA_ACTIVITY:${key}`,
         }),
-        1
+        0
       );
     }
     assert.equal(
       (await ArenaMatchAttempt.findById(started.attempt.attemptId).lean()).focusState,
-      "BLURRED"
+      "FOCUSED"
     );
 
     await assert.rejects(
@@ -286,6 +274,14 @@ async function run() {
     );
 
     for (let slot = 1; slot <= 5; slot += 1) {
+      const currentAttempt = await ArenaMatchAttempt.findById(started.attempt.attemptId).lean();
+      now.setTime(Math.max(now.getTime(), new Date(currentAttempt.questionTimings[slot - 1].startedAt).getTime()) + 2000);
+      const advanceKey = `ipad-advance-${slot}-${suffix}`;
+      await require("../services/arenaQuestionCompletionService").lockArenaQuestionCompletion({
+        matchId, userId: challengerUserId, questionSlot: slot, requestId: advanceKey,
+        answer: String(slot + 1), boardRevision: 1, strokeCount: slot === 1 ? 0 : slot,
+        drawingDataBase64: Buffer.from(`audit-drawing-${slot}`).toString("base64"), now,
+      });
       await ArenaInlineSolutionBoard.create({
         attemptId: started.attempt.attemptId,
         matchId,
@@ -309,7 +305,6 @@ async function run() {
           cloudFormat: "png",
         },
       });
-      const advanceKey = `ipad-advance-${slot}-${suffix}`;
       const input = commandInput(matchId, advanceKey, {
         questionSlot: slot,
         answer: String(slot + 1),
@@ -359,12 +354,10 @@ async function run() {
     }).lean();
     assert.equal(promotedEvidence.originalEvidenceSubmitted, true);
     assert.equal(promotedEvidence.files.length, 5);
-    assert.deepEqual(promotedEvidence.sourceRiskFlags, [
-      "INSUFFICIENT_INLINE_EVIDENCE",
-    ]);
-    assert.deepEqual(promotedEvidence.anomalyFlags, [
-      "INSUFFICIENT_INLINE_EVIDENCE",
-    ]);
+    // General play still requires and preserves the full solution board, but
+    // it does not create automated cheating-review signals.
+    assert.deepEqual(promotedEvidence.sourceRiskFlags, []);
+    assert.deepEqual(promotedEvidence.anomalyFlags, []);
     assert.equal(promotedEvidence.files[0].questionSlot, 1);
     assert.equal(promotedEvidence.files[0].revision, 1);
     assert.equal(promotedEvidence.files[0].strokeCount, 0);
@@ -380,7 +373,7 @@ async function run() {
 
     console.log(
       "iPad Arena DB verified: ownership, one-question disclosure, answer/activity/" +
-        "advance idempotency, five-slot progression, inline-board promotion, metadata, and blank-board risk."
+        "advance idempotency, five-slot progression, required inline-board promotion, metadata, and no client-authored integrity verdicts."
     );
   } finally {
     await Promise.all([

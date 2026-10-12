@@ -54,9 +54,9 @@ async function main() {
       idempotencyKey: `audit-idempotency-${suffix}`,
       status: "APPLIED",
       approvedAt,
-      approvedAmount: 5000,
-      productCode: "MOCK_EXAM_ONLY",
-      productName: "Matths 주간 공식 모의고사 이용권",
+      approvedAmount: 5500,
+      productCode: "PRO_MONTHLY",
+      productName: "Matths Pro",
       refundStatus: "CALCULATED",
     });
     ids.payment = payment._id;
@@ -84,7 +84,7 @@ async function main() {
       paymentId: payment._id,
       supportInquiryId: inquiry._id,
       requestedByType: "STUDENT",
-      productCode: "MOCK_EXAM_ONLY",
+      productCode: "PRO_MONTHLY",
       productNameSnapshot: payment.productName,
       orderReferenceSnapshot: payment.orderReference,
       providerPaymentKeySnapshot: payment.providerPaymentKey,
@@ -94,7 +94,7 @@ async function main() {
       requestedAt: new Date("2026-08-20T00:00:00.000Z"),
       processingDeadlineAt: new Date("2026-08-25T00:00:00.000Z"),
       calculation: {
-        approvedAmount: 5000,
+        approvedAmount: 5500,
         calculatedAmount: 0,
         usedDays: 30,
         calculationType: "NONE",

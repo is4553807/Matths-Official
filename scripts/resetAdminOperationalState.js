@@ -6,7 +6,6 @@ dotenv.config({ path: "./config.env" });
 const {
   AdminActionLog,
   AdminTodo,
-  User,
 } = require("../models/matthsModel");
 const {
   ArenaAccessState,
@@ -17,8 +16,8 @@ const {
   ArenaMatchParticipantLock,
 } = require("../models/goatArenaModel");
 const {
-  cancelHeldArenaMatchForAdminReset,
-} = require("../services/arenaIntegrityRiskService");
+  cancelArenaV2Match,
+} = require("../services/arenaV2SettlementService");
 
 const APPLY = process.argv.includes("--apply");
 
@@ -28,7 +27,7 @@ async function counts() {
     completedAdminTodos: await AdminTodo.countDocuments({ status: "completed" }),
     heldOrSuspiciousMatches: await ArenaMatch.countDocuments({
       status: {
-        $nin: ["SETTLED", "INVALID", "CANCELLED", "INSURED_CANCELLED"],
+        $nin: ["SETTLED", "INVALID", "CANCELLED"],
       },
       $or: [{ status: "HELD" }, { integrityStatus: "SUSPICIOUS" }],
     }),
@@ -56,11 +55,9 @@ async function main() {
     return;
   }
 
-  const admin = await User.findOne({ role: "admin" }).sort({ createdAt: 1 }).lean();
-  if (!admin) throw new Error("초기화 기록에 사용할 관리자 계정을 찾을 수 없습니다.");
   const heldMatches = await ArenaMatch.find({
     status: {
-      $nin: ["SETTLED", "INVALID", "CANCELLED", "INSURED_CANCELLED"],
+      $nin: ["SETTLED", "INVALID", "CANCELLED"],
     },
     $or: [{ status: "HELD" }, { integrityStatus: "SUSPICIOUS" }],
   })
@@ -68,12 +65,11 @@ async function main() {
     .lean();
   const cancelled = [];
   for (const match of heldMatches) {
-    const result = await cancelHeldArenaMatchForAdminReset({
+    const result = await cancelArenaV2Match({
       matchId: match._id,
-      adminUserId: admin._id,
-      note: "2026-08-04 운영 테스트 알림 및 HELD 상태 초기화",
+      reason: "ADMIN_OPERATIONAL_STATE_RESET",
     });
-    if (!result?.skipped) cancelled.push(result.matchId);
+    if (result?.cancelled) cancelled.push(String(match._id));
   }
 
   const affectedAccessStates = await ArenaAccessState.find({
@@ -90,12 +86,10 @@ async function main() {
           $set: {
             integrityStatus: "CLEAR",
             integrityCaseId: null,
-            defensePoolEligible: {
-              $and: [
-                { $eq: ["$state", "PAID_ACTIVE"] },
-                { $eq: ["$currentSeasonPlacementCompleted", true] },
-              ],
-            },
+            matchmakingRestrictedUntil: null,
+            integrityPenaltyStartedAt: null,
+            integrityPenaltyReason: "",
+            reasonCode: "ADMIN_RESET",
             updatedAt: "$$NOW",
           },
         },

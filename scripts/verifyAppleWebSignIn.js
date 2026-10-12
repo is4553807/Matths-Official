@@ -224,7 +224,7 @@ async function main() {
   assert.match(controller, /completeAppleWebAuthorization/);
   assert.match(controller, /provider:\s*"apple"[\s\S]*provisionalUserId:/);
   assert.match(controller, /if \(!appleUser\.birthDate\)/);
-  assert.match(controller, /appleProvisionalUser\.set\(registrationProfile\)/);
+  assert.match(controller, /provisional\.set\(registrationProfile\)/);
   assert.match(login, /partials\/social-auth-buttons/);
   const appleHtml = await require("ejs").renderFile(path.join(root, "views/partials/social-auth-buttons.ejs"), { accountType: "student", socialAuthProviders: publicProviderStatus() });
   assert.match(appleHtml, /Apple로 계속하기/);

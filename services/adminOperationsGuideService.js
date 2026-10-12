@@ -6,7 +6,6 @@ require("../models/operationModel");
 require("../models/sessionModel");
 require("../models/problemTypeModel");
 require("../models/parentModel");
-require("../models/paybackModel");
 require("../models/documentSecurityModel");
 require("../models/studyHallModel");
 
@@ -45,15 +44,15 @@ const CATEGORY_DEFINITIONS = [
   },
   {
     id: "subscriptions",
-    label: "상품·결제·학습일수",
-    description: "가격 정책, 결제 승인, 이용 주기, 페이백과 학습일수 원장",
-    pattern: /Subscription|AccessCycle|PackagePayment|MockExamSubscription|Payback|LearningDay|Shop|PolicyChange|Checkout/i,
+    label: "계정 플랜·결제·환불",
+    description: "무료·Pro 플랜, 결제 승인, 환불과 출금 원장",
+    pattern: /PackagePayment|Checkout|Refund|Finance|BusinessWithdrawal/i,
   },
   {
     id: "arena",
-    label: "GOAT Arena 경기·랭킹",
-    description: "Division 권한, 경기, 문제팩, 풀이, 증거, 정산, 랭킹과 시즌",
-    pattern: /Arena|FinalRanking|MainToSub/i,
+    label: "GOAT Arena 경기·MMR",
+    description: "일반전·경쟁전·친선전, 과거 기록, 풀이, 배치, MMR 정산과 게스트 링크",
+    pattern: /Arena/i,
   },
   {
     id: "operations",
@@ -91,7 +90,7 @@ function schemaTypeLabel(schemaType) {
   return schemaType?.instance || schemaType?.constructor?.name || "혼합";
 }
 
-function fieldRules(schemaType) {
+function fieldRules(schemaType, { modelName = "", field = "" } = {}) {
   const options = schemaType?.options || {};
   const rules = [];
   if (options.required) rules.push("필수");
@@ -100,8 +99,9 @@ function fieldRules(schemaType) {
   if (options.select === false) rules.push("기본 조회 제외");
   if (options.immutable) rules.push("수정 불가");
   if (options.ref) rules.push(`참조: ${options.ref}`);
-  if (schemaType?.enumValues?.length) {
-    rules.push(`허용값: ${schemaType.enumValues.join(" · ")}`);
+  const currentEnumValues = schemaType?.enumValues || [];
+  if (currentEnumValues.length) {
+    rules.push(`허용값: ${currentEnumValues.join(" · ")}`);
   }
   if (options.min !== undefined) rules.push(`최소 ${options.min}`);
   if (options.max !== undefined) rules.push(`최대 ${options.max}`);
@@ -114,7 +114,8 @@ function fieldRules(schemaType) {
 function serializeModel(modelName) {
   const model = mongoose.model(modelName);
   const schema = model.schema;
-  const indexes = schema.indexes().map(([keys, options]) => ({
+  const indexes = schema.indexes()
+    .map(([keys, options]) => ({
     keys: Object.entries(keys)
       .map(([field, direction]) => `${field}:${direction}`)
       .join(", "),
@@ -132,7 +133,7 @@ function serializeModel(modelName) {
     .map(([field, schemaType]) => ({
       field,
       type: schemaTypeLabel(schemaType),
-      rules: fieldRules(schemaType),
+      rules: fieldRules(schemaType, { modelName, field }),
       defaultValue: printableDefault(schemaType?.options?.default),
     }));
   const category = categoryFor(modelName);
@@ -253,37 +254,28 @@ const RETENTION_POLICIES = [
   ["로그인 세션", "기본 7일", "SESSION_TTL_SECONDS 설정과 MongoDB TTL 인덱스 사용"],
   ["학부모 가입 초대", "72시간", "사용·재요청·만료 시 상태를 변경하며 토큰 원문은 저장하지 않음"],
   ["완료되지 않은 결제 요청", "30분", "승인 완료 전 CheckoutIntent를 자동 만료 처리"],
-  ["페이백 계좌", "재등록 또는 탈퇴 시까지", "AES-256-GCM 암호문으로 저장하고 사용자 화면에는 끝 4자리만 표시"],
   ["위험 연결 신호", "30~730일", "종류별 TTL: 네트워크 30일, 브라우저 90일, 기기 180일, 결제·계좌 730일"],
   ["감사·정산 원장", "원칙적으로 기한 없음", "원본 거래를 수정하지 않고 보정 이벤트를 추가"],
 ];
 
 const SCHEDULERS = [
   ["다중 서버 공용 임대", "모든 자동 작업 실행 직전", "MongoDB schedulerLeases에서 작업별 임대를 선점하고 실행 중 갱신합니다. 다른 서버는 같은 작업을 건너뛰며 실패·완료 뒤 다음 서버가 이어받습니다."],
-  ["주간 모의고사 상태 전환", "30초", "예약→응시→잠금→집계→랭킹·아카이브 상태를 KST 기준으로 전환"],
+  ["주간 모의고사 상태 전환", "30초", "예약→응시→잠금→집계→내부 MMR 정산·아카이브 상태를 KST 기준으로 전환"],
   ["배치고사 자동 제출", "30초", "제한시간이 끝난 배치고사의 서버 저장 답안을 자동 제출·채점하고 완료 상태로 전환"],
-  ["학습권 이용 주기", "30초", "결제 이용 주기·갱신·정산 대기 상태 처리"],
-  ["일일 학습일수·만료", "30초", "KST 기준 학습일수 차감과 잔액 소진 이용 만료 처리"],
-  ["학습권 만료 알림", "1분", "72·24·6시간 임계 알림 중복 방지"],
   ["학원 과제 미제출 처리", "1분", "OMR 과제 마감 후 해당 반의 기한 내 미제출 학생을 자동 채점 기록에 0점으로 반영"],
-  ["정책 변경 공지", "저장 직후 + 15초 재시도", "정책별·사용자별 전달 원장으로 이메일과 사이트 우편함을 중복 없이 발송"],
-  ["Arena 처리 대기 이벤트", "5초", "정책 공지를 포함한 트랜잭션 후속 작업을 outbox에서 장애 복구·재실행"],
-  ["Arena 경기 타이머", "10초", "준비·풀이·증거 1분·복수전 24시간 기한 처리"],
-  ["Arena 증거 삭제", "6시간", "90일 보존 조건을 만족한 Cloudinary 원본 삭제"],
   ["아카이브 휴지통 삭제", "6시간", "30일 경과 자료의 R2 원본·DB 영구 삭제"],
   ["R2 원본 점검", "관리자 수동 실행", "비공개 객체와 DB의 SHA-256 메타데이터를 대조"],
   ["PDF·스크린샷 유출 추적", "관리자·학원 교사 수동 실행", "운영자는 전체 발급 원장, 학원은 선택한 학원·반의 학생·담당 교사 발급 원장만 대조하고 임시 파일을 즉시 삭제"],
-  ["데이터 분석", "15분", "월별 운영 지표 집계와 2분 대시보드 캐시 갱신"],
+  ["운영 지표", "관리자 조회 시", "무료·Pro 플랜, 현행 Arena, 게스트 친선전과 주간 모의고사 원본을 월별로 조회"],
   ["Arena 무결성 위험", "15분", "최근 경기·연결 신호를 평가해 관리자 할 일 생성"],
   ["사용자 업로드 임시 파일", "시작 즉시 + 6시간", "24시간 이상 남은 임시 파일 삭제"],
 ];
 
 const PERMISSION_MATRIX = [
-  ["기본학습 패키지", "개념 학습·평가센터·오답노트·최초 배치고사 1회와 티어 확인", "주간 모의고사·GOAT Arena 공식 경기 차단"],
-  ["모의고사 이용권", "최초 배치로 첫 티어 결정·주간 상위 20% 또는 2주 연속 승급 준비도 후보의 공식 모의고사 승급", "시즌 배치·랭크 복귀전·GOAT Arena 경기만 차단, 티어와 내부 실력 지표는 누적"],
-  ["29일 학습권 패키지", "배치고사·주간 모의고사·GOAT Arena", "Division·학습일수·무결성 상태에 따라 실행 버튼 제어"],
-  ["학부모 계정", "연결 자녀의 학습 현황·오답률·공식 랭킹·패키지 구매 준비", "학생용 학습·게시판·Arena 실행 권한 없음"],
-  ["관리자", "모든 운영 화면·유료 콘텐츠·Unranked/Ranked 안내", "무제한·만료 없음. 공식 랭킹 데이터 변경은 별도 운영 작업만 사용"],
+  ["무료 플랜", "개념 학습·평가센터·오답노트와 GOAT Arena 무료 이용 범위", "Pro 전용 기능 차단"],
+  ["Pro 플랜", "주간 공식 모의고사·Pro 학습 자료·GOAT Arena Pro 이용 범위", "월 5,500원·30일 단위"],
+  ["학부모 계정", "연결 자녀의 학습 현황·오답률·공식 랭킹·Pro 결제 준비", "학생용 학습·게시판·Arena 실행 권한 없음"],
+  ["관리자", "모든 운영 화면·유료 콘텐츠·일반전/경쟁전 운영 상태", "무제한·만료 없음. MMR과 경기 원장은 승인된 운영 절차만 사용"],
 ];
 
 const INCIDENT_PLAYBOOK = [
@@ -316,15 +308,6 @@ const INCIDENT_PLAYBOOK = [
     ],
   },
   {
-    title: "경기·랭킹 정합성 이상",
-    checks: [
-      "정산·저장 감사에서 미정산 경기와 학습일수 원장 합계 확인",
-      "최종 종합 랭킹 재계산은 감사 이력을 남기는 관리자 작업으로만 실행",
-      "증거 이상 징후를 먼저 검토하고 임의로 GP·티어를 직접 수정하지 않기",
-      "원본 이벤트를 삭제하지 말고 보정 원장 또는 운영 작업을 추가",
-    ],
-  },
-  {
     title: "계정·게시판 신고",
     checks: [
       "신고 원문·댓글·첨부를 확인하고 숨김·삭제·경고를 구분",
@@ -337,33 +320,18 @@ const INCIDENT_PLAYBOOK = [
 
 const OPERATING_WORKFLOWS = [
   {
-    title: "페이백 실제 송금·완료 확인",
-    cadence: "페이백 지급 대상 확정 후",
-    objective: "실제 계좌 송금, 사용자 통지와 담당 운영자 기록을 하나의 지급 이력으로 보존합니다.",
-    steps: [
-      "페이백 정산에서 대상 사용자, 지급액과 마스킹된 계좌 끝 4자리를 확인합니다.",
-      "운영자가 은행에서 직접 송금한 뒤 송금 사실을 확인할 수 있는 메모를 입력합니다.",
-      "송금 확인 및 지급 완료 버튼을 누릅니다. 버튼을 누르기 전까지 해당 페이백은 완료로 처리되지 않습니다.",
-      "처리 직후 Matths·GOAT Arena 공용 우편함 알림, 로그인한 운영자 이메일 발신의 완료 안내와 지급 담당자 계정이 생성됐는지 확인합니다.",
-      "이메일만 실패한 경우 실제 지급 완료 상태를 되돌리지 말고 지급 이력의 재발송 버튼을 사용합니다.",
-      "운영 감사 로그에서 완료 처리자·재발송 처리자, 시각, 대상 사용자와 성공 여부를 확인합니다.",
-    ],
-    hardStops: "실제 계좌 송금 전에 완료 버튼을 누르거나, 이메일 실패를 이유로 같은 페이백을 다시 송금하지 않습니다.",
-    audit: "PaybackPayoutRecord.completedBySnapshot, UserNotification, AdminActionLog",
-  },
-  {
     title: "회원·권한·상품 변경",
     cadence: "요청·결제·고객지원 발생 시",
-    objective: "계정 상태와 실제 이용 권한, 학습일수 원장을 같은 결과로 유지합니다.",
+    objective: "계정 상태와 무료·Pro 플랜 권한을 같은 결과로 유지합니다.",
     steps: [
       "유저 관리에서 닉네임·가입일·최근 로그인·계정 상태를 확인하고 동명이 아닌 계정 ID를 기준으로 대상을 확정합니다.",
-      "기본학습 패키지·주간 공식 모의고사 이용권·29일 학습권 패키지 중 하나를 선택하고 변경 사유를 구체적으로 기록합니다.",
-      "미정산 경기, 예치 학습일, 초대 예약 학습일이 있으면 먼저 정산합니다. 이 상태에서는 상품을 강제로 덮어쓰지 않습니다.",
-      "변경 뒤 이용 플랜, ArenaAccessState, AccessCycle, 학습일수 원장과 사용자 우편함을 함께 확인합니다.",
+      "무료 플랜과 Pro 플랜 중 하나를 선택하고 변경 사유를 구체적으로 기록합니다.",
+      "관리자 변경은 결제 매출로 집계되지 않으며 Pro는 변경 시각부터 30일 동안 적용됩니다.",
+      "변경 뒤 User.accountPlan과 사용자 화면의 현재 플랜을 함께 확인합니다. 과거 결제·환불·이용권 원장은 수정하지 않습니다.",
       "관리자는 역할 기반 슈퍼계정이므로 별도 유료 상품이나 만료일을 부여하지 않습니다.",
     ],
     hardStops: "카드·계좌 원문, 결제사 전체 응답을 DB나 관리자 메모에 복사하지 않습니다.",
-    audit: "AdminActionLog, ArenaLearningDayLedger, UserNotification",
+    audit: "User.accountPlan, AdminActionLog, ArenaPackagePayment, RefundRequest",
   },
   {
     title: "주간 공식 모의고사 등록",
@@ -371,7 +339,7 @@ const OPERATING_WORKFLOWS = [
     objective: "문제지·채점 기준·공개 시각을 하나의 회차로 원자적으로 등록합니다.",
     steps: [
       "A·B·C는 일요일 15:00·18:00·21:00 KST 고정 슬롯을 선택합니다.",
-      "운영 점검 회차는 CUSTOM을 선택하고 한국 날짜와 시작 시각을 직접 입력합니다. CUSTOM은 GP·주간 랭킹·자동 아카이브에 반영되지 않습니다.",
+      "운영 점검 회차는 CUSTOM을 선택하고 한국 날짜와 시작 시각을 직접 입력합니다. CUSTOM은 공식 주간 MMR 정산과 자동 아카이브에 반영되지 않습니다.",
       "문제지 PDF, 정확히 30문항·100점인 채점 JSON, 선택적 답지 PDF의 순서와 개수를 맞춥니다.",
       "등록 뒤 공개 시각, 100분 마감, C형 1분 집계 대기, 23:00 랭킹·보관 전환을 미리보기에서 재확인합니다.",
       "공개 뒤 정답 오류는 파일을 교체하지 않고 정답 정정 기능으로 처리해 재채점·지표 재생·알림 이력을 남깁니다.",
@@ -386,8 +354,8 @@ const OPERATING_WORKFLOWS = [
     steps: [
       "자료 폴더 아래에 목적별 폴더를 만들고 이름·설명·접근 권한을 먼저 정합니다. 사용자는 내부 루트 폴더를 보지 않습니다.",
       "파일을 업로드한 뒤 상위 폴더의 재귀 파일 수와 하위 폴더 표시를 확인합니다.",
-      "모의고사 자료는 ‘모의고사 이용권 이상’으로 지정해 모의고사 전용 이용권과 29일 학습권에 함께 제공하고, GOAT Arena 전용 자료는 ‘29일 학습권 패키지’로 제한합니다.",
-      "하위 폴더에는 경로상 가장 강한 접근 권한이 상속됩니다. 무료·모의고사 전용·29일 학습권 계정으로 각각 폴더 진입과 직접 다운로드 URL을 확인합니다.",
+      "모의고사 자료는 ‘모의고사 이용 대상’으로 지정해 Pro와 학원 이용자에게 제공하고, Pro 전용 자료는 ‘Pro 플랜’으로 제한합니다.",
+      "하위 폴더에는 경로상 가장 강한 접근 권한이 상속됩니다. 무료·Pro·학원 이용 계정으로 각각 폴더 진입과 직접 다운로드 URL을 확인합니다.",
       "PDF 다운로드를 시험한 뒤 개인 추적 코드가 페이지 전반에 표시되고, PDF 원본과 해당 페이지 스크린샷 모두에서 발급 사용자를 복원할 수 있는지 확인합니다.",
       "중요 자료·폴더는 상단 고정을 사용하고, 개정본을 올릴 때 이전 파일의 공개·보관 상태를 함께 정리합니다.",
       "삭제는 30일 휴지통을 기본으로 사용하며 R2 객체 삭제까지 가능한 경우에만 영구 삭제합니다.",
@@ -414,19 +382,6 @@ const OPERATING_WORKFLOWS = [
     audit: "StudyHallContent, StudyHallProgress.answers·downloads·submittedAt",
   },
   {
-    title: "전체 Arena 매치메이킹 긴급 제어",
-    cadence: "점검·문제 데이터 이상·운영 사고 발생 시",
-    objective: "신규 경기만 원자적으로 차단하고 이미 성립한 경기는 정상 완료하게 합니다.",
-    steps: [
-      "GOAT Arena 정책·상품 관리의 전체 매치메이킹 상태와 마지막 변경 시각을 확인합니다.",
-      "일시정지 사유를 입력한 뒤 정지합니다. Unranked·Ranked 신규 경기, 복수전, Ranked 초대 생성과 초대 수락이 차단됩니다.",
-      "이미 진행 중인 경기의 문제 풀이·증거 제출·정산은 중단하지 않습니다.",
-      "점검 완료 뒤 재개하고 실제 신규 경기 한 건이 정상 생성되는지 확인합니다.",
-    ],
-    hardStops: "점검을 이유로 진행 중 경기 문서를 직접 취소하거나 정산 상태를 강제로 변경하지 않습니다.",
-    audit: "PlatformControl.changedBy·pausedAt·resumedAt, ArenaMatch",
-  },
-  {
     title: "게시판·신고·첨부 관리",
     cadence: "매일 및 신고 접수 즉시",
     objective: "게시판별 공지와 운영 규칙을 유지하고 제재를 실제 콘텐츠 상태에 반영합니다.",
@@ -439,30 +394,6 @@ const OPERATING_WORKFLOWS = [
     ],
     hardStops: "신고 완료 상태만 바꾸고 게시글 숨김·삭제·경고 같은 실제 조치를 누락하지 않습니다.",
     audit: "CommunityReport, CommunityPost, CommunityBoardNotice, CommunityPostingQuota, AdminActionLog",
-  },
-  {
-    title: "Arena 문제 데이터 배포",
-    cadence: "문제 구성 변경·새 유형 코드 배포 후",
-    objective: "검산된 생성 유형만 신규 경기에 무중단 적용하고 진행 중 경기의 문제 버전을 보존합니다.",
-    steps: [
-      "2016~2026 고3 3·5·6·7·9·10·11월 전국연합학력평가·모의평가 114개 수학 형식의 대상 문항 772건을 조사한 공식 유형 분류 현황을 먼저 확인합니다. Arena 범위 707건은 23개 사고 유형과 공개 U1~U9·R1~R9 설계 난이도로 분류되며, 수능과 기하·범위 밖 미적분은 운영 근거에서 제외합니다.",
-      "공식 유형 분류는 문제 원문을 출제하는 은행이 아니라 사고 구조와 난이도 설계 근거입니다. 실제 신규 경기는 아래 ACTIVE DB 카탈로그와 독립 검산 생성기를 모두 통과한 유형만 사용합니다.",
-      "기존 내부 카탈로그 원본 JSON을 가져올 때는 9개 난이도·각 30개·고유 참고 문항 270개와 대수 12·미적분Ⅰ 12·확률과 통계 6 구성을 먼저 자동 검증합니다.",
-      "원본 참고 문항 270개와 정답·5단계 풀이과정을 DB에 그대로 보존합니다. 객관식 168개와 자연수 답 102개가 모두 저장됐는지 확인합니다.",
-      "객관식이 혼재하고 실제 이미지 파일이 없으며 Arena 실전은 주관식 생성형이므로 참고 원문은 실전 문항으로 직접 공개하지 않습니다.",
-      "Arena 참고 유형은 GOAT Arena 전용 생성기와 소스 SHA-256으로만 연결합니다. 평가센터 생성기·템플릿·카탈로그는 경기 출제 후보로 읽지 않습니다.",
-      "새 PDF 스켈레톤 풀은 검산·정답률·모바일 렌더 확인을 마친 뒤 별도 Arena 카탈로그 버전으로 준비하며, 운영자가 명시적으로 활성화하기 전에는 실제 1대1 경기에 연결하지 않습니다.",
-      "관리자 화면에서 추가한 유형은 검산된 생성기 구성만 재사용합니다. 새로운 수학 공식이나 생성 알고리즘 자체가 필요하면 코드를 검토·배포한 뒤 서버 생성기 동기화를 먼저 수행합니다.",
-      "문제 데이터 화면에서 현재 ACTIVE 버전, 생성 엔진 버전과 마지막 검산 표본 수를 먼저 확인합니다.",
-      "ACTIVE 문서를 직접 수정하지 않고 새 DRAFT를 만들거나 기존 DRAFT를 선택합니다. 버전 코드와 변경 사유는 재사용하지 않습니다.",
-      "유형별 사용 여부, 1~10 배정 가중치, 1~999 안의 정답 최솟값·최댓값을 입력합니다. 지나치게 좁은 범위는 검산 실패 원인이 됩니다.",
-      "공개 U/R 난이도에 연결된 내부 카탈로그마다 사용 상태인 서로 다른 유형을 최소 5개 선택합니다. 화면에 표시되는 유형은 서버에 등록되고 3자리 이하 자연수 답 조건을 통과할 수 있는 생성기뿐입니다.",
-      "초안 저장 시 1차 표본 검산 결과를 확인하고, 적용 버튼으로 유형별 5회 자동 검산을 통과시킵니다.",
-      "적용 뒤 신규 경기의 ArenaProblemPack.contentSourceVersion, problemDataVersionId와 tierCatalogVersionId가 적용 버전인지 확인합니다. 진행 중 경기는 생성 당시 버전을 유지해야 합니다.",
-      "다중 서버는 MongoDB Change Stream으로 캐시를 즉시 무효화하며, Change Stream을 사용할 수 없는 환경도 15초 TTL 뒤 새 버전을 읽습니다.",
-    ],
-    hardStops: "관리자 입력을 JavaScript로 실행하거나 ACTIVE·RETIRED 문서를 직접 고치지 않습니다. 검산 실패 버전을 강제로 ACTIVE로 바꾸지 않습니다.",
-    audit: "ArenaTierQuestionCatalogVersion, ArenaProblemDataVersion, ArenaProblemPack.problemDataVersionId·tierCatalogVersionId, AdminActionLog",
   },
   {
     title: "개념·평가센터·배치고사 문제 유형 운영",
@@ -479,51 +410,6 @@ const OPERATING_WORKFLOWS = [
     ],
     hardStops: "DB의 소스 문자열을 eval·Function으로 실행하거나 검산 실패 유형을 강제로 활성화하지 않습니다.",
     audit: "ProblemTypeVersion, AdminActionLog, Problem·ProblemAttempt·AssessmentAttempt",
-  },
-  {
-    title: "Arena 정책·상점 정책 배포",
-    cadence: "새 시즌·가격·규칙 변경 시",
-    objective: "진행 중 이용자에게 과거 정책을 소급하지 않고 새 버전을 정해진 시각부터 적용합니다.",
-    steps: [
-      "Unranked, Ranked, 학습권 상품, 상점 정책을 서로 다른 정책 영역에서 수정합니다.",
-      "현재 ACTIVE 정책을 직접 덮어쓰지 않고 새 버전에 변경 요약·KST 적용 시각을 기록합니다. 저장 시점보다 최소 30일 뒤만 선택할 수 있습니다.",
-      "배팅 표기 대신 예치 학습일, 페이백 점수와 정기권 학습 가능 일수를 구분해 입력합니다.",
-      "Unranked 일반 공격은 전 티어 일일 3회 고정이며 방어 상한은 티어별로 확인합니다. 도전자로 승리하면 남은 공격만 잠기고 방어 자격은 현재 티어 상한까지 유지됩니다. 자동 매칭은 최근 1시간 안에 방어전을 정산한 사용자를 다른 후보가 있을 때 후순위로 둔 뒤, 같은 대상 티어에서 최근 72시간 일반 쟁탈전 방어 횟수가 가장 적은 후보군을 우선합니다. 동률이면 마지막 방어 배정이 가장 오래된 후보를 선택하며 그 시각까지 같을 때만 무작위 선정합니다. 1시간 후순위는 하드 차단이 아니며, 복수전은 일일 상한과 72시간 우선순위 집계에서 제외됩니다.",
-      "Ranked 상향 쟁탈전은 티어 차이 1·2·3단계에 최소 1·2·3일, 공통 최대 5일을 적용합니다. 강제 방어는 최근 24시간 방어 횟수가 가장 적은 후보군에서 무작위 선정하고 경기 종료 뒤 6시간, 진행 중 경기 또는 초대 예약이 있는 사용자는 제외합니다. 6시간 유예는 자동 방어에만 적용하며 적격 사용자는 자발적인 하위 티어 초대전 알림을 계속 받을 수 있습니다.",
-      "저장 버튼 한 번으로 적용 예약과 전체 사용자 이메일·우편함 사전 공지가 생성되는지 확인합니다. 전송 실패는 처리 대기 이벤트와 전달 원장에서 자동 재시도됩니다.",
-      "적용 예정 시각 전에는 현재 정책, 이후에는 새 정책이 규정 표와 경기 엔진에서 동시에 조회되는지 확인합니다.",
-      "적용 뒤 새 이용 주기와 진행 중 이용 주기의 policySnapshot이 의도대로 분리되는지 확인합니다. 단, 일일 경기 상한은 적용 중인 운영 정책을 즉시 공통 사용합니다.",
-    ],
-    hardStops: "이미 적용된 정책 문서의 조건을 직접 수정하거나 코드 상수만 바꾸어 DB 정책과 어긋나게 만들지 않습니다.",
-    audit: "SubscriptionPolicyVersion, MainDivisionPolicyVersion, MainShopPolicyVersion, AdminActionLog",
-  },
-  {
-    title: "경기·증거·정산 이상 대응",
-    cadence: "관리 알림 발생 시",
-    objective: "문제 풀이 결과, 증거 제출, 학습일수 이전과 티어·GP 변화를 하나의 정산 결과로 보존합니다.",
-    steps: [
-      "경기 상태, 양측 시도, 10분 제한, 문항별 풀이시간, 1분 증거 제출 기한을 시간순 이벤트로 확인합니다.",
-      "증거 원본과 SHA-256 중복, 비정상적으로 짧은 풀이시간, 반복 포커스 이탈 등 위험 신호를 검토합니다.",
-      "미정산 상태에서는 GP·티어·학습일수를 수동 변경하지 않고 정산 재시도 또는 보정 원장을 사용합니다.",
-      "복수전·No-show는 공격자와 방어자 완료 여부, 24시간 기한, 1일 수수료 소각을 각각 대조합니다.",
-      "확정 후 랭킹, 학습일수 원장, 매치 정산 상태와 최종 종합 랭킹 반영을 함께 확인합니다.",
-    ],
-    hardStops: "풀이 증거를 내려받아 개인 기기에 장기 보관하거나 원본 정산 이벤트를 삭제하지 않습니다.",
-    audit: "ArenaMatch, ArenaMatchAttempt, ArenaMatchAttemptEvent, ArenaMatchEvidence, ArenaLearningDayLedger",
-  },
-  {
-    title: "랭킹·시즌·Division 정합성",
-    cadence: "일요일 스냅샷·연간 시즌 전환 후",
-    objective: "티어 안 순위, Division 랭킹, 최종 종합 랭킹과 학교 평균 랭킹을 같은 원천으로 계산합니다.",
-    steps: [
-      "Unranked·Ranked 신규 경기가 일요일 14:00에 막히고 15:00에 진행 중 공식 경기가 없는지 확인합니다.",
-      "ArenaStanding의 티어·GP·티어 내 순위가 중복 없이 연속인지 정산 감사에서 확인합니다.",
-      "Matths 대시보드와 GOAT Arena의 최종 종합 랭킹이 같은 LiveFinalRankingProfile 원천을 사용하는지 확인합니다.",
-      "학교 랭킹은 재학생의 최종 종합 랭킹 순위 평균으로 계산하고 N수생은 별도 개인 랭킹으로 표시합니다.",
-      "연간 시즌 전환 뒤 Ranked 시즌 배지, 내부 실력 지표 소프트 리셋, 새 배치고사 필요 상태를 점검합니다.",
-    ],
-    hardStops: "표시 순서를 맞추기 위해 GP만 바꾸지 않습니다. 순위 변동은 승인된 경기 정산 또는 감사 가능한 운영 작업으로 처리합니다.",
-    audit: "ArenaStanding, ArenaStandingChangeLedger, ArenaSnapshot, LiveFinalRankingProfile, ArenaAchievementBadge",
   },
   {
     title: "계정 삭제·개인정보 요청",
@@ -552,6 +438,80 @@ const ENVIRONMENT_CONFIGURATION = [
   ["메일", "SUPPORT_SMTP_HOST, SUPPORT_SMTP_USER, GMAIL_APP_PASSWORD", "계정·정책·무결성 알림", "모든 발신은 lsbproduction00@gmail.com으로 통일하고 실제 처리 운영자는 감사 로그에서 확인"],
   ["자금 준비금", "FINANCE_PG_FEE_RESERVE_BPS", "PG 수수료 준비금과 사업자 출금 잠금", "PG 계약 기준의 부가세 포함 bp 값을 설정하기 전에는 출금 불가"],
   ["자동 작업", "DISABLE_SCHEDULERS", "스케줄러 실행 여부", "실서비스에서는 임의로 1로 두지 않음"],
+];
+
+const CURRENT_ARENA_WORKFLOWS = [
+  {
+    title: "Arena 신규 경기 긴급 제어",
+    cadence: "문제 데이터 이상·저장소 장애·운영 사고 발생 시",
+    objective: "신규 경기 접수만 원자적으로 차단하고 이미 성립한 경기는 안전하게 완료합니다.",
+    steps: [
+      "Arena 운영 설정에서 신규 경기 접수 상태와 정지 사유를 확인합니다.",
+      "영향 범위를 확인한 뒤 사유를 기록하고 접수를 일시정지합니다.",
+      "진행 중인 일반전·경쟁전·친선전의 풀이와 업로드는 중단하지 않습니다.",
+      "원인이 해소되면 접수를 재개하고 일반전 한 건의 과거 기록 연결을 확인합니다.",
+    ],
+    hardStops: "진행 중 경기 문서를 직접 삭제하거나 결과·MMR을 수동으로 덮어쓰지 않습니다.",
+    audit: "PlatformControl, ArenaMatch, ArenaCompetitiveRecord",
+  },
+  {
+    title: "과거 기록 풀·MMR 정산 검수",
+    cadence: "매일 및 경쟁전 활성화 전",
+    objective: "서로 다른 문제 세트를 공정하게 비교하고 현재 응시자만 한 번 갱신되도록 확인합니다.",
+    steps: [
+      "Arena 데이터 감사에서 만료된 예약과 과거 기록이 없는 비동기 경기를 확인합니다.",
+      "양쪽의 정오답·문항 난도를 반영한 내부 성취지표와 근소 구간의 유효 풀이 시간을 대조합니다.",
+      "경쟁전 경기당 MMR 정산 원장이 한 건인지, 과거 상대 프로필이 바뀌지 않았는지 확인합니다.",
+      "일반전 기록은 사용 후 20게임 동안 다시 배정되지 않는지 표본을 확인합니다.",
+    ],
+    hardStops: "과거 상대 MMR을 소급 변경하거나 정산 원장을 삭제한 뒤 다시 계산하지 않습니다.",
+    audit: "ArenaCompetitiveRecord, ArenaRatingSettlement, ArenaMatch.resultSnapshot",
+  },
+  {
+    title: "풀이 업로드·무결성 검토",
+    cadence: "검토 알림 발생 시",
+    objective: "경쟁전만 부정행위 신호를 검토하고 일반전·친선전·단체 도전장은 자동 감지 대상에서 제외합니다.",
+    steps: [
+      "경기 모드가 경쟁전인지 먼저 확인합니다. 일반전은 무결성 판정 대신 복구 절차로 분리합니다.",
+      "현재 응시자의 답안 변경, 풀이 시간, 화면 이탈과 업로드 파일을 함께 확인합니다.",
+      "비동기 경기의 과거 기록 소유자는 재응시자가 아니므로 제재 대상으로 선택하지 않습니다.",
+      "일반전·친선전·게스트 친선전이 검토 대기에 들어왔다면 데이터 감사의 정책 위반으로 처리합니다.",
+    ],
+    hardStops: "위험 점수만으로 자동 제재하거나 풀이 원본을 개인 기기에 장기 보관하지 않습니다.",
+    audit: "ArenaMatchEvidence, ArenaMatchAttemptEvent, ArenaIntegrityRiskCase, AdminActionLog",
+  },
+  {
+    title: "배치고사 시도 복구",
+    cadence: "서버 오류 신고 또는 5회 소진 검토 시",
+    objective: "서버 오류만 자동 차감 취소하고 추가 시도는 운영자 승인 원장으로 통제합니다.",
+    steps: [
+      "응시 이벤트와 오류 로그로 서버 오류인지 사용자 중단인지 구분합니다.",
+      "서버 오류는 시도를 소비하지 않도록 복구 원장을 확인합니다.",
+      "사용자 중단은 자동 복구하지 않습니다.",
+      "5회 소진 후에는 운영자 사유와 요청 ID를 남긴 초기화만 허용합니다.",
+    ],
+    hardStops: "추가 시도를 자동 지급하거나 유효 결과 없이 티어를 부여하지 않습니다.",
+    audit: "ArenaPlacementAttemptAdjustment, ArenaCompetitiveProfile.placementAttemptsUsed, AssessmentAttempt",
+  },
+];
+
+const CURRENT_ARENA_SCHEDULERS = [
+  ["Arena 비동기 경기 타이머", "10초", "문항당 10분 제한, 풀이 업로드 대기와 안전한 취소·확정 상태 처리"],
+  ["과거 기록 예약 복구", "경기 시작·만료 처리 시", "만료된 예약을 해제하고 재사용 제한 순번을 보존"],
+  ["Arena 풀이 원본 보존", "6시간", "90일 보존 조건과 검토 보류를 확인한 뒤 원격 원본 삭제"],
+  ["게스트 링크 만료", "요청 시 + 자동 작업", "생성 후 3일이 지난 OPEN 링크를 만료 상태로 정리"],
+];
+
+const CURRENT_ARENA_INCIDENTS = [
+  {
+    title: "비동기 경기·MMR 정합성 이상",
+    checks: [
+      "Arena 데이터 감사에서 기록 예약·경기 연결·정산 원장 상태 확인",
+      "현재 응시자 MMR만 변경됐는지 확인하고 과거 상대 기록은 보존",
+      "문항별 정답률과 풀이 시간이 결과 스냅샷에 남았는지 확인",
+      "원본 이벤트를 삭제하지 말고 승인된 보정 원장을 추가",
+    ],
+  },
 ];
 
 function getAdminOperationsGuideData() {
@@ -583,10 +543,19 @@ function getAdminOperationsGuideData() {
     schemaCategories: categories,
     storageMatrix: STORAGE_MATRIX,
     retentionPolicies: RETENTION_POLICIES,
-    schedulers: SCHEDULERS,
+    schedulers: [
+      ...CURRENT_ARENA_SCHEDULERS,
+      ...SCHEDULERS,
+    ],
     permissionMatrix: PERMISSION_MATRIX,
-    incidentPlaybook: INCIDENT_PLAYBOOK,
-    operatingWorkflows: OPERATING_WORKFLOWS,
+    incidentPlaybook: [
+      ...CURRENT_ARENA_INCIDENTS,
+      ...INCIDENT_PLAYBOOK,
+    ],
+    operatingWorkflows: [
+      ...CURRENT_ARENA_WORKFLOWS,
+      ...OPERATING_WORKFLOWS,
+    ],
     environmentConfiguration: ENVIRONMENT_CONFIGURATION,
   };
 }

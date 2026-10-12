@@ -11,7 +11,6 @@ const {
   Announcement,
   ArchiveFolder,
   ArchiveItem,
-  AssessmentAttempt,
   PrivateMockExam,
   PrivateMockExamAttempt,
   PrivateMockExamEvent,
@@ -23,14 +22,9 @@ const {
   PrivateMockResource,
   PrivateMockWeeklyResult,
   PrivateMockUploadReminder,
-  RankingProfile,
   User,
   UserNotification,
 } = require("../models/matthsModel");
-const {
-  AccessCycle,
-  ArenaAccessState,
-} = require("../models/goatArenaModel");
 const {
   createArchiveItem,
   deleteArchiveItem,
@@ -42,24 +36,20 @@ const {
   createAnnouncement,
 } = require("./adminService");
 const {
-  calculateRankPoint,
   calculateActualPerformance,
-  ensureRankingProfile,
-  findBaseTier,
   metricForAttempt,
   percentileForValue,
   processWeeklyExamMmr,
-  refreshOverallRanks,
 } = require("./mmrService");
+const {
+  ArenaCompetitiveProfile,
+} = require("../models/goatArenaModel");
 const {
   buildBrandedHtml,
   DEFAULT_ADMIN_EMAIL,
   sendAdminUserEmail,
   sendEmail,
 } = require("./emailService");
-const {
-  getRankingDisplayName,
-} = require("./userIdentityService");
 const {
   deliverModerationNotice,
 } = require("./moderationNoticeService");
@@ -73,10 +63,6 @@ const {
 const {
   getWeeklyMockExamAccess,
 } = require("./paidFeatureAccessService");
-const {
-  isWeeklyTierCompetitionWeek,
-  processWeeklyTierCompetition,
-} = require("./weeklyTierCompetitionService");
 const {
   recordOperationalMetricEvent,
 } = require("./operationalMetricEventService");
@@ -2197,7 +2183,7 @@ async function ensurePrivateMockFolder(
         name:
           PRIVATE_MOCK_FOLDER_NAME,
         description:
-          "최종 종합 랭킹이 확정된 Matths 주간 공식 모의고사 문제지",
+          "응시 결과가 확정된 Matths 주간 공식 모의고사 문제지",
         slug:
           PRIVATE_MOCK_FOLDER_SLUG,
         isPublished: true,
@@ -2253,7 +2239,7 @@ async function sendReleaseNotice(
         title:
           `${claimed.title} 공개`,
         content:
-          `${claimed.title}이 공개되었습니다. 응시하고 최종 종합 랭킹에 반영할 성적을 만들어보세요.`,
+          `${claimed.title}이 공개되었습니다. 응시하면 대표 성적이 경쟁전 내부 실력 지표에 반영됩니다.`,
         publishNow: true,
         href:
           "/private-mock-exams",
@@ -2505,10 +2491,7 @@ async function refreshExamStandardMetrics(
       status: "submitted",
       ...completedPrivateMockFinalizationFilter(),
     }).lean();
-  const attempts =
-    await withoutExpiredArenaAttempts(
-      submittedAttempts
-    );
+  const attempts = submittedAttempts;
   const calibrationAttempts =
     attempts.filter(
       (attempt) =>
@@ -3202,62 +3185,6 @@ async function prepareLockedPrivateMockExam(
   );
 }
 
-async function withoutExpiredArenaAttempts(
-  attempts
-) {
-  const source = Array.isArray(attempts)
-    ? attempts
-    : [];
-  const userIds = [
-    ...new Set(
-      source
-        .map((attempt) =>
-          String(attempt?.userId || "")
-        )
-        .filter((userId) =>
-          mongoose.isValidObjectId(userId)
-        )
-    ),
-  ];
-  if (!userIds.length) return source;
-
-  const objectIds = userIds.map(
-    (userId) =>
-      new mongoose.Types.ObjectId(userId)
-  );
-  const [expiredStates, depletedCycles] =
-    await Promise.all([
-      ArenaAccessState.find({
-        userId: { $in: objectIds },
-        state:
-          "SUB_ACCESS_EXPIRED_LOCKED",
-      })
-        .select("userId")
-        .lean(),
-      AccessCycle.find({
-        userId: { $in: objectIds },
-        availableLearningDays: 0,
-        status: { $in: ["ACTIVE", "EXPIRED"] },
-      })
-        .select("userId")
-        .lean(),
-    ]);
-  const excludedUserIds = new Set([
-    ...expiredStates.map((state) =>
-      String(state.userId)
-    ),
-    ...depletedCycles.map((cycle) =>
-      String(cycle.userId)
-    ),
-  ]);
-  return source.filter(
-    (attempt) =>
-      !excludedUserIds.has(
-        String(attempt.userId)
-      )
-  );
-}
-
 async function lockPrivateMockWeekSelections(
   weekKey,
   now = new Date()
@@ -3294,10 +3221,7 @@ async function lockPrivateMockWeekSelections(
         attemptNumber: 1,
       })
       .lean();
-  const attempts =
-    await withoutExpiredArenaAttempts(
-      submittedAttempts
-    );
+  const attempts = submittedAttempts;
   const byUser =
     new Map();
 
@@ -3470,7 +3394,7 @@ async function lockPrivateMockWeekSelections(
         title:
           "주간 대표 성적이 자동 선택되었습니다",
         message:
-          `${representative.formCode}형의 최고 표준화 성적이 이번 주 랭킹 대표 기록으로 자동 반영되었습니다.`,
+          `${representative.formCode}형의 최고 표준화 성적이 이번 주 경쟁전 내부 실력 지표에 반영할 대표 기록으로 자동 선택되었습니다.`,
         href:
           "/private-mock-exams",
         kind: "system",
@@ -3479,38 +3403,13 @@ async function lockPrivateMockWeekSelections(
     }
   }
 
-  const weeklyResults =
-    await PrivateMockWeeklyResult.find({
-      weekKey,
-      status: "locked",
-      representativeAttemptId: {
-        $ne: null,
-      },
-    })
-      .sort({
-        representativePerformance:
-          -1,
-        representativeRawScore:
-          -1,
-        representativeElapsedMs:
-          1,
-        createdAt: 1,
-      });
-
-  for (
-    let index = 0;
-    index <
-    weeklyResults.length;
-    index += 1
-  ) {
-    weeklyResults[index].rank =
-      index + 1;
-    await weeklyResults[
-      index
-    ].save();
-  }
-
-  return weeklyResults;
+  return PrivateMockWeeklyResult.find({
+    weekKey,
+    status: "locked",
+    representativeAttemptId: {
+      $ne: null,
+    },
+  });
 }
 
 async function processPrivateMockWeekMmr(
@@ -3656,12 +3555,6 @@ async function processPrivateMockWeekMmr(
     seriesEntries,
     now,
   });
-  if (isWeeklyTierCompetitionWeek(anchorExam.releaseAt)) {
-    await processWeeklyTierCompetition({
-      weekKey,
-      now,
-    });
-  }
   return ratingResult;
 }
 
@@ -3682,10 +3575,7 @@ async function analyzePrivateMockExam(
         submittedAt: 1,
       })
       .lean();
-  const submitted =
-    await withoutExpiredArenaAttempts(
-      submittedCandidates
-    );
+  const submitted = submittedCandidates;
 
   if (submitted.length) {
     await PrivateMockExamAttempt.bulkWrite(
@@ -4473,13 +4363,6 @@ async function processPrivateMockSchedule(
           },
         }
       );
-      const {
-        syncPublishedWeeklyMockBonuses,
-      } = require("./finalRankingService");
-      await syncPublishedWeeklyMockBonuses({
-        weekKeys: publishedWeekKeys,
-        now,
-      });
     }
 
     const archiveDue =
@@ -4562,111 +4445,6 @@ function startPrivateMockExamScheduler({
   return scheduleTimer;
 }
 
-async function getWeeklyRankingEntries(
-  weekKey,
-  {
-    currentUserId = null,
-    limit = 100,
-  } = {}
-) {
-  const currentResult = currentUserId
-    ? await PrivateMockWeeklyResult.findOne({
-        weekKey,
-        userId: currentUserId,
-        status: "published",
-      })
-        .select("tierCompetition")
-        .lean()
-    : null;
-  const tierCompetition = currentResult?.tierCompetition;
-  const tierScoped = Boolean(
-    tierCompetition?.division && tierCompetition?.tierAtStart
-  );
-  const filter = {
-    weekKey,
-    status: "published",
-    representativeAttemptId: {
-      $ne: null,
-    },
-  };
-  if (tierScoped) {
-    filter["tierCompetition.division"] = tierCompetition.division;
-    filter["tierCompetition.tierAtStart"] = tierCompetition.tierAtStart;
-  }
-  const results =
-    await PrivateMockWeeklyResult.find(filter)
-      .sort({
-        "tierCompetition.tierRank": 1,
-        rank: 1,
-        representativePerformance:
-          -1,
-      })
-      .limit(limit)
-      .populate(
-        "userId",
-        "name realName preferences"
-      )
-      .populate(
-        "representativeAttemptId",
-        "score elapsedMs"
-      )
-      .lean();
-
-  return results.map(
-    (result, index) => ({
-      rank:
-        result.tierCompetition?.tierRank ||
-        result.rank ||
-        index + 1,
-      overallRank: result.rank || null,
-      userId:
-        String(
-          result.userId?._id ||
-            result.userId ||
-            ""
-        ),
-      displayName:
-        getRankingDisplayName(
-          result.userId
-        ),
-      score:
-        result
-          .representativeAttemptId
-          ?.score ?? null,
-      standardizedPerformance:
-        Math.round(
-          Number(
-            result
-              .representativePerformance
-          ) * 1000
-        ) / 10,
-      attemptCount:
-        result.attemptCount,
-      division: result.tierCompetition?.division || null,
-      tierLabel: result.tierCompetition?.tierAtStart || null,
-      tierParticipantCount:
-        Number(result.tierCompetition?.participantCount) || 0,
-      promotionCandidate:
-        result.tierCompetition?.promotionCandidate === true,
-      candidateReason:
-        result.tierCompetition?.candidateReason || "",
-      boundarySlot:
-        Number(result.tierCompetition?.boundarySlot) || null,
-      tierOutcome: result.tierCompetition?.outcome || "STAYED",
-      elapsedMs:
-        result
-          .representativeAttemptId
-          ?.elapsedMs || 0,
-      elapsedLabel:
-        formatElapsed(
-          result
-            .representativeAttemptId
-            ?.elapsedMs
-        ),
-    })
-  );
-}
-
 async function getPrivateMockEligibility(
   userId
 ) {
@@ -4739,78 +4517,36 @@ async function getPrivateMockEligibility(
       status: "payment-required",
       title: "이용 중인 패키지가 필요합니다.",
       message:
-        "Matths 주간 공식 모의고사는 Matths 주간 공식 모의고사 이용권 또는 29일 학습권 패키지를 이용 중인 회원만 응시할 수 있습니다.",
+        "Matths 주간 공식 모의고사는 Pro 플랜 또는 학원 이용 혜택이 있는 회원만 응시할 수 있습니다.",
       ctaLabel: "패키지 확인",
       ctaHref: "/pricing",
       availableLearningDays: 0,
     };
   }
 
-  const placement =
-    await AssessmentAttempt.findOne({
+  const competitiveProfile =
+    await ArenaCompetitiveProfile.findOne({
       userId,
-      scopeType: "placement",
-      status: "submitted",
+      placementFinalizedAt: {
+        $ne: null,
+      },
     })
-      .sort({
-        submittedAt: -1,
-      })
       .select(
-        "placementResult.verification.result"
+        "placementFinalizedAt rating ratingDeviation volatility"
       )
       .lean();
 
-  if (!placement) {
+  if (!competitiveProfile) {
     return {
       allowed: false,
       status:
         "placement-required",
       title:
-        "입단 배치고사를 먼저 완료해주세요.",
+        "경쟁전 배치를 먼저 확정해주세요.",
       message:
-        "Matths 주간 공식 모의고사는 배치고사로 초기 실력을 확인한 회원만 응시할 수 있습니다.",
+        "주간 공식 모의고사 결과는 경쟁전 내부 실력 지표에 반영되므로, 일반전 3경기와 경쟁전 배치 확정이 필요합니다.",
       ctaLabel:
         "배치고사 보러 가기",
-      ctaHref:
-        "/war-of-masters",
-    };
-  }
-
-  if (
-    placement.placementResult
-      ?.verification?.result ===
-    "pending"
-  ) {
-    return {
-      allowed: false,
-      status:
-        "verification-required",
-      title:
-        "추가 실력 확인 4문항을 완료해주세요.",
-      message:
-        "배치 결과에 추가 확인이 필요합니다. 준킬러 2문항과 킬러 2문항을 마치고 초기 GP와 티어가 확정되면 입장할 수 있습니다.",
-      ctaLabel:
-        "추가 문제 풀기",
-      ctaHref:
-        `/war-of-masters/placement/${placement._id}`,
-    };
-  }
-
-  const rankingProfile =
-    await ensureRankingProfile(
-      userId
-    );
-
-  if (!rankingProfile) {
-    return {
-      allowed: false,
-      status: "ranking-pending",
-      title:
-        "초기 GP를 확정하고 있습니다.",
-      message:
-        "배치 결과와 추가 확인 기록을 바탕으로 초기 티어와 GP가 생성되면 Matths 주간 공식 모의고사에 입장할 수 있습니다.",
-      ctaLabel:
-        "GOAT Arena로",
       ctaHref:
         "/war-of-masters",
     };
@@ -4819,19 +4555,15 @@ async function getPrivateMockEligibility(
   return {
     allowed: true,
     status:
-      packageAccess.packageType === "MOCK_EXAM_ONLY"
-        ? "mock-exam-only-ready"
-        : packageAccess.packageType === "ACADEMY_PLAN"
+      packageAccess.packageType === "ACADEMY_PLAN"
           ? "academy-plan-ready"
           : "ready",
     title:
       "Matths 주간 공식 모의고사 응시 가능",
     message:
-      packageAccess.packageType === "MOCK_EXAM_ONLY"
-        ? "배치고사로 최초 티어가 확정되었습니다. GOAT Arena 경기를 이용하지 않아도 매주 공식 모의고사 정산을 통해 티어 승급에 도전할 수 있습니다."
-        : packageAccess.packageType === "ACADEMY_PLAN"
-          ? "학원 플랜에 주간 공식 모의고사가 포함되어 있습니다. 배치고사로 최초 티어를 확정한 뒤 매주 모의고사 정산으로 승급에 도전할 수 있습니다."
-          : "배치고사와 초기 GP 확정이 완료되었습니다. 매주 공식 모의고사 정산에서도 티어 승급에 도전할 수 있습니다.",
+      packageAccess.packageType === "ACADEMY_PLAN"
+          ? "학원 플랜에 주간 공식 모의고사가 포함되어 있습니다. 대표 성적은 경쟁전 내부 실력 지표에만 반영됩니다."
+          : "Pro 플랜이 활성화되어 있습니다. 대표 성적은 경쟁전 내부 실력 지표에만 반영됩니다.",
     ctaLabel:
       "Matths 주간 공식 모의고사 입장",
     ctaHref:
@@ -5185,7 +4917,7 @@ async function getPrivateMockExamPageData(
       weeklyRanking: [],
       rankingRules: [],
       rankingTitle:
-        "이번 주 랭킹",
+        "주간 내부 실력 지표 반영",
       rankingFinalized: false,
       rankingPending: null,
       rankingSummary: null,
@@ -5268,32 +5000,17 @@ async function getPrivateMockExamPageData(
             PRIVATE_MOCK_LOBBY_MS
         )
       : null;
-  const [
-    currentAttempt,
-    weeklyRanking,
-  ] = await Promise.all([
-    roomExam
-      ? PrivateMockExamAttempt.findOne({
-          examId:
-            roomExam._id,
-          userId,
-        })
-          .select(
-            "status score correctCount answeredCount standardMetrics attemptNumber formCode"
-          )
-          .lean()
-      : null,
-    latestRanked
-      ? getWeeklyRankingEntries(
-          latestRanked.weekKey ||
-            privateMockWeekKey(
-              latestRanked
-                .releaseAt
-            ),
-          { currentUserId: userId }
+  const currentAttempt = roomExam
+    ? await PrivateMockExamAttempt.findOne({
+        examId:
+          roomExam._id,
+        userId,
+      })
+        .select(
+          "status score correctCount answeredCount standardMetrics attemptNumber formCode"
         )
-      : [],
-  ]);
+        .lean()
+    : null;
   const nextReleaseAt =
     roomExam?.releaseAt ||
     getSundayReleaseAt(now);
@@ -5361,26 +5078,6 @@ async function getPrivateMockExamPageData(
           now,
         })
       : null;
-  const weeklyStandardScores =
-    weeklyRanking
-      .map(
-        (entry) =>
-          Number(
-            entry
-              .standardizedPerformance
-          )
-      )
-      .filter(Number.isFinite);
-  const averageStandardScore =
-    weeklyStandardScores.length
-      ? weeklyStandardScores.reduce(
-          (sum, score) =>
-            sum + score,
-          0
-        ) /
-        weeklyStandardScores.length
-      : 0;
-
   return {
     eligibility,
     serverNow:
@@ -5511,9 +5208,8 @@ async function getPrivateMockExamPageData(
     selection,
     rankingTitle:
       latestRanked
-        ? `${getKoreanWeekTitle(latestRanked.releaseAt)} ${weeklyRanking[0]?.tierLabel ? `${weeklyRanking[0].tierLabel} 티어 ` : ""}대표 성적`
-        :
-      "이번 주 랭킹",
+        ? `${getKoreanWeekTitle(latestRanked.releaseAt)} 응시 결과`
+        : "주간 내부 실력 지표 반영",
     rankingFinalized:
       Boolean(latestRanked),
     rankingPending:
@@ -5528,26 +5224,13 @@ async function getPrivateMockExamPageData(
                 .rankingPublishesAt,
           }
         : null,
-    rankingSummary:
-      weeklyRanking.length
-        ? {
-            participantCount:
-              weeklyRanking.length,
-            averageScore:
-              Math.round(
-                averageStandardScore *
-                  10
-              ) / 10,
-          }
-        : null,
-    weeklyRanking,
+    rankingSummary: null,
+    weeklyRanking: [],
     rankingRules: [
-      "배치고사에서 받은 현재 티어 안에서 주간 대표 성적으로 순위를 정합니다.",
-      "티어별 주간 상위 20%와 다음 티어 기준의 승급 준비도를 2주 연속 충족한 학생이 승급 후보가 됩니다. 후보는 최소 1명, 최대 5명입니다.",
-      "아래 티어 후보 순서대로 바로 위 티어의 주간 하위 순서와 대표 성적을 비교하며, 더 좋은 성적이면 두 Arena 상태를 교환해 승급합니다. 완전 동점이면 위 티어 학생이 자리를 지킵니다.",
-      "한 학생은 주간 정산에서 최대 한 티어만 이동합니다. 모의고사 이용권만 있어도 같은 승급 규칙을 적용받습니다.",
-      "GOAT Arena 1대1 승리와 주간 모의고사 경계 경쟁은 모두 같은 공개 티어에 반영됩니다.",
-      "A·B·C형 가운데 직접 선택한 성적을 사용하며, 선택하지 않으면 완료한 시험 중 최고 표준화 성적을 자동 선택합니다.",
+      "A·B·C형 가운데 직접 선택한 대표 성적을 사용하며, 선택하지 않으면 완료한 시험 중 최고 표준화 성적을 자동 선택합니다.",
+      "대표 성적은 응시자의 경쟁전 내부 MMR·RD·변동성에만 반영됩니다.",
+      "공개 경쟁전 점수·티어·랭킹은 주간 모의고사로 직접 바뀌지 않습니다.",
+      "응시하지 않은 주에는 내부 MMR과 공개 경쟁전 점수가 모두 바뀌지 않습니다.",
     ],
   };
 }
@@ -6957,7 +6640,7 @@ async function resumePrivateMockIntegrityRequest({
             },
           },
           {
-            new: true,
+            returnDocument: "after",
           }
         );
       if (updatedCase) {
@@ -9829,91 +9512,6 @@ async function getAdminPrivateMockIntegrityEvidenceFile({
 async function resetAndRecalculatePrivateMockMmr(
   now = new Date()
 ) {
-  const profiles =
-    await RankingProfile.find({
-      datasetOnly: {
-        $ne: true,
-      },
-    });
-
-  for (const profile of profiles) {
-    const history =
-      Array.isArray(
-        profile.mmrHistory
-      )
-        ? profile.mmrHistory
-        : [];
-    let baseIndex = -1;
-    history.forEach(
-      (entry, index) => {
-        if (
-          [
-            "placement",
-            "season-reset",
-          ].includes(
-            entry.eventType
-          )
-        ) {
-          baseIndex = index;
-        }
-      }
-    );
-    const retainedHistory =
-      baseIndex >= 0
-        ? history.slice(
-            0,
-            baseIndex + 1
-          )
-        : [];
-    const baseMmr =
-      baseIndex >= 0
-        ? Number(
-            history[baseIndex]
-              .newMmr
-          ) || 1000
-        : 1000;
-    const baseTier =
-      findBaseTier(baseMmr);
-
-    profile.mmr =
-      baseMmr;
-    profile.tier =
-      baseTier.name;
-    profile.rankPoint =
-      calculateRankPoint({
-        mmr: baseMmr,
-        tier: baseTier,
-      });
-    profile.status =
-      "PROVISIONAL";
-    profile.weeklyExamsUntilConfirmed =
-      2;
-    profile.recentPerformances =
-      [];
-    profile.lastAdvancedPerformance =
-      0;
-    profile.lastRawScore =
-      Number(
-        profile.placementScore
-      ) || 0;
-    profile.reachedCurrentMmrAt =
-      now;
-    profile.participation = {
-      weeklyExamCount: 0,
-      consecutiveAbsences: 0,
-      lastExamAt: null,
-    };
-    profile.demotionProtection = {
-      active: false,
-      consecutiveBelowThreshold:
-        0,
-      thresholdMmr: null,
-    };
-    profile.mmrHistory =
-      retainedHistory;
-    await profile.save();
-  }
-
   await Promise.all([
     PrivateMockExamAttempt.updateMany(
       {},
@@ -10021,7 +9619,6 @@ async function resetAndRecalculatePrivateMockMmr(
         weekKey
     );
 
-  const newlyPublishedWeeks = [];
   for (const weekKey of
         orderedWeeks) {
     const weekExamCount =
@@ -10070,21 +9667,9 @@ async function resetAndRecalculatePrivateMockMmr(
           },
         }
       );
-      newlyPublishedWeeks.push(weekKey);
     }
   }
 
-  if (newlyPublishedWeeks.length) {
-    const {
-      syncPublishedWeeklyMockBonuses,
-    } = require("./finalRankingService");
-    await syncPublishedWeeklyMockBonuses({
-      weekKeys: newlyPublishedWeeks,
-      now,
-    });
-  }
-
-  await refreshOverallRanks();
 }
 
 async function regradePrivateMockExam({
@@ -10405,7 +9990,7 @@ async function correctPrivateMockAnswers({
       title:
         "Matths 주간 공식 모의고사 정답 정정 및 재채점 안내",
       message:
-        `${exam.title}의 ${finalized.map((item) => `${item.questionNumber}번`).join(", ")} 정답이 정정되어 성적·티어별 주간 순위·시험 레이팅을 다시 계산했습니다.`,
+        `${exam.title}의 ${finalized.map((item) => `${item.questionNumber}번`).join(", ")} 정답이 정정되어 성적·시험 결과와 응시자의 경쟁전 내부 실력 지표를 다시 계산했습니다.`,
       href:
         `/private-mock-exams/${exam._id}`,
       kind: "system",
@@ -10950,7 +10535,7 @@ async function acceptPrivateMockObjection({
       title:
         "Matths 주간 공식 모의고사 정답 정정 안내",
       content:
-        `${objection.examTitle} ${objection.questionNumber}번 문항의 정답을 정정했습니다. 해당 시험의 성적·티어별 주간 순위·시험 레이팅을 다시 계산했으니 결과를 확인해주세요.`,
+        `${objection.examTitle} ${objection.questionNumber}번 문항의 정답을 정정했습니다. 해당 시험의 성적·시험 결과와 응시자의 경쟁전 내부 실력 지표를 다시 계산했으니 결과를 확인해주세요.`,
       publishNow: true,
       href:
         "/private-mock-exams",

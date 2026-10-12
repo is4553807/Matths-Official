@@ -1,3 +1,9 @@
+<%
+  const runtimeItems = (catalog.items || []).filter((item) =>
+    /GOAT Arena 2\.x|배치고사 문제 은행|배치고사 심화 유형 은행|학습·평가 문제 생성기|평가지 구성 템플릿|Matths 주간 공식 모의고사/.test(item.name)
+  );
+  const statusLabel = (value) => value === "ACTIVE" ? "적용 중" : value === "RETIRED" ? "이전 버전" : value || "확인 필요";
+%>
 <!doctype html>
 <html lang="ko">
   <head>
@@ -10,562 +16,63 @@
     <link rel="stylesheet" href="/css/brand.css" />
   </head>
   <body class="admin-page">
-    <% const publicDifficultyLabel = (tier) => ({ T1: "U1", T2: "U2", T3: "U3", T4: "U4", T5: "U5", T6: "U6", T7: "U7", T8: "U8 · R1", T9: "U9 · R2~R9" }[String(tier)] || String(tier || "")); %>
     <%- include("partials/admin-navigation", { activePage: "problem-banks" }) %>
     <main class="admin-main">
       <header class="admin-heading">
-        <div>
-          <p>PROBLEM DATA CONTROL</p>
-          <h1>문제 데이터 관리</h1>
-          <span>검산된 생성 유형을 난이도별로 구성하고, 새 경기부터 적용할 버전을 관리합니다.</span>
-        </div>
-        <strong><%= typeCatalog.categories.reduce((sum, category) => sum + category.count, 0) + problemData.availableTypes.length + Number(tierCatalog?.active?.validationReport?.typeCount || 0) %><small>개 관리 항목</small></strong>
+        <div><p>PROBLEM DATA CONTROL</p><h1>문제 데이터 관리</h1><span>현행 Arena 문제 생성 경로와 학습·평가 생성기만 관리합니다.</span></div>
+        <strong><%= runtimeItems.length + typeCatalog.categories.reduce((sum, category) => sum + category.count, 0) %><small>개 관리 항목</small></strong>
       </header>
 
-      <% if (error) { %>
-        <div class="admin-feedback admin-feedback--error" role="alert">
-          <span aria-hidden="true">!</span>
-          <div><strong>저장하지 못했습니다.</strong><br /><%= error %></div>
-        </div>
-      <% } %>
-      <% if (query.created || query.updated || query.activated) { %>
-        <div class="admin-feedback" role="status">
-          <span aria-hidden="true">✓</span>
-          <div>
-            <strong>
-              <%= query.activated ? "자동 검산을 통과한 버전을 적용했습니다." : query.updated ? "문제 데이터 초안을 수정했습니다." : "새 문제 데이터 초안을 만들었습니다." %>
-            </strong><br />적용된 변경은 신규 경기부터 사용되며 이미 시작한 경기는 기존 문제 버전을 유지합니다.
-          </div>
-        </div>
-      <% } %>
+      <% if (error) { %><div class="admin-feedback admin-feedback--error" role="alert"><span aria-hidden="true">!</span><div><strong>처리하지 못했습니다.</strong><br /><%= error %></div></div><% } %>
       <% if (query.typeSync || query.typeRevised) { %>
-        <div class="admin-feedback" role="status">
-          <span aria-hidden="true">✓</span>
-          <div>
-            <strong><%= query.typeRevised ? "새 문제 유형 리비전을 적용했습니다." : "서버 생성기와 DB 문제 유형을 동기화했습니다." %></strong><br />
-            <% if (query.typeSync) { %>신규 <%= Number(query.inserted || 0) %>개 · 소스 갱신 <%= Number(query.updated || 0) %>개입니다.<% } else { %>이전 리비전은 삭제하지 않고 이력으로 보존했습니다.<% } %>
-          </div>
-        </div>
+        <div class="admin-feedback" role="status"><span aria-hidden="true">✓</span><div><strong><%= query.typeRevised ? "새 문제 유형 리비전을 적용했습니다." : "서버 생성기와 DB 문제 유형을 동기화했습니다." %></strong><br /><% if (query.typeSync) { %>신규 <%= Number(query.inserted || 0) %>개 · 소스 갱신 <%= Number(query.updated || 0) %>개입니다.<% } else { %>이전 리비전은 감사 이력으로 보존했습니다.<% } %></div></div>
       <% } %>
 
-      <% if (query.arenaTypeCreated) { %>
-        <div class="admin-feedback" role="status">
-          <span aria-hidden="true">✓</span>
-          <div><strong>새 1대1 경기 문제 유형을 적용했습니다.</strong><br />기존 유형과 카탈로그 이력은 삭제하지 않았으며 신규 경기부터 선택 대상에 포함됩니다.</div>
+      <section class="admin-panel problem-data-overview">
+        <div class="admin-panel-heading"><div><p>CURRENT ARENA CONTRACT</p><h2>현행 경기 문제 규칙</h2></div><span>운영 화면에서 임의 코드 실행 없음</span></div>
+        <div class="admin-metric-row">
+          <div><span>경기 문항</span><strong><%= catalog.arenaRuntime.questionCount %>문항</strong><small>문항당 <%= catalog.arenaRuntime.minutesPerQuestion %>분</small></div>
+          <div><span>문제 세트</span><strong>서로 다름</strong><small>플레이어별 독립 생성</small></div>
+          <div><span>난도 데이터</span><strong>정답률 기반</strong><small>내부 비교 지표에 사용</small></div>
+          <div><span>풀이 제출</span><strong>필수</strong><small>일반전·경쟁전·친선전</small></div>
         </div>
-      <% } %>
-
-      <nav class="problem-bank-section-nav" aria-label="문제 데이터 관리 구역">
-        <a href="#arena-tier-catalog"><span>01</span><strong>1대1 매치 문제 관리</strong><small>U1~U9·R1~R9 유형·승인 생성기·풀이 자료</small></a>
-        <a href="#problem-type-catalog"><span>02</span><strong>학습·평가 문제 관리</strong><small>개념학습·평가센터·배치고사</small></a>
-        <a href="#arena-problem-data"><span>03</span><strong>경기 출제 구성</strong><small>유형 가중치·난이도별 5문항 구성</small></a>
-        <a href="#server-code-map"><span>04</span><strong>서버 코드 지도</strong><small>파일별 역할과 수정 방식</small></a>
-      </nav>
-
-      <section class="admin-panel arena-tier-catalog" id="arena-tier-catalog">
-        <div class="admin-panel-heading">
-          <div>
-            <span>U1–U9 · R1–R9 MATCH CATALOG</span>
-            <h2>1대1 경기 티어별 문제 유형</h2>
-            <p>Unranked U1~U9와 Ranked R1~R9의 과거 참고 문항·정답·풀이과정과 유형 배치를 DB 버전으로 보존합니다. 신규 1대1 경기는 이 레거시 DB 카탈로그가 아니라 별도로 연결된 200개 Arena PDF 스켈레톤 운영 풀에서 출제됩니다.</p>
-          </div>
+        <div class="problem-data-guardrail" role="note"><strong>Arena 문제 구성은 코드 배포와 자동 검산을 거쳐 변경합니다.</strong><p>현재 경기에서 사용하지 않는 구형 난이도 카탈로그와 브라우저 초안 활성화 기능은 운영 메뉴에서 제거했습니다. 이미 시작한 경기와 과거 문제 팩은 당시 스냅샷을 그대로 유지합니다.</p></div>
+        <div class="admin-policy-list">
+          <% runtimeItems.forEach((item) => { %>
+            <article class="admin-policy-card"><header><div><span><%= item.status %></span><h3><%= item.name %></h3><small><%= item.purpose %></small></div></header><% if (item.file) { %><code><%= item.file %></code><% } %></article>
+          <% }) %>
         </div>
-        <% if (catalog?.officialResearch) { const officialResearch = catalog.officialResearch; const courseNames = { "common-math-1": "공통수학Ⅰ", "common-math-2": "공통수학Ⅱ", algebra: "대수", "probability-statistics": "확률과 통계", "calculus-1": "미적분Ⅰ" }; %>
-          <article class="arena-official-research-summary">
-            <header>
-              <div>
-                <span>OFFICIAL RESEARCH</span>
-                <h3>2016~2026 고3 3·5·6·7·9·10·11월 모의고사 유형 분류</h3>
-                <p>수능은 제외하고, 공식 해설의 출제 의도와 풀이 구조를 읽어 문항 원문을 복제하지 않는 Arena 사고 유형으로 정리했습니다.</p>
-              </div>
-              <strong><%= officialResearch.familyStats.length %><small>개 사고 유형</small></strong>
-            </header>
-            <dl>
-              <div><dt>공식 시험 형식</dt><dd><%= officialResearch.sourceForms %>개</dd></div>
-              <div><dt>조사 대상</dt><dd><%= officialResearch.targetQuestionReferences %>건</dd></div>
-              <div><dt>Arena 반영</dt><dd><%= officialResearch.activeReferences %>건</dd></div>
-              <div><dt>교육과정 제외</dt><dd><%= officialResearch.excludedReferences %>건</dd></div>
-              <div><dt>검토 보류</dt><dd><%= officialResearch.reviewRequired %>건</dd></div>
-            </dl>
-            <div class="arena-official-research-tiers" aria-label="U1부터 U9까지 참고 분포">
-              <% Object.entries(officialResearch.byDifficulty || {}).forEach(([tier, count]) => { %>
-                <span><b>U<%= String(tier).replace('T', '') %></b><small><%= count %>건</small></span>
-              <% }) %>
-            </div>
-            <details>
-              <summary>사고 유형 <%= officialResearch.familyStats.length %>개 전체 보기</summary>
-              <div class="arena-official-research-families">
-                <% officialResearch.familyStats.forEach((family) => { %>
-                  <article>
-                    <small><%= courseNames[family.courseId] || family.courseId %></small>
-                    <strong><%= family.familyLabel %></strong>
-                    <span>총 <%= family.references %>건 · 일반 슬롯 <%= family.regularReferences %>건 · 5번 참고 <%= family.finalReferences %>건</span>
-                  </article>
-                <% }) %>
-              </div>
-            </details>
-            <p class="arena-official-research-note"><strong>운영 구분:</strong> 이 분류는 유형·난이도 설계의 근거입니다. 실제 경기 출제는 아래 ACTIVE DB 카탈로그와 독립 검산 생성기까지 통과한 유형만 사용합니다.</p>
-          </article>
-        <% } %>
-        <% if (catalog?.privateResearch) { const privateResearch = catalog.privateResearch; %>
-          <article class="arena-official-research-summary">
-            <header>
-              <div>
-                <span>PRIVATE MOCK CALIBRATION</span>
-                <h3>공식 무료 배포 사설 모의고사 난이도 보정</h3>
-                <p>문제지·정답·해설·문항별 정답률이 모두 공개된 자료만 선별하고, 표본과 교육과정까지 통과한 자료만 신규 문제 난이도 검증에 사용합니다.</p>
-              </div>
-              <strong><%= privateResearch.activeCalibrationMetrics %><small>개 활성 지표</small></strong>
-            </header>
-            <dl>
-              <div><dt>검토 출처</dt><dd><%= privateResearch.reviewedSources %>개</dd></div>
-              <div><dt>실제 보정</dt><dd><%= privateResearch.activeCalibrationSources %>개</dd></div>
-              <div><dt>연구 전용</dt><dd><%= privateResearch.researchOnlySources %>개</dd></div>
-              <div><dt>과거 검증</dt><dd><%= privateResearch.historicalOnlySources %>개</dd></div>
-              <div><dt>권리·근거 미충족 제외</dt><dd><%= privateResearch.excludedSources %>개</dd></div>
-              <div><dt>자체 생성형 반영</dt><dd><%= privateResearch.integratedAbstractGenerators %>개</dd></div>
-            </dl>
-            <details>
-              <summary>검토 출처 <%= privateResearch.sources.length %>개와 반영 상태 보기</summary>
-              <div class="arena-official-research-families">
-                <% privateResearch.sources.forEach((source) => { const stateLabel = source.runtimeStatus === 'ACTIVE_CALIBRATION' ? '실제 보정' : source.runtimeStatus === 'RESEARCH_ONLY' ? '연구 전용' : source.runtimeStatus === 'HISTORICAL_ONLY' ? '과거 검증' : '제외'; %>
-                  <article>
-                    <small><%= stateLabel %> · <%= source.confidence %><%= source.sampleSize ? ` · 표본 ${source.sampleSize}명` : '' %></small>
-                    <strong><%= source.title %></strong>
-                    <span><%= source.notes %></span>
-                    <% if (source.sourceUrl) { %><a href="<%= source.sourceUrl %>" target="_blank" rel="noopener noreferrer">공개 배포 출처 확인</a><% } %>
-                  </article>
-                <% }) %>
-              </div>
-            </details>
-            <p class="arena-official-research-note"><strong>저작권 보호:</strong> 사설 문제·정답·해설 원문은 저장하지 않습니다. 공개 정답률과 추상 난이도 근거만 이용하며, 실제 경기에는 숫자·정답 JSON·단계별 풀이를 함께 만든 뒤 독립 검산을 통과한 자체 문항만 출제합니다.</p>
-          </article>
-        <% } %>
-        <% if (!tierCatalog?.active) { %>
-          <div class="arena-tier-catalog-empty" role="status">
-            <strong>적용 중인 U/R 난이도 카탈로그가 없습니다.</strong>
-            <span>검증된 원본 JSON을 운영 배포 절차에서 가져오면 서버 재시작 없이 신규 경기부터 사용됩니다.</span>
-          </div>
-        <% } else { const activeTierCatalog = tierCatalog.active; const typeById = new Map((activeTierCatalog.typeDefinitions || []).map((item) => [item.typeId, item])); %>
-          <article class="arena-tier-catalog-summary">
-            <header>
-              <div><span>적용 중</span><h3><%= activeTierCatalog.displayName %></h3><code><%= activeTierCatalog.code %></code></div>
-              <time><%= activeTierCatalog.activatedAt ? new Date(activeTierCatalog.activatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "적용 시각 없음" %></time>
-            </header>
-            <dl>
-              <div><dt>유형</dt><dd><%= activeTierCatalog.validationReport?.typeCount || 0 %>개</dd></div>
-              <div><dt>티어 구성</dt><dd><%= activeTierCatalog.tierConfigurations?.length || 0 %>개</dd></div>
-              <div><dt>참고 문항</dt><dd><%= activeTierCatalog.validationReport?.referenceQuestionCount || 0 %>개</dd></div>
-              <div><dt>정답·풀이</dt><dd><%= activeTierCatalog.validationReport?.answeredReferenceQuestionCount || 0 %>개 · <%= activeTierCatalog.validationReport?.solutionProcessReferenceCount || 0 %>개</dd></div>
-              <div><dt>답 형식</dt><dd>객관식 <%= activeTierCatalog.validationReport?.multipleChoiceReferenceCount || 0 %> · 자연수 <%= activeTierCatalog.validationReport?.naturalNumberReferenceCount || 0 %></dd></div>
-              <div><dt>검산 생성기</dt><dd><%= activeTierCatalog.validationReport?.mappedEngineCount || 0 %>개</dd></div>
-              <div><dt>자동 검산 표본</dt><dd><%= activeTierCatalog.validationReport?.generatedSampleCount || 0 %>회</dd></div>
-              <div><dt>원본</dt><dd><%= activeTierCatalog.sourceFileName %></dd></div>
-            </dl>
-            <p><strong>실전 ACTIVE DB 카탈로그:</strong> 기존 운영 카탈로그의 정답·풀이 자료는 버전 이력으로 보존합니다. 참고 원문은 경기 화면에 직접 노출하지 않으며, 신규 실전 문항은 위 공식 유형 분류와 연결된 서버 생성기의 독립 검산 및 1~999 자연수 답 검사를 다시 통과해야 합니다.</p>
-            <small>내용 해시 <code><%= String(activeTierCatalog.contentHash || "").slice(0, 16) %>…</code> · 원본 해시 <code><%= String(activeTierCatalog.sourceHash || "").slice(0, 16) %>…</code></small>
-          </article>
-          <section class="arena-public-difficulty-catalog" aria-labelledby="arena-public-difficulty-title">
-            <header>
-              <div>
-                <span>PUBLIC U/R DIFFICULTY</span>
-                <h3 id="arena-public-difficulty-title">실전 공개 난이도 18개 · 난이도별 최소 30개 유형</h3>
-              </div>
-              <p>Unranked와 Ranked는 별도 카탈로그로 관리합니다. 같은 숫자의 R등급이 U등급보다 어렵고, 각 경기 안에서도 1번부터 뒤 문항으로 갈수록 목표 정답률이 낮아집니다. 신규 문항은 개념 결합·조건 변환·추론 단계 난이도 게이트를 통과해야 하며, 경기 화면에는 해당 문항의 예상 정답률 구간이 표시됩니다.</p>
-            </header>
-            <div class="arena-public-difficulty-grid">
-              <% (tierCatalog.publicDifficultyCatalog || []).forEach((difficulty) => { %>
-                <details class="arena-public-difficulty-card">
-                  <summary>
-                    <strong><%= difficulty.difficultyCode %></strong>
-                    <span><%= difficulty.packComposition %></span>
-                    <b><%= difficulty.variantTypes.length %>개</b>
-                  </summary>
-                  <div>
-                    <p><code><%= difficulty.catalogTier %></code> 내부 검산 생성기를 사용하되, 공개 난이도별 조건·수치 부담을 별도로 적용합니다.</p>
-                    <ol>
-                      <% difficulty.variantTypes.forEach((variant) => { %>
-                        <li>
-                          <code><%= variant.variantTypeId %></code>
-                          <span><%= variant.baseTypeId || '승인 생성기 배정 대기' %></span>
-                          <small><%= variant.category === 'RANKED_FINAL_CANDIDATE' ? '29·30번형 킬러 후보' : '준킬러 수치·조건 변형' %><%= variant.sourcePositionBand ? ` · 공식 조사 ${variant.sourcePositionBand.replaceAll('_', '·').replace('Q', '')}번 구간` : '' %></small>
-                        </li>
-                      <% }) %>
-                    </ol>
-                  </div>
-                </details>
-              <% }) %>
-            </div>
-          </section>
-          <div class="arena-tier-catalog-grid">
-            <% (activeTierCatalog.tierConfigurations || []).forEach((tier) => { const courseCounts = { algebra: 0, "calculus-1": 0, "probability-statistics": 0 }; (tier.typeWeights || []).forEach((entry) => { const definition = typeById.get(entry.typeId); if (definition) courseCounts[definition.curriculumUnit] = Number(courseCounts[definition.curriculumUnit] || 0) + Number(entry.weight || 0); }); %>
-              <details class="arena-tier-catalog-tier">
-                <summary><strong><%= publicDifficultyLabel(tier.difficultyTier) %></strong><span>대수 <%= courseCounts.algebra %> · 미적분 <%= courseCounts["calculus-1"] %> · 확률과 통계 <%= courseCounts["probability-statistics"] %></span><b><%= tier.questionCount %>개 참고 문항</b></summary>
-                <div>
-                  <% (tier.typeWeights || []).forEach((entry) => { const definition = typeById.get(entry.typeId); %>
-                    <span><strong><%= definition?.label || entry.typeId %></strong><small><%= definition?.curriculumUnit || "분류 없음" %> · 비중 <%= entry.weight %></small></span>
-                  <% }) %>
-                </div>
-              </details>
-            <% }) %>
-          </div>
-
-          <section class="arena-tier-type-create" id="arena-tier-type-create">
-            <header>
-              <div><span>SAFE TYPE ADDITION</span><h3>1대1 문제 유형 추가</h3></div>
-              <p>검산된 기존 생성기를 기반으로 새 유형 이름과 적용 U/R 난이도를 추가합니다. 서버에서 임의 코드를 실행하지 않으며, 원본 카탈로그는 이전 버전으로 보존됩니다.</p>
-            </header>
-            <form method="post" action="/admin/problem-banks/arena/types" onsubmit="return confirm('자동 검산 후 새 카탈로그 버전을 즉시 적용할까요? 기존 버전은 이력으로 보존됩니다.')">
-              <label>
-                새 유형 이름
-                <input name="displayName" required minlength="2" maxlength="240" placeholder="예: 조건부확률과 상태 전이 심화" />
-                <small>운영 화면과 경기 분석에서 구분할 이름입니다.</small>
-              </label>
-              <label>
-                승인 생성기 기준 유형
-                <select name="baseTypeId" required>
-                  <option value="">기준 유형 선택</option>
-                  <% (activeTierCatalog.typeDefinitions || []).forEach((type) => { %>
-                    <option value="<%= type.typeId %>"><%= type.label %> · <%= type.curriculumUnit %></option>
-                  <% }) %>
-                </select>
-                <small>선택한 유형의 서버 생성기와 독립 검산 규칙을 재사용합니다.</small>
-              </label>
-              <fieldset>
-                <legend>배정할 난이도</legend>
-                <div>
-                  <% ['T1','T2','T3','T4','T5','T6','T7','T8','T9'].forEach((tier) => { %>
-                    <label><input type="checkbox" name="difficultyTiers" value="<%= tier %>" /><span><%= publicDifficultyLabel(tier) %></span></label>
-                  <% }) %>
-                </div>
-                <small>하나 이상 선택하세요. T는 ACTIVE DB 호환 키이며 실제 공개 배정은 위 U/R 난이도 표를 따릅니다.</small>
-              </fieldset>
-              <button type="submit">3회 검산 후 유형 추가</button>
-            </form>
-          </section>
-        <% } %>
       </section>
 
       <section class="admin-panel problem-type-catalog" id="problem-type-catalog">
         <div class="admin-panel-heading problem-type-heading">
-          <div>
-            <span>VERSIONED GENERATOR CATALOG</span>
-            <h2>평가별 문제 유형</h2>
-            <p>DB는 서버 생성기의 식별자와 설정·검산 결과·소스 스냅샷을 버전으로 보관합니다. DB의 문자열을 JavaScript로 실행하지 않습니다.</p>
-          </div>
-          <form method="post" action="/admin/problem-banks/types/sync" onsubmit="return confirm('서버에 새로 배포된 생성기를 검산하고 DB에 새 리비전으로 반영할까요?')">
-            <input type="hidden" name="category" value="<%= typeCatalog.selectedCategory %>" />
-            <button class="problem-type-sync-button" type="submit">서버 생성기 검산·동기화</button>
-          </form>
+          <div><p>LEARNING & ASSESSMENT</p><h2>학습·평가 문제 유형</h2><span>개념학습, 평가센터와 배치고사 생성기를 버전별로 관리합니다.</span></div>
+          <form method="post" action="/admin/problem-banks/types/sync" onsubmit="return confirm('서버 생성기를 검산하고 DB에 새 리비전으로 반영할까요?')"><input type="hidden" name="category" value="<%= typeCatalog.selectedCategory %>" /><button class="problem-type-sync-button" type="submit">서버 생성기 검산·동기화</button></form>
         </div>
 
         <nav class="problem-type-category-tabs" aria-label="문제 유형 분류">
-          <% typeCatalog.categories.forEach((category) => { %>
-            <a class="<%= category.key === typeCatalog.selectedCategory ? 'is-active' : '' %>" href="/admin/problem-banks?category=<%= category.key %>#problem-type-catalog">
-              <span><%= category.label %></span><b><%= category.count %></b>
-            </a>
-          <% }) %>
+          <% typeCatalog.categories.forEach((category) => { %><a href="/admin/problem-banks?category=<%= category.key %>#problem-type-catalog" class="<%= category.key === typeCatalog.selectedCategory ? 'is-active' : '' %>"><strong><%= category.label %></strong><small><%= category.count %>개</small></a><% }) %>
         </nav>
+        <form class="admin-filter-form admin-audit-filter" method="get" action="/admin/problem-banks"><input type="hidden" name="category" value="<%= typeCatalog.selectedCategory %>" /><label class="wide"><span>유형 검색</span><input type="search" name="q" value="<%= typeCatalog.query %>" maxlength="120" placeholder="이름·코드·과목·개념" /></label><button type="submit">검색</button></form>
 
-        <div class="problem-type-category-summary">
-          <div><strong><%= typeCatalog.selectedCategoryInfo.label %></strong><span><%= typeCatalog.selectedCategoryInfo.description %></span></div>
-          <form class="problem-type-search" method="get" action="/admin/problem-banks">
-            <input type="hidden" name="category" value="<%= typeCatalog.selectedCategory %>" />
-            <label for="problem-type-query">유형 이름·코드 찾기</label>
-            <div><input id="problem-type-query" name="q" value="<%= typeCatalog.query %>" placeholder="예: 이차함수, algebra-01" maxlength="120" /><button type="submit">검색</button></div>
-          </form>
-        </div>
-
-        <div class="problem-type-validation-guide" role="note">
-          <strong>검산 단계 안내</strong>
-          <span><b>독립 검산</b>은 유형 전용 역산·조건 검사를 통과한 상태입니다.</span>
-          <span><b>기본 검산</b>은 공통 구조·유한값·정답 존재·계산기 불필요 범위를 통과한 기존 생성기입니다.</span>
-          <span><b>시험지 청사진 검산</b>은 번호별 조건과 완성된 시험지 전체를 함께 검사합니다.</span>
-        </div>
-
-        <% if (!typeCatalog.entries.length) { %>
-          <p class="admin-empty">이 조건에 맞는 활성 문제 유형이 없습니다.</p>
-        <% } else { %>
-          <div class="problem-type-table-wrap">
-            <table class="problem-type-table">
-              <thead><tr><th>상태</th><th>유형</th><th>적용 범위</th><th>검산</th><th>리비전</th><th></th></tr></thead>
-              <tbody>
-                <% typeCatalog.entries.forEach((entry) => { %>
-                  <% const validationModeLabel = entry.validationReport?.validationMode === 'TYPE_SPECIFIC' ? '독립 검산' : entry.validationReport?.validationMode === 'PAPER_BLUEPRINT' ? '시험지 청사진 검산' : '기본 검산'; %>
-                  <tr class="<%= String(typeCatalog.inspected?._id || '') === String(entry._id) ? 'is-selected' : '' %>">
-                    <td><span class="problem-type-state <%= entry.enabled ? 'is-enabled' : 'is-disabled' %>"><%= entry.enabled ? '사용 중' : '출제 제외' %></span></td>
-                    <td><strong><%= entry.displayName %></strong><code><%= entry.engineKey %></code><% if (entry.codeChanged) { %><em>서버 소스 변경 감지</em><% } %></td>
-                    <td><span><%= entry.courseId || '통합' %></span><small><%= [entry.unitId, entry.conceptId].filter(Boolean).join(' · ') || '공통' %></small></td>
-                    <td><b><%= entry.validationReport?.passed ? validationModeLabel : '출제 차단' %></b><small><%= entry.validationReport?.sampleCount || 0 %>회 표본 · <%= entry.validationReport?.calculatorFree ? '계산기 불필요 확인' : '계산 범위 확인 필요' %></small></td>
-                    <td>r<%= entry.revision %></td>
-                    <td><a href="/admin/problem-banks?category=<%= typeCatalog.selectedCategory %>&q=<%= encodeURIComponent(typeCatalog.query) %>&inspect=<%= entry._id %>#problem-type-catalog">코드·설정 보기</a></td>
-                  </tr>
-                <% }) %>
-              </tbody>
-            </table>
-          </div>
-          <% if (typeCatalog.entries.length >= 150) { %><p class="problem-type-limit-note">화면 성능을 위해 검색 결과는 최대 150개만 표시합니다. 이름이나 코드로 범위를 좁혀주세요.</p><% } %>
+        <% if (!typeCatalog.entries.length) { %><p class="admin-empty">조건에 맞는 문제 유형이 없습니다.</p><% } else { %>
+          <div class="admin-table-wrap"><table><thead><tr><th>문제 유형</th><th>범위</th><th>상태</th><th>가중치</th><th>검산</th><th>리비전</th><th>관리</th></tr></thead><tbody>
+            <% typeCatalog.entries.forEach((entry) => { %><tr><td><strong><%= entry.displayName %></strong><small><code><%= entry.engineKey %></code></small></td><td><%= [entry.courseId, entry.unitId, entry.conceptId].filter(Boolean).join(" · ") || "공통" %></td><td><%= entry.enabled ? "출제 사용" : "출제 제외" %><%= entry.codeChanged ? " · 코드 변경 감지" : "" %></td><td><%= entry.selectionWeight %></td><td><%= entry.validationReport?.passed ? "통과" : "확인 필요" %></td><td>r<%= entry.revision %> · <%= statusLabel(entry.status) %></td><td><a href="/admin/problem-banks?category=<%= typeCatalog.selectedCategory %>&q=<%= encodeURIComponent(typeCatalog.query) %>&inspect=<%= entry._id %>#problem-type-catalog">코드·설정 보기</a></td></tr><% }) %>
+          </tbody></table></div>
         <% } %>
 
         <% if (typeCatalog.inspected) { const inspected = typeCatalog.inspected; %>
           <section class="problem-type-inspector">
-            <header>
-              <div><span>CURRENT SOURCE SNAPSHOT</span><h3><%= inspected.displayName %></h3><code><%= inspected.engineKey %></code></div>
-              <a href="/admin/problem-banks?category=<%= typeCatalog.selectedCategory %>#problem-type-catalog" aria-label="검사 창 닫기">닫기</a>
-            </header>
+            <header><div><span>CURRENT SOURCE SNAPSHOT</span><h3><%= inspected.displayName %></h3><code><%= inspected.engineKey %></code></div><a href="/admin/problem-banks?category=<%= typeCatalog.selectedCategory %>#problem-type-catalog">닫기</a></header>
             <div class="problem-type-inspector-grid">
-              <div class="problem-type-source-pane">
-                <div><strong>DB 보존 소스 · r<%= inspected.revision %></strong><span><%= inspected.sourceFile %></span></div>
-                <pre><code><%= inspected.sourceSnapshot %></code></pre>
-              </div>
-              <aside>
-                <form method="post" action="/admin/problem-banks/types/<%= inspected._id %>/revise" onsubmit="return confirm('현재 설정을 기반으로 새 리비전을 만들까요? 이전 리비전은 보존됩니다.')">
-                  <input type="hidden" name="category" value="<%= inspected.category %>" />
-                  <label class="problem-type-toggle"><input type="checkbox" name="enabled" value="1" <%= inspected.enabled ? 'checked' : '' %> /><span>신규 출제에 사용</span></label>
-                  <label>출제 가중치<input type="number" name="selectionWeight" value="<%= inspected.selectionWeight %>" min="1" max="100" required /><small>같은 범위 안에서 이 유형이 선택될 상대 비중입니다.</small></label>
-                  <label>운영 메모<textarea name="operatorNote" rows="5" maxlength="1000" placeholder="변경 사유와 관찰 결과를 기록하세요."><%= inspected.operatorNote || '' %></textarea></label>
-                  <dl>
-                    <div><dt>계산기 불필요</dt><dd><%= inspected.validationReport?.calculatorFree ? '확인' : '차단' %></dd></div>
-                    <div><dt>정답 검산</dt><dd><%= inspected.validationReport?.answerVerified ? '확인' : '차단' %></dd></div>
-                    <div><dt>소스 SHA-256</dt><dd><code><%= inspected.sourceHash.slice(0, 12) %>…</code></dd></div>
-                  </dl>
-                  <button type="submit">5회 검산 후 새 리비전 적용</button>
-                </form>
-              </aside>
+              <div class="problem-type-source-pane"><div><strong>DB 보존 소스 · r<%= inspected.revision %></strong><span><%= inspected.sourceFile %></span></div><pre><code><%= inspected.sourceSnapshot %></code></pre></div>
+              <aside><form method="post" action="/admin/problem-banks/types/<%= inspected._id %>/revise" onsubmit="return confirm('현재 설정을 기반으로 새 리비전을 만들까요? 이전 리비전은 보존됩니다.')"><input type="hidden" name="category" value="<%= inspected.category %>" /><label class="problem-type-toggle"><input type="checkbox" name="enabled" value="1" <%= inspected.enabled ? 'checked' : '' %> /><span>신규 출제에 사용</span></label><label>출제 가중치<input type="number" name="selectionWeight" value="<%= inspected.selectionWeight %>" min="1" max="100" required /></label><label>운영 메모<textarea name="operatorNote" rows="5" maxlength="1000"><%= inspected.operatorNote || '' %></textarea></label><button type="submit">5회 검산 후 새 리비전 적용</button></form></aside>
             </div>
-            <% if (inspected.currentServerHash && inspected.currentServerHash !== inspected.sourceHash) { %>
-              <div class="problem-type-source-warning"><strong>서버 코드가 DB 스냅샷 이후 변경되었습니다.</strong><span>위의 ‘서버 생성기 검산·동기화’를 실행하면 현재 설정을 유지한 새 리비전으로 추가됩니다.</span></div>
-            <% } %>
-            <div class="problem-type-history">
-              <h4>삭제하지 않고 누적한 리비전</h4>
-              <% typeCatalog.history.forEach((version) => { %>
-                <div><b>r<%= version.revision %></b><span><%= version.status === 'ACTIVE' ? '현재 적용' : '이전 버전' %></span><span><%= version.enabled ? '사용' : '출제 제외' %> · 가중치 <%= version.selectionWeight %></span><time><%= new Date(version.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) %></time></div>
-              <% }) %>
-            </div>
+            <% if (inspected.currentServerHash && inspected.currentServerHash !== inspected.sourceHash) { %><div class="problem-type-source-warning"><strong>서버 코드 변경이 감지되었습니다.</strong><span>동기화를 실행하면 현재 설정을 유지한 새 리비전으로 추가됩니다.</span></div><% } %>
+            <div class="problem-type-history"><h4>리비전 이력</h4><% typeCatalog.history.forEach((version) => { %><div><b>r<%= version.revision %></b><span><%= statusLabel(version.status) %></span><span><%= version.enabled ? '사용' : '출제 제외' %> · 가중치 <%= version.selectionWeight %></span><time><%= new Date(version.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) %></time></div><% }) %></div>
           </section>
         <% } %>
       </section>
-
-      <section class="admin-panel problem-data-overview" id="arena-problem-data">
-        <div class="admin-panel-heading">
-          <div>
-            <span>ACTIVE VERSION</span>
-            <h2>현재 적용 중인 데이터</h2>
-          </div>
-        </div>
-        <div class="problem-data-active-card">
-          <div>
-            <span class="problem-data-status problem-data-status--active">적용 중</span>
-            <h3><%= problemData.active.displayName %></h3>
-            <code><%= problemData.active.code %></code>
-          </div>
-          <dl>
-            <div><dt>생성 엔진</dt><dd><%= problemData.active.engineVersion %></dd></div>
-            <div><dt>자동 검산</dt><dd><%= problemData.active.validationReport?.sampleCount || 0 %>회 통과</dd></div>
-            <div><dt>적용 시각</dt><dd><%= problemData.active.activatedAt ? new Date(problemData.active.activatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "초기 버전" %></dd></div>
-            <div><dt>내용 해시</dt><dd><code><%= String(problemData.active.contentHash || "").slice(0, 12) %>…</code></dd></div>
-          </dl>
-        </div>
-        <div class="problem-data-guardrail" role="note">
-          <strong>서버 재시작 없이 적용됩니다.</strong>
-          <p>관리자가 저장하는 것은 JavaScript 코드가 아니라 검산된 유형의 구성 데이터입니다. 적용 즉시 캐시가 갱신되며, 변경 감지가 불가능한 환경에서도 최대 15초 안에 신규 경기로 반영됩니다.</p>
-        </div>
-      </section>
-
-      <section class="admin-panel problem-data-editor">
-        <div class="admin-panel-heading">
-          <div>
-            <span><%= problemData.editable ? "EDIT DRAFT" : "CREATE DRAFT" %></span>
-            <h2><%= problemData.editable ? "문제 데이터 초안 수정" : "새 문제 데이터 버전 만들기" %></h2>
-            <p>각 T 난이도마다 서로 다른 유형을 최소 5개 선택합니다. 한 경기에는 선택 목록에서 중복 없는 5문항이 배정됩니다.</p>
-          </div>
-          <% if (problemData.editable) { %>
-            <a class="admin-secondary-link" href="/admin/problem-banks#arena-problem-data">새 버전 작성</a>
-          <% } %>
-        </div>
-
-        <form
-          class="admin-form problem-data-form"
-          method="post"
-          action="<%= problemData.editable ? `/admin/problem-banks/arena/data/${problemData.editable._id}` : '/admin/problem-banks/arena/data' %>"
-        >
-          <div class="admin-policy-field-grid">
-            <label>
-              버전 코드
-              <input name="code" value="<%= problemData.form.code %>" placeholder="ARENA-PROBLEM-DATA-V2" required maxlength="80" />
-              <small>적용 후 변경할 수 없는 영문 식별자입니다.</small>
-            </label>
-            <label>
-              버전 이름
-              <input name="displayName" value="<%= problemData.form.displayName %>" placeholder="2026년 8월 1대1 문제 구성" required maxlength="160" />
-              <small>운영자가 버전 목록에서 구분할 이름입니다.</small>
-            </label>
-            <label class="wide">
-              변경 사유
-              <textarea name="changeSummary" rows="3" required maxlength="1000" placeholder="어떤 난이도의 어떤 문제 구성을 왜 바꾸는지 기록해 주세요."><%= problemData.form.changeSummary %></textarea>
-            </label>
-          </div>
-
-          <section class="problem-data-type-settings">
-            <header>
-              <div>
-                <span>TYPE CONTROLS</span>
-                <h3>유형별 출제 데이터</h3>
-              </div>
-              <p>사용 여부, 30개 팩 안에서의 상대 배정 가중치, 허용 정답 범위를 조정합니다. 좁은 범위는 적용 검산에 실패할 수 있습니다.</p>
-            </header>
-            <div class="problem-data-settings-grid">
-              <% problemData.availableTypes.forEach((type) => {
-                const setting = problemData.form.typeSettings.find((item) => item.typeId === type.typeId) || { enabled: true, selectionWeight: 1, answerMin: 1, answerMax: 999, difficultyNote: "" };
-              %>
-                <article class="problem-data-setting-card <%= setting.enabled ? '' : 'is-disabled' %>" data-problem-setting-card>
-                  <header>
-                    <div>
-                      <strong><%= type.label %></strong>
-                      <code><%= type.typeId %></code>
-                    </div>
-                    <label class="problem-data-enable-switch">
-                      <input type="checkbox" name="enabled__<%= type.typeId %>" value="1" data-problem-type-enabled="<%= type.typeId %>" <%= setting.enabled ? "checked" : "" %> />
-                      <span>사용</span>
-                    </label>
-                  </header>
-                  <div>
-                    <label>
-                      배정 가중치
-                      <input type="number" name="weight__<%= type.typeId %>" value="<%= setting.selectionWeight %>" min="1" max="10" required />
-                    </label>
-                    <label>
-                      정답 최솟값
-                      <input type="number" name="answerMin__<%= type.typeId %>" value="<%= setting.answerMin %>" min="1" max="999" required />
-                    </label>
-                    <label>
-                      정답 최댓값
-                      <input type="number" name="answerMax__<%= type.typeId %>" value="<%= setting.answerMax %>" min="1" max="999" required />
-                    </label>
-                  </div>
-                  <label class="problem-data-setting-note">
-                    운영 메모
-                    <input name="difficultyNote__<%= type.typeId %>" value="<%= setting.difficultyNote || '' %>" maxlength="300" placeholder="예: U5·R2 이상에서 우선 사용" />
-                  </label>
-                </article>
-              <% }) %>
-            </div>
-          </section>
-
-          <div class="problem-data-tier-list">
-            <% problemData.difficultyTiers.forEach((difficultyTier) => {
-              const tierConfig = problemData.form.tierConfigurations.find((item) => item.difficultyTier === difficultyTier) || { typeIds: [] };
-              const selectedIds = new Set(tierConfig.typeIds || []);
-            %>
-              <fieldset class="problem-data-tier-card">
-                <legend>
-                  <strong><%= publicDifficultyLabel(difficultyTier) %></strong>
-                  <span><b data-problem-type-count><%= selectedIds.size %></b>개 선택</span>
-                </legend>
-                <div class="problem-data-type-grid">
-                  <% problemData.availableTypes.forEach((type) => { %>
-                    <label class="problem-data-type-option">
-                      <input
-                        type="checkbox"
-                        name="types_<%= difficultyTier %>"
-                        value="<%= type.typeId %>"
-                        data-tier-problem-type="<%= type.typeId %>"
-                        <%= selectedIds.has(type.typeId) ? "checked" : "" %>
-                        <%= (problemData.form.typeSettings.find((item) => item.typeId === type.typeId)?.enabled === false) ? "disabled" : "" %>
-                      />
-                      <span>
-                        <strong><%= type.label %></strong>
-                        <small><%= type.courseId || "공통" %> · 예상 <%= Math.max(1, Math.round(type.expectedTimeMs / 60000)) %>분</small>
-                        <code><%= type.typeId %></code>
-                      </span>
-                    </label>
-                  <% }) %>
-                </div>
-              </fieldset>
-            <% }) %>
-          </div>
-
-          <div class="problem-data-submit-bar">
-            <div>
-              <strong>저장 시 1차 자동 검산</strong>
-              <span>실제 적용 버튼을 누르면 유형별 5회 검산을 다시 수행합니다.</span>
-            </div>
-            <button type="submit"><%= problemData.editable ? "초안 변경 저장" : "새 초안 저장" %></button>
-          </div>
-        </form>
-      </section>
-
-      <section class="admin-panel problem-data-versions">
-        <div class="admin-panel-heading">
-          <div>
-            <span>VERSION HISTORY</span>
-            <h2>초안 및 버전 이력</h2>
-          </div>
-        </div>
-        <% if (!problemData.recent.length) { %>
-          <p class="admin-empty">저장된 문제 데이터 버전이 없습니다.</p>
-        <% } else { %>
-          <div class="admin-policy-list">
-            <% problemData.recent.forEach((version) => { %>
-              <article class="admin-policy-card <%= version.status === 'ACTIVE' ? 'is-current' : '' %>">
-                <header>
-                  <div>
-                    <span><%= version.status === "ACTIVE" ? "적용 중" : version.status === "DRAFT" ? "초안" : "종료" %> · <%= version.code %></span>
-                    <h3><%= version.displayName %></h3>
-                    <small><%= version.changeSummary %></small>
-                  </div>
-                </header>
-                <div class="admin-policy-summary-grid">
-                  <span>검산 <b><%= version.validationReport?.passed ? "통과" : "확인 필요" %></b></span>
-                  <span>표본 <b><%= version.validationReport?.sampleCount || 0 %>회</b></span>
-                  <span>수정 <b><%= new Date(version.updatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) %></b></span>
-                </div>
-                <% if (version.status === "DRAFT") { %>
-                  <div class="admin-policy-actions">
-                    <a class="admin-secondary-link" href="/admin/problem-banks?edit=<%= version._id %>#arena-problem-data">초안 수정</a>
-                    <form method="post" action="/admin/problem-banks/arena/data/<%= version._id %>/activate" onsubmit="return confirm('자동 검산을 통과하면 이 버전을 신규 경기에 적용합니다. 계속할까요?')">
-                      <button type="submit">검산 후 적용</button>
-                    </form>
-                  </div>
-                <% } %>
-              </article>
-            <% }) %>
-          </div>
-        <% } %>
-      </section>
-
-      <details class="admin-panel problem-bank-code-map" id="server-code-map">
-        <summary>
-          <span>서버 코드 지도</span>
-          <strong>생성 엔진과 다른 시험 파일 보기</strong>
-        </summary>
-        <div class="admin-feedback admin-feedback--error" role="note">
-          <span aria-hidden="true">!</span>
-          <div><strong>JavaScript 생성 엔진은 화면에서 직접 수정하지 않습니다.</strong><br /><%= catalog.safetyReason %> 새 수학 로직이나 신규 유형을 추가할 때만 아래 파일을 코드로 배포합니다.</div>
-        </div>
-        <div class="admin-policy-list">
-          <% catalog.items.forEach((item, index) => { %>
-            <article class="admin-policy-card">
-              <header>
-                <div>
-                  <span><%= String(index + 1).padStart(2, "0") %> · <%= item.status %></span>
-                  <h3><%= item.name %></h3>
-                  <small><%= item.purpose %></small>
-                </div>
-              </header>
-              <div class="admin-policy-summary-grid">
-                <% if (item.sourceType === "ADMIN_UPLOAD") { %>
-                  <span>자료 방식 <b>관리자 PDF·정답·배점 업로드</b></span>
-                  <span>유형 파일 <b>별도 JavaScript 없음</b></span>
-                <% } else { %>
-                  <span>서버 파일 <b><code><%= item.file %></code></b></span>
-                <% } %>
-              </div>
-            </article>
-          <% }) %>
-        </div>
-      </details>
     </main>
-    <script src="/js/admin-problem-data.js" defer></script>
   </body>
 </html>

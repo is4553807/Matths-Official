@@ -127,7 +127,7 @@
                   <div><dt>추적 코드</dt><dd><%= match.traceCode %></dd></div>
                   <div><dt><%= match.sourceType === "ARENA_MATCH" ? "경기 응시 ID" : "문서 발급 ID" %></dt><dd><%= match.sourceType === "ARENA_MATCH" ? match.attemptId : match.documentIssueId %></dd></div>
                   <% if (match.sourceType === "ARENA_MATCH") { %>
-                    <div><dt>참가 역할</dt><dd><%= match.role === "CHALLENGER" ? "공격자" : "방어자" %></dd></div>
+                    <div><dt>참가 역할</dt><dd><%= match.role === "CHALLENGER" ? "현재 응시자" : "상대 기록 소유자" %></dd></div>
                     <div><dt>응시 상태</dt><dd><%= attemptStatusLabels[match.attemptStatus] || match.attemptStatus %></dd></div>
                   <% } %>
                   <% if (["IMAGE_OCR", "ARENA_IMAGE_OCR"].includes(match.recognitionMethod)) { %>

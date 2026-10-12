@@ -196,7 +196,13 @@ function createGoatArenaProductionCommandService(options = {}) {
       _id: new mongoose.Types.ObjectId(matchId),
       $or: [
         { "challenger.userId": userId },
-        { "defender.userId": userId },
+        {
+          $and: [
+            { "defender.userId": userId },
+            { "normalAsync.enabled": { $ne: true } },
+            { "competitiveAsync.enabled": { $ne: true } },
+          ],
+        },
       ],
     }).lean();
     if (!match) {
@@ -277,11 +283,9 @@ function createGoatArenaProductionCommandService(options = {}) {
     const index = Number(attempt?.currentQuestionIndex || 0);
     const question =
       attempt?.status === "IN_PROGRESS" ? currentQuestion(authority) : null;
-    const savedAnswer = question
-      ? (attempt.answers || []).find(
-          (answer) => answer.questionKey === question.questionKey
-        )?.value || ""
-      : "";
+    const savedAnswer = attempt?.questionCompletionLock?.questionSlot === Number(attempt?.currentQuestionIndex || 0) + 1
+      ? attempt.questionCompletionLock.answer
+      : question ? (attempt.answers || []).find((answer) => answer.questionKey === question.questionKey)?.value || "" : "";
     const integrityWatermark = attempt
       ? buildArenaMatchIntegrityWatermark({
           matchId: match._id,
@@ -358,6 +362,14 @@ function createGoatArenaProductionCommandService(options = {}) {
       submittedAt: isoString(attempt.submittedAt),
       evidenceDeadlineAt: isoString(attempt.evidenceDeadlineAt),
       evidenceRequired: attempt.status === "EVIDENCE_REQUIRED",
+      completionLock: attempt.questionCompletionLock ? {
+        questionSlot: attempt.questionCompletionLock.questionSlot,
+        requestId: attempt.questionCompletionLock.requestId,
+        answer: attempt.questionCompletionLock.answer,
+        evidenceMode: attempt.questionCompletionLock.evidenceMode,
+        submissionMode: attempt.questionCompletionLock.submissionMode,
+        lockedAt: isoString(attempt.questionCompletionLock.lockedAt),
+      } : null,
     };
   }
 
@@ -575,9 +587,8 @@ function createGoatArenaProductionCommandService(options = {}) {
    * 정본이 제출까지 처리하지만, 그건 **끝까지 푼 경우**뿐이다.
    *
    * 정산 안전성 — submitArenaMatchAttempt 는 시도를 EVIDENCE_REQUIRED 로 넘길 뿐
-   * 정산하지 않는다. 근거는 파일 단위다: arenaMatchAttemptService.js 전체에
-   * settleArenaMatch · ParticipantLock · StandingChangeLedger · LearningDayLedger ·
-   * AccessCycle 참조가 **한 건도 없다**(실측). 그 파일의 어떤 함수도 정산에 닿을 수 없다.
+   * 정산하지 않는다. 이 명령 경로는 풀이 진행 상태만 기록하며 MMR 정산은
+   * 전용 정산 서비스가 담당한다.
    *
    * changes: [] 인 이유 — 답 저장은 saveAnswer 가 이미 했다. 제출은 상태 전이만 한다.
    * 여기서 답을 함께 실으면 같은 답이 두 경로로 들어와 answerRevision 이 어긋난다.
@@ -638,11 +649,14 @@ function createGoatArenaProductionCommandService(options = {}) {
       // 멱등 재생까지 도달하지 못하고 409가 된다. 참가자 소유권을 확인한 뒤 정확히
       // 같은 attempt·operation 이벤트가 존재할 때만 현재 확정 상태를 재응답한다.
       const replay =
-        Number(input.questionSlot) === expectedSlot - 1 && authority.attempt
+        Number(input.questionSlot) > 0 && Number(input.questionSlot) < expectedSlot && authority.attempt
         ? await models.ArenaMatchAttemptEvent.findOne({
             attemptId: authority.attempt._id,
-            idempotencyKey:
-              `ARENA_ADVANCE:${authority.attempt._id}:${input.idempotencyKey}`,
+            $or: [
+              { idempotencyKey: `ARENA_ADVANCE:${authority.attempt._id}:${input.idempotencyKey}` },
+              { "metadata.completionRequestId": input.idempotencyKey },
+            ],
+            "metadata.completedQuestionNumber": Number(input.questionSlot),
             eventType: "QUESTION_ADVANCED",
           })
             .select("_id")
@@ -684,6 +698,7 @@ function createGoatArenaProductionCommandService(options = {}) {
       userId,
       requestId: input.idempotencyKey,
       value: input.answer,
+      inlineBoard: input.evidenceMode === "INLINE_BOARD_V1" ? { revision: input.boardRevision, sha256: input.boardSha256 } : null,
       submissionMode: "MANUAL",
       now: new Date(now()),
     });

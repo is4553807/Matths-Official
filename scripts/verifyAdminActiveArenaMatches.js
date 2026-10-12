@@ -69,16 +69,16 @@ const users = matches.flatMap((entry) => [
 ]);
 
 const data = buildAdminActiveArenaMatchesData({ matches, attempts, users, now });
-assert.equal(data.stats.total, 5);
+assert.equal(data.stats.total, 6);
 assert.equal(data.stats.live, 1);
 assert.equal(data.stats.waiting, 2);
-assert.equal(data.stats.stale, 1);
+assert.equal(data.stats.stale, 2);
 assert.equal(data.stats.evidence, 1);
 assert.equal(data.matches[0].id, "live", "현재 풀이 중인 경기가 목록 맨 위에 있어야 합니다.");
-assert.equal(data.matches[0].defenderAttempt.currentQuestion, 3);
-assert.equal(data.matches[0].defenderAttempt.answeredCount, 1);
-assert.equal(data.matches.find((entry) => entry.id === "preparing").stage.key, "PREPARING");
-assert.equal(data.matches.some((entry) => entry.id === "finished-defender"), false);
+assert.equal(data.matches[0].attempts.find((entry) => entry.role === "DEFENDER").currentQuestion, 3);
+assert.equal(data.matches[0].attempts.find((entry) => entry.role === "DEFENDER").answeredCount, 1);
+assert.equal(data.matches.find((entry) => entry.id === "preparing").stage.key, "WAITING");
+assert.equal(data.matches.some((entry) => entry.id === "finished-defender"), true);
 assert.equal(data.matches.some((entry) => entry.id === "resolved"), false);
 
 const root = path.resolve(__dirname, "..");
@@ -88,7 +88,7 @@ assert.match(source("routes/matths-routes.js"), /"\/admin\/arena-live-matches"/)
 assert.match(source("controllers/matthsController.js"), /adminActiveArenaMatchesPage/);
 assert.match(source("views/partials/admin-navigation.ejs"), /진행 중인 경기/);
 assert.match(source("views/admin-arena-live-matches.ejs"), /15초마다 자동 갱신/);
-assert.match(source("services/adminActiveArenaMatchesService.js"), /방어자 현재 풀이 중/);
+assert.match(source("views/admin-arena-live-matches.ejs"), /과거 기록 소유자/);
 
 console.log(
   `진행 중인 Arena 경기 운영 화면 검증 완료: ${data.stats.total}건 · 현재 풀이 ${data.stats.live}건 · 응답 대기 ${data.stats.waiting}건`

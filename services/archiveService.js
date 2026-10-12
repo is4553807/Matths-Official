@@ -28,12 +28,12 @@ const PRIVATE_MOCK_ARCHIVE_FOLDER_NAME =
 const ARCHIVE_ACCESS_LEVELS = Object.freeze({
   AUTHENTICATED: "AUTHENTICATED",
   MOCK_EXAM_PACKAGE: "MOCK_EXAM_PACKAGE",
-  LEARNING_PACKAGE: "LEARNING_PACKAGE",
+  PRO: "PRO",
 });
 const ARCHIVE_ACCESS_RANK = Object.freeze({
   [ARCHIVE_ACCESS_LEVELS.AUTHENTICATED]: 0,
   [ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE]: 1,
-  [ARCHIVE_ACCESS_LEVELS.LEARNING_PACKAGE]: 2,
+  [ARCHIVE_ACCESS_LEVELS.PRO]: 2,
 });
 const ARCHIVE_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const ARCHIVE_TRASH_PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -67,11 +67,8 @@ function normalizeArchiveAccessLevel(
   if (normalized === ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE) {
     return ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE;
   }
-  if (
-    normalized === ARCHIVE_ACCESS_LEVELS.LEARNING_PACKAGE ||
-    normalized === "PAID_PACKAGE"
-  ) {
-    return ARCHIVE_ACCESS_LEVELS.LEARNING_PACKAGE;
+  if (normalized === ARCHIVE_ACCESS_LEVELS.PRO) {
+    return ARCHIVE_ACCESS_LEVELS.PRO;
   }
   return ARCHIVE_ACCESS_LEVELS.AUTHENTICATED;
 }
@@ -84,23 +81,23 @@ function archivePackageAccessAllows(packageAccess, requiredAccessLevel) {
   if (
     requirement === ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE &&
     packageAccess?.active === true &&
-    ["MOCK_EXAM_ONLY", "ACADEMY_PLAN", "LEARNING_PACKAGE", "SUPER_ADMIN"].includes(packageType)
+    ["PRO", "ACADEMY_PLAN", "SUPER_ADMIN"].includes(packageType)
   ) {
     return true;
   }
 
   return (
     packageAccess?.active === true &&
-    ["LEARNING_PACKAGE", "SUPER_ADMIN"].includes(packageType)
+    ["PRO", "SUPER_ADMIN"].includes(packageType)
   );
 }
 
 function archiveAccessDeniedMessage(requiredAccessLevel, action = "볼") {
   const requirement = normalizeArchiveAccessLevel(requiredAccessLevel);
   if (requirement === ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE) {
-    return `이 자료는 학원 플랜, Matths 주간 공식 모의고사 이용권 또는 29일 학습권 패키지를 이용 중인 회원만 ${action} 수 있습니다.`;
+    return `이 자료는 학원 이용 혜택 또는 Pro 플랜을 이용 중인 회원만 ${action} 수 있습니다.`;
   }
-  return `이 자료는 활성 29일 학습권 패키지(GOAT Arena 포함)를 이용 중인 회원만 ${action} 수 있습니다.`;
+  return `이 자료는 활성 Pro 플랜 회원만 ${action} 수 있습니다.`;
 }
 
 function looksLikeEncodingMojibake(
@@ -280,7 +277,7 @@ async function hasPaidArchiveAccess(user) {
   const packageAccess = await getArchivePackageAccess(user);
   return archivePackageAccessAllows(
     packageAccess,
-    ARCHIVE_ACCESS_LEVELS.LEARNING_PACKAGE
+    ARCHIVE_ACCESS_LEVELS.PRO
   );
 }
 

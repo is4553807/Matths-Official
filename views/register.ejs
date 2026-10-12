@@ -24,6 +24,20 @@
     typeof socialRegistration !== "undefined" && socialRegistration
       ? socialRegistration
       : null;
+  const arenaGuestClaim =
+    typeof arenaGuestRegistrationClaim !== "undefined" && arenaGuestRegistrationClaim
+      ? arenaGuestRegistrationClaim
+      : null;
+  const normalizeClaimValue = (value) => String(value || "")
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase("ko-KR");
+  const arenaGuestClaimInitialMatch = Boolean(
+    arenaGuestClaim &&
+    normalizeClaimValue(input.name) === normalizeClaimValue(arenaGuestClaim.nickname) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(String(input.birthDate || ""))
+  );
 
   const regionData =
     typeof schoolRegions !== "undefined" &&
@@ -523,6 +537,45 @@
                 </small>
               </div>
             </fieldset>
+
+            <% if (arenaGuestClaim) { %>
+              <input
+                type="hidden"
+                name="arenaGuestRegistrationNonce"
+                value="<%= arenaGuestClaim.confirmationNonce %>"
+              />
+              <p
+                class="field-guide"
+                data-arena-guest-claim-status
+                aria-live="polite"
+              ><%= arenaGuestClaimInitialMatch
+                ? "가입 전에 참여한 도전장 기록을 연결하려면 아래 내용을 확인해 주세요."
+                : "도전장 참가 때 사용한 닉네임과 생년월일을 입력하면 기록 연결 확인이 표시됩니다." %></p>
+              <div
+                class="form-alert"
+                role="alert"
+                data-arena-guest-registration-claim
+                data-claim-nickname="<%= arenaGuestClaim.nickname %>"
+                <%= arenaGuestClaimInitialMatch ? "" : "hidden" %>
+              >
+                <span aria-hidden="true">!</span>
+                <div>
+                  <strong><%= arenaGuestClaim.acceptedDateLabel || "이전에" %> 도전장을 받은 분이 맞나요?</strong>
+                  <p><%= arenaGuestClaim.nickname %> 닉네임과 입력한 생년월일로 확인된 참가 기록을 이 계정에 연결합니다.</p>
+                  <label class="check-field terms-field">
+                    <input
+                      type="checkbox"
+                      name="arenaGuestRegistrationConfirmed"
+                      value="true"
+                      data-arena-guest-claim-confirmation
+                      <%= arenaGuestClaimInitialMatch ? "required" : "disabled" %>
+                    />
+                    <span aria-hidden="true"></span>
+                    <em>맞습니다. 회원가입을 완료하면 이전 도전장 참가 기록을 불러옵니다.</em>
+                  </label>
+                </div>
+              </div>
+            <% } %>
 
             <% if (!social) { %>
             <!-- 비밀번호 -->

@@ -1,7 +1,11 @@
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 
 const { User } = require("../models/matthsModel");
+const {
+  ArenaGuestIdentity,
+} = require("../models/goatArenaModel");
 const {
   ParentAccount,
 } = require("../models/parentModel");
@@ -14,6 +18,9 @@ const {
 const {
   nicknameKey,
 } = require("./nicknameService");
+const {
+  reserveUserNickname,
+} = require("./nicknameNamespaceService");
 
 /*
  * Sign in with Apple 서버 교환입니다. 앱은 네이티브 시트(ASAuthorization)로 받은
@@ -476,12 +483,22 @@ async function createAppleUser({ subject, claims, fullName, email }) {
     BCRYPT_ROUNDS
   );
 
-  // 닉네임 중복은 유니크 인덱스가 잡는다. 조회 후 생성 사이의 경합은 남으므로
-  // 실패하면 다른 번호로 다시 만든다.
+  // 회원·게스트가 함께 쓰는 namespace에서 먼저 원자적으로 선점한다.
+  // 무작위 임시 닉네임이 충돌하면 다른 번호로 다시 만든다.
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const nickname = randomNickname();
+    // 비회원 도전장 닉네임은 추후 본인 계정에 연결될 때까지 예약된 이름이다.
+    // Apple 최소 계정의 임시 닉네임도 그 이름을 먼저 차지하면 안 된다.
+    if (await ArenaGuestIdentity.exists({
+      nicknameNormalized: nicknameKey(nickname),
+    })) {
+      continue;
+    }
+    const userId = new mongoose.Types.ObjectId();
+    const session = await mongoose.startSession();
     try {
       const user = new User({
+        _id: userId,
         realName: fullName || "",
         name: nickname,
         nameNormalized: nicknameKey(nickname),
@@ -495,7 +512,16 @@ async function createAppleUser({ subject, claims, fullName, email }) {
         privacyVersion: PRIVACY_VERSION,
       });
       mirrorAppleIdOnUser(user, subject);
-      await user.save();
+      await session.withTransaction(async () => {
+        await reserveUserNickname({
+          nickname,
+          nicknameNormalized: nicknameKey(nickname),
+          userId,
+          session,
+        });
+        await user.save({ session });
+      });
+      user.$session(null);
       return user;
     } catch (error) {
       const duplicateKeys = Object.keys(error?.keyPattern || {});
@@ -509,11 +535,16 @@ async function createAppleUser({ subject, claims, fullName, email }) {
         );
       }
       if (
-        error?.code !== 11000 ||
-        !duplicateKeys.includes("nameNormalized")
+        error?.code !== "NICKNAME_NAMESPACE_TAKEN" &&
+        (
+          error?.code !== 11000 ||
+          !duplicateKeys.includes("nameNormalized")
+        )
       ) {
         throw error;
       }
+    } finally {
+      await session.endSession();
     }
   }
 

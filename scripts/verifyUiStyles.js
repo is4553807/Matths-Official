@@ -267,8 +267,6 @@ const structuralClasses = new Set([
   "active",
   "admin-nav-home",
   "archive-download-link",
-  "arena-analysis-exact-solution",
-  "arena-analysis-problem-copy",
   "arena-back-link",
   "arena-candidate-auto-tier",
   "arena-random-tier-mark",
@@ -367,11 +365,6 @@ for (const filename of copyFiles) {
 }
 
 const rulebookCopyFiles = [
-  path.join(
-    root,
-    "services",
-    "arenaRulebookViewService.js"
-  ),
   path.join(
     root,
     "dataAnalysis",

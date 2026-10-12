@@ -95,7 +95,7 @@ async function updateArenaProfileAvatar({ userId, avatarCode }) {
       },
     },
     {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     }
   ).lean();
@@ -192,7 +192,7 @@ async function updateCustomProfileAvatar({ userId, file }) {
         },
       },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     ).lean();

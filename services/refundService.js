@@ -3,12 +3,8 @@ const mongoose = require("mongoose");
 const { RefundRequest } = require("../models/refundModel");
 const { CheckoutIntent } = require("../models/parentModel");
 const {
-  AccessCycle,
-  ArenaAccessState,
   ArenaMatch,
   ArenaPackagePayment,
-  ArenaPaybackReview,
-  MockExamSubscription,
 } = require("../models/goatArenaModel");
 const {
   AssessmentAttempt,
@@ -18,11 +14,11 @@ const {
   User,
   UserNotification,
 } = require("../models/matthsModel");
-const { PaybackPayoutRecord } = require("../models/paybackModel");
 const { completeAdminTodoBySource } = require("./adminTodoService");
 const { getActiveAdminSender } = require("./adminIdentityService");
 const { sendAdminUserEmail } = require("./emailService");
 const { calculateRefundQuote } = require("./refundPolicyService");
+const { freePlanDraft } = require("./accountPlanService");
 const {
   cancelPayment,
   getInicisConfig,
@@ -57,16 +53,13 @@ function addBusinessDaysKst(value, count) {
 }
 
 function productName(payment) {
-  return String(payment.productName || (
-    payment.productCode === "MOCK_EXAM_ONLY"
-      ? "Matths 주간 공식 모의고사 이용권"
-      : "29일 학습권 패키지"
-  ));
+  return String(payment.productName || "Matths Pro");
 }
 
 async function listRefundableOrders(userId) {
   const payments = await ArenaPackagePayment.find({
     userId,
+    productCode: "PRO_MONTHLY",
     status: { $in: ["APPROVED", "APPLIED", "PARTIALLY_REFUNDED"] },
     $expr: { $lt: [{ $ifNull: ["$refundedAmount", 0] }, "$approvedAmount"] },
   })
@@ -88,7 +81,7 @@ async function listRefundableOrders(userId) {
     .filter((payment) => !activePaymentIds.has(String(payment._id)))
     .map((payment) => ({
       id: String(payment._id),
-      productCode: payment.productCode || "LEARNING_PACKAGE_29",
+      productCode: "PRO_MONTHLY",
       productName: productName(payment),
       orderReference: payment.orderReference,
       approvedAt: payment.approvedAt,
@@ -140,6 +133,7 @@ async function createRefundRequest({
   const payment = await ArenaPackagePayment.findOne({
     _id: paymentId,
     userId,
+    productCode: "PRO_MONTHLY",
     status: { $in: ["APPROVED", "APPLIED", "PARTIALLY_REFUNDED"] },
   }).session(session).lean();
   if (!payment || Number(payment.refundedAmount || 0) >= Number(payment.approvedAmount || 0)) {
@@ -171,7 +165,7 @@ async function createRefundRequest({
     supportInquiryId,
     requestedByType: requesterType,
     parentAccountId: requesterType === "PARENT" ? parentAccountId : null,
-    productCode: payment.productCode || "LEARNING_PACKAGE_29",
+    productCode: "PRO_MONTHLY",
     productNameSnapshot: productName(payment),
     orderReferenceSnapshot: payment.orderReference,
     providerPaymentKeySnapshot: payment.providerPaymentKey,
@@ -191,40 +185,11 @@ async function createRefundRequest({
 }
 
 async function resolveServiceWindow(payment, session) {
-  if (payment.productCode === "MOCK_EXAM_ONLY") {
-    const subscription = payment.mockExamSubscriptionId
-      ? await MockExamSubscription.findById(payment.mockExamSubscriptionId)
-          .session(session)
-          .lean()
-      : await MockExamSubscription.findOne({
-          userId: payment.userId,
-          status: { $in: ["ACTIVE", "EXPIRED"] },
-        }).sort({ startsAt: -1 }).session(session).lean();
-    const used = await PrivateMockExamAttempt.exists({
-      userId: payment.userId,
-      startedAt: { $gte: subscription?.startsAt || payment.approvedAt },
-    }).session(session);
-    return {
-      serviceStartAt: subscription?.startsAt || payment.approvedAt,
-      serviceEndAt: subscription?.endsAt || null,
-      paidFeatureUsed: Boolean(used),
-      subscriptionId: subscription?._id || null,
-    };
-  }
-  const cycle = payment.accessCycleId
-    ? await AccessCycle.findById(payment.accessCycleId).session(session).lean()
-    : null;
-  const serviceStartAt = cycle?.startsAt || payment.approvedAt;
+  const serviceStartAt = payment.accountPlanStartsAt || payment.approvedAt;
   const [placementUsed, mockUsed, arenaUsed] = await Promise.all([
     AssessmentAttempt.exists({
       userId: payment.userId,
       scopeType: "placement",
-      placementPurpose: {
-        $in: [
-          "SEASON",
-          "RENEWAL_RANK_ASSESSMENT",
-        ],
-      },
       createdAt: { $gte: serviceStartAt },
     }).session(session),
     PrivateMockExamAttempt.exists({
@@ -241,9 +206,9 @@ async function resolveServiceWindow(payment, session) {
   ]);
   return {
     serviceStartAt,
-    serviceEndAt: cycle?.baseExpiresAt || cycle?.expiresAt || null,
+    serviceEndAt: payment.accountPlanEndsAt || null,
     paidFeatureUsed: Boolean(placementUsed || mockUsed || arenaUsed),
-    cycleId: cycle?._id || payment.accessCycleId || null,
+    accountPlanPaymentId: payment._id,
   };
 }
 
@@ -462,20 +427,6 @@ async function completeRefundRequest({
   if (mode === "PARTIAL" && requestedAmount >= preflightRemaining) {
     throw statusError(400, "남은 결제금액 전부를 취소했다면 전체 취소로 처리해주세요.");
   }
-  const preflightPayoutExists = preflightPayment.accessCycleId
-    ? await PaybackPayoutRecord.exists({
-        cycleId: preflightPayment.accessCycleId,
-        status: "COMPLETED",
-      })
-    : null;
-  if (preflightPayoutExists) {
-    throw statusError(
-      409,
-      "이미 페이백 송금이 완료된 주기입니다. 중복 지급 조정 후 별도 처리해주세요.",
-      "PAYBACK_ALREADY_PAID"
-    );
-  }
-
   if (preflightPayment.provider === "INICIS") {
     const inicisConfig = getInicisConfig();
     if (preflightPayment.providerMode !== inicisConfig.mode) {
@@ -546,73 +497,23 @@ async function completeRefundRequest({
       if (mode === "PARTIAL" && requestedAmount >= remaining) {
         throw statusError(400, "남은 결제금액 전부를 취소했다면 전체 취소로 처리해주세요.");
       }
-      const payoutExists = payment.accessCycleId
-        ? await PaybackPayoutRecord.exists({ cycleId: payment.accessCycleId, status: "COMPLETED" }).session(session)
-        : null;
-      if (payoutExists) {
-        throw statusError(409, "이미 페이백 송금이 완료된 주기입니다. 중복 지급 조정 후 별도 처리해주세요.", "PAYBACK_ALREADY_PAID");
-      }
-
-      if (payment.accessCycleId) {
-        await AccessCycle.updateOne(
-          { _id: payment.accessCycleId, userId: payment.userId },
-          {
-            $set: {
-              status: "CANCELLED",
-              expiresAt: cancelTime,
-              availableLearningDays: 0,
-              paybackScoreDays: 0,
-              lockedPaybackScoreDays: 0,
-              lockedLearningDays: 0,
-              reservedLearningDays: 0,
-              cashbackQualified: false,
-              paybackRate: 0,
-              paybackAmount: 0,
-              paybackPayoutStatus: "CANCELLED",
-              evaluatedAt: cancelTime,
-            },
-            $addToSet: { paybackDisqualifiers: "REFUND_COMPLETED" },
+      await User.updateOne(
+        {
+          _id: payment.userId,
+          "accountPlan.sourcePaymentId": payment._id,
+        },
+        {
+          $set: {
+            accountPlan: freePlanDraft({
+              now: cancelTime,
+              source: "ADMIN",
+              changedByUserId: adminUserId,
+              changeReason: "Pro 플랜 환불 완료",
+            }),
           },
-          { session }
-        );
-        await ArenaAccessState.updateOne(
-          { userId: payment.userId, accessCycleId: payment.accessCycleId },
-          {
-            $set: {
-              state: "PAYMENT_REQUIRED",
-              currentCompetitiveDivision: null,
-              accessCycleId: null,
-              defensePoolEligible: false,
-              weeklyMockEligible: false,
-              finalRankingActive: false,
-              expiredAt: cancelTime,
-              paybackDisqualifiedAt: cancelTime,
-              reasonCode: "REFUND_COMPLETED",
-            },
-          },
-          { session }
-        );
-        await ArenaPaybackReview.updateMany(
-          { cycleId: payment.accessCycleId, status: { $in: ["PENDING", "QUALIFIED", "HELD"] } },
-          {
-            $set: {
-              status: "NOT_QUALIFIED",
-              evaluatedAt: cancelTime,
-              result: { qualified: false, reason: "REFUND_COMPLETED" },
-            },
-          },
-          { session }
-        );
-      }
-      if (payment.productCode === "MOCK_EXAM_ONLY") {
-        await MockExamSubscription.updateMany(
-          payment.mockExamSubscriptionId
-            ? { _id: payment.mockExamSubscriptionId, userId: payment.userId }
-            : { userId: payment.userId, status: "ACTIVE" },
-          { $set: { status: "REFUNDED", endsAt: cancelTime, cancelledAt: cancelTime } },
-          { session }
-        );
-      }
+        },
+        { session }
+      );
 
       const refundedAmount = (payment.refundedAmount || 0) + requestedAmount;
       payment.refundedAmount = refundedAmount;

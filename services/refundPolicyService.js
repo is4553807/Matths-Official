@@ -2,15 +2,10 @@ const REFUND_POLICY_VERSION = "REFUND_POLICY_2026_08_13_V1";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const PRODUCT_RULES = Object.freeze({
-  MOCK_EXAM_ONLY: Object.freeze({
+  PRO_MONTHLY: Object.freeze({
     periodDays: 30,
-    fullRefundUnusedFeature: "Matths 주간 공식 모의고사",
+    fullRefundUnusedFeature: "Pro 전용 기능",
     partialFormula: "부분 환불액 = 결제금액 - 일할 이용금액(결제금액 × 이용일수 ÷ 30일)",
-  }),
-  LEARNING_PACKAGE_29: Object.freeze({
-    periodDays: 29,
-    fullRefundUnusedFeature: "시즌·복귀 배치고사·주간 공식 모의고사·GOAT Arena 등 유료 기능",
-    partialFormula: "부분 환불액 = 결제금액 - 일할 이용금액(결제금액 × 이용일수 ÷ 29일)",
   }),
 });
 

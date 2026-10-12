@@ -35,9 +35,6 @@ const {
 const {
   getPricingProductAccess,
 } = require("../services/checkoutService");
-const {
-  assertMockExamPurchaseEligible,
-} = require("../services/mockExamPaymentService");
 
 async function main() {
   const memoryServer = await MongoMemoryServer.create({
@@ -165,23 +162,9 @@ async function main() {
       student._id,
       new Date("2026-09-01T00:00:00.000Z")
     );
-    assert.equal(pricingAccess.MOCK_EXAM_ONLY.active, true);
-    assert.equal(pricingAccess.MOCK_EXAM_ONLY.purchaseAllowed, false);
-    assert.equal(pricingAccess.MOCK_EXAM_ONLY.includedByAcademyPlan, true);
-    assert.equal(
-      pricingAccess.LEARNING_PACKAGE_29.purchaseAllowed,
-      true,
-      "학원 플랜과 개인 29일 학습권은 함께 사용할 수 있어야 합니다."
-    );
-    await assert.rejects(
-      () =>
-        assertMockExamPurchaseEligible({
-          userId: student._id,
-          now: new Date("2026-09-01T00:00:00.000Z"),
-        }),
-      (error) => error?.code === "ACADEMY_PLAN_ALREADY_INCLUDES_MOCK"
-    );
-
+    assert.deepEqual(Object.keys(pricingAccess), ["PRO_MONTHLY"]);
+    assert.equal(pricingAccess.PRO_MONTHLY.active, false);
+    assert.equal(pricingAccess.PRO_MONTHLY.purchaseAllowed, true);
     const sentEmails = [];
     const reminderAcademy = await Academy.findById(academy._id).lean();
     const reminder = await ensureContractReminder(

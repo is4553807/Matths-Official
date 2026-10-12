@@ -8,7 +8,7 @@ const express = require("express");
 const session = require("express-session");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const { MongoMemoryServer } = require("mongodb-memory-server-core");
+const { MongoMemoryReplSet } = require("mongodb-memory-server-core");
 process.env.NODE_ENV = "development";
 process.env.DISABLE_SCHEDULERS = "1";
 process.env.API_TOKEN_SECRET = crypto.randomBytes(48).toString("hex");
@@ -26,8 +26,10 @@ async function main() {
   let mongo;
   let listener;
   try {
-    mongo = await MongoMemoryServer.create();
-    await mongoose.connect(mongo.getUri("admin_page_access_fixture"));
+    mongo = await MongoMemoryReplSet.create({
+      replSet: { count: 1, storageEngine: "wiredTiger" },
+    });
+    await mongoose.connect(mongo.getUri(), { dbName: "admin_page_access_fixture" });
     const password = "IsolatedAdmin1234";
     const passwordHash = await bcrypt.hash(password, 10);
     const admin = await User.create({ name: "권한검사관리자", email: "admin@fixture.invalid", passwordHash, role: "admin", isActive: true, accountStatus: "active", schoolGrade: 10 });
@@ -76,6 +78,26 @@ async function main() {
     const adminHome = await request("/admin", adminCookie);
     assert.match(adminHome.text, /학원 화면 미리보기/);
     assert.match(adminHome.text, /학부모 화면 미리보기/);
+    assert.doesNotMatch(adminHome.text, /페이백|payback/i);
+    const currentAdminPages = [
+      "/admin/arena-policies",
+      "/admin/arena-live-matches",
+      "/admin/arena-match-history",
+      "/admin/arena-matches",
+      "/admin/arena-audit",
+      "/admin/problem-banks",
+      "/admin/data-analysis",
+      "/admin/operations-guide",
+    ];
+    for (const url of currentAdminPages) {
+      const page = await request(url, adminCookie);
+      assert.doesNotMatch(page.text, /페이백|payback/i, `${url} must not expose retired payback operations`);
+    }
+    const arenaPolicyPage = await request("/admin/arena-policies", adminCookie);
+    assert.match(arenaPolicyPage.text, /과거 기록 풀/);
+    assert.match(arenaPolicyPage.text, /배치 복구/);
+    assert.match(arenaPolicyPage.text, /월 5,500원/);
+    await request("/admin/paybacks", adminCookie, {}, 404);
     const adminToken = createAccessToken(admin);
     const teacherToken = createAccessToken(teacher);
     async function apiRequest(url, token, expected = 200) {
@@ -113,7 +135,7 @@ async function main() {
     const dashboard = await request(`/parent?parentId=${parent._id}`, adminCookie);
     assert.match(dashboard.text, /관리자 미리보기 · 읽기 전용/);
     assert.match(dashboard.text, /권한검사학생/);
-    for (const url of ["/parent/notifications", "/parent/payments", "/parent/inquiries", "/parent/pricing", "/parent/checkout/MOCK_EXAM_ONLY"]) await request(url, adminCookie);
+    for (const url of ["/parent/notifications", "/parent/payments", "/parent/inquiries", "/parent/pricing", "/parent/checkout/PRO_MONTHLY"]) await request(url, adminCookie);
     assert.equal(await ParentChildLink.countDocuments({ parentAccountId: parent._id }), beforeLinks, "admin preview must not create legacy child links");
     await request(`/parent?parentId=${unlinkedParent._id}`, adminCookie);
     await request("/parent/notifications", adminCookie);

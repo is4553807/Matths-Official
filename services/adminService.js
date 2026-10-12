@@ -13,6 +13,7 @@ const {
   User,
   UserNotification,
 } = require("../models/matthsModel");
+const { ArenaCompetitiveProfile } = require("../models/goatArenaModel");
 const mongoose = require("mongoose");
 const { Academy } = require("../models/academyModel");
 const {
@@ -56,9 +57,6 @@ const {
 const {
   getWeeklyMockExamAccess,
 } = require("./paidFeatureAccessService");
-const {
-  getUserArenaBadges,
-} = require("./arenaBadgeService");
 const {
   getActiveAdminSender,
 } = require("./adminIdentityService");
@@ -155,14 +153,12 @@ function sanctionActionLabel(action) {
 
 function adminAuditActionLabel(action) {
   const exact = {
-    "finance.payback-completed": "페이백 지급 완료",
-    "finance.payback-email-resent": "페이백 이메일 재발송",
     "finance.business-withdrawal": "사업자 출금 기록",
     "finance.other-unpaid-costs": "기타 미지급 비용 변경",
     "user.email": "사용자 이메일 발송",
     "user.password-reset": "비밀번호 재설정 발송",
     "user.notification": "우편함 알림 발송",
-    "user.package-access": "이용권·Division 권한 변경",
+    "user.package-access": "과거 계정 권한 변경",
     "user.role": "회원 역할 변경",
     "academy.application-approved": "학원 등록 승인",
     "academy.application-rejected": "학원 등록 거절",
@@ -1143,7 +1139,7 @@ async function getAdminUsersData({
   const mergeLimit = safeCurrentPage * USERS_PER_PAGE;
   const studentQuery = User.find(filter)
     .select(
-      "name realName email role school university schoolGrade isActive accountStatus accountStatusReason suspendedUntil warningCount totalStudySeconds currentStreak longestStreak lastStudyDate lastLoginAt createdAt"
+      "name realName email role accountPlan school university schoolGrade isActive accountStatus accountStatusReason suspendedUntil warningCount totalStudySeconds currentStreak longestStreak lastStudyDate lastLoginAt createdAt"
     )
     .sort({ createdAt: -1, _id: -1 });
   if (includeParents) {
@@ -1639,10 +1635,10 @@ async function getAdminUserDetail(
     communityPosts,
     packageAccess,
     weeklyMockAccess,
-    arenaBadges,
     arenaActivityLevel,
     arenaRecentMatches,
     arenaConceptInsights,
+    arenaCompetitiveProfile,
   ] = await Promise.all([
     isAdminProfile
       ? Promise.resolve([])
@@ -1741,8 +1737,7 @@ async function getAdminUserDetail(
       ? Promise.resolve({ current: null })
       : getRankingData(userId),
     AdminActionLog.find({
-      targetUserId:
-        user._id,
+      targetUserId: user._id,
     })
       .sort({
         createdAt: -1,
@@ -1767,9 +1762,6 @@ async function getAdminUserDetail(
       ? Promise.resolve(null)
       : getWeeklyMockExamAccess(userId),
     isAdminProfile
-      ? Promise.resolve([])
-      : getUserArenaBadges(userId),
-    isAdminProfile
       ? Promise.resolve(null)
       : getArenaActivityLevel(userId),
     isAdminProfile
@@ -1778,6 +1770,9 @@ async function getAdminUserDetail(
     isAdminProfile
       ? Promise.resolve(emptyAdminArenaConceptInsights())
       : getAdminArenaConceptInsights(userId),
+    isAdminProfile
+      ? Promise.resolve(null)
+      : ArenaCompetitiveProfile.findOne({ userId }).lean(),
   ]);
   const stats =
     problemStats[0] || {
@@ -1853,10 +1848,10 @@ async function getAdminUserDetail(
     identityMatches,
     packageAccess,
     weeklyMockAccess,
-    arenaBadges,
     arenaActivityLevel,
     arenaRecentMatches,
     arenaConceptInsights,
+    arenaCompetitiveProfile,
   };
 }
 
@@ -1893,10 +1888,11 @@ async function getAdminParentDetail(parentId) {
   const activeLinks = links.filter((link) => link.status === "ACTIVE" && link.childUserId);
   const children = await Promise.all(activeLinks.map(async (link) => {
     const child = link.childUserId;
-    const [dashboard, ranking, packageAccess] = await Promise.all([
+    const [dashboard, ranking, packageAccess, arenaProfile] = await Promise.all([
       getDashboardData(child._id),
       getRankingData(child._id),
       getAdminPackageAccessSummary(child._id),
+      ArenaCompetitiveProfile.findOne({ userId: child._id }).lean(),
     ]);
     return {
       link,
@@ -1904,6 +1900,7 @@ async function getAdminParentDetail(parentId) {
       dashboard: dashboard.stats || {},
       ranking: ranking.current || null,
       packageAccess,
+      arenaProfile,
     };
   }));
 

@@ -139,7 +139,7 @@ async function consumeSocialProof(
       expiresAt: { $gt: new Date(now) },
     },
     { $set: { consumedAt: new Date(now) } },
-    { new: true }
+    { returnDocument: "after" }
   );
   return Boolean(consumed);
 }

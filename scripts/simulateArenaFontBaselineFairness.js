@@ -1,0 +1,16 @@
+"use strict";
+const {createHash}=require('node:crypto');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const {PUBLIC_DIFFICULTY_SPECS}=require('../services/arenaOneOnOneDifficultyPolicy');
+const {calculateCompetitivePerformance,compareCompetitivePerformance}=require('../services/arenaCompetitiveScoringService');
+const {GOAT_ARENA_V2_CONFIG}=require('../services/goatArenaV2Config');
+function seededRandom(){let s=0x60b2026;return()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return(s>>>0)/4294967296;};}
+function simulate(directory){const m=JSON.parse(fs.readFileSync(path.join(directory,'manifest.json')));assert.equal(m.questionCountPerTier,60);const random=seededRandom(),tiers=[];
+ for(const tier of m.tiers){const pool=m.questions.filter(q=>q.difficultyCode===tier.difficultyCode),range=PUBLIC_DIFFICULTY_SPECS[tier.difficultyCode].defenderAccuracy,p=(range[0]+range[1])/2;let wins=0,losses=0,draws=0;const trials=100000;
+  for(let n=0;n<trials;n++){const indexes=new Set();while(indexes.size<5)indexes.add(Math.floor(random()*pool.length));const set=[...indexes].map(i=>pool[i]);let baseTime=0,userTime=0;const user=set.map(q=>{baseTime+=q.baselineSolveTimeMs;userTime+=q.baselineSolveTimeMs*(.75+random()*.5);return{questionKey:q.baselineKey,correct:random()<p,sourceAccuracyRate:q.sourceAccuracyRate};});const opponent=set.map(q=>({questionKey:q.baselineKey,correct:q.baselineCorrect,sourceAccuracyRate:q.sourceAccuracyRate}));const comparison=compareCompetitivePerformance(calculateCompetitivePerformance({questions:user,totalSolveTimeMs:userTime}),calculateCompetitivePerformance({questions:opponent,totalSolveTimeMs:baseTime}),{closeScoreThreshold:GOAT_ARENA_V2_CONFIG.asyncNormal.closeScoreThreshold});if(comparison.winnerRole==='CHALLENGER')wins++;else if(comparison.winnerRole==='DEFENDER')losses++;else draws++;}
+  const winRate=wins/trials;tiers.push({...tier,assumedSameRatingUserAccuracy:p,trials,wins,losses,draws,challengerWinRate:winRate,withinProvisionalFairnessBand:winRate>=.4&&winRate<=.6});console.log(JSON.stringify({tier:tier.difficultyCode,winRate,passed:tiers.at(-1).withinProvisionalFairnessBand}));
+ }
+ const result={schemaVersion:'MATTHS_BASELINE_BETA_CALIBRATION_V1',batchKey:m.batchKey,manifestSha256:createHash('sha256').update(fs.readFileSync(path.join(directory,'manifest.json'))).digest('hex'),generatedAt:new Date().toISOString(),modelBased:true,empiricalHumanCalibration:false,trials:900000,provisionalFairnessBand:[.4,.6],assumptions:['Same-MMR user accuracy is the midpoint of the configured tier range.','Each trial samples five unique reference questions; correctness is independent.','Solve time is 75% to 125% of reference estimated time, with the production comparison function.','This approves an initial beta hypothesis; it does not establish real-user win rates.'],activationApproved:tiers.every(t=>t.withinProvisionalFairnessBand),tiers};fs.writeFileSync(path.join(directory,'fairness-simulation.json'),JSON.stringify(result,null,2)+'\n');if(!result.activationApproved)process.exitCode=2;return result;
+}
+if(require.main===module)simulate(path.resolve(process.argv[2]||'output/baseline/normal60_20261012'));
+module.exports={simulate};

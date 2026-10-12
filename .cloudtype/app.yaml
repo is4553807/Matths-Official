@@ -38,7 +38,7 @@ options:
     - name: APPLE_OAUTH_REDIRECT_URI
       value: https://www.matths.kr/auth/apple/callback
     - name: APPLE_ALLOW_SANDBOX
-      value: "true"
+      value: "false"
     - name: APPLE_TEAM_ID
       value: 64U874RU4D
     - name: APPLE_KEY_ID

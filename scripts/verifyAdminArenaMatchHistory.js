@@ -17,13 +17,12 @@ const filters = normalizeHistoryFilters({
   query: "challenger",
   dateFrom: "2026-08-01",
   dateTo: "2026-08-28",
-  division: "main",
-  matchType: "normal",
+  gameMode: "competitive",
   status: "settled",
   integrityStatus: "clear",
   participantId: ids.challenger,
 });
-assert.equal(filters.division, "MAIN");
+assert.equal(filters.gameMode, "COMPETITIVE");
 assert.equal(filters.status, "SETTLED");
 assert.equal(filters.participantId, ids.challenger);
 
@@ -37,12 +36,13 @@ const match = {
   matchKey: "MAIN:NORMAL:20260828:001",
   seasonKey: "2026-S3",
   division: "MAIN",
+  gameMode: "COMPETITIVE",
   matchType: "NORMAL",
   status: "SETTLED",
   integrityStatus: "CLEAR",
   tierPairLabel: "R3 → R2",
-  challenger: { userId: ids.challenger, stakeDays: 1 },
-  defender: { userId: ids.defender, stakeDays: 1 },
+  challenger: { userId: ids.challenger },
+  defender: { userId: ids.defender },
   winnerRole: "CHALLENGER",
   resultSnapshot: {
     challenger: { score: 80, correctCount: 4 },
@@ -82,7 +82,6 @@ assert.deepEqual(
     "INVALID",
     "SETTLED",
     "CANCELLED",
-    "INSURED_CANCELLED",
   ],
   "부정행위 여부와 무관한 모든 종료 상태를 포함해야 합니다."
 );
@@ -94,7 +93,7 @@ assert.match(source("routes/matths-routes.js"), /"\/admin\/arena-match-history"/
 assert.match(source("controllers/matthsController.js"), /adminArenaMatchHistoryPage/);
 assert.match(source("views/partials/admin-navigation.ejs"), /전체 경기 기록/);
 assert.match(source("views/admin-arena-match-history.ejs"), /닉네임·실명·이메일·경기 ID/);
-assert.match(source("views/admin-arena-match-history.ejs"), /부정행위 검토 여부와 관계없이/);
+assert.match(source("views/admin-arena-match-history.ejs"), /일반전·경쟁전·친선전/);
 assert.match(source("services/adminService.js"), /getAdminUserRecentArenaMatches\(userId, 5\)/);
 assert.match(source("views/admin-user-detail.ejs"), /최근 5경기/);
 

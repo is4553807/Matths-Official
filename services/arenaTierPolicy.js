@@ -1,16 +1,12 @@
-/*
- * GOAT Arena의 공개 GP는 모든 티어에서 0~99입니다. `legacyMinGp`와
- * `legacyMaxGp`는 과거 누적 GP를 일회성으로 변환할 때만 사용하며 신규
- * 순위·화면·정산에서는 티어와 티어 내부 GP를 하나의 tuple로 취급합니다.
- */
+/* GOAT Arena의 공개 GP는 모든 티어에서 0~99이며 레이팅 컷오프는 별도다. */
 const ARENA_TIER_CONFIG = [
   {
     code: "BRONZE",
     label: "브론즈",
     minGp: 0,
     maxGp: 99,
-    legacyMinGp: 0,
-    legacyMaxGp: 799,
+    ratingMin: 0,
+    ratingMax: 799,
     estimatedPercentLabel: "상위 80~100%",
   },
   {
@@ -18,8 +14,8 @@ const ARENA_TIER_CONFIG = [
     label: "실버",
     minGp: 0,
     maxGp: 99,
-    legacyMinGp: 800,
-    legacyMaxGp: 924,
+    ratingMin: 800,
+    ratingMax: 924,
     estimatedPercentLabel: "상위 60~80%",
   },
   {
@@ -27,8 +23,8 @@ const ARENA_TIER_CONFIG = [
     label: "골드",
     minGp: 0,
     maxGp: 99,
-    legacyMinGp: 925,
-    legacyMaxGp: 1024,
+    ratingMin: 925,
+    ratingMax: 1024,
     estimatedPercentLabel: "상위 42~60%",
   },
   {
@@ -36,8 +32,8 @@ const ARENA_TIER_CONFIG = [
     label: "플래티넘",
     minGp: 0,
     maxGp: 99,
-    legacyMinGp: 1025,
-    legacyMaxGp: 1119,
+    ratingMin: 1025,
+    ratingMax: 1119,
     estimatedPercentLabel: "상위 27~42%",
   },
   {
@@ -45,8 +41,8 @@ const ARENA_TIER_CONFIG = [
     label: "에메랄드",
     minGp: 0,
     maxGp: 99,
-    legacyMinGp: 1120,
-    legacyMaxGp: 1209,
+    ratingMin: 1120,
+    ratingMax: 1209,
     estimatedPercentLabel: "상위 17~27%",
   },
   {
@@ -54,8 +50,8 @@ const ARENA_TIER_CONFIG = [
     label: "다이아몬드",
     minGp: 0,
     maxGp: 99,
-    legacyMinGp: 1210,
-    legacyMaxGp: 1329,
+    ratingMin: 1210,
+    ratingMax: 1329,
     estimatedPercentLabel: "상위 9~17%",
   },
   {
@@ -63,8 +59,8 @@ const ARENA_TIER_CONFIG = [
     label: "마스터",
     minGp: 0,
     maxGp: 99,
-    legacyMinGp: 1330,
-    legacyMaxGp: 1439,
+    ratingMin: 1330,
+    ratingMax: 1439,
     maxTopPercentile: 0.05,
     estimatedPercentLabel: "상위 4~9%",
   },
@@ -73,8 +69,8 @@ const ARENA_TIER_CONFIG = [
     label: "그랜드마스터",
     minGp: 0,
     maxGp: 99,
-    legacyMinGp: 1440,
-    legacyMaxGp: 1519,
+    ratingMin: 1440,
+    ratingMax: 1519,
     maxTopPercentile: 0.015,
     estimatedPercentLabel: "상위 1~4%",
   },
@@ -83,8 +79,8 @@ const ARENA_TIER_CONFIG = [
     label: "챌린저",
     minGp: 0,
     maxGp: 99,
-    legacyMinGp: 1520,
-    legacyMaxGp: Infinity,
+    ratingMin: 1520,
+    ratingMax: Infinity,
     maxTopPercentile: 0.005,
     estimatedPercentLabel: "상위 1%",
   },
@@ -142,16 +138,16 @@ function arenaTierIndex(value) {
   return ARENA_TIER_INDEX.get(arenaTierByValue(value).code) || 0;
 }
 
-function baseArenaTierForGp(gp) {
+function arenaTierForRating(rating) {
   const value = Math.max(
     0,
-    Number(gp) || 0
+    Number(rating) || 0
   );
   return (
     ARENA_TIER_CONFIG.find(
       (tier) =>
-        value >= tier.legacyMinGp &&
-        value <= tier.legacyMaxGp
+        value >= tier.ratingMin &&
+        value <= tier.ratingMax
     ) ||
     ARENA_TIER_CONFIG[
       ARENA_TIER_CONFIG.length - 1
@@ -159,33 +155,11 @@ function baseArenaTierForGp(gp) {
   );
 }
 
-function localGpFromLegacyGp(gp, tierValue = null) {
-  const value = Math.max(0, Number(gp) || 0);
-  const tier = tierValue
-    ? arenaTierByValue(tierValue)
-    : baseArenaTierForGp(value);
-  if (!Number.isFinite(tier.legacyMaxGp)) {
-    return Math.max(0, Math.min(99, Math.round(value - tier.legacyMinGp)));
-  }
-  const width = Math.max(1, tier.legacyMaxGp - tier.legacyMinGp);
-  return Math.max(
-    0,
-    Math.min(99, Math.round(((value - tier.legacyMinGp) / width) * 99))
-  );
-}
-
-function arenaTupleFromLegacyGp(gp) {
-  const tier = baseArenaTierForGp(gp);
-  return {
-    arenaRank: tier.label,
-    arenaGp: localGpFromLegacyGp(gp, tier.code),
-  };
-}
-
 /*
  * Unranked는 배치고사 또는 현재 Arena 상태의 티어를 그대로 사용합니다.
  * 활성 모집단 규모에 따른 인원·백분위 상한은 Ranked에만 적용합니다.
- * Skill MMR 설정은 가져오지 않으며 ArenaStanding 재배치에서만 사용합니다.
+ * 내부 MMR과 공개 경쟁전 점수를 혼합하지 않는다. 공개 티어는 경쟁전
+ * 점수 컷오프를 표시할 때만 이 정책으로 계산한다.
  */
 function resolveArenaTier({
   division = "MAIN",
@@ -196,7 +170,7 @@ function resolveArenaTier({
 }) {
   let tier = rank
     ? arenaTierByValue(rank)
-    : baseArenaTierForGp(gp);
+    : arenaTierForRating(gp);
   const count = Math.max(
     0,
     Number(activeRankerCount) || 0
@@ -346,8 +320,6 @@ module.exports = {
   arenaTierIndex,
   arenaTierGuide,
   arenaUpperTierPopulationGuide,
-  arenaTupleFromLegacyGp,
-  baseArenaTierForGp,
-  localGpFromLegacyGp,
+  arenaTierForRating,
   resolveArenaTier,
 };

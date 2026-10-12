@@ -1,0 +1,273 @@
+GOAT Arena 2.0 — implementation handoff
+Date: 2026-10-09
+Repository: Matths-Official
+
+SUPERSEDED NOTICE (2026-10-09): GOAT Arena 2.1 replaces the competitive
+runtime described here, and the approved availability policy is 24/7 including
+Sundays. See GOAT_ARENA_2_1_IMPLEMENTATION_REPORT.md for the current state and
+production blockers. This remains a historical 2.0 handoff only.
+
+STATUS
+
+Implemented and automatically verified in the local working tree. Not committed,
+deployed, or applied to the production database. Production index preparation,
+operator-approved rating configuration, migration policy, and browser/device QA
+remain rollout prerequisites.
+
+IMPLEMENTED CHANGES
+
+1. Free modes and progression
+   - 일반전 is available without placement, payment, or learning-day balance.
+   - 경쟁전 requires three normally completed 일반전 matches AND finalized placement.
+   - 일반전 remains available after competitive unlock.
+   - Valid 일반전/경쟁전 completion awards account XP; 친선전 awards none.
+   - Existing activity-level thresholds are reused. One valid match defaults to
+     one XP, matching the previous completed-match activity unit.
+   - Forfeits, no-shows, and operator-adjudicated endings do not award XP or count
+     toward the three normal completions. Valid competitive adjudications can
+     produce a rated win/loss; server-invalid games cannot.
+
+2. Placement
+   - One to five optional INITIAL placements; first valid result is provisional.
+   - Exact early-finalization action: 더 이상 배치고사 안 보기.
+   - Five used slots automatically finalize if at least one valid sample exists.
+   - Existing placement score-to-initial-MMR calibration is reused. Valid samples
+     are averaged; fewer samples have higher configurable RD.
+   - Pending verification cannot be finalized. Abandoned/disqualified placements
+     consume slots but do not become rating samples.
+   - Rating initialization is atomic and one-time. Repeated profile reads or
+     finalization cannot overwrite competitive MMR already earned.
+
+3. Matchmaking and gameplay reuse
+   - One competitive ALL pool, with no concept/unit selection queues.
+   - Nearby MMR candidates first; configurable widening windows and recent-
+     opponent protection; heartbeat expiry, cancellation, and retry support.
+   - Atomic pairing, existing participant locks, and unique active queue keys
+     protect against self-matches, concurrent joins, and duplicate matches.
+   - Existing question generator, sealed packs, timers, answer input, and five-
+     question progression are reused. Both players get the same pack and limits.
+   - Existing Algebra, Calculus I, and Probability/Statistics bank is reused.
+   - No competitive bots or bot-rated results were introduced.
+   - Existing per-player server timers/reconnect/deadline behavior is retained;
+     starts are not forcibly synchronized by a new gameplay engine.
+
+4. Results and Glicko-2
+   - Correct count first, then valid server-measured solve time, then draw.
+   - Photo-upload time is not included in solve time.
+   - Competitive-only Glicko-2 Rating/RD/Volatility, updated once per match from
+     both pre-match rating snapshots; draws use score 0.5.
+   - Existing tier names/designs/cutoffs are reused. Decimal ratings use the
+     existing lower-bound cutoffs continuously, avoiding integer-range gaps.
+   - Full-precision rating is stored; UI shows integer MMR. Result snapshots keep
+     two-decimal before/after/delta values and tier transition labels.
+   - Existing nonnegative-MMR behavior is retained (rating floor 0).
+   - Settlement, XP, statistics, result snapshots, lock release, and outbox events
+     share a MongoDB transaction. A unique match settlement record prevents replay.
+   - Held reviews use an adapter around existing stored evidence/review states.
+   - Voluntary forfeits are accepted before either participant enters evidence
+     submission, avoiding a race with the protected upload service. Later
+     abandonment follows the existing deadline/no-show/review path.
+
+5. Friends and friendly matches
+   - Exact username or exact email lookup; emails are not returned to other users.
+   - Requests, acceptance, decline, mutual-request acceptance, and friendship.
+   - Level, finalized competitive tier (otherwise 미배치), online/game status.
+   - Existing last-connected presence data plus periodic status refresh.
+   - Friend-only invitations, expiry/decline/cancel, idempotent replay, and atomic
+     invitation acceptance plus match creation.
+   - Existing 1v1 engine; no XP, MMR, tier, or competitive-stat changes.
+
+6. Economy removal and compatibility
+   - New v2 matches do not deposit, refund, transfer learning days, pay back, swap
+     tiers, or require a paid Arena product. Retired user economy actions return
+     HTTP 410. Entry pages/help/pricing/home now describe free Arena 2.0.
+   - Existing learning-product billing, refunds, and historic transaction records
+     are preserved. Legacy match documents still use their legacy handlers; they
+     were not silently rewritten into v2 matches.
+   - Existing rankings entry point reads v2 ratings instead of paid standings.
+     No new season lifecycle, eight-week resets, season rewards, or achievements.
+   - No AI analysis, OCR, vision calls, mathematical-feedback generation, or new
+     Pro-plan implementation was added.
+
+PROTECTED UPLOAD / DETECTION BOUNDARY
+
+The following files are byte-identical to HEAD, with an automated guard:
+  middleware/arenaEvidenceUpload.js
+  middleware/uploadContentValidation.js
+  services/arenaMatchEvidenceService.js
+  services/arenaIntegrityRiskService.js
+  services/arenaInlineSolutionBoardService.js
+  services/arenaClientEvidenceReviewService.js
+  public/js/goat-arena-match.js
+  views/goat-arena-supplemental-evidence.ejs
+
+The existing evidence-upload UI section and evidence/attempt schemas remain
+unchanged. Match-page edits surround that flow: navigation, mode labels, result
+presentation, and pre-upload forfeit action. Existing detection/review services
+are consumed through stored results and compatibility adapters, not rewritten.
+
+The protected upload code still blocks Sunday 15:00–Monday 00:00 KST. Matchmaking
+retains the existing Sunday 14:00 start cutoff so a newly started game is not
+sent into an upload window the protected service would reject. Removing this
+restriction requires explicit authorization to change protected code.
+
+DATABASE CHANGES
+
+New collections/models:
+  arenacompetitiveprofiles / ArenaCompetitiveProfile
+    user-unique XP, level, normal count, competitive statistics, placement state,
+    provisional/current Rating/RD/Volatility, tier, initialization timestamp.
+  arenamatchmakingentries / ArenaMatchmakingEntry
+    single ALL pool, snapshots, heartbeat/status, unique activeKey partial index.
+  arenaratingsettlements / ArenaRatingSettlement
+    unique matchId, outcome, rating/progression summaries; exact-once guard.
+  arenafriendrequests / ArenaFriendRequest
+    user pairs and status; unique pending pair partial index.
+  arenafriendships / ArenaFriendship
+    unique accepted pair and acceptance provenance.
+  arenafriendlyinvitationv2 / ArenaFriendlyInvitationV2
+    request idempotency, recipients, expiry/status, accepted match reference.
+
+Existing ArenaMatch adds arenaVersion, gameMode, and v2 match-origin enum values.
+Participant standing/cycle/tuple requirements remain mandatory for legacy
+documents, but are optional for v2's free matches. Old documents default to LEGACY.
+No existing collection, transaction record, or user history was dropped.
+
+Profiles are lazily created, preserving legacy completed-match activity as the
+initial XP baseline. Existing valid INITIAL placement records can seed provisional
+placement estimates. Old current rating/standing tuples are NOT mass-converted;
+old normal matches are NOT automatically relabeled as v2 unlock completions.
+
+Index tool: npm run arena-v2:indexes
+  Default is read-only, checking exact declared keys/unique/partial properties.
+  Explicit --apply creates missing declared indexes; it never syncs/drops indexes.
+  Checks six new models plus ArenaMatch and the existing participant-lock model.
+  Requires the deployment DB secret and a transaction-capable MongoDB deployment.
+  No production invocation or production mutation was performed.
+
+TESTS AND RESULTS
+
+PASS: npm run arena-v2:verify
+  Official Glicko-2 worked example: 1464.06 rating, 151.52 RD, 0.059996 volatility.
+  Source: https://www.glicko.net/glicko/glicko2.pdf
+  Draws, correct-count/time/missing-time scoring, placement RD, unlock, all decimal
+  tier boundaries, schemas, free ALL-pool wiring, protected-file byte checks, and
+  Sunday compatibility. Invalid/nondecreasing RD overrides are also rejected.
+
+PASS: isolated MongoDB 8.2.6 replica-set suite (no operating database)
+  node audit/runMemoryMongoSuite.js audit/verifyGoatArenaV2Db.js
+       audit/verifyIpadArenaCommandDb.js audit/verifyIpadArenaClientReviewDb.js
+  All three audits passed: all mode creation paths, shared sealed questions,
+  five-question engine progression, existing evidence-submission interface,
+  placement/finalization/unlock, concurrent duplicate joins and settlements,
+  tier promotion/demotion, queue heartbeat/reentry, held reviews, cheating cases,
+  invalid cancellation, forfeits, XP isolation, friend privacy/requests/invitations,
+  repeated placement reads preserving settled MMR, and existing iPad gameplay and
+  client-evidence-review ownership/idempotency/scoring isolation.
+  Evidence uses prepared file metadata in the existing service interface; this is
+  not a live object-storage/photo-upload transport or email-delivery test.
+  Expected SMTP-not-configured warnings occur in the isolated audit environment.
+
+PASS: 20 regression scripts
+  arena-match:verify, arena-match-attempt:verify, arena-match-settlement:verify,
+  arena-level:verify, arena-question-design:verify, arena-pdf-runtime:verify,
+  placement:verify, placement-story:verify, ipad-arena-command-http:verify,
+  ipad-arena-action-http:verify, ipad-placement-http:verify,
+  ipad-server-surface:verify, runtime:verify, http-surface:verify,
+  korean-only:verify, home-arena-tier:verify, ui:verify, upload-security:verify,
+  arena-integrity:verify, pricing-entitlements:verify.
+  UI verification compiled 155 EJS templates. Question-runtime regression generated
+  360 packs / 1,800 questions. Legacy settlement tests deliberately continue to
+  verify legacy behavior; v2 isolation/removal is covered by the new audits.
+
+PASS: 33 changed JavaScript files passed node --check; git diff --check clean.
+PASS: local HTTP fixture rendering of dashboard/provisional/unlocked/friends/profile.
+NOT VERIFIED: visual browser/device QA; in-app browser failed to attach.
+FAIL (pre-existing, unchanged): npm run contrast:verify
+  academy.css .academy-attendance-export:disabled — 2.48:1
+  admin.css .admin-arena-concept-group>header>strong — 3.15:1
+  admin.css .admin-arena-observing — 4.16:1
+  These unrelated styles were not modified in this task.
+
+ROLLOUT / PRODUCT DECISIONS STILL REQUIRED
+
+1. Approve production rating tuning: official-example defaults (1500/350/0.06,
+   tau 0.5), per-match rating period, placement mean/calibration and RD curve
+   350/sqrt(valid samples), matchmaking widening windows, repeat-opponent window,
+   XP/presence/invitation settings. These are centralized configurable defaults,
+   not newly confirmed product constants. Existing tier cutoffs are reused.
+2. Decide existing-user migration: old current tier/MMR vs new placement-based
+   initial rating, whether old normal matches should count for unlock, handling
+   in-flight legacy matches, and historic Arena financial obligations. No bulk
+   conversion, balance adjustment, or destructive migration was performed.
+3. Define recovery if all five placement slots are invalid/abandoned. At least one
+   valid sample is necessary, and the implementation does not invent a free sixth
+   attempt or an unearned tier. An operator/reset policy needs product approval.
+4. Decide whether to authorize protected-code changes for 24/7 Sunday availability
+   or post-upload voluntary forfeits. Current compatibility restrictions remain.
+5. Prepare indexes in staging/production, verify transactions and real storage,
+   complete browser/device gameplay QA, then deploy through the normal release
+   process. The isolated tests are not a production migration or live smoke test.
+
+FILES MODIFIED (31 tracked files)
+
+Controllers/routes/models:
+  controllers/goatArenaController.js
+  controllers/ipadAdminArenaController.js
+  controllers/ipadPlacementController.js
+  controllers/matthsController.js
+  models/goatArenaModel.js
+  routes/api-routes.js
+  routes/goat-arena-routes.js
+
+Existing services:
+  services/arenaActivityLevelService.js
+  services/arenaLandingSpotlightService.js
+  services/arenaMatchAttemptService.js
+  services/arenaMatchSettlementService.js
+  services/arenaNotificationService.js
+  services/arenaProblemPackService.js
+  services/goatArenaProductionMatchReadService.js
+  services/mainArenaSettlementService.js
+  services/mainFriendlyMatchService.js
+  services/placementExamService.js
+
+Views/styles:
+  public/css/goat-arena.css
+  views/faq.ejs
+  views/goat-arena-match.ejs
+  views/index.ejs
+  views/main.ejs
+  views/partials/arena-contract.ejs
+  views/partials/goat-arena-navigation.ejs
+  views/pricing.ejs
+  views/terms.ejs
+  views/war-of-masters.ejs
+
+Tooling:
+  package.json
+  scripts/previewLocalUi.js
+  scripts/verifyFreePlacementStory.js
+  scripts/verifyHomeArenaTier.js
+
+FILES ADDED (18 implementation/test files + this report)
+
+  audit/verifyGoatArenaV2Db.js
+  controllers/goatArenaV2Controller.js
+  public/css/goat-arena-v2.css
+  public/js/goat-arena-v2.js
+  scripts/prepareGoatArenaV2Indexes.js
+  scripts/verifyGoatArenaV2.js
+  services/arenaFriendService.js
+  services/arenaV2IntegrityReviewAdapter.js
+  services/arenaV2MatchmakingService.js
+  services/arenaV2ProfileService.js
+  services/arenaV2SettlementService.js
+  services/glicko2Service.js
+  services/goatArenaV2Config.js
+  services/goatArenaV2ReadService.js
+  views/goat-arena-v2-rankings.ejs
+  views/goat-arena-v2-rules.ejs
+  views/goat-arena-v2.ejs
+  views/partials/goat-arena-v2-nav.ejs
+  audit/GOAT_ARENA_2_0_IMPLEMENTATION_REPORT.txt

@@ -1,0 +1,219 @@
+<%
+  const formatDuration = (value) => {
+    if (!Number.isFinite(Number(value))) return "기록 없음";
+    const seconds = Math.max(0, Math.round(Number(value) / 1000));
+    return `${Math.floor(seconds / 60)}분 ${String(seconds % 60).padStart(2, "0")}초`;
+  };
+  const formatAdjustedScore = (value) => Number.isFinite(Number(value))
+    ? Number(value).toFixed(2)
+    : "기록 없음";
+  const formatAccuracy = (value) => Number.isFinite(Number(value))
+    ? `${(Number(value) * 100).toFixed(1).replace(/\.0$/, "")}%`
+    : "확인 불가";
+  const formatExpiry = (value) => {
+    if (!value || Number.isNaN(new Date(value).getTime())) return "";
+    return new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date(value));
+  };
+  const expiresAtLabel = challenge.expiresAtLabel || formatExpiry(challenge.expiresAt);
+  const linkTtlDays = Number(challenge.linkTtlDays) || 3;
+  const canPreviewSolution = (file) => file?.previewable === true;
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#070913" />
+    <title><%= challenge.creatorName %>님의 친선전 | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css?noteGrid=1" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["\\[","\\]"]]},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}};</script>
+    <script src="/vendor/mathjax/tex-svg.js" defer></script>
+    <script src="/js/math-renderer.js" defer></script>
+    <% if (challenge.currentQuestion || challenge.result || challenge.leaderboard?.visible) { %><script src="/js/arena-problem-visualization.js" defer></script><% } %>
+    <script src="/js/matths-note-grid.js" defer></script>
+    <script src="/js/arena-guest-challenge.js?noteGrid=1" defer></script>
+  </head>
+  <body class="goat-arena-page arena-inner-page arena-match-page">
+    <main class="arena-page-main arena-match-main" id="arena-guest-main">
+      <header class="arena-page-heading arena-match-heading">
+        <div><p>친선전 · 단체 도전장</p><h1><%= challenge.creatorName %>님의 기록에 도전</h1></div>
+        <p><%= challenge.accountArchive
+          ? "가입할 때 연결된 게스트 친선전 기록입니다. 경기 당사자에게만 실제 문제와 풀이과정을 공개합니다."
+          : "로그인 없이 닉네임과 생년월일을 확인하고 같은 5문제를 풉니다. 문항마다 10분이며, 완료한 참가자끼리 순위를 확인합니다." %></p>
+      </header>
+
+      <% if (errorMessage) { %><p class="arena-challenge-notice error" role="alert"><%= errorMessage %></p><% } %>
+
+      <% if (challenge.expiredBeforeClaim) { %>
+        <section class="arena-match-wait-card"><small>링크 만료</small><h2><%= linkTtlDays %>일의 참여 기간이 끝났습니다.</h2><p><%= expiresAtLabel ? `${expiresAtLabel}에 만료되었습니다. ` : "" %>발신자에게 새 링크를 요청해야 합니다.</p></section>
+      <% } else if (!challenge.isGuest && !challenge.isCreator) { %>
+        <section class="arena-match-lobby-card">
+          <div><small>도전장 참가</small><h2>닉네임과 생년월일을 입력하세요.</h2><p>이 조합으로는 도전장마다 한 번만 풀 수 있습니다. 이미 완료했다면 같은 조합으로 순위표에 바로 돌아갑니다.</p></div>
+          <form action="/arena-invite/<%= encodeURIComponent(challenge.token) %>/claim" method="post" data-guest-nickname-form data-token="<%= challenge.token %>">
+            <% if (challenge.participantEntry) { %><input type="hidden" name="participantEntry" value="new" /><% } %>
+            <label class="arena-match-short-answer"><span>닉네임</span><input type="text" name="nickname" minlength="2" maxlength="30" required autocomplete="nickname" value="<%= challenge.guestNickname || '' %>" data-guest-nickname-input /></label>
+            <label class="arena-match-short-answer"><span>생년월일</span><input type="date" name="birthDate" required autocomplete="bday" data-guest-birth-date /></label>
+            <p class="arena-nickname-availability" data-guest-nickname-status aria-live="polite">닉네임과 생년월일을 입력하면 자동으로 확인합니다.</p>
+            <p class="arena-guest-privacy-guide">생년월일 원문은 저장하지 않고 일치 여부만 안전하게 확인합니다. 이 조합은 기존 결과 복귀와 추후 회원가입 시 기록 연결에 사용됩니다. 자세한 내용은 <a href="/privacy" target="_blank" rel="noopener">개인정보처리방침</a>에서 확인할 수 있습니다.</p>
+            <button type="submit" data-guest-nickname-submit disabled>도전장 참가하기</button>
+          </form>
+        </section>
+      <% } else if (challenge.isCreator && !challenge.accountArchive) { %>
+        <section class="arena-match-wait-card">
+          <small>도전장 진행 현황</small>
+          <h2><%= challenge.leaderboard?.joinedGuestCount || 0 %>명이 참가했습니다.</h2>
+          <p>완료 <%= challenge.leaderboard?.completedGuestCount || 0 %>명 · 풀이 중/대기 <%= challenge.leaderboard?.waitingGuestCount || 0 %>명입니다. 링크는 생성 후 <%= linkTtlDays %>일 동안 새 참가자에게 열립니다.<%= expiresAtLabel ? ` 만료 시각은 ${expiresAtLabel}입니다.` : "" %></p>
+        </section>
+      <% } else if (challenge.expiredBeforeCompletion) { %>
+        <section class="arena-match-wait-card">
+          <small>도전장 접수 종료</small>
+          <h2>완료하지 못한 시도는 순위에 반영되지 않습니다.</h2>
+          <p><%= linkTtlDays %>일의 접수 기간 안에 시작하고, 제한된 완료 유예시간 안에 풀이과정까지 제출한 기록만 최종 순위에 포함됩니다.</p>
+        </section>
+      <% } else if (challenge.isGuest && (!challenge.attempt || challenge.attempt.status === "READY")) { %>
+        <section class="arena-match-lobby-card ready">
+          <div><small>참가자 · <%= challenge.guestNickname %></small><h2>도전 준비 완료</h2><p>모든 참가자는 발신자가 풀었던 것과 동일한 5문제를 풉니다. 이 닉네임과 생년월일 조합에는 한 번의 참가 기록만 생성됩니다.</p></div>
+          <dl><div><dt>문항</dt><dd>5문항</dd></div><div><dt>제한 시간</dt><dd>문항당 10분</dd></div><div><dt>풀이과정</dt><dd>필수 제출</dd></div></dl>
+          <form action="/arena-invite/<%= encodeURIComponent(challenge.token) %>/start" method="post"><button type="submit">도전 시작</button></form>
+        </section>
+      <% } else if (challenge.isGuest && challenge.attempt?.status === "IN_PROGRESS" && challenge.currentQuestion) { %>
+        <section class="arena-match-workspace" data-guest-challenge data-token="<%= challenge.token %>" data-attempt-id="<%= challenge.attempt.id %>" data-deadline="<%= new Date(challenge.attempt.deadlineAt).toISOString() %>" data-question-slot="<%= challenge.currentQuestion.slot %>" data-final-question="<%= challenge.currentQuestion.slot === 5 ? 'true' : 'false' %>">
+          <header class="arena-match-timer-bar"><div><small>남은 시간</small><strong data-guest-timer>10:00</strong></div><div><small>진행</small><strong><%= challenge.currentQuestion.slot %> / 5</strong></div><div><small>순위표</small><strong>완료 후 공개</strong></div></header>
+          <article class="arena-match-question arena-match-problem-paper">
+            <header><span><%= String(challenge.currentQuestion.slot).padStart(2, "0") %></span><div><small>친선전 실제 문항</small><strong>주관식</strong></div></header>
+            <div class="arena-match-question-prompt"><%= challenge.currentQuestion.prompt %></div>
+            <% if (challenge.currentQuestion.choices?.length) { %><ol><% challenge.currentQuestion.choices.forEach((choice) => { %><li><%= choice.text || choice %></li><% }) %></ol><% } %>
+            <% if (challenge.currentQuestion.visualization) { %>
+              <figure class="arena-match-visualization" data-arena-visualization="<%= encodeURIComponent(JSON.stringify(challenge.currentQuestion.visualization)) %>">
+                <svg viewBox="0 0 760 440" role="img" aria-label="현재 문항의 그래프 또는 자료"></svg>
+                <figcaption>경기 당시 문항에 포함된 그래프·자료입니다.</figcaption>
+              </figure>
+            <% } %>
+            <label class="arena-match-short-answer"><span>답</span><input data-guest-answer type="text" inputmode="numeric" pattern="[1-9][0-9]{0,2}" maxlength="3" value="<%= challenge.currentQuestion.savedAnswer %>" autocomplete="off" /></label>
+            <section class="arena-inline-solution" data-guest-inline-board>
+              <header><div><strong>풀이과정</strong><small>격자 풀이판에 직접 작성해야 합니다.</small></div><div><button type="button" data-board-undo>되돌리기</button><button type="button" data-board-clear>지우기</button></div></header>
+              <canvas width="1200" height="900" data-board-canvas></canvas><p data-board-state role="status">풀이판 준비</p>
+            </section>
+          </article>
+          <footer class="arena-match-submit-panel"><div><strong>현재 답과 풀이과정을 확정합니다.</strong><span>확정 뒤에는 이전 문항으로 돌아갈 수 없습니다.</span></div><button type="button" data-guest-advance><%= challenge.currentQuestion.slot === 5 ? "5번 완료 · 풀이 제출" : "다음 문제" %></button><p data-guest-error role="alert" hidden></p></footer>
+        </section>
+      <% } else if (challenge.isGuest && challenge.attempt?.status === "EVIDENCE_REQUIRED") { %>
+        <section class="arena-match-wait-card arena-evidence-card">
+          <small>풀이과정 필수 제출</small><h2>문제 풀이를 모두 마쳤습니다.</h2><p>컴퓨터에서는 풀이 파일 1~5장을 올려야 합니다. 태블릿·휴대폰에서 작성한 다섯 격자 풀이판은 바로 확정할 수 있습니다.</p>
+          <form action="/arena-invite/<%= encodeURIComponent(challenge.token) %>/evidence" method="post" enctype="multipart/form-data" data-guest-file-evidence>
+            <label class="arena-evidence-dropzone"><span>풀이 파일 선택</span><strong>1~5장의 JPG · PNG · WEBP · HEIC</strong><input type="file" name="evidenceFiles" accept=".jpg,.jpeg,.png,.webp,.heic,image/*" multiple required /></label><button type="submit">풀이과정 제출</button>
+          </form>
+          <button type="button" data-guest-board-finalize hidden>작성한 5개 풀이판 제출</button>
+          <p data-guest-finalize-error role="alert" hidden></p>
+        </section>
+        <script>
+          (()=>{const mobile=window.MatthsNoteGrid.isTouchBoardDevice();const form=document.querySelector("[data-guest-file-evidence]");const button=document.querySelector("[data-guest-board-finalize]");const error=document.querySelector("[data-guest-finalize-error]");if(!mobile||!button)return;form.hidden=true;button.hidden=false;button.onclick=async()=>{button.disabled=true;try{const response=await fetch("/api/arena-invite/<%= encodeURIComponent(challenge.token) %>/solution-boards/finalize",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",credentials:"same-origin"});const body=await response.json().catch(()=>({}));if(!response.ok)throw new Error(body.message||"풀이판을 제출하지 못했습니다.");location.reload();}catch(reason){button.disabled=false;error.hidden=false;error.textContent=reason.message;}};})();
+        </script>
+      <% } %>
+
+      <% if (challenge.accountArchive && challenge.result) { %>
+        <section class="arena-match-wait-card"><small><%= challenge.senderScoreHidden ? "친선전 제출 기록" : "친선전 최종 결과" %></small><h2><%= challenge.result.verdict %></h2><p><%= challenge.result.explanation %></p></section>
+        <section class="arena-match-result-scoreboard"><% [challenge.result.creator, challenge.result.guest].filter(Boolean).forEach((side) => { %><article><small><%= side.label %></small><strong>정답 <%= side.totalCorrect %>/5</strong><span>풀이 시간 <%= formatDuration(side.completionTimeMs) %></span><span>난이도 보정 성취지표 <%= formatAdjustedScore(side.difficultyAdjustedScore) %></span></article><% }) %></section>
+        <% [challenge.result.creator, challenge.result.guest].filter(Boolean).forEach((side) => { %>
+          <section class="arena-match-wait-card"><small><%= side.label %>님의 실제 문제와 풀이</small><h2>정답 <%= side.totalCorrect %>/5</h2><div class="arena-match-question-list"><% side.questions.forEach((question) => { %><article class="arena-match-question arena-match-problem-paper"><header><span><%= String(question.slot).padStart(2,"0") %></span><div><small>문항 <%= question.slot %> · 기준 정답률 <%= formatAccuracy(question.sourceAccuracyRate) %></small><strong><%= question.correct ? "정답" : "오답" %></strong></div></header><div class="arena-match-question-prompt"><%= question.prompt %></div><% if (question.choices?.length) { %><ol><% question.choices.forEach((choice) => { %><li><%= choice.text || choice %></li><% }) %></ol><% } %><% if (question.visualization) { %><figure class="arena-match-visualization" data-arena-visualization="<%= encodeURIComponent(JSON.stringify(question.visualization)) %>"><svg viewBox="0 0 760 440" role="img" aria-label="경기 문항의 그래프 또는 자료"></svg><figcaption>경기 당시 문항에 포함된 그래프·자료입니다.</figcaption></figure><% } %><div class="arena-match-submitted-answer"><small><%= side.label %>님의 제출 답안</small><strong class="math-content"><%= question.submittedAnswer || "미제출" %></strong></div></article><% }) %></div><h3>전체 풀이과정</h3><ul class="arena-challenge-solution-list"><% (side.solutions || []).forEach((file) => { %><li><a href="<%= file.href %>" target="_blank" rel="noopener"><% if (canPreviewSolution(file)) { %><span class="arena-challenge-solution-preview"><img data-guest-solution-preview data-src="<%= file.href %>" alt="<%= side.label %>님의 <%= file.index %>번째 풀이과정" loading="lazy" /></span><% } %><span><%= file.displayName || `${file.index}번 풀이과정` %></span></a></li><% }) %></ul></section>
+        <% }) %>
+        <% if (challenge.reverseInvitePath || challenge.reverseCreatePath) { %>
+          <section class="arena-reverse-challenge-card" aria-labelledby="arena-reverse-challenge-title">
+            <small>REVERSE CHALLENGE</small>
+            <h2 id="arena-reverse-challenge-title">이번에는 내 기록으로 도전장을 열어보세요.</h2>
+            <% if (challenge.reverseInvitePath) { %>
+              <p>역도전장이 생성되었습니다. 단톡방에 링크를 공유하면 <%= linkTtlDays %>일 동안 여러 명이 참여할 수 있습니다.</p>
+              <label class="arena-match-short-answer"><span>공유 링크</span><input type="text" readonly value="<%= challenge.reverseInvitePath %>" onfocus="this.select()" data-reverse-invite-link /></label>
+              <div class="arena-reverse-challenge-actions"><button type="button" data-reverse-invite-copy>링크 복사</button><a href="<%= challenge.reverseInvitePath %>">역도전장 순위 보기</a></div>
+              <p data-reverse-invite-status role="status"></p>
+            <% } else { %>
+              <p>내 계정에 연결된 이 완료 기록을 기준으로 같은 5문제의 새 단체 도전장을 만듭니다.</p>
+              <form action="<%= challenge.reverseCreatePath %>" method="post" data-reverse-challenge-create><button type="submit">역도전장 만들기</button></form>
+            <% } %>
+          </section>
+        <% } %>
+      <% } else if (challenge.leaderboard?.visible) { %>
+        <% const activeParticipantIndex = Math.max(0, challenge.leaderboard.rows.findIndex((entry) => entry.isViewer)); %>
+        <section class="arena-challenge-leaderboard" aria-labelledby="arena-challenge-leaderboard-title">
+          <header>
+            <div><small>LIVE LEADERBOARD</small><h2 id="arena-challenge-leaderboard-title">도전장 순위</h2></div>
+            <p><% if (challenge.leaderboard.creatorScoreHidden) { %>발신자 기록은 현재 참가자가 모두 완료한 순간 공개합니다.<br /><% } %><%= challenge.leaderboard.provisional ? "현재 완료한 게스트끼리의 임시 순위입니다." : challenge.leaderboard.rankingRule %><br /><%= challenge.leaderboard.attemptPolicy %></p>
+          </header>
+          <div class="arena-challenge-leaderboard-summary">
+            <span>참가 <strong><%= challenge.leaderboard.joinedGuestCount %>명</strong></span>
+            <span>완료 <strong><%= challenge.leaderboard.completedGuestCount %>명</strong></span>
+            <span>완료 기록 <strong><%= challenge.leaderboard.settledAttemptCount %>건</strong></span>
+            <% if (challenge.leaderboard.viewerRank) { %><span>내 순위 <strong><%= challenge.leaderboard.viewerRank %>위</strong></span><% } %>
+          </div>
+          <div class="arena-challenge-leaderboard-table-wrap">
+            <table class="arena-challenge-leaderboard-table">
+              <thead><tr><th>순위</th><th>참가자</th><th>정답</th><th>풀이 시간</th><th>기록</th><th>상세</th></tr></thead>
+              <tbody>
+                <% challenge.leaderboard.rows.forEach((entry, entryIndex) => { %>
+                  <tr class="<%= entry.isViewer ? 'is-viewer' : '' %>">
+                    <td><strong><%= entry.rank %>위</strong></td>
+                    <td><%= entry.label %> <small><%= entry.kind === "CREATOR" ? "발신자" : "게스트" %><%= entry.isViewer ? " · 나" : "" %></small></td>
+                    <td><%= entry.totalCorrect %>/5</td>
+                    <td><%= formatDuration(entry.completionTimeMs) %></td>
+                    <td><%= entry.attemptNumber ? "참가 기록" : "원본 기록" %></td>
+                    <td><button type="button" class="arena-challenge-table-detail-button" data-participant-tab-shortcut="<%= entryIndex %>">상세 보기</button></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="arena-challenge-participant-tabs" data-participant-tabs aria-labelledby="arena-participant-details-title">
+          <header><small>PARTICIPANT DETAILS</small><h2 id="arena-participant-details-title">참가자별 문제와 풀이과정</h2></header>
+          <div class="arena-challenge-participant-tablist" role="tablist" aria-label="참가자 상세 선택">
+            <% challenge.leaderboard.rows.forEach((entry, entryIndex) => { %>
+              <button type="button" id="arena-participant-tab-<%= entryIndex %>" role="tab" aria-selected="<%= entryIndex === activeParticipantIndex ? 'true' : 'false' %>" aria-controls="arena-participant-panel-<%= entryIndex %>" tabindex="<%= entryIndex === activeParticipantIndex ? '0' : '-1' %>" data-participant-tab="<%= entryIndex %>"><strong><%= entry.rank %>위 · <%= entry.label %></strong><span><%= entry.totalCorrect %>/5 · <%= formatDuration(entry.completionTimeMs) %></span></button>
+            <% }) %>
+          </div>
+          <% challenge.leaderboard.rows.forEach((entry, entryIndex) => { %>
+            <section id="arena-participant-panel-<%= entryIndex %>" class="arena-challenge-participant-detail" role="tabpanel" aria-labelledby="arena-participant-tab-<%= entryIndex %>" data-participant-panel="<%= entryIndex %>" <%= entryIndex === activeParticipantIndex ? "" : "hidden" %>>
+              <header><div><small><%= entry.kind === "CREATOR" ? "도전장 발신자" : "도전장 참가자" %></small><h3><%= entry.rank %>위 · <%= entry.label %><%= entry.isViewer ? " · 나" : "" %></h3></div><p>정답 <strong><%= entry.totalCorrect %>/5</strong> · 풀이 시간 <strong><%= formatDuration(entry.completionTimeMs) %></strong><br />난이도 보정 성취지표 <strong><%= formatAdjustedScore(entry.difficultyAdjustedScore) %></strong></p></header>
+              <div class="arena-match-question-list">
+                <% entry.questions.forEach((question) => { %>
+                  <article class="arena-match-question arena-match-problem-paper <%= question.correct ? 'is-correct' : 'is-incorrect' %>">
+                    <header><span><%= String(question.slot).padStart(2,"0") %></span><div><small>문항 <%= question.slot %> · 기준 정답률 <%= formatAccuracy(question.sourceAccuracyRate) %></small><strong><%= question.correct ? "정답" : "오답" %></strong></div></header>
+                    <div class="arena-match-question-prompt"><%= question.prompt %></div>
+                    <% if (question.choices?.length) { %><ol><% question.choices.forEach((choice) => { %><li><%= choice.text || choice %></li><% }) %></ol><% } %>
+                    <% if (question.visualization) { %><figure class="arena-match-visualization" data-arena-visualization="<%= encodeURIComponent(JSON.stringify(question.visualization)) %>"><svg viewBox="0 0 760 440" role="img" aria-label="경기 문항의 그래프 또는 자료"></svg><figcaption>도전장에 출제된 실제 문항의 자료입니다.</figcaption></figure><% } %>
+                    <div class="arena-match-submitted-answer"><small><%= entry.isViewer ? "내 제출 답안" : `${entry.label}님의 제출 답안` %></small><strong class="math-content"><%= question.submittedAnswer || "미제출" %></strong></div>
+                  </article>
+                <% }) %>
+              </div>
+              <h3>전체 풀이과정</h3>
+              <% if ((entry.solutions || []).length) { %><ul class="arena-challenge-solution-list"><% entry.solutions.forEach((file) => { %><li><a href="<%= file.href %>" target="_blank" rel="noopener"><% if (canPreviewSolution(file)) { %><span class="arena-challenge-solution-preview"><img data-guest-solution-preview data-src="<%= file.href %>" alt="<%= entry.label %>님의 <%= file.index %>번째 풀이과정" loading="lazy" /></span><% } %><span><%= file.displayName || `${file.index}번 풀이과정` %></span></a></li><% }) %></ul><% } else { %><p>보존된 풀이 파일이 없습니다.</p><% } %>
+            </section>
+          <% }) %>
+        </section>
+        <% if (challenge.isGuest && !challenge.accountArchive && challenge.attempt?.status === "SETTLED") { %>
+          <div class="arena-challenge-complete-actions">
+            <% if (challenge.canJoinAsAnotherParticipant) { %><form action="/arena-invite/<%= encodeURIComponent(challenge.token) %>" method="get"><input type="hidden" name="participant" value="new" /><button type="submit">다른 참가자로 참여</button><small>다른 닉네임과 생년월일 조합은 별도 참가자로 한 번 풀 수 있습니다.</small></form><% } %>
+            <% if (challenge.reverseCreatePath) { %><form action="<%= challenge.reverseCreatePath %>" method="post" data-reverse-challenge-create><button type="submit">역도전장 만들기</button><small>로그인된 내 완료 기록으로 같은 5문제의 새 단체 도전장을 바로 만듭니다.</small></form><% } else if (challenge.reverseChallengeRequestPath && !challenge.reverseRequested) { %><form action="<%= challenge.reverseChallengeRequestPath %>" method="post" data-reverse-challenge-request><button type="submit">역도전장 제안하기</button><small>회원가입 후 내 완료 기록으로 새 단체 도전장을 만들 수 있습니다.</small></form><% } %>
+            <% if (challenge.reverseRequested) { %><p class="arena-challenge-notice success" role="status">역도전장 제안을 이어서 진행합니다. 회원가입을 완료한 뒤 이 기록으로 새 링크를 만들 수 있습니다.</p><% } %>
+          </div>
+        <% } %>
+      <% } else if (challenge.senderScoreHidden && challenge.isGuest && challenge.attempt?.status === "SETTLED") { %>
+        <div class="arena-challenge-complete-actions">
+          <p class="arena-challenge-notice success" role="status">내 기록을 제출했습니다. 현재 참가자가 모두 완료하면 발신자 점수와 최종 순위를 공개합니다.</p>
+          <% if (challenge.canJoinAsAnotherParticipant) { %><form action="/arena-invite/<%= encodeURIComponent(challenge.token) %>" method="get"><input type="hidden" name="participant" value="new" /><button type="submit">다른 참가자로 참여</button></form><% } %>
+        </div>
+      <% } else if (challenge.senderScoreHidden && challenge.isGuest) { %>
+        <p class="arena-challenge-notice success" role="status">풀이과정까지 제출한 기록만 최종 순위에 반영됩니다.</p>
+      <% } %>
+    </main>
+  </body>
+</html>

@@ -8,7 +8,7 @@ const express = require("express");
 const session = require("express-session");
 const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
-const { MongoMemoryServer } = require("mongodb-memory-server-core");
+const { MongoMemoryReplSet } = require("mongodb-memory-server-core");
 const activationMails = [];
 nodemailer.createTransport = () => ({ sendMail: async (mail) => {
   activationMails.push(mail);
@@ -43,7 +43,13 @@ async function activateLatest() {
 let memory, listener;
 
 async function main() {
-  memory = await MongoMemoryServer.create();
+  // Student registration now reserves the shared user/guest nickname and, when
+  // applicable, claims guest Arena records in one MongoDB transaction. Keep
+  // this HTTP contract on a replica set so the test exercises that production
+  // boundary instead of failing before the controller can respond.
+  memory = await MongoMemoryReplSet.create({
+    replSet: { count: 1, storageEngine: "wiredTiger" },
+  });
   await mongoose.connect(memory.getUri(), { dbName: "portal_social_login_verify" });
   await Promise.all([User, ParentAccount, ParentInvite, ParentChildLink, AcademyAccount, AcademyStaff, AcademyStaffInvite].map(m => m.init()));
   const app = express();
@@ -201,7 +207,7 @@ async function main() {
     const invitedParentEmail = email("invited-social-parent");
     const childToken = crypto.randomBytes(32).toString("base64url");
     const child = await User.create({ name: "소셜 초대 자녀", email: email("invited-child"), role: "student", passwordHash: "unused" });
-    const childInvite = await ParentInvite.create({ childUserId: child._id, parentEmail: invitedParentEmail, productCode: "LEARNING_PACKAGE_29", tokenHash: digest(childToken), expiresAt: new Date(Date.now() + 3600000) });
+    const childInvite = await ParentInvite.create({ childUserId: child._id, parentEmail: invitedParentEmail, productCode: "PRO_MONTHLY", tokenHash: digest(childToken), expiresAt: new Date(Date.now() + 3600000) });
     const parentInviteSignup = await oauth(provider, "parent", invitedParentEmail, { invite: childToken });
     assert.equal(parentInviteSignup.response.headers.get("location"), `/parent/register?invite=${childToken}`);
     for (const overrides of [{ linkConsent: "" }, { relationship: "" }]) {
@@ -220,7 +226,7 @@ async function main() {
     assert.equal(linkedParentSignup.headers.get("location"), "/parent");
     const otherInviteToken = crypto.randomBytes(32).toString("base64url");
     const otherInviteChild = await User.create({ name: "다른 학부모 초대 자녀", email: email("other-invite-child"), role: "student", passwordHash: "unused" });
-    await ParentInvite.create({ childUserId: otherInviteChild._id, parentEmail: email("other-invite-parent"), productCode: "LEARNING_PACKAGE_29", tokenHash: digest(otherInviteToken), expiresAt: new Date(Date.now() + 3600000) });
+    await ParentInvite.create({ childUserId: otherInviteChild._id, parentEmail: email("other-invite-parent"), productCode: "PRO_MONTHLY", tokenHash: digest(otherInviteToken), expiresAt: new Date(Date.now() + 3600000) });
     const wrongParentInvite = await get(`/parent/invite/${otherInviteToken}`, cookie(linkedParentSignup));
     assert.equal(wrongParentInvite.status, 403);
     assert.match((await wrongParentInvite.text()), /현재 로그인된 계정은 이 이메일 링크의 대상 계정이 아니므로/);

@@ -1,0 +1,68 @@
+<%
+  const formatKstDate = (value) =>
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(new Date(value));
+%>
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="GOAT Arena 일반전과 경쟁전 경기 규정 안내" />
+    <meta name="theme-color" content="#070913" />
+    <title><%= rulebook.title %> | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script src="/js/goat-arena.js" defer></script>
+  </head>
+  <body class="goat-arena-page arena-inner-page arena-rulebook-page" data-current-rulebook-version="<%= rulebook.revision %>">
+    <a class="arena-skip-link" href="#arena-rulebook-main">본문으로 바로가기</a>
+    <%- include("partials/goat-arena-navigation", { activeArenaPage, arenaUser }) %>
+
+    <main class="arena-page-main arena-rulebook-main" id="arena-rulebook-main">
+      <header class="arena-rulebook-hero">
+        <div>
+          <p><%= rulebook.eyebrow %></p>
+          <h1><%= rulebook.title %></h1>
+          <span><%= rulebook.intro %></span>
+        </div>
+        <nav class="arena-rulebook-switcher" aria-label="경기 규정 바로가기">
+          <a class="active" href="/goat-arena/rules" aria-current="page">전체 안내</a>
+          <a href="/goat-arena/rules/sub">일반전</a>
+          <a href="/goat-arena/rules/main">경쟁전</a>
+        </nav>
+      </header>
+
+      <section class="arena-rulebook-summary" aria-labelledby="rule-summary-title">
+        <div>
+          <small>COMMON MATCH FLOW</small>
+          <h2 id="rule-summary-title">공통 경기 방식</h2>
+        </div>
+        <ol>
+          <% rulebook.summary.forEach((item) => { %><li><%= item %></li><% }) %>
+        </ol>
+      </section>
+
+      <section class="arena-division-cards arena-rulebook-mode-cards" aria-label="경기 규정 선택">
+        <% rulebook.publicModes.forEach((mode) => { %>
+          <article>
+            <small><%= mode.eyebrow %></small>
+            <h3><%= mode.mode %></h3>
+            <p><%= mode.headline %></p>
+            <ul>
+              <% mode.rules.slice(0, 3).forEach((line) => { %><li><%= line %></li><% }) %>
+            </ul>
+            <a href="<%= mode.href %>"><span><%= mode.mode %> 규정 자세히 보기</span><span aria-hidden="true">→</span></a>
+          </article>
+        <% }) %>
+      </section>
+
+      <p class="arena-rulebook-updated">최근 수정일 <time datetime="<%= new Date(rulebook.lastModifiedAt).toISOString() %>"><%= formatKstDate(rulebook.lastModifiedAt) %></time> (KST)</p>
+    </main>
+    <%- include("partials/business-footer") %>
+  </body>
+</html>

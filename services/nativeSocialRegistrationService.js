@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const mongoose = require("mongoose");
 
 const { User } = require("../models/matthsModel");
+const { ArenaGuestIdentity } = require("../models/goatArenaModel");
 const { ParentAccount } = require("../models/parentModel");
 const AppleAuthCredential = require(
   "../models/appleAuthCredentialModel"
@@ -40,6 +41,10 @@ const {
   nicknameKey,
   validateNickname,
 } = require("./nicknameService");
+const {
+  releaseNickname,
+  reserveUserNickname,
+} = require("./nicknameNamespaceService");
 const {
   alertPotentialDuplicateIdentity,
   buildIdentityMatchHash,
@@ -1261,6 +1266,7 @@ async function completeNativeSocialRegistration(
       }
 
       const isNewUser = user.isNew;
+      const previousNicknameKey = nicknameKey(user.nameNormalized || user.name);
       const shouldApplyRegistrationProfile =
         isNewUser ||
         (
@@ -1269,27 +1275,37 @@ async function completeNativeSocialRegistration(
         );
       if (shouldApplyRegistrationProfile) {
         const nicknameOwner = await User.exists({
-          _id: { $ne: user._id },
-          $or: [
-            { nameNormalized: nicknameKey(profile.name) },
-            {
-              name: {
-                $regex: `^${profile.name.replace(
-                  /[.*+?^${}()|[\]\\]/g,
-                  "\\$&"
-                )}$`,
-                $options: "i",
+            _id: { $ne: user._id },
+            $or: [
+              { nameNormalized: nicknameKey(profile.name) },
+              {
+                name: {
+                  $regex: `^${profile.name.replace(
+                    /[.*+?^${}()|[\]\\]/g,
+                    "\\$&"
+                  )}$`,
+                  $options: "i",
+                },
               },
-            },
-          ],
-        }).session(session);
-        if (nicknameOwner) {
+            ],
+          }).session(session);
+        const guestNicknameOwner = await ArenaGuestIdentity.exists({
+            nicknameNormalized: nicknameKey(profile.name),
+          }).session(session);
+        if (nicknameOwner || guestNicknameOwner) {
           throw statusError(
             409,
             "이미 사용 중인 닉네임입니다.",
             "NICKNAME_EXISTS"
           );
         }
+
+        await reserveUserNickname({
+          nickname: profile.name,
+          nicknameNormalized: nicknameKey(profile.name),
+          userId: user._id,
+          session,
+        });
 
         user.set(
           registrationProfile(profile, new Date(), {
@@ -1316,6 +1332,18 @@ async function completeNativeSocialRegistration(
       }
       user.set(providerIdPath(identity.provider), identity.providerUserId);
       await user.save({ session });
+      if (
+        shouldApplyRegistrationProfile &&
+        previousNicknameKey &&
+        previousNicknameKey !== nicknameKey(profile.name)
+      ) {
+        await releaseNickname({
+          nicknameNormalized: previousNicknameKey,
+          ownerKind: "USER",
+          ownerId: user._id,
+          session,
+        });
+      }
       if (failurePoint === "after-user") {
         throw new Error("NATIVE_SOCIAL_TEST_FAILURE_AFTER_USER");
       }
@@ -1380,6 +1408,13 @@ async function completeNativeSocialRegistration(
       completedUser = shouldApplyRegistrationProfile ? user : null;
     });
   } catch (error) {
+    if (error?.code === "NICKNAME_NAMESPACE_TAKEN") {
+      throw statusError(
+        409,
+        "이미 사용 중인 닉네임입니다.",
+        "NICKNAME_EXISTS"
+      );
+    }
     if (error?.code === 11000) {
       const keys = Object.keys(error.keyPattern || {});
       if (keys.includes("nameNormalized")) {

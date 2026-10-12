@@ -11,8 +11,7 @@ const {
 const { User } = require("../models/matthsModel");
 
 const ROUTE_TO_PRODUCT = {
-  "mock-exam-only": "MOCK_EXAM_ONLY",
-  "learning-package": "LEARNING_PACKAGE_29",
+  pro: "PRO_MONTHLY",
 };
 
 function productCodeFromRoute(req) {

@@ -2,12 +2,12 @@ const mongoose = require("mongoose");
 const {
   ArenaMatch,
   ArenaMatchEvidence,
+  ArenaCompetitiveProfile,
 } = require("../models/goatArenaModel");
 
 const ARENA_ACTIVITY_MAX_LEVEL = 10;
 const ARENA_ACTIVITY_MATCH_TYPES = Object.freeze([
   "NORMAL",
-  "REVENGE",
 ]);
 const ARENA_ACTIVITY_COUNTED_STATUS = "SETTLED";
 
@@ -125,6 +125,7 @@ async function getArenaActivityLevels(userIds) {
     {
       $match: {
         "activityMatch.status": ARENA_ACTIVITY_COUNTED_STATUS,
+        "activityMatch.arenaVersion": { $ne: "2.0" },
         "activityMatch.matchType": {
           $in: ARENA_ACTIVITY_MATCH_TYPES,
         },
@@ -143,6 +144,14 @@ async function getArenaActivityLevels(userIds) {
       String(entry._id),
       buildArenaActivityLevel(entry.totalMatches)
     );
+  });
+  // Once migrated lazily, account XP is authoritative across Arena, learning
+  // dashboards and admin reads; adjudicated games must not inflate the level.
+  const profiles = await ArenaCompetitiveProfile.find({
+    userId: { $in: normalizedUserIds },
+  }).select("userId accountXp").lean();
+  profiles.forEach((profile) => {
+    levelsByUserId.set(String(profile.userId), buildArenaActivityLevel(profile.accountXp));
   });
   return levelsByUserId;
 }

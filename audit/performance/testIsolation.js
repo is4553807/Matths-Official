@@ -16,7 +16,6 @@ Object.assign(process.env, {
   NODE_ENV: "test", DISABLE_SCHEDULERS: "1", ALLOW_TEST_DATA_MUTATION: "1",
   PAID_CHECKOUT_MODE: "disabled", FILE_STORAGE_PROVIDER: "local", PRIVATE_MOCK_STORAGE_DRIVER: "local",
   SECRET: "offline-performance-tests-session-secret-2026",
-  PAYBACK_ACCOUNT_ENCRYPTION_KEY: "offline-performance-tests-payback-key-2026",
   TEST_ACCOUNT_PASSWORD: "Isolated-fixture-only-2026!",
 });
 const connect = net.Socket.prototype.connect;

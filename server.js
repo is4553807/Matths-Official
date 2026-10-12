@@ -392,33 +392,6 @@ async function connectDB() {
         await ensureMatchmakingControl();
 
         const {
-            ensureDefaultMockExamPackagePolicy,
-        } = require("./services/mockExamPackageService");
-        await ensureDefaultMockExamPackagePolicy();
-
-        const {
-            ensureDefaultLearningPackagePolicy,
-            ensureDefaultMainDivisionPolicy,
-            ensureAttackParticipationLearningPackagePolicy,
-        } = require("./services/arenaPolicyService");
-        await ensureDefaultLearningPackagePolicy();
-        await ensureDefaultMainDivisionPolicy();
-        await ensureAttackParticipationLearningPackagePolicy();
-
-        const {
-            ensurePaybackDailyLearningIndexes,
-            reconcileOpenPaybackAttackParticipation,
-        } = require("./services/paybackDailyLearningService");
-        await ensurePaybackDailyLearningIndexes();
-        const paybackParticipationReconciliation =
-            await reconcileOpenPaybackAttackParticipation();
-        if (paybackParticipationReconciliation.updated > 0) {
-            console.log(
-                `Reconciled ${paybackParticipationReconciliation.updated} open payback attack participation records.`
-            );
-        }
-
-        const {
             ensureDefaultArenaProblemDataVersion,
             ensureArenaProblemDataIndexes,
             startArenaProblemDataVersionWatcher,
@@ -454,6 +427,12 @@ async function connectDB() {
         } = require("./services/supportInquiryService");
         await ensureSupportInquiryIndexes();
 
+        const { activateConfiguredNormalBaselineBatch } = require("./services/arenaNormalBaselineReleaseService");
+        const normalBaselineRelease = await activateConfiguredNormalBaselineBatch();
+        if (normalBaselineRelease.activatedCount) {
+            console.log(`Normal beta baseline ready: ${normalBaselineRelease.activatedCount} questions (${normalBaselineRelease.replayed ? "existing activation" : "activated"}).`);
+        }
+
         const {
             startPrivateMockExamScheduler,
         } = require("./services/privateMockExamService");
@@ -465,21 +444,6 @@ async function connectDB() {
         startPlacementExamExpiryScheduler();
 
         const {
-            startAccessCycleScheduler,
-        } = require("./services/accessCycleService");
-        startAccessCycleScheduler();
-
-        const {
-            startDailyAccessCycleScheduler,
-        } = require("./services/accessCycleDailyService");
-        startDailyAccessCycleScheduler();
-
-        const {
-            startAccessCycleExpiryReminderScheduler,
-        } = require("./services/accessCycleExpiryReminderService");
-        startAccessCycleExpiryReminderScheduler();
-
-        const {
             startAcademyContractScheduler,
         } = require("./services/academyContractService");
         startAcademyContractScheduler();
@@ -488,13 +452,6 @@ async function connectDB() {
             startAcademyAssignmentDeadlineScheduler,
         } = require("./services/academyClassworkService");
         startAcademyAssignmentDeadlineScheduler();
-
-        const {
-            registerPolicyChangeOutboxHandler,
-            startPolicyChangeNotificationScheduler,
-        } = require("./services/policyChangeNotificationService");
-        registerPolicyChangeOutboxHandler();
-        startPolicyChangeNotificationScheduler();
 
         const {
             startArenaMatchAttemptScheduler,
@@ -523,11 +480,6 @@ async function connectDB() {
             startArchiveTrashPurgeScheduler,
         } = require("./services/archiveService");
         startArchiveTrashPurgeScheduler();
-
-        const {
-            startDataAnalysisScheduler,
-        } = require("./services/dataAnalysisAggregationService");
-        startDataAnalysisScheduler();
 
         const {
             startArenaIntegrityRiskScheduler,

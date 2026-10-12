@@ -12,16 +12,8 @@ const {
     UserNotification,
 } = require("../models/matthsModel");
 const {
-    AccessCycle,
-    ArenaAccessState,
-    MainToSubConversionResult,
-    MockExamSubscription,
-} = require("../models/goatArenaModel");
-const {
-    ARENA_TIER_CONFIG,
-    arenaTierByValue,
-    arenaTierIndex,
-} = require("./arenaTierPolicy");
+    accountPlanView,
+} = require("./accountPlanService");
 
 const {
     loadCurriculum,
@@ -909,10 +901,6 @@ async function getDashboardData(
         assessmentAttempts,
         notificationData,
         announcements,
-        activeAccessCycle,
-        arenaAccessState,
-        latestMainToSubReference,
-        activeMockExamSubscription,
         attendanceDashboard,
         academyPlan,
     ] = await Promise.all([
@@ -963,44 +951,6 @@ async function getDashboardData(
         ),
 
         getDashboardAnnouncements(),
-
-        AccessCycle.findOne({
-            userId: user._id,
-            status: "ACTIVE",
-        })
-            .select(
-                "availableLearningDays reservedLearningDays lockedLearningDays expiresAt"
-            )
-            .lean(),
-
-        ArenaAccessState.findOne({
-            userId: user._id,
-        })
-            .select(
-                "currentCompetitiveDivision state lastMainSnapshotId renewalGraceDeadline"
-            )
-            .lean(),
-
-        MainToSubConversionResult.findOne({
-            userId: user._id,
-            snapshotValid: true,
-            integrityStatus: "CLEAR",
-        })
-            .sort({ createdAt: -1 })
-            .select(
-                "renewalGraceDeadline referenceSubRank referenceSubGp referenceSubOverallPosition"
-            )
-            .lean(),
-
-        MockExamSubscription.findOne({
-            userId: user._id,
-            status: "ACTIVE",
-            startsAt: { $lte: dashboardNow },
-            endsAt: { $gt: dashboardNow },
-        })
-            .sort({ endsAt: -1 })
-            .select("endsAt")
-            .lean(),
 
         getStudentAttendanceDashboard({
             studentUserId: user._id,
@@ -1393,143 +1343,7 @@ async function getDashboardData(
         ),
     ];
 
-    const activePlan = (() => {
-        if (user?.role === "admin") {
-            return {
-                code: "SUPER_ADMIN",
-                name: "관리자 무제한 플랜",
-                division: "Unranked · Ranked",
-                remainingLearningDays: null,
-                availableLearningDays: null,
-                reservedLearningDays: 0,
-                lockedLearningDays: 0,
-                expiresAt: null,
-                unlimited: true,
-                statusLabel: "무제한 · 만료 없음",
-            };
-        }
-        if (activeAccessCycle) {
-            const availableDays = Math.max(
-                0,
-                Number(activeAccessCycle.availableLearningDays) || 0
-            );
-            const reservedDays = Math.max(
-                0,
-                Number(activeAccessCycle.reservedLearningDays) || 0
-            );
-            const lockedDays = Math.max(
-                0,
-                Number(activeAccessCycle.lockedLearningDays) || 0
-            );
-            return {
-                code: "LEARNING_PACKAGE",
-                name: "29일 학습권 패키지",
-                division:
-                    arenaAccessState?.currentCompetitiveDivision === "MAIN"
-                        ? "Ranked"
-                        : "Unranked",
-                remainingLearningDays:
-                    availableDays + reservedDays + lockedDays,
-                availableLearningDays: availableDays,
-                reservedLearningDays: reservedDays,
-                lockedLearningDays: lockedDays,
-                expiresAt: activeAccessCycle.expiresAt,
-                statusLabel: availableDays > 0
-                    ? "이용 중"
-                    : reservedDays + lockedDays > 0
-                        ? "학습일 예약·예치 중"
-                        : "학습일 소진",
-            };
-        }
-        if (activeMockExamSubscription) {
-            return {
-                code: "MOCK_EXAM_ONLY",
-                name: "Matths 주간 공식 모의고사 이용권",
-                division: null,
-                remainingLearningDays: 0,
-                availableLearningDays: 0,
-                reservedLearningDays: 0,
-                lockedLearningDays: 0,
-                expiresAt: activeMockExamSubscription.endsAt,
-                remainingUsageDays: Math.max(0, Math.ceil(
-                    (new Date(activeMockExamSubscription.endsAt).getTime() - dashboardNow.getTime()) / DAY_MS
-                )),
-                statusLabel: "이용 중",
-            };
-        }
-        if (academyPlan.active) {
-            return {
-                code: "ACADEMY_PLAN",
-                name: "학원 플랜",
-                division: null,
-                remainingLearningDays: 0,
-                availableLearningDays: 0,
-                reservedLearningDays: 0,
-                lockedLearningDays: 0,
-                expiresAt: academyPlan.endsAt,
-                statusLabel: "학원 이용 중",
-            };
-        }
-        return {
-            code: "FREE",
-            name: "기본학습 패키지",
-            division: null,
-            remainingLearningDays: 0,
-            availableLearningDays: 0,
-            reservedLearningDays: 0,
-            lockedLearningDays: 0,
-            expiresAt: null,
-            statusLabel: "기본학습 이용",
-        };
-    })();
-
-    const accessRenewalNotice = (() => {
-        if (
-            !["MAIN_DEMOTED_TO_SUB", "SUB_ACCESS_EXPIRED_LOCKED"].includes(
-                arenaAccessState?.state
-            )
-        ) {
-            return null;
-        }
-        const reference = latestMainToSubReference;
-        const graceDeadline = reference?.renewalGraceDeadline ||
-            arenaAccessState?.renewalGraceDeadline ||
-            null;
-        const withinGrace = Boolean(
-            graceDeadline && new Date(graceDeadline).getTime() >= Date.now()
-        );
-        const hasMainReference = Boolean(
-            arenaAccessState?.state === "MAIN_DEMOTED_TO_SUB" &&
-            arenaAccessState?.lastMainSnapshotId &&
-            reference
-        );
-        const referenceTier = hasMainReference
-            ? arenaTierByValue(reference.referenceSubRank).label
-            : null;
-        const referenceTierIndex = hasMainReference
-            ? arenaTierIndex(reference.referenceSubRank)
-            : 0;
-        const lateTier = hasMainReference
-            ? ARENA_TIER_CONFIG[Math.max(0, referenceTierIndex - 1)].label
-            : null;
-
-        return {
-            kind: hasMainReference ? "MAIN_DEMOTION" : "SUB_EXPIRED",
-            graceDeadline,
-            withinGrace,
-            referenceTier,
-            referenceGp: hasMainReference
-                ? Number(reference.referenceSubGp) || 0
-                : null,
-            referenceOverallPosition: hasMainReference
-                ? Number(reference.referenceSubOverallPosition) || null
-                : null,
-            lateTier,
-            lateGp: hasMainReference
-                ? Number(reference.referenceSubGp) || 0
-                : null,
-        };
-    })();
+    const activePlan = accountPlanView(user, { now: dashboardNow });
 
     return {
         user: {
@@ -1627,8 +1441,6 @@ async function getDashboardData(
 
         activePlan,
         academyPlan,
-        accessRenewalNotice,
-
         stats: {
             weeklyStudyMinutes:
                 currentWeekMinutes,

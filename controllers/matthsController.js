@@ -1,4 +1,5 @@
 const { randomUUID } = require("node:crypto");
+const mongoose = require("mongoose");
 const {
   User,
   ConceptProgress,
@@ -162,10 +163,6 @@ const {
   getRankingData,
 } = require("../services/rankingService");
 const {
-  emptyArenaLandingSpotlight,
-  getArenaLandingSpotlight,
-} = require("../services/arenaLandingSpotlightService");
-const {
   ERROR_HELP_ITEMS,
 } = require("../services/errorHelpService");
 const {
@@ -177,11 +174,6 @@ const {
 const {
   getAdminOperationsGuideData,
 } = require("../services/adminOperationsGuideService");
-const {
-  completePaybackPayout,
-  getAdminPaybackDashboard,
-  resendPaybackPayoutEmail,
-} = require("../services/paybackAccountService");
 const {
   recordBusinessWithdrawal,
   updateOtherUnpaidCosts,
@@ -271,6 +263,11 @@ const {
   validateNickname,
 } = require("../services/nicknameService");
 const {
+  releaseNickname,
+  replaceUserNickname,
+  reserveUserNickname,
+} = require("../services/nicknameNamespaceService");
+const {
   blockCommunityUser,
   createCommunityNotice,
   createCommunityComment,
@@ -309,44 +306,10 @@ const {
   reopenAdminTodo,
 } = require("../services/adminTodoService");
 const {
-  activateArenaPolicyVersion,
-  activateMainDivisionPolicyVersion,
-  createArenaPolicyVersion,
-  createMainDivisionPolicyVersion,
-  getActiveArenaPolicy,
-  getArenaPolicyAdminData,
-  retireArenaPolicyVersion,
-  retireMainDivisionPolicyVersion,
-  updateLearningPackagePrice,
-} = require("../services/arenaPolicyService");
-const {
-  arenaPublicContractView,
-} = require("../services/arenaPublicContractViewService");
-const {
   alertPotentialDuplicateIdentity,
   buildIdentityMatchHash,
   normalizeBirthDate,
 } = require("../services/identityRiskService");
-const {
-  getActiveMockExamPackagePolicy,
-  getMockExamPackageAdminData,
-  updateMockExamPackagePrice,
-} = require("../services/mockExamPackageService");
-const {
-  queuePolicyChangeNotifications,
-} = require("../services/policyChangeNotificationService");
-
-async function queuePolicyChangeNotificationsImmediately(args) {
-  try {
-    return await queuePolicyChangeNotifications(args);
-  } catch (error) {
-    // 정책과 함께 기록한 outbox가 같은 요청을 다시 전달한다. 이메일
-    // 공급자나 일시적인 DB fan-out 장애가 정책 저장 자체를 되돌리거나
-    // 관리자에게 중복 저장을 유도하지 않게 한다.
-    console.error("정책 변경 즉시 공지 생성 지연:", error);
-    return { queued: 0, siteDelivered: 0, deferredToOutbox: true };
-  }
-}
 const {
   recordConnectionHeartbeat,
 } = require("../services/connectionUsageService");
@@ -355,16 +318,15 @@ const {
   recordConnectionIntegritySignals,
   requestArenaSupplementalEvidence,
   reviewArenaIntegrityCase,
-  reviewHeldArenaMatch,
 } = require("../services/arenaIntegrityRiskService");
 const {
-  getMainShopPolicyAdminData,
-  updateMainShopPolicy,
-} = require("../services/arenaShopPolicyService");
+  reviewHeldArenaV2Match,
+} = require("../services/arenaV2IntegrityReviewAdapter");
+const { setMatchmakingPaused } = require("../services/arenaMatchmakingControlService");
 const {
-  getMatchmakingControl,
-  setMatchmakingPaused,
-} = require("../services/arenaMatchmakingControlService");
+  getAdminArenaV2Overview,
+  reviewNormalRecordIntegrity,
+} = require("../services/adminArenaV2Service");
 const {
   getAdminActiveArenaMatchesData,
 } = require("../services/adminActiveArenaMatchesService");
@@ -382,34 +344,15 @@ const {
   getAdminProblemBankCatalog,
 } = require("../services/problemBankCatalogService");
 const {
-  activateArenaProblemDataVersion,
-  createArenaProblemDataDraft,
-  getAdminArenaProblemData,
-  updateArenaProblemDataDraft,
-} = require("../services/arenaProblemDataService");
-const {
   getAdminProblemTypeCatalog,
   reviseProblemTypeVersion,
   syncProblemTypeRegistry,
 } = require("../services/problemTypeCatalogService");
+const { getAdminArenaV2Audit } = require("../services/adminArenaV2Service");
 const {
-  createArenaTierCatalogType,
-  getAdminArenaTierCatalog,
-} = require("../services/arenaTierQuestionCatalogService");
-const {
-  getArenaReconciliationAudit,
-} = require("../services/arenaReconciliationService");
-const {
-  exportFinalRankingCsv,
-  getRankingOperationsDashboard,
-  rebuildFinalRankingByAdmin,
-  runRankingMaintenanceTask,
-} = require("../services/rankingOperationsService");
-const {
-  getDataAnalysisDashboard,
+  getAdminCurrentMetricsDashboard,
   getKstMonthKey,
-  runMonthlyDataAnalysisAggregation,
-} = require("../services/dataAnalysisAggregationService");
+} = require("../services/adminCurrentMetricsService");
 const {
   recordOperationalMetricEvent,
 } = require("../services/operationalMetricEventService");
@@ -456,110 +399,10 @@ const BCRYPT_ROUNDS = 12;
 const SOCIAL_AUTH_SELECT =
   "+socialAuth.googleId +socialAuth.kakaoId +socialAuth.appleId";
 
-function getLandingRankingSummary(ranking, sessionUser) {
-  const currentFinal = ranking?.currentFinal || null;
-  const current = ranking?.current || null;
-  const userId = String(
-    currentFinal?.userId || current?.userId || sessionUser?._id || sessionUser?.id || ""
-  );
-  const grade = Number(
-    currentFinal?.grade ?? current?.grade ?? sessionUser?.schoolGrade
-  );
-  const overallRank = Number(
-    currentFinal?.finalRank ?? current?.overallRank
-  );
-  let cohortLabel = "고등학교 순위";
-  let cohortRank = null;
-
-  if (grade === 13) {
-    cohortLabel = "N수생 순위";
-    cohortRank = ranking?.retakerRankings?.find(
-      (entry) => String(entry.userId) === userId
-    )?.retakerRank;
-  } else if (grade === 14) {
-    cohortLabel = "대학교 순위";
-    const universityCode = String(
-      currentFinal?.universityCode || sessionUser?.university?.code || ""
-    );
-    cohortRank = ranking?.universityRankings?.find(
-      (entry) => String(entry.id) === universityCode
-    )?.rank;
-  } else if (grade === 15) {
-    cohortLabel = "직장인 순위";
-    cohortRank = ranking?.workerRankings?.find(
-      (entry) => String(entry.userId) === userId
-    )?.workerRank;
-  } else {
-    const schoolCode = String(
-      currentFinal?.schoolCode || current?.schoolCode || sessionUser?.school?.code || ""
-    );
-    cohortRank = ranking?.schoolRankings?.find(
-      (entry) => String(entry.id) === schoolCode
-    )?.rank ?? current?.schoolRank;
-  }
-
-  return {
-    overallRank:
-      Number.isSafeInteger(overallRank) && overallRank > 0
-        ? overallRank
-        : null,
-    cohortLabel,
-    cohortRank:
-      Number.isSafeInteger(Number(cohortRank)) && Number(cohortRank) > 0
-        ? Number(cohortRank)
-        : null,
-  };
-}
-
-exports.mainPage = async (req, res) => {
+exports.mainPage = (req, res) => {
   const user = req.session?.user || null;
-  const userId = user?._id || user?.id || null;
-  const [policyResult, arenaResult, rankingResult] = await Promise.allSettled([
-    getActiveArenaPolicy(),
-    userId
-      ? getArenaLandingSpotlight(user)
-      : Promise.resolve(emptyArenaLandingSpotlight()),
-    userId
-      ? getRankingData(userId)
-      : Promise.resolve(null),
-  ]);
-
-  if (policyResult.status === "rejected") {
-    // 공개 랜딩은 정책 DB를 잠시 읽지 못해도 공식 기본 정책으로 렌더한다.
-    console.error("랜딩 Arena 계약 정책 조회 실패:", policyResult.reason);
-  }
-  if (arenaResult.status === "rejected") {
-    // 개인 Arena 조회 실패가 메인 화면 전체 장애로 이어지지 않게 한다.
-    console.error("랜딩 사용자 Arena 티어 조회 실패:", arenaResult.reason);
-  }
-  if (rankingResult.status === "rejected") {
-    console.error("랜딩 사용자 종합 랭킹 조회 실패:", rankingResult.reason);
-  }
-
-  const arenaSpotlightBase = arenaResult.status === "fulfilled"
-    ? arenaResult.value
-    : emptyArenaLandingSpotlight();
-  const arenaSpotlight = arenaSpotlightBase.currentEntry
-    ? {
-        ...arenaSpotlightBase,
-        currentEntry: {
-          ...arenaSpotlightBase.currentEntry,
-          ...getLandingRankingSummary(
-            rankingResult.status === "fulfilled" ? rankingResult.value : null,
-            user
-          ),
-        },
-      }
-    : arenaSpotlightBase;
-
-  res.render("index", {
-    user,
-    arenaContract: arenaPublicContractView(
-      policyResult.status === "fulfilled" ? policyResult.value : null
-    ),
-    arenaSpotlight,
-  });
-}
+  res.render("index", { user });
+};
 
 exports.introPage = (req,res) => {
     res.render('intro', {
@@ -589,9 +432,7 @@ exports.pricingPage = async (req, res, next) => {
       occurredAt: viewedAt,
       metadata: { path: "/pricing" },
     });
-    const [mockExamPolicy, learningPackagePolicy, products, productAccess] = await Promise.all([
-      getActiveMockExamPackagePolicy(),
-      getActiveArenaPolicy(),
+    const [products, productAccess] = await Promise.all([
       getProductCatalog(),
       pricingUser?.id
         ? getPricingProductAccess(pricingUser.id, viewedAt)
@@ -600,8 +441,6 @@ exports.pricingPage = async (req, res, next) => {
     return res.render("pricing", {
       user: pricingUser,
       activePage: "pricing",
-      mockExamPolicy,
-      learningPackagePolicy,
       products,
       productAccess,
       checkoutEnabled: isPaidCheckoutAllowedForEmail(pricingUser?.email),
@@ -697,7 +536,94 @@ exports.loginPage = (req,res) => {
     });
 }
 
-exports.registerPage = (
+const ARENA_GUEST_REGISTRATION_CLAIM_TTL_MS = 30 * 60 * 1000;
+
+function arenaGuestRegistrationClaimContextIsValid(context, now = new Date()) {
+  return Boolean(
+    context?.guestIdentityId &&
+    context?.sourceAttemptId &&
+    context?.confirmationNonce &&
+    Number.isFinite(new Date(context.expiresAt).getTime()) &&
+    new Date(context.expiresAt).getTime() > now.getTime()
+  );
+}
+
+function arenaGuestRegistrationDateLabel(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
+}
+
+function sameArenaGuestConfirmationNonce(left, right) {
+  const a = Buffer.from(String(left || ""), "utf8");
+  const b = Buffer.from(String(right || ""), "utf8");
+  return a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+async function getArenaGuestRegistrationClaimForRequest(
+  req,
+  { createIfMissing = false, strictExistingContext = false } = {}
+) {
+  if (!req.session) return null;
+  const service = require("../services/arenaGuestChallengeService");
+  const now = new Date();
+  let context = req.session.arenaGuestRegistrationClaim || null;
+  const hadContext = Boolean(context);
+  if (!arenaGuestRegistrationClaimContextIsValid(context, now)) {
+    delete req.session.arenaGuestRegistrationClaim;
+    context = null;
+  }
+
+  let preview = context
+    ? await service.getGuestRegistrationClaimPreview({
+        cookieHeader: req.headers.cookie || "",
+        expectedIdentityId: context.guestIdentityId,
+        expectedAttemptId: context.sourceAttemptId,
+      })
+    : null;
+
+  if (!preview && context) {
+    delete req.session.arenaGuestRegistrationClaim;
+    context = null;
+  }
+  if (!preview && createIfMissing && !(strictExistingContext && hadContext)) {
+    preview = await service.getGuestRegistrationClaimPreview({
+      cookieHeader: req.headers.cookie || "",
+    });
+  }
+  if (!preview) return null;
+
+  if (
+    !context ||
+    String(context.guestIdentityId) !== String(preview.guestIdentityId) ||
+    String(context.sourceAttemptId) !== String(preview.sourceAttemptId)
+  ) {
+    context = {
+      guestIdentityId: String(preview.guestIdentityId),
+      sourceAttemptId: String(preview.sourceAttemptId),
+      confirmationNonce: crypto.randomBytes(24).toString("base64url"),
+      preparedAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + ARENA_GUEST_REGISTRATION_CLAIM_TTL_MS).toISOString(),
+    };
+    req.session.arenaGuestRegistrationClaim = context;
+  }
+
+  return {
+    guestIdentityId: String(preview.guestIdentityId),
+    sourceAttemptId: String(preview.sourceAttemptId),
+    nickname: String(preview.nickname || ""),
+    acceptedAt: preview.acceptedAt,
+    acceptedDateLabel: arenaGuestRegistrationDateLabel(preview.acceptedAt),
+    confirmationNonce: context.confirmationNonce,
+  };
+}
+
+exports.registerPage = async (
   req,
   res,
   next
@@ -712,15 +638,24 @@ exports.registerPage = (
       return res.redirect(require("../services/portalSocialAuthService").registrationUrl(socialRegistration));
     }
 
+    const arenaGuestRegistrationClaim =
+      await getArenaGuestRegistrationClaimForRequest(req, {
+        createIfMissing: true,
+        strictExistingContext: req.query.arenaReverse === "1",
+      });
+    if (arenaGuestRegistrationClaim || req.session?.arenaGuestRegistrationClaim) {
+      await saveSession(req);
+    }
     return res.render("register", {
       schoolRegions,
       universities: getUniversitySelectData(),
       socialRegistration,
+      arenaGuestRegistrationClaim,
       error: null,
       oldInput: {
         realName: "",
         birthDate: "",
-        name: socialRegistration?.displayName || "",
+        name: arenaGuestRegistrationClaim?.nickname || socialRegistration?.displayName || "",
         email: socialRegistration?.email || "",
         schoolGrade: 10,
         schoolRegion: "",
@@ -2660,33 +2595,6 @@ exports.adminUpdateOtherUnpaidCosts = async (req, res, next) => {
   }
 };
 
-exports.adminPaybacksPage = async (req, res, next) => {
-  try {
-    res.set("Cache-Control", "no-store");
-    return res.render("admin-paybacks", {
-      user: req.session.user,
-      paybacks: await getAdminPaybackDashboard({
-        page: req.query.page,
-        periodKey: req.query.period,
-      }),
-      feedback:
-        req.query.completed === "1"
-          ? req.query.email === "sent"
-            ? "페이백 지급 완료, 우편함 알림 생성과 이메일 발송을 모두 처리했습니다."
-            : "페이백 지급 완료와 우편함 알림은 처리했지만 이메일 발송에 실패했습니다. 지급 기록에서 재발송해주세요."
-          : req.query.resent === "1"
-            ? req.query.email === "sent"
-              ? "페이백 지급 완료 이메일을 재발송했습니다."
-              : "이메일 재발송에 실패했습니다. SMTP 계정 설정을 확인해주세요."
-            : "",
-      feedbackTone:
-        req.query.email === "failed" ? "error" : "success",
-    });
-  } catch (error) {
-    return next(error);
-  }
-};
-
 exports.adminRefundsPage = async (req, res, next) => {
   try {
     const feedback = req.query.completed === "1"
@@ -2756,39 +2664,6 @@ exports.adminRejectRefund = async (req, res, next) => {
   }
 };
 
-exports.adminCompletePayback = async (req, res, next) => {
-  try {
-    const result = await completePaybackPayout({
-      cycleId: req.params.cycleId,
-      adminUserId: req.session.user.id,
-      operatorNote: req.body.operatorNote,
-    });
-    const period = encodeURIComponent(String(req.body.period || ""));
-    const page = Math.max(1, Number.parseInt(req.body.page, 10) || 1);
-    return res.redirect(
-      `/admin/paybacks?period=${period}&page=${page}&completed=1&email=${result.emailDelivered ? "sent" : "failed"}`
-    );
-  } catch (error) {
-    return next(error);
-  }
-};
-
-exports.adminResendPaybackEmail = async (req, res, next) => {
-  try {
-    const result = await resendPaybackPayoutEmail({
-      payoutRecordId: req.params.payoutRecordId,
-      adminUserId: req.session.user.id,
-    });
-    const period = encodeURIComponent(String(req.body.period || ""));
-    const page = Math.max(1, Number.parseInt(req.body.page, 10) || 1);
-    return res.redirect(
-      `/admin/paybacks?period=${period}&page=${page}&resent=1&email=${result.emailDelivered ? "sent" : "failed"}`
-    );
-  } catch (error) {
-    return next(error);
-  }
-};
-
 exports.adminOperationsGuidePage = async (req, res, next) => {
   try {
     res.set("Cache-Control", "no-store");
@@ -2818,7 +2693,7 @@ exports.adminArenaMatchesPage = async (req, res, next) => {
       reviewStatus,
       adminNotice: ({
         supplementalRequested: "추가 소명자료 요청을 성공적으로 전송했습니다.\n요청 시각부터 24시간 타이머가 시작되었습니다.",
-        reviewCompleted: "경기 검토 결과를 저장했습니다.\n알림 발송·매치메이킹 상태·이용 기간 보상 처리가 완료되었습니다.",
+        reviewCompleted: "경기 검토 결과를 저장했습니다.\n알림 발송·매치메이킹 상태·경기 정산 처리가 완료되었습니다.",
         accountReviewCompleted: "계정 무결성 검토 결과를 저장했습니다. 관련 알림과 이용 상태를 갱신했습니다.",
         noteSaved: "운영 검토 메모를 저장했습니다.",
       })[String(req.query.notice || "")] || "",
@@ -2850,8 +2725,7 @@ exports.adminArenaMatchHistoryPage = async (req, res, next) => {
         query: req.query.query,
         dateFrom: req.query.dateFrom,
         dateTo: req.query.dateTo,
-        division: req.query.division,
-        matchType: req.query.matchType,
+        gameMode: req.query.gameMode,
         status: req.query.status,
         integrityStatus: req.query.integrityStatus,
         participantId: req.query.participant,
@@ -2879,7 +2753,7 @@ exports.adminReviewArenaIntegrityCase = async (req, res, next) => {
 
 exports.adminReviewHeldArenaMatch = async (req, res, next) => {
   try {
-    await reviewHeldArenaMatch({
+    await reviewHeldArenaV2Match({
       matchId: req.params.matchId,
       adminUserId: req.session.user.id,
       decision: String(req.body.decision || "").trim().toUpperCase(),
@@ -2927,60 +2801,10 @@ exports.adminArenaEvidenceFile = async (req, res, next) => {
 exports.adminArenaAuditPage = async (req, res, next) => {
   try {
     res.set("Cache-Control", "no-store");
-    const [audit, rankingOperations] = await Promise.all([
-      getArenaReconciliationAudit(),
-      getRankingOperationsDashboard({ preview: req.query.preview === "1" }),
-    ]);
     return res.render("admin-arena-audit", {
       user: req.session.user,
-      audit,
-      rankingOperations,
-      operationFeedback:
-        req.query.rebuilt === "1"
-          ? "최종 종합 랭킹을 다시 계산하고 작업 이력을 남겼습니다."
-          : req.query.task
-            ? `${String(req.query.task)} 운영 작업을 실행했습니다.`
-            : null,
+      audit: await getAdminArenaV2Audit(),
     });
-  } catch (error) {
-    return next(error);
-  }
-};
-
-exports.adminRebuildFinalRanking = async (req, res, next) => {
-  try {
-    await rebuildFinalRankingByAdmin({ adminUserId: req.session.user.id });
-    return res.redirect("/admin/arena-audit?rebuilt=1#ranking-operations");
-  } catch (error) {
-    return next(error);
-  }
-};
-
-exports.adminRunRankingMaintenance = async (req, res, next) => {
-  try {
-    const task = String(req.body.task || "").trim().toUpperCase();
-    await runRankingMaintenanceTask({
-      adminUserId: req.session.user.id,
-      task,
-    });
-    return res.redirect(
-      `/admin/arena-audit?task=${encodeURIComponent(task)}#operations-status`
-    );
-  } catch (error) {
-    return next(error);
-  }
-};
-
-exports.adminExportFinalRanking = async (req, res, next) => {
-  try {
-    const csv = await exportFinalRankingCsv({ adminUserId: req.session.user.id });
-    res.set("Cache-Control", "private, no-store");
-    res.set("Content-Type", "text/csv; charset=utf-8");
-    res.set(
-      "Content-Disposition",
-      `attachment; filename="matths-final-ranking-${new Date().toISOString().slice(0, 10)}.csv"`
-    );
-    return res.send(csv);
   } catch (error) {
     return next(error);
   }
@@ -2991,7 +2815,7 @@ exports.adminArenaAuditData = async (_req, res, next) => {
     res.set("Cache-Control", "no-store");
     return res.json({
       ok: true,
-      audit: await getArenaReconciliationAudit(),
+      audit: await getAdminArenaV2Audit(),
     });
   } catch (error) {
     return next(error);
@@ -3003,12 +2827,12 @@ exports.adminDataAnalysisPage = async (req, res, next) => {
     res.set("Cache-Control", "no-store");
     return res.render("admin-data-analysis", {
       user: req.session.user,
-      analysis: await getDataAnalysisDashboard({
+      analysis: await getAdminCurrentMetricsDashboard({
         periodKey: req.query.period || getKstMonthKey(),
       }),
       feedback:
         String(req.query.rebuilt || "") === "1"
-          ? "선택한 월의 운영 지표를 권위 원장에서 다시 집계했습니다."
+          ? "선택한 월의 현행 운영 지표를 원본 데이터에서 새로 조회했습니다."
           : null,
     });
   } catch (error) {
@@ -3019,7 +2843,7 @@ exports.adminDataAnalysisPage = async (req, res, next) => {
 exports.adminRebuildDataAnalysis = async (req, res, next) => {
   try {
     const periodKey = String(req.body.periodKey || getKstMonthKey());
-    await runMonthlyDataAnalysisAggregation({ periodKey });
+    await getAdminCurrentMetricsDashboard({ periodKey });
     return res.redirect(
       `/admin/data-analysis?period=${encodeURIComponent(periodKey)}&rebuilt=1`
     );
@@ -3035,38 +2859,11 @@ function arenaPolicyFeedbackFromQuery(query = {}) {
   if (String(query.matchmakingResumed || "") === "1") {
     return "신규 GOAT Arena 매치메이킹을 다시 시작했습니다.";
   }
-  if (String(query.learningPriceUpdated || "") === "1") {
-    return "29일 학습 패키지의 새 가격 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 공지를 만들었습니다.";
+  if (String(query.placementReset || "") === "1") {
+    return "검토 대상 사용자의 배치 시도를 승인된 운영 기록과 함께 초기화했습니다.";
   }
-  if (String(query.mockPriceUpdated || "") === "1") {
-    return "Matths 주간 공식 모의고사 이용권의 새 월 가격 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 공지를 만들었습니다.";
-  }
-  if (String(query.created || "") === "1") {
-    return "새 Arena 정책을 작성 중 상태로 저장했습니다.";
-  }
-  if (String(query.createdScheduled || "") === "1") {
-    return "새 Unranked 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 이메일·우편함 공지를 만들었습니다.";
-  }
-  if (String(query.activated || "") === "1") {
-    return "Arena 정책을 최소 30일 뒤 적용 일정에 등록하고 전체 사용자 공지를 만들었습니다.";
-  }
-  if (String(query.retired || "") === "1") {
-    return "작성 중이거나 적용 예정이던 Arena 정책을 종료했습니다.";
-  }
-  if (String(query.mainCreated || "") === "1") {
-    return "새 Ranked 정책을 작성 중 상태로 저장했습니다.";
-  }
-  if (String(query.mainCreatedScheduled || "") === "1") {
-    return "새 Ranked 정책을 30일 뒤 적용하도록 예약하고 전체 사용자 이메일·우편함 공지를 만들었습니다.";
-  }
-  if (String(query.mainActivated || "") === "1") {
-    return "Ranked 정책을 최소 30일 뒤 적용 일정에 등록하고 전체 사용자 공지를 만들었습니다.";
-  }
-  if (String(query.mainRetired || "") === "1") {
-    return "Ranked 정책을 종료했습니다.";
-  }
-  if (String(query.mainShopUpdated || "") === "1") {
-    return "Ranked 상점의 가격·판매 상태를 즉시 적용하고 전체 사용자 공지를 만들었습니다.";
+  if (String(query.normalRecordReviewed || "") === "1") {
+    return "일반전 기록 검토를 완료했습니다. 사용자 불이익이나 이메일 발송은 적용되지 않았습니다.";
   }
   return null;
 }
@@ -3077,20 +2874,13 @@ async function renderArenaPolicyAdminPage(
   {
     status = 200,
     error = null,
-    oldInput = null,
   } = {}
 ) {
   return res.status(status).render("admin-arena-policies", {
     user: req.session.user,
-    policyData: {
-      ...(await getArenaPolicyAdminData()),
-      mockExamOnly: await getMockExamPackageAdminData(),
-      mainShop: await getMainShopPolicyAdminData(),
-      matchmakingControl: await getMatchmakingControl(),
-    },
+    policyData: await getAdminArenaV2Overview(),
     feedback: arenaPolicyFeedbackFromQuery(req.query),
     error,
-    oldInput,
   });
 }
 
@@ -3121,6 +2911,26 @@ exports.adminSetArenaMatchmaking = async (req, res, next) => {
     );
   } catch (error) {
     if ([400, 403].includes(Number(error.status))) {
+      return renderArenaPolicyAdminPage(req, res, {
+        status: Number(error.status),
+        error: error.message,
+      });
+    }
+    return next(error);
+  }
+};
+
+exports.adminReviewArenaNormalRecord = async (req, res, next) => {
+  try {
+    await reviewNormalRecordIntegrity({
+      recordId: req.params.recordId,
+      adminUserId: req.session.user.id,
+      decision: req.body.decision,
+      note: req.body.note,
+    });
+    return res.redirect("/admin/arena-policies?normalRecordReviewed=1#normal-record-review");
+  } catch (error) {
+    if ([400, 404, 409].includes(Number(error.status))) {
       return renderArenaPolicyAdminPage(req, res, {
         status: Number(error.status),
         error: error.message,
@@ -3193,163 +3003,20 @@ exports.adminAnalyzeForensicPdf = async (req, res, next) => {
   }
 };
 
-exports.adminUpdateMockExamPackagePrice = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const policy = await updateMockExamPackagePrice({
-      adminUserId: req.session.user.id,
-      monthlyPriceAmount: req.body.monthlyPriceAmount,
-      changeSummary: req.body.changeSummary,
-    });
-    await queuePolicyChangeNotificationsImmediately({
-      policyType: "MOCK_EXAM_PACKAGE",
-      policy,
-    });
-    return res.redirect(
-      "/admin/arena-policies?mockPriceUpdated=1#mock-exam-package"
-    );
-  } catch (error) {
-    if ([400, 409].includes(Number(error.status))) {
-      try {
-        return await renderArenaPolicyAdminPage(req, res, {
-          status: Number(error.status),
-          error: error.message,
-          oldInput: {
-            policyDivision: "MOCK_EXAM_ONLY",
-            ...req.body,
-          },
-        });
-      } catch (renderError) {
-        return next(renderError);
-      }
-    }
-    return next(error);
-  }
-};
-
-exports.adminUpdateLearningPackagePrice = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const policy = await updateLearningPackagePrice({
-      adminUserId: req.session.user.id,
-      priceAmount: req.body.priceAmount,
-      changeSummary: req.body.changeSummary,
-    });
-    await queuePolicyChangeNotificationsImmediately({
-      policyType: "LEARNING_PACKAGE",
-      policy,
-    });
-    return res.redirect(
-      "/admin/arena-policies?learningPriceUpdated=1#learning-package"
-    );
-  } catch (error) {
-    if ([400, 409].includes(Number(error.status))) {
-      try {
-        return await renderArenaPolicyAdminPage(req, res, {
-          status: Number(error.status),
-          error: error.message,
-          oldInput: {
-            policyDivision: "LEARNING_PACKAGE",
-            ...req.body,
-          },
-        });
-      } catch (renderError) {
-        return next(renderError);
-      }
-    }
-    return next(error);
-  }
-};
-
-exports.adminUpdateMainShopPolicy = async (req, res, next) => {
-  try {
-    const enabledItems = Array.isArray(req.body.enabledItems)
-      ? req.body.enabledItems
-      : req.body.enabledItems
-        ? [req.body.enabledItems]
-        : [];
-    const itemPrices = Object.fromEntries(
-      Object.entries(req.body)
-        .filter(([key]) => key.startsWith("price_"))
-        .map(([key, value]) => [key.slice("price_".length), value])
-    );
-    const policy = await updateMainShopPolicy({
-      adminUserId: req.session.user.id,
-      itemPrices,
-      enabledItems,
-      changeSummary: req.body.changeSummary,
-    });
-    await queuePolicyChangeNotificationsImmediately({
-      policyType: "MAIN_SHOP",
-      policy,
-    });
-    return res.redirect("/admin/arena-policies?mainShopUpdated=1#main-shop-policy");
-  } catch (error) {
-    if ([400, 409].includes(Number(error.status))) {
-      try {
-        return await renderArenaPolicyAdminPage(req, res, {
-          status: Number(error.status),
-          error: error.message,
-          oldInput: { policyDivision: "MAIN_SHOP", ...req.body },
-        });
-      } catch (renderError) {
-        return next(renderError);
-      }
-    }
-    return next(error);
-  }
-};
-
 async function renderAdminProblemBanksPage(
   req,
   res,
-  { status = 200, error = "", oldInput = null } = {}
+  { status = 200, error = "" } = {}
 ) {
-  const [problemData, typeCatalog, tierCatalog] = await Promise.all([
-    getAdminArenaProblemData({
-      editVersionId: req.query.edit || req.params.versionId || "",
-    }),
-    getAdminProblemTypeCatalog({
-      category: req.query.category || "CONCEPT_PRACTICE",
-      query: req.query.q || "",
-      inspectVersionId: req.query.inspect || "",
-    }),
-    getAdminArenaTierCatalog(),
-  ]);
-  if (oldInput) {
-    problemData.form = {
-      code: String(oldInput.code || ""),
-      displayName: String(oldInput.displayName || ""),
-      changeSummary: String(oldInput.changeSummary || ""),
-      tierConfigurations: problemData.difficultyTiers.map((difficultyTier) => {
-        const raw = oldInput[`types_${difficultyTier}`];
-        return {
-          difficultyTier,
-          typeIds: Array.isArray(raw) ? raw.map(String) : raw ? [String(raw)] : [],
-        };
-      }),
-      typeSettings: problemData.availableTypes.map((type) => ({
-        typeId: type.typeId,
-        enabled: String(oldInput[`enabled__${type.typeId}`] || "") === "1",
-        selectionWeight: Number(oldInput[`weight__${type.typeId}`] || 1),
-        answerMin: Number(oldInput[`answerMin__${type.typeId}`] || 1),
-        answerMax: Number(oldInput[`answerMax__${type.typeId}`] || 999),
-        difficultyNote: String(oldInput[`difficultyNote__${type.typeId}`] || ""),
-      })),
-    };
-  }
+  const typeCatalog = await getAdminProblemTypeCatalog({
+    category: req.query.category || "CONCEPT_PRACTICE",
+    query: req.query.q || "",
+    inspectVersionId: req.query.inspect || "",
+  });
   return res.status(status).render("admin-problem-banks", {
     user: req.session.user,
     catalog: getAdminProblemBankCatalog(),
-    problemData,
     typeCatalog,
-    tierCatalog,
     error,
     query: req.query || {},
   });
@@ -3418,272 +3085,6 @@ exports.adminReviseProblemType = async (req, res, next) => {
     return next(error);
   }
 };
-
-exports.adminCreateArenaTierCatalogType = async (req, res, next) => {
-  try {
-    const created = await createArenaTierCatalogType({
-      adminUserId: req.session.user.id,
-      input: req.body,
-    });
-    return res.redirect(
-      "/admin/problem-banks?arenaTypeCreated=1#arena-tier-type-create"
-    );
-  } catch (error) {
-    if ([400, 404, 409, 422].includes(Number(error.status))) {
-      try {
-        return await renderAdminProblemBanksPage(req, res, {
-          status: Number(error.status),
-          error: error.message,
-        });
-      } catch (renderError) {
-        return next(renderError);
-      }
-    }
-    return next(error);
-  }
-};
-
-exports.adminCreateArenaProblemData = async (req, res, next) => {
-  try {
-    const draft = await createArenaProblemDataDraft({
-      adminUserId: req.session.user.id,
-      input: req.body,
-    });
-    return res.redirect(`/admin/problem-banks?created=1&edit=${draft._id}#arena-problem-data`);
-  } catch (error) {
-    if ([400, 409, 422].includes(Number(error.status))) {
-      try {
-        return await renderAdminProblemBanksPage(req, res, {
-          status: Number(error.status),
-          error: error.message,
-          oldInput: req.body,
-        });
-      } catch (renderError) {
-        return next(renderError);
-      }
-    }
-    return next(error);
-  }
-};
-
-exports.adminUpdateArenaProblemData = async (req, res, next) => {
-  try {
-    await updateArenaProblemDataDraft({
-      adminUserId: req.session.user.id,
-      versionId: req.params.versionId,
-      input: req.body,
-    });
-    return res.redirect(`/admin/problem-banks?updated=1&edit=${req.params.versionId}#arena-problem-data`);
-  } catch (error) {
-    if ([400, 404, 409, 422].includes(Number(error.status))) {
-      try {
-        return await renderAdminProblemBanksPage(req, res, {
-          status: Number(error.status),
-          error: error.message,
-          oldInput: req.body,
-        });
-      } catch (renderError) {
-        return next(renderError);
-      }
-    }
-    return next(error);
-  }
-};
-
-exports.adminActivateArenaProblemData = async (req, res, next) => {
-  try {
-    await activateArenaProblemDataVersion({
-      adminUserId: req.session.user.id,
-      versionId: req.params.versionId,
-    });
-    return res.redirect("/admin/problem-banks?activated=1#arena-problem-data");
-  } catch (error) {
-    if ([400, 404, 409, 422].includes(Number(error.status))) {
-      try {
-        return await renderAdminProblemBanksPage(req, res, {
-          status: Number(error.status),
-          error: error.message,
-        });
-      } catch (renderError) {
-        return next(renderError);
-      }
-    }
-    return next(error);
-  }
-};
-
-exports.adminCreateArenaPolicy =
-  async (req, res, next) => {
-    try {
-      const draft = await createArenaPolicyVersion({
-        adminUserId: req.session.user.id,
-        input: req.body,
-      });
-      const policy = await activateArenaPolicyVersion({
-        adminUserId: req.session.user.id,
-        policyId: draft._id,
-      });
-      await queuePolicyChangeNotificationsImmediately({
-        policyType: "SUB_DIVISION",
-        policy,
-      });
-      return res.redirect("/admin/arena-policies?createdScheduled=1");
-    } catch (error) {
-      if ([400, 409].includes(Number(error.status))) {
-        try {
-          return await renderArenaPolicyAdminPage(req, res, {
-            status: Number(error.status),
-            error: error.message,
-            oldInput: req.body,
-          });
-        } catch (renderError) {
-          return next(renderError);
-        }
-      }
-      return next(error);
-    }
-  };
-
-exports.adminCreateMainArenaPolicy =
-  async (req, res, next) => {
-    try {
-      const draft = await createMainDivisionPolicyVersion({
-        adminUserId: req.session.user.id,
-        input: req.body,
-      });
-      const policy = await activateMainDivisionPolicyVersion({
-        adminUserId: req.session.user.id,
-        policyId: draft._id,
-      });
-      await queuePolicyChangeNotificationsImmediately({
-        policyType: "MAIN_DIVISION",
-        policy,
-      });
-      return res.redirect(
-        "/admin/arena-policies?mainCreatedScheduled=1#main-policy"
-      );
-    } catch (error) {
-      if ([400, 409].includes(Number(error.status))) {
-        try {
-          return await renderArenaPolicyAdminPage(req, res, {
-            status: Number(error.status),
-            error: error.message,
-            oldInput: {
-              policyDivision: "MAIN",
-              ...req.body,
-            },
-          });
-        } catch (renderError) {
-          return next(renderError);
-        }
-      }
-      return next(error);
-    }
-  };
-
-exports.adminActivateArenaPolicy =
-  async (req, res, next) => {
-    try {
-      const policy = await activateArenaPolicyVersion({
-        adminUserId: req.session.user.id,
-        policyId: req.params.policyId,
-      });
-      await queuePolicyChangeNotificationsImmediately({
-        policyType: "SUB_DIVISION",
-        policy,
-      });
-      return res.redirect("/admin/arena-policies?activated=1");
-    } catch (error) {
-      if ([400, 404, 409].includes(Number(error.status))) {
-        try {
-          return await renderArenaPolicyAdminPage(req, res, {
-            status: Number(error.status),
-            error: error.message,
-          });
-        } catch (renderError) {
-          return next(renderError);
-        }
-      }
-      return next(error);
-    }
-  };
-
-exports.adminActivateMainArenaPolicy =
-  async (req, res, next) => {
-    try {
-      const policy = await activateMainDivisionPolicyVersion({
-        adminUserId: req.session.user.id,
-        policyId: req.params.policyId,
-      });
-      await queuePolicyChangeNotificationsImmediately({
-        policyType: "MAIN_DIVISION",
-        policy,
-      });
-      return res.redirect(
-        "/admin/arena-policies?mainActivated=1#main-policy"
-      );
-    } catch (error) {
-      if ([400, 404, 409].includes(Number(error.status))) {
-        try {
-          return await renderArenaPolicyAdminPage(req, res, {
-            status: Number(error.status),
-            error: error.message,
-          });
-        } catch (renderError) {
-          return next(renderError);
-        }
-      }
-      return next(error);
-    }
-  };
-
-exports.adminRetireArenaPolicy =
-  async (req, res, next) => {
-    try {
-      await retireArenaPolicyVersion({
-        adminUserId: req.session.user.id,
-        policyId: req.params.policyId,
-      });
-      return res.redirect("/admin/arena-policies?retired=1");
-    } catch (error) {
-      if ([400, 404, 409].includes(Number(error.status))) {
-        try {
-          return await renderArenaPolicyAdminPage(req, res, {
-            status: Number(error.status),
-            error: error.message,
-          });
-        } catch (renderError) {
-          return next(renderError);
-        }
-      }
-      return next(error);
-    }
-  };
-
-exports.adminRetireMainArenaPolicy =
-  async (req, res, next) => {
-    try {
-      await retireMainDivisionPolicyVersion({
-        adminUserId: req.session.user.id,
-        policyId: req.params.policyId,
-      });
-      return res.redirect(
-        "/admin/arena-policies?mainRetired=1#main-policy"
-      );
-    } catch (error) {
-      if ([400, 404, 409].includes(Number(error.status))) {
-        try {
-          return await renderArenaPolicyAdminPage(req, res, {
-            status: Number(error.status),
-            error: error.message,
-          });
-        } catch (renderError) {
-          return next(renderError);
-        }
-      }
-      return next(error);
-    }
-  };
 
 exports.adminCreateAnnouncement =
   async (req, res, next) => {
@@ -4281,7 +3682,7 @@ exports.adminUpdateUserPackageAccess =
       await updateAdminPackageAccess({
         adminUserId: req.session.user.id,
         userId: req.params.userId,
-        packageType: req.body.packageType,
+        planCode: req.body.planCode,
         reason: req.body.reason,
       });
       return res.redirect(
@@ -4953,7 +4354,7 @@ exports.adminPrivateMockExamDetailPage =
                         type:
                           "success",
                         message:
-                          `정답을 정정하고 ${Number(req.query.answerCorrected) || 0}개 응시 기록의 성적·랭킹·시험 레이팅을 다시 계산했습니다.`,
+                          `정답을 정정하고 ${Number(req.query.answerCorrected) || 0}개 응시 기록의 성적·시험 결과와 경쟁전 내부 실력 지표를 다시 계산했습니다.`,
                       }
                 : null,
         }
@@ -6011,6 +5412,8 @@ function renderRegisterError(res, status, error, oldInput = {}) {
         universities: getUniversitySelectData(),
         socialRegistration:
           res.locals.socialRegistration || null,
+        arenaGuestRegistrationClaim:
+          res.locals.arenaGuestRegistrationClaim || null,
         error,
         oldInput: {
             realName: "",
@@ -6042,6 +5445,21 @@ exports.register = async (req, res, next) => {
         }
         res.locals.socialRegistration =
           socialRegistration;
+        const pendingArenaGuestClaimContext =
+          req.session?.arenaGuestRegistrationClaim || null;
+        const arenaGuestReverseIntent = Boolean(
+          pendingArenaGuestClaimContext?.sourceAttemptId &&
+          String(req.session?.returnTo || "") ===
+            `/goat-arena/guest-records/${encodeURIComponent(
+              String(pendingArenaGuestClaimContext.sourceAttemptId)
+            )}?reverse=1`
+        );
+        const arenaGuestRegistrationClaim =
+          await getArenaGuestRegistrationClaimForRequest(req, {
+            createIfMissing: false,
+          });
+        res.locals.arenaGuestRegistrationClaim =
+          arenaGuestRegistrationClaim;
         const realNameValidation = validateRealName(
             req.body.realName
         );
@@ -6243,7 +5661,6 @@ exports.register = async (req, res, next) => {
                     ? buildOverseasUniversity(overseasUniversityName).university
                     : findUniversity(universityCode)
                 : null;
-
         if (
             [10, 11, 12].includes(schoolGrade) &&
             schoolCode === OVERSEAS_HIGH_SCHOOL_OPTION_CODE &&
@@ -6276,6 +5693,15 @@ exports.register = async (req, res, next) => {
                 "올바른 고등학교를 선택해주세요.",
                 oldInput
             );
+        }
+
+        if (arenaGuestReverseIntent && !arenaGuestRegistrationClaim) {
+          return renderRegisterError(
+            res,
+            409,
+            "도전장 기록 연결 확인이 만료되었습니다. 완료한 도전장 결과에서 역도전장 제안을 다시 시작해 주세요.",
+            oldInput
+          );
         }
         if (schoolGrade === 14 && !selectedUniversity) {
             return renderRegisterError(
@@ -6319,6 +5745,7 @@ exports.register = async (req, res, next) => {
           existingSocialIdentity,
           existingParentAccount,
           existingAcademyAccount,
+          guestNicknameStatus,
         ] =
           await Promise.all([
             User.exists({
@@ -6349,6 +5776,11 @@ exports.register = async (req, res, next) => {
             User.exists(socialIdentityQuery),
             ParentAccount.exists({ email }),
             AcademyAccount.exists({ email }),
+            require("../services/arenaGuestChallengeService").guestNicknameClaimStatus({
+              nickname: name,
+              cookieHeader: req.headers.cookie || "",
+              birthDate: birthDateInput,
+            }),
           ]);
 
         if (existingUser || existingParentAccount || existingAcademyAccount) {
@@ -6367,6 +5799,75 @@ exports.register = async (req, res, next) => {
                 "이미 사용 중인 닉네임입니다.",
                 oldInput
             );
+        }
+        if (guestNicknameStatus.guestConflict) {
+          const expectedGuestNickname = Boolean(
+            arenaGuestRegistrationClaim &&
+            nicknameKey(name) === nicknameKey(arenaGuestRegistrationClaim.nickname)
+          );
+          return renderRegisterError(
+            res,
+            409,
+            expectedGuestNickname && guestNicknameStatus.birthDateMatches !== true
+              ? "도전장 참가 때 사용한 생년월일과 일치하지 않습니다."
+              : "이미 사용 중인 닉네임입니다.",
+            oldInput
+          );
+        }
+
+        const claimableGuestIdentity =
+          guestNicknameStatus.claimableIdentity || null;
+        const claimContextMatches = Boolean(
+          claimableGuestIdentity &&
+          arenaGuestRegistrationClaim &&
+          String(claimableGuestIdentity._id) ===
+            String(arenaGuestRegistrationClaim.guestIdentityId) &&
+          nicknameKey(name) ===
+            nicknameKey(arenaGuestRegistrationClaim.nickname) &&
+          guestNicknameStatus.birthDateMatches === true
+        );
+        const guestClaimConfirmed = Boolean(
+          claimContextMatches &&
+          ["true", "on", "1"].includes(
+            String(req.body.arenaGuestRegistrationConfirmed || "")
+          ) &&
+          sameArenaGuestConfirmationNonce(
+            req.body.arenaGuestRegistrationNonce,
+            arenaGuestRegistrationClaim.confirmationNonce
+          )
+        );
+
+        if (claimableGuestIdentity?.claimedByUserId) {
+          return renderRegisterError(
+            res,
+            409,
+            "이 도전장 기록은 이미 다른 계정에 연결되어 있습니다.",
+            oldInput
+          );
+        }
+        if (
+          (arenaGuestReverseIntent || claimableGuestIdentity) &&
+          !claimContextMatches
+        ) {
+          return renderRegisterError(
+            res,
+            409,
+            arenaGuestReverseIntent
+              ? "역도전장을 만들려면 도전장 참가 때 사용한 닉네임과 생년월일을 그대로 입력해 주세요."
+              : "도전장 참가 때 사용한 닉네임과 생년월일을 확인해 주세요.",
+            oldInput
+          );
+        }
+        if (
+          (arenaGuestReverseIntent || claimableGuestIdentity) &&
+          !guestClaimConfirmed
+        ) {
+          return renderRegisterError(
+            res,
+            400,
+            "도전장 참가 기록이 본인의 기록인지 확인해 주세요.",
+            oldInput
+          );
         }
 
         if (existingSocialIdentity) {
@@ -6447,39 +5948,127 @@ exports.register = async (req, res, next) => {
             },
         };
 
-        let user;
-        if (appleProvisionalUser) {
-          /*
-           * Apple 신원 교환 때 만들어진 최소 사용자 문서를 지금 사용자가 입력한
-           * 값으로 완성한다. 새 문서를 하나 더 만들면 같은 relay 이메일과 Apple
-           * subject가 두 계정으로 갈라지므로 반드시 기존 _id를 유지한다.
-           */
-          appleProvisionalUser.set(registrationProfile);
-          appleProvisionalUser.set(
-            socialIdentityPath,
-            socialRegistration.providerUserId
-          );
-          appleProvisionalUser.emailVerifiedAt = null;
-          user = await appleProvisionalUser.save();
-        } else {
-          const passwordHash = await bcrypt.hash(
+        const passwordHash = appleProvisionalUser
+          ? null
+          : await bcrypt.hash(
               socialRegistration
                 ? crypto.randomBytes(48).toString("base64url")
                 : password,
               BCRYPT_ROUNDS
           );
-          user = await User.create({
-            ...registrationProfile,
-            passwordHash,
-            ...(socialRegistration
-              ? {
-                  socialAuth: {
-                    [socialIdentityField]:
-                      socialRegistration.providerUserId,
-                  },
-                }
-              : {}),
+        const registrationUserId = appleProvisionalUser?._id || new mongoose.Types.ObjectId();
+        const previousProvisionalNickname = appleProvisionalUser
+          ? nicknameKey(appleProvisionalUser.nameNormalized || appleProvisionalUser.name)
+          : "";
+        const persistRegisteredUser = async (session = null) => {
+          await reserveUserNickname({
+            nickname: name,
+            nicknameNormalized: nicknameKey(name),
+            userId: registrationUserId,
+            claimableGuestIdentityId: guestClaimConfirmed
+              ? claimableGuestIdentity?._id
+              : null,
+            session,
           });
+          let persistedUser;
+          if (appleProvisionalUser) {
+            /*
+             * Apple 신원 교환 때 만들어진 최소 사용자 문서를 지금 사용자가 입력한
+             * 값으로 완성한다. 게스트 기록 연결이 필요한 경우 같은 트랜잭션 안에서
+             * 기존 _id를 완성해 계정만 생기고 기록 연결이 빠지는 상태를 막는다.
+             */
+            const provisional = session
+              ? await User.findById(appleProvisionalUser._id)
+                  .select(`+birthDate ${SOCIAL_AUTH_SELECT}`)
+                  .session(session)
+              : appleProvisionalUser;
+            if (!provisional) throw new Error("Apple 임시 사용자 정보를 찾을 수 없습니다.");
+            provisional.set(registrationProfile);
+            provisional.set(socialIdentityPath, socialRegistration.providerUserId);
+            provisional.emailVerifiedAt = null;
+            persistedUser = await provisional.save(session ? { session } : undefined);
+          } else {
+            const payload = {
+              _id: registrationUserId,
+              ...registrationProfile,
+              passwordHash,
+              ...(socialRegistration
+                ? {
+                    socialAuth: {
+                      [socialIdentityField]: socialRegistration.providerUserId,
+                    },
+                  }
+                : {}),
+            };
+            if (!session) persistedUser = await User.create(payload);
+            else [persistedUser] = await User.create([payload], { session });
+          }
+          if (
+            previousProvisionalNickname &&
+            previousProvisionalNickname !== nicknameKey(name)
+          ) {
+            await releaseNickname({
+              nicknameNormalized: previousProvisionalNickname,
+              ownerKind: "USER",
+              ownerId: registrationUserId,
+              session,
+            });
+          }
+          return persistedUser;
+        };
+
+        let user;
+        if (guestClaimConfirmed) {
+          const registrationSession = await mongoose.startSession();
+          try {
+            await registrationSession.withTransaction(async () => {
+              user = await persistRegisteredUser(registrationSession);
+              const claimResult = await require("../services/arenaGuestChallengeService").claimGuestRecordsForUser({
+                userId: user._id,
+                nickname: name,
+                birthDate: birthDateInput,
+                cookieHeader: req.headers.cookie || "",
+                session: registrationSession,
+              });
+              if (claimResult.claimed !== true) {
+                const claimError = new Error("게스트 신원 소유권을 다시 확인할 수 없습니다.");
+                claimError.status = 409;
+                claimError.code = "ARENA_GUEST_CLAIM_FAILED";
+                throw claimError;
+              }
+            });
+          } catch (error) {
+            console.error("게스트 Arena 기록 포함 회원가입 트랜잭션 실패:", error);
+            return renderRegisterError(
+              res,
+              [400, 409].includes(Number(error?.status)) ? Number(error.status) : 503,
+              Number(error?.status) === 409
+                ? error.message
+                : "회원가입과 도전장 기록 연결을 함께 완료하지 못했습니다. 잠시 후 다시 시도해주세요.",
+              oldInput
+            );
+          } finally {
+            await registrationSession.endSession();
+          }
+          user?.$session?.(null);
+          if (req.session?.arenaGuestRegistrationClaim) {
+            delete req.session.arenaGuestRegistrationClaim;
+          }
+          res.clearCookie("matths_arena_guest", {
+            path: "/",
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "production",
+          });
+        } else {
+          const registrationSession = await mongoose.startSession();
+          try {
+            await registrationSession.withTransaction(async () => {
+              user = await persistRegisteredUser(registrationSession);
+            });
+          } finally {
+            await registrationSession.endSession();
+          }
+          user?.$session?.(null);
         }
 
         await alertPotentialDuplicateIdentity(
@@ -6542,9 +6131,9 @@ exports.register = async (req, res, next) => {
         }
 
         if (
-          error.code === 11000 &&
-          error.keyPattern
-            ?.nameNormalized
+          (error.code === 11000 &&
+            error.keyPattern?.nameNormalized) ||
+          error.code === "NICKNAME_NAMESPACE_TAKEN"
         ) {
           return renderRegisterError(
             res,
@@ -7078,8 +6667,8 @@ exports.changeNickname = async (req, res, next) => {
             });
         }
 
-        const duplicate =
-          await User.exists({
+        const [duplicate, guestNicknameStatus] =
+          await Promise.all([User.exists({
             _id: {
               $ne:
                 req.session.user.id,
@@ -7102,9 +6691,21 @@ exports.changeNickname = async (req, res, next) => {
                 },
               },
             ],
-          });
+          }), require("../services/arenaGuestChallengeService").guestNicknameClaimStatus({
+            nickname,
+            cookieHeader: req.headers.cookie || "",
+            userId: req.session.user.id,
+          })]);
 
-        if (duplicate) {
+        const guestNicknameOwnedByUser =
+          !guestNicknameStatus.claimableIdentity ||
+          String(guestNicknameStatus.claimableIdentity.claimedByUserId || "") ===
+            String(req.session.user.id);
+        if (
+          duplicate ||
+          guestNicknameStatus.guestConflict ||
+          !guestNicknameOwnedByUser
+        ) {
             return await renderProfile(req, res, {
                 status: 409,
                 feedback: {
@@ -7117,20 +6718,11 @@ exports.changeNickname = async (req, res, next) => {
             });
         }
 
-        const user = await User.findByIdAndUpdate(
-            req.session.user.id,
-            {
-              name: nickname,
-              nameNormalized:
-                nicknameKey(
-                  nickname
-                ),
-            },
-            {
-                returnDocument: "after",
-                runValidators: true,
-            }
-        ).lean();
+        const user = await replaceUserNickname({
+            userId: req.session.user.id,
+            nickname,
+            nicknameNormalized: nicknameKey(nickname),
+        });
 
         if (!user) {
             throw createNotFoundError(
@@ -7145,6 +6737,19 @@ exports.changeNickname = async (req, res, next) => {
           "/profile?nicknameUpdated=1#nickname-settings"
         );
     } catch (error) {
+        if (error?.code === "NICKNAME_NAMESPACE_TAKEN") {
+            return await renderProfile(req, res, {
+                status: 409,
+                feedback: {
+                    section: "nickname",
+                    type: "error",
+                    message: "방금 다른 사용자가 이 닉네임을 사용하기 시작했습니다.",
+                },
+                formValues: {
+                    nickname: String(req.body.nickname || "").trim(),
+                },
+            });
+        }
         return next(error);
     }
 };

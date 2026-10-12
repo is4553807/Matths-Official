@@ -4,9 +4,6 @@ const path = require("node:path");
 const {
   ARENA_MATCH_QUESTION_ROLLOUT,
 } = require("../services/arenaMatchDifficultyPlan");
-const {
-  assertPreparedArenaQuestionPoolConnected,
-} = require("../services/arenaPreparedQuestionPoolService");
 
 const projectRoot = path.resolve(__dirname, "..");
 
@@ -31,7 +28,6 @@ const assessmentOwnedFiles = [
 for (const file of assessmentOwnedFiles) {
   assertNoImports(file, [
     "arenaMatchDifficultyPlan",
-    "arenaPreparedQuestionPoolService",
     "arenaPdfPilotGenerators",
     "arenaPdfTranscriptionGenerators",
     "arenaOneOnOneProblemBank",
@@ -41,7 +37,6 @@ for (const file of assessmentOwnedFiles) {
 
 const activeArenaRuntimeFiles = [
   "services/arenaMatchDifficultyPlan.js",
-  "services/arenaPreparedQuestionPoolService.js",
   "services/arenaProblemVisualizationPolicy.js",
   "services/arenaOneOnOneProblemTypes.js",
   "services/arenaOneOnOneProblemBank.js",
@@ -62,7 +57,6 @@ for (const file of activeArenaRuntimeFiles) {
 if (ARENA_MATCH_QUESTION_ROLLOUT.runtimeConnected !== true) {
   throw new Error("Arena PDF 문제 풀이 신규 1대1 런타임에 연결되어 있지 않습니다.");
 }
-assertPreparedArenaQuestionPoolConnected();
 
 for (const file of [
   "services/arenaOneOnOneProblemBank.js",

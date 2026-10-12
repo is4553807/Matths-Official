@@ -264,7 +264,6 @@ stub("models/matthsModel.js", {
   User,
   UserNotification,
 });
-stub("models/goatArenaModel.js", { AccessCycle: {}, ArenaAccessState: {} });
 stub("services/archiveService.js", {});
 stub("services/adminService.js", {});
 stub("services/mmrService.js", {});

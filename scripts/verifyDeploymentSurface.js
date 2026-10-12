@@ -145,8 +145,10 @@ assert.match(inicisService, /payAppl\.ini/);
 assert.match(inicisService, /P_CHKFAKE/);
 assert.match(inicisService, /api\/v1\/refund/);
 assert.match(paymentService, /PAYMENT_AMOUNT_MISMATCH/);
-assert.match(paymentService, /applyApprovedPackagePayment/);
-assert.match(paymentService, /applyApprovedMockExamPayment/);
+assert.match(paymentService, /applyApprovedProPayment/);
+assert.match(paymentService, /PAYMENT_PRODUCT_INVALID/);
+assert.doesNotMatch(paymentService, /applyApprovedPackagePayment/);
+assert.doesNotMatch(paymentService, /applyApprovedMockExamPayment/);
 
 for (const [dependency, expected] of [
   ["js-yaml", "^5.2.3"],

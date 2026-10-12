@@ -93,7 +93,16 @@ function hasRenderableArenaVisualization(value) {
           (Array.isArray(entry) && entry.length > 0))
     );
   }
-  return kind === "geometry" && validLabeledPoints(value);
+  if (kind !== "geometry") return false;
+  if (validLabeledPoints(value)) return true;
+  const point = (entry) => entry && Number.isFinite(Number(entry.x)) && Number.isFinite(Number(entry.y));
+  const shapes = [
+    ...(value.rectangles || []).map((entry) => point(entry) && Number(entry.width) > 0 && Number(entry.height) > 0),
+    ...(value.polygons || []).map((entry) => entry.points?.length >= 3 && entry.points.every(point)),
+    ...(value.polylines || []).map((entry) => entry.points?.length >= 2 && entry.points.every(point)),
+  ];
+  return shapes.length > 0 && shapes.every(Boolean) &&
+    (!value.texts || value.texts.every((entry) => point(entry) && typeof entry.text === "string"));
 }
 
 function plainPrompt(value) {
@@ -121,6 +130,12 @@ function isVisualizationPresentedInProblem(problem) {
 function problemWithVerifiedVisualization(problem) {
   if (!problem || typeof problem !== "object") return problem;
   if (!isVisualizationPresentedInProblem(problem)) {
+    if (problem.visualizationRequired === true ||
+        /(?:다음|아래|주어진).{0,28}(?:그림|그래프|표)/.test(plainPrompt(problem.prompt))) {
+      throw Object.assign(new Error("필수 시각자료를 보존할 수 없는 문항입니다."), {
+        code: "ARENA_REQUIRED_VISUALIZATION_INVALID", status: 422,
+      });
+    }
     return { ...problem, visualization: null };
   }
   return {

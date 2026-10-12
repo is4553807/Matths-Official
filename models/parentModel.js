@@ -96,7 +96,7 @@ const parentInviteSchema = new Schema(
     },
     productCode: {
       type: String,
-      enum: ["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"],
+      enum: ["PRO_MONTHLY"],
       required: true,
     },
     // 학생이 결제 요청 전 법정대리인의 최종 동의 필요성을 확인했다는 감사 기록입니다.
@@ -366,7 +366,7 @@ const checkoutIntentSchema = new Schema(
     },
     productCode: {
       type: String,
-      enum: ["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"],
+      enum: ["PRO_MONTHLY"],
       required: true,
       index: true,
     },

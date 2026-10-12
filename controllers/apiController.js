@@ -68,6 +68,10 @@ const {
   nicknameKey,
 } = require("../services/nicknameService");
 const {
+  replaceUserNickname,
+  reserveUserNickname,
+} = require("../services/nicknameNamespaceService");
+const {
   alertPotentialDuplicateIdentity,
   buildIdentityMatchHash,
   normalizeBirthDate,
@@ -94,7 +98,7 @@ const {
   issueStartTicket,
 } = require("../services/accountReauthenticationService");
 const {
-  ArenaAccessState,
+  ArenaGuestIdentity,
 } = require("../models/goatArenaModel");
 const {
   resolveArenaProfileAvatar,
@@ -169,17 +173,7 @@ function serializeUser(user) {
 }
 
 async function serializeIpadUser(user) {
-  const [activityLevel, accessState] = await Promise.all([
-    getArenaActivityLevel(user._id),
-    ArenaAccessState.findOne({ userId: user._id })
-      .select("currentCompetitiveDivision")
-      .lean(),
-  ]);
-  const activeDivision = ["SUB", "MAIN"].includes(
-    String(accessState?.currentCompetitiveDivision || "").toUpperCase()
-  )
-    ? String(accessState.currentCompetitiveDivision).toUpperCase()
-    : null;
+  const activityLevel = await getArenaActivityLevel(user._id);
 
   return {
     ...serializeUser(user),
@@ -189,7 +183,7 @@ async function serializeIpadUser(user) {
     arenaActivityLevel: activityLevel,
     dashboardTutorial: dashboardTutorialView(user.preferences),
     arenaTutorial: arenaTutorialView(user.preferences, {
-      activeDivision,
+      activeDivision: null,
       isAdminPreview: user.role === "admin",
     }),
   };
@@ -447,6 +441,7 @@ exports.register = async (
     const [
       existing,
       existingNickname,
+      existingGuestNickname,
       existingParentAccount,
       existingAcademyAccount,
     ] = await Promise.all([
@@ -471,6 +466,9 @@ exports.register = async (
           },
         ],
       }),
+      ArenaGuestIdentity.exists({
+        nicknameNormalized: nicknameKey(name),
+      }),
       ParentAccount.exists({ email }),
       AcademyAccount.exists({ email }),
     ]);
@@ -483,7 +481,7 @@ exports.register = async (
       });
     }
 
-    if (existingNickname) {
+    if (existingNickname || existingGuestNickname) {
       return res.status(409).json({
         code:
           "NICKNAME_EXISTS",
@@ -493,71 +491,77 @@ exports.register = async (
     }
 
     const now = new Date();
-    const user = await User.create({
-      realName,
-      name,
-      nameNormalized:
-        nicknameKey(name),
-      email,
-      emailVerificationRequiredAt: now,
-      passwordHash:
-        await bcrypt.hash(
-          password,
-          BCRYPT_ROUNDS
-        ),
-      birthDate,
-      ...(school
-        ? {
-            identityMatchHash:
-              buildIdentityMatchHash({
-                realName,
-                birthDate,
-                schoolCode:
-                  school.code,
-              }),
-            identityMatchVersion:
-              "name-birthdate-school-v1",
-          }
-        : {}),
-      schoolGrade,
-      learnerType:
-        schoolGrade === 13
-          ? "RETAKER"
-          : schoolGrade === 14
-            ? "UNIVERSITY"
-            : schoolGrade === 15
-              ? "WORKER"
-              : "HIGH_SCHOOL",
-      educationStatus:
-        [13, 15].includes(schoolGrade)
-          ? "graduated"
-          : "enrolled",
-      lastGradePromotionYear:
-        getAcademicYear(now),
-      ...(school
-        ? {
-            school: {
-              region: school.region,
-              code: school.code,
-              name: school.name,
-              roadAddress:
-                school.roadAddress || "",
-              establishment:
-                school.establishment || "",
-              highSchoolType:
-                school.highSchoolType || "",
-              isOverseas:
-                school.isOverseas === true,
-            },
-          }
-        : {}),
-      ...(university
-        ? { university }
-        : {}),
-      termsAcceptedAt: now,
-      termsVersion: "2026-08-13",
-      privacyVersion: "2026-08-13",
-    });
+    const userId = new mongoose.Types.ObjectId();
+    const passwordHash = await bcrypt.hash(
+      password,
+      BCRYPT_ROUNDS
+    );
+    const registrationSession = await mongoose.startSession();
+    let user;
+    try {
+      await registrationSession.withTransaction(async () => {
+        await reserveUserNickname({
+          nickname: name,
+          nicknameNormalized: nicknameKey(name),
+          userId,
+          session: registrationSession,
+        });
+        [user] = await User.create([{
+          _id: userId,
+          realName,
+          name,
+          nameNormalized: nicknameKey(name),
+          email,
+          emailVerificationRequiredAt: now,
+          passwordHash,
+          birthDate,
+          ...(school
+            ? {
+                identityMatchHash: buildIdentityMatchHash({
+                  realName,
+                  birthDate,
+                  schoolCode: school.code,
+                }),
+                identityMatchVersion: "name-birthdate-school-v1",
+              }
+            : {}),
+          schoolGrade,
+          learnerType:
+            schoolGrade === 13
+              ? "RETAKER"
+              : schoolGrade === 14
+                ? "UNIVERSITY"
+                : schoolGrade === 15
+                  ? "WORKER"
+                  : "HIGH_SCHOOL",
+          educationStatus:
+            [13, 15].includes(schoolGrade)
+              ? "graduated"
+              : "enrolled",
+          lastGradePromotionYear: getAcademicYear(now),
+          ...(school
+            ? {
+                school: {
+                  region: school.region,
+                  code: school.code,
+                  name: school.name,
+                  roadAddress: school.roadAddress || "",
+                  establishment: school.establishment || "",
+                  highSchoolType: school.highSchoolType || "",
+                  isOverseas: school.isOverseas === true,
+                },
+              }
+            : {}),
+          ...(university ? { university } : {}),
+          termsAcceptedAt: now,
+          termsVersion: "2026-08-13",
+          privacyVersion: "2026-08-13",
+        }], { session: registrationSession });
+      });
+    } finally {
+      await registrationSession.endSession();
+    }
+    user?.$session?.(null);
 
     await alertPotentialDuplicateIdentity(
       user
@@ -588,6 +592,12 @@ exports.register = async (
       emailSent,
     });
   } catch (error) {
+    if (error.code === "NICKNAME_NAMESPACE_TAKEN") {
+      return res.status(409).json({
+        code: "NICKNAME_EXISTS",
+        message: "이미 사용 중인 닉네임입니다.",
+      });
+    }
     if (
       error.code === 11000
     ) {
@@ -886,16 +896,11 @@ exports.updateDashboardTutorial = async (req, res, next) => {
 
 exports.updateArenaTutorial = async (req, res, next) => {
   try {
-    const accessState = await ArenaAccessState.findOne({
-      userId: req.apiUser._id,
-    })
-      .select("currentCompetitiveDivision")
-      .lean();
     const tutorial = await updateArenaTutorial({
       userId: req.apiUser._id,
       chapter: req.body?.chapter,
       action: req.body?.action,
-      activeDivision: accessState?.currentCompetitiveDivision || null,
+      activeDivision: null,
       isAdminPreview: req.apiUser.role === "admin",
     });
     res.set("Cache-Control", "private, no-store");
@@ -951,7 +956,7 @@ exports.updateSchool = async (
         },
       },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );
@@ -1001,7 +1006,7 @@ exports.updateRankingIdentity = async (
           rankingDisplayMode,
       },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );
@@ -1035,33 +1040,36 @@ exports.updateNickname = async (req, res, next) => {
       });
     }
 
-    const duplicate = await User.exists({
-      _id: { $ne: req.apiUser._id },
-      $or: [
-        { nameNormalized: nicknameKey(nickname) },
-        {
-          name: {
-            $regex: `^${nickname.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
-            $options: "i",
+    const [duplicate, guestNicknameOwner] = await Promise.all([
+      User.exists({
+        _id: { $ne: req.apiUser._id },
+        $or: [
+          { nameNormalized: nicknameKey(nickname) },
+          {
+            name: {
+              $regex: `^${nickname.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+              $options: "i",
+            },
           },
-        },
-      ],
-    });
-    if (duplicate) {
+        ],
+      }),
+      ArenaGuestIdentity.exists({
+        nicknameNormalized: nicknameKey(nickname),
+        claimedByUserId: { $ne: req.apiUser._id },
+      }),
+    ]);
+    if (duplicate || guestNicknameOwner) {
       return res.status(409).json({
         code: "NICKNAME_TAKEN",
         message: "이미 사용 중인 닉네임입니다.",
       });
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.apiUser._id,
-      {
-        name: nickname,
-        nameNormalized: nicknameKey(nickname),
-      },
-      { new: true, runValidators: true }
-    );
+    const user = await replaceUserNickname({
+      userId: req.apiUser._id,
+      nickname,
+      nicknameNormalized: nicknameKey(nickname),
+    });
     if (!user) {
       return res.status(404).json({
         code: "USER_NOT_FOUND",
@@ -1071,6 +1079,12 @@ exports.updateNickname = async (req, res, next) => {
 
     return res.json({ user: serializeUser(user) });
   } catch (error) {
+    if (error?.code === "NICKNAME_NAMESPACE_TAKEN") {
+      return res.status(409).json({
+        code: "NICKNAME_TAKEN",
+        message: "이미 사용 중인 닉네임입니다.",
+      });
+    }
     return next(error);
   }
 };

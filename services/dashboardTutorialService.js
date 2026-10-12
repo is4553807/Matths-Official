@@ -77,7 +77,7 @@ async function updateDashboardTutorial({ userId, action }) {
   }
 
   const user = await User.findByIdAndUpdate(userId, update, {
-    new: true,
+    returnDocument: "after",
     runValidators: true,
   })
     .select("preferences")

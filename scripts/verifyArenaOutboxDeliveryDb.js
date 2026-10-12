@@ -28,7 +28,7 @@ async function main() {
       handled += 1;
     });
     await ArenaOutboxEvent.create({
-      eventType: "MainQualifyingActivityRecorded",
+      eventType: "ArenaMatchCreated",
       aggregateType: "ArenaOutboxE2E",
       aggregateId,
       idempotencyKey,

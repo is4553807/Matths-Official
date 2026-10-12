@@ -15,7 +15,7 @@ const read = (relativePath) =>
 
 assert.equal(ARENA_ACTIVITY_MAX_LEVEL, 10);
 assert.equal(ARENA_ACTIVITY_COUNTED_STATUS, "SETTLED");
-assert.deepEqual(ARENA_ACTIVITY_MATCH_TYPES, ["NORMAL", "REVENGE"]);
+assert.deepEqual(ARENA_ACTIVITY_MATCH_TYPES, ["NORMAL"]);
 
 const expectedThresholds = [0, 5, 15, 30, 50, 75, 105, 140, 180, 225];
 expectedThresholds.forEach((threshold, index) => {

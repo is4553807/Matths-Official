@@ -4,12 +4,22 @@ const authMiddleware =
   require("../middleware/authMiddleware");
 const goatArenaController =
   require("../controllers/goatArenaController");
+const goatArenaV2Controller =
+  require("../controllers/goatArenaV2Controller");
+const arenaGuestChallengeController = require("../controllers/arenaGuestChallengeController");
 const {
   arenaEvidenceUpload,
 } = require("../middleware/arenaEvidenceUpload");
 const {
   createUploadContentValidator,
 } = require("../middleware/uploadContentValidation");
+const {
+  arenaGuestClaimIpRateLimit,
+  arenaGuestEvidenceIpHardRateLimit,
+  arenaGuestEvidenceIpRateLimit,
+  arenaGuestPlayIpHardRateLimit,
+  arenaGuestPlayIpRateLimit,
+} = require("../middleware/requestSecurity");
 
 const validateArenaEvidenceContent = createUploadContentValidator({
   maxTotalBytes: 30 * 1024 * 1024,
@@ -30,12 +40,6 @@ router.get(
   "/goat-arena",
   authMiddleware.isLoggedIn,
   goatArenaController.startPage
-);
-
-router.get(
-  "/goat-arena/rankings",
-  authMiddleware.isLoggedIn,
-  goatArenaController.rankingsPage
 );
 
 router.get(
@@ -62,22 +66,120 @@ router.get(
   goatArenaController.subDivisionPage
 );
 
-router.get(
-  "/goat-arena/sub/challenge",
-  authMiddleware.isLoggedIn,
-  goatArenaController.subChallengePage
-);
-
 router.post(
   "/goat-arena/sub/challenges",
   authMiddleware.isLoggedIn,
-  goatArenaController.createSubChallenge
+  (req, res, next) => {
+    req.params.mode = "normal";
+    return goatArenaV2Controller.joinMatchmaking(req, res, next);
+  }
+);
+
+router.post(
+  "/goat-arena/matchmaking/:mode/join",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.joinMatchmaking
+);
+
+router.post(
+  "/goat-arena/competitive/solution-sharing-consent",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.acknowledgeCompetitiveSolutionSharing
+);
+
+router.post(
+  "/goat-arena/matchmaking/cancel",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.cancelMatchmaking
+);
+
+router.get(
+  "/api/goat-arena/matchmaking/status",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.matchmakingStatus
+);
+router.get(
+  "/api/goat-arena/friends/status",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.friendStatus
+);
+
+router.post(
+  "/goat-arena/placement/finalize",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.finalizePlacement
+);
+
+router.get(
+  "/goat-arena/friends",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.friendsPage
+);
+
+router.post(
+  "/goat-arena/friends/requests",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.sendFriendRequest
+);
+
+router.post(
+  "/goat-arena/friends/requests/:requestId/respond",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.respondFriendRequest
+);
+
+router.post(
+  "/goat-arena/friends/invitations",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.createFriendlyInvitation
+);
+
+router.post(
+  "/goat-arena/friends/invitations/:invitationId/respond",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.respondFriendlyInvitation
+);
+
+router.post(
+  "/goat-arena/friends/invitations/:invitationId/cancel",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.cancelFriendlyInvitation
 );
 
 router.get(
   "/goat-arena/matches/:matchId",
   authMiddleware.isLoggedIn,
   goatArenaController.arenaMatchPage
+);
+router.post(
+  "/goat-arena/matches/:matchId/guest-invitations",
+  authMiddleware.isLoggedIn,
+  arenaGuestChallengeController.create
+);
+router.get(
+  "/goat-arena/matches/:matchId/competitive-result",
+  authMiddleware.isLoggedIn,
+  goatArenaController.getAsyncCompetitiveResult
+);
+router.get(
+  "/goat-arena/matches/:matchId/competitive-result/evidence/:side/:fileIndex",
+  authMiddleware.isLoggedIn,
+  goatArenaController.getAsyncCompetitiveEvidenceFile
+);
+router.get(
+  "/goat-arena/matches/:matchId/normal-result",
+  authMiddleware.isLoggedIn,
+  goatArenaController.getAsyncNormalResult
+);
+router.get(
+  "/goat-arena/matches/:matchId/normal-result/evidence/:side/:fileIndex",
+  authMiddleware.isLoggedIn,
+  goatArenaController.getAsyncNormalEvidenceFile
+);
+router.post(
+  "/goat-arena/matches/:matchId/forfeit",
+  authMiddleware.isLoggedIn,
+  goatArenaV2Controller.forfeitMatch
 );
 
 router.post(
@@ -98,10 +200,29 @@ router.post(
   goatArenaController.saveArenaMatchAnswers
 );
 
+router.post("/api/goat-arena/matches/:matchId/lock-question", authMiddleware.isLoggedIn, goatArenaController.lockArenaQuestionCompletion);
+
 router.post(
   "/api/goat-arena/matches/:matchId/advance",
   authMiddleware.isLoggedIn,
   goatArenaController.advanceArenaMatchQuestion
+);
+router.get(
+  "/api/goat-arena/matches/:matchId/solution-boards",
+  authMiddleware.isLoggedIn,
+  goatArenaController.getArenaInlineSolutionBoards
+);
+router.put(
+  "/api/goat-arena/matches/:matchId/solution-boards/current",
+  authMiddleware.isLoggedIn,
+  arenaEvidenceUpload.single("solutionBoard"),
+  validateArenaEvidenceContent,
+  goatArenaController.saveArenaInlineSolutionBoard
+);
+router.post(
+  "/api/goat-arena/matches/:matchId/solution-boards/finalize",
+  authMiddleware.isLoggedIn,
+  goatArenaController.finalizeArenaInlineSolutionBoards
 );
 
 router.post(
@@ -167,27 +288,9 @@ router.post(
 );
 
 router.post(
-  "/api/goat-arena/rank-up-presentations/:presentationId/ack",
-  authMiddleware.isLoggedIn,
-  goatArenaController.acknowledgeRankUpPresentation
-);
-
-router.post(
   "/api/goat-arena/tutorial",
   authMiddleware.isLoggedIn,
   goatArenaController.updateArenaTutorial
-);
-
-router.post(
-  "/goat-arena/revenge-rights/:rightId/claim",
-  authMiddleware.isLoggedIn,
-  goatArenaController.claimSubRevenge
-);
-
-router.post(
-  "/goat-arena/revenge-rights/:rightId/forfeit",
-  authMiddleware.isLoggedIn,
-  goatArenaController.forfeitSubRevenge
 );
 
 router.get(
@@ -196,71 +299,124 @@ router.get(
   goatArenaController.mainDivisionPage
 );
 
-router.get(
-  "/goat-arena/main/battle",
-  authMiddleware.isLoggedIn,
-  goatArenaController.mainBattlePage
-);
-
 router.post(
   "/goat-arena/main/challenges",
   authMiddleware.isLoggedIn,
-  goatArenaController.createMainUpwardChallenge
-);
-
-router.post(
-  "/goat-arena/main/invitations",
-  authMiddleware.isLoggedIn,
-  goatArenaController.createMainLowerInvitation
-);
-
-router.post(
-  "/goat-arena/main/invitation-offers/:offerId/respond",
-  authMiddleware.isLoggedIn,
-  goatArenaController.respondMainInvitation
-);
-
-router.post(
-  "/goat-arena/main/invitations/:invitationId/cancel",
-  authMiddleware.isLoggedIn,
-  goatArenaController.cancelMainInvitation
+  (req, res, next) => {
+    req.params.mode = "competitive";
+    return goatArenaV2Controller.joinMatchmaking(req, res, next);
+  }
 );
 
 router.post(
   "/goat-arena/main/friendly-invitations",
   authMiddleware.isLoggedIn,
-  goatArenaController.createMainFriendlyInvitation
+  goatArenaV2Controller.createFriendlyInvitation
 );
 
 router.post(
   "/goat-arena/main/friendly-invitations/:invitationId/respond",
   authMiddleware.isLoggedIn,
-  goatArenaController.respondMainFriendlyInvitation
+  goatArenaV2Controller.respondFriendlyInvitation
 );
 
 router.post(
   "/goat-arena/main/friendly-invitations/:invitationId/cancel",
   authMiddleware.isLoggedIn,
-  goatArenaController.cancelMainFriendlyInvitation
+  goatArenaV2Controller.cancelFriendlyInvitation
 );
 
 router.get(
-  "/goat-arena/main/shop",
+  "/goat-arena/rules",
   authMiddleware.isLoggedIn,
-  goatArenaController.mainShopPage
+  goatArenaController.rulesPage
 );
 
+/* Public guest-friendly links deliberately live outside /goat-arena and
+ * /api/goat-arena so the student-account gate above cannot force login. */
+router.get(
+  "/arena-invite/:token",
+  arenaGuestPlayIpHardRateLimit,
+  arenaGuestPlayIpRateLimit,
+  arenaGuestChallengeController.page
+);
 router.post(
-  "/goat-arena/main/shop/purchases",
-  authMiddleware.isLoggedIn,
-  goatArenaController.purchaseMainShopItem
+  "/api/arena-invite/:token/nickname-availability",
+  arenaGuestPlayIpHardRateLimit,
+  arenaGuestPlayIpRateLimit,
+  arenaGuestChallengeController.nicknameAvailability
 );
-
+router.post(
+  "/arena-invite/:token/claim",
+  arenaGuestClaimIpRateLimit,
+  arenaGuestChallengeController.claim
+);
+router.post(
+  "/arena-invite/:token/reverse-challenge",
+  arenaGuestClaimIpRateLimit,
+  arenaGuestChallengeController.beginReverseChallengeRegistration
+);
+router.post(
+  "/arena-invite/:token/start",
+  arenaGuestPlayIpHardRateLimit,
+  arenaGuestPlayIpRateLimit,
+  arenaGuestChallengeController.start
+);
+router.post(
+  "/api/arena-invite/:token/lock-question",
+  arenaGuestPlayIpHardRateLimit,
+  arenaGuestPlayIpRateLimit,
+  arenaGuestChallengeController.lockQuestionCompletion
+);
+router.post(
+  "/api/arena-invite/:token/advance",
+  arenaGuestPlayIpHardRateLimit,
+  arenaGuestPlayIpRateLimit,
+  arenaGuestChallengeController.advance
+);
 router.get(
-  "/goat-arena/main/shop/analyses/:effectId",
-  authMiddleware.isLoggedIn,
-  goatArenaController.mainShopAnalysisResultPage
+  "/api/arena-invite/:token/solution-boards",
+  arenaGuestPlayIpHardRateLimit,
+  arenaGuestPlayIpRateLimit,
+  arenaGuestChallengeController.getBoards
 );
+router.put(
+  "/api/arena-invite/:token/solution-board",
+  arenaGuestEvidenceIpHardRateLimit,
+  arenaGuestEvidenceIpRateLimit,
+  arenaGuestChallengeController.authorizeBoardUpload,
+  arenaEvidenceUpload.single("solutionBoard"),
+  validateArenaEvidenceContent,
+  arenaGuestChallengeController.saveBoard
+);
+router.post(
+  "/api/arena-invite/:token/solution-boards/finalize",
+  arenaGuestPlayIpHardRateLimit,
+  arenaGuestPlayIpRateLimit,
+  arenaGuestChallengeController.finalizeBoards
+);
+router.post(
+  "/arena-invite/:token/evidence",
+  arenaGuestEvidenceIpHardRateLimit,
+  arenaGuestEvidenceIpRateLimit,
+  arenaGuestChallengeController.authorizeEvidenceUpload,
+  arenaEvidenceUpload.array("evidenceFiles", 5),
+  validateArenaEvidenceContent,
+  arenaGuestChallengeController.submitEvidence
+);
+router.get(
+  "/arena-invite/:token/evidence/participants/:attemptId/:fileIndex",
+  arenaGuestPlayIpHardRateLimit,
+  arenaGuestPlayIpRateLimit,
+  arenaGuestChallengeController.evidenceFile
+);
+router.get(
+  "/arena-invite/:token/evidence/:side/:fileIndex",
+  arenaGuestPlayIpHardRateLimit,
+  arenaGuestPlayIpRateLimit,
+  arenaGuestChallengeController.evidenceFile
+);
+router.use("/arena-invite/:token/evidence", arenaGuestChallengeController.uploadError);
 
 router.get(
   "/goat-arena/rules/sub",
@@ -275,15 +431,27 @@ router.get(
 );
 
 router.get(
-  "/goat-arena/:division/features/:featureKey",
-  authMiddleware.isLoggedIn,
-  goatArenaController.divisionFeaturePage
-);
-
-router.get(
   "/goat-arena/profile",
   authMiddleware.isLoggedIn,
   goatArenaController.profilePage
+);
+
+router.get(
+  "/goat-arena/guest-records/:attemptId",
+  authMiddleware.isLoggedIn,
+  arenaGuestChallengeController.claimedRecordPage
+);
+
+router.get(
+  "/goat-arena/guest-records/:attemptId/evidence/:side/:fileIndex",
+  authMiddleware.isLoggedIn,
+  arenaGuestChallengeController.claimedEvidenceFile
+);
+
+router.post(
+  "/goat-arena/guest-records/:attemptId/guest-invitations",
+  authMiddleware.isLoggedIn,
+  arenaGuestChallengeController.createReverseChallenge
 );
 
 router.post(
@@ -296,18 +464,6 @@ router.post(
   "/goat-arena/profile/tutorial/restart",
   authMiddleware.isLoggedIn,
   goatArenaController.restartArenaTutorial
-);
-
-router.post(
-  "/goat-arena/profile/payback-account/review",
-  authMiddleware.isLoggedIn,
-  goatArenaController.reviewPaybackAccount
-);
-
-router.post(
-  "/goat-arena/profile/payback-account/confirm",
-  authMiddleware.isLoggedIn,
-  goatArenaController.confirmPaybackAccount
 );
 
 module.exports = router;

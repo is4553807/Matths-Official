@@ -10,14 +10,14 @@ const crypto = require("node:crypto");
 const mongoose = require("mongoose");
 const { MongoClient, BSON } = require("mongodb");
 const { User, ArchiveItem, CommunityPost } = require("../models/matthsModel");
-const { ArenaMatch, AccessCycle, ArenaMatchAttempt, ArenaMatchEvidence, MainInvitationRequest, MainShopPurchase } = require("../models/goatArenaModel");
+const { ArenaMatch, ArenaMatchAttempt, ArenaMatchEvidence } = require("../models/goatArenaModel");
 const { ParentAccount, ParentChildLink } = require("../models/parentModel");
 const { AcademyStaff } = require("../models/academyModel");
 const { WebSession } = require("../models/sessionModel");
 const { withdrawUserAccount } = require("../services/accountDeletionService");
 const { signedStoredAssetUrl } = require("../services/fileStorageService");
 
-const MODEL_FILES = ["documentSecurityModel", "appCommerceHandoffModel", "mobileAuthGrantModel", "problemTypeModel", "accountReauthenticationGrantModel", "studyHallModel", "appleAuthCredentialModel", "operationModel", "storeModel", "refundModel", "paybackDailyLearningModel", "paybackModel"];
+const MODEL_FILES = ["documentSecurityModel", "appCommerceHandoffModel", "mobileAuthGrantModel", "problemTypeModel", "accountReauthenticationGrantModel", "studyHallModel", "appleAuthCredentialModel", "operationModel", "storeModel", "refundModel", "financeModel"];
 for (const file of MODEL_FILES) require(`../models/${file}`);
 const testFilter = () => ({ $or: [{ isTestAccount: true }, { role: "test" }] });
 const digest = ids => crypto.createHash("sha256").update(ids.map(String).sort().join("\n")).digest("hex");
@@ -41,10 +41,8 @@ async function preview(db) {
   if (matches.some(m => [m.challenger?.userId, m.defender?.userId, m.requestInitiatorUserId].filter(Boolean).some(id => !idSet.has(String(id))))) throw new Error("Mixed real-user matches exist; refusing to remove another user's history.");
   const guards = [[ParentAccount, "childUserId"], [ParentChildLink, "childUserId"], [AcademyStaff, "userId"], [ArchiveItem, "uploadedBy"], [CommunityPost, "authorId"]];
   for (const [model, key] of guards) if (await db.collection(model.collection.name).countDocuments({ [key]: { $in: ids } })) throw new Error(`${model.modelName} has nontrivial relationships; a separately reviewed deletion plan is required.`);
-  const invitations = await db.collection(MainInvitationRequest.collection.name).find({ $or: ["initiatorUserId", "selectedCandidateId", "acceptedCandidateId", "candidatePoolSnapshot"].map(key => ({ [key]: { $in: ids } })) }).toArray();
-  if (invitations.some(r => [r.initiatorUserId, r.selectedCandidateId, r.acceptedCandidateId, ...(r.candidatePoolSnapshot || [])].filter(Boolean).some(value => !idSet.has(String(value.userId || value))))) throw new Error("Mixed real-user invitations exist; refusing to delete them.");
-  const related = new Map([["User", ids], ["ArenaMatch", matches.map(m => m._id)], ["ArenaProblemPack", matches.map(m => m.problemPackId).filter(Boolean)], ["MainInvitationRequest", invitations.map(r => r._id)]]);
-  for (const model of [AccessCycle, ArenaMatchAttempt, ArenaMatchEvidence, MainShopPurchase]) {
+  const related = new Map([["User", ids], ["ArenaMatch", matches.map(m => m._id)], ["ArenaProblemPack", matches.map(m => m.problemPackId).filter(Boolean)]]);
+  for (const model of [ArenaMatchAttempt, ArenaMatchEvidence]) {
     const rows = await db.collection(model.collection.name).find({ userId: { $in: ids } }).toArray();
     related.set(model.modelName, rows.map(r => r._id));
   }

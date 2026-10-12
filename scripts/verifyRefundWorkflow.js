@@ -20,7 +20,7 @@ function product(code, amount, periodLabel) {
     code,
     amount,
     periodLabel,
-    name: code === "MOCK_EXAM_ONLY" ? "Matths 주간 공식 모의고사 이용권" : "29일 학습권 패키지",
+    name: "Matths Pro",
     description: "검증용 상품",
   };
   return { ...value, refundPolicy: getRefundDisclosure(value) };
@@ -37,26 +37,26 @@ async function render(name, locals) {
 async function main() {
   const approvedAt = new Date("2026-08-01T00:00:00.000Z");
   const full = calculateRefundQuote({
-    productCode: "LEARNING_PACKAGE_29",
-    approvedAmount: 29000,
+    productCode: "PRO_MONTHLY",
+    approvedAmount: 5500,
     approvedAt,
     serviceStartAt: approvedAt,
     requestedAt: new Date("2026-08-03T00:00:00.000Z"),
     paidFeatureUsed: false,
   });
   assert.equal(full.calculationType, "FULL");
-  assert.equal(full.calculatedAmount, 29000);
+  assert.equal(full.calculatedAmount, 5500);
 
   const partial = calculateRefundQuote({
-    productCode: "LEARNING_PACKAGE_29",
-    approvedAmount: 29000,
+    productCode: "PRO_MONTHLY",
+    approvedAmount: 5500,
     approvedAt,
     serviceStartAt: approvedAt,
     requestedAt: new Date("2026-08-10T00:00:00.000Z"),
     paidFeatureUsed: true,
   });
   assert.equal(partial.usedDays, 10);
-  assert.equal(partial.calculatedAmount, 19000);
+  assert.equal(partial.calculatedAmount, 3667);
   assert.doesNotMatch(partial.formula, /floor/i);
   assert.match(partial.formula, /일할 이용금액/);
 
@@ -73,24 +73,21 @@ async function main() {
     status: { $in: ["REQUESTED", "CALCULATED"] },
   });
 
-  const products = [product("MOCK_EXAM_ONLY", 5500, "30일"), product("LEARNING_PACKAGE_29", 29000, "29일")];
+  const products = [product("PRO_MONTHLY", 5500, "30일")];
   const pricing = await render("pricing.ejs", {
     user: { id: "user", role: "student" },
     activePage: "pricing",
-    mockExamPolicy: { monthlyPriceAmount: 5500 },
-    learningPackagePolicy: { priceAmount: 29000 },
     products,
     productAccess: null,
     checkoutEnabled: true,
   });
   assert.match(pricing, /환불 기준/);
-  assert.match(pricing, /7영업일/);
   assert.doesNotMatch(pricing, /floor/i);
   assert.match(pricing, /1원 미만 금액은 버/);
 
   const checkout = await render("checkout.ejs", {
     user: { id: "user", role: "student" },
-    product: products[1],
+    product: products[0],
     intent: null,
   });
   assert.match(checkout, /name="refundPolicyAccepted"/);
@@ -102,7 +99,7 @@ async function main() {
     contactData: {
       user: { nickname: "학생", schoolName: "학교", email: "user@example.com" },
       inquiries: [],
-      refundableOrders: [{ id: "payment", productName: "29일 학습권", orderReference: "ORDER-1", approvedAt: new Date("2026-08-13T10:00:00+09:00"), remainingAmount: 19000 }],
+      refundableOrders: [{ id: "payment", productName: "Matths Pro", orderReference: "ORDER-1", approvedAt: new Date("2026-08-13T10:00:00+09:00"), remainingAmount: 5500 }],
     },
     feedback: null,
     inquiryRequestId: "5a8ebeb1-0b55-4d70-a200-8a1d58c85b2e",
@@ -155,8 +152,8 @@ async function main() {
   const refundService = read("services/refundService.js");
   assert.match(refundService, /withTransaction/);
   assert.match(refundService, /refund-complete:/);
-  assert.match(refundService, /state: "PAYMENT_REQUIRED"/);
-  assert.match(refundService, /paybackPayoutStatus: "CANCELLED"/);
+  assert.match(refundService, /accountPlan\.sourcePaymentId/);
+  assert.match(refundService, /changeReason: "Pro 플랜 환불 완료"/);
   assert.match(refundService, /async function rejectRefundRequest/);
   assert.match(refundService, /refund\.close-zero/);
   assert.match(refundService, /status: \{ \$in: \["REQUESTED", "CALCULATED"\] \}/);

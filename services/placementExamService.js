@@ -5,6 +5,7 @@ const {
 } = require("../models/matthsModel");
 const {
   ArenaAccessState,
+  ArenaCompetitiveProfile,
 } = require("../models/goatArenaModel");
 const {
   normalizeExamMath,
@@ -29,10 +30,6 @@ const {
   upsertInitialRankingProfile,
 } = require("./mmrService");
 const {
-  kstSeasonKey,
-  syncInitialArenaPlacement,
-} = require("./arenaStandingService");
-const {
   assertPaidPackageAccess,
 } = require("./paidFeatureAccessService");
 
@@ -51,45 +48,61 @@ const PLACEMENT_TERMINAL_STATUSES = [
 ];
 let placementExpiryTimer = null;
 let placementExpiryRunning = false;
+const {
+  NEW_PLACEMENT_CONTEXT,
+  placementBudget,
+  recordPlacementServerFailure,
+} = require("./arenaPlacementPolicyService");
+const { GOAT_ARENA_V2_CONFIG } = require("./goatArenaV2Config");
 
 async function placementAttemptContext(userId, now = new Date()) {
-  const [accessState, initialAttemptExists] = await Promise.all([
-    ArenaAccessState.findOne({ userId }).lean(),
-    AssessmentAttempt.exists({
-      userId,
-      scopeType: "placement",
-      $or: [
-        { placementPurpose: "INITIAL" },
-        { placementPurpose: null },
-        { placementPurpose: { $exists: false } },
-      ],
-    }),
+  const [profile, budget] = await Promise.all([
+    ArenaCompetitiveProfile.findOne({ userId }).lean(),
+    placementBudget(userId),
   ]);
-  if (accessState?.state === "PAID_PENDING_RENEWAL_ASSESSMENT") {
+  const completedCount = budget.attemptsUsed;
+  const activeAttempt = budget.activeAttempt;
+  const historyScope = { eligibleAttemptIds: budget.currentAttempts.map((item) => item._id) };
+  if (profile?.placementFinalizedAt) {
     return {
-      purpose: "RENEWAL_RANK_ASSESSMENT",
-      contextKey: `RENEWAL_RANK_ASSESSMENT:${accessState.accessCycleId}`,
-      startLabel: "랭크 복귀전 시작",
+      purpose: "INITIAL",
+      contextKey: "ARENA2:PLACEMENT:FINALIZED",
+      startLabel: "배치 결과 확정 완료",
+      finalized: true,
+      completedCount,
+      ...historyScope,
     };
   }
-  if (
-    accessState?.state === "SEASON_PLACEMENT_REQUIRED" &&
-    initialAttemptExists
-  ) {
+  if (activeAttempt) {
     return {
-      purpose: "SEASON",
-      contextKey: `SEASON:${kstSeasonKey(now)}:${accessState.currentCompetitiveDivision || "SUB"}`,
-      startLabel: "시즌 배치고사 시작",
+      purpose: "INITIAL",
+      contextKey: activeAttempt.placementContextKey || "INITIAL",
+      startLabel: "배치고사 이어서 응시",
+      finalized: false,
+      completedCount,
+      ...historyScope,
     };
   }
+  const maximumAttempts = 5;
   return {
     purpose: "INITIAL",
-    contextKey: "INITIAL",
-    startLabel: "입단 배치고사 시작",
+    contextKey: budget.nextContextKey,
+    startLabel:
+      completedCount > 0
+        ? `추가 배치고사 ${Math.min(maximumAttempts, completedCount + 1)}회차 시작`
+        : "첫 배치고사 시작",
+    finalized: false,
+    completedCount,
+    maximumAttempts,
+    ...historyScope,
+    reviewRequired: budget.reviewRequired,
   };
 }
 
 function placementContextFilter(context) {
+  if (String(context?.contextKey || "").startsWith("ARENA2:")) {
+    return { placementContextKey: context.contextKey };
+  }
   if (context.purpose !== "INITIAL") {
     return { placementContextKey: context.contextKey };
   }
@@ -197,7 +210,8 @@ async function assertPlacementExamAccess({
 }
 
 function shouldUpdateSkillMmr(attempt) {
-  return !attempt?.placementPurpose || attempt.placementPurpose === "INITIAL";
+  return !String(attempt?.placementContextKey || "").startsWith("ARENA2:") &&
+    (!attempt?.placementPurpose || attempt.placementPurpose === "INITIAL");
 }
 
 async function refreshStaleEmptyAttempt(
@@ -1691,6 +1705,23 @@ async function getPlacementDashboardData(
   await expireOverdueForUser(
     userId
   );
+  const {
+    profileView: arenaProfileView,
+    syncArenaV2PlacementProfile,
+  } = require("./arenaV2ProfileService");
+  const arenaV2Profile = arenaProfileView(
+    await syncArenaV2PlacementProfile(userId)
+  );
+  const arenaV2Placement = {
+    arenaV2: {
+      completedCount: arenaV2Profile.placementAttempts,
+      maximumAttempts: arenaV2Profile.maximumPlacementAttempts,
+      finalized: arenaV2Profile.placementFinalized,
+      canTakeAnother: arenaV2Profile.canTakePlacement,
+      provisionalTier: arenaV2Profile.provisionalTier,
+      provisionalTierLabel: arenaV2Profile.provisionalTierLabel,
+    },
+  };
   const attemptContext = await placementAttemptContext(userId);
   const contextFilter = placementContextFilter(attemptContext);
   const staleActive =
@@ -1719,7 +1750,7 @@ async function getPlacementDashboardData(
    */
   const dashboardFilter =
     attemptContext.purpose === "INITIAL"
-      ? {}
+      ? { _id: { $in: attemptContext.eligibleAttemptIds || [] } }
       : contextFilter;
   const attempts =
     await AssessmentAttempt.find({
@@ -1754,6 +1785,21 @@ async function getPlacementDashboardData(
         )
     );
 
+  if (active) {
+    return {
+      ...arenaV2Placement,
+      ...placementAccessView({
+        purpose: active.placementPurpose || "INITIAL",
+      }),
+      status: "in-progress",
+      attemptId: String(active._id),
+      ctaLabel: "배치고사 이어서 응시",
+      ctaHref: `/war-of-masters/placement/${active._id}`,
+      answeredCount: answeredCount(active),
+      result: null,
+    };
+  }
+
   if (submitted) {
     const placementResult =
       submitted.placementResult ||
@@ -1767,6 +1813,7 @@ async function getPlacementDashboardData(
       "pending"
     ) {
       return {
+        ...arenaV2Placement,
         ...placementAccessView(
           {
             purpose:
@@ -1817,11 +1864,6 @@ async function getPlacementDashboardData(
     );
     await submittedDocument.save();
 
-    /* 기존 완료자도 대시보드 재방문 시 Unranked 배치를 멱등 복구한다. */
-    await syncInitialArenaPlacement({
-      userId,
-      attemptId: submitted._id,
-    });
     const rankingProfile =
       rankingProfileView(
         await ensureRankingProfile(
@@ -1830,6 +1872,7 @@ async function getPlacementDashboardData(
       );
 
     return {
+      ...arenaV2Placement,
       ...placementAccessView(
         {
           purpose:
@@ -1915,29 +1958,9 @@ async function getPlacementDashboardData(
     };
   }
 
-  if (active) {
-    return {
-      ...placementAccessView(
-        {
-          purpose:
-            active.placementPurpose ||
-            "INITIAL",
-        }
-      ),
-      status: "in-progress",
-      attemptId:
-        String(active._id),
-      ctaLabel: "배치고사 이어서 응시",
-      ctaHref:
-        `/war-of-masters/placement/${active._id}`,
-      answeredCount:
-        answeredCount(active),
-      result: null,
-    };
-  }
-
   if (terminal) {
     return {
+      ...arenaV2Placement,
       ...placementAccessView(
         {
           purpose:
@@ -1957,6 +1980,7 @@ async function getPlacementDashboardData(
   }
 
   return {
+    ...arenaV2Placement,
     ...placementAccessView(
       attemptContext
     ),
@@ -1977,11 +2001,40 @@ async function createPlacementAttempt({
     userId
   );
 
+  const pendingVerification = (await placementBudget(userId)).activeAttempt?.placementResult?.verification?.result === "pending";
+  if (pendingVerification) {
+    const error = httpError(409, "진행 중인 배치 결과 추가 확인을 먼저 완료해주세요.");
+    error.code = "PLACEMENT_VERIFICATION_REQUIRED";
+    throw error;
+  }
+
   const attemptContext = await placementAttemptContext(userId);
-  const contextFilter =
-    attemptContext.purpose === "INITIAL"
-      ? {}
-      : placementContextFilter(attemptContext);
+  const currentProfile = await ArenaCompetitiveProfile.findOne({ userId }).lean();
+  if (currentProfile?.ratingInitializedAt && currentProfile.placementProcessVersion !== GOAT_ARENA_V2_CONFIG.placement.processVersion) {
+    const error = httpError(409, "현재 배치 규칙에 맞는 새 배치고사를 시작해주세요.");
+    error.code = "PLACEMENT_PROCESS_VERSION_MISMATCH";
+    throw error;
+  }
+  if (attemptContext.finalized) {
+    const error = httpError(
+      409,
+      "초기 티어가 이미 확정되어 남은 배치고사를 진행할 수 없습니다."
+    );
+    error.code = "PLACEMENT_ALREADY_FINALIZED";
+    throw error;
+  }
+  if (Number(attemptContext.completedCount || 0) >= 5) {
+    const error = httpError(409, attemptContext.reviewRequired
+      ? "유효 결과 없이 다섯 기회를 소진했습니다. 운영자 검토 및 승인 초기화가 필요합니다."
+      : "배치고사는 최대 5회까지 응시할 수 있습니다.");
+    error.code = attemptContext.reviewRequired ? "PLACEMENT_OPERATOR_REVIEW_REQUIRED" : "PLACEMENT_ATTEMPT_LIMIT_REACHED";
+    throw error;
+  }
+  if (NEW_PLACEMENT_CONTEXT.test(attemptContext.contextKey || "")) {
+    const { assertArenaV2PlacementStartEligibility } = require("./arenaV2ProfileService");
+    await assertArenaV2PlacementStartEligibility(userId);
+  }
+  const contextFilter = placementContextFilter(attemptContext);
 
   const terminal =
     await AssessmentAttempt.findOne({
@@ -2109,7 +2162,11 @@ async function findPlacementAttempt({
   return attempt;
 }
 
-async function finalizePlacementVerificationAttempt({
+async function finalizePlacementVerificationAttempt(options) {
+  return finalizePlacementWithRecovery(finalizePlacementVerificationAttemptImplementation, options);
+}
+
+async function finalizePlacementVerificationAttemptImplementation({
   attempt,
   answers = {},
   now = new Date(),
@@ -2228,18 +2285,13 @@ async function finalizePlacementVerificationAttempt({
   } else {
     /*
      * 시즌 배치는 기존 MMR을 변경하지 않는다. 다만 운영 초기화·데이터
-     * 복구처럼 프로필 자체가 없는 예외에서는 현재 배치 결과로 최초
-     * 프로필만 복구해 최종 종합 랭킹 계산이 누락되지 않게 한다.
+     * 복구처럼 학습용 레거시 프로필 자체가 없는 예외에서는 현재
+     * 배치 결과로 최초 프로필만 복구한다. 공개 Arena 랭킹에는 쓰지 않는다.
      */
     await ensureRankingProfile(
       attempt.userId
     );
   }
-  await syncInitialArenaPlacement({
-    userId: attempt.userId,
-    attemptId: attempt._id,
-    now,
-  });
   return attempt;
 }
 
@@ -2484,7 +2536,21 @@ async function expirePlacementAttempt({
   );
 }
 
-async function finalizePlacementSubmission({
+async function finalizePlacementWithRecovery(work, options) {
+  try {
+    return await work(options);
+  } catch (error) {
+    await recordPlacementServerFailure({ userId: options.attempt?.userId, attemptId: options.attempt?._id, error })
+      .catch(() => console.error("Placement recovery audit persistence unavailable; original failure retained."));
+    throw error;
+  }
+}
+
+async function finalizePlacementSubmission(options) {
+  return finalizePlacementWithRecovery(finalizePlacementSubmissionImplementation, options);
+}
+
+async function finalizePlacementSubmissionImplementation({
   attempt,
   answers = {},
   activeQuestionId = "",
@@ -2789,10 +2855,6 @@ async function finalizePlacementSubmission({
       attempt.userId
     );
   }
-  await syncInitialArenaPlacement({
-    userId: attempt.userId,
-    attemptId: attempt._id,
-  });
 
   return attempt;
 }
@@ -2810,18 +2872,18 @@ async function submitPlacementAttempt({
       attemptId,
     });
 
+  let finalizedAttempt;
+
   if (
     isVerificationPending(
       attempt
     )
   ) {
-    return finalizePlacementVerificationAttempt({
+    finalizedAttempt = await finalizePlacementVerificationAttempt({
       attempt,
       answers,
     });
-  }
-
-  if (
+  } else if (
     attempt.status ===
       "submitted"
   ) {
@@ -2830,14 +2892,8 @@ async function submitPlacementAttempt({
     await ensureRankingProfile(
       attempt.userId
     );
-    await syncInitialArenaPlacement({
-      userId: attempt.userId,
-      attemptId: attempt._id,
-    });
-    return attempt;
-  }
-
-  if (
+    finalizedAttempt = attempt;
+  } else if (
     attempt.status ===
       "disqualified" &&
     attempt.disqualifiedReason !==
@@ -2845,37 +2901,42 @@ async function submitPlacementAttempt({
   ) {
     attempt.$locals.wasAlreadyFinalized =
       true;
-    return attempt;
-  }
-
-  if (
+    finalizedAttempt = attempt;
+  } else if (
     attempt.status ===
       "disqualified" &&
     attempt.disqualifiedReason ===
       "time-limit"
   ) {
-    return autoSubmitExpiredPlacementAttempt(
+    finalizedAttempt = await autoSubmitExpiredPlacementAttempt(
       attempt
     );
-  }
-
-  if (isOverdue(attempt)) {
+  } else if (isOverdue(attempt)) {
     /*
      * 마감 뒤 임의 POST로 답을 추가하지 못하게 수동 제출 본문의 신규
      * 답안은 무시하고, 마감 전 서버에 자동 저장된 답안만 채점한다.
      */
-    return autoSubmitExpiredPlacementAttempt(
+    finalizedAttempt = await autoSubmitExpiredPlacementAttempt(
       attempt
     );
+  } else {
+    finalizedAttempt = await finalizePlacementSubmission({
+      attempt,
+      answers,
+      activeQuestionId,
+      currentQuestionIndex,
+      submittedAt: new Date(),
+    });
   }
 
-  return finalizePlacementSubmission({
-    attempt,
-    answers,
-    activeQuestionId,
-    currentQuestionIndex,
-    submittedAt: new Date(),
-  });
+  if (
+    finalizedAttempt.status === "submitted" &&
+    !isVerificationPending(finalizedAttempt)
+  ) {
+    const { syncArenaV2PlacementProfile } = require("./arenaV2ProfileService");
+    await syncArenaV2PlacementProfile(userId);
+  }
+  return finalizedAttempt;
 }
 
 function normalizeAttempt(

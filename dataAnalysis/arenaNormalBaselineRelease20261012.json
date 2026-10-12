@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "MATTHS_NORMAL_BASELINE_RELEASE_V1",
+  "batchKey": "NORMAL-BASELINE-20261012-60-V3",
+  "questionCount": 540,
+  "questionCountPerTier": 60,
+  "manifestSha256": "0b64a0a945e0dc158955e5962c52aad6d97747051479797b3e26b8b7ac960b7a",
+  "manifestR2ObjectKey": "matths/arena-baseline-solutions/normal-baseline-20261012-60-v3/0b64a0a945e0dc158955e5962c52aad6d97747051479797b3e26b8b7ac960b7a/manifest.json",
+  "calibrationSha256": "d19ebf5992e75335eeba41a2db4ad001a7bd1ac4eadb430f17d5a111238a13fa",
+  "calibrationR2ObjectKey": "matths/arena-baseline-solutions/normal-baseline-20261012-60-v3/d19ebf5992e75335eeba41a2db4ad001a7bd1ac4eadb430f17d5a111238a13fa/fairness-simulation.json",
+  "modelBasedCalibration": true,
+  "empiricalHumanCalibration": false,
+  "sourceAccuracyEvidenceKind": "EXACT",
+  "evidenceInventorySha256": "f6dd1801e302d10c11f505ced7a3a2cbdba174a13df1ef4b7feaeaf86d90dce1",
+  "evidenceInventoryR2ObjectKey": "matths/arena-baseline-solutions/normal-baseline-20261012-60-v3/f6dd1801e302d10c11f505ced7a3a2cbdba174a13df1ef4b7feaeaf86d90dce1/evidence-inventory.json"
+}

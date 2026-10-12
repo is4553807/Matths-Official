@@ -95,7 +95,7 @@ async function main() {
     assert.equal((await ParentNotification.findById(foreign._id)).readAt, null);
     const student = await User.create({ name: "테스트 학생", email: "parent-boundary@example.test", passwordHash: "test", role: "student" });
     const invitation = crypto.randomBytes(32).toString("base64url");
-    await ParentInvite.create({ childUserId: student._id, parentEmail: email, productCode: "MOCK_EXAM_ONLY",
+    await ParentInvite.create({ childUserId: student._id, parentEmail: email, productCode: "PRO_MONTHLY",
       tokenHash: crypto.createHash("sha256").update(invitation).digest("hex"), expiresAt: new Date(Date.now() + 3600000) });
     assert.equal((await request(prefix + "invite", { token, body: { inviteToken: invitation, relationship: "GUARDIAN", linkConsent: false } })).status, 400);
     assert.equal((await request(prefix + "invite", { token, body: { inviteToken: invitation, relationship: "GUARDIAN", linkConsent: true } })).status, 200);

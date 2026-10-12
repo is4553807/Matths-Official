@@ -62,7 +62,14 @@ backups/
 
 # Private project documentation kept outside the public repository
 MATTHS_FINAL_LOGIC_FLOW.md
-docs/
+docs/*
+!docs/GOAT_ARENA_2_2_APP_DEVELOPER_HANDOFF.md
+!docs/GOAT_ARENA_2_2_FULL_AUDIT_PROMPT_EN.md
+!docs/GOAT_ARENA_2_2_CHANGED_FILES.md
+!docs/logic/
+!docs/logic/**/*.md
+!docs/logic_en/
+!docs/logic_en/**/*.md
 
 # Machine- or operator-specific scripts must stay local. Reusable scripts belong
 # directly under scripts/ and must not contain a real account identifier.

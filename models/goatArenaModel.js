@@ -1,371 +1,6 @@
 const mongoose = require("mongoose");
-const {
-  PAYBACK_ATTACK_PARTICIPATION_DAYS,
-} = require("../constants/paybackParticipation");
 
 const { Schema } = mongoose;
-
-const paybackBandSchema = new Schema(
-  {
-    minScoreDays: {
-      type: Number,
-      min: 0,
-      required: true,
-    },
-    maxScoreDays: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
-    ratePercent: {
-      type: Number,
-      min: 0,
-      max: 100,
-      required: true,
-    },
-  },
-  { _id: false }
-);
-
-const arenaTierDailyLimitSchema = new Schema(
-  {
-    tier: {
-      type: String,
-      enum: [
-        "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD",
-        "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER",
-      ],
-      required: true,
-    },
-    attackLimit: { type: Number, min: 0, max: 20, required: true },
-    defenseLimit: { type: Number, min: 0, max: 20, required: true },
-  },
-  { _id: false }
-);
-
-const mainLearningDayBucketSchema = new Schema(
-  {
-    sourceType: {
-      type: String,
-      enum: [
-        "SUB_CARRYOVER",
-        "MAIN_ENTRY_BONUS",
-        "MAIN_MATCH_TRANSFER",
-        "ADMIN_GRANT",
-      ],
-      required: true,
-    },
-    availableDays: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    reservedDays: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    lockedDays: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-  },
-  { _id: false }
-);
-
-function hasValidPaybackBands(bands) {
-  if (!Array.isArray(bands) || !bands.length) {
-    return false;
-  }
-
-  return bands.every((band, index) => {
-    const min = Number(band.minScoreDays);
-    const max =
-      band.maxScoreDays === null ||
-      band.maxScoreDays === undefined
-        ? null
-        : Number(band.maxScoreDays);
-    const rate = Number(band.ratePercent);
-    const previous = bands[index - 1];
-    const previousMax = previous
-      ? Number(previous.maxScoreDays)
-      : null;
-
-    if (
-      !Number.isInteger(min) ||
-      min < 0 ||
-      !Number.isFinite(rate) ||
-      rate < 0 ||
-      rate > 100
-    ) {
-      return false;
-    }
-    if (
-      max !== null &&
-      (!Number.isInteger(max) || max < min)
-    ) {
-      return false;
-    }
-    if (index === 0 && min !== 0) {
-      return false;
-    }
-    if (
-      index > 0 &&
-      (!Number.isInteger(previousMax) ||
-        min !== previousMax + 1 ||
-        rate < Number(previous.ratePercent))
-    ) {
-      return false;
-    }
-    if (index < bands.length - 1 && max === null) {
-      return false;
-    }
-    return index !== bands.length - 1 || max === null;
-  });
-}
-
-/*
- * 가격·학습일·페이백 기준은 코드 상수가 아니라 버전 문서로 고정합니다.
- * 이용 주기는 시작 당시 policySnapshot을 별도로 보관하므로 다음 달 정책을
- * 바꾸더라도 이미 진행 중인 이용자에게 소급 적용되지 않습니다.
- */
-const subscriptionPolicyVersionSchema = new Schema(
-  {
-    code: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      uppercase: true,
-      match: /^[A-Z0-9][A-Z0-9-]{2,79}$/,
-      maxlength: 80,
-    },
-    displayName: {
-      type: String,
-      trim: true,
-      maxlength: 120,
-      default: "",
-    },
-    status: {
-      type: String,
-      enum: ["DRAFT", "ACTIVE", "RETIRED"],
-      default: "DRAFT",
-      index: true,
-    },
-    effectiveFrom: {
-      type: Date,
-      required: true,
-      index: true,
-    },
-    effectiveUntil: {
-      type: Date,
-      default: null,
-    },
-    currency: {
-      type: String,
-      default: "KRW",
-      uppercase: true,
-      maxlength: 3,
-    },
-    timezone: {
-      type: String,
-      default: "Asia/Seoul",
-      immutable: true,
-    },
-    priceAmount: {
-      type: Number,
-      min: 0,
-      required: true,
-    },
-    initialLearningDays: {
-      type: Number,
-      min: 1,
-      default: 29,
-    },
-    initialPaybackScoreDays: {
-      type: Number,
-      min: 0,
-      default: 29,
-    },
-    paymentDayCutoffKst: {
-      type: String,
-      match: /^([01]\d|2[0-3]):[0-5]\d$/,
-      default: "00:00",
-    },
-    renewalGraceHours: {
-      type: Number,
-      min: 0,
-      default: 72,
-    },
-    packagePurchaseRequiresZeroBalance: {
-      type: Boolean,
-      default: true,
-    },
-    packagePurchaseRequiresZeroLockedBalance: {
-      type: Boolean,
-      default: true,
-    },
-    lateRenewalTierPenalty: {
-      type: Number,
-      min: 1,
-      default: 1,
-    },
-    matchStakeDays: {
-      normal: {
-        type: Number,
-        min: 1,
-        default: 1,
-      },
-      revenge: {
-        type: Number,
-        min: 1,
-        default: 2,
-      },
-    },
-    dailyMatchLimitsByTier: {
-      type: [arenaTierDailyLimitSchema],
-      default: () => [],
-    },
-    payback: {
-      minimumAttackParticipationDays: {
-        type: Number,
-        min: 1,
-        default: PAYBACK_ATTACK_PARTICIPATION_DAYS,
-      },
-      // 이전 정책 문서를 읽기 위한 호환 필드다. 새 정책과 심사는
-      // minimumAttackParticipationDays를 정본으로 사용한다.
-      minimumStreakDays: {
-        type: Number,
-        min: 0,
-        default: undefined,
-      },
-      minimumScoreDays: {
-        type: Number,
-        min: 0,
-        default: 30,
-      },
-      bands: {
-        type: [paybackBandSchema],
-        default: () => [
-          {
-            minScoreDays: 0,
-            maxScoreDays: 29,
-            ratePercent: 0,
-          },
-          {
-            minScoreDays: 30,
-            maxScoreDays: 34,
-            ratePercent: 50,
-          },
-          {
-            minScoreDays: 35,
-            maxScoreDays: 39,
-            ratePercent: 80,
-          },
-          {
-            minScoreDays: 40,
-            maxScoreDays: null,
-            ratePercent: 100,
-          },
-        ],
-        validate: {
-          validator: hasValidPaybackBands,
-          message:
-            "페이백 점수 구간은 0점부터 빈틈없이 이어지고 마지막 구간에 상한이 없어야 합니다.",
-        },
-      },
-    },
-    changeSummary: {
-      type: String,
-      trim: true,
-      maxlength: 1000,
-      default: "",
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    activatedAt: {
-      type: Date,
-      default: null,
-    },
-    activatedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    retiredAt: {
-      type: Date,
-      default: null,
-    },
-    retiredBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-  },
-  {
-    timestamps: true,
-    versionKey: false,
-  }
-);
-
-subscriptionPolicyVersionSchema.index({
-  status: 1,
-  effectiveFrom: -1,
-});
-
-subscriptionPolicyVersionSchema.path(
-  "effectiveUntil"
-).validate(function validatePolicyWindow(value) {
-  return (
-    !value ||
-    !this.effectiveFrom ||
-    new Date(value) > new Date(this.effectiveFrom)
-  );
-}, "정책 종료 시각은 적용 시작 시각보다 뒤여야 합니다.");
-
-const immutablePolicyDefinitionPaths = [
-  "displayName",
-  "effectiveFrom",
-  "currency",
-  "timezone",
-  "priceAmount",
-  "initialLearningDays",
-  "initialPaybackScoreDays",
-  "paymentDayCutoffKst",
-  "renewalGraceHours",
-  "packagePurchaseRequiresZeroBalance",
-  "packagePurchaseRequiresZeroLockedBalance",
-  "lateRenewalTierPenalty",
-  "matchStakeDays",
-  "dailyMatchLimitsByTier",
-  "payback",
-  "changeSummary",
-];
-
-subscriptionPolicyVersionSchema.pre(
-  "save",
-  function preventActivatedPolicyMutation() {
-    if (
-      this.isNew ||
-      !["ACTIVE", "RETIRED"].includes(this.status)
-    ) {
-      return;
-    }
-    if (
-      immutablePolicyDefinitionPaths.some((path) =>
-        this.isModified(path)
-      )
-    ) {
-      throw new Error(
-        "적용 일정에 등록했거나 종료된 Arena 정책의 조건은 수정할 수 없습니다. 새 정책을 만들어주세요."
-      );
-    }
-  }
-);
 
 function updatedPolicyPaths(update = {}) {
   return new Set([
@@ -377,38 +12,6 @@ function updatedPolicyPaths(update = {}) {
     ...Object.keys(update.$inc || {}),
   ]);
 }
-
-subscriptionPolicyVersionSchema.pre(
-  ["findOneAndUpdate", "updateOne"],
-  async function preventActivatedPolicyQueryMutation() {
-    const changedPaths = updatedPolicyPaths(
-      this.getUpdate() || {}
-    );
-    const changesDefinition =
-      immutablePolicyDefinitionPaths.some((protectedPath) =>
-        [...changedPaths].some(
-          (changedPath) =>
-            changedPath === protectedPath ||
-            changedPath.startsWith(`${protectedPath}.`)
-        )
-      );
-    if (!changesDefinition) return;
-
-    const current = await this.model
-      .findOne(this.getQuery())
-      .select("status")
-      .session(this.getOptions().session || null)
-      .lean();
-    if (
-      current &&
-      ["ACTIVE", "RETIRED"].includes(current.status)
-    ) {
-      throw new Error(
-        "적용 일정에 등록했거나 종료된 Arena 정책의 조건은 수정할 수 없습니다. 새 정책을 만들어주세요."
-      );
-    }
-  }
-);
 
 /*
  * 결제사가 보내는 승인 완료 통지를 이용 주기로 바꾸기 위한 감사 원장입니다.
@@ -488,15 +91,15 @@ const arenaPackagePaymentSchema = new Schema(
     },
     productCode: {
       type: String,
-      enum: ["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"],
-      default: "LEARNING_PACKAGE_29",
+      enum: ["PRO_MONTHLY"],
+      default: "PRO_MONTHLY",
       index: true,
     },
     productName: {
       type: String,
       trim: true,
       maxlength: 140,
-      default: "29일 학습권 패키지",
+      default: "Matths Pro",
     },
     // App Store Server Notifications V2는 로그인 세션 없이 도착한다. 최초 결제 때
     // 이 세 값을 원장에 남겨야 갱신·환불 통지를 사용자와 다시 연결할 수 있다.
@@ -544,33 +147,19 @@ const arenaPackagePaymentSchema = new Schema(
       }],
       default: [],
     },
-    policyVersionId: {
-      type: Schema.Types.ObjectId,
-      ref: "SubscriptionPolicyVersion",
+    accountPlanStartsAt: {
+      type: Date,
       default: null,
     },
-    policyVersionCode: {
-      type: String,
-      trim: true,
-      maxlength: 80,
-      default: "",
-    },
-    accessCycleId: {
-      type: Schema.Types.ObjectId,
-      ref: "AccessCycle",
+    accountPlanEndsAt: {
+      type: Date,
       default: null,
-      index: true,
-    },
-    mockExamSubscriptionId: {
-      type: Schema.Types.ObjectId,
-      ref: "MockExamSubscription",
-      default: null,
-      index: true,
     },
     processedAt: {
       type: Date,
       default: null,
     },
+    accountDeletedAt: { type: Date, default: null },
   },
   {
     timestamps: true,
@@ -623,907 +212,6 @@ arenaPackagePaymentSchema.index(
   { partialFilterExpression: { appleAppAccountToken: { $type: "string" } } }
 );
 
-/*
- * Matths 주간 공식 모의고사만 이용하는 월 구독 상품입니다. Arena 학습권
- * 패키지와 권한·결제 이력을 섞지 않아 배치고사와 Arena 접근이 잘못
- * 열리지 않도록 별도 정책과 이용권으로 관리합니다.
- */
-const mockExamPackagePolicyVersionSchema = new Schema(
-  {
-    code: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      uppercase: true,
-      maxlength: 80,
-    },
-    displayName: {
-      type: String,
-      trim: true,
-      maxlength: 120,
-      default: "Matths 주간 공식 모의고사 이용권",
-    },
-    status: {
-      type: String,
-      enum: ["DRAFT", "ACTIVE", "RETIRED"],
-      default: "DRAFT",
-      index: true,
-    },
-    effectiveFrom: {
-      type: Date,
-      required: true,
-      index: true,
-    },
-    effectiveUntil: {
-      type: Date,
-      default: null,
-    },
-    currency: {
-      type: String,
-      default: "KRW",
-      uppercase: true,
-      maxlength: 3,
-    },
-    monthlyPriceAmount: {
-      type: Number,
-      min: 0,
-      required: true,
-      default: 5500,
-    },
-    billingPeriodDays: {
-      type: Number,
-      min: 1,
-      default: 30,
-    },
-    weeklyMockExamAllowed: {
-      type: Boolean,
-      default: true,
-      immutable: true,
-    },
-    placementExamAllowed: {
-      type: Boolean,
-      default: false,
-      immutable: true,
-    },
-    goatArenaAllowed: {
-      type: Boolean,
-      default: false,
-      immutable: true,
-    },
-    placementCalibrationMinimumWeeklyExams: {
-      type: Number,
-      min: 1,
-      default: 4,
-    },
-    changeSummary: {
-      type: String,
-      trim: true,
-      maxlength: 1000,
-      default: "",
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    activatedAt: { type: Date, default: null },
-    activatedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    retiredAt: { type: Date, default: null },
-  },
-  { timestamps: true, versionKey: false }
-);
-mockExamPackagePolicyVersionSchema.index({
-  status: 1,
-  effectiveFrom: -1,
-});
-
-const mockExamSubscriptionSchema = new Schema(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    policyVersionId: {
-      type: Schema.Types.ObjectId,
-      ref: "MockExamPackagePolicyVersion",
-      required: true,
-    },
-    policySnapshot: {
-      code: { type: String, required: true },
-      monthlyPriceAmount: { type: Number, min: 0, required: true },
-      currency: { type: String, default: "KRW" },
-      billingPeriodDays: { type: Number, min: 1, default: 30 },
-      placementCalibrationMinimumWeeklyExams: {
-        type: Number,
-        min: 1,
-        default: 4,
-      },
-    },
-    status: {
-      type: String,
-      enum: ["PENDING", "ACTIVE", "EXPIRED", "CANCELLED", "REFUNDED"],
-      default: "PENDING",
-      index: true,
-    },
-    purchaseMode: {
-      type: String,
-      enum: ["SELF", "PARENT_REQUEST", "ADMIN_GRANT"],
-      required: true,
-    },
-    startsAt: { type: Date, required: true, index: true },
-    endsAt: { type: Date, required: true, index: true },
-    activatedAt: { type: Date, default: null },
-    cancelledAt: { type: Date, default: null },
-  },
-  { timestamps: true, versionKey: false }
-);
-mockExamSubscriptionSchema.index(
-  { userId: 1, status: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { status: "ACTIVE" },
-  }
-);
-
-const accessCycleSchema = new Schema(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    division: {
-      type: String,
-      enum: ["SUB", "MAIN"],
-      required: true,
-      index: true,
-    },
-    status: {
-      type: String,
-      enum: [
-        "PENDING",
-        "ACTIVE",
-        "EXPIRED",
-        "PAYBACK_COMPLETED",
-        "CANCELLED",
-      ],
-      default: "PENDING",
-      index: true,
-    },
-    policyVersionId: {
-      type: Schema.Types.ObjectId,
-      ref: "SubscriptionPolicyVersion",
-      required: true,
-    },
-    policyVersionCode: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 80,
-    },
-    policySnapshot: {
-      type: Schema.Types.Mixed,
-      required: true,
-    },
-    currency: {
-      type: String,
-      default: "KRW",
-    },
-    pricePaid: {
-      type: Number,
-      min: 0,
-      required: true,
-    },
-    purchaseReference: {
-      type: String,
-      trim: true,
-      maxlength: 160,
-      default: undefined,
-    },
-    paidAt: {
-      type: Date,
-      required: true,
-    },
-    startsAt: {
-      type: Date,
-      required: true,
-    },
-    baseExpiresAt: {
-      type: Date,
-      required: true,
-    },
-    expiresAt: {
-      type: Date,
-      required: true,
-      index: true,
-    },
-    evaluationAt: {
-      type: Date,
-      required: true,
-      index: true,
-    },
-    availableLearningDays: {
-      type: Number,
-      min: 0,
-      default: 29,
-    },
-    paybackScoreDays: {
-      type: Number,
-      min: 0,
-      default: 29,
-    },
-    lockedPaybackScoreDays: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    lockedLearningDays: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    reservedLearningDays: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    learningDayBuckets: {
-      type: [mainLearningDayBucketSchema],
-      default: [],
-    },
-    sourceSubCycleId: {
-      type: Schema.Types.ObjectId,
-      ref: "AccessCycle",
-      default: null,
-    },
-    mainEntryBonusGrantedAt: {
-      type: Date,
-      default: null,
-    },
-    firstConsumptionDateKst: {
-      type: String,
-      match: /^\d{4}-\d{2}-\d{2}$/,
-      default: null,
-    },
-    firstDayMode: {
-      type: String,
-      enum: ["SAME_DAY", "NEXT_DAY"],
-      required: true,
-    },
-    firstDayConsumedAt: {
-      type: Date,
-      default: null,
-    },
-    lastConsumptionDateKst: {
-      type: String,
-      match: /^\d{4}-\d{2}-\d{2}$/,
-      default: null,
-      index: true,
-    },
-    depletedAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    paidNormalAttacksCompleted: {
-      type: Number,
-      min: 0,
-      default: 0,
-      // 운영 분석 지표다. 페이백 자격 판정에는 사용하지 않는다.
-    },
-    streakDays: {
-      type: Number,
-      min: 0,
-      default: 0,
-      // 구버전 앱·운영 데이터 호환용 별칭이다. 새 코드에서는
-      // attackParticipationDays와 같은 누적 참여일 값을 기록한다.
-    },
-    lastStreakDateKst: {
-      type: String,
-      match: /^\d{4}-\d{2}-\d{2}$/,
-      default: null,
-      index: true,
-    },
-    attackParticipationDays: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    lastAttackParticipationDateKst: {
-      type: String,
-      match: /^\d{4}-\d{2}-\d{2}$/,
-      default: null,
-      index: true,
-    },
-    cashbackQualified: {
-      type: Boolean,
-      default: false,
-    },
-    paybackRate: {
-      type: Number,
-      min: 0,
-      max: 100,
-      default: 0,
-    },
-    paybackAmount: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    paybackPayoutStatus: {
-      type: String,
-      enum: ["NOT_APPLICABLE", "PENDING", "COMPLETED", "CANCELLED"],
-      default: "NOT_APPLICABLE",
-      index: true,
-    },
-    paybackPayoutCompletedAt: {
-      type: Date,
-      default: null,
-    },
-    paybackDisqualifiers: {
-      type: [String],
-      default: [],
-    },
-    evaluatedAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    renewalPolicyNotice: {
-      required: {
-        type: Boolean,
-        default: false,
-      },
-      previousPolicyVersionCode: {
-        type: String,
-        default: "",
-      },
-      nextPolicyVersionCode: {
-        type: String,
-        default: "",
-      },
-      message: {
-        type: String,
-        maxlength: 1000,
-        default: "",
-      },
-      acknowledgedAt: {
-        type: Date,
-        default: null,
-      },
-    },
-    integrityReviewCompensationMs: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-  },
-  {
-    timestamps: true,
-    versionKey: false,
-  }
-);
-
-accessCycleSchema.index(
-  { userId: 1, status: 1 },
-  {
-    unique: true,
-    partialFilterExpression: {
-      status: "ACTIVE",
-    },
-  }
-);
-accessCycleSchema.path(
-  "learningDayBuckets"
-).validate(function validateUniqueLearningDayBuckets(buckets) {
-  const sources = (buckets || []).map(
-    (bucket) => bucket.sourceType
-  );
-  return sources.length === new Set(sources).size;
-}, "Ranked 학습일수 출처를 중복 저장할 수 없습니다.");
-accessCycleSchema.index({
-  policyVersionCode: 1,
-  startsAt: 1,
-});
-accessCycleSchema.index({
-  userId: 1,
-  paidAt: -1,
-});
-accessCycleSchema.index({
-  status: 1,
-  firstDayConsumedAt: 1,
-  firstConsumptionDateKst: 1,
-});
-accessCycleSchema.index({
-  status: 1,
-  lastConsumptionDateKst: 1,
-  availableLearningDays: 1,
-});
-accessCycleSchema.index({
-  status: 1,
-  availableLearningDays: 1,
-  reservedLearningDays: 1,
-  lockedLearningDays: 1,
-});
-accessCycleSchema.index(
-  { purchaseReference: 1 },
-  {
-    unique: true,
-    partialFilterExpression: {
-      purchaseReference: {
-        $type: "string",
-      },
-    },
-  }
-);
-
-/*
- * 학습권 이용 종료 예정 알림의 채널별 발송 상태입니다. 이용 주기와
- * 72·24·6시간 구간 조합을 유일하게 만들어 스케줄러 재시작과 동시
- * 실행에서도 사이트 우편함·이메일이 중복 생성되지 않게 합니다.
- */
-const accessCycleExpiryReminderSchema = new Schema(
-  {
-    accessCycleId: {
-      type: Schema.Types.ObjectId,
-      ref: "AccessCycle",
-      required: true,
-      index: true,
-    },
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    thresholdHours: {
-      type: Number,
-      enum: [72, 24, 6],
-      required: true,
-    },
-    expiryAtSnapshot: {
-      type: Date,
-      required: true,
-    },
-    status: {
-      type: String,
-      enum: [
-        "PENDING",
-        "SENDING",
-        "PARTIAL",
-        "SENT",
-        "SKIPPED",
-        "CANCELLED",
-      ],
-      default: "PENDING",
-      index: true,
-    },
-    skipReason: {
-      type: String,
-      trim: true,
-      maxlength: 160,
-      default: "",
-    },
-    siteStatus: {
-      type: String,
-      enum: ["PENDING", "SENT", "SKIPPED", "FAILED"],
-      default: "PENDING",
-    },
-    siteNotificationId: {
-      type: Schema.Types.ObjectId,
-      ref: "UserNotification",
-      default: null,
-    },
-    siteDeliveredAt: {
-      type: Date,
-      default: null,
-    },
-    emailStatus: {
-      type: String,
-      enum: [
-        "PENDING",
-        "SENT",
-        "PREVIEW",
-        "SKIPPED",
-        "FAILED",
-      ],
-      default: "PENDING",
-    },
-    emailAttempts: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    emailLastAttemptAt: {
-      type: Date,
-      default: null,
-    },
-    emailNextRetryAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    emailDeliveredAt: {
-      type: Date,
-      default: null,
-    },
-    emailProviderMessageId: {
-      type: String,
-      trim: true,
-      maxlength: 300,
-      default: "",
-    },
-    emailLastError: {
-      type: String,
-      trim: true,
-      maxlength: 1000,
-      default: "",
-    },
-    deliveryAttempts: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    leaseToken: {
-      type: String,
-      trim: true,
-      maxlength: 100,
-      default: "",
-    },
-    leaseExpiresAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    deliveredAt: {
-      type: Date,
-      default: null,
-    },
-  },
-  { timestamps: true, versionKey: false }
-);
-accessCycleExpiryReminderSchema.index(
-  { accessCycleId: 1, thresholdHours: 1 },
-  { unique: true }
-);
-accessCycleExpiryReminderSchema.index({
-  status: 1,
-  emailNextRetryAt: 1,
-  leaseExpiresAt: 1,
-});
-
-/*
- * 운영 정책 변경 공지의 사용자별 전달 원장입니다. 정책 한 건과 사용자
- * 한 명의 조합을 유일하게 만들어 사이트 우편함과 이메일을 각각 정확히
- * 한 번 전달하고, SMTP 장애가 나도 별도 재시도할 수 있게 합니다.
- */
-const policyChangeDeliverySchema = new Schema(
-  {
-    policyType: {
-      type: String,
-      enum: [
-        "SUB_DIVISION",
-        "MAIN_DIVISION",
-        "LEARNING_PACKAGE",
-        "MOCK_EXAM_PACKAGE",
-        "MAIN_SHOP",
-      ],
-      required: true,
-      index: true,
-    },
-    policyId: {
-      type: Schema.Types.ObjectId,
-      required: true,
-      index: true,
-    },
-    policyCode: {
-      type: String,
-      trim: true,
-      maxlength: 120,
-      default: "",
-    },
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    effectiveFrom: {
-      type: Date,
-      required: true,
-    },
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 100,
-    },
-    message: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 1000,
-    },
-    href: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: "/goat-arena/rules/sub",
-    },
-    // 정책 공지에 함께 보여줄 변경 전·후 표의 행입니다. 원문 정책 전체를
-    // 복제하지 않고, 사용자에게 안내할 변경점만 전달 원장에 고정한다.
-    comparisonRows: {
-      type: [
-        new Schema(
-          {
-            label: { type: String, required: true, maxlength: 120 },
-            before: { type: String, maxlength: 500, default: "" },
-            after: { type: String, maxlength: 500, default: "" },
-          },
-          { _id: false }
-        ),
-      ],
-      default: [],
-    },
-    siteStatus: {
-      type: String,
-      enum: ["PENDING", "SENT", "FAILED"],
-      default: "PENDING",
-      index: true,
-    },
-    siteNotificationId: {
-      type: Schema.Types.ObjectId,
-      ref: "UserNotification",
-      default: null,
-    },
-    siteDeliveredAt: {
-      type: Date,
-      default: null,
-    },
-    emailStatus: {
-      type: String,
-      enum: ["PENDING", "SENDING", "SENT", "PREVIEW", "SKIPPED", "FAILED"],
-      default: "PENDING",
-      index: true,
-    },
-    emailAttempts: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    emailLastAttemptAt: {
-      type: Date,
-      default: null,
-    },
-    emailNextRetryAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    emailDeliveredAt: {
-      type: Date,
-      default: null,
-    },
-    emailProviderMessageId: {
-      type: String,
-      trim: true,
-      maxlength: 300,
-      default: "",
-    },
-    emailLastError: {
-      type: String,
-      trim: true,
-      maxlength: 1000,
-      default: "",
-    },
-    leaseToken: {
-      type: String,
-      trim: true,
-      maxlength: 100,
-      default: "",
-    },
-    leaseExpiresAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    deliveredAt: {
-      type: Date,
-      default: null,
-    },
-  },
-  { timestamps: true, versionKey: false }
-);
-policyChangeDeliverySchema.index(
-  { policyType: 1, policyId: 1, userId: 1 },
-  { unique: true }
-);
-policyChangeDeliverySchema.index({
-  emailStatus: 1,
-  emailNextRetryAt: 1,
-  leaseExpiresAt: 1,
-  createdAt: 1,
-});
-
-const arenaStandingSchema = new Schema(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    division: {
-      type: String,
-      enum: ["SUB", "MAIN"],
-      required: true,
-      index: true,
-    },
-    seasonKey: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 80,
-    },
-    /* Unranked와 Ranked 모두 하나의 통합 Arena 경쟁 풀(ALL)을 사용한다. */
-    competitivePool: {
-      type: String,
-      enum: ["ALL", "HIGH_SCHOOL", "RETAKER", "UNIVERSITY", "WORKER"],
-      default: "ALL",
-      required: true,
-      index: true,
-    },
-    sourcePlacementAttemptId: {
-      type: Schema.Types.ObjectId,
-      ref: "AssessmentAttempt",
-      default: null,
-    },
-    seedPolicyVersion: {
-      type: String,
-      trim: true,
-      maxlength: 80,
-      default: "",
-    },
-    seedPlacementScore: {
-      type: Number,
-      min: 0,
-      max: 100,
-      default: null,
-    },
-    seedPlacementElapsedTimeMs: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
-    seedPlacementMmr: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
-    seedPlacementStartedAt: {
-      type: Date,
-      default: null,
-    },
-    seededAt: {
-      type: Date,
-      default: null,
-    },
-    arenaRank: {
-      /* 브론즈·실버처럼 사용자가 차지한 Arena 티어 */
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 40,
-    },
-    qualifiedArenaRank: {
-      /* Ranked 인원 상한 적용 전, 현재 Arena 상태가 자격을 얻은 원본 티어 */
-      type: String,
-      trim: true,
-      maxlength: 40,
-      default: "",
-    },
-    arenaPosition: {
-      /* 현재 Arena 티어 안에서 몇 위인지 나타내는 정확한 순위 */
-      type: Number,
-      min: 1,
-      required: true,
-    },
-    arenaGp: {
-      type: Number,
-      min: 0,
-      max: 99,
-      required: true,
-    },
-    gpScaleVersion: {
-      type: String,
-      default: "TIER_LOCAL_0_99_V1",
-      immutable: true,
-    },
-    status: {
-      type: String,
-      enum: ["ACTIVE", "LOCKED", "ARCHIVED"],
-      default: "ACTIVE",
-      index: true,
-    },
-    reachedCurrentGpAt: {
-      type: Date,
-      default: Date.now,
-    },
-  },
-  {
-    timestamps: true,
-    versionKey: false,
-  }
-);
-
-arenaStandingSchema.index(
-  { userId: 1, division: 1, seasonKey: 1 },
-  { unique: true }
-);
-arenaStandingSchema.index({ status: 1, updatedAt: -1 });
-
-const arenaCohortRevisionSchema = new Schema(
-  {
-    seasonKey: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 80,
-    },
-    division: {
-      type: String,
-      enum: ["SUB", "MAIN"],
-      required: true,
-    },
-    revision: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    recalculatedAt: {
-      type: Date,
-      default: null,
-    },
-  },
-  {
-    timestamps: true,
-    versionKey: false,
-  }
-);
-arenaCohortRevisionSchema.index(
-  { seasonKey: 1, division: 1 },
-  { unique: true }
-);
-arenaStandingSchema.index({
-  division: 1,
-  seasonKey: 1,
-  arenaRank: 1,
-  arenaGp: -1,
-  reachedCurrentGpAt: 1,
-});
-arenaStandingSchema.index(
-  {
-    division: 1,
-    seasonKey: 1,
-    arenaRank: 1,
-    arenaPosition: 1,
-  },
-  {
-    unique: true,
-    partialFilterExpression: {
-      status: "ACTIVE",
-    },
-  }
-);
-
 const arenaAccessStateSchema = new Schema(
   {
     userId: {
@@ -1531,91 +219,6 @@ const arenaAccessStateSchema = new Schema(
       ref: "User",
       required: true,
       unique: true,
-    },
-    currentCompetitiveDivision: {
-      type: String,
-      enum: ["SUB", "MAIN", null],
-      default: null,
-    },
-    /* 현재 활성 Ranked standing의 통합 경쟁 풀(ALL) 빠른 조회용 사본이다. */
-    mainCompetitivePool: {
-      type: String,
-      enum: ["ALL", "HIGH_SCHOOL", "RETAKER", "UNIVERSITY", "WORKER", null],
-      default: null,
-      index: true,
-    },
-    accessCycleId: {
-      type: Schema.Types.ObjectId,
-      ref: "AccessCycle",
-      default: null,
-    },
-    standingId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaStanding",
-      default: null,
-    },
-    state: {
-      type: String,
-      enum: [
-        "PAID_ACTIVE",
-        "MAIN_DEMOTED_TO_SUB",
-        "SUB_ACCESS_EXPIRED_LOCKED",
-        "PAID_PENDING_RENEWAL_ASSESSMENT",
-        "SEASON_PLACEMENT_REQUIRED",
-        "PAYMENT_REQUIRED",
-      ],
-      default: "SEASON_PLACEMENT_REQUIRED",
-      index: true,
-    },
-    mainAchievementStatus: {
-      type: String,
-      enum: ["NOT_ACHIEVED", "ACHIEVED"],
-      default: "NOT_ACHIEVED",
-    },
-    currentSeasonPlacementCompleted: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
-    expiredAt: {
-      type: Date,
-      default: null,
-    },
-    renewalGraceDeadline: {
-      type: Date,
-      default: null,
-    },
-    lastMainSnapshotId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaSnapshot",
-      default: null,
-    },
-    referenceSubPlacementId: {
-      type: Schema.Types.ObjectId,
-      ref: "MainToSubConversionResult",
-      default: null,
-    },
-    defensePoolEligible: {
-      type: Boolean,
-      default: false,
-    },
-    automaticDefenseNoShowCount: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    automaticDefenseSuspendedAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    weeklyMockEligible: {
-      type: Boolean,
-      default: false,
-    },
-    finalRankingActive: {
-      type: Boolean,
-      default: false,
     },
     integrityStatus: {
       type: String,
@@ -1642,10 +245,6 @@ const arenaAccessStateSchema = new Schema(
       trim: true,
       maxlength: 160,
       default: "",
-    },
-    paybackDisqualifiedAt: {
-      type: Date,
-      default: null,
     },
     reasonCode: {
       type: String,
@@ -1676,7 +275,6 @@ const arenaIntegrityLinkSignalSchema = new Schema(
         "NETWORK_ADDRESS",
         "NETWORK_BUCKET",
         "PAYMENT_INSTRUMENT",
-        "PAYBACK_ACCOUNT",
       ],
       required: true,
       index: true,
@@ -1849,1525 +447,11 @@ arenaIntegrityRiskCaseSchema.index(
   }
 );
 
-const arenaLearningDayLedgerSchema = new Schema(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    accessCycleId: {
-      type: Schema.Types.ObjectId,
-      ref: "AccessCycle",
-      required: true,
-      index: true,
-    },
-    idempotencyKey: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 160,
-      unique: true,
-    },
-    eventType: {
-      type: String,
-      enum: [
-        "PURCHASE_GRANTED",
-        "FIRST_DAY_CONSUMPTION",
-        "DAILY_ACCESS_CONSUMPTION",
-        "MATCH_STAKE_LOCKED",
-        "MATCH_STAKE_RELEASED",
-        "MATCH_SETTLEMENT_TRANSFER",
-        "MATCH_SETTLEMENT_BURN",
-        "INTEGRITY_PENALTY_BURN",
-        "MAIN_CARRYOVER_GRANTED",
-        "MAIN_ENTRY_BONUS_GRANTED",
-        "MAIN_INVITATION_RESERVE",
-        "MAIN_INVITATION_RELEASE",
-        "MAIN_INVITATION_TO_MATCH_LOCK",
-        "MAIN_INVITATION_CANCELLATION_FEE_BURN",
-        "REVENGE_STAKE_LOCKED",
-        "REVENGE_STAKE_RELEASED",
-        "REVENGE_FEE_BURN",
-        "REVENGE_NO_SHOW_PARTIAL_REFUND",
-        "SHOP_ITEM_PURCHASE_BURN",
-        "SHOP_ITEM_PURCHASE_REVERSAL",
-        "SHOP_ITEM_EFFECT_APPLIED",
-        "SHOP_ITEM_EFFECT_EXPIRED",
-        "SHOP_ITEM_EFFECT_CANCELLED",
-        "FRIENDLY_MATCH_FEE_BURN",
-        "DEFENSE_SCHEDULE_PROTECTION_COMPENSATION_TRANSFER",
-        "DEFENSE_SCHEDULE_PROTECTION_BURN",
-        "DEFENSE_SCHEDULE_PROTECTION_DEPOSIT_RELEASE",
-        "BONUS_GRANTED",
-        "ADMIN_ADJUSTMENT",
-      ],
-      required: true,
-      index: true,
-    },
-    availableLearningDaysDelta: {
-      type: Number,
-      default: 0,
-    },
-    paybackScoreDaysDelta: {
-      type: Number,
-      default: 0,
-    },
-    lockedPaybackScoreDaysDelta: {
-      type: Number,
-      default: 0,
-    },
-    lockedLearningDaysDelta: {
-      type: Number,
-      default: 0,
-    },
-    reservedLearningDaysDelta: {
-      type: Number,
-      default: 0,
-    },
-    sourceBucket: {
-      type: String,
-      enum: [
-        "UNSPECIFIED",
-        "PACKAGE_BASE",
-        "SUB_CARRYOVER",
-        "MAIN_ENTRY_BONUS",
-        "MAIN_MATCH_TRANSFER",
-        "ADMIN_GRANT",
-      ],
-      default: "UNSPECIFIED",
-    },
-    balanceAfter: {
-      availableLearningDays: {
-        type: Number,
-        min: 0,
-        required: true,
-      },
-      paybackScoreDays: {
-        type: Number,
-        min: 0,
-        required: true,
-      },
-      lockedPaybackScoreDays: {
-        type: Number,
-        min: 0,
-        default: 0,
-      },
-      lockedLearningDays: {
-        type: Number,
-        min: 0,
-        required: true,
-      },
-      reservedLearningDays: {
-        type: Number,
-        min: 0,
-        default: 0,
-      },
-    },
-    sourceType: {
-      type: String,
-      trim: true,
-      maxlength: 80,
-      default: "",
-    },
-    sourceId: {
-      type: Schema.Types.ObjectId,
-      default: null,
-    },
-    occurredAt: {
-      type: Date,
-      default: Date.now,
-      index: true,
-    },
-    metadata: {
-      type: Schema.Types.Mixed,
-      default: {},
-    },
-  },
-  {
-    timestamps: true,
-    versionKey: false,
-  }
-);
-
-arenaLearningDayLedgerSchema.index({
-  accessCycleId: 1,
-  occurredAt: 1,
-});
-
-const mainStakeBandSchema = new Schema(
-  {
-    tierGap: {
-      type: Number,
-      min: 1,
-      required: true,
-    },
-    stakeDays: {
-      type: Number,
-      min: 1,
-      required: true,
-    },
-  },
-  { _id: false }
-);
-
-const mainDivisionPolicyVersionSchema = new Schema(
-  {
-    code: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      uppercase: true,
-      match: /^[A-Z0-9][A-Z0-9-]{2,79}$/,
-      maxlength: 80,
-    },
-    displayName: {
-      type: String,
-      trim: true,
-      maxlength: 120,
-      default: "",
-    },
-    status: {
-      type: String,
-      enum: ["DRAFT", "ACTIVE", "RETIRED"],
-      default: "DRAFT",
-      index: true,
-    },
-    effectiveFrom: {
-      type: Date,
-      required: true,
-      index: true,
-    },
-    effectiveUntil: {
-      type: Date,
-      default: null,
-    },
-    timezone: {
-      type: String,
-      default: "Asia/Seoul",
-      immutable: true,
-    },
-    mainEntryBonusDays: {
-      type: Number,
-      min: 0,
-      default: 2,
-    },
-    mainCarryoverBaseDays: {
-      type: Number,
-      min: 0,
-      default: 29,
-    },
-    stakeDaysByTierGap: {
-      type: [mainStakeBandSchema],
-      default: () => [
-        { tierGap: 1, stakeDays: 1 },
-        { tierGap: 2, stakeDays: 2 },
-        { tierGap: 3, stakeDays: 3 },
-      ],
-    },
-    maximumTargetTierGap: {
-      type: Number,
-      min: 1,
-      default: 3,
-    },
-    invitationOfferBatchSize: {
-      type: Number,
-      min: 1,
-      default: null,
-    },
-    invitationCancellationFeeDays: {
-      type: Number,
-      min: 0,
-      default: 1,
-    },
-    manualInvitationCancellationAllowed: {
-      type: Boolean,
-      default: true,
-    },
-    manualInvitationCancellationFeeDays: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    repeatOpponentExclusionDays: {
-      type: Number,
-      min: 0,
-      default: 7,
-    },
-    maximumActiveInvitationReservationsPerTargetTier: {
-      type: Number,
-      min: 1,
-      max: 1,
-      default: 1,
-    },
-    revengeStakeMultiplier: {
-      type: Number,
-      min: 1,
-      default: 2,
-    },
-    revengeFeeDays: {
-      type: Number,
-      min: 0,
-      default: 1,
-    },
-    changeSummary: {
-      type: String,
-      trim: true,
-      maxlength: 1000,
-      default: "",
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    activatedAt: {
-      type: Date,
-      default: null,
-    },
-    activatedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    retiredAt: {
-      type: Date,
-      default: null,
-    },
-    retiredBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-  },
-  { timestamps: true, versionKey: false }
-);
-
-mainDivisionPolicyVersionSchema.path(
-  "stakeDaysByTierGap"
-).validate(function validateUniqueMainTierGaps(bands) {
-  const gaps = (bands || []).map((band) => Number(band.tierGap));
-  return gaps.length === new Set(gaps).size;
-}, "Ranked 티어 차이별 예치 기준표에 같은 티어 차이를 중복할 수 없습니다.");
-
-mainDivisionPolicyVersionSchema.path(
-  "status"
-).validate(function validateActiveMainPolicyCompleteness(status) {
-  if (status !== "ACTIVE") return true;
-  const maximumGap = Number(
-    this.maximumTargetTierGap
-  );
-  const gaps = (this.stakeDaysByTierGap || [])
-    .map((band) => Number(band.tierGap))
-    .sort((left, right) => left - right);
-  return (
-    Number.isInteger(maximumGap) &&
-    maximumGap > 0 &&
-    gaps.length === maximumGap &&
-    gaps.every(
-      (gap, index) => gap === index + 1
-    )
-  );
-}, "Ranked 활성 정책에는 티어별 예치 기준표와 최대 공격 티어 차이가 필요합니다.");
-
-mainDivisionPolicyVersionSchema.path(
-  "effectiveUntil"
-).validate(function validateMainPolicyWindow(value) {
-  return (
-    !value ||
-    !this.effectiveFrom ||
-    new Date(value) > new Date(this.effectiveFrom)
-  );
-}, "Ranked 정책 종료 시각은 적용 시작 시각보다 뒤여야 합니다.");
-
-mainDivisionPolicyVersionSchema.index({
-  status: 1,
-  effectiveFrom: -1,
-});
-
-const immutableMainPolicyDefinitionPaths = [
-  "displayName",
-  "effectiveFrom",
-  "timezone",
-  "mainEntryBonusDays",
-  "mainCarryoverBaseDays",
-  "stakeDaysByTierGap",
-  "maximumTargetTierGap",
-  "invitationOfferBatchSize",
-  "invitationCancellationFeeDays",
-  "manualInvitationCancellationAllowed",
-  "manualInvitationCancellationFeeDays",
-  "repeatOpponentExclusionDays",
-  "maximumActiveInvitationReservationsPerTargetTier",
-  "revengeStakeMultiplier",
-  "revengeFeeDays",
-  "changeSummary",
-];
-
-mainDivisionPolicyVersionSchema.pre(
-  "save",
-  function preventActivatedMainPolicyMutation() {
-    if (
-      this.isNew ||
-      !["ACTIVE", "RETIRED"].includes(this.status)
-    ) {
-      return;
-    }
-    if (
-      immutableMainPolicyDefinitionPaths.some((path) =>
-        this.isModified(path)
-      )
-    ) {
-      throw new Error(
-        "활성화했거나 종료된 Ranked 정책은 수정할 수 없습니다. 새 버전을 만들어주세요."
-      );
-    }
-  }
-);
-
-mainDivisionPolicyVersionSchema.pre(
-  ["findOneAndUpdate", "updateOne"],
-  async function preventActivatedMainPolicyQueryMutation() {
-    const changedPaths = updatedPolicyPaths(
-      this.getUpdate() || {}
-    );
-    const changesDefinition =
-      immutableMainPolicyDefinitionPaths.some(
-        (protectedPath) =>
-          [...changedPaths].some(
-            (changedPath) =>
-              changedPath === protectedPath ||
-              changedPath.startsWith(
-                `${protectedPath}.`
-              )
-          )
-      );
-    if (!changesDefinition) return;
-    const current = await this.model
-      .findOne(this.getQuery())
-      .select("status")
-      .session(this.getOptions().session || null)
-      .lean();
-    if (
-      current &&
-      ["ACTIVE", "RETIRED"].includes(
-        current.status
-      )
-    ) {
-      throw new Error(
-        "활성화했거나 종료된 Ranked 정책은 수정할 수 없습니다. 새 버전을 만들어주세요."
-      );
-    }
-  }
-);
-
-const mainInvitationRequestSchema = new Schema(
-  {
-    requestId: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 160,
-    },
-    initiatorUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    initiatorStandingId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaStanding",
-      required: true,
-    },
-    initiatorArenaTier: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 40,
-    },
-    /* 초대 예약은 소속과 무관한 통합 Ranked 경쟁 풀에서 처리한다. */
-    competitivePool: {
-      type: String,
-      enum: ["ALL", "HIGH_SCHOOL", "RETAKER", "UNIVERSITY", "WORKER"],
-      required: true,
-      default: "ALL",
-      index: true,
-    },
-    targetTier: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 40,
-      index: true,
-    },
-    stakeDays: {
-      type: Number,
-      min: 1,
-      required: true,
-    },
-    policyVersionId: {
-      type: Schema.Types.ObjectId,
-      ref: "MainDivisionPolicyVersion",
-      required: true,
-    },
-    policyVersionCode: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 80,
-    },
-    status: {
-      type: String,
-      enum: [
-        "SEARCHING",
-        "OFFERED",
-        "PAUSED",
-        "MATCH_FORMING",
-        "MATCHED",
-        "CANCELLED",
-        "INVALID",
-      ],
-      default: "SEARCHING",
-      index: true,
-    },
-    reservedLearningDays: {
-      type: Number,
-      min: 0,
-      required: true,
-    },
-    selectedCandidateId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-      index: true,
-    },
-    acceptedCandidateId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-      index: true,
-    },
-    matchedOfferId: {
-      type: Schema.Types.ObjectId,
-      ref: "MainInvitationOffer",
-      default: null,
-    },
-    candidatePoolSnapshot: {
-      type: [Schema.Types.ObjectId],
-      ref: "User",
-      default: [],
-      select: false,
-    },
-    candidatePoolHash: {
-      type: String,
-      trim: true,
-      maxlength: 128,
-      default: "",
-    },
-    selectionPolicyVersion: {
-      type: String,
-      trim: true,
-      maxlength: 80,
-      default: "",
-    },
-    randomSelectionSeed: {
-      type: String,
-      trim: true,
-      maxlength: 160,
-      default: "",
-      select: false,
-    },
-    requestExpiresAt: {
-      type: Date,
-      default: null,
-    },
-    selectedAt: {
-      type: Date,
-      default: null,
-    },
-    matchedAt: {
-      type: Date,
-      default: null,
-    },
-    acceleratedAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    accelerationEndsAt: {
-      type: Date,
-      default: null,
-    },
-    pausedAt: {
-      type: Date,
-      default: null,
-    },
-    resumedAt: {
-      type: Date,
-      default: null,
-    },
-    cancellationFeeDays: {
-      type: Number,
-      min: 0,
-      default: 1,
-    },
-    releasedLearningDays: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    burnedLearningDays: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    cancelledAt: {
-      type: Date,
-      default: null,
-    },
-    cancelReason: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: "",
-    },
-    activeReservationKey: {
-      type: String,
-      trim: true,
-      maxlength: 180,
-      default: undefined,
-      select: false,
-    },
-  },
-  { timestamps: true, versionKey: false }
-);
-
-/*
- * Ranked 친선 경기는 순위·티어·정기권 학습일수의 승패 이전과 분리한다.
- * 초대 수락 순간에만 양측의 1일 이용 수수료를 소각하고, 경기 자체는
- * 일반 Arena 경기 화면과 동일한 문제·풀이 증거 흐름을 사용한다.
- */
-const mainFriendlyInvitationSchema = new Schema(
-  {
-    requestId: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 160,
-    },
-    inviterUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    inviteeUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    inviterStandingId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaStanding",
-      required: true,
-    },
-    inviteeStandingId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaStanding",
-      required: true,
-    },
-    status: {
-      type: String,
-      enum: ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED", "EXPIRED"],
-      default: "PENDING",
-      index: true,
-    },
-    feeDays: { type: Number, min: 1, max: 1, default: 1 },
-    expiresAt: { type: Date, required: true, index: true },
-    respondedAt: { type: Date, default: null },
-    cancelledAt: { type: Date, default: null },
-    matchId: { type: Schema.Types.ObjectId, ref: "ArenaMatch", default: null },
-  },
-  { timestamps: true, versionKey: false }
-);
-mainFriendlyInvitationSchema.index(
-  { inviterUserId: 1, requestId: 1 },
-  { unique: true }
-);
-mainFriendlyInvitationSchema.index({ inviteeUserId: 1, status: 1, createdAt: -1 });
-mainFriendlyInvitationSchema.index({ inviterUserId: 1, status: 1, createdAt: -1 });
-
-mainInvitationRequestSchema.index({
-  status: 1,
-  targetTier: 1,
-  createdAt: 1,
-});
-mainInvitationRequestSchema.index(
-  { initiatorUserId: 1, requestId: 1 },
-  { unique: true }
-);
-mainInvitationRequestSchema.index(
-  { activeReservationKey: 1 },
-  {
-    unique: true,
-    partialFilterExpression: {
-      activeReservationKey: { $type: "string" },
-    },
-  }
-);
-mainInvitationRequestSchema.pre(
-  "validate",
-  function maintainActiveInvitationReservationKey() {
-    const activeStatuses = new Set([
-      "SEARCHING",
-      "OFFERED",
-      "PAUSED",
-      "MATCH_FORMING",
-    ]);
-    this.activeReservationKey = activeStatuses.has(this.status)
-      ? `${String(this.initiatorUserId)}:${String(this.targetTier).trim().toUpperCase()}`
-      : undefined;
-  }
-);
-mainInvitationRequestSchema.path(
-  "requestExpiresAt"
-).validate(
-  (value) => value === null || value === undefined,
-  "Ranked 하위 티어 초대 예약에는 고정 만료시각을 둘 수 없습니다."
-);
-
-const arenaOpponentSelectionAuditSchema = new Schema(
-  {
-    requestId: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      maxlength: 160,
-    },
-    division: {
-      type: String,
-      enum: ["SUB", "MAIN"],
-      required: true,
-      index: true,
-    },
-    selectionType: {
-      type: String,
-      enum: [
-        "SUB_UPWARD_AUTO_MATCH",
-        "MAIN_UPWARD_AUTO_MATCH",
-        "MAIN_LOWER_INVITATION_BATCH",
-      ],
-      required: true,
-      index: true,
-    },
-    requesterUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    targetTier: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 40,
-    },
-    candidateUserIds: {
-      type: [Schema.Types.ObjectId],
-      ref: "User",
-      default: [],
-      select: false,
-    },
-    selectedUserIds: {
-      type: [Schema.Types.ObjectId],
-      ref: "User",
-      default: [],
-    },
-    candidatePoolHash: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 128,
-    },
-    randomSelectionSeed: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 160,
-      select: false,
-    },
-    policyVersionCode: {
-      type: String,
-      trim: true,
-      maxlength: 80,
-      default: "",
-    },
-    selectedAt: {
-      type: Date,
-      default: Date.now,
-      immutable: true,
-    },
-  },
-  { timestamps: true, versionKey: false }
-);
-
-const mainInvitationOfferSchema = new Schema(
-  {
-    invitationRequestId: {
-      type: Schema.Types.ObjectId,
-      ref: "MainInvitationRequest",
-      required: true,
-      index: true,
-    },
-    candidateUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    selectionAuditId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaOpponentSelectionAudit",
-      required: true,
-    },
-    status: {
-      type: String,
-      enum: [
-        "OFFERED",
-        "ACCEPTED",
-        "DECLINED",
-        "SUPERSEDED",
-        "INELIGIBLE",
-        "PAUSED",
-      ],
-      default: "OFFERED",
-      index: true,
-    },
-    offeredAt: {
-      type: Date,
-      default: Date.now,
-      immutable: true,
-    },
-    respondedAt: {
-      type: Date,
-      default: null,
-    },
-    responseReason: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: "",
-    },
-  },
-  { timestamps: true, versionKey: false }
-);
-mainInvitationOfferSchema.index(
-  { invitationRequestId: 1, candidateUserId: 1 },
-  { unique: true }
-);
-mainInvitationOfferSchema.index(
-  { invitationRequestId: 1, status: 1 },
-  {
-    unique: true,
-    partialFilterExpression: {
-      status: "ACCEPTED",
-    },
-  }
-);
-
-const arenaRevengeRightSchema = new Schema(
-  {
-    sourceMatchId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaMatch",
-      required: true,
-      unique: true,
-      index: true,
-    },
-    division: {
-      type: String,
-      enum: ["SUB", "MAIN"],
-      required: true,
-      index: true,
-    },
-    eligibleUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    opponentUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    status: {
-      type: String,
-      enum: [
-        "AVAILABLE",
-        "CLAIMED",
-        "FORFEITED",
-        "CONSUMED",
-        "CANCELLED",
-      ],
-      default: "AVAILABLE",
-      index: true,
-    },
-    originalStakeDays: {
-      type: Number,
-      min: 1,
-      required: true,
-    },
-    revengeStakeDays: {
-      type: Number,
-      min: 1,
-      required: true,
-    },
-    feeDays: {
-      type: Number,
-      min: 0,
-      required: true,
-    },
-    policyVersionCode: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 80,
-    },
-    decisionIdempotencyKey: {
-      type: String,
-      trim: true,
-      maxlength: 160,
-      default: undefined,
-    },
-    revengeMatchId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaMatch",
-      default: null,
-    },
-    claimedAt: { type: Date, default: null },
-    forfeitedAt: { type: Date, default: null },
-    completionDeadlineAt: { type: Date, default: null, index: true },
-  },
-  { timestamps: true, versionKey: false }
-);
-arenaRevengeRightSchema.index(
-  { decisionIdempotencyKey: 1 },
-  {
-    unique: true,
-    partialFilterExpression: {
-      decisionIdempotencyKey: { $type: "string" },
-    },
-  }
-);
-arenaRevengeRightSchema.index({
-  eligibleUserId: 1,
-  status: 1,
-  createdAt: -1,
-});
-
-/*
- * 아래 모델은 1대1 정산을 바로 구현하기 위한 코드가 아니라, 문서의
- * 권위 경계와 멱등 키를 먼저 고정하는 foundation schema입니다.
- */
-const finalRankingPolicyVersionSchema =
-  new Schema(
-    {
-      code: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true,
-      },
-      status: {
-        type: String,
-        enum: ["DRAFT", "ACTIVE", "RETIRED"],
-        default: "DRAFT",
-        index: true,
-      },
-      effectiveFrom: {
-        type: Date,
-        required: true,
-        index: true,
-      },
-      weeklyMockBonusCompleted: {
-        type: Number,
-        default: 30,
-      },
-      weeklyMockBonusMissed: {
-        type: Number,
-        default: 0,
-      },
-      divisionLockStartsAt: {
-        type: String,
-        default: "SUNDAY_15_00",
-      },
-      divisionLockEndsAt: {
-        type: String,
-        default: "MONDAY_00_00",
-      },
-      softResetCenter: {
-        type: Number,
-        default: 1500,
-      },
-      softResetRetention: {
-        type: Number,
-        min: 0,
-        max: 1,
-        default: 0.6,
-      },
-    },
-    { timestamps: true, versionKey: false }
-  );
-
-const arenaTupleSchema = new Schema(
-  {
-    arenaRank: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    arenaPosition: {
-      type: Number,
-      min: 1,
-      required: true,
-    },
-    arenaGp: {
-      type: Number,
-      min: 0,
-      max: 99,
-      required: true,
-    },
-    qualifiedArenaRank: {
-      type: String,
-      trim: true,
-      maxlength: 40,
-      default: "",
-    },
-    gpScaleVersion: {
-      type: String,
-      default: "TIER_LOCAL_0_99_V1",
-      immutable: true,
-    },
-  },
-  { _id: false }
-);
-
-const arenaSnapshotSchema = new Schema(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    accessCycleId: {
-      type: Schema.Types.ObjectId,
-      ref: "AccessCycle",
-      default: null,
-    },
-    seasonKey: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    division: {
-      type: String,
-      enum: ["SUB", "MAIN"],
-      required: true,
-    },
-    arenaTuple: {
-      type: arenaTupleSchema,
-      required: true,
-    },
-    participantCount: {
-      type: Number,
-      min: 0,
-      required: true,
-    },
-    overallPosition: {
-      type: Number,
-      min: 1,
-      default: null,
-    },
-    positionReachedAt: {
-      type: Date,
-      default: null,
-    },
-    percentile: {
-      type: Number,
-      min: 0,
-      max: 1,
-      required: true,
-    },
-    finalRating: {
-      type: Number,
-      default: null,
-    },
-    snapshotReason: {
-      type: String,
-      enum: [
-        "ACCESS_EXPIRED",
-        "MAIN_DEMOTION",
-        "SEASON_ARCHIVE",
-        "ADMIN_REVIEW",
-      ],
-      required: true,
-    },
-    capturedAt: {
-      type: Date,
-      default: Date.now,
-      immutable: true,
-    },
-  },
-  {
-    timestamps: true,
-    versionKey: false,
-  }
-);
-
-arenaSnapshotSchema.index(
-  { accessCycleId: 1, snapshotReason: 1 },
-  {
-    unique: true,
-    partialFilterExpression: {
-      accessCycleId: { $type: "objectId" },
-    },
-  }
-);
-
-const mainToSubConversionPolicySchema =
-  new Schema(
-    {
-      version: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true,
-      },
-      status: {
-        type: String,
-        enum: ["DRAFT", "ACTIVE", "RETIRED"],
-        default: "DRAFT",
-        index: true,
-      },
-      effectiveAt: {
-        type: Date,
-        required: true,
-      },
-      mainPercentileBands: {
-        type: [Schema.Types.Mixed],
-        default: [],
-      },
-      subRankMappings: {
-        type: [Schema.Types.Mixed],
-        default: [],
-      },
-      subGpSeedRules: {
-        type: Schema.Types.Mixed,
-        default: {},
-      },
-      maximumSubRank: {
-        type: String,
-        default: "",
-      },
-    },
-    { timestamps: true, versionKey: false }
-  );
-
-const mainToSubConversionResultSchema =
-  new Schema(
-    {
-      userId: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-        index: true,
-      },
-      sourceMainSnapshotId: {
-        type: Schema.Types.ObjectId,
-        ref: "ArenaSnapshot",
-        required: true,
-        unique: true,
-      },
-      policyVersion: {
-        type: String,
-        required: true,
-      },
-      referenceSubRank: {
-        type: String,
-        required: true,
-      },
-      referenceSubPositionBand: {
-        type: String,
-        required: true,
-      },
-      mainPercentile: {
-        type: Number,
-        min: 0,
-        max: 1,
-        required: true,
-      },
-      referenceSubOverallPosition: {
-        type: Number,
-        min: 1,
-        required: true,
-      },
-      subParticipantCountAtConversion: {
-        type: Number,
-        min: 0,
-        required: true,
-      },
-      referenceSubGp: {
-        type: Number,
-        min: 0,
-        required: true,
-      },
-      referenceSubPercentile: {
-        type: Number,
-        min: 0,
-        max: 1,
-        required: true,
-      },
-      renewalGraceDeadline: {
-        type: Date,
-        required: true,
-      },
-      snapshotValid: {
-        type: Boolean,
-        default: true,
-      },
-      integrityStatus: {
-        type: String,
-        enum: ["CLEAR", "HELD", "INVALID"],
-        default: "CLEAR",
-      },
-    },
-    { timestamps: true, versionKey: false }
-  );
-
-const renewalRankAssessmentSchema = new Schema(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    cycleId: {
-      type: Schema.Types.ObjectId,
-      ref: "AccessCycle",
-      required: true,
-      unique: true,
-    },
-    sourceMainSnapshotId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaSnapshot",
-      required: true,
-    },
-    referenceSubPlacementId: {
-      type: Schema.Types.ObjectId,
-      ref: "MainToSubConversionResult",
-      required: true,
-    },
-    startedAt: {
-      type: Date,
-      default: null,
-    },
-    submittedAt: {
-      type: Date,
-      default: null,
-    },
-    score: {
-      type: Number,
-      default: null,
-    },
-    integrityStatus: {
-      type: String,
-      enum: ["PENDING", "CLEAR", "HELD", "INVALID"],
-      default: "PENDING",
-    },
-    examDerivedSubPlacement: {
-      type: arenaTupleSchema,
-      default: null,
-    },
-    lateRenewalCeiling: {
-      type: arenaTupleSchema,
-      default: null,
-    },
-    finalSubPlacement: {
-      type: arenaTupleSchema,
-      default: null,
-    },
-    status: {
-      type: String,
-      enum: [
-        "REQUIRED",
-        "IN_PROGRESS",
-        "SUBMITTED",
-        "HELD",
-        "COMPLETED",
-        "INVALID",
-      ],
-      default: "REQUIRED",
-      index: true,
-    },
-  },
-  { timestamps: true, versionKey: false }
-);
-
-const liveFinalRankingProfileSchema = new Schema(
-  {
-    seasonId: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    accessState: {
-      type: String,
-      required: true,
-    },
-    currentCompetitiveDivision: {
-      type: String,
-      enum: ["SUB", "MAIN"],
-      required: true,
-    },
-    skillMmr: {
-      type: Number,
-      required: true,
-    },
-    weeklyMockBonus: {
-      type: Number,
-      default: 0,
-    },
-    stagedWeeklyMockBonus: {
-      type: Number,
-      default: null,
-    },
-    publishedWeeklyMockBonus: {
-      type: Number,
-      default: 0,
-    },
-    seasonSubStartPercentile: Number,
-    seasonSubCurrentPercentile: Number,
-    seasonSubEndPercentile: Number,
-    seasonMainStartPercentile: Number,
-    seasonMainCurrentPercentile: Number,
-    referenceSubPercentile: Number,
-    actualRenewalSubPercentile: Number,
-    frozenSubGrowth: {
-      type: Number,
-      default: 0,
-    },
-    seasonSettledNormalAttackCount: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    temporaryAdjustment: {
-      type: Number,
-      default: 0,
-    },
-    finalRating: {
-      type: Number,
-      required: true,
-    },
-    finalRank: {
-      type: Number,
-      min: 1,
-      required: true,
-    },
-    stagedFinalRating: {
-      type: Number,
-      default: null,
-    },
-    stagedFinalRank: {
-      type: Number,
-      min: 1,
-      default: null,
-    },
-    publishedFinalRating: {
-      type: Number,
-      default: null,
-    },
-    publishedFinalRank: {
-      type: Number,
-      min: 1,
-      default: null,
-    },
-    previousPublishedFinalRating: {
-      type: Number,
-      default: null,
-    },
-    previousPublishedFinalRank: {
-      type: Number,
-      min: 1,
-      default: null,
-    },
-    lastPublishedAt: {
-      type: Date,
-      default: null,
-    },
-    status: {
-      type: String,
-      enum: [
-        "ACTIVE",
-        "INACTIVE_ACCESS_EXPIRED",
-        "INACTIVE_PLACEMENT_REQUIRED",
-        "PENDING_RENEWAL_RANK_ASSESSMENT",
-        "SUNDAY_DISPLAY_FROZEN",
-      ],
-      required: true,
-      index: true,
-    },
-    calculationKey: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-  },
-  { timestamps: true, versionKey: false }
-);
-liveFinalRankingProfileSchema.index(
-  { seasonId: 1, userId: 1 },
-  { unique: true }
-);
-liveFinalRankingProfileSchema.index({ status: 1, finalRank: 1 });
-
-const mainShopPolicyItemSchema = new Schema(
-  {
-    itemCode: { type: String, required: true, trim: true, uppercase: true },
-    displayName: { type: String, required: true, trim: true, maxlength: 120 },
-    priceDays: { type: Number, min: 1, required: true },
-    enabled: { type: Boolean, default: true },
-    releasePhase: { type: Number, min: 1, max: 2, default: 1 },
-  },
-  { _id: false }
-);
-
-const mainShopPolicyVersionSchema = new Schema(
-  {
-    code: { type: String, required: true, unique: true, trim: true, maxlength: 80 },
-    displayName: { type: String, required: true, trim: true, maxlength: 120 },
-    status: {
-      type: String,
-      enum: ["DRAFT", "ACTIVE", "RETIRED"],
-      default: "DRAFT",
-      index: true,
-    },
-    effectiveFrom: { type: Date, required: true, index: true },
-    effectiveUntil: { type: Date, default: null, index: true },
-    timezone: { type: String, default: "Asia/Seoul" },
-    items: { type: [mainShopPolicyItemSchema], default: [] },
-    defenseConvenienceCooldownDays: { type: Number, min: 1, default: 7 },
-    cosmeticRolloverWindowDays: { type: Number, min: 0, default: 10 },
-    analysisTimeoutMs: { type: Number, min: 1000, default: 5 * 60 * 1000 },
-    analysisMaximumRetries: { type: Number, min: 0, default: 2 },
-    changeSummary: { type: String, trim: true, maxlength: 1000, default: "" },
-  },
-  { timestamps: true, versionKey: false }
-);
-mainShopPolicyVersionSchema.index({ status: 1, effectiveFrom: -1 });
-mainShopPolicyVersionSchema.path("items").validate(function validateUniqueShopItems(items) {
-  const codes = (items || []).map((item) => String(item.itemCode || "").toUpperCase());
-  return codes.length > 0 && codes.length === new Set(codes).size;
-}, "Ranked 상점 정책에는 중복되지 않은 아이템이 하나 이상 필요합니다.");
-
-const mainShopPurchaseSchema = new Schema(
-  {
-    purchaseKey: { type: String, required: true, unique: true, trim: true, maxlength: 180 },
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    accessCycleId: { type: Schema.Types.ObjectId, ref: "AccessCycle", required: true, index: true },
-    itemCode: { type: String, required: true, trim: true, uppercase: true, index: true },
-    itemDisplayName: { type: String, required: true, trim: true, maxlength: 120 },
-    policyVersionId: { type: Schema.Types.ObjectId, ref: "MainShopPolicyVersion", required: true },
-    policyVersionCode: { type: String, required: true, trim: true, maxlength: 80 },
-    priceDays: { type: Number, min: 1, required: true },
-    beforeAvailableDays: { type: Number, min: 0, required: true },
-    afterAvailableDays: { type: Number, min: 0, required: true },
-    relatedMatchId: { type: Schema.Types.ObjectId, ref: "ArenaMatch", default: null, index: true },
-    relatedInvitationId: { type: Schema.Types.ObjectId, ref: "MainInvitationRequest", default: null },
-    status: {
-      type: String,
-      enum: ["PENDING", "COMPLETED", "REVERSED", "FAILED"],
-      default: "PENDING",
-      index: true,
-    },
-    purchasedAt: { type: Date, required: true, default: Date.now },
-    reversedAt: { type: Date, default: null },
-    reversalReason: { type: String, trim: true, maxlength: 500, default: "" },
-  },
-  { timestamps: true, versionKey: false }
-);
-
-const mainShopEffectSchema = new Schema(
-  {
-    purchaseId: { type: Schema.Types.ObjectId, ref: "MainShopPurchase", required: true, unique: true },
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    itemCode: { type: String, required: true, trim: true, uppercase: true, index: true },
-    status: {
-      type: String,
-      enum: ["PENDING", "ACTIVE", "APPLIED", "EXPIRED", "CANCELLED", "FAILED"],
-      default: "PENDING",
-      index: true,
-    },
-    startsAt: { type: Date, required: true, default: Date.now },
-    endsAt: { type: Date, default: null, index: true },
-    relatedMatchId: { type: Schema.Types.ObjectId, ref: "ArenaMatch", default: null, index: true },
-    relatedInvitationId: { type: Schema.Types.ObjectId, ref: "MainInvitationRequest", default: null, index: true },
-    metadata: { type: Schema.Types.Mixed, default: {} },
-    appliedAt: { type: Date, default: null },
-    expiredAt: { type: Date, default: null },
-  },
-  { timestamps: true, versionKey: false }
-);
-mainShopEffectSchema.index({ userId: 1, itemCode: 1, status: 1 });
-mainShopEffectSchema.index(
-  { relatedMatchId: 1, itemCode: 1 },
-  {
-    unique: true,
-    partialFilterExpression: {
-      itemCode: "DEFENSE_SCHEDULE_PROTECTION",
-      relatedMatchId: { $type: "objectId" },
-    },
-  }
-);
-
 const arenaMatchParticipantSchema = new Schema(
   {
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-    },
-    standingId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaStanding",
-      required: true,
-    },
-    accessCycleId: {
-      type: Schema.Types.ObjectId,
-      ref: "AccessCycle",
-      required: true,
-    },
-    tupleBefore: {
-      type: arenaTupleSchema,
-      required: true,
-    },
-    stakeDays: {
-      type: Number,
-      min: 0,
       required: true,
     },
     submittedAt: {
@@ -4363,7 +1447,7 @@ const arenaProblemPackSchema = new Schema(
     },
     matchType: {
       type: String,
-      enum: ["NORMAL", "REVENGE", "FRIENDLY"],
+      enum: ["NORMAL", "FRIENDLY"],
       required: true,
       index: true,
     },
@@ -4383,7 +1467,7 @@ const arenaProblemPackSchema = new Schema(
     },
     generationMode: {
       type: String,
-      enum: ["AUTO_ON_CHALLENGE", "LEGACY_MANUAL"],
+      enum: ["AUTO_ON_CHALLENGE", "MANUAL"],
       default: "AUTO_ON_CHALLENGE",
       immutable: true,
     },
@@ -4845,7 +1929,7 @@ const arenaMatchAttemptSchema = new Schema(
     },
     variantCode: {
       type: String,
-      enum: ["COMMON"],
+      enum: ["COMMON", "INDIVIDUAL"],
       default: "COMMON",
     },
     status: {
@@ -4917,6 +2001,8 @@ const arenaMatchAttemptSchema = new Schema(
       max: 5,
       default: 0,
     },
+    boardWriteVersion: { type: Number, min: 0, default: 0 },
+    questionCompletionLock: { type: Schema.Types.Mixed, default: null },
     questionTimings: {
       type: [
         new Schema(
@@ -5093,34 +2179,6 @@ arenaMatchAttemptEventSchema.index(
   { unique: true }
 );
 
-const arenaMatchEconomySnapshotSchema = new Schema(
-  {
-    originalStakeDays: { type: Number, min: 0, default: 0 },
-    normalStakeMode: {
-      type: String,
-      enum: [
-        "INITIATOR_ONLY",
-        "BILATERAL_ACCEPTED_INVITATION",
-        "LEGACY_BILATERAL",
-        "FRIENDLY_FEE_ONLY",
-        "",
-      ],
-      default: "",
-    },
-    challengerStakeDays: { type: Number, min: 0, default: 0 },
-    defenderStakeDays: { type: Number, min: 0, default: 0 },
-    revengeStakeMultiplier: { type: Number, min: 1, default: 1 },
-    feeDays: { type: Number, min: 0, default: 0 },
-    recipientNoShowReturnDays: { type: Number, min: 0, default: 0 },
-    recipientNoShowBurnDays: { type: Number, min: 0, default: 0 },
-    challengerWinRefundDays: { type: Number, min: 0, default: null },
-    // 과거 경기 스냅샷 호환용. 신규 Unranked 일반 쟁탈전은
-    // challengerWinRefundDays를 사용한다.
-    bronzeChallengerWinRefundDays: { type: Number, min: 0, default: 0 },
-  },
-  { _id: false }
-);
-
 const arenaMatchScoreSnapshotSchema = new Schema(
   {
     score: { type: Number, min: 0, max: 100, default: null },
@@ -5148,14 +2206,84 @@ const arenaMatchResultSnapshotSchema = new Schema(
   { _id: false }
 );
 
+const arenaAsyncCompetitiveSnapshotSchema = new Schema(
+  {
+    enabled: { type: Boolean, default: false, immutable: true },
+    historicalRecordId: { type: Schema.Types.ObjectId, ref: "ArenaCompetitiveRecord", default: null, immutable: true },
+    historicalOwnerUserId: { type: Schema.Types.ObjectId, ref: "User", default: null, immutable: true },
+    challengerRatingBefore: { type: Schema.Types.Mixed, default: null, immutable: true },
+    challengerSourceRates: { type: [Number], default: [], immutable: true },
+    questionInstanceHashes: { type: [String], default: [], immutable: true },
+    opponentQuestionInstanceHashes: { type: [String], default: [], immutable: true },
+    reservationExpiresAt: { type: Date, default: null, immutable: true },
+    pendingComparison: { type: Schema.Types.Mixed, default: null },
+  },
+  { _id: false }
+);
+
+/* General matches pair one current challenger with one verified historical
+ * record. Keep the per-match hidden matchmaking snapshot separate from the
+ * internal competitive MMR so normal play can never mutate competitive state. */
+const arenaAsyncNormalSnapshotSchema = new Schema(
+  {
+    enabled: { type: Boolean, default: false, immutable: true },
+    historicalRecordId: {
+      type: Schema.Types.ObjectId,
+      ref: "ArenaCompetitiveRecord",
+      default: null,
+      immutable: true,
+    },
+    historicalOwnerUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      immutable: true,
+    },
+    baselineQuestionIds: {
+      type: [{
+        type: Schema.Types.ObjectId,
+        ref: "ArenaNormalBaselineQuestion",
+      }],
+      default: [],
+      immutable: true,
+    },
+    baselineBatchKey: { type: String, trim: true, default: "", immutable: true },
+    baselineCombinationHash: { type: String, trim: true, default: "", immutable: true },
+    baselineRatingSnapshot: { type: Schema.Types.Mixed, default: null, immutable: true },
+    baselinePerformance: { type: Schema.Types.Mixed, default: null, immutable: true },
+    firstRecord: { type: Boolean, default: false, immutable: true },
+    challengerRatingBefore: { type: Schema.Types.Mixed, default: null, immutable: true },
+    challengerSourceRates: { type: [Number], default: [], immutable: true },
+    questionInstanceHashes: { type: [String], default: [], immutable: true },
+    opponentQuestionInstanceHashes: { type: [String], default: [], immutable: true },
+    matchmakingRating: { type: Number, min: 0, default: 1000, immutable: true },
+    reservationExpiresAt: { type: Date, default: null, immutable: true },
+    pendingComparison: { type: Schema.Types.Mixed, default: null },
+  },
+  { _id: false }
+);
+
 const arenaMatchSchema = new Schema(
   {
+    inlineBoardWriteVersion: { type: Number, min: 0, default: 0 },
     matchKey: {
       type: String,
       required: true,
       unique: true,
       trim: true,
       maxlength: 200,
+    },
+    arenaVersion: {
+      type: String,
+      enum: ["2.0"],
+      default: "2.0",
+      index: true,
+    },
+    gameMode: {
+      type: String,
+      enum: ["NORMAL", "COMPETITIVE", "FRIENDLY", null],
+      default: null,
+      index: true,
     },
     division: {
       type: String,
@@ -5178,58 +2306,23 @@ const arenaMatchSchema = new Schema(
     },
     matchType: {
       type: String,
-      enum: ["NORMAL", "REVENGE", "FRIENDLY"],
+      enum: ["NORMAL", "FRIENDLY"],
       required: true,
     },
     matchOrigin: {
       type: String,
       enum: [
-        "SUB_UPWARD_AUTO_MATCH",
-        "MAIN_UPWARD_AUTO_MATCH",
-        "MAIN_LOWER_INVITATION",
-        "MAIN_FRIENDLY_INVITATION",
-        "REVENGE",
+        "ARENA_2_MATCHMAKING",
+        "ARENA_2_ASYNC_RECORD",
+        "ARENA_2_FRIEND_INVITATION",
       ],
-      default: "SUB_UPWARD_AUTO_MATCH",
+      default: "ARENA_2_MATCHMAKING",
       index: true,
     },
     requestInitiatorUserId: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
-    },
-    targetTier: {
-      type: String,
-      trim: true,
-      maxlength: 40,
-      default: "",
-    },
-    selectionAuditId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaOpponentSelectionAudit",
-      default: null,
-    },
-    invitationRequestId: {
-      type: Schema.Types.ObjectId,
-      ref: "MainInvitationRequest",
-      default: null,
-    },
-    friendlyInvitationId: {
-      type: Schema.Types.ObjectId,
-      ref: "MainFriendlyInvitation",
-      default: null,
-      index: true,
-    },
-    revengeRightId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaRevengeRight",
-      default: null,
-    },
-    originalMatchId: {
-      type: Schema.Types.ObjectId,
-      ref: "ArenaMatch",
-      default: null,
       index: true,
     },
     tierPairKey: {
@@ -5267,7 +2360,6 @@ const arenaMatchSchema = new Schema(
         "INVALID",
         "SETTLED",
         "CANCELLED",
-        "INSURED_CANCELLED",
       ],
       default: "REQUESTED",
       index: true,
@@ -5276,35 +2368,22 @@ const arenaMatchSchema = new Schema(
       type: String,
       required: true,
     },
-    subscriptionPolicyVersionId: {
-      type: Schema.Types.ObjectId,
-      ref: "SubscriptionPolicyVersion",
-      default: null,
-    },
-    subscriptionPolicyVersionCode: {
-      type: String,
-      trim: true,
-      maxlength: 80,
-      default: "",
-    },
-    divisionPolicyVersionId: {
-      type: Schema.Types.ObjectId,
-      ref: "MainDivisionPolicyVersion",
-      default: null,
-    },
-    divisionPolicyVersionCode: {
-      type: String,
-      trim: true,
-      maxlength: 80,
-      default: "",
-    },
-    economySnapshot: {
-      type: arenaMatchEconomySnapshotSchema,
-      default: () => ({}),
-    },
     resultSnapshot: {
       type: arenaMatchResultSnapshotSchema,
       default: null,
+    },
+    competitiveAsync: {
+      type: arenaAsyncCompetitiveSnapshotSchema,
+      default: null,
+    },
+    normalAsync: {
+      type: arenaAsyncNormalSnapshotSchema,
+      default: null,
+    },
+    questionExposure: {
+      challengerLastShownAt: { type: Date, default: null },
+      historicalOwnerLastShownAt: { type: Date, default: null },
+      resultQuestionHashes: { type: [String], default: [] },
     },
     problemPackVersion: {
       type: String,
@@ -5369,15 +2448,6 @@ const arenaMatchSchema = new Schema(
       type: Date,
       default: null,
     },
-    integrityPauseCompensationMs: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    integrityPauseCompensatedAt: {
-      type: Date,
-      default: null,
-    },
     settlementIdempotencyKey: {
       type: String,
       default: undefined,
@@ -5387,14 +2457,12 @@ const arenaMatchSchema = new Schema(
       enum: ["CHALLENGER", "DEFENDER", "BOTH", null],
       default: null,
     },
-    automaticDefenseNoShowRecordedAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
   },
   { timestamps: true, versionKey: false }
 );
+
+arenaMatchSchema.index({ "normalAsync.historicalOwnerUserId": 1, "challenger.userId": 1 });
+arenaMatchSchema.index({ "competitiveAsync.historicalOwnerUserId": 1, "challenger.userId": 1 });
 
 arenaMatchSchema.index({
   status: 1,
@@ -5450,12 +2518,16 @@ const arenaMatchEvidenceFileSchema = new Schema(
     },
     storageProvider: {
       type: String,
-      enum: ["CLOUDINARY", "PURGED"],
+      enum: ["CLOUDINARY", "R2", "PURGED"],
       default: "CLOUDINARY",
     },
     storagePurpose: {
       type: String,
-      enum: ["GENERIC", "USER_ARENA_EVIDENCE"],
+      enum: [
+        "GENERIC",
+        "USER_ARENA_EVIDENCE",
+        "ARENA_BASELINE_SOLUTION",
+      ],
       default: "GENERIC",
     },
     cloudPublicId: { type: String, maxlength: 500, default: "" },
@@ -5471,6 +2543,13 @@ const arenaMatchEvidenceFileSchema = new Schema(
     },
     cloudVersion: { type: Number, default: null },
     cloudFormat: { type: String, maxlength: 40, default: "" },
+    r2ObjectKey: { type: String, maxlength: 900, default: "" },
+    r2Sha256: {
+      type: String,
+      match: /^$|^[a-f0-9]{64}$/,
+      default: "",
+    },
+    r2ETag: { type: String, maxlength: 200, default: "" },
     questionSlot: { type: Number, min: 1, max: 5, default: null },
     revision: { type: Number, min: 1, default: null },
     strokeCount: { type: Number, min: 0, default: null },
@@ -5587,6 +2666,17 @@ const arenaMatchEvidenceSchema = new Schema(
       index: true,
     },
     retentionHoldReason: { type: String, trim: true, maxlength: 200, default: "" },
+    retentionReferences: { type: [{
+      referenceKey: { type: String, required: true },
+      until: { type: Date, default: null },
+      _id: false,
+    }], default: [] },
+    purgeLeaseToken: { type: String, default: "" },
+    purgeLeaseExpiresAt: { type: Date, default: null },
+    purgeNextAttemptAt: { type: Date, default: null },
+    purgeAttempts: { type: Number, default: 0 },
+    purgeDeletedAssetKeys: { type: [String], default: [] },
+    purgeLastError: { type: String, maxlength: 1000, default: "" },
     contentPurgedAt: { type: Date, default: null, index: true },
   },
   { timestamps: true, versionKey: false }
@@ -5636,288 +2726,19 @@ arenaInlineSolutionBoardSchema.index(
   { unique: true }
 );
 
-const arenaStandingChangeLedgerSchema =
-  new Schema(
-    {
-      matchId: {
-        type: Schema.Types.ObjectId,
-        ref: "ArenaMatch",
-        required: true,
-        index: true,
-      },
-      userId: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-      },
-      idempotencyKey: {
-        type: String,
-        required: true,
-        unique: true,
-      },
-      changeType: {
-        type: String,
-        enum: ["TUPLE_SWAP", "NO_TUPLE_WRITE", "ADJUSTMENT"],
-        required: true,
-      },
-      tupleBefore: {
-        type: arenaTupleSchema,
-        required: true,
-      },
-      tupleAfter: {
-        type: arenaTupleSchema,
-        required: true,
-      },
-      occurredAt: {
-        type: Date,
-        default: Date.now,
-        immutable: true,
-      },
-    },
-    { timestamps: true, versionKey: false }
-  );
-arenaStandingChangeLedgerSchema.index({
-  userId: 1,
-  occurredAt: -1,
-  _id: -1,
-});
-
-/*
- * 티어 승급 연출은 현재 티어를 보고 추측해서 재생하지 않습니다.
- * 실제 경기 정산 트랜잭션이 승급을 확정할 때만 이 1회성 표시 이벤트를
- * 만들고, 브라우저가 연출을 열면 DISPLAYED로 확인 처리합니다.
- */
-const arenaRankUpPresentationSchema =
-  new Schema(
-    {
-      presentationId: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true,
-        maxlength: 240,
-      },
-      matchId: {
-        type: Schema.Types.ObjectId,
-        ref: "ArenaMatch",
-        required: true,
-        index: true,
-      },
-      userId: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-        index: true,
-      },
-      fromTier: {
-        type: String,
-        enum: [
-          "bronze", "silver", "gold", "platinum", "emerald",
-          "diamond", "master", "grandmaster", "challenger",
-        ],
-        required: true,
-      },
-      toTier: {
-        type: String,
-        enum: [
-          "bronze", "silver", "gold", "platinum", "emerald",
-          "diamond", "master", "grandmaster", "challenger",
-        ],
-        required: true,
-      },
-      status: {
-        type: String,
-        enum: ["PENDING", "DISPLAYED"],
-        default: "PENDING",
-        required: true,
-        index: true,
-      },
-      occurredAt: {
-        type: Date,
-        required: true,
-        default: Date.now,
-        immutable: true,
-      },
-      displayedAt: {
-        type: Date,
-        default: null,
-      },
-    },
-    { timestamps: true, versionKey: false }
-  );
-
-arenaRankUpPresentationSchema.index(
-  { matchId: 1, userId: 1 },
-  { unique: true }
-);
-
-const arenaPaybackReviewSchema = new Schema(
-  {
-    cycleId: {
-      type: Schema.Types.ObjectId,
-      ref: "AccessCycle",
-      required: true,
-    },
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    evaluationVersion: {
-      type: String,
-      required: true,
-    },
-    status: {
-      type: String,
-      enum: ["PENDING", "QUALIFIED", "NOT_QUALIFIED", "HELD"],
-      default: "PENDING",
-      index: true,
-    },
-    evaluatedInputs: {
-      type: Schema.Types.Mixed,
-      default: {},
-    },
-    result: {
-      type: Schema.Types.Mixed,
-      default: {},
-    },
-    evaluatedAt: {
-      type: Date,
-      default: null,
-    },
-  },
-  { timestamps: true, versionKey: false }
-);
-arenaPaybackReviewSchema.index(
-  { cycleId: 1, evaluationVersion: 1 },
-  { unique: true }
-);
-
-const arenaAchievementBadgeSchema = new Schema(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    badgeCode: {
-      type: String,
-      required: true,
-      trim: true,
-      uppercase: true,
-      maxlength: 100,
-    },
-    displayName: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 120,
-    },
-    description: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: "",
-    },
-    seasonKey: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 80,
-    },
-    sourceType: {
-      type: String,
-      enum: ["MAIN_SEASON_REWARD", "MAIN_ACHIEVEMENT", "ADMIN_GRANT"],
-      required: true,
-    },
-    awardedAt: {
-      type: Date,
-      default: Date.now,
-      immutable: true,
-    },
-    revokedAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-    metadata: {
-      type: Schema.Types.Mixed,
-      default: {},
-    },
-  },
-  { timestamps: true, versionKey: false }
-);
-arenaAchievementBadgeSchema.index(
-  { userId: 1, badgeCode: 1, seasonKey: 1 },
-  { unique: true }
-);
-
 const arenaOutboxEventSchema = new Schema(
   {
     eventType: {
       type: String,
       enum: [
-        "LearningDaysDepleted",
-        "MainDemotedToSub",
-        "AccessExpired",
-        "RenewalPaymentCompleted",
-        "RenewalGraceQualified",
-        "RenewalGraceExpired",
-        "MainToSubConverted",
-        "RenewalRankAssessmentRequired",
-        "RenewalRankAssessmentCompleted",
-        "SubReentryActivated",
-        "FirstDayConsumed",
-        "WeeklyMockAccessDenied",
-        "ArenaPlacementCompleted",
         "ArenaMatchCreated",
         "ArenaMatchReady",
         "ArenaAttemptStarted",
         "ArenaAttemptSubmitted",
         "ArenaMatchSubmitted",
         "ArenaEvidenceSubmitted",
-        "ArenaEvidenceAnomalyDetected",
         "ArenaMatchIntegrityReviewStarted",
-        "ArenaMatchNoShowDetected",
-        "ArenaAutomaticDefenseSuspended",
         "ArenaMatchSettled",
-        "ArenaOpponentSelected",
-        "MainInvitationCreated",
-        "MainFriendlyInvitationCreated",
-        "MainInvitationOffered",
-        "MainInvitationAccepted",
-        "MainInvitationDeclined",
-        "MainInvitationSuperseded",
-        "MainInvitationPaused",
-        "MainInvitationResumed",
-        "MainInvitationCancelled",
-        "ArenaRevengeRightCreated",
-        "ArenaRevengeClaimed",
-        "ArenaRevengeForfeited",
-        "ArenaRevengeMatchCreated",
-        "ArenaRevengeNoShowSettled",
-        "ArenaPaybackQualified",
-        "ArenaPaybackNotQualified",
-        "ArenaPaybackPayoutCompleted",
-        "MainEntryActivated",
-        "FinalRankingRecalculated",
-        "FinalRankingFrozen",
-        "FinalRankingPublished",
-        "ArenaSeasonArchived",
-        "ArenaSeasonOpened",
-        "ArenaDormancyReturnRequired",
-        "MainQualifyingActivityRecorded",
-        "MainDormancyStarted",
-        "MainDormancyResumed",
-        "MainDormancyDemotedToSub",
-        "ArenaMatchInsuredCancelled",
-        "MainShopItemPurchased",
-        "MainShopItemReversed",
-        "MainShopEffectApplied",
-        "MainShopEffectExpired",
-        "PolicyChangeScheduled",
       ],
       required: true,
       index: true,
@@ -5945,6 +2766,7 @@ const arenaOutboxEventSchema = new Schema(
       default: null,
       index: true,
     },
+    nextPublishAttemptAt: { type: Date, default: null },
     publishAttempts: {
       type: Number,
       min: 0,
@@ -5976,12 +2798,920 @@ arenaOutboxEventSchema.index({
   createdAt: 1,
 });
 
-const SubscriptionPolicyVersion =
-  mongoose.models.SubscriptionPolicyVersion ||
-  mongoose.model(
-    "SubscriptionPolicyVersion",
-    subscriptionPolicyVersionSchema
-  );
+/* --------------------------------------------------
+ * GOAT Arena 2.0
+ *
+ * 기존 유료 이용 주기/예치/스왑 문서는 역사 데이터로 보존하고, 무료
+ * Arena의 진행 상태와 Glicko-2 값은 아래 독립 모델에 기록한다.
+ * -------------------------------------------------- */
+
+const arenaPlacementSampleSchema = new Schema(
+  {
+    attemptId: {
+      type: Schema.Types.ObjectId,
+      ref: "AssessmentAttempt",
+      required: true,
+    },
+    score: { type: Number, min: 0, max: 100, required: true },
+    estimatedRating: { type: Number, min: 0, required: true },
+    completedAt: { type: Date, required: true },
+  },
+  { _id: false }
+);
+
+const arenaCompetitiveProfileSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true,
+      index: true,
+    },
+    rulesetVersion: {
+      type: String,
+      default: "GOAT_ARENA_2_2",
+      immutable: true,
+    },
+    normalMatchesCompleted: { type: Number, min: 0, default: 0 },
+    normalRatedMatchesCompleted: { type: Number, min: 0, default: 0 },
+    normalWins: { type: Number, min: 0, default: 0 },
+    normalLosses: { type: Number, min: 0, default: 0 },
+    normalDraws: { type: Number, min: 0, default: 0 },
+    normalMatchmakingRating: { type: Number, min: 0, default: null },
+    normalMatchmakingRatingDeviation: { type: Number, min: 0, default: null },
+    normalMatchmakingVolatility: { type: Number, min: 0, default: null },
+    normalLastRatedAt: { type: Date, default: null },
+    normalCurrentStreakType: {
+      type: String,
+      enum: ["NONE", "WIN", "LOSS"],
+      default: "NONE",
+    },
+    normalCurrentStreakCount: { type: Number, min: 0, default: 0 },
+    competitiveMatchesCompleted: { type: Number, min: 0, default: 0 },
+    wins: { type: Number, min: 0, default: 0 },
+    losses: { type: Number, min: 0, default: 0 },
+    draws: { type: Number, min: 0, default: 0 },
+    accountXp: { type: Number, min: 0, default: 0 },
+    accountLevel: { type: Number, min: 1, default: 1 },
+    placementSamples: { type: [arenaPlacementSampleSchema], default: [] },
+    placementAttemptsUsed: { type: Number, min: 0, max: 5, default: 0 },
+    placementProcessVersion: { type: String, default: null },
+    placementProcessStartedAt: { type: Date, default: null },
+    placementFinalizedAt: { type: Date, default: null, index: true },
+    placementFinalizedReason: {
+      type: String,
+      enum: ["EARLY", "MAX_ATTEMPTS", null],
+      default: null,
+    },
+    provisionalRating: { type: Number, min: 0, default: null },
+    provisionalRatingDeviation: { type: Number, min: 0, default: null },
+    provisionalVolatility: { type: Number, min: 0, default: null },
+    provisionalTier: { type: String, trim: true, default: "UNPLACED" },
+    rating: { type: Number, min: 0, default: null, index: true },
+    ratingDeviation: { type: Number, min: 0, default: null },
+    volatility: { type: Number, min: 0, default: null },
+    competitiveScore: { type: Number, min: 0, default: null, index: true },
+    scoreInitializedAt: { type: Date, default: null },
+    lastScoreDelta: { type: Number, default: 0 },
+    lastScoreChangedAt: { type: Date, default: null },
+    tier: { type: String, trim: true, default: "UNPLACED", index: true },
+    ratingInitializedAt: { type: Date, default: null },
+    lastRatedAt: { type: Date, default: null },
+    competitiveCurrentStreakType: {
+      type: String,
+      enum: ["NONE", "WIN", "LOSS"],
+      default: "NONE",
+    },
+    competitiveCurrentStreakCount: { type: Number, min: 0, default: 0 },
+    weeklyMockMatchesCompleted: { type: Number, min: 0, default: 0 },
+    weeklyMockRecentPerformances: { type: [Number], default: [] },
+    weeklyMockLastRatedAt: { type: Date, default: null },
+    competitiveSolutionSharingConsentVersion: { type: String, trim: true, default: null },
+    competitiveSolutionSharingConsentedAt: { type: Date, default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+arenaCompetitiveProfileSchema.index({ rating: -1, updatedAt: 1 });
+arenaCompetitiveProfileSchema.index({ competitiveScore: -1, lastScoreChangedAt: 1 });
+
+const arenaCompetitiveRatingSnapshotSchema = new Schema({
+  rating: { type: Number, min: 0, required: true },
+  ratingDeviation: { type: Number, min: 0, required: true },
+  volatility: { type: Number, min: 0, required: true },
+  tier: { type: String, trim: true, required: true },
+}, { _id: false });
+
+const arenaCompetitiveRecordSchema = new Schema({
+  recordMode: {
+    type: String,
+    enum: ["COMPETITIVE", "NORMAL"],
+    default: "COMPETITIVE",
+    index: true,
+    immutable: true,
+  },
+  ownerUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true, immutable: true },
+  sourceMatchId: { type: Schema.Types.ObjectId, ref: "ArenaMatch", required: true, index: true, immutable: true },
+  sourceAttemptId: { type: Schema.Types.ObjectId, ref: "ArenaMatchAttempt", required: true, unique: true, immutable: true },
+  sourceEvidenceId: { type: Schema.Types.ObjectId, ref: "ArenaMatchEvidence", required: true, immutable: true },
+  sourceProblemPackId: { type: Schema.Types.ObjectId, ref: "ArenaProblemPack", required: true, immutable: true },
+  ratingSnapshot: { type: arenaCompetitiveRatingSnapshotSchema, required: true, immutable: true },
+  performance: { type: Schema.Types.Mixed, required: true, immutable: true },
+  questionInstanceHashes: { type: [String], required: true, immutable: true },
+  status: {
+    type: String,
+    enum: ["AVAILABLE", "RESERVED", "REVIEW_REQUIRED", "INVALID"],
+    default: "AVAILABLE",
+    index: true,
+  },
+  reservedByUserId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
+  reservedByMatchId: { type: Schema.Types.ObjectId, ref: "ArenaMatch", default: null },
+  reservedAt: { type: Date, default: null },
+  reservationExpiresAt: { type: Date, default: null, index: true },
+  isBaseline: { type: Boolean, default: false, immutable: true },
+  recordLabel: { type: String, trim: true, maxlength: 80, default: "과거 기록", immutable: true },
+  consentVersion: { type: String, required: true, immutable: true },
+  verifiedAt: { type: Date, required: true, immutable: true },
+  integrityFlags: { type: [String], default: [] },
+  integrityReviewedAt: { type: Date, default: null },
+  integrityReviewedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+  integrityReviewNote: { type: String, trim: true, maxlength: 1000, default: "" },
+  usageCount: { type: Number, min: 0, default: 0 },
+  lastUsedAt: { type: Date, default: null },
+}, { timestamps: true, versionKey: false });
+arenaCompetitiveRecordSchema.index({ status: 1, "ratingSnapshot.rating": 1, createdAt: 1 });
+arenaCompetitiveRecordSchema.index({ reservedByUserId: 1, status: 1, reservationExpiresAt: 1 });
+arenaCompetitiveRecordSchema.index({ recordMode: 1, status: 1, usageCount: 1 });
+arenaCompetitiveRecordSchema.index({
+  recordMode: 1,
+  status: 1,
+  "ratingSnapshot.rating": 1,
+  ownerUserId: 1,
+});
+
+/*
+ * Cold-start 일반전 기준 기록은 완성된 가상 경기나 가상 사용자로 만들지
+ * 않는다. 운영자가 검수한 문항 하나와 그 문항에 대한 기준 답안·풀이 시간·
+ * 손풀이 원본을 독립적으로 보존하고, 경기 시작 시 같은 난이도의 다섯 문항을
+ * 조합한다. ACTIVE 전환 전에는 어떤 매칭 쿼리에도 포함될 수 없다.
+ */
+const arenaNormalBaselineQuestionSchema = new Schema({
+  schemaVersion: {
+    type: String,
+    enum: ["GOAT_ARENA_NORMAL_BASELINE_QUESTION_V1"],
+    default: "GOAT_ARENA_NORMAL_BASELINE_QUESTION_V1",
+    immutable: true,
+  },
+  batchKey: {
+    type: String,
+    required: true,
+    trim: true,
+    uppercase: true,
+    match: /^[A-Z0-9][A-Z0-9._-]{2,119}$/,
+    maxlength: 120,
+    index: true,
+    immutable: true,
+  },
+  baselineKey: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    uppercase: true,
+    match: /^[A-Z0-9][A-Z0-9._-]{2,79}$/,
+    maxlength: 80,
+    immutable: true,
+  },
+  mode: {
+    type: String,
+    enum: ["NORMAL"],
+    default: "NORMAL",
+    index: true,
+    immutable: true,
+  },
+  tier: {
+    type: String,
+    enum: [
+      "BRONZE",
+      "SILVER",
+      "GOLD",
+      "PLATINUM",
+      "EMERALD",
+      "DIAMOND",
+      "MASTER",
+      "GRANDMASTER",
+      "CHALLENGER",
+    ],
+    required: true,
+    index: true,
+    immutable: true,
+  },
+  difficultyCode: {
+    type: String,
+    enum: ["U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9"],
+    required: true,
+    index: true,
+    immutable: true,
+  },
+  targetMmr: {
+    type: Number,
+    min: 0,
+    required: true,
+    index: true,
+    immutable: true,
+  },
+  question: {
+    type: arenaProblemQuestionSchema,
+    required: true,
+    select: false,
+    immutable: true,
+  },
+  questionInstanceHash: {
+    type: String,
+    required: true,
+    match: /^[a-f0-9]{64}$/,
+    index: true,
+    immutable: true,
+  },
+  sourceReferenceId: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 160,
+    immutable: true,
+  },
+  sourceAccuracyRate: {
+    type: Number,
+    min: Number.EPSILON,
+    max: 1 - Number.EPSILON,
+    required: true,
+    immutable: true,
+  },
+  sourceAccuracyEvidenceKind: {
+    type: String,
+    enum: ["EXACT"],
+    required: true,
+    immutable: true,
+  },
+  sourceAccuracyEvidence: {
+    type: Schema.Types.Mixed,
+    required: true,
+    immutable: true,
+  },
+  baselineSubmittedAnswer: {
+    type: String,
+    required: true,
+    trim: true,
+    match: /^[0-9]{1,3}$/,
+    maxlength: 3,
+    immutable: true,
+  },
+  baselineCorrect: {
+    type: Boolean,
+    required: true,
+    immutable: true,
+  },
+  baselineSolveTimeMs: {
+    type: Number,
+    min: 1,
+    max: 10 * 60 * 1000,
+    required: true,
+    immutable: true,
+  },
+  // Generated handwriting and modeled time are reference data, never a
+  // claimed human attempt. Legacy operator captures have no provenance.
+  generationProvenance: {
+    type: Schema.Types.Mixed,
+    default: null,
+    immutable: true,
+  },
+  expectedSolutionFileName: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 255,
+    immutable: true,
+  },
+  solutionEvidenceFile: {
+    type: arenaMatchEvidenceFileSchema,
+    default: null,
+  },
+  correctSolutionFile: {
+    type: arenaMatchEvidenceFileSchema,
+    default: null,
+  },
+  status: {
+    type: String,
+    enum: [
+      "DRAFT",
+      "EVIDENCE_PENDING",
+      "REVIEW_PENDING",
+      "ACTIVE",
+      "RETIRED",
+      "INVALID",
+    ],
+    default: "DRAFT",
+    index: true,
+  },
+  calibrationStatus: {
+    type: String,
+    enum: ["UNVALIDATED_HYPOTHESIS", "SIMULATION_APPROVED"],
+    default: "UNVALIDATED_HYPOTHESIS",
+    index: true,
+  },
+  createdByUserId: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+    index: true,
+  },
+  reviewedByUserId: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
+  reviewedAt: { type: Date, default: null },
+  activatedAt: { type: Date, default: null },
+  retiredAt: { type: Date, default: null },
+  reviewNotes: { type: String, trim: true, maxlength: 2000, default: "" },
+}, { timestamps: true, versionKey: false });
+
+arenaNormalBaselineQuestionSchema.index({
+  mode: 1,
+  status: 1,
+  calibrationStatus: 1,
+  targetMmr: 1,
+  difficultyCode: 1,
+  batchKey: 1,
+});
+arenaNormalBaselineQuestionSchema.index(
+  { batchKey: 1, questionInstanceHash: 1 },
+  { unique: true }
+);
+
+arenaNormalBaselineQuestionSchema.pre("validate", function validateNormalBaselineQuestion() {
+  const provenance = this.generationProvenance;
+  if (provenance && (
+    provenance.generationMethod !== "USER_HANDWRITING_FONT" ||
+    provenance.isHumanSolveEvidence !== false ||
+    provenance.solveTimeBasis !== "MODEL_ESTIMATE"
+  )) {
+    this.invalidate("generationProvenance", "자동 생성 기준 데이터의 생성 방식과 추정 시간 구분을 확인해주세요.");
+  }
+  if (this.correctSolutionFile && this.correctSolutionFile.storagePurpose !== "ARENA_BASELINE_SOLUTION") {
+    this.invalidate("correctSolutionFile.storagePurpose", "정답 풀이 파일은 Arena 기준 풀이 용도로 저장해야 합니다.");
+  }
+  const expectedCorrect =
+    String(this.baselineSubmittedAnswer || "").trim() ===
+    String(this.question?.answer || "").trim();
+  if (Boolean(this.baselineCorrect) !== expectedCorrect) {
+    this.invalidate(
+      "baselineCorrect",
+      "기준 답안의 정오 값이 서버 정답과 일치하지 않습니다."
+    );
+  }
+  if (this.solutionEvidenceFile) {
+    if (this.solutionEvidenceFile.storagePurpose !== "ARENA_BASELINE_SOLUTION") {
+      this.invalidate(
+        "solutionEvidenceFile.storagePurpose",
+        "기준 풀이 파일은 Arena 기준 풀이 용도로 저장해야 합니다."
+      );
+    }
+    if (this.solutionEvidenceFile.originalName !== this.expectedSolutionFileName) {
+      this.invalidate(
+        "solutionEvidenceFile.originalName",
+        "기준 풀이 파일명이 캡처 계획과 일치하지 않습니다."
+      );
+    }
+  }
+  if (this.status !== "ACTIVE") return;
+  if (
+    this.calibrationStatus !== "SIMULATION_APPROVED" ||
+    !this.solutionEvidenceFile ||
+    !this.reviewedByUserId ||
+    !this.reviewedAt ||
+    !this.activatedAt ||
+    !this.createdByUserId
+  ) {
+    this.invalidate(
+      "status",
+      "정확한 정답률·손풀이 원본·운영 검수·시뮬레이션 승인이 모두 있어야 기준 문항을 활성화할 수 있습니다."
+    );
+  }
+});
+
+const immutableNormalBaselineQuestionPaths = [
+  "schemaVersion",
+  "batchKey",
+  "baselineKey",
+  "mode",
+  "tier",
+  "difficultyCode",
+  "targetMmr",
+  "question",
+  "questionInstanceHash",
+  "sourceReferenceId",
+  "sourceAccuracyRate",
+  "sourceAccuracyEvidenceKind",
+  "sourceAccuracyEvidence",
+  "baselineSubmittedAnswer",
+  "baselineCorrect",
+  "baselineSolveTimeMs",
+  "generationProvenance",
+  "expectedSolutionFileName",
+  "solutionEvidenceFile",
+  "correctSolutionFile",
+  "calibrationStatus",
+  "createdByUserId",
+  "reviewedByUserId",
+  "reviewedAt",
+  "activatedAt",
+];
+
+arenaNormalBaselineQuestionSchema.pre("save", async function preventActiveBaselineMutation() {
+  if (this.isNew) return;
+  const current = await this.constructor.findById(this._id).select("status").lean();
+  if (!current) return;
+  if (
+    ["ACTIVE", "RETIRED"].includes(current.status) &&
+    immutableNormalBaselineQuestionPaths.some((path) => this.isModified(path))
+  ) {
+    throw new Error(
+      "활성화하거나 종료한 일반전 기준 문항은 수정할 수 없습니다. 새 배치를 만들어주세요."
+    );
+  }
+  if (
+    current.status === "ACTIVE" &&
+    this.isModified("status") &&
+    this.status !== "RETIRED"
+  ) {
+    throw new Error("활성 일반전 기준 문항은 종료 상태로만 전환할 수 있습니다.");
+  }
+  if (current.status === "RETIRED" && this.isModified("status")) {
+    throw new Error("종료한 일반전 기준 문항은 다시 활성화할 수 없습니다.");
+  }
+});
+
+arenaNormalBaselineQuestionSchema.pre(
+  ["findOneAndUpdate", "updateOne"],
+  async function preventActiveBaselineQueryMutation() {
+    const current = await this.model
+      .findOne(this.getQuery())
+      .select("status")
+      .session(this.getOptions().session || null)
+      .lean();
+    if (!current) return;
+    const changedPaths = updatedPolicyPaths(this.getUpdate() || {});
+    const changesDefinition = immutableNormalBaselineQuestionPaths.some(
+      (protectedPath) =>
+        [...changedPaths].some(
+          (changedPath) =>
+            changedPath === protectedPath ||
+            changedPath.startsWith(`${protectedPath}.`)
+        )
+    );
+    if (changesDefinition && ["ACTIVE", "RETIRED"].includes(current.status)) {
+      throw new Error(
+        "활성화하거나 종료한 일반전 기준 문항은 수정할 수 없습니다. 새 배치를 만들어주세요."
+      );
+    }
+    const nextStatus = this.getUpdate()?.status || this.getUpdate()?.$set?.status;
+    if (current.status === "ACTIVE" && nextStatus && nextStatus !== "RETIRED") {
+      throw new Error("활성 일반전 기준 문항은 종료 상태로만 전환할 수 있습니다.");
+    }
+    if (current.status === "RETIRED" && nextStatus) {
+      throw new Error("종료한 일반전 기준 문항은 다시 활성화할 수 없습니다.");
+    }
+  }
+);
+
+const arenaNormalBaselineAssignmentSchema = new Schema({
+  batchKey: {
+    type: String,
+    required: true,
+    trim: true,
+    uppercase: true,
+    maxlength: 120,
+    immutable: true,
+  },
+  baselineQuestionIds: {
+    type: [{
+      type: Schema.Types.ObjectId,
+      ref: "ArenaNormalBaselineQuestion",
+      required: true,
+    }],
+    validate: {
+      validator: (values) =>
+        Array.isArray(values) &&
+        values.length === 5 &&
+        new Set(values.map(String)).size === 5,
+      message: "일반전 기준 조합에는 서로 다른 다섯 문항이 필요합니다.",
+    },
+    immutable: true,
+  },
+  combinationHash: {
+    type: String,
+    required: true,
+    match: /^[a-f0-9]{64}$/,
+    index: true,
+    immutable: true,
+  },
+  challengerUserId: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    index: true,
+    immutable: true,
+  },
+  matchId: {
+    type: Schema.Types.ObjectId,
+    ref: "ArenaMatch",
+    required: true,
+    unique: true,
+    immutable: true,
+  },
+  sequence: {
+    type: Number,
+    min: 1,
+    required: true,
+    index: true,
+  },
+  assignedAt: {
+    type: Date,
+    required: true,
+    default: Date.now,
+    immutable: true,
+  },
+  settledAt: { type: Date, default: null },
+}, { timestamps: true, versionKey: false });
+
+arenaNormalBaselineAssignmentSchema.index({ combinationHash: 1, sequence: -1 });
+arenaNormalBaselineAssignmentSchema.index(
+  { combinationHash: 1, sequence: 1 },
+  { unique: true }
+);
+arenaNormalBaselineAssignmentSchema.index({ challengerUserId: 1, sequence: -1 });
+
+const arenaNormalMatchCounterSchema = new Schema({
+  key: { type: String, enum: ["GLOBAL"], default: "GLOBAL", unique: true },
+  sequence: { type: Number, min: 0, default: 0 },
+}, { timestamps: true, versionKey: false });
+
+const arenaGuestIdentitySchema = new Schema({
+  nickname: { type: String, trim: true, minlength: 2, maxlength: 30, required: true },
+  nicknameNormalized: { type: String, trim: true, lowercase: true, maxlength: 30, required: true, unique: true },
+  claimSecretHash: { type: String, match: /^[a-f0-9]{64}$/, required: true, select: false },
+  birthDateHash: {
+    type: String,
+    match: /^[a-f0-9]{64}$/,
+    required() { return this.isNew; },
+    immutable: true,
+    select: false,
+  },
+  firstChallengeAcceptedAt: { type: Date, default: null, immutable: true },
+  claimedByUserId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+  claimedAt: { type: Date, default: null },
+  proofGeneration: { type: Number, min: 0, default: 0 },
+  proofExpiresAt: { type: Date, default: null },
+  anonymizedAt: { type: Date, default: null },
+  lastSeenAt: { type: Date, default: Date.now },
+}, { timestamps: true, versionKey: false });
+arenaGuestIdentitySchema.pre("validate", function validateNewGuestIdentityBinding() {
+  // The raw birth date is never stored here; only the keyed digest is persisted.
+  if (!this.isNew) return;
+  if (!this.birthDateHash) {
+    this.invalidate(
+      "birthDateHash",
+      "새 게스트 신원에는 서버에서 확인한 생년월일 해시가 필요합니다."
+    );
+  }
+  const acceptedAt = this.firstChallengeAcceptedAt;
+  if (!(acceptedAt instanceof Date) || Number.isNaN(acceptedAt.getTime())) {
+    this.invalidate(
+      "firstChallengeAcceptedAt",
+      "새 게스트 신원에는 최초 도전장 수락 시각이 필요합니다."
+    );
+  }
+});
+arenaGuestIdentitySchema.index(
+  { claimedByUserId: 1 },
+  { unique: true, partialFilterExpression: { claimedByUserId: { $type: "objectId" } } }
+);
+
+const arenaGuestChallengeSchema = new Schema({
+  tokenHash: { type: String, match: /^[a-f0-9]{64}$/, required: true, unique: true, select: false },
+  creatorUserId: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+    index: true,
+    required() { return this.isNew; },
+  },
+  creatorAnonymizedAt: { type: Date, default: null },
+  sourceKind: {
+    type: String,
+    enum: ["ARENA_MATCH", "GUEST_ATTEMPT"],
+    default: "ARENA_MATCH",
+    required() { return this.isNew; },
+    immutable: true,
+  },
+  sourceMatchId: {
+    type: Schema.Types.ObjectId,
+    ref: "ArenaMatch",
+    default: null,
+    index: true,
+    immutable: true,
+    required() { return (this.sourceKind || "ARENA_MATCH") === "ARENA_MATCH"; },
+  },
+  sourceAttemptId: {
+    type: Schema.Types.ObjectId,
+    ref: "ArenaMatchAttempt",
+    default: null,
+    immutable: true,
+    required() { return (this.sourceKind || "ARENA_MATCH") === "ARENA_MATCH"; },
+  },
+  sourceEvidenceId: {
+    type: Schema.Types.ObjectId,
+    ref: "ArenaMatchEvidence",
+    default: null,
+    immutable: true,
+    required() { return (this.sourceKind || "ARENA_MATCH") === "ARENA_MATCH"; },
+  },
+  sourceGuestAttemptId: {
+    type: Schema.Types.ObjectId,
+    ref: "ArenaGuestChallengeAttempt",
+    default: null,
+    immutable: true,
+    required() { return this.sourceKind === "GUEST_ATTEMPT"; },
+  },
+  sourceProblemPackId: { type: Schema.Types.ObjectId, ref: "ArenaProblemPack", required: true, immutable: true },
+  sourcePerformance: { type: Schema.Types.Mixed, required: true, immutable: true },
+  creatorRatingSnapshot: { type: Number, min: 0, default: null, immutable: true },
+  difficultyCodeSnapshot: {
+    type: String,
+    enum: [
+      "",
+      "U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9",
+      "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9",
+    ],
+    default: "",
+    immutable: true,
+  },
+  difficultyPolicy: { type: String, trim: true, maxlength: 80, default: "", immutable: true },
+  status: { type: String, enum: ["OPEN", "EXPIRED", "REVOKED"], default: "OPEN", index: true },
+  expiresAt: { type: Date, required: true, index: true },
+  resultsReleasedAt: { type: Date, default: null, index: true },
+}, { timestamps: true, versionKey: false });
+arenaGuestChallengeSchema.pre("validate", function validateGuestChallengeSourceBranch() {
+  const sourceKind = this.sourceKind || "ARENA_MATCH";
+  const arenaMatchSourceValues = [
+    this.sourceMatchId,
+    this.sourceAttemptId,
+    this.sourceEvidenceId,
+  ];
+  const hasAnyArenaMatchSource = arenaMatchSourceValues.some(Boolean);
+  const hasCompleteArenaMatchSource = arenaMatchSourceValues.every(Boolean);
+  const hasGuestAttemptSource = Boolean(this.sourceGuestAttemptId);
+  if (sourceKind === "ARENA_MATCH" && (!hasCompleteArenaMatchSource || hasGuestAttemptSource)) {
+    this.invalidate(
+      "sourceKind",
+      "회원 경기 도전장은 경기·시도·풀이 원본만 source로 가져야 합니다."
+    );
+  }
+  if (sourceKind === "GUEST_ATTEMPT" && (hasAnyArenaMatchSource || !hasGuestAttemptSource)) {
+    this.invalidate(
+      "sourceKind",
+      "역도전장은 완료된 게스트 시도만 source로 가져야 합니다."
+    );
+  }
+});
+arenaGuestChallengeSchema.index({ creatorUserId: 1, sourceMatchId: 1, createdAt: -1 });
+arenaGuestChallengeSchema.index(
+  { sourceGuestAttemptId: 1, creatorUserId: 1, createdAt: -1 },
+  { partialFilterExpression: { sourceKind: "GUEST_ATTEMPT" } }
+);
+arenaGuestChallengeSchema.index(
+  { sourceKind: 1, sourceEvidenceId: 1 },
+  { partialFilterExpression: { sourceKind: "ARENA_MATCH" } }
+);
+
+const arenaGuestChallengeAttemptSchema = new Schema({
+  challengeId: { type: Schema.Types.ObjectId, ref: "ArenaGuestChallenge", required: true, index: true },
+  guestIdentityId: { type: Schema.Types.ObjectId, ref: "ArenaGuestIdentity", required: true, index: true },
+  claimedByUserId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
+  attemptNumber: { type: Number, min: 1, required: true },
+  status: { type: String, enum: ["READY", "IN_PROGRESS", "EVIDENCE_REQUIRED", "SETTLED", "ABANDONED"], default: "READY", index: true },
+  problemPackId: { type: Schema.Types.ObjectId, ref: "ArenaProblemPack", required: true },
+  answers: { type: [arenaMatchAnswerSchema], default: [] },
+  currentQuestionIndex: { type: Number, min: 0, max: 5, default: 0 },
+  questionTimings: {
+    type: [new Schema({
+      questionKey: { type: String, required: true },
+      startedAt: { type: Date, required: true },
+      completedAt: { type: Date, default: null },
+      responseTimeMs: { type: Number, min: 0, default: null },
+    }, { _id: false })],
+    default: [],
+  },
+  startedAt: { type: Date, default: null },
+  deadlineAt: { type: Date, default: null, index: true },
+  submittedAt: { type: Date, default: null },
+  activeSolveTimeMs: { type: Number, min: 0, default: null },
+  evidenceFiles: { type: [arenaMatchEvidenceFileSchema], default: [] },
+  evidenceSubmittedAt: { type: Date, default: null },
+  scoring: { type: Schema.Types.Mixed, default: null },
+  performance: { type: Schema.Types.Mixed, default: null },
+  comparison: { type: Schema.Types.Mixed, default: null },
+  result: { type: String, enum: ["CHALLENGER_WIN", "CREATOR_WIN", "DRAW", null], default: null },
+  settledAt: { type: Date, default: null },
+}, { timestamps: true, versionKey: false });
+arenaGuestChallengeAttemptSchema.index({ challengeId: 1, guestIdentityId: 1 }, { unique: true });
+arenaGuestChallengeAttemptSchema.index({ challengeId: 1, status: 1, settledAt: 1 });
+arenaGuestChallengeAttemptSchema.index({
+  challengeId: 1,
+  status: 1,
+  "performance.correctCount": -1,
+  "performance.totalSolveTimeMs": 1,
+  attemptNumber: 1,
+});
+arenaGuestChallengeAttemptSchema.index({
+  guestIdentityId: 1,
+  status: 1,
+  "performance.correctCount": -1,
+  "performance.totalSolveTimeMs": 1,
+  attemptNumber: 1,
+});
+
+const arenaGuestSolutionBoardSchema = new Schema({
+  attemptId: { type: Schema.Types.ObjectId, ref: "ArenaGuestChallengeAttempt", required: true, index: true },
+  guestIdentityId: { type: Schema.Types.ObjectId, ref: "ArenaGuestIdentity", required: true, index: true },
+  questionSlot: { type: Number, min: 1, max: 5, required: true },
+  revision: { type: Number, min: 1, required: true },
+  strokeCount: { type: Number, min: 0, required: true },
+  drawingData: { type: Buffer, required: true, select: false },
+  file: { type: arenaMatchEvidenceFileSchema, required: true },
+  finalizedAt: { type: Date, default: null },
+}, { timestamps: true, versionKey: false });
+arenaGuestSolutionBoardSchema.index({ attemptId: 1, questionSlot: 1 }, { unique: true });
+
+const arenaPlacementAttemptAdjustmentSchema = new Schema({
+  attemptId: { type: Schema.Types.ObjectId, ref: "AssessmentAttempt", required: true, unique: true },
+  userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+  kind: { type: String, enum: ["SERVER_ERROR", "OPERATOR_RESET"], required: true, immutable: true },
+  requestId: { type: String, required: true, maxlength: 160, immutable: true },
+  authorizedBy: { type: Schema.Types.ObjectId, ref: "User", default: null, immutable: true },
+  reason: { type: String, required: true, maxlength: 1000, immutable: true },
+}, { timestamps: true, versionKey: false });
+arenaPlacementAttemptAdjustmentSchema.index({ userId: 1, requestId: 1 });
+
+const arenaMatchmakingEntrySchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    activeKey: {
+      type: String,
+      default: undefined,
+    },
+    mode: {
+      type: String,
+      enum: ["NORMAL", "COMPETITIVE"],
+      required: true,
+      index: true,
+    },
+    pool: { type: String, enum: ["ALL"], default: "ALL", required: true },
+    ratingSnapshot: { type: Number, min: 0, required: true, index: true },
+    status: {
+      type: String,
+      enum: ["WAITING", "MATCHING", "MATCHED", "CANCELLED", "EXPIRED"],
+      default: "WAITING",
+      index: true,
+    },
+    joinedAt: { type: Date, default: Date.now, required: true, index: true },
+    heartbeatAt: { type: Date, default: Date.now },
+    matchedAt: { type: Date, default: null },
+    matchId: { type: Schema.Types.ObjectId, ref: "ArenaMatch", default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+arenaMatchmakingEntrySchema.index(
+  { activeKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { activeKey: { $type: "string" } },
+  }
+);
+arenaMatchmakingEntrySchema.index({ mode: 1, pool: 1, status: 1, ratingSnapshot: 1, joinedAt: 1 });
+
+const arenaRatingSettlementSchema = new Schema(
+  {
+    matchId: {
+      type: Schema.Types.ObjectId,
+      ref: "ArenaMatch",
+      required: true,
+      unique: true,
+      index: true,
+    },
+    mode: {
+      type: String,
+      enum: ["NORMAL", "COMPETITIVE", "FRIENDLY"],
+      required: true,
+    },
+    outcome: {
+      type: String,
+      enum: ["CHALLENGER_WIN", "DEFENDER_WIN", "DRAW"],
+      required: true,
+    },
+    challenger: { type: Schema.Types.Mixed, default: {} },
+    defender: { type: Schema.Types.Mixed, default: {} },
+    settledAt: { type: Date, default: Date.now, required: true },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+const arenaWeeklyMockRatingSettlementSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    weekKey: { type: String, required: true, trim: true, maxlength: 40 },
+    examId: { type: Schema.Types.ObjectId, ref: "PrivateMockExam", required: true },
+    representativeAttemptId: {
+      type: Schema.Types.ObjectId,
+      ref: "PrivateMockExamAttempt",
+      required: true,
+    },
+    performance: { type: Number, min: 0, max: 1, required: true },
+    referenceRatingSnapshot: {
+      type: arenaCompetitiveRatingSnapshotSchema,
+      required: true,
+    },
+    before: { type: arenaCompetitiveRatingSnapshotSchema, required: true },
+    after: { type: arenaCompetitiveRatingSnapshotSchema, required: true },
+    delta: { type: Number, required: true },
+    publicScoreChanged: { type: Boolean, default: false, immutable: true },
+    settledAt: { type: Date, default: Date.now, required: true },
+  },
+  { timestamps: true, versionKey: false }
+);
+arenaWeeklyMockRatingSettlementSchema.index(
+  { userId: 1, weekKey: 1 },
+  { unique: true }
+);
+
+const arenaFriendRequestSchema = new Schema(
+  {
+    pairKey: { type: String, required: true, index: true },
+    requesterUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    recipientUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    status: {
+      type: String,
+      enum: ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED"],
+      default: "PENDING",
+      index: true,
+    },
+    respondedAt: { type: Date, default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+arenaFriendRequestSchema.index(
+  { pairKey: 1, status: 1 },
+  { unique: true, partialFilterExpression: { status: "PENDING" } }
+);
+
+const arenaFriendshipSchema = new Schema(
+  {
+    pairKey: { type: String, required: true, unique: true, index: true },
+    userLowId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    userHighId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    acceptedRequestId: { type: Schema.Types.ObjectId, ref: "ArenaFriendRequest", required: true },
+    acceptedAt: { type: Date, default: Date.now, required: true },
+  },
+  { timestamps: true, versionKey: false }
+);
+
+const arenaFriendlyInvitationV2Schema = new Schema(
+  {
+    requestId: { type: String, required: true, trim: true, maxlength: 160 },
+    inviterUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    inviteeUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    status: {
+      type: String,
+      enum: ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED", "EXPIRED"],
+      default: "PENDING",
+      index: true,
+    },
+    expiresAt: { type: Date, required: true, index: true },
+    respondedAt: { type: Date, default: null },
+    cancelledAt: { type: Date, default: null },
+    matchId: { type: Schema.Types.ObjectId, ref: "ArenaMatch", default: null },
+  },
+  { timestamps: true, versionKey: false }
+);
+arenaFriendlyInvitationV2Schema.index({ inviterUserId: 1, requestId: 1 }, { unique: true });
+arenaFriendlyInvitationV2Schema.index({ inviteeUserId: 1, status: 1, createdAt: -1 });
+
 const ArenaPackagePayment =
   mongoose.models.ArenaPackagePayment ||
   mongoose.model(
@@ -5993,45 +3723,6 @@ const AppleCommerceAccountToken =
   mongoose.model(
     "AppleCommerceAccountToken",
     appleCommerceAccountTokenSchema
-  );
-const MockExamPackagePolicyVersion =
-  mongoose.models.MockExamPackagePolicyVersion ||
-  mongoose.model(
-    "MockExamPackagePolicyVersion",
-    mockExamPackagePolicyVersionSchema
-  );
-const MockExamSubscription =
-  mongoose.models.MockExamSubscription ||
-  mongoose.model(
-    "MockExamSubscription",
-    mockExamSubscriptionSchema
-  );
-const AccessCycle =
-  mongoose.models.AccessCycle ||
-  mongoose.model("AccessCycle", accessCycleSchema);
-const AccessCycleExpiryReminder =
-  mongoose.models.AccessCycleExpiryReminder ||
-  mongoose.model(
-    "AccessCycleExpiryReminder",
-    accessCycleExpiryReminderSchema
-  );
-const PolicyChangeDelivery =
-  mongoose.models.PolicyChangeDelivery ||
-  mongoose.model(
-    "PolicyChangeDelivery",
-    policyChangeDeliverySchema
-  );
-const ArenaStanding =
-  mongoose.models.ArenaStanding ||
-  mongoose.model(
-    "ArenaStanding",
-    arenaStandingSchema
-  );
-const ArenaCohortRevision =
-  mongoose.models.ArenaCohortRevision ||
-  mongoose.model(
-    "ArenaCohortRevision",
-    arenaCohortRevisionSchema
   );
 const ArenaAccessState =
   mongoose.models.ArenaAccessState ||
@@ -6056,99 +3747,6 @@ const ArenaIntegrityRiskCase =
   mongoose.model(
     "ArenaIntegrityRiskCase",
     arenaIntegrityRiskCaseSchema
-  );
-const ArenaLearningDayLedger =
-  mongoose.models.ArenaLearningDayLedger ||
-  mongoose.model(
-    "ArenaLearningDayLedger",
-    arenaLearningDayLedgerSchema
-  );
-const MainDivisionPolicyVersion =
-  mongoose.models.MainDivisionPolicyVersion ||
-  mongoose.model(
-    "MainDivisionPolicyVersion",
-    mainDivisionPolicyVersionSchema
-  );
-const MainInvitationRequest =
-  mongoose.models.MainInvitationRequest ||
-  mongoose.model(
-    "MainInvitationRequest",
-    mainInvitationRequestSchema
-  );
-const MainFriendlyInvitation =
-  mongoose.models.MainFriendlyInvitation ||
-  mongoose.model("MainFriendlyInvitation", mainFriendlyInvitationSchema);
-const ArenaOpponentSelectionAudit =
-  mongoose.models.ArenaOpponentSelectionAudit ||
-  mongoose.model(
-    "ArenaOpponentSelectionAudit",
-    arenaOpponentSelectionAuditSchema
-  );
-const MainInvitationOffer =
-  mongoose.models.MainInvitationOffer ||
-  mongoose.model(
-    "MainInvitationOffer",
-    mainInvitationOfferSchema
-  );
-const ArenaRevengeRight =
-  mongoose.models.ArenaRevengeRight ||
-  mongoose.model(
-    "ArenaRevengeRight",
-    arenaRevengeRightSchema
-  );
-const FinalRankingPolicyVersion =
-  mongoose.models.FinalRankingPolicyVersion ||
-  mongoose.model(
-    "FinalRankingPolicyVersion",
-    finalRankingPolicyVersionSchema
-  );
-const ArenaSnapshot =
-  mongoose.models.ArenaSnapshot ||
-  mongoose.model(
-    "ArenaSnapshot",
-    arenaSnapshotSchema
-  );
-const MainToSubConversionPolicy =
-  mongoose.models.MainToSubConversionPolicy ||
-  mongoose.model(
-    "MainToSubConversionPolicy",
-    mainToSubConversionPolicySchema
-  );
-const MainToSubConversionResult =
-  mongoose.models.MainToSubConversionResult ||
-  mongoose.model(
-    "MainToSubConversionResult",
-    mainToSubConversionResultSchema
-  );
-const RenewalRankAssessment =
-  mongoose.models.RenewalRankAssessment ||
-  mongoose.model(
-    "RenewalRankAssessment",
-    renewalRankAssessmentSchema
-  );
-const LiveFinalRankingProfile =
-  mongoose.models.LiveFinalRankingProfile ||
-  mongoose.model(
-    "LiveFinalRankingProfile",
-    liveFinalRankingProfileSchema
-  );
-const MainShopPolicyVersion =
-  mongoose.models.MainShopPolicyVersion ||
-  mongoose.model(
-    "MainShopPolicyVersion",
-    mainShopPolicyVersionSchema
-  );
-const MainShopPurchase =
-  mongoose.models.MainShopPurchase ||
-  mongoose.model(
-    "MainShopPurchase",
-    mainShopPurchaseSchema
-  );
-const MainShopEffect =
-  mongoose.models.MainShopEffect ||
-  mongoose.model(
-    "MainShopEffect",
-    mainShopEffectSchema
   );
 const ArenaMatch =
   mongoose.models.ArenaMatch ||
@@ -6204,47 +3802,88 @@ const ArenaInlineSolutionBoard =
     "ArenaInlineSolutionBoard",
     arenaInlineSolutionBoardSchema
   );
-const ArenaStandingChangeLedger =
-  mongoose.models.ArenaStandingChangeLedger ||
-  mongoose.model(
-    "ArenaStandingChangeLedger",
-    arenaStandingChangeLedgerSchema
-  );
-const ArenaRankUpPresentation =
-  mongoose.models.ArenaRankUpPresentation ||
-  mongoose.model(
-    "ArenaRankUpPresentation",
-    arenaRankUpPresentationSchema
-  );
-const ArenaPaybackReview =
-  mongoose.models.ArenaPaybackReview ||
-  mongoose.model(
-    "ArenaPaybackReview",
-    arenaPaybackReviewSchema
-  );
-const ArenaAchievementBadge =
-  mongoose.models.ArenaAchievementBadge ||
-  mongoose.model(
-    "ArenaAchievementBadge",
-    arenaAchievementBadgeSchema
-  );
 const ArenaOutboxEvent =
   mongoose.models.ArenaOutboxEvent ||
   mongoose.model(
     "ArenaOutboxEvent",
     arenaOutboxEventSchema
   );
+const ArenaCompetitiveProfile =
+  mongoose.models.ArenaCompetitiveProfile ||
+  mongoose.model(
+    "ArenaCompetitiveProfile",
+    arenaCompetitiveProfileSchema
+  );
+const ArenaMatchmakingEntry =
+  mongoose.models.ArenaMatchmakingEntry ||
+  mongoose.model(
+    "ArenaMatchmakingEntry",
+    arenaMatchmakingEntrySchema
+  );
+const ArenaRatingSettlement =
+  mongoose.models.ArenaRatingSettlement ||
+  mongoose.model(
+    "ArenaRatingSettlement",
+    arenaRatingSettlementSchema
+  );
+const ArenaWeeklyMockRatingSettlement =
+  mongoose.models.ArenaWeeklyMockRatingSettlement ||
+  mongoose.model(
+    "ArenaWeeklyMockRatingSettlement",
+    arenaWeeklyMockRatingSettlementSchema
+  );
+const ArenaCompetitiveRecord =
+  mongoose.models.ArenaCompetitiveRecord ||
+  mongoose.model("ArenaCompetitiveRecord", arenaCompetitiveRecordSchema);
+const ArenaNormalBaselineQuestion =
+  mongoose.models.ArenaNormalBaselineQuestion ||
+  mongoose.model(
+    "ArenaNormalBaselineQuestion",
+    arenaNormalBaselineQuestionSchema
+  );
+const ArenaNormalBaselineAssignment =
+  mongoose.models.ArenaNormalBaselineAssignment ||
+  mongoose.model(
+    "ArenaNormalBaselineAssignment",
+    arenaNormalBaselineAssignmentSchema
+  );
+const ArenaFriendRequest =
+  mongoose.models.ArenaFriendRequest ||
+  mongoose.model(
+    "ArenaFriendRequest",
+    arenaFriendRequestSchema
+  );
+const ArenaFriendship =
+  mongoose.models.ArenaFriendship ||
+  mongoose.model(
+    "ArenaFriendship",
+    arenaFriendshipSchema
+  );
+const ArenaFriendlyInvitationV2 =
+  mongoose.models.ArenaFriendlyInvitationV2 ||
+  mongoose.model(
+    "ArenaFriendlyInvitationV2",
+    arenaFriendlyInvitationV2Schema
+  );
+const ArenaNormalMatchCounter = mongoose.models.ArenaNormalMatchCounter ||
+  mongoose.model("ArenaNormalMatchCounter", arenaNormalMatchCounterSchema);
+const ArenaGuestIdentity = mongoose.models.ArenaGuestIdentity ||
+  mongoose.model("ArenaGuestIdentity", arenaGuestIdentitySchema);
+const ArenaGuestChallenge = mongoose.models.ArenaGuestChallenge ||
+  mongoose.model("ArenaGuestChallenge", arenaGuestChallengeSchema);
+const ArenaGuestChallengeAttempt = mongoose.models.ArenaGuestChallengeAttempt ||
+  mongoose.model("ArenaGuestChallengeAttempt", arenaGuestChallengeAttemptSchema);
+const ArenaGuestSolutionBoard = mongoose.models.ArenaGuestSolutionBoard ||
+  mongoose.model("ArenaGuestSolutionBoard", arenaGuestSolutionBoardSchema);
 
+const ArenaPlacementAttemptAdjustment = mongoose.models.ArenaPlacementAttemptAdjustment ||
+  mongoose.model("ArenaPlacementAttemptAdjustment", arenaPlacementAttemptAdjustmentSchema);
 module.exports = {
-  AccessCycle,
-  AccessCycleExpiryReminder,
-  PolicyChangeDelivery,
-  ArenaCohortRevision,
+  ArenaPlacementAttemptAdjustment,
   ArenaAccessState,
   ArenaIntegrityLinkSignal,
   ArenaIntegrityRiskProfile,
   ArenaIntegrityRiskCase,
-  ArenaLearningDayLedger,
   ArenaMatch,
   ArenaMatchAttempt,
   ArenaMatchAttemptEvent,
@@ -6252,32 +3891,24 @@ module.exports = {
   ArenaInlineSolutionBoard,
   ArenaMatchParticipantLock,
   ArenaOutboxEvent,
-  ArenaOpponentSelectionAudit,
   AppleCommerceAccountToken,
   ArenaPackagePayment,
-  ArenaPaybackReview,
-  ArenaAchievementBadge,
+  ArenaCompetitiveProfile,
+  ArenaMatchmakingEntry,
+  ArenaRatingSettlement,
+  ArenaWeeklyMockRatingSettlement,
+  ArenaCompetitiveRecord,
+  ArenaNormalBaselineQuestion,
+  ArenaNormalBaselineAssignment,
+  ArenaFriendRequest,
+  ArenaFriendship,
+  ArenaFriendlyInvitationV2,
+  ArenaNormalMatchCounter,
+  ArenaGuestIdentity,
+  ArenaGuestChallenge,
+  ArenaGuestChallengeAttempt,
+  ArenaGuestSolutionBoard,
   ArenaProblemPack,
   ArenaProblemDataVersion,
   ArenaTierQuestionCatalogVersion,
-  ArenaRevengeRight,
-  SubscriptionPolicyVersion,
-  ArenaSnapshot,
-  ArenaStanding,
-  ArenaStandingChangeLedger,
-  ArenaRankUpPresentation,
-  FinalRankingPolicyVersion,
-  LiveFinalRankingProfile,
-  MainDivisionPolicyVersion,
-  MainInvitationOffer,
-  MainFriendlyInvitation,
-  MainInvitationRequest,
-  MainShopEffect,
-  MainShopPolicyVersion,
-  MainShopPurchase,
-  MainToSubConversionPolicy,
-  MainToSubConversionResult,
-  MockExamPackagePolicyVersion,
-  MockExamSubscription,
-  RenewalRankAssessment,
 };

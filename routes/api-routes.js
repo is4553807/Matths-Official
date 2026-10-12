@@ -75,12 +75,6 @@ const ipadLearningSyncController = require("../controllers/ipadLearningSyncContr
 const ipadAssessmentController = require("../controllers/ipadAssessmentController");
 const ipadPlacementController = require("../controllers/ipadPlacementController");
 const ipadWeeklyMockController = require("../controllers/ipadWeeklyMockController");
-const ipadLegacyArenaController = require(
-  "../controllers/ipadLegacyArenaController"
-);
-const ipadArenaShopController = require(
-  "../controllers/ipadArenaShopController"
-);
 const ipadGoatArenaCommandController = require(
   "../controllers/ipadGoatArenaCommandController"
 );
@@ -88,6 +82,7 @@ const ipadGoatArenaActionController = require(
   "../controllers/ipadGoatArenaActionController"
 );
 const goatArenaController = require("../controllers/goatArenaController");
+const goatArenaV2Controller = require("../controllers/goatArenaV2Controller");
 const {
   adminFormulaUpload,
   adminArchiveUpload,
@@ -707,19 +702,14 @@ router.post("/assessments/:attemptId/expire", ipadAssessmentController.expire);
 // 사용하므로 웹/앱 사이에 별도 사용자 DB나 시험 상태가 생기지 않는다.
 router.get("/placement-exam/status", ipadPlacementController.getStatus);
 router.post("/placement-exam/start", ipadPlacementController.start);
+router.post("/placement-exam/finalize", ipadPlacementController.finalize);
 router.get("/placement-exam/:attemptId", ipadPlacementController.getAttempt);
 router.patch("/placement-exam/:attemptId/draft", ipadPlacementController.saveDraft);
 router.post("/placement-exam/:attemptId/submit", ipadPlacementController.submit);
 router.post("/placement-exam/:attemptId/expire", ipadPlacementController.expire);
 
-// 구형 RankArenaScreen이 아직 읽는 MMR 호환 표면. 계산을 새로 하지 않고
-// 현행 RankingProfile/rankingService 정본을 iPad DTO로만 번역한다.
-router.get("/arena", ipadLegacyArenaController.getArena);
-router.get(
-  "/arena/leaderboard",
-  ipadLegacyArenaController.getArenaLeaderboard
-);
-
+// 웹과 네이티브가 같은 GOAT Arena 읽기 모델을 사용한다.
+router.get("/arena", goatArenaController.getGoatArena);
 router.get(
   "/goat-arena",
   goatArenaController.getGoatArena
@@ -728,17 +718,65 @@ router.get(
   "/goat-arena/rulebook",
   goatArenaController.getGoatArenaRulebook
 );
-router.get(
-  "/goat-arena/main/shop",
-  ipadArenaShopController.getShop
+router.post(
+  "/goat-arena/matchmaking/:mode",
+  goatArenaV2Controller.apiJoinMatchmaking
 );
 router.post(
-  "/goat-arena/main/shop/purchases",
-  ipadArenaShopController.purchase
+  "/goat-arena/competitive/solution-sharing-consent",
+  goatArenaV2Controller.apiAcknowledgeCompetitiveSolutionSharing
+);
+router.delete(
+  "/goat-arena/matchmaking",
+  goatArenaV2Controller.apiCancelMatchmaking
 );
 router.get(
-  "/goat-arena/main/shop/analyses/:effectId",
-  ipadArenaShopController.getAnalysis
+  "/goat-arena/matchmaking",
+  goatArenaV2Controller.apiMatchmakingStatus
+);
+router.post(
+  "/goat-arena/matches/:matchId/forfeit",
+  goatArenaV2Controller.apiForfeitMatch
+);
+router.get(
+  "/goat-arena/matches/:matchId/competitive-result",
+  goatArenaV2Controller.apiCompetitiveResult
+);
+router.get(
+  "/goat-arena/matches/:matchId/competitive-result/evidence/:side/:fileIndex",
+  goatArenaV2Controller.apiCompetitiveEvidenceFile
+);
+router.get(
+  "/goat-arena/matches/:matchId/normal-result",
+  goatArenaV2Controller.apiNormalResult
+);
+router.get(
+  "/goat-arena/matches/:matchId/normal-result/evidence/:side/:fileIndex",
+  goatArenaV2Controller.apiNormalEvidenceFile
+);
+router.get(
+  "/goat-arena/friends",
+  goatArenaV2Controller.apiFriends
+);
+router.post(
+  "/goat-arena/friends/requests",
+  goatArenaV2Controller.apiSendFriendRequest
+);
+router.post(
+  "/goat-arena/friends/requests/:requestId/respond",
+  goatArenaV2Controller.apiRespondFriendRequest
+);
+router.post(
+  "/goat-arena/friends/invitations",
+  goatArenaV2Controller.apiCreateFriendlyInvitation
+);
+router.post(
+  "/goat-arena/friends/invitations/:invitationId/respond",
+  goatArenaV2Controller.apiRespondFriendlyInvitation
+);
+router.delete(
+  "/goat-arena/friends/invitations/:invitationId",
+  goatArenaV2Controller.apiCancelFriendlyInvitation
 );
 router.get(
   "/goat-arena/matches",
@@ -749,63 +787,29 @@ router.get(
   goatArenaController.getGoatArenaMatch
 );
 
-// 상대 찾기·Ranked 초대 응답은 웹 EJS 폼과 같은 정본 매칭 서비스를 호출한다.
-// 앱은 Bearer + JSON 경계만 다르며, 경기 생성·예치·티어 규칙을 복제하지 않는다.
+// GOAT Arena 상대 찾기는 웹과 같은 경기 서비스를 사용한다.
 router.post(
   "/goat-arena/matches/sub",
-  ipadGoatArenaActionController.createUnrankedMatch
-);
-router.get(
-  "/goat-arena/matches/main/options",
-  ipadGoatArenaActionController.getMainActionOptions
-);
-router.post(
-  "/goat-arena/matches/main/upward",
-  ipadGoatArenaActionController.createMainUpwardMatch
-);
-router.post(
-  "/goat-arena/matches/main/invitations",
-  ipadGoatArenaActionController.createMainLowerInvitation
-);
-router.post(
-  "/goat-arena/matches/main/invitations/:invitationId/cancel",
-  ipadGoatArenaActionController.cancelSentMainInvitation
-);
-router.get(
-  "/goat-arena/profile/payback-account",
-  ipadGoatArenaActionController.getPaybackAccount
-);
-router.post(
-  "/goat-arena/profile/payback-account/confirm",
-  ipadGoatArenaActionController.confirmPaybackAccount
+  (req, res, next) => {
+    req.params.mode = "normal";
+    return goatArenaV2Controller.apiJoinMatchmaking(req, res, next);
+  }
 );
 router.get(
   "/goat-arena/matches/main/friendly",
-  ipadGoatArenaActionController.getMainFriendlyOptions
+  goatArenaV2Controller.apiFriends
 );
 router.post(
   "/goat-arena/matches/main/friendly/invitations",
-  ipadGoatArenaActionController.createFriendlyInvitation
+  goatArenaV2Controller.apiCreateFriendlyInvitation
 );
 router.post(
   "/goat-arena/matches/main/friendly/invitations/:invitationId/respond",
-  ipadGoatArenaActionController.respondFriendlyInvitation
+  goatArenaV2Controller.apiRespondFriendlyInvitation
 );
 router.post(
   "/goat-arena/matches/main/friendly/invitations/:invitationId/cancel",
-  ipadGoatArenaActionController.cancelFriendlyInvitation
-);
-router.get(
-  "/goat-arena/revenge-rights/pending",
-  ipadGoatArenaActionController.getRevengeRight
-);
-router.post(
-  "/goat-arena/revenge-rights/:rightId/claim",
-  ipadGoatArenaActionController.claimRevengeRight
-);
-router.post(
-  "/goat-arena/revenge-rights/:rightId/forfeit",
-  ipadGoatArenaActionController.forfeitRevengeRight
+  goatArenaV2Controller.apiCancelFriendlyInvitation
 );
 router.get(
   "/goat-arena/matches/:matchId/supplemental-evidence",
@@ -824,14 +828,6 @@ router.post(
 router.use(
   "/goat-arena/matches/:matchId/supplemental-evidence",
   ipadGoatArenaActionController.uploadError
-);
-router.post(
-  "/goat-arena/matches/:matchId/accept",
-  ipadGoatArenaActionController.acceptRankedInvitation
-);
-router.post(
-  "/goat-arena/matches/:matchId/decline",
-  ipadGoatArenaActionController.declineRankedInvitation
 );
 router.post(
   "/goat-arena/matches/:matchId/evidence",
@@ -872,6 +868,8 @@ router.post(
   "/goat-arena/matches/:matchId/answers",
   ipadGoatArenaCommandController.saveAnswer
 );
+router.post("/goat-arena/matches/:matchId/lock-question", ipadGoatArenaCommandController.lockQuestionCompletion);
+
 router.post(
   "/goat-arena/matches/:matchId/advance",
   ipadGoatArenaCommandController.advanceQuestion
@@ -1135,15 +1133,6 @@ router.post(
   "/admin/refunds/:refundRequestId/reject",
   ipadAdminFinanceController.rejectRefund
 );
-router.get("/admin/paybacks", ipadAdminFinanceController.paybacks);
-router.post(
-  "/admin/paybacks/:cycleId/complete",
-  ipadAdminFinanceController.completePayback
-);
-router.post(
-  "/admin/paybacks/history/:payoutRecordId/resend-email",
-  ipadAdminFinanceController.resendPaybackEmail
-);
 router.get("/admin/community", ipadAdminCommunityController.dashboard);
 router.post("/admin/community/notices", ipadAdminCommunityController.createNotice);
 router.post(
@@ -1292,9 +1281,6 @@ router.get("/admin/arena", ipadAdminArenaController.dashboard);
 router.post("/admin/arena/matches/:matchId/review", ipadAdminArenaController.reviewMatch);
 router.post("/admin/arena/matches/:matchId/supplemental-evidence/:role/request", ipadAdminArenaController.requestEvidence);
 router.post("/admin/arena/integrity/:caseId/review", ipadAdminArenaController.reviewCase);
-router.post("/admin/arena/ranking/rebuild", ipadAdminArenaController.rebuildRanking);
-router.post("/admin/arena/maintenance", ipadAdminArenaController.maintenance);
-router.get("/admin/arena/ranking.csv", ipadAdminArenaController.rankingCsv);
 router.get("/admin/arena/evidence/:evidenceId/:storedName", ipadAdminArenaController.evidenceFile);
 router.get("/admin/data-analysis", ipadAdminDataAnalysisController.dashboard);
 router.post("/admin/data-analysis/rebuild", ipadAdminDataAnalysisController.rebuild);
@@ -1305,20 +1291,11 @@ router.post(
 );
 router.get("/admin/arena-policies", ipadAdminArenaPolicyController.dashboard);
 router.post("/admin/arena-policies/matchmaking", ipadAdminArenaPolicyController.matchmaking);
-router.post("/admin/arena-policies/learning-package", ipadAdminArenaPolicyController.learningPrice);
-router.post("/admin/arena-policies/mock-exam", ipadAdminArenaPolicyController.mockPrice);
-router.post("/admin/arena-policies/shop", ipadAdminArenaPolicyController.shop);
-router.post("/admin/arena-policies/unranked", ipadAdminArenaPolicyController.createUnranked);
-router.post("/admin/arena-policies/ranked", ipadAdminArenaPolicyController.createRanked);
-router.post("/admin/arena-policies/:division/:policyId/activate", ipadAdminArenaPolicyController.activate);
-router.post("/admin/arena-policies/:division/:policyId/retire", ipadAdminArenaPolicyController.retire);
+router.post("/admin/arena-records/:recordId/integrity-review", ipadAdminArenaPolicyController.normalRecordReview);
+router.post("/admin/arena-users/:userId/placement/reset", ipadAdminArenaPolicyController.placementReset);
 router.get("/admin/problem-banks", ipadAdminProblemBankController.dashboard);
 router.post("/admin/problem-banks/types/sync", ipadAdminProblemBankController.syncTypes);
 router.post("/admin/problem-banks/types/:versionId/revise", ipadAdminProblemBankController.reviseType);
-router.post("/admin/problem-banks/arena/types", ipadAdminProblemBankController.createTierType);
-router.post("/admin/problem-banks/arena/data", ipadAdminProblemBankController.createProblemData);
-router.post("/admin/problem-banks/arena/data/:versionId", ipadAdminProblemBankController.updateProblemData);
-router.post("/admin/problem-banks/arena/data/:versionId/activate", ipadAdminProblemBankController.activateProblemData);
 router.get("/admin/operations-guide", ipadAdminOperationsGuideController.dashboard);
 
 module.exports = router;

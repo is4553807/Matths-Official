@@ -1,0 +1,306 @@
+GOAT Arena — approved product decisions and validation addendum
+Date: 2026-10-09
+Repository: /Users/sangyoonlee/Desktop/SangYoon Lee/SINGAPORE 2025-/Personal Projects/Matths-Official
+
+SUPERSEDED NOTICE (2026-10-09): This file records the checkpoint before the
+2.1 runtime was connected. Use GOAT_ARENA_2_1_IMPLEMENTATION_REPORT.md for the
+current implementation, tests, simulation numbers, database changes and
+blockers. The historical "runtime outstanding" text below is not current.
+
+STATUS / SCOPE
+
+The approved rating, migration-safety, placement-recovery, Sunday availability,
+and post-upload forfeit policies are implemented in the local working tree.
+Operational migration and financial reconciliation have NOT been performed.
+Nothing has been committed or deployed. No operating database records/indexes
+were written. Database writes for validation used disposable local replica sets.
+
+IMPORTANT: this is not a completed GOAT Arena 2.1 implementation. The running
+competitive engine still uses the 2.0 live queue, a common five-question pack,
+correct-count/time results, and two-sided Glicko-2 settlement. The 2.1 candidate
+Z scorer is implemented and tested but NOT wired into gameplay. Historical
+record reservation/consumption, challenger-only settlement, separate packs,
+solution-sharing consent, authenticated original-solution reads, and the detailed
+two-sided results UI remain outstanding. Do not deploy the live 2.0 competitive
+engine as though it satisfied the 2.1 specification.
+
+This addendum supersedes the earlier report's pending product decisions and
+Sunday restriction. The earlier 2.0 report is retained as historical handoff
+documentation rather than rewritten to imply that 2.1 was already completed.
+
+APPROVED POLICY IMPLEMENTATION
+
+1. Rating configuration
+   - Glicko-2 defaults: rating 1500, RD 350, volatility 0.06, tau 0.5.
+   - Placement RD hypothesis: 350/sqrt(number of valid samples), configurable
+     through initial RD or the explicit five-value curve. Invalid/abandoned
+     attempts are not samples. The curve is not a production calibration.
+   - Existing tier cutoffs, earned placement calibration, XP, presence, and
+     invitation settings remain unchanged.
+   - Environment settings: ARENA_GLICKO_DEFAULT_RATING, ARENA_GLICKO_INITIAL_RD,
+     ARENA_GLICKO_DEFAULT_VOLATILITY, ARENA_GLICKO_TAU, ARENA_GLICKO_EPSILON,
+     ARENA_GLICKO_PLACEMENT_RD_BY_COUNT. The latter must strictly decrease.
+   - Unset/null rating falls back to the configured default; an actual zero
+     rating is preserved. A default does not grant an unplaced user earned MMR.
+   - Existing transaction/unique settlement guards continue to ensure one rating
+     update per finalized match. Current runtime remains two-sided; the one-sided
+     2.1 path is not yet implemented.
+
+2. Existing-user preservation and migration
+   - Only new ARENA2 placement contexts from the current placement process can
+     seed new competitive MMR. Legacy INITIAL scores and tiers are not converted.
+   - Previously valid general matches count toward the three-match unlock.
+     Eligibility requires a clear, settled normal SUB match, both participants'
+     submitted attempts, and original uploaded evidence tied to those attempts.
+     Forfeits, automatic endings, incomplete evidence, misattribution, and invalid
+     records are excluded. Existing XP accounting is not recalculated.
+   - Operator migration archives legacy User tier/rank fields, RankingProfiles,
+     ArenaStandings, and the previous competitive profile. It requires fresh
+     placement and preserves XP. An account with new rated matches is not reset.
+   - Global preflight refuses cutover with in-flight legacy matches, participant
+     locks, reserved assets, unresolved paybacks/refunds/reviews, unevaluated paid
+     cycles, pending legacy invitations, or incomplete shop purchases.
+   - Financial preservation fingerprints cover 13 financial/economy collections
+     plus embedded encrypted payback account profiles. Shared finance ledgers
+     remain covered even in user-scoped audits. Only hashes/counts are emitted.
+   - No financial record is cancelled, overwritten, deleted, marked paid, or
+     transferred by migration. Existing operator workflows must reconcile actual
+     obligations first. Missing source records cannot be safely auto-repaired.
+
+3. Placement recovery
+   - Partial server finalization failures do not consume a slot. Recovery is
+     server-triggered, audited, and preserves original attempt/answer documents.
+   - Active attempts remain resumable. User abandonment/disqualification consumes
+     a slot, not a valid sample. No client error claim restores an attempt.
+   - Five exhausted attempts with no valid sample produce operator-review state
+     and an AdminTodo. They do not grant an extra attempt or an unearned tier.
+   - POST /admin/arena-users/:userId/placement/reset requires existing login/admin
+     middleware plus an active admin checked in the database, string request ID,
+     and review reason. Transactional adjustments preserve original history.
+     Concurrent duplicate resets replay once; subsequent contexts never collide
+     with the five previous attempts. A finalized/active/earned-MMR profile cannot
+     be reset using this exhausted-attempt endpoint.
+
+4. Availability and forfeits
+   - Three shared availability helpers now make Sunday start/upload/cutoff checks
+     agree on 24/7 availability. Stored legacy deadlines are not rewritten.
+   - Ordinary start/evidence deadlines, operator restrictions, anti-cheating,
+     uploads, and verification remain intact.
+   - Voluntary forfeits are rejected once evidence submission begins, including
+     after upload and after normal settlement. Earlier forfeit retries retain
+     their original idempotent behavior. No additional forfeits were enabled.
+
+5. 2.1 candidate scorer (foundation only)
+   - Z = (sum(x_i)-sum(p_i))/sqrt(sum(p_i*(1-p_i))), computed on the server from
+     five individual correctness/source-rate observations. Exact observations,
+     P, V, Z, solve time, algorithm version, and threshold are returned for audit.
+   - Z comparison takes priority. Solve time applies only within an explicitly
+     supplied closeScoreThreshold. There is NO production threshold default.
+   - Missing/non-numeric/extreme p, percentage values accidentally supplied as
+     decimals, or unstable variance are refused. No silent smoothing/imputation.
+   - Missing/invalid required time returns an explicit unrated INVALID result
+     in this candidate implementation. That fail-closed candidate boundary and
+     the close-score threshold still require production policy validation.
+   - Result explanations use only computed counts, score comparison, and time
+     rules. No official answers/model solutions are returned by the scorer.
+   - The simulations reuse this scorer, not a duplicate formula. Runtime upload
+     and verification integration must still be implemented without changing
+     protected detection/upload logic.
+
+DATABASE CHANGES SINCE THE 2.0 HANDOFF
+
+Two new collections, NOT applied to staging/production:
+   arenaplacementattemptadjustments: unique attemptId, immutable recovery/reset
+     audit fields, user/request indexes; original attempts remain untouched.
+   arenamigrationuserarchives: unique userId, immutable legacy/profile snapshots,
+     operator identity, valid-general count and financial fingerprint.
+
+ArenaCompetitiveProfile adds legacyNormalMatchesCompleted,
+placementProcessVersion, and placementProcessStartedAt. Historical assessment
+and financial schemas are unchanged. The original six 2.0 collections remain
+documented in GOAT_ARENA_2_0_IMPLEMENTATION_REPORT.txt.
+
+Index tool: read-only by default; --apply is staging-only. It creates/verifies
+11 model index sets, never syncs/drops unrelated indexes. Staging must have a
+different configured database identity; changed URI credentials/options are not
+proof of isolation. Host aliases still require operator verification and a
+credential restricted to staging.
+
+Staging migration tool: ARENA_STAGING_DB required, no operating DB fallback;
+apply requires --confirm=MIGRATE_ARENA_STAGING, ARENA_STAGING_WRITES_QUIESCED=1,
+one explicit user/admin, a clean global drain, and an authorized admin account.
+This is an explicit one-user staging operation, not an automatic bulk migration.
+Full-volume transaction duration, batching, backups, rollback and exclusive
+cutover coordination require staging verification. Repeated hash scans and a
+same-snapshot comparison alone cannot prove preservation against other writers.
+
+READ-ONLY OPERATING INVENTORY — NOT A MIGRATION OR RELEASE APPROVAL
+
+At 2026-10-09 10:43:20 UTC (19:43:20 KST), secondary-preferred inventory found:
+   in-flight legacy matches: 0
+   participant locks/reserved assets/pending payouts/refunds: 0
+   confirmed unpaid finance account totals: 0
+   unresolved payback reviews: 2
+
+Both reviews are HELD and reference missing AccessCycle documents:
+   review 6a74b5c18f8bd6a9a417396d -> cycle 6a74b5b13a9485b1fccc62e5
+   review 6a74b5c58f8bd6a9a417396f -> cycle 6a74b5b13a9485b1fccc62e6
+
+They remain untouched. An operator must reconcile source records/backups,
+establish whether money is owed, execute/document any required financial
+workflow, and approve the resolution. Do not delete these reviews or mark them
+paid solely to clear the migration gate. The preflight currently returns ready
+false. The sanitized inventory is GOAT_ARENA_MIGRATION_PREFLIGHT.json.
+
+This was a point-in-time nontransactional inventory, NOT proof that production
+is safe to cut over. Repeat reconciliation/drain and transactional preservation
+checks while writers are quiesced at the actual approved cutover.
+
+TEST RESULTS
+
+PASS: arena-v2:verify (approved defaults, custom configuration, canonical Glicko
+example, placement curve/unlock, tier boundaries, schemas, protected file guard).
+PASS: arena-v21:verify-scoring (different-set correctness/Z priority, close-time
+threshold, draws, invalid-time exclusion, missing/extreme-rate refusal, copied
+audit observations, historical input immutability).
+PASS: arena-v2:verify-db — five isolated MongoDB 8.2.6 replica-set audits:
+   verifyArenaProductDecisionsDb: actual server partial-write fault injection,
+     abandonment, five-invalid review/reset authorization/input validation,
+     duplicate-reset races, legacy carryover/misattributed evidence exclusion,
+     financial/drain blocks, preserved user/bank/rank/standing/history/evidence/
+     assessment/payout/ledger records, migration replay, fresh earned placement,
+     Sunday five-question gameplay/evidence, post-upload and post-settlement
+     forfeit rejection, concurrent exact-once settlement and lock release.
+   verifyGoatArenaV2Db: previous live 2.0 modes, ratings/XP, held review adapter,
+     matchmaking races, common packs, queue recovery and friend invitations.
+   verifyIpadArenaCommandDb: ownership, idempotent gameplay/inline boards.
+   verifyIpadArenaClientReviewDb: ownership, metadata and settlement isolation.
+   verifyArenaV2IndexesDb: 11 model sets, read-only missing-index refusal,
+     staging-only apply, URI-option bypass refusal, replay and unrelated indexes.
+   Expected SMTP-unconfigured messages in isolated fixtures were not deliveries.
+
+PASS: all 20 regressions rerun:
+   arena-match:verify, arena-match-attempt:verify, arena-match-settlement:verify,
+   arena-level:verify, arena-question-design:verify, arena-pdf-runtime:verify,
+   placement:verify, placement-story:verify, ipad-arena-command-http:verify,
+   ipad-arena-action-http:verify, ipad-placement-http:verify,
+   ipad-server-surface:verify, runtime:verify, http-surface:verify,
+   korean-only:verify, home-arena-tier:verify, ui:verify,
+   upload-security:verify, arena-integrity:verify, pricing-entitlements:verify.
+   Included 155 EJS template checks, 360 packs/1800 generated questions and
+   300 placement papers. HTTP surface audit does not start operating schedulers
+   or connect to the operating database.
+
+PASS: 47 changed JavaScript files passed syntax checks; git diff --check clean.
+Known earlier contrast audit failures in unrelated academy/admin styles remain;
+they were not modified or silently marked fixed by this work.
+
+PASS WITH LIMITATIONS: local preview visual QA at desktop 1280x800 and mobile
+390x844 for unlocked/exhausted-placement states. Mobile navigation now stays
+horizontal rather than wrapping Korean menu labels character by character.
+Screenshots: GOAT_ARENA_DESKTOP_QA.jpg, GOAT_ARENA_MOBILE_RECOVERY_QA.jpg.
+Browser viewport restored; temporary QA tab closed; agent-owned preview server
+stopped after QA. These are fixture UI checks,
+not authenticated full gameplay or actual-device/storage QA.
+
+STAGING NOT RUN: no ARENA_STAGING_DB was provided. Index/migration tools fail
+closed before connecting. Local replicas do not count as staging evidence.
+REAL STORAGE NOT RUN: evidence tests used prepared metadata, not real uploads.
+
+SIMULATION RESULTS / UNVALIDATED ASSUMPTIONS
+
+Raw executed output: GOAT_ARENA_ASYNC_SIMULATION_RESULTS.json, verified to match
+the command output. 10 deterministic seeds, 90 synthetic players, seven
+scenarios, 10000 games each: 700000 one-sided rating updates. Historical ratings
+and owner profiles stay unchanged; each consumed record creates one new record.
+168 existing exact source accuracy rates were used; censored/missing values
+were not silently converted to exact probabilities.
+
+Same-pool, equal-ability different-set test: 50000 pairs, 50.08% win share.
+Deliberately mismatched hard/easy sets: 50000 pairs, 45.67% harder-set win share,
+even though both mean Z values are near zero. This stress distribution is not
+the existing pack-generation policy. It demonstrates why unbiased mean Z alone
+does not establish fair five-question outcomes across different packs.
+
+Mean MMR drift across 10 runs:
+   honest pre-match snapshot: +20.7752 (individual range -3.7179 to +49.7585)
+   post-match snapshot sensitivity: +0.5552 (NOT an approved policy change)
+   experimental close-score threshold 0.1: +6.3314
+   experimental close-score threshold 0.2: +5.9273
+   positive cohort shift: +36.5520
+   negative cohort shift: -7.2793
+   illicit best-of-three record-selection stress: +73.3624
+
+Thresholds/cohort shifts/time distributions are synthetic sensitivity inputs,
+not approved production constants. The illicit retry scenario is not an enabled
+feature. Simulations assume independent question outcomes and one consumed
+record immediately replaced by one valid result; real verification latency,
+pool depletion, repeated-owner abuse, transformed skeleton difficulty and real
+cohort calibration remain unvalidated. productionValidated is explicitly false.
+
+PRODUCTION BLOCKERS / REQUIRED NEXT VALIDATION
+
+1. Complete the 2.1 runtime and authenticated results/evidence-read integration.
+   The protected upload pipeline currently expects two submitted live attempts,
+   a shared pack, and its existing winner-screening comparison. Do not clone a
+   historical attempt into a live game or let the current pack regrade it.
+   Integrate through safe adapters and retained source references; demonstrate
+   winner-scoped verification/held adjudication without modifying detectors or
+   retroactively penalizing the historical opponent. This is not yet verified.
+2. Reconcile the two orphan HELD financial reviews and obtain an operator-approved
+   drain/financial preservation inventory. No automatic cleanup is authorized.
+3. Supply an isolated staging database via the secret provider, verify index
+   application, real-volume transactions and concurrent settlement/reset/migration
+   behavior, and validate snapshot/backup/rollback preservation under quiescence.
+4. Test authenticated gameplay, timing/reconnect/timeout/review/forfeit races and
+   mobile browsers/actual devices against staging, not just static preview data.
+5. Upload/retrieve real stored solutions, validate retention and authenticated
+   access/ID-guessing defenses, and test all file/question-instance rendering.
+6. Approve/calibrate the close-score threshold and any source-rate adjustment
+   policy; supply genuine verified human reference records with sharing consent;
+   validate pool supply/depletion and immutable pre-match rating snapshots.
+7. Validate transformed question and cohort fairness plus one-sided rating drift
+   against human data. Current simulations show risks, not production readiness.
+
+DO NOT DEPLOY TO PRODUCTION OR RUN A PRODUCTION MIGRATION UNTIL ALL REQUIRED
+IMPLEMENTATION AND VALIDATION ABOVE IS COMPLETE. This report is not approval.
+
+INCREMENTAL FILE CHANGES FOR THESE PRODUCT DECISIONS / SCORING FOUNDATION
+
+   models/goatArenaModel.js
+   services/goatArenaV2Config.js
+   services/glicko2Service.js
+   services/arenaV2ProfileService.js
+   services/arenaPlacementPolicyService.js
+   services/arenaMigrationSafetyService.js
+   services/placementExamService.js
+   controllers/arenaPlacementPolicyController.js
+   controllers/goatArenaV2Controller.js
+   routes/matths-routes.js
+   services/arenaMatchService.js
+   services/arenaV2SettlementService.js
+   services/arenaCompetitiveScoringService.js
+   views/goat-arena-v2.ejs
+   views/goat-arena-v2-rules.ejs
+   public/css/goat-arena-v2.css
+   scripts/previewLocalUi.js
+   scripts/prepareGoatArenaV2Indexes.js
+   scripts/prepareArenaStagingMigration.js
+   scripts/arenaStagingSafety.js
+   scripts/simulateArenaAsyncRatings.js
+   scripts/verifyArenaCompetitiveScoring.js
+   scripts/verifyGoatArenaV2.js
+   scripts/verifyArenaMatchCreation.js
+   scripts/verifyArenaMatchAttemptFlow.js
+   audit/verifyArenaProductDecisionsDb.js
+   audit/verifyArenaV2IndexesDb.js
+   package.json
+   audit/GOAT_ARENA_ASYNC_SIMULATION_RESULTS.json
+   audit/GOAT_ARENA_MIGRATION_PREFLIGHT.json
+   audit/GOAT_ARENA_PRODUCT_DECISIONS_REPORT.txt
+   audit/GOAT_ARENA_DESKTOP_QA.jpg
+   audit/GOAT_ARENA_MOBILE_RECOVERY_QA.jpg
+
+The prior report contains the earlier 2.0 cumulative file list. The preserved
+upload/detection boundary remains byte-identical to HEAD in all eight guarded
+files listed there; no original upload or detector implementation was changed.

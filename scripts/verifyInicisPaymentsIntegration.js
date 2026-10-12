@@ -21,7 +21,6 @@ const {
   isPaidCheckoutAllowedForEmail,
   isPaidCheckoutEnabled,
 } = require("../services/checkoutService");
-const { _testing: accessCycleTesting } = require("../services/accessCycleService");
 
 const root = path.resolve(__dirname, "..");
 const fakeEnvironment = {
@@ -113,14 +112,6 @@ async function main() {
       ),
     (error) => error.code === "INICIS_IDC_MODE_MISMATCH"
   );
-  assert.match(
-    accessCycleTesting.packagePurchaseBlockedMessage([
-      "AVAILABLE_BALANCE_REMAINS",
-      "PENDING_SETTLEMENT",
-    ]),
-    /사용 가능한 학습일.*정산이 끝나지 않은 GOAT Arena 경기/
-  );
-
   assert.equal(
     createPaymentHash({
       amount: 1000,

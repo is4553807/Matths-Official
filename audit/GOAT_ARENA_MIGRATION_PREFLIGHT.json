@@ -1,0 +1,56 @@
+{
+  "evidenceStatus": "SUPERSEDED_NON_AUTHORITATIVE",
+  "supersededAt": "2026-10-10T00:00:00.000+09:00",
+  "supersededReason": "This 2026-10-09 local database inventory predates the product owner's explicit zero-data deployment premise. It must not be used as release evidence or as a blocker for the intended clean target. Re-run the read-only preflight against the actual staging target before release.",
+  "mustNotBeUsedAsCurrentReleaseEvidence": true,
+  "auditedAt": "2026-10-09T10:43:20.131Z",
+  "scope": "configured_operating_database_read_only_inventory",
+  "writesPerformed": false,
+  "snapshotValidated": false,
+  "ready": false,
+  "blockers": {
+    "inFlightLegacyMatches": 0,
+    "participantLocks": 0,
+    "lockedOrReservedAssets": 0,
+    "pendingPaybackPayouts": 0,
+    "unpaidQualifiedPaybacks": 0,
+    "unresolvedPaybackReviews": 2,
+    "confirmedUnpaidFinanceAccounts": 0,
+    "unevaluatedPaidArenaCycles": 0,
+    "pendingRefunds": 0,
+    "pendingLegacyInvitations": 0,
+    "pendingLegacyFriendlyInvitations": 0,
+    "incompleteShopPurchases": 0
+  },
+  "financialRecordCounts": {
+    "accesscycles": 10,
+    "arenalearningdayledgers": 242,
+    "arenapackagepayments": 0,
+    "arenapaybackreviews": 8,
+    "refundrequests": 0,
+    "mainshoppurchases": 0,
+    "mainshopeffects": 0,
+    "maininvitationrequests": 0,
+    "mainfriendlyinvitations": 1,
+    "paybackpayoutrecords": 0,
+    "financeaccounts": 1,
+    "financedailysnapshots": 56,
+    "businesswithdrawals": 0,
+    "users_payback_accounts": 53
+  },
+  "financialFingerprint": "0f457e0557e1edd3023df813566bec7402c2b3ee2befe46bc086071a306f758e",
+  "unresolvedReviews": [
+    {
+      "reviewId": "6a74b5c18f8bd6a9a417396d",
+      "cycleId": "6a74b5b13a9485b1fccc62e5",
+      "status": "HELD",
+      "cycleExists": false
+    },
+    {
+      "reviewId": "6a74b5c58f8bd6a9a417396f",
+      "cycleId": "6a74b5b13a9485b1fccc62e6",
+      "status": "HELD",
+      "cycleExists": false
+    }
+  ]
+}

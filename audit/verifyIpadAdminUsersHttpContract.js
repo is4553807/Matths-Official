@@ -219,7 +219,7 @@ const controller = require("../controllers/ipadAdminUsersController");
     params: { userId: USER_ID }, body: { warningCount: 2, reason: "검토" },
   });
   await invoke(controller.packageAccess, {
-    params: { userId: USER_ID }, body: { packageType: "LEARNING_PACKAGE", reason: "보상" },
+    params: { userId: USER_ID }, body: { packageType: "PRO", reason: "보상" },
   });
   assert.deepEqual(
     calls.map(([name]) => name),

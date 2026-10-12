@@ -21,7 +21,7 @@ const refundRequestSchema = new Schema(
       default: null,
       index: true,
     },
-    productCode: { type: String, enum: ["MOCK_EXAM_ONLY", "LEARNING_PACKAGE_29"], required: true },
+    productCode: { type: String, enum: ["PRO_MONTHLY"], required: true },
     productNameSnapshot: { type: String, required: true, trim: true, maxlength: 140 },
     orderReferenceSnapshot: { type: String, required: true, trim: true, maxlength: 160 },
     providerPaymentKeySnapshot: { type: String, required: true, trim: true, maxlength: 160 },

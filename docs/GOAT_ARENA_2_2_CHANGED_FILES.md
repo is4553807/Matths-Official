@@ -1,0 +1,572 @@
+# GOAT Arena 2.2 누적 변경 파일 목록
+
+- 생성 기준: 2026-10-11 (KST)
+- 브랜치: `main`
+- 기준 HEAD: `0a5de4fefc0cc55451f53e6240eb9158ac000d29`
+- working tree 항목 수: 552
+- 분류: 수정 227, 삭제 148, 추가 0, 이름 변경 0, 미추적 177, 기타 0
+
+이 목록은 현재 working tree의 누적 변경 상태를 `git status --short --untracked-files=all`로 캡처한 인수 부록이다. 제품 의미와 활성 런타임 여부는 `docs/GOAT_ARENA_2_2_APP_DEVELOPER_HANDOFF.md` 및 실제 route-to-service call chain으로 판단한다. 삭제 파일도 과거 기능 제거를 검토할 수 있도록 포함한다.
+
+상태 표기:
+
+- `M`: 수정
+- `D`: 삭제
+- `A`: 추가 또는 stage된 신규 파일
+- `R`: 이름 변경
+- `??`: Git 미추적 신규 파일
+
+```text
+ M .cloudtype/app.yaml
+ M .env.example
+ M .gitignore
+?? audit/GOAT_ARENA_2_0_IMPLEMENTATION_REPORT.txt
+?? audit/GOAT_ARENA_2_1_IMPLEMENTATION_REPORT.md
+?? audit/GOAT_ARENA_2_2_CHANGED_FILES.txt
+?? audit/GOAT_ARENA_2_2_GAP_REPORT.md
+?? audit/GOAT_ARENA_ASYNC_SIMULATION_RESULTS.json
+?? audit/GOAT_ARENA_DESKTOP_QA.jpg
+?? audit/GOAT_ARENA_MIGRATION_PREFLIGHT.json
+?? audit/GOAT_ARENA_MOBILE_RECOVERY_QA.jpg
+?? audit/GOAT_ARENA_NORMAL_BASELINE_63_QUESTIONS.md
+?? audit/GOAT_ARENA_NORMAL_BASELINE_CAPTURE_PLAN.json
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES.zip
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U1-Q01.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U1-Q02.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U1-Q03.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U1-Q04.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U1-Q05.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U1-Q06.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U1-Q07.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U2-Q01.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U2-Q02.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U2-Q03.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U2-Q04.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U2-Q05.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U2-Q06.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U2-Q07.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U3-Q01.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U3-Q02.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U3-Q03.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U3-Q04.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U3-Q05.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U3-Q06.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U3-Q07.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U4-Q01.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U4-Q02.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U4-Q03.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U4-Q04.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U4-Q05.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U4-Q06.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U4-Q07.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U5-Q01.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U5-Q02.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U5-Q03.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U5-Q04.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U5-Q05.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U5-Q06.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U5-Q07.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U6-Q01.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U6-Q02.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U6-Q03.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U6-Q04.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U6-Q05.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U6-Q06.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U6-Q07.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U7-Q01.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U7-Q02.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U7-Q03.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U7-Q04.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U7-Q05.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U7-Q06.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U7-Q07.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U8-Q01.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U8-Q02.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U8-Q03.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U8-Q04.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U8-Q05.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U8-Q06.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U8-Q07.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U9-Q01.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U9-Q02.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U9-Q03.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U9-Q04.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U9-Q05.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U9-Q06.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/NORMAL-U9-Q07.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_IMAGES/README.txt
+?? audit/GOAT_ARENA_NORMAL_BASELINE_GRID_PREVIEW.png
+?? audit/GOAT_ARENA_NORMAL_BASELINE_SIMULATION_RESULTS.json
+?? audit/GOAT_ARENA_PRODUCT_DECISIONS_REPORT.txt
+ D audit/launchPreviewHost.mjs
+ M audit/performance/runWithFixtures.js
+ M audit/performance/testIsolation.js
+ D audit/queryIsolatedArenaState.js
+ M audit/runMemoryMongoSuite.js
+ M audit/runNativeIntegrationFixture.js
+ M audit/sendLiveSmtpAuditEmail.js
+?? audit/verifyAccountPlanDb.js
+?? audit/verifyAppleActiveProductBoundary.js
+ M audit/verifyAppleCommerceHttpContract.js
+ M audit/verifyAppleCommerceNotificationRecovery.js
+ D audit/verifyAppleSubscriptionLifecycle.js
+?? audit/verifyArenaAdminCurrentOperationsDb.js
+?? audit/verifyArenaAsyncCompetitiveDb.js
+?? audit/verifyArenaAsyncEvidenceDeliveryDb.js
+?? audit/verifyArenaAsyncHistoricalSemanticsDb.js
+?? audit/verifyArenaGuestChallengeDb.js
+?? audit/verifyArenaGuestSolutionBoardCas.js
+?? audit/verifyArenaIntegrityClearWithoutLearningDaysDb.js
+?? audit/verifyArenaNormalBaselineRuntimeDb.js
+?? audit/verifyArenaProductDecisionsDb.js
+?? audit/verifyArenaV2IndexesDb.js
+?? audit/verifyGoatArenaV2Db.js
+ M audit/verifyIndependentBusinessBoundaries.js
+ M audit/verifyIpadAdminArchiveHttpContract.js
+ M audit/verifyIpadAdminArenaHttpContract.js
+ M audit/verifyIpadAdminArenaPolicyHttpContract.js
+ M audit/verifyIpadAdminDataAnalysisHttpContract.js
+ M audit/verifyIpadAdminFinanceHttpContract.js
+ M audit/verifyIpadAdminProblemBankHttpContract.js
+ M audit/verifyIpadAdminUsersHttpContract.js
+ M audit/verifyIpadArenaActionHttpContract.js
+ M audit/verifyIpadArenaCommandDb.js
+ D audit/verifyIpadPaybackAccountDb.js
+ M audit/verifyIpadProfileHttpContract.js
+ M audit/verifyNativeParentDb.js
+ M audit/verifyNavigationPerformanceOptimizations.js
+?? audit/verifyNicknameNamespaceDb.js
+ D audit/verifyPaybackDailyLearningDb.js
+ M audit/verifyPricingEntitlementDb.js
+ M audit/verifyPrivateMockIntegrityRecovery.js
+ M audit/verifyPrivateMockSubmissionContract.js
+ M audit/verifyRefundRejectionDb.js
+ D audit/verifySubDefenseFairnessDb.js
+?? audit/verifyWeeklyMockMmrOptInDb.js
+ D constants/paybackParticipation.js
+ M controllers/apiController.js
+?? controllers/arenaGuestChallengeController.js
+?? controllers/arenaPlacementPolicyController.js
+ M controllers/checkoutController.js
+ M controllers/goatArenaController.js
+?? controllers/goatArenaV2Controller.js
+ M controllers/ipadAdminArenaController.js
+ M controllers/ipadAdminArenaPolicyController.js
+ M controllers/ipadAdminDataAnalysisController.js
+ M controllers/ipadAdminFinanceController.js
+ M controllers/ipadAdminProblemBankController.js
+ M controllers/ipadAdminUsersController.js
+ D controllers/ipadArenaShopController.js
+ M controllers/ipadGoatArenaActionController.js
+ M controllers/ipadGoatArenaCommandController.js
+ M controllers/ipadLearningSyncController.js
+ D controllers/ipadLegacyArenaController.js
+ M controllers/ipadPlacementController.js
+ M controllers/ipadWeeklyMockController.js
+ M controllers/matthsController.js
+ D dataAnalysis/dataAnalysisModel.js
+ D dataAnalysis/metricCatalog.js
+ M dataAnalysis/README.md
+?? docs/GOAT_ARENA_2_2_APP_DEVELOPER_HANDOFF.md
+?? docs/GOAT_ARENA_2_2_CHANGED_FILES.md
+?? docs/GOAT_ARENA_2_2_FULL_AUDIT_PROMPT_EN.md
+?? docs/logic_en/01_MATTHS_CURRENT_SYSTEM.md
+?? docs/logic_en/02_GOAT_ARENA_COMMON_MATCH_RULES.md
+?? docs/logic_en/03_NORMAL_MATCH.md
+?? docs/logic_en/04_COMPETITIVE_MATCH.md
+?? docs/logic_en/05_FRIENDLY_AND_GUEST_CHALLENGE.md
+?? docs/logic_en/06_RATING_AND_SCORING.md
+?? docs/logic_en/07_QUESTION_AND_EVIDENCE.md
+?? docs/logic_en/08_ACCOUNTS_PLANS_AND_ENTITLEMENTS.md
+?? docs/logic_en/09_WEEKLY_MOCK_AND_RANKING.md
+?? docs/logic_en/10_ADMIN_OPERATIONS.md
+?? docs/logic_en/11_DATA_STORAGE_AND_SECURITY.md
+?? docs/logic_en/12_API_AND_BACKGROUND_JOBS.md
+?? docs/logic_en/13_RELEASE_AND_VALIDATION.md
+?? docs/logic/01_MATTHS_CURRENT_SYSTEM.md
+?? docs/logic/02_GOAT_ARENA_COMMON_MATCH_RULES.md
+?? docs/logic/03_NORMAL_MATCH.md
+?? docs/logic/04_COMPETITIVE_MATCH.md
+?? docs/logic/05_FRIENDLY_AND_GUEST_CHALLENGE.md
+?? docs/logic/06_RATING_AND_SCORING.md
+?? docs/logic/07_QUESTION_AND_EVIDENCE.md
+?? docs/logic/08_ACCOUNTS_PLANS_AND_ENTITLEMENTS.md
+?? docs/logic/09_WEEKLY_MOCK_AND_RANKING.md
+?? docs/logic/10_ADMIN_OPERATIONS.md
+?? docs/logic/11_DATA_STORAGE_AND_SECURITY.md
+?? docs/logic/12_API_AND_BACKGROUND_JOBS.md
+?? docs/logic/13_RELEASE_AND_VALIDATION.md
+?? docs/logic/Rank.png
+ M middleware/requestSecurity.js
+?? models/financeModel.js
+ M models/goatArenaModel.js
+ M models/matthsModel.js
+?? models/nicknameNamespaceModel.js
+ M models/operationModel.js
+ M models/parentModel.js
+ D models/paybackDailyLearningModel.js
+ D models/paybackModel.js
+ M models/refundModel.js
+ M package.json
+ M public/css/academy.css
+ M public/css/admin.css
+ M public/css/contrast.css
+ M public/css/goat-arena.css
+ M public/css/index.css
+ M public/css/notifications.css
+ M public/css/pricing.css
+ D public/css/rank-motion.css
+ M public/js/admin-private-mock-detail.js
+?? public/js/arena-guest-challenge.js
+ M public/js/arena-tutorial.js
+ M public/js/auth.js
+ D public/js/goat-arena-rank-up-presentation.js
+?? public/js/goat-arena-v2.js
+?? public/js/goat-arena-web-board.js
+ D public/js/matths-rank-motion.js
+ D public/js/matths-rank-up-integration.js
+ M public/js/onboarding-tutorial.js
+ M public/js/private-mock-exam.js
+ M public/js/private-mock-exams.js
+ D public/js/rank-motion-tiers.js
+ M public/js/tier-rankings.js
+D  public/media/rank-motion/bronze-rank-up.v6-poster.webp
+D  public/media/rank-motion/bronze-rank-up.v6.mp4
+D  public/media/rank-motion/challenger-rank-up.v12-poster.webp
+D  public/media/rank-motion/challenger-rank-up.v12.mp4
+D  public/media/rank-motion/diamond-rank-up.v6-poster.webp
+D  public/media/rank-motion/diamond-rank-up.v6.mp4
+D  public/media/rank-motion/emerald-rank-up.v6-poster.webp
+D  public/media/rank-motion/emerald-rank-up.v6.mp4
+D  public/media/rank-motion/gold-rank-up.v6-poster.webp
+D  public/media/rank-motion/gold-rank-up.v6.mp4
+D  public/media/rank-motion/grandmaster-rank-up.v6-poster.webp
+D  public/media/rank-motion/grandmaster-rank-up.v6.mp4
+D  public/media/rank-motion/master-rank-up.v6-poster.webp
+D  public/media/rank-motion/master-rank-up.v6.mp4
+D  public/media/rank-motion/platinum-rank-up.v7-poster.webp
+D  public/media/rank-motion/platinum-rank-up.v7.mp4
+D  public/media/rank-motion/silver-rank-up.v6-poster.webp
+D  public/media/rank-motion/silver-rank-up.v6.mp4
+ M public/videos/goatArena-desktop.mp4
+ M public/videos/goatArena-mobile.mp4
+?? README.md
+ M routes/api-routes.js
+ M routes/goat-arena-routes.js
+ M routes/matths-routes.js
+?? scripts/arenaStagingSafety.js
+ M scripts/auditMongoIndexes.js
+ D scripts/backfillArenaMatchResultNotifications.js
+ D scripts/buildArenaTestWorkbook.mjs
+ D scripts/cleanupLegacyIntegrityTestAccounts.js
+ D scripts/cleanupScheduledMainShopPolicies.js
+ D scripts/createArenaVirtualUsersWorkbook.mjs
+ D scripts/generate_arena_rule_video_pdfs.py
+ D scripts/generate_user_rulebook_pdf.py
+?? scripts/generateArenaNormalBaselineCapturePlan.js
+?? scripts/generateArenaNormalBaselineGridImages.js
+ D scripts/generateGoatArenaInstagramTeaser.py
+ M scripts/inspectAdminOperationalState.js
+ D scripts/migrateArenaGpToTierLocal.js
+ D scripts/migrateArenaStandingTierPositionIndex.js
+ D scripts/migrateMainCompetitivePools.js
+ D scripts/migrateRemoveMinimumPaidNormalAttacks.js
+ D scripts/migrateRemoveRetiredDormancyPolicy.js
+?? scripts/migrateUsersToFreePlan.js
+?? scripts/prepareGoatArenaV2Indexes.js
+ M scripts/previewContrastAudit.js
+ M scripts/previewLocalUi.js
+ M scripts/purgeTestAccounts.js
+ D scripts/reconcileArenaTestCycles.js
+ D scripts/reconcileMainLearningDayBalance.js
+ M scripts/resetAdminOperationalState.js
+ D scripts/runDataAnalysisAggregation.js
+ D scripts/seedArenaTestUsers.js
+ D scripts/seedDataAnalysisCatalog.js
+ D scripts/seedFocusedLaunchTestAccounts.js
+?? scripts/simulateArenaAsyncRatings.js
+?? scripts/simulateArenaNormalBaselineFairness.js
+ M scripts/validateCommunityAndAdmin.js
+ M scripts/verifyAcademyContractLifecycle.js
+ D scripts/verifyAccessCycleExpiryReminders.js
+ D scripts/verifyAccessCycleExpiryRemindersDb.js
+ D scripts/verifyAccessCycleLifecycle.js
+ M scripts/verifyAccountDeletionDb.js
+ M scripts/verifyAccountDeletionPolicy.js
+?? scripts/verifyAccountPlans.js
+?? scripts/verifyActiveArenaPublicCopy.js
+?? scripts/verifyActiveCommerceProducts.js
+ M scripts/verifyAdminActiveArenaMatches.js
+ M scripts/verifyAdminArenaMatchHistory.js
+ M scripts/verifyAdminAuditTrail.js
+ M scripts/verifyAdminPageAccess.js
+ M scripts/verifyApplePortalLogin.js
+ M scripts/verifyAppleWebSignIn.js
+ M scripts/verifyArchivePackageAccess.js
+ M scripts/verifyArenaActivityLevel.js
+ M scripts/verifyArenaAssessmentIsolation.js
+ D scripts/verifyArenaAutomaticDefenseDb.js
+?? scripts/verifyArenaCheatingModePolicy.js
+?? scripts/verifyArenaCompetitiveScoring.js
+ M scripts/verifyArenaDefenseEmailNotification.js
+ D scripts/verifyArenaDivisionRules.js
+ D scripts/verifyArenaFoundation.js
+ D scripts/verifyArenaHeldMatchReviewDb.js
+ D scripts/verifyArenaIntegrityCheatingSettlementDb.js
+ M scripts/verifyArenaIntegrityRiskEngine.js
+ D scripts/verifyArenaIntegrityRiskEngineDb.js
+ M scripts/verifyArenaMatchAttemptFlow.js
+ D scripts/verifyArenaMatchCreation.js
+ D scripts/verifyArenaMatchmakingControl.js
+ D scripts/verifyArenaMatchSettlement.js
+ D scripts/verifyArenaMatchSettlementDb.js
+?? scripts/verifyArenaNormalBaselineQuestions.js
+ M scripts/verifyArenaOutboxDeliveryDb.js
+ D scripts/verifyArenaPolicyManagement.js
+ M scripts/verifyArenaProfileAvatar.js
+ D scripts/verifyArenaReconciliation.js
+ D scripts/verifyArenaShopResilienceDb.js
+ D scripts/verifyArenaTestDataset.js
+ M scripts/verifyArenaTutorial.js
+ D scripts/verifyArenaVirtualUsers.js
+ D scripts/verifyDailyAccessCycleLifecycle.js
+ D scripts/verifyDataAnalysisAggregation.js
+ M scripts/verifyDeploymentSurface.js
+ M scripts/verifyFinanceLedger.js
+ M scripts/verifyFreePlacementStory.js
+?? scripts/verifyGoatArenaV2.js
+?? scripts/verifyGoatArenaV22Rulebook.js
+ M scripts/verifyHomeArenaTier.js
+ M scripts/verifyInicisPaymentsIntegration.js
+ D scripts/verifyInitialArenaPlacement.js
+ D scripts/verifyIpadArenaShopContract.js
+ M scripts/verifyIpadServerSurface.js
+ D scripts/verifyLatestArenaPolicyDecisions.js
+ M scripts/verifyLaunchReadiness.js
+ M scripts/verifyLaunchViews.js
+ M scripts/verifyLogicDocumentationParity.js
+ D scripts/verifyMainArenaSettlementDb.js
+ D scripts/verifyMainFriendlyFees.js
+ D scripts/verifyMainRulebookActivePolicyDb.js
+ M scripts/verifyParentPayments.js
+ D scripts/verifyPaybackCompletionWorkflow.js
+ D scripts/verifyPaybackDailyLearning.js
+ M scripts/verifyPlanAndAttendanceExport.js
+ D scripts/verifyPolicyChangeNotificationsDb.js
+ M scripts/verifyPortalRegistration.js
+ M scripts/verifyPortalSocialLogin.js
+ M scripts/verifyPricingEntitlementCtas.js
+ M scripts/verifyPrivateMockWorkflow.js
+ M scripts/verifyProductAndOperationsFoundation.js
+ D scripts/verifyRankedPopulationCapDb.js
+ M scripts/verifyRankingDataDb.js
+ M scripts/verifyRankingLogic.js
+ D scripts/verifyRankingOperationsDb.js
+ M scripts/verifyRefundWorkflow.js
+ M scripts/verifyReleasePurchaseAndDefenseContracts.js
+ M scripts/verifyRuntimeReadiness.js
+ M scripts/verifySchedulerCoverage.js
+ M scripts/verifyStudyStreakBoundary.js
+ D scripts/verifySubRevengeSettlementDb.js
+ M scripts/verifyUiStyles.js
+ D scripts/verifyWeeklyTierCompetition.js
+ M server.js
+ M services/academyPlanService.js
+ D services/accessCycleDailyService.js
+ D services/accessCycleExpiryReminderService.js
+ D services/accessCycleService.js
+ M services/accountAccessService.js
+ M services/accountDeletionService.js
+?? services/accountPlanService.js
+ M services/accountReauthenticationService.js
+ M services/adminActiveArenaMatchesService.js
+ M services/adminArenaMatchHistoryService.js
+?? services/adminArenaV2Service.js
+ M services/adminAuditPolicyService.js
+?? services/adminCurrentMetricsService.js
+ M services/adminOperationsGuideService.js
+ M services/adminPackageAccessService.js
+ M services/adminService.js
+ M services/appCommerceService.js
+ M services/appleAuthService.js
+ M services/appleCommerceService.js
+ M services/archiveService.js
+?? services/arenaActiveMatchService.js
+ M services/arenaActivityLevelService.js
+?? services/arenaAdaptiveRatingService.js
+?? services/arenaAsyncCompetitiveService.js
+?? services/arenaAsyncNormalService.js
+ D services/arenaAutomaticDefenseService.js
+ D services/arenaBadgeService.js
+?? services/arenaCompetitivePointService.js
+?? services/arenaCompetitiveScoringService.js
+ D services/arenaDivisionRuleService.js
+ D services/arenaEligibilityService.js
+?? services/arenaEvidenceSettlementService.js
+?? services/arenaFriendService.js
+?? services/arenaGuestChallengeService.js
+?? services/arenaHistoricalRecordSelectionService.js
+ M services/arenaInlineSolutionBoardService.js
+ M services/arenaIntegrityRiskService.js
+ D services/arenaLandingSpotlightService.js
+ M services/arenaMatchAttemptService.js
+ M services/arenaMatchEvidenceService.js
+ D services/arenaMatchPreStartContractService.js
+ D services/arenaMatchService.js
+ D services/arenaMatchSettlementService.js
+?? services/arenaNormalBaselineQuestionService.js
+ M services/arenaNotificationService.js
+ M services/arenaOneOnOneDifficultyPolicy.js
+ M services/arenaOneOnOneProblemBank.js
+ D services/arenaPaybackReviewService.js
+?? services/arenaPlacementPolicyService.js
+ D services/arenaPolicyService.js
+ D services/arenaPreparedQuestionPoolService.js
+ M services/arenaProblemDataService.js
+ M services/arenaProblemPackService.js
+ M services/arenaProfileAvatarService.js
+ D services/arenaPublicContractViewService.js
+ M services/arenaPublicTerminologyService.js
+ M services/arenaRankingDecorationService.js
+ D services/arenaRankUpPresentationService.js
+ D services/arenaReconciliationService.js
+ D services/arenaRenewalService.js
+ D services/arenaRevengeService.js
+ D services/arenaRulebookViewService.js
+ D services/arenaSeasonService.js
+ D services/arenaShopPolicyService.js
+ D services/arenaStandingService.js
+ M services/arenaTierPolicy.js
+?? services/arenaTimeService.js
+ M services/arenaTutorialService.js
+?? services/arenaV2DifficultyService.js
+?? services/arenaV2IntegrityReviewAdapter.js
+?? services/arenaV2MatchmakingService.js
+?? services/arenaV2ProfileService.js
+?? services/arenaV2SettlementService.js
+?? services/arenaWebInlineSolutionService.js
+ M services/checkoutService.js
+ M services/dashboardService.js
+ M services/dashboardTutorialService.js
+ D services/dataAnalysisAggregationService.js
+ D services/dataAnalysisService.js
+ M services/errorHelpService.js
+ M services/fileStorageService.js
+ D services/finalRankingService.js
+ M services/financeService.js
+?? services/glicko2Service.js
+ M services/goatArenaProductionCommandService.js
+ M services/goatArenaProductionMatchReadService.js
+ D services/goatArenaReadService.js
+?? services/goatArenaV22RulebookService.js
+?? services/goatArenaV2Config.js
+?? services/goatArenaV2ReadService.js
+ M services/identityRiskService.js
+ D services/ipadArenaRevengeActionService.js
+ D services/ipadArenaShopAdapter.js
+ D services/mainArenaMatchService.js
+ D services/mainArenaRevengeService.js
+ D services/mainArenaSettlementService.js
+ D services/mainFriendlyMatchService.js
+ D services/mainFriendlySettlementService.js
+ D services/mainLearningDayService.js
+ D services/mainNormalMatchEconomyService.js
+ D services/mainToSubConversionService.js
+ M services/mmrService.js
+ M services/mobileSocialAuthGrantService.js
+ D services/mockExamPackageService.js
+ D services/mockExamPaymentService.js
+ M services/nativeSocialRegistrationService.js
+?? services/nicknameNamespaceService.js
+ M services/nicknameService.js
+ M services/operationalMetricEventService.js
+ M services/paidFeatureAccessService.js
+ M services/parentPaymentService.js
+ D services/paybackAccountService.js
+ D services/paybackDailyLearningService.js
+ M services/paymentService.js
+ M services/placementExamService.js
+ D services/policyChangeNotificationService.js
+ D services/policyChangeOutboxService.js
+ D services/policyVersionService.js
+ M services/privateMockExamService.js
+ M services/problemBankCatalogService.js
+ D services/rankingOperationsService.js
+ M services/rankingService.js
+ M services/refundPolicyService.js
+ M services/refundService.js
+ M services/runtimeEnvironmentService.js
+ D services/superAdminAccessService.js
+ D services/weeklyTierCompetitionService.js
+ M views/academy-staff-invite.ejs
+ M views/academy-standalone-mailbox.ejs
+ M views/admin-archive.ejs
+ M views/admin-arena-audit.ejs
+ M views/admin-arena-live-matches.ejs
+ M views/admin-arena-match-history.ejs
+ M views/admin-arena-matches.ejs
+ M views/admin-arena-policies.ejs
+ M views/admin-audit-log.ejs
+ M views/admin-dashboard.ejs
+ M views/admin-data-analysis.ejs
+ M views/admin-operations-guide.ejs
+ M views/admin-page-selector.ejs
+ M views/admin-parent-detail.ejs
+ D views/admin-paybacks.ejs
+ M views/admin-pdf-forensics.ejs
+ M views/admin-private-mock-exam-detail.ejs
+ M views/admin-private-mock-objection.ejs
+ M views/admin-problem-banks.ejs
+ M views/admin-user-detail.ejs
+ M views/admin-users.ejs
+ M views/archive-public.ejs
+?? views/arena-guest-challenge.ejs
+ M views/email-verification.ejs
+ M views/faq.ejs
+ M views/goat-arena-division.ejs
+ M views/goat-arena-error.ejs
+ D views/goat-arena-feature.ejs
+?? views/goat-arena-friends.ejs
+ M views/goat-arena-mailbox-detail.ejs
+ M views/goat-arena-mailbox.ejs
+ D views/goat-arena-main-battle.ejs
+ D views/goat-arena-main-shop-analysis.ejs
+ D views/goat-arena-main-shop.ejs
+ M views/goat-arena-match.ejs
+ D views/goat-arena-payback-account-confirm.ejs
+ M views/goat-arena-profile.ejs
+ D views/goat-arena-rankings.ejs
+?? views/goat-arena-rules-index.ejs
+ M views/goat-arena-rules.ejs
+ D views/goat-arena-sub-challenge.ejs
+ M views/goat-arena-supplemental-evidence.ejs
+ M views/goat-arena.ejs
+ M views/index.ejs
+ M views/intro.ejs
+ M views/learning-flow.ejs
+ M views/main.ejs
+ M views/notification-detail.ejs
+ M views/parent-dashboard.ejs
+ M views/parent-link-child.ejs
+ M views/parent-pricing.ejs
+ M views/parent-register.ejs
+ M views/partials/admin-navigation.ejs
+ M views/partials/admin-weekly-mock-access.ejs
+ D views/partials/arena-contract.ejs
+ D views/partials/arena-revenge-overlay.ejs
+ M views/partials/goat-arena-navigation.ejs
+ D views/partials/rank-motion-dialog.ejs
+ D views/partials/rank-motion-head.ejs
+ D views/partials/tier-ranking-pools.ejs
+ M views/portal-register.ejs
+ M views/pricing.ejs
+ M views/privacy.ejs
+ M views/private-mock-exam.ejs
+ M views/private-mock-exams.ejs
+ M views/private-mock-objection.ejs
+ M views/profile.ejs
+ M views/register.ejs
+ M views/terms.ejs
+ M views/war-of-masters-rankings.ejs
+ M views/war-of-masters.ejs
+```

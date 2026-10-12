@@ -1,10 +1,9 @@
 "use strict";
 
 const {
-  getDataAnalysisDashboard,
+  getAdminCurrentMetricsDashboard,
   getKstMonthKey,
-  runMonthlyDataAnalysisAggregation,
-} = require("../services/dataAnalysisAggregationService");
+} = require("../services/adminCurrentMetricsService");
 
 const SCHEMA_VERSION = "ADMIN_DATA_ANALYSIS_NATIVE_V1";
 
@@ -28,7 +27,7 @@ exports.dashboard = async (req, res, next) => {
     const periodKey = String(req.query?.period || getKstMonthKey());
     return res.json({
       schemaVersion: SCHEMA_VERSION,
-      analysis: await getDataAnalysisDashboard({ periodKey }),
+      analysis: await getAdminCurrentMetricsDashboard({ periodKey }),
     });
   } catch (error) {
     return next(error);
@@ -39,7 +38,7 @@ exports.rebuild = async (req, res, next) => {
   try {
     requireAdmin(req);
     const periodKey = String(req.body?.periodKey || getKstMonthKey());
-    const result = await runMonthlyDataAnalysisAggregation({ periodKey });
+    const result = await getAdminCurrentMetricsDashboard({ periodKey });
     noStore(res);
     return res.json({ schemaVersion: SCHEMA_VERSION, ok: true, result });
   } catch (error) {

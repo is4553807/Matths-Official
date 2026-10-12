@@ -18,6 +18,7 @@ const STORAGE_PURPOSES = Object.freeze({
   ACADEMY_PROFILE_IMAGE: "ACADEMY_PROFILE_IMAGE",
   ACADEMY_ASSIGNMENT: "ACADEMY_ASSIGNMENT",
   USER_ARENA_EVIDENCE: "USER_ARENA_EVIDENCE",
+  ARENA_BASELINE_SOLUTION: "ARENA_BASELINE_SOLUTION",
   USER_PRIVATE_MOCK_INTEGRITY: "USER_PRIVATE_MOCK_INTEGRITY",
 });
 
@@ -49,6 +50,10 @@ const STORAGE_POLICIES = Object.freeze({
   [STORAGE_PURPOSES.USER_ARENA_EVIDENCE]: {
     provider: "cloudinary",
     requiresCloudinary: true,
+  },
+  [STORAGE_PURPOSES.ARENA_BASELINE_SOLUTION]: {
+    provider: "r2",
+    requiresR2: true,
   },
   [STORAGE_PURPOSES.USER_PRIVATE_MOCK_INTEGRITY]: {
     provider: "cloudinary",
@@ -208,18 +213,31 @@ function cloudAssetFromRecord(record = {}) {
   };
 }
 
-function signedCloudinaryUrl(record, { download = false, originalName = "file" } = {}) {
+function signedCloudinaryUrl(
+  record,
+  { download = false, originalName = "file", expiresIn = null } = {}
+) {
   const asset = cloudAssetFromRecord(record);
   if (!asset || !configureCloudinary()) return null;
-  if (download) {
+  const requestedExpiry = Number(expiresIn);
+  const hasRequestedExpiry =
+    expiresIn !== null &&
+    expiresIn !== undefined &&
+    Number.isFinite(requestedExpiry);
+  const useExpiringDelivery = download || hasRequestedExpiry;
+  if (useExpiringDelivery) {
+    const ttlSeconds = Math.max(
+      60,
+      Math.min(900, hasRequestedExpiry ? requestedExpiry : 5 * 60)
+    );
     return cloudinary.utils.private_download_url(
       asset.cloudPublicId,
       asset.cloudFormat || undefined,
       {
         resource_type: asset.cloudResourceType,
         type: asset.cloudDeliveryType,
-        attachment: path.basename(String(originalName || "file")),
-        expires_at: Math.floor(Date.now() / 1000) + 5 * 60,
+        attachment: download ? path.basename(String(originalName || "file")) : false,
+        expires_at: Math.floor(Date.now() / 1000) + ttlSeconds,
       }
     );
   }
@@ -235,21 +253,27 @@ function signedCloudinaryUrl(record, { download = false, originalName = "file" }
 
 async function destroyStoredAsset(record = {}) {
   const source = record.storageAsset || record;
+  if (source?.storageProvider === "PURGED") return;
   if (source?.storageProvider === "R2" && source?.r2ObjectKey) {
     await deleteR2Object(source.r2ObjectKey);
     return;
   }
   const asset = cloudAssetFromRecord(record.storageAsset || record);
-  if (asset && configureCloudinary()) {
-    await cloudinary.uploader.destroy(asset.cloudPublicId, {
+  if (asset) {
+    if (!configureCloudinary()) throw new Error("Cloudinary deletion is not configured.");
+    const result = await cloudinary.uploader.destroy(asset.cloudPublicId, {
       resource_type: asset.cloudResourceType,
       type: asset.cloudDeliveryType,
       invalidate: true,
     });
+    if (!["ok", "not found"].includes(result?.result)) throw new Error("Cloudinary did not confirm asset deletion.");
     return;
   }
+  if (["R2", "CLOUDINARY"].includes(source?.storageProvider)) throw new Error("Stored asset deletion identifier is missing.");
   const localPath = record.path || record.filePath;
-  if (localPath) await fs.promises.unlink(localPath).catch(() => {});
+  if (localPath) await fs.promises.unlink(localPath).catch((error) => {
+    if (error.code !== "ENOENT") throw error;
+  });
 }
 
 async function signedStoredAssetUrl(record, options = {}) {

@@ -135,6 +135,9 @@ router.use((req, res, next) => (
 ));
 
 router.get('/', matthsController.mainPage);
+router.post("/admin/arena-users/:userId/placement/reset",
+  authMiddleware.isLoggedIn, authMiddleware.isAdmin,
+  require("../controllers/arenaPlacementPolicyController").reset);
 router.get('/intro', matthsController.introPage);
 router.get('/pricing', matthsController.pricingPage);
 router.get('/app/commerce/:token', appCommerceController.consumeHandoff);
@@ -608,12 +611,6 @@ router.post(
   matthsController.adminUpdateOtherUnpaidCosts
 );
 router.get(
-  "/admin/paybacks",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminPaybacksPage
-);
-router.get(
   "/admin/refunds",
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
@@ -636,18 +633,6 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminRejectRefund
-);
-router.post(
-  "/admin/paybacks/:cycleId/complete",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminCompletePayback
-);
-router.post(
-  "/admin/paybacks/payouts/:payoutRecordId/resend-email",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminResendPaybackEmail
 );
 router.get(
   "/admin/operations-guide",
@@ -681,6 +666,12 @@ router.post(
   authMiddleware.isAdmin,
   matthsController.adminSetArenaMatchmaking
 );
+router.post(
+  "/admin/arena-records/:recordId/integrity-review",
+  authMiddleware.isLoggedIn,
+  authMiddleware.isAdmin,
+  matthsController.adminReviewArenaNormalRecord
+);
 router.get(
   "/admin/problem-banks",
   authMiddleware.isLoggedIn,
@@ -698,30 +689,6 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminReviseProblemType
-);
-router.post(
-  "/admin/problem-banks/arena/types",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminCreateArenaTierCatalogType
-);
-router.post(
-  "/admin/problem-banks/arena/data",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminCreateArenaProblemData
-);
-router.post(
-  "/admin/problem-banks/arena/data/:versionId",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminUpdateArenaProblemData
-);
-router.post(
-  "/admin/problem-banks/arena/data/:versionId/activate",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminActivateArenaProblemData
 );
 router.get(
   "/admin/arena-live-matches",
@@ -777,24 +744,6 @@ router.get(
   authMiddleware.isAdmin,
   matthsController.adminArenaAuditData
 );
-router.post(
-  "/admin/arena-audit/ranking/rebuild",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminRebuildFinalRanking
-);
-router.post(
-  "/admin/arena-audit/maintenance",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminRunRankingMaintenance
-);
-router.get(
-  "/admin/arena-audit/ranking.csv",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminExportFinalRanking
-);
 router.get(
   "/admin/data-analysis",
   authMiddleware.isLoggedIn,
@@ -806,78 +755,6 @@ router.post(
   authMiddleware.isLoggedIn,
   authMiddleware.isAdmin,
   matthsController.adminRebuildDataAnalysis
-);
-router.post(
-  "/admin/arena-policies",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminCreateArenaPolicy
-);
-router.post(
-  "/admin/arena-policies/sub",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminCreateArenaPolicy
-);
-router.post(
-  "/admin/arena-policies/main",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminCreateMainArenaPolicy
-);
-router.post(
-  "/admin/arena-policies/mock-exam-only/price",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminUpdateMockExamPackagePrice
-);
-router.post(
-  "/admin/arena-policies/learning-package/price",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminUpdateLearningPackagePrice
-);
-router.post(
-  "/admin/arena-policies/main-shop",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminUpdateMainShopPolicy
-);
-router.post(
-  "/admin/arena-policies/:policyId/activate",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminActivateArenaPolicy
-);
-router.post(
-  "/admin/arena-policies/sub/:policyId/activate",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminActivateArenaPolicy
-);
-router.post(
-  "/admin/arena-policies/main/:policyId/activate",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminActivateMainArenaPolicy
-);
-router.post(
-  "/admin/arena-policies/:policyId/retire",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminRetireArenaPolicy
-);
-router.post(
-  "/admin/arena-policies/sub/:policyId/retire",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminRetireArenaPolicy
-);
-router.post(
-  "/admin/arena-policies/main/:policyId/retire",
-  authMiddleware.isLoggedIn,
-  authMiddleware.isAdmin,
-  matthsController.adminRetireMainArenaPolicy
 );
 router.post(
   "/admin/announcements",

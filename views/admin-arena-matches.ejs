@@ -31,7 +31,7 @@
     <%
       const arenaSeconds = (value) => value == null ? "기록 없음" : `${(Number(value) / 1000).toFixed(1)}초`;
       const arenaDate = (value) => value ? new Date(value).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "-";
-      const arenaRole = (value) => value === "CHALLENGER" ? "공격자" : "방어자";
+      const arenaRole = (value, asynchronous = false) => value === "CHALLENGER" ? "현재 응시자" : asynchronous ? "과거 기록 상대" : "상대 참가자";
       const arenaAnomalyLabel = (value) => ({
         FAST_COMPLETION_UNDER_FIVE_MINUTES: "전체 풀이시간 5분 미만",
         MULTIPLE_RAPID_CORRECT_ANSWERS: "1분 이내 정답 문항 3개 이상",
@@ -48,7 +48,7 @@
         <div>
           <p>GOAT ARENA</p>
           <h1>Arena 경기·무결성 관리</h1>
-          <span>풀이 증거와 장기 계정·경기 연관 신호를 확인하고, 자동 제재 없이 운영자가 최종 판단합니다.</span>
+          <span>경쟁전의 풀이 증거와 경기 연관 신호를 확인하고, 자동 제재 없이 운영자가 최종 판단합니다.</span>
         </div>
       </header>
 
@@ -67,7 +67,7 @@
           <span class="arena-integrity-count"><%= reviewStatus === "completed" ? `${integrityReview.completedCount}건 처리 완료` : `${integrityReview.heldCount + integrityReview.openCount}건 처리 필요` %></span>
         </div>
         <p class="arena-integrity-guidance">
-          기기·네트워크·결제·페이백 연관 신호와 경기 패턴을 함께 살핍니다. 원본 기기·네트워크 정보는 저장하거나 표시하지 않으며, 위험 점수만으로 계정을 자동 제재하지 않습니다.
+          기기·네트워크·답안 변경·풀이 업로드 신호와 경기 패턴을 함께 살핍니다. 일반전·친선전·게스트 친선전은 이 검토 대상에서 제외되며, 위험 점수만으로 계정을 자동 제재하지 않습니다.
         </p>
         <% if (adminNotice) { %>
           <p class="arena-integrity-success-notice" role="status"><%= adminNotice %></p>
@@ -79,7 +79,8 @@
         <% if (reviewStatus === "pending") { %>
         <div class="arena-held-match-grid">
           <% integrityReview.heldMatches.forEach((match) => { %>
-            <% const attemptsFinished = match.attempts.length === 2 && match.attempts.every((attempt) => attempt.status === "SUBMITTED" || (attempt.status === "EVIDENCE_REQUIRED" && Number(attempt.currentQuestionIndex || 0) >= 5)); %>
+            <% const requiredAttemptCount = match.asynchronous ? 1 : 2; %>
+            <% const attemptsFinished = match.attempts.length === requiredAttemptCount && match.attempts.every((attempt) => attempt.status === "SUBMITTED" || (attempt.status === "EVIDENCE_REQUIRED" && Number(attempt.currentQuestionIndex || 0) >= 5)); %>
             <% const matchComplete = attemptsFinished && match.attempts.every((attempt) => attempt.status === "SUBMITTED" && attempt.evidence); %>
             <% const hasActiveSupplementalRequest = match.attempts.some((attempt) => attempt.evidence?.supplementalRequest?.status === "REQUESTED" && attempt.evidence.supplementalRequest.deadlineAt && new Date(attempt.evidence.supplementalRequest.deadlineAt).getTime() > Date.now()); %>
             <% const screenedAttempt = match.attempts.find((attempt) => attempt.evidence?.screenedAsWinner) || match.attempts.find((attempt) => attempt.role === match.integrityScreenedRole); %>
@@ -89,7 +90,7 @@
               <summary class="arena-held-match-overview">
                 <span class="arena-held-match-overview-header">
                   <span>
-                    <small><%= match.division === "MAIN" ? "RANKED" : "UNRANKED" %> · <%= match.matchType === "REVENGE" ? "복수전" : match.matchType === "FRIENDLY" ? "친선 경기" : "일반 쟁탈전" %></small>
+                    <small><%= match.gameMode === "COMPETITIVE" ? "경쟁전" : match.gameMode === "NORMAL" ? "일반전" : "전환 전 경기" %> · <%= match.asynchronous ? "과거 기록 대결" : "참가자 대결" %></small>
                     <strong class="arena-held-match-tier-pair"><%= match.tierPairLabel || "티어 조합 확인 필요" %></strong>
                     <span><%= match.todo?.title || "경기 정산 보류" %></span>
                   </span>
@@ -97,20 +98,20 @@
                 </span>
                 <span class="arena-held-match-description"><%= match.todo?.description || "자동 정산 전에 운영자 확인이 필요한 경기입니다." %></span>
                 <span class="arena-held-match-summary" role="list">
-                  <span role="listitem"><small>공격자</small><strong><%= match.challengerUser?.realName || match.challengerUser?.name || match.challengerUser?.email || "확인 필요" %></strong></span>
-                  <span role="listitem"><small>방어자</small><strong><%= match.defenderUser?.realName || match.defenderUser?.name || match.defenderUser?.email || "확인 필요" %></strong></span>
+                  <span role="listitem"><small>현재 응시자</small><strong><%= match.challengerUser?.realName || match.challengerUser?.name || match.challengerUser?.email || "확인 필요" %></strong></span>
+                  <span role="listitem"><small><%= match.asynchronous ? "과거 기록 소유자" : "상대 참가자" %></small><strong><%= match.defenderUser?.realName || match.defenderUser?.name || match.defenderUser?.email || "확인 필요" %></strong></span>
                   <span role="listitem"><small>문제 팩</small><strong><%= match.problemPack?.displayName || match.problemPack?.version || "문제 팩 없음" %></strong></span>
                   <% match.attempts.forEach((attempt) => { %>
-                    <span role="listitem"><small><%= attempt.role === "CHALLENGER" ? "공격자 응시" : "방어자 응시" %></small><strong><%= attempt.status %> · <%= attempt.currentQuestionIndex %>/5</strong></span>
+                    <span role="listitem"><small><%= arenaRole(attempt.role, match.asynchronous) %> 응시</small><strong><%= attempt.status %> · <%= attempt.currentQuestionIndex %>/5</strong></span>
                   <% }) %>
                 </span>
               </summary>
               <div class="arena-held-match-expanded">
                 <div class="arena-integrity-review-deadline <%= reviewOverdue ? 'is-overdue' : '' %>">
-                  <span>내부 자동 신호 확인 대상 <b><%= screenedRole ? arenaRole(screenedRole) : "확인 필요" %></b></span>
+                  <span>내부 자동 신호 확인 대상 <b><%= screenedRole ? arenaRole(screenedRole, match.asynchronous) : "확인 필요" %></b></span>
                   <span>검토 시작 <b><%= arenaDate(match.integrityReviewStartedAt) %></b></span>
                   <span>24시간 목표 <b><%= arenaDate(match.integrityReviewDeadlineAt) %></b></span>
-                  <% if (reviewOverdue) { %><strong>검토 목표 시간이 지났습니다. 무혐의 판정 시 실제 정지 시간 전체를 이용 기간에 보상합니다.</strong><% } %>
+                  <% if (reviewOverdue) { %><strong>검토 목표 시간이 지났습니다. 신규 매칭과 경기 정산이 계속 보류되고 있어 우선 검토가 필요합니다.</strong><% } %>
                 </div>
                 <section class="arena-supplemental-review-board">
                   <header>
@@ -128,7 +129,7 @@
                         data-admin-supplemental-card
                       >
                         <header>
-                          <div><small><%= arenaRole(attempt.role) %></small><strong><%= attempt.user?.realName || attempt.user?.name || attempt.user?.email || "사용자" %></strong></div>
+                        <div><small><%= arenaRole(attempt.role, match.asynchronous) %></small><strong><%= attempt.user?.realName || attempt.user?.name || attempt.user?.email || "사용자" %></strong></div>
                           <b data-admin-supplemental-status><%= supplemental.status === "SUBMITTED" ? "제출 완료" : supplementalExpired ? "추가 소명자료 미제출" : supplementalActive ? "제출 대기" : "미요청" %></b>
                         </header>
                         <% if (supplemental.requestedAt) { %>
@@ -146,15 +147,15 @@
                         <% if (supplemental.files?.length) { %>
                           <div class="arena-admin-evidence-files">
                             <% supplemental.files.forEach((file, index) => { %>
-                              <a href="/admin/arena-matches/evidence/<%= attempt.evidence._id %>/<%= encodeURIComponent(file.storedName) %>" target="_blank" rel="noopener"><span><%= arenaRole(attempt.role) %> 소명 자료 <%= index + 1 %></span><small><%= file.originalName %></small></a>
+                          <a href="/admin/arena-matches/evidence/<%= attempt.evidence._id %>/<%= encodeURIComponent(file.storedName) %>" target="_blank" rel="noopener"><span><%= arenaRole(attempt.role, match.asynchronous) %> 소명 자료 <%= index + 1 %></span><small><%= file.originalName %></small></a>
                             <% }) %>
                           </div>
                         <% } %>
                         <% if (supplemental.status === "NONE") { %>
                           <% if (!attempt.evidence || attempt.evidence.originalEvidenceSubmitted === false) { %><p class="arena-supplemental-unavailable">필수 풀이 증거는 미제출 상태입니다. 추가 소명 자료는 별도로 요청할 수 있습니다.</p><% } %>
                           <form method="post" action="/admin/arena-matches/<%= match.id %>/supplemental-evidence/<%= attempt.role %>/request" class="arena-supplemental-request-form">
-                            <label><span><%= arenaRole(attempt.role) %>에게 전달할 요청 사유</span><textarea name="requestMessage" rows="2" maxlength="500" placeholder="추가로 확인할 풀이 단계나 자료를 안내해 주세요."></textarea></label>
-                            <button type="submit" class="admin-secondary-button"><%= arenaRole(attempt.role) %>에게 추가 소명 자료 요청</button>
+                            <label><span><%= arenaRole(attempt.role, match.asynchronous) %>에게 전달할 요청 사유</span><textarea name="requestMessage" rows="2" maxlength="500" placeholder="추가로 확인할 풀이 단계나 자료를 안내해 주세요."></textarea></label>
+                          <button type="submit" class="admin-secondary-button"><%= arenaRole(attempt.role, match.asynchronous) %>에게 추가 소명 자료 요청</button>
                           </form>
                         <% } %>
                       </article>
@@ -165,7 +166,7 @@
                 <% match.attempts.forEach((attempt) => { %>
                   <details class="arena-attempt-review" open>
                     <summary>
-                      <span><%= arenaRole(attempt.role) %> · <%= attempt.user?.realName || attempt.user?.name || attempt.user?.email || "사용자" %></span>
+                      <span><%= arenaRole(attempt.role, match.asynchronous) %> · <%= attempt.user?.realName || attempt.user?.name || attempt.user?.email || "사용자" %></span>
                       <b><%= attempt.correctCount ?? "-" %>/5 · <%= arenaSeconds(attempt.activeSolveTimeMs) %></b>
                     </summary>
                     <div class="arena-attempt-meta">
@@ -210,7 +211,7 @@
                 <summary>참가자 과거 제재·검토 기록</summary>
                 <% match.participants.forEach((participant) => { %>
                   <section>
-                    <h4><%= arenaRole(participant.role) %> · <%= participant.user?.realName || participant.user?.name || participant.user?.email || "사용자" %></h4>
+                    <h4><%= arenaRole(participant.role, match.asynchronous) %> · <%= participant.user?.realName || participant.user?.name || participant.user?.email || "사용자" %></h4>
                     <p>계정 상태 <b><%= participant.user?.accountStatus || "-" %></b> · 누적 경고 <b><%= participant.user?.warningCount ?? 0 %>회</b></p>
                     <% if (!participant.history.riskCases.length && !participant.history.adminActions.length) { %><small>과거 무결성 검토·운영 제재 기록이 없습니다.</small><% } %>
                     <ul>
@@ -225,13 +226,15 @@
               <% } %>
               <form class="arena-held-review-form" method="post" action="/admin/arena-matches/<%= match.id %>/review" data-supplemental-review-form>
                 <label><span>판단 근거·운영 메모</span><textarea name="note" rows="3" maxlength="1000" required placeholder="감지 사유가 실제 위반인지, 정상 풀이로 판단한 근거가 무엇인지 구체적으로 기록해 주세요."></textarea></label>
-                <% if (!attemptsFinished) { %><p class="arena-current-match-notice">현재 경기는 계속 진행됩니다. 양측이 5문제를 모두 끝낸 뒤 공격자·방어자의 답안, 풀이시간과 증거를 함께 검토하고 최종 판정할 수 있습니다.</p><% } else if (!matchComplete) { %><p class="arena-current-match-notice">양측 풀이가 끝났지만 필수 풀이 증거가 누락되었습니다. 미제출 자체를 포함해 양측의 위반 여부를 판정하세요. 업로드 시스템 오류가 확인된 경우에만 시스템 오류 확인을 선택하면 경기를 취소하고 예치를 전액 반환한 뒤 참가자 잠금을 해제합니다.</p><% } else if (hasActiveSupplementalRequest) { %><p class="arena-current-match-notice">추가 소명 자료의 24시간 제출 기한이 진행 중입니다. 제출 완료 또는 기한 종료 후 최종 판정할 수 있습니다.</p><% } %>
+                <% if (!attemptsFinished) { %><p class="arena-current-match-notice"><%= match.asynchronous ? "현재 응시자" : "양측 참가자" %>의 5문항 풀이가 끝난 뒤 답안, 풀이시간과 업로드 자료를 함께 검토할 수 있습니다.</p><% } else if (!matchComplete) { %><p class="arena-current-match-notice">필수 풀이 업로드가 누락되었습니다. 업로드 시스템 오류가 확인된 경우에만 시스템 오류 확인으로 경기를 무효 처리하고 참가자 잠금을 해제합니다.</p><% } else if (hasActiveSupplementalRequest) { %><p class="arena-current-match-notice">추가 소명 자료의 24시간 제출 기한이 진행 중입니다. 제출 완료 또는 기한 종료 후 최종 판정할 수 있습니다.</p><% } %>
                 <div>
                   <button type="submit" name="decision" value="NOTE" class="admin-secondary-button">메모 저장</button>
                   <button type="submit" name="decision" value="CLEAR" class="admin-primary-button" <%= hasActiveSupplementalRequest ? "disabled data-enable-after-supplemental" : "" %>><%= matchComplete ? "이상 없음 · 정산 재개" : attemptsFinished ? "시스템 오류 확인 · 경기 취소/제한 해제" : "이상 없음 · 제한 해제" %></button>
-                  <button type="submit" name="decision" value="CHALLENGER_CHEATING" class="admin-danger-button" <%= attemptsFinished && !hasActiveSupplementalRequest ? "" : attemptsFinished ? "disabled data-enable-after-supplemental" : "disabled" %>>공격자 부정행위 확정</button>
-                  <button type="submit" name="decision" value="DEFENDER_CHEATING" class="admin-danger-button" <%= attemptsFinished && !hasActiveSupplementalRequest ? "" : attemptsFinished ? "disabled data-enable-after-supplemental" : "disabled" %>>방어자 부정행위 확정</button>
-                  <button type="submit" name="decision" value="BOTH_CHEATING" class="admin-danger-button" <%= attemptsFinished && !hasActiveSupplementalRequest ? "" : attemptsFinished ? "disabled data-enable-after-supplemental" : "disabled" %>>양측 부정행위 확정</button>
+                  <button type="submit" name="decision" value="CHALLENGER_CHEATING" class="admin-danger-button" <%= attemptsFinished && !hasActiveSupplementalRequest ? "" : attemptsFinished ? "disabled data-enable-after-supplemental" : "disabled" %>>현재 응시자 부정행위 확정</button>
+                  <% if (!match.asynchronous) { %>
+                    <button type="submit" name="decision" value="DEFENDER_CHEATING" class="admin-danger-button" <%= attemptsFinished && !hasActiveSupplementalRequest ? "" : attemptsFinished ? "disabled data-enable-after-supplemental" : "disabled" %>>상대 참가자 부정행위 확정</button>
+                    <button type="submit" name="decision" value="BOTH_CHEATING" class="admin-danger-button" <%= attemptsFinished && !hasActiveSupplementalRequest ? "" : attemptsFinished ? "disabled data-enable-after-supplemental" : "disabled" %>>양측 부정행위 확정</button>
+                  <% } %>
                 </div>
               </form>
               <small>경기 ID · <%= match.id %></small>
@@ -297,7 +300,7 @@
                     <small><%= review.type === "MATCH" ? "경기 검토" : "계정 연관성 검토" %></small>
                     <h3><%= review.user?.realName || review.user?.name || review.user?.email || "사용자" %></h3>
                   </div>
-                  <b><%= review.action.endsWith("cleared") ? "이상 없음" : review.action.includes("both_cheating") ? "양측 부정행위" : review.action.includes("challenger_cheating") ? "공격자 부정행위" : review.action.includes("defender_cheating") ? "방어자 부정행위" : "위반 확인" %></b>
+                  <b><%= review.action.endsWith("cleared") ? "이상 없음" : review.action.includes("both_cheating") ? "양측 부정행위" : review.action.includes("challenger_cheating") ? "현재 응시자 부정행위" : review.action.includes("defender_cheating") ? "상대 참가자 부정행위" : "위반 확인" %></b>
                 </header>
                 <p><%= review.note || "운영 메모 없음" %></p>
                 <dl>
@@ -332,7 +335,7 @@
                 <p class="arena-admin-flags"><%= entry.anomalyFlags.map(arenaAnomalyLabel).join(" · ") %></p>
               <% } %>
               <p class="arena-admin-attempt-summary">
-                <span><%= entry.attempt?.role === "CHALLENGER" ? "공격자" : "방어자" %></span>
+                <span><%= entry.attempt?.role === "CHALLENGER" ? "현재 응시자" : "상대 참가자" %></span>
                 <span><%= entry.attempt?.correctCount ?? "-" %> / 5문항</span>
                 <span><%= entry.attempt?.score ?? "-" %>점</span>
                 <span><%= entry.attempt?.activeSolveTimeMs != null ? `${(Number(entry.attempt.activeSolveTimeMs) / 1000).toFixed(1)}초` : "풀이시간 확인 중" %></span>

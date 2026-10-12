@@ -13,9 +13,6 @@ const {
 
 const FAST_MATCH_MIN_MATCHES = 5;
 const FAST_MATCH_PERCENTILE = 0.1;
-// 5승 이상은 더 높은 우선순위의 "연승" 장식을 받으므로,
-// 언더독 킬러가 실제로 배정될 수 있도록 상위 티어 상대 3승을 기준으로 삼는다.
-const UNDERDOG_WIN_MINIMUM = 3;
 const OFFICIAL_WIN_MINIMUM = 5;
 const CHALLENGER_MATCH_MINIMUM = 100;
 
@@ -42,10 +39,6 @@ function tierIndex(value) {
 
 function participantFor(match, role) {
   return role === "CHALLENGER" ? match.challenger : match.defender;
-}
-
-function opponentFor(match, role) {
-  return role === "CHALLENGER" ? match.defender : match.challenger;
 }
 
 function winnerUserId(match) {
@@ -83,7 +76,6 @@ function createStats(userId, division, arenaRank) {
     wins: 0,
     totalSolveTimeMs: 0,
     timedMatches: 0,
-    underdogWins: 0,
   };
 }
 
@@ -123,11 +115,6 @@ function computeOfficialMatchStats({ arenaEntries = [], matches = [] }) {
       stats.matches += 1;
       if (winnerUserId(match) === userId) {
         stats.wins += 1;
-        const ownTier = tierIndex(participant?.tupleBefore?.arenaRank);
-        const opponentTier = tierIndex(opponentFor(match, role)?.tupleBefore?.arenaRank);
-        if (match.division === "MAIN" && ownTier >= 0 && opponentTier > ownTier) {
-          stats.underdogWins += 1;
-        }
       }
 
       const duration = durationFor(match, role);
@@ -306,22 +293,10 @@ function assignDecorations({ arenaEntries, statsByUserId, excludedUserIds }) {
         tone: "blue",
         title: "평균 풀이 시간이 매우 짧은 이용자",
       };
-    } else if (
-      entry.division === "MAIN" &&
-      stats.underdogWins >= UNDERDOG_WIN_MINIMUM
-    ) {
-      decoration = {
-        code: "UNDERDOG_KILLER",
-        priority: 5,
-        icon: "◆",
-        label: "언더독 킬러",
-        tone: "red",
-        title: "Ranked에서 상위 티어 상대에게 3승 이상",
-      };
     } else if (stats.matches >= CHALLENGER_MATCH_MINIMUM) {
       decoration = {
         code: "CHALLENGER_100",
-        priority: 6,
+        priority: 5,
         icon: "⚔",
         label: "도전자",
         tone: "steel",
@@ -381,14 +356,14 @@ async function buildArenaRankingDecorations({ arenaEntries = [], currentWarningC
   const [matches, excludedUserIds] = await Promise.all([
     ArenaMatch.find({
       status: "SETTLED",
-      matchType: { $in: ["NORMAL", "REVENGE"] },
+      matchType: "NORMAL",
       $or: [
         { "challenger.userId": { $in: userIds } },
         { "defender.userId": { $in: userIds } },
       ],
     })
       .select(
-        "division matchType status winnerRole challenger.userId challenger.tupleBefore defender.userId defender.tupleBefore resultSnapshot settledAt"
+        "division matchType status winnerRole challenger.userId defender.userId resultSnapshot settledAt"
       )
       .sort({ settledAt: 1, _id: 1 })
       .lean(),

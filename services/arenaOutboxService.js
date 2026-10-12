@@ -21,6 +21,7 @@ async function claimNextEvent({ now, leaseMs, filter = {} }) {
     {
       ...filter,
       publishedAt: null,
+      $and: [{ $or: [{ nextPublishAttemptAt: null }, { nextPublishAttemptAt: { $lte: now } }] }],
       $or: [
         { processingLeaseExpiresAt: null },
         { processingLeaseExpiresAt: { $lte: now } },
@@ -56,13 +57,14 @@ async function acknowledgeEvent({ event, token, now }) {
   return result.modifiedCount === 1;
 }
 
-async function releaseFailedEvent({ event, token, error }) {
+async function releaseFailedEvent({ event, token, error, now }) {
   await ArenaOutboxEvent.updateOne(
     { _id: event._id, publishedAt: null, processingToken: token },
     {
       $set: {
         processingToken: "",
         processingLeaseExpiresAt: null,
+        nextPublishAttemptAt: new Date(now.getTime() + Math.min(86_400_000, 5000 * 2 ** Math.min(10, Math.max(0, event.publishAttempts - 1)))),
         lastPublishError: String(error?.message || error || "이벤트 처리 실패").slice(0, 1000),
       },
     }
@@ -95,7 +97,7 @@ async function processArenaOutboxEvents({
       if (published) summary.published += 1;
     } catch (error) {
       summary.failed += 1;
-      await releaseFailedEvent({ event: claim.event, token: claim.token, error });
+      await releaseFailedEvent({ event: claim.event, token: claim.token, error, now: currentTime });
     }
   }
   return summary;
@@ -106,6 +108,7 @@ async function runArenaOutboxSchedule() {
   schedulerRunning = true;
   try {
     await processArenaOutboxEvents();
+    await require("./arenaNotificationEmailService").processArenaNotificationEmails();
   } finally {
     schedulerRunning = false;
   }

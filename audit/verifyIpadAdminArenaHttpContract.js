@@ -27,16 +27,23 @@ install("../services/arenaIntegrityRiskService", {
   getAdminArenaIntegrityData: async () => ({ heldMatches: [], cases: [], completedReviews: [] }),
   requestArenaSupplementalEvidence: async (value) => calls.push(["evidence", value]),
   reviewArenaIntegrityCase: async (value) => calls.push(["case", value]),
-  reviewHeldArenaMatch: async (value) => calls.push(["match", value]),
 });
-install("../services/arenaReconciliationService", {
-  getArenaReconciliationAudit: async () => ({ health: "HEALTHY", summary: { checkedMatches: 1 }, issues: [] }),
+install("../services/arenaV2IntegrityReviewAdapter", {
+  reviewHeldArenaV2Match: async (value) => calls.push(["match", value]),
 });
-install("../services/rankingOperationsService", {
-  exportFinalRankingCsv: async (value) => { calls.push(["csv", value]); return "rank,name\n1,A\n"; },
-  getRankingOperationsDashboard: async () => ({ health: { status: "HEALTHY" }, history: [], operations: { emailConfigured: true } }),
-  rebuildFinalRankingByAdmin: async (value) => calls.push(["rebuild", value]),
-  runRankingMaintenanceTask: async (value) => { calls.push(["maintenance", value]); return { processed: 1 }; },
+install("../services/adminArenaV2Service", {
+  getAdminArenaV2Audit: async () => ({
+    generatedAt: new Date(),
+    health: "HEALTHY",
+    summary: {
+      activeMatches: 1,
+      availableNormalRecords: 3,
+      availableCompetitiveRecords: 2,
+      ratingSettlements: 4,
+      placedProfiles: 5,
+    },
+    issues: [],
+  }),
 });
 
 async function invoke(handler, { role = "admin", params = {}, body = {}, query = {} } = {}) {
@@ -57,31 +64,28 @@ for (const route of [
   '"/admin/arena/matches/:matchId/review"',
   '"/admin/arena/matches/:matchId/supplemental-evidence/:role/request"',
   '"/admin/arena/integrity/:caseId/review"',
+  '"/admin/arena/evidence/:evidenceId/:storedName"',
+]) assert(routes.includes(route), `missing native admin Arena route ${route}`);
+for (const route of [
   '"/admin/arena/ranking/rebuild"',
   '"/admin/arena/maintenance"',
   'router.get("/admin/arena/ranking.csv"',
-  '"/admin/arena/evidence/:evidenceId/:storedName"',
-]) assert(routes.includes(route), `missing native admin Arena route ${route}`);
+]) assert(!routes.includes(route), `retired native admin Arena route remains ${route}`);
 assert(source.includes("req.apiUser"));
 assert(!source.includes("req.session"));
 
 const controller = require("../controllers/ipadAdminArenaController");
 (async () => {
   assert.equal((await invoke(controller.dashboard, { role: "student" })).error?.status, 403);
-  const dashboard = await invoke(controller.dashboard, { query: { query: "A", division: "MAIN" } });
-  assert.equal(dashboard.payload.schemaVersion, "ADMIN_ARENA_NATIVE_V1");
+  const dashboard = await invoke(controller.dashboard, { query: { query: "A", gameMode: "NORMAL" } });
+  assert.equal(dashboard.payload.schemaVersion, "ADMIN_ARENA_NATIVE_V2");
   assert.equal(dashboard.payload.dashboard.live.matches[0].id, "m1");
   assert.equal(dashboard.payload.dashboard.history.records[0].matchKey, "M-1");
   assert.equal(dashboard.headers.get("Cache-Control"), "private, no-store");
   await invoke(controller.reviewMatch, { params: { matchId: "m1" }, body: { decision: "clear", note: "checked" } });
   await invoke(controller.requestEvidence, { params: { matchId: "m1", role: "CHALLENGER" }, body: { requestMessage: "steps" } });
   await invoke(controller.reviewCase, { params: { caseId: "c1" }, body: { decision: "restrict", note: "risk" } });
-  await invoke(controller.rebuildRanking);
-  const maintenance = await invoke(controller.maintenance, { body: { task: "SETTLEMENT_RETRY" } });
-  assert.equal(maintenance.payload.result.processed, 1);
-  const csv = await invoke(controller.rankingCsv);
-  assert.equal(csv.sent, "rank,name\n1,A\n");
-  assert.equal(csv.headers.get("Content-Type"), "text/csv; charset=utf-8");
-  assert.deepEqual(calls.map(([name]) => name), ["history", "match", "evidence", "case", "rebuild", "maintenance", "csv"]);
+  assert.equal(dashboard.payload.dashboard.audit.health, "HEALTHY");
+  assert.deepEqual(calls.map(([name]) => name), ["history", "match", "evidence", "case"]);
   console.log("iPad native admin Arena HTTP contract passed");
 })().catch((error) => { console.error(error); process.exitCode = 1; });

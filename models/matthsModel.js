@@ -53,6 +53,19 @@ const profileAvatarAssetSchema = new Schema(
   }
 );
 
+const arenaTutorialChapterSchema = new Schema(
+  {
+    status: {
+      type: String,
+      enum: ["PENDING", "COMPLETED", "SKIPPED"],
+      default: "PENDING",
+    },
+    completedAt: { type: Date, default: null },
+    skippedAt: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
 /* --------------------------------------------------
  * 1. User
  * 사용자 계정 및 개인 설정
@@ -154,96 +167,22 @@ const preferenceSchema = new Schema(
         {
           version: {
             type: Number,
-            default: 1,
+            default: 2,
           },
           common: {
-            type: new Schema(
-              {
-                status: {
-                  type: String,
-                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
-                  default: "PENDING",
-                },
-                completedAt: { type: Date, default: null },
-                skippedAt: { type: Date, default: null },
-              },
-              { _id: false }
-            ),
+            type: arenaTutorialChapterSchema,
             default: undefined,
           },
-          unranked: {
-            type: new Schema(
-              {
-                status: {
-                  type: String,
-                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
-                  default: "PENDING",
-                },
-                completedAt: { type: Date, default: null },
-                skippedAt: { type: Date, default: null },
-              },
-              { _id: false }
-            ),
+          normal: {
+            type: arenaTutorialChapterSchema,
             default: undefined,
           },
-          unranked_match: {
-            type: new Schema(
-              {
-                status: {
-                  type: String,
-                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
-                  default: "PENDING",
-                },
-                completedAt: { type: Date, default: null },
-                skippedAt: { type: Date, default: null },
-              },
-              { _id: false }
-            ),
+          competitive: {
+            type: arenaTutorialChapterSchema,
             default: undefined,
           },
-          ranked: {
-            type: new Schema(
-              {
-                status: {
-                  type: String,
-                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
-                  default: "PENDING",
-                },
-                completedAt: { type: Date, default: null },
-                skippedAt: { type: Date, default: null },
-              },
-              { _id: false }
-            ),
-            default: undefined,
-          },
-          ranked_battle: {
-            type: new Schema(
-              {
-                status: {
-                  type: String,
-                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
-                  default: "PENDING",
-                },
-                completedAt: { type: Date, default: null },
-                skippedAt: { type: Date, default: null },
-              },
-              { _id: false }
-            ),
-            default: undefined,
-          },
-          ranked_shop: {
-            type: new Schema(
-              {
-                status: {
-                  type: String,
-                  enum: ["PENDING", "COMPLETED", "SKIPPED"],
-                  default: "PENDING",
-                },
-                completedAt: { type: Date, default: null },
-                skippedAt: { type: Date, default: null },
-              },
-              { _id: false }
-            ),
+          friends: {
+            type: arenaTutorialChapterSchema,
             default: undefined,
           },
         },
@@ -286,9 +225,9 @@ const userSchema = new Schema(
     },
 
     /*
-     * 생년월일 원본은 향후 페이백 계좌 명의 확인에만 사용합니다.
-     * 일반 사용자 조회에서 실수로 노출되지 않도록 기본 select 대상에서
-     * 제외하고, 중복 계정 탐지는 아래 단방향 해시로 수행합니다.
+     * 생년월일 원본은 계정 확인에만 사용합니다. 일반 사용자 조회에서
+     * 노출되지 않도록 기본 select 대상에서 제외하고, 중복 계정 탐지와
+     * 게스트 도전장 기록 연결은 단방향 해시로 수행합니다.
      */
     birthDate: {
       type: Date,
@@ -395,6 +334,101 @@ const userSchema = new Schema(
         "test",
       ],
       default: "student",
+    },
+
+    /* 현재 서비스의 단일 계정 플랜입니다. 관리자 권한은 플랜과 분리합니다. */
+    accountPlan: {
+      type: new Schema(
+        {
+          code: {
+            type: String,
+            enum: ["FREE", "PRO"],
+            required: true,
+            default: "FREE",
+          },
+          status: {
+            type: String,
+            enum: ["ACTIVE", "CANCELLED", "EXPIRED"],
+            required: true,
+            default: "ACTIVE",
+          },
+          priceAmount: {
+            type: Number,
+            min: 0,
+            required: true,
+            default: 0,
+          },
+          currency: {
+            type: String,
+            enum: ["KRW"],
+            required: true,
+            default: "KRW",
+          },
+          billingPeriodDays: {
+            type: Number,
+            min: 0,
+            max: 366,
+            required: true,
+            default: 0,
+          },
+          startsAt: {
+            type: Date,
+            default: Date.now,
+          },
+          endsAt: {
+            type: Date,
+            default: null,
+          },
+          source: {
+            type: String,
+            enum: [
+              "DEFAULT",
+              "MIGRATION",
+              "ADMIN",
+              "INICIS",
+              "APPLE",
+            ],
+            required: true,
+            default: "DEFAULT",
+          },
+          sourcePaymentId: {
+            type: Schema.Types.ObjectId,
+            ref: "ArenaPackagePayment",
+            default: null,
+          },
+          changedAt: {
+            type: Date,
+            required: true,
+            default: Date.now,
+          },
+          changedByUserId: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+          changeReason: {
+            type: String,
+            trim: true,
+            maxlength: 500,
+            default: "",
+          },
+        },
+        { _id: false }
+      ),
+      default: function defaultAccountPlan() {
+        if (this.role === "admin") return undefined;
+        return {
+          code: "FREE",
+          status: "ACTIVE",
+          priceAmount: 0,
+          currency: "KRW",
+          billingPeriodDays: 0,
+          startsAt: new Date(),
+          endsAt: null,
+          source: "DEFAULT",
+          changedAt: new Date(),
+        };
+      },
     },
 
     /*
@@ -724,61 +758,6 @@ const userSchema = new Schema(
       isOverseas: { type: Boolean, default: false },
     },
 
-    /*
-     * 페이백 계좌는 선택 정보입니다. 계좌번호 원문은 저장하지 않고
-     * AES-256-GCM 암호문만 보관합니다. 사용자 화면에는 마지막 4자리만,
-     * 정산 권한이 있는 운영자 화면에서만 복호화한 값을 표시합니다.
-     */
-    paybackAccount: {
-      status: {
-        type: String,
-        enum: ["UNLINKED", "CONFIRMED"],
-        default: "UNLINKED",
-        index: true,
-      },
-      bankName: {
-        type: String,
-        trim: true,
-        maxlength: 40,
-        default: "",
-      },
-      accountHolderName: {
-        type: String,
-        trim: true,
-        maxlength: 40,
-        default: "",
-        select: false,
-      },
-      accountNumberEncrypted: {
-        type: String,
-        default: "",
-        select: false,
-      },
-      accountNumberIv: {
-        type: String,
-        default: "",
-        select: false,
-      },
-      accountNumberTag: {
-        type: String,
-        default: "",
-        select: false,
-      },
-      accountNumberLast4: {
-        type: String,
-        trim: true,
-        maxlength: 4,
-        default: "",
-      },
-      confirmedAt: {
-        type: Date,
-        default: null,
-      },
-      updatedAt: {
-        type: Date,
-        default: null,
-      },
-    },
   },
   {
     timestamps: true,
@@ -857,6 +836,12 @@ userSchema.index(
 userSchema.index({
   accountStatus: 1,
   suspendedUntil: 1,
+});
+userSchema.index({
+  role: 1,
+  "accountPlan.code": 1,
+  "accountPlan.status": 1,
+  "accountPlan.endsAt": 1,
 });
 userSchema.index({
   identityMatchHash: 1,
@@ -6212,80 +6197,6 @@ const privateMockWeeklyAttemptSchema =
         }
     );
 
-const weeklyTierCompetitionSchema =
-    new Schema(
-        {
-            division: {
-                type: String,
-                enum: ["SUB", "MAIN"],
-                default: null,
-            },
-            tierAtStart: {
-                type: String,
-                trim: true,
-                maxlength: 40,
-                default: "",
-            },
-            tierRank: {
-                type: Number,
-                min: 1,
-                default: null,
-            },
-            participantCount: {
-                type: Number,
-                min: 0,
-                default: 0,
-            },
-            promotionCandidate: {
-                type: Boolean,
-                default: false,
-            },
-            candidateReason: {
-                type: String,
-                enum: ["", "WEEKLY_TOP_PERCENT", "SKILL_INDEX_STREAK"],
-                default: "",
-            },
-            boundarySlot: {
-                type: Number,
-                min: 1,
-                default: null,
-            },
-            outcome: {
-                type: String,
-                enum: [
-                    "",
-                    "STAYED",
-                    "PROMOTED",
-                    "DEFENDED",
-                    "DEMOTED",
-                    "CHALLENGE_LOST",
-                ],
-                default: "",
-            },
-            opponentUserId: {
-                type: Schema.Types.ObjectId,
-                ref: "User",
-                default: null,
-            },
-            opponentTier: {
-                type: String,
-                trim: true,
-                maxlength: 40,
-                default: "",
-            },
-            settlementId: {
-                type: Schema.Types.ObjectId,
-                ref: "WeeklyTierBoundarySettlement",
-                default: null,
-            },
-            settledAt: {
-                type: Date,
-                default: null,
-            },
-        },
-        { _id: false }
-    );
-
 const privateMockWeeklyResultSchema =
     new Schema(
         {
@@ -6371,10 +6282,6 @@ const privateMockWeeklyResultSchema =
                 min: 1,
                 default: null,
             },
-            tierCompetition: {
-                type: weeklyTierCompetitionSchema,
-                default: () => ({}),
-            },
             status: {
                 type: String,
                 enum: [
@@ -6455,159 +6362,6 @@ privateMockWeeklyResultSchema.index({
     status: 1,
     representativePerformance: -1,
 });
-privateMockWeeklyResultSchema.index({
-    weekKey: 1,
-    "tierCompetition.division": 1,
-    "tierCompetition.tierAtStart": 1,
-    "tierCompetition.tierRank": 1,
-});
-
-const weeklyTierBoundaryScoreSchema =
-    new Schema(
-        {
-            performance: {
-                type: Number,
-                min: 0,
-                max: 1,
-                required: true,
-            },
-            rawScore: {
-                type: Number,
-                min: 0,
-                max: 100,
-                required: true,
-            },
-            elapsedMs: {
-                type: Number,
-                min: 0,
-                required: true,
-            },
-            tierRank: {
-                type: Number,
-                min: 1,
-                required: true,
-            },
-        },
-        { _id: false }
-    );
-
-const weeklyTierBoundarySettlementSchema =
-    new Schema(
-        {
-            weekKey: {
-                type: String,
-                required: true,
-                trim: true,
-                index: true,
-            },
-            seasonKey: {
-                type: String,
-                required: true,
-                trim: true,
-                maxlength: 80,
-            },
-            division: {
-                type: String,
-                enum: ["SUB", "MAIN"],
-                required: true,
-            },
-            lowerTier: {
-                type: String,
-                required: true,
-                trim: true,
-                maxlength: 40,
-            },
-            upperTier: {
-                type: String,
-                required: true,
-                trim: true,
-                maxlength: 40,
-            },
-            slotNumber: {
-                type: Number,
-                min: 1,
-                required: true,
-                default: 1,
-            },
-            candidateReason: {
-                type: String,
-                enum: ["WEEKLY_TOP_PERCENT", "SKILL_INDEX_STREAK"],
-                required: true,
-                default: "WEEKLY_TOP_PERCENT",
-            },
-            challengerUserId: {
-                type: Schema.Types.ObjectId,
-                ref: "User",
-                required: true,
-                index: true,
-            },
-            defenderUserId: {
-                type: Schema.Types.ObjectId,
-                ref: "User",
-                required: true,
-                index: true,
-            },
-            challengerWeeklyResultId: {
-                type: Schema.Types.ObjectId,
-                ref: "PrivateMockWeeklyResult",
-                required: true,
-            },
-            defenderWeeklyResultId: {
-                type: Schema.Types.ObjectId,
-                ref: "PrivateMockWeeklyResult",
-                required: true,
-            },
-            challengerScore: {
-                type: weeklyTierBoundaryScoreSchema,
-                required: true,
-            },
-            defenderScore: {
-                type: weeklyTierBoundaryScoreSchema,
-                required: true,
-            },
-            outcome: {
-                type: String,
-                enum: ["PROMOTED", "DEFENDED", "STANDING_CHANGED"],
-                required: true,
-                index: true,
-            },
-            challengerTupleBefore: {
-                type: Schema.Types.Mixed,
-                required: true,
-            },
-            challengerTupleAfter: {
-                type: Schema.Types.Mixed,
-                required: true,
-            },
-            defenderTupleBefore: {
-                type: Schema.Types.Mixed,
-                required: true,
-            },
-            defenderTupleAfter: {
-                type: Schema.Types.Mixed,
-                required: true,
-            },
-            settledAt: {
-                type: Date,
-                required: true,
-                default: Date.now,
-            },
-        },
-        { timestamps: true, versionKey: false }
-    );
-
-weeklyTierBoundarySettlementSchema.index(
-    {
-        weekKey: 1,
-        seasonKey: 1,
-        division: 1,
-        lowerTier: 1,
-        upperTier: 1,
-        slotNumber: 1,
-    },
-    { unique: true }
-);
-
 const rankingMmrHistorySchema =
     new Schema(
         {
@@ -6776,7 +6530,7 @@ const rankingProfileSchema =
             },
             /*
              * 탈퇴 후 익명 데이터셋으로만 보존되는 프로필은
-             * 실시간 랭킹과 결석 감점 계산에서 제외한다.
+             * 실시간 랭킹과 주간 미응시 기록 처리에서 제외한다.
              */
             datasetOnly: {
                 type: Boolean,
@@ -6970,10 +6724,7 @@ const archiveFolderSchema =
                 enum: [
                     "AUTHENTICATED",
                     "MOCK_EXAM_PACKAGE",
-                    "LEARNING_PACKAGE",
-                    // 기존 운영 데이터 호환용입니다. 서비스 계층에서는
-                    // LEARNING_PACKAGE로 정규화하며 새로 저장하지 않습니다.
-                    "PAID_PACKAGE",
+                    "PRO",
                 ],
                 default: "AUTHENTICATED",
                 index: true,
@@ -7578,13 +7329,6 @@ const PrivateMockWeeklyResult =
         privateMockWeeklyResultSchema
     );
 
-const WeeklyTierBoundarySettlement =
-    mongoose.models.WeeklyTierBoundarySettlement ||
-    mongoose.model(
-        "WeeklyTierBoundarySettlement",
-        weeklyTierBoundarySettlementSchema
-    );
-
 const RankingProfile =
     mongoose.models.RankingProfile ||
     mongoose.model(
@@ -7661,7 +7405,6 @@ module.exports = {
     PrivateMockAnswerCorrection,
     PrivateMockObjection,
     PrivateMockWeeklyResult,
-    WeeklyTierBoundarySettlement,
     RankingProfile,
     NicknameChangeRequest,
     ArchiveFolder,

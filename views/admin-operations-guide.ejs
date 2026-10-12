@@ -77,10 +77,10 @@
           <h3>권장 점검 순서</h3>
           <ol>
             <li><strong>관리 알림</strong><span>신고, 신원 중복, 풀이 증거 이상 징후, 미처리 문의를 확인합니다.</span></li>
-            <li><strong>경기·정산 감사</strong><span>미정산 경기, 학습일수 불일치, 랭킹 재계산 대기 작업을 확인합니다.</span></li>
-            <li><strong>주간 모의고사</strong><span>문제지·JSON·답지의 회차와 공개 시간을 다시 대조합니다. CUSTOM은 정식 랭킹에서 제외됩니다.</span></li>
+            <li><strong>Arena 데이터 감사</strong><span>과거 기록 예약, 비동기 경기 연결, MMR 정산과 모드별 무결성 적용을 확인합니다.</span></li>
+            <li><strong>주간 모의고사</strong><span>문제지·JSON·답지의 회차와 공개 시간, 응시자 내부 MMR 정산을 다시 대조합니다. CUSTOM은 내부 MMR 정산에서 제외됩니다.</span></li>
             <li><strong>STORAGE</strong><span>디스크 사용량, R2 실패 항목, Cloudinary 사용량과 삭제 대기 파일을 확인합니다.</span></li>
-            <li><strong>운영 지표</strong><span>매출, 결제 전환, 이용 주기, 페이백과 이상 징후 표본을 확인합니다.</span></li>
+            <li><strong>운영 지표</strong><span>매출, 결제 전환, 계정 플랜, Arena 경기와 이상 징후 표본을 확인합니다.</span></li>
           </ol>
         </div>
       </section>
@@ -94,7 +94,7 @@
         </div>
         <div class="admin-guide-note critical">
           <strong>관리자 슈퍼계정</strong>
-          <p>관리자는 유료 페이지와 Unranked/Ranked 안내를 무제한·만료 없음으로 확인합니다. 그러나 실제 공식 랭킹의 GP·티어·학습일수는 화면 확인을 이유로 직접 수정하지 않습니다. 사용자 데이터 변경은 유저 관리·정산 감사처럼 감사 로그가 남는 기능으로 처리합니다.</p>
+          <p>관리자는 모든 운영 화면과 유료 콘텐츠를 무제한·만료 없음으로 확인합니다. 그러나 실제 경기 결과·MMR·배치 기록은 화면 확인을 이유로 직접 수정하지 않습니다. 사용자 데이터 변경은 유저 관리와 승인된 복구 기능처럼 감사 로그가 남는 경로로 처리합니다.</p>
         </div>
       </section>
 

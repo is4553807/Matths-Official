@@ -319,17 +319,23 @@ function makeHarmonicSequence(sourceReferenceId) {
       return { parameters: { firstIndex, secondIndex } };
     },
     solve({ firstIndex, secondIndex }) {
-      return positiveNumeratorDenominatorSum(rational(firstIndex + secondIndex, firstIndex * secondIndex));
+      return positiveNumeratorDenominatorSum(rational(firstIndex + secondIndex + 2, (firstIndex + 1) * (secondIndex + 1)));
     },
     crossCheck(parameters) {
-      const first = rational(1, parameters.firstIndex);
-      const second = rational(1, parameters.secondIndex);
+      const partialSum = (m) => {
+        let sum = rational(0, 1);
+        for (let n = 1; n <= m + 1; n += 1) sum = rationalAdd(sum, rational(1, n));
+        return sum;
+      };
+      const difference = (m) => rationalAdd(partialSum(m), rationalMul(partialSum(m - 1), rational(-1, 1)));
+      const first = difference(parameters.firstIndex);
+      const second = difference(parameters.secondIndex);
       return positiveNumeratorDenominatorSum(rationalAdd(first, second));
     },
     render(parameters, answer) {
       return {
         prompt: `\\(S_m=\\sum_{n=1}^{\\infty}\\frac{m+1}{n(n+m+1)}\\), \\(a_m=S_m-S_{m-1}\\)이다. \\(a_${parameters.firstIndex}+a_${parameters.secondIndex}=q/p\\)일 때 \\(p+q\\)를 구하여라.`,
-        solution: `무한급수를 망원합으로 바꾸면 \\(S_m\\)은 조화부분합이고 \\(a_m=1/m\\)이므로 답은 \\(${answer}\\)이다.`,
+        solution: `무한급수를 망원합으로 바꾸면 \\(S_m\\)은 조화부분합이고 \\(a_m=1/(m+1)\\)이므로 답은 \\(${answer}\\)이다.`,
       };
     },
   };
@@ -378,18 +384,20 @@ function makeCubicSecantParameter(sourceReferenceId) {
     },
     solve(parameters) {
       const quadraticCoefficient = rationalNumber(parameters.quadraticCoefficient);
-      const answers = [];
-      for (let a = 1; a <= 30; a += 1) {
-        const secant = a * a - quadraticCoefficient * a + parameters.linearCoefficient;
-        const derivative = 3 * parameters.derivativePoint ** 2 - 2 * quadraticCoefficient * parameters.derivativePoint + parameters.linearCoefficient;
-        if (Math.abs(secant - derivative) < 1e-9) answers.push(a);
-      }
-      if (answers.length !== 1) throw new Error("positive secant parameter is not unique");
+      const answers = [...new Set([parameters.selectedA, quadraticCoefficient - parameters.selectedA])]
+        .filter((root) => root > 0 && Math.abs(root - Math.round(root)) < 1e-9 &&
+          Math.abs(root * root - quadraticCoefficient * root + 2 * quadraticCoefficient * parameters.derivativePoint - 3 * parameters.derivativePoint ** 2) < 1e-9)
+        .map(Math.round);
+      if (answers.length !== 1) throw new Error("positive integer secant parameter is not unique");
       return answers[0];
     },
     crossCheck(parameters) {
       const quadraticCoefficient = rationalNumber(parameters.quadraticCoefficient);
-      const a = parameters.selectedA;
+      const discriminant = quadraticCoefficient ** 2 - 4 * (2 * quadraticCoefficient * parameters.derivativePoint - 3 * parameters.derivativePoint ** 2);
+      const roots = [(quadraticCoefficient + Math.sqrt(discriminant)) / 2, (quadraticCoefficient - Math.sqrt(discriminant)) / 2];
+      const integerRoots = [...new Set(roots.filter((root) => root > 0 && Math.abs(root - Math.round(root)) < 1e-9).map(Math.round))];
+      if (integerRoots.length !== 1) throw new Error("secant integer domain is not unique");
+      const a = integerRoots[0];
       const left = a * a - quadraticCoefficient * a + parameters.linearCoefficient;
       const right = 3 * parameters.derivativePoint ** 2 - 2 * quadraticCoefficient * parameters.derivativePoint + parameters.linearCoefficient;
       if (Math.abs(left - right) > 1e-9) throw new Error("secant derivative mismatch");
@@ -399,7 +407,7 @@ function makeCubicSecantParameter(sourceReferenceId) {
       const quadraticTerm = subtractedRationalTerm(parameters.quadraticCoefficient, "x^2");
       const linearTerm = parameters.linearCoefficient === 1 ? "+x" : `+${parameters.linearCoefficient}x`;
       return {
-        prompt: `\\(f(x)=x^3${quadraticTerm}${linearTerm}\\), \\(a>0\\)이고 \\(\\frac{f(a)-f(0)}a=f'(${parameters.derivativePoint})\\)이다. 유일한 양수 \\(a\\)를 구하여라.`,
+        prompt: `\\(f(x)=x^3${quadraticTerm}${linearTerm}\\), \\(a>0\\)이고 \\(\\frac{f(a)-f(0)}a=f'(${parameters.derivativePoint})\\)이며 \\(a\\)는 양의 정수이다. 유일한 양의 정수 \\(a\\)를 구하여라.`,
         solution: `할선기울기와 도함숫값을 계산해 이차방정식을 인수분해하면 \\(a=${answer}\\)이다.`,
       };
     },

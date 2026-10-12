@@ -1,16 +1,13 @@
 const assert = require("node:assert/strict");
 const mongoose = require("mongoose");
 const { User } = require("../models/matthsModel");
-const { MockExamSubscription } = require("../models/goatArenaModel");
 const {
   getPricingProductAccess,
 } = require("../services/checkoutService");
 const {
-  assertPackagePurchaseEligible,
-} = require("../services/accessCycleService");
-const {
-  assertMockExamPurchaseEligible,
-} = require("../services/mockExamPaymentService");
+  assertProPurchaseEligible,
+  proPlanDraft,
+} = require("../services/accountPlanService");
 
 async function rejectionCode(promise) {
   try {
@@ -29,61 +26,50 @@ async function main() {
   );
   await mongoose.connect(process.env.DB);
   try {
-    const [freeUser, mockUser, learningUser] = await Promise.all([
-      User.findOne({ name: "launchhsfree" }).select("_id").lean(),
-      User.findOne({ name: "launchhsmock" }).select("_id").lean(),
-      User.findOne({ name: "launchplacementrequired" }).select("_id").lean(),
+    const now = new Date("2026-10-09T03:00:00.000Z");
+    const [freeUser, proUser, expiredUser, admin] = await User.create([
+      { name: "pricing-free", email: "pricing-free@example.invalid", passwordHash: "unused", role: "student" },
+      {
+        name: "pricing-pro",
+        email: "pricing-pro@example.invalid",
+        passwordHash: "unused",
+        role: "student",
+        accountPlan: proPlanDraft({ now, startsAt: now, endsAt: new Date("2026-11-08T03:00:00.000Z") }),
+      },
+      {
+        name: "pricing-expired",
+        email: "pricing-expired@example.invalid",
+        passwordHash: "unused",
+        role: "student",
+        accountPlan: proPlanDraft({ now, startsAt: new Date("2026-09-01T00:00:00.000Z"), endsAt: now }),
+      },
+      { name: "pricing-admin", email: "pricing-admin@example.invalid", passwordHash: "unused", role: "admin" },
     ]);
-    assert.ok(freeUser && mockUser && learningUser, "목적형 감사 계정이 필요합니다.");
 
-    const [freeAccess, mockAccess, learningAccess] = await Promise.all([
-      getPricingProductAccess(freeUser._id),
-      getPricingProductAccess(mockUser._id),
-      getPricingProductAccess(learningUser._id),
+    const [freeAccess, proAccess, expiredAccess, adminAccess] = await Promise.all([
+      getPricingProductAccess(freeUser._id, now),
+      getPricingProductAccess(proUser._id, now),
+      getPricingProductAccess(expiredUser._id, now),
+      getPricingProductAccess(admin._id, now),
     ]);
-
-    assert.equal(freeAccess.MOCK_EXAM_ONLY.purchaseAllowed, true);
-    assert.equal(freeAccess.LEARNING_PACKAGE_29.purchaseAllowed, true);
-
-    assert.equal(mockAccess.MOCK_EXAM_ONLY.active, true);
-    assert.equal(mockAccess.MOCK_EXAM_ONLY.purchaseAllowed, false);
-    assert.equal(mockAccess.LEARNING_PACKAGE_29.purchaseAllowed, true);
+    assert.equal(freeAccess.PRO_MONTHLY.purchaseAllowed, true);
+    assert.equal(proAccess.PRO_MONTHLY.active, true);
+    assert.equal(proAccess.PRO_MONTHLY.purchaseAllowed, false);
+    assert.equal(expiredAccess.PRO_MONTHLY.active, false);
+    assert.equal(expiredAccess.PRO_MONTHLY.purchaseAllowed, true);
+    assert.equal(adminAccess.PRO_MONTHLY.active, true);
+    assert.equal(adminAccess.PRO_MONTHLY.purchaseAllowed, false);
     assert.deepEqual(
-      await rejectionCode(assertMockExamPurchaseEligible({ userId: mockUser._id })),
-      { status: 409, code: "MOCK_SUBSCRIPTION_ALREADY_ACTIVE" }
+      await rejectionCode(assertProPurchaseEligible({ userId: proUser._id, now })),
+      { status: 409, code: "PRO_PLAN_ALREADY_ACTIVE" }
     );
-
-    assert.equal(learningAccess.MOCK_EXAM_ONLY.active, true);
-    assert.equal(learningAccess.MOCK_EXAM_ONLY.includedByLearningPackage, true);
-    assert.equal(learningAccess.MOCK_EXAM_ONLY.purchaseAllowed, false);
-    assert.equal(learningAccess.LEARNING_PACKAGE_29.active, true);
-    assert.equal(learningAccess.LEARNING_PACKAGE_29.purchaseAllowed, false);
     assert.deepEqual(
-      await rejectionCode(assertMockExamPurchaseEligible({ userId: learningUser._id })),
-      { status: 409, code: "LEARNING_PACKAGE_ALREADY_INCLUDES_MOCK" }
+      await rejectionCode(assertProPurchaseEligible({ userId: admin._id, now })),
+      { status: 409, code: "ADMIN_PLAN_PURCHASE_NOT_REQUIRED" }
     );
-    const packageRejection = await rejectionCode(
-      assertPackagePurchaseEligible({ userId: learningUser._id })
-    );
-    assert.equal(packageRejection?.status, 409);
-    assert.equal(packageRejection?.code, "PACKAGE_PURCHASE_NOT_ELIGIBLE");
-
-    const subscription = await MockExamSubscription.findOne({
-      userId: mockUser._id,
-      status: "ACTIVE",
-    })
-      .select("endsAt")
-      .lean();
-    assert.ok(subscription?.endsAt);
-    const afterExpiry = await getPricingProductAccess(
-      mockUser._id,
-      new Date(new Date(subscription.endsAt).getTime() + 1000)
-    );
-    assert.equal(afterExpiry.MOCK_EXAM_ONLY.active, false);
-    assert.equal(afterExpiry.MOCK_EXAM_ONLY.purchaseAllowed, true);
 
     console.log(
-      "Isolated DB pricing entitlement verification passed: free, mock-only, learning-package, direct duplicate guards, and post-expiry CTA state."
+      "Isolated DB pricing entitlement verification passed: FREE, active/expired Pro and administrator states."
     );
   } finally {
     await mongoose.disconnect();

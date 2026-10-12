@@ -1,9 +1,4 @@
 <%
-  const publicArenaText = typeof arenaPublicText === "function"
-    ? arenaPublicText
-    : (value) => String(value ?? "").replace(/Sub\s+Division/g, "Unranked").replace(/Main\s+Division/g, "Ranked");
-  const formatWon = (value) =>
-    `${new Intl.NumberFormat("ko-KR").format(Number(value) || 0)}원`;
   const formatKstDate = (value) =>
     new Intl.DateTimeFormat("ko-KR", {
       timeZone: "Asia/Seoul",
@@ -11,35 +6,21 @@
       month: "long",
       day: "numeric",
     }).format(new Date(value));
-  const formatKstDateTime = (value) =>
-    new Intl.DateTimeFormat("ko-KR", {
-      timeZone: "Asia/Seoul",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    }).format(new Date(value));
-  const paybackBandLabel = (band) =>
-    band.maxScoreDays === null
-      ? `${band.minScoreDays}점 이상`
-      : `${band.minScoreDays}~${band.maxScoreDays}점`;
+  const isNormal = rulebook.division === "SUB";
 %>
 <!doctype html>
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="GOAT Arena <%= rulebook.division === 'SUB' ? 'Unranked' : 'Ranked' %> 공식 경기 규정" />
+    <meta name="description" content="GOAT Arena <%= rulebook.mode.mode %> 경기 규정" />
     <meta name="theme-color" content="#070913" />
     <title><%= rulebook.title %> | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
-    <%- include("partials/rank-motion-head") %>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <script src="/js/goat-arena.js" defer></script>
   </head>
-  <body class="goat-arena-page arena-inner-page arena-rulebook-page">
+  <body class="goat-arena-page arena-inner-page arena-rulebook-page" data-current-rulebook-version="<%= rulebook.revision %>">
     <a class="arena-skip-link" href="#arena-rulebook-main">본문으로 바로가기</a>
     <%- include("partials/goat-arena-navigation", { activeArenaPage, arenaUser }) %>
 
@@ -50,344 +31,107 @@
           <h1><%= rulebook.title %></h1>
           <span><%= rulebook.intro %></span>
         </div>
-        <nav class="arena-rulebook-switcher" aria-label="Division 규정 전환">
-          <a class="<%= rulebook.division === 'SUB' ? 'active' : '' %>" href="/goat-arena/rules/sub">Unranked 규정</a>
-          <a class="<%= rulebook.division === 'MAIN' ? 'active' : '' %>" href="/goat-arena/rules/main">Ranked 규정</a>
+        <nav class="arena-rulebook-switcher" aria-label="경기 규정 바로가기">
+          <a href="/goat-arena/rules">전체 안내</a>
+          <a class="<%= isNormal ? 'active' : '' %>" href="/goat-arena/rules/sub"<% if (isNormal) { %> aria-current="page"<% } %>>일반전</a>
+          <a class="<%= isNormal ? '' : 'active' %>" href="/goat-arena/rules/main"<% if (!isNormal) { %> aria-current="page"<% } %>>경쟁전</a>
         </nav>
       </header>
 
       <section class="arena-rulebook-summary" aria-labelledby="rule-summary-title">
-        <div><small><%= rulebook.division === 'MAIN' ? 'RANKED' : 'UNRANKED' %> 핵심 규정</small><h2 id="rule-summary-title"><%= rulebook.division === 'MAIN' ? 'Ranked' : 'Unranked' %> 1대1 경기에 적용되는 규정</h2></div>
+        <div>
+          <small><%= rulebook.mode.eyebrow %></small>
+          <h2 id="rule-summary-title">한눈에 보는 <%= rulebook.mode.mode %></h2>
+        </div>
         <ol>
           <% rulebook.summary.forEach((item) => { %><li><%= item %></li><% }) %>
         </ol>
       </section>
 
-      <% if (rulebook.problemDesign) { const design = rulebook.problemDesign; %>
-        <section class="arena-question-standard" aria-labelledby="arena-question-standard-title">
-          <header>
-            <div>
-              <small><%= design.publicName.toUpperCase() %> 출제 기준</small>
-              <h2 id="arena-question-standard-title"><%= design.publicName %> 1대1 문제는 이렇게 정합니다.</h2>
-            </div>
-            <span><%= design.difficultyPrefix %>1~<%= design.difficultyPrefix %>9</span>
-          </header>
-
-          <article class="arena-question-standard-block">
-            <div class="arena-question-standard-number">01</div>
-            <div>
-              <small>난이도 기준</small>
-              <h3>Division과 방어자 티어를 기준으로 출제합니다.</h3>
-              <ul><% design.principles.forEach((line) => { %><li><%= line %></li><% }) %></ul>
-              <div class="arena-question-table-wrap">
-                <table class="arena-mobile-card-table">
-                  <thead><tr><th scope="col">방어자 티어</th><th scope="col">난이도 기준</th><th scope="col">공개 난이도</th></tr></thead>
-                  <tbody><% design.matchupRows.forEach((row) => { %><tr><th scope="row"><%= row.matchup %></th><td data-label="난이도 기준"><%= row.anchor %></td><td data-label="공개 난이도"><strong><%= row.difficultyCode %></strong></td></tr><% }) %></tbody>
-                </table>
-              </div>
-            </div>
-          </article>
-
-          <article class="arena-question-standard-block">
-            <div class="arena-question-standard-number">02</div>
-            <div>
-              <small><%= design.publicName %> 전용 정답률표</small>
-              <h3>정답률 구간과 문항 순서로 <%= design.difficultyPrefix %>1~<%= design.difficultyPrefix %>9 난이도를 구분합니다.</h3>
-              <ul><% design.accuracyPrinciples.forEach((line) => { %><li><%= line %></li><% }) %></ul>
-              <div class="arena-question-table-wrap">
-                <table class="arena-difficulty-plan-table">
-                  <thead><tr><th scope="col">단계·티어</th><% [1, 2, 3, 4, 5].forEach((order) => { %><th scope="col"><%= order %>번</th><% }) %><th scope="col">기준 평균</th></tr></thead>
-                  <tbody>
-                    <% design.accuracyRows.forEach((row) => { %>
-                      <tr>
-                        <th scope="row"><strong><%= row.stage %></strong><br><small><%= row.tierLabel %></small></th>
-                        <% row.slots.forEach((slot) => { %>
-                          <td data-label="<%= slot.order %>번"><span><strong><%= slot.code %> · <%= slot.label %></strong><br><small>기준 정답률 <%= slot.rangeLabel %></small></span></td>
-                        <% }) %>
-                        <td data-label="기준 평균"><span><strong><%= row.referenceAveragePercent %>%</strong></span></td>
-                      </tr>
-                    <% }) %>
-                  </tbody>
-                </table>
-              </div>
-              <div class="arena-question-table-wrap">
-                <table class="arena-mobile-card-table">
-                  <thead><tr><th scope="col">Division</th><th scope="col">한 경기 안의 난이도 흐름</th><th scope="col">예시</th></tr></thead>
-                  <tbody><% design.curveRows.forEach((row) => { %><tr><th scope="row"><%= row.division %></th><td data-label="난이도 흐름"><%= row.sequence %></td><td data-label="예시"><%= row.example %></td></tr><% }) %></tbody>
-                </table>
-              </div>
-            </div>
-          </article>
-
-          <article class="arena-question-standard-block">
-            <div class="arena-question-standard-number">03</div>
-            <div>
-              <small><%= design.publicName %> 난이도 정의와 경기 규격</small>
-              <h3><%= design.compositionHeadline %></h3>
-              <blockquote><%= design.semiKillerDefinition %></blockquote>
-              <dl><% design.matchSpec.forEach(([label, value]) => { %><div><dt><%= label %></dt><dd><%= value %></dd></div><% }) %></dl>
-            </div>
-          </article>
-
-          <% if (design.curriculumAlignment) { const alignment = design.curriculumAlignment; %>
-            <article class="arena-question-standard-block">
-              <div class="arena-question-standard-number">04</div>
-              <div>
-                <small>출제 범위</small>
-                <h3>경기 문제의 과목과 범위를 확인하세요.</h3>
-                <ul>
-                  <li>직접 출제 과목은 <strong><%= alignment.directCourses.join(' · ') %></strong>입니다.</li>
-                  <li><strong><%= alignment.indirectCourses.join(' · ') %></strong>는 직접 슬롯이 아니라 위계·연계 기초 개념으로 반영합니다.</li>
-                  <li>문항은 <%= alignment.behaviorDomains.join(' · ') %>의 사고 행동을 함께 확인합니다.</li>
-                  <% alignment.representationRequirements.forEach((line) => { %><li><%= line %></li><% }) %>
-                </ul>
-              </div>
-            </article>
-          <% } %>
-        </section>
-      <% } %>
-
-      <% if (rulebook.division === "MAIN") { %>
-        <% if (rulebook.mainPolicy) { const policy = rulebook.mainPolicy; %>
-          <section class="arena-main-policy" aria-labelledby="main-policy-title">
-            <header>
-              <div>
-                <small>현재 적용 규정</small>
-                <h2 id="main-policy-title">Ranked 경기 예치 기준</h2>
-                <p>신규 상향 쟁탈전에는 티어 차이별 최소 예치와 공통 최대 5일 기준이 적용됩니다.</p>
-              </div>
-              <strong>Ranked 공식 규정</strong>
-            </header>
-            <dl>
-              <div>
-                <dt>상향 쟁탈전 최대 티어 차이</dt>
-                <dd>3단계</dd>
-              </div>
-              <div>
-                <dt>상대 재매칭 제외</dt>
-                <dd><%= policy.repeatOpponentExclusionDays %>일</dd>
-              </div>
-              <div>
-                <dt>복수전 예치 배수</dt>
-                <dd>원경기의 <%= policy.revengeStakeMultiplier %>배</dd>
-              </div>
-              <div>
-                <dt>복수전 수수료</dt>
-                <dd><%= policy.revengeFeeDays %>일</dd>
-              </div>
-            </dl>
-            <div class="arena-main-policy-bands" aria-label="티어 차이별 예치 범위">
-              <% [1, 2, 3].forEach((tierGap) => { %>
-                <article>
-                  <small><%= tierGap %>단계 차이</small>
-                  <strong><%= `${tierGap}~5일 예치` %></strong>
-                </article>
-              <% }) %>
-            </div>
-            <p class="arena-main-policy-condition">
-              상향 쟁탈전은 공격자만 최대 5일까지 예치하고 예치 뒤 최소 1일을 남겨야 합니다. 자동 방어자는 활성 이용 상태의 1일 이상이면 되며, 최근 24시간 방어 횟수가 가장 적은 후보군에서 무작위 배정됩니다. 경기 종료 후 6시간, 진행 중 경기 또는 초대 예약이 있는 동안에는 강제 자동 방어 후보에서 제외됩니다. 6시간 유예 중에도 상위 티어가 보낸 자발적 초대전은 알림을 받고 수락하거나 거절할 수 있습니다.
-            </p>
-            <footer>
-              적용일
-              <time datetime="<%= new Date(policy.effectiveFrom).toISOString() %>"><%= formatKstDateTime(policy.effectiveFrom) %></time>
-              (KST)
-              <% if (policy.effectiveUntil) { %>
-                · 종료 예정
-                <time datetime="<%= new Date(policy.effectiveUntil).toISOString() %>"><%= formatKstDateTime(policy.effectiveUntil) %></time>
-                (KST)
-              <% } %>
-            </footer>
-          </section>
-        <% } else { %>
-          <section class="arena-main-policy-empty" role="status">
-            <small>이용 준비 중</small>
-            <h2>Ranked 신규 경기가 잠시 중단되었습니다.</h2>
-            <p>Ranked 신규 경기를 다시 이용할 수 있게 되면 최대 티어 차이와 최소 예치 일수를 이 화면에서 안내합니다.</p>
-          </section>
-        <% } %>
-
-        <section class="arena-ranked-economy-map" aria-labelledby="ranked-economy-title">
-          <header>
-            <div>
-              <small>RANKED · 일반전 정산 구조</small>
-              <h2 id="ranked-economy-title">경기 생성 방식에 따라 예치 방식이 달라집니다.</h2>
-              <p>여기서 S는 상향 쟁탈전에서 티어 차이에 따른 최소값 이상, 최대 5일 안에서 공격자가 선택한 예치 학습일수입니다. 일반전은 어느 경우에도 새 학습일수를 만들거나 없애지 않습니다.</p>
-            </div>
-          </header>
-          <div class="arena-ranked-economy-table-wrap">
-            <table class="arena-mobile-card-table">
-              <thead>
-                <tr>
-                  <th scope="col">경기 방식</th>
-                  <th scope="col">예치 방식</th>
-                  <th scope="col">공격자 승리</th>
-                  <th scope="col">방어자 승리</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th scope="row">상향 쟁탈전<br /><small>하위 티어 → 상위 티어 · 자동 방어</small></th>
-                  <td data-label="예치 방식">공격자만 S일 예치</td>
-                  <td data-label="공격자 승리">공격자 S일 반환<br />Arena 상태 교환</td>
-                  <td data-label="방어자 승리">공격자 S일이 방어자에게 이전<br />Arena 상태 유지</td>
-                </tr>
-                <tr>
-                  <th scope="row">수락형 초대전<br /><small>상위 티어 → 하위 티어 · 수락 뒤 성립</small></th>
-                  <td data-label="예치 방식">수락 후 양쪽이 S일씩 예치</td>
-                  <td data-label="공격자 승리">공격자 S일 반환 + 방어자 S일 이전<br />Arena 상태 교환</td>
-                  <td data-label="방어자 승리">방어자 S일 반환 + 공격자 S일 이전<br />Arena 상태 유지</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <footer>복수전의 2배 예치와 1일 수수료, 일일 학습일수 차감, 상점 이용은 일반전 정산과 별도의 운영 규정입니다.</footer>
-        </section>
-
-      <% } %>
-
-      <% if (rulebook.division === "MAIN") { %>
-      <section class="arena-ranked-economy-map arena-friendly-policy" aria-labelledby="friendly-policy-title">
-        <header>
-          <div>
-            <small>Ranked · 친선 경기</small>
-            <h2 id="friendly-policy-title">순위 부담 없이 Ranked 사용자와 실력을 겨룰 수 있습니다.</h2>
-            <p>활성 Ranked 사용자는 닉네임을 검색해 서로 초대할 수 있습니다. 친구 목록이나 별도 친구 추가는 필요하지 않습니다.</p>
-          </div>
-        </header>
-        <div class="arena-ranked-economy-table-wrap">
-          <table class="arena-mobile-card-table">
-            <thead><tr><th scope="col">초대 전</th><th scope="col">수락 시</th><th scope="col">문제 난이도</th><th scope="col">경기 결과</th></tr></thead>
-            <tbody><tr>
-              <td data-label="초대 전">학습일수 차감 없이 초대·거절·취소 가능</td>
-              <td data-label="수락 시">양쪽에서 이용 수수료 1일씩 차감</td>
-              <td data-label="문제 난이도">두 참가자 중 더 높은 Ranked 티어에 맞춘 동일 5문항</td>
-              <td data-label="경기 결과">티어·GP·순위·학습일수 이전 없음</td>
-            </tr></tbody>
-          </table>
-        </div>
-        <footer>친선 경기도 문항당 제한 시간과 필수 풀이 증거 제출 규정을 적용합니다. 복수전 권리, 공식 경기 전적과 공격·방어 횟수에는 포함되지 않습니다.</footer>
-      </section>
-      <% } %>
-
-      <% if (rulebook.paybackPolicy) { const policy = rulebook.paybackPolicy; %>
-        <section class="arena-payback-policy" aria-labelledby="payback-policy-title">
-          <header>
-            <div>
-              <small>현재 적용 기준</small>
-              <h2 id="payback-policy-title">페이백 기준</h2>
-              <p>이용을 시작할 때 안내된 기준으로 자격과 최종 금액을 판정합니다.</p>
-            </div>
-            <strong>학습권 패키지</strong>
-          </header>
-          <dl>
-            <div><dt>패키지 가격</dt><dd><%= formatWon(policy.priceAmount) %></dd></div>
-            <div><dt>정기권 학습 가능 일수</dt><dd><%= policy.initialLearningDays %>일</dd></div>
-            <div><dt>공격 출석</dt><dd><%= policy.minimumAttackParticipationDays %> / <%= policy.initialLearningDays %>일</dd></div>
-            <div><dt>인정 기준</dt><dd>일반전·복수전 공격, 승패 무관</dd></div>
-            <div><dt>최소 페이백 점수</dt><dd><%= policy.minimumScoreDays %>점</dd></div>
-          </dl>
-          <p>29일 이용 주기 중 서로 다른 한국 날짜 <%= policy.minimumAttackParticipationDays %>일에 공격자로 모든 답안과 필수 풀이 증거를 정상 제출해야 합니다. 공격 시작만으로는 인정하지 않고 승패는 관계없으며, 같은 날 여러 번 정상 제출해도 공격 출석은 1일로 계산합니다. 출석일은 연속될 필요가 없습니다.</p>
-          <article class="arena-payback-disclosure">
-            <span>제도 안내</span>
-            <div>
-              <h3>지급과 환불의 구분</h3>
-              <p>페이백은 다른 이용자의 결제금이나 경기 예치금을 재분배하는 방식이 아니라 운영자가 별도로 확보한 준비금에서 지급합니다. 운영자가 지급 대상과 계좌를 확인한 뒤 직접 송금하며, 페이백 확정 및 계좌 확인 완료일부터 7영업일 이내 지급합니다.</p>
-              <p>환불은 이용자가 낸 결제대금을 원 결제수단으로 취소하는 별도 절차입니다. 환불이 완료되면 해당 유료 이용 주기와 신규 Arena 참가 권한, 남은 페이백 심사·지급 대상 자격이 함께 종료됩니다.</p>
-            </div>
-          </article>
-          <div class="arena-payback-table-wrap">
-            <table>
-              <thead><tr><th scope="col">페이백 점수</th><th scope="col">페이백 비율</th><th scope="col">예상 페이백 금액</th></tr></thead>
-              <tbody>
-                <% policy.bands.forEach((band) => { %>
-                  <tr><th scope="row"><%= paybackBandLabel(band) %></th><td><%= band.ratePercent %>%</td><td><%= formatWon(band.expectedPaybackAmount) %></td></tr>
-                <% }) %>
-              </tbody>
-            </table>
-          </div>
-          <section class="arena-payback-limits" aria-labelledby="sub-daily-limit-title">
-            <header>
-              <small>경기 참여 기준</small>
-              <h3 id="sub-daily-limit-title">티어별 일일 일반 쟁탈전 상한</h3>
-            </header>
-            <div class="arena-payback-table-wrap">
-              <table>
-                <thead><tr><th scope="col">티어</th><th scope="col">공격</th><th scope="col">방어</th></tr></thead>
-                <tbody>
-                  <% policy.dailyMatchLimitsByTier.forEach((row) => { %>
-                    <tr><th scope="row"><%= row.tierLabel || row.tier %></th><td><%= row.attackLimit %>회</td><td><%= row.defenseLimit %>회</td></tr>
-                  <% }) %>
-                </tbody>
-              </table>
-            </div>
-            <div class="arena-payback-limit-notes">
-              <p>일반 공격은 모든 티어에서 하루 최대 3회이며, 방어 상한은 티어가 올라갈수록 증가합니다. KST 날짜 기준으로 성립한 일반 쟁탈전만 집계하고 복수전은 제외합니다. 경기 뒤 티어가 바뀌면 새 티어의 방어 한도가 즉시 적용됩니다. 도전자로 승리하면 그날 남은 일반 공격만 잠기며, 방어 자격은 현재 티어의 일일 방어 상한까지 유지됩니다.</p>
-              <p>한 사용자는 동시에 정산되지 않은 공식 경기 하나만 가질 수 있습니다. 경기가 정산되면 남은 방어 슬롯으로 다음 방어전에 배정될 수 있으며, Unranked에는 경기 종료 뒤 6시간 하드 쿨다운을 적용하지 않습니다.</p>
-              <p>방어전 정산 후 1시간이 지나지 않은 사용자는 같은 대상 티어에 다른 후보가 있을 때 후순위로 배치합니다. 모든 후보가 1시간 이내 정산 상태라면 매칭을 막지 않고, 최근 72시간 일반 쟁탈전 방어 횟수가 가장 적은 사용자를 우선합니다. 동률이면 마지막 방어 배정이 가장 오래된 사용자를 먼저 고르고, 그 시각까지 같을 때만 무작위로 연결합니다. 복수전은 이 집계에서 제외하며 특정 사용자를 직접 선택할 수 없습니다.</p>
-              <p>페이백 점수가 0점이어도 패키지 이용 기간에는 방어할 수 있습니다. 정기권 학습 가능 일수가 0일이 되더라도 마지막 공식 공격 제출 마감 전까지는 Unranked 공식 경기를 허용하고, 마감 뒤 공격과 방어가 모두 잠깁니다.</p>
-            </div>
-          </section>
-          <footer>최근 수정일 <time datetime="<%= new Date(policy.lastModifiedAt).toISOString() %>"><%= formatKstDate(policy.lastModifiedAt) %></time> (KST)</footer>
-        </section>
-      <% } %>
-
-      <% if (rulebook.upcomingPolicy) { const upcoming = rulebook.upcomingPolicy; %>
-        <section class="arena-upcoming-policy" aria-labelledby="arena-upcoming-policy-title">
-          <header>
-            <div>
-              <small>30일 사전 고지</small>
-              <h2 id="arena-upcoming-policy-title">변경 예정 운영 기준</h2>
-            </div>
-            <strong><time datetime="<%= new Date(upcoming.effectiveFrom).toISOString() %>"><%= formatKstDateTime(upcoming.effectiveFrom) %></time> KST 적용</strong>
-          </header>
-          <p>적용 전까지는 위의 현재 기준을 사용하며, 적용 시점부터 신규 경기와 이용 판정에 아래 기준을 사용합니다.</p>
-          <% if (rulebook.division === "SUB") { %>
-            <div class="arena-payback-table-wrap">
-              <table>
-                <thead><tr><th scope="col">티어</th><th scope="col">일일 공격</th><th scope="col">일일 방어</th></tr></thead>
-                <tbody>
-                  <% upcoming.dailyMatchLimitsByTier.forEach((row) => { %>
-                    <tr><th scope="row"><%= row.tierLabel || row.tier %></th><td><%= row.attackLimit %>회</td><td><%= row.defenseLimit %>회</td></tr>
-                  <% }) %>
-                </tbody>
-              </table>
-            </div>
-          <% } else { %>
-            <dl>
-              <div><dt>최대 티어 차이</dt><dd><%= upcoming.maximumTargetTierGap %>단계</dd></div>
-              <div><dt>최근 상대 제외</dt><dd><%= upcoming.repeatOpponentExclusionDays %>일</dd></div>
-              <div><dt>복수전 배수</dt><dd><%= upcoming.revengeStakeMultiplier %>배</dd></div>
-              <div><dt>복수전 수수료</dt><dd><%= upcoming.revengeFeeDays %>일</dd></div>
-            </dl>
-          <% } %>
-        </section>
-      <% } %>
-
       <div class="arena-rulebook-layout">
-        <aside>
-          <strong><%= rulebook.division === "SUB" ? "Unranked" : "Ranked" %></strong>
-          <nav aria-label="규정 목차">
-            <% rulebook.rules.forEach((rule) => { %><a href="#rule-<%= rule.number %>">규정 <%= rule.number %> · <%= rule.title %></a><% }) %>
+        <aside aria-label="이 페이지의 세부 규정">
+          <strong><%= rulebook.mode.mode %> 자세히 보기</strong>
+          <nav>
+            <a href="#difficulty">티어별 문제 난이도</a>
+            <a href="#details">경기 진행과 결과</a>
           </nav>
         </aside>
 
         <div class="arena-rulebook-list">
-          <% rulebook.rules.forEach((rule, ruleIndex) => { %>
-            <section class="arena-rule-group" id="rule-<%= rule.number %>">
-              <header><span>규정 <%= rule.number %></span><h2><%= rule.title %></h2></header>
-              <div>
-                <% rule.sections.forEach((section, sectionIndex) => { %>
-                  <details <%= ruleIndex === 0 && sectionIndex === 0 ? "open" : "" %>>
-                    <summary><span>제<%= sectionIndex + 1 %>절</span><strong><%= section.title %></strong><i aria-hidden="true"></i></summary>
-                    <ul><% section.body.forEach((line) => { %><li><%= line %></li><% }) %></ul>
-                  </details>
-                <% }) %>
-              </div>
-            </section>
-          <% }) %>
+          <section class="arena-rule-group arena-question-standard" id="difficulty" aria-labelledby="difficulty-title">
+            <header>
+              <span>TIER DIFFICULTY · <%= rulebook.difficulty.codeRange %></span>
+              <h2 id="difficulty-title">티어별 문제 난이도</h2>
+            </header>
+            <div>
+              <details>
+                <summary>
+                  <span>01</span>
+                  <strong>티어별 5문항 구성을 확인하세요</strong>
+                  <i aria-hidden="true"></i>
+                </summary>
+                <div class="arena-rule-detail-body">
+                  <p><%= rulebook.difficulty.headline %></p>
+                  <ul>
+                    <% rulebook.difficulty.notes.forEach((note) => { %><li><%= note %></li><% }) %>
+                  </ul>
+                  <div class="arena-question-table-wrap">
+                    <table class="arena-difficulty-plan-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">티어</th>
+                          <% for (let order = 1; order <= rulebook.questionCount; order += 1) { %>
+                            <th scope="col"><%= order %>번</th>
+                          <% } %>
+                          <th scope="col">문항 구성</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <% rulebook.difficulty.rows.forEach((row) => { %>
+                          <tr>
+                            <th scope="row"><%= row.tierLabel %><br /><small><%= row.stage %></small></th>
+                            <% row.slots.forEach((slot) => { %>
+                              <td data-label="<%= slot.order %>번"><span><%= slot.label %></span></td>
+                            <% }) %>
+                            <td data-label="문항 구성"><strong><%= row.compositionLabel %></strong></td>
+                          </tr>
+                        <% }) %>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p class="arena-rule-detail-note">출제 범위는 <%= rulebook.difficulty.curriculum.join(", ") %>이며, 실제 문항은 경기마다 달라질 수 있습니다.</p>
+                </div>
+              </details>
+            </div>
+          </section>
+
+          <section class="arena-rule-group" id="details" aria-labelledby="details-title">
+            <header>
+              <span>HOW IT WORKS</span>
+              <h2 id="details-title">경기 진행과 결과</h2>
+            </header>
+            <div>
+              <% rulebook.sections.forEach((section, index) => { %>
+                <details>
+                  <summary>
+                    <span><%= String(index + 1).padStart(2, "0") %></span>
+                    <strong><%= section.title %></strong>
+                    <i aria-hidden="true"></i>
+                  </summary>
+                  <ul><% section.body.forEach((line) => { %><li><%= line %></li><% }) %></ul>
+                </details>
+              <% }) %>
+            </div>
+          </section>
         </div>
       </div>
+
+      <nav class="arena-rulebook-footer-actions" aria-label="다음 이동">
+        <a href="<%= rulebook.otherMode.href %>"><%= rulebook.otherMode.mode %> 규정 보기</a>
+        <a class="primary" href="<%= rulebook.mode.playHref %>"><%= rulebook.mode.mode %> 시작하기</a>
+      </nav>
+      <p class="arena-rulebook-updated">최근 수정일 <time datetime="<%= new Date(rulebook.lastModifiedAt).toISOString() %>"><%= formatKstDate(rulebook.lastModifiedAt) %></time> (KST)</p>
     </main>
-  <%- include("partials/business-footer") %>
+    <%- include("partials/business-footer") %>
   </body>
 </html>

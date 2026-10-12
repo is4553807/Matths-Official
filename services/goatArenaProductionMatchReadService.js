@@ -1,13 +1,10 @@
+const { publicCompetitivePointChange } = require("./arenaPublicResponseService");
 const mongoose = require("mongoose");
 
 const {
   ArenaMatch,
   ArenaMatchAttempt,
-  MainInvitationOffer,
 } = require("../models/goatArenaModel");
-const {
-  buildArenaMatchPreStartContract,
-} = require("./arenaMatchPreStartContractService");
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
@@ -66,6 +63,24 @@ function participantFilter(userId, role = null) {
   };
 }
 
+function activeParticipantFilter(userId, role = null) {
+  const liveDefender = {
+    $and: [
+      { "defender.userId": userId },
+      { "normalAsync.enabled": { $ne: true } },
+      { "competitiveAsync.enabled": { $ne: true } },
+    ],
+  };
+  if (role === "DEFENDER") return liveDefender;
+  if (role === "CHALLENGER") return { "challenger.userId": userId };
+  return {
+    $or: [
+      { "challenger.userId": userId },
+      liveDefender,
+    ],
+  };
+}
+
 function participantRoleFilter(value) {
   if (value === null || value === undefined || value === "") return null;
   const normalized = String(value).trim().toUpperCase();
@@ -93,24 +108,20 @@ function participantRole(match, userId) {
   fail("MATCH_NOT_FOUND", "GOAT Arena match was not found", 404);
 }
 
-function participantSnapshot(match, role) {
-  return role === "CHALLENGER" ? match.challenger : match.defender;
-}
-
-function opponentSnapshot(match, role) {
-  return role === "CHALLENGER" ? match.defender : match.challenger;
-}
-
 function publicIntegrityState(match) {
   return match.integrityStatus || "PENDING";
 }
 
 function outcomeFor(match, role) {
-  if (!match.winnerRole) return null;
+  if (!match.winnerRole) return match.status === "SETTLED" ? "DRAW" : null;
   return match.winnerRole === role ? "WON" : "LOST";
 }
 
-function availableActions(match, attempt) {
+function availableActions(match, attempt, role) {
+  if (
+    role === "DEFENDER" &&
+    (match.normalAsync?.enabled || match.competitiveAsync?.enabled)
+  ) return [];
   if (match.status === "HELD") return [];
   if (
     ["MATCHED", "READY"].includes(match.status) &&
@@ -133,8 +144,6 @@ function serializeParticipantMatch(source, userId, participantAttempt = null) {
   const attempt = asPlain(participantAttempt);
   if (!match) return null;
   const role = participantRole(match, userId);
-  const mine = participantSnapshot(match, role) || {};
-  const opponent = opponentSnapshot(match, role) || {};
   const settlement = match.resultSnapshot?.settlementSummary || {};
 
   if (
@@ -157,31 +166,15 @@ function serializeParticipantMatch(source, userId, participantAttempt = null) {
     revision: 0,
     status: match.status,
     role,
-    activeRanking: match.division,
+    arenaVersion: match.arenaVersion,
+    mode: match.gameMode || null,
+    activeRanking: match.gameMode,
     matchType: match.matchType,
-    preStartContract: buildArenaMatchPreStartContract(match, role),
-    myPositionBefore: mine.tupleBefore?.arenaPosition ?? null,
-    opponentPositionBefore: opponent.tupleBefore?.arenaPosition ?? null,
-    myPositionAfter:
-      settlement[
-        role === "CHALLENGER"
-          ? "challengerPositionAfter"
-          : "defenderPositionAfter"
-      ] ?? null,
-    opponentPositionAfter:
-      settlement[
-        role === "CHALLENGER"
-          ? "defenderPositionAfter"
-          : "challengerPositionAfter"
-      ] ?? null,
-    stake: {
-      assetType:
-        match.division === "MAIN"
-          ? "LEARNING_DAY"
-          : "PAYBACK_SCORE_DAY",
-      days: Number.isSafeInteger(mine.stakeDays) ? mine.stakeDays : null,
-    },
     outcome: outcomeFor(match, role),
+    ratingChange: match.gameMode === "COMPETITIVE"
+      ? publicCompetitivePointChange(settlement.competitiveScore)
+      : null,
+    xpAwarded: Boolean(settlement.xpAwarded),
     settlementReason:
       match.resultSnapshot?.tieBreakStep ||
       (match.status === "SETTLED" ? "SCORED_RESULT" : null),
@@ -215,8 +208,8 @@ function serializeParticipantMatch(source, userId, participantAttempt = null) {
         }
       : null,
     capabilities: {
-      mutations: "ARENA_MATCH_V1",
-      availableActions: availableActions(match, attempt),
+      mutations: "ARENA_MATCH_V2",
+      availableActions: availableActions(match, attempt, role),
     },
   };
 }
@@ -290,19 +283,21 @@ async function listParticipantMatches(
   const decodedCursor = decodeMatchCursor(cursor);
   const resolvedRole = participantRoleFilter(role);
   const actionableOnly = booleanQuery(actionable, "actionable");
-  const query = participantFilter(participantUserId, resolvedRole);
+  let query = actionableOnly
+    ? activeParticipantFilter(participantUserId, resolvedRole)
+    : participantFilter(participantUserId, resolvedRole);
   // 받은 공격은 전체 경기의 최근 N개를 가져온 뒤 앱에서 거르면 누락될 수 있다.
   // 서버가 먼저 역할과 미종료 상태를 제한해 cursor가 같은 집합 위에서 움직이게 한다.
   if (actionableOnly) query.status = { $in: ACTIVE_MATCH_STATUSES };
   if (decodedCursor) {
-    query.$and = [
+    query = { $and: [query,
       {
         $or: [
           { updatedAt: { $lt: decodedCursor.updatedAt } },
           { updatedAt: decodedCursor.updatedAt, _id: { $lt: decodedCursor.id } },
         ],
       },
-    ];
+    ] };
   }
   const rows = await MatchModel.find(query)
     .sort({ updatedAt: -1, _id: -1 })
@@ -362,7 +357,7 @@ async function getActiveParticipantMatch(
 ) {
   const participantUserId = objectId(userId, "user id");
   const match = await MatchModel.findOne({
-    ...participantFilter(participantUserId),
+    ...activeParticipantFilter(participantUserId),
     status: { $in: ACTIVE_MATCH_STATUSES },
   })
     .sort({ updatedAt: -1 })
@@ -375,42 +370,16 @@ async function getActiveParticipantMatch(
   return { match, attempt };
 }
 
-async function getPendingParticipantInvitation(
-  { userId },
-  { InvitationOfferModel = MainInvitationOffer } = {}
-) {
-  const participantUserId = objectId(userId, "user id");
-  const offer = await InvitationOfferModel.findOne({
-    candidateUserId: participantUserId,
-    status: "OFFERED",
-  })
-    .populate("invitationRequestId")
-    .sort({ offeredAt: -1 })
-    .lean();
-  if (!offer || !offer.invitationRequestId) return null;
-  const invitation = offer.invitationRequestId;
-  return {
-    id: String(offer._id),
-    status: offer.status,
-    activeRanking: "MAIN",
-    targetTier: invitation.targetTier,
-    initiatorTier: invitation.initiatorArenaTier,
-    stakeDays: Number(invitation.stakeDays || 0),
-    offeredAt: isoString(offer.offeredAt),
-    policyVersionCode: invitation.policyVersionCode || null,
-  };
-}
-
 module.exports = {
   ACTIVE_MATCH_STATUSES,
   DEFAULT_PAGE_SIZE,
   GoatArenaProductionReadError,
   MAX_PAGE_SIZE,
+  activeParticipantFilter,
   decodeMatchCursor,
   encodeMatchCursor,
   getActiveParticipantMatch,
   getParticipantMatch,
-  getPendingParticipantInvitation,
   listParticipantMatches,
   participantFilter,
   participantRoleFilter,

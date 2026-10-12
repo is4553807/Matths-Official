@@ -1,135 +1,25 @@
 <%
-  const publicArenaText = typeof arenaPublicText === "function"
-    ? arenaPublicText
-    : (value) => String(value ?? "").replace(/Sub\s+Division/g, "Unranked").replace(/Main\s+Division/g, "Ranked");
-  const formatDateTime = (value) =>
-    value
-      ? new Intl.DateTimeFormat("ko-KR", {
-          timeZone: "Asia/Seoul",
-          dateStyle: "medium",
-          timeStyle: "short",
-        }).format(new Date(value))
-      : "별도 종료 시각 없음";
-  const now = new Date(policyData.now);
-  const formatLocalInput = (value) => {
-    const date = value ? new Date(value) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const parts = Object.fromEntries(
-      new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Seoul",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hourCycle: "h23",
-      })
-        .formatToParts(date)
-        .filter((part) => part.type !== "literal")
-        .map((part) => [part.type, part.value])
-    );
-    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+  const overview = policyData;
+  const config = overview.config;
+  const matchmaking = overview.matchmaking;
+  const formatDate = (value) => value
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
+    : "기록 없음";
+  const number = (value) => Number(value || 0).toLocaleString("ko-KR");
+  const yesNo = (value) => value ? "적용" : "미적용";
+  const modeLabel = { NORMAL: "일반전", COMPETITIVE: "경쟁전", FRIENDLY: "친선전" };
+  const statusLabel = {
+    AVAILABLE: "사용 가능", RESERVED: "예약 중", REVIEW_REQUIRED: "검토 대기", INVALID: "무효",
+    MATCHED: "성립", READY: "시작 대기", IN_PROGRESS: "풀이 중", EVIDENCE_REQUIRED: "풀이 업로드 대기",
+    SUBMITTED: "제출 완료", HELD: "운영 검토", SETTLED: "확정", RESOLVED: "결과 확정", CANCELLED: "취소",
   };
-  const numberValue = (name, fallback) => {
-    const value = ["MAIN", "MOCK_EXAM_ONLY", "LEARNING_PACKAGE"].includes(oldInput?.policyDivision)
-      ? undefined
-      : oldInput?.[name];
-    return value === undefined || value === "" ? fallback : value;
-  };
-  const subBasePolicy = policyData.sub.upcomingPolicy || policyData.sub.activePolicy || {};
-  const attackParticipationDays = policyData.paybackRules.minimumAttackParticipationDays;
-  const paybackCycleDays = policyData.paybackRules.cycleDays;
-  const mainBasePolicy = policyData.main.upcomingPolicy || policyData.main.activePolicy || {};
-  const mainValue = (name, fallback) => {
-    const value = oldInput?.policyDivision === "MAIN" ? oldInput?.[name] : undefined;
-    return value === undefined || value === "" ? (mainBasePolicy?.[name] ?? fallback) : value;
-  };
-  const checkedValue = (name, fallback = true) => {
-    if (!oldInput) return fallback;
-    if (["MAIN", "MOCK_EXAM_ONLY", "LEARNING_PACKAGE"].includes(oldInput.policyDivision)) return fallback;
-    const value = oldInput[name];
-    const values = Array.isArray(value) ? value : [value];
-    return values.some((entry) => ["true", "1", "on"].includes(String(entry).toLowerCase()));
-  };
-  const defaultBands = (subBasePolicy.payback?.bands?.length
-    ? subBasePolicy.payback.bands
-    : [
-        { minScoreDays: 0, maxScoreDays: 29, ratePercent: 0 },
-        { minScoreDays: 30, maxScoreDays: 34, ratePercent: 50 },
-        { minScoreDays: 35, maxScoreDays: 39, ratePercent: 80 },
-        { minScoreDays: 40, maxScoreDays: "", ratePercent: 100 },
-      ]).map((band) => ({
-        ...band,
-        maxScoreDays: band.maxScoreDays ?? "",
-      }));
-  const oldBandMins = Array.isArray(oldInput?.bandMinScores)
-    ? oldInput.bandMinScores
-    : oldInput?.bandMinScores !== undefined
-      ? [oldInput.bandMinScores]
-      : [];
-  const oldBandMaxes = Array.isArray(oldInput?.bandMaxScores)
-    ? oldInput.bandMaxScores
-    : oldInput?.bandMaxScores !== undefined
-      ? [oldInput.bandMaxScores]
-      : [];
-  const oldBandRates = Array.isArray(oldInput?.bandRates)
-    ? oldInput.bandRates
-    : oldInput?.bandRates !== undefined
-      ? [oldInput.bandRates]
-      : [];
-  const bandRows = oldBandMins.length
-    ? oldBandMins.map((minScoreDays, index) => ({
-        minScoreDays,
-        maxScoreDays: oldBandMaxes[index] ?? "",
-        ratePercent: oldBandRates[index] ?? "",
-      }))
-    : defaultBands;
-  const policyState = (policy) => {
-    if (policy.status === "DRAFT") return "작성 중";
-    if (policy.status === "RETIRED") return "종료";
-    const startsAt = new Date(policy.effectiveFrom);
-    const endsAt = policy.effectiveUntil ? new Date(policy.effectiveUntil) : null;
-    if (startsAt > now) return "적용 예정";
-    if (endsAt && endsAt <= now) return "적용 종료";
-    return "적용 중";
-  };
-  const policyTitle = (policy) =>
-    publicArenaText(policy.displayName || `${formatDateTime(policy.effectiveFrom)} 적용 정책`);
-  const formatWon = (value) => `${new Intl.NumberFormat("ko-KR").format(Number(value) || 0)}원`;
-  const learningPackage = policyData.learningPackage.activePolicy;
-  const minimumPolicyDateTime = formatLocalInput(new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
-  const tierRows = [
-    ["BRONZE", "브론즈", 1],
-    ["SILVER", "실버", 1],
-    ["GOLD", "골드", 2],
-    ["PLATINUM", "플래티넘", 2],
-    ["EMERALD", "에메랄드", 3],
-    ["DIAMOND", "다이아몬드", 3],
-    ["MASTER", "마스터", 4],
-    ["GRANDMASTER", "그랜드마스터", 4],
-    ["CHALLENGER", "챌린저", 4],
-  ];
-  const activeSubLimits = new Map(
-    (subBasePolicy.dailyMatchLimitsByTier || []).map((row) => [row.tier, row])
-  );
-  const subLimitValue = (tier, fallback) => {
-    const inputName = `subDefenseLimit_${tier}`;
-    const submitted = oldInput?.policyDivision === "MAIN" ? undefined : oldInput?.[inputName];
-    if (submitted !== undefined && submitted !== "") return submitted;
-    return activeSubLimits.get(tier)?.defenseLimit ?? fallback;
-  };
-  const totalPolicyCount =
-    policyData.policies.length +
-    policyData.main.policies.length +
-    policyData.mockExamOnly.policies.length +
-    (policyData.mainShop?.policies?.length || 0);
-  const matchmaking = policyData.matchmakingControl || { isPaused: false };
 %>
 <!doctype html>
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>GOAT Arena 정책·상품 관리 | Matths</title>
+    <title>Arena 운영 설정 | Matths</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/admin.css" />
@@ -140,376 +30,176 @@
     <main class="admin-main">
       <header class="admin-heading">
         <div>
-          <p>정책 버전 관리</p>
-          <h1>GOAT Arena 정책·상품 관리</h1>
-          <span>상품 가격, Unranked, Ranked, 상점 정책을 영역별로 나누어 관리합니다.</span>
+          <p>GOAT ARENA OPERATIONS</p>
+          <h1>Arena 운영 설정</h1>
+          <span>현재 서비스가 실제로 사용하는 경기 규칙과 운영 상태만 표시합니다.</span>
         </div>
-        <strong><%= totalPolicyCount %><small>개 정책</small></strong>
+        <strong><%= config.rulesetVersion %><small>규칙 버전</small></strong>
       </header>
 
       <% if (feedback) { %><div class="admin-feedback" role="status"><%= feedback %></div><% } %>
-      <% if (error) { %><div class="admin-feedback admin-feedback--error" role="alert"><span aria-hidden="true">!</span><%= error %></div><% } %>
+      <% if (error) { %><div class="admin-feedback admin-feedback--error" role="alert"><%= error %></div><% } %>
 
-      <section class="admin-panel admin-matchmaking-control <%= matchmaking.isPaused ? 'is-paused' : 'is-running' %>" id="matchmaking-control">
+      <section class="admin-panel" id="matchmaking-control">
         <div class="admin-panel-heading">
-          <div>
-            <p>GLOBAL MATCHMAKING CONTROL</p>
-            <h2>전체 매치메이킹 <%= matchmaking.isPaused ? "일시정지 중" : "운영 중" %></h2>
-          </div>
-          <span><%= matchmaking.isPaused ? "신규 경기·복수전·Ranked 초대 생성과 초대 수락이 정지되어 있습니다. 진행 중인 경기는 계속 완료할 수 있습니다." : "Unranked·Ranked의 신규 경기와 초대가 정상적으로 생성됩니다." %></span>
+          <div><p>MATCHMAKING CONTROL</p><h2>신규 경기 접수</h2></div>
+          <span><%= matchmaking.isPaused ? "현재 일시정지" : "24시간 접수 중" %></span>
         </div>
-        <div class="admin-matchmaking-state">
-          <strong><span aria-hidden="true"></span><%= matchmaking.isPaused ? "PAUSED" : "ACTIVE" %></strong>
-          <p>
-            <% if (matchmaking.isPaused) { %>
-              정지 시각 <b><%= formatDateTime(matchmaking.pausedAt) %></b><% if (matchmaking.reason) { %> · 사유 <b><%= matchmaking.reason %></b><% } %>
-            <% } else { %>
-              최근 재개 <b><%= matchmaking.resumedAt ? formatDateTime(matchmaking.resumedAt) : "초기 운영 상태" %></b>
-            <% } %>
-          </p>
-        </div>
-        <form class="admin-matchmaking-form" action="/admin/arena-policies/matchmaking" method="POST" onsubmit="return confirm('<%= matchmaking.isPaused ? '신규 매치메이킹을 다시 시작할까요?' : '신규 매치메이킹을 일시정지할까요? 진행 중 경기는 계속됩니다.' %>');">
-          <% if (!matchmaking.isPaused) { %>
-            <label><span>운영 메모 <small>사용자에게도 정지 사유로 표시됩니다.</small></span><input name="reason" maxlength="500" placeholder="예: 서버 점검 및 문제 데이터 교체" /></label>
-            <input type="hidden" name="action" value="PAUSE" />
-            <button class="danger" type="submit">모든 신규 매치메이킹 일시정지</button>
-          <% } else { %>
-            <input type="hidden" name="action" value="RESUME" />
-            <button type="submit">모든 신규 매치메이킹 재개</button>
-          <% } %>
+        <p><%= matchmaking.isPaused ? `정지 사유: ${matchmaking.reason || "사유 미입력"}` : "요일 제한 없이 일반전·친선전·게스트 친선전의 신규 경기를 접수합니다. 경쟁전은 별도 환경 스위치가 켜진 경우에만 접수합니다." %></p>
+        <form class="admin-form" method="post" action="/admin/arena-policies/matchmaking">
+          <label><span>운영 메모</span><input name="reason" maxlength="500" value="<%= matchmaking.isPaused ? matchmaking.reason : '' %>" placeholder="일시정지할 때 사유를 입력하세요." /></label>
+          <button type="submit" name="action" value="<%= matchmaking.isPaused ? 'RESUME' : 'PAUSE' %>"><%= matchmaking.isPaused ? "신규 경기 접수 재개" : "신규 경기 접수 일시정지" %></button>
         </form>
-      </section>
-      <div class="admin-feedback" role="note">Unranked·Ranked·패키지 정책은 등록 시점으로부터 최소 30일 뒤 적용됩니다. 단, Ranked 상점의 가격·판매 상태는 저장 즉시 적용되며, 두 경우 모두 전체 활성 사용자에게 이메일과 사이트 우편함 공지가 생성됩니다.</div>
-
-      <nav class="admin-policy-jump" aria-label="Arena 정책 영역 바로가기">
-        <a href="#product-policies"><span>01</span>상품·가격</a>
-        <a href="#main-shop-policy"><span>02</span>Ranked 상점</a>
-        <a href="#sub-policy"><span>03</span>Unranked</a>
-        <a href="#main-policy"><span>04</span>Ranked</a>
-      </nav>
-
-      <section class="admin-stat-grid admin-policy-overview" aria-label="현재 적용 정책">
-        <article><span>현재 Unranked 정책</span><strong><%= policyTitle(learningPackage) %></strong></article>
-        <article><span>학습권 패키지 가격</span><strong><%= formatWon(learningPackage.priceAmount) %></strong></article>
-        <article><span>정기권 학습 가능 일수</span><strong><%= learningPackage.initialLearningDays %><small>일</small></strong></article>
-        <article><span>페이백 점수</span><strong><%= learningPackage.initialPaybackScoreDays %><small>점</small></strong></article>
+        <small>마지막 접수 <%= formatDate(matchmaking.lastAdmissionAt) %> · 접수 순번 <%= number(matchmaking.admissionSequence) %></small>
       </section>
 
-      <section class="admin-policy-domain-heading" id="product-policies">
-        <div><span>PRODUCT POLICIES</span><h2>상품과 가격</h2></div>
-        <p>사용자가 구매하는 두 상품의 현재 가격과 허용 기능을 관리합니다.</p>
+      <section class="admin-stat-grid" aria-label="Arena 운영 현황">
+        <article><span>경쟁 프로필</span><strong><%= number(overview.profiles.total) %><small>명</small></strong></article>
+        <article><span>경쟁전 해금</span><strong><%= number(overview.profiles.unlocked) %><small>명</small></strong></article>
+        <article><span>배치 완료</span><strong><%= number(overview.profiles.placed) %><small>명</small></strong></article>
+        <article><span>배치 대기</span><strong><%= number(overview.profiles.awaitingPlacement) %><small>명</small></strong></article>
+        <article><span>경쟁전 MMR 정산</span><strong><%= number(overview.ratingSettlements) %><small>건</small></strong></article>
+        <article><span>배치 검토 대기</span><strong><%= number(overview.placementReviewQueue.length) %><small>명</small></strong></article>
       </section>
 
-      <div class="admin-policy-product-grid">
-      <section class="admin-panel admin-policy-create" id="learning-package">
-        <div class="admin-panel-heading">
-          <div><p>29일 학습 패키지</p><h2>학습·모의고사·Arena 패키지 가격 관리</h2></div>
-          <span>29일 동안 전체 학습 기능과 배치고사, 주간 공식 모의고사, GOAT Arena를 이용하는 상품입니다.</span>
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>ACCOUNT PLANS</p><h2>계정 플랜</h2></div><span>관리자 계정은 별도 무제한 권한 유지</span></div>
+        <div class="admin-stat-grid">
+          <% config.plans.forEach((plan) => { %>
+            <article><span><%= plan.label %></span><strong><%= number(overview.accountPlans[plan.code]) %><small>명</small></strong><small><%= plan.priceAmount ? `월 ${number(plan.priceAmount)}원 · ${plan.billingPeriodDays}일` : "무료" %></small></article>
+          <% }) %>
         </div>
-        <div class="admin-policy-summary-grid">
-          <span>현재 가격 <b><%= formatWon(learningPackage.priceAmount) %></b></span>
-          <span>정기권 학습 가능 일수 <b><%= learningPackage.initialLearningDays %>일</b></span>
-          <span>페이백 점수 초깃값 <b><%= learningPackage.initialPaybackScoreDays %>점</b></span>
-          <span>배치고사·GOAT Arena <b>허용</b></span>
-          <span>페이백 최소 점수 <b><%= learningPackage.payback?.minimumScoreDays ?? 30 %>점</b></span>
-          <span>공격 출석 조건 <b><%= learningPackage.payback?.minimumAttackParticipationDays ?? attackParticipationDays %> / <%= learningPackage.initialLearningDays %>일</b></span>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>ACTIVE RULES</p><h2>경기 모드별 적용 규칙</h2></div><span>운영 코드와 동일한 값</span></div>
+        <div class="admin-table-wrap">
+          <table>
+            <thead><tr><th>모드</th><th>매칭</th><th>문제·시간</th><th>풀이</th><th>반영</th><th>부정행위 감지</th></tr></thead>
+            <tbody>
+              <tr><td><strong>일반전</strong></td><td>비슷한 실력의 사용자 기록 · 같은 문항은 다음 <%= config.normal.questionRepeatWindowMatches %>경기에서 제외</td><td><%= config.normal.questionCount %>문항 · 문항당 <%= config.normal.minutesPerQuestion %>분</td><td>필수</td><td>XP · 비공개 매칭 MMR 반영</td><td>감지 적용 · 사용자 불이익 없음 · 기록만 검토 대기</td></tr>
+              <tr><td><strong>경쟁전</strong><small><%= config.competitive.enabled ? "환경 스위치 ON" : "환경 스위치 OFF" %></small></td><td>비슷한 실력의 사용자 기록</td><td><%= config.competitive.questionCount %>문항 · 문항당 <%= config.competitive.minutesPerQuestion %>분</td><td>필수</td><td>내부 MMR 갱신 후 공개 경쟁전 점수 산정</td><td><%= yesNo(config.competitive.integrityChecks) %></td></tr>
+              <tr><td><strong>친선전</strong></td><td>친구 초대</td><td><%= config.friendly.questionCount %>문항 · 문항당 <%= config.friendly.minutesPerQuestion %>분</td><td>필수</td><td>MMR·XP 미반영</td><td><%= yesNo(config.friendly.integrityChecks) %></td></tr>
+              <tr><td><strong>게스트 친선전</strong></td><td>로그인한 발신자가 만든 3일 링크 · 다중 참가 순위전</td><td>발신자와 동일한 5문항 · 문항당 10분</td><td>필수 · 데스크톱 파일/모바일 격자 풀이판</td><td>MMR·XP 미반영 · 닉네임+생년월일 조합별 1회</td><td><%= yesNo(config.guestFriendly.integrityChecks) %></td></tr>
+              <tr><td><strong>주간 모의고사</strong></td><td>개별 응시</td><td>시험 설정 기준</td><td>시험 제출 규칙</td><td>응시자의 내부 MMR만 반영 · 경쟁전 점수 미반영 · 미응시 0</td><td>모의고사 전용 검증</td></tr>
+            </tbody>
+          </table>
         </div>
-        <form class="admin-form" action="/admin/arena-policies/learning-package/price" method="POST">
-          <div class="admin-policy-field-grid">
-            <label>
-              <span>새 패키지 가격 <small>원</small></span>
-              <input type="number" name="priceAmount" min="0" max="1000000" step="1" value="<%= oldInput?.policyDivision === 'LEARNING_PACKAGE' ? oldInput.priceAmount : learningPackage.priceAmount %>" required />
-            </label>
-            <label class="wide">
-              <span>변경 사유·운영 메모</span>
-              <input name="changeSummary" maxlength="1000" value="<%= oldInput?.policyDivision === 'LEARNING_PACKAGE' ? oldInput.changeSummary || '' : '' %>" placeholder="예: 첫 달 프로모션 종료 후 29일 정상가 적용" />
-            </label>
-          </div>
-          <button type="submit">새 가격 정책 적용</button>
-        </form>
-        <br />
-        <% if (policyData.learningPackage.policies.length) { %>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>COMPETITIVE RATING</p><h2>경쟁전 MMR·배치 설정</h2></div><span>출시 전 시뮬레이션 재검증 필요</span></div>
+        <div class="admin-stat-grid">
+          <article><span>기본 Rating</span><strong><%= config.competitive.glicko2.defaultRating %></strong></article>
+          <article><span>기본 RD</span><strong><%= config.competitive.glicko2.defaultRatingDeviation %></strong></article>
+          <article><span>기본 Volatility</span><strong><%= config.competitive.glicko2.defaultVolatility %></strong></article>
+          <article><span>Tau</span><strong><%= config.competitive.glicko2.tau %></strong></article>
+          <article><span>해금 조건</span><strong>일반전 <%= config.competitive.requiredNormalMatches %>경기</strong></article>
+          <article><span>배치 횟수</span><strong><%= config.competitive.placementAttempts.minimum %>~<%= config.competitive.placementAttempts.maximum %>회</strong></article>
+        </div>
+        <p>일반전과 경쟁전은 정오답과 문항 난도를 반영한 내부 성취지표를 먼저 비교하고, 두 지표가 설정된 근소 범위 안일 때 유효 풀이 시간을 비교합니다. 단순 정답 수만으로 승패를 확정하지 않습니다.</p>
+        <p>MMR은 매칭과 공개 경쟁전 점수 증감 폭을 정하는 내부 지표입니다. 사용자가 확인하는 랭킹은 공개 경쟁전 점수로만 계산하며, 주간 모의고사는 공개 점수를 바꾸지 않습니다.</p>
+        <p>배치 표본이 적을수록 초기 RD와 Volatility를 높게 두고, 이후 Glicko-2 RD가 매 경기 연속적으로 수렴합니다. 5경기와 6경기 사이에 갑자기 변동 폭을 바꾸는 경계는 없습니다. 모든 수치는 출시 전 검증이 필요한 설정값입니다.</p>
+        <div class="admin-table-wrap">
+          <table><thead><tr><th>유효 배치 표본</th><th>초기 RD 가설</th><th>초기 Volatility 가설</th></tr></thead><tbody>
+            <% config.competitive.glicko2.placementRatingDeviationBySampleCount.forEach((rd, index) => { %><tr><td><%= index + 1 %>회</td><td><%= Number(rd).toFixed(2) %></td><td><%= Number(config.competitive.glicko2.placementVolatilityBySampleCount[index]).toFixed(2) %></td></tr><% }) %>
+          </tbody></table>
+        </div>
+        <details>
+          <summary>티어별 공개 경쟁전 점수 기준 보기</summary>
+          <div class="admin-table-wrap"><table><thead><tr><th>티어</th><th>경쟁전 점수 범위</th><th>현재 인원</th></tr></thead><tbody>
+            <% config.competitive.tiers.forEach((tier) => { %><tr><td><strong><%= tier.label %></strong></td><td><%= number(tier.minMmr) %> ~ <%= Number.isFinite(tier.maxMmr) ? number(tier.maxMmr) : "이상" %></td><td><%= number(overview.profiles.byTier[tier.name]) %>명</td></tr><% }) %>
+          </tbody></table></div>
+        </details>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>DELIVERY RECOVERY</p><h2>알림과 원본 삭제 처리 상태</h2></div></div>
+        <div class="admin-stat-grid">
+          <article><span>이메일 재시도</span><strong><%= number(overview.operationalDelivery?.emailRetry || 0) %><small>건</small></strong></article>
+          <article><span>이메일 발송 결과 확인 필요</span><strong><%= number(overview.operationalDelivery?.emailUnknown || 0) %><small>건</small></strong></article>
+          <article><span>원본 삭제 실패</span><strong><%= number(overview.operationalDelivery?.deletionFailed || 0) %><small>건</small></strong></article>
+          <article><span>장시간 처리 중인 앱 요청</span><strong><%= number(overview.operationalDelivery?.pendingCommands || 0) %><small>건</small></strong></article>
+        </div>
+      </section>
+
+      <section class="admin-panel" id="rating-health">
+        <div class="admin-panel-heading"><div><p>ONE-SIDED RATING HEALTH</p><h2>최근 30일 단방향 MMR 상태</h2></div><span><%= overview.oneSidedRatingHealth.status === "WITHIN_THRESHOLD" ? "허용 범위" : overview.oneSidedRatingHealth.status === "NO_DATA" ? "데이터 없음" : "검토 필요" %></span></div>
+        <div class="admin-stat-grid">
+          <article><span>정산 표본</span><strong><%= number(overview.oneSidedRatingHealth.settlementCount) %><small>건</small></strong></article>
+          <article><span>평균 MMR 변화</span><strong><%= Number(overview.oneSidedRatingHealth.averageMmrDelta).toFixed(2) %></strong><small>경고 기준 ±<%= Number(overview.oneSidedRatingHealth.driftWarningThreshold).toFixed(2) %></small></article>
+          <article><span>누적 MMR 순변화</span><strong><%= Number(overview.oneSidedRatingHealth.netMmrDelta).toFixed(2) %></strong></article>
+          <article><span>평균 절대 변동</span><strong><%= Number(overview.oneSidedRatingHealth.averageAbsoluteMmrDelta).toFixed(2) %></strong></article>
+          <article><span>정산 전 평균 MMR</span><strong><%= Number(overview.oneSidedRatingHealth.averageRatingBefore).toFixed(2) %></strong></article>
+          <article><span>정산 후 평균 MMR</span><strong><%= Number(overview.oneSidedRatingHealth.averageRatingAfter).toFixed(2) %></strong></article>
+        </div>
+        <div class="admin-table-wrap"><table><thead><tr><th>결과</th><th>경기 수</th><th>평균 내부 MMR 변화</th><th>평균 공개 점수 변화</th></tr></thead><tbody>
+          <% overview.oneSidedRatingHealth.outcomes.forEach((row) => { %><tr><td><%= row.outcome === "CHALLENGER_WIN" ? "도전자 승" : row.outcome === "DEFENDER_WIN" ? "도전자 패" : "무승부" %></td><td><%= number(row.count) %></td><td><%= Number(row.averageMmrDelta).toFixed(2) %></td><td><%= Number(row.averageScoreDelta).toFixed(2) %></td></tr><% }) %>
+        </tbody></table></div>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>HISTORICAL RECORD POOL</p><h2>과거 기록 풀</h2></div><a href="/admin/arena-match-history">전체 경기 기록 →</a></div>
+        <div class="admin-table-wrap"><table><thead><tr><th>모드</th><th>사용 가능</th><th>예약 중</th><th>검토 대기</th><th>무효</th></tr></thead><tbody>
+          <% ["NORMAL", "COMPETITIVE"].forEach((mode) => { const row = overview.records[mode] || {}; %><tr><td><strong><%= modeLabel[mode] %></strong></td><td><%= number(row.AVAILABLE) %></td><td><%= number(row.RESERVED) %></td><td><%= number(row.REVIEW_REQUIRED) %></td><td><%= number(row.INVALID) %></td></tr><% }) %>
+        </tbody></table></div>
+      </section>
+
+      <section class="admin-panel" id="normal-record-review">
+        <div class="admin-panel-heading"><div><p>NORMAL RECORD REVIEW</p><h2>일반전 상대 기록 검토</h2></div><span>사용자 패널티·이메일 없음</span></div>
+        <p>감지 신호가 있는 일반전도 사용자 결과와 XP는 정상 확정됩니다. 해당 경기 기록만 상대 기록 풀에서 보류되며, 승인하면 즉시 다시 사용 가능합니다.</p>
+        <% if (overview.normalRecordReviewQueue?.length) { %>
           <div class="admin-policy-list">
-            <% policyData.learningPackage.policies.forEach((policy) => { const learningState = policyState(policy); %>
-              <article class="admin-policy-card <%= learningState === '적용 중' ? 'is-current' : '' %>">
-                <header>
-                  <div><span><%= learningState %></span><h3><%= publicArenaText(policy.displayName) %></h3><small><%= formatDateTime(policy.effectiveFrom) %>부터</small></div>
-                  <strong><%= formatWon(policy.priceAmount) %></strong>
-                </header>
-                <% if (policy.changeSummary) { %><p><%= policy.changeSummary %></p><% } %>
+            <% overview.normalRecordReviewQueue.forEach((entry) => { %>
+              <article class="admin-policy-card">
+                <header><div><span>기록 풀 검토 대기</span><h3><%= entry.nickname || entry.realName || entry.email || entry.userId %></h3><small>경기 <%= entry.matchId %> · <%= formatDate(entry.createdAt) %></small></div></header>
+                <p>감지 신호: <%= entry.integrityFlags?.length ? entry.integrityFlags.join(" · ") : "상세 신호 없음" %></p>
+                <form class="admin-form" method="post" action="/admin/arena-records/<%= entry.recordId %>/integrity-review">
+                  <label><span>검토 근거</span><textarea name="note" rows="3" maxlength="1000" required placeholder="풀이 기록과 감지 신호를 확인한 근거를 입력하세요."></textarea></label>
+                  <div><button type="submit" name="decision" value="APPROVE">문제 없음 · 기록 풀 복귀</button><button type="submit" name="decision" value="REJECT">기록 무효 처리</button></div>
+                </form>
               </article>
             <% }) %>
           </div>
-        <% } %>
+        <% } else { %><p class="admin-empty">검토 대기 중인 일반전 상대 기록이 없습니다.</p><% } %>
       </section>
 
-      <section class="admin-panel admin-policy-create" id="mock-exam-package">
-        <div class="admin-panel-heading">
-          <div><p>Matths 주간 공식 모의고사 이용권</p><h2>모의고사 패키지 월 이용 가격 관리</h2></div>
-          <span>주간 공식 모의고사만 허용하고 배치고사와 GOAT Arena는 제한하는 별도 상품입니다.</span>
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>MATCH LEDGER</p><h2>모드별 경기 상태</h2></div><span>최근 조회 <%= formatDate(overview.generatedAt) %></span></div>
+        <div class="admin-table-wrap"><table><thead><tr><th>모드</th><th>진행 중</th><th>상태별 원장</th></tr></thead><tbody>
+          <% Object.entries(overview.matches).forEach(([mode, statuses]) => { %><tr><td><strong><%= modeLabel[mode] || mode %></strong></td><td><%= number(overview.activeMatchesByMode[mode]) %></td><td><%= Object.entries(statuses).map(([status, count]) => `${statusLabel[status] || status} ${number(count)}`).join(" · ") %></td></tr><% }) %>
+        </tbody></table></div>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel-heading"><div><p>GUEST & RECOVERY</p><h2>게스트 링크·배치 복구</h2></div></div>
+        <div class="admin-stat-grid">
+          <article><span>열린 게스트 링크</span><strong><%= number(overview.guestChallenges.OPEN) %><small>건</small></strong></article>
+          <article><span>만료 링크</span><strong><%= number(overview.guestChallenges.EXPIRED) %><small>건</small></strong></article>
+          <article><span>누적 고유 참가자</span><strong><%= number(overview.guestParticipation.uniqueParticipants) %><small>명</small></strong></article>
+          <article><span>완료 기록</span><strong><%= number(overview.guestParticipation.attempts.SETTLED) %><small>건</small></strong></article>
+          <article><span>진행·제출 대기</span><strong><%= number((overview.guestParticipation.attempts.READY || 0) + (overview.guestParticipation.attempts.IN_PROGRESS || 0) + (overview.guestParticipation.attempts.EVIDENCE_REQUIRED || 0)) %><small>건</small></strong></article>
+          <article><span>서버 오류 복구</span><strong><%= number(overview.placementAdjustments.SERVER_ERROR) %><small>건</small></strong></article>
+          <article><span>운영자 시도 초기화</span><strong><%= number(overview.placementAdjustments.OPERATOR_RESET) %><small>건</small></strong></article>
         </div>
-        <div class="admin-policy-summary-grid">
-          <span>현재 월 가격 <b><%= formatWon(policyData.mockExamOnly.activePolicy.monthlyPriceAmount) %></b></span>
-          <span>이용 기간 <b><%= policyData.mockExamOnly.activePolicy.billingPeriodDays %>일</b></span>
-          <span>주간 공식 모의고사 <b>허용</b></span>
-          <span>배치고사·GOAT Arena <b>제한</b></span>
-          <span>기존 기록 반영 기준 <b><%= policyData.mockExamOnly.activePolicy.placementCalibrationMinimumWeeklyExams %>회 이상</b></span>
-        </div>
-        <form class="admin-form" action="/admin/arena-policies/mock-exam-only/price" method="POST">
-          <div class="admin-policy-field-grid">
-            <label>
-              <span>새 월 가격 <small>원</small></span>
-              <input type="number" name="monthlyPriceAmount" min="0" max="1000000" step="1" value="<%= oldInput?.policyDivision === 'MOCK_EXAM_ONLY' ? oldInput.monthlyPriceAmount : policyData.mockExamOnly.activePolicy.monthlyPriceAmount %>" required />
-            </label>
-            <label class="wide">
-              <span>변경 사유·운영 메모</span>
-              <input name="changeSummary" maxlength="1000" value="<%= oldInput?.policyDivision === 'MOCK_EXAM_ONLY' ? oldInput.changeSummary || '' : '' %>" placeholder="예: 첫 달 프로모션 종료 후 정상가 적용" />
-            </label>
-          </div>
-          <button type="submit">새 가격 정책 적용</button>
-        </form>
-        <br />
-        <% if (policyData.mockExamOnly.policies.length) { %>
+        <p>서버 오류는 배치 시도를 차감하지 않습니다. 사용자 중단은 자동 복구하지 않으며, 5회 소진 후 추가 시도는 승인된 운영자 초기화 기록이 있어야 합니다.</p>
+        <% if (overview.placementReviewQueue?.length) { %>
           <div class="admin-policy-list">
-            <% policyData.mockExamOnly.policies.forEach((policy) => { const mockState = policyState(policy); %>
-              <article class="admin-policy-card <%= mockState === '적용 중' ? 'is-current' : '' %>">
-                <header>
-                  <div><span><%= mockState %></span><h3><%= publicArenaText(policy.displayName) %></h3><small><%= formatDateTime(policy.effectiveFrom) %>부터</small></div>
-                  <strong><%= formatWon(policy.monthlyPriceAmount) %></strong>
-                </header>
-                <% if (policy.changeSummary) { %><p><%= policy.changeSummary %></p><% } %>
+            <% overview.placementReviewQueue.forEach((entry) => { %>
+              <article class="admin-policy-card">
+                <header><div><span>운영자 검토 필요 · <%= entry.attemptsUsed %>/5회 사용</span><h3><%= entry.nickname || entry.realName || entry.email || entry.userId %></h3><small><%= entry.email %> · 최근 상태 <%= formatDate(entry.updatedAt) %></small></div></header>
+                <form class="admin-form" method="post" action="/admin/arena-users/<%= entry.userId %>/placement/reset" onsubmit="return confirm('서버 기록을 검토했고 이 사용자의 배치 시도를 초기화할까요? 기존 응시 기록은 보존됩니다.')">
+                  <input type="hidden" name="requestId" value="placement-reset:<%= entry.userId %>:<%= Date.now() %>" />
+                  <label><span>검토 근거</span><textarea name="reason" rows="3" maxlength="1000" required placeholder="오류 로그와 응시 이벤트를 확인한 근거를 입력하세요."></textarea></label>
+                  <button type="submit">승인 기록 후 시도 초기화</button>
+                </form>
               </article>
             <% }) %>
           </div>
+        <% } else { %>
+          <p class="admin-empty">현재 운영자 배치 복구 검토가 필요한 사용자가 없습니다.</p>
         <% } %>
       </section>
-      </div>
-
-      <section class="admin-panel admin-policy-create" id="main-shop-policy">
-        <div class="admin-panel-heading">
-          <div><p>Ranked 상점</p><h2>판매 가격·아이템 상태 관리</h2></div>
-          <span>저장 즉시 새 가격·판매 상태가 적용됩니다. 전체 사용자에게는 항목별 핵심 변경점을 불릿으로 안내합니다.</span>
-        </div>
-        <form class="admin-form" action="/admin/arena-policies/main-shop" method="POST">
-          <div class="admin-policy-field-grid">
-            <% policyData.mainShop.activePolicy.items.forEach((item) => { %>
-              <label>
-                <span><%= item.displayName %> <small>학습일</small></span>
-                <input type="number" name="price_<%= item.itemCode %>" min="1" max="365" step="1" value="<%= oldInput?.policyDivision === 'MAIN_SHOP' ? oldInput[`price_${item.itemCode}`] : item.priceDays %>" required />
-                <span><input type="checkbox" name="enabledItems" value="<%= item.itemCode %>" <%= item.enabled ? "checked" : "" %> /> 현재 판매</span>
-              </label>
-            <% }) %>
-            <label class="wide">
-              <span>변경 사유·운영 메모</span>
-              <input name="changeSummary" maxlength="1000" value="<%= oldInput?.policyDivision === 'MAIN_SHOP' ? oldInput.changeSummary || '' : '' %>" placeholder="예: 2차 편의 기능 판매 시작" />
-            </label>
-          </div>
-          <button type="submit">상점 정책 즉시 적용·전체 공지</button>
-        </form>
-        <br />
-      </section>
-
-      <section class="admin-policy-domain-heading">
-        <div><span>UNRANKED</span><h2>Unranked 정책</h2></div>
-        <p>학습권, 페이백 점수와 페이백 자격을 별도 버전으로 관리합니다.</p>
-      </section>
-
-      <section class="admin-panel admin-policy-create" id="sub-policy">
-        <div class="admin-panel-heading">
-          <div><p>Unranked</p><h2>학습권·페이백 정책 만들기</h2></div>
-          <span>작성 중 상태로 저장한 뒤 적용 일정에 등록하면 최소 30일의 사전 고지 기간을 거쳐 반영됩니다.</span>
-        </div>
-        <form class="admin-form" action="/admin/arena-policies/sub" method="POST">
-          <div class="admin-policy-field-grid">
-            <label class="wide"><span>정책 이름</span><input name="displayName" minlength="2" maxlength="120" value="<%= oldInput?.displayName || "" %>" placeholder="예: 첫 달 무료 운영 정책" required /></label>
-            <label><span>적용 시작 시각 <small>한국시간 · 최소 30일 뒤</small></span><input type="datetime-local" name="effectiveFrom" min="<%= minimumPolicyDateTime %>" value="<%= oldInput?.effectiveFrom || formatLocalInput() %>" required /></label>
-            <label><span>학습권 패키지 가격 <small>원</small></span><input type="number" name="priceAmount" min="0" step="1" value="<%= numberValue("priceAmount", subBasePolicy.priceAmount ?? 29000) %>" required /></label>
-            <label><span>정기권 학습 가능 일수 초깃값 <small>고정</small></span><input type="number" name="initialLearningDays" value="29" readonly required /></label>
-            <label><span>페이백 점수 초깃값</span><input type="number" name="initialPaybackScoreDays" min="0" step="1" value="<%= numberValue("initialPaybackScoreDays", subBasePolicy.initialPaybackScoreDays ?? 29) %>" required /></label>
-            <label><span>이용 주기 시작 시각 <small>결제 다음 날 · 고정</small></span><input type="time" name="paymentDayCutoffKst" value="00:00" readonly required /></label>
-            <label><span>재구매 유예 시간</span><input type="number" name="renewalGraceHours" min="0" step="1" value="<%= numberValue("renewalGraceHours", subBasePolicy.renewalGraceHours ?? 72) %>" required /></label>
-            <label><span>랭크 복귀전 티어 하향 단계</span><input type="number" name="lateRenewalTierPenalty" min="1" step="1" value="<%= numberValue("lateRenewalTierPenalty", subBasePolicy.lateRenewalTierPenalty ?? 1) %>" required /></label>
-            <label><span>일반 쟁탈전 적용 일수 <small>고정</small></span><input type="number" name="normalStakeDays" value="1" readonly required /></label>
-            <label><span>복수전 적용 일수 <small>고정</small></span><input type="number" name="revengeStakeDays" value="2" readonly required /></label>
-          </div>
-
-          <fieldset class="admin-policy-fieldset">
-            <legend>일일 일반 쟁탈전 상한</legend>
-            <p>일반 공격은 전 티어 하루 3회 고정입니다. 방어 상한만 티어별로 조정할 수 있으며, 복수전은 아래 횟수에 포함하지 않습니다.</p>
-            <div class="admin-policy-limit-grid">
-              <% tierRows.forEach(([tier, label, defaultDefense]) => { %>
-                <article>
-                  <strong><%= label %></strong>
-                  <p>공격 <strong>3회 고정</strong></p>
-                  <label><span>방어</span><input type="number" name="subDefenseLimit_<%= tier %>" min="0" max="20" step="1" value="<%= subLimitValue(tier, defaultDefense) %>" required /></label>
-                </article>
-              <% }) %>
-            </div>
-          </fieldset>
-
-          <fieldset class="admin-policy-fieldset">
-            <legend>페이백 자격</legend>
-            <div class="admin-policy-field-grid">
-              <label><span>최소 공격 출석일 <small><%= paybackCycleDays %>일 중</small></span><input type="number" name="minimumAttackParticipationDays" value="<%= attackParticipationDays %>" readonly required /></label>
-              <label><span>최소 페이백 점수</span><input type="number" name="minimumScoreDays" min="0" step="1" value="<%= numberValue("minimumScoreDays", subBasePolicy.payback?.minimumScoreDays ?? 30) %>" required /></label>
-            </div>
-            <p><%= paybackCycleDays %>일 이용 주기 중 서로 다른 한국 날짜 <%= attackParticipationDays %>일에 Unranked 일반 쟁탈전 또는 복수전의 공격자로 5개 답안과 필수 풀이 증거를 정상 제출해야 합니다. 공격 시작만으로는 인정하지 않고 승패는 관계없으며, 같은 날 여러 번 정상 제출해도 공격 출석은 1일로 계산합니다. 출석일은 연속될 필요가 없습니다.</p>
-          </fieldset>
-
-          <fieldset class="admin-policy-fieldset">
-            <legend>페이백 점수 구간</legend>
-            <p>0점부터 빈틈없이 이어져야 하며, 마지막 줄의 종료 점수는 비워야 합니다.</p>
-            <div class="admin-policy-band-list">
-              <% bandRows.forEach((band, index) => { %>
-                <div>
-                  <strong><%= index + 1 %>구간</strong>
-                  <label><span>시작 점수</span><input type="number" name="bandMinScores" min="0" step="1" value="<%= band.minScoreDays %>" required /></label>
-                  <label><span>종료 점수</span><input type="number" name="bandMaxScores" min="0" step="1" value="<%= band.maxScoreDays %>" <%= index === bandRows.length - 1 ? "" : "required" %> /></label>
-                  <label><span>페이백 비율</span><input type="number" name="bandRates" min="0" max="100" step="1" value="<%= band.ratePercent %>" required /></label>
-                </div>
-              <% }) %>
-            </div>
-          </fieldset>
-
-          <div class="admin-policy-checks">
-            <label class="admin-checkbox"><input type="hidden" name="packagePurchaseRequiresZeroBalance" value="false" /><input type="checkbox" name="packagePurchaseRequiresZeroBalance" value="true" <%= checkedValue("packagePurchaseRequiresZeroBalance", subBasePolicy.packagePurchaseRequiresZeroBalance ?? true) ? "checked" : "" %> /><span>정기권 학습 가능 일수가 0일이고 마지막 공식 공격 제출 기간이 끝났을 때만 새 패키지 구매 허용</span></label>
-            <label class="admin-checkbox"><input type="hidden" name="packagePurchaseRequiresZeroLockedBalance" value="false" /><input type="checkbox" name="packagePurchaseRequiresZeroLockedBalance" value="true" <%= checkedValue("packagePurchaseRequiresZeroLockedBalance", subBasePolicy.packagePurchaseRequiresZeroLockedBalance ?? true) ? "checked" : "" %> /><span>경기 예치 학습일수가 0일일 때만 새 패키지 구매 허용</span></label>
-          </div>
-          <label><span>변경 사유·운영 메모</span><textarea name="changeSummary" rows="4" maxlength="1000" placeholder="이전 정책에서 바뀐 가격과 페이백 조건을 적어주세요."><%= oldInput?.changeSummary || "" %></textarea></label>
-          <button type="submit">30일 후 적용 예약·전체 공지</button>
-        </form>
-      </section>
-
-      <details class="admin-panel admin-policy-history">
-        <summary class="admin-policy-history-summary"><div><p>Unranked</p><h2>학습권·페이백 정책 이력</h2></div><span><%= policyData.policies.length %>개 <b>펼치기</b></span></summary>
-        <div class="admin-policy-history-body">
-        <% if (!policyData.policies.length) { %><p class="admin-empty">등록된 Arena 정책이 없습니다.</p><% } %>
-        <div class="admin-policy-list">
-          <% policyData.policies.forEach((policy) => { const state = policyState(policy); %>
-            <article class="admin-policy-card <%= state === "적용 중" ? "is-current" : "" %>">
-              <header>
-                <div><span><%= state %></span><h3><%= policyTitle(policy) %></h3><small><%= formatDateTime(policy.effectiveFrom) %>부터 · <%= policy.effectiveUntil ? `${formatDateTime(policy.effectiveUntil)}까지` : "후속 정책 적용 전까지" %></small></div>
-                <strong><%= formatWon(policy.priceAmount) %></strong>
-              </header>
-              <div class="admin-policy-summary-grid">
-                <span>정기권 학습 가능 일수 <b><%= policy.initialLearningDays %>일</b></span>
-                <span>페이백 점수 <b><%= policy.initialPaybackScoreDays %>점</b></span>
-                <span>일반 쟁탈전 <b><%= policy.matchStakeDays?.normal ?? 1 %>점 예치</b></span>
-                <span>복수전 <b><%= policy.matchStakeDays?.revenge ?? 2 %>점 예치</b></span>
-                <% if (policy.payback?.minimumAttackParticipationDays !== undefined && policy.payback?.minimumAttackParticipationDays !== null) { %>
-                  <span>공격 출석 <b><%= policy.payback.minimumAttackParticipationDays %> / <%= policy.initialLearningDays %>일</b></span>
-                <% } else { %>
-                  <span>이전 공격 기준 <b>연속 <%= policy.payback?.minimumStreakDays ?? policy.initialLearningDays %>일</b></span>
-                <% } %>
-                <span>승패 조건 <b>없음</b></span>
-              </div>
-              <div class="admin-policy-bands">
-                <% (policy.payback?.bands || []).forEach((band) => { %><span><%= band.maxScoreDays === null || band.maxScoreDays === undefined ? `${band.minScoreDays}점 이상` : `${band.minScoreDays}~${band.maxScoreDays}점` %> <b><%= band.ratePercent %>%</b></span><% }) %>
-              </div>
-              <div class="admin-policy-bands" aria-label="티어별 일일 공격·방어 상한">
-                <% (policy.dailyMatchLimitsByTier || []).forEach((row) => { const tier = tierRows.find(([code]) => code === row.tier); %>
-                  <span><%= tier?.[1] || row.tier %> <b>공격 3 · 방어 <%= row.defenseLimit %></b></span>
-                <% }) %>
-              </div>
-              <% if (policy.changeSummary) { %><p><%= policy.changeSummary %></p><% } %>
-              <% if (policy.status === "DRAFT") { %>
-                <div class="admin-policy-actions">
-                  <form action="/admin/arena-policies/sub/<%= policy._id %>/activate" method="POST" onsubmit="return confirm('이 Unranked 정책을 적용 일정에 등록할까요?');"><button type="submit">적용 일정에 등록</button></form>
-                  <form action="/admin/arena-policies/sub/<%= policy._id %>/retire" method="POST" onsubmit="return confirm('이 작성 중 정책을 종료할까요?');"><button class="danger" type="submit">작성 취소</button></form>
-                </div>
-              <% } else if (policy.status === "ACTIVE" && new Date(policy.effectiveFrom) > now) { %>
-                <div class="admin-policy-actions"><form action="/admin/arena-policies/sub/<%= policy._id %>/retire" method="POST" onsubmit="return confirm('이 적용 예정 정책을 취소할까요?');"><button class="danger" type="submit">적용 예정 취소</button></form></div>
-              <% } %>
-            </article>
-          <% }) %>
-        </div>
-        </div>
-      </details>
-
-      <section class="admin-policy-domain-heading">
-        <div><span>RANKED</span><h2>Ranked 정책</h2></div>
-        <p>경기 초대, 티어 차이별 예치 일수와 복수전 정산 기준을 관리합니다.</p>
-      </section>
-
-      <section class="admin-stat-grid" id="main-policy" aria-label="현재 Ranked 정책">
-        <article><span>현재 Ranked 정책</span><strong><%= policyData.main.activePolicy ? policyTitle(policyData.main.activePolicy) : "적용 정책 없음" %></strong></article>
-        <article><span>최대 티어 차이</span><strong><%= policyData.main.activePolicy?.maximumTargetTierGap ?? "—" %><small><%= policyData.main.activePolicy ? "단계" : "" %></small></strong></article>
-        <article><span>복수전 예치 배수</span><strong><%= policyData.main.activePolicy?.revengeStakeMultiplier ?? "—" %><small><%= policyData.main.activePolicy ? "배" : "" %></small></strong></article>
-        <article><span>복수전 수수료</span><strong><%= policyData.main.activePolicy?.revengeFeeDays ?? "—" %><small><%= policyData.main.activePolicy ? "일" : "" %></small></strong></article>
-      </section>
-
-      <section class="admin-panel admin-policy-create">
-        <div class="admin-panel-heading">
-          <div><p>Ranked</p><h2>Ranked 경기 정책 만들기</h2></div>
-          <span>목표 티어 차이별 최소 예치 일수와 초대·복수전 조건은 활성 Ranked 정책을 실제 경기 코드에서 직접 조회합니다.</span>
-        </div>
-        <form class="admin-form" action="/admin/arena-policies/main" method="POST">
-          <input type="hidden" name="policyDivision" value="MAIN" />
-          <div class="admin-policy-field-grid">
-            <label class="wide"><span>정책 이름</span><input name="displayName" minlength="2" maxlength="120" value="<%= oldInput?.policyDivision === "MAIN" ? oldInput.displayName || "" : "" %>" placeholder="예: Ranked 정식 운영 정책" required /></label>
-            <label><span>적용 시작 시각 <small>한국시간 · 최소 30일 뒤</small></span><input type="datetime-local" name="effectiveFrom" min="<%= minimumPolicyDateTime %>" value="<%= oldInput?.policyDivision === "MAIN" ? oldInput.effectiveFrom || formatLocalInput() : formatLocalInput() %>" required /></label>
-            <label><span>Ranked 진입 보너스</span><input type="number" name="mainEntryBonusDays" min="0" step="1" value="<%= mainValue("mainEntryBonusDays", 2) %>" required /></label>
-            <label><span>Unranked 이월 차감 기준</span><input type="number" name="mainCarryoverBaseDays" min="0" step="1" value="<%= mainValue("mainCarryoverBaseDays", 29) %>" required /></label>
-            <label><span>최대 티어 차이</span><input type="number" name="maximumTargetTierGap" min="1" step="1" value="<%= mainValue("maximumTargetTierGap", 3) %>" required /></label>
-            <label><span>초대 자동 취소 수수료</span><input type="number" name="invitationCancellationFeeDays" min="0" step="1" value="<%= mainValue("invitationCancellationFeeDays", 1) %>" required /></label>
-            <label><span>최근 상대 제외 기간</span><input type="number" name="repeatOpponentExclusionDays" min="0" step="1" value="<%= mainValue("repeatOpponentExclusionDays", 7) %>" required /></label>
-            <label><span>목표 티어별 활성 예약 상한</span><input type="number" name="maximumActiveInvitationReservationsPerTargetTier" min="1" max="1" step="1" value="1" readonly required /></label>
-            <label><span>초대 동시 발송 인원 <small>비우면 전체 적격 후보</small></span><input type="number" name="invitationOfferBatchSize" min="1" step="1" value="<%= mainValue("invitationOfferBatchSize", "") %>" /></label>
-            <label><span>복수전 예치 배수</span><input type="number" name="revengeStakeMultiplier" min="1" step="1" value="<%= mainValue("revengeStakeMultiplier", 2) %>" required /></label>
-            <label><span>복수전 기본 수수료</span><input type="number" name="revengeFeeDays" min="0" step="1" value="<%= mainValue("revengeFeeDays", 1) %>" required /></label>
-          </div>
-          <fieldset class="admin-policy-fieldset">
-            <legend>티어 차이별 최소 예치 일수</legend>
-            <p>현재 확정값은 1단계 1일, 2단계 2일, 3단계 3일이며 최대 3단계입니다.</p>
-            <div class="admin-policy-band-list">
-              <% [1, 2, 3].forEach((gap) => { %>
-                <div>
-                  <strong><%= gap %>단계 차이</strong>
-                  <input type="hidden" name="mainTierGaps" value="<%= gap %>" />
-                  <label><span>최소 예치 일수</span><input type="number" name="mainMinimumStakeDays" min="1" step="1" value="<%= Array.isArray(oldInput?.mainMinimumStakeDays) && oldInput?.policyDivision === "MAIN" ? oldInput.mainMinimumStakeDays[gap - 1] : (mainBasePolicy.stakeDaysByTierGap || []).find((band) => Number(band.tierGap) === gap)?.stakeDays ?? gap %>" required /></label>
-                </div>
-              <% }) %>
-            </div>
-          </fieldset>
-          <label><span>변경 사유·운영 메모</span><textarea name="changeSummary" rows="4" maxlength="1000"><%= oldInput?.policyDivision === "MAIN" ? oldInput.changeSummary || "" : "" %></textarea></label>
-          <button type="submit">30일 후 적용 예약·전체 공지</button>
-        </form>
-      </section>
-
-      <details class="admin-panel admin-policy-history">
-        <summary class="admin-policy-history-summary"><div><p>Ranked</p><h2>Ranked 경기 정책 이력</h2></div><span><%= policyData.main.policies.length %>개 <b>펼치기</b></span></summary>
-        <div class="admin-policy-history-body">
-        <% if (!policyData.main.policies.length) { %><p class="admin-empty">등록된 Ranked 정책이 없습니다.</p><% } %>
-        <div class="admin-policy-list">
-          <% policyData.main.policies.forEach((policy) => { const state = policyState(policy); %>
-            <article class="admin-policy-card <%= state === "적용 중" ? "is-current" : "" %>">
-              <header>
-                <div><span><%= state %></span><h3><%= policyTitle(policy) %></h3><small><%= formatDateTime(policy.effectiveFrom) %>부터</small></div>
-                <strong>최대 <%= policy.maximumTargetTierGap %>단계</strong>
-              </header>
-              <div class="admin-policy-summary-grid">
-                <% (policy.stakeDaysByTierGap || []).forEach((band) => { %><span><%= band.tierGap %>단계 차이 <b>최소 <%= band.stakeDays %>일</b></span><% }) %>
-                <span>자동 취소 수수료 <b><%= policy.invitationCancellationFeeDays ?? 1 %>일</b></span>
-                <span>직접 취소 <b>무료</b></span>
-                <span>최근 상대 제외 <b><%= policy.repeatOpponentExclusionDays ?? 7 %>일</b></span>
-                <span>목표 티어별 예약 <b>최대 <%= policy.maximumActiveInvitationReservationsPerTargetTier ?? 1 %>개</b></span>
-                <span>복수전 <b><%= policy.revengeStakeMultiplier ?? 2 %>배 · <%= policy.revengeFeeDays ?? 1 %>일 수수료</b></span>
-                <span>상대 선정 <b>서버 무작위</b></span>
-              </div>
-              <% if (policy.changeSummary) { %><p><%= policy.changeSummary %></p><% } %>
-              <% if (policy.status === "DRAFT") { %>
-                <div class="admin-policy-actions">
-                  <form action="/admin/arena-policies/main/<%= policy._id %>/activate" method="POST"><button type="submit">적용 일정에 등록</button></form>
-                  <form action="/admin/arena-policies/main/<%= policy._id %>/retire" method="POST"><button class="danger" type="submit">작성 취소</button></form>
-                </div>
-              <% } else if (policy.status === "ACTIVE" && new Date(policy.effectiveFrom) > now) { %>
-                <div class="admin-policy-actions"><form action="/admin/arena-policies/main/<%= policy._id %>/retire" method="POST"><button class="danger" type="submit">적용 예정 취소</button></form></div>
-              <% } %>
-            </article>
-          <% }) %>
-        </div>
-        </div>
-      </details>
     </main>
   </body>
 </html>

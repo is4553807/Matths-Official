@@ -839,7 +839,7 @@ for (const copy of [
   );
 }
 for (const copy of [
-  "응시하고 최종 종합 랭킹에 반영할 성적을 만들어보세요.",
+  "응시하면 대표 성적이 경쟁전 내부 실력 지표에 반영됩니다.",
   "PRIVATE_MOCK_FOLDER_NAME",
   "status: \"ranked\"",
   "aggregationStartsAt",
@@ -919,5 +919,5 @@ for (const file of [
 }
 
 console.log(
-  "게시판 투표·인기글·삭제 알림, Matths 주간 공식 모의고사 자동 공개·최종 종합 랭킹·아카이브, 관리자 자료 관리와 알림 정책 검증 완료"
+  "게시판 투표·인기글·삭제 알림, Matths 주간 공식 모의고사 자동 공개·내부 실력 지표 반영·아카이브, 관리자 자료 관리와 알림 정책 검증 완료"
 );

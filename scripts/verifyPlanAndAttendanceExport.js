@@ -11,11 +11,10 @@ process.env.NODE_ENV = "development";
 process.env.DISABLE_SCHEDULERS = "1";
 
 const { User } = require("../models/matthsModel");
-const { AccessCycle, MockExamSubscription } = require("../models/goatArenaModel");
 const { Academy, AcademyStaff, AcademyClass, AcademyStudentMembership, AcademyAttendance, AcademyAttendanceSession } = require("../models/academyModel");
 const { getDashboardData } = require("../services/dashboardService");
-const { getMockExamPackageAccess } = require("../services/mockExamPackageService");
 const { getPaidPackageAccess } = require("../services/paidFeatureAccessService");
+const { proPlanDraft } = require("../services/accountPlanService");
 const { getAcademyAttendanceCsv, csvCell } = require("../services/academyAttendanceExportService");
 
 async function main() {
@@ -27,18 +26,9 @@ async function main() {
     const missingRecordStudent = await User.create({ name: "unrecorded-fixture", realName: "미기록학생", email: "unrecorded@fixture.invalid", passwordHash: "fixture-unused", schoolGrade: 10, role: "student" });
     const teacher = await User.create({ name: "teacher-fixture", email: "teacher@fixture.invalid", passwordHash: "fixture-unused", role: "teacher" });
     const owner = await User.create({ name: "owner-fixture", email: "owner@fixture.invalid", passwordHash: "fixture-unused", role: "teacher" });
-    const subscription = await MockExamSubscription.create({
-      userId: learner._id, policyVersionId: new mongoose.Types.ObjectId(),
-      policySnapshot: { code: "fixture", monthlyPriceAmount: 5500, currency: "KRW", billingPeriodDays: 30 },
-      purchaseMode: "ADMIN_GRANT", status: "ACTIVE",
-      startsAt: new Date("2026-09-10T06:51:21.129Z"), endsAt: new Date("2026-10-10T06:51:21.129Z"),
-    });
-    const mockData = await getDashboardData(learner._id, { now });
-    assert.equal(mockData.activePlan.code, "MOCK_EXAM_ONLY");
-    assert.equal(mockData.activePlan.remainingLearningDays, 0);
-    assert.equal(mockData.activePlan.remainingUsageDays, 27);
-    assert.equal((await getMockExamPackageAccess(learner._id, now)).active, true);
-    assert.equal((await getPaidPackageAccess(learner._id)).active, false);
+    const freeData = await getDashboardData(learner._id, { now });
+    assert.equal(freeData.activePlan.code, "FREE");
+    assert.equal((await getPaidPackageAccess(learner._id, { now })).active, false);
     async function renderPlan(data) {
       const html = await ejs.renderFile(path.resolve("views/main.ejs"), {
         user: learner.toObject(), dashboardData: data, assetVersion: "fixture",
@@ -46,37 +36,33 @@ async function main() {
       });
       return html.match(/<section class="plan-card"[\s\S]*?<\/section>/)?.[0] || "";
     }
-    const mockHtml = await renderPlan(mockData);
-    assert.match(mockHtml, /남은 모의고사 이용 기간/);
-    assert.match(mockHtml, /27일/);
-    assert.doesNotMatch(mockHtml, /남은 학습일|Arena 예치|예약됨/);
-    assert.match(mockHtml, /2026년 10월 10일/);
-    assert.match(mockHtml, /15:51/);
+    const freeHtml = await renderPlan(freeData);
+    assert.match(freeHtml, /무료 플랜/);
+    assert.match(freeHtml, /0원/);
 
-    await MockExamSubscription.updateOne({ _id: subscription._id }, { $set: { endsAt: now } });
+    const proStartsAt = new Date("2026-09-10T06:51:21.129Z");
+    const proEndsAt = new Date("2026-10-10T06:51:21.129Z");
+    await User.updateOne(
+      { _id: learner._id },
+      { $set: { accountPlan: proPlanDraft({ startsAt: proStartsAt, endsAt: proEndsAt }) } }
+    );
+    const proData = await getDashboardData(learner._id, { now });
+    assert.equal(proData.activePlan.code, "PRO");
+    assert.equal(proData.activePlan.priceAmount, 5500);
+    assert.equal((await getPaidPackageAccess(learner._id, { now })).active, true);
+    const proHtml = await renderPlan(proData);
+    assert.match(proHtml, /Pro 플랜/);
+    assert.match(proHtml, /5,500원/);
+    assert.match(proHtml, /2026년 10월 10일/);
+
+    await User.updateOne({ _id: learner._id }, { $set: { "accountPlan.endsAt": now } });
     assert.equal((await getDashboardData(learner._id, { now })).activePlan.code, "FREE");
-    assert.equal((await getMockExamPackageAccess(learner._id, now)).active, false);
-    await MockExamSubscription.updateOne({ _id: subscription._id }, { $set: { startsAt: new Date("2026-09-15T00:00:00Z"), endsAt: new Date("2026-10-15T00:00:00Z") } });
-    assert.equal((await getDashboardData(learner._id, { now })).activePlan.code, "FREE", "future subscription must not appear active before its start");
-    const expiry = new Date("2026-09-14T15:00:00Z"); // Sep 15 00:00 KST, exclusive.
-    const cycle = await AccessCycle.create({
-      userId: learner._id, division: "SUB", status: "ACTIVE", policyVersionId: new mongoose.Types.ObjectId(),
-      policyVersionCode: "fixture", policySnapshot: { initialLearningDays: 29 }, pricePaid: 29000,
-      paidAt: now, startsAt: now, baseExpiresAt: expiry, expiresAt: expiry, evaluationAt: expiry,
-      firstDayMode: "NEXT_DAY", firstConsumptionDateKst: "2026-09-15",
-      availableLearningDays: 0, reservedLearningDays: 0, lockedLearningDays: 0,
-    });
-    const exhausted = await getDashboardData(learner._id, { now });
-    assert.equal(exhausted.activePlan.statusLabel, "학습일 소진");
-    assert.equal(exhausted.activePlan.remainingLearningDays, 0);
-    const exhaustedHtml = await renderPlan(exhausted);
-    assert.match(exhaustedHtml, /마지막 이용 날짜 · <strong>2026년 9월 14일/);
-    assert.match(exhaustedHtml, /만료 시각 · 2026년 9월 15일 00:00/);
-    assert.equal((await getPaidPackageAccess(learner._id)).active, false);
-    await AccessCycle.updateOne({ _id: cycle._id }, { $set: { reservedLearningDays: 2, lockedLearningDays: 3 } });
-    const heldDays = (await getDashboardData(learner._id, { now })).activePlan;
-    assert.equal(heldDays.remainingLearningDays, 5);
-    assert.equal(heldDays.statusLabel, "학습일 예약·예치 중");
+    assert.equal((await getPaidPackageAccess(learner._id, { now })).active, false);
+    await User.updateOne(
+      { _id: learner._id },
+      { $set: { accountPlan: proPlanDraft({ startsAt: new Date("2026-09-15T00:00:00Z"), endsAt: new Date("2026-10-15T00:00:00Z") }) } }
+    );
+    assert.equal((await getDashboardData(learner._id, { now })).activePlan.code, "FREE", "future Pro must not appear active before its start");
 
     const academy = await Academy.create({ name: "CSV검사학원", nameNormalized: "csv검사학원", status: "ACTIVE", createdByUserId: owner._id });
     await AcademyStaff.create([
@@ -171,7 +157,7 @@ async function main() {
       assert.match(source, /GOAT 교재관/);
       assert.doesNotMatch(source, /고2·고3 수험관/);
     }
-    console.log("Plan/CSV verified: mock subscription duration vs learning balance, future/exact-expiry boundaries, midnight last-use date, held/exhausted days, renamed pages, Excel-safe Korean daily/range matrices, teacher class scope and non-mutating downloads.");
+    console.log("Plan/CSV verified: free/Pro access, 5,500 won display, future/exact-expiry boundaries, Excel-safe Korean daily/range matrices, teacher class scope and non-mutating downloads.");
   } finally {
     await mongoose.disconnect();
     await mongo.stop();

@@ -4,11 +4,9 @@ const {
 } = require("../models/goatArenaModel");
 const { CheckoutIntent } = require("../models/parentModel");
 const {
-  applyApprovedPackagePayment,
-} = require("./accessCycleService");
-const {
-  applyApprovedMockExamPayment,
-} = require("./mockExamPaymentService");
+  PRO_PRODUCT_CODE,
+  applyApprovedProPayment,
+} = require("./accountPlanService");
 const {
   approvePayment,
   createPaymentHash,
@@ -264,6 +262,13 @@ async function replayResult(intent) {
 }
 
 async function applyEntitlement(intent, payment, normalized) {
+  if (intent.productCode !== PRO_PRODUCT_CODE) {
+    throw statusError(
+      400,
+      "Matths Pro 상품 결제만 적용할 수 있습니다.",
+      "PAYMENT_PRODUCT_INVALID"
+    );
+  }
   const approval = {
     userId: intent.studentUserId,
     provider: "INICIS",
@@ -277,16 +282,7 @@ async function applyEntitlement(intent, payment, normalized) {
     productCode: intent.productCode,
     productName: intent.productName,
   };
-  if (intent.productCode === "MOCK_EXAM_ONLY") {
-    return applyApprovedMockExamPayment({
-      ...approval,
-      purchaseMode: intent.requestedBy === "PARENT" ? "PARENT_REQUEST" : "SELF",
-    });
-  }
-  if (intent.productCode === "LEARNING_PACKAGE_29") {
-    return applyApprovedPackagePayment(approval);
-  }
-  throw statusError(409, "결제 상품을 확인할 수 없습니다.", "PAYMENT_PRODUCT_INVALID");
+  return applyApprovedProPayment(approval);
 }
 
 async function markIntentFromPayment(intent, normalized, status) {
@@ -677,6 +673,7 @@ module.exports = {
   resultBackLink,
   validateInicisCloseParameters,
   _testing: {
+    applyEntitlement,
     approvedAtFromInicis,
     assertPaymentMatchesIntent,
     normalizeApprovedPayment,

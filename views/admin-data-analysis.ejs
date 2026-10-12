@@ -31,7 +31,7 @@
         <div>
           <p>MONTHLY OBSERVATIONS</p>
           <h1>운영 지표</h1>
-          <span>결제·학습권·경기·페이백 원장에서 월별 분자, 분모와 표본 수를 다시 계산합니다.</span>
+          <span>무료·Pro 플랜, 현행 GOAT Arena, 게스트 친선전과 주간 모의고사 상태를 월별로 확인합니다.</span>
         </div>
         <div class="data-analysis-controls">
           <form action="/admin/data-analysis" method="GET">
@@ -44,7 +44,7 @@
           </form>
           <form action="/admin/data-analysis/rebuild" method="POST">
             <input type="hidden" name="periodKey" value="<%= analysis.period.periodKey %>" />
-            <button type="submit">원장에서 다시 집계</button>
+            <button type="submit">원본 데이터 새로고침</button>
           </form>
         </div>
       </header>
@@ -60,17 +60,17 @@
         </div>
         <p>
           <%= analysis.periodClosed
-            ? "월 경계는 한국시간 기준으로 닫혔습니다. 늦게 확정되는 재구매·지급 상태는 재집계 시 반영됩니다."
-            : "15분마다 자동 갱신됩니다. 아직 관측 시간이 지나지 않은 이용자는 전환율 분모에서 제외됩니다." %>
+            ? "월 경계는 한국시간 기준으로 닫혔습니다. 늦게 확정된 경기·결제 상태는 새로고침 시 반영됩니다."
+            : "현재 월의 원본 데이터를 실시간으로 조회합니다. 재고형 수치는 현재 시점 값으로 별도 표시됩니다." %>
         </p>
         <time><%= formatKst(analysis.generatedAt) %> KST</time>
       </section>
 
       <section class="admin-stat-grid data-analysis-summary" aria-label="운영 지표 집계 요약">
-        <article><span>전체 지표</span><strong><%= number(analysis.summary.catalogMetricCount) %></strong><small>첫 달 확인 목록</small></article>
-        <article><span>자동 집계 연결</span><strong><%= number(analysis.summary.observedMetricCount) %></strong><small>권위 원장에서 계산</small></article>
-        <article><span>집계 미실행</span><strong><%= number(analysis.summary.waitingMetricCount) %></strong><small>신규 지표 또는 아직 실행되지 않은 월</small></article>
-        <article><span>판단 가능</span><strong><%= number(analysis.summary.reliableMetricCount) %></strong><small>최소 표본 수 충족</small></article>
+        <article><span>전체 지표</span><strong><%= number(analysis.summary.catalogMetricCount) %></strong><small>현행 운영 항목</small></article>
+        <article><span>기록 있음</span><strong><%= number(analysis.summary.observedMetricCount) %></strong><small>원본 데이터 조회</small></article>
+        <article><span>기록 없음</span><strong><%= number(analysis.summary.waitingMetricCount) %></strong><small>선택 월 또는 현재 상태</small></article>
+        <article><span>확인 가능</span><strong><%= number(analysis.summary.reliableMetricCount) %></strong><small>운영 판단용</small></article>
       </section>
 
       <section class="admin-panel data-analysis-guide">
@@ -78,14 +78,14 @@
           <div><p>READING GUIDE</p><h2>지표 읽는 법</h2></div>
         </div>
         <div>
-          <article><strong>분자</strong><p>조건을 실제로 충족한 결제·이용 주기·경기 또는 심사 건수입니다.</p></article>
-          <article><strong>분모</strong><p>아직 관측 시간이 지나지 않은 사용자를 제외한 비교 대상입니다.</p></article>
-          <article><strong>표본 수</strong><p>100건 미만은 확정 정책값으로 사용하지 않고 계속 수집합니다.</p></article>
-          <article><strong>집계 미실행</strong><p>해당 월의 원본 집계를 아직 실행하지 않았거나 신규 지표가 등록된 직후입니다.</p></article>
+          <article><strong>월간 수치</strong><p>선택한 한국시간 월 안에서 확정된 경기·결제·시험 기록입니다.</p></article>
+          <article><strong>현재 시점</strong><p>플랜 분포, 진행 경기, 과거 기록 풀처럼 즉시 확인해야 하는 재고형 수치입니다.</p></article>
+          <article><strong>표본 수</strong><p>해당 운영 항목을 뒷받침하는 원본 건수입니다.</p></article>
+          <article><strong>기록 없음</strong><p>선택한 월에 해당 기록이 없거나 현재 대기 건이 없다는 뜻입니다.</p></article>
         </div>
       </section>
 
-      <section class="admin-panel data-analysis-assumptions">
+      <% if (analysis.assumptions?.length) { %><section class="admin-panel data-analysis-assumptions">
         <div class="admin-panel-heading">
           <div><p>ASSUMPTION CHECK</p><h2>출시 전 가정과 실제값</h2></div>
           <span>표본 100건부터 정책 검토</span>
@@ -102,7 +102,7 @@
             </article>
           <% }) %>
         </div>
-      </section>
+      </section><% } %>
 
       <section class="data-analysis-category-list" aria-label="분류별 운영 지표">
         <% analysis.categories.forEach((category, categoryIndex) => { %>
@@ -122,7 +122,7 @@
                     <span><%= metric.statusLabel %></span>
                   </header>
                   <% if (!metric.observations.length) { %>
-                    <p class="data-analysis-waiting">해당 월의 집계 행이 아직 생성되지 않았습니다. 원장에서 다시 집계를 실행해 주세요.</p>
+                    <p class="data-analysis-waiting">선택한 월 또는 현재 시점에 해당 기록이 없습니다.</p>
                   <% } else { %>
                     <div class="data-analysis-observation-list">
                       <% metric.observations.forEach((row) => { %>

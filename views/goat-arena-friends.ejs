@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="GOAT Arena 친구와 친선전" />
+    <meta name="theme-color" content="#070913" />
+    <title>친구와 친선전 | GOAT Arena</title>
+    <link rel="stylesheet" href="/css/goat-arena.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+    <script src="/js/goat-arena.js" defer></script>
+    <script src="/js/goat-arena-v2.js" defer></script>
+  </head>
+  <body class="goat-arena-page arena-inner-page arena-battle-page arena-battle-page--main">
+    <a class="arena-skip-link" href="#arena-friends-main">본문으로 바로가기</a>
+    <%- include("partials/goat-arena-navigation", { activeArenaPage: "friends", arenaUser }) %>
+
+    <main class="arena-page-main main-battle-main arena-battle-main" id="arena-friends-main">
+      <header class="arena-page-heading arena-command-hero arena-command-hero--main">
+        <div><p>FRIENDLY MATCH</p><h1>친구와 <span>친선전</span></h1></div>
+        <div class="arena-command-hero-copy"><p>친구 요청을 수락한 사용자끼리 친선전을 시작할 수 있습니다. 기존 친구·초대·접속 상태 로직은 그대로 유지됩니다.</p></div>
+      </header>
+
+      <% if (notice) { %><div class="arena-action-message" role="status"><strong>처리 완료</strong><span><%= notice %></span></div><% } %>
+      <% if (errorMessage) { %><div class="arena-action-message is-error" role="alert"><strong>요청을 완료하지 못했습니다.</strong><span><%= errorMessage %></span></div><% } %>
+      <p class="arena-action-message" data-arena2-friend-updates data-incoming-count="<%= friends.receivedRequests.length + friends.receivedInvites.length %>" data-self-busy="<%= Boolean(activeMatch || queue) %>" hidden role="status"><strong>새 소식</strong><span>친구 요청 또는 친선전 초대가 변경되었습니다. 새로고침해 확인해 주세요.</span></p>
+
+      <% if (activeMatch) { %>
+        <div class="arena-action-message"><strong>진행 중인 <%= activeMatch.modeLabel %></strong><span><a href="<%= activeMatch.href %>">현재 경기로 이동</a></span></div>
+      <% } %>
+
+      <section class="main-friendly-board" data-arena-tutorial-target="main-friendly">
+        <header>
+          <div><small>FRIEND SEARCH</small><h2>친구 찾기</h2></div>
+          <p>닉네임 또는 이메일로 사용자를 찾고 친구 요청을 보낼 수 있습니다.</p>
+        </header>
+        <div class="main-friendly-search">
+          <form action="/goat-arena/friends" method="get">
+            <label><span>닉네임 또는 이메일</span><input type="search" name="q" value="<%= friends.query %>" minlength="2" autocomplete="off" required /></label>
+            <button type="submit">검색</button>
+          </form>
+        </div>
+
+        <% if (friends.query) { %>
+          <div class="main-friendly-results" aria-live="polite">
+            <% if (!friends.searchResults.length) { %><p class="empty">검색 결과가 없습니다.</p><% } %>
+            <% friends.searchResults.forEach((result) => { %>
+              <article>
+                <div><strong><%= result.username %></strong><span><%= result.friendshipStatus === "FRIEND" ? "친구" : result.friendshipStatus === "REQUEST_SENT" ? "요청 보냄" : result.friendshipStatus === "REQUEST_RECEIVED" ? "받은 요청 있음" : "검색 결과" %></span></div>
+                <% if (result.friendshipStatus === "NONE") { %><form action="/goat-arena/friends/requests" method="post"><input type="hidden" name="recipientUserId" value="<%= result.userId %>" /><button type="submit">친구 요청</button></form><% } %>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+
+        <div class="main-friendly-columns">
+          <article>
+            <h3>받은 친구 요청</h3>
+            <% if (!friends.receivedRequests.length) { %><p class="empty">받은 요청이 없습니다.</p><% } %>
+            <% friends.receivedRequests.forEach((request) => { %>
+              <div class="main-friendly-invitation-item">
+                <strong><%= request.requesterUserId?.name || "사용자" %></strong>
+                <div class="main-invitation-actions">
+                  <form action="/goat-arena/friends/requests/<%= request._id %>/respond" method="post"><button name="response" value="ACCEPT" type="submit">수락</button></form>
+                  <form action="/goat-arena/friends/requests/<%= request._id %>/respond" method="post"><button class="secondary" name="response" value="DECLINE" type="submit">거절</button></form>
+                </div>
+              </div>
+            <% }) %>
+          </article>
+          <article>
+            <h3>보낸 친구 요청</h3>
+            <% if (!friends.sentRequests.length) { %><p class="empty">대기 중인 요청이 없습니다.</p><% } %>
+            <% friends.sentRequests.forEach((request) => { %><div class="main-friendly-invitation-item"><strong><%= request.recipientUserId?.name || "사용자" %></strong><span>수락 대기 중</span></div><% }) %>
+          </article>
+        </div>
+      </section>
+
+      <section class="main-friendly-board">
+        <header><div><small>FRIENDLY INVITATIONS</small><h2>친선전 초대</h2></div><p>친구의 접속·경기 상태를 확인한 뒤 친선전을 신청합니다.</p></header>
+        <div class="main-friendly-columns">
+          <article>
+            <h3>받은 친선전 초대</h3>
+            <% if (!friends.receivedInvites.length) { %><p class="empty">받은 친선전 초대가 없습니다.</p><% } %>
+            <% friends.receivedInvites.forEach((invitation) => { %>
+              <div class="main-friendly-invitation-item"><strong><%= invitation.inviterUserId?.name || "친구" %></strong><div class="main-invitation-actions"><form action="/goat-arena/friends/invitations/<%= invitation._id %>/respond" method="post"><button name="response" value="ACCEPT" type="submit" <%= activeMatch || queue ? "disabled" : "" %>>수락하고 시작</button></form><form action="/goat-arena/friends/invitations/<%= invitation._id %>/respond" method="post"><button class="secondary" name="response" value="DECLINE" type="submit">거절</button></form></div></div>
+            <% }) %>
+          </article>
+          <article>
+            <h3>보낸 친선전 초대</h3>
+            <% if (!friends.sentInvites.length) { %><p class="empty">대기 중인 초대가 없습니다.</p><% } %>
+            <% friends.sentInvites.forEach((invitation) => { %><div class="main-friendly-invitation-item"><strong><%= invitation.inviteeUserId?.name || "친구" %></strong><div class="main-invitation-actions"><form action="/goat-arena/friends/invitations/<%= invitation._id %>/cancel" method="post"><button class="secondary" type="submit">초대 취소</button></form></div></div><% }) %>
+          </article>
+        </div>
+
+        <h3>친구 목록</h3>
+        <div class="main-friendly-results">
+          <% if (!friends.friends.length) { %><p class="empty">아직 친구가 없습니다.</p><% } %>
+          <% friends.friends.forEach((friend) => { %>
+            <article data-arena2-friend="<%= friend.userId %>">
+              <div><strong><%= friend.username %></strong><span data-friend-presence>Lv. <%= friend.level %> · <%= friend.tierLabel %> · <%= friend.online ? "온라인" : "오프라인" %> · <%= friend.gameStatus %></span></div>
+              <form action="/goat-arena/friends/invitations" method="post"><input type="hidden" name="inviteeUserId" value="<%= friend.userId %>" /><input type="hidden" name="requestId" value="<%= requestId %>-<%= friend.userId %>" /><button type="submit" <%= !friend.canInvite || activeMatch || queue ? "disabled" : "" %>>친선전 신청</button></form>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    </main>
+    <%- include("partials/business-footer") %>
+  </body>
+</html>

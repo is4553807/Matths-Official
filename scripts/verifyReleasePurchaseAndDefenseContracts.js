@@ -14,6 +14,7 @@ async function verifyNativeCheckoutBoundary() {
     accessLoader: async () => ({}),
     environment: {
       APPLE_BUNDLE_ID: "kr.matths.app",
+      APPLE_PRO_PRODUCT_ID: "kr.matths.app.pro.monthly",
       PAID_CHECKOUT_ENABLED: "false",
       PAYMENT_PROVIDER: "DISABLED",
     },
@@ -46,7 +47,11 @@ async function verifyDefenseQueryBoundary() {
     limit: "50",
   }, { MatchModel, AttemptModel });
 
-  assert.deepEqual(observedQuery["defender.userId"], new mongoose.Types.ObjectId(userId));
+  assert.deepEqual(observedQuery.$and, [
+    { "defender.userId": new mongoose.Types.ObjectId(userId) },
+    { "normalAsync.enabled": { $ne: true } },
+    { "competitiveAsync.enabled": { $ne: true } },
+  ]);
   assert.equal(observedQuery.$or, undefined);
   assert.deepEqual(observedQuery.status.$in, [
     "REQUESTED", "MATCHED", "READY", "IN_PROGRESS", "SUBMITTED", "HELD",

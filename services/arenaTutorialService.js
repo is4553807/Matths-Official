@@ -3,11 +3,9 @@ const { User } = require("../models/matthsModel");
 
 const ARENA_TUTORIAL_CHAPTERS = Object.freeze([
   "common",
-  "unranked",
-  "unranked_match",
-  "ranked",
-  "ranked_battle",
-  "ranked_shop",
+  "normal",
+  "competitive",
+  "friends",
 ]);
 const ARENA_TUTORIAL_STATUSES = Object.freeze([
   "NOT_REQUIRED",
@@ -22,11 +20,9 @@ const ARENA_TUTORIAL_ACTIONS = Object.freeze([
 ]);
 const ARENA_TUTORIAL_FIRST_PATH = Object.freeze({
   common: "/goat-arena",
-  unranked: "/goat-arena/sub",
-  unranked_match: "/goat-arena/sub/challenge",
-  ranked: "/goat-arena/main",
-  ranked_battle: "/goat-arena/main/battle",
-  ranked_shop: "/goat-arena/main/shop",
+  normal: "/goat-arena/sub",
+  competitive: "/goat-arena/main",
+  friends: "/goat-arena/friends",
 });
 
 function statusError(status, message) {
@@ -40,15 +36,8 @@ function normalizeDivision(division) {
   return ["SUB", "MAIN"].includes(normalized) ? normalized : null;
 }
 
-function eligibleArenaTutorialChapters({ activeDivision } = {}) {
-  const division = normalizeDivision(activeDivision);
-  return [
-    "common",
-    ...(division === "SUB" ? ["unranked", "unranked_match"] : []),
-    ...(division === "MAIN"
-      ? ["ranked", "ranked_battle", "ranked_shop"]
-      : []),
-  ];
+function eligibleArenaTutorialChapters() {
+  return [...ARENA_TUTORIAL_CHAPTERS];
 }
 
 function availableArenaTutorialChapters({
@@ -97,7 +86,7 @@ function arenaTutorialView(
     ])
   );
   return {
-    version: Number(stored?.version || 1),
+    version: Number(stored?.version || 2),
     activeDivision: normalizeDivision(activeDivision),
     eligibleChapters,
     availableChapters,
@@ -173,7 +162,7 @@ async function updateArenaTutorial({
       : "SKIPPED";
   const update = {
     $set: {
-      "preferences.arenaTutorial.version": 1,
+      "preferences.arenaTutorial.version": 2,
     },
     $unset: {},
   };
@@ -194,7 +183,7 @@ async function updateArenaTutorial({
   });
 
   const user = await User.findByIdAndUpdate(userId, update, {
-    new: true,
+    returnDocument: "after",
     runValidators: true,
   })
     .select("preferences")

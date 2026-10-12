@@ -56,6 +56,27 @@ const validProductionEnvironment = {
 async function main() {
   const validReport = runtimeEnvironmentReport(validProductionEnvironment);
   assert.deepEqual(validReport.errors, []);
+  assert.ok(
+    validReport.warnings.some((item) => item.includes("APPLE_PRO_PRODUCT_ID"))
+  );
+
+  const retiredAppleProductReport = runtimeEnvironmentReport({
+    ...validProductionEnvironment,
+    APPLE_PRO_PRODUCT_ID: "kr.matths.app.pass.29d",
+  });
+  assert.ok(
+    retiredAppleProductReport.errors.some((item) => item.includes("판매 종료 상품 ID"))
+  );
+
+  const appleReviewReport = runtimeEnvironmentReport({
+    ...validProductionEnvironment,
+    APPLE_PRO_PRODUCT_ID: "kr.matths.app.pro.monthly",
+    APPLE_ALLOW_SANDBOX: "true",
+  });
+  assert.deepEqual(appleReviewReport.errors, []);
+  assert.ok(
+    appleReviewReport.warnings.some((item) => item.includes("Apple Sandbox"))
+  );
 
   const formAction = formActionDirective(validProductionEnvironment);
   for (const origin of [

@@ -199,6 +199,10 @@ exports.getStatus = async (req, res, next) => {
         attemptId: dashboard.attemptId,
         answeredCount: Number(dashboard.answeredCount) || 0,
         ctaLabel: dashboard.ctaLabel || "",
+        completedAttempts: Number(dashboard.arenaV2?.completedCount) || 0,
+        maximumAttempts: Number(dashboard.arenaV2?.maximumAttempts) || 5,
+        finalized: dashboard.arenaV2?.finalized === true,
+        canTakeAnother: dashboard.arenaV2?.canTakeAnother === true,
         result,
         presentation,
       },
@@ -212,6 +216,21 @@ exports.start = async (req, res, next) => {
   try {
     const doc = await createPlacementAttempt({ userId: req.apiUser._id });
     return res.json({ attempt: await attemptView(doc) });
+  } catch (error) {
+    return sendError(res, next, error);
+  }
+};
+
+exports.finalize = async (req, res, next) => {
+  try {
+    const {
+      finalizeArenaV2Placement,
+      profileView,
+    } = require("../services/arenaV2ProfileService");
+    const profile = profileView(
+      await finalizeArenaV2Placement(req.apiUser._id)
+    );
+    return res.json({ placement: { finalized: true, profile } });
   } catch (error) {
     return sendError(res, next, error);
   }
@@ -276,3 +295,8 @@ async function finish(kind, req, res, next) {
 exports.submit = (req, res, next) => finish("submit", req, res, next);
 exports.expire = (req, res, next) => finish("expire", req, res, next);
 exports.buildPlacementPresentation = buildPlacementPresentation;
+
+const { arenaNativeMutation } = require("../middleware/arenaNativeMutation");
+for (const operation of ["start", "finalize", "saveDraft", "submit", "expire"]) {
+  exports[operation] = arenaNativeMutation(`placement:${operation}`, exports[operation]);
+}

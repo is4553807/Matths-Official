@@ -179,6 +179,24 @@ function runtimeEnvironmentReport(environment = process.env) {
       `${key}를 Cloudtype 운영 환경에 등록해야 합니다.`
     );
   }
+  const appleProProductId = valueOf(environment, "APPLE_PRO_PRODUCT_ID");
+  if (!appleProProductId) {
+    warnings.push(
+      "APPLE_PRO_PRODUCT_ID가 없어 네이티브 Pro 신규 구매가 비활성화됩니다. App Store Connect 검증 후 활성화해야 합니다."
+    );
+  } else if ([
+    "kr.matths.app.pass.29d",
+    "kr.matths.app.mock.30d",
+  ].includes(appleProProductId)) {
+    errors.push(
+      "APPLE_PRO_PRODUCT_ID에 판매 종료 상품 ID를 사용할 수 없습니다. 별도의 Pro 상품 ID가 필요합니다."
+    );
+  }
+  if (valueOf(environment, "APPLE_ALLOW_SANDBOX").toLowerCase() === "true") {
+    warnings.push(
+      "운영 환경에서 Apple Sandbox 거래가 허용되어 있습니다. App Review가 끝나면 반드시 false로 닫아야 합니다."
+    );
+  }
   const expectedAppleRedirect =
     valueOf(environment, "PUBLIC_BASE_URL")
       ? `${valueOf(environment, "PUBLIC_BASE_URL").replace(/\/$/, "")}/auth/apple/callback`
@@ -253,7 +271,6 @@ function runtimeEnvironmentReport(environment = process.env) {
     "API_TOKEN_SECRET",
     "IDENTITY_MATCH_SECRET",
     "ARENA_INTEGRITY_SECRET",
-    "PAYBACK_ACCOUNT_ENCRYPTION_KEY",
     "NICKNAME_CHECK_SECRET",
   ]) {
     if (!valueOf(environment, key)) {

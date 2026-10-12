@@ -733,18 +733,6 @@ stub("models/matthsModel.js", {
   User,
   UserNotification: {},
 });
-stub("models/goatArenaModel.js", {
-  AccessCycle: {
-    find() {
-      return query([]);
-    },
-  },
-  ArenaAccessState: {
-    find() {
-      return query([]);
-    },
-  },
-});
 stub("services/archiveService.js", {
   isArchiveAdmin: () => adminAllowed,
 });

@@ -15,7 +15,7 @@ const {
 } = require("./arenaOneOnOneProblemBank");
 const {
   ARENA_SOURCE_POSITION_BANDS,
-  ARENA_LEGACY_CONTENT_VERSION,
+  ARENA_FALLBACK_CONTENT_VERSION,
   ARENA_QUESTION_DESIGN_POLICY_VERSION,
   PUBLIC_DIFFICULTY_SPECS,
   TIER_SPECS,
@@ -256,52 +256,6 @@ function packHashPayload(pack) {
   };
 }
 
-function packHashPayloadLegacyV3(pack) {
-  const payload = packHashPayload(pack);
-  for (const question of payload.questions || []) {
-    delete question.reasoningStepCount;
-    delete question.generatorDifficulty;
-    delete question.caseBranchCount;
-    delete question.targetAccuracyMin;
-    delete question.targetAccuracyMax;
-    delete question.solutionProcess;
-    delete question.finalCheck;
-    delete question.answerKey;
-    if (question.validation) {
-      delete question.validation.structuralDifficultyPassed;
-    }
-  }
-  return payload;
-}
-
-function packHashPayloadLegacyV2(pack) {
-  const payload = packHashPayloadLegacyV3(pack);
-  delete payload.difficultyCode;
-  for (const question of payload.questions || []) {
-    delete question.typeSkeletonId;
-    delete question.referenceFamilyIds;
-    delete question.referenceFamilyLabels;
-    delete question.referenceBasis;
-    delete question.slotRole;
-    delete question.difficultyClass;
-    delete question.sourcePositionBand;
-    delete question.visualization;
-    if (question.validation) {
-      delete question.validation.tenMinuteSolvable;
-    }
-  }
-  return payload;
-}
-
-function packHashPayloadLegacyV2_5(pack) {
-  const payload = packHashPayloadLegacyV3(pack);
-  delete payload.difficultyCode;
-  for (const question of payload.questions || []) {
-    delete question.difficultyClass;
-  }
-  return payload;
-}
-
 function computeHashFromPayload(payload) {
   return createHash("sha256")
     .update(
@@ -317,15 +271,6 @@ function computeHashFromPayload(payload) {
 
 function computeArenaProblemPackHash(pack) {
   return computeHashFromPayload(packHashPayload(pack));
-}
-
-function computeArenaProblemPackHashCandidates(pack) {
-  return [
-    computeArenaProblemPackHash(pack),
-    computeHashFromPayload(packHashPayloadLegacyV3(pack)),
-    computeHashFromPayload(packHashPayloadLegacyV2_5(pack)),
-    computeHashFromPayload(packHashPayloadLegacyV2(pack)),
-  ];
 }
 
 function validateArenaProblemPackDefinition(pack) {
@@ -444,65 +389,6 @@ function validateArenaProblemPackDefinition(pack) {
   return true;
 }
 
-/*
- * A sealed pack is immutable, but the authoring schema keeps becoming more
- * specific as the Arena question policy evolves. Historical packs must not
- * fail at play time merely because a later policy added metadata such as a
- * public U/R difficulty code, source-position band, or final-slot role.
- *
- * This validator deliberately checks only the safety invariants shared by
- * every released pack. The exact historical payload is still authenticated
- * by its content hash in assertArenaProblemPackIntegrity, so this does not
- * permit a modified legacy pack to pass verification.
- */
-function validateLegacySealedArenaProblemPack(pack) {
-  const questions = Array.isArray(pack?.questions) ? pack.questions : [];
-  const questionKeys = questions.map((question) => question.questionKey);
-  const typeIds = questions.map((question) => question.typeId);
-  const totalPoints = questions.reduce(
-    (sum, question) => sum + Number(question.points || 0),
-    0
-  );
-  const valid =
-    Number(pack?.questionCount) === ARENA_PROBLEM_COUNT &&
-    questions.length === ARENA_PROBLEM_COUNT &&
-    new Set(questionKeys).size === ARENA_PROBLEM_COUNT &&
-    new Set(typeIds).size === ARENA_PROBLEM_COUNT &&
-    questionKeys.every(Boolean) &&
-    typeIds.every(Boolean) &&
-    Number(pack?.totalPoints) === ARENA_TOTAL_POINTS &&
-    totalPoints === ARENA_TOTAL_POINTS &&
-    Number(pack?.timeLimitMs) === ARENA_ONE_ON_ONE_TIME_LIMIT_MS &&
-    Boolean(pack?.tierPairKey) &&
-    Boolean(pack?.tierPairLabel) &&
-    Boolean(pack?.scoringVersion) &&
-    Boolean(pack?.designPolicyVersion) &&
-    Boolean(pack?.contentSourceVersion) &&
-    pack?.difficultyAnchor === "DEFENDER" &&
-    Boolean(TIER_SPECS[pack?.difficultyTier]) &&
-    Array.isArray(pack?.packCurve) &&
-    pack.packCurve.length === ARENA_PROBLEM_COUNT &&
-    questions.every(
-      (question) =>
-        ["semi-killer", "killer"].includes(question.category) &&
-        question.inputMode === "short-answer" &&
-        question.validation?.passed === true &&
-        question.validation?.solvable === true &&
-        question.validation?.uniqueAnswer === true &&
-        question.validation?.calculatorFree === true &&
-        question.validation?.answerMatches === true
-    );
-
-  if (!valid) {
-    throw statusError(
-      422,
-      "봉인된 경기 문제 팩의 공통 안전 기준을 확인하지 못했습니다.",
-      "INVALID_LEGACY_ARENA_PROBLEM_PACK"
-    );
-  }
-  return true;
-}
-
 function buildArenaProblemPackDraft({
   version,
   displayName,
@@ -512,7 +398,7 @@ function buildArenaProblemPackDraft({
   availableUntil = null,
   tierPairKey = "EMERALD_DIAMOND",
   tierPairLabel = "에메랄드-다이아몬드",
-  generationMode = "LEGACY_MANUAL",
+  generationMode = "MANUAL",
   generatedForMatchKey = "",
 } = {}) {
   const safeVersion = cleanCode(
@@ -532,7 +418,7 @@ function buildArenaProblemPackDraft({
   ) {
     throw statusError(
       400,
-      "Unranked 1대1 경기 제한 시간은 10분입니다.",
+      "Arena 경기 제한 시간은 문항당 10분입니다.",
       "INVALID_ARENA_TIME_LIMIT"
     );
   }
@@ -545,7 +431,7 @@ function buildArenaProblemPackDraft({
   if (!tierPair) {
     throw statusError(
       400,
-      "Unranked 문제 팩의 티어 조합을 확인해주세요.",
+      "일반전 문제 팩의 티어 조합을 확인해주세요.",
       "INVALID_ARENA_TIER_PAIR"
     );
   }
@@ -715,7 +601,7 @@ function buildArenaProblemPackDraft({
     generationMode,
     generatedForMatchKey,
     designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
-    contentSourceVersion: ARENA_LEGACY_CONTENT_VERSION,
+    contentSourceVersion: ARENA_FALLBACK_CONTENT_VERSION,
     designCompliance: "PENDING_FINAL_GENERATORS",
     difficultyAnchor: "DEFENDER",
     difficultyTier,
@@ -900,6 +786,7 @@ function buildGeneratedArenaProblemPackDraft({
   scoringVersion = "ARENA-SCORING-V1",
   division = "SUB",
   matchType = "NORMAL",
+  pairOverride = null,
 } = {}) {
   const generatedDate = new Date(generatedAt);
   if (Number.isNaN(generatedDate.getTime())) {
@@ -913,7 +800,14 @@ function buildGeneratedArenaProblemPackDraft({
   const normalizedMatchType = String(matchType || "NORMAL").toUpperCase();
   const [challengerTier, defenderTier] = pairKey.split("_");
   const normalizedDivision = String(division || "SUB").toUpperCase();
-  const pair = normalizedMatchType === "FRIENDLY"
+  const pair = pairOverride &&
+    String(pairOverride.key || "").toUpperCase() === pairKey &&
+    String(pairOverride.label || "").trim()
+    ? {
+        key: pairKey,
+        label: String(pairOverride.label).trim(),
+      }
+    : normalizedMatchType === "FRIENDLY"
     ? pairKey.startsWith("FRIENDLY_") && String(generation?.pairLabel || "").trim()
       ? {
           key: pairKey,
@@ -965,7 +859,7 @@ function buildGeneratedArenaProblemPackDraft({
     designPolicyVersion:
       generation.designPolicyVersion || ARENA_QUESTION_DESIGN_POLICY_VERSION,
     contentSourceVersion:
-      generation.contentSourceVersion || ARENA_LEGACY_CONTENT_VERSION,
+      generation.contentSourceVersion || ARENA_FALLBACK_CONTENT_VERSION,
     problemDataVersionId: generation.problemDataVersionId || null,
     tierCatalogVersionId: generation.tierCatalogVersionId || null,
     designCompliance:
@@ -1028,12 +922,11 @@ function sealArenaProblemPackDraft(
 }
 
 function assertArenaProblemPackIntegrity(pack) {
-  const hashCandidates = computeArenaProblemPackHashCandidates(pack);
-  const hashVersion = hashCandidates.indexOf(String(pack?.contentHash || ""));
+  const expectedHash = computeArenaProblemPackHash(pack);
   if (
     !["SEALED", "RETIRED"].includes(pack?.status) ||
     !pack?.contentHash ||
-    hashVersion < 0
+    String(pack.contentHash) !== expectedHash
   ) {
     throw statusError(
       409,
@@ -1041,11 +934,7 @@ function assertArenaProblemPackIntegrity(pack) {
       "ARENA_PROBLEM_PACK_INTEGRITY_FAILED"
     );
   }
-  if (hashVersion === 0) {
-    validateArenaProblemPackDefinition(pack);
-  } else {
-    validateLegacySealedArenaProblemPack(pack);
-  }
+  validateArenaProblemPackDefinition(pack);
   return true;
 }
 
@@ -1082,7 +971,6 @@ module.exports = {
   buildArenaProblemPackDraft,
   buildGeneratedArenaProblemPackDraft,
   computeArenaProblemPackHash,
-  computeArenaProblemPackHashCandidates,
   packHashPayload,
   saveArenaProblemPack,
   sealArenaProblemPackDraft,

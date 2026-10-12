@@ -181,6 +181,23 @@ function authRequestKey(req) {
   return `${clientAddress(req)}:${identifierDigest(identifier)}`;
 }
 
+function arenaGuestClientKey(req) {
+  const cookieHeader = String(req.get?.("cookie") || req.headers?.cookie || "");
+  const match = cookieHeader.match(/(?:^|;\s*)matths_arena_guest=([^;]+)/);
+  let guestProof = "";
+  if (match?.[1]) {
+    try {
+      guestProof = decodeURIComponent(match[1]);
+    } catch (_error) {
+      guestProof = match[1];
+    }
+  }
+  // Before the first claim there is no guest proof, so admission remains
+  // protected by the separate per-IP claim ceiling. Afterwards, people on
+  // the same school Wi-Fi receive independent play/upload buckets.
+  return `${clientAddress(req)}:${identifierDigest(guestProof)}`;
+}
+
 function createRateLimit({
   name,
   limit,
@@ -409,7 +426,67 @@ const inicisPaymentCallbackIpRateLimit = createRateLimit({
     "짧은 시간에 결제 결과 요청이 너무 많이 발생했습니다. 잠시 후 결제 내역을 확인해주세요.",
 });
 
+function configurablePositiveInteger(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+// Guest challenges intentionally allow many participants and unlimited
+// retries, but those product rules must not become unlimited anonymous writes
+// or 30 MB uploads from one network address. These are abuse ceilings, not a
+// participant cap, and can be raised independently in production.
+const arenaGuestClaimIpRateLimit = createRateLimit({
+  name: "arena-guest-claim-ip",
+  limit: configurablePositiveInteger("ARENA_GUEST_CLAIM_RATE_LIMIT_PER_HOUR", 120),
+  windowMs: 60 * 60 * 1000,
+  key: clientAddress,
+  consumer: consumeAuthRequestLimit,
+  errorCode: "ARENA_GUEST_CLAIM_RATE_LIMITED",
+  errorMessage: "짧은 시간에 도전장 참가 요청이 너무 많이 발생했습니다. 잠시 후 다시 시도해주세요.",
+});
+const arenaGuestPlayIpHardRateLimit = createRateLimit({
+  name: "arena-guest-play-ip-hard",
+  limit: configurablePositiveInteger("ARENA_GUEST_PLAY_IP_HARD_LIMIT_PER_15_MIN", 3000),
+  windowMs: 15 * 60 * 1000,
+  key: clientAddress,
+  consumer: consumeAuthRequestLimit,
+  errorCode: "ARENA_GUEST_PLAY_IP_HARD_LIMITED",
+  errorMessage: "현재 네트워크에서 도전장 요청이 너무 많이 발생했습니다. 잠시 후 다시 시도해주세요.",
+});
+const arenaGuestPlayIpRateLimit = createRateLimit({
+  name: "arena-guest-play-ip",
+  limit: configurablePositiveInteger("ARENA_GUEST_PLAY_RATE_LIMIT_PER_15_MIN", 600),
+  windowMs: 15 * 60 * 1000,
+  key: arenaGuestClientKey,
+  consumer: consumeAuthRequestLimit,
+  errorCode: "ARENA_GUEST_PLAY_RATE_LIMITED",
+  errorMessage: "짧은 시간에 도전장 요청이 너무 많이 발생했습니다. 잠시 후 다시 시도해주세요.",
+});
+const arenaGuestEvidenceIpHardRateLimit = createRateLimit({
+  name: "arena-guest-evidence-ip-hard",
+  limit: configurablePositiveInteger("ARENA_GUEST_EVIDENCE_IP_HARD_LIMIT_PER_HOUR", 240),
+  windowMs: 60 * 60 * 1000,
+  key: clientAddress,
+  consumer: consumeAuthRequestLimit,
+  errorCode: "ARENA_GUEST_EVIDENCE_IP_HARD_LIMITED",
+  errorMessage: "현재 네트워크에서 풀이과정 요청이 너무 많이 발생했습니다. 잠시 후 다시 시도해주세요.",
+});
+const arenaGuestEvidenceIpRateLimit = createRateLimit({
+  name: "arena-guest-evidence-ip",
+  limit: configurablePositiveInteger("ARENA_GUEST_EVIDENCE_RATE_LIMIT_PER_HOUR", 60),
+  windowMs: 60 * 60 * 1000,
+  key: arenaGuestClientKey,
+  consumer: consumeAuthRequestLimit,
+  errorCode: "ARENA_GUEST_EVIDENCE_RATE_LIMITED",
+  errorMessage: "짧은 시간에 풀이과정 요청이 너무 많이 발생했습니다. 잠시 후 다시 시도해주세요.",
+});
+
 module.exports = {
+  arenaGuestClaimIpRateLimit,
+  arenaGuestEvidenceIpHardRateLimit,
+  arenaGuestEvidenceIpRateLimit,
+  arenaGuestPlayIpHardRateLimit,
+  arenaGuestPlayIpRateLimit,
   appleWebOAuthCallbackIpRateLimit,
   appleWebOAuthStartIpRateLimit,
   authRequestKey,

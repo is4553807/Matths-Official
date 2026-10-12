@@ -1,6 +1,4 @@
 const USER_APPLIED_EXACT_ACTIONS = Object.freeze([
-  "finance.payback-completed",
-  "finance.payback-email-resent",
   "inquiry.reply",
   "coach-suggestion.approve",
   "coach-suggestion.reject",

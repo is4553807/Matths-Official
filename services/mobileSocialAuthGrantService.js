@@ -212,7 +212,7 @@ async function consumeMobileAuthGrant(
           expiresAt: resultExpiresAt,
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     ).select(
       "+tokenHash +codeChallenge"
     );
@@ -308,7 +308,7 @@ async function resolveMobileAuthGrantResult(
         responseCiphertext: null,
       },
       { $set: encrypted },
-      { new: true }
+      { returnDocument: "after" }
     ).select(
       "+responseCiphertext +responseIv +responseTag"
     );

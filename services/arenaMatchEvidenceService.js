@@ -1,10 +1,12 @@
+const { hasLegacyArenaEvidenceReference } = require("./arenaEvidenceRetentionService");
 const fs = require("node:fs");
 const path = require("node:path");
-const { createHash } = require("node:crypto");
+const { createHash, randomUUID } = require("node:crypto");
 const mongoose = require("mongoose");
 const { AdminTodo, User } = require("../models/matthsModel");
 const {
   ArenaAccessState,
+  ArenaGuestChallenge,
   ArenaMatch,
   ArenaMatchAttempt,
   ArenaMatchAttemptEvent,
@@ -20,25 +22,6 @@ const {
   scoreArenaAttempt,
 } = require("./arenaMatchScoringService");
 const {
-  isSundayDivisionLocked,
-} = require("./arenaMatchService");
-const {
-  cancelSubNormalNoStart,
-  settleSubNormalMatch,
-  settleSubRevengeNoShow,
-} = require("./arenaMatchSettlementService");
-const {
-  cancelMainNormalNoStart,
-  settleMainNormalMatch,
-} = require("./mainArenaSettlementService");
-const {
-  settleMainRevengeNoShow,
-} = require("./mainArenaRevengeService");
-const {
-  cancelMainFriendlyNoStart,
-  settleMainFriendlyMatch,
-} = require("./mainFriendlyMatchService");
-const {
   destroyStoredAsset,
   signedCloudinaryUrl,
   STORAGE_PURPOSES,
@@ -46,13 +29,6 @@ const {
   storeUploadedFile,
 } = require("./fileStorageService");
 const { withSchedulerLease } = require("./schedulerLeaseService");
-const {
-  reconcileAutomaticDefenseNoShows,
-  recordAutomaticDefenseNoShow,
-} = require("./arenaAutomaticDefenseService");
-const {
-  recordPaybackAttackLearningDay,
-} = require("./paybackDailyLearningService");
 
 const ARENA_EVIDENCE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 const ARENA_EVIDENCE_PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -326,14 +302,6 @@ async function submitArenaMatchEvidence({
     )
       ? receivedAt
       : now;
-  if (isSundayDivisionLocked(acceptedAt)) {
-    await discardArenaEvidenceFiles(files);
-    throw statusError(
-      423,
-      "일요일 15시부터 월요일 0시까지 풀이 증거를 제출할 수 없습니다.",
-      "SUNDAY_DIVISION_LOCK"
-    );
-  }
   if (!mongoose.isValidObjectId(matchId) || !mongoose.isValidObjectId(userId)) {
     await discardArenaEvidenceFiles(files);
     throw statusError(400, "경기 정보를 확인해주세요.", "INVALID_ARENA_EVIDENCE_TARGET");
@@ -382,6 +350,12 @@ async function submitArenaMatchEvidence({
       if (!match || !attempt) {
         throw statusError(404, "풀이 증거를 제출할 경기를 찾을 수 없습니다.", "ARENA_EVIDENCE_MATCH_NOT_FOUND");
       }
+      const shouldRunCheatingDetection =
+        String(match.gameMode || "").toUpperCase() === "COMPETITIVE" &&
+        match.matchType !== "FRIENDLY";
+      const effectiveSourceRiskFlags = shouldRunCheatingDetection
+        ? sourceRiskFlags
+        : [];
       const existing = await ArenaMatchEvidence.findOne({
         attemptId: attempt._id,
       }).session(session);
@@ -396,13 +370,6 @@ async function submitArenaMatchEvidence({
       }
       if (attempt.status !== "EVIDENCE_REQUIRED") {
         throw statusError(409, "현재 단계에서는 풀이 증거를 제출할 수 없습니다.", "ARENA_EVIDENCE_NOT_REQUIRED");
-      }
-      if (
-        match.matchType === "REVENGE" &&
-        match.completionDeadlineAt &&
-        new Date(match.completionDeadlineAt) < now
-      ) {
-        throw statusError(410, "복수전의 24시간 완료 기한이 끝났습니다.", "REVENGE_COMPLETION_DEADLINE_EXPIRED");
       }
       if (
         !attempt.evidenceDeadlineAt ||
@@ -442,8 +409,8 @@ async function submitArenaMatchEvidence({
             submittedAt: acceptedAt,
             retentionUntil: new Date(now.getTime() + ARENA_EVIDENCE_RETENTION_MS),
             status: "ON_TIME",
-            anomalyFlags: sourceRiskFlags,
-            sourceRiskFlags,
+            anomalyFlags: effectiveSourceRiskFlags,
+            sourceRiskFlags: effectiveSourceRiskFlags,
           },
         ],
         { session, ordered: true }
@@ -496,23 +463,24 @@ async function submitArenaMatchEvidence({
             "ARENA_WINNER_EVIDENCE_NOT_FOUND"
           );
         }
-        // 친선 경기는 수수료 외에는 순위·티어·학습일수 이전이 없는 비공식 경기다.
-        // 증거는 제출받되, 공식 경기용 자동 무결성 보류와 제재 흐름에는 넣지 않는다.
-        const winnerDetectionFlags = match.matchType === "FRIENDLY"
-          ? []
-          : await detectEvidenceAnomalies({
+        // 지인 간 친선전은 풀이 증거만 보존하고 자동 감지·운영 검토에는 넣지 않는다.
+        const winnerDetectionFlags = shouldRunCheatingDetection
+          ? await detectEvidenceAnomalies({
               attempt: screenedAttempt,
               scoring: scoringByRole.get(screenedRole),
               files: screenedEvidence.files || [],
               session,
-            });
+            })
+          : [];
         for (const role of ["CHALLENGER", "DEFENDER"]) {
           const roleAttempt = attemptByRole.get(role);
           const roleEvidence = evidenceByAttemptId.get(String(roleAttempt?._id || ""));
-          const roleFlags = [
-            ...(roleEvidence?.sourceRiskFlags || []),
-            ...(role === screenedRole ? winnerDetectionFlags : []),
-          ];
+          const roleFlags = shouldRunCheatingDetection
+            ? [
+                ...(roleEvidence?.sourceRiskFlags || []),
+                ...(role === screenedRole ? winnerDetectionFlags : []),
+              ]
+            : [];
           evidenceByRole[role] = [...new Set(roleFlags)];
           if (roleEvidence) {
             await ArenaMatchEvidence.updateOne(
@@ -551,8 +519,6 @@ async function submitArenaMatchEvidence({
             now.getTime() + ARENA_INTEGRITY_REVIEW_TARGET_MS
           );
           match.integrityReviewCompletedAt = null;
-          match.integrityPauseCompensationMs = 0;
-          match.integrityPauseCompensatedAt = null;
         }
       } else if (
         otherAttempt?.status === "EVIDENCE_REQUIRED" &&
@@ -634,7 +600,6 @@ async function submitArenaMatchEvidence({
           {
             $set: {
               integrityStatus: "REVIEW_REQUIRED",
-              defensePoolEligible: false,
               reasonCode: "MATCH_INTEGRITY_REVIEW",
             },
           },
@@ -712,16 +677,6 @@ async function submitArenaMatchEvidence({
         evidenceFiles
       );
     }
-    const dailyLearning =
-      await recordPaybackAttackLearningDay({
-        match: result.match,
-        attempt: result.attempt,
-        evidence: result.evidence,
-        userId,
-        submittedAt:
-          result.evidence.submittedAt ||
-          acceptedAt,
-      });
     return {
       evidenceId: String(result.evidence._id),
       attemptId: String(result.attempt._id),
@@ -731,7 +686,6 @@ async function submitArenaMatchEvidence({
       submittedAt: result.evidence.submittedAt?.toISOString?.() || null,
       deadlineAt: result.evidence.deadlineAt?.toISOString?.() || null,
       anomalyFlags: result.evidence.anomalyFlags || [],
-      dailyLearning,
     };
   } catch (error) {
     if (!result && !usesPreparedEvidence) {
@@ -913,240 +867,6 @@ async function submitArenaSupplementalEvidence({
   }
 }
 
-async function holdExpiredEvidence({ now = new Date(), limit = 100 } = {}) {
-  const attempts = await ArenaMatchAttempt.find({
-    status: "EVIDENCE_REQUIRED",
-    evidenceDeadlineAt: { $lt: now },
-  })
-    .limit(Math.max(1, Math.min(500, Number(limit) || 100)))
-    .lean();
-  let settled = 0;
-  let cancelled = 0;
-  for (const attempt of attempts) {
-    const [match, matchAttempts] = await Promise.all([
-      ArenaMatch.findById(attempt.matchId),
-      ArenaMatchAttempt.find({ matchId: attempt.matchId }).lean(),
-    ]);
-    if (!match || !matchAttempts.length || ["SETTLED", "CANCELLED", "HELD"].includes(match.status)) continue;
-    const expiredMissingRoles = matchAttempts
-      .filter((entry) =>
-        entry.status === "EVIDENCE_REQUIRED" &&
-        entry.evidenceDeadlineAt &&
-        new Date(entry.evidenceDeadlineAt).getTime() <= now.getTime()
-      )
-      .map((entry) => entry.role);
-    if (!expiredMissingRoles.length || !matchAttempts.every(hasFinishedQuestions)) continue;
-    // 필수 풀이 증거는 별도의 추가 소명 유예 없이 경기 결과에 직접 반영한다.
-    // 양측 모두 미제출이면 승패를 만들 수 없으므로 예치만 원상 복구한다.
-    if (expiredMissingRoles.length >= 2) {
-      if (match.division === "MAIN" && match.matchType === "FRIENDLY") {
-        const result = await cancelMainFriendlyNoStart({ matchId: match._id, now });
-        if (result?.cancelled) cancelled += 1;
-        continue;
-      }
-      const result = match.matchType === "NORMAL"
-        ? (match.division === "SUB"
-            ? await cancelSubNormalNoStart({
-                matchId: match._id,
-                now,
-                cancellationReason: "BOTH_REQUIRED_EVIDENCE_NOT_SUBMITTED",
-              })
-            : await cancelMainNormalNoStart({
-                matchId: match._id,
-                now,
-                cancellationReason: "BOTH_REQUIRED_EVIDENCE_NOT_SUBMITTED",
-              }))
-        : (match.division === "SUB"
-            ? await settleSubRevengeNoShow({
-                matchId: match._id,
-                noShowRole: "BOTH",
-                now,
-                allowEarlyForfeit: true,
-              })
-            : await settleMainRevengeNoShow({
-                matchId: match._id,
-                noShowRole: "BOTH",
-                now,
-                allowEarlyForfeit: true,
-              }));
-      if (result?.cancelled) cancelled += 1;
-      if (result?.settled) settled += 1;
-      continue;
-    }
-    const missingRole = expiredMissingRoles[0];
-    const winnerRole = missingRole === "CHALLENGER" ? "DEFENDER" : "CHALLENGER";
-    let result;
-    if (match.division === "MAIN" && match.matchType === "FRIENDLY") {
-      result = await settleMainFriendlyMatch({
-        matchId: match._id,
-        now,
-        forcedWinnerRole: winnerRole,
-        automaticReason: "REQUIRED_EVIDENCE_NOT_SUBMITTED",
-      });
-    } else if (match.matchType === "NORMAL") {
-      result = match.division === "SUB"
-        ? await settleSubNormalMatch({
-            matchId: match._id,
-            now,
-            forcedWinnerRole: winnerRole,
-            automaticReason: "REQUIRED_EVIDENCE_NOT_SUBMITTED",
-          })
-        : await settleMainNormalMatch({
-            matchId: match._id,
-            now,
-            forcedWinnerRole: winnerRole,
-            automaticReason: "REQUIRED_EVIDENCE_NOT_SUBMITTED",
-          });
-    } else {
-      result = match.division === "SUB"
-        ? await settleSubRevengeNoShow({
-            matchId: match._id,
-            noShowRole: missingRole,
-            now,
-            allowEarlyForfeit: true,
-          })
-        : await settleMainRevengeNoShow({
-            matchId: match._id,
-            noShowRole: missingRole,
-            now,
-            allowEarlyForfeit: true,
-          });
-    }
-    if (result?.settled) settled += 1;
-  }
-  return { scanned: attempts.length, settled, cancelled };
-}
-
-async function holdExpiredMatchStarts({ now = new Date(), limit = 100 } = {}) {
-  const recovered = await reconcileAutomaticDefenseNoShows({ now, limit });
-  const matches = await ArenaMatch.find({
-    matchType: { $ne: "REVENGE" },
-    status: { $in: ["MATCHED", "READY", "IN_PROGRESS"] },
-    startDeadlineAt: { $lt: now },
-  })
-    .limit(Math.max(1, Math.min(500, Number(limit) || 100)))
-    .lean();
-  let settled = 0;
-  let cancelled = 0;
-  let automaticDefenseNoShowsRecorded = recovered.recorded;
-  for (const match of matches) {
-    const attempts = await ArenaMatchAttempt.find({ matchId: match._id })
-      .select("userId role status")
-      .lean();
-    const unstarted = attempts.filter((attempt) => attempt.status === "READY");
-    if (!unstarted.length && attempts.length) continue;
-    if (unstarted.length === 2) {
-      if (match.division === "MAIN" && match.matchType === "FRIENDLY") {
-        const result = await cancelMainFriendlyNoStart({ matchId: match._id, now });
-        if (result?.cancelled) cancelled += 1;
-        continue;
-      }
-      const result = match.division === "SUB"
-        ? await cancelSubNormalNoStart({ matchId: match._id, now })
-        : await cancelMainNormalNoStart({ matchId: match._id, now });
-      if (result?.cancelled) cancelled += 1;
-      continue;
-    }
-    if (unstarted.length !== 1) continue;
-    const noShowRole = unstarted[0].role;
-    const winnerRole = noShowRole === "CHALLENGER" ? "DEFENDER" : "CHALLENGER";
-    const result = match.division === "MAIN" && match.matchType === "FRIENDLY"
-      ? await settleMainFriendlyMatch({
-          matchId: match._id,
-          now,
-          forcedWinnerRole: winnerRole,
-          automaticReason: "START_DEADLINE_NO_SHOW",
-        })
-      : match.division === "SUB"
-      ? await settleSubNormalMatch({
-          matchId: match._id,
-          now,
-          forcedWinnerRole: winnerRole,
-          automaticReason: "START_DEADLINE_NO_SHOW",
-        })
-      : await settleMainNormalMatch({
-          matchId: match._id,
-          now,
-          forcedWinnerRole: winnerRole,
-          automaticReason: "START_DEADLINE_NO_SHOW",
-        });
-    if (result?.settled) {
-      settled += 1;
-      // 친선 경기는 사용자가 직접 수락한 비공식 경기이므로, 시작하지 않았다고
-      // Ranked 자동 방어 미응시 누적에 포함하지 않는다.
-      if (noShowRole === "DEFENDER" && match.matchType !== "FRIENDLY") {
-        const recorded = await recordAutomaticDefenseNoShow({
-          matchId: match._id,
-          now,
-        });
-        if (recorded.recorded) automaticDefenseNoShowsRecorded += 1;
-      }
-    }
-  }
-  return {
-    scanned: matches.length,
-    settled,
-    cancelled,
-    automaticDefenseNoShowsRecorded,
-  };
-}
-
-async function holdSundayCutoffMatches({ now = new Date(), limit = 500 } = {}) {
-  if (!isSundayDivisionLocked(now)) {
-    return { scanned: 0, held: 0, divisionLocked: false };
-  }
-  const matches = await ArenaMatch.find({
-    status: {
-      $in: ["MATCHED", "READY", "IN_PROGRESS", "SUBMITTED", "RESOLVED"],
-    },
-  })
-    .limit(Math.max(1, Math.min(1000, Number(limit) || 500)))
-    .lean();
-  let held = 0;
-  for (const match of matches) {
-    const updated = await ArenaMatch.findOneAndUpdate(
-      {
-        _id: match._id,
-        status: {
-          $in: ["MATCHED", "READY", "IN_PROGRESS", "SUBMITTED", "RESOLVED"],
-        },
-      },
-      {
-        $set: {
-          status: "HELD",
-          integrityStatus:
-            match.integrityStatus === "SUSPICIOUS"
-              ? "SUSPICIOUS"
-              : "PENDING",
-        },
-      },
-      { returnDocument: "after" }
-    );
-    if (!updated) continue;
-    await AdminTodo.findOneAndUpdate(
-      { sourceType: "ArenaSundayCutoff", sourceId: match._id },
-      {
-        $setOnInsert: {
-          category: "integrity",
-          title: "GOAT Arena 일요일 15시 미정산 경기",
-          description:
-            "일요일 15시까지 정산되지 않아 경기를 보류했습니다. 순위와 학습일 자산은 자동 변경하지 않습니다.",
-          href: `/admin/arena-matches#match-${match._id}`,
-          targetUserId: match.challenger.userId,
-          actorUserId: match.challenger.userId,
-          sourceType: "ArenaSundayCutoff",
-          sourceId: match._id,
-          status: "pending",
-          metadata: { previousStatus: match.status },
-        },
-      },
-      { upsert: true, setDefaultsOnInsert: true }
-    );
-    held += 1;
-  }
-  return { scanned: matches.length, held, divisionLocked: true };
-}
-
 async function getAdminArenaEvidenceData() {
   // 추가 소명만을 위해 생성한 빈 문서는 '최근 필수 풀이 증거'로 보이지
   // 않게 한다. 원본 풀이 증거가 실제로 제출된 건만 이 요약에 표시한다.
@@ -1174,13 +894,19 @@ async function getAdminArenaEvidenceData() {
   const attemptById = new Map(
     attempts.map((attempt) => [String(attempt._id), attempt])
   );
-  return evidence.map((entry) => ({
-    ...entry,
-    id: String(entry._id),
-    match: matchById.get(String(entry.matchId)) || null,
-    user: userById.get(String(entry.userId)) || null,
-    attempt: attemptById.get(String(entry.attemptId)) || null,
-  }));
+  return evidence
+    .map((entry) => ({
+      ...entry,
+      id: String(entry._id),
+      match: matchById.get(String(entry.matchId)) || null,
+      user: userById.get(String(entry.userId)) || null,
+      attempt: attemptById.get(String(entry.attemptId)) || null,
+    }))
+    .filter(
+      (entry) =>
+        String(entry.match?.gameMode || "").toUpperCase() === "COMPETITIVE" &&
+        entry.match?.matchType !== "FRIENDLY"
+    );
 }
 
 async function getAdminEvidenceFile({ evidenceId, storedName }) {
@@ -1212,86 +938,67 @@ async function getAdminEvidenceFile({ evidenceId, storedName }) {
 }
 
 async function purgeExpiredArenaEvidence({ now = new Date(), limit = 100 } = {}) {
-  const candidates = await ArenaMatchEvidence.find({
-    retentionUntil: { $lte: now },
-    contentPurgedAt: null,
-    retentionHoldReason: "",
+  const retryReady = { $or: [{ purgeNextAttemptAt: null }, { purgeNextAttemptAt: { $lte: now } }] };
+  const leaseReady = { $or: [{ purgeLeaseExpiresAt: null }, { purgeLeaseExpiresAt: { $lte: now } }] };
+  const referenceFree = { retentionReferences: { $not: { $elemMatch: { $or: [{ until: null }, { until: { $gt: now } }] } } } };
+  const eligibility = {
+    retentionUntil: { $lte: now }, contentPurgedAt: null,
+    retentionHoldReason: { $in: ["", "EVIDENCE_PURGE_IN_PROGRESS"] },
     status: { $in: ["ON_TIME", "REVIEWED"] },
-  })
-    .sort({ retentionUntil: 1 })
-    .limit(Math.max(1, Math.min(1000, Number(limit) || 100)))
-    .lean();
-
-  if (!candidates.length) return { scanned: 0, purged: 0, held: 0 };
-
-  const matches = await ArenaMatch.find({
-    _id: { $in: candidates.map((entry) => entry.matchId) },
-  })
-    .select("status integrityStatus")
-    .lean();
-  const matchById = new Map(matches.map((match) => [String(match._id), match]));
-  let purged = 0;
-  let held = 0;
-
+    $and: [retryReady, leaseReady, referenceFree],
+  };
+  const candidates = await ArenaMatchEvidence.find(eligibility).sort({ retentionUntil: 1 })
+    .limit(Math.max(1, Math.min(1000, Number(limit) || 100))).lean();
+  let purged = 0, held = 0, failed = 0;
   for (const evidence of candidates) {
-    const match = matchById.get(String(evidence.matchId));
-    if (
-      !match ||
-      !["SETTLED", "CANCELLED", "INVALID", "INSURED_CANCELLED"].includes(match.status) ||
-      match.integrityStatus !== "CLEAR"
-    ) {
-      held += 1;
-      continue;
-    }
-
-    const retainedFiles = [
-      ...(evidence.files || []),
-      ...(evidence.supplementalRequest?.files || []),
-    ];
-    await Promise.all(
-      retainedFiles.map((file) =>
-        destroyStoredAsset({
-          ...file,
-          path: path.join(ARENA_EVIDENCE_STORAGE_DIR, path.basename(file.storedName || "")),
-        }).catch(() => {})
-      )
-    );
-    const update = await ArenaMatchEvidence.updateOne(
-      {
-        _id: evidence._id,
-        contentPurgedAt: null,
-        retentionHoldReason: "",
-      },
-      {
-        $set: {
-          contentPurgedAt: now,
-          files: (evidence.files || []).map((file) => ({
-            ...file,
-            storageProvider: "PURGED",
-            cloudPublicId: "",
-            cloudResourceType: "",
-            cloudDeliveryType: "",
-            cloudVersion: null,
-            cloudFormat: "",
-          })),
-          "supplementalRequest.files": (
-            evidence.supplementalRequest?.files || []
-          ).map((file) => ({
-            ...file,
-            storageProvider: "PURGED",
-            cloudPublicId: "",
-            cloudResourceType: "",
-            cloudDeliveryType: "",
-            cloudVersion: null,
-            cloudFormat: "",
-          })),
-        },
+    const match = await ArenaMatch.findById(evidence.matchId).select("status integrityStatus").lean();
+    if (!match || !["SETTLED", "CANCELLED", "INVALID"].includes(match.status) || match.integrityStatus !== "CLEAR") { held += 1; continue; }
+    const token = randomUUID();
+    const claim = await ArenaMatchEvidence.findOneAndUpdate({ ...eligibility, _id: evidence._id }, {
+      $set: { retentionHoldReason: "EVIDENCE_PURGE_IN_PROGRESS", purgeLeaseToken: token,
+        purgeLeaseExpiresAt: new Date(now.getTime() + 15 * 60 * 1000) },
+      $inc: { purgeAttempts: 1 },
+    }, { returnDocument: "after" }).lean();
+    if (!claim) { held += 1; continue; }
+    const claimFilter = { _id: claim._id, contentPurgedAt: null, purgeLeaseToken: token };
+    try {
+      const guestReference = await ArenaGuestChallenge.exists({ sourceKind: "ARENA_MATCH", sourceEvidenceId: claim._id });
+      if (guestReference ||
+          await hasLegacyArenaEvidenceReference(claim._id, now)) {
+        await ArenaMatchEvidence.updateOne(claimFilter, { $set: { retentionHoldReason: guestReference ? "GUEST_CHALLENGE_ARCHIVE" : "", purgeLeaseToken: "", purgeLeaseExpiresAt: null } });
+        held += 1; continue;
       }
-    );
-    if (update.modifiedCount > 0) purged += 1;
+      // Await every operation before releasing the lease, including partial failure.
+      // Keep all provider keys until the entire delete is confirmed; deleting an
+      // already missing object is an idempotent success on retry.
+      const completedAssets = new Set(claim.purgeDeletedAssetKeys || []);
+      const results = await Promise.allSettled([...(claim.files || []), ...(claim.supplementalRequest?.files || [])]
+        .map(async (file) => {
+          const key = createHash("sha256").update(JSON.stringify([file.storageProvider, file.cloudPublicId, file.cloudResourceType, file.cloudDeliveryType, file.r2ObjectKey, file.storedName, file.sha256])).digest("hex");
+          if (completedAssets.has(key)) return;
+          await destroyStoredAsset({ ...file, path: path.join(ARENA_EVIDENCE_STORAGE_DIR, path.basename(file.storedName || "")) });
+          const receipt = await ArenaMatchEvidence.updateOne(claimFilter, { $addToSet: { purgeDeletedAssetKeys: key } });
+          if (receipt.matchedCount !== 1) throw new Error("Evidence deletion claim changed before receipt persistence.");
+        }));
+      const failure = results.find((result) => result.status === "rejected");
+      if (failure) throw failure.reason;
+      const cleared = (file) => ({ ...file, storageProvider: "PURGED", cloudPublicId: "", cloudResourceType: "", cloudDeliveryType: "", cloudVersion: null, cloudFormat: "", r2ObjectKey: "", r2Sha256: "", r2ETag: "" });
+      const update = await ArenaMatchEvidence.updateOne(claimFilter, { $set: {
+        contentPurgedAt: now, retentionHoldReason: "", purgeLeaseToken: "", purgeLeaseExpiresAt: null,
+        purgeNextAttemptAt: null, purgeLastError: "",
+        files: (claim.files || []).map(cleared), "supplementalRequest.files": (claim.supplementalRequest?.files || []).map(cleared),
+      } });
+      if (update.modifiedCount === 1) purged += 1;
+    } catch (error) {
+      failed += 1;
+      await ArenaMatchEvidence.updateOne(claimFilter, { $set: {
+        purgeLeaseToken: "", purgeLeaseExpiresAt: null,
+        purgeNextAttemptAt: new Date(now.getTime() + Math.min(24 * 60 * 60 * 1000, 60_000 * 2 ** Math.min(10, claim.purgeAttempts - 1))),
+        purgeLastError: String(error?.message || "External deletion failed").slice(0, 1000),
+      } });
+    }
   }
-
-  return { scanned: candidates.length, purged, held };
+  return { scanned: candidates.length, purged, held, failed };
 }
 
 function startArenaEvidenceRetentionScheduler() {
@@ -1299,7 +1006,10 @@ function startArenaEvidenceRetentionScheduler() {
   const run = () =>
     withSchedulerLease(
       { name: "ARENA_EVIDENCE_RETENTION", leaseMs: 30 * 60 * 1000 },
-      () => purgeExpiredArenaEvidence()
+      async () => {
+        await purgeExpiredArenaEvidence();
+        await require("./arenaAssetDeletionService").processArenaAssetDeletionTasks();
+      }
     ).catch((error) => {
       console.error("Arena evidence retention cleanup failed:", error.message);
     });
@@ -1320,9 +1030,6 @@ module.exports = {
   getAdminArenaEvidenceData,
   getAdminEvidenceFile,
   getArenaSupplementalEvidenceRequest,
-  holdExpiredEvidence,
-  holdExpiredMatchStarts,
-  holdSundayCutoffMatches,
   purgeExpiredArenaEvidence,
   startArenaEvidenceRetentionScheduler,
   submitArenaMatchEvidence,

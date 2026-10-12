@@ -54,8 +54,6 @@ const myLearningView = read("views/my-learning.ejs");
 const unitLearningView = read("views/unit-learning.ejs");
 const rankingService = read("services/rankingService.js");
 const rankingPlayerView = read("views/partials/ranking-player.ejs");
-const tierRankingView = read("views/partials/tier-ranking-pools.ejs");
-const arenaRankingView = read("views/goat-arena-rankings.ejs");
 const finalRankingView = read("views/war-of-masters-rankings.ejs");
 const arenaCss = read("public/css/goat-arena.css");
 const learningCss = read("public/css/profile.css");
@@ -132,8 +130,6 @@ assert.match(rankingService, /profileAvatarByUserId/);
 assert.match(rankingService, /warningCount preferences/);
 assert.match(rankingPlayerView, /ranking-profile-avatar/);
 assert.match(rankingPlayerView, /rankerAvatar\.imageSrc/);
-assert.match(tierRankingView, /include\("ranking-player"/);
-assert.match(arenaRankingView, /include\("partials\/ranking-player"/);
 assert.match(finalRankingView, /include\("partials\/ranking-player"/);
 assert.match(read("public/css/tier-rankings.css"), /\.ranking-profile-avatar/);
 

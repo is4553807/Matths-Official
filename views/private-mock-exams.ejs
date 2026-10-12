@@ -14,13 +14,18 @@
       hour: "numeric",
       minute: "2-digit",
     }).format(new Date(value));
+  const currentRatingRules = [
+    "응시한 회차의 유효한 결과는 응시자 본인의 내부 실력 지표에만 반영됩니다.",
+    "공개 경쟁전 점수는 바뀌지 않으며, 응시하지 않은 사용자에게도 불이익이 없습니다.",
+    "여러 회차를 응시한 경우 선택된 대표 성적을 반영합니다.",
+  ];
 %>
 <!doctype html>
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="매주 일요일 3회 공개되는 Matths 주간 공식 모의고사와 최종 종합 랭킹" />
+    <meta name="description" content="Matths 주간 공식 모의고사와 응시자 본인의 내부 실력 지표 반영 안내" />
     <title>Matths 주간 공식 모의고사 | Matths</title>
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/private-mock-exams.css" />
@@ -89,7 +94,7 @@
               <h3><%= examData.currentExam.title %></h3>
               <p class="private-mock-current-meta"><%= examData.currentExam.isTest ? "CUSTOM · 운영 확인용" : `${examData.currentExam.formCode}형` %> · <%= examData.currentExam.questionCount %>문항 · <%= examData.durationMinutes %>분 · <%= formatRelease(examData.currentExam.releaseAt) %> 시작</p>
               <% if (examData.currentExam.isTest) { %>
-                <p class="private-mock-test-notice">CUSTOM 회차의 점수는 주간 GP·랭킹·공지·자동 아카이브에 반영되지 않습니다.</p>
+                <p class="private-mock-test-notice">CUSTOM 회차의 점수는 내부 실력 지표·공지·자동 아카이브에 반영되지 않습니다.</p>
               <% } %>
               <% if (examData.currentExam.attemptStatus === "expired") { %>
                 <span class="private-mock-start-link disabled" aria-disabled="true">응시 시간 종료</span>
@@ -126,7 +131,7 @@
                 data-private-mock-selection
                 data-week-key="<%= examData.selection.weekKey %>"
               >
-                <h3>이번 주 티어 경쟁 대표 성적 선택</h3>
+                <h3>이번 주 내부 실력 지표 반영 성적 선택</h3>
                 <div class="private-mock-selection-options">
                   <% examData.selection.attempts.forEach((attempt) => { %>
                     <label>
@@ -137,7 +142,7 @@
                         <%= examData.selection.selectedAttemptId === attempt.id ? "checked" : "" %>
                       />
                       <strong><%= attempt.formCode %>형</strong>
-                      <span>표준화 <%= attempt.standardizedPerformance %></span>
+                      <span>평가 지표 <%= attempt.standardizedPerformance %></span>
                     </label>
                   <% }) %>
                 </div>
@@ -163,54 +168,16 @@
 
           <section class="private-mock-card rules">
             <header>
-              <div><p>티어 경쟁 기준</p><h2>주간 승급 기준</h2></div>
+              <div><p>내부 실력 지표</p><h2>주간 성적 반영 기준</h2></div>
             </header>
             <ol>
-              <% examData.rankingRules.forEach((rule, index) => { %>
+              <% currentRatingRules.forEach((rule, index) => { %>
                 <li><span><%= String(index + 1).padStart(2, "0") %></span><p><%= rule %></p></li>
               <% }) %>
             </ol>
           </section>
         </div>
 
-        <section class="private-mock-card weekly-ranking">
-          <header>
-            <div>
-              <p>현재 티어 주간 경쟁</p>
-              <h2><%= examData.rankingTitle %></h2>
-            </div>
-            <span><%= examData.rankingFinalized ? "티어별 주간 순위 확정" : examData.rankingPending ? "티어별 주간 순위 집계 중" : "티어별 주간 순위 공개 대기" %> · 대표 표준화 성적</span>
-          </header>
-          <% if (examData.rankingSummary) { %>
-            <dl class="private-mock-ranking-summary">
-              <div><dt>응시 인원</dt><dd><%= examData.rankingSummary.participantCount %>명</dd></div>
-              <div><dt>대표 성적 평균</dt><dd><%= examData.rankingSummary.averageScore %></dd></div>
-            </dl>
-          <% } %>
-          <% if (!examData.weeklyRanking.length) { %>
-            <div class="private-mock-empty compact">
-              <span aria-hidden="true">♜</span>
-              <% if (examData.rankingPending) { %>
-                <h3>평균과 성적 데이터를 분석하고 있습니다.</h3>
-                <p><%= formatRelease(examData.rankingPending.publishesAt) %>에 이번 주 랭킹이 공개됩니다.</p>
-              <% } else { %>
-                <h3>아직 공개된 티어별 주간 순위가 없습니다.</h3>
-                <p>시험 종료 후 집계가 끝나면 현재 티어의 주간 순위가 표시됩니다.</p>
-              <% } %>
-            </div>
-          <% } else { %>
-            <ol class="private-mock-ranking-list">
-              <% examData.weeklyRanking.forEach((entry, index) => { %>
-                <li>
-                  <strong><%= entry.rank || index + 1 %></strong>
-                  <span><%= entry.displayName %></span>
-                  <b><%= entry.standardizedPerformance %></b>
-                  <small><%= entry.tierLabel || "티어 집계 중" %> · <%= entry.attemptCount %>회 응시 · <%= entry.elapsedLabel %><%= entry.promotionCandidate ? " · 승급 후보" : "" %><%= entry.tierOutcome === "PROMOTED" ? " · 승급" : entry.tierOutcome === "DEFENDED" ? " · 방어 성공" : "" %></small>
-                </li>
-              <% }) %>
-            </ol>
-          <% } %>
-        </section>
         <% } %>
       </main>
     </div>

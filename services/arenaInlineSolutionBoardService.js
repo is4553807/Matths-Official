@@ -1,7 +1,9 @@
+const { drawingHash } = require("./arenaQuestionCompletionService");
 const mongoose = require("mongoose");
 const {
   ArenaInlineSolutionBoard,
   ArenaMatchAttempt,
+  ArenaMatch,
 } = require("../models/goatArenaModel");
 const {
   buildEvidenceFiles,
@@ -10,11 +12,11 @@ const {
 } = require("./arenaMatchEvidenceService");
 const {
   destroyStoredAsset,
-  signedCloudinaryUrl,
+  signedStoredAssetUrl,
 } = require("./fileStorageService");
 const {
-  settleArenaMatch,
-} = require("./arenaMatchSettlementService");
+  finalizeArenaMatchAfterEvidence,
+} = require("./arenaEvidenceSettlementService");
 
 function statusError(status, message, code) {
   const error = new Error(message);
@@ -34,13 +36,13 @@ function validRevision(value) {
   return Number.isSafeInteger(revision) && revision >= 1 ? revision : null;
 }
 
-function serializeBoard(board) {
+async function serializeBoard(board) {
   return {
     questionSlot: board.questionSlot,
     revision: board.revision,
     strokeCount: board.strokeCount,
     sha256: board.file.sha256,
-    previewURL: signedCloudinaryUrl(board.file),
+    previewURL: await signedStoredAssetUrl(board.file, { expiresIn: 300 }),
     savedAt: board.updatedAt || board.createdAt,
     acceptedRevision: board.revision,
     contentHash: `sha256:${board.file.sha256}`,
@@ -104,65 +106,52 @@ async function saveInlineSolutionBoard({
     );
   }
 
-  const existing = await ArenaInlineSolutionBoard.findOne({
-    attemptId: attempt._id,
-    questionSlot: slot,
-  }).select("+drawingData");
-  if (existing && nextRevision <= existing.revision) {
-    await discardArenaEvidenceFiles([file]);
-    if (nextRevision === existing.revision) return serializeBoard(existing);
-    throw statusError(
-      409,
-      "더 최신 풀이판이 이미 저장되어 있습니다.",
-      "ARENA_INLINE_BOARD_REVISION_CONFLICT"
-    );
-  }
-
   const [preparedFile] = await buildEvidenceFiles([file]);
   preparedFile.originalName = `arena-question-${slot}.png`;
+  const session = await mongoose.startSession();
+  let accepted, previousFile, replayed = false;
   try {
-    const board = await ArenaInlineSolutionBoard.findOneAndUpdate(
-      {
-        attemptId: attempt._id,
-        questionSlot: slot,
+    await session.withTransaction(async () => {
+      const current = await ArenaMatchAttempt.findOne({ _id: attempt._id, status: "IN_PROGRESS", currentQuestionIndex: slot - 1 }).session(session);
+      if (!current) throw statusError(409, "이미 완료된 문항의 풀이판은 변경할 수 없습니다.", "ARENA_INLINE_BOARD_SLOT_CONFLICT");
+      const matchFence = await ArenaMatch.updateOne({ _id: matchId, status: { $in: ["READY", "IN_PROGRESS"] } },
+        { $inc: { inlineBoardWriteVersion: 1 } }, { session });
+      if (matchFence.matchedCount !== 1) throw statusError(409, "종료된 경기의 풀이판은 변경할 수 없습니다.", "ARENA_INLINE_BOARD_SLOT_CONFLICT");
+      const lock = current.questionCompletionLock;
+      if (lock && (lock.questionSlot !== slot || lock.boardRevision !== nextRevision || lock.strokeCount !== nextStrokeCount || lock.drawingSha256 !== drawingHash(drawingData))) {
+        throw statusError(409, "완료 시점에 잠근 풀이판과 일치하지 않습니다.", "ARENA_INLINE_BOARD_LOCK_CONFLICT");
+      }
+      const existing = await ArenaInlineSolutionBoard.findOne({ attemptId: attempt._id, questionSlot: slot }).select("+drawingData").session(session);
+      if (existing?.finalizedAt) throw statusError(409, "확정된 풀이판은 변경할 수 없습니다.", "ARENA_INLINE_BOARD_FINALIZED");
+      if (existing && nextRevision <= existing.revision) {
+        if (nextRevision === existing.revision && existing.file.sha256 === preparedFile.sha256 &&
+            existing.strokeCount === nextStrokeCount && Buffer.from(existing.drawingData).equals(drawingData)) {
+          accepted = existing; replayed = true; return;
+        }
+        throw statusError(409, "풀이판 버전이 다른 내용과 충돌합니다.", "ARENA_INLINE_BOARD_REVISION_CONFLICT");
+      }
+      // Both save and advance write the attempt document. This is a write fence,
+      // not a read-only cross-document check, so transaction retries see advance.
+      await ArenaMatchAttempt.updateOne({ _id: current._id, status: "IN_PROGRESS", currentQuestionIndex: slot - 1 }, { $inc: { boardWriteVersion: 1 } }, { session });
+      accepted = await ArenaInlineSolutionBoard.findOneAndUpdate({
+        attemptId: attempt._id, questionSlot: slot, finalizedAt: null,
         ...(existing ? { revision: existing.revision } : {}),
-      },
-      {
-        $set: {
-          matchId: attempt.matchId,
-          userId: attempt.userId,
-          revision: nextRevision,
-          strokeCount: nextStrokeCount,
-          drawingData,
-          file: preparedFile,
-        },
-        $setOnInsert: {
-          attemptId: attempt._id,
-          questionSlot: slot,
-        },
-      },
-      { new: true, upsert: !existing, runValidators: true }
-    );
-    if (!board) {
-      throw statusError(
-        409,
-        "풀이판이 다른 기기에서 갱신되었습니다.",
-        "ARENA_INLINE_BOARD_REVISION_CONFLICT"
-      );
-    }
-    if (existing?.file) await destroyStoredAsset(existing.file).catch(() => {});
-    return serializeBoard(board);
+      }, { $set: { matchId: attempt.matchId, userId: attempt.userId, revision: nextRevision,
+        strokeCount: nextStrokeCount, drawingData, file: preparedFile },
+        $setOnInsert: { attemptId: attempt._id, questionSlot: slot },
+      }, { session, returnDocument: "after", upsert: !existing, runValidators: true });
+      if (!accepted) throw statusError(409, "풀이판이 다른 기기에서 변경되었습니다.", "ARENA_INLINE_BOARD_REVISION_CONFLICT");
+      previousFile = existing?.file;
+    });
+    if (replayed) await destroyStoredAsset(preparedFile).catch(() => {});
+    else if (previousFile) await destroyStoredAsset(previousFile).catch(() => {});
+    return await serializeBoard(accepted);
   } catch (error) {
     await destroyStoredAsset(preparedFile).catch(() => {});
-    if (Number(error?.code) === 11000) {
-      throw statusError(
-        409,
-        "풀이판이 다른 기기에서 먼저 저장되었습니다.",
-        "ARENA_INLINE_BOARD_REVISION_CONFLICT"
-      );
-    }
+    if (Number(error.code) === 11000) throw statusError(409, "풀이판 버전이 충돌합니다.", "ARENA_INLINE_BOARD_REVISION_CONFLICT");
     throw error;
-  }
+  } finally { await session.endSession(); }
+
 }
 
 async function getInlineSolutionBoards({ matchId, userId }) {
@@ -171,7 +160,18 @@ async function getInlineSolutionBoards({ matchId, userId }) {
     .select("+drawingData")
     .sort({ questionSlot: 1 })
     .lean();
-  return boards.map(serializeBoard);
+  const serialized = await Promise.all(boards.map(serializeBoard));
+  const lock = attempt.questionCompletionLock;
+  if (!lock || lock.evidenceMode === "PHOTO_UPLOAD_V1") return serialized;
+  const previous = serialized.find((board) => board.questionSlot === lock.questionSlot);
+  return [...serialized.filter((board) => board.questionSlot !== lock.questionSlot), {
+    questionSlot: lock.questionSlot, revision: lock.boardRevision,
+    strokeCount: lock.strokeCount, drawingDataBase64: lock.drawingDataBase64 || (previous?.revision === lock.boardRevision ? previous.drawingDataBase64 : null),
+    drawingSha256: lock.drawingSha256, lockedSubmissionMode: lock.submissionMode || "MANUAL",
+    sha256: previous?.revision === lock.boardRevision ? previous.sha256 : "",
+    previewURL: previous?.previewURL || null, completionLocked: true,
+    completionRequestId: lock.requestId, lockedAnswer: lock.answer, lockedAt: lock.lockedAt,
+  }].sort((left, right) => left.questionSlot - right.questionSlot);
 }
 
 async function assertInlineSolutionBoard({
@@ -211,7 +211,13 @@ async function assertInlineSolutionBoard({
 async function promoteInlineSolutionBoards({ matchId, userId, now = new Date() }) {
   const attempt = await participantAttempt({ matchId, userId });
   if (attempt.status === "SUBMITTED") {
-    return { attempt, replayed: true };
+    const settlement = await finalizeArenaMatchAfterEvidence({
+      matchId,
+      userId,
+      evidenceResult: null,
+      now,
+    });
+    return { attempt, settlement, replayed: true };
   }
   if (attempt.status !== "EVIDENCE_REQUIRED") {
     throw statusError(
@@ -254,9 +260,12 @@ async function promoteInlineSolutionBoards({ matchId, userId, now = new Date() }
     { attemptId: attempt._id, finalizedAt: null },
     { $set: { finalizedAt: now } }
   );
-  const settlement = evidence.matchStatus === "SUBMITTED"
-    ? await settleArenaMatch({ matchId, now })
-    : null;
+  const settlement = await finalizeArenaMatchAfterEvidence({
+    matchId,
+    userId,
+    evidenceResult: evidence,
+    now,
+  });
   return { evidence, settlement, replayed: evidence.replayed };
 }
 

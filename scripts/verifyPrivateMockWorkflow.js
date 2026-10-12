@@ -605,15 +605,15 @@ assert.equal(
 );
 assert.equal(
   calculateAbsencePenalty(1),
-  -5
+  0
 );
 assert.equal(
   calculateAbsencePenalty(2),
-  -5
+  0
 );
 assert.equal(
   calculateAbsencePenalty(3),
-  -10
+  0
 );
 assert.equal(
   getUploadReminderWindow(

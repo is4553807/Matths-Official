@@ -5,7 +5,7 @@ const {
   CoachMessageSuggestion,
 } = require("../models/matthsModel");
 const {
-  ArenaRevengeRight,
+  ArenaMatch,
 } = require("../models/goatArenaModel");
 const {
   completeAdminTodo,
@@ -14,9 +14,8 @@ const {
 const {
   moderateSuggestion,
 } = require("../services/coachSuggestionService");
-const goatArenaController = require(
-  "../controllers/goatArenaController"
-);
+const { getAsyncNormalResult, getAsyncNormalEvidenceFile } = require("../services/arenaAsyncNormalService");
+const { getAsyncCompetitiveResult, getAsyncCompetitiveEvidenceFile } = require("../services/arenaAsyncCompetitiveService");
 
 async function expect404(action) {
   await assert.rejects(
@@ -32,45 +31,14 @@ async function expect404(action) {
   );
 }
 
-async function controllerError(
-  handler
-) {
-  let captured = null;
-  await handler(
-    {
-      params: {
-        rightId: "malformed-id",
-      },
-      body: {
-        requestId:
-          "audit-malformed-id-request",
-      },
-      session: {
-        user: {
-          id: "64b000000000000000000001",
-        },
-      },
-    },
-    {},
-    (error) => {
-      captured = error;
-    }
-  );
-  assert.ok(captured);
-  assert.equal(captured.status, 404);
-  assert.doesNotMatch(
-    captured.message,
-    /Cast to ObjectId/i
-  );
-}
 
 async function run() {
   const originalSuggestionUpdate =
     CoachMessageSuggestion.findOneAndUpdate;
   const originalTodoUpdate =
     AdminTodo.findOneAndUpdate;
-  const originalRevengeFind =
-    ArenaRevengeRight.findById;
+  const originalMatchFind =
+    ArenaMatch.findById;
   try {
     const unexpectedQuery = () => {
       throw new Error(
@@ -81,7 +49,7 @@ async function run() {
       unexpectedQuery;
     AdminTodo.findOneAndUpdate =
       unexpectedQuery;
-    ArenaRevengeRight.findById =
+    ArenaMatch.findById =
       unexpectedQuery;
 
     await expect404(() =>
@@ -110,23 +78,20 @@ async function run() {
           "64b000000000000000000001",
       })
     );
-    await controllerError(
-      goatArenaController.claimSubRevenge
-    );
-    await controllerError(
-      goatArenaController.forfeitSubRevenge
-    );
+    for (const read of [getAsyncNormalResult, getAsyncCompetitiveResult, getAsyncNormalEvidenceFile, getAsyncCompetitiveEvidenceFile]) {
+      await expect404(() => read({ matchId: "malformed-id", userId: "64b000000000000000000001", side: "challenger", fileIndex: 1 }));
+    }
   } finally {
     CoachMessageSuggestion.findOneAndUpdate =
       originalSuggestionUpdate;
     AdminTodo.findOneAndUpdate =
       originalTodoUpdate;
-    ArenaRevengeRight.findById =
-      originalRevengeFind;
+    ArenaMatch.findById =
+      originalMatchFind;
   }
 
   console.log(
-    "Malformed dynamic IDs verified: coach moderation, admin todos, and revenge actions return controlled 404 errors before database casting."
+    "Malformed dynamic IDs verified: coach moderation, admin todos, normal/competitive results and evidence return controlled 404 errors before database casting."
   );
 }
 

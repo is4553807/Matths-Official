@@ -131,8 +131,7 @@ function verifyClientInputNotTrusted() {
 function verifySubscriptionLifecyclePersistence() {
   const model = read("models/goatArenaModel.js");
   const apple = read("services/appleCommerceService.js");
-  const cycle = read("services/accessCycleService.js");
-  const mock = read("services/mockExamPaymentService.js");
+  const accountPlan = read("services/accountPlanService.js");
 
   for (const field of [
     "appleOriginalTransactionId",
@@ -140,8 +139,7 @@ function verifySubscriptionLifecyclePersistence() {
     "appleExpiresAt",
   ]) {
     assert.match(model, new RegExp(`${field}\\s*:`), `결제 원장에 ${field} 필드가 없습니다`);
-    assert.match(cycle, new RegExp(`${field}`), `학습권 승인 경계가 ${field}를 버립니다`);
-    assert.match(mock, new RegExp(`${field}`), `모의고사 승인 경계가 ${field}를 버립니다`);
+    assert.match(accountPlan, new RegExp(`${field}`), `Pro 승인 경계가 ${field}를 버립니다`);
   }
   assert.match(
     apple,
@@ -168,17 +166,20 @@ function verifySubscriptionLifecyclePersistence() {
     /origin\?\.userId\s*\|\|\s*tokenOwnerId/,
     "원거래가 없는 최초 결제를 appAccountToken 소유자에게 복구하지 않습니다"
   );
-  assert.match(
-    mock,
-    /approval\.provider\s*===\s*"APPLE"[\s\S]*?new Date\(approval\.appleExpiresAt\)/,
-    "모의고사 구독이 Apple의 실제 expiresDate 대신 고정 일수를 씁니다"
-  );
+  assert.match(accountPlan, /approval\.provider\s*===\s*"APPLE"[\s\S]*?new Date\(approval\.appleExpiresAt\)/,
+    "Pro 구독이 Apple의 실제 expiresDate 대신 고정 일수를 씁니다");
+  assert.match(apple, /APPLE_PRODUCT_RETIRED/);
+  assert.match(apple, /reason:\s*"PRODUCT_RETIRED"/);
+  assert.doesNotMatch(apple, /applyApprovedPackagePayment|applyApprovedMockExamPayment/);
+  assert.match(apple, /applyApprovedProPayment\(approval\)/);
   assert.match(
     apple,
-    /status:\s*"CANCELLED",\s*endsAt:\s*cancelTime/,
-    "모의고사 환불이 실제 endsAt을 닫지 않습니다"
+    /accountPlan:\s*freePlanDraft\(\{\s*now:\s*cancelTime/,
+    "Pro 환불이 실제 회수 시각을 계정 플랜에 전달하지 않습니다"
   );
-  console.log("  ✓ Apple 구독 갱신 식별자·실제 만료·환불 회수 영속성");
+  assert.match(apple, /freePlanDraft\(\{/,
+    "Apple Pro 환불 시 계정 플랜을 Free로 회수하지 않습니다");
+  console.log("  ✓ Pro 구독 갱신·판매 종료 상품 차단·역사 환불 회수 영속성");
 }
 
 /** 구매 시점의 Matths 계정과 StoreKit 거래가 서버 원장으로 고정되는지. */
@@ -306,7 +307,7 @@ async function verifyOverHttp(origin) {
   const redeem = await fetch(`${origin}/api/v1/commerce/apple/redeem`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jws: "x", productCode: "LEARNING_PACKAGE_29" }),
+    body: JSON.stringify({ jws: "x", productCode: "PRO_MONTHLY" }),
     redirect: "manual",
   });
   assert.notEqual(redeem.status, 404, "/commerce/apple/redeem 이 등록되지 않았습니다");

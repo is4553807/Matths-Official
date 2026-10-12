@@ -9,17 +9,13 @@ const {
   ArenaMatch,
   ArenaMatchAttempt,
   ArenaMatchAttemptEvent,
-  ArenaRevengeRight,
+  ArenaInlineSolutionBoard,
   ArenaOutboxEvent,
   ArenaProblemPack,
 } = require("../models/goatArenaModel");
 const {
   assertArenaProblemPackIntegrity,
 } = require("./arenaProblemPackService");
-const {
-  isSundayDivisionLocked,
-  isSundayMatchRequestLocked,
-} = require("./arenaMatchService");
 const {
   ARENA_ONE_ON_ONE_EVIDENCE_LIMIT_MS,
   ARENA_ONE_ON_ONE_TIME_LIMIT_MS,
@@ -34,20 +30,6 @@ const {
 const {
   arenaPdfSourceMetadataForReferenceId,
 } = require("./arenaPdfOneOnOneQuestionPool");
-const {
-  holdExpiredEvidence,
-  holdExpiredMatchStarts,
-  holdSundayCutoffMatches,
-} = require("./arenaMatchEvidenceService");
-const {
-  settleExpiredSubRevengeMatches,
-} = require("./arenaMatchSettlementService");
-const {
-  settleExpiredMainRevengeMatches,
-} = require("./mainArenaRevengeService");
-const {
-  buildArenaMatchPreStartContract,
-} = require("./arenaMatchPreStartContractService");
 const {
   buildArenaMatchIntegrityWatermark,
 } = require("./contentProtectionWatermarkPolicy");
@@ -73,7 +55,6 @@ const MATCH_STATUS_LABELS = {
   INVALID: "경기 무효 검토",
   SETTLED: "경기 정산 완료",
   CANCELLED: "경기 취소",
-  INSURED_CANCELLED: "방어 일정 보호로 종료",
 };
 
 function statusError(status, message, code = "") {
@@ -511,23 +492,6 @@ async function prepareArenaMatch({
           "ARENA_MATCH_NOT_MATCHED"
         );
       }
-      if (
-        isSundayMatchRequestLocked(
-          now,
-          match.division
-        )
-      ) {
-        throw statusError(
-          423,
-          match.matchType === "FRIENDLY"
-            ? "GOAT Arena 친선 경기는 일요일 14시부터 새 경기 준비와 시작이 차단됩니다."
-            : match.division === "MAIN"
-              ? "Ranked는 일요일 14시부터 새 경기 준비와 시작이 차단됩니다."
-              : "Unranked는 일요일 14시부터 새 경기 준비와 시작이 차단됩니다.",
-          "SUNDAY_MATCH_START_LOCK"
-        );
-      }
-
       const packs = await queryWithSession(
         ArenaProblemPack.find({
           status: "SEALED",
@@ -699,23 +663,6 @@ async function startArenaMatchAttempt({
           "ARENA_MATCH_START_DEADLINE_EXPIRED"
         );
       }
-      if (
-        isSundayMatchRequestLocked(
-          now,
-          match.division
-        )
-      ) {
-        throw statusError(
-          423,
-          match.matchType === "FRIENDLY"
-            ? "GOAT Arena 친선 경기는 일요일 14시부터 새 경기를 시작할 수 없습니다."
-            : match.division === "MAIN"
-              ? "Ranked는 일요일 14시부터 새 경기를 시작할 수 없습니다."
-              : "Unranked는 일요일 14시부터 새 경기를 시작할 수 없습니다.",
-          "SUNDAY_MATCH_START_LOCK"
-        );
-      }
-
       const startKey =
         `ARENA_START:${attempt._id}:${operationId}`;
       const solveStartedAt = new Date(
@@ -1017,12 +964,16 @@ async function loadWritableAttempt({
   matchId,
   userId,
   session,
+  allowTerminalReplay = false,
 }) {
   const match = await loadMatch(
     matchId,
     session
   );
   assertMatchParticipant(match, userId);
+  if (!allowTerminalReplay && ["SETTLED", "CANCELLED", "INVALID"].includes(match.status)) {
+    throw statusError(409, "이미 종료된 경기는 변경할 수 없습니다.", "ARENA_MATCH_TERMINAL");
+  }
   const attempt = await queryWithSession(
     ArenaMatchAttempt.findOne({
       matchId: match._id,
@@ -1049,13 +1000,6 @@ function assertAttemptWritable(
   now,
   { allowExpired = false } = {}
 ) {
-  if (isSundayDivisionLocked(now)) {
-    throw statusError(
-      423,
-      "일요일 15시부터 월요일 0시까지 공식 경기가 잠깁니다.",
-      "SUNDAY_DIVISION_LOCK"
-    );
-  }
   if (attempt.status !== "IN_PROGRESS") {
     throw statusError(
       409,
@@ -1119,6 +1063,7 @@ async function saveArenaMatchAnswers({
         };
         return;
       }
+      if (attempt.questionCompletionLock) throw statusError(409, "완료한 답안은 변경할 수 없습니다.", "ARENA_QUESTION_LOCK_CONFLICT");
       assertAttemptWritable(attempt, now);
       const normalized = normalizeAnswerChanges(
         changes,
@@ -1174,6 +1119,7 @@ async function advanceArenaMatchQuestion({
   requestId,
   value,
   submissionMode = "MANUAL",
+  inlineBoard = null,
   now = new Date(),
 }) {
   const operationId = normalizeOperationId(
@@ -1188,12 +1134,13 @@ async function advanceArenaMatchQuestion({
         matchId,
         userId,
         session,
+        allowTerminalReplay: true,
       });
       const eventKey = `ARENA_ADVANCE:${attempt._id}:${operationId}`;
       const replay = await queryWithSession(
         ArenaMatchAttemptEvent.findOne({
           attemptId: attempt._id,
-          idempotencyKey: eventKey,
+          $or: [{ idempotencyKey: eventKey }, { "metadata.completionRequestId": operationId }],
         }),
         session
       );
@@ -1251,14 +1198,15 @@ async function advanceArenaMatchQuestion({
         };
         return;
       }
-      const timedOut =
-        submissionMode ===
-        "TIME_LIMIT";
-      assertAttemptWritable(
-        attempt,
-        now,
-        { allowExpired: timedOut }
-      );
+      if (["SETTLED", "CANCELLED", "INVALID"].includes(match.status)) throw statusError(409, "이미 종료된 경기는 변경할 수 없습니다.", "ARENA_MATCH_TERMINAL");
+      const completionLock = attempt.questionCompletionLock;
+      const timedOut = submissionMode === "TIME_LIMIT" || completionLock?.submissionMode === "TIME_LIMIT";
+      const uploadPending = completionLock && now.getTime() <= new Date(completionLock.lockedAt).getTime() + ARENA_ONE_ON_ONE_EVIDENCE_LIMIT_MS;
+      if (timedOut && uploadPending && !inlineBoard && completionLock.evidenceMode !== "PHOTO_UPLOAD_V1") throw statusError(409, "확정된 풀이판 업로드를 기다리고 있습니다.", "ARENA_QUESTION_UPLOAD_PENDING");
+      assertAttemptWritable(attempt, now, { allowExpired: timedOut || Boolean(uploadPending) });
+      if (completionLock && !timedOut && ((completionLock.evidenceMode !== "PHOTO_UPLOAD_V1" && !inlineBoard) || String(value ?? "").trim() !== completionLock.answer)) {
+        throw statusError(409, "완료 시점에 확정한 답안과 풀이판이 필요합니다.", "ARENA_QUESTION_LOCK_CONFLICT");
+      }
       if (
         timedOut &&
         (
@@ -1305,6 +1253,15 @@ async function advanceArenaMatchQuestion({
           "ARENA_CURRENT_QUESTION_NOT_FOUND"
         );
       }
+      if (inlineBoard && (!completionLock || completionLock.evidenceMode !== "INLINE_BOARD_V1")) throw statusError(409, "업로드 전에 문항 완료를 확정해주세요.", "ARENA_QUESTION_LOCK_REQUIRED");
+      if (inlineBoard) {
+        const board = await ArenaInlineSolutionBoard.findOne({ attemptId: attempt._id, questionSlot: currentIndex + 1 }).session(session);
+        if (!board || board.revision !== Number(inlineBoard.revision) || board.file.sha256 !== inlineBoard.sha256 || board.finalizedAt) {
+          throw statusError(409, "현재 풀이판 버전이 일치하지 않습니다.", "ARENA_INLINE_BOARD_VERSION_CONFLICT");
+        }
+        board.finalizedAt = now;
+        await board.save({ session });
+      }
       const savedAnswer =
         attempt.answers.find(
           (answer) =>
@@ -1316,7 +1273,7 @@ async function advanceArenaMatchQuestion({
         shouldApplyAnswer,
       } = resolveAdvanceAnswer({
         submissionMode,
-        value,
+        value: completionLock ? completionLock.answer : value,
         savedAnswer,
       });
       const latestValueProvided =
@@ -1347,11 +1304,11 @@ async function advanceArenaMatchQuestion({
         (entry) => entry.questionKey === question.questionKey
       );
       if (timing && !timing.completedAt) {
-        timing.completedAt = timedOut
+        timing.completedAt = timedOut && !completionLock
           ? new Date(
               attempt.deadlineAt
             )
-          : now;
+          : (completionLock ? new Date(completionLock.lockedAt) : now);
         timing.responseTimeMs = Math.max(
           0,
           new Date(
@@ -1407,6 +1364,7 @@ async function advanceArenaMatchQuestion({
           responseTimeMs: null,
         });
       }
+      attempt.questionCompletionLock = null;
       await attempt.save({ session });
       await match.save({ session });
       await ArenaMatchAttemptEvent.create(
@@ -1427,6 +1385,9 @@ async function advanceArenaMatchQuestion({
                   ? "TIME_LIMIT"
                   : "MANUAL",
               latestValueProvided,
+              completionLockedAt: completionLock?.lockedAt || null,
+              completionRequestId: completionLock?.requestId || null,
+              evidenceMode: completionLock?.evidenceMode || null,
               questionDeadlineAt:
                 completedQuestionDeadlineAt,
               timeoutOperationId:
@@ -1537,6 +1498,13 @@ async function recordArenaMatchActivity({
           userId,
           session,
         });
+      if (
+        match.matchType === "FRIENDLY" ||
+        String(match.gameMode || "").toUpperCase() !== "COMPETITIVE"
+      ) {
+        recordedCount = 0;
+        return;
+      }
       assertAttemptWritable(attempt, now);
       const normalized = normalizeSignals(
         signals,
@@ -1637,13 +1605,6 @@ async function submitArenaMatchAttempt({
           409,
           "시작한 경기만 제출할 수 있습니다.",
           "ARENA_ATTEMPT_NOT_IN_PROGRESS"
-        );
-      }
-      if (isSundayDivisionLocked(now)) {
-        throw statusError(
-          423,
-          "일요일 15시부터 월요일 0시까지 공식 경기가 잠깁니다.",
-          "SUNDAY_DIVISION_LOCK"
         );
       }
       const currentQuestionIndex =
@@ -1813,15 +1774,8 @@ async function getArenaMatchPageData({
       matchId: match._id,
       userId,
     }).lean();
-  const divisionLocked =
-    isSundayDivisionLocked(now);
-  const matchRequestLocked =
-    isSundayMatchRequestLocked(
-      now,
-      match.division
-    );
   if (
-    !divisionLocked &&
+    !["SETTLED", "CANCELLED", "INVALID"].includes(match.status) &&
     attempt?.status === "IN_PROGRESS" &&
     attempt.deadlineAt &&
     new Date(attempt.deadlineAt) <= now
@@ -1871,7 +1825,7 @@ async function getArenaMatchPageData({
       )
     : null;
   const showQuestions =
-    !divisionLocked &&
+    !["SETTLED", "CANCELLED", "INVALID"].includes(match.status) &&
     attempt?.status === "IN_PROGRESS";
   const remainingMs = showQuestions
     ? Math.max(
@@ -1884,12 +1838,6 @@ async function getArenaMatchPageData({
   const opponentResultKey = role === "CHALLENGER" ? "defender" : "challenger";
   const resultSnapshot = match.resultSnapshot || null;
   const isFriendlyMatch = match.matchType === "FRIENDLY";
-  const revengeRight = match.status === "SETTLED" && match.matchType === "NORMAL"
-    ? await ArenaRevengeRight.findOne({
-        sourceMatchId: match._id,
-        eligibleUserId: userId,
-      }).lean()
-    : null;
   const integrityWatermark = showQuestions
     ? buildArenaMatchIntegrityWatermark({
         matchId: match._id,
@@ -1911,47 +1859,36 @@ async function getArenaMatchPageData({
   }
   return {
     id: String(match._id),
+    arenaVersion: match.arenaVersion,
+    gameMode: match.gameMode || null,
+    competitiveAsync: Boolean(match.competitiveAsync?.enabled),
+    normalAsync: Boolean(match.normalAsync?.enabled),
     matchStatus: match.status,
     matchStatusLabel:
       MATCH_STATUS_LABELS[match.status] ||
       "경기 처리 중",
     role,
-    roleLabel:
-      isFriendlyMatch
-        ? (role === "CHALLENGER" ? "초대한 사용자" : "초대 수락 사용자")
-        : (role === "CHALLENGER" ? "공격자" : "방어자"),
-    opponentName:
-      String(opponent?.name || opponent?.username || "닉네임 확인 중"),
+    roleLabel: isFriendlyMatch
+      ? (role === "CHALLENGER" ? "초대한 사용자" : "초대 수락 사용자")
+      : (role === "CHALLENGER" ? "도전자" : "상대"),
+    opponentName: Array.isArray(match.normalAsync?.baselineQuestionIds) &&
+      match.normalAsync.baselineQuestionIds.length === 5
+      ? "상대"
+      : match.normalAsync?.firstRecord
+        ? "상대 연결 대기"
+        : String(opponent?.name || opponent?.username || "닉네임 확인 중"),
     matchType: match.matchType,
-    matchTitle:
-      match.matchType === "REVENGE"
-        ? "복수전"
-        : match.matchType === "FRIENDLY"
-          ? "친선 경기"
-          : "일반 쟁탈전",
-    divisionLabel:
-      isFriendlyMatch
-        ? "Ranked"
-        : match.division === "MAIN"
-          ? "Ranked"
-          : "Unranked",
+    matchTitle: match.gameMode === "COMPETITIVE"
+      ? "경쟁전"
+      : match.gameMode === "FRIENDLY"
+        ? "친선전"
+        : "일반전",
+    divisionLabel: match.gameMode === "COMPETITIVE"
+      ? "경쟁전"
+      : match.gameMode === "FRIENDLY"
+        ? "친선전"
+        : "일반전",
     division: match.division,
-    preStartContract:
-      buildArenaMatchPreStartContract(
-        match,
-        role
-      ),
-    canUseDefenseScheduleProtection:
-      match.division === "MAIN" &&
-      match.matchType === "NORMAL" &&
-      match.matchOrigin === "MAIN_UPWARD_AUTO_MATCH" &&
-      role === "DEFENDER" &&
-      match.status === "READY" &&
-      attempt?.status === "READY" &&
-      !attempt?.startedAt &&
-      new Date(now).getTime() -
-        new Date(match.readyAt || match.createdAt).getTime() <=
-        3 * 60 * 60 * 1000,
     problemPack: pack
       ? {
           version: pack.version,
@@ -2012,27 +1949,26 @@ async function getArenaMatchPageData({
     autoAdvancedQuestionNumber,
     canPrepare:
       match.status === "MATCHED" &&
-      !match.problemPackId &&
-      !matchRequestLocked,
+      !match.problemPackId,
     canStart:
       attempt?.status === "READY" &&
       (
         ["READY", "IN_PROGRESS"].includes(match.status) ||
         (match.status === "HELD" && match.integrityStatus === "CLEAR")
-      ) &&
-      !matchRequestLocked,
+      ),
     inProgress: showQuestions,
     submitted:
       attempt?.status === "SUBMITTED",
     evidenceRequired:
       attempt?.status === "EVIDENCE_REQUIRED",
-    matchRequestLocked,
-    divisionLocked,
     settled: match.status === "SETTLED",
     held: match.status === "HELD",
     didWin:
       match.status === "SETTLED" &&
       match.winnerRole === role,
+    didDraw:
+      match.status === "SETTLED" &&
+      !match.winnerRole,
     winnerRole: match.winnerRole || null,
     result: resultSnapshot
       ? {
@@ -2043,21 +1979,8 @@ async function getArenaMatchPageData({
             resultSnapshot.settlementSummary?.tupleAction || "KEEP",
           stakeOutcome:
             resultSnapshot.settlementSummary?.challengerStakeOutcome || "",
-        }
-      : null,
-    revengeRight: revengeRight
-      ? {
-          id: String(revengeRight._id),
-          // 결과 화면의 복수전 오버레이가 Unranked 페이백 점수와
-          // Ranked 학습일수를 정확히 구분하도록 원경기 Division을 함께 전달한다.
-          division: match.division,
-          status: revengeRight.status,
-          canClaim: revengeRight.status === "AVAILABLE",
-          revengeMatchId: revengeRight.revengeMatchId
-            ? String(revengeRight.revengeMatchId)
-            : null,
-          stakeDays: Number(revengeRight.revengeStakeDays),
-          feeDays: Number(revengeRight.feeDays),
+          settlementSummary:
+            resultSnapshot.settlementSummary || {},
         }
       : null,
   };
@@ -2067,17 +1990,14 @@ async function submitExpiredArenaAttempts({
   now = new Date(),
   limit = 100,
 } = {}) {
-  if (isSundayDivisionLocked(now)) {
-    return {
-      scanned: 0,
-      submitted: 0,
-      divisionLocked: true,
-    };
-  }
+  const activeMatchIds = await ArenaMatch.find({
+    status: { $in: ["READY", "IN_PROGRESS", "SUBMITTED", "HELD"] },
+  }).distinct("_id");
   const attempts =
     await ArenaMatchAttempt.find({
       status: "IN_PROGRESS",
       deadlineAt: { $lte: now },
+      matchId: { $in: activeMatchIds },
     })
       .select("_id matchId userId deadlineAt")
       .limit(Math.max(1, Math.min(500, limit)))
@@ -2125,14 +2045,7 @@ function startArenaMatchAttemptScheduler() {
       try {
         await withSchedulerLease(
           { name: "ARENA_MATCH_TIMERS", leaseMs: 2 * 60 * 1000 },
-          () => Promise.all([
-            submitExpiredArenaAttempts(),
-            holdExpiredEvidence(),
-            holdExpiredMatchStarts(),
-            holdSundayCutoffMatches(),
-            settleExpiredSubRevengeMatches(),
-            settleExpiredMainRevengeMatches(),
-          ])
+          () => submitExpiredArenaAttempts()
         );
       } finally {
         attemptScheduleRunning = false;

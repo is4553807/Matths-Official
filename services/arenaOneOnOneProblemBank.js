@@ -4,7 +4,7 @@ const {
   generateValidatedArenaOneOnOneQuestion,
 } = require("./arenaOneOnOneProblemTypes");
 const {
-  ARENA_LEGACY_CONTENT_VERSION,
+  ARENA_FALLBACK_CONTENT_VERSION,
   ARENA_QUESTION_DESIGN_POLICY_VERSION,
   PUBLIC_DIFFICULTY_SPECS,
   TIER_SPECS,
@@ -44,7 +44,7 @@ function preparedArenaQuestionRuntime() {
 }
 
 /*
- * Unranked·Ranked 1대1 전용 문제 은행.
+ * 일반전·경쟁전 경기용 문제 은행.
  *
  * 배치고사와 분리된 Arena 전용 생성기 arenaOneOnOneProblemTypes.js를 사용한다.
  * 문제 유형·수치·검산 규칙은 운영 DB의 U/R 카탈로그와 결합해 독립적으로 교체한다.
@@ -201,7 +201,7 @@ function configuredQuestionSlots(
   );
 }
 
-function generateLegacyNaturalQuestion(
+function generateFallbackNaturalQuestion(
   preferredTypeId,
   excludedTypeIds,
   eligibleTypeIds = ARENA_ONE_ON_ONE_SEMI_KILLER_TYPE_IDS,
@@ -257,7 +257,7 @@ function generateQuestionsFromPackSlot({
 }) {
   const excludedTypeIds = new Set();
   const questions = packSlot.questionSlots.map((slot) => {
-    const generated = generateLegacyNaturalQuestion(
+    const generated = generateFallbackNaturalQuestion(
       slot.typeKey,
       excludedTypeIds,
       eligibleTypeIds,
@@ -326,7 +326,7 @@ const ARENA_TIER_LABELS = {
 };
 
 /*
- * Unranked는 먼저 같은 티어의 더 높은 순위를 찾고, 후보가 없을 때만
+ * 일반전은 먼저 같은 티어의 더 높은 순위를 찾고, 후보가 없을 때만
  * 정확히 한 티어 위로 올라간다. 두 경로 모두 같은 문제 생성기를 쓰므로
  * 실제로 성립 가능한 17개 조합을 문제 은행에도 빠짐없이 등록한다.
  */
@@ -354,7 +354,7 @@ const SUB_TIER_PAIR_CONFIG = ARENA_TIER_CODES.flatMap(
     difficultyTier,
     difficultyCode: resolveArenaDifficultyCode(challengerTier, defenderTier, { division: "SUB" }),
     designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
-    contentSourceVersion: ARENA_LEGACY_CONTENT_VERSION,
+    contentSourceVersion: ARENA_FALLBACK_CONTENT_VERSION,
     designCompliance: "PENDING_FINAL_GENERATORS",
     targetAccuracy:
       PUBLIC_DIFFICULTY_SPECS[
@@ -382,7 +382,7 @@ const MAIN_TIER_CODES = ARENA_TIER_CODES;
 const MAIN_TIER_LABELS = ARENA_TIER_LABELS;
 
 /*
- * Ranked는 최대 3티어 차이까지 열 수 있다. 현재는 Unranked와 같은
+ * 경쟁전은 최대 3티어 차이까지 열 수 있다. 현재는 일반전과 같은
  * Arena 전용 준킬러·킬러 생성기를 사용하고, 운영 DB의 U/R 유형표가 바뀌면
  * 이 파일의 슬롯 배정만 교체한다.
  */
@@ -407,7 +407,7 @@ const MAIN_TIER_PAIR_CONFIG = MAIN_TIER_CODES.flatMap(
           difficultyTier,
           difficultyCode: resolveArenaDifficultyCode(lowerTier, upperTier, { division: "MAIN" }),
           designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
-          contentSourceVersion: ARENA_LEGACY_CONTENT_VERSION,
+          contentSourceVersion: ARENA_FALLBACK_CONTENT_VERSION,
           designCompliance: "PENDING_FINAL_GENERATORS",
           targetAccuracy:
             PUBLIC_DIFFICULTY_SPECS[
@@ -514,7 +514,7 @@ function configuredPackSlotForMatch({
   const pair = getSubTierPair(challengerTier, defenderTier);
   if (!pair) {
     const error = new Error(
-      "Unranked 일반 쟁탈전은 같은 티어 또는 바로 위 티어 조합에서만 만들 수 있습니다."
+      "일반전은 같은 티어 또는 바로 위 티어 조합에서만 만들 수 있습니다."
     );
     error.status = 409;
     error.code = "SUB_TIER_PAIR_NOT_ALLOWED";
@@ -597,7 +597,7 @@ async function generateSubOneOnOneQuestionsFromActiveData(input) {
     const pair = getSubTierPair(input.challengerTier, input.defenderTier);
     if (!pair) {
       const error = new Error(
-        "Unranked 일반 쟁탈전은 같은 티어 또는 바로 위 티어 조합에서만 만들 수 있습니다."
+        "일반전은 같은 티어 또는 바로 위 티어 조합에서만 만들 수 있습니다."
       );
       error.status = 409;
       error.code = "SUB_TIER_PAIR_NOT_ALLOWED";
@@ -648,7 +648,7 @@ function generateMainOneOnOneQuestions({
   const pair = getMainTierPair(lowerTier, upperTier);
   if (!pair) {
     const error = new Error(
-      "Ranked 경기는 최대 3단계 차이의 상위·하위 티어 사이에서만 만들 수 있습니다."
+      "경쟁전은 최대 3단계 차이의 상위·하위 티어 사이에서만 만들 수 있습니다."
     );
     error.status = 409;
     error.code = "MAIN_TIER_PAIR_NOT_ALLOWED";
@@ -711,7 +711,7 @@ async function generateMainOneOnOneQuestionsFromActiveData(input) {
     const pair = getMainTierPair(input.lowerTier, input.upperTier);
     if (!pair) {
       const error = new Error(
-        "Ranked 경기는 최대 3단계 차이의 상위·하위 티어 사이에서만 만들 수 있습니다."
+        "경쟁전은 최대 3단계 차이의 상위·하위 티어 사이에서만 만들 수 있습니다."
       );
       error.status = 409;
       error.code = "MAIN_TIER_PAIR_NOT_ALLOWED";
@@ -751,32 +751,48 @@ function friendlyDifficultyPlan({
   inviterDivision,
   inviteeTier,
   inviteeDivision,
+  difficultyAnchorTier = null,
+  difficultyDivision = null,
 }) {
   const participants = [
     { tier: tierCode(inviterTier), division: String(inviterDivision || "SUB").toUpperCase() },
     { tier: tierCode(inviteeTier), division: String(inviteeDivision || "SUB").toUpperCase() },
-  ].map((participant) => ({
-    ...participant,
-    difficultyTier: resolveArenaDifficultyTier(
-      participant.tier,
-      participant.tier,
-      { division: participant.division }
-    ),
-  }));
-  const difficultyTier = participants
-    .map((participant) => participant.difficultyTier)
+  ];
+  const requestedAnchorTier = tierCode(difficultyAnchorTier);
+  const explicitDifficulty = ARENA_TIER_CODES.includes(requestedAnchorTier);
+  const normalizedDifficultyDivision = String(
+    difficultyDivision || (explicitDifficulty ? participants[0].division : "MAIN") || "SUB"
+  ).toUpperCase();
+  const participantDifficultyTiers = participants.map((participant) =>
+    resolveArenaDifficultyTier(participant.tier, participant.tier, {
+      division: participant.division,
+    })
+  );
+  const fallbackDifficultyTier = participantDifficultyTiers
     .sort((left, right) => Number(right.slice(1)) - Number(left.slice(1)))[0];
-  const anchorTier = TIER_SPECS[difficultyTier]?.anchor;
-  if (!anchorTier) {
+  const anchorTier = explicitDifficulty
+    ? requestedAnchorTier
+    : TIER_SPECS[fallbackDifficultyTier]?.anchor;
+  if (!ARENA_TIER_CODES.includes(anchorTier)) {
     const error = new Error("친선 경기 참가자에게 맞는 문제 난이도를 찾을 수 없습니다.");
     error.status = 409;
     error.code = "FRIENDLY_DIFFICULTY_NOT_CONFIGURED";
     throw error;
   }
+  const difficultyTier = explicitDifficulty
+    ? resolveArenaDifficultyTier(anchorTier, anchorTier, {
+        division: normalizedDifficultyDivision,
+      })
+    : fallbackDifficultyTier;
+  const difficultyCode = resolveArenaDifficultyCode(anchorTier, anchorTier, {
+    division: normalizedDifficultyDivision,
+  });
   return {
     difficultyTier,
+    difficultyCode,
+    difficultyDivision: normalizedDifficultyDivision,
     anchorTier,
-    pairKey: `FRIENDLY_${participants[0].division}_${participants[0].tier}_${participants[1].division}_${participants[1].tier}_${difficultyTier}`,
+    pairKey: `FRIENDLY_${participants[0].division}_${participants[0].tier}_${participants[1].division}_${participants[1].tier}_${difficultyCode}`,
     pairLabel: `${ARENA_TIER_LABELS[participants[0].tier] || participants[0].tier}-${ARENA_TIER_LABELS[participants[1].tier] || participants[1].tier} 친선 경기`,
   };
 }
@@ -789,11 +805,7 @@ async function generateFriendlyOneOnOneQuestionsFromActiveData(input) {
     matchKey: input.matchKey,
   });
   if (ARENA_MATCH_QUESTION_ROLLOUT.runtimeConnected !== true) {
-    const difficultyCode = resolveArenaDifficultyCode(
-      plan.anchorTier,
-      plan.anchorTier,
-      { division: "MAIN" }
-    );
+    const difficultyCode = plan.difficultyCode;
     const eligibleTypeIds = problemDataVersion
       ? weightedTypeIdsForPack(
           problemDataVersion,
@@ -811,7 +823,7 @@ async function generateFriendlyOneOnOneQuestionsFromActiveData(input) {
       difficultyCode,
       designPolicyVersion: ARENA_QUESTION_DESIGN_POLICY_VERSION,
       contentSourceVersion:
-        problemDataVersion?.code || ARENA_LEGACY_CONTENT_VERSION,
+        problemDataVersion?.code || ARENA_FALLBACK_CONTENT_VERSION,
       designCompliance: "PENDING_FINAL_GENERATORS",
       targetAccuracy:
         PUBLIC_DIFFICULTY_SPECS[difficultyCode] || TIER_SPECS[plan.difficultyTier],
@@ -825,7 +837,7 @@ async function generateFriendlyOneOnOneQuestionsFromActiveData(input) {
         plan.anchorTier,
         plan.anchorTier,
         eligibleTypeIds,
-        { division: "MAIN" }
+        { division: plan.difficultyDivision }
       ),
     };
     assertConfiguredPackSlot(packSlot);
@@ -845,7 +857,7 @@ async function generateFriendlyOneOnOneQuestionsFromActiveData(input) {
       questionTargetAccuracy: plannedPackSlots(
         plan.anchorTier,
         plan.anchorTier,
-        { division: "MAIN" }
+        { division: plan.difficultyDivision }
       ).map((slot) => slot.targetAccuracy),
       packCurve: pair.packCurve,
       questions: generateQuestionsFromPackSlot({
@@ -859,11 +871,7 @@ async function generateFriendlyOneOnOneQuestionsFromActiveData(input) {
   }
   const { generateArenaPdfOneOnOneQuestions } = preparedArenaQuestionRuntime();
   {
-    const difficultyCode = resolveArenaDifficultyCode(
-      plan.anchorTier,
-      plan.anchorTier,
-      { division: "MAIN" }
-    );
+    const difficultyCode = plan.difficultyCode;
     const recentTypeIds = await recentArenaTypeIdsForParticipants(
       input.participantUserIds
     );
@@ -888,7 +896,7 @@ async function generateFriendlyOneOnOneQuestionsFromActiveData(input) {
       designCompliance: "ACTIVE",
       targetAccuracy: PUBLIC_DIFFICULTY_SPECS[difficultyCode] || TIER_SPECS[plan.difficultyTier],
       questionTargetAccuracy: plannedPackSlots(plan.anchorTier, plan.anchorTier, {
-        division: "MAIN",
+        division: plan.difficultyDivision,
       }).map((slot) => slot.targetAccuracy),
       packCurve: friendlyPackCurve,
       questions,

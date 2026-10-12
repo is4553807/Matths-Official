@@ -12,7 +12,6 @@ const HISTORY_MATCH_STATUSES = Object.freeze([
   "INVALID",
   "SETTLED",
   "CANCELLED",
-  "INSURED_CANCELLED",
 ]);
 const HISTORY_PAGE_SIZE = 30;
 const HISTORY_MAX_PAGE_SIZE = 60;
@@ -63,8 +62,7 @@ function kstBoundary(dateKey, endOfDay = false) {
 
 function normalizeHistoryFilters(input = {}) {
   const status = cleanSingleLine(input.status, 30).toUpperCase();
-  const division = cleanSingleLine(input.division, 10).toUpperCase();
-  const matchType = cleanSingleLine(input.matchType, 20).toUpperCase();
+  const gameMode = cleanSingleLine(input.gameMode || input.mode, 20).toUpperCase();
   const integrityStatus = cleanSingleLine(
     input.integrityStatus,
     20
@@ -75,9 +73,8 @@ function normalizeHistoryFilters(input = {}) {
     dateFrom: normalizeDateInput(input.dateFrom),
     dateTo: normalizeDateInput(input.dateTo),
     status: HISTORY_MATCH_STATUSES.includes(status) ? status : "",
-    division: ["SUB", "MAIN"].includes(division) ? division : "",
-    matchType: ["NORMAL", "REVENGE", "FRIENDLY"].includes(matchType)
-      ? matchType
+    gameMode: ["NORMAL", "COMPETITIVE", "FRIENDLY"].includes(gameMode)
+      ? gameMode
       : "",
     integrityStatus: [
       "PENDING",
@@ -116,8 +113,9 @@ function buildHistoryMatchFilter(filters, matchingUserIds = []) {
     },
   ];
 
-  if (filters.division) clauses.push({ division: filters.division });
-  if (filters.matchType) clauses.push({ matchType: filters.matchType });
+  if (filters.gameMode) {
+    clauses.push({ gameMode: filters.gameMode });
+  }
   if (filters.integrityStatus) {
     clauses.push({ integrityStatus: filters.integrityStatus });
   }
@@ -187,7 +185,6 @@ function participantSummary({
   return {
     ...userSummary(user, participant?.userId),
     role,
-    stakeDays: numeric(participant?.stakeDays) || 0,
     attemptStatus: cleanSingleLine(attempt?.status, 30) || "NOT_CREATED",
     score,
     correctCount,
@@ -245,8 +242,9 @@ function buildMatchSummary({ match, attemptsByRole, usersById, focusUserId = "" 
     id: matchId,
     matchKey: cleanSingleLine(match.matchKey, 200),
     seasonKey: cleanSingleLine(match.seasonKey, 80),
-    division: cleanSingleLine(match.division, 10),
-    matchType: cleanSingleLine(match.matchType, 20),
+    gameMode: cleanSingleLine(match.gameMode, 20) || "NORMAL",
+    asynchronous:
+      match.normalAsync?.enabled === true || match.competitiveAsync?.enabled === true,
     matchOrigin: cleanSingleLine(match.matchOrigin, 60),
     tierPairLabel: cleanSingleLine(match.tierPairLabel, 80),
     status: cleanSingleLine(match.status, 30),
@@ -257,6 +255,9 @@ function buildMatchSummary({ match, attemptsByRole, usersById, focusUserId = "" 
     focusedRole,
     focusedParticipant,
     opponent,
+    ratingChange: match.resultSnapshot?.settlementSummary?.ratingChange || null,
+    comparison: match.resultSnapshot?.settlementSummary?.comparison ||
+      match.normalAsync?.pendingComparison || match.competitiveAsync?.pendingComparison || null,
     requestedAt: match.requestedAt || match.createdAt || null,
     startedAt: match.startedAt || null,
     completedAt:

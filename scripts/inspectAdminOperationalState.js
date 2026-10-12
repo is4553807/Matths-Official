@@ -42,11 +42,11 @@ async function main() {
         .lean()
     : null;
   const heldMatches = await ArenaMatch.find({
-    status: { $nin: ["SETTLED", "INVALID", "CANCELLED", "INSURED_CANCELLED"] },
+    status: { $nin: ["SETTLED", "INVALID", "CANCELLED"] },
     $or: [{ status: "HELD" }, { integrityStatus: "SUSPICIOUS" }],
   })
     .select(
-      "_id division status integrityStatus challenger.userId defender.userId economySnapshot createdAt"
+      "_id division status integrityStatus challenger.userId defender.userId createdAt"
     )
     .lean();
   const heldMatchIds = heldMatches.map((match) => match._id);
@@ -109,8 +109,6 @@ async function main() {
       defenderUserId: String(match.defender?.userId || ""),
       challengerUser: participantUserById.get(String(match.challenger?.userId || "")) || null,
       defenderUser: participantUserById.get(String(match.defender?.userId || "")) || null,
-      challengerStake: Number(match.economySnapshot?.challengerStakeDays || 0),
-      defenderStake: Number(match.economySnapshot?.defenderStakeDays || 0),
       attempts: attempts
         .filter((attempt) => String(attempt.matchId) === String(match._id))
         .map((attempt) => ({
@@ -137,7 +135,7 @@ async function main() {
     targetUserCurrentMatchCount: user
       ? await ArenaMatch.countDocuments({
           status: {
-            $nin: ["SETTLED", "INVALID", "CANCELLED", "INSURED_CANCELLED"],
+            $nin: ["SETTLED", "INVALID", "CANCELLED"],
           },
           $or: [
             { "challenger.userId": user._id },

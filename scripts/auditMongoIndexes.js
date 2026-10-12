@@ -3,7 +3,8 @@ require("dotenv").config({ path: "config.env" });
 const mongoose = require("mongoose");
 const matthsModels = require("../models/matthsModel");
 const arenaModels = require("../models/goatArenaModel");
-const paybackDailyLearningModels = require("../models/paybackDailyLearningModel");
+const deliveryModels = require("../models/arenaDeliveryModel");
+const financeModels = require("../models/financeModel");
 const NativeSocialRegistrationTicket = require(
   "../models/nativeSocialRegistrationTicketModel"
 );
@@ -27,7 +28,8 @@ function registeredModels() {
   for (const model of Object.values({
     ...matthsModels,
     ...arenaModels,
-    ...paybackDailyLearningModels,
+    ...deliveryModels,
+    ...financeModels,
     NativeSocialRegistrationTicket,
   })) {
     if (!model?.modelName || !model?.schema || !model?.collection?.name) continue;

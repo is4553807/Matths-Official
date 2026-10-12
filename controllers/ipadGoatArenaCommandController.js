@@ -17,7 +17,7 @@ const {
  * 이 계층이 실제로 하는 일은 세 가지뿐이다.
  *   ① Idempotency-Key / X-Matths-Client-Version **헤더**를 명령 인자로 바꾼다.
  *      앱은 멱등키를 헤더로 보내고 정본 서비스는 requestId 인자를 받는다.
- *      선례: controllers/ipadArenaShopController.js 의 purchaseInput.
+ *      이 컨트롤러의 commandInput이 공통 변환을 담당한다.
  *   ② 본문 필드를 화이트리스트로 막는다.
  *   ③ 서비스 반환값을 앱 Codable 이 기대하는 봉투에 담는다
  *      (start/advance → 그대로, 이벤트 → {event}, 문항 → {questionPack}).
@@ -280,6 +280,18 @@ function createIpadGoatArenaCommandController({
     }
   }
 
+  async function lockQuestionCompletion(req, res, next) {
+    try {
+      const context = commandContext(req);
+      const input = commandInput(req);
+      const body = strictBody(req, ["questionSlot", "answer", "boardRevision", "strokeCount", "drawingSha256", "evidenceMode", "submissionMode"]);
+      const lock = await require("../services/arenaQuestionCompletionService").lockArenaQuestionCompletion({
+        ...body, matchId: input.matchId, userId: context.userId, requestId: input.idempotencyKey,
+      });
+      noStore(res); return res.json({ lock });
+    } catch (error) { return next(error); }
+  }
+
   async function finalizeSolutionBoards(req, res, next) {
     try {
       strictBody(req, []);
@@ -319,6 +331,7 @@ function createIpadGoatArenaCommandController({
 
   return Object.freeze({
     advanceQuestion,
+    lockQuestionCompletion,
     finalizeSolutionBoards,
     getQuestions,
     heartbeat,

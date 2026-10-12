@@ -10,22 +10,19 @@ const {
 const {
   isAppleStoreConfigured,
 } = require("./appleStoreVerifyService");
+const {
+  isProAppleProductConfigured,
+} = require("./accountPlanService");
 
 const HANDOFF_TTL_MS = 2 * 60 * 1000;
 const PRODUCT_ROUTES = Object.freeze({
-  MOCK_EXAM_ONLY: "mock-exam-only",
-  LEARNING_PACKAGE_29: "learning-package",
+  PRO_MONTHLY: "pro",
 });
 const PRODUCT_FEATURES = Object.freeze({
-  MOCK_EXAM_ONLY: [
+  PRO_MONTHLY: [
     "주간 공식 모의고사",
-    "응시 기록과 성적 확인",
-    "학습권과 분리된 30일 이용",
-  ],
-  LEARNING_PACKAGE_29: [
-    "모의고사와 배치고사",
-    "GOAT Arena 공식 경기",
-    "29일 학습 사이클",
+    "Pro 전용 학습 자료",
+    "GOAT Arena Pro 이용 범위",
   ],
 });
 
@@ -67,30 +64,32 @@ async function getAppStorefront(userId, {
     catalogLoader(),
     accessLoader(userId),
   ]);
+  const appleProConfigured =
+    isAppleStoreConfigured(environment) &&
+    isProAppleProductConfigured(environment);
   return {
     generatedAt: new Date().toISOString(),
     // 이 응답은 네이티브 iOS StoreKit 화면의 정본이다. 웹 KG이니시스의
     // PAID_CHECKOUT_ENABLED/리뷰 이메일 제한을 여기에 재사용하면 웹 결제를
     // 닫는 순간 정상 App Store 상품의 구매 버튼까지 비활성화된다. 두 결제
     // 경계를 분리하고, 네이티브는 Apple 거래 검증 경계의 준비 상태만 본다.
-    checkoutEnabled: isAppleStoreConfigured(environment),
-    appleCheckoutEnabled: isAppleStoreConfigured(environment),
+    checkoutEnabled: appleProConfigured,
+    appleCheckoutEnabled: appleProConfigured,
     webCheckoutEnabled: isPaidCheckoutAllowedForEmail(userEmail, environment),
     currency: "KRW",
     access: {
       packageType: access.packageType || null,
-      learningPackageActive: access.learningPackage?.active === true,
-      mockExamPackageActive: access.mockExamOnlyPackage?.active === true,
+      planCode: access.plan?.code || access.packageType || "FREE",
+      proActive:
+        ["PRO", "SUPER_ADMIN"].includes(
+          String(access.plan?.code || access.packageType || "")
+        ) && access.active === true,
       academyPlanActive: access.academyPlan?.active === true,
       academyMockIncluded:
         access.academyPlan?.active === true &&
         access.academyPlan?.includesMockExam === true,
       academyPlanEndsAt: access.academyPlan?.endsAt || null,
       arenaAllowed: access.arenaAllowed === true,
-      rankedShopAvailable:
-        access.learningPackage?.active === true &&
-        String(access.learningPackage?.cycle?.division || "") === "MAIN",
-      mockExamEndsAt: access.mockExamOnlyPackage?.subscription?.endsAt || null,
     },
     products: products.map((product) => ({
       code: product.code,
@@ -100,11 +99,11 @@ async function getAppStorefront(userId, {
       description: product.description,
       features: PRODUCT_FEATURES[product.code] || [],
       current:
-        (product.code === "LEARNING_PACKAGE_29" && access.learningPackage?.active === true) ||
-        (product.code === "MOCK_EXAM_ONLY" &&
-          (access.mockExamOnlyPackage?.active === true ||
-            (access.academyPlan?.active === true &&
-              access.academyPlan?.includesMockExam === true))),
+        product.code === "PRO_MONTHLY" &&
+        ["PRO", "SUPER_ADMIN"].includes(
+          String(access.plan?.code || access.packageType || "")
+        ) &&
+        access.active === true,
     })),
   };
 }

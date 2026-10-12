@@ -33,7 +33,7 @@ async function main() {
   const parentNavigation = read("views/partials/parent-navigation.ejs");
   assert.match(
     rankingService,
-    /tier:\s*currentArenaEntry\.arenaRank/
+    /tier:\s*String\(profile\.tier \|\| "UNPLACED"\)/
   );
   assert.match(
     parentDashboard,
@@ -41,7 +41,7 @@ async function main() {
   );
   assert.match(
     rankingService,
-    /placementTier:\s*String\(/
+    /competitiveScore:\s*\{\s*\$ne:\s*null\s*\}/
   );
   assert.match(parentRoutes, /"\/parent\/inquiries"/);
   assert.match(parentNavigation, /문의하기/);

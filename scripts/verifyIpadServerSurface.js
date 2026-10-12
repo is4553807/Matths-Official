@@ -14,10 +14,6 @@ const {
 const {
   canonicalProgressView,
 } = require("../services/progressTypeIdService");
-const {
-  buildGoatArenaReadModel,
-  READ_MODEL_VERSION,
-} = require("../services/goatArenaReadService");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -36,70 +32,11 @@ async function verify() {
     assert.ok(apiRoutes.includes(`"${route}"`), `missing iPad API route ${route}`);
   }
   assert.match(read("routes/matths-routes.js"), /\/app\/commerce\/:token/);
-  assert.equal(READ_MODEL_VERSION, "GOAT_ARENA_V1");
-  const arena = buildGoatArenaReadModel({
-    userId: "student-1",
-    user: { name: "학생" },
-    cycle: null,
-    policy: null,
-    season: null,
-    arenaProfile: null,
-    rankingProfile: null,
-    activeMatch: null,
-    now: new Date("2026-08-15T00:00:00.000Z"),
-  });
-  assert.equal(arena.readModelVersion, "GOAT_ARENA_V1");
-  assert.equal(arena.state, "NO_ACTIVE_CYCLE");
-  assert.equal(arena.identity.displayName, "학생");
-  assert.equal(arena.activeMatch, null);
-
-  const policy = {
-    payback: {
-      minimumAttackParticipationDays: 15,
-      minimumScoreDays: 30,
-      bands: [
-        { minScoreDays: 0, maxScoreDays: 29, ratePercent: 0 },
-        { minScoreDays: 30, maxScoreDays: null, ratePercent: 100 },
-      ],
-    },
-  };
-  const activeArena = buildGoatArenaReadModel({
-    userId: "student-1",
-    user: { name: "학생" },
-    cycle: {
-      _id: "cycle-1",
-      status: "ACTIVE",
-      division: "SUB",
-      startsAt: new Date("2026-08-02T00:00:00+09:00"),
-      expiresAt: new Date("2026-08-31T00:00:00+09:00"),
-      evaluationAt: new Date("2026-08-31T00:00:00+09:00"),
-      availableLearningDays: 20,
-      paybackScoreDays: 30,
-      attackParticipationDays: 8,
-      lastAttackParticipationDateKst: "2026-08-17",
-      paybackDisqualifiers: [],
-    },
-    policy,
-    season: null,
-    arenaProfile: null,
-    rankingProfile: null,
-    activeMatch: null,
-    now: new Date("2026-08-18T00:00:00+09:00"),
-  });
-  assert.equal(activeArena.cycle.attendance.attackParticipationDays, 8);
-  const participationCondition = activeArena.payback.conditions.find(
-    (condition) => condition.semanticKey === "ATTACK_PARTICIPATION"
-  );
-  assert.deepEqual(
-    participationCondition,
-    {
-      key: "CYCLE_ATTENDANCE",
-      semanticKey: "ATTACK_PARTICIPATION",
-      current: 8,
-      required: 15,
-      met: false,
-    }
-  );
+  const arenaController = read("controllers/goatArenaController.js");
+  const arenaReadService = read("services/goatArenaV2ReadService.js");
+  assert.match(arenaController, /getGoatArenaV2ReadModel\(req\.apiUser/);
+  assert.match(arenaReadService, /schemaVersion:\s*"GOAT_ARENA_2_0"/);
+  assert.doesNotMatch(arenaReadService, /payback|learningDayDeposit|tierSwap/);
 
   const progress = canonicalProgressView({
     topicCount: 4,
@@ -141,21 +78,22 @@ async function verify() {
     environment,
     userEmail: "kginicis@test.com",
     catalogLoader: async () => [{
-      code: "LEARNING_PACKAGE_29",
-      name: "학습 이용권",
-      amount: 29000,
-      periodLabel: "29일",
-      description: "학습 패키지",
+      code: "PRO_MONTHLY",
+      name: "Matths Pro",
+      amount: 5500,
+      periodLabel: "30일",
+      description: "Matths Pro 월 플랜",
     }],
     accessLoader: async () => ({
-      packageType: null,
-      learningPackage: { active: false },
-      mockExamOnlyPackage: { active: false },
+      packageType: "FREE",
+      plan: { code: "FREE" },
+      active: true,
       arenaAllowed: false,
     }),
   });
   assert.equal(storefront.products.length, 1);
-  assert.equal(storefront.products[0].amount, 29000);
+  assert.equal(storefront.products[0].code, "PRO_MONTHLY");
+  assert.equal(storefront.products[0].amount, 5500);
 
   let stored = null;
   const model = {
@@ -175,7 +113,7 @@ async function verify() {
   };
   const issued = await issueAppCommerceHandoff({
     userId: "student-1",
-    productCode: "LEARNING_PACKAGE_29",
+    productCode: "PRO_MONTHLY",
     mode: "self",
     model,
     environment,
@@ -187,7 +125,7 @@ async function verify() {
   assert.equal((await consumeAppCommerceHandoff(token, { model })).userId, "student-1");
   assert.equal(await consumeAppCommerceHandoff(token, { model }), null);
 
-  console.log("iPad server data, commerce, and GOAT Arena 15-of-29 participation read surfaces verified");
+  console.log("iPad server data, Free/Pro commerce, and GOAT Arena 2.0 read surfaces verified");
 }
 
 verify().catch((error) => {

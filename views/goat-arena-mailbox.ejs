@@ -27,7 +27,6 @@
     <meta name="theme-color" content="#070913" />
     <title>우편함 | GOAT Arena</title>
     <link rel="stylesheet" href="/css/goat-arena.css" />
-    <%- include("partials/rank-motion-head") %>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <script src="/js/goat-arena.js" defer></script>
   </head>
@@ -64,7 +63,7 @@
         <% } %>
 
         <% if (!inbox.notifications.length) { %>
-          <div class="arena-mailbox-empty"><span aria-hidden="true">✉</span><strong>도착한 우편이 없습니다.</strong><p>경기, 상점, 운영 안내가 도착하면 이곳에 보관됩니다.</p></div>
+          <div class="arena-mailbox-empty"><span aria-hidden="true">✉</span><strong>도착한 우편이 없습니다.</strong><p>경기와 운영 안내가 도착하면 이곳에 보관됩니다.</p></div>
         <% } else { %>
           <div class="arena-mailbox-list">
             <% inbox.notifications.forEach((notification) => { %>

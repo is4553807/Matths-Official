@@ -7,7 +7,7 @@ const express = require("express");
 const session = require("express-session");
 const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
-const { MongoMemoryServer } = require("mongodb-memory-server-core");
+const { MongoMemoryReplSet } = require("mongodb-memory-server-core");
 const activationMails = [];
 nodemailer.createTransport = () => ({ sendMail: async (mail) => {
   activationMails.push(mail);
@@ -76,7 +76,12 @@ const cookie = (response) =>
   )?.[0] || "";
 let memory, listener;
 async function main() {
-  memory = await MongoMemoryServer.create();
+  // Apple student provisioning and final registration reserve the shared
+  // nickname namespace transactionally. Mirror the production replica-set
+  // requirement so this HTTP flow reaches its real redirect assertions.
+  memory = await MongoMemoryReplSet.create({
+    replSet: { count: 1, storageEngine: "wiredTiger" },
+  });
   await mongoose.connect(memory.getUri());
   await Promise.all(
     [User, ParentAccount, AcademyAccount, Credential].map((model) =>

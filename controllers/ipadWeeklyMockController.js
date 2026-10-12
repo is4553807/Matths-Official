@@ -125,7 +125,7 @@ function dashboardView(data) {
       examSummaryView(exam, raw)
     ),
     selection: raw.selection || null,
-    rankingTitle: String(raw.rankingTitle || "이번 주 랭킹"),
+    rankingTitle: String(raw.rankingTitle || "주간 내부 실력 지표 반영"),
     rankingFinalized: Boolean(raw.rankingFinalized),
     rankingPending: raw.rankingPending || null,
     rankingSummary: raw.rankingSummary || null,

@@ -448,7 +448,7 @@ function weightedTypeIdsForPack(version, difficultyTier, packIndex) {
     .map((typeId) => {
       const setting = problemTypeSetting(version, typeId);
       const digest = createHash("sha256")
-        .update(`${version?.code || "LEGACY"}:${difficultyTier}:${packIndex}:${typeId}`, "utf8")
+        .update(`${version?.code || "DEFAULT"}:${difficultyTier}:${packIndex}:${typeId}`, "utf8")
         .digest();
       return {
         typeId,

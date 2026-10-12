@@ -496,7 +496,7 @@ async function upsertWrongNote(userId, rawEntry) {
         isPublished: false,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   ).select("+correctAnswer");
 
   const previousState = wrongNoteState(problem);

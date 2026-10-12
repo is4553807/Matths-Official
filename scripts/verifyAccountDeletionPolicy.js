@@ -8,8 +8,13 @@ const {
   User,
 } = require("../models/matthsModel");
 const {
+  ArenaGuestChallenge,
+  ArenaGuestIdentity,
+} = require("../models/goatArenaModel");
+const {
   buildAnonymousAccountUpdate,
   normalizeRetentionChoice,
+  removeArenaGuestAccountData,
 } = require("../services/accountDeletionService");
 
 const root = path.join(
@@ -42,6 +47,9 @@ assert.ok(
     "datasetOnly"
   )
 );
+assert.ok(ArenaGuestIdentity.schema.path("anonymizedAt"));
+assert.ok(ArenaGuestChallenge.schema.path("creatorAnonymizedAt"));
+assert.equal(typeof removeArenaGuestAccountData, "function");
 
 for (const value of [
   true,
@@ -176,7 +184,12 @@ const accountService = read(
 for (const expected of [
   "PasswordResetCode.deleteMany",
   "SupportInquiry.deleteMany",
-  "PolicyChangeDelivery.deleteMany",
+  "ArenaCompetitiveProfile.deleteMany",
+  "ArenaCompetitiveRecord.deleteMany",
+  "ArenaRatingSettlement.deleteMany",
+  "ArenaFriendRequest.deleteMany",
+  "ArenaFriendship.deleteMany",
+  "ArenaFriendlyInvitationV2.deleteMany",
   "AdminActionLog.updateMany",
   "OperationalMetricEvent.updateMany",
   "OperationalMetricEvent.deleteMany",
@@ -188,6 +201,11 @@ for (const expected of [
   "PrivateMockExamAttempt.deleteMany",
   "PrivateMockWeeklyResult.deleteMany",
   "RankingProfile.deleteMany",
+  "ArenaGuestChallengeAttempt.updateMany",
+  "ArenaGuestSolutionBoard.deleteMany",
+  "creatorAnonymizedAt",
+  "protectedProblemPackIds",
+  "releaseUserNicknameReservation",
   'status: "hidden"',
   'schoolCode: ""',
   "retainAnonymousData: true",

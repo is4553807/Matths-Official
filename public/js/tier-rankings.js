@@ -97,15 +97,11 @@ document.addEventListener(
       if (!rows.length) return;
       scroll.dataset.rankingEnhanced = "true";
       const current = scroll.querySelector("[data-current-ranker]");
-      const filterMode = scroll.dataset.rankingFilters || "full";
-      const useDivisionFilter = filterMode === "full";
-      const useSchoolFilter = useDivisionFilter && Boolean(scroll.dataset.currentSchool);
+      const useSchoolFilter = Boolean(scroll.dataset.currentSchool);
       const toolbar = document.createElement("div");
       toolbar.className = "ranking-list-tools";
-      toolbar.dataset.filterMode = filterMode;
       toolbar.innerHTML = `
         <label><span>순위·이름 찾기</span><input type="search" inputmode="search" placeholder="예: 25 또는 닉네임" data-ranking-query /></label>
-        ${useDivisionFilter ? `<label><span>Division</span><select data-ranking-division><option value="">전체</option><option value="SUB">Unranked</option><option value="MAIN">Ranked</option></select></label>` : ""}
         ${useSchoolFilter ? `<label><span>소속</span><select data-ranking-school><option value="">전체</option><option value="${escapeMarkup(scroll.dataset.currentSchool)}">내 학교</option></select></label>` : ""}
         <button type="button" data-ranking-find>찾기</button>
         <button type="button" class="ranking-my-position" data-ranking-my-position ${current ? "" : "disabled"}>내 순위로 이동</button>
@@ -126,7 +122,6 @@ document.addEventListener(
       }
 
       const query = toolbar.querySelector("[data-ranking-query]");
-      const division = toolbar.querySelector("[data-ranking-division]");
       const school = toolbar.querySelector("[data-ranking-school]");
       const status = toolbar.querySelector("[data-ranking-tool-status]");
       const myPosition = toolbar.querySelector("[data-ranking-my-position]");
@@ -153,9 +148,8 @@ document.addEventListener(
 
       function applyFilters() {
         rows.forEach((row) => {
-          const divisionMatch = !division?.value || row.dataset.division === division.value;
           const schoolMatch = !school?.value || row.dataset.school === school.value;
-          row.hidden = !(divisionMatch && schoolMatch);
+          row.hidden = !schoolMatch;
         });
         const count = visibleRows().length;
         if (status) status.value = `${count}명 표시`;
@@ -184,7 +178,6 @@ document.addEventListener(
         scrollRowToCenter(scroll, row);
       }
 
-      division?.addEventListener("change", applyFilters);
       school?.addEventListener("change", () => {
         try {
           window.localStorage.setItem(

@@ -1,7 +1,7 @@
 /*
  * GOAT Arena 1대1 정답률 기반 난이도 설계 정책 v6.
  *
- * 이 파일은 Unranked·Ranked가 함께 사용하는 문제 설계의 단일 원본이다.
+ * 이 파일은 일반전·경쟁전이 함께 사용하는 문제 설계의 단일 원본이다.
  * 실제 문항 생성기는 arenaOneOnOneProblemTypes.js에 독립적으로 두며,
  * 공식 모의평가 조사 카탈로그의 사고 유형과 아래 typeId를 연결한다.
  */
@@ -26,8 +26,8 @@ const {
 
 const ARENA_QUESTION_DESIGN_POLICY_VERSION =
   "GOAT_ARENA_ACCURACY_LADDER_V7_PDF_POOL";
-const ARENA_LEGACY_CONTENT_VERSION =
-  "LEGACY_PLACEMENT_COPY_V1";
+const ARENA_FALLBACK_CONTENT_VERSION =
+  "GOAT_ARENA_FALLBACK_GENERATED_V1";
 const ARENA_FINAL_CONTENT_VERSION =
   "GOAT_ARENA_OFFICIAL_MOCK_ACCURACY_TYPES_V4";
 
@@ -108,7 +108,7 @@ const DEFENDER_TIER_TO_DIFFICULTY = Object.freeze(
 );
 
 // T 코드는 기존 ACTIVE DB를 읽기 위한 내부 호환 키다. 공개 난이도는
-// U1~U9·R1~R9이며, 같은 번호에서는 Ranked가 Unranked보다 어렵다.
+// U1~U9·R1~R9이며, 같은 번호에서는 경쟁전 구간이 일반전 구간보다 어렵다.
 // R3부터는 T9 생성기 안에서 조건 수·경우 분류·난도 점수를 추가 보정한다.
 const RANKED_DEFENDER_TIER_TO_DIFFICULTY = Object.freeze({
   BRONZE: "T8",
@@ -259,107 +259,6 @@ const PACK_RULES = Object.freeze({
   minimumCombinedConcepts: 1,
   minimumConditionTransformSteps: 0,
   expectedTimePerItemMs: 10 * 60 * 1000,
-});
-
-function type(typeId, courseId, label, composition) {
-  return Object.freeze({ typeId, courseId, label, composition });
-}
-
-// 과거 v2 설계 기록. 런타임과 관리자 카탈로그에는 노출하지 않는다.
-const LEGACY_V2_TIER_TYPE_CATALOG = Object.freeze({
-  T1: Object.freeze([
-    type("T1-ALG-ARITHMETIC-SEQUENCE-SUM", "algebra", "등차수열 일반항 + 부분합 결합", "일반항을 구한 뒤 합 공식에 대입"),
-    type("T1-ALG-GEOMETRIC-SEQUENCE-SUM", "algebra", "등비수열 항 + 합 결합", "공비를 찾은 뒤 합 계산"),
-    type("T1-ALG-EXPONENT-LOG-DEFINITION", "algebra", "지수법칙 + 로그 정의 결합", "밑을 통일한 뒤 로그값 계산"),
-    type("T1-CALC-ONE-SIDED-LIMIT-GRAPH", "calculus-1", "그래프에서 좌·우극한 판독 후 계산", "완전 제공 그래프에서 두 값의 합 또는 차"),
-    type("T1-CALC-TANGENT-EQUATION", "calculus-1", "접선의 기울기 → 접선 방정식", "미분 후 한 점 대입"),
-    type("T1-CALC-ONE-INTERVAL-AREA", "calculus-1", "정적분 한 구간 → 넓이", "부호가 바뀌지 않는 구간"),
-    type("T1-PROB-CHOOSE-AND-ARRANGE", "probability-statistics", "순열·조합 2단계", "뽑고 나열"),
-    type("T1-PROB-BINOMIAL-EV", "probability-statistics", "이항분포 평균·분산", "공식 두 개 연속 적용"),
-  ]),
-  T2: Object.freeze([
-    type("T2-ALG-RECURSIVE-ARITHMETIC", "algebra", "귀납적 정의 순차 계산", "4~5항까지 전개"),
-    type("T2-ALG-SIGMA-K-K2", "algebra", "시그마 기본 공식 결합", "Σk와 Σk² 결합"),
-    type("T2-ALG-TRIG-SECTOR", "algebra", "삼각함수 특수각 + 부채꼴 넓이", "각에서 호길이와 넓이로 연결"),
-    type("T2-CALC-QUARTIC-MINIMUM", "calculus-1", "사차함수 극솟값", "미분·근·대입"),
-    type("T2-CALC-VELOCITY-DISPLACEMENT", "calculus-1", "속도 → 위치의 변화량", "적분 후 구간 계산"),
-    type("T2-CALC-INTEGRAL-COEFFICIENT", "calculus-1", "정적분 값 → 계수", "한 단계 역추적"),
-    type("T2-PROB-COMPLEMENT-TWO-STEP", "probability-statistics", "여사건 확률 2단계", "전체에서 반대 사건 제외"),
-    type("T2-PROB-LINEAR-RV-EV", "probability-statistics", "확률변수 일차변환 평균·분산", "변환 공식 적용"),
-  ]),
-  T3: Object.freeze([
-    type("T3-ALG-TELESCOPING-SIGMA", "algebra", "시그마 변형", "부분분수 뒤 망원합"),
-    type("T3-ALG-TRIG-PERIOD-SHIFT", "algebra", "삼각함수 주기·평행이동 → 계수", "그래프 조건으로 계수 특정"),
-    type("T3-ALG-EXP-LOG-INTERSECTION", "algebra", "지수·로그 그래프 교점·대칭", "두 곡선의 교점 좌표"),
-    type("T3-ALG-SEQUENCE-MEANS", "algebra", "등차중항·등비중항 조건 결합", "세 항 관계식"),
-    type("T3-CALC-EXTREMA-TWO-COEFFICIENTS", "calculus-1", "극값 조건 → 미정계수 2개", "두 미분 조건 결합"),
-    type("T3-CALC-CONTINUITY-COEFFICIENT", "calculus-1", "미정계수로 연속 만들기", "좌극한·우극한·함숫값 일치"),
-    type("T3-CALC-AREA-COEFFICIENT", "calculus-1", "넓이 → 계수", "한 구간 적분식 역추적"),
-    type("T3-PROB-NORMAL-STANDARDIZATION", "probability-statistics", "정규분포 표준화", "표준화 후 확률 판독"),
-    type("T3-PROB-CONDITIONAL-ONE-STEP", "probability-statistics", "조건부확률 1단계", "표 또는 트리"),
-  ]),
-  T4: Object.freeze([
-    type("T4-ALG-ARITHMETIC-SUM-MAX", "algebra", "등차수열 부분합의 최댓값", "부호가 바뀌는 지점 탐색"),
-    type("T4-ALG-TRIG-LINE-INTERSECTIONS", "algebra", "삼각함수 그래프·직선 교점의 합", "대칭성 활용"),
-    type("T4-ALG-SINE-COSINE-GEOMETRY", "algebra", "사인·코사인법칙 + 도형", "외접원·넓이 연계"),
-    type("T4-ALG-LOG-INEQUALITY-INTEGERS", "algebra", "로그 부등식 → 정수해 개수", "진수 조건과 부등식 결합"),
-    type("T4-CALC-CURVE-LINE-AREA-COEFFICIENT", "calculus-1", "곡선·직선 넓이 → 계수", "적분 결과 역추적"),
-    type("T4-CALC-CUBIC-EXTREMA-GRAPH", "calculus-1", "삼차함수 그래프 개형 + 극값", "판별식과 부호"),
-    type("T4-CALC-BETWEEN-CURVES-AREA", "calculus-1", "두 곡선 사이 넓이", "교점 계산 뒤 적분"),
-    type("T4-PROB-IDENTICAL-PERMUTATION-COMPLEMENT", "probability-statistics", "같은 것이 있는 순열 + 여사건", "중복 처리 뒤 제외"),
-    type("T4-PROB-BINOMIAL-INVERSE", "probability-statistics", "이항분포 역추적", "분산에서 n 복원 뒤 평균"),
-  ]),
-  T5: Object.freeze([
-    type("T5-ALG-TRIG-EXTREMA-SUBSTITUTION", "algebra", "삼각함수 최대·최소 + 치환", "삼각함수를 이차함수로 치환"),
-    type("T5-ALG-SUM-TO-SEQUENCE", "algebra", "수열의 합 → 일반항", "S(n)-S(n-1)과 n=1 예외"),
-    type("T5-ALG-EXP-LOG-SUBSTITUTION", "algebra", "지수·로그 방정식 치환형", "치환 뒤 근 조건"),
-    type("T5-CALC-SPLIT-SIGNED-AREA", "calculus-1", "구간 분할 넓이", "절댓값과 부호에 따라 분할"),
-    type("T5-CALC-CUBIC-ROOT-COUNT", "calculus-1", "삼차함수 실근 개수 → 정수 계수", "극값과 매개변수 비교"),
-    type("T5-CALC-VELOCITY-DISTANCE-DISPLACEMENT", "calculus-1", "속도 그래프 → 이동거리·변위", "속도 부호 구분"),
-    type("T5-PROB-MULTISET-SUBSTITUTION", "probability-statistics", "중복조합 + 변수 치환", "조건을 새 변수로 변환"),
-    type("T5-PROB-CONDITIONAL-TWO-STEP", "probability-statistics", "조건부확률 2단계", "두 층 트리"),
-    type("T5-PROB-SAMPLE-MEAN-INTERVAL", "probability-statistics", "표본평균 분포 + 구간", "표준화 두 번"),
-  ]),
-  T6: Object.freeze([
-    type("T6-ALG-TRIG-ROOT-COUNT", "algebra", "삼각방정식 해의 개수", "그래프 교점 수로 범위 결정"),
-    type("T6-ALG-RECURRENCE-BRANCH", "algebra", "수열 귀납 + 경우분해", "곱이 0인 형태에서 매 항 분기"),
-    type("T6-ALG-LOG-DOMAIN-BASE", "algebra", "로그 진수·밑 조건", "정의역 제약 두 개 동시 적용"),
-    type("T6-CALC-PIECEWISE-DIFFERENTIABILITY", "calculus-1", "구간별 함수 연속·미분가능", "경계 조건 두 개"),
-    type("T6-CALC-TANGENT-THROUGH-POINT", "calculus-1", "한 점을 지나는 접선 → 접점", "접점을 미지수로 역추적"),
-    type("T6-CALC-EQUAL-AREAS-COEFFICIENT", "calculus-1", "같은 넓이 → 계수", "두 넓이 방정식"),
-    type("T6-PROB-TWO-STAGE-URN", "probability-statistics", "주머니 이동 2단계", "상태 변화 추적"),
-    type("T6-PROB-FUNCTION-COUNT-BASIC", "probability-statistics", "조건을 만족하는 함수 개수", "대응 규칙 세기"),
-  ]),
-  T7: Object.freeze([
-    type("T7-ALG-CONDITIONED-SEQUENCE", "algebra", "조건 나열형 수열", "두 조건의 교집합"),
-    type("T7-ALG-TRIG-GEOMETRY-MAX", "algebra", "삼각함수 + 도형 최댓값", "각 변수를 하나로 통일"),
-    type("T7-ALG-GEOMETRIC-INEQUALITY", "algebra", "등비수열 + 부등식", "공비 범위 분류"),
-    type("T7-CALC-CONDITIONED-CUBIC", "calculus-1", "조건 나열형 삼차함수", "함숫값과 미분 조건 동시 적용"),
-    type("T7-CALC-DISTANCE-INVERSE", "calculus-1", "속도·거리 역문제", "거리에서 시각 복원"),
-    type("T7-CALC-TANGENT-ENCLOSED-AREA", "calculus-1", "접선과 곡선으로 둘러싸인 넓이", "접점 미지수와 적분"),
-    type("T7-PROB-FUNCTION-COUNT-CONSTRAINED", "probability-statistics", "단조·전사 조건 함수 개수", "조건별 경우분류"),
-    type("T7-PROB-RV-MOMENTS", "probability-statistics", "확률변수 모멘트 결합", "평균·분산 동시 조건"),
-  ]),
-  T8: Object.freeze([
-    type("T8-ALG-RECURRENCE-EXTREMA", "algebra", "귀납 수열 + 최대·최소", "분기 뒤 극단값 탐색"),
-    type("T8-ALG-CIRCLE-TRIG-AREA", "algebra", "외접원·삼각함수·넓이", "도형 관계 두 단계"),
-    type("T8-ALG-LOG-GRAPH-GEOMETRY", "algebra", "로그 그래프 + 도형 넓이", "교점 좌표로 도형 구성"),
-    type("T8-CALC-INTEGRAL-FUNCTION-DIFFERENTIABILITY", "calculus-1", "적분 정의 함수의 미분가능성", "미분과 경계 조건"),
-    type("T8-CALC-CUBIC-THREE-TANGENT-CONDITIONS", "calculus-1", "삼차함수 접선 3조건", "접점 개수 경우분류"),
-    type("T8-CALC-EXTREMA-CHORD-AREA", "calculus-1", "극값·현으로 둘러싸인 넓이", "극값 좌표 뒤 적분"),
-    type("T8-PROB-REPEATED-CONDITIONAL", "probability-statistics", "반복 조건부확률", "3회 이상 상태 전이"),
-    type("T8-PROB-MULTISET-TWO-CONSTRAINTS", "probability-statistics", "중복조합 + 제한 조건 2개", "여사건 두 번"),
-  ]),
-  T9: Object.freeze([
-    type("T9-ALG-SEQUENCE-ABSOLUTE-EXTREMA", "algebra", "수열 + 절댓값·최대최소", "네 개 이상 분기"),
-    type("T9-ALG-COMPOSITE-TRIG-ROOT-INVERSE", "algebra", "삼각함수 합성 + 해 개수 역조건", "매개변수 범위 역추적"),
-    type("T9-CALC-ABSOLUTE-PIECEWISE-DIFFERENTIABILITY", "calculus-1", "절댓값·구간분할 함수의 미분가능", "다중 경계 조건"),
-    type("T9-CALC-TANGENT-INTEGRAL-EXTREMA", "calculus-1", "접선·적분·극값 3중 결합", "세 개념 동시 적용"),
-    type("T9-CALC-INTEGRAL-FUNCTION-TANGENT-INVERSE", "calculus-1", "적분함수 접선 역문제", "조건에서 함수 복원"),
-    type("T9-CALC-SIGNED-VELOCITY-DISTANCE-INVERSE", "calculus-1", "속도 부호 전환 거리 역문제", "구간 분할과 방향"),
-    type("T9-PROB-SUBSET-INCLUSION-EXCLUSION", "probability-statistics", "부분집합 조건 세기", "포함배제"),
-    type("T9-PROB-ONTO-RESTRICTED-DISTRIBUTION", "probability-statistics", "전사함수·제한된 분포", "경우 완전 분류"),
-  ]),
 });
 
 const QUESTION_REVIEW_CHECKLIST = Object.freeze([
@@ -761,7 +660,7 @@ function evaluateDifficultyCalibration({
 
 module.exports = {
   ARENA_FINAL_CONTENT_VERSION,
-  ARENA_LEGACY_CONTENT_VERSION,
+  ARENA_FALLBACK_CONTENT_VERSION,
   ARENA_QUESTION_DESIGN_POLICY_VERSION,
   ARENA_ONE_ON_ONE_TYPE_SKELETONS,
   ARENA_SOURCE_POSITION_BANDS,

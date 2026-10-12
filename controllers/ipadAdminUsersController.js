@@ -69,6 +69,12 @@ function userRow(value) {
     realName: String(value.realName || ""),
     email: String(value.email || ""),
     role: isParent ? "parent" : String(value.role || "student"),
+    planCode: isParent
+      ? null
+      : value.role === "admin"
+        ? "SUPER_ADMIN"
+        : String(value.accountPlan?.code || "FREE"),
+    planEndsAt: isParent ? null : value.accountPlan?.endsAt || null,
     school: value.school
       ? {
           code: String(value.school.code || ""),
@@ -125,11 +131,15 @@ function pagination(value) {
 function compactPackage(value) {
   if (!value) return null;
   return {
-    packageType: String(value.packageType || "FREE"),
-    label: String(value.label || "기본학습 패키지"),
-    availableLearningDays: Math.round(Number(value.cycle?.availableLearningDays) || 0),
-    paybackScoreDays: Math.round(Number(value.cycle?.paybackScoreDays) || 0),
-    endsAt: value.mockSubscription?.endsAt || value.cycle?.expiresAt || null,
+    planCode: String(value.planCode || value.packageType || "FREE"),
+    packageType: String(value.planCode || value.packageType || "FREE"),
+    label: String(value.label || "무료 플랜"),
+    priceAmount: Math.round(Number(value.priceAmount) || 0),
+    currency: String(value.currency || "KRW"),
+    billingPeriodDays: Math.round(Number(value.billingPeriodDays) || 0),
+    startsAt: value.startsAt || null,
+    endsAt: value.endsAt || null,
+    source: String(value.source || "DEFAULT"),
   };
 }
 
@@ -157,6 +167,24 @@ function compactRecord(value, kind) {
   };
 }
 
+function competitiveProfile(value) {
+  if (!value) return null;
+  return {
+    tier: String(value.tier || "UNPLACED"),
+    rating: value.rating == null ? null : Number(value.rating),
+    ratingDeviation: value.ratingDeviation == null ? null : Number(value.ratingDeviation),
+    volatility: value.volatility == null ? null : Number(value.volatility),
+    normalMatchesCompleted: Math.round(Number(value.normalMatchesCompleted) || 0),
+    competitiveMatchesCompleted: Math.round(Number(value.competitiveMatchesCompleted) || 0),
+    placementAttemptsUsed: Math.round(Number(value.placementAttemptsUsed) || 0),
+    placementSampleCount: Array.isArray(value.placementSamples) ? value.placementSamples.length : 0,
+    placementFinalizedAt: value.placementFinalizedAt || null,
+    wins: Math.round(Number(value.wins) || 0),
+    losses: Math.round(Number(value.losses) || 0),
+    draws: Math.round(Number(value.draws) || 0),
+  };
+}
+
 function userDetailPayload(detail) {
   const learning = detail.learning || {};
   return {
@@ -178,6 +206,7 @@ function userDetailPayload(detail) {
       progress: (learning.progress || []).map(compactProgress).filter(Boolean),
     },
     packageAccess: compactPackage(detail.packageAccess),
+    arenaCompetitiveProfile: competitiveProfile(detail.arenaCompetitiveProfile),
     arenaActivityLevel: detail.arenaActivityLevel
       ? {
           level: Math.round(Number(detail.arenaActivityLevel.level) || 1),
@@ -222,9 +251,8 @@ function parentChild(value) {
     todaySolvedProblems: Math.round(Number(value.dashboard?.todaySolvedProblems) || 0),
     weeklyStudyMinutes: Math.round(Number(value.dashboard?.weeklyStudyMinutes) || 0),
     correctRate: Math.round(Number(value.dashboard?.correctRate) || 0),
-    packageLabel: String(value.packageAccess?.label || "기본학습 패키지"),
-    finalRank: value.ranking?.finalRank == null ? null : Math.round(Number(value.ranking.finalRank)),
-    arenaRank: String(value.ranking?.arenaRank || ""),
+    packageLabel: String(value.packageAccess?.label || "무료 플랜"),
+    arenaCompetitiveProfile: competitiveProfile(value.arenaProfile),
     emailEnabled: settings.emailEnabled !== false,
     lowLearningEnabled: Boolean(settings.lowLearning?.enabled),
     minimumMinutesPerDay: Math.round(Number(settings.lowLearning?.minimumMinutesPerDay) || 20),
@@ -253,6 +281,7 @@ function parentDetailPayload(detail) {
       progress: [],
     },
     packageAccess: null,
+    arenaCompetitiveProfile: null,
     arenaActivityLevel: null,
     identityMatches: [],
     assessments: [],
@@ -690,7 +719,7 @@ exports.packageAccess = async (req, res, next) => {
     await updateAdminPackageAccess({
       adminUserId: admin._id,
       userId: req.params.userId,
-      packageType: req.body?.packageType,
+      planCode: req.body?.planCode || req.body?.packageType,
       reason: req.body?.reason,
     });
     noStore(res);

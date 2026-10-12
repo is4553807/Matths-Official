@@ -49,7 +49,7 @@
 
 .pricing-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   align-items: stretch;
 }
@@ -58,7 +58,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 690px;
+  min-height: 650px;
   padding: 36px 30px 30px;
   overflow: hidden;
   border: 1px solid rgba(77, 93, 139, 0.16);
@@ -269,7 +269,7 @@
 
 .pricing-guide-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -361,7 +361,6 @@
     flex-wrap: wrap;
   }
 }
-.pricing-payback-disclosure { margin-bottom: 24px; }
 
 @media (max-width: 1080px) {
   .pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

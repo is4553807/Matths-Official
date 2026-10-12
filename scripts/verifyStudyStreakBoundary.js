@@ -89,20 +89,14 @@ const ipadSyncSource = read("controllers/ipadLearningSyncController.js");
 const adminServiceSource = read("services/adminService.js");
 const adminUsersView = read("views/admin-users.ejs");
 const adminDetailView = read("views/admin-user-detail.ejs");
-const arenaSeedSource = read("scripts/seedArenaTestUsers.js");
 
 assert.doesNotMatch(lifecycleSource, /goatArena|ArenaMatch|attackParticipationDays/);
-assert.match(arenaControllerSource, /attackParticipationDays/);
 assert.doesNotMatch(
   arenaControllerSource,
-  /studyStreakDays|minimumStudyStreakDays|studyDaysNeeded/
+  /attackParticipationDays|studyStreakDays|minimumStudyStreakDays|studyDaysNeeded/
 );
 assert.match(ipadSyncSource, /recordIpadLearningEvents\(documents, acceptedClientEventIds\)/);
 assert.match(adminServiceSource, /getEffectiveStreak\(student\)/);
 assert.match(adminUsersView, /학습 streak/);
 assert.match(adminDetailView, /detail\.streak\?\.current/);
-assert.match(arenaSeedSource, /const TEST_COUNT_PER_DIVISION = 50/);
-assert.match(arenaSeedSource, /const TEST_TOTAL_COUNT = TEST_COUNT_PER_DIVISION \* 2/);
-assert.match(arenaSeedSource, /currentStreak,\s*\n\s*longestStreak,\s*\n\s*lastStudyDate: now/);
-
-console.log("Study streak is web/iPad-recorded, admin-visible, and independent from GOAT Arena 15-of-29 participation");
+console.log("Study streak is web/iPad-recorded, admin-visible, and independent from GOAT Arena.");

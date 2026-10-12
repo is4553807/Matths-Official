@@ -1074,52 +1074,6 @@ summary:focus-visible {
   font-weight: 880;
 }
 
-.arena-contract {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  max-width: 700px;
-  margin: 28px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.arena-contract li {
-  min-width: 0;
-  padding: 16px;
-  background: var(--matths-navy-soft);
-  border: 1px solid color-mix(in srgb, var(--matths-arena-accent) 22%, transparent);
-  border-radius: var(--matths-radius-md);
-}
-
-.arena-contract b,
-.arena-contract strong,
-.arena-contract span {
-  display: block;
-}
-
-.arena-contract b {
-  color: var(--matths-arena-accent);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-}
-
-.arena-contract strong {
-  margin-top: 6px;
-  color: var(--matths-on-navy);
-  font-size: 15px;
-  line-height: 1.5;
-}
-
-.arena-contract span {
-  margin-top: 5px;
-  color: var(--matths-on-navy);
-  font-size: 13px;
-  line-height: 1.6;
-  opacity: 0.78;
-}
-
 .arena-hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1607,10 +1561,6 @@ summary:focus-visible {
 }
 
 @media (max-width: 640px) {
-  .arena-contract {
-    grid-template-columns: 1fr;
-  }
-
   .arena-hero {
     padding: 54px 0 58px;
   }

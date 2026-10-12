@@ -43,9 +43,9 @@ async function main() {
   assert.match(
     parentPaymentTesting.checkoutFailureDisplayMessage({
       status: "CANCELLED",
-      failureCode: "AVAILABLE_BALANCE_REMAINS",
+      failureCode: "PRO_PLAN_ALREADY_ACTIVE",
     }),
-    /사용 가능한 학습일.*자동 취소/
+    /Pro 플랜.*자동 취소/
   );
 
   const parentRoutes = read("routes/parent-routes.js");
@@ -61,7 +61,7 @@ async function main() {
     summary: {
       orderCount: 1,
       paidCount: 1,
-      paidAmount: 29000,
+      paidAmount: 5500,
       refundedAmount: 0,
       refundableCount: 1,
     },
@@ -69,9 +69,9 @@ async function main() {
       {
         id: "intent-1",
         orderId: "matths-parent-order-1",
-        productCode: "LEARNING_PACKAGE_29",
-        productName: "29일 학습권 패키지",
-        amount: 29000,
+        productCode: "PRO_MONTHLY",
+        productName: "Matths Pro",
+        amount: 5500,
         currency: "KRW",
         createdAt: new Date("2026-08-13T00:00:00.000Z"),
         approvedAt: new Date("2026-08-13T00:01:00.000Z"),
@@ -83,7 +83,7 @@ async function main() {
         paymentId: "64b000000000000000000091",
         payment: { status: "APPLIED" },
         refund: null,
-        remainingAmount: 29000,
+        remainingAmount: 5500,
         isRefundable: true,
       },
     ],
@@ -109,7 +109,7 @@ async function main() {
   assert.match(html, /영수증 보기/);
   assert.match(html, /환불 신청 접수/);
   assert.match(html, /matths-parent-order-1/);
-  assert.match(html, /29,000원/);
+  assert.match(html, /5,500원/);
 
   console.log("Parent payment history, receipt access, refund ownership, status, and UI verification passed.");
 }

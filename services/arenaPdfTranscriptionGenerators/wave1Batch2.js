@@ -438,16 +438,16 @@ function makeGeometricPartialDifference(sourceReferenceId) {
     build(random) {
       const first = randomInteger(random, 1, 5);
       const ratio = randomInteger(random, 2, 5);
-      return { parameters: { first, ratio, coefficient: first * (1 + ratio + ratio ** 2), targetIndex: randomInteger(random, 3, 6) } };
+      return { parameters: { first, ratio, coefficient: first * ratio * (1 + ratio + ratio ** 2), targetIndex: randomInteger(random, 3, 6) } };
     },
     solve({ coefficient, ratio, targetIndex }) {
-      const first = coefficient / (1 + ratio + ratio ** 2);
+      const first = coefficient / (ratio * (1 + ratio + ratio ** 2));
       return first * ratio ** (targetIndex - 1);
     },
     crossCheck(parameters) {
       const terms = Array.from({ length: parameters.targetIndex + 3 }, (_, index) => parameters.first * parameters.ratio ** index);
       for (let n = 1; n <= parameters.targetIndex; n += 1) {
-        const difference = terms[n - 1] + terms[n] + terms[n + 1];
+        const difference = terms[n] + terms[n + 1] + terms[n + 2];
         if (difference !== parameters.coefficient * parameters.ratio ** (n - 1)) throw new Error("partial-sum difference mismatch");
       }
       return terms[parameters.targetIndex - 1];

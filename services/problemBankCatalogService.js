@@ -47,7 +47,33 @@ function getAdminProblemBankCatalog() {
       "문제 생성기는 서버에서 실행되는 코드이므로 관리자 화면에서 임의 JavaScript를 저장·실행하게 하면 서버 보안과 자동 검산을 우회할 수 있습니다.",
     officialResearch,
     privateResearch,
+    arenaRuntime: {
+      questionCount: 5,
+      minutesPerQuestion: 10,
+      differentQuestionSets: true,
+      usesHistoricalCorrectRates: true,
+      solutionUploadRequired: true,
+      normalAndCompetitiveOnlyIntegrity: true,
+    },
     items: [
+      {
+        name: "GOAT Arena 2.x 문제 팩 생성",
+        file: relativeFile("services/arenaProblemPackService.js"),
+        purpose: "일반전·경쟁전·친선전의 서로 다른 5문항을 승인된 스켈레톤에서 생성하고 정답·풀이·난도 메타데이터를 함께 고정합니다.",
+        status: "현행 런타임",
+      },
+      {
+        name: "GOAT Arena 2.x 경기 비교",
+        file: relativeFile("services/arenaCompetitiveScoringService.js"),
+        purpose: "정답 수, 풀이 시간과 문항별 정답률 기반 내부 난도 보정 지표로 서로 다른 문제 세트를 비교합니다.",
+        status: "현행 일반전·경쟁전 정산",
+      },
+      {
+        name: "GOAT Arena 2.x 비동기 매칭",
+        file: relativeFile("services/arenaV2MatchmakingService.js"),
+        purpose: "현재 플레이어에게 과거 경기 기록을 배정하고, 일반전 재사용 간격과 경쟁전 MMR 근접도를 적용합니다.",
+        status: "현행 과거 기록 대결",
+      },
       {
         name: "배치고사 문제 은행",
         file: relativeFile("services/placementExamBank.js"),

@@ -7,7 +7,7 @@
     : 0;
   const gradeLabels = { 10:'고등학교 1학년',11:'고등학교 2학년',12:'고등학교 3학년',13:'N수생',14:'대학생',15:'직장인' };
   const affiliationLabel = Number(child.schoolGrade) === 14 ? (child.university?.name || '대학교 미설정') : Number(child.schoolGrade) === 15 ? '직장인' : Number(child.schoolGrade) === 13 ? 'N수생' : (child.school?.name || '고등학교 미설정');
-  const divisionLabel = (value) => String(value || '').toUpperCase() === 'MAIN' ? 'RANKED' : 'UNRANKED';
+  const divisionLabel = (value) => String(value || '').toUpperCase() === 'MAIN' ? '경쟁전' : '배치 전';
   const formatMinutes = (value) => { const n=Math.max(0,Math.round(Number(value)||0)); return n>=60 ? `${Math.floor(n/60)}시간 ${n%60}분` : `${n}분`; };
 %>
 <!doctype html>
@@ -25,11 +25,11 @@
       <% if (linked) { %><div class="parent-form-message is-success">새 자녀 계정이 연결되었습니다. 상단의 자녀 선택 메뉴에서 언제든 전환할 수 있습니다.</div><% } %>
       <section class="parent-hero">
         <div><p>자녀 학습 현황</p><h1><%= child.realName || child.name %> 학생의<br />학습 흐름을 확인하세요.</h1><span><%= affiliationLabel %> · <%= gradeLabels[Number(child.schoolGrade)] || '학습자' %></span></div>
-        <a href="/parent/pricing">패키지 구매하기 <span>→</span></a>
+        <a href="/parent/pricing">Pro 플랜 보기 <span>→</span></a>
       </section>
       <section class="parent-family-strip" aria-label="연결된 자녀 계정">
         <div><small>연결된 자녀</small><strong><%= familyChildren.length %>명</strong></div>
-        <p>상단의 자녀 선택 메뉴로 학습 현황·랭킹·패키지 결제 대상을 안전하게 전환할 수 있습니다.</p>
+        <p>상단의 자녀 선택 메뉴로 학습 현황·랭킹·플랜 관리 대상을 안전하게 전환할 수 있습니다.</p>
         <div class="parent-family-actions"><a href="/parent/notifications">자녀별 알림 설정 <span aria-hidden="true">→</span></a><a href="/parent/inquiries">운영팀에 문의하기 <span aria-hidden="true">→</span></a></div>
       </section>
       <section class="parent-summary-grid" aria-label="주요 학습 지표">
@@ -39,11 +39,11 @@
         <article><small>연속 학습</small><strong><%= Number(child.currentStreak) || 0 %><em>일</em></strong><span>누적 학습 <%= formatMinutes((child.totalStudySeconds || 0) / 60) %></span></article>
       </section>
       <section class="parent-ranking-section">
-        <header><div><p>공식 랭킹</p><h2>현재 순위</h2></div><span>자녀의 공개 최종 종합 랭킹을 기준으로 표시합니다.</span></header>
+        <header><div><p>경쟁전 랭킹</p><h2>현재 순위</h2></div><span>자녀의 공개 경쟁전 점수를 기준으로 표시합니다.</span></header>
         <div class="parent-ranking-grid">
-          <article><small>최종 종합 랭킹</small><strong><%= currentFinal?.finalRank ?? '—' %><em><%= currentFinal ? '위' : '' %></em></strong><span><%= currentFinal ? `${divisionLabel(currentFinal.division)} · ${currentFinal.finalRating}점` : '아직 확정된 최종 종합 랭킹이 없습니다.' %></span></article>
+          <article><small>경쟁전 전체 랭킹</small><strong><%= currentFinal?.finalRank ?? '—' %><em><%= currentFinal ? '위' : '' %></em></strong><span><%= currentFinal ? `${currentFinal.arenaRank} · ${currentFinal.finalRating}점` : '아직 확정된 경쟁전 랭킹이 없습니다.' %></span></article>
           <article><small><%= Number(child.schoolGrade) === 13 ? 'N수생 랭킹' : Number(child.schoolGrade) === 14 ? '대학교 랭킹' : Number(child.schoolGrade) === 15 ? '직장인 랭킹' : '고등학교 랭킹' %></small><strong><%= affiliationRanking?.retakerRank ?? affiliationRanking?.workerRank ?? affiliationRanking?.rank ?? '—' %><em><%= affiliationRanking ? '위' : '' %></em></strong><span><%= affiliationRanking ? affiliationLabel : '소속별 공식 랭킹이 아직 확정되지 않았습니다.' %></span></article>
-          <article><small>Arena 현재 상태</small><strong class="parent-ranking-text"><%= currentArena?.arenaRank || currentArena?.placementTier || '미배정' %></strong><span><%= currentArena?.arenaDivision ? `${divisionLabel(currentArena.arenaDivision)} · 티어 내 ${currentArena.tierRank || '—'}위 · ${currentArena.gp ?? '—'} GP` : currentArena?.placementTier ? '최근 완료한 배치고사에서 확정된 최초 티어입니다.' : '배치고사 후 Arena 티어와 순위가 표시됩니다.' %></span></article>
+          <article><small>Arena 현재 상태</small><strong class="parent-ranking-text"><%= currentArena?.arenaRank || currentArena?.placementTier || '미배정' %></strong><span><%= currentArena?.arenaDivision ? `${divisionLabel(currentArena.arenaDivision)} · 티어 내 ${currentArena.tierRank || '—'}위` : currentArena?.placementTier ? '최근 완료한 배치과정에서 확정된 최초 티어입니다.' : '배치과정 후 Arena 티어와 순위가 표시됩니다.' %></span></article>
         </div>
       </section>
     </main>

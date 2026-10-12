@@ -12,7 +12,7 @@ function source(relativePath) {
 
 assert.equal(isUserAppliedAdminAction("user.warning-count"), true);
 assert.equal(isUserAppliedAdminAction("user.email"), true);
-assert.equal(isUserAppliedAdminAction("finance.payback-completed"), true);
+assert.equal(isUserAppliedAdminAction("finance.payback-completed"), false);
 assert.equal(isUserAppliedAdminAction("community.post-warning"), true);
 assert.equal(isUserAppliedAdminAction("arena.integrity.match.cleared"), true);
 assert.equal(isUserAppliedAdminAction("private-mock.integrity-penalty"), true);

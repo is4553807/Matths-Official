@@ -37,68 +37,6 @@
         : landingNavigation.role === "parent"
           ? "학부모 대시보드"
           : "대시보드로 이동";
-  const arenaContractView =
-    typeof arenaContract !== "undefined" ? arenaContract : null;
-
-  /* mainPage(A3)의 읽기 전용 집계만 소비한다. 집계 실패 시 순위를 지어내지 않는다. */
-  const arenaRaw =
-    typeof arenaSpotlight !== "undefined" && arenaSpotlight ? arenaSpotlight : null;
-  const arenaTopEntries = Array.isArray(arenaRaw && arenaRaw.topEntries)
-    ? arenaRaw.topEntries
-        .filter((entry) => entry && entry.displayName && entry.tierLabel)
-        .slice(0, 3)
-    : [];
-  const arenaCurrentRaw = studentLoggedIn && arenaRaw && arenaRaw.currentEntry
-    ? arenaRaw.currentEntry
-    : null;
-  const arenaCurrentEntry =
-    arenaCurrentRaw && arenaCurrentRaw.tierLabel
-      ? {
-          displayName: arenaCurrentRaw.displayName || "Matths 학생",
-          division: String(arenaCurrentRaw.division || "").toUpperCase(),
-          divisionLabel:
-            arenaCurrentRaw.divisionLabel ||
-            (String(arenaCurrentRaw.division || "").toUpperCase() === "MAIN"
-              ? "Ranked"
-              : "Unranked"),
-          tierLabel: arenaCurrentRaw.tierLabel,
-          tierPosition:
-            arenaCurrentRaw.tierPosition !== null &&
-            arenaCurrentRaw.tierPosition !== undefined &&
-            Number.isSafeInteger(Number(arenaCurrentRaw.tierPosition))
-            ? Number(arenaCurrentRaw.tierPosition)
-            : null,
-          rankPoint:
-            arenaCurrentRaw.rankPoint !== null &&
-            arenaCurrentRaw.rankPoint !== undefined &&
-            Number.isFinite(Number(arenaCurrentRaw.rankPoint))
-            ? Number(arenaCurrentRaw.rankPoint)
-            : null,
-          overallRank:
-            Number.isSafeInteger(Number(arenaCurrentRaw.overallRank)) &&
-            Number(arenaCurrentRaw.overallRank) > 0
-              ? Number(arenaCurrentRaw.overallRank)
-              : null,
-          cohortLabel:
-            String(arenaCurrentRaw.cohortLabel || "사용자군 순위"),
-          cohortRank:
-            Number.isSafeInteger(Number(arenaCurrentRaw.cohortRank)) &&
-            Number(arenaCurrentRaw.cohortRank) > 0
-              ? Number(arenaCurrentRaw.cohortRank)
-              : null,
-        }
-      : null;
-  const arena = {
-    available: Boolean(arenaRaw && arenaRaw.available),
-    seasonLabel: (arenaRaw && arenaRaw.seasonLabel) || null,
-    activeCount:
-      arenaRaw && typeof arenaRaw.activeCount === "number" && Number.isFinite(arenaRaw.activeCount)
-        ? arenaRaw.activeCount
-        : null,
-    topEntries: arenaTopEntries,
-  };
-  const arenaShowCurrent = studentLoggedIn && Boolean(arenaCurrentEntry);
-  const arenaShowRanking = studentLoggedIn && arena.available && arena.topEntries.length > 0;
   const arenaCtaHref = studentLoggedIn
     ? landingNavigation.arenaHref
     : loggedIn
@@ -108,35 +46,7 @@
     ? "GOAT Arena 입장"
     : loggedIn
       ? "대시보드로 이동"
-      : "무료로 배치 시작";
-  const arenaRankingHref = studentLoggedIn
-    ? landingNavigation.arenaHref
-    : loggedIn
-      ? landingNavigation.dashboardHref
-      : landingNavigation.dashboardHref;
-  const arenaRankingLabel = studentLoggedIn
-    ? "내 아레나 확인"
-    : loggedIn
-      ? "대시보드로 이동"
-      : "로그인하고 확인";
-  const tierSlugMap = {
-    브론즈: "bronze",
-    실버: "silver",
-    골드: "gold",
-    플래티넘: "platinum",
-    에메랄드: "emerald",
-    다이아몬드: "diamond",
-    마스터: "master",
-    그랜드마스터: "grandmaster",
-    챌린저: "challenger",
-  };
-  const tierSlug = (label) => {
-    const normalized = String(label || "").trim().toLowerCase();
-    return tierSlugMap[label] ||
-      ["bronze", "silver", "gold", "platinum", "emerald", "diamond", "master", "grandmaster", "challenger"].find(
-        (value) => normalized.includes(value)
-      ) || "bronze";
-  };
+      : "무료로 시작하기";
 %>
 <!doctype html>
 <html lang="ko" data-home-theme="light">
@@ -266,7 +176,7 @@
             </a>
             <a class="service-entry-card is-arena" href="<%= goatArenaHref %>">
               <span class="service-entry-icon" aria-hidden="true">05</span>
-              <div><strong>GOAT Arena</strong><p>1 대 1 랭크전에서 풀이로 증명해요.</p></div>
+              <div><strong>GOAT Arena</strong><p>일반전과 경쟁전에서 풀이로 증명해요.</p></div>
               <i aria-hidden="true">→</i>
             </a>
           </div>
@@ -307,12 +217,14 @@
         <div class="container arena-hero-layout">
           <div class="arena-hero-copy">
             <p class="arena-kicker">
-              <span>현재 시즌</span>
-              GOAT Arena<% if (arena.seasonLabel) { %> · <%= arena.seasonLabel %><% } %>
+              <span>수학 경기</span>
+              GOAT Arena
             </p>
-            <h2 id="arena-hero-title"><span>고등수학</span> <strong>1 vs 1 랭크전</strong></h2>
-
-            <%- include("partials/arena-contract", { contract: arenaContractView }) %>
+            <h2 id="arena-hero-title"><span>고등수학</span> <strong>풀이로 겨루는 다양한 경기</strong></h2>
+            <p>
+              검수된 기준 풀이 또는 비슷한 실력의 유저와 겨루는 일반전 베타, 점수와 티어를 겨루는 경쟁전,
+              친구와 또는 단체 링크로 함께 풀고 순위를 확인하는 도전장을 만나보세요.
+            </p>
 
             <div class="arena-hero-actions">
               <a class="button button-arena-primary button-large c-button c-button--primary" href="<%= arenaCtaHref %>">
@@ -326,95 +238,40 @@
             <dl class="arena-live-facts" aria-label="GOAT Arena 현재 현황">
               <div><dt>문항</dt><dd>주관식 5개</dd></div>
               <div><dt>제한 시간</dt><dd>문항당 10분</dd></div>
-              <div><dt>풀이 증거</dt><dd>종료 후 60초</dd></div>
+              <div><dt>풀이 제출</dt><dd>5문항 모두 필수</dd></div>
             </dl>
           </div>
 
-          <div
-            class="arena-console"
-            aria-label="<%= arenaShowCurrent ? '내 GOAT Arena 티어' : loggedIn ? '이번 시즌 상위 랭킹' : '로그인 후 확인 가능한 GOAT Arena 랭킹' %>"
-          >
+          <div class="arena-console" aria-label="GOAT Arena 경기 모드 소개">
             <div class="arena-console-head">
               <div>
-                <span><%= arenaShowCurrent ? "내 GOAT Arena" : loggedIn ? "이번 시즌" : "GOAT Arena" %></span>
-                <strong><%= arenaShowCurrent ? "현재 내 티어" : loggedIn ? "현재 상위 순위" : "랭킹 확인" %></strong>
+                <span>GOAT Arena</span>
+                <strong>경기 방식</strong>
               </div>
-              <% if (arenaShowCurrent || arenaShowRanking) { %>
-                <i><span aria-hidden="true"></span> <%= arenaShowCurrent ? "연결됨" : "갱신 중" %></i>
-              <% } %>
+              <i><span aria-hidden="true"></span> 24 / 7</i>
             </div>
-
-            <% if (arenaShowCurrent) { %>
-              <section class="arena-my-standing" aria-label="내 GOAT Arena 티어">
-                <div class="arena-my-standing-main">
-                  <img
-                    src="/images/ranks/<%= tierSlug(arenaCurrentEntry.tierLabel) %>.webp"
-                    alt=""
-                    width="150"
-                    height="150"
-                  />
-                  <div>
-                    <span><%= arenaCurrentEntry.divisionLabel %></span>
-                    <strong><%= arenaCurrentEntry.tierLabel %></strong>
-                    <small><%= arenaCurrentEntry.displayName %></small>
-                  </div>
-                </div>
-                <dl class="arena-my-standing-stats">
-                  <div>
-                    <dt>티어 내 순위</dt>
-                    <dd><%= arenaCurrentEntry.tierPosition ? `${arenaCurrentEntry.tierPosition}위` : "집계 중" %></dd>
-                  </div>
-                  <div>
-                    <dt>현재 GP</dt>
-                    <dd><%= arenaCurrentEntry.rankPoint !== null ? arenaCurrentEntry.rankPoint.toLocaleString("ko-KR") : "집계 중" %></dd>
-                  </div>
-                  <div>
-                    <dt>종합랭킹 순위</dt>
-                    <dd><%= arenaCurrentEntry.overallRank ? `${arenaCurrentEntry.overallRank}위` : "집계 중" %></dd>
-                  </div>
-                  <div>
-                    <dt><%= arenaCurrentEntry.cohortLabel %></dt>
-                    <dd><%= arenaCurrentEntry.cohortRank ? `${arenaCurrentEntry.cohortRank}위` : "집계 중" %></dd>
-                  </div>
-                </dl>
-                <a href="/goat-arena">내 Arena로 이동 <span aria-hidden="true">→</span></a>
-              </section>
-            <% } else if (arenaShowRanking) { %>
-              <ol class="arena-ranking-board">
-                <% arena.topEntries.forEach((entry, index) => { %>
-                  <li>
-                    <span class="arena-rank-number"><%= String(index + 1).padStart(2, "0") %></span>
-                    <img
-                      src="/images/ranks/<%= tierSlug(entry.tierLabel) %>.webp"
-                      alt=""
-                      width="64"
-                      height="64"
-                      loading="lazy"
-                      decoding="async"
-                      fetchpriority="low"
-                    />
-                    <span class="arena-player">
-                      <strong><%= entry.displayName %></strong>
-                      <small><%= entry.tierLabel %></small>
-                    </span>
-                    <% if (Number.isFinite(Number(entry.rankPoint))) { %>
-                      <b><%= Number(entry.rankPoint).toLocaleString("ko-KR") %><small> GP</small></b>
-                    <% } %>
-                  </li>
-                <% }) %>
-              </ol>
-            <% } else { %>
-              <div class="arena-ranking-unavailable" role="status">
-                <strong><%= loggedIn ? "Arena 티어가 아직 연결되지 않았습니다." : "로그인 후 Arena 순위를 확인할 수 있습니다." %></strong>
-                <p><%= loggedIn ? "배치고사를 완료해 첫 Arena 티어를 받은 뒤 이곳에서 바로 확인할 수 있습니다." : "로그인하면 현재 티어와 종합랭킹, 사용자군 순위를 확인할 수 있습니다." %></p>
-                <a href="<%= arenaRankingHref %>"><%= arenaRankingLabel %> <span aria-hidden="true">→</span></a>
-              </div>
-            <% } %>
+            <ol class="arena-ranking-board">
+              <li>
+                <span class="arena-rank-number">01</span>
+                <span class="arena-player"><strong>일반전 베타</strong><small>검수된 기준 풀이 또는 유저와 대결</small></span>
+                <b>5<small> 문항</small></b>
+              </li>
+              <li>
+                <span class="arena-rank-number">02</span>
+                <span class="arena-player"><strong>경쟁전</strong><small>비슷한 실력의 유저와 티어 경쟁</small></span>
+                <b>SCORE</b>
+              </li>
+              <li>
+                <span class="arena-rank-number">03</span>
+                <span class="arena-player"><strong>친선전 · 도전장</strong><small>친구 대결과 단체 순위표</small></span>
+                <b>LINK</b>
+              </li>
+            </ol>
 
             <div class="arena-console-foot">
-              <span><%= arenaShowCurrent ? arenaCurrentEntry.divisionLabel : "Ranked" %></span>
-              <p><%= arenaShowCurrent ? "공식 Arena Standing과 실시간으로 연결됩니다." : "같은 규칙에서 결과로 증명합니다." %></p>
-              <span>1 : 1</span>
+              <span>10 MIN</span>
+              <p>각 문항을 풀고 답안과 풀이과정을 함께 제출합니다. 본 문제는 다음 10경기 동안 제외합니다.</p>
+              <span>5 Q</span>
             </div>
           </div>
         </div>

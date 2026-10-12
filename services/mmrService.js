@@ -1,9 +1,16 @@
+const { currentArenaRatingState, applyArenaRatingState } = require("./arenaRatingStateService");
+const mongoose = require("mongoose");
+
 const {
   AssessmentAttempt,
   PrivateMockExamAttempt,
   PrivateMockWeeklyResult,
   RankingProfile,
 } = require("../models/matthsModel");
+const {
+  ArenaCompetitiveProfile,
+  ArenaWeeklyMockRatingSettlement,
+} = require("../models/goatArenaModel");
 
 const TIER_CONFIG = [
   {
@@ -618,18 +625,21 @@ function calculateRankPoint({
     return 99;
   }
 
-  return Math.floor(
-    clamp(
-      (
-        Number(mmr) -
-        config.minMmr
-      ) /
+  return Math.min(
+    99,
+    Math.floor(
+      clamp(
         (
-          config.maxMmr -
-          config.minMmr +
-          1
-        )
-    ) * 100
+          Number(mmr) -
+          config.minMmr
+        ) /
+          (
+            config.maxMmr -
+            config.minMmr +
+            1
+          )
+      ) * 100
+    )
   );
 }
 
@@ -776,13 +786,16 @@ function getMmrDeltaLimit({
 }
 
 function calculateAbsencePenalty(
-  consecutiveAbsences
+  _consecutiveAbsences
 ) {
-  return Number(
-    consecutiveAbsences
-  ) >= 3
-    ? -10
-    : -5;
+  /*
+   * 주간 공식 모의고사는 선택형 MMR 표본이다. 응시자는 성과에 따라
+   * 갱신하지만, 미응시자의 MMR은 오르거나 내려서는 안 된다.
+   *
+   * 결시 이벤트 자체는 2주 연속 승급 준비도에서 건너뛴 주를 연속
+   * 응시로 오인하지 않도록 남기고, 변화량만 항상 0으로 고정한다.
+   */
+  return 0;
 }
 
 function calculateMmrChange({
@@ -1469,6 +1482,10 @@ async function processWeeklyExamMmr({
   seriesEntries,
   now = new Date(),
 }) {
+  // Loaded lazily to keep goatArenaV2Config -> TIER_CONFIG compatibility from
+  // forming a module-initialization cycle.
+  const { updateGlicko2Player } = require("./glicko2Service");
+  const { GOAT_ARENA_V2_CONFIG } = require("./goatArenaV2Config");
   const submitted = (
     Array.isArray(attempts)
       ? attempts
@@ -1538,415 +1555,157 @@ async function processWeeklyExamMmr({
       (metric) =>
         metric.advancedRaw
     );
-  const calculations = [];
+  const participantIds = [...new Set(metrics.map((metric) => String(metric.attempt?.userId || "")).filter(Boolean))];
+  const profiles = await ArenaCompetitiveProfile.find({
+    userId: { $in: participantIds },
+    placementFinalizedAt: { $ne: null },
+    rating: { $ne: null },
+  }).lean();
+  const profileByUserId = new Map(profiles.map((profile) => [String(profile.userId), profile]));
+  const cohortRating = profiles.length
+    ? profiles.reduce((sum, profile) => sum + Number(profile.rating), 0) / profiles.length
+    : GOAT_ARENA_V2_CONFIG.glicko2.defaultRating;
+  const weekKey = String(exam.weekKey || exam._id);
+  let updated = 0;
+  let skippedUnplaced = 0;
 
   for (const metric of metrics) {
-    const profile =
-      await ensureRankingProfile(
-        metric.attempt.userId
-      ) ||
-      new RankingProfile({
-        userId:
-          metric.attempt.userId,
-        mmr: 1000,
-        tier: "GOLD",
-        rankPoint: 75,
-        placementScore: 50,
-        placementExpectedPerformance:
-          0.5,
-      });
-    const alreadyProcessed =
-      (
-        profile.mmrHistory ||
-        []
-      ).some(
-        (history) =>
-          history.eventType ===
-            "weekly-exam" &&
-          String(
-            history.examId || ""
-          ) ===
-            String(
-              exam._id
-            )
-      );
-
-    if (alreadyProcessed) {
+    const baseProfile = profileByUserId.get(String(metric.attempt?.userId || ""));
+    if (!baseProfile) {
+      skippedUnplaced += 1;
       continue;
     }
-    const totalPercentile =
-      Number.isFinite(
-        metric.totalPercentile
-      )
-        ? clamp(
-            metric.totalPercentile
-          )
-        : percentileForValue(
-            metric.score,
-            scoreValues
-          );
-    const advancedPercentile =
-      Number.isFinite(
-        metric.advancedPercentile
-      )
-        ? clamp(
-            metric.advancedPercentile
-          )
-        : percentileForValue(
-            metric.advancedRaw,
-            advancedValues
-          );
-    const weeklyExamCount =
-      Number(
-        profile.participation
-          ?.weeklyExamCount
-      ) || 0;
-    const result =
-      processWeeklyMmr({
-        currentMmr:
-          profile.mmr,
-        totalPercentile,
-        advancedPercentile,
-        consistencyScore:
-          metric.consistencyScore,
-        recentPerformances:
-          profile.recentPerformances,
-        placementExpectedPerformance:
-          profile
-            .placementExpectedPerformance,
-        weeklyExamCount,
-        daysSinceLastExam:
-          daysBetween(
-            profile.participation
-              ?.lastExamAt,
-            now
-          ),
-        rankStatus:
-          profile.status,
-        actualPerformanceOverride:
-          metric
-            .actualPerformanceOverride,
-      });
+    const totalPercentile = Number.isFinite(metric.totalPercentile)
+      ? clamp(metric.totalPercentile)
+      : percentileForValue(metric.score, scoreValues);
+    const advancedPercentile = Number.isFinite(metric.advancedPercentile)
+      ? clamp(metric.advancedPercentile)
+      : percentileForValue(metric.advancedRaw, advancedValues);
+    const performance = Number.isFinite(metric.actualPerformanceOverride)
+      ? clamp(metric.actualPerformanceOverride)
+      : calculateActualPerformance({
+          totalPercentile,
+          advancedPercentile,
+          consistencyScore: metric.consistencyScore,
+        });
+    const session = await mongoose.startSession();
+    let appliedNewSettlement = false;
+    try {
+      await session.withTransaction(async () => {
+        appliedNewSettlement = false;
+        const profile = await ArenaCompetitiveProfile.findOne({
+          userId: baseProfile.userId,
+          placementFinalizedAt: { $ne: null },
+          rating: { $ne: null },
+        }).session(session);
+        if (!profile) return;
+        const existingSettlement = await ArenaWeeklyMockRatingSettlement.findOne({
+          userId: profile.userId,
+          weekKey,
+        }).session(session);
 
-    calculations.push({
-      ...metric,
-      profile,
-      totalPercentile,
-      advancedPercentile,
-      weeklyExamCount,
-      result,
-    });
-  }
-
-  const ordered = [
-    ...calculations,
-  ].sort(
-    (left, right) =>
-      right.result.newMmr -
-        left.result.newMmr ||
-      right.result
-        .actualPerformance -
-        left.result
-          .actualPerformance ||
-      right.advancedRaw -
-        left.advancedRaw ||
-      right.score -
-        left.score
-  );
-  for (const calculation of ordered) {
-    const {
-      profile,
-      result,
-    } = calculation;
-    const previousTier =
-      tierByName(
-        profile.tier
-      );
-    /*
-     * 주간 성과 레이팅은 분석과 2주 연속 승급 준비도 후보 판정에 사용한다.
-     * 숫자의 임계값만으로 티어를 바꾸지는 않으며, 실제 승급·강등은 주간
-     * 대표 성적의 티어 경계 정산이 ArenaStanding에 반영한다.
-     */
-    const tier = previousTier;
-    const protection = {
-      active: false,
-      consecutiveBelowThreshold:
-        0,
-      thresholdMmr: null,
-    };
-
-    const nextWeeklyCount =
-      calculation.weeklyExamCount +
-      1;
-    const nextStatus =
-      nextWeeklyCount >= 2
-        ? "CONFIRMED"
-        : "PROVISIONAL";
-    const rankPoint =
-      calculateRankPoint({
-        mmr: result.newMmr,
-        tier,
-      });
-
-    profile.mmr =
-      result.newMmr;
-    profile.tier =
-      tier.name;
-    profile.rankPoint =
-      rankPoint;
-    profile.status =
-      nextStatus;
-    profile.weeklyExamsUntilConfirmed =
-      Math.max(
-        0,
-        2 - nextWeeklyCount
-      );
-    profile.recentPerformances =
-      [
-        result.actualPerformance,
-        ...(
-          profile
-            .recentPerformances ||
-          []
-        ),
-      ].slice(0, 3);
-    profile.lastAdvancedPerformance =
-      calculation.advancedRaw;
-    profile.lastRawScore =
-      calculation.score;
-    profile.reachedCurrentMmrAt =
-      result.newMmr ===
-      result.previousMmr
-        ? profile
-            .reachedCurrentMmrAt
-        : now;
-    profile.participation = {
-      weeklyExamCount:
-        nextWeeklyCount,
-      consecutiveAbsences: 0,
-      lastExamAt: now,
-    };
-    profile.demotionProtection =
-      protection;
-    profile.mmrHistory.push({
-      examId: exam._id,
-      eventType:
-        "weekly-exam",
-      previousMmr:
-        result.previousMmr,
-      newMmr:
-        result.newMmr,
-      deltaMmr:
-        result.deltaMmr,
-      rawScore:
-        calculation.score,
-      totalPercentile:
-        calculation
-          .totalPercentile,
-      advancedPercentile:
-        calculation
-          .advancedPercentile,
-      consistencyScore:
-        calculation
-          .consistencyScore,
-      actualPerformance:
-        result.actualPerformance,
-      expectedPerformance:
-        result
-          .expectedPerformance,
-      kFactor:
-        result.kFactor,
-      growthBonus:
-        result.growthBonus,
-      createdAt: now,
-    });
-    profile.mmrHistory =
-      profile.mmrHistory.slice(-100);
-    await profile.save();
-
-    await PrivateMockExamAttempt.updateOne(
-      {
-        _id:
-          calculation.attempt._id,
-      },
-      {
-        $set: {
-          mmrResult: {
-            previousMmr:
-              result.previousMmr,
-            newMmr:
-              result.newMmr,
-            deltaMmr:
-              result.deltaMmr,
-            totalPercentile:
-              calculation
-                .totalPercentile,
-            advancedPercentile:
-              calculation
-                .advancedPercentile,
-            consistencyScore:
-              calculation
-                .consistencyScore,
-            actualPerformance:
-              result
-                .actualPerformance,
-            expectedPerformance:
-              result
-                .expectedPerformance,
-            kFactor:
-              result.kFactor,
-            growthBonus:
-              result.growthBonus,
-            tier: tier.name,
-            rankPoint,
-          },
-        },
-      }
-    );
-
-    if (
-      calculation
-        .weeklyResultId
-    ) {
-      await PrivateMockWeeklyResult.updateOne(
-        {
-          _id:
-            calculation
-              .weeklyResultId,
-        },
-        {
-          $set: {
-            mmrResult: {
-              previousMmr:
-                result.previousMmr,
-              newMmr:
-                result.newMmr,
-              deltaMmr:
-                result.deltaMmr,
-              expectedPerformance:
-                result
-                  .expectedPerformance,
-              kFactor:
-                result.kFactor,
-              growthBonus:
-                result
-                  .growthBonus,
-              tier:
-                tier.name,
-              rankPoint,
-            },
-          },
+        const publicTier = String(profile.tier || "UNPLACED");
+        const before = existingSettlement?.before ? {
+          rating: Number(existingSettlement.before.rating),
+          ratingDeviation: Number(existingSettlement.before.ratingDeviation),
+          volatility: Number(existingSettlement.before.volatility),
+          tier: String(existingSettlement.before.tier || publicTier),
+        } : {
+          ...currentArenaRatingState(profile),
+          tier: publicTier,
+        };
+        const reference = existingSettlement?.referenceRatingSnapshot ? {
+          rating: Number(existingSettlement.referenceRatingSnapshot.rating),
+          ratingDeviation: Number(existingSettlement.referenceRatingSnapshot.ratingDeviation),
+          volatility: Number(existingSettlement.referenceRatingSnapshot.volatility),
+          tier: String(existingSettlement.referenceRatingSnapshot.tier || "INTERNAL_REFERENCE"),
+        } : {
+          rating: cohortRating,
+          ratingDeviation: GOAT_ARENA_V2_CONFIG.glicko2.defaultRatingDeviation,
+          volatility: GOAT_ARENA_V2_CONFIG.glicko2.defaultVolatility,
+          tier: "INTERNAL_REFERENCE",
+        };
+        const calculated = updateGlicko2Player(before, [{
+          opponent: reference,
+          score: performance,
+        }]);
+        const after = { ...calculated, tier: publicTier };
+        const nextState = existingSettlement ? {
+          rating: Math.max(0, Number(profile.rating) + (after.rating - Number(existingSettlement.after.rating))),
+          ratingDeviation: Math.max(1, Number(profile.ratingDeviation) + (after.ratingDeviation - Number(existingSettlement.after.ratingDeviation))),
+          volatility: Math.max(Number.EPSILON, Number(profile.volatility) + (after.volatility - Number(existingSettlement.after.volatility))),
+        } : after;
+        const ratingChanged = !existingSettlement || ["rating", "ratingDeviation", "volatility"]
+          .some((key) => after[key] !== Number(existingSettlement.after[key]));
+        if (ratingChanged) {
+          applyArenaRatingState(profile, nextState, now);
+          profile.weeklyMockLastRatedAt = now;
         }
-      );
+        profile.weeklyMockMatchesCompleted = Number(profile.weeklyMockMatchesCompleted || 0) + (existingSettlement ? 0 : 1);
+        if (ratingChanged) profile.weeklyMockRecentPerformances = [
+          performance,
+          ...(profile.weeklyMockRecentPerformances || []),
+        ].slice(0, 5);
+        // competitiveScore and tier intentionally remain unchanged.
+        await profile.save({ session });
+        if (existingSettlement) {
+          existingSettlement.examId = exam._id;
+          existingSettlement.representativeAttemptId = metric.attempt._id;
+          existingSettlement.performance = performance;
+          existingSettlement.referenceRatingSnapshot = reference;
+          existingSettlement.after = after;
+          existingSettlement.delta = after.rating - before.rating;
+          existingSettlement.publicScoreChanged = false;
+          existingSettlement.settledAt = now;
+          await existingSettlement.save({ session });
+        } else {
+          await ArenaWeeklyMockRatingSettlement.create([{
+            userId: profile.userId,
+            weekKey,
+            examId: exam._id,
+            representativeAttemptId: metric.attempt._id,
+            performance,
+            referenceRatingSnapshot: reference,
+            before,
+            after,
+            delta: after.rating - before.rating,
+            publicScoreChanged: false,
+            settledAt: now,
+          }], { session });
+        }
+
+        const mmrResult = {
+          previousMmr: before.rating,
+          newMmr: after.rating,
+          deltaMmr: after.rating - before.rating,
+          totalPercentile,
+          advancedPercentile,
+          consistencyScore: metric.consistencyScore,
+          actualPerformance: performance,
+          tier: publicTier,
+          rankPoint: null,
+        };
+        await PrivateMockExamAttempt.updateOne(
+          { _id: metric.attempt._id },
+          { $set: { mmrResult } },
+          { session }
+        );
+        if (metric.weeklyResultId) {
+          await PrivateMockWeeklyResult.updateOne(
+            { _id: metric.weeklyResultId },
+            { $set: { mmrResult } },
+            { session }
+          );
+        }
+        if (!existingSettlement) appliedNewSettlement = true;
+      });
+      if (appliedNewSettlement) updated += 1;
+    } finally {
+      await session.endSession();
     }
   }
 
-  const participantIds =
-    new Set(
-      (
-        Array.isArray(
-          seriesEntries
-        )
-          ? seriesEntries.map(
-              (entry) =>
-                entry
-                  .representativeAttempt
-            )
-          : submitted
-      ).map(
-        (attempt) =>
-          String(
-            attempt.userId
-          )
-      )
-    );
-  const absentProfiles =
-    await RankingProfile.find({
-      datasetOnly: {
-        $ne: true,
-      },
-      userId: {
-        $nin: [
-          ...participantIds,
-        ],
-      },
-    });
-
-  for (const profile of
-    absentProfiles) {
-    const alreadyProcessed =
-      (
-        profile.mmrHistory ||
-        []
-      ).some(
-        (history) =>
-          history.eventType ===
-            "absence" &&
-          String(
-            history.examId || ""
-          ) ===
-            String(
-              exam._id
-            )
-      );
-
-    if (alreadyProcessed) {
-      continue;
-    }
-    const nextAbsences =
-      (
-        Number(
-          profile.participation
-            ?.consecutiveAbsences
-        ) || 0
-      ) + 1;
-    const penalty =
-      calculateAbsencePenalty(
-        nextAbsences
-      );
-    const previousMmr =
-      profile.mmr;
-
-    profile.mmr =
-      Math.max(
-        0,
-        previousMmr + penalty
-      );
-    profile.participation = {
-      weeklyExamCount:
-        Number(
-          profile.participation
-            ?.weeklyExamCount
-        ) || 0,
-      consecutiveAbsences:
-        nextAbsences,
-      lastExamAt:
-        profile.participation
-          ?.lastExamAt ||
-        null,
-    };
-    profile.mmrHistory.push({
-      examId: exam._id,
-      eventType: "absence",
-      previousMmr,
-      newMmr:
-        profile.mmr,
-      deltaMmr: penalty,
-      createdAt: now,
-    });
-    profile.mmrHistory =
-      profile.mmrHistory.slice(-100);
-    await profile.save();
-  }
-
-  await refreshOverallRanks();
-
-  return {
-    updated:
-      calculations.length,
-    absent:
-      absentProfiles.length,
-  };
+  return { updated, absent: 0, skippedUnplaced, publicScoreChanges: 0 };
 }
 
 function rankingProfileView(

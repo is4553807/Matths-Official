@@ -207,41 +207,6 @@ function main() {
       `${name} PNG 원본을 배포 대상에 남기지 않습니다.`
     );
   }
-  assert.match(
-    read("views/index.ejs"),
-    /images\/ranks\/[\s\S]*?loading="lazy"[\s\S]*?decoding="async"/,
-    "홈 랭킹 휘장은 첫 화면과 경쟁하지 않도록 지연 로딩해야 합니다."
-  );
-
-  const rankMotionFiles = [
-    "bronze-rank-up.v6.mp4",
-    "silver-rank-up.v6.mp4",
-    "gold-rank-up.v6.mp4",
-    "platinum-rank-up.v7.mp4",
-    "emerald-rank-up.v6.mp4",
-    "diamond-rank-up.v6.mp4",
-    "master-rank-up.v6.mp4",
-    "grandmaster-rank-up.v6.mp4",
-    "challenger-rank-up.v12.mp4",
-  ];
-  const rankMotionBytes = rankMotionFiles.reduce(
-    (total, fileName) =>
-      total +
-      size(
-        `public/media/rank-motion/${fileName}`
-      ),
-    0
-  );
-  assert.ok(
-    rankMotionBytes < 20 * 1024 * 1024,
-    "승급 연출 영상 전체는 20MB 미만이어야 합니다."
-  );
-  assert.match(
-    read("views/partials/rank-motion-dialog.ejs"),
-    /preload="none"/,
-    "승급 연출은 실제 표시 전까지 영상을 미리 받지 않아야 합니다."
-  );
-
   assert.ok(
     size("public/images/store/store-hero-bg.webp") <
       100 * 1024,

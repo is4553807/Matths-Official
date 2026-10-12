@@ -1,0 +1,225 @@
+{
+  "schemaVersion": "GOAT_ARENA_NORMAL_BASELINE_SIMULATION_V1",
+  "generatedAt": "2026-10-11T00:00:00.000Z",
+  "batchKey": "NORMAL-BASELINE-2026-10-V1",
+  "activationApproved": false,
+  "provisionalFairnessBand": [
+    0.4,
+    0.6
+  ],
+  "assumptions": [
+    "A same-MMR challenger answers each question independently at the midpoint of the existing tier target-accuracy range.",
+    "Difficulty-adjusted correctness uses the production scoring function; solve time is sampled symmetrically from 75% to 125% and used inside the configured close-score band.",
+    "This is a hypothesis test only; real matched-user calibration data is still required before activation."
+  ],
+  "allTiersWithinProvisionalFairnessBand": true,
+  "tiers": [
+    {
+      "tier": "BRONZE",
+      "difficultyCode": "U1",
+      "targetMmr": 600,
+      "targetAccuracyRange": [
+        0.6,
+        1
+      ],
+      "simulatedMatchedUserAccuracy": 0.8,
+      "poolCorrectQuestions": 6,
+      "poolQuestionCount": 7,
+      "combinationCount": 21,
+      "baselineCorrectCountAcrossCombinations": {
+        "minimum": 4,
+        "maximum": 5,
+        "mean": 4.2857
+      },
+      "trials": 100000,
+      "challengerWinRate": 0.4276,
+      "challengerLossRate": 0.5724,
+      "drawRate": 0,
+      "withinProvisionalFairnessBand": true
+    },
+    {
+      "tier": "SILVER",
+      "difficultyCode": "U2",
+      "targetMmr": 862,
+      "targetAccuracyRange": [
+        0.6,
+        1
+      ],
+      "simulatedMatchedUserAccuracy": 0.8,
+      "poolCorrectQuestions": 6,
+      "poolQuestionCount": 7,
+      "combinationCount": 21,
+      "baselineCorrectCountAcrossCombinations": {
+        "minimum": 4,
+        "maximum": 5,
+        "mean": 4.2857
+      },
+      "trials": 100000,
+      "challengerWinRate": 0.4256,
+      "challengerLossRate": 0.5744,
+      "drawRate": 0,
+      "withinProvisionalFairnessBand": true
+    },
+    {
+      "tier": "GOLD",
+      "difficultyCode": "U3",
+      "targetMmr": 975,
+      "targetAccuracyRange": [
+        0.5,
+        1
+      ],
+      "simulatedMatchedUserAccuracy": 0.75,
+      "poolCorrectQuestions": 5,
+      "poolQuestionCount": 7,
+      "combinationCount": 21,
+      "baselineCorrectCountAcrossCombinations": {
+        "minimum": 3,
+        "maximum": 5,
+        "mean": 3.5714
+      },
+      "trials": 100000,
+      "challengerWinRate": 0.5761,
+      "challengerLossRate": 0.4239,
+      "drawRate": 0,
+      "withinProvisionalFairnessBand": true
+    },
+    {
+      "tier": "PLATINUM",
+      "difficultyCode": "U4",
+      "targetMmr": 1072,
+      "targetAccuracyRange": [
+        0.5,
+        0.7
+      ],
+      "simulatedMatchedUserAccuracy": 0.6,
+      "poolCorrectQuestions": 4,
+      "poolQuestionCount": 7,
+      "combinationCount": 21,
+      "baselineCorrectCountAcrossCombinations": {
+        "minimum": 2,
+        "maximum": 4,
+        "mean": 2.8571
+      },
+      "trials": 100000,
+      "challengerWinRate": 0.5484,
+      "challengerLossRate": 0.4516,
+      "drawRate": 0,
+      "withinProvisionalFairnessBand": true
+    },
+    {
+      "tier": "EMERALD",
+      "difficultyCode": "U5",
+      "targetMmr": 1165,
+      "targetAccuracyRange": [
+        0.42,
+        0.7
+      ],
+      "simulatedMatchedUserAccuracy": 0.5599999999999999,
+      "poolCorrectQuestions": 4,
+      "poolQuestionCount": 7,
+      "combinationCount": 21,
+      "baselineCorrectCountAcrossCombinations": {
+        "minimum": 2,
+        "maximum": 4,
+        "mean": 2.8571
+      },
+      "trials": 100000,
+      "challengerWinRate": 0.487,
+      "challengerLossRate": 0.513,
+      "drawRate": 0,
+      "withinProvisionalFairnessBand": true
+    },
+    {
+      "tier": "DIAMOND",
+      "difficultyCode": "U6",
+      "targetMmr": 1270,
+      "targetAccuracyRange": [
+        0.35,
+        0.6
+      ],
+      "simulatedMatchedUserAccuracy": 0.475,
+      "poolCorrectQuestions": 3,
+      "poolQuestionCount": 7,
+      "combinationCount": 21,
+      "baselineCorrectCountAcrossCombinations": {
+        "minimum": 1,
+        "maximum": 3,
+        "mean": 2.1429
+      },
+      "trials": 100000,
+      "challengerWinRate": 0.5667,
+      "challengerLossRate": 0.4333,
+      "drawRate": 0,
+      "withinProvisionalFairnessBand": true
+    },
+    {
+      "tier": "MASTER",
+      "difficultyCode": "U7",
+      "targetMmr": 1385,
+      "targetAccuracyRange": [
+        0.35,
+        0.6
+      ],
+      "simulatedMatchedUserAccuracy": 0.475,
+      "poolCorrectQuestions": 3,
+      "poolQuestionCount": 7,
+      "combinationCount": 21,
+      "baselineCorrectCountAcrossCombinations": {
+        "minimum": 1,
+        "maximum": 3,
+        "mean": 2.1429
+      },
+      "trials": 100000,
+      "challengerWinRate": 0.565,
+      "challengerLossRate": 0.435,
+      "drawRate": 0,
+      "withinProvisionalFairnessBand": true
+    },
+    {
+      "tier": "GRANDMASTER",
+      "difficultyCode": "U8",
+      "targetMmr": 1480,
+      "targetAccuracyRange": [
+        0.25,
+        0.5
+      ],
+      "simulatedMatchedUserAccuracy": 0.375,
+      "poolCorrectQuestions": 3,
+      "poolQuestionCount": 7,
+      "combinationCount": 21,
+      "baselineCorrectCountAcrossCombinations": {
+        "minimum": 1,
+        "maximum": 3,
+        "mean": 2.1429
+      },
+      "trials": 100000,
+      "challengerWinRate": 0.4179,
+      "challengerLossRate": 0.5821,
+      "drawRate": 0,
+      "withinProvisionalFairnessBand": true
+    },
+    {
+      "tier": "CHALLENGER",
+      "difficultyCode": "U9",
+      "targetMmr": 1610,
+      "targetAccuracyRange": [
+        0.25,
+        0.5
+      ],
+      "simulatedMatchedUserAccuracy": 0.375,
+      "poolCorrectQuestions": 3,
+      "poolQuestionCount": 7,
+      "combinationCount": 21,
+      "baselineCorrectCountAcrossCombinations": {
+        "minimum": 1,
+        "maximum": 3,
+        "mean": 2.1429
+      },
+      "trials": 100000,
+      "challengerWinRate": 0.4137,
+      "challengerLossRate": 0.5863,
+      "drawRate": 0,
+      "withinProvisionalFairnessBand": true
+    }
+  ]
+}

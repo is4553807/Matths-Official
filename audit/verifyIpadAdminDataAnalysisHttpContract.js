@@ -8,10 +8,9 @@ const routes = fs.readFileSync(path.join(root, "routes/api-routes.js"), "utf8");
 const source = fs.readFileSync(path.join(root, "controllers/ipadAdminDataAnalysisController.js"), "utf8");
 const calls = [];
 function install(filename, value) { const resolved = require.resolve(filename); require.cache[resolved] = { id: resolved, filename: resolved, loaded: true, exports: value }; }
-install("../services/dataAnalysisAggregationService", {
+install("../services/adminCurrentMetricsService", {
   getKstMonthKey: () => "2026-09",
-  getDataAnalysisDashboard: async (value) => { calls.push(["dashboard", value]); return { period: { periodKey: value.periodKey, label: "2026년 9월" }, periodOptions: [], generatedAt: null, periodClosed: false, summary: { catalogMetricCount: 1, observedMetricCount: 1, waitingMetricCount: 0, reliableMetricCount: 0, observationRowCount: 1 }, categories: [], assumptions: [] }; },
-  runMonthlyDataAnalysisAggregation: async (value) => { calls.push(["rebuild", value]); return { observationCount: 1 }; },
+  getAdminCurrentMetricsDashboard: async (value) => { calls.push(["dashboard", value]); return { period: { periodKey: value.periodKey, label: "2026년 9월" }, periodOptions: [], generatedAt: null, periodClosed: false, summary: { catalogMetricCount: 1, observedMetricCount: 1, waitingMetricCount: 0, reliableMetricCount: 0, observationRowCount: 1 }, categories: [], assumptions: [] }; },
 });
 async function invoke(handler, { role = "admin", query = {}, body = {} } = {}) {
   let payload; let error; const headers = new Map();
@@ -30,7 +29,7 @@ const controller = require("../controllers/ipadAdminDataAnalysisController");
   assert.equal(dashboard.payload.analysis.period.periodKey, "2026-09");
   assert.equal(dashboard.headers.get("Cache-Control"), "private, no-store");
   const rebuilt = await invoke(controller.rebuild, { body: { periodKey: "2026-08" } });
-  assert.equal(rebuilt.payload.result.observationCount, 1);
-  assert.deepEqual(calls, [["dashboard", { periodKey: "2026-09" }], ["rebuild", { periodKey: "2026-08" }]]);
+  assert.equal(rebuilt.payload.result.period.periodKey, "2026-08");
+  assert.deepEqual(calls, [["dashboard", { periodKey: "2026-09" }], ["dashboard", { periodKey: "2026-08" }]]);
   console.log("iPad native admin data analysis HTTP contract passed");
 })().catch((error) => { console.error(error); process.exitCode = 1; });

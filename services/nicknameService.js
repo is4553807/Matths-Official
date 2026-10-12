@@ -5,8 +5,14 @@ const {
   User,
 } = require("../models/matthsModel");
 const {
+  ArenaGuestIdentity,
+} = require("../models/goatArenaModel");
+const {
   deliverModerationNotice,
 } = require("./moderationNoticeService");
+const {
+  replaceUserNickname,
+} = require("./nicknameNamespaceService");
 const nicknameEmailCopy =
   require("../content/email/nickname");
 
@@ -336,24 +342,20 @@ async function findNicknameConflict({
       "\\$&"
     );
 
-  return User.exists({
-    _id: {
-      $ne: excludeUserId,
-    },
-    $or: [
-      {
-        nameNormalized:
-          key,
-      },
-      {
-        name: {
-          $regex:
-            `^${escaped}$`,
-          $options: "i",
-        },
-      },
-    ],
-  });
+  const [userConflict, guestConflict] = await Promise.all([
+    User.exists({
+      _id: { $ne: excludeUserId },
+      $or: [
+        { nameNormalized: key },
+        { name: { $regex: `^${escaped}$`, $options: "i" } },
+      ],
+    }),
+    ArenaGuestIdentity.exists({
+      nicknameNormalized: key,
+      ...(excludeUserId ? { claimedByUserId: { $ne: excludeUserId } } : {}),
+    }),
+  ]);
+  return userConflict || guestConflict;
 }
 
 async function getNicknameChangePageData({
@@ -514,27 +516,11 @@ async function completeNicknameChange({
   }
 
   try {
-    const user =
-      await User.findOneAndUpdate(
-        {
-          _id: userId,
-        },
-        {
-          $set: {
-            name:
-              validation.nickname,
-            nameNormalized:
-              nicknameKey(
-                validation.nickname
-              ),
-          },
-        },
-        {
-          returnDocument:
-            "after",
-          runValidators: true,
-        }
-      );
+    const user = await replaceUserNickname({
+      userId,
+      nickname: validation.nickname,
+      nicknameNormalized: nicknameKey(validation.nickname),
+    });
 
     if (!user) {
       throw statusError(
@@ -562,7 +548,8 @@ async function completeNicknameChange({
     return user;
   } catch (error) {
     if (
-      error?.code === 11000
+      error?.code === 11000 ||
+      error?.code === "NICKNAME_NAMESPACE_TAKEN"
     ) {
       throw statusError(
         409,

@@ -45,18 +45,17 @@ function verifyCanonicalViews() {
   assert.equal(dashboardTutorialView({ dashboardTutorialStatus: "PENDING" }).shouldAutoStart, true);
   assert.deepEqual(
     arenaTutorialView({}, { activeDivision: "SUB" }).availableChapters,
-    ["common", "unranked", "unranked_match"]
+    ["common", "normal", "competitive", "friends"]
   );
 }
 
-function verifyLeaderboardProfileContract() {
+function verifyCurrentArenaBoundary() {
   const source = fs.readFileSync(
-    path.join(__dirname, "../controllers/ipadLegacyArenaController.js"),
+    path.join(__dirname, "../routes/api-routes.js"),
     "utf8"
   );
-  assert.match(source, /getArenaActivityLevels/);
-  assert.match(source, /profileAvatar:/);
-  assert.match(source, /arenaActivityLevel:/);
+  assert.match(source, /router\.get\("\/arena", goatArenaController\.getGoatArena\)/);
+  assert.match(source, /require\("\.\.\/controllers\/goatArenaController"\)/);
 }
 
 function verifyNicknameContract() {
@@ -77,9 +76,9 @@ function verifyNicknameContract() {
 async function main() {
   verifyRegistration();
   verifyCanonicalViews();
-  verifyLeaderboardProfileContract();
+  verifyCurrentArenaBoundary();
   verifyNicknameContract();
-  console.log("iPad profile API verified: Bearer routes, nickname, avatar, activity level, coach, tutorials and leaderboard profile fields.");
+  console.log("iPad profile API verified: Bearer routes, nickname, avatar, activity level, coach, tutorials and current Arena boundary.");
 }
 
 main().catch((error) => {

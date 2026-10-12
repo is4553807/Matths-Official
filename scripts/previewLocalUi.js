@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const express = require("express");
 const ejs = require("ejs");
 const { arenaTierGuide, arenaUpperTierPopulationGuide } = require("../services/arenaTierPolicy");
-const { getArenaRulebook } = require("../services/arenaRulebookViewService");
+const { getGoatArenaV22Rulebook } = require("../services/goatArenaV22RulebookService");
 const {
   getAdminOperationsGuideData,
 } = require("../services/adminOperationsGuideService");
@@ -20,6 +20,9 @@ const {
   getAdminProblemBankCatalog,
 } = require("../services/problemBankCatalogService");
 const {
+  publicConfig: getAdminArenaPublicConfig,
+} = require("../services/adminArenaV2Service");
+const {
   formatAdminMath,
 } = require("../services/mathTextService");
 const {
@@ -28,9 +31,6 @@ const {
 const {
   publicSourceAccuracyForQuestion,
 } = require("../services/arenaMatchAttemptService");
-const {
-  buildArenaMatchPreStartContract,
-} = require("../services/arenaMatchPreStartContractService");
 const { getRefundDisclosure } = require("../services/refundPolicyService");
 const {
   buildArenaMatchIntegrityWatermark,
@@ -49,8 +49,7 @@ const port = Number(process.env.MATTHS_PREVIEW_PORT) || 8011;
 app.locals.assetVersion = "local-preview";
 const previewArenaActivityAudit = [];
 const previewProducts = [
-  { code: "MOCK_EXAM_ONLY", name: "Matths 주간 공식 모의고사 이용권", amount: 5500, periodLabel: "30일", description: "주간 공식 모의고사 응시에 집중하는 이용권" },
-  { code: "LEARNING_PACKAGE_29", name: "29일 학습권 패키지", amount: 29000, periodLabel: "29일", description: "모의고사·배치고사·GOAT Arena까지 포함한 학습권" },
+  { code: "PRO_MONTHLY", name: "Matths Pro", amount: 5500, periodLabel: "30일", description: "Matths의 Pro 기능을 하나로 이용하는 월 플랜" },
 ].map((product) => ({ ...product, refundPolicy: getRefundDisclosure(product) }));
 
 app.set("view engine", "ejs");
@@ -209,11 +208,6 @@ app.get("/preview/home-arena-tier", (_req, res) => {
       id: "64b000000000000000000151",
       name: "preview-student",
       role: "student",
-    },
-    arenaContract: {
-      learningCycleDays: 29,
-      minimumAttackParticipationDays: 15,
-      maximumPaybackRatePercent: 100,
     },
     arenaSpotlight: {
       available: true,
@@ -407,14 +401,11 @@ app.get(["/preview/main-dashboard", "/main"], (req, res) => {
       },
       coach: previewCoach,
       activePlan: {
-        code: "LEARNING_PACKAGE",
-        name: "프리미엄 학습권",
-        division: "Ranked",
-        remainingLearningDays: 128,
-        availableLearningDays: 96,
-        reservedLearningDays: 24,
-        lockedLearningDays: 8,
-        expiresAt: new Date("2026-01-05T14:59:59.000Z"),
+        code: "PRO",
+        name: "Pro 플랜",
+        priceAmount: 5500,
+        billingPeriodDays: 30,
+        expiresAt: new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000),
         unlimited: false,
         statusLabel: "이용 중",
       },
@@ -555,45 +546,32 @@ app.get("/preview/goat-arena/match-ready", (req, res) => {
   const role = String(req.query.role || "CHALLENGER").toUpperCase() === "DEFENDER"
     ? "DEFENDER"
     : "CHALLENGER";
-  const match = {
-    division: "SUB",
-    matchType: "NORMAL",
-    startDeadlineAt: new Date("2026-08-26T06:00:00.000Z"),
-    challenger: { stakeDays: 1 },
-    defender: { stakeDays: 0 },
-    economySnapshot: {
-      challengerStakeDays: 1,
-      defenderStakeDays: 0,
-    },
-  };
   res.render("goat-arena-match", {
     activeArenaPage: "sub",
     arenaUser: {
       nickname: "preview-user",
-      hasStyleEntrance: false,
-      hasMainProfileBorder: false,
     },
     arenaNotifications: { unreadCount: 0, notifications: [], defenseByDivision: {} },
-    rankUpPresentation: null,
     matchPrepared: false,
     matchStarted: false,
     evidenceSubmitted: false,
     matchError: "",
     questionIntroduced: 0,
     startRequestId: "preview-start",
-    revengeRequestId: "preview-revenge",
     matchData: {
       id: "preview-ready-match",
+      arenaVersion: "2.0",
+      gameMode: "NORMAL",
+      normalAsync: true,
       division: "SUB",
-      divisionLabel: "Unranked",
+      divisionLabel: "일반전",
       matchType: "NORMAL",
-      matchTitle: "일반 쟁탈전",
+      matchTitle: "일반전",
       matchStatus: "READY",
       matchStatusLabel: "경기 준비 완료",
       role,
       roleLabel: role === "CHALLENGER" ? "공격자" : "방어자",
       opponentName: role === "CHALLENGER" ? "상위 수학러" : "도전 수학러",
-      preStartContract: buildArenaMatchPreStartContract(match, role),
       problemPack: {
         questionCount: 5,
         timeLimitMs: 10 * 60 * 1000,
@@ -603,14 +581,11 @@ app.get("/preview/goat-arena/match-ready", (req, res) => {
       attempt: { status: "READY" },
       settled: false,
       result: null,
-      divisionLocked: false,
-      matchRequestLocked: false,
       canPrepare: false,
       canStart: true,
       inProgress: false,
       evidenceRequired: false,
       submitted: false,
-      canUseDefenseScheduleProtection: false,
       serverNow: new Date().toISOString(),
     },
   });
@@ -654,18 +629,14 @@ app.get("/preview/goat-arena/match-pdf-pool", (req, res) => {
     activeArenaPage: division === "MAIN" ? "main" : "sub",
     arenaUser: {
       nickname: "preview-user",
-      hasStyleEntrance: false,
-      hasMainProfileBorder: false,
     },
     arenaNotifications: { unreadCount: 0, notifications: [], defenseByDivision: {} },
-    rankUpPresentation: null,
     matchPrepared: true,
     matchStarted: false,
     evidenceSubmitted: false,
     matchError: "",
     questionIntroduced: 0,
     startRequestId: "preview-start",
-    revengeRequestId: "preview-revenge",
     matchData: {
       id: "preview-pdf-pool-match",
       division,
@@ -692,13 +663,11 @@ app.get("/preview/goat-arena/match-pdf-pool", (req, res) => {
       }),
       settled: false,
       result: null,
-      divisionLocked: false,
       canPrepare: false,
       canStart: false,
       inProgress: true,
       evidenceRequired: false,
       submitted: false,
-      canUseDefenseScheduleProtection: false,
       serverNow: now.toISOString(),
       attempt: {
         status: "IN_PROGRESS",
@@ -710,24 +679,98 @@ app.get("/preview/goat-arena/match-pdf-pool", (req, res) => {
   });
 });
 
-app.get("/preview/goat-arena/evidence", (_req, res) => {
-  const now = new Date();
+app.post("/goat-arena/matches/preview-share-match/guest-invitations", (_req, res) => {
+  res.status(201).json({
+    ok: true,
+    inviteUrl: `http://127.0.0.1:${port}/arena-invite/preview-group-challenge`,
+    expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+  });
+});
+
+app.get("/preview/goat-arena/guest-share", (req, res) => {
+  const questions = Array.from({ length: 5 }, (_unused, index) => ({
+    slot: index + 1,
+    sourceAccuracyRate: 0.68 - index * 0.08,
+    correct: index !== 3,
+    prompt: `미리보기용 ${index + 1}번 수학 문제`,
+    choices: [],
+    submittedAnswer: String(index + 1),
+  }));
+  const competitor = (side, name, isViewer) => ({
+    side,
+    isViewer,
+    user: { name },
+    totalCorrect: isViewer ? 4 : 3,
+    completionTimeMs: isViewer ? 1_245_000 : 1_382_000,
+    difficultyAdjustedScore: isViewer ? 1.24 : 0.77,
+    questions,
+    solutions: [],
+  });
   res.render("goat-arena-match", {
     activeArenaPage: "sub",
-    arenaUser: {
-      nickname: "preview-user",
-      hasStyleEntrance: false,
-      hasMainProfileBorder: false,
-    },
+    arenaUser: { nickname: "preview-user" },
     arenaNotifications: { unreadCount: 0, notifications: [], defenseByDivision: {} },
-    rankUpPresentation: null,
     matchPrepared: false,
     matchStarted: false,
     evidenceSubmitted: false,
     matchError: "",
     questionIntroduced: 0,
     startRequestId: "preview-start",
-    revengeRequestId: "preview-revenge",
+    guestInvitePath: req.query.created === "1"
+      ? `http://127.0.0.1:${port}/arena-invite/preview-group-challenge`
+      : "",
+    asyncCompetitiveResult: null,
+    asyncNormalResult: {
+      provisional: false,
+      verdictLabel: "승리",
+      explanation: "정답 수가 더 많아 승리했습니다.",
+      firstRecord: false,
+      challenger: competitor("challenger", "preview-user", true),
+      historicalOpponent: competitor("historicalOpponent", "비슷한 실력의 유저", false),
+    },
+    matchData: {
+      id: "preview-share-match",
+      arenaVersion: "2.0",
+      gameMode: "NORMAL",
+      normalAsync: true,
+      competitiveAsync: false,
+      division: "SUB",
+      divisionLabel: "일반전",
+      matchType: "NORMAL",
+      matchTitle: "일반전",
+      matchStatus: "SETTLED",
+      matchStatusLabel: "경기 완료",
+      role: "CHALLENGER",
+      roleLabel: "도전자",
+      opponentName: "비슷한 실력의 유저",
+      problemPack: { curriculumCoverage: ["algebra", "calculus-1", "probability-statistics"] },
+      attempt: { status: "SUBMITTED" },
+      settled: true,
+      result: null,
+      inProgress: false,
+      canPrepare: false,
+      canStart: false,
+      evidenceRequired: false,
+      submitted: true,
+      serverNow: new Date().toISOString(),
+    },
+  });
+});
+
+app.get("/preview/goat-arena/evidence", (_req, res) => {
+  const now = new Date();
+  res.render("goat-arena-match", {
+    activeArenaPage: "sub",
+    arenaUser: {
+      nickname: "preview-user",
+    },
+    arenaNotifications: { unreadCount: 0, notifications: [], defenseByDivision: {} },
+    matchPrepared: false,
+    matchStarted: false,
+    evidenceSubmitted: false,
+    matchError: "",
+    questionIntroduced: 0,
+    startRequestId: "preview-start",
     matchData: {
       id: "preview-evidence-match",
       division: "SUB",
@@ -740,13 +783,11 @@ app.get("/preview/goat-arena/evidence", (_req, res) => {
       problemPack: null,
       settled: false,
       result: null,
-      divisionLocked: false,
       canPrepare: false,
       canStart: false,
       inProgress: false,
       evidenceRequired: true,
       submitted: false,
-      canUseDefenseScheduleProtection: false,
       serverNow: now.toISOString(),
       attempt: {
         status: "EVIDENCE_REQUIRED",
@@ -807,8 +848,6 @@ app.get("/pricing", (req, res) => {
   res.render("pricing", {
     user,
     activePage: "pricing",
-    mockExamPolicy: { monthlyPriceAmount: 5500 },
-    learningPackagePolicy: { priceAmount: 29000 },
     products: previewProducts,
     productAccess: null,
     checkoutEnabled: true,
@@ -972,14 +1011,18 @@ app.get("/preview/admin/users/detail", (_req, res) => {
       },
       ranking: null,
       packageAccess: {
-        packageType: "FREE",
-        label: "기본학습 패키지",
+        planCode: "PRO",
+        packageType: "PRO",
+        label: "Pro 플랜",
+        priceAmount: 5500,
+        billingPeriodDays: 30,
+        endsAt: new Date("2026-10-30T14:59:59.000Z"),
+        source: "ADMIN",
       },
       weeklyMockAccess: {
-        active: false,
-        packageType: "FREE",
+        active: true,
+        packageType: "PRO",
       },
-      arenaBadges: [],
       arenaActivityLevel: {
         level: 4,
         totalMatches: 38,
@@ -1000,7 +1043,7 @@ app.get("/preview/admin/users/detail", (_req, res) => {
         {
           id: "64b000000000000000000703",
           division: "SUB",
-          matchType: "REVENGE",
+          matchType: "NORMAL",
           status: "SETTLED",
           tierPairLabel: "U2 → U1",
           completedAt: new Date("2026-08-16T14:20:00+09:00"),
@@ -1105,7 +1148,7 @@ app.get("/preview/placement/story", (req, res) => {
 app.get("/preview/refunds/checkout", (_req, res) => {
   res.render("checkout", {
     user: { id: "preview-user", name: "preview-user", role: "student" },
-    product: previewProducts[1],
+    product: previewProducts[0],
     intent: null,
   });
 });
@@ -1115,13 +1158,13 @@ app.get("/preview/payments/inicis", (_req, res) => {
     orderId: "matths-preview-0123456789abcdef",
     customerKey: "customer-preview-0123456789abcdef",
     providerMode: "TEST",
-    productName: previewProducts[1].name,
-    amount: previewProducts[1].amount,
+    productName: previewProducts[0].name,
+    amount: previewProducts[0].amount,
     currency: "KRW",
   };
   res.render("checkout", {
     user: { id: "preview-user", name: "김학생", email: "preview@example.com", role: "student" },
-    product: previewProducts[1],
+    product: previewProducts[0],
     intent,
     checkoutConfig: {
       jqueryUrl: "https://stgpaypro.inicis.com/std/payment/js/jquery-1.8.3.js",
@@ -1154,7 +1197,7 @@ app.get("/preview/refunds/parent-checkout", (_req, res) => {
     child: { id: "preview-child", name: "학생", realName: "김학생" },
     familyChildren: [],
     selectedChildId: "preview-child",
-    product: previewProducts[1],
+    product: previewProducts[0],
     intent: null,
   });
 });
@@ -1176,7 +1219,7 @@ app.get("/preview/parent/payments", (_req, res) => {
       summary: {
         orderCount: 3,
         paidCount: 2,
-        paidAmount: 34500,
+        paidAmount: 11000,
         refundedAmount: 5500,
         refundableCount: 1,
       },
@@ -1184,9 +1227,9 @@ app.get("/preview/parent/payments", (_req, res) => {
         {
           id: "intent-paid",
           orderId: "matths-preview-paid-order",
-          productCode: "LEARNING_PACKAGE_29",
-          productName: "29일 학습권 패키지",
-          amount: 29000,
+          productCode: "PRO_MONTHLY",
+          productName: "Matths Pro",
+          amount: 5500,
           currency: "KRW",
           createdAt: new Date("2026-08-13T08:00:00.000Z"),
           approvedAt: new Date("2026-08-13T08:02:00.000Z"),
@@ -1198,14 +1241,14 @@ app.get("/preview/parent/payments", (_req, res) => {
           paymentId: "64b000000000000000000091",
           payment: { status: "APPLIED" },
           refund: null,
-          remainingAmount: 29000,
+          remainingAmount: 5500,
           isRefundable: true,
         },
         {
           id: "intent-refunded",
           orderId: "matths-preview-refunded-order",
-          productCode: "MOCK_EXAM_ONLY",
-          productName: "Matths 주간 공식 모의고사 이용권",
+          productCode: "PRO_MONTHLY",
+          productName: "Matths Pro",
           amount: 5500,
           currency: "KRW",
           createdAt: new Date("2026-07-01T03:00:00.000Z"),
@@ -1229,9 +1272,9 @@ app.get("/preview/parent/payments", (_req, res) => {
         {
           id: "intent-expired",
           orderId: "matths-preview-expired-order",
-          productCode: "LEARNING_PACKAGE_29",
-          productName: "29일 학습권 패키지",
-          amount: 29000,
+          productCode: "PRO_MONTHLY",
+          productName: "Matths Pro",
+          amount: 5500,
           currency: "KRW",
           createdAt: new Date("2026-06-01T03:00:00.000Z"),
           approvedAt: null,
@@ -1507,25 +1550,18 @@ app.get("/admin/problem-banks", (_req, res) => {
 });
 
 function previewArenaTutorial(activeDivision, requestedChapter = "") {
-  const divisionChapters = activeDivision === "MAIN"
-    ? ["ranked", "ranked_battle", "ranked_shop"]
-    : activeDivision === "SUB"
-      ? ["unranked", "unranked_match"]
-      : [];
-  const eligibleChapters = ["common", ...divisionChapters];
+  const eligibleChapters = ["common", "normal", "competitive", "friends"];
   const autoChapter = eligibleChapters.includes(requestedChapter) ? requestedChapter : null;
   return {
-    version: 1,
+    version: 2,
     activeDivision,
     eligibleChapters,
     availableChapters: eligibleChapters,
     chapters: {
       common: { status: "PENDING", completedAt: null, skippedAt: null },
-      unranked: { status: activeDivision === "SUB" ? "PENDING" : "NOT_REQUIRED", completedAt: null, skippedAt: null },
-      unranked_match: { status: activeDivision === "SUB" ? "PENDING" : "NOT_REQUIRED", completedAt: null, skippedAt: null },
-      ranked: { status: activeDivision === "MAIN" ? "PENDING" : "NOT_REQUIRED", completedAt: null, skippedAt: null },
-      ranked_battle: { status: activeDivision === "MAIN" ? "PENDING" : "NOT_REQUIRED", completedAt: null, skippedAt: null },
-      ranked_shop: { status: activeDivision === "MAIN" ? "PENDING" : "NOT_REQUIRED", completedAt: null, skippedAt: null },
+      normal: { status: "PENDING", completedAt: null, skippedAt: null },
+      competitive: { status: "PENDING", completedAt: null, skippedAt: null },
+      friends: { status: "PENDING", completedAt: null, skippedAt: null },
     },
     autoChapter,
     shouldAutoStart: false,
@@ -1537,22 +1573,9 @@ app.get("/goat-arena", (req, res) => {
   res.render("goat-arena", {
     activeArenaPage: "home",
     arenaUser: { nickname: "preview", displayName: "preview" },
-    pendingRevengeRight: null,
-    pendingRevengeRequestId: null,
-    seedState: {
-      ready: true,
-      label: "현재 Arena 상태",
-      tier: "에메랄드",
-      division: "Unranked",
-      gp: 60,
-      tierRank: 12,
-      detail: "배치고사 결과가 현재 시즌 Unranked에 반영되었습니다.",
-    },
-    arenaAccess: { activeDivision: "SUB" },
     arenaTutorial: previewArenaTutorial("SUB", String(req.query.tour || "")),
     arenaTierGuide: arenaTierGuide(),
     arenaUpperTierGuide: arenaUpperTierPopulationGuide(),
-    activeArenaPolicy: { matchStakeDays: { normal: 1, revenge: 2 } },
     arenaMatchRules: {
       questionCount: 5,
       timeLimitMinutes: 10,
@@ -1561,27 +1584,11 @@ app.get("/goat-arena", (req, res) => {
   });
 });
 
-app.get("/goat-arena/rules/main", (_req, res) => {
-  res.render("goat-arena-rules", {
+app.get("/goat-arena/rules", (_req, res) => {
+  res.render("goat-arena-rules-index", {
     activeArenaPage: "rules",
     arenaUser: { nickname: "preview" },
-    rulebook: getArenaRulebook("MAIN", {
-      mainPolicy: {
-        code: "MAIN-PREVIEW-INTERNAL",
-        displayName: "Ranked 현재 운영 기준",
-        maximumTargetTierGap: 3,
-        stakeDaysByTierGap: [
-          { tierGap: 1, stakeDays: 1 },
-          { tierGap: 2, stakeDays: 2 },
-          { tierGap: 3, stakeDays: 3 },
-        ],
-        repeatOpponentExclusionDays: 7,
-        revengeStakeMultiplier: 2,
-        revengeFeeDays: 1,
-        effectiveFrom: new Date("2026-08-02T00:00:00+09:00"),
-        updatedAt: new Date("2026-08-02T00:00:00+09:00"),
-      },
-    }),
+    rulebook: getGoatArenaV22Rulebook(),
   });
 });
 
@@ -1589,107 +1596,29 @@ app.get("/goat-arena/rules/sub", (_req, res) => {
   res.render("goat-arena-rules", {
     activeArenaPage: "rules",
     arenaUser: { nickname: "preview" },
-    rulebook: getArenaRulebook("SUB"),
+    rulebook: getGoatArenaV22Rulebook(new Date(), "SUB"),
   });
 });
 
-app.get("/goat-arena/rankings", (_req, res) => {
-  const currentUserId = "preview-current-user";
-  const finalOverall = Array.from({ length: 41 }, (_, index) => ({
-    userId: index === 20 ? currentUserId : `preview-final-${index + 1}`,
-    displayName: index === 20 ? "preview" : `랭커 ${index + 1}`,
-    schoolName: index % 7 === 0 ? "" : `미리보기고 ${index % 5 + 1}`,
-    division: index % 3 === 0 ? "MAIN" : "SUB",
-    finalRank: index + 1,
-    finalRating: 2400 - index * 17,
-    rankDelta: index === 20 ? 3 : index % 6 === 0 ? -1 : 0,
-    hasMainProfileBorder: index === 5,
-  }));
-  const tierEntries = Array.from({ length: 31 }, (_, index) => ({
-    userId: index === 15 ? currentUserId : `preview-tier-${index + 1}`,
-    displayName: index === 15 ? "preview" : `플레이어 ${index + 1}`,
-    schoolName: `미리보기고 ${index % 5 + 1}`,
-    region: index % 2 ? "서울특별시" : "경기도",
-    tier: "골드",
-    tierRank: index + 1,
-    gp: 99 - index,
-    division: "SUB",
-    rankDelta: index === 15 ? 2 : 0,
-    hasMainProfileBorder: index === 8,
-  }));
-  const emptyMainPool = {
-    key: "MAIN",
-    label: "Ranked",
-    cohortSize: 20,
-    current: null,
-    dataState: "arena-standing",
-    defaultTierKey: "gold",
-    tierBoards: [
-      {
-        tier: "골드",
-        tierKey: "gold",
-        memberCount: 20,
-        containsCurrentUser: false,
-        isTopTwentyOnly: true,
-        entries: tierEntries.slice(0, 20),
-      },
-    ],
-  };
-
-  res.render("goat-arena-rankings", {
-    activeArenaPage: "rankings",
+app.get("/goat-arena/rules/main", (_req, res) => {
+  res.render("goat-arena-rules", {
+    activeArenaPage: "rules",
     arenaUser: { nickname: "preview" },
-    user: { _id: currentUserId, name: "preview" },
-    ranking: {
-      current: { arenaDivision: "SUB" },
-      currentFinal: finalOverall[20],
-      finalOverall,
-      latestCalculatedAt: new Date(),
-      pools: {
-        sub: {
-          key: "SUB",
-          label: "Unranked",
-          cohortSize: tierEntries.length,
-          current: tierEntries[15],
-          dataState: "arena-standing",
-          defaultTierKey: "gold",
-          tierBoards: [
-            {
-              tier: "골드",
-              tierKey: "gold",
-              memberCount: tierEntries.length,
-              containsCurrentUser: true,
-              isTopTwentyOnly: false,
-              entries: tierEntries,
-            },
-          ],
-        },
-        main: emptyMainPool,
-      },
-    },
+    rulebook: getGoatArenaV22Rulebook(new Date(), "MAIN"),
   });
 });
 
 app.get("/goat-arena/profile", (_req, res) => {
   res.render("goat-arena-profile", {
     activeArenaPage: "profile",
-    accountUpdated: false,
     avatarUpdated: false,
-    accountError: null,
     arenaProfileAvatars: ARENA_PROFILE_AVATARS,
-    payoutEligible: false,
-    paybackAccount: {
-      confirmed: false,
-      bankName: "",
-      last4: "",
-    },
+    claimedGuestRecords: [],
     arenaUser: {
       nickname: "긴닉네임줄바꿈확인사용자",
       displayName: "긴닉네임줄바꿈확인사용자",
       schoolName: "미리보기고등학교",
       gradeLabel: "2학년",
-      hasMainProfileBorder: false,
-      hasStyleEntrance: false,
       activityLevel: {
         level: 4,
         totalMatches: 38,
@@ -1707,30 +1636,6 @@ app.get("/goat-arena/profile", (_req, res) => {
       isMaxLevel: false,
     },
     user: { totalConnectedSeconds: 372_640 },
-    seedState: { gp: 73 },
-    ranking: {
-      pools: { sub: { current: null }, main: { current: null } },
-    },
-    arenaAccess: {
-      activeDivision: "SUB",
-      standing: {
-        arenaRank: "그랜드마스터",
-        division: "SUB",
-        arenaPosition: 12,
-        gp: 73,
-      },
-      learningRights: {
-        availableDays: 18,
-        lockedDays: 1,
-        paybackScoreDays: 32,
-        neededForRefund: 0,
-        minimumPaybackScore: 30,
-        attackParticipationDays: 8,
-        minimumAttackParticipationDays: 15,
-        attackParticipationDaysNeeded: 7,
-        attackParticipationQualified: false,
-      },
-    },
     arenaTutorial: previewArenaTutorial("SUB"),
   });
 });
@@ -1769,222 +1674,31 @@ app.get("/preview/profile", (_req, res) => {
   });
 });
 
-function previewArenaAccess(division = "SUB") {
-  return {
-    canUseSub: division === "SUB",
-    canUseMain: division === "MAIN",
-    isAdminPreview: false,
-    learningRights: {
-      availableDays: division === "MAIN" ? 30 : 18,
-      totalMainDays: division === "MAIN" ? 30 : null,
-      unlimited: false,
-    },
-  };
-}
-
 function previewDivisionPage(req, res, division) {
-  const isSub = division === "SUB";
-  const features = [
-    [isSub ? "subChallengeRequest" : "mainArenaStatus", isSub ? "일반 쟁탈전 신청" : "Ranked 상태", "현재 전장 상태와 다음 작전을 확인합니다.", isSub ? "BATTLE" : "OPERATIONS"],
-    [isSub ? "subActiveMatch" : "mainUpwardChallenge", isSub ? "진행 중 경기" : "상위 티어 쟁탈전", "서버가 자격을 확인하고 적격 상대를 자동으로 정합니다.", "BATTLE"],
-    [isSub ? "subRevengeMatch" : "mainLowerTierInvitation", isSub ? "복수전" : "하위 티어 초대전", "준비·진행·제출 상태인 경기를 이어서 확인합니다.", "BATTLE"],
-    [isSub ? "subRankHistory" : "mainActiveMatch", isSub ? "순위 변동 기록" : "진행 중 경기", "티어·순위·GP 변동 이력을 확인합니다.", isSub ? "RECORD" : "BATTLE"],
-    [isSub ? "subPaybackProgress" : "mainLearningDayLedger", isSub ? "페이백 진행" : "학습일수 장부", "학습일수와 전장 자산의 현재 상태를 확인합니다.", isSub ? "PROGRESS" : "OPERATIONS"],
-  ].map(([key, name, description, group]) => ({
-    key,
-    name,
-    description,
-    group,
-    href: "#",
-  }));
-  const groupDefinitions = isSub
-    ? [
-        ["BATTLE", "BATTLE CONTROL", "경기 지휘", "신청부터 진행 중 경기와 복수전까지 한곳에서 관리합니다."],
-        ["RECORD", "RANK RECORD", "순위 기록", "정산이 끝난 Arena 상태 변동과 내 위치를 확인합니다."],
-        ["PROGRESS", "PAYBACK TRACK", "페이백 진행", "29일 학습과 페이백 점수 조건을 분리해 확인합니다."],
-      ]
-    : [
-        ["BATTLE", "BATTLE CONTROL", "경기 지휘", "상향 쟁탈전·하위 티어 초대전·진행 경기를 관리합니다."],
-        ["OPERATIONS", "ARENA OPERATIONS", "운영 현황", "현재 상태와 학습일수 장부를 확인합니다."],
-      ];
+  const isNormal = division === "SUB";
   res.render("goat-arena-division", {
-    activeArenaPage: isSub ? "sub" : "main",
+    activeArenaPage: isNormal ? "sub" : "main",
     arenaUser: { nickname: "preview" },
     division,
-    divisionLabel: isSub ? "Unranked" : "Ranked",
-    divisionKoreanLabel: isSub ? "Unranked 전장" : "Ranked 전장",
-    arenaAccess: previewArenaAccess(division),
+    divisionLabel: isNormal ? "일반전" : "경쟁전",
+    divisionKoreanLabel: isNormal ? "일반전" : "경쟁전",
+    actionError: "",
+    actionMessage: "",
+    arenaCompetitiveProfile: isNormal ? null : {
+      normalMatchesCompleted: 2,
+      requiredNormalMatches: 3,
+      placementAttempts: 1,
+      maximumPlacementAttempts: 5,
+      tierLabel: "미배치",
+      provisionalTierLabel: "골드",
+    },
     arenaTutorial: previewArenaTutorial(division, String(req.query.tour || "")),
-    ranking: {
-      pools: {
-        sub: { current: { tier: "에메랄드", tierRank: 12 } },
-        main: { current: { tier: "다이아몬드", tierRank: 7 } },
-      },
-    },
-    activeMainPolicy: isSub ? null : { maximumTargetTierGap: 3 },
-    features,
-    featureGroups: groupDefinitions.map(([key, eyebrow, title, description]) => ({
-      key,
-      eyebrow,
-      title,
-      description,
-      features: features.filter((feature) => feature.group === key),
-    })),
-    arenaNotifications: {
-      unreadCount: 2,
-      notifications: [],
-      defenseByDivision: { SUB: isSub ? 1 : 0, MAIN: isSub ? 0 : 1 },
-      actionByDivision: { SUB: isSub ? 1 : 0, MAIN: isSub ? 0 : 1 },
-    },
+    arenaNotifications: { unreadCount: 0, notifications: [] },
   });
 }
 
 app.get("/goat-arena/sub", (req, res) => previewDivisionPage(req, res, "SUB"));
 app.get("/goat-arena/main", (req, res) => previewDivisionPage(req, res, "MAIN"));
-
-app.get("/goat-arena/sub/challenge", (_req, res) => {
-  res.render("goat-arena-sub-challenge", {
-    activeArenaPage: "sub",
-    arenaUser: { nickname: "preview" },
-    arenaTutorial: previewArenaTutorial("SUB"),
-    requestId: "preview-sub-challenge",
-    matchCreated: false,
-    matchError: "",
-    challengeData: {
-      currentStanding: { arenaRank: "EMERALD", arenaPosition: 12, arenaGp: 64 },
-      stakeDays: 1,
-      activeMatch: null,
-      canRequest: true,
-      hasEligibleOpponent: true,
-      dailyUsage: {
-        attackCount: 1,
-        attackLimit: 3,
-        attackRemaining: 2,
-        defenseCount: 0,
-        defenseLimit: 3,
-        defenseRemaining: 3,
-        challengerWin: false,
-      },
-      targetTiers: [
-        { tier: "DIAMOND", label: "다이아몬드", candidateCount: 23 },
-        { tier: "MASTER", label: "마스터", candidateCount: 8 },
-      ],
-    },
-  });
-});
-
-app.get("/goat-arena/main/battle", (_req, res) => {
-  res.render("goat-arena-main-battle", {
-    activeArenaPage: "main",
-    arenaUser: { nickname: "preview" },
-    arenaTutorial: previewArenaTutorial("MAIN"),
-    requestId: "preview-main-battle",
-    actionError: "",
-    actionMessage: "",
-    friendlyData: {
-      query: "",
-      searchResults: [],
-      receivedInvitations: [],
-      sentInvitations: [],
-    },
-    battleData: {
-      currentTier: "DIAMOND",
-      availableLearningDays: 30,
-      activeMatch: null,
-      eligible: true,
-      upwardTargets: [
-        { label: "MASTER", gap: 1 },
-        { label: "GRANDMASTER", gap: 2 },
-        { label: "CHALLENGER", gap: 3 },
-      ],
-      lowerTargets: [
-        { label: "EMERALD", gap: 1 },
-        { label: "PLATINUM", gap: 2 },
-      ],
-      receivedOffers: [],
-      sentInvitations: [],
-    },
-  });
-});
-
-app.get("/goat-arena/main/shop", (_req, res) => {
-  res.render("goat-arena-main-shop", {
-    activeArenaPage: "shop",
-    arenaUser: {
-      nickname: "preview",
-      hasMainProfileBorder: true,
-      hasStyleEntrance: false,
-    },
-    arenaTutorial: previewArenaTutorial("MAIN"),
-    requestId: "preview-shop-request",
-    shopMessage: null,
-    shopError: null,
-    shopData: {
-      availableLearningDays: 18,
-      policyVersionCode: "현재 시즌 운영 정책",
-      policyDisplayName: "Ranked 상점 운영 정책",
-      policyEffectiveFrom: new Date("2026-08-02T00:00:00+09:00"),
-      sundayLocked: false,
-      invitations: [],
-      effects: [],
-      items: [
-        { itemCode: "MATCH_ANALYSIS", displayName: "경기 분석권", priceDays: 1, releasePhase: 1 },
-        { itemCode: "DEFENSE_REST", displayName: "방어 휴식권", priceDays: 1, releasePhase: 1 },
-        { itemCode: "DEFENSE_SCHEDULE_PROTECTION", displayName: "방어 일정 보호권", priceDays: 2, releasePhase: 1 },
-        { itemCode: "INVITATION_ACCELERATION", displayName: "초대 가속권", priceDays: 1, releasePhase: 2 },
-        { itemCode: "MAIN_PROFILE_BORDER", displayName: "Ranked 프로필 테두리", priceDays: 2, releasePhase: 2 },
-        { itemCode: "STYLE_ENTRANCE", displayName: "스타일 칭호·입장 연출", priceDays: 1, releasePhase: 2 },
-      ],
-    },
-  });
-});
-
-app.get("/goat-arena/main/shop/analyses/preview", (_req, res) => {
-  res.render("goat-arena-main-shop-analysis", {
-    activeArenaPage: "shop",
-    arenaUser: {
-      nickname: "preview",
-      hasMainProfileBorder: true,
-      hasStyleEntrance: false,
-    },
-    analysis: {
-      id: "preview",
-      status: "APPLIED",
-      analysisState: "READY",
-      relatedMatchId: "preview-match",
-      result: "WIN",
-      score: 80,
-      correctCount: 4,
-      totalSolveTimeMs: 523000,
-      incorrectQuestionKeys: ["5번"],
-      weakSkills: ["수열의 귀납적 정의", "조건 해석"],
-      reviewProblemCount: 10,
-      checklist: ["점화식의 첫 세 항을 직접 쓰기", "조건에서 시작값을 먼저 확인하기"],
-      questionReviews: [
-        {
-          number: 1,
-          questionKey: "Q1",
-          courseId: "algebra",
-          typeId: "ALG-SEQUENCE-SUM",
-          prompt: "첫째항이 2이고 공차가 3인 등차수열의 첫 5개 항의 합을 구하세요.",
-          submittedAnswer: "35",
-          correctAnswer: "40",
-          correct: false,
-          pointsAwarded: 0,
-          responseTimeMs: 124000,
-          solution: "첫 5개 항은 2, 5, 8, 11, 14이므로 합은 40이다.",
-          referenceSolutionProcess: [
-            { step: 1, explanation: "문제에서 주어진 수열의 첫째항과 공차를 확인한다." },
-            { step: 2, explanation: "필요한 항을 직접 쓰거나 일반항을 구한다." },
-            { step: 3, explanation: "등차수열의 합 공식을 적용한다." },
-          ],
-          referenceFinalCheck: "직접 나열한 항의 합과 공식 계산 결과가 같은지 확인한다.",
-        },
-      ],
-      generatedAt: new Date("2026-08-03T10:00:00+09:00"),
-    },
-  });
-});
 
 app.get("/admin/arena-matches", (req, res) => {
   const previewHeldMatch = {
@@ -2324,87 +2038,45 @@ app.get(["/assessments", "/assessment-center"], (_req, res) => {
 
 app.get("/admin/arena-policies", (_req, res) => {
   const now = new Date("2026-08-03T10:00:00+09:00");
-  const subPolicy = {
-    _id: "64b000000000000000000081",
-    displayName: "Unranked 기본 운영 정책",
-    status: "ACTIVE",
-    effectiveFrom: new Date("2026-08-02T00:00:00+09:00"),
-    effectiveUntil: null,
-    priceAmount: 29000,
-    initialLearningDays: 29,
-    initialPaybackScoreDays: 29,
-    matchStakeDays: { normal: 1, revenge: 2 },
-    payback: {
-      minimumAttackParticipationDays: 15,
-      minimumScoreDays: 30,
-      bands: [
-        { minScoreDays: 0, maxScoreDays: 29, ratePercent: 0 },
-        { minScoreDays: 30, maxScoreDays: 34, ratePercent: 50 },
-        { minScoreDays: 35, maxScoreDays: 39, ratePercent: 80 },
-        { minScoreDays: 40, maxScoreDays: null, ratePercent: 100 },
-      ],
-    },
-    changeSummary: "현재 Unranked 운영 기준",
-  };
-  const mainPolicy = {
-    _id: "64b000000000000000000082",
-    displayName: "Ranked 기본 운영 정책",
-    status: "ACTIVE",
-    effectiveFrom: new Date("2026-08-02T00:00:00+09:00"),
-    effectiveUntil: null,
-    maximumTargetTierGap: 3,
-    mainEntryBonusDays: 2,
-    mainCarryoverBaseDays: 29,
-    invitationCancellationFeeDays: 1,
-    repeatOpponentExclusionDays: 7,
-    maximumActiveInvitationReservationsPerTargetTier: 1,
-    revengeStakeMultiplier: 2,
-    revengeFeeDays: 1,
-    stakeDaysByTierGap: [
-      { tierGap: 1, stakeDays: 1 },
-      { tierGap: 2, stakeDays: 2 },
-      { tierGap: 3, stakeDays: 3 },
-    ],
-    changeSummary: "현재 Ranked 운영 기준",
-  };
-  const mockPolicy = {
-    _id: "64b000000000000000000083",
-    displayName: "Matths 주간 공식 모의고사 이용권",
-    status: "ACTIVE",
-    effectiveFrom: new Date("2026-08-02T00:00:00+09:00"),
-    monthlyPriceAmount: 5500,
-    billingPeriodDays: 30,
-    placementCalibrationMinimumWeeklyExams: 4,
-    changeSummary: "현재 월 이용 가격",
-  };
-  const shopPolicy = {
-    _id: "64b000000000000000000084",
-    displayName: "Ranked 상점 운영 정책",
-    status: "ACTIVE",
-    effectiveFrom: new Date("2026-08-02T00:00:00+09:00"),
-    items: [
-      { itemCode: "MATCH_ANALYSIS", displayName: "Arena 경기 분석권", priceDays: 1, enabled: true },
-      { itemCode: "DEFENSE_REST", displayName: "방어 휴식권", priceDays: 1, enabled: true },
-      { itemCode: "DEFENSE_SCHEDULE_PROTECTION", displayName: "방어 일정 보호권", priceDays: 2, enabled: true },
-      { itemCode: "INVITATION_ACCELERATION", displayName: "초대 매칭 가속권", priceDays: 1, enabled: false },
-      { itemCode: "MAIN_PROFILE_BORDER", displayName: "Ranked 프로필 테두리", priceDays: 2, enabled: true },
-      { itemCode: "STYLE_ENTRANCE", displayName: "스타일 칭호·입장 연출", priceDays: 1, enabled: true },
-    ],
-  };
   res.render("admin-arena-policies", {
     user: { name: "preview-admin", role: "admin" },
     feedback: null,
     error: null,
-    oldInput: null,
     policyData: {
-      now,
-      paybackRules: { cycleDays: 29, minimumAttackParticipationDays: 15 },
-      sub: { activePolicy: subPolicy, upcomingPolicy: null, policies: [subPolicy] },
-      learningPackage: { activePolicy: subPolicy, policies: [subPolicy] },
-      policies: [subPolicy],
-      main: { activePolicy: mainPolicy, upcomingPolicy: null, policies: [mainPolicy] },
-      mockExamOnly: { now, activePolicy: mockPolicy, policies: [mockPolicy] },
-      mainShop: { activePolicy: shopPolicy, policies: [shopPolicy] },
+      generatedAt: now,
+      config: getAdminArenaPublicConfig(),
+      matchmaking: {
+        isPaused: false,
+        reason: "",
+        lastAdmissionAt: new Date("2026-08-03T09:57:00+09:00"),
+        admissionSequence: 1842,
+      },
+      profiles: {
+        total: 428,
+        unlocked: 301,
+        placed: 276,
+        awaitingPlacement: 152,
+        byTier: { T1: 48, T2: 61, T3: 57, T4: 44, T5: 31, T6: 20, T7: 10, T8: 4, T9: 1 },
+      },
+      records: {
+        NORMAL: { AVAILABLE: 1280, RESERVED: 7, REVIEW_REQUIRED: 12, INVALID: 4 },
+        COMPETITIVE: { AVAILABLE: 642, RESERVED: 0, REVIEW_REQUIRED: 3, INVALID: 1 },
+      },
+      matches: {
+        NORMAL: { IN_PROGRESS: 9, EVIDENCE_REQUIRED: 3, SETTLED: 842 },
+        COMPETITIVE: { SETTLED: 211 },
+        FRIENDLY: { IN_PROGRESS: 4, SETTLED: 196 },
+      },
+      activeMatchesByMode: { NORMAL: 12, COMPETITIVE: 0, FRIENDLY: 4 },
+      ratingSettlements: 211,
+      guestChallenges: { OPEN: 6, EXPIRED: 103, REVOKED: 2 },
+      guestParticipation: {
+        uniqueParticipants: 48,
+        attempts: { READY: 3, IN_PROGRESS: 5, EVIDENCE_REQUIRED: 2, SETTLED: 71 },
+      },
+      placementAdjustments: { SERVER_ERROR: 4, OPERATOR_RESET: 2 },
+      placementReviewQueue: [],
+      accountPlans: { FREE: 401, PRO: 27 },
     },
   });
 });
@@ -2432,10 +2104,10 @@ app.get("/preview/admin/arena-match-history", (_req, res) => {
     },
     {
       id: "64b000000000000000000722",
-      matchKey: "SUB:REVENGE:20260827:004",
+      matchKey: "ARENA2:NORMAL:20260827:004",
       seasonKey: "2026-S3",
       division: "SUB",
-      matchType: "REVENGE",
+      matchType: "NORMAL",
       tierPairLabel: "U2 → U1",
       status: "HELD",
       integrityStatus: "SUSPICIOUS",

@@ -218,6 +218,20 @@ stub("services/mmrService.js", {
   },
 });
 
+// This HTTP suite uses service fakes; durable receipt races are verified against
+// real MongoDB by verifyArenaAuditCommandsDb.js.
+const receipts = new Map();
+stub("models/arenaDeliveryModel.js", { ArenaNativeCommandReceipt: {
+  async create(input) {
+    const id = `${input.userId}:${input.key}`;
+    if (receipts.has(id)) throw Object.assign(new Error("duplicate"), { code: 11000 });
+    const row = { ...input, _id: id }; receipts.set(id, row); return row;
+  },
+  findOne(input) { return { select() { return this; }, async lean() { return receipts.get(`${input.userId}:${input.key}`); } }; },
+  async updateOne(filter, update) { const row = receipts.get(filter._id); if (row) Object.assign(row, update.$set); return { modifiedCount: row ? 1 : 0 }; },
+  async deleteOne(filter) { receipts.delete(filter._id); },
+} });
+
 delete require.cache[resolveFromRoot("middleware/apiAuthMiddleware.js")];
 delete require.cache[resolveFromRoot("controllers/ipadPlacementController.js")];
 const { requireApiAuth } = require(resolveFromRoot(
@@ -285,6 +299,8 @@ async function run() {
       headers: {
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
+        "idempotency-key": `placement-http-${require("node:crypto").randomUUID()}`,
+        "x-matths-client-version": "2.2-audit",
         ...(options.headers || {}),
       },
     });
@@ -299,6 +315,10 @@ async function run() {
     let payload = await response.json();
     assert.equal(payload.placement.status, "not-started");
 
+    const beforeMissingHeader = calls.length;
+    response = await fetch(`${base}/start`, { method: "POST", headers: { authorization: "Bearer placement-a" } });
+    assert.equal(response.status, 400);
+    assert.equal(calls.length, beforeMissingHeader);
     response = await request("placement-a", "/start", { method: "POST" });
     assert.equal(response.status, 200);
     payload = await response.json();

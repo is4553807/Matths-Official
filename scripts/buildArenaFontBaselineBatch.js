@@ -1,0 +1,11 @@
+"use strict";
+const fs=require('node:fs'),path=require('node:path');
+const {buildFontBaselineBatch}=require('../services/arenaNormalBaselineFontBatchService');
+const output=path.resolve(process.argv[2]||'output/baseline/normal30_20261012');
+const fonts=JSON.parse(fs.readFileSync(path.join(output,'fonts/font-manifest.json'),'utf8'));
+const manifest=buildFontBaselineBatch({fontManifest:fonts,questionCountPerTier:Number(process.argv[3]||30)});
+fs.mkdirSync(output,{recursive:true});fs.writeFileSync(path.join(output,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
+const correct={questions:manifest.questions.filter(q=>!q.baselineCorrect).map(q=>({baselineKey:q.baselineKey+'.correct',solutionEquations:q.correctSolutionEquations}))};
+fs.writeFileSync(path.join(output,'correct-reference-manifest.json'),JSON.stringify(correct,null,2)+'\n');
+fs.writeFileSync(path.join(output,'answer-data.json'),JSON.stringify(manifest.questions.map(q=>({baselineKey:q.baselineKey,tier:q.tier,typeId:q.question.typeId,answer:q.question.answer,submittedAnswer:q.baselineSubmittedAnswer,correct:q.baselineCorrect,correctSolutionProcess:q.question.solutionProcess,opponentEquations:q.solutionEquations,estimatedSolveTimeMs:q.baselineSolveTimeMs,isHumanSolveEvidence:false})),null,2)+'\n');
+console.log(JSON.stringify({questionCount:manifest.questionCount,correctCount:manifest.correctCount,wrongCount:manifest.intentionalWrongCount,tiers:manifest.tiers},null,2));

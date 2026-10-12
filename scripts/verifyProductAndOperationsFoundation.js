@@ -3,24 +3,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const ejs = require("ejs");
 
-const {
-  MockExamPackagePolicyVersion,
-  MockExamSubscription,
-} = require("../models/goatArenaModel");
 const { User } = require("../models/matthsModel");
 const {
-  DEFAULT_CALIBRATION_WEEKLY_EXAMS,
-  DEFAULT_MONTHLY_PRICE_AMOUNT,
-  policyView,
-} = require("../services/mockExamPackageService");
+  getAccountPlanConfig,
+} = require("../services/accountPlanService");
 const {
-  DEFAULT_LEARNING_PACKAGE_DAYS,
-  DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT,
-  learningPackagePolicyView,
-} = require("../services/arenaPolicyService");
-const {
-  getArenaRulebook,
-} = require("../services/arenaRulebookViewService");
+  getGoatArenaV22Rulebook,
+} = require("../services/goatArenaV22RulebookService");
 const {
   getAdminProblemBankCatalog,
 } = require("../services/problemBankCatalogService");
@@ -32,36 +21,11 @@ const root = path.resolve(__dirname, "..");
 const read = (file) =>
   fs.readFileSync(path.join(root, file), "utf8");
 
-assert.equal(DEFAULT_MONTHLY_PRICE_AMOUNT, 5500);
-assert.equal(DEFAULT_CALIBRATION_WEEKLY_EXAMS, 4);
-assert.equal(DEFAULT_LEARNING_PACKAGE_PRICE_AMOUNT, 29000);
-assert.equal(DEFAULT_LEARNING_PACKAGE_DAYS, 29);
-assert.equal(learningPackagePolicyView(null).priceAmount, 29000);
-assert.equal(learningPackagePolicyView(null).initialLearningDays, 29);
-assert.deepEqual(
-  {
-    price: policyView(null).monthlyPriceAmount,
-    weeklyMockExamAllowed: policyView(null).weeklyMockExamAllowed,
-    placementExamAllowed: policyView(null).placementExamAllowed,
-    goatArenaAllowed: policyView(null).goatArenaAllowed,
-  },
-  {
-    price: 5500,
-    weeklyMockExamAllowed: true,
-    placementExamAllowed: false,
-    goatArenaAllowed: false,
-  }
-);
-const mockExamPackageService = read("services/mockExamPackageService.js");
-assert.match(
-  mockExamPackageService,
-  /monthlyPriceAmount: 5000,[\s\S]*monthlyPriceAmount: DEFAULT_MONTHLY_PRICE_AMOUNT/,
-  "기존 운영 DB에 남아 있는 최초 5,000원 정책을 5,500원으로 보정해야 합니다."
-);
-
-assert.ok(MockExamPackagePolicyVersion.schema.path("monthlyPriceAmount"));
-assert.ok(MockExamPackagePolicyVersion.schema.path("placementExamAllowed"));
-assert.ok(MockExamSubscription.schema.path("endsAt"));
+assert.deepEqual(getAccountPlanConfig({}), {
+  proPriceAmount: 5500,
+  proBillingPeriodDays: 30,
+  currency: "KRW",
+});
 assert.ok(User.schema.path("totalConnectedSeconds"));
 assert.ok(User.schema.path("lastConnectedAt"));
 assert.equal(
@@ -87,34 +51,68 @@ for (const required of [
   '"/pricing/:product/parent-request"',
   '"/api/session/heartbeat"',
   '"/admin/problem-banks"',
-  '"/admin/arena-policies/mock-exam-only/price"',
-  '"/admin/arena-policies/learning-package/price"',
+  '"/admin/problem-banks/types/sync"',
+  '"/admin/arena-policies"',
+  '"/admin/arena-policies/matchmaking"',
+  '"/admin/arena-users/:userId/placement/reset"',
 ]) {
   assert.ok(routes.includes(required), `필수 경로가 없습니다: ${required}`);
+}
+for (const retired of [
+  '"/admin/arena-policies/mock-exam-only/price"',
+  '"/admin/arena-policies/learning-package/price"',
+  '"/admin/paybacks"',
+]) {
+  assert.ok(!routes.includes(retired), `종료된 운영 경로가 남아 있습니다: ${retired}`);
 }
 
 const pricing = read("views/pricing.ejs");
 const dashboard = read("views/main.ejs");
-const dashboardClient = read("public/js/main.js");
+const terms = read("views/terms.ejs");
+const privacy = read("views/privacy.ejs");
+const faq = read("views/faq.ejs");
 assert.ok(pricing.includes("본인 결제"));
 assert.ok(pricing.includes("부모님께 결제 요청하기"));
-assert.ok(pricing.includes('/pricing/mock-exam-only/self'));
-assert.ok(pricing.includes('/pricing/mock-exam-only/parent-request'));
-assert.ok(pricing.includes('/pricing/learning-package/self'));
-assert.ok(pricing.includes('/pricing/learning-package/parent-request'));
-assert.ok(pricing.includes("지금 바로 시작하기"));
-assert.ok(pricing.includes("기본학습 패키지"));
+assert.ok(pricing.includes('/pricing/pro/self'));
+assert.ok(pricing.includes('/pricing/pro/parent-request'));
+assert.ok(!pricing.includes('/pricing/mock-exam-only/'));
+assert.ok(!pricing.includes('/pricing/learning-package/'));
+assert.ok(pricing.includes("가입하고 시작하기"));
+assert.ok(pricing.includes("무료 플랜"));
+assert.ok(pricing.includes("Pro 플랜"));
+assert.ok(pricing.includes("5,500"));
 assert.ok(pricing.includes("평가센터 유형별 문제 풀이"));
-assert.ok(pricing.includes("배치고사"));
-assert.ok(pricing.includes("최초 배치고사 1회"));
 assert.ok(pricing.includes("GOAT Arena"));
 const warOfMasters = read("views/war-of-masters.ejs");
-assert.ok(warOfMasters.includes("모든 회원 최초 1회 무료"));
+assert.ok(warOfMasters.includes("유효한 일반전 3경기"));
+assert.ok(warOfMasters.includes("1~5회 배치"));
+assert.ok(warOfMasters.includes("미응시 불이익 없음"));
+assert.doesNotMatch(warOfMasters, /페이백|\bGP\b|Unranked|Ranked|학습일수/);
 assert.ok(routes.includes("assertPlacementExamAccess"));
-assert.ok(dashboard.includes("data-access-renewal-dialog"));
-assert.ok(dashboard.includes("72시간 내 재구매 예상 위치"));
-assert.ok(dashboard.includes("기한 후 랭크 복귀전 최고 위치"));
-assert.ok(dashboardClient.includes("data-renewal-countdown"));
+assert.ok(dashboard.includes("무료 플랜"));
+assert.ok(dashboard.includes("Pro 플랜"));
+assert.ok(dashboard.includes("5500"));
+assert.ok(!dashboard.includes("data-access-renewal-dialog"));
+assert.ok(!dashboard.includes("72시간 내 재구매 예상 위치"));
+for (const [name, view] of [
+  ["terms", terms],
+  ["privacy", privacy],
+  ["faq", faq],
+]) {
+  assert.doesNotMatch(
+    view,
+    /페이백|\bGP\b|Unranked|Ranked|학습일수|경기 예치|일요일 잠금/,
+    `${name} 공개 문서에 폐기된 Arena 정책 문구가 남아 있습니다.`
+  );
+  assert.match(view, /일반전/);
+  assert.match(view, /경쟁전/);
+  assert.match(view, /단체 도전장/);
+  assert.match(view, /3일/);
+  assert.match(view, /5,500원/);
+}
+assert.match(terms, /요일과 관계없이 24시간/);
+assert.match(faq, /문항당 10분|각 문항의 제한 시간은 (?:최대 )?10분/);
+assert.match(privacy, /실력 및 문제 난도가 비슷한 유저/);
 
 const parentRoutes = read("routes/parent-routes.js");
 const parentDashboard = read("views/parent-dashboard.ejs");
@@ -131,7 +129,7 @@ for (const required of [
 }
 assert.ok(parentRegister.includes("readonly"));
 assert.ok(parentDashboard.includes("오답률"));
-assert.ok(parentDashboard.includes("최종 종합 랭킹"));
+assert.ok(parentDashboard.includes("경쟁전 전체 랭킹"));
 assert.ok(parentPricing.includes("결제하기"));
 assert.ok(parentPricing.includes("온라인 결제 준비 중"));
 assert.equal(parentPricing.includes("PG 연결 전"), false);
@@ -143,12 +141,12 @@ assert.ok(checkoutService.includes("isInicisConfigured"));
 const accessService = read("services/paidFeatureAccessService.js");
 const privateMockService = read("services/privateMockExamService.js");
 const mmrService = read("services/mmrService.js");
-assert.ok(accessService.includes("getMockExamPackageAccess"));
-assert.ok(privateMockService.includes('"mock-exam-only-ready"'));
+assert.ok(accessService.includes("getAccountPlanAccess"));
+assert.ok(privateMockService.includes("Pro 플랜이 활성화"));
 assert.ok(
-  accessService.includes('packageType: "MOCK_EXAM_ONLY"') &&
+  accessService.includes("packageType: plan.code") &&
     accessService.includes("placementRequired: true"),
-  "모의고사 전용 이용권도 배치고사로 첫 티어를 확정해야 합니다."
+  "Pro 플랜도 배치고사로 첫 티어를 확정해야 합니다."
 );
 assert.ok(mmrService.includes("weeklyExamCount >= 4"));
 assert.ok(mmrService.includes('eventType: "placement-calibration"'));
@@ -175,73 +173,20 @@ for (const item of catalog.items) {
 const arenaRoutes = read("routes/goat-arena-routes.js");
 const arenaHome = read("views/goat-arena.ejs");
 const rulebook = read("views/goat-arena-rules.ejs");
+const rulebookIndex = read("views/goat-arena-rules-index.ejs");
 assert.ok(arenaRoutes.includes('"/goat-arena/rules/sub"'));
 assert.ok(arenaRoutes.includes('"/goat-arena/rules/main"'));
-assert.ok(arenaHome.includes("Unranked 공식 규정"));
-assert.ok(arenaHome.includes("Ranked 공식 규정"));
-assert.ok(rulebook.includes("<details"));
-assert.ok(rulebook.includes("현재 적용 기준"));
+assert.ok(arenaRoutes.includes("goatArenaController.rulesPage"));
+assert.ok(arenaHome.includes("일반전 시작하기"));
+assert.ok(arenaHome.includes("경쟁전 살펴보기"));
+assert.ok(!arenaHome.includes("페이백"));
+assert.ok(!arenaHome.includes("Z-score"));
+assert.ok(rulebookIndex.includes("공통 경기 방식"));
+assert.ok(rulebookIndex.includes("mode.href"));
+assert.ok(rulebook.includes("티어별 문제 난이도"));
+assert.ok(rulebook.includes("arena-difficulty-plan-table"));
+assert.ok(rulebook.includes("<details>"));
 assert.ok(rulebook.includes("최근 수정일"));
-
-const subRulebook = getArenaRulebook("SUB", {
-  paybackPolicy: {
-    displayName: "검증용 29일 학습 패키지",
-    priceAmount: 29000,
-    initialLearningDays: 29,
-    initialPaybackScoreDays: 29,
-    payback: {
-      minimumAttackParticipationDays: 15,
-      minimumScoreDays: 30,
-      bands: [
-        { minScoreDays: 0, maxScoreDays: 29, ratePercent: 0 },
-        { minScoreDays: 30, maxScoreDays: 34, ratePercent: 50 },
-        { minScoreDays: 35, maxScoreDays: null, ratePercent: 100 },
-      ],
-    },
-    updatedAt: new Date("2026-08-02T00:00:00+09:00"),
-  },
-});
-assert.equal(subRulebook.paybackPolicy.priceAmount, 29000);
-assert.equal(subRulebook.paybackPolicy.minimumAttackParticipationDays, 15);
-assert.equal("minimumPaidNormalAttacks" in subRulebook.paybackPolicy, false);
-assert.equal(subRulebook.paybackPolicy.bands[1].expectedPaybackAmount, 14500);
-assert.equal(
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(subRulebook.paybackPolicy.lastModifiedAt),
-  "2026-08-02"
-);
-assert.equal(getArenaRulebook("MAIN").paybackPolicy, null);
-const mainRulebook = getArenaRulebook("MAIN", {
-  mainPolicy: {
-    code: "MAIN-20260802-RULEBOOK-TEST",
-    displayName: "Ranked 검증 운영 기준",
-    maximumTargetTierGap: 2,
-    stakeDaysByTierGap: [
-      { tierGap: 1, stakeDays: 2 },
-      { tierGap: 2, stakeDays: 4 },
-    ],
-    repeatOpponentExclusionDays: 9,
-    revengeStakeMultiplier: 3,
-    revengeFeeDays: 1,
-    effectiveFrom: new Date("2026-08-02T14:30:00+09:00"),
-    effectiveUntil: null,
-    updatedAt: new Date("2026-08-02T14:35:00+09:00"),
-  },
-});
-assert.equal(mainRulebook.mainPolicy.maximumTargetTierGap, 2);
-assert.deepEqual(mainRulebook.mainPolicy.stakeDaysByTierGap, [
-  { tierGap: 1, stakeDays: 2 },
-  { tierGap: 2, stakeDays: 4 },
-]);
-assert.ok(
-  JSON.stringify(mainRulebook.rules).includes(
-    "상향 쟁탈전의 최대 티어 차이는 3단계입니다."
-  )
-);
 
 const adminUserDetail = read("views/admin-user-detail.ejs");
 assert.ok(adminUserDetail.includes('const isAdminProfile = member.role === "admin"'));
@@ -289,7 +234,7 @@ const paidWeeklyMockHtml =
   renderAdminWeeklyMockAccess({
     weeklyMockAccess: {
       active: true,
-      packageType: "LEARNING_PACKAGE",
+      packageType: "PRO",
     },
   });
 assert.ok(
@@ -298,13 +243,13 @@ assert.ok(
   )
 );
 assert.ok(paidWeeklyMockHtml.includes("응시 가능"));
-assert.ok(paidWeeklyMockHtml.includes("29일 학습권 패키지"));
+assert.ok(paidWeeklyMockHtml.includes("Pro 플랜"));
 
 const restrictedWeeklyMockHtml =
   renderAdminWeeklyMockAccess({
     weeklyMockAccess: {
       active: true,
-      packageType: "MOCK_EXAM_ONLY",
+      packageType: "PRO",
     },
     privateMockRestriction: {
       active: true,
@@ -325,7 +270,7 @@ assert.ok(
 assert.ok(restrictedWeeklyMockHtml.includes("남은 제한 2회(2주)"));
 for (const hiddenAdminSection of [
   "학습 진행",
-  "배치·랭킹",
+  "경쟁전 배치·MMR",
   "DIRECT ACTIONS",
   "게시판 활동",
   "문의 이력",
@@ -371,7 +316,7 @@ const renderedAdmin = ejs.render(adminUserDetail, adminRenderData, {
 });
 for (const hiddenFromAdminHtml of [
   "학습 진행",
-  "배치·랭킹",
+  "경쟁전 배치·MMR",
   "DIRECT ACTIONS",
   "게시판 활동",
   "문의 이력",
@@ -397,36 +342,29 @@ for (const visibleOnAdminHtml of [
 }
 
 const renderedRulebook = ejs.render(rulebook, {
-  rulebook: subRulebook,
+  rulebook: getGoatArenaV22Rulebook(new Date("2026-10-09T00:00:00+09:00"), "SUB"),
   activeArenaPage: "rules",
   arenaUser: { nickname: "검증사용자" },
 }, {
   filename: path.join(root, "views/goat-arena-rules.ejs"),
 });
-assert.ok(renderedRulebook.includes("29,000원"));
-assert.ok(renderedRulebook.includes("14,500원"));
-assert.ok(renderedRulebook.includes("2026년 8월 2일"));
-
-const renderedMainRulebook = ejs.render(rulebook, {
-  rulebook: mainRulebook,
-  activeArenaPage: "rules",
-  arenaUser: { nickname: "검증사용자" },
-}, {
-  filename: path.join(root, "views/goat-arena-rules.ejs"),
-});
-assert.ok(renderedMainRulebook.includes("Ranked 경기 예치 기준"));
-assert.ok(renderedMainRulebook.includes("최대 티어 차이"));
-assert.ok(renderedMainRulebook.includes("3단계"));
-assert.ok(renderedMainRulebook.includes("2~5일 예치"));
-assert.ok(renderedMainRulebook.includes("2026년 8월 2일 14:30"));
-assert.ok(!renderedMainRulebook.includes("MAIN-20260802-RULEBOOK-TEST"));
+assert.ok(renderedRulebook.includes("일반전 경기 규정"));
+assert.ok(renderedRulebook.includes("각 문항의 제한 시간은 10분"));
+assert.match(renderedRulebook, /내부 (?:평가|성취 지표)/);
+assert.ok(renderedRulebook.includes("티어별 문제 난이도"));
+assert.ok(renderedRulebook.includes("브론즈"));
+assert.ok(!renderedRulebook.includes("Z-score"));
+assert.ok(!renderedRulebook.includes("Glicko"));
+assert.ok(!renderedRulebook.includes("비활성"));
+assert.ok(!renderedRulebook.includes("페이백"));
 
 const goatArenaController = read("controllers/goatArenaController.js");
-assert.ok(goatArenaController.includes("bypassCache: true"));
-assert.ok(goatArenaController.includes("mainPolicy,"));
+assert.ok(goatArenaController.includes("exports.rulesPage = rulesPage()"));
+assert.ok(goatArenaController.includes('exports.subRulesPage = rulesPage("SUB")'));
+assert.ok(goatArenaController.includes('exports.mainRulesPage = rulesPage("MAIN")'));
+assert.ok(goatArenaController.includes("rulebook: goatArenaV2Rulebook(new Date(), division)"));
 
 for (const terminologyFile of [
-  "services/arenaRulebookViewService.js",
   "views/goat-arena.ejs",
   "views/goat-arena-division.ejs",
   "views/goat-arena-profile.ejs",
@@ -442,7 +380,27 @@ for (const terminologyFile of [
     `예치로 바뀌지 않은 표현이 있습니다: ${terminologyFile}`
   );
 }
-assert.ok(renderedRulebook.includes("예치"));
+assert.ok(!renderedRulebook.includes("예치"));
+
+const server = read("server.js");
+const evidenceService = read("services/arenaMatchEvidenceService.js");
+const financeService = read("services/financeService.js");
+const adminFinanceController = read("controllers/ipadAdminFinanceController.js");
+const adminDashboard = read("views/admin-dashboard.ejs");
+for (const retiredRuntime of [
+  "startAccessCycleScheduler",
+  "startDailyAccessCycleScheduler",
+  "startAccessCycleExpiryReminderScheduler",
+  "reconcileOpenPaybackAttackParticipation",
+  "ensureDefaultLearningPackagePolicy",
+  "ensureDefaultMockExamPackagePolicy",
+]) {
+  assert.ok(!server.includes(retiredRuntime), `서버 시작 경로에 폐기된 경제 작업이 남아 있습니다: ${retiredRuntime}`);
+}
+assert.ok(!evidenceService.includes("recordPaybackAttackLearningDay"));
+for (const source of [financeService, adminFinanceController, adminDashboard]) {
+  assert.doesNotMatch(source, /legacyObligationReserve|confirmedUnpaidPayback|paybackReserve/);
+}
 
 console.log(
   "상품 정책·MMR 보정·접속시간·문제은행·규정 정책 표·관리자 상세 분기 검증 완료"

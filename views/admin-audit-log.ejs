@@ -40,7 +40,7 @@
 
       <form class="admin-filter-form admin-audit-filter" method="get" action="/admin/audit-log">
         <label><span>처리 운영자</span><select name="admin"><option value="">전체 운영자</option><% audit.admins.forEach((admin) => { %><option value="<%= admin._id %>" <%= String(admin._id) === audit.filters.adminUserId ? 'selected' : '' %>><%= personName(admin, '운영자') %> · <%= admin.email %></option><% }) %></select></label>
-        <label class="wide"><span>조치·사용자·상세 검색</span><input type="search" name="query" value="<%= audit.filters.query %>" maxlength="120" placeholder="예: 페이백, 경고, 사용자 이메일" /></label>
+        <label class="wide"><span>조치·사용자·상세 검색</span><input type="search" name="query" value="<%= audit.filters.query %>" maxlength="120" placeholder="예: 플랜 변경, 경고, 사용자 이메일" /></label>
         <button type="submit">조회</button>
         <a href="/admin/audit-log">초기화</a>
       </form>

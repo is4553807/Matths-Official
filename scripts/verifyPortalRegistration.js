@@ -81,7 +81,7 @@ async function main() {
     async function inviteChild(parentEmail, child = null) {
       const student = child || await createUser("student", "초대 자녀");
       const token = crypto.randomBytes(32).toString("base64url");
-      const invite = await ParentInvite.create({ childUserId: student._id, parentEmail, productCode: "LEARNING_PACKAGE_29", tokenHash: digest(token), expiresAt: new Date(Date.now() + 3600000) });
+      const invite = await ParentInvite.create({ childUserId: student._id, parentEmail, productCode: "PRO_MONTHLY", tokenHash: digest(token), expiresAt: new Date(Date.now() + 3600000) });
       return { token, invite, student };
     }
 

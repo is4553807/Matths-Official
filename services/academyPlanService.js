@@ -19,7 +19,7 @@ function inactiveAcademyPlan(reason = "ACADEMY_MEMBERSHIP_REQUIRED") {
 
 /*
  * 학원 플랜은 별도 결제 문서가 아니라 승인된 학원 소속과 학원 계약으로 부여됩니다.
- * 29일 학습권(AccessCycle)과는 서로 다른 축이므로 둘은 동시에 활성화될 수 있습니다.
+ * 계정 플랜과 학원 수업 계획은 서로 독립적으로 관리합니다.
  */
 async function getActiveAcademyPlan(
   userId,

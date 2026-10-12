@@ -5,9 +5,7 @@ const mongoose = require("mongoose");
 const root = path.join(__dirname, "..");
 const servicePath = require.resolve(path.join(root, "services/appleCommerceService.js"));
 const modelPath = require.resolve(path.join(root, "models/goatArenaModel.js"));
-const paybackModelPath = require.resolve(path.join(root, "models/paybackModel.js"));
-const accessPath = require.resolve(path.join(root, "services/accessCycleService.js"));
-const mockPath = require.resolve(path.join(root, "services/mockExamPaymentService.js"));
+const accountPlanPath = require.resolve(path.join(root, "services/accountPlanService.js"));
 const verifyPath = require.resolve(path.join(root, "services/appleStoreVerifyService.js"));
 const ownershipPath = require.resolve(
   path.join(root, "services/appleCommerceAccountTokenService.js")
@@ -21,6 +19,8 @@ const payments = [];
 const tokenOwners = new Map([[tokenA, userA], [tokenB, userB]]);
 const approvals = [];
 let notification;
+const previousProProductId = process.env.APPLE_PRO_PRODUCT_ID;
+process.env.APPLE_PRO_PRODUCT_ID = "kr.matths.app.pro.monthly";
 
 function chain(value) {
   return {
@@ -48,39 +48,26 @@ require.cache[modelPath] = {
   filename: modelPath,
   loaded: true,
   exports: {
-    AccessCycle: {},
-    ArenaAccessState: {},
     ArenaPackagePayment,
-    ArenaPaybackReview: {},
-    MockExamSubscription: {},
   },
 };
-require.cache[paybackModelPath] = {
-  id: paybackModelPath,
-  filename: paybackModelPath,
-  loaded: true,
-  exports: { PaybackPayoutRecord: {} },
-};
-require.cache[accessPath] = {
-  id: accessPath,
-  filename: accessPath,
+require.cache[accountPlanPath] = {
+  id: accountPlanPath,
+  filename: accountPlanPath,
   loaded: true,
   exports: {
-    async applyApprovedPackagePayment(approval) {
+    async applyApprovedProPayment(approval) {
       approvals.push(approval);
       payments.push({ ...approval });
       return { payment: approval };
     },
-  },
-};
-require.cache[mockPath] = {
-  id: mockPath,
-  filename: mockPath,
-  loaded: true,
-  exports: {
-    async applyApprovedMockExamPayment() {
-      throw new Error("unexpected mock-exam product");
-    },
+    freePlanDraft() { return { code: "FREE" }; },
+    getProAppleProductId() { return process.env.APPLE_PRO_PRODUCT_ID || ""; },
+    isProAppleProductConfigured() { return true; },
+    RETIRED_APPLE_PRODUCT_IDS: [
+      "kr.matths.app.pass.29d",
+      "kr.matths.app.mock.30d",
+    ],
   },
 };
 require.cache[verifyPath] = {
@@ -114,7 +101,7 @@ const { handleAppleNotification } = require(servicePath);
 function transaction(overrides = {}) {
   return {
     bundleId: "kr.matths.app",
-    productId: "kr.matths.app.pass.29d",
+    productId: "kr.matths.app.pro.monthly",
     transactionId: "2000000000000001",
     originalTransactionId: "1000000000000001",
     appAccountToken: tokenA,
@@ -122,13 +109,28 @@ function transaction(overrides = {}) {
     purchaseDate: "2026-09-01T00:00:00.000Z",
     expiresDate: "2026-10-01T00:00:00.000Z",
     currency: "KRW",
-    price: 29000000,
+    price: 5500000,
     revocationDate: null,
     ...overrides,
   };
 }
 
 async function run() {
+  notification = {
+    bundleId: "kr.matths.app",
+    notificationType: "DID_RENEW",
+    transaction: transaction({
+      productId: "kr.matths.app.pass.29d",
+      transactionId: "retired-renewal",
+      originalTransactionId: "retired-original",
+    }),
+  };
+  const retired = await handleAppleNotification("signed-retired-renewal");
+  assert.equal(retired.handled, true);
+  assert.equal(retired.granted, false);
+  assert.equal(retired.reason, "PRODUCT_RETIRED");
+  assert.equal(approvals.length, 0, "판매 종료 상품 갱신이 새 권한을 열면 안 됩니다.");
+
   notification = {
     bundleId: "kr.matths.app",
     notificationType: "SUBSCRIBED",
@@ -218,4 +220,7 @@ async function run() {
 
 run().finally(() => {
   delete require.cache[servicePath];
+  delete require.cache[accountPlanPath];
+  if (previousProProductId === undefined) delete process.env.APPLE_PRO_PRODUCT_ID;
+  else process.env.APPLE_PRO_PRODUCT_ID = previousProProductId;
 });

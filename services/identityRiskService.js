@@ -183,7 +183,7 @@ async function alertPotentialDuplicateIdentity(
       title:
         "동일 실명·생년월일·고등학교 계정 검토 필요",
       description:
-        "실명·생년월일·고등학교가 모두 일치하는 활성 계정 묶음이 발견되었습니다. 비교 계정 전체를 검토 대상으로 표시했으며, 페이백 또는 계좌 연결 전에 동일인 여부를 확인해주세요.",
+        "실명·생년월일·고등학교가 모두 일치하는 활성 계정 묶음이 발견되었습니다. 비교 계정 전체를 검토 대상으로 표시했으니 동일인 여부를 확인해주세요.",
       href: `/admin/users/${user._id}`,
       targetUserId: user._id,
       actorUserId: user._id,
