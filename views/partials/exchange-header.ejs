@@ -1,0 +1,8 @@
+<header class="exchange-header">
+  <a class="exchange-brand" href="/exchange"><img src="/images/brand/matths-logo-light.svg" alt="Matths" width="94" height="29" /><strong>Exchange</strong></a>
+  <nav class="exchange-sections" aria-label="Exchange 화면">
+    <a href="/exchange/mpi" <%= exchangePage === "mpi" ? 'aria-current=page' : '' %>>MPI 지수</a>
+    <a href="/exchange/futures" <%= exchangePage === "futures" ? 'aria-current=page' : '' %>>Futures</a>
+  </nav>
+  <a class="header-link" href="/exchange/dashboard" <%= exchangePage === "dashboard" ? 'aria-current=page' : '' %>>대시보드</a>
+</header>

@@ -1,7 +1,7 @@
 const express = require("express");
 const { isObjectIdOrHexString } = require("mongoose");
 const auth = require("../middleware/authMiddleware");
-const { serviceUrl, exchangeUrl } = require("../services/serviceUrlService");
+const { exchangeUrl } = require("../services/serviceUrlService");
 const { ExchangeMpiDemo, ExchangeWallet } = require("../models/exchangeModel");
 const {
   ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, setPaused, syncWeeklyMarkets,
@@ -9,6 +9,8 @@ const {
 const { INITIAL_TP, placeOrder, cancelOrder, registerResult, voidMarket } = require("../services/exchangeTradingService");
 const { terminalState, orderView, adminState, leaderboard } = require("../services/exchangeService");
 
+const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
+const { dashboardState } = require("../services/exchangeDashboardService");
 const { startMpiDemo, mpiState } = require("../services/exchangeMpiService");
 
 const router = express.Router();
@@ -34,13 +36,13 @@ function apiLogin(req, res, next) {
 }
 
 function mpiSelection(req) {
-  return { marketId: req.query.market ? id(req.query.market) : undefined, demo: req.query.demo === "1" };
+  return { marketId: req.query.market ? id(req.query.market) : undefined, interval: intervalFor(req.query.interval).code };
 }
 
 router.get("/exchange/mpi", privateResponse, async (req, res) => {
   res.render("exchange-mpi", {
     initial: await mpiState(mpiSelection(req)),
-    dashboardHref: serviceUrl("app", "/main"),
+    intervals: OPTIONS,
     disablePageAnalytics: true,
   });
 });
@@ -52,17 +54,25 @@ router.get("/api/exchange/mpi", privateResponse, async (req, res) => {
 async function showFutures(req, res) {
   const userId = viewer(req);
   const selection = req.params.marketId || req.query.market;
-  const initial = await terminalState({ userId, marketId: selection ? id(selection) : undefined });
+  const chartInterval = intervalFor(req.query.interval).code;
+  const initial = await terminalState({ userId, marketId: selection ? id(selection) : undefined, interval: chartInterval });
   const wallet = userId ? await ExchangeWallet.findById(userId).select("rankingVisible").lean() : null;
   res.render("exchange", { initial, signedIn: Boolean(userId), rankingVisible: wallet?.rankingVisible === true,
     activity: req.path === "/exchange/rankings" ? "ranking" : "positions",
-    dashboardHref: serviceUrl("app", "/main"), loginHref: serviceUrl("public", "/login?next=%2Fexchange"),
-    brandHref: exchangeUrl(), disablePageAnalytics: true });
+    intervals: OPTIONS, chartInterval, disablePageAnalytics: true });
 }
 
 router.get("/exchange", privateResponse, showFutures);
 router.get("/exchange/futures", privateResponse, showFutures);
-router.get(["/exchange/markets/:marketId", "/exchange/portfolio", "/exchange/rankings"], privateResponse, showFutures);
+router.get("/exchange/markets/:marketId", privateResponse, showFutures);
+router.get("/exchange/rankings", privateResponse, showFutures);
+
+async function showDashboard(req, res) {
+  res.render("exchange-dashboard", { data: await dashboardState(viewer(req)), disablePageAnalytics: true });
+}
+
+router.get("/exchange/dashboard", privateResponse, auth.isLoggedIn, auth.isStudent, showDashboard);
+router.get("/exchange/portfolio", privateResponse, auth.isLoggedIn, auth.isStudent, showDashboard);
 
 router.get(["/api/exchange/markets", "/api/exchange/markets/current", "/api/exchange/markets/:marketId",
   "/api/exchange/markets/:marketId/chart"], privateResponse, async (req, res) => {
@@ -120,7 +130,7 @@ router.post("/admin/exchange/markets/:marketId/mpi-demo", ...admin, async (req, 
   }
   if (req.body.action !== "start") throw error(400, "MPI 시연 작업을 선택해 주세요.");
   await startMpiDemo({ marketId, actorId: viewer(req) });
-  const query = new URLSearchParams({ market: marketId, demo: "1" });
+  const query = new URLSearchParams({ market: marketId });
   return res.redirect(303, exchangeUrl(`/exchange/mpi?${query}`));
 });
 

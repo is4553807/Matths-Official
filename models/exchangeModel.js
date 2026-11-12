@@ -71,6 +71,7 @@ order.index({ userId: 1, commandId: 1 }, { unique: true });
 order.index({ marketId: 1, status: 1, side: 1, price: 1, sequence: 1 });
 order.index({ marketId: 1, status: 1, side: 1, price: -1, sequence: 1 });
 order.index({ marketId: 1, userId: 1, acceptedAt: -1 });
+order.index({ userId: 1, status: 1, acceptedAt: -1 });
 
 const position = new Schema({
   marketId: objectId,
@@ -83,6 +84,7 @@ const position = new Schema({
   tradeId: objectId,
 }, options);
 position.index({ marketId: 1, userId: 1, direction: 1, _id: 1 });
+position.index({ userId: 1, updatedAt: -1 });
 
 const trade = new Schema({
   marketId: objectId,

@@ -11,7 +11,7 @@ const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const STAGES = { scheduled: "개장 예정", waiting: "개장 조건 대기", open: "거래 중", paused: "일시 중지",
   verifying: "성적 검증 중", "awaiting-result": "성적 발표 대기", settling: "정산 중", settled: "정산 완료", void: "시장 취소" };
-const INTERVALS = { "1m": 60_000, "5m": 300_000, "1h": 3_600_000 };
+const { intervalFor, candleWindow, aggregateCandles } = require("./exchangeChartService");
 
 function marketView(market, now) {
   const status = publicState(market, now);
@@ -42,18 +42,11 @@ async function marketList(now) {
 }
 
 async function chart(marketId, interval, now) {
-  const milliseconds = Object.hasOwn(INTERVALS, interval) ? INTERVALS[interval] : INTERVALS["1m"];
-  const start = new Date((Math.floor(+now / milliseconds) - 95) * milliseconds);
-  return ExchangeTrade.aggregate([
-    { $match: { marketId, tradedAt: { $gte: start, $lte: now } } },
-    { $sort: { tradedAt: 1, sequence: 1 } },
-    { $group: {
-      _id: { $subtract: [{ $toLong: "$tradedAt" }, { $mod: [{ $toLong: "$tradedAt" }, milliseconds] }] },
-      open: { $first: "$price" }, high: { $max: "$price" }, low: { $min: "$price" }, close: { $last: "$price" },
-      volume: { $sum: "$quantity" },
-    } },
-    { $sort: { _id: 1 } },
-  ]);
+  const { ms } = intervalFor(interval, "1m");
+  return aggregateCandles(ExchangeTrade, {
+    match: { marketId, tradedAt: { $gte: new Date(candleWindow(now, ms)), $lte: now } },
+    dateField: "tradedAt", priceField: "price", ms, volume: true,
+  });
 }
 
 function orderView(row) {
@@ -109,7 +102,7 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
     ]),
     ExchangeTrade.find({ marketId: market._id }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
       .select("price quantity tradedAt").lean(),
-    chart(market._id, interval, new Date(Math.min(+now, +market.closeAt))),
+    chart(market._id, interval, new Date(Math.min(+now, +(market.lastTradeAt || market.closeAt)))),
     ExchangeTick.find({ marketId: market._id, publishAt: { $lte: now } }).sort({ publishAt: -1 }).limit(120)
       .select("mpi sampledAt publishAt populationCount sampleCount").lean(),
     ownMarketState(market, userId, now),

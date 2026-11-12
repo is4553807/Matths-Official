@@ -6,6 +6,8 @@ const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("
 const { WebSession } = require("../models/sessionModel");
 const { serviceHostRedirectLocation } = require("../middleware/serviceHostRouting");
 const { saveSchedule, saveMinimum, syncWeeklyMarkets, seoulInput, calculateSample } = require("../services/exchangeMarketService");
+const { dashboardState } = require("../services/exchangeDashboardService");
+const { OPTIONS } = require("../services/exchangeChartService");
 const { mpiState, startMpiDemo } = require("../services/exchangeMpiService");
 const { terminalState, runExchangeTick } = require("../services/exchangeService");
 const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket } = require("../services/exchangeTradingService");
@@ -60,7 +62,22 @@ async function testHttp() {
     const mpiResponse = await fetch(`${origin}/exchange/mpi`);
     assert.equal(mpiResponse.status, 200);
     const mpiHtml = await mpiResponse.text();
-    assert.match(mpiHtml, /표본 지수 추이/);
+    assert.match(mpiHtml, /표본 지수 캔들/);
+    assert.match(mpiHtml, /href="\/exchange\/dashboard"/);
+    assert.doesNotMatch(mpiHtml, /data-mpi-source/);
+    assert.deepEqual(OPTIONS.slice(0, 5).map((item) => item.code), ["1s", "15m", "1h", "4h", "3d"]);
+    for (const { code } of OPTIONS) {
+      assert.ok(mpiHtml.includes(`data-interval="${code}"`));
+      assert.ok(html.includes(`data-interval="${code}"`));
+    }
+    assert.match(mpiHtml, /aria-label="차트 확대"/);
+    const guestDashboard = await fetch(`${origin}/exchange/dashboard`, { redirect: "manual" });
+    assert.equal(guestDashboard.status, 302);
+    const dashboard = await fetch(`${origin}/exchange/dashboard`, { headers: { Cookie: student } });
+    assert.equal(dashboard.status, 200);
+    const dashboardHtml = await dashboard.text();
+    assert.match(dashboardHtml, /Exchange 대시보드[\s\S]+2,000 TP[\s\S]+현재 포지션[\s\S]+포지션 히스토리/);
+    assert.match(dashboardHtml, /href="\/exchange\/dashboard" aria-current=page/);
     assert.doesNotMatch(mpiHtml, /id="order-form"|id="asks"/);
     const unauthenticated = await fetch(`${origin}/api/exchange/markets/${objectId()}/orders`, {
       method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: "{}",
@@ -153,14 +170,40 @@ async function main() {
     assert.equal(await PrivateMockExamAttempt.countDocuments({ examId: exam._id }), 3);
     assert.equal(await ExchangeTick.countDocuments(), 1);
     assert.equal(await ExchangeTrade.countDocuments(), 0);
-    const demoState = await mpiState({ marketId: weekly._id, demo: true, now: new Date(+midweek + 50_000) });
+    const sampleNow = new Date(+midweek + 50_000);
+    const demoState = await mpiState({ marketId: weekly._id, now: sampleNow });
     assert.equal(demoState.source, "demo");
-    assert.equal(demoState.ticks.at(-1).populationCount, 90);
-    assert.ok(new Set(demoState.ticks.map((tick) => tick.mpi)).size > 10);
+    assert.equal(demoState.latest.populationCount, 90);
+    assert.ok(new Set(demoState.candles.map((candle) => candle.close)).size > 10);
+    assert.ok(demoState.candles.every((candle) => candle.open === candle.high && candle.low === candle.close && candle.open === candle.close));
+    const larger = await mpiState({ marketId: weekly._id, interval: "15m", now: sampleNow });
+    assert.equal(larger.candles.length, 1);
+    assert.equal(larger.candles[0].open, demoState.candles[0].open);
+    assert.equal(larger.candles[0].close, demoState.latest.mpi);
+    assert.equal(larger.candles[0].high, Math.max(...demoState.candles.map((row) => row.high)));
+    assert.equal(larger.candles[0].low, Math.min(...demoState.candles.map((row) => row.low)));
+    const day = await mpiState({ marketId: weekly._id, interval: "3d", now: sampleNow });
+    assert.equal(day.interval, "3d");
+    assert.equal(day.candles.at(-1).close, demoState.latest.mpi);
     const official = await mpiState({ marketId: weekly._id, now: new Date(+midweek + 30 * 60 * 1000) });
     assert.equal(official.source, "official");
-    assert.equal(official.ticks.at(-1).mpi, 700);
-    assert.equal(official.ticks.at(-1).populationCount, 3);
+    assert.equal(official.latest.mpi, 700);
+    assert.equal(official.latest.populationCount, 3);
+    assert.equal(official.candles.at(-1).close, 700);
+    const publishedAt = new Date(+midweek + 30 * 60 * 1000);
+    const firstOfficial = await mpiState({ marketId: weekly._id, interval: "15m", now: publishedAt });
+    assert.equal(firstOfficial.candles.at(-1).open, 700);
+    await ExchangeTick.create([720, 680, 710].map((mpi, index) => ({
+      marketId: weekly._id, mpi, populationCount: 3, sampleCount: 3,
+      sampledAt: new Date(+midweek + (index + 1) * 1000),
+      publishAt: new Date(+publishedAt + (index + 1) * 1000),
+      expiresAt: new Date(+midweek + 7 * 24 * 60 * 60 * 1000),
+    })));
+    const nextOfficial = await mpiState({ marketId: weekly._id, interval: "15m", now: new Date(+publishedAt + 3000) });
+    const lastCandle = nextOfficial.candles.at(-1);
+    assert.deepEqual([lastCandle.open, lastCandle.high, lastCandle.low, lastCandle.close], [700, 720, 680, 710]);
+    assert.equal(nextOfficial.source, "official");
+
 
     const sell = await order(weekly, seller, "short", 640, 2, midweek);
     const commandId = randomUUID();
@@ -168,6 +211,14 @@ async function main() {
     const replay = await order(weekly, buyer, "long", 650, 1, midweek, { commandId });
     assert.equal(String(replay._id), String(buy._id));
     assert.equal(buy.status, "filled");
+    const sellerDashboard = await dashboardState(seller, midweek);
+    assert.equal(sellerDashboard.available, 1280);
+    assert.equal(sellerDashboard.positionCollateral, 360);
+    assert.equal(sellerDashboard.reserved, 360);
+    assert.equal(sellerDashboard.total, 2000);
+    assert.equal(sellerDashboard.positions[0].notional, 640);
+    assert.equal(sellerDashboard.orders[0].remaining, 1);
+    assert.equal((await dashboardState(objectId(), midweek)).positions.length, 0);
     assert.equal(await ExchangeTrade.countDocuments(), 1);
     assert.equal((await ExchangeMarket.findById(weekly._id)).lastPrice, 640);
     await cancelOrder({ orderId: sell._id, userId: seller });
@@ -176,6 +227,13 @@ async function main() {
     const view = await terminalState({ marketId: String(weekly._id), userId: buyer, now: midweek });
     assert.deepEqual(view.candles.map((row) => [row.open, row.high, row.low, row.close, row.volume]), [[640, 680, 640, 680, 2]]);
     assert.equal(view.own.positions[0].realized, 40);
+    const buyerDashboard = await dashboardState(buyer, midweek);
+    assert.equal(buyerDashboard.positions.length, 0);
+    assert.equal(buyerDashboard.history[0].status, "청산 완료");
+    assert.equal(buyerDashboard.history[0].realized, 40);
+    assert.equal(buyerDashboard.total, 2040);
+    const tradeCandles = await terminalState({ marketId: String(weekly._id), interval: "1s", now: midweek });
+    assert.deepEqual(tradeCandles.candles.map((row) => [row.open, row.high, row.low, row.close]), [[640, 680, 640, 680]]);
     await assert.rejects(order(weekly, nextBuyer, "long", 650, 1, weekClose), { status: 409 });
 
     await PrivateMockExam.updateOne({ _id: exam._id }, { $set: { status: "locked", settlementCompletedAt: weekClose } });

@@ -1,0 +1,20 @@
+<div class="chart-toolbar" data-chart-toolbar aria-label="차트 도구">
+  <div class="chart-periods" aria-label="봉 간격">
+    <% for (const item of intervals.slice(0, 5)) { %>
+      <button type="button" data-interval="<%= item.code %>" data-ms="<%= item.ms %>" aria-pressed="<%= item.code === activeInterval %>"><%= item.label %></button>
+    <% } %>
+    <details class="chart-more">
+      <summary data-interval-menu>더 보기</summary>
+      <div class="chart-menu" aria-label="추가 봉 간격">
+        <% for (const item of intervals.slice(5)) { %>
+          <button type="button" data-interval="<%= item.code %>" data-ms="<%= item.ms %>" aria-pressed="<%= item.code === activeInterval %>"><%= item.label %></button>
+        <% } %>
+      </div>
+    </details>
+  </div>
+  <div class="chart-zoom" aria-label="차트 확대·축소">
+    <button type="button" data-zoom="in" aria-label="차트 확대">+</button>
+    <button type="button" data-zoom="out" aria-label="차트 축소">−</button>
+    <button type="button" data-zoom="reset" aria-label="차트 확대 초기화">초기화</button>
+  </div>
+</div>

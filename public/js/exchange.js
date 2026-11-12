@@ -13,7 +13,6 @@
   });
   const time = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
   const labels = { weekly: "맵쓰 주간 모의고사", mock: "실제 모의고사", csat: "수능" };
-  const intervalMs = { "1m": 60000, "5m": 300000, "1h": 3600000 };
   const activityEmpty = {
     positions: "표시할 포지션이 없습니다.", working: "미체결 주문이 없습니다.", history: "주문 내역이 없습니다.",
     trades: "체결 내역이 없습니다.", ranking: "공개에 동의한 정산 기록이 없습니다.",
@@ -22,7 +21,7 @@
   let state = JSON.parse(root.dataset.state);
   let filter = state.market?.type || "weekly";
   let marketId = state.market?.id;
-  let interval = "1m";
+  const chart = window.MatthsExchangeChart.create(canvas, { volume: true, averages: true, onInterval: () => { void refresh(); } });
   let action = "open";
   let activity = root.dataset.activityStart;
   let ranking = [];
@@ -124,87 +123,6 @@
     if (destination.firstElementChild?.outerHTML !== rendered.outerHTML) destination.replaceChildren(rendered);
   }
 
-  function draw() {
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    if (!width || !height) return;
-    const ratio = window.devicePixelRatio || 1;
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
-    const ctx = canvas.getContext("2d");
-    ctx.scale(ratio, ratio);
-    const market = selectedMarket();
-    const candles = market ? state.candles || [] : [];
-    const left = 12, right = width - 49, top = 13, bottom = height - 57;
-    const prices = candles.flatMap((row) => [row.low, row.high]);
-    const low = prices.length ? Math.max(0, Math.min(...prices) - 12) : 0;
-    const high = prices.length ? Math.min(1000, Math.max(...prices) + 12) : 1000;
-    ctx.font = "10px system-ui";
-    ctx.fillStyle = "#8996a9";
-    ctx.strokeStyle = "#252d3b";
-    for (let i = 0; i <= 5; i += 1) {
-      const y = top + (bottom - top) * i / 5;
-      ctx.beginPath();
-      ctx.moveTo(left, y);
-      ctx.lineTo(right, y);
-      ctx.stroke();
-      ctx.fillText(number(high - (high - low) * i / 5), right + 6, y + 3);
-    }
-    for (let i = 0; i <= 6; i += 1) {
-      const x = left + (right - left) * i / 6;
-      ctx.beginPath();
-      ctx.moveTo(x, top);
-      ctx.lineTo(x, bottom + 33);
-      ctx.stroke();
-    }
-    if (!candles.length) return;
-
-    const values = candles.map((row) => row._id);
-    const end = Math.max(...values) + intervalMs[interval];
-    const start = Math.min(Math.min(...values), end - 7 * intervalMs[interval]);
-    const x = (value) => left + (right - left) * (value - start) / (end - start);
-    const y = (value) => bottom - (bottom - top) * (value - low) / (high - low);
-    const barWidth = Math.max(2, Math.min(10, (right - left) * intervalMs[interval] / (end - start) * .7));
-    const maxVolume = Math.max(1, ...candles.map((row) => row.volume));
-    for (const row of candles) {
-      const xx = x(row._id);
-      const color = row.close >= row.open ? "#4cd2ac" : "#f580a0";
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(xx, y(row.high));
-      ctx.lineTo(xx, y(row.low));
-      ctx.stroke();
-      ctx.fillRect(xx - barWidth / 2, Math.min(y(row.open), y(row.close)), barWidth, Math.max(1, Math.abs(y(row.open) - y(row.close))));
-      ctx.globalAlpha = .35;
-      ctx.fillRect(xx - barWidth / 2, bottom + 32 - row.volume / maxVolume * 29, barWidth, row.volume / maxVolume * 29);
-      ctx.globalAlpha = 1;
-    }
-
-    function plot(points, color) {
-      if (!points.length) return;
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      points.forEach(([at, value], index) => {
-        if (index) ctx.lineTo(x(at), y(value));
-        else ctx.moveTo(x(at), y(value));
-      });
-      ctx.stroke();
-      if (points.length === 1) ctx.fillRect(x(points[0][0]) - 2, y(points[0][1]) - 2, 4, 4);
-    }
-    for (const [size, color] of [[5, "#f6c557"], [10, "#c08ff6"]]) {
-      plot(candles.slice(size - 1).map((row, index) => [
-        row._id, candles.slice(index, index + size).reduce((sum, point) => sum + point.close, 0) / size,
-      ]), color);
-    }
-    ctx.fillStyle = "#8996a9";
-    for (let i = 0; i < 5; i += 1) {
-      const at = start + (end - start) * i / 4;
-      ctx.fillText(time.format(new Date(at)).slice(0, 5), Math.min(right - 23, x(at)), height - 5);
-    }
-  }
-
   function countdown() {
     const market = selectedMarket();
     if (!market) return text("market-countdown", "KST · 개장 대기");
@@ -289,7 +207,7 @@
     countdown();
     updateOrder();
     calculate();
-    draw();
+    chart.update(market ? state.candles || [] : []);
   }
 
   async function fetchJson(url, body) {
@@ -305,7 +223,7 @@
   async function refresh() {
     const sequence = ++request;
     try {
-      const params = new URLSearchParams({ interval });
+      const params = new URLSearchParams({ interval: chart.interval });
       if (marketId) params.set("market", marketId);
       const updated = await fetchJson(`/api/exchange/markets?${params}`);
       if (sequence !== request) return;
@@ -334,18 +252,14 @@
 
   for (const button of document.querySelectorAll("[data-filter]")) button.addEventListener("click", () => {
     filter = button.dataset.filter;
+    chart.reset();
     marketId = state.markets.find((row) => row.type === filter && row.status === "open")?.id
       || state.markets.find((row) => row.type === filter)?.id;
     noticeUntil = 0;
     render();
     void refresh();
   });
-  select.addEventListener("change", () => { marketId = select.value; noticeUntil = 0; void refresh(); });
-  for (const button of root.querySelectorAll("[data-interval]")) button.addEventListener("click", () => {
-    interval = button.dataset.interval;
-    for (const item of root.querySelectorAll("[data-interval]")) item.setAttribute("aria-pressed", item === button);
-    void refresh();
-  });
+  select.addEventListener("change", () => { marketId = select.value; chart.reset(); noticeUntil = 0; void refresh(); });
   for (const button of form.querySelectorAll("[data-action]")) button.addEventListener("click", () => {
     action = button.dataset.action;
     for (const item of form.querySelectorAll("[data-action]")) item.setAttribute("aria-pressed", item === button);
@@ -404,7 +318,6 @@
     } catch (cause) { box.checked = !box.checked; report(cause.message); }
     finally { box.disabled = false; }
   });
-  new ResizeObserver(draw).observe(canvas);
   render();
   if (activity === "ranking") root.querySelector('[data-activity="ranking"]').click();
   setInterval(() => {

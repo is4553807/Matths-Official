@@ -6,21 +6,15 @@
   <title>MPI 지수 | Matths Exchange</title>
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
   <link rel="stylesheet" href="/css/exchange.css" />
+  <script src="/js/exchange-chart.js" defer></script>
   <script src="/js/exchange-mpi.js" defer></script>
 </head>
 <body>
-  <header class="exchange-header">
-    <a class="exchange-brand" href="/exchange"><img src="/images/brand/matths-logo-light.svg" alt="Matths" width="94" height="29" /><strong>Exchange</strong></a>
-    <nav class="exchange-sections" aria-label="Exchange 화면">
-      <a href="/exchange/mpi" aria-current="page">MPI 지수</a>
-      <a href="/exchange/futures">Futures</a>
-    </nav>
-    <a class="header-link" href="<%= dashboardHref %>">대시보드<span aria-hidden="true">↗</span></a>
-  </header>
+  <%- include("partials/exchange-header", { exchangePage: "mpi" }) %>
   <main id="exchange-mpi" class="terminal" data-state="<%= JSON.stringify(initial) %>">
     <section class="market-bar mpi-summary" aria-labelledby="mpi-title">
       <div class="market-identity">
-        <div class="market-label"><span id="mpi-source" class="market-status"><%= initial.source === "demo" ? "더미 점수 시연" : "30분 지연 · 공식 표본" %></span></div>
+        <div class="market-label"><span id="mpi-source" class="market-status"><%= initial.source === "demo" ? "시연 데이터" : "30분 지연 · 공식 표본" %></span></div>
         <h1 id="mpi-title">MPI 지수</h1>
         <p id="mpi-market-name"><%= initial.market?.title || "맵쓰 주간 모의고사" %></p>
       </div>
@@ -33,15 +27,14 @@
     </section>
     <section class="panel mpi-panel" aria-labelledby="mpi-chart-heading">
       <header class="panel-heading">
-        <h2 id="mpi-chart-heading">표본 지수 추이</h2>
+        <h2 id="mpi-chart-heading">표본 지수 캔들</h2>
         <label class="market-select" id="mpi-select-wrap" hidden>회차 <select id="mpi-select" aria-label="회차 선택"></select></label>
-        <div class="chart-periods" id="mpi-source-controls" hidden aria-label="표본 출처">
-          <button type="button" data-mpi-source="official">공식 표본</button>
-          <button type="button" data-mpi-source="demo">더미 시연</button>
-        </div>
+
       </header>
+        <%- include("partials/exchange-chart-controls", { intervals, activeInterval: initial.interval }) %>
+        <output class="candle-summary" data-candle-summary aria-label="캔들 시가·고가·저가·종가"></output>
       <div class="chart-area">
-        <canvas id="mpi-chart" role="img" aria-label="시간에 따른 표본 MPI 지수 추이"></canvas>
+        <canvas id="mpi-chart" role="img" aria-label="표본 MPI 시가·고가·저가·종가 캔들"></canvas>
         <div class="chart-empty" id="mpi-empty"><strong>공개된 표본이 없습니다</strong><p>유효 응시 성적이 집계되면 지수가 표시됩니다.</p></div>
       </div>
       <footer class="chart-foot"><span id="mpi-note">유효 응시자의 평균 원점수를 0–1,000 범위로 표시합니다.</span><span id="mpi-connection"></span></footer>

@@ -309,4 +309,4 @@ async function processMarket(market, now = new Date()) {
   });
 }
 
-module.exports = { INITIAL_TP, TP_SCALE, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket };
+module.exports = { INITIAL_TP, TP_SCALE, collateral, ensureTradeAccess, placeOrder, cancelOrder, registerResult, voidMarket, processMarket };
