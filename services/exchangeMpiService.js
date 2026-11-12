@@ -1,6 +1,6 @@
 const { ExchangeMarket, ExchangeMpiDemo, ExchangeTick } = require("../models/exchangeModel");
 const {
-  calculateSample, error, publicState, readWeeklyExam, weeklyExamReady, publicSampleScope, sampleWithCutoff,
+  calculateSample, error, publicState, readMpiMinimum, readWeeklyExam, weeklyExamReady, publicSampleScope, sampleWithCutoff,
 } = require("./exchangeMarketService");
 const { marketList, marketView } = require("./exchangeService");
 
@@ -89,7 +89,7 @@ function demoChart(demo, now, interval) {
 async function officialChart(visible, startsAt, now, latest, interval) {
   const cutoff = candleWindow(latest.publishAt, interval.ms) - (interval.code === "1s" ? 1000 : 0);
   const through = +latest.publishAt;
-  const key = `official:${visible.marketId}:${interval.code}:${startsAt ? +startsAt : "legacy"}`;
+  const key = `official:${visible.marketId}:${interval.code}:${visible.populationCount.$gte}:${startsAt ? +startsAt : "legacy"}`;
   const last = chartCache.get(key);
   if (last?.through === through && +now - last.updated < 60_000) return last;
   const reusable = last && last.through < through && last.through >= cutoff && +now - last.updated < 60_000;
@@ -121,39 +121,48 @@ async function officialChart(visible, startsAt, now, latest, interval) {
   return result;
 }
 
-async function mpiState({ marketId, interval: requestedInterval, before, now = new Date() } = {}) {
+async function readDemoSeries(market, interval, before, now) {
+  if (!["open", "paused"].includes(publicState(market, now))) return null;
+  const preview = await ExchangeMpiDemo.findOne({
+    _id: market._id, examId: market.examId, startedAt: { $lte: now }, expiresAt: { $gt: now },
+  }).lean();
+  if (!preview) return null;
+  const anchor = before ? new Date(Math.min(+before - 1, +now)) : now;
+  if (anchor < preview.startedAt) return { latest: null, candles: [], startedAt: preview.startedAt };
+  const { latest, candles } = demoChart(preview, anchor, interval);
+  return { latest, candles: indexCandles(candles, interval.ms), startedAt: preview.startedAt };
+}
+
+async function mpiState({ marketId, interval: requestedInterval, demoInterval: requestedDemoInterval, before, now = new Date() } = {}) {
   const interval = intervalFor(requestedInterval, "1m");
+  const demoInterval = intervalFor(requestedDemoInterval, interval.code);
   const choices = (await marketList(now)).filter((market) => market.type === "weekly");
   const selected = marketId ? choices.find((market) => String(market._id) === String(marketId))
     : choices.find((market) => market.opensAt <= now && now < market.closeAt && market.phase === "scheduled")
       || choices.find((market) => market.opensAt > now);
   const markets = choices.map((market) => marketView(market, now));
-  const base = { market: selected ? marketView(selected, now) : null, markets, interval: interval.code };
-  if (!selected) return { ...base, latest: null, candles: [], source: "official" };
+  const base = { market: selected ? marketView(selected, now) : null, markets, interval: interval.code,
+    demoInterval: demoInterval.code, latest: null, candles: [], source: "official", demo: null };
+  if (!selected) return { ...base, minimumMpiAttempts: await readMpiMinimum() };
 
-  const { filter, startsAt, firstMinuteAt } = await publicSampleScope(selected._id, now);
-  const visible = { ...filter, mpi: { $gte: 0 } };
-  const latest = await ExchangeTick.findOne(visible).sort({ publishAt: -1 })
+  const [minimumMpiAttempts, { filter, startsAt, firstMinuteAt }, demo] = await Promise.all([
+    readMpiMinimum(selected), publicSampleScope(selected._id, now), readDemoSeries(selected, demoInterval, before, now),
+  ]);
+  const latestFilter = { ...filter, mpi: { $gte: 0 } };
+  const latest = await ExchangeTick.findOne(latestFilter).sort({ publishAt: -1 })
     .select("mpi sampledAt dataCutoffAt publishAt populationCount sampleCount").lean();
-  if (latest) {
+  if (latest && latest.populationCount >= minimumMpiAttempts) {
+    const visible = { ...latestFilter, populationCount: { $gte: minimumMpiAttempts } };
     const anchor = before ? await ExchangeTick.findOne({ ...visible, publishAt: { $lte: now, $lt: before } })
       .sort({ publishAt: -1 }).select("publishAt").lean() : latest;
     const { candles, prior } = anchor ? await officialChart(visible, startsAt, now, anchor, interval) : { candles: [] };
-    return { ...base, latest: sampleWithCutoff(latest),
-      candles: indexCandles(candles, interval.ms, { prior, carryFrom: firstMinuteAt }), source: "official" };
+    return { ...base, minimumMpiAttempts, latest: sampleWithCutoff(latest), demo,
+      candles: indexCandles(candles, interval.ms, { prior, carryFrom: firstMinuteAt }) };
   }
-  if (publicState(selected, now) === "open") {
-    const preview = await ExchangeMpiDemo.findOne({
-      _id: selected._id, examId: selected.examId, startedAt: { $lte: now }, expiresAt: { $gt: now },
-    }).lean();
-    if (preview) {
-      const anchor = before ? new Date(Math.min(+before - 1, +now)) : now;
-      if (anchor < preview.startedAt) return { ...base, latest: null, candles: [], source: "demo" };
-      const { latest: demoLatest, candles } = demoChart(preview, anchor, interval);
-      return { ...base, latest: demoLatest, candles: indexCandles(candles, interval.ms), source: "demo" };
-    }
-  }
-  return { ...base, latest: null, candles: [], source: "official" };
+
+  // Keep the existing demo-only response shape for clients that read the primary series.
+  if (demo) return { ...base, minimumMpiAttempts, ...demo, source: "demo" };
+  return { ...base, minimumMpiAttempts };
 }
 
 module.exports = { startMpiDemo, mpiState };

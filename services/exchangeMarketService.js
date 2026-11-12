@@ -104,6 +104,12 @@ async function readSetting(session) {
   return setting?.minimumAttempts ?? 0;
 }
 
+async function readMpiMinimum(market) {
+  if (market?.minimumMpiAttempts != null) return market.minimumMpiAttempts;
+  const setting = await ExchangeSetting.findById("default").select("minimumMpiAttempts").lean();
+  return setting?.minimumMpiAttempts ?? 1;
+}
+
 function publicState(market, now = new Date()) {
   if (market.phase === "void") return "void";
   if (market.phase === "settled") return "settled";
@@ -184,6 +190,22 @@ async function saveMinimum({ marketId, value, actorId }) {
       await ExchangeSetting.updateOne({ _id: "default" }, { $set: { minimumAttempts } }, { upsert: true, session });
     }
     await new ExchangeEvent({ marketId, actorId, action: "minimum", detail: { minimumAttempts } }).save({ session });
+  });
+}
+
+async function saveMpiMinimum({ marketId, value, actorId, now = new Date() }) {
+  const minimumMpiAttempts = marketId && value === "" ? null : integer(value, 1, 1_000_000, "공식 MPI 공개 최소 인원");
+  await mongoose.connection.transaction(async (session) => {
+    if (marketId) {
+      const update = minimumMpiAttempts === null ? { $unset: { minimumMpiAttempts: "" } } : { $set: { minimumMpiAttempts } };
+      const changed = await ExchangeMarket.updateOne(
+        { _id: marketId, type: "weekly", phase: "scheduled", closeAt: { $gt: now } }, update, { session }
+      );
+      if (!changed.matchedCount) throw error(409, "마감 전 주간 시장만 공식 MPI 공개 최소 인원을 변경할 수 있습니다.");
+    } else {
+      await ExchangeSetting.updateOne({ _id: "default" }, { $set: { minimumMpiAttempts } }, { upsert: true, session });
+    }
+    await new ExchangeEvent({ marketId, actorId, action: "mpi-minimum", detail: { minimumMpiAttempts } }).save({ session });
   });
 }
 
@@ -285,6 +307,6 @@ async function saveSample(market, now = new Date()) {
 
 module.exports = {
   ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
-  readSetting, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, setPaused, calculateSample,
+  readSetting, readMpiMinimum, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum, setPaused, calculateSample,
   sampleMinute, publicSampleScope, sampleWithCutoff, saveSample,
 };

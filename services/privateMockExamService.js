@@ -9268,7 +9268,9 @@ async function reviewPrivateMockIntegrityCase({
   await integrityCase.save();
   const completed = normalizedReview === "completed";
   const cleared = completed && normalizedPenalty === "no_penalty";
-  const integrityStatus = completed ? (cleared ? "CLEAR" : "INVALIDATED") : "PENDING_INTEGRITY_REVIEW";
+  const integrityStatus = completed
+    ? (normalizedPenalty === "penalty" ? "INVALIDATED" : "CLEAR")
+    : "PENDING_INTEGRITY_REVIEW";
   await PrivateMockExamAttempt.updateOne(
     { _id: integrityCase.attemptId },
     {

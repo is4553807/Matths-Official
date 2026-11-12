@@ -4,7 +4,7 @@ const {
   ExchangeMarket, ExchangeOrder, ExchangeTrade, ExchangeTick, ExchangeWallet, ExchangeAccount, ExchangePosition, ExchangeEvent,
 } = models;
 const {
-  publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, syncWeeklyMarkets, saveSample,
+  publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, syncWeeklyMarkets, saveSample,
   publicSampleScope, sampleWithCutoff, sampleMinute,
 } = require("./exchangeMarketService");
 const { INITIAL_TP, TP_SCALE, processMarket } = require("./exchangeTradingService");
@@ -86,12 +86,17 @@ async function ownMarketState(market, userId, now) {
     })) };
 }
 
-async function marketSamples(market, now, limit) {
+async function marketSamples(market, now, limit, { forAdmin = false } = {}) {
   if (market.type !== "weekly") return [];
-  const { filter } = await publicSampleScope(market._id, now);
-  const ticks = await ExchangeTick.find(filter).sort({ publishAt: -1 }).limit(limit)
-    .select("mpi sampledAt dataCutoffAt publishAt populationCount sampleCount").lean();
-  return ticks.map(sampleWithCutoff);
+  const [{ filter }, minimumMpiAttempts] = await Promise.all([
+    publicSampleScope(market._id, now),
+    forAdmin ? null : readMpiMinimum(market),
+  ]);
+  const ticks = await ExchangeTick.find(forAdmin ? filter : { ...filter, mpi: { $gte: 0 } })
+    .sort({ publishAt: -1 }).limit(limit).select("mpi sampledAt dataCutoffAt publishAt populationCount sampleCount").lean();
+  if (forAdmin) return ticks.map(sampleWithCutoff);
+  if (!(ticks[0]?.populationCount >= minimumMpiAttempts)) return [];
+  return ticks.filter((tick) => tick.populationCount >= minimumMpiAttempts).map(sampleWithCutoff);
 }
 
 async function terminalState({ marketId, userId, interval = "1m", marketType, now = new Date() } = {}) {
@@ -147,8 +152,8 @@ async function leaderboard() {
 }
 
 async function adminState(year, grade, now = new Date()) {
-  const [markets, settings, events, schedules, sourceExams] = await Promise.all([
-    marketList(now), readSetting(), ExchangeEvent.find().sort({ createdAt: -1 }).limit(25).lean(),
+  const [markets, settings, minimumMpiAttempts, events, schedules, sourceExams] = await Promise.all([
+    marketList(now), readSetting(), readMpiMinimum(), ExchangeEvent.find().sort({ createdAt: -1 }).limit(25).lean(),
     ExchangeMarket.find({ year, grade, type: { $in: ["mock", "csat"] } }).lean(),
     PrivateMockExam.find({ formCode: "WEEKLY", isTest: { $ne: true }, closeAt: { $gt: now } })
       .select("title status releaseAt closeAt questionCount archiveItemId +answerKey +points").sort({ releaseAt: 1 }).limit(12).lean(),
@@ -157,10 +162,12 @@ async function adminState(year, grade, now = new Date()) {
   for (const market of markets) {
     const [openOrders, [latestTick]] = await Promise.all([
       ExchangeOrder.countDocuments({ marketId: market._id, status: "working" }),
-      marketSamples(market, now, 1),
+      marketSamples(market, now, 1, { forAdmin: true }),
     ]);
     controls.push({ ...marketView(market, now), openOrders, latestTick, appliedMinimum: market.appliedMinimum,
-      minimumAttempts: market.minimumAttempts ?? settings, escrow: market.escrow / TP_SCALE, reason: market.reason,
+      minimumAttempts: market.minimumAttempts ?? settings,
+      minimumMpiAttempts: market.minimumMpiAttempts ?? minimumMpiAttempts, mpiMinimumOverride: market.minimumMpiAttempts,
+      escrow: market.escrow / TP_SCALE, reason: market.reason,
       settlementSource: market.settlementSource, population: market.population });
   }
   const exams = [];
@@ -171,7 +178,7 @@ async function adminState(year, grade, now = new Date()) {
     ]);
     exams.push({ id: String(exam._id), title: exam.title, status: exam.status, releaseAt: exam.releaseAt, count, ready, file: Boolean(file) });
   }
-  return { markets: controls, settings, events, schedules, exams };
+  return { markets: controls, settings, minimumMpiAttempts, events, schedules, exams };
 }
 
 async function runExchangeTick(now = new Date(), maintain = true, sample = true) {

@@ -18,6 +18,7 @@ const market = new Schema({
   openedAt: Date,
   bookClosedAt: Date,
   minimumAttempts: Number,
+  minimumMpiAttempts: Number,
   appliedMinimum: Number,
   paused: { type: Boolean, default: false },
   phase: { type: String, enum: ["scheduled", "settling", "settled", "void"], default: "scheduled" },
@@ -39,7 +40,11 @@ const market = new Schema({
 market.index({ phase: 1, closeAt: 1 });
 market.index({ type: 1, opensAt: -1 });
 
-const setting = new Schema({ _id: String, minimumAttempts: { type: Number, default: 0 } }, options);
+const setting = new Schema({
+  _id: String,
+  minimumAttempts: { type: Number, default: 0 },
+  minimumMpiAttempts: { type: Number, default: 1 },
+}, options);
 const wallet = new Schema({ _id: objectId, available: balance(), rankingVisible: { type: Boolean, default: false } }, options);
 const account = new Schema({
   marketId: { type: objectId, required: true },

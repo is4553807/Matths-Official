@@ -16,9 +16,13 @@
   <main id="exchange-mpi" class="terminal" data-state="<%= JSON.stringify(initial) %>">
     <section class="market-bar mpi-summary" aria-labelledby="mpi-title">
       <div class="market-identity">
-        <div class="market-label"><span id="mpi-source" class="market-status"><%= initial.source === "demo" ? "시연 데이터" : "공식 표본" %></span></div>
+        <div class="market-label">
+          <span class="market-status">공식 표본</span>
+          <a id="mpi-demo-link" class="small-link" href="#mpi-demo-panel" <%= initial.source === "demo" || initial.demo ? "" : "hidden" %>>시연 MPI 보기</a>
+        </div>
         <h1 id="mpi-title">MPI 지수</h1>
         <p id="mpi-market-name"><%= initial.market?.title || "맵쓰 주간 모의고사" %></p>
+        <label class="market-select" id="mpi-select-wrap" hidden>회차 <select id="mpi-select" aria-label="회차 선택"></select></label>
       </div>
       <dl class="market-metrics">
         <div><dt>최근 표본 MPI</dt><dd id="mpi-value">—</dd></div>
@@ -28,20 +32,34 @@
         <div><dt>제출 반영 기준 · KST</dt><dd id="mpi-cutoff">—</dd></div>
       </dl>
     </section>
-    <section class="panel mpi-panel" aria-labelledby="mpi-chart-heading">
-      <header class="panel-heading">
-        <h2 id="mpi-chart-heading">표본 지수 캔들</h2>
-        <label class="market-select" id="mpi-select-wrap" hidden>회차 <select id="mpi-select" aria-label="회차 선택"></select></label>
-
-      </header>
+    <div class="mpi-charts">
+      <section class="panel mpi-panel" aria-labelledby="mpi-chart-heading">
+        <header class="panel-heading"><h2 id="mpi-chart-heading">공식 표본 지수 캔들</h2></header>
         <%- include("partials/exchange-chart-controls", { intervals, activeInterval: initial.interval }) %>
-        <output class="candle-summary" data-candle-summary aria-label="캔들 시가·고가·저가·종가"></output>
-      <div class="chart-area">
-        <canvas id="mpi-chart" role="img" aria-label="표본 MPI 시가·고가·저가·종가 캔들"></canvas>
-        <div class="chart-empty" id="mpi-empty"><strong>집계된 표본이 없습니다</strong><p>유효 응시 성적이 집계되면 지수가 표시됩니다.</p></div>
-      </div>
-      <footer class="chart-foot"><span id="mpi-note">새 유효 응시가 반영되는 분에 MPI를 다시 계산합니다.</span><span id="mpi-connection"></span></footer>
-    </section>
+        <output class="candle-summary" data-candle-summary aria-label="공식 MPI 시가·고가·저가·종가"></output>
+        <div class="chart-area">
+          <canvas id="mpi-chart" role="img" aria-label="공식 MPI 캔들"></canvas>
+          <div class="chart-empty" id="mpi-empty">
+            <strong>공식 MPI 공개 대기</strong>
+            <p id="mpi-waiting">유효 응시 <%= initial.minimumMpiAttempts.toLocaleString("ko-KR") %>명부터 표시됩니다.</p>
+          </div>
+        </div>
+        <footer class="chart-foot"><span>새 유효 응시가 반영되는 분에 MPI를 다시 계산합니다.</span><span id="mpi-connection" role="status"></span></footer>
+      </section>
+      <section class="panel mpi-panel mpi-demo-panel" id="mpi-demo-panel" aria-labelledby="mpi-demo-heading" <%= initial.source === "demo" || initial.demo ? "" : "hidden" %>>
+        <header class="panel-heading">
+          <h2 id="mpi-demo-heading">시연 MPI</h2>
+          <dl class="mpi-demo-metrics">
+            <div><dt>시연 지수</dt><dd id="mpi-demo-value">—</dd></div>
+            <div><dt>모집단 / 추출 표본</dt><dd id="mpi-demo-count">—</dd></div>
+          </dl>
+        </header>
+        <%- include("partials/exchange-chart-controls", { intervals, activeInterval: initial.demoInterval }) %>
+        <output class="candle-summary" data-candle-summary aria-label="시연 MPI 시가·고가·저가·종가"></output>
+        <div class="chart-area"><canvas id="mpi-demo-chart" role="img" aria-label="시연 MPI 캔들"></canvas></div>
+        <footer class="chart-foot">이 회차의 시연용 점수로 계산한 지수입니다.</footer>
+      </section>
+    </div>
   </main>
 </body>
 </html>

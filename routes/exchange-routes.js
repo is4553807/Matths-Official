@@ -4,7 +4,7 @@ const auth = require("../middleware/authMiddleware");
 const { exchangeUrl } = require("../services/serviceUrlService");
 const { ExchangeMpiDemo, ExchangeWallet } = require("../models/exchangeModel");
 const {
-  ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, setPaused, syncWeeklyMarkets,
+  ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, saveMpiMinimum, setPaused, syncWeeklyMarkets,
 } = require("../services/exchangeMarketService");
 const { INITIAL_TP, placeOrder, cancelOrder, registerResult, voidMarket } = require("../services/exchangeTradingService");
 const { terminalState, futuresChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
@@ -46,7 +46,7 @@ function historyBefore(value) {
 
 function mpiSelection(req) {
   return { marketId: req.query.market ? id(req.query.market) : undefined,
-    interval: req.query.interval, before: historyBefore(req.query.before) };
+    interval: req.query.interval, demoInterval: req.query.demoInterval, before: historyBefore(req.query.before) };
 }
 
 router.get("/exchange/mpi", privateResponse, async (req, res) => {
@@ -137,6 +137,12 @@ router.post("/admin/exchange/minimum", ...admin, async (req, res) => {
   await syncWeeklyMarkets();
   adminRedirect(res);
 });
+router.post("/admin/exchange/mpi-minimum", ...admin, async (req, res) => {
+  await saveMpiMinimum({ marketId: req.body.marketId ? id(req.body.marketId) : undefined,
+    value: req.body.minimumMpiAttempts, actorId: viewer(req) });
+  adminRedirect(res, req.body);
+});
+
 router.post("/admin/exchange/markets/:marketId/mpi-demo", ...admin, async (req, res) => {
   const marketId = id(req.params.marketId);
   if (req.body.action === "remove") {
