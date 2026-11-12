@@ -119,20 +119,10 @@ const PRIVATE_MOCK_SUBMISSION_SETTLEMENT_MS =
   PRIVATE_MOCK_SUBMISSION_CLAIM_LEASE_MS;
 const PRIVATE_MOCK_FORM_SCHEDULES =
   Object.freeze({
-    A: {
+    WEEKLY: {
       attemptNumber: 1,
       releaseHour: 15,
-      label: "오후 3:00 ~ 오후 4:40",
-    },
-    B: {
-      attemptNumber: 2,
-      releaseHour: 18,
-      label: "오후 6:00 ~ 오후 7:40",
-    },
-    C: {
-      attemptNumber: 3,
-      releaseHour: 21,
-      label: "오후 9:00 ~ 오후 10:40",
+      label: "일요일 15:00 공개 ~ 토요일 12:00 마감",
     },
     CUSTOM: {
       attemptNumber: 0,
@@ -969,14 +959,12 @@ function parseSeoulReleaseAt(value) {
   if (
     seoulClock.getUTCDay() !==
       0 ||
-    ![15, 18, 21].includes(
-      hour
-    ) ||
+    hour !== 15 ||
     minute !== 0
   ) {
     throw statusError(
       400,
-      "Matths 주간 공식 모의고사는 한국시간 기준 일요일 오후 3시·6시·9시에만 공개할 수 있습니다."
+      "Matths 주간 공식 모의고사는 한국시간 기준 일요일 15시에만 공개할 수 있습니다."
     );
   }
 
@@ -1006,7 +994,7 @@ function parsePrivateMockExamDate(
   if (!formSchedule) {
     throw statusError(
       400,
-      "시험형은 A, B, C 또는 CUSTOM 중에서 선택해주세요."
+      "공개 일정은 주간 모의고사 또는 CUSTOM 중에서 선택해주세요."
     );
   }
 
@@ -1210,9 +1198,7 @@ function privateMockFormCode(
 }
 
 function getWeekSelectionLockAt(
-  releaseAtInput,
-  durationMinutes =
-    DEFAULT_DURATION_MINUTES
+  releaseAtInput
 ) {
   const seoulClock =
     new Date(
@@ -1226,24 +1212,12 @@ function getWeekSelectionLockAt(
     Date.UTC(
       seoulClock.getUTCFullYear(),
       seoulClock.getUTCMonth(),
-      seoulClock.getUTCDate(),
-      12,
+      seoulClock.getUTCDate() - seoulClock.getUTCDay() + 6,
+      3,
       0,
       0,
       0
-    ) +
-      Math.min(
-        180,
-        Math.max(
-          10,
-          Number.parseInt(
-            durationMinutes,
-            10
-          ) ||
-            DEFAULT_DURATION_MINUTES
-        )
-      ) *
-        MINUTE_MS
+    )
   );
 }
 
@@ -1280,11 +1254,11 @@ function buildPrivateMockSchedule(
   const officialSchedule =
     seoulClock.getUTCDay() ===
       0 &&
-    [15, 18, 21].includes(
-      seoulClock.getUTCHours()
-    ) &&
+    seoulClock.getUTCHours() === 15 &&
     seoulClock.getUTCMinutes() ===
-      0;
+      0 &&
+    seoulClock.getUTCSeconds() === 0 &&
+    seoulClock.getUTCMilliseconds() === 0;
   const customSchedule = isTest;
 
   if (
@@ -1295,7 +1269,7 @@ function buildPrivateMockSchedule(
       400,
       isTest
         ? "CUSTOM 회차 공개 시각을 확인해주세요."
-        : "Matths 주간 공식 모의고사 공개 시각은 일요일 오후 3시·6시·9시 중 하나여야 합니다."
+        : "Matths 주간 공식 모의고사 공개 시각은 일요일 15시여야 합니다."
     );
   }
 
@@ -1311,16 +1285,9 @@ function buildPrivateMockSchedule(
           DEFAULT_DURATION_MINUTES
       )
     );
-  const closeAt =
-    new Date(
-      releaseAt.getTime() +
-        duration * MINUTE_MS
-    );
-  const isOfficialThirdForm =
-    !isTest &&
-    seoulClock.getUTCHours() ===
-      PRIVATE_MOCK_FORM_SCHEDULES
-        .C.releaseHour;
+  const closeAt = isTest
+    ? new Date(releaseAt.getTime() + duration * MINUTE_MS)
+    : getWeekSelectionLockAt(releaseAt);
   const nextMidnight =
     new Date(
       Date.UTC(
@@ -1334,8 +1301,8 @@ function buildPrivateMockSchedule(
         0
       )
     );
-  const reviewPublishesAt =
-    new Date(
+  const reviewPublishesAt = isTest
+    ? new Date(
       Date.UTC(
         seoulClock.getUTCFullYear(),
         seoulClock.getUTCMonth(),
@@ -1345,20 +1312,15 @@ function buildPrivateMockSchedule(
         0,
         0
       )
-    );
+    )
+    : closeAt;
   const archiveAt =
     reviewPublishesAt;
 
   return {
     releaseAt,
     closeAt,
-    aggregationStartsAt:
-      isOfficialThirdForm
-        ? new Date(
-            closeAt.getTime() +
-              MINUTE_MS
-          )
-        : closeAt,
+    aggregationStartsAt: closeAt,
     rankingPublishesAt:
       isTest
         ? new Date(
@@ -1422,7 +1384,7 @@ function getPrivateMockAttemptDeadline(exam, attempt) {
       Number(exam.durationMinutes || DEFAULT_DURATION_MINUTES) * MINUTE_MS
   );
   // CUSTOM is an operational check: clicking Start must grant the full duration.
-  // Official A/B/C forms still end at their shared scheduled closing time.
+  // Official attempts must also stop at the weekly Saturday noon cutoff.
   if (String(exam.formCode || "").toUpperCase() === "CUSTOM") {
     return personalDeadline;
   }
@@ -2653,6 +2615,7 @@ async function syncPrivateMockWeeklyResult({
     await PrivateMockExamAttempt.find({
       userId,
       weekKey,
+      formCode: { $nin: ["CUSTOM", "TEST"] },
       status: "submitted",
       ...completedPrivateMockFinalizationFilter(),
       ...rankableIntegrityFilter(),
@@ -2710,6 +2673,7 @@ async function selectPrivateMockWeeklyAttempt({
   const exams =
     await PrivateMockExam.find({
       weekKey,
+      isTest: { $ne: true },
       status: {
         $ne: "cancelled",
       },
@@ -2722,22 +2686,13 @@ async function selectPrivateMockWeeklyAttempt({
     );
   }
 
-  if (
-    now >=
-    getWeekSelectionLockAt(
-      exams[0].releaseAt,
-      exams.find(
-        (exam) =>
-          Number(
-            exam.attemptNumber
-          ) === 3
-      )?.durationMinutes ||
-        DEFAULT_DURATION_MINUTES
-    )
-  ) {
+  const selectionLockAt = new Date(Math.max(
+    ...exams.map((exam) => new Date(exam.closeAt).getTime())
+  ));
+  if (now >= selectionLockAt) {
     throw statusError(
       409,
-      "3회차 시험이 종료되어 대표 성적 선택이 잠겼습니다."
+      "이번 주 모의고사가 마감되어 대표 성적 선택이 잠겼습니다."
     );
   }
 
@@ -2811,14 +2766,15 @@ async function getPrivateMockSelectionView({
   releaseAt,
   now = new Date(),
 }) {
-  const thirdExam =
+  const lastExam =
     await PrivateMockExam.findOne({
       weekKey,
-      attemptNumber: 3,
+      isTest: { $ne: true },
       status: {
         $ne: "cancelled",
       },
     })
+      .sort({ closeAt: -1 })
       .select(
         "durationMinutes closeAt"
       )
@@ -2827,6 +2783,7 @@ async function getPrivateMockSelectionView({
     await PrivateMockExamAttempt.find({
       userId,
       weekKey,
+      formCode: { $nin: ["CUSTOM", "TEST"] },
       status: "submitted",
       ...completedPrivateMockFinalizationFilter(),
       ...rankableIntegrityFilter(),
@@ -2851,14 +2808,12 @@ async function getPrivateMockSelectionView({
   const locked =
     now >=
       (
-        thirdExam?.closeAt
+        lastExam?.closeAt
           ? new Date(
-              thirdExam.closeAt
+              lastExam.closeAt
             )
           : getWeekSelectionLockAt(
-              releaseAt,
-              thirdExam
-                ?.durationMinutes
+              releaseAt
             )
       ) ||
     weeklyResult.status !==
@@ -3192,6 +3147,7 @@ async function lockPrivateMockWeekSelections(
   const exams =
     await PrivateMockExam.find({
       weekKey,
+      isTest: { $ne: true },
       status: {
         $ne: "cancelled",
       },
@@ -3212,6 +3168,7 @@ async function lockPrivateMockWeekSelections(
   const submittedAttempts =
     await PrivateMockExamAttempt.find({
       weekKey,
+      formCode: { $nin: ["CUSTOM", "TEST"] },
       status: "submitted",
       ...completedPrivateMockFinalizationFilter(),
       ...rankableIntegrityFilter(),
@@ -3394,7 +3351,7 @@ async function lockPrivateMockWeekSelections(
         title:
           "주간 대표 성적이 자동 선택되었습니다",
         message:
-          `${representative.formCode}형의 최고 표준화 성적이 이번 주 경쟁전 내부 실력 지표에 반영할 대표 기록으로 자동 선택되었습니다.`,
+          "이번 주 모의고사의 유효한 성적이 경쟁전 내부 실력 지표에 반영할 대표 기록으로 자동 선택되었습니다.",
         href:
           "/private-mock-exams",
         kind: "system",
@@ -3627,7 +3584,7 @@ async function archivePrivateMockExam(
   const archiveTitle =
     `${getKoreanWeekTitle(
       exam.releaseAt
-    )} ${exam.formCode || ""}형`.trim();
+    )} 주간 모의고사`.trim();
 
   await Promise.all([
     ArchiveItem.updateOne(
@@ -3732,6 +3689,7 @@ async function processUploadReminder(
         privateMockWeekKey(
           releaseAt
         ),
+      isTest: { $ne: true },
       status: {
         $in: [
           "scheduled",
@@ -3741,7 +3699,7 @@ async function processUploadReminder(
       }
     );
   const missingAttempts =
-    [1, 2, 3].filter(
+    [1].filter(
       (attemptNumber) =>
         !scheduledAttempts.includes(
           attemptNumber
@@ -3852,11 +3810,7 @@ async function processUploadReminder(
           privateMockWeekKey(
             releaseAt
           ),
-        missingFormLabels:
-          missingAttempts.map(
-            (attemptNumber) =>
-              `${privateMockFormCode(attemptNumber)}형`
-          ),
+        missingFormLabels: ["주간 모의고사 · 일요일 15시 공개"],
       });
     const delivery =
       await sendEmail({
@@ -3913,7 +3867,7 @@ async function processUploadReminder(
   }
 }
 
-async function normalizeStoredPrivateMockSchedules() {
+async function normalizeStoredPrivateMockSchedules(now) {
   if (scheduleBackfillComplete) {
     return;
   }
@@ -3929,7 +3883,47 @@ async function normalizeStoredPrivateMockSchedules() {
       )
       .lean();
 
+  // Consolidate future legacy reservations into one weekly exam. Keep retired
+  // reservations and their files in the DB; completed exam history is immutable.
+  const legacyCodes = ["A", "B", "C"];
+  const upcomingWeeks = new Map();
   for (const exam of exams) {
+    if (exam.isTest || !legacyCodes.includes(exam.formCode) ||
+        exam.status !== "scheduled" || new Date(exam.releaseAt) <= now) continue;
+    const weekKey = exam.weekKey || privateMockWeekKey(exam.releaseAt);
+    if (!upcomingWeeks.has(weekKey)) upcomingWeeks.set(weekKey, []);
+    upcomingWeeks.get(weekKey).push(exam);
+  }
+  for (const [weekKey, legacyExams] of upcomingWeeks) {
+    legacyExams.sort((left, right) => new Date(left.releaseAt) - new Date(right.releaseAt));
+    const anchor = legacyExams[0];
+    const releaseAt = new Date(anchor.releaseAt);
+    releaseAt.setUTCHours(6, 0, 0, 0);
+    if (releaseAt <= now) continue;
+    let weeklyExam = exams.find((exam) => exam.weekKey === weekKey && exam.formCode === "WEEKLY");
+    if (!weeklyExam) {
+      if (await PrivateMockExam.exists({ releaseAt, _id: { $ne: anchor._id } })) continue;
+      const schedule = buildPrivateMockSchedule(releaseAt, anchor.durationMinutes);
+      const migrated = await PrivateMockExam.updateOne(
+        { _id: anchor._id, status: "scheduled", formCode: anchor.formCode, releaseAt: anchor.releaseAt },
+        { $set: { ...schedule, weekKey, attemptNumber: 1, formCode: "WEEKLY" } }
+      );
+      if (!migrated.matchedCount) continue;
+      Object.assign(anchor, schedule, { weekKey, attemptNumber: 1, formCode: "WEEKLY" });
+      weeklyExam = anchor;
+    }
+    const retired = legacyExams.filter((exam) => String(exam._id) !== String(weeklyExam._id));
+    if (retired.length) {
+      await PrivateMockExam.updateMany(
+        { _id: { $in: retired.map((exam) => exam._id) }, status: "scheduled", releaseAt: { $gt: now } },
+        { $set: { status: "cancelled" } }
+      );
+      retired.forEach((exam) => { exam.status = "cancelled"; });
+    }
+  }
+
+  for (const exam of exams) {
+    if (exam.status === "cancelled" || (!exam.isTest && legacyCodes.includes(exam.formCode))) continue;
     let schedule;
 
     try {
@@ -4047,7 +4041,7 @@ async function processPrivateMockSchedule(
   scheduleRunning = true;
 
   try {
-    await normalizeStoredPrivateMockSchedules();
+    await normalizeStoredPrivateMockSchedules(now);
     await PrivateMockExam.updateMany(
       {
         status: "scheduled",
@@ -4252,7 +4246,7 @@ async function processPrivateMockSchedule(
         if (
           Number(
             claimed.attemptNumber
-          ) === 3
+          ) === 3 || claimed.formCode === "WEEKLY"
         ) {
           await lockPrivateMockWeekSelections(
             claimed.weekKey ||
@@ -4488,7 +4482,7 @@ async function getPrivateMockEligibility(
         title:
           "Matths 주간 공식 모의고사 응시가 제한되어 있습니다.",
         message:
-          `관리자 검토 결과 이후 남은 ${restriction.remainingWeekCount}회(${restriction.remainingWeekCount}주) 동안 Matths 주간 공식 모의고사에 응시할 수 없습니다. A·B·C 시험은 한 주로 계산합니다.`,
+          `관리자 검토 결과 이후 남은 ${restriction.remainingWeekCount}회(${restriction.remainingWeekCount}주) 동안 Matths 주간 공식 모의고사에 응시할 수 없습니다. 주간 모의고사 한 회를 한 주로 계산합니다.`,
         ctaLabel:
           "제한 내용 확인",
         ctaHref:
@@ -5096,7 +5090,7 @@ async function getPrivateMockExamPageData(
               WEEK_MS
           ).toISOString(),
     scheduleLabel:
-      "매주 일요일 오후 3시·6시·9시, 최대 3회 응시",
+      "한국시간 기준 일요일 15시 공개 · 토요일 12시 마감",
     durationMinutes:
       roomExam
         ?.durationMinutes ||
@@ -5227,7 +5221,7 @@ async function getPrivateMockExamPageData(
     rankingSummary: null,
     weeklyRanking: [],
     rankingRules: [
-      "A·B·C형 가운데 직접 선택한 대표 성적을 사용하며, 선택하지 않으면 완료한 시험 중 최고 표준화 성적을 자동 선택합니다.",
+      "이번 주 모의고사의 유효한 성적을 토요일 12시 마감 후 자동 반영합니다.",
       "대표 성적은 응시자의 경쟁전 내부 MMR·RD·변동성에만 반영됩니다.",
       "공개 경쟁전 점수·티어·랭킹은 주간 모의고사로 직접 바뀌지 않습니다.",
       "응시하지 않은 주에는 내부 MMR과 공개 경쟁전 점수가 모두 바뀌지 않습니다.",

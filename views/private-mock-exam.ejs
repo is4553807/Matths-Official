@@ -47,7 +47,7 @@
           <%- examData.pendingAggregation ? `data-private-mock-result-pending data-server-now="${examData.serverNow}" data-results-at="${examData.resultsAvailableAt}"` : "" %>
         >
           <p>제출 완료</p>
-          <h2><%= examData.exam.isTest ? "CUSTOM 회차" : `${examData.exam.formCode}형` %> 답안 제출이 완료되었습니다.</h2>
+          <h2><%= examData.exam.isTest ? "CUSTOM 회차" : "주간 모의고사" %> 답안 제출이 완료되었습니다.</h2>
           <% if (examData.integrityReview) { %>
             <div class="private-mock-integrity-notice" role="alert">
               <strong>시험 기록 확인을 위해 풀이과정 제출이 필요합니다.</strong>
@@ -77,7 +77,7 @@
               data-week-key="<%= examData.selection.weekKey %>"
             >
               <h3>경쟁전 내부 실력 지표에 반영할 대표 시험을 선택하세요.</h3>
-              <p>3회차까지 응시한 뒤 다시 바꿀 수 있습니다.</p>
+              <p>해당 주차의 마감 전까지 다시 바꿀 수 있습니다.</p>
               <div class="private-mock-selection-options">
                 <% examData.selection.attempts.forEach((attempt) => { %>
                   <label>
@@ -87,21 +87,21 @@
                       value="<%= attempt.id %>"
                       <%= examData.selection.selectedAttemptId === attempt.id ? "checked" : "" %>
                     />
-                    <strong><%= attempt.formCode %>형</strong>
+                    <strong><%= attempt.attemptNumber %>회차 기록</strong>
                     <span>표준화 <%= attempt.standardizedPerformance %> · 백분위 <%= attempt.totalPercentile %>%</span>
                   </label>
                 <% }) %>
               </div>
               <div class="private-mock-selection-actions">
                 <button type="submit">이 성적으로 선택</button>
-                <button type="button" class="secondary" data-private-mock-defer>다음 회차 후 선택</button>
+                <button type="button" class="secondary" data-private-mock-defer>마감 전까지 선택 미루기</button>
               </div>
               <small data-private-mock-selection-status aria-live="polite"></small>
             </form>
           <% } else if (!examData.pendingAggregation && examData.selection && examData.selection.attemptCount === 1) { %>
             <div class="private-mock-selection-guide">
-              <strong>이번 주 첫 응시 성적이 저장되었습니다.</strong>
-              <span>다른 회차를 한 번 더 완료하면 대표 성적을 직접 선택할 수 있습니다. 한 시험만 완료한 채 3회차가 끝나면 이 성적을 자동 반영합니다.</span>
+              <strong>이번 주 응시 성적이 저장되었습니다.</strong>
+              <span>유효한 응시 성적은 주간 집계가 끝나면 내부 실력 지표에 자동 반영됩니다.</span>
             </div>
           <% } %>
           <a href="/private-mock-exams">Matths 주간 공식 모의고사 목록으로 <span aria-hidden="true">→</span></a>
@@ -152,8 +152,8 @@
           </section>
         <% } else if (!examData.exam.isTest) { %>
           <section class="private-mock-review-locked">
-            <strong>문항별 채점과 해설은 일요일 밤 11시에 공개됩니다.</strong>
-            <span>세 회차가 모두 끝난 뒤 OMR의 정오 표시와 틀린 문항 해설을 확인할 수 있습니다.</span>
+            <strong>문항별 채점과 해설은 <%= new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long", timeStyle: "short" }).format(new Date(examData.reviewPublishesAt)) %> 이후에 공개됩니다.</strong>
+            <span>주간 응시가 마감된 뒤 OMR의 정오 표시와 틀린 문항 해설을 확인할 수 있습니다.</span>
           </section>
         <% } %>
       <% } else if (examData.notStarted) { %>

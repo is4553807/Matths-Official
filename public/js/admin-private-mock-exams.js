@@ -16,17 +16,10 @@
       "[data-private-mock-upload-status]"
     );
   const scheduleLabels = {
-    A: "오후 3:00 ~ 오후 4:40",
-    B: "오후 6:00 ~ 오후 7:40",
-    C: "오후 9:00 ~ 오후 10:40",
+    WEEKLY: "일요일 15:00 공개 ~ 토요일 12:00 마감",
     CUSTOM:
       "시작 버튼부터 개인별 100분",
   };
-  const formCodes = [
-    "A",
-    "B",
-    "C",
-  ];
 
   if (!list || !addButton) {
     return;
@@ -65,7 +58,7 @@
     const formCode =
       row.querySelector(
         "[data-private-mock-form-code]"
-      )?.value || "A";
+      )?.value || "WEEKLY";
     const target =
       row.querySelector(
         "[data-private-mock-fixed-time]"
@@ -123,12 +116,12 @@
     if (timeTitle) {
       timeTitle.textContent = isCustom
         ? "CUSTOM 응시 시간"
-        : "고정 응시 시간";
+        : "주간 응시 기간";
     }
     if (timeNote) {
       timeNote.textContent = isCustom
         ? "개인 시작부터 100분 · 한국시간 공개 시각 직접 지정"
-        : "100분 · 한국시간 · 수정할 수 없음";
+        : "시작부터 최대 100분 · 토요일 12시 종료 · 한국시간";
     }
 
     if (target) {
@@ -136,7 +129,7 @@
         scheduleLabels[
           formCode
         ] ||
-        scheduleLabels.A;
+        scheduleLabels.WEEKLY;
     }
   };
 
@@ -193,7 +186,7 @@
       const previousCode =
         previous.querySelector(
           '[name="formCodes"]'
-        )?.value || "A";
+        )?.value || "WEEKLY";
       const previousDate =
         previous.querySelector(
           '[name="examDates"]'
@@ -202,15 +195,6 @@
         previous.dataset
           .officialDate ||
         previousDate;
-      const nextIndex =
-        (
-          formCodes.indexOf(
-            previousCode
-          ) + 1
-        ) %
-        formCodes.length;
-      const nextCode =
-        formCodes[nextIndex];
 
       clone
         .querySelectorAll(
@@ -222,7 +206,7 @@
             "examDates"
           ) {
             input.value =
-              previousCode === "C"
+              previousCode === "WEEKLY"
                 ? nextSundayDate(
                     previousOfficialDate
                   )
@@ -238,7 +222,7 @@
         );
       if (formSelect) {
         formSelect.value =
-          nextCode;
+          "WEEKLY";
       }
 
       list.appendChild(clone);
@@ -272,7 +256,7 @@
       uploadStatus.hidden =
         false;
       uploadStatus.textContent =
-        "등록할 모든 회차의 이름·날짜·시험형·문제지 PDF·답지 JSON을 확인해 주세요.";
+        "등록할 모든 회차의 이름·날짜·공개 일정·문제지 PDF·답지 JSON을 확인해 주세요.";
       uploadStatus.classList.add(
         "error"
       );

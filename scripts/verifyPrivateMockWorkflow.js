@@ -4,6 +4,7 @@ const assert = require(
 const fs = require("node:fs");
 const path = require("node:path");
 const {
+  PRIVATE_MOCK_FORM_SCHEDULES,
   buildPrivateMockSchedule,
   calculateWeeklyMmrPerformance,
   getIntegrityEvidenceDeadline,
@@ -315,23 +316,23 @@ assert.equal(
 );
 assert.equal(
   schedule.closeAt.toISOString(),
-  "2026-08-02T07:40:00.000Z"
+  "2026-08-08T03:00:00.000Z"
 );
 assert.equal(
   schedule.aggregationStartsAt.toISOString(),
-  "2026-08-02T07:40:00.000Z"
+  "2026-08-08T03:00:00.000Z"
 );
 assert.equal(
   schedule.rankingPublishesAt.toISOString(),
-  "2026-08-02T14:00:00.000Z"
+  "2026-08-08T03:00:00.000Z"
 );
 assert.equal(
   schedule.archiveAt.toISOString(),
-  "2026-08-02T14:00:00.000Z"
+  "2026-08-08T03:00:00.000Z"
 );
 assert.equal(
   schedule.reviewPublishesAt.toISOString(),
-  "2026-08-02T14:00:00.000Z"
+  "2026-08-08T03:00:00.000Z"
 );
 for (const [
   at,
@@ -346,11 +347,11 @@ for (const [
     "open",
   ],
   [
-    "2026-08-02T07:40:00.000Z",
-    "aggregating",
+    "2026-08-08T02:59:59.999Z",
+    "open",
   ],
   [
-    "2026-08-02T14:00:00.000Z",
+    "2026-08-08T03:00:00.000Z",
     "archived",
   ],
 ]) {
@@ -363,18 +364,12 @@ for (const [
   );
 }
 
-const secondReleaseAt =
-  parseSeoulReleaseAt(
-    "2026-08-02T18:00"
-  );
-const thirdReleaseAt =
-  parseSeoulReleaseAt(
-    "2026-08-02T21:00"
-  );
+const secondReleaseAt = new Date("2026-08-02T09:00:00.000Z");
+const thirdReleaseAt = new Date("2026-08-02T12:00:00.000Z");
 const fixedForm =
   parsePrivateMockExamDate(
     "2026-08-02",
-    "B"
+    "WEEKLY"
   );
 const testForm =
   parsePrivateMockExamDate(
@@ -393,15 +388,15 @@ const testSchedule =
 
 assert.equal(
   fixedForm.releaseAt.toISOString(),
-  "2026-08-02T09:00:00.000Z"
+  "2026-08-02T06:00:00.000Z"
 );
 assert.equal(
   fixedForm.attemptNumber,
-  2
+  1
 );
 assert.equal(
   fixedForm.scheduleLabel,
-  "오후 6:00 ~ 오후 7:40"
+  "일요일 15:00 공개 ~ 토요일 12:00 마감"
 );
 assert.equal(
   testForm.releaseAt.toISOString(),
@@ -427,42 +422,31 @@ const lateAttempt = { startedAt: new Date("2026-07-29T10:20:00.000Z") };
 const customExam = { ...testSchedule, formCode: "CUSTOM", durationMinutes: 100 };
 assert.equal(getPrivateMockAttemptDeadline(customExam, lateAttempt).toISOString(), "2026-07-29T12:00:00.000Z");
 assert.equal(getCustomPrivateMockScheduleExtension(customExam, lateAttempt).closeAt.toISOString(), "2026-07-29T12:00:00.000Z");
-assert.equal(getPrivateMockAttemptDeadline({ ...customExam, formCode: "A" }, lateAttempt).toISOString(), "2026-07-29T11:40:00.000Z");
-assert.equal(getCustomPrivateMockScheduleExtension({ ...customExam, formCode: "A" }, lateAttempt), null);
-const thirdSchedule =
-  buildPrivateMockSchedule(
-    thirdReleaseAt
-  );
-assert.equal(
-  thirdSchedule.closeAt.toISOString(),
-  "2026-08-02T13:40:00.000Z"
-);
-assert.equal(
-  thirdSchedule.aggregationStartsAt.toISOString(),
-  "2026-08-02T13:41:00.000Z"
-);
-assert.equal(
-  thirdSchedule.rankingPublishesAt.toISOString(),
-  "2026-08-02T14:00:00.000Z"
-);
-assert.equal(
-  getPrivateMockPhase(
-    thirdSchedule,
-    new Date(
-      "2026-08-02T13:40:00.000Z"
-    )
-  ),
-  "locked"
-);
-assert.equal(
-  getPrivateMockPhase(
-    thirdSchedule,
-    new Date(
-      "2026-08-02T13:41:00.000Z"
-    )
-  ),
-  "aggregating"
-);
+assert.equal(getPrivateMockAttemptDeadline({ ...customExam, formCode: "WEEKLY" }, lateAttempt).toISOString(), "2026-07-29T11:40:00.000Z");
+assert.equal(getCustomPrivateMockScheduleExtension({ ...customExam, formCode: "WEEKLY" }, lateAttempt), null);
+assert.deepEqual(Object.keys(PRIVATE_MOCK_FORM_SCHEDULES), ["WEEKLY", "CUSTOM"]);
+for (const code of ["A", "B", "C", "TEST"]) {
+  assert.throws(() => parsePrivateMockExamDate("2026-08-02", code), /주간 모의고사 또는 CUSTOM/);
+}
+for (const time of ["2026-08-02T18:00", "2026-08-02T21:00", "2026-08-02T15:01"]) {
+  assert.throws(() => parseSeoulReleaseAt(time), /일요일 15시/);
+}
+for (const time of [secondReleaseAt, thirdReleaseAt, new Date("2026-08-02T06:00:00.001Z")]) {
+  assert.throws(() => buildPrivateMockSchedule(time), /일요일 15시/);
+}
+for (const duration of [10, 100, 180]) {
+  assert.equal(buildPrivateMockSchedule(releaseAt, duration).closeAt.toISOString(), "2026-08-08T03:00:00.000Z");
+}
+const officialExam = { ...schedule, formCode: "WEEKLY", durationMinutes: 100 };
+for (const [startedAt, deadline] of [
+  ["2026-08-02T06:00:00.000Z", "2026-08-02T07:40:00.000Z"],
+  ["2026-08-05T05:00:00.000Z", "2026-08-05T06:40:00.000Z"],
+  ["2026-08-08T02:59:00.000Z", "2026-08-08T03:00:00.000Z"],
+]) {
+  assert.equal(getPrivateMockAttemptDeadline(officialExam, { startedAt: new Date(startedAt) }).toISOString(), deadline);
+}
+assert.equal(getPrivateMockPhase(schedule, new Date("2026-08-08T02:59:59.999Z")), "open");
+assert.equal(buildPrivateMockSchedule(new Date("2026-12-27T06:00:00.000Z")).closeAt.toISOString(), "2027-01-02T03:00:00.000Z");
 assert.equal(
   privateMockWeekLabel(
     testForm.releaseAt
@@ -530,7 +514,7 @@ assert.equal(
   getWeekSelectionLockAt(
     releaseAt
   ).toISOString(),
-  "2026-08-02T13:40:00.000Z"
+  "2026-08-08T03:00:00.000Z"
 );
 assert.equal(
   calculateWeeklyMmrPerformance(
@@ -641,7 +625,7 @@ assert.equal(
 );
 
 const restrictionExams = [
-  ["2026-08-02", "a1", "2026-08-02T07:40:00.000Z"],
+  ["2026-08-02", "a1", "2026-08-08T03:00:00.000Z"],
   ["2026-08-02", "b1", "2026-08-02T10:40:00.000Z"],
   ["2026-08-02", "c1", "2026-08-02T13:40:00.000Z"],
   ["2026-08-09", "a2", "2026-08-09T07:40:00.000Z"],
@@ -664,7 +648,7 @@ const afterFirstRestrictedWeek =
       restrictionExams,
     now:
       new Date(
-        "2026-08-02T14:00:00.000Z"
+        "2026-08-08T03:00:00.000Z"
       ),
   });
 assert.equal(
@@ -700,7 +684,7 @@ assert.throws(
   () =>
     parsePrivateMockExamDate(
       "2026-08-03",
-      "A"
+      "WEEKLY"
     ),
   /일요일/
 );
@@ -709,7 +693,7 @@ assert.throws(
     parseSeoulReleaseAt(
       "2026-08-03T15:00"
     ),
-  /일요일 오후 3시·6시·9시/
+  /일요일 15시/
 );
 assert.throws(
   () =>
@@ -730,5 +714,5 @@ assert.throws(
 );
 
 console.log(
-  "Matths 주간 공식 모의고사 JSON 답지·A/B/C 3회차·대표 성적·내부 실력 지표 안정성 보정·집계 시각 검증 완료"
+  "Matths 주간 모의고사 일요일 15시~토요일 12시·개인 제한 시간·CUSTOM·답지·주간 성적 검증 완료"
 );

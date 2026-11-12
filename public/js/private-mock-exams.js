@@ -73,7 +73,7 @@
 
           status.textContent =
             defer
-              ? "3회차 종료 전까지 선택을 미뤘습니다."
+              ? "이번 주 마감 전까지 선택을 미뤘습니다."
               : "경쟁전 내부 실력 지표에 반영할 대표 성적을 저장했습니다.";
           if (defer) {
             selectionForm
@@ -124,7 +124,7 @@
     document.querySelector(
       "[data-mock-countdown]"
     );
-  const roomLink =
+  let roomLink =
     document.querySelector(
       "[data-private-mock-room-link]"
     );
@@ -135,6 +135,8 @@
     new Date(
       hero.dataset.releaseAt
     ).getTime();
+  const closeAt = new Date(hero.dataset.closeAt).getTime();
+  const countdownLabel = document.querySelector("[data-mock-countdown-label]");
   const serverNow =
     new Date(
       hero.dataset.serverNow
@@ -145,12 +147,13 @@
       : 0;
 
   const render = () => {
+    const now = Date.now() + clockOffset;
+    const closed = Number.isFinite(closeAt) && now >= closeAt;
+    const opened = now >= releaseAt && Number.isFinite(closeAt);
     const remaining =
       Math.max(
         0,
-        releaseAt -
-          (Date.now() +
-            clockOffset)
+        (opened ? closeAt : releaseAt) - now
       );
     const totalSeconds =
       Math.floor(
@@ -174,12 +177,25 @@
       totalSeconds % 60;
 
     output.textContent =
-      remaining <= 0
+      closed
+        ? "응시 마감"
+        : remaining <= 0
         ? "지금 응시 가능"
         : `${days}일 ` +
           `${String(hours).padStart(2, "0")}:` +
           `${String(minutes).padStart(2, "0")}:` +
           `${String(seconds).padStart(2, "0")}`;
+    if (countdownLabel) {
+      countdownLabel.textContent = opened ? "응시 마감까지" : "공개까지";
+    }
+    if (closed && roomLink) {
+      if (roomLink.dataset.submitted === "1") return;
+      roomLink.removeAttribute("href");
+      roomLink.setAttribute("aria-disabled", "true");
+      roomLink.classList.add("disabled");
+      roomLink.textContent = "응시 마감";
+      return;
+    }
 
     if (
       roomLink?.dataset
@@ -210,6 +226,7 @@
         roomLink.replaceWith(
           anchor
         );
+        roomLink = anchor;
       }
     }
   };

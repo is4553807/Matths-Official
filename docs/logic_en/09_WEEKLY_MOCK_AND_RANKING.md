@@ -7,6 +7,9 @@ A placed participant's representative weekly result updates only that user's int
 ## Weekly mock exam
 
 - Operators manage papers, schedules, answers, and grading policy.
+- One official exam opens each Sunday at 15:00 KST and locks the following Saturday at 12:00 KST. Attempts last at most 100 minutes from the user's start and cannot extend past the weekly cutoff.
+- Operators choose `WEEKLY` (Sunday 15:00 release) or `CUSTOM` (a manually specified release). CUSTOM retains its full personal 100-minute timer and exclusion from official MMR settlement and automatic archiving.
+- Official aggregation, results, explanations, and archive publication occur after the Saturday noon cutoff. Future A/B/C reservations are consolidated before release; completed exam history is preserved.
 - Web and native clients share the same attempt and submission state.
 - Evidence, objections, and operator decisions attach to the exam record.
 - Applying a user-and-week MMR result is exactly once through a dedicated settlement ledger and unique index.

@@ -17,7 +17,7 @@
   const currentRatingRules = [
     "응시한 회차의 유효한 결과는 응시자 본인의 내부 실력 지표에만 반영됩니다.",
     "공개 경쟁전 점수는 바뀌지 않으며, 응시하지 않은 사용자에게도 불이익이 없습니다.",
-    "여러 회차를 응시한 경우 선택된 대표 성적을 반영합니다.",
+    "토요일 12시 마감 후 전체 응시자의 성적을 집계해 반영합니다.",
   ];
 %>
 <!doctype html>
@@ -52,7 +52,7 @@
               <span></span><span></span><span></span>
             </button>
             <div>
-              <p>매주 일요일 3회 제공</p>
+              <p>일요일 15시 공개 · 토요일 12시 마감 · 한국시간</p>
               <h1>Matths 주간 공식 모의고사</h1>
             </div>
           </div>
@@ -71,14 +71,15 @@
           class="private-mock-hero"
           data-server-now="<%= examData.serverNow %>"
           data-release-at="<%= examData.nextReleaseAt %>"
+          data-close-at="<%= examData.currentExam?.closeAt ? new Date(examData.currentExam.closeAt).toISOString() : "" %>"
         >
           <div>
-            <p>Matths 매주 일요일</p>
-            <h2>한 번의 실수 대신,<br />세 번의 도전으로 증명하세요.</h2>
-            <span>가장 먼저 응시할 수 있는 시험 하나만 안내합니다. 공개 10분 전부터 시험장에 입장하고, 시작 시각에 문제지를 열 수 있습니다.</span>
+            <p>Matths 주간 모의고사</p>
+            <h2>일요일에 열고,<br />한 주 동안 도전하세요.</h2>
+            <span>한국시간 기준 일요일 15시부터 토요일 12시까지 원하는 때 시작할 수 있습니다. 시작부터 최대 100분 동안 응시하며, 토요일 12시에는 남은 시간과 관계없이 종료됩니다.</span>
           </div>
           <div class="private-mock-countdown">
-            <small>가장 가까운 시험</small>
+            <small data-mock-countdown-label>공개까지</small>
             <strong data-mock-countdown>계산 중</strong>
             <span><%= formatRelease(examData.nextReleaseAt) %></span>
           </div>
@@ -92,7 +93,7 @@
             </header>
             <% if (examData.currentExam) { %>
               <h3><%= examData.currentExam.title %></h3>
-              <p class="private-mock-current-meta"><%= examData.currentExam.isTest ? "CUSTOM · 운영 확인용" : `${examData.currentExam.formCode}형` %> · <%= examData.currentExam.questionCount %>문항 · <%= examData.durationMinutes %>분 · <%= formatRelease(examData.currentExam.releaseAt) %> 시작</p>
+              <p class="private-mock-current-meta"><%= examData.currentExam.isTest ? "CUSTOM · 운영 확인용" : "주간 모의고사" %> · <%= examData.currentExam.questionCount %>문항 · 최대 <%= examData.durationMinutes %>분<br /><%= formatRelease(examData.currentExam.releaseAt) %> 공개 ~ <%= formatRelease(examData.currentExam.closeAt) %> 마감</p>
               <% if (examData.currentExam.isTest) { %>
                 <p class="private-mock-test-notice">CUSTOM 회차의 점수는 내부 실력 지표·공지·자동 아카이브에 반영되지 않습니다.</p>
               <% } %>
@@ -107,7 +108,7 @@
                   data-lobby-opens-at="<%= examData.currentExam.lobbyOpensAt %>"
                 >시험장 입장 대기</span>
               <% } else { %>
-                <a class="private-mock-start-link" href="<%= examData.currentExam.href %>" data-private-mock-room-link>
+                <a class="private-mock-start-link" href="<%= examData.currentExam.href %>" data-private-mock-room-link data-submitted="<%= examData.currentExam.attemptStatus === "submitted" ? "1" : "0" %>">
                   <%= examData.currentExam.attemptStatus === "submitted"
                     ? "제출 결과 보기"
                     : examData.currentExam.attemptStatus === "in_progress"
@@ -141,14 +142,14 @@
                         value="<%= attempt.id %>"
                         <%= examData.selection.selectedAttemptId === attempt.id ? "checked" : "" %>
                       />
-                      <strong><%= attempt.formCode %>형</strong>
+                      <strong><%= attempt.attemptNumber %>회차 기록</strong>
                       <span>평가 지표 <%= attempt.standardizedPerformance %></span>
                     </label>
                   <% }) %>
                 </div>
                 <div class="private-mock-selection-actions">
                   <button type="submit">선택 저장</button>
-                  <button type="button" class="secondary" data-private-mock-defer>3회차 후 선택</button>
+                  <button type="button" class="secondary" data-private-mock-defer>마감 전까지 선택 미루기</button>
                 </div>
                 <small data-private-mock-selection-status aria-live="polite"></small>
               </form>

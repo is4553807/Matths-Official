@@ -69,7 +69,7 @@
                 <select name="examId" required>
                   <option value="">아카이브 시험지를 선택하세요</option>
                   <% formData.exams.forEach((exam) => { %>
-                    <option value="<%= exam.id %>"><%= formatDate(exam.releaseAt) %> · <%= exam.title %> · <%= exam.formCode %>형</option>
+                    <option value="<%= exam.id %>"><%= formatDate(exam.releaseAt) %> · <%= exam.title %></option>
                   <% }) %>
                 </select>
               </label>

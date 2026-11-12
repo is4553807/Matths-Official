@@ -26,6 +26,7 @@
     "account-plans:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyAccountPlanDb.js",
     "account-plans:migrate-free": "node scripts/migrateUsersToFreePlan.js",
     "weekly-mock-mmr:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyWeeklyMockMmrOptInDb.js",
+    "weekly-mock-window:verify-db": "node audit/runMemoryMongoSuite.js audit/verifyWeeklyMockWindowDb.js",
     "study-streak:verify": "node scripts/verifyStudyStreakBoundary.js",
     "ipad-server-surface:verify": "node scripts/verifyIpadServerSurface.js",
     "ipad-profile-http:verify": "node audit/verifyIpadProfileHttpContract.js",

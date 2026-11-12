@@ -22,6 +22,7 @@ const defaultTargets = [
   { target: "audit/verifyArenaGuestIdentityIndexesDb.js", dropAfter: true },
   { target: "audit/verifyArenaGuestChallengeDb.js", dropAfter: true },
   { target: "audit/verifyArenaAsyncEvidenceDeliveryDb.js", dropAfter: true },
+  { target: "audit/verifyWeeklyMockWindowDb.js", dropAfter: true },
   { target: "audit/verifyMultiProcessSchedulerLease.js", dropAfter: true },
 ];
 

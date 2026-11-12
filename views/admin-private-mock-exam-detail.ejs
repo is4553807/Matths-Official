@@ -98,7 +98,7 @@
         <div>
           <p>시험 검수</p>
           <h1><%= detail.exam.title %></h1>
-          <span><%= detail.exam.formCode %>형 · <%= formatDateTime(detail.exam.releaseAt) %> · 답안, 채점 결과, 화면 이벤트와 소명 자료</span>
+          <span><%= detail.exam.isTest ? "CUSTOM · " : "" %><%= formatDateTime(detail.exam.releaseAt) %> · 답안, 채점 결과, 화면 이벤트와 소명 자료</span>
         </div>
         <strong><%= detail.attempts.length %><small>개 응시</small></strong>
       </header>

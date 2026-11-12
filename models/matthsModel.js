@@ -4911,7 +4911,7 @@ communityUserBlockSchema.index({ blockedUserId: 1, createdAt: -1 });
 
 /* --------------------------------------------------
  * 17. PrivateMockExam
- * 매주 일요일 3회 공개되는 Matths 주간 공식 모의고사 회차
+ * 일요일 15시부터 토요일 12시까지 응시하는 Matths 주간 공식 모의고사
  * -------------------------------------------------- */
 
 const privateMockExamSchema =
@@ -4931,8 +4931,8 @@ const privateMockExamSchema =
             },
             formCode: {
                 type: String,
-                // TEST는 기존 DB 회차 조회 호환용이며 신규 등록은 CUSTOM만 사용합니다.
-                enum: ["A", "B", "C", "CUSTOM", "TEST"],
+                // A/B/C/TEST는 기존 기록 호환용. 신규 등록은 WEEKLY 또는 CUSTOM.
+                enum: ["WEEKLY", "CUSTOM", "A", "B", "C", "TEST"],
                 required: true,
             },
             isTest: {
@@ -5257,8 +5257,8 @@ const privateMockExamAttemptSchema =
             },
             formCode: {
                 type: String,
-                // TEST는 기존 DB 응시 기록 조회 호환용이며 신규 회차는 CUSTOM만 사용합니다.
-                enum: ["A", "B", "C", "CUSTOM", "TEST"],
+                // A/B/C/TEST는 기존 응시 기록 조회 호환용.
+                enum: ["WEEKLY", "CUSTOM", "A", "B", "C", "TEST"],
                 required: true,
             },
             answers: {
