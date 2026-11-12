@@ -7,7 +7,7 @@ const { AcademyAccount } = require("../models/academyModel");
 const { authenticateAcademyAccount } = require("./academyAccountService");
 const { synchronizeAccountAccess } = require("./accountAccessService");
 const { synchronizeUserLifecycle, lifecycleSessionView } = require("./userLifecycleService");
-const { serviceUrl } = require("./serviceUrlService");
+const { exchangeUrl, serviceUrl } = require("./serviceUrlService");
 
 function failure(status, message, code) { return Object.assign(new Error(message), { status, ...(code ? { code } : {}) }); }
 function accountTypeForRole(role) { return role === "teacher" ? "academy" : role === "admin" ? "admin" : "student"; }
@@ -30,6 +30,7 @@ function loginDestination(account, next) {
     return serviceUrl("academy", pathname && /^\/academy(?:\/|$)/.test(pathname) && !/^\/academy\/join\//.test(pathname) ? next : "/academy");
   }
   if (!pathname || (/^\/(?:admin|academy|parent|api)(?:\/|$)/.test(pathname) && !/^\/academy\/join\/[^/]+$/.test(pathname)) || ["/login", "/register", "/logout", "/forgot-password", "/reset-password"].includes(pathname)) return serviceUrl("app", "/main");
+  if (/^\/exchange(?:\/|$)/.test(pathname)) return exchangeUrl(next);
   const surface = /^\/academy\/join\//.test(pathname) ? "academy" : /^\/(?:community|contact)(?:\/|$)/.test(pathname) ? "public" : "app";
   return serviceUrl(surface, next);
 }

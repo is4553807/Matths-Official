@@ -39,6 +39,7 @@ const {
   calculateActualPerformance,
   metricForAttempt,
   percentileForValue,
+  PLACEMENT_REFERENCE_POLICY,
   processWeeklyExamMmr,
 } = require("./mmrService");
 const {
@@ -5900,6 +5901,13 @@ async function startPrivateMockAttempt({
     );
   }
 
+  let exchangeMmrGrade;
+  if (exam.formCode === "WEEKLY" && !exam.isTest) {
+    const profile = await ArenaCompetitiveProfile.findOne({ userId })
+      .select("rating normalMatchmakingRating").lean();
+    const rating = profile?.rating ?? profile?.normalMatchmakingRating ?? 1000;
+    exchangeMmrGrade = PLACEMENT_REFERENCE_POLICY.bands.findLast((band) => rating >= band.minMmr)?.referenceGrade ?? 9;
+  }
   const attempt =
     await PrivateMockExamAttempt.findOneAndUpdate(
       {
@@ -5908,6 +5916,7 @@ async function startPrivateMockAttempt({
       },
       {
         $setOnInsert: {
+          ...(exchangeMmrGrade ? { exchangeMmrGrade } : {}),
           weekKey:
             exam.weekKey ||
             privateMockWeekKey(

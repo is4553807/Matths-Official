@@ -61,6 +61,15 @@ Cloudtype 앱의 사용자 도메인에는 `matths.kr`, `www.matths.kr`, `app.ma
 `academy.matths.kr`, `admin.matths.kr`, `parents.matths.kr` 여섯 호스트를 모두 등록한다.
 Cloudflare DNS에서 네 서브도메인은 Cloudtype이 안내한 CNAME 대상으로 연결하고 인증서 상태가 정상인지 확인한다.
 
+## Exchange 서브도메인 연결
+
+주간 정규 시험을 `WEEKLY` 한 회차로 등록하는 변경과 Exchange를 함께 배포한다. 먼저 기존 학생 호스트의 `/exchange`가 응답하는지 확인한다. 주간 시험이 없는 주에는 `GET /api/exchange/markets/current`에서 주간 시장이 비어 있어야 한다.
+
+1. 기존 Cloudtype 서비스의 Ingress에서 `exchange.matths.kr` 연결을 선택하고 표시된 DNS 대상을 확인한다.
+2. Cloudflare `matths.kr`의 DNS Records에 이름 `exchange`로 CNAME을 추가한다. 대상은 Cloudtype이 표시한 값이며 프록시는 **DNS only**로 둔다. Cloudtype이 소유권 확인을 요구하면 기존 TXT 상태를 확인한다. [Cloudtype 도메인 연결](https://docs.cloudtype.dev/ko/developers/domain)
+3. Cloudtype에서 도메인을 검증하고 연결한 뒤 HTTPS 인증서가 정상인지 확인한다. 기존 앱 환경에 `EXCHANGE_BASE_URL=https://exchange.matths.kr`을 설정하고 아래 배포 절차를 실행한다. 세션은 기존 `.matths.kr` 쿠키를 사용한다.
+4. `https://exchange.matths.kr/`에서 Exchange 화면이 열리고, 학생 호스트의 `/exchange`가 이 주소로 이동하는지 확인한다. 학생 로그인 상태가 유지되고 운영센터의 `/admin/exchange`가 관리자 권한을 요구하는지 검증한다.
+
 ## 배포
 
 1. GitHub Actions에서 `Deploy Cloudtype production` workflow를 연다.

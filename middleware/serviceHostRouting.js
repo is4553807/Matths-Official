@@ -16,6 +16,7 @@ const ROOT_PATH_BY_SURFACE = Object.freeze({
   academy: "/academy",
   admin: "/admin",
   parents: "/parent",
+  exchange: "/exchange",
 });
 
 function cleanHost(value) {
@@ -81,6 +82,7 @@ function surfaceForPath(pathname) {
   ) {
     return "admin";
   }
+  if (/^\/(?:exchange|api\/exchange)(?:\/|$)/.test(pathname)) return "exchange";
   if (/^\/academy(?:\/|$)/.test(pathname)) return "academy";
   if (
     /^\/(?:main|my-learning|my-academy|learn|war-of-masters|goat-arena|profile|store|notifications|announcements|account|private-mock-exams|integrity|nickname-change|log-curriculum|assessments|wrong-notes|quick-practice|coach-suggestions)(?:\/|$)/.test(pathname)
@@ -115,8 +117,9 @@ function serviceHostRedirectLocation({
   if (!Object.values(hosts).includes(currentHost)) return "";
 
   const surface = isPublicPath(pathname) ? "public" : surfaceForPath(pathname);
-  if (!surface || currentHost === hosts[surface]) return "";
+  if (!surface || !hosts[surface] || currentHost === hosts[surface]) return "";
   const origin = serviceOrigins(environment)[surface];
+  if (surface === "exchange" && pathname === "/exchange") return `${origin}/${target.slice(pathname.length)}`;
   return `${origin}${surface === "public" ? publicTarget(target) : target}`;
 }
 

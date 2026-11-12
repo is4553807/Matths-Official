@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Matths Exchange</title>
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/css/exchange.css" />
+  <script src="/js/exchange.js" defer></script>
+</head>
+<body>
+  <header class="exchange-header">
+    <a class="exchange-brand" href="<%= brandHref %>"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>Matths <strong>Exchange</strong></a>
+    <nav class="market-tabs" aria-label="시장 종류">
+      <button type="button" data-filter="weekly" aria-pressed="true">주간 모의고사</button>
+      <button type="button" data-filter="mock" aria-pressed="false">실제 모의고사</button>
+      <button type="button" data-filter="csat" aria-pressed="false">수능</button>
+    </nav>
+    <a class="header-link" href="<%= signedIn ? dashboardHref : loginHref %>"><%= signedIn ? '대시보드' : '로그인' %><span aria-hidden="true">↗</span></a>
+  </header>
+  <main class="terminal" id="exchange" data-state="<%= JSON.stringify(initial) %>" data-activity-start="<%= activity %>">
+    <section class="market-bar" aria-labelledby="market-title">
+      <div class="market-identity">
+        <div class="market-label"><span id="market-status" class="market-status"><%= initial.market?.statusLabel || '시장 미개설' %></span><span>수학 평균 점수 선물</span></div>
+        <h1 id="market-title"><%= initial.market?.title || '맵쓰 주간 모의고사' %></h1>
+        <label class="market-select" id="market-select-wrap" hidden>회차 <select id="market-select" aria-label="회차 선택"></select></label>
+      </div>
+      <dl class="market-metrics">
+        <div><dt>최근 체결가</dt><dd id="market-price">—</dd></div>
+        <div><dt>표본 MPI <small>30분 지연</small></dt><dd id="sample-price">—</dd></div>
+        <div><dt>정산 MPI</dt><dd id="settlement-price">—</dd><a id="result-link" class="small-link" hidden>성적 출처 ↗</a></div>
+        <div><dt>거래량</dt><dd id="market-volume">—</dd></div>
+        <div><dt>거래 종료 · KST</dt><dd id="market-close">—</dd></div>
+      </dl>
+    </section>
+    <div class="terminal-grid">
+      <section class="panel chart-panel" aria-labelledby="chart-heading">
+        <header class="panel-heading">
+          <h2 id="chart-heading">가격 차트</h2>
+          <div class="chart-periods" aria-label="차트 간격">
+            <button type="button" data-interval="1m" aria-pressed="true">1분</button>
+            <button type="button" data-interval="5m" aria-pressed="false">5분</button>
+            <button type="button" data-interval="1h" aria-pressed="false">1시간</button>
+          </div>
+        </header>
+        <div class="chart-legend"><span class="legend-price">선물 체결가</span><span class="legend-sample">표본 MPI</span><span class="legend-ma">MA 5 · 10</span></div>
+        <div class="chart-area">
+          <canvas id="exchange-chart" role="img" aria-label="선물 체결가 캔들과 거래량, 표본 지수 차트"></canvas>
+          <div class="chart-empty" id="chart-empty">
+            <div class="chart-symbol" aria-hidden="true"><i></i><i></i><i></i></div>
+            <strong id="chart-empty-title"><%= initial.market ? '체결을 기다리는 중' : '이번 주 시장이 아직 열리지 않았습니다' %></strong>
+            <p id="chart-empty-copy"><%= initial.market ? '첫 체결이 발생하면 차트가 표시됩니다.' : '정규 주간 모의고사가 공개되면 시장이 자동으로 열립니다.' %></p>
+            <a id="exam-link" href="<%= initial.market?.examHref || '/private-mock-exams' %>">주간 모의고사 보기 <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <footer class="chart-foot"><span id="sample-time">표본 없음</span><span id="market-countdown">KST · 개장 대기</span></footer>
+      </section>
+      <section class="panel book-panel" aria-labelledby="book-heading">
+        <header class="panel-heading"><h2 id="book-heading">호가창</h2><span>MPI</span></header>
+        <div class="book-labels"><span>가격</span><span>계약</span><span>누적</span></div>
+        <div class="book-side ask" id="asks"><p>매도 호가 없음</p></div>
+        <div class="book-mid"><strong id="book-price">—</strong><span>최근 체결</span></div>
+        <div class="book-side bid" id="bids"><p>매수 호가 없음</p></div>
+        <footer class="book-foot"><span class="bid">매수</span><span class="ask">매도</span></footer>
+      </section>
+      <section class="panel order-panel" aria-labelledby="order-heading">
+        <header class="panel-heading"><h2 id="order-heading">지정가 주문</h2><span class="demo-chip">모의거래</span></header>
+        <form id="order-form">
+          <div class="order-modes" aria-label="주문 구분">
+            <button type="button" data-action="open" aria-pressed="true">신규</button>
+            <button type="button" data-action="close" aria-pressed="false">청산</button>
+          </div>
+          <div class="available"><span>가용 TP</span><strong id="available-tp">—</strong></div>
+          <label>지정가 <span class="order-input"><input id="order-price" type="number" min="0" max="1000" step="1" required placeholder="0–1,000" /><span>MPI</span></span></label>
+          <label>수량 <span class="order-input"><input id="order-quantity" type="number" min="1" max="5" step="1" value="1" required /><span>계약</span></span></label>
+          <div class="margin"><span>최대 손실 <small>LONG / SHORT</small></span><strong id="order-margin">—</strong></div>
+          <div class="order-buttons">
+            <button class="long" type="submit" value="long" disabled>LONG</button>
+            <button class="short" type="submit" value="short" disabled>SHORT</button>
+          </div>
+          <p id="order-status" class="order-status" role="status"><%= initial.own?.reason || '개장 후 주문할 수 있습니다.' %></p>
+          <a id="order-exam-link" class="small-link" hidden>해당 회차 모의고사 ↗</a>
+        </form>
+        <details class="calculator">
+          <summary>평균 점수 계산기</summary>
+          <p id="calculator-status">회차별 배점이 등록되면 사용할 수 있습니다.</p>
+          <div id="calculator-fields" hidden>
+            <div class="calculator-head"><span>배점</span><span>문항 수</span><span>예상 정답</span></div>
+            <% for (const point of [2, 3, 4]) { %>
+              <label><span><%= point %>점</span><output data-question-count></output><input data-answer-count type="number" min="0" step="0.1" value="0" aria-label="<%= point %>점 문항 예상 정답 수" /></label>
+            <% } %>
+            <output id="calculator-result">0점 · MPI 0</output>
+          </div>
+        </details>
+      </section>
+      <section class="panel activity-panel" aria-label="거래 내역">
+        <nav class="activity-tabs" aria-label="거래 내역 종류">
+          <button type="button" data-activity="positions" aria-pressed="true">포지션</button>
+          <button type="button" data-activity="working" aria-pressed="false">미체결 주문</button>
+          <button type="button" data-activity="history" aria-pressed="false">주문 내역</button>
+          <button type="button" data-activity="trades" aria-pressed="false">체결 내역</button>
+          <button type="button" data-activity="ranking" aria-pressed="false">랭킹</button>
+        </nav>
+        <div id="ranking-controls" hidden>
+          <% if (signedIn) { %><label><input id="ranking-visible" type="checkbox" <%= rankingVisible ? "checked" : "" %> /> 내 닉네임과 확정 손익 공개</label><% } %>
+        </div>
+        <div class="activity-table" id="activity-content"><p>표시할 포지션이 없습니다.</p></div>
+      </section>
+    </div>
+    <footer class="terminal-footer"><span>Matths Exchange</span><span>무료 모의거래 · TP는 현금으로 전환할 수 없습니다.</span></footer>
+  </main>
+</body>
+</html>

@@ -28,13 +28,22 @@ function serviceOrigins(environment = process.env) {
     originOf(environment?.PUBLIC_BASE_URL) ||
     originOf(environment?.APP_BASE_URL);
 
-  return Object.fromEntries(
+  const origins = Object.fromEntries(
     Object.entries(ENV_KEY_BY_SURFACE).map(([surface, key]) => [
       surface,
       originOf(environment?.[key]) ||
         (production ? DEFAULT_SERVICE_ORIGINS[surface] : localFallback),
     ])
   );
+  const exchange = originOf(environment?.EXCHANGE_BASE_URL);
+  if (exchange) origins.exchange = exchange;
+  return origins;
+}
+
+function exchangeUrl(path = "/exchange", environment = process.env) {
+  const origin = serviceOrigins(environment).exchange;
+  const target = safePath(path);
+  return origin && target === "/exchange" ? origin : serviceUrl("exchange", target, environment);
 }
 
 function safePath(value = "/") {
@@ -101,6 +110,7 @@ module.exports = {
   DEFAULT_SERVICE_ORIGINS,
   ENV_KEY_BY_SURFACE,
   accountNavigation,
+  exchangeUrl,
   originOf,
   safePath,
   serviceOrigins,

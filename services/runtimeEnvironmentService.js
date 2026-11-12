@@ -95,6 +95,7 @@ function runtimeEnvironmentReport(environment = process.env) {
     "ADMIN_BASE_URL",
     "PARENTS_BASE_URL",
   ];
+  if (valueOf(environment, "EXCHANGE_BASE_URL")) surfaceUrlKeys.push("EXCHANGE_BASE_URL");
   for (const key of surfaceUrlKeys) {
     const value = valueOf(environment, key);
     if (!validHttpsUrl(value)) {
@@ -105,7 +106,7 @@ function runtimeEnvironmentReport(environment = process.env) {
     .map((key) => hostnameOf(valueOf(environment, key)))
     .filter(Boolean);
   if (surfaceHosts.length === surfaceUrlKeys.length && new Set(surfaceHosts).size !== surfaceHosts.length) {
-    errors.push("공개·학생·학원·관리자·학부모 서비스 주소는 서로 다른 호스트여야 합니다.");
+    errors.push("공개·학생·학원·관리자·학부모 서비스 주소는 서로 다른 호스트여야 합니다. Exchange도 별도 호스트를 사용합니다.");
   }
 
   const cookieDomainValue = valueOf(environment, "SESSION_COOKIE_DOMAIN");

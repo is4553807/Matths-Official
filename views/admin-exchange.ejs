@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Exchange 선물시장 운영 | Matths</title>
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/admin-exchange.css" />
+  <script src="/js/admin-exchange.js" defer></script>
+</head>
+<body class="admin-page">
+  <%- include("partials/admin-navigation", { activePage: "exchange" }) %>
+  <main class="admin-main exchange-admin">
+    <header class="admin-heading">
+      <div><p>Matths Exchange</p><h1>선물시장 운영</h1><span>주간 시험 연결, 실제 시험 일정, 거래 마감과 TP 정산을 관리합니다.</span></div>
+      <a class="exchange-admin-link" href="<%= exchangeHref %>">Exchange 화면 ↗</a>
+    </header>
+    <% if (saved) { %><p class="exchange-admin-notice" role="status">운영 설정을 저장했습니다.</p><% } %>
+
+    <section class="exchange-admin-section" aria-labelledby="weekly-title">
+      <div class="section-top"><div><h2 id="weekly-title">맵쓰 주간 모의고사</h2><p>공개된 정규 시험, 등록된 문제지와 채점 데이터가 모두 있어야 시장이 열립니다.</p></div>
+        <a class="exchange-admin-link" href="/admin/private-mock-exams">주간 모의고사 등록</a>
+      </div>
+      <form class="exchange-admin-form inline" method="post" action="/admin/exchange/minimum">
+        <label>기본 최소 유효 응시자 <input type="number" min="0" max="1000000" name="minimumAttempts" value="<%= settings %>" required /></label>
+        <button type="submit">기본값 저장</button>
+      </form>
+      <% if (!exams.length) { %><p class="exchange-admin-empty">등록된 정규 시험이 없습니다. 이번 주 선물시장은 미개설 상태입니다.</p><% } %>
+      <% for (const exam of exams) { %>
+        <article class="exchange-admin-row">
+          <div><strong><%= exam.title %></strong><p><%= seoulInput(exam.releaseAt).replace("T", " ") %> KST · 유효 응시 <%= exam.count %>명</p></div>
+          <span class="exchange-status"><%= exam.ready ? (exam.status === "open" ? "시험 공개" : "등록 검증 완료") : (exam.file ? "채점 데이터 확인 필요" : "문제지 미등록") %></span>
+        </article>
+      <% } %>
+    </section>
+
+    <section class="exchange-admin-section" aria-labelledby="schedule-title">
+      <div class="section-top">
+        <div><h2 id="schedule-title">실제 모의고사와 수능 일정</h2><p>고1–고3 모의고사 시험일 12:10, 수능일 16:00 KST에 자동 개장합니다. 종료 일시는 회차별로 입력하세요.</p></div>
+      </div>
+      <form class="exchange-admin-form inline" method="get" action="/admin/exchange" data-grade-filter>
+        <label>시행 연도 <input type="number" min="2000" max="2100" name="year" value="<%= year %>" required /></label>
+        <label>학년 <select name="grade"><% for (const level of [1, 2, 3]) { %><option value="<%= level %>" <%= grade === level ? "selected" : "" %>>고<%= level %></option><% } %></select></label>
+        <button type="submit">회차 조회</button>
+      </form>
+      <% for (const round of rounds) {
+        const schedule = schedules.find((row) => row.round === round);
+        const roundName = round === "csat" ? "수능" : `${round}모`;
+        const opens = round === "csat" ? "16:00" : "12:10";
+        const closed = schedule && (schedule.phase !== "scheduled" || +schedule.closeAt <= Date.now());
+        const canChangeDate = !schedule || +schedule.opensAt > Date.now();
+      %>
+        <details class="exchange-admin-round">
+          <summary><strong><%= roundName %></strong><span><%= schedule ? `${schedule.examDate} · ${opens} KST` : "시험일 미등록" %></span></summary>
+          <form method="post" action="/admin/exchange/schedules" class="exchange-admin-form" data-schedule-form data-open-time="<%= opens %>">
+            <input type="hidden" name="year" value="<%= year %>" />
+            <input type="hidden" name="grade" value="<%= grade %>" />
+            <input type="hidden" name="round" value="<%= round %>" />
+            <fieldset <%= closed ? "disabled" : "" %>>
+              <label>시험일 <input type="date" name="examDate" min="<%= year %>-01-01" max="<%= year %>-12-31" value="<%= schedule?.examDate || '' %>" <%= canChangeDate ? "" : "readonly" %> required /></label>
+              <label>자동 개장 · KST <output data-opening><%= schedule ? `${schedule.examDate} ${opens}` : opens %></output></label>
+              <label>거래 종료 · KST <input type="datetime-local" name="closeAt" value="<%= seoulInput(schedule?.closeAt) %>" required /></label>
+              <label>평균 점수 출처 <input type="text" name="settlementSource" maxlength="200" value="<%= schedule?.settlementSource || '' %>" <%= canChangeDate ? "" : "readonly" %> /></label>
+              <label>집계 모집단 <input type="text" name="population" maxlength="200" value="<%= schedule?.population || '' %>" <%= canChangeDate ? "" : "readonly" %> /></label>
+              <% for (const [index, point] of [2, 3, 4].entries()) { %>
+                <label><%= point %>점 문항 수 <input type="number" min="0" max="50" name="count<%= point %>" value="<%= schedule?.questionCounts?.[index] ?? '' %>" /></label>
+              <% } %>
+              <button type="submit">일정 저장</button>
+            </fieldset>
+          </form>
+        </details>
+      <% } %>
+    </section>
+
+    <section class="exchange-admin-section" aria-labelledby="market-ops-title">
+      <h2 id="market-ops-title">시장 상태와 정산</h2>
+      <% if (!markets.length) { %><p class="exchange-admin-empty">예약 또는 개장된 선물시장이 없습니다.</p><% } %>
+      <% for (const market of markets) {
+        const terminal = ["settled", "settling", "void"].includes(market.status);
+      %>
+        <details class="exchange-admin-round">
+          <summary><strong><%= market.title %></strong><span><%= market.statusLabel %> · 미체결 <%= market.openOrders %>건</span></summary>
+          <div class="exchange-admin-details">
+            <dl>
+              <div><dt>개장 · KST</dt><dd><%= seoulInput(market.opensAt).replace("T", " ") %></dd></div>
+              <div><dt>거래 종료 · KST</dt><dd><%= seoulInput(market.closeAt).replace("T", " ") %></dd></div>
+              <div><dt>거래량</dt><dd><%= market.volume %>계약</dd></div>
+              <div><dt>보관 담보</dt><dd><%= market.escrow.toLocaleString("ko-KR") %> TP</dd></div>
+              <div><dt>최종 정산 MPI</dt><dd><%= market.settlement ?? "—" %></dd></div>
+              <% if (market.type === "weekly") { %>
+                <div><dt>개장 최소 인원</dt><dd><%= market.appliedMinimum ?? market.minimumAttempts %>명</dd></div>
+                <div><dt>최근 표본 공개 예정 · KST</dt><dd><%= seoulInput(market.latestTick?.publishAt).replace("T", " ") || "—" %></dd></div>
+              <% } %>
+            </dl>
+            <% if (market.reason) { %><p><%= market.reason %></p><% } %>
+            <% if (market.type === "weekly" && market.appliedMinimum === undefined && ["scheduled", "waiting", "paused"].includes(market.status)) { %>
+              <form class="exchange-admin-form inline" method="post" action="/admin/exchange/minimum">
+                <input type="hidden" name="marketId" value="<%= market.id %>" />
+                <label>이 회차 최소 인원 <input type="number" min="0" max="1000000" name="minimumAttempts" value="<%= market.minimumAttempts %>" required /></label>
+                <button type="submit">회차 설정 저장</button>
+              </form>
+            <% } %>
+            <% if (!terminal) { %>
+              <form method="post" action="/admin/exchange/markets/<%= market.id %>/action" class="exchange-admin-form inline">
+                <label>변경 사유 <input type="text" maxlength="300" name="reason" required /></label>
+                <% if (["scheduled", "waiting", "paused", "open"].includes(market.status)) { %>
+                  <button type="submit" name="action" value="<%= market.status === 'paused' ? 'resume' : 'pause' %>"><%= market.status === 'paused' ? '거래 재개' : '거래 중지' %></button>
+                <% } %>
+                <button type="submit" name="action" value="void" data-confirm-void>시장 무효·TP 반환</button>
+              </form>
+            <% } %>
+            <% if (market.status === "awaiting-result") { %>
+              <form method="post" action="/admin/exchange/markets/<%= market.id %>/action" class="exchange-admin-form result-form">
+                <h3>성적 확인 및 정산 등록</h3>
+                <fieldset>
+                  <label>평균 원점수 <input type="number" min="0" max="100" step="0.001" name="average" required /></label>
+                  <label>발표 시각 · KST <input type="datetime-local" name="publishedAt" required /></label>
+                  <label>발표 링크 <input type="url" maxlength="1000" name="resultUrl" required /></label>
+                  <label>성적 출처 <input type="text" maxlength="200" name="source" value="<%= market.settlementSource || '' %>" <%= market.settlementSource ? "readonly" : "" %> required /></label>
+                  <label>집계 모집단 <input type="text" maxlength="200" name="population" value="<%= market.population || '' %>" <%= market.population ? "readonly" : "" %> required /></label>
+                  <button type="submit" name="action" value="settle" data-confirm-settle>정산 등록</button>
+                </fieldset>
+              </form>
+            <% } %>
+          </div>
+        </details>
+      <% } %>
+    </section>
+
+    <section class="exchange-admin-section" aria-labelledby="event-title">
+      <h2 id="event-title">최근 운영 이력</h2>
+      <% const actions = { schedule: "일정 저장", minimum: "최소 인원 변경", pause: "거래 중지", resume: "거래 재개", normal: "정산 등록", void: "시장 무효" }; %>
+      <% if (!events.length) { %><p class="exchange-admin-empty">저장된 운영 이력이 없습니다.</p><% } %>
+      <% for (const event of events) { %>
+        <article class="exchange-admin-row">
+          <div><strong><%= actions[event.action] || event.action %></strong><p><%= event.detail?.reason || (event.detail?.minimumAttempts !== undefined ? `최소 ${event.detail.minimumAttempts}명` : (event.marketId || '기본 설정')) %></p></div>
+          <span><%= seoulInput(event.createdAt).replace("T", " ") %> KST</span>
+        </article>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

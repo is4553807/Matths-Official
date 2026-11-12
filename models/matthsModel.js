@@ -5230,6 +5230,7 @@ const privateMockUploadReminderSchema =
 const privateMockExamAttemptSchema =
     new Schema(
         {
+            exchangeMmrGrade: { type: Number, min: 1, max: 9 },
             // Synthetic academy-demo responses never participate in live ranking.
             demoBatchKey: { type: String, trim: true, maxlength: 120, default: undefined, select: false },
             examId: {

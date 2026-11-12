@@ -38,6 +38,7 @@ const {
 } = require("./middleware/serviceHostRouting");
 const {
     accountNavigation,
+    exchangeUrl,
     serviceOrigins,
 } = require("./services/serviceUrlService");
 const {
@@ -296,6 +297,7 @@ server.use(sameOriginProtection);
 server.use((req, res, next) => {
     res.locals.user = req.session?.user || null;
     res.locals.serviceUrls = serviceOrigins();
+    res.locals.exchangeHref = exchangeUrl();
     res.locals.accountNavigation = accountNavigation(req.session);
     res.locals.arenaPublicText = arenaPublicText;
     // 공개 연락처는 약관·개인정보처리방침·푸터에서 동일해야 한다. 운영 플랫폼에
@@ -318,8 +320,10 @@ const goatArenaRoutes = require("./routes/goat-arena-routes");
 const apiRoutes = require("./routes/api-routes");
 const parentRoutes = require("./routes/parent-routes");
 const academyRoutes = require("./routes/academy-routes");
+const exchangeRoutes = require("./routes/exchange-routes");
 
 server.use("/api/v1", apiRoutes);
+server.use("/", exchangeRoutes);
 server.use("/", parentRoutes);
 server.use("/", goatArenaRoutes);
 server.use("/", academyRoutes);
@@ -440,6 +444,7 @@ async function connectDB() {
             startPrivateMockExamScheduler,
         } = require("./services/privateMockExamService");
         startPrivateMockExamScheduler();
+        await require("./services/exchangeService").startExchangeScheduler();
 
         const {
             startPlacementExamExpiryScheduler,
