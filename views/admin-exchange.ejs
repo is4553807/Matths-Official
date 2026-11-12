@@ -110,6 +110,13 @@
                 <button type="submit" name="action" value="void" data-confirm-void>시장 무효·TP 반환</button>
               </form>
             <% } %>
+            <% if (market.type === "weekly" && market.status === "open") { %>
+              <form method="post" action="/admin/exchange/markets/<%= market.id %>/mpi-demo" class="exchange-admin-form inline">
+                <button type="submit" name="action" value="start">더미 계정 MPI 시연</button>
+                <button type="submit" name="action" value="remove">시연 데이터 삭제</button>
+                <p>시연 점수는 MPI 화면의 시연 탭에서만 사용합니다.</p>
+              </form>
+            <% } %>
             <% if (market.status === "awaiting-result") { %>
               <form method="post" action="/admin/exchange/markets/<%= market.id %>/action" class="exchange-admin-form result-form">
                 <h3>성적 확인 및 정산 등록</h3>

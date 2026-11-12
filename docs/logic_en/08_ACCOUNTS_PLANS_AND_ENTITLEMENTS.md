@@ -13,7 +13,7 @@
 
 ## Entitlement resolution
 
-`accountPlanService` resolves role, dates, and status into a Free, Pro, or administrator view. Feature services consume this view rather than display strings. An expired Pro record resolves to Free access.
+`accountPlanService` resolves role, dates, and status into a Free, Pro, or administrator view. The plan view supports historical billing and operator workflows. Weekly mocks, published archive materials, placement assessments, and Exchange are free to use. Weekly results from placed students follow the existing internal MMR rules. New Pro sales are paused on web and app.
 
 ## Registration and nickname ownership
 

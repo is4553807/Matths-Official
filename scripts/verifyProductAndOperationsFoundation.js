@@ -71,27 +71,18 @@ const dashboard = read("views/main.ejs");
 const terms = read("views/terms.ejs");
 const privacy = read("views/privacy.ejs");
 const faq = read("views/faq.ejs");
-assert.ok(pricing.includes("본인 결제"));
-assert.ok(pricing.includes("부모님께 결제 요청하기"));
-assert.ok(pricing.includes('/pricing/pro/self'));
-assert.ok(pricing.includes('/pricing/pro/parent-request'));
-assert.ok(!pricing.includes('/pricing/mock-exam-only/'));
-assert.ok(!pricing.includes('/pricing/learning-package/'));
-assert.ok(pricing.includes("가입하고 시작하기"));
-assert.ok(pricing.includes("무료 플랜"));
-assert.ok(pricing.includes("Pro 플랜"));
-assert.ok(pricing.includes("5,500"));
-assert.ok(pricing.includes("평가센터 유형별 문제 풀이"));
-assert.ok(pricing.includes("GOAT Arena"));
+assert.doesNotMatch(pricing, /본인 결제|부모님께 결제 요청|\/pricing\/pro\//);
+assert.match(pricing, /무료 학습 기능/);
+assert.match(pricing, /주간 공식 모의고사/);
+assert.match(pricing, /GOAT Arena/);
 const warOfMasters = read("views/war-of-masters.ejs");
 assert.ok(warOfMasters.includes("유효한 일반전 3경기"));
 assert.ok(warOfMasters.includes("1~5회 배치"));
-assert.ok(warOfMasters.includes("미응시 불이익 없음"));
+assert.ok(warOfMasters.includes("무료 응시"));
 assert.doesNotMatch(warOfMasters, /페이백|\bGP\b|Unranked|Ranked|학습일수/);
 assert.ok(routes.includes("assertPlacementExamAccess"));
-assert.ok(dashboard.includes("무료 플랜"));
-assert.ok(dashboard.includes("Pro 플랜"));
-assert.ok(dashboard.includes("5500"));
+assert.ok(dashboard.includes("무료 기능 안내"));
+assert.doesNotMatch(dashboard, /Pro 플랜|5500/);
 assert.ok(!dashboard.includes("data-access-renewal-dialog"));
 assert.ok(!dashboard.includes("72시간 내 재구매 예상 위치"));
 for (const [name, view] of [
@@ -108,7 +99,7 @@ for (const [name, view] of [
   assert.match(view, /경쟁전/);
   assert.match(view, /단체 도전장/);
   assert.match(view, /3일/);
-  assert.match(view, /5,500원/);
+  assert.doesNotMatch(view, /월 5,500원/);
 }
 assert.match(terms, /요일과 관계없이 24시간/);
 assert.match(faq, /문항당 10분|각 문항의 제한 시간은 (?:최대 )?10분/);
@@ -130,8 +121,8 @@ for (const required of [
 assert.ok(parentRegister.includes("readonly"));
 assert.ok(parentDashboard.includes("오답률"));
 assert.ok(parentDashboard.includes("경쟁전 전체 랭킹"));
-assert.ok(parentPricing.includes("결제하기"));
-assert.ok(parentPricing.includes("온라인 결제 준비 중"));
+assert.ok(parentPricing.includes("무료 학습 이용 안내"));
+assert.doesNotMatch(parentPricing, /결제하기|온라인 결제 준비 중/);
 assert.equal(parentPricing.includes("PG 연결 전"), false);
 const checkoutService = read("services/checkoutService.js");
 assert.ok(checkoutService.includes("PAID_CHECKOUT_UNAVAILABLE"));
@@ -142,12 +133,9 @@ const accessService = read("services/paidFeatureAccessService.js");
 const privateMockService = read("services/privateMockExamService.js");
 const mmrService = read("services/mmrService.js");
 assert.ok(accessService.includes("getAccountPlanAccess"));
-assert.ok(privateMockService.includes("Pro 플랜이 활성화"));
-assert.ok(
-  accessService.includes("packageType: plan.code") &&
-    accessService.includes("placementRequired: true"),
-  "Pro 플랜도 배치고사로 첫 티어를 확정해야 합니다."
-);
+assert.match(privateMockService, /무료로 응시할 수 있습니다/);
+assert.doesNotMatch(privateMockService, /getWeeklyMockExamAccess|PAYMENT_REQUIRED/);
+assert.match(accessService, /placementRequired: false/);
 assert.ok(mmrService.includes("weeklyExamCount >= 4"));
 assert.ok(mmrService.includes('eventType: "placement-calibration"'));
 
@@ -215,35 +203,12 @@ const renderAdminWeeklyMockAccess = ({
     ),
   }
 );
-const freeWeeklyMockHtml =
-  renderAdminWeeklyMockAccess({
-    weeklyMockAccess: {
-      active: false,
-      packageType: null,
-    },
-  });
-assert.ok(
-  freeWeeklyMockHtml.includes(
-    'data-weekly-mock-access-state="unavailable"'
-  )
-);
-assert.ok(freeWeeklyMockHtml.includes("권한 없음"));
-assert.ok(!freeWeeklyMockHtml.includes("응시 가능"));
-
-const paidWeeklyMockHtml =
-  renderAdminWeeklyMockAccess({
-    weeklyMockAccess: {
-      active: true,
-      packageType: "PRO",
-    },
-  });
-assert.ok(
-  paidWeeklyMockHtml.includes(
-    'data-weekly-mock-access-state="available"'
-  )
-);
-assert.ok(paidWeeklyMockHtml.includes("응시 가능"));
-assert.ok(paidWeeklyMockHtml.includes("Pro 플랜"));
+const freeWeeklyMockHtml = renderAdminWeeklyMockAccess({
+  weeklyMockAccess: { active: true, packageType: "FREE" },
+});
+assert.match(freeWeeklyMockHtml, /data-weekly-mock-access-state="available"/);
+assert.match(freeWeeklyMockHtml, /무료 응시/);
+assert.doesNotMatch(freeWeeklyMockHtml, /Pro 플랜/);
 
 const restrictedWeeklyMockHtml =
   renderAdminWeeklyMockAccess({

@@ -11,6 +11,10 @@
 <body>
   <header class="exchange-header">
     <a class="exchange-brand" href="<%= brandHref %>"><img src="/images/brand/matths-logo-light.svg" alt="Matths" width="94" height="29" /><strong>Exchange</strong></a>
+    <nav class="exchange-sections" aria-label="Exchange 화면">
+      <a href="/exchange/mpi">MPI 지수</a>
+      <a href="/exchange/futures" aria-current="page">Futures</a>
+    </nav>
     <nav class="market-tabs" aria-label="시장 종류">
       <button type="button" data-filter="weekly" aria-pressed="true">주간 모의고사</button>
       <button type="button" data-filter="mock" aria-pressed="false">실제 모의고사</button>
@@ -27,7 +31,6 @@
       </div>
       <dl class="market-metrics">
         <div><dt>최근 체결가</dt><dd id="market-price">—</dd></div>
-        <div><dt>표본 MPI <small>30분 지연</small></dt><dd id="sample-price">—</dd></div>
         <div><dt>정산 MPI</dt><dd id="settlement-price">—</dd><a id="result-link" class="small-link" hidden>성적 출처 ↗</a></div>
         <div><dt>거래량</dt><dd id="market-volume">—</dd></div>
         <div><dt>거래 종료 · KST</dt><dd id="market-close">—</dd></div>
@@ -36,16 +39,16 @@
     <div class="terminal-grid">
       <section class="panel chart-panel" aria-labelledby="chart-heading">
         <header class="panel-heading">
-          <h2 id="chart-heading">가격 차트</h2>
+          <h2 id="chart-heading">선물 체결가</h2>
           <div class="chart-periods" aria-label="차트 간격">
             <button type="button" data-interval="1m" aria-pressed="true">1분</button>
             <button type="button" data-interval="5m" aria-pressed="false">5분</button>
             <button type="button" data-interval="1h" aria-pressed="false">1시간</button>
           </div>
         </header>
-        <div class="chart-legend"><span class="legend-price">선물 체결가</span><span class="legend-sample">표본 MPI</span><span class="legend-ma">MA 5 · 10</span></div>
+        <div class="chart-legend"><span class="legend-price">선물 체결가</span><span class="legend-ma">MA 5 · 10</span></div>
         <div class="chart-area">
-          <canvas id="exchange-chart" role="img" aria-label="선물 체결가 캔들과 거래량, 표본 지수 차트"></canvas>
+          <canvas id="exchange-chart" role="img" aria-label="선물 체결가 캔들과 거래량"></canvas>
           <div class="chart-empty" id="chart-empty">
             <div class="chart-symbol" aria-hidden="true"><i></i><i></i><i></i></div>
             <strong id="chart-empty-title"><%= initial.market ? '체결을 기다리는 중' : '이번 주 시장이 아직 열리지 않았습니다' %></strong>
@@ -53,10 +56,10 @@
             <a id="exam-link" href="<%= initial.market?.examHref || '/private-mock-exams' %>">주간 모의고사 보기 <span aria-hidden="true">↗</span></a>
           </div>
         </div>
-        <footer class="chart-foot"><span id="sample-time">표본 없음</span><span id="market-countdown">KST · 개장 대기</span></footer>
+        <footer class="chart-foot"><span id="quote-time">체결 없음</span><span id="market-countdown">KST · 개장 대기</span></footer>
       </section>
       <section class="panel book-panel" aria-labelledby="book-heading">
-        <header class="panel-heading"><h2 id="book-heading">호가창</h2><span>MPI</span></header>
+        <header class="panel-heading"><h2 id="book-heading">호가창</h2><span>선물가</span></header>
         <div class="book-labels"><span>가격</span><span>계약</span><span>누적</span></div>
         <div class="book-side ask" id="asks"><p>매도 호가 없음</p></div>
         <div class="book-mid"><strong id="book-price">—</strong><span>최근 체결</span></div>
@@ -71,7 +74,7 @@
             <button type="button" data-action="close" aria-pressed="false">청산</button>
           </div>
           <div class="available"><span>가용 TP</span><strong id="available-tp">—</strong></div>
-          <label>지정가 <span class="order-input"><input id="order-price" type="number" min="0" max="1000" step="1" required placeholder="0–1,000" /><span>MPI</span></span></label>
+          <label>지정가 <span class="order-input"><input id="order-price" type="number" min="0" max="1000" step="1" required placeholder="0–1,000" /><span>선물가</span></span></label>
           <label>수량 <span class="order-input"><input id="order-quantity" type="number" min="1" max="5" step="1" value="1" required /><span>계약</span></span></label>
           <div class="margin"><span>최대 손실 <small>LONG / SHORT</small></span><strong id="order-margin">—</strong></div>
           <div class="order-buttons">

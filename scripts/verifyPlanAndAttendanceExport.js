@@ -37,7 +37,7 @@ async function main() {
       return html.match(/<section class="plan-card"[\s\S]*?<\/section>/)?.[0] || "";
     }
     const freeHtml = await renderPlan(freeData);
-    assert.match(freeHtml, /무료 플랜/);
+    assert.match(freeHtml, /무료 이용/);
     assert.match(freeHtml, /0원/);
 
     const proStartsAt = new Date("2026-09-10T06:51:21.129Z");
@@ -51,9 +51,7 @@ async function main() {
     assert.equal(proData.activePlan.priceAmount, 5500);
     assert.equal((await getPaidPackageAccess(learner._id, { now })).active, true);
     const proHtml = await renderPlan(proData);
-    assert.match(proHtml, /Pro 플랜/);
-    assert.match(proHtml, /5,500원/);
-    assert.match(proHtml, /2026년 10월 10일/);
+    assert.equal(proHtml, freeHtml, "기존 플랜은 학습 접근 안내를 바꾸지 않아야 합니다.");
 
     await User.updateOne({ _id: learner._id }, { $set: { "accountPlan.endsAt": now } });
     assert.equal((await getDashboardData(learner._id, { now })).activePlan.code, "FREE");

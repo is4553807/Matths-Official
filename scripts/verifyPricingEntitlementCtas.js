@@ -62,24 +62,19 @@ async function main() {
   assert.equal(pro.PRO_MONTHLY.active, true);
   assert.equal(admin.PRO_MONTHLY.purchaseAllowed, false);
 
-  const freeHtml = await renderPricing(free);
-  assert.match(freeHtml, /\/pricing\/pro\/self/);
-  assert.match(freeHtml, /\/pricing\/pro\/parent-request/);
-  assert.match(freeHtml, /5,500/);
-  assert.doesNotMatch(freeHtml, /mock-exam-only|learning-package/);
+  for (const plan of [free, pro, admin]) {
+    const studentHtml = await renderPricing(plan);
+    assert.match(studentHtml, /주간 공식 모의고사/);
+    assert.doesNotMatch(studentHtml, /\/pricing\/pro\/|5,500|Pro 계속 이용하기/);
 
-  const proHtml = await renderPricing(pro);
-  assert.doesNotMatch(proHtml, /\/pricing\/pro\/(?:self|parent-request)/);
-  assert.match(proHtml, /Pro 플랜 이용 중/);
-  assert.match(proHtml, /Pro 계속 이용하기/);
+    const parentHtml = await renderParentPricing(plan);
+    assert.match(parentHtml, /무료 학습 이용 안내/);
+    assert.match(parentHtml, /결제·환불 내역 확인/);
+    assert.doesNotMatch(parentHtml, /\/parent\/checkout\/|결제하기/);
+  }
 
-  const parentFreeHtml = await renderParentPricing(free);
-  assert.match(parentFreeHtml, /\/parent\/checkout\/PRO_MONTHLY/);
-  const parentProHtml = await renderParentPricing(pro);
-  assert.doesNotMatch(parentProHtml, /\/parent\/checkout\//);
-  assert.match(parentProHtml, /현재 이용 중인 상품입니다/);
+  console.log("Free access pages and preserved historical purchase eligibility verified.");
 
-  console.log("Pricing entitlement CTA verification passed: FREE, PRO, administrator and parent states.");
 }
 
 main().catch((error) => {

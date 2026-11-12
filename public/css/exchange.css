@@ -147,3 +147,22 @@ a { color: inherit; text-decoration: none; }
   .book-side { height: 76px; }
   .activity-tabs { gap: 14px; }
 }
+
+.exchange-sections { display: flex; gap: 8px; }
+.exchange-sections a { padding: 7px 9px; border-radius: 5px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.exchange-sections a[aria-current="page"] { color: var(--accent); background: #2b2419; font-weight: 700; }
+.market-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.mpi-summary .market-identity p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.mpi-panel .chart-area { height: clamp(280px, 52vh, 510px); }
+.mpi-panel .panel-heading { flex-wrap: wrap; padding-block: 8px; }
+.mpi-panel .market-select { margin: 0; }
+.mpi-panel .chart-foot { gap: 12px; line-height: 1.5; }
+#mpi-chart { display: block; width: 100%; height: 100%; }
+@media (max-width: 640px) {
+  .exchange-sections { gap: 0; }
+  .exchange-sections a { padding-inline: 5px; }
+  .market-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .market-metrics div:nth-child(3) { border-left: 0; padding-left: 0; }
+  .market-metrics div:nth-child(4) { border-left: 1px solid var(--border); padding-left: 9px; }
+  .market-metrics div:last-child { grid-column: auto; }
+}

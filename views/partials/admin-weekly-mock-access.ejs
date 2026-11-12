@@ -4,11 +4,6 @@
   const entitled = access.active === true;
   const restricted = entitled && restriction.active === true;
   const state = !entitled ? "unavailable" : restricted ? "restricted" : "available";
-  const packageLabel = access.packageType === "PRO"
-    ? "Pro 플랜"
-      : access.packageType === "SUPER_ADMIN"
-        ? "운영자 전체 권한"
-        : "활성 이용권";
   const remainingWeeks = Number(
     restriction.remainingWeekCount ||
     restriction.remainingExamCount ||
@@ -19,12 +14,12 @@
   <span>Matths 주간 공식 모의고사 권한</span>
   <% if (!entitled) { %>
     <strong>권한 없음</strong>
-    <small>Pro 플랜 또는 학원 이용 혜택이 필요합니다.</small>
+    <small>응시 가능한 학생 계정인지 확인해 주세요.</small>
   <% } else if (restricted) { %>
     <strong>권한 있음 · 응시 제한</strong>
-    <small><%= packageLabel %> · 남은 제한 <%= remainingWeeks %>회(<%= remainingWeeks %>주) · <%= restriction.reason || "사유 기록 없음" %></small>
+    <small>무료 응시 · 남은 제한 <%= remainingWeeks %>회(<%= remainingWeeks %>주) · <%= restriction.reason || "사유 기록 없음" %></small>
   <% } else { %>
     <strong>응시 가능</strong>
-    <small><%= packageLabel %> · 적용 중인 제한 없음</small>
+    <small>무료 응시 · 적용 중인 제한 없음</small>
   <% } %>
 </article>

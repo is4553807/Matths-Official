@@ -29,9 +29,6 @@ const {
   referencePercentileForScore,
   upsertInitialRankingProfile,
 } = require("./mmrService");
-const {
-  assertPaidPackageAccess,
-} = require("./paidFeatureAccessService");
 
 const KEY_QUESTION_NUMBERS = [
   20,
@@ -129,19 +126,11 @@ function placementAccessView(context) {
       isInitialPlacementPurpose(
         purpose
       ),
-    requiresPaidAccess:
-      !isInitialPlacementPurpose(
-        purpose
-      ),
+    requiresPaidAccess: false,
   };
 }
 
-/*
- * 최초 배치고사는 모든 로그인 회원에게 한 번 공개한다. 이미 최초 배치를
- * 마친 뒤의 시즌 배치와 랭크 복귀전만 기존 학습권 권한을 계속 요구한다.
- * attemptId가 있는 요청은 URL만 바꿔 후속 유료 시험에 접근하지 못하도록
- * 해당 기록의 소유자와 purpose를 함께 확인한다.
- */
+// Paid-plan history does not affect placement. Existing ownership and attempt limits still apply.
 async function assertPlacementExamAccess({
   userId,
   attemptId = "",
@@ -180,9 +169,8 @@ async function assertPlacementExamAccess({
         purpose: "INITIAL",
       };
     }
-    await assertPaidPackageAccess(userId);
     return {
-      accessType: "PAID_FOLLOW_UP",
+      accessType: "FREE_FOLLOW_UP",
       purpose: attempt.placementPurpose,
     };
   }
@@ -202,9 +190,8 @@ async function assertPlacementExamAccess({
       purpose: "INITIAL",
     };
   }
-  await assertPaidPackageAccess(userId);
   return {
-    accessType: "PAID_FOLLOW_UP",
+    accessType: "FREE_FOLLOW_UP",
     purpose: context.purpose,
   };
 }

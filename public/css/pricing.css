@@ -376,3 +376,5 @@
   .pricing-guide { padding: 26px 22px; }
   .pricing-guide-grid { grid-template-columns: 1fr; }
 }
+
+.pricing-grid--free { grid-template-columns: minmax(0, 560px); justify-content: center; }

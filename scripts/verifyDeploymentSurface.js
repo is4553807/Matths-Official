@@ -107,7 +107,8 @@ const checkoutService = read("services/checkoutService.js");
 assert.match(checkoutService, /provider === "INICIS"/);
 assert.match(checkoutService, /isInicisConfigured/);
 assert.match(checkoutService, /PAID_CHECKOUT_UNAVAILABLE/);
-assert.match(cloudtype, /PAID_CHECKOUT_ENABLED[\s\S]*value: "true"/);
+assert.match(cloudtype, /name: PAID_CHECKOUT_ENABLED\s+value: "false"/);
+assert.match(cloudtype, /name: APPLE_PRO_SALES_ENABLED\s+value: "false"/);
 assert.match(cloudtype, /INICIS_PAYMENTS_MODE[\s\S]*value: LIVE/);
 assert.doesNotMatch(
   cloudtype,

@@ -108,6 +108,21 @@ tick.index({ marketId: 1, sampledAt: 1 }, { unique: true });
 tick.index({ marketId: 1, publishAt: -1 });
 tick.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+const mpiDemo = new Schema({
+  _id: objectId,
+  examId: { type: objectId, required: true },
+  startedAt: { type: Date, required: true },
+  expiresAt: { type: Date, required: true, index: { expireAfterSeconds: 0 } },
+  startedBy: objectId,
+  attempts: [{
+    _id: false,
+    accountKey: String,
+    exchangeMmrGrade: Number,
+    score: Number,
+    offsetSeconds: Number,
+  }],
+}, options);
+
 const event = new Schema({ marketId: objectId, actorId: objectId, action: String, detail: Schema.Types.Mixed }, options);
 event.index({ createdAt: -1 });
 
@@ -120,5 +135,6 @@ module.exports = {
   ExchangePosition: model("ExchangePosition", position),
   ExchangeTrade: model("ExchangeTrade", trade),
   ExchangeTick: model("ExchangeTick", tick),
+  ExchangeMpiDemo: model("ExchangeMpiDemo", mpiDemo),
   ExchangeEvent: model("ExchangeEvent", event),
 };

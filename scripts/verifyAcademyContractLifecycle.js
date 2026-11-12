@@ -156,8 +156,9 @@ async function main() {
       now: new Date("2026-09-01T00:00:00.000Z"),
     });
     assert.equal(mockAccess.active, true);
-    assert.equal(mockAccess.packageType, "ACADEMY_PLAN");
-    assert.equal(mockAccess.arenaAllowed, false);
+    assert.equal(mockAccess.packageType, "FREE");
+    assert.equal(mockAccess.academyPlan.active, true);
+    assert.equal(mockAccess.arenaAllowed, true);
     const pricingAccess = await getPricingProductAccess(
       student._id,
       new Date("2026-09-01T00:00:00.000Z")

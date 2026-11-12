@@ -93,9 +93,7 @@
               <p>배치고사</p>
               <h2>배치고사</h2>
               <small>
-                <%= placement.requiresPaidAccess && !paidPackageAccess.active
-                  ? "배치과정 응시 조건을 확인해 주세요."
-                  : placement.status === "submitted"
+                <%= placement.status === "submitted"
                   ? `${placement.result.initialTier} 배치 완료`
                   : placement.status === "verification-required"
                     ? "제출 결과 확인 중"
@@ -106,9 +104,7 @@
                       : "경쟁전 초기 점수와 티어 결정" %>
               </small>
             </div>
-            <% if (placement.requiresPaidAccess && !paidPackageAccess.active) { %>
-              <button type="button" class="private-mock-disabled-action" disabled aria-disabled="true">배치고사 잠김 <span aria-hidden="true">×</span></button>
-            <% } else if (placement.status === "submitted") { %>
+            <% if (placement.status === "submitted") { %>
               <a href="<%= placement.ctaHref %>">배치 결과·스토리 카드 보기 <span aria-hidden="true">→</span></a>
             <% } else if (placement.status === "attempt-used") { %>
               <button type="button" class="private-mock-disabled-action placement-complete-action" disabled aria-disabled="true">배치고사 응시 종료 <span aria-hidden="true">×</span></button>
@@ -128,15 +124,15 @@
           <article class="masters-action-card private-mock-action-card" data-tutorial-target="arena-official-mock">
             <div>
               <span aria-hidden="true">02</span>
-              <p>매주 일요일 3회 제공</p>
+              <p>매주 일요일 15시 공개 · 무료 응시</p>
               <h2>Matths 주간 공식 모의고사</h2>
               <small>
                 <%= privateMockEligibility.allowed
-                  ? "응시 성적은 내부 실력 지표에만 반영 · 경쟁전 점수 미반영 · 미응시 불이익 없음"
+                  ? "경쟁전 배치 완료자의 성적을 내부 실력 지표에 반영합니다."
                   : "운영 일정과 응시 가능 여부를 확인해 주세요." %>
               </small>
             </div>
-            <% if (["payment-required", "access-expired", "placement-required", "verification-required", "ranking-pending"].includes(privateMockEligibility.status)) { %>
+            <% if (["verification-required", "ranking-pending"].includes(privateMockEligibility.status)) { %>
               <button
                 type="button"
                 class="private-mock-disabled-action"

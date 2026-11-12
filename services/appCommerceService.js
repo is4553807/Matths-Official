@@ -18,14 +18,6 @@ const HANDOFF_TTL_MS = 2 * 60 * 1000;
 const PRODUCT_ROUTES = Object.freeze({
   PRO_MONTHLY: "pro",
 });
-const PRODUCT_FEATURES = Object.freeze({
-  PRO_MONTHLY: [
-    "주간 공식 모의고사",
-    "Pro 전용 학습 자료",
-    "GOAT Arena Pro 이용 범위",
-  ],
-});
-
 function statusError(status, message, code) {
   const error = new Error(message);
   error.status = status;
@@ -65,8 +57,11 @@ async function getAppStorefront(userId, {
     accessLoader(userId),
   ]);
   const appleProConfigured =
+    environment.APPLE_PRO_SALES_ENABLED === "true" &&
     isAppleStoreConfigured(environment) &&
     isProAppleProductConfigured(environment);
+  const webCheckoutEnabled = isPaidCheckoutAllowedForEmail(userEmail, environment);
+  const offeredProducts = appleProConfigured || webCheckoutEnabled ? products : [];
   return {
     generatedAt: new Date().toISOString(),
     // 이 응답은 네이티브 iOS StoreKit 화면의 정본이다. 웹 KG이니시스의
@@ -75,7 +70,7 @@ async function getAppStorefront(userId, {
     // 경계를 분리하고, 네이티브는 Apple 거래 검증 경계의 준비 상태만 본다.
     checkoutEnabled: appleProConfigured,
     appleCheckoutEnabled: appleProConfigured,
-    webCheckoutEnabled: isPaidCheckoutAllowedForEmail(userEmail, environment),
+    webCheckoutEnabled,
     currency: "KRW",
     access: {
       packageType: access.packageType || null,
@@ -91,13 +86,13 @@ async function getAppStorefront(userId, {
       academyPlanEndsAt: access.academyPlan?.endsAt || null,
       arenaAllowed: access.arenaAllowed === true,
     },
-    products: products.map((product) => ({
+    products: offeredProducts.map((product) => ({
       code: product.code,
       name: product.name,
       amount: Number(product.amount),
       periodLabel: product.periodLabel,
       description: product.description,
-      features: PRODUCT_FEATURES[product.code] || [],
+      features: [],
       current:
         product.code === "PRO_MONTHLY" &&
         ["PRO", "SUPER_ADMIN"].includes(

@@ -30,7 +30,7 @@ assert.deepEqual(
   {
     purpose: "SEASON",
     freeInitialAttempt: false,
-    requiresPaidAccess: true,
+    requiresPaidAccess: false,
   }
 );
 
@@ -40,8 +40,8 @@ assert.equal(routes.includes("requirePaidPlacementAccess"), false);
 
 const placementService = read("services/placementExamService.js");
 assert.ok(placementService.includes('accessType: "FREE_INITIAL"'));
-assert.ok(placementService.includes('accessType: "PAID_FOLLOW_UP"'));
-assert.ok(placementService.includes("await assertPaidPackageAccess(userId)"));
+assert.ok(placementService.includes('accessType: "FREE_FOLLOW_UP"'));
+assert.doesNotMatch(placementService, /assertPaidPackageAccess/);
 
 const refundService = read("services/refundService.js");
 assert.ok(!refundService.includes('placementPurpose: {'));
@@ -49,11 +49,7 @@ assert.ok(!refundService.includes('"RENEWAL_RANK_ASSESSMENT"'));
 assert.ok(refundService.includes('freePlanDraft'));
 
 const arenaPage = read("views/war-of-masters.ejs");
-assert.ok(
-  arenaPage.includes(
-    "placement.requiresPaidAccess && !paidPackageAccess.active"
-  )
-);
+assert.doesNotMatch(arenaPage, /paidPackageAccess/);
 assert.ok(arenaPage.includes("유효한 일반전 3경기 후 시작 · 1~5회 배치"));
 assert.ok(
   arenaPage.includes("배치는 1회에서 최대 5회까지 진행할 수 있습니다.")
@@ -61,8 +57,8 @@ assert.ok(
 assert.ok(arenaPage.includes("배치 결과·스토리 카드 보기"));
 
 const pricing = read("views/pricing.ejs");
-assert.ok(pricing.includes("GOAT Arena 무료 이용 범위"));
-assert.ok(pricing.includes("기간 제한 없이 무료 기능을 이용할 수 있습니다."));
+assert.ok(pricing.includes("GOAT Arena와 배치고사"));
+assert.ok(pricing.includes("무료 학습 기능"));
 assert.ok(!pricing.includes("GOAT Arena 공식 경기 이용 불가"));
 
 const storyTemplate = read("views/partials/placement-story-card.ejs");

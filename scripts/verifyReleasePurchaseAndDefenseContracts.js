@@ -13,6 +13,7 @@ async function verifyNativeCheckoutBoundary() {
     catalogLoader: async () => [],
     accessLoader: async () => ({}),
     environment: {
+      APPLE_PRO_SALES_ENABLED: "true",
       APPLE_BUNDLE_ID: "kr.matths.app",
       APPLE_PRO_PRODUCT_ID: "kr.matths.app.pro.monthly",
       PAID_CHECKOUT_ENABLED: "false",

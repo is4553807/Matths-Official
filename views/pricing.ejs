@@ -1,23 +1,11 @@
-<%
-  const formatWon = (value) =>
-    new Intl.NumberFormat("ko-KR").format(Number(value) || 0);
-  const proProduct = products?.find((product) => product.code === "PRO_MONTHLY") || {
-    code: "PRO_MONTHLY",
-    name: "Matths Pro",
-    amount: 5500,
-    periodLabel: "30일",
-    refundPolicy: {},
-  };
-  const proAccess = productAccess?.PRO_MONTHLY || { purchaseAllowed: true };
-%>
 <!doctype html>
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Matths 무료 플랜과 Pro 플랜을 비교합니다." />
+    <meta name="description" content="Matths에서 무료로 이용할 수 있는 학습 기능을 안내합니다." />
     <meta name="theme-color" content="#f5f7fc" />
-    <title>플랜 | Matths</title>
+    <title>무료 이용 안내 | Matths</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
     <link rel="stylesheet" href="/css/main.css" />
     <link rel="stylesheet" href="/css/public-navigation.css" />
@@ -29,81 +17,23 @@
 
     <main class="pricing-main">
       <header class="pricing-hero">
-        <p>MATTHS PLANS</p>
-        <h1>무료로 시작하고,<br />필요할 때 Pro로 확장하세요.</h1>
-        <span>Matths 플랜은 무료와 Pro, 두 가지로 운영됩니다.</span>
+        <h1>맵쓰를 무료로 이용하세요</h1>
+        <span>로그인하면 주간 모의고사, 공개 학습 자료, 평가와 GOAT Arena를 이용할 수 있습니다.</span>
       </header>
-
-      <section class="pricing-grid" aria-label="Matths 플랜 비교">
+      <section class="pricing-grid pricing-grid--free" aria-label="무료 학습 기능">
         <article class="pricing-card pricing-card--free">
-          <div class="pricing-card-heading">
-            <span>부담 없이 시작</span>
-            <h2>무료 플랜</h2>
-            <p>결제 없이 기본 학습 흐름을 시작하고 학습 기록을 저장합니다.</p>
-          </div>
-          <div class="pricing-price"><strong>0</strong><span>원</span></div>
-          <p class="pricing-feature-title">포함 기능</p>
+          <h2>무료 학습 기능</h2>
           <ul>
-            <li>시각화 개념 학습</li>
-            <li>평가센터 유형별 문제 풀이</li>
-            <li>학습 진도와 오답 기록 저장</li>
-            <li>GOAT Arena 무료 이용 범위</li>
-            <li class="is-disabled">Pro 전용 기능</li>
+            <li>개념·유형 학습, 평가센터, 오답노트</li>
+            <li>주간 공식 모의고사와 공개 아카이브</li>
+            <li>GOAT Arena와 배치고사</li>
+            <li>Matths Exchange 모의거래</li>
           </ul>
           <div class="pricing-actions">
-            <a class="pricing-secondary pricing-secondary--strong" href="<%= user ? '/my-learning' : '/register' %>"><%= user ? "무료 학습 계속하기" : "무료로 시작하기" %></a>
+            <a class="pricing-primary" href="<%= user ? '/main' : '/student/register' %>"><%= user ? "학습 계속하기" : "무료로 시작하기" %></a>
+            <a class="pricing-secondary" href="/terms#article-5">기존 결제의 환불 기준</a>
           </div>
-          <small class="pricing-note">기간 제한 없이 무료 기능을 이용할 수 있습니다.</small>
         </article>
-
-        <article class="pricing-card pricing-card--learning">
-          <div class="pricing-badge">추천</div>
-          <div class="pricing-card-heading">
-            <span>전체 학습 경험</span>
-            <h2>Pro 플랜</h2>
-            <p>주간 공식 모의고사와 Pro 학습 기능을 하나의 플랜으로 이용합니다.</p>
-          </div>
-          <div class="pricing-price">
-            <strong><%= formatWon(proProduct.amount) %></strong><span>원 / <%= proProduct.periodLabel %></span>
-          </div>
-          <p class="pricing-feature-title">무료 플랜 기능에 추가</p>
-          <ul>
-            <li>Matths 주간 공식 모의고사</li>
-            <li>Pro 전용 학습 자료</li>
-            <li>배치·실력 지표 확장 기능</li>
-            <li>GOAT Arena Pro 이용 범위</li>
-          </ul>
-          <div class="pricing-actions">
-            <% if (user) { %>
-              <% if (!proAccess.purchaseAllowed) { %>
-                <span class="pricing-entitlement-status"><%= proAccess.active ? "Pro 플랜 이용 중" : "현재 플랜 상태를 확인해 주세요" %></span>
-                <a class="pricing-primary" href="<%= proAccess.continueHref %>"><%= proAccess.continueLabel %></a>
-              <% } else if (checkoutEnabled) { %>
-                <a class="pricing-primary" href="/pricing/pro/self">본인 결제</a>
-                <a class="pricing-secondary" href="/pricing/pro/parent-request">부모님께 결제 요청하기</a>
-              <% } else { %>
-                <span class="pricing-secondary" aria-disabled="true">온라인 결제 준비 중</span>
-              <% } %>
-            <% } else { %>
-              <a class="pricing-primary" href="/student/register">가입하고 시작하기</a>
-            <% } %>
-          </div>
-          <small class="pricing-note">결제일부터 30일 동안 Pro 기능을 이용할 수 있습니다.</small>
-          <section class="pricing-refund-summary" aria-label="Pro 플랜 환불 기준">
-            <strong>환불 기준</strong>
-            <p><%= proProduct.refundPolicy.fullRefund %></p>
-            <p><%= proProduct.refundPolicy.partialRefund %></p>
-            <code><%= proProduct.refundPolicy.formula %></code>
-          </section>
-        </article>
-      </section>
-
-      <section class="pricing-guide" aria-labelledby="pricing-guide-title">
-        <div><p>한눈에 비교</p><h2 id="pricing-guide-title">어떤 플랜이 맞을까요?</h2></div>
-        <div class="pricing-guide-grid">
-          <article><b>개념과 유형 연습부터 시작한다면</b><span>무료 플랜으로 시작하세요.</span></article>
-          <article><b>모의고사와 Pro 학습 기능이 필요하다면</b><span>월 5,500원 Pro 플랜을 선택하세요.</span></article>
-        </div>
       </section>
     </main>
     <%- include("partials/business-footer") %>

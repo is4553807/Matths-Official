@@ -33,7 +33,7 @@ async function main() {
   try {
     await Promise.all([User.init(), ArchiveItem.init(), PrivateMockExam.init(), PrivateMockExamAttempt.init(), PrivateMockWeeklyResult.init()]);
     const users = await User.create(Array.from({ length: 5 }, (_, index) => ({
-      name: `weekly-window-${index}`, email: `weekly-window-${index}@fixture.invalid`, role: "admin", passwordHash: "unused",
+      name: `weekly-window-${index}`, email: `weekly-window-${index}@fixture.invalid`, role: index === 0 ? "admin" : "student", passwordHash: "unused",
     })));
     const [sundayUser, weekdayUser, lateUser, untouchedUser, submittedUser] = users;
     const item = await ArchiveItem.create({ title: "Weekly window problem paper", originalName: "weekly.pdf",
@@ -98,6 +98,10 @@ async function main() {
     assert.equal(sunday.deadline, "2026-10-18T07:40:00.000Z");
     await assert.rejects(service.savePrivateMockDraft({ userId: sundayUser._id, examId, answers: ["1", ""], now: at("2026-10-18T07:40:00Z") }), { status: 410 });
 
+    const freeEligibility = await service.getPrivateMockEligibility(weekdayUser._id);
+    assert.equal(freeEligibility.allowed, true);
+    assert.equal(freeEligibility.status, "ready");
+    assert.match(freeEligibility.message, /무료로 응시/);
     const weekdayStart = at("2026-10-21T05:00:00Z");
     await service.startPrivateMockAttempt({ userId: weekdayUser._id, examId, now: weekdayStart });
     const weekday = await service.getPrivateMockAttemptData({ userId: weekdayUser._id, examId, now: weekdayStart });

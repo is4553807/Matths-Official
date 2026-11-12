@@ -62,12 +62,6 @@ const {
   createAdminTodo,
 } = require("./adminTodoService");
 const {
-  getWeeklyMockExamAccess,
-} = require("./paidFeatureAccessService");
-const {
-  recordOperationalMetricEvent,
-} = require("./operationalMetricEventService");
-const {
   conceptKey: curriculumConceptKey,
   findCurriculumConcept,
   loadCurriculum,
@@ -4492,78 +4486,24 @@ async function getPrivateMockEligibility(
     }
   }
 
-  const packageAccess =
-    await getWeeklyMockExamAccess(userId);
-  if (!packageAccess.active) {
-    const deniedAt = new Date();
-    const kstDayNumber = Math.floor(
-      (deniedAt.getTime() + SEOUL_OFFSET_MS) / DAY_MS
-    );
-    await recordOperationalMetricEvent({
-      eventKey: `weekly-mock-access-denied:${userId}:${kstDayNumber}`,
-      eventType: "WEEKLY_MOCK_ACCESS_DENIED",
-      userId,
-      result: "DENIED",
-      reasonCode: "PAYMENT_REQUIRED",
-      occurredAt: deniedAt,
-    });
+  if (!user || !["student", "test"].includes(user.role)) {
     return {
       allowed: false,
-      status: "payment-required",
-      title: "이용 중인 패키지가 필요합니다.",
-      message:
-        "Matths 주간 공식 모의고사는 Pro 플랜 또는 학원 이용 혜택이 있는 회원만 응시할 수 있습니다.",
-      ctaLabel: "패키지 확인",
-      ctaHref: "/pricing",
-      availableLearningDays: 0,
-    };
-  }
-
-  const competitiveProfile =
-    await ArenaCompetitiveProfile.findOne({
-      userId,
-      placementFinalizedAt: {
-        $ne: null,
-      },
-    })
-      .select(
-        "placementFinalizedAt rating ratingDeviation volatility"
-      )
-      .lean();
-
-  if (!competitiveProfile) {
-    return {
-      allowed: false,
-      status:
-        "placement-required",
-      title:
-        "경쟁전 배치를 먼저 확정해주세요.",
-      message:
-        "주간 공식 모의고사 결과는 경쟁전 내부 실력 지표에 반영되므로, 일반전 3경기와 경쟁전 배치 확정이 필요합니다.",
-      ctaLabel:
-        "배치고사 보러 가기",
-      ctaHref:
-        "/war-of-masters",
+      status: "student-account-required",
+      title: "학생 계정으로 로그인해 주세요.",
+      message: "주간 모의고사는 학생 계정으로 응시할 수 있습니다.",
+      ctaLabel: "로그인",
+      ctaHref: "/login",
     };
   }
 
   return {
     allowed: true,
-    status:
-      packageAccess.packageType === "ACADEMY_PLAN"
-          ? "academy-plan-ready"
-          : "ready",
-    title:
-      "Matths 주간 공식 모의고사 응시 가능",
-    message:
-      packageAccess.packageType === "ACADEMY_PLAN"
-          ? "학원 플랜에 주간 공식 모의고사가 포함되어 있습니다. 대표 성적은 경쟁전 내부 실력 지표에만 반영됩니다."
-          : "Pro 플랜이 활성화되어 있습니다. 대표 성적은 경쟁전 내부 실력 지표에만 반영됩니다.",
-    ctaLabel:
-      "Matths 주간 공식 모의고사 입장",
-    ctaHref:
-      "/private-mock-exams",
-    packageType: packageAccess.packageType,
+    status: "ready",
+    title: "Matths 주간 공식 모의고사 응시 가능",
+    message: "무료로 응시할 수 있습니다. 경쟁전 배치를 마친 학생은 대표 성적이 내부 실력 지표에 반영됩니다.",
+    ctaLabel: "Matths 주간 공식 모의고사 입장",
+    ctaHref: "/private-mock-exams",
   };
 }
 

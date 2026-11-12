@@ -78,9 +78,8 @@ async function main() {
   assert.equal(buildPricingProductAccess({ planAccess: { code: "PRO", active: true } }).PRO_MONTHLY.purchaseAllowed, false);
 
   const pricingSource = read("views/pricing.ejs");
-  assert.match(pricingSource, /무료 플랜/);
-  assert.match(pricingSource, /Pro 플랜/);
-  assert.match(pricingSource, /pricing\/pro\/self/);
+  assert.match(pricingSource, /무료 이용 안내/);
+  assert.doesNotMatch(pricingSource, /Pro 플랜|pricing\/pro\/self/);
   assert.doesNotMatch(pricingSource, /29일 학습권|모의고사 이용권|페이백/);
   const pricingHtml = await ejs.renderFile(path.join(root, "views/pricing.ejs"), {
     user: null,
@@ -89,10 +88,11 @@ async function main() {
     checkoutEnabled: false,
     assetVersion: "verify",
   });
-  assert.match(pricingHtml, /5,500/);
+  assert.match(pricingHtml, /주간 공식 모의고사/);
+  assert.doesNotMatch(pricingHtml, /5,500/);
 
   const dashboard = read("views/main.ejs");
-  assert.match(dashboard, /Pro 플랜 알아보기/);
+  assert.match(dashboard, /무료 기능 안내/);
   assert.doesNotMatch(dashboard, /남은 학습일|Arena 예치|예약됨/);
   const adminDetail = read("views/admin-user-detail.ejs");
   assert.match(adminDetail, /name="planCode"/);

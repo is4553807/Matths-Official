@@ -83,7 +83,8 @@ async function main() {
   });
   assert.match(pricing, /환불 기준/);
   assert.doesNotMatch(pricing, /floor/i);
-  assert.match(pricing, /1원 미만 금액은 버/);
+  assert.match(pricing, /href="\/terms#article-5"/);
+  assert.match(read("views/terms.ejs"), /1원 미만 금액은 버/);
 
   const checkout = await render("checkout.ejs", {
     user: { id: "user", role: "student" },

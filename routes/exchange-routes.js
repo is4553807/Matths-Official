@@ -2,12 +2,14 @@ const express = require("express");
 const { isObjectIdOrHexString } = require("mongoose");
 const auth = require("../middleware/authMiddleware");
 const { serviceUrl, exchangeUrl } = require("../services/serviceUrlService");
-const { ExchangeWallet } = require("../models/exchangeModel");
+const { ExchangeMpiDemo, ExchangeWallet } = require("../models/exchangeModel");
 const {
   ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, setPaused, syncWeeklyMarkets,
 } = require("../services/exchangeMarketService");
 const { INITIAL_TP, placeOrder, cancelOrder, registerResult, voidMarket } = require("../services/exchangeTradingService");
 const { terminalState, orderView, adminState, leaderboard } = require("../services/exchangeService");
+
+const { startMpiDemo, mpiState } = require("../services/exchangeMpiService");
 
 const router = express.Router();
 
@@ -31,7 +33,23 @@ function apiLogin(req, res, next) {
   return auth.isLoggedIn(req, res, next);
 }
 
-router.get(["/exchange", "/exchange/markets/:marketId", "/exchange/portfolio", "/exchange/rankings"], privateResponse, async (req, res) => {
+function mpiSelection(req) {
+  return { marketId: req.query.market ? id(req.query.market) : undefined, demo: req.query.demo === "1" };
+}
+
+router.get("/exchange/mpi", privateResponse, async (req, res) => {
+  res.render("exchange-mpi", {
+    initial: await mpiState(mpiSelection(req)),
+    dashboardHref: serviceUrl("app", "/main"),
+    disablePageAnalytics: true,
+  });
+});
+
+router.get("/api/exchange/mpi", privateResponse, async (req, res) => {
+  res.json(await mpiState(mpiSelection(req)));
+});
+
+async function showFutures(req, res) {
   const userId = viewer(req);
   const selection = req.params.marketId || req.query.market;
   const initial = await terminalState({ userId, marketId: selection ? id(selection) : undefined });
@@ -40,7 +58,11 @@ router.get(["/exchange", "/exchange/markets/:marketId", "/exchange/portfolio", "
     activity: req.path === "/exchange/rankings" ? "ranking" : "positions",
     dashboardHref: serviceUrl("app", "/main"), loginHref: serviceUrl("public", "/login?next=%2Fexchange"),
     brandHref: exchangeUrl(), disablePageAnalytics: true });
-});
+}
+
+router.get("/exchange", privateResponse, showFutures);
+router.get("/exchange/futures", privateResponse, showFutures);
+router.get(["/exchange/markets/:marketId", "/exchange/portfolio", "/exchange/rankings"], privateResponse, showFutures);
 
 router.get(["/api/exchange/markets", "/api/exchange/markets/current", "/api/exchange/markets/:marketId",
   "/api/exchange/markets/:marketId/chart"], privateResponse, async (req, res) => {
@@ -90,6 +112,18 @@ router.post("/admin/exchange/minimum", ...admin, async (req, res) => {
   await syncWeeklyMarkets();
   adminRedirect(res);
 });
+router.post("/admin/exchange/markets/:marketId/mpi-demo", ...admin, async (req, res) => {
+  const marketId = id(req.params.marketId);
+  if (req.body.action === "remove") {
+    await ExchangeMpiDemo.deleteOne({ _id: marketId });
+    return adminRedirect(res);
+  }
+  if (req.body.action !== "start") throw error(400, "MPI 시연 작업을 선택해 주세요.");
+  await startMpiDemo({ marketId, actorId: viewer(req) });
+  const query = new URLSearchParams({ market: marketId, demo: "1" });
+  return res.redirect(303, exchangeUrl(`/exchange/mpi?${query}`));
+});
+
 router.post("/admin/exchange/markets/:marketId/action", ...admin, async (req, res) => {
   const marketId = id(req.params.marketId);
   const actorId = viewer(req);

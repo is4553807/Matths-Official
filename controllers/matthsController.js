@@ -140,11 +140,6 @@ const {
   getContactPageData,
 } = require("../services/supportInquiryService");
 const {
-  getProductCatalog,
-  getPricingProductAccess,
-  isPaidCheckoutAllowedForEmail,
-} = require("../services/checkoutService");
-const {
   createArchiveFolder,
   createArchiveItems,
   deleteArchiveFolder,
@@ -165,9 +160,6 @@ const {
 const {
   ERROR_HELP_ITEMS,
 } = require("../services/errorHelpService");
-const {
-  getPaidPackageAccess,
-} = require("../services/paidFeatureAccessService");
 const {
   updateAdminPackageAccess,
 } = require("../services/adminPackageAccessService");
@@ -432,19 +424,7 @@ exports.pricingPage = async (req, res, next) => {
       occurredAt: viewedAt,
       metadata: { path: "/pricing" },
     });
-    const [products, productAccess] = await Promise.all([
-      getProductCatalog(),
-      pricingUser?.id
-        ? getPricingProductAccess(pricingUser.id, viewedAt)
-        : Promise.resolve(null),
-    ]);
-    return res.render("pricing", {
-      user: pricingUser,
-      activePage: "pricing",
-      products,
-      productAccess,
-      checkoutEnabled: isPaidCheckoutAllowedForEmail(pricingUser?.email),
-    });
+    return res.render("pricing", { user: pricingUser, activePage: "pricing" });
   } catch (error) {
     return next(error);
   }
@@ -4697,7 +4677,6 @@ exports.warOfMastersPage = async (
     const [
       user,
       placement,
-      paidPackageAccess,
     ] = await Promise.all([
       req.authenticatedUser
         ? Promise.resolve(
@@ -4709,9 +4688,6 @@ exports.warOfMastersPage = async (
             req.session.user.id
           ).lean(),
       getPlacementDashboardData(
-        req.session.user.id
-      ),
-      getPaidPackageAccess(
         req.session.user.id
       ),
     ]);
@@ -4772,7 +4748,6 @@ exports.warOfMastersPage = async (
           displayMode: "닉네임",
         },
         placement,
-        paidPackageAccess,
         privateMockEligibility,
         onboardingTutorial: getRequestDashboardTutorial(req),
       }

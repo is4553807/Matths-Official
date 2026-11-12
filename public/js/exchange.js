@@ -135,12 +135,10 @@
     ctx.scale(ratio, ratio);
     const market = selectedMarket();
     const candles = market ? state.candles || [] : [];
-    const ticks = market ? (state.ticks || []).filter((row) => row.mpi !== null) : [];
     const left = 12, right = width - 49, top = 13, bottom = height - 57;
-    const prices = candles.flatMap((row) => [row.low, row.high]).concat(ticks.map((row) => row.mpi));
+    const prices = candles.flatMap((row) => [row.low, row.high]);
     const low = prices.length ? Math.max(0, Math.min(...prices) - 12) : 0;
     const high = prices.length ? Math.min(1000, Math.max(...prices) + 12) : 1000;
-    const hasData = candles.length || ticks.length;
     ctx.font = "10px system-ui";
     ctx.fillStyle = "#8996a9";
     ctx.strokeStyle = "#252d3b";
@@ -159,9 +157,9 @@
       ctx.lineTo(x, bottom + 33);
       ctx.stroke();
     }
-    if (!hasData) return;
+    if (!candles.length) return;
 
-    const values = candles.map((row) => row._id).concat(ticks.map((row) => Date.parse(row.publishAt)));
+    const values = candles.map((row) => row._id);
     const end = Math.max(...values) + intervalMs[interval];
     const start = Math.min(Math.min(...values), end - 7 * intervalMs[interval]);
     const x = (value) => left + (right - left) * (value - start) / (end - start);
@@ -195,7 +193,6 @@
       ctx.stroke();
       if (points.length === 1) ctx.fillRect(x(points[0][0]) - 2, y(points[0][1]) - 2, 4, 4);
     }
-    plot(ticks.map((row) => [Date.parse(row.publishAt), row.mpi]), "#80a9ff");
     for (const [size, color] of [[5, "#f6c557"], [10, "#c08ff6"]]) {
       plot(candles.slice(size - 1).map((row, index) => [
         row._id, candles.slice(index, index + size).reduce((sum, point) => sum + point.close, 0) / size,
@@ -255,8 +252,7 @@
 
   function render() {
     const market = selectedMarket();
-    const sample = market ? state.ticks?.at(-1) : null;
-    const hasChart = market && (state.candles?.length || state.ticks?.some((tick) => tick.mpi !== null));
+    const hasChart = market && state.candles?.length;
     selectOptions();
     for (const button of document.querySelectorAll("[data-filter]")) button.setAttribute("aria-pressed", button.dataset.filter === filter);
     text("market-title", market?.title || labels[filter]);
@@ -265,7 +261,6 @@
     text("market-price", number(market?.lastPrice));
     text("book-price", number(market?.lastPrice));
     text("market-volume", market ? number(market.volume) : "—");
-    text("sample-price", number(sample?.mpi));
     text("settlement-price", number(market?.settlement));
     const resultLink = get("result-link");
     resultLink.hidden = !market?.resultUrl;
@@ -274,7 +269,8 @@
       resultLink.title = market.settlementSource || "성적 출처";
     }
     text("market-close", when(market?.closeAt));
-    text("sample-time", sample?.mpi !== null && sample?.sampledAt ? `표본 시각 ${time.format(new Date(sample.sampledAt))} KST` : "표본 없음");
+    const latestTrade = market ? state.trades?.[0] : null;
+    text("quote-time", latestTrade ? `최근 체결 ${time.format(new Date(latestTrade.tradedAt))} KST` : "체결 없음");
     get("chart-empty").hidden = Boolean(hasChart);
     text("chart-empty-title", market ? (market.status === "open" ? "체결을 기다리는 중" : market.statusLabel)
       : filter === "weekly" ? "이번 주 시장이 아직 열리지 않았습니다" : "등록된 시장이 없습니다");
@@ -326,7 +322,7 @@
       }
       render();
     } catch {
-      if (sequence === request) text("sample-time", "연결을 다시 시도하는 중");
+      if (sequence === request) text("quote-time", "연결을 다시 시도하는 중");
     }
   }
 

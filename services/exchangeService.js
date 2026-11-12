@@ -208,4 +208,4 @@ async function startExchangeScheduler() {
   void run();
 }
 
-module.exports = { terminalState, orderView, adminState, leaderboard, runExchangeTick, startExchangeScheduler };
+module.exports = { marketList, marketView, terminalState, orderView, adminState, leaderboard, runExchangeTick, startExchangeScheduler };

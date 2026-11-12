@@ -6,6 +6,7 @@ const { ArchiveItem, PrivateMockExam, PrivateMockExamAttempt, User } = require("
 const { WebSession } = require("../models/sessionModel");
 const { serviceHostRedirectLocation } = require("../middleware/serviceHostRouting");
 const { saveSchedule, saveMinimum, syncWeeklyMarkets, seoulInput, calculateSample } = require("../services/exchangeMarketService");
+const { mpiState, startMpiDemo } = require("../services/exchangeMpiService");
 const { terminalState, runExchangeTick } = require("../services/exchangeService");
 const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket } = require("../services/exchangeTradingService");
 const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick } = models;
@@ -54,6 +55,13 @@ async function testHttp() {
     assert.match(html, /이번 주 시장이 아직 열리지 않았습니다/);
     assert.match(html, /value="long" disabled/);
     assert.doesNotMatch(html, /dashboard-sidebar/);
+    assert.match(html, /href="\/exchange\/mpi"/);
+    assert.doesNotMatch(html, /id="sample-price"/);
+    const mpiResponse = await fetch(`${origin}/exchange/mpi`);
+    assert.equal(mpiResponse.status, 200);
+    const mpiHtml = await mpiResponse.text();
+    assert.match(mpiHtml, /표본 지수 추이/);
+    assert.doesNotMatch(mpiHtml, /id="order-form"|id="asks"/);
     const unauthenticated = await fetch(`${origin}/api/exchange/markets/${objectId()}/orders`, {
       method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: "{}",
     });
@@ -139,6 +147,20 @@ async function main() {
     const published = await terminalState({ marketId: String(weekly._id), now: new Date(+midweek + 30 * 60 * 1000) });
     assert.equal(published.ticks[0].mpi, 700);
     assert.equal(calculateSample([{ exchangeMmrGrade: 1, score: 80 }, { exchangeMmrGrade: 2, score: 50 }]).mpi, 650);
+
+    const demo = await startMpiDemo({ marketId: weekly._id, examId: exam._id, actorId: admin, now: midweek });
+    assert.equal(demo.attempts.length, 90);
+    assert.equal(await PrivateMockExamAttempt.countDocuments({ examId: exam._id }), 3);
+    assert.equal(await ExchangeTick.countDocuments(), 1);
+    assert.equal(await ExchangeTrade.countDocuments(), 0);
+    const demoState = await mpiState({ marketId: weekly._id, demo: true, now: new Date(+midweek + 50_000) });
+    assert.equal(demoState.source, "demo");
+    assert.equal(demoState.ticks.at(-1).populationCount, 90);
+    assert.ok(new Set(demoState.ticks.map((tick) => tick.mpi)).size > 10);
+    const official = await mpiState({ marketId: weekly._id, now: new Date(+midweek + 30 * 60 * 1000) });
+    assert.equal(official.source, "official");
+    assert.equal(official.ticks.at(-1).mpi, 700);
+    assert.equal(official.ticks.at(-1).populationCount, 3);
 
     const sell = await order(weekly, seller, "short", 640, 2, midweek);
     const commandId = randomUUID();

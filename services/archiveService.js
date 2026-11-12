@@ -12,9 +12,6 @@ const {
   ArchiveItem,
   PrivateMockExam,
 } = require("../models/matthsModel");
-const {
-  getWeeklyMockExamAccess,
-} = require("./paidFeatureAccessService");
 const { withSchedulerLease } = require("./schedulerLeaseService");
 
 const ARCHIVE_CATEGORIES = [
@@ -23,18 +20,7 @@ const ARCHIVE_CATEGORIES = [
   "개념 자료",
   "기타",
 ];
-const PRIVATE_MOCK_ARCHIVE_FOLDER_NAME =
-  "2026 Matths 사설 모의고사";
-const ARCHIVE_ACCESS_LEVELS = Object.freeze({
-  AUTHENTICATED: "AUTHENTICATED",
-  MOCK_EXAM_PACKAGE: "MOCK_EXAM_PACKAGE",
-  PRO: "PRO",
-});
-const ARCHIVE_ACCESS_RANK = Object.freeze({
-  [ARCHIVE_ACCESS_LEVELS.AUTHENTICATED]: 0,
-  [ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE]: 1,
-  [ARCHIVE_ACCESS_LEVELS.PRO]: 2,
-});
+const ARCHIVE_ACCESS_LEVELS = Object.freeze({ AUTHENTICATED: "AUTHENTICATED" });
 const ARCHIVE_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const ARCHIVE_TRASH_PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 let archiveTrashPurgeTimer = null;
@@ -55,49 +41,20 @@ function cleanText(value) {
     .trim();
 }
 
-function normalizeArchiveAccessLevel(
-  value,
-  { folderName = "" } = {}
-) {
-  if (cleanText(folderName) === PRIVATE_MOCK_ARCHIVE_FOLDER_NAME) {
-    return ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE;
-  }
-
-  const normalized = String(value || "").trim().toUpperCase();
-  if (normalized === ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE) {
-    return ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE;
-  }
-  if (normalized === ARCHIVE_ACCESS_LEVELS.PRO) {
-    return ARCHIVE_ACCESS_LEVELS.PRO;
-  }
+function normalizeArchiveAccessLevel() {
   return ARCHIVE_ACCESS_LEVELS.AUTHENTICATED;
 }
 
-function archivePackageAccessAllows(packageAccess, requiredAccessLevel) {
-  const requirement = normalizeArchiveAccessLevel(requiredAccessLevel);
-  if (requirement === ARCHIVE_ACCESS_LEVELS.AUTHENTICATED) return true;
-
-  const packageType = String(packageAccess?.packageType || "").toUpperCase();
-  if (
-    requirement === ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE &&
-    packageAccess?.active === true &&
-    ["PRO", "ACADEMY_PLAN", "SUPER_ADMIN"].includes(packageType)
-  ) {
-    return true;
+function isPublishedArchiveFolder(folder, folderById) {
+  const seen = new Set();
+  while (folder && folder.isPublished !== false) {
+    const id = String(folder._id);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    if (!folder.parentFolderId) return true;
+    folder = folderById.get(String(folder.parentFolderId));
   }
-
-  return (
-    packageAccess?.active === true &&
-    ["PRO", "SUPER_ADMIN"].includes(packageType)
-  );
-}
-
-function archiveAccessDeniedMessage(requiredAccessLevel, action = "볼") {
-  const requirement = normalizeArchiveAccessLevel(requiredAccessLevel);
-  if (requirement === ARCHIVE_ACCESS_LEVELS.MOCK_EXAM_PACKAGE) {
-    return `이 자료는 학원 이용 혜택 또는 Pro 플랜을 이용 중인 회원만 ${action} 수 있습니다.`;
-  }
-  return `이 자료는 활성 Pro 플랜 회원만 ${action} 수 있습니다.`;
+  return false;
 }
 
 function looksLikeEncodingMojibake(
@@ -227,13 +184,9 @@ function serializeArchiveItem(item) {
 
 function serializeArchiveFolder(
   folder,
-  itemCount = 0,
-  { isLocked = false, requiredAccessLevel = null } = {}
+  itemCount = 0
 ) {
-  const accessLevel = normalizeArchiveAccessLevel(
-    folder.accessLevel,
-    { folderName: folder.name }
-  );
+  const accessLevel = normalizeArchiveAccessLevel();
   return {
     id: String(folder._id),
     parentFolderId:
@@ -249,59 +202,15 @@ function serializeArchiveFolder(
     isPublished:
       folder.isPublished !== false,
     accessLevel,
-    requiredAccessLevel: normalizeArchiveAccessLevel(
-      requiredAccessLevel || accessLevel
-    ),
+    requiredAccessLevel: accessLevel,
     isPinned:
       folder.isPinned === true,
     pinnedAt:
       folder.pinnedAt || null,
     itemCount,
-    isLocked,
+    isLocked: false,
     createdAt: folder.createdAt,
   };
-}
-
-async function getArchivePackageAccess(user) {
-  if (isArchiveAdmin(user)) {
-    return { active: true, packageType: "SUPER_ADMIN" };
-  }
-  const userId = user?.id || user?._id;
-  if (!mongoose.isValidObjectId(userId)) {
-    return { active: false, packageType: null };
-  }
-  return getWeeklyMockExamAccess(userId);
-}
-
-async function hasPaidArchiveAccess(user) {
-  const packageAccess = await getArchivePackageAccess(user);
-  return archivePackageAccessAllows(
-    packageAccess,
-    ARCHIVE_ACCESS_LEVELS.PRO
-  );
-}
-
-function folderRequiredAccessLevel(folder, folderById) {
-  const visited = new Set();
-  let current = folder;
-  let requiredAccessLevel = ARCHIVE_ACCESS_LEVELS.AUTHENTICATED;
-  while (current && !visited.has(String(current._id))) {
-    visited.add(String(current._id));
-    const currentAccessLevel = normalizeArchiveAccessLevel(
-      current.accessLevel,
-      { folderName: current.name }
-    );
-    if (
-      ARCHIVE_ACCESS_RANK[currentAccessLevel] >
-      ARCHIVE_ACCESS_RANK[requiredAccessLevel]
-    ) {
-      requiredAccessLevel = currentAccessLevel;
-    }
-    current = current.parentFolderId
-      ? folderById.get(String(current.parentFolderId))
-      : null;
-  }
-  return requiredAccessLevel;
 }
 
 async function getArchiveData(
@@ -327,13 +236,12 @@ async function getArchiveData(
         name: 1,
       })
       .lean();
-  const packageAccess = await getArchivePackageAccess(user);
   const allFolderById = new Map(
     allFolders.map((folder) => [String(folder._id), folder])
   );
-  // 패키지 전용 폴더도 무료 회원의 아카이브 목록에는 노출한다.
-  // 실제 폴더 진입과 다운로드 권한은 아래의 서버 검사를 그대로 거친다.
-  const folders = allFolders;
+  const folders = admin && includeUnpublished
+    ? allFolders
+    : allFolders.filter((folder) => isPublishedArchiveFolder(folder, allFolderById));
   const requestedFolderId =
     String(folderId || "");
   let selectedFolder = null;
@@ -350,29 +258,6 @@ async function getArchiveData(
       );
     }
 
-    const requestedFolder = allFolders.find(
-        (folder) =>
-          String(folder._id) ===
-          requestedFolderId
-      ) || null;
-
-    if (
-      requestedFolder &&
-      !admin &&
-      !archivePackageAccessAllows(
-        packageAccess,
-        folderRequiredAccessLevel(requestedFolder, allFolderById)
-      )
-    ) {
-      const requiredAccessLevel = folderRequiredAccessLevel(
-        requestedFolder,
-        allFolderById
-      );
-      throw httpError(
-        403,
-        archiveAccessDeniedMessage(requiredAccessLevel, "볼")
-      );
-    }
     selectedFolder = folders.find(
       (folder) => String(folder._id) === requestedFolderId
     ) || null;
@@ -556,17 +441,7 @@ async function getArchiveData(
           folder,
           totalItemCountByFolder.get(
             String(folder._id)
-          ) || 0,
-          {
-            isLocked:
-              !admin &&
-              !archivePackageAccessAllows(
-                packageAccess,
-                folderRequiredAccessLevel(folder, allFolderById)
-              ),
-            requiredAccessLevel:
-              folderRequiredAccessLevel(folder, allFolderById),
-          }
+          ) || 0
         )
       ),
     folderOptions:
@@ -578,11 +453,7 @@ async function getArchiveData(
             folder,
             totalItemCountByFolder.get(
               String(folder._id)
-            ) || 0,
-            {
-              requiredAccessLevel:
-                folderRequiredAccessLevel(folder, allFolderById),
-            }
+            ) || 0
           ),
           depth:
             Math.max(
@@ -1258,16 +1129,8 @@ async function getArchiveDownload({
       folders.map((folder) => [String(folder._id), folder])
     );
     const folder = folderById.get(String(item.folderId));
-    if (!folder) {
+    if (!isPublishedArchiveFolder(folder, folderById)) {
       throw httpError(404, "아카이브 자료를 찾을 수 없습니다.");
-    }
-    const requiredAccessLevel = folderRequiredAccessLevel(folder, folderById);
-    const packageAccess = await getArchivePackageAccess(user);
-    if (!archivePackageAccessAllows(packageAccess, requiredAccessLevel)) {
-      throw httpError(
-        403,
-        archiveAccessDeniedMessage(requiredAccessLevel, "내려받을")
-      );
     }
   }
 
@@ -1690,10 +1553,6 @@ async function moveArchiveItems({
 module.exports = {
   ARCHIVE_ACCESS_LEVELS,
   ARCHIVE_CATEGORIES,
-  archiveAccessDeniedMessage,
-  archivePackageAccessAllows,
-  folderRequiredAccessLevel,
-  getArchivePackageAccess,
   isArchiveAdmin,
   createArchiveFolder,
   updateArchiveFolder,
@@ -1711,9 +1570,9 @@ module.exports = {
   createArchiveItems,
   discardArchiveUpload,
   getArchiveDownload,
-  hasPaidArchiveAccess,
   looksLikeEncodingMojibake,
   repairUploadFilename,
   serializeArchiveItem,
   normalizeArchiveAccessLevel,
+  isPublishedArchiveFolder,
 };

@@ -52,7 +52,7 @@
     <a class="<%= activeParentPage === 'mailbox' ? 'active' : '' %>" href="/parent/mailbox">우편함 <% if (typeof parentUnreadCount !== "undefined" && parentUnreadCount) { %><b><%= parentUnreadCount %></b><% } %></a>
     <a class="<%= activeParentPage === 'payments' ? 'active' : '' %>" href="/parent/payments">결제·환불</a>
     <a class="<%= activeParentPage === 'inquiries' ? 'active' : '' %>" href="/parent/inquiries">문의하기</a>
-    <a class="parent-buy-nav <%= activeParentPage === 'pricing' ? 'active' : '' %>" href="/parent/pricing">패키지 구매하기</a>
+    <a class="parent-buy-nav <%= activeParentPage === 'pricing' ? 'active' : '' %>" href="/parent/pricing">무료 이용 안내</a>
   </nav>
   <form action="/parent/logout" method="post"><button type="submit">로그아웃</button></form>
 </header>

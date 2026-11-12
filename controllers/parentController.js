@@ -6,9 +6,6 @@ const {
   createCheckoutIntent,
   getParentInvite,
   getProduct,
-  getProductCatalog,
-  getPricingProductAccess,
-  isPaidCheckoutAllowedForEmail,
 } = require("../services/checkoutService");
 const {
   buildCheckoutClientConfig,
@@ -375,18 +372,11 @@ exports.pricingPage = async (req, res, next) => {
   try {
     const context = await getRequestParentContext(req);
     const { parent, child } = context;
-    const [products, productAccess] = await Promise.all([
-      getProductCatalog(),
-      getPricingProductAccess(child._id),
-    ]);
     return res.render("parent-pricing", {
       parent,
       child,
       familyChildren: context.familyChildren,
       selectedChildId: context.selectedChildId,
-      products,
-      productAccess,
-      checkoutEnabled: !req.adminParentView && isPaidCheckoutAllowedForEmail(parent.email),
     });
   } catch (error) {
     return next(error);
