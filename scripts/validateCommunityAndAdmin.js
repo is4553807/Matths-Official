@@ -632,7 +632,8 @@ for (const copy of [
   'name="examDates"',
   'name="formCodes"',
   'name="answerSheetFiles"',
-  "고정 응시 시간",
+  "일요일 15시 공개 · 토요일 12시 마감",
+  "시작부터 최대 100분 · 토요일 12시 종료",
 ]) {
   assert.ok(
     privateMockAdminView.includes(
