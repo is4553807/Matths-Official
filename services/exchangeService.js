@@ -4,7 +4,7 @@ const {
   ExchangeMarket, ExchangeOrder, ExchangeTrade, ExchangeTick, ExchangeWallet, ExchangeAccount, ExchangePosition, ExchangeEvent,
 } = models;
 const {
-  publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, syncWeeklyMarkets, saveSample,
+  publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, readMpiMinimum, isMpiTestMarket, syncWeeklyMarkets, saveSample,
   publicSampleScope, sampleWithCutoff, sampleMinute,
 } = require("./exchangeMarketService");
 const { INITIAL_TP, TP_SCALE, processMarket } = require("./exchangeTradingService");
@@ -164,7 +164,7 @@ async function adminState(year, grade, now = new Date()) {
       ExchangeOrder.countDocuments({ marketId: market._id, status: "working" }),
       marketSamples(market, now, 1, { forAdmin: true }),
     ]);
-    controls.push({ ...marketView(market, now), openOrders, latestTick, appliedMinimum: market.appliedMinimum,
+    controls.push({ ...marketView(market, now), openOrders, latestTick, appliedMinimum: market.appliedMinimum, mpiTestMarket: isMpiTestMarket(market),
       minimumAttempts: market.minimumAttempts ?? settings,
       minimumMpiAttempts: market.minimumMpiAttempts ?? minimumMpiAttempts, mpiMinimumOverride: market.minimumMpiAttempts,
       escrow: market.escrow / TP_SCALE, reason: market.reason,

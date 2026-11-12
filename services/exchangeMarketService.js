@@ -110,6 +110,10 @@ async function readMpiMinimum(market) {
   return setting?.minimumMpiAttempts ?? 1;
 }
 
+function isMpiTestMarket(market) {
+  return market.type === "weekly" && /(?:^|[\s(])(?:test|테스트)(?=$|[\s)])/i.test(market.title);
+}
+
 function publicState(market, now = new Date()) {
   if (market.phase === "void") return "void";
   if (market.phase === "settled") return "settled";
@@ -307,6 +311,6 @@ async function saveSample(market, now = new Date()) {
 
 module.exports = {
   ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
-  readSetting, readMpiMinimum, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum, setPaused, calculateSample,
+  readSetting, readMpiMinimum, isMpiTestMarket, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, saveMpiMinimum, setPaused, calculateSample,
   sampleMinute, publicSampleScope, sampleWithCutoff, saveSample,
 };

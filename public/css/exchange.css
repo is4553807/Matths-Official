@@ -211,16 +211,9 @@ a { color: inherit; text-decoration: none; }
 .mpi-summary .market-identity p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
 .mpi-panel .chart-area { height: clamp(280px, 52vh, 510px); }
 .mpi-panel .panel-heading { flex-wrap: wrap; padding-block: 8px; }
-.mpi-panel .chart-foot { gap: 12px; line-height: 1.5; }
+.mpi-panel .chart-foot { line-height: 1.5; }
+.mpi-panel .chart-foot:not(:has(#mpi-connection:not(:empty))) { display: none; }
 .mpi-panel canvas { display: block; width: 100%; height: 100%; }
-.mpi-summary .small-link { margin: 0; }
-.mpi-charts { display: grid; gap: 10px; }
-.mpi-demo-metrics { display: flex; gap: 14px; margin: 0; }
-.mpi-demo-metrics dt { color: var(--muted); font-size: 11px; }
-.mpi-demo-metrics dd { margin: 2px 0 0; font-weight: 650; font-size: 13px; }
-@media (min-width: 1080px) {
-  .mpi-charts:has(.mpi-demo-panel:not([hidden])) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 @media (max-width: 640px) {
   .exchange-sections { gap: 0; }
   .exchange-sections a { padding-inline: 5px; }

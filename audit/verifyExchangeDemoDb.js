@@ -11,7 +11,7 @@ const { OPTIONS } = require("../services/exchangeChartService");
 const { mpiState, startMpiDemo } = require("../services/exchangeMpiService");
 const { terminalState, futuresChartHistory, runExchangeTick } = require("../services/exchangeService");
 const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket } = require("../services/exchangeTradingService");
-const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick } = models;
+const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick, ExchangeMpiDemo } = models;
 
 const time = (value) => new Date(value);
 const weekOpen = new Date();
@@ -66,11 +66,11 @@ async function testHttp() {
     const mpiResponse = await fetch(`${origin}/exchange/mpi`);
     assert.equal(mpiResponse.status, 200);
     const mpiHtml = await mpiResponse.text();
-    assert.match(mpiHtml, /공식 표본 지수 캔들/);
-    assert.match(mpiHtml, /id="mpi-demo-panel"[^>]+hidden/);
-    assert.match(mpiHtml, /유효 응시 1명부터 표시됩니다/);
+    assert.match(mpiHtml, /id="mpi-chart-heading">MPI 캔들/);
+    assert.equal((mpiHtml.match(/<canvas\b/g) || []).length, 1);
+    assert.doesNotMatch(mpiHtml, /시연|더미|공식 표본|mpi-demo-panel/);
+    assert.match(mpiHtml, /회차가 공개되면 집계가 시작됩니다/);
     assert.match(mpiHtml, /제출 반영 기준 · KST/);
-    assert.match(mpiHtml, /새 유효 응시가 반영되는 분/);
     assert.match(mpiHtml, /data-interval="1m"[^>]+aria-pressed="true"/);
     assert.match(mpiHtml, /id="exchange-theme-toggle"/);
     assert.match(mpiHtml, /href="\/exchange\/dashboard"/);
@@ -153,7 +153,7 @@ async function main() {
 
     const admin = objectId();
     const exam = await PrivateMockExam.create({
-      title: "Exchange 주간 검증", weekKey: seoulInput(weekOpen).slice(0, 10), formCode: "WEEKLY", attemptNumber: 1, status: "open",
+      title: "Matths Exchange Test", weekKey: seoulInput(weekOpen).slice(0, 10), formCode: "WEEKLY", attemptNumber: 1, status: "open",
       releaseAt: weekOpen, closeAt: weekClose, aggregationStartsAt: weekClose, rankingPublishesAt: weekClose,
       archiveAt: weekClose, reviewPublishesAt: weekClose, questionCount: points.length, points, answerKey: points.map(() => "1"),
       archiveItemId: objectId(), createdBy: admin,
@@ -191,7 +191,7 @@ async function main() {
     assert.equal(await ExchangeTrade.countDocuments(), 0);
     const sampleNow = new Date(+midweek + 50_000);
     const demoState = await mpiState({ marketId: weekly._id, interval: "1s", now: sampleNow });
-    assert.equal(demoState.source, "demo");
+    assert.equal(demoState.source, "test");
     assert.equal(demoState.latest.populationCount, 90);
     assert.equal(+demoState.latest.sampledAt, +demoState.latest.dataCutoffAt);
     assert.ok(new Set(demoState.candles.map((candle) => candle.close)).size > 10);
@@ -203,7 +203,7 @@ async function main() {
     });
     const liveNow = new Date(+midweek + 250_000);
     const recent = await mpiState({ marketId: weekly._id, interval: "1s", now: liveNow });
-    assert.equal(recent.source, "demo");
+    assert.equal(recent.source, "test");
     const before = new Date(recent.candles[0]._id);
     const earlier = await mpiState({ marketId: weekly._id, interval: "1s", before, now: liveNow });
     assert.equal(earlier.candles.length, 120);
@@ -268,48 +268,61 @@ async function main() {
     const collectedAt = new Date(+firstMinute + 2000);
     assert.equal(seoulInput(firstMinute).slice(-5), "09:11");
     await Promise.all([runExchangeTick(collectedAt, false), runExchangeTick(collectedAt, false)]);
-    const official = await mpiState({ marketId: weekly._id, now: collectedAt });
-    assert.equal(official.source, "official");
-    assert.equal(official.interval, "1m");
-    assert.equal(official.minimumMpiAttempts, 1);
-    assert.equal(official.demo.latest.populationCount, 90);
-    assert.ok(official.demo.candles.length > 0);
-    assert.equal(+official.demo.startedAt, +demo.startedAt);
-    assert.ok(!("attempts" in official.demo));
-    assert.equal(official.latest.mpi, 700);
-    assert.equal(official.latest.populationCount, 3);
-    assert.equal(+official.latest.sampledAt, +collectedAt);
-    assert.equal(+official.latest.publishAt, +collectedAt);
-    assert.equal(+official.latest.dataCutoffAt, +firstMinute);
-    assert.equal(official.candles.at(-1)._id, +firstMinute);
+    const combined = await mpiState({ marketId: weekly._id, now: collectedAt });
+    assert.equal(combined.source, "test");
+    assert.equal(combined.interval, "1m");
+    assert.equal(combined.minimumMpiAttempts, 1);
+    assert.equal(combined.latest.populationCount, 93);
+    assert.equal(combined.latest.sampleCount, 12);
+    assert.equal(+combined.latest.dataCutoffAt, +firstMinute);
+    assert.equal(+combined.startedAt, +demo.startedAt);
+    assert.equal(combined.candles.at(-1).close, combined.latest.mpi);
+    assert.ok(!("demo" in combined) && !("attempts" in combined));
     assert.equal(await ExchangeTick.countDocuments({ minuteSample: true }), 1);
 
-    const history = await mpiState({ marketId: weekly._id, before: firstMinute, now: collectedAt });
-    assert.ok(history.candles.some((row) => row.close === 640));
-    assert.equal(history.candles.at(-1).close, 660);
-    assert.ok(official.candles.every((row) => row.high < 998));
+    const raw = (await terminalState({ marketId: String(weekly._id), now: collectedAt })).ticks.at(-1);
+    assert.equal(raw.populationCount, 3);
+    assert.equal(raw.mpi, 700);
+    assert.equal(+raw.sampledAt, +collectedAt);
+    assert.equal(+raw.publishAt, +collectedAt);
 
     await saveMpiMinimum({ marketId: weekly._id, value: "4", actorId: admin, now: collectedAt });
     assert.equal(await readMpiMinimum(), 1);
     const gated = await mpiState({ marketId: weekly._id, now: collectedAt });
     assert.equal(gated.market.status, "open");
-    assert.equal(gated.source, "demo");
+    assert.equal(gated.source, "test");
     assert.equal(gated.minimumMpiAttempts, 4);
     assert.equal(gated.latest.populationCount, 90);
+    assert.equal(combined.latest.mpi, Math.round((gated.latest.mpi * 90 + raw.mpi * 3) / 93 * 100) / 100);
+    assert.notEqual(combined.latest.mpi, gated.latest.mpi);
     assert.deepEqual((await terminalState({ marketId: String(weekly._id), now: collectedAt })).ticks, []);
 
     await runExchangeTick(secondMinute, false);
-    const published = await mpiState({ marketId: weekly._id, interval: "1s", demoInterval: "15m", now: secondMinute });
-    assert.equal(published.latest.populationCount, 4);
-    assert.equal(published.latest.mpi, 750);
-    assert.equal(published.demoInterval, "15m");
-    assert.equal(published.demo.candles.length, 1);
-    assert.equal(published.demo.latest.populationCount, 90);
-    assert.ok(published.candles.every((row) => row.open !== 700 && row.close !== 700));
+    const published = await mpiState({ marketId: weekly._id, interval: "1s", now: secondMinute });
+    assert.equal(published.source, "test");
+    assert.equal(published.latest.populationCount, 94);
+    assert.equal(published.latest.sampleCount, 13);
+    assert.equal(published.candles.at(-1).close, published.latest.mpi);
+    const historyBeforePublication = await mpiState({
+      marketId: weekly._id, interval: "1s", before: secondMinute, now: secondMinute,
+    });
+    assert.equal(historyBeforePublication.latest.populationCount, 100, "Earlier qualifying tick is used for history");
+    assert.ok(historyBeforePublication.candles.at(-1)._id < +secondMinute);
     const visibleTicks = (await terminalState({ marketId: String(weekly._id), now: secondMinute })).ticks;
     assert.equal(visibleTicks.at(-1).mpi, 750);
     assert.ok(visibleTicks.every((tick) => tick.populationCount >= 4));
+
+    await ExchangeMpiDemo.deleteOne({ _id: weekly._id });
     await saveMpiMinimum({ marketId: weekly._id, value: "", actorId: admin, now: secondMinute });
+    const official = await mpiState({ marketId: weekly._id, now: collectedAt });
+    assert.equal(official.source, "official");
+    assert.equal(official.latest.mpi, 700);
+    assert.equal(official.latest.populationCount, 3);
+    const history = await mpiState({ marketId: weekly._id, before: firstMinute, now: collectedAt });
+    assert.ok(history.candles.some((row) => row.close === 640));
+    assert.equal(history.candles.at(-1).close, 660);
+    assert.ok(official.candles.every((row) => row.high < 998));
+
     const minuteLater = await mpiState({ marketId: weekly._id, interval: "1s", now: secondMinute });
     assert.equal(minuteLater.minimumMpiAttempts, 1);
     assert.equal(minuteLater.latest.populationCount, 4);
@@ -384,15 +397,18 @@ async function main() {
     assert.equal(result.phase, "settled");
     assert.equal(result.settlement, 775);
     assert.equal(result.participantCount, 4);
+    await ExchangeMpiDemo.create(demo);
     const closedIndex = await mpiState({ marketId: weekly._id, now: weekClose });
     assert.equal(closedIndex.source, "official");
-    assert.equal(closedIndex.demo, null);
+    assert.equal(closedIndex.latest.populationCount, 6);
     const another = await ExchangeMarket.create({
       key: "weekly:demo-isolation-fixture", type: "weekly", examId: exam._id, title: "다른 회차",
       opensAt: weekOpen, openedAt: weekOpen, closeAt: weekClose,
     });
+    await assert.rejects(startMpiDemo({ marketId: another._id, now: midweek }), { status: 409 });
+    await ExchangeMpiDemo.create({ ...demo, _id: another._id });
     const otherIndex = await mpiState({ marketId: another._id, now: midweek });
-    assert.equal(otherIndex.demo, null);
+    assert.equal(otherIndex.source, "official");
     assert.equal(otherIndex.latest, null);
     await ExchangeMarket.deleteOne({ _id: another._id });
     assert.equal(result.escrow, 0);
@@ -421,7 +437,7 @@ async function main() {
     await processMarket(await ExchangeMarket.findById(other._id), end);
     assert.equal((await ExchangeMarket.findById(other._id)).phase, "void");
     assert.equal((await ExchangeWallet.findById(buyer)).available, 209125);
-    console.log("Exchange demo verified: empty upload gate, HTTP and admin roles, schedules, minute sampling, public threshold, parallel demo, legacy tick transition, theme, order book, TP settlement and void.");
+    console.log("Exchange demo verified: empty upload gate, HTTP and admin roles, schedules, minute sampling, public threshold, blended test chart, round isolation, legacy tick transition, theme, order book, TP settlement and void.");
   } finally {
     await mongoose.disconnect();
   }
