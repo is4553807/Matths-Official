@@ -7,7 +7,7 @@ const {
   ROUNDS, error, integer, seoulInput, saveSchedule, saveMinimum, setPaused, syncWeeklyMarkets,
 } = require("../services/exchangeMarketService");
 const { INITIAL_TP, placeOrder, cancelOrder, registerResult, voidMarket } = require("../services/exchangeTradingService");
-const { terminalState, orderView, adminState, leaderboard } = require("../services/exchangeService");
+const { terminalState, futuresChartHistory, orderView, adminState, leaderboard } = require("../services/exchangeService");
 
 const { OPTIONS, intervalFor } = require("../services/exchangeChartService");
 const { dashboardState } = require("../services/exchangeDashboardService");
@@ -35,8 +35,18 @@ function apiLogin(req, res, next) {
   return auth.isLoggedIn(req, res, next);
 }
 
+function historyBefore(value) {
+  if (value === undefined) return undefined;
+  const date = new Date(Number(value));
+  if (typeof value !== "string" || !/^\d{1,15}$/.test(value) || !Number.isFinite(+date) || +date <= 0) {
+    throw error(400, "이전 봉의 기준 시각을 확인해 주세요.");
+  }
+  return date;
+}
+
 function mpiSelection(req) {
-  return { marketId: req.query.market ? id(req.query.market) : undefined, interval: intervalFor(req.query.interval).code };
+  return { marketId: req.query.market ? id(req.query.market) : undefined,
+    interval: intervalFor(req.query.interval).code, before: historyBefore(req.query.before) };
 }
 
 router.get("/exchange/mpi", privateResponse, async (req, res) => {
@@ -80,6 +90,11 @@ router.get(["/api/exchange/markets", "/api/exchange/markets/current", "/api/exch
   res.json(await terminalState({ userId: viewer(req), marketId: selection ? id(selection) : undefined,
     marketType: req.path === "/api/exchange/markets/current" ? "weekly" : undefined,
     interval: typeof req.query.interval === "string" ? req.query.interval : undefined }));
+});
+router.get("/api/exchange/markets/:marketId/candles", privateResponse, async (req, res) => {
+  const interval = intervalFor(req.query.interval).code;
+  const candles = await futuresChartHistory(id(req.params.marketId), interval, historyBefore(req.query.before));
+  res.json({ interval, candles });
 });
 router.get("/api/exchange/rankings", privateResponse, async (_req, res) => res.json(await leaderboard()));
 router.post("/api/exchange/rankings/visibility", privateResponse, apiLogin, auth.isStudent, async (req, res) => {

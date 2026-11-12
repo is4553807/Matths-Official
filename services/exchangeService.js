@@ -49,6 +49,13 @@ async function chart(marketId, interval, now) {
   });
 }
 
+async function futuresChartHistory(marketId, interval, before, now = new Date()) {
+  const latest = await ExchangeTrade.findOne({
+    marketId, tradedAt: before ? { $lt: before, $lte: now } : { $lte: now },
+  }).select("marketId tradedAt").sort({ tradedAt: -1 }).lean();
+  return latest ? chart(latest.marketId, interval, latest.tradedAt) : [];
+}
+
 function orderView(row) {
   return { id: String(row._id), action: row.action, direction: row.direction, side: row.side, price: row.price,
     quantity: row.quantity, remaining: row.remaining, status: row.status, acceptedAt: row.acceptedAt };
@@ -201,4 +208,4 @@ async function startExchangeScheduler() {
   void run();
 }
 
-module.exports = { marketList, marketView, terminalState, orderView, adminState, leaderboard, runExchangeTick, startExchangeScheduler };
+module.exports = { marketList, marketView, terminalState, futuresChartHistory, orderView, adminState, leaderboard, runExchangeTick, startExchangeScheduler };

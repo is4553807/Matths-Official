@@ -21,7 +21,15 @@
   let state = JSON.parse(root.dataset.state);
   let filter = state.market?.type || "weekly";
   let marketId = state.market?.id;
-  const chart = window.MatthsExchangeChart.create(canvas, { volume: true, averages: true, onInterval: () => { void refresh(); } });
+  const chart = window.MatthsExchangeChart.create(canvas, {
+    volume: true, averages: true, onInterval: () => { void refresh(); },
+    async onHistory({ before, interval, seriesKey }) {
+      if (!seriesKey) return null;
+      const query = new URLSearchParams({ before: String(before), interval });
+      const data = await fetchJson(`/api/exchange/markets/${seriesKey}/candles?${query}`);
+      return data.candles;
+    },
+  });
   let action = "open";
   let activity = root.dataset.activityStart;
   let ranking = [];
@@ -207,7 +215,7 @@
     countdown();
     updateOrder();
     calculate();
-    chart.update(market ? state.candles || [] : []);
+    chart.update(market ? state.candles || [] : [], market?.id || "");
   }
 
   async function fetchJson(url, body) {

@@ -8,7 +8,12 @@
   });
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-  function create(canvas, { volume = false, averages = false, onInterval }) {
+  const left = 13;
+  const rightGutter = 58;
+  const maxHistory = 5000;
+  const rightPad = (span) => Math.min(6, span * .11);
+
+  function create(canvas, { volume = false, averages = false, onInterval, onHistory }) {
     const panel = canvas.closest(".panel");
     const toolbar = panel.querySelector("[data-chart-toolbar]");
     const summary = panel.querySelector("[data-candle-summary]");
@@ -16,19 +21,75 @@
     const zoomIn = toolbar.querySelector('[data-zoom="in"]');
     const zoomOut = toolbar.querySelector('[data-zoom="out"]');
     const zoomReset = toolbar.querySelector('[data-zoom="reset"]');
+    const scaleAuto = toolbar.querySelector('[data-zoom="auto"]');
     let selected = buttons.find((button) => button.getAttribute("aria-pressed") === "true") || buttons[0];
     let ms = Number(selected.dataset.ms);
     let candles = [];
     let span = 60;
     let offset = 0;
     let drag = null;
-    let hoveredAt = null;
+    let hover = null;
+    let priceRange = null;
+    let renderedRange = [0, 1000];
+    let seriesKey;
+    let generation = 0;
+    let loading = false;
+    let historyEnd = false;
+    let retainedHistory = false;
+    const pointers = new Map();
 
     function limits() {
       const last = candles.at(-1)?._id || 0;
       const first = candles[0]?._id || last;
       const full = Math.max(8, Math.round((last - first) / ms) + 1);
-      return { last, full, visible: Math.min(span, full) };
+      const visible = Math.min(span, full);
+      const pad = rightPad(visible);
+      return { last, full, visible, pad, maxOffset: full - visible + pad };
+    }
+
+    function plotWidth() {
+      return Math.max(1, canvas.clientWidth - left - rightGutter);
+    }
+
+    function pointer(event) {
+      const bounds = canvas.getBoundingClientRect();
+      return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+    }
+
+    function anchorAt(x) {
+      return clamp((x - left) / plotWidth(), 0, 1);
+    }
+
+    function fetchHistory(force = false) {
+      const { maxOffset } = limits();
+      if (!onHistory || loading || historyEnd || !candles.length || candles.length >= maxHistory ||
+          (!force && offset < maxOffset - 3)) return;
+      const ticket = generation;
+      const before = candles[0]._id;
+      loading = true;
+      Promise.resolve(onHistory({ before, interval: selected.dataset.interval, seriesKey })).then((rows) => {
+        if (ticket !== generation || !Array.isArray(rows)) return;
+        const older = rows.filter((row) => row._id < before);
+        if (!older.length) historyEnd = true;
+        else {
+          candles = older.concat(candles);
+          retainedHistory = true;
+        }
+      }).catch(() => {}).finally(() => {
+        if (ticket !== generation) return;
+        loading = false;
+        draw();
+      });
+    }
+
+    function clearSeries() {
+      generation += 1;
+      loading = false;
+      historyEnd = false;
+      retainedHistory = false;
+      pointers.clear();
+      drag = null;
+      candles = [];
     }
 
     function showSummary(row) {
@@ -46,15 +107,17 @@
       const ctx = canvas.getContext("2d");
       ctx.scale(ratio, ratio);
       ctx.font = "11px system-ui";
-      const left = 13, right = width - 52, top = 16, bottom = height - (volume ? 53 : 28);
-      const { last, full, visible } = limits();
-      offset = clamp(offset, 0, full - visible);
-      const end = last + ms - offset * ms;
+      const right = width - rightGutter, top = 16, bottom = height - (volume ? 53 : 28);
+      const { last, full, visible, pad, maxOffset } = limits();
+      offset = clamp(offset, 0, maxOffset);
+      const end = last + (1 + pad - offset) * ms;
       const start = end - visible * ms;
       const rows = candles.filter((row) => row._id + ms / 2 >= start && row._id + ms / 2 < end);
       const prices = rows.flatMap((row) => [row.low, row.high]);
-      const min = prices.length ? Math.max(0, Math.min(...prices) - 8) : 0;
-      const max = prices.length ? Math.min(1000, Math.max(...prices) + 8) : 1000;
+      renderedRange = priceRange || (prices.length
+        ? [Math.max(0, Math.min(...prices) - 8), Math.min(1000, Math.max(...prices) + 8)]
+        : [0, 1000]);
+      const [min, max] = renderedRange;
       const x = (value) => left + (right - left) * (value - start) / (end - start);
       const y = (value) => bottom - (bottom - top) * (value - min) / (max - min);
       const spacing = (right - left) / visible;
@@ -80,6 +143,10 @@
           ctx.fillText(ms >= 3600000 ? calendar.format(new Date(at)) : clock.format(new Date(at)), x(at), height - 5);
         }
       }
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(left, top, right - left, bottom - top + (volume ? 30 : 0));
+      ctx.clip();
       for (const row of rows) {
         const at = x(row._id + ms / 2);
         ctx.strokeStyle = row.close >= row.open ? "#4cd2ac" : "#f580a0";
@@ -96,6 +163,7 @@
           ctx.globalAlpha = 1;
         }
       }
+      ctx.restore();
       if (averages && rows.length) {
         ctx.save();
         ctx.beginPath();
@@ -114,10 +182,11 @@
         }
         ctx.restore();
       }
-      const hovered = hoveredAt == null || drag ? null : rows.reduce((nearest, row) => (
-        !nearest || Math.abs(x(row._id + ms / 2) - hoveredAt) < Math.abs(x(nearest._id + ms / 2) - hoveredAt)
+      const hoverInPlot = hover && !drag && hover.x >= left && hover.x <= right && hover.y >= top && hover.y <= bottom;
+      const hovered = hoverInPlot ? rows.reduce((nearest, row) => (
+        !nearest || Math.abs(x(row._id + ms / 2) - hover.x) < Math.abs(x(nearest._id + ms / 2) - hover.x)
           ? row : nearest
-      ), null);
+      ), null) : null;
       if (hovered) {
         const at = x(hovered._id + ms / 2);
         ctx.strokeStyle = "#77849b";
@@ -125,36 +194,61 @@
         ctx.beginPath();
         ctx.moveTo(at, top);
         ctx.lineTo(at, bottom);
+        ctx.moveTo(left, hover.y);
+        ctx.lineTo(right, hover.y);
         ctx.stroke();
         ctx.setLineDash([]);
+        const price = max - (max - min) * (hover.y - top) / (bottom - top);
+        ctx.fillStyle = "#353e50";
+        ctx.fillRect(right + 1, hover.y - 9, rightGutter - 1, 18);
+        ctx.fillStyle = "#f1f4fa";
+        ctx.fillText(number.format(price), right + 6, hover.y + 4);
       }
       showSummary(hovered || rows.at(-1) || candles.at(-1));
       zoomIn.disabled = !candles.length || visible <= 3;
-      zoomOut.disabled = !candles.length || visible >= full;
-      zoomReset.disabled = !candles.length || (span === 60 && offset === 0);
+      zoomOut.disabled = !candles.length || (visible >= full && (!onHistory || historyEnd));
+      zoomReset.disabled = !candles.length || (span === 60 && offset === 0 && !priceRange);
+      scaleAuto.setAttribute("aria-pressed", String(!priceRange));
+      scaleAuto.disabled = !candles.length || !priceRange;
     }
 
     function zoom(factor, anchor) {
       if (!candles.length) return;
-      const { full, visible } = limits();
-      const next = clamp(Math.round(visible * factor), 3, full);
-      offset += (visible - next) * (1 - anchor);
+      const { full, visible, pad } = limits();
+      const requested = visible * factor;
+      const next = clamp(requested, 3, full);
+      offset += rightPad(next) - pad + (visible - next) * (1 - anchor);
       span = next;
       draw();
+      fetchHistory(requested > full);
     }
 
     function reset() {
       span = 60;
       offset = 0;
-      hoveredAt = null;
+      hover = null;
+      priceRange = null;
       draw();
+    }
+
+    function beginDrag() {
+      const points = [...pointers.values()];
+      const { visible, pad } = limits();
+      if (points.length === 2) {
+        const [a, b] = points;
+        drag = { mode: "pinch", gap: Math.hypot(a.x - b.x, a.y - b.y), anchor: anchorAt((a.x + b.x) / 2),
+          visible, pad, offset };
+      } else if (points.length === 1) {
+        const [point] = points;
+        drag = { mode: point.x >= left + plotWidth() ? "price" : "pan", point, visible, offset, range: renderedRange };
+      } else drag = null;
     }
 
     for (const button of buttons) button.addEventListener("click", () => {
       if (button !== selected) {
         selected = button;
         ms = Number(button.dataset.ms);
-        candles = [];
+        clearSeries();
         for (const item of buttons) item.setAttribute("aria-pressed", String(item === button));
         toolbar.querySelector("[data-interval-menu]").textContent = button.closest("details") ? `더 보기 · ${button.textContent}` : "더 보기";
         reset();
@@ -163,41 +257,94 @@
       const details = button.closest("details");
       if (details) details.open = false;
     });
-    zoomIn.addEventListener("click", () => zoom(.72, .6));
-    zoomOut.addEventListener("click", () => zoom(1.42, .6));
+    zoomIn.addEventListener("click", () => zoom(.75, .5));
+    zoomOut.addEventListener("click", () => zoom(1.33, .5));
     zoomReset.addEventListener("click", reset);
-    canvas.addEventListener("wheel", (event) => {
-      if (!candles.length || !event.deltaY) return;
-      event.preventDefault();
-      zoom(event.deltaY < 0 ? .85 : 1.18, clamp(event.offsetX / canvas.clientWidth, 0, 1));
-    }, { passive: false });
-    canvas.addEventListener("pointerdown", (event) => {
-      if (!candles.length || event.button !== 0) return;
-      drag = { x: event.clientX, offset };
-      canvas.setPointerCapture(event.pointerId);
-    });
-    canvas.addEventListener("pointermove", (event) => {
-      hoveredAt = event.offsetX;
-      if (drag) offset = drag.offset + (event.clientX - drag.x) * limits().visible / Math.max(1, canvas.clientWidth - 65);
+    scaleAuto.addEventListener("click", () => { priceRange = null; draw(); });
+    canvas.addEventListener("dblclick", (event) => {
+      if (pointer(event).x < left + plotWidth()) return;
+      priceRange = null;
       draw();
     });
-    for (const type of ["pointerup", "pointercancel", "lostpointercapture", "pointerleave"]) {
-      canvas.addEventListener(type, () => {
-        drag = null;
-        hoveredAt = null;
+    canvas.addEventListener("wheel", (event) => {
+      if (!candles.length || (!event.deltaX && !event.deltaY)) return;
+      const point = pointer(event);
+      if (point.x >= left + plotWidth()) return;
+      event.preventDefault();
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1;
+      if (!event.ctrlKey && Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+        offset -= event.deltaX * unit * limits().visible / plotWidth();
+        draw();
+        fetchHistory();
+      } else {
+        zoom(Math.exp(clamp(event.deltaY * unit, -320, 320) * .0017), anchorAt(point.x));
+      }
+    }, { passive: false });
+    canvas.addEventListener("pointerdown", (event) => {
+      if (!candles.length || (event.pointerType !== "touch" && event.button !== 0) || pointers.size >= 2) return;
+      pointers.set(event.pointerId, pointer(event));
+      canvas.setPointerCapture(event.pointerId);
+      beginDrag();
+    });
+    canvas.addEventListener("pointermove", (event) => {
+      const point = pointer(event);
+      hover = point;
+      canvas.style.cursor = drag ? (drag.mode === "price" ? "ns-resize" : "grabbing")
+        : point.x >= left + plotWidth() ? "ns-resize" : "crosshair";
+      if (pointers.has(event.pointerId)) {
+        pointers.set(event.pointerId, point);
+        if (drag?.mode === "pinch") {
+          const [a, b] = [...pointers.values()];
+          const gap = Math.hypot(a.x - b.x, a.y - b.y);
+          const full = limits().full;
+          const requested = drag.visible * drag.gap / Math.max(10, gap);
+          const next = clamp(requested, 3, full);
+          if (requested > full) fetchHistory(true);
+          offset = drag.offset - drag.pad + rightPad(next) + drag.visible * (1 - drag.anchor)
+            - next * (1 - anchorAt((a.x + b.x) / 2));
+          span = next;
+        } else if (drag?.mode === "price") {
+          const height = Math.max(80, canvas.clientHeight - (volume ? 69 : 44));
+          const [min, max] = drag.range;
+          const at = clamp((drag.point.y - 16) / height, 0, 1);
+          const anchor = max - (max - min) * at;
+          const size = clamp((max - min) * Math.exp((point.y - drag.point.y) / height), 2, 2000);
+          priceRange = [anchor - size * (1 - at), anchor + size * at];
+        } else if (drag?.mode === "pan") {
+          offset = drag.offset + (point.x - drag.point.x) * drag.visible / plotWidth();
+        }
+      }
+      draw();
+      if (drag?.mode === "pan" || drag?.mode === "pinch") fetchHistory();
+    });
+    for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+      canvas.addEventListener(type, (event) => {
+        if (pointers.delete(event.pointerId)) beginDrag();
+        hover = null;
         draw();
       });
     }
+    canvas.addEventListener("pointerleave", () => { hover = null; draw(); });
     new ResizeObserver(draw).observe(canvas);
 
     return {
       get interval() { return selected.dataset.interval; },
       reset,
-      update(rows) {
-        if (offset > 0 && candles.length && rows.length) {
-          offset += (rows.at(-1)._id - candles.at(-1)._id) / ms;
+      update(rows, key = "") {
+        if (key !== seriesKey) {
+          seriesKey = key;
+          clearSeries();
+          reset();
         }
-        candles = rows;
+        if (offset > 0 && candles.length && rows.length) {
+          const advanced = (rows.at(-1)._id - candles.at(-1)._id) / ms;
+          offset += advanced;
+          if (drag) drag.offset += advanced;
+        }
+        if (retainedHistory || offset > 0) {
+          const unique = new Map(candles.concat(rows).map((row) => [row._id, row]));
+          candles = [...unique.values()].sort((a, b) => a._id - b._id).slice(-maxHistory);
+        } else candles = rows;
         draw();
       },
     };

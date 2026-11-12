@@ -9,7 +9,7 @@ const { saveSchedule, saveMinimum, syncWeeklyMarkets, seoulInput, calculateSampl
 const { dashboardState } = require("../services/exchangeDashboardService");
 const { OPTIONS } = require("../services/exchangeChartService");
 const { mpiState, startMpiDemo } = require("../services/exchangeMpiService");
-const { terminalState, runExchangeTick } = require("../services/exchangeService");
+const { terminalState, futuresChartHistory, runExchangeTick } = require("../services/exchangeService");
 const { placeOrder, cancelOrder, registerResult, voidMarket, processMarket } = require("../services/exchangeTradingService");
 const { ExchangeMarket, ExchangeWallet, ExchangeTrade, ExchangeTick } = models;
 
@@ -71,6 +71,8 @@ async function testHttp() {
       assert.ok(html.includes(`data-interval="${code}"`));
     }
     assert.match(mpiHtml, /aria-label="차트 확대"/);
+    assert.match(mpiHtml, /aria-label="가격축 자동 스케일"/);
+    assert.equal((await fetch(`${origin}/api/exchange/mpi?before=0`)).status, 400);
     const guestDashboard = await fetch(`${origin}/exchange/dashboard`, { redirect: "manual" });
     assert.equal(guestDashboard.status, 302);
     const dashboard = await fetch(`${origin}/exchange/dashboard`, { headers: { Cookie: student } });
@@ -175,7 +177,19 @@ async function main() {
     assert.equal(demoState.source, "demo");
     assert.equal(demoState.latest.populationCount, 90);
     assert.ok(new Set(demoState.candles.map((candle) => candle.close)).size > 10);
-    assert.ok(demoState.candles.every((candle) => candle.open === candle.high && candle.low === candle.close && candle.open === candle.close));
+    assert.ok(demoState.candles.some((row) => row.open !== row.close));
+    demoState.candles.slice(1).forEach((row, index) => {
+      assert.equal(row.open, demoState.candles[index].close);
+      assert.equal(row.high, Math.max(row.open, row.close));
+      assert.equal(row.low, Math.min(row.open, row.close));
+    });
+    const liveNow = new Date(+midweek + 250_000);
+    const recent = await mpiState({ marketId: weekly._id, now: liveNow });
+    const before = new Date(recent.candles[0]._id);
+    const earlier = await mpiState({ marketId: weekly._id, before, now: liveNow });
+    assert.equal(earlier.candles.length, 120);
+    assert.equal(earlier.candles.at(-1)._id + 1000, recent.candles[0]._id);
+    assert.equal(earlier.candles.at(-1).close, recent.candles[0].open);
     const larger = await mpiState({ marketId: weekly._id, interval: "15m", now: sampleNow });
     assert.equal(larger.candles.length, 1);
     assert.equal(larger.candles[0].open, demoState.candles[0].open);
@@ -203,6 +217,9 @@ async function main() {
     const lastCandle = nextOfficial.candles.at(-1);
     assert.deepEqual([lastCandle.open, lastCandle.high, lastCandle.low, lastCandle.close], [700, 720, 680, 710]);
     assert.equal(nextOfficial.source, "official");
+    const secondCandles = await mpiState({ marketId: weekly._id, interval: "1s", now: new Date(+publishedAt + 3000) });
+    assert.deepEqual(secondCandles.candles.map(({ open, high, low, close }) => [open, high, low, close]),
+      [[700, 700, 700, 700], [700, 720, 700, 720], [720, 720, 680, 680], [680, 710, 680, 710]]);
 
 
     const sell = await order(weekly, seller, "short", 640, 2, midweek);
@@ -234,6 +251,9 @@ async function main() {
     assert.equal(buyerDashboard.total, 2040);
     const tradeCandles = await terminalState({ marketId: String(weekly._id), interval: "1s", now: midweek });
     assert.deepEqual(tradeCandles.candles.map((row) => [row.open, row.high, row.low, row.close]), [[640, 680, 640, 680]]);
+    const priorTrades = await futuresChartHistory(weekly._id, "1s", new Date(+midweek + 1000), midweek);
+    assert.deepEqual(priorTrades, tradeCandles.candles);
+    assert.deepEqual(await futuresChartHistory(weekly._id, "1s", midweek, midweek), []);
     await assert.rejects(order(weekly, nextBuyer, "long", 650, 1, weekClose), { status: 409 });
 
     await PrivateMockExam.updateOne({ _id: exam._id }, { $set: { status: "locked", settlementCompletedAt: weekClose } });

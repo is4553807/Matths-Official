@@ -12,7 +12,18 @@
 
   let state = JSON.parse(root.dataset.state);
   let selected = state.market?.id;
-  const chart = window.MatthsExchangeChart.create(canvas, { onInterval: () => { void refresh(); } });
+  const chart = window.MatthsExchangeChart.create(canvas, {
+    onInterval: () => { void refresh(); },
+    async onHistory({ before, interval, seriesKey }) {
+      const [market, source] = seriesKey.split(":");
+      if (!market) return null;
+      const query = new URLSearchParams({ market, before: String(before), interval });
+      const response = await fetch(`/api/exchange/mpi?${query}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("MPI history unavailable");
+      const result = await response.json();
+      return result.source === source ? result.candles : null;
+    },
+  });
   let request = 0;
   let polling = false;
 
@@ -37,7 +48,7 @@
     text("mpi-count", latest ? `${latest.populationCount}명 / ${latest.sampleCount}명` : "—");
     text("mpi-time", latest ? time.format(new Date(latest.sampledAt)) : "—");
     get("mpi-empty").hidden = Boolean(state.candles.length);
-    chart.update(state.candles);
+    chart.update(state.candles, state.market ? `${state.market.id}:${state.source}` : "");
   }
 
   async function refresh() {

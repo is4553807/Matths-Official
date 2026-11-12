@@ -31,6 +31,18 @@ function pushPrice(candles, at, price, ms) {
   }
 }
 
+// A sampled index holds its last value until the next calculation.
+function indexCandles(rows, ms) {
+  if (ms !== 1000 || !rows.length) return rows;
+  const cutoff = candleWindow(rows.at(-1)._id, ms);
+  return rows.map((row, index) => {
+    const previous = rows[index - 1];
+    if (previous?._id + ms !== row._id) return row;
+    const open = previous.close;
+    return { ...row, open, high: Math.max(open, row.high), low: Math.min(open, row.low) };
+  }).filter((row) => row._id >= cutoff);
+}
+
 async function aggregateCandles(model, { match, dateField, priceField, ms, volume = false }) {
   const price = `$${priceField}`;
   const shifted = { $add: [{ $toLong: `$${dateField}` }, KST] };
@@ -46,4 +58,4 @@ async function aggregateCandles(model, { match, dateField, priceField, ms, volum
   ]);
 }
 
-module.exports = { OPTIONS, DEFAULT_INTERVAL, MAX_CANDLES, intervalFor, candleWindow, pushPrice, aggregateCandles };
+module.exports = { OPTIONS, DEFAULT_INTERVAL, MAX_CANDLES, intervalFor, candleWindow, pushPrice, indexCandles, aggregateCandles };

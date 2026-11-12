@@ -3,7 +3,7 @@ const { calculateSample, error, publicState, readWeeklyExam, weeklyExamReady } =
 const { marketList, marketView } = require("./exchangeService");
 
 const DEMO_VARIATION = [-13, 4, -8, 7, 1, -3, 12, -9, 6, -2];
-const { intervalFor, candleWindow, pushPrice, aggregateCandles } = require("./exchangeChartService");
+const { intervalFor, candleWindow, pushPrice, indexCandles, aggregateCandles } = require("./exchangeChartService");
 const chartCache = new Map();
 
 function storeChart(key, value) {
@@ -69,7 +69,7 @@ function demoChart(demo, now, interval) {
   const key = `demo:${demo._id}:${+demo.startedAt}:${interval.code}`;
   const last = chartCache.get(key);
   if (last?.through === elapsed) return last;
-  const cutoff = candleWindow(now, interval.ms);
+  const cutoff = candleWindow(now, interval.ms) - (interval.code === "1s" ? 1000 : 0);
   const first = Math.max(0, Math.ceil((cutoff - +demo.startedAt) / 1000));
   const reusable = last && last.through < elapsed && last.through >= first;
   const candles = reusable ? last.candles.filter((row) => row._id >= cutoff).map((row) => ({ ...row })) : [];
@@ -80,12 +80,12 @@ function demoChart(demo, now, interval) {
     if (tick.mpi !== null) pushPrice(candles, tick.sampledAt, tick.mpi, interval.ms);
   }
   const value = { through: elapsed, candles, latest: tick };
-  storeChart(key, value);
+  if (!last || last.through <= elapsed) storeChart(key, value);
   return value;
 }
 
 async function officialChart(marketId, now, latest, interval) {
-  const cutoff = candleWindow(latest.sampledAt, interval.ms);
+  const cutoff = candleWindow(latest.sampledAt, interval.ms) - (interval.code === "1s" ? 1000 : 0);
   const through = +latest.sampledAt;
   const key = `official:${marketId}:${interval.code}`;
   const last = chartCache.get(key);
@@ -113,7 +113,7 @@ async function officialChart(marketId, now, latest, interval) {
   return candles;
 }
 
-async function mpiState({ marketId, interval: requestedInterval, now = new Date() } = {}) {
+async function mpiState({ marketId, interval: requestedInterval, before, now = new Date() } = {}) {
   const interval = intervalFor(requestedInterval);
   const choices = (await marketList(now)).filter((market) => market.type === "weekly");
   const selected = marketId ? choices.find((market) => String(market._id) === String(marketId))
@@ -123,19 +123,24 @@ async function mpiState({ marketId, interval: requestedInterval, now = new Date(
   const base = { market: selected ? marketView(selected, now) : null, markets, interval: interval.code };
   if (!selected) return { ...base, latest: null, candles: [], source: "official" };
 
-  const latest = await ExchangeTick.findOne({
-    marketId: selected._id, publishAt: { $lte: now }, mpi: { $gte: 0 },
-  }).sort({ publishAt: -1 }).select("mpi sampledAt publishAt populationCount sampleCount").lean();
+  const visible = { marketId: selected._id, publishAt: { $lte: now }, mpi: { $gte: 0 } };
+  const latest = await ExchangeTick.findOne(visible).sort({ publishAt: -1 })
+    .select("mpi sampledAt publishAt populationCount sampleCount").lean();
   if (latest) {
-    return { ...base, latest, candles: await officialChart(selected._id, now, latest, interval), source: "official" };
+    const anchor = before ? await ExchangeTick.findOne({ ...visible, sampledAt: { $lt: before } })
+      .sort({ sampledAt: -1 }).select("sampledAt").lean() : latest;
+    const rows = anchor ? await officialChart(selected._id, now, anchor, interval) : [];
+    return { ...base, latest, candles: indexCandles(rows, interval.ms), source: "official" };
   }
   if (publicState(selected, now) === "open") {
     const preview = await ExchangeMpiDemo.findOne({
       _id: selected._id, examId: selected.examId, startedAt: { $lte: now }, expiresAt: { $gt: now },
     }).lean();
     if (preview) {
-      const { latest: demoLatest, candles } = demoChart(preview, now, interval);
-      return { ...base, latest: demoLatest, candles, source: "demo" };
+      const anchor = before ? new Date(Math.min(+before - 1, +now)) : now;
+      if (anchor < preview.startedAt) return { ...base, latest: null, candles: [], source: "demo" };
+      const { latest: demoLatest, candles } = demoChart(preview, anchor, interval);
+      return { ...base, latest: demoLatest, candles: indexCandles(candles, interval.ms), source: "demo" };
     }
   }
   return { ...base, latest: null, candles: [], source: "official" };
