@@ -63,7 +63,7 @@ Cloudflare DNS에서 네 서브도메인은 Cloudtype이 안내한 CNAME 대상�
 
 ## Exchange 서브도메인 연결
 
-주간 정규 시험을 `WEEKLY` 한 회차로 등록하는 변경과 Exchange를 함께 배포한다. 먼저 기존 학생 호스트의 `/exchange`가 응답하는지 확인한다. 주간 시험이 없는 주에는 `GET /api/exchange/markets/current`에서 주간 시장이 비어 있어야 한다.
+주간 정규 시험을 `WEEKLY` 한 회차로 등록하는 변경과 Exchange를 함께 배포한다. 배포 시작 시 아직 공개되지 않은 A/B/C 예약이 있으면 주차별 첫 회차를 WEEKLY로 옮기고 나머지 예약을 취소한다. 이 동작은 DB에 반영되므로 승인 전에 운영센터에서 예정 회차를 대조한다. 먼저 기존 학생 호스트의 `/exchange`가 응답하는지 확인한다. 주간 시험이 없는 주에는 `GET /api/exchange/markets/current`에서 주간 시장이 비어 있어야 한다.
 
 1. 기존 Cloudtype 서비스의 Ingress에서 `exchange.matths.kr` 연결을 선택하고 표시된 DNS 대상을 확인한다.
 2. Cloudflare `matths.kr`의 DNS Records에 이름 `exchange`로 CNAME을 추가한다. 대상은 Cloudtype이 표시한 값이며 프록시는 **DNS only**로 둔다. Cloudtype이 소유권 확인을 요구하면 기존 TXT 상태를 확인한다. [Cloudtype 도메인 연결](https://docs.cloudtype.dev/ko/developers/domain)
