@@ -9,7 +9,7 @@ const ROUNDS = Object.freeze({
   3: ["3", "5", "6", "7", "9", "10", "csat"],
 });
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-const SAMPLE_DELAY_MS = 30 * 60 * 1000;
+const SAMPLE_LOOKBACK_MS = 30 * 60 * 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function error(status, message) {
@@ -223,20 +223,43 @@ function calculateSample(attempts, pick = randomInt) {
     populationCount: attempts.length, sampleCount };
 }
 
+function sampleDataCutoffAt(sampledAt) {
+  return new Date(+sampledAt - SAMPLE_LOOKBACK_MS);
+}
+
+async function publicSampleScope(marketId, now) {
+  const time = { marketId, publishAt: { $lte: now } };
+  const firstCurrent = await ExchangeTick.findOne({ ...time, dataCutoffAt: { $exists: true } })
+    .sort({ publishAt: 1 }).select("publishAt").lean();
+  const startsAt = firstCurrent?.publishAt;
+  // Keep the old chart history while dropping old ticks queued after the first live calculation.
+  const filter = startsAt ? { ...time, $or: [
+    { dataCutoffAt: { $exists: true } },
+    { dataCutoffAt: { $exists: false }, publishAt: { $lt: startsAt } },
+  ] } : time;
+  return { filter, startsAt };
+}
+
+function sampleWithCutoff(sample) {
+  return sample ? { ...sample, dataCutoffAt: sample.dataCutoffAt ?? sample.sampledAt } : sample;
+}
+
 async function saveSample(market, now = new Date()) {
   if (market.type !== "weekly" || now < market.opensAt || now >= market.closeAt) return;
   const exam = await readWeeklyExam(market.examId);
   if (exam?.status !== "open" || !await weeklyExamReady(exam)) return;
   const sampledAt = new Date(Math.floor(+now / 1000) * 1000);
-  const attempts = await PrivateMockExamAttempt.find(validAttempts(exam, sampledAt))
+  const dataCutoffAt = sampleDataCutoffAt(sampledAt);
+  const attempts = await PrivateMockExamAttempt.find(validAttempts(exam, dataCutoffAt))
     .select("score exchangeMmrGrade").lean();
   const sample = calculateSample(attempts);
   await ExchangeTick.updateOne({ marketId: market._id, sampledAt }, {
-    $setOnInsert: { ...sample, publishAt: new Date(+sampledAt + SAMPLE_DELAY_MS), expiresAt: new Date(+sampledAt + WEEK_MS * 2) },
+    $setOnInsert: { ...sample, dataCutoffAt, publishAt: sampledAt, expiresAt: new Date(+sampledAt + WEEK_MS * 2) },
   }, { upsert: true });
 }
 
 module.exports = {
   ROUNDS, error, integer, seoulInput, seoulDate, scheduleInput, readWeeklyExam, weeklyExamReady, validAttempts,
-  readSetting, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, setPaused, calculateSample, saveSample,
+  readSetting, publicState, syncWeeklyMarkets, saveSchedule, saveMinimum, setPaused, calculateSample,
+  sampleDataCutoffAt, publicSampleScope, sampleWithCutoff, saveSample,
 };

@@ -1,5 +1,7 @@
 const { ExchangeMarket, ExchangeMpiDemo, ExchangeTick } = require("../models/exchangeModel");
-const { calculateSample, error, publicState, readWeeklyExam, weeklyExamReady } = require("./exchangeMarketService");
+const {
+  calculateSample, error, publicState, readWeeklyExam, weeklyExamReady, sampleDataCutoffAt, publicSampleScope, sampleWithCutoff,
+} = require("./exchangeMarketService");
 const { marketList, marketView } = require("./exchangeService");
 
 const DEMO_VARIATION = [-13, 4, -8, 7, 1, -3, 12, -9, 6, -2];
@@ -60,7 +62,7 @@ function sampleFor(demo) {
       mpi: Math.round(grades.reduce((sum, scores) => sum + scores[pick(scores.length)], 0) * 1000 / 9) / 100,
       populationCount: 90, sampleCount: 9,
     } : calculateSample(demo.attempts.filter((attempt) => attempt.offsetSeconds <= second), pick);
-    return { ...sample, sampledAt, publishAt: sampledAt };
+    return { ...sample, sampledAt, dataCutoffAt: sampleDataCutoffAt(sampledAt), publishAt: sampledAt };
   };
 }
 
@@ -84,19 +86,19 @@ function demoChart(demo, now, interval) {
   return value;
 }
 
-async function officialChart(marketId, now, latest, interval) {
-  const cutoff = candleWindow(latest.sampledAt, interval.ms) - (interval.code === "1s" ? 1000 : 0);
-  const through = +latest.sampledAt;
-  const key = `official:${marketId}:${interval.code}`;
+async function officialChart(visible, startsAt, now, latest, interval) {
+  const cutoff = candleWindow(latest.publishAt, interval.ms) - (interval.code === "1s" ? 1000 : 0);
+  const through = +latest.publishAt;
+  const key = `official:${visible.marketId}:${interval.code}:${startsAt ? +startsAt : "legacy"}`;
   const last = chartCache.get(key);
   if (last?.through === through && +now - last.updated < 60_000) return last.candles;
   const reusable = last && last.through < through && last.through >= cutoff && +now - last.updated < 60_000;
   const additions = await aggregateCandles(ExchangeTick, {
     match: {
-      marketId, publishAt: { $lte: now }, mpi: { $gte: 0 },
-      sampledAt: { ...(reusable ? { $gt: new Date(last.through) } : { $gte: new Date(cutoff) }), $lte: latest.sampledAt },
+      ...visible,
+      publishAt: { ...(reusable ? { $gt: new Date(last.through) } : { $gte: new Date(cutoff) }), $lte: latest.publishAt },
     },
-    dateField: "sampledAt", priceField: "mpi", ms: interval.ms,
+    dateField: "publishAt", priceField: "mpi", ms: interval.ms,
   });
   const candles = reusable ? last.candles.filter((row) => row._id >= cutoff).map((row) => ({ ...row })) : [];
   for (const row of additions) {
@@ -123,14 +125,15 @@ async function mpiState({ marketId, interval: requestedInterval, before, now = n
   const base = { market: selected ? marketView(selected, now) : null, markets, interval: interval.code };
   if (!selected) return { ...base, latest: null, candles: [], source: "official" };
 
-  const visible = { marketId: selected._id, publishAt: { $lte: now }, mpi: { $gte: 0 } };
+  const { filter, startsAt } = await publicSampleScope(selected._id, now);
+  const visible = { ...filter, mpi: { $gte: 0 } };
   const latest = await ExchangeTick.findOne(visible).sort({ publishAt: -1 })
-    .select("mpi sampledAt publishAt populationCount sampleCount").lean();
+    .select("mpi sampledAt dataCutoffAt publishAt populationCount sampleCount").lean();
   if (latest) {
-    const anchor = before ? await ExchangeTick.findOne({ ...visible, sampledAt: { $lt: before } })
-      .sort({ sampledAt: -1 }).select("sampledAt").lean() : latest;
-    const rows = anchor ? await officialChart(selected._id, now, anchor, interval) : [];
-    return { ...base, latest, candles: indexCandles(rows, interval.ms), source: "official" };
+    const anchor = before ? await ExchangeTick.findOne({ ...visible, publishAt: { $lte: now, $lt: before } })
+      .sort({ publishAt: -1 }).select("publishAt").lean() : latest;
+    const rows = anchor ? await officialChart(visible, startsAt, now, anchor, interval) : [];
+    return { ...base, latest: sampleWithCutoff(latest), candles: indexCandles(rows, interval.ms), source: "official" };
   }
   if (publicState(selected, now) === "open") {
     const preview = await ExchangeMpiDemo.findOne({

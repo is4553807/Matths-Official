@@ -41,12 +41,13 @@
     select.value = state.market?.id || "";
     get("mpi-select-wrap").hidden = !state.markets.length;
     text("mpi-market-name", state.market?.title || "맵쓰 주간 모의고사");
-    text("mpi-source", isDemo ? "시연 데이터" : "30분 지연 · 공식 표본");
-    text("mpi-note", isDemo ? "시연용 더미 계정의 점수로 계산한 지수입니다." : "유효 응시자의 평균 원점수를 0–1,000 범위로 표시합니다.");
+    text("mpi-source", isDemo ? "시연 데이터" : "공식 표본");
+    text("mpi-note", isDemo ? "시연용 더미 계정의 점수로 계산한 지수입니다." : "계산 시각의 30분 전까지 제출된 유효 성적으로 MPI를 계산합니다.");
     text("mpi-value", hasValue ? number.format(latest.mpi) : "—");
     text("mpi-score", hasValue ? `${number.format(latest.mpi / 10)}점` : "—");
     text("mpi-count", latest ? `${latest.populationCount}명 / ${latest.sampleCount}명` : "—");
     text("mpi-time", latest ? time.format(new Date(latest.sampledAt)) : "—");
+    text("mpi-cutoff", latest?.dataCutoffAt ? time.format(new Date(latest.dataCutoffAt)) : "—");
     get("mpi-empty").hidden = Boolean(state.candles.length);
     chart.update(state.candles, state.market ? `${state.market.id}:${state.source}` : "");
   }

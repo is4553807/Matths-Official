@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Exchange 선물시장 운영 | Matths</title>
-  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/brand/matths-exchange-x-32.png" />
+  <link rel="icon" type="image/svg+xml" sizes="any" href="/images/brand/matths-exchange-x.svg" />
   <link rel="stylesheet" href="/css/main.css" />
   <link rel="stylesheet" href="/css/admin-exchange.css" />
   <script src="/js/admin-exchange.js" defer></script>
@@ -13,7 +14,7 @@
   <%- include("partials/admin-navigation", { activePage: "exchange" }) %>
   <main class="admin-main exchange-admin">
     <header class="admin-heading">
-      <div><p>Matths Exchange</p><h1>선물시장 운영</h1><span>주간 시험 연결, 실제 시험 일정, 거래 마감과 TP 정산을 관리합니다.</span></div>
+      <div><img src="/images/brand/matths-exchange-light.svg" alt="Matths Exchange" width="157" height="50" /><h1>선물시장 운영</h1><span>주간 시험 연결, 실제 시험 일정, 거래 마감과 TP 정산을 관리합니다.</span></div>
       <a class="exchange-admin-link" href="<%= exchangeHref %>">Exchange 화면 ↗</a>
     </header>
     <% if (saved) { %><p class="exchange-admin-notice" role="status">운영 설정을 저장했습니다.</p><% } %>
@@ -90,7 +91,8 @@
               <div><dt>최종 정산 MPI</dt><dd><%= market.settlement ?? "—" %></dd></div>
               <% if (market.type === "weekly") { %>
                 <div><dt>개장 최소 인원</dt><dd><%= market.appliedMinimum ?? market.minimumAttempts %>명</dd></div>
-                <div><dt>최근 표본 공개 예정 · KST</dt><dd><%= seoulInput(market.latestTick?.publishAt).replace("T", " ") || "—" %></dd></div>
+                <div><dt>최근 표본 계산 · KST</dt><dd><%= seoulInput(market.latestTick?.sampledAt).replace("T", " ") || "—" %></dd></div>
+                <div><dt>반영 기준 · KST</dt><dd><%= seoulInput(market.latestTick?.dataCutoffAt).replace("T", " ") || "—" %></dd></div>
               <% } %>
             </dl>
             <% if (market.reason) { %><p><%= market.reason %></p><% } %>
@@ -114,7 +116,7 @@
               <form method="post" action="/admin/exchange/markets/<%= market.id %>/mpi-demo" class="exchange-admin-form inline">
                 <button type="submit" name="action" value="start">더미 계정 MPI 시연</button>
                 <button type="submit" name="action" value="remove">시연 데이터 삭제</button>
-                <p>시연 점수는 MPI 화면의 시연 탭에서만 사용합니다.</p>
+                <p>공식 표본이 없는 동안 MPI 화면에 시연 데이터가 표시됩니다.</p>
               </form>
             <% } %>
             <% if (market.status === "awaiting-result") { %>

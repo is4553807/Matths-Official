@@ -5,6 +5,7 @@ const {
 } = models;
 const {
   publicState, validAttempts, weeklyExamReady, readWeeklyExam, readSetting, syncWeeklyMarkets, saveSample,
+  publicSampleScope, sampleWithCutoff,
 } = require("./exchangeMarketService");
 const { INITIAL_TP, TP_SCALE, processMarket } = require("./exchangeTradingService");
 const { withSchedulerLease } = require("./schedulerLeaseService");
@@ -85,6 +86,14 @@ async function ownMarketState(market, userId, now) {
     })) };
 }
 
+async function marketSamples(market, now, limit) {
+  if (market.type !== "weekly") return [];
+  const { filter } = await publicSampleScope(market._id, now);
+  const ticks = await ExchangeTick.find(filter).sort({ publishAt: -1 }).limit(limit)
+    .select("mpi sampledAt dataCutoffAt publishAt populationCount sampleCount").lean();
+  return ticks.map(sampleWithCutoff);
+}
+
 async function terminalState({ marketId, userId, interval = "1m", marketType, now = new Date() } = {}) {
   const list = await marketList(now);
   const choices = marketType ? list.filter((row) => row.type === marketType) : list;
@@ -110,8 +119,7 @@ async function terminalState({ marketId, userId, interval = "1m", marketType, no
     ExchangeTrade.find({ marketId: market._id }).sort({ tradedAt: -1, sequence: -1 }).limit(20)
       .select("price quantity tradedAt").lean(),
     chart(market._id, interval, new Date(Math.min(+now, +(market.lastTradeAt || market.closeAt)))),
-    ExchangeTick.find({ marketId: market._id, publishAt: { $lte: now } }).sort({ publishAt: -1 }).limit(120)
-      .select("mpi sampledAt publishAt populationCount sampleCount").lean(),
+    marketSamples(market, now, 120),
     ownMarketState(market, userId, now),
   ]);
   const side = (key, sign) => book.filter((row) => row._id.side === key)
@@ -147,9 +155,9 @@ async function adminState(year, grade, now = new Date()) {
   ]);
   const controls = [];
   for (const market of markets) {
-    const [openOrders, latestTick] = await Promise.all([
+    const [openOrders, [latestTick]] = await Promise.all([
       ExchangeOrder.countDocuments({ marketId: market._id, status: "working" }),
-      ExchangeTick.findOne({ marketId: market._id }).sort({ sampledAt: -1 }).lean(),
+      marketSamples(market, now, 1),
     ]);
     controls.push({ ...marketView(market, now), openOrders, latestTick, appliedMinimum: market.appliedMinimum,
       minimumAttempts: market.minimumAttempts ?? settings, escrow: market.escrow / TP_SCALE, reason: market.reason,

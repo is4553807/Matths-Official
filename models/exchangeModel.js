@@ -100,6 +100,7 @@ trade.index({ marketId: 1, tradedAt: -1, _id: -1 });
 const tick = new Schema({
   marketId: objectId,
   sampledAt: Date,
+  dataCutoffAt: Date,
   publishAt: Date,
   expiresAt: Date,
   mpi: Number,
@@ -108,6 +109,7 @@ const tick = new Schema({
 }, options);
 tick.index({ marketId: 1, sampledAt: 1 }, { unique: true });
 tick.index({ marketId: 1, publishAt: -1 });
+tick.index({ marketId: 1, publishAt: 1 }, { partialFilterExpression: { dataCutoffAt: { $exists: true } } });
 tick.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const mpiDemo = new Schema({
